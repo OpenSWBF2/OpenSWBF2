@@ -5,6 +5,8 @@ VisualStudioVersion = 12.0.40629.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BattlefrontII", "BattlefrontII.vcxproj", "{F303D4E6-ED54-5075-A41B-A8829D3D67C5}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OpenSWBF2Tests", "tests\OpenSWBF2Tests.vcxproj", "{6B1D2E94-3A57-4C0F-9E21-7D5A8C4F1B30}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -15,6 +17,10 @@ Global
 		{F303D4E6-ED54-5075-A41B-A8829D3D67C5}.Debug|Win32.Build.0 = Debug|Win32
 		{F303D4E6-ED54-5075-A41B-A8829D3D67C5}.Release|Win32.ActiveCfg = Release|Win32
 		{F303D4E6-ED54-5075-A41B-A8829D3D67C5}.Release|Win32.Build.0 = Release|Win32
+		{6B1D2E94-3A57-4C0F-9E21-7D5A8C4F1B30}.Debug|Win32.ActiveCfg = Debug|Win32
+		{6B1D2E94-3A57-4C0F-9E21-7D5A8C4F1B30}.Debug|Win32.Build.0 = Debug|Win32
+		{6B1D2E94-3A57-4C0F-9E21-7D5A8C4F1B30}.Release|Win32.ActiveCfg = Release|Win32
+		{6B1D2E94-3A57-4C0F-9E21-7D5A8C4F1B30}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

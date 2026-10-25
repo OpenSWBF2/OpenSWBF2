@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{6B1D2E94-3A57-4C0F-9E21-7D5A8C4F1B30}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>OpenSWBF2Tests</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v120_xp</PlatformToolset>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+    <CharacterSet>NotSet</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <PropertyGroup>
+    <TargetName>OpenSWBF2Tests</TargetName>
+    <LinkIncremental>false</LinkIncremental>
+    <GenerateManifest>false</GenerateManifest>
+    <IncludePath>$(VC_IncludePath);$(WindowsSdk_71A_IncludePath);$(DXSDK_DIR)Include</IncludePath>
+    <LibraryPath>$(VC_LibraryPath_x86);$(WindowsSdk_71A_LibraryPath_x86);$(DXSDK_DIR)Lib\x86</LibraryPath>
+    <OutDir>$(MSBuildThisFileDirectory)..\bin\Tests\$(Configuration)\</OutDir>
+    <IntDir>$(MSBuildThisFileDirectory)..\obj\Tests\$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <Optimization>MaxSpeed</Optimization>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <BufferSecurityCheck>true</BufferSecurityCheck>
+      <SDLCheck>false</SDLCheck>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <WarningLevel>Level3</WarningLevel>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)..\src;$(MSBuildThisFileDirectory)..\src\LuaFL\include;$(MSBuildThisFileDirectory)..\src\LuaFL\src;$(MSBuildThisFileDirectory);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <TargetMachine>MachineX86</TargetMachine>
+      <AdditionalDependencies>ws2_32.lib;d3dx9.lib;winmm.lib;user32.lib;advapi32.lib;kernel32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\src\PebbleFL\Common\PblCatmullRom.cpp" />
+    <ClCompile Include="..\src\PebbleFL\Common\PblFourier.cpp" />
+    <ClCompile Include="..\src\PebbleFL\Common\PblHandle.cpp" />
+    <ClCompile Include="..\src\PebbleFL\Common\PblHashTable.cpp" />
+    <ClCompile Include="..\src\PebbleFL\Common\PblHeap.cpp" />
+    <ClCompile Include="..\src\PebbleFL\Common\PblHermite.cpp" />
+    <ClCompile Include="..\src\PebbleFL\Common\PblJournal.cpp" />
+    <ClCompile Include="..\src\PebbleFL\Common\PblMath.cpp" />
+    <ClCompile Include="..\src\PebbleFL\Common\PblQuaternion.cpp" />
+    <ClCompile Include="..\src\PebbleFL\Common\PblRandom.cpp" />
+    <ClCompile Include="..\src\PebbleFL\Common\PblRegion.cpp" />
+    <ClCompile Include="..\src\PebbleFL\Common\PblTime.cpp" />
+    <ClCompile Include="..\src\PebbleFL\Common\PblTimeBase.cpp" />
+    <ClCompile Include="..\src\PebbleFL\Common\PblTrace.cpp" />
+    <ClCompile Include="..\src\PebbleFL\Common\PblUnicode.cpp" />
+    <ClCompile Include="..\src\PebbleFL\Common\PblValues.cpp" />
+    <ClCompile Include="..\src\PebbleFL\Common\PblVector.cpp" />
+    <ClCompile Include="..\src\PebbleFL\Common\pblRef.cpp" />
+    <ClCompile Include="..\src\PebbleFL\pc\pcPblMatrix.cpp" />
+    <ClCompile Include="..\src\RedEngineFL\geometry\IntersectionOps.cpp" />
+    <ClCompile Include="..\src\RedEngineFL\geometry\PolyPolyTest2D.cpp" />
+    <ClCompile Include="..\src\RedEngineFL\geometry\Primitives.cpp" />
+    <ClCompile Include="..\src\RedEngineFL\Util\RedWarning.cpp" />
+    <ClCompile Include="..\src\RedEngineFL\Util\RedConsole.cpp" />
+    <ClCompile Include="..\src\Battlefront2\Source\NetPacket.cpp">
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+    </ClCompile>
+    <ClCompile Include="..\src\Battlefront2\Source\NetComm.cpp">
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+    </ClCompile>
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="testutil.cpp" />
+    <ClCompile Include="nettest.cpp" />
+    <ClCompile Include="stubs\*.cpp" />
+    <ClCompile Include="unit\*.cpp" />
+    <ClCompile Include="net\*.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="testutil.h" />
+    <ClInclude Include="nettest.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

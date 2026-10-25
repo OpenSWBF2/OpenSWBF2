@@ -1,0 +1,39 @@
+name: tests
+
+on:
+  push:
+    branches: [main, 'release/**']
+    tags: ['v*']
+  pull_request:
+    branches: [main, 'release/**']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, windows, v120]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          clean: true
+      - name: Build and run tests
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\run.ps1
+      - name: Runner self-test
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\selftest.ps1
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: failure() || cancelled()
+        with:
+          name: test-artifacts
+          path: artifacts/
+          if-no-files-found: ignore
+          retention-days: 7
