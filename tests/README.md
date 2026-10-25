@@ -99,3 +99,11 @@ Classes are decided in that order. Crash cases pass when the expected class, exi
 The runner prints `WARNING:` lines when the crash dump setup is missing. Import `tools\wer-localdumps.reg` once as administrator (HKLM only) so a `/GS` fast-fail leaves a dump and no Windows error dialog. The runner never writes the registry.
 
 With `-Movies` the retail `vidmode.ini` in `data\_lvl_pc` decides the video mode, so a stale or fullscreen entry can change what the run shows.
+
+## Hardening
+
+`tests\run.ps1 -Hardening` builds the game (no GameData needed) and runs only the hardening step: `dumpbin /headers` and `/loadconfig` on `bin\Win32\<SmokeConfiguration>\BattlefrontII.exe` plus a count of `/GS-` in the cl tlog. It prints one `[PASS]`/`[FAIL] hardening:<flag>` line each for dynamicbase, nxcompat, reloc, safeseh and gs, and any missing flag fails the run. dumpbin is found through `VS120COMNTOOLS`; if it is missing the run exits 2. The default run also performs this step.
+
+With GameData, `hardening:aslr-base` launches the game once and requires `MainModule.BaseAddress` to differ from 0x400000. Windows picks the base once per boot, so two launches are not compared. Without GameData the line is `[SKIP]`.
+
+`-Smoke All` reads `tests\smoke\missions-all.txt` (name and expected class: Pass, TimeOut or Fatal). TimeOut cases run the full `-SmokeTimeout` and pass only if the log shows `OPENSWBF2 MISSION RUNNING`, which the game writes on the first mission frame with `-exitongameover`. A `GsFailure` always fails.

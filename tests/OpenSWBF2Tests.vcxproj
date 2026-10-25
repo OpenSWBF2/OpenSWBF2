@@ -87,12 +87,8 @@
     <ClCompile Include="..\src\RedEngineFL\geometry\Primitives.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Util\RedWarning.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Util\RedConsole.cpp" />
-    <ClCompile Include="..\src\Battlefront2\Source\NetPacket.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="..\src\Battlefront2\Source\NetComm.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
+    <ClCompile Include="..\src\Battlefront2\Source\NetPacket.cpp" />
+    <ClCompile Include="..\src\Battlefront2\Source\NetComm.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="testutil.cpp" />
     <ClCompile Include="nettest.cpp" />

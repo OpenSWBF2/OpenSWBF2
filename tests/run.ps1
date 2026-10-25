@@ -10,15 +10,18 @@ param(
     [ValidateSet('None','Standard','Dedicated','Crash','All','Twice')][string]$Smoke = 'Standard',
     [int]$SmokeTimeout = 120,
     [string]$SmokeConfiguration = 'Release',
-    [switch]$Movies
+    [switch]$Movies,
+    [switch]$Hardening
 )
 $ErrorActionPreference = 'Stop'
 $testsDir = $PSScriptRoot
 $root = Split-Path $testsDir -Parent
 . (Join-Path $testsDir 'smoke.ps1')
 
-$smokeActive = ($Smoke -ne 'None') -and -not ($Suite -or $Filter -or $Fuzz)
-$runUnit = $Suite -or $Filter -or $Fuzz -or -not $PSBoundParameters.ContainsKey('Smoke') -or $Smoke -eq 'None'
+$hardenOnly = $Hardening -and -not $PSBoundParameters.ContainsKey('Smoke') -and -not ($Suite -or $Filter -or $Fuzz)
+$smokeActive = ($Smoke -ne 'None') -and -not ($Suite -or $Filter -or $Fuzz) -and -not $hardenOnly
+$runUnit = ($Suite -or $Filter -or $Fuzz -or -not $PSBoundParameters.ContainsKey('Smoke') -or $Smoke -eq 'None') -and -not $hardenOnly
+$hardenActive = $Hardening -or $smokeActive
 
 function Find-MSBuild {
     $msbuild = Join-Path ${env:ProgramFiles(x86)} 'MSBuild\12.0\Bin\MSBuild.exe'
@@ -161,14 +164,11 @@ if ($runUnit) {
     }
 }
 
-if ($smokeActive) {
-    $missionFile = Join-Path $testsDir 'smoke\missions.txt'
-    $missions = @()
-    if (Test-Path $missionFile) { $missions = @(Get-Content $missionFile | Where-Object { $_.Trim() }) }
-    $smokeCases = @(Get-SmokeCases $Smoke $missions $Movies.IsPresent $null)
+if ($hardenActive) {
     $exeDir = Join-Path $root "bin\Win32\$SmokeConfiguration"
+    $gameExe = Join-Path $exeDir 'BattlefrontII.exe'
     $gameDataRoot = Find-GameDataRoot
-    if ($gameDataRoot -and -not $NoBuild) {
+    if (-not $NoBuild) {
         $msbuild = Find-MSBuild
         & $msbuild (Join-Path $root 'BattlefrontII.vcxproj') "/p:Configuration=$SmokeConfiguration" '/p:Platform=Win32' /m /v:minimal /nologo
         if ($LASTEXITCODE -ne 0) { Write-Host 'Build failed.'; exit 2 }
@@ -180,6 +180,62 @@ if ($smokeActive) {
         $script:results += New-Object PSObject -Property @{ Line = $line; Final = $final; Known = $false }
     }
 
+    $dbCode = 0
+    if (-not (Test-Path -LiteralPath $gameExe)) {
+        if ($NoBuild -and -not $Hardening) { Add-SmokeResult '[SKIP] hardening:exe - not built (-NoBuild)' 'SKIP' }
+        else {
+            Add-SmokeResult "[FAIL] hardening:exe - not found: $gameExe" 'FAIL'
+            $bad++
+        }
+    }
+    else {
+        $db = Find-Dumpbin
+        $hdr = (& $db /headers $gameExe) -join "`n"
+        $dbCode = $LASTEXITCODE
+        $cfg = (& $db /loadconfig $gameExe) -join "`n"
+        if ($dbCode -eq 0) { $dbCode = $LASTEXITCODE }
+    }
+    if ($dbCode -ne 0) {
+        Add-SmokeResult "[FAIL] hardening:dumpbin - exit $dbCode" 'FAIL'
+        $bad++
+    }
+    elseif (Test-Path -LiteralPath $gameExe) {
+        $tl = Get-ClTlogCounts (Join-Path $root "obj\Win32\$SmokeConfiguration")
+        foreach ($c in (Get-HardeningChecks $hdr $cfg $tl.Total $tl.GsMinus)) {
+            if ($c.Ok) { Add-SmokeResult "[PASS] hardening:$($c.Name)" 'PASS' }
+            else {
+                Add-SmokeResult "[FAIL] hardening:$($c.Name) - $($c.Detail)" 'FAIL'
+                $bad++
+            }
+        }
+        if ($reason) {
+            $tag = 'SKIP'
+            if ($gameDataRoot -and -not $NoBuild) {
+                $tag = 'FAIL'
+                $bad++
+            }
+            Add-SmokeResult "[$tag] hardening:aslr-base - $reason" $tag
+        }
+        else {
+            $aslrDir = Join-Path $outDir 'hardening\aslr'
+            New-Item -ItemType Directory -Force -Path $aslrDir | Out-Null
+            $aslrArgs = (Get-SmokeCases 'Standard' @() $false $null)[0].Args.Replace('{CASEDIR}', $aslrDir)
+            $base = Get-ImageBase $gameExe $exeDir $aslrArgs
+            if ($base -and $base -ne 0x400000) { Add-SmokeResult ('[PASS] hardening:aslr-base (0x{0:X8})' -f $base) 'PASS' }
+            else {
+                Add-SmokeResult ('[FAIL] hardening:aslr-base - base {0}' -f $(if ($base) { '0x{0:X8}' -f $base } else { 'unreadable' })) 'FAIL'
+                $bad++
+            }
+        }
+    }
+}
+
+if ($smokeActive) {
+    $missionFile = Join-Path $testsDir 'smoke\missions.txt'
+    if ($Smoke -eq 'All') { $missionFile = Join-Path $testsDir 'smoke\missions-all.txt' }
+    $missions = @()
+    if (Test-Path $missionFile) { $missions = @(Get-Content $missionFile | Where-Object { $_.Trim() }) }
+    $smokeCases = @(Get-SmokeCases $Smoke $missions $Movies.IsPresent $null)
     if ($reason) {
         $final = 'SKIP'
         $tag = 'SKIP'
@@ -198,7 +254,9 @@ if ($smokeActive) {
         foreach ($sc in $smokeCases) {
             $caseDir = Join-Path $outDir "smoke\$($sc.Name)"
             $argLine = $sc.Args.Replace('{CASEDIR}', $caseDir)
-            $res = Invoke-SmokeCase $sc.Name $gameExe $exeDir $argLine $SmokeTimeout $caseDir
+            $caseTimeout = $SmokeTimeout
+            if ($sc.Timeout -gt 0) { $caseTimeout = $sc.Timeout }
+            $res = Invoke-SmokeCase $sc.Name $gameExe $exeDir $argLine $caseTimeout $caseDir
             $ok = Test-SmokeExpect $sc $res
             $tok = Get-SmokeToken $res.Class
             if ($ok) { $tok = 'PASS' }

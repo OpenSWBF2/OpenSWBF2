@@ -79,5 +79,44 @@ try {
 finally {
     Remove-Item -Recurse -Force $smokeTmp -ErrorAction SilentlyContinue
 }
+$goodHdr = "    Characteristics`n         102 characteristics`n    DLL characteristics`n            8140 DLL characteristics`n                   Dynamic base`n                   NX compatible`n   1C13000 [   38D38] RVA [size] of Base Relocation Directory`n  .reloc name`n"
+$cookieCfg = "            0085C930 Security Cookie`n"
+$goodCfg = "$cookieCfg            008327F0 Safe Exception Handler Table`n                 7CF Safe Exception Handler Count`n"
+$oldHdr = "    Characteristics`n         103 characteristics`n                   Relocations stripped`n                   NX compatible`n         0 [       0] RVA [size] of Base Relocation Directory`n"
+$hardScenarios = @(
+    @('hardening good text passes all', $goodHdr, $goodCfg, 736, 0, @('dynamicbase', 'nxcompat', 'reloc', 'safeseh', 'gs'), @()),
+    @('hardening old exe fails dynamicbase and reloc', $oldHdr, $goodCfg, 736, 0, @('nxcompat', 'safeseh', 'gs'), @('dynamicbase', 'reloc')),
+    @('hardening safeseh count 0 fails', $goodHdr, "$cookieCfg                 0 Safe Exception Handler Count`n", 736, 0, @('dynamicbase', 'nxcompat', 'reloc', 'gs'), @('safeseh')),
+    @('hardening missing security cookie fails gs', $goodHdr, "                 7CF Safe Exception Handler Count`n", 736, 0, @('dynamicbase', 'nxcompat', 'reloc', 'safeseh'), @('gs')),
+    @('hardening /GS- entries fail gs', $goodHdr, $goodCfg, 736, 3, @('dynamicbase', 'nxcompat', 'reloc', 'safeseh'), @('gs')),
+    @('hardening empty tlog fails gs', $goodHdr, $goodCfg, 0, 0, @('reloc', 'safeseh'), @('gs'))
+)
+foreach ($sc in $hardScenarios) {
+    $n++
+    $got = Get-HardeningChecks $sc[1] $sc[2] $sc[3] $sc[4]
+    $why = $null
+    foreach ($name in $sc[5]) { if (-not ($got | Where-Object { $_.Name -eq $name }).Ok) { $why = "$name should pass" } }
+    foreach ($name in $sc[6]) { if (($got | Where-Object { $_.Name -eq $name }).Ok) { $why = "$name should fail" } }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: $($sc[0]): $why" }
+    else { Write-Host "OK $n $($sc[0])" }
+}
+$n++
+$allCases = @(Get-SmokeCases 'All' @('foo1c_ctf TimeOut', 'tat3c_con Fatal', 'bar1c_con', 'quux1c_con Pass') $false $null)
+$byName = @{}
+foreach ($c in $allCases) { $byName[$c.Name] = $c }
+$rejected = 0
+foreach ($badLine in 'baz1c_con Bogus', 'qux1c_con GsFailure') {
+    try { Get-SmokeCases 'All' @($badLine) $false $null | Out-Null } catch { $rejected++ }
+}
+$why = $null
+if ($byName['foo1c_ctf'].Expect.Class -ne 'TimeOut' -or $byName['foo1c_ctf'].Timeout -ne 0 -or $byName['foo1c_ctf'].Expect.LogRx -ne 'OPENSWBF2 MISSION RUNNING') { $why = 'TimeOut line' }
+elseif ($byName['tat3c_con'].Expect.Class -ne 'Fatal' -or $byName['tat3c_con'].Timeout -ne 0) { $why = 'Fatal line' }
+elseif (-not $byName['tat3c_con'].Expect.LogRx -or $byName['tat3c_con'].Expect.Code -ne 3 -or $byName['tat3c_con'].Expect.MaxDumps -ne 1) { $why = 'Fatal line must pin the d3dx9 signature' }
+elseif ('FATAL: exception 0xC0000005 at 0x658FA553 (d3dx9_43.dll+0x1BA553) build 6ADE5B7C1C4C000' -notmatch $byName['tat3c_con'].Expect.LogRx) { $why = 'Fatal LogRx does not match the recorded tat3 crash' }
+elseif ($byName['bar1c_con'].Expect.Class -ne 'Pass' -or $byName['quux1c_con'].Expect.Class -ne 'Pass') { $why = 'missing or Pass class must be Pass' }
+elseif ($rejected -ne 2) { $why = 'unknown and GsFailure classes must be rejected' }
+elseif (@($allCases | Where-Object { $_.Name -like 'crash-*' }).Count -ne 7 -or -not $byName.ContainsKey('fatal-init') -or $byName['dedicated'].Timeout -ne 0) { $why = 'dedicated or crash cases changed' }
+if ($why) { $failed++; Write-Host "FAILED ${n}: all-missions parsing: $why" }
+else { Write-Host "OK $n all-missions parsing" }
 if ($failed -gt 0) { exit 1 }
 exit 0
