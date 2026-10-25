@@ -642,6 +642,7 @@ namespace SaveGameManager { void Update(float fDeltaTime); }
 namespace GameLoop { void UpdateStats(float fDeltaTime, float fSystemDeltaTime); }
 
 extern int g_InGameMoviePlayerState;
+void StopInGameMoviePlay();
 extern __int64 sLastPerformanceCount;
 extern __int64 sPerformanceCountOffset;
 extern double secondsPerPerformanceTick;
@@ -1117,6 +1118,10 @@ void Update(float fDeltaTime, float fSystemDeltaTime)
 {
     if (g_InGameMoviePlayerState)
     {
+        if (g_bNoRender)
+        {
+            StopInGameMoviePlay();
+        }
         FLInputManager::Instance()->Update(fSystemDeltaTime);
         FLRenderer::Render();
         return;
@@ -1168,6 +1173,14 @@ void Update(float fDeltaTime, float fSystemDeltaTime)
     {
         UpdateStats(fDeltaTime, fSystemDeltaTime);
         return;
+    }
+
+    static bool sbRunningLogged;
+    if (gExitOnGameOver && !sbRunningLogged)
+    {
+        sbRunningLogged = true;
+        RedWarning::SetLogData(RedWarning::RED_SEVERITY_INFORM);
+        RedWarning::LogMessage("OPENSWBF2 MISSION RUNNING %s\n", mMissionScript);
     }
 
     ScreenTransition::sInstance->Update(fSystemDeltaTime);

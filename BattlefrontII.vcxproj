@@ -57,8 +57,10 @@
       <TargetMachine>MachineX86</TargetMachine>
       <StackReserveSize>4194304</StackReserveSize>
       <StackCommitSize>4096</StackCommitSize>
-      <RandomizedBaseAddress>false</RandomizedBaseAddress>
-      <FixedBaseAddress>true</FixedBaseAddress>
+      <RandomizedBaseAddress>true</RandomizedBaseAddress>
+      <FixedBaseAddress>false</FixedBaseAddress>
+      <DataExecutionPrevention>true</DataExecutionPrevention>
+      <ImageHasSafeExceptionHandlers>true</ImageHasSafeExceptionHandlers>
       <GenerateMapFile>true</GenerateMapFile>
       <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
       <MapFileName>$(IntDir)$(TargetName).map</MapFileName>
@@ -72,1409 +74,481 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcBirdEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcBlurEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcCloth.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcColorControl.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcDecal.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcDustEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcDynamicSprite.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcFLJoystick.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcFirstPerson.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcFishEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcGodray.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcGrassPatch.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcHDREffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcHeatShimmerEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcLeafEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcLeafPatch.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcLensFlare.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcLetterboxEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcLightBeam.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcLightsaberTrailEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcLoadDisplay.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcMotionBlurEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcOrdnanceGrapplingHook.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcOrdnanceTowCable.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcPblFile.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcSaveDevice.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcSaveFile.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcScopeBlurEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcScreenFilterEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcShieldEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcSkyDome.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcSkyStars.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcSpawnDisplay.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcSunFlare.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcVideoEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Platform\Pc\pcWeatherEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\AIDebug.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\AIDifficulty.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\AIGoal.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\AIGoalManager.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\AILowLevel.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\AIUtil.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\AIVisRegion.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\ActiveRegion.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\Adrenaline.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\Agent.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\Aimer.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\AmmoCounter.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\AnimatedAddon.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\Asteroid.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\AttachedEffects.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\AttackHelper.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\AudibleManager.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\Battlefront2Lod.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\Battlefront2SceneManager.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\BirdEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\BlurEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\BonusManager.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\BootDisplay.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\BoundaryManager.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\CTFGoal.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\CTFGoalD.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcBirdEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcBlurEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcCloth.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcColorControl.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcDecal.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcDustEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcDynamicSprite.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcFLJoystick.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcFirstPerson.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcFishEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcGodray.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcGrassPatch.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcHDREffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcHeatShimmerEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcLeafEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcLeafPatch.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcLensFlare.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcLetterboxEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcLightBeam.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcLightsaberTrailEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcLoadDisplay.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcMotionBlurEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcOrdnanceGrapplingHook.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcOrdnanceTowCable.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcPblFile.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcSaveDevice.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcSaveFile.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcScopeBlurEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcScreenFilterEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcShieldEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcSkyDome.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcSkyStars.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcSpawnDisplay.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcSunFlare.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcVideoEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcWeatherEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\AIDebug.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\AIDifficulty.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\AIGoal.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\AIGoalManager.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\AILowLevel.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\AIUtil.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\AIVisRegion.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\ActiveRegion.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\Adrenaline.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\Agent.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\Aimer.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\AmmoCounter.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\AnimatedAddon.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\Asteroid.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\AttachedEffects.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\AttackHelper.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\AudibleManager.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\Battlefront2Lod.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\Battlefront2SceneManager.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\BirdEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\BlurEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\BonusManager.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\BootDisplay.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\BoundaryManager.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\CTFGoal.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\CTFGoalD.cpp" />
     <ClCompile Include="src\Battlefront2\Source\CameraManager.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\CaptureDisplay.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\ChangeClassDisplay.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\Character.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\ChaseCamera.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\ChatMessageDisplay.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\Chunk.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\Cloth.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\CmdInfo.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\CollisionBody.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\CollisionManager.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
+    <ClCompile Include="src\Battlefront2\Source\CaptureDisplay.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\ChangeClassDisplay.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\Character.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\ChaseCamera.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\ChatMessageDisplay.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\Chunk.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\Cloth.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\CmdInfo.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\CollisionBody.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\CollisionManager.cpp" />
     <ClCompile Include="src\Battlefront2\Source\CollisionMesh.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\CollisionModel.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\CollisionObject.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\CollisionPrimitive.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\CollisionUtil.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\ColorControl.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\CombatHelper.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\CombatUtil.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\Combo.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\CommandBuilding.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\CommandBuildingAnimatedArmed.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\CommandBuildingArmed.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\CommandFlyer.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\CommandFsm.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\CommandHover.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\CommandLine.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\CommandPost.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\CommandPostManager.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\CommandWalker.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\ConnectivityGraph.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\ConnectivityGraphFollower.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\ConquestGoal.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\ConsoleCommands.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\Controllable.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\Controller.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\ControllerManager.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\CoverHelper.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\CustomContent.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\DamageRegion.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\Damageable.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\DeathCamera.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\DeathmatchGoal.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\Decal.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\DefendGoal.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\DefendHelper.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\DestroyGoal.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\DisplayDroideka.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\DisplayEntity.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\DisplaySoldier.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\DownloadableContent.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\DustEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EndDisplay.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EnergyBar.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\Entity.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EntityBuilding.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EntityBuildingAnimated.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EntityBuildingAnimatedArmed.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EntityBuildingArmed.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EntityBuildingArmedDynamic.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EntityCarrier.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EntityDefenseGridTurret.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EntityDoor.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EntityDroid.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EntityDroideka.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EntityEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EntityFlyer.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EntityFormation.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EntityGeometry.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EntityHologram.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EntityHover.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EntityItem.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EntityLight.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EntityMine.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EntityPath.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EntityPathFollower.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EntityPortableTurret.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EntityProp.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EntityPropAnimated.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EntityRemoteTerminal.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EntitySoldier.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EntitySound.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EntitySoundStatic.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EntitySoundStream.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EntitySquadron.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EntityTerrain.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EntityTrap.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EntityWalker.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EntityWater.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EventManager.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EventManager_Character.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EventManager_CommandPost.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EventManager_Controllable.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EventManager_Flag.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EventManager_LuaCallback.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EventManager_LuaUser.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EventManager_Object.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EventManager_Region.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EventManager_Team.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\EventManager_Timer.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\Explosion.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\FLEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\FLGuiManager.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\FLInputManager.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\FLJoystick.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\FirstPerson.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\FishEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\FlagItem.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\FlashyTextElement.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\FlyRegion.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\FoleyFX.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\FoleyFXCollidee.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\FoleyFXCollider.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\FoleyFXGroup.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\FoleyFXOrdnance.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\FoleyFXRegion.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\FoleyFXSoldier.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\FoleyFXWalker.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\FollowGoal.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\FrameUpdate.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\FreeCamera.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\Fsm.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\GameCamera.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\GameLoop.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\GameMemory.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\GameModel.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\GameMovie.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\GameMusic.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\GameObject.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\GamePath.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\GameSound.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\GameSoundEngine.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\GameSoundParameterized.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\GameSoundStream.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\GameState.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\GameVoiceChat.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\GameVoiceChatCodec.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\GameVoiceChatDecoder.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\GameVoiceChatEncoder.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\GameVoiceChatNode.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\GameVoiceChatTransport.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\GameVoiceChatUtil.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\GamespyVoice.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\Godray.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\GrassPatch.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HDREffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HUDBorderedBox.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HUDEditor.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HUDElement.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HUDElementBar.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HUDElementBarBitmap.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HUDElementBarSegmented.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HUDElementBitmap.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HUDElementGroup.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HUDElementGroupPlayer.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HUDElementMap.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HUDElementModel3D.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HUDElementMultilineText.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HUDElementTarget.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HUDElementText.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HUDElementVehicleSeating.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HUDEnvelope.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HUDEvent.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HUDEventQueue.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HUDGameEvents.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HUDItem.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HUDManager.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HUDObjectiveList.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HUDProceduralBarBitmap.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HUDSound.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HUDTransform.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HUDTransformNameMesh.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HUDTransformNumberColor.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HUDTransformNumberColorBlend.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HUDTransformNumberType.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HUDTransformNumberVector3.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HUDViewPort.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HeatShimmerEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HeroMessageDisplay.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\HintManager.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\IFaceSoldierAnimator.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\IdleHelper.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\ItemTimerDisplay.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\JetJumpHintHelper.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\LeafEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\LeafPatch.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\LensFlare.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\LightBeam.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\LightFlash.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\LightningBoltEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\LightningEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\LightsaberTrailEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\LoadDisplay.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\LoadUtil.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\LockOnManager.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\LuaCallbacks.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\LuaCallbacks_IFace.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\LuaCallbacks_LoadSave.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\LuaCallbacks_Mission.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\LuaCallbacks_Net.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\LuaCallbacks_Options.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\LuaCallbacks_PC.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\LuaCallbacks_Sound.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\LuaCallbacks_Stats.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\LuaEvent.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\LuaHelper.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\LuaMemory.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\LuaScript.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\MapCamera.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\MedalsMgr.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\MessageDisplay.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\MineHelper.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\MissionLog.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\MissionPlayList.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\MissionTimer.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\MotionBlurEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\MountedTurret.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\Music.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\MuzzleFlash.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\NameDisplay.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\Navigator.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\NavigatorFollowTarget.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\NavigatorGraphFollower.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\NavigatorPathFollower.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\NavigatorSlide.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\NetAdmin.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\NetComm.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\NetDrag.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
+    <ClCompile Include="src\Battlefront2\Source\CollisionModel.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\CollisionObject.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\CollisionPrimitive.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\CollisionUtil.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\ColorControl.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\CombatHelper.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\CombatUtil.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\Combo.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\CommandBuilding.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\CommandBuildingAnimatedArmed.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\CommandBuildingArmed.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\CommandFlyer.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\CommandFsm.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\CommandHover.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\CommandLine.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\CommandPost.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\CommandPostManager.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\CommandWalker.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\ConnectivityGraph.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\ConnectivityGraphFollower.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\ConquestGoal.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\ConsoleCommands.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\Controllable.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\Controller.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\ControllerManager.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\CoverHelper.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\CustomContent.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\DamageRegion.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\Damageable.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\DeathCamera.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\DeathmatchGoal.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\Decal.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\DefendGoal.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\DefendHelper.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\DestroyGoal.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\DisplayDroideka.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\DisplayEntity.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\DisplaySoldier.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\DownloadableContent.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\DustEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EndDisplay.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EnergyBar.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\Entity.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EntityBuilding.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EntityBuildingAnimated.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EntityBuildingAnimatedArmed.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EntityBuildingArmed.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EntityBuildingArmedDynamic.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EntityCarrier.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EntityDefenseGridTurret.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EntityDoor.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EntityDroid.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EntityDroideka.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EntityEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EntityFlyer.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EntityFormation.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EntityGeometry.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EntityHologram.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EntityHover.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EntityItem.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EntityLight.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EntityMine.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EntityPath.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EntityPathFollower.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EntityPortableTurret.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EntityProp.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EntityPropAnimated.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EntityRemoteTerminal.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EntitySoldier.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EntitySound.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EntitySoundStatic.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EntitySoundStream.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EntitySquadron.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EntityTerrain.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EntityTrap.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EntityWalker.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EntityWater.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EventManager.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EventManager_Character.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EventManager_CommandPost.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EventManager_Controllable.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EventManager_Flag.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EventManager_LuaCallback.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EventManager_LuaUser.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EventManager_Object.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EventManager_Region.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EventManager_Team.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\EventManager_Timer.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\Explosion.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\FLEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\FLGuiManager.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\FLInputManager.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\FLJoystick.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\FirstPerson.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\FishEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\FlagItem.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\FlashyTextElement.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\FlyRegion.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\FoleyFX.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\FoleyFXCollidee.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\FoleyFXCollider.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\FoleyFXGroup.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\FoleyFXOrdnance.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\FoleyFXRegion.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\FoleyFXSoldier.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\FoleyFXWalker.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\FollowGoal.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\FrameUpdate.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\FreeCamera.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\Fsm.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\GameCamera.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\GameLoop.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\GameMemory.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\GameModel.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\GameMovie.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\GameMusic.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\GameObject.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\GamePath.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\GameSound.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\GameSoundEngine.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\GameSoundParameterized.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\GameSoundStream.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\GameState.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\GameVoiceChat.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\GameVoiceChatCodec.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\GameVoiceChatDecoder.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\GameVoiceChatEncoder.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\GameVoiceChatNode.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\GameVoiceChatTransport.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\GameVoiceChatUtil.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\GamespyVoice.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\Godray.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\GrassPatch.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HDREffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HUDBorderedBox.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HUDEditor.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HUDElement.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HUDElementBar.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HUDElementBarBitmap.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HUDElementBarSegmented.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HUDElementBitmap.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HUDElementGroup.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HUDElementGroupPlayer.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HUDElementMap.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HUDElementModel3D.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HUDElementMultilineText.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HUDElementTarget.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HUDElementText.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HUDElementVehicleSeating.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HUDEnvelope.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HUDEvent.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HUDEventQueue.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HUDGameEvents.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HUDItem.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HUDManager.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HUDObjectiveList.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HUDProceduralBarBitmap.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HUDSound.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HUDTransform.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HUDTransformNameMesh.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HUDTransformNumberColor.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HUDTransformNumberColorBlend.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HUDTransformNumberType.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HUDTransformNumberVector3.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HUDViewPort.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HeatShimmerEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HeroMessageDisplay.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HintManager.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\IFaceSoldierAnimator.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\IdleHelper.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\ItemTimerDisplay.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\JetJumpHintHelper.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\LeafEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\LeafPatch.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\LensFlare.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\LightBeam.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\LightFlash.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\LightningBoltEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\LightningEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\LightsaberTrailEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\LoadDisplay.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\LoadUtil.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\LockOnManager.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\LuaCallbacks.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\LuaCallbacks_IFace.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\LuaCallbacks_LoadSave.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\LuaCallbacks_Mission.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\LuaCallbacks_Net.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\LuaCallbacks_Options.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\LuaCallbacks_PC.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\LuaCallbacks_Sound.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\LuaCallbacks_Stats.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\LuaEvent.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\LuaHelper.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\LuaMemory.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\LuaScript.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\MapCamera.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\MedalsMgr.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\MessageDisplay.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\MineHelper.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\MissionLog.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\MissionPlayList.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\MissionTimer.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\MotionBlurEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\MountedTurret.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\Music.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\MuzzleFlash.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\NameDisplay.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\Navigator.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\NavigatorFollowTarget.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\NavigatorGraphFollower.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\NavigatorPathFollower.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\NavigatorSlide.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\NetAdmin.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\NetComm.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\NetDrag.cpp" />
     <ClCompile Include="src\Battlefront2\Source\NetGame.cpp">
       <Optimization>Disabled</Optimization>
-      <BufferSecurityCheck>false</BufferSecurityCheck>
     </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\NetMatch.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\NetPacket.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\NetPredict.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\NetQOS.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
+    <ClCompile Include="src\Battlefront2\Source\NetMatch.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\NetPacket.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\NetPredict.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\NetQOS.cpp" />
     <ClCompile Include="src\Battlefront2\Source\NetSetup.cpp">
       <Optimization>Disabled</Optimization>
-      <BufferSecurityCheck>false</BufferSecurityCheck>
     </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\NetState.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\ODFPropertySet.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\ObjectiveManager.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\OrbitalStrike.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\Ordnance.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\OrdnanceBeacon.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\OrdnanceBeam.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\OrdnanceBullet.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\OrdnanceEmitter.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\OrdnanceFatRay.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\OrdnanceGrapplingHook.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\OrdnanceGrenade.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\OrdnanceHaywire.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\OrdnanceLaser.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\OrdnanceMeleeThrow.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\OrdnanceMissile.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\OrdnanceShell.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\OrdnanceSticky.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\OrdnanceTowCable.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\PE_ChunkLoader.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\ParticleEmitter.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\ParticleEmitterInfo.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\ParticleEmitterObject.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\ParticleGeometry.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\ParticleSpawner.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\ParticleSystem.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\ParticleTransformer.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\PassengerSlot.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\PathFinder.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\PathFollower.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\PathManager.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\PatrolHelper.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\PatrolPath.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\PatrolPathHelper.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\PauseMenu.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\PerformanceTimer.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\PlayableEntitySounds.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\PlayerController.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\PlayerPreferences.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\PlayerProfile.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\PlayerStats.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\PopupText.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\PortalReader.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\PowerupItem.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\PowerupStation.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\PowerupUtility.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\ProceduralAnimation.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\PropCluster.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\PropGenerator.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\PropLayer.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\PropModel.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\PropModelMesh.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\QOSDisplay.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\RepairHelper.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\Reserve.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\ReserveManager.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\Restrictor.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\ReticuleDisplay.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\RotatingModel.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\RumbleRegion.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\SaveFile.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\SaveFsm.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\SaveGameManager.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\ScopeBlurEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\ScopeDisplay.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\ScreenFilterEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\ScreenTransition.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\ShadowEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\ShellLoop.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\ShieldEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\SkyDome.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\SkyManager.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\SkyObject.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\SkyStars.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\SnipeHelper.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\SoldierAnimType.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\SoldierAnimation.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\SoldierAnimationBank.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\SoldierAnimationData.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\SoldierAnimator.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\SoldierAnimatorClass.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\SoldierAnimatorLowRes.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\SoundDebugDisplay.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\SpaceAssault.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\SpaceDustEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\SpawnManager.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\SpectatorDisplay.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\SquadCommands.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\StatIconDisplay.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\StatusDisplay.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\StickInfo.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\StringDB.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\TargetInfo.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\TargetManager.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\Team.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\TeamAssist.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\TeamManager.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\TentacleSimulator.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\Thread.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\Timer.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\ToolTips.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\Trackable.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\Tracker.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\TreeGrid.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\TreeGridCache.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\TriggerRegionManager.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\TriggerSoundRegion.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\UnitAgent.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\UnitAttackPatterns.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\UnitBoardAgent.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\UnitCTFOffenseAgent.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\UnitCaptureCPAgent.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\UnitCmdInfo.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\UnitCombatAgent.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\UnitController.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\UnitDeathmatchAgent.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\UnitDefendAgent.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\UnitDestroyAgent.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\UnitFlyAgent.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\UnitFlyAttackPatterns.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\UnitFlyController.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\UnitFollowAgent.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\UnitHoldAgent.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\UnitMobileController.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\UnitRandomAgent.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\UnitStationaryController.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\UnitThreatManager.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\UnitTrooperAgent.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\UnitUnBoardAgent.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\UnitWaitAgent.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\UnitWaitSecondaryAgent.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\VOHelper.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\VehicleCoverHelper.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\VehicleEngine.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\VehicleManager.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\VehicleMusic.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\VehicleSpawn.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\VisionManager.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\VoiceChatNode.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\VoiceChatTransport.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\VoiceChatUtil.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\VoiceOverManager.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\WalkerAnimation.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\WalkerLegPair.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\WaterEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\Weapon.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\WeaponAreaEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\WeaponBinoculars.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\WeaponCannon.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\WeaponCatapult.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\WeaponDestruct.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\WeaponDetonator.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\WeaponDisguise.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\WeaponDispenser.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\WeaponGrapplingHook.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\WeaponGrenade.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\WeaponInvisibility.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\WeaponLaser.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\WeaponLauncher.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\WeaponMelee.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\WeaponMeleeThrow.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\WeaponRemote.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\WeaponRepair.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\WeaponShield.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\WeaponTowCable.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\WeatherEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\WorldShadowMapEffect.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\gamespyStatsManager.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
+    <ClCompile Include="src\Battlefront2\Source\NetState.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\ODFPropertySet.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\ObjectiveManager.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\OrbitalStrike.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\Ordnance.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\OrdnanceBeacon.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\OrdnanceBeam.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\OrdnanceBullet.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\OrdnanceEmitter.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\OrdnanceFatRay.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\OrdnanceGrapplingHook.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\OrdnanceGrenade.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\OrdnanceHaywire.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\OrdnanceLaser.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\OrdnanceMeleeThrow.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\OrdnanceMissile.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\OrdnanceShell.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\OrdnanceSticky.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\OrdnanceTowCable.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\PE_ChunkLoader.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\ParticleEmitter.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\ParticleEmitterInfo.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\ParticleEmitterObject.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\ParticleGeometry.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\ParticleSpawner.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\ParticleSystem.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\ParticleTransformer.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\PassengerSlot.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\PathFinder.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\PathFollower.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\PathManager.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\PatrolHelper.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\PatrolPath.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\PatrolPathHelper.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\PauseMenu.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\PerformanceTimer.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\PlayableEntitySounds.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\PlayerController.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\PlayerPreferences.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\PlayerProfile.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\PlayerStats.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\PopupText.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\PortalReader.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\PowerupItem.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\PowerupStation.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\PowerupUtility.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\ProceduralAnimation.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\PropCluster.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\PropGenerator.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\PropLayer.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\PropModel.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\PropModelMesh.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\QOSDisplay.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\RepairHelper.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\Reserve.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\ReserveManager.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\Restrictor.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\ReticuleDisplay.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\RotatingModel.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\RumbleRegion.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\SaveFile.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\SaveFsm.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\SaveGameManager.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\ScopeBlurEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\ScopeDisplay.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\ScreenFilterEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\ScreenTransition.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\ShadowEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\ShellLoop.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\ShieldEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\SkyDome.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\SkyManager.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\SkyObject.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\SkyStars.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\SnipeHelper.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\SoldierAnimType.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\SoldierAnimation.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\SoldierAnimationBank.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\SoldierAnimationData.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\SoldierAnimator.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\SoldierAnimatorClass.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\SoldierAnimatorLowRes.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\SoundDebugDisplay.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\SpaceAssault.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\SpaceDustEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\SpawnManager.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\SpectatorDisplay.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\SquadCommands.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\StatIconDisplay.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\StatusDisplay.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\StickInfo.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\StringDB.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\TargetInfo.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\TargetManager.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\Team.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\TeamAssist.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\TeamManager.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\TentacleSimulator.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\Thread.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\Timer.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\ToolTips.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\Trackable.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\Tracker.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\TreeGrid.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\TreeGridCache.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\TriggerRegionManager.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\TriggerSoundRegion.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\UnitAgent.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\UnitAttackPatterns.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\UnitBoardAgent.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\UnitCTFOffenseAgent.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\UnitCaptureCPAgent.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\UnitCmdInfo.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\UnitCombatAgent.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\UnitController.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\UnitDeathmatchAgent.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\UnitDefendAgent.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\UnitDestroyAgent.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\UnitFlyAgent.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\UnitFlyAttackPatterns.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\UnitFlyController.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\UnitFollowAgent.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\UnitHoldAgent.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\UnitMobileController.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\UnitRandomAgent.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\UnitStationaryController.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\UnitThreatManager.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\UnitTrooperAgent.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\UnitUnBoardAgent.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\UnitWaitAgent.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\UnitWaitSecondaryAgent.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\VOHelper.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\VehicleCoverHelper.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\VehicleEngine.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\VehicleManager.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\VehicleMusic.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\VehicleSpawn.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\VisionManager.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\VoiceChatNode.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\VoiceChatTransport.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\VoiceChatUtil.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\VoiceOverManager.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\WalkerAnimation.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\WalkerLegPair.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\WaterEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\Weapon.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\WeaponAreaEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\WeaponBinoculars.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\WeaponCannon.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\WeaponCatapult.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\WeaponDestruct.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\WeaponDetonator.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\WeaponDisguise.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\WeaponDispenser.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\WeaponGrapplingHook.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\WeaponGrenade.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\WeaponInvisibility.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\WeaponLaser.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\WeaponLauncher.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\WeaponMelee.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\WeaponMeleeThrow.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\WeaponRemote.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\WeaponRepair.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\WeaponShield.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\WeaponTowCable.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\WeatherEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\WorldShadowMapEffect.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\gamespyStatsManager.cpp" />
     <ClCompile Include="src\Battlefront2\Source\pcCrash.cpp" />
-    <ClCompile Include="src\Battlefront2\Source\pcMain.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\pcNetSocket.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
+    <ClCompile Include="src\Battlefront2\Source\pcMain.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\pcNetSocket.cpp" />
     <ClCompile Include="src\LuaFL\src\lapi.cpp">
       <AdditionalIncludeDirectories>src;src\LuaFL\include;src\LuaFL\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
@@ -1792,12 +866,8 @@
     <ClCompile Include="src\SoundFL\source\win\sndstreamrenderer.cpp" />
     <ClCompile Include="src\SoundFL\source\win\sndthread.cpp" />
     <ClCompile Include="src\SoundFL\source\win\sndvoice.cpp" />
-    <ClCompile Include="src\Steam\gfGalaxy.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
-    <ClCompile Include="src\Steam\gfSteamAuth.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
+    <ClCompile Include="src\Steam\gfGalaxy.cpp" />
+    <ClCompile Include="src\Steam\gfSteamAuth.cpp" />
     <ClCompile Include="src\Zephyr\Source\ZephyrAnim.cpp" />
     <ClCompile Include="src\Zephyr\Source\ZephyrAnimBank.cpp" />
     <ClCompile Include="src\Zephyr\Source\ZephyrAnimBankReader.cpp" />
@@ -1819,9 +889,7 @@
     <ClCompile Include="src\ZlibFL\inftrees.c" />
     <ClCompile Include="src\ZlibFL\trees.c" />
     <ClCompile Include="src\ZlibFL\zutil.c" />
-    <ClCompile Include="src\lglcd\lgLcd.cpp">
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-    </ClCompile>
+    <ClCompile Include="src\lglcd\lgLcd.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="BattlefrontII.rc" />

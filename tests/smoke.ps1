@@ -196,14 +196,29 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec) {
 
     $missionCase = {
         param($m)
-        New-Object PSObject -Property @{ Name = $m; Args = "$m $tail"; Expect = $pass; Twice = 0 }
+        New-Object PSObject -Property @{ Name = $m; Args = "$m $tail"; Expect = $pass; Twice = 0; Timeout = 0 }
+    }
+    $allCase = {
+        param($m, $class)
+        $x = $pass
+        $to = 0
+        if ($class -eq 'TimeOut') { $x = @{ Class = 'TimeOut'; LogRx = 'OPENSWBF2 MISSION RUNNING' } }
+        elseif ($class -eq 'Fatal') {
+            $x = @{ Class = 'Fatal'; Code = 3; MinDumps = 1; MaxDumps = 1; LogRx = 'FATAL: exception 0xC0000005 at 0x[0-9A-F]+ \(d3dx9_43\.dll\+0x1BA553\)' }
+        }
+        elseif ($class -ne 'Pass') { throw "unknown expected class '$class' for $m in missions file" }
+        New-Object PSObject -Property @{ Name = $m; Args = "$m $tail"; Expect = $x; Twice = 0; Timeout = $to }
     }
 
     if ($which -eq 'Standard') { $cases += & $missionCase $standard }
     if ($which -eq 'All') {
         foreach ($line in $missions) {
-            $m = ($line.Trim() -split '\s+')[0]
-            if ($m) { $cases += & $missionCase $m }
+            $tok = @($line.Trim() -split '\s+')
+            if ($tok[0]) {
+                $class = 'Pass'
+                if ($tok.Count -gt 1) { $class = $tok[1] }
+                $cases += & $allCase $tok[0] $class
+            }
         }
     }
     if ($which -eq 'Dedicated' -or $which -eq 'All') {
@@ -213,7 +228,7 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec) {
             Name = 'dedicated'
             Args = "/autonet dedicated -lan -nopregame -playercount 0 $dm 100 100 $tail"
             Expect = $pass
-            Twice = 0
+            Twice = 0; Timeout = 0
         }
     }
     if ($which -eq 'Crash' -or $which -eq 'All') {
@@ -222,22 +237,22 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec) {
                 Name = "crash-$kind"
                 Args = "$standard $tail -crashtest $kind"
                 Expect = @{ Class = 'Fatal'; Code = 3; MinDumps = 1; MaxDumps = 1; LogRx = 'FATAL:.*\.dmp' }
-                Twice = 0
+                Twice = 0; Timeout = 0
             }
         }
         $ff = @{ Class = 'GsFailure'; Code = 3221226505 }
         if (Test-WerKey) { $ff.MinDumps = 1 }
-        $cases += New-Object PSObject -Property @{ Name = 'crash-fastfail'; Args = "$standard $tail -crashtest fastfail"; Expect = $ff; Twice = 0 }
+        $cases += New-Object PSObject -Property @{ Name = 'crash-fastfail'; Args = "$standard $tail -crashtest fastfail"; Expect = $ff; Twice = 0; Timeout = 0 }
         $cases += New-Object PSObject -Property @{
             Name = 'fatal-init'
             Args = "no_such_mission $tail"
             Expect = @{ Class = 'Fatal'; Code = 1; MaxDumps = 0; LogRx = 'FATAL: initialization failed' }
-            Twice = 0
+            Twice = 0; Timeout = 0
         }
     }
     if ($which -eq 'Twice') {
         foreach ($i in 1, 2) {
-            $cases += New-Object PSObject -Property @{ Name = "twice-$i"; Args = "$standard $tail"; Expect = $pass; Twice = $i }
+            $cases += New-Object PSObject -Property @{ Name = "twice-$i"; Args = "$standard $tail"; Expect = $pass; Twice = $i; Timeout = 0 }
         }
     }
     return $cases
@@ -251,4 +266,71 @@ function Get-FinalScoreKey($caseDir) {
     $i = $line.IndexOf("`t")
     if ($i -lt 0) { return $line }
     return $line.Substring($i + 1)
+}
+
+function Find-Dumpbin {
+    $cands = @()
+    if ($env:VS120COMNTOOLS) { $cands += (Join-Path $env:VS120COMNTOOLS '..\..\VC\bin\dumpbin.exe') }
+    $cands += (Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio 12.0\VC\bin\dumpbin.exe')
+    foreach ($c in $cands) { if (Test-Path -LiteralPath $c) { return (Resolve-Path -LiteralPath $c).Path } }
+    Write-Host 'dumpbin not found (install VS2013 Update 5).'
+    exit 2
+}
+
+function Get-HardeningChecks($hdr, $cfg, $clTotal, $clGsMinus) {
+    $relocSize = 0
+    if ($hdr -match '(?m)^\s+[0-9A-F]+ \[\s*([0-9A-F]+)\] RVA \[size\] of Base Relocation Directory') { $relocSize = [Convert]::ToInt32($Matches[1], 16) }
+    $seh = 0
+    if ($cfg -match '(?m)^\s+([0-9A-F]+) Safe Exception Handler Count') { $seh = [Convert]::ToInt32($Matches[1], 16) }
+    $cookie = 0
+    if ($cfg -match '(?m)^\s+([0-9A-F]+) Security Cookie') { $cookie = [Convert]::ToInt64($Matches[1], 16) }
+    $hasReloc =$hdr -match '(?m)^\s+\.reloc name\s*$'
+    $stripped = $hdr -match '(?m)^\s+Relocations stripped\s*$'
+    $checks = @()
+    $dyn = $hdr -match '(?m)^\s+Dynamic base\s*$'
+    $checks += New-Object PSObject -Property @{ Name = 'dynamicbase'; Ok = $dyn; Detail = 'Dynamic base flag missing' }
+    $nx = $hdr -match '(?m)^\s+NX compatible\s*$'
+    $checks += New-Object PSObject -Property @{ Name = 'nxcompat'; Ok = $nx; Detail = 'NX compatible flag missing' }
+    $checks += New-Object PSObject -Property @{
+        Name = 'reloc'
+        Ok = ($hasReloc -and $relocSize -gt 0 -and -not $stripped)
+        Detail = ('.reloc={0} reloc-dir-size={1} stripped={2}' -f $hasReloc, $relocSize, $stripped)
+    }
+    $checks += New-Object PSObject -Property @{ Name = 'safeseh'; Ok = ($seh -gt 0); Detail = "Safe Exception Handler Count=$seh" }
+    $checks += New-Object PSObject -Property @{
+        Name = 'gs'
+        Ok = ($clTotal -gt 0 -and $clGsMinus -eq 0 -and $cookie -ne 0)
+        Detail = ('cl entries={0} /GS-={1} security-cookie=0x{2:X8}' -f $clTotal, $clGsMinus, $cookie)
+    }
+    return $checks
+}
+
+function Get-ClTlogCounts($objDir) {
+    $total = 0
+    $gsMinus = 0
+    foreach ($f in Get-ChildItem -LiteralPath $objDir -Filter 'cl.command*.tlog' -Recurse -ErrorAction SilentlyContinue) {
+        foreach ($l in (Get-Content -LiteralPath $f.FullName)) {
+            if ($l -and -not $l.StartsWith('^')) {
+                $total++
+                if ($l -match ' /GS-( |$)') { $gsMinus++ }
+            }
+        }
+    }
+    return New-Object PSObject -Property @{ Total = $total; GsMinus = $gsMinus }
+}
+
+function Get-ImageBase($exe, $workDir, $argLine) {
+    $p = Start-Process -FilePath $exe -ArgumentList $argLine -WorkingDirectory $workDir -PassThru -WindowStyle Hidden
+    try {
+        $base = $null
+        for ($i = 0; $i -lt 50 -and -not $base; $i++) {
+            Start-Sleep -Milliseconds 200
+            try { $base = $p.MainModule.BaseAddress.ToInt64() } catch {}
+        }
+        return $base
+    }
+    finally {
+        try { if (-not $p.HasExited) { & taskkill /PID $p.Id /T /F 2>&1 | Out-Null } } catch {}
+        $p.WaitForExit()
+    }
 }
