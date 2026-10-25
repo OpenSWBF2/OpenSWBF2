@@ -11,6 +11,8 @@
 #include <time.h>
 
 #include "GameState.h"
+#include "pcCrash.h"
+#include "CommandLine.h"
 #include "GameLoop.h"
 #include "BonusManager.h"
 #include "CollisionManager.h"
@@ -438,7 +440,7 @@ void GameState::OneTimeInit()
                                "Oct 19 2017", "14:22:39");
         RedWarning::LogMessage("Could not initialize sound engine!");
         RedWarning::DialogBoxMessage("Could not initialize sound engine!");
-        _exit(0);
+        pcCrash::Exit(1);
     }
 
     TTYInit();
@@ -467,7 +469,7 @@ void GameState::OneTimeCleanup()
 // FUNCTION: SWBF2 0x0053ab20
 void GameState::UpdateTime()
 {
-    if (g_bNoRender)
+    if (g_bNoRender && g_fFixedRate <= 0.0f)
     {
         Sleep(1);
     }
@@ -592,6 +594,7 @@ unsigned int GameState::GetState()
 // FUNCTION: SWBF2 0x0053ae90
 bool GameState::Update()
 {
+    pcCrash::RunCrashTest();
     if (_bDoChangeState)
     {
 
@@ -803,7 +806,7 @@ void GameState::PreStateInit(bool bMission)
     OneTimeInit();
 
     gDrawFlyerShadows = true;
-    PblRandom::SetGlobalSeed(0);
+    PblRandom::SetGlobalSeed(gSeedSet ? gSeed : 0);
 
     if (!sKioskMode)
     {
@@ -840,7 +843,7 @@ void GameState::PreStateInit(bool bMission)
                                    "Oct 19 2017", "14:22:39");
             RedWarning::LogMessage("Could not open mission.lvl");
             RedWarning::DialogBoxMessage("Could not open mission.lvl");
-            _exit(0);
+            pcCrash::Exit(1);
         }
 
         bool bOpened = LuaHelper::OpenScript(GameLoop::mMissionScript);
@@ -855,7 +858,7 @@ void GameState::PreStateInit(bool bMission)
                                        1291, "Oct 19 2017", "14:22:39");
                 RedWarning::LogMessage("Could not open %s", acName);
                 RedWarning::DialogBoxMessage("Could not open %s", acName);
-                _exit(0);
+                pcCrash::Exit(1);
             }
             bOpened = LuaHelper::OpenScript(GameLoop::mMissionScript);
         }
@@ -929,7 +932,7 @@ void GameState::PreStateInit(bool bMission)
     NetGame::Create(bMission);
     CustomContent::Create(bMission);
     JournalStartTimes();
-    PblRandom::SetGlobalSeed((unsigned int)_time64(0));
+    PblRandom::SetGlobalSeed(gSeedSet ? gSeed : (unsigned int)_time64(0));
 
     if (bMission)
     {

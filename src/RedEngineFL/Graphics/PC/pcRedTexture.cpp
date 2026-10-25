@@ -8,6 +8,8 @@
 #include "PebbleFL/Common/PblUnicode.h"
 #include "RedEngineFL/Util/RedLocalizeDB.h"
 
+extern bool g_bNoRender;
+
 // GLOBAL: SWBF2 0x008eed8c
 // SYNTHETIC: SWBF2 0x00407750
 // `dynamic initializer for 'RedTexture::s_textureHashTable''
@@ -234,6 +236,11 @@ bool RedTexture::_Read(PblFileChunk& chunk)
 // FUNCTION: SWBF2 0x006ba590
 _D3DFORMAT RedTexture::pcChooseFormat(const _D3DFORMAT* aFormats, int iNumFormats)
 {
+    if (g_bNoRender || !RedRenderer::pcGetDevice())
+    {
+        return iNumFormats > 0 ? aFormats[0] : D3DFMT_UNKNOWN;
+    }
+
     if (iNumFormats == 1)
     {
         D3DFORMAT format = aFormats[0];

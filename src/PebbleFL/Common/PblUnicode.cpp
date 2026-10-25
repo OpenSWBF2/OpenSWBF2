@@ -124,7 +124,7 @@ unsigned int __cdecl strlcpy(char* pcDest, char const* pcSource, unsigned int ui
 {
     unsigned int uiLen = 0;
 
-    if (uiSize)
+    if (uiSize && pcSource)
     {
         while (pcSource[uiLen])
         {

@@ -46,8 +46,26 @@ bool g_bFormatted;
 bool g_bValidLogFile;
 bool g_bInitialized;
 
-char g_pcLogFileName[64];
+char g_pcLogFileName[260];
+bool g_bSuppressDialogs;
 
+}
+
+void __cdecl RedWarning::SetLogFileName(char const* pcPath)
+{
+    if (!pcPath || strlen(pcPath) >= sizeof(g_pcLogFileName))
+    {
+        return;
+    }
+
+    _snprintf(g_pcLogFileName, sizeof(g_pcLogFileName), "%s", pcPath);
+    g_pcLogFileName[sizeof(g_pcLogFileName) - 1] = '\0';
+    g_bValidLogFile = false;
+}
+
+void __cdecl RedWarning::SetSuppressDialogs(bool bSuppress)
+{
+    g_bSuppressDialogs = bSuppress;
 }
 
 // FUNCTION: SWBF2 0x006f6af0
@@ -61,6 +79,11 @@ void RedWarning::DialogBoxMessage(char const* pcFormat, ...)
     va_start(args, pcFormat);
     vsnprintf(acMessage, sizeof(acMessage), pcFormat, args);
     va_end(args);
+
+    if (g_bSuppressDialogs)
+    {
+        return;
+    }
 
     apcDialogText[0] = kapcSEVERITYLONG[g_eSeverity];
     apcDialogText[1] = acMessage;
@@ -263,7 +286,7 @@ void RedWarning::Init(void)
 
         if (i >= 10)
         {
-            memset(g_pcLogFileName, 0, sizeof(g_pcLogFileName));
+            _snprintf(g_pcLogFileName, sizeof(g_pcLogFileName), "%s.%s", "BFront2", "log");
         }
     }
 
@@ -330,7 +353,7 @@ void RedWarning::LogMessage(char const* pcFormat, ...)
                 FILE* pFile = fopen(g_pcLogFileName, "a");
                 if (pFile)
                 {
-                    fprintf(pFile, pcText);
+                    fputs(pcText, pFile);
                     fclose(pFile);
                 }
             }

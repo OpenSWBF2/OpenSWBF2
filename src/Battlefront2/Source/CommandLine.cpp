@@ -1,9 +1,12 @@
 #define _CRT_SECURE_NO_WARNINGS
 
+#include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "GameMovie.h"
+#include "pcCrash.h"
+#include "RedEngineFL/Util/RedWarning.h"
 
 #include "CommandLine.h"
 #include "GameLoop.h"
@@ -59,6 +62,9 @@ unsigned int gGamespyAutoPass;
 bool gBootLagger;
 bool gShowLoadSpam;
 bool gLogFinalScore;
+bool gExitOnGameOver;
+bool gSeedSet;
+unsigned int gSeed;
 int gBootLaggerPing = 300;
 
 // GLOBAL: SWBF2 0x007e69c9
@@ -78,6 +84,7 @@ namespace PlayerPrefs { int gDefaultDifficulty = 2; }
 namespace PlayerPrefs { int gDefaultTeamNum = 1; }
 
 extern bool pcWindowed;
+extern bool pcEnableLogging;
 extern bool pcPostInstall;
 extern bool pcForceFixedFunction;
 extern int pcWidth;
@@ -284,6 +291,50 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
                 {
                     Lua_Callbacks::gCONMaxTimeLimit[slot] = 5;
                 }
+            }
+            continue;
+        }
+
+        if (_stricmp(pcArg + 1, "log") == 0)
+        {
+            if (i + 1 < iArgc)
+            {
+                const char* pcPath = apcArgv[++i];
+                if (strlen(pcPath) >= MAX_PATH)
+                {
+                    RedWarning::LogMessage("-log path too long, ignored\n");
+                }
+                else
+                {
+                    RedWarning::SetLogFileName(pcPath);
+                    pcCrash::SetLogPath(pcPath);
+                    pcEnableLogging = true;
+                }
+            }
+            continue;
+        }
+
+        if (_stricmp(pcArg + 1, "seed") == 0)
+        {
+            if (i + 1 < iArgc)
+            {
+                gSeed = strtoul(apcArgv[++i], 0, 10);
+                gSeedSet = true;
+            }
+            continue;
+        }
+
+        if (_stricmp(pcArg + 1, "exitongameover") == 0)
+        {
+            gExitOnGameOver = true;
+            continue;
+        }
+
+        if (_stricmp(pcArg + 1, "crashtest") == 0)
+        {
+            if (i + 1 < iArgc)
+            {
+                pcCrash::SetCrashTest(apcArgv[++i]);
             }
             continue;
         }

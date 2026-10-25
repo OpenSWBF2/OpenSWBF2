@@ -68,3 +68,34 @@ Failing fuzz cases print their seed and iteration. Replay with
 4. Keep no secrets on the box.
 5. In the repo settings (public repo) set "Require approval for all external contributors" for fork workflows. The workflow also refuses fork PRs by `if:` guard.
 tests/selftest.ps1 runs negative checks of run.ps1 against stub executables; it needs no built test exe, only the same preflight DLLs as run.ps1.
+
+## Smoke runs
+
+`run.ps1` also launches the real `BattlefrontII.exe` for smoke runs. A plain `tests\run.ps1` runs the unit stage and then the Standard smoke case (geo1c_con). `-Suite`, `-Filter` and `-Fuzz` skip smoke. Naming `-Smoke` runs only smoke.
+
+| Switch | Meaning |
+|--------|---------|
+| `-Smoke` | `None`, `Standard` (default), `Dedicated`, `Crash`, `All` (every mission in `tests\smoke\missions.txt`, Dedicated and Crash) or `Twice` (Standard twice with `-seed 1`, prints `INFO: run-twice match` or `mismatch`, never fails) |
+| `-SmokeTimeout` | per-case seconds (default 120); on expiry the process tree is killed with `taskkill /T /F` |
+| `-SmokeConfiguration` | `Release` (default) or `Debug`; builds `BattlefrontII.vcxproj` unless `-NoBuild` |
+| `-Movies` | drop `-norender` so movies and the renderer run |
+
+Cases run one at a time with the exe directory as the working directory. Without retail GameData, or without the exe and the Bink, Galaxy and Steam DLLs beside it, every selected case prints `[SKIP] ... class=Skipped` and the game is not built. A skipped run exits 0.
+
+Artifacts go to `artifacts\tests\<timestamp>\smoke\<case>\`: `run.log`, `finalscore.log`, any `.dmp` and `result.txt`.
+
+| Class | Meaning | Token |
+|-------|---------|-------|
+| Skipped | precheck failed | SKIP |
+| TimeOut | killed at the timeout | TIMEOUT |
+| GsFailure | exit `0xC0000409` | CRASH |
+| Fatal | exit 1 or 3, a `FATAL:` log line, or a dump | CRASH |
+| Pass | exit 0 and `OPENSWBF2 RUN COMPLETE` in the log, no dump | PASS |
+| InitFailure | exit 0 without the marker | FAIL |
+| Unknown | anything else | FAIL |
+
+Classes are decided in that order. Crash cases pass when the expected class, exit code and dump count are observed.
+
+The runner prints `WARNING:` lines when the crash dump setup is missing. Import `tools\wer-localdumps.reg` once as administrator (HKLM only) so a `/GS` fast-fail leaves a dump and no Windows error dialog. The runner never writes the registry.
+
+With `-Movies` the retail `vidmode.ini` in `data\_lvl_pc` decides the video mode, so a stale or fullscreen entry can change what the run shows.

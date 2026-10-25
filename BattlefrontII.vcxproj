@@ -1468,6 +1468,7 @@
     <ClCompile Include="src\Battlefront2\Source\gamespyStatsManager.cpp">
       <BufferSecurityCheck>false</BufferSecurityCheck>
     </ClCompile>
+    <ClCompile Include="src\Battlefront2\Source\pcCrash.cpp" />
     <ClCompile Include="src\Battlefront2\Source\pcMain.cpp">
       <BufferSecurityCheck>false</BufferSecurityCheck>
     </ClCompile>
@@ -1826,6 +1827,7 @@
     <ResourceCompile Include="BattlefrontII.rc" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\Battlefront2\Source\pcCrash.h" />
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcDustEffect.h" />
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcDynamicSprite.h" />
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcFLJoystick.h" />
