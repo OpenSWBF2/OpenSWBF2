@@ -5,6 +5,8 @@
 
 #include "sndglobals.h"
 
+namespace pcCrash { void __cdecl Exit(int); }
+
 namespace Snd
 {
 
@@ -89,13 +91,13 @@ void ThreadUpdate::AddObject(Object* pObject)
         if (!mAccess.Create(0, 1))
         {
             PrintDebugMessage("Unable to create semaphore : out of system resources!");
-            exit(0);
+            pcCrash::Exit(1);
         }
 
         if (!mThread.Start(this))
         {
             PrintDebugMessage("Unable to start thread : out of system resources!");
-            exit(0);
+            pcCrash::Exit(1);
         }
     }
 
@@ -157,7 +159,7 @@ void ThreadUpdate::RemoveObject(Object* pObject)
     if (!done.Create(0, 1))
     {
         PrintDebugMessage("Unable to create semaphore out of system resources!");
-        exit(0);
+        pcCrash::Exit(1);
     }
 
     mCompleteCallbackData = &done;

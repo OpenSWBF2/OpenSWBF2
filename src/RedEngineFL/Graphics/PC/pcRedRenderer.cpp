@@ -33,6 +33,8 @@
 #include <math.h>
 #include "RedEngineFL/Util/ext/Globals.h"
 
+namespace pcCrash { void __cdecl Exit(int); }
+
 #include "RedEngineFL/Graphics/RedSpotLight.h"
 #include "pcRedPixelShader.h"
 #include "pcRedVertexShader.h"
@@ -2526,7 +2528,7 @@ void RedRenderer::Init()
                                "Mar 31 2017", "10:37:01");
         RedWarning::LogMessage("Internal driver error!");
         RedWarning::DialogBoxMessage("Internal driver error!");
-        _exit(0);
+        pcCrash::Exit(1);
     }
 
     if (!bMinimized)
@@ -2692,7 +2694,7 @@ void RedRenderer::InitStatic()
                                "Mar 31 2017", "10:37:01");
         RedWarning::LogMessage("Cannot create Direct3D interface!");
         RedWarning::DialogBoxMessage("Cannot create Direct3D interface!");
-        _exit(0);
+        pcCrash::Exit(1);
     }
 
     pcRedDeviceEnumerator::Init(m_pD3D);
@@ -2768,7 +2770,7 @@ void RedRenderer::InitStatic()
                                    hrIdentifier);
             RedWarning::DialogBoxMessage("Get Adapter Identifier failed! Error: 0x%x",
                                          hrIdentifier);
-            _exit(0);
+            pcCrash::Exit(1);
         }
     }
     else
@@ -2787,7 +2789,7 @@ void RedRenderer::InitStatic()
         RedWarning::LogMessage("Cannot create Direct3D device! Error: 0x%x", hr);
         RedWarning::DialogBoxMessage("Cannot create Direct3D device! Error: 0x%x", hr);
 
-        _exit(0);
+        pcCrash::Exit(1);
     }
 }
 
@@ -3345,7 +3347,7 @@ void RedRenderer::internalReset()
                                "Mar 31 2017", "10:37:01");
         RedWarning::LogMessage("Internal driver error!");
         RedWarning::DialogBoxMessage("Internal driver error!");
-        _exit(0);
+        pcCrash::Exit(1);
     }
 
     if (!g_bNoRender)

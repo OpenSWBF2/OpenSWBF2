@@ -30,9 +30,9 @@ static unsigned int s_uiLightVolumeMapHash = PblHash("attenuation_volume");
 static unsigned int s_uiNormalizationCubeMapHash = PblHash("cube_normalizationmap");
 
 // GLOBAL: SWBF2 0x007854d8
-static const unsigned int MAX_LIGHTS_PER_STATE[18] =
+static const unsigned int MAX_LIGHTS_PER_STATE[24] =
 {
-    3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1,
+    3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1,
 };
 
 unsigned int pcPerPixelDiffuseLightingShader::s_uiID;

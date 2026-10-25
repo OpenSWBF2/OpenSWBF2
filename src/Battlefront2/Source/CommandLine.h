@@ -22,6 +22,9 @@ extern unsigned int gGamespyAutoPass;
 extern bool gBootLagger;
 extern bool gShowLoadSpam;
 extern bool gLogFinalScore;
+extern bool gExitOnGameOver;
+extern bool gSeedSet;
+extern unsigned int gSeed;
 extern int gBootLaggerPing;
 
 namespace PlayerPrefs { extern int gDefaultDifficulty; }

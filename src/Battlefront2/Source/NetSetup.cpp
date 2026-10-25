@@ -110,11 +110,13 @@ stAutoNetMission autoNetMissions[256];
 PblRandom netRandom;
 
 extern float gGameSlice;
+extern bool gSeedSet;
+extern unsigned int gSeed;
 
 // FUNCTION: SWBF2 0x005db5d0
 void NetSetup::Create(bool bMission)
 {
-    unsigned int uiSeed = (unsigned int)PblTime::GetTickCount();
+    unsigned int uiSeed = gSeedSet ? gSeed : (unsigned int)PblTime::GetTickCount();
     PblJournal::Record(uiSeed, PJT_FULL);
     netRandom.SetSeed(uiSeed);
 

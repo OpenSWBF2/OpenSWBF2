@@ -28,6 +28,7 @@
 #include "DownloadableContent.h"
 #include "FLGuiManager.h"
 #include "FLInputManager.h"
+#include "CommandLine.h"
 #include "GameLoop.h"
 #include "GameState.h"
 #include "MissionPlayList.h"
@@ -756,7 +757,7 @@ int ScriptCB_srand(lua_State*)
     unsigned int uSeed = 0xdeadbeef;
     if (!lua_gettop(LuaHelper::mState))
     {
-        srand((unsigned int)time(0) + GetTickCount());
+        srand(gSeedSet ? gSeed : (unsigned int)time(0) + GetTickCount());
         return 0;
     }
     if (lua_isnumber(LuaHelper::mState, 1))

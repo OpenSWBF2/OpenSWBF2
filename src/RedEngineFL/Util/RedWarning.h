@@ -48,6 +48,8 @@ void __cdecl SetLogData(RED_ERROR_SEVERITY eSeverity, char const* pcFileName, in
                         char const* pcCompileDate, char const* pcCompileTime);
 
 void __cdecl SetLogFileOverwrite(bool bOverwrite);
+void __cdecl SetLogFileName(char const* pcPath);
+void __cdecl SetSuppressDialogs(bool bSuppress);
 
 void __cdecl SetSeverityToDestination(unsigned int uiDestinationMask, RED_ERROR_SEVERITY eSeverity);
 void __cdecl SetSeverityToDestination(RED_LOG_DESTINATION_INDEX eIndex, RED_ERROR_SEVERITY eSeverity);

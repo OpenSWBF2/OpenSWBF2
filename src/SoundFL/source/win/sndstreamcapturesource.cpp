@@ -25,6 +25,8 @@
 
 void __cdecl PblTraceP(const char* Format, ...);
 
+namespace pcCrash { void __cdecl Exit(int); }
+
 namespace Snd
 {
 
@@ -48,7 +50,7 @@ StreamCaptureSource::StreamCaptureSource()
     {
         PrintDebugMessage("Unable to create semaphore : out of system "
                           "resources!\n");
-        exit(0);
+        pcCrash::Exit(1);
     }
 
     Engine::GetThreadUpdate()->AddObject(this);

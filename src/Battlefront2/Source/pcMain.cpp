@@ -22,6 +22,7 @@
 #include "Steam/gfSteamAuth.h"
 #include "Steam/galaxy_api.h"
 #include "CommandLine.h"
+#include "pcCrash.h"
 #include "GameLoop.h"
 #include "GameMemory.h"
 #include "GameSoundEngine.h"
@@ -210,7 +211,7 @@ long __stdcall WindowProc(HWND__* hWnd, unsigned int Msg, unsigned int wParam, l
         DestroyWindow(hGlobalWnd);
         PostQuitMessage(0);
         hGlobalWnd = 0;
-        _exit(0);
+        pcCrash::Exit(0);
 
     case WM_ACTIVATE:
         return 0;
@@ -337,6 +338,7 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
     {
         return 0;
     }
+    pcCrash::Reinstall();
 
     atexit(ReleaseMutex);
 
@@ -361,6 +363,16 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
 
     ParseCommandLine(0, lpCmdLine);
 
+    if (g_bNoRender || bDedicated)
+    {
+        SetErrorMode(SEM_FAILCRITICALERRORS);
+        RedWarning::SetSuppressDialogs(true);
+    }
+    if (gSeedSet)
+    {
+        srand(gSeed);
+    }
+
     if (!g_bNoRender)
     {
         HWND hRunning = FindWindowA(appName, 0);
@@ -376,12 +388,8 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
     if (pcEnableLogging)
     {
         RedWarning::SetLogFileOverwrite(false);
-        if (RedWarning::GetSeverityToDestination(RED_LOG_DESTINATION_INDEX_FILE) >
-            RedWarning::RED_SEVERITY_WARNING)
-        {
-            RedWarning::SetSeverityToDestination(RED_LOG_DESTINATION_FILE,
-                                                 RedWarning::RED_SEVERITY_WARNING);
-        }
+        RedWarning::SetSeverityToDestination(RED_LOG_DESTINATION_FILE,
+                                             RedWarning::RED_SEVERITY_INFORM);
     }
 
     GameState::SetState(GameLoop::mMissionScript[0] ? 0x8FF60339 : 0x11E1FC01);
@@ -495,15 +503,14 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
 // FUNCTION: SWBF2 0x00617ac0
 int __stdcall WinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
 {
-    bool bDebuggerPresent = IsDebuggerPresent() != 0;
+    pcCrash::Install();
     __try
     {
         return GameWinMain(hInstance, 0, lpCmdLine, 0);
     }
-    __except (GetExceptionCode() == EXCEPTION_FLT_DIVIDE_BY_ZERO ||
-              (!bDebuggerPresent && GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION))
+    __except (pcCrash::Filter(GetExceptionInformation()))
     {
-        _exit(0);
+        pcCrash::Exit(3);
     }
 }
 

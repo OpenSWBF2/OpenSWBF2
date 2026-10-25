@@ -1509,6 +1509,9 @@
     <ClCompile Include="src\Battlefront2\Source\gamespyStatsManager.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
+    <ClCompile Include="src\Battlefront2\Source\pcCrash.cpp">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClCompile>
     <ClCompile Include="src\Battlefront2\Source\pcMain.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
@@ -2324,6 +2327,9 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\Battlefront2\Source\pcCrash.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcDustEffect.h">
       <Filter>src\Battlefront2\Platform\Pc</Filter>
     </ClInclude>
