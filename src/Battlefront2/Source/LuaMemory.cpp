@@ -8,6 +8,9 @@
 #include "GameMemory.h"
 #include "RedEngineFL/Memory/RedMemory.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
+#include "RedEngineFL/Util/RedWarning.h"
+#include "pcCrash.h"
+#include "LuaFL/include/lua.h"
 
 MemPoolInfo gGamePoolInfo[48] = {
     {  6933,   8, 0 }, {  3427,   6, 0 }, {  1764,  10, 0 }, {  1622,  18, 0 },
@@ -130,7 +133,10 @@ void* Lua_Red_realloc(void* pBlock, unsigned int uiOldSize, unsigned int uiNewSi
         _snprintf(acMsg, 0x80,
                   "Lua out of memory (%d used in %d blocks, trying to alloc %d)\n",
                   gLuaUsedMemory, LuaMemory::gLuaNumBlocks, uiNewSize);
-        *(char*)0 = 0;
+        acMsg[0x7f] = 0;
+        RedWarning::SetLogData(RedWarning::RED_SEVERITY_INFORM);
+        RedWarning::LogMessage("%s", acMsg);
+        return 0;
     }
 
     if (pBlock)
@@ -140,6 +146,25 @@ void* Lua_Red_realloc(void* pBlock, unsigned int uiOldSize, unsigned int uiNewSi
     }
 
     return pNew;
+}
+
+int Lua_Red_Panic(lua_State* L)
+{
+    char acBuf[200];
+    acBuf[0] = 0;
+    if (lua_gettop(L) >= 1 && lua_type(L, -1) == LUA_TSTRING)
+    {
+        strncpy(acBuf, lua_tostring(L, -1), 199);
+        acBuf[199] = 0;
+    }
+    else
+    {
+        strcpy(acBuf, "no message");
+    }
+    RedWarning::SetLogData(RedWarning::RED_SEVERITY_INFORM);
+    RedWarning::LogMessage("Lua panic: %s\n", acBuf);
+    pcCrash::Exit(4);
+    return 0;
 }
 
 // FUNCTION: SWBF2 0x005a18b0

@@ -329,8 +329,16 @@ void RedStencilShadow::Render(const PblMatrix* pMatrix,
         }
         else
         {
+            if (!pSegment->m_puiBoneIndexMap && uNumBones > 128)
+            {
+                continue;
+            }
             pSkin = pSegment->m_puiBoneIndexMap ?
                 RedRenderer::AllocBoneMatricesInCache(uNumBones) : aSkinMatrices;
+            if (!pSkin)
+            {
+                continue;
+            }
             if (pPose)
             {
                 if (pSegment->m_hardSkin)

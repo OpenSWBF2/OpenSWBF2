@@ -11,4 +11,7 @@ namespace pcCrash
     void SetLogPath(char const* pcPath);
     void SetCrashTest(char const* pcKind);
     void RunCrashTest();
+    void RunMissionCrashTest();
+    void FatalInit(char const* pcWhat, unsigned int uiSize);
+    bool SimulateAllocFailure(char const* pcKind);
 }

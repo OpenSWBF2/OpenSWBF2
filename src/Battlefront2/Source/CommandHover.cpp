@@ -70,20 +70,29 @@ CommandHover::~CommandHover()
 void CommandHover::Init()
 {
     EntityHover::Init();
-    mPost->Respawn();
+    if (mPost)
+    {
+        mPost->Respawn();
+    }
 }
 
 // FUNCTION: SWBF2 0x00479110
 void CommandHover::Kill()
 {
     EntityHover::Kill();
-    mPost->Kill();
+    if (mPost)
+    {
+        mPost->Kill();
+    }
 }
 
 // FUNCTION: SWBF2 0x00479130
 void CommandHover::Respawn()
 {
-    mPost->Respawn();
+    if (mPost)
+    {
+        mPost->Respawn();
+    }
     GameObject::Respawn();
 }
 
@@ -91,7 +100,10 @@ void CommandHover::Respawn()
 void CommandHover::SetProperty(unsigned int uProperty, const char* pszValue)
 {
     GameObject::SetProperty(uProperty, pszValue);
-    mPost->SetProperty(uProperty, pszValue);
+    if (mPost)
+    {
+        mPost->SetProperty(uProperty, pszValue);
+    }
 }
 
 // FUNCTION: SWBF2 0x00479180
@@ -99,7 +111,10 @@ void CommandHover::SetTeam(int iTeam)
 {
     int iOldTeam = mTeam;
     GameObject::SetTeam(iTeam);
-    mPost->SetTeam(iOldTeam, iTeam);
+    if (mPost)
+    {
+        mPost->SetTeam(iOldTeam, iTeam);
+    }
 }
 
 // FUNCTION: SWBF2 0x004791b0

@@ -144,15 +144,21 @@ CommandWalker::~CommandWalker()
 void CommandWalker::Init()
 {
     EntityWalker::Init();
-    mPost->Respawn();
+    if (mPost)
+    {
+        mPost->Respawn();
+    }
 }
 
 // FUNCTION: SWBF2 0x0047ffe0
 void CommandWalker::Kill()
 {
     EntityWalker::Kill();
-    mPost->Kill();
-    mPost = 0;
+    if (mPost)
+    {
+        mPost->Kill();
+        mPost = 0;
+    }
 }
 
 // FUNCTION: SWBF2 0x00480050
@@ -160,7 +166,10 @@ void CommandWalker::SetTeam(int iTeam)
 {
     int iOldTeam = GetTeam();
     EntityWalker::SetTeam(iTeam);
-    mPost->SetTeam(iOldTeam, iTeam);
+    if (mPost)
+    {
+        mPost->SetTeam(iOldTeam, iTeam);
+    }
 }
 
 // FUNCTION: SWBF2 0x0047fda0
@@ -172,7 +181,10 @@ const char* CommandWalker::GetDerivedRttiName() const
 // FUNCTION: SWBF2 0x00480000
 void CommandWalker::Respawn()
 {
-    mPost->Respawn();
+    if (mPost)
+    {
+        mPost->Respawn();
+    }
     GameObject::Respawn();
 }
 
@@ -180,7 +192,10 @@ void CommandWalker::Respawn()
 void CommandWalker::SetProperty(unsigned int uProperty, const char* pszValue)
 {
     GameObject::SetProperty(uProperty, pszValue);
-    mPost->SetProperty(uProperty, pszValue);
+    if (mPost)
+    {
+        mPost->SetProperty(uProperty, pszValue);
+    }
 }
 
 // FUNCTION: SWBF2 0x0047fe40

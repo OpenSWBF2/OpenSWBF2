@@ -21,6 +21,7 @@
 #include "pcRedIndexBuffer.h"
 #include "pcRedTexture.h"
 #include "pcRedVertexBuffer.h"
+#include "pcRedPoolMath.h"
 
 #include "RedEngineFL/Graphics/RedAmbientLight.h"
 
@@ -34,6 +35,17 @@
 #include "RedEngineFL/Util/ext/Globals.h"
 
 namespace pcCrash { void __cdecl Exit(int); }
+
+static void LogPoolDrop(bool& rbLogged, const char* pcWhat)
+{
+    if (!rbLogged)
+    {
+        rbLogged = true;
+        RedWarning::SetLogData(RedWarning::RED_SEVERITY_WARNING, "Graphics\\PC\\pcRedRenderer.cpp", 1,
+                               "Mar 31 2017", "10:37:01");
+        RedWarning::LogMessage("render pool exhausted, %s dropped", pcWhat);
+    }
+}
 
 #include "RedEngineFL/Graphics/RedSpotLight.h"
 #include "pcRedPixelShader.h"
@@ -2131,40 +2143,48 @@ void RedRenderer::pcRenderPrimitive(pcRedPrimitive* pPrim, pcRedShader* pShader,
             unsigned int uiZState = pItem->pRootShader->GetZPrepassState();
             unsigned int uiZPassCaps =
                 pZPrepass->GetShaderDef()->m_states[uiZState].pass[0].uiPassCaps;
-            unsigned int copyCount = m_curRenderItemOffset;
-            RenderItem* pCopy = &m_renderItemPool[copyCount];
-            m_curRenderItemOffset = copyCount + 1;
-            *pCopy = *pItem;
-            pCopy->pPrim->AddRef();
-            if (pCopy->pShadingState)
+            if (PoolMath::RenderItemHasRoom(m_curRenderItemOffset, 0x128c))
             {
-                pCopy->pShadingState->AddRef();
+                unsigned int copyCount = m_curRenderItemOffset;
+                RenderItem* pCopy = &m_renderItemPool[copyCount];
+                m_curRenderItemOffset = copyCount + 1;
+                *pCopy = *pItem;
+                pCopy->pPrim->AddRef();
+                if (pCopy->pShadingState)
+                {
+                    pCopy->pShadingState->AddRef();
+                }
+                pCopy->pRootShader = pItem->pRootShader;
+                pCopy->pRootShader->AddRef();
+                pCopy->pShaderChain[0] = pZPrepass;
+                pCopy->pShaderChain[0]->AddRef();
+                pCopy->uiShaderChainSize = 1;
+                pCopy->uiCurrentShader = 0;
+                pCopy->uiShaderState = uiZState;
+                pCopy->flags |= 0x10;
+                pCopy->pLightingState = &m_aLightingStatePool[2049];
+
+                unsigned char copyLow =
+                    (unsigned char)internalGetTransformAndLightingID(uiRVF, uiEnvState, uiZPassCaps);
+                RenderSortKey copyKey;
+                copyKey.id = 0;
+                copyKey.translucent.material =
+                    ((GetShaderID_(pCopy->pShaderChain[pCopy->uiCurrentShader], pCopy,
+                                   pCopy->uiShaderState) &
+                      0xff)
+                     << 8) |
+                    copyLow;
+                copyKey.translucent.depth = 0x7ff;
+                copyKey.translucent.pass = 2;
+                copyKey.translucent.translucent = 1;
+
+                m_preShadowTransparentItems.Push(pCopy, ~copyKey.id);
             }
-            pCopy->pRootShader = pItem->pRootShader;
-            pCopy->pRootShader->AddRef();
-            pCopy->pShaderChain[0] = pZPrepass;
-            pCopy->pShaderChain[0]->AddRef();
-            pCopy->uiShaderChainSize = 1;
-            pCopy->uiCurrentShader = 0;
-            pCopy->uiShaderState = uiZState;
-            pCopy->flags |= 0x10;
-            pCopy->pLightingState = &m_aLightingStatePool[2049];
-
-            unsigned char copyLow =
-                (unsigned char)internalGetTransformAndLightingID(uiRVF, uiEnvState, uiZPassCaps);
-            RenderSortKey copyKey;
-            copyKey.id = 0;
-            copyKey.translucent.material =
-                ((GetShaderID_(pCopy->pShaderChain[pCopy->uiCurrentShader], pCopy,
-                               pCopy->uiShaderState) &
-                  0xff)
-                 << 8) |
-                copyLow;
-            copyKey.translucent.depth = 0x7ff;
-            copyKey.translucent.pass = 2;
-            copyKey.translucent.translucent = 1;
-
-            m_preShadowTransparentItems.Push(pCopy, ~copyKey.id);
+            else
+            {
+                static bool sbLogged = false;
+                LogPoolDrop(sbLogged, "z prepass item");
+            }
         }
         else if ((uiFlags & 0x20000000) &&
                  pItem->pRootShader->SortAsZWritingTransparent())
@@ -4336,13 +4356,15 @@ RedLightingState RedRenderer::m_aLightingStatePool[2051];
 PblMatrix* RedRenderer::AllocBoneMatricesInCache(unsigned int uiCount)
 {
     unsigned int uiOffset = (unsigned int)RedRenderer::m_uiCurMatrixPoolOffset;
-    PblMatrix* pMatrices = &RedRenderer::m_amMatrixPool[uiOffset];
-    if (uiOffset + uiCount >= 3062)
+    unsigned int uiStart = 0;
+    if (!PoolMath::PoolAlloc(3062, uiOffset, uiCount, uiStart))
     {
-        uiOffset = 0;
+        static bool sbLogged = false;
+        LogPoolDrop(sbLogged, "skinned matrices");
+        return 0;
     }
-    RedRenderer::m_uiCurMatrixPoolOffset = (int)(uiOffset + uiCount);
-    return pMatrices;
+    RedRenderer::m_uiCurMatrixPoolOffset = (int)uiOffset;
+    return &RedRenderer::m_amMatrixPool[uiStart];
 }
 
 // FUNCTION: SWBF2 0x006b02a0
@@ -4592,6 +4614,13 @@ void RedRenderer::FlushOcclusionQueries()
 {
     if (g_bNoRender)
     {
+        return;
+    }
+
+    if (!PoolMath::RenderItemHasRoom(RedRenderer::m_curRenderItemOffset, 0x128c))
+    {
+        static bool sbLogged = false;
+        LogPoolDrop(sbLogged, "occlusion query flush");
         return;
     }
 

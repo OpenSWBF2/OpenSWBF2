@@ -44,7 +44,7 @@ function Get-SmokeClass($skipped, $timedOut, $code, $logText, $dumps) {
     if ($skipped) { return 'Skipped' }
     if ($timedOut) { return 'TimeOut' }
     if ($code -eq 3221226505) { return 'GsFailure' }
-    if ($code -eq 1 -or $code -eq 3 -or $logText -match 'FATAL:' -or @($dumps).Count -gt 0) { return 'Fatal' }
+    if ($code -eq 1 -or $code -eq 3 -or $code -eq 4 -or $logText -match 'FATAL:' -or @($dumps).Count -gt 0) { return 'Fatal' }
     if ($code -eq 0 -and $logText -match $script:SmokeMarker) { return 'Pass' }
     if ($code -eq 0) { return 'InitFailure' }
     return 'Unknown'
@@ -247,6 +247,32 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec) {
             Name = 'fatal-init'
             Args = "no_such_mission $tail"
             Expect = @{ Class = 'Fatal'; Code = 1; MaxDumps = 0; LogRx = 'FATAL: initialization failed' }
+            Twice = 0; Timeout = 0
+        }
+        foreach ($kind in 'arenaoom', 'debugheapoom') {
+            $cases += New-Object PSObject -Property @{
+                Name = "crash-$kind"
+                Args = "$standard $tail -crashtest $kind"
+                Expect = @{ Class = 'Fatal'; Code = 1; MaxDumps = 0; LogRx = 'FATAL: out of memory' }
+                Twice = 0; Timeout = 0
+            }
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-heapfail'
+            Args = "$standard $tail -crashtest heapfail"
+            Expect = @{ Class = 'Pass'; LogRx = 'alloc failure heap' }
+            Twice = 0; Timeout = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-luaoom'
+            Args = "$standard $tail -crashtest luaoom"
+            Expect = @{ Class = 'Pass'; LogRx = 'Lua out of memory' }
+            Twice = 0; Timeout = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-luapanic'
+            Args = "$standard $tail -crashtest luapanic"
+            Expect = @{ Class = 'Fatal'; Code = 4; MaxDumps = 0; LogRx = 'FATAL: lua panic' }
             Twice = 0; Timeout = 0
         }
     }

@@ -30,6 +30,8 @@
 #include "NetComm.h"
 #include "NetPacket.h"
 #include "NetWire.h"
+#include "LocalLimits.h"
+#include "RedEngineFL/Util/RedWarning.h"
 #include "TreeGrid.h"
 #include "EntityItem.h"
 #include "WeaponDetonator.h"
@@ -687,7 +689,7 @@ class NetNdObjMap
 public:
     NetNdObjMap();
     void Clear();
-    void Add(int* object, unsigned int hash);
+    bool Add(int* object, unsigned int hash);
 
     int objMapNumEntries;
     PblHashTable<NetNdObj, 256> objMap;
@@ -4788,7 +4790,7 @@ void WriteObjectPtr(NetPktGroup& group, const GameObject* pObject)
     if (bSpecial)
     {
         void* pEntry = clientNdObjMap.objMap.Find(pObject->GetHandleId());
-        group.WriteBits(((unsigned int*)pEntry)[3], 8);
+        group.WriteBits(pEntry ? ((unsigned int*)pEntry)[3] : 0u, 8);
     }
     else
     {
@@ -4806,6 +4808,10 @@ GameObject* ReadObjectPtr(NetPktGroup& group)
     if (!bSpecial)
     {
         return FindClientObject(uId);
+    }
+    if (uId >= clientNdObjMap.count || !clientNdObjMap.array[uId])
+    {
+        return 0;
     }
     GameObject** pPair = (GameObject**)clientNdObjMap.array[uId];
     return pPair[isFullState ? 1 : 0];
@@ -6997,6 +7003,10 @@ unsigned int ndSkippedMask[8];
 // FUNCTION: SWBF2 0x005b44d0
 void ClearSkippedND(GameObject* object)
 {
+    if (!LocalLimits::IsValidNdId(object->mNetUniqueId))
+    {
+        return;
+    }
     unsigned int index = object->mNetUniqueId - 64;
     ndSkippedMask[index >> 5] &= ~(1u << (index & 31));
 }
@@ -10222,8 +10232,20 @@ bool ReadObject(NetPktGroup& group)
     {
         unsigned int index;
         group.ReadBits(index, 8);
-        NetNdObj* ndObj = clientNdObjMap.array[index];
-        GameObject* object = isFullState ? ndObj->orig : ndObj->obj;
+        NetNdObj* ndObj = index < clientNdObjMap.count ? clientNdObjMap.array[index] : 0;
+        GameObject* object = ndObj ? (isFullState ? ndObj->orig : ndObj->obj) : 0;
+        if (!object)
+        {
+            static bool sbBadNdLogged = false;
+            if (!sbBadNdLogged)
+            {
+                sbBadNdLogged = true;
+                RedWarning::SetLogData(RedWarning::RED_SEVERITY_WARNING, "Source\\NetGame.cpp", 1,
+                                       "Oct 19 2017", "14:22:39");
+                RedWarning::LogMessage("invalid static net object index %u, packet refused", index);
+            }
+            return false;
+        }
         object->ReadObject(group, 0);
         ClearSkippedND(object);
     }
@@ -11591,9 +11613,30 @@ RedTerrain::Hole::Hole(RedTerrain::Hole* pSource)
     }
 }
 
-// FUNCTION: SWBF2 0x005b45f0
-void NetNdObjMap::Add(int* object, unsigned int hash)
+static bool CheckNdRoom(unsigned int uiCount)
 {
+    static bool sbNdLimitLogged = false;
+    if (LocalLimits::CanAddNdObject(uiCount))
+    {
+        return true;
+    }
+    if (!sbNdLimitLogged)
+    {
+        sbNdLimitLogged = true;
+        RedWarning::SetLogData(RedWarning::RED_SEVERITY_WARNING, "Source\\NetGame.cpp", 1,
+                               "Oct 19 2017", "14:22:39");
+        RedWarning::LogMessage("static net object limit 256 reached, object refused");
+    }
+    return false;
+}
+
+// FUNCTION: SWBF2 0x005b45f0
+bool NetNdObjMap::Add(int* object, unsigned int hash)
+{
+    if (!CheckNdRoom(count))
+    {
+        return false;
+    }
     NetNdObjMap* pThis = this;
     object[2] = hash;
     object[3] = pThis->count;
@@ -11603,6 +11646,7 @@ void NetNdObjMap::Add(int* object, unsigned int hash)
     }
     pThis->array[pThis->count++] = (NetNdObj*)object;
     ((GameObject*)object[0])->SetNetUniqueId(object[3] + 0x40);
+    return true;
 }
 
 // GLOBAL: SWBF2 0x01e64ddc
@@ -11931,10 +11975,13 @@ void CreateClientCollision(bool bNetCollision)
                     }
                     else
                     {
-                        NetNdObj* pNdObj = new NetNdObj;
-                        pNdObj->obj = pObject->AddToClient();
-                        pNdObj->orig = pObject;
-                        clientNdObjMap.Add((int*)pNdObj, (int)((PblHandled*)pObject)->GetHandleId());
+                        if (CheckNdRoom(clientNdObjMap.count))
+                        {
+                            NetNdObj* pNdObj = new NetNdObj;
+                            pNdObj->obj = pObject->AddToClient();
+                            pNdObj->orig = pObject;
+                            clientNdObjMap.Add((int*)pNdObj, (int)((PblHandled*)pObject)->GetHandleId());
+                        }
                     }
                     ++iCount;
                     break;
@@ -12278,6 +12325,10 @@ bool ReadNetIsLocalTurn() { return netIsLocalTurn; }
 // FUNCTION: SWBF2 0x005b4470
 bool IsSkippedND(const GameObject* pObject)
 {
+    if (!LocalLimits::IsValidNdId(pObject->mNetUniqueId))
+    {
+        return false;
+    }
     unsigned int iObject = pObject->mNetUniqueId - 64;
     return (ndSkippedMask[iObject >> 5] & (1u << (iObject & 31))) != 0;
 }
@@ -12645,6 +12696,10 @@ GameObject** sendObjList;
 // FUNCTION: SWBF2 0x005be2f0
 void AddSendFull(GameObject* pObject)
 {
+    if (IsNeverDies(pObject->GetEntityType()) && !clientNdObjMap.objMap.Find(pObject->GetHandleId()))
+    {
+        return;
+    }
     switch (pObject->GetEntityType())
     {
     case 1: case 2: case 3: case 5: case 6: case 7: case 8: case 9:
@@ -14078,11 +14133,16 @@ void WriteTrackable(NetPktGroup& group, Trackable* pTrackable)
         group.Write(false);
         return;
     }
+    NetNdObj* pNdObj = pObject->GetEntityType() == ENT_ARMED ? clientNdObjMap.objMap.Find(pObject->GetHandleId()) : 0;
+    if (pObject->GetEntityType() == ENT_ARMED && !pNdObj)
+    {
+        group.Write(false);
+        return;
+    }
     group.Write(true);
-    if (pObject->GetEntityType() == ENT_ARMED)
+    if (pNdObj)
     {
         group.Write(true);
-        NetNdObj* pNdObj = clientNdObjMap.objMap.Find(pObject->GetHandleId());
         group.WriteBits(pNdObj->index, 8);
         return;
     }
@@ -14488,7 +14548,7 @@ void WriteObject(NetPktGroup& group, GameObject* pObject)
     if (bNeverDies)
     {
         NetNdObj* pNdObj = clientNdObjMap.objMap.Find(pObject->GetHandleId());
-        group.WriteBits(pNdObj->index, 8);
+        group.WriteBits(pNdObj ? pNdObj->index : 0u, 8);
         pObject->WriteObject(group, 0);
         return;
     }
@@ -15307,6 +15367,10 @@ void WriteNetEvent(NetEvent& event, NetPktGroup& group)
 // FUNCTION: SWBF2 0x005bdd50
 void AddSend(GameObject* pObject)
 {
+    if (IsNeverDies(pObject->GetEntityType()) && !clientNdObjMap.objMap.Find(pObject->GetHandleId()))
+    {
+        return;
+    }
     float scale = 1.0f;
     const PblVector3& center = pObject->GetCollisionCenter();
     const float radius = pObject->GetCollisionRadius();

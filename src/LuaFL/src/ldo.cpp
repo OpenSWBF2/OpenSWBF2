@@ -22,6 +22,8 @@
 #include "lvm.h"
 #include "lzio.h"
 
+#include "RedEngineFL/Memory/RedMemory.h"
+
 struct lua_longjmp {
   struct lua_longjmp *previous;
   jmp_buf b;
@@ -66,12 +68,14 @@ void luaD_throw (lua_State *L, int errcode) {
 // luaD_rawrunprotected
 int luaD_rawrunprotected (lua_State *L, Pfunc f, void *ud) {
   struct lua_longjmp lj;
+  volatile int iHeap = __RedCurrHeap;
   lj.status = 0;
   lj.previous = L->errorJmp;
   L->errorJmp = &lj;
   if (setjmp(lj.b) == 0)
     (*f)(L, ud);
   L->errorJmp = lj.previous;
+  if (lj.status) RedSetCurrentHeap(iHeap);
   return lj.status;
 }
 

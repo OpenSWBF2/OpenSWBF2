@@ -1,6 +1,7 @@
 #include "GameMemory.h"
 
 #include "LuaMemory.h"
+#include "MemFailLog.h"
 #include "RedEngineFL/Memory/RedMemory.h"
 
 namespace GameMemory
@@ -51,6 +52,7 @@ void GameMemory::InitApplicationMemory(char* pStart, char* pEnd)
 
     g_Heap3Start = GamespyHeapend;
     RedSetCurrentHeap(ApplicationHeap);
+    OnFailure = MemFail::OnAllocFailure;
 }
 
 // FUNCTION: SWBF2 0x00533bc0

@@ -70,7 +70,10 @@ void CommandBuildingArmed::Init()
     EntityBuildingArmed::Init();
     if (mState == STATE_ALIVE)
     {
-        mPost->Respawn();
+        if (mPost)
+        {
+            mPost->Respawn();
+        }
     }
 }
 
@@ -78,21 +81,30 @@ void CommandBuildingArmed::Init()
 void CommandBuildingArmed::Kill()
 {
     EntityBuildingArmed::Kill();
-    mPost->Kill();
+    if (mPost)
+    {
+        mPost->Kill();
+    }
 }
 
 // FUNCTION: SWBF2 0x00477120
 void CommandBuildingArmed::Respawn()
 {
     EntityBuildingArmed::Respawn();
-    mPost->Respawn();
+    if (mPost)
+    {
+        mPost->Respawn();
+    }
 }
 
 // FUNCTION: SWBF2 0x00477140
 void CommandBuildingArmed::SetProperty(unsigned int uProperty, const char* pszValue)
 {
     EntityBuildingArmed::SetProperty(uProperty, pszValue);
-    mPost->SetProperty(uProperty, pszValue);
+    if (mPost)
+    {
+        mPost->SetProperty(uProperty, pszValue);
+    }
 }
 
 // FUNCTION: SWBF2 0x00477170
@@ -100,7 +112,10 @@ void CommandBuildingArmed::SetTeam(int iTeam)
 {
     int iOldTeam = mTeam;
     GameObject::SetTeam(iTeam);
-    mPost->SetTeam(iOldTeam, iTeam);
+    if (mPost)
+    {
+        mPost->SetTeam(iOldTeam, iTeam);
+    }
 }
 
 // FUNCTION: SWBF2 0x004771a0

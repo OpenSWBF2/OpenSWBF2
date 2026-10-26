@@ -12,7 +12,7 @@ extern "C"
     int __RedCurrHeap;
     int __RedDebugHeap = -1;
     int __RedTempHeap = -1;
-    void (*OnFailure)();
+    void (*OnFailure)(int heap, unsigned int size);
     int sRecursionDepth;
 }
 
@@ -25,6 +25,15 @@ extern "C" unsigned int RedGetHeapFree(int heap)
         total += tag->size;
     }
     return total;
+}
+
+extern "C" char const* RedGetHeapName(int heap)
+{
+    if (heap >= 0 && heap < maxheaps && heapobj[heap].name)
+    {
+        return heapobj[heap].name;
+    }
+    return "?";
 }
 
 namespace RedMemory
@@ -292,7 +301,7 @@ void* RedAllocFromHeap(int heap, unsigned int size, int bTop)
     {
         if (OnFailure)
         {
-            OnFailure();
+            OnFailure(heap, size);
         }
         return 0;
     }

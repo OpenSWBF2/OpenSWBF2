@@ -127,6 +127,10 @@ static void ReleaseMutex()
 void Startup_InitApplicationMemory()
 {
     s_memoryArena = malloc(0x4000000);
+    if (!s_memoryArena || pcCrash::SimulateAllocFailure("arenaoom"))
+    {
+        pcCrash::FatalInit("arena", 0x4000000);
+    }
 
     GameMemory::InitApplicationMemory((char*)s_memoryArena,
                                       (char*)s_memoryArena + 0x4000000);
@@ -136,6 +140,10 @@ void Startup_InitApplicationMemory()
 void Startup_DebugHeap()
 {
     void* p = malloc(0x300000);
+    if (!p || pcCrash::SimulateAllocFailure("debugheapoom"))
+    {
+        pcCrash::FatalInit("debug heap", 0x300000);
+    }
     PCDebugHeap = RedCreateHeap(p, (char*)p + 0x300000, 0x10, "Debug");
     RedSetDebugHeap(PCDebugHeap);
 }

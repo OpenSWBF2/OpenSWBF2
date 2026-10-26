@@ -30,6 +30,8 @@
 #include "CollisionManager.h"
 #include "Controllable.h"
 #include "NetComm.h"
+#include "LocalLimits.h"
+#include "RedEngineFL/Util/RedWarning.h"
 #include "VoiceOverManager.h"
 #include "SoundFL/source/sndsoundstream.h"
 #include "SoundFL/source/sndvoicevirtual.h"
@@ -440,9 +442,12 @@ static int sPostCountClient;
 // GLOBAL: SWBF2 0x01e30884
 static int sActivePostCountClient;
 
+static bool sbPostLimitLogged = false;
+
 // FUNCTION: SWBF2 0x0047aac0
 void CommandPost::CreateClient()
 {
+    sbPostLimitLogged = false;
     memset(sPostArrayClient, 0, sizeof(sPostArrayClient));
     sPostCountClient = 0;
     sActivePostCountClient = 0;
@@ -539,6 +544,7 @@ static int sForcedIndex = -1;
 // FUNCTION: SWBF2 0x0047aa40
 void CommandPost::Create()
 {
+    sbPostLimitLogged = false;
     memset(sPostArrayHost, 0, sizeof(sPostArrayHost));
     sPostArray = sPostArrayHost;
     sPostCountHost = 0;
@@ -568,6 +574,10 @@ int CommandPost::GetCount()
 // FUNCTION: SWBF2 0x0047ab80
 CommandPost* CommandPost::GetActive(int iIndex)
 {
+    if (iIndex < 0 || iIndex >= LocalLimits::kMaxPosts)
+    {
+        return 0;
+    }
     CommandPost* pPost = sPostArray[iIndex];
     if (!pPost || !pPost->IsThreadActive())
     {
@@ -658,7 +668,7 @@ CommandPost* CommandPost::FindPostByName(const char* pszName)
 {
     for (int i = 0; i < *sPostCount; i++)
     {
-        if (sPostArray[i]->mName && !_stricmp(sPostArray[i]->mName, pszName))
+        if (sPostArray[i] && sPostArray[i]->mName && !_stricmp(sPostArray[i]->mName, pszName))
         {
             return sPostArray[i];
         }
@@ -671,7 +681,7 @@ CommandPost* CommandPost::FindPostByObject(GameObject* pObject)
 {
     for (int i = 0; i < *sPostCount; i++)
     {
-        if (sPostArray[i]->mObject == pObject)
+        if (sPostArray[i] && sPostArray[i]->mObject == pObject)
         {
             return sPostArray[i];
         }
@@ -682,9 +692,10 @@ CommandPost* CommandPost::FindPostByObject(GameObject* pObject)
 // FUNCTION: SWBF2 0x0047ac80
 CommandPost* CommandPost::BuildPost(GameObject* pObject, CommandPostClass* pClass)
 {
-    int iIndex = sForcedIndex;
+    int iForced = sForcedIndex;
     sForcedIndex = -1;
-    if (iIndex < 0)
+    int iFound = -1;
+    if (iForced < 0)
     {
         for (int i = 0; i < *sPostCount; i++)
         {
@@ -697,18 +708,25 @@ CommandPost* CommandPost::BuildPost(GameObject* pObject, CommandPostClass* pClas
                 float fZ = vPos.z - mMatrix.m[3][2];
                 if (fX * fX + fY * fY + fZ * fZ < 1.0f)
                 {
-                    iIndex = i;
+                    iFound = i;
                     break;
                 }
             }
         }
-        if (iIndex < 0)
-        {
-            iIndex = *sPostCount;
-            *sPostCount = iIndex + 1;
-        }
     }
-    else if (iIndex >= *sPostCount)
+    int iIndex = LocalLimits::ChoosePostIndex(iForced, iFound, *sPostCount);
+    if (iIndex < 0)
+    {
+        if (!sbPostLimitLogged)
+        {
+            sbPostLimitLogged = true;
+            RedWarning::SetLogData(RedWarning::RED_SEVERITY_WARNING, "Source\\CommandPost.cpp", 1,
+                                   "Oct 19 2017", "14:22:39");
+            RedWarning::LogMessage("command post limit 16 reached, post refused");
+        }
+        return 0;
+    }
+    if (iIndex >= *sPostCount)
     {
         *sPostCount = iIndex + 1;
     }
@@ -716,6 +734,10 @@ CommandPost* CommandPost::BuildPost(GameObject* pObject, CommandPostClass* pClas
     if (!sPostArray[iIndex])
     {
         new CommandPost(pClass, iIndex);
+        if (!sPostArray[iIndex])
+        {
+            return 0;
+        }
     }
     sPostArray[iIndex]->Attach(pObject);
     return sPostArray[iIndex];

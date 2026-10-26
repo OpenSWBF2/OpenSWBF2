@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "GameLoop.h"
+#include "pcCrash.h"
 #include "BootDisplay.h"
 #include "RedEngineFL/Application/RedTerrain.h"
 #include "RedEngineFL/Application/pc/pcRedShadowProxy.h"
@@ -1181,6 +1182,7 @@ void Update(float fDeltaTime, float fSystemDeltaTime)
         sbRunningLogged = true;
         RedWarning::SetLogData(RedWarning::RED_SEVERITY_INFORM);
         RedWarning::LogMessage("OPENSWBF2 MISSION RUNNING %s\n", mMissionScript);
+        pcCrash::RunMissionCrashTest();
     }
 
     ScreenTransition::sInstance->Update(fSystemDeltaTime);
