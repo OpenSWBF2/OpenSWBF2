@@ -1,4 +1,6 @@
 #include "TeamManager.h"
+#include "LocalLimits.h"
+#include "RedEngineFL/Util/RedWarning.h"
 #include "GameObject.h"
 #include "NetGame.h"
 #include "Team.h"
@@ -17,6 +19,8 @@ static TeamManager::ObjCacheData sTeamList[8][600];
 // GLOBAL: SWBF2 0x01faa430
 static int sMemberCount[8];
 
+static bool sbLimitLogged = false;
+
 // GLOBAL: SWBF2 0x007ec554
 int sUnmatchedRemovalCount = 1;
 
@@ -32,6 +36,7 @@ void TeamManager::Init()
     {
         return;
     }
+    sbLimitLogged = false;
     for (int i = 0; i < 8; ++i)
     {
         sDirty[i] = true;
@@ -196,6 +201,17 @@ void AddObject(GameObject* pObject)
     }
 
     const int iTeam = pObject->mTeam;
+    if (!LocalLimits::IsValidTeam(iTeam) || !LocalLimits::CanAddTeamMember(iTeam, sMemberCount[iTeam]))
+    {
+        if (!sbLimitLogged)
+        {
+            sbLimitLogged = true;
+            RedWarning::SetLogData(RedWarning::RED_SEVERITY_WARNING, "Source\\TeamManager.cpp", 1,
+                                   "Oct 19 2017", "14:22:39");
+            RedWarning::LogMessage("team list limit reached, object refused");
+        }
+        return;
+    }
     ObjCacheData& rData = sTeamList[iTeam][sMemberCount[iTeam]];
     rData.mObj = pObject;
     rData.mSphere = pObject->GetCollisionObject()->GetCollisionSphere();
@@ -215,6 +231,10 @@ void RemoveObject(GameObject* pObject)
     }
 
     const int iTeam = pObject->mTeam;
+    if (!LocalLimits::IsValidTeam(iTeam))
+    {
+        return;
+    }
     for (int i = 0; i < sMemberCount[iTeam]; ++i)
     {
         if (sTeamList[iTeam][i].mObj == pObject)
@@ -224,7 +244,10 @@ void RemoveObject(GameObject* pObject)
             return;
         }
     }
-    ++sUnmatchedRemovalCount;
+    if (LocalLimits::CanAddTeamMember(iTeam, sMemberCount[iTeam]))
+    {
+        ++sUnmatchedRemovalCount;
+    }
 }
 
 }

@@ -141,7 +141,10 @@ CommandFlyer::CommandFlyer(CommandFlyerClass* pClass, const EntityDesc& desc)
     mClass = pClass;
     mbHasTakenOffBefore = false;
     mPost = CommandPost::BuildPost(this, pClass);
-    mPost->mIsAISpawnPoint = true;
+    if (mPost)
+    {
+        mPost->mIsAISpawnPoint = true;
+    }
 }
 
 // FUNCTION: SWBF2 0x00477d60
@@ -157,20 +160,29 @@ CommandFlyer::~CommandFlyer()
 void CommandFlyer::Init()
 {
     EntityFlyer::Init();
-    mPost->Respawn();
+    if (mPost)
+    {
+        mPost->Respawn();
+    }
 }
 
 // FUNCTION: SWBF2 0x00477e20
 void CommandFlyer::Kill()
 {
     EntityFlyer::Kill();
-    mPost->Kill();
+    if (mPost)
+    {
+        mPost->Kill();
+    }
 }
 
 // FUNCTION: SWBF2 0x00477e40
 void CommandFlyer::Respawn()
 {
-    mPost->Respawn();
+    if (mPost)
+    {
+        mPost->Respawn();
+    }
     GameObject::Respawn();
 }
 
@@ -178,12 +190,19 @@ void CommandFlyer::Respawn()
 void CommandFlyer::SetProperty(unsigned int uProperty, const char* pszValue)
 {
     GameObject::SetProperty(uProperty, pszValue);
-    mPost->SetProperty(uProperty, pszValue);
+    if (mPost)
+    {
+        mPost->SetProperty(uProperty, pszValue);
+    }
 }
 
 // FUNCTION: SWBF2 0x00477e90
 bool CommandFlyer::Update(float fDeltaTime)
 {
+    if (!mPost)
+    {
+        return EntityFlyer::Update(fDeltaTime);
+    }
     if (IsLanded())
     {
         if (!mPost->mbIsEnabled)
@@ -203,12 +222,19 @@ void CommandFlyer::SetTeam(int iTeam)
 {
     int iOldTeam = mTeam;
     GameObject::SetTeam(iTeam);
-    mPost->SetTeam(iOldTeam, iTeam);
+    if (mPost)
+    {
+        mPost->SetTeam(iOldTeam, iTeam);
+    }
 }
 
 // FUNCTION: SWBF2 0x00477fe0
 void CommandFlyer::EnablePost(bool bEnable)
 {
+    if (!mPost)
+    {
+        return;
+    }
     mPost->mbIsEnabled = bEnable;
     mPost->mIsAISpawnPoint = bEnable;
     if (!bEnable)

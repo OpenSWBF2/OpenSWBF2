@@ -6025,12 +6025,15 @@ GameObject* CommandBuilding::AddToClient()
     desc.mMatrix = static_cast<const CollisionObject*>(this)->GetMatrix();
     desc.mNameId = 0;
     desc.mPlayerId = -1;
-    CommandPost::ForceIndex(mPost->mPostIndex);
+    CommandPost::ForceIndex(mPost ? mPost->mPostIndex : -1);
     CommandBuilding* client = (CommandBuilding*)GetEntityClass()->Build(desc);
     PAAnimationGroup::ClientGeometryCreated(this, client);
     client->SetTeam(mTeam);
     client->mPerceivedTeam = mPerceivedTeam;
-    client->mPost->CopyFrom(mPost);
+    if (mPost && client->mPost)
+    {
+        client->mPost->CopyFrom(mPost);
+    }
     client->Init();
     client->BuildEffects();
     NetGame::LeaveClient();
@@ -6054,7 +6057,10 @@ GameObject* CommandWalker::AddToClient()
     CommandWalker* client = (CommandWalker*)GetEntityClass()->Build(desc);
     client->SetTeam(mTeam);
     client->mPerceivedTeam = mPerceivedTeam;
-    client->mPost->CopyFrom(mPost);
+    if (mPost && client->mPost)
+    {
+        client->mPost->CopyFrom(mPost);
+    }
     client->Init();
     client->BuildEffects();
     NetGame::LeaveClient();
@@ -6078,7 +6084,10 @@ GameObject* CommandHover::AddToClient()
     CommandHover* client = (CommandHover*)GetEntityClass()->Build(desc);
     client->SetTeam(mTeam);
     client->mPerceivedTeam = mPerceivedTeam;
-    client->mPost->CopyFrom(mPost);
+    if (mPost && client->mPost)
+    {
+        client->mPost->CopyFrom(mPost);
+    }
     client->Init();
     client->BuildEffects();
     NetGame::LeaveClient();
@@ -6103,7 +6112,10 @@ GameObject* CommandBuildingArmed::AddToClient()
     PAAnimationGroup::ClientGeometryCreated(this, client);
     client->SetTeam(mTeam);
     client->mPerceivedTeam = mPerceivedTeam;
-    client->mPost->CopyFrom(mPost);
+    if (mPost && client->mPost)
+    {
+        client->mPost->CopyFrom(mPost);
+    }
     client->Init();
     client->BuildEffects();
     NetGame::LeaveClient();
@@ -6128,7 +6140,10 @@ GameObject* CommandBuildingAnimatedArmed::AddToClient()
     PAAnimationGroup::ClientGeometryCreated(this, client);
     client->SetTeam(mTeam);
     client->mPerceivedTeam = mPerceivedTeam;
-    client->mPost->CopyFrom(mPost);
+    if (mPost && client->mPost)
+    {
+        client->mPost->CopyFrom(mPost);
+    }
     client->Init();
     client->BuildEffects();
     NetGame::LeaveClient();

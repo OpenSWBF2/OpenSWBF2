@@ -996,6 +996,9 @@
     <ClCompile Include="src\Battlefront2\Source\NetPacket.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
+    <ClCompile Include="src\Battlefront2\Source\MemFailLog.cpp">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClCompile>
     <ClCompile Include="src\Battlefront2\Source\NetWire.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
@@ -3113,8 +3116,17 @@
     <ClInclude Include="src\Battlefront2\Source\NetPacket.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\MemFailLog.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\NetWire.h">
       <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\LocalLimits.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
+    <ClInclude Include="src\RedEngineFL\Graphics\PC\pcRedPoolMath.h">
+      <Filter>src\RedEngineFL\Graphics\PC</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\NetPredict.h">
       <Filter>src\Battlefront2\Source</Filter>

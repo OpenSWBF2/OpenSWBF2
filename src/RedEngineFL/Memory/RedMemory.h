@@ -41,6 +41,8 @@ extern "C"
     void RedSetTempHeap(int heap);
 
     unsigned int RedGetHeapFree(int heap);
+    char const* RedGetHeapName(int heap);
+    extern void (*OnFailure)(int heap, unsigned int size);
 
     extern int __RedCurrHeap;
     extern int __RedDebugHeap;

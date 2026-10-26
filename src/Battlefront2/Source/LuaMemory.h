@@ -27,5 +27,7 @@ void Reset();
 
 void Lua_Red_Free(void* pBlock, unsigned int uiSize);
 void* Lua_Red_realloc(void* pBlock, unsigned int uiOldSize, unsigned int uiNewSize);
+struct lua_State;
+int Lua_Red_Panic(lua_State* L);
 
 void __cdecl LuaScript_CallWARNINGF(char const* pcMessage);

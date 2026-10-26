@@ -78,6 +78,10 @@ CommandBuilding::~CommandBuilding()
 void CommandBuilding::Respawn()
 {
     EntityBuilding::Respawn();
+    if (!mPost)
+    {
+        return;
+    }
     if (!mPost->IsThreadActive())
     {
         if (!NetGame::IsEnabled() || !NetGame::IsClient())
@@ -121,7 +125,10 @@ void CommandBuilding::Init()
     EntityBuildingAnimated::Init();
     if (mState == STATE_ALIVE)
     {
-        mPost->Respawn();
+        if (mPost)
+        {
+            mPost->Respawn();
+        }
     }
 }
 
@@ -129,6 +136,10 @@ void CommandBuilding::Init()
 void CommandBuilding::Kill()
 {
     EntityBuildingAnimated::Kill();
+    if (!mPost)
+    {
+        return;
+    }
     if (mPost->IsThreadActive())
     {
         if (!NetGame::IsEnabled() || !NetGame::IsClient())
@@ -143,7 +154,10 @@ void CommandBuilding::Kill()
 void CommandBuilding::SetProperty(unsigned int uProperty, const char* pszValue)
 {
     GameObject::SetProperty(uProperty, pszValue);
-    mPost->SetProperty(uProperty, pszValue);
+    if (mPost)
+    {
+        mPost->SetProperty(uProperty, pszValue);
+    }
 }
 
 // FUNCTION: SWBF2 0x00476380
@@ -152,7 +166,10 @@ void CommandBuilding::SetTeam(int iTeam)
     int iOldTeam = mTeam;
     GameObject::SetTeam(iTeam);
     mPerceivedTeam = iTeam;
-    mPost->SetTeam(iOldTeam, iTeam);
+    if (mPost)
+    {
+        mPost->SetTeam(iOldTeam, iTeam);
+    }
 }
 
 // FUNCTION: SWBF2 0x00476060

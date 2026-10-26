@@ -9,6 +9,9 @@
 #include <string.h>
 
 #include "pcCrash.h"
+#include "GameMemory.h"
+#include "LuaHelper.h"
+#include "RedEngineFL/Memory/RedMemory.h"
 
 typedef BOOL (WINAPI* MiniDumpWriteDumpFn)(HANDLE, DWORD, HANDLE, MINIDUMP_TYPE,
     PMINIDUMP_EXCEPTION_INFORMATION, PMINIDUMP_USER_STREAM_INFORMATION, PMINIDUMP_CALLBACK_INFORMATION);
@@ -371,13 +374,105 @@ void __cdecl pcCrash::Exit(int iCode)
     {
         AppendLog("FATAL: initialization failed, exiting with code 1\r\n");
     }
+    else if (iCode == 4)
+    {
+        AppendLog("FATAL: lua panic, exiting with code 4\r\n");
+    }
     _exit(iCode);
+}
+
+static char const* FindArg(char const* pcCmd, char const* pcName, int* piLen)
+{
+    int iNameLen = lstrlenA(pcName);
+    for (char const* pc = pcCmd; *pc != 0; ++pc)
+    {
+        bool bStart = (pc == pcCmd) || pc[-1] == ' ' || pc[-1] == '"';
+        if (bStart && _strnicmp(pc, pcName, iNameLen) == 0 && (pc[iNameLen] == ' ' || pc[iNameLen] == 0))
+        {
+            char const* pcVal = pc + iNameLen;
+            while (*pcVal == ' ')
+            {
+                ++pcVal;
+            }
+            char cEnd = ' ';
+            if (*pcVal == '"')
+            {
+                cEnd = '"';
+                ++pcVal;
+            }
+            int iLen = 0;
+            while (pcVal[iLen] != 0 && pcVal[iLen] != cEnd)
+            {
+                ++iLen;
+            }
+            *piLen = iLen;
+            return pcVal;
+        }
+    }
+    return 0;
+}
+
+bool pcCrash::SimulateAllocFailure(char const* pcKind)
+{
+    int iLen = 0;
+    char const* pcVal = FindArg(GetCommandLineA(), "-crashtest", &iLen);
+    return pcVal != 0 && iLen == lstrlenA(pcKind) && _strnicmp(pcVal, pcKind, iLen) == 0;
+}
+
+void pcCrash::FatalInit(char const* pcWhat, unsigned int uiSize)
+{
+    if (gLogPath[0] == 0)
+    {
+        int iLen = 0;
+        char const* pcVal = FindArg(GetCommandLineA(), "-log", &iLen);
+        if (pcVal != 0 && iLen > 0 && iLen < MAX_PATH)
+        {
+            memcpy(gLogPath, pcVal, iLen);
+            gLogPath[iLen] = 0;
+        }
+    }
+    char acLine[160];
+    wsprintfA(acLine, "FATAL: out of memory allocating %s (%u bytes)\r\n", pcWhat, uiSize);
+    AppendLog(acLine);
+    pcCrash::Exit(1);
+}
+
+static int LuaAllocHuge(lua_State* L)
+{
+    lua_newuserdata(L, 0x04000000);
+    return 0;
+}
+
+void pcCrash::RunMissionCrashTest()
+{
+    static bool sbRan;
+    if (sbRan || !gbReinstalled)
+    {
+        return;
+    }
+    if (strcmp(gCrashKind, "heapfail") == 0)
+    {
+        sbRan = true;
+        RedAllocFromHeap(GameMemory::RunTimeHeap, 0x10000000, 0);
+    }
+    else if (strcmp(gCrashKind, "luaoom") == 0)
+    {
+        sbRan = true;
+        lua_cpcall(LuaHelper::mState, LuaAllocHuge, 0);
+    }
+    else if (strcmp(gCrashKind, "luapanic") == 0)
+    {
+        sbRan = true;
+        lua_pushstring(LuaHelper::mState, "crashtest");
+        lua_error(LuaHelper::mState);
+    }
 }
 
 void pcCrash::SetCrashTest(char const* pcKind)
 {
     static char const* const apcKinds[] = { "nullderef", "divzero", "stackoverflow", "debugbreak", "abort",
-        "invalidparam", "fastfail" };
+        "invalidparam", "fastfail", "arenaoom", "debugheapoom", "heapfail",
+        "luaoom", "luapanic" };
     if (pcKind == 0)
     {
         return;

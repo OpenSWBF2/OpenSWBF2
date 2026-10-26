@@ -7,6 +7,8 @@
 #include "PebbleFL/Common/PblUnicode.h"
 #include "LuaScript.h"
 #include "LuaEvent.h"
+#include "LuaMemory.h"
+#include "pcCrash.h"
 
 namespace LuaHelper
 {
@@ -24,6 +26,11 @@ void InitState()
     }
 
     mState = lua_open();
+    if (!mState)
+    {
+        pcCrash::Exit(1);
+    }
+    lua_atpanic(mState, Lua_Red_Panic);
 
     luaopen_base(mState);
     luaopen_table(mState);

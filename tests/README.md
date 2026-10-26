@@ -89,12 +89,14 @@ Artifacts go to `artifacts\tests\<timestamp>\smoke\<case>\`: `run.log`, `finalsc
 | Skipped | precheck failed | SKIP |
 | TimeOut | killed at the timeout | TIMEOUT |
 | GsFailure | exit `0xC0000409` | CRASH |
-| Fatal | exit 1 or 3, a `FATAL:` log line, or a dump | CRASH |
+| Fatal | exit 1, 3 or 4, a `FATAL:` log line, or a dump | CRASH |
 | Pass | exit 0 and `OPENSWBF2 RUN COMPLETE` in the log, no dump | PASS |
 | InitFailure | exit 0 without the marker | FAIL |
 | Unknown | anything else | FAIL |
 
 Classes are decided in that order. Crash cases pass when the expected class, exit code and dump count are observed.
+
+Exit code 4 is a Lua panic (an uncaught Lua error). The `-crashtest` kinds are `nullderef`, `divzero`, `stackoverflow`, `debugbreak`, `abort`, `invalidparam`, `fastfail`, `arenaoom`, `debugheapoom`, `heapfail`, `luaoom` and `luapanic`.
 
 The runner prints `WARNING:` lines when the crash dump setup is missing. Import `tools\wer-localdumps.reg` once as administrator (HKLM only) so a `/GS` fast-fail leaves a dump and no Windows error dialog. The runner never writes the registry.
 
