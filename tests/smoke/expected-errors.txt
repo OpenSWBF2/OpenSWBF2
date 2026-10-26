@@ -1,0 +1,17 @@
+[global]
+
+[fatal-init]
+^\[t=\d+\.\d{3}\] \[f=\d+\] LogLoad Fatal Battlefront2\\Source\\GameState\.cpp:\d+: Could not open MISSION\\no_such_mission\.lvl$
+
+[crash-heapfail]
+^\[t=\d+\.\d{3}\] \[f=\d+\] LogMemory Error Battlefront2\\Source\\MemFailLog\.cpp:\d+: alloc failure heap Runtime \(\d+\) size 268435456
+
+[crash-luaoom]
+^\[t=\d+\.\d{3}\] \[f=\d+\] LogMemory Error Battlefront2\\Source\\MemFailLog\.cpp:\d+: alloc failure heap Lua \(\d+\) size 67108880
+^\[t=\d+\.\d{3}\] \[f=\d+\] LogLua Error Battlefront2\\Source\\LuaMemory\.cpp:\d+: Lua out of memory \(\d+ used in \d+ blocks, trying to alloc 67108880\)$
+
+[crash-luapanic]
+^\[t=\d+\.\d{3}\] \[f=\d+\] LogLua Fatal Battlefront2\\Source\\LuaMemory\.cpp:\d+: Lua panic: crashtest$
+
+[crash-check]
+^\[t=\d+\.\d{3}\] \[f=\d+\] LogCore Error Battlefront2\\Source\\pcCrash\.cpp:\d+: ensure failed: false$

@@ -75,6 +75,7 @@
 #include "RedEngineFL/Interface/RedFont.h"
 #include "RedEngineFL/Interface/RedGlyphCacheElement.h"
 #include "RedEngineFL/Util/RedWarning.h"
+#include "RedEngineFL/Util/RedLog.h"
 #include "AIVisRegion.h"
 #include "Cloth.h"
 #include "RedEngineFL/Util/ext/IAllocator.h"
@@ -434,9 +435,7 @@ void GameState::OneTimeInit()
 
     if (!GameSoundEngine::Init(0, true))
     {
-        RedWarning::SetLogData(RedWarning::RED_SEVERITY_FATAL, "Source\\GameState.cpp", 804,
-                               "Oct 19 2017", "14:22:39");
-        RedWarning::LogMessage("Could not initialize sound engine!");
+        LOG(LogAudio, Fatal, "Could not initialize sound engine!");
         RedWarning::DialogBoxMessage("Could not initialize sound engine!");
         pcCrash::Exit(1);
     }
@@ -607,6 +606,7 @@ bool GameState::Update()
     }
 
     PblProfile::StartFrame();
+    RedLog::NextFrame();
     FrameUpdate::Update();
     UpdateTime();
     _pCurrentState->Update(sDeltaTime, sSystemDeltaTime);
@@ -837,9 +837,7 @@ void GameState::PreStateInit(bool bMission)
         {
             RedTexture::Init();
             RedRenderer::Init();
-            RedWarning::SetLogData(RedWarning::RED_SEVERITY_FATAL, "Source\\GameState.cpp", 1278,
-                                   "Oct 19 2017", "14:22:39");
-            RedWarning::LogMessage("Could not open mission.lvl");
+            LOG(LogLoad, Fatal, "Could not open mission.lvl");
             RedWarning::DialogBoxMessage("Could not open mission.lvl");
             pcCrash::Exit(1);
         }
@@ -852,9 +850,7 @@ void GameState::PreStateInit(bool bMission)
             _snprintf(acName, sizeof(acName), "MISSION\\%s.lvl", GameLoop::mMissionScript);
             if (!LoadUtil::ReadDataFile(acName, 0, 0, 0, 0))
             {
-                RedWarning::SetLogData(RedWarning::RED_SEVERITY_FATAL, "Source\\GameState.cpp",
-                                       1291, "Oct 19 2017", "14:22:39");
-                RedWarning::LogMessage("Could not open %s", acName);
+                LOG(LogLoad, Fatal, "Could not open %s", acName);
                 RedWarning::DialogBoxMessage("Could not open %s", acName);
                 pcCrash::Exit(1);
             }

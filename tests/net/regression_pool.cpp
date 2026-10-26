@@ -22,6 +22,7 @@ static void BuildInts(NetPktGroup& g, int iCount)
 
 TEST_CASE("alloc exhaustion is fatal and does not recycle" * doctest::test_suite("regression"))
 {
+    ExpectLog expect("net packet pool exhausted");
     NetTestReset();
     LogCapture capture;
     for (int i = 0; i < 256; ++i)

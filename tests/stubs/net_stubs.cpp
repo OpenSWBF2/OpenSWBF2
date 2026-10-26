@@ -6,6 +6,7 @@
 #include "Steam/galaxy_api.h"
 #include "Steam/gfGalaxy.h"
 #include "Battlefront2/Source/pcCrash.h"
+#include <string.h>
 #include "nettest.h"
 
 class NetDrag
@@ -50,3 +51,6 @@ namespace galaxy { namespace api { IGalaxy* GalaxyFactory::GetInstance() { retur
 int gExitCalls;
 int gLastExitCode;
 namespace pcCrash { void __cdecl Exit(int iCode) { ++gExitCalls; gLastExitCode = iCode; } }
+int gCheckCalls;
+char gLastCheckExpr[256];
+namespace pcCrash { void __cdecl Check(char const* pcExpr, char const*, int) { ++gCheckCalls; strncpy(gLastCheckExpr, pcExpr, sizeof(gLastCheckExpr) - 1); gLastCheckExpr[sizeof(gLastCheckExpr) - 1] = 0; } }

@@ -12,6 +12,7 @@
 #include "NetSetup.h"
 #include "PlayerProfile.h"
 #include "RedEngineFL/Memory/RedMemory.h"
+#include "RedEngineFL/Util/RedLog.h"
 #include "SoundFL/source/sndbus.h"
 #include "SoundFL/source/sndfreelist.h"
 #include "SoundFL/source/sndi3dl2reverb.h"
@@ -118,8 +119,9 @@ void __cdecl SndTempFree(void* pBlock)
 }
 
 // FUNCTION: SWBF2 0x00538820
-void __cdecl PrintDebugString(char const*)
+void __cdecl PrintDebugString(char const* pcMessage)
 {
+    LOG(LogAudio, Warning, "%s", pcMessage);
 }
 
 namespace GameSoundEngine {

@@ -5,6 +5,7 @@
 
 #include "testutil.h"
 #include "RedEngineFL/Util/RedWarning.h"
+#include "RedEngineFL/Util/RedLog.h"
 
 std::vector<std::string> LogCapture::sLines;
 
@@ -39,6 +40,73 @@ bool LogCapture::Contains(const char* pcText) const
 void __cdecl LogCapture::Sink(char const* pcLine, ...)
 {
     sLines.push_back(pcLine);
+}
+
+struct Expectation
+{
+    std::string sText;
+    bool bMatched;
+};
+
+static std::vector<Expectation> sExpectations;
+static std::vector<std::string> sUndeclared;
+static std::vector<std::string> sUnmatched;
+
+ExpectLog::ExpectLog(const char* pcSubstring)
+    : mText(pcSubstring)
+{
+    Expectation entry;
+    entry.sText = mText;
+    entry.bMatched = false;
+    sExpectations.push_back(entry);
+}
+
+ExpectLog::~ExpectLog()
+{
+    if (!sExpectations.back().bMatched)
+    {
+        sUnmatched.push_back(mText + " (declared but never logged)");
+    }
+    sExpectations.pop_back();
+}
+
+ExpectEnsure::ExpectEnsure(const char* pcName)
+    : mLog((std::string("ensure failed: ") + pcName).c_str())
+{
+}
+
+void __cdecl TestLogObserver(int iSeverity, int, char const* pcLine)
+{
+    if (iSeverity < RedLog::Error)
+    {
+        return;
+    }
+    for (size_t i = sExpectations.size(); i > 0; --i)
+    {
+        if (strstr(pcLine, sExpectations[i - 1].sText.c_str()))
+        {
+            sExpectations[i - 1].bMatched = true;
+            return;
+        }
+    }
+    sUndeclared.push_back(pcLine);
+}
+
+int TestStrictnessReport(const char* pcCase)
+{
+    int iCount = 0;
+    for (size_t i = 0; i < sUndeclared.size(); ++i)
+    {
+        printf("[UNEXPECTED-LOG] %s: %s", pcCase, sUndeclared[i].c_str());
+        ++iCount;
+    }
+    for (size_t i = 0; i < sUnmatched.size(); ++i)
+    {
+        printf("[UNEXPECTED-LOG] %s: %s\n", pcCase, sUnmatched[i].c_str());
+        ++iCount;
+    }
+    fflush(stdout);
+    return iCount;
 }
 
 static bool DirExists(const std::string& sPath)

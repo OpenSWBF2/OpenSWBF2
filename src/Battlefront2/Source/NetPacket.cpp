@@ -5,6 +5,7 @@
 #include "NetGame.h"
 #include "pcCrash.h"
 #include "RedEngineFL/Util/RedWarning.h"
+#include "RedEngineFL/Util/RedLog.h"
 
 class NetDrag
 {
@@ -74,9 +75,7 @@ void NetRejectCount(int iReason)
         sRejectLogged[iReason] = true;
         sRejectSuppressed[iReason] = 0;
         sRejectLastLog[iReason] = fNow;
-        RedWarning::SetLogData(RedWarning::RED_SEVERITY_WARNING, "Source\\NetPacket.cpp", 30,
-                               "Oct 19 2017", "14:22:39");
-        RedWarning::LogMessage("net reject %s (%d suppressed)", sRejectNames[iReason], iSuppressed);
+        LOG(LogNet, Warning, "net reject %s (%d suppressed)", sRejectNames[iReason], iSuppressed);
     }
     else
     {
@@ -215,11 +214,8 @@ NetPacket* NetPacket::Alloc(bool bSmall)
         if (!pPacket)
         {
             NetRejectCount(NET_REJECT_POOL_EXHAUSTED);
-            RedWarning::SetLogData(RedWarning::RED_SEVERITY_FATAL, "Source\\NetPacket.cpp", 130,
-                                   "Oct 19 2017", "14:22:39");
-            RedWarning::LogMessage("net packet pool exhausted (%s big=%d small=%d)",
-                                   bSmall ? "small" : "big", freeBigPackets.pktCount,
-                                   freeSmallPackets.pktCount);
+            LOG(LogNet, Fatal, "net packet pool exhausted (%s big=%d small=%d)",
+                bSmall ? "small" : "big", freeBigPackets.pktCount, freeSmallPackets.pktCount);
             pcCrash::Exit(3);
             return 0;
         }

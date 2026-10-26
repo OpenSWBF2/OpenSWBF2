@@ -77,7 +77,8 @@ function Run-Smoke([string]$wt, [string]$tag, $case) {
 function Run-Case([string]$exe, [string]$wt, [string]$name) {
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = $exe
-    $psi.Arguments = '"-tc=' + ($name -replace '"', '\"') + '" --timeout 10'
+    $isProbe = $name -like 'strictness probe*'
+    $psi.Arguments = '"-tc=' + ($name -replace '"', '\"') + '" --timeout 10' + $(if ($isProbe) { ' -ns' } else { '' })
     $psi.WorkingDirectory = Join-Path $wt 'tests'
     $psi.UseShellExecute = $false
     $psi.RedirectStandardOutput = $true
@@ -95,7 +96,11 @@ function Run-Case([string]$exe, [string]$wt, [string]$name) {
     $text = $o.Result + $e.Result
     $state = 'RED'
     $detail = ''
-    if ($code -eq 0) {
+    if ($isProbe) {
+        if ($code -eq 1 -and $text -match '\[UNEXPECTED-LOG\]') { $state = 'GREEN' }
+        else { $state = 'RED' }
+    }
+    elseif ($code -eq 0) {
         if ($text -match 'test cases:\s+1 \|\s+1 passed') { $state = 'GREEN' }
         else { $state = 'NO-MATCH' }
     }

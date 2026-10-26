@@ -10,6 +10,7 @@
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "RedEngineFL/Graphics/PC/pcRedTexture.h"
 #include "RedEngineFL/Memory/RedMemory.h"
+#include "RedEngineFL/Util/RedLog.h"
 #include "RedEngineFL/Util/RedWarning.h"
 #include "SoundFL/source/sndbus.h"
 #include "SoundFL/source/win/sndengine.h"
@@ -217,6 +218,7 @@ long __stdcall WindowProc(HWND__* hWnd, unsigned int Msg, unsigned int wParam, l
         DestroyWindow(hGlobalWnd);
         PostQuitMessage(0);
         hGlobalWnd = 0;
+        RedLog::LogEnsureSummary();
         pcCrash::Exit(0);
 
     case WM_ACTIVATE:
@@ -373,6 +375,7 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
     {
         SetErrorMode(SEM_FAILCRITICALERRORS);
         RedWarning::SetSuppressDialogs(true);
+        pcCrash::StartWatchdog();
     }
     if (gSeedSet)
     {
@@ -395,7 +398,8 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
     {
         RedWarning::SetLogFileOverwrite(false);
         RedWarning::SetSeverityToDestination(RED_LOG_DESTINATION_FILE,
-                                             RedWarning::RED_SEVERITY_INFORM);
+                                             (RedWarning::RED_ERROR_SEVERITY)RedLog::MinVerbosity());
+        RedLog::Apply(pcCrash::GetBuildId());
     }
 
     GameState::SetState(GameLoop::mMissionScript[0] ? 0x8FF60339 : 0x11E1FC01);

@@ -4,6 +4,7 @@
 #include <string.h>
 #include "GameMovie.h"
 #include "pcCrash.h"
+#include "RedEngineFL/Util/RedLog.h"
 #include "RedEngineFL/Util/RedWarning.h"
 
 #include "CommandLine.h"
@@ -303,7 +304,7 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
                 const char* pcPath = apcArgv[++i];
                 if (strlen(pcPath) >= MAX_PATH)
                 {
-                    RedWarning::LogMessage("-log path too long, ignored\n");
+                    LOG(LogCore, Warning, "-log path too long, ignored");
                 }
                 else
                 {
@@ -340,6 +341,24 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
         if (_stricmp(pcArg + 1, "allowuploads") == 0)
         {
             gAllowUploads = true;
+            continue;
+        }
+
+        if (_stricmp(pcArg + 1, "logcmds") == 0)
+        {
+            if (i + 1 < iArgc)
+            {
+                RedLog::ParseCmds(apcArgv[++i]);
+            }
+            continue;
+        }
+
+        if (_stricmp(pcArg + 1, "hangtimeout") == 0)
+        {
+            if (i + 1 < iArgc)
+            {
+                pcCrash::SetHangTimeout(atoi(apcArgv[++i]));
+            }
             continue;
         }
 

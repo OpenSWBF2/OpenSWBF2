@@ -49,3 +49,27 @@ private:
     void(__cdecl* mpOldCallback)(char const*, ...);
     int meOldSeverity;
 };
+
+class ExpectLog
+{
+public:
+    explicit ExpectLog(const char* pcSubstring);
+    ~ExpectLog();
+
+private:
+    ExpectLog(const ExpectLog&);
+    ExpectLog& operator=(const ExpectLog&);
+    std::string mText;
+};
+
+class ExpectEnsure
+{
+public:
+    explicit ExpectEnsure(const char* pcName);
+
+private:
+    ExpectLog mLog;
+};
+
+void __cdecl TestLogObserver(int iSeverity, int iCategory, char const* pcLine);
+int TestStrictnessReport(const char* pcCase);

@@ -1,6 +1,7 @@
 #include "TeamManager.h"
 #include "LocalLimits.h"
 #include "RedEngineFL/Util/RedWarning.h"
+#include "RedEngineFL/Util/RedLog.h"
 #include "GameObject.h"
 #include "NetGame.h"
 #include "Team.h"
@@ -19,8 +20,6 @@ static TeamManager::ObjCacheData sTeamList[8][600];
 // GLOBAL: SWBF2 0x01faa430
 static int sMemberCount[8];
 
-static bool sbLimitLogged = false;
-
 // GLOBAL: SWBF2 0x007ec554
 int sUnmatchedRemovalCount = 1;
 
@@ -36,7 +35,6 @@ void TeamManager::Init()
     {
         return;
     }
-    sbLimitLogged = false;
     for (int i = 0; i < 8; ++i)
     {
         sDirty[i] = true;
@@ -201,15 +199,9 @@ void AddObject(GameObject* pObject)
     }
 
     const int iTeam = pObject->mTeam;
-    if (!LocalLimits::IsValidTeam(iTeam) || !LocalLimits::CanAddTeamMember(iTeam, sMemberCount[iTeam]))
+    const bool bTeamMemberLimitOk = LocalLimits::IsValidTeam(iTeam) && LocalLimits::CanAddTeamMember(iTeam, sMemberCount[iTeam]);
+    if (!ensure(bTeamMemberLimitOk))
     {
-        if (!sbLimitLogged)
-        {
-            sbLimitLogged = true;
-            RedWarning::SetLogData(RedWarning::RED_SEVERITY_WARNING, "Source\\TeamManager.cpp", 1,
-                                   "Oct 19 2017", "14:22:39");
-            RedWarning::LogMessage("team list limit reached, object refused");
-        }
         return;
     }
     ObjCacheData& rData = sTeamList[iTeam][sMemberCount[iTeam]];

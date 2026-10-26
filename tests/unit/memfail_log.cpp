@@ -30,11 +30,15 @@ void SetupFakeHeaps()
 
 TEST_CASE("alloc failure handler logs and suppresses" * doctest::test_suite("regression"))
 {
+    ExpectLog expect("alloc failure heap");
     SetupFakeHeaps();
     {
         LogCapture capture;
         MemFail::OnAllocFailure(1, 777);
         CHECK(capture.Contains("alloc failure heap Runtime (1) size 777 free 1234"));
+        CHECK(capture.Contains("free 1234 load "));
+        CHECK(capture.Contains(" phys "));
+        CHECK(capture.Contains(" virt "));
     }
     {
         LogCapture capture;
@@ -67,6 +71,7 @@ TEST_CASE("alloc failure handler logs and suppresses" * doctest::test_suite("reg
 
 TEST_CASE("alloc failure handler tolerates bad heap id" * doctest::test_suite("regression"))
 {
+    ExpectLog expect("alloc failure heap");
     SetupFakeHeaps();
     LogCapture capture;
     MemFail::OnAllocFailure(-1, 5);
@@ -85,6 +90,7 @@ static void __cdecl ReenterSink(char const* pcLine, ...)
 
 TEST_CASE("alloc failure handler ignores re-entry" * doctest::test_suite("regression"))
 {
+    ExpectLog expect("alloc failure heap");
     SetupFakeHeaps();
     LogCapture capture;
     RedWarning::g_fnLogCallback = ReenterSink;

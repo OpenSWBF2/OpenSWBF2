@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "RedEngineFL/Util/RedWarning.h"
+#include "RedEngineFL/Util/RedLog.h"
 #include "PebbleFL/Common/PblHashTable.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 #include "StateManager_DX.h"
@@ -35,17 +36,6 @@
 #include "RedEngineFL/Util/ext/Globals.h"
 
 namespace pcCrash { void __cdecl Exit(int); }
-
-static void LogPoolDrop(bool& rbLogged, const char* pcWhat)
-{
-    if (!rbLogged)
-    {
-        rbLogged = true;
-        RedWarning::SetLogData(RedWarning::RED_SEVERITY_WARNING, "Graphics\\PC\\pcRedRenderer.cpp", 1,
-                               "Mar 31 2017", "10:37:01");
-        RedWarning::LogMessage("render pool exhausted, %s dropped", pcWhat);
-    }
-}
 
 #include "RedEngineFL/Graphics/RedSpotLight.h"
 #include "pcRedPixelShader.h"
@@ -2143,7 +2133,8 @@ void RedRenderer::pcRenderPrimitive(pcRedPrimitive* pPrim, pcRedShader* pShader,
             unsigned int uiZState = pItem->pRootShader->GetZPrepassState();
             unsigned int uiZPassCaps =
                 pZPrepass->GetShaderDef()->m_states[uiZState].pass[0].uiPassCaps;
-            if (PoolMath::RenderItemHasRoom(m_curRenderItemOffset, 0x128c))
+            const bool bZPrepassPoolHasRoom = PoolMath::RenderItemHasRoom(m_curRenderItemOffset, 0x128c);
+            if (bZPrepassPoolHasRoom)
             {
                 unsigned int copyCount = m_curRenderItemOffset;
                 RenderItem* pCopy = &m_renderItemPool[copyCount];
@@ -2182,8 +2173,7 @@ void RedRenderer::pcRenderPrimitive(pcRedPrimitive* pPrim, pcRedShader* pShader,
             }
             else
             {
-                static bool sbLogged = false;
-                LogPoolDrop(sbLogged, "z prepass item");
+                ensure(bZPrepassPoolHasRoom);
             }
         }
         else if ((uiFlags & 0x20000000) &&
@@ -2543,10 +2533,7 @@ void RedRenderer::Init()
 
     if (hr == D3DERR_DRIVERINTERNALERROR)
     {
-        RedWarning::SetLogData(RedWarning::RED_SEVERITY_FATAL,
-                               "Graphics\\PC\\pcRedRenderer.cpp", 1236,
-                               "Mar 31 2017", "10:37:01");
-        RedWarning::LogMessage("Internal driver error!");
+        LOG(LogRender, Fatal, "Internal driver error!");
         RedWarning::DialogBoxMessage("Internal driver error!");
         pcCrash::Exit(1);
     }
@@ -2709,10 +2696,7 @@ void RedRenderer::InitStatic()
 
     if (!m_pD3D)
     {
-        RedWarning::SetLogData(RedWarning::RED_SEVERITY_FATAL,
-                               "Graphics\\PC\\pcRedRenderer.cpp", 1065,
-                               "Mar 31 2017", "10:37:01");
-        RedWarning::LogMessage("Cannot create Direct3D interface!");
+        LOG(LogRender, Fatal, "Cannot create Direct3D interface!");
         RedWarning::DialogBoxMessage("Cannot create Direct3D interface!");
         pcCrash::Exit(1);
     }
@@ -2783,11 +2767,7 @@ void RedRenderer::InitStatic()
         HRESULT hrIdentifier = m_pD3D->GetAdapterIdentifier(0, 0, &m_adaptorIdentifier);
         if (hrIdentifier != D3D_OK)
         {
-            RedWarning::SetLogData(RedWarning::RED_SEVERITY_FATAL,
-                                   "Graphics\\PC\\pcRedRenderer.cpp", 1156,
-                                   "Mar 31 2017", "10:37:01");
-            RedWarning::LogMessage("Get Adapter Identifier failed! Error: 0x%x",
-                                   hrIdentifier);
+            LOG(LogRender, Fatal, "Get Adapter Identifier failed! Error: 0x%x", hrIdentifier);
             RedWarning::DialogBoxMessage("Get Adapter Identifier failed! Error: 0x%x",
                                          hrIdentifier);
             pcCrash::Exit(1);
@@ -2803,10 +2783,7 @@ void RedRenderer::InitStatic()
 
     if (!m_pd3dDevice)
     {
-        RedWarning::SetLogData(RedWarning::RED_SEVERITY_FATAL,
-                               "Graphics\\PC\\pcRedRenderer.cpp", 1166,
-                               "Mar 31 2017", "10:37:01");
-        RedWarning::LogMessage("Cannot create Direct3D device! Error: 0x%x", hr);
+        LOG(LogRender, Fatal, "Cannot create Direct3D device! Error: 0x%x", hr);
         RedWarning::DialogBoxMessage("Cannot create Direct3D device! Error: 0x%x", hr);
 
         pcCrash::Exit(1);
@@ -3362,10 +3339,7 @@ void RedRenderer::internalReset()
 
     if (m_pd3dDevice->Reset(&m_d3dpp) == D3DERR_DRIVERINTERNALERROR)
     {
-        RedWarning::SetLogData(RedWarning::RED_SEVERITY_FATAL,
-                               "Graphics\\PC\\pcRedRenderer.cpp", 1673,
-                               "Mar 31 2017", "10:37:01");
-        RedWarning::LogMessage("Internal driver error!");
+        LOG(LogRender, Fatal, "Internal driver error!");
         RedWarning::DialogBoxMessage("Internal driver error!");
         pcCrash::Exit(1);
     }
@@ -4357,10 +4331,9 @@ PblMatrix* RedRenderer::AllocBoneMatricesInCache(unsigned int uiCount)
 {
     unsigned int uiOffset = (unsigned int)RedRenderer::m_uiCurMatrixPoolOffset;
     unsigned int uiStart = 0;
-    if (!PoolMath::PoolAlloc(3062, uiOffset, uiCount, uiStart))
+    const bool bBoneMatrixPoolHasRoom = PoolMath::PoolAlloc(3062, uiOffset, uiCount, uiStart);
+    if (!ensure(bBoneMatrixPoolHasRoom))
     {
-        static bool sbLogged = false;
-        LogPoolDrop(sbLogged, "skinned matrices");
         return 0;
     }
     RedRenderer::m_uiCurMatrixPoolOffset = (int)uiOffset;
@@ -4617,10 +4590,9 @@ void RedRenderer::FlushOcclusionQueries()
         return;
     }
 
-    if (!PoolMath::RenderItemHasRoom(RedRenderer::m_curRenderItemOffset, 0x128c))
+    const bool bOcclusionFlushPoolHasRoom = PoolMath::RenderItemHasRoom(RedRenderer::m_curRenderItemOffset, 0x128c);
+    if (!ensure(bOcclusionFlushPoolHasRoom))
     {
-        static bool sbLogged = false;
-        LogPoolDrop(sbLogged, "occlusion query flush");
         return;
     }
 

@@ -42,6 +42,7 @@ int RaiseWithHeap(lua_State* L)
 
 TEST_CASE("lua oom is raised as LUA_ERRMEM" * doctest::test_suite("regression"))
 {
+    ExpectLog expect("Lua out of memory");
     lua_State* L = lua_open();
     REQUIRE(L);
     {
@@ -56,6 +57,7 @@ TEST_CASE("lua oom is raised as LUA_ERRMEM" * doctest::test_suite("regression"))
 
 TEST_CASE("lua failed shrink keeps the old block" * doctest::test_suite("regression"))
 {
+    ExpectLog expect("Lua out of memory");
     void* pBlock = Lua_Red_realloc(0, 0, 100);
     REQUIRE(pBlock);
     const unsigned int uiFrees = gFakeHeapFrees;
@@ -80,6 +82,7 @@ TEST_CASE("lua error restores the current heap" * doctest::test_suite("regressio
 
 TEST_CASE("lua panic handler exits with code 4" * doctest::test_suite("regression"))
 {
+    ExpectLog expect("Lua panic");
     lua_State* L = lua_open();
     REQUIRE(L);
     int iCalls = gExitCalls;

@@ -1962,6 +1962,9 @@
     <ClCompile Include="src\RedEngineFL\Util\RedScreenShot.cpp">
       <Filter>src\RedEngineFL\Util</Filter>
     </ClCompile>
+    <ClCompile Include="src\RedEngineFL\Util\RedLog.cpp">
+      <Filter>src\RedEngineFL\Util</Filter>
+    </ClCompile>
     <ClCompile Include="src\RedEngineFL\Util\RedWarning.cpp">
       <Filter>src\RedEngineFL\Util</Filter>
     </ClCompile>
@@ -4086,6 +4089,9 @@
       <Filter>src\RedEngineFL\Util</Filter>
     </ClInclude>
     <ClInclude Include="src\RedEngineFL\Util\RedStack.h">
+      <Filter>src\RedEngineFL\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="src\RedEngineFL\Util\RedLog.h">
       <Filter>src\RedEngineFL\Util</Filter>
     </ClInclude>
     <ClInclude Include="src\RedEngineFL\Util\RedWarning.h">
