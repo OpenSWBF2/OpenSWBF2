@@ -10,3 +10,4 @@ bool LoadCorpusFile(const std::string& sPath, ByteVec& bytes);
 
 bool ReplayRecvGroupBytes(const ByteVec& bytes, bool* pbConsumed = 0);
 bool ReplayRecvPacketBytes(const unsigned char* pData, unsigned int uiSize);
+bool ReplayNetWireBytes(const char* pcReader, const unsigned char* pData, unsigned int uLen);

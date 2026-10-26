@@ -29,6 +29,7 @@
 #include "FLJoystick.h"
 #include "NetComm.h"
 #include "NetPacket.h"
+#include "NetWire.h"
 #include "TreeGrid.h"
 #include "EntityItem.h"
 #include "WeaponDetonator.h"
@@ -1124,6 +1125,7 @@ public:
     static bool ParseLineLocal(unsigned short* line, bool console);
     static void ReceiveConsole();
     static void __fastcall ChatMessage(int iPlayer, const unsigned short* pusMessage);
+    static void SetLoginSource(unsigned int uSource);
 };
 
 void ClearNetEvents();
@@ -6934,12 +6936,19 @@ int CreateUploadDirectory(const char* path)
     uploadDir[7] = 0;
     for (unsigned int i = 0; i < sizeof(uploadDir); ++i)
     {
-        const signed char ch = uploadDir[i];
-        if (ch <= 32 || ch >= 122)
+        const char ch = uploadDir[i];
+        const bool ok = (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') ||
+                        ch == '_' || ch == '-';
+        if (!ok)
         {
             uploadDir[i] = 0;
             break;
         }
+    }
+    if (!NetWire::IsSafeUploadDir(uploadDir))
+    {
+        uploadDir[0] = 0;
+        return 0;
     }
     return CreateDirectoryA(uploadDir, 0);
 }
@@ -6948,9 +6957,13 @@ int CreateUploadDirectory(const char* path)
 void OpenUploadFile(const char* name)
 {
     char fileName[32];
-    strcpy(fileName, uploadDir);
-    strcat(fileName, "\\");
-    strcat(fileName, strlen(name) < 16 ? name : "toolong.dat");
+    uploadFileHandle = INVALID_HANDLE_VALUE;
+    if (!uploadDir[0] || !NetWire::IsSafeUploadName(name))
+    {
+        return;
+    }
+    _snprintf(fileName, sizeof(fileName), "%s\\%s", uploadDir, name);
+    fileName[sizeof(fileName) - 1] = 0;
     uploadFileHandle = CreateFileA(fileName, GENERIC_READ | GENERIC_WRITE,
                                     0, 0, CREATE_ALWAYS,
                                     FILE_FLAG_RANDOM_ACCESS | FILE_ATTRIBUTE_NORMAL, 0);
@@ -6960,6 +6973,10 @@ void OpenUploadFile(const char* name)
 int WriteUploadFile(const char* buffer, int size)
 {
     DWORD written = 0;
+    if (!uploadFileHandle || uploadFileHandle == INVALID_HANDLE_VALUE)
+    {
+        return 0;
+    }
     WriteFile(uploadFileHandle, buffer, size, &written, 0);
     return written;
 }
@@ -6967,7 +6984,11 @@ int WriteUploadFile(const char* buffer, int size)
 // FUNCTION: SWBF2 0x005c49a0
 void CloseUploadFile()
 {
-    CloseHandle(uploadFileHandle);
+    if (uploadFileHandle && uploadFileHandle != INVALID_HANDLE_VALUE)
+    {
+        CloseHandle(uploadFileHandle);
+    }
+    uploadFileHandle = INVALID_HANDLE_VALUE;
 }
 
 // GLOBAL: SWBF2 0x01e62f6c
@@ -8524,7 +8545,7 @@ unsigned int uploadSeqNo;
 // GLOBAL: SWBF2 0x01e64b5c
 int uploadState;
 // GLOBAL: SWBF2 0x01e64ef8
-int uploadSizeLeft;
+unsigned int uploadSizeLeft;
 
 // FUNCTION: SWBF2 0x005c4da0
 void ReadUpload(NetPktGroup& group)
@@ -8541,58 +8562,33 @@ void ReadUpload(NetPktGroup& group)
     int source = GetPacketSourceHost(group.pktPtr);
     unsigned int sequence = 0;
     group.ReadBits(sequence, 32);
-    if (source != uploadSrc && uploadSrc >= 0)
+    if ((source != uploadSrc && uploadSrc >= 0) || sequence != uploadSeqNo + 1)
     {
-        bool fileHeader = false;
-        group.Read(fileHeader);
-        if (fileHeader)
-        {
-            char name[32];
-            ReadString(group, name, sizeof(name));
-            unsigned int length = 0;
-            group.ReadBits(length, 32);
-        }
-        return;
-    }
-
-    if (sequence != uploadSeqNo + 1)
-    {
-        if (header)
-        {
-            bool fileHeader = false;
-            group.Read(fileHeader);
-            if (fileHeader)
-            {
-                char name[32];
-                ReadString(group, name, sizeof(name));
-                unsigned int length = 0;
-                group.ReadBits(length, 32);
-            }
-        }
-        else
-        {
-            unsigned int length = 0;
-            char buffer[1012];
-            group.ReadBits(length, 10);
-            group.ReadBytes(buffer, length);
-        }
+        NetWire::DiscardUpload(group, header);
         return;
     }
 
     if (uploadSrc != source)
     {
         uploadSrc = source;
-        CreateUploadDirectory(NetGame::GetPlayerName(source));
+        if (gAllowUploads)
+        {
+            CreateUploadDirectory(NetGame::GetPlayerName(source));
+        }
     }
     uploadSeqNo = sequence;
     if (uploadState == 1)
     {
         unsigned int length = 0;
         char buffer[1012];
-        group.ReadBits(length, 10);
-        group.ReadBytes(buffer, length);
-        uploadSizeLeft -= length;
+        if (!NetWire::ReadUploadChunk(group, buffer, sizeof(buffer), uploadSizeLeft, length))
+        {
+            CloseUploadFile();
+            uploadState = 0;
+            return;
+        }
         WriteUploadFile(buffer, length);
+        uploadSizeLeft -= length;
         if (!uploadSizeLeft)
         {
             CloseUploadFile();
@@ -8609,7 +8605,14 @@ void ReadUpload(NetPktGroup& group)
             ReadString(group, name, sizeof(name));
             unsigned int length = 0;
             group.ReadBits(length, 32);
-            OpenUploadFile(name);
+            if (!gAllowUploads)
+            {
+                NetRejectCount(NET_REJECT_UPLOAD_DISABLED);
+            }
+            else
+            {
+                OpenUploadFile(name);
+            }
             uploadState = 1;
             uploadSizeLeft = length;
         }
@@ -9060,6 +9063,7 @@ void LogChatMessage(const NG_ChatMsg& message);
 void NetGame::ReadChatMessageFromServer(NetPktGroup* group)
 {
     unsigned char message[276];
+    memset(message, 0, sizeof(message));
     unsigned char emptyMessage[16];
     memset(emptyMessage, 0, sizeof(emptyMessage));
     unsigned int length = 0;
@@ -9073,7 +9077,14 @@ void NetGame::ReadChatMessageFromServer(NetPktGroup* group)
     {
         return;
     }
-    group->ReadBytes((char*)message, length);
+    if (!NetWire::ReadChatPayload(*group, message, sizeof(message), length))
+    {
+        return;
+    }
+    if (!NetWire::IsValidChatFields((int)((NG_ChatMsg*)message)->player_id, ((NG_ChatMsg*)message)->code, false))
+    {
+        return;
+    }
     if (!NetGame::IsHost())
     {
         LogChatMessage(*(NG_ChatMsg*)message);
@@ -9885,6 +9896,7 @@ void NetGame::ReadChatMessageFromClient(NetPktGroup& group)
 {
     unsigned int size = 0;
     SteamChatMsg message;
+    memset(&message, 0, sizeof(message));
     group.ReadBytes(reinterpret_cast<char*>(&size), 4);
     if ((size & 0xffff0000) != 0xffff0000)
     {
@@ -9895,14 +9907,25 @@ void NetGame::ReadChatMessageFromClient(NetPktGroup& group)
     {
         return;
     }
-    group.ReadBytes(reinterpret_cast<char*>(&message), size);
+    if (!NetWire::ReadChatPayload(group, reinterpret_cast<unsigned char*>(&message), 276, size))
+    {
+        return;
+    }
+    message.playerID = GetPacketSourceHost(group.pktPtr);
+    if (!NetWire::IsValidChatFields((int)message.playerID, message.code, true))
+    {
+        return;
+    }
     LogChatMessage(reinterpret_cast<const NG_ChatMsg&>(message));
-    if (NetAdmin::ParseLineRemote(message.playerID, message.text, false, true))
+    NetAdmin::SetLoginSource(0x80000000u | (unsigned int)GetPacketSourceHost(group.pktPtr));
+    const bool parsed = NetAdmin::ParseLineRemote(message.playerID, message.text, false, true);
+    NetAdmin::SetLoginSource(0);
+    if (parsed)
     {
         return;
     }
     bool accept = true;
-    if ((int)message.playerID < netCurMaxPlayers)
+    if ((int)message.playerID < netCurMaxPlayers && message.playerID < 64)
     {
         NetPlayer& np = netPlayers[message.playerID];
         if ((int)(NetGame::GetTurnNumber() - np.mLastStatusTurn) > netTurnsPerSecond * 3 / 2)
@@ -11132,7 +11155,7 @@ int NetGame::GetPreGameTime()
 // FUNCTION: SWBF2 0x005c4270
 void NetGame::RemoveFromSpawnQueue(int player)
 {
-    if (player < 0 || player >= netCurMaxPlayers || !IsPlaying(player, false) || netPlayers[player].mSpawnOrder == -1)
+    if (player < 0 || player >= netCurMaxPlayers || player >= 64 || !IsPlaying(player, false) || netPlayers[player].mSpawnOrder == -1)
     {
         return;
     }
@@ -11150,7 +11173,7 @@ void NetGame::RemoveFromSpawnQueue(int player)
 // FUNCTION: SWBF2 0x005c4360
 void NetGame::AddToSpawnQueue(int player)
 {
-    if (player < 0 || player >= netCurMaxPlayers || !IsPlaying(player, false) || netPlayers[player].mSpawnOrder != -1)
+    if (player < 0 || player >= netCurMaxPlayers || player >= 64 || !IsPlaying(player, false) || netPlayers[player].mSpawnOrder != -1)
     {
         return;
     }
@@ -12080,6 +12103,15 @@ void NetGameP::SetPlayerCanHost(int iPlayer, char bReplica, char bRelay)
 // FUNCTION: SWBF2 0x005b8790
 void NetGameP::SetTurnRate(int iDuration, int iTurns)
 {
+    if (!NetWire::IsValidTurnRate(iDuration, iTurns))
+    {
+        if (netTurnsPerSecond > 0)
+        {
+            return;
+        }
+        iDuration = 20;
+        iTurns = 1;
+    }
     netTurnsPerSecond = iTurns ? iDuration / iTurns : 16666;
     netSecondsPerTurn = 1.0f / (float)netTurnsPerSecond;
     MAX_PREDICT_STEPS = 2 * netTurnsPerSecond / 3;
@@ -14349,14 +14381,8 @@ void WriteUpload(NetPktGroup* pGroup)
             {
                 DisableWriteUpload();
             }
-            pGroup->Write(true);
-            pGroup->WriteBits(clientUploadSeqNo, 32);
-            pGroup->Write(clientMoreFiles);
-            if (clientMoreFiles)
-            {
-                WriteString(pGroup, clientFileName, 16);
-                pGroup->WriteBits(clientUploadSizeLeft, 32);
-            }
+            NetWire::WriteUploadHeader(*pGroup, clientUploadSeqNo, clientMoreFiles, clientFileName,
+                                       clientUploadSizeLeft);
             ++clientUploadTryCount;
             sent = true;
             break;
@@ -14392,11 +14418,8 @@ void WriteUpload(NetPktGroup* pGroup)
             }
             else
             {
-                pGroup->Write(false);
-                pGroup->WriteBits(clientUploadSeqNo, 32);
                 const int chunkSize = clientUploadSizeLeft < 1012 ? clientUploadSizeLeft : 1012;
-                pGroup->WriteBits(chunkSize, 10);
-                pGroup->WriteBytes(clientUploadPkt->mData, chunkSize);
+                NetWire::WriteUploadChunk(*pGroup, clientUploadSeqNo, clientUploadPkt->mData, chunkSize);
                 ++clientUploadTryCount;
                 sent = true;
             }
@@ -15065,12 +15088,7 @@ void NetGame::SendChatMessageToServer(NetPktGroup& group)
     else
     {
         const unsigned int length = 2 * PblUnicode::ustrlen(pMessage->msg) + 22;
-        const unsigned int header = length | 0xffff0000;
-        group.WriteBytes((const char*)&header, sizeof(header));
-        if (length)
-        {
-            group.WriteBytes((const char*)pMessage, length);
-        }
+        NetWire::WriteChatPayload(group, pMessage, length);
     }
     queue.Remove(pNode);
     delete pMessage;
@@ -15095,12 +15113,7 @@ void NetGame::SendChatMessageToClient(NetPktGroup& group)
         return;
     }
     const unsigned int length = 2 * PblUnicode::ustrlen(pMessage->msg) + 22;
-    const unsigned int header = (length & 0xffff) | 0xffff0000;
-    group.WriteBytes((const char*)&header, sizeof(header));
-    if (length)
-    {
-        group.WriteBytes((const char*)pMessage, length);
-    }
+    NetWire::WriteChatPayload(group, pMessage, length);
     if (NetGame::IsEnabled() &&
         NetGame::GetLocalIndex(0) == curDst &&
         NetGame::IsOneWorld() && NetGame::IsHost() && !NetGame::IsDedicated())

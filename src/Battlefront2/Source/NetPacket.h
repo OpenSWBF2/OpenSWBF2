@@ -92,6 +92,18 @@ enum NetRejectReason
     NET_REJECT_GROUP_BAD,
     NET_REJECT_PARTIAL_CAP,
     NET_REJECT_OVERSIZE_DATAGRAM,
+    NET_REJECT_CHAT_OVERSIZE,
+    NET_REJECT_CHAT_FIELDS,
+    NET_REJECT_UPLOAD_LENGTH,
+    NET_REJECT_UPLOAD_NAME,
+    NET_REJECT_UPLOAD_UNDERFLOW,
+    NET_REJECT_UPLOAD_DISABLED,
+    NET_REJECT_RCON_LINE,
+    NET_REJECT_RCON_AUTH_SHORT,
+    NET_REJECT_RCON_LOGIN_RATE,
+    NET_REJECT_PLAYER_COUNT,
+    NET_REJECT_TURN_RATE,
+    NET_REJECT_BAD_ADDR,
     NET_REJECT_COUNT
 };
 
@@ -162,6 +174,9 @@ public:
 static_assert(sizeof(NetPktGroup) == 28, "NetPktGroup layout");
 
 extern int netRejectCounts[NET_REJECT_COUNT];
+void NetRejectCount(int iReason);
+void NetRejectSetClock(float (*pfnClock)());
+void NetRejectReset();
 
 static const int kRecvReserveBig = 128;
 static const int kRecvReserveSmall = 32;

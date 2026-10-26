@@ -161,3 +161,115 @@ TEST_CASE("fuzz stress soak" * doctest::test_suite("stress"))
     }
     CHECK(RunFuzz(gFuzzSeed, gFuzzCount ? gFuzzCount : 100000));
 }
+
+struct WireSeed
+{
+    const char* pcReader;
+    ByteVec bytes;
+};
+
+static std::vector<WireSeed> LoadWireBases()
+{
+    std::vector<WireSeed> bases;
+    const char* apcReaders[6] = {"chat-client", "chat-server", "upload", "rcon", "load", "turnrate"};
+    for (int r = 0; r < 6; ++r)
+    {
+        std::vector<std::string> files = ListCorpus(apcReaders[r], false);
+        for (size_t i = 0; i < files.size(); ++i)
+        {
+            WireSeed seed;
+            seed.pcReader = apcReaders[r];
+            if (LoadCorpusFile(files[i], seed.bytes))
+            {
+                bases.push_back(seed);
+            }
+        }
+    }
+    return bases;
+}
+
+static WireSeed MakeWireInput(unsigned int uSeed, unsigned int uIter, const std::vector<WireSeed>& bases)
+{
+    std::mt19937 rng(uSeed ^ (uIter * 0x9E3779B1u));
+    WireSeed seed = bases[rng() % bases.size()];
+    ByteVec& b = seed.bytes;
+    int iMutations = 1 + (int)(rng() % 4);
+    for (int m = 0; m < iMutations; ++m)
+    {
+        switch (rng() % 4)
+        {
+        case 0:
+            if (!b.empty())
+            {
+                b[rng() % b.size()] ^= (unsigned char)(1u << (rng() % 8));
+            }
+            break;
+        case 1:
+            if (!b.empty())
+            {
+                b[rng() % b.size()] = (unsigned char)rng();
+            }
+            break;
+        case 2:
+            b.resize(rng() % (b.size() + 1));
+            break;
+        default:
+        {
+            size_t uExtra = rng() % 200;
+            for (size_t i = 0; i < uExtra && b.size() < 1500; ++i)
+            {
+                b.push_back((unsigned char)rng());
+            }
+            break;
+        }
+        }
+    }
+    return seed;
+}
+
+static bool RunWireFuzz(unsigned int uSeed, unsigned int uCount, unsigned int* puSum, unsigned int* puRejectSum)
+{
+    std::vector<WireSeed> bases = LoadWireBases();
+    REQUIRE(!bases.empty());
+    unsigned int uSum = 2166136261u;
+    unsigned int uRejectSum = 2166136261u;
+    for (unsigned int uIter = 0; uIter < uCount; ++uIter)
+    {
+        char acLabel[64];
+        sprintf(acLabel, "wire seed=%u iter=%u", uSeed, uIter);
+        WatchdogArm(acLabel);
+        WireSeed in = MakeWireInput(uSeed, uIter, bases);
+        uSum = Fnv(uSum, in.bytes);
+        if (!ReplayNetWireBytes(in.pcReader, in.bytes.empty() ? 0 : &in.bytes[0], (unsigned int)in.bytes.size()))
+        {
+            printf("fuzz FAIL netwire reader=%s: %s\n", in.pcReader, acLabel);
+            fflush(stdout);
+            return false;
+        }
+        for (int i = 0; i < NET_REJECT_COUNT; ++i)
+        {
+            uRejectSum = (uRejectSum ^ (unsigned int)netRejectCounts[i]) * 16777619u;
+        }
+    }
+    printf("fuzz-checksum netwire seed=%u count=%u sum=0x%08x rejects=0x%08x\n", uSeed, uCount, uSum,
+           uRejectSum);
+    fflush(stdout);
+    *puSum = uSum;
+    *puRejectSum = uRejectSum;
+    return true;
+}
+
+TEST_CASE("fuzz netwire readers" * doctest::test_suite("fuzz"))
+{
+    const unsigned int auSeeds[4] = {1, 2, 3, 0xC0FFEE};
+    const unsigned int auSums[4] = {0xd6d39bb0, 0xef022552, 0x2f8008ad, 0x61d4df43};
+    const unsigned int auRejectSums[4] = {0x417379d8, 0xccc283c8, 0x152728f0, 0xe4a8ac38};
+    for (int i = 0; i < 4; ++i)
+    {
+        unsigned int uSum = 0;
+        unsigned int uRejectSum = 0;
+        CHECK(RunWireFuzz(auSeeds[i], 2000, &uSum, &uRejectSum));
+        CHECK(uSum == auSums[i]);
+        CHECK(uRejectSum == auRejectSums[i]);
+    }
+}

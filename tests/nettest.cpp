@@ -14,6 +14,7 @@ void NetTestReset()
     gExitCalls = 0;
     gLastExitCode = 0;
     memset(netRejectCounts, 0, sizeof(netRejectCounts));
+    NetRejectReset();
     NetComm::Create(false);
     NetComm::SetConnectType(CT_LAN);
 }

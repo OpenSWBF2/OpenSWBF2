@@ -373,6 +373,7 @@
     </ClCompile>
     <ClCompile Include="src\Battlefront2\Source\NetMatch.cpp" />
     <ClCompile Include="src\Battlefront2\Source\NetPacket.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\NetWire.cpp" />
     <ClCompile Include="src\Battlefront2\Source\NetPredict.cpp" />
     <ClCompile Include="src\Battlefront2\Source\NetQOS.cpp" />
     <ClCompile Include="src\Battlefront2\Source\NetSetup.cpp">
@@ -1156,6 +1157,7 @@
     <ClInclude Include="src\Battlefront2\Source\NetGame.h" />
     <ClInclude Include="src\Battlefront2\Source\NetMatch.h" />
     <ClInclude Include="src\Battlefront2\Source\NetPacket.h" />
+    <ClInclude Include="src\Battlefront2\Source\NetWire.h" />
     <ClInclude Include="src\Battlefront2\Source\NetPredict.h" />
     <ClInclude Include="src\Battlefront2\Source\NetSetup.h" />
     <ClInclude Include="src\Battlefront2\Source\NetState.h" />

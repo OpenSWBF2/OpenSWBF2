@@ -706,7 +706,7 @@ bool __fastcall RecvGroup(NetPktGroup* pComplete, NetPacket* pPacket)
     {
         const int iReason = uCount == 0 ? NET_REJECT_FRAG_COUNT_ZERO
             : uCount > kMaxFragments ? NET_REJECT_FRAG_TOO_MANY : NET_REJECT_FRAG_IDX;
-        ++netRejectCounts[iReason];
+        NetRejectCount(iReason);
         pPacket->Free();
         return false;
     }
@@ -763,7 +763,7 @@ bool __fastcall RecvGroup(NetPktGroup* pComplete, NetPacket* pPacket)
         }
         if (iFromSource >= kMaxPartialPerSource)
         {
-            ++netRejectCounts[NET_REJECT_PARTIAL_CAP];
+            NetRejectCount(NET_REJECT_PARTIAL_CAP);
             inPktGroups[iOldest].Free();
         }
         pPartial->PushBack(pPacket);
@@ -773,7 +773,7 @@ bool __fastcall RecvGroup(NetPktGroup* pComplete, NetPacket* pPacket)
     {
         if (NetComm::Header(NetPacket::Get(pPartial->firstPkt)).count != uCount)
         {
-            ++netRejectCounts[NET_REJECT_FRAG_COUNT_MISMATCH];
+            NetRejectCount(NET_REJECT_FRAG_COUNT_MISMATCH);
             pPartial->Free();
             pPacket->Free();
             return false;
@@ -1125,7 +1125,7 @@ NetPacket* NetCommP::MakeReceivedPacket(const unsigned char* pData, unsigned int
 {
     if (size == 0)
     {
-        ++netRejectCounts[NET_REJECT_SHORT_DATAGRAM];
+        NetRejectCount(NET_REJECT_SHORT_DATAGRAM);
         return 0;
     }
     if (classifyByType && pData[0] >= PKT_NONE)
@@ -1134,12 +1134,12 @@ NetPacket* NetCommP::MakeReceivedPacket(const unsigned char* pData, unsigned int
     }
     if (pData[0] < PKT_NONE && size < 5)
     {
-        ++netRejectCounts[NET_REJECT_SHORT_DATAGRAM];
+        NetRejectCount(NET_REJECT_SHORT_DATAGRAM);
         return 0;
     }
     if (size > 1012 - prefix)
     {
-        ++netRejectCounts[NET_REJECT_OVERSIZE_DATAGRAM];
+        NetRejectCount(NET_REJECT_OVERSIZE_DATAGRAM);
         return 0;
     }
     NetPacket* pPacket = NetPacket::AllocRecv(size <= 116 - prefix);

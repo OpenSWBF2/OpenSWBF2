@@ -32,3 +32,14 @@ infinite-loop inputs (`frag-idx-ge-count`, `frag-classic-gap`) moved up to `recv
 run.ps1 reports as `[KNOWN]` while it fails or times out and warns about once it passes. When the
 bug is fixed, move the file up one directory and delete its `known_bug` case in the same change. A
 case whose input is missing exits 3 and reports `[CRASH]`, never `[KNOWN]`.
+
+## NetWire readers
+
+`chat-client`, `chat-server`, `upload`, `rcon`, `load` and `turnrate` hold the bytes after the comm header. `ReplayNetWireBytes` writes the file into a `NetPktGroup` with `WriteBytes`, then reads it back with the matching `NetWire` helper into a canary filled buffer (0xAA) and checks the pool is whole (512 packets).
+
+- `chat-*`: u32 header (`0xffff0000 | length`), then the payload, then a sentinel word. The low 16 bits of the header are the claimed size.
+- `upload`: replayed twice per file, once as a chunk (10 bit length in the first word, data from the next word) and once as a name (u8 length then characters).
+- `rcon`: a 9 byte header with the command at byte 5, a zero at byte 6, the key at byte 7 and the claimed line length at byte 8, then the line. The whole file also goes through the authorization check.
+- `load`: 7 bit player count in the first word. `turnrate`: 10 bit duration then 3 bit turns.
+
+`corpus generate netwire` regenerates the files when `OPENSWBF2_GEN_CORPUS=1`. The `fuzz netwire readers` case mutates these files with its own seeds and pinned checksums.

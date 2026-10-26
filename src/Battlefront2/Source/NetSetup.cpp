@@ -27,6 +27,7 @@
 #include "NetComm.h"
 #include "NetGame.h"
 #include "NetPacket.h"
+#include "NetWire.h"
 #include "Character.h"
 #include "GameVoiceChat.h"
 #include "GameVoiceChatTransport.h"
@@ -2028,7 +2029,7 @@ namespace Lua_Callbacks { extern int gHuntShowScoreLimit; }
 void WriteLoad(NetPktGroup& group, int, unsigned __int64 firstMask,
                unsigned __int64 secondMask)
 {
-    group.WriteBits(netCurMaxPlayers, 7);
+    NetWire::WritePlayerCount(group, netCurMaxPlayers);
     WriteDestMask(group, firstMask);
     WriteDestMask(group, secondMask);
     group.WriteBits(NetGame::GetTurnNumber(), 32);
@@ -2042,7 +2043,7 @@ void ReadLoad(NetPktGroup& group, bool& bReady)
 {
     unsigned int maxPlayers = 0;
     group.ReadBits(maxPlayers, 7);
-    netCurMaxPlayers = maxPlayers;
+    netCurMaxPlayers = NetWire::ClampPlayerCount(maxPlayers);
     unsigned __int64 firstMask = 0, secondMask = 0;
     ReadDestMask(group, firstMask);
     ReadDestMask(group, secondMask);
@@ -2699,9 +2700,12 @@ NetAddr::NetAddr(int addr, int port, int overridePort)
 {
     pubAddr = 0;
     pubPort = 0;
+    hasPriv = false;
+    privAddr = 0;
+    privPort = 0;
     if (!IsPrivateIP((unsigned long)addr))
     {
-        __debugbreak();
+        NetRejectCount(NET_REJECT_BAD_ADDR);
         return;
     }
     privAddr = addr;
@@ -4047,6 +4051,10 @@ void ReadLaunch(NetPktGroup& group, bool& bAcked)
                         NetAddr peer;
                         ReadAddr(&group, &peer);
                         peer.GetAddr(address, 0);
+                        if (NetComm::IsLAN() && !peer.hasPriv)
+                        {
+                            continue;
+                        }
                     }
                     NetCommP::Connect(i, address);
                 }
@@ -4080,6 +4088,10 @@ void ReadLaunch(NetPktGroup& group, bool& bAcked)
                         NetAddr peer;
                         ReadAddr(&group, &peer);
                         peer.GetAddr(address, 0);
+                        if (NetComm::IsLAN() && !peer.hasPriv)
+                        {
+                            continue;
+                        }
                     }
                     NetCommP::Connect(i + 64, address);
                 }
@@ -4092,9 +4104,9 @@ void ReadLaunch(NetPktGroup& group, bool& bAcked)
         else
         {
             group.ReadBits(value, 2);
-            int clientOf = value;
+            int clientOf = value == 3 ? -1 : (int)value;
             *NetGameP::GetClientOfIndex(NetComm::GetLocalIndex(0)) = clientOf;
-            if (clientOf > 0)
+            if (clientOf > 0 && clientOf < 3)
             {
                 UpdateCurMaxHosts(1 << clientOf, true);
                 NetAddr host;
@@ -4102,7 +4114,10 @@ void ReadLaunch(NetPktGroup& group, bool& bAcked)
                 unsigned int hostAddress[6];
                 ClearGalaxyIdWords(hostAddress);
                 host.GetAddr(hostAddress, 0);
-                NetCommP::Connect(clientOf + 64, hostAddress);
+                if (!NetComm::IsLAN() || host.hasPriv)
+                {
+                    NetCommP::Connect(clientOf + 64, hostAddress);
+                }
             }
         }
     }
@@ -4573,8 +4588,7 @@ void WriteShellUpdate(NetPktGroup& group, int player, ShellUpdate& update, Shell
     {
         turnRate = netFPS;
     }
-    group.WriteBits(turnRate, 10);
-    group.WriteBits(turnScale, 3);
+    NetWire::WriteTurnRate(group, turnRate, turnScale);
     WriteFiles(group, state.players[player].patchFile);
 }
 

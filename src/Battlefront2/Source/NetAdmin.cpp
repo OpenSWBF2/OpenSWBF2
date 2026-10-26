@@ -18,6 +18,7 @@
 #include "NetPacket.h"
 #include "NetSetup.h"
 #include "NetAdmin.h"
+#include "NetWire.h"
 #include "SpawnManager.h"
 #include "Team.h"
 #include "PebbleFL/Common/PblHashTable.h"
@@ -34,6 +35,7 @@ public:
     static void AddPlayer(int iPlayer);
     static void ReceiveConsole();
     static void __fastcall ChatMessage(int iPlayer, const unsigned short* pusMessage);
+    static void SetLoginSource(unsigned int uSource);
 
     static bool ParseLineRemote(int iPlayer, unsigned short* pusLine, bool bConsole, bool bPrefixed);
     static bool ParseLineLocal(unsigned short* pusLine, bool bConsole);
@@ -1077,6 +1079,14 @@ int __fastcall PassHeroTeamValue(int iValue)
     return iValue;
 }
 
+static NetWire::LoginLimiter sLoginLimiter;
+static unsigned int sLoginKey = 0;
+
+void NetAdmin::SetLoginSource(unsigned int uSource)
+{
+    sLoginKey = uSource;
+}
+
 // FUNCTION: SWBF2 0x005af090
 bool NetAdmin::ParseLineRemote(int iPlayer, unsigned short* pusLine, bool bConsole, bool bPrefixed)
 {
@@ -1108,11 +1118,18 @@ bool NetAdmin::ParseLineRemote(int iPlayer, unsigned short* pusLine, bool bConso
             {
                 return true;
             }
+            if (sLoginKey && !sLoginLimiter.Allow(sLoginKey, NetComm::GetTime()))
+            {
+                continue;
+            }
             if (Destination[0] && !_stricmp(acToken, Destination))
             {
                 if (iPlayer >= 0)
                 {
-                    admins[iPlayer] = true;
+                    if (iPlayer < 64)
+                    {
+                        admins[iPlayer] = true;
+                    }
                 }
                 else
                 {
@@ -1313,7 +1330,7 @@ bool NetAdmin::ParseLineRemote(int iPlayer, unsigned short* pusLine, bool bConso
             int iTarget = atoi(acToken);
             GetNextArg(pusLine, acToken, 32);
             --iTarget;
-            if (iTarget >= 0 && iTarget < netCurMaxPlayers && NetGame::IsPlaying(iTarget, false))
+            if (iTarget >= 0 && iTarget < netCurMaxPlayers && iTarget < 64 && NetGame::IsPlaying(iTarget, false))
             {
                 NetGame::ForceBootPlayer(iTarget);
                 _snprintf(acMsg, 0x1FF, "booted player %d (%s)", iTarget + 1,
@@ -2243,7 +2260,7 @@ bool NetAdmin::ParseLineRemote(int iPlayer, unsigned short* pusLine, bool bConso
                 ++pusLine;
             }
             int iTarget = atoi(acToken) - 1;
-            if (iTarget < 0 || iTarget >= netCurMaxPlayers || !NetComm::IsConnected(iTarget))
+            if (iTarget < 0 || iTarget >= netCurMaxPlayers || iTarget >= 64 || !NetComm::IsConnected(iTarget))
             {
                 PutMsg("invalid player");
                 break;
@@ -2262,7 +2279,7 @@ bool NetAdmin::ParseLineRemote(int iPlayer, unsigned short* pusLine, bool bConso
                 break;
             }
             int iTarget = atoi(acToken) - 1;
-            if (iTarget < 0 || iTarget >= netCurMaxPlayers || !NetComm::IsConnected(iTarget))
+            if (iTarget < 0 || iTarget >= netCurMaxPlayers || iTarget >= 64 || !NetComm::IsConnected(iTarget))
             {
                 PutMsg("invalid player");
                 break;
@@ -2297,7 +2314,7 @@ bool NetAdmin::ParseLineRemote(int iPlayer, unsigned short* pusLine, bool bConso
                 break;
             }
             int iTarget = atoi(acToken) - 1;
-            if (iTarget >= 0 && iTarget < netCurMaxPlayers && NetComm::IsConnected(iTarget))
+            if (iTarget >= 0 && iTarget < netCurMaxPlayers && iTarget < 64 && NetComm::IsConnected(iTarget))
             {
                 char acKey[33] = "36b7ae01b85eef9ecea666b441d5acd3";
                 _snprintf(adminBanIdText, 32, "%ull", *NetCommP::GetAddr(iTarget));
@@ -2527,16 +2544,14 @@ void NetAdmin::ReceiveConsole()
         }
         else if (uCommand == 'J')
         {
-            unsigned char uUnused, uLength;
-            pPacket->Read(uUnused);
-            pPacket->Read(uLength);
+            unsigned char uUnused = 0, uLength = 0;
             unsigned short ausLine[64];
-            const char* pcData = pPacket->mData + pPacket->mCurIndex;
-            for (unsigned int i = 0; i < uLength; ++i)
+            ausLine[0] = 0;
+            if (pPacket->Read(uUnused) && pPacket->Read(uLength))
             {
-                ausLine[i] = (short)pcData[i];
+                const char* pcData = pPacket->mData + pPacket->mCurIndex;
+                NetWire::ReadRconLine(pcData, pPacket->mMaxIndex - pPacket->mCurIndex, uLength, ausLine);
             }
-            ausLine[uLength] = 0;
             pPacket->Free();
 
             int iAdmin = FindAdminSource(iDest);
@@ -2546,7 +2561,9 @@ void NetAdmin::ReceiveConsole()
             }
             bool bAdmin = adminDests[iAdmin].admin;
             remoteLoggedIn = bAdmin;
+            sLoginKey = (unsigned int)*NetCommP::GetAddr(iDest);
             NetAdmin::ParseLineRemote(-1, ausLine, false, true);
+            sLoginKey = 0;
             adminDests[iAdmin].admin = remoteLoggedIn;
 
             NetPktGroup reply;
@@ -2633,23 +2650,7 @@ bool __fastcall IsAdminPacketAuthorized(const unsigned char* pRawPacket)
     const NetPacket* pPacket = (const NetPacket*)pRawPacket;
     int iRead = (signed char)pPacket->mCommIndex;
     int iLength = pPacket->mMaxIndex;
-    if (iLength - iRead < 7)
-    {
-        return false;
-    }
-
-    unsigned char uCommand = pPacket->mData[iRead + 5];
-    if (uCommand == ')' || uCommand == 'J')
-    {
-        if (pPacket->mData[iRead + 6])
-        {
-            return false;
-        }
-        unsigned char uKey = pPacket->mData[iRead + 7];
-        return uKey == (unsigned char)adminKey[0] ||
-               uKey == (unsigned char)adminKey[1];
-    }
-    return uCommand == 's' && pPacket->mData[iRead + 6] == 0;
+    return NetWire::IsRconAuthorized(pPacket->mData + iRead, iLength - iRead, adminKey[0], adminKey[1]);
 }
 
 // FUNCTION: SWBF2 0x005b1fe0
