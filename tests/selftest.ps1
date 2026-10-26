@@ -85,19 +85,20 @@ $cookieCfg = "            0085C930 Security Cookie`n"
 $goodCfg = "$cookieCfg            008327F0 Safe Exception Handler Table`n                 7CF Safe Exception Handler Count`n"
 $oldHdr = "    Characteristics`n         103 characteristics`n                   Relocations stripped`n                   NX compatible`n         0 [       0] RVA [size] of Base Relocation Directory`n"
 $hardScenarios = @(
-    @('hardening good text passes all', $goodHdr, $goodCfg, 736, 0, @('dynamicbase', 'nxcompat', 'reloc', 'safeseh', 'gs'), @()),
-    @('hardening old exe fails dynamicbase and reloc', $oldHdr, $goodCfg, 736, 0, @('nxcompat', 'safeseh', 'gs'), @('dynamicbase', 'reloc')),
-    @('hardening safeseh count 0 fails', $goodHdr, "$cookieCfg                 0 Safe Exception Handler Count`n", 736, 0, @('dynamicbase', 'nxcompat', 'reloc', 'gs'), @('safeseh')),
-    @('hardening missing security cookie fails gs', $goodHdr, "                 7CF Safe Exception Handler Count`n", 736, 0, @('dynamicbase', 'nxcompat', 'reloc', 'safeseh'), @('gs')),
-    @('hardening /GS- entries fail gs', $goodHdr, $goodCfg, 736, 3, @('dynamicbase', 'nxcompat', 'reloc', 'safeseh'), @('gs')),
-    @('hardening empty tlog fails gs', $goodHdr, $goodCfg, 0, 0, @('reloc', 'safeseh'), @('gs'))
+    @('hardening good text passes all', $goodHdr, $goodCfg, 736, 0, 736, @('dynamicbase', 'nxcompat', 'reloc', 'safeseh', 'gs', 'sdl'), @()),
+    @('hardening old exe fails dynamicbase and reloc', $oldHdr, $goodCfg, 736, 0, 736, @('nxcompat', 'safeseh', 'gs', 'sdl'), @('dynamicbase', 'reloc')),
+    @('hardening safeseh count 0 fails', $goodHdr, "$cookieCfg                 0 Safe Exception Handler Count`n", 736, 0, 736, @('dynamicbase', 'nxcompat', 'reloc', 'gs', 'sdl'), @('safeseh')),
+    @('hardening missing security cookie fails gs', $goodHdr, "                 7CF Safe Exception Handler Count`n", 736, 0, 736, @('dynamicbase', 'nxcompat', 'reloc', 'safeseh', 'sdl'), @('gs')),
+    @('hardening /GS- entries fail gs', $goodHdr, $goodCfg, 736, 3, 736, @('dynamicbase', 'nxcompat', 'reloc', 'safeseh', 'sdl'), @('gs')),
+    @('hardening empty tlog fails gs and sdl', $goodHdr, $goodCfg, 0, 0, 0, @('reloc', 'safeseh'), @('gs', 'sdl')),
+    @('hardening missing /sdl entry fails sdl', $goodHdr, $goodCfg, 736, 0, 735, @('dynamicbase', 'nxcompat', 'reloc', 'safeseh', 'gs'), @('sdl'))
 )
 foreach ($sc in $hardScenarios) {
     $n++
-    $got = Get-HardeningChecks $sc[1] $sc[2] $sc[3] $sc[4]
+    $got = Get-HardeningChecks $sc[1] $sc[2] $sc[3] $sc[4] $sc[5]
     $why = $null
-    foreach ($name in $sc[5]) { if (-not ($got | Where-Object { $_.Name -eq $name }).Ok) { $why = "$name should pass" } }
-    foreach ($name in $sc[6]) { if (($got | Where-Object { $_.Name -eq $name }).Ok) { $why = "$name should fail" } }
+    foreach ($name in $sc[6]) { if (-not ($got | Where-Object { $_.Name -eq $name }).Ok) { $why = "$name should pass" } }
+    foreach ($name in $sc[7]) { if (($got | Where-Object { $_.Name -eq $name }).Ok) { $why = "$name should fail" } }
     if ($why) { $failed++; Write-Host "FAILED ${n}: $($sc[0]): $why" }
     else { Write-Host "OK $n $($sc[0])" }
 }

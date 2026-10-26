@@ -27,6 +27,7 @@ extern "C"
 {
     int __RedCurrHeap;
     unsigned int gFakeHeapBudget = 0xFFFFFFFFu;
+    unsigned int gFakeHeapFrees;
 
     int RedSetCurrentHeap(int heap)
     {
@@ -46,6 +47,7 @@ extern "C"
     {
         (void)heap;
         (void)flags;
+        ++gFakeHeapFrees;
         free(block);
     }
 }

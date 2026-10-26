@@ -7,6 +7,7 @@
 #include "LuaFL/include/lua.h"
 
 extern "C" unsigned int gFakeHeapBudget;
+extern "C" unsigned int gFakeHeapFrees;
 
 namespace
 {
@@ -57,11 +58,14 @@ TEST_CASE("lua failed shrink keeps the old block" * doctest::test_suite("regress
 {
     void* pBlock = Lua_Red_realloc(0, 0, 100);
     REQUIRE(pBlock);
+    const unsigned int uiFrees = gFakeHeapFrees;
     {
         BudgetGuard guard(0);
         CHECK(!Lua_Red_realloc(pBlock, 100, 50));
     }
+    CHECK(gFakeHeapFrees == uiFrees);
     Lua_Red_Free(pBlock, 100);
+    CHECK(gFakeHeapFrees == uiFrees + 1);
 }
 
 TEST_CASE("lua error restores the current heap" * doctest::test_suite("regression"))

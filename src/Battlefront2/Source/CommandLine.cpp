@@ -1,5 +1,3 @@
-#define _CRT_SECURE_NO_WARNINGS
-
 #include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,6 +7,7 @@
 #include "RedEngineFL/Util/RedWarning.h"
 
 #include "CommandLine.h"
+#include "LocalLimits.h"
 #include "GameLoop.h"
 #include "GameSoundEngine.h"
 #include "GameState.h"
@@ -63,7 +62,8 @@ bool gBootLagger;
 bool gShowLoadSpam;
 bool gLogFinalScore;
 bool gExitOnGameOver;
-bool gAllowUploads;
+bool gNoFocusPause;
+bool gAllowUploads = LocalLimits::kUploadsDefault;
 bool gSeedSet;
 unsigned int gSeed;
 int gBootLaggerPing = 300;
@@ -328,6 +328,12 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
         if (_stricmp(pcArg + 1, "exitongameover") == 0)
         {
             gExitOnGameOver = true;
+            continue;
+        }
+
+        if (_stricmp(pcArg + 1, "nofocuspause") == 0)
+        {
+            gNoFocusPause = true;
             continue;
         }
 
