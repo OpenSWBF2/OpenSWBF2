@@ -9,6 +9,7 @@
 
 #include "testutil.h"
 #include "RedEngineFL/Util/RedWarning.h"
+#include "RedEngineFL/Util/RedLog.h"
 
 char gCurrentCase[256];
 unsigned int gFuzzSeed = 1;
@@ -101,10 +102,16 @@ int main(int argc, char** argv)
     if (!bListing)
     {
         RedWarning::Init();
+        RedLog::gObserver = TestLogObserver;
         printf("[RUN] %s\n", gCurrentCase);
         fflush(stdout);
         WatchdogArm("");
         CreateThread(0, 0, WatchdogProc, 0, 0, 0);
     }
-    return context.run();
+    int iRc = context.run();
+    if (!bListing && TestStrictnessReport(gCurrentCase) != 0)
+    {
+        return 1;
+    }
+    return iRc;
 }

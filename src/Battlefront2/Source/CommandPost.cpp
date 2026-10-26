@@ -32,6 +32,7 @@
 #include "NetComm.h"
 #include "LocalLimits.h"
 #include "RedEngineFL/Util/RedWarning.h"
+#include "RedEngineFL/Util/RedLog.h"
 #include "VoiceOverManager.h"
 #include "SoundFL/source/sndsoundstream.h"
 #include "SoundFL/source/sndvoicevirtual.h"
@@ -442,12 +443,9 @@ static int sPostCountClient;
 // GLOBAL: SWBF2 0x01e30884
 static int sActivePostCountClient;
 
-static bool sbPostLimitLogged = false;
-
 // FUNCTION: SWBF2 0x0047aac0
 void CommandPost::CreateClient()
 {
-    sbPostLimitLogged = false;
     memset(sPostArrayClient, 0, sizeof(sPostArrayClient));
     sPostCountClient = 0;
     sActivePostCountClient = 0;
@@ -544,7 +542,6 @@ static int sForcedIndex = -1;
 // FUNCTION: SWBF2 0x0047aa40
 void CommandPost::Create()
 {
-    sbPostLimitLogged = false;
     memset(sPostArrayHost, 0, sizeof(sPostArrayHost));
     sPostArray = sPostArrayHost;
     sPostCountHost = 0;
@@ -715,15 +712,9 @@ CommandPost* CommandPost::BuildPost(GameObject* pObject, CommandPostClass* pClas
         }
     }
     int iIndex = LocalLimits::ChoosePostIndex(iForced, iFound, *sPostCount);
-    if (iIndex < 0)
+    const bool bCommandPostLimitOk = iIndex >= 0;
+    if (!ensure(bCommandPostLimitOk))
     {
-        if (!sbPostLimitLogged)
-        {
-            sbPostLimitLogged = true;
-            RedWarning::SetLogData(RedWarning::RED_SEVERITY_WARNING, "Source\\CommandPost.cpp", 1,
-                                   "Oct 19 2017", "14:22:39");
-            RedWarning::LogMessage("command post limit 16 reached, post refused");
-        }
         return 0;
     }
     if (iIndex >= *sPostCount)

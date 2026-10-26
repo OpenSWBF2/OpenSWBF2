@@ -6,6 +6,7 @@ $pm = 'src\RedEngineFL\Graphics\PC\pcRedPoolMath.h'
 $mf = 'src\Battlefront2\Source\MemFailLog.cpp'
 $lm = 'src\Battlefront2\Source\LuaMemory.cpp'
 $pmain = 'src\Battlefront2\Source\pcMain.cpp'
+$rl = 'src\RedEngineFL\Util\RedLog.cpp'
 
 $GuardRevertRows = @(
     @{ Id = 'CRASH-02'; File = 'src\RedEngineFL\Util\RedWarning.cpp'; Anchor = 'fputs(pcText, pFile);'; Replacement = 'fprintf(pFile, pcText);'; Tests = @('file log writes percent text literally') },
@@ -48,9 +49,13 @@ $GuardRevertRows = @(
     @{ Id = 'MEM-04'; File = 'src\LuaFL\src\ldo.cpp'; Anchor = 'if (lj.status) RedSetCurrentHeap(iHeap);'; Replacement = ''; Tests = @('lua error restores the current heap') },
     @{ Id = 'MEM-04B'; File = $lm; Anchor = 'pcCrash::Exit(4);'; Replacement = 'pcCrash::Exit(0);'; Tests = @('lua panic handler exits with code 4') },
     @{ Id = 'STRLCPY-NULL'; File = 'src\PebbleFL\Common\PblUnicode.cpp'; Anchor = 'if (uiSize && pcSource)'; Replacement = 'if (uiSize)'; Tests = @('strlcpy treats a null source as empty') },
+    @{ Id = 'DIAG-02'; File = $rl; Anchor = 'if (bLogSite)'; Replacement = 'if (bLogSite || pSite)'; Tests = @('redlog ensure counts once per site') },
+    @{ Id = 'DIAG-03'; File = 'tests\main.cpp'; Anchor = "TestStrictnessReport(gCurrentCase) != 0)`n    {`n        return 1;"; Replacement = "TestStrictnessReport(gCurrentCase) != 0)`n    {`n        return iRc;"; Tests = @('strictness probe emits an undeclared error', 'strictness probe unmatched expectation') },
+    @{ Id = 'DIAG-05'; File = $mf; Anchor = 'free %u load %u%% phys %u MB virt %u MB"'; Replacement = 'free %u"'; Tests = @('alloc failure handler logs and suppresses') },
     @{ Id = 'MEM-01'; Kind = 'Smoke'; Case = 'crash-arenaoom'; File = $pmain; Anchor = 'if (!s_memoryArena || pcCrash::SimulateAllocFailure("arenaoom"))'; Replacement = 'if (false)' },
     @{ Id = 'MEM-01B'; Kind = 'Smoke'; Case = 'crash-debugheapoom'; File = $pmain; Anchor = 'if (!p || pcCrash::SimulateAllocFailure("debugheapoom"))'; Replacement = 'if (false)' },
     @{ Id = 'MEM-02S'; Kind = 'Smoke'; Case = 'crash-heapfail'; File = 'src\Battlefront2\Source\GameMemory.cpp'; Anchor = 'OnFailure = MemFail::OnAllocFailure;'; Replacement = '' },
     @{ Id = 'MEM-03S'; Kind = 'Smoke'; Case = 'crash-luaoom'; File = 'src\LuaFL\src\lmem.cpp'; Anchor = 'luaD_throw(L, LUA_ERRMEM);'; Replacement = 'return NULL;' },
-    @{ Id = 'MEM-04S'; Kind = 'Smoke'; Case = 'crash-luapanic'; File = 'src\Battlefront2\Source\LuaHelper.cpp'; Anchor = 'lua_atpanic(mState, Lua_Red_Panic);'; Replacement = '' }
+    @{ Id = 'MEM-04S'; Kind = 'Smoke'; Case = 'crash-luapanic'; File = 'src\Battlefront2\Source\LuaHelper.cpp'; Anchor = 'lua_atpanic(mState, Lua_Red_Panic);'; Replacement = '' },
+    @{ Id = 'DIAG-04'; Kind = 'Smoke'; Case = 'crash-hang'; File = 'src\Battlefront2\Source\pcCrash.cpp'; Anchor = 'TerminateNow(5);'; Replacement = 'TerminateNow(3);' }
 )

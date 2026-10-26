@@ -29,6 +29,7 @@
 #include "NetPacket.h"
 #include "NetWire.h"
 #include "LocalLimits.h"
+#include "RedEngineFL/Util/RedLog.h"
 #include "RedEngineFL/Util/RedWarning.h"
 #include "TreeGrid.h"
 #include "EntityItem.h"
@@ -10230,16 +10231,9 @@ bool ReadObject(NetPktGroup& group)
         group.ReadBits(index, 8);
         NetNdObj* ndObj = index < clientNdObjMap.count ? clientNdObjMap.array[index] : 0;
         GameObject* object = ndObj ? (isFullState ? ndObj->orig : ndObj->obj) : 0;
-        if (!object)
+        const bool bNdObjectKnown = object != 0;
+        if (!ensure(bNdObjectKnown))
         {
-            static bool sbBadNdLogged = false;
-            if (!sbBadNdLogged)
-            {
-                sbBadNdLogged = true;
-                RedWarning::SetLogData(RedWarning::RED_SEVERITY_WARNING, "Source\\NetGame.cpp", 1,
-                                       "Oct 19 2017", "14:22:39");
-                RedWarning::LogMessage("invalid static net object index %u, packet refused", index);
-            }
             return false;
         }
         object->ReadObject(group, 0);
@@ -11611,19 +11605,8 @@ RedTerrain::Hole::Hole(RedTerrain::Hole* pSource)
 
 static bool CheckNdRoom(unsigned int uiCount)
 {
-    static bool sbNdLimitLogged = false;
-    if (LocalLimits::CanAddNdObject(uiCount))
-    {
-        return true;
-    }
-    if (!sbNdLimitLogged)
-    {
-        sbNdLimitLogged = true;
-        RedWarning::SetLogData(RedWarning::RED_SEVERITY_WARNING, "Source\\NetGame.cpp", 1,
-                               "Oct 19 2017", "14:22:39");
-        RedWarning::LogMessage("static net object limit 256 reached, object refused");
-    }
-    return false;
+    const bool bNdObjectLimitOk = LocalLimits::CanAddNdObject(uiCount);
+    return ensure(bNdObjectLimitOk);
 }
 
 // FUNCTION: SWBF2 0x005b45f0

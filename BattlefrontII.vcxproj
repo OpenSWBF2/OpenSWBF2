@@ -764,6 +764,7 @@
     <ClCompile Include="src\RedEngineFL\Util\RedSceneManager.cpp" />
     <ClCompile Include="src\RedEngineFL\Util\RedSceneObject.cpp" />
     <ClCompile Include="src\RedEngineFL\Util\RedScreenShot.cpp" />
+    <ClCompile Include="src\RedEngineFL\Util\RedLog.cpp" />
     <ClCompile Include="src\RedEngineFL\Util\RedWarning.cpp" />
     <ClCompile Include="src\RedEngineFL\Util\ext\Allocator.cpp" />
     <ClCompile Include="src\RedEngineFL\Util\ext\Globals.cpp" />
@@ -1483,6 +1484,7 @@
     <ClInclude Include="src\RedEngineFL\Util\RedSceneObject.h" />
     <ClInclude Include="src\RedEngineFL\Util\RedScreenShot.h" />
     <ClInclude Include="src\RedEngineFL\Util\RedStack.h" />
+    <ClInclude Include="src\RedEngineFL\Util\RedLog.h" />
     <ClInclude Include="src\RedEngineFL\Util\RedWarning.h" />
     <ClInclude Include="src\RedEngineFL\Util\ext\Allocator.h" />
     <ClInclude Include="src\RedEngineFL\Util\ext\BaseString.h" />

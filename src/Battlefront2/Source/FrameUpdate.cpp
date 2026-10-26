@@ -2,6 +2,7 @@
 #include "RedEngineFL/Graphics/RedMaterial.h"
 
 #include "NetGame.h"
+#include "pcCrash.h"
 #include "PebbleFL/Common/PblTime.h"
 #include "PebbleFL/Common/PblJournal.h"
 #include "GameVoiceChat.h"
@@ -47,6 +48,7 @@ template void PblJournal::Record<char>(char& value, PblJournalType type);
 // FUNCTION: SWBF2 0x0052d510
 void FrameUpdate::Update()
 {
+    pcCrash::Tick();
     const unsigned __int64 tickCount = PblTime::GetTickCount();
 
     const unsigned int elapsed = (unsigned int)(tickCount > _prevTickCount

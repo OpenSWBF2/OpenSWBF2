@@ -89,14 +89,20 @@ Artifacts go to `artifacts\tests\<timestamp>\smoke\<case>\`: `run.log`, `finalsc
 | Skipped | precheck failed | SKIP |
 | TimeOut | killed at the timeout | TIMEOUT |
 | GsFailure | exit `0xC0000409` | CRASH |
-| Fatal | exit 1, 3 or 4, a `FATAL:` log line, or a dump | CRASH |
+| Fatal | exit 1, 3, 4 or 5, a `FATAL:` log line, or a dump | CRASH |
 | Pass | exit 0 and `OPENSWBF2 RUN COMPLETE` in the log, no dump | PASS |
 | InitFailure | exit 0 without the marker | FAIL |
 | Unknown | anything else | FAIL |
 
 Classes are decided in that order. Crash cases pass when the expected class, exit code and dump count are observed.
 
-Exit code 4 is a Lua panic (an uncaught Lua error). The `-crashtest` kinds are `nullderef`, `divzero`, `stackoverflow`, `debugbreak`, `abort`, `invalidparam`, `fastfail`, `arenaoom`, `debugheapoom`, `heapfail`, `luaoom` and `luapanic`.
+Exit code 4 is a Lua panic (an uncaught Lua error). Exit code 5 is a hang: the watchdog saw no frame update for `-hangtimeout` seconds, wrote a dump and a `FATAL: hang` line. The `-crashtest` kinds are `nullderef`, `divzero`, `stackoverflow`, `debugbreak`, `abort`, `invalidparam`, `fastfail`, `arenaoom`, `debugheapoom`, `heapfail`, `luaoom`, `luapanic`, `hang` (spins in the mission loop; the smoke case passes `-hangtimeout 5`) and `check` (calls `ensure(false)` then `check(false)`: exit 3, one dump, `FATAL: check failed`, `ensure summary: 1 failures at 1 sites`).
+
+`-logcmds` takes one quoted value, for example `-logcmds "all Warning, LogNet Verbose"`. The categories are `LogNet`, `LogLua`, `LogLoad`, `LogMemory`, `LogSim`, `LogRender`, `LogAudio`, `LogCore` and `LogTemp`. Every log line starts `[t=<seconds>] [f=<frame>] <Category> <Severity> <file>:<line>: `.
+
+### Log strictness
+
+A smoke case also fails on any Error, Bug or Fatal `[t=` line in its `run.log` (only that file, matched case-sensitively), any `ensure failed: ` line, or a legacy `Message Severity: 3`, `4` or `5` line, unless a regex in `tests\smoke\expected-errors.txt` covers it. The file has `[global]` and `[case-name]` section headers with one regex per line; blank lines and lines starting with `#` are ignored. `[global]` is empty. Unprefixed Lua `print` output never counts. The T1 test exe is strict in the same way: `ExpectLog("text")` and `ExpectEnsure("text")` (named RAII variables) declare an expected Error-or-above line, an undeclared one or an unmatched declaration makes the exe exit 1 at the end of `main`. The hardening step also fails if any file under `src\LuaFL` or `src\ZlibFL` mentions `RedLog.h` (`hardening:redlog-vendor`).
 
 The runner prints `WARNING:` lines when the crash dump setup is missing. Import `tools\wer-localdumps.reg` once as administrator (HKLM only) so a `/GS` fast-fail leaves a dump and no Windows error dialog. The runner never writes the registry.
 

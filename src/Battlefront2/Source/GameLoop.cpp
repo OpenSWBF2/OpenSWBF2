@@ -105,6 +105,7 @@
 #include "PauseMenu.h"
 #include "PlayerStats.h"
 #include "RedEngineFL/Util/RedWarning.h"
+#include "RedEngineFL/Util/RedLog.h"
 
 class VideoEffect { public: static void Init(); };
 class LetterboxEffect { public: static void Init(); };
@@ -1180,8 +1181,7 @@ void Update(float fDeltaTime, float fSystemDeltaTime)
     if (gExitOnGameOver && !sbRunningLogged)
     {
         sbRunningLogged = true;
-        RedWarning::SetLogData(RedWarning::RED_SEVERITY_INFORM);
-        RedWarning::LogMessage("OPENSWBF2 MISSION RUNNING %s\n", mMissionScript);
+        LOG(LogSim, Inform, "OPENSWBF2 MISSION RUNNING %s", mMissionScript);
         pcCrash::RunMissionCrashTest();
     }
 
@@ -1523,8 +1523,7 @@ void Update(float fDeltaTime, float fSystemDeltaTime)
             if (gExitOnGameOver && !sbExitPosted)
             {
                 sbExitPosted = true;
-                RedWarning::SetLogData(RedWarning::RED_SEVERITY_INFORM);
-                RedWarning::LogMessage("OPENSWBF2 RUN COMPLETE %s\n", mMissionScript);
+                LOG(LogSim, Inform, "OPENSWBF2 RUN COMPLETE %s", mMissionScript);
                 if (hGlobalWnd)
                 {
                     PostMessageA(hGlobalWnd, WM_CLOSE, 0, 0);

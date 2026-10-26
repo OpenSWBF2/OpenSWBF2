@@ -10,6 +10,7 @@
 #include "GameMemory.h"
 #include "LuaHelper.h"
 #include "RedEngineFL/Memory/RedMemory.h"
+#include "RedEngineFL/Util/RedLog.h"
 
 typedef BOOL (WINAPI* MiniDumpWriteDumpFn)(HANDLE, DWORD, HANDLE, MINIDUMP_TYPE,
     PMINIDUMP_EXCEPTION_INFORMATION, PMINIDUMP_USER_STREAM_INFORMATION, PMINIDUMP_CALLBACK_INFORMATION);
@@ -32,6 +33,13 @@ static LPTOP_LEVEL_EXCEPTION_FILTER gpfnUef;
 static bool gbInstalled;
 static bool gbReinstalled;
 static bool gbCrashTestRan;
+static char gCheckText[384];
+static char gCheckFile[128];
+static int giCheckLine;
+static volatile LONG gTicks;
+extern bool gIsQuitting;
+static unsigned int guiHangTimeout = 60;
+static bool gbWatchdog;
 
 static void TerminateNow(int iCode)
 {
@@ -99,14 +107,15 @@ static void WriteDump()
         return;
     }
     MINIDUMP_TYPE eFull = (MINIDUMP_TYPE)(MiniDumpNormal | MiniDumpWithDataSegs | MiniDumpWithThreadInfo);
-    BOOL bOk = gpfnMiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), hFile, eFull, &gDumpInfo,
+    PMINIDUMP_EXCEPTION_INFORMATION pExc = gDumpInfo.ExceptionPointers ? &gDumpInfo : 0;
+    BOOL bOk = gpfnMiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), hFile, eFull, pExc,
         0, 0);
     if (!bOk)
     {
         SetFilePointer(hFile, 0, 0, FILE_BEGIN);
         SetEndOfFile(hFile);
         bOk = gpfnMiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), hFile, MiniDumpNormal,
-            &gDumpInfo, 0, 0);
+            pExc, 0, 0);
     }
     CloseHandle(hFile);
     if (!bOk)
@@ -123,6 +132,17 @@ static DWORD WINAPI DumpThread(LPVOID)
         WaitForSingleObject(ghFaultEvent, INFINITE);
         WriteDump();
         SetEvent(ghDoneEvent);
+    }
+}
+
+static void WriteEnsureSummary()
+{
+    unsigned int uiFailures = RedLog::EnsureFailureCount();
+    if (uiFailures != 0)
+    {
+        char acLine[96];
+        wsprintfA(acLine, "ensure summary: %u failures at %u sites\r\n", uiFailures, RedLog::EnsureSiteCount());
+        AppendLog(acLine);
     }
 }
 
@@ -170,9 +190,18 @@ static void WriteFatalLine(EXCEPTION_POINTERS* pInfo)
             lstrcpyA(acPath, "none");
         }
     }
-    wsprintfA(gFatalLine, "FATAL: exception 0x%08X at 0x%08X (%s+0x%X) build %s dump %s\r\n", uiCode, uiAddr,
-        acModule, uiOffset, gBuildId, acPath);
+    if (uiCode == 0xE0000004)
+    {
+        wsprintfA(gFatalLine, "FATAL: check failed: %.200s at %.120s:%d build %s dump %.400s\r\n", gCheckText, gCheckFile,
+            giCheckLine, gBuildId, acPath);
+    }
+    else
+    {
+        wsprintfA(gFatalLine, "FATAL: exception 0x%08X at 0x%08X (%.64s+0x%X) build %s dump %.400s\r\n", uiCode,
+            uiAddr, acModule, uiOffset, gBuildId, acPath);
+    }
     AppendLog(gFatalLine);
+    WriteEnsureSummary();
 }
 
 long pcCrash::Filter(struct _EXCEPTION_POINTERS* pInfo)
@@ -324,6 +353,89 @@ void pcCrash::Install()
     InstallHandlers();
 }
 
+void __cdecl pcCrash::Check(char const* pcExpr, char const* pcFile, int iLine)
+{
+    lstrcpynA(gCheckText, pcExpr ? pcExpr : "?", sizeof(gCheckText));
+    lstrcpynA(gCheckFile, pcFile ? pcFile : "?", sizeof(gCheckFile));
+    giCheckLine = iLine;
+    RaiseCrash(0xE0000004);
+}
+
+void pcCrash::Tick()
+{
+    InterlockedIncrement(&gTicks);
+}
+
+void pcCrash::SetHangTimeout(int iSeconds)
+{
+    if (iSeconds >= 1 && iSeconds <= 3600)
+    {
+        guiHangTimeout = (unsigned int)iSeconds;
+    }
+}
+
+char const* pcCrash::GetBuildId()
+{
+    return gBuildId;
+}
+
+static DWORD WINAPI WatchdogThread(LPVOID)
+{
+    LONG iLast = gTicks;
+    DWORD uiChanged = GetTickCount();
+    for (;;)
+    {
+        Sleep(500);
+        LONG iNow = gTicks;
+        DWORD uiNow = GetTickCount();
+        if (iNow != iLast || gIsQuitting)
+        {
+            iLast = iNow;
+            uiChanged = uiNow;
+        }
+        else if ((DWORD)(uiNow - uiChanged) >= guiHangTimeout * 1000)
+        {
+            if (InterlockedExchange(&gFaultGuard, 1) == 1)
+            {
+                return 0;
+            }
+            gFaultThreadId = GetCurrentThreadId();
+            gDumpPath[0] = 0;
+            gDumpInfo.ExceptionPointers = 0;
+            if (ghFaultEvent != 0 && ghDoneEvent != 0)
+            {
+                SetEvent(ghFaultEvent);
+                WaitForSingleObject(ghDoneEvent, 30000);
+            }
+            char acPath[MAX_PATH * 3];
+            lstrcpyA(acPath, "none");
+            if (gDumpPath[0] != 0 && WideCharToMultiByte(CP_ACP, 0, gDumpPath, -1, acPath, sizeof(acPath), 0, 0) == 0)
+            {
+                lstrcpyA(acPath, "none");
+            }
+            wsprintfA(gFatalLine, "FATAL: hang (no frame update for %u s, last frame %d) build %s dump %.400s\r\n",
+                guiHangTimeout, RedLog::gFrame, gBuildId, acPath);
+            AppendLog(gFatalLine);
+            WriteEnsureSummary();
+            TerminateNow(5);
+        }
+    }
+}
+
+void pcCrash::StartWatchdog()
+{
+    if (gbWatchdog || IsDebuggerPresent())
+    {
+        return;
+    }
+    gbWatchdog = true;
+    HANDLE hThread = CreateThread(0, 64 * 1024, WatchdogThread, 0, 0, 0);
+    if (hThread != 0)
+    {
+        CloseHandle(hThread);
+    }
+}
+
 void pcCrash::Reinstall()
 {
     InstallHandlers();
@@ -429,9 +541,18 @@ void pcCrash::FatalInit(char const* pcWhat, unsigned int uiSize)
             gLogPath[iLen] = 0;
         }
     }
-    char acLine[160];
-    wsprintfA(acLine, "FATAL: out of memory allocating %s (%u bytes)\r\n", pcWhat, uiSize);
+    char acLine[256];
+    int iLen = wsprintfA(acLine, "FATAL: out of memory allocating %.64s (%u bytes)", pcWhat, uiSize);
+    MEMORYSTATUSEX ms;
+    ms.dwLength = sizeof(ms);
+    if (GlobalMemoryStatusEx(&ms))
+    {
+        iLen += wsprintfA(acLine + iLen, " load %u%% phys %u MB virt %u MB", (unsigned int)ms.dwMemoryLoad,
+            (unsigned int)(ms.ullAvailPhys >> 20), (unsigned int)(ms.ullAvailVirtual >> 20));
+    }
+    lstrcpyA(acLine + iLen, "\r\n");
     AppendLog(acLine);
+    WriteEnsureSummary();
     pcCrash::Exit(1);
 }
 
@@ -464,13 +585,27 @@ void pcCrash::RunMissionCrashTest()
         lua_pushstring(LuaHelper::mState, "crashtest");
         lua_error(LuaHelper::mState);
     }
+    else if (strcmp(gCrashKind, "hang") == 0)
+    {
+        sbRan = true;
+        for (;;)
+        {
+            Sleep(10);
+        }
+    }
+    else if (strcmp(gCrashKind, "check") == 0)
+    {
+        sbRan = true;
+        (void)ensure(false);
+        check(false);
+    }
 }
 
 void pcCrash::SetCrashTest(char const* pcKind)
 {
     static char const* const apcKinds[] = { "nullderef", "divzero", "stackoverflow", "debugbreak", "abort",
         "invalidparam", "fastfail", "arenaoom", "debugheapoom", "heapfail",
-        "luaoom", "luapanic" };
+        "luaoom", "luapanic", "hang", "check" };
     if (pcKind == 0)
     {
         return;

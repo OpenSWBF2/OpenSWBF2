@@ -100,6 +100,7 @@ TEST_CASE("alloc exhaustion 512" * doctest::test_suite("characterisation"))
 
 TEST_CASE("alloc 513th is fatal and returns null" * doctest::test_suite("characterisation"))
 {
+    ExpectLog expect("net packet pool exhausted");
     NetTestReset();
     for (int i = 0; i < 512; ++i)
     {

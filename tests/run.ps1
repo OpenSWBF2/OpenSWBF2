@@ -208,6 +208,13 @@ if ($hardenActive) {
                 $bad++
             }
         }
+        $vendorHits = @(Get-ChildItem -LiteralPath (Join-Path $root 'src\LuaFL'), (Join-Path $root 'src\ZlibFL') -Recurse -File -ErrorAction SilentlyContinue |
+            Where-Object { Select-String -LiteralPath $_.FullName -Pattern 'RedLog.h' -SimpleMatch -Quiet })
+        if ($vendorHits.Count -eq 0) { Add-SmokeResult '[PASS] hardening:redlog-vendor' 'PASS' }
+        else {
+            foreach ($h in $vendorHits) { Add-SmokeResult "[FAIL] hardening:redlog-vendor - $($h.FullName)" 'FAIL' }
+            $bad++
+        }
         if ($reason) {
             $tag = 'SKIP'
             if ($gameDataRoot -and -not $NoBuild) {

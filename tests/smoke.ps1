@@ -44,7 +44,7 @@ function Get-SmokeClass($skipped, $timedOut, $code, $logText, $dumps) {
     if ($skipped) { return 'Skipped' }
     if ($timedOut) { return 'TimeOut' }
     if ($code -eq 3221226505) { return 'GsFailure' }
-    if ($code -eq 1 -or $code -eq 3 -or $code -eq 4 -or $logText -match 'FATAL:' -or @($dumps).Count -gt 0) { return 'Fatal' }
+    if ($code -eq 1 -or $code -eq 3 -or $code -eq 4 -or $code -eq 5 -or $logText -match 'FATAL:' -or @($dumps).Count -gt 0) { return 'Fatal' }
     if ($code -eq 0 -and $logText -match $script:SmokeMarker) { return 'Pass' }
     if ($code -eq 0) { return 'InitFailure' }
     return 'Unknown'
@@ -176,6 +176,36 @@ function Invoke-SmokeCase($name, $exe, $workDir, $argLine, $timeoutSec, $caseDir
     return New-Object PSObject -Property @{ Name = $name; Class = $class; Code = $code; Dumps = $dumps; LogText = $logText; Ms = $ms; CaseDir = $caseDir }
 }
 
+function Get-SmokeAllowed($caseName) {
+    $allowed = @()
+    $file = Join-Path $PSScriptRoot 'smoke\expected-errors.txt'
+    if (-not (Test-Path -LiteralPath $file)) { return $allowed }
+    $section = ''
+    foreach ($line in (Get-Content -LiteralPath $file)) {
+        $t = $line.Trim()
+        if (-not $t -or $t.StartsWith('#')) { continue }
+        if ($t -cmatch '^\[(.+)\]$') { $section = $Matches[1]; continue }
+        if ($section -ceq 'global' -or $section -ceq $caseName) { $allowed += $t }
+    }
+    return $allowed
+}
+
+function Get-SmokeUnexpected($caseName, $caseDir) {
+    $runLog = Join-Path $caseDir 'run.log'
+    if (-not (Test-Path -LiteralPath $runLog)) { return @() }
+    $allowed = @(Get-SmokeAllowed $caseName)
+    $bad = @()
+    foreach ($line in [IO.File]::ReadAllLines($runLog)) {
+        $hit = ($line -cmatch '^\[t=\d+\.\d{3}\] \[f=\d+\] \w+ (Error|Bug|Fatal) ') -or
+            $line.Contains('ensure failed: ') -or ($line -cmatch '^Message Severity: [345]$')
+        if (-not $hit) { continue }
+        $covered = $false
+        foreach ($rx in $allowed) { if ($line -cmatch $rx) { $covered = $true; break } }
+        if (-not $covered) { $bad += $line }
+    }
+    return $bad
+}
+
 function Test-SmokeExpect($case, $res) {
     $x = $case.Expect
     if ($res.Class -ne $x.Class) { return $false }
@@ -183,7 +213,14 @@ function Test-SmokeExpect($case, $res) {
     $n = @($res.Dumps).Count
     if ($x.ContainsKey('MinDumps') -and $n -lt $x.MinDumps) { return $false }
     if ($x.ContainsKey('MaxDumps') -and $n -gt $x.MaxDumps) { return $false }
-    if ($x.ContainsKey('LogRx') -and $res.LogText -notmatch $x.LogRx) { return $false }
+    if ($x.ContainsKey('LogRx')) {
+        foreach ($rx in @($x.LogRx)) { if ($res.LogText -cnotmatch $rx) { return $false } }
+    }
+    $unexpected = @(Get-SmokeUnexpected $case.Name $res.CaseDir)
+    if ($unexpected.Count -gt 0) {
+        foreach ($u in $unexpected) { Write-Host "    unexpected log line: $u" }
+        return $false
+    }
     return $true
 }
 
@@ -254,14 +291,14 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec) {
             $cases += New-Object PSObject -Property @{
                 Name = "crash-$kind"
                 Args = "$standard $tail -crashtest $kind"
-                Expect = @{ Class = 'Fatal'; Code = 1; MaxDumps = 0; LogRx = 'FATAL: out of memory' }
+                Expect = @{ Class = 'Fatal'; Code = 1; MaxDumps = 0; LogRx = ('FATAL: out of memory allocating ' + $(if ($kind -eq 'arenaoom') { 'arena' } else { 'debug heap' }) + ' \(\d+ bytes\) load \d+% phys \d+ MB virt \d+ MB') }
                 Twice = 0; Timeout = 0
             }
         }
         $cases += New-Object PSObject -Property @{
             Name = 'crash-heapfail'
             Args = "$standard $tail -crashtest heapfail"
-            Expect = @{ Class = 'Pass'; LogRx = 'alloc failure heap' }
+            Expect = @{ Class = 'Pass'; LogRx = 'alloc failure heap \S+ \(\d+\) size \d+ free \d+ load \d+% phys \d+ MB virt \d+ MB' }
             Twice = 0; Timeout = 0
         }
         $cases += New-Object PSObject -Property @{
@@ -274,6 +311,20 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec) {
             Name = 'crash-luapanic'
             Args = "$standard $tail -crashtest luapanic"
             Expect = @{ Class = 'Fatal'; Code = 4; MaxDumps = 0; LogRx = 'FATAL: lua panic' }
+            Twice = 0; Timeout = 0
+        }
+    }
+    if ($which -eq 'Crash' -or $which -eq 'All') {
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-hang'
+            Args = "$standard $tail -crashtest hang -hangtimeout 5"
+            Expect = @{ Class = 'Fatal'; Code = 5; MinDumps = 1; MaxDumps = 1; LogRx = 'FATAL: hang' }
+            Twice = 0; Timeout = 30
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-check'
+            Args = "$standard $tail -crashtest check"
+            Expect = @{ Class = 'Fatal'; Code = 3; MinDumps = 1; MaxDumps = 1; LogRx = @('FATAL: check failed', 'ensure summary: 1 failures at 1 sites') }
             Twice = 0; Timeout = 0
         }
     }

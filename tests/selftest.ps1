@@ -117,8 +117,17 @@ elseif (-not $byName['tat3c_con'].Expect.LogRx -or $byName['tat3c_con'].Expect.C
 elseif ('FATAL: exception 0xC0000005 at 0x658FA553 (d3dx9_43.dll+0x1BA553) build 6ADE5B7C1C4C000' -notmatch $byName['tat3c_con'].Expect.LogRx) { $why = 'Fatal LogRx does not match the recorded tat3 crash' }
 elseif ($byName['bar1c_con'].Expect.Class -ne 'Pass' -or $byName['quux1c_con'].Expect.Class -ne 'Pass') { $why = 'missing or Pass class must be Pass' }
 elseif ($rejected -ne 2) { $why = 'unknown and GsFailure classes must be rejected' }
-elseif (@($allCases | Where-Object { $_.Name -like 'crash-*' }).Count -ne 12 -or -not $byName.ContainsKey('fatal-init') -or $byName['dedicated'].Timeout -ne 0) { $why = 'dedicated or crash cases changed' }
+elseif (@($allCases | Where-Object { $_.Name -like 'crash-*' }).Count -ne 14 -or -not $byName.ContainsKey('fatal-init') -or $byName['dedicated'].Timeout -ne 0) { $why = 'dedicated or crash cases changed' }
 if ($why) { $failed++; Write-Host "FAILED ${n}: all-missions parsing: $why" }
 else { Write-Host "OK $n all-missions parsing" }
+$testExe = Join-Path (Split-Path $PSScriptRoot -Parent) 'bin\Tests\Debug\OpenSWBF2Tests.exe'
+foreach ($probe in 'strictness probe emits an undeclared error', 'strictness probe unmatched expectation') {
+    $n++
+    if (-not (Test-Path $testExe)) { $failed++; Write-Host "FAILED ${n}: ${probe}: test exe not built"; continue }
+    $out = (& $testExe "-tc=$probe" -ns 2>&1 | Out-String)
+    $code = $LASTEXITCODE
+    if ($code -ne 1 -or $out -notmatch '\[UNEXPECTED-LOG\]') { $failed++; Write-Host "FAILED ${n}: ${probe}: exit $code, expected 1 with [UNEXPECTED-LOG]" }
+    else { Write-Host "OK $n $probe" }
+}
 if ($failed -gt 0) { exit 1 }
 exit 0
