@@ -5,6 +5,8 @@
 #include "Battlefront2/Source/pcNetSocket.h"
 #include "Steam/galaxy_api.h"
 #include "Steam/gfGalaxy.h"
+#include "Battlefront2/Source/pcCrash.h"
+#include "nettest.h"
 
 class NetDrag
 {
@@ -45,3 +47,6 @@ int __fastcall NetCommP::FindJoinSource(const int*) { return -1; }
 bool __fastcall IsAdminPacketAuthorized(const unsigned char*) { return false; }
 namespace gf { bool checkError() { return false; } }
 namespace galaxy { namespace api { IGalaxy* GalaxyFactory::GetInstance() { return 0; } } }
+int gExitCalls;
+int gLastExitCode;
+namespace pcCrash { void __cdecl Exit(int iCode) { ++gExitCalls; gLastExitCode = iCode; } }

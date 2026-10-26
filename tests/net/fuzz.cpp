@@ -136,7 +136,7 @@ static bool RunFuzz(unsigned int uSeed, unsigned int uCount, unsigned int* puSum
 TEST_CASE("fuzz default seeds" * doctest::test_suite("fuzz"))
 {
     const unsigned int auSeeds[4] = {1, 2, 3, 0xC0FFEE};
-    const unsigned int auSums[4] = {0xa6d09a2a, 0x90250102, 0xa30a4628, 0xe77631d4};
+    const unsigned int auSums[4] = {0xac892f84, 0x10ce3326, 0xec1f98d7, 0xd649cad9};
     for (int i = 0; i < 4; ++i)
     {
         unsigned int uSum = 0;

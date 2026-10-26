@@ -98,16 +98,17 @@ TEST_CASE("alloc exhaustion 512" * doctest::test_suite("characterisation"))
     CHECK(freeSmallPackets.pktCount == 0);
 }
 
-TEST_CASE("alloc 513th refills all" * doctest::test_suite("characterisation"))
+TEST_CASE("alloc 513th is fatal and returns null" * doctest::test_suite("characterisation"))
 {
     NetTestReset();
-    for (int i = 0; i < 513; ++i)
+    for (int i = 0; i < 512; ++i)
     {
         NetPacket::Alloc((i & 1) != 0);
     }
-    CHECK(freeBigPackets.pktCount == 255);
-    CHECK(freeSmallPackets.pktCount == 256);
-    CHECK(NetCountPackets(513) == 1024);
+    CHECK(!NetPacket::Alloc(false));
+    CHECK(gExitCalls == 1);
+    CHECK(gLastExitCode == 3);
+    CHECK(NetCountPackets(512) == 1024 - 512);
 }
 
 TEST_CASE("free group cycle never advances" * doctest::test_suite("characterisation"))
@@ -122,27 +123,28 @@ TEST_CASE("free group cycle never advances" * doctest::test_suite("characterisat
     CHECK(inPktGroups[1].pktCount == 1);
 }
 
-TEST_CASE("duplicate fragment leaks one packet" * doctest::test_suite("characterisation"))
+TEST_CASE("duplicate fragment keeps accounting" * doctest::test_suite("characterisation"))
 {
     NetTestReset();
     NetStampAndQueue(MakeOne(1), 5, PKT_GAME_MOVE, 1, 0, 2, 0);
     NetStampAndQueue(MakeOne(2), 5, PKT_GAME_MOVE, 1, 0, 2, 0);
     NetPktGroup out;
     CHECK(!NetComm::Recv(&out, PKT_GAME_MOVE));
-    CHECK(NetCountPackets(0) == 511);
+    CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("count zero parks packet" * doctest::test_suite("characterisation"))
+TEST_CASE("count zero is dropped" * doctest::test_suite("characterisation"))
 {
     NetTestReset();
     NetStampAndQueue(MakeOne(1), 5, PKT_GAME_MOVE, 1, 0, 0, 0);
     NetPktGroup out;
     CHECK(!NetComm::Recv(&out, PKT_GAME_MOVE));
-    CHECK(inPktGroups[0].pktCount == 1);
+    CHECK(inPktGroups[0].pktCount == 0);
+    CHECK(netRejectCounts[NET_REJECT_FRAG_COUNT_ZERO] == 1);
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("negative readbytes moves cursor back" * doctest::test_suite("characterisation"))
+TEST_CASE("negative readbytes keeps cursor and marks group bad" * doctest::test_suite("characterisation"))
 {
     NetTestReset();
     NetPktGroup g;
@@ -156,5 +158,7 @@ TEST_CASE("negative readbytes moves cursor back" * doctest::test_suite("characte
     CHECK(g.pktPtr->mCurIndex == 18);
     char acBuf[8];
     g.ReadBytes(acBuf, -4);
-    CHECK(g.pktPtr->mCurIndex == 14);
+    CHECK(g.pktPtr->mCurIndex == 18);
+    CHECK(g.IsBad());
+    g.Free();
 }

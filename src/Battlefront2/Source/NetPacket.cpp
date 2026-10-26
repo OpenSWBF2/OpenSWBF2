@@ -3,6 +3,8 @@
 #include "NetPacket.h"
 #include "NetComm.h"
 #include "NetGame.h"
+#include "pcCrash.h"
+#include "RedEngineFL/Util/RedWarning.h"
 
 class NetDrag
 {
@@ -21,6 +23,17 @@ extern NetPktGroup localQueue;
 
 // GLOBAL: SWBF2 0x01e62e98
 int freeGroupCycle;
+
+int netRejectCounts[NET_REJECT_COUNT];
+
+void NetPktGroup::SetBad(int iReason)
+{
+    if (!bad)
+    {
+        bad = true;
+        ++netRejectCounts[iReason];
+    }
+}
 
 // FUNCTION: SWBF2 0x005b2be0
 void NetCommP::FreePackets()
@@ -130,17 +143,30 @@ NetPacket* NetPacket::Alloc(bool bSmall)
         pPacket = freePackets.PopFront();
         if (!pPacket)
         {
-            for (int i = 0; i < MAX_BIG_PACKETS; ++i)
-            {
-                freeBigPackets.PushBack(&netBigPackets[i]);
-            }
-            for (int i = 0; i < MAX_SMALL_PACKETS; ++i)
-            {
-                freeSmallPackets.PushBack(&netSmallPackets[i]);
-            }
-            pPacket = freePackets.PopFront();
+            ++netRejectCounts[NET_REJECT_POOL_EXHAUSTED];
+            RedWarning::SetLogData(RedWarning::RED_SEVERITY_FATAL, "Source\\NetPacket.cpp", 130,
+                                   "Oct 19 2017", "14:22:39");
+            RedWarning::LogMessage("net packet pool exhausted (%s big=%d small=%d)",
+                                   bSmall ? "small" : "big", freeBigPackets.pktCount,
+                                   freeSmallPackets.pktCount);
+            pcCrash::Exit(3);
+            return 0;
         }
     }
+    pPacket->mSeqNo = (unsigned short)sNextSeqNo++;
+    pPacket->mCurIndex = 2;
+    return pPacket;
+}
+
+NetPacket* NetPacket::AllocRecv(bool bSmall)
+{
+    NetPktGroup& freePackets = bSmall ? freeSmallPackets : freeBigPackets;
+    if (freePackets.pktCount <= (bSmall ? kRecvReserveSmall : kRecvReserveBig))
+    {
+        ++netRejectCounts[NET_REJECT_POOL_EXHAUSTED];
+        return 0;
+    }
+    NetPacket* pPacket = freePackets.PopFront();
     pPacket->mSeqNo = (unsigned short)sNextSeqNo++;
     pPacket->mCurIndex = 2;
     return pPacket;
@@ -204,6 +230,7 @@ NetPacket* NetPacket::Get(int iNum)
 // FUNCTION: SWBF2 0x005d91e0
 void NetPktGroup::Reset()
 {
+    bad = false;
     pktCount = 0;
     lastPkt = -1;
     firstPkt = -1;
@@ -305,16 +332,21 @@ int NetPacket::Write(char const* pData, int iLen)
 // FUNCTION: SWBF2 0x005d91a0
 int NetPacket::Read(char* pData, int iLen)
 {
-    int iEnd = mCurIndex + iLen;
-    if (iEnd > mMaxIndex)
+    if (iLen <= 0)
     {
-        iEnd = mMaxIndex;
+        if (iLen < 0)
+        {
+            ++netRejectCounts[NET_REJECT_NEGATIVE_LENGTH];
+        }
+        return 0;
     }
-    const int iCount = iEnd - mCurIndex;
-    if (iCount > 0)
+    const int iAvail = mMaxIndex - mCurIndex;
+    if (iAvail <= 0)
     {
-        memcpy(pData, &mData[mCurIndex], iCount);
+        return 0;
     }
+    const int iCount = iLen < iAvail ? iLen : iAvail;
+    memcpy(pData, &mData[mCurIndex], iCount);
     mCurIndex += (short)iCount;
     return iCount;
 }
@@ -341,6 +373,11 @@ void NetPktGroup::WritePacked()
 // FUNCTION: SWBF2 0x005d9640
 void NetPktGroup::ReadPacked()
 {
+    if (bad)
+    {
+        pktBits = 0;
+        return;
+    }
     if (pktPtr && pktPtr->Read(pktBits))
     {
         return;
@@ -390,6 +427,10 @@ void NetPktGroup::WriteBits(unsigned int uValue, int iBits)
 void NetPktGroup::ReadBits(unsigned int& uValue, int iBits)
 {
     uValue = 0;
+    if (bad)
+    {
+        return;
+    }
     int iShift = 0;
     for (;;)
     {
@@ -397,6 +438,12 @@ void NetPktGroup::ReadBits(unsigned int& uValue, int iBits)
         {
             ReadPacked();
             curBit = 0;
+            if (!pktPtr && iBits > 0)
+            {
+                SetBad(NET_REJECT_GROUP_BAD);
+                uValue = 0;
+                return;
+            }
         }
         int iCount = 32 - curBit;
         if (iCount > iBits)
@@ -441,6 +488,11 @@ void NetPktGroup::WriteFixed(float f, float fMin, float fMax, int iBits)
 // FUNCTION: SWBF2 0x005d9860
 void NetPktGroup::ReadFixed(float& f, float fMin, float fMax, int iBits)
 {
+    if (bad)
+    {
+        f = 0.0f;
+        return;
+    }
     if (doHiRes || iBits >= 32)
     {
         ReadBits(*(unsigned int*)&f, 32);
@@ -448,6 +500,11 @@ void NetPktGroup::ReadFixed(float& f, float fMin, float fMax, int iBits)
     }
     unsigned int uValue;
     ReadBits(uValue, iBits);
+    if (bad)
+    {
+        f = 0.0f;
+        return;
+    }
     const unsigned int uMax = (1 << iBits) - 1;
     if (uValue == 0)
     {
@@ -530,6 +587,19 @@ void NetPktGroup::WriteBytes(char const* pData, int iLen)
 // FUNCTION: SWBF2 0x005d9ae0
 void NetPktGroup::ReadBytes(char* pData, int iLen)
 {
+    if (iLen < 0)
+    {
+        SetBad(NET_REJECT_NEGATIVE_LENGTH);
+        return;
+    }
+    if (bad)
+    {
+        if (iLen > 0)
+        {
+            memset(pData, 0, iLen);
+        }
+        return;
+    }
     if (curBit > 0)
     {
         curBit = 32;
@@ -547,9 +617,14 @@ void NetPktGroup::ReadBytes(char* pData, int iLen)
         pktPtr = NetPacket::Get(pktPtr->mNextPkt);
         if (!pktPtr)
         {
-            return;
+            break;
         }
         pktPtr->BeginRead();
+    }
+    if (iLen > 0)
+    {
+        memset(pData, 0, iLen);
+        SetBad(NET_REJECT_GROUP_BAD);
     }
 }
 
@@ -608,6 +683,7 @@ bool NetPacket::Write(unsigned short value)
 // FUNCTION: SWBF2 0x005d9200
 void NetPktGroup::Set(NetPacket* pPkt)
 {
+    bad = false;
     firstPkt = pPkt->GetNum();
     pktCount = 1;
     lastPkt = firstPkt;
@@ -632,6 +708,7 @@ bool NetPktGroup::IsEnd() const
 // FUNCTION: SWBF2 0x005d92d0
 void NetPktGroup::BeginWrite()
 {
+    bad = false;
     pktCount = 0;
     lastPkt = -1;
     firstPkt = -1;
@@ -653,10 +730,20 @@ void NetPktGroup::EndWrite()
 // FUNCTION: SWBF2 0x005d9320
 void NetPktGroup::BeginRead()
 {
-    pktPtr = NetPacket::Get(firstPkt);
-    pktPtr->BeginRead();
+    bad = false;
     pktBits = 0;
     curBit = 32;
+    pktPtr = NetPacket::Get(firstPkt);
+    if (!pktPtr)
+    {
+        SetBad(NET_REJECT_GROUP_BAD);
+        return;
+    }
+    pktPtr->BeginRead();
+    if (pktPtr->mDataIndex + 4 > pktPtr->mMaxIndex)
+    {
+        SetBad(NET_REJECT_GROUP_BAD);
+    }
 }
 
 // FUNCTION: SWBF2 0x005d9350
@@ -799,6 +886,7 @@ NetPacket* NetPktGroup::GetFront()
 // FUNCTION: SWBF2 0x005d9ba0
 void NetPktGroup::Seek(const NetPktGroupOffset& offset)
 {
+    bad = false;
     pktPtr = NetPacket::Get(firstPkt);
     for (int i = 0; i < offset.pktNum; ++i)
     {

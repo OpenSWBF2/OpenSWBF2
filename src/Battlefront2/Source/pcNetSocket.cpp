@@ -160,30 +160,11 @@ unsigned char netGalaxyReceiveBuffer[2048];
 // GLOBAL: SWBF2 0x01fab8e0
 unsigned char netLanReceiveBuffer[2048];
 
-static NetPacket* MakeReceivedPacket(const unsigned char* pData, unsigned int size,
-                                      unsigned int prefix, bool classifyByType)
-{
-    if (classifyByType && pData[0] >= 0x1e)
-    {
-        prefix = 0;
-    }
-    if (size > 1012 - prefix)
-    {
-        return 0;
-    }
-    NetPacket* pPacket = NetPacket::Alloc(size <= 116 - prefix);
-    pPacket->BeginWrite();
-    memcpy(pPacket->mData + prefix, pData, size);
-    pPacket->mCommIndex = (char)prefix;
-    pPacket->mMaxIndex = (short)(size + prefix);
-    return pPacket;
-}
-
 static void ProcessReceivedPacket(const unsigned char* pData, unsigned int size,
                                    unsigned int prefix, bool classifyByType,
                                    const NetSocketPeerRecord& peer)
 {
-    NetPacket* pPacket = MakeReceivedPacket(pData, size, prefix, classifyByType);
+    NetPacket* pPacket = NetCommP::MakeReceivedPacket(pData, size, prefix, classifyByType);
     if (pPacket)
     {
         NetCommP::RecvPacket(pPacket, &peer);

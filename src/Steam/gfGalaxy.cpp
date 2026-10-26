@@ -264,22 +264,22 @@ void gf::GalaxyLobbyDataListener::OnLobbyDataUpdated(const galaxy::api::GalaxyID
         memset(acValue, 0, sizeof(acValue));
         pMatchmaking = GetGalaxyMatchmaking();
         if (!((galaxy::api::IMatchmaking*)pMatchmaking)->GetLobbyDataByIndex(
-                lobbyID, i, acKey, sizeof(acKey), acValue, sizeof(acValue)))
+                lobbyID, i, acKey, sizeof(acKey) - 1, acValue, sizeof(acValue) - 1))
         {
             continue;
         }
 
         if (!strcmp(acKey, "fgd_str_host_name"))
         {
-            strncpy(data.mName, acValue, sizeof(data.mName));
+            strlcpy(data.mName, acValue, sizeof(data.mName));
         }
         else if (!strcmp(acKey, "fgd_str_game_type"))
         {
-            strncpy(data.mMapType, acValue, sizeof(data.mMapType));
+            strlcpy(data.mMapType, acValue, sizeof(data.mMapType));
         }
         else if (!strcmp(acKey, "fgd_str_map_name"))
         {
-            strncpy(data.mMapName, acValue, sizeof(data.mMapName));
+            strlcpy(data.mMapName, acValue, sizeof(data.mMapName));
         }
         else if (!strcmp(acKey, "fgr_bool_netAutoAim"))
         {

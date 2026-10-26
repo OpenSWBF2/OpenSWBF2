@@ -11,6 +11,9 @@ extern NetDest netDests[MAX_DESTS];
 
 void NetTestReset()
 {
+    gExitCalls = 0;
+    gLastExitCode = 0;
+    memset(netRejectCounts, 0, sizeof(netRejectCounts));
     NetComm::Create(false);
     NetComm::SetConnectType(CT_LAN);
 }
@@ -57,15 +60,11 @@ void NetStampAndQueue(NetPacket* pPacket, unsigned short uGroup, unsigned char u
 
 void NetDeliverDatagram(const unsigned char* pData, unsigned int uiSize, unsigned int uiPrefix)
 {
-    if (uiSize > 1012 - uiPrefix)
+    NetPacket* pPacket = NetCommP::MakeReceivedPacket(pData, uiSize, uiPrefix, false);
+    if (!pPacket)
     {
         return;
     }
-    NetPacket* pPacket = NetPacket::Alloc(uiSize <= 116 - uiPrefix);
-    pPacket->BeginWrite();
-    memcpy(pPacket->mData + uiPrefix, pData, uiSize);
-    pPacket->mCommIndex = (char)uiPrefix;
-    pPacket->mMaxIndex = (short)(uiSize + uiPrefix);
     NetSocketPeerRecord peer;
     memset(&peer, 0, sizeof(peer));
     NetCommP::RecvPacket(pPacket, &peer);

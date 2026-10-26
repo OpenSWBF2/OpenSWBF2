@@ -102,7 +102,7 @@ if ($runUnit) {
             if ($l -like '=====*') { $in = -not $in; continue }
             if ($in -and $l.Trim() -ne '') { $cases += New-Object PSObject -Property @{ Name = $l.TrimEnd(); Suite = $s } }
         }
-        if ($cases.Count -eq $before -and -not $Filter -and $s -ne 'regression') {
+        if ($cases.Count -eq $before -and -not $Filter -and $s -ne 'regression' -and $s -ne 'known_bug') {
             Write-Host "Suite '$s' listed 0 cases."
             exit 2
         }

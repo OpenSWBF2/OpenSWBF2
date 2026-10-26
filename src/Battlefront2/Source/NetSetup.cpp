@@ -3414,6 +3414,12 @@ CNetPostLoadJoinGame::~CNetPostLoadJoinGame()
         while (NetComm::Recv(&incoming, 20))
         {
             incoming.BeginRead();
+            if (incoming.IsBad())
+            {
+                incoming.EndRead();
+                incoming.Free();
+                continue;
+            }
             bool accepted = false;
             incoming.Read(accepted);
             if (accepted)
@@ -4596,6 +4602,11 @@ bool ReadShellUpdate(NetPktGroup& group, ShellUpdate& update, ShellMove& move)
         }
     }
 
+    if (group.IsBad())
+    {
+        return false;
+    }
+
     bool isLocal = host == NetComm::GetLocalIndex(0);
     if (!isLocal)
     {
@@ -4623,7 +4634,7 @@ bool ReadShellUpdate(NetPktGroup& group, ShellUpdate& update, ShellMove& move)
         group.ReadBits(limitB, 12);
         group.ReadBits(limitC, 7);
         group.ReadBits(limitD, 7);
-        if (!NetComm::IsHost() && !dragEnabled)
+        if (!NetComm::IsHost() && !dragEnabled && !group.IsBad())
         {
             dragEnabled = hasLimits;
             dragLatency = limitA;
@@ -4634,11 +4645,15 @@ bool ReadShellUpdate(NetPktGroup& group, ShellUpdate& update, ShellMove& move)
     }
     bool flag;
     group.Read(flag);
+    group.ReadBits(value, 2);
+    if (group.IsBad())
+    {
+        return false;
+    }
     if (!isLocal)
     {
         netIsHostDedicated = flag;
     }
-    group.ReadBits(value, 2);
     if (!isLocal)
     {
         NetCommP::SetArch(64, (NetArch)value);
@@ -4649,6 +4664,10 @@ bool ReadShellUpdate(NetPktGroup& group, ShellUpdate& update, ShellMove& move)
     if (hasHostPlayer)
     {
         group.ReadBits(value, 6);
+        if (group.IsBad())
+        {
+            return false;
+        }
         hostPlayer = value;
         if (!NetComm::IsConnected(hostPlayer))
         {
@@ -4658,18 +4677,25 @@ bool ReadShellUpdate(NetPktGroup& group, ShellUpdate& update, ShellMove& move)
 
     bool booted;
     group.Read(booted);
+    bool quitKnown;
+    group.Read(quitKnown);
+    bool quit = false;
+    if (quitKnown)
+    {
+        group.Read(quit);
+    }
+    if (group.IsBad())
+    {
+        return false;
+    }
     update.bootMask = 0;
     if (booted)
     {
         update.bootMask = 1ULL << host;
     }
     update.quitMask = 0;
-    bool quitKnown;
-    group.Read(quitKnown);
     if (quitKnown)
     {
-        bool quit;
-        group.Read(quit);
         if (quit)
         {
             update.quitMask = 1ULL << host;
@@ -4686,6 +4712,10 @@ bool ReadShellUpdate(NetPktGroup& group, ShellUpdate& update, ShellMove& move)
     int up = value << 10;
     group.ReadBits(value, 12);
     int down = value << 10;
+    if (group.IsBad())
+    {
+        return false;
+    }
     if (!NetGame::IsHost())
     {
         int oldUp, oldDown;
@@ -5021,18 +5051,31 @@ void CNetJoinGame::Update()
             }
             int oldLocal = NetComm::GetLocalIndex(0);
             group.BeginRead();
+            if (group.IsBad())
+            {
+                group.EndRead();
+                group.Free();
+                continue;
+            }
             if (ReadShellUpdate(group, shellUpdate, shellMove))
             {
                 ++changeCount;
             }
-            hostLaunched = shellUpdate.hostLaunched;
-            if (shellUpdate.moveNum > ackedMoveNum)
+            bool bad = group.IsBad();
+            if (!bad)
             {
-                ackedMoveNum = shellUpdate.moveNum;
+                hostLaunched = shellUpdate.hostLaunched;
+                if (shellUpdate.moveNum > ackedMoveNum)
+                {
+                    ackedMoveNum = shellUpdate.moveNum;
+                }
             }
             group.EndRead();
             group.Free();
-            UpdateCurMaxPlayers(shellUpdate.connectMask, false);
+            if (!bad)
+            {
+                UpdateCurMaxPlayers(shellUpdate.connectMask, false);
+            }
 
             int newLocal = NetComm::GetLocalIndex(0);
             if (newLocal != oldLocal)
