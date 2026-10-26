@@ -26,12 +26,83 @@ int freeGroupCycle;
 
 int netRejectCounts[NET_REJECT_COUNT];
 
+static const char* const sRejectNames[] =
+{
+    "frag_count_zero",
+    "frag_idx",
+    "frag_count_mismatch",
+    "frag_too_many",
+    "pool_exhausted",
+    "short_datagram",
+    "negative_length",
+    "group_bad",
+    "partial_cap",
+    "oversize_datagram",
+    "chat_oversize",
+    "chat_fields",
+    "upload_length",
+    "upload_name",
+    "upload_underflow",
+    "upload_disabled",
+    "rcon_line",
+    "rcon_auth_short",
+    "rcon_login_rate",
+    "player_count",
+    "turn_rate",
+    "bad_addr"
+};
+
+static_assert(sizeof(sRejectNames) / sizeof(sRejectNames[0]) == NET_REJECT_COUNT, "sRejectNames size");
+
+static float sRejectLastLog[NET_REJECT_COUNT];
+static int sRejectSuppressed[NET_REJECT_COUNT];
+static bool sRejectLogged[NET_REJECT_COUNT];
+static float (*sRejectClock)() = NetComm::GetTime;
+
+void NetRejectCount(int iReason)
+{
+    if (iReason < 0 || iReason >= NET_REJECT_COUNT)
+    {
+        return;
+    }
+    ++netRejectCounts[iReason];
+    const float fNow = sRejectClock();
+    if (!sRejectLogged[iReason] || fNow < sRejectLastLog[iReason] ||
+        fNow - sRejectLastLog[iReason] >= 1.0f)
+    {
+        const int iSuppressed = sRejectSuppressed[iReason];
+        sRejectLogged[iReason] = true;
+        sRejectSuppressed[iReason] = 0;
+        sRejectLastLog[iReason] = fNow;
+        RedWarning::SetLogData(RedWarning::RED_SEVERITY_WARNING, "Source\\NetPacket.cpp", 30,
+                               "Oct 19 2017", "14:22:39");
+        RedWarning::LogMessage("net reject %s (%d suppressed)", sRejectNames[iReason], iSuppressed);
+    }
+    else
+    {
+        ++sRejectSuppressed[iReason];
+    }
+}
+
+void NetRejectSetClock(float (*pfnClock)())
+{
+    sRejectClock = pfnClock;
+}
+
+void NetRejectReset()
+{
+    memset(sRejectLastLog, 0, sizeof(sRejectLastLog));
+    memset(sRejectSuppressed, 0, sizeof(sRejectSuppressed));
+    memset(sRejectLogged, 0, sizeof(sRejectLogged));
+    sRejectClock = NetComm::GetTime;
+}
+
 void NetPktGroup::SetBad(int iReason)
 {
     if (!bad)
     {
         bad = true;
-        ++netRejectCounts[iReason];
+        NetRejectCount(iReason);
     }
 }
 
@@ -143,7 +214,7 @@ NetPacket* NetPacket::Alloc(bool bSmall)
         pPacket = freePackets.PopFront();
         if (!pPacket)
         {
-            ++netRejectCounts[NET_REJECT_POOL_EXHAUSTED];
+            NetRejectCount(NET_REJECT_POOL_EXHAUSTED);
             RedWarning::SetLogData(RedWarning::RED_SEVERITY_FATAL, "Source\\NetPacket.cpp", 130,
                                    "Oct 19 2017", "14:22:39");
             RedWarning::LogMessage("net packet pool exhausted (%s big=%d small=%d)",
@@ -163,7 +234,7 @@ NetPacket* NetPacket::AllocRecv(bool bSmall)
     NetPktGroup& freePackets = bSmall ? freeSmallPackets : freeBigPackets;
     if (freePackets.pktCount <= (bSmall ? kRecvReserveSmall : kRecvReserveBig))
     {
-        ++netRejectCounts[NET_REJECT_POOL_EXHAUSTED];
+        NetRejectCount(NET_REJECT_POOL_EXHAUSTED);
         return 0;
     }
     NetPacket* pPacket = freePackets.PopFront();
@@ -336,7 +407,7 @@ int NetPacket::Read(char* pData, int iLen)
     {
         if (iLen < 0)
         {
-            ++netRejectCounts[NET_REJECT_NEGATIVE_LENGTH];
+            NetRejectCount(NET_REJECT_NEGATIVE_LENGTH);
         }
         return 0;
     }

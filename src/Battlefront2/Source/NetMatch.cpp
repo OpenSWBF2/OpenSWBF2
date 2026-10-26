@@ -104,7 +104,9 @@ char NetAddr::GetAddr(void* pOut, int) const
     }
     if (!hasPriv)
     {
-        __debugbreak();
+        NetSocket::SetAddr(pOut, 0, 0);
+        NetRejectCount(NET_REJECT_BAD_ADDR);
+        return 0;
     }
     return (char)NetSocket::SetAddr(pOut, (unsigned int)privAddr, (unsigned short)privPort);
 }
@@ -440,6 +442,7 @@ void __fastcall HandleFoundPacket(NetPacket* packet, const void* source)
                 ReadString(group, data.mMapType, 32);
                 NetAddr address;
                 memset(&address, 0, sizeof(address));
+                bool addressOk = true;
                 NetKey key;
 
                 NetSessionId session;
@@ -454,11 +457,15 @@ void __fastcall HandleFoundPacket(NetPacket* packet, const void* source)
                     NetSocket::GetAddr(source, sourceIp, sourcePort);
                     NetAddr from(sourceIp, port, 0);
                     address = from;
+                    addressOk = from.hasPriv;
                 }
                 group.ReadBits((unsigned int&)data.mMaxPlayers, 6);
                 group.ReadBits((unsigned int&)data.mNumPlayers, 6);
-                NetSetupP::AddGame(&address);
-                NetSetupP::UpdateGame(&address, &key, &session, NetSetup::GetGameVersion(), &data, 0);
+                if (addressOk)
+                {
+                    NetSetupP::AddGame(&address);
+                    NetSetupP::UpdateGame(&address, &key, &session, NetSetup::GetGameVersion(), &data, 0);
+                }
             }
         }
     }
@@ -501,7 +508,13 @@ unsigned int NetMatch::HostGetAddr(const NetAddr* pAddr, void* pOut, int iDest)
     NetSocket::GetAddr(peer, ip, port);
     if (!IsPrivateIP(ip))
     {
-        __debugbreak();
+        NetAddr* output = (NetAddr*)pOut;
+        output->pubAddr = pAddr->pubAddr;
+        output->pubPort = pAddr->pubPort;
+        output->hasPriv = false;
+        output->privAddr = 0;
+        output->privPort = 0;
+        NetRejectCount(NET_REJECT_BAD_ADDR);
     }
     else
     {

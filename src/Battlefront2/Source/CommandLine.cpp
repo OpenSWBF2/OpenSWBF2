@@ -63,6 +63,7 @@ bool gBootLagger;
 bool gShowLoadSpam;
 bool gLogFinalScore;
 bool gExitOnGameOver;
+bool gAllowUploads;
 bool gSeedSet;
 unsigned int gSeed;
 int gBootLaggerPing = 300;
@@ -327,6 +328,12 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
         if (_stricmp(pcArg + 1, "exitongameover") == 0)
         {
             gExitOnGameOver = true;
+            continue;
+        }
+
+        if (_stricmp(pcArg + 1, "allowuploads") == 0)
+        {
+            gAllowUploads = true;
             continue;
         }
 
