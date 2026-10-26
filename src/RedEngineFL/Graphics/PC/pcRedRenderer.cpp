@@ -2551,7 +2551,7 @@ void RedRenderer::Init()
         pcCrash::Exit(1);
     }
 
-    if (!bMinimized)
+    if (!bMinimized && !g_bNoRender)
     {
         ShowWindow(hGlobalWnd, SW_SHOWNORMAL);
     }

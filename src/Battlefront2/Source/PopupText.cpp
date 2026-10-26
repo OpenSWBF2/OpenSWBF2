@@ -146,7 +146,7 @@ void __fastcall PopupText::ShowPopup(int iType, unsigned int uTextId)
 
 void PopupText::ShowPopup(PopupType eType, unsigned int uTextId)
 {
-    PopupText::ShowPopup(eType, uTextId);
+    PopupText::ShowPopup((int)eType, uTextId);
 }
 
 // FUNCTION: SWBF2 0x006210d0

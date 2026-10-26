@@ -139,6 +139,7 @@ function Invoke-SmokeCase($name, $exe, $workDir, $argLine, $timeoutSec, $caseDir
     $start = Get-Date
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
     $p = [System.Diagnostics.Process]::Start($psi)
+    try { $p.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::BelowNormal } catch {}
     $o = $p.StandardOutput.ReadToEndAsync()
     $e = $p.StandardError.ReadToEndAsync()
     $timedOut = -not $p.WaitForExit([int]([int64]$timeoutSec * 1000))
@@ -190,7 +191,7 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec) {
     $standard = $script:SmokeStandardMission
     $render = '-norender'
     if ($movies) { $render = '' }
-    $tail = (("$render -nosound -fixedrate 30 -nowait -logfinalscore -DecompCONMinutes 5 -seed 1 -exitongameover -log ""{CASEDIR}\run.log""") -replace '^\s+', '')
+    $tail = (("$render -nosound -fixedrate 30 -nowait -logfinalscore -DecompCONMinutes 5 -seed 1 -exitongameover -nofocuspause -log ""{CASEDIR}\run.log""") -replace '^\s+', '')
     $pass = @{ Class = 'Pass' }
     $cases = @()
 
@@ -303,7 +304,7 @@ function Find-Dumpbin {
     exit 2
 }
 
-function Get-HardeningChecks($hdr, $cfg, $clTotal, $clGsMinus) {
+function Get-HardeningChecks($hdr, $cfg, $clTotal, $clGsMinus, $clSdl) {
     $relocSize = 0
     if ($hdr -match '(?m)^\s+[0-9A-F]+ \[\s*([0-9A-F]+)\] RVA \[size\] of Base Relocation Directory') { $relocSize = [Convert]::ToInt32($Matches[1], 16) }
     $seh = 0
@@ -328,21 +329,28 @@ function Get-HardeningChecks($hdr, $cfg, $clTotal, $clGsMinus) {
         Ok = ($clTotal -gt 0 -and $clGsMinus -eq 0 -and $cookie -ne 0)
         Detail = ('cl entries={0} /GS-={1} security-cookie=0x{2:X8}' -f $clTotal, $clGsMinus, $cookie)
     }
+    $checks += New-Object PSObject -Property @{
+        Name = 'sdl'
+        Ok = ($clTotal -gt 0 -and $clSdl -eq $clTotal)
+        Detail = ('cl entries={0} /sdl={1}' -f $clTotal, $clSdl)
+    }
     return $checks
 }
 
 function Get-ClTlogCounts($objDir) {
     $total = 0
     $gsMinus = 0
+    $sdl = 0
     foreach ($f in Get-ChildItem -LiteralPath $objDir -Filter 'cl.command*.tlog' -Recurse -ErrorAction SilentlyContinue) {
         foreach ($l in (Get-Content -LiteralPath $f.FullName)) {
             if ($l -and -not $l.StartsWith('^')) {
                 $total++
                 if ($l -match ' /GS-( |$)') { $gsMinus++ }
+                if ($l -match ' /sdl( |$)') { $sdl++ }
             }
         }
     }
-    return New-Object PSObject -Property @{ Total = $total; GsMinus = $gsMinus }
+    return New-Object PSObject -Property @{ Total = $total; GsMinus = $gsMinus; Sdl = $sdl }
 }
 
 function Get-ImageBase($exe, $workDir, $argLine) {

@@ -1,5 +1,3 @@
-#define _CRT_SECURE_NO_WARNINGS
-
 #include "GameVoiceChatNode.h"
 #include "PlayerController.h"
 #include "RedEngineFL/Util/RedSceneObject.h"
@@ -683,7 +681,14 @@ ProcessedInputs noInputs;
 // `dynamic initializer for 'lateState''
 NetPktGroup lateState[8];
 
-class NetNdObj;
+class NetNdObj
+{
+public:
+    GameObject* obj;
+    GameObject* orig;
+    unsigned int uniqId;
+    unsigned int index;
+};
 class NetNdObjMap
 {
 public:
@@ -5151,15 +5156,6 @@ bool NetGame::IsMouseMode(int iPlayer)
     return GetJoystick(iPlayer)->bits.mMouseMode > 0;
 }
 
-class NetNdObj
-{
-public:
-    GameObject* obj;
-    GameObject* orig;
-    unsigned int uniqId;
-    unsigned int index;
-};
-
 // FUNCTION: SWBF2 0x005be490
 GameObject* NetGame::GetClientNDObject(GameObject* pObject)
 {
@@ -8581,7 +8577,7 @@ void ReadUpload(NetPktGroup& group)
     if (uploadSrc != source)
     {
         uploadSrc = source;
-        if (gAllowUploads)
+        if (LocalLimits::UploadsAllowed(gAllowUploads))
         {
             CreateUploadDirectory(NetGame::GetPlayerName(source));
         }
@@ -8615,7 +8611,7 @@ void ReadUpload(NetPktGroup& group)
             ReadString(group, name, sizeof(name));
             unsigned int length = 0;
             group.ReadBits(length, 32);
-            if (!gAllowUploads)
+            if (!LocalLimits::UploadsAllowed(gAllowUploads))
             {
                 NetRejectCount(NET_REJECT_UPLOAD_DISABLED);
             }

@@ -28,6 +28,7 @@
 #include "NetGame.h"
 #include "NetPacket.h"
 #include "NetWire.h"
+#include "LocalLimits.h"
 #include "Character.h"
 #include "GameVoiceChat.h"
 #include "GameVoiceChatTransport.h"
@@ -620,7 +621,7 @@ void NetSetup::SetAsDedicated(bool bDedicated)
 // FUNCTION: SWBF2 0x005db8b0
 void NetSetup::SetGameName(char const* pcName)
 {
-    strlcpy(netGameName, pcName, 64);
+    LocalLimits::CopyLobbyString(netGameName, pcName, LocalLimits::kLobbyNameSize);
 }
 
 // FUNCTION: SWBF2 0x005db8d0
@@ -630,11 +631,11 @@ void NetSetup::SetLoginName(int iViewport, char const* pcName)
     memset(netLoginNames[iViewport], 0, sizeof(netLoginNames[iViewport]));
     if (pcPlatformName)
     {
-        strlcpy(netLoginNames[iViewport], pcPlatformName, 32);
+        LocalLimits::CopyLobbyString(netLoginNames[iViewport], pcPlatformName, LocalLimits::kLobbyTagSize);
     }
     else
     {
-        strlcpy(netLoginNames[iViewport], pcName, 32);
+        LocalLimits::CopyLobbyString(netLoginNames[iViewport], pcName, LocalLimits::kLobbyTagSize);
     }
 }
 
@@ -4106,7 +4107,7 @@ void ReadLaunch(NetPktGroup& group, bool& bAcked)
             group.ReadBits(value, 2);
             int clientOf = value == 3 ? -1 : (int)value;
             *NetGameP::GetClientOfIndex(NetComm::GetLocalIndex(0)) = clientOf;
-            if (clientOf > 0 && clientOf < 3)
+            if (LocalLimits::IsValidClientOf(clientOf))
             {
                 UpdateCurMaxHosts(1 << clientOf, true);
                 NetAddr host;

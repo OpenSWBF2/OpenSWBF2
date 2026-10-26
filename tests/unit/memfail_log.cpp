@@ -13,14 +13,16 @@ extern "C" HeapObj* heapobj;
 namespace
 {
 
-HeapObj sFakeHeaps[2];
+HeapObj sFakeHeaps[4];
 
 void SetupFakeHeaps()
 {
     memset(sFakeHeaps, 0, sizeof(sFakeHeaps));
-    sFakeHeaps[1].name = "Runtime";
-    sFakeHeaps[1].size = 1234;
-    heapobj = sFakeHeaps;
+    sFakeHeaps[0].size = 777;
+    sFakeHeaps[3].size = 777;
+    sFakeHeaps[2].name = "Runtime";
+    sFakeHeaps[2].size = 1234;
+    heapobj = sFakeHeaps + 1;
     maxheaps = 2;
 }
 
@@ -70,19 +72,22 @@ TEST_CASE("alloc failure handler tolerates bad heap id" * doctest::test_suite("r
     MemFail::OnAllocFailure(-1, 5);
     MemFail::OnAllocFailure(2, 6);
     CHECK(capture.Contains("alloc failure heap ? (-1) size 5 free 0"));
+    CHECK(capture.Contains("alloc failure heap ? (2) size 6 free 0"));
 }
+
+static int sSinkCalls;
 
 static void __cdecl ReenterSink(char const* pcLine, ...)
 {
+    ++sSinkCalls;
     MemFail::OnAllocFailure(1, 99);
 }
 
 TEST_CASE("alloc failure handler ignores re-entry" * doctest::test_suite("regression"))
 {
     SetupFakeHeaps();
-    void(__cdecl* pOld)(char const*, ...) = RedWarning::g_fnLogCallback;
+    LogCapture capture;
     RedWarning::g_fnLogCallback = ReenterSink;
     MemFail::OnAllocFailure(1, 8);
-    RedWarning::g_fnLogCallback = pOld;
-    CHECK(true);
+    CHECK(sSinkCalls == 1);
 }

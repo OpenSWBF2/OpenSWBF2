@@ -1,5 +1,3 @@
-#define _CRT_SECURE_NO_WARNINGS
-
 #include <windows.h>
 
 #include <d3d9.h>
@@ -294,7 +292,7 @@ void ActivateFrontline(bool bActivate)
             SoundEnable(true);
         }
         SetCursor(0);
-        if (!pcWindowed)
+        if (!pcWindowed && !g_bNoRender)
         {
             ShowWindow(hGlobalWnd, SW_RESTORE);
         }
@@ -328,7 +326,7 @@ void ActivateFrontline(bool bActivate)
     }
 
     SetCursor(LoadCursorA(hGlobalInstance, IDC_ARROW));
-    if (!pcWindowed)
+    if (!pcWindowed && !g_bNoRender)
     {
         ShowWindow(hGlobalWnd, SW_MINIMIZE);
     }
@@ -425,6 +423,11 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
 
     DWORD dwStyle = pcWindowed ? (WS_CAPTION | WS_THICKFRAME) : (WS_POPUP | WS_VISIBLE);
     DWORD dwExStyle = pcWindowed ? 0 : WS_EX_TOPMOST;
+    if (g_bNoRender)
+    {
+        dwStyle &= ~WS_VISIBLE;
+        dwExStyle = 0;
+    }
 
     RECT rc;
     SetRect(&rc, 0, 0, pcWidth ? pcWidth : 800, pcHeight ? pcHeight : 600);
@@ -473,7 +476,7 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
     {
         for (;;)
         {
-            if (bActive != gAppActive)
+            if (bActive != gAppActive && !gNoFocusPause)
             {
                 bActive = gAppActive;
 
