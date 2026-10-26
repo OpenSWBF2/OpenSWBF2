@@ -22,12 +22,13 @@ One raw LAN datagram as it arrives from the socket, the 3 byte LAN prefix implie
 
     [type][group lo][group hi][idx][count | 0x80 if compressed] payload...
 
-It is fed through `NetCommP::RecvPacket`, then drained with `NetComm::Recv`.
+It is fed through `NetCommP::MakeReceivedPacket` and `NetCommP::RecvPacket`, then drained with `NetComm::Recv`.
+Inputs of any length are replayed, including 0 bytes. `empty-datagram`, `short-datagram-3` and `pool-flood` cover the ingress length checks and the receive pool reserve.
 
 ## known_bug
 
-Inputs in a `known_bug\` subdirectory trigger a bug that exists today (for example the RecvGroup
-infinite loop). The plain replay case skips them. Each has its own `known_bug` suite case, which
+Inputs in a `known_bug\` subdirectory trigger a bug that exists today. There are none at the moment; the RecvGroup
+infinite-loop inputs (`frag-idx-ge-count`, `frag-classic-gap`) moved up to `recvgroup\` when it was fixed. The plain replay case skips them. Each has its own `known_bug` suite case, which
 run.ps1 reports as `[KNOWN]` while it fails or times out and warns about once it passes. When the
 bug is fixed, move the file up one directory and delete its `known_bug` case in the same change. A
 case whose input is missing exits 3 and reports `[CRASH]`, never `[KNOWN]`.

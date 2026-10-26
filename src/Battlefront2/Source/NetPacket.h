@@ -24,6 +24,7 @@ public:
     bool Read(unsigned short& value);
 
     static NetPacket* Alloc(bool bSmall);
+    static NetPacket* AllocRecv(bool bSmall);
 
     void BeginWrite();
 
@@ -79,12 +80,27 @@ public:
     int bitNum;
 };
 
+enum NetRejectReason
+{
+    NET_REJECT_FRAG_COUNT_ZERO,
+    NET_REJECT_FRAG_IDX,
+    NET_REJECT_FRAG_COUNT_MISMATCH,
+    NET_REJECT_FRAG_TOO_MANY,
+    NET_REJECT_POOL_EXHAUSTED,
+    NET_REJECT_SHORT_DATAGRAM,
+    NET_REJECT_NEGATIVE_LENGTH,
+    NET_REJECT_GROUP_BAD,
+    NET_REJECT_PARTIAL_CAP,
+    NET_REJECT_OVERSIZE_DATAGRAM,
+    NET_REJECT_COUNT
+};
+
 class NetPktGroup
 {
 public:
 
     // FUNCTION: SWBF2 0x005aeca0
-    NetPktGroup() : isSmall(false) {}
+    NetPktGroup() : isSmall(false), bad(false) {}
 
     void Reset();
 
@@ -121,6 +137,9 @@ public:
 
     NetPacket* GetFront();
 
+    bool IsBad() const { return bad; }
+    void SetBad(int iReason = NET_REJECT_GROUP_BAD);
+
     void BeginRead();
     void EndRead();
     void Seek(const NetPktGroupOffset& offset);
@@ -131,6 +150,7 @@ public:
     static unsigned int sDebugBitCounter;
 
     bool isSmall;
+    bool bad;
     int firstPkt;
     int lastPkt;
     int pktCount;
@@ -138,6 +158,13 @@ public:
     int curBit;
     unsigned int pktBits;
 };
+
+static_assert(sizeof(NetPktGroup) == 28, "NetPktGroup layout");
+
+extern int netRejectCounts[NET_REJECT_COUNT];
+
+static const int kRecvReserveBig = 128;
+static const int kRecvReserveSmall = 32;
  
 
 void NetPktGroupClampFixed(float& f, float fMin, float fMax, int iBits);

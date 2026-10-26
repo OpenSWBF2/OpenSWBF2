@@ -98,10 +98,7 @@ bool ReplayRecvGroupBytes(const ByteVec& bytes, bool* pbConsumed)
 bool ReplayRecvPacketBytes(const unsigned char* pData, unsigned int uiSize)
 {
     NetTestReset();
-    if (uiSize >= 5)
-    {
-        NetDeliverDatagram(pData, uiSize, 3);
-    }
+    NetDeliverDatagram(pData, uiSize, 3);
     bool bOk;
     DrainAndCheck(bOk);
     return bOk;
@@ -135,25 +132,4 @@ TEST_CASE("corpus replay recvpacket" * doctest::test_suite("corpus"))
         INFO(files[i]);
         CHECK(ReplayRecvPacketBytes(bytes.empty() ? 0 : &bytes[0], (unsigned int)bytes.size()));
     }
-}
-
-static void ReplayKnownBug(const char* pcName)
-{
-    ByteVec bytes;
-    if (!LoadCorpusFile(std::string("corpus\\recvgroup\\known_bug\\") + pcName + ".bin", bytes))
-    {
-        HarnessError("known_bug input missing");
-    }
-    WatchdogArm(pcName);
-    CHECK(ReplayRecvGroupBytes(bytes));
-}
-
-TEST_CASE("corpus known bug frag-idx-ge-count" * doctest::test_suite("known_bug"))
-{
-    ReplayKnownBug("frag-idx-ge-count");
-}
-
-TEST_CASE("corpus known bug frag-classic-gap" * doctest::test_suite("known_bug"))
-{
-    ReplayKnownBug("frag-classic-gap");
 }

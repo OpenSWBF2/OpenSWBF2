@@ -682,6 +682,9 @@ void __fastcall CleanGroups(int iDest, int iSequence)
     }
 }
 
+static const int kMaxFragments = 64;
+static const int kMaxPartialPerSource = 8;
+
 // FUNCTION: SWBF2 0x005b2f90
 bool __fastcall RecvGroup(NetPktGroup* pComplete, NetPacket* pPacket)
 {
@@ -697,6 +700,15 @@ bool __fastcall RecvGroup(NetPktGroup* pComplete, NetPacket* pPacket)
         pPacket->mNextPkt = pPacket->mPrevPkt = -1;
         pComplete->Set(pPacket);
         return true;
+    }
+
+    if (uCount == 0 || uFragment >= uCount || uCount > kMaxFragments)
+    {
+        const int iReason = uCount == 0 ? NET_REJECT_FRAG_COUNT_ZERO
+            : uCount > kMaxFragments ? NET_REJECT_FRAG_TOO_MANY : NET_REJECT_FRAG_IDX;
+        ++netRejectCounts[iReason];
+        pPacket->Free();
+        return false;
     }
 
     NetPktGroup* pPartial = 0;
@@ -731,11 +743,41 @@ bool __fastcall RecvGroup(NetPktGroup* pComplete, NetPacket* pPacket)
             pPacket->Free();
             return false;
         }
+        int iFromSource = 0;
+        int iOldest = -1;
+        int iOldestAge = -1;
+        for (int i = 0; i < 64; ++i)
+        {
+            if (inPktGroups[i].pktCount &&
+                NetComm::Header(NetPacket::Get(inPktGroups[i].firstPkt)).src == uDest)
+            {
+                ++iFromSource;
+                const int iAge = (uSequence -
+                    NetComm::Header(NetPacket::Get(inPktGroups[i].firstPkt)).group) & 0xffff;
+                if (iAge > iOldestAge)
+                {
+                    iOldestAge = iAge;
+                    iOldest = i;
+                }
+            }
+        }
+        if (iFromSource >= kMaxPartialPerSource)
+        {
+            ++netRejectCounts[NET_REJECT_PARTIAL_CAP];
+            inPktGroups[iOldest].Free();
+        }
         pPartial->PushBack(pPacket);
         return false;
     }
     else
     {
+        if (NetComm::Header(NetPacket::Get(pPartial->firstPkt)).count != uCount)
+        {
+            ++netRejectCounts[NET_REJECT_FRAG_COUNT_MISMATCH];
+            pPartial->Free();
+            pPacket->Free();
+            return false;
+        }
         NetPacket* pCur = NetPacket::Get(pPartial->firstPkt);
         const int iPackets = pPartial->pktCount;
         for (int i = 0; i < iPackets; ++i)
@@ -744,6 +786,7 @@ bool __fastcall RecvGroup(NetPktGroup* pComplete, NetPacket* pPacket)
             if (NetComm::Header(pCur).idx == uFragment)
             {
                 pPartial->Remove(pCur);
+                pCur->Free();
             }
             pCur = pNext;
         }
@@ -754,16 +797,31 @@ bool __fastcall RecvGroup(NetPktGroup* pComplete, NetPacket* pPacket)
         return false;
     }
 
+    NetPacket* apSlots[kMaxFragments] = { 0 };
+    const int iPartialCount = pPartial->pktCount;
+    for (int i = 0; i < iPartialCount; ++i)
+    {
+        NetPacket* pNext = pPartial->PopFront();
+        const unsigned int uSlot = NetComm::Header(pNext).idx;
+        if (uSlot >= uCount || apSlots[uSlot])
+        {
+            pNext->Free();
+            pPartial->Free();
+            for (int j = 0; j < kMaxFragments; ++j)
+            {
+                if (apSlots[j])
+                {
+                    apSlots[j]->Free();
+                }
+            }
+            return false;
+        }
+        apSlots[uSlot] = pNext;
+    }
     pComplete->Reset();
     for (int i = 0; i < uCount; ++i)
     {
-        NetPacket* pNext = pPartial->PopFront();
-        while (NetComm::Header(pNext).idx != i)
-        {
-            pPartial->PushBack(pNext);
-            pNext = pPartial->PopFront();
-        }
-        pComplete->PushBack(pNext);
+        pComplete->PushBack(apSlots[i]);
     }
     return true;
 }
@@ -1007,9 +1065,9 @@ unsigned int __fastcall HandleCommPacketIn(NetPacket* pPacket)
 unsigned int __fastcall UnpackHeader(NetPacket* pPacket)
 {
     pPacket->mCurIndex = (signed char)pPacket->mCommIndex;
-    unsigned char uByte;
-    unsigned short uWord;
-    unsigned int uFirst, uSecond;
+    unsigned char uByte = 0;
+    unsigned short uWord = 0;
+    unsigned int uFirst = 0, uSecond = 0;
     unsigned char* pFirst = (unsigned char*)&uFirst;
     unsigned char* pSecond = (unsigned char*)&uSecond;
     pPacket->Read(uByte);
@@ -1060,6 +1118,40 @@ void DoRecvs()
         }
         inQueue.PushBack(pPacket);
     }
+}
+
+NetPacket* NetCommP::MakeReceivedPacket(const unsigned char* pData, unsigned int size,
+                                        unsigned int prefix, bool classifyByType)
+{
+    if (size == 0)
+    {
+        ++netRejectCounts[NET_REJECT_SHORT_DATAGRAM];
+        return 0;
+    }
+    if (classifyByType && pData[0] >= PKT_NONE)
+    {
+        prefix = 0;
+    }
+    if (pData[0] < PKT_NONE && size < 5)
+    {
+        ++netRejectCounts[NET_REJECT_SHORT_DATAGRAM];
+        return 0;
+    }
+    if (size > 1012 - prefix)
+    {
+        ++netRejectCounts[NET_REJECT_OVERSIZE_DATAGRAM];
+        return 0;
+    }
+    NetPacket* pPacket = NetPacket::AllocRecv(size <= 116 - prefix);
+    if (!pPacket)
+    {
+        return 0;
+    }
+    pPacket->BeginWrite();
+    memcpy(pPacket->mData + prefix, pData, size);
+    pPacket->mCommIndex = (char)prefix;
+    pPacket->mMaxIndex = (short)(size + prefix);
+    return pPacket;
 }
 
 // FUNCTION: SWBF2 0x005b3290

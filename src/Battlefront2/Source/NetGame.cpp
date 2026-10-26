@@ -6093,6 +6093,12 @@ void NetGame::ReceiveClient()
                 break;
             }
             group.BeginRead();
+            if (group.IsBad())
+            {
+                group.EndRead();
+                group.Free();
+                continue;
+            }
             ReadWaiting(&group);
             group.EndRead();
             group.Free();
@@ -6146,6 +6152,12 @@ void NetGame::ReceiveClient()
             break;
         }
         group.BeginRead();
+        if (group.IsBad())
+        {
+            group.EndRead();
+            group.Free();
+            continue;
+        }
         unsigned int active;
         group.ReadBits(active, 1);
         NetGame::ReadChatMessageFromServer(&group);
@@ -8014,8 +8026,9 @@ unsigned int GetUpdateTurn(NetPktGroup* group)
     BeginReadAlign();
     unsigned int turn;
     ReadTurnLowBits(*group, turn);
+    bool bad = group->IsBad();
     group->EndRead();
-    return turn;
+    return bad ? 0 : turn;
 }
 
 // FUNCTION: SWBF2 0x005d3cc0
@@ -8755,6 +8768,12 @@ void ReadUpdate(NetPktGroup& group);
 void ReceiveUpdate(NetPktGroup* group)
 {
     group->BeginRead();
+    if (group->IsBad())
+    {
+        group->EndRead();
+        group->Free();
+        return;
+    }
     BeginReadAlign();
     isFullState = false;
     ReadUpdate(*group);
@@ -9383,6 +9402,12 @@ void ReceiveRelay()
         {
             ClearRelay();
             group.BeginRead();
+            if (group.IsBad())
+            {
+                group.EndRead();
+                group.Free();
+                return;
+            }
             BeginReadAlign();
             isFullState = true;
             curDst = -1;
@@ -9390,6 +9415,10 @@ void ReceiveRelay()
             ReadUpdate(group);
             for (int i = 0; i < netCurMaxPlayers; ++i)
             {
+                if (group.IsBad())
+                {
+                    break;
+                }
                 if (hostPlayingMask & (1ui64 << i))
                 {
                     curDst = i;
@@ -9420,12 +9449,22 @@ void ReceiveReplica()
             return;
         }
         group.BeginRead();
+        if (group.IsBad())
+        {
+            group.EndRead();
+            group.Free();
+            continue;
+        }
         ReadDestMask(group, hostPlayingMask);
         UpdateCurMaxPlayers(hostPlayingMask, true);
         unsigned int turn;
         ReadTurnLowBits(group, turn);
         for (int i = 0; i < netCurMaxPlayers; ++i)
         {
+            if (group.IsBad())
+            {
+                break;
+            }
             NetPlayer& player = netPlayers[i];
             if (player.clientOfIndex != netHostIndex)
             {
@@ -9439,6 +9478,10 @@ void ReceiveReplica()
         }
         for (int i = 0; i < netCurMaxPlayers; ++i)
         {
+            if (group.IsBad())
+            {
+                break;
+            }
             if (hostPlayingMask & (1ui64 << i))
             {
                 ReadMoves(group, i, turn);
@@ -10558,7 +10601,7 @@ void ReadUpdate(NetPktGroup& group)
         }
     }
 
-    if (group.IsEnd())
+    if (group.IsBad() || group.IsEnd())
     {
         return;
     }
@@ -10635,6 +10678,12 @@ void ReceivePrimary()
         }
         int player = GetPacketSourceHost(NetPacket::Get(group.firstPkt));
         group.BeginRead();
+        if (group.IsBad())
+        {
+            group.EndRead();
+            group.Free();
+            continue;
+        }
         bool hasTurn;
         group.Read(hasTurn);
         if (hasTurn)
@@ -10695,7 +10744,8 @@ void ReceivePrimary()
         {
             ++gDebugCount;
         }
-        if (!NetGame::IsPlaying(player, false) && !NetGame::IsPlayingNext(player))
+        if (group.IsBad() ||
+            (!NetGame::IsPlaying(player, false) && !NetGame::IsPlayingNext(player)))
         {
             group.EndRead();
             group.Free();
@@ -10719,13 +10769,22 @@ void ReceivePrimary()
             if (i < 4)
             {
                 ReadMiniMove(group, hostTurns[slot].moves[player]);
-                received[slot] |= (unsigned __int64)1 << player;
+                if (!group.IsBad())
+                {
+                    received[slot] |= (unsigned __int64)1 << player;
+                }
             }
         }
         else
         {
             unsigned int turn;
             ReadTurnLowBits(group, turn);
+            if (group.IsBad())
+            {
+                group.EndRead();
+                group.Free();
+                continue;
+            }
             if (player == debugReceivePlayer)
             {
                 IsNetObjectFeatureEnabled();
@@ -10751,6 +10810,12 @@ void ReceivePrimary()
 
             bool quit;
             group.Read(quit);
+            if (group.IsBad())
+            {
+                group.EndRead();
+                group.Free();
+                continue;
+            }
             if (quit && NetGame::GetJoystickIndex(player) < 0)
             {
                 netPlayers[player].requestedQuit = true;
@@ -10764,14 +10829,14 @@ void ReceivePrimary()
                 {
                 case HM_REPLICA:
                     ReadTurnLowBits(group, hostTurn);
-                    if (hostTurn > netHosts[hostIndex].hostAckedUpdateTurn)
+                    if (!group.IsBad() && hostTurn > netHosts[hostIndex].hostAckedUpdateTurn)
                     {
                         netHosts[hostIndex].hostAckedUpdateTurn = hostTurn;
                     }
                     break;
                 case HM_RELAY:
                     ReadTurnLowBits(group, hostTurn);
-                    if (hostTurn > netHosts[hostIndex].hostAckedUpdateTurn)
+                    if (!group.IsBad() && hostTurn > netHosts[hostIndex].hostAckedUpdateTurn)
                     {
                         netHosts[hostIndex].hostAckedUpdateTurn = hostTurn;
                     }
@@ -10781,6 +10846,12 @@ void ReceivePrimary()
 
             unsigned int clientTurn;
             ReadTurnLowBits(group, clientTurn);
+            if (group.IsBad())
+            {
+                group.EndRead();
+                group.Free();
+                continue;
+            }
             if (clientTurn == (unsigned int)-1)
             {
                 clientTurn = 0;
@@ -10824,6 +10895,10 @@ void ReceivePrimary()
             unsigned int moveTurn = turn;
             while (true)
             {
+                if (group.IsBad())
+                {
+                    break;
+                }
                 StatsManager::ReadStatsResponse();
                 group.Read(cockpitCams[curDst]);
                 turn = moveTurn;
@@ -10846,6 +10921,10 @@ void ReceivePrimary()
                     inputs = &oldMoves[turn & 1];
                 }
                 ReadMove(group, noInputs, *inputs);
+                if (group.IsBad())
+                {
+                    break;
+                }
                 if (turn + 3 >= (unsigned int)hostTurnNumber)
                 {
                     if (turn >= (unsigned int)hostTurnNumber)
@@ -10883,7 +10962,7 @@ void ReceivePrimary()
 
                 while (true)
                 {
-                    if (!turn)
+                    if (!turn || group.IsBad())
                     {
                         break;
                     }
@@ -10898,7 +10977,7 @@ void ReceivePrimary()
                     {
                         next = &oldMoves[turn & 1];
                     }
-                    if (!ReadMove(group, *inputs, *next))
+                    if (!ReadMove(group, *inputs, *next) || group.IsBad())
                     {
                         break;
                     }

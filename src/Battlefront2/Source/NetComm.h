@@ -195,6 +195,8 @@ public:
     static void SetArch(int iDest, NetArch arch);
 
     static void __fastcall RecvPacket(NetPacket* pPacket, const void* pSource);
+    static NetPacket* MakeReceivedPacket(const unsigned char* pData, unsigned int size,
+                                         unsigned int prefix, bool classifyByType);
 
     static bool& GetConnected(int iDest);
     static int& GetLocalIndex(int iDest);

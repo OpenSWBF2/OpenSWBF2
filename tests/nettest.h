@@ -1,6 +1,9 @@
 #pragma once
 #include "Battlefront2/Source/NetComm.h"
 
+extern int gExitCalls;
+extern int gLastExitCode;
+
 void NetTestReset();
 
 int NetCountPackets(int iHeld);
