@@ -6,6 +6,8 @@
 #include <string.h>
 
 #include "PebbleFL/Common/PblHashTable.h"
+#include "RedEngineFL/Application/pc/pcFrameLimiter.h"
+#include "RedEngineFL/Application/pc/pcMessageDrain.h"
 #include "RedEngineFL/Graphics/PC/pcDisplaySettings.h"
 #include "RedEngineFL/Graphics/PC/pcRedAutoSettings.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
@@ -336,6 +338,24 @@ void ActivateFrontline(bool bActivate)
     }
 }
 
+static bool DrainPeek(void*, MSG* pMsg)
+{
+    return PeekMessageA(pMsg, 0, 0, 0, PM_REMOVE) != 0;
+}
+
+static void DrainDispatch(void*, const MSG* pMsg)
+{
+    TranslateMessage(pMsg);
+    DispatchMessageA(pMsg);
+}
+
+static __int64 DrainNow(void*)
+{
+    LARGE_INTEGER iNow;
+    QueryPerformanceCounter(&iNow);
+    return iNow.QuadPart;
+}
+
 // FUNCTION: SWBF2 0x006175d0
 int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
 {
@@ -412,6 +432,20 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
             (unsigned int)GetModuleHandleA("GalaxyPeer.dll"), (unsigned int)GetModuleHandleA("binkw32.dll"));
     }
 
+    const unsigned int uiPaceFps = DisplayCfg::gDisplay.uiFps;
+    if (uiPaceFps == 0 || uiPaceFps > 80)
+    {
+        if (uiPaceFps == 0)
+        {
+            LOG(LogCore, Warning, "pacing: fps cap is uncapped, frame-count effects are not fixed yet");
+        }
+        else
+        {
+            LOG(LogCore, Warning, "pacing: fps cap %u is above 80, frame-count effects are not fixed yet",
+                uiPaceFps);
+        }
+    }
+
     GameState::SetState(GameLoop::mMissionScript[0] ? 0x8FF60339 : 0x11E1FC01);
 
     if (g_bNoRender || bDedicated)
@@ -480,6 +514,8 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
         return 0;
     }
 
+    FrameLimiter::Init(g_bNoRender);
+
     if (!g_bNoRender)
     {
         GetDeviceGammaRamp(GetDC(hGlobalWnd), &s_originalGammaRamp);
@@ -492,8 +528,24 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
     PeekMessageA(&msg, 0, 0, 0, PM_NOREMOVE);
     if (msg.message != WM_QUIT)
     {
+        MessageDrain::DrainOps ops;
+        ops.Peek = DrainPeek;
+        ops.Dispatch = DrainDispatch;
+        ops.Now = DrainNow;
+        ops.pCtx = 0;
+        LARGE_INTEGER iFreq;
+        QueryPerformanceFrequency(&iFreq);
+        const __int64 iDrainTicks = iFreq.QuadPart * MessageDrain::kMaxMsPerPass / 1000;
+
         for (;;)
         {
+            MessageDrain::DrainResult r =
+                MessageDrain::DrainMessages(ops, MessageDrain::kMaxMsgsPerPass, iDrainTicks);
+            if (r.bQuit)
+            {
+                break;
+            }
+
             if (bActive != gAppActive && !gNoFocusPause)
             {
                 bActive = gAppActive;
@@ -501,31 +553,19 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
                 ActivateFrontline(bActive);
             }
 
-            if (PeekMessageA(&msg, 0, 0, 0, PM_REMOVE))
+            if (!bActive)
             {
-                TranslateMessage(&msg);
-                DispatchMessageA(&msg);
+                Sleep(10);
             }
-            else
+            if (!GameState::Update())
             {
-                if (!bActive)
-                {
-                    Sleep(10);
-                }
-                if (!GameState::Update())
-                {
-                    SendMessageA(hGlobalWnd, WM_CLOSE, 0, 0);
-                }
-            }
-
-            if (msg.message == WM_QUIT)
-            {
-                break;
+                SendMessageA(hGlobalWnd, WM_CLOSE, 0, 0);
             }
         }
     }
 
     InitializeMainCameraState();
+    FrameLimiter::Shutdown();
     return 0;
 }
 

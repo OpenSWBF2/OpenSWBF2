@@ -138,7 +138,12 @@ $hardRows = @($rows | Where-Object { $_.Kind -eq 'Hardening' })
 $rows = @($rows | Where-Object { $_.Kind -ne 'Smoke' -and $_.Kind -ne 'Hardening' })
 $gameData = Find-GameDataRoot
 $smokeCases = @{}
-foreach ($c in (Get-SmokeCases 'Crash' @() $false $null)) { $smokeCases[$c.Name] = $c }
+foreach ($w in 'Crash', 'Standard') {
+    foreach ($c in (Get-SmokeCases $w @() $false $null)) {
+        if ($smokeCases.ContainsKey($c.Name)) { throw "smoke case '$($c.Name)' is defined more than once" }
+        $smokeCases[$c.Name] = $c
+    }
+}
 
 foreach ($dll in 'd3dx9_43.dll', 'msvcr120.dll') {
     if (-not (Test-Path (Join-Path $env:windir "SysWOW64\$dll"))) {

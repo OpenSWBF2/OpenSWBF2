@@ -167,3 +167,55 @@ TEST_CASE("display logic usable uncached" * doctest::test_suite("unit"))
     CHECK(!UsableUncached(true, false, false, 0, 0));
     CHECK(!UsableUncached(false, false, true, 4, 0));
 }
+
+TEST_CASE("display logic effective vsync precedence" * doctest::test_suite("unit"))
+{
+    CHECK(EffectiveVsync(true, 2, false) == 2);
+    CHECK(EffectiveVsync(true, 0, true) == 0);
+    CHECK(EffectiveVsync(false, 1, false) == 0);
+    CHECK(EffectiveVsync(false, 0, true) == 1);
+}
+
+TEST_CASE("display logic vsync off and on" * doctest::test_suite("unit"))
+{
+    const unsigned long caps[] = {0, 0x1, 0x3, 0x80000001ul, 0x80000003ul};
+    for (int w = 0; w < 2; ++w)
+    {
+        for (unsigned long c : caps)
+        {
+            bool fb = true;
+            bool lacks = c != 0 && !(c & kIntervalImmediate);
+            CHECK(ResolveVsyncInterval(0, c, w != 0, &fb) == (lacks ? kIntervalDefault : kIntervalImmediate));
+            CHECK(fb == lacks);
+            fb = true;
+            CHECK(ResolveVsyncInterval(1, c, w != 0, &fb) == kIntervalDefault);
+            CHECK(!fb);
+        }
+    }
+}
+
+TEST_CASE("display logic vsync half needs fullscreen and caps" * doctest::test_suite("unit"))
+{
+    const unsigned long caps[] = {0, 0x1, 0x3, 0x80000001ul, 0x80000003ul};
+    for (int w = 0; w < 2; ++w)
+    {
+        for (unsigned long c : caps)
+        {
+            bool fb = false;
+            bool ok = !w && (c & 2);
+            CHECK(ResolveVsyncInterval(2, c, w != 0, &fb) == (ok ? kIntervalTwo : kIntervalDefault));
+            CHECK(fb == !ok);
+        }
+    }
+}
+
+TEST_CASE("display logic vsync unknown request and null flag" * doctest::test_suite("unit"))
+{
+    bool fb = true;
+    CHECK(ResolveVsyncInterval(7, 0x80000003ul, false, &fb) == kIntervalDefault);
+    CHECK(!fb);
+    CHECK(ResolveVsyncInterval(7, 0, true, nullptr) == kIntervalDefault);
+    CHECK(ResolveVsyncInterval(0, 0x1, true, nullptr) == kIntervalDefault);
+    CHECK(ResolveVsyncInterval(2, 0, true, nullptr) == kIntervalDefault);
+    CHECK(ResolveVsyncInterval(2, 3, false, nullptr) == kIntervalTwo);
+}

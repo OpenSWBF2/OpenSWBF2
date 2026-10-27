@@ -6,6 +6,7 @@
 
 #include "GameLoop.h"
 #include "pcCrash.h"
+#include "RedEngineFL/Application/pc/pcFrameLimiter.h"
 #include "BootDisplay.h"
 #include "RedEngineFL/Application/RedTerrain.h"
 #include "RedEngineFL/Application/pc/pcRedShadowProxy.h"
@@ -1591,6 +1592,7 @@ int Cleanup()
 {
     if (RedMissionLog::Enabled())
     {
+        FrameLimiter::Shutdown();
         _exit(0);
     }
 
