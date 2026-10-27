@@ -1266,7 +1266,10 @@ bool g_InGameMoviePlayerUpdateEnable;
 // FUNCTION: SWBF2 0x006bd080
 void FLRenderer::Render()
 {
-    RedRenderer::BeginFrame();
+    if (!RedRenderer::BeginFrame())
+    {
+        return;
+    }
     if (!g_bNoRender)
     {
         RedColor clearColor = RedRenderer::pcGetClearColor();

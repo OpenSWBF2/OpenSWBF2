@@ -190,6 +190,8 @@ static void SoundEnable(bool bEnable)
     }
 }
 
+static bool sCloseDeferred;
+
 // FUNCTION: SWBF2 0x006172a0
 long __stdcall WindowProc(HWND__* hWnd, unsigned int Msg, unsigned int wParam, long lParam)
 {
@@ -198,6 +200,12 @@ long __stdcall WindowProc(HWND__* hWnd, unsigned int Msg, unsigned int wParam, l
     case WM_CLOSE:
         if (gLoading)
         {
+            if (!sCloseDeferred)
+            {
+                sCloseDeferred = true;
+                LOG(LogCore, Inform, "OPENSWBF2 CLOSE deferred until loading finishes");
+            }
+            gIsQuitting = false;
             return 0;
         }
         gIsQuitting = true;
@@ -560,6 +568,11 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
             if (!GameState::Update())
             {
                 SendMessageA(hGlobalWnd, WM_CLOSE, 0, 0);
+            }
+            if (sCloseDeferred && !gLoading)
+            {
+                sCloseDeferred = false;
+                PostMessageA(hGlobalWnd, WM_CLOSE, 0, 0);
             }
         }
     }

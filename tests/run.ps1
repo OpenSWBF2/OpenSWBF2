@@ -13,9 +13,10 @@ param(
     [switch]$Movies,
     [switch]$Hardening,
     [switch]$HogAddrSpace,
-    [ValidateRange(1,64)][int]$Jobs = 1
+    [ValidateRange(0,64)][int]$Jobs = 0
 )
 $ErrorActionPreference = 'Stop'
+if ($Jobs -eq 0) { $Jobs = [Math]::Max(1, [Math]::Min(8, [int][Math]::Floor([Environment]::ProcessorCount / 2))) }
 $testsDir = $PSScriptRoot
 $root = Split-Path $testsDir -Parent
 . (Join-Path $testsDir 'smoke.ps1')

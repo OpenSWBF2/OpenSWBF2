@@ -13,5 +13,8 @@
 [crash-luapanic]
 ^\[t=\d+\.\d{3}\] \[f=\d+\] LogLua Fatal Battlefront2\\Source\\LuaMemory\.cpp:\d+: Lua panic: crashtest$
 
+[crash-resetfatal]
+^\[t=\d+\.\d{3}\] \[f=\d+\] LogRender Fatal RedEngineFL\\Graphics\\PC\\pcRedRenderer\.cpp:\d+: device reset failed$
+
 [crash-check]
 ^\[t=\d+\.\d{3}\] \[f=\d+\] LogCore Error Battlefront2\\Source\\pcCrash\.cpp:\d+: ensure failed: false$

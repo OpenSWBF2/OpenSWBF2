@@ -407,6 +407,36 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
             Expect = @{ Class = 'Fatal'; Code = 3; MinDumps = 1; MaxDumps = 1; LogRx = @('FATAL: check failed', 'ensure summary: 1 failures at 1 sites') }
             Twice = 0; Timeout = 0
         }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-resetinitlost'
+            Args = "$standard $tail -crashtest resetinitlost"
+            Expect = @{ Class = 'Pass'; LogRx = 'OPENSWBF2 RESET recovered after 4 attempts' }
+            Twice = 0; Timeout = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-resetrecover'
+            Args = "$standard $tail -crashtest resetrecover"
+            Expect = @{ Class = 'Pass'; LogRx = 'OPENSWBF2 RESET recovered after 4 attempts' }
+            Twice = 0; Timeout = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-resetflap'
+            Args = "$standard $tail -crashtest resetflap"
+            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 RESET recovered after 25 attempts', '(?s)\A(?!.*OPENSWBF2 RESET failed.*OPENSWBF2 RESET failed)') }
+            Twice = 0; Timeout = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-resetlaterinit'
+            Args = "$standard $tail -crashtest resetlaterinit"
+            Expect = @{ Class = 'InitFailure'; Code = 0; MaxDumps = 0; LogRx = '(?s)OPENSWBF2 MISSION RUNNING.*OPENSWBF2 CLOSE deferred until loading finishes.*OPENSWBF2 RESET recovered after 2 attempts' }
+            Twice = 0; Timeout = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-resetfatal'
+            Args = "$standard $tail -crashtest resetfatal"
+            Expect = @{ Class = 'Fatal'; Code = 1; MinDumps = 1; MaxDumps = 1; LogRx = '(?s)\A(?:(?!FATAL:).)*OPENSWBF2 RESET reverting asked=\d+x\d+ windowed=\d used=\d+x\d+ windowed=\d(?:(?!FATAL:).)*FATAL: device reset failed hr=0x8876086C(?:(?!FATAL:).)*\z' }
+            Twice = 0; Timeout = 0
+        }
     }
     if ($which -eq 'Twice') {
         foreach ($i in 1, 2) {

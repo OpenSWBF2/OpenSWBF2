@@ -47,4 +47,27 @@ unsigned int EffectiveVsync(bool bKeySet, unsigned int uiKeyValue, bool bProfile
 unsigned int ResolveVsyncInterval(unsigned int uiRequested, unsigned long ulCaps, bool bWindowed,
                                   bool* pbFellBack);
 
+enum ResetAction
+{
+    kResetDone = 0,
+    kResetWait = 1,
+    kResetNow = 2,
+    kResetRevert = 3,
+    kResetFatal = 4
+};
+
+struct ResetBounds
+{
+    unsigned int uiMaxFailures;
+    unsigned int uiMaxMs;
+};
+
+extern const ResetBounds kStartupBounds;
+extern const ResetBounds kRuntimeBounds;
+
+ResetAction CoopStep(long hrCoop, unsigned int uiElapsedMs, const ResetBounds& bounds);
+
+ResetAction ResetStep(long hr, unsigned int uiFailures, unsigned int uiElapsedMs,
+                      bool bRevertAvailable, const ResetBounds& bounds);
+
 }
