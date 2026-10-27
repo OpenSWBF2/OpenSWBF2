@@ -61,6 +61,7 @@
       <RandomizedBaseAddress>true</RandomizedBaseAddress>
       <FixedBaseAddress>false</FixedBaseAddress>
       <DataExecutionPrevention>true</DataExecutionPrevention>
+      <LargeAddressAware>true</LargeAddressAware>
       <ImageHasSafeExceptionHandlers>true</ImageHasSafeExceptionHandlers>
       <GenerateMapFile>true</GenerateMapFile>
       <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
@@ -1374,6 +1375,7 @@
     <ClInclude Include="src\PebbleFL\Common\PblMath.h" />
     <ClInclude Include="src\PebbleFL\Common\PblMatrix.h" />
     <ClInclude Include="src\PebbleFL\Common\PblPlane.h" />
+    <ClInclude Include="src\PebbleFL\Common\PblPtrOrder.h" />
     <ClInclude Include="src\PebbleFL\Common\PblQuaternion.h" />
     <ClInclude Include="src\PebbleFL\Common\PblRandom.h" />
     <ClInclude Include="src\PebbleFL\Common\PblRef.h" />

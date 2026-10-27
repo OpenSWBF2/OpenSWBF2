@@ -118,7 +118,7 @@ void* RedAllocFromHeapInternal(int heap, unsigned int size, int bTop)
     }
     if (!tag)
     {
-        if ((unsigned int)h.start < 0x70000000 && sRecursionDepth <= 0)
+        if (sRecursionDepth <= 0)
         {
             RedMemory::failHeap = heap;
             RedMemory::failSize = need;

@@ -7,6 +7,10 @@ $mf = 'src\Battlefront2\Source\MemFailLog.cpp'
 $lm = 'src\Battlefront2\Source\LuaMemory.cpp'
 $pmain = 'src\Battlefront2\Source\pcMain.cpp'
 $rl = 'src\RedEngineFL\Util\RedLog.cpp'
+$pp = 'src\PebbleFL\Common\PblPtrOrder.h'
+$th = 'src\Battlefront2\Source\Thread.cpp'
+$cm = 'src\Battlefront2\Source\CollisionManager.cpp'
+$rm = 'src\RedEngineFL\Memory\RedMemory.cpp'
 
 $GuardRevertRows = @(
     @{ Id = 'CRASH-02'; File = 'src\RedEngineFL\Util\RedWarning.cpp'; Anchor = 'fputs(pcText, pFile);'; Replacement = 'fprintf(pFile, pcText);'; Tests = @('file log writes percent text literally') },
@@ -57,5 +61,11 @@ $GuardRevertRows = @(
     @{ Id = 'MEM-02S'; Kind = 'Smoke'; Case = 'crash-heapfail'; File = 'src\Battlefront2\Source\GameMemory.cpp'; Anchor = 'OnFailure = MemFail::OnAllocFailure;'; Replacement = '' },
     @{ Id = 'MEM-03S'; Kind = 'Smoke'; Case = 'crash-luaoom'; File = 'src\LuaFL\src\lmem.cpp'; Anchor = 'luaD_throw(L, LUA_ERRMEM);'; Replacement = 'return NULL;' },
     @{ Id = 'MEM-04S'; Kind = 'Smoke'; Case = 'crash-luapanic'; File = 'src\Battlefront2\Source\LuaHelper.cpp'; Anchor = 'lua_atpanic(mState, Lua_Red_Panic);'; Replacement = '' },
-    @{ Id = 'DIAG-04'; Kind = 'Smoke'; Case = 'crash-hang'; File = 'src\Battlefront2\Source\pcCrash.cpp'; Anchor = 'TerminateNow(5);'; Replacement = 'TerminateNow(3);' }
+    @{ Id = 'DIAG-04'; Kind = 'Smoke'; Case = 'crash-hang'; File = 'src\Battlefront2\Source\pcCrash.cpp'; Anchor = 'TerminateNow(5);'; Replacement = 'TerminateNow(3);' },
+    @{ Id = 'LAA-02A'; File = $pp; Anchor = ' ^ 0x80000000u'; Replacement = ''; Tests = @('ordered list keeps address order across 2GB', 'ptr order key is monotonic across 2GB') },
+    @{ Id = 'LAA-02B'; File = $pp; Anchor = 'return (unsigned int)pA > (unsigned int)pB;'; Replacement = 'return (int)pA > (int)pB;'; Tests = @('collision tie-break is unsigned') },
+    @{ Id = 'LAA-02C'; File = $th; Anchor = 'PblPtrOrderKey(this)'; Replacement = '(int)this'; Tests = @('pointer order sites use the unsigned helpers') },
+    @{ Id = 'LAA-02D'; File = $cm; Anchor = 'PblPtrAfter(pOther, pObject)'; Replacement = '(int)pOther > (int)pObject'; Tests = @('pointer order sites use the unsigned helpers') },
+    @{ Id = 'LAA-02E'; File = $rm; Anchor = 'if (sRecursionDepth <= 0)'; Replacement = 'if ((unsigned int)h.start < 0x70000000 && sRecursionDepth <= 0)'; Tests = @('pointer order sites use the unsigned helpers') },
+    @{ Id = 'LAA-01'; Kind = 'Hardening'; Check = 'laa'; File = 'BattlefrontII.vcxproj'; Anchor = '<LargeAddressAware>true</LargeAddressAware>'; Replacement = '' }
 )

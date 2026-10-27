@@ -4,6 +4,7 @@
 #include "FLInputManager.h"
 #include "GameLoop.h"
 #include "GameMovie.h"
+#include "GameState.h"
 #include "GameSoundEngine.h"
 #include "Music.h"
 #include "NetGame.h"
@@ -234,6 +235,7 @@ extern int g_InGameMoviePlayerState;
 extern bool g_InGameMoviePlayerUpdateEnable;
 extern int g_InGameMoviePlayerFrame;
 extern unsigned __int64 g_InGameMovieStartTime;
+extern float g_InGameMovieStartSystemTime;
 // GLOBAL: SWBF2 0x01e56170
 
 char ingame_movie_idname[256];
@@ -260,6 +262,7 @@ void GameMovie::StartInGameMoviePlay(const char* pcFile, const char* pcName)
     LARGE_INTEGER start;
     QueryPerformanceCounter(&start);
     g_InGameMovieStartTime = start.QuadPart;
+    g_InGameMovieStartSystemTime = GameState::GetSystemTimeBase()->GetTime();
 }
 
 // FUNCTION: SWBF2 0x004912e0

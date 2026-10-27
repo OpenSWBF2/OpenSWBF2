@@ -125,6 +125,7 @@ static void ReleaseMutex()
 // FUNCTION: SWBF2 0x006171b0
 void Startup_InitApplicationMemory()
 {
+    pcCrash::ReserveLowAddressSpace();
     s_memoryArena = malloc(0x4000000);
     if (!s_memoryArena || pcCrash::SimulateAllocFailure("arenaoom"))
     {
@@ -352,14 +353,6 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
 
     bool bDedicated = strstr(lpCmdLine, "/autonet") != 0 &&
                       strstr(lpCmdLine, "dedicated") != 0;
-    if (!bDedicated)
-    {
-        if (!AcquireMutex())
-        {
-            return 0;
-        }
-    }
-
     RedWarning::Init();
     GameLoop::SetNextMission(0);
 
@@ -370,6 +363,14 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
     ParseAutoNetCommandLine(lpCmdLine);
 
     ParseCommandLine(0, lpCmdLine);
+
+    if (!bDedicated && !g_bNoRender)
+    {
+        if (!AcquireMutex())
+        {
+            return 0;
+        }
+    }
 
     if (g_bNoRender || bDedicated)
     {
@@ -400,6 +401,13 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
         RedWarning::SetSeverityToDestination(RED_LOG_DESTINATION_FILE,
                                              (RedWarning::RED_ERROR_SEVERITY)RedLog::MinVerbosity());
         RedLog::Apply(pcCrash::GetBuildId());
+        LOG(LogCore, Inform,
+            "OPENSWBF2 ADDRSPACE arena=0x%08X arena_end=0x%08X laa=%d steam=%d steam_api=0x%08X "
+            "Galaxy=0x%08X GalaxyPeer=0x%08X binkw32=0x%08X",
+            (unsigned int)s_memoryArena, (unsigned int)s_memoryArena + 0x4000000,
+            pcCrash::IsLargeAddressAware() ? 1 : 0, gf::_sap()->IsInitialized() ? 1 : 0,
+            (unsigned int)GetModuleHandleA("steam_api.dll"), (unsigned int)GetModuleHandleA("Galaxy.dll"),
+            (unsigned int)GetModuleHandleA("GalaxyPeer.dll"), (unsigned int)GetModuleHandleA("binkw32.dll"));
     }
 
     GameState::SetState(GameLoop::mMissionScript[0] ? 0x8FF60339 : 0x11E1FC01);
@@ -455,7 +463,8 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
 
     hGlobalInstance = hInstance;
     hGlobalWnd = CreateWindowExA(dwExStyle, appName, "Star Wars Battlefront II", dwStyle,
-                                 X, Y, nWidth, nHeight, 0, 0, hInstance, 0);
+                                 X, Y, nWidth, nHeight,
+                                 g_bNoRender ? HWND_MESSAGE : 0, 0, hInstance, 0);
 
     if (pcPostInstall)
     {
@@ -469,8 +478,11 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
         return 0;
     }
 
-    GetDeviceGammaRamp(GetDC(hGlobalWnd), &s_originalGammaRamp);
-    SetICMMode(GetDC(hGlobalWnd), ICM_ON);
+    if (!g_bNoRender)
+    {
+        GetDeviceGammaRamp(GetDC(hGlobalWnd), &s_originalGammaRamp);
+        SetICMMode(GetDC(hGlobalWnd), ICM_ON);
+    }
 
     MSG msg;
     bool bActive = true;

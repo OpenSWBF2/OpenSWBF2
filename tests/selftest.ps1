@@ -76,22 +76,33 @@ try {
     $pre = Get-SmokePrecheck $null $smokeTmp
     if ($pre -notmatch 'GameData') { $failed++; Write-Host "FAILED ${n}: smoke precheck without GameData" }
     else { Write-Host "OK $n smoke precheck without GameData" }
+    $n++
+    $preDir = Join-Path $smokeTmp 'precheck'
+    New-Item -ItemType Directory -Force -Path (Join-Path $preDir 'retail\_lvl_pc') | Out-Null
+    Set-Content -Path (Join-Path $preDir 'retail\_lvl_pc\shell.lvl') -Value 'x'
+    foreach ($f in 'BattlefrontII.exe', 'binkw32.dll', 'Galaxy.dll', 'GalaxyPeer.dll', 'steam_api.dll') { Set-Content -Path (Join-Path $preDir $f) -Value 'x' }
+    & cmd /c mklink /J "$(Join-Path $preDir 'data')" "$(Join-Path $preDir 'retail')" | Out-Null
+    $pre = Get-SmokePrecheck $smokeTmp $preDir
+    & cmd /c rmdir "$(Join-Path $preDir 'data')" | Out-Null
+    if ($pre -notmatch 'staged data') { $failed++; Write-Host "FAILED ${n}: smoke precheck rejects a retail data junction" }
+    else { Write-Host "OK $n smoke precheck rejects a retail data junction" }
 }
 finally {
     Remove-Item -Recurse -Force $smokeTmp -ErrorAction SilentlyContinue
 }
-$goodHdr = "    Characteristics`n         102 characteristics`n    DLL characteristics`n            8140 DLL characteristics`n                   Dynamic base`n                   NX compatible`n   1C13000 [   38D38] RVA [size] of Base Relocation Directory`n  .reloc name`n"
+$goodHdr = "    Characteristics`n         102 characteristics`n    DLL characteristics`n            8140 DLL characteristics`n                   Dynamic base`n                   NX compatible`n                   Application can handle large (>2GB) addresses`n   1C13000 [   38D38] RVA [size] of Base Relocation Directory`n  .reloc name`n"
 $cookieCfg = "            0085C930 Security Cookie`n"
 $goodCfg = "$cookieCfg            008327F0 Safe Exception Handler Table`n                 7CF Safe Exception Handler Count`n"
 $oldHdr = "    Characteristics`n         103 characteristics`n                   Relocations stripped`n                   NX compatible`n         0 [       0] RVA [size] of Base Relocation Directory`n"
 $hardScenarios = @(
-    @('hardening good text passes all', $goodHdr, $goodCfg, 736, 0, 736, @('dynamicbase', 'nxcompat', 'reloc', 'safeseh', 'gs', 'sdl'), @()),
-    @('hardening old exe fails dynamicbase and reloc', $oldHdr, $goodCfg, 736, 0, 736, @('nxcompat', 'safeseh', 'gs', 'sdl'), @('dynamicbase', 'reloc')),
-    @('hardening safeseh count 0 fails', $goodHdr, "$cookieCfg                 0 Safe Exception Handler Count`n", 736, 0, 736, @('dynamicbase', 'nxcompat', 'reloc', 'gs', 'sdl'), @('safeseh')),
-    @('hardening missing security cookie fails gs', $goodHdr, "                 7CF Safe Exception Handler Count`n", 736, 0, 736, @('dynamicbase', 'nxcompat', 'reloc', 'safeseh', 'sdl'), @('gs')),
-    @('hardening /GS- entries fail gs', $goodHdr, $goodCfg, 736, 3, 736, @('dynamicbase', 'nxcompat', 'reloc', 'safeseh', 'sdl'), @('gs')),
-    @('hardening empty tlog fails gs and sdl', $goodHdr, $goodCfg, 0, 0, 0, @('reloc', 'safeseh'), @('gs', 'sdl')),
-    @('hardening missing /sdl entry fails sdl', $goodHdr, $goodCfg, 736, 0, 735, @('dynamicbase', 'nxcompat', 'reloc', 'safeseh', 'gs'), @('sdl'))
+    @('hardening good text passes all', $goodHdr, $goodCfg, 736, 0, 736, @('laa', 'dynamicbase', 'nxcompat', 'reloc', 'safeseh', 'gs', 'sdl'), @()),
+    @('hardening old exe fails dynamicbase and reloc', $oldHdr, $goodCfg, 736, 0, 736, @('nxcompat', 'safeseh', 'gs', 'sdl'), @('dynamicbase', 'reloc', 'laa')),
+    @('hardening safeseh count 0 fails', $goodHdr, "$cookieCfg                 0 Safe Exception Handler Count`n", 736, 0, 736, @('laa', 'dynamicbase', 'nxcompat', 'reloc', 'gs', 'sdl'), @('safeseh')),
+    @('hardening missing security cookie fails gs', $goodHdr, "                 7CF Safe Exception Handler Count`n", 736, 0, 736, @('laa', 'dynamicbase', 'nxcompat', 'reloc', 'safeseh', 'sdl'), @('gs')),
+    @('hardening /GS- entries fail gs', $goodHdr, $goodCfg, 736, 3, 736, @('laa', 'dynamicbase', 'nxcompat', 'reloc', 'safeseh', 'sdl'), @('gs')),
+    @('hardening empty tlog fails gs and sdl', $goodHdr, $goodCfg, 0, 0, 0, @('laa', 'reloc', 'safeseh'), @('gs', 'sdl')),
+    @('hardening missing /sdl entry fails sdl', $goodHdr, $goodCfg, 736, 0, 735, @('laa', 'dynamicbase', 'nxcompat', 'reloc', 'safeseh', 'gs'), @('sdl')),
+    @('hardening non-LAA header fails laa', $goodHdr.Replace('Application can handle large (>2GB) addresses', 'Something else'), $goodCfg, 736, 0, 736, @('dynamicbase', 'nxcompat', 'reloc', 'safeseh', 'gs', 'sdl'), @('laa'))
 )
 foreach ($sc in $hardScenarios) {
     $n++
@@ -120,6 +131,91 @@ elseif ($rejected -ne 2) { $why = 'unknown and GsFailure classes must be rejecte
 elseif (@($allCases | Where-Object { $_.Name -like 'crash-*' }).Count -ne 14 -or -not $byName.ContainsKey('fatal-init') -or $byName['dedicated'].Timeout -ne 0) { $why = 'dedicated or crash cases changed' }
 if ($why) { $failed++; Write-Host "FAILED ${n}: all-missions parsing: $why" }
 else { Write-Host "OK $n all-missions parsing" }
+$n++
+$hrx = $script:SmokeAddrSpaceRx
+$okLine = 'OPENSWBF2 ADDRSPACE arena=0x8000F020 arena_end=0x8400F020 laa=1 steam=1 steam_api=0x65740000 Galaxy=0x652E0000 GalaxyPeer=0x00000000 binkw32=0x18000000'
+$badLines = @($okLine.Replace('arena=0x8000F020', 'arena=0x00EA7020'), $okLine.Replace('laa=1', 'laa=0'), $okLine.Replace('steam=1', 'steam=0'), $okLine.Replace('Galaxy=0x652E0000', 'Galaxy=0x00000000'), $okLine.Replace('binkw32=0x18000000', 'binkw32=0x00000000'), $okLine.Replace('steam_api=0x65740000', 'steam_api=0x00000000'))
+$hogCases = @(Get-SmokeCases 'All' @('foo1c_ctf TimeOut', 'tat3c_con Fatal', 'bar1c_con') $false $null $true)
+$hogByName = @{}
+foreach ($c in $hogCases) { $hogByName[$c.Name] = $c }
+$why = $null
+if ($okLine -cnotmatch $hrx) { $why = 'positive line rejected' }
+foreach ($b in $badLines) { if (-not $why -and $b -cmatch $hrx) { $why = "bad line accepted: $b" } }
+if (-not $why) {
+    foreach ($name in 'foo1c_ctf', 'tat3c_con', 'bar1c_con', 'dedicated') {
+        $c = $hogByName[$name]
+        if (-not $c.Args.Contains('-hogaddrspace')) { $why = "$name lacks hog" }
+        elseif (@($c.Expect.LogRx) -notcontains $hrx) { $why = "$name lacks ADDRSPACE rx" }
+    }
+}
+if (-not $why) {
+    foreach ($c in $hogCases) {
+        if ($c.Name -like 'crash-*' -or $c.Name -eq 'fatal-init') {
+            if ($c.Args.Contains('-hogaddrspace') -or @($c.Expect.LogRx) -contains $hrx) { $why = "$($c.Name) must not be hogged" }
+        }
+    }
+}
+if (-not $why) {
+    $plain = @(Get-SmokeCases 'All' @('bar1c_con') $false $null)
+    foreach ($c in $plain) { if ($c.Args.Contains('-hogaddrspace') -or @($c.Expect.LogRx) -contains $hrx) { $why = "$($c.Name) hogged by default" } }
+}
+if ($why) { $failed++; Write-Host "FAILED ${n}: hog smoke cases: $why" }
+else { Write-Host "OK $n hog smoke cases" }
+$n++
+$psrc = Join-Path $env:TEMP ("openswbf2-parallel-" + [guid]::NewGuid().ToString('N'))
+$why = $null
+$pbatch = $null
+$pdirs = @()
+try {
+    New-Item -ItemType Directory -Path (Join-Path $psrc 'data') | Out-Null
+    Copy-Item -LiteralPath $env:ComSpec -Destination (Join-Path $psrc 'BattlefrontII.exe')
+    Set-Content -Path (Join-Path $psrc 'binkw32.dll') -Value 'x'
+    Set-Content -Path (Join-Path $psrc 'data\marker.txt') -Value 'x'
+    foreach ($w in 1, 2) {
+        $d = Join-Path $psrc "workers\w$w"
+        New-SmokeWorkerDir $psrc $d
+        $pdirs += $d
+        $link = Get-Item -LiteralPath (Join-Path $d 'data') -Force
+        if (-not (Test-Path -LiteralPath (Join-Path $d 'BattlefrontII.exe')) -or -not (Test-Path -LiteralPath (Join-Path $d 'binkw32.dll'))) { $why = "worker $w lacks exe or dll" }
+        elseif (-not ($link.Attributes -band [IO.FileAttributes]::ReparsePoint) -or -not (Test-Path -LiteralPath (Join-Path $d 'data\marker.txt'))) { $why = "worker $w data is not a junction to the source data" }
+    }
+    if (-not $why) {
+        $items = @(
+            (New-Object PSObject -Property @{ Name = 'slow'; ExeName = 'BattlefrontII.exe'; ArgLine = '/c ping -n 4 127.0.0.1 >nul'; Timeout = 60; CaseDir = (Join-Path $psrc 'case-slow') }),
+            (New-Object PSObject -Property @{ Name = 'fast'; ExeName = 'BattlefrontII.exe'; ArgLine = '/c exit 0'; Timeout = 60; CaseDir = (Join-Path $psrc 'case-fast') })
+        )
+        $pbatch = Start-SmokeBatch $items $pdirs
+        $slow = Receive-SmokeCase $pbatch 0
+        $fast = Receive-SmokeCase $pbatch 1
+        if ($slow.Name -ne 'slow' -or $fast.Name -ne 'fast') { $why = 'results not in case order' }
+        elseif ($slow.WorkDir -eq $fast.WorkDir) { $why = 'concurrent cases shared a worker folder' }
+        elseif ($fast.Ms -ge $slow.Ms) { $why = "fast case ($($fast.Ms) ms) did not finish before slow ($($slow.Ms) ms)" }
+    }
+}
+catch { $why = $_.Exception.Message }
+finally {
+    if ($pbatch) { Stop-SmokeBatch $pbatch }
+    foreach ($d in $pdirs) { Remove-SmokeWorkerDir $d }
+    Remove-Item -Recurse -Force $psrc -ErrorAction SilentlyContinue
+}
+if ($why) { $failed++; Write-Host "FAILED ${n}: parallel smoke: $why" }
+else { Write-Host "OK $n parallel smoke" }
+function New-LaaRec($l, $lr, $wr, $frames = 9274, $dur = 309) {
+    return New-Object PSObject -Property @{ Key = "geo1c_con`t ${dur}s`tL=Rep`t28u@$l`P`t ${lr}r`t 0p`tW=CIS`t28u@10 `t ${wr}r`t 0p"; Frames = $frames }
+}
+$laaBase = 1..5 | ForEach-Object { New-LaaRec 15 36 97 }
+$laaCases = @(
+    @('laa compare identical passes', { (Compare-LaaRuns $laaBase $laaBase).Ok }, $true),
+    @('laa compare frame count differs fails', { $r = Compare-LaaRuns $laaBase (@($laaBase[0..3]) + (New-LaaRec 15 36 97 9275)); (-not $r.Ok) -and (($r.Failures -join ';') -match 'runs differ') }, $true),
+    @('laa compare reinforcement differs fails', { (Compare-LaaRuns $laaBase (@($laaBase[0..3]) + (New-LaaRec 15 35 97))).Ok }, $false),
+    @('laa compare four runs fails', { (Compare-LaaRuns $laaBase @($laaBase[0..3])).Ok }, $false)
+)
+foreach ($lc in $laaCases) {
+    $n++
+    $got = [bool](& $lc[1])
+    if ($got -ne $lc[2]) { $failed++; Write-Host "FAILED ${n}: $($lc[0])" }
+    else { Write-Host "OK $n $($lc[0])" }
+}
 $testExe = Join-Path (Split-Path $PSScriptRoot -Parent) 'bin\Tests\Debug\OpenSWBF2Tests.exe'
 foreach ($probe in 'strictness probe emits an undeclared error', 'strictness probe unmatched expectation') {
     $n++

@@ -529,6 +529,61 @@ bool pcCrash::SimulateAllocFailure(char const* pcKind)
     return pcVal != 0 && iLen == lstrlenA(pcKind) && _strnicmp(pcVal, pcKind, iLen) == 0;
 }
 
+void pcCrash::ReserveLowAddressSpace()
+{
+    int iLen = 0;
+    if (FindArg(GetCommandLineA(), "-hogaddrspace", &iLen) == 0)
+    {
+        return;
+    }
+    const unsigned int kLimit = 0x80000000u;
+    const unsigned int kMinRegion = 0x100000u;
+    SYSTEM_INFO si;
+    GetSystemInfo(&si);
+    const unsigned int uiGran = si.dwAllocationGranularity;
+    unsigned int uiAt = (unsigned int)si.lpMinimumApplicationAddress;
+    int iRetry = 0;
+    while (uiAt < kLimit)
+    {
+        MEMORY_BASIC_INFORMATION mbi;
+        if (!VirtualQuery((void*)uiAt, &mbi, sizeof(mbi)))
+        {
+            break;
+        }
+        unsigned int uiBase = (unsigned int)mbi.BaseAddress;
+        unsigned int uiEnd = uiBase + (unsigned int)mbi.RegionSize;
+        if (uiEnd < uiBase || uiEnd > kLimit)
+        {
+            uiEnd = kLimit;
+        }
+        if (mbi.State == MEM_FREE)
+        {
+            unsigned int uiFrom = (uiBase + uiGran - 1) & ~(uiGran - 1);
+            if (uiEnd > uiFrom && (uiEnd - uiFrom >= kMinRegion || uiEnd == kLimit))
+            {
+                if (!VirtualAlloc((void*)uiFrom, uiEnd - uiFrom, MEM_RESERVE, PAGE_NOACCESS) && iRetry < 16)
+                {
+                    iRetry++;
+                    continue;
+                }
+            }
+        }
+        if (uiEnd == kLimit)
+        {
+            break;
+        }
+        uiAt = uiEnd;
+    }
+}
+
+bool pcCrash::IsLargeAddressAware()
+{
+    char* pBase = (char*)GetModuleHandleA(0);
+    IMAGE_DOS_HEADER* pDos = (IMAGE_DOS_HEADER*)pBase;
+    IMAGE_NT_HEADERS* pNt = (IMAGE_NT_HEADERS*)(pBase + pDos->e_lfanew);
+    return (pNt->FileHeader.Characteristics & IMAGE_FILE_LARGE_ADDRESS_AWARE) != 0;
+}
+
 void pcCrash::FatalInit(char const* pcWhat, unsigned int uiSize)
 {
     if (gLogPath[0] == 0)

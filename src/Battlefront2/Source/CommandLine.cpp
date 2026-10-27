@@ -362,6 +362,11 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             continue;
         }
 
+        if (_stricmp(pcArg + 1, "hogaddrspace") == 0)
+        {
+            continue;
+        }
+
         if (_stricmp(pcArg + 1, "crashtest") == 0)
         {
             if (i + 1 < iArgc)

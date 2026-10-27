@@ -37,6 +37,8 @@ function Get-SmokePrecheck($gameDataRoot, $exeDir) {
     foreach ($dll in 'binkw32.dll', 'Galaxy.dll', 'GalaxyPeer.dll', 'steam_api.dll') {
         if (-not (Test-Path -LiteralPath (Join-Path $exeDir $dll))) { return "$dll missing beside the exe in $exeDir" }
     }
+    $data = Get-Item -LiteralPath (Join-Path $exeDir 'data') -Force -ErrorAction SilentlyContinue
+    if (-not $data -or ($data.Attributes -band [IO.FileAttributes]::ReparsePoint) -or -not (Test-Path -LiteralPath (Join-Path $exeDir 'data\_lvl_pc\shell.lvl'))) { return "staged data missing in $exeDir (build without SWBF2_NOSTAGE)" }
     return $null
 }
 
@@ -173,7 +175,65 @@ function Invoke-SmokeCase($name, $exe, $workDir, $argLine, $timeoutSec, $caseDir
     $ms = $sw.ElapsedMilliseconds
     $result = ("class={0}`r`nexit=0x{1:X8}`r`nelapsed_ms={2}`r`ndumps={3}`r`n" -f $class, $code, $ms, $dumps.Count)
     Set-Content -Path (Join-Path $caseDir 'result.txt') -Value $result -Encoding ASCII
-    return New-Object PSObject -Property @{ Name = $name; Class = $class; Code = $code; Dumps = $dumps; LogText = $logText; Ms = $ms; CaseDir = $caseDir }
+    return New-Object PSObject -Property @{ Name = $name; Class = $class; Code = $code; Dumps = $dumps; LogText = $logText; Ms = $ms; CaseDir = $caseDir; WorkDir = $workDir }
+}
+
+function New-SmokeWorkerDir($srcDir, $dir) {
+    New-Item -ItemType Directory -Force -Path $dir | Out-Null
+    foreach ($f in 'BattlefrontII.exe', 'binkw32.dll', 'Galaxy.dll', 'GalaxyPeer.dll', 'steam_api.dll', 'unicows.dll', 'steam_appid.txt') {
+        $s = Join-Path $srcDir $f
+        if (Test-Path -LiteralPath $s) { Copy-Item -LiteralPath $s -Destination $dir -Force }
+    }
+    & cmd /c mklink /J "$(Join-Path $dir 'data')" "$(Join-Path $srcDir 'data')" | Out-Null
+}
+
+function Remove-SmokeWorkerDir($dir) {
+    if (-not (Test-Path -LiteralPath $dir)) { return }
+    $link = Join-Path $dir 'data'
+    if (Test-Path -LiteralPath $link) { & cmd /c rmdir "$link" | Out-Null }
+    if (Test-Path -LiteralPath $link) { throw "worker data junction not removed: $link" }
+    Remove-Item -LiteralPath $dir -Recurse -Force
+}
+
+function Start-SmokeBatch($items, $workDirs) {
+    $src = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'smoke.ps1'))
+    $queue = New-Object 'System.Collections.Concurrent.ConcurrentQueue[string]'
+    foreach ($d in $workDirs) { $queue.Enqueue([string]$d) }
+    $pool = [runspacefactory]::CreateRunspacePool(1, @($workDirs).Count)
+    $pool.Open()
+    $worker = {
+        param($src, $queue, $item)
+        . ([scriptblock]::Create($src))
+        $dir = $null
+        while (-not $queue.TryDequeue([ref]$dir)) { Start-Sleep -Milliseconds 50 }
+        try { Invoke-SmokeCase $item.Name (Join-Path $dir $item.ExeName) $dir $item.ArgLine $item.Timeout $item.CaseDir }
+        finally { $queue.Enqueue($dir) }
+    }
+    $handles = @()
+    foreach ($item in $items) {
+        $ps = [powershell]::Create()
+        $ps.RunspacePool = $pool
+        $ps.AddScript($worker).AddArgument($src).AddArgument($queue).AddArgument($item) | Out-Null
+        $handles += New-Object PSObject -Property @{ Ps = $ps; Async = $ps.BeginInvoke() }
+    }
+    return New-Object PSObject -Property @{ Pool = $pool; Handles = $handles }
+}
+
+function Receive-SmokeCase($batch, $index) {
+    $h = $batch.Handles[$index]
+    try {
+        $out = @($h.Ps.EndInvoke($h.Async))
+        if ($h.Ps.Streams.Error.Count -gt 0) { throw ("smoke worker error: " + (($h.Ps.Streams.Error | ForEach-Object { $_.ToString() }) -join '; ')) }
+        if ($out.Count -ne 1) { throw "smoke worker returned $($out.Count) results" }
+        return $out[0]
+    }
+    finally { $h.Ps.Dispose() }
+}
+
+function Stop-SmokeBatch($batch) {
+    foreach ($h in $batch.Handles) { try { $h.Ps.Stop() } catch {}; try { $h.Ps.Dispose() } catch {} }
+    $batch.Pool.Close()
+    $batch.Pool.Dispose()
 }
 
 function Get-SmokeAllowed($caseName) {
@@ -224,28 +284,37 @@ function Test-SmokeExpect($case, $res) {
     return $true
 }
 
-function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec) {
+$script:SmokeAddrSpaceRx = 'OPENSWBF2 ADDRSPACE arena=0x[89A-F][0-9A-F]{7} arena_end=0x[0-9A-F]{8} laa=1 steam=1 steam_api=0x(?!0{8})[0-9A-F]{8} Galaxy=0x(?!0{8})[0-9A-F]{8} GalaxyPeer=0x[0-9A-F]{8} binkw32=0x(?!0{8})[0-9A-F]{8}'
+
+function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $false) {
     $standard = $script:SmokeStandardMission
     $render = '-norender'
     if ($movies) { $render = '' }
     $tail = (("$render -nosound -fixedrate 30 -nowait -logfinalscore -DecompCONMinutes 5 -seed 1 -exitongameover -nofocuspause -log ""{CASEDIR}\run.log""") -replace '^\s+', '')
+    $htail = $tail
     $pass = @{ Class = 'Pass' }
+    $hrx = @()
+    if ($hog) {
+        $htail = "$tail -hogaddrspace"
+        $hrx = @($script:SmokeAddrSpaceRx)
+        $pass = @{ Class = 'Pass'; LogRx = $hrx }
+    }
     $cases = @()
 
     $missionCase = {
         param($m)
-        New-Object PSObject -Property @{ Name = $m; Args = "$m $tail"; Expect = $pass; Twice = 0; Timeout = 0 }
+        New-Object PSObject -Property @{ Name = $m; Args = "$m $htail"; Expect = $pass; Twice = 0; Timeout = 0 }
     }
     $allCase = {
         param($m, $class)
         $x = $pass
         $to = 0
-        if ($class -eq 'TimeOut') { $x = @{ Class = 'TimeOut'; LogRx = 'OPENSWBF2 MISSION RUNNING' } }
+        if ($class -eq 'TimeOut') { $x = @{ Class = 'TimeOut'; LogRx = (@('OPENSWBF2 MISSION RUNNING') + $hrx) } }
         elseif ($class -eq 'Fatal') {
-            $x = @{ Class = 'Fatal'; Code = 3; MinDumps = 1; MaxDumps = 1; LogRx = 'FATAL: exception 0xC0000005 at 0x[0-9A-F]+ \(d3dx9_43\.dll\+0x1BA553\)' }
+            $x = @{ Class = 'Fatal'; Code = 3; MinDumps = 1; MaxDumps = 1; LogRx = (@('FATAL: exception 0xC0000005 at 0x[0-9A-F]+ \(d3dx9_43\.dll\+0x1BA553\)') + $hrx) }
         }
         elseif ($class -ne 'Pass') { throw "unknown expected class '$class' for $m in missions file" }
-        New-Object PSObject -Property @{ Name = $m; Args = "$m $tail"; Expect = $x; Twice = 0; Timeout = $to }
+        New-Object PSObject -Property @{ Name = $m; Args = "$m $htail"; Expect = $x; Twice = 0; Timeout = $to }
     }
 
     if ($which -eq 'Standard') { $cases += & $missionCase $standard }
@@ -264,7 +333,7 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec) {
         if ($dedicatedSpec) { $dm = $dedicatedSpec }
         $cases += New-Object PSObject -Property @{
             Name = 'dedicated'
-            Args = "/autonet dedicated -lan -nopregame -playercount 0 $dm 100 100 $tail"
+            Args = "/autonet dedicated -lan -nopregame -playercount 0 $dm 100 100 $htail"
             Expect = $pass
             Twice = 0; Timeout = 0
         }
@@ -330,10 +399,22 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec) {
     }
     if ($which -eq 'Twice') {
         foreach ($i in 1, 2) {
-            $cases += New-Object PSObject -Property @{ Name = "twice-$i"; Args = "$standard $tail"; Expect = $pass; Twice = $i; Timeout = 0 }
+            $cases += New-Object PSObject -Property @{ Name = "twice-$i"; Args = "$standard $htail"; Expect = $pass; Twice = $i; Timeout = 0 }
+        }
+        $digestExpect = @{ Class = 'TimeOut'; LogRx = (@('OPENSWBF2 MISSION RUNNING', 'OPENSWBF2 SIM DIGEST turns=') + $hrx) }
+        foreach ($i in 1, 2) {
+            $cases += New-Object PSObject -Property @{ Name = "twice-digest-$i"; Args = "nab2g_c $htail"; Expect = $digestExpect; Twice = 2 + $i; Timeout = 30 }
         }
     }
     return $cases
+}
+
+function Get-DigestKey($caseDir) {
+    $f = Join-Path $caseDir 'run.log'
+    if (-not (Test-Path -LiteralPath $f)) { return $null }
+    $m = Select-String -LiteralPath $f -Pattern 'OPENSWBF2 SIM DIGEST .*' | Select-Object -First 1
+    if (-not $m) { return $null }
+    return $m.Matches[0].Value
 }
 
 function Get-FinalScoreKey($caseDir) {
@@ -355,6 +436,26 @@ function Find-Dumpbin {
     exit 2
 }
 
+function Find-Editbin {
+    $cands = @()
+    if ($env:VS120COMNTOOLS) { $cands += (Join-Path $env:VS120COMNTOOLS '..\..\VC\bin\editbin.exe') }
+    $cands += (Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio 12.0\VC\bin\editbin.exe')
+    foreach ($c in $cands) { if (Test-Path -LiteralPath $c) { return (Resolve-Path -LiteralPath $c).Path } }
+    Write-Host 'editbin not found (install VS2013 Update 5).'
+    exit 2
+}
+
+function Compare-LaaRuns($base, $laa, $minRuns = 5) {
+    $failures = New-Object System.Collections.ArrayList
+    $base = @($base)
+    $laa = @($laa)
+    if ($base.Count -lt $minRuns) { [void]$failures.Add("only $($base.Count) non-LAA runs, need $minRuns") }
+    if ($laa.Count -lt $minRuns) { [void]$failures.Add("only $($laa.Count) LAA runs, need $minRuns") }
+    $keys = @(($base + $laa) | ForEach-Object { "$($_.Key) [f=$($_.Frames)]" } | Select-Object -Unique)
+    if ($keys.Count -gt 1) { [void]$failures.Add("runs differ: $($keys -join ' | ')") }
+    return New-Object PSObject -Property @{ Ok = ($failures.Count -eq 0); Failures = $failures; Keys = $keys }
+}
+
 function Get-HardeningChecks($hdr, $cfg, $clTotal, $clGsMinus, $clSdl) {
     $relocSize = 0
     if ($hdr -match '(?m)^\s+[0-9A-F]+ \[\s*([0-9A-F]+)\] RVA \[size\] of Base Relocation Directory') { $relocSize = [Convert]::ToInt32($Matches[1], 16) }
@@ -369,6 +470,8 @@ function Get-HardeningChecks($hdr, $cfg, $clTotal, $clGsMinus, $clSdl) {
     $checks += New-Object PSObject -Property @{ Name = 'dynamicbase'; Ok = $dyn; Detail = 'Dynamic base flag missing' }
     $nx = $hdr -match '(?m)^\s+NX compatible\s*$'
     $checks += New-Object PSObject -Property @{ Name = 'nxcompat'; Ok = $nx; Detail = 'NX compatible flag missing' }
+    $laa = $hdr -match '(?m)^\s+Application can handle large \(>2GB\) addresses\s*$'
+    $checks += New-Object PSObject -Property @{ Name = 'laa'; Ok = $laa; Detail = 'Application can handle large (>2GB) addresses missing from dumpbin /headers' }
     $checks += New-Object PSObject -Property @{
         Name = 'reloc'
         Ok = ($hasReloc -and $relocSize -gt 0 -and -not $stripped)
