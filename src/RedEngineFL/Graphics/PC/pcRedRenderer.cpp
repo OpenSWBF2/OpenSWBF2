@@ -37,10 +37,13 @@
 #include "PebbleFL/Common/PblMath.h"
 #include <math.h>
 #include "RedEngineFL/Util/ext/Globals.h"
+#include "Battlefront2/Source/LoadUtil.h"
+#include "Battlefront2/Source/pcCrash.h"
 
-namespace pcCrash { void __cdecl Exit(int); }
+void PumpWaitingMessages();
 
 extern bool g_bNoRender;
+extern HWND hGlobalWnd;
 
 unsigned int gAdapter = 0;
 
@@ -65,6 +68,108 @@ static bool GetAdapterMonitorRect(IDirect3D9* pD3D, RECT& rc)
 #include "RedEngineFL/Graphics/RedSpotLight.h"
 #include "pcRedPixelShader.h"
 #include "pcRedVertexShader.h"
+
+enum ResetKind
+{
+    kResetKindNone = 0,
+    kResetKindRecover,
+    kResetKindFatal,
+    kResetKindInitLost,
+    kResetKindFlap,
+    kResetKindLaterInit
+};
+
+struct ResetScript
+{
+    bool bInit;
+    ResetKind eKind;
+    unsigned int uiFrames;
+    unsigned int uiLost;
+    unsigned int uiPolls;
+    unsigned int uiInits;
+    DWORD dwSkewMs;
+    bool bArmed;
+    bool bDone;
+};
+
+static ResetScript gResetScript;
+static FakeD3DSurface gTrackedBackStore;
+static FakeD3DSurface gTrackedDepthStore;
+static FakeD3DSurface* gTrackedBack;
+static FakeD3DSurface* gTrackedDepth;
+
+static ResetScript& GetResetScript()
+{
+    if (!gResetScript.bInit)
+    {
+        gResetScript.bInit = true;
+        const char* pcKind = g_bNoRender ? pcCrash::GetCrashTest() : 0;
+        if (pcKind && strcmp(pcKind, "resetrecover") == 0)
+        {
+            gResetScript.eKind = kResetKindRecover;
+        }
+        else if (pcKind && strcmp(pcKind, "resetfatal") == 0)
+        {
+            gResetScript.eKind = kResetKindFatal;
+        }
+        else if (pcKind && strcmp(pcKind, "resetinitlost") == 0)
+        {
+            gResetScript.eKind = kResetKindInitLost;
+        }
+        else if (pcKind && strcmp(pcKind, "resetflap") == 0)
+        {
+            gResetScript.eKind = kResetKindFlap;
+        }
+        else if (pcKind && strcmp(pcKind, "resetlaterinit") == 0)
+        {
+            gResetScript.eKind = kResetKindLaterInit;
+        }
+    }
+    return gResetScript;
+}
+
+static void ResetScriptFrame()
+{
+    ResetScript& s = GetResetScript();
+    if ((s.eKind == kResetKindRecover || s.eKind == kResetKindFatal || s.eKind == kResetKindFlap) &&
+        !s.bDone)
+    {
+        if (++s.uiFrames >= 30 && !s.bArmed)
+        {
+            s.bArmed = true;
+            SetFocus(0);
+            if (s.eKind == kResetKindFatal)
+            {
+                RedRenderer::m_d3dpp.BackBufferWidth += 16;
+            }
+        }
+    }
+}
+
+static void ResetScriptInit()
+{
+    ResetScript& s = GetResetScript();
+    if (s.eKind == kResetKindLaterInit && ++s.uiInits == 2)
+    {
+        s.bArmed = true;
+    }
+}
+
+static DWORD ResetClock()
+{
+    return GetTickCount() + gResetScript.dwSkewMs;
+}
+
+static IDirect3DSurface9* AcquireTracked(FakeD3DSurface*& pSurface, FakeD3DSurface& store)
+{
+    if (!pSurface)
+    {
+        pSurface = &store;
+        pSurface->bTracked = true;
+    }
+    pSurface->AddRef();
+    return pSurface;
+}
 
 // FUNCTION: SWBF2 0x006b01e0
 STDMETHODIMP_(ULONG) FakeD3D::AddRef()
@@ -559,6 +664,11 @@ STDMETHODIMP_(UINT) FakeD3DDevice::GetAvailableTextureMem()
 STDMETHODIMP FakeD3DDevice::GetBackBuffer(UINT, UINT, D3DBACKBUFFER_TYPE,
                                           IDirect3DSurface9** ppBackBuffer)
 {
+    if (GetResetScript().eKind != kResetKindNone)
+    {
+        *ppBackBuffer = AcquireTracked(gTrackedBack, gTrackedBackStore);
+        return 0;
+    }
     *ppBackBuffer = new FakeD3DSurface;
     return 0;
 }
@@ -592,6 +702,11 @@ STDMETHODIMP FakeD3DDevice::GetCurrentTexturePalette(UINT*)
 STDMETHODIMP FakeD3DDevice::GetDepthStencilSurface(
     IDirect3DSurface9** ppZStencilSurface)
 {
+    if (GetResetScript().eKind != kResetKindNone)
+    {
+        *ppZStencilSurface = AcquireTracked(gTrackedDepth, gTrackedDepthStore);
+        return 0;
+    }
     *ppZStencilSurface = new FakeD3DSurface;
     return 0;
 }
@@ -891,6 +1006,40 @@ STDMETHODIMP_(ULONG) FakeD3DDevice::Release()
 // FUNCTION: SWBF2 0x006b3100
 STDMETHODIMP FakeD3DDevice::Reset(D3DPRESENT_PARAMETERS*)
 {
+    ResetScript& s = GetResetScript();
+    if (s.eKind == kResetKindInitLost && !s.bDone)
+    {
+        if (s.uiLost < 3)
+        {
+            ++s.uiLost;
+            return D3DERR_DEVICELOST;
+        }
+        s.bDone = true;
+        return 0;
+    }
+    if (s.bArmed && !s.bDone)
+    {
+        if (gTrackedBack)
+        {
+            check(gTrackedBack->refCount == 1);
+        }
+        if (gTrackedDepth)
+        {
+            check(gTrackedDepth->refCount == 1);
+        }
+        if (s.eKind == kResetKindFatal)
+        {
+            return D3DERR_INVALIDCALL;
+        }
+        const unsigned int uiFailures =
+            s.eKind == kResetKindFlap ? 24 : (s.eKind == kResetKindLaterInit ? 1 : 3);
+        if (s.uiLost < uiFailures)
+        {
+            ++s.uiLost;
+            return D3DERR_DEVICELOST;
+        }
+        s.bDone = true;
+    }
     return 0;
 }
 
@@ -1124,6 +1273,25 @@ STDMETHODIMP FakeD3DDevice::StretchRect(IDirect3DSurface9*, CONST RECT*,
 // FUNCTION: SWBF2 0x006b41a0
 STDMETHODIMP FakeD3DDevice::TestCooperativeLevel()
 {
+    ResetScript& s = GetResetScript();
+    if (s.bArmed && !s.bDone)
+    {
+        if (s.eKind == kResetKindFlap && s.uiLost == 12 && s.uiPolls == 0)
+        {
+            ++s.uiPolls;
+            return D3DERR_DEVICELOST;
+        }
+        if (s.eKind == kResetKindLaterInit && s.uiPolls < 60)
+        {
+            if (++s.uiPolls == 5)
+            {
+                PostMessageA(hGlobalWnd, WM_CLOSE, 0, 0);
+            }
+            s.dwSkewMs += 1000;
+            return D3DERR_DEVICELOST;
+        }
+        return D3DERR_DEVICENOTRESET;
+    }
     return 0;
 }
 
@@ -1330,7 +1498,13 @@ STDMETHODIMP FakeD3DSurface::QueryInterface(REFIID, void**)
 // FUNCTION: SWBF2 0x006b2d80
 STDMETHODIMP_(ULONG) FakeD3DSurface::Release()
 {
-    if (--refCount == 0)
+    --refCount;
+    if (bTracked)
+    {
+        check(refCount >= 1);
+        return 0;
+    }
+    if (refCount == 0)
     {
         delete this;
     }
@@ -2490,8 +2664,6 @@ TransparentHeap<RenderItem*, unsigned int> RedRenderer::m_transparentItems(800);
 // `dynamic atexit destructor for 'RedRenderer::m_posttransparentItems''
 TransparentHeap<RenderItem*, unsigned int> RedRenderer::m_posttransparentItems(512);
 
-extern HWND hGlobalWnd;
-
 extern bool g_bNoRender;
 extern bool sWaitForFrameQuery;
 
@@ -2531,6 +2703,8 @@ IDirect3D9* RedRenderer::m_pD3D;
 IDirect3DDevice9* RedRenderer::m_pd3dDevice;
 // GLOBAL: SWBF2 0x007f5ecc
 D3DPRESENT_PARAMETERS RedRenderer::m_d3dpp;
+D3DPRESENT_PARAMETERS RedRenderer::m_d3dppLast;
+bool RedRenderer::m_bResourcesReleased = true;
 // GLOBAL: SWBF2 0x007f5f28
 void(__cdecl* RedRenderer::m_resetFunctions[100])(ResetFlagsT);
 // GLOBAL: SWBF2 0x007f60b8
@@ -2580,6 +2754,29 @@ RedColor RedRenderer::m_lightingScaleColor;
 // SYNTHETIC: SWBF2 0x00408c80
 // `dynamic initializer for 'PblMath::fOneOverTwoPi''
 
+static void PlaceInitWindow(IDirect3D9* pD3D, const D3DPRESENT_PARAMETERS& pp, bool bMinimized)
+{
+    const DWORD dwStyle = pp.Windowed ? 0x00C40000 : 0x90000000;
+    const UINT uFlags = (pp.Windowed || bMinimized) ? SWP_NOZORDER : SWP_NOMOVE;
+
+    RECT rc;
+    SetRect(&rc, 0, 0, pp.BackBufferWidth, pp.BackBufferHeight);
+    AdjustWindowRect(&rc, dwStyle, FALSE);
+
+    RECT desktop;
+    if (!GetAdapterMonitorRect(pD3D, desktop))
+    {
+        GetClientRect(GetDesktopWindow(), &desktop);
+    }
+
+    const int iWidth = rc.right - rc.left;
+    const int iHeight = rc.bottom - rc.top;
+    SetWindowPos(hGlobalWnd, 0,
+                 (desktop.left - iWidth + desktop.right) / 2,
+                 (desktop.top - iHeight + desktop.bottom) / 2,
+                 iWidth, iHeight, uFlags);
+}
+
 // FUNCTION: SWBF2 0x006b1a90
 void RedRenderer::Init()
 {
@@ -2623,41 +2820,91 @@ void RedRenderer::Init()
     RedOmniLight::sMemoryPool.Setup(0x80, RedOmniLight::sMemoryPool.mSize,
                                     RedOmniLight::sMemoryPool.mGrow);
 
-    const DWORD dwStyle = m_d3dpp.Windowed ? 0x00C40000 : 0x90000000;
-    const UINT uFlags = (m_d3dpp.Windowed || bMinimized) ? SWP_NOZORDER
-                                                         : SWP_NOMOVE;
+    PlaceInitWindow(m_pD3D, m_d3dpp, bMinimized);
 
-    RECT rc;
-    SetRect(&rc, 0, 0, m_d3dpp.BackBufferWidth, m_d3dpp.BackBufferHeight);
-    AdjustWindowRect(&rc, dwStyle, FALSE);
+    static bool sbStartupResetDone = false;
+    const DisplayLogic::ResetBounds& bounds =
+        sbStartupResetDone ? DisplayLogic::kRuntimeBounds : DisplayLogic::kStartupBounds;
+    ResetScriptInit();
 
-    RECT desktop;
-    if (!GetAdapterMonitorRect(m_pD3D, desktop))
+    HRESULT hr;
+    unsigned int uiFailures = 0;
+    unsigned int uiAttempts = 0;
+    bool bRevertUsed = false;
+    DWORD dwStart = ResetClock();
+    const bool bWasLoading = gLoading;
+    gLoading = true;
+
+    for (;;)
     {
-        GetClientRect(GetDesktopWindow(), &desktop);
+        unsigned int uiElapsed = ResetClock() - dwStart;
+        const bool bRevertAvailable =
+            !bRevertUsed && memcmp(&m_d3dpp, &m_d3dppLast, sizeof(m_d3dpp)) != 0;
+        hr = m_pd3dDevice->TestCooperativeLevel();
+        DisplayLogic::ResetAction eAction =
+            DisplayLogic::CoopStep(hr, uiElapsed, bounds);
+
+        D3DPRESENT_PARAMETERS pp = m_d3dpp;
+        if (eAction == DisplayLogic::kResetNow)
+        {
+            hr = m_pd3dDevice->Reset(&pp);
+            ++uiAttempts;
+            if (FAILED(hr))
+            {
+                ++uiFailures;
+                if (uiAttempts == 1)
+                {
+                    LOG(LogRender, Warning, "OPENSWBF2 RESET failed hr=0x%08X, waiting", (unsigned int)hr);
+                }
+            }
+            uiElapsed = ResetClock() - dwStart;
+            eAction = DisplayLogic::ResetStep(hr, uiFailures, uiElapsed, bRevertAvailable, bounds);
+        }
+        else if (eAction == DisplayLogic::kResetWait)
+        {
+            uiFailures = 0;
+            bRevertUsed = false;
+        }
+
+        if (eAction == DisplayLogic::kResetDone)
+        {
+            m_d3dpp = pp;
+            m_d3dppLast = m_d3dpp;
+            if (uiAttempts > 1)
+            {
+                LOG(LogRender, Inform, "OPENSWBF2 RESET recovered after %u attempts", uiAttempts);
+            }
+            break;
+        }
+        else if (eAction == DisplayLogic::kResetRevert)
+        {
+            bRevertUsed = true;
+            LOG(LogRender, Warning,
+                "OPENSWBF2 RESET reverting asked=%ux%u windowed=%d used=%ux%u windowed=%d",
+                m_d3dpp.BackBufferWidth, m_d3dpp.BackBufferHeight, (int)m_d3dpp.Windowed,
+                m_d3dppLast.BackBufferWidth, m_d3dppLast.BackBufferHeight,
+                (int)m_d3dppLast.Windowed);
+            m_d3dpp = m_d3dppLast;
+            PlaceInitWindow(m_pD3D, m_d3dpp, bMinimized);
+            uiFailures = 0;
+            dwStart = ResetClock();
+        }
+        else if (eAction == DisplayLogic::kResetFatal)
+        {
+            LOG(LogRender, Fatal, "device reset failed");
+            RedWarning::DialogBoxMessage("Device reset failed!");
+            pcCrash::FatalReset(hr, uiFailures, uiElapsed);
+            break;
+        }
+        else
+        {
+            PumpWaitingMessages();
+            pcCrash::Tick();
+            Sleep(10);
+        }
     }
-
-    const int iWidth = rc.right - rc.left;
-    const int iHeight = rc.bottom - rc.top;
-    SetWindowPos(hGlobalWnd, 0,
-                 (desktop.left - iWidth + desktop.right) / 2,
-                 (desktop.top - iHeight + desktop.bottom) / 2,
-                 iWidth, iHeight, uFlags);
-
-    HRESULT hr = m_pd3dDevice->Reset(&m_d3dpp);
-
-    while (hr == D3DERR_DEVICELOST)
-    {
-        Sleep(0);
-        hr = m_pd3dDevice->Reset(&m_d3dpp);
-    }
-
-    if (hr == D3DERR_DRIVERINTERNALERROR)
-    {
-        LOG(LogRender, Fatal, "Internal driver error!");
-        RedWarning::DialogBoxMessage("Internal driver error!");
-        pcCrash::Exit(1);
-    }
+    gLoading = bWasLoading;
+    sbStartupResetDone = true;
 
     if (!bMinimized && !g_bNoRender)
     {
@@ -2747,6 +2994,7 @@ void RedRenderer::Init()
     RedRenderer::m_colorFog = RedColor::BLACK;
 
     internalResetState();
+    m_bResourcesReleased = false;
 
     if (!g_bNoRender)
     {
@@ -2930,6 +3178,8 @@ void RedRenderer::InitStatic()
         m_pd3dDevice = new FakeD3DDevice;
         memset(&m_adaptorIdentifier, 0, sizeof(m_adaptorIdentifier));
     }
+
+    m_d3dppLast = m_d3dpp;
 
     RECT rcMonitor;
     if (m_pd3dDevice && GetAdapterMonitorRect(m_pD3D, rcMonitor))
@@ -3496,46 +3746,114 @@ void RedRenderer::internalInitOcclusionQuery()
     RedRenderer::m_occlusionQueryShapes[2]->EndVertexData();
 }
 
+static unsigned int sResetFailures;
+static unsigned int sResetAttempts;
+static DWORD sResetStart;
+static DWORD sResetLast;
+static bool sResetRevertUsed;
+
 // FUNCTION: SWBF2 0x006b68a0
 void RedRenderer::internalReset()
 {
-    m_pBackBufferSurface->Release();
-    m_pDepthSurface->Release();
-    if (m_pd3dQuery)
-    {
-        m_pd3dQuery->Release();
-        m_pd3dQuery = 0;
-    }
-    internalCleanupOcclusionQuery();
-
     unsigned int i;
+    if (!m_bResourcesReleased)
+    {
+        m_pBackBufferSurface->Release();
+        m_pBackBufferSurface = 0;
+        m_pDepthSurface->Release();
+        m_pDepthSurface = 0;
+        m_curDepthTarget = 0;
+        if (m_pd3dQuery)
+        {
+            m_pd3dQuery->Release();
+            m_pd3dQuery = 0;
+        }
+        internalCleanupOcclusionQuery();
+        m_bResourcesReleased = true;
+    }
+
+    if (sResetFailures > 0 && GetTickCount() - sResetLast < 50)
+    {
+        return;
+    }
+
     for (i = 0; i < m_numResetFunctions; ++i)
     {
         m_resetFunctions[i](RESETFLAGS_FREE_RESOURCES);
     }
 
-    if (m_pd3dDevice->Reset(&m_d3dpp) == D3DERR_DRIVERINTERNALERROR)
+    D3DPRESENT_PARAMETERS pp = m_d3dpp;
+    const HRESULT hr = m_pd3dDevice->Reset(&pp);
+    sResetLast = GetTickCount();
+
+    if (SUCCEEDED(hr))
     {
-        LOG(LogRender, Fatal, "Internal driver error!");
-        RedWarning::DialogBoxMessage("Internal driver error!");
-        pcCrash::Exit(1);
+        m_d3dpp = pp;
+        m_d3dppLast = m_d3dpp;
+
+        if (!g_bNoRender)
+        {
+            m_pd3dDevice->CreateQuery(D3DQUERYTYPE_EVENT, &m_pd3dQuery);
+        }
+        else
+        {
+            m_pd3dQuery = 0;
+        }
+
+        internalResetState();
+        RedRenderer::internalInitOcclusionQuery();
+
+        for (i = 0; i < m_numResetFunctions; ++i)
+        {
+            m_resetFunctions[i](RESETFLAGS_CREATE_RESOURCES);
+        }
+        m_bResourcesReleased = false;
+
+        if (sResetAttempts > 0)
+        {
+            LOG(LogRender, Inform, "OPENSWBF2 RESET recovered after %u attempts",
+                sResetAttempts + 1);
+        }
+        sResetFailures = 0;
+        sResetAttempts = 0;
+        sResetRevertUsed = false;
+        return;
     }
 
-    if (!g_bNoRender)
+    if (sResetAttempts == 0)
     {
-        m_pd3dDevice->CreateQuery(D3DQUERYTYPE_EVENT, &m_pd3dQuery);
+        LOG(LogRender, Warning, "OPENSWBF2 RESET failed hr=0x%08X, retrying", (unsigned int)hr);
     }
-    else
+    if (sResetFailures == 0)
     {
-        m_pd3dQuery = 0;
+        sResetStart = GetTickCount();
     }
+    ++sResetFailures;
+    ++sResetAttempts;
 
-    internalResetState();
-    RedRenderer::internalInitOcclusionQuery();
+    const unsigned int uiElapsed = GetTickCount() - sResetStart;
+    const bool bRevertAvailable =
+        !sResetRevertUsed && memcmp(&m_d3dpp, &m_d3dppLast, sizeof(m_d3dpp)) != 0;
+    const DisplayLogic::ResetAction eAction = DisplayLogic::ResetStep(
+        hr, sResetFailures, uiElapsed, bRevertAvailable, DisplayLogic::kRuntimeBounds);
 
-    for (i = 0; i < m_numResetFunctions; ++i)
+    if (eAction == DisplayLogic::kResetRevert)
     {
-        m_resetFunctions[i](RESETFLAGS_CREATE_RESOURCES);
+        sResetRevertUsed = true;
+        LOG(LogRender, Warning,
+            "OPENSWBF2 RESET reverting asked=%ux%u windowed=%d used=%ux%u windowed=%d",
+            m_d3dpp.BackBufferWidth, m_d3dpp.BackBufferHeight, (int)m_d3dpp.Windowed,
+            m_d3dppLast.BackBufferWidth, m_d3dppLast.BackBufferHeight,
+            (int)m_d3dppLast.Windowed);
+        m_d3dpp = m_d3dppLast;
+        sResetFailures = 0;
+        sResetStart = GetTickCount();
+    }
+    else if (eAction == DisplayLogic::kResetFatal)
+    {
+        LOG(LogRender, Fatal, "device reset failed");
+        RedWarning::DialogBoxMessage("Device reset failed!");
+        pcCrash::FatalReset(hr, sResetFailures, uiElapsed);
     }
 }
 
@@ -4547,7 +4865,7 @@ bool sWaitForFrameQuery = true;
 bool sEnableOcclusionQueries = true;
 
 // FUNCTION: SWBF2 0x006b03e0
-void RedRenderer::BeginFrame()
+bool RedRenderer::BeginFrame()
 {
     if (sWaitForFrameQuery && m_pd3dQuery)
     {
@@ -4558,10 +4876,30 @@ void RedRenderer::BeginFrame()
         }
     }
 
-    if (hGlobalWnd == GetFocus() && m_pd3dDevice->TestCooperativeLevel() == D3DERR_DEVICENOTRESET)
+    const HRESULT hrCoop = m_pd3dDevice->TestCooperativeLevel();
+    if (m_bResourcesReleased && hrCoop == D3DERR_DEVICELOST)
+    {
+        sResetFailures = 0;
+        sResetRevertUsed = false;
+        return false;
+    }
+
+    if (m_bResourcesReleased || hrCoop == D3DERR_DEVICENOTRESET)
     {
         internalReset();
+        if (m_bResourcesReleased)
+        {
+            return false;
+        }
     }
+    else if (FAILED(hrCoop) && hrCoop != D3DERR_DEVICELOST)
+    {
+        LOG(LogRender, Fatal, "device lost state unrecoverable");
+        RedWarning::DialogBoxMessage("Device reset failed!");
+        pcCrash::FatalReset(hrCoop, 0, 0);
+    }
+
+    ResetScriptFrame();
 
     D3DCOLOR clearColor = (((((unsigned int)m_clearColor.a << 8) | m_clearColor.r) << 8
                             | m_clearColor.g) << 8) | m_clearColor.b;
@@ -4576,6 +4914,7 @@ void RedRenderer::BeginFrame()
     static util::VariableSet<util::SingletonAllocator<util::DefaultStaticAllocator> >& s_perFrame =
         util::Globals::GetInstance().GetSet("perFrame");
     s_perFrame.ResetAll();
+    return true;
 }
 
 // FUNCTION: SWBF2 0x006b0560
@@ -4627,6 +4966,10 @@ void RedRenderer::Cleanup()
         m_pDepthSurface->Release();
     }
     m_pDepthSurface = 0;
+    m_bResourcesReleased = true;
+    sResetFailures = 0;
+    sResetAttempts = 0;
+    sResetRevertUsed = false;
 
     for (int i = 0; i < 3; ++i)
     {
@@ -6711,6 +7054,11 @@ void RedRenderer::pcSetImmediateMode(int iValue)
 void RedRenderer::pcSetRenderTarget(RedTexture* pTarget, IDirect3DSurface9* pDepth)
 {
     static const RedViewport s_fullViewport = { 0.0f, 0.0f, 1.0f, 1.0f };
+
+    if (!pTarget && !m_pBackBufferSurface)
+    {
+        return;
+    }
 
     for (int i = 0; i < 4; ++i)
     {

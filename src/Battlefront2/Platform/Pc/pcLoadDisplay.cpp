@@ -10,7 +10,10 @@
 // FUNCTION: SWBF2 0x004238f0
 void LoadDisplay::PlatformRender()
 {
-    RedRenderer::BeginFrame();
+    if (!RedRenderer::BeginFrame())
+    {
+        return;
+    }
     RedRenderer::pcSetNearScene(true);
     RedRenderer::pcClear(7, RedColor::BLACK, 1.0f, 0);
     RedRenderer::BeginScene();

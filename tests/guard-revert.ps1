@@ -71,7 +71,7 @@ function Run-Smoke([string]$wt, [string]$tag, $case) {
         & cmd /c rmdir "$dataLink" | Out-Null
     }
     $ok = Test-SmokeExpect $case $res
-    return New-Object PSObject -Property @{ Ok = $ok; Class = $res.Class; Code = $res.Code; Dumps = @($res.Dumps).Count }
+    return New-Object PSObject -Property @{ Ok = $ok; Class = $res.Class; Code = $res.Code; Dumps = @($res.Dumps).Count; LogText = $res.LogText }
 }
 
 function Run-Case([string]$exe, [string]$wt, [string]$name) {
@@ -295,7 +295,9 @@ try {
                     $s = Run-Smoke $wt $r.Id $smokeCases[$r.Case]
                     $code = ('0x{0:X8}' -f $s.Code)
                     $detail = "class=$($s.Class) dumps=$($s.Dumps)"
-                    if ($s.Ok) { $result = 'STILL-GREEN' } else { $result = 'RED' }
+                    if ($s.Ok) { $result = 'STILL-GREEN' }
+                    elseif ($r.RedRx -and $s.LogText -cnotmatch $r.RedRx) { $result = 'WRONG-RED' }
+                    else { $result = 'RED' }
                 }
             }
             catch {

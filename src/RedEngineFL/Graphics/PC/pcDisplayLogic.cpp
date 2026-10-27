@@ -1,5 +1,7 @@
 #include <string.h>
 
+#include <d3d9.h>
+
 #include "pcDisplayLogic.h"
 
 #include "RedEngineFL/Util/RedLog.h"
@@ -221,6 +223,71 @@ unsigned int ResolveVsyncInterval(unsigned int uiRequested, unsigned long ulCaps
         return kIntervalDefault;
     }
     return kIntervalDefault;
+}
+
+const ResetBounds kStartupBounds = {0, 30000};
+const ResetBounds kRuntimeBounds = {20, 0};
+
+static ResetAction RevertOrFatal(bool bRevertAvailable)
+{
+    if (bRevertAvailable)
+    {
+        return kResetRevert;
+    }
+    return kResetFatal;
+}
+
+static bool OverBounds(unsigned int uiFailures, unsigned int uiElapsedMs, const ResetBounds& bounds)
+{
+    if (bounds.uiMaxFailures != 0 && uiFailures >= bounds.uiMaxFailures)
+    {
+        return true;
+    }
+    if (bounds.uiMaxMs != 0 && uiElapsedMs >= bounds.uiMaxMs)
+    {
+        return true;
+    }
+    return false;
+}
+
+ResetAction CoopStep(long hrCoop, unsigned int uiElapsedMs, const ResetBounds& bounds)
+{
+    if (hrCoop == D3DERR_DEVICELOST)
+    {
+        if (OverBounds(0, uiElapsedMs, bounds))
+        {
+            return kResetFatal;
+        }
+        return kResetWait;
+    }
+    if (SUCCEEDED(hrCoop) || hrCoop == D3DERR_DEVICENOTRESET)
+    {
+        return kResetNow;
+    }
+    return kResetFatal;
+}
+
+ResetAction ResetStep(long hr, unsigned int uiFailures, unsigned int uiElapsedMs,
+                      bool bRevertAvailable, const ResetBounds& bounds)
+{
+    if (SUCCEEDED(hr))
+    {
+        return kResetDone;
+    }
+    if (hr == D3DERR_DEVICELOST || hr == D3DERR_DEVICENOTRESET)
+    {
+        if (OverBounds(uiFailures, uiElapsedMs, bounds))
+        {
+            return RevertOrFatal(bRevertAvailable);
+        }
+        return kResetWait;
+    }
+    if (hr == D3DERR_INVALIDCALL || hr == D3DERR_NOTAVAILABLE || hr == E_OUTOFMEMORY ||
+        hr == D3DERR_OUTOFVIDEOMEMORY)
+    {
+        return RevertOrFatal(bRevertAvailable);
+    }
+    return kResetFatal;
 }
 
 }

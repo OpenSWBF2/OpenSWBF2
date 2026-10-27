@@ -1,5 +1,7 @@
 #include "third_party/doctest/doctest.h"
 
+#include <d3d9.h>
+
 #include "testutil.h"
 #include "RedEngineFL/Graphics/PC/pcDisplayLogic.h"
 
@@ -218,4 +220,82 @@ TEST_CASE("display logic vsync unknown request and null flag" * doctest::test_su
     CHECK(ResolveVsyncInterval(0, 0x1, true, nullptr) == kIntervalDefault);
     CHECK(ResolveVsyncInterval(2, 0, true, nullptr) == kIntervalDefault);
     CHECK(ResolveVsyncInterval(2, 3, false, nullptr) == kIntervalTwo);
+}
+
+TEST_CASE("reset step maps every code" * doctest::test_suite("unit"))
+{
+    CHECK(ResetStep(S_OK, 0, 0xFFFFFFFFu, true, kRuntimeBounds) == kResetDone);
+    CHECK(ResetStep(S_OK, 99, 0xFFFFFFFFu, false, kStartupBounds) == kResetDone);
+    CHECK(ResetStep(0x0876017C, 1, 0, false, kRuntimeBounds) == kResetDone);
+    CHECK(ResetStep(S_FALSE, 1, 0, false, kStartupBounds) == kResetDone);
+    CHECK(ResetStep(D3DERR_DEVICENOTRESET, 1, 0, true, kRuntimeBounds) == kResetWait);
+    CHECK(ResetStep(D3DERR_DEVICENOTRESET, 3, 100, false, kStartupBounds) == kResetWait);
+    CHECK(ResetStep(D3DERR_DRIVERINTERNALERROR, 1, 0, true, kRuntimeBounds) == kResetFatal);
+    CHECK(ResetStep(E_FAIL, 1, 0, true, kRuntimeBounds) == kResetFatal);
+    CHECK(ResetStep(D3DERR_DEVICEREMOVED, 1, 0, true, kStartupBounds) == kResetFatal);
+    CHECK(ResetStep(D3DERR_INVALIDCALL, 1, 0, true, kRuntimeBounds) == kResetRevert);
+}
+
+TEST_CASE("reset step lost device waits without limit" * doctest::test_suite("unit"))
+{
+    CHECK(kRuntimeBounds.uiMaxMs == 0);
+    CHECK(ResetStep(D3DERR_DEVICELOST, 1, 0xFFFFFFFFu, false, kRuntimeBounds) == kResetWait);
+    CHECK(ResetStep(D3DERR_DEVICELOST, 19, 0xFFFFFFFFu, true, kRuntimeBounds) == kResetWait);
+    CHECK(CoopStep(D3DERR_DEVICELOST, 0, kRuntimeBounds) == kResetWait);
+    CHECK(CoopStep(D3DERR_DEVICELOST, 30000, kRuntimeBounds) == kResetWait);
+    CHECK(CoopStep(D3DERR_DEVICELOST, 0xFFFFFFFFu, kRuntimeBounds) == kResetWait);
+}
+
+TEST_CASE("coop step maps every code" * doctest::test_suite("unit"))
+{
+    CHECK(CoopStep(S_OK, 0, kRuntimeBounds) == kResetNow);
+    CHECK(CoopStep(S_OK, 0xFFFFFFFFu, kStartupBounds) == kResetNow);
+    CHECK(CoopStep(0x08760868, 0, kRuntimeBounds) == kResetNow);
+    CHECK(CoopStep(D3DERR_DEVICENOTRESET, 0, kRuntimeBounds) == kResetNow);
+    CHECK(CoopStep(D3DERR_DEVICENOTRESET, 0xFFFFFFFFu, kStartupBounds) == kResetNow);
+    CHECK(CoopStep(D3DERR_DRIVERINTERNALERROR, 0, kRuntimeBounds) == kResetFatal);
+    CHECK(CoopStep(D3DERR_DEVICEREMOVED, 0, kStartupBounds) == kResetFatal);
+    CHECK(CoopStep(E_FAIL, 0, kRuntimeBounds) == kResetFatal);
+}
+
+TEST_CASE("coop step startup lost device times out without revert" * doctest::test_suite("unit"))
+{
+    CHECK(CoopStep(D3DERR_DEVICELOST, 29999, kStartupBounds) == kResetWait);
+    CHECK(CoopStep(D3DERR_DEVICELOST, 30000, kStartupBounds) == kResetFatal);
+    CHECK(CoopStep(D3DERR_DEVICELOST, 0xFFFFFFFFu, kStartupBounds) == kResetFatal);
+}
+
+TEST_CASE("reset step startup timeout is fatal" * doctest::test_suite("unit"))
+{
+    CHECK(kStartupBounds.uiMaxMs == 30000);
+    CHECK(ResetStep(D3DERR_DEVICELOST, 5, 29999, false, kStartupBounds) == kResetWait);
+    CHECK(ResetStep(D3DERR_DEVICELOST, 5, 30000, false, kStartupBounds) == kResetFatal);
+    CHECK(ResetStep(D3DERR_DEVICELOST, 5, 30000, true, kStartupBounds) == kResetRevert);
+    CHECK(ResetStep(D3DERR_DEVICELOST, 500, 29999, false, kStartupBounds) == kResetWait);
+}
+
+TEST_CASE("reset step runtime failure bound" * doctest::test_suite("unit"))
+{
+    CHECK(kRuntimeBounds.uiMaxFailures == 20);
+    CHECK(ResetStep(D3DERR_DEVICELOST, 19, 0xFFFFFFFFu, false, kRuntimeBounds) == kResetWait);
+    CHECK(ResetStep(D3DERR_DEVICELOST, 20, 0, false, kRuntimeBounds) == kResetFatal);
+    CHECK(ResetStep(D3DERR_DEVICELOST, 20, 0, true, kRuntimeBounds) == kResetRevert);
+    CHECK(ResetStep(D3DERR_DEVICENOTRESET, 19, 0, false, kRuntimeBounds) == kResetWait);
+    CHECK(ResetStep(D3DERR_DEVICENOTRESET, 20, 0, false, kRuntimeBounds) == kResetFatal);
+    CHECK(ResetStep(D3DERR_DEVICENOTRESET, 20, 0, true, kRuntimeBounds) == kResetRevert);
+    CHECK(ResetStep(D3DERR_DEVICENOTRESET, 1, 30000, false, kStartupBounds) == kResetFatal);
+}
+
+TEST_CASE("reset step reverts once then fatal" * doctest::test_suite("unit"))
+{
+    const long codes[] = {D3DERR_INVALIDCALL, D3DERR_NOTAVAILABLE, E_OUTOFMEMORY,
+                          D3DERR_OUTOFVIDEOMEMORY};
+    for (long hr : codes)
+    {
+        CHECK(ResetStep(hr, 1, 0, true, kRuntimeBounds) == kResetRevert);
+        CHECK(ResetStep(hr, 1, 0, false, kRuntimeBounds) == kResetFatal);
+    }
+    const long unknown = (long)0x88760999;
+    CHECK(ResetStep(unknown, 1, 0, true, kRuntimeBounds) == kResetFatal);
+    CHECK(ResetStep(unknown, 1, 0, false, kRuntimeBounds) == kResetFatal);
 }

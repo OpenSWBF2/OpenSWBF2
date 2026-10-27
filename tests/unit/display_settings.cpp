@@ -202,6 +202,7 @@ TEST_CASE("display settings save gate refuses without a good frame" * doctest::t
     Cleanup();
     DisplaySettings kSettings;
     SetDefaults(kSettings);
+    SetFromText(kSettings, kRefresh, "144", "test");
     CHECK(!SaveIni(kSettings, IniPath(), false));
     CHECK(!Exists(IniPath()));
 }

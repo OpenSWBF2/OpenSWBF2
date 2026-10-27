@@ -177,7 +177,11 @@ void pcRedIndexBuffer::Reset(ResetFlagsT eFlags)
         for (PblList<pcRedIndexBuffer>::Itor it = s_dynamicIndexBufferList.Begin();
              (pcRedIndexBuffer*)it != (pcRedIndexBuffer*)s_dynamicIndexBufferList.End(); ++it)
         {
-            it->m_buffer->Release();
+            if (it->m_buffer)
+            {
+                it->m_buffer->Release();
+                it->m_buffer = 0;
+            }
         }
     }
 

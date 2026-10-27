@@ -332,7 +332,11 @@ void pcRedVertexBuffer::Reset(ResetFlagsT eFlags)
             for (PblList<pcRedVertexBuffer>::Itor li = pList->Begin();
                  (pcRedVertexBuffer*)li != (pcRedVertexBuffer*)pList->End(); ++li)
             {
-                li->m_buffer->Release();
+                if (li->m_buffer)
+                {
+                    li->m_buffer->Release();
+                    li->m_buffer = 0;
+                }
                 li->m_appendPos = 0;
                 li->m_numBytesUsed = 0;
             }
@@ -343,7 +347,11 @@ void pcRedVertexBuffer::Reset(ResetFlagsT eFlags)
         {
             if (!li->m_static)
             {
-                li->m_buffer->Release();
+                if (li->m_buffer)
+                {
+                    li->m_buffer->Release();
+                    li->m_buffer = 0;
+                }
                 li->m_appendPos = 0;
                 li->m_numBytesUsed = 0;
             }

@@ -436,7 +436,7 @@ class FakeD3DSurface : public IDirect3DSurface9
 {
 public:
 
-    FakeD3DSurface() : refCount(1) {}
+    FakeD3DSurface() : refCount(1), bTracked(false) {}
 
     STDMETHOD(QueryInterface)(REFIID riid, void** ppvObj);
     STDMETHOD_(ULONG, AddRef)();
@@ -462,6 +462,7 @@ public:
     STDMETHOD(ReleaseDC)(HDC hdc);
 
     int refCount;
+    bool bTracked;
 };
 
  
@@ -1019,7 +1020,7 @@ public:
 
     static void SetShadowIntensity(float fIntensity);
 
-    static void BeginFrame();
+    static bool BeginFrame();
     static void BeginScene();
     static void Cleanup();
     static IDirect3D9* CreateFakeD3D();
@@ -1182,6 +1183,8 @@ public:
     // GLOBAL: SWBF2 0x007f5ecc -- 56 B, and the field/offset pairing is proved
 
     static D3DPRESENT_PARAMETERS m_d3dpp;
+    static D3DPRESENT_PARAMETERS m_d3dppLast;
+    static bool m_bResourcesReleased;
 
     // GLOBAL: SWBF2 0x007de300 -- the one INITIALISED datum of the seven, and the
 

@@ -21,4 +21,6 @@ namespace pcCrash
     void SetHangTimeout(int iSeconds);
     void StartWatchdog();
     char const* GetBuildId();
+    char const* GetCrashTest();
+    void FatalReset(long hr, unsigned int uiFailures, unsigned int uiElapsedMs);
 }

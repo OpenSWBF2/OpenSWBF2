@@ -9,6 +9,7 @@
 #include "pcCrash.h"
 #include "GameMemory.h"
 #include "LuaHelper.h"
+#include "GameState.h"
 #include "RedEngineFL/Memory/RedMemory.h"
 #include "RedEngineFL/Util/RedLog.h"
 #include "RedEngineFL/Application/pc/pcFrameLimiter.h"
@@ -437,6 +438,39 @@ void pcCrash::StartWatchdog()
     }
 }
 
+char const* pcCrash::GetCrashTest()
+{
+    return gCrashKind;
+}
+
+void pcCrash::FatalReset(long hr, unsigned int uiFailures, unsigned int uiElapsedMs)
+{
+    if (InterlockedExchange(&gFaultGuard, 1) == 1)
+    {
+        TerminateNow(1);
+    }
+    gFaultThreadId = GetCurrentThreadId();
+    gDumpPath[0] = 0;
+    gDumpInfo.ExceptionPointers = 0;
+    if (ghFaultEvent != 0 && ghDoneEvent != 0)
+    {
+        SetEvent(ghFaultEvent);
+        WaitForSingleObject(ghDoneEvent, 30000);
+    }
+    char acPath[MAX_PATH * 3];
+    lstrcpyA(acPath, "none");
+    if (gDumpPath[0] != 0 && WideCharToMultiByte(CP_ACP, 0, gDumpPath, -1, acPath, sizeof(acPath), 0, 0) == 0)
+    {
+        lstrcpyA(acPath, "none");
+    }
+    wsprintfA(gFatalLine, "FATAL: device reset failed hr=0x%08X failures=%u after=%u ms build %s dump %.400s\r\n",
+        (unsigned int)hr, uiFailures, uiElapsedMs, gBuildId, acPath);
+    AppendLog(gFatalLine);
+    WriteEnsureSummary();
+    FrameLimiter::Shutdown();
+    TerminateNow(1);
+}
+
 void pcCrash::Reinstall()
 {
     InstallHandlers();
@@ -657,13 +691,19 @@ void pcCrash::RunMissionCrashTest()
         (void)ensure(false);
         check(false);
     }
+    else if (strcmp(gCrashKind, "resetlaterinit") == 0)
+    {
+        sbRan = true;
+        GameState::SetState(0x8FF60339);
+    }
 }
 
 void pcCrash::SetCrashTest(char const* pcKind)
 {
     static char const* const apcKinds[] = { "nullderef", "divzero", "stackoverflow", "debugbreak", "abort",
         "invalidparam", "fastfail", "arenaoom", "debugheapoom", "heapfail",
-        "luaoom", "luapanic", "hang", "check" };
+        "luaoom", "luapanic", "hang", "check", "resetrecover", "resetfatal", "resetinitlost",
+        "resetflap", "resetlaterinit" };
     if (pcKind == 0)
     {
         return;
