@@ -69,6 +69,7 @@
 #include "VoiceOverManager.h"
 #include "Battlefront2/Platform/Pc/pcSpawnDisplay.h"
 #include "PebbleFL/Common/PblHashTable.h"
+#include "PebbleFL/Common/PblRandom.h"
 #include "RedEngineFL/input/RedKeyboard.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "PebbleFL/Common/PblTimeBase.h"
@@ -303,6 +304,7 @@ namespace PopupText { void Init(); }
 extern float netSecondsPerTurn;
 extern int netCurMaxPlayers;
 extern HWND hGlobalWnd;
+extern double gSoundClockTime;
 
 // FUNCTION: SWBF2 0x005337a0
 void UpdateDedicatedNoRender()
@@ -1320,6 +1322,15 @@ void Update(float fDeltaTime, float fSystemDeltaTime)
                 NetGame::HostChangePregame();
             }
             NetGame::UpdatePreGame();
+            static unsigned int suDigestTurns;
+            static bool sbDigestLogged;
+            suDigestTurns += iTurnsRun;
+            if (gExitOnGameOver && !sbDigestLogged && suDigestTurns >= 1500)
+            {
+                sbDigestLogged = true;
+                LOG(LogSim, Inform, "OPENSWBF2 SIM DIGEST turns=%u time=%.3f rand=%u/%u snd=%.3f", suDigestTurns,
+                    GameLoop::GetMissionTime(), PblRandom::_Global._uiSeed, PblRandom::_Sim._uiSeed, gSoundClockTime);
+            }
             if (iTurnsRun && !sGameOver && Team::sWinningTeams)
             {
                 bGameOverNow = true;

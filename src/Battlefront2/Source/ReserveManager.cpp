@@ -241,7 +241,7 @@ PblVector3 ReserveOffset(const GameObject* pTarget, const GameObject* pSelf, For
     {
     case FT_RANDOM:
     {
-        PblRandom random = { ((unsigned int)pTarget - (int)(GameLoop::GetMissionTime() * -0.125f)) ^ 0xC71C2830u };
+        PblRandom random = { (pTarget->PblHandled::GetHandleId() - (int)(GameLoop::GetMissionTime() * -0.125f)) ^ 0xC71C2830u };
         for (int i = iOrder; i > 0; --i)
         {
             random.GetVector3();
@@ -272,8 +272,8 @@ PblVector3 ReserveOffset(const GameObject* pTarget, const GameObject* pSelf, For
 
     case FT_DOUBLEFILE_RAND:
     {
-        const float fBits = (float)(((unsigned int)pSelf >> 5) & 7);
-        PblRandom random = { ((unsigned int)pTarget - (int)((GameLoop::GetMissionTime() + fBits) * -0.125f)) ^ 0xC71C2830u };
+        const float fBits = (float)(pSelf->PblHandled::GetHandleId() & 7);
+        PblRandom random = { (pTarget->PblHandled::GetHandleId() - (int)((GameLoop::GetMissionTime() + fBits) * -0.125f)) ^ 0xC71C2830u };
         for (int i = iOrder; i > 0; --i)
         {
             random.GetVector3();

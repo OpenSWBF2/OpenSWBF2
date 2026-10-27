@@ -34,6 +34,9 @@ static const float g_MovieStopDelayTime = 2.0f;
 
 // GLOBAL: SWBF2 0x01e56278
 unsigned __int64 g_InGameMovieStartTime;
+float g_InGameMovieStartSystemTime;
+
+extern float g_fFixedRate;
 
 extern bool g_InGameMoviePlayerUpdateEnable;
 
@@ -459,7 +462,10 @@ void StopInGameMoviePlay()
         LARGE_INTEGER liNow;
         QueryPerformanceCounter(&liNow);
         const float fElapsed = (float)(liNow.QuadPart - g_InGameMovieStartTime);
-        if (fElapsed / (float)PblTime::ticksPerSecond > g_MovieStopDelayTime)
+        const float fSeconds = g_fFixedRate > 0.0f
+            ? GameState::GetSystemTimeBase()->GetTime() - g_InGameMovieStartSystemTime
+            : fElapsed / (float)PblTime::ticksPerSecond;
+        if (fSeconds > g_MovieStopDelayTime)
         {
             g_InGameMoviePlayerState = 0;
             g_InGameMoviePlayerFrame = 0;

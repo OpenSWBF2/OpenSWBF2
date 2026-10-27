@@ -44,9 +44,13 @@ static unsigned __int64 sLastSoundTick;
 
 static float sAccumulatedSoundTime;
 
+double gSoundClockTime;
+
 namespace FrameUpdate {
 extern float fOneOverTicksPerSecond;
 }
+
+extern float g_fFixedRate;
 extern int g_InGameMoviePlayerState;
 namespace Lua_Callbacks { extern bool sGameMusicRetrigger; }
 namespace Lua_Callbacks { extern unsigned int sGameMusicCurDelayTime; }
@@ -668,7 +672,6 @@ void Music::UpdateAll(float fDeltaTime)
 // FUNCTION: SWBF2 0x00538d00
 void GameSoundEngine::Update(float fDeltaTime)
 {
-    (void)fDeltaTime;
     if (NetGame::IsEnabled() && NetGame::IsDedicated())
     {
         return;
@@ -681,8 +684,9 @@ void GameSoundEngine::Update(float fDeltaTime)
     const unsigned __int64 uiNow = PblTime::GetTickCount();
     const int iTicks = (int)((unsigned int)(uiNow - sLastSoundTick) & 0x7fffffff);
     sLastSoundTick = uiNow;
-    const float fElapsed = (float)iTicks * FrameUpdate::fOneOverTicksPerSecond;
+    const float fElapsed = g_fFixedRate > 0.0f ? fDeltaTime : (float)iTicks * FrameUpdate::fOneOverTicksPerSecond;
 
+    gSoundClockTime += fElapsed;
     sAccumulatedSoundTime += fElapsed;
     if (!(sAccumulatedSoundTime > 0.02f))
     {

@@ -1435,8 +1435,7 @@ bool WeaponMelee::Deflect(const Ordnance* pOrdnance, const PblVector3& pos, cons
         if (pOrdnance->IsRtti(OrdnanceBeam::rttiHashOrdnanceBeam))
         {
 
-            PblRandom rand(((unsigned int)pOrdnance ^ (unsigned int)pOrdnance->GetOwner() ^
-                          pOrdnance->PblHandled::GetHandleId()) ^ 0xC71C2830u);
+            PblRandom rand((pOrdnance->PblHandled::GetHandleId() ^ (pOrdnance->GetOwner() ? pOrdnance->GetOwner()->PblHandled::GetHandleId() : 0u)) ^ 0xC71C2830u);
             const float fPhase = rand.GetFloat();
             const float fScatter = rand.GetFloat();
             float fSin = 0.0f;

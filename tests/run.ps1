@@ -11,7 +11,9 @@ param(
     [int]$SmokeTimeout = 120,
     [string]$SmokeConfiguration = 'Release',
     [switch]$Movies,
-    [switch]$Hardening
+    [switch]$Hardening,
+    [switch]$HogAddrSpace,
+    [ValidateRange(1,64)][int]$Jobs = 1
 )
 $ErrorActionPreference = 'Stop'
 $testsDir = $PSScriptRoot
@@ -242,7 +244,7 @@ if ($smokeActive) {
     if ($Smoke -eq 'All') { $missionFile = Join-Path $testsDir 'smoke\missions-all.txt' }
     $missions = @()
     if (Test-Path $missionFile) { $missions = @(Get-Content $missionFile | Where-Object { $_.Trim() }) }
-    $smokeCases = @(Get-SmokeCases $Smoke $missions $Movies.IsPresent $null)
+    $smokeCases = @(Get-SmokeCases $Smoke $missions $Movies.IsPresent $null $HogAddrSpace.IsPresent)
     if ($reason) {
         $final = 'SKIP'
         $tag = 'SKIP'
@@ -258,27 +260,61 @@ if ($smokeActive) {
         foreach ($w in (Test-WerSetup)) { Write-Host "WARNING: $w" }
         $gameExe = Join-Path $exeDir 'BattlefrontII.exe'
         $scoreKeys = @{}
-        foreach ($sc in $smokeCases) {
-            $caseDir = Join-Path $outDir "smoke\$($sc.Name)"
-            $argLine = $sc.Args.Replace('{CASEDIR}', $caseDir)
-            $caseTimeout = $SmokeTimeout
-            if ($sc.Timeout -gt 0) { $caseTimeout = $sc.Timeout }
-            $res = Invoke-SmokeCase $sc.Name $gameExe $exeDir $argLine $caseTimeout $caseDir
-            $ok = Test-SmokeExpect $sc $res
-            $tok = Get-SmokeToken $res.Class
-            if ($ok) { $tok = 'PASS' }
-            elseif ($tok -eq 'PASS') { $tok = 'FAIL' }
-            $line = ('[{0}] smoke:{1} class={2} exit=0x{3:X8} ({4} ms)' -f $tok, $sc.Name, $res.Class, $res.Code, $res.Ms)
-            Add-SmokeResult $line $tok
-            if ($tok -ne 'PASS') {
-                Write-Host "    details: $caseDir"
-                $bad++
+        $useParallel = ($Jobs -gt 1) -and ($smokeCases.Count -gt 1) -and ($Smoke -ne 'Twice')
+        $batch = $null
+        $workDirs = @()
+        if ($useParallel) {
+            $workerCount = [Math]::Min($Jobs, $smokeCases.Count)
+            Write-Host "INFO: smoke jobs=$workerCount"
+            for ($w = 1; $w -le $workerCount; $w++) { $workDirs += (Join-Path $outDir "smoke-workers\w$w") }
+            $items = @()
+            foreach ($sc in $smokeCases) {
+                $caseDir = Join-Path $outDir "smoke\$($sc.Name)"
+                $caseTimeout = $SmokeTimeout
+                if ($sc.Timeout -gt 0) { $caseTimeout = $sc.Timeout }
+                $items += New-Object PSObject -Property @{ Name = $sc.Name; ExeName = 'BattlefrontII.exe'; ArgLine = $sc.Args.Replace('{CASEDIR}', $caseDir); Timeout = $caseTimeout; CaseDir = $caseDir }
             }
-            if ($sc.Twice -gt 0) { $scoreKeys[$sc.Twice] = Get-FinalScoreKey $caseDir }
         }
-        if ($scoreKeys.Count -eq 2) {
-            if ($scoreKeys[1] -and $scoreKeys[1] -eq $scoreKeys[2]) { Write-Host 'INFO: run-twice match' }
-            else { Write-Host 'INFO: run-twice mismatch' }
+        try {
+            if ($useParallel) {
+                foreach ($d in $workDirs) { New-SmokeWorkerDir $exeDir $d }
+                $batch = Start-SmokeBatch $items $workDirs
+            }
+            $caseIndex = -1
+            foreach ($sc in $smokeCases) {
+                $caseIndex++
+                $caseDir = Join-Path $outDir "smoke\$($sc.Name)"
+                $argLine = $sc.Args.Replace('{CASEDIR}', $caseDir)
+                $caseTimeout = $SmokeTimeout
+                if ($sc.Timeout -gt 0) { $caseTimeout = $sc.Timeout }
+                if ($useParallel) { $res = Receive-SmokeCase $batch $caseIndex }
+                else { $res = Invoke-SmokeCase $sc.Name $gameExe $exeDir $argLine $caseTimeout $caseDir }
+                $ok = Test-SmokeExpect $sc $res
+                $tok = Get-SmokeToken $res.Class
+                if ($ok) { $tok = 'PASS' }
+                elseif ($tok -eq 'PASS') { $tok = 'FAIL' }
+                $line = ('[{0}] smoke:{1} class={2} exit=0x{3:X8} ({4} ms)' -f $tok, $sc.Name, $res.Class, $res.Code, $res.Ms)
+                Add-SmokeResult $line $tok
+                if ($tok -ne 'PASS') {
+                    Write-Host "    details: $caseDir"
+                    $bad++
+                }
+                if ($sc.Twice -gt 2) { $scoreKeys[$sc.Twice] = Get-DigestKey $caseDir }
+                elseif ($sc.Twice -gt 0) { $scoreKeys[$sc.Twice] = Get-FinalScoreKey $caseDir }
+            }
+        }
+        finally {
+            if ($batch) { Stop-SmokeBatch $batch }
+            foreach ($d in $workDirs) { Remove-SmokeWorkerDir $d }
+        }
+        foreach ($pair in @(@(1, 2, 'run-twice'), @(3, 4, 'run-twice-digest'))) {
+            if ($scoreKeys.ContainsKey($pair[0]) -and $scoreKeys.ContainsKey($pair[1])) {
+                if ($scoreKeys[$pair[0]] -and $scoreKeys[$pair[0]] -eq $scoreKeys[$pair[1]]) { Add-SmokeResult "[PASS] smoke:$($pair[2]) match" 'PASS' }
+                else {
+                    Add-SmokeResult "[FAIL] smoke:$($pair[2]) mismatch" 'FAIL'
+                    $bad++
+                }
+            }
         }
     }
 }

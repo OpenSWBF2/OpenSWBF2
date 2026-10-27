@@ -201,13 +201,17 @@ static WireSeed MakeWireInput(unsigned int uSeed, unsigned int uIter, const std:
         case 0:
             if (!b.empty())
             {
-                b[rng() % b.size()] ^= (unsigned char)(1u << (rng() % 8));
+                size_t uPos = rng() % b.size();
+                unsigned int uBit = rng() % 8;
+                b[uPos] ^= (unsigned char)(1u << uBit);
             }
             break;
         case 1:
             if (!b.empty())
             {
-                b[rng() % b.size()] = (unsigned char)rng();
+                unsigned char uVal = (unsigned char)rng();
+                size_t uPos = rng() % b.size();
+                b[uPos] = uVal;
             }
             break;
         case 2:

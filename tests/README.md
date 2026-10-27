@@ -75,10 +75,12 @@ tests/selftest.ps1 runs negative checks of run.ps1 against stub executables; it 
 
 | Switch | Meaning |
 |--------|---------|
-| `-Smoke` | `None`, `Standard` (default), `Dedicated`, `Crash`, `All` (every mission in `tests\smoke\missions.txt`, Dedicated and Crash) or `Twice` (Standard twice with `-seed 1`, prints `INFO: run-twice match` or `mismatch`, never fails) |
+| `-Smoke` | `None`, `Standard` (default), `Dedicated`, `Crash`, `All` (every mission in `tests\smoke\missions.txt`, Dedicated and Crash) or `Twice` (Standard twice with `-seed 1`, the two runs must produce the same `finalscore.log` line apart from the timestamp, reported as `[PASS] smoke:run-twice match` or `[FAIL] smoke:run-twice mismatch`; then `nab2g_c` twice, a mission that never ends, until the `OPENSWBF2 SIM DIGEST` run-log line, which carries the mission time and both random seeds after 1500 turns, matches: `smoke:run-twice-digest`) |
 | `-SmokeTimeout` | per-case seconds (default 120); on expiry the process tree is killed with `taskkill /T /F` |
 | `-SmokeConfiguration` | `Release` (default) or `Debug`; builds `BattlefrontII.vcxproj` unless `-NoBuild` |
 | `-Movies` | drop `-norender` so movies and the renderer run |
+| `-HogAddrSpace` | append `-hogaddrspace` to every Standard, Dedicated, All-mission and Twice case so the arena lands above 2 GB, and require the `OPENSWBF2 ADDRSPACE` line with `arena=0x8...` or higher, `laa=1`, `steam=1` and non-zero `steam_api`, `Galaxy` and `binkw32` bases (`GalaxyPeer` is only mapped after an online login, so any value passes). Crash cases are unchanged. Off by default; `-Smoke All -HogAddrSpace` takes about 2 hours |
+| `-Jobs N` | number of concurrent smoke workers (default 1 = serial, unchanged). Each worker gets its own run folder under the run's artifacts directory (`smoke-workers\wN`) with a copied exe and DLLs and a `data` junction to the staged `bin\Win32\<Config>\data`. Output and results stay in case order. Twice cases and the aslr-base probe stay serial, and a hung case is killed by process tree for that case only. Headless (`-norender`) runs use a message-only window and take no single-instance mutex, which is what lets workers coexist |
 
 Cases run one at a time with the exe directory as the working directory. Without retail GameData, or without the exe and the Bink, Galaxy and Steam DLLs beside it, every selected case prints `[SKIP] ... class=Skipped` and the game is not built. A skipped run exits 0.
 
@@ -108,9 +110,13 @@ The runner prints `WARNING:` lines when the crash dump setup is missing. Import 
 
 With `-Movies` the retail `vidmode.ini` in `data\_lvl_pc` decides the video mode, so a stale or fullscreen entry can change what the run shows.
 
+## LAA comparison
+
+`tests\laa-compare.ps1 [-Runs N] [-Configuration Release] [-NoBuild] [-Jobs 8] [-OutDir path]` is opt-in and not part of `run.ps1`. It copies the built exe, patches only the copy with `editbin /LARGEADDRESSAWARE:NO`, then runs the Standard mission `-Runs` times (minimum 5) with the patched copy and `-Runs` times with the real exe plus `-hogaddrspace`, in parallel worker folders. It checks both headers with `dumpbin`, checks the arena sits below 2 GB for the patched copy and above it for the real exe, and compares the `finalscore.log` key and the `[f=N]` frame count of every run. The key and frame count must be identical across all runs on both sides. Nothing is masked beyond the date and time prefix. It prints `[PASS] laa-compare` or `[FAIL] laa-compare` (exit 1) and skips with exit 0 when GameData or DLLs are missing. 5 runs per side take about 20 seconds with 8 jobs.
+
 ## Hardening
 
-`tests\run.ps1 -Hardening` builds the game (no GameData needed) and runs only the hardening step: `dumpbin /headers` and `/loadconfig` on `bin\Win32\<SmokeConfiguration>\BattlefrontII.exe` plus a count of `/GS-` in the cl tlog, which is also checked for `/sdl` on every entry. It prints one `[PASS]`/`[FAIL] hardening:<flag>` line each for dynamicbase, nxcompat, reloc, safeseh, gs and sdl, and any missing flag fails the run. dumpbin is found through `VS120COMNTOOLS`; if it is missing the run exits 2. The default run also performs this step.
+`tests\run.ps1 -Hardening` builds the game (no GameData needed) and runs only the hardening step: `dumpbin /headers` and `/loadconfig` on `bin\Win32\<SmokeConfiguration>\BattlefrontII.exe` plus a count of `/GS-` in the cl tlog, which is also checked for `/sdl` on every entry. It prints one `[PASS]`/`[FAIL] hardening:<flag>` line each for dynamicbase, nxcompat, laa, reloc, safeseh, gs and sdl, and any missing flag fails the run. dumpbin is found through `VS120COMNTOOLS`; if it is missing the run exits 2. The default run also performs this step.
 
 With GameData, `hardening:aslr-base` launches the game once and requires `MainModule.BaseAddress` to differ from 0x400000. Windows picks the base once per boot, so two launches are not compared. Without GameData the line is `[SKIP]`.
 

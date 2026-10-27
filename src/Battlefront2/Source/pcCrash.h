@@ -14,6 +14,8 @@ namespace pcCrash
     void RunMissionCrashTest();
     void FatalInit(char const* pcWhat, unsigned int uiSize);
     bool SimulateAllocFailure(char const* pcKind);
+    void ReserveLowAddressSpace();
+    bool IsLargeAddressAware();
     void __cdecl Check(char const* pcExpr, char const* pcFile, int iLine);
     void Tick();
     void SetHangTimeout(int iSeconds);

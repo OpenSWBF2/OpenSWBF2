@@ -3761,6 +3761,9 @@
     <ClInclude Include="src\PebbleFL\Common\PblPlane.h">
       <Filter>src\PebbleFL\Common</Filter>
     </ClInclude>
+    <ClInclude Include="src\PebbleFL\Common\PblPtrOrder.h">
+      <Filter>src\PebbleFL\Common</Filter>
+    </ClInclude>
     <ClInclude Include="src\PebbleFL\Common\PblQuaternion.h">
       <Filter>src\PebbleFL\Common</Filter>
     </ClInclude>

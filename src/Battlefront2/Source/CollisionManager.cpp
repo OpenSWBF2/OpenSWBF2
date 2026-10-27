@@ -2,6 +2,7 @@
 
 #include "CollisionManager.h"
 #include "CameraManager.h"
+#include "PebbleFL/Common/PblPtrOrder.h"
 #include "CollisionModel.h"
 #include "CollisionObject.h"
 #include "EntityMine.h"
@@ -1188,7 +1189,7 @@ void CollisionManager::UpdateSimple(PblList<CollisionObject>& list, int iFilter)
         while (data.mLength > 0)
         {
             CollisionObject* pOther = data.mArray[--data.mLength];
-            if (bMine || (int)pOther > (int)pObject)
+            if (bMine || PblPtrAfter(pOther, pObject))
             {
                 pObject->CheckForCollision(pOther, NULL, NULL);
             }

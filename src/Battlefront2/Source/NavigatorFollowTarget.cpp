@@ -61,7 +61,7 @@ PblVector3 GetSineRandomOffsetXZ(const GameObject* pObj, const int i)
     const PblVector3& pos = GameObjectPosition(pObj);
     const float fPhase = pos.x * 0.2f + pos.y * 0.2f + pos.z * 0.2f;
 
-    PblRandom rand(((unsigned int)pObj + i * 1009) ^ 0xC71C2830);
+    PblRandom rand((pObj->PblHandled::GetHandleId() + i * 1009) ^ 0xC71C2830);
 
     const float fFreqX = rand.GetFloat() + 0.5f;
     const float fX = PblMath::Sin(fFreqX * fPhase + rand.GetFloat() * 6.2831855f);

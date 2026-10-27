@@ -62,7 +62,7 @@ function Run-Smoke([string]$wt, [string]$tag, $case) {
     }
     Copy-Item (Join-Path $wt 'bin\Win32\Release\BattlefrontII.exe') $runDir -Force
     $dataLink = Join-Path $runDir 'data'
-    & cmd /c mklink /J "$dataLink" "$($script:gameData)\data" | Out-Null
+    & cmd /c mklink /J "$dataLink" "$(Join-Path $srcBin 'data')" | Out-Null
     try {
         $argLine = $case.Args.Replace('{CASEDIR}', $caseDir)
         $res = Invoke-SmokeCase $case.Name (Join-Path $runDir 'BattlefrontII.exe') $runDir $argLine 120 $caseDir
@@ -134,7 +134,8 @@ $rows = @($GuardRevertRows)
 if ($Row) { $rows = @($rows | Where-Object { $Row -contains $_.Id }) }
 if ($rows.Count -eq 0) { Write-Host 'No rows selected.'; exit 2 }
 $smokeRows = @($rows | Where-Object { $_.Kind -eq 'Smoke' })
-$rows = @($rows | Where-Object { $_.Kind -ne 'Smoke' })
+$hardRows = @($rows | Where-Object { $_.Kind -eq 'Hardening' })
+$rows = @($rows | Where-Object { $_.Kind -ne 'Smoke' -and $_.Kind -ne 'Hardening' })
 $gameData = Find-GameDataRoot
 $smokeCases = @{}
 foreach ($c in (Get-SmokeCases 'Crash' @() $false $null)) { $smokeCases[$c.Name] = $c }
@@ -222,6 +223,47 @@ try {
             $table += New-Object PSObject -Property @{ Id = $r.Id; Tests = ($r.Tests -join ' | '); Control = $ctl; Reverted = $result; Exit = $code; Detail = $detail }
             if ($result -ne 'RED' -or $ctl -ne 'GREEN') { $failed = $true }
             Write-Host ('{0,-12} control={1,-8} reverted={2,-11} exit={3} {4}' -f $r.Id, $ctl, $result, $code, $detail)
+        }
+    }
+
+    if ($hardRows.Count -gt 0) {
+        $wtExe = Join-Path $wt 'bin\Win32\Release\BattlefrontII.exe'
+        $getCheck = {
+            param($name)
+            $db = Find-Dumpbin
+            $hdr = (& $db /headers $wtExe) -join "`n"
+            return (Get-HardeningChecks $hdr '' 0 0 0 | Where-Object { $_.Name -eq $name })
+        }
+        if (-not (Build-Game $wt (Join-Path $OutDir 'build-hardening-control.log'))) { throw "hardening control build failed, see $(Join-Path $OutDir 'build-hardening-control.log')" }
+        $hardControl = @{}
+        foreach ($name in ($hardRows | ForEach-Object { $_.Check } | Select-Object -Unique)) {
+            $hardControl[$name] = [bool](& $getCheck $name).Ok
+        }
+        foreach ($r in $hardRows) {
+            $path = Join-Path $wt $r.File
+            $orig = $null
+            $result = 'BUILD-FAIL'
+            $detail = ''
+            $ctl = 'GREEN'
+            if (-not $hardControl[$r.Check]) { $ctl = 'FAIL' }
+            try {
+                $orig = Set-Anchor $path $r.Anchor $r.Replacement
+                if (Build-Game $wt (Join-Path $OutDir "build-$($r.Id).log")) {
+                    $chk = & $getCheck $r.Check
+                    $detail = "check=$($r.Check) ok=$($chk.Ok)"
+                    if ($chk.Ok) { $result = 'STILL-GREEN' } else { $result = 'RED' }
+                }
+            }
+            catch {
+                $result = 'ERROR'
+                $detail = $_.Exception.Message
+            }
+            finally {
+                if ($orig) { [IO.File]::WriteAllBytes($path, $orig) }
+            }
+            $table += New-Object PSObject -Property @{ Id = $r.Id; Tests = "hardening:$($r.Check)"; Control = $ctl; Reverted = $result; Exit = ''; Detail = $detail }
+            if ($result -ne 'RED' -or $ctl -ne 'GREEN') { $failed = $true }
+            Write-Host ('{0,-12} control={1,-8} reverted={2,-11} {3}' -f $r.Id, $ctl, $result, $detail)
         }
     }
 
