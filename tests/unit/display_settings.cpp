@@ -253,6 +253,23 @@ TEST_CASE("display settings save skips command line values" * doctest::test_suit
     CHECK(kLoaded.uiVsync == 0);
 }
 
+TEST_CASE("display settings save never writes unset keys" * doctest::test_suite("unit"))
+{
+    Cleanup();
+    DisplaySettings kSettings;
+    SetDefaults(kSettings);
+    SetFromText(kSettings, kRefresh, "144", "test");
+    CHECK(SaveIni(kSettings, IniPath(), true));
+    DisplaySettings kLoaded;
+    SetDefaults(kLoaded);
+    LoadIni(kLoaded, IniPath());
+    Cleanup();
+    CHECK(kLoaded.uiRefresh == 144);
+    CHECK((kLoaded.uiSet & kVsync) == 0);
+    CHECK((kLoaded.uiSet & kFps) == 0);
+    CHECK((kLoaded.uiSet & kAdapter) == 0);
+}
+
 TEST_CASE("display settings init merges defaults ini and command line" * doctest::test_suite("unit"))
 {
     WriteText("[Display]\r\nRefresh=60\r\nFps=100\r\n");

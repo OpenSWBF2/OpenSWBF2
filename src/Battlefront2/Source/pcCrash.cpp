@@ -11,6 +11,7 @@
 #include "LuaHelper.h"
 #include "RedEngineFL/Memory/RedMemory.h"
 #include "RedEngineFL/Util/RedLog.h"
+#include "RedEngineFL/Application/pc/pcFrameLimiter.h"
 
 typedef BOOL (WINAPI* MiniDumpWriteDumpFn)(HANDLE, DWORD, HANDLE, MINIDUMP_TYPE,
     PMINIDUMP_EXCEPTION_INFORMATION, PMINIDUMP_USER_STREAM_INFORMATION, PMINIDUMP_CALLBACK_INFORMATION);
@@ -472,6 +473,8 @@ void pcCrash::SetLogPath(char const* pcPath)
 
 void __cdecl pcCrash::Exit(int iCode)
 {
+    FrameLimiter::Shutdown();
+
     if (iCode == 0)
     {
         LPTOP_LEVEL_EXCEPTION_FILTER pfnPrev = SetUnhandledExceptionFilter(gpfnUef);

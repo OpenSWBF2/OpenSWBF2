@@ -24,6 +24,8 @@
 #include "pcRedVertexBuffer.h"
 #include "pcRedPoolMath.h"
 #include "pcDisplaySettings.h"
+#include "pcDisplayLogic.h"
+#include "RedEngineFL/Application/pc/pcFrameLimiter.h"
 
 #include "RedEngineFL/Graphics/RedAmbientLight.h"
 
@@ -2491,6 +2493,37 @@ TransparentHeap<RenderItem*, unsigned int> RedRenderer::m_posttransparentItems(5
 extern HWND hGlobalWnd;
 
 extern bool g_bNoRender;
+extern bool sWaitForFrameQuery;
+
+static_assert(DisplayLogic::kIntervalDefault == D3DPRESENT_INTERVAL_DEFAULT, "interval default");
+static_assert(DisplayLogic::kIntervalTwo == D3DPRESENT_INTERVAL_TWO, "interval two");
+static_assert(DisplayLogic::kIntervalImmediate == D3DPRESENT_INTERVAL_IMMEDIATE, "interval immediate");
+
+static unsigned long sPresentIntervals = 0;
+static bool sbWarnedVsyncFallback = false;
+
+static void NoteVsyncFallback(bool bFellBack)
+{
+    if (bFellBack && !sbWarnedVsyncFallback)
+    {
+        LOG(LogRender, Warning, "vsync: requested interval not supported here, using on");
+    }
+    sbWarnedVsyncFallback = bFellBack;
+}
+
+static unsigned int ResolveInterval(bool bProfile, bool bWindowed, bool bWarn)
+{
+    bool bFellBack = false;
+    const unsigned int uiInterval = DisplayLogic::ResolveVsyncInterval(
+        DisplayLogic::EffectiveVsync((DisplayCfg::gDisplay.uiSet & DisplayCfg::kVsync) != 0,
+                                     DisplayCfg::gDisplay.uiVsync, bProfile),
+        sPresentIntervals, bWindowed, &bFellBack);
+    if (bWarn)
+    {
+        NoteVsyncFallback(bFellBack);
+    }
+    return uiInterval;
+}
 
 // GLOBAL: SWBF2 0x007f5948
 IDirect3D9* RedRenderer::m_pD3D;
@@ -2550,6 +2583,19 @@ RedColor RedRenderer::m_lightingScaleColor;
 // FUNCTION: SWBF2 0x006b1a90
 void RedRenderer::Init()
 {
+    static bool sbLoggedPacing = false;
+    if (!sbLoggedPacing)
+    {
+        sbLoggedPacing = true;
+        const unsigned long ulInterval = m_d3dpp.PresentationInterval;
+        const char* pcVsync = ulInterval == D3DPRESENT_INTERVAL_IMMEDIATE
+                                  ? "off"
+                                  : (ulInterval == D3DPRESENT_INTERVAL_TWO ? "half" : "on");
+        LOG(LogRender, Inform, "OPENSWBF2 PACING fps=%u vsync=%s interval=0x%08X waitquery=%d timer=%s",
+            DisplayCfg::gDisplay.uiFps, pcVsync, ulInterval, sWaitForFrameQuery ? 1 : 0,
+            FrameLimiter::KindName(FrameLimiter::Kind()));
+    }
+
     WINDOWPLACEMENT wndpl;
     wndpl.length = sizeof(wndpl);
     GetWindowPlacement(hGlobalWnd, &wndpl);
@@ -2759,6 +2805,8 @@ void RedRenderer::Init()
 // FUNCTION: SWBF2 0x006b2270
 void RedRenderer::InitStatic()
 {
+    sWaitForFrameQuery = !DisplayCfg::gDisplay.bNoWaitQuery;
+    sPresentIntervals = 0;
 
     if (!g_bNoRender)
     {
@@ -2835,7 +2883,7 @@ void RedRenderer::InitStatic()
     m_d3dpp.BackBufferFormat = D3DFMT_A8R8G8B8;
     m_d3dpp.EnableAutoDepthStencil = TRUE;
     m_d3dpp.AutoDepthStencilFormat = D3DFMT_D24S8;
-    m_d3dpp.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
+    m_d3dpp.PresentationInterval = ResolveInterval(false, m_d3dpp.Windowed != FALSE, g_bNoRender);
     m_d3dpp.FullScreen_RefreshRateInHz = 0;
     m_d3dpp.MultiSampleType = D3DMULTISAMPLE_NONE;
     m_d3dpp.MultiSampleQuality = 0;
@@ -2853,7 +2901,12 @@ void RedRenderer::InitStatic()
         }
 
         D3DCAPS9 caps;
-        m_pD3D->GetDeviceCaps(gAdapter, D3DDEVTYPE_HAL, &caps);
+        memset(&caps, 0, sizeof(caps));
+        if (m_pD3D->GetDeviceCaps(gAdapter, D3DDEVTYPE_HAL, &caps) == D3D_OK)
+        {
+            sPresentIntervals = caps.PresentationIntervals;
+        }
+        m_d3dpp.PresentationInterval = ResolveInterval(false, m_d3dpp.Windowed != FALSE, true);
         DWORD dwBehaviorFlags = (caps.DevCaps & D3DDEVCAPS_HWTRANSFORMANDLIGHT)
                                     ? D3DCREATE_HARDWARE_VERTEXPROCESSING
                                     : D3DCREATE_SOFTWARE_VERTEXPROCESSING;
@@ -3013,8 +3066,7 @@ void RedRenderer::pcSetDisplayMode(unsigned int uiWidth, unsigned int uiHeight,
     m_d3dpp.MultiSampleType = msType;
     m_d3dpp.MultiSampleQuality = ulMSQuality;
     m_d3dpp.Windowed = bWindowed;
-    m_d3dpp.PresentationInterval =
-        bVSync ? D3DPRESENT_INTERVAL_DEFAULT : D3DPRESENT_INTERVAL_IMMEDIATE;
+    m_d3dpp.PresentationInterval = ResolveInterval(bVSync, bWindowed, true);
 
     m_d3dpp.FullScreen_RefreshRateInHz = 0;
     if (!bWindowed && !g_bNoRender)

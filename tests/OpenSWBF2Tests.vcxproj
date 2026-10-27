@@ -87,6 +87,8 @@
     <ClCompile Include="..\src\RedEngineFL\geometry\Primitives.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Graphics\PC\pcDisplaySettings.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Graphics\PC\pcDisplayLogic.cpp" />
+    <ClCompile Include="..\src\RedEngineFL\Application\pc\pcFrameLimiter.cpp" />
+    <ClCompile Include="..\src\RedEngineFL\Application\pc\pcMessageDrain.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Util\RedLog.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Util\RedWarning.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Util\RedConsole.cpp" />

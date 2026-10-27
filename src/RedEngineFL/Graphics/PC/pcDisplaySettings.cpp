@@ -41,7 +41,7 @@ static const char* KeyName(unsigned int uiKey)
 
 static bool ShouldWrite(const DisplaySettings& s, unsigned int uiKey)
 {
-    return (s.uiCliMask & uiKey) == 0;
+    return (s.uiSet & uiKey) != 0 && (s.uiCliMask & uiKey) == 0;
 }
 
 static bool FullPath(const char* pcPath, char* pcOut)

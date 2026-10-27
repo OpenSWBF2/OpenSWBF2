@@ -13,6 +13,9 @@ $cm = 'src\Battlefront2\Source\CollisionManager.cpp'
 $rm = 'src\RedEngineFL\Memory\RedMemory.cpp'
 $ds = 'src\RedEngineFL\Graphics\PC\pcDisplaySettings.cpp'
 $dl = 'src\RedEngineFL\Graphics\PC\pcDisplayLogic.cpp'
+$fl = 'src\RedEngineFL\Application\pc\pcFrameLimiter.cpp'
+$md = 'src\RedEngineFL\Application\pc\pcMessageDrain.cpp'
+$rr = 'src\RedEngineFL\Graphics\PC\pcRedRenderer.cpp'
 
 $GuardRevertRows = @(
     @{ Id = 'CRASH-02'; File = 'src\RedEngineFL\Util\RedWarning.cpp'; Anchor = 'fputs(pcText, pFile);'; Replacement = 'fprintf(pFile, pcText);'; Tests = @('file log writes percent text literally') },
@@ -79,5 +82,14 @@ $GuardRevertRows = @(
     @{ Id = 'MODE-05'; File = $dl; Anchor = 'return uiHighest;'; Replacement = 'return uiRequested;'; Tests = @('display logic refresh fallback') },
     @{ Id = 'MODE-04'; File = $dl; Anchor = 'if (FindOrdinal(pAdapters, uiCount, uiReqOrdinal))'; Replacement = 'if (true)'; Tests = @('display logic adapter fallback') },
     @{ Id = 'MODE-03U'; File = $dl; Anchor = 'if (!bInList && !bIsDesktop)'; Replacement = 'if (false)'; Tests = @('display logic usable uncached') },
+    @{ Id = 'PACE-01'; File = $fl; Anchor = 'if (iRemain > plan.iMarginTicks)'; Replacement = 'if (false)'; Tests = @('frame limiter waits then spins above the margin') },
+    @{ Id = 'PACE-01B'; File = $fl; Anchor = 'const __int64 iNeed = plan.iMinTicks < 1 ? 1 : plan.iMinTicks;'; Replacement = 'const __int64 iNeed = plan.iMinTicks;'; Tests = @('frame limiter uncapped never returns zero ticks') },
+    @{ Id = 'PACE-03'; File = $md; Anchor = 'if (r.uiCount >= uiMaxMsgs)'; Replacement = 'if (false)'; Tests = @('message drain stops at the message bound') },
+    @{ Id = 'PACE-03T'; File = $md; Anchor = 'if (iNow - iStart >= iMaxTicks)'; Replacement = 'if (false)'; Tests = @('message drain stops at the time bound') },
+    @{ Id = 'PACE-03Q'; File = $md; Anchor = 'if (msg.message == WM_QUIT)'; Replacement = 'if (false)'; Tests = @('message drain reports WM_QUIT and stops') },
+    @{ Id = 'VSYNC-01'; File = $dl; Anchor = '(ulCaps & kIntervalTwo)'; Replacement = 'true'; Tests = @('display logic vsync half needs fullscreen and caps') },
+    @{ Id = 'VSYNC-01B'; File = $dl; Anchor = 'return bKeySet ? uiKeyValue : (bProfile ? 1u : 0u);'; Replacement = 'return uiKeyValue;'; Tests = @('display logic effective vsync precedence') },
+    @{ Id = 'PACE-02'; Kind = 'Smoke'; Case = 'display-switches'; File = $pmain; Anchor = 'if (uiPaceFps == 0 || uiPaceFps > 80)'; Replacement = 'if (false)' },
+    @{ Id = 'VSYNC-02'; Kind = 'Smoke'; Case = 'display-switches'; File = $rr; Anchor = 'sWaitForFrameQuery = !DisplayCfg::gDisplay.bNoWaitQuery;'; Replacement = 'sWaitForFrameQuery = true;' },
     @{ Id = 'LAA-01'; Kind = 'Hardening'; Check = 'laa'; File = 'BattlefrontII.vcxproj'; Anchor = '<LargeAddressAware>true</LargeAddressAware>'; Replacement = '' }
 )

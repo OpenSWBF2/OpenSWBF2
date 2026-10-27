@@ -20,6 +20,9 @@ struct AdapterRec
 const unsigned int kFallbackWidth = 800;
 const unsigned int kFallbackHeight = 600;
 const unsigned int kPrimaryAdapter = 0;
+const unsigned int kIntervalDefault = 0;
+const unsigned int kIntervalTwo = 2;
+const unsigned int kIntervalImmediate = 0x80000000u;
 
 unsigned int BuildModeList(const DisplayModeRec* pSrc, unsigned int uiSrc, unsigned int uiAdapter,
                            DisplayModeRec* pOut, unsigned int uiOutCap);
@@ -38,5 +41,10 @@ unsigned int ResolveAdapter(unsigned int uiReqOrdinal, bool bOrdinalFromCli, con
 
 bool UsableUncached(bool bInList, bool bIsDesktop, bool bMsNone, unsigned int uiMsLevels,
                     unsigned int uiQuality);
+
+unsigned int EffectiveVsync(bool bKeySet, unsigned int uiKeyValue, bool bProfile);
+
+unsigned int ResolveVsyncInterval(unsigned int uiRequested, unsigned long ulCaps, bool bWindowed,
+                                  bool* pbFellBack);
 
 }

@@ -10,6 +10,8 @@
 
 #include "GameState.h"
 #include "pcCrash.h"
+#include "RedEngineFL/Application/pc/pcFrameLimiter.h"
+#include "RedEngineFL/Graphics/PC/pcDisplaySettings.h"
 #include "CommandLine.h"
 #include "GameLoop.h"
 #include "BonusManager.h"
@@ -495,23 +497,12 @@ void GameState::UpdateTime()
     else
     {
 
-        __int64 iMinTicks = Frequency.QuadPart / 80;
-        for (;;)
-        {
-            QueryPerformanceCounter(&perfCount);
-            iDeltaTicks = perfCount.QuadPart - oldPerfCount.QuadPart;
-            if (iDeltaTicks >= iMinTicks)
-            {
-                break;
-            }
-
-            int iSleep = -15 - (int)((double)(unsigned __int64)(iMinTicks - iDeltaTicks)
-                                     * -1000.0 / (double)Frequency.QuadPart);
-            if (iSleep > 0)
-            {
-                Sleep(iSleep);
-            }
-        }
+        FrameLimiter::FrameOps ops;
+        FrameLimiter::FramePlan plan;
+        FrameLimiter::BindReal(ops, plan, DisplayCfg::gDisplay.uiFps);
+        __int64 iNowTicks = 0;
+        iDeltaTicks = FrameLimiter::Pace(ops, plan, oldPerfCount.QuadPart, iNowTicks);
+        perfCount.QuadPart = iNowTicks;
 
         if (iDeltaTicks > maxAdvanceTicks)
         {
@@ -521,6 +512,10 @@ void GameState::UpdateTime()
         if (g_fFrameRateScale > 0.0f)
         {
             iDeltaTicks = (__int64)((float)iDeltaTicks * g_fFrameRateScale + 0.5f);
+            if (iDeltaTicks < 1)
+            {
+                iDeltaTicks = 1;
+            }
         }
 
         if (!GameLoop::sPauseMode)

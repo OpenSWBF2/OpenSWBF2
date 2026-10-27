@@ -184,4 +184,43 @@ bool UsableUncached(bool bInList, bool bIsDesktop, bool bMsNone, unsigned int ui
     return uiMsLevels > uiQuality;
 }
 
+unsigned int EffectiveVsync(bool bKeySet, unsigned int uiKeyValue, bool bProfile)
+{
+    return bKeySet ? uiKeyValue : (bProfile ? 1u : 0u);
+}
+
+unsigned int ResolveVsyncInterval(unsigned int uiRequested, unsigned long ulCaps, bool bWindowed,
+                                  bool* pbFellBack)
+{
+    if (pbFellBack)
+    {
+        *pbFellBack = false;
+    }
+    if (uiRequested == 0)
+    {
+        if (ulCaps != 0 && !(ulCaps & kIntervalImmediate))
+        {
+            if (pbFellBack)
+            {
+                *pbFellBack = true;
+            }
+            return kIntervalDefault;
+        }
+        return kIntervalImmediate;
+    }
+    if (uiRequested == 2)
+    {
+        if (!bWindowed && (ulCaps & kIntervalTwo))
+        {
+            return kIntervalTwo;
+        }
+        if (pbFellBack)
+        {
+            *pbFellBack = true;
+        }
+        return kIntervalDefault;
+    }
+    return kIntervalDefault;
+}
+
 }
