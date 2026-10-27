@@ -23,6 +23,7 @@
 #include "pcRedTexture.h"
 #include "pcRedVertexBuffer.h"
 #include "pcRedPoolMath.h"
+#include "pcDisplaySettings.h"
 
 #include "RedEngineFL/Graphics/RedAmbientLight.h"
 
@@ -36,6 +37,28 @@
 #include "RedEngineFL/Util/ext/Globals.h"
 
 namespace pcCrash { void __cdecl Exit(int); }
+
+extern bool g_bNoRender;
+
+unsigned int gAdapter = 0;
+
+static bool GetAdapterMonitorRect(IDirect3D9* pD3D, RECT& rc)
+{
+    if (g_bNoRender || gAdapter == 0)
+    {
+        return false;
+    }
+    HMONITOR hMonitor = pD3D->GetAdapterMonitor(gAdapter);
+    MONITORINFO mi;
+    memset(&mi, 0, sizeof(mi));
+    mi.cbSize = sizeof(mi);
+    if (!hMonitor || !GetMonitorInfoA(hMonitor, &mi))
+    {
+        return false;
+    }
+    rc = mi.rcMonitor;
+    return true;
+}
 
 #include "RedEngineFL/Graphics/RedSpotLight.h"
 #include "pcRedPixelShader.h"
@@ -96,6 +119,7 @@ STDMETHODIMP FakeD3D::EnumAdapterModes(UINT, D3DFORMAT, UINT,
 {
     pMode->Width = 640;
     pMode->Height = 512;
+    pMode->RefreshRate = 0;
     pMode->Format = D3DFMT_A8R8G8B8;
     return 0;
 }
@@ -1849,52 +1873,100 @@ RedTexture* RedRenderer::pcGetRenderTarget()
  
 
 // FUNCTION: SWBF2 0x006b85a0
-unsigned int RedRenderer::pcGetValidDisplayModes(D3DDISPLAYMODE* pModes,
+unsigned int RedRenderer::pcGetValidDisplayModes(unsigned int uiAdapter,
+                                                 DisplayLogic::DisplayModeRec* pModes,
                                                  unsigned int uiMaxModes,
                                                  unsigned int uiMinWidth,
                                                  unsigned int uiMinHeight)
 {
-    unsigned int uiCount = 0;
+    if (!m_pD3D)
+    {
+        return 0;
+    }
 
     PblList<D3DAdapterInfo>& adapterList = pcRedDeviceEnumerator::GetDeviceList();
 
-    for (PblList<D3DAdapterInfo>::Node* pAdapterNode = adapterList.GetFirst();
-         pAdapterNode->_pObject != adapterList._head._pObject;
-         pAdapterNode = pAdapterNode->_pNext)
+    unsigned int uiRaw = 0;
+    for (int iPass = 0; iPass < 2; ++iPass)
     {
-        PblList<D3DDisplayMode>& modeList = pAdapterNode->_pObject->DisplayModeList;
-
-        for (PblList<D3DDisplayMode>::Node* pModeNode = modeList.GetFirst();
-             pModeNode->_pObject != modeList._head._pObject;
-             pModeNode = pModeNode->_pNext)
+        DisplayLogic::DisplayModeRec* pRaw = 0;
+        if (iPass == 1)
         {
-            const D3DDISPLAYMODE& mode = pModeNode->_pObject->displayMode;
+            if (uiRaw == 0)
+            {
+                return 0;
+            }
+            pRaw = new DisplayLogic::DisplayModeRec[uiRaw];
+        }
 
-            if (mode.Width < uiMinWidth || mode.Height < uiMinHeight)
+        unsigned int uiFilled = 0;
+        for (PblList<D3DAdapterInfo>::Node* pAdapterNode = adapterList.GetFirst();
+             pAdapterNode->_pObject != adapterList._head._pObject;
+             pAdapterNode = pAdapterNode->_pNext)
+        {
+            if (pAdapterNode->_pObject->AdapterOrdinal != (int)uiAdapter)
             {
                 continue;
             }
 
-            bool bAlreadyListed = false;
-            for (unsigned int i = 0; i < uiCount; ++i)
+            PblList<D3DDisplayMode>& modeList = pAdapterNode->_pObject->DisplayModeList;
+
+            for (PblList<D3DDisplayMode>::Node* pModeNode = modeList.GetFirst();
+                 pModeNode->_pObject != modeList._head._pObject;
+                 pModeNode = pModeNode->_pNext)
             {
-                if (pModes[i].Width == mode.Width && pModes[i].Height == mode.Height)
+                const D3DDISPLAYMODE& mode = pModeNode->_pObject->displayMode;
+
+                if (mode.Width < uiMinWidth || mode.Height < uiMinHeight)
                 {
-                    bAlreadyListed = true;
-                    break;
+                    continue;
                 }
-            }
 
-            if (bAlreadyListed || uiCount >= uiMaxModes)
-            {
-                continue;
+                if (pRaw)
+                {
+                    pRaw[uiFilled].w = mode.Width;
+                    pRaw[uiFilled].h = mode.Height;
+                    pRaw[uiFilled].refresh = mode.RefreshRate;
+                    pRaw[uiFilled].adapter = uiAdapter;
+                }
+                ++uiFilled;
             }
+        }
 
-            pModes[uiCount++] = mode;
+        if (iPass == 0)
+        {
+            uiRaw = uiFilled;
+        }
+        else
+        {
+            unsigned int uiCount =
+                DisplayLogic::BuildModeList(pRaw, uiRaw, uiAdapter, pModes, uiMaxModes);
+            delete[] pRaw;
+            return uiCount;
         }
     }
 
-    return uiCount;
+    return 0;
+}
+
+void RedRenderer::pcGetAdapterDesktop(unsigned int uiAdapter, unsigned int& uiW,
+                                      unsigned int& uiH)
+{
+    uiW = 0;
+    uiH = 0;
+
+    if (!m_pD3D || g_bNoRender)
+    {
+        return;
+    }
+
+    D3DDISPLAYMODE mode;
+    memset(&mode, 0, sizeof(mode));
+    if (m_pD3D->GetAdapterDisplayMode(uiAdapter, &mode) == D3D_OK)
+    {
+        uiW = mode.Width;
+        uiH = mode.Height;
+    }
 }
 
 // FUNCTION: SWBF2 0x006b8680
@@ -2514,7 +2586,10 @@ void RedRenderer::Init()
     AdjustWindowRect(&rc, dwStyle, FALSE);
 
     RECT desktop;
-    GetClientRect(GetDesktopWindow(), &desktop);
+    if (!GetAdapterMonitorRect(m_pD3D, desktop))
+    {
+        GetClientRect(GetDesktopWindow(), &desktop);
+    }
 
     const int iWidth = rc.right - rc.left;
     const int iHeight = rc.bottom - rc.top;
@@ -2706,6 +2781,28 @@ void RedRenderer::InitStatic()
 
     if (!g_bNoRender)
     {
+        DisplayLogic::AdapterRec akAdapters[16];
+        memset(akAdapters, 0, sizeof(akAdapters));
+        unsigned int uiAdapters = 0;
+
+        PblList<D3DAdapterInfo>& adapterList = pcRedDeviceEnumerator::GetDeviceList();
+        for (PblList<D3DAdapterInfo>::Node* pAdapterNode = adapterList.GetFirst();
+             pAdapterNode->_pObject != adapterList._head._pObject && uiAdapters < 16;
+             pAdapterNode = pAdapterNode->_pNext)
+        {
+            akAdapters[uiAdapters].ordinal = pAdapterNode->_pObject->AdapterOrdinal;
+            akAdapters[uiAdapters].name = pAdapterNode->_pObject->AdapterIdentifier.DeviceName;
+            ++uiAdapters;
+        }
+
+        gAdapter = DisplayLogic::ResolveAdapter(
+            DisplayCfg::gDisplay.uiAdapter,
+            (DisplayCfg::gDisplay.uiCliMask & DisplayCfg::kAdapter) != 0,
+            DisplayCfg::gDisplay.acAdapterName, akAdapters, uiAdapters, g_bNoRender);
+    }
+
+    if (!g_bNoRender)
+    {
         RedVideoConfig::VidMode_Init(m_pD3D);
     }
 
@@ -2747,7 +2844,7 @@ void RedRenderer::InitStatic()
     if (!g_bNoRender)
     {
 
-        if (m_pD3D->CheckDeviceMultiSampleType(0, D3DDEVTYPE_HAL, D3DFMT_A8R8G8B8,
+        if (m_pD3D->CheckDeviceMultiSampleType(gAdapter, D3DDEVTYPE_HAL, D3DFMT_A8R8G8B8,
                                                TRUE, D3DMULTISAMPLE_NONE, 0)
             != D3D_OK)
         {
@@ -2756,15 +2853,15 @@ void RedRenderer::InitStatic()
         }
 
         D3DCAPS9 caps;
-        m_pD3D->GetDeviceCaps(0, D3DDEVTYPE_HAL, &caps);
+        m_pD3D->GetDeviceCaps(gAdapter, D3DDEVTYPE_HAL, &caps);
         DWORD dwBehaviorFlags = (caps.DevCaps & D3DDEVCAPS_HWTRANSFORMANDLIGHT)
                                     ? D3DCREATE_HARDWARE_VERTEXPROCESSING
                                     : D3DCREATE_SOFTWARE_VERTEXPROCESSING;
 
-        hr = m_pD3D->CreateDevice(0, D3DDEVTYPE_HAL, hGlobalWnd, dwBehaviorFlags,
+        hr = m_pD3D->CreateDevice(gAdapter, D3DDEVTYPE_HAL, hGlobalWnd, dwBehaviorFlags,
                                   &m_d3dpp, &m_pd3dDevice);
 
-        HRESULT hrIdentifier = m_pD3D->GetAdapterIdentifier(0, 0, &m_adaptorIdentifier);
+        HRESULT hrIdentifier = m_pD3D->GetAdapterIdentifier(gAdapter, 0, &m_adaptorIdentifier);
         if (hrIdentifier != D3D_OK)
         {
             LOG(LogRender, Fatal, "Get Adapter Identifier failed! Error: 0x%x", hrIdentifier);
@@ -2779,6 +2876,19 @@ void RedRenderer::InitStatic()
         m_pd3dDevice = 0;
         m_pd3dDevice = new FakeD3DDevice;
         memset(&m_adaptorIdentifier, 0, sizeof(m_adaptorIdentifier));
+    }
+
+    RECT rcMonitor;
+    if (m_pd3dDevice && GetAdapterMonitorRect(m_pD3D, rcMonitor))
+    {
+        RECT rcWnd;
+        GetWindowRect(hGlobalWnd, &rcWnd);
+        const int iWidth = rcWnd.right - rcWnd.left;
+        const int iHeight = rcWnd.bottom - rcWnd.top;
+        SetWindowPos(hGlobalWnd, 0,
+                     (rcMonitor.left - iWidth + rcMonitor.right) / 2,
+                     (rcMonitor.top - iHeight + rcMonitor.bottom) / 2,
+                     0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
     }
 
     if (!m_pd3dDevice)
@@ -2905,6 +3015,21 @@ void RedRenderer::pcSetDisplayMode(unsigned int uiWidth, unsigned int uiHeight,
     m_d3dpp.Windowed = bWindowed;
     m_d3dpp.PresentationInterval =
         bVSync ? D3DPRESENT_INTERVAL_DEFAULT : D3DPRESENT_INTERVAL_IMMEDIATE;
+
+    m_d3dpp.FullScreen_RefreshRateInHz = 0;
+    if (!bWindowed && !g_bNoRender)
+    {
+        const unsigned int uiCount =
+            pcGetValidDisplayModes(gAdapter, 0, 0, 0, 0);
+        if (uiCount)
+        {
+            DisplayLogic::DisplayModeRec* pList = new DisplayLogic::DisplayModeRec[uiCount];
+            pcGetValidDisplayModes(gAdapter, pList, uiCount, 0, 0);
+            m_d3dpp.FullScreen_RefreshRateInHz = DisplayLogic::PickRefresh(
+                pList, uiCount, uiWidth, uiHeight, DisplayCfg::gDisplay.uiRefresh, false);
+            delete[] pList;
+        }
+    }
 
     PblTraceP("pcSetDisplayMode- width: %d hieght: %d windowed: %d mstype: %d "
               "msquality: %d vsync: %d \n",
@@ -3760,7 +3885,7 @@ void RedRenderer::pcSetNearSceneStart(float fStart)
 bool RedRenderer::pcCheckDepthStencilMatch(_D3DFORMAT renderTargetFormat,
                                            _D3DFORMAT depthStencilFormat)
 {
-    return m_pD3D->CheckDepthStencilMatch(0, D3DDEVTYPE_HAL, D3DFMT_A8R8G8B8,
+    return m_pD3D->CheckDepthStencilMatch(gAdapter, D3DDEVTYPE_HAL, D3DFMT_A8R8G8B8,
                                           renderTargetFormat,
                                           depthStencilFormat) == D3D_OK;
 }

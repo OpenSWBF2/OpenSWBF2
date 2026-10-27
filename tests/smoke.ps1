@@ -318,6 +318,11 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
     }
 
     if ($which -eq 'Standard') { $cases += & $missionCase $standard }
+    if ($which -eq 'Standard') {
+        $cases += New-Object PSObject -Property @{ Name = 'display-switches'; Args = "$standard $htail -borderless -adapter 0 -refresh 60 -vsync half -fps 120 -nowaitquery -nodpi"; Expect = $pass; Twice = 0; Timeout = 0 }
+        $badIni = Join-Path $PSScriptRoot 'smoke\display-bad.ini'
+        $cases += New-Object PSObject -Property @{ Name = 'display-badini'; Args = "$standard $htail -adapter abc -refresh 99999 -displayini `"$badIni`""; Expect = $pass; Twice = 0; Timeout = 0 }
+    }
     if ($which -eq 'All') {
         foreach ($line in $missions) {
             $tok = @($line.Trim() -split '\s+')

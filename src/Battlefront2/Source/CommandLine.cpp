@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "GameMovie.h"
+#include "RedEngineFL/Graphics/PC/pcDisplaySettings.h"
 #include "pcCrash.h"
 #include "RedEngineFL/Util/RedLog.h"
 #include "RedEngineFL/Util/RedWarning.h"
@@ -378,6 +379,74 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
 
         switch (PblHash(pcArg + 1))
         {
+        case DisplayCfg::kHashBorderless:
+            DisplayCfg::SetFlag(DisplayCfg::gCliDisplay, DisplayCfg::kBorderless);
+            break;
+        case DisplayCfg::kHashAdapter:
+            if (i + 1 < iArgc)
+            {
+                DisplayCfg::SetFromText(DisplayCfg::gCliDisplay, DisplayCfg::kAdapter, apcArgv[++i], "command line");
+            }
+            else
+            {
+                LOG(LogCore, Warning, "-adapter needs a value, ignored");
+            }
+            break;
+        case DisplayCfg::kHashRefresh:
+            if (i + 1 < iArgc)
+            {
+                DisplayCfg::SetFromText(DisplayCfg::gCliDisplay, DisplayCfg::kRefresh, apcArgv[++i], "command line");
+            }
+            else
+            {
+                LOG(LogCore, Warning, "-refresh needs a value, ignored");
+            }
+            break;
+        case DisplayCfg::kHashVsync:
+            if (i + 1 < iArgc)
+            {
+                DisplayCfg::SetFromText(DisplayCfg::gCliDisplay, DisplayCfg::kVsync, apcArgv[++i], "command line");
+            }
+            else
+            {
+                LOG(LogCore, Warning, "-vsync needs a value, ignored");
+            }
+            break;
+        case DisplayCfg::kHashFps:
+            if (i + 1 < iArgc)
+            {
+                DisplayCfg::SetFromText(DisplayCfg::gCliDisplay, DisplayCfg::kFps, apcArgv[++i], "command line");
+            }
+            else
+            {
+                LOG(LogCore, Warning, "-fps needs a value, ignored");
+            }
+            break;
+        case DisplayCfg::kHashNoWaitQuery:
+            DisplayCfg::SetFlag(DisplayCfg::gCliDisplay, DisplayCfg::kNoWaitQuery);
+            break;
+        case DisplayCfg::kHashNoDpi:
+            DisplayCfg::SetFlag(DisplayCfg::gCliDisplay, DisplayCfg::kNoDpi);
+            break;
+        case DisplayCfg::kHashDisplayIni:
+            if (i + 1 < iArgc)
+            {
+                const char* pcIni = apcArgv[++i];
+                if (strlen(pcIni) >= sizeof(DisplayCfg::gCliDisplay.acDisplayIni))
+                {
+                    LOG(LogCore, Warning, "-displayini path too long, ignored");
+                }
+                else
+                {
+                    strcpy(DisplayCfg::gCliDisplay.acDisplayIni, pcIni);
+                    DisplayCfg::gCliDisplay.uiSet |= DisplayCfg::kDisplayIni;
+                }
+            }
+            else
+            {
+                LOG(LogCore, Warning, "-displayini needs a value, ignored");
+            }
+            break;
         case 0x02049853:
             dragEnabled = true;
             dragJitter = atoi(apcArgv[++i]);

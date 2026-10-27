@@ -872,6 +872,8 @@ void GameState::PreStateInit(bool bMission)
     if (pProfile && !pProfile->mInitialized)
     {
         pProfile->mPCOptions.renderOptions = RedAutoSettings::GetRenderOptions();
+        pProfile->mPCOptions.mResolutionX = (unsigned short)pProfile->mPCOptions.renderOptions.defaultWidth;
+        pProfile->mPCOptions.mResolutionY = (unsigned short)pProfile->mPCOptions.renderOptions.defaultHeight;
     }
 
     GameSoundEngine::Create();

@@ -696,6 +696,8 @@
     <ClCompile Include="src\RedEngineFL\Graphics\PC\Shaders\pcZPrepassShader.cpp" />
     <ClCompile Include="src\RedEngineFL\Graphics\PC\StateManager_DX.cpp" />
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedAutoSettings.cpp" />
+    <ClCompile Include="src\RedEngineFL\Graphics\PC\pcDisplaySettings.cpp" />
+    <ClCompile Include="src\RedEngineFL\Graphics\PC\pcDisplayLogic.cpp" />
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedDeviceEnumerator.cpp" />
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedIndexBuffer.cpp" />
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedPixelShader.cpp" />
@@ -1164,6 +1166,8 @@
     <ClInclude Include="src\Battlefront2\Source\MemFailLog.h" />
     <ClInclude Include="src\Battlefront2\Source\NetWire.h" />
     <ClInclude Include="src\Battlefront2\Source\LocalLimits.h" />
+    <ClInclude Include="src\RedEngineFL\Graphics\PC\pcDisplaySettings.h" />
+    <ClInclude Include="src\RedEngineFL\Graphics\PC\pcDisplayLogic.h" />
     <ClInclude Include="src\RedEngineFL\Graphics\PC\pcRedPoolMath.h" />
     <ClInclude Include="src\Battlefront2\Source\NetPredict.h" />
     <ClInclude Include="src\Battlefront2\Source\NetSetup.h" />

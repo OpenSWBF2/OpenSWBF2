@@ -710,6 +710,9 @@ public:
 #define SWBF2_GRAPHICS_PC_PCREDRENDERER_H
 
 #include "pcRedAutoSettings.h"
+#include "pcDisplayLogic.h"
+
+extern unsigned int gAdapter;
 
 #include "StateManager_DX.h"
 
@@ -1141,10 +1144,14 @@ public:
     // FUNCTION: SWBF2 0x006b1970
     static PblTimeBase* GetTimeBase();
 
-    static unsigned int pcGetValidDisplayModes(D3DDISPLAYMODE* pModes,
+    static unsigned int pcGetValidDisplayModes(unsigned int uiAdapter,
+                                               DisplayLogic::DisplayModeRec* pModes,
                                                unsigned int uiMaxModes,
                                                unsigned int uiMinWidth,
                                                unsigned int uiMinHeight);
+
+    static void pcGetAdapterDesktop(unsigned int uiAdapter, unsigned int& uiW,
+                                    unsigned int& uiH);
 
     static void pcSetDisplayMode(unsigned int uiWidth, unsigned int uiHeight,
                                  bool bWindowed, bool bVSync,

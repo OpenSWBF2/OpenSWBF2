@@ -1,6 +1,7 @@
 #include "third_party/doctest/doctest.h"
 
 #include "PebbleFL/Common/PblHashTable.h"
+#include "RedEngineFL/Graphics/PC/pcDisplaySettings.h"
 
 TEST_CASE("hash pin ai" * doctest::test_suite("unit"))
 {
@@ -335,6 +336,54 @@ TEST_CASE("hash pin voicemode" * doctest::test_suite("unit"))
 TEST_CASE("hash pin win" * doctest::test_suite("unit"))
 {
     CHECK((unsigned int)PblHash("win") == 0x0BF7CB59);
+}
+
+TEST_CASE("hash pin borderless" * doctest::test_suite("unit"))
+{
+    CHECK((unsigned int)PblHash("borderless") == 0x49DA825A);
+    CHECK((unsigned int)PblHash("borderless") == DisplayCfg::kHashBorderless);
+}
+
+TEST_CASE("hash pin adapter" * doctest::test_suite("unit"))
+{
+    CHECK((unsigned int)PblHash("adapter") == 0xE7CAE794);
+    CHECK((unsigned int)PblHash("adapter") == DisplayCfg::kHashAdapter);
+}
+
+TEST_CASE("hash pin refresh" * doctest::test_suite("unit"))
+{
+    CHECK((unsigned int)PblHash("refresh") == 0xD4F26634);
+    CHECK((unsigned int)PblHash("refresh") == DisplayCfg::kHashRefresh);
+}
+
+TEST_CASE("hash pin vsync" * doctest::test_suite("unit"))
+{
+    CHECK((unsigned int)PblHash("vsync") == 0x06F8F066);
+    CHECK((unsigned int)PblHash("vsync") == DisplayCfg::kHashVsync);
+}
+
+TEST_CASE("hash pin fps" * doctest::test_suite("unit"))
+{
+    CHECK((unsigned int)PblHash("fps") == 0xBDD34AA8);
+    CHECK((unsigned int)PblHash("fps") == DisplayCfg::kHashFps);
+}
+
+TEST_CASE("hash pin nowaitquery" * doctest::test_suite("unit"))
+{
+    CHECK((unsigned int)PblHash("nowaitquery") == 0xFF222165);
+    CHECK((unsigned int)PblHash("nowaitquery") == DisplayCfg::kHashNoWaitQuery);
+}
+
+TEST_CASE("hash pin nodpi" * doctest::test_suite("unit"))
+{
+    CHECK((unsigned int)PblHash("nodpi") == 0x5B1931B5);
+    CHECK((unsigned int)PblHash("nodpi") == DisplayCfg::kHashNoDpi);
+}
+
+TEST_CASE("hash pin displayini" * doctest::test_suite("unit"))
+{
+    CHECK((unsigned int)PblHash("displayini") == 0x8CDD8845);
+    CHECK((unsigned int)PblHash("displayini") == DisplayCfg::kHashDisplayIni);
 }
 
 TEST_CASE("hash pin is case insensitive" * doctest::test_suite("unit"))
