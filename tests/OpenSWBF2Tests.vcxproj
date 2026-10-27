@@ -85,6 +85,8 @@
     <ClCompile Include="..\src\RedEngineFL\geometry\IntersectionOps.cpp" />
     <ClCompile Include="..\src\RedEngineFL\geometry\PolyPolyTest2D.cpp" />
     <ClCompile Include="..\src\RedEngineFL\geometry\Primitives.cpp" />
+    <ClCompile Include="..\src\RedEngineFL\Graphics\PC\pcDisplaySettings.cpp" />
+    <ClCompile Include="..\src\RedEngineFL\Graphics\PC\pcDisplayLogic.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Util\RedLog.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Util\RedWarning.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Util\RedConsole.cpp" />

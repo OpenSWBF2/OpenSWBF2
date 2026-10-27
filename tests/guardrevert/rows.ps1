@@ -11,6 +11,8 @@ $pp = 'src\PebbleFL\Common\PblPtrOrder.h'
 $th = 'src\Battlefront2\Source\Thread.cpp'
 $cm = 'src\Battlefront2\Source\CollisionManager.cpp'
 $rm = 'src\RedEngineFL\Memory\RedMemory.cpp'
+$ds = 'src\RedEngineFL\Graphics\PC\pcDisplaySettings.cpp'
+$dl = 'src\RedEngineFL\Graphics\PC\pcDisplayLogic.cpp'
 
 $GuardRevertRows = @(
     @{ Id = 'CRASH-02'; File = 'src\RedEngineFL\Util\RedWarning.cpp'; Anchor = 'fputs(pcText, pFile);'; Replacement = 'fprintf(pFile, pcText);'; Tests = @('file log writes percent text literally') },
@@ -67,5 +69,15 @@ $GuardRevertRows = @(
     @{ Id = 'LAA-02C'; File = $th; Anchor = 'PblPtrOrderKey(this)'; Replacement = '(int)this'; Tests = @('pointer order sites use the unsigned helpers') },
     @{ Id = 'LAA-02D'; File = $cm; Anchor = 'PblPtrAfter(pOther, pObject)'; Replacement = '(int)pOther > (int)pObject'; Tests = @('pointer order sites use the unsigned helpers') },
     @{ Id = 'LAA-02E'; File = $rm; Anchor = 'if (sRecursionDepth <= 0)'; Replacement = 'if ((unsigned int)h.start < 0x70000000 && sRecursionDepth <= 0)'; Tests = @('pointer order sites use the unsigned helpers') },
+    @{ Id = 'DSET-03'; File = $ds; Anchor = 'if (!bValid)'; Replacement = 'if (false)'; Tests = @('display settings bad value keeps default and logs once') },
+    @{ Id = 'DSET-01'; File = $ds; Anchor = 'if (cli.uiSet & kRefresh)'; Replacement = 'if (false)'; Tests = @('display settings merge precedence') },
+    @{ Id = 'DSET-04A'; File = $ds; Anchor = 'if (!bGoodFrame)'; Replacement = 'if (false)'; Tests = @('display settings save gate refuses without a good frame') },
+    @{ Id = 'DSET-04B'; File = $ds; Anchor = 'return (s.uiCliMask & uiKey) == 0;'; Replacement = 'return true;'; Tests = @('display settings save skips command line values') },
+    @{ Id = 'MODE-02'; File = $dl; Anchor = 'if (pSrc[i].adapter != uiAdapter)'; Replacement = 'if (false)'; Tests = @('display logic mode list keeps one adapter') },
+    @{ Id = 'MODE-01'; File = $dl; Anchor = 'if (bDuplicate)'; Replacement = 'if (false)'; Tests = @('display logic mode list collapses duplicates and has no cap') },
+    @{ Id = 'MODE-03'; File = $dl; Anchor = 'if (uiDeskW == 0 || uiDeskH == 0 || uiCount == 0)'; Replacement = 'if (false)'; Tests = @('display logic desktop default empty list', 'display logic desktop default zero desktop') },
+    @{ Id = 'MODE-05'; File = $dl; Anchor = 'return uiHighest;'; Replacement = 'return uiRequested;'; Tests = @('display logic refresh fallback') },
+    @{ Id = 'MODE-04'; File = $dl; Anchor = 'if (FindOrdinal(pAdapters, uiCount, uiReqOrdinal))'; Replacement = 'if (true)'; Tests = @('display logic adapter fallback') },
+    @{ Id = 'MODE-03U'; File = $dl; Anchor = 'if (!bInList && !bIsDesktop)'; Replacement = 'if (false)'; Tests = @('display logic usable uncached') },
     @{ Id = 'LAA-01'; Kind = 'Hardening'; Check = 'laa'; File = 'BattlefrontII.vcxproj'; Anchor = '<LargeAddressAware>true</LargeAddressAware>'; Replacement = '' }
 )

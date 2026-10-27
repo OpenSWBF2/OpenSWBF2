@@ -17,6 +17,7 @@
 #include "PebbleFL/Common/PblHashTable.h"
 
 extern HWND hGlobalWnd;
+extern bool g_bNoRender;
 
 namespace RedAutoSettings
 {
@@ -246,6 +247,7 @@ void DoAutoDetection()
 
     bool bAllCombosHaveDXT = true;
     D3DAdapterInfo* pAdapter = 0;
+    D3DAdapterInfo* pOrdinalAdapter = 0;
 
     D3DADAPTER_IDENTIFIER9 identifier = RedRenderer::pcGetAdaptorIdentifier();
 
@@ -260,6 +262,16 @@ void DoAutoDetection()
         {
             pAdapter = pInfo;
         }
+
+        if (pInfo->AdapterOrdinal == (int)gAdapter)
+        {
+            pOrdinalAdapter = pInfo;
+        }
+    }
+
+    if (pOrdinalAdapter)
+    {
+        pAdapter = pOrdinalAdapter;
     }
 
     for (PblList<D3DDeviceInfo>::Node* pDevNode = pAdapter->DeviceInfoList.GetFirst();
@@ -838,7 +850,7 @@ void VidMode_Init(IDirect3D9* pD3D)
 {
 
     D3DCAPS9 caps;
-    pD3D->GetDeviceCaps(0, D3DDEVTYPE_HAL, &caps);
+    pD3D->GetDeviceCaps(gAdapter, D3DDEVTYPE_HAL, &caps);
 
     m_pD3D = pD3D;
 
@@ -850,7 +862,7 @@ void VidMode_Init(IDirect3D9* pD3D)
     VidConfig::LoadConfigFile();
 
     D3DADAPTER_IDENTIFIER9 identifier;
-    m_pD3D->GetAdapterIdentifier(0, 0, &identifier);
+    m_pD3D->GetAdapterIdentifier(gAdapter, 0, &identifier);
 
     if (VidConfig::GetConfig(identifier.VendorId, identifier.DeviceId, m_MemoryHint))
     {
@@ -862,7 +874,7 @@ void VidMode_Init(IDirect3D9* pD3D)
     for (int iMultiSampleType = 0; iMultiSampleType <= 16; ++iMultiSampleType)
     {
         DWORD dwQualityLevels = 0;
-        if (m_pD3D->CheckDeviceMultiSampleType(0, D3DDEVTYPE_HAL,
+        if (m_pD3D->CheckDeviceMultiSampleType(gAdapter, D3DDEVTYPE_HAL,
                                                D3DFMT_A8R8G8B8, TRUE,
                                                (D3DMULTISAMPLE_TYPE)iMultiSampleType,
                                                &dwQualityLevels) != D3D_OK)
@@ -872,14 +884,14 @@ void VidMode_Init(IDirect3D9* pD3D)
 
         for (unsigned int uiQuality = 0; uiQuality < dwQualityLevels; ++uiQuality)
         {
-            UINT uiModeCount = m_pD3D->GetAdapterModeCount(0, D3DFMT_X8R8G8B8);
+            UINT uiModeCount = m_pD3D->GetAdapterModeCount(gAdapter, D3DFMT_X8R8G8B8);
 
             unsigned int uiBestArea = 0;
 
             for (int iMode = (int)uiModeCount - 1; iMode >= 0; --iMode)
             {
                 D3DDISPLAYMODE mode;
-                m_pD3D->EnumAdapterModes(0, D3DFMT_X8R8G8B8, iMode, &mode);
+                m_pD3D->EnumAdapterModes(gAdapter, D3DFMT_X8R8G8B8, iMode, &mode);
 
                 if (pConfig->VidModeTested((int)mode.Width, (int)mode.Height,
                                            (D3DMULTISAMPLE_TYPE)iMultiSampleType, uiQuality))
@@ -911,7 +923,7 @@ void VidMode_Init(IDirect3D9* pD3D)
                 pp.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
 
                 IDirect3DDevice9* pDevice = 0;
-                if (m_pD3D->CreateDevice(0, D3DDEVTYPE_HAL, hGlobalWnd, dwBehaviorFlags,
+                if (m_pD3D->CreateDevice(gAdapter, D3DDEVTYPE_HAL, hGlobalWnd, dwBehaviorFlags,
                                          &pp, &pDevice) != D3D_OK)
                 {
                     pConfig->AddVidMode((int)mode.Width, (int)mode.Height,
@@ -1106,7 +1118,7 @@ bool VidMode_MultisamplingModeUseable(D3DMULTISAMPLE_TYPE eMultiSampleType,
 void VidMode_StartupVoodoo(IDirect3D9* pD3D)
 {
     D3DCAPS9 caps;
-    pD3D->GetDeviceCaps(0, D3DDEVTYPE_HAL, &caps);
+    pD3D->GetDeviceCaps(gAdapter, D3DDEVTYPE_HAL, &caps);
 
     DWORD dwBehaviorFlags = (caps.DevCaps & D3DDEVCAPS_HWTRANSFORMANDLIGHT)
                                 ? D3DCREATE_HARDWARE_VERTEXPROCESSING
@@ -1118,13 +1130,13 @@ void VidMode_StartupVoodoo(IDirect3D9* pD3D)
     D3DMULTISAMPLE_TYPE msType = D3DMULTISAMPLE_2_SAMPLES;
     DWORD dwMsQuality = 0;
 
-    if (m_pD3D->CheckDeviceMultiSampleType(0, D3DDEVTYPE_HAL,
+    if (m_pD3D->CheckDeviceMultiSampleType(gAdapter, D3DDEVTYPE_HAL,
                                            D3DFMT_A8R8G8B8, TRUE,
                                            D3DMULTISAMPLE_2_SAMPLES, 0) != D3D_OK)
     {
         DWORD dwQualityLevels = 0;
         msType = D3DMULTISAMPLE_NONMASKABLE;
-        if (m_pD3D->CheckDeviceMultiSampleType(0, D3DDEVTYPE_HAL,
+        if (m_pD3D->CheckDeviceMultiSampleType(gAdapter, D3DDEVTYPE_HAL,
                                                D3DFMT_A8R8G8B8, TRUE,
                                                D3DMULTISAMPLE_NONMASKABLE,
                                                &dwQualityLevels) != D3D_OK)
@@ -1154,7 +1166,7 @@ void VidMode_StartupVoodoo(IDirect3D9* pD3D)
     pp.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
 
     IDirect3DDevice9* pDevice = 0;
-    if (m_pD3D->CreateDevice(0, D3DDEVTYPE_HAL, hGlobalWnd, dwBehaviorFlags,
+    if (m_pD3D->CreateDevice(gAdapter, D3DDEVTYPE_HAL, hGlobalWnd, dwBehaviorFlags,
                              &pp, &pDevice) != D3D_OK)
     {
         return;
@@ -1166,7 +1178,7 @@ void VidMode_StartupVoodoo(IDirect3D9* pD3D)
     pp.MultiSampleType = msType;
     pp.MultiSampleQuality = dwMsQuality;
 
-    if (m_pD3D->CreateDevice(0, D3DDEVTYPE_HAL, hGlobalWnd, dwBehaviorFlags,
+    if (m_pD3D->CreateDevice(gAdapter, D3DDEVTYPE_HAL, hGlobalWnd, dwBehaviorFlags,
                              &pp, &pDevice) != D3D_OK)
     {
         return;
@@ -1194,7 +1206,44 @@ bool VidMode_Usable(int iWidth, int iHeight, D3DMULTISAMPLE_TYPE eMultiSampleTyp
         return true;
     }
 
-    return pConfig->VidModeAvailable(iWidth, iHeight, eMultiSampleType, ulMultiSampleQuality);
+    if (pConfig->VidModeTested(iWidth, iHeight, eMultiSampleType, ulMultiSampleQuality)
+        || g_bNoRender)
+    {
+        return pConfig->VidModeAvailable(iWidth, iHeight, eMultiSampleType, ulMultiSampleQuality);
+    }
+
+    bool bInList = false;
+    unsigned int uiCount = RedRenderer::pcGetValidDisplayModes(gAdapter, 0, 0, 0, 0);
+    if (uiCount)
+    {
+        DisplayLogic::DisplayModeRec* pModes = new DisplayLogic::DisplayModeRec[uiCount];
+        uiCount = RedRenderer::pcGetValidDisplayModes(gAdapter, pModes, uiCount, 0, 0);
+        for (unsigned int i = 0; i < uiCount; ++i)
+        {
+            if (pModes[i].w == (unsigned int)iWidth && pModes[i].h == (unsigned int)iHeight)
+            {
+                bInList = true;
+                break;
+            }
+        }
+        delete[] pModes;
+    }
+
+    unsigned int uiDeskW = 0;
+    unsigned int uiDeskH = 0;
+    RedRenderer::pcGetAdapterDesktop(gAdapter, uiDeskW, uiDeskH);
+    bool bIsDesktop = uiDeskW == (unsigned int)iWidth && uiDeskH == (unsigned int)iHeight;
+
+    DWORD dwLevels = 0;
+    bool bMsNone = eMultiSampleType == D3DMULTISAMPLE_NONE;
+    if (!bMsNone && m_pD3D)
+    {
+        m_pD3D->CheckDeviceMultiSampleType(gAdapter, D3DDEVTYPE_HAL, D3DFMT_A8R8G8B8, TRUE,
+                                           eMultiSampleType, &dwLevels);
+    }
+
+    return DisplayLogic::UsableUncached(bInList, bIsDesktop, bMsNone, dwLevels,
+                                        (unsigned int)ulMultiSampleQuality);
 }
 
 }
@@ -1826,6 +1875,29 @@ void _LoadVendorDeviceRenderCapOverrides()
 namespace RedAutoSettings
 {
 
+static void SetDesktopDefault(RenderOptionsT* pOptions)
+{
+    unsigned int uiDeskW = 0;
+    unsigned int uiDeskH = 0;
+    RedRenderer::pcGetAdapterDesktop(gAdapter, uiDeskW, uiDeskH);
+
+    DisplayLogic::DisplayModeRec* pModes = 0;
+    unsigned int uiCount = RedRenderer::pcGetValidDisplayModes(gAdapter, 0, 0, 0, 0);
+    if (uiCount)
+    {
+        pModes = new DisplayLogic::DisplayModeRec[uiCount];
+        uiCount = RedRenderer::pcGetValidDisplayModes(gAdapter, pModes, uiCount, 0, 0);
+    }
+
+    unsigned int uiW = 0;
+    unsigned int uiH = 0;
+    DisplayLogic::DesktopDefault(pModes, uiCount, uiDeskW, uiDeskH, uiW, uiH);
+    delete[] pModes;
+
+    pOptions->defaultWidth = uiW;
+    pOptions->defaultHeight = uiH;
+}
+
 // FUNCTION: SWBF2 0x006ec1e0
 void SetMasterQuality(RenderOptionsT* pOptions, int iLevel)
 {
@@ -1866,6 +1938,13 @@ void SetMasterQuality(RenderOptionsT* pOptions, int iLevel)
             pOptions->mNearSceneFadeFactor = 0.5f;
             pOptions->mFarSceneRangeFactor = 0.5f;
 
+            if (pOptions == &_RenderSettings)
+            {
+                SetDesktopDefault(pOptions);
+                _SetGeneration(pOptions);
+                return;
+            }
+
             if (RedVideoConfig::VidMode_Usable(1024, 768, D3DMULTISAMPLE_NONE, 0))
             {
                 pOptions->defaultWidth = 1024;
@@ -1886,6 +1965,13 @@ void SetMasterQuality(RenderOptionsT* pOptions, int iLevel)
             pOptions->mNearSceneFadeFactor = 0.7f;
             pOptions->mFarSceneRangeFactor = 0.7f;
 
+            if (pOptions == &_RenderSettings)
+            {
+                SetDesktopDefault(pOptions);
+                _SetGeneration(pOptions);
+                return;
+            }
+
             if (RedVideoConfig::VidMode_Usable(1280, 960, D3DMULTISAMPLE_NONE, 0))
             {
                 pOptions->defaultWidth = 1280;
@@ -1902,6 +1988,13 @@ void SetMasterQuality(RenderOptionsT* pOptions, int iLevel)
                 return;
             }
         }
+    }
+
+    if (pOptions == &_RenderSettings)
+    {
+        SetDesktopDefault(pOptions);
+        _SetGeneration(pOptions);
+        return;
     }
 
     pOptions->defaultWidth = 800;

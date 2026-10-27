@@ -12,6 +12,7 @@
 #include "PebbleFL/Common/PblUnicode.h"
 #include "RedEngineFL/Graphics/PC/pcRedAutoSettings.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
+#include "RedEngineFL/Graphics/PC/pcDisplayLogic.h"
 #include "RedEngineFL/Util/RedLocalizeDB.h"
 #include "ColorControl.h"
 #include "Damageable.h"
@@ -547,22 +548,26 @@ void PlayerProfile::tPCOpt::ApplyPreLoadSettings()
 
     if (!uiWidth || !uiHeight)
     {
-        D3DDISPLAYMODE modes[50];
-        const D3DDISPLAYMODE fallback[2] = {
-            { 800, 600, 0, D3DFMT_UNKNOWN },
-            { 640, 480, 0, D3DFMT_UNKNOWN },
+        const unsigned int fallback[2][2] = {
+            { 800, 600 },
+            { 640, 480 },
         };
 
         const unsigned int uiModes =
-            RedRenderer::pcGetValidDisplayModes(modes, 50, 640, 480);
+            RedRenderer::pcGetValidDisplayModes(gAdapter, 0, 0, 640, 480);
+        DisplayLogic::DisplayModeRec* modes =
+            uiModes ? new DisplayLogic::DisplayModeRec[uiModes] : 0;
+        if (modes)
+        {
+            RedRenderer::pcGetValidDisplayModes(gAdapter, modes, uiModes, 640, 480);
+        }
 
         int iFound = -1;
         for (unsigned int j = 0; j < 2; ++j)
         {
             for (unsigned int i = 0; i < uiModes; ++i)
             {
-                if (modes[i].Width == fallback[j].Width
-                    && modes[i].Height == fallback[j].Height)
+                if (modes[i].w == fallback[j][0] && modes[i].h == fallback[j][1])
                 {
                     iFound = (int)i;
                     break;
@@ -574,13 +579,23 @@ void PlayerProfile::tPCOpt::ApplyPreLoadSettings()
             }
         }
 
-        if (iFound < 0)
+        if (uiModes == 0)
         {
-            iFound = 0;
+            uiWidth = DisplayLogic::kFallbackWidth;
+            uiHeight = DisplayLogic::kFallbackHeight;
+        }
+        else
+        {
+            if (iFound < 0)
+            {
+                iFound = 0;
+            }
+
+            uiWidth = modes[iFound].w;
+            uiHeight = modes[iFound].h;
         }
 
-        uiWidth = modes[iFound].Width;
-        uiHeight = modes[iFound].Height;
+        delete[] modes;
     }
 
     RedRenderer::pcSetDisplayMode(uiWidth, uiHeight, bWindowed, mVSync, msType,

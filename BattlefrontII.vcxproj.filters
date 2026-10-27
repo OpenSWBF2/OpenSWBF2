@@ -1791,6 +1791,12 @@
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedAutoSettings.cpp">
       <Filter>src\RedEngineFL\Graphics\PC</Filter>
     </ClCompile>
+    <ClCompile Include="src\RedEngineFL\Graphics\PC\pcDisplaySettings.cpp">
+      <Filter>src\RedEngineFL\Graphics\PC</Filter>
+    </ClCompile>
+    <ClCompile Include="src\RedEngineFL\Graphics\PC\pcDisplayLogic.cpp">
+      <Filter>src\RedEngineFL\Graphics\PC</Filter>
+    </ClCompile>
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedDeviceEnumerator.cpp">
       <Filter>src\RedEngineFL\Graphics\PC</Filter>
     </ClCompile>
@@ -3127,6 +3133,12 @@
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\LocalLimits.h">
       <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
+    <ClInclude Include="src\RedEngineFL\Graphics\PC\pcDisplaySettings.h">
+      <Filter>src\RedEngineFL\Graphics\PC</Filter>
+    </ClInclude>
+    <ClInclude Include="src\RedEngineFL\Graphics\PC\pcDisplayLogic.h">
+      <Filter>src\RedEngineFL\Graphics\PC</Filter>
     </ClInclude>
     <ClInclude Include="src\RedEngineFL\Graphics\PC\pcRedPoolMath.h">
       <Filter>src\RedEngineFL\Graphics\PC</Filter>

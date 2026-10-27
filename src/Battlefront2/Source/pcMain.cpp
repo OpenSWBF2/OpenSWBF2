@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "PebbleFL/Common/PblHashTable.h"
+#include "RedEngineFL/Graphics/PC/pcDisplaySettings.h"
 #include "RedEngineFL/Graphics/PC/pcRedAutoSettings.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "RedEngineFL/Graphics/PC/pcRedTexture.h"
@@ -363,6 +364,7 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
     ParseAutoNetCommandLine(lpCmdLine);
 
     ParseCommandLine(0, lpCmdLine);
+    DisplayCfg::Init();
 
     if (!bDedicated && !g_bNoRender)
     {

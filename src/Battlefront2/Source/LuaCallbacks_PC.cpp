@@ -12,6 +12,7 @@
 #include "PebbleFL/Common/PblUnicode.h"
 #include "RedEngineFL/Graphics/PC/pcRedAutoSettings.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
+#include "RedEngineFL/Graphics/PC/pcDisplayLogic.h"
 #include "RedEngineFL/Util/RedLocalizeDB.h"
 
 #include "RedEngineFL/input/RedKeyboard.h"
@@ -531,8 +532,19 @@ int ScriptCB_FillResolutionTable(lua_State* L)
     int iMultiSample = lua_isnumber(LuaHelper::mState, 1) ? LuaHelper::GetInt(1) : 0;
     int iMultiSampleQuality = lua_isnumber(LuaHelper::mState, 2) ? LuaHelper::GetInt(2) : 0;
 
-    D3DDISPLAYMODE modes[50];
-    unsigned int uiNumModes = RedRenderer::pcGetValidDisplayModes(modes, 50, 800, 600);
+    unsigned int uiAll = RedRenderer::pcGetValidDisplayModes(gAdapter, 0, 0, 800, 600);
+    DisplayLogic::DisplayModeRec* pAll = uiAll ? new DisplayLogic::DisplayModeRec[uiAll] : 0;
+    if (pAll)
+    {
+        RedRenderer::pcGetValidDisplayModes(gAdapter, pAll, uiAll, 800, 600);
+    }
+    unsigned int uiNumModes = pAll ? DisplayLogic::UniqueResolutions(pAll, uiAll, 800, 600, 0, 0) : 0;
+    DisplayLogic::DisplayModeRec* modes =
+        uiNumModes ? new DisplayLogic::DisplayModeRec[uiNumModes] : 0;
+    if (modes)
+    {
+        DisplayLogic::UniqueResolutions(pAll, uiAll, 800, 600, modes, uiNumModes);
+    }
     PlayerProfile::tProfile* pProfile = PlayerProfile::GetCurProfile();
 
     int iCurSel = 1;
@@ -540,25 +552,28 @@ int ScriptCB_FillResolutionTable(lua_State* L)
     for (unsigned int i = 0; i < uiNumModes; ++i)
     {
         unsigned short usLabel[256];
-        PblUnicode::usnprintf(usLabel, 255, "%d x %d", modes[i].Width, modes[i].Height);
+        PblUnicode::usnprintf(usLabel, 255, "%d x %d", modes[i].w, modes[i].h);
         usLabel[255] = 0;
 
-        if (!RedVideoConfig::VidMode_Usable(modes[i].Width, modes[i].Height,
+        if (!RedVideoConfig::VidMode_Usable(modes[i].w, modes[i].h,
                                             (D3DMULTISAMPLE_TYPE)iMultiSample,
                                             iMultiSampleQuality))
         {
             continue;
         }
 
-        AddResolution(iIndex, usLabel, modes[i].Width, modes[i].Height);
+        AddResolution(iIndex, usLabel, modes[i].w, modes[i].h);
         if (pProfile
-            && modes[i].Width == pProfile->mPCOptions.mResolutionX
-            && modes[i].Height == pProfile->mPCOptions.mResolutionY)
+            && modes[i].w == pProfile->mPCOptions.mResolutionX
+            && modes[i].h == pProfile->mPCOptions.mResolutionY)
         {
             iCurSel = iIndex;
         }
         ++iIndex;
     }
+
+    delete[] modes;
+    delete[] pAll;
 
     lua_setglobal(LuaHelper::mState, "ifs_opt_pcvideo_reslistbox_contents");
     DoPeriodicLuaGC(false);
