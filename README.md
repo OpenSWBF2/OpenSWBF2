@@ -10,7 +10,7 @@
 ## Build
 
 ```
-C:\Program Files (x86)\MSBuild\12.0\Bin\MSBuild.exe" BattlefrontII.sln /p:Configuration={Config} /p:Platform={Platform}
+"C:\Program Files (x86)\MSBuild\12.0\Bin\MSBuild.exe" BattlefrontII.sln /p:Configuration={Config} /p:Platform={Platform}
 ```
 
 The exe is written to `bin\{Platform}\{Config}\BattlefrontII.exe`.
