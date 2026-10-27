@@ -200,7 +200,7 @@ if ($hardenActive) {
         $bad++
     }
     elseif (Test-Path -LiteralPath $gameExe) {
-        $tl = Get-ClTlogCounts (Join-Path $root "obj\Win32\$SmokeConfiguration")
+        $tl = Get-ClTlogCounts (Join-Path $root "obj\Win32\$SmokeConfiguration\BattlefrontII.tlog")
         foreach ($c in (Get-HardeningChecks $hdr $cfg $tl.Total $tl.GsMinus $tl.Sdl)) {
             if ($c.Ok) { Add-SmokeResult "[PASS] hardening:$($c.Name)" 'PASS' }
             else {
