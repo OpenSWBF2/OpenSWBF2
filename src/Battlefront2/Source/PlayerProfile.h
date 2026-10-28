@@ -270,6 +270,9 @@ tProfile* GetProfile(unsigned int uiIndex);
 
 tProfile* GetCurProfile();
 
+void ApplyLiveDisplay();
+void PollApplyNotice();
+
 unsigned int GetCurProfileIndex();
 bool SetCurProfile(unsigned int uiIndex);
 

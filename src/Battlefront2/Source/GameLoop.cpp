@@ -85,6 +85,7 @@
 #include "SoundFL/source/sndbus.h"
 #include "SoundFL/source/sndsoundstream.h"
 #include "RedEngineFL/Application/pc/pcFLRender.h"
+#include "RedEngineFL/Graphics/RedCamera.h"
 #include "AIDifficulty.h"
 #include "AIUtil.h"
 #include "Character.h"
@@ -703,12 +704,52 @@ bool NetGame::ErrorDismissed()
     return NetSetup::IsErrorDismissed();
 }
 
+static unsigned int sDisplayGeneration;
+
+static void SyncDisplayLayout()
+{
+    unsigned int uiGeneration = RedRenderer::pcGetDisplayGeneration();
+    if (uiGeneration == sDisplayGeneration)
+    {
+        return;
+    }
+    sDisplayGeneration = uiGeneration;
+    float fCamera = 0.0f;
+    if (CameraManager::sInstance)
+    {
+        CameraManager::sInstance->RefreshAspect();
+        RedCamera* pCamera = CameraManager::sInstance->GetNumCameras() > 0
+                                 ? CameraManager::sInstance->GetCamera(0)
+                                 : 0;
+        if (pCamera && pCamera->_fUnzoomedTanHalfFOVWidth != 0.0f)
+        {
+            fCamera = pCamera->_fUnzoomedTanHalfFOVHeight / pCamera->_fUnzoomedTanHalfFOVWidth;
+        }
+    }
+    FLRenderer::RefreshViewScreens();
+    HUD::Manager::RefreshViewport();
+    unsigned int uiViewW = 0;
+    unsigned int uiViewH = 0;
+    if (FLRenderer::mViewCount > 0 && FLRenderer::m_pViewInterfaceScreen[0])
+    {
+        uiViewW = FLRenderer::m_pViewInterfaceScreen[0]->m_uiWidthInPixels;
+        uiViewH = FLRenderer::m_pViewInterfaceScreen[0]->m_uiHeightInPixels;
+    }
+    LOG(LogRender, Inform,
+        "OPENSWBF2 DISPLAY relayout generation=%u screen=%ux%u view=%ux%u hud=%dx%d aspect=%.4f "
+        "camera=%.4f",
+        uiGeneration, RedInterfaceScreen::GetScreenWidth(), RedInterfaceScreen::GetScreenHeight(),
+        uiViewW, uiViewH, (int)HUD::Element::GetViewportWidth(),
+        (int)HUD::Element::GetViewportHeight(), RedRenderer::GetScreenAspectRatio(), fCamera);
+}
+
 namespace GameLoop
 {
 
 // FUNCTION: SWBF2 0x00530ee0
 int Init()
 {
+    sDisplayGeneration = RedRenderer::pcGetDisplayGeneration();
     sMissionTimeInitialized = false;
     for (int i = 0; i < 3; ++i)
     {
@@ -1121,6 +1162,7 @@ void UpdateDedicatedMsg(float fDeltaTime)
 // FUNCTION: SWBF2 0x005323e0
 void Update(float fDeltaTime, float fSystemDeltaTime)
 {
+    SyncDisplayLayout();
     if (g_InGameMoviePlayerState)
     {
         if (g_bNoRender)

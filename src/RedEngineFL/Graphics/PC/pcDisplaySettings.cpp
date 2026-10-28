@@ -314,8 +314,10 @@ bool SaveIni(const DisplaySettings& kSettings, const char* pcPath, bool bGoodFra
         return false;
     }
     sprintf(acTemp, "%s.tmp", acFull);
+    SetFileAttributesA(acTemp, FILE_ATTRIBUTE_NORMAL);
     DeleteFileA(acTemp);
     CopyFileA(acFull, acTemp, FALSE);
+    SetFileAttributesA(acTemp, FILE_ATTRIBUTE_NORMAL);
     bool bOk = true;
     char acValue[32];
     if (ShouldWrite(kSettings, kAdapter))
@@ -366,29 +368,73 @@ bool SaveIni(const DisplaySettings& kSettings, const char* pcPath, bool bGoodFra
     return bOk;
 }
 
+bool DisplayIniPath(char* pcPath, unsigned int uiSize)
+{
+    if (uiSize < MAX_PATH)
+    {
+        return false;
+    }
+    if (gCliDisplay.acDisplayIni[0] != '\0')
+    {
+        return FullPath(gCliDisplay.acDisplayIni, pcPath);
+    }
+    DWORD dwLen = GetModuleFileNameA(0, pcPath, MAX_PATH);
+    if (dwLen > 0 && dwLen < MAX_PATH)
+    {
+        char* pcSlash = strrchr(pcPath, '\\');
+        if (pcSlash != 0 && strlen(pcPath) + 11 < MAX_PATH)
+        {
+            strcpy(pcSlash + 1, "display.ini");
+            return true;
+        }
+    }
+    return false;
+}
+
+bool SaveAdapter(unsigned int uiIndex, const char* pcName)
+{
+    char acPath[MAX_PATH];
+    if (!DisplayIniPath(acPath, sizeof(acPath)))
+    {
+        return false;
+    }
+    DisplaySettings kSave;
+    SetDefaults(kSave);
+    char acValue[16];
+    sprintf(acValue, "%u", uiIndex);
+    if (!SetFromText(kSave, kAdapter, acValue, "lua"))
+    {
+        return false;
+    }
+    if (pcName == 0 || !SetFromText(kSave, kAdapterName, pcName, "lua"))
+    {
+        SetFromText(kSave, kAdapterName, "", "lua");
+    }
+
+    char acDiskAdapter[16];
+    char acDiskName[sizeof(kSave.acAdapterName) + 1];
+    GetPrivateProfileStringA("Display", "Adapter", "\x7f", acDiskAdapter, sizeof(acDiskAdapter),
+                             acPath);
+    GetPrivateProfileStringA("Display", "AdapterName", "\x7f", acDiskName, sizeof(acDiskName),
+                             acPath);
+    const bool bSame =
+        strcmp(acDiskAdapter, acValue) == 0 && strcmp(acDiskName, kSave.acAdapterName) == 0;
+    if (!bSame && !SaveIni(kSave, acPath, true))
+    {
+        return false;
+    }
+
+    gIniDisplay.uiAdapter = kSave.uiAdapter;
+    strcpy(gIniDisplay.acAdapterName, kSave.acAdapterName);
+    gIniDisplay.uiSet |= kAdapter | kAdapterName;
+    return true;
+}
+
 void Init()
 {
     SetDefaults(gIniDisplay);
     char acPath[MAX_PATH];
-    bool bHavePath = false;
-    if (gCliDisplay.acDisplayIni[0] != '\0')
-    {
-        bHavePath = FullPath(gCliDisplay.acDisplayIni, acPath);
-    }
-    else
-    {
-        DWORD dwLen = GetModuleFileNameA(0, acPath, MAX_PATH);
-        if (dwLen > 0 && dwLen < MAX_PATH)
-        {
-            char* pcSlash = strrchr(acPath, '\\');
-            if (pcSlash != 0 && strlen(acPath) + 11 < MAX_PATH)
-            {
-                strcpy(pcSlash + 1, "display.ini");
-                bHavePath = true;
-            }
-        }
-    }
-    if (bHavePath)
+    if (DisplayIniPath(acPath, sizeof(acPath)))
     {
         LoadIni(gIniDisplay, acPath);
     }

@@ -59,7 +59,13 @@ enum ResetKind
     kResetKindFatal,
     kResetKindInitLost,
     kResetKindFlap,
-    kResetKindLaterInit
+    kResetKindLaterInit,
+    kResetKindApplyMode,
+    kResetKindApplyModeSmall,
+    kResetKindApplyFail,
+    kResetKindApplyPresentFail,
+    kResetKindApplyAdapter,
+    kResetKindApplyTargetFail
 };
 
 struct ResetScript
@@ -73,9 +79,24 @@ struct ResetScript
     DWORD dwSkewMs;
     bool bArmed;
     bool bDone;
+    unsigned int uiBaseW;
+    unsigned int uiBaseH;
+    bool bBaseWindowed;
+    bool bApplyDone;
+    bool bPresentFailPending;
+    bool bPresentFailed;
+    bool bTargetsPending;
+};
+
+struct TrackedTarget
+{
+    FakeD3DTexture* pTexture;
+    unsigned int uiW;
+    unsigned int uiH;
 };
 
 static ResetScript gResetScript;
+static TrackedTarget gTrackedTargets[256];
 static FakeD3DSurface gTrackedBackStore;
 static FakeD3DSurface gTrackedDepthStore;
 static FakeD3DSurface* gTrackedBack;
@@ -107,8 +128,228 @@ static ResetScript& GetResetScript()
         {
             gResetScript.eKind = kResetKindLaterInit;
         }
+        else if (pcKind && strcmp(pcKind, "applymode") == 0)
+        {
+            gResetScript.eKind = kResetKindApplyMode;
+        }
+        else if (pcKind && strcmp(pcKind, "applymodesmall") == 0)
+        {
+            gResetScript.eKind = kResetKindApplyModeSmall;
+        }
+        else if (pcKind && strcmp(pcKind, "applyfail") == 0)
+        {
+            gResetScript.eKind = kResetKindApplyFail;
+        }
+        else if (pcKind && strcmp(pcKind, "applypresentfail") == 0)
+        {
+            gResetScript.eKind = kResetKindApplyPresentFail;
+        }
+        else if (pcKind && strcmp(pcKind, "applyadapter") == 0)
+        {
+            gResetScript.eKind = kResetKindApplyAdapter;
+        }
+        else if (pcKind && strcmp(pcKind, "applytargetfail") == 0)
+        {
+            gResetScript.eKind = kResetKindApplyTargetFail;
+        }
     }
     return gResetScript;
+}
+
+static bool IsApplyKind(ResetKind eKind)
+{
+    return eKind == kResetKindApplyMode || eKind == kResetKindApplyModeSmall ||
+           eKind == kResetKindApplyFail ||
+           eKind == kResetKindApplyPresentFail || eKind == kResetKindApplyAdapter ||
+           eKind == kResetKindApplyTargetFail;
+}
+
+static bool IsTargetTrackKind(ResetKind eKind)
+{
+    return eKind == kResetKindApplyMode || eKind == kResetKindApplyModeSmall;
+}
+
+static bool gTrackedTargetsFull;
+
+static void TrackTarget(FakeD3DTexture* pTexture, unsigned int uiW, unsigned int uiH)
+{
+    for (unsigned int i = 0; i < sizeof(gTrackedTargets) / sizeof(gTrackedTargets[0]); ++i)
+    {
+        if (!gTrackedTargets[i].pTexture)
+        {
+            gTrackedTargets[i].pTexture = pTexture;
+            gTrackedTargets[i].uiW = uiW;
+            gTrackedTargets[i].uiH = uiH;
+            return;
+        }
+    }
+    if (!gTrackedTargetsFull)
+    {
+        gTrackedTargetsFull = true;
+        LOG(LogRender, Error, "OPENSWBF2 APPLY TARGETS tracking full at %u entries",
+            (unsigned int)(sizeof(gTrackedTargets) / sizeof(gTrackedTargets[0])));
+    }
+}
+
+static void UntrackTarget(FakeD3DTexture* pTexture)
+{
+    for (unsigned int i = 0; i < sizeof(gTrackedTargets) / sizeof(gTrackedTargets[0]); ++i)
+    {
+        if (gTrackedTargets[i].pTexture == pTexture)
+        {
+            gTrackedTargets[i].pTexture = 0;
+            return;
+        }
+    }
+}
+
+static TrackedTarget gFixedTargets[256];
+static unsigned int gFixedTargetCount;
+
+static bool IsBufferTexture(const FakeD3DTexture* pTexture)
+{
+    for (unsigned int b = 0; b < 3; ++b)
+    {
+        const RedTexture* pBuffer = RedRenderer::m_buffers[b];
+        if (pBuffer && pBuffer->m_pTexture &&
+            (const IDirect3DBaseTexture9*)pTexture == pBuffer->m_pTexture)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void SnapshotFixedTargets(const ResetScript& s)
+{
+    const DisplayLogic::BufferSet kBase = DisplayLogic::BufferSizes(
+        s.uiBaseW, s.uiBaseH, RedRenderer::m_deviceCaps.MaxTextureWidth,
+        RedRenderer::m_deviceCaps.MaxTextureHeight, RedRenderer::m_renderCaps.nonpow2textures != 0);
+    const DisplayLogic::BufferSize& rSky = kBase.akBuf[PC_BUFFER_SKY];
+    gFixedTargetCount = 0;
+    for (unsigned int i = 0; i < sizeof(gTrackedTargets) / sizeof(gTrackedTargets[0]); ++i)
+    {
+        const TrackedTarget& t = gTrackedTargets[i];
+        if (!t.pTexture || IsBufferTexture(t.pTexture) || (t.uiW == rSky.uiW && t.uiH == rSky.uiH))
+        {
+            continue;
+        }
+        gFixedTargets[gFixedTargetCount++] = t;
+    }
+}
+
+static unsigned int FixedTargetsAt(unsigned int uiW, unsigned int uiH)
+{
+    unsigned int uiCount = 0;
+    for (unsigned int i = 0; i < gFixedTargetCount; ++i)
+    {
+        if (gFixedTargets[i].uiW == uiW && gFixedTargets[i].uiH == uiH)
+        {
+            ++uiCount;
+        }
+    }
+    return uiCount;
+}
+
+static void LogApplyTargets(const ResetScript& s)
+{
+    const DisplayLogic::BufferSet kNew = DisplayLogic::BufferSizes(
+        RedRenderer::m_d3dpp.BackBufferWidth, RedRenderer::m_d3dpp.BackBufferHeight,
+        RedRenderer::m_deviceCaps.MaxTextureWidth, RedRenderer::m_deviceCaps.MaxTextureHeight,
+        RedRenderer::m_renderCaps.nonpow2textures != 0);
+    const DisplayLogic::BufferSet kBase = DisplayLogic::BufferSizes(
+        s.uiBaseW, s.uiBaseH, RedRenderer::m_deviceCaps.MaxTextureWidth,
+        RedRenderer::m_deviceCaps.MaxTextureHeight, RedRenderer::m_renderCaps.nonpow2textures != 0);
+    unsigned int uiMoved = 0;
+    unsigned int uiBuffers = 0;
+    unsigned int b;
+    for (b = 0; b < 3; ++b)
+    {
+        const DisplayLogic::BufferSize& rNew = kNew.akBuf[b];
+        const DisplayLogic::BufferSize& rOld = kBase.akBuf[b];
+        if (rNew.uiW != rOld.uiW || rNew.uiH != rOld.uiH)
+        {
+            ++uiMoved;
+        }
+        const RedTexture* pBuffer = RedRenderer::m_buffers[b];
+        if (!pBuffer || !pBuffer->m_pTexture)
+        {
+            continue;
+        }
+        for (unsigned int i = 0; i < sizeof(gTrackedTargets) / sizeof(gTrackedTargets[0]); ++i)
+        {
+            const TrackedTarget& t = gTrackedTargets[i];
+            if (t.pTexture && (IDirect3DBaseTexture9*)t.pTexture == pBuffer->m_pTexture &&
+                t.uiW == rNew.uiW && t.uiH == rNew.uiH)
+            {
+                ++uiBuffers;
+                break;
+            }
+        }
+    }
+    unsigned int uiAlive = 0;
+    unsigned int uiFresh = 0;
+    unsigned int uiStale = 0;
+    char acSizes[512];
+    unsigned int uiLen = 0;
+    acSizes[0] = '\0';
+    for (unsigned int i = 0; i < sizeof(gTrackedTargets) / sizeof(gTrackedTargets[0]); ++i)
+    {
+        const TrackedTarget& t = gTrackedTargets[i];
+        if (!t.pTexture)
+        {
+            continue;
+        }
+        ++uiAlive;
+        bool bInNew = false;
+        for (b = 0; b < 3; ++b)
+        {
+            bInNew = bInNew || (t.uiW == kNew.akBuf[b].uiW && t.uiH == kNew.akBuf[b].uiH);
+        }
+        if (bInNew)
+        {
+            ++uiFresh;
+        }
+        if (uiLen + 24 < sizeof(acSizes))
+        {
+            uiLen += sprintf(acSizes + uiLen, "%s%ux%u", uiLen ? "," : "", t.uiW, t.uiH);
+        }
+    }
+    for (b = 0; b < 3; ++b)
+    {
+        const DisplayLogic::BufferSize& rOld = kBase.akBuf[b];
+        bool bSeen = false;
+        bool bInNew = false;
+        for (unsigned int c = 0; c < b; ++c)
+        {
+            bSeen = bSeen || (kBase.akBuf[c].uiW == rOld.uiW && kBase.akBuf[c].uiH == rOld.uiH);
+        }
+        for (unsigned int c = 0; c < 3; ++c)
+        {
+            bInNew = bInNew || (kNew.akBuf[c].uiW == rOld.uiW && kNew.akBuf[c].uiH == rOld.uiH);
+        }
+        if (bSeen || bInNew)
+        {
+            continue;
+        }
+        unsigned int uiAt = 0;
+        for (unsigned int i = 0; i < sizeof(gTrackedTargets) / sizeof(gTrackedTargets[0]); ++i)
+        {
+            const TrackedTarget& t = gTrackedTargets[i];
+            if (t.pTexture && t.uiW == rOld.uiW && t.uiH == rOld.uiH)
+            {
+                ++uiAt;
+            }
+        }
+        const unsigned int uiFixed = FixedTargetsAt(rOld.uiW, rOld.uiH);
+        if (uiAt > uiFixed)
+        {
+            uiStale += uiAt - uiFixed;
+        }
+    }
+    LOG(LogRender, Inform,
+        "OPENSWBF2 APPLY TARGETS alive=%u fresh=%u stale=%u buffers=%u/3 moved=%u sizes=%s",
+        uiAlive, uiFresh, uiStale, uiBuffers, uiMoved, acSizes);
 }
 
 static void ResetScriptFrame()
@@ -126,6 +367,35 @@ static void ResetScriptFrame()
                 RedRenderer::m_d3dpp.BackBufferWidth += 16;
             }
         }
+    }
+    if (IsApplyKind(s.eKind) && !s.bApplyDone && ++s.uiFrames >= 30)
+    {
+        s.bApplyDone = true;
+        s.uiBaseW = RedRenderer::m_d3dpp.BackBufferWidth;
+        s.uiBaseH = RedRenderer::m_d3dpp.BackBufferHeight;
+        s.bBaseWindowed = RedRenderer::m_d3dpp.Windowed != FALSE;
+        SnapshotFixedTargets(s);
+        if (s.eKind == kResetKindApplyAdapter)
+        {
+            RedRenderer::pcRequestAdapter(1);
+            RedRenderer::pcRequestAdapter(0);
+            return;
+        }
+        unsigned int uiW = 1280;
+        unsigned int uiH = 720;
+        if (s.uiBaseW == uiW && s.uiBaseH == uiH)
+        {
+            uiW = 1024;
+            uiH = 768;
+        }
+        if (s.eKind == kResetKindApplyModeSmall)
+        {
+            uiW = DisplayLogic::kMinW;
+            uiH = DisplayLogic::kMinH;
+        }
+        const DisplayLogic::DisplayMode eMode =
+            s.bBaseWindowed ? DisplayLogic::kModeFullscreen : DisplayLogic::kModeWindowed;
+        RedRenderer::pcApplyDisplayMode(uiW, uiH, eMode, uiW, uiH, true, D3DMULTISAMPLE_NONE, 0);
     }
 }
 
@@ -529,11 +799,24 @@ STDMETHODIMP FakeD3DDevice::CreateStateBlock(D3DSTATEBLOCKTYPE,
 
 // FUNCTION: SWBF2 0x006b0ac0
 STDMETHODIMP FakeD3DDevice::CreateTexture(UINT Width, UINT Height, UINT,
-                                          DWORD, D3DFORMAT Format, D3DPOOL,
+                                          DWORD Usage, D3DFORMAT Format, D3DPOOL Pool,
                                           IDirect3DTexture9** ppTexture,
                                           HANDLE*)
 {
-    *ppTexture = new FakeD3DTexture(Width, Height, Format);
+    const ResetScript& s = GetResetScript();
+    if (s.eKind == kResetKindApplyTargetFail && s.bApplyDone && (Usage & D3DUSAGE_RENDERTARGET) &&
+        Pool == D3DPOOL_DEFAULT && Width * Height > s.uiBaseW * s.uiBaseH)
+    {
+        *ppTexture = 0;
+        return D3DERR_OUTOFVIDEOMEMORY;
+    }
+    FakeD3DTexture* pTexture = new FakeD3DTexture(Width, Height, Format, Usage, Pool);
+    if (IsTargetTrackKind(s.eKind) && (Usage & D3DUSAGE_RENDERTARGET) &&
+        Pool == D3DPOOL_DEFAULT)
+    {
+        TrackTarget(pTexture, Width, Height);
+    }
+    *ppTexture = pTexture;
     return 0;
 }
 
@@ -958,6 +1241,18 @@ STDMETHODIMP FakeD3DDevice::Present(CONST RECT*, CONST RECT*, HWND,
             Sleep(16);
         }
     }
+    ResetScript& s = GetResetScript();
+    if (s.bPresentFailPending)
+    {
+        s.bPresentFailPending = false;
+        s.bPresentFailed = true;
+        return D3DERR_INVALIDCALL;
+    }
+    if (s.bTargetsPending)
+    {
+        s.bTargetsPending = false;
+        LogApplyTargets(s);
+    }
     return 0;
 }
 
@@ -987,9 +1282,27 @@ STDMETHODIMP_(ULONG) FakeD3DDevice::Release()
 }
 
 // FUNCTION: SWBF2 0x006b3100
-STDMETHODIMP FakeD3DDevice::Reset(D3DPRESENT_PARAMETERS*)
+STDMETHODIMP FakeD3DDevice::Reset(D3DPRESENT_PARAMETERS* pPresentationParameters)
 {
     ResetScript& s = GetResetScript();
+    if (s.bApplyDone && pPresentationParameters &&
+        (pPresentationParameters->BackBufferWidth != s.uiBaseW ||
+         pPresentationParameters->BackBufferHeight != s.uiBaseH ||
+         (pPresentationParameters->Windowed != FALSE) != s.bBaseWindowed))
+    {
+        if (s.eKind == kResetKindApplyFail)
+        {
+            return D3DERR_INVALIDCALL;
+        }
+        if (s.eKind == kResetKindApplyPresentFail && !s.bPresentFailed)
+        {
+            s.bPresentFailPending = true;
+        }
+        if (IsTargetTrackKind(s.eKind))
+        {
+            s.bTargetsPending = true;
+        }
+    }
     if (s.eKind == kResetKindInitLost && !s.bDone)
     {
         if (s.uiLost < 3)
@@ -1569,9 +1882,14 @@ STDMETHODIMP_(DWORD) FakeD3DTexture::GetLevelCount()
 // FUNCTION: SWBF2 0x006b1460
 STDMETHODIMP FakeD3DTexture::GetLevelDesc(UINT Level, D3DSURFACE_DESC* pDesc)
 {
+    pDesc->Format = (D3DFORMAT)fmt;
+    pDesc->Type = D3DRTYPE_SURFACE;
+    pDesc->Usage = usage;
+    pDesc->Pool = pool;
+    pDesc->MultiSampleType = D3DMULTISAMPLE_NONE;
+    pDesc->MultiSampleQuality = 0;
     pDesc->Width = w >> Level;
     pDesc->Height = h >> Level;
-    pDesc->Format = (D3DFORMAT)fmt;
     return 0;
 }
 
@@ -1631,6 +1949,10 @@ STDMETHODIMP_(ULONG) FakeD3DTexture::Release()
 {
     if (--refCount == 0)
     {
+        if (IsTargetTrackKind(gResetScript.eKind))
+        {
+            UntrackTarget(this);
+        }
         delete this;
     }
     return 0;
@@ -2137,6 +2459,69 @@ void RedRenderer::pcGetAdapterDesktop(unsigned int uiAdapter, unsigned int& uiW,
     {
         uiW = (unsigned int)(monitor.r - monitor.l);
         uiH = (unsigned int)(monitor.b - monitor.t);
+    }
+}
+
+bool RedRenderer::pcRequestAdapter(unsigned int uiIndex)
+{
+    unsigned int uiCount = m_pD3D ? m_pD3D->GetAdapterCount() : 0;
+    DisplayLogic::AdapterChoice choice = DisplayLogic::AdapterDecision(uiIndex, gAdapter, uiCount);
+    if (!choice.bValid)
+    {
+        LOG(LogRender, Warning, "OPENSWBF2 DISPLAY adapter=%u invalid count=%u, ignored", uiIndex,
+            uiCount);
+        return false;
+    }
+
+    D3DADAPTER_IDENTIFIER9 id;
+    memset(&id, 0, sizeof(id));
+    if (m_pD3D->GetAdapterIdentifier(uiIndex, 0, &id) != D3D_OK)
+    {
+        memset(&id, 0, sizeof(id));
+    }
+    id.DeviceName[sizeof(id.DeviceName) - 1] = '\0';
+
+    if (!DisplayCfg::SaveAdapter(uiIndex, id.DeviceName))
+    {
+        LOG(LogRender, Warning, "OPENSWBF2 DISPLAY adapter save failed");
+        return false;
+    }
+
+    if (choice.bRestart)
+    {
+        if (DisplayCfg::gDisplay.uiCliMask & DisplayCfg::kAdapter)
+        {
+            LOG(LogRender, Inform,
+                "OPENSWBF2 DISPLAY adapter=%u saved, restart required, -adapter switch still wins next start",
+                uiIndex);
+        }
+        else
+        {
+            LOG(LogRender, Inform, "OPENSWBF2 DISPLAY adapter=%u saved, restart required", uiIndex);
+        }
+    }
+    else
+    {
+        LOG(LogRender, Inform, "OPENSWBF2 DISPLAY adapter=%u saved, running adapter unchanged",
+            uiIndex);
+    }
+    return choice.bRestart;
+}
+
+void RedRenderer::pcGetMaxTextureSize(unsigned int& uiW, unsigned int& uiH)
+{
+    uiW = 0;
+    uiH = 0;
+    if (!m_pd3dDevice)
+    {
+        return;
+    }
+    D3DCAPS9 caps;
+    memset(&caps, 0, sizeof(caps));
+    if (SUCCEEDED(m_pd3dDevice->GetDeviceCaps(&caps)))
+    {
+        uiW = caps.MaxTextureWidth;
+        uiH = caps.MaxTextureHeight;
     }
 }
 
@@ -2725,6 +3110,10 @@ unsigned int RedRenderer::m_clientH = 0;
 unsigned int RedRenderer::m_clientWLast = 0;
 unsigned int RedRenderer::m_clientHLast = 0;
 bool RedRenderer::m_bResourcesReleased = true;
+static bool sInReset;
+static unsigned int sDisplayGeneration;
+static unsigned int sDisplayGenW;
+static unsigned int sDisplayGenH;
 // GLOBAL: SWBF2 0x007f5f28
 void(__cdecl* RedRenderer::m_resetFunctions[100])(ResetFlagsT);
 // GLOBAL: SWBF2 0x007f60b8
@@ -2792,6 +3181,8 @@ static void ApplyCurrentMode(bool bMinimized)
     PcWindow::ApplyWindowMode(RedRenderer::m_displayMode, uiClientW, uiClientH, hMon, bMinimized);
 }
 
+static void NoteInitApplied(bool bApplied);
+
 // FUNCTION: SWBF2 0x006b1a90
 void RedRenderer::Init()
 {
@@ -2846,6 +3237,7 @@ void RedRenderer::Init()
     unsigned int uiFailures = 0;
     unsigned int uiAttempts = 0;
     bool bRevertUsed = false;
+    bool bReverted = false;
     DWORD dwStart = ResetClock();
     const bool bWasLoading = gLoading;
     gLoading = true;
@@ -2862,7 +3254,9 @@ void RedRenderer::Init()
         D3DPRESENT_PARAMETERS pp = m_d3dpp;
         if (eAction == DisplayLogic::kResetNow)
         {
+            sInReset = true;
             hr = m_pd3dDevice->Reset(&pp);
+            sInReset = false;
             ++uiAttempts;
             if (FAILED(hr))
             {
@@ -2888,6 +3282,7 @@ void RedRenderer::Init()
             m_displayModeLast = m_displayMode;
             m_clientWLast = m_clientW;
             m_clientHLast = m_clientH;
+            NoteInitApplied(!bReverted);
             if (uiAttempts > 1)
             {
                 LOG(LogRender, Inform, "OPENSWBF2 RESET recovered after %u attempts", uiAttempts);
@@ -2897,6 +3292,7 @@ void RedRenderer::Init()
         else if (eAction == DisplayLogic::kResetRevert)
         {
             bRevertUsed = true;
+            bReverted = true;
             LOG(LogRender, Warning,
                 "OPENSWBF2 RESET reverting asked=%ux%u windowed=%d used=%ux%u windowed=%d ms=%d q=%u",
                 m_d3dpp.BackBufferWidth, m_d3dpp.BackBufferHeight, (int)m_d3dpp.Windowed,
@@ -2948,58 +3344,19 @@ void RedRenderer::Init()
     D3DCAPS9 caps;
     m_pd3dDevice->GetDeviceCaps(&caps);
 
-    unsigned int uiPow2Width;
-    int iShift = 31;
-    for (;;)
-    {
-        uiPow2Width = 1u << iShift;
-        if (uiPow2Width <= m_d3dpp.BackBufferWidth &&
-            uiPow2Width <= caps.MaxTextureWidth)
-        {
-            break;
-        }
-        --iShift;
-    }
+    const DisplayLogic::BufferSet kSizes =
+        DisplayLogic::BufferSizes(m_d3dpp.BackBufferWidth, m_d3dpp.BackBufferHeight,
+                                  caps.MaxTextureWidth, caps.MaxTextureHeight,
+                                  m_renderCaps.nonpow2textures != 0);
 
-    unsigned int uiPow2Height;
-    iShift = 31;
-    for (;;)
-    {
-        uiPow2Height = 1u << iShift;
-        if (uiPow2Height <= m_d3dpp.BackBufferHeight &&
-            uiPow2Height <= caps.MaxTextureHeight)
-        {
-            break;
-        }
-        --iShift;
-    }
-
-    if (m_renderCaps.nonpow2textures)
-    {
-        m_buffers[1] = new RedTexture(m_d3dpp.BackBufferWidth,
-                                      m_d3dpp.BackBufferHeight,
-                                      D3DFMT_A8R8G8B8, 1,
-                                      D3DUSAGE_RENDERTARGET, D3DPOOL_DEFAULT, 0);
-    }
-    else
-    {
-        m_buffers[1] = new RedTexture(uiPow2Width, uiPow2Height,
-                                      D3DFMT_A8R8G8B8, 1,
-                                      D3DUSAGE_RENDERTARGET, D3DPOOL_DEFAULT, 0);
-    }
-
-    m_buffers[0] = new RedTexture(
-        uiPow2Width > 0x200 ? 0x200 : uiPow2Width,
-        uiPow2Height > 0x200 ? 0x200 : uiPow2Height,
-        D3DFMT_A8R8G8B8, 1, D3DUSAGE_RENDERTARGET, D3DPOOL_DEFAULT, 0);
-
-    const unsigned int uiSmallWidth =
-        uiPow2Width > 0x100 ? 0x100 : uiPow2Width;
-    const unsigned int uiSmallHeight =
-        uiPow2Height > 0x100 ? 0x100 : uiPow2Height;
-    m_buffers[2] = new RedTexture(uiSmallWidth, uiSmallHeight,
-                                  D3DFMT_A8R8G8B8, 1, D3DUSAGE_RENDERTARGET,
-                                  D3DPOOL_DEFAULT, 0);
+    m_buffers[1] = new RedTexture(kSizes.akBuf[1].uiW, kSizes.akBuf[1].uiH, D3DFMT_A8R8G8B8, 1,
+                                  D3DUSAGE_RENDERTARGET, D3DPOOL_DEFAULT, 0);
+    m_buffers[0] = new RedTexture(kSizes.akBuf[0].uiW, kSizes.akBuf[0].uiH, D3DFMT_A8R8G8B8, 1,
+                                  D3DUSAGE_RENDERTARGET, D3DPOOL_DEFAULT, 0);
+    m_buffers[2] = new RedTexture(kSizes.akBuf[2].uiW, kSizes.akBuf[2].uiH, D3DFMT_A8R8G8B8, 1,
+                                  D3DUSAGE_RENDERTARGET, D3DPOOL_DEFAULT, 0);
+    sDisplayGenW = m_d3dpp.BackBufferWidth;
+    sDisplayGenH = m_d3dpp.BackBufferHeight;
 
     RedRenderer::m_camera = 0;
     RedRenderer::m_frameNumber = 0;
@@ -3239,7 +3596,10 @@ void RedRenderer::Read(PblFileChunk& chunk)
 void RedRenderer::SetCursorImage(RedTexture const* pTexture, unsigned int uiX,
                                 unsigned int uiY)
 {
-
+    if (sInReset)
+    {
+        return;
+    }
     pcSetCursorImage(pTexture, uiX, uiY);
 }
 
@@ -3786,6 +4146,221 @@ static DWORD sResetStart;
 static DWORD sResetLast;
 static bool sResetRevertUsed;
 
+struct PendingApply
+{
+    D3DPRESENT_PARAMETERS pp;
+    DisplayLogic::DisplayMode eMode;
+    unsigned int uiClientW;
+    unsigned int uiClientH;
+    DisplayRequestTag kTag;
+    bool bSet;
+};
+
+static PendingApply sPendingApply;
+static DisplayLogic::ApplyPhase sApplyPhase = DisplayLogic::kApplyNone;
+static bool sForceReset;
+static unsigned int sApplyNotice;
+static DWORD sApplyStartTick;
+static DisplayRequestTag sStagedTag;
+static DisplayRequestTag sInFlightTag;
+static DisplayRequestTag sNoticeTag;
+
+static void NoteInitApplied(bool bApplied)
+{
+    if (bApplied && sStagedTag.bValid)
+    {
+        sNoticeTag = sStagedTag;
+        sApplyNotice = 1;
+    }
+    sStagedTag.bValid = false;
+}
+
+void RedRenderer::pcStageRequestTag(const DisplayRequestTag& kTag)
+{
+    sStagedTag = kTag;
+}
+
+bool RedRenderer::pcApplyPending()
+{
+    return sPendingApply.bSet;
+}
+
+static DisplayLogic::DisplayRec ToDisplayRec(const D3DPRESENT_PARAMETERS& pp,
+                                             DisplayLogic::DisplayMode eMode,
+                                             unsigned int uiClientW, unsigned int uiClientH)
+{
+    DisplayLogic::DisplayRec rec;
+    rec.uiW = pp.BackBufferWidth;
+    rec.uiH = pp.BackBufferHeight;
+    rec.bWindowed = pp.Windowed != FALSE;
+    rec.uiMsType = (unsigned int)pp.MultiSampleType;
+    rec.uiMsQuality = (unsigned int)pp.MultiSampleQuality;
+    rec.uiInterval = pp.PresentationInterval;
+    rec.uiRefresh = pp.FullScreen_RefreshRateInHz;
+    rec.eMode = eMode;
+    rec.uiClientW = uiClientW;
+    rec.uiClientH = uiClientH;
+    return rec;
+}
+
+bool RedRenderer::pcApplyDisplayMode(unsigned int uiWidth, unsigned int uiHeight,
+                                     DisplayLogic::DisplayMode eMode, unsigned int uiClientW,
+                                     unsigned int uiClientH, bool bVSync,
+                                     D3DMULTISAMPLE_TYPE msType, unsigned long ulMSQuality)
+{
+    const D3DPRESENT_PARAMETERS ppSave = m_d3dpp;
+    const DisplayLogic::DisplayMode eSave = m_displayMode;
+    const unsigned int uiClientWSave = m_clientW;
+    const unsigned int uiClientHSave = m_clientH;
+
+    pcSetDisplayMode(uiWidth, uiHeight, eMode, uiClientW, uiClientH, bVSync, msType, ulMSQuality);
+    sPendingApply.pp = m_d3dpp;
+    sPendingApply.eMode = m_displayMode;
+    sPendingApply.uiClientW = m_clientW;
+    sPendingApply.uiClientH = m_clientH;
+
+    m_d3dpp = ppSave;
+    m_displayMode = eSave;
+    m_clientW = uiClientWSave;
+    m_clientH = uiClientHSave;
+
+    sPendingApply.kTag = sStagedTag;
+    sStagedTag.bValid = false;
+
+    sPendingApply.bSet = !DisplayLogic::SameDisplayParams(
+        ToDisplayRec(ppSave, eSave, uiClientWSave, uiClientHSave),
+        ToDisplayRec(sPendingApply.pp, sPendingApply.eMode, sPendingApply.uiClientW,
+                     sPendingApply.uiClientH));
+    if (sPendingApply.bSet)
+    {
+        sApplyStartTick = GetTickCount();
+    }
+    return sPendingApply.bSet;
+}
+
+bool RedRenderer::pcTakeApplyNotice(unsigned int& uiKind, DisplayRequestTag& rTag)
+{
+    if (sApplyNotice == 0)
+    {
+        return false;
+    }
+    uiKind = sApplyNotice;
+    rTag = sNoticeTag;
+    sApplyNotice = 0;
+    sNoticeTag.bValid = false;
+    return true;
+}
+
+static const char* DisplayModeName(DisplayLogic::DisplayMode eMode)
+{
+    if (eMode == DisplayLogic::kModeWindowed)
+    {
+        return "windowed";
+    }
+    if (eMode == DisplayLogic::kModeBorderless)
+    {
+        return "borderless";
+    }
+    return "fullscreen";
+}
+
+static const char* VsyncName(unsigned int uiInterval)
+{
+    if (uiInterval == DisplayLogic::kIntervalImmediate)
+    {
+        return "off";
+    }
+    if (uiInterval == DisplayLogic::kIntervalTwo)
+    {
+        return "half";
+    }
+    return "on";
+}
+
+static unsigned int ReadbackRefresh()
+{
+    if (g_bNoRender || RedRenderer::m_displayMode != DisplayLogic::kModeFullscreen ||
+        RedRenderer::m_adaptorIdentifier.DeviceName[0] == 0)
+    {
+        return 0;
+    }
+    DEVMODEA dm;
+    ZeroMemory(&dm, sizeof(dm));
+    dm.dmSize = sizeof(dm);
+    if (!EnumDisplaySettingsA(RedRenderer::m_adaptorIdentifier.DeviceName, ENUM_CURRENT_SETTINGS,
+                              &dm))
+    {
+        return 0;
+    }
+    return dm.dmDisplayFrequency;
+}
+
+static void LogDisplayReverted(const D3DPRESENT_PARAMETERS& ppAsked,
+                               DisplayLogic::DisplayMode eAsked, HRESULT hr)
+{
+    LOG(LogRender, Warning,
+        "OPENSWBF2 DISPLAY reverted asked=%ux%u mode=%d used=%ux%u mode=%d hr=0x%08X",
+        ppAsked.BackBufferWidth, ppAsked.BackBufferHeight, (int)eAsked,
+        RedRenderer::m_d3dppLast.BackBufferWidth, RedRenderer::m_d3dppLast.BackBufferHeight,
+        (int)RedRenderer::m_displayModeLast, (unsigned int)hr);
+}
+
+static void PromoteApplied()
+{
+    RedRenderer::m_d3dppLast = RedRenderer::m_d3dpp;
+    RedRenderer::m_displayModeLast = RedRenderer::m_displayMode;
+    RedRenderer::m_clientWLast = RedRenderer::m_clientW;
+    RedRenderer::m_clientHLast = RedRenderer::m_clientH;
+    sNoticeTag = sInFlightTag;
+    sApplyNotice = 1;
+    LOG(LogRender, Inform, "OPENSWBF2 DISPLAY applied %ux%u mode=%s refresh=%u/%u vsync=%s ms=%u",
+        RedRenderer::m_d3dpp.BackBufferWidth, RedRenderer::m_d3dpp.BackBufferHeight,
+        DisplayModeName(RedRenderer::m_displayMode),
+        RedRenderer::m_d3dpp.FullScreen_RefreshRateInHz, ReadbackRefresh(),
+        VsyncName(RedRenderer::m_d3dpp.PresentationInterval),
+        (unsigned int)(GetTickCount() - sApplyStartTick));
+}
+
+static void ResizeBuffersToBackBuffer()
+{
+    unsigned int i;
+    for (i = 0; i < 3; ++i)
+    {
+        if (!RedRenderer::m_buffers[i])
+        {
+            return;
+        }
+    }
+    const DisplayLogic::BufferSet kSizes = DisplayLogic::BufferSizes(
+        RedRenderer::m_d3dpp.BackBufferWidth, RedRenderer::m_d3dpp.BackBufferHeight,
+        RedRenderer::m_deviceCaps.MaxTextureWidth, RedRenderer::m_deviceCaps.MaxTextureHeight,
+        RedRenderer::m_renderCaps.nonpow2textures != 0);
+    for (i = 0; i < 3; ++i)
+    {
+        RedRenderer::m_buffers[i]->m_uiWidth = kSizes.akBuf[i].uiW;
+        RedRenderer::m_buffers[i]->m_uiHeight = kSizes.akBuf[i].uiH;
+    }
+}
+
+unsigned int RedRenderer::pcGetDisplayGeneration()
+{
+    return sDisplayGeneration;
+}
+
+static void BeginRevert(HRESULT hr)
+{
+    LogDisplayReverted(RedRenderer::m_d3dpp, RedRenderer::m_displayMode, hr);
+    RedRenderer::m_d3dpp = RedRenderer::m_d3dppLast;
+    RedRenderer::m_displayMode = RedRenderer::m_displayModeLast;
+    RedRenderer::m_clientW = RedRenderer::m_clientWLast;
+    RedRenderer::m_clientH = RedRenderer::m_clientHLast;
+    ApplyCurrentMode(IsIconic(hGlobalWnd) != 0);
+    ResizeBuffersToBackBuffer();
+    sResetRevertUsed = true;
+    sForceReset = true;
+    sApplyNotice = 2;
+}
+
 // FUNCTION: SWBF2 0x006b68a0
 void RedRenderer::internalReset()
 {
@@ -3811,13 +4386,16 @@ void RedRenderer::internalReset()
         return;
     }
 
+    ResizeBuffersToBackBuffer();
     for (i = 0; i < m_numResetFunctions; ++i)
     {
         m_resetFunctions[i](RESETFLAGS_FREE_RESOURCES);
     }
 
     D3DPRESENT_PARAMETERS pp = m_d3dpp;
+    sInReset = true;
     const HRESULT hr = m_pd3dDevice->Reset(&pp);
+    sInReset = false;
     sResetLast = GetTickCount();
 
     if (SUCCEEDED(hr))
@@ -3826,11 +4404,25 @@ void RedRenderer::internalReset()
                               m_clientH != m_clientHLast ||
                               pp.BackBufferWidth != m_d3dppLast.BackBufferWidth ||
                               pp.BackBufferHeight != m_d3dppLast.BackBufferHeight;
+        if (pp.BackBufferWidth != sDisplayGenW || pp.BackBufferHeight != sDisplayGenH)
+        {
+            sDisplayGenW = pp.BackBufferWidth;
+            sDisplayGenH = pp.BackBufferHeight;
+            ++sDisplayGeneration;
+        }
         m_d3dpp = pp;
-        m_d3dppLast = m_d3dpp;
-        m_displayModeLast = m_displayMode;
-        m_clientWLast = m_clientW;
-        m_clientHLast = m_clientH;
+        if (sApplyPhase != DisplayLogic::kApplyNone)
+        {
+            sApplyPhase = DisplayLogic::ApplyPhaseStep(sApplyPhase, DisplayLogic::kEvResetOk).ePhase;
+        }
+        else
+        {
+            m_d3dppLast = m_d3dpp;
+            m_displayModeLast = m_displayMode;
+            m_clientWLast = m_clientW;
+            m_clientHLast = m_clientH;
+        }
+        sForceReset = false;
 
         if (!g_bNoRender)
         {
@@ -3849,6 +4441,15 @@ void RedRenderer::internalReset()
             m_resetFunctions[i](RESETFLAGS_CREATE_RESOURCES);
         }
         m_bResourcesReleased = false;
+
+        if (sApplyPhase == DisplayLogic::kApplyAwaitPresent && !RedTexture::pcDefaultPoolCreated())
+        {
+            sApplyPhase =
+                DisplayLogic::ApplyPhaseStep(sApplyPhase, DisplayLogic::kEvPresentFail).ePhase;
+            BeginRevert(D3DERR_OUTOFVIDEOMEMORY);
+            internalReset();
+            return;
+        }
 
         if (bRestyle)
         {
@@ -3882,6 +4483,10 @@ void RedRenderer::internalReset()
         !sResetRevertUsed && memcmp(&m_d3dpp, &m_d3dppLast, sizeof(m_d3dpp)) != 0;
     const DisplayLogic::ResetAction eAction = DisplayLogic::ResetStep(
         hr, sResetFailures, uiElapsed, bRevertAvailable, DisplayLogic::kRuntimeBounds);
+    const bool bApplyReverted =
+        eAction == DisplayLogic::kResetRevert && sApplyPhase != DisplayLogic::kApplyNone;
+    const D3DPRESENT_PARAMETERS ppAsked = m_d3dpp;
+    const DisplayLogic::DisplayMode eAsked = m_displayMode;
 
     if (eAction == DisplayLogic::kResetRevert)
     {
@@ -3905,6 +4510,13 @@ void RedRenderer::internalReset()
         LOG(LogRender, Fatal, "device reset failed");
         RedWarning::DialogBoxMessage("Device reset failed!");
         pcCrash::FatalReset(hr, sResetFailures, uiElapsed);
+    }
+
+    if (bApplyReverted)
+    {
+        LogDisplayReverted(ppAsked, eAsked, hr);
+        sApplyPhase = DisplayLogic::kApplyNone;
+        sApplyNotice = 2;
     }
 }
 
@@ -4935,6 +5547,25 @@ bool RedRenderer::BeginFrame()
         return false;
     }
 
+    if ((sPendingApply.bSet || sForceReset) && !m_bResourcesReleased && hrCoop == D3D_OK)
+    {
+        if (sPendingApply.bSet)
+        {
+            m_d3dpp = sPendingApply.pp;
+            m_displayMode = sPendingApply.eMode;
+            m_clientW = sPendingApply.uiClientW;
+            m_clientH = sPendingApply.uiClientH;
+            sInFlightTag = sPendingApply.kTag;
+            sPendingApply.bSet = false;
+            sApplyPhase = DisplayLogic::kApplyResetting;
+        }
+        internalReset();
+        if (m_bResourcesReleased)
+        {
+            return false;
+        }
+    }
+
     if (m_bResourcesReleased || hrCoop == D3DERR_DEVICENOTRESET)
     {
         internalReset();
@@ -5021,6 +5652,11 @@ void RedRenderer::Cleanup()
     sResetFailures = 0;
     sResetAttempts = 0;
     sResetRevertUsed = false;
+    sApplyPhase = DisplayLogic::kApplyNone;
+    sForceReset = false;
+    sPendingApply.bSet = false;
+    sApplyNotice = 0;
+    sNoticeTag.bValid = false;
 
     for (int i = 0; i < 3; ++i)
     {
@@ -5105,6 +5741,20 @@ void RedRenderer::EndFrame()
     if (m_pd3dQuery && hr != D3DERR_DEVICELOST)
     {
         m_pd3dQuery->Issue(D3DISSUE_END);
+    }
+    if (sApplyPhase == DisplayLogic::kApplyAwaitPresent)
+    {
+        const DisplayLogic::ApplyStep kStep =
+            DisplayLogic::ApplyPhaseStep(sApplyPhase, DisplayLogic::PresentEvent(hr));
+        sApplyPhase = kStep.ePhase;
+        if (kStep.eAction == DisplayLogic::kActPromote)
+        {
+            PromoteApplied();
+        }
+        if (kStep.eAction == DisplayLogic::kActRevert)
+        {
+            BeginRevert(hr);
+        }
     }
 }
 

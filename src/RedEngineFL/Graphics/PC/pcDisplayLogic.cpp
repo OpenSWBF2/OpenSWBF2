@@ -559,4 +559,117 @@ ShellSize ShellSizePolicy(DisplayMode m, bool bIsShell, unsigned int uiCliW, uns
     return out;
 }
 
+bool SameDisplayParams(const DisplayRec& a, const DisplayRec& b)
+{
+    return a.uiW == b.uiW && a.uiH == b.uiH && a.bWindowed == b.bWindowed &&
+           a.uiMsType == b.uiMsType && a.uiMsQuality == b.uiMsQuality &&
+           a.uiInterval == b.uiInterval && a.uiRefresh == b.uiRefresh && a.eMode == b.eMode &&
+           a.uiClientW == b.uiClientW && a.uiClientH == b.uiClientH;
+}
+
+static unsigned int Pow2Floor(unsigned int uiValue, unsigned int uiCap)
+{
+    unsigned int uiLimit = uiValue;
+    if (uiCap != 0 && uiCap < uiLimit)
+    {
+        uiLimit = uiCap;
+    }
+    unsigned int uiPow2 = 1;
+    while (uiPow2 <= uiLimit / 2)
+    {
+        uiPow2 <<= 1;
+    }
+    return uiPow2;
+}
+
+BufferSet BufferSizes(unsigned int uiBackW, unsigned int uiBackH, unsigned int uiMaxTexW,
+                      unsigned int uiMaxTexH, bool bNonPow2)
+{
+    const unsigned int uiPow2W = Pow2Floor(uiBackW, uiMaxTexW);
+    const unsigned int uiPow2H = Pow2Floor(uiBackH, uiMaxTexH);
+    BufferSet out;
+    out.akBuf[0].uiW = uiPow2W > 0x200 ? 0x200 : uiPow2W;
+    out.akBuf[0].uiH = uiPow2H > 0x200 ? 0x200 : uiPow2H;
+    if (bNonPow2)
+    {
+        out.akBuf[1].uiW = (uiMaxTexW && uiBackW > uiMaxTexW) ? uiMaxTexW : (uiBackW ? uiBackW : 1);
+        out.akBuf[1].uiH = (uiMaxTexH && uiBackH > uiMaxTexH) ? uiMaxTexH : (uiBackH ? uiBackH : 1);
+    }
+    else
+    {
+        out.akBuf[1].uiW = uiPow2W;
+        out.akBuf[1].uiH = uiPow2H;
+    }
+    out.akBuf[2].uiW = uiPow2W > 0x100 ? 0x100 : uiPow2W;
+    out.akBuf[2].uiH = uiPow2H > 0x100 ? 0x100 : uiPow2H;
+    return out;
+}
+
+bool ShadowQuadSharesSky(unsigned int uiBackW, unsigned int uiBackH, unsigned int uiMsType,
+                         bool bDriverMs, unsigned int uiSkyW, unsigned int uiSkyH)
+{
+    return uiMsType == 0 && !bDriverMs && uiSkyW == uiBackW && uiSkyH == uiBackH;
+}
+
+ApplyStep ApplyPhaseStep(ApplyPhase ePhase, ApplyEvent eEvent)
+{
+    ApplyStep out;
+    out.ePhase = ePhase;
+    out.eAction = kActNone;
+    if (ePhase == kApplyResetting && eEvent == kEvResetOk)
+    {
+        out.ePhase = kApplyAwaitPresent;
+    }
+    else if (ePhase == kApplyAwaitPresent && eEvent == kEvPresentOk)
+    {
+        out.ePhase = kApplyNone;
+        out.eAction = kActPromote;
+    }
+    else if (ePhase == kApplyAwaitPresent && eEvent == kEvPresentFail)
+    {
+        out.ePhase = kApplyNone;
+        out.eAction = kActRevert;
+    }
+    return out;
+}
+
+ApplyEvent PresentEvent(long hr)
+{
+    if (SUCCEEDED(hr))
+    {
+        return kEvPresentOk;
+    }
+    if (hr == D3DERR_DEVICELOST)
+    {
+        return kEvPresentLost;
+    }
+    return kEvPresentFail;
+}
+
+AdapterChoice AdapterDecision(unsigned int uiRequested, unsigned int uiRunning,
+                              unsigned int uiCount)
+{
+    AdapterChoice out;
+    out.bValid = uiRequested < uiCount;
+    out.bRestart = out.bValid && uiRequested != uiRunning;
+    return out;
+}
+
+bool ShouldRestoreProfile(bool bSnapshotValid, unsigned int uiOwner, unsigned int uiCurrent,
+                          bool bRequestPending)
+{
+    return bSnapshotValid && uiOwner == uiCurrent && !bRequestPending;
+}
+
+bool SizeInBounds(unsigned int uiW, unsigned int uiH)
+{
+    return uiW >= kMinW && uiH >= kMinH && uiW <= kMaxDim && uiH <= kMaxDim;
+}
+
+bool SizeFitsCaps(unsigned int uiW, unsigned int uiH, unsigned int uiMaxTexW,
+                  unsigned int uiMaxTexH)
+{
+    return (uiMaxTexW == 0 || uiW <= uiMaxTexW) && (uiMaxTexH == 0 || uiH <= uiMaxTexH);
+}
+
 }

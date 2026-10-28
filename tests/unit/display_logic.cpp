@@ -613,3 +613,192 @@ TEST_CASE("display logic shell size policy" * doctest::test_suite("unit"))
     CHECK(s.uiClientW == 2560);
     CHECK(s.uiClientH == 1440);
 }
+
+TEST_CASE("display logic apply same params" * doctest::test_suite("unit"))
+{
+    DisplayRec a = {800, 600, true, 0, 0, 1, 60, kModeWindowed, 800, 600};
+    DisplayRec b = a;
+    CHECK(SameDisplayParams(a, b));
+    b = a; b.uiW = 801; CHECK_FALSE(SameDisplayParams(a, b));
+    b = a; b.uiH = 601; CHECK_FALSE(SameDisplayParams(a, b));
+    b = a; b.bWindowed = false; CHECK_FALSE(SameDisplayParams(a, b));
+    b = a; b.uiMsType = 2; CHECK_FALSE(SameDisplayParams(a, b));
+    b = a; b.uiMsQuality = 1; CHECK_FALSE(SameDisplayParams(a, b));
+    b = a; b.uiInterval = 2; CHECK_FALSE(SameDisplayParams(a, b));
+    b = a; b.uiRefresh = 75; CHECK_FALSE(SameDisplayParams(a, b));
+    b = a; b.eMode = kModeBorderless; CHECK_FALSE(SameDisplayParams(a, b));
+    b = a; b.uiClientW = 1; CHECK_FALSE(SameDisplayParams(a, b));
+    b = a; b.uiClientH = 1; CHECK_FALSE(SameDisplayParams(a, b));
+}
+
+TEST_CASE("display logic apply buffer sizes" * doctest::test_suite("unit"))
+{
+    BufferSet s = BufferSizes(800, 600, 4096, 4096, false);
+    CHECK(s.akBuf[1].uiW == 512);
+    CHECK(s.akBuf[1].uiH == 512);
+    CHECK(s.akBuf[0].uiW == 512);
+    CHECK(s.akBuf[0].uiH == 512);
+    CHECK(s.akBuf[2].uiW == 256);
+    CHECK(s.akBuf[2].uiH == 256);
+
+    s = BufferSizes(1920, 1080, 4096, 4096, true);
+    CHECK(s.akBuf[1].uiW == 1920);
+    CHECK(s.akBuf[1].uiH == 1080);
+    CHECK(s.akBuf[0].uiW == 512);
+    CHECK(s.akBuf[0].uiH == 512);
+    CHECK(s.akBuf[2].uiW == 256);
+    CHECK(s.akBuf[2].uiH == 256);
+
+    s = BufferSizes(200, 150, 4096, 4096, false);
+    CHECK(s.akBuf[1].uiW == 128);
+    CHECK(s.akBuf[1].uiH == 128);
+    CHECK(s.akBuf[0].uiW == 128);
+    CHECK(s.akBuf[0].uiH == 128);
+    CHECK(s.akBuf[2].uiW == 128);
+    CHECK(s.akBuf[2].uiH == 128);
+
+    s = BufferSizes(1920, 1080, 1024, 512, false);
+    CHECK(s.akBuf[1].uiW == 1024);
+    CHECK(s.akBuf[1].uiH == 512);
+
+    s = BufferSizes(4000, 3000, 2048, 2048, true);
+    CHECK(s.akBuf[1].uiW == 2048);
+    CHECK(s.akBuf[1].uiH == 2048);
+    s = BufferSizes(1920, 3000, 2048, 2048, true);
+    CHECK(s.akBuf[1].uiW == 1920);
+    CHECK(s.akBuf[1].uiH == 2048);
+    s = BufferSizes(16384, 16384, 8192, 4096, true);
+    CHECK(s.akBuf[1].uiW == 8192);
+    CHECK(s.akBuf[1].uiH == 4096);
+    CHECK(s.akBuf[0].uiW == 512);
+    CHECK(s.akBuf[2].uiH == 256);
+}
+
+TEST_CASE("display logic live size fits caps" * doctest::test_suite("unit"))
+{
+    CHECK(SizeFitsCaps(1920, 1080, 2048, 2048));
+    CHECK(SizeFitsCaps(2048, 2048, 2048, 2048));
+    CHECK_FALSE(SizeFitsCaps(2049, 1080, 2048, 2048));
+    CHECK_FALSE(SizeFitsCaps(1920, 2049, 2048, 2048));
+    CHECK(SizeFitsCaps(16384, 16384, 0, 0));
+    CHECK_FALSE(SizeFitsCaps(8192, 1080, 4096, 0));
+}
+
+TEST_CASE("display logic apply buffer sizes zero caps" * doctest::test_suite("unit"))
+{
+    BufferSet s = BufferSizes(800, 600, 0, 0, false);
+    CHECK(s.akBuf[1].uiW == 512);
+    CHECK(s.akBuf[1].uiH == 512);
+    CHECK(s.akBuf[2].uiW == 256);
+
+    s = BufferSizes(0, 0, 0, 0, false);
+    for (int i = 0; i < 3; i++)
+    {
+        CHECK(s.akBuf[i].uiW == 1);
+        CHECK(s.akBuf[i].uiH == 1);
+    }
+
+    s = BufferSizes(0, 0, 0, 0, true);
+    CHECK(s.akBuf[1].uiW == 1);
+    CHECK(s.akBuf[1].uiH == 1);
+}
+
+TEST_CASE("display logic shadow quad shares sky" * doctest::test_suite("unit"))
+{
+    CHECK(ShadowQuadSharesSky(1920, 1080, 0, false, 1920, 1080));
+    CHECK_FALSE(ShadowQuadSharesSky(1920, 1080, 4, false, 1920, 1080));
+    CHECK_FALSE(ShadowQuadSharesSky(1920, 1080, 0, true, 1920, 1080));
+    CHECK_FALSE(ShadowQuadSharesSky(1920, 1080, 0, false, 1024, 1024));
+    CHECK_FALSE(ShadowQuadSharesSky(1280, 720, 0, false, 1920, 720));
+    CHECK_FALSE(ShadowQuadSharesSky(1280, 720, 0, false, 1280, 1080));
+
+    BufferSet s = BufferSizes(1280, 720, 4096, 4096, false);
+    CHECK_FALSE(ShadowQuadSharesSky(1280, 720, 0, false, s.akBuf[1].uiW, s.akBuf[1].uiH));
+    s = BufferSizes(1280, 720, 4096, 4096, true);
+    CHECK(ShadowQuadSharesSky(1280, 720, 0, false, s.akBuf[1].uiW, s.akBuf[1].uiH));
+}
+
+TEST_CASE("display logic revert restores profile" * doctest::test_suite("unit"))
+{
+    CHECK(ShouldRestoreProfile(true, 2, 2, false));
+    CHECK_FALSE(ShouldRestoreProfile(false, 2, 2, false));
+    CHECK_FALSE(ShouldRestoreProfile(true, 1, 2, false));
+    CHECK_FALSE(ShouldRestoreProfile(true, 2, 2, true));
+    CHECK_FALSE(ShouldRestoreProfile(true, 0, 3, true));
+}
+
+TEST_CASE("display logic apply phase" * doctest::test_suite("unit"))
+{
+    ApplyStep s = ApplyPhaseStep(kApplyResetting, kEvResetOk);
+    CHECK(s.ePhase == kApplyAwaitPresent);
+    CHECK(s.eAction == kActNone);
+
+    s = ApplyPhaseStep(kApplyAwaitPresent, kEvResetOk);
+    CHECK(s.ePhase == kApplyAwaitPresent);
+    CHECK(s.eAction == kActNone);
+
+    s = ApplyPhaseStep(kApplyAwaitPresent, kEvPresentOk);
+    CHECK(s.ePhase == kApplyNone);
+    CHECK(s.eAction == kActPromote);
+
+    s = ApplyPhaseStep(kApplyAwaitPresent, kEvPresentFail);
+    CHECK(s.ePhase == kApplyNone);
+    CHECK(s.eAction == kActRevert);
+
+    s = ApplyPhaseStep(kApplyAwaitPresent, kEvPresentLost);
+    CHECK(s.ePhase == kApplyAwaitPresent);
+    CHECK(s.eAction == kActNone);
+
+    for (int e = kEvResetOk; e <= kEvPresentFail; e++)
+    {
+        s = ApplyPhaseStep(kApplyNone, (ApplyEvent)e);
+        CHECK(s.ePhase == kApplyNone);
+        CHECK(s.eAction == kActNone);
+    }
+
+    s = ApplyPhaseStep(kApplyResetting, kEvPresentOk);
+    CHECK(s.ePhase == kApplyResetting);
+    CHECK(s.eAction == kActNone);
+}
+
+TEST_CASE("display logic apply present event" * doctest::test_suite("unit"))
+{
+    CHECK(PresentEvent(S_OK) == kEvPresentOk);
+    CHECK(PresentEvent(D3DERR_DEVICELOST) == kEvPresentLost);
+    CHECK(PresentEvent(D3DERR_INVALIDCALL) == kEvPresentFail);
+    CHECK(PresentEvent(D3DERR_OUTOFVIDEOMEMORY) == kEvPresentFail);
+    CHECK(PresentEvent(E_FAIL) == kEvPresentFail);
+}
+
+TEST_CASE("display logic adapter decision" * doctest::test_suite("unit"))
+{
+    AdapterChoice c = AdapterDecision(1, 0, 1);
+    CHECK_FALSE(c.bValid);
+    CHECK_FALSE(c.bRestart);
+
+    c = AdapterDecision(0, 0, 1);
+    CHECK(c.bValid);
+    CHECK_FALSE(c.bRestart);
+
+    c = AdapterDecision(1, 0, 2);
+    CHECK(c.bValid);
+    CHECK(c.bRestart);
+
+    c = AdapterDecision(0, 1, 2);
+    CHECK(c.bValid);
+    CHECK(c.bRestart);
+
+    c = AdapterDecision(0, 0, 0);
+    CHECK_FALSE(c.bValid);
+    CHECK_FALSE(c.bRestart);
+}
+
+TEST_CASE("display logic apply size bounds" * doctest::test_suite("unit"))
+{
+    CHECK(SizeInBounds(320, 240));
+    CHECK_FALSE(SizeInBounds(319, 240));
+    CHECK_FALSE(SizeInBounds(320, 239));
+    CHECK(SizeInBounds(16384, 16384));
+    CHECK_FALSE(SizeInBounds(16385, 600));
+    CHECK_FALSE(SizeInBounds(0, 0));
+}

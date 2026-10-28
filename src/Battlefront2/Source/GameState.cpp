@@ -587,6 +587,7 @@ unsigned int GameState::GetState()
 bool GameState::Update()
 {
     pcCrash::RunCrashTest();
+    PlayerProfile::PollApplyNotice();
     if (_bDoChangeState)
     {
 

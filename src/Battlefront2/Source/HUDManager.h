@@ -90,6 +90,8 @@ bool Write();
 
 void Load(PblFileChunk& chunk);
 
+void RefreshViewport();
+
 }
 
 extern Manager::ConfigFile* gConfigFiles[256];

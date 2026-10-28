@@ -18,6 +18,11 @@ $md = 'src\RedEngineFL\Application\pc\pcMessageDrain.cpp'
 $rr = 'src\RedEngineFL\Graphics\PC\pcRedRenderer.cpp'
 $mouse = 'src\RedEngineFL\input\pc\pcRedMouse.cpp'
 $win = 'src\RedEngineFL\Application\pc\pcWindow.cpp'
+$lcp = 'src\Battlefront2\Source\LuaCallbacks_PC.cpp'
+$sq = 'src\RedEngineFL\Application\pc\pcShadowQuadRenderable.cpp'
+$tex = 'src\RedEngineFL\Graphics\PC\pcRedTexture.cpp'
+$gs = 'src\Battlefront2\Source\GameState.cpp'
+$prof = 'src\Battlefront2\Source\PlayerProfile.cpp'
 
 $GuardRevertRows = @(
     @{ Id = 'CRASH-02'; File = 'src\RedEngineFL\Util\RedWarning.cpp'; Anchor = 'fputs(pcText, pFile);'; Replacement = 'fprintf(pFile, pcText);'; Tests = @('file log writes percent text literally') },
@@ -130,4 +135,44 @@ $GuardRevertRows = @(
     @{ Id = 'WIN-09A'; File = $pmain; Anchor = 'if (LOWORD(lParam) != HTCLIENT)'; Replacement = 'if (false)'; Tests = @('window mode source pins') },
     @{ Id = 'WIN-03B'; Kind = 'Hardening'; Check = 'import-SetProcessDPIAware'; File = $pmain; Anchor = '#include <windows.h>'; Replacement = '#include <windows.h>' + "`n" + 'extern "C" __declspec(dllimport) int __stdcall SetProcessDPIAware(void);' + "`n" + 'static int sDpiRevert = SetProcessDPIAware();' },
     @{ Id = 'WIN-DPI-SMOKE'; Kind = 'Smoke'; Case = 'display-switches'; File = $pmain; Anchor = 'PcWindow::InitDpi(DisplayCfg::gDisplay.bNoDpi);'; Replacement = '' }
+,
+    @{ Id = 'APPLY-02A'; Kind = 'Smoke'; Case = 'crash-applypresentfail'; File = $rr; Anchor = 'if (sApplyPhase != DisplayLogic::kApplyNone)'; Replacement = 'if (false)' },
+    @{ Id = 'APPLY-02B'; Kind = 'Smoke'; Case = 'crash-applyfail'; File = $rr; Anchor = "    if (eAction == DisplayLogic::kResetRevert)`n    {`n        sResetRevertUsed = true;"; Replacement = "    if (false)`n    {`n        sResetRevertUsed = true;"; RedRx = '(?s)OPENSWBF2 DISPLAY reverted (?!.*OPENSWBF2 RESET recovered)' },
+    @{ Id = 'APPLY-02C'; Kind = 'Smoke'; Case = 'crash-applypresentfail'; File = $rr; Anchor = 'if (kStep.eAction == DisplayLogic::kActRevert)'; Replacement = 'if (false)' },
+    @{ Id = 'APPLY-01'; Kind = 'Smoke'; Case = 'crash-applymode'; File = $rr; Anchor = "        RedRenderer::m_buffers[i]->m_uiWidth = kSizes.akBuf[i].uiW;`n        RedRenderer::m_buffers[i]->m_uiHeight = kSizes.akBuf[i].uiH;`n"; Replacement = '' },
+    @{ Id = 'APPLY-02D'; File = $dl; Anchor = '        out.eAction = kActPromote;'; Replacement = ''; Tests = @('display logic apply phase') },
+    @{ Id = 'APPLY-02E'; File = $dl; Anchor = 'a.uiInterval == b.uiInterval && '; Replacement = ''; Tests = @('display logic apply same params') },
+    @{ Id = 'APPLY-01C'; File = $dl; Anchor = 'out.akBuf[0].uiW = uiPow2W > 0x200 ? 0x200 : uiPow2W;'; Replacement = 'out.akBuf[0].uiW = uiPow2W > 0x400 ? 0x400 : uiPow2W;'; Tests = @('display logic apply buffer sizes') },
+    @{ Id = 'APPLY-03A'; File = $dl; Anchor = 'uiRequested != uiRunning'; Replacement = 'true'; Tests = @('display logic adapter decision') },
+    @{ Id = 'APPLY-01B'; File = $rr; Anchor = '    pcSetDisplayMode(uiWidth, uiHeight, eMode, uiClientW, uiClientH, bVSync, msType, ulMSQuality);'; Replacement = "    pcSetDisplayMode(uiWidth, uiHeight, eMode, uiClientW, uiClientH, bVSync, msType, ulMSQuality);`n    internalReset();"; Tests = @('display apply source pins') },
+    @{ Id = 'APPLY-03B'; File = $lcp; Anchor = '    lua_pushboolean(LuaHelper::mState, RedRenderer::pcRequestAdapter(uiIndex));'; Replacement = "    lua_pushboolean(LuaHelper::mState, RedRenderer::pcRequestAdapter(uiIndex));`n    RedRenderer::pcApplyDisplayMode(800, 600, DisplayLogic::kModeWindowed, 800, 600, true, D3DMULTISAMPLE_NONE, 0);"; Tests = @('display apply source pins') },
+    @{ Id = 'APPLY-01D'; File = $lcp; Anchor = '    PlayerProfile::ApplyLiveDisplay();'; Replacement = ''; Tests = @('display apply source pins') },
+    @{ Id = 'APPLY-01E'; File = $rr; Anchor = "    ResizeBuffersToBackBuffer();`n    for (i = 0; i < m_numResetFunctions; ++i)"; Replacement = '    for (i = 0; i < m_numResetFunctions; ++i)'; Tests = @('display apply source pins') },
+    @{ Id = 'APPLY-04A'; File = $sq; Anchor = '    RedRenderer::pcRegisterResetFunction(&ShadowQuadReset);'; Replacement = ''; Tests = @('shadow quad reset source pins') },
+    @{ Id = 'APPLY-04B'; File = $dl; Anchor = 'return uiMsType == 0 && !bDriverMs && '; Replacement = 'return !bDriverMs && '; Tests = @('display logic shadow quad shares sky') },
+    @{ Id = 'APPLY-04C'; File = $tex; Anchor = "            if (it->m_pTexture)`n            {`n                continue;`n            }`n"; Replacement = ''; Tests = @('shadow quad reset source pins') },
+    @{ Id = 'APPLY-04D'; File = $sq; Anchor = '        delete pQuad->m_pShadowTex;'; Replacement = ''; Tests = @('shadow quad reset source pins') },
+    @{ Id = 'APPLY-05A'; Kind = 'Smoke'; Case = 'crash-applytargetfail'; File = $rr; Anchor = 'if (sApplyPhase == DisplayLogic::kApplyAwaitPresent && !RedTexture::pcDefaultPoolCreated())'; Replacement = 'if (false)'; RedRx = 'OPENSWBF2 DISPLAY applied' },
+    @{ Id = 'APPLY-05B'; File = $dl; Anchor = 'out.akBuf[1].uiW = (uiMaxTexW && uiBackW > uiMaxTexW) ? uiMaxTexW : (uiBackW ? uiBackW : 1);'; Replacement = 'out.akBuf[1].uiW = uiBackW ? uiBackW : 1;'; Tests = @('display logic apply buffer sizes') },
+    @{ Id = 'APPLY-05C'; File = $dl; Anchor = 'return (uiMaxTexW == 0 || uiW <= uiMaxTexW) && (uiMaxTexH == 0 || uiH <= uiMaxTexH);'; Replacement = 'return true;'; Tests = @('display logic live size fits caps') },
+    @{ Id = 'APPLY-05D'; File = $prof; Anchor = "    return DisplayLogic::SizeInBounds(uiW, uiH) &&`n           DisplayLogic::SizeFitsCaps(uiW, uiH, uiMaxW, uiMaxH);"; Replacement = '    return DisplayLogic::SizeInBounds(uiW, uiH);'; Tests = @('display apply target failure source pins') },
+    @{ Id = 'APPLY-05E'; File = $prof; Anchor = '    if (!ProfileSizeUsable(uiResX, uiResY))'; Replacement = '    if (false)'; Tests = @('display apply target failure source pins') },
+    @{ Id = 'APPLY-05F'; File = $tex; Anchor = "                {`n                    pTexture = 0;`n                }`n"; Replacement = ''; Tests = @('display apply target failure source pins') },
+    @{ Id = 'APPLY-05G'; File = $tex; Anchor = "        return;`n    }`n    pcInit(pTexture, uiNameHash);"; Replacement = "    }`n    pcInit(pTexture, uiNameHash);"; Tests = @('display apply target failure source pins') },
+    @{ Id = 'APPLY-05H'; File = $prof; Anchor = '    if (!ProfileSizeUsable(rPC.mResolutionX, rPC.mResolutionY))'; Replacement = '    if (false)'; Tests = @('display apply target failure source pins') },
+    @{ Id = 'APPLY-06A'; File = $dl; Anchor = 'uiOwner == uiCurrent && !bRequestPending;'; Replacement = 'uiOwner == uiCurrent;'; Tests = @('display logic revert restores profile') },
+    @{ Id = 'APPLY-06B'; File = $dl; Anchor = 'return bSnapshotValid && uiOwner == uiCurrent && '; Replacement = 'return bSnapshotValid && '; Tests = @('display logic revert restores profile') },
+    @{ Id = 'APPLY-06C'; File = $rr; Anchor = '    sNoticeTag = sInFlightTag;'; Replacement = '    sNoticeTag = sStagedTag;'; Tests = @('display apply snapshot source pins') },
+    @{ Id = 'APPLY-06D'; File = $rr; Anchor = '            sInFlightTag = sPendingApply.kTag;'; Replacement = ''; Tests = @('display apply snapshot source pins') },
+    @{ Id = 'APPLY-06E'; File = $rr; Anchor = '            NoteInitApplied(!bReverted);'; Replacement = '            NoteInitApplied(true);'; Tests = @('display apply snapshot source pins') },
+    @{ Id = 'APPLY-06F'; File = $prof; Anchor = "    StageRequestTag(rPC);`n    if (RedRenderer::pcApplyDisplayMode("; Replacement = "    StageRequestTag(rPC);`n    sAppliedPC.bValid = true;`n    if (RedRenderer::pcApplyDisplayMode("; Tests = @('display apply snapshot source pins') },
+    @{ Id = 'APPLY-06G'; Kind = 'Smoke'; Case = 'crash-applyfail'; File = $rr; Anchor = '            NoteInitApplied(!bReverted);'; Replacement = '            NoteInitApplied(false);'; RedRx = '(?s)OPENSWBF2 DISPLAY reverted (?!.*OPENSWBF2 DISPLAY profile restored)' },
+    @{ Id = 'APPLY-07A'; File = $rr; Anchor = "    sForceReset = false;`n    sPendingApply.bSet = false;`n"; Replacement = "    sForceReset = false;`n"; Tests = @('display apply cleanup source pins') },
+    @{ Id = 'APPLY-07B'; File = $rr; Anchor = "    sPendingApply.bSet = false;`n    sApplyNotice = 0;`n"; Replacement = "    sPendingApply.bSet = false;`n"; Tests = @('display apply cleanup source pins') },
+    @{ Id = 'APPLY-07C'; File = $gs; Anchor = "    pcCrash::RunCrashTest();`n    PlayerProfile::PollApplyNotice();`n"; Replacement = "    pcCrash::RunCrashTest();`n"; Tests = @('display apply cleanup source pins') },
+    @{ Id = 'APPLY-08A'; File = $ds; Anchor = '    if (!bSame && !SaveIni(kSave, acPath, true))'; Replacement = '    if (!bSame && !SaveIni(gIniDisplay, acPath, true))'; Tests = @('display settings save adapter writes only the adapter keys') },
+    @{ Id = 'APPLY-08B'; File = $ds; Anchor = "    if (!bSame && !SaveIni(kSave, acPath, true))`n    {`n        return false;`n    }`n"; Replacement = "    if (!bSame)`n    {`n        SaveIni(kSave, acPath, true);`n    }`n"; Tests = @('display settings save adapter keeps memory when the save fails') },
+    @{ Id = 'APPLY-08C'; File = $ds; Anchor = "    const bool bSame =`n        strcmp(acDiskAdapter, acValue) == 0 && strcmp(acDiskName, kSave.acAdapterName) == 0;"; Replacement = '    const bool bSame = false;'; Tests = @('display settings save adapter skips an unchanged file') },
+    @{ Id = 'APPLY-08D'; File = $ds; Anchor = "    CopyFileA(acFull, acTemp, FALSE);`n    SetFileAttributesA(acTemp, FILE_ATTRIBUTE_NORMAL);`n"; Replacement = "    CopyFileA(acFull, acTemp, FALSE);`n"; Tests = @('display settings save adapter skips an unchanged file') },
+    @{ Id = 'APPLY-09A'; Kind = 'Smoke'; Case = 'crash-applymodesmall'; File = $rr; Anchor = "    for (i = 0; i < 3; ++i)`n    {`n        RedRenderer::m_buffers[i]->m_uiWidth = kSizes.akBuf[i].uiW;"; Replacement = "    for (i = 1; i < 2; ++i)`n    {`n        RedRenderer::m_buffers[i]->m_uiWidth = kSizes.akBuf[i].uiW;"; RedRx = 'OPENSWBF2 APPLY TARGETS alive=\d+ fresh=\d+ stale=2 buffers=1/3 ' }
 )

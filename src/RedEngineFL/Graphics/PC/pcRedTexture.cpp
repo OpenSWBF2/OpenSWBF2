@@ -405,10 +405,26 @@ void RedTexture::pcInit(unsigned int uiWidth, unsigned int uiHeight, _D3DFORMAT 
                         unsigned int uiLevels, unsigned int uiUsage, _D3DPOOL pool,
                         unsigned int uiNameHash)
 {
-    IDirect3DTexture9* pTexture;
+    IDirect3DTexture9* pTexture = 0;
 
-    RedRenderer::pcGetDevice()->CreateTexture(uiWidth, uiHeight, uiLevels, uiUsage,
-                                             format, pool, &pTexture, 0);
+    if (FAILED(RedRenderer::pcGetDevice()->CreateTexture(uiWidth, uiHeight, uiLevels, uiUsage,
+                                                         format, pool, &pTexture, 0)) ||
+        !pTexture)
+    {
+        m_type = PC_REDTEXTURE_TYPE_TEXTURE;
+        m_uiWidth = uiWidth;
+        m_uiHeight = uiHeight;
+        m_uiDepth = 1;
+        m_uiNumMipMaps = uiLevels;
+        m_format = format;
+        m_usage = uiUsage;
+        m_pool = pool;
+        if (m_pool == D3DPOOL_DEFAULT)
+        {
+            s_defaultPoolTextures.Add(&m_listNode, this);
+        }
+        return;
+    }
     pcInit(pTexture, uiNameHash);
     pTexture->Release();
 }
@@ -793,32 +809,58 @@ void RedTexture::pcReset(ResetFlagsT eFlags)
         for (PblList<RedTexture>::Itor it = s_defaultPoolTextures.Begin();
              (RedTexture*)it != (RedTexture*)s_defaultPoolTextures.End(); ++it)
         {
+            if (it->m_pTexture)
+            {
+                continue;
+            }
             if (it->m_type == PC_REDTEXTURE_TYPE_VOLUME)
             {
-                IDirect3DVolumeTexture9* pVolume;
-                RedRenderer::pcGetDevice()->CreateVolumeTexture(
-                    it->m_uiWidth, it->m_uiHeight, it->m_uiDepth, it->m_uiNumMipMaps,
-                    it->m_usage, it->m_format, it->m_pool, &pVolume, 0);
+                IDirect3DVolumeTexture9* pVolume = 0;
+                if (FAILED(RedRenderer::pcGetDevice()->CreateVolumeTexture(
+                        it->m_uiWidth, it->m_uiHeight, it->m_uiDepth, it->m_uiNumMipMaps,
+                        it->m_usage, it->m_format, it->m_pool, &pVolume, 0)))
+                {
+                    pVolume = 0;
+                }
                 it->m_pTexture = pVolume;
             }
             else if (it->m_type == PC_REDTEXTURE_TYPE_CUBEMAP)
             {
-                IDirect3DCubeTexture9* pCube;
-                RedRenderer::pcGetDevice()->CreateCubeTexture(
-                    it->m_uiWidth, it->m_uiNumMipMaps, it->m_usage, it->m_format,
-                    it->m_pool, &pCube, 0);
+                IDirect3DCubeTexture9* pCube = 0;
+                if (FAILED(RedRenderer::pcGetDevice()->CreateCubeTexture(
+                        it->m_uiWidth, it->m_uiNumMipMaps, it->m_usage, it->m_format,
+                        it->m_pool, &pCube, 0)))
+                {
+                    pCube = 0;
+                }
                 it->m_pTexture = pCube;
             }
             else if (it->m_type == PC_REDTEXTURE_TYPE_TEXTURE)
             {
-                IDirect3DTexture9* pTexture;
-                RedRenderer::pcGetDevice()->CreateTexture(
-                    it->m_uiWidth, it->m_uiHeight, it->m_uiNumMipMaps, it->m_usage,
-                    it->m_format, it->m_pool, &pTexture, 0);
+                IDirect3DTexture9* pTexture = 0;
+                if (FAILED(RedRenderer::pcGetDevice()->CreateTexture(
+                        it->m_uiWidth, it->m_uiHeight, it->m_uiNumMipMaps, it->m_usage,
+                        it->m_format, it->m_pool, &pTexture, 0)))
+                {
+                    pTexture = 0;
+                }
                 it->m_pTexture = pTexture;
             }
         }
     }
+}
+
+bool RedTexture::pcDefaultPoolCreated()
+{
+    for (PblList<RedTexture>::Itor it = s_defaultPoolTextures.Begin();
+         (RedTexture*)it != (RedTexture*)s_defaultPoolTextures.End(); ++it)
+    {
+        if (!it->m_pTexture)
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
 // LIBRARY: SWBF2 0x007548f6

@@ -6,6 +6,7 @@
 
 #include "RedEngineFL/Graphics/PC/pcRedPrimitive.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
+#include "RedEngineFL/Graphics/PC/pcDisplayLogic.h"
 #include "RedEngineFL/Graphics/PC/pcRedStencilShadow.h"
 
 #include "RedEngineFL/Memory/engineAlloc.h"
@@ -42,6 +43,34 @@ static const unsigned int kuiClearShader = PblHash("Clear");
 // `dynamic initializer for 'kuiFilterShader''
 static const unsigned int kuiFilterShader = PblHash("FilterCopy");
 
+static void __cdecl ShadowQuadReset(ResetFlagsT eFlags)
+{
+    pcShadowQuadRenderable* pQuad = pcShadowQuadRenderable::Instance();
+    RedTexture* pSky = RedRenderer::pcGetBuffer(PC_BUFFER_SKY);
+    if (!pQuad || !pSky)
+    {
+        return;
+    }
+    if (eFlags & RESETFLAGS_FREE_RESOURCES)
+    {
+        delete pQuad->m_pShadowTex;
+        pQuad->m_pShadowTex = 0;
+    }
+    if (eFlags & RESETFLAGS_CREATE_RESOURCES)
+    {
+        const D3DPRESENT_PARAMETERS& pp = RedRenderer::pcGetPresentParameters();
+        if (!pQuad->m_pShadowTex &&
+            !DisplayLogic::ShadowQuadSharesSky(pp.BackBufferWidth, pp.BackBufferHeight,
+                                               (unsigned int)pp.MultiSampleType,
+                                               RedVideoConfig::VidMode_IsDriverMultisampling(),
+                                               pSky->m_uiWidth, pSky->m_uiHeight))
+        {
+            pQuad->m_pShadowTex = new RedTexture(pSky->m_uiWidth, pSky->m_uiHeight, pSky->m_format,
+                                                 1, D3DUSAGE_RENDERTARGET, D3DPOOL_DEFAULT, 0);
+        }
+    }
+}
+
 // FUNCTION: SWBF2 0x006fbdf0
 pcShadowQuadRenderable::pcShadowQuadRenderable()
     : Renderable(4)
@@ -50,6 +79,7 @@ pcShadowQuadRenderable::pcShadowQuadRenderable()
     m_pShadowShader = 0;
     m_pFilterShader = 0;
     m_pScreenShader = 0;
+    m_pShadowTex = 0;
     m_blurEnable = false;
 }
 
@@ -86,6 +116,7 @@ pcShadowQuadRenderable::~pcShadowQuadRenderable()
 void pcShadowQuadRenderable::Cleanup()
 {
     Deactivate();
+    RedRenderer::pcUnregisterResetFunction(&ShadowQuadReset);
     if (m_pPrimitive)
     {
         PblRef* p = (PblRef*)m_pPrimitive;
@@ -162,10 +193,10 @@ void pcShadowQuadRenderable::Init()
     pBackBuffer->Release();
     pBufferSurface->Release();
 
-    if (backDesc.MultiSampleType == bufferDesc.MultiSampleType &&
-        !RedVideoConfig::VidMode_IsDriverMultisampling() &&
-        bufferDesc.Width == backDesc.Width &&
-        bufferDesc.Height == backDesc.Height)
+    if (DisplayLogic::ShadowQuadSharesSky(backDesc.Width, backDesc.Height,
+                                          (unsigned int)backDesc.MultiSampleType,
+                                          RedVideoConfig::VidMode_IsDriverMultisampling(),
+                                          bufferDesc.Width, bufferDesc.Height))
     {
         m_pShadowTex = 0;
     }
@@ -175,6 +206,7 @@ void pcShadowQuadRenderable::Init()
                                       bufferDesc.Format, 1, D3DUSAGE_RENDERTARGET,
                                       D3DPOOL_DEFAULT, 0);
     }
+    RedRenderer::pcRegisterResetFunction(&ShadowQuadReset);
 
     Activate(-9997);
     m_blurEnable = false;

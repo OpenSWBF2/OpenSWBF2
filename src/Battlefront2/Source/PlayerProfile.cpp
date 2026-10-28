@@ -496,21 +496,59 @@ void PlayerProfile::tPCOpt::EnsureIsSafe()
     renderOptions.mEnableHDR = false;
 }
 
-// FUNCTION: SWBF2 0x0061cc20
-void PlayerProfile::tPCOpt::ApplyPreLoadSettings()
+struct TargetMode
 {
-    RedRenderer::pcSetRenderOptions(renderOptions);
+    unsigned int uiWidth;
+    unsigned int uiHeight;
+    DisplayLogic::DisplayMode eMode;
+    unsigned int uiClientW;
+    unsigned int uiClientH;
+    bool bVSync;
+    D3DMULTISAMPLE_TYPE msType;
+    unsigned long ulMSQuality;
+};
 
+static DisplayRequestTag sAppliedPC = { false, 0, 0, 0, false, false, (D3DMULTISAMPLE_TYPE)0, 0 };
+
+static void StageRequestTag(const PlayerProfile::tPCOpt& rOpt)
+{
+    DisplayRequestTag kTag;
+    kTag.bValid = true;
+    kTag.uiOwner = PlayerProfile::GetCurProfileIndex();
+    kTag.resX = rOpt.mResolutionX;
+    kTag.resY = rOpt.mResolutionY;
+    kTag.windowed = rOpt.mWindowed;
+    kTag.vsync = rOpt.mVSync;
+    kTag.ms = rOpt.mMultiSample;
+    kTag.msq = rOpt.mMultiSampleQuality;
+    RedRenderer::pcStageRequestTag(kTag);
+}
+
+static bool ProfileSizeUsable(unsigned int uiW, unsigned int uiH)
+{
+    if (uiW == 0 && uiH == 0)
+    {
+        return true;
+    }
+    unsigned int uiMaxW = 0;
+    unsigned int uiMaxH = 0;
+    RedRenderer::pcGetMaxTextureSize(uiMaxW, uiMaxH);
+    return DisplayLogic::SizeInBounds(uiW, uiH) &&
+           DisplayLogic::SizeFitsCaps(uiW, uiH, uiMaxW, uiMaxH);
+}
+
+static void ComputeTargetMode(const PlayerProfile::tPCOpt& rOpt, bool bQuiet, TargetMode& rOut)
+{
     const bool bIsShell = (GameState::GetState() == 0x11E1FC01);
 
     unsigned int uiWidth = 0;
     unsigned int uiHeight = 0;
 
-    D3DMULTISAMPLE_TYPE msType = mMultiSample;
-    unsigned long ulMSQuality = mMultiSampleQuality;
+    D3DMULTISAMPLE_TYPE msType = rOpt.mMultiSample;
+    unsigned long ulMSQuality = rOpt.mMultiSampleQuality;
 
     const DisplayLogic::DisplayMode eMode =
-        DisplayLogic::ResolveMode(DisplayCfg::gDisplay.bBorderless, pcWindowed, mWindowed);
+        DisplayLogic::ResolveMode(DisplayCfg::gDisplay.bBorderless, pcWindowed, rOpt.mWindowed);
 
     unsigned int uiDeskW = 0;
     unsigned int uiDeskH = 0;
@@ -519,10 +557,23 @@ void PlayerProfile::tPCOpt::ApplyPreLoadSettings()
         RedRenderer::pcGetAdapterDesktop(gAdapter, uiDeskW, uiDeskH);
     }
 
+    unsigned int uiResX = rOpt.mResolutionX;
+    unsigned int uiResY = rOpt.mResolutionY;
+    if (!ProfileSizeUsable(uiResX, uiResY))
+    {
+        if (!bQuiet)
+        {
+            LOG(LogRender, Warning, "OPENSWBF2 DISPLAY profile size %ux%u out of bounds, using default",
+                uiResX, uiResY);
+        }
+        uiResX = 0;
+        uiResY = 0;
+    }
+
     const bool bCli = pcWidth > 0 && pcHeight > 0;
     const DisplayLogic::ShellSize kSize = DisplayLogic::ShellSizePolicy(
         eMode, bIsShell, bCli ? (unsigned int)pcWidth : 0, bCli ? (unsigned int)pcHeight : 0,
-        mResolutionX, mResolutionY, uiDeskW, uiDeskH);
+        uiResX, uiResY, uiDeskW, uiDeskH);
 
     uiWidth = kSize.uiBackW;
     uiHeight = kSize.uiBackH;
@@ -532,18 +583,21 @@ void PlayerProfile::tPCOpt::ApplyPreLoadSettings()
         ulMSQuality = 0;
     }
 
-    if (kSize.bWarnIgnoredSize)
+    if (kSize.bWarnIgnoredSize && !bQuiet)
     {
         LOG(LogRender, Warning, "OPENSWBF2 DISPLAY borderless ignores requested %ux%u, using monitor %ux%u",
-            bCli ? (unsigned int)pcWidth : mResolutionX, bCli ? (unsigned int)pcHeight : mResolutionY,
-            uiDeskW, uiDeskH);
+            bCli ? (unsigned int)pcWidth : rOpt.mResolutionX,
+            bCli ? (unsigned int)pcHeight : rOpt.mResolutionY, uiDeskW, uiDeskH);
     }
 
     if (!RedRenderer::pcMultiSampleSupported(gAdapter, msType, ulMSQuality,
                                              DisplayLogic::D3DWindowed(eMode)))
     {
-        LOG(LogRender, Warning, "OPENSWBF2 DISPLAY multisample ms=%d q=%u unsupported, off",
-            (int)msType, (unsigned int)ulMSQuality);
+        if (!bQuiet)
+        {
+            LOG(LogRender, Warning, "OPENSWBF2 DISPLAY multisample ms=%d q=%u unsupported, off",
+                (int)msType, (unsigned int)ulMSQuality);
+        }
         msType = (D3DMULTISAMPLE_TYPE)0;
         ulMSQuality = 0;
     }
@@ -619,17 +673,104 @@ void PlayerProfile::tPCOpt::ApplyPreLoadSettings()
         delete[] modes;
     }
 
-    if (kSize.bWarnNoMonitor && !g_bNoRender)
+    if (kSize.bWarnNoMonitor && !g_bNoRender && !bQuiet)
     {
         LOG(LogRender, Warning, "OPENSWBF2 DISPLAY borderless monitor size unknown, using %ux%u",
             uiWidth, uiHeight);
     }
 
-    const unsigned int uiClientW = kSize.uiClientW ? kSize.uiClientW : uiWidth;
-    const unsigned int uiClientH = kSize.uiClientH ? kSize.uiClientH : uiHeight;
+    rOut.uiWidth = uiWidth;
+    rOut.uiHeight = uiHeight;
+    rOut.eMode = eMode;
+    rOut.uiClientW = kSize.uiClientW ? kSize.uiClientW : uiWidth;
+    rOut.uiClientH = kSize.uiClientH ? kSize.uiClientH : uiHeight;
+    rOut.bVSync = rOpt.mVSync;
+    rOut.msType = msType;
+    rOut.ulMSQuality = ulMSQuality;
+}
 
-    RedRenderer::pcSetDisplayMode(uiWidth, uiHeight, eMode, uiClientW, uiClientH, mVSync, msType,
-                                  ulMSQuality);
+// FUNCTION: SWBF2 0x0061cc20
+void PlayerProfile::tPCOpt::ApplyPreLoadSettings()
+{
+    RedRenderer::pcSetRenderOptions(renderOptions);
+
+    TargetMode kMode;
+    ComputeTargetMode(*this, false, kMode);
+
+    const unsigned int uiWidth = kMode.uiWidth;
+    const unsigned int uiHeight = kMode.uiHeight;
+
+    StageRequestTag(*this);
+    RedRenderer::pcSetDisplayMode(uiWidth, uiHeight, kMode.eMode, kMode.uiClientW,
+                                  kMode.uiClientH, kMode.bVSync, kMode.msType,
+                                  kMode.ulMSQuality);
+}
+
+void PlayerProfile::ApplyLiveDisplay()
+{
+    tProfile* pProfile = GetCurProfile();
+    if (!pProfile)
+    {
+        return;
+    }
+
+    tPCOpt& rPC = pProfile->mPCOptions;
+    if (!ProfileSizeUsable(rPC.mResolutionX, rPC.mResolutionY))
+    {
+        LOG(LogRender, Warning, "OPENSWBF2 DISPLAY live size %ux%u out of bounds, ignored",
+            (unsigned int)rPC.mResolutionX, (unsigned int)rPC.mResolutionY);
+        return;
+    }
+
+    TargetMode kMode;
+    ComputeTargetMode(rPC, true, kMode);
+
+    StageRequestTag(rPC);
+    if (RedRenderer::pcApplyDisplayMode(kMode.uiWidth, kMode.uiHeight, kMode.eMode,
+                                        kMode.uiClientW, kMode.uiClientH, kMode.bVSync,
+                                        kMode.msType, kMode.ulMSQuality))
+    {
+        TargetMode kLogged;
+        ComputeTargetMode(rPC, false, kLogged);
+    }
+}
+
+void PlayerProfile::PollApplyNotice()
+{
+    unsigned int uiKind = 0;
+    DisplayRequestTag kTag;
+    while (RedRenderer::pcTakeApplyNotice(uiKind, kTag))
+    {
+        if (uiKind == 1)
+        {
+            if (kTag.bValid)
+            {
+                sAppliedPC = kTag;
+            }
+            continue;
+        }
+
+        tProfile* pProfile = GetCurProfile();
+        if (uiKind != 2 || !pProfile ||
+            !DisplayLogic::ShouldRestoreProfile(sAppliedPC.bValid, sAppliedPC.uiOwner,
+                                                GetCurProfileIndex(),
+                                                RedRenderer::pcApplyPending()))
+        {
+            continue;
+        }
+
+        tPCOpt& rPC = pProfile->mPCOptions;
+        rPC.mResolutionX = sAppliedPC.resX;
+        rPC.mResolutionY = sAppliedPC.resY;
+        rPC.mWindowed = sAppliedPC.windowed;
+        rPC.mVSync = sAppliedPC.vsync;
+        rPC.mMultiSample = sAppliedPC.ms;
+        rPC.mMultiSampleQuality = sAppliedPC.msq;
+        pProfile->UpdateProfCRC();
+        LOG(LogRender, Warning, "OPENSWBF2 DISPLAY profile restored %ux%u windowed=%d vsync=%d",
+            (unsigned int)sAppliedPC.resX, (unsigned int)sAppliedPC.resY,
+            (int)sAppliedPC.windowed, (int)sAppliedPC.vsync);
+    }
 }
 
 // FUNCTION: SWBF2 0x0061cdc0

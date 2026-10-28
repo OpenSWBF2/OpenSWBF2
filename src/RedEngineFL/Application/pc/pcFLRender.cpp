@@ -283,6 +283,29 @@ void FLRenderer::RenderableList::Add(Renderable* pRenderable, int iOrder)
     PblOrderedList<Renderable, int>::Add(&pRenderable->_RenderableNode, pRenderable, iOrder);
 }
 
+static void LayoutViewScreen(unsigned int uiView)
+{
+    const RedViewport& rViewport = FLRenderer::m_Viewport[uiView];
+    FLRenderer::m_pViewInterfaceScreen[uiView]->SetDimensions(
+        (unsigned int)((float)RedInterfaceScreen::GetScreenWidth() * rViewport.fWidth),
+        (unsigned int)((float)RedInterfaceScreen::GetScreenHeight() * rViewport.fHeight));
+
+    float fMargin = 0.5f - RedInterfaceScreen::s_screenFull.m_fSafeZoneWidth * 0.5f;
+    float fLeft = (fMargin >= rViewport.fOffsetX) ? fMargin : rViewport.fOffsetX + 0.01f;
+    float fTop = (fMargin >= rViewport.fOffsetY) ? fMargin : rViewport.fOffsetY + 0.01f;
+    float fLimit = 1.0f - fMargin;
+    float fRight = rViewport.fOffsetX + rViewport.fWidth;
+    fRight = (fRight >= fLimit) ? fLimit : fRight - 0.01f;
+    float fBottom = rViewport.fOffsetY + rViewport.fHeight;
+    fBottom = (fBottom >= fLimit) ? fLimit : fBottom - 0.01f;
+
+    FLRenderer::m_pViewInterfaceScreen[uiView]->SetSafeZone(
+        (fRight - fLeft) / rViewport.fWidth,
+        (fBottom - fTop) / rViewport.fHeight,
+        (fLeft - rViewport.fOffsetX) / rViewport.fWidth,
+        (fTop - rViewport.fOffsetY) / rViewport.fHeight);
+}
+
 // FUNCTION: SWBF2 0x006bb8c0
 unsigned int FLRenderer::AddView(const RedViewport& rViewport, RedCamera* pCamera)
 {
@@ -309,24 +332,19 @@ unsigned int FLRenderer::AddView(const RedViewport& rViewport, RedCamera* pCamer
     FLRenderer::m_bInterfaceEnable[uiView] = true;
     m_bSceneEnable[uiView] = true;
 
-    m_pViewInterfaceScreen[uiView]->SetDimensions(
-        (unsigned int)((float)RedInterfaceScreen::GetScreenWidth() * rViewport.fWidth),
-        (unsigned int)((float)RedInterfaceScreen::GetScreenHeight() * rViewport.fHeight));
-
-    float fMargin = 0.5f - RedInterfaceScreen::s_screenFull.m_fSafeZoneWidth * 0.5f;
-    float fLeft = (fMargin >= rViewport.fOffsetX) ? fMargin : rViewport.fOffsetX + 0.01f;
-    float fTop = (fMargin >= rViewport.fOffsetY) ? fMargin : rViewport.fOffsetY + 0.01f;
-    float fLimit = 1.0f - fMargin;
-    float fRight = rViewport.fOffsetX + rViewport.fWidth;
-    fRight = (fRight >= fLimit) ? fLimit : fRight - 0.01f;
-    float fBottom = rViewport.fOffsetY + rViewport.fHeight;
-    fBottom = (fBottom >= fLimit) ? fLimit : fBottom - 0.01f;
-
-    m_pViewInterfaceScreen[uiView]->SetSafeZone((fRight - fLeft) / rViewport.fWidth,
-                                                (fBottom - fTop) / rViewport.fHeight,
-                                                (fLeft - rViewport.fOffsetX) / rViewport.fWidth,
-                                                (fTop - rViewport.fOffsetY) / rViewport.fHeight);
+    LayoutViewScreen(uiView);
     return uiView;
+}
+
+void FLRenderer::RefreshViewScreens()
+{
+    for (unsigned int uiView = 0; uiView < mViewCount; uiView++)
+    {
+        if (m_pViewCamera[uiView] && m_pViewInterfaceScreen[uiView])
+        {
+            LayoutViewScreen(uiView);
+        }
+    }
 }
 
 // FUNCTION: SWBF2 0x006bc6b0
