@@ -237,7 +237,8 @@ try {
             param($name)
             $db = Find-Dumpbin
             $hdr = (& $db /headers $wtExe) -join "`n"
-            return (Get-HardeningChecks $hdr '' 0 0 0 | Where-Object { $_.Name -eq $name })
+            $imp = (& $db /imports $wtExe) -join "`n"
+            return ((@(Get-HardeningChecks $hdr '' 0 0 0) + @(Get-ImportChecks $imp)) | Where-Object { $_.Name -eq $name })
         }
         if (-not (Build-Game $wt (Join-Path $OutDir 'build-hardening-control.log'))) { throw "hardening control build failed, see $(Join-Path $OutDir 'build-hardening-control.log')" }
         $hardControl = @{}

@@ -70,4 +70,91 @@ ResetAction CoopStep(long hrCoop, unsigned int uiElapsedMs, const ResetBounds& b
 ResetAction ResetStep(long hr, unsigned int uiFailures, unsigned int uiElapsedMs,
                       bool bRevertAvailable, const ResetBounds& bounds);
 
+enum DisplayMode
+{
+    kModeFullscreen = 0,
+    kModeWindowed = 1,
+    kModeBorderless = 2
+};
+
+struct Rect
+{
+    long l, t, r, b;
+};
+
+struct Frame
+{
+    long l, t, r, b;
+};
+
+struct WinStyle
+{
+    unsigned long style;
+    unsigned long exStyle;
+};
+
+DisplayMode ResolveMode(bool bBorderless, bool bCliWin, bool bProfileWindowed);
+
+bool D3DWindowed(DisplayMode m);
+bool MinimizeOnDeactivate(DisplayMode m);
+bool Topmost(DisplayMode m);
+
+WinStyle WindowStyleFor(DisplayMode m, bool bVisible);
+
+Rect PlaceWindow(DisplayMode m, const Rect& monitor, const Rect& work, unsigned long clientW,
+                 unsigned long clientH, const Frame& frame);
+
+Rect DpiChangedRect(const Rect& suggested, unsigned long clientW, unsigned long clientH,
+                    const Frame& frame);
+
+enum DpiResult
+{
+    kDpiFail = 0,
+    kDpiOk = 1,
+    kDpiAlready = 2
+};
+
+enum DpiLevel
+{
+    kDpiLevelNone = 0,
+    kDpiLevelPmV2 = 1,
+    kDpiLevelPm = 2,
+    kDpiLevelSystem = 3,
+    kDpiLevelOff = 4
+};
+
+typedef int (*DpiStepFn)(void* pCtx);
+
+struct DpiSteps
+{
+    DpiStepFn pmv2;
+    DpiStepFn pm;
+    DpiStepFn system;
+    void* pCtx;
+};
+
+DpiLevel DpiCascade(const DpiSteps& steps, bool bNoDpi);
+
+const char* DpiLevelName(DpiLevel l);
+
+DpiLevel PresetDpiLevel(int iAwareness, bool bPmV2, DpiLevel fallback);
+
+void MapBackBufferToClient(int x, int y, unsigned int bbW, unsigned int bbH, unsigned int cW,
+                           unsigned int cH, int& ox, int& oy);
+
+void MapClientToBackBuffer(int x, int y, unsigned int cW, unsigned int cH, unsigned int bbW,
+                           unsigned int bbH, int& ox, int& oy);
+
+struct ShellSize
+{
+    unsigned int uiBackW, uiBackH, uiClientW, uiClientH;
+    bool bClearMsaa;
+    bool bWarnIgnoredSize;
+    bool bWarnNoMonitor;
+};
+
+ShellSize ShellSizePolicy(DisplayMode m, bool bIsShell, unsigned int uiCliW, unsigned int uiCliH,
+                          unsigned int uiProfW, unsigned int uiProfH, unsigned int uiDeskW,
+                          unsigned int uiDeskH);
+
 }

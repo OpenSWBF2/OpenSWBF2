@@ -299,3 +299,317 @@ TEST_CASE("reset step reverts once then fatal" * doctest::test_suite("unit"))
     CHECK(ResetStep(unknown, 1, 0, true, kRuntimeBounds) == kResetFatal);
     CHECK(ResetStep(unknown, 1, 0, false, kRuntimeBounds) == kResetFatal);
 }
+
+TEST_CASE("display logic mode resolution" * doctest::test_suite("unit"))
+{
+    CHECK(ResolveMode(true, false, false) == kModeBorderless);
+    CHECK(ResolveMode(true, true, true) == kModeBorderless);
+    CHECK(ResolveMode(false, true, false) == kModeWindowed);
+    CHECK(ResolveMode(false, false, true) == kModeWindowed);
+    CHECK(ResolveMode(false, false, false) == kModeFullscreen);
+}
+
+TEST_CASE("display logic mode predicates" * doctest::test_suite("unit"))
+{
+    CHECK_FALSE(D3DWindowed(kModeFullscreen));
+    CHECK(D3DWindowed(kModeWindowed));
+    CHECK(D3DWindowed(kModeBorderless));
+    CHECK(MinimizeOnDeactivate(kModeFullscreen));
+    CHECK_FALSE(MinimizeOnDeactivate(kModeWindowed));
+    CHECK_FALSE(MinimizeOnDeactivate(kModeBorderless));
+    CHECK(Topmost(kModeFullscreen));
+    CHECK_FALSE(Topmost(kModeWindowed));
+    CHECK_FALSE(Topmost(kModeBorderless));
+}
+
+TEST_CASE("display logic window style" * doctest::test_suite("unit"))
+{
+    WinStyle f = WindowStyleFor(kModeFullscreen, true);
+    CHECK(f.style == (WS_POPUP | WS_VISIBLE));
+    CHECK(f.exStyle == WS_EX_TOPMOST);
+    CHECK((WindowStyleFor(kModeFullscreen, false).style & WS_VISIBLE) == 0);
+
+    WinStyle w = WindowStyleFor(kModeWindowed, false);
+    CHECK(w.style == (WS_CAPTION | WS_THICKFRAME | WS_SYSMENU | WS_MINIMIZEBOX));
+    CHECK((w.style & WS_MAXIMIZEBOX) == 0);
+    CHECK((w.style & WS_VISIBLE) == 0);
+    CHECK(w.exStyle == 0);
+    CHECK((WindowStyleFor(kModeWindowed, true).style & WS_VISIBLE) != 0);
+
+    WinStyle b = WindowStyleFor(kModeBorderless, true);
+    CHECK(b.style == (WS_POPUP | WS_VISIBLE));
+    CHECK((b.style & (WS_CAPTION | WS_THICKFRAME)) == 0);
+    CHECK((b.exStyle & WS_EX_TOPMOST) == 0);
+}
+
+TEST_CASE("display logic window placement" * doctest::test_suite("unit"))
+{
+    const Frame none = {0, 0, 0, 0};
+    const Rect monitors[] = {{0, 0, 1920, 1080}, {-1920, 0, 0, 1080}, {1920, -200, 3840, 880}};
+    for (const Rect& mon : monitors)
+    {
+        const Rect shrunk = {mon.l + 10, mon.t + 20, mon.r - 30, mon.b - 40};
+        Rect r = PlaceWindow(kModeBorderless, mon, shrunk, 800, 600, none);
+        CHECK(r.l == mon.l);
+        CHECK(r.t == mon.t);
+        CHECK(r.r == mon.r);
+        CHECK(r.b == mon.b);
+    }
+
+    const Frame frame = {-8, -31, 8, 8};
+    const Rect work = {0, 0, 1920, 1040};
+    Rect w = PlaceWindow(kModeWindowed, monitors[0], work, 800, 600, frame);
+    CHECK(w.r - w.l == 816);
+    CHECK(w.b - w.t == 639);
+    CHECK(w.l == (0 - 816 + 1920) / 2);
+    CHECK(w.t == (0 - 639 + 1040) / 2);
+
+    const Rect tiny = {100, 50, 500, 400};
+    Rect c = PlaceWindow(kModeWindowed, tiny, tiny, 800, 600, frame);
+    CHECK(c.l == tiny.l);
+    CHECK(c.t == tiny.t);
+
+    Rect h = PlaceWindow(kModeWindowed, monitors[0], work, 99999, 99999, frame);
+    CHECK(h.r - h.l == 16384 + 16);
+    CHECK(h.b - h.t == 16384 + 39);
+
+    Rect fs = PlaceWindow(kModeFullscreen, monitors[2], monitors[2], 800, 600, frame);
+    CHECK(fs.r - fs.l == 816);
+    CHECK(fs.b - fs.t == 639);
+    CHECK(fs.l == (1920 - 816 + 3840) / 2);
+    CHECK(fs.t == (-200 - 639 + 880) / 2);
+}
+
+TEST_CASE("display logic dpi changed rect" * doctest::test_suite("unit"))
+{
+    const Rect suggested = {100, 50, 900, 700};
+    const Frame frame = {-12, -45, 12, 12};
+    Rect r = DpiChangedRect(suggested, 800, 600, frame);
+    CHECK(r.l == 100);
+    CHECK(r.t == 50);
+    CHECK(r.r == 100 + 824);
+    CHECK(r.b == 50 + 657);
+}
+
+namespace
+{
+
+char sOrder[8];
+int sOrderLen = 0;
+int sPmv2Result = kDpiFail;
+int sPmResult = kDpiFail;
+int sSystemResult = kDpiFail;
+
+int StepPmv2(void*)
+{
+    sOrder[sOrderLen++] = 'a';
+    return sPmv2Result;
+}
+
+int StepPm(void*)
+{
+    sOrder[sOrderLen++] = 'b';
+    return sPmResult;
+}
+
+int StepSystem(void*)
+{
+    sOrder[sOrderLen++] = 'c';
+    return sSystemResult;
+}
+
+DpiLevel RunCascade(int iPmv2, int iPm, int iSystem, bool bNoDpi, bool bNull)
+{
+    sPmv2Result = iPmv2;
+    sPmResult = iPm;
+    sSystemResult = iSystem;
+    sOrderLen = 0;
+    memset(sOrder, 0, sizeof(sOrder));
+    DpiSteps steps = {bNull ? 0 : StepPmv2, bNull ? 0 : StepPm, bNull ? 0 : StepSystem, 0};
+    return DpiCascade(steps, bNoDpi);
+}
+
+}
+
+TEST_CASE("display logic dpi cascade" * doctest::test_suite("unit"))
+{
+    CHECK(RunCascade(kDpiOk, kDpiOk, kDpiOk, false, false) == kDpiLevelPmV2);
+    CHECK(strcmp(sOrder, "a") == 0);
+    CHECK(RunCascade(kDpiFail, kDpiOk, kDpiOk, false, false) == kDpiLevelPm);
+    CHECK(strcmp(sOrder, "ab") == 0);
+    CHECK(RunCascade(kDpiFail, kDpiFail, kDpiOk, false, false) == kDpiLevelSystem);
+    CHECK(strcmp(sOrder, "abc") == 0);
+    CHECK(RunCascade(kDpiFail, kDpiFail, kDpiFail, false, false) == kDpiLevelNone);
+    CHECK(RunCascade(kDpiOk, kDpiOk, kDpiOk, false, true) == kDpiLevelNone);
+    CHECK(RunCascade(kDpiAlready, kDpiOk, kDpiOk, false, false) == kDpiLevelPmV2);
+    CHECK(strcmp(sOrder, "a") == 0);
+    CHECK(RunCascade(kDpiFail, kDpiAlready, kDpiOk, false, false) == kDpiLevelPm);
+    CHECK(strcmp(sOrder, "ab") == 0);
+    CHECK(RunCascade(kDpiOk, kDpiOk, kDpiOk, true, false) == kDpiLevelOff);
+    CHECK(sOrderLen == 0);
+    CHECK(strcmp(DpiLevelName(kDpiLevelNone), "none") == 0);
+    CHECK(strcmp(DpiLevelName(kDpiLevelPmV2), "pmv2") == 0);
+    CHECK(strcmp(DpiLevelName(kDpiLevelPm), "pm") == 0);
+    CHECK(strcmp(DpiLevelName(kDpiLevelSystem), "system") == 0);
+    CHECK(strcmp(DpiLevelName(kDpiLevelOff), "off") == 0);
+}
+
+TEST_CASE("display logic dpi preset" * doctest::test_suite("unit"))
+{
+    CHECK(PresetDpiLevel(2, true, kDpiLevelPm) == kDpiLevelPmV2);
+    CHECK(PresetDpiLevel(2, false, kDpiLevelPmV2) == kDpiLevelPm);
+    CHECK(PresetDpiLevel(1, false, kDpiLevelPmV2) == kDpiLevelSystem);
+    CHECK(PresetDpiLevel(1, true, kDpiLevelPmV2) == kDpiLevelSystem);
+    CHECK(PresetDpiLevel(0, false, kDpiLevelPmV2) == kDpiLevelNone);
+    CHECK(PresetDpiLevel(-1, false, kDpiLevelPmV2) == kDpiLevelPmV2);
+    CHECK(PresetDpiLevel(-1, false, kDpiLevelPm) == kDpiLevelPm);
+}
+
+TEST_CASE("display logic coordinate mapping" * doctest::test_suite("unit"))
+{
+    int ox = -1;
+    int oy = -1;
+    MapBackBufferToClient(5, 7, 800, 600, 800, 600, ox, oy);
+    CHECK(ox == 5);
+    CHECK(oy == 7);
+    MapBackBufferToClient(800, 600, 800, 600, 800, 600, ox, oy);
+    CHECK(ox == 799);
+    CHECK(oy == 599);
+
+    MapBackBufferToClient(0, 0, 800, 600, 1920, 1080, ox, oy);
+    CHECK(ox == 0);
+    CHECK(oy == 0);
+    MapBackBufferToClient(400, 300, 800, 600, 1920, 1080, ox, oy);
+    CHECK(ox == 960);
+    CHECK(oy == 540);
+    MapBackBufferToClient(800, 600, 800, 600, 1920, 1080, ox, oy);
+    CHECK(ox == 1919);
+    CHECK(oy == 1079);
+    MapBackBufferToClient(-5, -9, 800, 600, 1920, 1080, ox, oy);
+    CHECK(ox == 0);
+    CHECK(oy == 0);
+
+    MapBackBufferToClient(401, 301, 801, 601, 1280, 720, ox, oy);
+    CHECK(ox == (401 * 1280 + 400) / 801);
+    CHECK(oy == (301 * 720 + 300) / 601);
+
+    MapBackBufferToClient(33, 44, 0, 600, 1920, 0, ox, oy);
+    CHECK(ox == 33);
+    CHECK(oy == 44);
+    MapBackBufferToClient(-3, 44, 800, 600, 0, 0, ox, oy);
+    CHECK(ox == 0);
+    CHECK(oy == 44);
+    MapBackBufferToClient(2000000000, 2000000000, 800, 600, 1920, 1080, ox, oy);
+    CHECK(ox == 1919);
+    CHECK(oy == 1079);
+
+    for (int x = 0; x < 800; x += 7)
+    {
+        int cx = 0;
+        int cy = 0;
+        int bx = 0;
+        int by = 0;
+        MapBackBufferToClient(x, x % 600, 800, 600, 1920, 1080, cx, cy);
+        MapClientToBackBuffer(cx, cy, 1920, 1080, 800, 600, bx, by);
+        CHECK(abs(bx - x) <= 1);
+        CHECK(abs(by - (x % 600)) <= 1);
+    }
+}
+
+TEST_CASE("display logic shell size policy" * doctest::test_suite("unit"))
+{
+    ShellSize s = ShellSizePolicy(kModeFullscreen, false, 0, 0, 1280, 720, 1920, 1080);
+    CHECK(s.uiBackW == 1280);
+    CHECK(s.uiBackH == 720);
+    CHECK(s.uiClientW == 1280);
+    CHECK(s.uiClientH == 720);
+    CHECK_FALSE(s.bClearMsaa);
+
+    s = ShellSizePolicy(kModeFullscreen, true, 0, 0, 1280, 720, 1920, 1080);
+    CHECK(s.uiBackW == 0);
+    CHECK(s.uiBackH == 0);
+    CHECK(s.uiClientW == 0);
+    CHECK(s.uiClientH == 0);
+    CHECK(s.bClearMsaa);
+
+    s = ShellSizePolicy(kModeFullscreen, true, 1024, 768, 1280, 720, 1920, 1080);
+    CHECK(s.uiBackW == 1024);
+    CHECK(s.uiBackH == 768);
+    CHECK(s.uiClientW == 1024);
+    CHECK(s.uiClientH == 768);
+
+    s = ShellSizePolicy(kModeWindowed, true, 0, 0, 1280, 720, 1920, 1080);
+    CHECK(s.uiBackW == 0);
+    CHECK(s.uiBackH == 0);
+    CHECK(s.uiClientW == 1280);
+    CHECK(s.uiClientH == 720);
+    CHECK(s.bClearMsaa);
+
+    s = ShellSizePolicy(kModeWindowed, true, 1024, 768, 1280, 720, 1920, 1080);
+    CHECK(s.uiBackW == 1024);
+    CHECK(s.uiBackH == 768);
+    CHECK(s.uiClientW == 1024);
+    CHECK(s.uiClientH == 768);
+
+    s = ShellSizePolicy(kModeWindowed, true, 0, 0, 0, 0, 1920, 1080);
+    CHECK(s.uiBackW == 0);
+    CHECK(s.uiClientW == 0);
+    CHECK(s.uiClientH == 0);
+
+    s = ShellSizePolicy(kModeWindowed, false, 0, 0, 1280, 720, 1920, 1080);
+    CHECK(s.uiBackW == 1280);
+    CHECK(s.uiBackH == 720);
+    CHECK(s.uiClientW == 1280);
+    CHECK(s.uiClientH == 720);
+    CHECK_FALSE(s.bClearMsaa);
+
+    s = ShellSizePolicy(kModeBorderless, false, 0, 0, 1280, 720, 2560, 1440);
+    CHECK(s.uiBackW == 2560);
+    CHECK(s.uiBackH == 1440);
+    CHECK(s.uiClientW == 2560);
+    CHECK(s.uiClientH == 1440);
+    CHECK(s.bWarnIgnoredSize);
+
+    s = ShellSizePolicy(kModeBorderless, false, 0, 0, 2560, 1440, 2560, 1440);
+    CHECK_FALSE(s.bWarnIgnoredSize);
+    s = ShellSizePolicy(kModeBorderless, false, 0, 0, 0, 0, 2560, 1440);
+    CHECK_FALSE(s.bWarnIgnoredSize);
+
+    CHECK_FALSE(s.bWarnNoMonitor);
+
+    s = ShellSizePolicy(kModeBorderless, false, 0, 0, 1280, 720, 0, 0);
+    CHECK(s.uiBackW == 1280);
+    CHECK(s.uiBackH == 720);
+    CHECK(s.uiClientW == 1280);
+    CHECK(s.uiClientH == 720);
+    CHECK_FALSE(s.bWarnIgnoredSize);
+    CHECK(s.bWarnNoMonitor);
+    CHECK_FALSE(s.bClearMsaa);
+
+    s = ShellSizePolicy(kModeBorderless, false, 1024, 768, 1280, 720, 0, 0);
+    CHECK(s.uiBackW == 1024);
+    CHECK(s.uiClientH == 768);
+    CHECK(s.bWarnNoMonitor);
+
+    s = ShellSizePolicy(kModeBorderless, false, 0, 0, 0, 0, 2560, 0);
+    CHECK(s.uiBackW == 0);
+    CHECK(s.uiClientW == 0);
+    CHECK(s.bWarnNoMonitor);
+
+    s = ShellSizePolicy(kModeBorderless, true, 0, 0, 1280, 720, 0, 0);
+    CHECK(s.uiBackW == 0);
+    CHECK_FALSE(s.bWarnNoMonitor);
+
+    s = ShellSizePolicy(kModeBorderless, true, 0, 0, 1280, 720, 2560, 1440);
+    CHECK(s.uiBackW == 0);
+    CHECK(s.uiBackH == 0);
+    CHECK(s.uiClientW == 2560);
+    CHECK(s.uiClientH == 1440);
+    CHECK_FALSE(s.bWarnIgnoredSize);
+
+    s = ShellSizePolicy(kModeBorderless, true, 1024, 768, 1280, 720, 2560, 1440);
+    CHECK(s.uiBackW == 1024);
+    CHECK(s.uiBackH == 768);
+    CHECK(s.uiClientW == 2560);
+    CHECK(s.uiClientH == 1440);
+}

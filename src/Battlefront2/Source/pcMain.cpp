@@ -8,6 +8,8 @@
 #include "PebbleFL/Common/PblHashTable.h"
 #include "RedEngineFL/Application/pc/pcFrameLimiter.h"
 #include "RedEngineFL/Application/pc/pcMessageDrain.h"
+#include "RedEngineFL/Application/pc/pcWindow.h"
+#include "RedEngineFL/Graphics/PC/pcDisplayLogic.h"
 #include "RedEngineFL/Graphics/PC/pcDisplaySettings.h"
 #include "RedEngineFL/Graphics/PC/pcRedAutoSettings.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
@@ -59,6 +61,8 @@ bool gAltMeleeHitEffects;
 
 bool pcForceFixedFunction;
 bool pcWindowed;
+
+static const UINT kWmDpiChanged = 0x02E0;
 HWND hGlobalWnd;
 bool pcPostInstall;
 
@@ -243,7 +247,22 @@ long __stdcall WindowProc(HWND__* hWnd, unsigned int Msg, unsigned int wParam, l
         gAppActive = wParam != 0;
         return 0;
 
+    case kWmDpiChanged:
+        PcWindow::OnDpiChanged(hWnd, wParam, lParam, RedRenderer::GetDisplayMode());
+        return 0;
+
+    case WM_SIZE:
+        if (wParam != SIZE_MINIMIZED)
+        {
+            PcWindow::ApplyPending();
+        }
+        return DefWindowProcA(hWnd, Msg, wParam, lParam);
+
     case WM_SETCURSOR:
+        if (LOWORD(lParam) != HTCLIENT)
+        {
+            return DefWindowProcA(hWnd, Msg, wParam, lParam);
+        }
         SetCursor(0);
 
         if (!g_bNoRender)
@@ -299,6 +318,7 @@ long __stdcall WindowProc(HWND__* hWnd, unsigned int Msg, unsigned int wParam, l
 // FUNCTION: SWBF2 0x006174e0
 void ActivateFrontline(bool bActivate)
 {
+    const bool bMinimize = DisplayLogic::MinimizeOnDeactivate(RedRenderer::GetDisplayMode());
     if (bActivate)
     {
         if (!PauseMenu::GetPaused(0))
@@ -306,7 +326,7 @@ void ActivateFrontline(bool bActivate)
             SoundEnable(true);
         }
         SetCursor(0);
-        if (!pcWindowed && !g_bNoRender)
+        if (bMinimize && !g_bNoRender)
         {
             ShowWindow(hGlobalWnd, SW_RESTORE);
         }
@@ -340,7 +360,7 @@ void ActivateFrontline(bool bActivate)
     }
 
     SetCursor(LoadCursorA(hGlobalInstance, IDC_ARROW));
-    if (!pcWindowed && !g_bNoRender)
+    if (bMinimize && !g_bNoRender)
     {
         ShowWindow(hGlobalWnd, SW_MINIMIZE);
     }
@@ -393,6 +413,7 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
 
     ParseCommandLine(0, lpCmdLine);
     DisplayCfg::Init();
+    PcWindow::InitDpi(DisplayCfg::gDisplay.bNoDpi);
 
     if (!bDedicated && !g_bNoRender)
     {
@@ -477,25 +498,37 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
         return 0;
     }
 
-    DWORD dwStyle = pcWindowed ? (WS_CAPTION | WS_THICKFRAME) : (WS_POPUP | WS_VISIBLE);
-    DWORD dwExStyle = pcWindowed ? 0 : WS_EX_TOPMOST;
+    const DisplayLogic::DisplayMode eMode =
+        DisplayLogic::ResolveMode(DisplayCfg::gDisplay.bBorderless, pcWindowed, false);
+    DisplayLogic::WinStyle ws =
+        DisplayLogic::WindowStyleFor(eMode, eMode != DisplayLogic::kModeWindowed && !g_bNoRender);
     if (g_bNoRender)
     {
-        dwStyle &= ~WS_VISIBLE;
-        dwExStyle = 0;
+        ws.style &= ~WS_VISIBLE;
+        ws.exStyle = 0;
     }
 
-    RECT rc;
-    SetRect(&rc, 0, 0, pcWidth ? pcWidth : 800, pcHeight ? pcHeight : 600);
-    AdjustWindowRect(&rc, dwStyle, FALSE);
+    const unsigned long ulClientW = pcWidth ? pcWidth : 800;
+    const unsigned long ulClientH = pcHeight ? pcHeight : 600;
 
-    RECT rcDesktop;
-    GetClientRect(GetDesktopWindow(), &rcDesktop);
-
-    int nWidth = rc.right - rc.left;
-    int nHeight = rc.bottom - rc.top;
-    int X = (rcDesktop.left + rcDesktop.right - nWidth) / 2;
-    int Y = (rcDesktop.top + rcDesktop.bottom - nHeight) / 2;
+    DisplayLogic::Rect monitor = {0, 0, 0, 0};
+    DisplayLogic::Rect work = {0, 0, 0, 0};
+    DisplayLogic::Rect rc;
+    if (!g_bNoRender && PcWindow::PrimaryMonitorRects(monitor, work))
+    {
+        DisplayLogic::Frame frame = PcWindow::MeasureFrame(ws.style, ws.exStyle, 0);
+        rc = DisplayLogic::PlaceWindow(eMode, monitor, work, ulClientW, ulClientH, frame);
+    }
+    else
+    {
+        RECT rcAdj;
+        SetRect(&rcAdj, 0, 0, ulClientW, ulClientH);
+        AdjustWindowRect(&rcAdj, ws.style, FALSE);
+        rc.l = 0;
+        rc.t = 0;
+        rc.r = rcAdj.right - rcAdj.left;
+        rc.b = rcAdj.bottom - rcAdj.top;
+    }
 
     char szTitle[264];
     strcpy(szTitle, "Star Wars Battlefront II");
@@ -506,9 +539,16 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
     }
 
     hGlobalInstance = hInstance;
-    hGlobalWnd = CreateWindowExA(dwExStyle, appName, "Star Wars Battlefront II", dwStyle,
-                                 X, Y, nWidth, nHeight,
+    hGlobalWnd = CreateWindowExA(ws.exStyle, appName, "Star Wars Battlefront II", ws.style,
+                                 rc.l, rc.t, rc.r - rc.l, rc.b - rc.t,
                                  g_bNoRender ? HWND_MESSAGE : 0, 0, hInstance, 0);
+    RedRenderer::pcSeedDisplayMode(eMode);
+
+    if (pcEnableLogging)
+    {
+        LOG(LogCore, Inform, "OPENSWBF2 DPI awareness=%s dpi=%u",
+            DisplayLogic::DpiLevelName(PcWindow::GetDpiLevel()), PcWindow::QueryDpi(hGlobalWnd));
+    }
 
     if (pcPostInstall)
     {

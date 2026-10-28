@@ -13,6 +13,8 @@
 #include "RedEngineFL/Graphics/PC/pcRedAutoSettings.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "RedEngineFL/Graphics/PC/pcDisplayLogic.h"
+#include "RedEngineFL/Graphics/PC/pcDisplaySettings.h"
+#include "RedEngineFL/Util/RedLog.h"
 #include "RedEngineFL/Util/RedLocalizeDB.h"
 #include "ColorControl.h"
 #include "Damageable.h"
@@ -38,6 +40,7 @@ unsigned int mLastDirtyCRC[1];
 namespace PblBuildType { extern unsigned char gCreateMemoryProfile; }
 
 extern bool pcWindowed;
+extern bool g_bNoRender;
 extern int pcWidth;
 extern int pcHeight;
 
@@ -506,28 +509,46 @@ void PlayerProfile::tPCOpt::ApplyPreLoadSettings()
     D3DMULTISAMPLE_TYPE msType = mMultiSample;
     unsigned long ulMSQuality = mMultiSampleQuality;
 
-    const bool bWindowed = pcWindowed ? true : mWindowed;
+    const DisplayLogic::DisplayMode eMode =
+        DisplayLogic::ResolveMode(DisplayCfg::gDisplay.bBorderless, pcWindowed, mWindowed);
 
-    if (pcWidth > 0 && pcHeight > 0)
+    unsigned int uiDeskW = 0;
+    unsigned int uiDeskH = 0;
+    if (eMode == DisplayLogic::kModeBorderless && !g_bNoRender)
     {
+        RedRenderer::pcGetAdapterDesktop(gAdapter, uiDeskW, uiDeskH);
+    }
 
-        uiWidth = (unsigned int)pcWidth;
-        uiHeight = (unsigned int)pcHeight;
-    }
-    else if (!bIsShell && mResolutionX && mResolutionY)
+    const bool bCli = pcWidth > 0 && pcHeight > 0;
+    const DisplayLogic::ShellSize kSize = DisplayLogic::ShellSizePolicy(
+        eMode, bIsShell, bCli ? (unsigned int)pcWidth : 0, bCli ? (unsigned int)pcHeight : 0,
+        mResolutionX, mResolutionY, uiDeskW, uiDeskH);
+
+    uiWidth = kSize.uiBackW;
+    uiHeight = kSize.uiBackH;
+    if (kSize.bClearMsaa)
     {
-        uiWidth = mResolutionX;
-        uiHeight = mResolutionY;
-    }
-    else
-    {
-        uiWidth = 0;
-        uiHeight = 0;
         msType = (D3DMULTISAMPLE_TYPE)0;
         ulMSQuality = 0;
     }
 
-    if (!bWindowed)
+    if (kSize.bWarnIgnoredSize)
+    {
+        LOG(LogRender, Warning, "OPENSWBF2 DISPLAY borderless ignores requested %ux%u, using monitor %ux%u",
+            bCli ? (unsigned int)pcWidth : mResolutionX, bCli ? (unsigned int)pcHeight : mResolutionY,
+            uiDeskW, uiDeskH);
+    }
+
+    if (!RedRenderer::pcMultiSampleSupported(gAdapter, msType, ulMSQuality,
+                                             DisplayLogic::D3DWindowed(eMode)))
+    {
+        LOG(LogRender, Warning, "OPENSWBF2 DISPLAY multisample ms=%d q=%u unsupported, off",
+            (int)msType, (unsigned int)ulMSQuality);
+        msType = (D3DMULTISAMPLE_TYPE)0;
+        ulMSQuality = 0;
+    }
+
+    if (!DisplayLogic::D3DWindowed(eMode))
     {
         if (!RedVideoConfig::VidMode_Usable((int)uiWidth, (int)uiHeight, msType,
                                             ulMSQuality))
@@ -598,7 +619,16 @@ void PlayerProfile::tPCOpt::ApplyPreLoadSettings()
         delete[] modes;
     }
 
-    RedRenderer::pcSetDisplayMode(uiWidth, uiHeight, bWindowed, mVSync, msType,
+    if (kSize.bWarnNoMonitor && !g_bNoRender)
+    {
+        LOG(LogRender, Warning, "OPENSWBF2 DISPLAY borderless monitor size unknown, using %ux%u",
+            uiWidth, uiHeight);
+    }
+
+    const unsigned int uiClientW = kSize.uiClientW ? kSize.uiClientW : uiWidth;
+    const unsigned int uiClientH = kSize.uiClientH ? kSize.uiClientH : uiHeight;
+
+    RedRenderer::pcSetDisplayMode(uiWidth, uiHeight, eMode, uiClientW, uiClientH, mVSync, msType,
                                   ulMSQuality);
 }
 

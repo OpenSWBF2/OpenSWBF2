@@ -290,4 +290,273 @@ ResetAction ResetStep(long hr, unsigned int uiFailures, unsigned int uiElapsedMs
     return kResetFatal;
 }
 
+static const unsigned long kMaxClient = 16384;
+static const unsigned long kBorderlessExStyle = 0;
+
+DisplayMode ResolveMode(bool bBorderless, bool bCliWin, bool bProfileWindowed)
+{
+    if (bBorderless)
+    {
+        return kModeBorderless;
+    }
+    if (bCliWin || bProfileWindowed)
+    {
+        return kModeWindowed;
+    }
+    return kModeFullscreen;
+}
+
+bool D3DWindowed(DisplayMode m)
+{
+    return m != kModeFullscreen;
+}
+
+bool MinimizeOnDeactivate(DisplayMode m)
+{
+    return m == kModeFullscreen;
+}
+
+bool Topmost(DisplayMode m)
+{
+    return m == kModeFullscreen;
+}
+
+WinStyle WindowStyleFor(DisplayMode m, bool bVisible)
+{
+    WinStyle ws;
+    if (m == kModeWindowed)
+    {
+        ws.style = WS_CAPTION | WS_THICKFRAME | WS_SYSMENU | WS_MINIMIZEBOX |
+                   (bVisible ? WS_VISIBLE : 0);
+        ws.exStyle = 0;
+        return ws;
+    }
+    ws.style = WS_POPUP | WS_VISIBLE;
+    if (m == kModeBorderless)
+    {
+        ws.exStyle = kBorderlessExStyle;
+    }
+    else
+    {
+        ws.exStyle = WS_EX_TOPMOST;
+    }
+    if (!bVisible)
+    {
+        ws.style &= ~(unsigned long)WS_VISIBLE;
+    }
+    return ws;
+}
+
+Rect PlaceWindow(DisplayMode m, const Rect& monitor, const Rect& work, unsigned long clientW,
+                 unsigned long clientH, const Frame& frame)
+{
+    if (m == kModeBorderless)
+    {
+        return monitor;
+    }
+    if (clientW > kMaxClient)
+    {
+        clientW = kMaxClient;
+    }
+    if (clientH > kMaxClient)
+    {
+        clientH = kMaxClient;
+    }
+    const long lWidth = (long)clientW + frame.r - frame.l;
+    const long lHeight = (long)clientH + frame.b - frame.t;
+    Rect out;
+    if (m == kModeWindowed)
+    {
+        out.l = (work.l - lWidth + work.r) / 2;
+        out.t = (work.t - lHeight + work.b) / 2;
+        if (out.l < work.l)
+        {
+            out.l = work.l;
+        }
+        if (out.t < work.t)
+        {
+            out.t = work.t;
+        }
+    }
+    else
+    {
+        out.l = (monitor.l - lWidth + monitor.r) / 2;
+        out.t = (monitor.t - lHeight + monitor.b) / 2;
+    }
+    out.r = out.l + lWidth;
+    out.b = out.t + lHeight;
+    return out;
+}
+
+Rect DpiChangedRect(const Rect& suggested, unsigned long clientW, unsigned long clientH,
+                    const Frame& frame)
+{
+    Rect out;
+    out.l = suggested.l;
+    out.t = suggested.t;
+    out.r = out.l + (long)clientW + frame.r - frame.l;
+    out.b = out.t + (long)clientH + frame.b - frame.t;
+    return out;
+}
+
+static bool DpiSettled(DpiStepFn fn, void* pCtx)
+{
+    const int iResult = fn(pCtx);
+    if (iResult == kDpiAlready)
+    {
+        return true;
+    }
+    return iResult == kDpiOk;
+}
+
+DpiLevel DpiCascade(const DpiSteps& steps, bool bNoDpi)
+{
+    if (bNoDpi)
+    {
+        return kDpiLevelOff;
+    }
+    if (steps.pmv2)
+    {
+        if (DpiSettled(steps.pmv2, steps.pCtx))
+        {
+            return kDpiLevelPmV2;
+        }
+    }
+    if (steps.pm)
+    {
+        if (DpiSettled(steps.pm, steps.pCtx))
+        {
+            return kDpiLevelPm;
+        }
+    }
+    if (steps.system)
+    {
+        if (DpiSettled(steps.system, steps.pCtx))
+        {
+            return kDpiLevelSystem;
+        }
+    }
+    return kDpiLevelNone;
+}
+
+const char* DpiLevelName(DpiLevel l)
+{
+    switch (l)
+    {
+    case kDpiLevelPmV2:
+        return "pmv2";
+    case kDpiLevelPm:
+        return "pm";
+    case kDpiLevelSystem:
+        return "system";
+    case kDpiLevelOff:
+        return "off";
+    default:
+        return "none";
+    }
+}
+
+DpiLevel PresetDpiLevel(int iAwareness, bool bPmV2, DpiLevel fallback)
+{
+    switch (iAwareness)
+    {
+    case 0:
+        return kDpiLevelNone;
+    case 1:
+        return kDpiLevelSystem;
+    case 2:
+        return bPmV2 ? kDpiLevelPmV2 : kDpiLevelPm;
+    default:
+        return fallback;
+    }
+}
+
+static int MapAxis(int v, unsigned int uiSrc, unsigned int uiDst)
+{
+    if (uiSrc == 0 || uiDst == 0)
+    {
+        return v < 0 ? 0 : v;
+    }
+    long long iResult = ((long long)v * (long long)uiDst + (long long)(uiSrc / 2)) / (long long)uiSrc;
+    if (iResult > (long long)uiDst - 1)
+    {
+        iResult = (long long)uiDst - 1;
+    }
+    if (iResult < 0)
+    {
+        iResult = 0;
+    }
+    return (int)iResult;
+}
+
+void MapBackBufferToClient(int x, int y, unsigned int bbW, unsigned int bbH, unsigned int cW,
+                           unsigned int cH, int& ox, int& oy)
+{
+    ox = MapAxis(x, bbW, cW);
+    oy = MapAxis(y, bbH, cH);
+}
+
+void MapClientToBackBuffer(int x, int y, unsigned int cW, unsigned int cH, unsigned int bbW,
+                           unsigned int bbH, int& ox, int& oy)
+{
+    ox = MapAxis(x, cW, bbW);
+    oy = MapAxis(y, cH, bbH);
+}
+
+ShellSize ShellSizePolicy(DisplayMode m, bool bIsShell, unsigned int uiCliW, unsigned int uiCliH,
+                          unsigned int uiProfW, unsigned int uiProfH, unsigned int uiDeskW,
+                          unsigned int uiDeskH)
+{
+    const bool bCli = uiCliW > 0 && uiCliH > 0;
+    const bool bProf = uiProfW > 0 && uiProfH > 0;
+    unsigned int uiReqW = 0;
+    unsigned int uiReqH = 0;
+    if (bCli)
+    {
+        uiReqW = uiCliW;
+        uiReqH = uiCliH;
+    }
+    else if (bIsShell)
+    {
+        uiReqW = 0;
+        uiReqH = 0;
+    }
+    else if (bProf)
+    {
+        uiReqW = uiProfW;
+        uiReqH = uiProfH;
+    }
+
+    ShellSize out;
+    out.bWarnIgnoredSize = false;
+    out.bWarnNoMonitor = false;
+    out.uiBackW = uiReqW;
+    out.uiBackH = uiReqH;
+    out.uiClientW = uiReqW;
+    out.uiClientH = uiReqH;
+
+    if (m == kModeWindowed && !bCli && bProf)
+    {
+        out.uiClientW = uiProfW;
+        out.uiClientH = uiProfH;
+    }
+    else if (m == kModeBorderless && (uiDeskW == 0 || uiDeskH == 0))
+    {
+        out.bWarnNoMonitor = !bIsShell;
+    }
+    else if (m == kModeBorderless)
+    {
+        out.uiClientW = uiDeskW;
+        out.uiClientH = uiDeskH;
+        if (!bIsShell)
+        {
+            out.uiBackW = uiDeskW;
+            out.uiBackH = uiDeskH;
+            out.bWarnIgnoredSize = uiReqW > 0 && uiDeskW > 0 && (uiReqW != uiDeskW || uiReqH != uiDeskH);
+        }
+    }
+    out.bClearMsaa = out.uiBackW == 0 || out.uiBackH == 0;
+    return out;
+}
+
 }

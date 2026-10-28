@@ -1800,6 +1800,9 @@
     <ClCompile Include="src\RedEngineFL\Application\pc\pcFrameLimiter.cpp">
       <Filter>src\RedEngineFL\Application\pc</Filter>
     </ClCompile>
+    <ClCompile Include="src\RedEngineFL\Application\pc\pcWindow.cpp">
+      <Filter>src\RedEngineFL\Application\pc</Filter>
+    </ClCompile>
     <ClCompile Include="src\RedEngineFL\Application\pc\pcMessageDrain.cpp">
       <Filter>src\RedEngineFL\Application\pc</Filter>
     </ClCompile>
@@ -3147,6 +3150,9 @@
       <Filter>src\RedEngineFL\Graphics\PC</Filter>
     </ClInclude>
     <ClInclude Include="src\RedEngineFL\Application\pc\pcFrameLimiter.h">
+      <Filter>src\RedEngineFL\Application\pc</Filter>
+    </ClInclude>
+    <ClInclude Include="src\RedEngineFL\Application\pc\pcWindow.h">
       <Filter>src\RedEngineFL\Application\pc</Filter>
     </ClInclude>
     <ClInclude Include="src\RedEngineFL\Application\pc\pcMessageDrain.h">

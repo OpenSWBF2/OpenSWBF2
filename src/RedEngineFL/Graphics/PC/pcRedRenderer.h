@@ -1154,9 +1154,17 @@ public:
     static void pcGetAdapterDesktop(unsigned int uiAdapter, unsigned int& uiW,
                                     unsigned int& uiH);
 
+    static bool pcMultiSampleSupported(unsigned int uiAdapter, D3DMULTISAMPLE_TYPE eType,
+                                       unsigned long ulQuality, bool bWindowed);
+
     static void pcSetDisplayMode(unsigned int uiWidth, unsigned int uiHeight,
-                                 bool bWindowed, bool bVSync,
+                                 DisplayLogic::DisplayMode eMode, unsigned int uiClientW,
+                                 unsigned int uiClientH, bool bVSync,
                                  D3DMULTISAMPLE_TYPE msType, unsigned long ulMSQuality);
+
+    static DisplayLogic::DisplayMode GetDisplayMode();
+
+    static void pcSeedDisplayMode(DisplayLogic::DisplayMode eMode);
 
     static void pcSetRenderOptions(const RenderOptionsT& rOptions);
 
@@ -1184,6 +1192,12 @@ public:
 
     static D3DPRESENT_PARAMETERS m_d3dpp;
     static D3DPRESENT_PARAMETERS m_d3dppLast;
+    static DisplayLogic::DisplayMode m_displayMode;
+    static DisplayLogic::DisplayMode m_displayModeLast;
+    static unsigned int m_clientW;
+    static unsigned int m_clientH;
+    static unsigned int m_clientWLast;
+    static unsigned int m_clientHLast;
     static bool m_bResourcesReleased;
 
     // GLOBAL: SWBF2 0x007de300 -- the one INITIALISED datum of the seven, and the

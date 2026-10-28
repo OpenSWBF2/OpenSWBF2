@@ -699,6 +699,7 @@
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcDisplaySettings.cpp" />
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcDisplayLogic.cpp" />
     <ClCompile Include="src\RedEngineFL\Application\pc\pcFrameLimiter.cpp" />
+    <ClCompile Include="src\RedEngineFL\Application\pc\pcWindow.cpp" />
     <ClCompile Include="src\RedEngineFL\Application\pc\pcMessageDrain.cpp" />
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedDeviceEnumerator.cpp" />
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedIndexBuffer.cpp" />
@@ -1171,6 +1172,7 @@
     <ClInclude Include="src\RedEngineFL\Graphics\PC\pcDisplaySettings.h" />
     <ClInclude Include="src\RedEngineFL\Graphics\PC\pcDisplayLogic.h" />
     <ClInclude Include="src\RedEngineFL\Application\pc\pcFrameLimiter.h" />
+    <ClInclude Include="src\RedEngineFL\Application\pc\pcWindow.h" />
     <ClInclude Include="src\RedEngineFL\Application\pc\pcMessageDrain.h" />
     <ClInclude Include="src\RedEngineFL\Graphics\PC\pcRedPoolMath.h" />
     <ClInclude Include="src\Battlefront2\Source\NetPredict.h" />
@@ -1654,7 +1656,7 @@
     <SWBF2_GAMEDATA Condition="'$(_SteamSWBF2)' != ''">$(_SteamSWBF2)\GameData</SWBF2_GAMEDATA>
   </PropertyGroup>
   <Target Name="BuildLuaLvls" AfterTargets="Build" DependsOnTargets="StageGameData" Condition="'$(SWBF2_GAMEDATA)' != '' and '$(SWBF2_NOSTAGE)' != 'true'">
-    <Exec WorkingDirectory="$(ProjectDir)" Command="&quot;$(OutDir)LuaCompiler.exe&quot; lvl --index &quot;data\scripts\index.json&quot; --input shell=&quot;$(SWBF2_GAMEDATA)\data\_lvl_pc\shell.lvl&quot; --input common=&quot;$(SWBF2_GAMEDATA)\data\_lvl_pc\common.lvl&quot; --input ingame=&quot;$(SWBF2_GAMEDATA)\data\_lvl_pc\ingame.lvl&quot; --input mission=&quot;$(SWBF2_GAMEDATA)\data\_lvl_pc\mission.lvl.orig&quot; --out-dir &quot;$(OutDir)data\_lvl_pc&quot;" />
+    <Exec WorkingDirectory="$(ProjectDir)" Command="&quot;$(OutDir)LuaCompiler.exe&quot; lvl --index &quot;data\scripts\index.json&quot; --gamedata &quot;$(SWBF2_GAMEDATA)&quot; --out-dir &quot;$(OutDir)data\_lvl_pc&quot;" />
   </Target>
   <Target Name="StageGameData" AfterTargets="Build" Condition="'$(SWBF2_GAMEDATA)' != '' and '$(SWBF2_NOSTAGE)' != 'true'">
     <Exec WorkingDirectory="$(ProjectDir)" Command="&quot;$(OutDir)LuaCompiler.exe&quot; stage --retail &quot;$(SWBF2_GAMEDATA)&quot; --out &quot;$(OutDir).&quot;" />
