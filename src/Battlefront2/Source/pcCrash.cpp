@@ -704,7 +704,8 @@ void pcCrash::SetCrashTest(char const* pcKind)
         "invalidparam", "fastfail", "arenaoom", "debugheapoom", "heapfail",
         "luaoom", "luapanic", "hang", "check", "resetrecover", "resetfatal", "resetinitlost",
         "resetflap", "resetlaterinit", "applymode", "applymodesmall", "applyfail", "applypresentfail", "applyadapter",
-        "applytargetfail" };
+        "applytargetfail", "gammapass", "gammafallback", "gammadrawfail",
+        "gammalost" };
     if (pcKind == 0)
     {
         return;

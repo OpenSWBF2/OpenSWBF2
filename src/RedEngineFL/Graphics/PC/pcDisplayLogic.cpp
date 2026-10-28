@@ -672,4 +672,42 @@ bool SizeFitsCaps(unsigned int uiW, unsigned int uiH, unsigned int uiMaxTexW,
     return (uiMaxTexW == 0 || uiW <= uiMaxTexW) && (uiMaxTexH == 0 || uiH <= uiMaxTexH);
 }
 
+void RampToLut(const unsigned short awRamp[256], unsigned char abLut[256])
+{
+    for (int i = 0; i < 256; ++i)
+    {
+        abLut[i] = (unsigned char)(awRamp[i] >> 8);
+    }
+}
+
+bool LutIsIdentity(const unsigned char abLut[256])
+{
+    for (int i = 0; i < 256; ++i)
+    {
+        if (abLut[i] != (unsigned char)i)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+GammaReason GammaPathFor(bool bNoRender, bool bTestKind, bool bProg2)
+{
+    if (bNoRender && !bTestKind)
+    {
+        return kGammaReasonNoRender;
+    }
+    if (!bProg2)
+    {
+        return kGammaReasonNoProg2;
+    }
+    return kGammaReasonNone;
+}
+
+bool GammaPassRuns(GammaPath ePath, bool bIdentity, bool bResourcesReleased, bool bHaveTarget)
+{
+    return ePath == kGammaPass && !bIdentity && !bResourcesReleased && bHaveTarget;
+}
+
 }

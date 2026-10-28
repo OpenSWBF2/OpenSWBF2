@@ -80,6 +80,7 @@
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcBlurEffect.cpp" />
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcCloth.cpp" />
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcColorControl.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcColorRamp.cpp" />
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcDecal.cpp" />
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcDustEffect.cpp" />
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcDynamicSprite.cpp" />
@@ -698,6 +699,7 @@
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedAutoSettings.cpp" />
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcDisplaySettings.cpp" />
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcDisplayLogic.cpp" />
+    <ClCompile Include="src\RedEngineFL\Graphics\PC\pcGammaPass.cpp" />
     <ClCompile Include="src\RedEngineFL\Application\pc\pcFrameLimiter.cpp" />
     <ClCompile Include="src\RedEngineFL\Application\pc\pcWindow.cpp" />
     <ClCompile Include="src\RedEngineFL\Application\pc\pcMessageDrain.cpp" />
@@ -1171,6 +1173,10 @@
     <ClInclude Include="src\Battlefront2\Source\LocalLimits.h" />
     <ClInclude Include="src\RedEngineFL\Graphics\PC\pcDisplaySettings.h" />
     <ClInclude Include="src\RedEngineFL\Graphics\PC\pcDisplayLogic.h" />
+    <ClInclude Include="src\RedEngineFL\Graphics\PC\pcGammaPass.h" />
+    <ClInclude Include="src\RedEngineFL\Graphics\PC\pcGammaPassPS.h" />
+    <None Include="src\RedEngineFL\Graphics\PC\pcGammaPass.hlsl" />
+    <ClInclude Include="src\Battlefront2\Platform\Pc\pcColorRamp.h" />
     <ClInclude Include="src\RedEngineFL\Application\pc\pcFrameLimiter.h" />
     <ClInclude Include="src\RedEngineFL\Application\pc\pcWindow.h" />
     <ClInclude Include="src\RedEngineFL\Application\pc\pcMessageDrain.h" />

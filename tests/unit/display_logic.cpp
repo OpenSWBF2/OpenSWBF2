@@ -4,6 +4,7 @@
 
 #include "testutil.h"
 #include "RedEngineFL/Graphics/PC/pcDisplayLogic.h"
+#include "Battlefront2/Platform/Pc/pcColorRamp.h"
 
 using namespace DisplayLogic;
 
@@ -801,4 +802,100 @@ TEST_CASE("display logic apply size bounds" * doctest::test_suite("unit"))
     CHECK(SizeInBounds(16384, 16384));
     CHECK_FALSE(SizeInBounds(16385, 600));
     CHECK_FALSE(SizeInBounds(0, 0));
+}
+
+TEST_CASE("display logic gamma lut" * doctest::test_suite("unit"))
+{
+    unsigned short aw[256];
+    unsigned char ab[256];
+    for (int i = 0; i < 256; ++i)
+    {
+        aw[i] = (unsigned short)(i * 0x101);
+    }
+    RampToLut(aw, ab);
+    for (int i = 0; i < 256; ++i)
+    {
+        CHECK(ab[i] == i);
+    }
+
+    for (int i = 0; i < 256; ++i)
+    {
+        aw[i] = 0xFFFF;
+    }
+    RampToLut(aw, ab);
+    for (int i = 0; i < 256; ++i)
+    {
+        CHECK(ab[i] == 0xFF);
+    }
+
+    for (int i = 0; i < 256; ++i)
+    {
+        aw[i] = 0x00FF;
+    }
+    RampToLut(aw, ab);
+    for (int i = 0; i < 256; ++i)
+    {
+        CHECK(ab[i] == 0);
+    }
+
+    const float afLevel[3] = {0.8f, 0.8f, 0.5f};
+    ColorRamp::Build(afLevel, aw);
+    RampToLut(aw, ab);
+    for (int i = 0; i < 256; ++i)
+    {
+        CHECK(ab[i] == (aw[i] >> 8));
+    }
+}
+
+TEST_CASE("display logic gamma identity" * doctest::test_suite("unit"))
+{
+    unsigned short aw[256];
+    unsigned char ab[256];
+    for (int i = 0; i < 256; ++i)
+    {
+        aw[i] = (unsigned short)(i * 0x101);
+    }
+    RampToLut(aw, ab);
+    CHECK(LutIsIdentity(ab));
+
+    ab[255] = 254;
+    CHECK_FALSE(LutIsIdentity(ab));
+    ab[255] = 255;
+    ab[0] = 1;
+    CHECK_FALSE(LutIsIdentity(ab));
+
+    const float afDefault[3] = {0.5f, 0.5f, 0.5f};
+    ColorRamp::Build(afDefault, aw);
+    RampToLut(aw, ab);
+    CHECK(LutIsIdentity(ab));
+
+    const float afBright[3] = {0.8f, 0.8f, 0.5f};
+    ColorRamp::Build(afBright, aw);
+    RampToLut(aw, ab);
+    CHECK_FALSE(LutIsIdentity(ab));
+
+    const float afDark[3] = {0.2f, 0.2f, 0.5f};
+    ColorRamp::Build(afDark, aw);
+    RampToLut(aw, ab);
+    CHECK_FALSE(LutIsIdentity(ab));
+}
+
+TEST_CASE("display logic gamma path" * doctest::test_suite("unit"))
+{
+    CHECK(GammaPathFor(false, false, true) == kGammaReasonNone);
+    CHECK(GammaPathFor(false, false, false) == kGammaReasonNoProg2);
+    CHECK(GammaPathFor(true, false, true) == kGammaReasonNoRender);
+    CHECK(GammaPathFor(true, true, true) == kGammaReasonNone);
+    CHECK(GammaPathFor(true, false, false) == kGammaReasonNoRender);
+    CHECK(GammaPathFor(true, true, false) == kGammaReasonNoProg2);
+}
+
+TEST_CASE("display logic gamma pass runs" * doctest::test_suite("unit"))
+{
+    CHECK(GammaPassRuns(kGammaPass, false, false, true));
+    CHECK_FALSE(GammaPassRuns(kGammaUndecided, false, false, true));
+    CHECK_FALSE(GammaPassRuns(kGammaRamp, false, false, true));
+    CHECK_FALSE(GammaPassRuns(kGammaPass, true, false, true));
+    CHECK_FALSE(GammaPassRuns(kGammaPass, false, true, true));
+    CHECK_FALSE(GammaPassRuns(kGammaPass, false, false, false));
 }

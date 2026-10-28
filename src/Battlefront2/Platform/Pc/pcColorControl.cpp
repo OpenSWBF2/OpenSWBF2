@@ -1,9 +1,8 @@
-#include <math.h>
-
 // LIBRARY: SWBF2 0x0075315e
 // _libm_sse2_pow_precise
 
 #include "Battlefront2/Source/ColorControl.h"
+#include "Battlefront2/Platform/Pc/pcColorRamp.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "RedEngineFL/Graphics/RedColor.h"
 #include "RedEngineFL/Interface/RedInterfaceScreen.h"
@@ -90,7 +89,7 @@ void ColorControl::PlatformInit()
         m_gammaRamp.red[i] = wValue;
     }
 
-    RedRenderer::pcGetDevice()->SetGammaRamp(0, 0, &m_gammaRamp);
+    RedRenderer::pcSetGammaRamp(m_gammaRamp);
     InitGammaRampDisplay();
     UpdateDisplay(m_gammaRamp);
 }
@@ -111,7 +110,7 @@ void ColorControl::PlatformEnable(bool bEnable)
             m_gammaRamp.green[i] = wValue;
             m_gammaRamp.red[i] = wValue;
         }
-        RedRenderer::pcGetDevice()->SetGammaRamp(0, 0, &m_gammaRamp);
+        RedRenderer::pcSetGammaRamp(m_gammaRamp);
         UpdateDisplay(m_gammaRamp);
     }
 }
@@ -127,31 +126,18 @@ void ColorControl::Update(float fDeltaTime)
     if (m_level[0] != m_levelInternal[0] || m_level[1] != m_levelInternal[1] ||
         m_level[2] != m_levelInternal[2])
     {
-        const float fScale = m_level[0] * 1.8f + 0.1f;
-        const float fOffset = m_level[1] * 1.5f - 0.75f;
-        const float fExponent = m_level[2] * 1.8f + 0.1f;
+        unsigned short awRamp[256];
+        ColorRamp::Build(m_level, awRamp);
 
         for (int i = 0; i < 256; i++)
         {
-            float fValue = pow(((float)i * (1.0f / 255.0f) - 0.5f + fOffset) * fScale + 0.5f,
-                               fExponent);
-            if (fValue < 0.0f)
-            {
-                fValue = 0.0f;
-            }
-            else if (fValue > 1.0f)
-            {
-                fValue = 1.0f;
-            }
-
-            const WORD wValue = (WORD)(int)(fValue * 65535.0f);
-            m_gammaRamp.red[i] = wValue;
-            m_gammaRamp.blue[i] = wValue;
-            m_gammaRamp.green[i] = wValue;
+            m_gammaRamp.red[i] = awRamp[i];
+            m_gammaRamp.blue[i] = awRamp[i];
+            m_gammaRamp.green[i] = awRamp[i];
         }
 
         UpdateDisplay(m_gammaRamp);
-        RedRenderer::pcGetDevice()->SetGammaRamp(0, 0, &m_gammaRamp);
+        RedRenderer::pcSetGammaRamp(m_gammaRamp);
 
         m_levelInternal[0] = m_level[0];
         m_levelInternal[1] = m_level[1];

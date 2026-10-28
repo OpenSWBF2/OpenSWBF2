@@ -239,4 +239,26 @@ bool SizeInBounds(unsigned int uiW, unsigned int uiH);
 bool SizeFitsCaps(unsigned int uiW, unsigned int uiH, unsigned int uiMaxTexW,
                   unsigned int uiMaxTexH);
 
+enum GammaPath
+{
+    kGammaUndecided = 0,
+    kGammaPass = 1,
+    kGammaRamp = 2
+};
+
+enum GammaReason
+{
+    kGammaReasonNone = 0,
+    kGammaReasonNoProg2 = 1,
+    kGammaReasonNoRender = 2
+};
+
+void RampToLut(const unsigned short awRamp[256], unsigned char abLut[256]);
+
+bool LutIsIdentity(const unsigned char abLut[256]);
+
+GammaReason GammaPathFor(bool bNoRender, bool bTestKind, bool bProg2);
+
+bool GammaPassRuns(GammaPath ePath, bool bIdentity, bool bResourcesReleased, bool bHaveTarget);
+
 }
