@@ -23,6 +23,9 @@ $sq = 'src\RedEngineFL\Application\pc\pcShadowQuadRenderable.cpp'
 $tex = 'src\RedEngineFL\Graphics\PC\pcRedTexture.cpp'
 $gs = 'src\Battlefront2\Source\GameState.cpp'
 $prof = 'src\Battlefront2\Source\PlayerProfile.cpp'
+$cc = 'src\Battlefront2\Platform\Pc\pcColorControl.cpp'
+$cr = 'src\Battlefront2\Platform\Pc\pcColorRamp.cpp'
+$gp = 'src\RedEngineFL\Graphics\PC\pcGammaPass.cpp'
 
 $GuardRevertRows = @(
     @{ Id = 'CRASH-02'; File = 'src\RedEngineFL\Util\RedWarning.cpp'; Anchor = 'fputs(pcText, pFile);'; Replacement = 'fprintf(pFile, pcText);'; Tests = @('file log writes percent text literally') },
@@ -174,5 +177,25 @@ $GuardRevertRows = @(
     @{ Id = 'APPLY-08B'; File = $ds; Anchor = "    if (!bSame && !SaveIni(kSave, acPath, true))`n    {`n        return false;`n    }`n"; Replacement = "    if (!bSame)`n    {`n        SaveIni(kSave, acPath, true);`n    }`n"; Tests = @('display settings save adapter keeps memory when the save fails') },
     @{ Id = 'APPLY-08C'; File = $ds; Anchor = "    const bool bSame =`n        strcmp(acDiskAdapter, acValue) == 0 && strcmp(acDiskName, kSave.acAdapterName) == 0;"; Replacement = '    const bool bSame = false;'; Tests = @('display settings save adapter skips an unchanged file') },
     @{ Id = 'APPLY-08D'; File = $ds; Anchor = "    CopyFileA(acFull, acTemp, FALSE);`n    SetFileAttributesA(acTemp, FILE_ATTRIBUTE_NORMAL);`n"; Replacement = "    CopyFileA(acFull, acTemp, FALSE);`n"; Tests = @('display settings save adapter skips an unchanged file') },
-    @{ Id = 'APPLY-09A'; Kind = 'Smoke'; Case = 'crash-applymodesmall'; File = $rr; Anchor = "    for (i = 0; i < 3; ++i)`n    {`n        RedRenderer::m_buffers[i]->m_uiWidth = kSizes.akBuf[i].uiW;"; Replacement = "    for (i = 1; i < 2; ++i)`n    {`n        RedRenderer::m_buffers[i]->m_uiWidth = kSizes.akBuf[i].uiW;"; RedRx = 'OPENSWBF2 APPLY TARGETS alive=\d+ fresh=\d+ stale=2 buffers=1/3 ' }
+    @{ Id = 'APPLY-09A'; Kind = 'Smoke'; Case = 'crash-applymodesmall'; File = $rr; Anchor = "    for (i = 0; i < 3; ++i)`n    {`n        RedRenderer::m_buffers[i]->m_uiWidth = kSizes.akBuf[i].uiW;"; Replacement = "    for (i = 1; i < 2; ++i)`n    {`n        RedRenderer::m_buffers[i]->m_uiWidth = kSizes.akBuf[i].uiW;"; RedRx = 'OPENSWBF2 APPLY TARGETS alive=\d+ fresh=\d+ stale=2 buffers=1/3 ' },
+    @{ Id = 'GAMMA-01'; Kind = 'Smoke'; Case = 'crash-gammapass'; File = $gp; Anchor = "`n    WriteLut();`n}"; Replacement = "`n    WriteLut();`n    RedRenderer::pcGetDevice()->SetGammaRamp(0, 0, &sRamp);`n}"; RedRx = 'ramp_nonid=[1-9]' },
+    @{ Id = 'GAMMA-02'; Kind = 'Smoke'; Case = 'crash-gammapass'; File = $gp; Anchor = '    if ((eFlags & RESETFLAGS_CREATE_RESOURCES) && sePath != DisplayLogic::kGammaRamp)'; Replacement = '    if (false)'; RedRx = 'OPENSWBF2 GAMMA FAKE target=\d+x\d+ alive=0 ' },
+    @{ Id = 'GAMMA-02B'; Kind = 'Smoke'; Case = 'crash-gammapass'; File = $gp; Anchor = '(RedRenderer::m_bResourcesReleased && !bInReset)'; Replacement = 'RedRenderer::m_bResourcesReleased'; RedRx = 'OPENSWBF2 GAMMA FAKE target=\d+x\d+ alive=0 ' },
+    @{ Id = 'GAMMA-03'; Kind = 'Smoke'; Case = 'crash-gammafallback'; File = $gp; Anchor = "    sePath = DisplayLogic::kGammaRamp;`n    IDirect3DDevice9* pDevice = RedRenderer::pcGetDevice();`n    if (pDevice)`n    {`n        pDevice->SetGammaRamp(0, 0, &sRamp);`n    }`n"; Replacement = "    sePath = DisplayLogic::kGammaRamp;`n"; RedRx = '(?s)\A(?!.*ramp_nonid=[1-9])' },
+    @{ Id = 'GAMMA-04'; File = $dl; Anchor = "bool LutIsIdentity(const unsigned char abLut[256])`n{`n"; Replacement = "bool LutIsIdentity(const unsigned char abLut[256])`n{`n    return true;`n"; Tests = @('display logic gamma identity') },
+    @{ Id = 'GAMMA-05'; File = $dl; Anchor = 'return ePath == kGammaPass && !bIdentity && '; Replacement = 'return ePath == kGammaPass && '; Tests = @('display logic gamma pass runs') },
+    @{ Id = 'GAMMA-06'; File = $dl; Anchor = 'if (bNoRender && !bTestKind)'; Replacement = 'if (false)'; Tests = @('display logic gamma path') },
+    @{ Id = 'GAMMA-07'; File = $cr; Anchor = 'afLevel[1] * 1.5f - 0.75f'; Replacement = 'afLevel[1] * 1.5f - 0.74f'; Tests = @('color ramp golden default', 'color ramp golden menu range', 'color ramp golden clamp ends') },
+    @{ Id = 'GAMMA-08'; File = $rr; Anchor = "    GammaPass::ReleaseDefault();`n    if (m_pBackBufferSurface)"; Replacement = '    if (m_pBackBufferSurface)'; Tests = @('gamma pass source pins') },
+    @{ Id = 'GAMMA-09'; File = $rr; Anchor = '            LOG(LogRender, Error, "OPENSWBF2 RESET callbacks full at %u, registration dropped", 100u);'; Replacement = ''; Tests = @('gamma pass source pins') },
+    @{ Id = 'GAMMA-10'; File = $cc; Anchor = "            m_gammaRamp.red[i] = wValue;`n        }`n        RedRenderer::pcSetGammaRamp(m_gammaRamp);"; Replacement = "            m_gammaRamp.red[i] = wValue;`n        }`n        RedRenderer::pcGetDevice()->SetGammaRamp(0, 0, &m_gammaRamp);"; Tests = @('gamma pass source pins') },
+    @{ Id = 'GAMMA-11'; Kind = 'Smoke'; Case = 'crash-gammadrawfail'; File = $gp; Anchor = '        Fallback(hr, "drawfail");'; Replacement = ''; RedRx = '(?s)\A(?!.*OPENSWBF2 GAMMA fallback)' },
+    @{ Id = 'GAMMA-12'; Kind = 'Smoke'; Case = 'crash-gammalost'; File = $gp; Anchor = '        if (!bInReset && RedRenderer::pcGetDevice()->TestCooperativeLevel() != D3D_OK)'; Replacement = '        if (false)'; RedRx = 'OPENSWBF2 GAMMA path=ramp reason=createfail hr=0x8876017C' },
+    @{ Id = 'GAMMA-13'; Kind = 'Smoke'; Case = 'crash-gammalost'; File = $gp; Anchor = "    if (sePath == DisplayLogic::kGammaUndecided)`n    {`n        Activate(false);`n    }`n"; Replacement = ''; RedRx = '(?s)\A(?!.*OPENSWBF2 GAMMA path=)' },
+    @{ Id = 'GAMMA-14'; Kind = 'Smoke'; Case = 'crash-gammapass'; File = $gp; Anchor = "        Activate(true);`n    }`n}"; Replacement = "        Activate(true);`n        if (sStateBlock)`n        {`n            sStateBlock->Release();`n            sStateBlock = 0;`n        }`n    }`n}"; RedRx = '(?s)OPENSWBF2 RESET recovered after \d+ attempts.*OPENSWBF2 GAMMA FAKE target=\d+x\d+ alive=1 bb=\d+x\d+ draws=0 ' },
+    @{ Id = 'GAMMA-15'; File = $rr; Anchor = "    GammaPass::Shutdown();`n    if (m_pd3dDevice)"; Replacement = '    if (m_pd3dDevice)'; Tests = @('gamma pass source pins') },
+    @{ Id = 'GAMMA-15B'; File = $gp; Anchor = "{`n    GammaPass::Shutdown();`n    if (sePath == DisplayLogic::kGammaPass && !sbFallbackWarned)"; Replacement = "{`n    GammaPass::ReleaseDefault();`n    if (sePath == DisplayLogic::kGammaPass && !sbFallbackWarned)"; Tests = @('gamma pass source pins') },
+    @{ Id = 'GAMMA-15C'; File = $gp; Anchor = "        sPixelShader->Release();`n        sPixelShader = 0;"; Replacement = '        sPixelShader = 0;'; Tests = @('gamma pass source pins') },
+    @{ Id = 'GAMMA-06S'; Kind = 'Smoke'; Case = 'pacing-default'; File = $dl; Anchor = 'if (bNoRender && !bTestKind)'; Replacement = 'if (false)'; RedRx = 'OPENSWBF2 GAMMA path=ramp reason=noprog2' },
+    @{ Id = 'GAMMA-16'; File = 'src\RedEngineFL\Graphics\PC\pcGammaPassPS.h'; Anchor = '0x80aa0003'; Replacement = '0x80aa0002'; Tests = @('gamma pass shader bytecode') }
 )

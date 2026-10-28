@@ -627,6 +627,39 @@ public:
     int refCount;
 };
 
+class FakeD3DPixelShader : public IDirect3DPixelShader9
+{
+public:
+
+    FakeD3DPixelShader() : refCount(1) {}
+
+    STDMETHOD(QueryInterface)(REFIID riid, void** ppvObj);
+    STDMETHOD_(ULONG, AddRef)();
+    STDMETHOD_(ULONG, Release)();
+
+    STDMETHOD(GetDevice)(IDirect3DDevice9** ppDevice);
+    STDMETHOD(GetFunction)(void* pData, UINT* pSizeOfData);
+
+    int refCount;
+};
+
+class FakeD3DStateBlock : public IDirect3DStateBlock9
+{
+public:
+
+    FakeD3DStateBlock() : refCount(1) {}
+
+    STDMETHOD(QueryInterface)(REFIID riid, void** ppvObj);
+    STDMETHOD_(ULONG, AddRef)();
+    STDMETHOD_(ULONG, Release)();
+
+    STDMETHOD(GetDevice)(IDirect3DDevice9** ppDevice);
+    STDMETHOD(Capture)();
+    STDMETHOD(Apply)();
+
+    int refCount;
+};
+
  
  
 
@@ -1186,6 +1219,8 @@ public:
                                    DisplayLogic::DisplayMode eMode, unsigned int uiClientW,
                                    unsigned int uiClientH, bool bVSync,
                                    D3DMULTISAMPLE_TYPE msType, unsigned long ulMSQuality);
+
+    static void pcSetGammaRamp(const D3DGAMMARAMP& ramp);
 
     static void pcStageRequestTag(const DisplayRequestTag& kTag);
 

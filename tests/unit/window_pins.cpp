@@ -1,6 +1,8 @@
 #include "third_party/doctest/doctest.h"
 
+#include <windows.h>
 #include <stdio.h>
+#include <string.h>
 #include <string>
 
 #include "testutil.h"
@@ -62,6 +64,49 @@ std::string FunctionBody(const std::string& sText, const char* pcSignature)
 bool Has(const std::string& sText, const char* pcNeedle)
 {
     return sText.find(pcNeedle) != std::string::npos;
+}
+
+bool TreeHas(const std::string& sDir, const char* pcNeedle)
+{
+    WIN32_FIND_DATAA kData;
+    HANDLE hFind = FindFirstFileA((sDir + "/*").c_str(), &kData);
+    if (hFind == INVALID_HANDLE_VALUE)
+    {
+        return false;
+    }
+    bool bFound = false;
+    do
+    {
+        const std::string sName = kData.cFileName;
+        if (sName == "." || sName == "..")
+        {
+            continue;
+        }
+        const std::string sPath = sDir + "/" + sName;
+        if (kData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+        {
+            bFound = TreeHas(sPath, pcNeedle);
+        }
+        else
+        {
+            std::string sText;
+            bFound = ReadSource(sPath.c_str(), sText) && Has(sText, pcNeedle);
+        }
+    } while (!bFound && FindNextFileA(hFind, &kData));
+    FindClose(hFind);
+    return bFound;
+}
+
+size_t CountOf(const std::string& sText, const char* pcNeedle)
+{
+    size_t uiCount = 0;
+    const size_t uiLen = strlen(pcNeedle);
+    for (size_t uiAt = sText.find(pcNeedle); uiAt != std::string::npos;
+         uiAt = sText.find(pcNeedle, uiAt + uiLen))
+    {
+        ++uiCount;
+    }
+    return uiCount;
 }
 
 }
@@ -394,4 +439,92 @@ TEST_CASE("display apply source pins" * doctest::test_suite("unit"))
     CHECK(uiResize < uiFree);
     CHECK(!Has(sReset, "delete m_buffers"));
     CHECK(!Has(sApply, "delete m_buffers"));
+}
+
+TEST_CASE("gamma pass source pins" * doctest::test_suite("unit"))
+{
+    std::string sRendererRaw;
+    std::string sPassRaw;
+    std::string sColorRaw;
+    std::string sStateRaw;
+    if (!ReadSource("../src/RedEngineFL/Graphics/PC/pcRedRenderer.cpp", sRendererRaw) ||
+        !ReadSource("../src/RedEngineFL/Graphics/PC/pcGammaPass.cpp", sPassRaw) ||
+        !ReadSource("../src/Battlefront2/Platform/Pc/pcColorControl.cpp", sColorRaw) ||
+        !ReadSource("../src/Battlefront2/Source/GameState.cpp", sStateRaw))
+    {
+        SkipCase("source files not found");
+    }
+    const std::string sRenderer = StripCr(sRendererRaw);
+    const std::string sPass = StripCr(sPassRaw);
+    const std::string sColor = StripCr(sColorRaw);
+    const std::string sState = StripCr(sStateRaw);
+
+    const std::string sCleanup = FunctionBody(sRenderer, "void RedRenderer::Cleanup()");
+    REQUIRE(!sCleanup.empty());
+    CHECK(Has(sCleanup, "GammaPass::ReleaseDefault("));
+
+    const std::string sCleanupStatic = FunctionBody(sRenderer, "void RedRenderer::CleanupStatic()");
+    REQUIRE(!sCleanupStatic.empty());
+    size_t uiShutdown = sCleanupStatic.find("GammaPass::Shutdown(");
+    size_t uiDeviceRelease = sCleanupStatic.find("m_pd3dDevice->Release(");
+    REQUIRE(uiShutdown != std::string::npos);
+    REQUIRE(uiDeviceRelease != std::string::npos);
+    CHECK(uiShutdown < uiDeviceRelease);
+
+    const std::string sEnd = FunctionBody(sRenderer, "void RedRenderer::EndFrame()");
+    REQUIRE(!sEnd.empty());
+    size_t uiDraw = sEnd.find("GammaPass::Draw(");
+    size_t uiPresent = sEnd.find("Present(");
+    REQUIRE(uiDraw != std::string::npos);
+    REQUIRE(uiPresent != std::string::npos);
+    CHECK(uiDraw < uiPresent);
+
+    const std::string sRegister =
+        FunctionBody(sRenderer, "void RedRenderer::pcRegisterResetFunction(");
+    REQUIRE(!sRegister.empty());
+    CHECK(Has(sRegister, "LOG(LogRender, Error"));
+    CHECK(!Has(sRenderer, "->SetGammaRamp("));
+
+    CHECK(!Has(sColor, "SetGammaRamp(0, 0"));
+    CHECK(CountOf(sColor, "pcSetGammaRamp(m_gammaRamp)") == 3);
+    const std::string sEnable = FunctionBody(sColor, "void ColorControl::PlatformEnable(");
+    REQUIRE(!sEnable.empty());
+    CHECK(Has(sEnable, "pcSetGammaRamp(m_gammaRamp)"));
+
+    const char* apcForbidden[] = {"pcSetRenderState", "pcSetTexture", "pcSetSamplerState",
+                                  "pcLoadPixelShader", "StateManager"};
+    for (size_t i = 0; i < sizeof(apcForbidden) / sizeof(apcForbidden[0]); ++i)
+    {
+        CHECK(!Has(sPass, apcForbidden[i]));
+    }
+    const std::string sReset =
+        FunctionBody(sPass, "static void __cdecl GammaReset(ResetFlagsT eFlags)\n{");
+    REQUIRE(!sReset.empty());
+    CHECK(Has(sReset, "RESETFLAGS_CREATE_RESOURCES"));
+    CHECK(Has(sReset, "Activate(true)"));
+    const std::string sActivate = FunctionBody(sPass, "static void Activate(bool bInReset)");
+    REQUIRE(!sActivate.empty());
+    CHECK(Has(sActivate, "RedRenderer::m_bResourcesReleased && !bInReset"));
+    const std::string sFallback =
+        FunctionBody(sPass, "static void Fallback(HRESULT hr, const char* pcReason)");
+    REQUIRE(!sFallback.empty());
+    CHECK(Has(sFallback, "GammaPass::Shutdown("));
+    const std::string sShutdown = FunctionBody(sPass, "void GammaPass::Shutdown()");
+    REQUIRE(!sShutdown.empty());
+    CHECK(Has(sShutdown, "ReleaseDefault("));
+    CHECK(Has(sShutdown, "sLutTexture->Release("));
+    CHECK(Has(sShutdown, "sPixelShader->Release("));
+
+    const std::string sPre = FunctionBody(sState, "void GameState::PreStateInit(bool bMission)");
+    REQUIRE(!sPre.empty());
+    size_t uiEffect = sPre.find("FLEffect::InitAll(bMission);");
+    size_t uiBright = sPre.find("mGammaBrightness");
+    size_t uiLoad = sPre.find("LoadDisplay::Create();");
+    REQUIRE(uiEffect != std::string::npos);
+    REQUIRE(uiBright != std::string::npos);
+    REQUIRE(uiLoad != std::string::npos);
+    CHECK(uiEffect < uiBright);
+    CHECK(uiBright < uiLoad);
+
+    CHECK(!TreeHas("../src", "GetDeviceGammaRamp"));
 }

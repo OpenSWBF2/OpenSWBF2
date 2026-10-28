@@ -41,6 +41,7 @@
 #include "FlagItem.h"
 #include "FlashyTextElement.h"
 #include "FLEffect.h"
+#include "ColorControl.h"
 #include "FLGuiManager.h"
 #include "FLInputManager.h"
 #include "GamePath.h"
@@ -964,6 +965,14 @@ void GameState::PreStateInit(bool bMission)
     CameraManager::Create(GameLoop::GetNumCameras());
 
     FLEffect::InitAll(bMission);
+    if (ColorControl::s_pInstance)
+    {
+        ColorControl::s_pInstance->SetLevel(COLORCONTROL_GAMMA_CONTRAST,
+                                            RedRenderer::pcGetRenderOptions().mGammaContrast);
+        ColorControl::s_pInstance->SetLevel(COLORCONTROL_GAMMA_BRIGHTNESS,
+                                            RedRenderer::pcGetRenderOptions().mGammaBrightness);
+        ColorControl::s_pInstance->Update(0.0f);
+    }
     NetGame::LeaveClient();
     CommandPostManager::Create();
 

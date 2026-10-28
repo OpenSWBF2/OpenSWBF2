@@ -40,6 +40,8 @@
 #include "RedEngineFL/Util/ext/Globals.h"
 #include "Battlefront2/Source/LoadUtil.h"
 #include "Battlefront2/Source/pcCrash.h"
+#include "RedEngineFL/Graphics/PC/pcGammaPass.h"
+#include "Battlefront2/Source/ColorControl.h"
 
 void PumpWaitingMessages();
 
@@ -65,7 +67,11 @@ enum ResetKind
     kResetKindApplyFail,
     kResetKindApplyPresentFail,
     kResetKindApplyAdapter,
-    kResetKindApplyTargetFail
+    kResetKindApplyTargetFail,
+    kResetKindGammaPass,
+    kResetKindGammaFallback,
+    kResetKindGammaDrawFail,
+    kResetKindGammaLost
 };
 
 struct ResetScript
@@ -86,6 +92,9 @@ struct ResetScript
     bool bPresentFailPending;
     bool bPresentFailed;
     bool bTargetsPending;
+    unsigned int uiGammaFrames;
+    bool bGammaLevelsSet;
+    unsigned int uiGammaLostPolls;
 };
 
 struct TrackedTarget
@@ -101,6 +110,15 @@ static FakeD3DSurface gTrackedBackStore;
 static FakeD3DSurface gTrackedDepthStore;
 static FakeD3DSurface* gTrackedBack;
 static FakeD3DSurface* gTrackedDepth;
+static TrackedTarget gGammaTargets[16];
+static unsigned int gGammaAlive;
+static unsigned int gGammaW;
+static unsigned int gGammaH;
+static unsigned int gGammaDraws;
+static unsigned int gGammaRampNonId;
+static unsigned int gGammaRampId;
+static bool gGammaPending;
+static bool gGammaDrawPending;
 
 static ResetScript& GetResetScript()
 {
@@ -152,6 +170,22 @@ static ResetScript& GetResetScript()
         {
             gResetScript.eKind = kResetKindApplyTargetFail;
         }
+        else if (pcKind && strcmp(pcKind, "gammapass") == 0)
+        {
+            gResetScript.eKind = kResetKindGammaPass;
+        }
+        else if (pcKind && strcmp(pcKind, "gammafallback") == 0)
+        {
+            gResetScript.eKind = kResetKindGammaFallback;
+        }
+        else if (pcKind && strcmp(pcKind, "gammadrawfail") == 0)
+        {
+            gResetScript.eKind = kResetKindGammaDrawFail;
+        }
+        else if (pcKind && strcmp(pcKind, "gammalost") == 0)
+        {
+            gResetScript.eKind = kResetKindGammaLost;
+        }
     }
     return gResetScript;
 }
@@ -161,7 +195,13 @@ static bool IsApplyKind(ResetKind eKind)
     return eKind == kResetKindApplyMode || eKind == kResetKindApplyModeSmall ||
            eKind == kResetKindApplyFail ||
            eKind == kResetKindApplyPresentFail || eKind == kResetKindApplyAdapter ||
-           eKind == kResetKindApplyTargetFail;
+           eKind == kResetKindApplyTargetFail || eKind == kResetKindGammaPass;
+}
+
+static bool IsGammaKind(ResetKind eKind)
+{
+    return eKind == kResetKindGammaPass || eKind == kResetKindGammaFallback ||
+           eKind == kResetKindGammaDrawFail || eKind == kResetKindGammaLost;
 }
 
 static bool IsTargetTrackKind(ResetKind eKind)
@@ -352,9 +392,69 @@ static void LogApplyTargets(const ResetScript& s)
         uiAlive, uiFresh, uiStale, uiBuffers, uiMoved, acSizes);
 }
 
+static void TrackGammaTarget(FakeD3DTexture* pTexture, unsigned int uiW, unsigned int uiH)
+{
+    gGammaW = uiW;
+    gGammaH = uiH;
+    gGammaDraws = 0;
+    gGammaPending = true;
+    gGammaDrawPending = true;
+    for (unsigned int i = 0; i < sizeof(gGammaTargets) / sizeof(gGammaTargets[0]); ++i)
+    {
+        if (!gGammaTargets[i].pTexture)
+        {
+            gGammaTargets[i].pTexture = pTexture;
+            gGammaTargets[i].uiW = uiW;
+            gGammaTargets[i].uiH = uiH;
+            ++gGammaAlive;
+            return;
+        }
+    }
+    check(!"gamma target slots full");
+}
+
+static void UntrackGammaTarget(FakeD3DTexture* pTexture)
+{
+    for (unsigned int i = 0; i < sizeof(gGammaTargets) / sizeof(gGammaTargets[0]); ++i)
+    {
+        if (gGammaTargets[i].pTexture == pTexture)
+        {
+            gGammaTargets[i].pTexture = 0;
+            --gGammaAlive;
+            gGammaPending = true;
+            return;
+        }
+    }
+}
+
+static void GammaScriptFrame(ResetScript& s)
+{
+    ++s.uiGammaFrames;
+    if (!s.bGammaLevelsSet && s.uiGammaFrames >= 10 && ColorControl::s_pInstance)
+    {
+        s.bGammaLevelsSet = true;
+        if (s.eKind == kResetKindGammaLost)
+        {
+            s.uiGammaLostPolls = 20;
+        }
+        ColorControl::s_pInstance->SetLevel(COLORCONTROL_GAMMA_CONTRAST, 0.8f);
+        ColorControl::s_pInstance->SetLevel(COLORCONTROL_GAMMA_BRIGHTNESS, 0.8f);
+        ColorControl::s_pInstance->Update(0.0f);
+    }
+    if (s.eKind == kResetKindGammaPass && s.uiGammaFrames >= 60 && s.bApplyDone && !s.bArmed)
+    {
+        s.bArmed = true;
+        SetFocus(0);
+    }
+}
+
 static void ResetScriptFrame()
 {
     ResetScript& s = GetResetScript();
+    if (IsGammaKind(s.eKind))
+    {
+        GammaScriptFrame(s);
+    }
     if ((s.eKind == kResetKindRecover || s.eKind == kResetKindFatal || s.eKind == kResetKindFlap) &&
         !s.bDone)
     {
@@ -771,8 +871,12 @@ STDMETHODIMP FakeD3DDevice::CreateOffscreenPlainSurface(
 
 // FUNCTION: SWBF2 0x006b0a80
 STDMETHODIMP FakeD3DDevice::CreatePixelShader(CONST DWORD*,
-                                              IDirect3DPixelShader9**)
+                                              IDirect3DPixelShader9** ppShader)
 {
+    if (IsGammaKind(GetResetScript().eKind))
+    {
+        *ppShader = new FakeD3DPixelShader();
+    }
     return 0;
 }
 
@@ -792,8 +896,13 @@ STDMETHODIMP FakeD3DDevice::CreateRenderTarget(
 
 // FUNCTION: SWBF2 0x006b0ab0
 STDMETHODIMP FakeD3DDevice::CreateStateBlock(D3DSTATEBLOCKTYPE,
-                                             IDirect3DStateBlock9**)
+                                             IDirect3DStateBlock9** ppSB)
 {
+    if (IsGammaKind(GetResetScript().eKind))
+    {
+        gGammaPending = true;
+        *ppSB = new FakeD3DStateBlock();
+    }
     return 0;
 }
 
@@ -810,11 +919,22 @@ STDMETHODIMP FakeD3DDevice::CreateTexture(UINT Width, UINT Height, UINT,
         *ppTexture = 0;
         return D3DERR_OUTOFVIDEOMEMORY;
     }
+    const bool bGammaTarget =
+        GammaPass::IsEnsuring() && (Usage & D3DUSAGE_RENDERTARGET) && Pool == D3DPOOL_DEFAULT;
+    if (bGammaTarget && (s.eKind == kResetKindGammaFallback || s.uiGammaLostPolls > 0))
+    {
+        *ppTexture = 0;
+        return D3DERR_OUTOFVIDEOMEMORY;
+    }
     FakeD3DTexture* pTexture = new FakeD3DTexture(Width, Height, Format, Usage, Pool);
     if (IsTargetTrackKind(s.eKind) && (Usage & D3DUSAGE_RENDERTARGET) &&
         Pool == D3DPOOL_DEFAULT)
     {
         TrackTarget(pTexture, Width, Height);
+    }
+    if (bGammaTarget)
+    {
+        TrackGammaTarget(pTexture, Width, Height);
     }
     *ppTexture = pTexture;
     return 0;
@@ -885,6 +1005,12 @@ STDMETHODIMP FakeD3DDevice::DrawPrimitive(D3DPRIMITIVETYPE, UINT, UINT)
 STDMETHODIMP FakeD3DDevice::DrawPrimitiveUP(D3DPRIMITIVETYPE, UINT,
                                             CONST void*, UINT)
 {
+    ++gGammaDraws;
+    if (gGammaDrawPending)
+    {
+        gGammaDrawPending = false;
+        gGammaPending = true;
+    }
     return 0;
 }
 
@@ -981,7 +1107,8 @@ STDMETHODIMP FakeD3DDevice::GetDepthStencilSurface(
 STDMETHODIMP FakeD3DDevice::GetDeviceCaps(D3DCAPS9* pCaps)
 {
     pCaps->VertexShaderVersion = D3DVS_VERSION(1, 1);
-    pCaps->PixelShaderVersion = D3DPS_VERSION(1, 1);
+    pCaps->PixelShaderVersion =
+        IsGammaKind(GetResetScript().eKind) ? D3DPS_VERSION(2, 0) : D3DPS_VERSION(1, 1);
     pCaps->MaxVertexShaderConst = 96;
     pCaps->MaxTextureWidth = 2048;
     pCaps->MaxTextureHeight = 2048;
@@ -1253,6 +1380,14 @@ STDMETHODIMP FakeD3DDevice::Present(CONST RECT*, CONST RECT*, HWND,
         s.bTargetsPending = false;
         LogApplyTargets(s);
     }
+    if (gGammaPending)
+    {
+        gGammaPending = false;
+        LOG(LogRender, Inform,
+            "OPENSWBF2 GAMMA FAKE target=%ux%u alive=%u bb=%ux%u draws=%u ramp_nonid=%u", gGammaW,
+            gGammaH, gGammaAlive, RedRenderer::m_d3dpp.BackBufferWidth,
+            RedRenderer::m_d3dpp.BackBufferHeight, gGammaDraws, gGammaRampNonId);
+    }
     return 0;
 }
 
@@ -1285,6 +1420,10 @@ STDMETHODIMP_(ULONG) FakeD3DDevice::Release()
 STDMETHODIMP FakeD3DDevice::Reset(D3DPRESENT_PARAMETERS* pPresentationParameters)
 {
     ResetScript& s = GetResetScript();
+    if (IsGammaKind(s.eKind))
+    {
+        check(gGammaAlive == 0);
+    }
     if (s.bApplyDone && pPresentationParameters &&
         (pPresentationParameters->BackBufferWidth != s.uiBaseW ||
          pPresentationParameters->BackBufferHeight != s.uiBaseH ||
@@ -1388,8 +1527,26 @@ STDMETHODIMP FakeD3DDevice::SetFVF(DWORD)
 
 // FUNCTION: SWBF2 0x006b3660
 STDMETHODIMP_(void) FakeD3DDevice::SetGammaRamp(UINT, DWORD,
-                                                CONST D3DGAMMARAMP*)
+                                                CONST D3DGAMMARAMP* pRamp)
 {
+    if (!pRamp || !IsGammaKind(GetResetScript().eKind))
+    {
+        return;
+    }
+    bool bIdentity = true;
+    for (unsigned int i = 0; i < 256; ++i)
+    {
+        bIdentity = bIdentity && (pRamp->red[i] >> 8) == i;
+    }
+    if (bIdentity)
+    {
+        ++gGammaRampId;
+    }
+    else
+    {
+        ++gGammaRampNonId;
+    }
+    gGammaPending = true;
 }
 
 // FUNCTION: SWBF2 0x006b3670
@@ -1563,6 +1720,10 @@ STDMETHODIMP FakeD3DDevice::StretchRect(IDirect3DSurface9*, CONST RECT*,
                                         IDirect3DSurface9*, CONST RECT*,
                                         D3DTEXTUREFILTERTYPE)
 {
+    if (GetResetScript().eKind == kResetKindGammaDrawFail)
+    {
+        return D3DERR_INVALIDCALL;
+    }
     return 0;
 }
 
@@ -1570,6 +1731,11 @@ STDMETHODIMP FakeD3DDevice::StretchRect(IDirect3DSurface9*, CONST RECT*,
 STDMETHODIMP FakeD3DDevice::TestCooperativeLevel()
 {
     ResetScript& s = GetResetScript();
+    if (s.uiGammaLostPolls > 0)
+    {
+        --s.uiGammaLostPolls;
+        return D3DERR_DEVICELOST;
+    }
     if (s.bArmed && !s.bDone)
     {
         if (s.eKind == kResetKindFlap && s.uiLost == 12 && s.uiPolls == 0)
@@ -1953,6 +2119,7 @@ STDMETHODIMP_(ULONG) FakeD3DTexture::Release()
         {
             UntrackTarget(this);
         }
+        UntrackGammaTarget(this);
         delete this;
     }
     return 0;
@@ -2125,6 +2292,71 @@ STDMETHODIMP_(ULONG) FakeD3DVertexDeclaration::Release()
     {
         delete this;
     }
+    return 0;
+}
+
+STDMETHODIMP FakeD3DPixelShader::QueryInterface(REFIID, void**)
+{
+    return 0;
+}
+
+STDMETHODIMP_(ULONG) FakeD3DPixelShader::AddRef()
+{
+    ++refCount;
+    return 0;
+}
+
+STDMETHODIMP_(ULONG) FakeD3DPixelShader::Release()
+{
+    if (--refCount <= 0)
+    {
+        delete this;
+    }
+    return 0;
+}
+
+STDMETHODIMP FakeD3DPixelShader::GetDevice(IDirect3DDevice9**)
+{
+    return 0;
+}
+
+STDMETHODIMP FakeD3DPixelShader::GetFunction(void*, UINT*)
+{
+    return 0;
+}
+
+STDMETHODIMP FakeD3DStateBlock::QueryInterface(REFIID, void**)
+{
+    return 0;
+}
+
+STDMETHODIMP_(ULONG) FakeD3DStateBlock::AddRef()
+{
+    ++refCount;
+    return 0;
+}
+
+STDMETHODIMP_(ULONG) FakeD3DStateBlock::Release()
+{
+    if (--refCount <= 0)
+    {
+        delete this;
+    }
+    return 0;
+}
+
+STDMETHODIMP FakeD3DStateBlock::GetDevice(IDirect3DDevice9**)
+{
+    return 0;
+}
+
+STDMETHODIMP FakeD3DStateBlock::Capture()
+{
+    return 0;
+}
+
+STDMETHODIMP FakeD3DStateBlock::Apply()
+{
     return 0;
 }
 
@@ -2565,6 +2797,12 @@ void RedRenderer::pcRegisterResetFunction(void(__cdecl* pFunction)(ResetFlagsT))
 
     if (uiCount >= 100)
     {
+        static bool sbFullLogged = false;
+        if (!sbFullLogged)
+        {
+            sbFullLogged = true;
+            LOG(LogRender, Error, "OPENSWBF2 RESET callbacks full at %u, registration dropped", 100u);
+        }
         return;
     }
 
@@ -4175,6 +4413,12 @@ static void NoteInitApplied(bool bApplied)
     sStagedTag.bValid = false;
 }
 
+void RedRenderer::pcSetGammaRamp(const D3DGAMMARAMP& ramp)
+{
+    GammaPass::Route(ramp, g_bNoRender, IsGammaKind(GetResetScript().eKind),
+                     m_renderCaps.pipeline == PIPELINE_PROG2);
+}
+
 void RedRenderer::pcStageRequestTag(const DisplayRequestTag& kTag)
 {
     sStagedTag = kTag;
@@ -5638,6 +5882,7 @@ void RedRenderer::Cleanup()
     RedRenderer::m_curVertexShader = 0;
     RedRenderer::m_curFormat = 0;
 
+    GammaPass::ReleaseDefault();
     if (m_pBackBufferSurface)
     {
         m_pBackBufferSurface->Release();
@@ -5707,6 +5952,7 @@ void RedRenderer::Cleanup()
 // FUNCTION: SWBF2 0x006b08f0
 void RedRenderer::CleanupStatic()
 {
+    GammaPass::Shutdown();
     if (m_pd3dDevice)
     {
         m_pd3dDevice->Release();
@@ -5737,6 +5983,7 @@ void RedRenderer::EndFrame()
     pcRedVertexBuffer::FlushAllDynamicVertexBuffers();
     pcRedIndexBuffer::FlushAllDynamicIndexBuffers();
     FlushOcclusionQueries();
+    GammaPass::Draw();
     HRESULT hr = m_pd3dDevice->Present(0, 0, 0, 0);
     if (m_pd3dQuery && hr != D3DERR_DEVICELOST)
     {

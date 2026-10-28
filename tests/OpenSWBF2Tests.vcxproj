@@ -87,6 +87,7 @@
     <ClCompile Include="..\src\RedEngineFL\geometry\Primitives.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Graphics\PC\pcDisplaySettings.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Graphics\PC\pcDisplayLogic.cpp" />
+    <ClCompile Include="..\src\Battlefront2\Platform\Pc\pcColorRamp.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Application\pc\pcFrameLimiter.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Application\pc\pcMessageDrain.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Util\RedLog.cpp" />

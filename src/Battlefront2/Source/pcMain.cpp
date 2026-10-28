@@ -76,8 +76,6 @@ int PCDebugHeap;
 int pcHeight;
 int pcWidth;
 
-D3DGAMMARAMP s_originalGammaRamp;
-
 // FUNCTION: SWBF2 0x006170f0
 bool ToggleAltMeleeHitEffectsCheat()
 {
@@ -566,7 +564,6 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
 
     if (!g_bNoRender)
     {
-        GetDeviceGammaRamp(GetDC(hGlobalWnd), &s_originalGammaRamp);
         SetICMMode(GetDC(hGlobalWnd), ICM_ON);
     }
 

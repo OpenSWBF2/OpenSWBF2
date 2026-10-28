@@ -129,6 +129,9 @@
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcColorControl.cpp">
       <Filter>src\Battlefront2\Platform\Pc</Filter>
     </ClCompile>
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcColorRamp.cpp">
+      <Filter>src\Battlefront2\Platform\Pc</Filter>
+    </ClCompile>
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcDecal.cpp">
       <Filter>src\Battlefront2\Platform\Pc</Filter>
     </ClCompile>
@@ -1797,6 +1800,9 @@
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcDisplayLogic.cpp">
       <Filter>src\RedEngineFL\Graphics\PC</Filter>
     </ClCompile>
+    <ClCompile Include="src\RedEngineFL\Graphics\PC\pcGammaPass.cpp">
+      <Filter>src\RedEngineFL\Graphics\PC</Filter>
+    </ClCompile>
     <ClCompile Include="src\RedEngineFL\Application\pc\pcFrameLimiter.cpp">
       <Filter>src\RedEngineFL\Application\pc</Filter>
     </ClCompile>
@@ -3148,6 +3154,18 @@
     </ClInclude>
     <ClInclude Include="src\RedEngineFL\Graphics\PC\pcDisplayLogic.h">
       <Filter>src\RedEngineFL\Graphics\PC</Filter>
+    </ClInclude>
+    <ClInclude Include="src\RedEngineFL\Graphics\PC\pcGammaPass.h">
+      <Filter>src\RedEngineFL\Graphics\PC</Filter>
+    </ClInclude>
+    <ClInclude Include="src\RedEngineFL\Graphics\PC\pcGammaPassPS.h">
+      <Filter>src\RedEngineFL\Graphics\PC</Filter>
+    </ClInclude>
+    <None Include="src\RedEngineFL\Graphics\PC\pcGammaPass.hlsl">
+      <Filter>src\RedEngineFL\Graphics\PC</Filter>
+    </None>
+    <ClInclude Include="src\Battlefront2\Platform\Pc\pcColorRamp.h">
+      <Filter>src\Battlefront2\Platform\Pc</Filter>
     </ClInclude>
     <ClInclude Include="src\RedEngineFL\Application\pc\pcFrameLimiter.h">
       <Filter>src\RedEngineFL\Application\pc</Filter>
