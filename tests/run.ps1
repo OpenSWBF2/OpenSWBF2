@@ -197,6 +197,8 @@ if ($hardenActive) {
         $dbCode = $LASTEXITCODE
         $cfg = (& $db /loadconfig $gameExe) -join "`n"
         if ($dbCode -eq 0) { $dbCode = $LASTEXITCODE }
+        $imp = (& $db /imports $gameExe) -join "`n"
+        if ($dbCode -eq 0) { $dbCode = $LASTEXITCODE }
     }
     if ($dbCode -ne 0) {
         Add-SmokeResult "[FAIL] hardening:dumpbin - exit $dbCode" 'FAIL'
@@ -205,6 +207,13 @@ if ($hardenActive) {
     elseif (Test-Path -LiteralPath $gameExe) {
         $tl = Get-ClTlogCounts (Join-Path $root "obj\Win32\$SmokeConfiguration\BattlefrontII.tlog")
         foreach ($c in (Get-HardeningChecks $hdr $cfg $tl.Total $tl.GsMinus $tl.Sdl)) {
+            if ($c.Ok) { Add-SmokeResult "[PASS] hardening:$($c.Name)" 'PASS' }
+            else {
+                Add-SmokeResult "[FAIL] hardening:$($c.Name) - $($c.Detail)" 'FAIL'
+                $bad++
+            }
+        }
+        foreach ($c in (Get-ImportChecks $imp)) {
             if ($c.Ok) { Add-SmokeResult "[PASS] hardening:$($c.Name)" 'PASS' }
             else {
                 Add-SmokeResult "[FAIL] hardening:$($c.Name) - $($c.Detail)" 'FAIL'

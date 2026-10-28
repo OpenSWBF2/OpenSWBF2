@@ -3,8 +3,10 @@
 #include "pcRedInputManager.h"
 #include "RedEngineFL/Application/pc/pcFLRender.h"
 #include "RedEngineFL/Interface/RedInterfaceScreen.h"
+#include "RedEngineFL/Graphics/PC/pcDisplayLogic.h"
 
 extern HWND hGlobalWnd;
+extern bool gAppActive;
 
 // FUNCTION: SWBF2 0x006da310
 bool RedMouse::Exists()
@@ -30,8 +32,22 @@ void RedMouse::Init(unsigned char ucPortNum)
 
     POINT point;
     GetCursorPos(&point);
-    m_X = point.x;
-    m_Y = point.y;
+    int iCw = 0;
+    int iCh = 0;
+    if (hGlobalWnd)
+    {
+        RECT rc;
+        ScreenToClient(hGlobalWnd, &point);
+        GetClientRect(hGlobalWnd, &rc);
+        iCw = rc.right;
+        iCh = rc.bottom;
+    }
+    const int iSw = (int)RedInterfaceScreen::GetScreenWidth();
+    const int iSh = (int)RedInterfaceScreen::GetScreenHeight();
+    DisplayLogic::MapClientToBackBuffer(point.x, point.y, (unsigned int)iCw, (unsigned int)iCh,
+                                        (unsigned int)iSw, (unsigned int)iSh, m_X, m_Y);
+    m_X = (m_X < 0) ? 0 : (m_X > iSw ? iSw : m_X);
+    m_Y = (m_Y < 0) ? 0 : (m_Y > iSh ? iSh : m_Y);
     m_Z = 0;
     m_dZ = 0;
     m_dY = 0;
@@ -117,7 +133,19 @@ void RedMouse::SetCursorPos(int iX, int iY)
     m_Y = (iY < 0) ? 0 : (iY > iHeight ? iHeight : iY);
     FLRenderer::SetCursorPos((float)m_X, (float)m_Y);
 
-    ::SetCursorPos(iX, iY);
+    if (gAppActive && hGlobalWnd)
+    {
+        RECT rc;
+        int iCx = 0;
+        int iCy = 0;
+        GetClientRect(hGlobalWnd, &rc);
+        DisplayLogic::MapBackBufferToClient(m_X, m_Y, (unsigned int)iWidth, (unsigned int)iHeight,
+                                            (unsigned int)rc.right, (unsigned int)rc.bottom, iCx,
+                                            iCy);
+        POINT pt = { iCx, iCy };
+        ClientToScreen(hGlobalWnd, &pt);
+        ::SetCursorPos(pt.x, pt.y);
+    }
 }
 
 // FUNCTION: SWBF2 0x006da2e0

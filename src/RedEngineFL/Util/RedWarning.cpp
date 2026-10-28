@@ -10,6 +10,8 @@
 
 #include "PebbleFL/Common/PblFile.h"
 
+extern HWND hGlobalWnd;
+
 // GLOBAL: SWBF2 0x007df210
 bool gBreakOnWarning = true;
 
@@ -83,6 +85,11 @@ void RedWarning::DialogBoxMessage(char const* pcFormat, ...)
         return;
     }
 
+    if (hGlobalWnd)
+    {
+        SetWindowPos(hGlobalWnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    }
+
     apcDialogText[0] = kapcSEVERITYLONG[g_eSeverity];
     apcDialogText[1] = acMessage;
 
@@ -100,6 +107,8 @@ int __stdcall RedWarning::DlgProc(HWND__* hDlg, unsigned int uiMessage, unsigned
             char** apcDialogText = (char**)lParam;
             SetWindowTextA(hDlg, apcDialogText[0]);
             SetWindowTextA(GetDlgItem(hDlg, 1001), apcDialogText[1]);
+            SetWindowPos(hDlg, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+            SetForegroundWindow(hDlg);
         }
         return 1;
 

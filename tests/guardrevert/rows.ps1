@@ -16,6 +16,8 @@ $dl = 'src\RedEngineFL\Graphics\PC\pcDisplayLogic.cpp'
 $fl = 'src\RedEngineFL\Application\pc\pcFrameLimiter.cpp'
 $md = 'src\RedEngineFL\Application\pc\pcMessageDrain.cpp'
 $rr = 'src\RedEngineFL\Graphics\PC\pcRedRenderer.cpp'
+$mouse = 'src\RedEngineFL\input\pc\pcRedMouse.cpp'
+$win = 'src\RedEngineFL\Application\pc\pcWindow.cpp'
 
 $GuardRevertRows = @(
     @{ Id = 'CRASH-02'; File = 'src\RedEngineFL\Util\RedWarning.cpp'; Anchor = 'fputs(pcText, pFile);'; Replacement = 'fprintf(pFile, pcText);'; Tests = @('file log writes percent text literally') },
@@ -102,5 +104,30 @@ $GuardRevertRows = @(
     @{ Id = 'RESET-02D'; Kind = 'Smoke'; Case = 'crash-resetlaterinit'; File = $rr; Anchor = '    gLoading = true;'; Replacement = ''; RedRx = '(?s)\A(?!.*OPENSWBF2 CLOSE deferred)' },
     @{ Id = 'RESET-02E'; Kind = 'Smoke'; Case = 'crash-resetlaterinit'; File = $pmain; Anchor = 'PostMessageA(hGlobalWnd, WM_CLOSE, 0, 0);'; Replacement = ''; RedRx = 'OPENSWBF2 RUN COMPLETE' },
     @{ Id = 'RESET-03'; Kind = 'Smoke'; Case = 'crash-resetrecover'; File = $rr; Anchor = 'if (m_bResourcesReleased || hrCoop == D3DERR_DEVICENOTRESET)'; Replacement = 'if (hGlobalWnd == GetFocus() && (m_bResourcesReleased || hrCoop == D3DERR_DEVICENOTRESET))'; RedRx = 'FATAL: device reset failed hr=0x88760869 failures=0 ' },
-    @{ Id = 'LAA-01'; Kind = 'Hardening'; Check = 'laa'; File = 'BattlefrontII.vcxproj'; Anchor = '<LargeAddressAware>true</LargeAddressAware>'; Replacement = '' }
+    @{ Id = 'RESET-04A'; File = $rr; Anchor = "        m_clientH = m_clientHLast;`n        ApplyCurrentMode(IsIconic(hGlobalWnd) != 0);"; Replacement = '        m_clientH = m_clientHLast;'; Tests = @('runtime reset restyle source pins') },
+    @{ Id = 'RESET-04B'; File = $rr; Anchor = 'if (bRestyle)'; Replacement = 'if (false)'; Tests = @('runtime reset restyle source pins') },
+    @{ Id = 'LAA-01'; Kind = 'Hardening'; Check = 'laa'; File = 'BattlefrontII.vcxproj'; Anchor = '<LargeAddressAware>true</LargeAddressAware>'; Replacement = '' },
+    @{ Id = 'WIN-02A'; File = $pmain; Anchor = 'const bool bMinimize = DisplayLogic::MinimizeOnDeactivate(RedRenderer::GetDisplayMode());'; Replacement = 'const bool bMinimize = !pcWindowed;'; Tests = @('window mode source pins') },
+    @{ Id = 'WIN-01A'; File = $dl; Anchor = 'kBorderlessExStyle = 0;'; Replacement = 'kBorderlessExStyle = WS_EX_TOPMOST;'; Tests = @('display logic window style') },
+    @{ Id = 'WIN-01B'; File = $dl; Anchor = 'return monitor;'; Replacement = 'return work;'; Tests = @('display logic window placement') },
+    @{ Id = 'WIN-01C'; File = $dl; Anchor = '(bVisible ? WS_VISIBLE : 0)'; Replacement = '0'; Tests = @('display logic window style') },
+    @{ Id = 'WIN-01D'; File = $win; Anchor = 'if (IsIconic(hGlobalWnd))'; Replacement = 'if (false)'; Tests = @('window mode source pins') },
+    @{ Id = 'WIN-01E'; File = $win; Anchor = ' | ((DWORD)GetWindowLongA(hGlobalWnd, GWL_STYLE) & kStateBits)'; Replacement = ''; Tests = @('window mode source pins') },
+    @{ Id = 'WIN-01F'; File = $win; Anchor = 'pMouse->Exists() && pMouse->m_connected'; Replacement = 'pMouse->Exists()'; Tests = @('window mode source pins') },
+    @{ Id = 'WIN-02B'; File = $dl; Anchor = 'if (bBorderless)'; Replacement = 'if (false)'; Tests = @('display logic mode resolution') },
+    @{ Id = 'WIN-03A'; File = $dl; Anchor = 'if (steps.pmv2)'; Replacement = 'if (false && steps.pmv2)'; Tests = @('display logic dpi cascade') },
+    @{ Id = 'WIN-03C'; File = $dl; Anchor = 'if (iResult == kDpiAlready)'; Replacement = 'if (false)'; Tests = @('display logic dpi cascade') },
+    @{ Id = 'WIN-03D'; File = $win; Anchor = 'if (sLevel == DisplayLogic::kDpiLevelPmV2)'; Replacement = 'if (true)'; Tests = @('window mode source pins') },
+    @{ Id = 'WIN-03E'; File = $win; Anchor = '    FixClientSize(hWnd, 0, rc, sClientW, sClientH, SWP_NOZORDER | SWP_NOACTIVATE);'; Replacement = ''; Tests = @('window mode source pins') },
+    @{ Id = 'WIN-03F'; File = $dl; Anchor = 'return bPmV2 ? kDpiLevelPmV2 : kDpiLevelPm;'; Replacement = 'return kDpiLevelPmV2;'; Tests = @('display logic dpi preset') },
+    @{ Id = 'WIN-03G'; File = $win; Anchor = 'if (sAlready && sLevel != DisplayLogic::kDpiLevelOff)'; Replacement = 'if (false)'; Tests = @('window mode source pins') },
+    @{ Id = 'WIN-04B'; File = $dl; Anchor = 'if (iResult > (long long)uiDst - 1)'; Replacement = 'if (false)'; Tests = @('display logic coordinate mapping') },
+    @{ Id = 'WIN-05A'; File = $dl; Anchor = 'if (bIsShell)'; Replacement = 'if (false)'; Tests = @('display logic shell size policy') },
+    @{ Id = 'WIN-05B'; File = $dl; Anchor = 'else if (m == kModeBorderless && (uiDeskW == 0 || uiDeskH == 0))'; Replacement = 'else if (false)'; Tests = @('display logic shell size policy') },
+    @{ Id = 'WIN-04A'; File = $mouse; Anchor = '::SetCursorPos(pt.x, pt.y);'; Replacement = '::SetCursorPos(m_X, m_Y);'; Tests = @('window mode source pins') },
+    @{ Id = 'WIN-04C'; File = $mouse; Anchor = 'MapBackBufferToClient(m_X, m_Y,'; Replacement = 'MapBackBufferToClient(iX, iY,'; Tests = @('window mode source pins') },
+    @{ Id = 'WIN-04D'; File = $mouse; Anchor = '        ClientToScreen(hGlobalWnd, &pt);'; Replacement = ''; Tests = @('window mode source pins') },
+    @{ Id = 'WIN-09A'; File = $pmain; Anchor = 'if (LOWORD(lParam) != HTCLIENT)'; Replacement = 'if (false)'; Tests = @('window mode source pins') },
+    @{ Id = 'WIN-03B'; Kind = 'Hardening'; Check = 'import-SetProcessDPIAware'; File = $pmain; Anchor = '#include <windows.h>'; Replacement = '#include <windows.h>' + "`n" + 'extern "C" __declspec(dllimport) int __stdcall SetProcessDPIAware(void);' + "`n" + 'static int sDpiRevert = SetProcessDPIAware();' },
+    @{ Id = 'WIN-DPI-SMOKE'; Kind = 'Smoke'; Case = 'display-switches'; File = $pmain; Anchor = 'PcWindow::InitDpi(DisplayCfg::gDisplay.bNoDpi);'; Replacement = '' }
 )

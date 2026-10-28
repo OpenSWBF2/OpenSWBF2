@@ -25,6 +25,7 @@
 #include "pcRedPoolMath.h"
 #include "pcDisplaySettings.h"
 #include "pcDisplayLogic.h"
+#include "RedEngineFL/Application/pc/pcWindow.h"
 #include "RedEngineFL/Application/pc/pcFrameLimiter.h"
 
 #include "RedEngineFL/Graphics/RedAmbientLight.h"
@@ -46,24 +47,6 @@ extern bool g_bNoRender;
 extern HWND hGlobalWnd;
 
 unsigned int gAdapter = 0;
-
-static bool GetAdapterMonitorRect(IDirect3D9* pD3D, RECT& rc)
-{
-    if (g_bNoRender || gAdapter == 0)
-    {
-        return false;
-    }
-    HMONITOR hMonitor = pD3D->GetAdapterMonitor(gAdapter);
-    MONITORINFO mi;
-    memset(&mi, 0, sizeof(mi));
-    mi.cbSize = sizeof(mi);
-    if (!hMonitor || !GetMonitorInfoA(hMonitor, &mi))
-    {
-        return false;
-    }
-    rc = mi.rcMonitor;
-    return true;
-}
 
 #include "RedEngineFL/Graphics/RedSpotLight.h"
 #include "pcRedPixelShader.h"
@@ -2131,18 +2114,49 @@ void RedRenderer::pcGetAdapterDesktop(unsigned int uiAdapter, unsigned int& uiW,
     uiW = 0;
     uiH = 0;
 
-    if (!m_pD3D || g_bNoRender)
+    if (g_bNoRender)
     {
         return;
     }
 
     D3DDISPLAYMODE mode;
     memset(&mode, 0, sizeof(mode));
-    if (m_pD3D->GetAdapterDisplayMode(uiAdapter, &mode) == D3D_OK)
+    if (m_pD3D && m_pD3D->GetAdapterDisplayMode(uiAdapter, &mode) == D3D_OK && mode.Width &&
+        mode.Height)
     {
         uiW = mode.Width;
         uiH = mode.Height;
+        return;
     }
+
+    DisplayLogic::Rect monitor = {0, 0, 0, 0};
+    DisplayLogic::Rect work = {0, 0, 0, 0};
+    if (PcWindow::MonitorRectsFor(m_pD3D ? m_pD3D->GetAdapterMonitor(uiAdapter) : 0, monitor,
+                                  work) &&
+        monitor.r > monitor.l && monitor.b > monitor.t)
+    {
+        uiW = (unsigned int)(monitor.r - monitor.l);
+        uiH = (unsigned int)(monitor.b - monitor.t);
+    }
+}
+
+bool RedRenderer::pcMultiSampleSupported(unsigned int uiAdapter, D3DMULTISAMPLE_TYPE eType,
+                                         unsigned long ulQuality, bool bWindowed)
+{
+    if (eType == D3DMULTISAMPLE_NONE || g_bNoRender || !m_pD3D)
+    {
+        return true;
+    }
+    DWORD dwColor = 0;
+    DWORD dwDepth = 0;
+    if (FAILED(m_pD3D->CheckDeviceMultiSampleType(uiAdapter, D3DDEVTYPE_HAL, D3DFMT_A8R8G8B8,
+                                                  bWindowed, eType, &dwColor)) ||
+        FAILED(m_pD3D->CheckDeviceMultiSampleType(uiAdapter, D3DDEVTYPE_HAL, D3DFMT_D24S8,
+                                                  bWindowed, eType, &dwDepth)))
+    {
+        return false;
+    }
+    return ulQuality < dwColor && ulQuality < dwDepth;
 }
 
 // FUNCTION: SWBF2 0x006b8680
@@ -2704,6 +2718,12 @@ IDirect3DDevice9* RedRenderer::m_pd3dDevice;
 // GLOBAL: SWBF2 0x007f5ecc
 D3DPRESENT_PARAMETERS RedRenderer::m_d3dpp;
 D3DPRESENT_PARAMETERS RedRenderer::m_d3dppLast;
+DisplayLogic::DisplayMode RedRenderer::m_displayMode = DisplayLogic::kModeFullscreen;
+DisplayLogic::DisplayMode RedRenderer::m_displayModeLast = DisplayLogic::kModeFullscreen;
+unsigned int RedRenderer::m_clientW = 0;
+unsigned int RedRenderer::m_clientH = 0;
+unsigned int RedRenderer::m_clientWLast = 0;
+unsigned int RedRenderer::m_clientHLast = 0;
 bool RedRenderer::m_bResourcesReleased = true;
 // GLOBAL: SWBF2 0x007f5f28
 void(__cdecl* RedRenderer::m_resetFunctions[100])(ResetFlagsT);
@@ -2754,27 +2774,22 @@ RedColor RedRenderer::m_lightingScaleColor;
 // SYNTHETIC: SWBF2 0x00408c80
 // `dynamic initializer for 'PblMath::fOneOverTwoPi''
 
-static void PlaceInitWindow(IDirect3D9* pD3D, const D3DPRESENT_PARAMETERS& pp, bool bMinimized)
+static void ApplyCurrentMode(bool bMinimized)
 {
-    const DWORD dwStyle = pp.Windowed ? 0x00C40000 : 0x90000000;
-    const UINT uFlags = (pp.Windowed || bMinimized) ? SWP_NOZORDER : SWP_NOMOVE;
-
-    RECT rc;
-    SetRect(&rc, 0, 0, pp.BackBufferWidth, pp.BackBufferHeight);
-    AdjustWindowRect(&rc, dwStyle, FALSE);
-
-    RECT desktop;
-    if (!GetAdapterMonitorRect(pD3D, desktop))
+    if (g_bNoRender)
     {
-        GetClientRect(GetDesktopWindow(), &desktop);
+        return;
     }
-
-    const int iWidth = rc.right - rc.left;
-    const int iHeight = rc.bottom - rc.top;
-    SetWindowPos(hGlobalWnd, 0,
-                 (desktop.left - iWidth + desktop.right) / 2,
-                 (desktop.top - iHeight + desktop.bottom) / 2,
-                 iWidth, iHeight, uFlags);
+    unsigned int uiClientW = RedRenderer::m_d3dpp.BackBufferWidth;
+    unsigned int uiClientH = RedRenderer::m_d3dpp.BackBufferHeight;
+    if (RedRenderer::m_displayMode != DisplayLogic::kModeFullscreen && RedRenderer::m_clientW &&
+        RedRenderer::m_clientH)
+    {
+        uiClientW = RedRenderer::m_clientW;
+        uiClientH = RedRenderer::m_clientH;
+    }
+    HMONITOR hMon = RedRenderer::m_pD3D ? RedRenderer::m_pD3D->GetAdapterMonitor(gAdapter) : 0;
+    PcWindow::ApplyWindowMode(RedRenderer::m_displayMode, uiClientW, uiClientH, hMon, bMinimized);
 }
 
 // FUNCTION: SWBF2 0x006b1a90
@@ -2820,7 +2835,7 @@ void RedRenderer::Init()
     RedOmniLight::sMemoryPool.Setup(0x80, RedOmniLight::sMemoryPool.mSize,
                                     RedOmniLight::sMemoryPool.mGrow);
 
-    PlaceInitWindow(m_pD3D, m_d3dpp, bMinimized);
+    ApplyCurrentMode(bMinimized);
 
     static bool sbStartupResetDone = false;
     const DisplayLogic::ResetBounds& bounds =
@@ -2870,6 +2885,9 @@ void RedRenderer::Init()
         {
             m_d3dpp = pp;
             m_d3dppLast = m_d3dpp;
+            m_displayModeLast = m_displayMode;
+            m_clientWLast = m_clientW;
+            m_clientHLast = m_clientH;
             if (uiAttempts > 1)
             {
                 LOG(LogRender, Inform, "OPENSWBF2 RESET recovered after %u attempts", uiAttempts);
@@ -2880,12 +2898,16 @@ void RedRenderer::Init()
         {
             bRevertUsed = true;
             LOG(LogRender, Warning,
-                "OPENSWBF2 RESET reverting asked=%ux%u windowed=%d used=%ux%u windowed=%d",
+                "OPENSWBF2 RESET reverting asked=%ux%u windowed=%d used=%ux%u windowed=%d ms=%d q=%u",
                 m_d3dpp.BackBufferWidth, m_d3dpp.BackBufferHeight, (int)m_d3dpp.Windowed,
                 m_d3dppLast.BackBufferWidth, m_d3dppLast.BackBufferHeight,
-                (int)m_d3dppLast.Windowed);
+                (int)m_d3dppLast.Windowed, (int)m_d3dpp.MultiSampleType,
+                (unsigned int)m_d3dpp.MultiSampleQuality);
             m_d3dpp = m_d3dppLast;
-            PlaceInitWindow(m_pD3D, m_d3dpp, bMinimized);
+            m_displayMode = m_displayModeLast;
+            m_clientW = m_clientWLast;
+            m_clientH = m_clientHLast;
+            ApplyCurrentMode(bMinimized);
             uiFailures = 0;
             dwStart = ResetClock();
         }
@@ -2908,6 +2930,7 @@ void RedRenderer::Init()
 
     if (!bMinimized && !g_bNoRender)
     {
+        ApplyCurrentMode(bMinimized);
         ShowWindow(hGlobalWnd, SW_SHOWNORMAL);
     }
 
@@ -3180,18 +3203,13 @@ void RedRenderer::InitStatic()
     }
 
     m_d3dppLast = m_d3dpp;
+    m_displayModeLast = m_displayMode;
+    m_clientWLast = m_clientW;
+    m_clientHLast = m_clientH;
 
-    RECT rcMonitor;
-    if (m_pd3dDevice && GetAdapterMonitorRect(m_pD3D, rcMonitor))
+    if (m_pd3dDevice)
     {
-        RECT rcWnd;
-        GetWindowRect(hGlobalWnd, &rcWnd);
-        const int iWidth = rcWnd.right - rcWnd.left;
-        const int iHeight = rcWnd.bottom - rcWnd.top;
-        SetWindowPos(hGlobalWnd, 0,
-                     (rcMonitor.left - iWidth + rcMonitor.right) / 2,
-                     (rcMonitor.top - iHeight + rcMonitor.bottom) / 2,
-                     0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+        ApplyCurrentMode(false);
     }
 
     if (!m_pd3dDevice)
@@ -3308,9 +3326,14 @@ void __cdecl PblTraceP(const char* Format, ...);
 
 // FUNCTION: SWBF2 0x006b9310
 void RedRenderer::pcSetDisplayMode(unsigned int uiWidth, unsigned int uiHeight,
-                                   bool bWindowed, bool bVSync,
+                                   DisplayLogic::DisplayMode eMode, unsigned int uiClientW,
+                                   unsigned int uiClientH, bool bVSync,
                                    D3DMULTISAMPLE_TYPE msType, unsigned long ulMSQuality)
 {
+    const bool bWindowed = DisplayLogic::D3DWindowed(eMode);
+    m_displayMode = eMode;
+    m_clientW = uiClientW;
+    m_clientH = uiClientH;
     m_d3dpp.BackBufferWidth = uiWidth;
     m_d3dpp.BackBufferHeight = uiHeight;
     m_d3dpp.MultiSampleType = msType;
@@ -3336,6 +3359,17 @@ void RedRenderer::pcSetDisplayMode(unsigned int uiWidth, unsigned int uiHeight,
     PblTraceP("pcSetDisplayMode- width: %d hieght: %d windowed: %d mstype: %d "
               "msquality: %d vsync: %d \n",
               uiWidth, uiHeight, bWindowed, msType, ulMSQuality, bVSync);
+}
+
+DisplayLogic::DisplayMode RedRenderer::GetDisplayMode()
+{
+    return m_displayMode;
+}
+
+void RedRenderer::pcSeedDisplayMode(DisplayLogic::DisplayMode eMode)
+{
+    m_displayMode = eMode;
+    m_displayModeLast = eMode;
 }
 
 // FUNCTION: SWBF2 0x006b9540
@@ -3788,8 +3822,15 @@ void RedRenderer::internalReset()
 
     if (SUCCEEDED(hr))
     {
+        const bool bRestyle = m_displayMode != m_displayModeLast || m_clientW != m_clientWLast ||
+                              m_clientH != m_clientHLast ||
+                              pp.BackBufferWidth != m_d3dppLast.BackBufferWidth ||
+                              pp.BackBufferHeight != m_d3dppLast.BackBufferHeight;
         m_d3dpp = pp;
         m_d3dppLast = m_d3dpp;
+        m_displayModeLast = m_displayMode;
+        m_clientWLast = m_clientW;
+        m_clientHLast = m_clientH;
 
         if (!g_bNoRender)
         {
@@ -3808,6 +3849,11 @@ void RedRenderer::internalReset()
             m_resetFunctions[i](RESETFLAGS_CREATE_RESOURCES);
         }
         m_bResourcesReleased = false;
+
+        if (bRestyle)
+        {
+            ApplyCurrentMode(IsIconic(hGlobalWnd) != 0);
+        }
 
         if (sResetAttempts > 0)
         {
@@ -3841,11 +3887,16 @@ void RedRenderer::internalReset()
     {
         sResetRevertUsed = true;
         LOG(LogRender, Warning,
-            "OPENSWBF2 RESET reverting asked=%ux%u windowed=%d used=%ux%u windowed=%d",
+            "OPENSWBF2 RESET reverting asked=%ux%u windowed=%d used=%ux%u windowed=%d ms=%d q=%u",
             m_d3dpp.BackBufferWidth, m_d3dpp.BackBufferHeight, (int)m_d3dpp.Windowed,
             m_d3dppLast.BackBufferWidth, m_d3dppLast.BackBufferHeight,
-            (int)m_d3dppLast.Windowed);
+            (int)m_d3dppLast.Windowed, (int)m_d3dpp.MultiSampleType,
+            (unsigned int)m_d3dpp.MultiSampleQuality);
         m_d3dpp = m_d3dppLast;
+        m_displayMode = m_displayModeLast;
+        m_clientW = m_clientWLast;
+        m_clientH = m_clientHLast;
+        ApplyCurrentMode(IsIconic(hGlobalWnd) != 0);
         sResetFailures = 0;
         sResetStart = GetTickCount();
     }
