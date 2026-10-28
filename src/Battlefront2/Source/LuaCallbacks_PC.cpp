@@ -3,6 +3,7 @@
 
 #include "LuaCallbacks_PC.h"
 #include "LuaHelper.h"
+#include "LuaVideoArgs.h"
 #include "FLGuiManager.h"
 #include "FLInputManager.h"
 #include "PlayerProfile.h"
@@ -13,7 +14,9 @@
 #include "RedEngineFL/Graphics/PC/pcRedAutoSettings.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "RedEngineFL/Graphics/PC/pcDisplayLogic.h"
+#include "RedEngineFL/Graphics/PC/pcDisplaySettings.h"
 #include "RedEngineFL/Util/RedLocalizeDB.h"
+#include "RedEngineFL/Util/RedLog.h"
 
 #include "RedEngineFL/input/RedKeyboard.h"
 #include "RedEngineFL/Application/pc/pcFLRender.h"
@@ -408,9 +411,16 @@ int ScriptCB_GetAutodetectPCVideoOptions(lua_State*)
 
 static int ScriptCB_EnableCursor(lua_State* L);
 static int ScriptCB_SetPCDisplayAdapter(lua_State* L);
+static int ScriptCB_GetDisplayOptions(lua_State* L);
+static int ScriptCB_SetDisplayOptions(lua_State* L);
+static int ScriptCB_PollDisplayConfirm(lua_State* L);
+static int ScriptCB_EndDisplayConfirm(lua_State* L);
+static int ScriptCB_MarkDisplayOptions(lua_State* L);
+static int ScriptCB_RestoreDisplayOptions(lua_State* L);
+static int ScriptCB_SaveDisplayOptions(lua_State* L);
 
 // GLOBAL: SWBF2 0x007e8270
-static const CallbackEntryT sPCCallbacks[37] =
+static const CallbackEntryT sPCCallbacks[44] =
 {
     { "ScriptCB_GetMouseSensitivity", ScriptCB_GetMouseSensitivity },
     { "ScriptCB_GetJoySensitivity", ScriptCB_GetJoySensitivity },
@@ -449,6 +459,13 @@ static const CallbackEntryT sPCCallbacks[37] =
     { "ScriptCB_GetKeyboardPCFlags", ScriptCB_GetKeyboardPCFlags },
     { "ScriptCB_EnableCursor", ScriptCB_EnableCursor },
     { "ScriptCB_SetPCDisplayAdapter", ScriptCB_SetPCDisplayAdapter },
+    { "ScriptCB_GetDisplayOptions", ScriptCB_GetDisplayOptions },
+    { "ScriptCB_SetDisplayOptions", ScriptCB_SetDisplayOptions },
+    { "ScriptCB_PollDisplayConfirm", ScriptCB_PollDisplayConfirm },
+    { "ScriptCB_EndDisplayConfirm", ScriptCB_EndDisplayConfirm },
+    { "ScriptCB_MarkDisplayOptions", ScriptCB_MarkDisplayOptions },
+    { "ScriptCB_RestoreDisplayOptions", ScriptCB_RestoreDisplayOptions },
+    { "ScriptCB_SaveDisplayOptions", ScriptCB_SaveDisplayOptions },
 };
 
 // FUNCTION: SWBF2 0x00599170
@@ -591,47 +608,48 @@ int ScriptCB_FillMultisampleTable(lua_State* L)
     DoPeriodicLuaGC(false);
     lua_newtable(LuaHelper::mState);
 
-    int aiType[17];
-    int aiQuality[17];
-    aiType[0] = D3DMULTISAMPLE_NONE;
-    aiQuality[0] = 0;
-    int iNumModes = 1;
-
-    lua_gettop(LuaHelper::mState);
-    int iWidth = lua_isnumber(LuaHelper::mState, 1) ? LuaHelper::GetInt(1) : 800;
-    int iHeight = lua_isnumber(LuaHelper::mState, 2) ? LuaHelper::GetInt(2) : 600;
-
-    int iNumQualities = RedVideoConfig::VidMode_GetNumMultiSampleQualityModes();
-    if (iNumQualities > 0)
+    bool bWindowed = DisplayLogic::D3DWindowed(RedRenderer::m_displayMode);
+    if (lua_isboolean(LuaHelper::mState, 3))
     {
-        for (int q = 0; q < iNumQualities; ++q)
-        {
-            if (RedVideoConfig::VidMode_Usable(iWidth, iHeight, D3DMULTISAMPLE_NONMASKABLE, q))
-            {
-                aiType[iNumModes] = D3DMULTISAMPLE_NONMASKABLE;
-                aiQuality[iNumModes] = q;
-                ++iNumModes;
-            }
-        }
+        bWindowed = lua_toboolean(LuaHelper::mState, 3) != 0;
     }
-    else
+
+    unsigned int auiLevels[DisplayLogic::kMultisampleTypes];
+    RedRenderer::pcGetMultiSampleLevels(RedRenderer::pcGetRunningAdapter(), bWindowed, auiLevels);
+    DisplayLogic::MultisampleEntry aEntries[DisplayLogic::kMultisampleTypes];
+    const unsigned int uiEntries =
+        DisplayLogic::MultisampleList(auiLevels, aEntries, DisplayLogic::kMultisampleTypes);
+
+    unsigned int uiWanted = 1;
+    for (unsigned int uiType = 2; uiType < DisplayLogic::kMultisampleTypes; ++uiType)
     {
-        for (int t = D3DMULTISAMPLE_2_SAMPLES; t < D3DMULTISAMPLE_16_SAMPLES; ++t)
-        {
-            if (RedVideoConfig::VidMode_Usable(iWidth, iHeight, (D3DMULTISAMPLE_TYPE)t, 0))
-            {
-                aiType[iNumModes] = t;
-                aiQuality[iNumModes] = 0;
-                ++iNumModes;
-            }
-        }
+        uiWanted += auiLevels[uiType] < DisplayLogic::kMultisampleTypes
+                        ? auiLevels[uiType]
+                        : DisplayLogic::kMultisampleTypes;
+    }
+    static bool sTruncLogged = false;
+    if (uiWanted > DisplayLogic::kMultisampleTypes && !sTruncLogged)
+    {
+        sTruncLogged = true;
+        LOG(LogRender, Warning, "OPENSWBF2 DISPLAY msaa list truncated wanted=%u shown=%u",
+            uiWanted, uiEntries);
+    }
+    static int sLastEntries = -1;
+    static int sLastWindowed = -1;
+    if ((int)uiEntries != sLastEntries || (bWindowed ? 1 : 0) != sLastWindowed)
+    {
+        sLastEntries = (int)uiEntries;
+        sLastWindowed = bWindowed ? 1 : 0;
+        LOG(LogRender, Inform, "OPENSWBF2 DISPLAY msaa list entries=%d windowed=%d",
+            sLastEntries, sLastWindowed);
     }
 
     PlayerProfile::tProfile* pProfile = PlayerProfile::GetCurProfile();
     int iCurSel = 1;
-    for (int i = 0; i < iNumModes; ++i)
+    for (unsigned int i = 0; i < uiEntries; ++i)
     {
-        const int iType = aiType[i];
+        const int iType = (int)aEntries[i].uiType;
+        const int iQuality = (int)aEntries[i].uiQuality;
         unsigned short const* pusLabel;
         unsigned short usDesc[32];
         if (iType == D3DMULTISAMPLE_NONE)
@@ -643,20 +661,30 @@ int ScriptCB_FillMultisampleTable(lua_State* L)
         }
         else
         {
-            PblUnicode::ustrncnv(usDesc,
-                                 RedVideoConfig::VidMode_GetMultiSampleDescription(
-                                     (D3DMULTISAMPLE_TYPE)iType, aiQuality[i]),
-                                 32);
+            char acDesc[32];
+            if (!DisplayLogic::MultisampleLabel(aEntries[i].uiType, aEntries[i].uiQuality, acDesc,
+                                                sizeof(acDesc)))
+            {
+                acDesc[0] = '\0';
+            }
+            acDesc[sizeof(acDesc) - 1] = '\0';
+            unsigned int uiLen = 0;
+            while (uiLen < 31 && acDesc[uiLen] != '\0')
+            {
+                usDesc[uiLen] = (unsigned char)acDesc[uiLen];
+                ++uiLen;
+            }
+            usDesc[uiLen] = 0;
             pusLabel = usDesc;
         }
 
         if (pProfile && iType == pProfile->mPCOptions.mMultiSample
-            && (unsigned long)aiQuality[i] == pProfile->mPCOptions.mMultiSampleQuality)
+            && (unsigned long)iQuality == pProfile->mPCOptions.mMultiSampleQuality)
         {
-            iCurSel = i + 1;
+            iCurSel = (int)i + 1;
         }
 
-        AddMultisampleMode(i + 1, pusLabel, iType, aiQuality[i]);
+        AddMultisampleMode((int)i + 1, pusLabel, iType, iQuality);
     }
 
     lua_setglobal(LuaHelper::mState, "ifs_opt_pcvideo_fsaalistbox_contents");
@@ -765,58 +793,60 @@ int ScriptCB_GetPCVideoOptions(lua_State* L)
         }
     }
 
-    lua_pushnumber(LuaHelper::mState, (float)(iMasterQuality + 1));
-    lua_pushnumber(LuaHelper::mState, (float)(iUnknown0038 + 1));
-    lua_pushnumber(LuaHelper::mState, (float)(iTextureDetail + 1));
-    lua_pushnumber(LuaHelper::mState, (float)(iTextureQuality + 1));
-    lua_pushnumber(LuaHelper::mState, fUnknown0018);
-    lua_pushnumber(LuaHelper::mState, fUnknown001C);
-    lua_pushnumber(LuaHelper::mState, fUnknown0024);
-    lua_pushnumber(LuaHelper::mState, fUnknown0020);
-    lua_pushnumber(LuaHelper::mState, (float)(iWaterQuality + 1));
-    lua_pushnumber(LuaHelper::mState, (float)(iTerrainQuality + 1));
-    lua_pushnumber(LuaHelper::mState, (float)(iParticleQuality + 1));
-    lua_pushnumber(LuaHelper::mState, (float)(iShadowQuality + 1));
-    lua_pushnumber(LuaHelper::mState, (float)(iSpecularQuality + 1));
-    lua_pushnumber(LuaHelper::mState, (float)(iUnknown0028 + 1));
-    lua_pushnumber(LuaHelper::mState, (float)(iBumpMapping + 1));
-    lua_pushnumber(LuaHelper::mState, (float)(iMotionBlur + 1));
-    lua_pushnumber(LuaHelper::mState, (float)(iDistortion + 1));
-    lua_pushnumber(LuaHelper::mState, (float)(iWindowed + 1));
-    lua_pushnumber(LuaHelper::mState, (float)(iVSync + 1));
-    return 19;
+    float afVal[LuaVideoArgs::kLegacyVideoGetValues];
+    afVal[0] = (float)(iMasterQuality + 1);
+    afVal[1] = (float)(iUnknown0038 + 1);
+    afVal[2] = (float)(iTextureDetail + 1);
+    afVal[3] = (float)(iTextureQuality + 1);
+    afVal[4] = fUnknown0018;
+    afVal[5] = fUnknown001C;
+    afVal[6] = fUnknown0024;
+    afVal[7] = fUnknown0020;
+    afVal[8] = (float)(iWaterQuality + 1);
+    afVal[9] = (float)(iTerrainQuality + 1);
+    afVal[10] = (float)(iParticleQuality + 1);
+    afVal[11] = (float)(iShadowQuality + 1);
+    afVal[12] = (float)(iSpecularQuality + 1);
+    afVal[13] = (float)(iUnknown0028 + 1);
+    afVal[14] = (float)(iBumpMapping + 1);
+    afVal[15] = (float)(iMotionBlur + 1);
+    afVal[16] = (float)(iDistortion + 1);
+    afVal[17] = (float)(iWindowed + 1);
+    afVal[18] = (float)(iVSync + 1);
+    return LuaVideoArgs::PushLegacyVideoGet(LuaHelper::mState, afVal);
 }
 
 // FUNCTION: SWBF2 0x0059a5e0
 int ScriptCB_SetPCVideoOptions(lua_State* L)
 {
-    if (lua_gettop(LuaHelper::mState) != 21)
+    float afArg[LuaVideoArgs::kLegacyVideoSetArgs];
+    if (!LuaVideoArgs::ReadLegacyVideoSet(LuaHelper::mState, afArg))
     {
         return 0;
     }
 
     RenderOptionsT opts;
-    opts.masterQuality = (int)luaL_checknumber(LuaHelper::mState, 1) - 1;
-    opts.mGraphicsTier = (int)luaL_checknumber(LuaHelper::mState, 2) - 1;
-    opts.textureDetail = (QualityT)((int)luaL_checknumber(LuaHelper::mState, 3) - 1);
-    opts.textureQuality = (TextureQualityT)((int)luaL_checknumber(LuaHelper::mState, 4) - 1);
-    D3DMULTISAMPLE_TYPE eMultiSample = (D3DMULTISAMPLE_TYPE)(int)luaL_checknumber(LuaHelper::mState, 5);
-    unsigned long ulMultiSampleQuality = (int)luaL_checknumber(LuaHelper::mState, 6);
-    opts.waterQuality = (QualityT)((int)luaL_checknumber(LuaHelper::mState, 7) - 1);
-    opts.terrainQuality = (QualityT)((int)luaL_checknumber(LuaHelper::mState, 8) - 1);
-    opts.particleQuality = (QualityT)((int)luaL_checknumber(LuaHelper::mState, 9) - 1);
-    opts.shadowQuality = (Quality2T)((int)luaL_checknumber(LuaHelper::mState, 10) - 1);
-    opts.specularQuality = (Quality2T)((int)luaL_checknumber(LuaHelper::mState, 11) - 1);
-    opts.mEnableHDR = (int)luaL_checknumber(LuaHelper::mState, 12) - 1 != 0;
-    opts.bumpMapping = (int)luaL_checknumber(LuaHelper::mState, 13) - 1 != 0;
-    opts.motionBlur = (int)luaL_checknumber(LuaHelper::mState, 14) - 1 != 0;
-    opts.distortion = (int)luaL_checknumber(LuaHelper::mState, 15) - 1 != 0;
-    bool bWindowed = (int)luaL_checknumber(LuaHelper::mState, 16) - 1 != 0;
-    opts.mGammaBrightness = luaL_checknumber(LuaHelper::mState, 17);
-    opts.mGammaContrast = luaL_checknumber(LuaHelper::mState, 18);
-    opts.mFarSceneRangeFactor = luaL_checknumber(LuaHelper::mState, 19);
-    opts.mNearSceneFadeFactor = luaL_checknumber(LuaHelper::mState, 20);
-    bool bVSync = (int)luaL_checknumber(LuaHelper::mState, 21) - 1 != 0;
+    opts.masterQuality = (int)afArg[0] - 1;
+    opts.mGraphicsTier = (int)afArg[1] - 1;
+    opts.textureDetail = (QualityT)((int)afArg[2] - 1);
+    opts.textureQuality = (TextureQualityT)((int)afArg[3] - 1);
+    D3DMULTISAMPLE_TYPE eMultiSample = (D3DMULTISAMPLE_TYPE)(int)afArg[4];
+    unsigned long ulMultiSampleQuality = (int)afArg[5];
+    opts.waterQuality = (QualityT)((int)afArg[6] - 1);
+    opts.terrainQuality = (QualityT)((int)afArg[7] - 1);
+    opts.particleQuality = (QualityT)((int)afArg[8] - 1);
+    opts.shadowQuality = (Quality2T)((int)afArg[9] - 1);
+    opts.specularQuality = (Quality2T)((int)afArg[10] - 1);
+    opts.mEnableHDR = (int)afArg[11] - 1 != 0;
+    opts.bumpMapping = (int)afArg[12] - 1 != 0;
+    opts.motionBlur = (int)afArg[13] - 1 != 0;
+    opts.distortion = (int)afArg[14] - 1 != 0;
+    bool bWindowed = (int)afArg[15] - 1 != 0;
+    opts.mGammaBrightness = afArg[16];
+    opts.mGammaContrast = afArg[17];
+    opts.mFarSceneRangeFactor = afArg[18];
+    opts.mNearSceneFadeFactor = afArg[19];
+    bool bVSync = (int)afArg[20] - 1 != 0;
 
     if (opts.mGammaBrightness < 0.2)
     {
@@ -927,7 +957,7 @@ int ScriptCB_IsPCVideoFixedFunction(lua_State* L)
 // FUNCTION: SWBF2 0x0059b170
 void InitPC()
 {
-    for (int i = 0; i < 37; ++i)
+    for (int i = 0; i < 44; ++i)
     {
         LuaHelper::Register(sPCCallbacks[i].pcName, sPCCallbacks[i].pfnCallback, 0);
     }
@@ -994,5 +1024,269 @@ int Lua_Callbacks::ScriptCB_SetPCDisplayAdapter(lua_State* L)
         uiIndex = (unsigned int)dIndex;
     }
     lua_pushboolean(LuaHelper::mState, RedRenderer::pcRequestAdapter(uiIndex));
+    return 1;
+}
+
+extern bool pcWindowed;
+
+static bool ReadMenuUInt(int iTable, const char* pcKey, unsigned int uiMax, unsigned int& uiOut)
+{
+    lua_pushstring(LuaHelper::mState, pcKey);
+    lua_gettable(LuaHelper::mState, iTable);
+    bool bOk = false;
+    unsigned int uiValue = 0;
+    if (lua_isnumber(LuaHelper::mState, -1))
+    {
+        double dValue = (double)lua_tonumber(LuaHelper::mState, -1);
+        if (dValue == dValue && dValue >= 0.0 && dValue <= (double)uiMax
+            && dValue == (double)(unsigned int)dValue)
+        {
+            uiValue = (unsigned int)dValue;
+            bOk = true;
+        }
+    }
+    lua_pop(LuaHelper::mState, 1);
+    if (bOk)
+    {
+        uiOut = uiValue;
+    }
+    return bOk;
+}
+
+static bool ReadMenuSize(int iIndex, unsigned int& uiOut)
+{
+    double dValue = (double)lua_tonumber(LuaHelper::mState, iIndex);
+    if (dValue >= 1.0 && dValue <= 16384.0 && dValue == (double)(unsigned int)dValue)
+    {
+        uiOut = (unsigned int)dValue;
+        return true;
+    }
+    return false;
+}
+
+static void AddDisplayEntry(int iIndex, const unsigned short* pusLabel, int iData)
+{
+    lua_newtable(LuaHelper::mState);
+    LuaHelper::TableWriteVal("label", pusLabel);
+    LuaHelper::TableWriteVal("data", iData);
+    lua_rawseti(LuaHelper::mState, -2, iIndex);
+}
+
+int Lua_Callbacks::ScriptCB_GetDisplayOptions(lua_State* L)
+{
+    static bool sBuiltLogged = false;
+    if (!sBuiltLogged)
+    {
+        sBuiltLogged = true;
+        LOG(LogRender, Inform, "OPENSWBF2 DISPLAY menu options built adapters=%u",
+            RedRenderer::pcGetAdapterCount());
+    }
+
+    PlayerProfile::tProfile* pProfile = PlayerProfile::GetCurProfile();
+    if (!pProfile)
+    {
+        return 0;
+    }
+    const PlayerProfile::tPCOpt& rPC = pProfile->mPCOptions;
+    const DisplayCfg::DisplaySettings& rDisplay = DisplayCfg::gDisplay;
+
+    unsigned int uiResX = rPC.mResolutionX;
+    unsigned int uiResY = rPC.mResolutionY;
+    if (lua_gettop(LuaHelper::mState) == 2 && lua_isnumber(LuaHelper::mState, 1)
+        && lua_isnumber(LuaHelper::mState, 2))
+    {
+        unsigned int uiArgX = 0;
+        unsigned int uiArgY = 0;
+        if (ReadMenuSize(1, uiArgX) && ReadMenuSize(2, uiArgY))
+        {
+            uiResX = uiArgX;
+            uiResY = uiArgY;
+        }
+    }
+
+    const unsigned int uiRunning = RedRenderer::pcGetRunningAdapter();
+    unsigned int uiNextAdapter = uiRunning;
+    if (DisplayCfg::gCliDisplay.uiSet & DisplayCfg::kAdapter)
+    {
+        uiNextAdapter = DisplayCfg::gCliDisplay.uiAdapter;
+    }
+    else if (DisplayCfg::gIniDisplay.uiSet & DisplayCfg::kAdapter)
+    {
+        uiNextAdapter = DisplayCfg::gIniDisplay.uiAdapter;
+    }
+
+    const DisplayLogic::DisplayMode eMode =
+        DisplayLogic::ResolveMode(rDisplay.bBorderless, pcWindowed, rPC.mWindowed != 0);
+    const unsigned int uiVsync = DisplayLogic::EffectiveVsync(
+        (rDisplay.uiSet & DisplayCfg::kVsync) != 0, rDisplay.uiVsync, rPC.mVSync != 0);
+
+    lua_newtable(LuaHelper::mState);
+    LuaHelper::TableWriteVal("mode", (int)eMode + 1);
+    LuaHelper::TableWriteVal("adapter", (int)uiNextAdapter + 1);
+    LuaHelper::TableWriteVal("running", (int)uiRunning + 1);
+    LuaHelper::TableWriteVal("clirefresh", (rDisplay.uiCliMask & DisplayCfg::kRefresh) ? (int)rDisplay.uiRefresh : 0);
+    LuaHelper::TableWriteVal("vsync", (int)uiVsync + 1);
+    LuaHelper::TableWriteVal("fps", (int)rDisplay.uiFps);
+    LuaHelper::TableWriteVal("futureframes", rDisplay.bNoWaitQuery ? 2 : 1);
+    LuaHelper::TableWriteVal("cliMask", (int)rDisplay.uiCliMask);
+
+    unsigned short usLabel[256];
+
+    lua_pushstring(LuaHelper::mState, "adapters");
+    lua_newtable(LuaHelper::mState);
+    const unsigned int uiAdapters = RedRenderer::pcGetAdapterCount();
+    if (uiAdapters == 0)
+    {
+        PblUnicode::usnprintf(usLabel, 255, "Monitor 1");
+        usLabel[255] = 0;
+        AddDisplayEntry(1, usLabel, 0);
+    }
+    for (unsigned int i = 0; i < uiAdapters; ++i)
+    {
+        char acName[128];
+        if (!RedRenderer::pcGetAdapterLabel(i, acName, sizeof(acName)))
+        {
+            _snprintf(acName, sizeof(acName), "Monitor %d", (int)i + 1);
+        }
+        acName[sizeof(acName) - 1] = '\0';
+        unsigned int uiLen = 0;
+        while (uiLen < 255 && acName[uiLen] != '\0')
+        {
+            usLabel[uiLen] = (unsigned char)acName[uiLen];
+            ++uiLen;
+        }
+        usLabel[uiLen] = 0;
+        AddDisplayEntry((int)i + 1, usLabel, (int)i);
+    }
+    lua_rawset(LuaHelper::mState, -3);
+
+    unsigned int auiRates[64];
+    unsigned int uiRates = 0;
+    unsigned int uiAll = RedRenderer::pcGetValidDisplayModes(uiRunning, 0, 0, 0, 0);
+    DisplayLogic::DisplayModeRec* pAll = uiAll ? new DisplayLogic::DisplayModeRec[uiAll] : 0;
+    if (pAll)
+    {
+        unsigned int uiFilled = RedRenderer::pcGetValidDisplayModes(uiRunning, pAll, uiAll, 0, 0);
+        if (uiFilled < uiAll)
+        {
+            uiAll = uiFilled;
+        }
+        uiRates = DisplayLogic::RefreshRates(pAll, uiAll, uiResX, uiResY, auiRates, 64);
+    }
+    delete[] pAll;
+    if (uiRates > 64)
+    {
+        uiRates = 64;
+    }
+
+    lua_pushstring(LuaHelper::mState, "refreshes");
+    lua_newtable(LuaHelper::mState);
+    PblUnicode::usnprintf(usLabel, 255, "Default");
+    usLabel[255] = 0;
+    AddDisplayEntry(1, usLabel, 0);
+    for (unsigned int i = 0; i < uiRates; ++i)
+    {
+        PblUnicode::usnprintf(usLabel, 255, "%d Hz", (int)auiRates[i]);
+        usLabel[255] = 0;
+        AddDisplayEntry((int)i + 2, usLabel, (int)auiRates[i]);
+    }
+    lua_rawset(LuaHelper::mState, -3);
+
+    unsigned int auiCaps[16];
+    unsigned int uiCaps = DisplayLogic::FrameCapList(rDisplay.uiFps, auiCaps, 16);
+    if (uiCaps > 16)
+    {
+        uiCaps = 16;
+    }
+
+    lua_pushstring(LuaHelper::mState, "fpscaps");
+    lua_newtable(LuaHelper::mState);
+    for (unsigned int i = 0; i < uiCaps; ++i)
+    {
+        if (auiCaps[i] == 0)
+        {
+            PblUnicode::usnprintf(usLabel, 255, "Off");
+        }
+        else
+        {
+            PblUnicode::usnprintf(usLabel, 255, "%d", (int)auiCaps[i]);
+        }
+        usLabel[255] = 0;
+        AddDisplayEntry((int)i + 1, usLabel, (int)auiCaps[i]);
+    }
+    lua_rawset(LuaHelper::mState, -3);
+
+    return 1;
+}
+
+int Lua_Callbacks::ScriptCB_SetDisplayOptions(lua_State* L)
+{
+    bool bOk = lua_gettop(LuaHelper::mState) == 1 && lua_istable(LuaHelper::mState, 1);
+    unsigned int uiMode = 0;
+    unsigned int uiRefresh = 0;
+    unsigned int uiVsync = 0;
+    unsigned int uiFps = 0;
+    unsigned int uiFutureFrames = 0;
+    bOk = bOk && ReadMenuUInt(1, "mode", DisplayCfg::kModeMax + 1, uiMode) && uiMode >= 1;
+    bOk = bOk && ReadMenuUInt(1, "refresh", DisplayCfg::kRefreshMax, uiRefresh);
+    bOk = bOk && ReadMenuUInt(1, "vsync", DisplayCfg::kVsyncMax + 1, uiVsync) && uiVsync >= 1;
+    bOk = bOk && ReadMenuUInt(1, "fps", DisplayCfg::kFpsMax, uiFps);
+    bOk = bOk && ReadMenuUInt(1, "futureframes", 2, uiFutureFrames) && uiFutureFrames >= 1;
+
+    DisplayCfg::MenuFields kFields;
+    kFields.uiMode = bOk ? uiMode - 1 : 0;
+    kFields.uiRefresh = uiRefresh;
+    kFields.uiVsync = bOk ? uiVsync - 1 : 0;
+    kFields.uiFps = uiFps;
+    kFields.bWaitQuery = uiFutureFrames == 1;
+    bOk = bOk && DisplayCfg::ValidateMenu(kFields);
+
+    if (!bOk)
+    {
+        LOG(LogRender, Warning, "OPENSWBF2 DISPLAY menu options rejected");
+        lua_pushboolean(LuaHelper::mState, false);
+        return 1;
+    }
+    lua_pushboolean(LuaHelper::mState, PlayerProfile::ApplyMenuDisplay(kFields));
+    return 1;
+}
+
+int Lua_Callbacks::ScriptCB_PollDisplayConfirm(lua_State* L)
+{
+    unsigned int uiState = 0;
+    unsigned int uiSecondsLeft = 0;
+    unsigned int uiResult = 0;
+    PlayerProfile::PollDisplayConfirm(uiState, uiSecondsLeft, uiResult);
+    lua_pushnumber(LuaHelper::mState, (float)uiState);
+    lua_pushnumber(LuaHelper::mState, (float)uiSecondsLeft);
+    lua_pushnumber(LuaHelper::mState, (float)uiResult);
+    return 3;
+}
+
+int Lua_Callbacks::ScriptCB_EndDisplayConfirm(lua_State* L)
+{
+    if (lua_gettop(LuaHelper::mState) != 1 || !lua_isboolean(LuaHelper::mState, 1))
+    {
+        return 0;
+    }
+    PlayerProfile::EndDisplayConfirm(lua_toboolean(LuaHelper::mState, 1) != 0);
+    return 0;
+}
+
+int Lua_Callbacks::ScriptCB_MarkDisplayOptions(lua_State* L)
+{
+    PlayerProfile::MarkDisplay();
+    return 0;
+}
+
+int Lua_Callbacks::ScriptCB_RestoreDisplayOptions(lua_State* L)
+{
+    PlayerProfile::RestoreDisplay();
+    return 0;
+}
+
+int Lua_Callbacks::ScriptCB_SaveDisplayOptions(lua_State* L)
+{
+    lua_pushboolean(LuaHelper::mState, PlayerProfile::SaveDisplay());
     return 1;
 }

@@ -1,6 +1,9 @@
 #include "third_party/doctest/doctest.h"
 
 #include <d3d9.h>
+#include <string.h>
+
+#include <string>
 
 #include "testutil.h"
 #include "RedEngineFL/Graphics/PC/pcDisplayLogic.h"
@@ -109,18 +112,45 @@ TEST_CASE("display logic desktop default nothing fits" * doctest::test_suite("un
 TEST_CASE("display logic refresh windowed or unrequested" * doctest::test_suite("unit"))
 {
     DisplayModeRec a[] = {M(1920, 1080, 60), M(1920, 1080, 144)};
-    CHECK(PickRefresh(a, 2, 1920, 1080, 144, true) == 0);
-    CHECK(PickRefresh(a, 2, 1920, 1080, 0, false) == 0);
-    CHECK(PickRefresh(a, 2, 1920, 1080, 144, false) == 144);
-    CHECK(PickRefresh(a, 2, 1280, 720, 60, false) == 0);
+    CHECK(PickRefresh(a, 2, 1920, 1080, 144, true, 0) == 0);
+    CHECK(PickRefresh(a, 2, 1920, 1080, 0, false, 0) == 144);
+    CHECK(PickRefresh(a, 2, 1920, 1080, 144, false, 0) == 144);
+    CHECK(PickRefresh(a, 2, 1280, 720, 60, false, 0) == 0);
 }
 
 TEST_CASE("display logic refresh fallback" * doctest::test_suite("unit"))
 {
     DisplayModeRec a[] = {M(1920, 1080, 60), M(1920, 1080, 144), M(1280, 720, 240)};
     LogCapture capture;
-    CHECK(PickRefresh(a, 3, 1920, 1080, 100, false) == 144);
+    CHECK(PickRefresh(a, 3, 1920, 1080, 100, false, 0) == 144);
     CHECK(capture.Contains("display: refresh 100Hz not listed"));
+}
+
+TEST_CASE("display logic refresh desktop default" * doctest::test_suite("unit"))
+{
+    DisplayModeRec a[] = {M(1920, 1080, 60), M(1920, 1080, 144), M(1280, 720, 240)};
+    {
+        LogCapture capture;
+        CHECK(PickRefresh(a, 3, 1920, 1080, 0, true, 144) == 0);
+        CHECK(PickRefresh(a, 3, 1920, 1080, 144, true, 0) == 0);
+        CHECK(PickRefresh(a, 3, 1920, 1080, 0, false, 60) == 60);
+        CHECK(PickRefresh(a, 3, 1920, 1080, 0, false, 144) == 144);
+        CHECK(PickRefresh(a, 3, 1920, 1080, 0, false, 75) == 144);
+        CHECK(PickRefresh(a, 3, 1920, 1080, 0, false, 0) == 144);
+        CHECK(PickRefresh(a, 3, 2560, 1440, 0, false, 60) == 0);
+        CHECK(!capture.Contains("not listed"));
+    }
+    {
+        LogCapture capture;
+        CHECK(PickRefresh(a, 3, 1920, 1080, 144, false, 60) == 144);
+        CHECK(PickRefresh(a, 3, 1920, 1080, 144, false, 0) == 144);
+        CHECK(!capture.Contains("not listed"));
+    }
+    {
+        LogCapture capture;
+        CHECK(PickRefresh(a, 3, 1920, 1080, 100, false, 60) == 144);
+        CHECK(capture.Contains("display: refresh 100Hz not listed"));
+    }
 }
 
 TEST_CASE("display logic adapter name beats ordinal" * doctest::test_suite("unit"))
@@ -615,6 +645,53 @@ TEST_CASE("display logic shell size policy" * doctest::test_suite("unit"))
     CHECK(s.uiClientH == 1440);
 }
 
+TEST_CASE("display logic shell stretch plan" * doctest::test_suite("unit"))
+{
+    ShellStretch s = ShellStretchPlan(kModeWindowed, true, 800, 600, 1920, 1080, true);
+    CHECK(s.bActive);
+    CHECK(s.bLinear);
+
+    s = ShellStretchPlan(kModeBorderless, true, 800, 600, 2560, 1440, false);
+    CHECK(s.bActive);
+    CHECK_FALSE(s.bLinear);
+
+    s = ShellStretchPlan(kModeWindowed, true, 640, 480, 800, 480, true);
+    CHECK(s.bActive);
+
+    s = ShellStretchPlan(kModeFullscreen, true, 800, 600, 1920, 1080, true);
+    CHECK_FALSE(s.bActive);
+    CHECK_FALSE(s.bLinear);
+
+    s = ShellStretchPlan(kModeWindowed, false, 800, 600, 1920, 1080, true);
+    CHECK_FALSE(s.bActive);
+    CHECK_FALSE(s.bLinear);
+
+    s = ShellStretchPlan(kModeBorderless, false, 800, 600, 2560, 1440, true);
+    CHECK_FALSE(s.bActive);
+
+    s = ShellStretchPlan(kModeWindowed, true, 800, 600, 800, 600, true);
+    CHECK_FALSE(s.bActive);
+    CHECK_FALSE(s.bLinear);
+
+    s = ShellStretchPlan(kModeWindowed, true, 0, 600, 1920, 1080, true);
+    CHECK_FALSE(s.bActive);
+    s = ShellStretchPlan(kModeWindowed, true, 800, 0, 1920, 1080, true);
+    CHECK_FALSE(s.bActive);
+    s = ShellStretchPlan(kModeWindowed, true, 800, 600, 0, 1080, true);
+    CHECK_FALSE(s.bActive);
+    s = ShellStretchPlan(kModeBorderless, true, 800, 600, 2560, 0, true);
+    CHECK_FALSE(s.bActive);
+
+    s = ShellStretchPlan(kModeWindowed, true, 800, 600, kMaxDim + 1, 1080, true);
+    CHECK_FALSE(s.bActive);
+    s = ShellStretchPlan(kModeWindowed, true, 800, 600, 1920, kMaxDim + 1, true);
+    CHECK_FALSE(s.bActive);
+    s = ShellStretchPlan(kModeWindowed, true, kMaxDim + 1, 600, 1920, 1080, true);
+    CHECK_FALSE(s.bActive);
+    s = ShellStretchPlan(kModeWindowed, true, 800, 600, kMaxDim, kMaxDim, true);
+    CHECK(s.bActive);
+}
+
 TEST_CASE("display logic apply same params" * doctest::test_suite("unit"))
 {
     DisplayRec a = {800, 600, true, 0, 0, 1, 60, kModeWindowed, 800, 600};
@@ -898,4 +975,379 @@ TEST_CASE("display logic gamma pass runs" * doctest::test_suite("unit"))
     CHECK_FALSE(GammaPassRuns(kGammaPass, true, false, true));
     CHECK_FALSE(GammaPassRuns(kGammaPass, false, true, true));
     CHECK_FALSE(GammaPassRuns(kGammaPass, false, false, false));
+}
+
+TEST_CASE("display logic legacy flags" * doctest::test_suite("unit"))
+{
+    LegacyFlags f = LegacyFlagsFor(kModeFullscreen, 0);
+    CHECK_FALSE(f.bWindowed);
+    CHECK_FALSE(f.bVsync);
+    f = LegacyFlagsFor(kModeWindowed, 1);
+    CHECK(f.bWindowed);
+    CHECK(f.bVsync);
+    f = LegacyFlagsFor(kModeBorderless, 2);
+    CHECK_FALSE(f.bWindowed);
+    CHECK(f.bVsync);
+    f = LegacyFlagsFor(kModeBorderless, 0);
+    CHECK_FALSE(f.bWindowed);
+    CHECK_FALSE(f.bVsync);
+}
+
+TEST_CASE("display logic frame cap list" * doctest::test_suite("unit"))
+{
+    unsigned int out[12];
+    const unsigned int base[] = {0, 30, 60, 75, 120, 144, 165, 240};
+    REQUIRE(FrameCapList(0, out, 12) == 8);
+    for (unsigned int i = 0; i < 8; i++)
+    {
+        CHECK(out[i] == base[i]);
+    }
+    const unsigned int with80[] = {0, 30, 60, 75, 80, 120, 144, 165, 240};
+    REQUIRE(FrameCapList(80, out, 12) == 9);
+    for (unsigned int i = 0; i < 9; i++)
+    {
+        CHECK(out[i] == with80[i]);
+    }
+    CHECK(FrameCapList(60, out, 12) == 8);
+    CHECK(FrameCapList(100, out, 12) == 9);
+    CHECK(out[4] == 100);
+    CHECK(out[5] == 120);
+    REQUIRE(FrameCapList(1000, out, 12) == 9);
+    CHECK(out[7] == 240);
+    CHECK(out[8] == 1000);
+    unsigned int capped[4] = {7, 7, 7, 7};
+    CHECK(FrameCapList(80, capped, 3) == 9);
+    CHECK(capped[0] == 0);
+    CHECK(capped[2] == 60);
+    CHECK(capped[3] == 7);
+    CHECK(FrameCapList(80, 0, 0) == 9);
+    CHECK(FrameCapList(0, 0, 0) == 8);
+}
+
+TEST_CASE("display logic monitor label" * doctest::test_suite("unit"))
+{
+    CHECK(DisplayNumberFromDeviceName("\\\\.\\DISPLAY2") == 2);
+    CHECK(DisplayNumberFromDeviceName("\\\\.\\DISPLAY12") == 12);
+    CHECK(DisplayNumberFromDeviceName(0) == 0);
+    CHECK(DisplayNumberFromDeviceName("") == 0);
+    CHECK(DisplayNumberFromDeviceName("\\\\.\\DISPLAY") == 0);
+    CHECK(DisplayNumberFromDeviceName("\\\\.\\DISPLAY0") == 0);
+    CHECK(DisplayNumberFromDeviceName("\\\\.\\DISPLAY1234") == 0);
+    char buf[64];
+    REQUIRE(MonitorLabel(1, 2, 2560, 1440, buf, 64));
+    CHECK(std::string(buf) == "Display 2 (2560x1440)");
+    REQUIRE(MonitorLabel(0, 2, 0, 0, buf, 64));
+    CHECK(std::string(buf) == "Display 2");
+    REQUIRE(MonitorLabel(0, 0, 1920, 1080, buf, 64));
+    CHECK(std::string(buf) == "Monitor 1 (1920x1080)");
+    REQUIRE(MonitorLabel(3, 0, 0, 0, buf, 64));
+    CHECK(std::string(buf) == "Monitor 4");
+    REQUIRE(MonitorLabel(0, 1, kMaxDim + 1, 1080, buf, 64));
+    CHECK(std::string(buf) == "Display 1");
+    REQUIRE(MonitorLabel(0, 1, 1920, kMaxDim + 1, buf, 64));
+    CHECK(std::string(buf) == "Display 1");
+    REQUIRE(MonitorLabel(0, 999, 0xFFFFFFFFu, 0xFFFFFFFFu, buf, 64));
+    CHECK(strlen(buf) <= 31);
+    char acSmall[9];
+    memset(acSmall, 'z', sizeof(acSmall));
+    REQUIRE(MonitorLabel(1, 2, 2560, 1440, acSmall, 8));
+    CHECK(strlen(acSmall) == 7);
+    CHECK(std::string(acSmall) == "Display");
+    CHECK(acSmall[8] == 'z');
+    CHECK_FALSE(MonitorLabel(0, 1, 1920, 1080, 0, 64));
+    CHECK_FALSE(MonitorLabel(0, 1, 1920, 1080, buf, 0));
+}
+
+TEST_CASE("display logic multisample list" * doctest::test_suite("unit"))
+{
+    MultisampleEntry out[kMultisampleTypes + 1];
+    REQUIRE(MultisampleList(0, out, kMultisampleTypes) == 1);
+    CHECK(out[0].uiType == 0);
+    CHECK(out[0].uiQuality == 0);
+
+    unsigned int levels[kMultisampleTypes];
+    memset(levels, 0, sizeof(levels));
+    levels[2] = 1;
+    levels[4] = 2;
+    levels[1] = 5;
+    REQUIRE(MultisampleList(levels, out, kMultisampleTypes) == 4);
+    CHECK(out[0].uiType == 0);
+    CHECK(out[0].uiQuality == 0);
+    CHECK(out[1].uiType == 2);
+    CHECK(out[1].uiQuality == 0);
+    CHECK(out[2].uiType == 4);
+    CHECK(out[2].uiQuality == 0);
+    CHECK(out[3].uiType == 4);
+    CHECK(out[3].uiQuality == 1);
+
+    for (unsigned int i = 0; i < kMultisampleTypes; i++)
+    {
+        levels[i] = (i >= 2) ? 3 : 0;
+    }
+    out[kMultisampleTypes].uiType = 0xDEADBEEFu;
+    out[kMultisampleTypes].uiQuality = 0xDEADBEEFu;
+    REQUIRE(MultisampleList(levels, out, kMultisampleTypes) == kMultisampleTypes);
+    CHECK(out[0].uiType == 0);
+    CHECK(out[0].uiQuality == 0);
+    CHECK(out[1].uiType == 2);
+    CHECK(out[kMultisampleTypes].uiType == 0xDEADBEEFu);
+    CHECK(out[kMultisampleTypes].uiQuality == 0xDEADBEEFu);
+    for (unsigned int i = 1; i < kMultisampleTypes; i++)
+    {
+        CHECK(out[i].uiType != 1);
+    }
+    CHECK(MultisampleList(levels, out, 0) == 0);
+    CHECK(MultisampleList(levels, 0, kMultisampleTypes) == 0);
+
+    FakeMultisampleLevels(levels);
+    REQUIRE(MultisampleList(levels, out, kMultisampleTypes) == 4);
+    const unsigned int types[] = {0, 2, 4, 8};
+    for (unsigned int i = 0; i < 4; i++)
+    {
+        CHECK(out[i].uiType == types[i]);
+        CHECK(out[i].uiQuality == 0);
+    }
+
+    char buf[32];
+    REQUIRE(MultisampleLabel(4, 0, buf, sizeof(buf)));
+    CHECK(std::string(buf) == "4x");
+    REQUIRE(MultisampleLabel(8, 1, buf, sizeof(buf)));
+    CHECK(std::string(buf) == "8x Q2");
+    REQUIRE(MultisampleLabel(0, 0, buf, sizeof(buf)));
+    CHECK(std::string(buf) == "Off");
+    char acSmall[3];
+    REQUIRE(MultisampleLabel(16, 3, acSmall, sizeof(acSmall)));
+    CHECK(std::string(acSmall) == "16");
+    CHECK_FALSE(MultisampleLabel(4, 0, 0, 8));
+    CHECK_FALSE(MultisampleLabel(4, 0, buf, 0));
+}
+
+TEST_CASE("display logic effective fps cap" * doctest::test_suite("unit"))
+{
+    CHECK(EffectiveFpsCap(80, false) == 80);
+    CHECK(EffectiveFpsCap(80, true) == 0);
+    CHECK(EffectiveFpsCap(0, false) == 0);
+}
+
+TEST_CASE("display logic present watch" * doctest::test_suite("unit"))
+{
+    PresentWatch w;
+    memset(&w, 0xFF, sizeof(w));
+    PresentWatchReset(w);
+    CHECK_FALSE(w.bThrottled);
+    CHECK_FALSE(w.bOverridden);
+    CHECK(w.uiFrames == 0);
+
+    PresentWatchStep(w, true, true, true, 1.0 / 60, 60);
+    CHECK(w.bThrottled);
+
+    PresentWatchReset(w);
+    for (unsigned int i = 0; i < 120; i++)
+    {
+        PresentWatchStep(w, true, true, true, 1.0 / 60, 60);
+        CHECK(w.bThrottled);
+    }
+    CHECK_FALSE(w.bOverridden);
+
+    PresentWatchReset(w);
+    for (unsigned int i = 0; i < 60; i++)
+    {
+        PresentWatchStep(w, true, true, true, 1.0 / 300, 60);
+    }
+    CHECK(w.bOverridden);
+    CHECK_FALSE(w.bThrottled);
+    for (unsigned int i = 0; i < 120; i++)
+    {
+        PresentWatchStep(w, true, true, true, 1.0 / 60, 60);
+    }
+    CHECK_FALSE(w.bThrottled);
+    CHECK(w.bOverridden);
+    PresentWatchReset(w);
+    CHECK_FALSE(w.bOverridden);
+    PresentWatchStep(w, true, true, true, 1.0 / 60, 60);
+    CHECK(w.bThrottled);
+
+    PresentWatchReset(w);
+    for (unsigned int i = 0; i < 60; i++)
+    {
+        PresentWatchStep(w, true, true, true, 1.0 / 300, 144);
+    }
+    CHECK(w.bOverridden);
+    PresentWatchReset(w);
+    for (unsigned int i = 0; i < 60; i++)
+    {
+        PresentWatchStep(w, true, true, true, 1.0 / 144, 144);
+    }
+    CHECK_FALSE(w.bOverridden);
+    CHECK(w.bThrottled);
+
+    PresentWatchReset(w);
+    for (unsigned int i = 0; i < 60; i++)
+    {
+        PresentWatchStep(w, true, true, true, 1.0 / 144, 0);
+    }
+    CHECK(w.bOverridden);
+    PresentWatchReset(w);
+    for (unsigned int i = 0; i < 60; i++)
+    {
+        PresentWatchStep(w, true, true, true, 1.0 / 144, 5000);
+    }
+    CHECK(w.bOverridden);
+
+    for (unsigned int k = 0; k < 3; k++)
+    {
+        PresentWatchReset(w);
+        for (unsigned int i = 0; i < 59; i++)
+        {
+            PresentWatchStep(w, true, true, true, 1.0 / 300, 60);
+        }
+        CHECK(w.uiFrames == 59);
+        PresentWatchStep(w, k != 0, k != 1, k != 2, 1.0 / 300, 60);
+        CHECK_FALSE(w.bThrottled);
+        CHECK_FALSE(w.bOverridden);
+        CHECK(w.uiFrames == 0);
+        CHECK(w.dSum == 0.0);
+        PresentWatchStep(w, true, true, true, 1.0 / 300, 60);
+        CHECK(w.bThrottled);
+        CHECK_FALSE(w.bOverridden);
+    }
+
+    PresentWatchReset(w);
+    PresentWatchStep(w, true, true, true, 1.0 / 60, 60);
+    REQUIRE(w.bThrottled);
+    CHECK(PresentThrottledNow(w, true, 0.01));
+    CHECK_FALSE(PresentThrottledNow(w, false, 0.01));
+    CHECK_FALSE(PresentThrottledNow(w, true, 0.5));
+    PresentWatchReset(w);
+    CHECK_FALSE(PresentThrottledNow(w, true, 0.01));
+    CHECK_FALSE(PresentThrottledNow(w, false, 0.01));
+    CHECK_FALSE(PresentThrottledNow(w, true, 0.5));
+}
+
+TEST_CASE("display logic refresh rates" * doctest::test_suite("unit"))
+{
+    DisplayModeRec src[] = {M(1920, 1080, 144), M(1280, 720, 60), M(1920, 1080, 60),
+                            M(1920, 1080, 144), M(1920, 1080, 120), M(1920, 1080, 0)};
+    unsigned int out[8] = {7, 7, 7, 7, 7, 7, 7, 7};
+    REQUIRE(RefreshRates(src, 6, 1920, 1080, out, 8) == 3);
+    CHECK(out[0] == 60);
+    CHECK(out[1] == 120);
+    CHECK(out[2] == 144);
+    CHECK(out[3] == 7);
+    CHECK(RefreshRates(src, 6, 1280, 720, out, 8) == 1);
+    CHECK(out[0] == 60);
+    CHECK(RefreshRates(src, 6, 2560, 1440, out, 8) == 0);
+    unsigned int capped[3] = {7, 7, 7};
+    CHECK(RefreshRates(src, 6, 1920, 1080, capped, 2) == 3);
+    CHECK(capped[0] == 60);
+    CHECK(capped[1] == 120);
+    CHECK(capped[2] == 7);
+    CHECK(RefreshRates(src, 6, 1920, 1080, 0, 0) == 3);
+}
+
+TEST_CASE("display logic confirm needed" * doctest::test_suite("unit"))
+{
+    DisplayRec a = {1920, 1080, false, 0, 0, 1, 60, kModeFullscreen, 1920, 1080};
+    DisplayRec b = a;
+    CHECK_FALSE(ConfirmNeeded(a, b));
+    b.uiInterval = 0x80000000u;
+    CHECK_FALSE(ConfirmNeeded(a, b));
+    b = a;
+    b.uiMsType = 4;
+    b.uiMsQuality = 1;
+    CHECK_FALSE(ConfirmNeeded(a, b));
+    b = a;
+    b.uiW = 1280;
+    CHECK(ConfirmNeeded(a, b));
+    b = a;
+    b.uiH = 720;
+    CHECK(ConfirmNeeded(a, b));
+    b = a;
+    b.eMode = kModeBorderless;
+    CHECK(ConfirmNeeded(a, b));
+    b = a;
+    b.uiRefresh = 144;
+    CHECK(ConfirmNeeded(a, b));
+    b = a;
+    b.uiClientW = 1280;
+    CHECK(ConfirmNeeded(a, b));
+    b = a;
+    b.uiClientH = 720;
+    CHECK(ConfirmNeeded(a, b));
+}
+
+TEST_CASE("display logic confirm phase" * doctest::test_suite("unit"))
+{
+    CHECK(kConfirmMs == 15000);
+
+    ConfirmStep s = ConfirmPhaseStep(kConfirmNone, kConfirmEvArm, 0);
+    CHECK(s.ePhase == kConfirmAwaitPresent);
+    CHECK(s.eAction == kConfirmActNone);
+
+    s = ConfirmPhaseStep(kConfirmAwaitPresent, kConfirmEvArm, 500);
+    CHECK(s.ePhase == kConfirmAwaitPresent);
+    CHECK(s.eAction == kConfirmActNone);
+
+    s = ConfirmPhaseStep(kConfirmCounting, kConfirmEvArm, 500);
+    CHECK(s.ePhase == kConfirmAwaitPresent);
+    CHECK(s.eAction == kConfirmActNone);
+
+    s = ConfirmPhaseStep(kConfirmAwaitPresent, kConfirmEvApplied, 0);
+    CHECK(s.ePhase == kConfirmCounting);
+    CHECK(s.eAction == kConfirmActStart);
+
+    s = ConfirmPhaseStep(kConfirmAwaitPresent, kConfirmEvAppliedPlain, 0);
+    CHECK(s.ePhase == kConfirmNone);
+    CHECK(s.eAction == kConfirmActClear);
+
+    s = ConfirmPhaseStep(kConfirmAwaitPresent, kConfirmEvApplyFailed, 0);
+    CHECK(s.ePhase == kConfirmNone);
+    CHECK(s.eAction == kConfirmActClear);
+
+    s = ConfirmPhaseStep(kConfirmCounting, kConfirmEvApplyFailed, 0);
+    CHECK(s.ePhase == kConfirmNone);
+    CHECK(s.eAction == kConfirmActClear);
+
+    s = ConfirmPhaseStep(kConfirmAwaitPresent, kConfirmEvTick, 999999);
+    CHECK(s.ePhase == kConfirmAwaitPresent);
+    CHECK(s.eAction == kConfirmActNone);
+
+    s = ConfirmPhaseStep(kConfirmCounting, kConfirmEvTick, 14999);
+    CHECK(s.ePhase == kConfirmCounting);
+    CHECK(s.eAction == kConfirmActNone);
+
+    s = ConfirmPhaseStep(kConfirmCounting, kConfirmEvTick, 15000);
+    CHECK(s.ePhase == kConfirmNone);
+    CHECK(s.eAction == kConfirmActRevert);
+
+    s = ConfirmPhaseStep(kConfirmCounting, kConfirmEvTick, 0xFFFFFFFFu);
+    CHECK(s.ePhase == kConfirmNone);
+    CHECK(s.eAction == kConfirmActRevert);
+
+    s = ConfirmPhaseStep(kConfirmCounting, kConfirmEvKeep, 14999);
+    CHECK(s.ePhase == kConfirmNone);
+    CHECK(s.eAction == kConfirmActKeep);
+
+    s = ConfirmPhaseStep(kConfirmCounting, kConfirmEvRevert, 0);
+    CHECK(s.ePhase == kConfirmNone);
+    CHECK(s.eAction == kConfirmActRevert);
+
+    s = ConfirmPhaseStep(kConfirmAwaitPresent, kConfirmEvKeep, 0);
+    CHECK(s.ePhase == kConfirmAwaitPresent);
+    CHECK(s.eAction == kConfirmActNone);
+
+    s = ConfirmPhaseStep(kConfirmAwaitPresent, kConfirmEvRevert, 0);
+    CHECK(s.ePhase == kConfirmAwaitPresent);
+    CHECK(s.eAction == kConfirmActNone);
+
+    for (int e = kConfirmEvArm; e <= kConfirmEvTick; e++)
+    {
+        if (e == kConfirmEvArm)
+        {
+            continue;
+        }
+        s = ConfirmPhaseStep(kConfirmNone, (ConfirmEvent)e, 0xFFFFFFFFu);
+        CHECK(s.ePhase == kConfirmNone);
+        CHECK(s.eAction == kConfirmActNone);
+    }
 }

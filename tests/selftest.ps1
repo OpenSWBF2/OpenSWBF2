@@ -128,7 +128,7 @@ elseif (-not $byName['tat3c_con'].Expect.LogRx -or $byName['tat3c_con'].Expect.C
 elseif ('FATAL: exception 0xC0000005 at 0x658FA553 (d3dx9_43.dll+0x1BA553) build 6ADE5B7C1C4C000' -notmatch $byName['tat3c_con'].Expect.LogRx) { $why = 'Fatal LogRx does not match the recorded tat3 crash' }
 elseif ($byName['bar1c_con'].Expect.Class -ne 'Pass' -or $byName['quux1c_con'].Expect.Class -ne 'Pass') { $why = 'missing or Pass class must be Pass' }
 elseif ($rejected -ne 2) { $why = 'unknown and GsFailure classes must be rejected' }
-elseif (@($allCases | Where-Object { $_.Name -like 'crash-*' }).Count -ne 29 -or -not $byName.ContainsKey('fatal-init') -or $byName['dedicated'].Timeout -ne 0) { $why = 'dedicated or crash cases changed' }
+elseif (@($allCases | Where-Object { $_.Name -like 'crash-*' }).Count -ne 32 -or -not $byName.ContainsKey('fatal-init') -or $byName['dedicated'].Timeout -ne 0) { $why = 'dedicated or crash cases changed' }
 if ($why) { $failed++; Write-Host "FAILED ${n}: all-missions parsing: $why" }
 else { Write-Host "OK $n all-missions parsing" }
 $n++

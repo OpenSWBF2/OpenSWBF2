@@ -12,6 +12,7 @@
 #include "pcCrash.h"
 #include "RedEngineFL/Application/pc/pcFrameLimiter.h"
 #include "RedEngineFL/Graphics/PC/pcDisplaySettings.h"
+#include "RedEngineFL/Graphics/PC/pcDisplayLogic.h"
 #include "CommandLine.h"
 #include "GameLoop.h"
 #include "BonusManager.h"
@@ -500,7 +501,24 @@ void GameState::UpdateTime()
 
         FrameLimiter::FrameOps ops;
         FrameLimiter::FramePlan plan;
-        FrameLimiter::BindReal(ops, plan, DisplayCfg::gDisplay.uiFps);
+        static bool sbCapSuppressed = false;
+        bool bThrottled = RedRenderer::pcPresentThrottles();
+        bool bSuppressed = bThrottled && DisplayCfg::gDisplay.uiFps != 0;
+        if (bSuppressed != sbCapSuppressed)
+        {
+            sbCapSuppressed = bSuppressed;
+            if (bSuppressed)
+            {
+                LOG(LogRender, Inform, "OPENSWBF2 PACING vsync on, fps cap %u not applied",
+                    DisplayCfg::gDisplay.uiFps);
+            }
+            else
+            {
+                LOG(LogRender, Inform, "OPENSWBF2 PACING fps cap %u applied",
+                    DisplayCfg::gDisplay.uiFps);
+            }
+        }
+        FrameLimiter::BindReal(ops, plan, DisplayLogic::EffectiveFpsCap(DisplayCfg::gDisplay.uiFps, bThrottled));
         __int64 iNowTicks = 0;
         iDeltaTicks = FrameLimiter::Pace(ops, plan, oldPerfCount.QuadPart, iNowTicks);
         perfCount.QuadPart = iNowTicks;

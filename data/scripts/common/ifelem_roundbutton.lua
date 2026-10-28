@@ -328,6 +328,7 @@ function NewPCIF_Basic_Button(Template)
 		ustring = Template.ustring,
 		bgoffsetx = Template.bgoffsetx,
 		bgexpandx = 0,
+		textbreak = Template.textbreak,
 	} -- end of label
 	
 	temp.label.bHotspot = 1
@@ -364,8 +365,12 @@ function NewPCIF_Basic_Button(Template)
 	if( Template.bDropDownBox ) then
 		temp.label.bgright = "BF2_dropdown_arrow"
 	end
-	
+
 	-- Make a button from this expanded template
-	return NewIFButton(temp)
+	local button = NewIFButton(temp)
+	if(Template.textw) then
+		button.label.textw = Template.textw
+	end
+	return button
 end
 

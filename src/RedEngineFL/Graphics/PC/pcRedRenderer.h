@@ -768,6 +768,11 @@ struct DisplayRequestTag
     bool vsync;
     D3DMULTISAMPLE_TYPE ms;
     unsigned long msq;
+    bool bBorderless;
+    unsigned int uiRefresh;
+    unsigned int uiVsync;
+    bool bVsyncSet;
+    bool bConfirm;
 };
 
 struct RenderItem;
@@ -1205,8 +1210,21 @@ public:
 
     static bool pcRequestAdapter(unsigned int uiIndex);
 
+    static unsigned int pcGetAdapterCount();
+
+    static bool pcGetAdapterLabel(unsigned int uiIndex, char* pcOut, unsigned int uiSize);
+
+    static unsigned int pcGetRunningAdapter();
+
+    static void pcSetWaitForFrameQuery(bool bWait);
+
     static bool pcMultiSampleSupported(unsigned int uiAdapter, D3DMULTISAMPLE_TYPE eType,
                                        unsigned long ulQuality, bool bWindowed);
+
+    static void pcGetMultiSampleLevels(unsigned int uiAdapter, bool bWindowed,
+                                       unsigned int* auiLevels);
+
+    static bool pcPresentThrottles();
 
     static void pcGetMaxTextureSize(unsigned int& uiW, unsigned int& uiH);
 
@@ -1222,9 +1240,13 @@ public:
 
     static void pcSetGammaRamp(const D3DGAMMARAMP& ramp);
 
+    static void pcSetShellActive(bool bShell);
+
     static void pcStageRequestTag(const DisplayRequestTag& kTag);
 
     static bool pcApplyPending();
+
+    static bool pcPendingConfirm();
 
     static bool pcTakeApplyNotice(unsigned int& uiKind, DisplayRequestTag& rTag);
 

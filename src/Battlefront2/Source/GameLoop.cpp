@@ -1227,6 +1227,9 @@ void Update(float fDeltaTime, float fSystemDeltaTime)
     {
         sbRunningLogged = true;
         LOG(LogSim, Inform, "OPENSWBF2 MISSION RUNNING %s", mMissionScript);
+    }
+    if (sbRunningLogged)
+    {
         pcCrash::RunMissionCrashTest();
     }
 

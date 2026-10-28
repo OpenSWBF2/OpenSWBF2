@@ -8,7 +8,7 @@ end
 function Form_ListBox_CreateItem(layout)
     -- Make a coordinate system pegged to the top-left of where the cursor would go.
 	local Temp = NewIFContainer { x = layout.x - 0.5 * layout.width, y=layout.y - ScriptCB_GetFontHeight(layout.listboxlayout.font) * 0.5}
-	Temp.label = NewIFText{ x = 10, y = 0, halign = layout.listboxlayout.halign, font = layout.listboxlayout.font, textw = layout.width, flashy=0}
+	Temp.label = NewIFText{ x = 10, y = 0, halign = layout.listboxlayout.halign, font = layout.listboxlayout.font, textw = layout.width - 10, textbreak = "none", flashy=0}
 	return Temp
 end
 
@@ -57,6 +57,19 @@ function Form_UpdateElement(form, elementTag)
 
 	form.buttons[elementTag].hidden = form.elements[elementTag].hidden
 	form.text[elementTag].hidden = form.elements[elementTag].hidden
+
+	form.buttons[elementTag].bDimmed = form.elements[elementTag].locked
+	if(form.elements[elementTag].control == "dropdown") then
+		form.dropdowns[elementTag].button.bDimmed = form.elements[elementTag].locked
+	end
+	if(form.text[elementTag].bLockDimmed ~= form.elements[elementTag].locked) then
+		form.text[elementTag].bLockDimmed = form.elements[elementTag].locked
+		if(form.elements[elementTag].locked) then
+			IFObj_fnSetColor(form.text[elementTag], 110, 110, 110)
+		else
+			IFObj_fnSetColor(form.text[elementTag], 255, 255, 255)
+		end
+	end
 end
 
 function Form_UpdateAllElements(form)
@@ -309,6 +322,9 @@ function Form_InputAccept(this)
 	if(not curElement) then
 		return false
 	end
+	if(curElement.locked) then
+		return true
+	end
 
 	if(curElement.control == "dropdown") then
 		ScriptCB_SndPlaySound("shell_menu_ok")
@@ -558,6 +574,8 @@ function Form_CreateVertical(container, layout)
 			dropdown.button = NewPCDropDownButton {
 				x = Form_ListBox_Layout.width/2, y = form.buttons[layout.elements[i].tag].y,
 				btnw = Form_ListBox_Layout.width,
+				textw = Form_ListBox_Layout.width - 20,
+				textbreak = "none",
 				btnh = 15,
 				font = Form_ListBox_Layout.font,
 				halign = Form_ListBox_Layout.halign,

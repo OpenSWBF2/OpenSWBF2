@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <string.h>
 
 #include <d3d9.h>
@@ -109,12 +110,14 @@ void DesktopDefault(const DisplayModeRec* pList, unsigned int uiCount, unsigned 
 }
 
 unsigned int PickRefresh(const DisplayModeRec* pList, unsigned int uiCount, unsigned int uiW,
-                         unsigned int uiH, unsigned int uiRequested, bool bWindowed)
+                         unsigned int uiH, unsigned int uiRequested, bool bWindowed,
+                         unsigned int uiDesktopHz)
 {
-    if (bWindowed || uiRequested == 0)
+    if (bWindowed)
     {
         return 0;
     }
+    unsigned int uiWanted = uiRequested != 0 ? uiRequested : uiDesktopHz;
     unsigned int uiHighest = 0;
     for (unsigned int i = 0; i < uiCount; i++)
     {
@@ -122,9 +125,9 @@ unsigned int PickRefresh(const DisplayModeRec* pList, unsigned int uiCount, unsi
         {
             continue;
         }
-        if (pList[i].refresh == uiRequested)
+        if (uiWanted != 0 && pList[i].refresh == uiWanted)
         {
-            return uiRequested;
+            return uiWanted;
         }
         if (pList[i].refresh > uiHighest)
         {
@@ -135,8 +138,11 @@ unsigned int PickRefresh(const DisplayModeRec* pList, unsigned int uiCount, unsi
     {
         return 0;
     }
-    LOG(LogRender, Warning, "display: refresh %uHz not listed for %ux%u, using %uHz", uiRequested, uiW,
-        uiH, uiHighest);
+    if (uiRequested != 0)
+    {
+        LOG(LogRender, Warning, "display: refresh %uHz not listed for %ux%u, using %uHz", uiRequested,
+            uiW, uiH, uiHighest);
+    }
     return uiHighest;
 }
 
@@ -559,12 +565,339 @@ ShellSize ShellSizePolicy(DisplayMode m, bool bIsShell, unsigned int uiCliW, uns
     return out;
 }
 
+ShellStretch ShellStretchPlan(DisplayMode m, bool bIsShell, unsigned int uiBackW,
+                              unsigned int uiBackH, unsigned int uiClientW, unsigned int uiClientH,
+                              bool bLinearCaps)
+{
+    const bool bSizes = uiBackW >= 1 && uiBackW <= kMaxDim && uiBackH >= 1 && uiBackH <= kMaxDim &&
+                        uiClientW >= 1 && uiClientW <= kMaxDim && uiClientH >= 1 &&
+                        uiClientH <= kMaxDim;
+    ShellStretch out;
+    out.bActive = bIsShell && m != kModeFullscreen && bSizes &&
+                  (uiBackW != uiClientW || uiBackH != uiClientH);
+    out.bLinear = out.bActive && bLinearCaps;
+    return out;
+}
+
 bool SameDisplayParams(const DisplayRec& a, const DisplayRec& b)
 {
     return a.uiW == b.uiW && a.uiH == b.uiH && a.bWindowed == b.bWindowed &&
            a.uiMsType == b.uiMsType && a.uiMsQuality == b.uiMsQuality &&
            a.uiInterval == b.uiInterval && a.uiRefresh == b.uiRefresh && a.eMode == b.eMode &&
            a.uiClientW == b.uiClientW && a.uiClientH == b.uiClientH;
+}
+
+LegacyFlags LegacyFlagsFor(DisplayMode eMode, unsigned int uiVsync)
+{
+    LegacyFlags out;
+    out.bWindowed = eMode == kModeWindowed;
+    out.bVsync = uiVsync != 0;
+    return out;
+}
+
+static const unsigned int sFrameCaps[] = {0, 30, 60, 75, 120, 144, 165, 240};
+
+static void EmitCap(unsigned int uiValue, unsigned int* pOut, unsigned int uiOutCap,
+                    unsigned int& uiTotal)
+{
+    if (pOut && uiTotal < uiOutCap)
+    {
+        pOut[uiTotal] = uiValue;
+    }
+    uiTotal++;
+}
+
+unsigned int FrameCapList(unsigned int uiCurrent, unsigned int* pOut, unsigned int uiOutCap)
+{
+    const unsigned int uiBase = sizeof(sFrameCaps) / sizeof(sFrameCaps[0]);
+    bool bListed = false;
+    for (unsigned int i = 0; i < uiBase; i++)
+    {
+        if (sFrameCaps[i] == uiCurrent)
+        {
+            bListed = true;
+        }
+    }
+    bool bPending = !bListed;
+    unsigned int uiTotal = 0;
+    for (unsigned int i = 0; i < uiBase; i++)
+    {
+        if (bPending && uiCurrent < sFrameCaps[i])
+        {
+            EmitCap(uiCurrent, pOut, uiOutCap, uiTotal);
+            bPending = false;
+        }
+        EmitCap(sFrameCaps[i], pOut, uiOutCap, uiTotal);
+    }
+    if (bPending)
+    {
+        EmitCap(uiCurrent, pOut, uiOutCap, uiTotal);
+    }
+    return uiTotal;
+}
+
+unsigned int RefreshRates(const DisplayModeRec* pList, unsigned int uiCount, unsigned int uiW,
+                          unsigned int uiH, unsigned int* pOut, unsigned int uiOutCap)
+{
+    unsigned int auiRates[64];
+    unsigned int uiTotal = 0;
+    for (unsigned int i = 0; i < uiCount; i++)
+    {
+        const unsigned int uiRate = pList[i].refresh;
+        if (pList[i].w != uiW || pList[i].h != uiH || uiRate == 0)
+        {
+            continue;
+        }
+        unsigned int uiPos = 0;
+        while (uiPos < uiTotal && auiRates[uiPos] < uiRate)
+        {
+            uiPos++;
+        }
+        if ((uiPos < uiTotal && auiRates[uiPos] == uiRate) || uiTotal == 64)
+        {
+            continue;
+        }
+        for (unsigned int j = uiTotal; j > uiPos; j--)
+        {
+            auiRates[j] = auiRates[j - 1];
+        }
+        auiRates[uiPos] = uiRate;
+        uiTotal++;
+    }
+    for (unsigned int i = 0; pOut && i < uiTotal && i < uiOutCap; i++)
+    {
+        pOut[i] = auiRates[i];
+    }
+    return uiTotal;
+}
+
+unsigned int DisplayNumberFromDeviceName(const char* pcDevice)
+{
+    if (!pcDevice)
+    {
+        return 0;
+    }
+    const size_t uiLen = strlen(pcDevice);
+    size_t uiStart = uiLen;
+    while (uiStart > 0 && pcDevice[uiStart - 1] >= '0' && pcDevice[uiStart - 1] <= '9')
+    {
+        uiStart--;
+    }
+    const size_t uiDigits = uiLen - uiStart;
+    if (uiDigits < 1 || uiDigits > 3)
+    {
+        return 0;
+    }
+    unsigned int uiValue = 0;
+    for (size_t i = uiStart; i < uiLen; i++)
+    {
+        uiValue = uiValue * 10 + (unsigned int)(pcDevice[i] - '0');
+    }
+    return uiValue;
+}
+
+static bool CopyLabel(const char* pcLabel, char* pcOut, unsigned int uiSize)
+{
+    if (!pcOut || uiSize == 0)
+    {
+        return false;
+    }
+    unsigned int uiLen = 0;
+    while (pcLabel[uiLen] && uiLen + 1 < uiSize)
+    {
+        pcOut[uiLen] = pcLabel[uiLen];
+        uiLen++;
+    }
+    pcOut[uiLen] = 0;
+    return true;
+}
+
+bool MonitorLabel(unsigned int uiAdapter, unsigned int uiDisplay, unsigned int uiW,
+                  unsigned int uiH, char* pcOut, unsigned int uiSize)
+{
+    if (!pcOut || uiSize == 0)
+    {
+        return false;
+    }
+    char acBuf[32];
+    const bool bSize = uiW >= 1 && uiW <= kMaxDim && uiH >= 1 && uiH <= kMaxDim;
+    const bool bDisplay = uiDisplay != 0;
+    const unsigned int uiNumber = bDisplay ? uiDisplay : uiAdapter + 1;
+    const char* pcName = bDisplay ? "Display" : "Monitor";
+    if (bSize)
+    {
+        _snprintf(acBuf, sizeof(acBuf), "%s %u (%ux%u)", pcName, uiNumber, uiW, uiH);
+    }
+    else
+    {
+        _snprintf(acBuf, sizeof(acBuf), "%s %u", pcName, uiNumber);
+    }
+    acBuf[sizeof(acBuf) - 1] = 0;
+    return CopyLabel(acBuf, pcOut, uiSize);
+}
+
+unsigned int MultisampleList(const unsigned int* auiLevels, MultisampleEntry* pOut,
+                             unsigned int uiOutCap)
+{
+    if (!pOut || uiOutCap == 0)
+    {
+        return 0;
+    }
+    pOut[0].uiType = 0;
+    pOut[0].uiQuality = 0;
+    unsigned int uiTotal = 1;
+    if (!auiLevels)
+    {
+        return uiTotal;
+    }
+    for (unsigned int uiType = 2; uiType < kMultisampleTypes; uiType++)
+    {
+        for (unsigned int uiQ = 0; uiQ < auiLevels[uiType]; uiQ++)
+        {
+            if (uiTotal >= uiOutCap)
+            {
+                return uiTotal;
+            }
+            pOut[uiTotal].uiType = uiType;
+            pOut[uiTotal].uiQuality = uiQ;
+            uiTotal++;
+        }
+    }
+    return uiTotal;
+}
+
+bool MultisampleLabel(unsigned int uiType, unsigned int uiQuality, char* pcOut,
+                      unsigned int uiSize)
+{
+    if (!pcOut || uiSize == 0)
+    {
+        return false;
+    }
+    char acBuf[32];
+    if (uiType == 0)
+    {
+        _snprintf(acBuf, sizeof(acBuf), "Off");
+    }
+    else if (uiQuality == 0)
+    {
+        _snprintf(acBuf, sizeof(acBuf), "%ux", uiType);
+    }
+    else
+    {
+        _snprintf(acBuf, sizeof(acBuf), "%ux Q%u", uiType, uiQuality + 1);
+    }
+    acBuf[sizeof(acBuf) - 1] = 0;
+    return CopyLabel(acBuf, pcOut, uiSize);
+}
+
+void FakeMultisampleLevels(unsigned int* auiLevels)
+{
+    if (!auiLevels)
+    {
+        return;
+    }
+    for (unsigned int i = 0; i < kMultisampleTypes; i++)
+    {
+        auiLevels[i] = 0;
+    }
+    auiLevels[2] = 1;
+    auiLevels[4] = 1;
+    auiLevels[8] = 1;
+}
+
+unsigned int EffectiveFpsCap(unsigned int uiFps, bool bPresentThrottled)
+{
+    return bPresentThrottled ? 0 : uiFps;
+}
+
+void PresentWatchReset(PresentWatch& w)
+{
+    w.uiFrames = 0;
+    w.dSum = 0.0;
+    w.bOverridden = false;
+    w.bThrottled = false;
+}
+
+void PresentWatchStep(PresentWatch& w, bool bVsyncInterval, bool bPresentOk, bool bVisible,
+                      double dFrameSeconds, unsigned int uiRefreshHz)
+{
+    if (!bVsyncInterval || !bPresentOk || !bVisible)
+    {
+        w.uiFrames = 0;
+        w.dSum = 0.0;
+        w.bThrottled = false;
+        return;
+    }
+    if (!w.bOverridden)
+    {
+        w.dSum += dFrameSeconds;
+        w.uiFrames++;
+        if (w.uiFrames >= kPresentWatchFrames)
+        {
+            const unsigned int uiHz = (uiRefreshHz >= 1 && uiRefreshHz <= 1000) ? uiRefreshHz : 60;
+            if (w.dSum / kPresentWatchFrames < 0.75 / uiHz)
+            {
+                w.bOverridden = true;
+            }
+            w.uiFrames = 0;
+            w.dSum = 0.0;
+        }
+    }
+    w.bThrottled = !w.bOverridden;
+}
+
+bool PresentThrottledNow(const PresentWatch& w, bool bVisible, double dSecondsSincePresent)
+{
+    return w.bThrottled && bVisible && dSecondsSincePresent < 0.25;
+}
+
+bool ConfirmNeeded(const DisplayRec& kCur, const DisplayRec& kNext)
+{
+    return kCur.uiW != kNext.uiW || kCur.uiH != kNext.uiH || kCur.eMode != kNext.eMode ||
+           kCur.uiRefresh != kNext.uiRefresh || kCur.uiClientW != kNext.uiClientW ||
+           kCur.uiClientH != kNext.uiClientH;
+}
+
+ConfirmStep ConfirmPhaseStep(ConfirmPhase ePhase, ConfirmEvent eEvent, unsigned int uiElapsedMs)
+{
+    ConfirmStep out;
+    out.ePhase = ePhase;
+    out.eAction = kConfirmActNone;
+    if (eEvent == kConfirmEvArm)
+    {
+        out.ePhase = kConfirmAwaitPresent;
+    }
+    else if (ePhase == kConfirmAwaitPresent && eEvent == kConfirmEvApplied)
+    {
+        out.ePhase = kConfirmCounting;
+        out.eAction = kConfirmActStart;
+    }
+    else if (ePhase != kConfirmNone && eEvent == kConfirmEvApplyFailed)
+    {
+        out.ePhase = kConfirmNone;
+        out.eAction = kConfirmActClear;
+    }
+    else if (ePhase == kConfirmAwaitPresent && eEvent == kConfirmEvAppliedPlain)
+    {
+        out.ePhase = kConfirmNone;
+        out.eAction = kConfirmActClear;
+    }
+    else if (ePhase == kConfirmCounting && eEvent == kConfirmEvKeep)
+    {
+        out.ePhase = kConfirmNone;
+        out.eAction = kConfirmActKeep;
+    }
+    else if (ePhase == kConfirmCounting && eEvent == kConfirmEvRevert)
+    {
+        out.ePhase = kConfirmNone;
+        out.eAction = kConfirmActRevert;
+    }
+    else if (ePhase == kConfirmCounting && eEvent == kConfirmEvTick && uiElapsedMs >= kConfirmMs)
+    {
+        out.ePhase = kConfirmNone;
+        out.eAction = kConfirmActRevert;
+    }
+    return out;
 }
 
 static unsigned int Pow2Floor(unsigned int uiValue, unsigned int uiCap)

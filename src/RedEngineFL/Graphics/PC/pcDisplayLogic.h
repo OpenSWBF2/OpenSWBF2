@@ -34,7 +34,8 @@ void DesktopDefault(const DisplayModeRec* pList, unsigned int uiCount, unsigned 
                     unsigned int uiDeskH, unsigned int& uiW, unsigned int& uiH);
 
 unsigned int PickRefresh(const DisplayModeRec* pList, unsigned int uiCount, unsigned int uiW,
-                         unsigned int uiH, unsigned int uiRequested, bool bWindowed);
+                         unsigned int uiH, unsigned int uiRequested, bool bWindowed,
+                         unsigned int uiDesktopHz);
 
 unsigned int ResolveAdapter(unsigned int uiReqOrdinal, bool bOrdinalFromCli, const char* pcReqName,
                             const AdapterRec* pAdapters, unsigned int uiCount, bool bNoRender);
@@ -157,6 +158,16 @@ ShellSize ShellSizePolicy(DisplayMode m, bool bIsShell, unsigned int uiCliW, uns
                           unsigned int uiProfW, unsigned int uiProfH, unsigned int uiDeskW,
                           unsigned int uiDeskH);
 
+struct ShellStretch
+{
+    bool bActive;
+    bool bLinear;
+};
+
+ShellStretch ShellStretchPlan(DisplayMode m, bool bIsShell, unsigned int uiBackW,
+                              unsigned int uiBackH, unsigned int uiClientW, unsigned int uiClientH,
+                              bool bLinearCaps);
+
 struct DisplayRec
 {
     unsigned int uiW, uiH;
@@ -169,6 +180,61 @@ struct DisplayRec
 };
 
 bool SameDisplayParams(const DisplayRec& a, const DisplayRec& b);
+
+struct LegacyFlags
+{
+    bool bWindowed;
+    bool bVsync;
+};
+
+LegacyFlags LegacyFlagsFor(DisplayMode eMode, unsigned int uiVsync);
+
+unsigned int FrameCapList(unsigned int uiCurrent, unsigned int* pOut, unsigned int uiOutCap);
+
+unsigned int RefreshRates(const DisplayModeRec* pList, unsigned int uiCount, unsigned int uiW,
+                          unsigned int uiH, unsigned int* pOut, unsigned int uiOutCap);
+
+unsigned int DisplayNumberFromDeviceName(const char* pcDevice);
+
+bool MonitorLabel(unsigned int uiAdapter, unsigned int uiDisplay, unsigned int uiW,
+                  unsigned int uiH, char* pcOut, unsigned int uiSize);
+
+struct MultisampleEntry
+{
+    unsigned int uiType;
+    unsigned int uiQuality;
+};
+
+const unsigned int kMultisampleTypes = 17;
+
+unsigned int MultisampleList(const unsigned int* auiLevels, MultisampleEntry* pOut,
+                             unsigned int uiOutCap);
+
+bool MultisampleLabel(unsigned int uiType, unsigned int uiQuality, char* pcOut,
+                      unsigned int uiSize);
+
+void FakeMultisampleLevels(unsigned int* auiLevels);
+
+unsigned int EffectiveFpsCap(unsigned int uiFps, bool bPresentThrottled);
+
+struct PresentWatch
+{
+    unsigned int uiFrames;
+    double dSum;
+    bool bOverridden;
+    bool bThrottled;
+};
+
+const unsigned int kPresentWatchFrames = 60;
+
+void PresentWatchReset(PresentWatch& w);
+
+void PresentWatchStep(PresentWatch& w, bool bVsyncInterval, bool bPresentOk, bool bVisible,
+                      double dFrameSeconds, unsigned int uiRefreshHz);
+
+bool PresentThrottledNow(const PresentWatch& w, bool bVisible, double dSecondsSincePresent);
+
+bool ConfirmNeeded(const DisplayRec& kCur, const DisplayRec& kNext);
 
 struct BufferSize
 {
@@ -233,6 +299,42 @@ bool ShouldRestoreProfile(bool bSnapshotValid, unsigned int uiOwner, unsigned in
 const unsigned int kMinW = 320;
 const unsigned int kMinH = 240;
 const unsigned int kMaxDim = 16384;
+const unsigned int kConfirmMs = 15000;
+
+enum ConfirmPhase
+{
+    kConfirmNone = 0,
+    kConfirmAwaitPresent = 1,
+    kConfirmCounting = 2
+};
+
+enum ConfirmEvent
+{
+    kConfirmEvArm = 0,
+    kConfirmEvApplied = 1,
+    kConfirmEvAppliedPlain = 2,
+    kConfirmEvApplyFailed = 3,
+    kConfirmEvKeep = 4,
+    kConfirmEvRevert = 5,
+    kConfirmEvTick = 6
+};
+
+enum ConfirmAction
+{
+    kConfirmActNone = 0,
+    kConfirmActStart = 1,
+    kConfirmActKeep = 2,
+    kConfirmActRevert = 3,
+    kConfirmActClear = 4
+};
+
+struct ConfirmStep
+{
+    ConfirmPhase ePhase;
+    ConfirmAction eAction;
+};
+
+ConfirmStep ConfirmPhaseStep(ConfirmPhase ePhase, ConfirmEvent eEvent, unsigned int uiElapsedMs);
 
 bool SizeInBounds(unsigned int uiW, unsigned int uiH);
 

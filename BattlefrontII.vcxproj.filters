@@ -927,6 +927,9 @@
     <ClCompile Include="src\Battlefront2\Source\LuaMemory.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
+    <ClCompile Include="src\Battlefront2\Source\LuaVideoArgs.cpp">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClCompile>
     <ClCompile Include="src\Battlefront2\Source\LuaScript.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
@@ -3069,6 +3072,9 @@
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\LuaMemory.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\LuaVideoArgs.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\LuaScript.h">

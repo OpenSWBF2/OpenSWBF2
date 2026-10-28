@@ -811,6 +811,11 @@ function AddIFText(obj, name)
 	ScriptCB_IFText_SetJustify(obj.halign,obj.valign)
 	ScriptCB_IFText_SetTextBox(obj.textw,obj.texth)
 
+	if(obj.textbreak) then
+		ScriptCB_IFText_SetTextBreak(obj.textbreak)
+		obj.textbreak = nil
+	end
+
 	if(obj.leading) then
 		ScriptCB_IFText_SetLeading(obj.leading)
 		obj.leading = nil
