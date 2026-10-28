@@ -508,7 +508,22 @@ struct TargetMode
     unsigned long ulMSQuality;
 };
 
-static DisplayRequestTag sAppliedPC = { false, 0, 0, 0, false, false, (D3DMULTISAMPLE_TYPE)0, 0 };
+static DisplayRequestTag sAppliedPC = { false, 0, 0, 0, false, false, (D3DMULTISAMPLE_TYPE)0, 0,
+                                        false, 0, 0, false, false };
+
+static bool sArmMenuConfirm;
+static DisplayLogic::ConfirmPhase sConfirmPhase = DisplayLogic::kConfirmNone;
+static DWORD sConfirmStart;
+static unsigned int sConfirmSkewMs;
+static DisplayRequestTag sConfirmRevert = { false, 0, 0, 0, false, false, (D3DMULTISAMPLE_TYPE)0,
+                                            0, false, 0, 0, false, false };
+static bool sConfirmHaveTarget;
+static unsigned int sConfirmResult;
+static bool sConfirmCliCleared;
+static bool sConfirmCliPrev;
+static DisplayCfg::DisplaySettings sMarkDisplay;
+static bool sMarkCliWindowed;
+static bool sMarked;
 
 static void StageRequestTag(const PlayerProfile::tPCOpt& rOpt)
 {
@@ -521,6 +536,11 @@ static void StageRequestTag(const PlayerProfile::tPCOpt& rOpt)
     kTag.vsync = rOpt.mVSync;
     kTag.ms = rOpt.mMultiSample;
     kTag.msq = rOpt.mMultiSampleQuality;
+    kTag.bBorderless = DisplayCfg::gDisplay.bBorderless;
+    kTag.uiRefresh = DisplayCfg::gDisplay.uiRefresh;
+    kTag.uiVsync = DisplayCfg::gDisplay.uiVsync;
+    kTag.bVsyncSet = (DisplayCfg::gDisplay.uiSet & DisplayCfg::kVsync) != 0;
+    kTag.bConfirm = sArmMenuConfirm;
     RedRenderer::pcStageRequestTag(kTag);
 }
 
@@ -540,6 +560,7 @@ static bool ProfileSizeUsable(unsigned int uiW, unsigned int uiH)
 static void ComputeTargetMode(const PlayerProfile::tPCOpt& rOpt, bool bQuiet, TargetMode& rOut)
 {
     const bool bIsShell = (GameState::GetState() == 0x11E1FC01);
+    RedRenderer::pcSetShellActive(bIsShell);
 
     unsigned int uiWidth = 0;
     unsigned int uiHeight = 0;
@@ -735,6 +756,142 @@ void PlayerProfile::ApplyLiveDisplay()
     }
 }
 
+static DWORD ConfirmClock()
+{
+    return GetTickCount() + sConfirmSkewMs;
+}
+
+static unsigned int ConfirmElapsed()
+{
+    return (unsigned int)(DWORD)(ConfirmClock() - sConfirmStart);
+}
+
+static const char* ConfirmModeName(const DisplayRequestTag& kTag)
+{
+    const DisplayLogic::DisplayMode eMode =
+        DisplayLogic::ResolveMode(kTag.bBorderless, pcWindowed, kTag.windowed);
+    if (eMode == DisplayLogic::kModeWindowed)
+    {
+        return "windowed";
+    }
+    if (eMode == DisplayLogic::kModeBorderless)
+    {
+        return "borderless";
+    }
+    return "fullscreen";
+}
+
+static void ClearConfirmTarget()
+{
+    sConfirmHaveTarget = false;
+    sConfirmCliCleared = false;
+}
+
+static void RevertConfirm(const char* pcWhy)
+{
+    PlayerProfile::tProfile* pProfile = PlayerProfile::GetCurProfile();
+    if (!sConfirmHaveTarget || !pProfile)
+    {
+        ClearConfirmTarget();
+        return;
+    }
+
+    if (sConfirmCliCleared)
+    {
+        pcWindowed = sConfirmCliPrev;
+    }
+
+    PlayerProfile::tPCOpt& rPC = pProfile->mPCOptions;
+    rPC.mResolutionX = sConfirmRevert.resX;
+    rPC.mResolutionY = sConfirmRevert.resY;
+    rPC.mWindowed = sConfirmRevert.windowed;
+    rPC.mVSync = sConfirmRevert.vsync;
+    rPC.mMultiSample = sConfirmRevert.ms;
+    rPC.mMultiSampleQuality = sConfirmRevert.msq;
+    DisplayCfg::gDisplay.bBorderless = sConfirmRevert.bBorderless;
+    DisplayCfg::gDisplay.uiRefresh = sConfirmRevert.uiRefresh;
+    DisplayCfg::gDisplay.uiVsync = sConfirmRevert.uiVsync;
+    if (sConfirmRevert.bVsyncSet)
+    {
+        DisplayCfg::gDisplay.uiSet |= DisplayCfg::kVsync;
+    }
+    else
+    {
+        DisplayCfg::gDisplay.uiSet &= ~DisplayCfg::kVsync;
+    }
+    pProfile->UpdateProfCRC();
+    LOG(LogRender, Warning, "OPENSWBF2 DISPLAY confirm %s, reverting to %ux%u mode=%s", pcWhy,
+        (unsigned int)sConfirmRevert.resX, (unsigned int)sConfirmRevert.resY,
+        ConfirmModeName(sConfirmRevert));
+    ClearConfirmTarget();
+    PlayerProfile::ApplyLiveDisplay();
+    sConfirmResult = 2;
+}
+
+static void RunConfirmAction(DisplayLogic::ConfirmAction eAct, const char* pcWhy)
+{
+    switch (eAct)
+    {
+    case DisplayLogic::kConfirmActStart:
+        sConfirmStart = ConfirmClock();
+        LOG(LogRender, Inform, "OPENSWBF2 DISPLAY confirm pending 15s");
+        break;
+    case DisplayLogic::kConfirmActKeep:
+        sConfirmResult = 1;
+        ClearConfirmTarget();
+        LOG(LogRender, Inform, "OPENSWBF2 DISPLAY confirm kept");
+        break;
+    case DisplayLogic::kConfirmActClear:
+        if (sConfirmHaveTarget)
+        {
+            sConfirmPhase = DisplayLogic::kConfirmCounting;
+        }
+        else
+        {
+            ClearConfirmTarget();
+        }
+        break;
+    case DisplayLogic::kConfirmActRevert:
+        RevertConfirm(pcWhy);
+        break;
+    default:
+        break;
+    }
+}
+
+static void StepConfirm(DisplayLogic::ConfirmEvent eEvent, const char* pcWhy)
+{
+    const DisplayLogic::ConfirmStep kStep =
+        DisplayLogic::ConfirmPhaseStep(sConfirmPhase, eEvent, ConfirmElapsed());
+    sConfirmPhase = kStep.ePhase;
+    RunConfirmAction(kStep.eAction, pcWhy);
+}
+
+static void ConfirmOnApplied(const DisplayRequestTag& kTag)
+{
+    if (!kTag.bValid || sConfirmPhase != DisplayLogic::kConfirmAwaitPresent)
+    {
+        return;
+    }
+
+    DisplayLogic::ConfirmStep kStep = DisplayLogic::ConfirmPhaseStep(
+        sConfirmPhase,
+        kTag.bConfirm ? DisplayLogic::kConfirmEvApplied : DisplayLogic::kConfirmEvAppliedPlain, 0);
+    if (kStep.eAction == DisplayLogic::kConfirmActStart && !sConfirmHaveTarget)
+    {
+        sConfirmRevert = sAppliedPC;
+        sConfirmHaveTarget = sAppliedPC.bValid;
+        if (!sConfirmHaveTarget)
+        {
+            LOG(LogRender, Warning, "OPENSWBF2 DISPLAY confirm has no previous mode, kept");
+            kStep.ePhase = DisplayLogic::kConfirmNone;
+            kStep.eAction = DisplayLogic::kConfirmActClear;
+        }
+    }
+    sConfirmPhase = kStep.ePhase;
+    RunConfirmAction(kStep.eAction, "timeout");
+}
+
 void PlayerProfile::PollApplyNotice()
 {
     unsigned int uiKind = 0;
@@ -743,11 +900,17 @@ void PlayerProfile::PollApplyNotice()
     {
         if (uiKind == 1)
         {
+            ConfirmOnApplied(kTag);
             if (kTag.bValid)
             {
                 sAppliedPC = kTag;
             }
             continue;
+        }
+
+        if (uiKind == 2)
+        {
+            StepConfirm(DisplayLogic::kConfirmEvApplyFailed, "timeout");
         }
 
         tProfile* pProfile = GetCurProfile();
@@ -766,11 +929,206 @@ void PlayerProfile::PollApplyNotice()
         rPC.mVSync = sAppliedPC.vsync;
         rPC.mMultiSample = sAppliedPC.ms;
         rPC.mMultiSampleQuality = sAppliedPC.msq;
+        DisplayCfg::gDisplay.bBorderless = sAppliedPC.bBorderless;
+        DisplayCfg::gDisplay.uiRefresh = sAppliedPC.uiRefresh;
+        DisplayCfg::gDisplay.uiVsync = sAppliedPC.uiVsync;
+        if (sAppliedPC.bVsyncSet)
+        {
+            DisplayCfg::gDisplay.uiSet |= DisplayCfg::kVsync;
+        }
+        else
+        {
+            DisplayCfg::gDisplay.uiSet &= ~DisplayCfg::kVsync;
+        }
         pProfile->UpdateProfCRC();
         LOG(LogRender, Warning, "OPENSWBF2 DISPLAY profile restored %ux%u windowed=%d vsync=%d",
             (unsigned int)sAppliedPC.resX, (unsigned int)sAppliedPC.resY,
             (int)sAppliedPC.windowed, (int)sAppliedPC.vsync);
     }
+
+    if (sConfirmPhase == DisplayLogic::kConfirmCounting)
+    {
+        StepConfirm(DisplayLogic::kConfirmEvTick, "timeout");
+    }
+}
+
+void PlayerProfile::PollDisplayConfirm(unsigned int& uiState, unsigned int& uiSecondsLeft,
+                                       unsigned int& uiResult)
+{
+    uiState = (unsigned int)sConfirmPhase;
+    uiSecondsLeft = 0;
+    if (sConfirmPhase == DisplayLogic::kConfirmCounting)
+    {
+        const unsigned int uiElapsed = ConfirmElapsed();
+        if (uiElapsed < DisplayLogic::kConfirmMs)
+        {
+            uiSecondsLeft = (DisplayLogic::kConfirmMs - uiElapsed + 999) / 1000;
+        }
+    }
+    uiResult = sConfirmResult;
+}
+
+void PlayerProfile::EndDisplayConfirm(bool bKeep)
+{
+    StepConfirm(bKeep ? DisplayLogic::kConfirmEvKeep : DisplayLogic::kConfirmEvRevert,
+                "reverted by player");
+}
+
+void PlayerProfile::SkewDisplayConfirmClock(unsigned int uiMs)
+{
+    sConfirmSkewMs += uiMs;
+}
+
+bool PlayerProfile::ApplyMenuDisplay(const DisplayCfg::MenuFields& kFields)
+{
+    if (!DisplayCfg::ValidateMenu(kFields))
+    {
+        LOG(LogRender, Warning,
+            "OPENSWBF2 DISPLAY menu options rejected mode=%u refresh=%u vsync=%u fps=%u",
+            kFields.uiMode, kFields.uiRefresh, kFields.uiVsync, kFields.uiFps);
+        return false;
+    }
+
+    tProfile* pProfile = GetCurProfile();
+    if (!pProfile)
+    {
+        return false;
+    }
+
+    tPCOpt& rPC = pProfile->mPCOptions;
+    DisplayCfg::DisplaySettings& rDisplay = DisplayCfg::gDisplay;
+    const DisplayLogic::LegacyFlags kFlags =
+        DisplayLogic::LegacyFlagsFor((DisplayLogic::DisplayMode)kFields.uiMode, kFields.uiVsync);
+
+    rDisplay.bBorderless = kFields.uiMode == DisplayLogic::kModeBorderless;
+    rDisplay.uiRefresh = kFields.uiRefresh;
+    rDisplay.uiVsync = kFields.uiVsync;
+    rDisplay.uiSet |= DisplayCfg::kVsync;
+    if (rPC.mWindowed != kFlags.bWindowed || rPC.mVSync != kFlags.bVsync)
+    {
+        rPC.mWindowed = kFlags.bWindowed;
+        rPC.mVSync = kFlags.bVsync;
+        pProfile->UpdateProfCRC();
+    }
+
+    if (kFields.uiMode != DisplayLogic::kModeWindowed && pcWindowed)
+    {
+        sConfirmCliPrev = true;
+        sConfirmCliCleared = true;
+        pcWindowed = false;
+        LOG(LogRender, Inform, "OPENSWBF2 DISPLAY -win switch overridden for this session");
+    }
+
+    if (kFields.uiFps != rDisplay.uiFps)
+    {
+        rDisplay.uiFps = kFields.uiFps;
+        if (kFields.uiFps == 0)
+        {
+            LOG(LogCore, Warning, "pacing: fps cap is uncapped, frame-count effects are not fixed yet");
+        }
+        else if (kFields.uiFps > 80)
+        {
+            LOG(LogCore, Warning, "pacing: fps cap %u is above 80, frame-count effects are not fixed yet",
+                kFields.uiFps);
+        }
+    }
+
+    RedRenderer::pcSetWaitForFrameQuery(kFields.bWaitQuery);
+
+    sArmMenuConfirm = true;
+    ApplyLiveDisplay();
+    sArmMenuConfirm = false;
+
+    if (RedRenderer::pcPendingConfirm())
+    {
+        sConfirmPhase =
+            DisplayLogic::ConfirmPhaseStep(sConfirmPhase, DisplayLogic::kConfirmEvArm, 0).ePhase;
+        sConfirmResult = 0;
+    }
+    return true;
+}
+
+void PlayerProfile::MarkDisplay()
+{
+    sMarkDisplay = DisplayCfg::gDisplay;
+    sMarkCliWindowed = pcWindowed;
+    sMarked = true;
+}
+
+void PlayerProfile::RestoreDisplay()
+{
+    if (!sMarked)
+    {
+        return;
+    }
+
+    DisplayCfg::DisplaySettings& rDisplay = DisplayCfg::gDisplay;
+    rDisplay.bBorderless = sMarkDisplay.bBorderless;
+    rDisplay.uiRefresh = sMarkDisplay.uiRefresh;
+    rDisplay.uiVsync = sMarkDisplay.uiVsync;
+    rDisplay.uiSet = (rDisplay.uiSet & ~DisplayCfg::kVsync) | (sMarkDisplay.uiSet & DisplayCfg::kVsync);
+    rDisplay.uiFps = sMarkDisplay.uiFps;
+    rDisplay.bNoWaitQuery = sMarkDisplay.bNoWaitQuery;
+    RedRenderer::pcSetWaitForFrameQuery(!sMarkDisplay.bNoWaitQuery);
+    pcWindowed = sMarkCliWindowed;
+
+    sConfirmPhase = DisplayLogic::kConfirmNone;
+    sConfirmHaveTarget = false;
+    sConfirmCliCleared = false;
+
+    ApplyLiveDisplay();
+    LOG(LogRender, Inform, "OPENSWBF2 DISPLAY menu cancel restored");
+}
+
+bool PlayerProfile::SaveDisplay()
+{
+    if (!sMarked)
+    {
+        MarkDisplay();
+    }
+
+    char acPath[MAX_PATH];
+    if (!DisplayCfg::DisplayIniPath(acPath, sizeof(acPath)))
+    {
+        return false;
+    }
+
+    const DisplayCfg::DisplaySettings& rDisplay = DisplayCfg::gDisplay;
+    unsigned int uiWritten = 0;
+    const bool bOk = DisplayCfg::SaveMenu(sMarkDisplay, rDisplay, acPath,
+                                          sConfirmPhase == DisplayLogic::kConfirmNone, uiWritten);
+
+    const struct
+    {
+        unsigned int uiKey;
+        const char* pcKey;
+        const char* pcSwitch;
+        unsigned int uiValue;
+    } akKeys[] = {
+        { DisplayCfg::kBorderless, "Borderless", "borderless", rDisplay.bBorderless ? 1u : 0u },
+        { DisplayCfg::kRefresh, "Refresh", "refresh", rDisplay.uiRefresh },
+        { DisplayCfg::kVsync, "Vsync", "vsync", rDisplay.uiVsync },
+        { DisplayCfg::kFps, "Fps", "fps", rDisplay.uiFps },
+        { DisplayCfg::kNoWaitQuery, "NoWaitQuery", "nowaitquery", rDisplay.bNoWaitQuery ? 1u : 0u },
+    };
+    for (unsigned int i = 0; i < sizeof(akKeys) / sizeof(akKeys[0]); ++i)
+    {
+        if ((uiWritten & akKeys[i].uiKey) && (rDisplay.uiCliMask & akKeys[i].uiKey))
+        {
+            LOG(LogRender, Inform,
+                "OPENSWBF2 DISPLAY %s=%u saved from menu, -%s switch still wins next start",
+                akKeys[i].pcKey, akKeys[i].uiValue, akKeys[i].pcSwitch);
+        }
+    }
+    if (uiWritten != 0)
+    {
+        LOG(LogRender, Inform, "OPENSWBF2 DISPLAY menu saved keys=0x%x", uiWritten);
+    }
+    if (bOk)
+    {
+        sMarkDisplay = rDisplay;
+    }
+    return bOk;
 }
 
 // FUNCTION: SWBF2 0x0061cdc0

@@ -64,6 +64,7 @@ void SetDefaults(DisplaySettings& kSettings)
     memset(&kSettings, 0, sizeof(kSettings));
     kSettings.uiVsync = 1;
     kSettings.uiFps = 80;
+    kSettings.bNoWaitQuery = true;
 }
 
 bool ParseUInt(const char* pcText, unsigned int uiLo, unsigned int uiHi, unsigned int& uiOut)
@@ -152,14 +153,14 @@ bool SetFromText(DisplaySettings& kSettings, unsigned int uiKey, const char* pcV
         }
         break;
     case kAdapter:
-        bValid = ParseUInt(pcValue, 0, 15, uiValue);
+        bValid = ParseUInt(pcValue, 0, kAdapterMax, uiValue);
         if (bValid)
         {
             kSettings.uiAdapter = uiValue;
         }
         break;
     case kRefresh:
-        bValid = ParseUInt(pcValue, 0, 1000, uiValue);
+        bValid = ParseUInt(pcValue, 0, kRefreshMax, uiValue);
         if (bValid)
         {
             kSettings.uiRefresh = uiValue;
@@ -173,7 +174,7 @@ bool SetFromText(DisplaySettings& kSettings, unsigned int uiKey, const char* pcV
         }
         break;
     case kFps:
-        bValid = ParseUInt(pcValue, 0, 1000, uiValue);
+        bValid = ParseUInt(pcValue, 0, kFpsMax, uiValue);
         if (bValid)
         {
             kSettings.uiFps = uiValue;
@@ -427,6 +428,102 @@ bool SaveAdapter(unsigned int uiIndex, const char* pcName)
     gIniDisplay.uiAdapter = kSave.uiAdapter;
     strcpy(gIniDisplay.acAdapterName, kSave.acAdapterName);
     gIniDisplay.uiSet |= kAdapter | kAdapterName;
+    return true;
+}
+
+bool ValidateMenu(const MenuFields& kFields)
+{
+    return kFields.uiMode <= kModeMax && kFields.uiRefresh <= kRefreshMax &&
+           kFields.uiVsync <= kVsyncMax && kFields.uiFps <= kFpsMax;
+}
+
+static unsigned int MenuDiff(const DisplaySettings& kMark, const DisplaySettings& kNow)
+{
+    unsigned int uiMask = 0;
+    if (kMark.bBorderless != kNow.bBorderless)
+    {
+        uiMask |= kBorderless;
+    }
+    if (kMark.uiRefresh != kNow.uiRefresh)
+    {
+        uiMask |= kRefresh;
+    }
+    if ((kMark.uiSet & kVsync) != (kNow.uiSet & kVsync) || kMark.uiVsync != kNow.uiVsync)
+    {
+        uiMask |= kVsync;
+    }
+    if (kMark.uiFps != kNow.uiFps)
+    {
+        uiMask |= kFps;
+    }
+    if (kMark.bNoWaitQuery != kNow.bNoWaitQuery)
+    {
+        uiMask |= kNoWaitQuery;
+    }
+    return uiMask;
+}
+
+bool SaveMenu(const DisplaySettings& kMark, const DisplaySettings& kNow, const char* pcPath, bool bGoodFrame, unsigned int& uiWritten)
+{
+    uiWritten = 0;
+    const unsigned int uiMask = MenuDiff(kMark, kNow);
+    if (uiMask == 0)
+    {
+        return true;
+    }
+    DisplaySettings kSave;
+    SetDefaults(kSave);
+    char acValue[16];
+    bool bOk = true;
+    if (uiMask & kBorderless)
+    {
+        bOk = SetFromText(kSave, kBorderless, kNow.bBorderless ? "1" : "0", "menu") && bOk;
+    }
+    if (uiMask & kRefresh)
+    {
+        sprintf(acValue, "%u", kNow.uiRefresh);
+        bOk = SetFromText(kSave, kRefresh, acValue, "menu") && bOk;
+    }
+    if (uiMask & kVsync)
+    {
+        sprintf(acValue, "%u", kNow.uiVsync);
+        bOk = SetFromText(kSave, kVsync, acValue, "menu") && bOk;
+    }
+    if (uiMask & kFps)
+    {
+        sprintf(acValue, "%u", kNow.uiFps);
+        bOk = SetFromText(kSave, kFps, acValue, "menu") && bOk;
+    }
+    if (uiMask & kNoWaitQuery)
+    {
+        bOk = SetFromText(kSave, kNoWaitQuery, kNow.bNoWaitQuery ? "1" : "0", "menu") && bOk;
+    }
+    if (!bOk || !SaveIni(kSave, pcPath, bGoodFrame))
+    {
+        return false;
+    }
+    if (uiMask & kBorderless)
+    {
+        gIniDisplay.bBorderless = kSave.bBorderless;
+    }
+    if (uiMask & kRefresh)
+    {
+        gIniDisplay.uiRefresh = kSave.uiRefresh;
+    }
+    if (uiMask & kVsync)
+    {
+        gIniDisplay.uiVsync = kSave.uiVsync;
+    }
+    if (uiMask & kFps)
+    {
+        gIniDisplay.uiFps = kSave.uiFps;
+    }
+    if (uiMask & kNoWaitQuery)
+    {
+        gIniDisplay.bNoWaitQuery = kSave.bNoWaitQuery;
+    }
+    gIniDisplay.uiSet |= uiMask;
+    uiWritten = uiMask;
     return true;
 }
 

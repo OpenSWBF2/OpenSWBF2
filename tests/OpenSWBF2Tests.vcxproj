@@ -116,7 +116,9 @@
     <ClCompile Include="..\src\LuaFL\src\lundump.cpp" />
     <ClCompile Include="..\src\LuaFL\src\lvm.cpp" />
     <ClCompile Include="..\src\LuaFL\src\lzio.cpp" />
+    <ClCompile Include="..\src\LuaFL\src\lib\lauxlib.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\LuaMemory.cpp" />
+    <ClCompile Include="..\src\Battlefront2\Source\LuaVideoArgs.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Memory\RedMemoryPool.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="testutil.cpp" />

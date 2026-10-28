@@ -6,6 +6,8 @@
 #include "RedEngineFL/Graphics/PC/pcRedAutoSettings.h"
 #include "RedEngineFL/Util/RedLocalizeDB.h"
 
+namespace DisplayCfg { struct MenuFields; }
+
 enum eGAME_DIFFICULTY
 {
     eDIFFICULTY_EASY = 1,
@@ -272,6 +274,13 @@ tProfile* GetCurProfile();
 
 void ApplyLiveDisplay();
 void PollApplyNotice();
+bool ApplyMenuDisplay(const DisplayCfg::MenuFields& kFields);
+void MarkDisplay();
+void RestoreDisplay();
+bool SaveDisplay();
+void PollDisplayConfirm(unsigned int& uiState, unsigned int& uiSecondsLeft, unsigned int& uiResult);
+void EndDisplayConfirm(bool bKeep);
+void SkewDisplayConfirmClock(unsigned int uiMs);
 
 unsigned int GetCurProfileIndex();
 bool SetCurProfile(unsigned int uiIndex);

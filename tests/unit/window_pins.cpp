@@ -6,6 +6,7 @@
 #include <string>
 
 #include "testutil.h"
+#include "PebbleFL/Common/PblUnicode.h"
 
 namespace
 {
@@ -59,6 +60,38 @@ std::string FunctionBody(const std::string& sText, const char* pcSignature)
         return std::string();
     }
     return sText.substr(uiBegin, uiEnd + 2 - uiBegin);
+}
+
+std::string LuaFunctionBody(const std::string& sText, const char* pcSignature)
+{
+    size_t uiBegin = sText.find(pcSignature);
+    if (uiBegin == std::string::npos)
+    {
+        return std::string();
+    }
+    size_t uiEnd = sText.find("\nfunction ", uiBegin + 1);
+    if (uiEnd == std::string::npos)
+    {
+        return sText.substr(uiBegin);
+    }
+    return sText.substr(uiBegin, uiEnd + 1 - uiBegin);
+}
+
+std::string LineWith(const std::string& sText, const char* pcNeedle)
+{
+    size_t uiAt = sText.find(pcNeedle);
+    if (uiAt == std::string::npos)
+    {
+        return std::string();
+    }
+    size_t uiBegin = sText.rfind('\n', uiAt);
+    uiBegin = uiBegin == std::string::npos ? 0 : uiBegin + 1;
+    size_t uiEnd = sText.find('\n', uiAt);
+    if (uiEnd == std::string::npos)
+    {
+        uiEnd = sText.size();
+    }
+    return sText.substr(uiBegin, uiEnd - uiBegin);
 }
 
 bool Has(const std::string& sText, const char* pcNeedle)
@@ -369,13 +402,19 @@ TEST_CASE("display apply source pins" * doctest::test_suite("unit"))
 {
     std::string sRendererRaw;
     std::string sLuaRaw;
+    std::string sArgsRaw;
+    std::string sMemRaw;
     if (!ReadSource("../src/RedEngineFL/Graphics/PC/pcRedRenderer.cpp", sRendererRaw) ||
-        !ReadSource("../src/Battlefront2/Source/LuaCallbacks_PC.cpp", sLuaRaw))
+        !ReadSource("../src/Battlefront2/Source/LuaCallbacks_PC.cpp", sLuaRaw) ||
+        !ReadSource("../src/Battlefront2/Source/LuaVideoArgs.cpp", sArgsRaw) ||
+        !ReadSource("../src/Battlefront2/Source/LuaMemory.cpp", sMemRaw))
     {
         SkipCase("source files not found");
     }
     const std::string sRenderer = StripCr(sRendererRaw);
     const std::string sLua = StripCr(sLuaRaw);
+    const std::string sArgs = StripCr(sArgsRaw);
+    const std::string sMem = StripCr(sMemRaw);
 
     const std::string sApply = FunctionBody(sRenderer, "bool RedRenderer::pcApplyDisplayMode(");
     REQUIRE(!sApply.empty());
@@ -399,8 +438,8 @@ TEST_CASE("display apply source pins" * doctest::test_suite("unit"))
 
     CHECK(!Has(sLua, "Reset("));
     CHECK(!Has(sLua, "pcApplyDisplayMode"));
-    CHECK(Has(sLua, "sPCCallbacks[37]"));
-    CHECK(Has(sLua, "i < 37"));
+    CHECK(Has(sLua, "sPCCallbacks[44]"));
+    CHECK(Has(sLua, "i < 44"));
     const std::string sVideo = FunctionBody(sLua, "int ScriptCB_SetPCVideoOptions(");
     REQUIRE(!sVideo.empty());
     size_t uiChanged = sVideo.find("if (bChanged)\n    {\n        pProfile->UpdateProfCRC();\n"
@@ -413,6 +452,18 @@ TEST_CASE("display apply source pins" * doctest::test_suite("unit"))
     CHECK(uiChanged < uiLive);
     CHECK(uiLive < uiReturn);
     CHECK(sVideo.find("return 0;", uiLive) == uiReturn);
+    size_t uiRead = sVideo.find("LuaVideoArgs::ReadLegacyVideoSet(LuaHelper::mState, afArg)");
+    REQUIRE(uiRead != std::string::npos);
+    CHECK(uiRead < sVideo.find("return 0;"));
+    CHECK(!Has(sVideo, "luaL_checknumber"));
+    const std::string sVideoGet = FunctionBody(sLua, "int ScriptCB_GetPCVideoOptions(");
+    REQUIRE(!sVideoGet.empty());
+    CHECK(Has(sVideoGet, "return LuaVideoArgs::PushLegacyVideoGet("));
+    CHECK((Has(sArgs, "!= kLegacyVideoSetArgs") || Has(sArgs, "== kLegacyVideoSetArgs")));
+    CHECK(Has(sArgs, "return kLegacyVideoGetValues;"));
+    const std::string sWarn = FunctionBody(sMem, "void __cdecl LuaScript_CallWARNINGF(");
+    REQUIRE(!sWarn.empty());
+    CHECK(Has(sWarn, "OPENSWBF2 LUA error"));
 
     const std::string sBegin = FunctionBody(sRenderer, "bool RedRenderer::BeginFrame()");
     REQUIRE(!sBegin.empty());
@@ -439,6 +490,155 @@ TEST_CASE("display apply source pins" * doctest::test_suite("unit"))
     CHECK(uiResize < uiFree);
     CHECK(!Has(sReset, "delete m_buffers"));
     CHECK(!Has(sApply, "delete m_buffers"));
+}
+
+TEST_CASE("display menu lua source pins" * doctest::test_suite("unit"))
+{
+    std::string sFormRaw;
+    std::string sTabRaw;
+    std::string sUtilRaw;
+    std::string sRoundRaw;
+    std::string sVideoRaw;
+    REQUIRE(ReadSource("../data/scripts/common/ifelem_form.lua", sFormRaw));
+    REQUIRE(ReadSource("../data/scripts/common/ifelem_tabmanager.lua", sTabRaw));
+    REQUIRE(ReadSource("../data/scripts/common/interface_util.lua", sUtilRaw));
+    REQUIRE(ReadSource("../data/scripts/common/ifelem_roundbutton.lua", sRoundRaw));
+    REQUIRE(ReadSource("../data/scripts/common/ifs_opt_pcvideo.lua", sVideoRaw));
+    const std::string sForm = StripCr(sFormRaw);
+    const std::string sTab = StripCr(sTabRaw);
+    const std::string sUtil = StripCr(sUtilRaw);
+    const std::string sRound = StripCr(sRoundRaw);
+    const std::string sVideo = StripCr(sVideoRaw);
+
+    const std::string sAccept = LuaFunctionBody(sForm, "function Form_InputAccept(this)");
+    REQUIRE(!sAccept.empty());
+    CHECK(Has(sAccept, "if(curElement.locked) then"));
+    const std::string sUpdate = LuaFunctionBody(sForm, "function Form_UpdateElement(form, elementTag)");
+    REQUIRE(!sUpdate.empty());
+    CHECK(Has(sUpdate, "bDimmed = form.elements[elementTag].locked"));
+    CHECK(CountOf(sForm, "textbreak = \"none\"") >= 2);
+
+    CHECK(Has(sTab, "textbreak = \"none\""));
+    CHECK(Has(sUtil, "obj.textbreak"));
+    CHECK(Has(sUtil, "ScriptCB_IFText_SetTextBreak("));
+    CHECK(Has(sRound, "Template.textbreak"));
+
+    const std::string sVsyncRow = LineWith(
+        sVideo,
+        "tag = \"vsync\", title = \"ifs.VideoOpt.vsync\", fnChanged = ifs_opt_pcvideo.OnRadioChanged");
+    REQUIRE(!sVsyncRow.empty());
+    CHECK(Has(sVsyncRow, "control = \"radio\""));
+    CHECK(Has(sVsyncRow, "values = {\"common.off\", \"common.on\"}"));
+    CHECK(!Has(sVideo, "vsyncmode"));
+    const size_t uRadio = sVideo.find("OnRadioChanged = function(buttongroup, btnNum)");
+    const size_t uElement = sVideo.find("OnElementChanged = function(form, element)");
+    REQUIRE(uRadio != std::string::npos);
+    REQUIRE(uElement != std::string::npos);
+    REQUIRE(uRadio < uElement);
+    const std::string sRadio = sVideo.substr(uRadio, uElement - uRadio);
+    CHECK(Has(sRadio, "buttongroup.tag == \"vsync\""));
+    CHECK(Has(sRadio, "this.bVsyncHalf = nil"));
+    CHECK(Has(sRadio, "ifs_opt_pcvideo_fnShowRows(this)"));
+    CHECK(!Has(sVideo, "tag = \"refresh\""));
+    CHECK(!Has(sVideo, "fnFillRefresh"));
+    CHECK(Has(sVideo, "refresh = this.iRefresh or 0"));
+    CHECK(Has(sVideo, "this.iRefresh = display.clirefresh"));
+    CHECK(!Has(sVideo, "display.refresh"));
+    CHECK(!Has(sVideo, "\"Half rate\""));
+    CHECK(!Has(sVideo, "querywait"));
+    CHECK(Has(sVideo, "futureframes = "));
+    CHECK(Has(sVideo, "display.futureframes"));
+    CHECK(Has(sVideo, "bVsyncHalf"));
+
+    const std::string sRows = LuaFunctionBody(sVideo, "function ifs_opt_pcvideo_fnShowRows(this)");
+    REQUIRE(!sRows.empty());
+    CHECK(Has(sRows, "elements[\"vsync\"].selValue == 2"));
+    CHECK(Has(sRows, "locked = 1"));
+    CHECK(Has(sRows, "\"Vsync on\""));
+    CHECK(Has(sRows, "locked = nil"));
+
+    const std::string sMsaa =
+        LuaFunctionBody(sVideo, "function ifs_opt_pcvideo_fnFillMultisample(this, bKeep)");
+    REQUIRE(!sMsaa.empty());
+    CHECK(Has(sMsaa, "ScriptCB_FillMultisampleTable("));
+    CHECK(!Has(sVideo, "GetMaxMultisamplingModeForScreenSize"));
+}
+
+TEST_CASE("display menu source pins" * doctest::test_suite("unit"))
+{
+    std::string sLuaRaw;
+    std::string sProfileRaw;
+    if (!ReadSource("../src/Battlefront2/Source/LuaCallbacks_PC.cpp", sLuaRaw) ||
+        !ReadSource("../src/Battlefront2/Source/PlayerProfile.cpp", sProfileRaw))
+    {
+        SkipCase("source files not found");
+    }
+    const std::string sLua = StripCr(sLuaRaw);
+    const std::string sProfile = StripCr(sProfileRaw);
+
+    const std::string sVideo = FunctionBody(sLua, "int ScriptCB_SetPCVideoOptions(");
+    REQUIRE(!sVideo.empty());
+    CHECK(!Has(sVideo, "Confirm"));
+    CHECK(!Has(sVideo, "ApplyMenuDisplay"));
+    CHECK(!Has(sVideo, "bConfirm"));
+
+    const std::string sMenu = FunctionBody(sProfile, "bool PlayerProfile::ApplyMenuDisplay(");
+    REQUIRE(!sMenu.empty());
+    CHECK(!Has(sMenu, "SaveMenu"));
+    CHECK(!Has(sMenu, "SaveIni"));
+    CHECK(!Has(sMenu, "SaveDisplay"));
+    size_t uiValidate = sMenu.find("ValidateMenu");
+    size_t uiLive = sMenu.find("ApplyLiveDisplay();");
+    REQUIRE(uiValidate != std::string::npos);
+    REQUIRE(uiLive != std::string::npos);
+    CHECK(uiValidate < uiLive);
+
+    const char* apcNames[] = {"GetDisplayOptions", "SetDisplayOptions", "PollDisplayConfirm",
+                              "EndDisplayConfirm", "MarkDisplayOptions",
+                              "RestoreDisplayOptions", "SaveDisplayOptions"};
+    const char* apcForbidden[] = {"Reset(", "pcApplyDisplayMode", "internalReset", "CreateDevice"};
+    for (size_t i = 0; i < sizeof(apcNames) / sizeof(apcNames[0]); ++i)
+    {
+        const std::string sSignature =
+            std::string("int Lua_Callbacks::ScriptCB_") + apcNames[i] + "(";
+        const std::string sBody = FunctionBody(sLua, sSignature.c_str());
+        CAPTURE(apcNames[i]);
+        REQUIRE(!sBody.empty());
+        for (size_t j = 0; j < sizeof(apcForbidden) / sizeof(apcForbidden[0]); ++j)
+        {
+            CHECK(!Has(sBody, apcForbidden[j]));
+        }
+    }
+
+    const std::string sSet = FunctionBody(sLua, "int Lua_Callbacks::ScriptCB_SetDisplayOptions(");
+    REQUIRE(!sSet.empty());
+    size_t uiSetValidate = sSet.find("ValidateMenu");
+    size_t uiSetApply = sSet.find("ApplyMenuDisplay");
+    REQUIRE(uiSetValidate != std::string::npos);
+    REQUIRE(uiSetApply != std::string::npos);
+    CHECK(uiSetValidate < uiSetApply);
+    CHECK(Has(sSet, "bWaitQuery = uiFutureFrames == 1"));
+    CHECK(!Has(sSet, "\"waitquery\""));
+
+    const std::string sGet = FunctionBody(sLua, "int Lua_Callbacks::ScriptCB_GetDisplayOptions(");
+    REQUIRE(!sGet.empty());
+    CHECK(Has(sGet, "\"futureframes\", rDisplay.bNoWaitQuery ? 2 : 1"));
+    CHECK(Has(sGet,
+              "\"clirefresh\", (rDisplay.uiCliMask & DisplayCfg::kRefresh) ? (int)rDisplay.uiRefresh : 0"));
+    CHECK(!Has(sGet, "\"refresh\""));
+    const std::string sFill = FunctionBody(sLua, "int ScriptCB_FillMultisampleTable(");
+    REQUIRE(!sFill.empty());
+    CHECK(Has(sFill, "pcGetMultiSampleLevels("));
+    CHECK(Has(sFill, "MultisampleList("));
+    CHECK(!Has(sFill, "VidMode_Usable("));
+
+    size_t uiSaves = 0;
+    for (size_t uiPos = sProfile.find("SaveMenu("); uiPos != std::string::npos;
+         uiPos = sProfile.find("SaveMenu(", uiPos + 1))
+    {
+        ++uiSaves;
+    }
+    CHECK(uiSaves == 1);
 }
 
 TEST_CASE("gamma pass source pins" * doctest::test_suite("unit"))
@@ -527,4 +727,224 @@ TEST_CASE("gamma pass source pins" * doctest::test_suite("unit"))
     CHECK(uiBright < uiLoad);
 
     CHECK(!TreeHas("../src", "GetDeviceGammaRamp"));
+}
+
+TEST_CASE("shell stretch source pins" * doctest::test_suite("unit"))
+{
+    std::string sRendererRaw;
+    if (!ReadSource("../src/RedEngineFL/Graphics/PC/pcRedRenderer.cpp", sRendererRaw))
+    {
+        SkipCase("source files not found");
+    }
+    const std::string sRenderer = StripCr(sRendererRaw);
+
+    const std::string sEnd = FunctionBody(sRenderer, "void RedRenderer::EndFrame()");
+    REQUIRE(!sEnd.empty());
+    CHECK(Has(sEnd, "StretchRect(m_pBackBufferSurface, 0, sShellSurface, 0,"));
+    CHECK(Has(sEnd, "D3DTEXF_LINEAR"));
+    CHECK(Has(sEnd, "sShellChain->Present("));
+
+    const std::string sReset = FunctionBody(sRenderer, "static void __cdecl ShellStretchReset(");
+    REQUIRE(!sReset.empty());
+    CHECK(Has(sReset, "RESETFLAGS_FREE_RESOURCES"));
+    CHECK(Has(sReset, "ReleaseShellStretch()"));
+
+    const std::string sCleanup = FunctionBody(sRenderer, "void RedRenderer::Cleanup()");
+    REQUIRE(!sCleanup.empty());
+    size_t uiGamma = sCleanup.find("GammaPass::ReleaseDefault();");
+    size_t uiShell = sCleanup.find("ReleaseShellStretch();");
+    REQUIRE(uiGamma != std::string::npos);
+    REQUIRE(uiShell != std::string::npos);
+    CHECK(uiGamma < uiShell);
+
+    CHECK(Has(sRenderer, "pcRegisterResetFunction(&ShellStretchReset)"));
+}
+
+TEST_CASE("display menu label format pins" * doctest::test_suite("unit"))
+{
+    std::string sLuaRaw;
+    if (!ReadSource("../src/Battlefront2/Source/LuaCallbacks_PC.cpp", sLuaRaw))
+    {
+        SkipCase("source files not found");
+    }
+    const std::string sLua = StripCr(sLuaRaw);
+    const char* pcCall = "PblUnicode::usnprintf(";
+    size_t uiCalls = 0;
+    for (size_t uiAt = sLua.find(pcCall); uiAt != std::string::npos;
+         uiAt = sLua.find(pcCall, uiAt + 1))
+    {
+        ++uiCalls;
+        size_t uiComma = sLua.find(',', uiAt);
+        REQUIRE(uiComma != std::string::npos);
+        uiComma = sLua.find(',', uiComma + 1);
+        REQUIRE(uiComma != std::string::npos);
+        const size_t uiOpen = sLua.find('"', uiComma);
+        const size_t uiEnd = sLua.find('\n', uiComma);
+        REQUIRE(uiOpen != std::string::npos);
+        REQUIRE(uiOpen < uiEnd);
+        const size_t uiClose = sLua.find('"', uiOpen + 1);
+        REQUIRE(uiClose != std::string::npos);
+        const std::string sFormat = sLua.substr(uiOpen + 1, uiClose - uiOpen - 1);
+        CAPTURE(sFormat);
+        for (size_t i = 0; i < sFormat.size(); ++i)
+        {
+            if (sFormat[i] != '%')
+            {
+                continue;
+            }
+            REQUIRE(i + 1 < sFormat.size());
+            const char cSpec = sFormat[i + 1];
+            CHECK((cSpec == 'c' || cSpec == 'd' || cSpec == 'f' || cSpec == 's' || cSpec == '%'));
+            ++i;
+        }
+    }
+    CHECK(uiCalls >= 4);
+}
+
+TEST_CASE("unicode usnprintf integer labels" * doctest::test_suite("unit"))
+{
+    unsigned short ausBuf[256];
+    PblUnicode::usnprintf(ausBuf, 255, "%d Hz", 60);
+    ausBuf[255] = 0;
+    const unsigned short ausHz[] = {'6', '0', ' ', 'H', 'z', 0};
+    CHECK(memcmp(ausBuf, ausHz, sizeof(ausHz)) == 0);
+
+    PblUnicode::usnprintf(ausBuf, 255, "%d", 144);
+    ausBuf[255] = 0;
+    const unsigned short ausCap[] = {'1', '4', '4', 0};
+    CHECK(memcmp(ausBuf, ausCap, sizeof(ausCap)) == 0);
+}
+
+TEST_CASE("display msaa single query pins" * doctest::test_suite("unit"))
+{
+    std::string sRendererRaw;
+    std::string sLuaRaw;
+    if (!ReadSource("../src/RedEngineFL/Graphics/PC/pcRedRenderer.cpp", sRendererRaw) ||
+        !ReadSource("../src/Battlefront2/Source/LuaCallbacks_PC.cpp", sLuaRaw))
+    {
+        SkipCase("source files not found");
+    }
+    const std::string sRenderer = StripCr(sRendererRaw);
+    const std::string sLua = StripCr(sLuaRaw);
+
+    const std::string sSupported =
+        FunctionBody(sRenderer, "bool RedRenderer::pcMultiSampleSupported(");
+    REQUIRE(!sSupported.empty());
+    CHECK(Has(sSupported, "pcGetMultiSampleLevels("));
+    CHECK(!Has(sSupported, "CheckDeviceMultiSampleType"));
+
+    const std::string sLevels =
+        FunctionBody(sRenderer, "void RedRenderer::pcGetMultiSampleLevels(");
+    REQUIRE(!sLevels.empty());
+    CHECK(Has(sLevels, "D3DFMT_A8R8G8B8"));
+    CHECK(Has(sLevels, "D3DFMT_D24S8"));
+    const size_t uiNoRender = sLevels.find("g_bNoRender");
+    const size_t uiFake = sLevels.find("FakeMultisampleLevels(");
+    const size_t uiQuery = sLevels.find("CheckDeviceMultiSampleType(");
+    REQUIRE(uiNoRender != std::string::npos);
+    REQUIRE(uiFake != std::string::npos);
+    REQUIRE(uiQuery != std::string::npos);
+    CHECK(uiNoRender < uiFake);
+    CHECK(uiFake < uiQuery);
+    CHECK(Has(sRenderer, "m_d3dpp.BackBufferFormat = D3DFMT_A8R8G8B8;"));
+    CHECK(Has(sRenderer, "m_d3dpp.AutoDepthStencilFormat = D3DFMT_D24S8;"));
+    CHECK(CountOf(sRenderer, "BackBufferFormat =") == 1);
+    CHECK(CountOf(sRenderer, "AutoDepthStencilFormat =") == 1);
+
+    const std::string sFill = FunctionBody(sLua, "int ScriptCB_FillMultisampleTable(");
+    REQUIRE(!sFill.empty());
+    CHECK(Has(sFill, "msaa list truncated wanted="));
+}
+
+TEST_CASE("present watch wiring pins" * doctest::test_suite("unit"))
+{
+    std::string sRendererRaw;
+    if (!ReadSource("../src/RedEngineFL/Graphics/PC/pcRedRenderer.cpp", sRendererRaw))
+    {
+        SkipCase("source files not found");
+    }
+    const std::string sRenderer = StripCr(sRendererRaw);
+
+    const std::string sEnd = FunctionBody(sRenderer, "void RedRenderer::EndFrame()");
+    REQUIRE(!sEnd.empty());
+    const size_t uiPresent = sEnd.find("->Present(");
+    const size_t uiStep = sEnd.find("PresentWatchStep(");
+    REQUIRE(uiPresent != std::string::npos);
+    REQUIRE(uiStep != std::string::npos);
+    CHECK(uiPresent < uiStep);
+    CHECK(Has(sEnd, "IsIconic(hGlobalWnd) == 0"));
+    CHECK(Has(sEnd, "hr == D3D_OK"));
+
+    const std::string sThrottles = FunctionBody(sRenderer, "bool RedRenderer::pcPresentThrottles()");
+    REQUIRE(!sThrottles.empty());
+    CHECK(Has(sThrottles, "PresentThrottledNow("));
+    CHECK(Has(sThrottles, "g_bNoRender"));
+    CHECK(!Has(sThrottles, "PresentationInterval"));
+
+    CHECK(CountOf(sRenderer, "ResetPresentWatch();") >= 3);
+}
+
+TEST_CASE("desktop mode source pins" * doctest::test_suite("unit"))
+{
+    std::string sRendererRaw;
+    if (!ReadSource("../src/RedEngineFL/Graphics/PC/pcRedRenderer.cpp", sRendererRaw))
+    {
+        SkipCase("source files not found");
+    }
+    const std::string sRenderer = StripCr(sRendererRaw);
+
+    const std::string sSaved = FunctionBody(sRenderer, "static bool SavedDesktopMode(");
+    REQUIRE(!sSaved.empty());
+    CHECK(Has(sSaved, "GetAdapterIdentifier("));
+    const size_t uiRegistry = sSaved.find("ENUM_REGISTRY_SETTINGS");
+    const size_t uiCurrent = sSaved.find("ENUM_CURRENT_SETTINGS");
+    REQUIRE(uiRegistry != std::string::npos);
+    REQUIRE(uiCurrent != std::string::npos);
+    CHECK(uiRegistry < uiCurrent);
+
+    const std::string sDesktop = FunctionBody(sRenderer, "void RedRenderer::pcGetAdapterDesktop(");
+    REQUIRE(!sDesktop.empty());
+    const size_t uiSaved = sDesktop.find("SavedDesktopMode(");
+    const size_t uiLive = sDesktop.find("GetAdapterDisplayMode(");
+    REQUIRE(uiSaved != std::string::npos);
+    REQUIRE(uiLive != std::string::npos);
+    CHECK(uiSaved < uiLive);
+    CHECK(Has(sDesktop,
+              "const bool bOwnExclusive = uiAdapter == gAdapter && m_pd3dDevice != 0 && !m_d3dpp.Windowed;"));
+    CHECK(Has(sDesktop, "if (bOwnExclusive && SavedDesktopMode(uiAdapter, dm))"));
+
+    const std::string sWatch = FunctionBody(sRenderer, "static unsigned int WatchRefreshHz()");
+    REQUIRE(!sWatch.empty());
+    CHECK(Has(sWatch, "ENUM_CURRENT_SETTINGS"));
+    CHECK(!Has(sWatch, "ENUM_REGISTRY_SETTINGS"));
+
+    const std::string sReadback = FunctionBody(sRenderer, "static unsigned int ReadbackRefresh()");
+    REQUIRE(!sReadback.empty());
+    CHECK(Has(sReadback, "ENUM_CURRENT_SETTINGS"));
+    CHECK(!Has(sReadback, "ENUM_REGISTRY_SETTINGS"));
+
+    const std::string sSet = FunctionBody(sRenderer, "void RedRenderer::pcSetDisplayMode(");
+    REQUIRE(!sSet.empty());
+    CHECK(Has(sSet, "SavedDesktopMode("));
+    CHECK(Has(sSet, "dmDisplayFrequency"));
+    CHECK(Has(sSet, "uiDesktopHz)"));
+}
+
+TEST_CASE("frame cap vsync source pins" * doctest::test_suite("unit"))
+{
+    std::string sStateRaw;
+    if (!ReadSource("../src/Battlefront2/Source/GameState.cpp", sStateRaw))
+    {
+        SkipCase("source files not found");
+    }
+    const std::string sState = StripCr(sStateRaw);
+
+    const std::string sTime = FunctionBody(sState, "void GameState::UpdateTime()");
+    REQUIRE(!sTime.empty());
+    CHECK(Has(sTime, "bool bThrottled = RedRenderer::pcPresentThrottles();"));
+    CHECK(Has(sTime, "BindReal(ops, plan, DisplayLogic::EffectiveFpsCap(DisplayCfg::gDisplay.uiFps, bThrottled));"));
+    CHECK(!Has(sTime, "BindReal(ops, plan, DisplayCfg::gDisplay.uiFps)"));
+    CHECK(CountOf(sTime, "BindReal(") == 1);
+    CHECK(Has(sTime, "OPENSWBF2 PACING vsync on, fps cap %u not applied"));
+    CHECK(Has(sTime, "OPENSWBF2 PACING fps cap %u applied"));
 }

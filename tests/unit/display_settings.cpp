@@ -49,6 +49,19 @@ bool Exists(const char* pcPath)
     return GetFileAttributesA(pcPath) != INVALID_FILE_ATTRIBUTES;
 }
 
+size_t ReadText(char* pcOut, size_t uiSize)
+{
+    size_t uiLen = 0;
+    FILE* pFile = fopen(IniPath(), "rb");
+    if (pFile)
+    {
+        uiLen = fread(pcOut, 1, uiSize - 1, pFile);
+        fclose(pFile);
+    }
+    pcOut[uiLen] = '\0';
+    return uiLen;
+}
+
 }
 
 TEST_CASE("display settings parse uint is strict" * doctest::test_suite("unit"))
@@ -96,6 +109,50 @@ TEST_CASE("display settings defaults" * doctest::test_suite("unit"))
     CHECK(kSettings.uiAdapter == 0);
     CHECK(!kSettings.bBorderless);
     CHECK(kSettings.uiSet == 0);
+}
+
+TEST_CASE("display settings default lets frames queue" * doctest::test_suite("unit"))
+{
+    DisplaySettings kSettings;
+    SetDefaults(kSettings);
+    CHECK(kSettings.bNoWaitQuery);
+    CHECK((kSettings.uiSet & kNoWaitQuery) == 0);
+    CHECK(SetFromText(kSettings, kNoWaitQuery, "0", "test"));
+    CHECK(!kSettings.bNoWaitQuery);
+    CHECK(SetFromText(kSettings, kNoWaitQuery, "1", "test"));
+    CHECK(kSettings.bNoWaitQuery);
+    SetDefaults(kSettings);
+    kSettings.bNoWaitQuery = false;
+    SetFlag(kSettings, kNoWaitQuery);
+    CHECK(kSettings.bNoWaitQuery);
+
+    Cleanup();
+    SetDefaults(gCliDisplay);
+    SetDefaults(gIniDisplay);
+    WriteText("[Display]\r\nNoWaitQuery=0\r\n");
+    DisplaySettings kLoaded;
+    SetDefaults(kLoaded);
+    LoadIni(kLoaded, IniPath());
+    CHECK(!kLoaded.bNoWaitQuery);
+
+    WriteText("[Display]\r\nFps=60\r\n");
+    DisplaySettings kMark;
+    SetDefaults(kMark);
+    DisplaySettings kNow;
+    SetDefaults(kNow);
+    unsigned int uiWritten = 99;
+    CHECK(SaveMenu(kMark, kNow, IniPath(), true, uiWritten));
+    CHECK(uiWritten == 0);
+    char acAfter[512];
+    ReadText(acAfter, sizeof(acAfter));
+    CHECK(strstr(acAfter, "NoWaitQuery=") == static_cast<char*>(0));
+
+    kNow.bNoWaitQuery = false;
+    CHECK(SaveMenu(kMark, kNow, IniPath(), true, uiWritten));
+    CHECK(uiWritten == kNoWaitQuery);
+    ReadText(acAfter, sizeof(acAfter));
+    CHECK(strstr(acAfter, "NoWaitQuery=0") != static_cast<char*>(0));
+    Cleanup();
 }
 
 TEST_CASE("display settings bad value keeps default and logs once" * doctest::test_suite("unit"))
@@ -408,4 +465,114 @@ TEST_CASE("display settings save adapter ignores cli mask" * doctest::test_suite
     SetDefaults(gCliDisplay);
     SetDefaults(gIniDisplay);
     SetDefaults(gDisplay);
+}
+
+TEST_CASE("display settings validate menu fields" * doctest::test_suite("unit"))
+{
+    MenuFields kLow = {0, 0, 0, 0, true};
+    CHECK(ValidateMenu(kLow));
+    MenuFields kHigh = {2, kRefreshMax, kVsyncMax, kFpsMax, false};
+    CHECK(ValidateMenu(kHigh));
+    CHECK(kRefreshMax == 1000);
+    CHECK(kFpsMax == 1000);
+    CHECK(kVsyncMax == 2);
+    CHECK(kAdapterMax == 15);
+    MenuFields kBad = kHigh;
+    kBad.uiMode = 3;
+    CHECK(!ValidateMenu(kBad));
+    kBad = kHigh;
+    kBad.uiRefresh = 1001;
+    CHECK(!ValidateMenu(kBad));
+    kBad = kHigh;
+    kBad.uiVsync = 3;
+    CHECK(!ValidateMenu(kBad));
+    kBad = kHigh;
+    kBad.uiFps = 1001;
+    CHECK(!ValidateMenu(kBad));
+    DisplaySettings kSettings;
+    SetDefaults(kSettings);
+    CHECK(!SetFromText(kSettings, kAdapter, "16", "test"));
+    CHECK(SetFromText(kSettings, kAdapter, "15", "test"));
+    CHECK(!SetFromText(kSettings, kRefresh, "1001", "test"));
+    CHECK(SetFromText(kSettings, kRefresh, "1000", "test"));
+    CHECK(!SetFromText(kSettings, kFps, "1001", "test"));
+    CHECK(SetFromText(kSettings, kFps, "1000", "test"));
+}
+
+TEST_CASE("display settings save menu writes only changed keys" * doctest::test_suite("unit"))
+{
+    Cleanup();
+    SetDefaults(gCliDisplay);
+    SetDefaults(gIniDisplay);
+    WriteText("[Display]\r\nFps=60\r\n");
+    DisplaySettings kMark;
+    SetDefaults(kMark);
+    DisplaySettings kNow = kMark;
+    kNow.bBorderless = true;
+    kNow.uiSet |= kBorderless;
+    kNow.uiVsync = 2;
+    kNow.uiSet |= kVsync;
+
+    char acBefore[512];
+    char acAfter[512];
+    ReadText(acBefore, sizeof(acBefore));
+    unsigned int uiWritten = 99;
+    CHECK(!SaveMenu(kMark, kNow, IniPath(), false, uiWritten));
+    CHECK(uiWritten == 0);
+    ReadText(acAfter, sizeof(acAfter));
+    CHECK(strcmp(acBefore, acAfter) == 0);
+    CHECK((gIniDisplay.uiSet & kMenuKeys) == 0);
+
+    uiWritten = 99;
+    CHECK(SaveMenu(kMark, kMark, IniPath(), true, uiWritten));
+    CHECK(uiWritten == 0);
+    ReadText(acAfter, sizeof(acAfter));
+    CHECK(strcmp(acBefore, acAfter) == 0);
+
+    uiWritten = 99;
+    CHECK(SaveMenu(kMark, kNow, IniPath(), true, uiWritten));
+    CHECK(uiWritten == (kBorderless | kVsync));
+    DisplaySettings kLoaded;
+    SetDefaults(kLoaded);
+    LoadIni(kLoaded, IniPath());
+    CHECK(kLoaded.bBorderless);
+    CHECK(kLoaded.uiVsync == 2);
+    CHECK(kLoaded.uiFps == 60);
+    CHECK((kLoaded.uiSet & kRefresh) == 0);
+    CHECK((kLoaded.uiSet & kNoWaitQuery) == 0);
+    ReadText(acAfter, sizeof(acAfter));
+    CHECK(strstr(acAfter, "Refresh=") == static_cast<char*>(0));
+    CHECK(strstr(acAfter, "NoWaitQuery=") == static_cast<char*>(0));
+    CHECK(gIniDisplay.bBorderless);
+    CHECK(gIniDisplay.uiVsync == 2);
+    CHECK((gIniDisplay.uiSet & (kBorderless | kVsync)) == (kBorderless | kVsync));
+    CHECK((gIniDisplay.uiSet & kFps) == 0);
+
+    DisplaySettings kCliMark;
+    SetDefaults(kCliMark);
+    SetFromText(kCliMark, kFps, "30", "command line");
+    kCliMark.uiCliMask |= kFps;
+    DisplaySettings kCliNow = kCliMark;
+    kCliNow.uiFps = 144;
+    uiWritten = 99;
+    CHECK(SaveMenu(kCliMark, kCliNow, IniPath(), true, uiWritten));
+    CHECK(uiWritten == kFps);
+    SetDefaults(kLoaded);
+    LoadIni(kLoaded, IniPath());
+    CHECK(kLoaded.uiFps == 144);
+    CHECK(kLoaded.bBorderless);
+    CHECK(gIniDisplay.uiFps == 144);
+    CHECK((gIniDisplay.uiSet & kFps) != 0);
+
+    DisplaySettings kFailNow = kMark;
+    kFailNow.uiRefresh = 144;
+    uiWritten = 99;
+    CHECK(!SaveMenu(kMark, kFailNow, "Z:\\openswbf2-missing-dir\\none\\display.ini", true, uiWritten));
+    CHECK(uiWritten == 0);
+    CHECK(gIniDisplay.uiRefresh == 0);
+    CHECK((gIniDisplay.uiSet & kRefresh) == 0);
+
+    Cleanup();
+    SetDefaults(gCliDisplay);
+    SetDefaults(gIniDisplay);
 }

@@ -350,6 +350,7 @@
     <ClCompile Include="src\Battlefront2\Source\LuaEvent.cpp" />
     <ClCompile Include="src\Battlefront2\Source\LuaHelper.cpp" />
     <ClCompile Include="src\Battlefront2\Source\LuaMemory.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\LuaVideoArgs.cpp" />
     <ClCompile Include="src\Battlefront2\Source\LuaScript.cpp" />
     <ClCompile Include="src\Battlefront2\Source\MapCamera.cpp" />
     <ClCompile Include="src\Battlefront2\Source\MedalsMgr.cpp" />
@@ -1145,6 +1146,7 @@
     <ClInclude Include="src\Battlefront2\Source\LuaEvent.h" />
     <ClInclude Include="src\Battlefront2\Source\LuaHelper.h" />
     <ClInclude Include="src\Battlefront2\Source\LuaMemory.h" />
+    <ClInclude Include="src\Battlefront2\Source\LuaVideoArgs.h" />
     <ClInclude Include="src\Battlefront2\Source\LuaScript.h" />
     <ClInclude Include="src\Battlefront2\Source\MapCamera.h" />
     <ClInclude Include="src\Battlefront2\Source\MedalsMgr.h" />

@@ -71,7 +71,8 @@ enum ResetKind
     kResetKindGammaPass,
     kResetKindGammaFallback,
     kResetKindGammaDrawFail,
-    kResetKindGammaLost
+    kResetKindGammaLost,
+    kResetKindShellStretch
 };
 
 struct ResetScript
@@ -185,6 +186,10 @@ static ResetScript& GetResetScript()
         else if (pcKind && strcmp(pcKind, "gammalost") == 0)
         {
             gResetScript.eKind = kResetKindGammaLost;
+        }
+        else if (pcKind && strcmp(pcKind, "shellstretch") == 0)
+        {
+            gResetScript.eKind = kResetKindShellStretch;
         }
     }
     return gResetScript;
@@ -455,6 +460,11 @@ static void ResetScriptFrame()
     {
         GammaScriptFrame(s);
     }
+    if (s.eKind == kResetKindShellStretch && !s.bArmed && ++s.uiFrames >= 60)
+    {
+        s.bArmed = true;
+        SetFocus(0);
+    }
     if ((s.eKind == kResetKindRecover || s.eKind == kResetKindFatal || s.eKind == kResetKindFlap) &&
         !s.bDone)
     {
@@ -523,6 +533,127 @@ static IDirect3DSurface9* AcquireTracked(FakeD3DSurface*& pSurface, FakeD3DSurfa
     pSurface->AddRef();
     return pSurface;
 }
+
+extern bool g_bNoWait;
+extern float g_fFixedRate;
+
+static void FakePresentWait()
+{
+    if (!g_bNoWait)
+    {
+        if (g_fFixedRate > 0.0f)
+        {
+            Sleep(static_cast<int>(1000.0f / g_fFixedRate));
+        }
+        else
+        {
+            Sleep(16);
+        }
+    }
+}
+
+static unsigned int gShellChainAlive;
+static D3DTEXTUREFILTERTYPE gShellLastFilter = D3DTEXF_NONE;
+
+static const char* FilterName(D3DTEXTUREFILTERTYPE eFilter)
+{
+    if (eFilter == D3DTEXF_LINEAR)
+    {
+        return "linear";
+    }
+    if (eFilter == D3DTEXF_NONE)
+    {
+        return "none";
+    }
+    return "other";
+}
+
+class FakeD3DSwapChain : public IDirect3DSwapChain9
+{
+public:
+    FakeD3DSwapChain(unsigned int uiW, unsigned int uiH)
+        : refCount(1), w(uiW), h(uiH), presents(0)
+    {
+        ++gShellChainAlive;
+    }
+
+    ~FakeD3DSwapChain()
+    {
+        --gShellChainAlive;
+    }
+
+    STDMETHOD(QueryInterface)(REFIID, void**)
+    {
+        return D3DERR_INVALIDCALL;
+    }
+
+    STDMETHOD_(ULONG, AddRef)()
+    {
+        return (ULONG)++refCount;
+    }
+
+    STDMETHOD_(ULONG, Release)()
+    {
+        const int iLeft = --refCount;
+        if (iLeft <= 0)
+        {
+            delete this;
+            return 0;
+        }
+        return (ULONG)iLeft;
+    }
+
+    STDMETHOD(Present)(CONST RECT*, CONST RECT*, HWND, CONST RGNDATA*, DWORD)
+    {
+        FakePresentWait();
+        if (++presents == 30)
+        {
+            LOG(LogRender, Inform, "OPENSWBF2 SHELLSTRETCH FAKE chain=%ux%u presents=%u filter=%s",
+                w, h, presents, FilterName(gShellLastFilter));
+        }
+        return D3D_OK;
+    }
+
+    STDMETHOD(GetFrontBufferData)(IDirect3DSurface9*)
+    {
+        return D3DERR_INVALIDCALL;
+    }
+
+    STDMETHOD(GetBackBuffer)(UINT, D3DBACKBUFFER_TYPE, IDirect3DSurface9** ppBackBuffer)
+    {
+        if (!ppBackBuffer)
+        {
+            return D3DERR_INVALIDCALL;
+        }
+        *ppBackBuffer = new FakeD3DSurface;
+        return D3D_OK;
+    }
+
+    STDMETHOD(GetRasterStatus)(D3DRASTER_STATUS*)
+    {
+        return D3DERR_INVALIDCALL;
+    }
+
+    STDMETHOD(GetDisplayMode)(D3DDISPLAYMODE*)
+    {
+        return D3DERR_INVALIDCALL;
+    }
+
+    STDMETHOD(GetDevice)(IDirect3DDevice9**)
+    {
+        return D3DERR_INVALIDCALL;
+    }
+
+    STDMETHOD(GetPresentParameters)(D3DPRESENT_PARAMETERS*)
+    {
+        return D3DERR_INVALIDCALL;
+    }
+
+    int refCount;
+    unsigned int w;
+    unsigned int h;
+    unsigned int presents;
+};
 
 // FUNCTION: SWBF2 0x006b01e0
 STDMETHODIMP_(ULONG) FakeD3D::AddRef()
@@ -831,8 +962,14 @@ STDMETHODIMP FakeD3DDevice::ColorFill(IDirect3DSurface9*, CONST RECT*,
 
 // FUNCTION: SWBF2 0x006b0950
 STDMETHODIMP FakeD3DDevice::CreateAdditionalSwapChain(
-    D3DPRESENT_PARAMETERS*, IDirect3DSwapChain9**)
+    D3DPRESENT_PARAMETERS* pPresentationParameters, IDirect3DSwapChain9** ppSwapChain)
 {
+    if (!pPresentationParameters || !ppSwapChain)
+    {
+        return D3DERR_INVALIDCALL;
+    }
+    *ppSwapChain = new FakeD3DSwapChain(pPresentationParameters->BackBufferWidth,
+                                        pPresentationParameters->BackBufferHeight);
     return 0;
 }
 
@@ -1112,6 +1249,10 @@ STDMETHODIMP FakeD3DDevice::GetDeviceCaps(D3DCAPS9* pCaps)
     pCaps->MaxVertexShaderConst = 96;
     pCaps->MaxTextureWidth = 2048;
     pCaps->MaxTextureHeight = 2048;
+    if (GetResetScript().eKind == kResetKindShellStretch)
+    {
+        pCaps->StretchRectFilterCaps = D3DPTFILTERCAPS_MINFLINEAR | D3DPTFILTERCAPS_MAGFLINEAR;
+    }
     return 0;
 }
 
@@ -1350,24 +1491,11 @@ STDMETHODIMP FakeD3DDevice::MultiplyTransform(D3DTRANSFORMSTATETYPE,
     return 0;
 }
 
-extern bool g_bNoWait;
-extern float g_fFixedRate;
-
 // FUNCTION: SWBF2 0x006b27c0
 STDMETHODIMP FakeD3DDevice::Present(CONST RECT*, CONST RECT*, HWND,
                                     CONST RGNDATA*)
 {
-    if (!g_bNoWait)
-    {
-        if (g_fFixedRate > 0.0f)
-        {
-            Sleep(static_cast<int>(1000.0f / g_fFixedRate));
-        }
-        else
-        {
-            Sleep(16);
-        }
-    }
+    FakePresentWait();
     ResetScript& s = GetResetScript();
     if (s.bPresentFailPending)
     {
@@ -1423,6 +1551,10 @@ STDMETHODIMP FakeD3DDevice::Reset(D3DPRESENT_PARAMETERS* pPresentationParameters
     if (IsGammaKind(s.eKind))
     {
         check(gGammaAlive == 0);
+    }
+    if (s.eKind == kResetKindShellStretch)
+    {
+        check(gShellChainAlive == 0);
     }
     if (s.bApplyDone && pPresentationParameters &&
         (pPresentationParameters->BackBufferWidth != s.uiBaseW ||
@@ -1718,12 +1850,13 @@ STDMETHODIMP_(BOOL) FakeD3DDevice::ShowCursor(BOOL)
 // FUNCTION: SWBF2 0x006b4030
 STDMETHODIMP FakeD3DDevice::StretchRect(IDirect3DSurface9*, CONST RECT*,
                                         IDirect3DSurface9*, CONST RECT*,
-                                        D3DTEXTUREFILTERTYPE)
+                                        D3DTEXTUREFILTERTYPE Filter)
 {
     if (GetResetScript().eKind == kResetKindGammaDrawFail)
     {
         return D3DERR_INVALIDCALL;
     }
+    gShellLastFilter = Filter;
     return 0;
 }
 
@@ -2662,6 +2795,60 @@ unsigned int RedRenderer::pcGetValidDisplayModes(unsigned int uiAdapter,
     return 0;
 }
 
+static DisplayLogic::PresentWatch sPresentWatch = {0, 0.0, false, false};
+static LARGE_INTEGER sLastPresentTicks;
+static unsigned int sWatchRefreshHz = 0;
+
+static unsigned int WatchRefreshHz()
+{
+    if (g_bNoRender || RedRenderer::m_adaptorIdentifier.DeviceName[0] == 0)
+    {
+        return 0;
+    }
+    DEVMODEA dm;
+    ZeroMemory(&dm, sizeof(dm));
+    dm.dmSize = sizeof(dm);
+    if (!EnumDisplaySettingsA(RedRenderer::m_adaptorIdentifier.DeviceName, ENUM_CURRENT_SETTINGS,
+                              &dm))
+    {
+        return 0;
+    }
+    return dm.dmDisplayFrequency;
+}
+
+static void ResetPresentWatch()
+{
+    DisplayLogic::PresentWatchReset(sPresentWatch);
+    sLastPresentTicks.QuadPart = 0;
+    sWatchRefreshHz = WatchRefreshHz();
+}
+
+static bool SavedDesktopMode(unsigned int uiAdapter, DEVMODEA& dm)
+{
+    if (g_bNoRender || RedRenderer::m_pD3D == 0)
+    {
+        return false;
+    }
+    D3DADAPTER_IDENTIFIER9 id;
+    memset(&id, 0, sizeof(id));
+    if (RedRenderer::m_pD3D->GetAdapterIdentifier(uiAdapter, 0, &id) != D3D_OK)
+    {
+        return false;
+    }
+    id.DeviceName[sizeof(id.DeviceName) - 1] = '\0';
+    ZeroMemory(&dm, sizeof(dm));
+    dm.dmSize = sizeof(dm);
+    if (EnumDisplaySettingsA(id.DeviceName, ENUM_REGISTRY_SETTINGS, &dm) && dm.dmPelsWidth &&
+        dm.dmPelsHeight)
+    {
+        return true;
+    }
+    ZeroMemory(&dm, sizeof(dm));
+    dm.dmSize = sizeof(dm);
+    return EnumDisplaySettingsA(id.DeviceName, ENUM_CURRENT_SETTINGS, &dm) && dm.dmPelsWidth &&
+           dm.dmPelsHeight;
+}
+
 void RedRenderer::pcGetAdapterDesktop(unsigned int uiAdapter, unsigned int& uiW,
                                       unsigned int& uiH)
 {
@@ -2670,6 +2857,15 @@ void RedRenderer::pcGetAdapterDesktop(unsigned int uiAdapter, unsigned int& uiW,
 
     if (g_bNoRender)
     {
+        return;
+    }
+
+    DEVMODEA dm;
+    const bool bOwnExclusive = uiAdapter == gAdapter && m_pd3dDevice != 0 && !m_d3dpp.Windowed;
+    if (bOwnExclusive && SavedDesktopMode(uiAdapter, dm))
+    {
+        uiW = dm.dmPelsWidth;
+        uiH = dm.dmPelsHeight;
         return;
     }
 
@@ -2740,6 +2936,43 @@ bool RedRenderer::pcRequestAdapter(unsigned int uiIndex)
     return choice.bRestart;
 }
 
+unsigned int RedRenderer::pcGetAdapterCount()
+{
+    return m_pD3D ? m_pD3D->GetAdapterCount() : 0;
+}
+
+unsigned int RedRenderer::pcGetRunningAdapter()
+{
+    return gAdapter;
+}
+
+bool RedRenderer::pcGetAdapterLabel(unsigned int uiIndex, char* pcOut, unsigned int uiSize)
+{
+    if (pcOut == 0 || uiSize == 0 || uiIndex >= pcGetAdapterCount())
+    {
+        return false;
+    }
+
+    unsigned int uiDisplay = 0;
+    HMONITOR hMon = m_pD3D->GetAdapterMonitor(uiIndex);
+    if (hMon)
+    {
+        MONITORINFOEXA info;
+        memset(&info, 0, sizeof(info));
+        info.cbSize = sizeof(info);
+        if (GetMonitorInfoA(hMon, &info))
+        {
+            info.szDevice[sizeof(info.szDevice) - 1] = '\0';
+            uiDisplay = DisplayLogic::DisplayNumberFromDeviceName(info.szDevice);
+        }
+    }
+
+    unsigned int uiW = 0;
+    unsigned int uiH = 0;
+    pcGetAdapterDesktop(uiIndex, uiW, uiH);
+    return DisplayLogic::MonitorLabel(uiIndex, uiDisplay, uiW, uiH, pcOut, uiSize);
+}
+
 void RedRenderer::pcGetMaxTextureSize(unsigned int& uiW, unsigned int& uiH)
 {
     uiW = 0;
@@ -2764,16 +2997,61 @@ bool RedRenderer::pcMultiSampleSupported(unsigned int uiAdapter, D3DMULTISAMPLE_
     {
         return true;
     }
-    DWORD dwColor = 0;
-    DWORD dwDepth = 0;
-    if (FAILED(m_pD3D->CheckDeviceMultiSampleType(uiAdapter, D3DDEVTYPE_HAL, D3DFMT_A8R8G8B8,
-                                                  bWindowed, eType, &dwColor)) ||
-        FAILED(m_pD3D->CheckDeviceMultiSampleType(uiAdapter, D3DDEVTYPE_HAL, D3DFMT_D24S8,
-                                                  bWindowed, eType, &dwDepth)))
+    unsigned int auiLevels[DisplayLogic::kMultisampleTypes];
+    pcGetMultiSampleLevels(uiAdapter, bWindowed, auiLevels);
+    return (unsigned int)eType < DisplayLogic::kMultisampleTypes &&
+           ulQuality < auiLevels[eType];
+}
+
+void RedRenderer::pcGetMultiSampleLevels(unsigned int uiAdapter, bool bWindowed,
+                                         unsigned int* auiLevels)
+{
+    if (!auiLevels)
+    {
+        return;
+    }
+    if (g_bNoRender || !m_pD3D)
+    {
+        DisplayLogic::FakeMultisampleLevels(auiLevels);
+        return;
+    }
+    for (unsigned int uiType = 0; uiType < DisplayLogic::kMultisampleTypes; uiType++)
+    {
+        auiLevels[uiType] = 0;
+    }
+    for (unsigned int uiType = 1; uiType < DisplayLogic::kMultisampleTypes; uiType++)
+    {
+        DWORD dwColor = 0;
+        DWORD dwDepth = 0;
+        const D3DMULTISAMPLE_TYPE eType = (D3DMULTISAMPLE_TYPE)uiType;
+        if (SUCCEEDED(m_pD3D->CheckDeviceMultiSampleType(uiAdapter, D3DDEVTYPE_HAL,
+                                                         D3DFMT_A8R8G8B8, bWindowed, eType,
+                                                         &dwColor)) &&
+            SUCCEEDED(m_pD3D->CheckDeviceMultiSampleType(uiAdapter, D3DDEVTYPE_HAL,
+                                                         D3DFMT_D24S8, bWindowed, eType,
+                                                         &dwDepth)))
+        {
+            auiLevels[uiType] = (unsigned int)(dwColor < dwDepth ? dwColor : dwDepth);
+        }
+    }
+}
+
+bool RedRenderer::pcPresentThrottles()
+{
+    if (g_bNoRender || !m_pd3dDevice || sLastPresentTicks.QuadPart == 0)
     {
         return false;
     }
-    return ulQuality < dwColor && ulQuality < dwDepth;
+    LARGE_INTEGER now;
+    LARGE_INTEGER freq;
+    QueryPerformanceCounter(&now);
+    QueryPerformanceFrequency(&freq);
+    double dSince = 0.0;
+    if (freq.QuadPart > 0)
+    {
+        dSince = (double)(now.QuadPart - sLastPresentTicks.QuadPart) / (double)freq.QuadPart;
+    }
+    return DisplayLogic::PresentThrottledNow(sPresentWatch, IsIconic(hGlobalWnd) == 0, dSince);
 }
 
 // FUNCTION: SWBF2 0x006b8680
@@ -3521,6 +3799,7 @@ void RedRenderer::Init()
             m_clientWLast = m_clientW;
             m_clientHLast = m_clientH;
             NoteInitApplied(!bReverted);
+            ResetPresentWatch();
             if (uiAttempts > 1)
             {
                 LOG(LogRender, Inform, "OPENSWBF2 RESET recovered after %u attempts", uiAttempts);
@@ -3805,6 +4084,7 @@ void RedRenderer::InitStatic()
     if (m_pd3dDevice)
     {
         ApplyCurrentMode(false);
+        ResetPresentWatch();
     }
 
     if (!m_pd3dDevice)
@@ -3948,8 +4228,15 @@ void RedRenderer::pcSetDisplayMode(unsigned int uiWidth, unsigned int uiHeight,
         {
             DisplayLogic::DisplayModeRec* pList = new DisplayLogic::DisplayModeRec[uiCount];
             pcGetValidDisplayModes(gAdapter, pList, uiCount, 0, 0);
+            unsigned int uiDesktopHz = 0;
+            DEVMODEA dm;
+            if (SavedDesktopMode(gAdapter, dm) && dm.dmDisplayFrequency > 1)
+            {
+                uiDesktopHz = dm.dmDisplayFrequency;
+            }
             m_d3dpp.FullScreen_RefreshRateInHz = DisplayLogic::PickRefresh(
-                pList, uiCount, uiWidth, uiHeight, DisplayCfg::gDisplay.uiRefresh, false);
+                pList, uiCount, uiWidth, uiHeight, DisplayCfg::gDisplay.uiRefresh, false,
+                uiDesktopHz);
             delete[] pList;
         }
     }
@@ -4429,6 +4716,22 @@ bool RedRenderer::pcApplyPending()
     return sPendingApply.bSet;
 }
 
+bool RedRenderer::pcPendingConfirm()
+{
+    return sPendingApply.bSet && sPendingApply.kTag.bValid && sPendingApply.kTag.bConfirm;
+}
+
+void RedRenderer::pcSetWaitForFrameQuery(bool bWait)
+{
+    bool bChanged = sWaitForFrameQuery != bWait;
+    sWaitForFrameQuery = bWait;
+    DisplayCfg::gDisplay.bNoWaitQuery = !bWait;
+    if (bChanged)
+    {
+        LOG(LogRender, Inform, "OPENSWBF2 DISPLAY waitquery=%d", bWait ? 1 : 0);
+    }
+}
+
 static DisplayLogic::DisplayRec ToDisplayRec(const D3DPRESENT_PARAMETERS& pp,
                                              DisplayLogic::DisplayMode eMode,
                                              unsigned int uiClientW, unsigned int uiClientH)
@@ -4471,10 +4774,15 @@ bool RedRenderer::pcApplyDisplayMode(unsigned int uiWidth, unsigned int uiHeight
     sPendingApply.kTag = sStagedTag;
     sStagedTag.bValid = false;
 
-    sPendingApply.bSet = !DisplayLogic::SameDisplayParams(
-        ToDisplayRec(ppSave, eSave, uiClientWSave, uiClientHSave),
+    const DisplayLogic::DisplayRec kCurRec =
+        ToDisplayRec(ppSave, eSave, uiClientWSave, uiClientHSave);
+    const DisplayLogic::DisplayRec kNextRec =
         ToDisplayRec(sPendingApply.pp, sPendingApply.eMode, sPendingApply.uiClientW,
-                     sPendingApply.uiClientH));
+                     sPendingApply.uiClientH);
+    sPendingApply.bSet = !DisplayLogic::SameDisplayParams(kCurRec, kNextRec);
+    sPendingApply.kTag.bConfirm = sPendingApply.kTag.bValid && sPendingApply.kTag.bConfirm &&
+                                  sPendingApply.bSet &&
+                                  DisplayLogic::ConfirmNeeded(kCurRec, kNextRec);
     if (sPendingApply.bSet)
     {
         sApplyStartTick = GetTickCount();
@@ -4655,6 +4963,7 @@ void RedRenderer::internalReset()
             ++sDisplayGeneration;
         }
         m_d3dpp = pp;
+        ResetPresentWatch();
         if (sApplyPhase != DisplayLogic::kApplyNone)
         {
             sApplyPhase = DisplayLogic::ApplyPhaseStep(sApplyPhase, DisplayLogic::kEvResetOk).ePhase;
@@ -5853,6 +6162,161 @@ void RedRenderer::BeginScene()
     internalUpdateSceneConstants();
 }
 
+static IDirect3DSwapChain9* sShellChain;
+static IDirect3DSurface9* sShellSurface;
+static unsigned int sShellW;
+static unsigned int sShellH;
+static bool sShellLinear;
+static bool sShellRegistered;
+static bool sShellFailLogged;
+static bool sShellActive;
+static bool sShellFailed;
+static unsigned int sShellFailW;
+static unsigned int sShellFailH;
+static unsigned int sShellLogBackW;
+static unsigned int sShellLogBackH;
+static unsigned int sShellLogW;
+static unsigned int sShellLogH;
+
+void RedRenderer::pcSetShellActive(bool bShell)
+{
+    sShellActive = bShell;
+}
+
+static void ReleaseShellStretch()
+{
+    if (sShellSurface)
+    {
+        sShellSurface->Release();
+        sShellSurface = 0;
+    }
+    if (sShellChain)
+    {
+        sShellChain->Release();
+        sShellChain = 0;
+    }
+    sShellW = 0;
+    sShellH = 0;
+}
+
+static void __cdecl ShellStretchReset(ResetFlagsT eFlags)
+{
+    if (eFlags & RESETFLAGS_FREE_RESOURCES)
+    {
+        ReleaseShellStretch();
+        sShellFailed = false;
+    }
+}
+
+static void ShellStretchFailed(HRESULT hr)
+{
+    if (!sShellFailLogged)
+    {
+        sShellFailLogged = true;
+        LOG(LogRender, Warning, "OPENSWBF2 DISPLAY shell stretch unavailable hr=0x%08X",
+            (unsigned int)hr);
+    }
+}
+
+static bool EnsureShellStretch(bool bIsShell)
+{
+    if (RedRenderer::m_bResourcesReleased || !RedRenderer::m_pBackBufferSurface ||
+        !RedRenderer::m_pd3dDevice)
+    {
+        return false;
+    }
+    const D3DPRESENT_PARAMETERS& pp = RedRenderer::m_d3dpp;
+    DisplayLogic::DisplayMode eMode =
+        pp.Windowed ? RedRenderer::m_displayMode : DisplayLogic::kModeFullscreen;
+    unsigned int uiClientW = RedRenderer::m_clientW;
+    unsigned int uiClientH = RedRenderer::m_clientH;
+    if (GetResetScript().eKind == kResetKindShellStretch)
+    {
+        bIsShell = true;
+        eMode = DisplayLogic::kModeWindowed;
+        uiClientW = pp.BackBufferWidth * 2;
+        uiClientH = pp.BackBufferHeight * 2;
+    }
+    const DWORD dwLinear = D3DPTFILTERCAPS_MINFLINEAR | D3DPTFILTERCAPS_MAGFLINEAR;
+    const bool bLinearCaps =
+        (RedRenderer::m_deviceCaps.StretchRectFilterCaps & dwLinear) == dwLinear;
+    const DisplayLogic::ShellStretch kPlan =
+        DisplayLogic::ShellStretchPlan(eMode, bIsShell, pp.BackBufferWidth, pp.BackBufferHeight,
+                                       uiClientW, uiClientH, bLinearCaps);
+    if (!kPlan.bActive)
+    {
+        ReleaseShellStretch();
+        return false;
+    }
+    if (sShellFailed && sShellFailW == uiClientW && sShellFailH == uiClientH)
+    {
+        return false;
+    }
+    sShellLinear = kPlan.bLinear;
+    if (sShellChain && sShellSurface && sShellW == uiClientW && sShellH == uiClientH)
+    {
+        return true;
+    }
+    if (!sShellRegistered)
+    {
+        RedRenderer::pcRegisterResetFunction(&ShellStretchReset);
+        sShellRegistered = true;
+    }
+    ReleaseShellStretch();
+    D3DPRESENT_PARAMETERS kChain = pp;
+    kChain.BackBufferWidth = uiClientW;
+    kChain.BackBufferHeight = uiClientH;
+    kChain.BackBufferCount = 1;
+    kChain.Windowed = TRUE;
+    kChain.SwapEffect = D3DSWAPEFFECT_DISCARD;
+    kChain.MultiSampleType = D3DMULTISAMPLE_NONE;
+    kChain.MultiSampleQuality = 0;
+    kChain.EnableAutoDepthStencil = FALSE;
+    kChain.Flags = 0;
+    kChain.FullScreen_RefreshRateInHz = 0;
+    kChain.hDeviceWindow = hGlobalWnd;
+    IDirect3DSwapChain9* pChain = 0;
+    HRESULT hr = RedRenderer::m_pd3dDevice->CreateAdditionalSwapChain(&kChain, &pChain);
+    if (SUCCEEDED(hr) && !pChain)
+    {
+        hr = E_FAIL;
+    }
+    if (SUCCEEDED(hr))
+    {
+        sShellChain = pChain;
+        IDirect3DSurface9* pSurface = 0;
+        hr = sShellChain->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &pSurface);
+        if (SUCCEEDED(hr) && !pSurface)
+        {
+            hr = E_FAIL;
+        }
+        sShellSurface = pSurface;
+    }
+    if (FAILED(hr))
+    {
+        ShellStretchFailed(hr);
+        ReleaseShellStretch();
+        sShellFailed = true;
+        sShellFailW = uiClientW;
+        sShellFailH = uiClientH;
+        return false;
+    }
+    sShellW = uiClientW;
+    sShellH = uiClientH;
+    if (sShellLogBackW != pp.BackBufferWidth || sShellLogBackH != pp.BackBufferHeight ||
+        sShellLogW != uiClientW || sShellLogH != uiClientH)
+    {
+        sShellLogBackW = pp.BackBufferWidth;
+        sShellLogBackH = pp.BackBufferHeight;
+        sShellLogW = uiClientW;
+        sShellLogH = uiClientH;
+        LOG(LogRender, Inform, "OPENSWBF2 DISPLAY shell stretch %s %ux%u->%ux%u",
+            sShellLinear ? "linear" : "none", pp.BackBufferWidth, pp.BackBufferHeight, uiClientW,
+            uiClientH);
+    }
+    return true;
+}
+
 // FUNCTION: SWBF2 0x006b0600
 void RedRenderer::Cleanup()
 {
@@ -5883,6 +6347,7 @@ void RedRenderer::Cleanup()
     RedRenderer::m_curFormat = 0;
 
     GammaPass::ReleaseDefault();
+    ReleaseShellStretch();
     if (m_pBackBufferSurface)
     {
         m_pBackBufferSurface->Release();
@@ -5984,7 +6449,43 @@ void RedRenderer::EndFrame()
     pcRedIndexBuffer::FlushAllDynamicIndexBuffers();
     FlushOcclusionQueries();
     GammaPass::Draw();
-    HRESULT hr = m_pd3dDevice->Present(0, 0, 0, 0);
+    HRESULT hr = D3DERR_INVALIDCALL;
+    bool bPresented = false;
+    if (EnsureShellStretch(sShellActive))
+    {
+        hr = m_pd3dDevice->StretchRect(m_pBackBufferSurface, 0, sShellSurface, 0,
+                                       sShellLinear ? D3DTEXF_LINEAR : D3DTEXF_NONE);
+        if (SUCCEEDED(hr))
+        {
+            hr = sShellChain->Present(0, 0, 0, 0, 0);
+        }
+        bPresented = SUCCEEDED(hr);
+        if (!bPresented && hr != D3DERR_DEVICELOST)
+        {
+            ShellStretchFailed(hr);
+        }
+    }
+    if (!bPresented)
+    {
+        hr = m_pd3dDevice->Present(0, 0, 0, 0);
+    }
+    LARGE_INTEGER now;
+    QueryPerformanceCounter(&now);
+    if (sLastPresentTicks.QuadPart != 0)
+    {
+        LARGE_INTEGER freq;
+        QueryPerformanceFrequency(&freq);
+        double dPeriod = 0.0;
+        if (freq.QuadPart > 0)
+        {
+            dPeriod = (double)(now.QuadPart - sLastPresentTicks.QuadPart) / (double)freq.QuadPart;
+        }
+        DisplayLogic::PresentWatchStep(sPresentWatch,
+                                       m_d3dpp.PresentationInterval != D3DPRESENT_INTERVAL_IMMEDIATE,
+                                       hr == D3D_OK, IsIconic(hGlobalWnd) == 0, dPeriod,
+                                       sWatchRefreshHz);
+    }
+    sLastPresentTicks = now;
     if (m_pd3dQuery && hr != D3DERR_DEVICELOST)
     {
         m_pd3dQuery->Issue(D3DISSUE_END);
