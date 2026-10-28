@@ -703,7 +703,8 @@ void pcCrash::SetCrashTest(char const* pcKind)
     static char const* const apcKinds[] = { "nullderef", "divzero", "stackoverflow", "debugbreak", "abort",
         "invalidparam", "fastfail", "arenaoom", "debugheapoom", "heapfail",
         "luaoom", "luapanic", "hang", "check", "resetrecover", "resetfatal", "resetinitlost",
-        "resetflap", "resetlaterinit" };
+        "resetflap", "resetlaterinit", "applymode", "applymodesmall", "applyfail", "applypresentfail", "applyadapter",
+        "applytargetfail" };
     if (pcKind == 0)
     {
         return;

@@ -174,6 +174,20 @@ void CameraManager::SetNumCameras(unsigned int uiNumCameras)
     }
 }
 
+void CameraManager::RefreshAspect()
+{
+    float fAspectRatio = RedRenderer::GetScreenAspectRatio();
+    if (m_iNumCam == 2)
+    {
+        fAspectRatio *= 0.5f;
+    }
+    unsigned int uiCount = sizeof(mRedCamera) / sizeof(mRedCamera[0]);
+    for (unsigned int i = 0; i < m_iNumCam && i < uiCount; i++)
+    {
+        mRedCamera[i]->SetPerspective(0.7f, 120.0f, 0.83775806f, fAspectRatio);
+    }
+}
+
 // FUNCTION: SWBF2 0x0044e3c0
 bool Tracker::IsFirstPersonView()
 {

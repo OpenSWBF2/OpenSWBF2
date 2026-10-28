@@ -34,6 +34,7 @@ void Cleanup();
 void pcReset(ResetFlagsT flags);
 
 unsigned int AddView(const RedViewport& rViewport, RedCamera* pCamera);
+void RefreshViewScreens();
 void RemoveView(unsigned int uiView);
 float GetNearPlane();
 float GetNearSceneFadeStart();

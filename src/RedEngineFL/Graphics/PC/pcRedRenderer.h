@@ -484,13 +484,15 @@ class FakeD3DTexture : public IDirect3DTexture9
 public:
 
     FakeD3DTexture(unsigned int width, unsigned int height,
-                   unsigned int format)
+                   unsigned int format, unsigned long ulUsage, D3DPOOL ePool)
         : refCount(1),
           lockCount(0),
           w(width),
           h(height),
           fmt(format),
-          bits(0)
+          bits(0),
+          usage(ulUsage),
+          pool(ePool)
     {
     }
 
@@ -531,6 +533,8 @@ public:
     unsigned int h;
     unsigned int fmt;
     unsigned char* bits;
+    unsigned long usage;
+    D3DPOOL pool;
 };
 
  
@@ -720,6 +724,18 @@ extern unsigned int gAdapter;
 #include "RedEngineFL/Util/ext/heap.h"
 
 #include "RedEngineFL/Graphics/RedColor.h"
+
+struct DisplayRequestTag
+{
+    bool bValid;
+    unsigned int uiOwner;
+    unsigned short resX;
+    unsigned short resY;
+    bool windowed;
+    bool vsync;
+    D3DMULTISAMPLE_TYPE ms;
+    unsigned long msq;
+};
 
 struct RenderItem;
 
@@ -1154,13 +1170,30 @@ public:
     static void pcGetAdapterDesktop(unsigned int uiAdapter, unsigned int& uiW,
                                     unsigned int& uiH);
 
+    static bool pcRequestAdapter(unsigned int uiIndex);
+
     static bool pcMultiSampleSupported(unsigned int uiAdapter, D3DMULTISAMPLE_TYPE eType,
                                        unsigned long ulQuality, bool bWindowed);
+
+    static void pcGetMaxTextureSize(unsigned int& uiW, unsigned int& uiH);
 
     static void pcSetDisplayMode(unsigned int uiWidth, unsigned int uiHeight,
                                  DisplayLogic::DisplayMode eMode, unsigned int uiClientW,
                                  unsigned int uiClientH, bool bVSync,
                                  D3DMULTISAMPLE_TYPE msType, unsigned long ulMSQuality);
+
+    static bool pcApplyDisplayMode(unsigned int uiWidth, unsigned int uiHeight,
+                                   DisplayLogic::DisplayMode eMode, unsigned int uiClientW,
+                                   unsigned int uiClientH, bool bVSync,
+                                   D3DMULTISAMPLE_TYPE msType, unsigned long ulMSQuality);
+
+    static void pcStageRequestTag(const DisplayRequestTag& kTag);
+
+    static bool pcApplyPending();
+
+    static bool pcTakeApplyNotice(unsigned int& uiKind, DisplayRequestTag& rTag);
+
+    static unsigned int pcGetDisplayGeneration();
 
     static DisplayLogic::DisplayMode GetDisplayMode();
 

@@ -407,9 +407,10 @@ int ScriptCB_GetAutodetectPCVideoOptions(lua_State*)
 }
 
 static int ScriptCB_EnableCursor(lua_State* L);
+static int ScriptCB_SetPCDisplayAdapter(lua_State* L);
 
 // GLOBAL: SWBF2 0x007e8270
-static const CallbackEntryT sPCCallbacks[36] =
+static const CallbackEntryT sPCCallbacks[37] =
 {
     { "ScriptCB_GetMouseSensitivity", ScriptCB_GetMouseSensitivity },
     { "ScriptCB_GetJoySensitivity", ScriptCB_GetJoySensitivity },
@@ -447,6 +448,7 @@ static const CallbackEntryT sPCCallbacks[36] =
     { "ScriptCB_CheckMouseMark", ScriptCB_CheckMouseMark },
     { "ScriptCB_GetKeyboardPCFlags", ScriptCB_GetKeyboardPCFlags },
     { "ScriptCB_EnableCursor", ScriptCB_EnableCursor },
+    { "ScriptCB_SetPCDisplayAdapter", ScriptCB_SetPCDisplayAdapter },
 };
 
 // FUNCTION: SWBF2 0x00599170
@@ -894,6 +896,7 @@ int ScriptCB_SetPCVideoOptions(lua_State* L)
         pProfile->UpdateProfCRC();
         rPC.ApplyPostLoadSettings();
     }
+    PlayerProfile::ApplyLiveDisplay();
     return 0;
 }
 
@@ -924,7 +927,7 @@ int ScriptCB_IsPCVideoFixedFunction(lua_State* L)
 // FUNCTION: SWBF2 0x0059b170
 void InitPC()
 {
-    for (int i = 0; i < 36; ++i)
+    for (int i = 0; i < 37; ++i)
     {
         LuaHelper::Register(sPCCallbacks[i].pcName, sPCCallbacks[i].pfnCallback, 0);
     }
@@ -975,4 +978,21 @@ int Lua_Callbacks::ScriptCB_EnableCursor(lua_State* L)
     }
     FLRenderer::EnableCursor(bEnable);
     return 0;
+}
+
+int Lua_Callbacks::ScriptCB_SetPCDisplayAdapter(lua_State* L)
+{
+    if (lua_gettop(LuaHelper::mState) != 1 || !lua_isnumber(LuaHelper::mState, 1))
+    {
+        lua_pushboolean(LuaHelper::mState, false);
+        return 1;
+    }
+    double dIndex = (double)lua_tonumber(LuaHelper::mState, 1);
+    unsigned int uiIndex = 0xFFFFFFFFu;
+    if (dIndex >= 0.0 && dIndex < 4096.0 && dIndex == (double)(unsigned int)dIndex)
+    {
+        uiIndex = (unsigned int)dIndex;
+    }
+    lua_pushboolean(LuaHelper::mState, RedRenderer::pcRequestAdapter(uiIndex));
+    return 1;
 }

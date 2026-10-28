@@ -11,6 +11,21 @@
 // GLOBAL: SWBF2 0x01f9ae34
 RedTexture* s_glowTextures[2];
 
+static void __cdecl GlowReset(ResetFlagsT eFlags)
+{
+    if (!(eFlags & RESETFLAGS_FREE_RESOURCES) || !s_glowTextures[0])
+    {
+        return;
+    }
+    RedTexture* pSky = RedRenderer::pcGetBuffer(PC_BUFFER_SKY);
+    if (!pSky)
+    {
+        return;
+    }
+    s_glowTextures[0]->m_uiWidth = pSky->m_uiWidth;
+    s_glowTextures[0]->m_uiHeight = pSky->m_uiHeight;
+}
+
 // FUNCTION: SWBF2 0x00419110
 void HDREffect::PlatformInit()
 {
@@ -37,6 +52,7 @@ void HDREffect::PlatformInit()
     s_glowTextures[0] = new RedTexture(bufferDesc.Width, bufferDesc.Height, bufferDesc.Format,
                                        1, D3DUSAGE_RENDERTARGET, D3DPOOL_DEFAULT, 0);
     s_glowTextures[1] = RedRenderer::pcGetBuffer(PC_BUFFER_SKY);
+    RedRenderer::pcRegisterResetFunction(&GlowReset);
 }
 
 // FUNCTION: SWBF2 0x00419260
@@ -47,7 +63,9 @@ void HDREffect::PlatformCleanup()
         m_pHDRShader->Release();
         m_pHDRShader = 0;
     }
+    RedRenderer::pcUnregisterResetFunction(&GlowReset);
     delete s_glowTextures[0];
+    s_glowTextures[0] = 0;
 }
 
 // FUNCTION: SWBF2 0x004192c0

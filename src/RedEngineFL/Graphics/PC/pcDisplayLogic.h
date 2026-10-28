@@ -157,4 +157,86 @@ ShellSize ShellSizePolicy(DisplayMode m, bool bIsShell, unsigned int uiCliW, uns
                           unsigned int uiProfW, unsigned int uiProfH, unsigned int uiDeskW,
                           unsigned int uiDeskH);
 
+struct DisplayRec
+{
+    unsigned int uiW, uiH;
+    bool bWindowed;
+    unsigned int uiMsType, uiMsQuality;
+    unsigned int uiInterval;
+    unsigned int uiRefresh;
+    DisplayMode eMode;
+    unsigned int uiClientW, uiClientH;
+};
+
+bool SameDisplayParams(const DisplayRec& a, const DisplayRec& b);
+
+struct BufferSize
+{
+    unsigned int uiW, uiH;
+};
+
+struct BufferSet
+{
+    BufferSize akBuf[3];
+};
+
+BufferSet BufferSizes(unsigned int uiBackW, unsigned int uiBackH, unsigned int uiMaxTexW,
+                      unsigned int uiMaxTexH, bool bNonPow2);
+
+bool ShadowQuadSharesSky(unsigned int uiBackW, unsigned int uiBackH, unsigned int uiMsType,
+                         bool bDriverMs, unsigned int uiSkyW, unsigned int uiSkyH);
+
+enum ApplyPhase
+{
+    kApplyNone = 0,
+    kApplyResetting = 1,
+    kApplyAwaitPresent = 2
+};
+
+enum ApplyEvent
+{
+    kEvResetOk = 0,
+    kEvPresentOk = 1,
+    kEvPresentLost = 2,
+    kEvPresentFail = 3
+};
+
+enum ApplyAction
+{
+    kActNone = 0,
+    kActPromote = 1,
+    kActRevert = 2
+};
+
+struct ApplyStep
+{
+    ApplyPhase ePhase;
+    ApplyAction eAction;
+};
+
+ApplyStep ApplyPhaseStep(ApplyPhase ePhase, ApplyEvent eEvent);
+
+ApplyEvent PresentEvent(long hr);
+
+struct AdapterChoice
+{
+    bool bValid;
+    bool bRestart;
+};
+
+AdapterChoice AdapterDecision(unsigned int uiRequested, unsigned int uiRunning,
+                              unsigned int uiCount);
+
+bool ShouldRestoreProfile(bool bSnapshotValid, unsigned int uiOwner, unsigned int uiCurrent,
+                          bool bRequestPending);
+
+const unsigned int kMinW = 320;
+const unsigned int kMinH = 240;
+const unsigned int kMaxDim = 16384;
+
+bool SizeInBounds(unsigned int uiW, unsigned int uiH);
+
+bool SizeFitsCaps(unsigned int uiW, unsigned int uiH, unsigned int uiMaxTexW,
+                  unsigned int uiMaxTexH);
+
 }

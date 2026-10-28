@@ -46,6 +46,8 @@ void SetFlag(DisplaySettings& kSettings, unsigned int uiKey);
 void Merge(DisplaySettings& dst, const DisplaySettings& cli);
 void LoadIni(DisplaySettings& kSettings, const char* pcPath);
 bool SaveIni(const DisplaySettings& kSettings, const char* pcPath, bool bGoodFrame);
+bool DisplayIniPath(char* pcPath, unsigned int uiSize);
+bool SaveAdapter(unsigned int uiIndex, const char* pcName);
 void Init();
 
 extern DisplaySettings gCliDisplay;

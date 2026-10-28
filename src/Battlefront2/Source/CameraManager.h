@@ -28,6 +28,7 @@ public:
     static void Create(int iNumCameras);
     static void CreateClient();
     void SetNumCameras(unsigned int uiNumCameras);
+    void RefreshAspect();
     int GetCameraIdForView(unsigned int uiView) const;
 
     void EnableScene(bool bEnable);

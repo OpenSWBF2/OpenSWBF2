@@ -79,6 +79,8 @@ public:
 
     static void pcReset(ResetFlagsT eFlags);
 
+    static bool pcDefaultPoolCreated();
+
     unsigned int m_uiLastFrameUsed;
     unsigned int m_uiNameHash;
     unsigned int m_uiHeight;

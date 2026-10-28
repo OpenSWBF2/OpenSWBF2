@@ -406,12 +406,20 @@ unsigned int HUD::TranslateString(const char* const* ppStrings, unsigned int uCo
     return (unsigned int)-1;
 }
 
+static unsigned int sLoadNumViews;
+
+void HUD::Manager::RefreshViewport()
+{
+    HUD::Element::SetupViewportDimensions(sLoadNumViews, false);
+}
+
 // FUNCTION: SWBF2 0x00565950
 void HUD::Manager::Load(PblFileChunk& chunk)
 {
     PblConfig config(chunk);
 
     unsigned int uNumViews = CameraManager::Instance()->m_iNumCam;
+    sLoadNumViews = uNumViews;
     HUD::Element::SetupViewportDimensions(uNumViews, false);
     for (unsigned int i = 0; i < uNumViews; ++i)
     {

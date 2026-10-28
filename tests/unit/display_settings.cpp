@@ -37,8 +37,10 @@ void WriteText(const char* pcText)
 void Cleanup()
 {
     char acTemp[MAX_PATH + 8];
+    SetFileAttributesA(IniPath(), FILE_ATTRIBUTE_NORMAL);
     DeleteFileA(IniPath());
     sprintf(acTemp, "%s.tmp", IniPath());
+    SetFileAttributesA(acTemp, FILE_ATTRIBUTE_NORMAL);
     DeleteFileA(acTemp);
 }
 
@@ -283,4 +285,127 @@ TEST_CASE("display settings init merges defaults ini and command line" * doctest
     CHECK(gDisplay.uiFps == 100);
     CHECK(gDisplay.uiVsync == 1);
     SetDefaults(gCliDisplay);
+}
+
+TEST_CASE("display settings save adapter round trips" * doctest::test_suite("unit"))
+{
+    Cleanup();
+    WriteText("[Display]\r\nRefresh=60\r\n");
+    SetDefaults(gCliDisplay);
+    SetFromText(gCliDisplay, kDisplayIni, IniPath(), "command line");
+    SetDefaults(gIniDisplay);
+    CHECK(SaveAdapter(1, "\\\\.\\DISPLAY2"));
+    DisplaySettings kLoaded;
+    SetDefaults(kLoaded);
+    LoadIni(kLoaded, IniPath());
+    CHECK(kLoaded.uiAdapter == 1);
+    CHECK(strcmp(kLoaded.acAdapterName, "\\\\.\\DISPLAY2") == 0);
+    CHECK(kLoaded.uiRefresh == 60);
+    CHECK((kLoaded.uiSet & kVsync) == 0);
+
+    char acLong[80];
+    memset(acLong, 'x', 70);
+    acLong[70] = '\0';
+    LoadIni(gIniDisplay, IniPath());
+    CHECK(SaveAdapter(0, acLong));
+    SetDefaults(kLoaded);
+    LoadIni(kLoaded, IniPath());
+    CHECK(kLoaded.uiAdapter == 0);
+    CHECK(kLoaded.acAdapterName[0] == '\0');
+    CHECK(kLoaded.uiRefresh == 60);
+
+    CHECK(!SaveAdapter(16, 0));
+    SetDefaults(kLoaded);
+    LoadIni(kLoaded, IniPath());
+    CHECK(kLoaded.uiAdapter == 0);
+    Cleanup();
+    SetDefaults(gCliDisplay);
+    SetDefaults(gIniDisplay);
+}
+
+TEST_CASE("display settings save adapter writes only the adapter keys" * doctest::test_suite("unit"))
+{
+    Cleanup();
+    WriteText("[Display]\r\nRefresh=60\r\nVsync=1\r\nFps=80\r\n");
+    SetDefaults(gCliDisplay);
+    SetFromText(gCliDisplay, kDisplayIni, IniPath(), "command line");
+    Init();
+    CHECK(gIniDisplay.uiRefresh == 60);
+    WriteText("[Display]\r\nRefresh=75\r\nVsync=0\r\nFps=144\r\nBorderless=1\r\n");
+    CHECK(SaveAdapter(1, "\\\\.\\DISPLAY2"));
+    DisplaySettings kLoaded;
+    SetDefaults(kLoaded);
+    LoadIni(kLoaded, IniPath());
+    Cleanup();
+    CHECK(kLoaded.uiAdapter == 1);
+    CHECK(strcmp(kLoaded.acAdapterName, "\\\\.\\DISPLAY2") == 0);
+    CHECK(kLoaded.uiRefresh == 75);
+    CHECK(kLoaded.uiVsync == 0);
+    CHECK(kLoaded.uiFps == 144);
+    CHECK(kLoaded.bBorderless);
+    CHECK(gIniDisplay.uiAdapter == 1);
+    CHECK(gIniDisplay.uiRefresh == 60);
+    SetDefaults(gCliDisplay);
+    SetDefaults(gIniDisplay);
+    SetDefaults(gDisplay);
+}
+
+TEST_CASE("display settings save adapter keeps memory when the save fails" * doctest::test_suite("unit"))
+{
+    Cleanup();
+    SetDefaults(gCliDisplay);
+    SetFromText(gCliDisplay, kDisplayIni, "Z:\\openswbf2-missing-dir\\none\\display.ini", "command line");
+    SetDefaults(gIniDisplay);
+    SetFromText(gIniDisplay, kAdapter, "0", "test");
+    CHECK(!SaveAdapter(1, "\\\\.\\DISPLAY2"));
+    CHECK(gIniDisplay.uiAdapter == 0);
+    CHECK(gIniDisplay.acAdapterName[0] == '\0');
+    SetDefaults(gCliDisplay);
+    SetDefaults(gIniDisplay);
+}
+
+TEST_CASE("display settings save adapter skips an unchanged file" * doctest::test_suite("unit"))
+{
+    Cleanup();
+    WriteText("[Display]\r\nAdapter=1\r\nAdapterName=\\\\.\\DISPLAY2\r\nRefresh=60\r\n");
+    SetDefaults(gCliDisplay);
+    SetFromText(gCliDisplay, kDisplayIni, IniPath(), "command line");
+    SetDefaults(gIniDisplay);
+    SetFileAttributesA(IniPath(), FILE_ATTRIBUTE_READONLY);
+    CHECK(SaveAdapter(1, "\\\\.\\DISPLAY2"));
+    CHECK(gIniDisplay.uiAdapter == 1);
+    CHECK(!SaveAdapter(0, "\\\\.\\DISPLAY1"));
+    CHECK(gIniDisplay.uiAdapter == 1);
+    char acTemp[MAX_PATH + 8];
+    sprintf(acTemp, "%s.tmp", IniPath());
+    CHECK(!Exists(acTemp));
+    SetFileAttributesA(IniPath(), FILE_ATTRIBUTE_NORMAL);
+    DisplaySettings kLoaded;
+    SetDefaults(kLoaded);
+    LoadIni(kLoaded, IniPath());
+    Cleanup();
+    CHECK(kLoaded.uiAdapter == 1);
+    SetDefaults(gCliDisplay);
+    SetDefaults(gIniDisplay);
+}
+
+TEST_CASE("display settings save adapter ignores cli mask" * doctest::test_suite("unit"))
+{
+    Cleanup();
+    WriteText("[Display]\r\nAdapter=0\r\nAdapterName=\\\\.\\DISPLAY1\r\n");
+    SetDefaults(gCliDisplay);
+    SetFromText(gCliDisplay, kDisplayIni, IniPath(), "command line");
+    SetFromText(gCliDisplay, kAdapter, "0", "command line");
+    Init();
+    CHECK((gDisplay.uiCliMask & kAdapter) != 0);
+    CHECK(SaveAdapter(1, 0));
+    DisplaySettings kLoaded;
+    SetDefaults(kLoaded);
+    LoadIni(kLoaded, IniPath());
+    Cleanup();
+    CHECK(kLoaded.uiAdapter == 1);
+    CHECK(kLoaded.acAdapterName[0] == '\0');
+    SetDefaults(gCliDisplay);
+    SetDefaults(gIniDisplay);
+    SetDefaults(gDisplay);
 }
