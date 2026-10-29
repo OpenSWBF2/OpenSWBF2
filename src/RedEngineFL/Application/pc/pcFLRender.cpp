@@ -18,6 +18,7 @@
 #include "RedEngineFL/Interface/RedBitmapElement.h"
 #include "PebbleFL/Common/PblHashTable.h"
 #include "pcFLRender.h"
+#include "RedEngineFL/input/pc/pcRedInputManager.h"
 #include "RedEngineFL/Graphics/PC/pcRedPrimitive.h"
 #include "RedEngineFL/Graphics/PC/pcRedShader.h"
 #include "RedEngineFL/Graphics/PC/pcRedStencilShadow.h"
@@ -546,6 +547,7 @@ void FLRenderer::Cleanup()
     RemoveInterfaceElement(&mCursorGroup);
     mCursorGroup.RemoveElement(&mCursorImage);
     mCursorImage.Cleanup();
+    HwCursor::Destroy();
 
     ReflectionRegion::Cleanup();
     delete m_pReflectionRegionFactory;
@@ -1217,6 +1219,7 @@ bool ReflectionRegion::IsReflected(const PblVector3& vPoint, float fRadius,
 void InitMouseCursor()
 {
     FLRenderer::InitCursor(PblHash("mousecursor"), true);
+    HwCursor::Build(PblHash("mousecursor"));
 }
 
 // FUNCTION: SWBF2 0x006bcec0

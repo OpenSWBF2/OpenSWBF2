@@ -35,6 +35,8 @@ static const char* KeyName(unsigned int uiKey)
         return "DisplayIni";
     case kAdapterName:
         return "AdapterName";
+    case kSoftwareCursor:
+        return "SoftwareCursor";
     }
     return "?";
 }
@@ -194,6 +196,13 @@ bool SetFromText(DisplaySettings& kSettings, unsigned int uiKey, const char* pcV
             kSettings.bNoDpi = bBool;
         }
         break;
+    case kSoftwareCursor:
+        bValid = ParseBool(pcValue, bBool);
+        if (bValid)
+        {
+            kSettings.bSoftwareCursor = bBool;
+        }
+        break;
     case kDisplayIni:
         bValid = pcValue != 0 && pcValue[0] != '\0' && strlen(pcValue) < sizeof(kSettings.acDisplayIni);
         if (bValid)
@@ -231,6 +240,9 @@ void SetFlag(DisplaySettings& kSettings, unsigned int uiKey)
         break;
     case kNoDpi:
         kSettings.bNoDpi = true;
+        break;
+    case kSoftwareCursor:
+        kSettings.bSoftwareCursor = true;
         break;
     default:
         return;
@@ -272,6 +284,10 @@ void Merge(DisplaySettings& dst, const DisplaySettings& cli)
     {
         dst.bNoDpi = cli.bNoDpi;
     }
+    if (cli.uiSet & kSoftwareCursor)
+    {
+        dst.bSoftwareCursor = cli.bSoftwareCursor;
+    }
     if (cli.uiSet & kDisplayIni)
     {
         strcpy(dst.acDisplayIni, cli.acDisplayIni);
@@ -288,7 +304,8 @@ void LoadIni(DisplaySettings& kSettings, const char* pcPath)
         return;
     }
     static const unsigned int auiKeys[] = {kAdapter, kAdapterName, kBorderless, kRefresh,
-                                           kVsync,   kFps,         kNoWaitQuery, kNoDpi};
+                                           kVsync,   kFps,         kNoWaitQuery, kNoDpi,
+                                           kSoftwareCursor};
     for (unsigned int i = 0; i < sizeof(auiKeys) / sizeof(auiKeys[0]); ++i)
     {
         char acValue[256];
@@ -356,6 +373,10 @@ bool SaveIni(const DisplaySettings& kSettings, const char* pcPath, bool bGoodFra
     if (ShouldWrite(kSettings, kNoDpi))
     {
         bOk = PutKey("NoDpi", kSettings.bNoDpi ? "1" : "0", acTemp) && bOk;
+    }
+    if (ShouldWrite(kSettings, kSoftwareCursor))
+    {
+        bOk = PutKey("SoftwareCursor", kSettings.bSoftwareCursor ? "1" : "0", acTemp) && bOk;
     }
     WritePrivateProfileStringA(0, 0, 0, acTemp);
     if (bOk)

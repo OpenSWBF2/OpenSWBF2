@@ -233,6 +233,7 @@ long __stdcall WindowProc(HWND__* hWnd, unsigned int Msg, unsigned int wParam, l
         PostQuitMessage(0);
         hGlobalWnd = 0;
         RedLog::LogEnsureSummary();
+        HwCursor::ReleaseClip();
         pcCrash::Exit(0);
 
     case WM_ACTIVATE:
@@ -261,6 +262,11 @@ long __stdcall WindowProc(HWND__* hWnd, unsigned int Msg, unsigned int wParam, l
         {
             return DefWindowProcA(hWnd, Msg, wParam, lParam);
         }
+        if (!HwCursor::Software())
+        {
+            SetCursor(HwCursor::Current());
+            return 1;
+        }
         SetCursor(0);
 
         if (!g_bNoRender)
@@ -277,6 +283,7 @@ long __stdcall WindowProc(HWND__* hWnd, unsigned int Msg, unsigned int wParam, l
         switch (wParam)
         {
         case SC_MINIMIZE:
+            HwCursor::ReleaseClip();
             if (RedInputManager::GetMouse(0))
             {
                 if (RedInputManager::GetMouse(0)->Exists())
@@ -323,7 +330,7 @@ void ActivateFrontline(bool bActivate)
         {
             SoundEnable(true);
         }
-        SetCursor(0);
+        SetCursor(HwCursor::Current());
         if (bMinimize && !g_bNoRender)
         {
             ShowWindow(hGlobalWnd, SW_RESTORE);
@@ -349,6 +356,7 @@ void ActivateFrontline(bool bActivate)
         }
     }
 
+    HwCursor::ReleaseClip();
     if (RedInputManager::GetMouse(0))
     {
         if (RedInputManager::GetMouse(0)->Exists())

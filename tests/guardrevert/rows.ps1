@@ -17,6 +17,7 @@ $fl = 'src\RedEngineFL\Application\pc\pcFrameLimiter.cpp'
 $md = 'src\RedEngineFL\Application\pc\pcMessageDrain.cpp'
 $rr = 'src\RedEngineFL\Graphics\PC\pcRedRenderer.cpp'
 $mouse = 'src\RedEngineFL\input\pc\pcRedMouse.cpp'
+$joy = 'src\RedEngineFL\input\pc\pcRedJoystick.cpp'
 $win = 'src\RedEngineFL\Application\pc\pcWindow.cpp'
 $lcp = 'src\Battlefront2\Source\LuaCallbacks_PC.cpp'
 $sq = 'src\RedEngineFL\Application\pc\pcShadowQuadRenderable.cpp'
@@ -250,5 +251,17 @@ $GuardRevertRows = @(
     @{ Id = 'MENU-47'; File = $lvid; Anchor = '			this.bVsyncHalf = nil'; Replacement = ''; Tests = @('display menu lua source pins') },
     @{ Id = 'MENU-48'; File = $rr; Anchor = 'const bool bOwnExclusive = uiAdapter == gAdapter && m_pd3dDevice != 0 && !m_d3dpp.Windowed;'; Replacement = 'const bool bOwnExclusive = true;'; Tests = @('desktop mode source pins') },
     @{ Id = 'MENU-49'; File = $lvid; Anchor = 'this.iRefresh = display.clirefresh'; Replacement = 'this.iRefresh = display.refresh'; Tests = @('display menu lua source pins') },
-    @{ Id = 'MENU-50'; File = $lcp; Anchor = '"clirefresh", (rDisplay.uiCliMask & DisplayCfg::kRefresh) ? (int)rDisplay.uiRefresh : 0'; Replacement = '"clirefresh", (int)rDisplay.uiRefresh'; Tests = @('display menu source pins') }
+    @{ Id = 'MENU-50'; File = $lcp; Anchor = '"clirefresh", (rDisplay.uiCliMask & DisplayCfg::kRefresh) ? (int)rDisplay.uiRefresh : 0'; Replacement = '"clirefresh", (int)rDisplay.uiRefresh'; Tests = @('display menu source pins') },
+    @{ Id = 'CUR-03A'; File = $dl; Anchor = 'p.bExclusive = false;'; Replacement = ''; Tests = @('display logic cursor plan') },
+    @{ Id = 'CUR-04A'; File = $dl; Anchor = 'bActive && eMode == kModeFullscreen'; Replacement = 'bActive'; Tests = @('display logic cursor plan') },
+    @{ Id = 'CUR-04C'; File = $dl; Anchor = 'bActive && eMode == kModeFullscreen'; Replacement = 'bActive && eMode != kModeWindowed'; Tests = @('display logic cursor plan') },
+    @{ Id = 'CUR-04B'; File = $dl; Anchor = 'uiLatched |= uiNew;'; Replacement = ''; Tests = @('display logic cursor button latch') },
+    @{ Id = 'CUR-04D'; File = $mouse; Anchor = '!= DisplayLogic::kModeFullscreen && !bInside;'; Replacement = '== DisplayLogic::kModeWindowed && !bInside;'; Tests = @('hardware cursor source pins') },
+    @{ Id = 'CUR-05A'; Kind = 'Smoke'; Case = 'cursor-sw'; File = $ds; Anchor = 'kSettings.bSoftwareCursor = true;'; Replacement = '' },
+    @{ Id = 'CUR-03B'; File = $mouse; Anchor = "    pc_device->Unacquire();`n    pc_device->SetCooperativeLevel(hGlobalWnd, sdwCoopFlags);`n    m_connected = false;"; Replacement = "    pc_device->Unacquire();`n    pc_device->SetCooperativeLevel(hGlobalWnd, DISCL_EXCLUSIVE | DISCL_FOREGROUND);`n    m_connected = false;"; Tests = @('hardware cursor source pins') },
+    @{ Id = 'CUR-02A'; File = $joy; Anchor = 'if (HwCursor::Shown())'; Replacement = 'if (false)'; Tests = @('hardware cursor source pins') },
+    @{ Id = 'CUR-02B'; File = $mouse; Anchor = 'if (kPlan.bHcursor && !kPrev.bHcursor && kPrev.bExclusive)'; Replacement = 'if (kPlan.bHcursor && !kPrev.bHcursor)'; Tests = @('hardware cursor source pins') },
+    @{ Id = 'CUR-01A'; File = $mouse; Anchor = "    ReconcileCursor(*this);`n`n    if (!pc_device)`n    {`n        return;`n    }"; Replacement = "    if (!pc_device)`n    {`n        return;`n    }`n`n    ReconcileCursor(*this);"; Tests = @('hardware cursor source pins') }
+    @{ Id = 'CUR-01B'; File = $dl; Anchor = '    pullAcc[2] += ullA * ((uiPx >> 8) & 0xFF);'; Replacement = '    pullAcc[2] += ullW * ((uiPx >> 8) & 0xFF);'; Tests = @('display logic cursor scale') }
+    @{ Id = 'CUR-01C'; File = $mouse; Anchor = 'bV5AlphaMask = 0xFF000000'; Replacement = 'bV5AlphaMask = 0'; Tests = @('hardware cursor source pins') }
 )

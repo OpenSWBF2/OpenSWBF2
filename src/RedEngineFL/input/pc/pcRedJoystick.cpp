@@ -246,7 +246,14 @@ void RedJoystick::Update(float fDeltaTime)
         }
         pMouse->m_Y = iY;
 
-        FLRenderer::SetCursorPos((float)iX, (float)iY);
+        if (HwCursor::Shown())
+        {
+            pMouse->SetCursorPos(iX, iY);
+        }
+        else
+        {
+            FLRenderer::SetCursorPos((float)iX, (float)iY);
+        }
     }
 
     mPreviousAxisX = fX;

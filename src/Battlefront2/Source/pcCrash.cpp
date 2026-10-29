@@ -15,6 +15,7 @@
 #include "RedEngineFL/Application/pc/pcFrameLimiter.h"
 #include "RedEngineFL/Graphics/PC/pcDisplayLogic.h"
 #include "RedEngineFL/Graphics/PC/pcDisplaySettings.h"
+#include "RedEngineFL/input/pc/pcRedInputManager.h"
 #include "PlayerProfile.h"
 
 typedef BOOL (WINAPI* MiniDumpWriteDumpFn)(HANDLE, DWORD, HANDLE, MINIDUMP_TYPE,
@@ -48,6 +49,7 @@ static bool gbWatchdog;
 
 static void TerminateNow(int iCode)
 {
+    HwCursor::ReleaseClip();
     TerminateProcess(GetCurrentProcess(), (UINT)iCode);
     _exit(iCode);
 }
@@ -232,6 +234,7 @@ long pcCrash::Filter(struct _EXCEPTION_POINTERS* pInfo)
         TerminateNow(3);
     }
     gFaultThreadId = GetCurrentThreadId();
+    HwCursor::ReleaseClip();
     gDumpPath[0] = 0;
     if (ghFaultEvent != 0 && ghDoneEvent != 0)
     {
@@ -405,6 +408,7 @@ static DWORD WINAPI WatchdogThread(LPVOID)
                 return 0;
             }
             gFaultThreadId = GetCurrentThreadId();
+            HwCursor::ReleaseClip();
             gDumpPath[0] = 0;
             gDumpInfo.ExceptionPointers = 0;
             if (ghFaultEvent != 0 && ghDoneEvent != 0)
@@ -453,6 +457,7 @@ void pcCrash::FatalReset(long hr, unsigned int uiFailures, unsigned int uiElapse
         TerminateNow(1);
     }
     gFaultThreadId = GetCurrentThreadId();
+    HwCursor::ReleaseClip();
     gDumpPath[0] = 0;
     gDumpInfo.ExceptionPointers = 0;
     if (ghFaultEvent != 0 && ghDoneEvent != 0)
@@ -510,6 +515,7 @@ void pcCrash::SetLogPath(char const* pcPath)
 
 void __cdecl pcCrash::Exit(int iCode)
 {
+    HwCursor::ReleaseClip();
     FrameLimiter::Shutdown();
 
     if (iCode == 0)

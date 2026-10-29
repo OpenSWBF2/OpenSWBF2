@@ -38,6 +38,18 @@ extern RedJoystick m_joysticks[10];
 
 }
 
+namespace HwCursor
+{
+
+void Build(unsigned int uiTextureHash);
+void Destroy();
+HCURSOR Current();
+bool Shown();
+bool Software();
+void ReleaseClip();
+
+}
+
 // VTABLE: SWBF2 0x007833b0
 class FakeInputDevice : public IDirectInputDevice8A
 {
