@@ -50,8 +50,25 @@ static LONG WINAPI CrashFilter(EXCEPTION_POINTERS* pInfo)
     return EXCEPTION_EXECUTE_HANDLER;
 }
 
+extern void __cdecl PblTraceP(const char* Format, ...);
+
 int main(int argc, char** argv)
 {
+    for (int i = 1; i < argc; ++i)
+    {
+        if (strcmp(argv[i], "--debug-output-child") == 0)
+        {
+            RedWarning::Init();
+            RedLog::ParseCmds("all Verbose, LogNet Warning");
+            RedLog::Apply("test");
+            RedLog::Write(RedLog::LogCore, RedLog::Inform, "x.cpp", 1, "debug-output-marker %d", 7);
+            RedLog::Write(RedLog::LogNet, RedLog::Inform, "x.cpp", 2, "net-filtered-marker");
+            PblTraceP("pbltrace-marker\n");
+            RedWarning::LogMessage("legacy-marker\n");
+            return 0;
+        }
+    }
+
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
     _set_error_mode(_OUT_TO_STDERR);
     SetUnhandledExceptionFilter(CrashFilter);
