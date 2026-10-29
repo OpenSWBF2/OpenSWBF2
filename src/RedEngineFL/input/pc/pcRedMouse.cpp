@@ -219,11 +219,7 @@ void HwCursor::ReleaseClip()
     {
         return;
     }
-    RECT kCur;
-    if (GetClipCursor(&kCur) && EqualRect(&kCur, &sClipRect))
-    {
-        ClipCursor(0);
-    }
+    ClipCursor(0);
     sbClipped = false;
 }
 

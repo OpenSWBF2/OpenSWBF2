@@ -72,7 +72,8 @@ enum ResetKind
     kResetKindGammaFallback,
     kResetKindGammaDrawFail,
     kResetKindGammaLost,
-    kResetKindShellStretch
+    kResetKindShellStretch,
+    kResetKindMenuApplyFail
 };
 
 struct ResetScript
@@ -190,6 +191,10 @@ static ResetScript& GetResetScript()
         else if (pcKind && strcmp(pcKind, "shellstretch") == 0)
         {
             gResetScript.eKind = kResetKindShellStretch;
+        }
+        else if (pcKind && strcmp(pcKind, "menuapplyfail") == 0)
+        {
+            gResetScript.eKind = kResetKindMenuApplyFail;
         }
     }
     return gResetScript;
@@ -1561,7 +1566,7 @@ STDMETHODIMP FakeD3DDevice::Reset(D3DPRESENT_PARAMETERS* pPresentationParameters
          pPresentationParameters->BackBufferHeight != s.uiBaseH ||
          (pPresentationParameters->Windowed != FALSE) != s.bBaseWindowed))
     {
-        if (s.eKind == kResetKindApplyFail)
+        if (s.eKind == kResetKindApplyFail || s.eKind == kResetKindMenuApplyFail)
         {
             return D3DERR_INVALIDCALL;
         }
@@ -2909,28 +2914,15 @@ bool RedRenderer::pcRequestAdapter(unsigned int uiIndex)
     }
     id.DeviceName[sizeof(id.DeviceName) - 1] = '\0';
 
-    if (!DisplayCfg::SaveAdapter(uiIndex, id.DeviceName))
-    {
-        LOG(LogRender, Warning, "OPENSWBF2 DISPLAY adapter save failed");
-        return false;
-    }
+    DisplayCfg::SetPendingAdapter(uiIndex, id.DeviceName);
 
     if (choice.bRestart)
     {
-        if (DisplayCfg::gDisplay.uiCliMask & DisplayCfg::kAdapter)
-        {
-            LOG(LogRender, Inform,
-                "OPENSWBF2 DISPLAY adapter=%u saved, restart required, -adapter switch still wins next start",
-                uiIndex);
-        }
-        else
-        {
-            LOG(LogRender, Inform, "OPENSWBF2 DISPLAY adapter=%u saved, restart required", uiIndex);
-        }
+        LOG(LogRender, Inform, "OPENSWBF2 DISPLAY adapter=%u pending, restart required", uiIndex);
     }
     else
     {
-        LOG(LogRender, Inform, "OPENSWBF2 DISPLAY adapter=%u saved, running adapter unchanged",
+        LOG(LogRender, Inform, "OPENSWBF2 DISPLAY adapter=%u pending, running adapter unchanged",
             uiIndex);
     }
     return choice.bRestart;
@@ -4689,6 +4681,7 @@ static DWORD sApplyStartTick;
 static DisplayRequestTag sStagedTag;
 static DisplayRequestTag sInFlightTag;
 static DisplayRequestTag sNoticeTag;
+static bool sStageArm;
 
 static void NoteInitApplied(bool bApplied)
 {
@@ -4719,6 +4712,11 @@ bool RedRenderer::pcApplyPending()
 bool RedRenderer::pcPendingConfirm()
 {
     return sPendingApply.bSet && sPendingApply.kTag.bValid && sPendingApply.kTag.bConfirm;
+}
+
+void RedRenderer::pcClearStageArm()
+{
+    sStageArm = false;
 }
 
 void RedRenderer::pcSetWaitForFrameQuery(bool bWait)
@@ -4780,9 +4778,19 @@ bool RedRenderer::pcApplyDisplayMode(unsigned int uiWidth, unsigned int uiHeight
         ToDisplayRec(sPendingApply.pp, sPendingApply.eMode, sPendingApply.uiClientW,
                      sPendingApply.uiClientH);
     sPendingApply.bSet = !DisplayLogic::SameDisplayParams(kCurRec, kNextRec);
-    sPendingApply.kTag.bConfirm = sPendingApply.kTag.bValid && sPendingApply.kTag.bConfirm &&
-                                  sPendingApply.bSet &&
-                                  DisplayLogic::ConfirmNeeded(kCurRec, kNextRec);
+    sStageArm = DisplayLogic::MergeStageArm(sStageArm, sPendingApply.kTag.bValid,
+                                            sPendingApply.kTag.bConfirm, sPendingApply.bSet);
+    sPendingApply.kTag.bConfirm =
+        DisplayLogic::StagedConfirm(sStageArm, sPendingApply.kTag.bValid, sPendingApply.bSet,
+                                    DisplayLogic::ConfirmNeeded(kCurRec, kNextRec));
+    ResetScript& s = GetResetScript();
+    if (s.eKind == kResetKindMenuApplyFail && !s.bApplyDone && sPendingApply.kTag.bConfirm)
+    {
+        s.bApplyDone = true;
+        s.uiBaseW = ppSave.BackBufferWidth;
+        s.uiBaseH = ppSave.BackBufferHeight;
+        s.bBaseWindowed = ppSave.Windowed != FALSE;
+    }
     if (sPendingApply.bSet)
     {
         sApplyStartTick = GetTickCount();
@@ -6093,6 +6101,10 @@ bool RedRenderer::BeginFrame()
     }
 
     const HRESULT hrCoop = m_pd3dDevice->TestCooperativeLevel();
+    if (!sPendingApply.bSet)
+    {
+        sStageArm = false;
+    }
     if (m_bResourcesReleased && hrCoop == D3DERR_DEVICELOST)
     {
         sResetFailures = 0;
@@ -6110,6 +6122,7 @@ bool RedRenderer::BeginFrame()
             m_clientH = sPendingApply.uiClientH;
             sInFlightTag = sPendingApply.kTag;
             sPendingApply.bSet = false;
+            sStageArm = false;
             sApplyPhase = DisplayLogic::kApplyResetting;
         }
         internalReset();
@@ -6366,6 +6379,7 @@ void RedRenderer::Cleanup()
     sForceReset = false;
     sPendingApply.bSet = false;
     sApplyNotice = 0;
+    sStageArm = false;
     sNoticeTag.bValid = false;
 
     for (int i = 0; i < 3; ++i)

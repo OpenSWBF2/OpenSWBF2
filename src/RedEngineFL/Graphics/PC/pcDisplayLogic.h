@@ -236,6 +236,10 @@ bool PresentThrottledNow(const PresentWatch& w, bool bVisible, double dSecondsSi
 
 bool ConfirmNeeded(const DisplayRec& kCur, const DisplayRec& kNext);
 
+bool MergeStageArm(bool bArmSoFar, bool bTagValid, bool bTagArm, bool bSet);
+
+bool StagedConfirm(bool bArm, bool bTagValid, bool bSet, bool bNeeded);
+
 struct BufferSize
 {
     unsigned int uiW, uiH;

@@ -1277,6 +1277,47 @@ TEST_CASE("display logic confirm needed" * doctest::test_suite("unit"))
     CHECK(ConfirmNeeded(a, b));
 }
 
+TEST_CASE("display logic stage arm merge" * doctest::test_suite("unit"))
+{
+    bool bArm = MergeStageArm(false, true, true, true);
+    bArm = MergeStageArm(bArm, true, false, true);
+    CHECK(bArm);
+    CHECK(StagedConfirm(bArm, true, true, true));
+
+    bArm = MergeStageArm(false, true, false, true);
+    bArm = MergeStageArm(bArm, true, true, true);
+    CHECK(bArm);
+    CHECK(StagedConfirm(bArm, true, true, true));
+
+    bArm = MergeStageArm(false, true, true, true);
+    CHECK(StagedConfirm(bArm, true, true, true));
+
+    bArm = MergeStageArm(false, true, false, true);
+    CHECK_FALSE(bArm);
+    CHECK_FALSE(StagedConfirm(bArm, true, true, true));
+
+    bArm = MergeStageArm(false, true, true, false);
+    CHECK_FALSE(bArm);
+    CHECK_FALSE(StagedConfirm(bArm, true, false, false));
+    bArm = MergeStageArm(bArm, true, false, true);
+    CHECK_FALSE(bArm);
+    CHECK_FALSE(StagedConfirm(bArm, true, true, true));
+
+    bArm = MergeStageArm(false, true, true, true);
+    bArm = MergeStageArm(bArm, true, false, false);
+    CHECK_FALSE(bArm);
+    bArm = MergeStageArm(bArm, true, false, true);
+    CHECK_FALSE(StagedConfirm(bArm, true, true, true));
+
+    CHECK_FALSE(MergeStageArm(false, false, true, true));
+    CHECK(MergeStageArm(true, false, false, true));
+    CHECK_FALSE(MergeStageArm(true, true, true, false));
+    CHECK_FALSE(StagedConfirm(true, false, true, true));
+    CHECK_FALSE(StagedConfirm(true, true, false, true));
+    CHECK_FALSE(StagedConfirm(true, true, true, false));
+    CHECK_FALSE(StagedConfirm(false, true, true, true));
+}
+
 TEST_CASE("display logic confirm phase" * doctest::test_suite("unit"))
 {
     CHECK(kConfirmMs == 15000);

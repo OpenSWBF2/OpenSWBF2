@@ -1110,6 +1110,10 @@ int Lua_Callbacks::ScriptCB_GetDisplayOptions(lua_State* L)
     {
         uiNextAdapter = DisplayCfg::gCliDisplay.uiAdapter;
     }
+    else if (DisplayCfg::GetPendingAdapter().bSet)
+    {
+        uiNextAdapter = DisplayCfg::GetPendingAdapter().uiIndex;
+    }
     else if (DisplayCfg::gIniDisplay.uiSet & DisplayCfg::kAdapter)
     {
         uiNextAdapter = DisplayCfg::gIniDisplay.uiAdapter;
@@ -1256,11 +1260,13 @@ int Lua_Callbacks::ScriptCB_PollDisplayConfirm(lua_State* L)
     unsigned int uiState = 0;
     unsigned int uiSecondsLeft = 0;
     unsigned int uiResult = 0;
-    PlayerProfile::PollDisplayConfirm(uiState, uiSecondsLeft, uiResult);
+    unsigned int uiKeepSave = 0;
+    PlayerProfile::PollDisplayConfirm(uiState, uiSecondsLeft, uiResult, uiKeepSave);
     lua_pushnumber(LuaHelper::mState, (float)uiState);
     lua_pushnumber(LuaHelper::mState, (float)uiSecondsLeft);
     lua_pushnumber(LuaHelper::mState, (float)uiResult);
-    return 3;
+    lua_pushnumber(LuaHelper::mState, (float)uiKeepSave);
+    return 4;
 }
 
 int Lua_Callbacks::ScriptCB_EndDisplayConfirm(lua_State* L)
@@ -1287,6 +1293,6 @@ int Lua_Callbacks::ScriptCB_RestoreDisplayOptions(lua_State* L)
 
 int Lua_Callbacks::ScriptCB_SaveDisplayOptions(lua_State* L)
 {
-    lua_pushboolean(LuaHelper::mState, PlayerProfile::SaveDisplay());
+    lua_pushnumber(LuaHelper::mState, (float)PlayerProfile::SaveDisplay());
     return 1;
 }

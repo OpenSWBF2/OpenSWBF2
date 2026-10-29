@@ -15,6 +15,7 @@
 #include "RedEngineFL/Application/pc/pcFrameLimiter.h"
 #include "RedEngineFL/Graphics/PC/pcDisplayLogic.h"
 #include "RedEngineFL/Graphics/PC/pcDisplaySettings.h"
+#include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "RedEngineFL/input/pc/pcRedInputManager.h"
 #include "PlayerProfile.h"
 
@@ -50,6 +51,7 @@ static bool gbWatchdog;
 static void TerminateNow(int iCode)
 {
     HwCursor::ReleaseClip();
+    FrameLimiter::EndPeriod();
     TerminateProcess(GetCurrentProcess(), (UINT)iCode);
     _exit(iCode);
 }
@@ -672,8 +674,23 @@ static unsigned int MenuTestVsync(const PlayerProfile::tPCOpt& rPC)
                                         rPC.mVSync);
 }
 
-static void MenuConfirmFrame(bool bKeep, bool& rbRan)
+enum MenuTest
 {
+    kMenuRevert,
+    kMenuKeep,
+    kMenuSaveFail,
+    kMenuAdapterAccept,
+    kMenuOrder,
+    kMenuOrderRev,
+    kMenuRevertSave,
+    kMenuApplyFail
+};
+
+static void MenuConfirmFrame(MenuTest eTest, bool& rbRan)
+{
+    const bool bOrder = eTest == kMenuOrder || eTest == kMenuOrderRev;
+    const bool bArmKeep = eTest != kMenuRevert && !bOrder;
+    const bool bKeep = eTest == kMenuKeep || eTest == kMenuSaveFail;
     static unsigned int suiFrame;
     static unsigned int suiArmedAt;
     static unsigned int suiCountedAt;
@@ -701,16 +718,40 @@ static void MenuConfirmFrame(bool bKeep, bool& rbRan)
         PlayerProfile::tPCOpt& rPC = pProfile->mPCOptions;
         const unsigned int uiBaseW = rPC.mResolutionX;
         const unsigned int uiBaseH = rPC.mResolutionY;
-        LOG(LogRender, Inform, "OPENSWBF2 DISPLAY menutest base %ux%u", uiBaseW, uiBaseH);
+        LOG(LogRender, Inform, "OPENSWBF2 DISPLAY menutest base %ux%u fps=%u waitquery=%d", uiBaseW,
+            uiBaseH, DisplayCfg::gDisplay.uiFps, DisplayCfg::gDisplay.bNoWaitQuery ? 0 : 1);
         const DisplayLogic::DisplayMode eBase =
             DisplayLogic::ResolveMode(DisplayCfg::gDisplay.bBorderless, pcWindowed, rPC.mWindowed);
+        const unsigned int uiAcceptFps = DisplayCfg::gDisplay.uiFps == 30 ? 60 : 30;
+        if (eTest == kMenuRevertSave || eTest == kMenuApplyFail)
+        {
+            LOG(LogRender, Inform, "OPENSWBF2 DISPLAY menutest prior vsync=%u fps=%u accept=%u",
+                MenuTestVsync(rPC), DisplayCfg::gDisplay.uiFps, uiAcceptFps);
+            DisplayCfg::MenuFields kPlain;
+            kPlain.uiMode = eBase;
+            kPlain.uiRefresh = DisplayCfg::gDisplay.uiRefresh;
+            kPlain.uiVsync = MenuTestVsync(rPC);
+            kPlain.uiFps = uiAcceptFps;
+            kPlain.bWaitQuery = !DisplayCfg::gDisplay.bNoWaitQuery;
+            PlayerProfile::ApplyMenuDisplay(kPlain);
+        }
         DisplayCfg::MenuFields kFields;
         kFields.uiMode = eBase == DisplayLogic::kModeFullscreen ? DisplayLogic::kModeWindowed
                                                                  : DisplayLogic::kModeFullscreen;
         kFields.uiRefresh = DisplayCfg::gDisplay.uiRefresh;
-        kFields.uiVsync = bKeep ? 2 : MenuTestVsync(rPC);
+        kFields.uiVsync = bArmKeep ? 2 : MenuTestVsync(rPC);
         kFields.uiFps = DisplayCfg::gDisplay.uiFps;
         kFields.bWaitQuery = !DisplayCfg::gDisplay.bNoWaitQuery;
+        if (eTest == kMenuRevert)
+        {
+            kFields.uiFps = uiAcceptFps;
+            kFields.bWaitQuery = DisplayCfg::gDisplay.bNoWaitQuery;
+        }
+        else if (eTest == kMenuApplyFail)
+        {
+            kFields.uiFps = uiAcceptFps + 15;
+            kFields.bWaitQuery = DisplayCfg::gDisplay.bNoWaitQuery;
+        }
         if (uiBaseW == 1280 && uiBaseH == 720)
         {
             rPC.mResolutionX = 1024;
@@ -723,7 +764,31 @@ static void MenuConfirmFrame(bool bKeep, bool& rbRan)
         }
         pProfile->UpdateProfCRC();
         suiMode = kFields.uiMode;
-        PlayerProfile::ApplyMenuDisplay(kFields);
+        if (eTest == kMenuOrder)
+        {
+            LOG(LogRender, Inform, "OPENSWBF2 DISPLAY menutest order=legacy-menu");
+            PlayerProfile::ApplyLiveDisplay();
+            PlayerProfile::ApplyMenuDisplay(kFields);
+        }
+        else if (eTest == kMenuOrderRev)
+        {
+            LOG(LogRender, Inform, "OPENSWBF2 DISPLAY menutest order=menu-legacy");
+            PlayerProfile::ApplyMenuDisplay(kFields);
+            PlayerProfile::ApplyLiveDisplay();
+        }
+        else
+        {
+            PlayerProfile::ApplyMenuDisplay(kFields);
+        }
+        if (bArmKeep)
+        {
+            if (eTest == kMenuAdapterAccept)
+            {
+                RedRenderer::pcRequestAdapter(0);
+            }
+            LOG(LogRender, Inform, "OPENSWBF2 DISPLAY menutest save=%u", PlayerProfile::SaveDisplay());
+            PlayerProfile::MarkDisplay();
+        }
         sbArmed = true;
         suiArmedAt = suiFrame;
         return;
@@ -732,12 +797,18 @@ static void MenuConfirmFrame(bool bKeep, bool& rbRan)
     unsigned int uiState = 0;
     unsigned int uiLeft = 0;
     unsigned int uiResult = 0;
-    PlayerProfile::PollDisplayConfirm(uiState, uiLeft, uiResult);
+    unsigned int uiKeepSave = 0;
+    PlayerProfile::PollDisplayConfirm(uiState, uiLeft, uiResult, uiKeepSave);
     if (suiFrame - suiArmedAt >= 600)
     {
         LOG(LogRender, Warning, "OPENSWBF2 DISPLAY menutest no confirm state=%u", uiState);
         rbRan = true;
         return;
+    }
+    if (eTest == kMenuApplyFail)
+    {
+        sbCounted = true;
+        sbSkewed = true;
     }
     if (!sbCounted)
     {
@@ -749,11 +820,20 @@ static void MenuConfirmFrame(bool bKeep, bool& rbRan)
         suiCountedAt = suiFrame;
         if (bKeep)
         {
+            if (eTest == kMenuSaveFail)
+            {
+                char acPath[MAX_PATH];
+                if (DisplayCfg::DisplayIniPath(acPath, sizeof(acPath)))
+                {
+                    WritePrivateProfileStringA("Display", "Marker", "1", acPath);
+                    SetFileAttributesA(acPath, FILE_ATTRIBUTE_READONLY);
+                }
+            }
             PlayerProfile::EndDisplayConfirm(true);
             PlayerProfile::SkewDisplayConfirmClock(DisplayLogic::kConfirmMs + 1000);
             sbSkewed = true;
         }
-        else
+        else if (eTest == kMenuRevert)
         {
             PlayerProfile::tProfile* pProfile = PlayerProfile::GetCurProfile();
             DisplayCfg::MenuFields kFields;
@@ -780,11 +860,39 @@ static void MenuConfirmFrame(bool bKeep, bool& rbRan)
     {
         return;
     }
-    if (bKeep)
+    if (eTest == kMenuRevertSave)
     {
-        PlayerProfile::SaveDisplay();
+        PlayerProfile::RestoreDisplay();
+        PlayerProfile::tProfile* pProfile = PlayerProfile::GetCurProfile();
+        LOG(LogRender, Inform, "OPENSWBF2 DISPLAY menutest restored vsync=%u fps=%u",
+            pProfile ? MenuTestVsync(pProfile->mPCOptions) : 0u, DisplayCfg::gDisplay.uiFps);
     }
-    LOG(LogRender, Inform, "OPENSWBF2 DISPLAY menutest done result=%u", uiResult);
+    if (eTest == kMenuSaveFail)
+    {
+        LOG(LogRender, Inform, "OPENSWBF2 DISPLAY menutest save=%u", PlayerProfile::SaveDisplay());
+        char acPath[MAX_PATH];
+        if (DisplayCfg::DisplayIniPath(acPath, sizeof(acPath)))
+        {
+            SetFileAttributesA(acPath, FILE_ATTRIBUTE_NORMAL);
+        }
+    }
+    LOG(LogRender, Inform,
+        "OPENSWBF2 DISPLAY menutest done result=%u fps=%u waitquery=%d keepsave=%u", uiResult,
+        DisplayCfg::gDisplay.uiFps, DisplayCfg::gDisplay.bNoWaitQuery ? 0 : 1, uiKeepSave);
+    rbRan = true;
+}
+
+static void AdapterCancelFrame(bool& rbRan)
+{
+    static unsigned int suiFrame;
+    if (++suiFrame < 30)
+    {
+        return;
+    }
+    PlayerProfile::MarkDisplay();
+    RedRenderer::pcRequestAdapter(0);
+    PlayerProfile::RestoreDisplay();
+    LOG(LogRender, Inform, "OPENSWBF2 DISPLAY adaptertest save=%u", PlayerProfile::SaveDisplay());
     rbRan = true;
 }
 
@@ -830,9 +938,41 @@ void pcCrash::RunMissionCrashTest()
         sbRan = true;
         GameState::SetState(0x8FF60339);
     }
-    else if (strcmp(gCrashKind, "menuconfirm") == 0 || strcmp(gCrashKind, "menukeep") == 0)
+    else if (strcmp(gCrashKind, "menuconfirm") == 0)
     {
-        MenuConfirmFrame(strcmp(gCrashKind, "menukeep") == 0, sbRan);
+        MenuConfirmFrame(kMenuRevert, sbRan);
+    }
+    else if (strcmp(gCrashKind, "menukeep") == 0)
+    {
+        MenuConfirmFrame(kMenuKeep, sbRan);
+    }
+    else if (strcmp(gCrashKind, "menusavefail") == 0)
+    {
+        MenuConfirmFrame(kMenuSaveFail, sbRan);
+    }
+    else if (strcmp(gCrashKind, "adaptercancel") == 0)
+    {
+        AdapterCancelFrame(sbRan);
+    }
+    else if (strcmp(gCrashKind, "adapteraccept") == 0)
+    {
+        MenuConfirmFrame(kMenuAdapterAccept, sbRan);
+    }
+    else if (strcmp(gCrashKind, "menuorder") == 0)
+    {
+        MenuConfirmFrame(kMenuOrder, sbRan);
+    }
+    else if (strcmp(gCrashKind, "menuorderrev") == 0)
+    {
+        MenuConfirmFrame(kMenuOrderRev, sbRan);
+    }
+    else if (strcmp(gCrashKind, "menurevertsave") == 0)
+    {
+        MenuConfirmFrame(kMenuRevertSave, sbRan);
+    }
+    else if (strcmp(gCrashKind, "menuapplyfail") == 0)
+    {
+        MenuConfirmFrame(kMenuApplyFail, sbRan);
     }
     else
     {
@@ -847,7 +987,9 @@ void pcCrash::SetCrashTest(char const* pcKind)
         "luaoom", "luapanic", "hang", "check", "resetrecover", "resetfatal", "resetinitlost",
         "resetflap", "resetlaterinit", "applymode", "applymodesmall", "applyfail", "applypresentfail", "applyadapter",
         "applytargetfail", "gammapass", "gammafallback", "gammadrawfail",
-        "gammalost", "menuconfirm", "menukeep", "shellstretch" };
+        "gammalost", "menuconfirm", "menukeep", "menusavefail", "adaptercancel",
+        "adapteraccept", "shellstretch", "menuorder", "menuorderrev",
+        "menurevertsave", "menuapplyfail" };
     if (pcKind == 0)
     {
         return;

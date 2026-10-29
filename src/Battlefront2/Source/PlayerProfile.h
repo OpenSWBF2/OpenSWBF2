@@ -277,8 +277,9 @@ void PollApplyNotice();
 bool ApplyMenuDisplay(const DisplayCfg::MenuFields& kFields);
 void MarkDisplay();
 void RestoreDisplay();
-bool SaveDisplay();
-void PollDisplayConfirm(unsigned int& uiState, unsigned int& uiSecondsLeft, unsigned int& uiResult);
+unsigned int SaveDisplay();
+void PollDisplayConfirm(unsigned int& uiState, unsigned int& uiSecondsLeft, unsigned int& uiResult,
+                        unsigned int& uiKeepSave);
 void EndDisplayConfirm(bool bKeep);
 void SkewDisplayConfirmClock(unsigned int uiMs);
 

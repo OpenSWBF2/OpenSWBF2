@@ -1248,6 +1248,8 @@ public:
 
     static bool pcPendingConfirm();
 
+    static void pcClearStageArm();
+
     static bool pcTakeApplyNotice(unsigned int& uiKind, DisplayRequestTag& rTag);
 
     static unsigned int pcGetDisplayGeneration();
