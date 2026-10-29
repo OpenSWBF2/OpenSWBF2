@@ -316,6 +316,17 @@ void RedWarning::LogMessage(char const* pcFormat, ...)
     vsnprintf(acMessage, sizeof(acMessage), pcFormat, args);
     va_end(args);
 
+    if (IsDebuggerPresent())
+    {
+        OutputDebugStringA(acMessage);
+        HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+        if (hOut != 0 && hOut != INVALID_HANDLE_VALUE && GetFileType(hOut) != FILE_TYPE_UNKNOWN)
+        {
+            DWORD uWritten = 0;
+            WriteFile(hOut, acMessage, (DWORD)strlen(acMessage), &uWritten, 0);
+        }
+    }
+
     char* pcText = acFormatted;
     bool bBreak = false;
 

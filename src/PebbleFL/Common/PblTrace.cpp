@@ -16,10 +16,12 @@ void __cdecl PblTraceP(const char* Format, ...)
     acMessage[sizeof(acMessage) - 1] = 0;
     lstrcpynA(lastTraceMessage, acMessage, sizeof(lastTraceMessage));
 
-    OutputDebugStringA(acMessage);
-
     if (gPblTraceSink)
     {
         gPblTraceSink(acMessage);
+    }
+    else
+    {
+        OutputDebugStringA(acMessage);
     }
 }
