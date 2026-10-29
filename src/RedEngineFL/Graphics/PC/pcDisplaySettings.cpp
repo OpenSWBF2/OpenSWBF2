@@ -452,6 +452,32 @@ bool SaveAdapter(unsigned int uiIndex, const char* pcName)
     return true;
 }
 
+static PendingAdapter sPendingAdapter;
+
+void SetPendingAdapter(unsigned int uiIndex, const char* pcName)
+{
+    sPendingAdapter.uiIndex = uiIndex;
+    sPendingAdapter.acName[0] = '\0';
+    if (pcName != 0)
+    {
+        strncpy(sPendingAdapter.acName, pcName, sizeof(sPendingAdapter.acName) - 1);
+        sPendingAdapter.acName[sizeof(sPendingAdapter.acName) - 1] = '\0';
+    }
+    sPendingAdapter.bSet = true;
+}
+
+void ClearPendingAdapter()
+{
+    sPendingAdapter.bSet = false;
+    sPendingAdapter.uiIndex = 0;
+    sPendingAdapter.acName[0] = '\0';
+}
+
+const PendingAdapter& GetPendingAdapter()
+{
+    return sPendingAdapter;
+}
+
 bool ValidateMenu(const MenuFields& kFields)
 {
     return kFields.uiMode <= kModeMax && kFields.uiRefresh <= kRefreshMax &&
@@ -484,13 +510,17 @@ static unsigned int MenuDiff(const DisplaySettings& kMark, const DisplaySettings
     return uiMask;
 }
 
-bool SaveMenu(const DisplaySettings& kMark, const DisplaySettings& kNow, const char* pcPath, bool bGoodFrame, unsigned int& uiWritten)
+SaveResult SaveMenu(const DisplaySettings& kMark, const DisplaySettings& kNow, const char* pcPath, bool bGoodFrame, unsigned int& uiWritten)
 {
     uiWritten = 0;
     const unsigned int uiMask = MenuDiff(kMark, kNow);
+    if (uiMask != 0 && !bGoodFrame)
+    {
+        return kSaveDeferred;
+    }
     if (uiMask == 0)
     {
-        return true;
+        return kSaveOk;
     }
     DisplaySettings kSave;
     SetDefaults(kSave);
@@ -521,7 +551,7 @@ bool SaveMenu(const DisplaySettings& kMark, const DisplaySettings& kNow, const c
     }
     if (!bOk || !SaveIni(kSave, pcPath, bGoodFrame))
     {
-        return false;
+        return kSaveFailed;
     }
     if (uiMask & kBorderless)
     {
@@ -545,7 +575,7 @@ bool SaveMenu(const DisplaySettings& kMark, const DisplaySettings& kNow, const c
     }
     gIniDisplay.uiSet |= uiMask;
     uiWritten = uiMask;
-    return true;
+    return kSaveOk;
 }
 
 void Init()

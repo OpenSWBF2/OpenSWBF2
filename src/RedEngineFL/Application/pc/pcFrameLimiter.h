@@ -31,6 +31,8 @@ int Init(bool bNoRender);
 
 void Shutdown();
 
+void EndPeriod();
+
 int Kind();
 
 const char* KindName(int iKind);

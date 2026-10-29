@@ -7,6 +7,8 @@
 
 #include "testutil.h"
 #include "PebbleFL/Common/PblUnicode.h"
+#include "LuaFL/include/lua.h"
+#include "LuaFL/include/lauxlib.h"
 
 namespace
 {
@@ -76,6 +78,68 @@ std::string LuaFunctionBody(const std::string& sText, const char* pcSignature)
     }
     return sText.substr(uiBegin, uiEnd + 1 - uiBegin);
 }
+
+std::string LuaTopFunction(const std::string& sText, const char* pcSignature)
+{
+    const size_t uiBegin = sText.find(pcSignature);
+    if (uiBegin == std::string::npos)
+    {
+        return std::string();
+    }
+    const size_t uiEnd = sText.find("\nend\n", uiBegin);
+    if (uiEnd == std::string::npos)
+    {
+        return std::string();
+    }
+    return sText.substr(uiBegin, uiEnd + 5 - uiBegin);
+}
+
+bool RunLua(lua_State* L, const std::string& sCode, std::string& sError)
+{
+    if (luaL_loadbuffer(L, sCode.c_str(), sCode.size(), "pcvideo") != 0 || lua_pcall(L, 0, 0, 0) != 0)
+    {
+        const char* pcError = lua_tostring(L, -1);
+        sError = pcError ? pcError : "unknown Lua error";
+        lua_settop(L, 0);
+        return false;
+    }
+    return true;
+}
+
+std::string LuaGlobal(lua_State* L, const char* pcName)
+{
+    lua_getglobal(L, pcName);
+    const char* pcValue = lua_isstring(L, -1) ? lua_tostring(L, -1) : 0;
+    const std::string sValue = pcValue ? pcValue : "nil";
+    lua_pop(L, 1);
+    return sValue;
+}
+
+const char* const kPcVideoStubs =
+    "calls = ''\n"
+    "function note(s) calls = calls .. s .. ';' end\n"
+    "poll = { 0, 0, 0, 0 }\n"
+    "save = 0\n"
+    "dirty = nil\n"
+    "gPlatformStr = 'PC'\n"
+    "function ScriptCB_PollDisplayConfirm() return poll[1], poll[2], poll[3], poll[4] end\n"
+    "function ScriptCB_MarkCurrentProfile() note('markprofile') end\n"
+    "function ScriptCB_MarkDisplayOptions() note('markdisplay') end\n"
+    "function ScriptCB_SaveDisplayOptions() note('save') return save end\n"
+    "function ScriptCB_IsCurProfileDirty() return dirty end\n"
+    "function ScriptCB_SetIFScreen(s) note('setscreen ' .. s) end\n"
+    "function ScriptCB_PopScreen() note('pop') end\n"
+    "function ifs_opt_pcvideo_StartSaveProfile() note('saveprofile') end\n"
+    "function ifs_opt_pcvideo_fnConfirmEnded(this) note('ended') end\n"
+    "function ifs_opt_pcvideo_fnConfirmOpen(this) this.bConfirmOpen = 1 note('open') end\n"
+    "function ifs_opt_pcvideo_fnConfirmClose() ifs_opt_pcvideo.bConfirmOpen = nil end\n"
+    "function ScriptCB_tounicode(s) return s end\n"
+    "function gPopup_fnSetTitleUStr(p, s) end\n"
+    "function gPopup_fnSetTitleStr(p, s) note('title ' .. s) end\n"
+    "string = { format = function(f, n) return f end }\n"
+    "Popup_YesNo = { fnActivate = function(self, v) end }\n"
+    "Popup_Ok = { fnActivate = function(self, v) note('popup') end }\n"
+    "ifs_opt_pcvideo = { Exit = function(self, b) note('exit') end, Enter = function(self, b) note('enter') end }\n";
 
 std::string LineWith(const std::string& sText, const char* pcNeedle)
 {
@@ -434,6 +498,8 @@ TEST_CASE("display apply source pins" * doctest::test_suite("unit"))
         CHECK(!Has(sAdapterCb, apcForbidden[i]));
     }
     CHECK(Has(sRequest, "AdapterDecision"));
+    CHECK(!Has(sRequest, "SaveAdapter"));
+    CHECK(Has(sRequest, "SetPendingAdapter("));
     CHECK(Has(sAdapterCb, "pcRequestAdapter"));
 
     CHECK(!Has(sLua, "Reset("));
@@ -562,6 +628,208 @@ TEST_CASE("display menu lua source pins" * doctest::test_suite("unit"))
     REQUIRE(!sMsaa.empty());
     CHECK(Has(sMsaa, "ScriptCB_FillMultisampleTable("));
     CHECK(!Has(sVideo, "GetMaxMultisamplingModeForScreenSize"));
+
+    const std::string sSave = LuaFunctionBody(sVideo, "function ifs_opt_pcvideo_fnSaveDisplay(fnNext)");
+    REQUIRE(!sSave.empty());
+    CHECK(Has(sSave, "if(ScriptCB_SaveDisplayOptions() == 2) then"));
+    const std::string sDone = LuaFunctionBody(sVideo, "function ifs_opt_pcvideo_fnConfirmDone(bKeep)");
+    REQUIRE(!sDone.empty());
+    CHECK(Has(sDone, "keepsave == 2"));
+    const std::string sFailed = LuaFunctionBody(sVideo, "function ifs_opt_pcvideo_fnSaveFailed(fnNext)");
+    REQUIRE(!sFailed.empty());
+    CHECK(Has(sFailed, "Display settings could not be saved."));
+
+    const size_t uiAcceptAt = sVideo.find("\tInput_Accept = function(this)");
+    const size_t uiQualityAt = sVideo.find("UpdateOverallQuality = function(this, value)");
+    const size_t uiBackAt = sVideo.find("\tInput_Back = function(this)");
+    const size_t uiStartAt = sVideo.find("\tInput_Start = function(this)");
+    REQUIRE(uiAcceptAt != std::string::npos);
+    REQUIRE(uiQualityAt != std::string::npos);
+    REQUIRE(uiBackAt != std::string::npos);
+    REQUIRE(uiStartAt != std::string::npos);
+    REQUIRE(uiAcceptAt < uiQualityAt);
+    REQUIRE(uiBackAt < uiStartAt);
+    const std::string sInputAccept = sVideo.substr(uiAcceptAt, uiQualityAt - uiAcceptAt);
+    const std::string sInputBack = sVideo.substr(uiBackAt, uiStartAt - uiBackAt);
+    CHECK(Has(sInputAccept, "ifs_opt_pcvideo_fnSaveDisplay(ifs_opt_pcvideo_fnLeaveTab)"));
+    CHECK(Has(sInputAccept, "ifs_opt_pcvideo_fnSaveDisplay(ifs_opt_pcvideo_fnAfterApply)"));
+    CHECK(!Has(sInputAccept, "ScriptCB_SetIFScreen("));
+    CHECK(!Has(sInputAccept, "ifs_opt_pcvideo_StartSaveProfile("));
+    CHECK(Has(sInputBack, "ifs_opt_pcvideo_fnSaveDisplay(ifs_opt_pcvideo_fnAfterBack)"));
+    CHECK(!Has(sInputBack, "ScriptCB_PopScreen("));
+    CHECK(!Has(sInputBack, "this:Exit("));
+    CHECK(CountOf(sVideo, "ifs_opt_pcvideo_fnSaveDisplay(") == 4);
+}
+
+TEST_CASE("display menu lua save failure waits" * doctest::test_suite("unit"))
+{
+    std::string sRaw;
+    REQUIRE(ReadSource("../data/scripts/common/ifs_opt_pcvideo.lua", sRaw));
+    const std::string sVideo = StripCr(sRaw);
+    const char* apcFunctions[] = { "function ifs_opt_pcvideo_fnSaveFailed(fnNext)",
+        "function ifs_opt_pcvideo_fnSaveDisplay(fnNext)", "function ifs_opt_pcvideo_fnLeaveTab()",
+        "function ifs_opt_pcvideo_fnAfterApply()", "function ifs_opt_pcvideo_fnAfterBack()" };
+    std::string sSetup = kPcVideoStubs;
+    for (size_t i = 0; i < sizeof(apcFunctions) / sizeof(apcFunctions[0]); ++i)
+    {
+        const std::string sBody = LuaTopFunction(sVideo, apcFunctions[i]);
+        CAPTURE(apcFunctions[i]);
+        REQUIRE(!sBody.empty());
+        sSetup += sBody;
+    }
+
+    lua_State* L = lua_open();
+    REQUIRE(L);
+    std::string sError;
+    CAPTURE(sError);
+    REQUIRE(RunLua(L, sSetup, sError));
+
+    REQUIRE(RunLua(L,
+                   "local this = ifs_opt_pcvideo\n"
+                   "this.NextScreen = 'tab'\n"
+                   "save = 2\n"
+                   "ifs_opt_pcvideo_fnSaveDisplay(ifs_opt_pcvideo_fnLeaveTab)\n"
+                   "shown = calls\n"
+                   "calls = ''\n"
+                   "Popup_Ok.fnDone()\n"
+                   "dismissed = calls\n"
+                   "cleared = Popup_Ok.fnDone\n"
+                   "calls = ''\n"
+                   "this.NextScreen = 'tab'\n"
+                   "save = 1\n"
+                   "ifs_opt_pcvideo_fnSaveDisplay(ifs_opt_pcvideo_fnLeaveTab)\n"
+                   "deferred = calls\n"
+                   "calls = ''\n"
+                   "save = 0\n"
+                   "dirty = 1\n"
+                   "ifs_opt_pcvideo_fnSaveDisplay(ifs_opt_pcvideo_fnLeaveTab)\n"
+                   "tabdirty = calls\n",
+                   sError));
+    CHECK(LuaGlobal(L, "shown") == "save;popup;title Display settings could not be saved.;");
+    CHECK(LuaGlobal(L, "dismissed") == "setscreen tab;");
+    CHECK(LuaGlobal(L, "cleared") == "nil");
+    CHECK(LuaGlobal(L, "deferred") == "save;setscreen tab;");
+    CHECK(LuaGlobal(L, "tabdirty") == "save;saveprofile;");
+
+    REQUIRE(RunLua(L,
+                   "local this = ifs_opt_pcvideo\n"
+                   "calls = ''\n"
+                   "save = 2\n"
+                   "dirty = nil\n"
+                   "this.bShellMode = 1\n"
+                   "ifs_opt_pcvideo_fnSaveDisplay(ifs_opt_pcvideo_fnAfterApply)\n"
+                   "applyshown = calls\n"
+                   "calls = ''\n"
+                   "Popup_Ok.fnDone()\n"
+                   "applyshell = calls\n"
+                   "calls = ''\n"
+                   "dirty = 1\n"
+                   "this.NextScreen = nil\n"
+                   "save = 0\n"
+                   "ifs_opt_pcvideo_fnSaveDisplay(ifs_opt_pcvideo_fnAfterApply)\n"
+                   "applydirty = calls\n"
+                   "applynext = this.NextScreen\n"
+                   "calls = ''\n"
+                   "dirty = nil\n"
+                   "this.bShellMode = nil\n"
+                   "ifs_opt_pcvideo_fnSaveDisplay(ifs_opt_pcvideo_fnAfterApply)\n"
+                   "applygame = calls\n"
+                   "calls = ''\n"
+                   "save = 2\n"
+                   "ifs_opt_pcvideo_fnSaveDisplay(ifs_opt_pcvideo_fnAfterBack)\n"
+                   "backshown = calls\n"
+                   "calls = ''\n"
+                   "Popup_Ok.fnDone()\n"
+                   "backgame = calls\n"
+                   "calls = ''\n"
+                   "this.bShellMode = 1\n"
+                   "save = 0\n"
+                   "ifs_opt_pcvideo_fnSaveDisplay(ifs_opt_pcvideo_fnAfterBack)\n"
+                   "backshell = calls\n"
+                   "calls = ''\n"
+                   "ifs_opt_pcvideo_fnSaveFailed()\n"
+                   "Popup_Ok.fnDone()\n"
+                   "alone = calls\n",
+                   sError));
+    CHECK(LuaGlobal(L, "applyshown") == "save;popup;title Display settings could not be saved.;");
+    CHECK(LuaGlobal(L, "applyshell") == "exit;enter;");
+    CHECK(LuaGlobal(L, "applydirty") == "save;saveprofile;");
+    CHECK(LuaGlobal(L, "applynext") == "-1");
+    CHECK(LuaGlobal(L, "applygame") == "save;pop;");
+    CHECK(LuaGlobal(L, "backshown") == "save;popup;title Display settings could not be saved.;");
+    CHECK(LuaGlobal(L, "backgame") == "pop;");
+    CHECK(LuaGlobal(L, "backshell") == "save;exit;enter;");
+    CHECK(LuaGlobal(L, "alone") == "popup;title Display settings could not be saved.;");
+    lua_close(L);
+}
+
+TEST_CASE("display menu lua confirm mark" * doctest::test_suite("unit"))
+{
+    std::string sRaw;
+    REQUIRE(ReadSource("../data/scripts/common/ifs_opt_pcvideo.lua", sRaw));
+    const std::string sVideo = StripCr(sRaw);
+    const std::string sMark = LuaTopFunction(sVideo, "function ifs_opt_pcvideo_fnMark(this)");
+    const std::string sUpdate = LuaTopFunction(sVideo, "function ifs_opt_pcvideo_fnConfirmUpdate(this)");
+    REQUIRE(!sMark.empty());
+    REQUIRE(!sUpdate.empty());
+
+    lua_State* L = lua_open();
+    REQUIRE(L);
+    std::string sError;
+    const std::string sSetup = std::string(kPcVideoStubs) +
+                               "function ifs_opt_pcvideo_fnSaveFailed() note('savefailed') end\n" +
+                               sMark + sUpdate;
+    CAPTURE(sError);
+    REQUIRE(RunLua(L, sSetup, sError));
+
+    REQUIRE(RunLua(L,
+                   "local this = ifs_opt_pcvideo\n"
+                   "poll = { 1, 0, 0, 0 }\n"
+                   "ifs_opt_pcvideo_fnMark(this)\n"
+                   "enter = calls\n"
+                   "pending = this.bMarkPending\n"
+                   "poll = { 2, 15, 0, 0 }\n"
+                   "ifs_opt_pcvideo_fnConfirmUpdate(this)\n"
+                   "poll = { 0, 0, 2, 0 }\n"
+                   "ifs_opt_pcvideo_fnConfirmUpdate(this)\n"
+                   "ended = calls\n"
+                   "after = this.bMarkPending\n"
+                   "calls = ''\n"
+                   "ifs_opt_pcvideo_fnConfirmUpdate(this)\n"
+                   "again = calls\n",
+                   sError));
+    CHECK(LuaGlobal(L, "enter") == "");
+    CHECK(LuaGlobal(L, "pending") == "1");
+    CHECK(LuaGlobal(L, "ended") == "open;ended;markprofile;markdisplay;");
+    CHECK(LuaGlobal(L, "after") == "nil");
+    CHECK(LuaGlobal(L, "again") == "");
+
+    REQUIRE(RunLua(L,
+                   "local this = ifs_opt_pcvideo\n"
+                   "calls = ''\n"
+                   "poll = { 0, 0, 0, 0 }\n"
+                   "ifs_opt_pcvideo_fnMark(this)\n"
+                   "idle = calls\n"
+                   "calls = ''\n"
+                   "this.iKeepSave = nil\n"
+                   "this.iConfirmResult = nil\n"
+                   "poll = { 0, 0, 2, 2 }\n"
+                   "ifs_opt_pcvideo_fnConfirmUpdate(this)\n"
+                   "stale = calls\n"
+                   "poll = { 1, 0, 0, 0 }\n"
+                   "ifs_opt_pcvideo_fnConfirmUpdate(this)\n"
+                   "poll = { 0, 0, 2, 2 }\n"
+                   "ifs_opt_pcvideo_fnConfirmUpdate(this)\n"
+                   "failed = calls\n"
+                   "calls = ''\n"
+                   "ifs_opt_pcvideo_fnConfirmUpdate(this)\n"
+                   "repeated = calls\n",
+                   sError));
+    CHECK(LuaGlobal(L, "idle") == "markprofile;markdisplay;");
+    CHECK(LuaGlobal(L, "stale") == "");
+    CHECK(LuaGlobal(L, "failed") == "ended;savefailed;");
+    CHECK(LuaGlobal(L, "repeated") == "");
+    lua_close(L);
 }
 
 TEST_CASE("display menu source pins" * doctest::test_suite("unit"))
@@ -639,6 +907,32 @@ TEST_CASE("display menu source pins" * doctest::test_suite("unit"))
         ++uiSaves;
     }
     CHECK(uiSaves == 1);
+
+    const std::string sWrite = FunctionBody(sProfile, "static void WriteDisplayFields(");
+    REQUIRE(!sWrite.empty());
+    CHECK(Has(sWrite, "pcSetWaitForFrameQuery("));
+    CHECK(Has(sWrite, "uiFps = "));
+    const std::string sRevert = FunctionBody(sProfile, "static void RevertConfirm(");
+    REQUIRE(!sRevert.empty());
+    CHECK(Has(sRevert, "WriteDisplayFields("));
+    CHECK(Has(sRevert, "sConfirmPrevFps"));
+    CHECK(!Has(sRevert, "gDisplay.uiRefresh ="));
+    CHECK(Has(sRevert, "RedRenderer::pcClearStageArm();\n    PlayerProfile::ApplyLiveDisplay();"));
+    const std::string sRestore = FunctionBody(sProfile, "void PlayerProfile::RestoreDisplay(");
+    REQUIRE(!sRestore.empty());
+    CHECK(Has(sRestore, "WriteDisplayFields("));
+    CHECK(Has(sRestore, "RedRenderer::pcClearStageArm();\n    ApplyLiveDisplay();"));
+    CHECK(!Has(sRestore, "rDisplay.uiFps ="));
+    const size_t uiClearPending = sRestore.find("ClearPendingAdapter()");
+    const size_t uiMarkedCheck = sRestore.find("if (!sMarked)");
+    REQUIRE(uiClearPending != std::string::npos);
+    REQUIRE(uiMarkedCheck != std::string::npos);
+    CHECK(uiClearPending < uiMarkedCheck);
+    const std::string sSaveDisplay =
+        FunctionBody(sProfile, "unsigned int PlayerProfile::SaveDisplay(");
+    REQUIRE(!sSaveDisplay.empty());
+    CHECK(Has(sSaveDisplay, "SavePendingAdapter()"));
+    CHECK(CountOf(sProfile, "pcSetWaitForFrameQuery(") == 2);
 }
 
 TEST_CASE("gamma pass source pins" * doctest::test_suite("unit"))
@@ -990,6 +1284,29 @@ TEST_CASE("hardware cursor source pins" * doctest::test_suite("unit"))
     CHECK(Has(sReconcile, "kMouse.SetCursorPos(kMouse.m_X, kMouse.m_Y)"));
     CHECK(Has(sReconcile, "if (kPlan.bHcursor && !kPrev.bHcursor && kPrev.bExclusive)\n    {\n        kMouse.SetCursorPos(kMouse.m_X, kMouse.m_Y);\n    }"));
     CHECK(CountOf(sReconcile, "SetCursorPos(") == 1);
+
+    const std::string sRelease = FunctionBody(sMouse, "void HwCursor::ReleaseClip()");
+    REQUIRE(!sRelease.empty());
+    CHECK(Has(sRelease, "ClipCursor(0);"));
+    CHECK(!Has(sRelease, "EqualRect("));
+    CHECK(!Has(sRelease, "GetClipCursor("));
+
+    const std::string sTerminate = FunctionBody(sCrash, "static void TerminateNow(int iCode)");
+    REQUIRE(!sTerminate.empty());
+    CHECK(Has(sTerminate, "FrameLimiter::EndPeriod();"));
+    CHECK(sTerminate.find("FrameLimiter::EndPeriod();") < sTerminate.find("TerminateProcess("));
+    CHECK(sTerminate.find("HwCursor::ReleaseClip();") < sTerminate.find("FrameLimiter::EndPeriod();"));
+    CHECK(!Has(sTerminate, "FrameLimiter::Shutdown();"));
+    std::string sLimiterRaw;
+    REQUIRE(ReadSource("../src/RedEngineFL/Application/pc/pcFrameLimiter.cpp", sLimiterRaw));
+    const std::string sLimiter = StripCr(sLimiterRaw);
+    const std::string sEndPeriod = FunctionBody(sLimiter, "void EndPeriod()");
+    REQUIRE(!sEndPeriod.empty());
+    CHECK(Has(sEndPeriod, "timeEndPeriod(1);"));
+    CHECK(!Has(sEndPeriod, "CloseHandle("));
+    const std::string sLimiterShutdown = FunctionBody(sLimiter, "void Shutdown()");
+    REQUIRE(!sLimiterShutdown.empty());
+    CHECK(Has(sLimiterShutdown, "EndPeriod();"));
 
     const std::string sUpdate = FunctionBody(sMouse, "void RedMouse::Update(");
     REQUIRE(!sUpdate.empty());

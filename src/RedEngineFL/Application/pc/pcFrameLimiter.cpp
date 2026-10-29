@@ -143,13 +143,18 @@ void Shutdown()
         CloseHandle(sTimer);
         sTimer = 0;
     }
+    EndPeriod();
+    sKind = kTimerNone;
+    sInitDone = false;
+}
+
+void EndPeriod()
+{
     if (sPeriodBegun)
     {
         timeEndPeriod(1);
         sPeriodBegun = false;
     }
-    sKind = kTimerNone;
-    sInitDone = false;
 }
 
 int Kind()

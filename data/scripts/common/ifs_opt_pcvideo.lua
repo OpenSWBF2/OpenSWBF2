@@ -183,8 +183,66 @@ function ifs_opt_pcvideo_fnReadDisplay(this)
 	Form_SetValues(customForm)
 end
 
-function ifs_opt_pcvideo_fnSaveDisplay()
-	ScriptCB_SaveDisplayOptions()
+function ifs_opt_pcvideo_fnSaveFailed(fnNext)
+	Popup_Ok.fnDone = function()
+		Popup_Ok.fnDone = nil
+		if(fnNext) then
+			fnNext()
+		end
+	end
+	Popup_Ok:fnActivate(1)
+	gPopup_fnSetTitleStr(Popup_Ok, "Display settings could not be saved.")
+end
+
+function ifs_opt_pcvideo_fnSaveDisplay(fnNext)
+	if(ScriptCB_SaveDisplayOptions() == 2) then
+		ifs_opt_pcvideo_fnSaveFailed(fnNext)
+	elseif(fnNext) then
+		fnNext()
+	end
+end
+
+function ifs_opt_pcvideo_fnLeaveTab()
+	local this = ifs_opt_pcvideo
+	if(ScriptCB_IsCurProfileDirty()) then
+		ifs_opt_pcvideo_StartSaveProfile()
+	else
+		ScriptCB_SetIFScreen(this.NextScreen)
+		this.NextScreen = nil
+	end
+end
+
+function ifs_opt_pcvideo_fnAfterApply()
+	local this = ifs_opt_pcvideo
+	if(ScriptCB_IsCurProfileDirty()) then
+		this.NextScreen = -1
+		ifs_opt_pcvideo_StartSaveProfile()
+	elseif((gPlatformStr == "PC") and this.bShellMode) then
+		this:Exit(false)
+		this:Enter(true)
+	else
+		ScriptCB_PopScreen()
+	end
+end
+
+function ifs_opt_pcvideo_fnAfterBack()
+	local this = ifs_opt_pcvideo
+	if((gPlatformStr == "PC") and this.bShellMode) then
+		this:Exit(false)
+		this:Enter(true)
+	else
+		ScriptCB_PopScreen()
+	end
+end
+
+function ifs_opt_pcvideo_fnMark(this)
+	if(ScriptCB_PollDisplayConfirm() ~= 0) then
+		this.bMarkPending = 1
+		return
+	end
+	this.bMarkPending = nil
+	ScriptCB_MarkCurrentProfile()
+	ScriptCB_MarkDisplayOptions()
 end
 
 function ifs_opt_pcvideo_fnConfirmEnded(this)
@@ -203,6 +261,9 @@ function ifs_opt_pcvideo_fnConfirmEnded(this)
 		end
 	end
 	ifs_opt_pcvideo_fnReadDisplay(this)
+	if(this.bMarkPending) then
+		ifs_opt_pcvideo_fnMark(this)
+	end
 end
 
 function ifs_opt_pcvideo_fnConfirmClose()
@@ -224,9 +285,13 @@ function ifs_opt_pcvideo_fnConfirmDone(bKeep)
 	local this = ifs_opt_pcvideo
 	ScriptCB_EndDisplayConfirm(bKeep == true)
 	ifs_opt_pcvideo_fnConfirmClose()
-	local state, secs, result = ScriptCB_PollDisplayConfirm()
+	local state, secs, result, keepsave = ScriptCB_PollDisplayConfirm()
 	this.iConfirmResult = result
+	this.iKeepSave = keepsave
 	ifs_opt_pcvideo_fnConfirmEnded(this)
+	if(keepsave == 2) then
+		ifs_opt_pcvideo_fnSaveFailed()
+	end
 end
 
 function ifs_opt_pcvideo_fnConfirmOpen(this)
@@ -246,7 +311,7 @@ function ifs_opt_pcvideo_fnConfirmOpen(this)
 end
 
 function ifs_opt_pcvideo_fnConfirmUpdate(this)
-	local state, secs, result = ScriptCB_PollDisplayConfirm()
+	local state, secs, result, keepsave = ScriptCB_PollDisplayConfirm()
 	if(state == 2) then
 		if(not this.bConfirmOpen) then
 			ifs_opt_pcvideo_fnConfirmOpen(this)
@@ -267,8 +332,15 @@ function ifs_opt_pcvideo_fnConfirmUpdate(this)
 		elseif(this.iConfirmResult and result ~= this.iConfirmResult and result ~= 0) then
 			ifs_opt_pcvideo_fnConfirmEnded(this)
 		end
+		if(this.bMarkPending) then
+			ifs_opt_pcvideo_fnMark(this)
+		end
+		if(this.iKeepSave and this.iKeepSave ~= 2 and keepsave == 2) then
+			ifs_opt_pcvideo_fnSaveFailed()
+		end
 	end
 	this.iConfirmResult = result
+	this.iKeepSave = keepsave
 end
 
 ifs_opt_pcvideo = NewIFShellScreen {
@@ -347,9 +419,9 @@ ifs_opt_pcvideo = NewIFShellScreen {
     -- When entering this screen, check if we need to save (triggered
     -- by a subscreen or something). If so, start that process.
 	Enter = function(this, bFwd)
-		ScriptCB_MarkCurrentProfile()
-		ScriptCB_MarkDisplayOptions()
+		ifs_opt_pcvideo_fnMark(this)
 		this.bResetProfile = nil
+		this.iKeepSave = nil
 
 		if(gPlatformStr == "PC") then
 			-- use shell mode?
@@ -529,16 +601,8 @@ ifs_opt_pcvideo = NewIFShellScreen {
 				this.fOriginalBrightness = generalForm.elements["brightness"].selValue
 				this.fOriginalContrast = generalForm.elements["contrast"].selValue
 
-				ifs_opt_pcvideo_fnSaveDisplay()
-				if(ScriptCB_IsCurProfileDirty()) then
-					ifs_opt_pcvideo_StartSaveProfile()
-					return
-				else
-					-- No need to save. Just jump there
-					ScriptCB_SetIFScreen(this.NextScreen)
-					this.NextScreen = nil
-					return
-				end
+				ifs_opt_pcvideo_fnSaveDisplay(ifs_opt_pcvideo_fnLeaveTab)
+				return
 			end -- this.Nextscreen is valid (i.e. clicked on a tab)
 		end -- cur platform == PC
 
@@ -581,29 +645,10 @@ ifs_opt_pcvideo = NewIFShellScreen {
 		
 			ScriptCB_SndPlaySound("shell_menu_enter");
 			this:ApplySettings()
-			ifs_opt_pcvideo_fnSaveDisplay()
 			local generalForm = this.formcontainergeneral.form
-			local customForm = this.formcontainercustom.form			
 			this.fOriginalBrightness = generalForm.elements["brightness"].selValue
 			this.fOriginalContrast = generalForm.elements["contrast"].selValue
-			if (gPlatformStr == "PC") and this.bShellMode then
-				if(ScriptCB_IsCurProfileDirty()) then
-					this.NextScreen = -1 -- flag special behavior
-					ifs_opt_pcvideo_StartSaveProfile()
-				else
-					-- rethink interface state, but don't leave
-					this:Exit(false)
-					this:Enter(true)
-				end
-			else
-				if(ScriptCB_IsCurProfileDirty()) then
-					this.NextScreen = -1 -- flag special behavior
-					ifs_opt_pcvideo_StartSaveProfile()
-				else
-					-- done
-					ScriptCB_PopScreen()
-				end
-			end
+			ifs_opt_pcvideo_fnSaveDisplay(ifs_opt_pcvideo_fnAfterApply)
 		elseif (this.CurButton == "autodetect") then
 		
 			ScriptCB_SndPlaySound("shell_menu_enter");
@@ -841,18 +886,9 @@ ifs_opt_pcvideo = NewIFShellScreen {
 		-- bail       
 		ScriptCB_SndPlaySound("shell_menu_exit")
 		this:ApplySettings()
-		ifs_opt_pcvideo_fnSaveDisplay()
 		this.fOriginalBrightness = generalForm.elements["brightness"].selValue
 		this.fOriginalContrast = generalForm.elements["contrast"].selValue
-		-- done
-
-		if (gPlatformStr == "PC") and this.bShellMode then
-			-- rethink interface state, but don't leave
-			this:Exit(false)
-			this:Enter(true)
-		else
-			ScriptCB_PopScreen()
-		end
+		ifs_opt_pcvideo_fnSaveDisplay(ifs_opt_pcvideo_fnAfterBack)
 	end,
 
 	Input_Start = function(this)

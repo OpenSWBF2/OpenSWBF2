@@ -858,6 +858,16 @@ bool ConfirmNeeded(const DisplayRec& kCur, const DisplayRec& kNext)
            kCur.uiClientH != kNext.uiClientH;
 }
 
+bool MergeStageArm(bool bArmSoFar, bool bTagValid, bool bTagArm, bool bSet)
+{
+    return bSet && (bArmSoFar || (bTagValid && bTagArm));
+}
+
+bool StagedConfirm(bool bArm, bool bTagValid, bool bSet, bool bNeeded)
+{
+    return bArm && bTagValid && bSet && bNeeded;
+}
+
 ConfirmStep ConfirmPhaseStep(ConfirmPhase ePhase, ConfirmEvent eEvent, unsigned int uiElapsedMs)
 {
     ConfirmStep out;

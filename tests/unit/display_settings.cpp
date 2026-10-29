@@ -142,14 +142,14 @@ TEST_CASE("display settings default lets frames queue" * doctest::test_suite("un
     DisplaySettings kNow;
     SetDefaults(kNow);
     unsigned int uiWritten = 99;
-    CHECK(SaveMenu(kMark, kNow, IniPath(), true, uiWritten));
+    CHECK(SaveMenu(kMark, kNow, IniPath(), true, uiWritten) == kSaveOk);
     CHECK(uiWritten == 0);
     char acAfter[512];
     ReadText(acAfter, sizeof(acAfter));
     CHECK(strstr(acAfter, "NoWaitQuery=") == static_cast<char*>(0));
 
     kNow.bNoWaitQuery = false;
-    CHECK(SaveMenu(kMark, kNow, IniPath(), true, uiWritten));
+    CHECK(SaveMenu(kMark, kNow, IniPath(), true, uiWritten) == kSaveOk);
     CHECK(uiWritten == kNoWaitQuery);
     ReadText(acAfter, sizeof(acAfter));
     CHECK(strstr(acAfter, "NoWaitQuery=0") != static_cast<char*>(0));
@@ -478,6 +478,57 @@ TEST_CASE("display settings save adapter ignores cli mask" * doctest::test_suite
     SetDefaults(gDisplay);
 }
 
+TEST_CASE("display settings pending adapter" * doctest::test_suite("unit"))
+{
+    Cleanup();
+    SetDefaults(gCliDisplay);
+    SetFromText(gCliDisplay, kDisplayIni, IniPath(), "command line");
+    Init();
+    const unsigned int uiIniAdapter = gIniDisplay.uiAdapter;
+    const unsigned int uiIniSet = gIniDisplay.uiSet;
+    const unsigned int uiAdapter = gDisplay.uiAdapter;
+    char acIniName[sizeof(gIniDisplay.acAdapterName)];
+    char acName[sizeof(gDisplay.acAdapterName)];
+    strcpy(acIniName, gIniDisplay.acAdapterName);
+    strcpy(acName, gDisplay.acAdapterName);
+
+    SetPendingAdapter(1, "\\\\.\\DISPLAY2");
+    CHECK(GetPendingAdapter().bSet);
+    CHECK(GetPendingAdapter().uiIndex == 1);
+    CHECK(strcmp(GetPendingAdapter().acName, "\\\\.\\DISPLAY2") == 0);
+    CHECK(!Exists(IniPath()));
+    CHECK(gIniDisplay.uiAdapter == uiIniAdapter);
+    CHECK(gIniDisplay.uiSet == uiIniSet);
+    CHECK(strcmp(gIniDisplay.acAdapterName, acIniName) == 0);
+    CHECK(gDisplay.uiAdapter == uiAdapter);
+    CHECK(strcmp(gDisplay.acAdapterName, acName) == 0);
+
+    char acLong[101];
+    memset(acLong, 'y', 100);
+    acLong[100] = '\0';
+    SetPendingAdapter(2, acLong);
+    CHECK(GetPendingAdapter().uiIndex == 2);
+    CHECK(strlen(GetPendingAdapter().acName) == 63);
+    CHECK(strncmp(GetPendingAdapter().acName, acLong, 63) == 0);
+
+    SetPendingAdapter(3, 0);
+    CHECK(GetPendingAdapter().bSet);
+    CHECK(GetPendingAdapter().uiIndex == 3);
+    CHECK(GetPendingAdapter().acName[0] == '\0');
+    CHECK(!Exists(IniPath()));
+
+    ClearPendingAdapter();
+    CHECK(!GetPendingAdapter().bSet);
+    CHECK(GetPendingAdapter().uiIndex == 0);
+    CHECK(GetPendingAdapter().acName[0] == '\0');
+
+    ClearPendingAdapter();
+    Cleanup();
+    SetDefaults(gCliDisplay);
+    SetDefaults(gIniDisplay);
+    SetDefaults(gDisplay);
+}
+
 TEST_CASE("display settings validate menu fields" * doctest::test_suite("unit"))
 {
     MenuFields kLow = {0, 0, 0, 0, true};
@@ -528,20 +579,26 @@ TEST_CASE("display settings save menu writes only changed keys" * doctest::test_
     char acAfter[512];
     ReadText(acBefore, sizeof(acBefore));
     unsigned int uiWritten = 99;
-    CHECK(!SaveMenu(kMark, kNow, IniPath(), false, uiWritten));
+    CHECK(SaveMenu(kMark, kNow, IniPath(), false, uiWritten) == kSaveDeferred);
     CHECK(uiWritten == 0);
     ReadText(acAfter, sizeof(acAfter));
     CHECK(strcmp(acBefore, acAfter) == 0);
     CHECK((gIniDisplay.uiSet & kMenuKeys) == 0);
 
     uiWritten = 99;
-    CHECK(SaveMenu(kMark, kMark, IniPath(), true, uiWritten));
+    CHECK(SaveMenu(kMark, kMark, IniPath(), true, uiWritten) == kSaveOk);
     CHECK(uiWritten == 0);
     ReadText(acAfter, sizeof(acAfter));
     CHECK(strcmp(acBefore, acAfter) == 0);
 
     uiWritten = 99;
-    CHECK(SaveMenu(kMark, kNow, IniPath(), true, uiWritten));
+    CHECK(SaveMenu(kMark, kMark, IniPath(), false, uiWritten) == kSaveOk);
+    CHECK(uiWritten == 0);
+    ReadText(acAfter, sizeof(acAfter));
+    CHECK(strcmp(acBefore, acAfter) == 0);
+
+    uiWritten = 99;
+    CHECK(SaveMenu(kMark, kNow, IniPath(), true, uiWritten) == kSaveOk);
     CHECK(uiWritten == (kBorderless | kVsync));
     DisplaySettings kLoaded;
     SetDefaults(kLoaded);
@@ -566,7 +623,7 @@ TEST_CASE("display settings save menu writes only changed keys" * doctest::test_
     DisplaySettings kCliNow = kCliMark;
     kCliNow.uiFps = 144;
     uiWritten = 99;
-    CHECK(SaveMenu(kCliMark, kCliNow, IniPath(), true, uiWritten));
+    CHECK(SaveMenu(kCliMark, kCliNow, IniPath(), true, uiWritten) == kSaveOk);
     CHECK(uiWritten == kFps);
     SetDefaults(kLoaded);
     LoadIni(kLoaded, IniPath());
@@ -578,10 +635,21 @@ TEST_CASE("display settings save menu writes only changed keys" * doctest::test_
     DisplaySettings kFailNow = kMark;
     kFailNow.uiRefresh = 144;
     uiWritten = 99;
-    CHECK(!SaveMenu(kMark, kFailNow, "Z:\\openswbf2-missing-dir\\none\\display.ini", true, uiWritten));
+    CHECK(SaveMenu(kMark, kFailNow, "Z:\\openswbf2-missing-dir\\none\\display.ini", true, uiWritten) == kSaveFailed);
     CHECK(uiWritten == 0);
     CHECK(gIniDisplay.uiRefresh == 0);
     CHECK((gIniDisplay.uiSet & kRefresh) == 0);
+
+    WriteText("[Display]\r\nFps=60\r\n");
+    ReadText(acBefore, sizeof(acBefore));
+    SetFileAttributesA(IniPath(), FILE_ATTRIBUTE_READONLY);
+    uiWritten = 99;
+    CHECK(SaveMenu(kMark, kFailNow, IniPath(), true, uiWritten) == kSaveFailed);
+    CHECK(uiWritten == 0);
+    ReadText(acAfter, sizeof(acAfter));
+    CHECK(strcmp(acBefore, acAfter) == 0);
+    CHECK((gIniDisplay.uiSet & kRefresh) == 0);
+    SetFileAttributesA(IniPath(), FILE_ATTRIBUTE_NORMAL);
 
     Cleanup();
     SetDefaults(gCliDisplay);

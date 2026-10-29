@@ -22,6 +22,13 @@ const unsigned int kModeMax = 2;
 
 const unsigned int kMenuKeys = kBorderless | kRefresh | kVsync | kFps | kNoWaitQuery;
 
+enum SaveResult
+{
+    kSaveOk = 0,
+    kSaveDeferred = 1,
+    kSaveFailed = 2
+};
+
 const unsigned int kHashBorderless = 0x49DA825A;
 const unsigned int kHashAdapter = 0xE7CAE794;
 const unsigned int kHashRefresh = 0xD4F26634;
@@ -57,6 +64,13 @@ struct MenuFields
     bool bWaitQuery;
 };
 
+struct PendingAdapter
+{
+    bool bSet;
+    unsigned int uiIndex;
+    char acName[64];
+};
+
 void SetDefaults(DisplaySettings& kSettings);
 bool ParseUInt(const char* pcText, unsigned int uiLo, unsigned int uiHi, unsigned int& uiOut);
 bool ParseBool(const char* pcText, bool& bOut);
@@ -68,8 +82,11 @@ void LoadIni(DisplaySettings& kSettings, const char* pcPath);
 bool SaveIni(const DisplaySettings& kSettings, const char* pcPath, bool bGoodFrame);
 bool DisplayIniPath(char* pcPath, unsigned int uiSize);
 bool SaveAdapter(unsigned int uiIndex, const char* pcName);
+void SetPendingAdapter(unsigned int uiIndex, const char* pcName);
+void ClearPendingAdapter();
+const PendingAdapter& GetPendingAdapter();
 bool ValidateMenu(const MenuFields& kFields);
-bool SaveMenu(const DisplaySettings& kMark, const DisplaySettings& kNow, const char* pcPath, bool bGoodFrame, unsigned int& uiWritten);
+SaveResult SaveMenu(const DisplaySettings& kMark, const DisplaySettings& kNow, const char* pcPath, bool bGoodFrame, unsigned int& uiWritten);
 void Init();
 
 extern DisplaySettings gCliDisplay;
