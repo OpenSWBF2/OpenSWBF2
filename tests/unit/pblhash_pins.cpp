@@ -380,6 +380,12 @@ TEST_CASE("hash pin nodpi" * doctest::test_suite("unit"))
     CHECK((unsigned int)PblHash("nodpi") == DisplayCfg::kHashNoDpi);
 }
 
+TEST_CASE("hash pin swcursor" * doctest::test_suite("unit"))
+{
+    CHECK((unsigned int)PblHash("swcursor") == 0x21567C6D);
+    CHECK((unsigned int)PblHash("swcursor") == DisplayCfg::kHashSwCursor);
+}
+
 TEST_CASE("hash pin displayini" * doctest::test_suite("unit"))
 {
     CHECK((unsigned int)PblHash("displayini") == 0x8CDD8845);

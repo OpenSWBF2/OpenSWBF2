@@ -948,3 +948,131 @@ TEST_CASE("frame cap vsync source pins" * doctest::test_suite("unit"))
     CHECK(Has(sTime, "OPENSWBF2 PACING vsync on, fps cap %u not applied"));
     CHECK(Has(sTime, "OPENSWBF2 PACING fps cap %u applied"));
 }
+
+TEST_CASE("hardware cursor source pins" * doctest::test_suite("unit"))
+{
+    std::string sMouseRaw;
+    std::string sMainRaw;
+    std::string sCrashRaw;
+    std::string sRenderRaw;
+    std::string sJoyRaw;
+    if (!ReadSource("../src/RedEngineFL/input/pc/pcRedMouse.cpp", sMouseRaw) ||
+        !ReadSource("../src/Battlefront2/Source/pcMain.cpp", sMainRaw) ||
+        !ReadSource("../src/Battlefront2/Source/pcCrash.cpp", sCrashRaw) ||
+        !ReadSource("../src/RedEngineFL/Application/pc/pcFLRender.cpp", sRenderRaw) ||
+        !ReadSource("../src/RedEngineFL/input/pc/pcRedJoystick.cpp", sJoyRaw))
+    {
+        SkipCase("source files not found");
+    }
+    const std::string sMouse = StripCr(sMouseRaw);
+    const std::string sMain = StripCr(sMainRaw);
+    const std::string sCrash = StripCr(sCrashRaw);
+    const std::string sRender = StripCr(sRenderRaw);
+    const std::string sJoy = StripCr(sJoyRaw);
+
+    const char* apcCoop[] = { "void RedMouse::Remove()", "void RedMouse::Insert()" };
+    for (size_t i = 0; i < sizeof(apcCoop) / sizeof(apcCoop[0]); ++i)
+    {
+        const std::string sBody = FunctionBody(sMouse, apcCoop[i]);
+        REQUIRE(!sBody.empty());
+        CHECK(Has(sBody, "sdwCoopFlags"));
+        CHECK(!Has(sBody, "DISCL_EXCLUSIVE | DISCL_FOREGROUND)"));
+    }
+
+    const std::string sReconcile =
+        FunctionBody(sMouse, "static void ReconcileCursor(RedMouse& kMouse)");
+    REQUIRE(!sReconcile.empty());
+    CHECK(Has(sReconcile, "CursorPlanFor("));
+    CHECK(Has(sReconcile, "DISCL_NONEXCLUSIVE"));
+    CHECK(Has(sReconcile, "GetClipCursor("));
+    CHECK(Has(sReconcile, "HwCursor::ReleaseClip()"));
+    CHECK(Has(sReconcile, "mCursorImage.Enable(false)"));
+    CHECK(Has(sReconcile, "kMouse.SetCursorPos(kMouse.m_X, kMouse.m_Y)"));
+    CHECK(Has(sReconcile, "if (kPlan.bHcursor && !kPrev.bHcursor && kPrev.bExclusive)\n    {\n        kMouse.SetCursorPos(kMouse.m_X, kMouse.m_Y);\n    }"));
+    CHECK(CountOf(sReconcile, "SetCursorPos(") == 1);
+
+    const std::string sUpdate = FunctionBody(sMouse, "void RedMouse::Update(");
+    REQUIRE(!sUpdate.empty());
+    CHECK(Has(sUpdate, "ReconcileCursor(*this);"));
+    CHECK(sUpdate.find("ReconcileCursor(*this);") < sUpdate.find("if (!pc_device)"));
+    CHECK(Has(sReconcile, "if (kMouse.Exists())\n        {\n            kMouse.Remove();"));
+    CHECK(Has(sUpdate, "CursorButtonLatch("));
+    CHECK(Has(sUpdate, "MapClientToBackBuffer("));
+    CHECK(Has(sUpdate, "WindowFromPoint("));
+    CHECK(Has(sUpdate, "!= DisplayLogic::kModeFullscreen && !bInside;"));
+    CHECK(Has(sUpdate, "bBlockNew = RedRenderer::GetDisplayMode() != DisplayLogic::kModeFullscreen;"));
+    CHECK(!Has(sUpdate, "kModeWindowed"));
+    CHECK(Has(sUpdate, "if (GetCursorPos(&kScreen) && GetClientRect(hGlobalWnd, &kRc))"));
+    CHECK(CountOf(sUpdate, "GetCursorPos(") == 1);
+    CHECK(Has(sUpdate, "m_X += m_dX;"));
+
+    const std::string sBuild = FunctionBody(sMouse, "void HwCursor::Build(");
+    REQUIRE(!sBuild.empty());
+    CHECK(Has(sBuild, "g_bNoRender"));
+    CHECK(Has(sBuild, "OPENSWBF2 CURSOR mode=%s image=skipped"));
+    CHECK(Has(sMouse, "D3DPOOL_SCRATCH"));
+    CHECK(Has(sMouse, "kCursorSrcMax"));
+    CHECK(Has(sMouse, "xHotspot = 0"));
+    CHECK(CountOf(sMouse, "DestroyIcon((HICON)shCursor);") == 2);
+
+    const std::string sMake = FunctionBody(sMouse, "static HCURSOR MakeCursorFromCache(");
+    REQUIRE(!sMake.empty());
+    CHECK(Has(sMake, "BITMAPV5HEADER"));
+    CHECK(Has(sMake, "BI_BITFIELDS"));
+    CHECK(Has(sMake, "bV5AlphaMask = 0xFF000000"));
+    CHECK(Has(sMake, "CursorMaskFromBgra("));
+    CHECK(sMake.find("CursorScaleBgra(") < sMake.find("CursorMaskFromBgra("));
+    CHECK(!Has(sMouse, "DestroyCursor("));
+
+    const size_t uiSet = sMain.find("case WM_SETCURSOR:");
+    REQUIRE(uiSet != std::string::npos);
+    const size_t uiKey = sMain.find("case WM_KEYDOWN:", uiSet);
+    REQUIRE(uiKey != std::string::npos);
+    const std::string sSet = sMain.substr(uiSet, uiKey - uiSet);
+    CHECK(Has(sSet, "HTCLIENT"));
+    CHECK(Has(sSet, "HwCursor::Software()"));
+    CHECK(Has(sSet, "SetCursor(HwCursor::Current());"));
+    CHECK(Has(sSet, "RedTexture::s_textureHashTable.Find(0xA2BB0616)"));
+
+    CHECK(CountOf(sMain, "HwCursor::ReleaseClip();") == 3);
+    const size_t uiClose = sMain.find("case WM_CLOSE:");
+    REQUIRE(uiClose != std::string::npos);
+    const size_t uiExit = sMain.find("pcCrash::Exit(0);", uiClose);
+    REQUIRE(uiExit != std::string::npos);
+    const std::string sClose = sMain.substr(uiClose, uiExit - uiClose);
+    CHECK(Has(sClose, "HwCursor::ReleaseClip();"));
+    CHECK(sClose.find("\n    case ", 1) == std::string::npos);
+
+    const std::string sActivate = FunctionBody(sMain, "void ActivateFrontline(bool bActivate)");
+    REQUIRE(!sActivate.empty());
+    CHECK(Has(sActivate, "SetCursor(HwCursor::Current());"));
+    CHECK(Has(sActivate, "IDC_ARROW"));
+
+    const std::string sFilter = FunctionBody(sCrash, "long pcCrash::Filter(");
+    REQUIRE(!sFilter.empty());
+    CHECK(Has(sFilter, "HwCursor::ReleaseClip();"));
+    const char* apcExits[] = { "static void TerminateNow(int iCode)", "void __cdecl pcCrash::Exit(int iCode)",
+        "static DWORD WINAPI WatchdogThread(LPVOID)", "void pcCrash::FatalReset(" };
+    for (size_t i = 0; i < sizeof(apcExits) / sizeof(apcExits[0]); ++i)
+    {
+        const std::string sBody = FunctionBody(sCrash, apcExits[i]);
+        REQUIRE(!sBody.empty());
+        CHECK(Has(sBody, "HwCursor::ReleaseClip();"));
+    }
+    const std::string sWatchdog = FunctionBody(sCrash, "static DWORD WINAPI WatchdogThread(LPVOID)");
+    CHECK(sWatchdog.find("HwCursor::ReleaseClip();") < sWatchdog.find("SetEvent(ghFaultEvent);"));
+
+    const std::string sInit = FunctionBody(sRender, "void InitMouseCursor()");
+    REQUIRE(!sInit.empty());
+    CHECK(Has(sInit, "HwCursor::Build(PblHash(\"mousecursor\"));"));
+    const std::string sCleanup = FunctionBody(sRender, "void FLRenderer::Cleanup()");
+    REQUIRE(!sCleanup.empty());
+    CHECK(Has(sCleanup, "HwCursor::Destroy();"));
+    const std::string sEnable = FunctionBody(sRender, "void FLRenderer::EnableCursor(bool bEnable)");
+    REQUIRE(!sEnable.empty());
+    CHECK(!Has(sEnable, "HwCursor"));
+
+    CHECK(Has(sJoy, "if (HwCursor::Shown())"));
+    CHECK(Has(sJoy, "pMouse->SetCursorPos(iX, iY);"));
+    CHECK(Has(sJoy, "FLRenderer::SetCursorPos((float)iX, (float)iY);"));
+}

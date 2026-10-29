@@ -108,6 +108,7 @@ TEST_CASE("display settings defaults" * doctest::test_suite("unit"))
     CHECK(kSettings.uiRefresh == 0);
     CHECK(kSettings.uiAdapter == 0);
     CHECK(!kSettings.bBorderless);
+    CHECK_FALSE(kSettings.bSoftwareCursor);
     CHECK(kSettings.uiSet == 0);
 }
 
@@ -185,7 +186,7 @@ TEST_CASE("display settings missing ini is silent" * doctest::test_suite("unit")
 
 TEST_CASE("display settings ini loads values" * doctest::test_suite("unit"))
 {
-    WriteText("[Display]\r\nRefresh=60\r\nVsync=half\r\nAdapterName=\\\\.\\DISPLAY2\r\nBorderless=1\r\n");
+    WriteText("[Display]\r\nRefresh=60\r\nVsync=half\r\nAdapterName=\\\\.\\DISPLAY2\r\nBorderless=1\r\nSoftwareCursor=1\r\n");
     DisplaySettings kSettings;
     SetDefaults(kSettings);
     LoadIni(kSettings, IniPath());
@@ -194,6 +195,8 @@ TEST_CASE("display settings ini loads values" * doctest::test_suite("unit"))
     CHECK(kSettings.uiVsync == 2);
     CHECK(strcmp(kSettings.acAdapterName, "\\\\.\\DISPLAY2") == 0);
     CHECK(kSettings.bBorderless);
+    CHECK(kSettings.bSoftwareCursor);
+    CHECK((kSettings.uiSet & kSoftwareCursor) != 0);
 }
 
 TEST_CASE("display settings garbage ini loads nothing" * doctest::test_suite("unit"))
@@ -244,9 +247,11 @@ TEST_CASE("display settings merge precedence" * doctest::test_suite("unit"))
     SetDefaults(kIni);
     SetFromText(kIni, kRefresh, "60", "display.ini");
     SetFromText(kIni, kFps, "100", "display.ini");
+    SetFromText(kIni, kSoftwareCursor, "0", "display.ini");
     DisplaySettings kCli;
     SetDefaults(kCli);
     SetFromText(kCli, kRefresh, "75", "command line");
+    SetFlag(kCli, kSoftwareCursor);
     DisplaySettings kFinal = kIni;
     Merge(kFinal, kCli);
     CHECK(kFinal.uiRefresh == 75);
@@ -254,6 +259,8 @@ TEST_CASE("display settings merge precedence" * doctest::test_suite("unit"))
     CHECK(kFinal.uiVsync == 1);
     CHECK((kFinal.uiCliMask & kRefresh) != 0);
     CHECK((kFinal.uiCliMask & kFps) == 0);
+    CHECK(kFinal.bSoftwareCursor);
+    CHECK((kFinal.uiCliMask & kSoftwareCursor) != 0);
 }
 
 TEST_CASE("display settings save gate refuses without a good frame" * doctest::test_suite("unit"))
@@ -300,6 +307,7 @@ TEST_CASE("display settings save skips command line values" * doctest::test_suit
     SetDefaults(kCli);
     SetFromText(kCli, kRefresh, "75", "command line");
     SetFromText(kCli, kFps, "30", "command line");
+    SetFlag(kCli, kSoftwareCursor);
     DisplaySettings kFinal = kIni;
     Merge(kFinal, kCli);
     SetFromText(kFinal, kVsync, "0", "test");
@@ -311,6 +319,8 @@ TEST_CASE("display settings save skips command line values" * doctest::test_suit
     CHECK(kLoaded.uiRefresh == 60);
     CHECK(kLoaded.uiFps == 100);
     CHECK(kLoaded.uiVsync == 0);
+    CHECK((kLoaded.uiSet & kSoftwareCursor) == 0);
+    CHECK(!kLoaded.bSoftwareCursor);
 }
 
 TEST_CASE("display settings save never writes unset keys" * doctest::test_suite("unit"))
@@ -328,6 +338,7 @@ TEST_CASE("display settings save never writes unset keys" * doctest::test_suite(
     CHECK((kLoaded.uiSet & kVsync) == 0);
     CHECK((kLoaded.uiSet & kFps) == 0);
     CHECK((kLoaded.uiSet & kAdapter) == 0);
+    CHECK((kLoaded.uiSet & kSoftwareCursor) == 0);
 }
 
 TEST_CASE("display settings init merges defaults ini and command line" * doctest::test_suite("unit"))

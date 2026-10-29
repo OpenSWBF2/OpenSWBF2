@@ -12,6 +12,7 @@ const unsigned int kNoWaitQuery = 32;
 const unsigned int kNoDpi = 64;
 const unsigned int kDisplayIni = 128;
 const unsigned int kAdapterName = 256;
+const unsigned int kSoftwareCursor = 512;
 
 const unsigned int kAdapterMax = 15;
 const unsigned int kRefreshMax = 1000;
@@ -29,6 +30,7 @@ const unsigned int kHashFps = 0xBDD34AA8;
 const unsigned int kHashNoWaitQuery = 0xFF222165;
 const unsigned int kHashNoDpi = 0x5B1931B5;
 const unsigned int kHashDisplayIni = 0x8CDD8845;
+const unsigned int kHashSwCursor = 0x21567C6D;
 
 struct DisplaySettings
 {
@@ -40,6 +42,7 @@ struct DisplaySettings
     unsigned int uiFps;
     bool bNoWaitQuery;
     bool bNoDpi;
+    bool bSoftwareCursor;
     char acDisplayIni[260];
     unsigned int uiSet;
     unsigned int uiCliMask;

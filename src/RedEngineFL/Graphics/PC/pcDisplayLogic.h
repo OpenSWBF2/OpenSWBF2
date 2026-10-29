@@ -363,4 +363,30 @@ GammaReason GammaPathFor(bool bNoRender, bool bTestKind, bool bProg2);
 
 bool GammaPassRuns(GammaPath ePath, bool bIdentity, bool bResourcesReleased, bool bHaveTarget);
 
+struct CursorPlan
+{
+    bool bHcursor;
+    bool bExclusive;
+    bool bClip;
+    bool bHideDrawn;
+};
+
+CursorPlan CursorPlanFor(bool bShown, DisplayMode eMode, bool bActive, bool bSoftware, bool bNoRender);
+
+unsigned int CursorButtonLatch(unsigned int uiRawDown, unsigned int uiPrevRawDown, bool bBlockNew,
+                               unsigned int& uiLatched);
+
+const unsigned int kCursorMaxDim = 256;
+
+void CursorSize(unsigned int uiTexW, unsigned int uiTexH, unsigned int uiBackW, unsigned int uiBackH,
+                unsigned int uiClientW, unsigned int uiClientH, unsigned int& uiW, unsigned int& uiH);
+
+void CursorScaleBgra(const unsigned int* puiSrc, unsigned int uiSrcW, unsigned int uiSrcH,
+                     unsigned int* puiDst, unsigned int uiDstW, unsigned int uiDstH);
+
+unsigned int CursorMaskStride(unsigned int uiW);
+
+void CursorMaskFromBgra(const unsigned int* puiBgra, unsigned int uiW, unsigned int uiH,
+                        unsigned char* pucMask);
+
 }

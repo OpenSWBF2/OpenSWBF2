@@ -1043,4 +1043,162 @@ bool GammaPassRuns(GammaPath ePath, bool bIdentity, bool bResourcesReleased, boo
     return ePath == kGammaPass && !bIdentity && !bResourcesReleased && bHaveTarget;
 }
 
+CursorPlan CursorPlanFor(bool bShown, DisplayMode eMode, bool bActive, bool bSoftware, bool bNoRender)
+{
+    CursorPlan p = {false, true, false, false};
+    if (bSoftware)
+    {
+        return p;
+    }
+    p.bHideDrawn = true;
+    if (!bShown)
+    {
+        return p;
+    }
+    p.bExclusive = false;
+    p.bHcursor = !bNoRender;
+    p.bClip = !bNoRender && bActive && eMode == kModeFullscreen;
+    return p;
+}
+
+unsigned int CursorButtonLatch(unsigned int uiRawDown, unsigned int uiPrevRawDown, bool bBlockNew,
+                               unsigned int& uiLatched)
+{
+    const unsigned int uiNew = uiRawDown & ~uiPrevRawDown;
+    if (bBlockNew)
+    {
+        uiLatched |= uiNew;
+    }
+    uiLatched &= uiRawDown;
+    return uiRawDown & ~uiLatched;
+}
+
+static unsigned int CursorAxis(unsigned int uiTex, unsigned int uiBack, unsigned int uiClient)
+{
+    const unsigned long long ullV =
+        ((unsigned long long)uiTex * uiClient + uiBack / 2) / uiBack;
+    if (ullV < 1)
+    {
+        return 1;
+    }
+    if (ullV > kCursorMaxDim)
+    {
+        return kCursorMaxDim;
+    }
+    return (unsigned int)ullV;
+}
+
+void CursorSize(unsigned int uiTexW, unsigned int uiTexH, unsigned int uiBackW, unsigned int uiBackH,
+                unsigned int uiClientW, unsigned int uiClientH, unsigned int& uiW, unsigned int& uiH)
+{
+    if (uiTexW == 0 || uiTexH == 0 || uiBackW == 0 || uiBackH == 0 || uiClientW == 0 ||
+        uiClientH == 0)
+    {
+        uiW = CursorAxis(uiTexW, 1, 1);
+        uiH = CursorAxis(uiTexH, 1, 1);
+        return;
+    }
+    uiW = CursorAxis(uiTexW, uiBackW, uiClientW);
+    uiH = CursorAxis(uiTexH, uiBackH, uiClientH);
+}
+
+static void CursorFilterAxis(unsigned int uiD, unsigned int uiSrc, unsigned int uiDst,
+                             unsigned int& uiI0, unsigned int& uiI1, unsigned int& uiF)
+{
+    long long llPos =
+        (long long)(((2ULL * uiD + 1) * uiSrc * 65536ULL) / (2ULL * uiDst)) - 32768;
+    const long long llMax = (long long)(uiSrc - 1) * 65536;
+    if (llPos < 0)
+    {
+        llPos = 0;
+    }
+    if (llPos > llMax)
+    {
+        llPos = llMax;
+    }
+    uiI0 = (unsigned int)(llPos >> 16);
+    uiF = (unsigned int)(llPos & 0xFFFF);
+    uiI1 = (uiI0 + 1 < uiSrc) ? uiI0 + 1 : uiSrc - 1;
+}
+
+static void CursorTap(unsigned int uiPx, unsigned long long ullW, unsigned long long* pullAcc)
+{
+    const unsigned long long ullA = ullW * (uiPx >> 24);
+    pullAcc[0] += ullA;
+    pullAcc[1] += ullA * ((uiPx >> 16) & 0xFF);
+    pullAcc[2] += ullA * ((uiPx >> 8) & 0xFF);
+    pullAcc[3] += ullA * (uiPx & 0xFF);
+}
+
+static unsigned int CursorStraight(unsigned long long ullP, unsigned long long ullA)
+{
+    const unsigned long long ullC = (ullP + ullA / 2) / ullA;
+    return (ullC > 255) ? 255u : (unsigned int)ullC;
+}
+
+void CursorScaleBgra(const unsigned int* puiSrc, unsigned int uiSrcW, unsigned int uiSrcH,
+                     unsigned int* puiDst, unsigned int uiDstW, unsigned int uiDstH)
+{
+    if (puiSrc == 0 || puiDst == 0 || uiSrcW == 0 || uiSrcH == 0 || uiDstW == 0 || uiDstH == 0)
+    {
+        return;
+    }
+    for (unsigned int y = 0; y < uiDstH; ++y)
+    {
+        unsigned int uiY0, uiY1, uiFy;
+        CursorFilterAxis(y, uiSrcH, uiDstH, uiY0, uiY1, uiFy);
+        const unsigned int* puiRow0 = puiSrc + uiY0 * uiSrcW;
+        const unsigned int* puiRow1 = puiSrc + uiY1 * uiSrcW;
+        const unsigned long long ullWy0 = 65536 - uiFy;
+        const unsigned long long ullWy1 = uiFy;
+        for (unsigned int x = 0; x < uiDstW; ++x)
+        {
+            unsigned int uiX0, uiX1, uiFx;
+            CursorFilterAxis(x, uiSrcW, uiDstW, uiX0, uiX1, uiFx);
+            const unsigned long long ullWx0 = 65536 - uiFx;
+            const unsigned long long ullWx1 = uiFx;
+            unsigned long long aullAcc[4] = {0, 0, 0, 0};
+            CursorTap(puiRow0[uiX0], ullWy0 * ullWx0, aullAcc);
+            CursorTap(puiRow0[uiX1], ullWy0 * ullWx1, aullAcc);
+            CursorTap(puiRow1[uiX0], ullWy1 * ullWx0, aullAcc);
+            CursorTap(puiRow1[uiX1], ullWy1 * ullWx1, aullAcc);
+            const unsigned int uiA = (unsigned int)((aullAcc[0] + 0x80000000ULL) >> 32);
+            if (uiA == 0)
+            {
+                puiDst[y * uiDstW + x] = 0;
+                continue;
+            }
+            puiDst[y * uiDstW + x] = (uiA << 24) | (CursorStraight(aullAcc[1], aullAcc[0]) << 16) |
+                                     (CursorStraight(aullAcc[2], aullAcc[0]) << 8) |
+                                     CursorStraight(aullAcc[3], aullAcc[0]);
+        }
+    }
+}
+
+unsigned int CursorMaskStride(unsigned int uiW)
+{
+    return ((uiW + 31) / 32) * 4;
+}
+
+void CursorMaskFromBgra(const unsigned int* puiBgra, unsigned int uiW, unsigned int uiH,
+                        unsigned char* pucMask)
+{
+    if (puiBgra == 0 || pucMask == 0)
+    {
+        return;
+    }
+    const unsigned int uiStride = CursorMaskStride(uiW);
+    memset(pucMask, 0, uiStride * uiH);
+    for (unsigned int y = 0; y < uiH; ++y)
+    {
+        for (unsigned int x = 0; x < uiW; ++x)
+        {
+            if ((puiBgra[y * uiW + x] >> 24) == 0)
+            {
+                pucMask[y * uiStride + x / 8] |= (unsigned char)(0x80 >> (x & 7));
+            }
+        }
+    }
+}
+
 }

@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include <string>
+#include <vector>
 
 #include "testutil.h"
 #include "RedEngineFL/Graphics/PC/pcDisplayLogic.h"
@@ -1350,4 +1351,239 @@ TEST_CASE("display logic confirm phase" * doctest::test_suite("unit"))
         CHECK(s.ePhase == kConfirmNone);
         CHECK(s.eAction == kConfirmActNone);
     }
+}
+
+TEST_CASE("display logic cursor plan" * doctest::test_suite("unit"))
+{
+    const DisplayMode aModes[3] = {kModeFullscreen, kModeWindowed, kModeBorderless};
+    int iRows = 0;
+    for (int m = 0; m < 3; ++m)
+    {
+        for (int i = 0; i < 16; ++i)
+        {
+            const DisplayMode eMode = aModes[m];
+            const bool bShown = (i & 1) != 0;
+            const bool bActive = (i & 2) != 0;
+            const bool bSoftware = (i & 4) != 0;
+            const bool bNoRender = (i & 8) != 0;
+            CAPTURE(eMode);
+            CAPTURE(bShown);
+            CAPTURE(bActive);
+            CAPTURE(bSoftware);
+            CAPTURE(bNoRender);
+            bool bHcursor = false;
+            bool bExclusive = true;
+            bool bClip = false;
+            bool bHideDrawn = false;
+            if (!bSoftware)
+            {
+                bHideDrawn = true;
+                if (bShown)
+                {
+                    bExclusive = false;
+                    bHcursor = !bNoRender;
+                    bClip = !bNoRender && bActive && eMode == kModeFullscreen;
+                }
+            }
+            const CursorPlan p = CursorPlanFor(bShown, eMode, bActive, bSoftware, bNoRender);
+            CHECK(p.bHcursor == bHcursor);
+            CHECK(p.bExclusive == bExclusive);
+            CHECK(p.bClip == bClip);
+            CHECK(p.bHideDrawn == bHideDrawn);
+            ++iRows;
+        }
+    }
+    CHECK(iRows == 48);
+
+    CursorPlan p = CursorPlanFor(true, kModeWindowed, true, false, false);
+    CHECK_FALSE(p.bClip);
+    CHECK(p.bHcursor);
+    CHECK_FALSE(p.bExclusive);
+    CHECK(p.bHideDrawn);
+
+    p = CursorPlanFor(true, kModeBorderless, true, false, false);
+    CHECK_FALSE(p.bClip);
+
+    p = CursorPlanFor(true, kModeFullscreen, true, false, false);
+    CHECK(p.bClip);
+    CHECK(p.bHcursor);
+    CHECK_FALSE(p.bExclusive);
+
+    p = CursorPlanFor(true, kModeFullscreen, false, false, false);
+    CHECK_FALSE(p.bClip);
+
+    p = CursorPlanFor(true, kModeFullscreen, true, false, true);
+    CHECK_FALSE(p.bHcursor);
+    CHECK_FALSE(p.bClip);
+    CHECK_FALSE(p.bExclusive);
+
+    p = CursorPlanFor(true, kModeBorderless, true, true, false);
+    CHECK_FALSE(p.bHcursor);
+    CHECK(p.bExclusive);
+    CHECK_FALSE(p.bClip);
+    CHECK_FALSE(p.bHideDrawn);
+
+    p = CursorPlanFor(false, kModeFullscreen, true, false, false);
+    CHECK_FALSE(p.bHcursor);
+    CHECK(p.bExclusive);
+    CHECK_FALSE(p.bClip);
+    CHECK(p.bHideDrawn);
+}
+
+TEST_CASE("display logic cursor button latch" * doctest::test_suite("unit"))
+{
+    unsigned int uiLatched = 0;
+    CHECK(CursorButtonLatch(0x1, 0, true, uiLatched) == 0);
+    CHECK(uiLatched == 0x1);
+    CHECK(CursorButtonLatch(0x1, 0x1, false, uiLatched) == 0);
+    CHECK(uiLatched == 0x1);
+    CHECK(CursorButtonLatch(0, 0x1, false, uiLatched) == 0);
+    CHECK(uiLatched == 0);
+    CHECK(CursorButtonLatch(0x1, 0, false, uiLatched) == 0x1);
+    CHECK(uiLatched == 0);
+
+    uiLatched = 0;
+    CHECK(CursorButtonLatch(0x2, 0x2, true, uiLatched) == 0x2);
+    CHECK(uiLatched == 0);
+    CHECK(CursorButtonLatch(0x3, 0x2, true, uiLatched) == 0x2);
+    CHECK(uiLatched == 0x1);
+}
+
+TEST_CASE("display logic cursor size" * doctest::test_suite("unit"))
+{
+    unsigned int w = 0;
+    unsigned int h = 0;
+    CursorSize(16, 16, 800, 600, 800, 600, w, h);
+    CHECK(w == 16);
+    CHECK(h == 16);
+    CursorSize(16, 16, 800, 600, 1920, 1080, w, h);
+    CHECK(w == 38);
+    CHECK(h == 29);
+    CursorSize(16, 16, 3840, 2160, 3840, 2160, w, h);
+    CHECK(w == 16);
+    CHECK(h == 16);
+    CursorSize(16, 16, 800, 600, 0, 0, w, h);
+    CHECK(w == 16);
+    CHECK(h == 16);
+    CursorSize(16, 16, 0, 600, 1920, 1080, w, h);
+    CHECK(w == 16);
+    CHECK(h == 16);
+    CursorSize(16, 16, 1, 1, 1000, 1000, w, h);
+    CHECK(w == kCursorMaxDim);
+    CHECK(h == kCursorMaxDim);
+    CHECK(kCursorMaxDim == 256);
+    CursorSize(0, 0, 800, 600, 800, 600, w, h);
+    CHECK(w == 1);
+    CHECK(h == 1);
+    CursorSize(16, 16, 1024, 768, 512, 384, w, h);
+    CHECK(w == 8);
+    CHECK(h == 8);
+    CursorSize(0xFFFFFFFFu, 0xFFFFFFFFu, 1, 1, 0xFFFFFFFFu, 0xFFFFFFFFu, w, h);
+    CHECK(w == kCursorMaxDim);
+    CHECK(h == kCursorMaxDim);
+}
+
+TEST_CASE("display logic cursor scale" * doctest::test_suite("unit"))
+{
+    const unsigned int aRow[2] = {0xFFFFFFFFu, 0x00FF0000u};
+    unsigned int aRowOut[4] = {0, 0, 0, 0};
+    CursorScaleBgra(aRow, 2, 1, aRowOut, 4, 1);
+    CHECK(aRowOut[0] == 0xFFFFFFFFu);
+    CHECK(aRowOut[1] == 0xBFFFFFFFu);
+    CHECK(aRowOut[2] == 0x40FFFFFFu);
+    CHECK(aRowOut[3] == 0x00000000u);
+
+    const unsigned int aCol[2] = {0xFF0000FFu, 0x00000000u};
+    unsigned int aColOut[4] = {1, 1, 1, 1};
+    CursorScaleBgra(aCol, 1, 2, aColOut, 1, 4);
+    CHECK(aColOut[0] == 0xFF0000FFu);
+    CHECK(aColOut[1] == 0xBF0000FFu);
+    CHECK(aColOut[2] == 0x400000FFu);
+    CHECK(aColOut[3] == 0x00000000u);
+
+    unsigned int aDown[16];
+    memset(aDown, 0, sizeof(aDown));
+    aDown[0] = 0xFFFFFFFFu;
+    unsigned int aDownOut[4] = {1, 1, 1, 1};
+    CursorScaleBgra(aDown, 4, 4, aDownOut, 2, 2);
+    CHECK(aDownOut[0] == 0x40FFFFFFu);
+    CHECK(aDownOut[1] == 0x00000000u);
+    CHECK(aDownOut[2] == 0x00000000u);
+    CHECK(aDownOut[3] == 0x00000000u);
+
+    std::vector<unsigned int> vFlat(7 * 5, 0xFF336699u);
+    std::vector<unsigned int> vFlatOut(38 * 29, 0);
+    CursorScaleBgra(&vFlat[0], 7, 5, &vFlatOut[0], 38, 29);
+    for (unsigned int i = 0; i < vFlatOut.size(); ++i)
+    {
+        CAPTURE(i);
+        CHECK(vFlatOut[i] == 0xFF336699u);
+    }
+
+    const unsigned int aExact[4] = {0xFF112233u, 0x80445566u, 0x01ABCDEFu, 0x00778899u};
+    unsigned int aExactOut[4] = {1, 1, 1, 1};
+    CursorScaleBgra(aExact, 2, 2, aExactOut, 2, 2);
+    CHECK(aExactOut[0] == 0xFF112233u);
+    CHECK(aExactOut[1] == 0x80445566u);
+    CHECK(aExactOut[2] == 0x01ABCDEFu);
+    CHECK(aExactOut[3] == 0x00000000u);
+
+    std::vector<unsigned int> vSrc(16 * 16);
+    for (unsigned int i = 0; i < vSrc.size(); ++i)
+    {
+        vSrc[i] = 0x01000000u + i;
+    }
+    std::vector<unsigned int> vDst(38 * 29, 0xDEADBEEFu);
+    CursorScaleBgra(&vSrc[0], 16, 16, &vDst[0], 38, 29);
+    CHECK(vDst[0] == vSrc[0]);
+    CHECK(vDst[28 * 38 + 37] == vSrc[15 * 16 + 15]);
+    for (unsigned int i = 0; i < vDst.size(); ++i)
+    {
+        CHECK(vDst[i] != 0xDEADBEEFu);
+    }
+
+    std::vector<unsigned int> vCopy(16 * 16, 0);
+    CursorScaleBgra(&vSrc[0], 16, 16, &vCopy[0], 16, 16);
+    CHECK(vCopy == vSrc);
+
+    unsigned int uiUntouched = 0x12345678u;
+    CursorScaleBgra(&vSrc[0], 0, 16, &uiUntouched, 1, 1);
+    CHECK(uiUntouched == 0x12345678u);
+    CursorScaleBgra(0, 16, 16, &uiUntouched, 1, 1);
+    CHECK(uiUntouched == 0x12345678u);
+    CursorScaleBgra(&vSrc[0], 16, 16, &uiUntouched, 0, 1);
+    CHECK(uiUntouched == 0x12345678u);
+}
+
+TEST_CASE("display logic cursor mask" * doctest::test_suite("unit"))
+{
+    CHECK(CursorMaskStride(16) == 4);
+    CHECK(CursorMaskStride(38) == 8);
+    CHECK(CursorMaskStride(1) == 4);
+    CHECK(CursorMaskStride(32) == 4);
+    CHECK(CursorMaskStride(33) == 8);
+
+    std::vector<unsigned int> vImg(16 * 16, 0);
+    vImg[1 * 16 + 3] = 0xFF000000u;
+    vImg[15 * 16 + 13] = 0xFF000000u;
+    unsigned char aMask[4 * 16];
+    memset(aMask, 0xAA, sizeof(aMask));
+    CursorMaskFromBgra(&vImg[0], 16, 16, aMask);
+    for (int y = 0; y < 16; ++y)
+    {
+        CAPTURE(y);
+        const unsigned char ucB0 = (y == 1) ? 0xEF : 0xFF;
+        const unsigned char ucB1 = (y == 15) ? 0xFB : 0xFF;
+        CHECK(aMask[y * 4 + 0] == ucB0);
+        CHECK(aMask[y * 4 + 1] == ucB1);
+        CHECK(aMask[y * 4 + 2] == 0);
+        CHECK(aMask[y * 4 + 3] == 0);
+    }
+
+    const unsigned int aAlpha[2] = {0x00FFFFFFu, 0x01000000u};
+    unsigned char aMask2[4];
+    memset(aMask2, 0, sizeof(aMask2));
+    CursorMaskFromBgra(aAlpha, 2, 1, aMask2);
+    CHECK(aMask2[0] == 0x80);
+    CHECK(aMask2[1] == 0);
 }

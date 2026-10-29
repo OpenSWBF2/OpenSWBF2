@@ -428,6 +428,9 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
         case DisplayCfg::kHashNoDpi:
             DisplayCfg::SetFlag(DisplayCfg::gCliDisplay, DisplayCfg::kNoDpi);
             break;
+        case DisplayCfg::kHashSwCursor:
+            DisplayCfg::SetFlag(DisplayCfg::gCliDisplay, DisplayCfg::kSoftwareCursor);
+            break;
         case DisplayCfg::kHashDisplayIni:
             if (i + 1 < iArgc)
             {
