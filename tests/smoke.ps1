@@ -1,3 +1,4 @@
+if ($PSScriptRoot) { . (Join-Path $PSScriptRoot 'vstools.ps1') }
 $script:SmokeStandardMission = 'geo1c_con'
 $script:SmokeMarker = 'OPENSWBF2 RUN COMPLETE'
 $script:WerKeyPath = 'SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\BattlefrontII.exe'
@@ -368,6 +369,8 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
         $cases += New-Object PSObject -Property @{ Name = 'display-badini'; Args = "$standard $htail -adapter abc -refresh 99999 -displayini `"$badIni`""; Expect = $pass; Twice = 0; Timeout = 0 }
         $waitIni = Join-Path $PSScriptRoot 'smoke\display-waitquery.ini'
         $cases += New-Object PSObject -Property @{ Name = 'pacing-waitquery-ini'; Args = "$standard $htail -displayini `"$waitIni`""; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 PACING fps=80 vsync=off interval=0x80000000 waitquery=1 timer=none') + $hrx) }; Twice = 0; Timeout = 0 }
+        $cases += New-Object PSObject -Property @{ Name = 'digest-dag1c_ctf'; Args = "dag1c_ctf $htail"; Expect = @{ Class = 'TimeOut'; LogRx = (@('OPENSWBF2 MISSION RUNNING', 'OPENSWBF2 SIM DIGEST turns=') + $hrx) }; Twice = 0; Timeout = 30 }
+        $cases += New-Object PSObject -Property @{ Name = 'digest-kas2c_uber'; Args = "kas2c_uber $htail"; Expect = $pass; Twice = 0; Timeout = 0 }
     }
     if ($which -eq 'All') {
         foreach ($line in $missions) {
@@ -657,24 +660,6 @@ function Get-FinalScoreKey($caseDir) {
     return $line.Substring($i + 1)
 }
 
-function Find-Dumpbin {
-    $cands = @()
-    if ($env:VS120COMNTOOLS) { $cands += (Join-Path $env:VS120COMNTOOLS '..\..\VC\bin\dumpbin.exe') }
-    $cands += (Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio 12.0\VC\bin\dumpbin.exe')
-    foreach ($c in $cands) { if (Test-Path -LiteralPath $c) { return (Resolve-Path -LiteralPath $c).Path } }
-    Write-Host 'dumpbin not found (install VS2013 Update 5).'
-    exit 2
-}
-
-function Find-Editbin {
-    $cands = @()
-    if ($env:VS120COMNTOOLS) { $cands += (Join-Path $env:VS120COMNTOOLS '..\..\VC\bin\editbin.exe') }
-    $cands += (Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio 12.0\VC\bin\editbin.exe')
-    foreach ($c in $cands) { if (Test-Path -LiteralPath $c) { return (Resolve-Path -LiteralPath $c).Path } }
-    Write-Host 'editbin not found (install VS2013 Update 5).'
-    exit 2
-}
-
 function Compare-LaaRuns($base, $laa, $minRuns = 5) {
     $failures = New-Object System.Collections.ArrayList
     $base = @($base)
@@ -724,7 +709,7 @@ function Get-HardeningChecks($hdr, $cfg, $clTotal, $clGsMinus, $clSdl) {
 function Get-ImportChecks($imp) {
     $rows = @()
     foreach ($n in 'SetProcessDpiAwarenessContext', 'SetProcessDpiAwareness', 'SetProcessDPIAware', 'GetDpiForWindow', 'AdjustWindowRectExForDpi') {
-        $rows += New-Object PSObject -Property @{ Name = "import-$n"; Ok = ($imp -cnotmatch "(?m)\s$n\s*$"); Detail = "$n statically imported (breaks XP load)" }
+        $rows += New-Object PSObject -Property @{ Name = "import-$n"; Ok = ($imp -cnotmatch "(?m)\s$n\s*$"); Detail = "$n statically imported (breaks Win7 load)" }
     }
     $rows += New-Object PSObject -Property @{ Name = 'import-shcore'; Ok = ($imp -notmatch '(?mi)^\s+shcore\.dll\s*$'); Detail = 'shcore.dll in import table' }
     return $rows
@@ -734,16 +719,63 @@ function Get-ClTlogCounts($objDir) {
     $total = 0
     $gsMinus = 0
     $sdl = 0
+    $alignedNewOff = 0
+    $inlineOff = 0
+    $throwingNew = 0
+    $gl = 0
+    $fpFast = 0
+    $fpContract = 0
     foreach ($f in Get-ChildItem -LiteralPath $objDir -Filter 'cl.command*.tlog' -Recurse -ErrorAction SilentlyContinue) {
         foreach ($l in (Get-Content -LiteralPath $f.FullName)) {
             if ($l -and -not $l.StartsWith('^')) {
                 $total++
                 if ($l -match ' /GS-( |$)') { $gsMinus++ }
                 if ($l -match ' /sdl( |$)') { $sdl++ }
+                if ($l -cmatch ' /Zc:alignedNew-( |$)') { $alignedNewOff++ }
+                if ($l -cmatch ' /Zc:inline-( |$)') { $inlineOff++ }
+                if ($l -cmatch ' /Zc:throwingNew( |$)') { $throwingNew++ }
+                if ($l -cmatch ' /GL( |$)') { $gl++ }
+                if ($l -cmatch ' /fp:fast( |$)') { $fpFast++ }
+                if ($l -cmatch ' /fp:contract( |$)') { $fpContract++ }
             }
         }
     }
-    return New-Object PSObject -Property @{ Total = $total; GsMinus = $gsMinus; Sdl = $sdl }
+    return New-Object PSObject -Property @{
+        Total = $total; GsMinus = $gsMinus; Sdl = $sdl
+        AlignedNewOff = $alignedNewOff; InlineOff = $inlineOff; ThrowingNew = $throwingNew
+        Gl = $gl; FpFast = $fpFast; FpContract = $fpContract
+    }
+}
+
+function Get-FlagChecks($game, $tests) {
+    $checks = @()
+    $checks += New-Object PSObject -Property @{
+        Name = 'flag-alignednew'
+        Ok = ($game.Total -gt 0 -and $game.AlignedNewOff -eq $game.Total)
+        Detail = ('cl entries={0} /Zc:alignedNew-={1}' -f $game.Total, $game.AlignedNewOff)
+    }
+    $checks += New-Object PSObject -Property @{
+        Name = 'flag-inline'
+        Ok = ($game.Total -gt 0 -and $game.InlineOff -eq $game.Total)
+        Detail = ('cl entries={0} /Zc:inline-={1}' -f $game.Total, $game.InlineOff)
+    }
+    $bags = @($game)
+    if ($tests) {
+        $checks += New-Object PSObject -Property @{
+            Name = 'flag-alignednew-tests'
+            Ok = ($tests.Total -gt 0 -and $tests.AlignedNewOff -eq $tests.Total)
+            Detail = ('tests cl entries={0} /Zc:alignedNew-={1}' -f $tests.Total, $tests.AlignedNewOff)
+        }
+        $bags += $tests
+    }
+    $sum = @{ ThrowingNew = 0; Gl = 0; FpFast = 0; FpContract = 0; GsMinus = 0 }
+    foreach ($b in $bags) { foreach ($k in @($sum.Keys)) { $sum[$k] += [int]$b.$k } }
+    $checks += New-Object PSObject -Property @{
+        Name = 'flag-banned'
+        Ok = (($sum.ThrowingNew + $sum.Gl + $sum.FpFast + $sum.FpContract + $sum.GsMinus) -eq 0)
+        Detail = ('/Zc:throwingNew={0} /GL={1} /fp:fast={2} /fp:contract={3} /GS-={4}' -f $sum.ThrowingNew, $sum.Gl, $sum.FpFast, $sum.FpContract, $sum.GsMinus)
+    }
+    return $checks
 }
 
 function Get-ImageBase($exe, $workDir, $argLine) {

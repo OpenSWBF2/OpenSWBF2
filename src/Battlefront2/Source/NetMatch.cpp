@@ -1,5 +1,7 @@
 #include <string.h>
 #include <winsock2.h>
+#include <string>
+#include <ws2tcpip.h>
 
 #include "NetMatch.h"
 #include "NetSetup.h"
@@ -538,7 +540,7 @@ char* NetMatch::GetIPAddr()
     {
         for (char** addr = host->h_addr_list; *addr; ++addr)
         {
-            strlcpy(netLocalIPText, inet_ntoa(*(in_addr*)*addr), sizeof(netLocalIPText));
+            inet_ntop(AF_INET, *addr, netLocalIPText, sizeof(netLocalIPText));
         }
         JournalString(netLocalIPText, sizeof(netLocalIPText));
     }

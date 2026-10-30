@@ -54,6 +54,7 @@
 #include "ReticuleDisplay.h"
 #include "ScopeDisplay.h"
 #include "ShellLoop.h"
+#include "SideNames.h"
 #include "SoldierAnimationBank.h"
 #include "SoldierAnimatorClass.h"
 #include "SoundDebugDisplay.h"
@@ -659,10 +660,6 @@ extern float netSecondsPerTurn;
 extern bool netFrameLock;
 extern bool netIsClient;
 extern int netMinPlayersToAutoLaunchDedicated;
-
-// GLOBAL: SWBF2 0x0079f808
-
-static const char sSideNamePrefixes[][4] = { "Neu", "All", "Imp", "Rep", "CIS", "Loc" };
 
 static const float END_DISPLAY_TIME = 5.0f;
 
@@ -1569,7 +1566,7 @@ void Update(float fDeltaTime, float fSystemDeltaTime)
                         const bool bPlayerTeam = AIUtil::IsPlayerTeam(iTeam);
                         fprintf(pFile, "\t%c=%s\t%du@%d%c\t%3dr\t%2dp",
                                 (Team::sWinningTeams & (1 << iTeam)) ? 'W' : 'L',
-                                sSideNamePrefixes[pTeam->mSide],
+                                SideNamePrefix(pTeam->mSide),
                                 pTeam->mMemberCount,
                                 AIDifficulty::GetIntSkill((const UnitController*)bPlayerTeam, false),
                                 bPlayerTeam ? 'P' : ' ',

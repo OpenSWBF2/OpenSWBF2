@@ -1239,7 +1239,7 @@ bool NetAdmin::ParseLineRemote(int iPlayer, unsigned short* pusLine, bool bConso
                     int iPing = NetComm::GetPing(i);
 
                     char acKey[33] = "36b7ae01b85eef9ecea666b441d5acd3";
-                    _snprintf(adminPlayerIdText, 32, "%ull", *NetCommP::GetAddr(i));
+                    _snprintf(adminPlayerIdText, 32, "%ull", (unsigned int)*NetCommP::GetAddr(i));
                     MD5Digest(adminPlayerIdText, strlen(adminPlayerIdText), acKey);
                     acKey[32] = 0;
 
@@ -2315,7 +2315,7 @@ bool NetAdmin::ParseLineRemote(int iPlayer, unsigned short* pusLine, bool bConso
             if (iTarget >= 0 && iTarget < netCurMaxPlayers && iTarget < 64 && NetComm::IsConnected(iTarget))
             {
                 char acKey[33] = "36b7ae01b85eef9ecea666b441d5acd3";
-                _snprintf(adminBanIdText, 32, "%ull", *NetCommP::GetAddr(iTarget));
+                _snprintf(adminBanIdText, 32, "%ull", (unsigned int)*NetCommP::GetAddr(iTarget));
                 MD5Digest(adminBanIdText, strlen(adminBanIdText), acKey);
                 acKey[32] = 0;
                 NetGame::ForceBootPlayer(iTarget);
@@ -2341,7 +2341,7 @@ bool NetAdmin::ParseLineRemote(int iPlayer, unsigned short* pusLine, bool bConso
                 }
 
                 char acKey[33] = "36b7ae01b85eef9ecea666b441d5acd3";
-                _snprintf(adminBanKeyIdText, 32, "%ull", *NetCommP::GetAddr(iPlayer));
+                _snprintf(adminBanKeyIdText, 32, "%ull", (unsigned int)*NetCommP::GetAddr(iPlayer));
                 MD5Digest(adminBanKeyIdText, strlen(adminBanKeyIdText), acKey);
                 acKey[32] = 0;
                 if (!strcmp(acKey, acArg))

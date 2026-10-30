@@ -18,16 +18,6 @@ if ($env:TEMP -and $Scratch.StartsWith([IO.Path]::GetFullPath($env:TEMP), [Strin
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 if (-not $OutDir) { $OutDir = Join-Path $root "artifacts\guard-revert\$stamp" }
 
-function Find-MSBuild {
-    $msbuild = Join-Path ${env:ProgramFiles(x86)} 'MSBuild\12.0\Bin\MSBuild.exe'
-    if (-not (Test-Path $msbuild)) {
-        $key = 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\MSBuild\ToolsVersions\12.0'
-        if (Test-Path $key) { $msbuild = Join-Path (Get-ItemProperty $key).MSBuildToolsPath 'MSBuild.exe' }
-    }
-    if (-not (Test-Path $msbuild)) { Write-Host 'MSBuild 12.0 not found (install VS2013 Update 5).'; exit 2 }
-    return $msbuild
-}
-
 function Invoke-Git([string]$dir, [string[]]$gitArgs) {
     $ErrorActionPreference = 'Continue'
     $out = & git -C $dir @gitArgs 2>&1
@@ -135,7 +125,8 @@ if ($Row) { $rows = @($rows | Where-Object { $Row -contains $_.Id }) }
 if ($rows.Count -eq 0) { Write-Host 'No rows selected.'; exit 2 }
 $smokeRows = @($rows | Where-Object { $_.Kind -eq 'Smoke' })
 $hardRows = @($rows | Where-Object { $_.Kind -eq 'Hardening' })
-$rows = @($rows | Where-Object { $_.Kind -ne 'Smoke' -and $_.Kind -ne 'Hardening' })
+$tlogRows = @($rows | Where-Object { $_.Kind -eq 'Tlog' })
+$rows = @($rows | Where-Object { $_.Kind -ne 'Smoke' -and $_.Kind -ne 'Hardening' -and $_.Kind -ne 'Tlog' })
 $gameData = Find-GameDataRoot
 $smokeCases = @{}
 foreach ($w in 'Crash', 'Standard') {
@@ -145,12 +136,7 @@ foreach ($w in 'Crash', 'Standard') {
     }
 }
 
-foreach ($dll in 'd3dx9_43.dll', 'msvcr120.dll') {
-    if (-not (Test-Path (Join-Path $env:windir "SysWOW64\$dll"))) {
-        Write-Host "Preflight failed: $dll missing from SysWOW64."
-        exit 2
-    }
-}
+Assert-Runtimes $GameRuntimes
 
 $msbuild = Find-MSBuild
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
@@ -270,6 +256,71 @@ try {
             $table += New-Object PSObject -Property @{ Id = $r.Id; Tests = "hardening:$($r.Check)"; Control = $ctl; Reverted = $result; Exit = ''; Detail = $detail }
             if ($result -ne 'RED' -or $ctl -ne 'GREEN') { $failed = $true }
             Write-Host ('{0,-12} control={1,-8} reverted={2,-11} {3}' -f $r.Id, $ctl, $result, $detail)
+        }
+    }
+
+    if ($tlogRows.Count -gt 0) {
+        $buildProj = {
+            param($project, $logPath)
+            if ($project -eq 'tests') { return (Build-Tests $wt $logPath) }
+            return (Build-Game $wt $logPath)
+        }
+        $tlogDirs = @{ game = (Join-Path $wt 'obj\Win32\Release\BattlefrontII.tlog'); tests = (Join-Path $wt 'obj\Tests\Debug\OpenSWBF2Tests.tlog') }
+        $getFlag = {
+            param($name)
+            $game = $null
+            $tests = $null
+            if (Test-Path -LiteralPath $tlogDirs.game) { $game = Get-ClTlogCounts $tlogDirs.game }
+            if (Test-Path -LiteralPath $tlogDirs.tests) { $tests = Get-ClTlogCounts $tlogDirs.tests }
+            return (Get-FlagChecks $game $tests | Where-Object { $_.Name -eq $name })
+        }
+        foreach ($project in ($tlogRows | ForEach-Object { $_.Project } | Select-Object -Unique)) {
+            $log = Join-Path $OutDir "build-tlog-control-$project.log"
+            if (-not (& $buildProj $project $log)) { throw "tlog control build failed, see $log" }
+        }
+        $tlogControl = @{}
+        foreach ($name in ($tlogRows | ForEach-Object { $_.Check } | Select-Object -Unique)) {
+            $tlogControl[$name] = & $getFlag $name
+        }
+        foreach ($r in $tlogRows) {
+            $path = Join-Path $wt $r.File
+            $orig = $null
+            $result = 'BUILD-FAIL'
+            $ctlChk = $tlogControl[$r.Check]
+            $detail = "control: $($ctlChk.Detail)"
+            $ctl = 'GREEN'
+            if (-not $ctlChk.Ok) { $ctl = 'FAIL' }
+            try {
+                $orig = Set-Anchor $path $r.Anchor $r.Replacement
+                Get-ChildItem -LiteralPath $tlogDirs[$r.Project] -Filter 'cl.command*.tlog' -ErrorAction SilentlyContinue | Remove-Item -Force
+                $built = & $buildProj $r.Project (Join-Path $OutDir "build-$($r.Id).log")
+                $fresh = (Get-ClTlogCounts $tlogDirs[$r.Project]).Total
+                if ($built -or $fresh -gt 0) {
+                    $chk = & $getFlag $r.Check
+                    $detail = "reverted: $($chk.Detail)"
+                    if (-not $built) { $detail = "build failed after $fresh compiles; $detail" }
+                    if ($chk.Ok) { $result = 'STILL-GREEN' } else { $result = 'RED' }
+                }
+            }
+            catch {
+                $result = 'ERROR'
+                $detail = $_.Exception.Message
+            }
+            finally {
+                if ($orig) { [IO.File]::WriteAllBytes($path, $orig) }
+            }
+            $table += New-Object PSObject -Property @{ Id = $r.Id; Tests = "tlog:$($r.Check)"; Control = $ctl; Reverted = $result; Exit = ''; Detail = $detail }
+            if ($result -ne 'RED' -or $ctl -ne 'GREEN') { $failed = $true }
+            Write-Host ('{0,-16} control={1,-8} reverted={2,-11} {3}' -f $r.Id, $ctl, $result, $detail)
+        }
+        foreach ($project in ($tlogRows | ForEach-Object { $_.Project } | Select-Object -Unique)) {
+            $log = Join-Path $OutDir "build-tlog-restored-$project.log"
+            if (-not (& $buildProj $project $log)) { throw "tlog restored build failed, see $log" }
+        }
+        foreach ($name in $tlogControl.Keys) {
+            $chk = & $getFlag $name
+            Write-Host ('tlog restored {0}: ok={1} {2}' -f $name, $chk.Ok, $chk.Detail)
+            if (-not $chk.Ok) { $failed = $true }
         }
     }
 

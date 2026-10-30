@@ -124,7 +124,7 @@ void RedMoviePlayerBase::CloseHeader()
 unsigned int RedMoviePlayerBase::CreateTextureHash(unsigned int uiIndex) const
 {
     char acName[128];
-    _snprintf(acName, sizeof(acName), "RedMoviePlayer_0x%08x_0x%08x\n", this, uiIndex);
+    _snprintf(acName, sizeof(acName), "RedMoviePlayer_0x%08x_0x%08x\n", (unsigned int)this, uiIndex);
     return PblHash(acName);
 }
 
