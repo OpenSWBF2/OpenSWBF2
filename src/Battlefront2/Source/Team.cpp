@@ -870,7 +870,7 @@ int Team::GetClassCurrentUnits(int iIndex) const
 // FUNCTION: SWBF2 0x006544a0
 void Team::GenerateRandomName(unsigned short* const pName, int iTeam) const
 {
-    memset(pName, 0, 64);
+    memset(pName, 0, 64 * sizeof(pName[0]));
 
     if (mSide == side_Locals)
     {
@@ -914,7 +914,7 @@ void Team::GenerateRandomName(unsigned short* const pName, int iTeam) const
     uRand = mNameRand.GetInt();
     if (mLastCount)
     {
-        PblUnicode::ustrlcat(pName, mLastNames[uRand % mLastCount], 63);
+        PblUnicode::ustrlcat(pName, mLastNames[uRand % mLastCount], 64);
     }
     else
     {

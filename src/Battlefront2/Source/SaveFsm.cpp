@@ -22,10 +22,10 @@ int SafeLocalizeSPrintf(void* pDest, unsigned int uiSize, char const* pcFormat, 
     const unsigned short* pusFormat = RedLocalizeDB::Find(PblHash(pcFormat), false);
     if (pusFormat)
     {
-        return PblUnicode::uvsnprintf((unsigned short*)pDest, uiSize - 1, pusFormat,
+        return PblUnicode::uvsnprintf((unsigned short*)pDest, uiSize, pusFormat,
                                       (char*)&iArg);
     }
-    PblUnicode::ustrncnv((unsigned short*)pDest, pcFormat, uiSize - 1);
+    PblUnicode::ustrncnv((unsigned short*)pDest, pcFormat, uiSize);
     return 0;
 }
 
@@ -35,10 +35,10 @@ int SafeLocalizeSPrintf(void* pDest, unsigned int uiSize, char const* pcFormat,
     const unsigned short* pusFormat = RedLocalizeDB::Find(PblHash(pcFormat), false);
     if (pusFormat)
     {
-        return PblUnicode::uvsnprintf((unsigned short*)pDest, uiSize - 1, pusFormat,
+        return PblUnicode::uvsnprintf((unsigned short*)pDest, uiSize, pusFormat,
                                       (char*)&pArg1);
     }
-    PblUnicode::ustrncnv((unsigned short*)pDest, pcFormat, uiSize - 1);
+    PblUnicode::ustrncnv((unsigned short*)pDest, pcFormat, uiSize);
     return 0;
 }
 unsigned short* SafeLocalizeStrcpy(unsigned short* pusDest, char const* pcSrc, unsigned int uiSize);
@@ -107,7 +107,7 @@ void SaveFsm::EmptyQueue()
 void SaveFsm::QueueFile(unsigned short const* pusFilename, void* pDest, unsigned int uiSize,
                          int iType, SaveFsmQueueOp eOp)
 {
-    if (mLoadQueueCnt < MAX_LOAD_QUEUE)
+    if (pusFilename && mLoadQueueCnt < MAX_LOAD_QUEUE)
     {
         PblUnicode::ustrlcpy((unsigned short*)mLoadFilename[mLoadQueueCnt], pusFilename, 66);
         mLoadDest[mLoadQueueCnt] = pDest;
@@ -1131,7 +1131,7 @@ unsigned short* SafeLocalizeStrcpy(unsigned short* pusDest, const char* pcSrc, u
         PblUnicode::ustrlcpy(pusDest, pusText, uiSize);
         return pusDest;
     }
-    PblUnicode::ustrncnv(pusDest, pcSrc, uiSize - 1);
+    PblUnicode::ustrncnv(pusDest, pcSrc, uiSize);
     return 0;
 }
 

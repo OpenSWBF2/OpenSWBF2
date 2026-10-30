@@ -3511,7 +3511,7 @@ void HandleEvent_Message(ReliableNetEvent& event)
         {
             GameVoiceChat::PlayerChange();
         }
-        PblUnicode::ustrncnv(playerName, (const unsigned char*)NetGame::GetPlayerName(iPlayer), 63);
+        PblUnicode::ustrncnv(playerName, (const unsigned char*)NetGame::GetPlayerName(iPlayer), 64);
         const unsigned short* pName = playerName;
         PblUnicode::usnprintf(message, kMaxMessage - 1, pFormat, pName);
         if (pCharacter1 && event.u.message.mTeam && pCharacter1->GetTeamPtr() != event.u.message.mTeam)
@@ -3539,7 +3539,7 @@ void HandleEvent_Message(ReliableNetEvent& event)
         }
 
         const char* pszName = netPlayers[iPlayer].prevName;
-        PblUnicode::ustrncnv(playerName, pszName, 63);
+        PblUnicode::ustrncnv(playerName, pszName, 64);
         const unsigned short* pName = playerName;
         PblUnicode::usnprintf(message, kMaxMessage - 1, pFormat, pName);
         break;
@@ -9021,7 +9021,7 @@ void DisplayMessage(NG_ChatMsg& opaque)
         const unsigned short* admin = RedLocalizeDB::Find(0x10e2f4e1, true);
         if (admin)
         {
-            PblUnicode::ustrlcat(text, admin, 127);
+            PblUnicode::ustrlcat(text, admin, 128);
         }
         else
         {
@@ -9034,17 +9034,17 @@ void DisplayMessage(NG_ChatMsg& opaque)
         sender = Character::FindPlayer(message.playerID);
         if (sender)
         {
-            PblUnicode::ustrlcat(text, sender->GetName(), 127);
+            PblUnicode::ustrlcat(text, sender->GetName(), 128);
         }
     }
-    PblUnicode::ustrlcat(text, separator, 127);
+    PblUnicode::ustrlcat(text, separator, 128);
     if (message.code == TeamAssistManager::None)
     {
-        PblUnicode::ustrlcat(text, message.text, 127);
+        PblUnicode::ustrlcat(text, message.text, 128);
     }
     else
     {
-        PblUnicode::ustrlcat(text, RedLocalizeDB::Find(requestKeys[message.code], false), 127);
+        PblUnicode::ustrlcat(text, RedLocalizeDB::Find(requestKeys[message.code], false), 128);
     }
 
     const unsigned int teamOnly = 1;

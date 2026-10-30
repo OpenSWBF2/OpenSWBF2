@@ -5,13 +5,14 @@
 #include "RedEngineFL/Util/ext/types.h"
 #include "PebbleFL/Common/PblUnicode.h"
 #include "PebbleFL/Common/PblHashTable.h"
+#include "RedMagicStrings.h"
 #include <stdarg.h>
 
 // FUNCTION: SWBF2 0x006d8510
 int RedTextElement::SetTextFormattedV(const char* pcFormat, char* pArgs)
 {
     unsigned short buffer[1024];
-    PblUnicode::uvsnprintf(buffer, 0x3fe, pcFormat, pArgs);
+    PblUnicode::uvsnprintf(buffer, 0x3ff, pcFormat, pArgs);
     return SetText(buffer, true);
 }
 
@@ -33,7 +34,7 @@ util::HashTable<unsigned short, unsigned int, util::NewAllocator>* mMagicCharMap
 bool sFindReplaceError;
 
 unsigned int FindReplaceMagicStrings_(const unsigned short* const pcSource,
-                                      unsigned short* pcDest);
+                                      unsigned short* pcDest, unsigned int uiDestCount);
 
 // FUNCTION: SWBF2 0x0045caf0
 template const float& util::Min_<float>(const float&, const float&);
@@ -408,7 +409,7 @@ int RedTextElement::WriteCache(const unsigned short* pcText)
 
     if (m_bUnknown0090 && PblUnicode::ustrlen(pcText) < 0x3ff)
     {
-        const int iLength = FindReplaceMagicStrings_(pcText, acBuffer);
+        const int iLength = FindReplaceMagicStrings_(pcText, acBuffer, sizeof(acBuffer) / sizeof(acBuffer[0]));
 
         if (sFindReplaceError)
         {
@@ -609,54 +610,16 @@ unsigned short FindMagicChar_(unsigned int uiHash)
     return c;
 }
 
+static unsigned short FindMagicCharByName_(const char* pcName)
+{
+    return FindMagicChar_(PblHash(pcName));
+}
+
 // FUNCTION: SWBF2 0x006d7cb0
 unsigned int FindReplaceMagicStrings_(const unsigned short* const pcSource,
-                                      unsigned short* pcDest)
+                                      unsigned short* pcDest, unsigned int uiDestCount)
 {
-    unsigned short acMagic[256];
-    char acMagicA[256];
-    unsigned int uiCount = 0;
-    bool bInMagic = false;
-    unsigned short uiLen = 0;
-
-    for (const unsigned short* pc = pcSource; *pc; ++pc)
-    {
-        if (*pc == '{')
-        {
-            bInMagic = true;
-            uiLen = 0;
-        }
-        else if (bInMagic)
-        {
-            if (*pc == '}')
-            {
-                bInMagic = false;
-                acMagic[uiLen] = 0;
-                PblUnicode::ustrncnv(acMagicA, acMagic, 255);
-                const unsigned short c = FindMagicChar_(PblHash(acMagicA));
-                if (c)
-                {
-                    *pcDest++ = c;
-                    ++uiCount;
-                }
-                else
-                {
-                    *pcDest++ = ' ';
-                }
-            }
-            else
-            {
-                acMagic[uiLen++] = *pc;
-            }
-        }
-        else
-        {
-            *pcDest++ = *pc;
-        }
-    }
-
-    *pcDest = 0;
-    return uiCount;
+    return ReplaceMagicStrings(pcSource, pcDest, uiDestCount, FindMagicCharByName_);
 }
 
 // FUNCTION: SWBF2 0x006d7e50

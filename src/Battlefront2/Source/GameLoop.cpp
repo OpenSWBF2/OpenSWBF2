@@ -337,8 +337,8 @@ void UpdateDedicatedNoRender()
     {
         char acTeam1[128];
         char acTeam2[128];
-        PblUnicode::ustrncnv(acTeam1, pTeam1, sizeof(acTeam1) - 1);
-        PblUnicode::ustrncnv(acTeam2, pTeam2, sizeof(acTeam2) - 1);
+        PblUnicode::ustrncnv(acTeam1, pTeam1, sizeof(acTeam1) / sizeof(acTeam1[0]));
+        PblUnicode::ustrncnv(acTeam2, pTeam2, sizeof(acTeam2) / sizeof(acTeam2[0]));
         _snprintf(acLine, sizeof(acLine) - 1, "Teams: %s vs %s\n", acTeam1, acTeam2);
         acLine[sizeof(acLine) - 1] = 0;
         strlcat(acText, acLine, sizeof(acText));
@@ -1151,7 +1151,7 @@ void UpdateDedicatedMsg(float fDeltaTime)
             PblUnicode::ustrncnv(acName, "", 128);
         }
         PblUnicode::usnprintf(acCount, 128, " : %d", iCount);
-        PblUnicode::ustrlcat(acName, acCount, 127);
+        PblUnicode::ustrlcat(acName, acCount, 128);
         apText[i]->SetText(acName, true);
     }
 

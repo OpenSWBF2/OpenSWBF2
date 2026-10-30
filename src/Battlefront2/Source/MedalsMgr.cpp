@@ -73,14 +73,14 @@ void MedalsMgr::HudIndication(int iType, const char* pPrefix, const RedColor& co
             }
 
             char key[68];
-            strncpy(key, pPrefix, 64);
-            strncat(key, sMedalPoints_condition[iType].name, 64);
+            strlcpy(key, pPrefix, sizeof(key));
+            strlcat(key, sMedalPoints_condition[iType].name, sizeof(key));
 
             unsigned short wideKey[64];
             const unsigned short* pText = RedLocalizeDB::Find(PblHash(key), true);
             if (!pText)
             {
-                PblUnicode::ustrncnv(wideKey, key, 63);
+                PblUnicode::ustrncnv(wideKey, key, 64);
                 pText = wideKey;
             }
             MessageDisplay::Instance(i, MessageDisplay::DISPLAY_SYSTEM_MSG)->AddMessage(pText, color);

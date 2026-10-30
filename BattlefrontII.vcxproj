@@ -358,6 +358,7 @@
     <ClCompile Include="src\Battlefront2\Source\LuaHelper.cpp" />
     <ClCompile Include="src\Battlefront2\Source\LuaMemory.cpp" />
     <ClCompile Include="src\Battlefront2\Source\LuaVideoArgs.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\LuaWideString.cpp" />
     <ClCompile Include="src\Battlefront2\Source\LuaScript.cpp" />
     <ClCompile Include="src\Battlefront2\Source\MapCamera.cpp" />
     <ClCompile Include="src\Battlefront2\Source\MedalsMgr.cpp" />
@@ -1159,6 +1160,7 @@
     <ClInclude Include="src\Battlefront2\Source\LuaHelper.h" />
     <ClInclude Include="src\Battlefront2\Source\LuaMemory.h" />
     <ClInclude Include="src\Battlefront2\Source\LuaVideoArgs.h" />
+    <ClInclude Include="src\Battlefront2\Source\LuaWideString.h" />
     <ClInclude Include="src\Battlefront2\Source\LuaScript.h" />
     <ClInclude Include="src\Battlefront2\Source\MapCamera.h" />
     <ClInclude Include="src\Battlefront2\Source\MedalsMgr.h" />
@@ -1189,6 +1191,7 @@
     <ClInclude Include="src\Battlefront2\Source\SimDigestCore.h" />
     <ClInclude Include="src\Battlefront2\Source\NetWire.h" />
     <ClInclude Include="src\Battlefront2\Source\LocalLimits.h" />
+    <ClInclude Include="src\Battlefront2\Source\LocalizedFormatArgs.h" />
     <ClInclude Include="src\RedEngineFL\Graphics\PC\pcDisplaySettings.h" />
     <ClInclude Include="src\RedEngineFL\Graphics\PC\pcDisplayLogic.h" />
     <ClInclude Include="src\RedEngineFL\Graphics\PC\pcGammaPass.h" />
@@ -1247,6 +1250,7 @@
     <ClInclude Include="src\Battlefront2\Source\PowerupStation.h" />
     <ClInclude Include="src\Battlefront2\Source\PowerupUtility.h" />
     <ClInclude Include="src\Battlefront2\Source\ProceduralAnimation.h" />
+    <ClInclude Include="src\Battlefront2\Source\ProfileNameFormat.h" />
     <ClInclude Include="src\Battlefront2\Source\PropCluster.h" />
     <ClInclude Include="src\Battlefront2\Source\PropGenerator.h" />
     <ClInclude Include="src\Battlefront2\Source\PropModel.h" />
@@ -1503,6 +1507,7 @@
     <ClInclude Include="src\RedEngineFL\Interface\RedIFScreen.h" />
     <ClInclude Include="src\RedEngineFL\Interface\RedInterfaceElement.h" />
     <ClInclude Include="src\RedEngineFL\Interface\RedInterfaceScreen.h" />
+    <ClInclude Include="src\RedEngineFL\Interface\RedMagicStrings.h" />
     <ClInclude Include="src\RedEngineFL\Interface\RedMaskedBitmapElement.h" />
     <ClInclude Include="src\RedEngineFL\Interface\RedShadowBlob.h" />
     <ClInclude Include="src\RedEngineFL\Interface\RedTextElement.h" />

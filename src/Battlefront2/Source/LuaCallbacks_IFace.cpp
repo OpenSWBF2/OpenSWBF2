@@ -1,5 +1,6 @@
 #include "LuaCallbacks_IFace.h"
 #include "LuaHelper.h"
+#include "LuaWideString.h"
 
 #include <string.h>
 
@@ -1453,7 +1454,7 @@ int ScriptCB_IFText_SetUString(lua_State* L)
     if (Util_GetRedInterfaceElement(1, pElement, iArg, true)
         && (pElement->IsText() || pElement->IsFlashyText()) && lua_isstring(LuaHelper::mState, iArg))
     {
-        const unsigned short* pusText = (const unsigned short*)luaL_checklstring(LuaHelper::mState, iArg, 0);
+        const unsigned short* pusText = LuaWideString::Check(LuaHelper::mState, iArg);
         ((RedTextElement*)pElement)->SetText(pusText, true);
         DoPeriodicLuaGC(false);
     }
@@ -2698,7 +2699,7 @@ int ScriptCB_GetKeyBoardCmds(lua_State* L)
         }
 
         RedLocalizeDB::GetLocalizedString(usAction, sizeof(usAction) / sizeof(usAction[0]), GetActionName(iAction, iMode));
-        PblUnicode::ustrlcat(usAction, usColon, 255);
+        PblUnicode::ustrlcat(usAction, usColon, 256);
 
         ActionKey& rKey = pProfile->mGameOptions.mKeyboardBindings[iMode][iAction];
 
@@ -2728,8 +2729,8 @@ int ScriptCB_GetKeyBoardCmds(lua_State* L)
                     usNum[0] = (unsigned short)(ucMod + '1');
                     usNum[1] = ' ';
                     usNum[2] = 0;
-                    PblUnicode::ustrlcat(usKey, usNum, 255);
-                    PblUnicode::ustrlcat(usKey, usButton, 255);
+                    PblUnicode::ustrlcat(usKey, usNum, 256);
+                    PblUnicode::ustrlcat(usKey, usButton, 256);
                 }
                 else
                 {
@@ -2739,17 +2740,17 @@ int ScriptCB_GetKeyBoardCmds(lua_State* L)
 
             if (PblUnicode::ustrlen(usKeys))
             {
-                PblUnicode::ustrlcat(usKeys, usComma, 255);
+                PblUnicode::ustrlcat(usKeys, usComma, 256);
             }
             strlcat(acKeys, acKey, 256);
-            PblUnicode::ustrlcat(usKeys, usKey, 255);
+            PblUnicode::ustrlcat(usKeys, usKey, 256);
         }
 
         if (!usKeys[0])
         {
 
             RedLocalizeDB::GetLocalizedString(usKey, sizeof(usKey) / sizeof(usKey[0]), 0x6054a42du);
-            PblUnicode::ustrlcat(usKeys, usKey, 255);
+            PblUnicode::ustrlcat(usKeys, usKey, 256);
         }
 
         lua_newtable(LuaHelper::mState);
@@ -3380,9 +3381,9 @@ int ScriptCB_OpenErrorBox(lua_State* L)
         && lua_isstring(LuaHelper::mState, 2))
     {
         float fSeverity = (float)luaL_checknumber(LuaHelper::mState, 1);
-        const char* pcMessage = luaL_checkstring(LuaHelper::mState, 2);
+        const unsigned short* pusMessage = LuaWideString::Check(LuaHelper::mState, 2);
         GuiManager::Instance()->OpenError((GuiManager::eErrorSeverity)(int)fSeverity,
-            reinterpret_cast<const unsigned short*>(pcMessage), 0, fnErrorBoxOk);
+            pusMessage, 0, fnErrorBoxOk);
     }
     return 0;
 }
@@ -3772,7 +3773,7 @@ int ScriptCB_GetLeaderBoardPlayerData(lua_State* L)
 
     lua_newtable(LuaHelper::mState);
     unsigned short usBuffer[256];
-    PblUnicode::ustrncnv(usBuffer, stats.username, 255);
+    PblUnicode::ustrncnv(usBuffer, stats.username, 256);
     LuaHelper::TableWriteVal("name", usBuffer);
     PblUnicode::usnprintf(usBuffer, 256, "%d", stats.level, 256);
     LuaHelper::TableWriteVal("level", usBuffer);

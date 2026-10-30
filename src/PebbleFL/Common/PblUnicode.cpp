@@ -190,7 +190,10 @@ unsigned int __cdecl PblUnicode::ustrlcat(unsigned short* pusDest, unsigned shor
     }
 
 done:
-    *p = 0;
+    if (p < pusDest + uiSize)
+    {
+        *p = 0;
+    }
     if (uiSize)
     {
         pusDest[uiSize - 1] = 0;
@@ -223,7 +226,10 @@ unsigned short* __cdecl PblUnicode::ustrncpy(unsigned short* pusDest, unsigned s
         }
         *p++ = c;
     }
-    *p = 0;
+    if (p < pusDest + uiCount)
+    {
+        *p = 0;
+    }
     if (uiCount)
     {
         pusDest[uiCount - 1] = 0;
@@ -249,7 +255,10 @@ unsigned int __cdecl PblUnicode::ustrncnv(char* pcDest, unsigned short const* pu
         ++i;
         *p = (char)*pusSource++;
     }
-    *p = 0;
+    if (p < pcDest + uiCount)
+    {
+        *p = 0;
+    }
     if (uiCount)
     {
         pcDest[uiCount - 1] = 0;
@@ -271,7 +280,10 @@ unsigned int __cdecl PblUnicode::ustrncnv(unsigned short* pusDest, char const* p
         ++i;
         *p = (unsigned short)*pcSource++;
     }
-    *p = 0;
+    if (p < pusDest + uiCount)
+    {
+        *p = 0;
+    }
     if (uiCount)
     {
         pusDest[uiCount - 1] = 0;
@@ -291,19 +303,20 @@ int __cdecl PblUnicode::usnprintf(unsigned short* pusDest, unsigned int uiCount,
 int __cdecl PblUnicode::uvsnprintf(unsigned short* pusDest, unsigned int uiCount, char const* pcFormat,
                                    char* pArgs)
 {
+    unsigned short* const pusStart = pusDest;
     unsigned int uiLen = 0;
-    char const* pcRun = pcFormat;
     for (;;)
     {
         unsigned int n = 0;
         while (*pcFormat != '%' && *pcFormat && uiLen < uiCount)
         {
-            ++pcFormat;
-            ++n;
+            *pusDest++ = (unsigned short)*pcFormat++;
             ++uiLen;
         }
-        ustrncnv(pusDest, pcRun, n + 1);
-        pusDest += n;
+        if (uiLen < uiCount)
+        {
+            *pusDest = 0;
+        }
 
         if (*pcFormat == '%')
         {
@@ -322,24 +335,27 @@ int __cdecl PblUnicode::uvsnprintf(unsigned short* pusDest, unsigned int uiCount
                 n = HandleString(pusDest, uiCount - uiLen, va_arg(pArgs, char const*));
                 break;
             default:
+                if (uiLen >= uiCount && uiCount)
+                {
+                    pusStart[uiCount - 1] = 0;
+                }
                 return -1;
             }
             uiLen += n;
             pcFormat += 2;
-            pcRun = pcFormat;
             pusDest += n;
         }
 
-        if (!*pcFormat)
+        if (!*pcFormat || uiLen >= uiCount)
         {
             if (uiLen < uiCount)
             {
                 *pusDest = 0;
             }
-            return uiLen;
-        }
-        if (uiLen >= uiCount)
-        {
+            else if (uiCount)
+            {
+                pusStart[uiCount - 1] = 0;
+            }
             return uiLen;
         }
     }
@@ -357,6 +373,10 @@ unsigned int HandleInt(unsigned short* pusDest, unsigned int uiCount, int iValue
 // FUNCTION: SWBF2 0x007270b0
 static unsigned int HandleString(unsigned short* pusDest, unsigned int uiCount, unsigned short const* pusString)
 {
+    if (!uiCount)
+    {
+        return 0;
+    }
     return PblUnicode::ustrlen(PblUnicode::ustrncpy(pusDest, pusString, uiCount));
 }
 
@@ -372,6 +392,7 @@ int __cdecl PblUnicode::usnprintf(unsigned short* pusDest, unsigned int uiCount,
 int __cdecl PblUnicode::uvsnprintf(unsigned short* pusDest, unsigned int uiCount, unsigned short const* pusFormat,
                                    char* pArgs)
 {
+    unsigned short* const pusStart = pusDest;
     unsigned int uiLen = 0;
     unsigned short const* pusRun = pusFormat;
     for (;;)
@@ -391,8 +412,12 @@ int __cdecl PblUnicode::uvsnprintf(unsigned short* pusDest, unsigned int uiCount
             switch (pusFormat[1])
             {
             case '%':
-                *pusDest = '%';
-                n = 1;
+                n = 0;
+                if (uiLen < uiCount)
+                {
+                    *pusDest = '%';
+                    n = 1;
+                }
                 break;
             case 'c':
                 n = HandleChar(pusDest, uiCount - uiLen, (unsigned short)va_arg(pArgs, int));
@@ -407,6 +432,10 @@ int __cdecl PblUnicode::uvsnprintf(unsigned short* pusDest, unsigned int uiCount
                 n = HandleString(pusDest, uiCount - uiLen, va_arg(pArgs, unsigned short const*));
                 break;
             default:
+                if (uiLen >= uiCount && uiCount)
+                {
+                    pusStart[uiCount - 1] = 0;
+                }
                 return -1;
             }
             uiLen += n;
@@ -415,16 +444,16 @@ int __cdecl PblUnicode::uvsnprintf(unsigned short* pusDest, unsigned int uiCount
             pusDest += n;
         }
 
-        if (!*pusFormat)
+        if (!*pusFormat || uiLen >= uiCount)
         {
             if (uiLen < uiCount)
             {
                 *pusDest = 0;
             }
-            return uiLen;
-        }
-        if (uiLen >= uiCount)
-        {
+            else if (uiCount)
+            {
+                pusStart[uiCount - 1] = 0;
+            }
             return uiLen;
         }
     }
@@ -447,7 +476,10 @@ unsigned int __cdecl ConvertUnicodeSkippingWide(char* pDest, const unsigned shor
         ++i;
         *p = (char)*pSrc++;
     }
-    *p = 0;
+    if (p < pDest + uiCount)
+    {
+        *p = 0;
+    }
     if (uiCount)
     {
         pDest[uiCount - 1] = 0;
@@ -470,7 +502,10 @@ unsigned int __cdecl ustrncnv(unsigned short* pDest, const unsigned char* pSrc, 
         ++i;
         *p = (unsigned char)*pSrc++;
     }
-    *p = 0;
+    if (p < pDest + uiCount)
+    {
+        *p = 0;
+    }
     if (uiCount)
     {
         pDest[uiCount - 1] = 0;
