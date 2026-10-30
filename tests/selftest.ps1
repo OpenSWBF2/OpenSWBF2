@@ -344,5 +344,57 @@ foreach ($probe in 'strictness probe emits an undeclared error', 'strictness pro
     if ($code -ne 1 -or $out -notmatch '\[UNEXPECTED-LOG\]') { $failed++; Write-Host "FAILED ${n}: ${probe}: exit $code, expected 1 with [UNEXPECTED-LOG]" }
     else { Write-Host "OK $n $probe" }
 }
+$grTmp = Join-Path $env:TEMP ("openswbf2-selftest-gr-" + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $grTmp | Out-Null
+$grScript = Join-Path $PSScriptRoot 'guard-revert.ps1'
+$repo = Split-Path $PSScriptRoot -Parent
+$junction = Join-Path $grTmp 'reparse\nested\link'
+try {
+    $rowLine = "`$GuardRevertRows = @(@{ Id = 'SELFTEST-01'; File = 'x'; Anchor = 'x'; Replacement = 'x'; Tests = @('x') })"
+    $grCases = @(
+        @('guard-revert exits 1 when the rows file throws', "throw 'selftest rows failure'", 'selftest rows failure'),
+        @('guard-revert exits 1 when a step after row selection throws', "function Find-GameDataRoot { throw 'selftest mid-run failure' }", 'selftest mid-run failure')
+    )
+    foreach ($gc in $grCases) {
+        $n++
+        $rowsFile = Join-Path $grTmp "rows$n.ps1"
+        Set-Content -Path $rowsFile -Value ($rowLine + "`r`n" + $gc[1]) -Encoding ASCII
+        $wtBefore = @(& git -C $repo worktree list).Count
+        $grOut = Join-Path $grTmp "out$n"
+        $out = (& powershell -NoProfile -Command "& '$grScript' -RowsFile '$rowsFile' -OutDir '$grOut'; exit `$LASTEXITCODE" 2>&1 | Out-String)
+        $code = $LASTEXITCODE
+        $wtAfter = @(& git -C $repo worktree list).Count
+        $why = $null
+        if ($code -ne 1) { $why = "exit $code, expected 1" }
+        elseif ($out -notmatch 'ERROR:' -or $out -notmatch [regex]::Escape($gc[2])) { $why = "output lacks ERROR: $($gc[2])" }
+        elseif ($wtAfter -ne $wtBefore) { $why = "worktree count went from $wtBefore to $wtAfter" }
+        if ($why) { $failed++; Write-Host "FAILED ${n}: $($gc[0]): $why" }
+        else { Write-Host "OK $n $($gc[0])" }
+    }
+    $n++
+    $rpTarget = Join-Path $grTmp 'target'
+    New-Item -ItemType Directory -Force -Path (Split-Path $junction -Parent) | Out-Null
+    New-Item -ItemType Directory -Force -Path $rpTarget | Out-Null
+    $sentinel = Join-Path $rpTarget 'sentinel.txt'
+    Set-Content -Path $sentinel -Value 'x'
+    & cmd /c mklink /J "$junction" "$rpTarget" | Out-Null
+    $plain = Join-Path $grTmp 'plain'
+    New-Item -ItemType Directory -Force -Path (Join-Path $plain 'sub') | Out-Null
+    Set-Content -Path (Join-Path $plain 'sub\f.txt') -Value 'x'
+    $hits = @(Get-ReparsePoints (Join-Path $grTmp 'reparse'))
+    $none = @(Get-ReparsePoints $plain)
+    & cmd /c rmdir "$junction" | Out-Null
+    $why = $null
+    if ($hits.Count -ne 1 -or $hits[0] -ne $junction) { $why = "junction scan got '$($hits -join ', ')'" }
+    elseif ($none.Count -ne 0) { $why = "plain scan got '$($none -join ', ')'" }
+    elseif (-not (Test-Path -LiteralPath $sentinel)) { $why = 'sentinel file is gone' }
+    elseif (Test-Path -LiteralPath $junction) { $why = 'junction still exists after rmdir' }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: reparse point scan: $why" }
+    else { Write-Host "OK $n reparse point scan reports the junction and not its target" }
+}
+finally {
+    if (Test-Path -LiteralPath $junction) { & cmd /c rmdir "$junction" | Out-Null }
+    if (-not (Test-Path -LiteralPath $junction)) { Remove-Item -LiteralPath $grTmp -Recurse -Force -ErrorAction SilentlyContinue }
+}
 if ($failed -gt 0) { exit 1 }
 exit 0

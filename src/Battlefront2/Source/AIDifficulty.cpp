@@ -1,5 +1,6 @@
 #include "AIDifficulty.h"
 
+#include "AIDifficultyLevel.h"
 #include "AIUtil.h"
 #include "Controllable.h"
 #include "EventInfo.h"
@@ -79,9 +80,9 @@ void AIDifficulty::Init()
 }
 
 // FUNCTION: SWBF2 0x00438c70
-int AIDifficulty::GetProfileDifficulty()
+__declspec(noinline) int AIDifficulty::GetProfileDifficulty()
 {
-    return mProfileDifficulty;
+    return ClampDifficultyLevel(mProfileDifficulty);
 }
 
 // FUNCTION: SWBF2 0x00438c80

@@ -993,7 +993,7 @@ int ScriptCB_SetConnectType(lua_State* L)
         if (pusName && pusName[0])
         {
             char acName[32];
-            PblUnicode::ustrncnv(acName, pusName, 32);
+            PblUnicode::ustrncnv(acName, pusName, 31);
             NetSetup::SetLoginName(0, acName);
         }
     }
@@ -1871,7 +1871,7 @@ int ScriptCB_IsGamespyArcadePasswordReady(lua_State*)
 int ScriptCB_GetSkipToNTGUIProfileName(lua_State*)
 {
     unsigned short name[64];
-    PblUnicode::ustrncnv(name, gSkipToNTGUIProfile, 64);
+    PblUnicode::ustrncnv(name, gSkipToNTGUIProfile, 63);
     LuaHelper::PushString(name);
     return 1;
 }
@@ -2449,7 +2449,7 @@ int ScriptCB_GetExtraSessionInfo(lua_State*)
             lua_newtable(LuaHelper::mState);
             PblUnicode::ustrlcpy(ausText, RedLocalizeDB::Find(0x145D8471, false), 256);
             PblUnicode::ustrncnv(ausArg, " ", 256);
-            PblUnicode::ustrlcat(ausText, ausArg, 256);
+            PblUnicode::ustrlcat(ausText, ausArg, 255);
             const char* pcModeName = "modename.name.con";
             if (pcMission)
             {
@@ -2482,7 +2482,7 @@ int ScriptCB_GetExtraSessionInfo(lua_State*)
                     }
                 }
             }
-            PblUnicode::ustrlcat(ausText, RedLocalizeDB::Find(PblHash(pcModeName), false), 256);
+            PblUnicode::ustrlcat(ausText, RedLocalizeDB::Find(PblHash(pcModeName), false), 255);
             LuaHelper::TableWriteVal("text", ausText);
             lua_rawseti(LuaHelper::mState, -2, 2);
 
@@ -2490,7 +2490,7 @@ int ScriptCB_GetExtraSessionInfo(lua_State*)
             const unsigned short* pusFormat = RedLocalizeDB::Find(0x61804B54, false);
             _snprintf(acNumber, sizeof(acNumber), "%d", rules.mNumAIUnits);
             PblUnicode::ustrncnv(ausArg, acNumber, 256);
-            PblUnicode::usnprintf(ausText, 256, pusFormat, ausArg);
+            PblUnicode::usnprintf(ausText, 255, pusFormat, ausArg);
             LuaHelper::TableWriteVal("text", ausText);
             lua_rawseti(LuaHelper::mState, -2, 3);
 
@@ -2498,7 +2498,7 @@ int ScriptCB_GetExtraSessionInfo(lua_State*)
             pusFormat = RedLocalizeDB::Find(0xCBB2619B, false);
             _snprintf(acNumber, sizeof(acNumber), "%d", rules.mMinPlayers);
             PblUnicode::ustrncnv(ausArg, acNumber, 256);
-            PblUnicode::usnprintf(ausText, 256, pusFormat, ausArg);
+            PblUnicode::usnprintf(ausText, 255, pusFormat, ausArg);
             LuaHelper::TableWriteVal("text", ausText);
             lua_rawseti(LuaHelper::mState, -2, 4);
 
@@ -2508,7 +2508,7 @@ int ScriptCB_GetExtraSessionInfo(lua_State*)
 
             lua_newtable(LuaHelper::mState);
             pusFormat = RedLocalizeDB::Find(0x99C3E5C6, false);
-            PblUnicode::usnprintf(ausText, 256, pusFormat, rules.mTeamDamage ? pusOn : pusOff);
+            PblUnicode::usnprintf(ausText, 255, pusFormat, rules.mTeamDamage ? pusOn : pusOff);
             LuaHelper::TableWriteVal("text", ausText);
             lua_rawseti(LuaHelper::mState, -2, 6);
 
@@ -2516,22 +2516,22 @@ int ScriptCB_GetExtraSessionInfo(lua_State*)
             pusFormat = RedLocalizeDB::Find(0x61828675, false);
             if (rules.mAIDifficulty == 1)
             {
-                PblUnicode::usnprintf(ausText, 256, pusFormat, pusEasy);
+                PblUnicode::usnprintf(ausText, 255, pusFormat, pusEasy);
             }
             else if (rules.mAIDifficulty == 3)
             {
-                PblUnicode::usnprintf(ausText, 256, pusFormat, pusHard);
+                PblUnicode::usnprintf(ausText, 255, pusFormat, pusHard);
             }
             else
             {
-                PblUnicode::usnprintf(ausText, 256, pusFormat, pusMedium);
+                PblUnicode::usnprintf(ausText, 255, pusFormat, pusMedium);
             }
             LuaHelper::TableWriteVal("text", ausText);
             lua_rawseti(LuaHelper::mState, -2, 7);
 
             lua_newtable(LuaHelper::mState);
             pusFormat = RedLocalizeDB::Find(0x9F493F0F, false);
-            PblUnicode::usnprintf(ausText, 256, pusFormat, rules.mShowPlayerNames ? pusOn : pusOff);
+            PblUnicode::usnprintf(ausText, 255, pusFormat, rules.mShowPlayerNames ? pusOn : pusOff);
             LuaHelper::TableWriteVal("text", ausText);
             lua_rawseti(LuaHelper::mState, -2, 8);
 
@@ -2543,13 +2543,13 @@ int ScriptCB_GetExtraSessionInfo(lua_State*)
             pusFormat = RedLocalizeDB::Find(0xCD2D0322, false);
             _snprintf(acNumber, sizeof(acNumber), "%d", rules.mSpawnInvincibilityTime);
             PblUnicode::ustrncnv(ausArg, acNumber, 256);
-            PblUnicode::usnprintf(ausText, 256, pusFormat, ausArg);
+            PblUnicode::usnprintf(ausText, 255, pusFormat, ausArg);
             LuaHelper::TableWriteVal("text", ausText);
             lua_rawseti(LuaHelper::mState, -2, 10);
 
             lua_newtable(LuaHelper::mState);
             pusFormat = RedLocalizeDB::Find(0xE4C8D8B5, false);
-            PblUnicode::usnprintf(ausText, 256, pusFormat, bLocked ? pusOn : pusOff);
+            PblUnicode::usnprintf(ausText, 255, pusFormat, bLocked ? pusOn : pusOff);
             LuaHelper::TableWriteVal("text", ausText);
             lua_rawseti(LuaHelper::mState, -2, 11);
 
@@ -2557,8 +2557,8 @@ int ScriptCB_GetExtraSessionInfo(lua_State*)
             pusFormat = RedLocalizeDB::Find(0xF388D488, false);
             if (pcVersion)
             {
-                PblUnicode::ustrncnv(ausArg, pcVersion, 256);
-                PblUnicode::usnprintf(ausText, 256, pusFormat, ausArg);
+                PblUnicode::ustrncnv(ausArg, pcVersion, 255);
+                PblUnicode::usnprintf(ausText, 255, pusFormat, ausArg);
                 LuaHelper::TableWriteVal("text", ausText);
             }
             lua_rawseti(LuaHelper::mState, -2, 12);

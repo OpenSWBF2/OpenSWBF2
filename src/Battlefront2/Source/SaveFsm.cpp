@@ -22,10 +22,10 @@ int SafeLocalizeSPrintf(void* pDest, unsigned int uiSize, char const* pcFormat, 
     const unsigned short* pusFormat = RedLocalizeDB::Find(PblHash(pcFormat), false);
     if (pusFormat)
     {
-        return PblUnicode::uvsnprintf((unsigned short*)pDest, unsigned int(-1), pusFormat,
+        return PblUnicode::uvsnprintf((unsigned short*)pDest, uiSize - 1, pusFormat,
                                       (char*)&iArg);
     }
-    PblUnicode::ustrncnv((unsigned short*)pDest, pcFormat, uiSize);
+    PblUnicode::ustrncnv((unsigned short*)pDest, pcFormat, uiSize - 1);
     return 0;
 }
 
@@ -35,10 +35,10 @@ int SafeLocalizeSPrintf(void* pDest, unsigned int uiSize, char const* pcFormat,
     const unsigned short* pusFormat = RedLocalizeDB::Find(PblHash(pcFormat), false);
     if (pusFormat)
     {
-        return PblUnicode::uvsnprintf((unsigned short*)pDest, unsigned int(-1), pusFormat,
+        return PblUnicode::uvsnprintf((unsigned short*)pDest, uiSize - 1, pusFormat,
                                       (char*)&pArg1);
     }
-    PblUnicode::ustrncnv((unsigned short*)pDest, pcFormat, uiSize);
+    PblUnicode::ustrncnv((unsigned short*)pDest, pcFormat, uiSize - 1);
     return 0;
 }
 unsigned short* SafeLocalizeStrcpy(unsigned short* pusDest, char const* pcSrc, unsigned int uiSize);
@@ -1128,10 +1128,10 @@ unsigned short* SafeLocalizeStrcpy(unsigned short* pusDest, const char* pcSrc, u
     const unsigned short* pusText = RedLocalizeDB::Find(PblHash(pcSrc), false);
     if (pusText)
     {
-        wcscpy((wchar_t*)pusDest, (const wchar_t*)pusText);
+        PblUnicode::ustrlcpy(pusDest, pusText, uiSize);
         return pusDest;
     }
-    PblUnicode::ustrncnv(pusDest, pcSrc, uiSize);
+    PblUnicode::ustrncnv(pusDest, pcSrc, uiSize - 1);
     return 0;
 }
 

@@ -410,7 +410,7 @@ void Character::Init(int iTeamNumber, const unsigned short* pName, int iPlayerId
     memset(mName, 0, sizeof(mName));
     memset(mRegularName, 0, sizeof(mRegularName));
     SetName(pName);
-    PblUnicode::ustrncpy(mRegularName, pName, 64);
+    PblUnicode::ustrlcpy(mRegularName, pName, 64);
     if (mMedalsMgr)
     {
         mMedalsMgr->Init();
@@ -421,7 +421,7 @@ void Character::Init(int iTeamNumber, const unsigned short* pName, int iPlayerId
 // FUNCTION: SWBF2 0x00450940
 void Character::SetName(const unsigned short* pName)
 {
-    PblUnicode::ustrncpy(mName, pName, 64);
+    PblUnicode::ustrlcpy(mName, pName, 64);
 }
 
 // FUNCTION: SWBF2 0x00450960
@@ -1687,7 +1687,7 @@ void Character::MakePlayer(int iTeam, const unsigned short* pName, int iPlayerId
 {
     RemoveCharacterPilots(this);
     SetName(pName);
-    PblUnicode::ustrncpy(mRegularName, pName, 64);
+    PblUnicode::ustrlcpy(mRegularName, pName, 64);
     mPlayerId = iPlayerId;
     ChangeTeam(iTeam);
     mTeamPtr = Team::sTeams[mTeamNumber];
@@ -1711,7 +1711,7 @@ void Character::MakeAI()
     unsigned short name[64];
     mTeamPtr->GenerateRandomName(name, mTeamNumber);
     SetName(name);
-    PblUnicode::ustrncpy(mRegularName, name, 64);
+    PblUnicode::ustrlcpy(mRegularName, name, 64);
     SelectClass(0);
     SelectPost(0);
     mDelayTimer = 0.0f;
@@ -1730,7 +1730,7 @@ void Character::AddPlayer(int iPlayerId)
     unsigned short name[64];
     if (NetGame::IsEnabled())
     {
-        PblUnicode::ustrncnv(name, NetGame::GetPlayerName(iPlayerId), 64);
+        PblUnicode::ustrncnv(name, NetGame::GetPlayerName(iPlayerId), 63);
     }
     else
     {

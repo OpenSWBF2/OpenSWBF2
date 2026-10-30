@@ -2408,6 +2408,9 @@
     <ClInclude Include="src\Battlefront2\Source\AIDifficulty.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\AIDifficultyLevel.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\AIGoal.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
@@ -3138,6 +3141,9 @@
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\NetAdmin.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\NetAdminIdText.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\NetComm.h">
