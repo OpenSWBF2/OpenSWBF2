@@ -933,6 +933,7 @@
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcSunFlare.h" />
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcVideoEffect.h" />
     <ClInclude Include="src\Battlefront2\Source\AIDifficulty.h" />
+    <ClInclude Include="src\Battlefront2\Source\AIDifficultyLevel.h" />
     <ClInclude Include="src\Battlefront2\Source\AIGoal.h" />
     <ClInclude Include="src\Battlefront2\Source\AIGoalManager.h" />
     <ClInclude Include="src\Battlefront2\Source\AILowLevel.h" />
@@ -1177,6 +1178,7 @@
     <ClInclude Include="src\Battlefront2\Source\NavigatorPathFollower.h" />
     <ClInclude Include="src\Battlefront2\Source\NavigatorSlide.h" />
     <ClInclude Include="src\Battlefront2\Source\NetAdmin.h" />
+    <ClInclude Include="src\Battlefront2\Source\NetAdminIdText.h" />
     <ClInclude Include="src\Battlefront2\Source\NetComm.h" />
     <ClInclude Include="src\Battlefront2\Source\NetGame.h" />
     <ClInclude Include="src\Battlefront2\Source\NetMatch.h" />

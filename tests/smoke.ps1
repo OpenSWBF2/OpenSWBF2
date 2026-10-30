@@ -198,6 +198,23 @@ function Remove-SmokeWorkerDir($dir) {
     Remove-Item -LiteralPath $dir -Recurse -Force
 }
 
+function Get-ReparsePoints([string]$dir) {
+    $found = New-Object System.Collections.Generic.List[string]
+    $top = New-Object System.IO.DirectoryInfo $dir
+    if (-not $top.Exists) { return }
+    if (($top.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { return $top.FullName }
+    $pending = New-Object System.Collections.Generic.Stack[System.IO.DirectoryInfo]
+    $pending.Push($top)
+    while ($pending.Count -gt 0) {
+        $cur = $pending.Pop()
+        foreach ($e in $cur.EnumerateFileSystemInfos()) {
+            if (($e.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { $found.Add($e.FullName) }
+            elseif (($e.Attributes -band [IO.FileAttributes]::Directory) -ne 0) { $pending.Push((New-Object System.IO.DirectoryInfo $e.FullName)) }
+        }
+    }
+    return $found.ToArray()
+}
+
 function Start-SmokeBatch($items, $workDirs) {
     $src = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'smoke.ps1'))
     $queue = New-Object 'System.Collections.Concurrent.ConcurrentQueue[string]'
