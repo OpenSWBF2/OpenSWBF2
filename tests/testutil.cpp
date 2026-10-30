@@ -37,6 +37,19 @@ bool LogCapture::Contains(const char* pcText) const
     return false;
 }
 
+int LogCapture::Count(const char* pcText) const
+{
+    int iCount = 0;
+    for (size_t i = 0; i < sLines.size(); ++i)
+    {
+        if (sLines[i].find(pcText) != std::string::npos)
+        {
+            ++iCount;
+        }
+    }
+    return iCount;
+}
+
 void __cdecl LogCapture::Sink(char const* pcLine, ...)
 {
     sLines.push_back(pcLine);
@@ -176,4 +189,46 @@ void HarnessError(const char* pcReason)
     printf("[HARNESS] %s: %s\n", gCurrentCase, pcReason);
     fflush(stdout);
     _exit(3);
+}
+
+bool ReadRepoText(const char* pcRelPath, std::string& sOut)
+{
+    char acExe[MAX_PATH];
+    DWORD uLen = GetModuleFileNameA(0, acExe, sizeof(acExe));
+    if (uLen == 0 || uLen >= sizeof(acExe))
+    {
+        return false;
+    }
+    std::string sPath(acExe, uLen);
+    for (int i = 0; i < 4; ++i)
+    {
+        size_t uiSlash = sPath.find_last_of("\\/");
+        if (uiSlash == std::string::npos)
+        {
+            return false;
+        }
+        sPath.erase(uiSlash);
+    }
+    sPath += "\\";
+    sPath += pcRelPath;
+    FILE* pFile = fopen(sPath.c_str(), "rb");
+    if (!pFile)
+    {
+        return false;
+    }
+    sOut.clear();
+    char acBuf[4096];
+    size_t uiRead;
+    while ((uiRead = fread(acBuf, 1, sizeof(acBuf), pFile)) > 0)
+    {
+        for (size_t i = 0; i < uiRead; ++i)
+        {
+            if (acBuf[i] != '\r')
+            {
+                sOut += acBuf[i];
+            }
+        }
+    }
+    fclose(pFile);
+    return true;
 }

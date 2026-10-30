@@ -30,6 +30,7 @@
 #include "MapCamera.h"
 #include "MissionPlayList.h"
 #include "NetGame.h"
+#include "OdfValue.h"
 #include "PlayerProfile.h"
 #include "PlayerStats.h"
 #include "SoldierAnimatorLowRes.h"
@@ -1854,12 +1855,15 @@ int SetProperty(lua_State* L)
         {
             pcValue = LuaHelper::GetString(3);
         }
-        pEntity->SetProperty(PblHash(pcProperty), pcValue);
+        char acScratch[1024];
+        const char* pcSafe =
+            OdfValue::SanitizeCopy(PblHash(pcProperty), pcValue, acScratch, sizeof(acScratch));
+        pEntity->SetProperty(PblHash(pcProperty), pcSafe);
         GameObject* pObject = pEntity->GetGameObject();
         GameObject* pClient = NetGame::GetClientNDObject(pObject);
         if (pClient && pClient != pObject)
         {
-            pClient->GetEntity()->SetProperty(PblHash(pcProperty), pcValue);
+            pClient->GetEntity()->SetProperty(PblHash(pcProperty), pcSafe);
         }
     }
     return 0;
@@ -3774,7 +3778,10 @@ int SetClassProperty(lua_State* L)
         {
             pcValue = luaL_checklstring(LuaHelper::mState, 3, 0);
         }
-        pClass->SetProperty(PblHash(pcProperty), pcValue);
+        char acScratch[1024];
+        const char* pcSafe =
+            OdfValue::SanitizeCopy(PblHash(pcProperty), pcValue, acScratch, sizeof(acScratch));
+        pClass->SetProperty(PblHash(pcProperty), pcSafe);
     }
     return 0;
 }

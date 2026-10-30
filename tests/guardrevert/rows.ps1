@@ -30,6 +30,12 @@ $gp = 'src\RedEngineFL\Graphics\PC\pcGammaPass.cpp'
 $lva = 'src\Battlefront2\Source\LuaVideoArgs.cpp'
 $lform = 'data\scripts\common\ifelem_form.lua'
 $lvid = 'data\scripts\common\ifs_opt_pcvideo.lua'
+$ov = 'src\Battlefront2\Source\OdfValue.cpp'
+$ent = 'src\Battlefront2\Source\Entity.cpp'
+$lu = 'src\Battlefront2\Source\LoadUtil.cpp'
+$lcm = 'src\Battlefront2\Source\LuaCallbacks_Mission.cpp'
+$sn = 'src\Battlefront2\Source\SideNames.h'
+$rt = 'src\RedEngineFL\Application\RedTerrain.cpp'
 
 $GuardRevertRows = @(
     @{ Id = 'CRASH-02'; File = 'src\RedEngineFL\Util\RedWarning.cpp'; Anchor = 'fputs(pcText, pFile);'; Replacement = 'fprintf(pFile, pcText);'; Tests = @('file log writes percent text literally') },
@@ -123,6 +129,14 @@ $GuardRevertRows = @(
     @{ Id = 'RESET-04A'; File = $rr; Anchor = "        m_clientH = m_clientHLast;`n        ApplyCurrentMode(IsIconic(hGlobalWnd) != 0);"; Replacement = '        m_clientH = m_clientHLast;'; Tests = @('runtime reset restyle source pins') },
     @{ Id = 'RESET-04B'; File = $rr; Anchor = 'if (bRestyle)'; Replacement = 'if (false)'; Tests = @('runtime reset restyle source pins') },
     @{ Id = 'LAA-01'; Kind = 'Hardening'; Check = 'laa'; File = 'BattlefrontII.vcxproj'; Anchor = '<LargeAddressAware>true</LargeAddressAware>'; Replacement = '' },
+    @{ Id = 'FLAG-ALIGNNEW'; Kind = 'Tlog'; Project = 'game'; Check = 'flag-alignednew'; File = 'BattlefrontII.vcxproj'; Anchor = '/Zc:alignedNew- /Zc:inline- %(AdditionalOptions)'; Replacement = '/Zc:inline- %(AdditionalOptions)' },
+    @{ Id = 'FLAG-INLINE'; Kind = 'Tlog'; Project = 'game'; Check = 'flag-inline'; File = 'BattlefrontII.vcxproj'; Anchor = '/Zc:alignedNew- /Zc:inline- %(AdditionalOptions)'; Replacement = '/Zc:alignedNew- %(AdditionalOptions)' },
+    @{ Id = 'FLAG-ALIGNNEW-T'; Kind = 'Tlog'; Project = 'tests'; Check = 'flag-alignednew-tests'; File = 'tests\OpenSWBF2Tests.vcxproj'; Anchor = '/Zc:alignedNew- %(AdditionalOptions)'; Replacement = '%(AdditionalOptions)' },
+    @{ Id = 'FLAG-THROWNEW'; Kind = 'Tlog'; Project = 'game'; Check = 'flag-banned'; File = 'BattlefrontII.vcxproj'; Anchor = '/Zc:alignedNew- /Zc:inline- %(AdditionalOptions)'; Replacement = '/Zc:alignedNew- /Zc:inline- /Zc:throwingNew %(AdditionalOptions)' },
+    @{ Id = 'FLAG-GL'; Kind = 'Tlog'; Project = 'game'; Check = 'flag-banned'; File = 'BattlefrontII.vcxproj'; Anchor = '/Zc:alignedNew- /Zc:inline- %(AdditionalOptions)'; Replacement = '/Zc:alignedNew- /Zc:inline- /GL %(AdditionalOptions)' },
+    @{ Id = 'FLAG-FPFAST'; Kind = 'Tlog'; Project = 'game'; Check = 'flag-banned'; File = 'BattlefrontII.vcxproj'; Anchor = '/Zc:alignedNew- /Zc:inline- %(AdditionalOptions)'; Replacement = '/Zc:alignedNew- /Zc:inline- /fp:fast %(AdditionalOptions)' },
+    @{ Id = 'FLAG-FPCONTRACT'; Kind = 'Tlog'; Project = 'game'; Check = 'flag-banned'; File = 'BattlefrontII.vcxproj'; Anchor = '/Zc:alignedNew- /Zc:inline- %(AdditionalOptions)'; Replacement = '/Zc:alignedNew- /Zc:inline- /fp:contract %(AdditionalOptions)' },
+    @{ Id = 'FLAG-GSMINUS'; Kind = 'Tlog'; Project = 'game'; Check = 'flag-banned'; File = 'BattlefrontII.vcxproj'; Anchor = '/Zc:alignedNew- /Zc:inline- %(AdditionalOptions)'; Replacement = '/Zc:alignedNew- /Zc:inline- /GS- %(AdditionalOptions)' },
     @{ Id = 'WIN-02A'; File = $pmain; Anchor = 'const bool bMinimize = DisplayLogic::MinimizeOnDeactivate(RedRenderer::GetDisplayMode());'; Replacement = 'const bool bMinimize = !pcWindowed;'; Tests = @('window mode source pins') },
     @{ Id = 'WIN-01A'; File = $dl; Anchor = 'kBorderlessExStyle = 0;'; Replacement = 'kBorderlessExStyle = WS_EX_TOPMOST;'; Tests = @('display logic window style') },
     @{ Id = 'WIN-01B'; File = $dl; Anchor = 'return monitor;'; Replacement = 'return work;'; Tests = @('display logic window placement') },
@@ -290,4 +304,15 @@ $GuardRevertRows = @(
     @{ Id = 'CUR-01A'; File = $mouse; Anchor = "    ReconcileCursor(*this);`n`n    if (!pc_device)`n    {`n        return;`n    }"; Replacement = "    if (!pc_device)`n    {`n        return;`n    }`n`n    ReconcileCursor(*this);"; Tests = @('hardware cursor source pins') }
     @{ Id = 'CUR-01B'; File = $dl; Anchor = '    pullAcc[2] += ullA * ((uiPx >> 8) & 0xFF);'; Replacement = '    pullAcc[2] += ullW * ((uiPx >> 8) & 0xFF);'; Tests = @('display logic cursor scale') }
     @{ Id = 'CUR-01C'; File = $mouse; Anchor = 'bV5AlphaMask = 0xFF000000'; Replacement = 'bV5AlphaMask = 0'; Tests = @('hardware cursor source pins') }
+    @{ Id = 'NANGUARD-01'; File = $ov; Anchor = '!_finite(d)'; Replacement = 'false'; Tests = @('odf value guard rejects non-finite tokens') }
+    @{ Id = 'NANGUARD-02'; File = $ov; Anchor = "if (*r == '\0' || IsDelimiter(*r))"; Replacement = 'if (false)'; Tests = @('odf value guard repairs dangling exponents') }
+    @{ Id = 'NANGUARD-03'; File = $ent; Anchor = 'OdfValue::Sanitize(uProperty, pcValue);'; Replacement = ''; Tests = @('odf value guard covers every property call site') }
+    @{ Id = 'NANGUARD-04'; File = $lu; Anchor = 'pRegion->SetProperty(uProperty, pcValue);'; Replacement = 'pRegion->SetProperty(uProperty, child.ReadString(acValue, sizeof(acValue)));'; Tests = @('odf value guard covers every property call site') }
+    @{ Id = 'NANGUARD-05'; File = $lcm; Anchor = 'pClass->SetProperty(PblHash(pcProperty), pcSafe);'; Replacement = 'pClass->SetProperty(PblHash(pcProperty), pcValue);'; Tests = @('odf value guard covers every property call site') }
+    @{ Id = 'SIDENAME-01'; File = $sn; Anchor = 'iSide >= 0 && iSide < (int)(sizeof(sSideNamePrefixes) / sizeof(sSideNamePrefixes[0]))'; Replacement = 'true'; Tests = @('side name prefix is bounded') }
+    @{ Id = 'SIMFIX-C1'; File = $rt; Anchor = "_mm_cvtss_f32(`n        _mm_mul_ss(_mm_sub_ss(_mm_set_ss(GetHeight(iX + 1, iZ + 1)), _mm_set_ss(fH0)), _mm_set_ss(fFracZ)))"; Replacement = '(GetHeight(iX + 1, iZ + 1) - fH0) * fFracZ'; Tests = @('terrain interpolated height rounds each step to float') }
+    @{ Id = 'SIMFIX-C2'; File = 'BattlefrontII.vcxproj'; Anchor = "<ClCompile Include=`"src\Battlefront2\Source\AIDifficulty.cpp`">`n      <FloatingPointModel>Strict</FloatingPointModel>`n    </ClCompile>"; Replacement = '<ClCompile Include="src\Battlefront2\Source\AIDifficulty.cpp" />'; Tests = @('ai difficulty compiles with fp strict') }
+    @{ Id = 'SIMFIX-C3'; File = 'BattlefrontII.vcxproj'; Anchor = "<ClCompile Include=`"src\Battlefront2\Source\WeaponCannon.cpp`">`n      <FloatingPointModel>Strict</FloatingPointModel>`n    </ClCompile>"; Replacement = '<ClCompile Include="src\Battlefront2\Source\WeaponCannon.cpp" />'; Tests = @('weapon cannon fire compiles with fp strict') }
+    @{ Id = 'SIMFIX-C1S'; Kind = 'Smoke'; Case = 'digest-dag1c_ctf'; File = $rt; Anchor = "_mm_cvtss_f32(`n        _mm_mul_ss(_mm_sub_ss(_mm_set_ss(GetHeight(iX + 1, iZ + 1)), _mm_set_ss(fH0)), _mm_set_ss(fFracZ)))"; Replacement = '(GetHeight(iX + 1, iZ + 1) - fH0) * fFracZ' }
+    @{ Id = 'SIMFIX-C2S'; Kind = 'Smoke'; Case = 'digest-kas2c_uber'; File = 'BattlefrontII.vcxproj'; Anchor = "<ClCompile Include=`"src\Battlefront2\Source\AIDifficulty.cpp`">`n      <FloatingPointModel>Strict</FloatingPointModel>`n    </ClCompile>"; Replacement = '<ClCompile Include="src\Battlefront2\Source\AIDifficulty.cpp" />' }
 )

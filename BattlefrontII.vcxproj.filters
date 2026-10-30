@@ -1005,6 +1005,9 @@
     <ClCompile Include="src\Battlefront2\Source\MemFailLog.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
+    <ClCompile Include="src\Battlefront2\Source\OdfValue.cpp">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClCompile>
     <ClCompile Include="src\Battlefront2\Source\SimDigest.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
@@ -3152,6 +3155,9 @@
     <ClInclude Include="src\Battlefront2\Source\MemFailLog.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\OdfValue.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\SimDigest.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
@@ -3393,6 +3399,9 @@
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\ShieldEffect.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\SideNames.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\SkyDome.h">

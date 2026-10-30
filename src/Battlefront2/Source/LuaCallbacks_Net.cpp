@@ -3121,7 +3121,9 @@ int ScriptCB_DoFriendAction(lua_State*)
             NetSessionId id;
             id.id = 0;
             const char* connection = gf::friends::connectionStringByIndex(friendIndex);
-            sscanf(connection, "%ull", &id.id);
+            unsigned int uLow = 0;
+            sscanf(connection, "%ull", &uLow);
+            id.id = uLow;
             findGame = NetSetup::FindGame(FT_FIXED, 0, &id);
         }
     }
