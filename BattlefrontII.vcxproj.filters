@@ -930,6 +930,9 @@
     <ClCompile Include="src\Battlefront2\Source\LuaVideoArgs.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
+    <ClCompile Include="src\Battlefront2\Source\LuaWideString.cpp">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClCompile>
     <ClCompile Include="src\Battlefront2\Source\LuaScript.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
@@ -3086,6 +3089,9 @@
     <ClInclude Include="src\Battlefront2\Source\LuaVideoArgs.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\LuaWideString.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\LuaScript.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
@@ -3174,6 +3180,9 @@
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\LocalLimits.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\LocalizedFormatArgs.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\RedEngineFL\Graphics\PC\pcDisplaySettings.h">
@@ -3348,6 +3357,9 @@
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\ProceduralAnimation.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\ProfileNameFormat.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\PropCluster.h">
@@ -4116,6 +4128,9 @@
       <Filter>src\RedEngineFL\Interface</Filter>
     </ClInclude>
     <ClInclude Include="src\RedEngineFL\Interface\RedInterfaceScreen.h">
+      <Filter>src\RedEngineFL\Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="src\RedEngineFL\Interface\RedMagicStrings.h">
       <Filter>src\RedEngineFL\Interface</Filter>
     </ClInclude>
     <ClInclude Include="src\RedEngineFL\Interface\RedMaskedBitmapElement.h">

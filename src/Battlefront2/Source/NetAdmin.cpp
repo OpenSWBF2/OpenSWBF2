@@ -384,7 +384,7 @@ void __fastcall NetAdmin::ChatMessage(int iPlayer, const unsigned short* pusMess
     _snprintf(acBuffer, 127, "%s: ", pcName);
     acBuffer[127] = 0;
     unsigned int uLength = (unsigned int)strlen(acBuffer);
-    PblUnicode::ustrncnv(acBuffer + uLength, pusMessage, 127 - uLength);
+    PblUnicode::ustrncnv(acBuffer + uLength, pusMessage, 128 - uLength);
     acBuffer[127] = 0;
     SendAdminMessage(acBuffer);
 }
@@ -417,8 +417,8 @@ static void SendStateTransitions()
     char acTeam2[32] = "Unknown";
     if (pusTeam1 && pusTeam2)
     {
-        PblUnicode::ustrncnv(acTeam1, pusTeam1, 31);
-        PblUnicode::ustrncnv(acTeam2, pusTeam2, 31);
+        PblUnicode::ustrncnv(acTeam1, pusTeam1, 32);
+        PblUnicode::ustrncnv(acTeam2, pusTeam2, 32);
     }
     int iScore1 = Team::sTeams[1]->mCurReinforcements;
     int iScore2 = Team::sTeams[2]->mCurReinforcements;
@@ -988,7 +988,7 @@ static void PutMsg(char* pcMsg)
     }
 
     unsigned short ausMsg[128];
-    PblUnicode::ustrncnv(ausMsg, pcMsg, 127);
+    PblUnicode::ustrncnv(ausMsg, pcMsg, 128);
 
     int iDest = 64;
     unsigned __int64 uMask = ~(unsigned __int64)0;
@@ -2614,7 +2614,7 @@ void FormatPlayerStatusLine(char* pcOut, int iNumber, const char* pcName, int iT
     if (pTeam && pTeam->mName)
     {
         char acTeam[128];
-        PblUnicode::ustrncnv(acTeam, pTeam->mName, 127);
+        PblUnicode::ustrncnv(acTeam, pTeam->mName, 128);
         strncpy(pcOut + 21, acTeam, 3);
         pcOut[strlen(pcOut)] = ' ';
     }
@@ -2639,7 +2639,7 @@ void __fastcall FormatRefusedAdminLine(int iPlayer, unsigned short* pusLine)
     }
     char acLine[512];
     char acMessage[512];
-    PblUnicode::ustrncnv(acLine, pusLine, 511);
+    PblUnicode::ustrncnv(acLine, pusLine, 512);
     _snprintf(acMessage, 512, "\t%s\t%s", pcPlayer, acLine);
 }
 

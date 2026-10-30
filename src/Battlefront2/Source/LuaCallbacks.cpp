@@ -11,6 +11,8 @@
 #include "LuaCallbacks_PC.h"
 #include "LuaCallbacks_Sound.h"
 #include "LuaCallbacks_Stats.h"
+#include "LocalizedFormatArgs.h"
+#include "LuaWideString.h"
 
 #include <windows.h>
 #include <stdio.h>
@@ -585,12 +587,10 @@ int ScriptCB_UnicodeStrCat(lua_State*)
         return 0;
     }
 
-    PblUnicode::ustrlcpy(sTempReturnString16,
-                         (const unsigned short*)luaL_checklstring(LuaHelper::mState, 1, 0), 256);
+    PblUnicode::ustrlcpy(sTempReturnString16, LuaWideString::Check(LuaHelper::mState, 1), 256);
     for (int i = 2; i <= iTop; ++i)
     {
-        PblUnicode::ustrlcat(sTempReturnString16,
-                             (const unsigned short*)luaL_checklstring(LuaHelper::mState, i, 0), 255);
+        PblUnicode::ustrlcat(sTempReturnString16, LuaWideString::Check(LuaHelper::mState, i), 256);
     }
     LuaHelper::PushString(sTempReturnString16);
     return 1;
@@ -610,7 +610,7 @@ int ScriptCB_ununicode(lua_State*)
         return 1;
     }
 
-    const unsigned short* pusString = (const unsigned short*)luaL_checklstring(LuaHelper::mState, 1, 0);
+    const unsigned short* pusString = LuaWideString::Check(LuaHelper::mState, 1);
     if (PblUnicode::ustrlen(pusString) < 256)
     {
         ConvertUnicodeSkippingWide(sTempReturnString, pusString, 256);
@@ -680,7 +680,7 @@ int ScriptCB_usprintf(lua_State*)
         {
             return 0;
         }
-        apusArgs[i - 2] = (const unsigned short*)luaL_checklstring(LuaHelper::mState, i, 0);
+        apusArgs[i - 2] = LuaWideString::Check(LuaHelper::mState, i);
     }
 
     const unsigned short* pusFormat = RedLocalizeDB::Find(pcKey ? (unsigned int)PblHash(pcKey) : 0, false);
@@ -691,7 +691,7 @@ int ScriptCB_usprintf(lua_State*)
     }
     else
     {
-        switch (iTop)
+        switch (LocalizedFormatArgsFit(pusFormat, iTop - 1) ? iTop : 0)
         {
         case 2:
             iLen = PblUnicode::usnprintf(sTempReturnString16, 255, pusFormat, apusArgs[0]);
@@ -737,8 +737,7 @@ int ScriptCB_ustrupper(lua_State*)
         return 0;
     }
 
-    PblUnicode::ustrlcpy(sTempReturnString16,
-                         (const unsigned short*)luaL_checklstring(LuaHelper::mState, 1, 0), 256);
+    PblUnicode::ustrlcpy(sTempReturnString16, LuaWideString::Check(LuaHelper::mState, 1), 256);
     int iLen = PblUnicode::ustrlen(sTempReturnString16);
     for (int i = 0; i < iLen; ++i)
     {

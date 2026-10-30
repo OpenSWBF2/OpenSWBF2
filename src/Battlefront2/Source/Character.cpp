@@ -1730,7 +1730,7 @@ void Character::AddPlayer(int iPlayerId)
     unsigned short name[64];
     if (NetGame::IsEnabled())
     {
-        PblUnicode::ustrncnv(name, NetGame::GetPlayerName(iPlayerId), 63);
+        PblUnicode::ustrncnv(name, NetGame::GetPlayerName(iPlayerId), 64);
     }
     else
     {

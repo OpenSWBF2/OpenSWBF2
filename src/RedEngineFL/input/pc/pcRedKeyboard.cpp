@@ -3,6 +3,7 @@
 #include "pcRedInputManager.h"
 #include "RedEngineFL/input/RedInputEventHandler.h"
 #include "PebbleFL/Common/PblJournal.h"
+#include "PebbleFL/Common/PblUnicode.h"
 
 void __cdecl PblTraceP(const char* Format, ...);
 
@@ -398,7 +399,6 @@ unsigned short RedKeyboard::GetFlags()
 // FUNCTION: SWBF2 0x006c69a0
 bool RedKeyboard::pcGetKeyName(unsigned int uiKey, unsigned short* pusName, unsigned int uiSize)
 {
-    (void)uiSize;
     DIPROPSTRING dips;
     dips.diph.dwSize = sizeof(DIPROPSTRING);
     dips.diph.dwHeaderSize = sizeof(DIPROPHEADER);
@@ -408,7 +408,7 @@ bool RedKeyboard::pcGetKeyName(unsigned int uiKey, unsigned short* pusName, unsi
 
     HRESULT hr = pc_pKeyboardDevice->GetProperty(DIPROP_KEYNAME, &dips.diph);
     dips.wsz[MAX_PATH - 1] = 0;
-    memcpy(pusName, dips.wsz, MAX_PATH - 1);
+    PblUnicode::ustrlcpy(pusName, (const unsigned short*)dips.wsz, uiSize);
     if (hr != DI_OK)
     {
         return false;
