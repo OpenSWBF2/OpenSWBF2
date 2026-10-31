@@ -22,17 +22,6 @@ StreamCaptureSourceBase::~StreamCaptureSourceBase()
 {
 }
 
-// FUNCTION: SWBF2 0x0074c030
-void* __fastcall sub_74C030(void* pBase, int, unsigned int uiFlags)
-{
-    ((StreamCaptureSourceBase*)pBase)->StreamCaptureSourceBase::~StreamCaptureSourceBase();
-    if (uiFlags & 1)
-    {
-        operator delete(pBase);
-    }
-    return pBase;
-}
-
 // FUNCTION: SWBF2 0x0074c060
 void StreamCaptureSourceBase::Close(bool bFlush)
 {

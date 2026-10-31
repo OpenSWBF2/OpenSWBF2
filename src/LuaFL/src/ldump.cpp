@@ -4,6 +4,7 @@
 
 #include "lua.h"
 
+#include "ldebug.h"
 #include "lobject.h"
 #include "lopcodes.h"
 #include "lstate.h"
@@ -42,7 +43,9 @@ static void DumpInt(int x, DumpState* D)
 // FUNCTION: SWBF2 0x006a5570
 static void DumpSize(size_t x, DumpState* D)
 {
- DumpBlock(&x,sizeof(x),D);
+ unsigned int y=(unsigned int)x;
+ if ((size_t)y!=x) luaG_runerror(D->L,"size_t value does not fit the 4-byte bytecode field");
+ DumpBlock(&y,sizeof(y),D);
 }
 
 // FUNCTION: SWBF2 0x006a5550
@@ -152,7 +155,7 @@ static void DumpHeader(DumpState* D)
  DumpByte(VERSION,D);
  DumpByte(luaU_endianness(),D);
  DumpByte(sizeof(int),D);
- DumpByte(sizeof(size_t),D);
+ DumpByte(4,D);
  DumpByte(sizeof(Instruction),D);
  DumpByte(SIZE_OP,D);
  DumpByte(SIZE_A,D);

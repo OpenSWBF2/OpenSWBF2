@@ -135,42 +135,6 @@ StreamPacket* StreamSourceProducer::GetPacket(unsigned int uiOutput)
     return pPacket;
 }
 
-// FUNCTION: SWBF2 0x0073c870
-void* __fastcall sub_73C870(void* pProducer, int, unsigned int uiFlags)
-{
-
-    ((StreamSourceProducer*)pProducer)->StreamSourceProducer::~StreamSourceProducer();
-
-    if ((uiFlags & 1) != 0)
-    {
-        ::operator delete(pProducer);
-    }
-
-    return pProducer;
-}
-
-// FUNCTION: SWBF2 0x0073c810
-void* __fastcall sub_73C810(void* pNodeSource, int, unsigned int uiFlags)
-{
-    ((StreamNodeSource*)pNodeSource)->StreamNodeSource::~StreamNodeSource();
-    if ((uiFlags & 1) != 0)
-    {
-        ::operator delete(pNodeSource);
-    }
-    return pNodeSource;
-}
-
-// FUNCTION: SWBF2 0x0073c840
-void* __fastcall sub_73C840(void* pProducer, int, unsigned int uiFlags)
-{
-    ((StreamSourceNProducer*)pProducer)->StreamSourceNProducer::~StreamSourceNProducer();
-    if ((uiFlags & 1) != 0)
-    {
-        ::operator delete(pProducer);
-    }
-    return pProducer;
-}
-
 // FUNCTION: SWBF2 0x0073c930
 unsigned int StreamSourceProducer::GetNumQueuedPackets() const
 {

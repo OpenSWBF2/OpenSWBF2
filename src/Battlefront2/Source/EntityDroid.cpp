@@ -53,13 +53,6 @@ void* __fastcall GetFirstWeaponFactoryNode(const void* pList)
     return static_cast<const PblList<Factory<Weapon, WeaponClass, WeaponDesc>>*>(pList)->_head._pNext;
 }
 
-// FUNCTION: SWBF2 0x0049e1c0
-void* __fastcall InitializeWeaponFactoryIterator(void* pItor, void*, void* pNode)
-{
-    *reinterpret_cast<void**>(pItor) = pNode;
-    return pItor;
-}
-
 // FUNCTION: SWBF2 0x0049e1d0
 void* __fastcall GetWeaponFactoryIteratorObject(const void* pItor)
 {

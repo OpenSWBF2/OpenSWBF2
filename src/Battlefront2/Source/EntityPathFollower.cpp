@@ -2106,9 +2106,3 @@ bool EntityPathFollower::RayTestSpline(const PblVector3& p0, const PblVector3& p
     }
     return true;
 }
-
-// FUNCTION: SWBF2 0x004fc6d0
-int __fastcall ReturnEdxValue(int, int value)
-{
-    return value;
-}

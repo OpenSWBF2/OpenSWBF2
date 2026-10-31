@@ -23,19 +23,6 @@ StreamGSMDecoder::StreamGSMDecoder()
     mState.Init();
 }
 
-// FUNCTION: SWBF2 0x0073d140
-void* __fastcall sub_73D140(void* pDecoder, int, unsigned int uiFlags)
-{
-    ((StreamCodec*)pDecoder)->StreamCodec::~StreamCodec();
-
-    if ((uiFlags & 1) != 0)
-    {
-        ::operator delete(pDecoder);
-    }
-
-    return pDecoder;
-}
-
 // FUNCTION: SWBF2 0x0073d250
 StreamPacket* StreamGSMDecoder::GetPacket(unsigned int uiOutput)
 {

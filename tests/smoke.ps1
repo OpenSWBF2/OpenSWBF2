@@ -841,18 +841,52 @@ function Get-FlagChecks($game, $tests) {
 }
 
 function Get-SourceChecks([string]$root) {
-    $rx = [regex]'\boperator\s*(new|delete)\s*(\[\s*\])?\s*\(\s*(?:void\s*\*\s*\w*\s*,\s*)?(?:unsigned(?:\s+int)?|UINT|uint32_t|unsigned\s+__int32)\b'
+    $defs = @(
+        @{ Name = 'new-size-t'; Path = $null; Rx = @(
+            '\boperator\s*(new|delete)\s*(\[\s*\])?\s*\(\s*(?:void\s*\*\s*\w*\s*,\s*)?(?:unsigned(?:\s+int)?|UINT|uint32_t|unsigned\s+__int32)\b') },
+        @{ Name = 'win32-callbacks'; Path = $null; Rx = @(
+            '\(\s*(?:[A-Z_]*PROC[A-Z]*|L?P?THREAD_START_ROUTINE|PAPCFUNC|PTIMERAPCROUTINE)\s*\)',
+            '_cast\s*<\s*(?:[A-Z_]*PROC[A-Z]*|L?P?THREAD_START_ROUTINE|PAPCFUNC|PTIMERAPCROUTINE)\s*>',
+            '\b(?:\w+::)*(?!\w*Timer)\w*Proc\s*\(\s*HWND\w*\s*\*?\s*\w*\s*,(?!\s*UINT\b\s*\w*\s*,\s*WPARAM\b\s*\w*\s*,\s*LPARAM\b\s*\w*\s*\))[^,()]*,[^,()]*,[^,()]*\)',
+            '(?:CALLBACK|WINAPI|APIENTRY|__stdcall)\s+(?:\w+::)*(?!\w*Timer)\w+\s*\(\s*HWND\w*\s*\*?\s*\w*\s*,\s*(?:UINT|unsigned)\b(?!\s*\w*\s*,\s*WPARAM\b\s*\w*\s*,\s*LPARAM\b\s*\w*\s*\))[^,()]*,[^,()]*,[^,()]*\)',
+            '\b(?!LRESULT\b|INT_PTR\b)\w+\s+(?:CALLBACK|WINAPI|APIENTRY|__stdcall)\s+(?:\w+::)*(?!\w*Timer)\w*Proc\s*\(\s*HWND\w*\s*\*?\s*\w*\s*,[^,()]*,[^,()]*,[^,()]*\)',
+            '\b(?:\w+::)*\w*Proc\s*\(\s*int\b\s*\w*\s*,(?!\s*WPARAM\b\s*\w*\s*,\s*LPARAM\b\s*\w*\s*\))[^,()]*,[^,()]*\)',
+            '\b(?!LRESULT\b)\w+\s+(?:CALLBACK|WINAPI|APIENTRY|__stdcall)\s+(?:\w+::)*\w*Proc\s*\(\s*int\b\s*\w*\s*,[^,()]*,[^,()]*\)') },
+        @{ Name = 'galaxy-vtable'; Path = '\\src\\Steam\\'; Rx = @(
+            '\(\s*(?:const\s+)?\w+(?:\s+\w+)?\s*(?:const\s*)?\*\s*(?:const\s*)?\*[\s*]*\)',
+            '_cast\s*<\s*(?:const\s+)?\w+(?:\s+\w+)?\s*(?:const\s*)?\*\s*(?:const\s*)?\*[\s*]*>',
+            '__thiscall\s*\*') },
+        @{ Name = 'fastcall-edx'; Path = $null; Rx = @(
+            '__fastcall\s*\*?\s*(?:\w+::)*\w*\s*\)?\s*\(\s*[^,()]+?,\s*(?:const\s+)?void\s*\*\s*(?:/\*[^*]*\*/\s*)?(?:\w*(?:[Ee]dx|EDX|[Uu]nused|[Dd]ummy|[Ii]gnored)\w*)?\s*[,)]',
+            '__fastcall\s*\*?\s*(?:\w+::)*\w*\s*\)?\s*\(\s*(?:[^,()]+?,\s*)?(?:const\s+)?(?:int|unsigned(?:\s+int)?|void\s*\*)\s*(?:(?:/\*[^*]*\*/\s*)?\w*(?:[Ee]dx|EDX|[Uu]nused|[Dd]ummy|[Ii]gnored)\w*|/\*[^*]*(?:[Ee]dx|EDX|[Uu]nused|[Dd]ummy|[Ii]gnored)[^*]*\*/)\s*[,)]',
+            '__fastcall\s*\*?\s*(?:\w+::)*\w*\s*\)?\s*\(\s*int\s+iLocalIndex\s*,',
+            '__fastcall\s*\*?\s*(?:\w+::)*\w*\s*\)?\s*\(\s*(?:const\s+)?\w+\s*\*\s*\w*\s*,\s*int\s*,\s*unsigned\b',
+            '__fastcall\s+(?:\w+::)*\w+\s*\((?=[^(){};]*\)\s*\{)\s*(?:(?:const\s+)?[\w:]+(?:\s+(?:int|char|short|long))?(?:\s*[*&]+\s*|\s+)(?!(?:int|char|short|long|const)\b)\w+\s*,\s*int|int\s*,\s*(?:const\s+)?[\w:]+(?:\s+(?:int|char|short|long))?(?:\s*[*&]+\s*|\s+)(?!(?:int|char|short|long|const)\b)\w+)\s*[,)]') }
+    )
     $root = $root.TrimEnd('\')
-    $hits = @()
+    $hits = @{}
+    foreach ($d in $defs) { $hits[$d.Name] = New-Object System.Collections.Generic.List[string] }
     $src = Join-Path $root 'src'
     foreach ($f in (Get-ChildItem -LiteralPath $src -Recurse -File -Include *.h, *.cpp | Where-Object { $_.FullName -notmatch '\\src\\(LuaFL|ZlibFL)\\' })) {
         $text = [IO.File]::ReadAllText($f.FullName)
-        foreach ($m in $rx.Matches($text)) {
-            $line = $text.Substring(0, $m.Index).Split("`n").Count
-            $hits += '{0}:{1}' -f $f.FullName.Substring($root.Length + 1), $line
+        $rel = $f.FullName.Substring($root.Length + 1)
+        foreach ($d in $defs) {
+            if ($d.Path -and $f.FullName -notmatch $d.Path) { continue }
+            $spans = @()
+            foreach ($rx in $d.Rx) {
+                foreach ($m in [regex]::Matches($text, $rx)) { $spans += New-Object PSObject -Property @{ Start = $m.Index; End = ($m.Index + [Math]::Max($m.Length, 1)) } }
+            }
+            $end = -1
+            $seen = @{}
+            foreach ($s in @($spans | Sort-Object Start)) {
+                if ($s.Start -lt $end) { $end = [Math]::Max($end, $s.End); continue }
+                $end = $s.End
+                $key = '{0}:{1}' -f $rel, $text.Substring(0, $s.Start).Split("`n").Count
+                if (-not $seen[$key]) { $seen[$key] = $true; $hits[$d.Name].Add($key) }
+            }
         }
     }
-    return @(New-Object PSObject -Property @{ Name = 'new-size-t'; Ok = ($hits.Count -eq 0); Detail = ($hits -join ', ') })
+    return @($defs | ForEach-Object { New-Object PSObject -Property @{ Name = $_.Name; Ok = ($hits[$_.Name].Count -eq 0); Detail = ($hits[$_.Name] -join ', ') } })
 }
 
 function Get-ImageBase($exe, $workDir, $argLine) {

@@ -367,17 +367,6 @@ bool SoftOutput::SetReverb(const I3DL2Reverb* const pReverb)
     return bOK;
 }
 
-// FUNCTION: SWBF2 0x00746bb0
-void* __fastcall sub_746BB0(void* pFlusher, int, unsigned int uiFlags)
-{
-    ((StreamNodeSource*)pFlusher)->StreamNodeSource::~StreamNodeSource();
-    if (uiFlags & 1)
-    {
-        operator delete(pFlusher);
-    }
-    return pFlusher;
-}
-
 // FUNCTION: SWBF2 0x00746d20
 void Snd::SoftOutput::Discontinuity(unsigned int uiInput)
 {

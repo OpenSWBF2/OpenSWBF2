@@ -38,7 +38,7 @@
 
 namespace Lua_Callbacks { bool IsTrainingMission(); }
 namespace Lua_Callbacks { bool IsMetaGameStateSaved(); }
-namespace Lua_Callbacks { void __fastcall GetMissionWorld(char* pcWorld, int); }
+namespace Lua_Callbacks { void __fastcall GetMissionWorld(char* pcWorld); }
 
 namespace PblProfile { bool IsPaused(); }
 namespace PblProfile { void SetPaused(bool bValue); }
@@ -487,7 +487,7 @@ void LoadDisplay::SetLoadState()
     if (GameLoop::AreMetagameRulesOn() && !_strnicmp(m_missionFileName, "spa", 3))
     {
         char acWorld[4];
-        Lua_Callbacks::GetMissionWorld(acWorld, 0);
+        Lua_Callbacks::GetMissionWorld(acWorld);
         sprintf(acBuffer, "mapname.name.spa_%s", acWorld);
     }
     else

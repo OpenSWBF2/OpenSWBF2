@@ -2,7 +2,7 @@
 #include "NetGame.h"
 
 extern int netCurMaxPlayers;
-namespace FriendBuddyList { bool __fastcall IsFriendBuddy(int ignored, int iPlayer); }
+namespace FriendBuddyList { bool __fastcall IsFriendBuddy(int iPlayer); }
 
 namespace GameVoiceChat
 {
@@ -67,7 +67,7 @@ void Transport::SetSendReceiveEnableUsingMask(unsigned char node, Mask mask, boo
             {
                 continue;
             }
-            const bool selected = FriendBuddyList::IsFriendBuddy(0, other);
+            const bool selected = FriendBuddyList::IsFriendBuddy(other);
             if (!selected && bKeepCurrent)
             {
                 continue;

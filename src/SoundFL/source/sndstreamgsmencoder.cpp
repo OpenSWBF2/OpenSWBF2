@@ -92,17 +92,6 @@ void Snd::StreamGSMEncoder::Flush()
     StreamSourceProducer::Flush();
 }
 
-// FUNCTION: SWBF2 0x007417f0
-void* __fastcall sub_7417F0(void* pGSMEncoder, int, unsigned int uiFlags)
-{
-    ((StreamGSMEncoder*)pGSMEncoder)->StreamGSMEncoder::~StreamGSMEncoder();
-    if (uiFlags & 1)
-    {
-        operator delete(pGSMEncoder);
-    }
-    return pGSMEncoder;
-}
-
 // FUNCTION: SWBF2 0x00741910
 StreamPacket* StreamGSMEncoder::GetPacket(unsigned int uiOutput)
 {

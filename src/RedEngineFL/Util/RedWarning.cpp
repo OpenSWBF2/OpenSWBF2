@@ -68,6 +68,8 @@ void __cdecl RedWarning::SetSuppressDialogs(bool bSuppress)
     g_bSuppressDialogs = bSuppress;
 }
 
+namespace RedWarning { INT_PTR CALLBACK DlgProc(HWND hDlg, UINT uiMessage, WPARAM uiWParam, LPARAM lParam); }
+
 // FUNCTION: SWBF2 0x006f6af0
 void RedWarning::DialogBoxMessage(char const* pcFormat, ...)
 {
@@ -93,12 +95,11 @@ void RedWarning::DialogBoxMessage(char const* pcFormat, ...)
     apcDialogText[0] = kapcSEVERITYLONG[g_eSeverity];
     apcDialogText[1] = acMessage;
 
-    DialogBoxParamA(0, MAKEINTRESOURCEA(101), 0, (DLGPROC)DlgProc, (LPARAM)apcDialogText);
+    DialogBoxParamA(0, MAKEINTRESOURCEA(101), 0, DlgProc, (LPARAM)apcDialogText);
 }
 
 // FUNCTION: SWBF2 0x006f6b80
-int __stdcall RedWarning::DlgProc(HWND__* hDlg, unsigned int uiMessage, unsigned int uiWParam,
-                                  long lParam)
+INT_PTR CALLBACK RedWarning::DlgProc(HWND hDlg, UINT uiMessage, WPARAM uiWParam, LPARAM lParam)
 {
     switch (uiMessage)
     {

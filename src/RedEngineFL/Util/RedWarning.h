@@ -25,8 +25,6 @@ enum RED_LOG_DESTINATION
     RED_LOG_DESTINATION_ALL = 63
 };
 
-struct HWND__;
-
 namespace RedWarning
 {
 
@@ -60,7 +58,6 @@ unsigned int __cdecl Format(char* pcBuffer, unsigned int uiSize, char* pcMessage
 void __cdecl LogMessage(char const* pcFormat, ...);
 
 void __cdecl DialogBoxMessage(char const* pcFormat, ...);
-int __stdcall DlgProc(HWND__* hDlg, unsigned int uiMessage, unsigned int uiWParam, long lParam);
 
 void __cdecl Cleanup(void);
 unsigned int __cdecl GetFormatToDestination(RED_LOG_DESTINATION_INDEX eIndex);

@@ -39,6 +39,11 @@ $sn = 'src\Battlefront2\Source\SideNames.h'
 $rt = 'src\RedEngineFL\Application\RedTerrain.cpp'
 $pidx = 'src\PebbleFL\Common\PblIndex.h'
 $phash = 'src\PebbleFL\Common\PblHashTable.h'
+$rw = 'src\RedEngineFL\Util\RedWarning.cpp'
+$ngc = 'src\Battlefront2\Source\NetGame.cpp'
+$gsa = 'src\Steam\gfSteamAuth.cpp'
+$sth = 'src\SoundFL\source\win\sndthread.cpp'
+$lls = 'src\Battlefront2\Source\LuaCallbacks_LoadSave.cpp'
 
 $GuardRevertRows = @(
     @{ Id = 'CRASH-02'; File = 'src\RedEngineFL\Util\RedWarning.cpp'; Anchor = 'fputs(pcText, pFile);'; Replacement = 'fprintf(pFile, pcText);'; Tests = @('file log writes percent text literally') },
@@ -136,6 +141,14 @@ $GuardRevertRows = @(
     @{ Id = 'PTR-01'; Kind = 'Hardening'; Check = 'new-size-t'; File = $rm; Anchor = 'void* __cdecl operator new(size_t size)'; Replacement = 'void* __cdecl operator new(unsigned int size)' },
     @{ Id = 'PTR-01B'; Kind = 'Hardening'; Check = 'new-size-t'; File = $rm; Anchor = 'void* __cdecl operator new[](size_t size)'; Replacement = 'void* __cdecl operator new [] (unsigned int size)' },
     @{ Id = 'PTR-01C'; Kind = 'Hardening'; Check = 'new-size-t'; File = $rm; Anchor = 'void __cdecl operator delete(void* block, size_t)'; Replacement = 'void __cdecl operator delete(void* block, unsigned)' },
+    @{ Id = 'ABI-01'; Kind = 'Hardening'; Check = 'win32-callbacks'; File = $rw; Anchor = '0, DlgProc, (LPARAM)apcDialogText);'; Replacement = '0, (DLGPROC)DlgProc, (LPARAM)apcDialogText);' },
+    @{ Id = 'ABI-01B'; Kind = 'Hardening'; Check = 'win32-callbacks'; File = $sth; Anchor = 'CreateThread(0, mStackSize, ThreadEntry, this, 0, &id);'; Replacement = 'CreateThread(0, mStackSize, (LPTHREAD_START_ROUTINE)ThreadEntry, this, 0, &id);' },
+    @{ Id = 'ABI-01C'; Kind = 'Hardening'; Check = 'win32-callbacks'; File = $rw; Anchor = 'namespace RedWarning { INT_PTR CALLBACK DlgProc(HWND hDlg, UINT uiMessage, WPARAM uiWParam, LPARAM lParam); }'; Replacement = 'namespace RedWarning { INT_PTR CALLBACK DlgProc(HWND hDlg, UINT uiMessage, WPARAM uiWParam, LONG lParam); }' },
+    @{ Id = 'ABI-04'; Kind = 'Hardening'; Check = 'galaxy-vtable'; File = $gsa; Anchor = 'GetGalaxyFriendsInterface()->RequestFriendList();'; Replacement = '(*(void(__thiscall**)(void*))(*(char**)GetGalaxyFriendsInterface() + 0x34))(GetGalaxyFriendsInterface());' },
+    @{ Id = 'ABI-04B'; Kind = 'Hardening'; Check = 'galaxy-vtable'; File = $gsa; Anchor = 'GetGalaxyFriendsInterface()->RequestFriendList();'; Replacement = 'if ((*(void***)GetGalaxyFriendsInterface())[13]) GetGalaxyFriendsInterface()->RequestFriendList();' },
+    @{ Id = 'ABI-05'; Kind = 'Hardening'; Check = 'fastcall-edx'; File = $ngc; Anchor = 'void __fastcall SetHoleRecordRadius(int* pThis, int value)'; Replacement = "void __fastcall SetHoleRecordRadius(int* pThis, void*, int value);`nvoid __fastcall SetHoleRecordRadius(int* pThis, int value)" },
+    @{ Id = 'ABI-05B'; Kind = 'Hardening'; Check = 'fastcall-edx'; File = $ngc; Anchor = 'void __fastcall SetHoleRecordRadius(int* pThis, int value)'; Replacement = "void __fastcall SetHoleRecordRadius(int* pThis, void* pUnused, int value);`nvoid __fastcall SetHoleRecordRadius(int* pThis, int value)" },
+    @{ Id = 'ABI-05C'; Kind = 'Hardening'; Check = 'fastcall-edx'; File = $lls; Anchor = 'void __fastcall GetMissionWorld(char* pcWorld)'; Replacement = "void __fastcall GetMissionWorld(char* pcWorld, int)`n{`n}`n`nvoid __fastcall GetMissionWorld(char* pcWorld)" },
     @{ Id = 'FLAG-ALIGNNEW'; Kind = 'Tlog'; Project = 'game'; Check = 'flag-alignednew'; File = 'BattlefrontII.vcxproj'; Anchor = '/Zc:alignedNew- /Zc:inline- %(AdditionalOptions)'; Replacement = '/Zc:inline- %(AdditionalOptions)' },
     @{ Id = 'FLAG-INLINE'; Kind = 'Tlog'; Project = 'game'; Check = 'flag-inline'; File = 'BattlefrontII.vcxproj'; Anchor = '/Zc:alignedNew- /Zc:inline- %(AdditionalOptions)'; Replacement = '/Zc:alignedNew- %(AdditionalOptions)' },
     @{ Id = 'FLAG-ALIGNNEW-T'; Kind = 'Tlog'; Project = 'tests'; Check = 'flag-alignednew-tests'; File = 'tests\OpenSWBF2Tests.vcxproj'; Anchor = '/Zc:alignedNew- %(AdditionalOptions)'; Replacement = '%(AdditionalOptions)' },

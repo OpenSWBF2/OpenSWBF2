@@ -86,21 +86,6 @@ void StreamRenderer::DisconnectInternal()
     }
 }
 
-// FUNCTION: SWBF2 0x00749150
-void* __fastcall sub_749150(void* pRenderer, int, unsigned int uiFlags)
-{
-    StreamRenderer* const pThis = (StreamRenderer*)pRenderer;
-
-    pThis->StreamRenderer::~StreamRenderer();
-
-    if ((uiFlags & 1) != 0)
-    {
-        ::operator delete(pThis);
-    }
-
-    return pThis;
-}
-
 // FUNCTION: SWBF2 0x00749370
 void StreamRenderer::Flush()
 {

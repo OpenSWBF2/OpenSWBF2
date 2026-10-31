@@ -112,20 +112,6 @@ DSMediaBuffer::~DSMediaBuffer()
 
 namespace Snd {
 
-// FUNCTION: SWBF2 0x00750e40
-void* __fastcall sub_750E40(void* pBuffer, int, unsigned int uiFlags)
-{
-    ((DSMediaBuffer*)pBuffer)->DSMediaBuffer::~DSMediaBuffer();
-    if (uiFlags & 1)
-    {
-        ::operator delete(pBuffer);
-    }
-    return pBuffer;
-}
-}
-
-namespace Snd {
-
 // FUNCTION: SWBF2 0x00750f10
 long __stdcall DSMediaBuffer::GetBufferAndLength(unsigned char** ppBuffer, unsigned long* pulLength)
 {

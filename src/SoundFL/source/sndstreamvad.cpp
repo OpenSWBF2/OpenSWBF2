@@ -22,21 +22,6 @@ StreamVAD::~StreamVAD()
 {
 }
 
-// FUNCTION: SWBF2 0x007420b0
-void* __fastcall sub_7420B0(void* pVAD, int, unsigned int uiFlags)
-{
-    StreamVAD* const pThis = (StreamVAD*)pVAD;
-
-    pThis->StreamVAD::~StreamVAD();
-
-    if ((uiFlags & 1) != 0)
-    {
-        ::operator delete(pThis);
-    }
-
-    return pThis;
-}
-
 // FUNCTION: SWBF2 0x007421a0
 StreamPacket* StreamVAD::GetPacket(unsigned int uiOutput)
 {

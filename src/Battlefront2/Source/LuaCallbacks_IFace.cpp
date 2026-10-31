@@ -144,7 +144,7 @@ void StatsManagerSetStoppedState()
 namespace StatsManager {
 
 // FUNCTION: SWBF2 0x005308c0
-bool __fastcall ReadStatsGetResults(int iUnused, void* pData)
+bool __fastcall ReadStatsGetResults(void* pData)
 {
     memset(pData, 0, 0x460);
     int* pWords = static_cast<int*>(pData);
@@ -213,7 +213,7 @@ void __fastcall TableReadColor(const char* pcKey, float* pfColor)
 namespace Lua_Callbacks {
 
 // FUNCTION: SWBF2 0x00587f60
-void __fastcall TableReadDirection(int iUnused, float* pfDirection)
+void __fastcall TableReadDirection(float* pfDirection)
 {
     lua_pushstring(LuaHelper::mState, "direction");
     lua_rawget(LuaHelper::mState, -2);
@@ -3765,7 +3765,7 @@ int ScriptCB_GetLeaderBoardPlayerData(lua_State* L)
 {
     DoPeriodicLuaGC(true);
     LeaderBoardPlayerStatsT stats;
-    StatsManager::ReadStatsGetResults(0, &stats);
+    StatsManager::ReadStatsGetResults(&stats);
     lua_gettop(LuaHelper::mState);
     lua_pushnil(LuaHelper::mState);
     LuaHelper::SetGlobal("leaderboarddetails_data");
@@ -4299,7 +4299,7 @@ int ScriptCB_SetIFaceLighting(lua_State* L)
                 PblVector3 direction;
                 RedColorValue color;
                 RedInterfaceScreen::GetDirectionalLight(i, direction, color);
-                Lua_Callbacks::TableReadDirection(0, &direction.x);
+                Lua_Callbacks::TableReadDirection(&direction.x);
                 Lua_Callbacks::TableReadColor("color", &color.r);
                 RedInterfaceScreen::s_directionalLight[i].SetDirection(direction);
                 RedInterfaceScreen::s_directionalLight[i].SetColor(color);

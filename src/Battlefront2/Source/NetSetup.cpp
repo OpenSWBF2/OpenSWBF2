@@ -47,7 +47,7 @@ extern unsigned __int64 netCreatedLobbyId;
 extern int netLoginFailureReason;
 const char* GetNextMissionForLobby();
 const char* GetEncodedLobbyPassword();
-void* GetGalaxyMatchmaking();
+galaxy::api::IMatchmaking* GetGalaxyMatchmaking();
 
 namespace gf { namespace utils {
 const char* ToString(bool b);
@@ -57,8 +57,8 @@ const char* ToString(unsigned int u);
 
 static void SetLobbyData(const char* pKey, const char* pValue)
 {
-    void* pMatchmaking = GetGalaxyMatchmaking();
-    ((galaxy::api::IMatchmaking*)pMatchmaking)->SetLobbyData(galaxy::api::GalaxyID(netCreatedLobbyId), pKey, pValue);
+    galaxy::api::IMatchmaking* pMatchmaking = GetGalaxyMatchmaking();
+    pMatchmaking->SetLobbyData(galaxy::api::GalaxyID(netCreatedLobbyId), pKey, pValue);
 }
 
 // LIBRARY: SWBF2 0x00411c30
@@ -1602,7 +1602,7 @@ bool __fastcall IsGalaxyIdValid(const unsigned __int64* pThis)
 }
 
 // FUNCTION: SWBF2 0x0052e470
-unsigned int* __fastcall SetGalaxyIdWords(unsigned int* pThis, void*, unsigned int lo, unsigned int hi)
+unsigned int* __fastcall SetGalaxyIdWords(unsigned int* pThis, unsigned int lo, unsigned int hi)
 {
     pThis[0] = lo;
     pThis[1] = hi;
@@ -1610,7 +1610,7 @@ unsigned int* __fastcall SetGalaxyIdWords(unsigned int* pThis, void*, unsigned i
 }
 
 // FUNCTION: SWBF2 0x0052e490
-unsigned int* __fastcall CopyGalaxyIdWords(unsigned int* pThis, void*, const unsigned int* pOther)
+unsigned int* __fastcall CopyGalaxyIdWords(unsigned int* pThis, const unsigned int* pOther)
 {
     pThis[0] = pOther[0];
     pThis[1] = pOther[1];
@@ -1618,7 +1618,7 @@ unsigned int* __fastcall CopyGalaxyIdWords(unsigned int* pThis, void*, const uns
 }
 
 // FUNCTION: SWBF2 0x0052e4b0
-bool __fastcall EqualGalaxyIdWords(const unsigned int* pThis, void*, const unsigned int* pOther)
+bool __fastcall EqualGalaxyIdWords(const unsigned int* pThis, const unsigned int* pOther)
 {
     return pThis[0] == pOther[0] && pThis[1] == pOther[1];
 }
@@ -1800,7 +1800,7 @@ void WriteJoinReject(NetPktGroup& group, JoinRejectReason eReason)
 }
 
 // FUNCTION: SWBF2 0x00591400
-unsigned int* __fastcall CopyNetSessionIdWords(unsigned int* pThis, void*, const unsigned int* pOther)
+unsigned int* __fastcall CopyNetSessionIdWords(unsigned int* pThis, const unsigned int* pOther)
 {
     pThis[0] = pOther[0];
     pThis[1] = pOther[1];
@@ -1880,8 +1880,6 @@ hostent* getlocalhost()
     gethostname(name, sizeof(name));
     return gethostbyname(name);
 }
-
-extern unsigned int netDirectSocket;
 
 // FUNCTION: SWBF2 0x005e7630
 void SendStateDst::Cancel()
@@ -2749,14 +2747,12 @@ int netMatchOperation;
 
 extern int netLanRegisterState;
 extern bool isLAN;
-extern unsigned int netBroadcastSendSocket;
-extern unsigned int netBroadcastRecvSocket;
 
 extern bool netLobbyRequestPending;
 extern bool netLeavingLobby;
 extern unsigned __int64 netCreatedLobbyId;
 extern bool gGalaxyInitialized;
-void* GetGalaxyMatchmaking();
+galaxy::api::IMatchmaking* GetGalaxyMatchmaking();
 void ResetLanRegistration();
 namespace gf { bool checkError(); }
 
@@ -2826,8 +2822,8 @@ bool NetGameDesc::operator==(const NetGameDesc& rOther)
     {
         return false;
     }
-    return EqualGalaxyIdWords((const unsigned int*)&other->mAddr, 0,
-                        (const unsigned int*)&game->mAddr);
+    return EqualGalaxyIdWords((const unsigned int*)&other->mAddr,
+                              (const unsigned int*)&game->mAddr);
 }
 
 // GLOBAL: SWBF2 0x01ee7d48
@@ -2865,10 +2861,10 @@ char NetMatch::StartFindGames(int, const NetSessionId* id)
     if (gf::isInitialized())
     {
         netLobbyState = 1;
-        void* matchmaking = GetGalaxyMatchmaking();
-        ((galaxy::api::IMatchmaking*)matchmaking)->AddRequestLobbyListStringFilter("galaxy_lobby_cancelled", "1", 1);
+        galaxy::api::IMatchmaking* matchmaking = GetGalaxyMatchmaking();
+        matchmaking->AddRequestLobbyListStringFilter("galaxy_lobby_cancelled", "1", 1);
         matchmaking = GetGalaxyMatchmaking();
-        return ((galaxy::api::IMatchmaking*)matchmaking)->RequestLobbyList(false);
+        return matchmaking->RequestLobbyList(false);
     }
     return 0;
 }
@@ -3995,7 +3991,7 @@ void ReadLaunch(NetPktGroup& group, bool& bAcked)
     if (!NetComm::IsHost())
     {
         GameLoop::SetNextMission(mission);
-        CopyNetSessionIdWords((unsigned int*)&netSessionId.id, 0, (const unsigned int*)&session.id);
+        CopyNetSessionIdWords((unsigned int*)&netSessionId.id, (const unsigned int*)&session.id);
     }
 
     group.Read(netHeroesEnabled);
@@ -4029,8 +4025,8 @@ void ReadLaunch(NetPktGroup& group, bool& bAcked)
             ClearGalaxyIdWords(address);
             NetSocket::SetAddr(address, 0, 0);
             unsigned int noPeer[2];
-            SetGalaxyIdWords(noPeer, 0, 0, 0);
-            CopyNetSessionIdWords(address, 0, noPeer);
+            SetGalaxyIdWords(noPeer, 0, 0);
+            CopyNetSessionIdWords(address, noPeer);
             NetCommP::Connect(hostIndex + 64, address);
 
             unsigned __int64 clientMask;
@@ -4044,8 +4040,8 @@ void ReadLaunch(NetPktGroup& group, bool& bAcked)
                     {
                         NetSocket::SetAddr(address, 0, 0);
                         unsigned int self[2];
-                        SetGalaxyIdWords(self, 0, 0, 0);
-                        CopyNetSessionIdWords(address, 0, self);
+                        SetGalaxyIdWords(self, 0, 0);
+                        CopyNetSessionIdWords(address, self);
                     }
                     else
                     {
@@ -4081,8 +4077,8 @@ void ReadLaunch(NetPktGroup& group, bool& bAcked)
                     {
                         NetSocket::SetAddr(address, 0, 0);
                         unsigned int self[2];
-                        SetGalaxyIdWords(self, 0, 0, 0);
-                        CopyNetSessionIdWords(address, 0, self);
+                        SetGalaxyIdWords(self, 0, 0);
+                        CopyNetSessionIdWords(address, self);
                     }
                     else
                     {
@@ -5216,7 +5212,7 @@ void CNetJoinGame::Update()
 // GLOBAL: SWBF2 0x007e8ee4
 char* netGameVersion = "1.1";
 
-void* GetGalaxyNetworkingInterface();
+galaxy::api::INetworking* GetGalaxyNetworkingInterface();
 int Min(int a, int b);
 
 // GLOBAL: SWBF2 0x01faa724
@@ -5833,10 +5829,10 @@ bool CNetFindGame::Update()
                 {
                     continue;
                 }
-                void* networking = GetGalaxyNetworkingInterface();
+                galaxy::api::INetworking* networking = GetGalaxyNetworkingInterface();
                 unsigned __int64 peer;
-                CopyGalaxyIdWords((unsigned int*)&peer, 0, (const unsigned int*)&game->mAddr);
-                int ping = ((galaxy::api::INetworking*)networking)->GetPingWith(galaxy::api::GalaxyID(peer));
+                CopyGalaxyIdWords((unsigned int*)&peer, (const unsigned int*)&game->mAddr);
+                int ping = networking->GetPingWith(galaxy::api::GalaxyID(peer));
                 game->mFindData.mPingTime = fmaxf(0.0f, (float)ping * 0.001f);
             }
         }
@@ -6565,8 +6561,8 @@ void PublishNextMissionToLobby()
         SetLobbyData("galaxy_revision", gf::utils::ToString(1u));
         SetLobbyData("galaxy_lobby_cancelled", gf::utils::ToString(false));
 
-        void* pMatchmaking = GetGalaxyMatchmaking();
-        ((galaxy::api::IMatchmaking*)pMatchmaking)->SetLobbyJoinable(galaxy::api::GalaxyID(netCreatedLobbyId), true);
+        galaxy::api::IMatchmaking* pMatchmaking = GetGalaxyMatchmaking();
+        pMatchmaking->SetLobbyJoinable(galaxy::api::GalaxyID(netCreatedLobbyId), true);
     }
     netLobbyPublishPumps++;
 }

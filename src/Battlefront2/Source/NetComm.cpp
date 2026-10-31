@@ -460,7 +460,7 @@ unsigned short __fastcall NetSocket::SetAddr(void* pDest, unsigned int uIP, unsi
 }
 
 // FUNCTION: SWBF2 0x005b2300
-void* GetGalaxyMatchmakingForNetComm()
+galaxy::api::IMatchmaking* GetGalaxyMatchmakingForNetComm()
 {
     if (!galaxy::api::GalaxyFactory::GetInstance())
     {
@@ -471,7 +471,7 @@ void* GetGalaxyMatchmakingForNetComm()
 }
 
 // FUNCTION: SWBF2 0x005b2320
-void* GetGalaxyNetworkingForNetComm()
+galaxy::api::INetworking* GetGalaxyNetworkingForNetComm()
 {
     if (!galaxy::api::GalaxyFactory::GetInstance())
     {
@@ -490,8 +490,8 @@ int NetComm::GetPing(int iDest)
     {
         return dest.ping;
     }
-    void* pNetworking = GetGalaxyNetworkingForNetComm();
-    int iPing = ((galaxy::api::INetworking*)pNetworking)->GetPingWith(galaxy::api::GalaxyID(peer));
+    galaxy::api::INetworking* pNetworking = GetGalaxyNetworkingForNetComm();
+    int iPing = pNetworking->GetPingWith(galaxy::api::GalaxyID(peer));
     return iPing < 0 ? dest.ping : iPing;
 }
 
@@ -605,8 +605,8 @@ void NetComm::Disconnect(int iDest)
     unsigned __int64* pPeer = (unsigned __int64*)dest.mAddressStorage;
     if (iDest == 64 && *pPeer)
     {
-        void* pInterface = GetGalaxyMatchmakingForNetComm();
-        ((galaxy::api::IMatchmaking*)pInterface)->LeaveLobby(galaxy::api::GalaxyID(*pPeer));
+        galaxy::api::IMatchmaking* pInterface = GetGalaxyMatchmakingForNetComm();
+        pInterface->LeaveLobby(galaxy::api::GalaxyID(*pPeer));
         gf::checkError();
     }
     *pPeer = 0;
@@ -979,9 +979,9 @@ int __fastcall FindSource(const void* pSource, unsigned int uType)
     {
         unsigned __int64 peerID;
         CopyEnteredLobbyId(&peerID);
-        void* pInterface = GetGalaxyMatchmakingForNetComm();
+        galaxy::api::IMatchmaking* pInterface = GetGalaxyMatchmakingForNetComm();
         galaxy::api::GalaxyID mappedID =
-            ((galaxy::api::IMatchmaking*)pInterface)->GetLobbyOwner(galaxy::api::GalaxyID(peerID));
+            pInterface->GetLobbyOwner(galaxy::api::GalaxyID(peerID));
         if (mappedID.value == *(const unsigned __int64*)pSource)
         {
             uIP = (unsigned int)peerID;

@@ -16,8 +16,8 @@
 #include "Steam/gfSteamAuth.h"
 #include "Steam/utf8.h"
 
-void* GetGalaxyFriends();
-void* GetGalaxyUser();
+galaxy::api::IFriends* GetGalaxyFriends();
+galaxy::api::IUser* GetGalaxyUser();
 extern bool netLoginPending;
 extern int netLoginFailureReason;
 void PublishNextMissionToLobby();
@@ -40,8 +40,8 @@ extern float netNextLanQueryTime;
 extern int netLanQueryCount;
 extern unsigned int netLanQuerySequence;
 extern unsigned __int64 netLocalGSID;
-extern unsigned int netBroadcastSendSocket;
-extern unsigned int netBroadcastRecvSocket;
+extern SOCKET netBroadcastSendSocket;
+extern SOCKET netBroadcastRecvSocket;
 extern bool netLobbyRequestPending;
 extern bool netLeavingLobby;
 extern bool netHandlingFindPacket;
@@ -51,7 +51,7 @@ extern unsigned __int64 netCreatedLobbyId;
 extern char netLocalIPText[18];
 extern NetAddr myAddr;
 
-void* GetGalaxyMatchmaking();
+galaxy::api::IMatchmaking* GetGalaxyMatchmaking();
 hostent* getlocalhost();
 bool PumpGalaxyMatchmaking();
 void ResetLanRegistration();
@@ -157,8 +157,8 @@ void NetMatch::StartRegisterGame(bool)
     }
 
     netMatchOperation = 1;
-    void* matchmaking = GetGalaxyMatchmaking();
-    ((galaxy::api::IMatchmaking*)matchmaking)->CreateLobby(2, NetSetup::GetMaxPlayers(), false, 2);
+    galaxy::api::IMatchmaking* matchmaking = GetGalaxyMatchmaking();
+    matchmaking->CreateLobby(2, NetSetup::GetMaxPlayers(), false, 2);
     if (!gf::checkError())
     {
         netLobbyState = 3;
@@ -201,10 +201,10 @@ char __fastcall NetMatch::EndFindGames(bool clearMatchmaking)
     }
     if (NetComm::IsLAN())
     {
-        closesocket((SOCKET)netBroadcastSendSocket);
-        netBroadcastSendSocket = 0;
-        int result = closesocket((SOCKET)netBroadcastRecvSocket);
-        netBroadcastRecvSocket = 0;
+        closesocket(netBroadcastSendSocket);
+        netBroadcastSendSocket = INVALID_SOCKET;
+        int result = closesocket(netBroadcastRecvSocket);
+        netBroadcastRecvSocket = INVALID_SOCKET;
         return (char)result;
     }
     netLobbyState = 0;
@@ -250,8 +250,8 @@ char __fastcall NetMatch::StartJoinGame(const NetSessionId* id)
     }
     else if (gf::isInitialized())
     {
-        void* matchmaking = GetGalaxyMatchmaking();
-        ((galaxy::api::IMatchmaking*)matchmaking)->JoinLobby(galaxy::api::GalaxyID(id->id));
+        galaxy::api::IMatchmaking* matchmaking = GetGalaxyMatchmaking();
+        matchmaking->JoinLobby(galaxy::api::GalaxyID(id->id));
         if (gf::checkError())
         {
             return 1;
@@ -572,8 +572,8 @@ char const* NetMatch::GetLoginOverrideName(int  )
         }
         if (!pcName)
         {
-            void* pFriends = GetGalaxyFriends();
-            pcName = ((galaxy::api::IFriends*)pFriends)->GetPersonaName();
+            galaxy::api::IFriends* pFriends = GetGalaxyFriends();
+            pcName = pFriends->GetPersonaName();
         }
         sName = pcName;
 
@@ -635,8 +635,8 @@ bool NetMatch::IsLoginSuccessful(int  , bool  )
     {
         return false;
     }
-    void* pUser = GetGalaxyUser();
-    return ((galaxy::api::IUser*)pUser)->SignedIn();
+    galaxy::api::IUser* pUser = GetGalaxyUser();
+    return pUser->SignedIn();
 }
 
 // FUNCTION: SWBF2 0x005d62f0
@@ -660,8 +660,8 @@ void NetMatch::CancelLogin(int  , bool  )
     netNoCableCount = 0;
     if (gf::isInitialized())
     {
-        void* pFriends = GetGalaxyFriends();
-        ((galaxy::api::IFriends*)pFriends)->DeleteRichPresence("connect");
+        galaxy::api::IFriends* pFriends = GetGalaxyFriends();
+        pFriends->DeleteRichPresence("connect");
     }
     netLobbyState = 0;
     netCreatedLobbyId = 0;

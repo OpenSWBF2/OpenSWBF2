@@ -91,7 +91,7 @@ static int LoadInt (LoadState* S)
 // LoadSize
 static size_t LoadSize (LoadState* S)
 {
- size_t x;
+ unsigned int x;
  LoadBlock(S,&x,sizeof(x));
  return x;
 }
@@ -269,7 +269,7 @@ static void LoadHeader (LoadState* S)
 	S->name,V(version),V(VERSION0));
  S->swap=(luaU_endianness()!=LoadByte(S));
  TESTSIZE(sizeof(int),"int");
- TESTSIZE(sizeof(size_t), "size_t");
+ TESTSIZE(4, "size_t");
  TESTSIZE(sizeof(Instruction), "Instruction");
  TESTSIZE(SIZE_OP, "OP");
  TESTSIZE(SIZE_A, "A");

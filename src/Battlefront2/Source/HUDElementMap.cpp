@@ -737,7 +737,7 @@ HUD::ElementMap* HUD::ElementMap::FindByPlayerIndex(int iPlayerIndex)
 // GLOBAL: SWBF2 0x01e56c38
 static bool updating;
 
-namespace FriendBuddyList { bool __fastcall IsFriendBuddy(int iLocalIndex, int iPlayerId); }
+namespace FriendBuddyList { bool __fastcall IsFriendBuddy(int iPlayerId); }
 
 const RedColor Interpolate(const RedColor& a, const RedColor& b, float t);
 
@@ -1156,8 +1156,8 @@ void HUD::ElementMap::UpdateTargetIcons(const Controllable* pPlayer)
             {
                 GameObject* pTarget = target.actor;
                 if (pTarget->GetControllable() &&
-                    FriendBuddyList::IsFriendBuddy(NetGame::GetLocalIndex(mPlayerIndex),
-                               ((GameObject*)target.actor)->GetControllable()->GetPlayerId()))
+                    FriendBuddyList::IsFriendBuddy(
+                        ((GameObject*)target.actor)->GetControllable()->GetPlayerId()))
                 {
                     color = gHudHighlightColor;
                 }
@@ -2008,7 +2008,7 @@ unsigned int GetFriendBuddyCount()
 namespace FriendBuddyList {
 
 // FUNCTION: SWBF2 0x0052e150
-int __fastcall GetFriendBuddy(int, unsigned int index)
+int __fastcall GetFriendBuddy(unsigned int index)
 {
     galaxy::api::GalaxyID id = gf::friends::friendByIndex(index);
     if (id.value)
@@ -2022,12 +2022,12 @@ int __fastcall GetFriendBuddy(int, unsigned int index)
 namespace FriendBuddyList {
 
 // FUNCTION: SWBF2 0x0052e190
-bool __fastcall IsFriendBuddy(int, int playerId)
+bool __fastcall IsFriendBuddy(int playerId)
 {
     const unsigned int count = FriendBuddyList::GetFriendBuddyCount();
     for (unsigned int i = 0; i < count; ++i)
     {
-        if (FriendBuddyList::GetFriendBuddy(0, i) == playerId)
+        if (FriendBuddyList::GetFriendBuddy(i) == playerId)
         {
             return true;
         }

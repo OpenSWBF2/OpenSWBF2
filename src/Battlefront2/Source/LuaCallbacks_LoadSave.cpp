@@ -1771,7 +1771,7 @@ static int LoadLuaItems(lua_State* L, unsigned char* pBuffer, unsigned int iSize
 namespace Lua_Callbacks {
 
 // FUNCTION: SWBF2 0x0058a9d0
-void __fastcall GetMissionWorld(char* pcWorld, int)
+void __fastcall GetMissionWorld(char* pcWorld)
 {
     Lua_Callbacks::ScriptCB_LoadMissionSetup(LuaHelper::mState);
     *pcWorld = 0;

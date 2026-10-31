@@ -27,17 +27,6 @@ void StreamResampler::SetBuffer(void* pBuffer, unsigned int uiSize)
     mOutputPacket.mBufferUsed = 0;
 }
 
-// FUNCTION: SWBF2 0x0074cbe0
-void* __fastcall sub_74CBE0(void* pResampler, int, unsigned int uiFlags)
-{
-    ((StreamResampler*)pResampler)->StreamResampler::~StreamResampler();
-    if ((uiFlags & 1) != 0)
-    {
-        ::operator delete(pResampler);
-    }
-    return pResampler;
-}
-
 // FUNCTION: SWBF2 0x0074cc10
 void StreamResampler::CompletePacket()
 {

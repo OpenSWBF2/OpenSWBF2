@@ -75,21 +75,6 @@ void StreamSplitter::Flush()
 namespace Snd
 {
 
-// FUNCTION: SWBF2 0x0074cf40
-void* __fastcall sub_74CF40(void* pSplitter, int, unsigned int uiFlags)
-{
-    StreamSplitter* const pThis = (StreamSplitter*)pSplitter;
-
-    pThis->StreamSplitter::~StreamSplitter();
-
-    if ((uiFlags & 1) != 0)
-    {
-        ::operator delete(pThis);
-    }
-
-    return pThis;
-}
-
 // FUNCTION: SWBF2 0x0074cfe0
 StreamPacket* StreamSplitter::GetPacket(unsigned int uiOutput)
 {

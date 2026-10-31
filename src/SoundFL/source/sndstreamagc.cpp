@@ -23,17 +23,6 @@ StreamAGC::~StreamAGC()
 {
 }
 
-// FUNCTION: SWBF2 0x00741e10
-void* __fastcall sub_741E10(void* pAGC, int, unsigned int uiFlags)
-{
-    ((StreamAGC*)pAGC)->StreamAGC::~StreamAGC();
-    if ((uiFlags & 1) != 0)
-    {
-        ::operator delete(pAGC);
-    }
-    return pAGC;
-}
-
 }
 
 // FUNCTION: SWBF2 0x00741e40

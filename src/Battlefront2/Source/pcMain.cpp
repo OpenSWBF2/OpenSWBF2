@@ -43,7 +43,6 @@ void InitializeMainCameraState();
 
 void* DebugSystemAlloc(unsigned int uiSize);
 void DebugSystemFree(void* pBlock);
-long __stdcall LowLevelKeyboardProc(int nCode, unsigned int wParam, long lParam);
 
 void CloseJournal();
 
@@ -195,7 +194,7 @@ static void SoundEnable(bool bEnable)
 static bool sCloseDeferred;
 
 // FUNCTION: SWBF2 0x006172a0
-long __stdcall WindowProc(HWND__* hWnd, unsigned int Msg, unsigned int wParam, long lParam)
+LRESULT CALLBACK WindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
     switch (Msg)
     {
@@ -653,7 +652,7 @@ void PumpWaitingMessages()
 }
 
 // FUNCTION: SWBF2 0x00617bb0
-void* GetGalaxyNetworking()
+galaxy::api::INetworking* GetGalaxyNetworking()
 {
     if (!galaxy::api::GalaxyFactory::GetInstance())
     {
@@ -664,7 +663,7 @@ void* GetGalaxyNetworking()
 }
 
 // FUNCTION: SWBF2 0x00617bd0
-void* GetGalaxyHostNetworking()
+galaxy::api::INetworking* GetGalaxyHostNetworking()
 {
     if (!galaxy::api::GalaxyFactory::GetInstance())
     {
