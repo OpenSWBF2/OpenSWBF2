@@ -98,7 +98,7 @@ void Allocator<VoiceBase>::operator delete(void* p, void* pMemory, bool bTemp)
 }
 
 template <>
-void Allocator<VoiceBase>::operator delete(void* p, unsigned int uiSize)
+void Allocator<VoiceBase>::operator delete(void* p, size_t uiSize)
 {
     (void)uiSize;
     switch (((VoiceBase*)p)->GetAllocType())

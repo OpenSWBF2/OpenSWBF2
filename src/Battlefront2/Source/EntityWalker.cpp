@@ -1561,7 +1561,7 @@ static PblMatrix _IdentityMatrix(
     PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
     PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
 
-void* WalkerLegPair::operator new(unsigned int uSize)
+void* WalkerLegPair::operator new(size_t uSize)
 {
     return sMemoryPool.Allocate(uSize);
 }

@@ -5,6 +5,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <stddef.h>
 
 #include "sndengine.h"
 
@@ -1241,7 +1242,7 @@ bool Engine::Open(HWND hwnd, MixConfig eMixConfig, bool bEnable,
             (unsigned int)(fMinStreamBufferSizeMs * 0.25f));
     }
 
-    EngineBase::smSoundRAMAllocator.Initialize((unsigned int)smSampleRAM,
+    EngineBase::smSoundRAMAllocator.Initialize((uintptr_t)smSampleRAM,
                                                0x2000000, 0x80,
                                                smSampleRAMBitmap);
 

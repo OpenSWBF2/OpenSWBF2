@@ -3105,10 +3105,10 @@ int RedRenderer::m_uiCurMatrixPoolOffset;
 unsigned int RedRenderer::m_curRenderItemOffset;
 RedCamera* RedRenderer::m_camera;
 RedLightingState* RedRenderer::m_pLightingState;
-int RedRenderer::m_pmObjWorldPrev;
-int RedRenderer::m_pmBoneMatricesPrev;
-int RedRenderer::m_pPrimPrev;
-int RedRenderer::m_pLightingStatePrev;
+intptr_t RedRenderer::m_pmObjWorldPrev;
+intptr_t RedRenderer::m_pmBoneMatricesPrev;
+intptr_t RedRenderer::m_pPrimPrev;
+intptr_t RedRenderer::m_pLightingStatePrev;
 
 // GLOBAL: SWBF2 0x008bef50
 // SYNTHETIC: SWBF2 0x00407590
@@ -7369,9 +7369,9 @@ void __cdecl RedRenderer::internalRenderProg1(RenderItem* pItem, unsigned int ui
     internalShaderBeginEnd(pItem, uiShaderID, uiPass);
 
     pcRedVertexShaderConstantRegister* pRegs;
-    if (pItem->pBoneMatrices && (int)pItem->pBoneMatrices != RedRenderer::m_pmBoneMatricesPrev)
+    if (pItem->pBoneMatrices && (intptr_t)pItem->pBoneMatrices != RedRenderer::m_pmBoneMatricesPrev)
     {
-        RedRenderer::m_pmBoneMatricesPrev = (int)pItem->pBoneMatrices;
+        RedRenderer::m_pmBoneMatricesPrev = (intptr_t)pItem->pBoneMatrices;
         pRegs = m_VSConstants.GetRegisterArray(51, 3 * pItem->numBoneMatrices);
         for (unsigned short i = 0; i < pItem->numBoneMatrices; ++i)
         {
@@ -7382,9 +7382,9 @@ void __cdecl RedRenderer::internalRenderProg1(RenderItem* pItem, unsigned int ui
 
     float fSpotW = 2.0f;
     float fSpotProjected = 0.0f;
-    if ((int)pItem->pPrim != RedRenderer::m_pPrimPrev)
+    if ((intptr_t)pItem->pPrim != RedRenderer::m_pPrimPrev)
     {
-        RedRenderer::m_pPrimPrev = (int)pItem->pPrim;
+        RedRenderer::m_pPrimPrev = (intptr_t)pItem->pPrim;
         pRegs = m_VSConstants.GetRegisterArray(12, 4);
         if (uiRVF & 0x4000)
         {
@@ -7438,9 +7438,9 @@ void __cdecl RedRenderer::internalRenderProg1(RenderItem* pItem, unsigned int ui
         pRegs[15].component[3] = 1.0f;
     }
 
-    if ((int)pItem->pmObjWorld != RedRenderer::m_pmObjWorldPrev)
+    if ((intptr_t)pItem->pmObjWorld != RedRenderer::m_pmObjWorldPrev)
     {
-        RedRenderer::m_pmObjWorldPrev = (int)pItem->pmObjWorld;
+        RedRenderer::m_pmObjWorldPrev = (intptr_t)pItem->pmObjWorld;
         pRegs = m_VSConstants.GetRegisterArray(16, 3);
         PblMatrix mWorld = *pItem->pmObjWorld;
         pRegs[16].SetMatrix4x3(mWorld);
@@ -7453,7 +7453,7 @@ void __cdecl RedRenderer::internalRenderProg1(RenderItem* pItem, unsigned int ui
         const RedLightingState* pLS = pItem->pLightingState;
         sAccumulatedLightingBits |= uiLights;
         pRegs = m_VSConstants.GetRegisterArray(19, 6);
-        RedRenderer::m_pLightingStatePrev = (int)pLS;
+        RedRenderer::m_pLightingStatePrev = (intptr_t)pLS;
         sCurrentFormatHasNormals = bNormals;
         float fDirProjected = 0.0f;
         float fOmniProjected = 0.0f;
@@ -7637,9 +7637,9 @@ void __cdecl RedRenderer::internalRenderProg1(RenderItem* pItem, unsigned int ui
         const RedLightingState* pDefault =
             bNormals ? &RedRenderer::m_aLightingStatePool[2048]
                      : &RedRenderer::m_aLightingStatePool[2049];
-        if ((int)pDefault != RedRenderer::m_pLightingStatePrev)
+        if ((intptr_t)pDefault != RedRenderer::m_pLightingStatePrev)
         {
-            RedRenderer::m_pLightingStatePrev = (int)pDefault;
+            RedRenderer::m_pLightingStatePrev = (intptr_t)pDefault;
             pRegs = m_VSConstants.GetRegisterArray(19, 2);
             const RedAmbientLight& rAmbient = pDefault->ambientLight;
             SetColor_(pRegs[19], rAmbient.m_topColor);
@@ -7692,9 +7692,9 @@ void RedRenderer::internalRenderZPrepassProg1(RenderItem* pItem, unsigned int ui
 
     pcRedVertexShaderConstantRegister* pRegs;
     if (pItem->pBoneMatrices &&
-        (int)pItem->pBoneMatrices != RedRenderer::m_pmBoneMatricesPrev)
+        (intptr_t)pItem->pBoneMatrices != RedRenderer::m_pmBoneMatricesPrev)
     {
-        RedRenderer::m_pmBoneMatricesPrev = (int)pItem->pBoneMatrices;
+        RedRenderer::m_pmBoneMatricesPrev = (intptr_t)pItem->pBoneMatrices;
         pRegs = m_VSConstants.GetRegisterArray(51, 3 * pItem->numBoneMatrices);
         for (unsigned short i = 0; i < pItem->numBoneMatrices; ++i)
         {
@@ -7703,9 +7703,9 @@ void RedRenderer::internalRenderZPrepassProg1(RenderItem* pItem, unsigned int ui
         m_VSConstants.Update();
     }
 
-    if ((int)pItem->pPrim != RedRenderer::m_pPrimPrev)
+    if ((intptr_t)pItem->pPrim != RedRenderer::m_pPrimPrev)
     {
-        RedRenderer::m_pPrimPrev = (int)pItem->pPrim;
+        RedRenderer::m_pPrimPrev = (intptr_t)pItem->pPrim;
         pRegs = m_VSConstants.GetRegisterArray(12, 4);
         pRegs[12].component[0] = (uiRVF & 0x4000) ? 2.0f : 1.0f;
         pRegs[12].component[1] = (uiRVF & 0x4000) ? -1.0f : 0.0f;
@@ -7742,9 +7742,9 @@ void RedRenderer::internalRenderZPrepassProg1(RenderItem* pItem, unsigned int ui
         pRegs[15].component[3] = 1.0f;
     }
 
-    if ((int)pItem->pmObjWorld != RedRenderer::m_pmObjWorldPrev)
+    if ((intptr_t)pItem->pmObjWorld != RedRenderer::m_pmObjWorldPrev)
     {
-        RedRenderer::m_pmObjWorldPrev = (int)pItem->pmObjWorld;
+        RedRenderer::m_pmObjWorldPrev = (intptr_t)pItem->pmObjWorld;
         pRegs = m_VSConstants.GetRegisterArray(16, 3);
         PblMatrix world = *pItem->pmObjWorld;
         pRegs[16].SetMatrix4x3(world);

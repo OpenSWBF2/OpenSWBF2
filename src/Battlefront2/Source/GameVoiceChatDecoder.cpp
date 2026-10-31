@@ -1,5 +1,6 @@
 #include <new>
 #include <string.h>
+#include <stddef.h>
 
 #include "SoundFL/source/sndsampleinfo.h"
 #include "SoundFL/source/sndstreamgsmdecoder.h"
@@ -9,6 +10,7 @@
 #include "SoundFL/source/win/sndsoftoutput.h"
 #include "SoundFL/source/win/sndstreamauxrenderer.h"
 #include "GameVoiceChatDecoder.h"
+#include "GameVoiceChatSlots.h"
 #include "VoiceChatNode.h"
 
 #include "SoundFL/source/sndstreammixer.h"
@@ -187,6 +189,28 @@ void GameVoiceChat::Decoder::Close()
     mAppData = 0;
 }
 
+#ifndef _WIN64
+static_assert(sizeof(Snd::StreamSourceProducer) == 24, "stream source producer size");
+static_assert(sizeof(Snd::StreamPacket) == 24, "stream packet size");
+static_assert(sizeof(Snd::StreamGSMDecoder) == 0x2D4, "stream gsm decoder size");
+static_assert(sizeof(Snd::StreamPacketIO) == 8, "stream packet io size");
+static_assert(sizeof(Snd::StreamSourceProducer) + sizeof(Snd::StreamPacket) + sizeof(Snd::StreamGSMDecoder)
+                  + sizeof(Snd::StreamPacket) + sizeof(Snd::StreamNodeConnection) + sizeof(Snd::StreamPacketIO)
+                  + sizeof(unsigned int) == 0x330,
+              "voice chat decoder slot size");
+#else
+static_assert(alignof(Snd::StreamSourceProducer) <= sizeof(void*) && sizeof(Snd::StreamSourceProducer) % sizeof(void*) == 0,
+              "stream source producer align");
+static_assert(alignof(Snd::StreamPacket) <= sizeof(void*) && sizeof(Snd::StreamPacket) % sizeof(void*) == 0,
+              "stream packet align");
+static_assert(alignof(Snd::StreamGSMDecoder) <= sizeof(void*) && sizeof(Snd::StreamGSMDecoder) % sizeof(void*) == 0,
+              "stream gsm decoder align");
+static_assert(alignof(Snd::StreamNodeConnection) <= sizeof(void*) && sizeof(Snd::StreamNodeConnection) % sizeof(void*) == 0,
+              "stream node connection align");
+static_assert(alignof(Snd::StreamPacketIO) <= sizeof(void*) && sizeof(Snd::StreamPacketIO) % sizeof(void*) == 0,
+              "stream packet io align");
+#endif
+
 // FUNCTION: SWBF2 0x0053c810
 bool GameVoiceChat::Decoder::Open(float fPacketMs, int iSlots)
 {
@@ -199,7 +223,13 @@ bool GameVoiceChat::Decoder::Open(float fPacketMs, int iSlots)
     const unsigned int uiSamples2 = uiSamples * 2u;
     const unsigned int uiAligned2 = (uiSamples2 + 3u) & 0xFFFFFFFCu;
 
-    const unsigned int uiSize = (uiAligned2 + 0x330u) * uiSlots + 0x3Cu
+    const unsigned int uiSlotBytes = sizeof(Snd::StreamSourceProducer) + sizeof(Snd::StreamPacket)
+                                   + sizeof(Snd::StreamGSMDecoder) + sizeof(Snd::StreamPacket)
+                                   + sizeof(Snd::StreamNodeConnection) + sizeof(Snd::StreamPacketIO)
+                                   + sizeof(unsigned int);
+
+    const unsigned int uiAlign = sizeof(void*);
+    const unsigned int uiSize = (uiAligned2 + uiSlotBytes) * uiSlots + 2u * sizeof(Snd::StreamPacket) + 3u * uiAlign
                               + uiSamples4 + uiAligned2 * 2u;
 
     char* const pBlock = (char*)VoiceChat::Alloc(uiSize);
@@ -209,26 +239,25 @@ bool GameVoiceChat::Decoder::Open(float fPacketMs, int iSlots)
         return false;
     }
 
-    const unsigned int uiSlots24 = uiSlots * 24u;
-    char* p = pBlock + uiSlots24;
+    char* p = pBlock + uiSlots * sizeof(Snd::StreamSourceProducer);
     mProducerPackets = (Snd::StreamPacket*)p;
-    p += uiSlots24;
+    p += uiSlots * sizeof(Snd::StreamPacket);
     mDecoders = (Snd::StreamGSMDecoder*)p;
-    p = (char*)(((unsigned int)(p + uiSlots * 0x2D4u) + 3u) & 0xFFFFFFFCu);
+    p += uiSlots * sizeof(Snd::StreamGSMDecoder);
     mDecoderBuffer = (unsigned char*)p;
-    p += uiAligned2 * uiSlots;
+    p = (char*)(((uintptr_t)(p + uiAligned2 * uiSlots) + uiAlign - 1u) & ~(uintptr_t)(uiAlign - 1u));
     mDecoderPackets = (Snd::StreamPacket*)p;
-    p += uiSlots24;
+    p += uiSlots * sizeof(Snd::StreamPacket);
     mMixerConnections = (Snd::StreamNodeConnection*)p;
-    p += uiSlots * 8u;
+    p += uiSlots * sizeof(Snd::StreamNodeConnection);
     mMixerPacketIO = (Snd::StreamPacketIO*)p;
-    p += uiSlots * 8u;
+    p += uiSlots * sizeof(Snd::StreamPacketIO);
     mMixerBufferOffsets = (unsigned int*)p;
-    p = (char*)(((unsigned int)(p + uiSlots * 4u) + 3u) & 0xFFFFFFFCu);
+    p = (char*)(((uintptr_t)(p + uiSlots * sizeof(unsigned int)) + uiAlign - 1u) & ~(uintptr_t)(uiAlign - 1u));
     mMixerAccBuffer = (int*)p;
-    p += uiSamples4;
+    p = (char*)(((uintptr_t)(p + uiSamples4) + uiAlign - 1u) & ~(uintptr_t)(uiAlign - 1u));
     mMixerPackets = (Snd::StreamPacket*)p;
-    p = (char*)(((unsigned int)(p + 0x33u)) & 0xFFFFFFFCu);
+    p += 2u * sizeof(Snd::StreamPacket);
     mMixerOutBuffer = (short*)p;
 
     for (unsigned int i = 0; i < uiSlots; ++i)
@@ -237,10 +266,7 @@ bool GameVoiceChat::Decoder::Open(float fPacketMs, int iSlots)
         ::new (&mProducerPackets[i]) Snd::StreamPacket();
         ::new (&mDecoders[i]) Snd::StreamGSMDecoder();
         ::new (&mDecoderPackets[i]) Snd::StreamPacket();
-        if (&mMixerConnections[i])
-        {
-            memset(&mMixerConnections[i], 0, 24);
-        }
+        GameVoiceChat::ClearMixerConnection(mMixerConnections, i);
         ::new (&mMixerPacketIO[i]) Snd::StreamPacketIO;
     }
 
@@ -251,9 +277,9 @@ bool GameVoiceChat::Decoder::Open(float fPacketMs, int iSlots)
 
     for (unsigned int i = 0; i < uiSlots; ++i)
     {
-        *(unsigned int*)&mProducerPackets[i].mBuffer = 1;
+        mProducerPackets[i].mBuffer = (void*)1;
         mProducers[i].SetPackets(uiPacket, &mProducerPackets[i], 1);
-        *(unsigned int*)&mProducerPackets[i].mBuffer = 0;
+        mProducerPackets[i].mBuffer = 0;
 
         mDecoderPackets[i].mBuffer = mDecoderBuffer + i * uiAligned2;
         mDecoders[i].SetPackets(uiSamples2, &mDecoderPackets[i], 1);

@@ -840,6 +840,21 @@ function Get-FlagChecks($game, $tests) {
     return $checks
 }
 
+function Get-SourceChecks([string]$root) {
+    $rx = [regex]'\boperator\s*(new|delete)\s*(\[\s*\])?\s*\(\s*(?:void\s*\*\s*\w*\s*,\s*)?(?:unsigned(?:\s+int)?|UINT|uint32_t|unsigned\s+__int32)\b'
+    $root = $root.TrimEnd('\')
+    $hits = @()
+    $src = Join-Path $root 'src'
+    foreach ($f in (Get-ChildItem -LiteralPath $src -Recurse -File -Include *.h, *.cpp | Where-Object { $_.FullName -notmatch '\\src\\(LuaFL|ZlibFL)\\' })) {
+        $text = [IO.File]::ReadAllText($f.FullName)
+        foreach ($m in $rx.Matches($text)) {
+            $line = $text.Substring(0, $m.Index).Split("`n").Count
+            $hits += '{0}:{1}' -f $f.FullName.Substring($root.Length + 1), $line
+        }
+    }
+    return @(New-Object PSObject -Property @{ Name = 'new-size-t'; Ok = ($hits.Count -eq 0); Detail = ($hits -join ', ') })
+}
+
 function Get-ImageBase($exe, $workDir, $argLine) {
     $p = Start-Process -FilePath $exe -ArgumentList $argLine -WorkingDirectory $workDir -PassThru -WindowStyle Hidden
     try {

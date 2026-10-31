@@ -187,7 +187,7 @@ public:
             }
         }
 
-        static void* operator new(unsigned int) { return smFreeList.Alloc(); }
+        static void* operator new(size_t) { return smFreeList.Alloc(); }
         static void operator delete(void* p) { smFreeList.Free(p); }
 
         Sound::Properties* mSoundProps;
@@ -232,7 +232,7 @@ public:
     {
         smPropertyList.AddLast(&mNode);
     }
-    static void* operator new(unsigned int) { return smFreeList.Alloc(); }
+    static void* operator new(size_t) { return smFreeList.Alloc(); }
     static void operator delete(void* p) { smFreeList.Free(p); }
 
     ~Properties();

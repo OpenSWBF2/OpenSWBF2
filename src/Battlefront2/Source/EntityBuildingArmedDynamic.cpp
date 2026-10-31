@@ -127,7 +127,7 @@ EntityBuildingArmedDynamic::EntityBuildingArmedDynamic(EntityBuildingArmedDynami
 // SYNTHETIC: SWBF2 0x00496e03
 // [thunk]:EntityBuildingArmedDynamic::`scalar deleting destructor' adjustor{608}
 
-void* EntityBuildingArmedDynamic::operator new(unsigned int uSize)
+void* EntityBuildingArmedDynamic::operator new(size_t uSize)
 {
     return sMemoryPool.Allocate(uSize);
 }

@@ -99,7 +99,7 @@ const char* EntitySoundStatic::GetDerivedRttiName() const
     return rttiNameEntitySoundStatic;
 }
 
-void* EntitySoundStatic::operator new(unsigned int uSize)
+void* EntitySoundStatic::operator new(size_t uSize)
 {
     return sMemoryPool.Allocate(uSize);
 }

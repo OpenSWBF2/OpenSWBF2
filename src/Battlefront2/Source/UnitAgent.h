@@ -21,7 +21,7 @@ class UnitAgent : public Agent
 
 public:
 
-    static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }
+    static void* operator new(size_t uiSize) { return sMemoryPool.Allocate(uiSize); }
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
     static MemoryPool sMemoryPool;
 

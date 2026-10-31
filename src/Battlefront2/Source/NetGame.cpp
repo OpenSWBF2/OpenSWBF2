@@ -5,6 +5,7 @@
 #include <new>
 #include <math.h>
 #include <string.h>
+#include <stddef.h>
 #include <algorithm>
 #include <windows.h>
 #include <d3dx9math.h>
@@ -15532,10 +15533,10 @@ void FinishSend(GameObject** ppSends, GameObject* (*ppScopes)[64], int*)
             for (j = 0; j < 2; ++j)
             {
                 GameObject* pObject = ppScopes[j][i];
-                if (pObject && count < 64 && !added.Find((unsigned int)pObject))
+                if (pObject && count < 64 && !added.Find((unsigned int)(uintptr_t)pObject))
                 {
                     ppSends[count++] = pObject;
-                    if (added.Store((unsigned int)pObject, pObject))
+                    if (added.Store((unsigned int)(uintptr_t)pObject, pObject))
                     {
                         ++addedCount;
                     }

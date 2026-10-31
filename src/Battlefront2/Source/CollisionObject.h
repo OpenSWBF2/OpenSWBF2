@@ -78,7 +78,7 @@ class TreeGridStack
 public:
 
     TreeGridStack() : mStackSize(0), mNext(0) {}
-    static void* operator new(unsigned int uiSize);
+    static void* operator new(size_t uiSize);
     static void operator delete(void* pBlock);
     TreeGridStack* AddObject(TreeGridObject* pObj, const PblVector3& rPos, float fSize);
     TreeGridStack* RemoveObject(TreeGridObject* pObj);

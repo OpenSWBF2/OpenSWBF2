@@ -24,7 +24,7 @@ MemoryPool RedShadingPose::Entry::sMemoryPool("RedShadingPose::Entry", 0xc);
 // `dynamic atexit destructor for 'RedShadingState::sMemoryPool''
 MemoryPool RedShadingState::sMemoryPool("RedShadingState", 0x20c);
 
-void* RedShadingPose::Entry::operator new(unsigned int uiSize)
+void* RedShadingPose::Entry::operator new(size_t uiSize)
 {
     return sMemoryPool.Allocate(uiSize);
 }

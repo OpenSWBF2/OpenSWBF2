@@ -24,7 +24,7 @@ char EntityDefenseGridTurret::rttiNameEntityDefenseGridTurret[] = "EntityDefense
 // `dynamic atexit destructor for 'EntityDefenseGridTurret::sMemoryPool''
 MemoryPool EntityDefenseGridTurret::sMemoryPool("EntityDefenseGridTurret", 0x6c0);
 
-void* EntityDefenseGridTurret::operator new(unsigned int uSize)
+void* EntityDefenseGridTurret::operator new(size_t uSize)
 {
     return sMemoryPool.Allocate(uSize);
 }
