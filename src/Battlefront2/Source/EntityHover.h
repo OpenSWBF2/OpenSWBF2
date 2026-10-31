@@ -294,7 +294,7 @@ public:
 
     virtual ~EntityHover();
 
-    static void* operator new(unsigned int uSize);
+    static void* operator new(size_t uSize);
     static void operator delete(void* pBlock);
 
     virtual bool IsRtti(unsigned int uRtti) const;

@@ -2,6 +2,8 @@
 
 #include "sndglobals.h"
 
+#include <stddef.h>
+
 namespace Snd
 {
 
@@ -31,7 +33,7 @@ bool FreeList::AllocBlocks(unsigned int uiNumBlocks, Block** ppFirstBlock)
         }
 
         char* const pEntries =
-            (char*)((((unsigned int)pAllocAddress + mAlignment - 1) / mAlignment)
+            (char*)((((uintptr_t)pAllocAddress + mAlignment - 1) / mAlignment)
                     * mAlignment);
         Block* const pBlock = (Block*)(pEntries + uiBlockBytes);
 
@@ -61,7 +63,7 @@ void* FreeList::Block::AllocEntry(unsigned int uiEntrySize, unsigned int uiEntri
     {
         return 0;
     }
-    return (char*)this + (handle.mStartEntry - uiEntriesPerBlock) * uiEntrySize;
+    return (char*)this - (uiEntriesPerBlock - handle.mStartEntry) * uiEntrySize;
 }
 
 // FUNCTION: SWBF2 0x00738560

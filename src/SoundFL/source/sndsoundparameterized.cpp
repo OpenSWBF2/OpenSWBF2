@@ -136,7 +136,7 @@ void __cdecl SoundParameterized::Free()
     }
 }
 
-void* __cdecl SoundParameterized::Layer::operator new(unsigned int)
+void* __cdecl SoundParameterized::Layer::operator new(size_t)
 {
     return Snd::SoundParameterized::Layer::smFreeList.Alloc();
 }

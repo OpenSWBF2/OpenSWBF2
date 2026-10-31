@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include "GameVoiceChat.h"
 #include "GameVoiceChatTransport.h"
 #include "GameVoiceChatNode.h"
@@ -8,6 +9,16 @@
 #include "NetGame.h"
 #include "SoundFL/source/sndthreadupdate.h"
 #include "Battlefront2/Platform/Pc/pcSpawnDisplay.h"
+
+#ifndef _WIN64
+static_assert(sizeof(GameVoiceChat::Decoder) == 0x288, "voice chat decoder size");
+static_assert(sizeof(GameVoiceChat::Node) == 0x50, "voice chat node size");
+static_assert(sizeof(GameVoiceChat::Encoder) == 0x50C, "voice chat encoder size");
+#else
+static_assert(alignof(GameVoiceChat::Decoder) <= sizeof(void*), "voice chat decoder align");
+static_assert(alignof(GameVoiceChat::Node) <= sizeof(void*), "voice chat node align");
+static_assert(alignof(GameVoiceChat::Encoder) <= sizeof(void*), "voice chat encoder align");
+#endif
 
 // GLOBAL: SWBF2 0x01e56bc8
 
@@ -26,27 +37,27 @@ namespace GameVoiceChat { void* gNodes[1]; }
 void* sVoiceChatDecoders[1];
 
 // GLOBAL: SWBF2 0x01e563d0
-namespace GameVoiceChat { char _gDecoderStorage[0x288 + 3]; }
+namespace GameVoiceChat { char _gDecoderStorage[sizeof(GameVoiceChat::Decoder) + sizeof(void*) - 1]; }
 // GLOBAL: SWBF2 0x01e56660
-namespace GameVoiceChat { char _gNodeStorage[0x50 + 3]; }
+namespace GameVoiceChat { char _gNodeStorage[sizeof(GameVoiceChat::Node) + sizeof(void*) - 1]; }
 // GLOBAL: SWBF2 0x01e566b8
-namespace GameVoiceChat { char _gEncoderStorage[0x50C + 3]; }
+namespace GameVoiceChat { char _gEncoderStorage[sizeof(GameVoiceChat::Encoder) + sizeof(void*) - 1]; }
 
 // GLOBAL: SWBF2 0x01ec5fb8
 
 // SYNTHETIC: SWBF2 0x00403ec0
 // `dynamic initializer for 'sEncoderStorage''
-void* sEncoderStorage = (void*)(((unsigned int)GameVoiceChat::_gEncoderStorage + 3) & ~3u);
+void* sEncoderStorage = (void*)(((uintptr_t)GameVoiceChat::_gEncoderStorage + sizeof(void*) - 1) & ~(uintptr_t)(sizeof(void*) - 1));
 // GLOBAL: SWBF2 0x01ec5fbc
 
 // SYNTHETIC: SWBF2 0x00403ed0
 // `dynamic initializer for 'sDecoderStorage''
-void* sDecoderStorage = (void*)(((unsigned int)GameVoiceChat::_gDecoderStorage + 3) & ~3u);
+void* sDecoderStorage = (void*)(((uintptr_t)GameVoiceChat::_gDecoderStorage + sizeof(void*) - 1) & ~(uintptr_t)(sizeof(void*) - 1));
 // GLOBAL: SWBF2 0x01ec6018
 
 // SYNTHETIC: SWBF2 0x00403ee0
 // `dynamic initializer for 'sNodeStorage''
-void* sNodeStorage = (void*)(((unsigned int)GameVoiceChat::_gNodeStorage + 3) & ~3u);
+void* sNodeStorage = (void*)(((uintptr_t)GameVoiceChat::_gNodeStorage + sizeof(void*) - 1) & ~(uintptr_t)(sizeof(void*) - 1));
 
 // FUNCTION: SWBF2 0x0053c500
 unsigned int GameVoiceChat::GetNumNodes()

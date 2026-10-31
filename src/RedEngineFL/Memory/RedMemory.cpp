@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include <stddef.h>
 
 #include "RedMemory.h"
 #include "RedEngineFL/Memory/engineAlloc.h"
@@ -49,9 +50,15 @@ void TagMergeIntoList(TagList* list, Tag* tag);
 void TagRemoveList(TagList* list, Tag* tag);
 
 // FUNCTION: SWBF2 0x006c3540
-void* __cdecl operator new(unsigned int size)
+void* __cdecl operator new(size_t size)
 {
-    return RedAllocFromHeap(__RedCurrHeap, size, 0);
+#ifdef _WIN64
+    if (size > 0xFFFFFFFFu)
+    {
+        return 0;
+    }
+#endif
+    return RedAllocFromHeap(__RedCurrHeap, (unsigned int)size, 0);
 }
 
 // FUNCTION: SWBF2 0x006c3560
@@ -64,9 +71,15 @@ void __cdecl operator delete(void* block)
 }
 
 // FUNCTION: SWBF2 0x006c3580
-void* __cdecl operator new[](unsigned int size)
+void* __cdecl operator new[](size_t size)
 {
-    return RedAllocFromHeap(__RedCurrHeap, size, 0);
+#ifdef _WIN64
+    if (size > 0xFFFFFFFFu)
+    {
+        return 0;
+    }
+#endif
+    return RedAllocFromHeap(__RedCurrHeap, (unsigned int)size, 0);
 }
 
 // FUNCTION: SWBF2 0x006c35a0
@@ -78,7 +91,7 @@ void __cdecl operator delete[](void* block)
     }
 }
 
-void __cdecl operator delete(void* block, unsigned int)
+void __cdecl operator delete(void* block, size_t)
 {
     if (block)
     {
@@ -86,7 +99,7 @@ void __cdecl operator delete(void* block, unsigned int)
     }
 }
 
-void __cdecl operator delete[](void* block, unsigned int)
+void __cdecl operator delete[](void* block, size_t)
 {
     if (block)
     {
@@ -327,10 +340,10 @@ void* RedAllocFromHeap(int heap, unsigned int size, int bTop)
 // FUNCTION: SWBF2 0x006c3900
 int RedCreateHeap(void* start, void* end, int align, char const* name)
 {
-    unsigned int mask = ~(align - 1);
-    char* s = (char*)(((unsigned int)start + align - 1) & mask);
-    char* e = (char*)((unsigned int)end & mask);
-    unsigned int size = e - s;
+    uintptr_t mask = ~(uintptr_t)(align - 1);
+    char* s = (char*)(((uintptr_t)start + align - 1) & mask);
+    char* e = (char*)((uintptr_t)end & mask);
+    size_t size = (size_t)(e - s);
     if (size)
     {
         memset(s, 0, size);
@@ -350,7 +363,7 @@ int RedCreateHeap(void* start, void* end, int align, char const* name)
     }
 
     Tag* tag = (Tag*)s;
-    tag->size = size;
+    tag->size = (unsigned int)size;
     tag->next_ = 0;
     tag->prev_ = 0;
 
@@ -358,7 +371,7 @@ int RedCreateHeap(void* start, void* end, int align, char const* name)
     heap.start = s;
     heap.free.first = tag;
     heap.free.last = tag;
-    heap.size = size;
+    heap.size = (unsigned int)size;
     heap.used.first = 0;
     heap.used.last = 0;
     heap.align = align;
@@ -403,8 +416,8 @@ char* RedInitHeap(void* start, void* end, int maxheaps)
 {
     (void)end;
     ::maxheaps = maxheaps;
-    heapobj = (HeapObj*)(((unsigned int)start + 3) & ~3);
-    char* pNext = (char*)(((unsigned int)heapobj + maxheaps * sizeof(HeapObj) + 3) & ~3);
+    heapobj = (HeapObj*)(((uintptr_t)start + 3) & ~(uintptr_t)3);
+    char* pNext = (char*)(((uintptr_t)heapobj + maxheaps * sizeof(HeapObj) + 3) & ~(uintptr_t)3);
     for (int i = 0; i < maxheaps; ++i)
     {
         HeapObj& h = heapobj[i];

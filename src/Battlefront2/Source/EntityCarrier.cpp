@@ -586,7 +586,7 @@ Entity* EntityCarrierClass::Build(const EntityDesc& desc)
     return (Entity*)pCarrier;
 }
 
-void* EntityCarrier::operator new(unsigned int uSize)
+void* EntityCarrier::operator new(size_t uSize)
 {
     return sMemoryPool.Allocate(uSize);
 }

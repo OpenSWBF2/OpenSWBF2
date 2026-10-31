@@ -80,7 +80,7 @@ public:
 
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
-    static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }
+    static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
     static MemoryPool sMemoryPool;
 
     static unsigned int GetRtti() { return rttiHashUnitController; }

@@ -1,7 +1,8 @@
 param(
     [string]$OutDir,
     [string]$Name = 'census-1',
-    [string]$Scratch
+    [string]$Scratch,
+    [switch]$KeepScratch
 )
 $ErrorActionPreference = 'Stop'
 $testsDir = $PSScriptRoot
@@ -282,7 +283,12 @@ $md.Add('`x64_errors` in `' + $Name + '-tu.csv` counts the unique x64 error site
 $md.Add('')
 $md.Add('## Lower bound')
 $md.Add('')
-$md.Add('This census is a lower bound. On x64, `operator new(unsigned int)` is not a valid allocation function, so most game TUs fail with C2821 and the errors that cascade from it. cl stops early in those TUs, before it reaches most front-end warnings, so their C4311/C4312/C4302/C4267/C4244 sites are undercounted. The counts will rise once Phase 22 (PTR-01) lets those TUs compile. Census #2 must compare like-for-like TUs (use the TU list in `' + $Name + '-tu.csv`). No numeric target is set.')
+if ($hist.ContainsKey('C2821')) {
+    $md.Add('This census is a lower bound. On x64, `operator new(unsigned int)` is not a valid allocation function, so most game TUs fail with C2821 and the errors that cascade from it. cl stops early in those TUs, before it reaches most front-end warnings, so their C4311/C4312/C4302/C4267/C4244 sites are undercounted. The counts will rise once Phase 22 (PTR-01) lets those TUs compile. Census #2 must compare like-for-like TUs (use the TU list in `' + $Name + '-tu.csv`). No numeric target is set.')
+}
+else {
+    $md.Add('A TU''s warning counts are complete only where `x64_obj` is `yes` in `' + $Name + '-tu.csv`, and census #2 must compare the same TUs.')
+}
 $md.Add('')
 $md.Add('## x64 error codes')
 $md.Add('')
@@ -310,4 +316,4 @@ Write-Host "wrote $csvPath"
 Write-Host "wrote $tuPath"
 Write-Host "wrote $mdPath"
 
-Remove-Scratch
+if (-not $KeepScratch) { Remove-Scratch }

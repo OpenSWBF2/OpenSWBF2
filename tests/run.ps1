@@ -214,6 +214,21 @@ if ($hardenActive) {
         $script:results += New-Object PSObject -Property @{ Line = $line; Final = $final; Known = $false }
     }
 
+    $vendorHits = @(Get-ChildItem -LiteralPath (Join-Path $root 'src\LuaFL'), (Join-Path $root 'src\ZlibFL') -Recurse -File -ErrorAction SilentlyContinue |
+        Where-Object { Select-String -LiteralPath $_.FullName -Pattern 'RedLog.h' -SimpleMatch -Quiet })
+    if ($vendorHits.Count -eq 0) { Add-SmokeResult '[PASS] hardening:redlog-vendor' 'PASS' }
+    else {
+        foreach ($h in $vendorHits) { Add-SmokeResult "[FAIL] hardening:redlog-vendor - $($h.FullName)" 'FAIL' }
+        $bad++
+    }
+    foreach ($c in (Get-SourceChecks $root)) {
+        if ($c.Ok) { Add-SmokeResult "[PASS] hardening:$($c.Name)" 'PASS' }
+        else {
+            foreach ($h in $c.Detail.Split(',')) { Add-SmokeResult "[FAIL] hardening:$($c.Name) - $($h.Trim())" 'FAIL' }
+            $bad++
+        }
+    }
+
     $dbCode = 0
     if (-not (Test-Path -LiteralPath $gameExe)) {
         if ($NoBuild -and -not $Hardening) { Add-SmokeResult '[SKIP] hardening:exe - not built (-NoBuild)' 'SKIP' }
@@ -261,13 +276,6 @@ if ($hardenActive) {
                 Add-SmokeResult "[FAIL] hardening:$($c.Name) - $($c.Detail)" 'FAIL'
                 $bad++
             }
-        }
-        $vendorHits = @(Get-ChildItem -LiteralPath (Join-Path $root 'src\LuaFL'), (Join-Path $root 'src\ZlibFL') -Recurse -File -ErrorAction SilentlyContinue |
-            Where-Object { Select-String -LiteralPath $_.FullName -Pattern 'RedLog.h' -SimpleMatch -Quiet })
-        if ($vendorHits.Count -eq 0) { Add-SmokeResult '[PASS] hardening:redlog-vendor' 'PASS' }
-        else {
-            foreach ($h in $vendorHits) { Add-SmokeResult "[FAIL] hardening:redlog-vendor - $($h.FullName)" 'FAIL' }
-            $bad++
         }
         if ($reason) {
             $tag = 'SKIP'

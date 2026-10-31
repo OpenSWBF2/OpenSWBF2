@@ -1,6 +1,7 @@
 #include <float.h>
 #include <math.h>
 #include <string.h>
+#include <stddef.h>
 
 #include "ConnectivityGraph.h"
 #include "AIUtil.h"
@@ -472,7 +473,7 @@ bool ConnectivityGraph::ReadPatch(PblFileChunk& chunk)
     mDynamicArcUnzipBufferSize = 0;
     for (int i = 0; i < iNumPatches; ++i)
     {
-        ConnectivityGraphPatch* pPatch = (ConnectivityGraphPatch*)(((unsigned int)pData + 15) & ~15u);
+        ConnectivityGraphPatch* pPatch = (ConnectivityGraphPatch*)(((uintptr_t)pData + 15) & ~(uintptr_t)15);
         mPatchList[i] = pPatch;
         mPatchList[i]->mUncompressedSize = chunk._pFile->Read32();
         if (mPatchList[i]->mUncompressedSize > mDynamicArcUnzipBufferSize)

@@ -93,9 +93,10 @@ $GuardRevertRows = @(
     @{ Id = 'MEM-03S'; Kind = 'Smoke'; Case = 'crash-luaoom'; File = 'src\LuaFL\src\lmem.cpp'; Anchor = 'luaD_throw(L, LUA_ERRMEM);'; Replacement = 'return NULL;' },
     @{ Id = 'MEM-04S'; Kind = 'Smoke'; Case = 'crash-luapanic'; File = 'src\Battlefront2\Source\LuaHelper.cpp'; Anchor = 'lua_atpanic(mState, Lua_Red_Panic);'; Replacement = '' },
     @{ Id = 'DIAG-04'; Kind = 'Smoke'; Case = 'crash-hang'; File = 'src\Battlefront2\Source\pcCrash.cpp'; Anchor = 'TerminateNow(5);'; Replacement = 'TerminateNow(3);' },
-    @{ Id = 'LAA-02A'; File = $pp; Anchor = ' ^ 0x80000000u'; Replacement = ''; Tests = @('ordered list keeps address order across 2GB', 'ptr order key is monotonic across 2GB') },
-    @{ Id = 'LAA-02B'; File = $pp; Anchor = 'return (unsigned int)pA > (unsigned int)pB;'; Replacement = 'return (int)pA > (int)pB;'; Tests = @('collision tie-break is unsigned') },
+    @{ Id = 'LAA-02A'; File = $pp; Anchor = ' ^ ((uintptr_t)1 << (sizeof(void*) * 8 - 1))'; Replacement = ''; Tests = @('ordered list keeps address order across 2GB', 'ptr order key is monotonic across 2GB') },
+    @{ Id = 'LAA-02B'; File = $pp; Anchor = 'return (uintptr_t)pA > (uintptr_t)pB;'; Replacement = 'return (intptr_t)pA > (intptr_t)pB;'; Tests = @('collision tie-break is unsigned') },
     @{ Id = 'LAA-02C'; File = $th; Anchor = 'PblPtrOrderKey(this)'; Replacement = '(int)this'; Tests = @('pointer order sites use the unsigned helpers') },
+    @{ Id = 'PTR-03'; File = 'src\Battlefront2\Source\Thread.h'; Anchor = '_head._iOrder = (KEY)((1ull << (sizeof(KEY) * 8 - 1)) - 1);'; Replacement = '_head._iOrder = 0x7FFFFFFF;'; Tests = @('ordered list sentinel is the key maximum') },
     @{ Id = 'LAA-02D'; File = $cm; Anchor = 'PblPtrAfter(pOther, pObject)'; Replacement = '(int)pOther > (int)pObject'; Tests = @('pointer order sites use the unsigned helpers') },
     @{ Id = 'LAA-02E'; File = $rm; Anchor = 'if (sRecursionDepth <= 0)'; Replacement = 'if ((unsigned int)h.start < 0x70000000 && sRecursionDepth <= 0)'; Tests = @('pointer order sites use the unsigned helpers') },
     @{ Id = 'DSET-03'; File = $ds; Anchor = 'if (!bValid)'; Replacement = 'if (false)'; Tests = @('display settings bad value keeps default and logs once') },
@@ -132,6 +133,9 @@ $GuardRevertRows = @(
     @{ Id = 'RESET-04A'; File = $rr; Anchor = "        m_clientH = m_clientHLast;`n        ApplyCurrentMode(IsIconic(hGlobalWnd) != 0);"; Replacement = '        m_clientH = m_clientHLast;'; Tests = @('runtime reset restyle source pins') },
     @{ Id = 'RESET-04B'; File = $rr; Anchor = 'if (bRestyle)'; Replacement = 'if (false)'; Tests = @('runtime reset restyle source pins') },
     @{ Id = 'LAA-01'; Kind = 'Hardening'; Check = 'laa'; File = 'BattlefrontII.vcxproj'; Anchor = '<LargeAddressAware>true</LargeAddressAware>'; Replacement = '' },
+    @{ Id = 'PTR-01'; Kind = 'Hardening'; Check = 'new-size-t'; File = $rm; Anchor = 'void* __cdecl operator new(size_t size)'; Replacement = 'void* __cdecl operator new(unsigned int size)' },
+    @{ Id = 'PTR-01B'; Kind = 'Hardening'; Check = 'new-size-t'; File = $rm; Anchor = 'void* __cdecl operator new[](size_t size)'; Replacement = 'void* __cdecl operator new [] (unsigned int size)' },
+    @{ Id = 'PTR-01C'; Kind = 'Hardening'; Check = 'new-size-t'; File = $rm; Anchor = 'void __cdecl operator delete(void* block, size_t)'; Replacement = 'void __cdecl operator delete(void* block, unsigned)' },
     @{ Id = 'FLAG-ALIGNNEW'; Kind = 'Tlog'; Project = 'game'; Check = 'flag-alignednew'; File = 'BattlefrontII.vcxproj'; Anchor = '/Zc:alignedNew- /Zc:inline- %(AdditionalOptions)'; Replacement = '/Zc:inline- %(AdditionalOptions)' },
     @{ Id = 'FLAG-INLINE'; Kind = 'Tlog'; Project = 'game'; Check = 'flag-inline'; File = 'BattlefrontII.vcxproj'; Anchor = '/Zc:alignedNew- /Zc:inline- %(AdditionalOptions)'; Replacement = '/Zc:alignedNew- %(AdditionalOptions)' },
     @{ Id = 'FLAG-ALIGNNEW-T'; Kind = 'Tlog'; Project = 'tests'; Check = 'flag-alignednew-tests'; File = 'tests\OpenSWBF2Tests.vcxproj'; Anchor = '/Zc:alignedNew- %(AdditionalOptions)'; Replacement = '%(AdditionalOptions)' },
@@ -372,4 +376,6 @@ $GuardRevertRows = @(
     @{ Id = 'HERO-06'; File = 'src\Battlefront2\Source\Character.cpp'; Anchor = 'PblInBounds(netHeroAIID, mTeamNumber) ? netHeroAIID[mTeamNumber] : -1'; Replacement = 'netHeroAIID[mTeamNumber]'; Tests = @('hero and game rules reads stay bounded') }
     @{ Id = 'HERO-07'; File = 'src\Battlefront2\Platform\Pc\pcSpawnDisplay.cpp'; Anchor = 'PblInBounds(netHeroUnlocked, iTeam) && netHeroUnlocked[iTeam] &&'; Replacement = 'netHeroUnlocked[iTeam] &&'; Tests = @('hero and game rules reads stay bounded') }
     @{ Id = 'RULES-01'; File = 'src\Battlefront2\Source\LuaCallbacks_Options.cpp'; Anchor = 'if (PblInBounds(gNumBots, eRules))'; Replacement = 'if (true)'; Tests = @('hero and game rules reads stay bounded') }
+    @{ Id = 'PTR-04'; File = 'src\Battlefront2\Source\GameVoiceChatSlots.h'; Anchor = 'memset(&pConnections[uiSlot], 0, sizeof(Snd::StreamNodeConnection));'; Replacement = 'memset(&pConnections[uiSlot], 0, 24);'; Tests = @('voice chat mixer clear touches one connection') },
+    @{ Id = 'PTR-04B'; File = 'src\Battlefront2\Source\GameVoiceChatDecoder.cpp'; Anchor = 'GameVoiceChat::ClearMixerConnection(mMixerConnections, i);'; Replacement = 'memset(&mMixerConnections[i], 0, 24);'; Tests = @('voice chat decoder clears through the helper') }
 )

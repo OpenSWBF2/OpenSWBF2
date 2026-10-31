@@ -502,7 +502,7 @@ void Music::Load(PblFileChunk& chunk)
     Music::sMusicInactive.Sort();
 }
 
-void* Music::operator new(unsigned int uSize)
+void* Music::operator new(size_t uSize)
 {
     return sMemoryPool.Allocate(uSize);
 }

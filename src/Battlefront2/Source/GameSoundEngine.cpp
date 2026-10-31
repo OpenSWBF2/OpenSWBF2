@@ -99,9 +99,15 @@ void SetHeap(int iHeap)
 }
 
 // FUNCTION: SWBF2 0x005387a0
-void* __cdecl SndAlloc(unsigned int uiSize)
+void* __cdecl SndAlloc(size_t uiSize)
 {
-    return RedAllocFromHeap(GameSoundEngine::gSoundHeap, uiSize, 0);
+#ifdef _WIN64
+    if (uiSize > 0xFFFFFFFFu)
+    {
+        return 0;
+    }
+#endif
+    return RedAllocFromHeap(GameSoundEngine::gSoundHeap, (unsigned int)uiSize, 0);
 }
 
 // FUNCTION: SWBF2 0x005387c0

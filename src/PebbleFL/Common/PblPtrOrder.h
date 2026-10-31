@@ -1,11 +1,13 @@
 #pragma once
 
-inline int PblPtrOrderKey(const void* pPtr)
+#include <stddef.h>
+
+inline intptr_t PblPtrOrderKey(const void* pPtr)
 {
-    return (int)((unsigned int)pPtr ^ 0x80000000u);
+    return (intptr_t)((uintptr_t)pPtr ^ ((uintptr_t)1 << (sizeof(void*) * 8 - 1)));
 }
 
 inline bool PblPtrAfter(const void* pA, const void* pB)
 {
-    return (unsigned int)pA > (unsigned int)pB;
+    return (uintptr_t)pA > (uintptr_t)pB;
 }

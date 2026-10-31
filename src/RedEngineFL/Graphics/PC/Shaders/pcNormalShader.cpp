@@ -328,7 +328,7 @@ bool s_bDetailTextureTransformPrev;
 class PblMatrix;
 extern PblMatrix gMatrixIdentity;
 
-void* RedShadingState::operator new(unsigned int uiSize)
+void* RedShadingState::operator new(size_t uiSize)
 {
     return sMemoryPool.Allocate(uiSize);
 }

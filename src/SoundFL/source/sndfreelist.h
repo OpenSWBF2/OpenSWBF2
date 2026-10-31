@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stddef.h>
+
 #include "sndallocator.h"
 #include "sndallocbitmap.h"
 #include "PebbleFL/Common/PblListSingle.h"
@@ -58,7 +60,7 @@ public:
     unsigned int mAlignment;
     unsigned int mEntriesPerBlock;
     PblListSingle mBlockList;
-    void* (__cdecl* mAllocFunc)(unsigned int);
+    void* (__cdecl* mAllocFunc)(size_t);
     void (__cdecl* mFreeFunc)(void*);
     unsigned char mFlags;
 };
