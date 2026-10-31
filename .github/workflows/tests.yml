@@ -26,14 +26,47 @@ jobs:
           clean: true
       - name: Build and run tests
         shell: cmd
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\run.ps1
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\run.ps1 -Configuration Test
       - name: Runner self-test
         shell: cmd
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\selftest.ps1
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\selftest.ps1 -Configuration Test
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: failure() || cancelled()
         with:
           name: test-artifacts
+          path: artifacts/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  asan:
+    name: asan (stack, globals, CRT malloc and T1 heap only)
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, windows, v143]
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          clean: true
+      - name: ASan T1, hardening and Standard smoke
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\run.ps1 -Asan
+      - name: ASan Twice smoke
+        if: ${{ !cancelled() }}
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\run.ps1 -Asan -Smoke Twice
+      - name: ASan Dedicated smoke
+        if: ${{ !cancelled() }}
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\run.ps1 -Asan -Smoke Dedicated
+      - name: ASan canary self-test
+        if: ${{ !cancelled() }}
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\selftest.ps1 -Configuration Asan
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: failure() || cancelled()
+        with:
+          name: asan-artifacts
           path: artifacts/
           if-no-files-found: ignore
           retention-days: 7

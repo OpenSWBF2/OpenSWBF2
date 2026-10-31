@@ -3818,6 +3818,9 @@
     <ClInclude Include="src\PebbleFL\Common\PblHashTable.h">
       <Filter>src\PebbleFL\Common</Filter>
     </ClInclude>
+    <ClInclude Include="src\PebbleFL\Common\PblIndex.h">
+      <Filter>src\PebbleFL\Common</Filter>
+    </ClInclude>
     <ClInclude Include="src\PebbleFL\Common\PblHeap.h">
       <Filter>src\PebbleFL\Common</Filter>
     </ClInclude>

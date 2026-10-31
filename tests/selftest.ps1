@@ -1,3 +1,4 @@
+param([string]$Configuration = 'Debug')
 $ErrorActionPreference = 'Stop'
 $run = Join-Path $PSScriptRoot 'run.ps1'
 $tmp = Join-Path $env:TEMP ("openswbf2-selftest-" + [guid]::NewGuid().ToString('N'))
@@ -5,6 +6,8 @@ New-Item -ItemType Directory -Path $tmp | Out-Null
 
 $list = 'echo %* | findstr /C:"list-test-cases" >nul && (echo ==========& echo fake_case& echo ==========& exit /b 0)'
 $oneFail = 'echo [doctest] test cases: 1 ^| 0 passed ^| 1 failed'
+$onePass = 'echo [doctest] test cases: 1 ^| 1 passed ^| 0 failed'
+$asanWrite = 'for /f "tokens=2 delims=''" %%a in ("%ASAN_OPTIONS%") do echo ERROR: AddressSanitizer: heap-buffer-overflow>"%%a.123"'
 
 $scenarios = @(
     @('listing exit non-zero', 'unit', 'exit /b 3', $null, 2, 'Listing failed', $null),
@@ -13,7 +16,11 @@ $scenarios = @(
     @('known_bug did not run once', 'known_bug', "$list`r`nexit /b 0", $null, 1, '\[FAIL\] fake_case', '\[KNOWN\]'),
     @('known_bug genuine failure', 'known_bug', "$list`r`n$oneFail`r`nexit /b 1", $null, 0, '\[KNOWN\] fake_case', $null),
     @('known_bug exit 1 without 1-case output', 'known_bug', "$list`r`nexit /b 1", $null, 1, '\[FAIL\] fake_case', '\[KNOWN\]'),
-    @('known_bug crash', 'known_bug', "$list`r`nexit /b 3221225477", $null, 1, '\[CRASH\] fake_case', '\[KNOWN\]')
+    @('known_bug crash', 'known_bug', "$list`r`nexit /b 3221225477", $null, 1, '\[CRASH\] fake_case', '\[KNOWN\]'),
+    @('asan report fails a passing case', 'unit', "$list`r`n$asanWrite`r`n$onePass`r`nexit /b 0", $null, 1, '\[FAIL\] fake_case[\s\S]*heap-buffer-overflow', $null, @('-Configuration', 'Asan')),
+    @('asan exit 66 without report is a startup failure', 'unit', "$list`r`nexit /b 66", $null, 1, 'failed before main', $null, @('-Configuration', 'Asan')),
+    @('asan stub without Asan has no asan verdict', 'unit', "$list`r`n$asanWrite`r`n$onePass`r`nexit /b 0", $null, 0, '\[PASS\] fake_case', 'heap-buffer-overflow'),
+    @('exit 66 without Asan stays a crash', 'unit', "$list`r`nexit /b 66", $null, 1, '\[CRASH\] fake_case 0x00000042', 'failed before main')
 )
 
 $failed = 0
@@ -25,8 +32,10 @@ try {
         Set-Content -Path $stub -Value ("@echo off`r`n" + $sc[2]) -Encoding ASCII
         $env:OPENSWBF2_TEST_EXE = $stub
         if ($sc[3]) { $env:OPENSWBF2_LIST_TIMEOUT_MS = $sc[3] }
+        $extra = @()
+        if ($sc.Count -gt 7) { $extra = $sc[7] }
         try {
-            $out = (& powershell -NoProfile -File $run -NoBuild -Smoke None -Suite $sc[1] 2>&1 | Out-String)
+            $out = (& powershell -NoProfile -File $run -NoBuild -Smoke None -Suite $sc[1] @extra 2>&1 | Out-String)
             $code = $LASTEXITCODE
         }
         finally {
@@ -44,6 +53,14 @@ finally {
     Remove-Item Env:\OPENSWBF2_TEST_EXE -ErrorAction SilentlyContinue
     Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
 }
+if ($Configuration -eq 'Asan') {
+    $n++
+    $out = (& powershell -NoProfile -File $run -Configuration Asan -NoBuild -Smoke None -Suite asan_canary 2>&1 | Out-String)
+    $code = $LASTEXITCODE
+    if ($code -ne 1 -or $out -notmatch '\[FAIL\]' -or $out -notmatch 'heap-buffer-overflow') { $failed++; Write-Host "FAILED ${n}: asan canary: exit $code, expected 1 with [FAIL] and heap-buffer-overflow" }
+    else { Write-Host "OK $n asan canary overflow is a FAIL" }
+}
+else { Write-Host 'SKIP canary: needs -Configuration Asan' }
 . (Join-Path $PSScriptRoot 'smoke.ps1')
 $smokeTmp = Join-Path $env:TEMP ("openswbf2-smoke-" + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $smokeTmp | Out-Null
@@ -97,6 +114,55 @@ try {
     $miss = @(Get-MissingRuntimes $rtDir @())
     if ($miss.Count -ne 0) { $failed++; Write-Host "FAILED ${n}: runtime preflight with an empty list: got '$($miss -join ', ')'" }
     else { Write-Host "OK $n runtime preflight with an empty list" }
+    $n++
+    $ao = $null
+    try { $ao = Get-AsanOptions 'C:\x\case' } catch {}
+    if ($ao -cne "exitcode=66:log_path='C:\x\case\asan'") { $failed++; Write-Host "FAILED ${n}: asan options quote the log path: got '$ao'" }
+    else { Write-Host "OK $n asan options quote the log path" }
+    $n++
+    $stub = Join-Path $smokeTmp "smoke$n.cmd"
+    Set-Content -Path $stub -Value ("@echo off`r`nfor /f ""tokens=2 delims='"" %%a in (""%ASAN_OPTIONS%"") do echo ERROR: AddressSanitizer: heap-buffer-overflow>""%%a.123""`r`necho OPENSWBF2 RUN COMPLETE>%2`r`nexit /b 0") -Encoding ASCII
+    $caseDir = Join-Path $smokeTmp "case$n"
+    New-Item -ItemType Directory -Path $caseDir | Out-Null
+    $why = $null
+    try {
+        $r = Invoke-SmokeCase "t$n" $stub $smokeTmp ('-log "' + $caseDir + '\run.log"') 5 $caseDir (Get-AsanOptions $caseDir)
+        $resText = [IO.File]::ReadAllText((Join-Path $caseDir 'result.txt'))
+        if ($r.Class -ne 'Pass') { $why = "class $($r.Class), expected Pass" }
+        elseif ($r.Asan -notmatch 'heap-buffer-overflow') { $why = "Asan is '$($r.Asan)'" }
+        elseif ($resText -notmatch 'asan=1') { $why = 'result.txt lacks asan=1' }
+    }
+    catch { $why = $_.Exception.Message }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: smoke asan report is surfaced: $why" }
+    else { Write-Host "OK $n smoke asan report is surfaced" }
+    $n++
+    $stub = Join-Path $smokeTmp "smoke$n.cmd"
+    Set-Content -Path $stub -Value "@echo off`r`nif defined ASAN_OPTIONS exit /b 5`r`necho OPENSWBF2 RUN COMPLETE>%2`r`nexit /b 0" -Encoding ASCII
+    $caseDir = Join-Path $smokeTmp "case$n"
+    New-Item -ItemType Directory -Path $caseDir | Out-Null
+    $r = Invoke-SmokeCase "t$n" $stub $smokeTmp ('-log "' + $caseDir + '\run.log"') 5 $caseDir
+    $resText = [IO.File]::ReadAllText((Join-Path $caseDir 'result.txt'))
+    if ($r.Class -ne 'Pass' -or $null -ne $r.Asan -or $resText -notmatch 'asan=0') { $failed++; Write-Host "FAILED ${n}: smoke without asan options: class $($r.Class) asan '$($r.Asan)'" }
+    else { Write-Host "OK $n smoke without asan options sets no ASAN_OPTIONS" }
+    $n++
+    $emptyDir = Join-Path $smokeTmp 'asan-empty'
+    New-Item -ItemType Directory -Path $emptyDir | Out-Null
+    $why = $null
+    try {
+        $r66 = Get-AsanReport $emptyDir 66
+        $r0 = Get-AsanReport $emptyDir 0
+        if ($r66 -notmatch 'failed before main') { $why = "exit 66 gave '$r66'" }
+        elseif ($null -ne $r0) { $why = "exit 0 gave '$r0'" }
+    }
+    catch { $why = $_.Exception.Message }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: asan report without a file: $why" }
+    else { Write-Host "OK $n asan report without a file" }
+    $n++
+    $allNames = @(Get-SmokeCases 'All' @() $false $null | ForEach-Object { $_.Name })
+    $excl = @($script:SmokeAsanExcluded)
+    $missing = @($excl | Where-Object { $allNames -notcontains $_ })
+    if ($excl.Count -ne 14 -or $missing.Count -gt 0) { $failed++; Write-Host "FAILED ${n}: asan exclusions: count $($excl.Count), unknown '$($missing -join ', ')'" }
+    else { Write-Host "OK $n asan exclusions name real smoke cases" }
 }
 finally {
     Remove-Item -Recurse -Force $smokeTmp -ErrorAction SilentlyContinue
@@ -335,7 +401,7 @@ if (-not $why -and $parAll['nab2g_c'].Timeout -ne 0) { $why = 'All nab2g_c must 
 if (-not $why -and (Get-SmokeCases 'Standard' @() $false $null)[0].Name -cne 'geo1c_con') { $why = 'Standard[0] must be geo1c_con for the ASLR probe' }
 if ($why) { $failed++; Write-Host "FAILED ${n}: all/twice digest parity: $why" }
 else { Write-Host "OK $n all/twice digest parity" }
-$testExe = Join-Path (Split-Path $PSScriptRoot -Parent) 'bin\Tests\Debug\OpenSWBF2Tests.exe'
+$testExe = Join-Path (Split-Path $PSScriptRoot -Parent) "bin\Tests\$Configuration\OpenSWBF2Tests.exe"
 foreach ($probe in 'strictness probe emits an undeclared error', 'strictness probe unmatched expectation') {
     $n++
     if (-not (Test-Path $testExe)) { $failed++; Write-Host "FAILED ${n}: ${probe}: test exe not built"; continue }
@@ -395,6 +461,60 @@ try {
 finally {
     if (Test-Path -LiteralPath $junction) { & cmd /c rmdir "$junction" | Out-Null }
     if (-not (Test-Path -LiteralPath $junction)) { Remove-Item -LiteralPath $grTmp -Recurse -Force -ErrorAction SilentlyContinue }
+}
+$stTmp = Join-Path $env:TEMP ("openswbf2-selftest-staged-" + [guid]::NewGuid().ToString('N'))
+$stLinks = @()
+try {
+    $stTargetA = Join-Path $stTmp 'retail\AAA'
+    $stTargetB = Join-Path $stTmp 'retail\BBB'
+    $stTargetC = Join-Path $stTmp 'retail\CCC'
+    foreach ($t in $stTargetA, $stTargetB, $stTargetC) {
+        New-Item -ItemType Directory -Force -Path $t | Out-Null
+        Set-Content -Path (Join-Path $t 'sentinel.txt') -Value 'x'
+    }
+    $staged = Join-Path $stTmp 'staged'
+    New-Item -ItemType Directory -Force -Path (Join-Path $staged 'data\_lvl_pc') | Out-Null
+    Set-Content -Path (Join-Path $staged 'data\_lvl_pc\shell.lvl') -Value 'x'
+    Set-Content -Path (Join-Path $staged 'BattlefrontII.exe') -Value 'x'
+    $stLinks += Join-Path $staged 'data\_lvl_pc\AAA'
+    & cmd /c mklink /J "$($stLinks[-1])" "$stTargetA" | Out-Null
+    $stLinks += Join-Path $staged 'data\BBB'
+    & cmd /c mklink /J "$($stLinks[-1])" "$stTargetB" | Out-Null
+    $stSelf = Join-Path $stTmp 'selflink'
+    $stLinks += $stSelf
+    & cmd /c mklink /J "$stSelf" "$stTargetC" | Out-Null
+
+    $n++
+    $why = $null
+    try { Remove-StagedOutput $staged } catch { $why = "threw: $_" }
+    if (-not $why) {
+        if (Test-Path -LiteralPath $staged) { $why = 'staged folder still exists' }
+        elseif (-not (Test-Path -LiteralPath (Join-Path $stTargetA 'sentinel.txt'))) { $why = '_lvl_pc junction target sentinel is gone' }
+        elseif (-not (Test-Path -LiteralPath (Join-Path $stTargetB 'sentinel.txt'))) { $why = 'data junction target sentinel is gone' }
+    }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: staged cleanup keeps junction targets: $why" }
+    else { Write-Host "OK $n staged cleanup removes the folder and keeps junction targets" }
+
+    $n++
+    $why = $null
+    try { Remove-StagedOutput (Join-Path $stTmp 'missing') } catch { $why = "threw: $_" }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: staged cleanup of a missing folder: $why" }
+    else { Write-Host "OK $n staged cleanup of a missing folder is a no-op" }
+
+    $n++
+    $why = $null
+    try { Remove-StagedOutput $stSelf } catch { $why = "threw: $_" }
+    if (-not $why) {
+        if (Test-Path -LiteralPath $stSelf) { $why = 'junction still exists' }
+        elseif (-not (Test-Path -LiteralPath (Join-Path $stTargetC 'sentinel.txt'))) { $why = 'junction target sentinel is gone' }
+    }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: staged cleanup of a junction folder: $why" }
+    else { Write-Host "OK $n staged cleanup of a junction folder removes only the junction" }
+}
+finally {
+    foreach ($l in $stLinks) { if (Test-Path -LiteralPath $l) { & cmd /c rmdir "$l" | Out-Null } }
+    $stLeft = @($stLinks | Where-Object { Test-Path -LiteralPath $_ })
+    if ($stLeft.Count -eq 0 -and (Test-Path -LiteralPath $stTmp)) { Remove-Item -LiteralPath $stTmp -Recurse -Force -ErrorAction SilentlyContinue }
 }
 if ($failed -gt 0) { exit 1 }
 exit 0

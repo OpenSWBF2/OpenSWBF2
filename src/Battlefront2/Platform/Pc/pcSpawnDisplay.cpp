@@ -35,6 +35,7 @@
 #include "Battlefront2/Source/Tracker.h"
 #include "Battlefront2/Source/Weapon.h"
 #include "PebbleFL/Common/PblHashTable.h"
+#include "PebbleFL/Common/PblIndex.h"
 #include "PebbleFL/Common/PblUnicode.h"
 #include "RedEngineFL/Application/pc/pcFLRender.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
@@ -963,7 +964,8 @@ bool SpawnDisplay::CanShowHeroes()
         return false;
     }
     int iTeam = pPlayer->mTeamNumber;
-    return netHeroUnlocked[iTeam] && netHeroPlayerID[iTeam] > -1 && netHeroPlayerID[iTeam] == iLocal;
+    return PblInBounds(netHeroUnlocked, iTeam) && netHeroUnlocked[iTeam] &&
+           netHeroPlayerID[iTeam] > -1 && netHeroPlayerID[iTeam] == iLocal;
 }
 
 // FUNCTION: SWBF2 0x0042b740

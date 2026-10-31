@@ -1,5 +1,5 @@
 param(
-    [string]$Configuration = 'Debug',
+    [ValidateSet('Debug','Release','Test','Asan')][string]$Configuration = 'Debug',
     [switch]$NoBuild,
     [string]$Suite,
     [string]$Filter,
@@ -9,11 +9,13 @@ param(
     [int]$Timeout = 10,
     [ValidateSet('None','Standard','Dedicated','Crash','All','Twice')][string]$Smoke = 'Standard',
     [int]$SmokeTimeout = 120,
-    [string]$SmokeConfiguration = 'Release',
+    [ValidateSet('Debug','Release','Test','Asan')][string]$SmokeConfiguration = 'Release',
     [switch]$Movies,
     [switch]$Hardening,
     [switch]$HogAddrSpace,
-    [ValidateRange(0,64)][int]$Jobs = 0
+    [ValidateRange(0,64)][int]$Jobs = 0,
+    [switch]$Asan,
+    [switch]$Clean
 )
 $ErrorActionPreference = 'Stop'
 if ($Jobs -eq 0) { $Jobs = [Math]::Max(1, [Math]::Min(8, [int][Math]::Floor([Environment]::ProcessorCount / 2))) }
@@ -21,7 +23,23 @@ $testsDir = $PSScriptRoot
 $root = Split-Path $testsDir -Parent
 . (Join-Path $testsDir 'smoke.ps1')
 Write-ToolBanner
+if ($Asan) {
+    if ($PSBoundParameters.ContainsKey('Configuration') -and $Configuration -ne 'Asan') { Write-Host "-Asan conflicts with -Configuration $Configuration."; exit 2 }
+    $Configuration = 'Asan'
+}
+if ($Configuration -in 'Test', 'Asan' -and -not $PSBoundParameters.ContainsKey('SmokeConfiguration')) { $SmokeConfiguration = $Configuration }
 $script:SmokeDigestConfiguration = $SmokeConfiguration
+$asanT1 = ($Configuration -eq 'Asan')
+$asanSmoke = ($SmokeConfiguration -eq 'Asan')
+if ($Clean) {
+    foreach ($d in (Join-Path $root "bin\Win32\$SmokeConfiguration"), (Join-Path $root "bin\Tests\$Configuration")) {
+        if (Test-Path -LiteralPath $d) {
+            Remove-StagedOutput $d
+            Write-Host "Removed $d"
+        }
+    }
+    exit 0
+}
 
 $hardenOnly = $Hardening -and -not $PSBoundParameters.ContainsKey('Smoke') -and -not ($Suite -or $Filter -or $Fuzz)
 $smokeActive = ($Smoke -ne 'None') -and -not ($Suite -or $Filter -or $Fuzz) -and -not $hardenOnly
@@ -32,6 +50,7 @@ $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $outDir = Join-Path $root "artifacts\tests\$stamp"
 $results = @()
 $bad = 0
+$asanRemoved = @()
 
 if ($runUnit) {
     Assert-Runtimes $T1Runtimes
@@ -50,7 +69,7 @@ if ($runUnit) {
 New-Item -ItemType Directory -Force -Path $outDir | Out-Null
 Set-Content -Path (Join-Path $root 'artifacts\.gitignore') -Value '*' -Encoding ASCII
 
-function Start-Exe([string]$argLine) {
+function Start-Exe([string]$argLine, [string]$asanDir) {
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = $exe
     $psi.Arguments = $argLine
@@ -59,6 +78,7 @@ function Start-Exe([string]$argLine) {
     $psi.RedirectStandardOutput = $true
     $psi.RedirectStandardError = $true
     $psi.CreateNoWindow = $true
+    if ($asanDir) { $psi.EnvironmentVariables['ASAN_OPTIONS'] = Get-AsanOptions $asanDir }
     $p = [System.Diagnostics.Process]::Start($psi)
     $o = $p.StandardOutput.ReadToEndAsync()
     $e = $p.StandardError.ReadToEndAsync()
@@ -75,14 +95,24 @@ if ($runUnit) {
     $listMs = 30000
     if ($env:OPENSWBF2_LIST_TIMEOUT_MS) { $listMs = [int]$env:OPENSWBF2_LIST_TIMEOUT_MS }
     foreach ($s in $suites) {
-        $h = Start-Exe "-ts=$s --list-test-cases"
+        $listDir = $null
+        if ($asanT1) {
+            $listDir = Join-Path $outDir "t1\list-$s"
+            New-Item -ItemType Directory -Force -Path $listDir | Out-Null
+        }
+        $h = Start-Exe "-ts=$s --list-test-cases" $listDir
         if (-not $h.Proc.WaitForExit($listMs)) {
             try { $h.Proc.Kill() } catch {}
             Write-Host "Listing timed out for suite '$s'."
             exit 2
         }
         if ($h.Proc.ExitCode -ne 0) {
-            Write-Host "Listing failed for suite '$s' (exit code $($h.Proc.ExitCode))."
+            $msg = "Listing failed for suite '$s' (exit code $($h.Proc.ExitCode))."
+            if ($asanT1) {
+                $rep = Get-AsanReport $listDir $h.Proc.ExitCode
+                if ($rep) { $msg += "`r`n" + $rep }
+            }
+            Write-Host $msg
             exit 2
         }
         $lines = ($h.Out.Result -split "`r?`n")
@@ -103,8 +133,17 @@ if ($runUnit) {
     foreach ($c in $cases) {
         $argLine = '"-tc=' + ($c.Name -replace '"', '\"') + '" --timeout ' + $Timeout
         if ($Fuzz) { $argLine += " --fuzz-seed=$Seed --fuzz-count=$Iterations" }
+        $safe = ($c.Name -replace '[^A-Za-z0-9_.-]', '_')
+        $file = "$safe.txt"
+        $n = 2
+        while (Test-Path (Join-Path $outDir $file)) { $file = "$safe-$n.txt"; $n++ }
+        $caseAsan = $null
+        if ($asanT1) {
+            $caseAsan = Join-Path $outDir ('t1\' + [IO.Path]::GetFileNameWithoutExtension($file))
+            New-Item -ItemType Directory -Force -Path $caseAsan | Out-Null
+        }
         $sw = [System.Diagnostics.Stopwatch]::StartNew()
-        $h = Start-Exe $argLine
+        $h = Start-Exe $argLine $caseAsan
         $outerMs = [int64]($Timeout + 10) * 1000
         if ($Fuzz) { $outerMs = [Math]::Max($outerMs, [int64]$Iterations / 5 + 60000) }
         $outer = $h.Proc.WaitForExit([int][Math]::Min($outerMs, [int]::MaxValue))
@@ -122,16 +161,19 @@ if ($runUnit) {
         elseif ($code -eq 77) { $st = 'SKIP' }
         elseif ($code -eq 124) { $st = 'TIMEOUT' }
         else { $st = 'CRASH'; $detail = ('0x{0:X8}' -f $code) }
+        $rep = $null
+        if ($asanT1) { $rep = Get-AsanReport $caseAsan $code }
+        if ($rep) {
+            $st = 'FAIL'
+            $detail = 'asan'
+            $text += "`r`n" + $rep
+        }
 
         $known = ($c.Suite -eq 'known_bug')
         $ms = $sw.ElapsedMilliseconds
-        $safe = ($c.Name -replace '[^A-Za-z0-9_.-]', '_')
-        $file = "$safe.txt"
-        $n = 2
-        while (Test-Path (Join-Path $outDir $file)) { $file = "$safe-$n.txt"; $n++ }
         Set-Content -Path (Join-Path $outDir $file) -Value $text -Encoding ASCII
 
-        if ($known -and ($st -eq 'TIMEOUT' -or ($st -eq 'FAIL' -and $code -eq 1 -and -not $detail -and $text -match 'test cases:\s+1 \|'))) {
+        if ($known -and -not $rep -and ($st -eq 'TIMEOUT' -or ($st -eq 'FAIL' -and $code -eq 1 -and -not $detail -and $text -match 'test cases:\s+1 \|'))) {
             $under = $st
             $line = "[KNOWN] $($c.Name) ($under) ($ms ms)"
             $final = 'KNOWN'
@@ -146,6 +188,7 @@ if ($runUnit) {
         Write-Host $line
         $results += New-Object PSObject -Property @{ Line = $line; Final = $final; Known = $known }
         if ($final -in 'FAIL', 'TIMEOUT', 'CRASH', 'KNOWN') { Write-Host "    details: $(Join-Path $outDir $file)" }
+        if ($rep) { foreach ($rl in ($rep -split "`r?`n")) { Write-Host "    $rl" } }
         if ($known -and $st -eq 'PASS') {
             $w = "WARNING: known_bug case passed, bug may be fixed: $($c.Name)"
             Write-Host $w
@@ -164,7 +207,7 @@ if ($hardenActive) {
         & $msbuild (Join-Path $root 'BattlefrontII.vcxproj') "/p:Configuration=$SmokeConfiguration" '/p:Platform=Win32' /m /v:minimal /nologo
         if ($LASTEXITCODE -ne 0) { Write-Host 'Build failed.'; exit 2 }
     }
-    $reason = Get-SmokePrecheck $gameDataRoot $exeDir
+    $reason = Get-SmokePrecheck $gameDataRoot $exeDir $asanSmoke
 
     function Add-SmokeResult($line, $final) {
         Write-Host $line
@@ -254,6 +297,21 @@ if ($smokeActive) {
     $missions = @()
     if (Test-Path $missionFile) { $missions = @(Get-Content $missionFile | Where-Object { $_.Trim() }) }
     $smokeCases = @(Get-SmokeCases $Smoke $missions $Movies.IsPresent $null $HogAddrSpace.IsPresent)
+    if ($asanSmoke) {
+        $asanRemoved = @($smokeCases | Where-Object { $script:SmokeAsanExcluded -contains $_.Name } | ForEach-Object { $_.Name })
+        $smokeCases = @($smokeCases | Where-Object { $script:SmokeAsanExcluded -notcontains $_.Name })
+        if ($asanRemoved.Count -gt 0) { Write-Host "INFO: ASan excludes: $($asanRemoved -join ', ')" }
+    }
+    function Get-SmokeCaseTimeout($sc) {
+        $t = $SmokeTimeout
+        if ($sc.Timeout -gt 0) { $t = $sc.Timeout }
+        if ($asanSmoke) { $t *= $script:SmokeAsanTimeoutScale }
+        return $t
+    }
+    function Get-SmokeCaseAsan($caseDir) {
+        if ($asanSmoke) { return (Get-AsanOptions $caseDir) }
+        return $null
+    }
     if ($reason) {
         $final = 'SKIP'
         $tag = 'SKIP'
@@ -279,9 +337,7 @@ if ($smokeActive) {
             $items = @()
             foreach ($sc in $smokeCases) {
                 $caseDir = Join-Path $outDir "smoke\$($sc.Name)"
-                $caseTimeout = $SmokeTimeout
-                if ($sc.Timeout -gt 0) { $caseTimeout = $sc.Timeout }
-                $items += New-Object PSObject -Property @{ Name = $sc.Name; ExeName = 'BattlefrontII.exe'; ArgLine = $sc.Args.Replace('{CASEDIR}', $caseDir); Timeout = $caseTimeout; CaseDir = $caseDir }
+                $items += New-Object PSObject -Property @{ Name = $sc.Name; ExeName = 'BattlefrontII.exe'; ArgLine = $sc.Args.Replace('{CASEDIR}', $caseDir); Timeout = (Get-SmokeCaseTimeout $sc); CaseDir = $caseDir; AsanOptions = (Get-SmokeCaseAsan $caseDir) }
             }
         }
         try {
@@ -294,20 +350,20 @@ if ($smokeActive) {
                 $caseIndex++
                 $caseDir = Join-Path $outDir "smoke\$($sc.Name)"
                 $argLine = $sc.Args.Replace('{CASEDIR}', $caseDir)
-                $caseTimeout = $SmokeTimeout
-                if ($sc.Timeout -gt 0) { $caseTimeout = $sc.Timeout }
                 if ($useParallel) { $res = Receive-SmokeCase $batch $caseIndex }
-                else { $res = Invoke-SmokeCase $sc.Name $gameExe $exeDir $argLine $caseTimeout $caseDir }
+                else { $res = Invoke-SmokeCase $sc.Name $gameExe $exeDir $argLine (Get-SmokeCaseTimeout $sc) $caseDir (Get-SmokeCaseAsan $caseDir) }
                 $ok = Test-SmokeExpect $sc $res
                 $tok = Get-SmokeToken $res.Class
                 if ($ok) { $tok = 'PASS' }
                 elseif ($tok -eq 'PASS') { $tok = 'FAIL' }
+                if ($res.Asan) { $tok = 'FAIL' }
                 $line = ('[{0}] smoke:{1} class={2} exit=0x{3:X8} ({4} ms)' -f $tok, $sc.Name, $res.Class, $res.Code, $res.Ms)
                 Add-SmokeResult $line $tok
                 if ($tok -ne 'PASS') {
                     Write-Host "    details: $caseDir"
                     $bad++
                 }
+                if ($res.Asan) { foreach ($rl in ($res.Asan -split "`r?`n")) { Write-Host "    $rl" } }
                 if ($sc.Twice -gt 2) { $scoreKeys[$sc.Twice] = Get-DigestKey $caseDir }
                 elseif ($sc.Twice -gt 0) { $scoreKeys[$sc.Twice] = Get-FinalScoreKey $caseDir }
             }
@@ -368,6 +424,11 @@ foreach ($t in 'PASS', 'FAIL', 'SKIP', 'TIMEOUT', 'CRASH') {
 $summary += 'Known bugs'
 $summary += ('  {0,-8} {1}' -f 'KNOWN', @($kn | Where-Object { $_.Final -eq 'KNOWN' }).Count)
 $summary += ('  {0,-8} {1}' -f 'PASS', @($kn | Where-Object { $_.Final -eq 'PASS' }).Count)
+if ($asanT1 -or $asanSmoke) { $summary += $script:SmokeAsanLabel }
+if ($smokeActive -and $asanSmoke) {
+    if ($asanRemoved.Count -gt 0) { $summary += "ASan excluded smoke cases: $($asanRemoved -join ', ')" }
+    else { $summary += 'ASan excluded smoke cases: none in this group' }
+}
 $summary | ForEach-Object { Write-Host $_ }
 (($results | ForEach-Object { $_.Line }) + $summary) | Set-Content -Path (Join-Path $outDir 'results.txt') -Encoding ASCII
 Write-Host "Artifacts: $outDir"

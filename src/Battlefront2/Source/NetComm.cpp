@@ -8,6 +8,7 @@
 #include "pcNetSocket.h"
 #include "PebbleFL/Common/PblTimeBase.h"
 #include "PebbleFL/Common/PblJournal.h"
+#include "PebbleFL/Common/PblIndex.h"
 
 #include "NetSetup.h"
 #include "Steam/galaxy_api.h"
@@ -296,7 +297,7 @@ int NetComm::GetJoystickIndex(int iJoystick)
 // FUNCTION: SWBF2 0x005b26e0
 int NetComm::GetLocalIndex(int iLocal)
 {
-    return netLocalIndex[iLocal];
+    return PblInBounds(netLocalIndex, iLocal) ? netLocalIndex[iLocal] : -1;
 }
 
 // FUNCTION: SWBF2 0x005b28a0

@@ -54,6 +54,7 @@
 #include "GameMusic.h"
 #include "ShellLoop.h"
 #include "TeamAssist.h"
+#include "PebbleFL/Common/PblIndex.h"
 
 // GLOBAL: SWBF2 0x01e30330
 int Character::sCharacterLimit;
@@ -801,7 +802,8 @@ bool Character::IsHero() const
     {
         return GetGameObjectClass(mUnit->GetGameObject())->mHeroFlag;
     }
-    return netHeroLastPlayerID[mTeamNumber] == mPlayerId && mPlayerId != -1;
+    return PblInBounds(netHeroLastPlayerID, mTeamNumber) &&
+           netHeroLastPlayerID[mTeamNumber] == mPlayerId && mPlayerId != -1;
 }
 
 // FUNCTION: SWBF2 0x004516e0
@@ -1018,7 +1020,8 @@ void Character::Spawn(const PblMatrix& mMatrix)
             SelectClass(0);
         }
         else if (NetGame::IsEnabled() && mTeamPtr->GetClassPtr(mClassIndex)->mHeroFlag &&
-                 mPlayerId != netHeroPlayerID[mTeamNumber])
+                 (!PblInBounds(netHeroPlayerID, mTeamNumber) ||
+                  mPlayerId != netHeroPlayerID[mTeamNumber]))
         {
             SelectClass(0);
         }
@@ -1056,7 +1059,8 @@ void Character::Spawn(const PblMatrix& mMatrix)
         ++mTeamPtr->mMemberActive;
         if (mPlayerId != -1)
         {
-            if (netHeroLastPlayerID[mTeamNumber] == mPlayerId)
+            if (PblInBounds(netHeroLastPlayerID, mTeamNumber) &&
+                netHeroLastPlayerID[mTeamNumber] == mPlayerId)
             {
                 NetGame::ClearLastHero(mTeamNumber);
             }
@@ -1072,7 +1076,7 @@ void Character::Spawn(const PblMatrix& mMatrix)
         }
         else
         {
-            int iHeroId = netHeroAIID[mTeamNumber];
+            int iHeroId = PblInBounds(netHeroAIID, mTeamNumber) ? netHeroAIID[mTeamNumber] : -1;
             if (iHeroId != -1 && GetPtr(iHeroId) == this)
             {
                 NetGame::AcceptHero(mTeamNumber, iHeroId);
@@ -1303,13 +1307,14 @@ void Character::Died()
     }
 
     int iTeam = mTeamNumber;
-    if (netHeroesEnabled && netHeroUnlocked[iTeam] &&
+    if (netHeroesEnabled && PblInBounds(netHeroUnlocked, iTeam) && netHeroUnlocked[iTeam] &&
         (netHeroPlayerID[iTeam] != -1 || netHeroAIID[iTeam] != -1) &&
         (netHeroPlayerID[iTeam] != -1 ? mPlayerId == netHeroPlayerID[iTeam]
                                     : this == GetPtr(netHeroAIID[iTeam])) &&
         mUnit && mHeroFlag)
     {
-        if (rOwner.mCharacter && rOwner.mCharacter != this)
+        if (rOwner.mCharacter && rOwner.mCharacter != this &&
+            PblInBounds(netHeroKillerID, rOwner.mCharacter->mTeamNumber))
         {
             netHeroKillerID[rOwner.mCharacter->mTeamNumber] = rOwner.mCharacter->mPlayerId;
         }
