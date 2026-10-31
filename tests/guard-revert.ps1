@@ -4,7 +4,8 @@ param(
     [string]$OutDir,
     [string]$Scratch,
     [string]$RowsFile,
-    [int]$CaseTimeout = 30
+    [int]$CaseTimeout = 30,
+    [ValidateSet('', 'Debug', 'Release', 'Test')][string]$Configuration = ''
 )
 $ErrorActionPreference = 'Stop'
 if ($Row) { $Row = @($Row | ForEach-Object { $_ -split ',' }) }
@@ -17,6 +18,10 @@ if ($env:TEMP -and $Scratch.StartsWith([IO.Path]::GetFullPath($env:TEMP), [Strin
 . (Join-Path $testsDir 'smoke.ps1')
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 if (-not $OutDir) { $OutDir = Join-Path $root "artifacts\guard-revert\$stamp" }
+$script:TestsConfiguration = 'Debug'
+$script:GameConfiguration = 'Release'
+if ($Configuration) { $script:TestsConfiguration = $Configuration; $script:GameConfiguration = $Configuration }
+$script:SmokeDigestConfiguration = $script:GameConfiguration
 
 function Invoke-Git([string]$dir, [string[]]$gitArgs) {
     $ErrorActionPreference = 'Continue'
@@ -27,7 +32,7 @@ function Invoke-Git([string]$dir, [string[]]$gitArgs) {
 
 function Build-Tests([string]$wt, [string]$logPath) {
     $ErrorActionPreference = 'Continue'
-    $out = & $script:msbuild (Join-Path $wt 'tests\OpenSWBF2Tests.vcxproj') '/p:Configuration=Debug' '/p:Platform=Win32' /m /v:minimal /nologo 2>&1
+    $out = & $script:msbuild (Join-Path $wt 'tests\OpenSWBF2Tests.vcxproj') "/p:Configuration=$script:TestsConfiguration" '/p:Platform=Win32' /m /v:minimal /nologo 2>&1
     $code = $LASTEXITCODE
     $out | Set-Content -Path $logPath -Encoding ASCII
     return ($code -eq 0)
@@ -36,7 +41,7 @@ function Build-Tests([string]$wt, [string]$logPath) {
 function Build-Game([string]$wt, [string]$logPath) {
     $ErrorActionPreference = 'Continue'
     $env:SWBF2_NOSTAGE = 'true'
-    $out = & $script:msbuild (Join-Path $wt 'BattlefrontII.vcxproj') '/p:Configuration=Release' '/p:Platform=Win32' '/p:SWBF2_NOSTAGE=true' /m /v:minimal /nologo 2>&1
+    $out = & $script:msbuild (Join-Path $wt 'BattlefrontII.vcxproj') "/p:Configuration=$script:GameConfiguration" '/p:Platform=Win32' '/p:SWBF2_NOSTAGE=true' /m /v:minimal /nologo 2>&1
     $code = $LASTEXITCODE
     $out | Set-Content -Path $logPath -Encoding ASCII
     return ($code -eq 0)
@@ -46,11 +51,11 @@ function Run-Smoke([string]$wt, [string]$tag, $case) {
     $runDir = Join-Path $OutDir "run-$tag"
     $caseDir = Join-Path $runDir 'case'
     New-Item -ItemType Directory -Force -Path $caseDir | Out-Null
-    $srcBin = Join-Path $root 'bin\Win32\Release'
+    $srcBin = Join-Path $root "bin\Win32\$script:GameConfiguration"
     foreach ($f in 'binkw32.dll', 'Galaxy.dll', 'GalaxyPeer.dll', 'steam_api.dll', 'unicows.dll') {
         if (Test-Path (Join-Path $srcBin $f)) { Copy-Item (Join-Path $srcBin $f) $runDir -Force }
     }
-    Copy-Item (Join-Path $wt 'bin\Win32\Release\BattlefrontII.exe') $runDir -Force
+    Copy-Item (Join-Path $wt "bin\Win32\$script:GameConfiguration\BattlefrontII.exe") $runDir -Force
     $dataLink = Join-Path $runDir 'data'
     & cmd /c mklink /J "$dataLink" "$(Join-Path $srcBin 'data')" | Out-Null
     try {
@@ -167,7 +172,7 @@ try {
         }
 
         if ($rows.Count -gt 0) {
-            $exe = Join-Path $wt 'bin\Tests\Debug\OpenSWBF2Tests.exe'
+            $exe = Join-Path $wt "bin\Tests\$script:TestsConfiguration\OpenSWBF2Tests.exe"
             $controlOk = Build-Tests $wt (Join-Path $OutDir 'build-control.log')
             if (-not $controlOk) { throw "control build failed, see $(Join-Path $OutDir 'build-control.log')" }
 
@@ -221,7 +226,7 @@ try {
         }
 
         if ($hardRows.Count -gt 0) {
-            $wtExe = Join-Path $wt 'bin\Win32\Release\BattlefrontII.exe'
+            $wtExe = Join-Path $wt "bin\Win32\$script:GameConfiguration\BattlefrontII.exe"
             $getCheck = {
                 param($name)
                 $db = Find-Dumpbin
@@ -268,7 +273,7 @@ try {
                 if ($project -eq 'tests') { return (Build-Tests $wt $logPath) }
                 return (Build-Game $wt $logPath)
             }
-            $tlogDirs = @{ game = (Join-Path $wt 'obj\Win32\Release\BattlefrontII.tlog'); tests = (Join-Path $wt 'obj\Tests\Debug\OpenSWBF2Tests.tlog') }
+            $tlogDirs = @{ game = (Join-Path $wt "obj\Win32\$script:GameConfiguration\BattlefrontII.tlog"); tests = (Join-Path $wt "obj\Tests\$script:TestsConfiguration\OpenSWBF2Tests.tlog") }
             $getFlag = {
                 param($name)
                 $game = $null
@@ -328,7 +333,7 @@ try {
         }
 
         if ($smokeRows.Count -gt 0) {
-            $pre = Get-SmokePrecheck $gameData (Join-Path $root 'bin\Win32\Release')
+            $pre = Get-SmokePrecheck $gameData (Join-Path $root "bin\Win32\$script:GameConfiguration")
             if ($pre) { throw "smoke rows need a prior game build and data: $pre" }
             if (-not (Build-Game $wt (Join-Path $OutDir 'build-smoke-control.log'))) { throw "smoke control build failed, see $(Join-Path $OutDir 'build-smoke-control.log')" }
             $smokeControl = @{}

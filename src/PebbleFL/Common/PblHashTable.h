@@ -53,8 +53,10 @@ public:
             }
         }
 
-        operator TYPE*() const { return (TYPE*)_table->_table[SLOTS + _pos]; }
+        operator TYPE*() const { return _pos < SLOTS ? (TYPE*)_table->_table[SLOTS + _pos] : 0; }
         TYPE& operator*() const { return *(TYPE*)_table->_table[SLOTS + _pos]; }
+        bool operator==(const Itor& rOther) const { return _pos == rOther._pos; }
+        bool operator!=(const Itor& rOther) const { return _pos != rOther._pos; }
 
         unsigned int GetKey() const { return _table->_table[_pos]; }
 

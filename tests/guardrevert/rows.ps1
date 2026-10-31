@@ -37,6 +37,8 @@ $lu = 'src\Battlefront2\Source\LoadUtil.cpp'
 $lcm = 'src\Battlefront2\Source\LuaCallbacks_Mission.cpp'
 $sn = 'src\Battlefront2\Source\SideNames.h'
 $rt = 'src\RedEngineFL\Application\RedTerrain.cpp'
+$pidx = 'src\PebbleFL\Common\PblIndex.h'
+$phash = 'src\PebbleFL\Common\PblHashTable.h'
 
 $GuardRevertRows = @(
     @{ Id = 'CRASH-02'; File = 'src\RedEngineFL\Util\RedWarning.cpp'; Anchor = 'fputs(pcText, pFile);'; Replacement = 'fprintf(pFile, pcText);'; Tests = @('file log writes percent text literally') },
@@ -357,4 +359,17 @@ $GuardRevertRows = @(
     @{ Id = 'LWIDE-06'; File = 'src\Battlefront2\Source\LuaCallbacks_LoadSave.cpp'; Anchor = 'const unsigned short* pusFailOp = LuaWideString::Check(LuaHelper::mState, 2);'; Replacement = 'const unsigned short* pusFailOp = (const unsigned short*)luaL_checklstring(LuaHelper::mState, 2, 0);'; Tests = @('lua wide string sites route through the accessor') },
     @{ Id = 'LWIDE-07'; File = 'src\Battlefront2\Source\LuaCallbacks_Net.cpp'; Anchor = 'PblUnicode::ustrncnv((char*)name, LuaWideString::Check(LuaHelper::mState, 1), 66);'; Replacement = 'PblUnicode::ustrncnv((char*)name, (const unsigned short*)luaL_checklstring(LuaHelper::mState, 1, 0), 66);'; Tests = @('lua wide string sites route through the accessor') },
     @{ Id = 'LWIDE-08'; File = 'src\Battlefront2\Source\SaveFsm.cpp'; Anchor = 'if (pusFilename && mLoadQueueCnt < MAX_LOAD_QUEUE)'; Replacement = 'if (mLoadQueueCnt < MAX_LOAD_QUEUE)'; Tests = @('lua wide string sites route through the accessor') }
+    @{ Id = 'PBLIDX-01'; File = $pidx; Anchor = 'return (unsigned int)iIndex < N;'; Replacement = 'return true;'; Tests = @('pbl in bounds accepts only indices inside the array') }
+    @{ Id = 'PBLHASH-01'; File = $phash; Anchor = 'operator TYPE*() const { return _pos < SLOTS ? (TYPE*)_table->_table[SLOTS + _pos] : 0; }'; Replacement = 'operator TYPE*() const { return (TYPE*)_table->_table[SLOTS + _pos]; }'; Tests = @('hash table end converts to null') }
+    @{ Id = 'NETLOCAL-01'; File = $nc; Anchor = 'return PblInBounds(netLocalIndex, iLocal) ? netLocalIndex[iLocal] : -1;'; Replacement = 'return netLocalIndex[iLocal];'; Tests = @('local index out of range is minus one') }
+    @{ Id = 'PBLHASH-02'; File = $phash; Anchor = 'bool operator!=(const Itor& rOther) const { return _pos != rOther._pos; }'; Replacement = ''; Tests = @('hash table iteration visits null valued entries') }
+    @{ Id = 'POLY-01'; File = 'src\Battlefront2\Source\CollisionMesh.h'; Anchor = '&mNumVerticesPerPoly[iPoly + 1], N - iPoly - 1);'; Replacement = '&mNumVerticesPerPoly[iPoly + 1], N - iPoly);'; Tests = @('remove polygon leaves the slot past the count alone') }
+    @{ Id = 'HERO-01'; File = 'src\Battlefront2\Source\Character.cpp'; Anchor = 'return PblInBounds(netHeroLastPlayerID, mTeamNumber) &&'; Replacement = 'return'; Tests = @('hero and game rules reads stay bounded') }
+    @{ Id = 'HERO-02'; File = 'src\Battlefront2\Source\Character.cpp'; Anchor = 'if (PblInBounds(netHeroLastPlayerID, mTeamNumber) &&'; Replacement = 'if ('; Tests = @('hero and game rules reads stay bounded') }
+    @{ Id = 'HERO-03'; File = 'src\Battlefront2\Source\Character.cpp'; Anchor = 'PblInBounds(netHeroUnlocked, iTeam) && netHeroUnlocked[iTeam] &&'; Replacement = 'netHeroUnlocked[iTeam] &&'; Tests = @('hero and game rules reads stay bounded') }
+    @{ Id = 'HERO-04'; File = 'src\Battlefront2\Source\Character.cpp'; Anchor = 'PblInBounds(netHeroKillerID, rOwner.mCharacter->mTeamNumber)'; Replacement = 'true'; Tests = @('hero and game rules reads stay bounded') }
+    @{ Id = 'HERO-05'; File = 'src\Battlefront2\Source\Character.cpp'; Anchor = '!PblInBounds(netHeroPlayerID, mTeamNumber) ||'; Replacement = 'false ||'; Tests = @('hero and game rules reads stay bounded') }
+    @{ Id = 'HERO-06'; File = 'src\Battlefront2\Source\Character.cpp'; Anchor = 'PblInBounds(netHeroAIID, mTeamNumber) ? netHeroAIID[mTeamNumber] : -1'; Replacement = 'netHeroAIID[mTeamNumber]'; Tests = @('hero and game rules reads stay bounded') }
+    @{ Id = 'HERO-07'; File = 'src\Battlefront2\Platform\Pc\pcSpawnDisplay.cpp'; Anchor = 'PblInBounds(netHeroUnlocked, iTeam) && netHeroUnlocked[iTeam] &&'; Replacement = 'netHeroUnlocked[iTeam] &&'; Tests = @('hero and game rules reads stay bounded') }
+    @{ Id = 'RULES-01'; File = 'src\Battlefront2\Source\LuaCallbacks_Options.cpp'; Anchor = 'if (PblInBounds(gNumBots, eRules))'; Replacement = 'if (true)'; Tests = @('hero and game rules reads stay bounded') }
 )

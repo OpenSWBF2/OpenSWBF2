@@ -3,6 +3,25 @@ $script:SmokeStandardMission = 'geo1c_con'
 $script:SmokeMarker = 'OPENSWBF2 RUN COMPLETE'
 $script:WerKeyPath = 'SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\BattlefrontII.exe'
 $script:WerBasePath = 'SOFTWARE\Microsoft\Windows\Windows Error Reporting'
+$script:SmokeAsanTimeoutScale = 15
+$script:SmokeAsanExcluded = @('crash-nullderef', 'crash-divzero', 'crash-stackoverflow', 'crash-debugbreak', 'crash-abort', 'crash-invalidparam', 'crash-fastfail', 'crash-check', 'crash-hang', 'crash-arenaoom', 'crash-debugheapoom', 'crash-luapanic', 'crash-resetfatal', 'fatal-init')
+$script:SmokeAsanLabel = 'ASan coverage: stack, globals, CRT malloc and T1 heap only'
+
+function Get-AsanOptions([string]$caseDir) {
+    if ($caseDir.Contains("'")) { throw "ASan log_path cannot be quoted for a path that contains an apostrophe: $caseDir" }
+    return "exitcode=66:log_path='$caseDir\asan'"
+}
+
+function Get-AsanReport([string]$caseDir, $code) {
+    $files = @(Get-ChildItem -LiteralPath $caseDir -Filter 'asan.*' -File -ErrorAction SilentlyContinue)
+    if ($files.Count -gt 0) {
+        $text = 'ASan report:'
+        foreach ($f in $files) { $text += "`r`n" + ((Get-Content -LiteralPath $f.FullName -TotalCount 60) -join "`r`n") }
+        return $text
+    }
+    if ($code -eq 66) { return 'ASan exit 66 without an asan.* report: the ASan runtime failed before main (check ASAN_OPTIONS)' }
+    return $null
+}
 
 function Find-GameDataRoot {
     $candidate = $null
@@ -32,10 +51,12 @@ function Find-GameDataRoot {
     return $null
 }
 
-function Get-SmokePrecheck($gameDataRoot, $exeDir) {
+function Get-SmokePrecheck($gameDataRoot, $exeDir, $asan = $false) {
     if (-not $gameDataRoot) { return 'no retail GameData found (set SWBF2_GAMEDATA or install Steam App 6060)' }
     if (-not (Test-Path -LiteralPath (Join-Path $exeDir 'BattlefrontII.exe'))) { return "BattlefrontII.exe not found in $exeDir" }
-    foreach ($dll in 'binkw32.dll', 'Galaxy.dll', 'GalaxyPeer.dll', 'steam_api.dll') {
+    $dlls = @('binkw32.dll', 'Galaxy.dll', 'GalaxyPeer.dll', 'steam_api.dll')
+    if ($asan) { $dlls += 'clang_rt.asan_dynamic-i386.dll' }
+    foreach ($dll in $dlls) {
         if (-not (Test-Path -LiteralPath (Join-Path $exeDir $dll))) { return "$dll missing beside the exe in $exeDir" }
     }
     $data = Get-Item -LiteralPath (Join-Path $exeDir 'data') -Force -ErrorAction SilentlyContinue
@@ -124,7 +145,7 @@ function Get-WerDumpFolder {
     return (Join-Path $env:LOCALAPPDATA 'OpenSWBF2\crashes')
 }
 
-function Invoke-SmokeCase($name, $exe, $workDir, $argLine, $timeoutSec, $caseDir) {
+function Invoke-SmokeCase($name, $exe, $workDir, $argLine, $timeoutSec, $caseDir, $asanOptions = $null) {
     New-Item -ItemType Directory -Force -Path $caseDir | Out-Null
     $scoreLog = Join-Path $workDir 'finalscore.log'
     Remove-Item -LiteralPath $scoreLog -Force -ErrorAction SilentlyContinue
@@ -139,6 +160,7 @@ function Invoke-SmokeCase($name, $exe, $workDir, $argLine, $timeoutSec, $caseDir
     $psi.RedirectStandardOutput = $true
     $psi.RedirectStandardError = $true
     $psi.CreateNoWindow = $true
+    if ($asanOptions) { $psi.EnvironmentVariables['ASAN_OPTIONS'] = $asanOptions }
     $start = Get-Date
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
     $p = [System.Diagnostics.Process]::Start($psi)
@@ -175,15 +197,20 @@ function Invoke-SmokeCase($name, $exe, $workDir, $argLine, $timeoutSec, $caseDir
         }
         $dumps = @(Get-ChildItem -LiteralPath $caseDir -Filter '*.dmp' -ErrorAction SilentlyContinue)
     }
+    $asan = $null
+    if ($asanOptions) {
+        $asan = Get-AsanReport $caseDir $code
+        if ($asan) { $logText += "`r`n" + $asan }
+    }
     $ms = $sw.ElapsedMilliseconds
-    $result = ("class={0}`r`nexit=0x{1:X8}`r`nelapsed_ms={2}`r`ndumps={3}`r`n" -f $class, $code, $ms, $dumps.Count)
+    $result = ("class={0}`r`nexit=0x{1:X8}`r`nelapsed_ms={2}`r`ndumps={3}`r`nasan={4}`r`n" -f $class, $code, $ms, $dumps.Count, [int][bool]$asan)
     Set-Content -Path (Join-Path $caseDir 'result.txt') -Value $result -Encoding ASCII
-    return New-Object PSObject -Property @{ Name = $name; Class = $class; Code = $code; Dumps = $dumps; LogText = $logText; Ms = $ms; CaseDir = $caseDir; WorkDir = $workDir }
+    return New-Object PSObject -Property @{ Name = $name; Class = $class; Code = $code; Dumps = $dumps; LogText = $logText; Ms = $ms; CaseDir = $caseDir; WorkDir = $workDir; Asan = $asan }
 }
 
 function New-SmokeWorkerDir($srcDir, $dir) {
     New-Item -ItemType Directory -Force -Path $dir | Out-Null
-    foreach ($f in 'BattlefrontII.exe', 'binkw32.dll', 'Galaxy.dll', 'GalaxyPeer.dll', 'steam_api.dll', 'unicows.dll', 'steam_appid.txt') {
+    foreach ($f in 'BattlefrontII.exe', 'binkw32.dll', 'Galaxy.dll', 'GalaxyPeer.dll', 'steam_api.dll', 'unicows.dll', 'steam_appid.txt', 'clang_rt.asan_dynamic-i386.dll') {
         $s = Join-Path $srcDir $f
         if (Test-Path -LiteralPath $s) { Copy-Item -LiteralPath $s -Destination $dir -Force }
     }
@@ -215,6 +242,14 @@ function Get-ReparsePoints([string]$dir) {
     return $found.ToArray()
 }
 
+function Remove-StagedOutput([string]$dir) {
+    if (-not (Test-Path -LiteralPath $dir)) { return }
+    foreach ($rp in @(Get-ReparsePoints $dir)) { & cmd /c rmdir "$rp" | Out-Null }
+    $left = @(Get-ReparsePoints $dir)
+    if ($left.Count -gt 0) { throw "junctions not removed under ${dir}: $($left -join ', ')" }
+    if (Test-Path -LiteralPath $dir) { Remove-Item -LiteralPath $dir -Recurse -Force }
+}
+
 function Start-SmokeBatch($items, $workDirs) {
     $src = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'smoke.ps1'))
     $queue = New-Object 'System.Collections.Concurrent.ConcurrentQueue[string]'
@@ -226,7 +261,7 @@ function Start-SmokeBatch($items, $workDirs) {
         . ([scriptblock]::Create($src))
         $dir = $null
         while (-not $queue.TryDequeue([ref]$dir)) { Start-Sleep -Milliseconds 50 }
-        try { Invoke-SmokeCase $item.Name (Join-Path $dir $item.ExeName) $dir $item.ArgLine $item.Timeout $item.CaseDir }
+        try { Invoke-SmokeCase $item.Name (Join-Path $dir $item.ExeName) $dir $item.ArgLine $item.Timeout $item.CaseDir $item.AsanOptions }
         finally { $queue.Enqueue($dir) }
     }
     $handles = @()
@@ -317,7 +352,7 @@ function Test-SmokeExpect($case, $res) {
         $iniText = [IO.File]::ReadAllText($ini)
         foreach ($rx in @($x.IniRx)) { if ($iniText -cnotmatch $rx) { return $false } }
     }
-    if (-not $script:SmokeDigestConfiguration -or $script:SmokeDigestConfiguration -eq 'Release') {
+    if (-not $script:SmokeDigestConfiguration -or $script:SmokeDigestConfiguration -in 'Release', 'Test') {
         $want = Get-DigestExpected $case.Name
         if ($want) {
             $got = Get-DigestKey $res.CaseDir
@@ -325,6 +360,16 @@ function Test-SmokeExpect($case, $res) {
                 Write-Host "    digest expected: $want"
                 Write-Host "    digest actual: $got"
                 return $false
+            }
+        }
+    }
+    elseif ($script:SmokeDigestConfiguration -eq 'Asan') {
+        $want = Get-DigestExpected $case.Name
+        if ($want) {
+            $got = Get-DigestKey $res.CaseDir
+            if ($want -cne $got) {
+                Write-Host "    digest finding (Asan, not gated): expected $want"
+                Write-Host "    digest finding (Asan, not gated): actual $got"
             }
         }
     }

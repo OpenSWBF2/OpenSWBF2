@@ -231,9 +231,9 @@ public:
                 iFirst += mNumVerticesPerPoly[i];
             }
             int iNumVerts = mNumVerticesPerPoly[iPoly];
-            memcpy(&mVertices[iFirst], &mVertices[iFirst + iNumVerts],
-                   (mVertCount - iFirst) * sizeof(PblVector3));
-            memcpy(&mNumVerticesPerPoly[iPoly], &mNumVerticesPerPoly[iPoly + 1], N - iPoly);
+            memmove(&mVertices[iFirst], &mVertices[iFirst + iNumVerts],
+                    (mVertCount - iFirst) * sizeof(PblVector3));
+            memmove(&mNumVerticesPerPoly[iPoly], &mNumVerticesPerPoly[iPoly + 1], N - iPoly - 1);
         }
     }
 

@@ -9,6 +9,14 @@
       <Configuration>Release</Configuration>
       <Platform>Win32</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Test|Win32">
+      <Configuration>Test</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Asan|Win32">
+      <Configuration>Asan</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{F303D4E6-ED54-5075-A41B-A8829D3D67C5}</ProjectGuid>
@@ -23,6 +31,8 @@
     <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>false</WholeProgramOptimization>
     <CharacterSet>NotSet</CharacterSet>
+    <EnableASAN Condition="'$(Configuration)'=='Asan'">true</EnableASAN>
+    <CopyAsanBinariesToOutDir Condition="'$(Configuration)'=='Asan'">true</CopyAsanBinariesToOutDir>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <PropertyGroup>
@@ -78,6 +88,16 @@
     <ClCompile>
       <Optimization>Disabled</Optimization>
       <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Test' or '$(Configuration)'=='Asan'">
+    <ClCompile>
+      <PreprocessorDefinitions>OPENSWBF2_TEST;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Asan'">
+    <ClCompile>
+      <PreprocessorDefinitions>_DISABLE_VECTOR_ANNOTATION;_DISABLE_STRING_ANNOTATION;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -1403,6 +1423,7 @@
     <ClInclude Include="src\PebbleFL\Common\PblFourier.h" />
     <ClInclude Include="src\PebbleFL\Common\PblHandle.h" />
     <ClInclude Include="src\PebbleFL\Common\PblHashTable.h" />
+    <ClInclude Include="src\PebbleFL\Common\PblIndex.h" />
     <ClInclude Include="src\PebbleFL\Common\PblHeap.h" />
     <ClInclude Include="src\PebbleFL\Common\PblHermite.h" />
     <ClInclude Include="src\PebbleFL\Common\PblJournal.h" />
