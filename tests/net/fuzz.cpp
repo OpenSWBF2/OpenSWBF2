@@ -252,7 +252,10 @@ static bool RunWireFuzz(unsigned int uSeed, unsigned int uCount, unsigned int* p
         }
         for (int i = 0; i < NET_REJECT_COUNT; ++i)
         {
-            uRejectSum = (uRejectSum ^ (unsigned int)netRejectCounts[i]) * 16777619u;
+            if (i < NET_REJECT_SPAWN_SLOT || netRejectCounts[i] != 0)
+            {
+                uRejectSum = (uRejectSum ^ (unsigned int)netRejectCounts[i]) * 16777619u;
+            }
         }
     }
     printf("fuzz-checksum netwire seed=%u count=%u sum=0x%08x rejects=0x%08x\n", uSeed, uCount, uSum,

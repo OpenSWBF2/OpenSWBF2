@@ -2,6 +2,10 @@
 #include "PebbleFL/Common/PblVector.h"
 #include "RedGroupElement.h"
 #include "PebbleFL/Common/PblMath.h"
+#include "Red3DModelElement.h"
+#include "RedIFScreen.h"
+#include "RedInterfaceScreen.h"
+#include "Battlefront2/Source/LuaCallbacks_IFace.h"
 
 // FUNCTION: SWBF2 0x006c0250
 void RedInterfaceElement::Rotate(float fAngle)
@@ -127,6 +131,15 @@ RedInterfaceElement::RedInterfaceElement()
 RedInterfaceElement::~RedInterfaceElement()
 {
     sLuaHandles.Remove(this);
+    if (Lua_Callbacks::pCurCreateObject == this)
+    {
+        Lua_Callbacks::pCurCreateObject = 0;
+    }
+    if (static_cast<RedInterfaceElement*>(Lua_Callbacks::pCurCreateScreenGroup) == this)
+    {
+        Lua_Callbacks::pCurCreateScreenGroup = 0;
+    }
+    IFScreen::ForgetElement(this);
     if (m_bInAllObjectList)
     {
         m_bInAllObjectList = false;
@@ -302,6 +315,9 @@ void RedInterfaceElement::Reset()
     sAllObjectsListNumEntries = 0;
     s_uiUnnamedCRC = 0;
     sLuaHandles.Clear();
+    Lua_Callbacks::pCurCreateObject = 0;
+    Lua_Callbacks::pCurCreateScreenGroup = 0;
+    Red3DModelElement::sAttachHosts.Clear();
 }
 
 // FUNCTION: SWBF2 0x006c05f0

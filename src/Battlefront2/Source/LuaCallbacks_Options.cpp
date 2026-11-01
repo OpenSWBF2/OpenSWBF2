@@ -405,7 +405,7 @@ int ScriptCB_SetControlScale(lua_State* L)
         int iAxis = (int)luaL_checknumber(LuaHelper::mState, 1);
         int iScale = (int)luaL_checknumber(LuaHelper::mState, 2);
         PlayerProfile::tProfile* pProfile = PlayerProfile::GetProfile(PauseMenu::GetPausingJoystick());
-        if (pProfile)
+        if (pProfile && PblInBounds(pProfile->mGameOptions.mControllerScale, iAxis))
         {
             int iMode = FLInputManager::s_instance.GetPlayerJoystick(PauseMenu::GetPausingViewport())->GetInputMode();
             pProfile->mGameOptions.mControllerScale[iAxis][iMode] = (unsigned char)iScale;
@@ -1251,6 +1251,10 @@ int ScriptCB_SetSpectatorMode(lua_State*)
 {
     int iLocal = (int)luaL_checknumber(LuaHelper::mState, 1);
     bool bEnabled = lua_toboolean(LuaHelper::mState, 2) != 0;
+    if (!PblInBounds(g_SpectatorEnabled, iLocal))
+    {
+        return 0;
+    }
     g_SpectatorEnabled[iLocal] = bEnabled;
     NetGame::SetSpectator(NetGame::GetLocalIndex(iLocal), bEnabled ? 0 : -1);
     return 0;
@@ -1260,7 +1264,7 @@ int ScriptCB_SetSpectatorMode(lua_State*)
 int ScriptCB_GetSpectatorMode(lua_State*)
 {
     int iLocal = (int)luaL_checknumber(LuaHelper::mState, 1);
-    lua_pushnumber(LuaHelper::mState, (float)g_SpectatorEnabled[iLocal]);
+    lua_pushnumber(LuaHelper::mState, PblInBounds(g_SpectatorEnabled, iLocal) ? (float)g_SpectatorEnabled[iLocal] : 0.0f);
     return 1;
 }
 
@@ -1432,7 +1436,10 @@ int ScriptCB_GetControlScale(lua_State*)
     {
         int iAxis = (int)luaL_checknumber(LuaHelper::mState, 1);
         RawControllerInputs* pJoystick = FLInputManager::s_instance.GetPlayerJoystick(PauseMenu::GetPausingViewport());
-        iScale = pProfile->mGameOptions.mControllerScale[iAxis][pJoystick->GetInputMode()];
+        if (PblInBounds(pProfile->mGameOptions.mControllerScale, iAxis))
+        {
+            iScale = pProfile->mGameOptions.mControllerScale[iAxis][pJoystick->GetInputMode()];
+        }
     }
     lua_pushnumber(LuaHelper::mState, (float)iScale);
     return 1;

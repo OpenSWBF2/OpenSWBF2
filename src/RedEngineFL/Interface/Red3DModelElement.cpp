@@ -10,6 +10,8 @@
 
 void __cdecl PblTraceP(const char* Format, ...);
 
+PblPtrSet<256> Red3DModelElement::sAttachHosts;
+
 namespace
 {
 
@@ -190,7 +192,32 @@ Red3DModelElement::Red3DModelElement(const char* pcName)
 // FUNCTION: SWBF2 0x006daad0
 Red3DModelElement::~Red3DModelElement()
 {
+    sAttachHosts.Remove(this);
+    if (m_bAmAttached)
+    {
+        for (int i = 0; i < 256; ++i)
+        {
+            Red3DModelElement* pHost = (Red3DModelElement*)sAttachHosts.mSlots[i];
+            if (pHost && pHost->m_AttachedObj == this)
+            {
+                pHost->m_AttachedObj = 0;
+                pHost->m_uiHardpointHash = 0;
+            }
+        }
+    }
     delete mAnimator;
+}
+
+bool Red3DModelElement::AttachModel(Red3DModelElement* pAttached, unsigned int uiHardpointHash)
+{
+    if (!pAttached || !sAttachHosts.Insert(this))
+    {
+        return false;
+    }
+    m_AttachedObj = pAttached;
+    m_uiHardpointHash = uiHardpointHash;
+    pAttached->m_bAmAttached = true;
+    return true;
 }
 
 // SYNTHETIC: SWBF2 0x006dab40

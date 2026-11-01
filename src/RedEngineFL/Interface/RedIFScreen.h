@@ -6,6 +6,7 @@
 #include "PebbleFL/Common/PblHashTable.h"
 
 class RedScreenGroupElement;
+class RedInterfaceElement;
 
 class IFScreen
 {
@@ -20,6 +21,7 @@ public:
     // IFScreen::`scalar deleting destructor'
 
     static IFScreen* Find(unsigned int uiName);
+    static void ForgetElement(const RedInterfaceElement* pElement);
     static IFScreen* Find(const char* pcName) { return Find(pcName ? (unsigned int)PblHash(pcName) : 0u); }
     const char* GetNameStr() const { return mNameStr; }
     void AddToRedScreen();

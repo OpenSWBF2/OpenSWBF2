@@ -11,6 +11,7 @@ class GameObject;
 class MedalsMgr;
 class FlagItem;
 class EntityClass;
+class EntityEx;
 class Team;
 
 class PlayerStats;
@@ -37,6 +38,7 @@ public:
     static PlayerStats& GetPlayerStats(Character* pCharacter);
 
     void SetUnit(Controllable* pUnit);
+    static Character* FindOwner(const EntityEx* pEntity);
     void MakePlayer(int iTeam, const unsigned short* pName, int iPlayerId);
     void SetVehicle(Controllable* pVehicle);
     void SetRemote(Controllable* pRemote);

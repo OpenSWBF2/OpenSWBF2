@@ -1305,7 +1305,12 @@ void CommandPost::PlayVoiceOver(Team::Side eSide, VoiceOver::Stream eStream, boo
     {
         return;
     }
-    const Team::Side eListener = Team::sTeams[VoiceOverManager::sInstance->GetPlayerTeamNumber() + 1]->GetSide();
+    const Team* pListener = Team::Lookup(VoiceOverManager::sInstance->GetPlayerTeamNumber() + 1);
+    if (!pListener)
+    {
+        return;
+    }
+    const Team::Side eListener = pListener->GetSide();
     const bool bPlay = VoiceOverManager::sInstance->mPlay;
     bPlayMusic = bPlayMusic && bPlay;
     if (CommandPost::sEnableVO && bPlay)

@@ -69,6 +69,32 @@ IFScreen* IFScreen::Find(unsigned int uiName)
     return 0;
 }
 
+void IFScreen::ForgetElement(const RedInterfaceElement* pElement)
+{
+    if (!pElement)
+    {
+        return;
+    }
+    for (PblList<IFScreen>::Itor it = sAllScreensList.Begin(); it != sAllScreensList.End(); ++it)
+    {
+        IFScreen* pScreen = it;
+        int i = 0;
+        while (i < pScreen->mNumElements)
+        {
+            if (static_cast<const RedInterfaceElement*>(pScreen->mElements[i]) != pElement)
+            {
+                ++i;
+                continue;
+            }
+            for (int j = i + 1; j < pScreen->mNumElements; ++j)
+            {
+                pScreen->mElements[j - 1] = pScreen->mElements[j];
+            }
+            --pScreen->mNumElements;
+        }
+    }
+}
+
 // FUNCTION: SWBF2 0x006efd50
 void IFScreen::RemoveFromRedScreen()
 {

@@ -19,8 +19,13 @@ void* __cdecl PblHashTableCode::_Find(const unsigned int* pTable, int iCount, un
         return 0;
     }
 
-    while (*pSlot != uiHash)
+    for (int iFindProbes = 0; iFindProbes < iHalf; ++iFindProbes)
     {
+        if (*pSlot == uiHash)
+        {
+            return (void*)pSlot[iHalf];
+        }
+
         if (!*pSlot)
         {
             return 0;
@@ -33,7 +38,7 @@ void* __cdecl PblHashTableCode::_Find(const unsigned int* pTable, int iCount, un
         --pSlot;
     }
 
-    return (void*)pSlot[iHalf];
+    return 0;
 }
 
 // FUNCTION: SWBF2 0x00726f60
@@ -42,9 +47,45 @@ bool __cdecl PblHashTableCode::_Store(unsigned int* pTable, int iCount, unsigned
     const int iHalf = iCount >> 1;
     unsigned int* pSlot = pTable + ((iHalf - 1) & uiHash);
 
-    while (*pSlot)
+    for (int iStoreProbes = 0; iStoreProbes < iHalf; ++iStoreProbes)
     {
         if (*pSlot == uiHash)
+        {
+            return false;
+        }
+
+        if (!*pSlot)
+        {
+            *pSlot = uiHash;
+            pSlot[iHalf] = (unsigned int)pValue;
+            return true;
+        }
+
+        if (pSlot <= pTable)
+        {
+            pSlot += iHalf;
+        }
+        --pSlot;
+    }
+
+    return false;
+}
+
+// FUNCTION: SWBF2 0x00726ed0
+bool __cdecl PblHashTableCode::_Remove(unsigned int* pTable, int iCount, unsigned int uiHash)
+{
+    const int iHalf = iCount >> 1;
+    unsigned int* pSlot = pTable + ((iHalf - 1) & uiHash);
+
+    int iRemoveProbes = 0;
+    for (; iRemoveProbes < iHalf; ++iRemoveProbes)
+    {
+        if (*pSlot == uiHash)
+        {
+            break;
+        }
+
+        if (!*pSlot)
         {
             return false;
         }
@@ -56,29 +97,9 @@ bool __cdecl PblHashTableCode::_Store(unsigned int* pTable, int iCount, unsigned
         --pSlot;
     }
 
-    *pSlot = uiHash;
-    pSlot[iHalf] = (unsigned int)pValue;
-    return true;
-}
-
-// FUNCTION: SWBF2 0x00726ed0
-bool __cdecl PblHashTableCode::_Remove(unsigned int* pTable, int iCount, unsigned int uiHash)
-{
-    const int iHalf = iCount >> 1;
-    unsigned int* pSlot = pTable + ((iHalf - 1) & uiHash);
-
-    while (*pSlot != uiHash)
+    if (iRemoveProbes == iHalf)
     {
-        if (!*pSlot)
-        {
-            return false;
-        }
-
-        if (pSlot <= pTable)
-        {
-            pSlot += iHalf;
-        }
-        --pSlot;
+        return false;
     }
 
     *pSlot = 0;

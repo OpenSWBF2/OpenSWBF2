@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblIndex.h"
+
 namespace GameLoop
 {
 
@@ -78,7 +80,13 @@ void SetJoystickYFlip(int iFlip);
 extern bool sGameOver;
 
 extern bool mShowTeamPoints[2];
-inline void SetShowTeamPoints(int iTeam, bool bShow) { mShowTeamPoints[iTeam - 1] = bShow; }
+inline void SetShowTeamPoints(int iTeam, bool bShow)
+{
+    if (PblInBounds(mShowTeamPoints, iTeam - 1))
+    {
+        mShowTeamPoints[iTeam - 1] = bShow;
+    }
+}
 
 }
 

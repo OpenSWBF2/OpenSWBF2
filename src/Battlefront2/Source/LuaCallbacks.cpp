@@ -22,6 +22,7 @@
 #include <time.h>
 #include "LuaFL/include/lauxlib.h"
 #include "PebbleFL/Common/PblHashTable.h"
+#include "PebbleFL/Common/PblIndex.h"
 #include "PebbleFL/Common/PblUnicode.h"
 #include "RedEngineFL/Interface/RedInterfaceElement.h"
 #include "RedEngineFL/Interface/RedTextElement.h"
@@ -1356,7 +1357,7 @@ int ScriptCB_IndexMultipageText(lua_State*)
     memset(sPageStart, 0, sizeof(sPageStart));
 
     int i;
-    for (i = 0; i < 300; ++i)
+    for (i = 0; pTextElement && i < 300; ++i)
     {
         sPageStart[i] = pusText;
         int iChars = pTextElement->SetText(pusText, true);
@@ -1383,14 +1384,17 @@ int ScriptCB_ShowMultipageText(lua_State*)
         const char* pcElement = luaL_checklstring(LuaHelper::mState, 1, 0);
         int iPage = (int)luaL_checknumber(LuaHelper::mState, 2);
         RedTextElement* pTextElement = (RedTextElement*)RedInterfaceElement::Find(pcElement);
-        const unsigned short* pusText = sPageStart[iPage - 1];
+        const unsigned short* pusText = PblInBounds(sPageStart, iPage - 1) ? sPageStart[iPage - 1] : 0;
         unsigned short ausEmpty[5];
         if (!pusText)
         {
             memset(ausEmpty, 0, sizeof(ausEmpty));
             pusText = ausEmpty;
         }
-        pTextElement->SetText(pusText, true);
+        if (pTextElement)
+        {
+            pTextElement->SetText(pusText, true);
+        }
     }
     return 0;
 }
@@ -1582,7 +1586,7 @@ int ScriptCB_GetTeamName(lua_State*)
         iTeam = LuaHelper::GetInt(1);
     }
 
-    Team* pTeam = Team::sTeams[iTeam];
+    Team* pTeam = Team::Lookup(iTeam);
     if (pTeam && pTeam->mName[0])
     {
         LuaHelper::PushString(pTeam->mName);

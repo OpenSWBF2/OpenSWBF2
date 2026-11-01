@@ -104,3 +104,21 @@ TEST_CASE("client of index accepts only one and two" * doctest::test_suite("regr
     CHECK(!LocalLimits::IsValidClientOf(64));
     CHECK(!LocalLimits::IsValidClientOf(2147483647));
 }
+
+
+TEST_CASE("net player and guest count bounds" * doctest::test_suite("regression"))
+{
+    for (int i = 0; i < 64; ++i)
+    {
+        CHECK(LocalLimits::IsValidNetPlayer(i));
+    }
+    CHECK(!LocalLimits::IsValidNetPlayer(-1));
+    CHECK(!LocalLimits::IsValidNetPlayer(64));
+    CHECK(!LocalLimits::IsValidNetPlayer(-2147483647 - 1));
+    CHECK(!LocalLimits::IsValidNetPlayer(2147483647));
+    CHECK(LocalLimits::IsValidGuestCount(0));
+    CHECK(LocalLimits::IsValidGuestCount(1));
+    CHECK(!LocalLimits::IsValidGuestCount(2));
+    CHECK(!LocalLimits::IsValidGuestCount(7));
+    CHECK(!LocalLimits::IsValidGuestCount(0xffffffffu));
+}

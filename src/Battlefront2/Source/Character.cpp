@@ -1139,7 +1139,11 @@ bool Character::ChangeTeam(int iTeam)
     {
         return false;
     }
-    Team* pTeam = Team::sTeams[iTeam];
+    Team* pTeam = Team::Lookup(iTeam);
+    if (!pTeam)
+    {
+        return false;
+    }
     if (pTeam->mMemberCount >= pTeam->GetMemberLimit())
     {
         return false;
@@ -1609,6 +1613,31 @@ float Character::GetObjectHitValue(int iAffiliation) const
 float Character::GetObjectHitMultiplier(int iAffiliation) const
 {
     return mObjectHitMultiplier[iAffiliation + 1];
+}
+
+Character* Character::FindOwner(const EntityEx* pEntity)
+{
+    if (!sCharacters || !pEntity)
+    {
+        return 0;
+    }
+    for (int i = 0; i < sCharacterLimit; ++i)
+    {
+        Character* pCharacter = &sCharacters[i];
+        Controllable* apHeld[3] = { pCharacter->mUnit, pCharacter->mVehicle, pCharacter->mRemote };
+        for (int j = 0; j < 3; ++j)
+        {
+            if (apHeld[j] && static_cast<const EntityEx*>(apHeld[j]->GetGameObject()) == pEntity)
+            {
+                return pCharacter;
+            }
+        }
+        if (pCharacter->mCarriedFlagPtr && static_cast<const EntityEx*>(pCharacter->mCarriedFlagPtr) == pEntity)
+        {
+            return pCharacter;
+        }
+    }
+    return 0;
 }
 
 // FUNCTION: SWBF2 0x00452230

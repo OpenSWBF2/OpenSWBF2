@@ -143,6 +143,8 @@
     <ClCompile Include="..\src\LuaFL\src\lvm.cpp" />
     <ClCompile Include="..\src\LuaFL\src\lzio.cpp" />
     <ClCompile Include="..\src\LuaFL\src\lib\lauxlib.cpp" />
+    <ClCompile Include="..\src\LuaFL\src\lib\ldblib.cpp" />
+    <ClCompile Include="..\src\LuaFL\src\lib\liolib.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\LuaMemory.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\LuaVideoArgs.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\LuaWideString.cpp" />

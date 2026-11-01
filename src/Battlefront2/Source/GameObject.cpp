@@ -20,6 +20,7 @@
 #include "VOHelper.h"
 #include "Team.h"
 #include "PebbleFL/Common/PblHandle.h"
+#include "PebbleFL/Common/PblIndex.h"
 #include "PebbleFL/Common/PblList.h"
 #include "PebbleFL/Common/PblQuaternion.h"
 #include "RedEngineFL/Portals/Portal.h"
@@ -624,7 +625,7 @@ GameObjectInterpolator gameObjectInterpolator;
 // FUNCTION: SWBF2 0x00537460
 void GameObjectInterpolator::GetMatrix(int iNetUniqueId, PblMatrix& mMatrix)
 {
-    if ((unsigned int)iNetUniqueId >= 64)
+    if (!PblInBounds(count, iNetUniqueId))
     {
         return;
     }
@@ -656,7 +657,7 @@ void GameObjectInterpolator::GetMatrix(int iNetUniqueId, PblMatrix& mMatrix)
 // FUNCTION: SWBF2 0x00537400
 void GameObjectInterpolator::SetNext(int iNetUniqueId, const PblMatrix* pMatrix)
 {
-    if (iNetUniqueId < 0)
+    if (!PblInBounds(count, iNetUniqueId))
     {
         return;
     }
@@ -674,7 +675,7 @@ void GameObjectInterpolator::SetNext(int iNetUniqueId, const PblMatrix* pMatrix)
 // FUNCTION: SWBF2 0x00537630
 void GameObjectInterpolator::SetNextFloat(int iNetUniqueId, int iIndex, float fValue)
 {
-    if (iNetUniqueId >= 0)
+    if (PblInBounds(count, iNetUniqueId))
     {
         ((float*)mFloats)[6 * iNetUniqueId + 2 * iIndex + ((count[iNetUniqueId] - 1) & 1)] = fValue;
     }
@@ -683,7 +684,7 @@ void GameObjectInterpolator::SetNextFloat(int iNetUniqueId, int iIndex, float fV
 // FUNCTION: SWBF2 0x005376f0
 float GameObjectInterpolator::GetCurFloat(int iNetUniqueId, int iIndex)
 {
-    if (iNetUniqueId < 0 || count[iNetUniqueId] < 1)
+    if (!PblInBounds(count, iNetUniqueId) || count[iNetUniqueId] < 1)
     {
         return 0.0f;
     }
@@ -693,7 +694,7 @@ float GameObjectInterpolator::GetCurFloat(int iNetUniqueId, int iIndex)
 // FUNCTION: SWBF2 0x00537730
 float GameObjectInterpolator::GetPrevFloat(int iNetUniqueId, int iIndex)
 {
-    if (iNetUniqueId < 0 || count[iNetUniqueId] < 1)
+    if (!PblInBounds(count, iNetUniqueId) || count[iNetUniqueId] < 1)
     {
         return 0.0f;
     }
@@ -704,7 +705,7 @@ float GameObjectInterpolator::GetPrevFloat(int iNetUniqueId, int iIndex)
 // FUNCTION: SWBF2 0x005378b0
 void GameObjectInterpolator::SetNextVector(int iNetUniqueId, const PblVector3* pVector)
 {
-    if (iNetUniqueId >= 0 && pVector)
+    if (PblInBounds(count, iNetUniqueId) && pVector)
     {
         ((PblVector3*)vec)[2 * iNetUniqueId + ((count[iNetUniqueId] - 1) & 1)] = *pVector;
     }
@@ -713,7 +714,7 @@ void GameObjectInterpolator::SetNextVector(int iNetUniqueId, const PblVector3* p
 // FUNCTION: SWBF2 0x005378f0
 void GameObjectInterpolator::GetVector(int iNetUniqueId, PblVector3& vVector)
 {
-    if (iNetUniqueId < 0 || count[iNetUniqueId] < 2)
+    if (!PblInBounds(count, iNetUniqueId) || count[iNetUniqueId] < 2)
     {
         return;
     }
@@ -728,7 +729,7 @@ void GameObjectInterpolator::GetVector(int iNetUniqueId, PblVector3& vVector)
 // FUNCTION: SWBF2 0x00537660
 float GameObjectInterpolator::GetFloat(int iNetUniqueId, int iIndex)
 {
-    if (iNetUniqueId < 0 || count[iNetUniqueId] < 1)
+    if (!PblInBounds(count, iNetUniqueId) || count[iNetUniqueId] < 1)
     {
         return 0.0f;
     }
@@ -750,7 +751,7 @@ float GameObjectInterpolator::GetLoopingFloat(int iNetUniqueId, int iIndex, floa
                                                float fDirection, bool& bWrapped)
 {
     bWrapped = false;
-    if (iNetUniqueId < 0 || count[iNetUniqueId] < 1)
+    if (!PblInBounds(count, iNetUniqueId) || count[iNetUniqueId] < 1)
     {
         return 0.0f;
     }
