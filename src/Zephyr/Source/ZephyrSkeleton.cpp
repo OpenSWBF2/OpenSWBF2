@@ -2,10 +2,7 @@
 #include "ZephyrSkeletonShared.h"
 #include "ZephyrPoseStatic.h"
 #include "PebbleFL/Common/PblBitVector.h"
-
-extern "C" PblQuaternion* __stdcall D3DXQuaternionNormalize(PblQuaternion* pOut, const PblQuaternion* pQ);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationQuaternion(PblMatrix* pOut, const PblQuaternion* pQ);
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1, const PblMatrix* pM2);
+#include "PebbleFL/pc/PblD3DX.h"
 
 // GLOBAL: SWBF2 0x009cf404
 // SYNTHETIC: SWBF2 0x0040b0f0

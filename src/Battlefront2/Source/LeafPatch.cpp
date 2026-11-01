@@ -14,6 +14,7 @@
 #include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblRandom.h"
 #include "RedEngineFL/Graphics/RedDirectionalLight.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 // SYNTHETIC: SWBF2 0x0056dbd0
 // LeafPatchClass::`scalar deleting destructor'
@@ -30,8 +31,6 @@ LeafPatchClass::~LeafPatchClass()
 
 // SYNTHETIC: SWBF2 0x0056f41d
 // [thunk]:LeafPatchClass::`scalar deleting destructor' adjustor{24}
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
 
 // FUNCTION: SWBF2 0x0056dc00
 void LeafPatchClass::CreateClient()
@@ -473,8 +472,6 @@ bool LeafPatchClass::Update(float fDeltaTime)
 class PblMatrix;
 extern PblMatrix gMatrixIdentity;
 extern NoLodData noloddata;
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV, const PblMatrix* pM);
-extern "C" PblVector3* __stdcall D3DXVec3TransformNormal(PblVector3* pOut, const PblVector3* pV, const PblMatrix* pM);
 
 // FUNCTION: SWBF2 0x0056cf20
 LeafPatch::LeafPatch(LeafPatchClass* pClass, const PblMatrix& matrix)

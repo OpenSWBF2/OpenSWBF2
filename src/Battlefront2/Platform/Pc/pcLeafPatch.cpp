@@ -11,6 +11,7 @@
 #include "RedEngineFL/Application/pc/pcRenderHelpers.h"
 #include <new>
 #include "Battlefront2/Source/BirdEffect.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x0041a740
 LeafPatchRenderable::LeafPatchRenderable(const LeafPatchClass* pClass)
@@ -137,8 +138,6 @@ bool LeafPatchClass::RenderMaxDist(const PblMatrix& matrix, float& fDist,
     Render(1.0f, scaled, uiFlags, color);
     return true;
 }
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
 
 // GLOBAL: SWBF2 0x007eb710
 static PblBox sBox(-50.0f, -50.0f, -50.0f, 50.0f, 50.0f, 50.0f);

@@ -8,8 +8,7 @@
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "RedEngineFL/Graphics/PC/pcRedShader.h"
 #include "RedEngineFL/Application/pc/pcRenderHelpers.h"
-
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1, const PblMatrix* pM2);
+#include "PebbleFL/pc/PblD3DX.h"
 
 namespace
 {

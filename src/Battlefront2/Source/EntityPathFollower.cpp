@@ -26,6 +26,7 @@
 #include "AIUtil.h"
 #include "CollisionModel.h"
 #include "PebbleFL/Common/PblQuaternion.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x004d7900
 EntityPathFollowerClass::EntityPathFollowerClass()
@@ -129,8 +130,6 @@ bool EntityPathFollowerClass::SetProperty(unsigned int uProperty, const char* ps
     }
     return EntitySquadronClass::SetProperty(uProperty, pszValue);
 }
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
 
 namespace
 {
@@ -1616,9 +1615,6 @@ void EntityPathFollower::GetNextTowardsAttackerPoint(BranchParams& params, PblVe
         mAttacker = 0;
     }
 }
-
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationZ(PblMatrix* pOut, float fAngle);
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1, const PblMatrix* pM2);
 
 // FUNCTION: SWBF2 0x004d64a0
 bool EntityPathFollower::SetupNextSegment(const PblVector3* const pPosition, BranchParams& params, bool b1, bool b2)

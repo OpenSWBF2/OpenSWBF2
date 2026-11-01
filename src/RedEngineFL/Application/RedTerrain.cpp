@@ -15,6 +15,7 @@
 #include "RedWater.h"
 
 #include <float.h>
+#include "PebbleFL/pc/PblD3DX.h"
 
 bool PointInSphere(const PblVector3& vPoint, const PblVector3& vCenter, float fRadius);
 
@@ -26,8 +27,6 @@ bool PointInSphere(const PblVector3& vPoint, const PblVector3& vCenter, float fR
     const float fZ = vPoint.z - vCenter.z;
     return fRadius * fRadius > fX * fX + fY * fY + fZ * fZ;
 }
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
 
 static const float EPSILON = 0.001f;
 

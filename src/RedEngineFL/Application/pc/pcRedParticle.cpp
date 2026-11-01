@@ -12,8 +12,7 @@
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "RedEngineFL/Graphics/PC/pcRedShader.h"
 #include "RedEngineFL/Graphics/PC/Shaders/pcParticleShader.h"
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
+#include "PebbleFL/pc/PblD3DX.h"
 
 struct PosXYZ
 {

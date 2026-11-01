@@ -7,9 +7,9 @@
 #include "Trackable.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
 #include "PebbleFL/Common/PblQuaternion.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 static CollisionObject* GetCollisionObject(GameObject* pObject);
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
 
 // FUNCTION: SWBF2 0x0048a2b0
 DeathCamera::DeathCamera(CameraManager* pManager, int iView)
@@ -73,10 +73,6 @@ public:
 PblMatrix DirectionMatrix(const PblVector3& vDir, const PblVector3& vUp, const PblVector3& vPos);
 
 PblQuaternion Interpolate(const PblQuaternion& q0, const PblQuaternion& q1, float fT);
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
-extern "C" PblQuaternion* __stdcall D3DXQuaternionNormalize(PblQuaternion* pOut, const PblQuaternion* pQ);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationQuaternion(PblMatrix* pOut, const PblQuaternion* pQ);
 
 static CollisionObject* GetCollisionObject(GameObject* pObject)
 {
@@ -178,8 +174,6 @@ void DeathCamera::SetupIconVisibility(int iView)
 {
     mManager->m_uiVisibleIconMask[iView] = 0;
 }
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
 
 // FUNCTION: SWBF2 0x0043cd40
 PblMatrix DirectionMatrix(const PblVector3& vDir, const PblVector3& vUp, const PblVector3& vPos)

@@ -44,6 +44,7 @@ $ngc = 'src\Battlefront2\Source\NetGame.cpp'
 $gsa = 'src\Steam\gfSteamAuth.cpp'
 $sth = 'src\SoundFL\source\win\sndthread.cpp'
 $lls = 'src\Battlefront2\Source\LuaCallbacks_LoadSave.cpp'
+$pq = 'src\PebbleFL\Common\PblQuaternion.cpp'
 
 $GuardRevertRows = @(
     @{ Id = 'CRASH-02'; File = 'src\RedEngineFL\Util\RedWarning.cpp'; Anchor = 'fputs(pcText, pFile);'; Replacement = 'fprintf(pFile, pcText);'; Tests = @('file log writes percent text literally') },
@@ -149,6 +150,8 @@ $GuardRevertRows = @(
     @{ Id = 'ABI-05'; Kind = 'Hardening'; Check = 'fastcall-edx'; File = $ngc; Anchor = 'void __fastcall SetHoleRecordRadius(int* pThis, int value)'; Replacement = "void __fastcall SetHoleRecordRadius(int* pThis, void*, int value);`nvoid __fastcall SetHoleRecordRadius(int* pThis, int value)" },
     @{ Id = 'ABI-05B'; Kind = 'Hardening'; Check = 'fastcall-edx'; File = $ngc; Anchor = 'void __fastcall SetHoleRecordRadius(int* pThis, int value)'; Replacement = "void __fastcall SetHoleRecordRadius(int* pThis, void* pUnused, int value);`nvoid __fastcall SetHoleRecordRadius(int* pThis, int value)" },
     @{ Id = 'ABI-05C'; Kind = 'Hardening'; Check = 'fastcall-edx'; File = $lls; Anchor = 'void __fastcall GetMissionWorld(char* pcWorld)'; Replacement = "void __fastcall GetMissionWorld(char* pcWorld, int)`n{`n}`n`nvoid __fastcall GetMissionWorld(char* pcWorld)" },
+    @{ Id = 'HDR-01'; Kind = 'Hardening'; Check = 'd3dx-decl'; File = $pq; Anchor = '#include "PebbleFL/pc/PblD3DX.h"'; Replacement = '#include "PebbleFL/pc/PblD3DX.h"' + "`n" + 'extern "C" PblQuaternion* __stdcall D3DXQuaternionNormalize(PblQuaternion* pOut, const PblQuaternion* pQ);' },
+    @{ Id = 'HDR-01B'; Kind = 'Hardening'; Check = 'd3dx-decl'; File = $pq; Anchor = '#include "PebbleFL/pc/PblD3DX.h"'; Replacement = '#include "PebbleFL/pc/PblD3DX.h"' + "`n" + 'extern "C" PblQuaternion* _stdcall' + "`n" + 'D3DXQuaternionNormalize(PblQuaternion* pOut, const PblQuaternion* pQ);' },
     @{ Id = 'FLAG-ALIGNNEW'; Kind = 'Tlog'; Project = 'game'; Check = 'flag-alignednew'; File = 'BattlefrontII.vcxproj'; Anchor = '/Zc:alignedNew- /Zc:inline- %(AdditionalOptions)'; Replacement = '/Zc:inline- %(AdditionalOptions)' },
     @{ Id = 'FLAG-INLINE'; Kind = 'Tlog'; Project = 'game'; Check = 'flag-inline'; File = 'BattlefrontII.vcxproj'; Anchor = '/Zc:alignedNew- /Zc:inline- %(AdditionalOptions)'; Replacement = '/Zc:alignedNew- %(AdditionalOptions)' },
     @{ Id = 'FLAG-ALIGNNEW-T'; Kind = 'Tlog'; Project = 'tests'; Check = 'flag-alignednew-tests'; File = 'tests\OpenSWBF2Tests.vcxproj'; Anchor = '/Zc:alignedNew- %(AdditionalOptions)'; Replacement = '%(AdditionalOptions)' },

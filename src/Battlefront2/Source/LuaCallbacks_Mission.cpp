@@ -83,8 +83,7 @@
 #include "PebbleFL/Common/PblRandom.h"
 #include "PebbleFL/Common/PblHermite.h"
 #include <math.h>
-extern "C" void* __stdcall D3DXMatrixMultiply(void*, const void*, const void*);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationAxis(PblMatrix*, const PblVector3*, float);
+#include "PebbleFL/pc/PblD3DX.h"
 namespace PopupText { void __fastcall ShowPopup(int iType, unsigned int uTextId); }
 
 namespace GameLoop { extern bool mbHistoricalRules; }
@@ -186,12 +185,6 @@ const char* Timer::GetName()
 }
 
 unsigned int Hash16(unsigned short const* pusString);
-
-class AmmoCounter
-{
-public:
-    static MemoryPool sMemoryPool;
-};
 
 extern bool netHeroesEnabled;
 extern int netHeroRuleRespawn;
@@ -3566,8 +3559,6 @@ void GetPoint(const float* pKeys, int iNumKeys, float fTime,
     }
 }
 
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV, const PblMatrix* pM);
 PblMatrix DirectionMatrix(const PblVector3& vDir, const PblVector3& vUp, const PblVector3& vPos);
 
 // FUNCTION: SWBF2 0x00445c90
@@ -3896,10 +3887,10 @@ int CreateMatrix(lua_State* L)
     matrix.m[3][1] = (float)luaL_checknumber(LuaHelper::mState, 6);
     matrix.m[3][0] = (float)luaL_checknumber(LuaHelper::mState, 5);
     matrix.m[3][3] = 1.0f;
-    if (lua_isuserdata(LuaHelper::mState, 8))
+    if (lua_type(LuaHelper::mState, 8) == LUA_TUSERDATA)
     {
         PblMatrix combined;
-        D3DXMatrixMultiply(&combined, &matrix, lua_touserdata(LuaHelper::mState, 8));
+        D3DXMatrixMultiply(&combined, &matrix, (const PblMatrix*)lua_touserdata(LuaHelper::mState, 8));
         matrix = combined;
     }
     LuaHelper::PushObject<PblMatrix>(matrix);

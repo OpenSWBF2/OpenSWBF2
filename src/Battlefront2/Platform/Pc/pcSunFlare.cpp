@@ -16,6 +16,7 @@
 #include "PebbleFL/Common/PblMath.h"
 #include "RedEngineFL/Application/RedWater.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 namespace FLRenderer
 {
@@ -67,9 +68,6 @@ static pcFlareShader* s_pFlareOutShader;
 static pcFlareShader* s_pRingShader;
 // GLOBAL: SWBF2 0x01f9af3c
 static pcFlareShader* s_pSunAndHaloShader;
-
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV,
-                                                         const PblMatrix* pM);
 
 // GLOBAL: SWBF2 0x007eb748
 static PblBox s_boundingBox(-3000.0f, -3000.0f, -3000.0f, 3000.0f, 3000.0f, 3000.0f);

@@ -2,6 +2,7 @@
 #include "Battlefront2Lod.h"
 #include "PebbleFL/Common/PblConfig.h"
 #include "PebbleFL/Common/PblMath.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 // GLOBAL: SWBF2 0x01e573dc
 LightBeamEffect* LightBeamEffect::s_pInstance;
@@ -48,8 +49,6 @@ void LightBeamEffect::Cleanup()
 void LightBeamEffect::ReadConfig(PblConfig&)
 {
 }
-
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV, const PblMatrix* pM);
 
 namespace
 {

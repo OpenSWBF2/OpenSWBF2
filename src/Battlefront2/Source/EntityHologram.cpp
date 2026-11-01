@@ -16,9 +16,7 @@
 #include "RedEngineFL/Graphics/RedOmniLight.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
-
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV,
-                                                         const PblMatrix* pM);
+#include "PebbleFL/pc/PblD3DX.h"
 
 extern NoLodData noloddata;
 
@@ -28,10 +26,6 @@ bool IsReflected(const PblVector3& vPos, float fRadius, PblMatrix& mReflection, 
 
 unsigned int GetCurrentViewport();
 }
-
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1, const PblMatrix* pM2);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationX(PblMatrix* pOut, float fAngle);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationY(PblMatrix* pOut, float fAngle);
 
 static const float kfHoloBeamWidthCone = 0.8f;
 static const float kfHoloBeamFadeFactor = 0.25f;

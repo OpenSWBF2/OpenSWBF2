@@ -58,6 +58,7 @@
 #include "GameObject.h"
 #include "PebbleFL/Common/PblHandle.h"
 #include "PebbleFL/Common/PblMatrix.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x004a78e0
 PlayableEntitySoundsClass::~PlayableEntitySoundsClass()
@@ -434,11 +435,6 @@ EntityDroidekaClass::EntityDroidekaClass(unsigned int uHash)
     mBuffDefenseEffect = 0x28B9F3ACu;
     mDebuffEffect = 0x9796A1C5u;
 }
-
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1, const PblMatrix* pM2);
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV,
-                                                        const PblMatrix* pM);
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
 
 namespace GameLoop { extern float sClientDeltaTime; }
 
@@ -2548,12 +2544,6 @@ bool EntityDroideka::CollideTrisWithAllPrimitives() const
 
 // SYNTHETIC: SWBF2 0x004a9959
 // [thunk]:EntityDroideka::GetEntity`adjustor{576}'
-
-extern "C" PblVector3* __stdcall D3DXVec3TransformNormal(PblVector3* pOut, const PblVector3* pV, const PblMatrix* pM);
-extern "C" PblQuaternion* __stdcall D3DXQuaternionNormalize(PblQuaternion* pOut, const PblQuaternion* pQ);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationQuaternion(PblMatrix* pOut, const PblQuaternion* pQ);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationAxis(PblMatrix* pOut, const PblVector3* pV, float fAngle);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationY(PblMatrix* pOut, float fAngle);
 
 extern bool netFrameLock;
 extern bool netIsLateTurn;

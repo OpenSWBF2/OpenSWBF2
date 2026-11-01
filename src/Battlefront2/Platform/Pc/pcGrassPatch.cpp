@@ -12,8 +12,7 @@
 #include "RedEngineFL/Graphics/PC/pcRedVertexBuffer.h"
 #include "RedEngineFL/Application/pc/pcRenderHelpers.h"
 #include <new>
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
+#include "PebbleFL/pc/PblD3DX.h"
 
 // GLOBAL: SWBF2 0x007eb6e0
 static PblBox sBox(-100.0f, -100.0f, -100.0f, 100.0f, 100.0f, 100.0f);

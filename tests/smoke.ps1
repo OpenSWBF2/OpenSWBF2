@@ -861,13 +861,16 @@ function Get-SourceChecks([string]$root) {
             '__fastcall\s*\*?\s*(?:\w+::)*\w*\s*\)?\s*\(\s*(?:[^,()]+?,\s*)?(?:const\s+)?(?:int|unsigned(?:\s+int)?|void\s*\*)\s*(?:(?:/\*[^*]*\*/\s*)?\w*(?:[Ee]dx|EDX|[Uu]nused|[Dd]ummy|[Ii]gnored)\w*|/\*[^*]*(?:[Ee]dx|EDX|[Uu]nused|[Dd]ummy|[Ii]gnored)[^*]*\*/)\s*[,)]',
             '__fastcall\s*\*?\s*(?:\w+::)*\w*\s*\)?\s*\(\s*int\s+iLocalIndex\s*,',
             '__fastcall\s*\*?\s*(?:\w+::)*\w*\s*\)?\s*\(\s*(?:const\s+)?\w+\s*\*\s*\w*\s*,\s*int\s*,\s*unsigned\b',
-            '__fastcall\s+(?:\w+::)*\w+\s*\((?=[^(){};]*\)\s*\{)\s*(?:(?:const\s+)?[\w:]+(?:\s+(?:int|char|short|long))?(?:\s*[*&]+\s*|\s+)(?!(?:int|char|short|long|const)\b)\w+\s*,\s*int|int\s*,\s*(?:const\s+)?[\w:]+(?:\s+(?:int|char|short|long))?(?:\s*[*&]+\s*|\s+)(?!(?:int|char|short|long|const)\b)\w+)\s*[,)]') }
+            '__fastcall\s+(?:\w+::)*\w+\s*\((?=[^(){};]*\)\s*\{)\s*(?:(?:const\s+)?[\w:]+(?:\s+(?:int|char|short|long))?(?:\s*[*&]+\s*|\s+)(?!(?:int|char|short|long|const)\b)\w+\s*,\s*int|int\s*,\s*(?:const\s+)?[\w:]+(?:\s+(?:int|char|short|long))?(?:\s*[*&]+\s*|\s+)(?!(?:int|char|short|long|const)\b)\w+)\s*[,)]') },
+        @{ Name = 'd3dx-decl'; Path = '^(?!.*\\src\\PebbleFL\\pc\\PblD3DX\.h$)'; Rx = @(
+            'extern\s*"C"[^;{}]*?\bD3DX\w*\s*\(',
+            '(?:\b_{1,2}stdcall|\bWINAPI|\bAPIENTRY|\bCALLBACK|\bSTDMETHODCALLTYPE|\bSTDAPICALLTYPE|\bNTAPI|\bPASCAL)\b(?:\s|/\*.*?\*/)*(?:(?:const\s+)?[\w:]+(?:\s*\*+\s*|\s+)(?:/\*.*?\*/\s*)*)?D3DX\w*\s*\(') }
     )
     $root = $root.TrimEnd('\')
     $hits = @{}
     foreach ($d in $defs) { $hits[$d.Name] = New-Object System.Collections.Generic.List[string] }
     $src = Join-Path $root 'src'
-    foreach ($f in (Get-ChildItem -LiteralPath $src -Recurse -File -Include *.h, *.cpp | Where-Object { $_.FullName -notmatch '\\src\\(LuaFL|ZlibFL)\\' })) {
+    foreach ($f in (Get-ChildItem -LiteralPath $src -Recurse -File -Include *.h, *.hpp, *.inl, *.c, *.cpp | Where-Object { $_.FullName -notmatch '\\src\\(LuaFL|ZlibFL)\\' })) {
         $text = [IO.File]::ReadAllText($f.FullName)
         $rel = $f.FullName.Substring($root.Length + 1)
         foreach ($d in $defs) {

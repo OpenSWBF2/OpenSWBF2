@@ -24,8 +24,7 @@
 #include "RedEngineFL/Graphics/RedModel.h"
 
 #include <math.h>
-
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV, const PblMatrix* pM);
+#include "PebbleFL/pc/PblD3DX.h"
 
 // GLOBAL: SWBF2 0x01f9a278
 // SYNTHETIC: SWBF2 0x00406f10

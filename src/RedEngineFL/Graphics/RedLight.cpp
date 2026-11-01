@@ -15,14 +15,12 @@
 #include "RedEngineFL/Util/RedRegion.h"
 #include "PC/pcRedRenderer.h"
 #include "PC/pcRedTexture.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 namespace FLRenderer
 {
 unsigned int GetViewportCount();
 }
-
-extern "C" PblQuaternion* __stdcall D3DXQuaternionNormalize(PblQuaternion* pOut, const PblQuaternion* pQ);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationQuaternion(PblMatrix* pOut, const PblQuaternion* pQ);
 
 // GLOBAL: SWBF2 0x007deff0
 float RedShadowMap::_fShadowMapScale = 1.0f;

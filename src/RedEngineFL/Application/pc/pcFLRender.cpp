@@ -26,6 +26,7 @@
 #include "Battlefront2/Source/GameMovie.h"
 #include "RedEngineFL/Application/pc/pcRenderHelpers.h"
 #include <math.h>
+#include "PebbleFL/pc/PblD3DX.h"
 
 // GLOBAL: SWBF2 0x007de9c0
 bool enableReflection = true;
@@ -97,9 +98,6 @@ void FLRenderer::AddInterfaceElement(RedScreenGroupElement* pElement, float fX,
 }
 
 extern bool g_bNoRender;
-
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV,
-                                                        const PblMatrix* pM);
 
 // GLOBAL: SWBF2 0x007de9dc
 PblList<ReflectionRegion> ReflectionRegion::s_List;
@@ -1488,10 +1486,6 @@ void FLRenderer::Render()
     }
     RedRenderer::EndFrame();
 }
-
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1,
-                                                   const PblMatrix* pM2);
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
 
 static inline void Vec3Cross_(PblVector3& rOut, const PblVector3& a, const PblVector3& b)
 {

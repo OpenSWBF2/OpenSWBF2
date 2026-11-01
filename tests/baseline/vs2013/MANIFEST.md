@@ -134,3 +134,4 @@ The v143 build is the reference from Phase 20 on. Its files are listed in
 - Release is the reference configuration for every artifact. The binaries are not in the repo; only their SHA-256 sums are.
 - `guard-revert.txt` is kept from the 88273c8 capture. Only its DIGEST-01 row depends on the digest value, and `guard-revert.ps1 -Row DIGEST-01` was rerun on this build: GREEN/RED.
 - `smoke-all-digests.txt` row `dedicated` is a real-time run, so its `time=` and `rand=` vary between runs.
+- This baseline is frozen as captured from commit 1168dd4 and is not updated when the tree changes. `layouts\EntityFlyerRuntimeLayout@EntityCarrier.txt`, `layouts\EntityCarrierRuntimeLayout@EntityCarrier.txt` and their `layouts\INDEX.txt` rows record structs that Phase 24 deleted, so `capture-vs2013.ps1 -Layouts` no longer captures them. A recapture of the current tree is not a VS2013 baseline and must not overwrite this folder.

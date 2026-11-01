@@ -18,18 +18,9 @@
 #include "RedEngineFL/Graphics/RedPose.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 #include <new>
+#include "PebbleFL/pc/PblD3DX.h"
 
 extern bool netIsLocalTurn;
-
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1, const PblMatrix* pM2);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationQuaternion(PblMatrix* pOut, const PblQuaternion* pQ);
-extern "C" PblQuaternion* __stdcall D3DXQuaternionNormalize(PblQuaternion* pOut, const PblQuaternion* pQ);
-
-class AmmoCounter
-{
-public:
-    void ExpendRounds(float fRounds);
-};
 
 namespace
 {

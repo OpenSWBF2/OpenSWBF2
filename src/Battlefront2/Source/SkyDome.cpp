@@ -12,8 +12,7 @@
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 
 #include "RedEngineFL/Application/RedTerrain.h"
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
+#include "PebbleFL/pc/PblD3DX.h"
 
 static PblMatrix _IdentityMatrix(
     PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },

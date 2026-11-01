@@ -9,11 +9,9 @@
 #include "RedEngineFL/Graphics/PC/pcRedTexture.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
 #include "PebbleFL/Common/PblVector.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 void __cdecl PblTraceP(const char* Format, ...);
-
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1,
-                                                   const PblMatrix* pM2);
 
 // GLOBAL: SWBF2 0x009c9740
 // SYNTHETIC: SWBF2 0x00409a70

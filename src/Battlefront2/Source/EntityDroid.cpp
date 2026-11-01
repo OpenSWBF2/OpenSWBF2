@@ -38,6 +38,7 @@
 #include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblQuaternion.h"
 #include "RedEngineFL/Application/pc/pcFLRender.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 // SYNTHETIC: SWBF2 0x0049d340
 // EntityDroidClass::`scalar deleting destructor'
@@ -75,11 +76,6 @@ void* __fastcall ConvertWeaponFactoryIteratorToPointer(const void* pItor)
 // PblList<Factory<Weapon,WeaponClass,WeaponDesc> >::Itor::operator++
 template PblList<Factory<Weapon, WeaponClass, WeaponDesc> >::Itor&
 PblList<Factory<Weapon, WeaponClass, WeaponDesc> >::Itor::operator++();
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1, const PblMatrix* pM2);
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
-extern "C" PblVector3* __stdcall D3DXVec3TransformNormal(PblVector3* pOut, const PblVector3* pV, const PblMatrix* pM);
-extern "C" PblQuaternion* __stdcall D3DXQuaternionNormalize(PblQuaternion* pOut, const PblQuaternion* pQ);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationQuaternion(PblMatrix* pOut, const PblQuaternion* pQ);
 
 extern bool netFrameLock;
 extern bool netIsLocalTurn;

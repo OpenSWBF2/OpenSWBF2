@@ -14,10 +14,9 @@
 #include "UnitController.h"
 #include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblMatrix.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 extern PblVector3 gVectorZero;
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
 
 class EntitySoldier
 {

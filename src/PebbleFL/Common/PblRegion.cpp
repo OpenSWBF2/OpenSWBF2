@@ -2,6 +2,7 @@
 
 #include <math.h>
 #include <stddef.h>
+#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x00729a40
 bool PblRegion::IsPointInside(const PblVector3& rPoint) const
@@ -172,9 +173,6 @@ PblRegion::~PblRegion()
 {
     mNode.Remove();
 }
-
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV,
-                                                        const PblMatrix* pM);
 
 // FUNCTION: SWBF2 0x00728ef0
 bool PblRegion::DoesSphereIntersect(const PblVector3& rCenter, float fRadius) const
@@ -575,8 +573,6 @@ PblRegion* PblRegion::Find(unsigned int uId)
     }
     return 0;
 }
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
 
 // FUNCTION: SWBF2 0x007292e0
 void PblRegion::Initialize(const Description& desc)

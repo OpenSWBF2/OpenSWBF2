@@ -27,6 +27,7 @@
 #include "RedEngineFL/Util/RedAnimation.h"
 #include "Zephyr/Source/ZephyrAnimBank.h"
 #include "PebbleFL/Common/PblHermite.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 extern bool netFrameLock;
 
@@ -56,12 +57,6 @@ namespace FirstPerson { int sModel; }
 namespace FirstPerson { int sModelId; }
 
 PblQuaternion Interpolate(const PblQuaternion& q0, const PblQuaternion& q1, float fT);
-
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1, const PblMatrix* pM2);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationY(PblMatrix* pOut, float fAngle);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationZ(PblMatrix* pOut, float fAngle);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationQuaternion(PblMatrix* pOut, const PblQuaternion* pQ);
-extern "C" PblQuaternion* __stdcall D3DXQuaternionNormalize(PblQuaternion* pOut, const PblQuaternion* pQ);
 
 namespace FLRenderer
 {
@@ -1223,14 +1218,6 @@ int FirstPerson::AddGeometry(const char* pszName)
     sModelName[FirstPerson::sModelCount][255] = 0;
     return FirstPerson::sModelCount++;
 }
-
-extern "C" PblVector3* __stdcall D3DXVec3TransformNormal(PblVector3* pOut, const PblVector3* pV,
-                                                         const PblMatrix* pM);
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1,
-                                                   const PblMatrix* pM2);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationX(PblMatrix* pOut, float fAngle);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationY(PblMatrix* pOut, float fAngle);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationZ(PblMatrix* pOut, float fAngle);
 
 namespace
 {

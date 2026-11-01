@@ -67,6 +67,7 @@
 #include <dinput.h>
 
 #include "Steam/gfGalaxy.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 extern int g_InGameMoviePlayerState;
 extern Snd::Queue<unsigned int, 12> g_InGameMovieQueue;
@@ -111,11 +112,6 @@ void IFaceSoldierAnimator::QueueUpperLowerAnimations(unsigned int uUpperAnimHash
         Open();
     }
 }
-
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1, const PblMatrix* pM2);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationX(PblMatrix* pOut, float fAngle);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationY(PblMatrix* pOut, float fAngle);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationZ(PblMatrix* pOut, float fAngle);
 
 namespace PblUnicode { unsigned int ustrncnv(unsigned short* pDest, const unsigned char* pSrc, unsigned int uiCount); }
 namespace StatsManager { void Stop(); }

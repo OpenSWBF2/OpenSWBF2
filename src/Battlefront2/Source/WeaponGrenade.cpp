@@ -11,18 +11,9 @@
 #include "Ordnance.h"
 #include "SoldierAnimatorClass.h"
 #include "Trigger.h"
-
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV, const PblMatrix* pM);
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
+#include "PebbleFL/pc/PblD3DX.h"
 
 extern bool netIsLocalTurn;
-
-class AmmoCounter
-{
-public:
-    bool CanExpendRounds(float fRounds) const;
-    void ExpendRounds(float fRounds);
-};
 
 namespace GameLoop { extern float sClientDeltaTime; }
 

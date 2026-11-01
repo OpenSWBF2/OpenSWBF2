@@ -15,6 +15,7 @@
 #include "PebbleFL/Common/PblMath.h"
 
 #include "ext/Globals.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 namespace FLRenderer
 {
@@ -23,10 +24,6 @@ float GetNearSceneFadeStart();
 float GetFarSceneRange();
 float GetNearSceneFadeEnd();
 }
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV,
-                                                        const PblMatrix* pM);
 
 // GLOBAL: SWBF2 0x009a08a8
 RedSceneManager* RedSceneManager::sInstance;

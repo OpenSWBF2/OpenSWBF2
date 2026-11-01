@@ -5,10 +5,7 @@
 #include "PblMath.h"
 #include "PblMatrix.h"
 #include "PblVector.h"
-
-extern "C" PblQuaternion* __stdcall D3DXQuaternionNormalize(PblQuaternion* pOut, const PblQuaternion* pQ);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationQuaternion(PblMatrix* pOut, const PblQuaternion* pQ);
-extern "C" PblVector3* __stdcall D3DXVec3TransformNormal(PblVector3* pOut, const PblVector3* pV, const PblMatrix* pM);
+#include "PebbleFL/pc/PblD3DX.h"
 
 enum QUAT_INDEX
 {

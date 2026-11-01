@@ -1,11 +1,8 @@
 #include "NetPredict.h"
 #include "NetGame.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 NetInterpolator netInterpolator;
-
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1, const PblMatrix* pM2);
-extern "C" PblQuaternion* __stdcall D3DXQuaternionNormalize(PblQuaternion*, const PblQuaternion*);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationQuaternion(PblMatrix*, const PblQuaternion*);
 
 // GLOBAL: SWBF2 0x01ead160
 unsigned int interpId[64];

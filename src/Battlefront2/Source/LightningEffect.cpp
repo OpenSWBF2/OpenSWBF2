@@ -14,10 +14,9 @@
 #include "RedEngineFL/Graphics/PC/Shaders/pcTerrainShader.h"
 #include "SoundFL/source/sndenginebase.h"
 #include "SoundFL/source/sndspace.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 #undef PlaySound
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
 
 namespace
 {

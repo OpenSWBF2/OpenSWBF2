@@ -13,9 +13,9 @@
 #include "RedEngineFL/Graphics/RedModel.h"
 #include "RedEngineFL/Portals/Portal.h"
 #include "RedEngineFL/Application/pc/pcFLRender.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 extern bool netFrameLock;
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1, const PblMatrix* pM2);
 static PblMatrix _IdentityMatrix(
     PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
     PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
@@ -102,8 +102,6 @@ EntityDoor::~EntityDoor()
 // [thunk]:EntityDoor::`scalar deleting destructor'`adjustor{384}'
 // SYNTHETIC: SWBF2 0x004992ca
 // [thunk]:EntityDoor::`scalar deleting destructor'`adjustor{12}'
-
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1, const PblMatrix* pM2);
 
 namespace AI
 {

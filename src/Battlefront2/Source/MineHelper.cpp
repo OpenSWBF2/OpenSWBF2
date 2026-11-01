@@ -17,12 +17,6 @@ int GetObjectsInRange(const PblVector3&, float, GameObject** const, int,
                       const GameObject*, AI::AIAffil);
 }
 
-class AmmoCounter
-{
-public:
-    int GetNumRounds() const;
-};
-
 // FUNCTION: SWBF2 0x005a3c60
 MineHelper::MineHelper(UnitAgent* pAgent)
     : HelperFsm(STATE_START, STATE_START)

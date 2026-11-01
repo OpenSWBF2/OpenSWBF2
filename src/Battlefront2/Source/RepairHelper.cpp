@@ -75,20 +75,6 @@ int GetOpenReservableSlots(const GameObject* pObj, int iTeam, ReserveType eType)
 void Reserve(const GameObject* pObj, const GameObject* pReserver, ReserveType eType);
 }
 
-class AmmoCounter
-{
-public:
-    float GetMaxClips() const { return mMaxClips; }
-    float GetNumClips() const { return mNumClips; }
-    int GetNumRounds() const;
-
-    AmmoCounterClass* m_pClass;
-    float mDefaultMaxClips;
-    float mMaxClips;
-    float mNumClips;
-    float mCurClip;
-};
-
 // GLOBAL: SWBF2 0x007ec54c
 
 int gOutOfAmmoWeaponCount;

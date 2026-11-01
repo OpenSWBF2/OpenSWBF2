@@ -11,8 +11,7 @@
 #include "RedEngineFL/Graphics/RedCamera.h"
 #include "RedEngineFL/Util/RedSceneManager.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
+#include "PebbleFL/pc/PblD3DX.h"
 
 class PblMatrix;
 extern PblMatrix gMatrixIdentity;

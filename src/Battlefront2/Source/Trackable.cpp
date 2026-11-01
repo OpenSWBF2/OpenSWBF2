@@ -16,6 +16,7 @@
 #include "PebbleFL/Common/PblMatrix.h"
 #include "PebbleFL/Common/PblQuaternion.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x004832d0
 GameObject* Trackable::GetGameObject() { return 0; }
@@ -34,13 +35,6 @@ void Trackable::TrackDeath(int iPlayer, Character* pKiller)
 {
     Tracker::SetDeathTrackable(this, iPlayer, pKiller);
 }
-
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV, const PblMatrix* pM);
-extern "C" PblVector3* __stdcall D3DXVec3TransformNormal(PblVector3* pOut, const PblVector3* pV, const PblMatrix* pM);
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
-extern "C" PblQuaternion* __stdcall D3DXQuaternionNormalize(PblQuaternion* pOut, const PblQuaternion* pQ);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationQuaternion(PblMatrix* pOut, const PblQuaternion* pQ);
-extern "C" PblMatrix* __stdcall D3DXMatrixInverse(PblMatrix* pOut, float* pDeterminant, const PblMatrix* pM);
 
 PblMatrix DirectionMatrix(const PblVector3& vDir, const PblVector3& vUp, const PblVector3& vPos);
 

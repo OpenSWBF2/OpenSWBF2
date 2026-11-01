@@ -1445,6 +1445,7 @@
     <ClInclude Include="src\PebbleFL\Common\PblUnicode.h" />
     <ClInclude Include="src\PebbleFL\Common\PblValues.h" />
     <ClInclude Include="src\PebbleFL\Common\PblVector.h" />
+    <ClInclude Include="src\PebbleFL\pc\PblD3DX.h" />
     <ClInclude Include="src\RedEngineFL\Application\RedPath.h" />
     <ClInclude Include="src\RedEngineFL\Application\RedTerrain.h" />
     <ClInclude Include="src\RedEngineFL\Application\RedWater.h" />

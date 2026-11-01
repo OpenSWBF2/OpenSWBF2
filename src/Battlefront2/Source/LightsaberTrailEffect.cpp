@@ -1,6 +1,7 @@
 #include <math.h>
 
 #include "LightsaberTrailEffect.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 // GLOBAL: SWBF2 0x01e573ec
 LightsaberTrailEffect* LightsaberTrailEffect::s_pInstance;
@@ -60,11 +61,6 @@ void LightsaberTrailEffect::Destroy()
     delete s_pInstance;
     s_pInstance = 0;
 }
-
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV,
-                                                        const PblMatrix* pM);
-extern "C" PblVector3* __stdcall D3DXVec3TransformNormal(PblVector3* pOut, const PblVector3* pV,
-                                                         const PblMatrix* pM);
 
 // GLOBAL: SWBF2 0x01e56058
 namespace GameLoop { float sClientDeltaTime; }

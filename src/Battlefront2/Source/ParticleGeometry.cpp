@@ -6,9 +6,8 @@
 #include "ParticleSystem.h"
 #include "PebbleFL/Common/PblMath.h"
 #include <math.h>
+#include "PebbleFL/pc/PblD3DX.h"
 
-extern "C" PblVector3* __stdcall D3DXVec3TransformNormal(PblVector3* pOut, const PblVector3* pV, const PblMatrix* pM);
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1, const PblMatrix* pM2);
 namespace ParticleSystem { PblBox& GetBoundingBox(); }
 namespace ParticleSystem { float GetSizeMultiplier(); }
 namespace ParticleSystem { float GetMinParticleSize(); }

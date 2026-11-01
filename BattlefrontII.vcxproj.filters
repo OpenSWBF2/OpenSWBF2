@@ -3884,6 +3884,9 @@
     <ClInclude Include="src\PebbleFL\Common\PblVector.h">
       <Filter>src\PebbleFL\Common</Filter>
     </ClInclude>
+    <ClInclude Include="src\PebbleFL\pc\PblD3DX.h">
+      <Filter>src\PebbleFL\pc</Filter>
+    </ClInclude>
     <ClInclude Include="src\RedEngineFL\Application\RedPath.h">
       <Filter>src\RedEngineFL\Application</Filter>
     </ClInclude>

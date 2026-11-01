@@ -62,6 +62,7 @@
 #include "UnitController.h"
 #include "PebbleFL/Common/PblQuaternion.h"
 #include "RedEngineFL/Application/pc/pcFLRender.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x0047f9b0
 void EntityWalker::SetVelocity(const PblVector3& vVelocity)
@@ -302,8 +303,6 @@ EntityWalkerClass::EntityWalkerClass(unsigned int uHash)
     mEjectResist = 0.1f;
     mTimeTilReboard = 10.0f;
 }
-
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1, const PblMatrix* pM2);
 
 // GLOBAL: SWBF2 0x01ebc25c
 // SYNTHETIC: SWBF2 0x00402ef0
@@ -1544,10 +1543,6 @@ PblBitVector<64> EntityWalkerClass::HierarchyJointMask(const ZephyrSkeletonShare
     }
     return mask;
 }
-
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV,
-                                                        const PblMatrix* pM);
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
 
 extern bool netFrameLock;
 extern bool netIsLocalTurn;
@@ -3199,10 +3194,6 @@ void EntityWalker::ActivatePhysics()
         }
     }
 }
-
-extern "C" PblVector3* __stdcall D3DXVec3TransformNormal(PblVector3* pOut, const PblVector3* pV, const PblMatrix* pM);
-extern "C" PblQuaternion* __stdcall D3DXQuaternionNormalize(PblQuaternion* pOut, const PblQuaternion* pQ);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationQuaternion(PblMatrix* pOut, const PblQuaternion* pQ);
 
 extern bool netIsLateTurn;
 extern PblVector3 gVectorZero;

@@ -19,14 +19,11 @@
 #include "WaterEffect.h"
 #include "PebbleFL/Common/PblRandom.h"
 #include "RedEngineFL/Application/RedWater.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 extern bool netIsLocalTurn;
 extern bool netFrameLock;
 extern bool netIsLateTurn;
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1,
-                                                   const PblMatrix* pM2);
 
 const RedColor Interpolate(const RedColor& a, const RedColor& b, float t);
 

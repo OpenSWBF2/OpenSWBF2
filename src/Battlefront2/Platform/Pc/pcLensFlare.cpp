@@ -15,6 +15,7 @@
 #include "RedEngineFL/Graphics/PC/Shaders/pcFlareShader.h"
 #include "RedEngineFL/Graphics/PC/Shaders/pcSampleShader.h"
 #include "RedEngineFL/Application/pc/pcRenderHelpers.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 // GLOBAL: SWBF2 0x01f9a924
 static RedTexture* s_sampleTex;
@@ -318,8 +319,6 @@ void LensFlareEffect::Render(int value)
         _List.Render<FlareVertex, 642>();
     }
 }
-
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV, const PblMatrix* pM);
 
 inline const PblVector3 RedRenderer::TransformCameraPointToScreenSpace(const PblVector3& vPoint)
 {

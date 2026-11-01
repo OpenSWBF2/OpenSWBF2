@@ -16,6 +16,7 @@
 #include "RedEngineFL/Graphics/RedCamera.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "RedEngineFL/Interface/RedInterfaceScreen.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 class PblMatrix;
 extern PblMatrix gMatrixIdentity;
@@ -36,11 +37,6 @@ unsigned int GetViewHeight(unsigned int uView);
 
 float GetDefaultFOV();
 float GetWidescreenFOVAdjustment(float fFOV);
-
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1, const PblMatrix* pM2);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationX(PblMatrix* pOut, float fAngle);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationY(PblMatrix* pOut, float fAngle);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationZ(PblMatrix* pOut, float fAngle);
 
 namespace AIUtil {
 

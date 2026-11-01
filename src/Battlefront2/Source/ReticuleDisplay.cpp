@@ -11,8 +11,7 @@
 #include "NetGame.h"
 #include "PebbleFL/Common/PblMatrix.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
-
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV, const PblMatrix* pM);
+#include "PebbleFL/pc/PblD3DX.h"
 
 namespace
 {

@@ -17,14 +17,13 @@
 #include "PebbleFL/Common/PblVector.h"
 #include "RedEngineFL/Application/pc/pcFLRender.h"
 #include "RedEngineFL/Portals/Portal.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x004cbb10
 bool EntityItem::NoDisplayLifeTimer() const
 {
     return mClass->mNoLifeSpanDisplay;
 }
-
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1, const PblMatrix* pM2);
 
 extern PblVector3 gVectorZero;
 

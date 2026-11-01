@@ -58,9 +58,7 @@
 #include "PebbleFL/Common/PblRandom.h"
 #include "RedEngineFL/Graphics/RedShadingState.h"
 #include "RedEngineFL/Application/pc/pcFLRender.h"
-
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV,
-                                                        const PblMatrix* pM);
+#include "PebbleFL/pc/PblD3DX.h"
 
 namespace
 {
@@ -1733,14 +1731,6 @@ int EntityHover::GetJoystickIndex()
     return -1;
 }
 
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationX(PblMatrix* pOut, float fAngle);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationZ(PblMatrix* pOut, float fAngle);
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1, const PblMatrix* pM2);
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
-extern "C" PblVector3* __stdcall D3DXVec3TransformNormal(PblVector3* pOut, const PblVector3* pV, const PblMatrix* pM);
-extern "C" PblQuaternion* __stdcall D3DXQuaternionNormalize(PblQuaternion* pOut, const PblQuaternion* pQ);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationQuaternion(PblMatrix* pOut, const PblQuaternion* pQ);
-
 extern bool netIsLocalTurn;
 
 extern PblVector3 gVectorZero;
@@ -2703,8 +2693,6 @@ void EntityHover::Move(float fDeltaTime, float fThrust, float fStrafe, float fTu
         mGroundRatio = 0.0f;
     }
 }
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
 
 extern bool netFrameLock;
 extern bool netIsLateTurn;

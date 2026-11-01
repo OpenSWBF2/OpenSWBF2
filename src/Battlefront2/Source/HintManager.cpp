@@ -20,6 +20,7 @@
 #include "PebbleFL/Common/PblHeap.h"
 #include "NetGame.h"
 #include "TeamManager.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 // GLOBAL: SWBF2 0x01ec6090
 // SYNTHETIC: SWBF2 0x00403f20
@@ -123,8 +124,6 @@ void BaseHint::SetReserveDelay(const GameObject* pObj, float fDelay) const
     (void)pObj;
     const_cast<ReserveObject&>(mReserve).SetReserveDelay(0, fDelay);
 }
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
 
 // FUNCTION: SWBF2 0x00543480
 PblMatrix BaseHint::BuildMatrix() const

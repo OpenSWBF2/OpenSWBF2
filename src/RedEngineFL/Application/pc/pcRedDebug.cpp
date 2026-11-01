@@ -12,6 +12,7 @@
 #include "RedEngineFL/Application/pc/pcRenderStateHelpers.h"
 #include "RedEngineFL/Graphics/PC/pcRedPrimitive.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 namespace FLRenderer
 {
@@ -22,9 +23,6 @@ void RemoveInterfaceElement(RedScreenGroupElement* pElement);
 }
 
 void __cdecl PblTraceP(const char* Format, ...);
-
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV,
-                                                         const PblMatrix* pM);
 
 static const PblMatrix _IdentityMatrix(
     PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },

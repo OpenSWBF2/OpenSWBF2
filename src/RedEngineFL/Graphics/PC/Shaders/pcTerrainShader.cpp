@@ -15,9 +15,7 @@
 #include "RedEngineFL/Graphics/PC/pcRedTexture.h"
 #include "RedEngineFL/Graphics/PC/pcRedVertexFormat.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
-
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1,
-                                                   const PblMatrix* pM2);
+#include "PebbleFL/pc/PblD3DX.h"
 
 void __cdecl PblTraceP(const char* Format, ...);
 

@@ -13,13 +13,9 @@
 #include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblVector.h"
 #include <math.h>
+#include "PebbleFL/pc/PblD3DX.h"
 
 void __cdecl PblTraceP(const char* Format, ...);
-
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1,
-                                                   const PblMatrix* pM2);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationZ(PblMatrix* pOut, float fAngle);
-extern "C" PblMatrix* __stdcall D3DXMatrixScaling(PblMatrix* pOut, float sx, float sy, float sz);
 
 // GLOBAL: SWBF2 0x009ca4a8
 static D3DMATERIAL9 s_d3dMat;

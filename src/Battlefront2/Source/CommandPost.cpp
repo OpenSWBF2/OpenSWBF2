@@ -36,6 +36,7 @@
 #include "VoiceOverManager.h"
 #include "SoundFL/source/sndsoundstream.h"
 #include "SoundFL/source/sndvoicevirtual.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 namespace EventManager
 {
@@ -64,8 +65,6 @@ extern Event<CommandPost, unsigned __int64> mFinishCapture;
 }
 
 extern int gSpawnInvicibility;
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
 
 // FUNCTION: SWBF2 0x0047a570
 PblMatrix NormalMatrix(const PblVector3& vDir, const PblVector3& vNormal, const PblVector3& vPos)
@@ -98,9 +97,6 @@ PblMatrix NormalMatrix(const PblVector3& vDir, const PblVector3& vNormal, const 
     m.m[3][3] = 1.0f;
     return m;
 }
-
-extern "C" PblQuaternion* __stdcall D3DXQuaternionNormalize(PblQuaternion* pOut, const PblQuaternion* pQ);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationQuaternion(PblMatrix* pOut, const PblQuaternion* pQ);
 
 // FUNCTION: SWBF2 0x0047e3e0
 CommandPostClass::CommandPostClass(unsigned int  )
@@ -413,9 +409,6 @@ void CommandPostClass::SetProperty(unsigned int uProperty, const char* pszValue,
         break;
     }
 }
-
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1, const PblMatrix* pM2);
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV, const PblMatrix* pM);
 
 extern PblVector3 gVectorZero;
 

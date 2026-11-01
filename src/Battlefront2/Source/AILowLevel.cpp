@@ -34,6 +34,7 @@
 #include "WeaponRepair.h"
 #include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblQuaternion.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 namespace
 {
@@ -42,18 +43,6 @@ namespace
         return pObject->mHandleId;
     }
 }
-
-class AmmoCounter
-{
-public:
-    int GetNumRounds() const;
-
-    AmmoCounterClass* m_pClass;
-    float mDefaultMaxClips;
-    float mMaxClips;
-    float mNumClips;
-    float mCurClip;
-};
 
 inline float Weapon::GetHeat() const
 {
@@ -1099,12 +1088,6 @@ void AILowLevel::UpdateHeadLook(float dt)
         }
     }
 }
-
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1,
-                                                   const PblMatrix* pM2);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationQuaternion(PblMatrix* pOut, const PblQuaternion* pQ);
-extern "C" PblQuaternion* __stdcall D3DXQuaternionNormalize(PblQuaternion* pOut, const PblQuaternion* pQ);
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
 
 // FUNCTION: SWBF2 0x0043c610
 bool AILowLevel::CalcHeadLookMatrix(const PblMatrix* pHead, PblMatrix* pOut)

@@ -65,10 +65,7 @@
 #include "EntityPortableTurret.h"
 #include "Restrictor.h"
 #include "UnitThreatManager.h"
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationX(PblMatrix* pOut, float fAngle);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationZ(PblMatrix* pOut, float fAngle);
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut,
-    const PblMatrix* pM1, const PblMatrix* pM2);
+#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x004b6320
 EnergyMode EntityFlyer::GetEnergyMode() const
@@ -1911,8 +1908,6 @@ Entity* EntityFlyerClass::Build(const EntityDesc& desc)
     return pFlyer;
 }
 
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
-
 // FUNCTION: SWBF2 0x004b4eb0
 void EntityFlyer::SetupController()
 {
@@ -2054,10 +2049,6 @@ bool EntityFlyer::UpdateIndirect(float fDeltaTime)
 extern bool netFrameLock;
 
 extern bool bRenderContrails;
-
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1, const PblMatrix* pM2);
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV,
-                                                        const PblMatrix* pM);
 
 // FUNCTION: SWBF2 0x004aae10
 void EntityFlyer::HealthChangeCallback(bool bArg, float fDelta)
@@ -2703,11 +2694,6 @@ void EntityFlyer::RollStop()
     mInRoll = false;
 }
 
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationX(PblMatrix* pOut, float fAngle);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationZ(PblMatrix* pOut, float fAngle);
-extern "C" PblQuaternion* __stdcall D3DXQuaternionNormalize(PblQuaternion* pOut, const PblQuaternion* pQ);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationQuaternion(PblMatrix* pOut, const PblQuaternion* pQ);
-
 extern bool netIsLocalTurn;
 extern bool netIsLateTurn;
 extern PblVector3 gVectorZero;
@@ -3200,8 +3186,6 @@ EntityPathFollower::BranchParams EntityFlyer::GetBranchParams()
     return BranchParams(mClass, mMatrix, mClass->GetModel()->_mModel->_BoundingSphere.GetRadius(), this, fSpeed,
                         FLT_MAX, 0, -1.0f, false, false);
 }
-
-extern "C" PblVector3* __stdcall D3DXVec3TransformNormal(PblVector3* pOut, const PblVector3* pV, const PblMatrix* pM);
 
 namespace SquadCommands { void VehicleCommand(GameObject* pObject, Character* pCharacter); }
 

@@ -11,6 +11,7 @@
 #include "PebbleFL/Common/PblRandom.h"
 
 #include <math.h>
+#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x00485a50
 void Controller::SetRegionVisFactor(float fCrouch, float fStand)
@@ -25,8 +26,6 @@ class EntityFlyer
 public:
     static PblHash rttiHashEntityFlyer;
 };
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
 
 // GLOBAL: SWBF2 0x01eb97a8
 // SYNTHETIC: SWBF2 0x00402790

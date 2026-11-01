@@ -57,17 +57,8 @@
 #include <math.h>
 #include <string.h>
 #include "EntityProp.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
-extern "C" PblQuaternion* __stdcall D3DXQuaternionNormalize(PblQuaternion* pOut,
-                                                              const PblQuaternion* pQ);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationQuaternion(PblMatrix* pOut,
-                                                               const PblQuaternion* pQ);
-extern "C" PblQuaternion* __stdcall D3DXQuaternionRotationMatrix(PblQuaternion* pOut,
-                                                                    const PblMatrix* pM);
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut,
-    const PblVector3* pV, const PblMatrix* pM);
-extern "C" PblVector3* __stdcall D3DXVec3TransformNormal(PblVector3* pOut,
-    const PblVector3* pV, const PblMatrix* pM);
 PblMatrix DirectionMatrix(const PblVector3& direction, const PblVector3& up,
                           const PblVector3& position);
 

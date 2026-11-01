@@ -21,6 +21,7 @@
 #include "RedEngineFL/Graphics/RedModel.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "pcSunFlare.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 // GLOBAL: SWBF2 0x01eafd84
 // SYNTHETIC: SWBF2 0x004020e0
@@ -100,9 +101,6 @@ static PblMatrix _IdentityMatrix(
     PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
     PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
     PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
-
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationAxis(PblMatrix* pOut, const PblVector3* pV, float fAngle);
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1, const PblMatrix* pM2);
 
 // FUNCTION: SWBF2 0x00428970
 void SkyDome::Render(int value)
