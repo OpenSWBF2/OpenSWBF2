@@ -3,6 +3,7 @@
 #include "Team.h"
 #include "NetGame.h"
 #include "Character.h"
+#include "PebbleFL/Common/PblIndex.h"
 
 extern bool gAttractMode;
 
@@ -141,10 +142,14 @@ bool VoiceOverManager::Update(float fDeltaTime)
     {
         GameStage stage = DetermineGameStage();
         int musicTeam = GetPlayerTeamNumber();
-        mAmbientMusic[musicTeam][stage].mMusic.Play();
-        if (mMusicTeamIndexPrev != musicTeam)
+        const bool bMusicSide = PblInBounds(mTeamBleeding, musicTeam);
+        if (bMusicSide)
         {
-            mAmbientMusic[mMusicTeamIndexPrev][stage].mMusic.Stop();
+            mAmbientMusic[musicTeam][stage].mMusic.Play();
+            if (mMusicTeamIndexPrev != musicTeam)
+            {
+                mAmbientMusic[mMusicTeamIndexPrev][stage].mMusic.Stop();
+            }
         }
         if (stage > gameStage_beginning)
         {
@@ -153,7 +158,10 @@ bool VoiceOverManager::Update(float fDeltaTime)
                 mAmbientMusic[team][stage - 1].mMusic.Stop();
             }
         }
-        mMusicTeamIndexPrev = musicTeam;
+        if (bMusicSide)
+        {
+            mMusicTeamIndexPrev = musicTeam;
+        }
     }
     return true;
 }
@@ -185,7 +193,7 @@ void VoiceOverManager::PlayVoiceOverBleeding(int iTeam, bool bStart)
         return;
     }
     const int iPlayerTeam = GetPlayerTeamNumber();
-    if (!bStart)
+    if (!bStart || !PblInBounds(mTeamBleeding, iPlayerTeam))
     {
         return;
     }
@@ -206,7 +214,12 @@ void VoiceOverManager::PlayVoiceOverLowReinforcements(int iTeam)
     {
         return;
     }
-    mVoiceOverLowReinforcements[GetPlayerTeamNumber()][iTeam].Play(0, 0, iTeam != 0, true);
+    const int iPlayerTeam = GetPlayerTeamNumber();
+    if (!PblInBounds(mTeamBleeding, iPlayerTeam))
+    {
+        return;
+    }
+    mVoiceOverLowReinforcements[iPlayerTeam][iTeam].Play(0, 0, iTeam != 0, true);
 }
 
 // FUNCTION: SWBF2 0x006756e0
@@ -243,6 +256,10 @@ VoiceOverManager::AmbientMusic::AmbientMusic()
 // FUNCTION: SWBF2 0x006756f0
 void VoiceOverManager::SetBleedingVoiceOver(int iTeam, int iIndex, const char* pName, bool bStart)
 {
+    if (!PblInBounds(mVoiceOverStartBleed, iTeam) || !PblInBounds(mVoiceOverStartBleed[0], iIndex))
+    {
+        return;
+    }
     if (bStart)
     {
         mVoiceOverStartBleed[iTeam][iIndex].SetID(pName, false, false);
@@ -257,6 +274,10 @@ void VoiceOverManager::SetBleedingVoiceOver(int iTeam, int iIndex, const char* p
 void VoiceOverManager::SetLowReinforcementsVoiceOver(int iTeam, int iIndex, const char* pName,
                                                      int iCount)
 {
+    if (!PblInBounds(mVoiceOverLowReinforcements, iTeam) || !PblInBounds(mVoiceOverLowReinforcements[0], iIndex))
+    {
+        return;
+    }
     mVoiceOverLowReinforcements[iTeam][iIndex].SetID(pName, false, false);
     mLowReinforcements[iTeam] = iCount;
 }
@@ -264,6 +285,10 @@ void VoiceOverManager::SetLowReinforcementsVoiceOver(int iTeam, int iIndex, cons
 // FUNCTION: SWBF2 0x00675780
 void VoiceOverManager::SetAmbientMusic(int iTeam, int iCount, const char* pName, GameStage eStage)
 {
+    if (!PblInBounds(mAmbientMusic, iTeam) || !PblInBounds(mAmbientMusic[0], (int)eStage))
+    {
+        return;
+    }
     mAmbientMusic[iTeam][eStage].mReinforcementCount = iCount;
     mAmbientMusic[iTeam][eStage].mMusic.SetID(pName);
 }
@@ -271,5 +296,8 @@ void VoiceOverManager::SetAmbientMusic(int iTeam, int iCount, const char* pName,
 // FUNCTION: SWBF2 0x006757c0
 void VoiceOverManager::SetAttackingTeam(int iTeam)
 {
-    mAttackingTeam = iTeam;
+    if (PblInBounds(mTeamBleeding, iTeam))
+    {
+        mAttackingTeam = iTeam;
+    }
 }

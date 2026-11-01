@@ -338,13 +338,26 @@ int ScriptCB_TriggerSoundRegionEnable(lua_State*)
     return 0;
 }
 
+static Snd::Stream* GetLuaStream(int iStream)
+{
+    if ((unsigned int)(iStream - 1) < 6u)
+    {
+        return &Snd::EngineBase::smStreams[iStream - 1];
+    }
+    return 0;
+}
+
 // FUNCTION: SWBF2 0x0059bf80
 int ScriptCB_CloseAudioStream(lua_State*)
 {
     int iStream = (int)luaL_checknumber(LuaHelper::mState, 1);
     if (iStream)
     {
-        Snd::Stream* pStream = &Snd::EngineBase::smStreams[iStream - 1];
+        Snd::Stream* pStream = GetLuaStream(iStream);
+        if (!pStream)
+        {
+            return 0;
+        }
         if (pStream->IsOpen())
         {
             pStream->Close();
@@ -383,7 +396,11 @@ int ScriptCB_AudioStreamComplete(lua_State*)
         {
             return 0;
         }
-        pStream = &Snd::EngineBase::smStreams[iStream - 1];
+        pStream = GetLuaStream(iStream);
+        if (!pStream)
+        {
+            return 0;
+        }
     }
     else if (lua_isstring(LuaHelper::mState, 1))
     {
@@ -445,7 +462,11 @@ int ScriptCB_PlayAudioStream(lua_State*)
         iStream = (int)luaL_checknumber(LuaHelper::mState, lua_gettop(LuaHelper::mState));
     }
 
-    Snd::Stream* pStream = &Snd::EngineBase::smStreams[iStream - 1];
+    Snd::Stream* pStream = GetLuaStream(iStream);
+    if (!pStream)
+    {
+        return iReturns;
+    }
     pStream->SetGain(fGain);
     pStream->Source2D::mFlags |= 1;
     pStream->Source2D::mPan = 0.0f;
@@ -1439,7 +1460,12 @@ int ScriptCB_SetLowReinforcementsVoiceOver(lua_State*)
     int iCount;
     if (nArgs == 5 && (int)luaL_checknumber(LuaHelper::mState, 5))
     {
-        iCount = (int)(Team::sTeams[iTeam]->mCurReinforcements *
+        Team* pTeam = Team::Lookup(iTeam);
+        if (!pTeam)
+        {
+            return 0;
+        }
+        iCount = (int)(pTeam->mCurReinforcements *
                        luaL_checknumber(LuaHelper::mState, 4));
     }
     else
@@ -1462,7 +1488,12 @@ int ScriptCB_SetAmbientMusic(lua_State*)
     int iCount;
     if (nArgs == 5 && (int)luaL_checknumber(LuaHelper::mState, 5))
     {
-        iCount = (int)(Team::sTeams[iTeam]->mCurReinforcements *
+        Team* pTeam = Team::Lookup(iTeam);
+        if (!pTeam)
+        {
+            return 0;
+        }
+        iCount = (int)(pTeam->mCurReinforcements *
                        luaL_checknumber(LuaHelper::mState, 2));
     }
     else

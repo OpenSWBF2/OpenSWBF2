@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "PebbleFL/Common/PblHashTable.h"
+#include "PebbleFL/Common/PblIndex.h"
 #include "PebbleFL/Common/PblUnicode.h"
 #include "RedEngineFL/Interface/RedFont.h"
 #include "RedEngineFL/Interface/RedHotSpot.h"
@@ -3262,10 +3263,8 @@ int ScriptCB_IFModel_AttachModel(lua_State* L)
         {
             Red3DModelElement* pAttached = static_cast<Red3DModelElement*>(pAttachedElement);
             Red3DModelElement* pModel = static_cast<Red3DModelElement*>(pElement);
-            pModel->m_AttachedObj = pAttached;
-            pModel->m_uiHardpointHash = PblTEMPHash(
-                luaL_checkstring(LuaHelper::mState, iArg + 1));
-            pAttached->m_bAmAttached = true;
+            const unsigned int uiHash = PblTEMPHash(luaL_checkstring(LuaHelper::mState, iArg + 1));
+            pModel->AttachModel(pAttached, uiHash);
         }
     }
     return 0;
@@ -3962,13 +3961,21 @@ int ScriptCB_SetBinding(lua_State* L)
     const unsigned int uiMode = pJoystick->GetInputMode();
     int iIndex = (int)(float)luaL_checknumber(LuaHelper::mState, 1) - 1;
     const float fDeltaTime = (float)luaL_checknumber(LuaHelper::mState, 2);
-    for (int i = 0; i <= iIndex; ++i)
+    if (iIndex < 0)
+    {
+        return 0;
+    }
+    for (int i = 0; i <= iIndex && PblInBounds(sKeyboardCmdsPerMode[uiMode], i); ++i)
     {
         const int iCmd = sKeyboardCmdsPerMode[uiMode][i];
         if (iCmd == ePROCESSEDINPUT_NONE || iCmd == ePROCESSEDINPUT_MAX)
         {
             ++iIndex;
         }
+    }
+    if (!PblInBounds(sKeyboardCmdsPerMode[uiMode], iIndex))
+    {
+        return 0;
     }
     const int iAction = sKeyboardCmdsPerMode[uiMode][iIndex];
     ActionKey* pKeys = pProfile->mGameOptions.mKeyboardBindings[uiMode];
@@ -4179,13 +4186,23 @@ int ScriptCB_GetActionFromIdx(lua_State* L)
     lua_gettop(LuaHelper::mState);
     int iIndex = (int)(float)luaL_checknumber(LuaHelper::mState, 1) - 1;
     int iMode = FLInputManager::s_instance.GetPlayerJoystick(PauseMenu::GetPausingViewport())->GetInputMode();
-    for (int i = 0; i <= iIndex; ++i)
+    if (iIndex < 0)
+    {
+        lua_pushnumber(LuaHelper::mState, (float)ePROCESSEDINPUT_NONE);
+        return 1;
+    }
+    for (int i = 0; i <= iIndex && PblInBounds(sKeyboardCmdsPerMode[iMode], i); ++i)
     {
         int iAction = sKeyboardCmdsPerMode[iMode][i];
         if (iAction == ePROCESSEDINPUT_NONE || iAction == ePROCESSEDINPUT_MAX)
         {
             ++iIndex;
         }
+    }
+    if (!PblInBounds(sKeyboardCmdsPerMode[iMode], iIndex))
+    {
+        lua_pushnumber(LuaHelper::mState, (float)ePROCESSEDINPUT_NONE);
+        return 1;
     }
     lua_pushnumber(LuaHelper::mState, (float)sKeyboardCmdsPerMode[iMode][iIndex]);
     return 1;

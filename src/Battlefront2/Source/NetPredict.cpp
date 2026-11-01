@@ -1,5 +1,6 @@
 #include "NetPredict.h"
 #include "NetGame.h"
+#include "PebbleFL/Common/PblIndex.h"
 #include "PebbleFL/pc/PblD3DX.h"
 
 NetInterpolator netInterpolator;
@@ -350,10 +351,16 @@ void __fastcall SmoothLocal(SmoothInfo* pInfo)
 // `dynamic initializer for 'smoothInfo''
 SmoothInfo smoothInfo[64];
 
+static SmoothInfo sDiscardSmoothInfo;
+
 // FUNCTION: SWBF2 0x005d9c00
 SmoothInfo& NetPredict::GetSmoothInfo(int iIndex)
 {
-    return smoothInfo[iIndex];
+    if (PblInBounds(smoothInfo, iIndex))
+    {
+        return smoothInfo[iIndex];
+    }
+    return sDiscardSmoothInfo;
 }
 
 // FUNCTION: SWBF2 0x005d9d20

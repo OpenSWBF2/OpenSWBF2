@@ -195,6 +195,10 @@ int BonusManager::GetTeamIndex(int iTeam)
 // FUNCTION: SWBF2 0x0044c790
 void BonusManager::SetTeamBonusActive(int iTeam, unsigned int uBonus, bool bActive)
 {
+    if (iTeam < 1 || iTeam > 2)
+    {
+        return;
+    }
     int iIndex = GetTeamIndex(iTeam);
     if (bActive)
     {

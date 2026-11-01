@@ -41,6 +41,8 @@ public:
     }
     bool Remove(unsigned int uiHash) { return _Remove(_table, 2 * SLOTS, uiHash); }
 
+    static int GetSlotCount() { return SLOTS; }
+
     bool HasValue(const TYPE* pValue) const
     {
         if (!pValue)

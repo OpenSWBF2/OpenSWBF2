@@ -14,6 +14,7 @@
 #include "NetGame.h"
 #include "Team.h"
 #include "Weapon.h"
+#include "PebbleFL/Common/PblIndex.h"
 #include "PebbleFL/Common/PblUnicode.h"
 #include "RedEngineFL/Graphics/RedColor.h"
 #include "RedEngineFL/Interface/Red3DModelElementLite.h"
@@ -114,7 +115,11 @@ int ScriptCB_GetRank(lua_State*)
         return 0;
     }
 
-    Team* pTeam = Team::sTeams[(int)fTeam];
+    Team* pTeam = Team::Lookup((int)fTeam);
+    if (!pTeam)
+    {
+        return 0;
+    }
     Character* apSorted[600];
     for (int i = 0; i < pTeam->mMemberCount; ++i)
     {
@@ -150,8 +155,8 @@ int ScriptCB_GetPlayerIDAtRank(lua_State*)
     }
     int iTeam = (int)luaL_checknumber(LuaHelper::mState, 1);
     int iRank = (int)luaL_checknumber(LuaHelper::mState, 2);
-    Team* pTeam = Team::sTeams[iTeam];
-    if (iRank < 0 || pTeam->mMemberCount <= 0)
+    Team* pTeam = Team::Lookup(iTeam);
+    if (!pTeam || iRank < 0 || pTeam->mMemberCount <= 0)
     {
         return 0;
     }
@@ -189,6 +194,11 @@ int ScriptCB_GetMedalStats(lua_State*)
     {
         return 0;
     }
+    Team* pTeam = Team::Lookup((int)fTeam);
+    if (!pTeam)
+    {
+        return 0;
+    }
     DoPeriodicLuaGC(true);
     if (NetGame::IsEnabled() && NetGame::IsClient() && !PlayerStats::mGotMPStats)
     {
@@ -210,7 +220,6 @@ int ScriptCB_GetMedalStats(lua_State*)
     LuaHelper::SetGlobal("stats_listbox_contents");
     DoPeriodicLuaGC(false);
     lua_newtable(LuaHelper::mState);
-    Team* pTeam = Team::sTeams[(int)fTeam];
     Character* pCharacter = 0;
     for (int i = 0; i < pTeam->mMemberCount; ++i)
     {
@@ -220,8 +229,8 @@ int ScriptCB_GetMedalStats(lua_State*)
             break;
         }
     }
-    MedalsMgr* pMedals = pCharacter->mMedalsMgr;
-    for (int i = 0; i < 9; ++i)
+    MedalsMgr* pMedals = pCharacter ? pCharacter->mMedalsMgr : 0;
+    for (int i = 0; pMedals && i < 9; ++i)
     {
         lua_newtable(LuaHelper::mState);
         LuaHelper::TableWriteVal("medaltype", (int)pMedals->GetMedalsThisGame(i));
@@ -768,6 +777,11 @@ int ScriptCB_GetTeamstats(lua_State* L)
     {
         return 0;
     }
+    Team* pTeam = Team::Lookup((int)fSide + 1);
+    if (!pTeam)
+    {
+        return 0;
+    }
 
     const char* pcTable = "teamstats_listbox_contentsL";
     if (fSide != 0.0f)
@@ -798,7 +812,6 @@ int ScriptCB_GetTeamstats(lua_State* L)
     DoPeriodicLuaGC(false);
     lua_newtable(LuaHelper::mState);
 
-    Team* pTeam = Team::sTeams[(int)fSide + 1];
     Character* apSorted[600];
     for (int i = 0; i < pTeam->mMemberCount; ++i)
     {
@@ -866,8 +879,8 @@ int ScriptCB_TeamStatsGetTeamColor(lua_State* L)
 {
     float fTeam = (float)luaL_checknumber(LuaHelper::mState, 1);
     float fSlot = (float)luaL_checknumber(LuaHelper::mState, 2);
-    Team* pTeam = Team::sTeams[(int)fTeam];
-    if (pTeam)
+    Team* pTeam = Team::Lookup((int)fTeam);
+    if (pTeam && PblInBounds(pTeam->mColor, (int)fSlot))
     {
         RedColor color = pTeam->mColor[(int)fSlot];
         lua_pushnumber(LuaHelper::mState, (float)color.r);
@@ -889,6 +902,10 @@ int ScriptCB_TeamStatsSetTitles(lua_State* L)
     float fSlot = (float)luaL_checknumber(LuaHelper::mState, 1);
     Team* pTeam1 = Team::sTeams[1];
     Team* pTeam2 = Team::sTeams[2];
+    if (!pTeam1 || !pTeam2)
+    {
+        return 0;
+    }
     int iCount1, iCount2, i3, i4;
     bool b5, bShowCount;
     NetGame::GetScore(&iCount1, &iCount2, &i3, &i4, &b5, &bShowCount);
@@ -926,11 +943,18 @@ int ScriptCB_TeamStatsSetTitles(lua_State* L)
     if (GetSideIcon(pTeam1->GetSide()) && GetSideIcon(pTeam2->GetSide()))
     {
         Red3DModelElementLite* pIcon = (Red3DModelElementLite*)RedInterfaceElement::Find(0xb0fcda7cu);
+        const bool bSlot = PblInBounds(pTeam1->mColor, (int)fSlot);
         pIcon->SetModel(GetSideIcon(pTeam1->GetSide()));
-        pIcon->SetColor(pTeam1->mColor[(int)fSlot]);
+        if (bSlot)
+        {
+            pIcon->SetColor(pTeam1->mColor[(int)fSlot]);
+        }
         pIcon = (Red3DModelElementLite*)RedInterfaceElement::Find(0x14bdc17du);
         pIcon->SetModel(GetSideIcon(pTeam2->GetSide()));
-        pIcon->SetColor(pTeam2->mColor[(int)fSlot]);
+        if (bSlot)
+        {
+            pIcon->SetColor(pTeam2->mColor[(int)fSlot]);
+        }
     }
     return 0;
 }
@@ -940,12 +964,20 @@ int ScriptCB_PersonalStatsSetTitles(lua_State* L)
 {
     int iSlot = (int)luaL_checknumber(LuaHelper::mState, 1);
     int iTeam = (int)luaL_checknumber(LuaHelper::mState, 2);
-    if (GetSideIcon(Team::sTeams[1]->GetSide()) && GetSideIcon(Team::sTeams[2]->GetSide()))
+    if (Team::sTeams[1] && Team::sTeams[2] &&
+        GetSideIcon(Team::sTeams[1]->GetSide()) && GetSideIcon(Team::sTeams[2]->GetSide()))
     {
-        Team* pTeam = Team::sTeams[iTeam];
+        Team* pTeam = Team::Lookup(iTeam);
+        if (!pTeam)
+        {
+            return 0;
+        }
         Red3DModelElementLite* pIcon = (Red3DModelElementLite*)RedInterfaceElement::Find(0x262d6743u);
         pIcon->SetModel(GetSideIcon(pTeam->GetSide()));
-        pIcon->SetColor(pTeam->mColor[iSlot]);
+        if (PblInBounds(pTeam->mColor, iSlot))
+        {
+            pIcon->SetColor(pTeam->mColor[iSlot]);
+        }
     }
     return 0;
 }
@@ -963,7 +995,12 @@ int ScriptCB_TeamStatsValidatePos(lua_State* L)
         return 0;
     }
     float fPos = (float)luaL_checknumber(LuaHelper::mState, 2);
-    float fMax = (float)Team::sTeams[(int)fSide + 1]->mMemberCount;
+    Team* pTeam = Team::Lookup((int)fSide + 1);
+    if (!pTeam)
+    {
+        return 0;
+    }
+    float fMax = (float)pTeam->mMemberCount;
     lua_pushnumber(LuaHelper::mState, (fPos > fMax) ? fMax : fPos);
     return 1;
 }
@@ -981,6 +1018,11 @@ int ScriptCB_GetPersonalStats(lua_State* L)
         return 0;
     }
     float fRank = (float)luaL_checknumber(LuaHelper::mState, 2);
+    Team* pTeam = Team::Lookup((int)fTeam);
+    if (!pTeam)
+    {
+        return 0;
+    }
     DoPeriodicLuaGC(true);
 
     if (NetGame::IsEnabled() && NetGame::IsClient() && !PlayerStats::mGotMPStats)
@@ -1005,7 +1047,6 @@ int ScriptCB_GetPersonalStats(lua_State* L)
     DoPeriodicLuaGC(false);
     lua_newtable(LuaHelper::mState);
 
-    Team* pTeam = Team::sTeams[(int)fTeam];
     PlayerStats* pStats = 0;
     if (fRank >= 0.0f)
     {
@@ -1024,7 +1065,7 @@ int ScriptCB_GetPersonalStats(lua_State* L)
         pStats = &NetGame::GetLocalPlayer(GetStatsPageJoystick())->GetPlayerStats();
     }
 
-    for (int i = 0; i < 10; )
+    for (int i = 0; pStats && i < 10; )
     {
         lua_newtable(LuaHelper::mState);
         switch (i)
@@ -1121,8 +1162,13 @@ int ScriptCB_GetAwardStats(lua_State* L)
     }
 
     float fTeam = (float)luaL_checknumber(LuaHelper::mState, 1);
-    Team* pTeam = Team::sTeams[(int)fTeam];
-    bool bIcons = GetSideIcon(Team::sTeams[1]->GetSide()) && GetSideIcon(Team::sTeams[2]->GetSide());
+    Team* pTeam = Team::Lookup((int)fTeam);
+    if (!pTeam)
+    {
+        return 0;
+    }
+    bool bIcons = Team::sTeams[1] && Team::sTeams[2] &&
+                  GetSideIcon(Team::sTeams[1]->GetSide()) && GetSideIcon(Team::sTeams[2]->GetSide());
 
     lua_gettop(LuaHelper::mState);
     lua_pushnil(LuaHelper::mState);

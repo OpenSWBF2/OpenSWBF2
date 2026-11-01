@@ -58,6 +58,24 @@ $gsa = 'src\Steam\gfSteamAuth.cpp'
 $sth = 'src\SoundFL\source\win\sndthread.cpp'
 $lls = 'src\Battlefront2\Source\LuaCallbacks_LoadSave.cpp'
 $pq = 'src\PebbleFL\Common\PblQuaternion.cpp'
+$phc = 'src\PebbleFL\Common\PblHashTable.cpp'
+$team = 'src\Battlefront2\Source\Team.h'
+$chr = 'src\Battlefront2\Source\Character.cpp'
+$glh = 'src\Battlefront2\Source\GameLoop.h'
+$vom = 'src\Battlefront2\Source\VoiceOverManager.cpp'
+$cp = 'src\Battlefront2\Source\CommandPost.cpp'
+$lcb = 'src\Battlefront2\Source\LuaCallbacks.cpp'
+$lcs = 'src\Battlefront2\Source\LuaCallbacks_Sound.cpp'
+$lcst = 'src\Battlefront2\Source\LuaCallbacks_Stats.cpp'
+$lco = 'src\Battlefront2\Source\LuaCallbacks_Options.cpp'
+$laux = 'src\LuaFL\src\lib\lauxlib.cpp'
+$ldb = 'src\LuaFL\src\lib\ldblib.cpp'
+$npr = 'src\Battlefront2\Source\NetPredict.cpp'
+$gob = 'src\Battlefront2\Source\GameObject.cpp'
+$r3d = 'src\RedEngineFL\Interface\Red3DModelElement.cpp'
+$rifs = 'src\RedEngineFL\Interface\RedIFScreen.cpp'
+$nset = 'src\Battlefront2\Source\NetSetup.cpp'
+$bm = 'src\Battlefront2\Source\BonusManager.cpp'
 
 $GuardRevertRows = @(
     @{ Id = 'CRASH-02'; File = 'src\RedEngineFL\Util\RedWarning.cpp'; Anchor = 'fputs(pcText, pFile);'; Replacement = 'fprintf(pFile, pcText);'; Tests = @('file log writes percent text literally') },
@@ -397,6 +415,53 @@ $GuardRevertRows = @(
     @{ Id = 'LMAT-03'; File = $lma; Anchor = 'if (lua_type(L, iIndex) != LUA_TUSERDATA)'; Replacement = 'if (lua_type(L, iIndex) == LUA_TNONE)'; Tests = @('lua matrix argument accepts only pushed matrices') }
     @{ Id = 'LMAT-04'; File = 'src\Battlefront2\Source\LuaCallbacks.cpp'; Anchor = 'const PblMatrix* pWorld = LuaMatrixArg::Get(LuaHelper::mState, 1);'; Replacement = 'const PblMatrix* pWorld = (const PblMatrix*)lua_touserdata(LuaHelper::mState, 1);'; Tests = @('lua matrix sites route through the accessor') }
     @{ Id = 'LMAT-05'; File = $lcm; Anchor = 'const PblMatrix* pDescMatrix = LuaMatrixArg::Get(LuaHelper::mState, 2);'; Replacement = 'const PblMatrix* pDescMatrix = lua_isuserdata(LuaHelper::mState, 2) ? (const PblMatrix*)lua_touserdata(LuaHelper::mState, 2) : 0;'; Tests = @('lua matrix sites route through the accessor') }
+    @{ Id = 'PBLHT-01'; File = $phc; Anchor = 'for (int iFindProbes = 0; iFindProbes < iHalf; ++iFindProbes)'; Replacement = 'for (int iFindProbes = 0; ; ++iFindProbes)'; Tests = @('hash table full table probes terminate') }
+    @{ Id = 'PBLHT-02'; File = $phc; Anchor = 'for (int iStoreProbes = 0; iStoreProbes < iHalf; ++iStoreProbes)'; Replacement = 'for (int iStoreProbes = 0; ; ++iStoreProbes)'; Tests = @('hash table full table probes terminate') }
+    @{ Id = 'PBLHT-03'; File = $phc; Anchor = 'for (; iRemoveProbes < iHalf; ++iRemoveProbes)'; Replacement = 'for (; ; ++iRemoveProbes)'; Tests = @('hash table full table probes terminate') }
+    @{ Id = 'TIMER-01'; File = $lcm; Anchor = ' || Timer::sMapNumEntries >= Timer::sMap.GetSlotCount()'; Replacement = ''; Tests = @('create timer refuses when the timer map is full') }
+    @{ Id = 'TEAM-01'; File = $team; Anchor = 'return LocalLimits::IsValidTeam(iTeam) ? sTeams[iTeam] : 0;'; Replacement = 'return sTeams[iTeam];'; Tests = @('team lookup rejects out of range indices') }
+    @{ Id = 'TEAM-02'; File = $lcm; Anchor = "Team* pTeam = Team::Lookup(iTeam);`n    int iMember"; Replacement = "Team* pTeam = Team::sTeams[iTeam];`n    int iMember"; Tests = @('lua team index sites route through team lookup') }
+    @{ Id = 'TEAM-03'; File = $chr; Anchor = "Team* pTeam = Team::Lookup(iTeam);`n    if (!pTeam)`n    {`n        return false;`n    }`n"; Replacement = "Team* pTeam = Team::sTeams[iTeam];`n"; Tests = @('lua team index sites route through team lookup') }
+    @{ Id = 'TEAM-04'; File = $lcm; Anchor = "    if (!Team::Lookup(iOther))`n    {`n        return 0;`n    }`n    pTeam->SetAffiliation(iOther, -1);"; Replacement = '    pTeam->SetAffiliation(iOther, -1);'; Tests = @('lua team index sites route through team lookup') }
+    @{ Id = 'TEAM-05'; File = $lcm; Anchor = "        if (Team::Lookup((int)uTeam))`n        {`n            pObject->SetTeam(uTeam);`n        }"; Replacement = '        pObject->SetTeam(uTeam);'; Tests = @('lua team index sites route through team lookup') }
+    @{ Id = 'TEAM-06'; File = $lcm; Anchor = 'if (!PblInBounds(netHeroUnlocked, iTeam))'; Replacement = 'if (!true)'; Tests = @('lua team index sites route through team lookup') }
+    @{ Id = 'TEAM-07'; File = $glh; Anchor = 'if (PblInBounds(mShowTeamPoints, iTeam - 1))'; Replacement = 'if (true)'; Tests = @('lua team index sites route through team lookup') }
+    @{ Id = 'TEAM-08'; File = $bm; Anchor = "    if (iTeam < 1 || iTeam > 2)`n    {`n        return;`n    }`n    int iIndex = GetTeamIndex(iTeam);"; Replacement = '    int iIndex = GetTeamIndex(iTeam);'; Tests = @('lua team index sites route through team lookup') }
+    @{ Id = 'TEAM-09'; File = $lcst; Anchor = 'for (int i = 0; pMedals && i < 9; ++i)'; Replacement = 'for (int i = 0; i < 9; ++i)'; Tests = @('lua team index sites route through team lookup') }
+    @{ Id = 'COLOR-01'; File = $lcst; Anchor = 'if (pTeam && PblInBounds(pTeam->mColor, (int)fSlot))'; Replacement = 'if (pTeam && true)'; Tests = @('stats team colour slots are bounded') }
+    @{ Id = 'VO-01'; File = $vom; Anchor = 'if (!PblInBounds(mVoiceOverLowReinforcements, iTeam) || !PblInBounds(mVoiceOverLowReinforcements[0], iIndex))'; Replacement = 'if (!true)'; Tests = @('voice over side indices are bounded') }
+    @{ Id = 'VO-02'; File = $vom; Anchor = "    if (PblInBounds(mTeamBleeding, iTeam))`n    {`n        mAttackingTeam = iTeam;"; Replacement = "    if (true)`n    {`n        mAttackingTeam = iTeam;"; Tests = @('voice over side indices are bounded') }
+    @{ Id = 'VO-03'; File = $vom; Anchor = 'const bool bMusicSide = PblInBounds(mTeamBleeding, musicTeam);'; Replacement = 'const bool bMusicSide = true;'; Tests = @('voice over side indices are bounded') }
+    @{ Id = 'VO-04'; File = $cp; Anchor = 'const Team* pListener = Team::Lookup(VoiceOverManager::sInstance->GetPlayerTeamNumber() + 1);'; Replacement = 'const Team* pListener = Team::sTeams[VoiceOverManager::sInstance->GetPlayerTeamNumber() + 1];'; Tests = @('voice over side indices are bounded') }
+    @{ Id = 'STREAM-01'; File = $lcs; Anchor = "        Snd::Stream* pStream = GetLuaStream(iStream);`n        if (!pStream)`n        {`n            return 0;`n        }`n        if (pStream->IsOpen())"; Replacement = "        Snd::Stream* pStream = &Snd::EngineBase::smStreams[iStream - 1];`n        if (pStream->IsOpen())"; Tests = @('lua stream and ui indices are bounded') }
+    @{ Id = 'PAGE-01'; File = $lcb; Anchor = 'PblInBounds(sPageStart, iPage - 1) ? sPageStart[iPage - 1] : 0'; Replacement = 'true ? sPageStart[iPage - 1] : 0'; Tests = @('lua stream and ui indices are bounded') }
+    @{ Id = 'BIND-01'; File = $lci; Anchor = "    const float fDeltaTime = (float)luaL_checknumber(LuaHelper::mState, 2);`n    if (iIndex < 0)`n    {`n        return 0;`n    }"; Replacement = '    const float fDeltaTime = (float)luaL_checknumber(LuaHelper::mState, 2);'; Tests = @('lua stream and ui indices are bounded') }
+    @{ Id = 'SCALE-01'; File = $lco; Anchor = 'if (pProfile && PblInBounds(pProfile->mGameOptions.mControllerScale, iAxis))'; Replacement = 'if (pProfile && true)'; Tests = @('lua stream and ui indices are bounded') }
+    @{ Id = 'SPEC-01'; File = $lco; Anchor = 'if (!PblInBounds(g_SpectatorEnabled, iLocal))'; Replacement = 'if (!true)'; Tests = @('lua stream and ui indices are bounded') }
+    @{ Id = 'DELENT-01'; File = $lcm; Anchor = 'if (Character::FindOwner(pEntity))'; Replacement = 'if (false)'; Tests = @('delete entity refuses character owned entities') }
+    @{ Id = 'SCRGRP-01'; File = $lci; Anchor = "    pElement = pCurCreateScreenGroup;`n    return pElement != 0;"; Replacement = "    pElement = pCurCreateScreenGroup;`n    return false;"; Tests = @('screen group fallback returns true when set') }
+    @{ Id = 'LUAFILE-01'; File = $laux; Anchor = 'lua_pushfstring(L, "cannot read %s: file loading is disabled", filename ? filename : "stdin");'; Replacement = 'return luaL_loadbuffer(L, "Pwned = 1", 9, "=file");'; Tests = @('lua loadfile dofile and require cannot read files') }
+    @{ Id = 'LUADBG-01'; File = $ldb; Anchor = "  (void)L;`n  return 0;"; Replacement = "  for (;;) {`n    char buffer[250];`n    fputs(`"lua_debug> `", stderr);`n    if (fgets(buffer, sizeof(buffer), stdin) == 0 ||`n        strcmp(buffer, `"cont\n`") == 0)`n      return 0;`n    lua_dostring(L, buffer);`n    lua_settop(L, 0);`n  }"; Tests = @('lua debug debug does not read stdin') }
+    @{ Id = 'NETLIM-01'; File = $ll; Anchor = 'return (unsigned int)iPlayer < (unsigned int)kMaxNetPlayers;'; Replacement = 'return true;'; Tests = @('net player and guest count bounds') }
+    @{ Id = 'NETLIM-02'; File = $ll; Anchor = 'return uiCount <= kMaxGuests;'; Replacement = 'return true;'; Tests = @('net player and guest count bounds') }
+    @{ Id = 'NETGUEST-01'; File = $nset; Anchor = "    if (!LocalLimits::IsValidGuestCount(guestCount))`n    {`n        group.SetBad(NET_REJECT_GUEST_COUNT);"; Replacement = "    if (false)`n    {`n        group.SetBad(NET_REJECT_GUEST_COUNT);"; Tests = @('join guest count is bounded') }
+    @{ Id = 'NETSPAWN-01'; File = $ngc; Anchor = 'if (!LocalLimits::IsValidNetPlayer(id))'; Replacement = 'if (!true)'; Tests = @('spawn select rejects unknown guest slots') }
+    @{ Id = 'NETTEAM-01'; File = $ngc; Anchor = "    if (!post || !team)`n    {`n        return;`n    }`n"; Replacement = ''; Tests = @('team change event ignores null references') }
+    @{ Id = 'NETCREATE-01'; File = $ngc; Anchor = "    EntityClass* entityClass = ReadEntityClass(group);`n    if (!entityClass)`n    {`n        group.SetBad(NET_REJECT_OBJECT_REF);`n        return 0;`n    }"; Replacement = '    EntityClass* entityClass = ReadEntityClass(group);'; Tests = @('read create rejects unknown class and team') }
+    @{ Id = 'NETCREATE-02'; File = $ngc; Anchor = "        Dump();`n        return 0;"; Replacement = '        Dump();'; Tests = @('read create rejects unknown class and team') }
+    @{ Id = 'NETOBJ-01'; File = $ngc; Anchor = "            const bool bObjectKnown = netObj != 0;`n            if (!ensure(bObjectKnown))`n            {`n                return false;`n            }`n"; Replacement = ''; Tests = @('read create rejects unknown class and team') }
+    @{ Id = 'NETSMOOTH-01'; File = $npr; Anchor = 'if (PblInBounds(smoothInfo, iIndex))'; Replacement = 'if (true)'; Tests = @('net object slots are bounded') }
+    @{ Id = 'NETINTERP-01'; File = $gob; Anchor = "void GameObjectInterpolator::SetNext(int iNetUniqueId, const PblMatrix* pMatrix)`n{`n    if (!PblInBounds(count, iNetUniqueId))"; Replacement = "void GameObjectInterpolator::SetNext(int iNetUniqueId, const PblMatrix* pMatrix)`n{`n    if (iNetUniqueId < 0)"; Tests = @('net object slots are bounded') }
+    @{ Id = 'NETMSG-01'; File = $ngc; Anchor = "    case NetGame::MSG_SUICIDE:`n        if (!pCharacter1)`n        {`n            break;`n        }`n"; Replacement = "    case NetGame::MSG_SUICIDE:`n"; Tests = @('net message and chunk events ignore null references') }
+    @{ Id = 'NETMSG-02'; File = $ngc; Anchor = 'if (NetGame::GetLocalPlayer(j) && pTeam)'; Replacement = 'if (NetGame::GetLocalPlayer(j))'; Tests = @('net message and chunk events ignore null references') }
+    @{ Id = 'NETCHUNK-01'; File = $ngc; Anchor = 'if (!PblInBounds(relChunkClusterData, (int)event.u.createchunkcluster.mChunkClusterIndex))'; Replacement = 'if (false)'; Tests = @('net message and chunk events ignore null references') }
+    @{ Id = 'UIL-01'; File = $rie; Anchor = "    sLuaHandles.Clear();`n    Lua_Callbacks::pCurCreateObject = 0;"; Replacement = '    sLuaHandles.Clear();'; Tests = @('interface element destruction clears creation pointers') }
+    @{ Id = 'UIL-02'; File = $rie; Anchor = "    if (Lua_Callbacks::pCurCreateObject == this)`n    {`n        Lua_Callbacks::pCurCreateObject = 0;`n    }`n"; Replacement = ''; Tests = @('interface element destruction clears creation pointers') }
+    @{ Id = 'UIL-03'; File = $rie; Anchor = '    IFScreen::ForgetElement(this);'; Replacement = ''; Tests = @('interface element destruction clears creation pointers') }
+    @{ Id = 'UIL-04'; File = $rifs; Anchor = '            --pScreen->mNumElements;'; Replacement = ''; Tests = @('screen forget element compacts every screen') }
+    @{ Id = 'UIL-05'; File = $r3d; Anchor = "            {`n                pHost->m_AttachedObj = 0;"; Replacement = '            {'; Tests = @('model attachment detaches on destruction') }
+    @{ Id = 'UIL-06'; File = $lci; Anchor = "            const unsigned int uiHash = PblTEMPHash(luaL_checkstring(LuaHelper::mState, iArg + 1));`n            pModel->AttachModel(pAttached, uiHash);"; Replacement = "            pModel->m_AttachedObj = pAttached;`n            pModel->m_uiHardpointHash = PblTEMPHash(luaL_checkstring(LuaHelper::mState, iArg + 1));`n            pAttached->m_bAmAttached = true;"; Tests = @('model attachment detaches on destruction') }
+    @{ Id = 'UIL-07'; File = $rie; Anchor = '    Red3DModelElement::sAttachHosts.Clear();'; Replacement = ''; Tests = @('interface element destruction clears creation pointers') }
     @{ Id = 'LHND-01'; File = $lha; Anchor = 'if (lua_type(L, iIndex) != LUA_TLIGHTUSERDATA)'; Replacement = 'if (lua_type(L, iIndex) == LUA_TNONE)'; Tests = @('lua handle argument accepts only light userdata') }
     @{ Id = 'LHND-02'; File = $pps; Anchor = 'return pPtr && mSlots[Locate(pPtr)] == pPtr;'; Replacement = 'return pPtr != 0;'; Tests = @('pbl ptr set tracks membership by address') }
     @{ Id = 'LHND-03'; File = $pps; Anchor = 'if (((uNext - uHome) & (SLOTS - 1)) >= ((uNext - uHole) & (SLOTS - 1)))'; Replacement = 'if (false)'; Tests = @('pbl ptr set tracks membership by address') }

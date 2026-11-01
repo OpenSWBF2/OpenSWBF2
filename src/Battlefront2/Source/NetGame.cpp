@@ -30,6 +30,7 @@
 #include "NetPacket.h"
 #include "NetWire.h"
 #include "LocalLimits.h"
+#include "PebbleFL/Common/PblIndex.h"
 #include "RedEngineFL/Util/RedLog.h"
 #include "RedEngineFL/Util/RedWarning.h"
 #include "TreeGrid.h"
@@ -3427,13 +3428,17 @@ void HandleEvent_Message(ReliableNetEvent& event)
     switch (event.u.message.mType)
     {
     case NetGame::MSG_SUICIDE:
+        if (!pCharacter1)
+        {
+            break;
+        }
         if (pCharacter1->IsHero())
         {
             pFormat = RedLocalizeDB::Find(0x07aad4c1, false);
             pCharacter1->GetHeroName(heroName, 127);
             PblUnicode::usnprintf(message, kMaxMessage - 1, pFormat, heroName);
         }
-        else
+        else if (pCharacter2)
         {
             pFormat = RedLocalizeDB::Find(0x616333ea, false);
             PblUnicode::usnprintf(message, kMaxMessage - 1, pFormat, pCharacter2->GetName());
@@ -3442,10 +3447,14 @@ void HandleEvent_Message(ReliableNetEvent& event)
 
     case NetGame::MSG_KILLED_TEAMMATE:
     case NetGame::MSG_KILLED:
-        bKill = true;
+        bKill = pCharacter1 != 0;
         break;
 
     case NetGame::MSG_DIED:
+        if (!pCharacter1)
+        {
+            break;
+        }
         if (pCharacter1->IsHero())
         {
             pCharacter1->GetHeroName(heroName, 127);
@@ -3489,17 +3498,27 @@ void HandleEvent_Message(ReliableNetEvent& event)
         break;
 
     case NetGame::MSG_DISPUTED:
-        pPost->PlayVoiceOver(pTeam->GetSide(), CommandPost::VoiceOver::stream_Dispute, false);
+        if (pPost && pTeam)
+        {
+            pPost->PlayVoiceOver(pTeam->GetSide(), CommandPost::VoiceOver::stream_Dispute, false);
+        }
         break;
 
     case NetGame::MSG_SAVED:
-        pPost->PlayVoiceOver(pTeam->GetSide(), CommandPost::VoiceOver::stream_Saved, false);
+        if (pPost && pTeam)
+        {
+            pPost->PlayVoiceOver(pTeam->GetSide(), CommandPost::VoiceOver::stream_Saved, false);
+        }
         break;
 
     case NetGame::MSG_JOINED:
     {
         Character* pFirst = Character::GetPtr(0);
         int iPlayer = pCharacter1 - pFirst;
+        if (!pCharacter1 || !LocalLimits::IsValidNetPlayer(iPlayer))
+        {
+            return;
+        }
         pTeam = Team::GetPtr(pCharacter1->GetTeamNumber());
         pFormat = RedLocalizeDB::Find(0xdd433dcf, false);
         if (!pFormat)
@@ -3526,7 +3545,7 @@ void HandleEvent_Message(ReliableNetEvent& event)
     {
         Character* pFirst = Character::GetPtr(0);
         int iPlayer = pCharacter1 - pFirst;
-        if (!pCharacter1)
+        if (!pCharacter1 || !LocalLimits::IsValidNetPlayer(iPlayer))
         {
             return;
         }
@@ -3611,7 +3630,7 @@ void HandleEvent_Message(ReliableNetEvent& event)
         }
         for (unsigned int j = 0; j < GameLoop::GetNumCameras(); j++)
         {
-            if (NetGame::GetLocalPlayer(j))
+            if (NetGame::GetLocalPlayer(j) && pTeam)
             {
                 MessageDisplay::Instance(j, MessageDisplay::DISPLAY_SYSTEM_MSG)
                     ->AddMessage(message, NetGame::GetLocalPlayer(j)->GetTeamPtr()->GetColor(pTeam->GetNumber()));
@@ -8375,6 +8394,10 @@ void HandleEvent_ChangeTeam(ReliableNetEvent& event)
 {
     CommandPost* post = event.u.changeteam.mCommandPost;
     Team* team = event.u.changeteam.mTeam;
+    if (!post || !team)
+    {
+        return;
+    }
     GameObject* object = post->GetGameObject();
     if (!object)
     {
@@ -8467,6 +8490,12 @@ void ReadEvent_CreateChunkCluster(NetPktGroup& group, ReliableNetEvent& event)
     }
 
     group.ReadBits(event.u.createchunkcluster.mChunkClusterIndex, 4);
+    if (!PblInBounds(relChunkClusterData, (int)event.u.createchunkcluster.mChunkClusterIndex))
+    {
+        event.u.createchunkcluster.mEntClass = 0;
+        group.SetBad(NET_REJECT_OBJECT_REF);
+        return;
+    }
     EntityGeometryClass* entityClass = (EntityGeometryClass*)ReadEntityClass(group);
     event.u.createchunkcluster.mEntClass = entityClass;
     if (entityClass)
@@ -9710,9 +9739,18 @@ void ReadSpawnSelect(NetPktGroup& group, int player)
     for (int i = 0; i < 2; ++i)
     {
         int id = i == 0 ? player : NetGame::GetMyGuest(player, i - 1);
-        NetPlayer& np = netPlayers[id];
         bool hasSpawn;
         group.Read(hasSpawn);
+        if (!LocalLimits::IsValidNetPlayer(id))
+        {
+            if (hasSpawn)
+            {
+                group.SetBad(NET_REJECT_SPAWN_SLOT);
+                return;
+            }
+            continue;
+        }
+        NetPlayer& np = netPlayers[id];
         if (hasSpawn)
         {
             unsigned int changeCount;
@@ -9962,6 +10000,10 @@ namespace StatsManager { void ReadStatsResponse(); }
 GameObject* CreateObject(unsigned int uniqId, EntityClass* entityClass, int initialPlayerId, int playerId,
                          PblQuaternion& rotation, PblVector3& position, Character* character, Team* team)
 {
+    if (!entityClass || !team)
+    {
+        return 0;
+    }
     SmoothInfo& smooth = NetPredict::GetSmoothInfo(uniqId);
     smooth.ResetMat(PblMatrix(rotation, position));
     smooth.mPlayerId = initialPlayerId;
@@ -9992,8 +10034,13 @@ GameObject* CreateObject(unsigned int uniqId, EntityClass* entityClass, int init
     {
         CloseJournal();
         Dump();
+        return 0;
     }
     GameObject* object = entity->GetGameObject();
+    if (!object)
+    {
+        return 0;
+    }
     object->SetTeam(team->GetNumber());
     object->SetPerceivedTeam(team->GetNumber());
     object->SetNetUniqueId(uniqId);
@@ -10001,7 +10048,7 @@ GameObject* CreateObject(unsigned int uniqId, EntityClass* entityClass, int init
     {
         ++gDebugCount;
     }
-    if (initialPlayerId != playerId)
+    if (initialPlayerId != playerId && object->GetControllable())
     {
         object->GetControllable()->SetInitialPlayerId(initialPlayerId);
     }
@@ -10014,10 +10061,10 @@ GameObject* CreateObject(unsigned int uniqId, EntityClass* entityClass, int init
     if (playerId >= 0)
     {
         Character* player = Character::FindPlayer(playerId);
-        if (player)
+        Controllable* controllable = object->GetControllable();
+        if (player && controllable)
         {
             Character::InitAll();
-            Controllable* controllable = object->GetControllable();
             switch (controllable->GetPilotType())
             {
             case PILOT_SELF:
@@ -10082,7 +10129,7 @@ GameObject* CreateObject(unsigned int uniqId, EntityClass* entityClass, int init
             character->SetVehicle(0);
         }
         Controllable* controllable = object->GetControllable();
-        if (controllable->GetPilotType() == PILOT_SELF)
+        if (controllable && controllable->GetPilotType() == PILOT_SELF)
         {
             character->SetUnit(controllable);
             controllable->SetPilot(controllable);
@@ -10128,6 +10175,11 @@ GameObject* CreateObject(unsigned int uniqId, EntityClass* entityClass, int init
 GameObject* ReadCreate(NetPktGroup& group, unsigned int uniqId)
 {
     EntityClass* entityClass = ReadEntityClass(group);
+    if (!entityClass)
+    {
+        group.SetBad(NET_REJECT_OBJECT_REF);
+        return 0;
+    }
     unsigned int player = (unsigned int)-1;
     int playerId = -1;
     bool hasPlayer;
@@ -10164,6 +10216,11 @@ GameObject* ReadCreate(NetPktGroup& group, unsigned int uniqId)
         CommandPost::ForceIndex(buildSlot);
     }
     Team* team = ReadTeam(group);
+    if (!team)
+    {
+        group.SetBad(NET_REJECT_OBJECT_REF);
+        return 0;
+    }
     if (character)
     {
         if (hasPlayer)
@@ -10180,6 +10237,11 @@ GameObject* ReadCreate(NetPktGroup& group, unsigned int uniqId)
         }
     }
     GameObject* object = CreateObject(uniqId, entityClass, player, playerId, rotation, position, character, team);
+    if (!object)
+    {
+        group.SetBad(NET_REJECT_OBJECT_REF);
+        return 0;
+    }
     object->ReadCreate(group);
     return object;
 }
@@ -10250,6 +10312,10 @@ bool ReadObject(NetPktGroup& group)
                 return false;
             }
             object = ReadCreate(group, index);
+            if (!object)
+            {
+                return false;
+            }
         }
         else
         {
@@ -10259,6 +10325,11 @@ bool ReadObject(NetPktGroup& group)
                 return false;
             }
             NetObj* netObj = (NetObj*)clientObjMap[index];
+            const bool bObjectKnown = netObj != 0;
+            if (!ensure(bObjectKnown))
+            {
+                return false;
+            }
             netObj->usedTurn = clientHostTurnNumber;
             object = netObj->obj;
         }
@@ -10380,6 +10451,10 @@ void ReadObjects(NetPktGroup& group)
                     ++gDebugCount;
                 }
                 ReadCreate(group, index);
+                if (group.IsBad())
+                {
+                    break;
+                }
             }
         }
         for (j = 0; j < createPoolCount; ++j)

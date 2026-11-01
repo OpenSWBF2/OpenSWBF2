@@ -2,6 +2,7 @@
 
 #include <stddef.h>
 
+#include "LocalLimits.h"
 #include "PebbleFL/Common/PblRandom.h"
 #include "RedEngineFL/Graphics/RedColor.h"
 
@@ -68,6 +69,7 @@ public:
 
     // FUNCTION: SWBF2 0x004293a0
     static Team* GetPtr(int iTeam) { return sTeams[iTeam]; }
+    static Team* Lookup(int iTeam) { return LocalLimits::IsValidTeam(iTeam) ? sTeams[iTeam] : 0; }
 
     static int GetCount() { return 8; }
     // FUNCTION: SWBF2 0x00429370

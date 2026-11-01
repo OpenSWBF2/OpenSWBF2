@@ -460,34 +460,8 @@ static int errfile (lua_State *L, int fnameindex) {
 // LIBRARY: SWBF2 0x0069b060
 // luaL_loadfile
 LUALIB_API int luaL_loadfile (lua_State *L, const char *filename) {
-  LoadF lf;
-  int status, readstatus;
-  int c;
-  int fnameindex = lua_gettop(L) + 1;
-  if (filename == NULL) {
-    lua_pushliteral(L, "=stdin");
-    lf.f = stdin;
-  }
-  else {
-    lua_pushfstring(L, "@%s", filename);
-    lf.f = fopen(filename, "r");
-  }
-  if (lf.f == NULL) return errfile(L, fnameindex);
-  c = ungetc(getc(lf.f), lf.f);
-  if (!(isspace(c) || isprint(c)) && lf.f != stdin) {
-    fclose(lf.f);
-    lf.f = fopen(filename, "rb");
-    if (lf.f == NULL) return errfile(L, fnameindex);
-  }
-  status = lua_load(L, getF, &lf, lua_tostring(L, -1));
-  readstatus = ferror(lf.f);
-  if (lf.f != stdin) fclose(lf.f);
-  if (readstatus) {
-    lua_settop(L, fnameindex);
-    return errfile(L, fnameindex);
-  }
-  lua_remove(L, fnameindex);
-  return status;
+  lua_pushfstring(L, "cannot read %s: file loading is disabled", filename ? filename : "stdin");
+  return LUA_ERRFILE;
 }
 
 typedef struct LoadS {

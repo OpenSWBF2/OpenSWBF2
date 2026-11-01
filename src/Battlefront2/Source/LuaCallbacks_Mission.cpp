@@ -10,6 +10,7 @@
 
 #include "LuaFL/include/lauxlib.h"
 #include "PebbleFL/Common/PblHashTable.h"
+#include "PebbleFL/Common/PblIndex.h"
 #include "RedEngineFL/Memory/RedMemory.h"
 #include "AIUtil.h"
 #include "AIDifficulty.h"
@@ -814,7 +815,12 @@ int SetHistorical(lua_State* L)
 int SetTeamName(lua_State* L)
 {
     int iTeam = LuaHelper::GetInt(1);
-    Team::sTeams[iTeam]->SetSide(LuaHelper::GetString(2));
+    Team* pTeam = Team::Lookup(iTeam);
+    if (!pTeam)
+    {
+        return 0;
+    }
+    pTeam->SetSide(LuaHelper::GetString(2));
     return 0;
 }
 
@@ -822,7 +828,12 @@ int SetTeamName(lua_State* L)
 int SetTeamAggressiveness(lua_State* L)
 {
     int iTeam = LuaHelper::GetInt(1);
-    Team::sTeams[iTeam]->SetAggressiveness(LuaHelper::GetFloat(2));
+    Team* pTeam = Team::Lookup(iTeam);
+    if (!pTeam)
+    {
+        return 0;
+    }
+    pTeam->SetAggressiveness(LuaHelper::GetFloat(2));
     return 0;
 }
 
@@ -883,7 +894,11 @@ int SetTeamIcon(lua_State* L)
     const char* pcIcon = LuaHelper::GetString(2);
     const char* pcConquestIcon = iArgs >= 3 ? LuaHelper::GetString(3) : 0;
     const char* pcCTFIcon = iArgs >= 4 ? LuaHelper::GetString(4) : 0;
-    Team* pTeam = Team::sTeams[iTeam];
+    Team* pTeam = Team::Lookup(iTeam);
+    if (!pTeam)
+    {
+        return 0;
+    }
     pTeam->SetIcon(PblHash(pcIcon));
     if (pcConquestIcon)
     {
@@ -900,7 +915,17 @@ int SetTeamIcon(lua_State* L)
 int SetTeamAsEnemy(lua_State* L)
 {
     int iTeam = LuaHelper::GetInt(1);
-    Team::sTeams[iTeam]->SetAffiliation(LuaHelper::GetInt(2), -1);
+    Team* pTeam = Team::Lookup(iTeam);
+    if (!pTeam)
+    {
+        return 0;
+    }
+    int iOther = LuaHelper::GetInt(2);
+    if (!Team::Lookup(iOther))
+    {
+        return 0;
+    }
+    pTeam->SetAffiliation(iOther, -1);
     return 0;
 }
 
@@ -908,7 +933,17 @@ int SetTeamAsEnemy(lua_State* L)
 int SetTeamAsNeutral(lua_State* L)
 {
     int iTeam = LuaHelper::GetInt(1);
-    Team::sTeams[iTeam]->SetAffiliation(LuaHelper::GetInt(2), 0);
+    Team* pTeam = Team::Lookup(iTeam);
+    if (!pTeam)
+    {
+        return 0;
+    }
+    int iOther = LuaHelper::GetInt(2);
+    if (!Team::Lookup(iOther))
+    {
+        return 0;
+    }
+    pTeam->SetAffiliation(iOther, 0);
     return 0;
 }
 
@@ -916,7 +951,17 @@ int SetTeamAsNeutral(lua_State* L)
 int SetTeamAsFriend(lua_State* L)
 {
     int iTeam = LuaHelper::GetInt(1);
-    Team::sTeams[iTeam]->SetAffiliation(LuaHelper::GetInt(2), 1);
+    Team* pTeam = Team::Lookup(iTeam);
+    if (!pTeam)
+    {
+        return 0;
+    }
+    int iOther = LuaHelper::GetInt(2);
+    if (!Team::Lookup(iOther))
+    {
+        return 0;
+    }
+    pTeam->SetAffiliation(iOther, 1);
     return 0;
 }
 
@@ -925,6 +970,10 @@ int SetUnitCount(lua_State* L)
 {
     int iTeam = LuaHelper::GetInt(1);
     int iCount = LuaHelper::GetInt(2);
+    if (!Team::Lookup(iTeam))
+    {
+        return 0;
+    }
     if (AIDebug::OnlyOneAI())
     {
         iCount = iTeam < 3;
@@ -948,9 +997,13 @@ int GetUnitCount(lua_State* L)
             lua_pushnumber(LuaHelper::mState, 0.0f);
         }
     }
-    else
+    else if (Team::Lookup(iTeam))
     {
         lua_pushnumber(LuaHelper::mState, (float)SpawnManager::Instance()->GetUnitCount(iTeam));
+    }
+    else
+    {
+        lua_pushnumber(LuaHelper::mState, 0.0f);
     }
     return 1;
 }
@@ -960,6 +1013,11 @@ int SetReinforcementCount(lua_State* L)
 {
     int iTeam = LuaHelper::GetInt(1);
     int iCount = LuaHelper::GetInt(2);
+    Team* pTeam = Team::Lookup(iTeam);
+    if (!pTeam)
+    {
+        return 0;
+    }
     if (iCount < 0)
     {
         iCount = 0x7fffffff;
@@ -984,8 +1042,8 @@ int SetReinforcementCount(lua_State* L)
             Lua_Callbacks::gTeamSetReinforcementMult |= uBit;
         }
     }
-    Team::sTeams[iTeam]->mMaxReinforcements = iCount;
-    Team::sTeams[iTeam]->SetCurReinforcements(iCount);
+    pTeam->mMaxReinforcements = iCount;
+    pTeam->SetCurReinforcements(iCount);
     return 0;
 }
 
@@ -993,7 +1051,8 @@ int SetReinforcementCount(lua_State* L)
 int GetReinforcementCount(lua_State* L)
 {
     int iTeam = LuaHelper::GetInt(1);
-    lua_pushnumber(LuaHelper::mState, (float)Team::sTeams[iTeam]->GetCurReinforcements());
+    Team* pTeam = Team::Lookup(iTeam);
+    lua_pushnumber(LuaHelper::mState, pTeam ? (float)pTeam->GetCurReinforcements() : 0.0f);
     return 1;
 }
 
@@ -1001,7 +1060,12 @@ int GetReinforcementCount(lua_State* L)
 int AddReinforcements(lua_State* L)
 {
     int iTeam = LuaHelper::GetInt(1);
-    Team::sTeams[iTeam]->AddReinforcements(LuaHelper::GetInt(2));
+    Team* pTeam = Team::Lookup(iTeam);
+    if (!pTeam)
+    {
+        return 0;
+    }
+    pTeam->AddReinforcements(LuaHelper::GetInt(2));
     return 0;
 }
 
@@ -1009,7 +1073,12 @@ int AddReinforcements(lua_State* L)
 int SetTeamPoints(lua_State* L)
 {
     int iTeam = LuaHelper::GetInt(1);
-    Team::sTeams[iTeam]->SetPoints(LuaHelper::GetInt(2));
+    Team* pTeam = Team::Lookup(iTeam);
+    if (!pTeam)
+    {
+        return 0;
+    }
+    pTeam->SetPoints(LuaHelper::GetInt(2));
     return 0;
 }
 
@@ -1017,7 +1086,8 @@ int SetTeamPoints(lua_State* L)
 int GetTeamPoints(lua_State* L)
 {
     int iTeam = LuaHelper::GetInt(1);
-    lua_pushnumber(LuaHelper::mState, (float)Team::sTeams[iTeam]->GetPoints());
+    Team* pTeam = Team::Lookup(iTeam);
+    lua_pushnumber(LuaHelper::mState, pTeam ? (float)pTeam->GetPoints() : 0.0f);
     return 1;
 }
 
@@ -1025,7 +1095,12 @@ int GetTeamPoints(lua_State* L)
 int AddTeamPoints(lua_State* L)
 {
     int iTeam = LuaHelper::GetInt(1);
-    Team::sTeams[iTeam]->AddPoints(LuaHelper::GetInt(2));
+    Team* pTeam = Team::Lookup(iTeam);
+    if (!pTeam)
+    {
+        return 0;
+    }
+    pTeam->AddPoints(LuaHelper::GetInt(2));
     return 0;
 }
 
@@ -1071,7 +1146,8 @@ int AddSpaceAssaultDestroyPoints(lua_State* L)
 int GetTeamFactionId(lua_State* L)
 {
     int iTeam = LuaHelper::GetInt(1);
-    lua_pushnumber(LuaHelper::mState, (float)Team::sTeams[iTeam]->GetSide());
+    Team* pTeam = Team::Lookup(iTeam);
+    lua_pushnumber(LuaHelper::mState, pTeam ? (float)pTeam->GetSide() : 0.0f);
     return 1;
 }
 
@@ -1082,9 +1158,10 @@ int AddUnitClass(lua_State* L)
     const char* pcClass = LuaHelper::GetString(2);
     int iMinUnits = lua_isnumber(LuaHelper::mState, 3) ? LuaHelper::GetInt(3) : 0;
     int iMaxUnits = lua_isnumber(LuaHelper::mState, 4) ? LuaHelper::GetInt(4) : 0x7fffffff;
+    Team* pTeam = Team::Lookup(iTeam);
     if (AIDebug::OnlyOneAI())
     {
-        if (iTeam < 3 && !Team::sTeams[iTeam]->GetClassCount())
+        if (iTeam < 3 && pTeam && !pTeam->GetClassCount())
         {
             iMinUnits = 1;
             iMaxUnits = 1;
@@ -1095,7 +1172,6 @@ int AddUnitClass(lua_State* L)
             iMaxUnits = 0;
         }
     }
-    Team* pTeam = Team::sTeams[iTeam];
     int iSlot = -1;
     if (pTeam)
     {
@@ -1120,9 +1196,10 @@ int SetHeroClass(lua_State* L)
 {
     int iTeam = LuaHelper::GetInt(1);
     const char* pcClass = LuaHelper::GetString(2);
-    if (!AIDebug::OnlyOneAI())
+    Team* pTeam = Team::Lookup(iTeam);
+    if (pTeam && !AIDebug::OnlyOneAI())
     {
-        Team::sTeams[iTeam]->AddSpecialClass(PblHash(pcClass));
+        pTeam->AddSpecialClass(PblHash(pcClass));
     }
     return 0;
 }
@@ -1245,6 +1322,10 @@ int UnlockHeroForTeam(lua_State* L)
 {
     int iTeam = LuaHelper::GetInt(1);
     bool bNet = NetGame::IsEnabled();
+    if (!PblInBounds(netHeroUnlocked, iTeam))
+    {
+        return 0;
+    }
     netHeroUnlocked[iTeam] = true;
     netHeroFirstUnlocked[iTeam] = true;
     if (!bNet)
@@ -1308,7 +1389,12 @@ int ActivateBonus(lua_State* L)
 int SetBleedRate(lua_State* L)
 {
     int iTeam = LuaHelper::GetInt(1);
-    Team::sTeams[iTeam]->SetBleedRate(LuaHelper::GetFloat(2));
+    Team* pTeam = Team::Lookup(iTeam);
+    if (!pTeam)
+    {
+        return 0;
+    }
+    pTeam->SetBleedRate(LuaHelper::GetFloat(2));
     return 0;
 }
 
@@ -1316,7 +1402,7 @@ int SetBleedRate(lua_State* L)
 int GetBleedRate(lua_State* L)
 {
     int iTeam = LuaHelper::GetInt(1);
-    Team* pTeam = Team::sTeams[iTeam];
+    Team* pTeam = Team::Lookup(iTeam);
     lua_pushnumber(LuaHelper::mState, pTeam ? pTeam->mBleedRate : 0.0f);
     return 1;
 }
@@ -1474,7 +1560,7 @@ int AddWalkerType(lua_State* L)
 // FUNCTION: SWBF2 0x0058f190
 int GetNumTeamMembersAlive(lua_State* L)
 {
-    Team* pTeam = Team::GetPtr(LuaHelper::GetInt(1));
+    Team* pTeam = Team::Lookup(LuaHelper::GetInt(1));
     if (pTeam)
     {
         lua_pushnumber(LuaHelper::mState, (float)pTeam->GetNumMembersAlive());
@@ -1489,7 +1575,7 @@ int GetNumTeamMembersAlive(lua_State* L)
 // FUNCTION: SWBF2 0x0058f730
 int GetTeamClassCount(lua_State* L)
 {
-    Team* pTeam = Team::sTeams[LuaHelper::GetInt(1)];
+    Team* pTeam = Team::Lookup(LuaHelper::GetInt(1));
     lua_pushnumber(LuaHelper::mState, pTeam ? (float)pTeam->GetClassCount() : 0.0f);
     return 1;
 }
@@ -1514,7 +1600,7 @@ int GetCommandPostBleedValue(lua_State* L)
 {
     CommandPost* pPost = CommandPost::FindPostByName(LuaHelper::GetString(1));
     int iTeam = LuaHelper::GetInt(2);
-    if (pPost)
+    if (pPost && Team::Lookup(iTeam))
     {
         lua_pushnumber(LuaHelper::mState, (float)pPost->GetBleedValue(iTeam));
     }
@@ -1597,7 +1683,7 @@ int CreateTimer(lua_State* L)
     Timer* pTimer = Timer::Find(pcName);
     if (!pTimer)
     {
-        if (Timer::sMemoryPool.IsFull())
+        if (Timer::sMemoryPool.IsFull() || Timer::sMapNumEntries >= Timer::sMap.GetSlotCount())
         {
             lua_pushnil(LuaHelper::mState);
             return 1;
@@ -1779,7 +1865,11 @@ int SetObjectTeam(lua_State* L)
     GameObject* pObject = _GetEntity<GameObject>(L, 1);
     if (pObject)
     {
-        pObject->SetTeam((unsigned int)luaL_checknumber(LuaHelper::mState, 2));
+        unsigned int uTeam = (unsigned int)luaL_checknumber(LuaHelper::mState, 2);
+        if (Team::Lookup((int)uTeam))
+        {
+            pObject->SetTeam(uTeam);
+        }
     }
     return 0;
 }
@@ -2341,7 +2431,8 @@ int SetSpawnDelayTeam(lua_State* L)
 int GetTeamSize(lua_State* L)
 {
     int iTeam = (int)(float)luaL_checknumber(L, 1);
-    lua_pushnumber(L, (float)Team::sTeams[iTeam]->mMemberCount);
+    Team* pTeam = Team::Lookup(iTeam);
+    lua_pushnumber(L, pTeam ? (float)pTeam->mMemberCount : 0.0f);
     return 1;
 }
 
@@ -2349,7 +2440,12 @@ int GetTeamSize(lua_State* L)
 int AllowAISpawn(lua_State* L)
 {
     int iTeam = (int)(float)luaL_checknumber(L, 1);
-    Team::sTeams[iTeam]->mbAllowAISpawn = lua_toboolean(L, 2) != 0;
+    Team* pTeam = Team::Lookup(iTeam);
+    if (!pTeam)
+    {
+        return 0;
+    }
+    pTeam->mbAllowAISpawn = lua_toboolean(L, 2) != 0;
     return 0;
 }
 
@@ -2657,7 +2753,12 @@ int SetCarrierClass(lua_State* L)
 {
     int iTeam = (int)(float)luaL_checknumber(L, 1);
     const char* pcClass = luaL_checklstring(L, 2, 0);
-    Team::sTeams[iTeam]->SetCarrier(pcClass);
+    Team* pTeam = Team::Lookup(iTeam);
+    if (!pTeam)
+    {
+        return 0;
+    }
+    pTeam->SetCarrier(pcClass);
     return 0;
 }
 
@@ -2775,10 +2876,10 @@ int GetCharacterControllable(lua_State* L)
 int GetTeamMember(lua_State* L)
 {
     int iTeam = (int)(float)luaL_checknumber(L, 1);
-    Team* pTeam = Team::sTeams[iTeam];
+    Team* pTeam = Team::Lookup(iTeam);
     int iMember = (int)(float)luaL_checknumber(L, 2);
-    Character* pMember = iMember >= pTeam->mMemberCount ? 0 : pTeam->mMemberArray[iMember];
-    lua_pushnumber(L, (float)((pMember - Character::sCharacters)));
+    Character* pMember = (pTeam && iMember >= 0 && iMember < pTeam->mMemberCount) ? pTeam->mMemberArray[iMember] : 0;
+    lua_pushnumber(L, pMember ? (float)(pMember - Character::sCharacters) : -1.0f);
     return 1;
 }
 
@@ -2903,6 +3004,11 @@ int DeleteEntity(lua_State* L)
     EntityEx* pEntity = _GetEntity<EntityEx>(L, 1);
     if (pEntity)
     {
+        if (Character::FindOwner(pEntity))
+        {
+            LOG(LogLua, Warning, "DeleteEntity refused: entity is held by a character, use KillObject");
+            return 0;
+        }
         delete pEntity;
     }
     return 0;
@@ -3407,7 +3513,7 @@ int ExitVehicle(lua_State* L)
 // FUNCTION: SWBF2 0x00590690
 int ForceAIOutOfVehicles(lua_State* L)
 {
-    Team* pTeam = Team::GetPtr((int)(float)luaL_checknumber(L, 1));
+    Team* pTeam = Team::Lookup((int)(float)luaL_checknumber(L, 1));
     if (!pTeam)
     {
         return 0;
@@ -3516,13 +3622,17 @@ int BatchChangeTeams(lua_State* L)
     int iFrom = (int)(float)luaL_checknumber(L, 1);
     int iTo = (int)(float)luaL_checknumber(L, 2);
     int iRequested = (int)(float)luaL_checknumber(L, 3);
+    Team* pTeam = Team::Lookup(iFrom);
+    if (!pTeam || !Team::Lookup(iTo))
+    {
+        return 0;
+    }
     SpawnManager* pSpawns = SpawnManager::sInstance;
     int iAvailable = pSpawns->GetUnitCount(iFrom);
     if (iAvailable)
     {
         int iMoved = iRequested < iAvailable ? iRequested : iAvailable;
         pSpawns->mMaxUnitCount[iTo] = pSpawns->GetUnitCount(iTo) + iMoved;
-        Team* pTeam = Team::GetPtr(iFrom);
         for (int i = iMoved - 1; i >= 0; --i)
         {
             if (i < pTeam->mMemberCount && pTeam->mMemberArray[i])

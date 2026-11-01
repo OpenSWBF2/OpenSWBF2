@@ -4598,6 +4598,11 @@ bool ReadShellUpdate(NetPktGroup& group, ShellUpdate& update, ShellMove& move)
     int host = value;
     unsigned int guestCount;
     group.ReadBits(guestCount, 3);
+    if (!LocalLimits::IsValidGuestCount(guestCount))
+    {
+        group.SetBad(NET_REJECT_GUEST_COUNT);
+        return false;
+    }
     int guests[1];
     unsigned int i;
     for (i = 0; i < 1; ++i)
@@ -5341,7 +5346,12 @@ void CNetHostGame::Update()
                 unsigned int guestCount;
                 group.ReadBits(guestCount, 3);
                 bool hasRoom = player != -1;
-                for (j = 0; j < guestCount; ++j)
+                if (!LocalLimits::IsValidGuestCount(guestCount))
+                {
+                    NetRejectCount(NET_REJECT_GUEST_COUNT);
+                    hasRoom = false;
+                }
+                for (j = 0; hasRoom && j < guestCount; ++j)
                 {
                     if (guests[j] == -1)
                     {
@@ -6192,7 +6202,12 @@ void CNetPostLoadHostGame::Update()
                 unsigned int guestCount;
                 group.ReadBits(guestCount, 3);
                 bool hasRoom = player != -1;
-                for (j = 0; j < guestCount; ++j)
+                if (!LocalLimits::IsValidGuestCount(guestCount))
+                {
+                    NetRejectCount(NET_REJECT_GUEST_COUNT);
+                    hasRoom = false;
+                }
+                for (j = 0; hasRoom && j < guestCount; ++j)
                 {
                     if (guests[j] == -1)
                     {

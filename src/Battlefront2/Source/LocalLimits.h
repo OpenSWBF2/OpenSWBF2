@@ -8,6 +8,8 @@ const int kMaxNdObjects = 256;
 const int kNdIdBase = 64;
 const int kMaxTeams = 8;
 const int kMaxTeamMembers = 600;
+const int kMaxNetPlayers = 64;
+const unsigned int kMaxGuests = 1;
 const unsigned int kLobbyNameSize = 64;
 const unsigned int kLobbyTagSize = 32;
 const bool kUploadsDefault = false;
@@ -66,6 +68,16 @@ inline bool IsValidNdId(int iUniqueId)
 inline bool IsValidTeam(int iTeam)
 {
     return (unsigned int)iTeam < (unsigned int)kMaxTeams;
+}
+
+inline bool IsValidNetPlayer(int iPlayer)
+{
+    return (unsigned int)iPlayer < (unsigned int)kMaxNetPlayers;
+}
+
+inline bool IsValidGuestCount(unsigned int uiCount)
+{
+    return uiCount <= kMaxGuests;
 }
 
 inline bool CanAddTeamMember(int iTeam, int iCount)

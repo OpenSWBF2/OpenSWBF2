@@ -5,6 +5,7 @@
 #include "PebbleFL/Common/PblMatrix.h"
 #include "PebbleFL/Common/PblQuaternion.h"
 #include "PebbleFL/Common/PblVector.h"
+#include "PebbleFL/Common/PblPtrSet.h"
 
 class Red3DModelAnimator;
 class Red3DModelElement;
@@ -38,6 +39,10 @@ public:
     void SetAnimator(Red3DModelAnimator* pAnimator) { mAnimator = pAnimator; }
     void SetAnimationBanks(const unsigned int* puBanks);
     void SetAnimationTime(float fTime);
+
+    bool AttachModel(Red3DModelElement* pAttached, unsigned int uiHardpointHash);
+
+    static PblPtrSet<256> sAttachHosts;
 
     float m_scale;
     float m_OmegaY;
