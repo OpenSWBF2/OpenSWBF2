@@ -1,5 +1,6 @@
 #include "LuaCallbacks.h"
 #include "LuaHelper.h"
+#include "LuaMatrixArg.h"
 #include "LuaScript.h"
 #include "RedEngineFL/Application/RedTerrain.h"
 
@@ -141,7 +142,7 @@ namespace Lua_Callbacks
 // FUNCTION: SWBF2 0x00580380
 int DrawParticleAt(lua_State*)
 {
-    const PblMatrix mWorld = *(const PblMatrix*)lua_touserdata(LuaHelper::mState, 1);
+    const PblMatrix* pWorld = LuaMatrixArg::Get(LuaHelper::mState, 1);
     const char* pcTexture = LuaHelper::GetString(2);
     const float fWidth = LuaHelper::GetFloat(3);
     RedColor color;
@@ -150,7 +151,11 @@ int DrawParticleAt(lua_State*)
     color.b = (unsigned char)(int)LuaHelper::GetFloat(6);
     color.a = (unsigned char)(int)LuaHelper::GetFloat(7);
     const float fRotation = LuaHelper::GetFloat(8);
-    sDrawAllParticleAt->Add(mWorld.GetTranslation(), pcTexture, fWidth, color, fRotation);
+    if (!pWorld)
+    {
+        return 0;
+    }
+    sDrawAllParticleAt->Add(pWorld->GetTranslation(), pcTexture, fWidth, color, fRotation);
     return 0;
 }
 
@@ -1789,8 +1794,8 @@ namespace Lua_Callbacks
 // FUNCTION: SWBF2 0x00580020
 int DrawBeamBetween(lua_State*)
 {
-    PblMatrix mStart = *(PblMatrix*)lua_touserdata(LuaHelper::mState, 1);
-    PblMatrix mEnd = *(PblMatrix*)lua_touserdata(LuaHelper::mState, 2);
+    const PblMatrix* pStart = LuaMatrixArg::Get(LuaHelper::mState, 1);
+    const PblMatrix* pEnd = LuaMatrixArg::Get(LuaHelper::mState, 2);
     const char* pcTexture = LuaHelper::GetString(3);
     float fWidth = LuaHelper::GetFloat(4);
     RedColor color;
@@ -1800,7 +1805,11 @@ int DrawBeamBetween(lua_State*)
     color.r = (unsigned char)(int)LuaHelper::GetFloat(5);
     float fShift = LuaHelper::GetFloat(9, 0.0f);
     float fRepetitions = LuaHelper::GetFloat(10, 1.0f);
-    sDrawAllBeamBetween->Add(mStart.GetTranslation(), mEnd.GetTranslation(), pcTexture, fWidth, color, fShift,
+    if (!pStart || !pEnd)
+    {
+        return 0;
+    }
+    sDrawAllBeamBetween->Add(pStart->GetTranslation(), pEnd->GetTranslation(), pcTexture, fWidth, color, fShift,
                              fRepetitions);
     return 0;
 }
