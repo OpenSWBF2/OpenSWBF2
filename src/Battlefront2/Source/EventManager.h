@@ -22,6 +22,18 @@ public:
 
     void Clear();
 
+    bool Contains(const Node* pNode) const
+    {
+        for (const Node* pChild = mChild; pChild; pChild = pChild->mSibling)
+        {
+            if (pChild == pNode || pChild->Contains(pNode))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     Node* mParent;
     Node* mChild;
     Node* mSibling;

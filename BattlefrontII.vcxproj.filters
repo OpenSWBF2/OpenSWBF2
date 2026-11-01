@@ -936,6 +936,12 @@
     <ClCompile Include="src\Battlefront2\Source\LuaMatrixArg.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
+    <ClCompile Include="src\Battlefront2\Source\LuaHandleArg.cpp">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Battlefront2\Source\LuaSaveItems.cpp">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClCompile>
     <ClCompile Include="src\Battlefront2\Source\LuaScript.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
@@ -3098,6 +3104,12 @@
     <ClInclude Include="src\Battlefront2\Source\LuaMatrixArg.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\LuaHandleArg.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\LuaSaveItems.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\LuaScript.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
@@ -3861,6 +3873,9 @@
       <Filter>src\PebbleFL\Common</Filter>
     </ClInclude>
     <ClInclude Include="src\PebbleFL\Common\PblPtrOrder.h">
+      <Filter>src\PebbleFL\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="src\PebbleFL\Common\PblPtrSet.h">
       <Filter>src\PebbleFL\Common</Filter>
     </ClInclude>
     <ClInclude Include="src\PebbleFL\Common\PblQuaternion.h">

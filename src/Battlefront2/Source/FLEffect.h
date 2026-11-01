@@ -7,6 +7,7 @@
 #include "Thread.h"
 #include "PebbleFL/Common/PblHandle.h"
 #include "PebbleFL/Common/PblMatrix.h"
+#include "PebbleFL/Common/PblPtrSet.h"
 
 class EntityGeometry;
 class FLEffectClass;
@@ -176,6 +177,7 @@ public:
     static void Init();
 
     static MemoryPool s_OffsetMatrixPool;
+    static PblPtrSet<1024> sLuaHandles;
 
     void AttachEffectToMatrix(const PblMatrix* pMatrix, bool b);
 };

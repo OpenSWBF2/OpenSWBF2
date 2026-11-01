@@ -1,6 +1,7 @@
 #include <stdio.h>
 
 #include "EventManager_Region.h"
+#include "LuaHandleArg.h"
 #include "ActiveRegion.h"
 #include "Controllable.h"
 #include "Entity.h"
@@ -235,8 +236,8 @@ int UnregisterLuaCallback(lua_State*)
     if (lua_islightuserdata(LuaHelper::mState, 1))
     {
         typename Event<ITEM, PARAM>::Callback* pCallback =
-            (typename Event<ITEM, PARAM>::Callback*)lua_topointer(LuaHelper::mState, 1);
-        if (pCallback)
+            (typename Event<ITEM, PARAM>::Callback*)LuaHandleArg::Get(LuaHelper::mState, 1);
+        if (pEvent->mRoot.Contains(pCallback) && !pCallback->mChild)
         {
             pEvent->Unregister(*pCallback);
         }

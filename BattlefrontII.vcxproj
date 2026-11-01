@@ -382,6 +382,8 @@
     <ClCompile Include="src\Battlefront2\Source\LuaMatrixArg.cpp">
       <AdditionalIncludeDirectories>src;src\LuaFL\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
+    <ClCompile Include="src\Battlefront2\Source\LuaHandleArg.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\LuaSaveItems.cpp" />
     <ClCompile Include="src\Battlefront2\Source\LuaScript.cpp" />
     <ClCompile Include="src\Battlefront2\Source\MapCamera.cpp" />
     <ClCompile Include="src\Battlefront2\Source\MedalsMgr.cpp" />
@@ -1185,6 +1187,8 @@
     <ClInclude Include="src\Battlefront2\Source\LuaVideoArgs.h" />
     <ClInclude Include="src\Battlefront2\Source\LuaWideString.h" />
     <ClInclude Include="src\Battlefront2\Source\LuaMatrixArg.h" />
+    <ClInclude Include="src\Battlefront2\Source\LuaHandleArg.h" />
+    <ClInclude Include="src\Battlefront2\Source\LuaSaveItems.h" />
     <ClInclude Include="src\Battlefront2\Source\LuaScript.h" />
     <ClInclude Include="src\Battlefront2\Source\MapCamera.h" />
     <ClInclude Include="src\Battlefront2\Source\MedalsMgr.h" />
@@ -1440,6 +1444,7 @@
     <ClInclude Include="src\PebbleFL\Common\PblMatrix.h" />
     <ClInclude Include="src\PebbleFL\Common\PblPlane.h" />
     <ClInclude Include="src\PebbleFL\Common\PblPtrOrder.h" />
+    <ClInclude Include="src\PebbleFL\Common\PblPtrSet.h" />
     <ClInclude Include="src\PebbleFL\Common\PblQuaternion.h" />
     <ClInclude Include="src\PebbleFL\Common\PblRandom.h" />
     <ClInclude Include="src\PebbleFL\Common\PblRef.h" />

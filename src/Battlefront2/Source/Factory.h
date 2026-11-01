@@ -32,6 +32,7 @@ public:
     virtual TYPE* Build(const DESC& desc) = 0;
 
     static CLASS* Find(unsigned int uHash);
+    static bool Contains(const CLASS* pClass);
     static void Reset();
 
     static CLASS* FindNetIndex(int iNetIndex);
@@ -88,6 +89,23 @@ CLASS* Factory<TYPE, CLASS, DESC>::Find(unsigned int uHash)
         }
     }
     return 0;
+}
+
+template <class TYPE, class CLASS, class DESC>
+bool Factory<TYPE, CLASS, DESC>::Contains(const CLASS* pClass)
+{
+    if (!pClass)
+    {
+        return false;
+    }
+    for (typename PblList<Factory<TYPE, CLASS, DESC> >::Itor it(sList); it; ++it)
+    {
+        if (static_cast<CLASS*>((Factory<TYPE, CLASS, DESC>*)it) == pClass)
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 // VTABLE: SWBF2 0x00799318

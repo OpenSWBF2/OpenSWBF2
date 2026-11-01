@@ -56,6 +56,7 @@ public:
     static void Reset();
 
     static PblRegion* Find(unsigned int uId);
+    static bool Contains(const PblRegion* pRegion);
 
     PblMatrix mMatrix;
     PblVector4 mSize;

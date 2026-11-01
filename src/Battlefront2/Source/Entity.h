@@ -7,6 +7,7 @@ class PblFileChunk;
 #include "Factory.h"
 #include "PebbleFL/Common/PblHashTable.h"
 #include "PebbleFL/Common/PblMatrix.h"
+#include "PebbleFL/Common/PblPtrSet.h"
 
 class Entity;
 class EntityClass;
@@ -75,6 +76,7 @@ class EntityEx : public Entity
 {
 public:
     EntityEx(unsigned int uId, EntityClass* pEntityClass);
+    EntityEx(const EntityEx&) = delete;
     virtual bool IsRtti(unsigned int uRtti) const;
     virtual unsigned int GetDerivedRtti() const;
     virtual const char* GetDerivedRttiName() const;
@@ -95,6 +97,7 @@ public:
     static char rttiNameEntityEx[];
     static int mIdMapNumEntries;
     static PblHashTable<EntityEx, 1024> mIdMap;
+    static PblPtrSet<32768> sLive;
 
     static PblHashTable<EntityEx, 1024>& GetEntityMap() { return mIdMap; }
 

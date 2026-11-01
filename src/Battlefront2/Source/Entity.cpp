@@ -10,6 +10,7 @@
 #include "PebbleFL/Common/PblFile.h"
 #include "PebbleFL/Common/PblMath.h"
 #include "RedEngineFL/Util/RedLocalizeDB.h"
+#include "RedEngineFL/Util/RedLog.h"
 
 // GLOBAL: SWBF2 0x01eb9864
 // SYNTHETIC: SWBF2 0x00402830
@@ -48,6 +49,8 @@ int EntityEx::mIdMapNumEntries;
 // `dynamic initializer for 'EntityEx::mIdMap''
 
 PblHashTable<EntityEx, 1024> EntityEx::mIdMap;
+
+PblPtrSet<32768> EntityEx::sLive;
 
 EntityClass::MapParams::MapParams()
 {
@@ -243,6 +246,7 @@ void EntityEx::Remove(unsigned int uId)
 // FUNCTION: SWBF2 0x00491720
 EntityEx::EntityEx(unsigned int uId, EntityClass* pEntityClass)
 {
+    (void)ensure(sLive.Insert(this));
     mId = uId;
     mEntityClass = pEntityClass;
     if (mId)
@@ -254,6 +258,7 @@ EntityEx::EntityEx(unsigned int uId, EntityClass* pEntityClass)
 // FUNCTION: SWBF2 0x00491820
 EntityEx::~EntityEx()
 {
+    sLive.Remove(this);
     if (mId)
     {
         Remove(mId);

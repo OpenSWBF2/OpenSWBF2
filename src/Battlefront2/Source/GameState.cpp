@@ -1422,6 +1422,7 @@ void GameState::PostStateCleanup(bool bMission)
     RedPath::ClearPaths();
 
     Factory<Entity, EntityClass, EntityDesc>::Reset();
+    EntityEx::sLive.Clear();
     Factory<Weapon, WeaponClass, WeaponDesc>::Reset();
     Factory<Ordnance, OrdnanceClass, OrdnanceDesc>::Reset();
     Factory<Ordnance, ExplosionClass, OrdnanceDesc>::Reset();
