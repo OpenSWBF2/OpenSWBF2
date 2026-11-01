@@ -29,6 +29,7 @@ $cr = 'src\Battlefront2\Platform\Pc\pcColorRamp.cpp'
 $gp = 'src\RedEngineFL\Graphics\PC\pcGammaPass.cpp'
 $lva = 'src\Battlefront2\Source\LuaVideoArgs.cpp'
 $lws = 'src\Battlefront2\Source\LuaWideString.cpp'
+$lma = 'src\Battlefront2\Source\LuaMatrixArg.cpp'
 $lform = 'data\scripts\common\ifelem_form.lua'
 $lvid = 'data\scripts\common\ifs_opt_pcvideo.lua'
 $ov = 'src\Battlefront2\Source\OdfValue.cpp'
@@ -379,6 +380,11 @@ $GuardRevertRows = @(
     @{ Id = 'LWIDE-06'; File = 'src\Battlefront2\Source\LuaCallbacks_LoadSave.cpp'; Anchor = 'const unsigned short* pusFailOp = LuaWideString::Check(LuaHelper::mState, 2);'; Replacement = 'const unsigned short* pusFailOp = (const unsigned short*)luaL_checklstring(LuaHelper::mState, 2, 0);'; Tests = @('lua wide string sites route through the accessor') },
     @{ Id = 'LWIDE-07'; File = 'src\Battlefront2\Source\LuaCallbacks_Net.cpp'; Anchor = 'PblUnicode::ustrncnv((char*)name, LuaWideString::Check(LuaHelper::mState, 1), 66);'; Replacement = 'PblUnicode::ustrncnv((char*)name, (const unsigned short*)luaL_checklstring(LuaHelper::mState, 1, 0), 66);'; Tests = @('lua wide string sites route through the accessor') },
     @{ Id = 'LWIDE-08'; File = 'src\Battlefront2\Source\SaveFsm.cpp'; Anchor = 'if (pusFilename && mLoadQueueCnt < MAX_LOAD_QUEUE)'; Replacement = 'if (mLoadQueueCnt < MAX_LOAD_QUEUE)'; Tests = @('lua wide string sites route through the accessor') }
+    @{ Id = 'LMAT-01'; File = $lma; Anchor = 'if (pUdata->uv.len != sizeof(PblMatrix))'; Replacement = 'if (false)'; Tests = @('lua matrix argument accepts only pushed matrices') }
+    @{ Id = 'LMAT-02'; File = $lma; Anchor = 'if (lua_getmetatable(L, iIndex))'; Replacement = 'if (false)'; Tests = @('lua matrix argument accepts only pushed matrices') }
+    @{ Id = 'LMAT-03'; File = $lma; Anchor = 'if (lua_type(L, iIndex) != LUA_TUSERDATA)'; Replacement = 'if (lua_type(L, iIndex) == LUA_TNONE)'; Tests = @('lua matrix argument accepts only pushed matrices') }
+    @{ Id = 'LMAT-04'; File = 'src\Battlefront2\Source\LuaCallbacks.cpp'; Anchor = 'const PblMatrix* pWorld = LuaMatrixArg::Get(LuaHelper::mState, 1);'; Replacement = 'const PblMatrix* pWorld = (const PblMatrix*)lua_touserdata(LuaHelper::mState, 1);'; Tests = @('lua matrix sites route through the accessor') }
+    @{ Id = 'LMAT-05'; File = $lcm; Anchor = 'const PblMatrix* pDescMatrix = LuaMatrixArg::Get(LuaHelper::mState, 2);'; Replacement = 'const PblMatrix* pDescMatrix = lua_isuserdata(LuaHelper::mState, 2) ? (const PblMatrix*)lua_touserdata(LuaHelper::mState, 2) : 0;'; Tests = @('lua matrix sites route through the accessor') }
     @{ Id = 'PBLIDX-01'; File = $pidx; Anchor = 'return (unsigned int)iIndex < N;'; Replacement = 'return true;'; Tests = @('pbl in bounds accepts only indices inside the array') }
     @{ Id = 'PBLHASH-01'; File = $phash; Anchor = 'operator TYPE*() const { return _pos < SLOTS ? (TYPE*)_table->_table[SLOTS + _pos] : 0; }'; Replacement = 'operator TYPE*() const { return (TYPE*)_table->_table[SLOTS + _pos]; }'; Tests = @('hash table end converts to null') }
     @{ Id = 'NETLOCAL-01'; File = $nc; Anchor = 'return PblInBounds(netLocalIndex, iLocal) ? netLocalIndex[iLocal] : -1;'; Replacement = 'return netLocalIndex[iLocal];'; Tests = @('local index out of range is minus one') }

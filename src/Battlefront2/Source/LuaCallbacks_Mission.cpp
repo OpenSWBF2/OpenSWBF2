@@ -1,5 +1,6 @@
 #include "LuaCallbacks_Mission.h"
 #include "LuaHelper.h"
+#include "LuaMatrixArg.h"
 #include "EnergyBar.h"
 
 #include <stdlib.h>
@@ -2900,9 +2901,13 @@ int SetEntityMatrix(lua_State* L)
     EntityGeometry* pEntity = _GetEntity<EntityGeometry>(L, 1);
     if (pEntity)
     {
-        PblMatrix matrix;
-        memcpy(&matrix, lua_touserdata(L, 2), sizeof(matrix));
-        pEntity->SetMatrix(matrix);
+        const PblMatrix* pSource = LuaMatrixArg::Get(L, 2);
+        if (pSource)
+        {
+            PblMatrix matrix;
+            memcpy(&matrix, pSource, sizeof(matrix));
+            pEntity->SetMatrix(matrix);
+        }
     }
     return 0;
 }
@@ -3200,10 +3205,18 @@ int AttachEffectToMatrix(lua_State* L)
     {
         return 0;
     }
+    const PblMatrix* pSource = LuaMatrixArg::Get(L, 2);
+    if (!pSource)
+    {
+        return 0;
+    }
     PblMatrix matrix;
-    memcpy(&matrix, lua_touserdata(L, 2), sizeof(matrix));
-    const PblMatrix* pOffset = lua_type(L, 3) > LUA_TNIL ?
-        (const PblMatrix*)lua_touserdata(L, 3) : &_IdentityMatrix;
+    memcpy(&matrix, pSource, sizeof(matrix));
+    const PblMatrix* pOffset = LuaMatrixArg::Get(L, 3);
+    if (!pOffset)
+    {
+        pOffset = &_IdentityMatrix;
+    }
     pEffect->AttachEffectToMatrix(&matrix, *pOffset, false);
     return 0;
 }
@@ -3214,9 +3227,13 @@ int SetEffectMatrix(lua_State* L)
     FLEffectObject* pEffect = (FLEffectObject*)lua_topointer(L, 1);
     if (pEffect)
     {
-        PblMatrix matrix;
-        memcpy(&matrix, lua_touserdata(L, 2), sizeof(matrix));
-        pEffect->SetMatrix(matrix);
+        const PblMatrix* pSource = LuaMatrixArg::Get(L, 2);
+        if (pSource)
+        {
+            PblMatrix matrix;
+            memcpy(&matrix, pSource, sizeof(matrix));
+            pEffect->SetMatrix(matrix);
+        }
     }
     return 0;
 }
@@ -3423,11 +3440,12 @@ int SelectCharacterClass(lua_State* L)
 int SpawnCharacter(lua_State* L)
 {
     Character* pCharacter = Character::GetPtr((int)(float)luaL_checknumber(L, 1));
-    if (pCharacter && lua_isuserdata(L, 2))
+    const PblMatrix* pSpawnMatrix = LuaMatrixArg::Get(L, 2);
+    if (pCharacter && pSpawnMatrix)
     {
         pCharacter->SelectPost(0);
         PblMatrix matrix;
-        memcpy(&matrix, lua_touserdata(L, 2), sizeof(matrix));
+        memcpy(&matrix, pSpawnMatrix, sizeof(matrix));
         pCharacter->Spawn(matrix);
     }
     return 0;
@@ -3450,8 +3468,12 @@ int TogglePlanningGraphArcs(lua_State* L)
 // FUNCTION: SWBF2 0x00590c90
 int Print3D(lua_State* L)
 {
-    const PblMatrix* pMatrix = (const PblMatrix*)lua_touserdata(L, 1);
+    const PblMatrix* pMatrix = LuaMatrixArg::Get(L, 1);
     const char* pcText = luaL_checklstring(L, 2, 0);
+    if (!pMatrix)
+    {
+        return 0;
+    }
     const PblVector3& vPosition = *(const PblVector3*)&pMatrix->m[3][0];
     RedDebug::Printf3D(vPosition, "%s", pcText);
     return 0;
@@ -3852,9 +3874,10 @@ int CreateEntity(lua_State* L)
     {
         EntityDesc desc;
         desc.mMatrix.Reset();
-        if (lua_isuserdata(LuaHelper::mState, 2))
+        const PblMatrix* pDescMatrix = LuaMatrixArg::Get(LuaHelper::mState, 2);
+        if (pDescMatrix)
         {
-            memcpy(&desc.mMatrix, lua_touserdata(LuaHelper::mState, 2), sizeof(desc.mMatrix));
+            memcpy(&desc.mMatrix, pDescMatrix, sizeof(desc.mMatrix));
         }
         if (lua_isstring(LuaHelper::mState, 3))
         {
@@ -3887,10 +3910,11 @@ int CreateMatrix(lua_State* L)
     matrix.m[3][1] = (float)luaL_checknumber(LuaHelper::mState, 6);
     matrix.m[3][0] = (float)luaL_checknumber(LuaHelper::mState, 5);
     matrix.m[3][3] = 1.0f;
-    if (lua_type(LuaHelper::mState, 8) == LUA_TUSERDATA)
+    const PblMatrix* pParent = LuaMatrixArg::Get(LuaHelper::mState, 8);
+    if (pParent)
     {
         PblMatrix combined;
-        D3DXMatrixMultiply(&combined, &matrix, (const PblMatrix*)lua_touserdata(LuaHelper::mState, 8));
+        D3DXMatrixMultiply(&combined, &matrix, pParent);
         matrix = combined;
     }
     LuaHelper::PushObject<PblMatrix>(matrix);
@@ -3969,8 +3993,7 @@ int AttachEffectToObject(lua_State* L)
     {
         EntityGeometry* pEntity = _GetEntity<EntityGeometry>(LuaHelper::mState, 2);
         const char* pcBone = luaL_optlstring(LuaHelper::mState, 3, 0, 0);
-        const PblMatrix* pOffset = lua_type(LuaHelper::mState, 4) > LUA_TNIL ?
-            (const PblMatrix*)lua_touserdata(LuaHelper::mState, 4) : 0;
+        const PblMatrix* pOffset = LuaMatrixArg::Get(LuaHelper::mState, 4);
         PblMatrix identity;
         if (!pOffset)
         {
