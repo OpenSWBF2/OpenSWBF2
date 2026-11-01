@@ -18,21 +18,6 @@ StreamSourceMemory::StreamSourceMemory()
     mLooping = 0;
 }
 
-// FUNCTION: SWBF2 0x0074c820
-void* __fastcall sub_74C820(void* pSource, int, unsigned int uiFlags)
-{
-    StreamSourceMemory* const pThis = (StreamSourceMemory*)pSource;
-
-    pThis->StreamSourceMemory::~StreamSourceMemory();
-
-    if ((uiFlags & 1) != 0)
-    {
-        ::operator delete(pThis);
-    }
-
-    return pThis;
-}
-
 // FUNCTION: SWBF2 0x0074c850
 StreamPacket* StreamSourceMemory::GetPacket(unsigned int uiOutput, bool bUpdate)
 {

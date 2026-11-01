@@ -48,8 +48,6 @@ extern bool netIsLocalTurn;
 extern bool netIsLateTurn;
 extern bool gCentreSpeakerEnhancement;
 
-typedef const PblVector3& (__fastcall *ObjectVelocityFn)(GameObject* pThis, void*);
-typedef Controllable* (__fastcall *ObjectControllableFn)(GameObject* pThis, void*);
 static CollisionObject* GetObjectCollision(GameObject* pObject)
 {
     return static_cast<CollisionObject*>(pObject);

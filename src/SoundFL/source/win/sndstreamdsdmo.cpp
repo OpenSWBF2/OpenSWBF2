@@ -348,21 +348,6 @@ void StreamDSDMO::Update()
     }
 }
 
-// FUNCTION: SWBF2 0x0074d820
-void* __fastcall sub_74D820(void* pDSDMO, int, unsigned int uiFlags)
-{
-    StreamDSDMO* const pThis = (StreamDSDMO*)pDSDMO;
-
-    pThis->StreamDSDMO::~StreamDSDMO();
-
-    if ((uiFlags & 1) != 0)
-    {
-        ::operator delete(pThis);
-    }
-
-    return pThis;
-}
-
 // FUNCTION: SWBF2 0x0074da70
 StreamPacket* StreamDSDMO::GetPacket(unsigned int uiOutput)
 {

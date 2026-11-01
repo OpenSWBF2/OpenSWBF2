@@ -189,17 +189,6 @@ void StreamMixer::SetSynchronizedDeactivation(bool b)
     }
 }
 
-// FUNCTION: SWBF2 0x0073f8a0
-void* __fastcall sub_73F8A0(void* pMixer, int, unsigned int uiFlags)
-{
-    ((StreamMixer*)pMixer)->StreamMixer::~StreamMixer();
-    if ((uiFlags & 1) != 0)
-    {
-        ::operator delete(pMixer);
-    }
-    return pMixer;
-}
-
 // FUNCTION: SWBF2 0x0073f920
 void StreamMixer::Discontinuity(unsigned int uiInput, bool bFlush)
 {

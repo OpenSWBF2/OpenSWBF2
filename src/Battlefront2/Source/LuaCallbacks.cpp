@@ -91,7 +91,7 @@ void NetGame::Reboot()
 }
 
 // FUNCTION: SWBF2 0x005805e0
-int __fastcall GetScreenTransitionType(const char* pcName, void*)
+int __fastcall GetScreenTransitionType(const char* pcName)
 {
     if (!pcName)
     {
@@ -191,8 +191,8 @@ int BeginScreenTransition(lua_State*)
         const float fInTime = LuaHelper::GetFloat(2);
         const float fHoldTime = LuaHelper::GetFloat(3);
         const float fOutTime = LuaHelper::GetFloat(4);
-        const int iInType = GetScreenTransitionType(LuaHelper::GetString(5), 0);
-        const int iOutType = GetScreenTransitionType(LuaHelper::GetString(6), 0);
+        const int iInType = GetScreenTransitionType(LuaHelper::GetString(5));
+        const int iOutType = GetScreenTransitionType(LuaHelper::GetString(6));
         ScreenTransition::sInstance->BeginTransition(
             uScreen, fInTime, fHoldTime, fOutTime,
             (ScreenTransition::TransitionType)iInType, (ScreenTransition::TransitionType)iOutType, 0, 0);

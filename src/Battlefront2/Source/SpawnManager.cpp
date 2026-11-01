@@ -74,7 +74,7 @@ extern bool gAttractMode;
 
 namespace PlayerPrefs { int __fastcall FindByPlayerId(int iPlayer); }
 
-namespace FriendBuddyList { bool __fastcall IsFriendBuddy(int iLocalIndex, int iPlayerId); }
+namespace FriendBuddyList { bool __fastcall IsFriendBuddy(int iPlayerId); }
 
 namespace PblUnicode { unsigned int ustrncnv(unsigned short* pDest, const unsigned char* pSrc, unsigned int uiCount); }
 
@@ -205,7 +205,7 @@ void SpawnManager::AddPlayerCharacter(int iTeam, int iPlayer)
                 pTeam->GetMemberPtr(i)->GetControllable()->GetGameObject())
             {
                 int iPlayerId = pTeam->GetMemberPtr(i)->mPlayerId;
-                if (FriendBuddyList::IsFriendBuddy(NetGame::GetLocalIndex(iPlayer), iPlayerId))
+                if (FriendBuddyList::IsFriendBuddy(iPlayerId))
                 {
                     ToolTipsDisplay::sInstance->ShowTip(TTT_FriendsListColor, 0);
                 }

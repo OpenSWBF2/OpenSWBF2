@@ -1079,13 +1079,6 @@ int __fastcall ReadIteratorSecondWord(const unsigned int* pThis)
     return pThis[1];
 }
 
-// FUNCTION: SWBF2 0x00446d80
-unsigned int* __fastcall SetIteratorNodeWord(unsigned int* pThis, void*, unsigned int value)
-{
-    *pThis = value;
-    return pThis;
-}
-
 // FUNCTION: SWBF2 0x00446d90
 unsigned int __fastcall sub_446D90(const unsigned int* pThis)
 {

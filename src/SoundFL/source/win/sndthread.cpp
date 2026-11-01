@@ -12,7 +12,7 @@ bool Thread::Start(void* pArgs)
 
     mArgs = pArgs;
 
-    HANDLE hThread = CreateThread(0, mStackSize, (LPTHREAD_START_ROUTINE)ThreadEntry, this, 0, &id);
+    HANDLE hThread = CreateThread(0, mStackSize, ThreadEntry, this, 0, &id);
     if (!hThread)
     {
         return false;
@@ -49,14 +49,16 @@ bool Thread::Start(void* pArgs)
         break;
     }
 
+    CloseHandle(hThread);
     return true;
 }
 
 // FUNCTION: SWBF2 0x007452d0
-void __cdecl ThreadBase::ThreadEntry(void* pArg)
+DWORD WINAPI ThreadBase::ThreadEntry(LPVOID pArg)
 {
     ThreadBase* pThread = (ThreadBase*)pArg;
     pThread->mThreadFunc(pThread->mArgs);
+    return 0;
 }
 
 }

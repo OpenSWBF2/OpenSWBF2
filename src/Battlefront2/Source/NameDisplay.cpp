@@ -32,7 +32,7 @@ extern bool netShowNames;
 extern bool netFrameLock;
 extern int netCurMaxPlayers;
 extern RedColor gHudHighlightColor;
-namespace FriendBuddyList { bool __fastcall IsFriendBuddy(int iLocalIndex, int iPlayerId); }
+namespace FriendBuddyList { bool __fastcall IsFriendBuddy(int iPlayerId); }
 namespace AIDebug { bool GetTestSpawnMode(); }
 Controllable* GetControllablePilot(Controllable* pControllable);
 
@@ -313,7 +313,7 @@ bool NameDisplayThread::Update(float)
         {
             text.m_color = pLocalCharacter->GetTeamPtr()->GetColor(pCharacter->GetTeamNumber());
             if (NetGame::IsEnabled() && pCharacter->GetTeamNumber() == pLocalCharacter->GetTeamNumber() &&
-                FriendBuddyList::IsFriendBuddy(NetGame::GetLocalIndex(mJoystickIndex), i))
+                FriendBuddyList::IsFriendBuddy(i))
             {
                 RedColor white(gHudHighlightColor);
                 text.m_color = white;

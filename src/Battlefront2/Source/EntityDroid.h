@@ -21,7 +21,6 @@ class GameObject;
 class Weapon;
 
 void* __fastcall GetFirstWeaponFactoryNode(const void* pList);
-void* __fastcall InitializeWeaponFactoryIterator(void* pItor, void*, void* pNode);
 void* __fastcall GetWeaponFactoryIteratorObject(const void* pItor);
 void* __fastcall DereferenceWeaponFactoryIterator(const void* pItor);
 void* __fastcall ConvertWeaponFactoryIteratorToPointer(const void* pItor);

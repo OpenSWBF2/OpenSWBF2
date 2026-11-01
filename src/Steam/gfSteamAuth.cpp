@@ -96,7 +96,7 @@ void ShutdownGalaxyInstance()
 }
 
 // FUNCTION: SWBF2 0x0052e510
-void* GetGalaxyUserInterface()
+galaxy::api::IUser* GetGalaxyUserInterface()
 {
     if (!galaxy::api::GalaxyFactory::GetInstance())
     {
@@ -107,7 +107,7 @@ void* GetGalaxyUserInterface()
 }
 
 // FUNCTION: SWBF2 0x0052e530
-void* GetGalaxyFriendsInterface()
+galaxy::api::IFriends* GetGalaxyFriendsInterface()
 {
     if (!galaxy::api::GalaxyFactory::GetInstance())
     {
@@ -118,7 +118,7 @@ void* GetGalaxyFriendsInterface()
 }
 
 // FUNCTION: SWBF2 0x0052e550
-void* GetGalaxyLastError()
+galaxy::api::IError* GetGalaxyLastError()
 {
     galaxy::api::IErrorManager* pErrors = galaxy::api::GalaxyFactory::GetErrorManager();
     return pErrors->GetLastError();
@@ -355,7 +355,7 @@ bool gf::isInitialized()
 bool gf::checkError()
 
 {
-    galaxy::api::IError* pError = (galaxy::api::IError*)GetGalaxyLastError();
+    galaxy::api::IError* pError = GetGalaxyLastError();
     if (!pError)
     {
         return false;
@@ -480,17 +480,13 @@ bool gf::friends::start()
         return false;
     }
 
-    typedef bool(__thiscall * BoolGetter)(void* pThis);
-    typedef void(__thiscall * VoidCall)(void* pThis);
-
-    void* pFirst = GetGalaxyUserInterface();
-    if (!(*(BoolGetter*)(*(char**)pFirst + 0x4))(pFirst))
+    galaxy::api::IUser* pUser = GetGalaxyUserInterface();
+    if (!pUser->SignedIn())
     {
         return false;
     }
 
-    void* pSecond = GetGalaxyFriendsInterface();
-    (*(VoidCall*)(*(char**)pSecond + 0x34))(pSecond);
+    GetGalaxyFriendsInterface()->RequestFriendList();
     return !gf::checkError();
 }
 
@@ -514,8 +510,8 @@ unsigned int gf::friends::friendCount()
     {
         return 0;
     }
-    void* pFriends = GetGalaxyFriendsInterface();
-    return ((galaxy::api::IFriends*)pFriends)->GetFriendCount();
+    galaxy::api::IFriends* pFriends = GetGalaxyFriendsInterface();
+    return pFriends->GetFriendCount();
 }
 
 // FUNCTION: SWBF2 0x0052f090
@@ -524,9 +520,9 @@ galaxy::api::GalaxyID gf::friends::friendByIndex(unsigned int uIndex)
     galaxy::api::GalaxyID id;
     if (gf::isInitialized() && gFriendsStarted)
     {
-        void* pFriends = GetGalaxyFriendsInterface();
+        galaxy::api::IFriends* pFriends = GetGalaxyFriendsInterface();
 
-        return ((galaxy::api::IFriends*)pFriends)->GetFriendByIndex(uIndex);
+        return pFriends->GetFriendByIndex(uIndex);
     }
     id.value = 0;
     return id;
@@ -540,8 +536,8 @@ const char* gf::friends::friendNameByIndex(unsigned int uIndex)
     {
         return "";
     }
-    void* pFriends = GetGalaxyFriendsInterface();
-    return ((galaxy::api::IFriends*)pFriends)->GetFriendPersonaName(id);
+    galaxy::api::IFriends* pFriends = GetGalaxyFriendsInterface();
+    return pFriends->GetFriendPersonaName(id);
 }
 
 // GLOBAL: SWBF2 0x01e55fb4

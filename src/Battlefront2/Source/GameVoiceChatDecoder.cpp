@@ -65,17 +65,6 @@ GameVoiceChat::Decoder::~Decoder()
 {
 }
 
-// FUNCTION: SWBF2 0x0053c780
-void* __fastcall sub_53C780(void* pDecoder, void*  , unsigned int flags)
-{
-    ((GameVoiceChat::Decoder*)pDecoder)->GameVoiceChat::Decoder::~Decoder();
-    if (flags & 1)
-    {
-        operator delete(pDecoder);
-    }
-    return pDecoder;
-}
-
 namespace VoiceChat { void* Alloc(unsigned int uiSize); }
 namespace VoiceChat { void Free(void* pBlock); }
 namespace GameVoiceChat { unsigned int CalculatePlayCaptureBufferSizeSamples(float fMilliseconds); }

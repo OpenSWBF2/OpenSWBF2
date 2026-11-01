@@ -8508,18 +8508,17 @@ unsigned int ReadMoves(NetPktGroup& group, int player, unsigned int turn)
     return turn - 1;
 }
 
-extern unsigned int netBroadcastSendSocket;
-extern unsigned int netBroadcastRecvSocket;
-extern "C" int __stdcall closesocket(unsigned int s);
+extern SOCKET netBroadcastSendSocket;
+extern SOCKET netBroadcastRecvSocket;
 
 // FUNCTION: SWBF2 0x005d67b0
 void EndRegisterLanGame()
 {
     NetMatch::SetRegisterArchFilter();
     closesocket(netBroadcastSendSocket);
-    netBroadcastSendSocket = 0;
+    netBroadcastSendSocket = INVALID_SOCKET;
     closesocket(netBroadcastRecvSocket);
-    netBroadcastRecvSocket = 0;
+    netBroadcastRecvSocket = INVALID_SOCKET;
 }
 
 // FUNCTION: SWBF2 0x005c7160
@@ -8965,7 +8964,7 @@ extern unsigned __int64 netEnteredLobbyId;
 extern int netLanRegisterState;
 extern bool netLeavingLobby;
 void EndRegisterLanGame();
-void* GetGalaxyMatchmaking();
+galaxy::api::IMatchmaking* GetGalaxyMatchmaking();
 namespace gf { bool isInitialized(); namespace utils { const char* ToString(bool); } }
 
 // GLOBAL: SWBF2 0x01e62e88
@@ -8988,14 +8987,14 @@ void NetMatch::EndRegisterGame()
     }
     if (netCreatedLobbyId)
     {
-        void* matchmaking = GetGalaxyMatchmaking();
-        ((galaxy::api::IMatchmaking*)matchmaking)->SetLobbyData(
+        galaxy::api::IMatchmaking* matchmaking = GetGalaxyMatchmaking();
+        matchmaking->SetLobbyData(
             galaxy::api::GalaxyID(netCreatedLobbyId), "galaxy_lobby_cancelled", gf::utils::ToString(true));
     }
     if (netEnteredLobbyId)
     {
-        void* matchmaking = GetGalaxyMatchmaking();
-        ((galaxy::api::IMatchmaking*)matchmaking)->LeaveLobby(galaxy::api::GalaxyID(netEnteredLobbyId));
+        galaxy::api::IMatchmaking* matchmaking = GetGalaxyMatchmaking();
+        matchmaking->LeaveLobby(galaxy::api::GalaxyID(netEnteredLobbyId));
         netLeavingLobby = true;
     }
     netEnteredLobbyId = 0;
@@ -11104,7 +11103,7 @@ unsigned int __fastcall SetDamageableVanishFlags(unsigned int* pThis)
 }
 
 // FUNCTION: SWBF2 0x00454da0
-void __fastcall SetHoleRecordRadius(int* pThis, void*, int value)
+void __fastcall SetHoleRecordRadius(int* pThis, int value)
 {
     if (pThis[0])
     {
@@ -11115,7 +11114,7 @@ void __fastcall SetHoleRecordRadius(int* pThis, void*, int value)
 }
 
 // FUNCTION: SWBF2 0x0045dad0
-void __fastcall SetHoleRecordValue(int* pThis, void*, int index, int value)
+void __fastcall SetHoleRecordValue(int* pThis, int index, int value)
 {
     if (pThis[0])
     {
@@ -11583,12 +11582,12 @@ RedTerrain::Hole::Hole(RedTerrain::Hole* pSource)
     const int* source = (const int*)pSource;
     new (pThis) TreeGridObject(-1);
     pThis[11] = pThis[12] = pThis[13] = pThis[14] = 0;
-    SetHoleRecordValue(pThis, 0, 0, 0x4000);
+    SetHoleRecordValue(pThis, 0, 0x4000);
     ((TreeGridObject*)pThis)->SetCollisionCenter(((const TreeGridObject*)source)->GetCollisionCenter());
     float radius = ((const TreeGridObject*)source)->GetCollisionRadius();
     int radiusBits;
     memcpy(&radiusBits, &radius, sizeof(radiusBits));
-    SetHoleRecordRadius(pThis, 0, radiusBits);
+    SetHoleRecordRadius(pThis, radiusBits);
     const unsigned int count = source[9];
     pThis[9] = count;
     struct Record
@@ -12046,19 +12045,6 @@ bool NetGame::IsNearLocalPlayer(const PblVector3& vPos)
     return false;
 }
 
-// FUNCTION: SWBF2 0x00438ac0
-int __fastcall GetOpaqueObjectWord(const int* pThis, void*) { return pThis[2]; }
-
-// FUNCTION: SWBF2 0x004433d0
-int* __fastcall InitControllableIterator(int* pThis, void*, const int* pSource)
-{
-    *pThis = pSource[1];
-    return pThis;
-}
-
-// FUNCTION: SWBF2 0x0049e350
-bool __fastcall HasMarkerTarget(const int* pThis, void*) { return pThis[54] >= 0; }
-
 // FUNCTION: SWBF2 0x0040f720
 double Clamp(float fValue, float fLow, float fHigh)
 {
@@ -12162,19 +12148,6 @@ unsigned int RedColor::GetARGB() const
     const unsigned char* pBytes = reinterpret_cast<const unsigned char*>(this);
     return (unsigned int)pBytes[0] | ((unsigned int)pBytes[1] << 8) |
            ((unsigned int)pBytes[2] << 16) | ((unsigned int)pBytes[3] << 24);
-}
-
-// FUNCTION: SWBF2 0x004850c0
-bool __fastcall HandleDiffersFromObject(int* pHandle, void*, int iOther)
-{
-    int iObject = pHandle[0];
-    if (iObject && reinterpret_cast<GameObject*>(iObject)->mHandleId != pHandle[1])
-    {
-        pHandle[0] = 0;
-        pHandle[1] = 0;
-        iObject = 0;
-    }
-    return iOther != iObject;
 }
 
 // FUNCTION: SWBF2 0x005b2350
@@ -12391,21 +12364,10 @@ void AloHeroData::Set()
     }
 }
 
-// FUNCTION: SWBF2 0x0049e360
-void* __fastcall GetMarkerTargetPointer(const int* pThis, void*) { return (void*)pThis[54]; }
-
 // FUNCTION: SWBF2 0x005b2340
-NetPacket* __fastcall GetPacketByHeaderNumber(const short* pNumber, void*)
+NetPacket* __fastcall GetPacketByHeaderNumber(const short* pNumber)
 {
     return NetPacket::Get(*pNumber);
-}
-
-// FUNCTION: SWBF2 0x0048c8e0
-float* __fastcall SetFloatPair(float* pResult, void*, float fFirst, float fSecond)
-{
-    pResult[0] = fFirst;
-    pResult[1] = fSecond;
-    return pResult;
 }
 
 // FUNCTION: SWBF2 0x005c50f0
@@ -13360,8 +13322,8 @@ float Length(const float* pVector)
 }
 
 // FUNCTION: SWBF2 0x00411e90
-PblVector3* __fastcall TransformNormalByMatrix(const PblMatrix* pMatrix, void*,
-                                  PblVector3* pOut, const PblVector3* pIn)
+PblVector3* __fastcall TransformNormalByMatrix(const PblMatrix* pMatrix, PblVector3* pOut,
+                                               const PblVector3* pIn)
 {
     D3DXVec3TransformNormal((D3DXVECTOR3*)pOut, (const D3DXVECTOR3*)pIn,
                             (const D3DXMATRIX*)pMatrix);
@@ -13369,7 +13331,7 @@ PblVector3* __fastcall TransformNormalByMatrix(const PblMatrix* pMatrix, void*,
 }
 
 // FUNCTION: SWBF2 0x0051ecb0
-void* __fastcall CopyCameraRecord(const void* pThis, void*, void* pOut, int iIndex)
+void* __fastcall CopyCameraRecord(const void* pThis, void* pOut, int iIndex)
 {
     const void* pSource = *(const void* const*)((const char*)pThis +
                                             0x28 + iIndex * 4);
@@ -14048,7 +14010,7 @@ float FrontAngle(const PblVector3& point, const PblMatrix& matrix)
     PblVector3 offset = point - matrix.GetTranslation();
     const PblMatrix inverse = matrix.GetInverseFast();
     PblVector3 local;
-    TransformNormalByMatrix(&inverse, 0, &local, &offset);
+    TransformNormalByMatrix(&inverse, &local, &offset);
     return PblMath::Atan2(local.x, local.z) * (180.0f / 3.1415927f);
 }
 
@@ -15069,7 +15031,7 @@ void WriteSpawnCamera(NetPktGroup& group)
     }
 
     PblMatrix camera;
-    CopyCameraRecord(CameraManager::Instance(), 0, &camera, 0);
+    CopyCameraRecord(CameraManager::Instance(), &camera, 0);
     WritePositionVector(group, camera.GetTranslation());
     const float direction[2] = { camera.m[2][0], camera.m[2][2] };
     WriteCosSin(group, direction);
@@ -16458,7 +16420,7 @@ void SendToRelays()
     for (i = 0; i < iCount; ++i)
     {
         SetPacketGroupHeader(pPacket, (short)iTurn16, (char)i, (char)iCount);
-        pPacket = GetPacketByHeaderNumber((const short*)pPacket, 0);
+        pPacket = GetPacketByHeaderNumber((const short*)pPacket);
     }
     i = 0;
     while ((pPacket = group.PopFront()) != 0)

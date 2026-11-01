@@ -6,9 +6,9 @@
 #include "NetComm.h"
 #include "Steam/galaxy_api.h"
 
-extern unsigned int netDirectSocket;
-extern unsigned int netBroadcastSendSocket;
-extern unsigned int netBroadcastRecvSocket;
+extern SOCKET netDirectSocket;
+extern SOCKET netBroadcastSendSocket;
+extern SOCKET netBroadcastRecvSocket;
 extern int hostshort;
 
 extern int netSocketErrorCount;
@@ -47,33 +47,38 @@ void NetSocket::OpenBroadcastSockets()
 {
     sockaddr_in addr;
     BOOL bBroadcast = TRUE;
-    netBroadcastSendSocket = (unsigned int)socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    setsockopt((SOCKET)netBroadcastSendSocket, SOL_SOCKET, SO_BROADCAST, (const char*)&bBroadcast,
+    netBroadcastSendSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    setsockopt(netBroadcastSendSocket, SOL_SOCKET, SO_BROADCAST, (const char*)&bBroadcast,
                sizeof(bBroadcast));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_BROADCAST;
     addr.sin_port = htons(3656);
-    if (connect((SOCKET)netBroadcastSendSocket, (const sockaddr*)&addr, sizeof(addr)) < 0)
+    if (connect(netBroadcastSendSocket, (const sockaddr*)&addr, sizeof(addr)) < 0)
     {
         DecodeError(WSAGetLastError());
     }
 
     BOOL bReuse = TRUE;
-    netBroadcastRecvSocket = (unsigned int)socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    setsockopt((SOCKET)netBroadcastRecvSocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&bReuse,
+    netBroadcastRecvSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    setsockopt(netBroadcastRecvSocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&bReuse,
                sizeof(bReuse));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_port = htons(3656);
-    bind((SOCKET)netBroadcastRecvSocket, (const sockaddr*)&addr, sizeof(addr));
+    bind(netBroadcastRecvSocket, (const sockaddr*)&addr, sizeof(addr));
     u_long ulNonBlocking = 1;
-    ioctlsocket((SOCKET)netBroadcastRecvSocket, FIONBIO, &ulNonBlocking);
+    ioctlsocket(netBroadcastRecvSocket, FIONBIO, &ulNonBlocking);
 }
 
 // FUNCTION: SWBF2 0x00617d40
 int NetSocket::OpenDirectSocket(bool bHost)
 {
-    netDirectSocket = (unsigned int)socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    netDirectSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (netDirectSocket == INVALID_SOCKET)
+    {
+        DecodeError(WSAGetLastError());
+        return 0;
+    }
     int iPort = hostshort;
     if (!bHost)
     {
@@ -85,7 +90,7 @@ int NetSocket::OpenDirectSocket(bool bHost)
         addr.sin_family = AF_INET;
         addr.sin_addr.s_addr = INADDR_ANY;
         addr.sin_port = htons((u_short)iPort);
-        if (bind((SOCKET)netDirectSocket, (const sockaddr*)&addr, sizeof(addr)) != SOCKET_ERROR)
+        if (bind(netDirectSocket, (const sockaddr*)&addr, sizeof(addr)) != SOCKET_ERROR)
         {
             break;
         }
@@ -93,24 +98,24 @@ int NetSocket::OpenDirectSocket(bool bHost)
         ++iPort;
     }
     int iSize = 0x8000;
-    setsockopt((SOCKET)netDirectSocket, SOL_SOCKET, SO_RCVBUF, (const char*)&iSize, sizeof(iSize));
+    setsockopt(netDirectSocket, SOL_SOCKET, SO_RCVBUF, (const char*)&iSize, sizeof(iSize));
     iSize = 0x10000;
-    setsockopt((SOCKET)netDirectSocket, SOL_SOCKET, SO_SNDBUF, (const char*)&iSize, sizeof(iSize));
+    setsockopt(netDirectSocket, SOL_SOCKET, SO_SNDBUF, (const char*)&iSize, sizeof(iSize));
     u_long ulNonBlocking = 1;
-    ioctlsocket((SOCKET)netDirectSocket, FIONBIO, &ulNonBlocking);
+    ioctlsocket(netDirectSocket, FIONBIO, &ulNonBlocking);
     return iPort;
 }
 
 // FUNCTION: SWBF2 0x00617e30
 void NetSocket::CloseDirectSocket()
 {
-    closesocket((SOCKET)netDirectSocket);
-    netDirectSocket = 0;
+    closesocket(netDirectSocket);
+    netDirectSocket = INVALID_SOCKET;
 }
 
 extern unsigned __int64 netEnteredLobbyId;
 namespace gf { bool isInitialized(); }
-extern void* GetGalaxyNetworking();
+extern galaxy::api::INetworking* GetGalaxyNetworking();
 
 // FUNCTION: SWBF2 0x00617e50
 int NetSocket::SendSocket(int iDest, char* pData, int iLen)
@@ -119,8 +124,8 @@ int NetSocket::SendSocket(int iDest, char* pData, int iLen)
     if (NetComm::IsLAN())
     {
         int n = iDest == 68
-              ? send((SOCKET)netBroadcastSendSocket, pData, iLen, 0)
-              : sendto((SOCKET)netDirectSocket, pData, iLen, 0,
+              ? send(netBroadcastSendSocket, pData, iLen, 0)
+              : sendto(netDirectSocket, pData, iLen, 0,
                        (const sockaddr*)(pPeer + 1), sizeof(sockaddr_in));
         if (n == SOCKET_ERROR)
         {
@@ -137,8 +142,8 @@ int NetSocket::SendSocket(int iDest, char* pData, int iLen)
         return -1;
     }
 
-    void* pNetworking = GetGalaxyNetworking();
-    return ((galaxy::api::INetworking*)pNetworking)->SendP2PPacket(
+    galaxy::api::INetworking* pNetworking = GetGalaxyNetworking();
+    return pNetworking->SendP2PPacket(
                galaxy::api::GalaxyID(*pPeer), pData, iLen, 2, 0)
          ? iLen : -1;
 }
@@ -192,7 +197,7 @@ void NetSocket::RecvSockets()
     {
         fromLength = sizeof(from);
         --remaining;
-        received = recvfrom((SOCKET)netDirectSocket, (char*)netLanReceiveBuffer,
+        received = recvfrom(netDirectSocket, (char*)netLanReceiveBuffer,
                             sizeof(netLanReceiveBuffer), 0, (sockaddr*)&from, &fromLength);
         if (received == SOCKET_ERROR)
         {
@@ -215,7 +220,7 @@ void NetSocket::RecvSockets()
         do
         {
             fromLength = sizeof(from);
-            received = recvfrom((SOCKET)netDirectSocket, (char*)netLanReceiveBuffer,
+            received = recvfrom(netDirectSocket, (char*)netLanReceiveBuffer,
                                 sizeof(netLanReceiveBuffer), 0, (sockaddr*)&from, &fromLength);
             if (received != SOCKET_ERROR)
             {
@@ -226,14 +231,14 @@ void NetSocket::RecvSockets()
         while (received != SOCKET_ERROR);
     }
 
-    if (netBroadcastSendSocket)
+    if (netBroadcastRecvSocket != INVALID_SOCKET)
     {
         remaining = 64;
         do
         {
             fromLength = sizeof(from);
             --remaining;
-            received = recvfrom((SOCKET)netBroadcastRecvSocket, (char*)netLanReceiveBuffer,
+            received = recvfrom(netBroadcastRecvSocket, (char*)netLanReceiveBuffer,
                                 1012 - packetPrefix.value, 0, (sockaddr*)&from, &fromLength);
             if (received == SOCKET_ERROR)
             {
@@ -256,7 +261,7 @@ void NetSocket::RecvSockets()
             do
             {
                 fromLength = sizeof(from);
-                received = recvfrom((SOCKET)netBroadcastRecvSocket, (char*)netLanReceiveBuffer,
+                received = recvfrom(netBroadcastRecvSocket, (char*)netLanReceiveBuffer,
                                     sizeof(netLanReceiveBuffer), 0, (sockaddr*)&from, &fromLength);
             }
             while (received != SOCKET_ERROR);
@@ -264,24 +269,24 @@ void NetSocket::RecvSockets()
     }
 }
 
-extern void* GetGalaxyNetworking();
-extern void* GetGalaxyHostNetworking();
+extern galaxy::api::INetworking* GetGalaxyNetworking();
+extern galaxy::api::INetworking* GetGalaxyHostNetworking();
 
-static bool PollGalaxy(void* pNetworking, unsigned int& size)
+static bool PollGalaxy(galaxy::api::INetworking* pNetworking, unsigned int& size)
 {
-    return ((galaxy::api::INetworking*)pNetworking)->IsP2PPacketAvailable(&size, 0);
+    return pNetworking->IsP2PPacketAvailable(&size, 0);
 }
 
-static bool ReadGalaxy(void* pNetworking, unsigned int capacity,
+static bool ReadGalaxy(galaxy::api::INetworking* pNetworking, unsigned int capacity,
                        unsigned int& size, NetSocketPeerRecord& peer)
 {
-    return ((galaxy::api::INetworking*)pNetworking)->ReadP2PPacket(
+    return pNetworking->ReadP2PPacket(
         netGalaxyReceiveBuffer, capacity, &size, *(galaxy::api::GalaxyID*)&peer.mGalaxyId, 0);
 }
 
-static void DiscardGalaxy(void* pNetworking)
+static void DiscardGalaxy(galaxy::api::INetworking* pNetworking)
 {
-    ((galaxy::api::INetworking*)pNetworking)->PopP2PPacket(0);
+    pNetworking->PopP2PPacket(0);
 }
 
 // FUNCTION: SWBF2 0x00618250
@@ -294,7 +299,7 @@ void NetSocket::RecvGalaxySockets()
     unsigned int size = 0;
     for (int count = 0; ; )
     {
-        void* pNetworking = GetGalaxyNetworking();
+        galaxy::api::INetworking* pNetworking = GetGalaxyNetworking();
         if (!PollGalaxy(pNetworking, size))
         {
             break;
@@ -317,7 +322,7 @@ void NetSocket::RecvGalaxySockets()
     {
         for (int count = 0; ; )
         {
-            void* pNetworking = GetGalaxyHostNetworking();
+            galaxy::api::INetworking* pNetworking = GetGalaxyHostNetworking();
             if (!PollGalaxy(pNetworking, size))
             {
                 break;

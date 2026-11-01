@@ -80,8 +80,6 @@ static bool IsAlive(GameObject* pObject)
     return pObject->mIsAlive;
 }
 
-typedef const PblVector3& (__fastcall *GetVelocityFn)(GameObject* pThis, void*);
-
 // FUNCTION: SWBF2 0x00453730
 ChaseCamera::ChaseCamera(CameraManager* pManager, int iView)
     : GameCamera(pManager, iView)

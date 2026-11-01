@@ -35,7 +35,7 @@
 
 void JRR_to_Errorbox(JoinRejectReason eReason);
 extern int hostVoteThreshold;
-namespace FriendBuddyList { bool __fastcall IsFriendBuddy(int ignored, int iPlayer); }
+namespace FriendBuddyList { bool __fastcall IsFriendBuddy(int iPlayer); }
 
 // FUNCTION: SWBF2 0x00429300
 RedColor Team::GetColor(int iTeam) const
@@ -104,7 +104,7 @@ int patchCheckStatus;
 bool gSkipToNTGUI;
 
 // FUNCTION: SWBF2 0x00595f40
-static unsigned long PatchCheckMain(void* pArg)
+static DWORD WINAPI PatchCheckMain(LPVOID pArg)
 {
     patchCheckStatus = 3;
     return 0;
@@ -116,7 +116,11 @@ static void InitPatchCheck()
     if (patchCheckStatus == 0)
     {
         DWORD dwThreadId;
-        CreateThread(0, 0x4000, (LPTHREAD_START_ROUTINE)PatchCheckMain, 0, 0, &dwThreadId);
+        HANDLE hThread = CreateThread(0, 0x4000, PatchCheckMain, 0, 0, &dwThreadId);
+        if (hThread)
+        {
+            CloseHandle(hThread);
+        }
     }
 }
 

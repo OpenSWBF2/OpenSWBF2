@@ -26,7 +26,7 @@ int __cdecl DecodeBase64(unsigned char* pOutput, unsigned int uiOutputCapacity, 
 unsigned int gListedLobbyCount;
 
 // FUNCTION: SWBF2 0x005d4610
-void* GetGalaxyUser()
+galaxy::api::IUser* GetGalaxyUser()
 {
     if (!galaxy::api::GalaxyFactory::GetInstance())
     {
@@ -37,7 +37,7 @@ void* GetGalaxyUser()
 }
 
 // FUNCTION: SWBF2 0x005d4630
-void* GetGalaxyFriends()
+galaxy::api::IFriends* GetGalaxyFriends()
 {
     if (!galaxy::api::GalaxyFactory::GetInstance())
     {
@@ -48,7 +48,7 @@ void* GetGalaxyFriends()
 }
 
 // FUNCTION: SWBF2 0x005d4650
-void* GetGalaxyMatchmaking()
+galaxy::api::IMatchmaking* GetGalaxyMatchmaking()
 {
     if (!galaxy::api::GalaxyFactory::GetInstance())
     {
@@ -59,7 +59,7 @@ void* GetGalaxyMatchmaking()
 }
 
 // FUNCTION: SWBF2 0x005d4670
-void* GetGalaxyStats()
+galaxy::api::IStats* GetGalaxyStats()
 {
     if (!galaxy::api::GalaxyFactory::GetInstance())
     {
@@ -70,7 +70,7 @@ void* GetGalaxyStats()
 }
 
 // FUNCTION: SWBF2 0x005dafe0
-void* GetGalaxyNetworkingInterface()
+galaxy::api::INetworking* GetGalaxyNetworkingInterface()
 {
     if (!galaxy::api::GalaxyFactory::GetInstance())
     {
@@ -111,22 +111,22 @@ void gf::GalaxyAuthListener::OnAuthSuccess()
     netLoginFailureReason = 0;
     strlcpy(&gLoginName[m_iViewport << 8], NetMatch::GetLoginOverrideName(m_iViewport), 256);
 
-    void* pUser = GetGalaxyUser();
+    galaxy::api::IUser* pUser = GetGalaxyUser();
 
-    galaxy::api::GalaxyID result = ((galaxy::api::IUser*)pUser)->GetGalaxyID();
+    galaxy::api::GalaxyID result = pUser->GetGalaxyID();
     const galaxy::api::GalaxyID* id = &result;
     NetMatch::SetLocalGSID((unsigned int)id->value, (unsigned int)(id->value >> 32));
 
     StatsManager::Init();
     gf::friends::start();
 
-    void* pFriends = GetGalaxyFriends();
-    ((galaxy::api::IFriends*)pFriends)->DeleteRichPresence("connect");
+    galaxy::api::IFriends* pFriends = GetGalaxyFriends();
+    pFriends->DeleteRichPresence("connect");
 
-    void* pStats = GetGalaxyStats();
+    galaxy::api::IStats* pStats = GetGalaxyStats();
     galaxy::api::GalaxyID self;
     self.value = 0;
-    ((galaxy::api::IStats*)pStats)->RequestUserStatsAndAchievements(self);
+    pStats->RequestUserStatsAndAchievements(self);
 }
 
 // FUNCTION: SWBF2 0x005d4c20
@@ -220,14 +220,14 @@ void gf::GalaxyLobbyListListener::OnLobbyList(unsigned int lobbyCount, bool ioFa
 
     for (unsigned int i = 0; i < lobbyCount; ++i)
     {
-        void* pMatchmaking = GetGalaxyMatchmaking();
-        galaxy::api::GalaxyID lobby = ((galaxy::api::IMatchmaking*)pMatchmaking)->GetLobbyByIndex(i);
+        galaxy::api::IMatchmaking* pMatchmaking = GetGalaxyMatchmaking();
+        galaxy::api::GalaxyID lobby = pMatchmaking->GetLobbyByIndex(i);
         NetAddr address;
         address.pubAddr = (int)lobby.value;
         address.pubPort = (int)(lobby.value >> 32);
         NetSetupP::AddGame(&address);
         pMatchmaking = GetGalaxyMatchmaking();
-        ((galaxy::api::IMatchmaking*)pMatchmaking)->RequestLobbyData(lobby);
+        pMatchmaking->RequestLobbyData(lobby);
     }
 }
 
@@ -241,8 +241,8 @@ void gf::GalaxyLobbyDataListener::OnLobbyDataUpdated(const galaxy::api::GalaxyID
     }
     updatePercent += 100u / gListedLobbyCount;
 
-    void* pMatchmaking = GetGalaxyMatchmaking();
-    const unsigned int uCount = ((galaxy::api::IMatchmaking*)pMatchmaking)->GetLobbyDataCount(lobbyID);
+    galaxy::api::IMatchmaking* pMatchmaking = GetGalaxyMatchmaking();
+    const unsigned int uCount = pMatchmaking->GetLobbyDataCount(lobbyID);
 
     NetAddr address;
     address.pubAddr = (int)lobbyID.value;
@@ -263,7 +263,7 @@ void gf::GalaxyLobbyDataListener::OnLobbyDataUpdated(const galaxy::api::GalaxyID
         memset(acKey, 0, sizeof(acKey));
         memset(acValue, 0, sizeof(acValue));
         pMatchmaking = GetGalaxyMatchmaking();
-        if (!((galaxy::api::IMatchmaking*)pMatchmaking)->GetLobbyDataByIndex(
+        if (!pMatchmaking->GetLobbyDataByIndex(
                 lobbyID, i, acKey, sizeof(acKey) - 1, acValue, sizeof(acValue) - 1))
         {
             continue;
@@ -395,7 +395,7 @@ void gf::GalaxyLobbyDataListener::OnLobbyDataUpdated(const galaxy::api::GalaxyID
     }
 
     pMatchmaking = GetGalaxyMatchmaking();
-    const unsigned int uLobbyQuery = ((galaxy::api::IMatchmaking*)pMatchmaking)->GetNumLobbyMembers(lobbyID);
+    const unsigned int uLobbyQuery = pMatchmaking->GetNumLobbyMembers(lobbyID);
     if (bDrop || !uLobbyQuery || data.mNumPlayers <= 0)
     {
         RemoveFoundGameByAddress(&address);
@@ -413,8 +413,8 @@ void gf::GalaxyLobbyOwnerChangeListener::OnLobbyOwnerChanged(const galaxy::api::
     {
         return;
     }
-    void* pMatchmaking = GetGalaxyMatchmaking();
-    ((galaxy::api::IMatchmaking*)pMatchmaking)->LeaveLobby(lobbyID);
+    galaxy::api::IMatchmaking* pMatchmaking = GetGalaxyMatchmaking();
+    pMatchmaking->LeaveLobby(lobbyID);
 }
 
 // FUNCTION: SWBF2 0x005d6160
@@ -438,8 +438,8 @@ void NetMatch::StartLogin(int iViewport, bool bArg2, char const* pcArg3, char co
         return;
     }
 
-    void* pUser = GetGalaxyUser();
-    if (((galaxy::api::IUser*)pUser)->SignedIn() || netLoginPending)
+    galaxy::api::IUser* pUser = GetGalaxyUser();
+    if (pUser->SignedIn() || netLoginPending)
     {
         return;
     }
@@ -454,7 +454,7 @@ void NetMatch::StartLogin(int iViewport, bool bArg2, char const* pcArg3, char co
         if (pcPersonaName && iTicketSize > 0)
         {
             pUser = GetGalaxyUser();
-            ((galaxy::api::IUser*)pUser)->SignInWithSteam(acTicket, iTicketSize, pcPersonaName);
+            pUser->SignInWithSteam(acTicket, iTicketSize, pcPersonaName);
             if (!gf::checkError())
             {
                 return;

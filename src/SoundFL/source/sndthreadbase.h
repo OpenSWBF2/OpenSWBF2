@@ -25,7 +25,7 @@ public:
     bool Start(void* pArgs);
 
 protected:
-    static void __cdecl ThreadEntry(void* pArg);
+    static unsigned long __stdcall ThreadEntry(void* pArg);
 
 public:
     void(__cdecl* mThreadFunc)(void*);

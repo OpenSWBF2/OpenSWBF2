@@ -36,7 +36,7 @@ namespace GameVoiceChat
 class Transport;
 Transport* GetTransport();
 }
-namespace FriendBuddyList { bool __fastcall IsFriendBuddy(int ignored, int iPlayer); }
+namespace FriendBuddyList { bool __fastcall IsFriendBuddy(int iPlayer); }
 
 extern int gDebugCount;
 
@@ -500,7 +500,7 @@ void VoiceChatGroup::UpdateLines()
         if (pCharacter && pLocal)
         {
             line.mText.m_color = gVoiceChatTeamColors[pLocal->mTeamNumber != pCharacter->mTeamNumber];
-            if (FriendBuddyList::IsFriendBuddy(0, line.mId))
+            if (FriendBuddyList::IsFriendBuddy(line.mId))
             {
                 line.mText.m_color = gHudHighlightColor;
             }
