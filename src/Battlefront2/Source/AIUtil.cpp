@@ -63,15 +63,7 @@
 #include "TreeGrid.h"
 #include "PebbleFL/Common/PblHeap.h"
 #include "TeamManager.h"
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
-extern "C" PblVector3* __stdcall D3DXVec3TransformNormal(PblVector3* pOut, const PblVector3* pV,
-                                                         const PblMatrix* pM);
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV,
-                                                        const PblMatrix* pM);
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1,
-                                                   const PblMatrix* pM2);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationY(PblMatrix* pOut, float fAngle);
+#include "PebbleFL/pc/PblD3DX.h"
 
 extern PblVector3 gVectorZero;
 

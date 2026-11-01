@@ -37,6 +37,7 @@
 #include "Zephyr/Source/ZephyrSkeletonShared.h"
 #include "Zephyr/Source/ZephyrSkinReader.h"
 #include "Zephyr/Source/ZephyrSkinShared.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 // GLOBAL: SWBF2 0x01e30374
 char sCurrentCollision[32];
@@ -69,8 +70,6 @@ void CollisionMesh::Render(const PblMatrix&) const
     sCurrentRenderHandleWasNull = sCurrentRenderHandle == 0;
     sCurrentRenderHandle = 0;
 }
-
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV, const PblMatrix* pM);
 
 // FUNCTION: SWBF2 0x00460f50
 CollisionMesh::CollisionMesh()
@@ -132,8 +131,6 @@ PblBox CollisionMesh::GetWorldspaceAABB(const PblMatrix& matrix) const
     }
     return box;
 }
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
 
 static const float EPSILON = 0.00001f;
 

@@ -10,10 +10,7 @@
 #include "RedEngineFL/Graphics/RedCamera.h"
 #include "RedEngineFL/Graphics/RedColor.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV,
-                                                        const PblMatrix* pM);
+#include "PebbleFL/pc/PblD3DX.h"
 
 typedef SpaceDustEffect::DustEmitterData DustEmitterData;
 

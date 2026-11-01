@@ -5,8 +5,7 @@
 #include "PebbleFL/Common/PblHashTable.h"
 #include "RedEngineFL/Graphics/RedModel.h"
 #include "RedEngineFL/Util/RedAnimation.h"
-
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1, const PblMatrix* pM2);
+#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x004439f0
 AnimatedAddon::AnimatedAddon(const ZephyrSkeletonShared& parentSkeleton)

@@ -45,15 +45,10 @@
 #include "CollisionObject.h"
 #include "Damageable.h"
 #include "Battlefront2/Platform/Pc/pcSunFlare.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 const RedColor Interpolate(const RedColor& a, const RedColor& b, float t);
 
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1,
-                                                     const PblMatrix* pM2);
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut,
-                                                          const PblVector3* pV, const PblMatrix* pM);
-extern "C" PblVector3* __stdcall D3DXVec3TransformNormal(PblVector3* pOut,
-                                                           const PblVector3* pV, const PblMatrix* pM);
 extern bool netInShell;
 extern bool netEnabled;
 extern bool netEnabledNext;
@@ -504,8 +499,6 @@ static const float MELEE_DEFAULT_TURNONDURATION = 0.2f;
 
 // GLOBAL: SWBF2 0x01f9a8f8
 RedColor LIGHTSABER_DEFAULT_TRAIL_COLOR;
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
 
 namespace
 {

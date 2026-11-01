@@ -13,32 +13,6 @@
 #include "WeaponDispenser.h"
 #include "PebbleFL/Common/PblList.h"
 
-class AmmoCounter
-{
-public:
-
-    bool HasInfiniteAmmo() const { return mMaxClips == FLT_MAX; }
-
-    bool IsReserveFull() const { return mNumClips >= mMaxClips - 1.0f; }
-
-    void UnloadClip();
-    void AddClips(float fClips);
-
-    AmmoCounterClass* m_pClass;
-    float mDefaultMaxClips;
-    float mMaxClips;
-    float mNumClips;
-    float mCurClip;
-    unsigned int m_uiRefCount;
-};
- 
- 
- 
- 
-
- 
- 
-
 namespace PowerupUtility
 {
 

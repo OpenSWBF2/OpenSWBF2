@@ -9,6 +9,7 @@
 #include "CollisionModel.h"
 #include "NetGame.h"
 #include "PebbleFL/Common/PblVector.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x004d89d0
 EntityPortableTurretClass::EntityPortableTurretClass(unsigned int uHash)
@@ -38,8 +39,6 @@ char EntityPortableTurret::rttiNameEntityPortableTurret[] = "EntityPortableTurre
 // SYNTHETIC: SWBF2 0x00766f90
 // `dynamic atexit destructor for 'EntityPortableTurret::sMemoryPool''
 MemoryPool EntityPortableTurret::sMemoryPool("EntityPortableTurret", 0x6d0);
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
 
 extern PblVector3 gVectorZero;
 

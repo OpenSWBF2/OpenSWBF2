@@ -6,13 +6,7 @@
 #include "PebbleFL/Common/PblMath.h"
 #include "RedEngineFL/Graphics/RedModel.h"
 #include "RedEngineFL/Graphics/RedPose.h"
-
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1,
-                                                   const PblMatrix* pM2);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationQuaternion(PblMatrix* pOut, const PblQuaternion* pQ);
-extern "C" PblQuaternion* __stdcall D3DXQuaternionNormalize(PblQuaternion* pOut, const PblQuaternion* pQ);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationY(PblMatrix* pOut, float fAngle);
-extern "C" PblMatrix* __stdcall D3DXMatrixScaling(PblMatrix* pOut, float sx, float sy, float sz);
+#include "PebbleFL/pc/PblD3DX.h"
 
 void __cdecl PblTraceP(const char* Format, ...);
 

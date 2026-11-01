@@ -260,18 +260,6 @@ extern int gDebugCount;
 namespace AIDebug { bool GetTestSpawnMode(); }
 namespace AIDebug { PblMatrix GetTestSpawnMatrix(Character* pCharacter); }
 
-class AmmoCounter
-{
-public:
-    void LoadClip();
-
-    AmmoCounterClass* m_pClass;
-    float mDefaultMaxClips;
-    float mMaxClips;
-    float mNumClips;
-    float mCurClip;
-};
-
 namespace
 {
 

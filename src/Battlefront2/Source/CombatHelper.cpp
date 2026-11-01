@@ -23,12 +23,9 @@
 #include "PebbleFL/Common/PblRandom.h"
 
 #include "UnitThreatManager.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 class Weapon;
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1, const PblMatrix* pM2);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationY(PblMatrix* pOut, float fAngle);
 
 namespace CombatUtil
 {

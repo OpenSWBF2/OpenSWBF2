@@ -20,15 +20,13 @@
 #include "RedEngineFL/Graphics/RedPose.h"
 #include "Aimer.h"
 #include "EntitySoldier.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 class EntityFlyer
 {
 public:
     static PblHash rttiHashEntityFlyer;
 };
-
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1,
-                                                   const PblMatrix* pM2);
 
 static PblMatrix _IdentityMatrix(
     PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },

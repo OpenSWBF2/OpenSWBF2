@@ -19,9 +19,7 @@
 #include "RedEngineFL/Application/RedTerrain.h"
 #include "pcSunFlare.h"
 #include "RedEngineFL/Graphics/PC/Shaders/pcRainShader.h"
-
-extern "C" PblVector3* __stdcall D3DXVec3TransformNormal(PblVector3* pOut, const PblVector3* pV,
-                                                         const PblMatrix* pM);
+#include "PebbleFL/pc/PblD3DX.h"
 
 namespace
 {

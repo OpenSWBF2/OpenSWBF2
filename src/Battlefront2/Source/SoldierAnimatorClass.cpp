@@ -23,6 +23,7 @@
 #include "Zephyr/Source/ZephyrPoseStatic.h"
 #include "Zephyr/Source/ZephyrSkeleton.h"
 #include "Zephyr/Source/ZephyrSkeletonShared.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 static PblMatrix _IdentityMatrix(
     PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
@@ -1547,7 +1548,6 @@ bool AnimationFinder::_AddBank(const char* pcName)
 }
 
 extern PblVector3 gVectorZero;
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV, const PblMatrix* pM);
 
 // FUNCTION: SWBF2 0x00645b70
 void SoldierAnimatorClass::_PostLoad()

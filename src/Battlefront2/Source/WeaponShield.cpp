@@ -18,21 +18,6 @@
 
 namespace GameLoop { extern float sClientDeltaTime; }
 
-class AmmoCounter
-{
-public:
-
-    bool HasInfiniteAmmo() const { return mMaxClips == FLT_MAX; }
-    void ExpendRounds(float fRounds);
-
-    AmmoCounterClass* m_pClass;
-    float mDefaultMaxClips;
-    float mMaxClips;
-    float mNumClips;
-    float mCurClip;
-    unsigned int m_uiRefCount;
-};
-
 static PblMatrix _IdentityMatrix(
     PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
     PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },

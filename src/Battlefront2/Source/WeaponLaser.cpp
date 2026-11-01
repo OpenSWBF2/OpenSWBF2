@@ -16,12 +16,6 @@ namespace GameLoop { extern float sClientDeltaTime; }
 
 namespace CombatUtil { void SendDamageEvent(const Controllable* pOwner, const GameObject* pTarget, const Trigger* pTrigger); }
 
-class AmmoCounter
-{
-public:
-    void ExpendRounds(float fRounds);
-};
-
 namespace
 {
     EntityClass* GetEntityClass(GameObject* pObject)

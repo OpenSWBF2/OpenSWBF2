@@ -31,6 +31,7 @@
 #include "RedEngineFL/Graphics/RedPose.h"
 #include "RedEngineFL/Util/RedLocalizeDB.h"
 #include "RedEngineFL/Graphics/RedMaterial.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x00679250
 bool Weapon::CheckFire() const
@@ -82,33 +83,7 @@ WeaponClass* WeaponClass::Derive(unsigned int uHash)
     return new WeaponClass(this, uHash);
 }
 
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1, const PblMatrix* pM2);
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV, const PblMatrix* pM);
-
 extern bool netIsLateTurn;
-
-class AmmoCounter
-{
-public:
-    AmmoCounter(const AmmoCounterClass* pClass, int iNumClips);
-    AmmoCounter* AddRef();
-
-    unsigned int Release();
-    void UnloadClip();
-    void LoadClip();
-
-    void UnloadClip_Unlimitted();
-    void LoadClip_Unlimitted();
-
-    static MemoryPool sMemoryPool;
-
-    const AmmoCounterClass* m_pClass;
-    float mDefaultMaxClips;
-    float mMaxClips;
-    float mNumClips;
-    float mCurClip;
-    unsigned int m_uiRefCount;
-};
 
 namespace GameLoop { extern bool gUnlimitedAmmo; }
 

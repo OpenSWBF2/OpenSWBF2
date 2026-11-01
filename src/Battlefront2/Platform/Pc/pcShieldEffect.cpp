@@ -10,6 +10,7 @@
 #include <math.h>
 #include "PebbleFL/Common/PblMath.h"
 #include "pcSunFlare.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 static void CompressedPos_SetBoundingBox(const PblBox& box)
 {
@@ -86,9 +87,6 @@ const PblBox& ShieldEffect::GetBBox() const
     }
     return m_pClass->m_pPrim->m_bbox;
 }
-
-extern "C" PblMatrix* __stdcall D3DXMatrixScaling(PblMatrix* pOut, float fSx, float fSy, float fSz);
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1, const PblMatrix* pM2);
 
 // FUNCTION: SWBF2 0x004281e0
 void ShieldEffectClass::PlatformCleanup()

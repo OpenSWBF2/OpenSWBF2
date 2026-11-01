@@ -12,9 +12,7 @@
 #include "RedEngineFL/Application/pc/pcRenderHelpers.h"
 
 #include <math.h>
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3*, const PblVector3*);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationY(PblMatrix*, float);
+#include "PebbleFL/pc/PblD3DX.h"
 
 // GLOBAL: SWBF2 0x01e2fd18
 float HeatShimmerEffect::s_tileU;

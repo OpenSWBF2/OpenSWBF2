@@ -20,6 +20,7 @@
 #include "RedEngineFL/Graphics/RedPose.h"
 #include "RedEngineFL/Graphics/RedSkeleton.h"
 #include "RedEngineFL/Util/RedRegion.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 static PblMatrix _IdentityMatrix(
     PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
@@ -441,8 +442,6 @@ bool PowerupStation::IsInsideRegion(RedRegion* pRegion, const GameObject* pObjec
     return pRegion->IsPointInside(pObject->GetMatrix().GetTranslation());
 }
 
-extern "C" PblQuaternion* __stdcall D3DXQuaternionNormalize(PblQuaternion* pOut, const PblQuaternion* pQ);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationQuaternion(PblMatrix* pOut, const PblQuaternion* pQ);
 static PblMatrix PblMatrix_FromQuaternion(const PblQuaternion& q, const PblVector3& vPos)
 {
     PblQuaternion qUnit;

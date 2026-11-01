@@ -27,6 +27,7 @@
 #include "RedEngineFL/Application/pc/pcFLRender.h"
 #include "RedEngineFL/Application/pc/pcRedShadowProxy.h"
 #include "RedEngineFL/Graphics/RedModel.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x00475ec0
 const PblMatrix& EntityBuilding::GetBBoxMatrix() const
@@ -35,8 +36,6 @@ const PblMatrix& EntityBuilding::GetBBoxMatrix() const
 }
 
 extern PblVector3 gVectorZero;
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV, const PblMatrix* pM);
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1, const PblMatrix* pM2);
 
 // FUNCTION: SWBF2 0x00493690
 EntityBuildingClass::EntityBuildingClass(unsigned int uHash)

@@ -22,9 +22,8 @@
 #include "MotionBlurEffect.h"
 #include "Trackable.h"
 #include <float.h>
+#include "PebbleFL/pc/PblD3DX.h"
 float GetDefaultFOV();
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut,
-    const PblVector3* pV, const PblMatrix* pM);
 
 // FUNCTION: SWBF2 0x004b3dd0
 CameraTrackSetting* EntityFlyer::GetCameraTrackSettings()
@@ -204,9 +203,6 @@ bool EntityCarrier::Update(float fDeltaTime)
     }
     return true;
 }
-
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV,
-                                                        const PblMatrix* pM);
 
 namespace
 {
@@ -590,12 +586,6 @@ void* EntityCarrier::operator new(size_t uSize)
 {
     return sMemoryPool.Allocate(uSize);
 }
-
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationX(PblMatrix* pOut, float fAngle);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationZ(PblMatrix* pOut, float fAngle);
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1,
-                                                   const PblMatrix* pM2);
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
 
 PblMatrix DirectionMatrix(const PblVector3& vDir, const PblVector3& vUp, const PblVector3& vPos);
 

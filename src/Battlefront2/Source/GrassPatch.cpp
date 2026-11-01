@@ -8,9 +8,7 @@
 #include "NetGame.h"
 #include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblRandom.h"
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV, const PblMatrix* pM);
+#include "PebbleFL/pc/PblD3DX.h"
 
 class PblMatrix;
 extern PblMatrix gMatrixIdentity;

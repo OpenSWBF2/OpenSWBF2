@@ -12,6 +12,7 @@
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 
 #include "LightBeam.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 extern PblVector3 gVectorZero;
 
@@ -19,8 +20,6 @@ class PblMatrix;
 extern PblMatrix gMatrixIdentity;
 
 const RedColor Interpolate(const RedColor& a, const RedColor& b, float t);
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV,
-                                                        const PblMatrix* pM);
 
 // GLOBAL: SWBF2 0x01e51de0
 EntityLightFXParser* EntityLightFXParser::s_pInstance;

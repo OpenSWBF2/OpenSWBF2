@@ -11,6 +11,7 @@
 #include "NetGame.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
 #include "RedEngineFL/Interface/RedFont.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 namespace FLRenderer
 {
@@ -46,10 +47,6 @@ static bool ShowTimers()
     return !NetGame::IsEnabled() || NetGame::IsClient() ||
            (NetGame::IsOneWorld() && NetGame::IsHost() && !NetGame::IsDedicated());
 }
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV,
-                                                       const PblMatrix* pM);
 
 // FUNCTION: SWBF2 0x0056a6b0
 const PblVector3 RedCamera::TransformWorldPointToProjectionSpace(const PblVector3& rPoint) const

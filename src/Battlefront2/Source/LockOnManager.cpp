@@ -27,12 +27,7 @@
 #include "MountedTurret.h"
 #include <float.h>
 #include "CollisionManager.h"
-
-extern "C" PblVector3* __stdcall D3DXVec3TransformNormal(PblVector3* pOut, const PblVector3* pV,
-                                                         const PblMatrix* pM);
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV,
-                                                        const PblMatrix* pM);
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
+#include "PebbleFL/pc/PblD3DX.h"
 
 // GLOBAL: SWBF2 0x01e573f8
 unsigned int LockOnManager::sNumLockOnManagers;
@@ -679,8 +674,6 @@ bool LockOnManager::IsTargetObjectTypeAllowed(GameObject* gameObject, GameObject
     }
     return typeAllowed;
 }
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
 
 // FUNCTION: SWBF2 0x0057be70
 void LockOnManager::SetupNearestTargets(Controllable* const playerControllable, GameObject* const playerObject,

@@ -5,11 +5,9 @@
 #include "GameCamera.h"
 #include "PebbleFL/Common/PblMatrix.h"
 #include "PebbleFL/Common/PblQuaternion.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 class Trackable;
-
-extern "C" PblQuaternion* __stdcall D3DXQuaternionNormalize(PblQuaternion* pOut, const PblQuaternion* pQ);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationQuaternion(PblMatrix* pOut, const PblQuaternion* pQ);
 
 // VTABLE: SWBF2 0x00797178
 class ChaseCamera : public GameCamera

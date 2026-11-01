@@ -32,6 +32,7 @@
 #include "PebbleFL/Common/PblChunk.h"
 #include "PebbleFL/Common/PblFile.h"
 #include "RedEngineFL/Graphics/RedModel.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 static PblMatrix _IdentityMatrix(
     PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
@@ -443,10 +444,6 @@ ExplosionClass* ExplosionClass::Derive(unsigned int uHash)
 {
     return new ExplosionClass(this, uHash);
 }
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
-extern "C" PblQuaternion* __stdcall D3DXQuaternionNormalize(PblQuaternion* pOut, const PblQuaternion* pQ);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationQuaternion(PblMatrix* pOut, const PblQuaternion* pQ);
 
 static CollisionObject* GameObject_GetCollisionBase(GameObject* pObject)
 {

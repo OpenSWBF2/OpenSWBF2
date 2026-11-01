@@ -10,6 +10,7 @@
 #include "TreeGrid.h"
 #include "PebbleFL/Common/PblChunk.h"
 #include "PebbleFL/Common/PblFile.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x00628c00
 bool* PAAnimationGroup::EnterClient()
@@ -53,11 +54,6 @@ void PAAnimationGroup::ClientGeometryCreated(CollisionObject* pHost, CollisionOb
         }
     }
 }
-
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1, const PblMatrix* pM2);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationX(PblMatrix* pOut, float fAngle);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationY(PblMatrix* pOut, float fAngle);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationZ(PblMatrix* pOut, float fAngle);
 
 extern PblVector3 gVectorZero;
 extern bool netIsLocalTurn;

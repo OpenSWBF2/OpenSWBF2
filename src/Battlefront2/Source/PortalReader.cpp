@@ -8,10 +8,9 @@
 #include "RedEngineFL/Util/ext/BaseString.h"
 #include "PebbleFL/Common/PblQuaternion.h"
 #include <math.h>
+#include "PebbleFL/pc/PblD3DX.h"
 
-extern "C" PblQuaternion* __stdcall D3DXQuaternionNormalize(PblQuaternion* pOut, const PblQuaternion* pQ);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationQuaternion(PblMatrix* pOut, const PblQuaternion* pQ);
-extern "C" geo::Vector3<float>* __stdcall D3DXVec3TransformCoord(geo::Vector3<float>* pOut, const geo::Vector3<float>* pV, const PblMatrix* pM);
+static_assert(sizeof(geo::Vector3<float>) == sizeof(PblVector3), "portal vector size");
 
 namespace
 {
@@ -261,7 +260,7 @@ void PortalReader::Read(IPortal& portal, PblConfig& config, IManager& manager, c
         for (geo::Vector3<float>* it = portal.GetPoly().points_.Begin(); it != portal.GetPoly().points_.End(); ++it, ++pCorner)
         {
             geo::Vector3<float> v;
-            D3DXVec3TransformCoord(&v, pCorner, &transform);
+            D3DXVec3TransformCoord(reinterpret_cast<PblVector3*>(&v), reinterpret_cast<const PblVector3*>(pCorner), &transform);
             *it = v;
         }
     }

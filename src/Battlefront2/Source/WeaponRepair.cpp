@@ -19,11 +19,6 @@
 
 namespace GameLoop { extern float sClientDeltaTime; }
 
-class AmmoCounter
-{
-public:
-    void ExpendRounds(float fRounds);
-};
 class EntityWalker { public: static PblHash rttiHashEntityWalker; };
 class EntityHover { public: static PblHash rttiHashEntityHover; };
 class EntityMine { public: static PblHash rttiHashEntityMine; };

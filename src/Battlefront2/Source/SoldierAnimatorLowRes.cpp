@@ -21,6 +21,7 @@
 #include "Zephyr/Source/ZephyrAnim.h"
 #include "Zephyr/Source/ZephyrAnimBank.h"
 #include "Zephyr/Source/ZephyrSkeletonShared.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 static const char* const HUMAN_LOWRES_BANK = "humanlz";
 
@@ -33,12 +34,6 @@ static PblMatrix _IdentityMatrix(
 namespace GameLoop { extern float sClientDeltaTime; }
 
 extern PblVector3 gVectorZero;
-
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationAxis(PblMatrix* pOut, const PblVector3* pV, float fAngle);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationX(PblMatrix* pOut, float fAngle);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationY(PblMatrix* pOut, float fAngle);
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1, const PblMatrix* pM2);
-extern "C" PblVector3* __stdcall D3DXVec3TransformNormal(PblVector3* pOut, const PblVector3* pV, const PblMatrix* pM);
 
 // GLOBAL: SWBF2 0x007e99d0
 SoldierAnimatorLowResClass::PoseClass SoldierAnimatorLowResClass::s_PoseClasses[7] = {

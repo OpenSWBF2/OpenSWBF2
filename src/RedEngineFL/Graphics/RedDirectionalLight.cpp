@@ -6,8 +6,7 @@
 #include "RedEngineFL/Util/RedRegion.h"
 
 #include "RedEngineFL/Application/pc/pcRenderHelpers.h"
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
+#include "PebbleFL/pc/PblD3DX.h"
 
 static const float EPSILON = 0.0001f;
 

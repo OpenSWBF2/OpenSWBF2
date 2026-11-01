@@ -17,11 +17,7 @@
 #include "ItemTimerDisplay.h"
 #include "PebbleFL/Common/PblQuaternion.h"
 #include "SoundFL/source/sndvoicevirtual.h"
-
-extern "C" PblQuaternion* __stdcall D3DXQuaternionNormalize(PblQuaternion* pOut, const PblQuaternion* pQ);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationQuaternion(PblMatrix* pOut, const PblQuaternion* pQ);
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1,
-                                                   const PblMatrix* pM2);
+#include "PebbleFL/pc/PblD3DX.h"
 
 extern PblVector3 gVectorZero;
 

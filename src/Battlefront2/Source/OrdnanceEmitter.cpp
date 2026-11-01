@@ -18,9 +18,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1, const PblMatrix* pM2);
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
+#include "PebbleFL/pc/PblD3DX.h"
 
 extern PblVector3 gVectorZero;
 

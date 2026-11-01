@@ -10,9 +10,7 @@
 #include "Team.h"
 #include "RedEngineFL/Interface/RedFont.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
-
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3*, const PblVector3*, const PblMatrix*);
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3*, const PblVector3*);
+#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x0043edd0
 bool __fastcall HasNameDisplayPilotType(const void* pCharacter)

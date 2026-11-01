@@ -27,6 +27,7 @@
 #include "ParticleEmitter.h"
 #include "PebbleFL/Common/PblHandle.h"
 #include "Adrenaline.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x004884f0
 void Damageable::Kill()
@@ -127,8 +128,6 @@ void Damageable::SetTeamDamageScale(float fScale)
 {
     sSameTeamDamageScale = fScale;
 }
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
 
 extern PblVector3 gVectorZero;
 class PblMatrix;

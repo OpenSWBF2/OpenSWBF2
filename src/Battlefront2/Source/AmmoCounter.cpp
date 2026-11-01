@@ -6,34 +6,6 @@
 
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 
-class AmmoCounter
-{
-public:
-    AmmoCounter(const AmmoCounterClass* pClass, int iNumClips);
-    ~AmmoCounter();
-    AmmoCounter* AddRef();
-    unsigned int Release();
-    void LoadClip();
-    int GetMaxNumRounds() const;
-    int GetNumRounds() const;
-    void AddClips(float fClips);
-    bool CanExpendRounds(float fRounds) const;
-    void ExpendRounds(float fRounds);
-    void UnloadClip();
-    void UnloadClip_Unlimitted();
-    void LoadClip_Unlimitted();
-
-    static MemoryPool sMemoryPool;
-
-    const AmmoCounterClass* m_pClass;
-    float mDefaultMaxClips;
-    float mMaxClips;
-    float mNumClips;
-    float mCurClip;
-    unsigned int m_uiRefCount;
-};
- 
-
 // GLOBAL: SWBF2 0x01eb04b0
 // SYNTHETIC: SWBF2 0x00402280
 // `dynamic initializer for 'AmmoCounter::sMemoryPool''

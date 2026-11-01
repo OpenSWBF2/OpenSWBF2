@@ -21,9 +21,7 @@
 #include "PebbleFL/Common/PblVector.h"
 #include "RedEngineFL/Application/RedPath.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
-
-extern "C" PblQuaternion* __stdcall D3DXQuaternionNormalize(PblQuaternion* pOut, const PblQuaternion* pQ);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationQuaternion(PblMatrix* pOut, const PblQuaternion* pQ);
+#include "PebbleFL/pc/PblD3DX.h"
 
 extern bool netHeroesEnabled;
 extern int netHeroRuleTeam;

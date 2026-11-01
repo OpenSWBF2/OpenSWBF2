@@ -21,25 +21,12 @@
 #include "UnitController.h"
 #include "UnitStationaryController.h"
 #include "CollisionManager.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 namespace gf { bool isInitialized(); bool checkError(); }
 void ProcessGalaxyData();
 
-extern "C" PblVector3* __stdcall D3DXVec3TransformNormal(PblVector3* pOut, const PblVector3* pV,
-                                                         const PblMatrix* pM);
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
-
 PblMatrix DirectionMatrix(const PblVector3& vDir, const PblVector3& vUp, const PblVector3& vPos);
-
-class AmmoCounter
-{
-public:
-    bool CanExpendRounds(float fRounds) const;
-    void ExpendRounds(float fRounds);
-};
-
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV,
-                                                        const PblMatrix* pM);
 
 namespace GameLoop { extern float sClientDeltaTime; }
 

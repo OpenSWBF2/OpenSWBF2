@@ -14,9 +14,7 @@
 #include "PebbleFL/Common/PblHashTable.h"
 #include "RedEngineFL/Graphics/RedModel.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
-
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1,
-                                                   const PblMatrix* pM2);
+#include "PebbleFL/pc/PblD3DX.h"
 
 // GLOBAL: SWBF2 0x01ef7ca0
 // SYNTHETIC: SWBF2 0x00405da0

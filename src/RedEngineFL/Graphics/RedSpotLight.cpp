@@ -8,15 +8,11 @@
 #include "RedEngineFL/Application/pc/pcRedDebug.h"
 #include "PebbleFL/Common/PblMath.h"
 #include "RedEngineFL/Application/pc/pcRenderHelpers.h"
-
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1,
-                                                   const PblMatrix* pM2);
+#include "PebbleFL/pc/PblD3DX.h"
 
 PblMatrix DirectionMatrix(const PblVector3& vDir, const PblVector3& vUp, const PblVector3& vPos);
 
 extern PblVector3 gVectorZero;
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
 
 static const float EPSILON = 0.0001f;
 static const float SPOT_LIGHT_VISIBILITY_RADIUS_FUDGE = 10.0f;

@@ -1261,7 +1261,6 @@ class MountedTurret { public: static MemoryPool sMemoryPool; };
 class PowerupItem { public: static MemoryPool sMemoryPool; };
 class EntityBuildingArmedDynamic { public: static MemoryPool sMemoryPool; };
 class WalkerLegPair { public: static MemoryPool sMemoryPool; };
-class AmmoCounter { public: static MemoryPool sMemoryPool; };
 
 class OrdnanceTowCable { public: static MemoryPool sMemoryPool; };
 

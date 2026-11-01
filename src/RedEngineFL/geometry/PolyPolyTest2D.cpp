@@ -3,8 +3,7 @@
 #include "polygons.h"
 #include "PebbleFL/Common/PblMatrix.h"
 #include "PebbleFL/Common/PblVector.h"
-
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV, const PblMatrix* pM);
+#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x00724ef0
 int __cdecl geo::PolyPoly2D::LineSegPolyC(const geo::Vector2<float>& rA0, const geo::Vector2<float>& rA1, const geo::BasePoly2D& rPoly)

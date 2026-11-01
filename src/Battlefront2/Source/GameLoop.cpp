@@ -178,25 +178,6 @@ public:
     static MemoryPool sMemoryPool;
 };
 
-class Weapon
-{
-public:
-    static void SetupMemoryPool(unsigned int uCount, unsigned int uSize, unsigned int uGrow) { sMemoryPool.Setup(uCount, uSize, uGrow); }
-    static void UpdateMemoryPoolSize(unsigned int uSize)
-    {
-        if (sMemoryPool.GetSize() < uSize)
-        {
-            sMemoryPool.SetSize(uSize);
-        }
-    }
-    static MemoryPool sMemoryPool;
-};
-class AmmoCounter
-{
-public:
-    static void SetupMemoryPool(unsigned int uCount, unsigned int uSize, unsigned int uGrow) { sMemoryPool.Setup(uCount, uSize, uGrow); }
-    static MemoryPool sMemoryPool;
-};
 class StickInfo
 {
 public:

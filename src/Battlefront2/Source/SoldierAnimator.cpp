@@ -16,6 +16,7 @@
 #include "NetGame.h"
 #include "SoldierAnimationData.h"
 #include "Tracker.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x00643550
 void SoldierAnimator::PlayIdleAnimation(SoldierAnimType::MovementAnimation eAnimation)
@@ -38,13 +39,6 @@ static PblMatrix _IdentityMatrix(
     PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
     PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
     PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
-
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV, const PblMatrix* pM);
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1, const PblMatrix* pM2);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationX(PblMatrix* pOut, float fAngle);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationY(PblMatrix* pOut, float fAngle);
 
 namespace GameLoop { extern float sClientDeltaTime; }
 

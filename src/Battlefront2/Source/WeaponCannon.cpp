@@ -18,22 +18,13 @@
 #include "WeaponCannonInstance.h"
 #include "PebbleFL/Common/PblRandom.h"
 #include "SoundFL/source/sndvoicevirtualbus.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 extern int gDebugCount;
 extern bool netIsLocalTurn;
 
-extern "C" PblVector3* __stdcall D3DXVec3TransformNormal(PblVector3* pOut, const PblVector3* pV,
-                                                         const PblMatrix* pM);
-
 namespace CombatUtil { void SendDamageEvent(const Controllable* pOwner, const GameObject* pTarget, const Trigger* pTrigger); }
 namespace GameLoop { extern float sClientDeltaTime; }
-
-class AmmoCounter
-{
-public:
-    bool CanExpendRounds(float fRounds) const;
-    void ExpendRounds(float fRounds);
-};
 
 namespace
 {

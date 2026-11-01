@@ -8,8 +8,7 @@
 #include "PebbleFL/Common/PblRandom.h"
 
 #include <math.h>
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
+#include "PebbleFL/pc/PblD3DX.h"
 
 PblMatrix DirectionMatrix(const PblVector3& vDir, const PblVector3& vUp, const PblVector3& vPos);
 

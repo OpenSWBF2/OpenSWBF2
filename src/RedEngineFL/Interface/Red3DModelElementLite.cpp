@@ -3,11 +3,9 @@
 #include "PebbleFL/Common/PblHashTable.h"
 #include "RedEngineFL/Graphics/RedModel.h"
 #include "RedEngineFL/Graphics/RedPose.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 extern float gRedInterfaceTranslateZ;
-
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1,
-                                                   const PblMatrix* pM2);
 
 // FUNCTION: SWBF2 0x006d6c90
 Red3DModelElementLite::Red3DModelElementLite()

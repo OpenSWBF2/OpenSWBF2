@@ -13,8 +13,7 @@
 #include "PlayerController.h"
 #include "UnitController.h"
 #include "VisionManager.h"
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
+#include "PebbleFL/pc/PblD3DX.h"
 
 class EntityFlyer
 {

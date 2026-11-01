@@ -72,6 +72,7 @@
 #include "ProceduralAnimation.h"
 #include "ShellLoop.h"
 #include "RedEngineFL/Interface/RedShadowBlob.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 // GLOBAL: SWBF2 0x01eb1080
 // SYNTHETIC: SWBF2 0x004023e0
@@ -656,10 +657,6 @@ void EntityCloth::ClearData()
     m_pPos = 0;
 }
 
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1, const PblMatrix* pM2);
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV, const PblMatrix* pM);
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
-
 // FUNCTION: SWBF2 0x0040fe10
 void ClothData::PlatformBindInit(EntityClothClass* pClass)
 {
@@ -925,8 +922,6 @@ template EntityCloth** util::TypedArrayAllocator<EntityCloth*, util::NewAllocato
 
 // FUNCTION: SWBF2 0x0045cb10
 template const float& util::Max_<float>(const float&, const float&);
-
-extern "C" PblVector3* __stdcall D3DXVec3TransformNormal(PblVector3* pOut, const PblVector3* pV, const PblMatrix* pM);
 
 // GLOBAL: SWBF2 0x007eb77c
 static PblVector3 sGravity(0.0f, -9.8f, 0.0f);

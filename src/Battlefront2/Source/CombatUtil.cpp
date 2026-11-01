@@ -36,13 +36,6 @@
 
 #include "EventInfo.h"
 
-class AmmoCounter
-{
-public:
-    int GetMaxNumRounds() const;
-    int GetNumRounds() const;
-};
-
 namespace ReserveManager
 {
 

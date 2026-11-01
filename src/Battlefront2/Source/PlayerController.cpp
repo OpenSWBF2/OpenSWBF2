@@ -29,6 +29,7 @@
 
 #include <float.h>
 #include <math.h>
+#include "PebbleFL/pc/PblD3DX.h"
 
  
  
@@ -72,11 +73,6 @@ extern bool netHeroUnlocked[3];
 extern int netHeroNextPlayerID[3];
 extern int netHeroPlayerID[3];
 extern bool netIsLocalTurn;
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV,
-                                                        const PblMatrix* pM);
-extern "C" PblMatrix* __stdcall D3DXMatrixInverse(PblMatrix* pOut, float* pDeterminant, const PblMatrix* pM);
 
 static const PblMatrix& GetObjectMatrix(const GameObject* pObject)
 {

@@ -4,10 +4,7 @@
 #include "PebbleFL/Common/PblMath.h"
 
 #include "Particle.h"
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
-extern "C" PblVector3* __stdcall D3DXVec3TransformCoord(PblVector3* pOut, const PblVector3* pV, const PblMatrix* pM);
-extern "C" PblVector3* __stdcall D3DXVec3TransformNormal(PblVector3* pOut, const PblVector3* pV, const PblMatrix* pM);
+#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x0060d8d0
 void SetupRotationResult(PblVector3& vDir, const ParticleSpawner::RotationData& data,

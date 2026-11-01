@@ -23,8 +23,7 @@
 #include "RedEngineFL/Util/RedAnimation.h"
 #include "Zephyr/Source/ZephyrAnim.h"
 #include "Zephyr/Source/ZephyrPoseStatic.h"
-
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1, const PblMatrix* pM2);
+#include "PebbleFL/pc/PblD3DX.h"
 
 static PblMatrix _IdentityMatrix(
     PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },

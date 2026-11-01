@@ -35,6 +35,7 @@
 #include "RedEngineFL/Memory/RedMemory.h"
 #include "RedEngineFL/Util/RedLocalizeDB.h"
 #include "RedEngineFL/Application/pc/pcRenderHelpers.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 namespace Lua_Callbacks { bool IsTrainingMission(); }
 namespace Lua_Callbacks { bool IsMetaGameStateSaved(); }
@@ -44,8 +45,6 @@ namespace PblProfile { bool IsPaused(); }
 namespace PblProfile { void SetPaused(bool bValue); }
 
 namespace GameLoop { extern bool mbHistoricalRules; }
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
 
 const RedColor Interpolate(const RedColor& a, const RedColor& b, float t);
 

@@ -20,9 +20,7 @@
 #include "GameModel.h"
 #include "Team.h"
 #include "RedEngineFL/Graphics/RedModel.h"
-
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1,
-                                                   const PblMatrix* pM2);
+#include "PebbleFL/pc/PblD3DX.h"
 
 // TEMPLATE: SWBF2 0x004dc8e0
 // PblHandle<GameObject>::operator()

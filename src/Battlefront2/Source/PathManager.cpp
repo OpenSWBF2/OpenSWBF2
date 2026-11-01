@@ -8,14 +8,13 @@
 #include "EventInfo.h"
 #include "PathFinder.h"
 #include "UnitController.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x0050b400
 void PblRef::Kill()
 {
     mAliveFlag = 0;
 }
-
-extern "C" PblVector3* __stdcall D3DXVec3Normalize(PblVector3* pOut, const PblVector3* pV);
 
 // GLOBAL: SWBF2 0x01ef7df8
 // SYNTHETIC: SWBF2 0x00405e30

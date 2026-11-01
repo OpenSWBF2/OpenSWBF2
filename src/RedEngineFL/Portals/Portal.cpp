@@ -8,6 +8,7 @@
 
 #include <math.h>
 #include <stdlib.h>
+#include "PebbleFL/pc/PblD3DX.h"
 
 // GLOBAL: SWBF2 0x009a1a30
 namespace util { int gLastError; }
@@ -64,8 +65,6 @@ static RedCommandConsole g_Enable("vis.Enable", MultiVar(&gEnable));
 extern bool gSaveCam;
 extern bool gBackFaceCull;
 extern bool gProximityTest;
-
-extern "C" PblVector3* __stdcall D3DXVec3TransformNormal(PblVector3* pOut, const PblVector3* pV, const PblMatrix* pM);
 
 // FUNCTION: SWBF2 0x006de890
 geo::Frustum::Frustum(const Vector3<float>& rCenter, const Vector3<float>& rUp, const Vector3<float>& rFwd,

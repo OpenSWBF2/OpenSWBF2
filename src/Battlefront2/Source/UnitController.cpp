@@ -47,18 +47,6 @@ class EntityHover { public: static PblHash rttiHashEntityHover; };
 class EntityFlyer { public: static PblHash rttiHashEntityFlyer; };
 class WeaponInvisibility { public: static PblHash rttiHashWeaponInvisibility; };
 
-class AmmoCounter
-{
-public:
-    AmmoCounterClass* m_pClass;
-    float mDefaultMaxClips;
-    float mMaxClips;
-    float mNumClips;
-    float mCurClip;
-    unsigned int m_uiRefCount;
-};
- 
-
 namespace AI
 {
 

@@ -24,11 +24,9 @@
 
 #include "RedEngineFL/Graphics/RedSegment.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 void __cdecl PblTraceP(const char* Format, ...);
-
-extern "C" PblMatrix* __stdcall D3DXMatrixMultiply(PblMatrix* pOut, const PblMatrix* pM1,
-                                                   const PblMatrix* pM2);
 
 unsigned int pcNormalShader::s_uiID;
 pcRedShader::GetStateFuncT pcNormalShader::GetStateFuncArray[MAX_PIPELINES];

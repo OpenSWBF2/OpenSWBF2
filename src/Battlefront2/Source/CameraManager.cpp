@@ -28,6 +28,7 @@
 #include "SoundFL/source/sndspace.h"
 #include "SoundFL/source/win/sndlistener.h"
 #include "SoundFL/source/win/sndengine.h"
+#include "PebbleFL/pc/PblD3DX.h"
 
 namespace FLRenderer
 {
@@ -38,9 +39,6 @@ void SetSceneEnable(unsigned int uiView, bool bEnable);
 
 class PblMatrix;
 extern PblMatrix gMatrixIdentity;
-
-extern "C" PblQuaternion* __stdcall D3DXQuaternionNormalize(PblQuaternion* pOut, const PblQuaternion* pQ);
-extern "C" PblMatrix* __stdcall D3DXMatrixRotationQuaternion(PblMatrix* pOut, const PblQuaternion* pQ);
 
 extern bool netFrameLock;
 
