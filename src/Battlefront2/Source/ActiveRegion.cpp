@@ -4,6 +4,7 @@
 #include "Controllable.h"
 #include "GameObject.h"
 #include "LuaHelper.h"
+#include "LuaHandleArg.h"
 #include "EventManager_Region.h"
 #include "NetGame.h"
 #include "StringDB.h"
@@ -107,7 +108,8 @@ RedRegion* __fastcall Find(lua_State*, int iIndex)
 {
     if (lua_type(LuaHelper::mState, iIndex) == LUA_TLIGHTUSERDATA)
     {
-        return (RedRegion*)lua_topointer(LuaHelper::mState, iIndex);
+        RedRegion* pRegion = (RedRegion*)LuaHandleArg::Get(LuaHelper::mState, iIndex);
+        return PblRegion::Contains(pRegion) ? pRegion : 0;
     }
     if (!lua_isstring(LuaHelper::mState, iIndex))
     {

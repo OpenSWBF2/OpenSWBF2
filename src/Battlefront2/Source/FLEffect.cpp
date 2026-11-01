@@ -149,6 +149,8 @@ PblHashTable<FLEffectClass, 256> FLEffect::s_EffectClasses;
 // `dynamic atexit destructor for 'FLEffectObject::s_OffsetMatrixPool''
 MemoryPool FLEffectObject::s_OffsetMatrixPool("FLEffectObject::OffsetMatrix", 0x40);
 
+PblPtrSet<1024> FLEffectObject::sLuaHandles;
+
 // FUNCTION: SWBF2 0x00526b20
 void FLEffect::InitAll(bool bMission)
 {
@@ -250,6 +252,7 @@ void FLEffect::CleanupAll()
 
     s_EffectFactories.Clear();
     s_EffectFactoriesNumEntries = 0;
+    FLEffectObject::sLuaHandles.Clear();
 }
 
 // FUNCTION: SWBF2 0x00526db0
@@ -391,6 +394,7 @@ void FLEffectObject::Init()
 // FUNCTION: SWBF2 0x00527130
 FLEffectObject::~FLEffectObject()
 {
+    sLuaHandles.Remove(this);
     if (m_pmLocalOffsetMatrix)
     {
         s_OffsetMatrixPool.Free(m_pmLocalOffsetMatrix);

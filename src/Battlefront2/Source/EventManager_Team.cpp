@@ -1,4 +1,5 @@
 #include "EventManager_Team.h"
+#include "LuaHandleArg.h"
 #include "LuaHelper.h"
 #include "LuaFL/include/lauxlib.h"
 #include "EventManager_LuaUser.h"
@@ -301,8 +302,8 @@ int UnregisterLuaCallback(lua_State*)
     if (lua_islightuserdata(LuaHelper::mState, 1))
     {
         typename Event<ITEM, PARAM>::Callback* pCallback =
-            (typename Event<ITEM, PARAM>::Callback*)lua_topointer(LuaHelper::mState, 1);
-        if (pCallback)
+            (typename Event<ITEM, PARAM>::Callback*)LuaHandleArg::Get(LuaHelper::mState, 1);
+        if (pEvent->mRoot.Contains(pCallback) && !pCallback->mChild)
         {
             pEvent->Unregister(*pCallback);
         }

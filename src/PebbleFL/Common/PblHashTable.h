@@ -41,6 +41,22 @@ public:
     }
     bool Remove(unsigned int uiHash) { return _Remove(_table, 2 * SLOTS, uiHash); }
 
+    bool HasValue(const TYPE* pValue) const
+    {
+        if (!pValue)
+        {
+            return false;
+        }
+        for (int i = 0; i < SLOTS; ++i)
+        {
+            if (_table[i] && (const TYPE*)_table[SLOTS + i] == pValue)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     class Itor
     {
     public:

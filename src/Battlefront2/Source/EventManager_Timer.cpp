@@ -1,6 +1,7 @@
 #include "EventManager_Timer.h"
 #include "EventManager_LuaUser.h"
 #include "LuaHelper.h"
+#include "LuaHandleArg.h"
 #include "LuaFL/include/lauxlib.h"
 #include "NetGame.h"
 
@@ -31,7 +32,12 @@ TimerMatches LuaGetItem<TimerMatches>(int iIndex)
 {
     if (lua_islightuserdata(LuaHelper::mState, iIndex))
     {
-        return TimerMatches((const Timer*)lua_topointer(LuaHelper::mState, iIndex));
+        const Timer* pTimer = (const Timer*)LuaHandleArg::Get(LuaHelper::mState, iIndex);
+        if (!Timer::sMap.HasValue(pTimer))
+        {
+            pTimer = 0;
+        }
+        return TimerMatches(pTimer);
     }
     return TimerMatches(luaL_checkstring(LuaHelper::mState, iIndex));
 }
@@ -192,8 +198,8 @@ int UnregisterLuaCallback(lua_State*)
     if (lua_islightuserdata(LuaHelper::mState, 1))
     {
         typename Event<ITEM, PARAM>::Callback* pCallback =
-            (typename Event<ITEM, PARAM>::Callback*)lua_topointer(LuaHelper::mState, 1);
-        if (pCallback)
+            (typename Event<ITEM, PARAM>::Callback*)LuaHandleArg::Get(LuaHelper::mState, 1);
+        if (pEvent->mRoot.Contains(pCallback) && !pCallback->mChild)
         {
             pEvent->Unregister(*pCallback);
         }

@@ -57,6 +57,8 @@ int RedInterfaceElement::sAllObjectsListNumEntries;
 
 PblHashTable<RedInterfaceElement, 32768> RedInterfaceElement::sAllObjectsList;
 
+PblPtrSet<65536> RedInterfaceElement::sLuaHandles;
+
 // FUNCTION: SWBF2 0x006bfeb0
 RedInterfaceElement::RedInterfaceElement(const char* pcName)
 {
@@ -124,6 +126,7 @@ RedInterfaceElement::RedInterfaceElement()
 // FUNCTION: SWBF2 0x006c0070
 RedInterfaceElement::~RedInterfaceElement()
 {
+    sLuaHandles.Remove(this);
     if (m_bInAllObjectList)
     {
         m_bInAllObjectList = false;
@@ -298,6 +301,7 @@ void RedInterfaceElement::Reset()
     sAllObjectsList.Clear();
     sAllObjectsListNumEntries = 0;
     s_uiUnnamedCRC = 0;
+    sLuaHandles.Clear();
 }
 
 // FUNCTION: SWBF2 0x006c05f0

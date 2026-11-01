@@ -574,6 +574,22 @@ PblRegion* PblRegion::Find(unsigned int uId)
     return 0;
 }
 
+bool PblRegion::Contains(const PblRegion* pRegion)
+{
+    if (!pRegion)
+    {
+        return false;
+    }
+    for (PblListSingle::Itor it(sList); !it.IsDone(); ++it)
+    {
+        if ((const PblRegion*)((const char*)it.GetNode() - offsetof(PblRegion, mNode)) == pRegion)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 // FUNCTION: SWBF2 0x007292e0
 void PblRegion::Initialize(const Description& desc)
 {

@@ -7,6 +7,7 @@
 #include "PebbleFL/Common/PblHashTable.h"
 #include "PebbleFL/Common/PblList.h"
 #include "PebbleFL/Common/PblMatrix.h"
+#include "PebbleFL/Common/PblPtrSet.h"
 
 // VTABLE: SWBF2 0x00772970
 
@@ -179,6 +180,7 @@ public:
 
     static PblHashTable<RedInterfaceElement, 32768> sAllObjectsList;
     static int sAllObjectsListNumEntries;
+    static PblPtrSet<65536> sLuaHandles;
     static void Reset();
 
     static unsigned int s_uiUnnamedCRC;

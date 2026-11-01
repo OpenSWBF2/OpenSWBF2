@@ -147,6 +147,8 @@
     <ClCompile Include="..\src\Battlefront2\Source\LuaVideoArgs.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\LuaWideString.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\LuaMatrixArg.cpp" />
+    <ClCompile Include="..\src\Battlefront2\Source\LuaHandleArg.cpp" />
+    <ClCompile Include="..\src\Battlefront2\Source\LuaSaveItems.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Memory\RedMemoryPool.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="testutil.cpp" />

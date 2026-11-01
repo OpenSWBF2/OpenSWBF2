@@ -1,6 +1,7 @@
 #include "LuaCallbacks_IFace.h"
 #include "LuaHelper.h"
 #include "LuaWideString.h"
+#include "LuaHandleArg.h"
 
 #include <string.h>
 
@@ -14,6 +15,7 @@
 #include "RedEngineFL/Interface/RedMaskedBitmapElement.h"
 #include "RedEngineFL/movie/RedMovie.h"
 #include "RedEngineFL/Util/RedLocalizeDB.h"
+#include "RedEngineFL/Util/RedLog.h"
 #include "FLInputManager.h"
 #include "FLJoystick.h"
 #include "FlashyTextElement.h"
@@ -36,6 +38,7 @@
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "RedEngineFL/Graphics/PC/pcRedTexture.h"
 #include "RedEngineFL/Graphics/RedMaterial.h"
+#include "RedEngineFL/Graphics/RedModel.h"
 #include "RedEngineFL/Interface/Red3DModelElement.h"
 #include "RedEngineFL/Interface/Red3DModelAnimator.h"
 #include "RedEngineFL/Interface/RedBitmapElement.h"
@@ -768,6 +771,16 @@ RedInterfaceElement* pCurCreateObject;
 // GLOBAL: SWBF2 0x01e57718
 RedScreenGroupElement* pCurCreateScreenGroup;
 
+static RedInterfaceElement* Util_GetLuaElement(int iArg)
+{
+    RedInterfaceElement* pElement = (RedInterfaceElement*)LuaHandleArg::Get(LuaHelper::mState, iArg);
+    if (!RedInterfaceElement::sLuaHandles.Contains(pElement))
+    {
+        return 0;
+    }
+    return pElement;
+}
+
 extern unsigned short sTempReturnString16[256];
 
 // FUNCTION: SWBF2 0x005808b0
@@ -874,7 +887,7 @@ bool Util_GetRedInterfaceElement(int iNumArgs, RedInterfaceElement*& pElement,
         {
             return false;
         }
-        pElement = (RedInterfaceElement*)lua_topointer(LuaHelper::mState, 1);
+        pElement = Util_GetLuaElement(1);
         return pElement != 0;
     }
 
@@ -899,12 +912,12 @@ bool Util_GetRedScreenGroupElement(int iNumArgs, RedScreenGroupElement*& pElemen
         {
             return false;
         }
-        RedScreenGroupElement* pGroup = (RedScreenGroupElement*)lua_topointer(LuaHelper::mState, 1);
-        if (!pGroup->IsScreenGroup())
+        RedInterfaceElement* pGroupElement = Util_GetLuaElement(1);
+        if (!pGroupElement || !pGroupElement->IsScreenGroup())
         {
             return false;
         }
-        pElement = pGroup;
+        pElement = static_cast<RedScreenGroupElement*>(pGroupElement);
         return pElement != 0;
     }
 
@@ -1281,7 +1294,11 @@ int ScriptCB_IFObj_MouseOver(lua_State* L)
         return 0;
     }
 
-    RedInterfaceElement* pElement = (RedInterfaceElement*)lua_topointer(LuaHelper::mState, 1);
+    RedInterfaceElement* pElement = Util_GetLuaElement(1);
+    if (!pElement)
+    {
+        return 0;
+    }
     float fX = (float)luaL_checknumber(LuaHelper::mState, 2);
     float fY = (float)luaL_checknumber(LuaHelper::mState, 3);
     float fLocalX = 0.0f;
@@ -1302,7 +1319,7 @@ int ScriptCB_IFObj_TestHotSpot(lua_State* L)
     }
 
     bool bHit = false;
-    RedInterfaceElement* pElement = (RedInterfaceElement*)lua_topointer(LuaHelper::mState, 1);
+    RedInterfaceElement* pElement = Util_GetLuaElement(1);
     if (pElement)
     {
         GUIInputs* pInputs = FLInputManager::s_instance.GetPlayerGuiInputs(0);
@@ -1328,7 +1345,11 @@ int ScriptCB_IFObj_CreateHotSpot(lua_State* L)
         }
     }
 
-    RedInterfaceElement* pElement = (RedInterfaceElement*)lua_topointer(LuaHelper::mState, 1);
+    RedInterfaceElement* pElement = Util_GetLuaElement(1);
+    if (!pElement)
+    {
+        return 0;
+    }
     if (iTop == 1)
     {
         pElement->CreateHotSpot(0.0f);
@@ -1359,7 +1380,11 @@ int ScriptCB_IFObj_RemoveHotSpot(lua_State* L)
 {
     if (lua_gettop(LuaHelper::mState) == 1 && lua_type(LuaHelper::mState, 1) == LUA_TLIGHTUSERDATA)
     {
-        ((RedInterfaceElement*)lua_topointer(LuaHelper::mState, 1))->RemoveHotSpot();
+        RedInterfaceElement* pElement = Util_GetLuaElement(1);
+        if (pElement)
+        {
+            pElement->RemoveHotSpot();
+        }
     }
     return 0;
 }
@@ -2121,6 +2146,7 @@ int ScriptCB_IFObj_GetCPointer(lua_State* L)
     {
         return 0;
     }
+    (void)ensure(RedInterfaceElement::sLuaHandles.Insert(pCurCreateObject));
     lua_pushlightuserdata(LuaHelper::mState, pCurCreateObject);
     return 1;
 }
@@ -2948,7 +2974,12 @@ int ScriptCB_IFModel_SetModel(lua_State* L)
         Red3DModelElementLite* pModel = static_cast<Red3DModelElementLite*>(pElement);
         if (lua_type(LuaHelper::mState, iArg) == LUA_TLIGHTUSERDATA)
         {
-            pModel->SetModel(static_cast<const RedModel*>(lua_topointer(LuaHelper::mState, iArg)));
+            const RedModel* pRedModel = (const RedModel*)LuaHandleArg::Get(LuaHelper::mState, iArg);
+            if (!RedModel::_HashTable.HasValue(pRedModel))
+            {
+                pRedModel = 0;
+            }
+            pModel->SetModel(pRedModel);
         }
         else if (lua_isstring(LuaHelper::mState, iArg))
         {
@@ -3226,13 +3257,16 @@ int ScriptCB_IFModel_AttachModel(lua_State* L)
         && lua_type(LuaHelper::mState, iArg) == LUA_TLIGHTUSERDATA
         && lua_isstring(LuaHelper::mState, iArg + 1))
     {
-        Red3DModelElement* pAttached = static_cast<Red3DModelElement*>(
-            const_cast<void*>(lua_topointer(LuaHelper::mState, iArg)));
-        Red3DModelElement* pModel = static_cast<Red3DModelElement*>(pElement);
-        pModel->m_AttachedObj = pAttached;
-        pModel->m_uiHardpointHash = PblTEMPHash(
-            luaL_checkstring(LuaHelper::mState, iArg + 1));
-        pAttached->m_bAmAttached = true;
+        RedInterfaceElement* pAttachedElement = Util_GetLuaElement(iArg);
+        if (pAttachedElement && pAttachedElement->IsModel())
+        {
+            Red3DModelElement* pAttached = static_cast<Red3DModelElement*>(pAttachedElement);
+            Red3DModelElement* pModel = static_cast<Red3DModelElement*>(pElement);
+            pModel->m_AttachedObj = pAttached;
+            pModel->m_uiHardpointHash = PblTEMPHash(
+                luaL_checkstring(LuaHelper::mState, iArg + 1));
+            pAttached->m_bAmAttached = true;
+        }
     }
     return 0;
 }

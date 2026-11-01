@@ -30,6 +30,18 @@ $gp = 'src\RedEngineFL\Graphics\PC\pcGammaPass.cpp'
 $lva = 'src\Battlefront2\Source\LuaVideoArgs.cpp'
 $lws = 'src\Battlefront2\Source\LuaWideString.cpp'
 $lma = 'src\Battlefront2\Source\LuaMatrixArg.cpp'
+$lha = 'src\Battlefront2\Source\LuaHandleArg.cpp'
+$lsi = 'src\Battlefront2\Source\LuaSaveItems.cpp'
+$pps = 'src\PebbleFL\Common\PblPtrSet.h'
+$preg = 'src\PebbleFL\Common\PblRegion.cpp'
+$fac = 'src\Battlefront2\Source\Factory.h'
+$evm = 'src\Battlefront2\Source\EventManager.h'
+$lci = 'src\Battlefront2\Source\LuaCallbacks_IFace.cpp'
+$ar = 'src\Battlefront2\Source\ActiveRegion.cpp'
+$emt = 'src\Battlefront2\Source\EventManager_Timer.cpp'
+$flx = 'src\Battlefront2\Source\FLEffect.cpp'
+$rie = 'src\RedEngineFL\Interface\RedInterfaceElement.cpp'
+$enth = 'src\Battlefront2\Source\Entity.h'
 $lform = 'data\scripts\common\ifelem_form.lua'
 $lvid = 'data\scripts\common\ifs_opt_pcvideo.lua'
 $ov = 'src\Battlefront2\Source\OdfValue.cpp'
@@ -385,6 +397,54 @@ $GuardRevertRows = @(
     @{ Id = 'LMAT-03'; File = $lma; Anchor = 'if (lua_type(L, iIndex) != LUA_TUSERDATA)'; Replacement = 'if (lua_type(L, iIndex) == LUA_TNONE)'; Tests = @('lua matrix argument accepts only pushed matrices') }
     @{ Id = 'LMAT-04'; File = 'src\Battlefront2\Source\LuaCallbacks.cpp'; Anchor = 'const PblMatrix* pWorld = LuaMatrixArg::Get(LuaHelper::mState, 1);'; Replacement = 'const PblMatrix* pWorld = (const PblMatrix*)lua_touserdata(LuaHelper::mState, 1);'; Tests = @('lua matrix sites route through the accessor') }
     @{ Id = 'LMAT-05'; File = $lcm; Anchor = 'const PblMatrix* pDescMatrix = LuaMatrixArg::Get(LuaHelper::mState, 2);'; Replacement = 'const PblMatrix* pDescMatrix = lua_isuserdata(LuaHelper::mState, 2) ? (const PblMatrix*)lua_touserdata(LuaHelper::mState, 2) : 0;'; Tests = @('lua matrix sites route through the accessor') }
+    @{ Id = 'LHND-01'; File = $lha; Anchor = 'if (lua_type(L, iIndex) != LUA_TLIGHTUSERDATA)'; Replacement = 'if (lua_type(L, iIndex) == LUA_TNONE)'; Tests = @('lua handle argument accepts only light userdata') }
+    @{ Id = 'LHND-02'; File = $pps; Anchor = 'return pPtr && mSlots[Locate(pPtr)] == pPtr;'; Replacement = 'return pPtr != 0;'; Tests = @('pbl ptr set tracks membership by address') }
+    @{ Id = 'LHND-03'; File = $pps; Anchor = 'if (((uNext - uHome) & (SLOTS - 1)) >= ((uNext - uHole) & (SLOTS - 1)))'; Replacement = 'if (false)'; Tests = @('pbl ptr set tracks membership by address') }
+    @{ Id = 'LHND-04'; File = $pps; Anchor = 'if (mCount >= SLOTS - 1)'; Replacement = 'if (false)'; Tests = @('pbl ptr set tracks membership by address') }
+    @{ Id = 'LHND-05'; File = $phash; Anchor = 'if (_table[i] && (const TYPE*)_table[SLOTS + i] == pValue)'; Replacement = 'if ((const TYPE*)_table[SLOTS + i] == pValue)'; Tests = @('pbl hash table finds values by address') }
+    @{ Id = 'LHND-06'; File = $preg; Anchor = 'if ((const PblRegion*)((const char*)it.GetNode() - offsetof(PblRegion, mNode)) == pRegion)'; Replacement = 'if (true)'; Tests = @('pbl region list membership by address') }
+    @{ Id = 'LHND-07'; File = $fac; Anchor = 'if (static_cast<CLASS*>((Factory<TYPE, CLASS, DESC>*)it) == pClass)'; Replacement = 'if (true)'; Tests = @('factory list membership by address') }
+    @{ Id = 'LHND-08'; File = $evm; Anchor = 'if (pChild == pNode || pChild->Contains(pNode))'; Replacement = 'if (true)'; Tests = @('event node tree membership') }
+    @{ Id = 'LHND-09'; File = $lcm; Anchor = 'if (!EntityEx::sLive.Contains(pEntity))'; Replacement = 'if (false)'; Tests = @('lua handle sites route through validation') }
+    @{ Id = 'LHND-10'; File = $lcm; Anchor = 'return Timer::sMap.HasValue(pTimer) ? pTimer : 0;'; Replacement = 'return pTimer;'; Tests = @('lua handle sites route through validation') }
+    @{ Id = 'LHND-11'; File = $lcm; Anchor = 'return PblRegion::Contains(pRegion) ? (void*)pRegion : 0;'; Replacement = 'return (void*)pRegion;'; Tests = @('lua handle sites route through validation') }
+    @{ Id = 'LHND-12'; File = $lcm; Anchor = 'if (!FLEffectObject::sLuaHandles.Contains(pEffect))'; Replacement = 'if (false)'; Tests = @('lua handle sites route through validation') }
+    @{ Id = 'LHND-13'; File = $lcm; Anchor = 'if (pManager->mGoals[i] == pGoal)'; Replacement = 'if (true)'; Tests = @('lua handle sites route through validation') }
+    @{ Id = 'LHND-14'; File = $lcm; Anchor = 'target.mGameObj = iArgs >= 5 && lua_type(LuaHelper::mState, 5) == LUA_TLIGHTUSERDATA ? _GetEntity<GameObject>(L, 5) : 0;'; Replacement = 'target.mGameObj = iArgs >= 5 ? (const GameObject*)lua_topointer(LuaHelper::mState, 5) : 0;'; Tests = @('lua handle sites route through validation') }
+    @{ Id = 'LHND-15'; File = $lcm; Anchor = 'if (!T::Contains(pClass))'; Replacement = 'if (false)'; Tests = @('lua handle sites route through validation') }
+    @{ Id = 'LHND-16'; File = $lcm; Anchor = '(void)ensure(FLEffectObject::sLuaHandles.Insert(pEffect));'; Replacement = ''; Tests = @('lua handle sites route through validation') }
+    @{ Id = 'LHND-17'; File = $lci; Anchor = 'if (!RedInterfaceElement::sLuaHandles.Contains(pElement))'; Replacement = 'if (false)'; Tests = @('lua handle sites route through validation') }
+    @{ Id = 'LHND-18'; File = $lci; Anchor = 'if (pAttachedElement && pAttachedElement->IsModel())'; Replacement = 'if (pAttachedElement)'; Tests = @('lua handle sites route through validation') }
+    @{ Id = 'LHND-19'; File = $lci; Anchor = 'if (!RedModel::_HashTable.HasValue(pRedModel))'; Replacement = 'if (false)'; Tests = @('lua handle sites route through validation') }
+    @{ Id = 'LHND-20'; File = $lci; Anchor = '(void)ensure(RedInterfaceElement::sLuaHandles.Insert(pCurCreateObject));'; Replacement = ''; Tests = @('lua handle sites route through validation') }
+    @{ Id = 'LHND-21'; File = $ar; Anchor = 'return PblRegion::Contains(pRegion) ? pRegion : 0;'; Replacement = 'return pRegion;'; Tests = @('lua handle sites route through validation') }
+    @{ Id = 'LHND-22'; File = $emt; Anchor = 'if (!Timer::sMap.HasValue(pTimer))'; Replacement = 'if (false)'; Tests = @('lua handle sites route through validation') }
+    @{ Id = 'LHND-23'; File = 'src\Battlefront2\Source\EventManager_Character.cpp'; Anchor = 'if (pEvent->mRoot.Contains(pCallback) && !pCallback->mChild)'; Replacement = 'if (pCallback)'; Tests = @('lua handle sites route through validation') }
+    @{ Id = 'LHND-24'; File = 'src\Battlefront2\Source\EventManager_CommandPost.cpp'; Anchor = 'if (pEvent->mRoot.Contains(pCallback) && !pCallback->mChild)'; Replacement = 'if (pCallback)'; Tests = @('lua handle sites route through validation') }
+    @{ Id = 'LHND-25'; File = 'src\Battlefront2\Source\EventManager_Flag.cpp'; Anchor = 'if (pEvent->mRoot.Contains(pCallback) && !pCallback->mChild)'; Replacement = 'if (pCallback)'; Tests = @('lua handle sites route through validation') }
+    @{ Id = 'LHND-26'; File = 'src\Battlefront2\Source\EventManager_LuaUser.cpp'; Anchor = 'if (pEvent->mRoot.Contains(pCallback) && !pCallback->mChild)'; Replacement = 'if (pCallback)'; Tests = @('lua handle sites route through validation') }
+    @{ Id = 'LHND-27'; File = 'src\Battlefront2\Source\EventManager_Object.cpp'; Anchor = 'if (pEvent->mRoot.Contains(pCallback) && !pCallback->mChild)'; Replacement = 'if (pCallback)'; Tests = @('lua handle sites route through validation') }
+    @{ Id = 'LHND-28'; File = 'src\Battlefront2\Source\EventManager_Region.cpp'; Anchor = 'if (pEvent->mRoot.Contains(pCallback) && !pCallback->mChild)'; Replacement = 'if (pCallback)'; Tests = @('lua handle sites route through validation') }
+    @{ Id = 'LHND-29'; File = 'src\Battlefront2\Source\EventManager_Team.cpp'; Anchor = 'if (pEvent->mRoot.Contains(pCallback) && !pCallback->mChild)'; Replacement = 'if (pCallback)'; Tests = @('lua handle sites route through validation') }
+    @{ Id = 'LHND-30'; File = 'src\Battlefront2\Source\EventManager_Timer.cpp'; Anchor = 'if (pEvent->mRoot.Contains(pCallback) && !pCallback->mChild)'; Replacement = 'if (pCallback)'; Tests = @('lua handle sites route through validation') }
+    @{ Id = 'LHND-31'; File = $ent; Anchor = '(void)ensure(sLive.Insert(this));'; Replacement = ''; Tests = @('lua handle sites route through validation') }
+    @{ Id = 'LHND-32'; File = $ent; Anchor = 'sLive.Remove(this);'; Replacement = ''; Tests = @('lua handle sites route through validation') }
+    @{ Id = 'LHND-33'; File = $enth; Anchor = 'EntityEx(const EntityEx&) = delete;'; Replacement = ''; Tests = @('lua handle sites route through validation') }
+    @{ Id = 'LHND-34'; File = $gs; Anchor = 'EntityEx::sLive.Clear();'; Replacement = ''; Tests = @('lua handle sites route through validation') }
+    @{ Id = 'LHND-35'; File = $flx; Anchor = 'sLuaHandles.Remove(this);'; Replacement = ''; Tests = @('lua handle sites route through validation') }
+    @{ Id = 'LHND-36'; File = $flx; Anchor = 'FLEffectObject::sLuaHandles.Clear();'; Replacement = ''; Tests = @('lua handle sites route through validation') }
+    @{ Id = 'LHND-37'; File = $rie; Anchor = 'sLuaHandles.Remove(this);'; Replacement = ''; Tests = @('lua handle sites route through validation') }
+    @{ Id = 'LHND-38'; File = $rie; Anchor = 'sLuaHandles.Clear();'; Replacement = ''; Tests = @('lua handle sites route through validation') }
+    @{ Id = 'LHND-39'; File = $lsi; Anchor = 'pRead += sizeof(void*);'; Replacement = 'lua_pushlightuserdata(L, *(void**)pRead); pRead += sizeof(void*); break;'; Tests = @('lua save items round trip and drop light userdata', 'lua handle sites route through validation') }
+    @{ Id = 'LHND-40'; File = $lsi; Anchor = 'if (lua_isnil(L, -2))'; Replacement = 'if (false)'; Tests = @('lua save items round trip and drop light userdata', 'lua save items read rejects malformed buffers', 'lua handle sites route through validation') }
+    @{ Id = 'LSAV-01'; File = $lsi; Anchor = 'if ((size_t)(pEnd - pWrite) < uSize)'; Replacement = 'if (false)'; Tests = @('lua save items write stays inside its buffer', 'lua save items round trip and drop light userdata') }
+    @{ Id = 'LSAV-02'; File = $lsi; Anchor = 'return static_cast<const unsigned char*>(memchr(pRead, 0, pEnd - pRead));'; Replacement = 'return pRead + strlen(reinterpret_cast<const char*>(pRead));'; Tests = @('lua save items read rejects malformed buffers') }
+    @{ Id = 'LSAV-03'; File = $lsi; Anchor = 'if (pData >= pEnd || !lua_checkstack(L, 3))'; Replacement = 'if (false)'; Tests = @('lua save items round trip and drop light userdata', 'lua save items read rejects malformed buffers') }
+    @{ Id = 'LSAV-04'; File = $lsi; Anchor = 'if (iNumArgs <= 0 || iNumArgs > 0xff || !uCapacity)'; Replacement = 'if (iNumArgs <= 0)'; Tests = @('lua save items write stays inside its buffer') }
+    @{ Id = 'LSAV-05'; File = $lsi; Anchor = 'lua_settop(L, iTop);'; Replacement = ''; Tests = @('lua save items round trip and drop light userdata', 'lua save items read rejects malformed buffers') }
+    @{ Id = 'LSAV-06'; File = $lsi; Anchor = 'else if (lua_type(L, -2) == LUA_TNUMBER && lua_tonumber(L, -2) != lua_tonumber(L, -2))'; Replacement = 'else if (false)'; Tests = @('lua save items read rejects malformed buffers') }
+    @{ Id = 'LSAV-07'; File = $lsi; Anchor = "lua_settop(L, -3);`n                bOk = false;"; Replacement = 'bOk = false;'; Tests = @('lua save items write stays inside its buffer') }
+    @{ Id = 'LSAV-08'; File = $lsi; Anchor = 'if (pOut >= pEnd || !lua_checkstack(L, 3))'; Replacement = 'if (pOut >= pEnd)'; Tests = @('lua save items write stays inside its buffer') }
     @{ Id = 'PBLIDX-01'; File = $pidx; Anchor = 'return (unsigned int)iIndex < N;'; Replacement = 'return true;'; Tests = @('pbl in bounds accepts only indices inside the array') }
     @{ Id = 'PBLHASH-01'; File = $phash; Anchor = 'operator TYPE*() const { return _pos < SLOTS ? (TYPE*)_table->_table[SLOTS + _pos] : 0; }'; Replacement = 'operator TYPE*() const { return (TYPE*)_table->_table[SLOTS + _pos]; }'; Tests = @('hash table end converts to null') }
     @{ Id = 'NETLOCAL-01'; File = $nc; Anchor = 'return PblInBounds(netLocalIndex, iLocal) ? netLocalIndex[iLocal] : -1;'; Replacement = 'return netLocalIndex[iLocal];'; Tests = @('local index out of range is minus one') }

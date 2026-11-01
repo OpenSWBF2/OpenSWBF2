@@ -1,6 +1,8 @@
 #include "LuaCallbacks_Mission.h"
 #include "LuaHelper.h"
 #include "LuaMatrixArg.h"
+#include "LuaHandleArg.h"
+#include "RedEngineFL/Util/RedLog.h"
 #include "EnergyBar.h"
 
 #include <stdlib.h>
@@ -126,7 +128,8 @@ void* GetRegion(lua_State* L, int iIndex)
 {
     if (lua_type(L, iIndex) == LUA_TLIGHTUSERDATA)
     {
-        return (void*)lua_topointer(L, iIndex);
+        const PblRegion* pRegion = (const PblRegion*)LuaHandleArg::Get(L, iIndex);
+        return PblRegion::Contains(pRegion) ? (void*)pRegion : 0;
     }
     return PblRegion::Find(PblHash(luaL_checklstring(L, iIndex, 0)));
 }
@@ -474,7 +477,8 @@ static Timer* GetTimer(lua_State* L, int iIndex)
 {
     if (lua_type(LuaHelper::mState, iIndex) == LUA_TLIGHTUSERDATA)
     {
-        return (Timer*)lua_topointer(LuaHelper::mState, iIndex);
+        Timer* pTimer = (Timer*)LuaHandleArg::Get(LuaHelper::mState, iIndex);
+        return Timer::sMap.HasValue(pTimer) ? pTimer : 0;
     }
     if (lua_isstring(LuaHelper::mState, iIndex))
     {
@@ -509,7 +513,11 @@ static T* _GetEntity(lua_State* L, int iIndex)
     Entity* pEntity;
     if (lua_type(LuaHelper::mState, iIndex) == LUA_TLIGHTUSERDATA)
     {
-        pEntity = (Entity*)lua_topointer(LuaHelper::mState, iIndex);
+        pEntity = (Entity*)LuaHandleArg::Get(LuaHelper::mState, iIndex);
+        if (!EntityEx::sLive.Contains(pEntity))
+        {
+            pEntity = 0;
+        }
     }
     else
     {
@@ -531,7 +539,11 @@ static T* _GetEntityClass(lua_State* L, int iIndex)
     T* pClass;
     if (lua_type(LuaHelper::mState, iIndex) == LUA_TLIGHTUSERDATA)
     {
-        pClass = (T*)lua_topointer(LuaHelper::mState, iIndex);
+        pClass = (T*)LuaHandleArg::Get(LuaHelper::mState, iIndex);
+        if (!T::Contains(pClass))
+        {
+            pClass = 0;
+        }
     }
     else
     {
@@ -1879,11 +1891,19 @@ int DeleteAIGoal(lua_State* L)
 {
     if (lua_type(LuaHelper::mState, 1) == LUA_TLIGHTUSERDATA)
     {
-        AI::AIGoal* pGoal = (AI::AIGoal*)lua_topointer(LuaHelper::mState, 1);
-        if (pGoal)
+        AI::AIGoal* pGoal = (AI::AIGoal*)LuaHandleArg::Get(LuaHelper::mState, 1);
+        AI::AIGoalManager* pManager = AI::AIGoalManager::Instance();
+        if (pGoal && pManager)
         {
-            pGoal->UnAssignAll();
-            AI::AIGoalManager::Instance()->DeleteGoal(pGoal);
+            for (int i = 0; i < AI::AIGoalManager::MAX_GOALS; ++i)
+            {
+                if (pManager->mGoals[i] == pGoal)
+                {
+                    pGoal->UnAssignAll();
+                    pManager->DeleteGoal(pGoal);
+                    break;
+                }
+            }
         }
     }
     return 0;
@@ -1949,7 +1969,7 @@ int AddAIGoal(lua_State* L)
             eType = AI::AIGOAL_CTFOFFENSE;
             target.mType = AI::GTT_FLAG;
             target.mPos = pRegion->mMatrix.GetTranslation();
-            target.mGameObj = iArgs >= 5 ? (const GameObject*)lua_topointer(LuaHelper::mState, 5) : 0;
+            target.mGameObj = iArgs >= 5 && lua_type(LuaHelper::mState, 5) == LUA_TLIGHTUSERDATA ? _GetEntity<GameObject>(L, 5) : 0;
         }
         break;
     }
@@ -2377,10 +2397,20 @@ int EntityFlyerInitAsLanded(lua_State* L)
     return 0;
 }
 
+static FLEffectObject* GetEffect(lua_State* L, int iIndex)
+{
+    FLEffectObject* pEffect = (FLEffectObject*)LuaHandleArg::Get(L, iIndex);
+    if (!FLEffectObject::sLuaHandles.Contains(pEffect))
+    {
+        return 0;
+    }
+    return pEffect;
+}
+
 // FUNCTION: SWBF2 0x00590f90
 int IsEffectActive(lua_State* L)
 {
-    FLEffectObject* pEffect = (FLEffectObject*)lua_topointer(L, 1);
+    FLEffectObject* pEffect = GetEffect(L, 1);
     if (!pEffect)
     {
         return 0;
@@ -2392,7 +2422,7 @@ int IsEffectActive(lua_State* L)
 // FUNCTION: SWBF2 0x00590fd0
 int SetEffectActive(lua_State* L)
 {
-    FLEffectObject* pEffect = (FLEffectObject*)lua_topointer(L, 1);
+    FLEffectObject* pEffect = GetEffect(L, 1);
     if (pEffect)
     {
         if (lua_toboolean(L, 2))
@@ -2782,7 +2812,7 @@ int EnableBuildingLockOn(lua_State* L)
 // FUNCTION: SWBF2 0x00590da0
 int RemoveEffect(lua_State* L)
 {
-    FLEffectObject* pEffect = (FLEffectObject*)lua_topointer(L, 1);
+    FLEffectObject* pEffect = GetEffect(L, 1);
     if (pEffect)
     {
         pEffect->StopAndFinish();
@@ -3193,6 +3223,7 @@ int CreateEffect(lua_State* L)
     {
         return 0;
     }
+    (void)ensure(FLEffectObject::sLuaHandles.Insert(pEffect));
     lua_pushlightuserdata(L, pEffect);
     return 1;
 }
@@ -3200,7 +3231,7 @@ int CreateEffect(lua_State* L)
 // FUNCTION: SWBF2 0x00590e50
 int AttachEffectToMatrix(lua_State* L)
 {
-    FLEffectObject* pEffect = (FLEffectObject*)lua_topointer(L, 1);
+    FLEffectObject* pEffect = GetEffect(L, 1);
     if (!pEffect)
     {
         return 0;
@@ -3224,7 +3255,7 @@ int AttachEffectToMatrix(lua_State* L)
 // FUNCTION: SWBF2 0x00590f20
 int SetEffectMatrix(lua_State* L)
 {
-    FLEffectObject* pEffect = (FLEffectObject*)lua_topointer(L, 1);
+    FLEffectObject* pEffect = GetEffect(L, 1);
     if (pEffect)
     {
         const PblMatrix* pSource = LuaMatrixArg::Get(L, 2);
@@ -3857,7 +3888,7 @@ int DisableSmallMapMiniMap(lua_State*)
 // FUNCTION: SWBF2 0x00590ef0
 int GetEffectMatrix(lua_State* L)
 {
-    FLEffectObject* pEffect = (FLEffectObject*)lua_topointer(LuaHelper::mState, 1);
+    FLEffectObject* pEffect = GetEffect(LuaHelper::mState, 1);
     if (!pEffect)
     {
         return 0;
@@ -3988,7 +4019,7 @@ int CanCharacterInteractWithFlag(lua_State* L)
 // FUNCTION: SWBF2 0x00590dc0
 int AttachEffectToObject(lua_State* L)
 {
-    FLEffectObject* pEffect = (FLEffectObject*)lua_topointer(LuaHelper::mState, 1);
+    FLEffectObject* pEffect = GetEffect(LuaHelper::mState, 1);
     if (pEffect)
     {
         EntityGeometry* pEntity = _GetEntity<EntityGeometry>(LuaHelper::mState, 2);
