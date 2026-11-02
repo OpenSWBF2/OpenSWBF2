@@ -11,23 +11,21 @@ namespace Snd
 // FUNCTION: SWBF2 0x0073f760
 StreamMixer::StreamMixer()
 {
-    char* const pThis = (char*)this;
+    mGain = 0;
+    mOutputGain = 0x7FFF;
+    mInputPackets = 0;
+    mMixBufferOffsets = 0;
+    mMixBuffer = 0;
+    mMixBufferSize = 0;
+    mMixBufferDataSize = 0;
+    mSynchronizedMixing = 0;
+    mFlags = 0;
+    mInputChannels = 1;
+    mOutputChannels = 1;
+    mInterpolationRate = 0x0A;
 
-    *(unsigned int*)(pThis + 0x018) = 0;
-    *(unsigned short*)(pThis + 0x01C) = 0x40;
-    pThis[0x020] = 0;
-
-    *(unsigned int*)(pThis + 0x06C) = 0;
-    *(unsigned int*)(pThis + 0x070) = 0x7FFF;
-    *(unsigned int*)(pThis + 0x074) = 0;
-    *(unsigned int*)(pThis + 0x078) = 0;
-    *(unsigned int*)(pThis + 0x07C) = 0;
-    *(unsigned int*)(pThis + 0x080) = 0;
-    *(unsigned int*)(pThis + 0x084) = 0;
-    *(unsigned int*)(pThis + 0x088) = 0x01010000u;
-    pThis[0x08C] = 0x0A;
-
-    memset(pThis + 0x02C, 0, 0x40);
+    memset(mActive, 0, sizeof(mActive));
+    memset(mMixedPacket, 0, sizeof(mMixedPacket));
 }
 
 // FUNCTION: SWBF2 0x0073f830
@@ -39,37 +37,33 @@ StreamMixer::~StreamMixer()
 // FUNCTION: SWBF2 0x0073fb40
 void StreamMixer::SetConstantOutputPacketSize(bool bConstant)
 {
-    char* const pThis = (char*)this;
-
     if (bConstant)
     {
-        pThis[0x89] = (char)(pThis[0x89] | 0x04);
+        mFlags = (unsigned char)(mFlags | flags_CPS);
     }
     else
     {
-        pThis[0x89] = (char)(pThis[0x89] & 0xFB);
+        mFlags = (unsigned char)(mFlags & ~flags_CPS);
     }
 }
 
 // FUNCTION: SWBF2 0x0073fc90
 void StreamMixer::SetLastPacketInfo(unsigned char uc)
 {
-    char* const pThis = (char*)this;
-
     if (uc)
     {
-        pThis[0x89] = (char)(pThis[0x89] | 0x20);
+        mFlags = (unsigned char)(mFlags | flags_LastPck);
     }
     else
     {
-        pThis[0x89] = (char)(pThis[0x89] & 0xDF);
+        mFlags = (unsigned char)(mFlags & ~flags_LastPck);
     }
 }
 
 // FUNCTION: SWBF2 0x0073fcb0
 void StreamMixer::SetMixBuffer(int* const pBuffer)
 {
-    const unsigned int uiSize = (mProducer[2] >> 1) << 2;
+    const unsigned int uiSize = (mPacketSize >> 1) << 2;
 
     memset(pBuffer, 0, uiSize);
 
@@ -102,9 +96,7 @@ void StreamMixer::SetPacketArray(StreamPacketIO* const pIO,
 // FUNCTION: SWBF2 0x0073fde0
 void StreamMixer::SetSynchronizedMixing(bool b)
 {
-    char* const pThis = (char*)this;
-
-    pThis[0x88] = (char)(b ? 1 : 0);
+    mSynchronizedMixing = (unsigned char)(b ? 1 : 0);
 }
 
 // FUNCTION: SWBF2 0x0073fb20
@@ -306,7 +298,7 @@ void StreamMixer::Update()
         return;
     }
 
-    MixerNode* const pNode = (MixerNode*)mNode;
+    MixerNode* const pNode = static_cast<MixerNode*>(&mNode);
     if (pNode->UpdateNode(true))
     {
         Flush();

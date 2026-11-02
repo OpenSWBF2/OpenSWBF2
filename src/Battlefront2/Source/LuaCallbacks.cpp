@@ -1030,9 +1030,8 @@ int ScriptCB_ReadLeftstick(lua_State*)
     }
 
     RawControllerInputs* pJoystick = FLInputManager::Instance()->GetPlayerJoystick(iJoystick);
-    const float* pfRaw = (const float*)&pJoystick->mRawInputStorage[0x10 - 4] + iJoystick * 76;
-    lua_pushnumber(LuaHelper::mState, pfRaw[49]);
-    lua_pushnumber(LuaHelper::mState, pfRaw[51]);
+    lua_pushnumber(LuaHelper::mState, pJoystick->mRawInputFloat[iJoystick][48]);
+    lua_pushnumber(LuaHelper::mState, pJoystick->mRawInputFloat[iJoystick][50]);
     return 2;
 }
 

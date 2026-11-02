@@ -94,6 +94,8 @@
 #include "EventManager_Object.h"
 #include "StatusDisplay.h"
 #include "PebbleFL/pc/PblD3DX.h"
+#include "VOHelper.h"
+#include "TeamManager.h"
 
 // SYNTHETIC: SWBF2 0x004f5c90
 // EntitySoldierClass::`scalar deleting destructor'
@@ -3204,7 +3206,7 @@ bool EntitySoldier::UpdateBoardVsChangeClass()
         for (CommandPostItor itor = CommandPostManager::Instance()->GetItor(); itor; ++itor)
         {
             CommandPost* pPost = *itor;
-            if (!(pPost->mHoldPlayerMask & (1 << mCharacter->mPlayerId)))
+            if (!CommandPost::HoldMaskHasPlayerRetail(pPost->mHoldPlayerMask, mCharacter->mPlayerId))
             {
                 continue;
             }
@@ -3296,7 +3298,7 @@ bool EntitySoldier::UpdateBoardVsChangeClass()
         for (CommandPostItor itor = CommandPostManager::Instance()->GetItor(); itor; ++itor)
         {
             CommandPost* pPost = *itor;
-            if (!(pPost->mHoldPlayerMask & (1 << mCharacter->mPlayerId)))
+            if (!CommandPost::HoldMaskHasPlayerRetail(pPost->mHoldPlayerMask, mCharacter->mPlayerId))
             {
                 continue;
             }
@@ -6028,24 +6030,6 @@ extern int gSpawnInvicibility;
 namespace ReserveManager
 {
 int GetOpenReservableSlots(const GameObject* pObj, int iTeam, ReserveType eType);
-}
-
-namespace AI
-{
-enum VOType
-{
-    VOT_HeadshotKill = 9,
-    VOT_SC_Follow = 22,
-    VOT_SC_StopFollow = 24,
-    VOT_SC_VehicleWaitUp = 26,
-    VOT_SC_VehicleWaitUpResponse = 27
-};
-
-namespace VOHelper
-{
-int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,
-         const GameObject* pOther, float fDelay);
-}
 }
 
 // FUNCTION: SWBF2 0x004e8920
@@ -9275,19 +9259,6 @@ void EntitySoldier::SetInvisibilityFactor(float fFactor)
     unsigned char uiOldAlpha = m_uiInvisibilityAlpha;
     m_uiInvisibilityAlpha = (unsigned char)(fFactor * 255.0f);
     UpdateInvisibility(uiOldAlpha);
-}
-
-namespace AI
-{
-
-enum AIAffil
-{
-    AFFIL_ENEMY = 1,
-    AFFIL_NEUTRAL = 2,
-    AFFIL_ALLY = 4,
-    AFFIL_ALLYNEUTRAL = 6,
-    AFFIL_ALL = 7
-};
 }
 
 namespace ControllerManager

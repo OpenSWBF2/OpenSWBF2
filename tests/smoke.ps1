@@ -4,6 +4,8 @@ $script:SmokeMarker = 'OPENSWBF2 RUN COMPLETE'
 $script:WerKeyPath = 'SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\BattlefrontII.exe'
 $script:WerBasePath = 'SOFTWARE\Microsoft\Windows\Windows Error Reporting'
 $script:SmokeAsanTimeoutScale = 15
+$script:SourceExtensions = @('.h', '.hpp', '.inl', '.c', '.cpp')
+$script:T1Suites = @('unit', 'characterisation', 'regression', 'known_bug', 'corpus', 'fuzz', 'stress')
 $script:SmokeAsanExcluded = @('crash-nullderef', 'crash-divzero', 'crash-stackoverflow', 'crash-debugbreak', 'crash-abort', 'crash-invalidparam', 'crash-fastfail', 'crash-check', 'crash-hang', 'crash-arenaoom', 'crash-debugheapoom', 'crash-luapanic', 'crash-resetfatal', 'fatal-init')
 $script:SmokeAsanLabel = 'ASan coverage: stack, globals, CRT malloc and T1 heap only'
 
@@ -783,6 +785,7 @@ function Get-ClTlogCounts($objDir) {
     $sdl = 0
     $alignedNewOff = 0
     $inlineOff = 0
+    $inlineOn = 0
     $throwingNew = 0
     $gl = 0
     $fpFast = 0
@@ -795,6 +798,7 @@ function Get-ClTlogCounts($objDir) {
                 if ($l -match ' /sdl( |$)') { $sdl++ }
                 if ($l -cmatch ' /Zc:alignedNew-( |$)') { $alignedNewOff++ }
                 if ($l -cmatch ' /Zc:inline-( |$)') { $inlineOff++ }
+                if ($l -cmatch ' /Zc:inline( |$)') { $inlineOn++ }
                 if ($l -cmatch ' /Zc:throwingNew( |$)') { $throwingNew++ }
                 if ($l -cmatch ' /GL( |$)') { $gl++ }
                 if ($l -cmatch ' /fp:fast( |$)') { $fpFast++ }
@@ -804,7 +808,7 @@ function Get-ClTlogCounts($objDir) {
     }
     return New-Object PSObject -Property @{
         Total = $total; GsMinus = $gsMinus; Sdl = $sdl
-        AlignedNewOff = $alignedNewOff; InlineOff = $inlineOff; ThrowingNew = $throwingNew
+        AlignedNewOff = $alignedNewOff; InlineOff = $inlineOff; InlineOn = $inlineOn; ThrowingNew = $throwingNew
         Gl = $gl; FpFast = $fpFast; FpContract = $fpContract
     }
 }
@@ -818,8 +822,8 @@ function Get-FlagChecks($game, $tests) {
     }
     $checks += New-Object PSObject -Property @{
         Name = 'flag-inline'
-        Ok = ($game.Total -gt 0 -and $game.InlineOff -eq $game.Total)
-        Detail = ('cl entries={0} /Zc:inline-={1}' -f $game.Total, $game.InlineOff)
+        Ok = ($game.Total -gt 0 -and $game.InlineOn -eq $game.Total -and $game.InlineOff -eq 0)
+        Detail = ('cl entries={0} /Zc:inline={1} /Zc:inline-={2}' -f $game.Total, $game.InlineOn, $game.InlineOff)
     }
     $bags = @($game)
     if ($tests) {
@@ -840,7 +844,191 @@ function Get-FlagChecks($game, $tests) {
     return $checks
 }
 
-function Get-SourceChecks([string]$root) {
+$script:SpacerAllow = @(
+    'src\Battlefront2\Source\CommandFlyer.h|_tailPad|[0x7]',
+    'src\Battlefront2\Source\CommandHover.h|_tailPad|[0x8]',
+    'src\Battlefront2\Source\CommandLine.cpp|szCmdLine|[0x800]',
+    'src\Battlefront2\Source\CommandLine.cpp|szArgv0|[0x100]',
+    'src\Battlefront2\Source\CommandLine.cpp|acBuf|[0x80]',
+    'src\Battlefront2\Source\CommandWalker.h|_tailPad|[0xc]',
+    'src\Battlefront2\Source\CustomContent.cpp|source|[0x4000]',
+    'src\Battlefront2\Source\CustomContent.cpp|unusedPath|[64]',
+    'src\Battlefront2\Source\EntityBuildingAnimatedArmed.h|mTailPadding|[0xc]',
+    'src\Battlefront2\Source\EntityCarrier.h|_tailPad|[0xc]',
+    'src\Battlefront2\Source\EntityFlyer.h|_flightFlagPadding|[3]',
+    'src\Battlefront2\Source\EntityFlyer.h|_turretPadding|[3]',
+    'src\Battlefront2\Source\EntityFlyer.h|_renderPadding|[3]',
+    'src\Battlefront2\Source\EntityPortableTurret.h|_tailPad|[6]',
+    'src\Battlefront2\Source\EntityPropAnimated.cpp|acUnused|[256]',
+    'src\Battlefront2\Source\FLInputManager.h|mReservedBeforeMode|[4]',
+    'src\Battlefront2\Source\FLInputManager.h|mReservedAfterFlip|[3]',
+    'src\Battlefront2\Source\FLInputManager.h|mReservedBeforeGuiInputs|[2]',
+    'src\Battlefront2\Source\FLInputManager.h|mReservedBeforeProcessDestination|[3]',
+    'src\Battlefront2\Source\FLInputManager.h|mReservedBeforeMouse|[2]',
+    'src\Battlefront2\Source\FLInputManager.h|mReservedBeforeSensitivity|[4]',
+    'src\Battlefront2\Source\FLInputManager.h|mReservedBeforeMousePosition|[5]',
+    'src\Battlefront2\Source\FLInputManager.h|mReservedBeforeTextTimer|[2]',
+    'src\Battlefront2\Source\FLInputManager.h|mReservedBeforeJoysticks|[4]',
+    'src\Battlefront2\Source\FLInputManager.h|mReservedBeforeMissingPort|[3]',
+    'src\Battlefront2\Source\GameState.cpp|sStatsMatchData|[0x40]',
+    'src\Battlefront2\Source\GameState.h|sStatsMatchData|[0x40]',
+    'src\Battlefront2\Source\GameVoiceChat.cpp|_gDecoderStorage|[sizeof(GameVoiceChat::Decoder)+sizeof(void*)-1]',
+    'src\Battlefront2\Source\GameVoiceChat.cpp|_gNodeStorage|[sizeof(GameVoiceChat::Node)+sizeof(void*)-1]',
+    'src\Battlefront2\Source\GameVoiceChat.cpp|_gEncoderStorage|[sizeof(GameVoiceChat::Encoder)+sizeof(void*)-1]',
+    'src\Battlefront2\Source\GameVoiceChat.cpp|pad|[3]',
+    'src\Battlefront2\Source\HUDEvent.cpp|acName|[0x400]',
+    'src\Battlefront2\Source\HUDManager.cpp|acName|[0x400]',
+    'src\Battlefront2\Source\LuaCallbacks_LoadSave.cpp|aSerialized|[0x10000]',
+    'src\Battlefront2\Source\LuaCallbacks_LoadSave.cpp|aSerialized|[0x10000]',
+    'src\Battlefront2\Source\LuaCallbacks_Net.cpp|padding|[3]',
+    'src\Battlefront2\Source\LuaCallbacks_Net.cpp|padding|[3]',
+    'src\Battlefront2\Source\LuaCallbacks_Options.cpp|kSha512Padding|[128]',
+    'src\Battlefront2\Source\NetAdmin.cpp|remoteResponse|[0x1800]',
+    'src\Battlefront2\Source\NetAdmin.cpp|remoteResponse|[0x1800]',
+    'src\Battlefront2\Source\NetAdmin.h|pad|[3]',
+    'src\Battlefront2\Source\NetAdminMd5.cpp|md5Padding|[64]',
+    'src\Battlefront2\Source\NetSetup.h|mDirectJoinReserved|[4]',
+    'src\Battlefront2\Source\NetSetup.h|mDirectJoinPadding|[3]',
+    'src\Battlefront2\Source\NetSetup.h|mDirectJoinReservedTail|[16]',
+    'src\Battlefront2\Source\NetSetup.h|mQueryWaitPadding|[3]',
+    'src\Battlefront2\Source\PlayerProfile.h|mAlignmentBeforeDifficulty|[2]',
+    'src\Battlefront2\Source\PlayerProfile.h|mAlignmentBeforeUnlockState|[3]',
+    'src\Battlefront2\Source\PlayerProfile.h|mPadding|[61]',
+    'src\Battlefront2\Source\PlayerProfile.h|mTailAlignment|[2]',
+    'src\Battlefront2\Source\PlayerProfile.h|mPadding|[63]',
+    'src\Battlefront2\Source\PlayerProfile.h|mAlignmentBeforeMustBeZero|[2]',
+    'src\Battlefront2\Source\PlayerProfile.h|mPadding|[64]',
+    'src\Battlefront2\Source\PlayerProfile.h|mPadding|[32]',
+    'src\Battlefront2\Source\PlayerProfile.h|mPadding|[128]',
+    'src\Battlefront2\Source\PlayerProfile.h|mAlignmentBeforeGameOptions|[3]',
+    'src\Battlefront2\Source\PlayerProfile.h|mAlignmentBeforeAccumPoints|[2]',
+    'src\Battlefront2\Source\PlayerProfile.h|mPadding|[96]',
+    'src\Battlefront2\Source\PlayerProfile.h|mAlignmentBeforeBonus|[3]',
+    'src\Battlefront2\Source\PlayerProfile.h|mAlignmentBeforeCRC|[3]',
+    'src\Battlefront2\Source\VisionManager.cpp|heapMem|[(150+1)*sizeof(VisHeap::RECORD)]',
+    'src\Battlefront2\Source\WeaponGrenade.h|mUnmodeledTail|[0x120-0x118]',
+    'src\Battlefront2\Source\WeaponLauncher.h|mUnmodeledTail|[8]',
+    'src\Battlefront2\Source\WeaponRepair.h|mUnmodeledTail|[0x120-0x111]',
+    'src\lglcd\lgLcd.cpp|Data|[0x104]',
+    'src\PebbleFL\Common\PblTrace.cpp|acMessage|[0x400]',
+    'src\RedEngineFL\Application\pc\pcFLRender.h|unknown04|[20]',
+    'src\RedEngineFL\Graphics\PC\pcDisplaySettings.cpp|acDiskName|[sizeof(kSave.acAdapterName)+1]',
+    'src\RedEngineFL\Graphics\PC\pcRedAutoSettings.h|mReservedAfterDistortion|[2]',
+    'src\RedEngineFL\Graphics\PC\pcRedAutoSettings.h|mReservedAfterHDR|[3]',
+    'src\RedEngineFL\Graphics\PC\pcRedAutoSettings.h|mReservedAfterBumpMapping|[3]',
+    'src\RedEngineFL\Graphics\PC\StateManager_DX.h|pad_40932|[2]',
+    'src\RedEngineFL\input\pc\pcRedMouse.cpp|aucInfo|[sizeof(BITMAPINFOHEADER)+2*sizeof(RGBQUAD)]',
+    'src\RedEngineFL\movie\pc\pcRedMoviePlayer.h|pad1c|[0xd0-0x1c]',
+    'src\SoundFL\source\sndenginebase.h|smVoiceStorage|[0xA800]',
+    'src\SoundFL\source\sndenginebase.h|smStreamStorage|[0x1446A68]',
+    'src\SoundFL\source\sndglobals.cpp|acMessage|[0x800]',
+    'src\SoundFL\source\sndsound.h|smVoiceVirtualStorage|[12800]',
+    'src\SoundFL\source\sndsoundlayered.h|smFireForgetLayerStorage|[5888]',
+    'src\SoundFL\source\win\sndengine.cpp|gSoftOutputStorage|[2288]',
+    'src\SoundFL\source\win\sndengine.h|smSampleRAMBitmap|[0x8000]',
+    'src\SoundFL\source\win\sndstreamrenderer.h|mHardwareRendererStorage|[416]'
+)
+$script:ByteCommentRx = New-Object regex '"(?:[^"\\\r\n]|\\.)*"|''(?:[^''\\\r\n]|\\.)*''|//[^\r\n]*|/\*[\s\S]*?\*/'
+$script:ByteDeclItem = '\s*((?:[*&]\s*(?:(?:const|volatile)\b\s*)*)*)(\w+)\s*((?:\[[^\]]*\]\s*)*)(?:=\s*(?:\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}|[^,;{}]*)|\{(?:[^{}]|\{[^{}]*\})*\})?\s*'
+$script:ByteDeclRx = New-Object regex ('(?m)(?<=^[ \t]*|[{};:][ \t]*)(?:(?:static|const|volatile|mutable|extern|thread_local|register|constexpr|inline|typedef|__unaligned|alignas\s*\((?:[^()]|\([^()]*\))*\)|__declspec\s*\((?:[^()]|\([^()]*\))*\))\s+)*(?:(?:unsigned|signed)\s+)?(?:char|__int8|BYTE|UCHAR|CHAR|INT8|UINT8|uint8_t|int8_t|std::uint8_t|std::int8_t|std::byte|byte)(?:\s+(?:const|volatile))*\b(?!\s*[(:])(?<list>' + $script:ByteDeclItem + '(?:,' + $script:ByteDeclItem + ')*);')
+$script:ByteDeclItemRx = New-Object regex ('\G' + $script:ByteDeclItem + '(?:,|$)')
+$script:SpacerNameRx = '(?i)pad|reserv|unmodel|unknown|^_*unk|spacer|filler|tail|unused|dummy|storage|align|^_+\w*\d'
+$script:OffsetAllow = @(
+    'src\Battlefront2\Source\CollisionMesh.cpp|(unsigned short*)(memblock + iBytes - 2 * iIndices)',
+    'src\Battlefront2\Source\GameMemory.cpp|(char*)gTempHeapBlock + 0x1FFF00',
+    'src\Battlefront2\Source\GameVoiceChatEncoder.cpp|(Snd::StreamPacket*)(mEncoderBuffer + uiAlignedEncoded)',
+    'src\Battlefront2\Source\GameVoiceChatEncoder.cpp|(VoiceChat::AudioPacket*)(mEncoderPackets + 1)',
+    'src\Battlefront2\Source\HUDManager.cpp|(char*)HUD::gEditHeapMem + 0xFFFFF',
+    'src\Battlefront2\Source\LuaCallbacks_Mission.cpp|(Tag*)((char*)pBlock - uTagSize)',
+    'src\Battlefront2\Source\NetSetup.cpp|(char*)(ppcTable + iCount)',
+    'src\Battlefront2\Source\pcCrash.cpp|(IMAGE_NT_HEADERS*)((char*)hExe + pDos->e_lfanew)',
+    'src\Battlefront2\Source\pcCrash.cpp|(IMAGE_NT_HEADERS*)(pBase + pDos->e_lfanew)',
+    'src\Battlefront2\Source\pcMain.cpp|(char*)s_memoryArena + 0x4000000',
+    'src\Battlefront2\Source\pcMain.cpp|(char*)p + 0x300000',
+    'src\Battlefront2\Source\VoiceChatNode.cpp|(SendMetrics*)(VoiceChat::Node::sReceiveMetrics + uiNodes)',
+    'src\Battlefront2\Source\VoiceChatNode.cpp|(AudioPacket*)(pBlock + uiNodes * sizeof(ReceiveStream))',
+    'src\Battlefront2\Source\VoiceChatNode.cpp|(char*)mBitmap + 1',
+    'src\RedEngineFL\Graphics\PC\pcRedSegment.cpp|(PblVector3*)(vertex + normalOffset)',
+    'src\RedEngineFL\Graphics\PC\pcRedSegment.cpp|(PblVector3*)(vertex + normalOffset)',
+    'src\RedEngineFL\Graphics\PC\pcRedSegment.cpp|(PblVector3*)(vertex + tangentOffset)',
+    'src\RedEngineFL\Graphics\PC\pcRedSegment.cpp|(PblVector3*)(vertex + binormalOffset)',
+    'src\RedEngineFL\Memory\RedMemory.cpp|(Tag*)((char*)tag + rest)',
+    'src\RedEngineFL\Memory\RedMemory.cpp|(Tag*)((char*)tag + need)',
+    'src\RedEngineFL\Memory\RedMemory.cpp|(Tag*)((char*)block - hdr)',
+    'src\RedEngineFL\Memory\RedMemoryPool.cpp|(char**)((char*)mPool + i * mSize)',
+    'src\RedEngineFL\Memory\RedMemoryPool.cpp|(char**)((char*)mPool + (mCount - 1) * mSize)',
+    'src\RedEngineFL\Memory\RedMemoryPool.cpp|(char**)((char*)mFree + i * mSize)',
+    'src\RedEngineFL\Memory\RedMemoryPool.cpp|(char**)((char*)mFree + (mGrow - 1) * mSize)',
+    'src\RedEngineFL\movie\pc\pcRedMoviePlayer.cpp|(RedBitmapElement**)(pBlock + 16 * uiNumTextures + uiBufferSize)',
+    'src\RedEngineFL\movie\pc\pcRedMoviePlayer.cpp|(RedTexture**)(pBlock + uiBufferSize)',
+    'src\RedEngineFL\Util\RedLocalizeDB.cpp|(FLLocalizeEntry*)((char*)pEntry + pEntry->mEntryLen)',
+    'src\RedEngineFL\Util\RedScreenShot.cpp|(const unsigned int*)((unsigned char*)rect.pBits + rect.Pitch * y)',
+    'src\SoundFL\source\sndbufferio.cpp|(void*)(mOffset + (char*)mBuffer)',
+    'src\SoundFL\source\sndenginebase.cpp|(Stream*)((unsigned char*)smStreams + uiOffset)',
+    'src\SoundFL\source\sndenginebase.cpp|(Stream*)((unsigned char*)smStreams + uiOffset)',
+    'src\SoundFL\source\sndenginebase.cpp|(Voice*)((unsigned char*)smVoices + uiOffset)',
+    'src\SoundFL\source\sndenginebase.cpp|(Stream*)((unsigned char*)smStreams + uiOffset)',
+    'src\SoundFL\source\sndenginebase.cpp|(Stream*)((unsigned char*)smStreams + uiOffset)',
+    'src\SoundFL\source\sndenginebase.cpp|(Voice*)((unsigned char*)smVoices + uiOffset)',
+    'src\SoundFL\source\sndenginebase.cpp|(Stream*)((unsigned char*)smStreams + uiOffset)',
+    'src\SoundFL\source\sndfreelist.cpp|(Block*)(pEntries + uiBlockBytes)',
+    'src\SoundFL\source\sndsamplebankbase.cpp|(Sample*)((char*)pMemory + sizeof(SampleBank))',
+    'src\SoundFL\source\sndsoundlayered.cpp|(FireForgetLayer*)(smFireForgetLayerStorage + i * sizeof(FireForgetLayer))',
+    'src\SoundFL\source\sndstreambase.cpp|(Segment*)((char*)pMem + sizeof(Info))',
+    'src\SoundFL\source\sndstreammixer.cpp|(int*)((char*)mMixBuffer + mMixBufferOffsets[uiInput])',
+    'src\SoundFL\source\sndstreamresampler.cpp|(const short*)((const char*)pInput->mBuffer + pInput->mBufferUsed)',
+    'src\SoundFL\source\sndstreamresampler.cpp|(short*)((char*)pDst + mBufferSize)',
+    'src\SoundFL\source\win\snddsbufferrenderer.cpp|(short*)((unsigned char*)pData + uiWritten)',
+    'src\SoundFL\source\win\sndengine.cpp|(Voice*)((unsigned char*)EngineBase::smVoices + uiOffset)',
+    'src\SoundFL\source\win\sndengine.cpp|(Voice*)((unsigned char*)EngineBase::smVoices + i * sizeof(Voice))',
+    'src\SoundFL\source\win\sndengine.cpp|(Voice*)((unsigned char*)EngineBase::smVoices + i * sizeof(Voice))',
+    'src\Zephyr\Source\ZephyrAnimBank.cpp|(const ZephyrAnimD*)(pkBlock + 1)',
+    'src\Zephyr\Source\ZephyrAnimBank.cpp|(const ZephyrAnimBlockHeader*)(pkAnimD + m_u16NumAnims)',
+    'src\Zephyr\Source\ZephyrAnimBank.cpp|(const ZephyrAnimJointD*)(pkBlock + 1)',
+    'src\Zephyr\Source\ZephyrAnimBank.cpp|(const ZephyrAnimBlockHeader*)((const char*)pkJointD + 48 * pkHeader->u32NumTotalJoints)',
+    'src\Zephyr\Source\ZephyrAnimBank.cpp|(char*)(m_pkAnims + m_u16NumAnims)',
+    'src\Zephyr\Source\ZephyrAnimBank.cpp|(const ZephyrAnimJointD*)((const char*)pkJointD + 48 * u16NumJoints)',
+    'src\Zephyr\Source\ZephyrSkeletonShared.cpp|(ZephyrJointShared*)((char*)this + kOffsets.m_uJoints)',
+    'src\Zephyr\Source\ZephyrSkeletonShared.cpp|(unsigned int*)(i + 1)',
+    'src\Zephyr\Source\ZephyrSkinShared.cpp|(ZephyrJointSet*)((char*)this + kOffsets.m_uJointSets)',
+    'src\Zephyr\Source\ZephyrSkinShared.cpp|(ZephyrSkeletonShared*)((char*)this + kOffsets.m_uSkeleton)'
+)
+$script:OffsetQual = '(?:(?:const|volatile)\s*)*'
+$script:OffsetByteType = '(?:(?:const|volatile)\s+)*(?:(?:unsigned|signed)\s+)?(?:char|__int8|BYTE|UCHAR|CHAR|INT8|UINT8|uint8_t|int8_t|std::uint8_t|std::int8_t|std::byte|byte)(?:\s+(?:const|volatile))*\s*\*\s*' + $script:OffsetQual
+$script:OffsetOperand = '(?:(?:&\s*)?(?:[\w.]|->|::|\[[^\[\];]*\])+|\((?:[^()]|\([^()]*\))*\))'
+$script:OffsetByteCast = '(?:\(\s*' + $script:OffsetByteType + '\)\s*' + $script:OffsetOperand + '|\breinterpret_cast\s*<\s*' + $script:OffsetByteType + '>\s*\((?:[^()]|\([^()]*\))*\))'
+$script:OffsetTypeCast = '(?:\(\s*(?:(?:const|volatile|struct|class|unsigned|signed)\s+)*[A-Za-z_][\w:]*(?:\s+(?:int|char|short|long|__int\d+))?(?:\s+(?:const|volatile))*\s*[*&][\s*&]*' + $script:OffsetQual + '\)|\b(?:reinterpret|static|const)_cast\s*<[^<>;()]*[*&]\s*' + $script:OffsetQual + '>)'
+$script:OffsetOp = '\s*[+-](?![+=>-]|\s*(?:\(\s*\w+\s*\)\s*)?offsetof\b)'
+$script:OffsetTail = $script:OffsetOp + '[^;()]*(?:\((?:[^()]|\([^()]*\))*\)[^;()]*)*\)'
+$script:OffsetRx = @(
+    (New-Object regex ($script:OffsetTypeCast + '\s*\(\s*' + $script:OffsetByteCast + $script:OffsetTail)),
+    (New-Object regex ($script:OffsetTypeCast + '\s*\(\s*(?!\d)(?:[\w.]|->|::|\[[^\[\];]*\])+' + $script:OffsetTail)),
+    (New-Object regex ($script:OffsetByteCast + $script:OffsetOp + '\s*(?:0[xX][0-9A-Fa-f]+|\d+)[uUlL]*\b'))
+)
+
+function Get-ByteArrayDecls([string]$text) {
+    $blank = $script:ByteCommentRx.Replace($text, { param($m) if ($m.Value[0] -eq '/') { [regex]::Replace($m.Value, '[^\r\n]', ' ') } else { $m.Value } })
+    $out = New-Object System.Collections.Generic.List[object]
+    foreach ($m in $script:ByteDeclRx.Matches($blank)) {
+        $list = $m.Groups['list']
+        $pos = 0
+        while ($pos -lt $list.Length) {
+            $d = $script:ByteDeclItemRx.Match($list.Value, $pos)
+            if (-not $d.Success -or $d.Length -eq 0) { break }
+            if ($d.Groups[3].Value -and -not $d.Groups[1].Value) {
+                $out.Add((New-Object PSObject -Property @{ Name = $d.Groups[2].Value; Size = ($d.Groups[3].Value -replace '\s', ''); Line = $blank.Substring(0, $list.Index + $d.Groups[2].Index).Split("`n").Count }))
+            }
+            $pos = $d.Index + $d.Length
+        }
+    }
+    return $out
+}
+
+function Test-ByteSpacer($decl) {
+    return ($decl.Size -match '0[xX][0-9A-Fa-f]' -or $decl.Size -match '\b(?:sizeof|offsetof)\b' -or $decl.Name -match $script:SpacerNameRx)
+}
+
+function Get-SourceChecks([string]$root, [string[]]$spacerAllow = $script:SpacerAllow, [string[]]$offsetAllow = $script:OffsetAllow) {
     $defs = @(
         @{ Name = 'new-size-t'; Path = $null; Rx = @(
             '\boperator\s*(new|delete)\s*(\[\s*\])?\s*\(\s*(?:void\s*\*\s*\w*\s*,\s*)?(?:unsigned(?:\s+int)?|UINT|uint32_t|unsigned\s+__int32)\b') },
@@ -864,20 +1052,48 @@ function Get-SourceChecks([string]$root) {
             '__fastcall\s+(?:\w+::)*\w+\s*\((?=[^(){};]*\)\s*\{)\s*(?:(?:const\s+)?[\w:]+(?:\s+(?:int|char|short|long))?(?:\s*[*&]+\s*|\s+)(?!(?:int|char|short|long|const)\b)\w+\s*,\s*int|int\s*,\s*(?:const\s+)?[\w:]+(?:\s+(?:int|char|short|long))?(?:\s*[*&]+\s*|\s+)(?!(?:int|char|short|long|const)\b)\w+)\s*[,)]') },
         @{ Name = 'd3dx-decl'; Path = '^(?!.*\\src\\PebbleFL\\pc\\PblD3DX\.h$)'; Rx = @(
             'extern\s*"C"[^;{}]*?\bD3DX\w*\s*\(',
-            '(?:\b_{1,2}stdcall|\bWINAPI|\bAPIENTRY|\bCALLBACK|\bSTDMETHODCALLTYPE|\bSTDAPICALLTYPE|\bNTAPI|\bPASCAL)\b(?:\s|/\*.*?\*/)*(?:(?:const\s+)?[\w:]+(?:\s*\*+\s*|\s+)(?:/\*.*?\*/\s*)*)?D3DX\w*\s*\(') }
+            '(?:\b_{1,2}stdcall|\bWINAPI|\bAPIENTRY|\bCALLBACK|\bSTDMETHODCALLTYPE|\bSTDAPICALLTYPE|\bNTAPI|\bPASCAL)\b(?:\s|/\*.*?\*/)*(?:(?:const\s+)?[\w:]+(?:\s*\*+\s*|\s+)(?:/\*.*?\*/\s*)*)?D3DX\w*\s*\(') },
+        @{ Name = 'gamma-get'; Path = $null; Rx = @('GetDeviceGammaRamp') }
     )
     $root = $root.TrimEnd('\')
     $hits = @{}
     foreach ($d in $defs) { $hits[$d.Name] = New-Object System.Collections.Generic.List[string] }
+    $spacerLeft = @{}
+    foreach ($a in @($spacerAllow)) { if ($a) { $spacerLeft[$a] = 1 + [int]$spacerLeft[$a] } }
+    $spacerHits = New-Object System.Collections.Generic.List[string]
+    $offsetLeft = New-Object System.Collections.Hashtable ([StringComparer]::Ordinal)
+    foreach ($a in @($offsetAllow)) { if ($a) { $offsetLeft[$a] = 1 + [int]$offsetLeft[$a] } }
+    $offsetHits = New-Object System.Collections.Generic.List[string]
     $src = Join-Path $root 'src'
-    foreach ($f in (Get-ChildItem -LiteralPath $src -Recurse -File -Include *.h, *.hpp, *.inl, *.c, *.cpp | Where-Object { $_.FullName -notmatch '\\src\\(LuaFL|ZlibFL)\\' })) {
+    foreach ($f in (Get-ChildItem -LiteralPath $src -Recurse -File | Where-Object { $script:SourceExtensions -contains $_.Extension -and $_.FullName -notmatch '\\src\\(LuaFL|ZlibFL)\\' })) {
         $text = [IO.File]::ReadAllText($f.FullName)
         $rel = $f.FullName.Substring($root.Length + 1)
+        foreach ($b in (Get-ByteArrayDecls $text)) {
+            if (-not (Test-ByteSpacer $b)) { continue }
+            $key = '{0}|{1}|{2}' -f $rel, $b.Name, $b.Size
+            if ($spacerLeft[$key] -gt 0) { $spacerLeft[$key]--; continue }
+            $spacerHits.Add(('{0}:{1}' -f $rel, $b.Line))
+        }
+        $blank = $script:ByteCommentRx.Replace($text, { param($m) if ($m.Value[0] -eq '/') { [regex]::Replace($m.Value, '[^\r\n]', ' ') } else { $m.Value } })
+        $spans = @()
+        foreach ($rx in $script:OffsetRx) {
+            foreach ($m in $rx.Matches($blank)) { $spans += New-Object PSObject -Property @{ Start = $m.Index; Length = $m.Length; Text = $m.Value } }
+        }
+        $end = -1
+        foreach ($s in @($spans | Sort-Object Start, @{ Expression = 'Length'; Descending = $true })) {
+            if ($s.Start -lt $end) { continue }
+            $end = $s.Start + $s.Length
+            $key = '{0}|{1}' -f $rel, ([regex]::Replace($s.Text, '\s+', ' '))
+            if ($offsetLeft[$key] -gt 0) { $offsetLeft[$key]--; continue }
+            $offsetHits.Add(('{0}:{1}' -f $rel, $blank.Substring(0, $s.Start).Split("`n").Count))
+        }
         foreach ($d in $defs) {
             if ($d.Path -and $f.FullName -notmatch $d.Path) { continue }
             $spans = @()
             foreach ($rx in $d.Rx) {
-                foreach ($m in [regex]::Matches($text, $rx)) { $spans += New-Object PSObject -Property @{ Start = $m.Index; End = ($m.Index + [Math]::Max($m.Length, 1)) } }
+                foreach ($m in [regex]::Matches($text, $rx)) {
+                    $spans += New-Object PSObject -Property @{ Start = $m.Index; End = ($m.Index + [Math]::Max($m.Length, 1)) }
+                }
             }
             $end = -1
             $seen = @{}
@@ -889,7 +1105,30 @@ function Get-SourceChecks([string]$root) {
             }
         }
     }
-    return @($defs | ForEach-Object { New-Object PSObject -Property @{ Name = $_.Name; Ok = ($hits[$_.Name].Count -eq 0); Detail = ($hits[$_.Name] -join ', ') } })
+    $suiteHits = New-Object System.Collections.Generic.List[string]
+    $suiteOk = '\*\s*doctest::(?:skip\(\s*\)|test_suite\(\s*"(?:' + ((@($script:T1Suites) + 'asan_canary') -join '|') + ')"\s*\))'
+    $caseRx = New-Object regex '\GTEST_CASE\s*\(\s*"(?:[^"\\]|\\.)*"((?:[^()"]|"(?:[^"\\]|\\.)*"|\((?:[^()"]|"(?:[^"\\]|\\.)*"|\([^()]*\))*\))*)\)'
+    foreach ($f in (Get-ChildItem -LiteralPath (Join-Path $root 'tests') -Recurse -File | Where-Object { $script:SourceExtensions -contains $_.Extension -and $_.FullName -notmatch '\\tests\\third_party\\' })) {
+        $text = [IO.File]::ReadAllText($f.FullName)
+        $rel = $f.FullName.Substring($root.Length + 1)
+        foreach ($m in [regex]::Matches($text, '\b(?:DOCTEST_)?(?:TEST_CASE|TEST_SUITE|SCENARIO)\w*\s*\(')) {
+            $c = $caseRx.Match($text, $m.Index)
+            if (-not $c.Success -or $c.Groups[1].Value -notmatch $suiteOk) {
+                $suiteHits.Add(('{0}:{1}' -f $rel, $text.Substring(0, $m.Index).Split("`n").Count))
+            }
+        }
+    }
+    $rows = @($defs | ForEach-Object { New-Object PSObject -Property @{ Name = $_.Name; Ok = ($hits[$_.Name].Count -eq 0); Detail = ($hits[$_.Name] -join ', ') } })
+    foreach ($k in @($spacerLeft.Keys | Sort-Object)) {
+        for ($i = 0; $i -lt $spacerLeft[$k]; $i++) { $spacerHits.Add('unused allow ' + $k) }
+    }
+    $rows += New-Object PSObject -Property @{ Name = 'char-spacer'; Ok = ($spacerHits.Count -eq 0); Detail = ($spacerHits -join ', ') }
+    foreach ($k in @($offsetLeft.Keys | Sort-Object)) {
+        for ($i = 0; $i -lt $offsetLeft[$k]; $i++) { $offsetHits.Add('unused allow ' + $k) }
+    }
+    $rows += New-Object PSObject -Property @{ Name = 'offset-hack'; Ok = ($offsetHits.Count -eq 0); Detail = ($offsetHits -join ', ') }
+    $rows += New-Object PSObject -Property @{ Name = 't1-suite'; Ok = ($suiteHits.Count -eq 0); Detail = ($suiteHits -join ', ') }
+    return $rows
 }
 
 function Get-ImageBase($exe, $workDir, $argLine) {

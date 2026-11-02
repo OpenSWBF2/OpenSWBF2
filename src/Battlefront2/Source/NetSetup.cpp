@@ -627,6 +627,10 @@ void NetSetup::SetGameName(char const* pcName)
 // FUNCTION: SWBF2 0x005db8d0
 void NetSetup::SetLoginName(int iViewport, char const* pcName)
 {
+    if (iViewport < 0 || iViewport >= (int)(sizeof(netLoginNames) / sizeof(netLoginNames[0])))
+    {
+        return;
+    }
     char const* pcPlatformName = NetMatch::GetLoginOverrideName(iViewport);
     memset(netLoginNames[iViewport], 0, sizeof(netLoginNames[iViewport]));
     if (pcPlatformName)
@@ -945,7 +949,7 @@ CNetHostGame::CNetHostGame()
         {
             for (j = 0; j < 1; j++)
             {
-                bool bActive = ((unsigned char*)pInput)[0x2e6c + j] != 0;
+                bool bActive = pInput->mActiveControllers[j] != 0;
                 if (bActive)
                 {
                     aiJoystick[uiCount++] = j;
@@ -1602,25 +1606,23 @@ bool __fastcall IsGalaxyIdValid(const unsigned __int64* pThis)
 }
 
 // FUNCTION: SWBF2 0x0052e470
-unsigned int* __fastcall SetGalaxyIdWords(unsigned int* pThis, unsigned int lo, unsigned int hi)
+unsigned __int64* __fastcall SetGalaxyIdWords(unsigned __int64* pThis, unsigned __int64 uValue)
 {
-    pThis[0] = lo;
-    pThis[1] = hi;
+    *pThis = uValue;
     return pThis;
 }
 
 // FUNCTION: SWBF2 0x0052e490
-unsigned int* __fastcall CopyGalaxyIdWords(unsigned int* pThis, const unsigned int* pOther)
+unsigned __int64* __fastcall CopyGalaxyIdWords(unsigned __int64* pThis, const NetAddr* pOther)
 {
-    pThis[0] = pOther[0];
-    pThis[1] = pOther[1];
+    *pThis = ((unsigned __int64)(unsigned int)pOther->pubPort << 32) | (unsigned int)pOther->pubAddr;
     return pThis;
 }
 
 // FUNCTION: SWBF2 0x0052e4b0
-bool __fastcall EqualGalaxyIdWords(const unsigned int* pThis, const unsigned int* pOther)
+bool __fastcall EqualGalaxyIdWords(const NetAddr* pThis, const NetAddr* pOther)
 {
-    return pThis[0] == pOther[0] && pThis[1] == pOther[1];
+    return pThis->pubAddr == pOther->pubAddr && pThis->pubPort == pOther->pubPort;
 }
 
 extern unsigned __int64 netEnteredLobbyId;
@@ -1800,10 +1802,9 @@ void WriteJoinReject(NetPktGroup& group, JoinRejectReason eReason)
 }
 
 // FUNCTION: SWBF2 0x00591400
-unsigned int* __fastcall CopyNetSessionIdWords(unsigned int* pThis, const unsigned int* pOther)
+unsigned __int64* __fastcall CopyNetSessionIdWords(unsigned __int64* pThis, const unsigned __int64* pOther)
 {
-    pThis[0] = pOther[0];
-    pThis[1] = pOther[1];
+    *pThis = *pOther;
     return pThis;
 }
 
@@ -1839,8 +1840,6 @@ int NetGetHostPlayer()
 {
     return hostPlayer;
 }
-
-extern unsigned char sStatsMatchData[0x40];
 
 namespace StatsManager { void BeginMatch(); }
 
@@ -2065,7 +2064,7 @@ void ReadLoad(NetPktGroup& group, bool& bReady)
 void __fastcall NetCommP::Connect(int iDest, const void* pAddress)
 {
     NetDest& dest = netDests[iDest];
-    memcpy(dest.mAddressStorage, pAddress, sizeof(dest.mAddressStorage));
+    memcpy(&dest.mPeer, pAddress, sizeof(dest.mPeer));
     dest.connected = true;
     dest.lastRecv = NetComm::GetTime();
 }
@@ -2379,7 +2378,7 @@ bool CNetFindGame::GetRules(FindGameRules& rules)
 char* CNetFindGame::GetDescriptorExtension()
 {
     NetGameDesc* game = curGame._pNode->_pObject;
-    return game ? (char*)game + 0xf1 : 0;
+    return game ? game->mFindData.mGalaxyLobbyPasswordData : 0;
 }
 
 // FUNCTION: SWBF2 0x005df340
@@ -2604,11 +2603,10 @@ void WriteFiles(NetPktGroup& group, SendStateSrc& state)
 }
 
 // FUNCTION: SWBF2 0x005b1a30
-unsigned int* __fastcall ClearGalaxyIdWords(unsigned int* pWords)
+unsigned __int64* __fastcall ClearGalaxyIdWords(unsigned __int64* pId)
 {
-    pWords[0] = 0;
-    pWords[1] = 0;
-    return pWords;
+    *pId = 0;
+    return pId;
 }
 
 // FUNCTION: SWBF2 0x005df5a0
@@ -2822,8 +2820,7 @@ bool NetGameDesc::operator==(const NetGameDesc& rOther)
     {
         return false;
     }
-    return EqualGalaxyIdWords((const unsigned int*)&other->mAddr,
-                              (const unsigned int*)&game->mAddr);
+    return EqualGalaxyIdWords(&other->mAddr, &game->mAddr);
 }
 
 // GLOBAL: SWBF2 0x01ee7d48
@@ -2932,7 +2929,7 @@ void CNetFindGame::Refresh()
     mWaitingForQueries = false;
     mQueryFinishTime = 0.0f;
     NetMatch::EndFindGames(false);
-    NetMatch::StartFindGames(0, (const NetSessionId*)(mDirectJoinState + 32));
+    NetMatch::StartFindGames(0, &mDirectJoinSession);
 }
 
 // FUNCTION: SWBF2 0x005dec90
@@ -3219,8 +3216,7 @@ CNetPostLoadHostGame::CNetPostLoadHostGame()
 CNetFindGame::CNetFindGame(FindType type, const char*, NetSessionId* id)
 {
     curGame._pNode = 0;
-    memset(mDirectJoinState + 8, 0, sizeof(NetAddr));
-    memset(mDirectJoinState + 32, 0, sizeof(NetSessionId));
+    ClearGalaxyIdWords(&mDirectJoinPeer);
     mDirty = true;
     mPercentDone = 0;
     mSelectedSession = -1;
@@ -3238,9 +3234,9 @@ CNetFindGame::CNetFindGame(FindType type, const char*, NetSessionId* id)
     findStartTime = NetComm::GetTime();
     if (id)
     {
-        memcpy(mDirectJoinState + 32, id, sizeof(*id));
+        mDirectJoinSession = *id;
     }
-    NetMatch::StartFindGames(0, (const NetSessionId*)(mDirectJoinState + 32));
+    NetMatch::StartFindGames(0, &mDirectJoinSession);
     mWaitingForQueries = false;
     mQueryFinishTime = 0.0f;
 }
@@ -3529,12 +3525,21 @@ void NetSetupP::NextHost(int direction)
 
 extern int gDebugCount;
 
+static const char* GetLoginNameRow(int iViewport)
+{
+    if (iViewport < 0 || iViewport >= (int)(sizeof(netLoginNames) / sizeof(netLoginNames[0])))
+    {
+        return "";
+    }
+    return netLoginNames[iViewport];
+}
+
 // FUNCTION: SWBF2 0x005e5bb0
 void WriteShellMove(NetPktGroup& group, ShellUpdate& update, ShellMove& move)
 {
-    const unsigned char* input = (const unsigned char*)FLInputManager::Instance();
-    int viewport = ((FLInputManager*)input)->GetPrimaryPort();
-    WriteString(&group, (const char*)netLoginNames + 32 * viewport, 32);
+    const FLInputManager* input = FLInputManager::Instance();
+    int viewport = input->GetPrimaryPort();
+    WriteString(&group, GetLoginNameRow(viewport), 32);
     if (move.launchGuestHost)
     {
         ++gDebugCount;
@@ -3648,12 +3653,12 @@ void WriteJoin(NetPktGroup& group, unsigned int guestCount)
     unsigned int connectionType = netScript == NS_CLIENT && g_bNoRender ? 3 : 1;
     group.WriteBits(connectionType, 2);
 
-    const unsigned char* input = (const unsigned char*)FLInputManager::Instance();
+    const FLInputManager* input = FLInputManager::Instance();
     int playerIndexes[2];
     int count = 0;
     for (int i = 0; i < 1; ++i)
     {
-        if (input[0x2e6c + i])
+        if (input->mActiveControllers[i])
         {
             playerIndexes[count++] = i;
         }
@@ -3662,7 +3667,7 @@ void WriteJoin(NetPktGroup& group, unsigned int guestCount)
     {
         playerIndexes[i] = -1;
     }
-    WriteString(&group, (const char*)netLoginNames + 32 * playerIndexes[0], 32);
+    WriteString(&group, GetLoginNameRow(playerIndexes[0]), 32);
 
     unsigned __int64 id = NetMatch::GetLocalGSID();
     group.WriteBytes((const char*)&id, sizeof(id));
@@ -3814,10 +3819,10 @@ void CNetFindGame::UpdateGame(const NetAddr* address, const void* session, const
         if (find->GetGameCount() == 1)
         {
             find->curGame._pNode = node;
-            unsigned char endpoint[24] = {};
-            game->mAddr.GetAddr(endpoint, (int)&game->mKey);
+            NetSocketPeerRecord endpoint = {};
+            game->mAddr.GetAddr(&endpoint, (int)&game->mKey);
             int ip = 0, port = 0;
-            NetSocket::GetAddr(endpoint, ip, port);
+            NetSocket::GetAddr(&endpoint, ip, port);
         }
         return;
     }
@@ -3991,7 +3996,7 @@ void ReadLaunch(NetPktGroup& group, bool& bAcked)
     if (!NetComm::IsHost())
     {
         GameLoop::SetNextMission(mission);
-        CopyNetSessionIdWords((unsigned int*)&netSessionId.id, (const unsigned int*)&session.id);
+        CopyNetSessionIdWords(&netSessionId.id, &session.id);
     }
 
     group.Read(netHeroesEnabled);
@@ -4021,13 +4026,13 @@ void ReadLaunch(NetPktGroup& group, bool& bAcked)
             int hostIndex = value;
             NetGameP::GetHostIndex() = hostIndex;
 
-            unsigned int address[6];
-            ClearGalaxyIdWords(address);
-            NetSocket::SetAddr(address, 0, 0);
-            unsigned int noPeer[2];
-            SetGalaxyIdWords(noPeer, 0, 0);
-            CopyNetSessionIdWords(address, noPeer);
-            NetCommP::Connect(hostIndex + 64, address);
+            NetSocketPeerRecord address;
+            ClearGalaxyIdWords(&address.mGalaxyId);
+            NetSocket::SetAddr(&address, 0, 0);
+            unsigned __int64 noPeer;
+            SetGalaxyIdWords(&noPeer, 0);
+            CopyNetSessionIdWords(&address.mGalaxyId, &noPeer);
+            NetCommP::Connect(hostIndex + 64, &address);
 
             unsigned __int64 clientMask;
             ReadDestMask(group, clientMask);
@@ -4038,22 +4043,22 @@ void ReadLaunch(NetPktGroup& group, bool& bAcked)
                     *NetGameP::GetClientOfIndex(i) = hostIndex;
                     if (i == NetComm::GetLocalIndex(0))
                     {
-                        NetSocket::SetAddr(address, 0, 0);
-                        unsigned int self[2];
-                        SetGalaxyIdWords(self, 0, 0);
-                        CopyNetSessionIdWords(address, self);
+                        NetSocket::SetAddr(&address, 0, 0);
+                        unsigned __int64 self;
+                        SetGalaxyIdWords(&self, 0);
+                        CopyNetSessionIdWords(&address.mGalaxyId, &self);
                     }
                     else
                     {
                         NetAddr peer;
                         ReadAddr(&group, &peer);
-                        peer.GetAddr(address, 0);
+                        peer.GetAddr(&address, 0);
                         if (NetComm::IsLAN() && !peer.hasPriv)
                         {
                             continue;
                         }
                     }
-                    NetCommP::Connect(i, address);
+                    NetCommP::Connect(i, &address);
                 }
                 else
                 {
@@ -4075,22 +4080,22 @@ void ReadLaunch(NetPktGroup& group, bool& bAcked)
                     *NetGameP::GetHostMode(i) = hostType;
                     if (i == hostIndex)
                     {
-                        NetSocket::SetAddr(address, 0, 0);
-                        unsigned int self[2];
-                        SetGalaxyIdWords(self, 0, 0);
-                        CopyNetSessionIdWords(address, self);
+                        NetSocket::SetAddr(&address, 0, 0);
+                        unsigned __int64 self;
+                        SetGalaxyIdWords(&self, 0);
+                        CopyNetSessionIdWords(&address.mGalaxyId, &self);
                     }
                     else
                     {
                         NetAddr peer;
                         ReadAddr(&group, &peer);
-                        peer.GetAddr(address, 0);
+                        peer.GetAddr(&address, 0);
                         if (NetComm::IsLAN() && !peer.hasPriv)
                         {
                             continue;
                         }
                     }
-                    NetCommP::Connect(i + 64, address);
+                    NetCommP::Connect(i + 64, &address);
                 }
                 else
                 {
@@ -4108,12 +4113,12 @@ void ReadLaunch(NetPktGroup& group, bool& bAcked)
                 UpdateCurMaxHosts(1 << clientOf, true);
                 NetAddr host;
                 ReadAddr(&group, &host);
-                unsigned int hostAddress[6];
-                ClearGalaxyIdWords(hostAddress);
-                host.GetAddr(hostAddress, 0);
+                NetSocketPeerRecord hostAddress;
+                ClearGalaxyIdWords(&hostAddress.mGalaxyId);
+                host.GetAddr(&hostAddress, 0);
                 if (!NetComm::IsLAN() || host.hasPriv)
                 {
-                    NetCommP::Connect(clientOf + 64, hostAddress);
+                    NetCommP::Connect(clientOf + 64, &hostAddress);
                 }
             }
         }
@@ -4910,10 +4915,10 @@ void CNetJoinGame::Update()
             hostAddrs[0].CopyFieldsFrom(&hostAddr);
             int connectMark = 736;
             PblJournal::Record(connectMark, PJT_FULL);
-            unsigned int address[6];
-            ClearGalaxyIdWords(address);
-            hostAddr.GetAddr(address, 0);
-            NetCommP::Connect(64, address);
+            NetSocketPeerRecord address;
+            ClearGalaxyIdWords(&address.mGalaxyId);
+            hostAddr.GetAddr(&address, 0);
+            NetCommP::Connect(64, &address);
             for (unsigned int i = 0; i < 2; ++i)
             {
                 NetCommP::GetLocalIndex(i) = -1;
@@ -5636,10 +5641,10 @@ bool CNetFindGame::Update()
                 }
                 if (data.mConnected)
                 {
-                    unsigned int address[6];
-                    ClearGalaxyIdWords(address);
-                    game->mAddr.GetAddr(address, (int)&game->mKey);
-                    int dest = NetCommP::FindJoinSource((const int*)address);
+                    NetSocketPeerRecord address;
+                    ClearGalaxyIdWords(&address.mGalaxyId);
+                    game->mAddr.GetAddr(&address, (int)&game->mKey);
+                    int dest = NetCommP::FindJoinSource(&address);
                     if (dest >= 0)
                     {
                         if (data.mQuerySeqNo == 0)
@@ -5713,8 +5718,8 @@ bool CNetFindGame::Update()
                 FindGameRules rules;
                 if (findType == 2)
                 {
-                    mDirectJoinState[4] = true;
-                    NetMatch::SetAddr((unsigned int*)&address, (const unsigned int*)(mDirectJoinState + 8));
+                    mDirectJoinResponded = true;
+                    NetMatch::SetAddr((unsigned int*)&address, (const unsigned int*)&mDirectJoinPeer);
                     AddGame(&address);
                 }
                 else
@@ -5815,16 +5820,16 @@ bool CNetFindGame::Update()
                     game->mFindData.mNumPlayers = data.mNumPlayers;
                     game->mFindData.mMaxPlayers = data.mMaxPlayers;
                     game->mFindData.mbIsFavorite = false;
-                    memset((unsigned char*)game + 241, 0, 64);
+                    memset(game->mFindData.mGalaxyLobbyPasswordData, 0, sizeof(game->mFindData.mGalaxyLobbyPasswordData));
                     if (game->mHasSessionData && GetGameCount() == 1)
                     {
                         curGame = itor;
-                        unsigned int endpoint[6];
-                        ClearGalaxyIdWords(endpoint);
+                        NetSocketPeerRecord endpoint;
+                        ClearGalaxyIdWords(&endpoint.mGalaxyId);
                         NetGameDesc* selected = curGame;
-                        selected->mAddr.GetAddr(endpoint, (int)&selected->mKey);
+                        selected->mAddr.GetAddr(&endpoint, (int)&selected->mKey);
                         int ip, port;
-                        NetSocket::GetAddr(endpoint, ip, port);
+                        NetSocket::GetAddr(&endpoint, ip, port);
                     }
                 }
                 updated = true;
@@ -5841,7 +5846,7 @@ bool CNetFindGame::Update()
                 }
                 galaxy::api::INetworking* networking = GetGalaxyNetworkingInterface();
                 unsigned __int64 peer;
-                CopyGalaxyIdWords((unsigned int*)&peer, (const unsigned int*)&game->mAddr);
+                CopyGalaxyIdWords(&peer, &game->mAddr);
                 int ping = networking->GetPingWith(galaxy::api::GalaxyID(peer));
                 game->mFindData.mPingTime = fmaxf(0.0f, (float)ping * 0.001f);
             }
@@ -6447,7 +6452,7 @@ void PublishNextMissionToLobby()
                 continue;
             }
 
-            int iSrc = (unsigned char)pPkt->mData[3];
+            int iSrc = NetComm::Header(pPkt).src;
             NetPktGroup group;
             group.Set(pPkt);
             group.BeginRead();

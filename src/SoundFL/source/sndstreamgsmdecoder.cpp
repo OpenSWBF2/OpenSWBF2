@@ -1,12 +1,11 @@
 #include <new>
-#include <emmintrin.h>
 #include <assert.h>
 #include <string.h>
 
 #include "sndstreamgsmdecoder.h"
 #include "sndstreamsourceproducer.h"
 
-extern int __cdecl gsm_decode(const __m128i* state, unsigned char* frame, short* samples);
+extern int __cdecl gsm_decode(Snd::GSM* state, unsigned char* frame, short* samples);
 
 namespace Snd
 {
@@ -171,7 +170,7 @@ void StreamGSMDecoder::Update()
             }
 
             const unsigned int uiSamples = mOutputPacketOffset;
-            if (uiSamples == mProducer[2] >> 1 || bEnd)
+            if (uiSamples == mPacketSize >> 1 || bEnd)
             {
                 const unsigned int uiPos = mPlaybackPosition;
                 PacketComplete(pOutput, uiSamples * 2, uiSamples, bLast,
@@ -231,8 +230,8 @@ static short gsmDecoderMultiply(short a, short b)
 }
 
 // FUNCTION: SWBF2 0x0074eea0
-int __cdecl Gsm_RPE_Decoding(int state, short maximum, short grid,
-                       short* coded, int output)
+int __cdecl Gsm_RPE_Decoding(Snd::GSM* state, short maximum, short grid,
+                       short* coded, short* output)
 {
     (void)state;
     short exponent;
@@ -242,18 +241,17 @@ int __cdecl Gsm_RPE_Decoding(int state, short maximum, short grid,
     APCM_inverse_quantization(coded, mantissa, exponent, reconstructed);
 
     typedef int (__cdecl* GridFn)(unsigned short, const short*, short*);
-    return ((GridFn)RPE_grid_positioning)((unsigned short)grid, reconstructed, (short*)output);
+    return ((GridFn)RPE_grid_positioning)((unsigned short)grid, reconstructed, output);
 }
 
 // FUNCTION: SWBF2 0x007518b0
-int __cdecl Gsm_Long_Term_Synthesis_Filtering(int state, short lag, short gain, int residual, short* history)
+int __cdecl Gsm_Long_Term_Synthesis_Filtering(Snd::GSM* state, short lag, short gain, const short* residual, short* history)
 {
-    short* const nrp = (short*)(state + 0x270);
     if ((unsigned short)(lag - 40) > 80)
     {
-        lag = *nrp;
+        lag = state->nrp;
     }
-    *nrp = lag;
+    state->nrp = lag;
     if (lag < 40 || lag > 120)
     {
         _wassert(L"Nr >= 40 && Nr <= 120", L"source\\gsm-1.0.10\\long_term.c", 0x3a0);
@@ -268,24 +266,24 @@ int __cdecl Gsm_Long_Term_Synthesis_Filtering(int state, short lag, short gain, 
     for (int i = 0; i < 40; ++i)
     {
         result = gsmDecoderSaturate((int)gsmDecoderMultiply(factor, history[i - lag]) +
-                                    ((short*)residual)[i]);
+                                    residual[i]);
         history[i] = (short)result;
     }
     memmove(history - 120, history - 80, 120 * sizeof(short));
     return result;
 }
 
-int __cdecl Gsm_Short_Term_Synthesis_Filter(Snd::GSM* state, short* coded, int input, int output);
+int __cdecl Gsm_Short_Term_Synthesis_Filter(Snd::GSM* state, short* coded, short* input, short* output);
 
 // FUNCTION: SWBF2 0x007526f0
-int __cdecl Short_term_synthesis_filtering(int state, int ratios, int count, short* input, short* output)
+int __cdecl Short_term_synthesis_filtering(Snd::GSM* state, const short* ratios, int count, short* input, short* output)
 {
-    short* memory = (short*)(state + 0x272);
+    short* memory = state->v;
     int result = count;
     for (int i = 0; i < count; ++i)
     {
         short sample = input[i];
-        short* coeff = (short*)ratios;
+        const short* coeff = ratios;
         for (int j = 7; j >= 0; --j)
         {
             sample = gsmDecoderSaturate((int)sample - gsmDecoderMultiply(coeff[j], memory[j]));
@@ -299,7 +297,7 @@ int __cdecl Short_term_synthesis_filtering(int state, int ratios, int count, sho
 }
 
 // FUNCTION: SWBF2 0x007523c0
-int __cdecl Gsm_Short_Term_Synthesis_Filter(Snd::GSM* state, short* coded, int input, int output)
+int __cdecl Gsm_Short_Term_Synthesis_Filter(Snd::GSM* state, short* coded, short* input, short* output)
 {
     short* const previous = state->LARpp[state->j];
     state->j ^= 1;
@@ -308,35 +306,35 @@ int __cdecl Gsm_Short_Term_Synthesis_Filter(Snd::GSM* state, short* coded, int i
     Decoding_of_the_coded_Log_Area_Ratios(coded, previous);
     Coefficients_0_12(current, previous, ratios);
     LARp_to_rp(ratios);
-    Short_term_synthesis_filtering((int)state, (int)ratios, 13, (short*)input, (short*)output);
+    Short_term_synthesis_filtering(state, ratios, 13, input, output);
     Coefficients_13_26(current, previous, ratios);
     LARp_to_rp(ratios);
-    Short_term_synthesis_filtering((int)state, (int)ratios, 14, (short*)input + 13, (short*)output + 13);
+    Short_term_synthesis_filtering(state, ratios, 14, input + 13, output + 13);
     Coefficients_27_39(current, previous, ratios);
     LARp_to_rp(ratios);
-    Short_term_synthesis_filtering((int)state, (int)ratios, 13, (short*)input + 27, (short*)output + 27);
+    Short_term_synthesis_filtering(state, ratios, 13, input + 27, output + 27);
     memcpy(ratios, previous, sizeof(ratios));
     LARp_to_rp(ratios);
-    return Short_term_synthesis_filtering((int)state, (int)ratios, 120, (short*)input + 40, (short*)output + 40);
+    return Short_term_synthesis_filtering(state, ratios, 120, input + 40, output + 40);
 }
 
 // FUNCTION: SWBF2 0x00750630
-unsigned int __cdecl Gsm_Decoder(Snd::GSM* state, int codedLar,
-                                 int lag, int gain, short* grid,
-                                 int maximum, short* coded, short* output)
+unsigned int __cdecl Gsm_Decoder(Snd::GSM* state, short* codedLar,
+                                 short* lag, short* gain, short* grid,
+                                 short* maximum, short* coded, short* output)
 {
     short samples[160];
     short residual[40];
     short* const history = state->dp0 + 120;
     for (int block = 0; block < 4; ++block)
     {
-        Gsm_RPE_Decoding((int)state, ((short*)maximum)[block], grid[block],
-                    coded + 13 * block, (int)residual);
-        Gsm_Long_Term_Synthesis_Filtering((int)state, ((short*)lag)[block], ((short*)gain)[block],
-                    (int)residual, history);
+        Gsm_RPE_Decoding(state, maximum[block], grid[block],
+                    coded + 13 * block, residual);
+        Gsm_Long_Term_Synthesis_Filtering(state, lag[block], gain[block],
+                    residual, history);
         memcpy(samples + 40 * block, history, 40 * sizeof(short));
     }
-    Gsm_Short_Term_Synthesis_Filter(state, (short*)codedLar, (int)samples, (int)output);
+    Gsm_Short_Term_Synthesis_Filter(state, codedLar, samples, output);
     short previous = state->msr;
     unsigned int result = 0;
     for (int i = 0; i < 160; ++i)
@@ -351,7 +349,7 @@ unsigned int __cdecl Gsm_Decoder(Snd::GSM* state, int codedLar,
 }
 
 // FUNCTION: SWBF2 0x00750820
-int __cdecl gsm_decode(const __m128i* s, unsigned char* c, short* target)
+int __cdecl gsm_decode(Snd::GSM* s, unsigned char* c, short* target)
 {
     short LARc[8], Nc[4], Mc[4], bc[4], xmaxc[4], xmc[13 * 4];
 
@@ -464,6 +462,6 @@ int __cdecl gsm_decode(const __m128i* s, unsigned char* c, short* target)
     xmc[50]  = (*c >> 3) & 0x7;
     xmc[51]  = *c++ & 0x7;
 
-    Gsm_Decoder((Snd::GSM*)s, (int)LARc, (int)Nc, (int)bc, Mc, (int)xmaxc, xmc, target);
+    Gsm_Decoder(s, LARc, Nc, bc, Mc, xmaxc, xmc, target);
     return 0;
 }

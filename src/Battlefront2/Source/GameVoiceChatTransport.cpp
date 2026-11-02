@@ -31,7 +31,7 @@ void Transport::SetSendReceiveEnableUsingMask(unsigned char node, Mask mask, boo
         for (unsigned int i = 0; i < count; ++i)
         {
             const int other = players[i].player;
-            if (other < 0 || other == node)
+            if (other < 0 || other == node || (unsigned int)other >= mNumNodes)
             {
                 continue;
             }

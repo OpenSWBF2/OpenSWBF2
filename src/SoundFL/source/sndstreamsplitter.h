@@ -23,7 +23,7 @@ public:
 
     virtual StreamPacket* GetPacket(unsigned int uiOutput);
 
-    unsigned int mNode[3];
+    StreamNode mNode;
     StreamNodeSink mSink;
     StreamPacket** mPackets;
     unsigned short* mRemaining;

@@ -5,6 +5,7 @@
 #include "ProceduralAnimation.h"
 #include "CollisionManager.h"
 #include "CollisionObject.h"
+#include "GameObject.h"
 #include "NetGame.h"
 #include "NetPacket.h"
 #include "TreeGrid.h"
@@ -172,12 +173,6 @@ void PAManager::LeaveClient()
 }
 void ReadMatrix(NetPktGroup& group, PblMatrix& matrix);
 void WriteMatrix(NetPktGroup& group, const PblMatrix& matrix);
-
-struct PAGameObjectTeam
-{
-    char pad_0000[0x234];
-    int mTeam : 4;
-};
 
 static const PblMatrix _IdentityMatrix(
     PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
@@ -905,7 +900,7 @@ void PAAnimationGroup::UpdateAnimations(float fDeltaTime)
         }
 
         if (mStopWhenControlled && (*data.mGeometry)->GetGameObject() &&
-            ((PAGameObjectTeam*)(*data.mGeometry)->GetGameObject())->mTeam)
+            (*data.mGeometry)->GetGameObject()->mTeam)
         {
             *data.mTimer = 0.0f;
             data.mInitialMatrix = (*data.mGeometry)->GetMatrix();

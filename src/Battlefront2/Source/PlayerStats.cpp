@@ -17,6 +17,7 @@
 #include "EntityDroideka.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 #include "PebbleFL/Common/PblList.h"
+#include "VOHelper.h"
 #include <float.h>
 
 // FUNCTION: SWBF2 0x0061f490
@@ -438,22 +439,6 @@ void PlayerStats::Reset()
 }
 
 Controllable* GetControllablePilot(Controllable* pControllable);
-
-namespace AI
-{
-enum VOType
-{
-    VOT_KillingSpree4 = 12,
-    VOT_KillingSpree8 = 13,
-    VOT_KillingSpree12 = 14,
-    VOT_KillingSpree16 = 15
-};
-namespace VOHelper
-{
-int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,
-         const GameObject* pOther, float fDelay);
-}
-}
 
 // FUNCTION: SWBF2 0x0061e070
 void PlayerStats::AddKill(Character* pVictim, GameObject* pObject)

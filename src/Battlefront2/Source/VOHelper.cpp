@@ -342,31 +342,9 @@ int VOSoundCompareCallback(const void* pA, const void* pB)
 
 }
 
-enum VOType
-{
-    VOT_NONE = 0,
-    VOT_AcquiredTarget = 1,
-    VOT_PathFollowWait = 6,
-    VOT_RebelsShootDeadBody = 11
-};
-
 namespace VOHelper
 {
 
-struct QueuedSound
-{
-    VOType mType;
-    PblHandle<const GameObject> mSpeaker;
-    PblHandle<const GameObject> mPlayer;
-    PblHandle<const GameObject> mTarget;
-    PblVector3 mPos;
-    bool mUseTarget;
-    float mTime;
-    int mHandle;
-
-    ~QueuedSound();
-};
-extern QueuedSound mSndQueue[20];
 extern int mNextQueueHandle;
 
 int Queue(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,

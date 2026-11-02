@@ -63,7 +63,7 @@ public:
         {
             return false;
         }
-        return (*(const int*)((const char*)PostObject(post) + 0x234) << 28 >> 28) == mTeam;
+        return PostObject(post)->mTeam == mTeam;
     }
 
     bool operator==(const PostMatchesTeam& other) const

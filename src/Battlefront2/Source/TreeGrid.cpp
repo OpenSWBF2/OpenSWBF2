@@ -160,7 +160,7 @@ bool TreeGrid::ProcessCellRect(int iCell, TreeGridCallback pCallback, TreeGridCa
         int iNumHits = 0;
         for (int i = 0; i < pStack->mStackSize; ++i)
         {
-            if ((pStack->mData[i][0] & pData->mData[0])
+            if ((pStack->mData[0][i] & pData->mData[0])
                 && CollisionUtil::CollideSphereAABB(pStack->mSphere[i].GetCenter(),
                                                     pStack->mSphere[i].GetRadius(), rMin, rMax))
             {
@@ -187,7 +187,7 @@ bool TreeGrid::ProcessCellRay(int iCell, TreeGridCallback pCallback, TreeGridCal
     {
         for (int i = 0; i < pStack->mStackSize; ++i)
         {
-            if ((pStack->mData[i][0] & pData->mData[0])
+            if ((pStack->mData[0][i] & pData->mData[0])
                 && CollisionUtil::CollideSphereRay(pStack->mSphere[i].GetCenter(),
                                                    pStack->mSphere[i].GetRadius(),
                                                    rFrom, rDir, fLength)
@@ -212,7 +212,7 @@ bool TreeGrid::ProcessCellSphere(int iCell, TreeGridCallback pCallback, TreeGrid
         int iNumHits = 0;
         for (int i = 0; i < pStack->mStackSize; ++i)
         {
-            if ((pStack->mData[i][0] & pData->mData[0])
+            if ((pStack->mData[0][i] & pData->mData[0])
                 && CollisionUtil::CollideSpheres2(pStack->mSphere[i].GetCenter(),
                                                   pStack->mSphere[i].GetRadius(), rCenter, fRadius))
             {
@@ -761,7 +761,7 @@ TreeGridStack* TreeGridStack::AddObject(TreeGridObject* pObj, const PblVector3& 
     pStack->mObject[pStack->mStackSize] = pObj;
     pStack->mSphere[pStack->mStackSize].SetCenter(rPos);
     pStack->mSphere[pStack->mStackSize].SetRadius(fSize * 0.5f);
-    pStack->mData[pStack->mStackSize][0] = pObj->mData[0];
+    pStack->mData[0][pStack->mStackSize] = pObj->mData[0];
     ++pStack->mStackSize;
     return pStack;
 }
@@ -772,7 +772,7 @@ TreeGridStack* TreeGridStack::RemoveObject(TreeGridObject* pObj)
     TreeGridStack* pStack = pObj->mStackPtr;
     int iIdx = pObj->mStackIdx;
     pObj->mCollisionSphere = pStack->mSphere[iIdx];
-    pObj->mData[0] = pStack->mData[iIdx][0];
+    pObj->mData[0] = pStack->mData[0][iIdx];
     pObj->mStackPtr = 0;
     pObj->mStackIdx = -1;
 
@@ -781,7 +781,7 @@ TreeGridStack* TreeGridStack::RemoveObject(TreeGridObject* pObj)
     {
         pStack->mObject[iIdx] = pLast;
         pStack->mSphere[iIdx] = mSphere[mStackSize - 1];
-        pStack->mData[iIdx][0] = mData[mStackSize - 1][0];
+        pStack->mData[0][iIdx] = mData[0][mStackSize - 1];
         pStack->mObject[iIdx]->mStackPtr = pStack;
         pStack->mObject[iIdx]->mStackIdx = iIdx;
     }

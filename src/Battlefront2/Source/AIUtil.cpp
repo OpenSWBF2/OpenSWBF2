@@ -64,6 +64,7 @@
 #include "PebbleFL/Common/PblHeap.h"
 #include "TeamManager.h"
 #include "PebbleFL/pc/PblD3DX.h"
+#include "VOHelper.h"
 
 extern PblVector3 gVectorZero;
 
@@ -75,23 +76,6 @@ namespace AIDifficulty
     float GetAimerYawSpread(const UnitController* pUnit);
 
     float GetGrenadeReactionTime();
-}
-
-namespace AI
-{
-enum VOType
-{
-    VOT_Grenade = 10,
-    VOT_SC_GetOutResponse = 32
-};
-namespace VOHelper
-{
-int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,
-         const GameObject* pOther, float fDelay);
-
-int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,
-         const PblVector3& vPos, float fDelay);
-}
 }
 
 PblMatrix DirectionMatrix(const PblVector3& vDir, const PblVector3& vUp, const PblVector3& vPos);
@@ -312,7 +296,6 @@ namespace VisionManager { void Initialize(); }
 namespace AudibleManager { void Initialize(); }
 namespace HintManager { void Initialize(); }
 namespace ReserveManager { void Init(); }
-namespace AI { namespace VOHelper { void Reset(); } }
 
 // FUNCTION: SWBF2 0x0043f060
 void AIUtil::Init()
@@ -751,8 +734,7 @@ void AIUtil::CalculateHeadingControls(const Controllable* pMe, float fScale,
     PblVector3 vBubble(0.0f, 0.0f, 0.0f);
     const Aimer* pAimer = pMe->GetCurAimer();
 
-    const WeaponClass* pWeaponClass =
-        pAimer ? *(const WeaponClass* const*)((const char*)pAimer->GetWeapon() + 0x64) : 0;
+    const WeaponClass* pWeaponClass = pAimer ? pAimer->GetWeapon()->GetClass() : 0;
     if (pTarget)
     {
         vBubble = CalculateBubbleOffset(pMe, vAim, pTarget, pWeaponClass);
@@ -2082,9 +2064,6 @@ PblVector3 AIUtil::GetRandomAccessiblePoint(const UnitController* pCtrl)
     PathFinder::PushValidPoint(vStart, vDest, pObj);
     return vDest;
 }
-
-namespace TeamManager { int GetObjectsInRange(const PblVector3& vPos, float fRange, GameObject** const ppObjects, int iMax,
-               const Team* pTeam, int iAffilMask); }
 
 // FUNCTION: SWBF2 0x00443220
 bool AIUtil::AreEnemiesInRange(int iTeam, const PblVector3& vPos, float fRange)

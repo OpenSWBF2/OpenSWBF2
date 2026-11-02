@@ -8,6 +8,7 @@
 #include "FLEffect.h"
 #include "GameObject.h"
 #include "NetGame.h"
+#include "Weapon.h"
 #include "RedEngineFL/Application/pc/pcRedParticle.h"
 
 static const RedColor kRedBeamGlowColor   = { 0xff, 0x0a, 0x0a, 0x64 };
@@ -16,14 +17,6 @@ static const RedColor kBlueBeamGlowColor  = { 0x0a, 0x0a, 0x7f, 0x64 };
 
 extern bool netIsLocalTurn;
 extern bool netIsLateTurn;
-
-class Weapon
-{
-public:
-
-    char mWeaponState[0x70];
-    Aimer* mAimer;
-};
 
 // GLOBAL: SWBF2 0x01ef2614
 // SYNTHETIC: SWBF2 0x00405a30

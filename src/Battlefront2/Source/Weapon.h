@@ -328,6 +328,7 @@ public:
 
     bool IsSelected() const { return mSelectedFlag; }
 
+    // FUNCTION: SWBF2 0x00438ad0
     const WeaponClass* GetClass() const { return mClass; }
     bool GetFiredFlag() const { return mFiredFlag != 0; }
     void ClearFiredFlag() { mFiredFlag = 0; }

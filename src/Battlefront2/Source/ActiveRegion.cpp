@@ -295,20 +295,20 @@ void Init()
 }
 
 // FUNCTION: SWBF2 0x00437dd0
-void* __fastcall sub_437DD0(void** pCurrent)
+Controllable* __fastcall sub_437DD0(PblList<Controllable>::Itor* pCurrent)
 {
-    return *(void**)((char*)*pCurrent + 0x0c);
+    return pCurrent->operator->();
 }
 
 // FUNCTION: SWBF2 0x00437de0
-void* __fastcall sub_437DE0(void** pCurrent)
+Controllable* __fastcall sub_437DE0(PblList<Controllable>::Itor* pCurrent)
 {
-    return *(void**)((char*)*pCurrent + 0x0c);
+    return static_cast<Controllable*>(*pCurrent);
 }
 
 // FUNCTION: SWBF2 0x00437df0
-void* __fastcall AdvanceRawListIterator(void** pCurrent)
+PblList<Controllable>::Itor* __fastcall AdvanceRawListIterator(PblList<Controllable>::Itor* pCurrent)
 {
-    *pCurrent = *(void**)((char*)*pCurrent + 4);
+    ++*pCurrent;
     return pCurrent;
 }

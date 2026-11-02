@@ -54,18 +54,15 @@ public:
     void SetBorderTexCoords(float fLeft, float fTop, float fRight, float fBottom,
                          float fBorderX, float fBorderY, int iUnused);
 
-private:
-
     struct Vertex
     {
         float x;
         float y;
-
-        unsigned char mOtherPositionAttributes[0x0c - 0x08];
+        float z;
         float u;
         float v;
-
-        unsigned char mOtherTextureAttributes[0x1c - 0x14];
+        float u2;
+        float v2;
     };
 
     unsigned int mShadowMode;
@@ -75,7 +72,5 @@ private:
     Vertex m_vertices[16];
 
     pcInterfaceShader* m_pInterfaceShader;
-
-    unsigned char mReservedTail[0x260 - 0x254];
 };
  

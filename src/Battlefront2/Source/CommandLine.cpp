@@ -840,18 +840,6 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
     }
 }
 
-// FUNCTION: SWBF2 0x0047a550
-float __fastcall ReadSpawnCameraFirstValue(void* pValue)
-{
-    return *(float*)pValue;
-}
-
-// FUNCTION: SWBF2 0x0047a560
-float __fastcall ReadSpawnCameraSecondValue(void* pValue)
-{
-    return static_cast<SpawnCameraFloatPair*>(pValue)->mSecondValue;
-}
-
 // GLOBAL: SWBF2 0x01e2fdbb
 
 bool gAIOptionEnabled = false;

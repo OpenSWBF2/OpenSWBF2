@@ -27,20 +27,6 @@ namespace AIUtil
 Obstacle* GetGameObjectBarrier(GameObject* pObj);
 }
 
-namespace AI
-{
-enum VOType
-{
-    VOT_JustBoardedVehicle = 38
-};
-namespace VOHelper
-{
-
-int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,
-         const GameObject* pOther, float fDelay);
-}
-}
-
 namespace AIUtil
 {
 GameObject* GetAlivePtr(PblHandle<GameObject> const& hObj, bool bIncludeBuildings);

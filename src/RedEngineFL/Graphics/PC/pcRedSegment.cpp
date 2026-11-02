@@ -18,6 +18,7 @@
 #include "PebbleFL/Common/PblFile.h"
 #include "PebbleFL/Common/PblHashTable.h"
 #include "pcRedIndexBuffer.h"
+#include "Battlefront2/Platform/Pc/pcSunFlare.h"
 
 pcShaderSegment::~pcShaderSegment()
 {
@@ -121,18 +122,6 @@ inline PblVector3 operator-(const PblVector3& a,
     result.z = a.z - b.z;
     return result;
 }
-
-struct CompressedPos
-{
-    short x;
-    short y;
-    short z;
-    short w;
-
-    static PblVector3 s_vMin;
-    static PblVector3 s_vScale;
-    static PblVector3 s_vScaleInv;
-};
 
 // GLOBAL: SWBF2 0x007de270
 

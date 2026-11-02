@@ -2,6 +2,7 @@
 
 #include <stddef.h>
 #include "GamePath.h"
+#include "PebbleFL/Common/PblHandle.h"
 
 class AIPath;
 class GameObject;
@@ -57,7 +58,7 @@ public:
     static void DestroyAll();
 
     NodeProperties* mNodeProps;
-    char mReservingObject[8];
+    PblHandle<const GameObject> mReservingObject;
     float mReservingTime;
 };
 }

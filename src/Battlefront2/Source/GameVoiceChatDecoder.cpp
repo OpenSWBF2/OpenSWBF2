@@ -129,7 +129,7 @@ void GameVoiceChat::Decoder::Stop()
         static_cast<Snd::SourceTransport&>(mDecoders[i]).Stop();
     }
 
-    ((Snd::SourceTransport*)mMixer.mNode)->Stop();
+    mMixer.mNode.Stop();
     static_cast<Snd::SourceTransport&>(mAuxRenderer).Stop();
 
     mPlaying = false;
@@ -329,7 +329,7 @@ void GameVoiceChat::Decoder::Play()
         static_cast<Snd::SourceTransport&>(mDecoders[i]).Play(true);
     }
 
-    ((Snd::SourceTransport*)mMixer.mNode)->Play(true);
+    mMixer.mNode.Play(true);
     static_cast<Snd::SourceTransport&>(mAuxRenderer).Play(true);
 
     mPlaying = true;

@@ -7,6 +7,14 @@ struct NetSocketPeerRecord
     unsigned __int64 mGalaxyId;
     unsigned char mSocketAddress[16];
 };
+
+#pragma pack(push, 4)
+struct NetJoinSlot
+{
+    float mLastTime;
+    NetSocketPeerRecord mPeer;
+};
+#pragma pack(pop)
  
  
 

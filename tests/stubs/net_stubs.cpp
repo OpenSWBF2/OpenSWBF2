@@ -44,7 +44,7 @@ void NetSocket::StartSockets() {}
 void NetSocket::RecvSockets() {}
 void NetSocket::RecvGalaxySockets() {}
 void NetSocket::GetAddr(const void*, int& iIP, int& iPort) { iIP = 0; iPort = 0; }
-int __fastcall NetCommP::FindJoinSource(const int*) { return -1; }
+int __fastcall NetCommP::FindJoinSource(const NetSocketPeerRecord*) { return -1; }
 bool __fastcall IsAdminPacketAuthorized(const unsigned char*) { return false; }
 namespace gf { bool checkError() { return false; } }
 namespace galaxy { namespace api { IGalaxy* GalaxyFactory::GetInstance() { return 0; } } }

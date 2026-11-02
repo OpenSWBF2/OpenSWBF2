@@ -9,18 +9,16 @@
 #include "sndstreamsourceproducer.h"
 #include "sndsourcetransport.h"
 
-extern void __cdecl gsm_encode(char* pGsm, short* pFrame, unsigned char* pOut);
+extern void __cdecl gsm_encode(Snd::GSM* pGsm, short* pFrame, unsigned char* pOut);
 
 namespace Snd
 {
 
-void __cdecl gsm_option(void* pGsm, int iOption, unsigned char* pValue);
+void __cdecl gsm_option(GSM* pGsm, int iOption, unsigned char* pValue);
 
 // FUNCTION: SWBF2 0x0074e040
-void __cdecl gsm_option(void* pGsm, int iOption, unsigned char* pValue)
+void __cdecl gsm_option(GSM* pGsm, int iOption, unsigned char* pValue)
 {
-    char* const pThis = (char*)pGsm;
-
     if (iOption - 1 != 0)
     {
         return;
@@ -28,7 +26,7 @@ void __cdecl gsm_option(void* pGsm, int iOption, unsigned char* pValue)
 
     if (pValue != 0)
     {
-        pThis[0x286] = (char)*pValue;
+        pGsm->verbose = (char)*pValue;
     }
 }
 
@@ -57,7 +55,7 @@ void Snd::StreamGSMEncoder::SetPackets(unsigned int uiPacketSize, StreamPacket* 
 // FUNCTION: SWBF2 0x00741780
 StreamGSMEncoder::~StreamGSMEncoder()
 {
-    if (mProducer[2] != 0)
+    if (mPacketSize != 0)
     {
         Flush();
     }
@@ -225,7 +223,7 @@ void StreamGSMEncoder::Update()
                 bFlag1 = (uiFlags & 2) != 0;
                 bLast = bFlag0 || bFlag1;
 
-                if (bLast && mInputFrameOffset != 0 && mOutputPacketOffset < mProducer[2])
+                if (bLast && mInputFrameOffset != 0 && mOutputPacketOffset < mPacketSize)
                 {
                     memset(&mInputFrame[mInputFrameOffset], 0,
                            (160 - mInputFrameOffset) * 2);
@@ -245,7 +243,7 @@ void StreamGSMEncoder::Update()
                 mInputPacketSize = 0;
             }
 
-            if (mOutputPacketOffset == mProducer[2] || bLast)
+            if (mOutputPacketOffset == mPacketSize || bLast)
             {
                 const unsigned int uiPos = mPlaybackPosition;
                 const unsigned int uiDecoded = (mOutputPacketOffset / 33) * 160;
@@ -651,22 +649,6 @@ static short gsm_multiply_round(short a, short b)
     return (short)(((int)a * b + 16384) >> 15);
 }
 
-struct gsm_state
-{
-    short dp0[280];
-    short z1;
-    int L_z2;
-    int mp;
-    short u[8];
-    short LARpp[2][8];
-    short j;
-    short ltp_cut;
-    short nrp;
-    short v[9];
-    short msr;
-    char verbose, fast, wav_fmt;
-    unsigned char frame_index, frame_chain;
-};
  
  
  
@@ -676,9 +658,9 @@ struct gsm_state
  
 
 // FUNCTION: SWBF2 0x0074ec60
-int __cdecl Gsm_Preprocess(void* state, const short* input, short* output)
+int __cdecl Gsm_Preprocess(Snd::GSM* state, const short* input, short* output)
 {
-    gsm_state* p = (gsm_state*)state;
+    Snd::GSM* p = state;
     short previous = p->z1;
     int accumulator = p->L_z2;
     short preemphasis = (short)p->mp;
@@ -738,7 +720,7 @@ int __cdecl Long_term_analysis_filtering(short gain, short lag, const short* his
 extern void __cdecl Calculation_of_the_LTP_parameters(const short*, const short*, short*, short*);
 
 // FUNCTION: SWBF2 0x007517c0
-int __cdecl Gsm_Long_Term_Predictor(void*, const short* input, const short* history,
+int __cdecl Gsm_Long_Term_Predictor(Snd::GSM*, const short* input, const short* history,
                         short* residual, short* predicted, short* lag, short* gain)
 {
     const wchar_t* file = L"source\\gsm-1.0.10\\long_term.c";
@@ -771,10 +753,10 @@ int __cdecl Gsm_Long_Term_Predictor(void*, const short* input, const short* hist
 }
 
 // FUNCTION: SWBF2 0x007525d0
-void __cdecl Short_term_analysis_filtering(void* state, const short* coefficients,
+void __cdecl Short_term_analysis_filtering(Snd::GSM* state, const short* coefficients,
                          int count, short* samples)
 {
-    short* memory = ((gsm_state*)state)->u;
+    short* memory = state->u;
     for (int sample = 0; sample < count; ++sample)
     {
         short di = samples[sample];
@@ -794,9 +776,9 @@ void __cdecl Short_term_analysis_filtering(void* state, const short* coefficient
 extern void __cdecl Decoding_of_the_coded_Log_Area_Ratios(const short*, short*);
 
 // FUNCTION: SWBF2 0x007522c0
-void __cdecl Gsm_Short_Term_Analysis_Filter(void* state, const short* codedRatios, short* samples)
+void __cdecl Gsm_Short_Term_Analysis_Filter(Snd::GSM* state, const short* codedRatios, short* samples)
 {
-    gsm_state* p = (gsm_state*)state;
+    Snd::GSM* p = state;
     const short oldIndex = p->j;
     short* current = p->LARpp[oldIndex];
     const short newIndex = (short)(oldIndex ^ 1);
@@ -824,7 +806,7 @@ extern void __cdecl Quantization_and_coding(short*);
 extern void __cdecl RPE_grid_selection(const short*, short*, short*);
 
 // FUNCTION: SWBF2 0x0074ea10
-void __cdecl Gsm_Coder(void* state, const short* input, short* codedRatios,
+void __cdecl Gsm_Coder(Snd::GSM* state, const short* input, short* codedRatios,
                         short* lag, short* gain, short* grid,
                         short* maximum, short* codedSamples)
 {
@@ -836,7 +818,7 @@ void __cdecl Gsm_Coder(void* state, const short* input, short* codedRatios,
     short selected[13];
     short reconstructed[13];
     short mantissa, exponent;
-    gsm_state* p = (gsm_state*)state;
+    Snd::GSM* p = state;
     short* history = p->dp0 + 120;
     short* prediction = history;
     short* residual = e + 5;
@@ -1335,7 +1317,7 @@ void __cdecl Decoding_of_the_coded_Log_Area_Ratios(const short* LARc, short* LAR
 }
 
 // FUNCTION: SWBF2 0x007500f0
-void __cdecl gsm_encode(char* pGsm, short* pFrame, unsigned char* pOut)
+void __cdecl gsm_encode(Snd::GSM* pGsm, short* pFrame, unsigned char* pOut)
 {
     word LARc[8], Nc[4], Mc[4], bc[4], xmaxc[4], xmc[13 * 4];
     unsigned char* c = pOut;

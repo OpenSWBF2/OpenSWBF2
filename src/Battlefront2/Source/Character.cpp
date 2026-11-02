@@ -55,6 +55,7 @@
 #include "ShellLoop.h"
 #include "TeamAssist.h"
 #include "PebbleFL/Common/PblIndex.h"
+#include "VOHelper.h"
 
 // GLOBAL: SWBF2 0x01e30330
 int Character::sCharacterLimit;
@@ -224,19 +225,6 @@ void Event<Character, char>::Callback::Trigger(Character& item, char& param);
 
 template <>
 void Event<Character, DamageOwner>::Callback::Trigger(Character& item, DamageOwner& param);
-}
-
-namespace AI
-{
-enum VOType
-{
-    VOT_Kill = 8
-};
-namespace VOHelper
-{
-int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,
-         const GameObject* pOther, float fDelay);
-}
 }
 
 extern int netHeroKillerID[3];

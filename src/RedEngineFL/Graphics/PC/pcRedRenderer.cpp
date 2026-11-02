@@ -3902,15 +3902,11 @@ void RedRenderer::Init()
     RedRenderer::m_uiCurMatrixPoolOffset = 0;
     RedRenderer::m_uiCurLightingStatePoolOffset = 0;
 
-    memcpy((unsigned char*)&RedRenderer::m_aLightingStatePool[2048] + 4,
-           (const unsigned char*)&RedAmbientLight::BLACK + 4, 0x6C);
-    *(void**)((unsigned char*)&RedRenderer::m_aLightingStatePool[2048] + 0x70) =
-        &RedDirectionalLight::BLACK;
+    RedRenderer::m_aLightingStatePool[2048].ambientLight = RedAmbientLight::BLACK;
+    RedRenderer::m_aLightingStatePool[2048].pDirectionalLights[0] = &RedDirectionalLight::BLACK;
 
-    memcpy((unsigned char*)&RedRenderer::m_aLightingStatePool[2049] + 4,
-           (const unsigned char*)&RedAmbientLight::WHITE + 4, 0x6C);
-    *(void**)((unsigned char*)&RedRenderer::m_aLightingStatePool[2049] + 0x70) =
-        &RedDirectionalLight::BLACK;
+    RedRenderer::m_aLightingStatePool[2049].ambientLight = RedAmbientLight::WHITE;
+    RedRenderer::m_aLightingStatePool[2049].pDirectionalLights[0] = &RedDirectionalLight::BLACK;
 
     RedRenderer::m_pLightingState = &RedRenderer::m_aLightingStatePool[2048];
 

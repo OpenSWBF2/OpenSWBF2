@@ -390,8 +390,8 @@ StreamPacket* SoftOutput::PostOutputMixFlusher::GetPacket(unsigned int  )
     if (pPacket != 0 && (pPacket->GetDiscontinuity() || pPacket->GetLast()))
     {
         mSoftOutput->mDMO.mNode.Play(true);
-        ((StreamNode*)mSoftOutput->mSplitter.mNode)->Play(true);
-        ((StreamNode*)mSoftOutput->mMixer.mNode)->Play(true);
+        mSoftOutput->mSplitter.mNode.Play(true);
+        mSoftOutput->mMixer.mNode.Play(true);
         pPacket->mFlags = (unsigned short)((pPacket->mFlags & ~1u) | 2u);
     }
     return pPacket;
@@ -407,27 +407,27 @@ void SoftOutput::Update()
     {
     case playState_playing:
         SetPlayState(playState_playing);
-        ((StreamNode*)mMixer.mNode)->Play(true);
-        ((StreamNode*)mSplitter.mNode)->Play(true);
+        mMixer.mNode.Play(true);
+        mSplitter.mNode.Play(true);
         mDMO.mNode.Play(true);
-        ((StreamNode*)mMixerOutput.mNode)->Play(true);
+        mMixerOutput.mNode.Play(true);
         mRenderer.StreamNode::Play(true);
         break;
 
     case playState_paused:
-        ((StreamNode*)mMixer.mNode)->Pause();
-        ((StreamNode*)mSplitter.mNode)->Pause();
+        mMixer.mNode.Pause();
+        mSplitter.mNode.Pause();
         mDMO.mNode.Pause();
-        ((StreamNode*)mMixerOutput.mNode)->Pause();
+        mMixerOutput.mNode.Pause();
         mRenderer.StreamNode::Pause();
         SetPlayState(playState_paused);
         break;
 
     case playState_stopped:
-        ((StreamNode*)mMixer.mNode)->Stop();
-        ((StreamNode*)mSplitter.mNode)->Stop();
+        mMixer.mNode.Stop();
+        mSplitter.mNode.Stop();
         mDMO.mNode.Stop();
-        ((StreamNode*)mMixerOutput.mNode)->Stop();
+        mMixerOutput.mNode.Stop();
         mRenderer.StreamNode::Stop();
         mRenderer.Flush();
         mMixerOutput.Flush();

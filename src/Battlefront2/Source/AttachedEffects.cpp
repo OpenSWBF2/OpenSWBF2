@@ -9,16 +9,9 @@
 #include "EntityGeometry.h"
 #include "EntityLight.h"
 #include "FLEffect.h"
+#include "GameObject.h"
 #include "PebbleFL/Common/PblHashTable.h"
 #include "PebbleFL/Common/PblRandom.h"
-
-class GameObject
-{
-public:
-
-    char mInheritedObjectStorage[0x204];
-    unsigned int mHandleId;
-};
 
 static PblMatrix _IdentityMatrix(
     PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
@@ -259,7 +252,7 @@ bool AttachedEffects::Update(float fDeltaTime)
         {
             return false;
         }
-        pGeometry = reinterpret_cast<const EntityGeometry*>((const GameObject*)m_pGameObject);
+        pGeometry = static_cast<const EntityGeometry*>((const GameObject*)m_pGameObject);
     }
 
     for (unsigned int i = 0; i < m_pClass->m_uiNumAttached; ++i)

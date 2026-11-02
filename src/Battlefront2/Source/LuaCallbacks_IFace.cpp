@@ -4054,17 +4054,16 @@ int ScriptCB_SetBinding(lua_State* L)
         }
     }
 
-    unsigned char* const pRaw = (unsigned char*)pJoystick;
     for (unsigned char ucDevice = 0; ucDevice < 10; ++ucDevice)
     {
-        void* const* ppDevices = (void* const*)(pRaw + 0x25d4);
+        RedJoystick* const* ppDevices = pJoystick->_redJoystick;
         if (ucDevice && !ppDevices[ucDevice])
         {
             continue;
         }
         const int iEnd = ucDevice ? 64 : 76;
-        const float* pfValue = (const float*)(pRaw + 0x14) + ucDevice * 76;
-        const float* pfLast = (const float*)(pRaw + 0xbf4) + ucDevice * 76;
+        const float* pfValue = pJoystick->mRawInputFloat[ucDevice];
+        const float* pfLast = pJoystick->mLastRawInputFloat[ucDevice];
 
         for (int iInput = ppDevices[ucDevice] ? 0 : 64; iInput < iEnd; ++iInput)
         {

@@ -57,7 +57,7 @@ private:
     void UnlockPacket(unsigned int uiInput, StreamPacket* const pPacket);
 public:
 
-    unsigned int mNode[3];
+    StreamNode mNode;
     StreamNodeSinkNInput mSink;
 
     unsigned char mActive[32];

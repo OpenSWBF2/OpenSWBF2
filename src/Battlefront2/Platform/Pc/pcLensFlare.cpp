@@ -1,4 +1,5 @@
 #include "Battlefront2/Source/LensFlare.h"
+#include "Battlefront2/Platform/Pc/pcSunFlare.h"
 #include <math.h>
 
 #include "PebbleFL/Common/PblHashTable.h"
@@ -54,51 +55,6 @@ static PblBox s_boundingBox(-2200.0f, -2200.0f, -2200.0f, 2200.0f, 2200.0f, 2200
 static const float kfFadeDrawDistance = 0.9f;
 static const float kfFadeDrawDistanceSquared = kfFadeDrawDistance * kfFadeDrawDistance;
 static const float kfFadeDrawDistanceFactor = 1.0f / (1.0f - kfFadeDrawDistanceSquared);
-
-struct CompressedPos
-{
-    short x;
-    short y;
-    short z;
-    short w;
-
-    static PblVector3 s_vMin;
-    static PblVector3 s_vScale;
-    static PblVector3 s_vScaleInv;
-};
-struct CompressedTexCoord
-{
-    short u;
-    short v;
-};
-struct FlareCompressedVertex
-{
-    CompressedPos pos;
-    RedColor color;
-    CompressedTexCoord uv;
-};
- 
-
-struct PosXYZ
-{
-    float x;
-    float y;
-    float z;
-};
-
-struct TexCoord
-{
-    float u;
-    float v;
-};
-
-struct FlareVertex
-{
-    PosXYZ pos;
-    RedColor color;
-    TexCoord uv;
-};
- 
 
 // FUNCTION: SWBF2 0x0041f1d0
 template <>

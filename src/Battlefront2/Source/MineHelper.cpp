@@ -10,12 +10,7 @@
 #include "WeaponDispenser.h"
 #include "GameObject.h"
 #include "RedEngineFL/Application/RedTerrain.h"
-
-namespace AI { enum AIAffil { AFFIL_ENEMY = 1, AFFIL_NEUTRAL = 2, AFFIL_ALLY = 4 }; }
-namespace TeamManager {
-int GetObjectsInRange(const PblVector3&, float, GameObject** const, int,
-                      const GameObject*, AI::AIAffil);
-}
+#include "TeamManager.h"
 
 // FUNCTION: SWBF2 0x005a3c60
 MineHelper::MineHelper(UnitAgent* pAgent)

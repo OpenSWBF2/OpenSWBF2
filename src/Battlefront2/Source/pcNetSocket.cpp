@@ -120,13 +120,13 @@ extern galaxy::api::INetworking* GetGalaxyNetworking();
 // FUNCTION: SWBF2 0x00617e50
 int NetSocket::SendSocket(int iDest, char* pData, int iLen)
 {
-    unsigned __int64* pPeer = NetCommP::GetAddr(iDest);
+    const NetSocketPeerRecord* pPeer = (const NetSocketPeerRecord*)NetCommP::GetAddr(iDest);
     if (NetComm::IsLAN())
     {
         int n = iDest == 68
               ? send(netBroadcastSendSocket, pData, iLen, 0)
               : sendto(netDirectSocket, pData, iLen, 0,
-                       (const sockaddr*)(pPeer + 1), sizeof(sockaddr_in));
+                       (const sockaddr*)pPeer->mSocketAddress, sizeof(sockaddr_in));
         if (n == SOCKET_ERROR)
         {
             DecodeError(WSAGetLastError());
@@ -144,7 +144,7 @@ int NetSocket::SendSocket(int iDest, char* pData, int iLen)
 
     galaxy::api::INetworking* pNetworking = GetGalaxyNetworking();
     return pNetworking->SendP2PPacket(
-               galaxy::api::GalaxyID(*pPeer), pData, iLen, 2, 0)
+               galaxy::api::GalaxyID(pPeer->mGalaxyId), pData, iLen, 2, 0)
          ? iLen : -1;
 }
 

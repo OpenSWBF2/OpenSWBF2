@@ -336,7 +336,7 @@ RawControllerInputs::RawControllerInputs()
     _redKeyboard = 0;
     for (int i = 0; i < 5; i++)
     {
-        *(double*)mMouseSensitivity[i] = 1.0;
+        mMouseSensitivity[i] = 1.0;
         mJoystickSensitivityX[i] = 4;
         mJoystickSensitivityY[i] = 4;
         mMouseAssist[i] = 1;
@@ -739,7 +739,7 @@ void RawControllerInputs::ReadLatest(float fDeltaTime)
         {
             dY = -dY;
         }
-        const double dSensitivity = *(double*)mMouseSensitivity[mMode] * (1.0 / 2048.0);
+        const double dSensitivity = mMouseSensitivity[mMode] * (1.0 / 2048.0);
         double dX = iDX / (double)fDeltaTime;
         dY = dY / (double)fDeltaTime;
 

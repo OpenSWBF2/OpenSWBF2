@@ -346,14 +346,14 @@ void ReadUnitScalar(NetPktGroup& group, float& value)
 }
 
 // FUNCTION: SWBF2 0x005f5be0
-void WriteCosSin(NetPktGroup& group, const float* values)
+void WriteCosSin(NetPktGroup& group, const PblAngle& angle)
 {
-    WriteFixed(unitConvert, group, values[0]);
-    WriteFixed(unitConvert, group, values[1]);
+    WriteFixed(unitConvert, group, angle.mCos);
+    WriteFixed(unitConvert, group, angle.mSin);
 }
 
 // FUNCTION: SWBF2 0x005f5c00
-void ReadCosSin(NetPktGroup& group, float* values)
+void ReadCosSin(NetPktGroup& group, PblAngle& angle)
 {
     float x;
     float y;
@@ -362,8 +362,8 @@ void ReadCosSin(NetPktGroup& group, float* values)
     const float lengthSquared = x * x + y * y;
     float half = (3.0f - lengthSquared) * 0.5f;
     const float scale = (3.0f - half * lengthSquared * half) * (half * 0.5f);
-    values[0] = scale * x;
-    values[1] = scale * y;
+    angle.mCos = scale * x;
+    angle.mSin = scale * y;
 }
 
 // FUNCTION: SWBF2 0x005f6000
@@ -1056,9 +1056,9 @@ void EntityWalker::WriteObject(NetPktGroup& group, NetObjState*)
         mLegPairs[i]->mBlend->Write(group);
     }
     WriteAngle(group, mTotalTurn);
-    WriteCosSin(group, (const float*)&mTurnOffset);
-    WriteCosSin(group, (const float*)&mPitchOffset);
-    WriteCosSin(group, (const float*)&mRollOffset);
+    WriteCosSin(group, mTurnOffset);
+    WriteCosSin(group, mPitchOffset);
+    WriteCosSin(group, mRollOffset);
     MarkWriteAlign(group);
     for (int i = 0; i < mLegPairCount; ++i)
     {
@@ -1191,9 +1191,9 @@ void EntityWalker::ReadObject(NetPktGroup& group, NetObjState*)
         }
     }
     ReadAngle(group, mTotalTurn);
-    ReadCosSin(group, (float*)&mTurnOffset);
-    ReadCosSin(group, (float*)&mPitchOffset);
-    ReadCosSin(group, (float*)&mRollOffset);
+    ReadCosSin(group, mTurnOffset);
+    ReadCosSin(group, mPitchOffset);
+    ReadCosSin(group, mRollOffset);
     CheckReadAlign(group);
     for (int i = 0; i < mLegPairCount; ++i)
     {
@@ -1630,9 +1630,9 @@ void EntityWalker::WriteLateState(NetPktGroup& group)
         mLegPairs[i]->mBlend->Write(group);
     }
     WriteAngle(group, mTotalTurn);
-    WriteCosSin(group, (const float*)&mTurnOffset);
-    WriteCosSin(group, (const float*)&mPitchOffset);
-    WriteCosSin(group, (const float*)&mRollOffset);
+    WriteCosSin(group, mTurnOffset);
+    WriteCosSin(group, mPitchOffset);
+    WriteCosSin(group, mRollOffset);
     for (int i = 0; i < mLegPairCount; ++i)
     {
         mLegPairs[i]->Write(group);
@@ -1713,9 +1713,9 @@ void EntityWalker::ReadLateState(NetPktGroup& group)
         }
     }
     ReadAngle(group, mTotalTurn);
-    ReadCosSin(group, (float*)&mTurnOffset);
-    ReadCosSin(group, (float*)&mPitchOffset);
-    ReadCosSin(group, (float*)&mRollOffset);
+    ReadCosSin(group, mTurnOffset);
+    ReadCosSin(group, mPitchOffset);
+    ReadCosSin(group, mRollOffset);
     for (int i = 0; i < mLegPairCount; ++i)
     {
         mLegPairs[i]->Read(group);
@@ -3618,7 +3618,7 @@ bool CollisionManager::I_DeactivateItem(CollisionObject* pObject)
 {
     CollisionManager* pManager = this;
     PerformSafeRemove(pObject);
-    PblList<CollisionObject>::Node* pNode = (PblList<CollisionObject>::Node*)pObject->mCollisionObjectNode;
+    PblList<CollisionObject>::Node* pNode = &pObject->mCollisionObjectNode;
     if (!pNode->IsInList())
     {
         return false;
@@ -4293,8 +4293,8 @@ void EntityDroideka::ReadObject(NetPktGroup& group, NetObjState*)
             mZephyrPoseDyn.Update(mTime);
         }
     }
-    ReadCosSin(group, (float*)&mTurnOffset);
-    ReadCosSin(group, (float*)&mPitchOffset);
+    ReadCosSin(group, mTurnOffset);
+    ReadCosSin(group, mPitchOffset);
     BuildWorldMatrices();
     ReadThrust(group, mControlMove);
     ReadThrust(group, mControlStrafe);
@@ -4311,8 +4311,8 @@ void EntityDroideka::ReadObject(NetPktGroup& group, NetObjState*)
     }
     group.ReadBits(*(unsigned int*)&mPitchValue, 32);
     group.ReadBits(*(unsigned int*)&mBallAngularVelocity, 32);
-    ReadCosSin(group, (float*)&mBallOrientation);
-    ReadCosSin(group, (float*)&mBallLean);
+    ReadCosSin(group, mBallOrientation);
+    ReadCosSin(group, mBallLean);
     ReadPilots(group, *this);
     group.ReadBits(value, 1);
     if (value)
@@ -4423,16 +4423,16 @@ void EntityDroideka::WriteLateState(NetPktGroup& group)
     }
     group.WriteBits(mState, 4);
     group.WriteFixed(mTime, 0.0f, 10.0f, 24);
-    WriteCosSin(group, (const float*)&mTurnOffset);
-    WriteCosSin(group, (const float*)&mPitchOffset);
+    WriteCosSin(group, mTurnOffset);
+    WriteCosSin(group, mPitchOffset);
     WriteThrust(group, mControlMove);
     WriteThrust(group, mControlStrafe);
     WriteThrust(group, mControlTurn);
     WriteThrust(group, mControlPitch);
     group.WriteBits(*(const unsigned int*)&mPitchValue, 32);
     group.WriteBits(*(const unsigned int*)&mBallAngularVelocity, 32);
-    WriteCosSin(group, (const float*)&mBallOrientation);
-    WriteCosSin(group, (const float*)&mBallLean);
+    WriteCosSin(group, mBallOrientation);
+    WriteCosSin(group, mBallLean);
     const bool bOffense = mBuffOffenseTimer > 0.0f;
     group.WriteBits(bOffense, 1);
     if (bOffense)
@@ -4547,8 +4547,8 @@ void EntityDroideka::ReadLateState(NetPktGroup& group)
             mZephyrPoseDyn.Update(mTime);
         }
     }
-    ReadCosSin(group, (float*)&mTurnOffset);
-    ReadCosSin(group, (float*)&mPitchOffset);
+    ReadCosSin(group, mTurnOffset);
+    ReadCosSin(group, mPitchOffset);
     BuildWorldMatrices();
     ReadThrust(group, mControlMove);
     ReadThrust(group, mControlStrafe);
@@ -4556,8 +4556,8 @@ void EntityDroideka::ReadLateState(NetPktGroup& group)
     ReadThrust(group, mControlPitch);
     group.ReadBits(*(unsigned int*)&mPitchValue, 32);
     group.ReadBits(*(unsigned int*)&mBallAngularVelocity, 32);
-    ReadCosSin(group, (float*)&mBallOrientation);
-    ReadCosSin(group, (float*)&mBallLean);
+    ReadCosSin(group, mBallOrientation);
+    ReadCosSin(group, mBallLean);
     group.ReadBits(value, 1);
     if (value)
     {
@@ -4657,8 +4657,8 @@ void EntityDroideka::WriteObject(NetPktGroup& group, NetObjState*)
     }
     group.WriteBits(mState, 4);
     group.WriteFixed(mTime, 0.0f, 10.0f, 24);
-    WriteCosSin(group, (const float*)&mTurnOffset);
-    WriteCosSin(group, (const float*)&mPitchOffset);
+    WriteCosSin(group, mTurnOffset);
+    WriteCosSin(group, mPitchOffset);
     WriteThrust(group, mControlMove);
     WriteThrust(group, mControlStrafe);
     WriteThrust(group, mControlTurn);
@@ -4672,8 +4672,8 @@ void EntityDroideka::WriteObject(NetPktGroup& group, NetObjState*)
     }
     group.WriteBits(*(const unsigned int*)&mPitchValue, 32);
     group.WriteBits(*(const unsigned int*)&mBallAngularVelocity, 32);
-    WriteCosSin(group, (const float*)&mBallOrientation);
-    WriteCosSin(group, (const float*)&mBallLean);
+    WriteCosSin(group, mBallOrientation);
+    WriteCosSin(group, mBallLean);
     WritePilots(group, *this);
     const bool bOffense = mBuffOffenseTimer > 0.0f;
     group.WriteBits(bOffense, 1);

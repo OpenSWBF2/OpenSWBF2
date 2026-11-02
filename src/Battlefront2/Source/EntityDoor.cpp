@@ -14,6 +14,7 @@
 #include "RedEngineFL/Portals/Portal.h"
 #include "RedEngineFL/Application/pc/pcFLRender.h"
 #include "PebbleFL/pc/PblD3DX.h"
+#include "TeamManager.h"
 
 extern bool netFrameLock;
 static PblMatrix _IdentityMatrix(
@@ -102,19 +103,6 @@ EntityDoor::~EntityDoor()
 // [thunk]:EntityDoor::`scalar deleting destructor'`adjustor{384}'
 // SYNTHETIC: SWBF2 0x004992ca
 // [thunk]:EntityDoor::`scalar deleting destructor'`adjustor{12}'
-
-namespace AI
-{
-
-enum AIAffil
-{
-    AFFIL_ENEMY = 1,
-    AFFIL_NEUTRAL = 2,
-    AFFIL_ALLY = 4,
-    AFFIL_ALLYNEUTRAL = 6,
-    AFFIL_ALL = 7
-};
-}
 
 class Team;
 

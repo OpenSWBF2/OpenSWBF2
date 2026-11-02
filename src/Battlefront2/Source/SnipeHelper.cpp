@@ -14,35 +14,12 @@
 #include "PebbleFL/Common/PblHeap.h"
 #include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblMatrix.h"
+#include "TeamManager.h"
 
 // FUNCTION: SWBF2 0x0063c0c0
 bool SnipeHelper::HELPERGrenadeEventInterrupt() const
 {
     return true;
-}
-
-namespace AI
-{
-
-enum AIAffil
-{
-    AFFIL_ENEMY = 1,
-    AFFIL_NEUTRAL = 2,
-    AFFIL_ALLY = 4,
-    AFFIL_ALLYNEUTRAL = 6,
-    AFFIL_ALL = 7
-};
-}
-
-namespace TeamManager
-{
-
-    int GetObjectsInRange(const PblVector3& vPos, float fRadius, GameObject** const ppObjects,
-                          int iMax, const GameObject* pIgnore, AI::AIAffil eAffil);
-
-    int GetApproxObjectsAlongLine(const PblVector3& vStart, const PblVector3& vEnd, float fRadius,
-                                  GameObject** const ppObjects, int iMax, const GameObject* pIgnore,
-                                  AI::AIAffil eAffil);
 }
 
 static const float FOV_ANGLE = 2.70526028f;

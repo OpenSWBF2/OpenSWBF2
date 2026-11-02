@@ -462,7 +462,7 @@ bool PauseMenu::Update(float fDeltaTime)
     bool bStart = pGuiInputs->IsStartPressed();
 
     SpawnDisplay* pSpawn = SpawnDisplay::Instance(iViewport);
-    if (*((bool*)pSpawn + 0x1fea) || !NetGame::IsEnabled())
+    if (pSpawn->mVisible || !NetGame::IsEnabled())
     {
         bPlayerList = false;
     }

@@ -7,8 +7,10 @@
 #include "CollisionObject.h"
 #include "EntityMine.h"
 #include "EntityTerrain.h"
+#include "EntityWater.h"
 #include "GameObject.h"
 #include "NetGame.h"
+#include "Ordnance.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
 #include "RedEngineFL/Util/RedRegion.h"
 #include "RedEngineFL/Util/RedStack.h"
@@ -17,36 +19,7 @@
 
 #include <d3dx9math.h>
 #include "TreeGridCache.h"
-
-class EntityWater : public CollisionObject
-{
-public:
-    virtual ~EntityWater();
-    virtual float RayHit(const PblVector3& vStart, const PblVector3& vDir, float fLength, PblVector3* pNormal,
-                         int* pBodyId, bool bOrdnance);
-};
-
-class Ordnance : public Thread
-{
-public:
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
-    virtual const PblVector3& GetPosition() const;
-    virtual const PblVector3& GetOldPosition() const;
-    virtual const PblVector3& GetVelocity() const;
-    virtual void KillOrdnance();
-    virtual bool CheckCollision();
-
-    char mOrdnanceFields[0x78 - 0x18];
-    PblList<Ordnance>::Node mCollisionManagerNode;
-};
-
-namespace TeamManager
-{
-void AddObject(GameObject* pObject);
-void RemoveObject(GameObject* pObject);
-}
+#include "TeamManager.h"
 
 class CollisionObjectCallbackData : public TreeGridCallbackData
 {
@@ -201,12 +174,6 @@ static CollisionObject** sSafetyObjPointer;
 // GLOBAL: SWBF2 0x01e30368
 static CollisionObject** sSafetyColliderPointer;
 
-static inline PblList<CollisionObject>::Node* CollisionNode(CollisionObject* pObject)
-{
-
-    return (PblList<CollisionObject>::Node*)pObject->mCollisionObjectNode;
-}
-
 // FUNCTION: SWBF2 0x0045db30
 void PerformSafeRemove(CollisionObject* pObject)
 {
@@ -227,7 +194,7 @@ void PerformSafeRemove(CollisionObject* pObject)
 // FUNCTION: SWBF2 0x004605b0
 bool CollisionManager::I_AddBody(CollisionObject* pObject, PblList<CollisionObject>& list)
 {
-    PblList<CollisionObject>::Node* pNode = CollisionNode(pObject);
+    PblList<CollisionObject>::Node* pNode = &pObject->mCollisionObjectNode;
     if (pNode->IsInList())
     {
         return false;
@@ -275,7 +242,7 @@ bool CollisionManager::I_RemoveBody(CollisionObject* pObject)
 {
     PerformSafeRemove(pObject);
 
-    PblList<CollisionObject>::Node* pNode = CollisionNode(pObject);
+    PblList<CollisionObject>::Node* pNode = &pObject->mCollisionObjectNode;
     if (!pNode->IsInList())
     {
         if (pObject->GetCollisionType() == COLL_ITEM)

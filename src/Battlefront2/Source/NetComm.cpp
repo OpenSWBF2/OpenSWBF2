@@ -63,7 +63,7 @@ NetPktGroup inQueue;
 // SYNTHETIC: SWBF2 0x00404430
 // `dynamic initializer for 'joinSlots''
 
-int joinSlots[0x1C0];
+NetJoinSlot joinSlots[64];
 
 // GLOBAL: SWBF2 0x01fa3d48
 unsigned __int64 lastTicks;
@@ -409,7 +409,7 @@ unsigned __int64* __fastcall NetCommP::GetAddr(int iDest)
 {
     if ((unsigned int)iDest < MAX_DESTS)
     {
-        return (unsigned __int64*)((char*)&netDests[iDest] + 0x20);
+        return &netDests[iDest].mPeer.mGalaxyId;
     }
     if (iDest == MAX_DESTS)
     {
@@ -420,7 +420,20 @@ unsigned __int64* __fastcall NetCommP::GetAddr(int iDest)
         return (unsigned __int64*)&inQueue.lastPkt;
     }
 
-    return (unsigned __int64*)&joinSlots[(iDest - 69) * 7 + 1];
+    return &joinSlots[iDest - 69].mPeer.mGalaxyId;
+}
+
+const NetSocketPeerRecord* NetCommP::GetPeer(int iDest)
+{
+    if ((unsigned int)iDest < MAX_DESTS)
+    {
+        return &netDests[iDest].mPeer;
+    }
+    if (iDest >= 69 && iDest < 69 + 64)
+    {
+        return &joinSlots[iDest - 69].mPeer;
+    }
+    return 0;
 }
 
 // FUNCTION: SWBF2 0x005b35a0
@@ -485,7 +498,7 @@ galaxy::api::INetworking* GetGalaxyNetworkingForNetComm()
 int NetComm::GetPing(int iDest)
 {
     NetDest& dest = netDests[iDest];
-    const unsigned __int64 peer = *(unsigned __int64*)dest.mAddressStorage;
+    const unsigned __int64 peer = dest.mPeer.mGalaxyId;
     if (!peer)
     {
         return dest.ping;
@@ -602,7 +615,7 @@ void NetComm::Disconnect(int iDest)
     dest.downBandwidth = 0x10000;
     dest.pipe = PIPE_INTERNET;
     dest.nextGroupNum = 0;
-    unsigned __int64* pPeer = (unsigned __int64*)dest.mAddressStorage;
+    unsigned __int64* pPeer = &dest.mPeer.mGalaxyId;
     if (iDest == 64 && *pPeer)
     {
         galaxy::api::IMatchmaking* pInterface = GetGalaxyMatchmakingForNetComm();
@@ -880,7 +893,7 @@ NetPacket* NetComm::RecvRange(int iFirstType, int iLastType)
     for (NetPacket* pPkt = NetPacket::Get(inQueue.firstPkt); pPkt;
          pPkt = NetPacket::Get(pPkt->mNextPkt))
     {
-        int iType = (unsigned char)pPkt->mData[2];
+        int iType = NetComm::Header(pPkt).type;
         if (iType >= iFirstType && iType <= iLastType)
         {
             inQueue.Remove(pPkt);
@@ -939,7 +952,7 @@ NetPacket* NetComm::Recv(PktType eType, PktType eType2)
 {
     for (NetPacket* pPkt = NetPacket::Get(inQueue.firstPkt); pPkt; pPkt = NetPacket::Get(pPkt->mNextPkt))
     {
-        const int iType = (unsigned char)pPkt->mData[2];
+        const int iType = NetComm::Header(pPkt).type;
         if (iType == eType || iType == eType2)
         {
             inQueue.Remove(pPkt);
@@ -968,11 +981,10 @@ int NetComm::SetBandwidthPercent()
 }
 
 // FUNCTION: SWBF2 0x005b3700
-int __fastcall FindSource(const void* pSource, unsigned int uType)
+int __fastcall FindSource(const NetSocketPeerRecord* pSource, unsigned int uType)
 {
-    const unsigned int* pRawSource = (const unsigned int*)pSource;
-    unsigned int uIP = pRawSource[0];
-    unsigned int uPort = pRawSource[1];
+    unsigned int uIP = (unsigned int)pSource->mGalaxyId;
+    unsigned int uPort = (unsigned int)(pSource->mGalaxyId >> 32);
     unsigned int iDest = RoutesToHostDestination(uType) ? 64 : 0;
 
     if (iDest == 64 && !NetComm::IsLAN())
@@ -982,7 +994,7 @@ int __fastcall FindSource(const void* pSource, unsigned int uType)
         galaxy::api::IMatchmaking* pInterface = GetGalaxyMatchmakingForNetComm();
         galaxy::api::GalaxyID mappedID =
             pInterface->GetLobbyOwner(galaxy::api::GalaxyID(peerID));
-        if (mappedID.value == *(const unsigned __int64*)pSource)
+        if (mappedID.value == pSource->mGalaxyId)
         {
             uIP = (unsigned int)peerID;
             uPort = (unsigned int)(peerID >> 32);
@@ -991,7 +1003,7 @@ int __fastcall FindSource(const void* pSource, unsigned int uType)
 
     for (; iDest < MAX_DESTS; ++iDest)
     {
-        const unsigned char* pAddress = (const unsigned char*)&netDests[iDest] + 0x20;
+        const NetSocketPeerRecord* pAddress = &netDests[iDest].mPeer;
         if (NetComm::IsLAN())
         {
             int sourceIP, sourcePort, destIP, destPort;
@@ -1004,8 +1016,8 @@ int __fastcall FindSource(const void* pSource, unsigned int uType)
         }
         else
         {
-            const unsigned int* pDest = (const unsigned int*)pAddress;
-            if (uIP == pDest[0] && uPort == pDest[1])
+            const unsigned __int64 uiPeer = pAddress->mGalaxyId;
+            if (uIP == (unsigned int)uiPeer && uPort == (unsigned int)(uiPeer >> 32))
             {
                 return iDest;
             }
@@ -1156,7 +1168,7 @@ NetPacket* NetCommP::MakeReceivedPacket(const unsigned char* pData, unsigned int
 }
 
 // FUNCTION: SWBF2 0x005b3290
-void __fastcall NetCommP::RecvPacket(NetPacket* pPacket, const void* pSource)
+void __fastcall NetCommP::RecvPacket(NetPacket* pPacket, const NetSocketPeerRecord* pSource)
 {
     const int iRead = (signed char)pPacket->mCommIndex;
     inBytes += pPacket->mMaxIndex - iRead;
@@ -1189,7 +1201,7 @@ void __fastcall NetCommP::RecvPacket(NetPacket* pPacket, const void* pSource)
     {
         if (IsAdminPacketAuthorized((const unsigned char*)pPacket))
         {
-            iDest = NetCommP::FindJoinSource((const int*)pSource);
+            iDest = NetCommP::FindJoinSource(pSource);
         }
         else
         {
@@ -1205,7 +1217,7 @@ void __fastcall NetCommP::RecvPacket(NetPacket* pPacket, const void* pSource)
     {
         if (uType == PKT_JOIN || (NetComm::IsLAN() && (uType == PKT_QUERY || uType == PKT_QUERY_RESPONSE)))
         {
-            iDest = NetCommP::FindJoinSource((const int*)pSource);
+            iDest = NetCommP::FindJoinSource(pSource);
         }
         if (iDest == -1)
         {

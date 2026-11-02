@@ -13,6 +13,8 @@
 #include "MessageDisplay.h"
 #include "RedEngineFL/Util/RedLocalizeDB.h"
 #include "RedEngineFL/Graphics/RedColor.h"
+#include "VOHelper.h"
+#include "TeamManager.h"
 #include <math.h>
 #include <stdlib.h>
 
@@ -23,30 +25,19 @@ namespace SquadCommands
 bool IsSquadCommand(int iCmd) { return (unsigned int)(iCmd - 13) <= 1; }
 }
 
-namespace AI
-{
-enum VOType { VOT_SC_GetIn = 28, VOT_SC_GetInResponseRepeat = 30,
-              VOT_SC_GetOut = 31, VOT_SC_GetOutResponse = 32 };
-enum AIAffil { AFFIL_ENEMY = 1, AFFIL_NEUTRAL = 2, AFFIL_ALLY = 4,
-               AFFIL_ALLYNEUTRAL = 6, AFFIL_ALL = 7 };
-namespace VOHelper
-{
-int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,
-         const GameObject* pOther, float fDelay);
-}
-}
-
 namespace ReserveManager
 {
 int GetOpenReservableSlots(const GameObject* pObj, int iTeam, ReserveType eType);
 int GetPlayerOccupiedSlots(const GameObject* pObj);
 const GameObject* __fastcall GetFirstReserver(const GameObject* pObj);
 }
-namespace TeamManager
+struct VehicleCandidate
 {
-int GetObjectsInRange(const PblVector3& vPos, float fRange, GameObject** const ppObjects,
-                      int iMax, const GameObject* pObject, AI::AIAffil eAffil);
-}
+    GameObject* pObject;
+    float fScore;
+};
+static_assert(sizeof(VehicleCandidate) == 0x8, "vehicle candidate size");
+static_assert(offsetof(VehicleCandidate, fScore) == 0x4, "vehicle candidate score");
 
 namespace SquadCommands
 {
@@ -59,8 +50,8 @@ void VehicleCommand(GameObject* pObject, Character* pCharacter);
 // FUNCTION: SWBF2 0x00650020
 int SquadCommands::VehicleDistCallback(const void* pA, const void* pB)
 {
-    const float a = ((const float*)pA)[1];
-    const float b = ((const float*)pB)[1];
+    const float a = ((const VehicleCandidate*)pA)->fScore;
+    const float b = ((const VehicleCandidate*)pB)->fScore;
     if (a > b)
     {
         return 1;
@@ -166,12 +157,7 @@ void SquadCommands::VehicleGetIn(GameObject* pObject, Character* pCharacter)
         return;
     }
 
-    struct Candidate
-    {
-        GameObject* pObject;
-        float fScore;
-    };
-    Candidate aCandidates[30];
+    VehicleCandidate aCandidates[30];
     for (int i = 0; i < iCount; ++i)
     {
         GameObject* pCandidate = apNearby[i];

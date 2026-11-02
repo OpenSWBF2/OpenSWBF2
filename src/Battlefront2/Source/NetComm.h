@@ -2,6 +2,7 @@
 #include <stddef.h>
 
 #include "NetPacket.h"
+#include "pcNetSocket.h"
 
 enum PipeType
 {
@@ -19,12 +20,13 @@ enum NetArch
     NET_ARCH_FAKE = 3
 };
 
+#pragma pack(push, 4)
 struct NetDest
 {
     bool connected;
     NetPktGroup outQueue;
 
-    char mAddressStorage[0x18];
+    NetSocketPeerRecord mPeer;
     NetArch arch;
     float lastRecv;
     PipeType pipe;
@@ -36,6 +38,7 @@ struct NetDest
     int downBandwidth;
     int nextGroupNum;
 };
+#pragma pack(pop)
  
 
 const int MAX_DESTS = 67;
@@ -194,7 +197,7 @@ public:
 
     static void SetArch(int iDest, NetArch arch);
 
-    static void __fastcall RecvPacket(NetPacket* pPacket, const void* pSource);
+    static void __fastcall RecvPacket(NetPacket* pPacket, const NetSocketPeerRecord* pSource);
     static NetPacket* MakeReceivedPacket(const unsigned char* pData, unsigned int size,
                                          unsigned int prefix, bool classifyByType);
 
@@ -208,5 +211,6 @@ public:
     static void FreePackets();
     static void __fastcall Connect(int iDest, const void* pAddress);
     static unsigned __int64* __fastcall GetAddr(int iDest);
-    static int __fastcall FindJoinSource(const int* pAddress);
+    static const NetSocketPeerRecord* GetPeer(int iDest);
+    static int __fastcall FindJoinSource(const NetSocketPeerRecord* pAddress);
 };

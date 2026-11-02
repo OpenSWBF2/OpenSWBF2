@@ -190,20 +190,21 @@ foreach ($sc in $hardScenarios) {
     if ($why) { $failed++; Write-Host "FAILED ${n}: $($sc[0]): $why" }
     else { Write-Host "OK $n $($sc[0])" }
 }
-function New-FlagBag($total, $an, $il, $extra) {
-    $p = @{ Total = $total; GsMinus = 0; Sdl = $total; AlignedNewOff = $an; InlineOff = $il; ThrowingNew = 0; Gl = 0; FpFast = 0; FpContract = 0 }
+function New-FlagBag($total, $an, $il, $io, $extra) {
+    $p = @{ Total = $total; GsMinus = 0; Sdl = $total; AlignedNewOff = $an; InlineOff = $il; InlineOn = $io; ThrowingNew = 0; Gl = 0; FpFast = 0; FpContract = 0 }
     if ($extra) { foreach ($k in $extra.Keys) { $p[$k] = $extra[$k] } }
     return New-Object PSObject -Property $p
 }
 $allFlags = @('flag-alignednew', 'flag-inline', 'flag-alignednew-tests', 'flag-banned')
 $flagScenarios = @(
-    @('flags all good pass', (New-FlagBag 748 748 748 $null), (New-FlagBag 97 97 0 $null), $allFlags, @()),
-    @('flags alignednew 747/748 fails', (New-FlagBag 748 747 748 $null), (New-FlagBag 97 97 0 $null), @('flag-inline', 'flag-alignednew-tests', 'flag-banned'), @('flag-alignednew')),
-    @('flags inline 0 fails', (New-FlagBag 748 748 0 $null), (New-FlagBag 97 97 0 $null), @('flag-alignednew', 'flag-alignednew-tests', 'flag-banned'), @('flag-inline')),
-    @('flags tests missing alignednew fails', (New-FlagBag 748 748 748 $null), (New-FlagBag 97 0 0 $null), @('flag-alignednew', 'flag-inline', 'flag-banned'), @('flag-alignednew-tests')),
-    @('flags one /GL fails banned', (New-FlagBag 748 748 748 @{ Gl = 1 }), (New-FlagBag 97 97 0 $null), @('flag-alignednew', 'flag-inline', 'flag-alignednew-tests'), @('flag-banned')),
-    @('flags one tests /fp:fast fails banned', (New-FlagBag 748 748 748 $null), (New-FlagBag 97 97 0 @{ FpFast = 1 }), @('flag-alignednew', 'flag-inline', 'flag-alignednew-tests'), @('flag-banned')),
-    @('flags empty game tlog fails', (New-FlagBag 0 0 0 $null), $null, @('flag-banned'), @('flag-alignednew', 'flag-inline'))
+    @('flags all good pass', (New-FlagBag 748 748 0 748 $null), (New-FlagBag 97 97 0 0 $null), $allFlags, @()),
+    @('flags alignednew 747/748 fails', (New-FlagBag 748 747 0 748 $null), (New-FlagBag 97 97 0 0 $null), @('flag-inline', 'flag-alignednew-tests', 'flag-banned'), @('flag-alignednew')),
+    @('flags one /Zc:inline- fails', (New-FlagBag 748 748 1 748 $null), (New-FlagBag 97 97 0 0 $null), @('flag-alignednew', 'flag-alignednew-tests', 'flag-banned'), @('flag-inline')),
+    @('flags missing /Zc:inline fails', (New-FlagBag 748 748 0 747 $null), (New-FlagBag 97 97 0 0 $null), @('flag-alignednew', 'flag-alignednew-tests', 'flag-banned'), @('flag-inline')),
+    @('flags tests missing alignednew fails', (New-FlagBag 748 748 0 748 $null), (New-FlagBag 97 0 0 0 $null), @('flag-alignednew', 'flag-inline', 'flag-banned'), @('flag-alignednew-tests')),
+    @('flags one /GL fails banned', (New-FlagBag 748 748 0 748 @{ Gl = 1 }), (New-FlagBag 97 97 0 0 $null), @('flag-alignednew', 'flag-inline', 'flag-alignednew-tests'), @('flag-banned')),
+    @('flags one tests /fp:fast fails banned', (New-FlagBag 748 748 0 748 $null), (New-FlagBag 97 97 0 0 @{ FpFast = 1 }), @('flag-alignednew', 'flag-inline', 'flag-alignednew-tests'), @('flag-banned')),
+    @('flags empty game tlog fails', (New-FlagBag 0 0 0 0 $null), $null, @('flag-banned'), @('flag-alignednew', 'flag-inline'))
 )
 foreach ($sc in $flagScenarios) {
     $n++
@@ -223,13 +224,14 @@ try {
         '^C:\X\A.CPP',
         '/c /IC:\X\GL\INC /Zc:alignedNew- /Zc:inline- /sdl /GS C:\X\A.CPP',
         '^C:\X\B.CPP',
-        '/c /IC:\X\GL\INC /Zc:alignedNew- /sdl /GS /Fo"C:\X\GL\B.OBJ" C:\X\B.CPP'
+        '/c /IC:\X\GL\INC /Zc:alignedNew- /Zc:inline /sdl /GS /Fo"C:\X\GL\B.OBJ" C:\X\B.CPP'
     )
     $tc = Get-ClTlogCounts $tlogDir
     $why = $null
     if ($tc.Total -ne 2) { $why = "Total=$($tc.Total)" }
     elseif ($tc.AlignedNewOff -ne 2) { $why = "AlignedNewOff=$($tc.AlignedNewOff)" }
     elseif ($tc.InlineOff -ne 1) { $why = "InlineOff=$($tc.InlineOff)" }
+    elseif ($tc.InlineOn -ne 1) { $why = "InlineOn=$($tc.InlineOn)" }
     elseif ($tc.Gl -ne 0) { $why = "Gl=$($tc.Gl) matched a path" }
     elseif ($tc.Sdl -ne 2 -or $tc.GsMinus -ne 0) { $why = "Sdl=$($tc.Sdl) GsMinus=$($tc.GsMinus)" }
     if ($why) { $failed++; Write-Host "FAILED ${n}: UTF-16 tlog flag counts: $why" }
@@ -237,6 +239,95 @@ try {
 }
 finally {
     Remove-Item -Recurse -Force $tlogDir -ErrorAction SilentlyContinue
+}
+$n++
+$suiteDir = Join-Path $env:TEMP ("openswbf2-suite-" + [guid]::NewGuid().ToString('N'))
+try {
+    New-Item -ItemType Directory -Path (Join-Path $suiteDir 'src') | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $suiteDir 'tests\unit') | Out-Null
+    Set-Content -Encoding ASCII -Path (Join-Path $suiteDir 'tests\unit\x.cpp') -Value @(
+        'TEST_CASE("listed (a)" * doctest::timeout(5) * doctest::test_suite("unit")) {}',
+        'TEST_CASE("probe" * doctest::skip()) {}',
+        'TEST_CASE("untagged") {}',
+        'TEST_CASE("unlisted" * doctest::test_suite("units")) {}',
+        'TEST_SUITE("unit") {}'
+    )
+    $sc = @(Get-SourceChecks $suiteDir | Where-Object { $_.Name -eq 't1-suite' })
+    $want = 'tests\unit\x.cpp:3, tests\unit\x.cpp:4, tests\unit\x.cpp:5'
+    if ($sc.Count -ne 1 -or $sc[0].Ok -or $sc[0].Detail -ne $want) { $failed++; Write-Host "FAILED ${n}: t1-suite flags untagged and unlisted cases: $($sc.Detail)" }
+    else { Write-Host "OK $n t1-suite flags untagged and unlisted cases" }
+}
+finally {
+    Remove-Item -Recurse -Force $suiteDir -ErrorAction SilentlyContinue
+}
+$n++
+$spacerDir = Join-Path $env:TEMP ("openswbf2-spacer-" + [guid]::NewGuid().ToString('N'))
+try {
+    New-Item -ItemType Directory -Path (Join-Path $spacerDir 'src') | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $spacerDir 'tests') | Out-Null
+    Set-Content -Encoding ASCII -Path (Join-Path $spacerDir 'src\x.h') -Value @(
+        'unsigned char acAllowed[0x10];',
+        'unsigned char acAllowed[0x10];',
+        'char mGap[0x20];',
+        'char mPad[12];',
+        'char acName[64];',
+        'char mRun[16 + 0x4];',
+        'unsigned char m[2][0x10];',
+        'static const unsigned char kTable[0x4] = { 1, 2, 3, 4 };',
+        'mutable char mBuf[0x8];',
+        'alignas(4) unsigned char mAligned[0x8];',
+        'BYTE mByte[0x8];',
+        'uint8_t mU8[0x8];',
+        'signed char mS[0x8];',
+        'unsigned __int8 mI8[0x8];',
+        'char a[4], pad2[0x10];',
+        'char mTail[sizeof(int) - 1];',
+        '// char mComment[0x10];',
+        'char* apNames[0x10];',
+        'struct S { bool b; volatile char mVol[0x2]; };',
+        'char acSized[0x10];'
+    )
+    $allow = @('src\x.h|acAllowed|[0x10]', 'src\x.h|acSized|[16]', 'src\x.h|mMissing|[0x4]')
+    $sc = @(Get-SourceChecks $spacerDir $allow | Where-Object { $_.Name -eq 'char-spacer' })
+    $want = ((@(2, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 19, 20) | ForEach-Object { "src\x.h:$_" }) + 'unused allow src\x.h|acSized|[16]' + 'unused allow src\x.h|mMissing|[0x4]') -join ', '
+    if ($sc.Count -ne 1 -or $sc[0].Ok -or $sc[0].Detail -ne $want) { $failed++; Write-Host "FAILED ${n}: char-spacer flags every spacer form outside the exact allow-list: $($sc.Detail)" }
+    else { Write-Host "OK $n char-spacer flags every spacer form outside the exact allow-list" }
+}
+finally {
+    Remove-Item -Recurse -Force $spacerDir -ErrorAction SilentlyContinue
+}
+$n++
+$offsetDir = Join-Path $env:TEMP ("openswbf2-offset-" + [guid]::NewGuid().ToString('N'))
+try {
+    New-Item -ItemType Directory -Path (Join-Path $offsetDir 'src') | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $offsetDir 'tests') | Out-Null
+    Set-Content -Encoding ASCII -Path (Join-Path $offsetDir 'src\x.cpp') -Value @(
+        'p = (Foo*)((char*)pObj + 0x10);',
+        'x = *(int*)((char*)this + 0x1c);',
+        'q = (const Bar*)((unsigned char*)pObj->mRec - 8);',
+        'a = (const sockaddr*)(pPeer + 1);',
+        'r = reinterpret_cast<Baz*>(pRec + 2);',
+        's = reinterpret_cast<int*>(reinterpret_cast<char*>(pObj) + 4);',
+        'Read((char*)mBitmap + 1, n);',
+        't = (Node*)((char*)pLink - offsetof(Node, mLink));',
+        'u = (Node*)((char*)pLink - (int)offsetof(Node, mLink));',
+        'v = (int*)(pMe->mCtrl);',
+        'w = (char*)pA - (char*)pB;',
+        '// c = (Foo*)((char*)pObj + 0x10);',
+        'y = (Foo*)((char*)pAllowed + 4);',
+        'y = (Foo*)((char*)pAllowed + 4);',
+        'z = (Foo*)( (char*)pSpaced  +  4 );',
+        'k = (float)(fA + fB);',
+        'h = (char*)p + iSize;'
+    )
+    $allow = @('src\x.cpp|(Foo*)((char*)pAllowed + 4)', 'src\x.cpp|(Foo*)( (char*)pSpaced + 4 )', 'src\x.cpp|(Foo*)((char*)pMissing + 4)', 'src\y.cpp|(Foo*)((char*)pAllowed + 4)')
+    $sc = @(Get-SourceChecks $offsetDir @() $allow | Where-Object { $_.Name -eq 'offset-hack' })
+    $want = ((@(1, 2, 3, 4, 5, 6, 7, 14) | ForEach-Object { "src\x.cpp:$_" }) + 'unused allow src\x.cpp|(Foo*)((char*)pMissing + 4)' + 'unused allow src\y.cpp|(Foo*)((char*)pAllowed + 4)') -join ', '
+    if ($sc.Count -ne 1 -or $sc[0].Ok -or $sc[0].Detail -ne $want) { $failed++; Write-Host "FAILED ${n}: offset-hack flags every byte-offset form outside the exact allow-list: $($sc.Detail)" }
+    else { Write-Host "OK $n offset-hack flags every byte-offset form outside the exact allow-list" }
+}
+finally {
+    Remove-Item -Recurse -Force $offsetDir -ErrorAction SilentlyContinue
 }
 $n++
 $allCases = @(Get-SmokeCases 'All' @('foo1c_ctf TimeOut', 'tat3c_con Fatal', 'bar1c_con', 'quux1c_con Pass') $false $null)

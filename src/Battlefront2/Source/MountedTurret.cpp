@@ -11,6 +11,7 @@
 #include "CameraManager.h"
 #include "Character.h"
 #include "CollisionManager.h"
+#include "EntityFlyer.h"
 #include "FirstPerson.h"
 #include "GameModel.h"
 #include "GameObject.h"
@@ -170,26 +171,6 @@ void RemoveChildren(const GameObject* pObject, RedPose& rPose, int iBone)
 
 extern bool netFrameLock;
 extern bool netIsLocalTurn;
-
-class EntityFlyer
-{
-public:
-    enum State
-    {
-        LANDED = 0,
-        TAKEOFF = 1,
-        FLYING = 2,
-        LANDING = 3,
-        CRASHING = 4,
-        CRASHED = 5
-    };
-
-    char mFlyerBaseStorage[0x564];
-    State mState;
-
-    static PblHash rttiHashEntityFlyer;
-};
- 
 
 // GLOBAL: SWBF2 0x01ecb150
 // SYNTHETIC: SWBF2 0x00404340
@@ -779,7 +760,7 @@ bool MountedTurret::Update(float aDt)
                 {
 
                     if (!(GetGameObject() && GetGameObject()->IsRtti(EntityFlyer::rttiHashEntityFlyer) &&
-                          ((EntityFlyer*)GetGameObject())->mState != EntityFlyer::LANDED))
+                          static_cast<EntityFlyer*>(GetGameObject())->mState != EntityFlyer::LANDED))
                     {
                         if (pPilot->mCharacter && pPilot->mCharacter->mRemote)
                         {

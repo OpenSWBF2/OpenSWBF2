@@ -367,10 +367,9 @@ bool SkyDome::Update(float fDeltaTime)
                 rData.pos = gVectorZero;
                 rData.effect->AttachEffectToVector(&rData.pos, true);
 
-                unsigned char* pEmitter = (unsigned char*)(ParticleEmitterObject*)rData.effect;
-                void* pSceneObject = pEmitter + 0x80;
-                static_cast<RedSceneObject*>(rData.effect)->Deactivate();
-                pEmitter[0x106] = 0;
+                ParticleEmitterObject* pEffect = rData.effect;
+                pEffect->Deactivate();
+                pEffect->mbAddedToScene = false;
             }
         }
     }
