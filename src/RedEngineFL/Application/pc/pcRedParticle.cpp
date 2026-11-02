@@ -14,6 +14,9 @@
 #include "RedEngineFL/Graphics/PC/Shaders/pcParticleShader.h"
 #include "PebbleFL/pc/PblD3DX.h"
 
+namespace
+{
+
 struct PosXYZ
 {
     float x;
@@ -51,6 +54,7 @@ struct ParticleVertexT
     float tu;
     float tv;
 };
+}
 
  
  

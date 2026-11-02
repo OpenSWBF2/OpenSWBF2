@@ -196,7 +196,7 @@ bool CaptureDisplay::Update(float fDeltaTime)
     for (CommandPostItor itor = CommandPostManager::Instance()->GetItor(); itor; ++itor)
     {
         CommandPost* pPost = *itor;
-        if (!(pPost->mHoldPlayerMask & (1 << pChr->mPlayerId)))
+        if (!CommandPost::HoldMaskHasPlayer(pPost->mHoldPlayerMask, pChr->mPlayerId))
         {
             continue;
         }

@@ -13,6 +13,7 @@
 #include "RedEngineFL/Graphics/PC/pcRedPrimitive.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "PebbleFL/pc/PblD3DX.h"
+#include "Battlefront2/Platform/Pc/pcSunFlare.h"
 
 namespace FLRenderer
 {
@@ -414,18 +415,6 @@ void RedDebug::RedDebugRenderable::Init()
     s_debugShader = pcRedShader::Create(PblHash("lightbeam"), 0x1082, 0, 0, 0x200,
                                         RedColor::WHITE, RedColor::BLACK, 32.0f);
 }
-
-struct CompressedPos
-{
-    short x;
-    short y;
-    short z;
-    short w;
-
-    static PblVector3 s_vMin;
-    static PblVector3 s_vScale;
-    static PblVector3 s_vScaleInv;
-};
 
 struct DebugVertex
 {

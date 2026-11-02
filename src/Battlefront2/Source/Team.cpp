@@ -849,7 +849,7 @@ int Team::GetClassMaxUnits(int iIndex) const
 
 static inline const GameObjectClass* GetUnitClass(Controllable* pUnit)
 {
-    return *(GameObjectClass* const*)((const char*)pUnit->GetGameObject() + 8);
+    return pUnit->GetGameObject()->GetGameObjectClass();
 }
 
 // FUNCTION: SWBF2 0x00654440

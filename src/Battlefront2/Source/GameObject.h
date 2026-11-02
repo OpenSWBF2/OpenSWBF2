@@ -208,9 +208,9 @@ public:
     float GetPrevFloat(int iNetUniqueId, int iIndex);
 
     int count[64];
-    PblMatrix mat[2][64];
-    float mFloats[2][3][64];
-    PblVector3 vec[2][64];
+    PblMatrix mat[64][2];
+    float mFloats[64][3][2];
+    PblVector3 vec[64][2];
 };
  
 

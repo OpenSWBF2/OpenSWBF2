@@ -21,6 +21,8 @@ class GameObject;
 class PblFileChunk;
 class Weapon;
 
+// SYNTHETIC: SWBF2 0x005bf360
+// `OrdnanceDesc::~OrdnanceDesc'
 struct OrdnanceDesc
 {
     // FUNCTION: SWBF2 0x005b40e0

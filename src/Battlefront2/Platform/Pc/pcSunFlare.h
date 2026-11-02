@@ -1,5 +1,7 @@
 #pragma once
 
+#include "RedEngineFL/Graphics/RedColor.h"
+
 class PblVector3;
 
 struct CompressedPos
@@ -19,3 +21,30 @@ struct CompressedPos
 };
 
  
+
+struct FlareVertex
+{
+    struct Pos
+    {
+        float x;
+        float y;
+        float z;
+    } pos;
+    RedColor color;
+    struct UV
+    {
+        float u;
+        float v;
+    } uv;
+};
+
+struct FlareCompressedVertex
+{
+    CompressedPos pos;
+    RedColor color;
+    struct UV
+    {
+        short u;
+        short v;
+    } uv;
+};

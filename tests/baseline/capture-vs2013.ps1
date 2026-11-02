@@ -254,7 +254,6 @@ $script:LayoutTus = [ordered]@{
     'WeaponRepair' = @('src\Battlefront2\Source\WeaponRepair.cpp')
     'FLInputManager' = @('src\Battlefront2\Source\FLInputManager.cpp')
     'RedBorderElement' = @('src\RedEngineFL\Interface\RedBorderElement.cpp')
-    'PAGameObjectTeam' = @('src\Battlefront2\Source\ProceduralAnimation.cpp')
     'EntityHover' = @('src\Battlefront2\Source\EntityHover.cpp')
     'EntityWalker' = @('src\Battlefront2\Source\EntityWalker.cpp')
 }

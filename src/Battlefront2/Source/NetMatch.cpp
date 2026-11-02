@@ -380,7 +380,7 @@ void __fastcall HandleFindPacket(NetPacket* packet)
         return;
     }
     netHandlingFindPacket = true;
-    if (packet->mData[2])
+    if (NetComm::Header(packet).type != PKT_FIND)
     {
         packet->Free();
         netHandlingFindPacket = false;
@@ -428,7 +428,7 @@ void __fastcall HandleFoundPacket(NetPacket* packet, const void* source)
     NetPktGroup group;
     group.Set(packet);
     group.BeginRead();
-    if ((unsigned char)packet->mData[2] == 1)
+    if (NetComm::Header(packet).type == PKT_FOUND)
     {
         unsigned int sequence;
         group.ReadBits(sequence, 32);

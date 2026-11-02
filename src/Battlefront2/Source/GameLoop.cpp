@@ -21,6 +21,7 @@
 #include "EnergyBar.h"
 #include "EntitySound.h"
 #include "EntityTerrain.h"
+#include "EntityWater.h"
 #include "FirstPerson.h"
 #include "FishEffect.h"
 #include "FlagItem.h"
@@ -110,6 +111,7 @@
 #include "PlayerStats.h"
 #include "RedEngineFL/Util/RedWarning.h"
 #include "RedEngineFL/Util/RedLog.h"
+#include "TeamManager.h"
 
 class VideoEffect { public: static void Init(); };
 class LetterboxEffect { public: static void Init(); };
@@ -126,14 +128,6 @@ namespace EventManager { void Init(); void Cleanup(); }
 namespace Lua_Callbacks { void Cleanup(); }
 namespace RedMissionLog { bool Enabled(); }
 namespace SimDigest { unsigned int StateHash(); void TraceTurn(); void LogFactories(); void LogFactoryCounts(); void Reset(); }
-
-class EntityWater
-{
-public:
-    EntityWater();
-
-    unsigned char mOpaqueWaterState[0xa4];
-};
 
 class EntitySoldier
 {
@@ -281,7 +275,6 @@ public:
 };
 
 namespace AIDebug { void Create(); }
-namespace TeamManager { void Init(); }
 namespace SkyManager { void Activate(); }
 
 void InitMouseCursor();
@@ -622,7 +615,6 @@ void StatusDisplay::InitAll()
 
 namespace GameLoop { void CheckScreenShots(); }
 namespace GameLoop { bool CheckToggleDisplay(); }
-namespace TeamManager { void UpdatePositions(); }
 namespace HUD { namespace Manager { void Update(float fDeltaTime); } }
 namespace PlayerPrefs { int __fastcall FindByViewport(int iValue); }
 namespace PopupText { bool IsEnabled(); void Update(float fDeltaTime); }

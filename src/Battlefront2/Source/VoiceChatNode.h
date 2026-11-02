@@ -4,12 +4,14 @@
 #include <stddef.h>
 
 #include "PebbleFL/Common/PblList.h"
+#include "VoiceChatUtil.h"
 
 class SoundDebugDisplay;
 
 namespace VoiceChat
 {
 struct AudioPacket;
+class Transport;
 }
 
 namespace VoiceChat
@@ -87,6 +89,24 @@ public:
         bool GetDiscontinuity() const;
         unsigned short GetSeqNum() const;
         Format GetFormat() const;
+
+        static unsigned int GetMaxBytes(unsigned int uiNumNodes, unsigned int uiNumNodesLog2)
+        {
+            const unsigned int uiDirect = 12 + 2 * uiNumNodesLog2;
+            const unsigned int uiRelay = 12 + uiNumNodesLog2 + uiNumNodes;
+            return ((uiRelay > uiDirect ? uiRelay : uiDirect) + 7) >> 3;
+        }
+
+        static bool HasValidNodes(const unsigned char* pBitmap, unsigned int uiNumNodes,
+                                  unsigned int uiNumNodesLog2)
+        {
+            if (VoiceChat::GetBits(pBitmap, 12, uiNumNodesLog2) >= uiNumNodes)
+            {
+                return false;
+            }
+            return VoiceChat::GetBit(pBitmap, 0) ||
+                   VoiceChat::GetBits(pBitmap, 12 + uiNumNodesLog2, uiNumNodesLog2) < uiNumNodes;
+        }
 
     protected:
         void Reset();
@@ -223,14 +243,14 @@ public:
     static const ReceiveMetrics& GetReceiveMetrics(unsigned char node);
     static const SendMetrics& GetSendMetrics(unsigned char node);
 public:
-    static void* sTransport;
+    static Transport* sTransport;
     static unsigned char sSkipDropped;
     static float sBufferSizeMs;
     static unsigned short sRepeatMax;
-    static void* sSendMetrics;
-    static void* sReceiveMetrics;
+    static SendMetrics* sSendMetrics;
+    static ReceiveMetrics* sReceiveMetrics;
     static int sTime;
-    static void* sList[4];
+    static PblList<Node> sList;
     static unsigned short sSeqNumVariance;
     static float sReceiveBufferSize;
 };

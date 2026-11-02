@@ -464,6 +464,7 @@ public:
 class NetGameDesc;
 
 // VTABLE: SWBF2 0x007ac340
+#pragma pack(push, 4)
 class CNetFindGame : public NetFindGame
 {
 public:
@@ -529,7 +530,12 @@ public:
     bool canceled;
     FindType findType;
 
-    unsigned char mDirectJoinState[0x28];
+    unsigned char mDirectJoinReserved[4];
+    bool mDirectJoinResponded;
+    unsigned char mDirectJoinPadding[3];
+    unsigned __int64 mDirectJoinPeer;
+    unsigned char mDirectJoinReservedTail[16];
+    NetSessionId mDirectJoinSession;
 
     bool mWaitingForQueries;
     unsigned char mQueryWaitPadding[3];
@@ -537,6 +543,7 @@ public:
     int mSelectedSession;
     int mPercentDone;
 };
+#pragma pack(pop)
  
  
  

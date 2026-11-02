@@ -128,27 +128,21 @@ void FLInputManager::InitCustomFontData()
     }
 }
 
-#define FLIM_AT(T, off) (*reinterpret_cast<T*>(reinterpret_cast<unsigned char*>(&FLInputManager::s_instance) + (off)))
-typedef RedJoystick* tJoystickPorts10[10];
-typedef unsigned char tBytes4C[0x4c];
-typedef unsigned char tBytes168[0x168];
-
 // GLOBAL: SWBF2 0x01ebe078
 RawControllerInputs& gPrimaryRawInputs = FLInputManager::s_instance.mJoysticks[0];
 // GLOBAL: SWBF2 0x01ec0640
-void*& gGuiInputTarget = FLIM_AT(void*, 0x428 + 0x25c8);
+GUIInputs*& gGuiInputTarget = FLInputManager::s_instance.mJoysticks[0].m_pGuiInputs;
 // GLOBAL: SWBF2 0x01ec0644
-bool& gProcessAfterReading = FLIM_AT(bool, 0x428 + 0x25cc);
+bool& gProcessAfterReading = FLInputManager::s_instance.mJoysticks[0].mProcessAfterReading;
 // GLOBAL: SWBF2 0x01ec0648
-void*& gProcessedInputTarget = FLIM_AT(void*, 0x428 + 0x25d0);
+ProcessedInputs*& gProcessedInputTarget = FLInputManager::s_instance.mJoysticks[0].mProcessDestination;
 
-RedJoystick* (&gJoystickPorts)[10] = FLIM_AT(tJoystickPorts10, 0x29fc);
+RedJoystick* (&gJoystickPorts)[10] = FLInputManager::s_instance.mJoysticks[0].mAttachedJoysticks;
 
-unsigned char (&gProcessedInputStorage)[0x4c] = FLIM_AT(tBytes4C, 0x2cc8);
-unsigned char (&gGuiInputStorage)[0x168] = FLIM_AT(tBytes168, 0x2d14);
+ProcessedInputs& gProcessedInputStorage = FLInputManager::s_instance.m_inputs[0];
+GUIInputs& gGuiInputStorage = FLInputManager::s_instance.m_guiInputs[0];
 // GLOBAL: SWBF2 0x01ec0acc
-bool& gControllerMissingFlag = FLIM_AT(bool, 0x2e7c);
-#undef FLIM_AT
+bool& gControllerMissingFlag = FLInputManager::s_instance.m_bIsMissing[0];
 
 struct ProcessedInputMap
 {
@@ -176,15 +170,14 @@ static const ProcessedInputMap gProcessedInputMap[0x22] =
 // FUNCTION: SWBF2 0x00529c10
 unsigned short GetRawFromProcessed_(unsigned int uiAction)
 {
-    unsigned char* pBindings =
-        (unsigned char*)FLInputManager::s_instance.GetPlayerJoystick(PauseMenu::GetPausingViewport());
+    RawControllerInputs* pInputs =
+        FLInputManager::s_instance.GetPlayerJoystick(PauseMenu::GetPausingViewport());
 
-    const unsigned int uiIndex = *(unsigned int*)(pBindings + 8) * 0x2b + uiAction;
-    const unsigned short uKey =
-        *(unsigned short*)(pBindings + uiIndex * 6 + 0x20bc);
+    const unsigned int uiIndex = pInputs->mMode * 0x2b + uiAction;
+    const ActionKey& key = (&pInputs->mCurKeyboardBindings[0][0])[uiIndex];
+    const unsigned short uKey = key.mKey[0];
 
-    const unsigned short uUnused =
-        *(unsigned short*)(pBindings + uiIndex * 6 + 0x20c0);
+    const unsigned short uUnused = key.mKey[2];
     (void)uUnused;
 
     if (uKey > 0x100)
@@ -237,8 +230,8 @@ void FLInputManager::Init(void)
     }
 
     gProcessAfterReading = true;
-    gProcessedInputTarget = gProcessedInputStorage;
-    gGuiInputTarget = gGuiInputStorage;
+    gProcessedInputTarget = &gProcessedInputStorage;
+    gGuiInputTarget = &gGuiInputStorage;
     gControllerMissingFlag = false;
 
     gPrimaryRawInputs.CloseChatMode();
@@ -337,9 +330,8 @@ void FLInputManager::ProcessChatMessageInput(const unsigned short* pwText)
 // FUNCTION: SWBF2 0x0052a260
 bool CanProcessChatMessage(void)
 {
-    const unsigned char* pObj =
-        *(const unsigned char* const*)((const unsigned char*)&FLInputManager::s_instance + 0x2a24);
-    return pObj && pObj[5];
+    const RedLogitechLCD* pLcd = FLInputManager::s_instance.mJoysticks[0].mLCDPanel;
+    return pLcd && pLcd->mOpened;
 }
 
 // GLOBAL: SWBF2 0x009cef76

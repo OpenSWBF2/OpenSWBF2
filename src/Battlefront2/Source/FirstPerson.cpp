@@ -174,6 +174,7 @@ WEAPONCLASS _GetWeaponClassFromWeapon(const Weapon* pWeapon)
     }
 }
 
+// FUNCTION: SWBF2 0x0051ecb0
 PblMatrix CameraManager::GetChaseCameraTransform(int iCam)
 {
     return mChaseCamera[iCam]->GetMatrix();

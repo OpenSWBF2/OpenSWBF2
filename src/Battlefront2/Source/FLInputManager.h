@@ -18,6 +18,7 @@ struct UiBindKeys;
 class RedKeyboard;
 class RedLogitechLCD;
 
+#pragma pack(push, 4)
 // VTABLE: SWBF2 0x00796504
 class RawControllerInputs
 {
@@ -78,11 +79,6 @@ public:
     static UiBindKeys sKeyboardGuiBindings[144];
     static UiBindKeys s_defUIBindings[76];
 
-    union {
-
-    unsigned char mRawInputStorage[0x28a0 - 4];
-    struct {
-
     unsigned char mReservedBeforeMode[4];
     unsigned int mMode;
     bool mFlip[5];
@@ -110,7 +106,7 @@ public:
     RedMouse* _redMouse;
     RedKeyboard* _redKeyboard;
     unsigned char mReservedBeforeSensitivity[4];
-    unsigned char mMouseSensitivity[5][8];
+    double mMouseSensitivity[5];
     unsigned char mJoystickSensitivityX[5];
     unsigned char mJoystickSensitivityY[5];
     bool mMouseAssist[5];
@@ -128,9 +124,8 @@ public:
 
     int mLastMouseDeltaX;
     int mLastMouseDeltaY;
-    };
-    };
 };
+#pragma pack(pop)
  
  
  

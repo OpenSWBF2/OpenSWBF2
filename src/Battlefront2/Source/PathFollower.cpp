@@ -20,22 +20,7 @@
 #include "PebbleFL/Common/PblHeap.h"
 #include "PebbleFL/Common/PblMatrix.h"
 #include "PebbleFL/pc/PblD3DX.h"
-
-namespace AI
-{
-enum VOType
-{
-    VOT_PathFollowWait = 6,
-    VOT_DefendIdleLookAround = 20
-};
-
-namespace VOHelper
-{
-
-int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,
-         const GameObject* pOther, float fDelay);
-}
-}
+#include "VOHelper.h"
 
 // GLOBAL: SWBF2 0x01ef7da8
 // SYNTHETIC: SWBF2 0x00405e10

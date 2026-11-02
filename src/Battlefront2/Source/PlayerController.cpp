@@ -30,6 +30,8 @@
 #include <float.h>
 #include <math.h>
 #include "PebbleFL/pc/PblD3DX.h"
+#include "VOHelper.h"
+#include "TeamManager.h"
 
  
  
@@ -837,25 +839,6 @@ void PlayerController::DeployCargo()
 namespace ReserveManager
 {
 int GetReservationCountForObject(const GameObject* pObj, int iTeam, ReserveType eType);
-}
-
-namespace TeamManager { int GetObjectsInRange(const PblVector3& vPos, float fRange, GameObject** const ppObjects, int iMax,
-               const Team* pTeam, int iAffilMask); }
-
-namespace AI
-{
-enum VOType
-{
-    VOT_NotShootingCriticalHit = 33,
-    VOT_NearbyFriendlySlaughter = 35,
-    VOT_NearbyEnemySlaughter = 36,
-    VOT_NearbyTeamKillSlaughter = 37
-};
-namespace VOHelper
-{
-int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,
-         const GameObject* pOther, float fDelay);
-}
 }
 
 // FUNCTION: SWBF2 0x0061c050

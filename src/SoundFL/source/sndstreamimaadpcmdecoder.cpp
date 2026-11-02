@@ -260,7 +260,7 @@ void StreamIMAADPCMDecoder::Update()
                 if (pFrame != 0)
                 {
                     DecodeImaAdpcmFrameInterleaved(pFrame, (short*)pSamples);
-                    mOutputPacketIO.UpdateOffset(mProducer[2], mNumChannels << 7);
+                    mOutputPacketIO.UpdateOffset(mPacketSize, mNumChannels << 7);
                 }
             }
 
@@ -277,7 +277,7 @@ void StreamIMAADPCMDecoder::Update()
                 }
             }
 
-            if (mOutputPacketIO.GetDataLeft(mProducer[2]) == 0 || bLast ||
+            if (mOutputPacketIO.GetDataLeft(mPacketSize) == 0 || bLast ||
                 bDiscontinuity)
             {
                 const unsigned int uiBytes = mOutputPacketIO.GetOffset();

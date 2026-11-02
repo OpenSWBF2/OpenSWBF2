@@ -5,6 +5,7 @@
 #include "CollisionObject.h"
 #include "Entity.h"
 #include "GameModel.h"
+#include "GameObject.h"
 #include "NetGame.h"
 #include "PebbleFL/Common/PblChunk.h"
 #include "PebbleFL/Common/PblConfig.h"
@@ -36,71 +37,6 @@
 #include "WaterEffect.h"
 #include "WeatherEffect.h"
 #include "WorldShadowMapEffect.h"
-
-class EntityGeometry : public EntityEx, public CollisionObject
-{
-public:
-    virtual const GameObject* GetGameObject() const;
-    virtual CollisionObject* GetCollisionObject();
-    virtual const CollisionObject* GetCollisionObject() const;
-    virtual const GameModel* GetModel() const;
-};
-
-class GameObject
-{
-public:
-    virtual void IsRtti(); virtual void GetDerivedRtti();
-    virtual void GetDerivedRttiName(); virtual ~GameObject();
-    virtual void SetProperty(); virtual void Init();
-    virtual void GetEntity() const; virtual void GetEntity();
-    virtual void GetGameObject() const; virtual void GetGameObject();
-    virtual void GetEntityClass() const; virtual void GetEntityClass();
-    virtual void GetCollisionObject(); virtual void GetCollisionObject() const;
-    virtual void GetModel(); virtual void SetModel();
-    virtual void SetupPose(); virtual void GetVelocity();
-    virtual void SetVelocity(); virtual void GetTargetBodyID();
-    virtual void GetTargetPoint(); virtual void GetTargetPointMissVector();
-    virtual void ClientKill(); virtual void IsUnbuilt();
-    virtual void GetMaxSpeed(); virtual void GetMaxStrafe();
-    virtual void GetTargetInfo();
-    virtual void GetControllable(); virtual void GetControllable() const;
-    virtual void GetPlayableEntitySounds(); virtual void GetPlayableEntitySounds() const;
-    virtual void CalcAimSpreadVal(); virtual void ShouldShowReticule();
-    virtual void ApplyRadiusDamage(); virtual void ApplyRadiusPush();
-    virtual void ApplyPush(); virtual void SetTeam();
-    virtual void IsVisibleToMe(); virtual void IsSuitableEnemy();
-    virtual void GetReservableSlots(); virtual void GetAttachOffset();
-    virtual void ActivatePhysics(); virtual void DeactivatePhysics();
-    virtual void GetGameObjectType(); virtual void AcquiredTarget();
-    virtual void Hiding(); virtual void ApproachingTarget();
-    virtual void Flee(); virtual void PreparingForDamage();
-    virtual void HeardEnemy(); virtual void Charge();
-    virtual void ReserveForPlayer(); virtual void IsReservedForPlayer();
-    virtual void Deflect(); virtual void GetEntityType();
-    virtual void GetExplosionClass(); virtual void AddToTeamManager();
-    virtual void GetEjectTimer(); virtual void SetEjectTimer();
-    virtual void ResetTimeSinceLastHack();
-    virtual void WriteCreate(); virtual void ReadCreate();
-    virtual void WriteObject(); virtual void ReadObject();
-    virtual void ResetObject(); virtual void SkipReadObject();
-    virtual void AddToClient(); virtual void AddSends();
-    virtual const PblMatrix& GetSmoothedMatrix() const;
-
-    char mInheritedObjectStorage[0x204 - 4];
-    unsigned int mHandleId;
-
-    char mHandleAndObjectStorage[0x21c - 0x208];
-    int mNetUniqueId;
-};
- 
- 
-
-class GameObjectInterpolator
-{
-public:
-    void GetMatrix(int iNetUniqueId, PblMatrix& mMatrix);
-};
-extern GameObjectInterpolator gameObjectInterpolator;
 
 PblMatrix DirectionMatrix(const PblVector3& vDir, const PblVector3& vUp, const PblVector3& vPos);
 

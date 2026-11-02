@@ -86,7 +86,7 @@ function Start-Exe([string]$argLine, [string]$asanDir) {
 }
 
 if ($runUnit) {
-    $allSuites = 'unit', 'characterisation', 'regression', 'known_bug', 'corpus', 'fuzz', 'stress'
+    $allSuites = $script:T1Suites
     if ($Fuzz) { $suites = @('stress') }
     elseif ($Suite) { $suites = @($Suite) }
     else { $suites = $allSuites | Where-Object { $_ -ne 'stress' } }

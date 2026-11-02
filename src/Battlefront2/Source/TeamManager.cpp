@@ -26,7 +26,6 @@ int sUnmatchedRemovalCount = 1;
 // GLOBAL: SWBF2 0x01faa214
 static bool sDirty[8];
 
-namespace TeamManager { void Init(); }
 
 // FUNCTION: SWBF2 0x00654fd0
 void TeamManager::Init()
@@ -53,19 +52,6 @@ void TeamManager::UpdatePositions()
     {
         sDirty[i] = true;
     }
-}
-
-namespace AI
-{
-
-enum AIAffil
-{
-    AFFIL_ENEMY = 1,
-    AFFIL_NEUTRAL = 2,
-    AFFIL_ALLY = 4,
-    AFFIL_ALLYNEUTRAL = 6,
-    AFFIL_ALL = 7
-};
 }
 
 namespace TeamManager

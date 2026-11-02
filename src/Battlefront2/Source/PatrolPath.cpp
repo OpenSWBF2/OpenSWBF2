@@ -11,8 +11,6 @@
 AI::PatrolPath::PatrolPath()
     : mNodeProps(0), mReservingTime(0.0f)
 {
-    *(unsigned int*)&mReservingObject[0] = 0;
-    *(unsigned int*)&mReservingObject[4] = 0;
     sList.Add((PblList<PatrolPath>::Node*)&mNode, this);
 }
 
@@ -56,28 +54,28 @@ bool AI::PatrolPath::ReadPropertyScope(PblConfig& config, PblConfig::Data& data,
 // FUNCTION: SWBF2 0x00615a40
 void AI::PatrolPath::SetReservingObject(const GameObject* pObj)
 {
-    *(const GameObject**)&mReservingObject[0] = pObj;
-    *(unsigned int*)&mReservingObject[4] = pObj ? pObj->mHandleId : 0;
+    mReservingObject.mObject = pObj;
+    mReservingObject.mSavedHandleId = pObj ? pObj->mHandleId : 0;
     mReservingTime = GameLoop::GetMissionTime();
 }
 
 // FUNCTION: SWBF2 0x00615a80
 const GameObject* AI::PatrolPath::GetReservingObject()
 {
-    const GameObject* pObject = *(const GameObject* const*)&mReservingObject[0];
+    const GameObject* pObject = mReservingObject.mObject;
     if (pObject &&
-        (pObject->mHandleId != *(unsigned int*)&mReservingObject[4]
+        (pObject->mHandleId != mReservingObject.mSavedHandleId
          || GameLoop::GetMissionTime() - 8.0f > mReservingTime))
     {
-        *(unsigned int*)&mReservingObject[4] = 0;
-        *(const GameObject**)&mReservingObject[0] = 0;
+        mReservingObject.mSavedHandleId = 0;
+        mReservingObject.mObject = 0;
     }
 
-    pObject = *(const GameObject* const*)&mReservingObject[0];
-    if (pObject && pObject->mHandleId != *(unsigned int*)&mReservingObject[4])
+    pObject = mReservingObject.mObject;
+    if (pObject && pObject->mHandleId != mReservingObject.mSavedHandleId)
     {
-        *(const GameObject**)&mReservingObject[0] = 0;
-        *(unsigned int*)&mReservingObject[4] = 0;
+        mReservingObject.mObject = 0;
+        mReservingObject.mSavedHandleId = 0;
         return 0;
     }
     return pObject;

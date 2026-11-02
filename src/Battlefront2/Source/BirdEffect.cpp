@@ -5,6 +5,7 @@
 #include <d3dx9math.h>
 
 #include "BirdEffect.h"
+#include "Entity.h"
 #include "CameraManager.h"
 #include "CollisionManager.h"
 #include "CollisionObject.h"
@@ -1073,33 +1074,32 @@ bool BirdParticleManager::Update(float fDeltaTime)
     return true;
 }
 
-// FUNCTION: SWBF2 0x00446d70
-int __fastcall ReadIteratorSecondWord(const unsigned int* pThis)
-{
-    return pThis[1];
-}
+// TEMPLATE: SWBF2 0x00446d70
+// PblList<Factory<Entity,EntityClass,EntityDesc> >::GetFirst
+template PblList<Factory<Entity, EntityClass, EntityDesc> >::Node*
+PblList<Factory<Entity, EntityClass, EntityDesc> >::GetFirst() const;
 
-// FUNCTION: SWBF2 0x00446d90
-unsigned int __fastcall sub_446D90(const unsigned int* pThis)
-{
-    return *(const unsigned int*)(*pThis + 12);
-}
+// TEMPLATE: SWBF2 0x00446d80
+// PblList<Factory<Entity,EntityClass,EntityDesc> >::Itor::Itor
+template PblList<Factory<Entity, EntityClass, EntityDesc> >::Itor::Itor(
+    PblList<Factory<Entity, EntityClass, EntityDesc> >::Node*);
 
-// FUNCTION: SWBF2 0x00446da0
-unsigned int __fastcall sub_446DA0(const unsigned int* pThis)
-{
-    return *(const unsigned int*)(*pThis + 12);
-}
+// TEMPLATE: SWBF2 0x00446d90
+// PblList<Factory<Entity,EntityClass,EntityDesc> >::Itor::operator->
+template Factory<Entity, EntityClass, EntityDesc>*
+PblList<Factory<Entity, EntityClass, EntityDesc> >::Itor::operator->() const;
 
-// FUNCTION: SWBF2 0x00446db0
-unsigned int __fastcall sub_446DB0(const unsigned int* pThis)
-{
-    return *(const unsigned int*)(*pThis + 12);
-}
+// TEMPLATE: SWBF2 0x00446da0
+// PblList<Factory<Entity,EntityClass,EntityDesc> >::Itor::operator*
+template Factory<Entity, EntityClass, EntityDesc>&
+PblList<Factory<Entity, EntityClass, EntityDesc> >::Itor::operator*() const;
 
-// FUNCTION: SWBF2 0x00446dc0
-unsigned int* __fastcall AdvanceIteratorNodeWord(unsigned int* pThis)
-{
-    *pThis = *(const unsigned int*)(*pThis + 4);
-    return pThis;
-}
+// TEMPLATE: SWBF2 0x00446db0
+// PblList<Factory<Entity,EntityClass,EntityDesc> >::Itor::operator Factory<Entity,EntityClass,EntityDesc> *
+template PblList<Factory<Entity, EntityClass, EntityDesc> >::Itor::
+    operator Factory<Entity, EntityClass, EntityDesc>*() const;
+
+// TEMPLATE: SWBF2 0x00446dc0
+// PblList<Factory<Entity,EntityClass,EntityDesc> >::Itor::operator++
+template PblList<Factory<Entity, EntityClass, EntityDesc> >::Itor&
+PblList<Factory<Entity, EntityClass, EntityDesc> >::Itor::operator++();

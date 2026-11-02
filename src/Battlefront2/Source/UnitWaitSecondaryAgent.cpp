@@ -12,6 +12,7 @@
 #include "PebbleFL/Common/PblMatrix.h"
 #include "PebbleFL/Common/PblVector.h"
 #include "PebbleFL/pc/PblD3DX.h"
+#include "VOHelper.h"
 
 class EntityFlyer
 {
@@ -25,20 +26,6 @@ int GetReservationCountForObject(const GameObject* pObj, int iTeam, ReserveType 
 }
 
 namespace AIUtil { GameObject* FindFirstAIInVehicle(GameObject* pVehicle); }
-
-namespace AI
-{
-enum VOType
-{
-    VOT_VehicleWaitingImpatiently = 39
-};
-namespace VOHelper
-{
-
-int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,
-         const GameObject* pOther, float fDelay);
-}
-}
 
 // GLOBAL: SWBF2 0x01f9a25c
 // SYNTHETIC: SWBF2 0x00406d60

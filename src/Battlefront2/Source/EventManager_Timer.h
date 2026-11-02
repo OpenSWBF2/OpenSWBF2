@@ -44,11 +44,17 @@ public:
     void Init() {}
     void Cleanup() { mRoot.Clear(); }
 
-    void Trigger(ITEM& item, PARAM& param) { mRoot.Trigger(item, param); }
+    void Trigger(ITEM& item, PARAM& param);
 
     char* mName;
     Callback mRoot;
 };
+
+template <class ITEM, class PARAM>
+void Event<ITEM, PARAM>::Trigger(ITEM& item, PARAM& param)
+{
+    mRoot.Trigger(item, param);
+}
 
 template <class ITEM, class PARAM>
 class LuaCallback : public Event<ITEM, PARAM>::Callback

@@ -4,7 +4,7 @@
 #include "RedEngineFL/input/RedKeyboard.h"
 #include "RedEngineFL/input/RedMouse.h"
 
-struct RedLogitechLCD;
+class RedLogitechLCD;
 
 namespace RedInputManager
 {

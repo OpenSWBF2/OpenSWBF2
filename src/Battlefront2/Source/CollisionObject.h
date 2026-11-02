@@ -3,6 +3,7 @@
 #include <stddef.h>
 
 #include "PebbleFL/Common/PblVector.h"
+#include "PebbleFL/Common/PblList.h"
 
 class CollisionModel;
 class CollisionObject;
@@ -86,7 +87,7 @@ public:
     static void SetupMemoryPool(unsigned int uCount, unsigned int uSize, unsigned int uGrow);
 
     int mStackSize;
-    int mData[15][1];
+    int mData[1][15];
     PblSphere mSphere[15];
     TreeGridObject* mObject[15];
     TreeGridStack* mNext;
@@ -120,14 +121,14 @@ public:
     }
     int GetObjectData(int iIndex) const
     {
-        return mStackPtr ? mStackPtr->mData[mStackIdx][iIndex] : mData[iIndex];
+        return mStackPtr ? mStackPtr->mData[iIndex][mStackIdx] : mData[iIndex];
     }
 
     void SetObjectData(int iIndex, int iData)
     {
         if (mStackPtr)
         {
-            mStackPtr->mData[mStackIdx][iIndex] = iData;
+            mStackPtr->mData[iIndex][mStackIdx] = iData;
         }
         mData[iIndex] = iData;
     }
@@ -228,7 +229,7 @@ public:
     {
         if (mStackPtr)
         {
-            mStackPtr->mData[mStackIdx][0] = eType;
+            mStackPtr->mData[0][mStackIdx] = eType;
         }
         mData[0] = eType;
     }
@@ -237,7 +238,7 @@ public:
     // FUNCTION: SWBF2 0x0045db10
     const CollisionModel* GetCollisionModel() const { return mCollisionModel; }
 
-    char mCollisionObjectNode[16];
+    PblList<CollisionObject>::Node mCollisionObjectNode;
     CollisionModel* mCollisionModel;
     CollisionObject* mParent;
     float mMass;

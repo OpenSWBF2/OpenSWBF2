@@ -29,6 +29,9 @@ void OrdnanceTowCable::PlatformInit()
 // GLOBAL: SWBF2 0x007eb744
 static RedColor kCableColor = { 0, 0, 0, 255 };
 
+namespace
+{
+
 struct TexCoord
 {
     float u;
@@ -47,6 +50,7 @@ struct CableVertex
     RedColor color;
     float u, v;
 };
+}
 
 static void CableCompressedPos_Set(short* p, float x, float y, float z)
 {

@@ -5,9 +5,11 @@
 #include "Thread.h"
 #include "PebbleFL/Common/PblBitVector.h"
 #include "PebbleFL/Common/PblHashTable.h"
+#include "PebbleFL/Common/PblList.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 #include "RedEngineFL/Util/RedRegion.h"
 
+class Controllable;
 struct lua_State;
 
 namespace ActiveRegions
@@ -58,6 +60,6 @@ RedRegion* __fastcall Find(lua_State* L, int iIndex);
 
 }
 
-void* __fastcall sub_437DD0(void** pCurrent);
-void* __fastcall sub_437DE0(void** pCurrent);
-void* __fastcall AdvanceRawListIterator(void** pCurrent);
+Controllable* __fastcall sub_437DD0(PblList<Controllable>::Itor* pCurrent);
+Controllable* __fastcall sub_437DE0(PblList<Controllable>::Itor* pCurrent);
+PblList<Controllable>::Itor* __fastcall AdvanceRawListIterator(PblList<Controllable>::Itor* pCurrent);

@@ -72,40 +72,6 @@ static pcFlareShader* s_pSunAndHaloShader;
 // GLOBAL: SWBF2 0x007eb748
 static PblBox s_boundingBox(-3000.0f, -3000.0f, -3000.0f, 3000.0f, 3000.0f, 3000.0f);
 
-struct PosXYZ
-{
-    float x;
-    float y;
-    float z;
-};
-
-struct TexCoord
-{
-    float u;
-    float v;
-};
-
-struct FlareVertex
-{
-    PosXYZ pos;
-    RedColor color;
-    TexCoord uv;
-};
- 
-
-struct CompressedTexCoord
-{
-    short u;
-    short v;
-};
-struct FlareCompressedVertex
-{
-    CompressedPos pos;
-    RedColor color;
-    CompressedTexCoord uv;
-};
- 
-
 template <class VERTEX, int RVF>
 bool CreateTextures(RedTexture* pTexture, const PblVector3& vPosition, float fSize,
                     SunFlare::Rect& rect, bool bSunAndHalo);

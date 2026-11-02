@@ -29,7 +29,11 @@ public:
                         unsigned int uiUnused, bool bFlagBit0, bool bFlagBit1,
                         unsigned int uiPos);
 
-    unsigned int mProducer[5];
+    StreamPacket* mPackets;
+    unsigned int mNumPackets;
+    unsigned int mPacketSize;
+    unsigned int mWriteIndex;
+    unsigned int mReadIndex;
 
     unsigned int GetNumQueuedPackets() const;
 };

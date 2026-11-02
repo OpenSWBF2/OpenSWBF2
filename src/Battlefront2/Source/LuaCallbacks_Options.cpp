@@ -1416,7 +1416,7 @@ int ScriptCB_SetMouseTurnAssist(lua_State*)
     }
     int iAssist = (int)luaL_checknumber(LuaHelper::mState, 1);
     RawControllerInputs* pJoystick = FLInputManager::s_instance.GetPlayerJoystick(PauseMenu::GetPausingViewport());
-    ((char*)pJoystick)[0x2642 + pJoystick->GetInputMode()] = iAssist == 1;
+    pJoystick->mMouseAssist[pJoystick->GetInputMode()] = iAssist == 1;
     PlayerProfile::tProfile* pProfile = PlayerProfile::GetProfile(PauseMenu::GetPausingJoystick());
     if (pProfile)
     {

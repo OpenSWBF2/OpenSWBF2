@@ -127,6 +127,8 @@ function Set-Anchor([string]$path, [string]$anchor, [string]$replacement) {
 try {
     . $RowsFile
     $rows = @($GuardRevertRows)
+    $dupIds = @($rows | Group-Object Id | Where-Object { $_.Count -gt 1 } | ForEach-Object { $_.Name })
+    if ($dupIds.Count) { throw "duplicate row Id: $($dupIds -join ', ')" }
     if ($Row) { $rows = @($rows | Where-Object { $Row -contains $_.Id }) }
     if ($rows.Count -eq 0) { Write-Host 'No rows selected.'; exit 2 }
     $selectedIds = @($rows | ForEach-Object { $_.Id })

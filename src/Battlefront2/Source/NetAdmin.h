@@ -7,6 +7,8 @@ struct Admin
     float lastRecvTime;
     bool admin;
     char pad[3];
+
+    unsigned __int64 GetPeer() const { return ((unsigned __int64)port << 32) | addr; }
 };
  
 

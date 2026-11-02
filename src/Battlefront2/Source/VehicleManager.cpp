@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include "PebbleFL/Common/PblList.h"
 #include "PebbleFL/Common/PblVector.h"
+#include "TeamManager.h"
 
 class Character;
 class FlagItem;
@@ -201,26 +202,6 @@ int VehicleManager::sGameObjSortByDistance(const void* pA, const void* pB)
         return -1;
     }
     return fDistA > fDistB;
-}
-
-namespace AI
-{
-
-enum AIAffil
-{
-    AFFIL_ENEMY = 1,
-    AFFIL_NEUTRAL = 2,
-    AFFIL_ALLY = 4,
-    AFFIL_ALLYNEUTRAL = 6,
-    AFFIL_ALL = 7
-};
-}
-
-namespace TeamManager
-{
-
-int GetObjectsInRange(const PblVector3& vPos, float fRadius, GameObject** const ppObjects,
-                      int iMax, const GameObject* pIgnore, AI::AIAffil eAffil);
 }
 
 // GLOBAL: SWBF2 0x007ec558

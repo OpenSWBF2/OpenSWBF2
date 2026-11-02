@@ -31,11 +31,15 @@ static float FADE_COS_VIEW_ANGLE = 0.15f;
 // `dynamic initializer for 'kuiShader''
 static const unsigned int kuiShader = PblHash("Particle");
 
+namespace
+{
+
 struct CompressedTexCoord
 {
     short u;
     short v;
 };
+}
 
 namespace DropShadowVertex
 {

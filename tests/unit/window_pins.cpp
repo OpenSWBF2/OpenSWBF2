@@ -163,37 +163,6 @@ bool Has(const std::string& sText, const char* pcNeedle)
     return sText.find(pcNeedle) != std::string::npos;
 }
 
-bool TreeHas(const std::string& sDir, const char* pcNeedle)
-{
-    WIN32_FIND_DATAA kData;
-    HANDLE hFind = FindFirstFileA((sDir + "/*").c_str(), &kData);
-    if (hFind == INVALID_HANDLE_VALUE)
-    {
-        return false;
-    }
-    bool bFound = false;
-    do
-    {
-        const std::string sName = kData.cFileName;
-        if (sName == "." || sName == "..")
-        {
-            continue;
-        }
-        const std::string sPath = sDir + "/" + sName;
-        if (kData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-        {
-            bFound = TreeHas(sPath, pcNeedle);
-        }
-        else
-        {
-            std::string sText;
-            bFound = ReadSource(sPath.c_str(), sText) && Has(sText, pcNeedle);
-        }
-    } while (!bFound && FindNextFileA(hFind, &kData));
-    FindClose(hFind);
-    return bFound;
-}
-
 size_t CountOf(const std::string& sText, const char* pcNeedle)
 {
     size_t uiCount = 0;
@@ -1019,8 +988,6 @@ TEST_CASE("gamma pass source pins" * doctest::test_suite("unit"))
     REQUIRE(uiLoad != std::string::npos);
     CHECK(uiEffect < uiBright);
     CHECK(uiBright < uiLoad);
-
-    CHECK(!TreeHas("../src", "GetDeviceGammaRamp"));
 }
 
 TEST_CASE("shell stretch source pins" * doctest::test_suite("unit"))

@@ -330,10 +330,10 @@ int ScriptCB_TriggerSoundRegionEnable(lua_State*)
 {
     const char* pcRegion = luaL_checklstring(LuaHelper::mState, 1, 0);
     bool bEnabled = lua_toboolean(LuaHelper::mState, 2) != 0;
-    unsigned char* pRegion = (unsigned char*)TriggerSoundRegion::Group::FindByID(PblHash(pcRegion));
-    if (pRegion)
+    TriggerSoundRegion::Group* pGroup = TriggerSoundRegion::Group::FindByID(PblHash(pcRegion));
+    if (pGroup)
     {
-        pRegion[0x4c] = (pRegion[0x4c] & ~1) | bEnabled;
+        pGroup->mEnabled = bEnabled;
     }
     return 0;
 }

@@ -3,6 +3,7 @@
 #include "EventManager_Timer.h"
 #include "Damageable.h"
 #include "Entity.h"
+#include "GameObject.h"
 
 namespace EventManager
 {
@@ -23,7 +24,7 @@ bool LuaPushItem<float>(float& item);
 
 inline const EntityEx& ObjectEntity(GameObject& object)
 {
-    return *reinterpret_cast<const EntityEx*>(&object);
+    return object;
 }
 
 template <class PARAM>
@@ -76,7 +77,7 @@ public:
 
     bool operator()(GameObject& object, PARAM&) const
     {
-        return (*(const int*)((const char*)&object + 0x234) << 28 >> 28) == mTeam;
+        return object.mTeam == mTeam;
     }
 
     bool operator==(const ObjectMatchesTeam& other) const

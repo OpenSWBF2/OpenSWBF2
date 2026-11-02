@@ -268,7 +268,7 @@ void StreamDSDMO::Update()
             }
         }
 
-        const unsigned int uiPacketSize = mProducer[2];
+        const unsigned int uiPacketSize = mPacketSize;
         const unsigned int uiOutLeft =
             pOutputIO->GetDataLeft(uiPacketSize);
         void* const pOutData = pOutputIO->GetData(pOutPacket);

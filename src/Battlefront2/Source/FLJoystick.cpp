@@ -16,8 +16,8 @@ extern bool gAttractMode;
 // FUNCTION: SWBF2 0x0052b490
 void RawControllerInputs::ClearInputsToOff()
 {
-    const float* pRaw = (const float*)&mRawInputStorage[0x14 - 4];
-    bool* pLocked = (bool*)&mRawInputStorage[0x17d4 - 4];
+    const float* pRaw = &mRawInputFloat[0][0];
+    bool* pLocked = &mLockedRawInputBool[0][0];
     for (int i = 0; i < 10 * 76; i += 76)
     {
         for (int j = 0; j < 76; j++)
@@ -146,7 +146,7 @@ float ProcessedInputs::IsSecondarySwitchButtonPressed() const
 // FUNCTION: SWBF2 0x0052b5d0
 bool RawControllerInputs::IsDefaultBindings(int iMode)
 {
-    return memcmp(&mRawInputStorage[0x1acc - 4 + iMode * sizeof(sDefaultBindings[0])],
+    return memcmp(mCurBindings[iMode],
                   sDefaultBindings[iMode], sizeof(sDefaultBindings[0])) == 0;
 }
 

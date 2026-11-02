@@ -60,8 +60,8 @@
       <SDLCheck>true</SDLCheck>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <ConformanceMode>false</ConformanceMode>
-      <RemoveUnreferencedCodeData>false</RemoveUnreferencedCodeData>
-      <AdditionalOptions>/Zc:alignedNew- /Zc:inline- %(AdditionalOptions)</AdditionalOptions>
+      <RemoveUnreferencedCodeData>true</RemoveUnreferencedCodeData>
+      <AdditionalOptions>/Zc:alignedNew- %(AdditionalOptions)</AdditionalOptions>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <IntrinsicFunctions>false</IntrinsicFunctions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
@@ -403,6 +403,7 @@
     <ClCompile Include="src\Battlefront2\Source\NavigatorPathFollower.cpp" />
     <ClCompile Include="src\Battlefront2\Source\NavigatorSlide.cpp" />
     <ClCompile Include="src\Battlefront2\Source\NetAdmin.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\NetAdminMd5.cpp" />
     <ClCompile Include="src\Battlefront2\Source\NetComm.cpp" />
     <ClCompile Include="src\Battlefront2\Source\NetDrag.cpp" />
     <ClCompile Include="src\Battlefront2\Source\NetGame.cpp">
@@ -1209,6 +1210,7 @@
     <ClInclude Include="src\Battlefront2\Source\NavigatorSlide.h" />
     <ClInclude Include="src\Battlefront2\Source\NetAdmin.h" />
     <ClInclude Include="src\Battlefront2\Source\NetAdminIdText.h" />
+    <ClInclude Include="src\Battlefront2\Source\NetAdminMd5.h" />
     <ClInclude Include="src\Battlefront2\Source\NetComm.h" />
     <ClInclude Include="src\Battlefront2\Source\NetGame.h" />
     <ClInclude Include="src\Battlefront2\Source\NetMatch.h" />

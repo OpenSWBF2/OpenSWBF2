@@ -245,9 +245,9 @@ NetPacket* NetPacket::AllocRecv(bool bSmall)
 // FUNCTION: SWBF2 0x005d8f60
 void NetPacket::BeginWrite()
 {
-    mData[0] = mData[1] = mData[2] = mData[3] = 0;
-    *(int*)((char*)this + 16) = 0;
-    mData[0] = mData[1] = (char)0xff;
+    NetComm::PktHeader& kHeader = NetComm::Header(this);
+    memset(&kHeader, 0, sizeof(kHeader));
+    kHeader.group = 0xffff;
     mDataIndex = 14;
     mMaxIndex = (short)(GetNum() >= MAX_BIG_PACKETS ? 116 : 1012);
     mCurIndex = 14;

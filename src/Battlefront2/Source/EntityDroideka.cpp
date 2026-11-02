@@ -3631,7 +3631,7 @@ bool EntityDroideka::Update(float fDeltaTime)
             for (CommandPostItor itor = CommandPostManager::Instance()->GetItor(); itor; ++itor)
             {
                 CommandPost* pPost = *itor;
-                if (!(pPost->mHoldPlayerMask & (1 << mCharacter->mPlayerId)))
+                if (!CommandPost::HoldMaskHasPlayerRetail(pPost->mHoldPlayerMask, mCharacter->mPlayerId))
                 {
                     continue;
                 }

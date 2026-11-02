@@ -176,6 +176,16 @@ public:
     int GetHoldCount(int iTeam) const { return mHoldCount[iTeam]; }
     // FUNCTION: SWBF2 0x0044f930
     unsigned __int64 GetHoldPlayerMask() const { return mHoldPlayerMask; }
+
+    static bool HoldMaskHasPlayerRetail(unsigned __int64 uMask, int iPlayerId)
+    {
+        return (uMask & (unsigned __int64)(__int64)(int)(1u << (iPlayerId & 31))) != 0;
+    }
+
+    static bool HoldMaskHasPlayer(unsigned __int64 uMask, int iPlayerId)
+    {
+        return iPlayerId >= 0 && iPlayerId < 64 && ((uMask >> iPlayerId) & 1) != 0;
+    }
     // FUNCTION: SWBF2 0x0044f940
     int GetBiasTeam() const { return mBiasTeam; }
 

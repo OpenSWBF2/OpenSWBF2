@@ -1352,7 +1352,7 @@ int AcceptHero(lua_State* L)
         }
         if (pCharacter->mUnit && pCharacter->mUnit->GetGameObject())
         {
-            ((Damageable*)((char*)pCharacter->mUnit->GetGameObject() + 320))->InstantVanish();
+            static_cast<Damageable*>(pCharacter->mUnit->GetGameObject())->InstantVanish();
         }
     }
     return 0;

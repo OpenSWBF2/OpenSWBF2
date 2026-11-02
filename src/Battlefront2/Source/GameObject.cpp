@@ -635,7 +635,7 @@ void GameObjectInterpolator::GetMatrix(int iNetUniqueId, PblMatrix& mMatrix)
     {
         return;
     }
-    const PblMatrix* pSamples = (const PblMatrix*)rInterp.mat + 2 * iNetUniqueId;
+    const PblMatrix* pSamples = rInterp.mat[iNetUniqueId];
     if (iCount < 2)
     {
         mMatrix = pSamples[(iCount - 1) & 1];
@@ -663,7 +663,7 @@ void GameObjectInterpolator::SetNext(int iNetUniqueId, const PblMatrix* pMatrix)
     }
     if (pMatrix)
     {
-        ((PblMatrix*)mat)[2 * iNetUniqueId + (count[iNetUniqueId] & 1)] = *pMatrix;
+        mat[iNetUniqueId][count[iNetUniqueId] & 1] = *pMatrix;
         ++count[iNetUniqueId];
     }
     else
@@ -677,7 +677,7 @@ void GameObjectInterpolator::SetNextFloat(int iNetUniqueId, int iIndex, float fV
 {
     if (PblInBounds(count, iNetUniqueId))
     {
-        ((float*)mFloats)[6 * iNetUniqueId + 2 * iIndex + ((count[iNetUniqueId] - 1) & 1)] = fValue;
+        mFloats[iNetUniqueId][iIndex][(count[iNetUniqueId] - 1) & 1] = fValue;
     }
 }
 
@@ -688,7 +688,7 @@ float GameObjectInterpolator::GetCurFloat(int iNetUniqueId, int iIndex)
     {
         return 0.0f;
     }
-    return ((float*)mFloats)[6 * iNetUniqueId + 2 * iIndex + ((count[iNetUniqueId] - 1) & 1)];
+    return mFloats[iNetUniqueId][iIndex][(count[iNetUniqueId] - 1) & 1];
 }
 
 // FUNCTION: SWBF2 0x00537730
@@ -699,7 +699,7 @@ float GameObjectInterpolator::GetPrevFloat(int iNetUniqueId, int iIndex)
         return 0.0f;
     }
     int iSample = count[iNetUniqueId] < 2 ? (count[iNetUniqueId] - 1) & 1 : count[iNetUniqueId] & 1;
-    return ((float*)mFloats)[6 * iNetUniqueId + 2 * iIndex + iSample];
+    return mFloats[iNetUniqueId][iIndex][iSample];
 }
 
 // FUNCTION: SWBF2 0x005378b0
@@ -707,7 +707,7 @@ void GameObjectInterpolator::SetNextVector(int iNetUniqueId, const PblVector3* p
 {
     if (PblInBounds(count, iNetUniqueId) && pVector)
     {
-        ((PblVector3*)vec)[2 * iNetUniqueId + ((count[iNetUniqueId] - 1) & 1)] = *pVector;
+        vec[iNetUniqueId][(count[iNetUniqueId] - 1) & 1] = *pVector;
     }
 }
 
@@ -718,8 +718,8 @@ void GameObjectInterpolator::GetVector(int iNetUniqueId, PblVector3& vVector)
     {
         return;
     }
-    const PblVector3& vOld = ((PblVector3*)vec)[2 * iNetUniqueId + (count[iNetUniqueId] & 1)];
-    const PblVector3& vNew = ((PblVector3*)vec)[2 * iNetUniqueId + ((count[iNetUniqueId] - 1) & 1)];
+    const PblVector3& vOld = vec[iNetUniqueId][count[iNetUniqueId] & 1];
+    const PblVector3& vNew = vec[iNetUniqueId][(count[iNetUniqueId] - 1) & 1];
     float fRatio = NetGame::GetTurnRatio();
     vVector.x = vOld.x + (vNew.x - vOld.x) * fRatio;
     vVector.y = vOld.y + (vNew.y - vOld.y) * fRatio;
@@ -734,8 +734,7 @@ float GameObjectInterpolator::GetFloat(int iNetUniqueId, int iIndex)
         return 0.0f;
     }
 
-    const int iFloat = 6 * iNetUniqueId + 2 * iIndex;
-    const float* pFloat = (const float*)mFloats + iFloat;
+    const float* pFloat = mFloats[iNetUniqueId][iIndex];
     const int iCount = count[iNetUniqueId];
     const float fPrevious = pFloat[(iCount - 1) & 1];
     if (iCount < 2)
@@ -756,8 +755,7 @@ float GameObjectInterpolator::GetLoopingFloat(int iNetUniqueId, int iIndex, floa
         return 0.0f;
     }
 
-    const int iFloat = 6 * iNetUniqueId + 2 * iIndex;
-    const float* pFloat = (const float*)mFloats + iFloat;
+    const float* pFloat = mFloats[iNetUniqueId][iIndex];
     const int iCount = count[iNetUniqueId];
     const float fPrevious = pFloat[(iCount - 1) & 1];
     if (iCount < 2)

@@ -26,6 +26,7 @@
 #include "PebbleFL/Common/PblRandom.h"
 #include "RedEngineFL/Application/pc/pcRenderHelpers.h"
 #include "pcFLRender.h"
+#include "Battlefront2/Platform/Pc/pcSunFlare.h"
 
 // FUNCTION: SWBF2 0x00720b80
 void __cdecl RedWater::pcBeginVisibilityTest(unsigned int uiID)
@@ -219,17 +220,9 @@ unsigned int kuiWaterSplashTextureHash = PblHash("fx_splash");
 
 static const float kInv255 = 1.0f / 255.0f;
 
-struct CompressedPos
+namespace
 {
-    short x;
-    short y;
-    short z;
-    short w;
 
-    static PblVector3 s_vMin;
-    static PblVector3 s_vScale;
-    static PblVector3 s_vScaleInv;
-};
 struct CompressedNormal
 {
     unsigned char z;
@@ -242,6 +235,8 @@ struct CompressedTexCoord
     short u;
     short v;
 };
+}
+
 struct CompressedOceanVertex
 {
     CompressedPos pos;
@@ -561,11 +556,16 @@ pcRedPrimitive* RedWater::pcCreateStaticPatchPrimitive<WaterVertex, 546>(
     return pPrim;
 }
 
+namespace
+{
+
 struct TexCoord
 {
     float u;
     float v;
 };
+}
+
 struct CompressedWaterDistortionRingVertex
 {
     CompressedPos pos;

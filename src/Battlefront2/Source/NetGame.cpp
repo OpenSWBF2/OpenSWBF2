@@ -57,6 +57,7 @@
 #include "GameLoop.h"
 #include "GameMemory.h"
 #include "GameObject.h"
+#include "CameraManager.h"
 #include "Factory.h"
 #include "CommandPost.h"
 #include "CommandPostManager.h"
@@ -126,7 +127,6 @@
 #include "EntityWater.h"
 
 namespace gf { bool isInitialized(); bool checkError(); }
-namespace { struct NetVectorRecord { char unknown[8]; PblVector3 vector; }; }
  
 
 class NetPktGroup;
@@ -692,12 +692,14 @@ public:
     unsigned int uniqId;
     unsigned int index;
 };
+static_assert(sizeof(NetNdObj) == 0x10, "nd obj size");
+static_assert(offsetof(NetNdObj, index) == 0xc, "nd obj index");
 class NetNdObjMap
 {
 public:
     NetNdObjMap();
     void Clear();
-    bool Add(int* object, unsigned int hash);
+    bool Add(NetNdObj* object, unsigned int hash);
 
     int objMapNumEntries;
     PblHashTable<NetNdObj, 256> objMap;
@@ -1220,6 +1222,10 @@ public:
 
     NetEntity* FindFirstNetEntity();
 };
+static_assert(offsetof(NetEntity, pos) == 0x8, "net entity pos");
+typedef BblList<NetEntity, 512>::T1 NetEntityNode;
+static_assert(sizeof(NetEntityNode) == 0x1c, "net entity node size");
+static_assert(offsetof(NetEntityNode, next) == 0x18, "net entity node next");
  
 
 namespace GameVoiceChat
@@ -1251,7 +1257,6 @@ namespace MissionTimer { void EnterClient(); void LeaveClient(); }
 namespace NetRandom { void EnterClient(); void LeaveClient(); }
 namespace ObjectiveManager { void EnterClient(); void LeaveClient(); void CreateClient(); }
 namespace TargetManager { void EnterClient(); void LeaveClient(); void CreateClient(); void DestroyClient(); }
-namespace TeamManager { void EnterClient(); void LeaveClient(); }
 namespace VehicleManager { void EnterClient(); void LeaveClient(); }
 
 class EntityDroid { public: static MemoryPool sMemoryPool; };
@@ -1265,11 +1270,6 @@ class WalkerLegPair { public: static MemoryPool sMemoryPool; };
 
 class OrdnanceTowCable { public: static MemoryPool sMemoryPool; };
 
-class CameraManager { public: static void CreateClient();
-
-    static CameraManager* Instance() { return sInstance; }
-    bool IsFreeLook(int iCam) const;
-    static CameraManager* sInstance; };
 class TriggerRegionManager { public: static void CreateClient(); static void DestroyClient(); };
 
 class DustEffectClass { public: static void CreateClient(); };
@@ -2145,8 +2145,17 @@ void NetGame::Create(bool bMission)
 void* clientObjMap[64];
 // GLOBAL: SWBF2 0x01e64bd0
 unsigned int suicideChangeCounts[64];
+struct SuicideInfo
+{
+    int count;
+    unsigned int turn;
+    bool pending;
+};
+static_assert(sizeof(SuicideInfo) == 0xc, "suicide info size");
+static_assert(offsetof(SuicideInfo, pending) == 0x8, "suicide info pending");
+
 // GLOBAL: SWBF2 0x01e62fa0
-int suicideInfo[6];
+SuicideInfo suicideInfo[2];
 
 extern bool netAutoAssignTeamsOriginalSetting;
 
@@ -2163,12 +2172,12 @@ void NetGame::Reset()
     AtleastOnce::ResetAll();
     memset(spawnInfo, 0, sizeof(spawnInfo));
     memset(suicideChangeCounts, 0, sizeof(suicideChangeCounts));
-    suicideInfo[0] = 0;
-    suicideInfo[1] = 0;
-    suicideInfo[2] = 0;
-    suicideInfo[3] = 0;
-    suicideInfo[4] = 0;
-    suicideInfo[5] = 0;
+    suicideInfo[0].count = 0;
+    suicideInfo[0].turn = 0;
+    suicideInfo[0].pending = false;
+    suicideInfo[1].count = 0;
+    suicideInfo[1].turn = 0;
+    suicideInfo[1].pending = false;
 
     for (int i = 0; i < 64; i++)
     {
@@ -4691,8 +4700,25 @@ void NetGame::SendHost()
 
 unsigned int GetUniqObjectId(const GameObject* pObject);
 GameObject* FindClientObject(unsigned int uId);
+
+struct HandleToIndex
+{
+    int index;
+    bool isNew;
+};
+static_assert(sizeof(HandleToIndex) == 0x8, "handle to index size");
+static_assert(offsetof(HandleToIndex, isNew) == 0x4, "handle to index is new");
+
+struct HandleToIndexMap
+{
+    unsigned int count;
+    PblHashTable<HandleToIndex, 128> table;
+};
+static_assert(sizeof(HandleToIndexMap) == sizeof(unsigned int) * (1 + 2 * 128), "handle map size");
+static_assert(offsetof(HandleToIndexMap, table) == 4, "handle map table");
+
 // GLOBAL: SWBF2 0x01e64ef4
-unsigned int* handleToIndexMapPtr;
+HandleToIndexMap* handleToIndexMapPtr;
 // GLOBAL: SWBF2 0x01fa2513
 bool isFullState;
 // GLOBAL: SWBF2 0x01fa88c8
@@ -4814,8 +4840,8 @@ void WriteObjectPtr(NetPktGroup& group, const GameObject* pObject)
     group.Write(bSpecial);
     if (bSpecial)
     {
-        void* pEntry = clientNdObjMap.objMap.Find(pObject->GetHandleId());
-        group.WriteBits(pEntry ? ((unsigned int*)pEntry)[3] : 0u, 8);
+        NetNdObj* pEntry = clientNdObjMap.objMap.Find(pObject->GetHandleId());
+        group.WriteBits(pEntry ? pEntry->index : 0u, 8);
     }
     else
     {
@@ -4838,8 +4864,8 @@ GameObject* ReadObjectPtr(NetPktGroup& group)
     {
         return 0;
     }
-    GameObject** pPair = (GameObject**)clientNdObjMap.array[uId];
-    return pPair[isFullState ? 1 : 0];
+    NetNdObj* pEntry = clientNdObjMap.array[uId];
+    return isFullState ? pEntry->orig : pEntry->obj;
 }
 
 // FUNCTION: SWBF2 0x005bd440
@@ -4898,10 +4924,9 @@ unsigned int GetUniqObjectId(const GameObject* pObject)
     {
         return 63;
     }
-    PblHashTable<unsigned int, 128>* pTable =
-        (PblHashTable<unsigned int, 128>*)(handleToIndexMapPtr + 1);
-    unsigned int* pId = pTable->Find(pObject->GetHandleId());
-    return pId ? *pId : 63;
+    PblHashTable<HandleToIndex, 128>* pTable = &handleToIndexMapPtr->table;
+    HandleToIndex* pId = pTable->Find(pObject->GetHandleId());
+    return pId ? (unsigned int)pId->index : 63;
 }
 
 // FUNCTION: SWBF2 0x005ce480
@@ -4922,11 +4947,9 @@ int ComputeNetLOD(int, int iPlayer)
     return false;
 }
 
-// FUNCTION: SWBF2 0x005d3720
-unsigned int __fastcall sub_5D3720(const void* pThis)
-{
-    return ((const unsigned int*)*(const void* const*)pThis)[3];
-}
+// TEMPLATE: SWBF2 0x005d3720
+// PblList<Controllable>::Itor::operator Controllable *
+template PblList<Controllable>::Itor::operator Controllable*() const;
 
 // FUNCTION: SWBF2 0x005ba600
 float NetGame::GetTurnStep()
@@ -5963,12 +5986,6 @@ bool NetGame::DetectError()
     return false;
 }
 
-// FUNCTION: SWBF2 0x005bf360
-void __fastcall DestroyEmbeddedDamageOwner(void* pThis)
-{
-    ((DamageOwner*)((char*)pThis + 0x20))->~DamageOwner();
-}
-
 extern RecentGuestObjectRecord recentGuestObjects[64][3];
 
 // FUNCTION: SWBF2 0x005ceb30
@@ -6741,7 +6758,7 @@ bool CanSendWaitingAck()
 // FUNCTION: SWBF2 0x005aecb0
 int GetPacketSourceHost(NetPacket* packet)
 {
-    return (unsigned char)packet->mData[3];
+    return NetComm::Header(packet).src;
 }
 
 // FUNCTION: SWBF2 0x005bc420
@@ -7059,15 +7076,11 @@ template <class TYPE, class CLASS, class DESC>
 CLASS* Factory<TYPE, CLASS, DESC>::FindNetIndex(int index)
 {
     typedef Factory<TYPE, CLASS, DESC> FactoryType;
-    PblList<FactoryType>& list = FactoryType::sList;
-    typedef PblList<FactoryType>::Node Node;
-    Node* head = &list._head;
-    for (Node* node = head->_pNext; node != head; node = node->_pNext)
+    for (typename PblList<FactoryType>::Itor it(FactoryType::sList.GetFirst()); it; ++it)
     {
-        FactoryType* candidate = node->_pObject;
-        if (candidate->mNetIndex == index)
+        if (it->mNetIndex == index)
         {
-            return static_cast<CLASS*>(candidate);
+            return static_cast<CLASS*>(&*it);
         }
     }
     return 0;
@@ -7484,7 +7497,7 @@ void LogChatMessage(const NG_ChatMsg& opaque)
 }
 
 void ReadPositionVector(NetPktGroup& group, PblVector3& value);
-void ReadCosSin(NetPktGroup& group, float* values);
+void ReadCosSin(NetPktGroup& group, PblAngle& angle);
 
 // FUNCTION: SWBF2 0x005d2fd0
 void ReadSpawnCamera(NetPktGroup& group)
@@ -7497,9 +7510,9 @@ void ReadSpawnCamera(NetPktGroup& group)
     }
     NetPlayer& player = netPlayers[curDst];
     ReadPositionVector(group, player.spawnCenter);
-    float direction[2] = {1.0f, 0.0f};
+    PblAngle direction;
     ReadCosSin(group, direction);
-    player.spawnFront = PblVector3(direction[0], 0.0f, direction[1]);
+    player.spawnFront = PblVector3(direction.GetCos(), 0.0f, direction.GetSin());
 }
 
 // FUNCTION: SWBF2 0x005d2d50
@@ -11170,37 +11183,29 @@ int Min(int a, int b)
 }
 
 // FUNCTION: SWBF2 0x00450380
-unsigned int __fastcall SetDamageableVanishFlags(unsigned int* pThis)
+void __fastcall SetDamageableVanishFlags(Damageable* pThis)
 {
-    pThis[47] = (pThis[47] & ~0x18u) | 0x10u;
-    return pThis[47];
+    pThis->mIsAlive = false;
+    pThis->mVanishing = true;
 }
 
 // FUNCTION: SWBF2 0x00454da0
-void __fastcall SetHoleRecordRadius(int* pThis, int value)
+void __fastcall SetHoleRecordRadius(TreeGridObject* pThis, float fRadius)
 {
-    if (pThis[0])
-    {
-        *(int*)(pThis[0] + 16 * pThis[1] + 76) = value;
-    }
-    pThis[5] = value;
-    pThis[6] = value;
+    pThis->SetCollisionRadius(fRadius);
+    pThis->Set2DCollisionRadius(fRadius);
 }
 
 // FUNCTION: SWBF2 0x0045dad0
-void __fastcall SetHoleRecordValue(int* pThis, int index, int value)
+void __fastcall SetHoleRecordValue(TreeGridObject* pThis, int iIndex, int iValue)
 {
-    if (pThis[0])
-    {
-        *(int*)(pThis[0] + 4 * (pThis[1] + 15 * index) + 4) = value;
-    }
-    pThis[index + 7] = value;
+    pThis->SetObjectData(iIndex, iValue);
 }
 
 // FUNCTION: SWBF2 0x00497e10
-void* __fastcall GetRangeRecordPosition(int* pThis)
+const PblVector3* __fastcall GetRangeRecordPosition(const TreeGridObject* pThis)
 {
-    return pThis[0] ? (void*)(pThis[0] + 16 * (pThis[1] + 4)) : (void*)(pThis + 2);
+    return &pThis->GetCollisionCenter();
 }
 
 // FUNCTION: SWBF2 0x005b7370
@@ -11345,9 +11350,9 @@ bool ReceivedNextGameInfo()
 // FUNCTION: SWBF2 0x005d0980
 void NetGame::RequestSuicide(int index)
 {
-    ++suicideInfo[3 * index];
-    suicideInfo[3 * index + 1] = clientTurnNumber;
-    *(unsigned char*)&suicideInfo[3 * index + 2] = 1;
+    ++suicideInfo[index].count;
+    suicideInfo[index].turn = clientTurnNumber;
+    suicideInfo[index].pending = true;
 }
 
 // FUNCTION: SWBF2 0x005d0da0
@@ -11513,7 +11518,7 @@ void NetGame::CreateEvent_CorrectChunkCluster(const ChunkCluster* cluster, Entit
                                               unsigned int chunkIndex, unsigned __int64 mask)
 {
     const int clusterId = cluster->mID;
-    if (clusterId == -1 || !((void**)entityClass)[26 + chunkIndex])
+    if (clusterId == -1 || !entityClass->mChunkDescriptors[chunkIndex])
     {
         return;
     }
@@ -11650,30 +11655,16 @@ void EnableFrameLock()
 }
 
 // FUNCTION: SWBF2 0x005b4300
-RedTerrain::Hole::Hole(RedTerrain::Hole* pSource)
+RedTerrain::Hole::Hole(RedTerrain::Hole* pSource) : TreeGridObject(-1)
 {
-    int* pThis = (int*)this;
-    const int* source = (const int*)pSource;
-    new (pThis) TreeGridObject(-1);
-    pThis[11] = pThis[12] = pThis[13] = pThis[14] = 0;
-    SetHoleRecordValue(pThis, 0, 0x4000);
-    ((TreeGridObject*)pThis)->SetCollisionCenter(((const TreeGridObject*)source)->GetCollisionCenter());
-    float radius = ((const TreeGridObject*)source)->GetCollisionRadius();
-    int radiusBits;
-    memcpy(&radiusBits, &radius, sizeof(radiusBits));
-    SetHoleRecordRadius(pThis, radiusBits);
-    const unsigned int count = source[9];
-    pThis[9] = count;
-    struct Record
+    SetHoleRecordValue(this, 0, COLL_HOLE);
+    SetCollisionCenter(pSource->GetCollisionCenter());
+    SetHoleRecordRadius(this, pSource->GetCollisionRadius());
+    iNumPlanes = pSource->iNumPlanes;
+    aPlanes = new PblVector4[(unsigned int)iNumPlanes];
+    for (unsigned int i = 0; i < (unsigned int)iNumPlanes; ++i)
     {
-        int words[4];
-        Record() {}
-    };
-    Record* records = new Record[count];
-    pThis[10] = (int)records;
-    for (unsigned int i = 0; i < count; ++i)
-    {
-        memcpy(&records[i], (const char*)source[10] + 16 * i, sizeof(Record));
+        aPlanes[i] = pSource->aPlanes[i];
     }
 }
 
@@ -11684,21 +11675,21 @@ static bool CheckNdRoom(unsigned int uiCount)
 }
 
 // FUNCTION: SWBF2 0x005b45f0
-bool NetNdObjMap::Add(int* object, unsigned int hash)
+bool NetNdObjMap::Add(NetNdObj* object, unsigned int hash)
 {
     if (!CheckNdRoom(count))
     {
         return false;
     }
     NetNdObjMap* pThis = this;
-    object[2] = hash;
-    object[3] = pThis->count;
-    if (pThis->objMap.Store(hash, (NetNdObj*)object))
+    object->uniqId = hash;
+    object->index = pThis->count;
+    if (pThis->objMap.Store(hash, object))
     {
         ++pThis->objMapNumEntries;
     }
-    pThis->array[pThis->count++] = (NetNdObj*)object;
-    ((GameObject*)object[0])->SetNetUniqueId(object[3] + 0x40);
+    pThis->array[pThis->count++] = object;
+    object->obj->SetNetUniqueId(object->index + 0x40);
     return true;
 }
 
@@ -11790,9 +11781,6 @@ void RedTerrain::ProcessHoles(void (__cdecl *callback)(void*))
     }
 }
 
-namespace AI { enum AIAffil { AFFIL_ENEMY = 1, AFFIL_NEUTRAL = 2,
-                             AFFIL_ALLY = 4, AFFIL_ALLYNEUTRAL = 6, AFFIL_ALL = 7 }; }
-
 // FUNCTION: SWBF2 0x005cf820
 int NetGame::GetObjectsInRange(const PblVector3& position, float radius, GameObject** const found,
                int capacity, const Team* excluded, int team)
@@ -11812,8 +11800,8 @@ int NetGame::GetObjectsInRange(const PblVector3& position, float radius, GameObj
         {
             continue;
         }
-        const float* targetPosition = (const float*)GetRangeRecordPointer(GetRangeRecordPosition((int*)info + 1));
-        const PblVector3 difference = position - *(const PblVector3*)targetPosition;
+        const PblVector3* targetPosition = GetRangeRecordPosition(info);
+        const PblVector3 difference = position - *targetPosition;
         if (radiusSquared > SquaredLength((const float*)&difference))
         {
             found[count++] = entry->obj;
@@ -11827,17 +11815,18 @@ int NetGame::GetObjectsInRange(const PblVector3& position, float radius, GameObj
 }
 
 // FUNCTION: SWBF2 0x005c9a70
-void AddHoleToClient(const int* source)
+void AddHoleToClient(void* pSource)
 {
-    int* copy = (int*)::operator new(60);
+    RedTerrain::Hole* source = static_cast<RedTerrain::Hole*>(pSource);
+    RedTerrain::Hole* copy = static_cast<RedTerrain::Hole*>(::operator new(sizeof(RedTerrain::Hole)));
     if (copy)
     {
-        new (copy) RedTerrain::Hole((RedTerrain::Hole*)source);
+        new (copy) RedTerrain::Hole(source);
     }
     CollisionManager::EnterClient();
-    const float radius = ((const TreeGridObject*)copy)->GetCollisionRadius();
-    const PblVector3& position = ((const TreeGridObject*)copy)->GetCollisionCenter();
-    CollisionManager::GetTreeGrid()->Add((TreeGridObject*)copy, position, radius * 2.0f);
+    const float radius = copy->GetCollisionRadius();
+    const PblVector3& position = copy->GetCollisionCenter();
+    CollisionManager::GetTreeGrid()->Add(copy, position, radius * 2.0f);
     CollisionManager::LeaveClient();
 }
 
@@ -11938,7 +11927,7 @@ void NetGame::HeroSelected(int team)
     {
         unit->ExitVehicle(true, true);
     }
-    SetDamageableVanishFlags((unsigned int*)static_cast<Damageable*>(target));
+    SetDamageableVanishFlags(static_cast<Damageable*>(target));
 }
 
 // FUNCTION: SWBF2 0x005ce780
@@ -12033,7 +12022,7 @@ void CreateClientCollision(bool bNetCollision)
                             NetNdObj* pNdObj = new NetNdObj;
                             pNdObj->obj = pObject->AddToClient();
                             pNdObj->orig = pObject;
-                            clientNdObjMap.Add((int*)pNdObj, (int)((PblHandled*)pObject)->GetHandleId());
+                            clientNdObjMap.Add(pNdObj, (int)((PblHandled*)pObject)->GetHandleId());
                         }
                     }
                     ++iCount;
@@ -12099,7 +12088,7 @@ void CreateClientCollision(bool bNetCollision)
         NetGame::LeaveClient();
         if (!NetGame::IsOneWorld())
         {
-            RedTerrain::ProcessHoles((void (__cdecl*)(void*))AddHoleToClient);
+            RedTerrain::ProcessHoles(AddHoleToClient);
         }
     }
 }
@@ -12734,13 +12723,13 @@ void WriteSuicideRequest(NetPktGroup& group)
     for (int i = 0; i < 2; ++i)
     {
         bool bSend = NetComm::GetLocalIndex(i) >= 0 &&
-                     (unsigned int)suicideInfo[3 * i + 1] >
+                     suicideInfo[i].turn >
                          (unsigned int)clientAckedTurnNumber;
         group.Write(bSend);
         if (bSend)
         {
-            group.WriteBits((unsigned char)suicideInfo[3 * i], 8);
-            group.Write((bool)(unsigned char)suicideInfo[3 * i + 2]);
+            group.WriteBits((unsigned char)suicideInfo[i].count, 8);
+            group.Write(suicideInfo[i].pending);
         }
     }
 }
@@ -13068,14 +13057,17 @@ void AdjustClock()
 // FUNCTION: SWBF2 0x005cc600
 void GetLastObjState(GameObject* pObject, NetObjState*& pState, unsigned int& uId)
 {
-    PblHashTable<unsigned int, 128>* pTable =
-        (PblHashTable<unsigned int, 128>*)(handleToIndexMapPtr + 1);
-    unsigned int* pEntry = pTable->Find(pObject->GetHandleId());
-    uId = *pEntry;
-    if (!*((unsigned char*)pEntry + 4))
+    PblHashTable<HandleToIndex, 128>* pTable = &handleToIndexMapPtr->table;
+    HandleToIndex* pEntry = pTable->Find(pObject->GetHandleId());
+    if (!pEntry || (unsigned int)pEntry->index >= 63)
     {
-        pState = uId == 63 ? 0 :
-            netPlayers[curDst].lastObjState->stateMap[uId];
+        uId = 63;
+        return;
+    }
+    uId = pEntry->index;
+    if (!pEntry->isNew)
+    {
+        pState = netPlayers[curDst].lastObjState->stateMap[uId];
     }
 }
 
@@ -13188,7 +13180,7 @@ void NetGame::VanishAllPlayer()
         {
             pUnit->ExitVehicle(true, true);
         }
-        SetDamageableVanishFlags((unsigned int*)static_cast<Damageable*>(pObject));
+        SetDamageableVanishFlags(static_cast<Damageable*>(pObject));
     }
 }
 
@@ -13404,15 +13396,6 @@ PblVector3* __fastcall TransformNormalByMatrix(const PblMatrix* pMatrix, PblVect
     return pOut;
 }
 
-// FUNCTION: SWBF2 0x0051ecb0
-void* __fastcall CopyCameraRecord(const void* pThis, void* pOut, int iIndex)
-{
-    const void* pSource = *(const void* const*)((const char*)pThis +
-                                            0x28 + iIndex * 4);
-    memcpy(pOut, (const char*)pSource + 16, 64);
-    return pOut;
-}
-
 // FUNCTION: SWBF2 0x005d2260
 void WriteTurnLowBits(NetPktGroup* pGroup, unsigned int uTurn)
 {
@@ -13468,7 +13451,7 @@ void NetGame::NominateBootPlayer(int iPlayer, int iReason, int iJoystick)
 // FUNCTION: SWBF2 0x005d1180
 void WriteBootRequest(NetPktGroup* pGroup)
 {
-    bool bPending = bootInfo > (unsigned int)clientAckedTurnNumber;
+    bool bPending = (unsigned int)bootInfo > (unsigned int)clientAckedTurnNumber;
     pGroup->Write(bPending);
     if (bPending)
     {
@@ -14241,7 +14224,7 @@ ScopeInfo scopeInfo[2] = {{3.0f, 300.0f}, {1000.0f, 2000.0f}};
 // FUNCTION: SWBF2 0x005c8810
 int GetObjectsInScope(const PblVector3& center, GameObject** ppObjects, int maxCount)
 {
-    const unsigned int oldTurn = hostTurnNumber < (unsigned int)netTurnsPerSecond
+    const unsigned int oldTurn = (unsigned int)hostTurnNumber < (unsigned int)netTurnsPerSecond
         ? 0 : hostTurnNumber - netTurnsPerSecond / 2;
     int count = 0;
     for (NetEntityList::Itor it(netEntities); it.Valid(); it.Next())
@@ -14584,13 +14567,16 @@ void WriteObject(NetPktGroup& group, GameObject* pObject)
     pObject->WriteObject(group, pState);
     if (saveObjState)
     {
-        NetObjState* pStored = uId == 63 ? 0 :
+        NetObjState* pStored = uId >= 63 ? 0 :
             netPlayers[curDst].nextObjState->stateMap[uId];
-        const PblMatrix& matrix = pObject->GetMatrix();
-        pStored->rotation = PblQuaternion(matrix);
-        pStored->position = matrix.GetTranslation();
-        pStored->team = (unsigned char)pObject->GetTeam();
-        pStored->perceivedTeam = (unsigned char)pObject->GetPerceivedTeam();
+        if (pStored)
+        {
+            const PblMatrix& matrix = pObject->GetMatrix();
+            pStored->rotation = PblQuaternion(matrix);
+            pStored->position = matrix.GetTranslation();
+            pStored->team = (unsigned char)pObject->GetTeam();
+            pStored->perceivedTeam = (unsigned char)pObject->GetPerceivedTeam();
+        }
     }
 }
 
@@ -14612,14 +14598,6 @@ void WriteFixed<MouseAxisConvert>(MouseAxisConvert&, NetPktGroup& group,
 {
     group.WriteFixed(fValue, -16.0f, 16.0f, 11);
 }
-
-struct HandleToIndex
-{
-    int index;
-    bool isNew;
-};
- 
- 
 
 // FUNCTION: SWBF2 0x005d39f0
 template BblList<HandleToIndex, 128>::BblList();
@@ -15089,7 +15067,7 @@ void ListNearObjects()
 }
 
 void WritePositionVector(NetPktGroup& group, const PblVector3& value);
-void WriteCosSin(NetPktGroup& group, const float* values);
+void WriteCosSin(NetPktGroup& group, const PblAngle& angle);
 
 // FUNCTION: SWBF2 0x005d2ef0
 void WriteSpawnCamera(NetPktGroup& group)
@@ -15104,10 +15082,9 @@ void WriteSpawnCamera(NetPktGroup& group)
         return;
     }
 
-    PblMatrix camera;
-    CopyCameraRecord(CameraManager::Instance(), &camera, 0);
+    PblMatrix camera = CameraManager::Instance()->GetChaseCameraTransform(0);
     WritePositionVector(group, camera.GetTranslation());
-    const float direction[2] = { camera.m[2][0], camera.m[2][2] };
+    const PblAngle direction(camera.m[2][0], camera.m[2][2]);
     WriteCosSin(group, direction);
 }
 
@@ -15808,8 +15785,7 @@ void WriteObjects(NetPktGroup& group)
         FinishSend(sends, scopes, scopeCounts);
 
         NetObjStateMap* lastMap = netPlayers[curDst].lastObjState;
-        PblHashTable<HandleToIndex, 128>* handleMap =
-            (PblHashTable<HandleToIndex, 128>*)(handleToIndexMapPtr + 1);
+        PblHashTable<HandleToIndex, 128>* handleMap = &handleToIndexMapPtr->table;
         for (i = 0; i < 64; ++i)
         {
             NetObjState* state = lastMap->stateMap[i];
@@ -15831,7 +15807,7 @@ void WriteObjects(NetPktGroup& group)
                 {
                     if (handleMap->Store(pObject->GetHandleId(), entry))
                     {
-                        ++*handleToIndexMapPtr;
+                        ++handleToIndexMapPtr->count;
                     }
                 }
                 else
@@ -15958,7 +15934,7 @@ void WriteObjects(NetPktGroup& group)
                 entry->isNew = true;
                 if (handleMap->Store(pObject->GetHandleId(), entry))
                 {
-                    ++*handleToIndexMapPtr;
+                    ++handleToIndexMapPtr->count;
                 }
                 if (pObject->GetHandleId() == netHostTraceHandleId)
                 {
@@ -16177,11 +16153,11 @@ void WriteUpdate(NetPktGroup& group)
     }
 
     BblList<HandleToIndex, 128> handlePool;
-    unsigned int handleToIndexMap[1 + 2 * 128];
-    ((PblHashTable<HandleToIndex, 128>*)&handleToIndexMap[1])->Clear();
-    handleToIndexMap[0] = 0;
+    HandleToIndexMap handleToIndexMap;
+    handleToIndexMap.table.Clear();
+    handleToIndexMap.count = 0;
     handlePoolPtr = &handlePool;
-    handleToIndexMapPtr = handleToIndexMap;
+    handleToIndexMapPtr = &handleToIndexMap;
     if (!isFullState || curDst == -1)
     {
         WriteObjects(group);
@@ -16542,9 +16518,6 @@ void ProcessGalaxyData()
 // GLOBAL: SWBF2 0x01e65030
 bool netLoginPending;
 
-// FUNCTION: SWBF2 0x00438ad0
-int __fastcall GetOpaqueObjectStatus(const void* self) { return *(const int*)((const char*)self + 0x64); }
-
 // FUNCTION: SWBF2 0x0055e330
 int GetSpaceAssaultScoreLimit() { return Lua_Callbacks::gSpaceAssaultScoreLimit[Lua_Callbacks::gCurRules]; }
 
@@ -16552,7 +16525,7 @@ int GetSpaceAssaultScoreLimit() { return Lua_Callbacks::gSpaceAssaultScoreLimit[
 void __fastcall sub_5C63C0(void*) {}
 
 // FUNCTION: SWBF2 0x005d3b30
-void* __fastcall ConstructNetVectorRecord(void* self) { return new (self) NetVectorRecord; }
+void* __fastcall ConstructNetEntityNode(void* self) { return new (self) NetEntityNode; }
 
 // FUNCTION: SWBF2 0x005d3bf0
 void sub_5D3BF0(void*, int) {}

@@ -20,13 +20,14 @@ pcRedShader* OrdnanceGrapplingHook::sShader;
 // GLOBAL: SWBF2 0x007eb740
 static RedColor kCableColor = { 0xcc, 0xcc, 0xcc, 0xff };
 
+namespace
+{
+
 struct TexCoord
 {
     float u, v;
 };
 
-namespace
-{
 struct HookVertex
 {
     PblVector3 pos;

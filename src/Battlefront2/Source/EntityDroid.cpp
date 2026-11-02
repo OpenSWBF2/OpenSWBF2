@@ -48,29 +48,30 @@ EntityDroidClass::~EntityDroidClass()
 {
 }
 
-// FUNCTION: SWBF2 0x0049e1b0
-void* __fastcall GetFirstWeaponFactoryNode(const void* pList)
-{
-    return static_cast<const PblList<Factory<Weapon, WeaponClass, WeaponDesc>>*>(pList)->_head._pNext;
-}
+// TEMPLATE: SWBF2 0x0049e1b0
+// PblList<Factory<Weapon,WeaponClass,WeaponDesc> >::GetFirst
+template PblList<Factory<Weapon, WeaponClass, WeaponDesc> >::Node*
+PblList<Factory<Weapon, WeaponClass, WeaponDesc> >::GetFirst() const;
 
-// FUNCTION: SWBF2 0x0049e1d0
-void* __fastcall GetWeaponFactoryIteratorObject(const void* pItor)
-{
-    return *static_cast<const PblList<Factory<Weapon, WeaponClass, WeaponDesc>>::Itor*>(pItor);
-}
+// TEMPLATE: SWBF2 0x0049e1c0
+// PblList<Factory<Weapon,WeaponClass,WeaponDesc> >::Itor::Itor
+template PblList<Factory<Weapon, WeaponClass, WeaponDesc> >::Itor::Itor(
+    PblList<Factory<Weapon, WeaponClass, WeaponDesc> >::Node*);
 
-// FUNCTION: SWBF2 0x0049e1e0
-void* __fastcall DereferenceWeaponFactoryIterator(const void* pItor)
-{
-    return *static_cast<const PblList<Factory<Weapon, WeaponClass, WeaponDesc>>::Itor*>(pItor);
-}
+// TEMPLATE: SWBF2 0x0049e1d0
+// PblList<Factory<Weapon,WeaponClass,WeaponDesc> >::Itor::operator->
+template Factory<Weapon, WeaponClass, WeaponDesc>*
+PblList<Factory<Weapon, WeaponClass, WeaponDesc> >::Itor::operator->() const;
 
-// FUNCTION: SWBF2 0x0049e1f0
-void* __fastcall ConvertWeaponFactoryIteratorToPointer(const void* pItor)
-{
-    return *static_cast<const PblList<Factory<Weapon, WeaponClass, WeaponDesc>>::Itor*>(pItor);
-}
+// TEMPLATE: SWBF2 0x0049e1e0
+// PblList<Factory<Weapon,WeaponClass,WeaponDesc> >::Itor::operator*
+template Factory<Weapon, WeaponClass, WeaponDesc>&
+PblList<Factory<Weapon, WeaponClass, WeaponDesc> >::Itor::operator*() const;
+
+// TEMPLATE: SWBF2 0x0049e1f0
+// PblList<Factory<Weapon,WeaponClass,WeaponDesc> >::Itor::operator Factory<Weapon,WeaponClass,WeaponDesc> *
+template PblList<Factory<Weapon, WeaponClass, WeaponDesc> >::Itor::
+    operator Factory<Weapon, WeaponClass, WeaponDesc>*() const;
 
 // TEMPLATE: SWBF2 0x0049e200
 // PblList<Factory<Weapon,WeaponClass,WeaponDesc> >::Itor::operator++
@@ -2039,10 +2040,3 @@ void EntityDroid::SetupCameraTrackMatrix(PblMatrix& rMatrix, float fDeltaTime)
                                     1.0f, 1.0f, this);
 }
 
-// FUNCTION: SWBF2 0x0049e2e0
-unsigned int* __fastcall InitializeSpawnCameraFloatPair(unsigned int* pThis)
-{
-    pThis[0] = 0x3f800000u;
-    pThis[1] = 0;
-    return pThis;
-}

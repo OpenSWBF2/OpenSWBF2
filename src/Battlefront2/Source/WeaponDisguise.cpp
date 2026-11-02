@@ -9,25 +9,8 @@
 #include "PebbleFL/Common/PblHeap.h"
 #include "PebbleFL/Common/PblList.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
+#include "TeamManager.h"
 #include <new>
-
-namespace AI
-{
-enum AIAffil
-{
-    AFFIL_ENEMY = 1,
-    AFFIL_NEUTRAL = 2,
-    AFFIL_ALLY = 4,
-    AFFIL_ALLYNEUTRAL = 6,
-    AFFIL_ALL = 7
-};
-}
-
-namespace TeamManager
-{
-int GetObjectsInRange(const PblVector3& vPos, float fRange, GameObject** const ppObjects, int iMax,
-                      const GameObject* pObject, AI::AIAffil eAffil);
-}
 
 // GLOBAL: SWBF2 0x01f9a8b8
 // SYNTHETIC: SWBF2 0x00407130

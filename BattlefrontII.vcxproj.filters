@@ -999,6 +999,9 @@
     <ClCompile Include="src\Battlefront2\Source\NetAdmin.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
+    <ClCompile Include="src\Battlefront2\Source\NetAdminMd5.cpp">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClCompile>
     <ClCompile Include="src\Battlefront2\Source\NetComm.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
@@ -3168,6 +3171,9 @@
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\NetAdminIdText.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\NetAdminMd5.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\NetComm.h">

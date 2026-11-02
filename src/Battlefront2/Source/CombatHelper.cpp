@@ -24,6 +24,7 @@
 
 #include "UnitThreatManager.h"
 #include "PebbleFL/pc/PblD3DX.h"
+#include "VOHelper.h"
 
 class Weapon;
 
@@ -35,21 +36,6 @@ namespace CombatUtil
                               bool* pbFlag, bool bA, bool bB);
 
     bool EngageInCombat(const UnitController* pCtrl, const GameObject* pTarget, bool bFlag);
-}
-
-namespace AI
-{
-
-enum VOType
-{
-    VOT_RebelsShootDeadBody = 11
-};
-
-namespace VOHelper
-{
-
-int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget, const GameObject* pOther, float fDelay);
-}
 }
 
 namespace CombatUtil { float GetCombatRange(const Controllable* pMe); }

@@ -14,7 +14,7 @@
 #include "GameVoiceChatNode.h"
 
 // GLOBAL: SWBF2 0x01eafd3c
-void*          VoiceChat::Node::sTransport;
+VoiceChat::Transport* VoiceChat::Node::sTransport;
 // GLOBAL: SWBF2 0x01eafd40
 unsigned short VoiceChat::Node::sSeqNumVariance;
 // GLOBAL: SWBF2 0x01eafd42
@@ -26,9 +26,9 @@ unsigned short VoiceChat::Node::sRepeatMax;
 // GLOBAL: SWBF2 0x01eafd4c
 float          VoiceChat::Node::sReceiveBufferSize;
 // GLOBAL: SWBF2 0x01eafd50
-void*          VoiceChat::Node::sSendMetrics;
+VoiceChat::Node::SendMetrics* VoiceChat::Node::sSendMetrics;
 // GLOBAL: SWBF2 0x01eafd54
-void*          VoiceChat::Node::sReceiveMetrics;
+VoiceChat::Node::ReceiveMetrics* VoiceChat::Node::sReceiveMetrics;
 // GLOBAL: SWBF2 0x01eafd58
 int            VoiceChat::Node::sTime;
 
@@ -55,10 +55,7 @@ namespace VoiceChat { void* Alloc(unsigned int uiSize); }
 namespace VoiceChat { void Free(void* pBlock); }
 
 // GLOBAL: SWBF2 0x007ebee8
-void* VoiceChat::Node::sList[4] = { VoiceChat::Node::sList, VoiceChat::Node::sList, VoiceChat::Node::sList, 0 };
-// GLOBAL: SWBF2 0x007ebef8
-
-int sRegisteredNodeCount;
+PblList<VoiceChat::Node> VoiceChat::Node::sList;
 
 // FUNCTION: SWBF2 0x00674580
 void VoiceChat::Node::SetSkipOutOfSequence(float fRate)
@@ -78,14 +75,15 @@ bool VoiceChat::Node::OpenStatic(float fSeconds, float fA, float fB)
 
     VoiceChat::Node::sTransport = &GameVoiceChat::gTransport;
 
-    const unsigned int uiNodes = ((const VoiceChat::Transport*)(&GameVoiceChat::gTransport))->GetNumNodes();
-    const unsigned int uiNodesLog2 = ((const VoiceChat::Transport*)(&GameVoiceChat::gTransport))->GetNumNodesLog2();
+    const unsigned int uiNodes = GameVoiceChat::gTransport.GetNumNodes();
+    const unsigned int uiNodesLog2 = GameVoiceChat::gTransport.GetNumNodesLog2();
 
-    const unsigned int uiBitmapBytes = ((uiNodesLog2 + 8 + uiNodes) & ~7u) >> 3;
+    const unsigned int uiBitmapBytes = Node::Header::GetMaxBytes(uiNodes, uiNodesLog2);
     VoiceChat::Node::sReadHeader.mSize = uiBitmapBytes;
     VoiceChat::Node::sWriteHeader.mSize = uiBitmapBytes;
 
-    const unsigned int uiSize = uiNodes * 68 + ((uiBitmapBytes + 3) >> 2) * 8;
+    const unsigned int uiSize = uiNodes * (sizeof(ReceiveMetrics) + sizeof(SendMetrics))
+        + ((uiBitmapBytes + 3) >> 2) * 8;
 
     char* p = (char*)VoiceChat::Alloc(uiSize);
     VoiceChat::Node::sReadHeader.mBitmap = (unsigned char*)p;
@@ -103,10 +101,10 @@ bool VoiceChat::Node::OpenStatic(float fSeconds, float fA, float fB)
     VoiceChat::Node::sWriteHeader.mBitmap = (unsigned char*)pSecond;
 
     char* pPerNode = pSecond + ((VoiceChat::Node::sWriteHeader.mSize + 3) >> 2) * 4;
-    VoiceChat::Node::sReceiveMetrics = pPerNode;
-    VoiceChat::Node::sSendMetrics = pPerNode + uiNodes * 36;
+    VoiceChat::Node::sReceiveMetrics = (ReceiveMetrics*)pPerNode;
+    VoiceChat::Node::sSendMetrics = (SendMetrics*)(VoiceChat::Node::sReceiveMetrics + uiNodes);
 
-    memset(VoiceChat::Node::sReadHeader.mBitmap, 0, VoiceChat::Node::sWriteHeader.mSize + uiNodes * 68 + VoiceChat::Node::sReadHeader.mSize);
+    memset(VoiceChat::Node::sReadHeader.mBitmap, 0, uiSize);
 
     VoiceChat::Node::sTime = 0;
     VoiceChat::Node::sBufferSizeMs = (1.0f / fSeconds) * 2.0f * 1000.0f;
@@ -115,10 +113,9 @@ bool VoiceChat::Node::OpenStatic(float fSeconds, float fA, float fB)
     if (uiNodes != 0)
     {
         const float fPerNode = fB / 1000.0f;
-        char* q = (char*)pPerNode;
-        for (unsigned int i = uiNodes; i != 0; --i, q += 0x24)
+        for (unsigned int i = 0; i < uiNodes; ++i)
         {
-            *(float*)q = fPerNode;
+            VoiceChat::Node::sReceiveMetrics[i].receiveLatency = fPerNode;
         }
     }
 
@@ -156,7 +153,7 @@ unsigned int VoiceChat::Node::UpdateReceiveStreamLatency(unsigned char ucIndex)
 {
     const unsigned int uiIndex = ucIndex;
 
-    const ReceiveMetrics& slot = ((const ReceiveMetrics*)sReceiveMetrics)[uiIndex];
+    const ReceiveMetrics& slot = sReceiveMetrics[uiIndex];
 
     const int iSlot = slot.lastPacketSize;
     const int iDenom = iSlot ? iSlot : 1;
@@ -205,7 +202,7 @@ bool VoiceChat::Node::Open()
         (unsigned short)(int)(VoiceChat::Node::sReceiveBufferSize / fSeconds);
 
     const unsigned int uiBytes = mEncoder->GetMaxOutputPacketSizeBytes();
-    const unsigned int uiNodes = ((const VoiceChat::Transport*)(VoiceChat::Node::sTransport))->GetNumNodes();
+    const unsigned int uiNodes = VoiceChat::Node::sTransport->GetNumNodes();
     const unsigned int uiAlignedBytes = (uiBytes + 3u) & ~3u;
 
     char* const pBlock = (char*)VoiceChat::Alloc(
@@ -230,33 +227,33 @@ bool VoiceChat::Node::Open()
     mSendSeq = 0;
     mNumDecoderInputs = 0x0C;
 
-    char* pEntryBuf = pBlock + uiNodes * 0x18;
-    char* pData = (char*)((((unsigned long)(pEntryBuf) +
-                            uiPackets * uiNodes * 0x10u) + 3u) & ~3u);
+    AudioPacket* pPacket = (AudioPacket*)(pBlock + uiNodes * sizeof(ReceiveStream));
+    char* pData = (char*)(((unsigned long)(pPacket + uiPackets * uiNodes) + 3u) & ~3u);
 
     for (unsigned int i = 0; i < uiNodes; ++i)
     {
         ReceiveStream& entry = mReceiveStreams[i];
-        unsigned char* const pEntry = (unsigned char*)&entry;
 
-        pEntry[0x17] &= 0xFC;
-        *(unsigned int*)(pEntry + 0x12) = 0;
-        entry.packet = (AudioPacket*)pEntryBuf;
-        *(unsigned int*)(pEntry + 0x04) = 0;
-        *(unsigned int*)(pEntry + 0x08) = 0;
-        *(unsigned int*)(pEntry + 0x0C) = 0;
-        pEntry[0x16] = (char)0xFF;
+        entry.activated = false;
+        entry.starving = false;
+        entry.writeIndex = 0;
+        entry.readIndex = 0;
+        entry.packet = pPacket;
+        entry.bufferedData = 0.0f;
+        entry.activationTime = 0.0f;
+        entry.lastPacketSize = 0;
+        entry.decoderInput = 0xFF;
 
         UpdateReceiveStreamLatency((unsigned char)i);
 
         for (unsigned int p = uiPackets; p != 0; --p)
         {
-            pEntryBuf[0x0C] &= 0xFE;
-            ((AudioPacket*)pEntryBuf)->mData = pData;
+            pPacket->mDiscontinuity = false;
+            pPacket->mData = pData;
             pData += uiAlignedBytes;
-            *(unsigned int*)(pEntryBuf + 0x04) = 0;
-            *(unsigned int*)(pEntryBuf + 0x08) = 0;
-            pEntryBuf += 0x10;
+            pPacket->mSize = 0;
+            pPacket->mAppData = 0;
+            ++pPacket;
         }
     }
 
@@ -310,6 +307,10 @@ void VoiceChat::Node::Close(bool, bool)
 // FUNCTION: SWBF2 0x00672de0
 void VoiceChat::Node::SetID(unsigned char uChannel)
 {
+    if (uChannel != 0xFF && VoiceChat::Node::sTransport && uChannel >= VoiceChat::Node::sTransport->GetNumNodes())
+    {
+        uChannel = 0xFF;
+    }
     const unsigned char uOld = mNodeID;
     if (uOld == uChannel)
     {
@@ -318,17 +319,10 @@ void VoiceChat::Node::SetID(unsigned char uChannel)
 
     if (uChannel == 0xFF || uOld != 0xFF)
     {
-        ((VoiceChat::Transport*)VoiceChat::Node::sTransport)->SetLocalNode(uOld, false, false, false);
-        --sRegisteredNodeCount;
+        VoiceChat::Node::sTransport->SetLocalNode(uOld, false, false, false);
+        VoiceChat::Node::sList.Remove(this);
 
-        PblList<Node>::Node* const pPrev = _pNext;
-        PblList<Node>::Node* const pNext = _pPrev;
-        _pList = 0;
-        _pObject = 0;
-        pPrev->_pPrev = pNext;
-        _pPrev->_pNext = pPrev;
-
-        const unsigned char uNodes = ((const VoiceChat::Transport*)(VoiceChat::Node::sTransport))->GetNumNodes();
+        const unsigned char uNodes = VoiceChat::Node::sTransport->GetNumNodes();
 
         VoiceChat::AudioPacket packet;
         packet.mDiscontinuity = true;
@@ -355,15 +349,8 @@ void VoiceChat::Node::SetID(unsigned char uChannel)
         const unsigned char uB = mEncoder->IsEnabled();
         const unsigned char uA = mDecoder->IsEnabled();
 
-        ((VoiceChat::Transport*)VoiceChat::Node::sTransport)->SetLocalNode(uChannel, true, uA != 0, uB != 0);
-        ++sRegisteredNodeCount;
-
-        _pObject = this;
-        _pList = (PblList<Node>*)VoiceChat::Node::sList;
-        _pNext = (PblList<Node>::Node*)VoiceChat::Node::sList;
-        _pPrev = (PblList<Node>::Node*)VoiceChat::Node::sList[2];
-        VoiceChat::Node::sList[2] = this;
-        _pPrev->_pNext = this;
+        VoiceChat::Node::sTransport->SetLocalNode(uChannel, true, uA != 0, uB != 0);
+        VoiceChat::Node::sList.AddLast(this, this);
     }
 
     mNodeID = uChannel;
@@ -423,15 +410,12 @@ float VoiceChat::Node::GetBufferSizeMs()
 // FUNCTION: SWBF2 0x00674360
 VoiceChat::Node* VoiceChat::Node::FindByID(unsigned char uNodeID)
 {
-    PblList<VoiceChat::Node>::Node* pNode =
-        (PblList<VoiceChat::Node>::Node*)VoiceChat::Node::sList[1];
-    while (pNode->_pObject)
+    for (PblList<VoiceChat::Node>::Itor it(VoiceChat::Node::sList); it; ++it)
     {
-        if (pNode->_pObject->GetID() == uNodeID)
+        if (it->GetID() == uNodeID)
         {
-            return pNode->_pObject;
+            return it;
         }
-        pNode = pNode->_pNext;
     }
     return 0;
 }
@@ -456,7 +440,7 @@ void VoiceChat::Node::Send()
     }
 
     const float fSinceSendMs = (GetTime() - GetLastSendTime()) * 1000.0f;
-    ((Transport*)VoiceChat::Node::sTransport)->SetSending(GetID(), GetBufferSizeMs() * 2.0f > fSinceSendMs);
+    VoiceChat::Node::sTransport->SetSending(GetID(), GetBufferSizeMs() * 2.0f > fSinceSendMs);
 }
 
 // FUNCTION: SWBF2 0x00673a50
@@ -507,7 +491,7 @@ bool VoiceChat::Node::DecoderReceiveAudioPacket(unsigned char stream,
 // FUNCTION: SWBF2 0x006731a0
 void VoiceChat::Node::Decode(float fDeltaTime)
 {
-    Transport* const pTransport = (Transport*)VoiceChat::Node::sTransport;
+    Transport* const pTransport = VoiceChat::Node::sTransport;
     const unsigned char numStreams = ((const VoiceChat::Transport*)(pTransport))->GetNumNodes();
     bool bStarving = false;
 
@@ -561,7 +545,7 @@ void VoiceChat::Node::Decode(float fDeltaTime)
             ReceiveStream& stream = mReceiveStreams[i];
             if (DecoderIsStarving(i, bStarving) && stream.activated)
             {
-                ReceiveMetrics& metrics = ((ReceiveMetrics*)VoiceChat::Node::sReceiveMetrics)[i];
+                ReceiveMetrics& metrics = VoiceChat::Node::sReceiveMetrics[i];
                 const float fTime = *(float*)&VoiceChat::Node::sTime;
                 const float fSinceStarve = fTime - metrics.lastStarveTime;
                 ++metrics.starvedCount;
@@ -588,7 +572,7 @@ void VoiceChat::Node::Decode(float fDeltaTime)
     {
         for (unsigned char i = 0; i < numStreams; ++i)
         {
-            if (((ReceiveMetrics*)VoiceChat::Node::sReceiveMetrics)[i].activated)
+            if (VoiceChat::Node::sReceiveMetrics[i].activated)
             {
                 UpdateReceiveStreamLatency(i);
             }
@@ -623,13 +607,13 @@ unsigned int VoiceChat::Node::CalculateNumPackets(const ReceiveStream& stream) c
 // FUNCTION: SWBF2 0x00674390
 const VoiceChat::Node::SendMetrics& VoiceChat::Node::GetSendMetrics(unsigned char node)
 {
-    return ((const VoiceChat::Node::SendMetrics*)VoiceChat::Node::sSendMetrics)[node];
+    return VoiceChat::Node::sSendMetrics[node];
 }
 
 // FUNCTION: SWBF2 0x006743a0
 const VoiceChat::Node::ReceiveMetrics& VoiceChat::Node::GetReceiveMetrics(unsigned char node)
 {
-    return ((const VoiceChat::Node::ReceiveMetrics*)VoiceChat::Node::sReceiveMetrics)[node];
+    return VoiceChat::Node::sReceiveMetrics[node];
 }
 
 // FUNCTION: SWBF2 0x00674320
@@ -704,6 +688,10 @@ bool Node::Header::Read(const Transport& transport, NetPacketAudio* const pPacke
     const unsigned int nBits = CalculateSize(transport, format);
     const unsigned int nBytes = ((nBits + 7) >> 3) - 1;
     if (pPacket->Read((char*)mBitmap + 1, nBytes) != nBytes)
+    {
+        return false;
+    }
+    if (!HasValidNodes(mBitmap, transport.GetNumNodes(), transport.GetNumNodesLog2()))
     {
         return false;
     }
@@ -797,7 +785,7 @@ unsigned int Node::Header::CalculateSize(const Transport& transport, Format form
 // FUNCTION: SWBF2 0x00673480
 void VoiceChat::Node::SendAudioPacket(const AudioPacket* const packet)
 {
-    Transport* transport = (Transport*)VoiceChat::Node::sTransport;
+    Transport* transport = VoiceChat::Node::sTransport;
     Transport::Method& method = transport->mMethodIncoming;
     const unsigned char numNodes = transport->mNumNodes;
     switch (method.mType)
@@ -807,7 +795,7 @@ void VoiceChat::Node::SendAudioPacket(const AudioPacket* const packet)
         {
             if (transport->GetSendPossible(mNodeID, node))
             {
-                VoiceChat::Node::sWriteHeader.SendSetup((*(const VoiceChat::Transport*)VoiceChat::Node::sTransport), mNodeID, node, packet->mDiscontinuity, mSendSeq);
+                VoiceChat::Node::sWriteHeader.SendSetup(*VoiceChat::Node::sTransport, mNodeID, node, packet->mDiscontinuity, mSendSeq);
                 SendAudioPacket(packet, &sWriteHeader, node, &mLastSendTime);
             }
         }
@@ -831,14 +819,14 @@ void VoiceChat::Node::SendAudioPacket(const AudioPacket* const packet)
     case Transport::Method::type_serverRelay:
     {
         const unsigned short sequence = mSendSeq++;
-        VoiceChat::Node::sWriteHeader.SendSetup((*(const VoiceChat::Transport*)VoiceChat::Node::sTransport), mNodeID, 0xff, packet->mDiscontinuity, sequence);
+        VoiceChat::Node::sWriteHeader.SendSetup(*VoiceChat::Node::sTransport, mNodeID, 0xff, packet->mDiscontinuity, sequence);
 
         const float sendTime = GetTime();
         for (unsigned char node = 0; node < numNodes; ++node)
         {
             const bool receive = transport->GetSendPossible(mNodeID, node);
-            sWriteHeader.SetReceiveNode((*(const VoiceChat::Transport*)VoiceChat::Node::sTransport), node, receive);
-            SendMetrics& metrics = ((SendMetrics*)VoiceChat::Node::sSendMetrics)[node];
+            sWriteHeader.SetReceiveNode(*VoiceChat::Node::sTransport, node, receive);
+            SendMetrics& metrics = VoiceChat::Node::sSendMetrics[node];
             ++metrics.sendCount;
             metrics.lastSendTime = sendTime;
         }
@@ -856,29 +844,29 @@ void VoiceChat::Node::SendAudioPacketPeerRelay(const AudioPacket* const packet, 
                            unsigned char numNodes, unsigned char maxRelayNodes,
                            unsigned short sequence, bool incoming, float* sendTime)
 {
-    VoiceChat::Transport* transport = (VoiceChat::Transport*)VoiceChat::Node::sTransport;
+    VoiceChat::Transport* transport = VoiceChat::Node::sTransport;
     unsigned char node = first;
     unsigned char selected = 0xff;
     unsigned char grouped = 0;
     for (unsigned int index = 0; index < numNodes; ++index)
     {
         const bool last = index + 1 == numNodes;
-        const bool receive = incoming ? VoiceChat::Node::sReadHeader.GetReceiveNode((*(const VoiceChat::Transport*)VoiceChat::Node::sTransport), node)
+        const bool receive = incoming ? VoiceChat::Node::sReadHeader.GetReceiveNode(*VoiceChat::Node::sTransport, node)
                                       : transport->GetSendPossible(first, node);
         const bool firstInGroup = receive && selected == 0xff;
         if (firstInGroup)
         {
-            VoiceChat::Node::sWriteHeader.SendSetup((*(const VoiceChat::Transport*)VoiceChat::Node::sTransport), first, 0xff, packet->mDiscontinuity, sequence);
+            VoiceChat::Node::sWriteHeader.SendSetup(*VoiceChat::Node::sTransport, first, 0xff, packet->mDiscontinuity, sequence);
             for (unsigned char i = 0; i < numNodes; ++i)
             {
-                VoiceChat::Node::sWriteHeader.SetReceiveNode((*(const VoiceChat::Transport*)VoiceChat::Node::sTransport), i, i == node);
+                VoiceChat::Node::sWriteHeader.SetReceiveNode(*VoiceChat::Node::sTransport, i, i == node);
             }
             selected = node;
             grouped = 0;
         }
         if (selected != 0xff && ((!firstInGroup && receive) || last))
         {
-            VoiceChat::Node::sWriteHeader.SetReceiveNode((*(const VoiceChat::Transport*)VoiceChat::Node::sTransport), node, receive);
+            VoiceChat::Node::sWriteHeader.SetReceiveNode(*VoiceChat::Node::sTransport, node, receive);
             if (++grouped == maxRelayNodes || last)
             {
                 SendAudioPacket(packet, &VoiceChat::Node::sWriteHeader, selected, sendTime);
@@ -897,7 +885,7 @@ bool VoiceChat::Node::SendAudioPacket(const AudioPacket* const audio, const Head
                                        unsigned char destination, float* const sendTime)
 {
     VoiceChat::Node::SendMetrics* metrics = destination == 0xff ? 0
-        : &((VoiceChat::Node::SendMetrics*)VoiceChat::Node::sSendMetrics)[destination];
+        : &VoiceChat::Node::sSendMetrics[destination];
     NetPacket* packet = (NetPacket*)VoiceChat::NetPacketAudio::Alloc();
     if (!packet)
     {
@@ -943,7 +931,7 @@ bool VoiceChat::Node::SendAudioPacket(const AudioPacket* const audio, const Head
 void VoiceChat::Node::RelayAudioPacket(const AudioPacket* const packet, unsigned char node,
                                         unsigned short sequence)
 {
-    VoiceChat::Transport* transport = (VoiceChat::Transport*)VoiceChat::Node::sTransport;
+    VoiceChat::Transport* transport = VoiceChat::Node::sTransport;
     VoiceChat::Transport::Method& method = transport->mMethodIncoming;
     if (method.mType == VoiceChat::Transport::Method::type_relay)
     {
@@ -954,9 +942,9 @@ void VoiceChat::Node::RelayAudioPacket(const AudioPacket* const packet, unsigned
     {
         for (unsigned char i = 0; i < transport->mNumNodes; ++i)
         {
-            if (VoiceChat::Node::sReadHeader.GetReceiveNode((*(const VoiceChat::Transport*)VoiceChat::Node::sTransport), i))
+            if (VoiceChat::Node::sReadHeader.GetReceiveNode(*VoiceChat::Node::sTransport, i))
             {
-                VoiceChat::Node::sWriteHeader.SendSetup((*(const VoiceChat::Transport*)VoiceChat::Node::sTransport), node, i, packet->mDiscontinuity, sequence);
+                VoiceChat::Node::sWriteHeader.SendSetup(*VoiceChat::Node::sTransport, node, i, packet->mDiscontinuity, sequence);
                 SendAudioPacket(packet, &VoiceChat::Node::sWriteHeader, i, 0);
             }
         }
@@ -1001,7 +989,7 @@ void Node::DecodeQueue(unsigned char stream, bool force)
 
     AudioPacket* packet = &receive.packet[receive.readIndex];
     const float timePerByte = mEncoderPacketSizeSec / (float)((VoiceChat::Encoder*)mEncoder)->GetMaxOutputPacketSizeBytes();
-    const bool connected = ((Transport*)VoiceChat::Node::sTransport)->GetReceivePossible(mNodeID, stream);
+    const bool connected = VoiceChat::Node::sTransport->GetReceivePossible(mNodeID, stream);
     if (!connected && receive.activated)
     {
         AudioPacket discontinuity = {};
@@ -1099,7 +1087,7 @@ bool Node::ReceiveAudioPacket(unsigned char stream, const AudioPacket* packet)
 unsigned char Node::DecoderInputAlloc(unsigned char stream)
 {
     ReceiveStream& receive = mReceiveStreams[stream];
-    const unsigned char count = ((const VoiceChat::Transport*)(VoiceChat::Node::sTransport))->GetNumNodes();
+    const unsigned char count = VoiceChat::Node::sTransport->GetNumNodes();
     if (mNumDecoderInputs == count)
     {
         mAllocatedInputs[stream] = stream;
@@ -1133,7 +1121,7 @@ unsigned char Node::DecoderInputAlloc(unsigned char stream)
 // FUNCTION: SWBF2 0x00673ba0
 void Node::DecoderInputFree(unsigned char input, bool flush)
 {
-    if (mNumDecoderInputs == ((const VoiceChat::Transport*)(VoiceChat::Node::sTransport))->GetNumNodes())
+    if (mNumDecoderInputs == VoiceChat::Node::sTransport->GetNumNodes())
     {
         return;
     }
@@ -1197,11 +1185,11 @@ void VoiceChat::Node::Update(float fDeltaTime)
     while ((pAppPacket = NetPacketAudio::Receive()) != 0)
     {
         NetPacketAudio kAudio(pAppPacket);
-        if (VoiceChat::Node::sReadHeader.Read(*(const VoiceChat::Transport*)VoiceChat::Node::sTransport, &kAudio))
+        if (VoiceChat::Node::sReadHeader.Read(*VoiceChat::Node::sTransport, &kAudio))
         {
             const unsigned short uSeq = VoiceChat::Node::sReadHeader.GetSeqNum();
-            const unsigned char uID = VoiceChat::Node::sReadHeader.GetSendNodeID(*(const VoiceChat::Transport*)VoiceChat::Node::sTransport);
-            ReceiveMetrics& rm = ((ReceiveMetrics*)VoiceChat::Node::sReceiveMetrics)[uID];
+            const unsigned char uID = VoiceChat::Node::sReadHeader.GetSendNodeID(*VoiceChat::Node::sTransport);
+            ReceiveMetrics& rm = VoiceChat::Node::sReceiveMetrics[uID];
             const bool bDiscontinuity = VoiceChat::Node::sReadHeader.GetDiscontinuity();
 
             if (!(uSeq < rm.receiveSeq
@@ -1258,21 +1246,21 @@ void VoiceChat::Node::Update(float fDeltaTime)
         NetPacketAudio::Free(pAppPacket);
     }
 
-    for (void** pLink = (void**)VoiceChat::Node::sList[1]; pLink[3]; pLink = (void**)pLink[1])
+    for (PblList<Node>::Itor it(VoiceChat::Node::sList); it; ++it)
     {
-        Node* pNode = (Node*)pLink[3];
-        ((SendMetrics*)VoiceChat::Node::sSendMetrics)[pNode->GetID()].bandwidth = 0.0f;
-        if (((VoiceChat::Node*)pLink[3])->IsOpen())
+        Node* pNode = it;
+        VoiceChat::Node::sSendMetrics[pNode->GetID()].bandwidth = 0.0f;
+        if (pNode->IsOpen())
         {
             pNode->Send();
             pNode->Decode(fDeltaTime);
         }
     }
 
-    const unsigned char uNodes = ((const VoiceChat::Transport*)(VoiceChat::Node::sTransport))->GetNumNodes();
+    const unsigned char uNodes = VoiceChat::Node::sTransport->GetNumNodes();
     for (unsigned char i = 0; i < uNodes; ++i)
     {
-        ReceiveMetrics& rm = ((ReceiveMetrics*)VoiceChat::Node::sReceiveMetrics)[i];
+        ReceiveMetrics& rm = VoiceChat::Node::sReceiveMetrics[i];
         if (rm.activated && sTime - rm.lastReceiveTime > VoiceChat::Node::sReceiveBufferSize)
         {
             rm.activated = false;
@@ -1282,13 +1270,13 @@ void VoiceChat::Node::Update(float fDeltaTime)
             kSilence.mData = 0;
             kSilence.mSize = 0;
             kSilence.mAppData = 0;
-            for (void** pLink = (void**)VoiceChat::Node::sList[1]; pLink[3]; pLink = (void**)pLink[1])
+            for (PblList<Node>::Itor it(VoiceChat::Node::sList); it; ++it)
             {
-                ((Node*)pLink[3])->ReceiveAudioPacket(i, &kSilence);
+                it->ReceiveAudioPacket(i, &kSilence);
             }
         }
 
-        SendMetrics& sm = ((SendMetrics*)VoiceChat::Node::sSendMetrics)[i];
+        SendMetrics& sm = VoiceChat::Node::sSendMetrics[i];
         sm.bandwidthAverage = sm.bandwidth * (1.0f - 0.9f) + sm.bandwidthAverage * 0.9f;
     }
 
@@ -1300,18 +1288,16 @@ bool __fastcall VoiceChat::Node::ReceiveAudioPacketAllLocalNodes(unsigned char u
                            const VoiceChat::AudioPacket* pPacket,
                            bool  , unsigned short uDropped)
 {
-    unsigned char uRemaining = VoiceChat::Node::sReadHeader.GetNumReceiveNodes((*(const VoiceChat::Transport*)VoiceChat::Node::sTransport));
-    PblList<VoiceChat::Node>* pList = (PblList<VoiceChat::Node>*)VoiceChat::Node::sList;
-    for (PblList<VoiceChat::Node>::Node* pLink = pList->GetFirst();
-         pLink->_pObject; pLink = pLink->_pNext)
+    unsigned char uRemaining = VoiceChat::Node::sReadHeader.GetNumReceiveNodes(*VoiceChat::Node::sTransport);
+    for (PblList<VoiceChat::Node>::Itor it(VoiceChat::Node::sList); it; ++it)
     {
-        VoiceChat::Node* pNode = pLink->_pObject;
+        VoiceChat::Node* pNode = it;
         unsigned char uNodeID = pNode->mNodeID;
-        if (!VoiceChat::Node::sReadHeader.GetReceiveNode((*(const VoiceChat::Transport*)VoiceChat::Node::sTransport), uNodeID))
+        if (!VoiceChat::Node::sReadHeader.GetReceiveNode(*VoiceChat::Node::sTransport, uNodeID))
         {
             continue;
         }
-        VoiceChat::Transport* pTransport = (VoiceChat::Transport*)VoiceChat::Node::sTransport;
+        VoiceChat::Transport* pTransport = VoiceChat::Node::sTransport;
         if (pTransport->GetReceivePossible(uNodeID, uID))
         {
             if (!VoiceChat::Node::sSkipDropped)
@@ -1325,7 +1311,7 @@ bool __fastcall VoiceChat::Node::ReceiveAudioPacketAllLocalNodes(unsigned char u
         }
         if (VoiceChat::Node::sReadHeader.GetFormat() == VoiceChat::Node::Header::format_relay)
         {
-            VoiceChat::Node::sReadHeader.SetReceiveNode((*(const VoiceChat::Transport*)VoiceChat::Node::sTransport), uNodeID, false);
+            VoiceChat::Node::sReadHeader.SetReceiveNode(*VoiceChat::Node::sTransport, uNodeID, false);
         }
         --uRemaining;
     }

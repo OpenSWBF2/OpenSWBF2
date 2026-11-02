@@ -77,11 +77,6 @@ EditHeap::~EditHeap()
 }
 }
 
-static RedKeyboard* GetInputsKeyboard(RawControllerInputs* const pInputs)
-{
-    return *(RedKeyboard**)&pInputs->mRawInputStorage[0x2608 - 4];
-}
-
 namespace FLRenderer
 {
 void AddInterfaceElement(RedScreenGroupElement* pElement, float fX, float fY,
@@ -1132,7 +1127,7 @@ bool HUD::Editor::GetControlValue(RawControllerInputs* const pInputs, Control eC
     case control_Select: ucKey = DIK_INSERT; break;
     }
 
-    bool bDown = GetInputsKeyboard(pInputs)->IsKeyDown(ucKey);
+    bool bDown = pInputs->GetKeyboard()->IsKeyDown(ucKey);
     if (bPressed)
     {
         if (bDown && !mKeyDown[eControl])

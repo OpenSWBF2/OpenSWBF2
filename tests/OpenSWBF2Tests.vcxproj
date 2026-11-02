@@ -119,6 +119,8 @@
     <ClCompile Include="..\src\RedEngineFL\Util\RedWarning.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Util\RedConsole.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\NetPacket.cpp" />
+    <ClCompile Include="..\src\Battlefront2\Source\NetAdminMd5.cpp" />
+    <ClCompile Include="..\src\Battlefront2\Source\VoiceChatUtil.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\NetComm.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\NetWire.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\MemFailLog.cpp" />
