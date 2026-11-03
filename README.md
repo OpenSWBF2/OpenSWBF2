@@ -1,5 +1,5 @@
 # OpenSWBF2
-Repo where I'm around with new features and modernization. Nothing here is release quality.
+Repo where I'm playing around with new features and modernization. Nothing here is release quality.
 
 # Star Wars: Battlefront II (2005) Decompiled
 
