@@ -369,7 +369,7 @@ static void Arith (lua_State *L, StkId ra,
     luaG_aritherror(L, rb, rc);
 }
 
-#define runtime_check(L, c)	{ if (!(c)) return 0; }
+#define runtime_check(L, c)	{ if (!(c)) luaG_runerror(L, "bad code"); }
 
 #define RA(i)	(base+GETARG_A(i))
 
@@ -694,7 +694,12 @@ StkId luaV_execute (lua_State *L) {
       }
       case OP_TFORLOOP: {
         int nvar = GETARG_C(i) + 1;
-        StkId cb = ra + nvar + 2;
+        StkId cb;
+        if (nvar > EXTRA_STACK + 1) {
+          luaD_checkstack(L, nvar);
+          ra = XRA(i);
+        }
+        cb = ra + nvar + 2;
         setobjs2s(cb, ra);
         setobjs2s(cb+1, ra+1);
         setobjs2s(cb+2, ra+2);

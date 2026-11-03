@@ -18,6 +18,7 @@ typedef struct {
  Mbuffer* b;
  int swap;
  const char* name;
+ int depth;
 } LoadState;
 
 // LIBRARY: SWBF2 0x006ab300
@@ -87,6 +88,14 @@ static int LoadInt (LoadState* S)
  return x;
 }
 
+static int LoadCount (LoadState* S, int limit, int unit, const char* what)
+{
+ int n=LoadInt(S);
+ if (n>limit || (size_t)n>S->Z->n/unit)
+  luaG_runerror(S->L,"bad %s count in %s",what,S->name);
+ return n;
+}
+
 // LIBRARY: SWBF2 0x006ab060
 // LoadSize
 static size_t LoadSize (LoadState* S)
@@ -114,17 +123,25 @@ static TString* LoadString (LoadState* S)
   return NULL;
  else
  {
+  if (size>S->Z->n) luaG_runerror(S->L,"bad string size in %s",S->name);
   char* s=luaZ_openspace(S->L,S->b,size);
   ezread(S,s,size);
   return luaS_newlstr(S->L,s,size-1);
  }
 }
 
+static TString* LoadName (LoadState* S)
+{
+ TString* s=LoadString(S);
+ if (s==NULL) luaG_runerror(S->L,"bad string in %s",S->name);
+ return s;
+}
+
 // LIBRARY: SWBF2 0x006aabe0
 // LoadCode
 static void LoadCode (LoadState* S, Proto* f)
 {
- int size=LoadInt(S);
+ int size=LoadCount(S,MAX_INT,4,"code");
  f->code=luaM_newvector(S->L,size,Instruction);
  f->sizecode=size;
  LoadVector(S,f->code,size,sizeof(*f->code));
@@ -135,12 +152,12 @@ static void LoadCode (LoadState* S, Proto* f)
 static void LoadLocals (LoadState* S, Proto* f)
 {
  int i,n;
- n=LoadInt(S);
+ n=LoadCount(S,MAX_INT,13,"locals");
  f->locvars=luaM_newvector(S->L,n,LocVar);
  f->sizelocvars=n;
  for (i=0; i<n; i++)
  {
-  f->locvars[i].varname=LoadString(S);
+  f->locvars[i].varname=LoadName(S);
   f->locvars[i].startpc=LoadInt(S);
   f->locvars[i].endpc=LoadInt(S);
  }
@@ -150,7 +167,7 @@ static void LoadLocals (LoadState* S, Proto* f)
 // LoadLines
 static void LoadLines (LoadState* S, Proto* f)
 {
- int size=LoadInt(S);
+ int size=LoadCount(S,MAX_INT,4,"lines");
  f->lineinfo=luaM_newvector(S->L,size,int);
  f->sizelineinfo=size;
  LoadVector(S,f->lineinfo,size,sizeof(*f->lineinfo));
@@ -167,7 +184,7 @@ static void LoadUpvalues (LoadState* S, Proto* f)
 		S->name,n,f->nups);
  f->upvalues=luaM_newvector(S->L,n,TString*);
  f->sizeupvalues=n;
- for (i=0; i<n; i++) f->upvalues[i]=LoadString(S);
+ for (i=0; i<n; i++) f->upvalues[i]=LoadName(S);
 }
 
 static Proto* LoadFunction (LoadState* S, TString* p);
@@ -177,7 +194,7 @@ static Proto* LoadFunction (LoadState* S, TString* p);
 static void LoadConstants (LoadState* S, Proto* f)
 {
  int i,n;
- n=LoadInt(S);
+ n=LoadCount(S,MAXARG_Bx,1,"constant");
  f->k=luaM_newvector(S->L,n,TObject);
  f->sizek=n;
  for (i=0; i<n; i++)
@@ -190,7 +207,7 @@ static void LoadConstants (LoadState* S, Proto* f)
 	setnvalue(o,LoadNumber(S));
 	break;
    case LUA_TSTRING:
-	setsvalue2n(o,LoadString(S));
+	setsvalue2n(o,LoadName(S));
 	break;
    case LUA_TNIL:
    	setnilvalue(o);
@@ -200,7 +217,7 @@ static void LoadConstants (LoadState* S, Proto* f)
 	break;
   }
  }
- n=LoadInt(S);
+ n=LoadCount(S,MAXARG_Bx,40,"function");
  f->p=luaM_newvector(S->L,n,Proto*);
  f->sizep=n;
  for (i=0; i<n; i++) f->p[i]=LoadFunction(S,f->source);
@@ -210,8 +227,10 @@ static void LoadConstants (LoadState* S, Proto* f)
 // LoadFunction
 static Proto* LoadFunction (LoadState* S, TString* p)
 {
+ if (++S->depth>LUA_MAXPARSERLEVEL) luaG_runerror(S->L,"code too deep in %s",S->name);
  Proto* f=luaF_newproto(S->L);
  f->source=LoadString(S); if (f->source==NULL) f->source=p;
+ if (f->source==NULL) luaG_runerror(S->L,"bad source in %s",S->name);
  f->lineDefined=LoadInt(S);
  f->nups=LoadByte(S);
  f->numparams=LoadByte(S);
@@ -223,8 +242,14 @@ static Proto* LoadFunction (LoadState* S, TString* p)
  LoadConstants(S,f);
  LoadCode(S,f);
 #ifndef TRUST_BINARIES
- if (!luaG_checkcode(f)) luaG_runerror(S->L,"bad code in %s",S->name);
+ int badpc;
+ if (!luaG_checkcodepc(f,&badpc))
+ {
+  if (badpc>=0) luaG_runerror(S->L,"bad code in %s: instruction %d",S->name,badpc+1);
+  luaG_runerror(S->L,"bad code in %s",S->name);
+ }
 #endif
+ S->depth--;
  return f;
 }
 
@@ -286,7 +311,9 @@ static void LoadHeader (LoadState* S)
 static Proto* LoadChunk (LoadState* S)
 {
  LoadHeader(S);
- return LoadFunction(S,NULL);
+ Proto* f=LoadFunction(S,NULL);
+ if (f->nups!=0) luaG_runerror(S->L,"bad main upvalues in %s",S->name);
+ return f;
 }
 
 // LIBRARY: SWBF2 0x006ab2b0
@@ -304,6 +331,9 @@ Proto* luaU_undump (lua_State* L, ZIO* Z, Mbuffer* buff)
  S.L=L;
  S.Z=Z;
  S.b=buff;
+ S.depth=0;
+ size_t sz=0;
+ if (Z->reader(NULL,Z->data,&sz)!=NULL && sz>0) luaG_runerror(L,"bad binary chunk in %s: more than one block",S.name);
  return LoadChunk(&S);
 }
 

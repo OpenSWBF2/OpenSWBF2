@@ -74,6 +74,11 @@ $lcst = 'src\Battlefront2\Source\LuaCallbacks_Stats.cpp'
 $lco = 'src\Battlefront2\Source\LuaCallbacks_Options.cpp'
 $laux = 'src\LuaFL\src\lib\lauxlib.cpp'
 $ldb = 'src\LuaFL\src\lib\ldblib.cpp'
+$lbase = 'src\LuaFL\src\lib\lbaselib.cpp'
+$lund = 'src\LuaFL\src\lundump.cpp'
+$ldbg = 'src\LuaFL\src\ldebug.cpp'
+$lvmf = 'src\LuaFL\src\lvm.cpp'
+$lapi = 'src\LuaFL\src\lapi.cpp'
 $npr = 'src\Battlefront2\Source\NetPredict.cpp'
 $gob = 'src\Battlefront2\Source\GameObject.cpp'
 $r3d = 'src\RedEngineFL\Interface\Red3DModelElement.cpp'
@@ -471,6 +476,52 @@ $GuardRevertRows = @(
     @{ Id = 'SCRGRP-01'; File = $lci; Anchor = "    pElement = pCurCreateScreenGroup;`n    return pElement != 0;"; Replacement = "    pElement = pCurCreateScreenGroup;`n    return false;"; Tests = @('screen group fallback returns true when set') }
     @{ Id = 'LUAFILE-01'; File = $laux; Anchor = 'lua_pushfstring(L, "cannot read %s: file loading is disabled", filename ? filename : "stdin");'; Replacement = 'return luaL_loadbuffer(L, "Pwned = 1", 9, "=file");'; Tests = @('lua loadfile dofile and require cannot read files') }
     @{ Id = 'LUADBG-01'; File = $ldb; Anchor = "  (void)L;`n  return 0;"; Replacement = "  for (;;) {`n    char buffer[250];`n    fputs(`"lua_debug> `", stderr);`n    if (fgets(buffer, sizeof(buffer), stdin) == 0 ||`n        strcmp(buffer, `"cont\n`") == 0)`n      return 0;`n    lua_dostring(L, buffer);`n    lua_settop(L, 0);`n  }"; Tests = @('lua debug debug does not read stdin') }
+    @{ Id = 'LUAB-01'; File = $lbase; Anchor = '  if (l > 0 && s[0] == LUA_SIGNATURE[0]) {'; Replacement = '  if (0) {'; Tests = @('lua loadstring refuses binary chunks') }
+    @{ Id = 'LUAB-U-CODE'; File = $lund; Anchor = ' int size=LoadCount(S,MAX_INT,4,"code");'; Replacement = ' int size=LoadInt(S);'; Tests = @('lua undump refuses oversized code counts') }
+    @{ Id = 'LUAB-U-CODE-ASAN'; Asan = $true; File = $lund; Anchor = ' int size=LoadCount(S,MAX_INT,4,"code");'; Replacement = ' int size=LoadInt(S);'; Tests = @('lua undump refuses oversized code counts') }
+    @{ Id = 'LUAB-U-LINES'; File = $lund; Anchor = ' int size=LoadCount(S,MAX_INT,4,"lines");'; Replacement = ' int size=LoadInt(S);'; Tests = @('lua undump refuses oversized line counts') }
+    @{ Id = 'LUAB-U-LOCALS'; File = $lund; Anchor = ' n=LoadCount(S,MAX_INT,13,"locals");'; Replacement = ' n=LoadInt(S);'; Tests = @('lua undump refuses oversized local counts') }
+    @{ Id = 'LUAB-U-LOCALS-ASAN'; Asan = $true; File = $lund; Anchor = ' n=LoadCount(S,MAX_INT,13,"locals");'; Replacement = ' n=LoadInt(S);'; Tests = @('lua undump refuses oversized local counts') }
+    @{ Id = 'LUAB-U-CONST'; File = $lund; Anchor = ' n=LoadCount(S,MAXARG_Bx,1,"constant");'; Replacement = ' n=LoadInt(S);'; Tests = @('lua undump refuses oversized constant counts') }
+    @{ Id = 'LUAB-U-CONST-ASAN'; Asan = $true; File = $lund; Anchor = ' n=LoadCount(S,MAXARG_Bx,1,"constant");'; Replacement = ' n=LoadInt(S);'; Tests = @('lua undump refuses oversized constant counts') }
+    @{ Id = 'LUAB-U-PROTOS'; File = $lund; Anchor = ' n=LoadCount(S,MAXARG_Bx,40,"function");'; Replacement = ' n=LoadInt(S);'; Tests = @('lua undump refuses oversized function counts') }
+    @{ Id = 'LUAB-U-PROTOS-ASAN'; Asan = $true; File = $lund; Anchor = ' n=LoadCount(S,MAXARG_Bx,40,"function");'; Replacement = ' n=LoadInt(S);'; Tests = @('lua undump refuses oversized function counts') }
+    @{ Id = 'LUAB-U-STRING'; File = $lund; Anchor = '  if (size>S->Z->n) luaG_runerror(S->L,"bad string size in %s",S->name);'; Replacement = ''; Tests = @('lua undump refuses oversized string sizes') }
+    @{ Id = 'LUAB-U-BLOCK'; File = $lund; Anchor = ' if (Z->reader(NULL,Z->data,&sz)!=NULL && sz>0) luaG_runerror(L,"bad binary chunk in %s: more than one block",S.name);'; Replacement = ''; Tests = @('lua undump refuses multi-block binary chunks') }
+    @{ Id = 'LUAB-U-DEPTH'; File = $lund; Anchor = ' if (++S->depth>LUA_MAXPARSERLEVEL) luaG_runerror(S->L,"code too deep in %s",S->name);'; Replacement = ''; Tests = @('lua undump refuses deep nesting') }
+    @{ Id = 'LUAB-V2-MAINUP'; File = $lund; Anchor = ' if (f->nups!=0) luaG_runerror(S->L,"bad main upvalues in %s",S->name);'; Replacement = ''; Tests = @('lua undump refuses main upvalues') }
+    @{ Id = 'LUAB-V2-MAINUP-ASAN'; Asan = $true; File = $lund; Anchor = ' if (f->nups!=0) luaG_runerror(S->L,"bad main upvalues in %s",S->name);'; Replacement = ''; Tests = @('lua undump refuses main upvalues') }
+    @{ Id = 'LUAB-V9-KSTR'; File = $lund; Anchor = '	setsvalue2n(o,LoadName(S));'; Replacement = '	setsvalue2n(o,LoadString(S));'; Tests = @('lua undump refuses null strings') }
+    @{ Id = 'LUAB-V9-LOCNAME'; File = $lund; Anchor = '  f->locvars[i].varname=LoadName(S);'; Replacement = '  f->locvars[i].varname=LoadString(S);'; Tests = @('lua undump refuses null strings') }
+    @{ Id = 'LUAB-V9-UPNAME'; File = $lund; Anchor = ' for (i=0; i<n; i++) f->upvalues[i]=LoadName(S);'; Replacement = ' for (i=0; i<n; i++) f->upvalues[i]=LoadString(S);'; Tests = @('lua undump refuses null strings') }
+    @{ Id = 'LUAB-V9-SOURCE'; File = $lund; Anchor = ' if (f->source==NULL) luaG_runerror(S->L,"bad source in %s",S->name);'; Replacement = ''; Tests = @('lua undump refuses null strings') }
+    @{ Id = 'LUAB-V0-OPCODE'; File = $ldbg; Anchor = '    check(op < NUM_OPCODES);'; Replacement = ''; Tests = @('lua verifier refuses unknown opcodes') }
+    @{ Id = 'LUAB-V0-OPCODE-ASAN'; Asan = $true; File = $ldbg; Anchor = '    check(op < NUM_OPCODES);'; Replacement = ''; Tests = @('lua verifier refuses unknown opcodes') }
+    @{ Id = 'LUAB-V1-EMPTY'; File = $ldbg; Anchor = '  check(pt->sizecode > 0);'; Replacement = ''; Tests = @('lua verifier refuses empty code') }
+    @{ Id = 'LUAB-V13-PARAMS'; File = $ldbg; Anchor = '  check(pt->numparams+pt->is_vararg <= pt->maxstacksize);'; Replacement = '  lua_assert(pt->numparams+pt->is_vararg <= pt->maxstacksize);'; Tests = @('lua verifier refuses parameters beyond the frame') }
+    @{ Id = 'LUAB-D17-PC'; File = $ldbg; Anchor = '    if (badpc) *badpc = pc;'; Replacement = ''; Tests = @('lua verifier names the bad instruction') }
+    @{ Id = 'LUAB-V3-CONCAT'; File = $ldbg; Anchor = '          check(checkRK(pt, c));'; Replacement = '          ;'; Tests = @('lua verifier refuses concat past the frame') }
+    @{ Id = 'LUAB-V3-CONCAT-ASAN'; Asan = $true; File = $ldbg; Anchor = '          check(checkRK(pt, c));'; Replacement = '          ;'; Tests = @('lua verifier refuses concat past the frame') }
+    @{ Id = 'LUAB-V4-TFORPREP'; File = $ldbg; Anchor = '      case OP_TFORPREP:'; Replacement = ''; Tests = @('lua verifier refuses wild tforprep jumps') }
+    @{ Id = 'LUAB-V4-TFORPREP-ASAN'; Asan = $true; File = $ldbg; Anchor = '      case OP_TFORPREP:'; Replacement = ''; Tests = @('lua verifier refuses wild tforprep jumps') }
+    @{ Id = 'LUAB-V5-TFORLOOP'; File = $lvmf; Anchor = "        if (nvar > EXTRA_STACK + 1) {`n          luaD_checkstack(L, nvar);"; Replacement = "        if (0) {`n          luaD_checkstack(L, nvar);"; Tests = @('lua vm keeps tforloop results inside the stack') }
+    @{ Id = 'LUAB-V5-TFORLOOP-ASAN'; Asan = $true; File = $lvmf; Anchor = "        if (nvar > EXTRA_STACK + 1) {`n          luaD_checkstack(L, nvar);"; Replacement = "        if (0) {`n          luaD_checkstack(L, nvar);"; Tests = @('lua vm keeps tforloop results inside the stack', 'lua vm tforloop stays inside the stack at the extra stack limit') }
+    @{ Id = 'LUAB-V5-TFORLIMIT-ASAN'; Asan = $true; File = $lvmf; Anchor = '        if (nvar > EXTRA_STACK + 1) {'; Replacement = '        if (nvar > EXTRA_STACK + 2) {'; Tests = @('lua vm tforloop stays inside the stack at the extra stack limit') }
+    @{ Id = 'LUAB-V6-NEWTABLE'; File = $ldbg; Anchor = '        check((b >> 3) <= 16);'; Replacement = ''; Tests = @('lua verifier refuses huge table sizes') }
+    @{ Id = 'LUAB-R1-RUNTIME'; File = $lvmf; Anchor = '#define runtime_check(L, c)	{ if (!(c)) luaG_runerror(L, "bad code"); }'; Replacement = '#define runtime_check(L, c)	{ if (!(c)) return 0; }'; Tests = @('lua vm raises on self with a register key', 'lua vm raises on setlist into a non-table') }
+    @{ Id = 'LUAB-V7-SELFK'; File = $ldbg; Anchor = '        if (c >= MAXSTACK) check(ttisstring(&pt->k[c-MAXSTACK]));'; Replacement = ''; Tests = @('lua verifier refuses self with a non-string constant key') }
+    @{ Id = 'LUAB-V11-OPEN'; File = $ldbg; Anchor = '      check(ia < pa);'; Replacement = ''; Tests = @('lua verifier refuses open calls past their producer', 'lua verifier refuses an open call into its producer register') }
+    @{ Id = 'LUAB-V11-OPENEQ'; File = $ldbg; Anchor = '      check(ia < pa);'; Replacement = '      check(ia <= pa);'; Tests = @('lua verifier refuses an open call into its producer register') }
+    @{ Id = 'LUAB-V11-OPENEQ-ASAN'; Asan = $true; File = $ldbg; Anchor = '      check(ia < pa);'; Replacement = '      check(ia <= pa);'; Tests = @('lua verifier refuses an open call into its producer register') }
+    @{ Id = 'LUAB-V11-OPENRET'; File = $ldbg; Anchor = "    case OP_RETURN: {`n      check(ia <= pa);"; Replacement = '    case OP_RETURN: {'; Tests = @('lua verifier refuses open calls past their producer') }
+    @{ Id = 'LUAB-V11-OPENLIST'; File = $ldbg; Anchor = "    case OP_SETLISTO: {`n      check(ia <= pa);"; Replacement = '    case OP_SETLISTO: {'; Tests = @('lua verifier refuses open calls past their producer') }
+    @{ Id = 'LUAB-V12-LOADBOOL'; File = $ldbg; Anchor = '        check(b <= 1);'; Replacement = ''; Tests = @('lua verifier refuses non-boolean loadbool') }
+    @{ Id = 'LUAB-V10-GETLOCAL'; File = $ldbg; Anchor = '    if (name && n > fp->maxstacksize) name = NULL;'; Replacement = ''; Tests = @('lua debug locals stay inside the frame') }
+    @{ Id = 'LUAB-V10-SETLOCAL'; File = $ldbg; Anchor = '    if (n > fp->maxstacksize) name = NULL;'; Replacement = ''; Tests = @('lua debug locals stay inside the frame') }
+    @{ Id = 'LUAB-V10-SETLOCAL-ASAN'; Asan = $true; File = $ldbg; Anchor = '    if (n > fp->maxstacksize) name = NULL;'; Replacement = ''; Tests = @('lua debug locals stay inside the frame') }
+    @{ Id = 'LUAB-D16-CUPVAL'; File = $lapi; Anchor = '    if (!(1 <= n && n <= f->c.nupvalues)) return NULL;'; Replacement = '    if (n > f->c.nupvalues) return NULL;'; Tests = @('lua debug upvalue index zero is refused') }
+    @{ Id = 'LUAB-D16-LUPVAL'; File = $lapi; Anchor = '    if (!(1 <= n && n <= p->sizeupvalues)) return NULL;'; Replacement = '    if (n > p->sizeupvalues) return NULL;'; Tests = @('lua debug upvalue index zero is refused') }
+    @{ Id = 'LUAB-D16-LUPVAL-ASAN'; Asan = $true; File = $lapi; Anchor = '    if (!(1 <= n && n <= p->sizeupvalues)) return NULL;'; Replacement = '    if (n > p->sizeupvalues) return NULL;'; Tests = @('lua debug upvalue index zero is refused') }
     @{ Id = 'NETLIM-01'; File = $ll; Anchor = 'return (unsigned int)iPlayer < (unsigned int)kMaxNetPlayers;'; Replacement = 'return true;'; Tests = @('net player and guest count bounds') }
     @{ Id = 'NETLIM-02'; File = $ll; Anchor = 'return uiCount <= kMaxGuests;'; Replacement = 'return true;'; Tests = @('net player and guest count bounds') }
     @{ Id = 'NETGUEST-01'; File = $nset; Anchor = "    if (!LocalLimits::IsValidGuestCount(guestCount))`n    {`n        group.SetBad(NET_REJECT_GUEST_COUNT);"; Replacement = "    if (false)`n    {`n        group.SetBad(NET_REJECT_GUEST_COUNT);"; Tests = @('join guest count is bounded') }
