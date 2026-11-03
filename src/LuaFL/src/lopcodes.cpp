@@ -51,6 +51,7 @@ const char *const luaP_opnames[] = {
    ((b)<<OpModeBreg) | ((bk)<<OpModeBrk) | ((ck)<<OpModeCrk) | \
    ((sa)<<OpModesetA) | ((k)<<OpModeK) | (m))
 
+// GLOBAL: SWBF2 0x77177c
 const lu_byte luaP_opmodes[NUM_OPCODES] = {
 
   opmode(0, 1, 0, 0, 1, 0, iABC)

@@ -1,4 +1,3 @@
-#include <new>
 #include <string.h>
 
 #include "SoundFL/source/sndglobals.h"
@@ -10,6 +9,9 @@
 #include "snddsdeviceenumerator.h"
 #include "sndengine.h"
 #include "sndsoftoutput.h"
+
+// GLOBAL: SWBF2 0x007874c4
+// DSDEVID_DefaultVoicePlayback
 
 namespace Snd
 {
@@ -26,54 +28,28 @@ StreamAuxRenderer::StreamAuxRenderer()
 StreamAuxRenderer::~StreamAuxRenderer()
 {
 
-    if (mIsOpen)
+    if (IsOpen())
     {
-        StreamAuxRenderer__Close(this);
+        Close();
     }
 }
 
-// FUNCTION: SWBF2 0x0073f3b0
-void* __fastcall sub_73F3B0(void* pAuxRenderer, unsigned int uiFlags)
-{
-    char* const pThis = (char*)pAuxRenderer;
-
-    ((StreamAuxRenderer*)pThis)->StreamAuxRenderer::~StreamAuxRenderer();
-
-    if ((uiFlags & 1) != 0)
-    {
-        switch (((DSBufferRenderer*)pThis)->GetAllocType())
-        {
-        case Allocator<DSBufferRenderer>::allocType_heap:
-            Free(pThis);
-            break;
-        case Allocator<DSBufferRenderer>::allocType_tempHeap:
-            FreeTemp(pThis);
-            break;
-        default:
-            break;
-        }
-    }
-
-    return pThis;
-}
 
 // FUNCTION: SWBF2 0x0073f440
-void __fastcall StreamAuxRenderer__Close(void* pAuxRenderer)
+void StreamAuxRenderer::Close()
 {
-    StreamAuxRenderer* const pThis = (StreamAuxRenderer*)pAuxRenderer;
-
     Engine::GetThreadUpdate()->Pause(false);
 
-    pThis->SetFormat(SampleInfo::format_Unknown, 0, 0,
+    SetFormat(SampleInfo::format_Unknown, 0, 0,
                      false, 200.0f, false, 0, 0, false);
 
-    IDirectSound* const pDevice = pThis->mDevice;
-    pThis->mIsOpen = false;
+    IDirectSound* const pDevice = mDevice;
+    mIsOpen = false;
 
     if (pDevice != 0)
     {
         pDevice->Release();
-        pThis->mDevice = 0;
+        mDevice = 0;
     }
 
     Engine::GetThreadUpdate()->Resume();
@@ -96,36 +72,39 @@ bool StreamAuxRenderer::Open(unsigned char ucDeviceIndex,
     }
     else
     {
-        if (uiIndex == 0xFFu)
+
+        switch (uiIndex)
         {
+        case 0xFFu:
 
             cGuidDevice = DSDEVID_DefaultVoicePlayback;
-        }
-        else
-        {
-
-            DSDeviceEnumerator cContext;
-
-            if (!cContext.Enumerate(DSDeviceEnumerator::type_Render, false))
-            {
-                return false;
-            }
-
-            cGuidDevice = cContext.GetDeviceIDByIndex(uiIndex);
-
-            GUID cNull;
-            memset(&cNull, 0, sizeof(cNull));
-
-            if (memcmp(&cGuidDevice, &DSDEVID_DefaultPlayback, sizeof(GUID)) == 0
-                || memcmp(&cGuidDevice, &cNull, sizeof(GUID)) == 0)
+            break;
+        default:
             {
 
-                if (Engine::smDirectSound != 0)
+                DSDeviceEnumerator cContext;
+
+                if (!cContext.Enumerate(DSDeviceEnumerator::type_Render, false))
                 {
-                    return Open(0xFE, cFormat, fBufferMs);
+                    return false;
                 }
-            }
 
+                cGuidDevice = cContext.GetDeviceIDByIndex(uiIndex);
+
+                GUID cNull;
+                memset(&cNull, 0, sizeof(cNull));
+
+                if (memcmp(&cGuidDevice, &DSDEVID_DefaultPlayback, sizeof(GUID)) == 0
+                    || memcmp(&cGuidDevice, &cNull, sizeof(GUID)) == 0)
+                {
+
+                    if (Engine::smDirectSound != 0)
+                    {
+                        return Open(0xFE, cFormat, fBufferMs);
+                    }
+                }
+
+            }
         }
 
         IDirectSound** const ppDS = &mDevice;

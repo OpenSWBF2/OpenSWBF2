@@ -36,7 +36,10 @@ void __cdecl SndTempFree(void* pBlock);
 
 void __cdecl PrintDebugString(char const* pcMessage);
 
-namespace GameSoundEngine { bool __cdecl UseKmixer(); }
+namespace GameSoundEngine
+{
+bool __cdecl UseKmixer();
+}
 
 namespace GameSoundEngine
 {

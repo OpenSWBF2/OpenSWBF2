@@ -57,7 +57,19 @@ public:
             return (unsigned char)(int)f;
         }
 
-        bool IsStringArg(unsigned int i) const;
+        // FUNCTION: SWBF2 0x004708b0
+        bool IsStringArg(unsigned int i) const
+        {
+            if (i < m_uiNumArgs)
+            {
+                unsigned int uiOffset = m_auiArgs[i];
+                if (uiOffset >= m_uiNumArgs * 4 && uiOffset < 0x200)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
 
         bool IsFloatArg(unsigned int i) const { return i < m_uiNumArgs; }
 

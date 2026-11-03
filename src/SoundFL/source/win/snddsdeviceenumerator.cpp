@@ -8,14 +8,13 @@
 namespace Snd
 {
 
-static const char kFile[] = "source\\win\\snddsdeviceenumerator.cpp";
 
 // FUNCTION: SWBF2 0x0074be00
 DSDeviceEnumerator::DSDeviceEnumerator()
 {
-    memset(mDeviceNames, 0, sizeof(mDeviceNames));
     mDeviceCount = 0;
     mGetNames = 0;
+    memset(mDeviceNames, 0, sizeof(mDeviceNames));
 }
 
 void DSDeviceEnumerator::FreeNames()
@@ -38,31 +37,30 @@ DSDeviceEnumerator::~DSDeviceEnumerator()
 // FUNCTION: SWBF2 0x0074be60
 bool DSDeviceEnumerator::AddDevice(const GUID* const pGuid, const char* const pcName)
 {
-    if (mDeviceCount >= kMaxDevices)
+    if (mDeviceCount < kMaxDevices)
     {
-        return false;
-    }
-
-    if (pcName != 0 && mGetNames)
-    {
-        mDeviceNames[mDeviceCount] = (char*)Alloc((unsigned int)strlen(pcName) + 1);
-        if (mDeviceNames[mDeviceCount] != 0)
+        if (pcName != 0 && mGetNames)
         {
-            strcpy(mDeviceNames[mDeviceCount], pcName);
+            mDeviceNames[mDeviceCount] = (char*)Alloc((unsigned int)strlen(pcName) + 1);
+            if (mDeviceNames[mDeviceCount] != 0)
+            {
+                strcpy(mDeviceNames[mDeviceCount], pcName);
+            }
         }
-    }
 
-    if (pGuid != 0)
-    {
-        mDeviceIDs[mDeviceCount] = *pGuid;
-    }
-    else
-    {
-        memset(&mDeviceIDs[mDeviceCount], 0, sizeof(GUID));
-    }
+        if (pGuid != 0)
+        {
+            mDeviceIDs[mDeviceCount] = *pGuid;
+        }
+        else
+        {
+            memset(&mDeviceIDs[mDeviceCount], 0, sizeof(GUID));
+        }
 
-    ++mDeviceCount;
-    return true;
+        ++mDeviceCount;
+        return true;
+    }
+    return false;
 }
 
 // FUNCTION: SWBF2 0x0074bf20
@@ -95,7 +93,7 @@ bool DSDeviceEnumerator::Enumerate(Type eType, bool bGetNames)
         break;
     }
 
-    return Engine::Succeeded(hr, kFile, 55);
+    return Engine::Succeeded(hr, "source\\win\\snddsdeviceenumerator.cpp", 55);
 }
 
 // FUNCTION: SWBF2 0x0074bfc0

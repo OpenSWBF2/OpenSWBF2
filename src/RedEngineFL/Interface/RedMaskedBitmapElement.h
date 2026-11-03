@@ -2,9 +2,11 @@
 
 #include <stddef.h>
 #include "RedBitmapElement.h"
+#include "PebbleFL/Common/PblHashTable.h"
 
 class pcInterfaceShader;
 
+// VTABLE: SWBF2 0x00784200
 class RedMaskedBitmapElement : public RedBitmapElement
 {
 public:
@@ -24,6 +26,7 @@ public:
     virtual void Init();
     virtual void SetTexture(unsigned int uiTextureHash);
     void SetMaskTexture(unsigned int uHash);
+    void SetMaskTexture(const char* texName) { SetMaskTexture((unsigned int)PblHash(texName)); }
     const RedTexture* GetMaskTexture() const;
 
     void GetMaskTexCoords(float& rf0, float& rf1, float& rf2, float& rf3) const;

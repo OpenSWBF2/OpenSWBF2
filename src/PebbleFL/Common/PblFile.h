@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stddef.h>
+#include <string.h>
 
 class PblFile
 {
@@ -32,7 +33,14 @@ public:
     int Tell() const;
     void Seek(int iOffset, SeekType eFrom);
 
-    void SeekAlign(int iAlign);
+    void SeekAlign(int iAlign)
+    {
+        int iPad = -Tell() & (iAlign - 1);
+        if (iPad)
+        {
+            Seek(iPad, SeekFromHere);
+        }
+    }
 
     char Read8();
     short Read16();
@@ -79,6 +87,55 @@ public:
 
     static void(__cdecl* _blockCallbackFunc)(void);
 };
- 
- 
- 
+
+inline unsigned int PblFile::MemGetSize() const
+{
+    return _iBufferSize;
+}
+
+inline void PblFile::MemRead(void* pBuffer, int iNumBytes)
+{
+    if (_iPos + iNumBytes > _iBufferSize)
+    {
+        iNumBytes = _iBufferSize - _iPos;
+    }
+    if (iNumBytes != 0)
+    {
+        memcpy(pBuffer, _Buffer + _iPos, iNumBytes);
+        _iPos += iNumBytes;
+    }
+}
+
+inline void PblFile::MemWrite(void* pBuffer, int iNumBytes)
+{
+    if (_iPos + iNumBytes > _iBufferSize)
+    {
+        iNumBytes = _iBufferSize - _iPos;
+    }
+    if (iNumBytes != 0)
+    {
+        memcpy(_Buffer + _iPos, pBuffer, iNumBytes);
+        _iPos += iNumBytes;
+    }
+}
+
+inline unsigned int PblFile::MemTell() const
+{
+    return _iPos;
+}
+
+inline void PblFile::MemSeek(int iOffset, SeekType eFrom)
+{
+    switch (eFrom)
+    {
+    case SeekFromHere:
+        _iPos += iOffset;
+        break;
+    case SeekFromStart:
+        _iPos = iOffset;
+        break;
+    case SeekFromEnd:
+        _iPos = _iBufferSize - iOffset;
+        break;
+    }
+}

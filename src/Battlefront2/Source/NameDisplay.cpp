@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "NameDisplay.h"
 #include "CameraManager.h"
 #include "Character.h"
@@ -10,14 +11,8 @@
 #include "Team.h"
 #include "RedEngineFL/Interface/RedFont.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
-// FUNCTION: SWBF2 0x0043edd0
-bool __fastcall HasNameDisplayPilotType(const void* pCharacter)
-{
-    const int iState = static_cast<const Controllable*>(pCharacter)->mPilotType;
-    return iState == 2 || iState == 4;
-}
+
 
 namespace FLRenderer
 {
@@ -30,9 +25,14 @@ extern bool netShowNames;
 extern bool netFrameLock;
 extern int netCurMaxPlayers;
 extern RedColor gHudHighlightColor;
-namespace FriendBuddyList { bool __fastcall IsFriendBuddy(int iPlayerId); }
-namespace AIDebug { bool GetTestSpawnMode(); }
-Controllable* GetControllablePilot(Controllable* pControllable);
+namespace FriendBuddyList
+{
+    bool __fastcall IsFriendBuddy(int iLocalIndex, int iPlayerId);
+}
+namespace AIDebug
+{
+    bool GetTestSpawnMode();
+}
 
 // GLOBAL: SWBF2 0x01faa69c
 
@@ -68,12 +68,7 @@ NameDisplayThread::NameDisplayThread()
 {
 }
 
-NameDisplayThread::~NameDisplayThread()
-{
-}
 
-// SYNTHETIC: SWBF2 0x005aa830
-// NameDisplayThread::`scalar deleting destructor'
 
 // FUNCTION: SWBF2 0x005aa770
 void NameDisplay::Create()
@@ -286,7 +281,7 @@ bool NameDisplayThread::Update(float)
         vToUnit.y = vPos.y - vEye.y;
         vToUnit.z = vPos.z - vEye.z;
         PblVector3 vDir;
-        D3DXVec3Normalize(&vDir, &vToUnit);
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vToUnit));
         const PblVector3& vAt = mCamera.GetZAxis();
         if (!(vDir.y * -vAt.y + vDir.x * -vAt.x + vDir.z * -vAt.z > 0.0f))
         {
@@ -332,7 +327,7 @@ bool NameDisplayThread::Update(float)
             for (PblList<Controllable>::Itor it = riders.Begin(); (Controllable*)it; ++it)
             {
                 Controllable* pRider = it;
-                if ((HasNameDisplayPilotType(pRider) || pRider->mPilotType == PILOT_REMOTE) && GetControllablePilot(pRider))
+                if ((pRider->IsPilotable() || pRider->IsRemoteVehicle()) && pRider->GetPilot())
                 {
                     if (pRider == pVehicle)
                     {

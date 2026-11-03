@@ -7,6 +7,7 @@
 #include "PebbleFL/Common/PblMatrix.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 
+// VTABLE: SWBF2 0x00783d78
 class RedOmniLight : public RedLight
 {
 public:

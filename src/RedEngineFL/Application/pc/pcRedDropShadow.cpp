@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "pcRedDropShadow.h"
 
 #include <math.h>
@@ -13,7 +14,7 @@
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "RedEngineFL/Graphics/PC/pcRedStencilShadow.h"
 #include "RedEngineFL/Graphics/PC/Shaders/pcParticleShader.h"
-#include "PebbleFL/pc/PblD3DX.h"
+
 
 extern PblMatrix gMatrixIdentity;
 
@@ -26,20 +27,14 @@ static float MIN_COS_VIEW_ANGLE = 0.05f;
 // GLOBAL: SWBF2 0x007e12c4
 static float FADE_COS_VIEW_ANGLE = 0.15f;
 
-// GLOBAL: SWBF2 0x009acb94
 // SYNTHETIC: SWBF2 0x00408d20
 // `dynamic initializer for 'kuiShader''
+
+// GLOBAL: SWBF2 0x009acb94
+// kuiShader
 static const unsigned int kuiShader = PblHash("Particle");
 
-namespace
-{
 
-struct CompressedTexCoord
-{
-    short u;
-    short v;
-};
-}
 
 namespace DropShadowVertex
 {
@@ -124,7 +119,7 @@ void DropShadowRenderable::AddShadow(unsigned int uiTexture, const PblVector3& v
                          vPos.y - camMatrix.m[3][1],
                          vPos.z - camMatrix.m[3][2]);
     PblVector3 vView;
-    D3DXVec3Normalize(&vView, &vToShadow);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vView), reinterpret_cast<const D3DXVECTOR3*>(&vToShadow));
     float fCosView = -(vNormal.x * vView.x + vView.y * vNormal.y + vView.z * vNormal.z);
     if (MIN_COS_VIEW_ANGLE >= fCosView)
     {
@@ -139,9 +134,7 @@ void DropShadowRenderable::AddShadow(unsigned int uiTexture, const PblVector3& v
 
     float fLength = sqrt(fLengthSq);
     float fInvLength = 1.0f / fLength;
-    vAlong.x *= fInvLength;
-    vAlong.y *= fInvLength;
-    vAlong.z *= fInvLength;
+    vAlong *= fInvLength;
 
     float fScale = 2.0f;
     if (!(fLength > -fDot * 2.0f))
@@ -153,7 +146,7 @@ void DropShadowRenderable::AddShadow(unsigned int uiTexture, const PblVector3& v
                       vDir.z * vNormal.x - vNormal.z * vDir.x,
                       vNormal.y * vDir.x - vDir.y * vNormal.x);
     PblVector3 vSide;
-    D3DXVec3Normalize(&vSide, &vCross);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vSide), reinterpret_cast<const D3DXVECTOR3*>(&vCross));
 
     if (FADE_COS_VIEW_ANGLE > fCosView)
     {

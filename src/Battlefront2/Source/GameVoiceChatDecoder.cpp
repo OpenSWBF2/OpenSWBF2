@@ -16,9 +16,9 @@
 #include "SoundFL/source/sndstreammixer.h"
 
 // FUNCTION: SWBF2 0x0053d1d0
-bool VoiceChat::Decoder::Open(float fPacketMs, int iSlots)
+bool VoiceChat::Decoder::Open(unsigned int playbackDevice, float fPacketMs, unsigned int minBuffers, unsigned int iSlots)
 {
-    return static_cast<GameVoiceChat::Decoder*>(this)->Open(fPacketMs, iSlots);
+    return static_cast<GameVoiceChat::Decoder*>(this)->Open(playbackDevice, fPacketMs, minBuffers, iSlots);
 }
 
 // FUNCTION: SWBF2 0x0053d200
@@ -65,16 +65,22 @@ GameVoiceChat::Decoder::~Decoder()
 {
 }
 
-namespace VoiceChat { void* Alloc(unsigned int uiSize); }
-namespace VoiceChat { void Free(void* pBlock); }
-namespace GameVoiceChat { unsigned int CalculatePlayCaptureBufferSizeSamples(float fMilliseconds); }
-namespace GameVoiceChat { unsigned int CalculateEncodedPacketSize(unsigned int uiSamples); }
 
-namespace Snd
+namespace VoiceChat
 {
-
-void __fastcall StreamAuxRenderer__Close(void* pAuxRenderer);
-
+void* Alloc(unsigned int uiSize);
+}
+namespace VoiceChat
+{
+void Free(void* pBlock);
+}
+namespace GameVoiceChat
+{
+unsigned int CalculatePlayCaptureBufferSizeSamples(float fMilliseconds);
+}
+namespace GameVoiceChat
+{
+unsigned int CalculateEncodedPacketSize(unsigned int uiSamples);
 }
 
 // FUNCTION: SWBF2 0x0053cc60
@@ -126,11 +132,11 @@ void GameVoiceChat::Decoder::Stop()
 
     for (unsigned int i = 0; i < mNumInputStreams; ++i)
     {
-        static_cast<Snd::SourceTransport&>(mDecoders[i]).Stop();
+        mDecoders[i].Stop();
     }
 
-    mMixer.mNode.Stop();
-    static_cast<Snd::SourceTransport&>(mAuxRenderer).Stop();
+    mMixer.Stop();
+    mAuxRenderer.Snd::SourceTransport::Stop();
 
     mPlaying = false;
 }
@@ -141,24 +147,22 @@ void GameVoiceChat::Decoder::Close()
 
     for (unsigned int i = 0; i < mNumInputStreams; ++i)
     {
-        mDecoders[i].mConnection.mInputNode = 0;
-        mDecoders[i].mConnection.mInputNodeOutputIndex = 0;
-        mMixer.mSink.Connect(0, 0, i);
+        mDecoders[i].Connect(0, 0);
+        mMixer.StreamNodeSinkNInput::Connect(0, 0, i);
     }
 
-    mAuxRenderer.mConnection.mInputNode = 0;
-    mAuxRenderer.mConnection.mInputNodeOutputIndex = 0;
+    mAuxRenderer.Connect(0, 0);
 
     if (IsPlaying())
     {
         Stop();
     }
 
-    Snd::StreamAuxRenderer__Close(&mAuxRenderer);
+    mAuxRenderer.Close();
 
     mMixer.Snd::StreamSourceProducer::SetPackets(0, 0, 0);
     mMixer.SetMixBuffer(0);
-    mMixer.mSink.SetConnectionArray(0, 0);
+    mMixer.StreamNodeSinkNInput::SetConnectionArray(0, 0);
     mMixer.SetPacketArray(0, 0);
 
     SetProducers(0, 0);
@@ -201,7 +205,7 @@ static_assert(alignof(Snd::StreamPacketIO) <= sizeof(void*) && sizeof(Snd::Strea
 #endif
 
 // FUNCTION: SWBF2 0x0053c810
-bool GameVoiceChat::Decoder::Open(float fPacketMs, int iSlots)
+bool GameVoiceChat::Decoder::Open(unsigned int playbackDevice, float fPacketMs, unsigned int minBuffers, unsigned int iSlots)
 {
     const unsigned int uiSlots = (unsigned int)iSlots;
 
@@ -285,7 +289,7 @@ bool GameVoiceChat::Decoder::Open(float fPacketMs, int iSlots)
 
     mMixer.Snd::StreamSourceProducer::SetPackets(uiSamples2, mMixerPackets, 2);
     mMixer.SetMixBuffer(mMixerAccBuffer);
-    mMixer.mSink.SetConnectionArray(mMixerConnections, uiSlots);
+    mMixer.StreamNodeSinkNInput::SetConnectionArray(mMixerConnections, uiSlots);
     mMixer.SetPacketArray(mMixerPacketIO, mMixerBufferOffsets);
     mMixer.SetSynchronizedMixing(true);
     mMixer.SetConstantOutputPacketSize(true);
@@ -301,13 +305,11 @@ bool GameVoiceChat::Decoder::Open(float fPacketMs, int iSlots)
 
     for (unsigned int i = 0; i < uiSlots; ++i)
     {
-        mDecoders[i].mConnection.mInputNode = this;
-        mDecoders[i].mConnection.mInputNodeOutputIndex = i;
-        mMixer.mSink.Connect(&mDecoders[i], 0, i);
+        mDecoders[i].Connect(this, i);
+        mMixer.StreamNodeSinkNInput::Connect(&mDecoders[i], 0, i);
     }
 
-    mAuxRenderer.mConnection.mInputNodeOutputIndex = 0;
-    mAuxRenderer.mConnection.mInputNode = &mMixer;
+    mAuxRenderer.Connect(&mMixer, 0);
 
     mAuxRenderer.SetLowTideMark(1.0f);
 
@@ -326,11 +328,11 @@ void GameVoiceChat::Decoder::Play()
 {
     for (unsigned int i = 0; i < mNumInputStreams; ++i)
     {
-        static_cast<Snd::SourceTransport&>(mDecoders[i]).Play(true);
+        mDecoders[i].Play(true);
     }
 
-    mMixer.mNode.Play(true);
-    static_cast<Snd::SourceTransport&>(mAuxRenderer).Play(true);
+    mMixer.Play(true);
+    mAuxRenderer.Play(true);
 
     mPlaying = true;
 }
@@ -344,7 +346,7 @@ bool GameVoiceChat::Decoder::IsEnabled()
 // FUNCTION: SWBF2 0x0053cfd0
 bool GameVoiceChat::Decoder::IsEnabled(unsigned int  )
 {
-    return static_cast<const Snd::SourceTransport&>(mAuxRenderer).GetPlayState()
+    return mAuxRenderer.GetPlayState()
         != Snd::SourceTransport::playState_stopped;
 }
 
@@ -380,7 +382,8 @@ bool VoiceChat::Decoder::Update()
     return static_cast<GameVoiceChat::Decoder*>(this)->Update();
 }
 
-namespace GameVoiceChat {
+namespace GameVoiceChat
+{
 
 // FUNCTION: SWBF2 0x0053cff0
 bool Decoder::ReceivePacket(unsigned int uiInput, const VoiceChat::AudioPacket* pPacket)
@@ -394,13 +397,13 @@ bool Decoder::ReceivePacket(unsigned int uiInput, const VoiceChat::AudioPacket* 
         {
             return false;
         }
-        Snd::StreamPacket* pOutput = static_cast<Snd::StreamSourceNProducer*>(this)->GetWritablePacket(uiInput);
+        Snd::StreamPacket* pOutput = static_cast<Snd::StreamSourceNProducer*>(this)->GetReadPacket(uiInput);
         if (!pOutput)
         {
             return false;
         }
         pOutput->mBuffer = pPacket->mData;
-        static_cast<Snd::StreamSourceNProducer*>(this)->CompleteWrittenPacket(pOutput, pPacket->mSize,
+        static_cast<Snd::StreamSourceNProducer*>(this)->PacketComplete(pOutput, pPacket->mSize,
                         160 * (pPacket->mSize / 33u), false,
                         pPacket->mDiscontinuity, 0, uiInput);
         pDecoder->Update();
@@ -418,14 +421,15 @@ bool Decoder::ReceivePacket(unsigned int uiInput, const VoiceChat::AudioPacket* 
 }
 }
 
-namespace GameVoiceChat {
+namespace GameVoiceChat
+{
 
 // FUNCTION: SWBF2 0x0053d110
 bool Decoder::IsStarving(unsigned int uiInput, bool bForce)
 {
     const Snd::StreamNode& cNode = mAuxRenderer;
     return (bForce || (cNode.GetPlayState() == 1 && cNode.IsStarving())) &&
-           !mMixer.HasMixedPacket(uiInput);
+           !mMixer.IsMixed(uiInput);
 }
 }
 

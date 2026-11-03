@@ -6,14 +6,18 @@
 #include "HUDElementBitmap.h"
 #include "HUDElementGroup.h"
 
-namespace HUD {
-class ElementBarSegmented : public HUD::ElementGroup, public HUD::ElementBar
+namespace HUD
+{
+// VTABLE: SWBF2 0x007a0a34
+// VTABLE: SWBF2 0x007a0a94 HUD::ElementGroupBase
+// VTABLE: SWBF2 0x007a0ad4 RedGroupElement
+class ElementBarSegmented : public HUD::ElementGroup, protected HUD::ElementBar
 {
 public:
 
     // VTABLE: SWBF2 0x007a0b24
 
-    class Factory : public HUD::ElementGroup::Factory, public HUD::ElementBar::Factory
+    class Factory : public HUD::ElementGroup::Factory, protected HUD::ElementBar::Factory
     {
     public:
         // FUNCTION: SWBF2 0x0054baf0
@@ -34,17 +38,18 @@ public:
         Property mCircular;
     };
 
-    // VTABLE: SWBF2 0x007a0a58 (`vftable'), 0x007a0b30 (`vftable'_0, the
+    // VTABLE: SWBF2 0x007a0a58 HUD::ElementBitmapBase
 
+    // VTABLE: SWBF2 0x007a0b30 RedBitmapElement
     class Segment : public HUD::ElementBitmap
     {
     public:
-        // FUNCTION: SWBF2 0x0054b8f0
         Segment();
 
         // SYNTHETIC: SWBF2 0x0054c6e0
-        // HUD::ElementBarSegmented::Segment::`scalar deleting destructor'
-        virtual ~Segment();
+        // HUD::ElementBarSegmented::Segment::`vector deleting destructor'
+        // SYNTHETIC: SWBF2 0x0054baa0
+        // HUD::ElementBarSegmented::Segment::~Segment
 
         virtual bool SetProperty(const unsigned int uHashID, const void* const pValue);
 
@@ -118,3 +123,10 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x0054b8f0
+inline HUD::ElementBarSegmented::Segment::Segment()
+    : HUD::ElementBitmap(0, 0, 0)
+{
+    mGroup = 0;
+}

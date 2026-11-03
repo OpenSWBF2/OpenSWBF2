@@ -28,7 +28,8 @@ public:
     bool SetFrameNumFloat(float fFrameNum);
     int GetNumFrames() const { return m_kAnim.GetNumFrames(); }
 
-    // FUNCTION: SWBF2 0x00443e40
+    // TEMPLATE: SWBF2 0x00443e40 SYMBOL
+    // ?SetCurTime@?$ZephyrPoseDyn@$0CA@@@QAEXM@Z
     void SetCurTime(float fTime)
     {
         m_fCurT = fTime;

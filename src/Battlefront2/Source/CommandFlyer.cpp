@@ -4,18 +4,23 @@
 #include "NetGame.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 
-// GLOBAL: SWBF2 0x01eb9648
 // SYNTHETIC: SWBF2 0x00402680
 // `dynamic initializer for 'CommandFlyer::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00766e80
 // `dynamic atexit destructor for 'CommandFlyer::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01eb9648
+// CommandFlyer::sMemoryPool
 MemoryPool CommandFlyer::sMemoryPool("CommandFlyer", 0x1da0);
 
-// GLOBAL: SWBF2 0x01eb9698
 // SYNTHETIC: SWBF2 0x004026a0
 // `dynamic initializer for 'CommandFlyer::rttiHashCommandFlyer''
+// CommandFlyer::rttiHashCommandFlyer
+
+// GLOBAL: SWBF2 0x01eb9698
+// CommandFlyer::rttiHashCommandFlyer
 PblHash CommandFlyer::rttiHashCommandFlyer("CommandFlyer");
-char CommandFlyer::rttiNameCommandFlyer[] = "CommandFlyer";
+const char CommandFlyer::rttiNameCommandFlyer[] = "CommandFlyer";
 
 // FUNCTION: SWBF2 0x00478040
 CommandFlyerClass::CommandFlyerClass(unsigned int uHash)
@@ -24,32 +29,25 @@ CommandFlyerClass::CommandFlyerClass(unsigned int uHash)
     mIsNeutralWhenEmpty = false;
 }
 
-// GLOBAL: SWBF2 0x01eb969c
 // SYNTHETIC: SWBF2 0x004026b0
 // `dynamic initializer for 'CommandFlyerClass::rttiHashCommandFlyerClass''
+// CommandFlyerClass::rttiHashCommandFlyerClass
+
+// GLOBAL: SWBF2 0x01eb969c
+// CommandFlyerClass::rttiHashCommandFlyerClass
 PblHash CommandFlyerClass::rttiHashCommandFlyerClass("CommandFlyerClass");
-char CommandFlyerClass::rttiNameCommandFlyerClass[] = "CommandFlyerClass";
+// GLOBAL: SWBF2 0x00788c78
+// CommandFlyerClass::rttiNameCommandFlyerClass
+const char CommandFlyerClass::rttiNameCommandFlyerClass[] = "CommandFlyerClass";
 
-// FUNCTION: SWBF2 0x00477c30
-bool CommandFlyerClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashCommandFlyerClass || EntityFlyerClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00477c80
-unsigned int CommandFlyerClass::GetDerivedRtti()
-{
-    return rttiHashCommandFlyerClass;
-}
 
-// FUNCTION: SWBF2 0x00477c90
-const char* CommandFlyerClass::GetDerivedRttiName()
-{
-    return rttiNameCommandFlyerClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00477c70
-unsigned int GetFlyerClassRtti()
+unsigned int CommandFlyerClass::GetRtti()
 {
     return CommandFlyerClass::rttiHashCommandFlyerClass;
 }
@@ -107,23 +105,11 @@ Entity* CommandFlyerClass::Build(const EntityDesc& desc)
     return pFlyer;
 }
 
-// FUNCTION: SWBF2 0x00477b70
-bool CommandFlyer::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashCommandFlyer || EntityFlyer::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00477bc0
-unsigned int CommandFlyer::GetDerivedRtti() const
-{
-    return rttiHashCommandFlyer;
-}
 
-// FUNCTION: SWBF2 0x00477bd0
-const char* CommandFlyer::GetDerivedRttiName() const
-{
-    return "CommandFlyer";
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00477bf0
 EntityType CommandFlyer::GetEntityType() const

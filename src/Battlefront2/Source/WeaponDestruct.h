@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "OrbitalStrike.h"
@@ -19,13 +21,13 @@ public:
     virtual ~WeaponDestructClass();
 
     static PblHash rttiHashWeaponDestructClass;
-    static char rttiNameWeaponDestructClass[];
+    static const char rttiNameWeaponDestructClass[];
 
     virtual WeaponClass* Derive(unsigned int uHash);
     virtual Weapon* Build(const WeaponDesc& desc);
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
 
     float mMaxPressedTime;
@@ -60,9 +62,53 @@ protected:
 
 public:
     static PblHash rttiHashWeaponDestruct;
-    static char rttiNameWeaponDestruct[];
+    static const char rttiNameWeaponDestruct[];
 
     PblHandle<OrbitalStrike> mStrike;
 };
  
  
+
+// FUNCTION: SWBF2 0x00681a10
+inline bool WeaponDestruct::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashWeaponDestruct == uRtti)
+    {
+        return true;
+    }
+    return Weapon::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x00681a40
+inline unsigned int WeaponDestruct::GetDerivedRtti() const
+{
+    return rttiHashWeaponDestruct;
+}
+
+// FUNCTION: SWBF2 0x00681a50
+inline const char* WeaponDestruct::GetDerivedRttiName() const
+{
+    return rttiNameWeaponDestruct;
+}
+
+// FUNCTION: SWBF2 0x00681a60
+inline bool WeaponDestructClass::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashWeaponDestructClass == uRtti)
+    {
+        return true;
+    }
+    return WeaponClass::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x00681a90
+inline unsigned int WeaponDestructClass::GetDerivedRtti() const
+{
+    return rttiHashWeaponDestructClass;
+}
+
+// FUNCTION: SWBF2 0x00681aa0
+inline const char* WeaponDestructClass::GetDerivedRttiName() const
+{
+    return rttiNameWeaponDestructClass;
+}

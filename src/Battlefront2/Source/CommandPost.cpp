@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "CommandPost.h"
 
 #include <stdio.h>
@@ -66,37 +67,22 @@ extern Event<CommandPost, unsigned __int64> mFinishCapture;
 
 extern int gSpawnInvicibility;
 
+
 // FUNCTION: SWBF2 0x0047a570
 PblMatrix NormalMatrix(const PblVector3& vDir, const PblVector3& vNormal, const PblVector3& vPos)
 {
     PblVector3 vUp;
-    D3DXVec3Normalize(&vUp, &vNormal);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vUp), reinterpret_cast<const D3DXVECTOR3*>(&vNormal));
     PblVector3 vSide(vUp.y * vDir.z - vUp.z * vDir.y, vUp.z * vDir.x - vUp.x * vDir.z,
                      vUp.x * vDir.y - vUp.y * vDir.x);
     PblVector3 vRight;
-    D3DXVec3Normalize(&vRight, &vSide);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vRight), reinterpret_cast<const D3DXVECTOR3*>(&vSide));
     PblVector3 vFront(vRight.y * vUp.z - vRight.z * vUp.y, vRight.z * vUp.x - vRight.x * vUp.z,
                       vRight.x * vUp.y - vRight.y * vUp.x);
 
-    PblMatrix m;
-    m.m[0][0] = vRight.x;
-    m.m[0][1] = vRight.y;
-    m.m[0][2] = vRight.z;
-    m.m[0][3] = 0.0f;
-    m.m[1][0] = vUp.x;
-    m.m[1][1] = vUp.y;
-    m.m[1][2] = vUp.z;
-    m.m[1][3] = 0.0f;
-    m.m[2][0] = vFront.x;
-    m.m[2][1] = vFront.y;
-    m.m[2][2] = vFront.z;
-    m.m[2][3] = 0.0f;
-    m.m[3][0] = vPos.x;
-    m.m[3][1] = vPos.y;
-    m.m[3][2] = vPos.z;
-    m.m[3][3] = 1.0f;
-    return m;
+    return PblMatrix(vRight, vUp, vFront, vPos);
 }
+
 
 // FUNCTION: SWBF2 0x0047e3e0
 CommandPostClass::CommandPostClass(unsigned int  )
@@ -349,7 +335,7 @@ void CommandPostClass::SetProperty(unsigned int uProperty, const char* pszValue,
             if (pModel->GetHierarchicalBoneMatrix(PblTEMPHash(acName), mBone))
             {
                 mSpawnRotation[mSpawnCount] = PblQuaternion(mBone);
-                mSpawnPosition[mSpawnCount] = *(const PblVector3*)mBone.m[3];
+                mSpawnPosition[mSpawnCount] = mBone.GetTranslation();
                 mSpawnCount++;
             }
         }
@@ -410,6 +396,7 @@ void CommandPostClass::SetProperty(unsigned int uProperty, const char* pszValue,
     }
 }
 
+
 extern PblVector3 gVectorZero;
 
 class CommandWalker
@@ -418,7 +405,6 @@ public:
     static PblHash rttiHashCommandWalker;
 };
 
-static char sEventParam;
 
 // GLOBAL: SWBF2 0x01e308e0
 static CommandPost* sPostArrayHost[16];
@@ -483,7 +469,7 @@ void CommandPost::CopyFrom(const CommandPost* pOther)
     mName = pOther->mName;
     mLabel = pOther->mLabel;
     mLocalizeName = pOther->mLocalizeName;
-    for (int i = 0; i < 8; ++i)
+    for (unsigned int i = 0; i < 8; ++i)
     {
         for (int side = 0; side < Team::side_MAX; ++side)
         {
@@ -584,10 +570,6 @@ CommandPost::VoiceOver::VoiceOver()
 {
 }
 
-// FUNCTION: SWBF2 0x0047a6e0
-CommandPost::VoiceOver::~VoiceOver()
-{
-}
 
 // FUNCTION: SWBF2 0x0047a710
 CommandPost::CommandPost(CommandPostClass* pClass, int iIndex)
@@ -618,14 +600,8 @@ CommandPost::CommandPost(CommandPostClass* pClass, int iIndex)
     mName = 0;
     mLabel = 0;
     mLocalizeName = 0;
-    for (int i = 0; i < 8; i++)
-    {
-        mHoldCount[i] = 0;
-    }
-    mSpawnQueue[0][0] = 0;
-    mSpawnQueue[0][1] = 0;
-    mSpawnQueue[1][0] = 0;
-    mSpawnQueue[1][1] = 0;
+    memset(mHoldCount, 0, sizeof(mHoldCount));
+    memset(mSpawnQueue, 0, sizeof(mSpawnQueue));
     for (int i = 0; i < 8; i++)
     {
         mBleedValue[i] = pClass->mBleedValue[i];
@@ -731,7 +707,7 @@ CommandPost* CommandPost::BuildPost(GameObject* pObject, CommandPostClass* pClas
 void CommandPost::Attach(GameObject* pObject)
 {
     mObject = pObject;
-    mPosition = *(const PblVector3*)pObject->GetMatrix().m[3];
+    mPosition = pObject->GetMatrix().GetTranslation();
     if (!mName)
     {
         mName = const_cast<char*>(StringDB::Find(pObject->mId));
@@ -757,7 +733,7 @@ void CommandPost::Attach(GameObject* pObject)
         if (mObject->GetModel()->_mLod[0]->GetBoneMatrix(0xD1E4CC7A, mBone))
         {
             PblMatrix mWorld;
-            D3DXMatrixMultiply(&mWorld, &mBone, &mObject->GetMatrix());
+            D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mWorld), reinterpret_cast<const D3DXMATRIX*>(&mBone), reinterpret_cast<const D3DXMATRIX*>(&mObject->GetMatrix()));
             desc.mMatrix = mWorld;
         }
         else
@@ -790,10 +766,7 @@ void CommandPost::Kill()
                 Character::GetPlayerStats(pKiller).AddCommandPostPoints(0, false);
             }
         }
-        if (!NetGame::IsEnabled() || !NetGame::IsClient())
-        {
-            EventManager::CommandPostEvent::mKill.Trigger(*this, mObject->mDamageOwner);
-        }
+        EventManager::CommandPostEvent::mKill.Trigger(*this, mObject->mDamageOwner);
     }
 
     TurnHologramOff();
@@ -802,12 +775,8 @@ void CommandPost::Kill()
     {
         for (int i = 0; i < 15; i++)
         {
-            PblVector3 vOffset = PblRandom::GetGlobalVector3();
-            vOffset.x *= mKillRegion->mSize.x;
-            vOffset.y *= mKillRegion->mSize.y;
-            vOffset.z *= mKillRegion->mSize.z;
-            PblVector3 vPos;
-            D3DXVec3TransformCoord(&vPos, &vOffset, &mKillRegion->mMatrix);
+            PblVector3 vPos = mKillRegion->mMatrix.ApplyTransform(
+                mKillRegion->mSize * PblRandom::GetGlobalVector3());
 
             FLEffectClass* pEffectClass;
             switch (PblRandom::GetGlobalInt() % 3)
@@ -846,12 +815,9 @@ void CommandPost::Respawn()
     {
         return;
     }
-    TargetManager::RemoveTarget(mObject);
+    TargetManager::RemoveTarget(GetGameObject());
     TargetManager::AddPost(this);
-    if (!NetGame::IsEnabled() || !NetGame::IsClient())
-    {
-        EventManager::CommandPostEvent::mRespawn.Trigger(*this, sEventParam);
-    }
+    EventManager::CommandPostEvent::mRespawn.Trigger(*this, EventManager::noContext);
     ActivateThread(-20, PER_TURN);
     ++*sActivePostCount;
 }
@@ -1224,11 +1190,8 @@ PblMatrix CommandPost::GetMatrixOnSpawnPath(bool bAlly) const
         const PblQuaternion qRotation = pPath->GetPointRotation(uPoint).Inverse();
         const PblVector3& vPosition = pPath->GetPointPosition(uPoint);
         PblQuaternion qUnit;
-        D3DXMatrixRotationQuaternion(&mMatrix, D3DXQuaternionNormalize(&qUnit, &qRotation));
-        mMatrix.m[3][0] = vPosition.x;
-        mMatrix.m[3][1] = vPosition.y;
-        mMatrix.m[3][2] = vPosition.z;
-        mMatrix.m[3][3] = 1.0f;
+        D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mMatrix), D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&qUnit), reinterpret_cast<const D3DXQUATERNION*>(&qRotation)));
+        mMatrix.SetTranslation(vPosition);
         mMatrix.m[0][0] = -mMatrix.m[0][0];
         mMatrix.m[0][1] = -mMatrix.m[0][1];
         mMatrix.m[0][2] = -mMatrix.m[0][2];
@@ -1241,10 +1204,7 @@ PblMatrix CommandPost::GetMatrixOnSpawnPath(bool bAlly) const
         if (AIUtil::IsUberMode() && mSpawnRegion)
         {
             const PblVector3 vPoint = AIUtil::GetRandomPtInRegion(mSpawnRegion);
-            mMatrix.m[3][0] = vPoint.x;
-            mMatrix.m[3][1] = vPoint.y;
-            mMatrix.m[3][2] = vPoint.z;
-            mMatrix.m[3][3] = 1.0f;
+            mMatrix.SetTranslation(vPoint);
         }
 
         PblVector3 vStart(mMatrix.m[3][0], mMatrix.m[3][1], mMatrix.m[3][2]);
@@ -1269,13 +1229,10 @@ PblMatrix CommandPost::GetMatrixOnSpawnPath(bool bAlly) const
         const PblVector3& vPosition = mClass->mSpawnPosition[uPoint];
         PblQuaternion qUnit;
         PblMatrix mSpawn;
-        D3DXMatrixRotationQuaternion(&mSpawn, D3DXQuaternionNormalize(&qUnit, &mClass->mSpawnRotation[uPoint]));
-        mSpawn.m[3][0] = vPosition.x;
-        mSpawn.m[3][1] = vPosition.y;
-        mSpawn.m[3][2] = vPosition.z;
-        mSpawn.m[3][3] = 1.0f;
+        D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mSpawn), D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&qUnit), reinterpret_cast<const D3DXQUATERNION*>(&mClass->mSpawnRotation[uPoint])));
+        mSpawn.SetTranslation(vPosition);
         PblMatrix mWorld;
-        D3DXMatrixMultiply(&mWorld, &mSpawn, &mMatrix);
+        mWorld = mSpawn * mMatrix;
         mMatrix = mWorld;
 
         if (GetGameObject())
@@ -1295,7 +1252,7 @@ PblMatrix CommandPost::GetMatrixOnSpawnPath(bool bAlly) const
             }
         }
     }
-    return NormalMatrix(*(const PblVector3*)mMatrix.m[2], gVectorUnitY, *(const PblVector3*)mMatrix.m[3]);
+    return NormalMatrix(mMatrix.GetZAxis(), gVectorUnitY, mMatrix.GetTranslation());
 }
 
 // FUNCTION: SWBF2 0x0047ccd0
@@ -1365,7 +1322,7 @@ bool CommandPost::Update(float fDeltaTime)
     float fLongestHoldTime = 0.0f;
     GameObject* apObjects[64];
     int iCount = 0;
-    if (!NetGame::IsEnabled() || !NetGame::IsClient() || NetGame::IsNearLocalPlayer(*(const PblVector3*)GetMatrix().m[3]))
+    if (!NetGame::IsEnabled() || !NetGame::IsClient() || NetGame::IsNearLocalPlayer(GetMatrix().GetTranslation()))
     {
         iCount = GetObjectsInCaptureRegion(apObjects, 64);
         for (int i = 0; i < iCount; ++i)
@@ -1464,7 +1421,7 @@ bool CommandPost::Update(float fDeltaTime)
         const float fCaptureTime = GetCaptureTime();
         if (mHoldTeam > 0)
         {
-            if (mHoldTeam != iOldHoldTeam && (!NetGame::IsEnabled() || !NetGame::IsClient()))
+            if (mHoldTeam != iOldHoldTeam)
             {
                 EventManager::CommandPostEvent::mBeginCapture.Trigger(*this, mHoldPlayerMask);
             }
@@ -1512,10 +1469,7 @@ bool CommandPost::Update(float fDeltaTime)
                     GetGameObject()->SetTeam(mHoldTeam);
                     GetGameObject()->mPerceivedTeam = mHoldTeam;
                 }
-                if (!NetGame::IsEnabled() || !NetGame::IsClient())
-                {
-                    EventManager::CommandPostEvent::mFinishCapture.Trigger(*this, mHoldPlayerMask);
-                }
+                EventManager::CommandPostEvent::mFinishCapture.Trigger(*this, mHoldPlayerMask);
                 mSoundTransition.Stop(true);
 
                 Team* pTeam = Team::sTeams[GetGameObject()->mTeam];
@@ -1549,7 +1503,7 @@ bool CommandPost::Update(float fDeltaTime)
         }
         else if (mHoldTeam == -1)
         {
-            if (iOldHoldTeam != -1 && (!NetGame::IsEnabled() || !NetGame::IsClient()))
+            if (iOldHoldTeam != -1)
             {
                 EventManager::CommandPostEvent::mAbortCapture.Trigger(*this, mHoldPlayerMask);
             }
@@ -1563,7 +1517,7 @@ bool CommandPost::Update(float fDeltaTime)
         }
         else
         {
-            if (mHoldTeam != iOldHoldTeam && (!NetGame::IsEnabled() || !NetGame::IsClient()))
+            if (mHoldTeam != iOldHoldTeam)
             {
                 EventManager::CommandPostEvent::mAbortCapture.Trigger(*this, mHoldPlayerMask);
             }
@@ -1575,7 +1529,7 @@ bool CommandPost::Update(float fDeltaTime)
 
         const float fNeutralizeTime = GetNeutralizeTime();
         const bool bDisputed = mNeutralizeTimer == 0.0f && mHoldTeam == -1;
-        if (mNeutralizeTimer == 0.0f && (!NetGame::IsEnabled() || !NetGame::IsClient()))
+        if (mNeutralizeTimer == 0.0f)
         {
             EventManager::CommandPostEvent::mBeginNeutralize.Trigger(*this, mHoldPlayerMask);
         }
@@ -1634,10 +1588,7 @@ bool CommandPost::Update(float fDeltaTime)
                 GetGameObject()->mPerceivedTeam = 0;
             }
             mSoundTransition.Stop(true);
-            if (!NetGame::IsEnabled() || !NetGame::IsClient())
-            {
-                EventManager::CommandPostEvent::mFinishNeutralize.Trigger(*this, mHoldPlayerMask);
-            }
+            EventManager::CommandPostEvent::mFinishNeutralize.Trigger(*this, mHoldPlayerMask);
         }
         if (mNeutralizeTimer >= fNeutralizeTime - mClass->m_fHoloTurnOnTime)
         {
@@ -1647,10 +1598,7 @@ bool CommandPost::Update(float fDeltaTime)
     else if (mNeutralizeTimer > 0.0f)
     {
 
-        if (!NetGame::IsEnabled() || !NetGame::IsClient())
-        {
-            EventManager::CommandPostEvent::mAbortNeutralize.Trigger(*this, mHoldPlayerMask);
-        }
+        EventManager::CommandPostEvent::mAbortNeutralize.Trigger(*this, mHoldPlayerMask);
         if (mNeutralizeTimer > 0.0f)
         {
             float fRate = 0.0f;
@@ -1803,8 +1751,13 @@ void Event<CommandPost, char>::Callback::Trigger(CommandPost& item, char& param)
         if (pChild)
         {
             pChild->AddRef();
-            while (pChild->IsAlive())
+            while (pChild)
             {
+                if (!pChild->IsAlive())
+                {
+                    pChild->Release();
+                    break;
+                }
                 Callback* pNext = (Callback*)pChild->mSibling;
                 if (pNext)
                 {
@@ -1813,25 +1766,11 @@ void Event<CommandPost, char>::Callback::Trigger(CommandPost& item, char& param)
                 pChild->Trigger(item, param);
                 pChild->Release();
                 pChild = pNext;
-                if (!pChild)
-                {
-                    break;
-                }
-            }
-            if (pChild)
-            {
-                pChild->Release();
             }
         }
     }
     Release();
 }
-}
-
-// FUNCTION: SWBF2 0x0047a670
-unsigned int __fastcall GetDoorEntityId(const unsigned int* pRecord)
-{
-    return pRecord[1];
 }
 
 // FUNCTION: SWBF2 0x0047ab60
@@ -1854,8 +1793,13 @@ void Event<CommandPost, unsigned __int64>::Callback::Trigger(CommandPost& item, 
         if (pChild)
         {
             pChild->AddRef();
-            while (pChild->IsAlive())
+            while (pChild)
             {
+                if (!pChild->IsAlive())
+                {
+                    pChild->Release();
+                    break;
+                }
                 Callback* pNext = (Callback*)pChild->mSibling;
                 if (pNext)
                 {
@@ -1864,14 +1808,6 @@ void Event<CommandPost, unsigned __int64>::Callback::Trigger(CommandPost& item, 
                 pChild->Trigger(item, param);
                 pChild->Release();
                 pChild = pNext;
-                if (!pChild)
-                {
-                    break;
-                }
-            }
-            if (pChild)
-            {
-                pChild->Release();
             }
         }
     }
@@ -1893,8 +1829,13 @@ void Event<CommandPost, DamageOwner>::Callback::Trigger(CommandPost& item, Damag
         if (pChild)
         {
             pChild->AddRef();
-            while (pChild->IsAlive())
+            while (pChild)
             {
+                if (!pChild->IsAlive())
+                {
+                    pChild->Release();
+                    break;
+                }
                 Callback* pNext = (Callback*)pChild->mSibling;
                 if (pNext)
                 {
@@ -1903,14 +1844,6 @@ void Event<CommandPost, DamageOwner>::Callback::Trigger(CommandPost& item, Damag
                 pChild->Trigger(item, param);
                 pChild->Release();
                 pChild = pNext;
-                if (!pChild)
-                {
-                    break;
-                }
-            }
-            if (pChild)
-            {
-                pChild->Release();
             }
         }
     }

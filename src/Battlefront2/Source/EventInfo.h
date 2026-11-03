@@ -51,10 +51,9 @@ public:
 
     // FUNCTION: SWBF2 0x00438b00
     EventInfo(EventType eType)
-        : mNextCmd(CMD_NONE, PblHandle<GameObject>(), PblVector3(0, 0, 0),
-                   PblHandle<GameObject>()),
+        : mNextCmd(CMD_NONE, 0, PblVector3(0, 0, 0), 0),
           mType(eType),
-          mGameObject(),
+          mGameObject(0),
           mPos(0, 0, 0),
           mFloat(0.0f),
           mInt(0),
@@ -64,10 +63,9 @@ public:
 
     // FUNCTION: SWBF2 0x005ad280
     EventInfo(EventType eType, void* pVoidPtr)
-        : mNextCmd(CMD_NONE, PblHandle<GameObject>(), PblVector3(0, 0, 0),
-                   PblHandle<GameObject>()),
+        : mNextCmd(CMD_NONE, 0, PblVector3(0, 0, 0), 0),
           mType(eType),
-          mGameObject(),
+          mGameObject(0),
           mPos(0, 0, 0),
           mFloat(0.0f),
           mInt(0),
@@ -77,10 +75,9 @@ public:
 
     // FUNCTION: SWBF2 0x0043ee90
     EventInfo(EventType eType, const PblVector3& vPos)
-        : mNextCmd(CMD_NONE, PblHandle<GameObject>(), PblVector3(0, 0, 0),
-                   PblHandle<GameObject>()),
+        : mNextCmd(CMD_NONE, 0, PblVector3(0, 0, 0), 0),
           mType(eType),
-          mGameObject(),
+          mGameObject(0),
           mPos(vPos),
           mFloat(0.0f),
           mInt(0),
@@ -92,8 +89,7 @@ public:
 
     // FUNCTION: SWBF2 0x0043edf0
     EventInfo(EventType eType, GameObject* pObject)
-        : mNextCmd(CMD_NONE, PblHandle<GameObject>(), PblVector3(0, 0, 0),
-                   PblHandle<GameObject>()),
+        : mNextCmd(CMD_NONE, 0, PblVector3(0, 0, 0), 0),
           mType(eType),
           mGameObject(pObject),
           mPos(0, 0, 0),
@@ -105,8 +101,7 @@ public:
 
     // FUNCTION: SWBF2 0x00670160
     EventInfo(EventType eType, GameObject* pObject, const PblVector3& vPos)
-        : mNextCmd(CMD_NONE, PblHandle<GameObject>(), PblVector3(0, 0, 0),
-                   PblHandle<GameObject>()),
+        : mNextCmd(CMD_NONE, 0, PblVector3(0, 0, 0), 0),
           mType(eType),
           mGameObject(pObject),
           mPos(vPos),

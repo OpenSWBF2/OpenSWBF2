@@ -14,7 +14,10 @@ class GameObject;
 class UnitAgent;
 class UnitCombatInfo;
 class UnitController;
-namespace AI { class EventInfo; }
+namespace AI
+{
+class EventInfo;
+}
 
 // VTABLE: SWBF2 0x007974e8
 class CombatHelper : public HelperFsm
@@ -34,17 +37,30 @@ public:
     };
 
     CombatHelper(UnitAgent* pOwner);
-    virtual ~CombatHelper();
+    // SYNTHETIC: SWBF2 0x0046c2e0
+    // CombatHelper::`scalar deleting destructor'
     virtual void Kill();
 
     void Clean();
     void Init(const UnitCombatInfo& info);
     int EventHandler(AI::EventInfo* pInfo);
 
-    UnitController* GetCtrl();
-    Controllable* GetMe();
-    AILowLevel& GetLowLevel();
-    AttackHelper& GetAttackHelper();
+    UnitController* GetCtrl()
+    {
+        return mOwner->mCtrl;
+    }
+    Controllable* GetMe()
+    {
+        return mOwner->mCtrl->mOwner;
+    }
+    AILowLevel& GetLowLevel()
+    {
+        return mOwner->mCtrl->mLowLevel;
+    }
+    AttackHelper& GetAttackHelper()
+    {
+        return mOwner->mAttackHelper;
+    }
     float GetUpdateRate() const;
 
 protected:

@@ -56,7 +56,11 @@ int SquadCommands::VehicleDistCallback(const void* pA, const void* pB)
     {
         return 1;
     }
-    return (b <= a) - 1;
+    if (a < b)
+    {
+        return -1;
+    }
+    return 0;
 }
 
 // FUNCTION: SWBF2 0x00650720
@@ -103,10 +107,7 @@ void SquadCommands::VehicleGetOut(GameObject* pObject, Character* pCharacter)
 
         AI::EventType eType = AI::EVT_SC_GetOutOfVehicle;
         Controllable* pVehicle = pObject->GetControllable();
-        if (!NetGame::IsEnabled() || !netEnabledNext || !netClientActive)
-        {
-            EventManager::CharacterEvent::mIssueAICommand.Trigger(*pVehicle->mCharacter, eType);
-        }
+        EventManager::CharacterEvent::mIssueAICommand.Trigger(*pVehicle->mCharacter, eType);
 
         const unsigned short* pText = RedLocalizeDB::Find(0x7e3c4096u, false);
         for (unsigned int i = 0; i < NetGame::GetNumLocalPlayers(); ++i)
@@ -209,10 +210,7 @@ void SquadCommands::VehicleGetIn(GameObject* pObject, Character* pCharacter)
                        pObject, 0.0f);
     AI::EventType eType = AI::EVT_SC_GetIntoVehicle;
     Controllable* pVehicle = pObject->GetControllable();
-    if (!NetGame::IsEnabled() || !netEnabledNext || !netClientActive)
-    {
-        EventManager::CharacterEvent::mIssueAICommand.Trigger(*pVehicle->mCharacter, eType);
-    }
+    EventManager::CharacterEvent::mIssueAICommand.Trigger(*pVehicle->GetCharacter(), eType);
 
     const unsigned short* pText = RedLocalizeDB::Find(0xf00699adu, false);
     for (unsigned int i = 0; i < NetGame::GetNumLocalPlayers(); ++i)

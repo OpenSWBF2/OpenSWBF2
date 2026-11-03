@@ -5,7 +5,10 @@
 #include "HUDElementGroup.h"
 #include "HUDElementText.h"
 
-namespace HUD {
+namespace HUD
+{
+// VTABLE: SWBF2 0x007a14f4 HUD::ElementGroupBase
+// VTABLE: SWBF2 0x007a1534 RedGroupElement
 class ElementMultilineText : public HUD::ElementGroup
 {
 public:
@@ -19,19 +22,20 @@ public:
         state_EnablingLine = 4
     };
 
-    // VTABLE: SWBF2 0x007a14b8
+    // VTABLE: SWBF2 0x007a1470 RedTextElement
+    // VTABLE: SWBF2 0x007a14b8 HUD::Element
+    // class Line
 
     class __declspec(align(16)) Line : public HUD::ElementText
     {
     public:
-        // FUNCTION: SWBF2 0x00557120
         Line();
 
         // SYNTHETIC: SWBF2 0x00558010
         // HUD::ElementMultilineText::Line::`vector deleting destructor'
 
-        // FUNCTION: SWBF2 0x00557210
-        virtual ~Line();
+        // SYNTHETIC: SWBF2 0x00557210
+        // HUD::ElementMultilineText::Line::~Line
 
         void SetGroup(HUD::ElementMultilineText* const pGroup) { mGroup = pGroup; }
 
@@ -169,3 +173,10 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x00557120
+inline HUD::ElementMultilineText::Line::Line()
+    : HUD::ElementText(0, 0, 0),
+      mGroup(0)
+{
+}

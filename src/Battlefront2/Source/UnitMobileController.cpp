@@ -1,17 +1,18 @@
 #include "UnitMobileController.h"
 #include "PebbleFL/Common/PblHashTable.h"
 
-// GLOBAL: SWBF2 0x01f99414
 // SYNTHETIC: SWBF2 0x00406d00
 // `dynamic initializer for 'UnitMobileController::rttiHashUnitMobileController''
-PblHash UnitMobileController::rttiHashUnitMobileController("UnitMobileController");
-char UnitMobileController::rttiNameUnitMobileController[] = "UnitMobileController";
+// UnitMobileController::rttiHashUnitMobileController
 
-// FUNCTION: SWBF2 0x00669180
-bool UnitMobileController::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashUnitMobileController || UnitController::IsRtti(uRtti);
-}
+// GLOBAL: SWBF2 0x01f99414
+// UnitMobileController::rttiHashUnitMobileController
+PblHash UnitMobileController::rttiHashUnitMobileController("UnitMobileController");
+// GLOBAL: SWBF2 0x0078b8ec
+// UnitMobileController::rttiNameUnitMobileController
+const char UnitMobileController::rttiNameUnitMobileController[] = "UnitMobileController";
+
+
 
 // FUNCTION: SWBF2 0x00669200
 UnitMobileController::UnitMobileController(Controllable* pOwner)

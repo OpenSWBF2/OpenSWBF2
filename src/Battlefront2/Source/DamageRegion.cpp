@@ -7,7 +7,7 @@
 #include "GameObject.h"
 #include "TriggerRegionManager.h"
 
-static Damageable* GetDamageable(GameObject* pObject)
+static inline Damageable* GetDamageable(GameObject* pObject)
 {
     return static_cast<Damageable*>(pObject);
 }
@@ -82,7 +82,8 @@ void DamageRegion::ClearList()
     sList.RemoveAll();
 }
 
-// FUNCTION: SWBF2 0x0048a260
+// TEMPLATE: SWBF2 0x0048a260
+// PblList<DamageRegion>::RemoveAll
 template void PblList<DamageRegion>::RemoveAll();
 
 // FUNCTION: SWBF2 0x0048a0c0

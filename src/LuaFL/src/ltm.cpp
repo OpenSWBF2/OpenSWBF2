@@ -10,6 +10,7 @@
 #include "ltable.h"
 #include "ltm.h"
 
+// GLOBAL: SWBF2 0x00771448
 const char *const luaT_typenames[] = {
   "nil", "boolean", "userdata", "number",
   "string", "table", "function", "userdata", "thread"
@@ -18,6 +19,7 @@ const char *const luaT_typenames[] = {
 // LIBRARY: SWBF2 0x006a7170
 // luaT_init
 void luaT_init (lua_State *L) {
+  // GLOBAL: SWBF2 0x77149c
   static const char *const luaT_eventname[] = {
     "__index", "__newindex",
     "__gc", "__mode", "__eq",

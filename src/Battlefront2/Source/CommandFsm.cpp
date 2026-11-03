@@ -1,35 +1,28 @@
 #include "CommandFsm.h"
 #include "UnitMobileController.h"
+#include "PebbleFL/Common/PblMath.h"
 
 // SYNTHETIC: SWBF2 0x00667ef2
-// [thunk]:UnitFlyController::`scalar deleting destructor' adjustor{120}
+// ??_EUnitFlyController@@WHI@AEPAXI@Z
 
 // SYNTHETIC: SWBF2 0x00667ee7
-// [thunk]:UnitFlyController::`scalar deleting destructor' adjustor{452}
+// ??_EUnitFlyController@@WBME@AEPAXI@Z
 
 // SYNTHETIC: SWBF2 0x00669317
-// [thunk]:UnitMobileController::`scalar deleting destructor' adjustor{120}
+// ??_EUnitMobileController@@WHI@AEPAXI@Z
 
 // SYNTHETIC: SWBF2 0x0066930c
-// [thunk]:UnitMobileController::`scalar deleting destructor' adjustor{452}
+// ??_EUnitMobileController@@WBME@AEPAXI@Z
 
 // SYNTHETIC: SWBF2 0x00669890
-// [thunk]:UnitStationaryController::`scalar deleting destructor' adjustor{452}
+// ??_EUnitStationaryController@@WBME@AEPAXI@Z
 
 // SYNTHETIC: SWBF2 0x0066989b
-// [thunk]:UnitStationaryController::`scalar deleting destructor' adjustor{120}
+// ??_EUnitStationaryController@@WHI@AEPAXI@Z
 
-// FUNCTION: SWBF2 0x006691b0
-unsigned int UnitMobileController::GetDerivedRtti() const
-{
-    return rttiHashUnitMobileController;
-}
 
-// FUNCTION: SWBF2 0x006691c0
-const char* UnitMobileController::GetDerivedRttiName() const
-{
-    return rttiNameUnitMobileController;
-}
+
+
 
 // FUNCTION: SWBF2 0x00478780
 CommandFsm::CommandFsm()
@@ -105,7 +98,7 @@ void CommandFsm::QueueCommand(const CmdInfo& cmd)
 // FUNCTION: SWBF2 0x004788e0
 void CommandFsm::RemoveQueuedCommands(int what)
 {
-    int count = mCmdCount < 5 ? mCmdCount : 5;
+    int count = Min(mCmdCount, 5);
     int kept = 0;
     for (int i = 0; i < count; i++)
     {
@@ -129,7 +122,7 @@ void CommandFsm::PrependQueueCommand(const CmdInfo& cmd)
         return;
     }
 
-    mCmdCount = mCmdCount + 1 < 5 ? mCmdCount + 1 : 5;
+    mCmdCount = Min(mCmdCount + 1, 5);
     for (int i = mCmdCount - 1; i > 0; i--)
     {
         mCmdQueue[i] = mCmdQueue[i - 1];
@@ -146,7 +139,7 @@ void CommandFsm::PrependQueueCommands(const CmdInfo& cmdA, const CmdInfo& cmdB)
         return;
     }
 
-    mCmdCount = mCmdCount + 2 < 5 ? mCmdCount + 2 : 5;
+    mCmdCount = Min(mCmdCount + 2, 5);
     for (int i = mCmdCount - 1; i > 1; i--)
     {
         mCmdQueue[i] = mCmdQueue[i - 2];
@@ -156,7 +149,3 @@ void CommandFsm::PrependQueueCommands(const CmdInfo& cmdA, const CmdInfo& cmdB)
     mForceCommand = true;
 }
 
-// FUNCTION: SWBF2 0x00478630
-CommandFsm::~CommandFsm()
-{
-}

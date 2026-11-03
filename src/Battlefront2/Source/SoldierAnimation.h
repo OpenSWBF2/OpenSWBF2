@@ -20,6 +20,7 @@ public:
     const ZephyrAnim* GetAnimation() const { return m_pZephyrAnim; }
 
     unsigned short GetAnimationNumFrames() const;
+    float GetAnimationLength() const { return (GetAnimationNumFrames() - 1) * 0.033333335f; }
 
     unsigned char GetAnimIndex() const;
     unsigned char GetSyncType() const;
@@ -45,7 +46,7 @@ public:
 
     static MemoryPool sMemoryPool;
 
-    ZephyrAnim* m_pZephyrAnim;
+    const ZephyrAnim* m_pZephyrAnim;
     union
     {
         struct
@@ -56,6 +57,6 @@ public:
         };
         unsigned int m_uiData;
     };
-    SoldierAnimationData* m_pAnimData;
+    const SoldierAnimationData* m_pAnimData;
 };
  

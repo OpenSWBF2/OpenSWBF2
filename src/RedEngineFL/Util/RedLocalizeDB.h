@@ -37,6 +37,8 @@ void GetLocalizedString(unsigned short* pusBuffer, unsigned int uiSize, unsigned
 
 void Reset();
 
+void SetSkipCount(int count);
+
 }
 
 struct FLLocalizeEntry

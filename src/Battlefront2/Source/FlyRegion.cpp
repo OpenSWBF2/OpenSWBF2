@@ -6,12 +6,14 @@ FlyRegionManager::FlyRegionManager()
 {
 }
 
-// GLOBAL: SWBF2 0x007ec178
 
 // SYNTHETIC: SWBF2 0x00403a30
 // `dynamic initializer for 'FlyRegionManager::sRegions''
 // SYNTHETIC: SWBF2 0x007687b0
 // `dynamic atexit destructor for 'FlyRegionManager::sRegions''
+
+// GLOBAL: SWBF2 0x007ec178
+// FlyRegionManager::sRegions
 ListPool<RedRegion*, int> FlyRegionManager::sRegions(5);
 
 // FUNCTION: SWBF2 0x0052bd60

@@ -46,6 +46,31 @@ public:
 
 protected:
 
+    void Enter_InitialMemcardCheck();
+    void Enter_InitialMemcardCheck_CheckProfile();
+    void Enter_InitialMemcardCheck_Error();
+    void Enter_PreOp_Error();
+    void Enter_PreOp_ConfirmDashboard();
+    void Enter_PreOp_Format_Prompt();
+    void Enter_PreOp_Format();
+    void Enter_Save_CheckExist();
+    void Enter_Save_Overwrite();
+    void Enter_Save_Create();
+    void Enter_Save_Open();
+    void Enter_Save_WriteChecksum();
+    void Enter_Save_WriteData();
+    void Enter_Save_Close();
+    void Enter_Save_Error();
+    void Enter_Save_TooManyFiles();
+    void Enter_Load_Start();
+    void Enter_Load_Open();
+    void Enter_Load_ReadChecksum();
+    void Enter_Load_ReadData();
+    void Enter_Load_Close();
+    void Enter_Load_Error();
+    void Enter_Delete();
+    void Enter_Delete_Error();
+    bool Enter_ProcessLastQueuedFile();
     void Enter_PreOp();
 
     void ShowLoadSavePopup(bool bSetup);

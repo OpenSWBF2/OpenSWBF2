@@ -119,7 +119,7 @@ HUD::ElementTarget::Target::Target(const char* const pName, Factory::ItemCallbac
 // HUD::ElementTarget::Target::`scalar deleting destructor'
 
 // SYNTHETIC: SWBF2 0x0055acc8
-// [thunk]:HUD::ElementTarget::Target::`scalar deleting destructor' adjustor{288}
+// ??_ETarget@ElementTarget@HUD@@WBCA@AEPAXI@Z
 // FUNCTION: SWBF2 0x00558ed0
 HUD::ElementTarget::Target::~Target()
 {
@@ -158,7 +158,7 @@ void HUD::ElementTarget::Target::Update(float fDeltaTime, HUD::ElementBitmap& bi
         if (pLockOn && bShow && info.mOnScreen)
         {
             bitmap.HUD::Element::Enable(false);
-            for (int i = 0; i < 4; ++i)
+            for (unsigned int i = 0; i < 4; ++i)
             {
                 pLockOn[i] = *this;
                 pLockOn[i].HUD::Element::Enable(true);
@@ -238,7 +238,7 @@ void HUD::ElementTarget::Target::Update(float fDeltaTime, HUD::ElementBitmap& bi
     {
 
         const GameObject* pTeamObject = target.obj;
-        color = pCharacter->mTeamPtr->mColor[pTeamObject->mTeam];
+        color = pCharacter->mTeamPtr->GetColor(pTeamObject->mTeam);
         color.a = bLocked ? 0xd0 : 0xa0;
     }
 
@@ -350,7 +350,7 @@ void HUD::ElementTarget::Target::Update(float fDeltaTime, HUD::ElementBitmap& bi
             { fX + fHalfWidth, fY + fHalfHeight },
             { fX - fHalfWidth, fY + fHalfHeight }
         };
-        for (int i = 0; i < 4; ++i)
+        for (unsigned int i = 0; i < 4; ++i)
         {
             pLockOn[i].RedInterfaceElement::SetColor(bitmap.m_color);
             pLockOn[i].SetMatrixPosRotScale(fCorners[i][0], fCorners[i][1],
@@ -530,7 +530,7 @@ HUD::ElementTarget::ElementTarget(const char* const pName, Factory::ItemCallback
 // HUD::ElementTarget::Target::`default constructor closure'
 
 // SYNTHETIC: SWBF2 0x0055acbd
-// [thunk]:HUD::ElementTarget::`scalar deleting destructor' adjustor{384}
+// ??_EElementTarget@HUD@@WBIA@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x0055a210
 HUD::ElementTarget::~ElementTarget()
@@ -770,13 +770,13 @@ void HUD::ElementTarget::WriteData(HUD::File& file, unsigned int uTabs)
 // FUNCTION: SWBF2 0x0055ab30
 void HUD::ElementTarget::EventRefreshTargetCommon(const HUD::Event& event, void* const pData)
 {
-    if (event.mClass->mType != HUD::EventClass::type_Uint)
+    if (event.GetClass()->GetType() != HUD::EventClass::type_Uint)
     {
         return;
     }
 
     ElementTarget* pTarget = static_cast<ElementTarget*>(pData);
-    const unsigned int slot = event.mData.uintValue;
+    const unsigned int slot = event.GetData().uintValue;
     pTarget->mTargetCommonState[slot] = targetCommonState_MAX;
     pTarget->mTargetCommon[slot].RedInterfaceElement::SetColor(TargetManager::gMarkers[slot].color);
 }
@@ -808,8 +808,8 @@ void HUD::ElementTarget::EventRefreshTargetPlayer(const HUD::Event& event, void*
 HUD::ElementTarget::TargetCommonState HUD::ElementTarget::TranslateCommonTargetInfo(
     const LockOnManager::TargetInfo& info)
 {
-    return (TargetCommonState)((info.mFlagCarrier ? targetCommonState_FlagOnScreen : targetCommonState_OnScreen) +
-                               (info.mOnScreen ? 0 : 2) + (info.mVisible ? 0 : 1));
+    TargetCommonState state = info.GetFlagCarrier() ? targetCommonState_FlagOnScreen : targetCommonState_OnScreen;
+    return (TargetCommonState)(state + (info.GetOnScreen() ? 0 : 2) + (info.mVisible ? 0 : 1));
 }
 
 // FUNCTION: SWBF2 0x0055ac80

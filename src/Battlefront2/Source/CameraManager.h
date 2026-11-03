@@ -15,7 +15,10 @@ class GameCamera;
 class MapCamera;
 class RedCamera;
 class Trackable;
-namespace Snd { class Listener; }
+namespace Snd
+{
+class Listener;
+}
 
 // VTABLE: SWBF2 0x007970c8
 class CameraManager : public Thread
@@ -117,11 +120,11 @@ class CameraInterpolator : public Thread
 {
 public:
 
-    // FUNCTION: SWBF2 0x0044e4e0
-    CameraInterpolator() {}
+    // SYNTHETIC: SWBF2 0x0044e4e0
+    // CameraInterpolator::CameraInterpolator
 
-    // FUNCTION: SWBF2 0x0044e4f0
-    virtual ~CameraInterpolator() {}
+    // SYNTHETIC: SWBF2 0x0044e4f0
+    // CameraInterpolator::~CameraInterpolator
 
     virtual bool Update(float fDeltaTime);
 

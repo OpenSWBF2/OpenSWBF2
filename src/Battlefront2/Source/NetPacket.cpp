@@ -14,157 +14,10 @@ public:
     static void FreePackets();
 };
 
-extern NetPktGroup inQueue;
-extern NetPktGroup inPktGroups[64];
-extern NetDest netDests[MAX_DESTS];
 extern NetPktGroup bandwidthQueue[3];
 extern NetPktGroup lossQueue;
 extern NetPktGroup latencyQueue;
 extern NetPktGroup localQueue;
-
-// GLOBAL: SWBF2 0x01e62e98
-int freeGroupCycle;
-
-int netRejectCounts[NET_REJECT_COUNT];
-
-static const char* const sRejectNames[] =
-{
-    "frag_count_zero",
-    "frag_idx",
-    "frag_count_mismatch",
-    "frag_too_many",
-    "pool_exhausted",
-    "short_datagram",
-    "negative_length",
-    "group_bad",
-    "partial_cap",
-    "oversize_datagram",
-    "chat_oversize",
-    "chat_fields",
-    "upload_length",
-    "upload_name",
-    "upload_underflow",
-    "upload_disabled",
-    "rcon_line",
-    "rcon_auth_short",
-    "rcon_login_rate",
-    "player_count",
-    "turn_rate",
-    "bad_addr",
-    "spawn_slot",
-    "object_ref",
-    "guest_count"
-};
-
-static_assert(sizeof(sRejectNames) / sizeof(sRejectNames[0]) == NET_REJECT_COUNT, "sRejectNames size");
-
-static float sRejectLastLog[NET_REJECT_COUNT];
-static int sRejectSuppressed[NET_REJECT_COUNT];
-static bool sRejectLogged[NET_REJECT_COUNT];
-static float (*sRejectClock)() = NetComm::GetTime;
-
-void NetRejectCount(int iReason)
-{
-    if (iReason < 0 || iReason >= NET_REJECT_COUNT)
-    {
-        return;
-    }
-    ++netRejectCounts[iReason];
-    const float fNow = sRejectClock();
-    if (!sRejectLogged[iReason] || fNow < sRejectLastLog[iReason] ||
-        fNow - sRejectLastLog[iReason] >= 1.0f)
-    {
-        const int iSuppressed = sRejectSuppressed[iReason];
-        sRejectLogged[iReason] = true;
-        sRejectSuppressed[iReason] = 0;
-        sRejectLastLog[iReason] = fNow;
-        LOG(LogNet, Warning, "net reject %s (%d suppressed)", sRejectNames[iReason], iSuppressed);
-    }
-    else
-    {
-        ++sRejectSuppressed[iReason];
-    }
-}
-
-void NetRejectSetClock(float (*pfnClock)())
-{
-    sRejectClock = pfnClock;
-}
-
-void NetRejectReset()
-{
-    memset(sRejectLastLog, 0, sizeof(sRejectLastLog));
-    memset(sRejectSuppressed, 0, sizeof(sRejectSuppressed));
-    memset(sRejectLogged, 0, sizeof(sRejectLogged));
-    sRejectClock = NetComm::GetTime;
-}
-
-void NetPktGroup::SetBad(int iReason)
-{
-    if (!bad)
-    {
-        bad = true;
-        NetRejectCount(iReason);
-    }
-}
-
-// FUNCTION: SWBF2 0x005b2be0
-void NetCommP::FreePackets()
-{
-    if (inQueue.pktCount)
-    {
-        unsigned int iCycle = (unsigned int)freeGroupCycle;
-        inPktGroups[iCycle].Free();
-        freeGroupCycle = iCycle < 64 ? iCycle : 0;
-        for (int i = 0; i < 64; ++i)
-        {
-            NetPacket* pPacket = inQueue.PopFront();
-            if (!pPacket)
-            {
-                break;
-            }
-            pPacket->Free();
-        }
-    }
-    else
-    {
-        inQueue.Free();
-        for (int i = 0; i < MAX_DESTS; ++i)
-        {
-            netDests[i].outQueue.Free();
-        }
-        for (int i = 0; i < 64; ++i)
-        {
-            inPktGroups[i].Free();
-        }
-    }
-}
-
-// FUNCTION: SWBF2 0x005b3b60
-void NetDrag::FreePackets()
-{
-    for (int i = 0; i < 3; ++i)
-    {
-        bandwidthQueue[i].Free();
-    }
-    latencyQueue.Free();
-    lossQueue.Free();
-    localQueue.Free();
-}
-
-// FUNCTION: SWBF2 0x0053e0a0
-void NetPktGroup::Write(bool bValue)
-{
-    WriteBits(bValue != 0, 1);
-}
-
-// FUNCTION: SWBF2 0x0053e0c0
-void NetPktGroup::Read(bool& bValue)
-{
-    unsigned int uValue = 0;
-    ReadBits(uValue, 1);
-    bValue = uValue != 0;
-}
 
 // FUNCTION: SWBF2 0x0053e0f0
 void NetPktGroup::Write(const float& fValue)
@@ -203,6 +56,21 @@ NetPktGroup freeSmallPackets;
 // GLOBAL: SWBF2 0x01e65054
 unsigned int NetPacket::sNextSeqNo;
 
+inline void SetCompressed(NetPacket* packet, bool compressed)
+{
+    NetComm::Header(packet).compressed = compressed;
+}
+
+inline int GetNumSmall(const NetPacket* packet)
+{
+    int index = (int)(static_cast<const NetSmallPacket*>(packet) - netSmallPackets);
+    if (index >= 0 && index < MAX_SMALL_PACKETS)
+    {
+        return index;
+    }
+    return -1;
+}
+
 // FUNCTION: SWBF2 0x005d8df0
 NetPacket* NetPacket::Alloc(bool bSmall)
 {
@@ -216,11 +84,15 @@ NetPacket* NetPacket::Alloc(bool bSmall)
         pPacket = freePackets.PopFront();
         if (!pPacket)
         {
-            NetRejectCount(NET_REJECT_POOL_EXHAUSTED);
-            LOG(LogNet, Fatal, "net packet pool exhausted (%s big=%d small=%d)",
-                bSmall ? "small" : "big", freeBigPackets.pktCount, freeSmallPackets.pktCount);
-            pcCrash::Exit(3);
-            return 0;
+            for (int i = 0; i < _countof(netBigPackets); ++i)
+            {
+                freeBigPackets.PushBack(&netBigPackets[i]);
+            }
+            for (int i = 0; i < _countof(netSmallPackets); ++i)
+            {
+                freeSmallPackets.PushBack(&netSmallPackets[i]);
+            }
+            pPacket = freePackets.PopFront();
         }
     }
     PblAsanUnpoison(pPacket, bSmall ? sizeof(NetSmallPacket) : sizeof(NetBigPacket));
@@ -247,12 +119,15 @@ NetPacket* NetPacket::AllocRecv(bool bSmall)
 // FUNCTION: SWBF2 0x005d8f60
 void NetPacket::BeginWrite()
 {
-    NetComm::PktHeader& kHeader = NetComm::Header(this);
-    memset(&kHeader, 0, sizeof(kHeader));
-    kHeader.group = 0xffff;
+    const int iSmall = GetNumSmall(this);
+    unsigned int* headerWords = (unsigned int*)mData;
+    headerWords[0] = 0;
+    headerWords[1] = 0;
+    SetCompressed(this, false);
+    NetComm::Header(this).group = 0xffff;
     mDataIndex = 14;
-    mMaxIndex = (short)(GetNum() >= MAX_BIG_PACKETS ? 116 : 1012);
-    mCurIndex = 14;
+    mMaxIndex = mDataIndex + (iSmall >= 0 ? 102 : 998);
+    mCurIndex = mDataIndex;
 }
 
 // FUNCTION: SWBF2 0x005d8d80
@@ -261,11 +136,11 @@ void NetPacket::Create()
     freeBigPackets.Reset();
     freeSmallPackets.Reset();
 
-    for (int i = 0; i < MAX_BIG_PACKETS; i++)
+    for (unsigned int i = 0; i < MAX_BIG_PACKETS; i++)
     {
         freeBigPackets.PushBack(NetPacket::Get(i));
     }
-    for (int i = MAX_BIG_PACKETS; i < MAX_BIG_PACKETS + MAX_SMALL_PACKETS; i++)
+    for (unsigned int i = MAX_BIG_PACKETS; i < MAX_BIG_PACKETS + MAX_SMALL_PACKETS; i++)
     {
         freeSmallPackets.PushBack(NetPacket::Get(i));
     }
@@ -277,7 +152,7 @@ void NetPacket::Create()
 int NetPacket::GetNum() const
 {
     const int iSmall = (int)((NetSmallPacket const*)this - netSmallPackets);
-    if ((unsigned int)iSmall < (unsigned int)MAX_SMALL_PACKETS)
+    if ((unsigned int)iSmall <= (unsigned int)(MAX_SMALL_PACKETS - 1))
     {
         return iSmall + MAX_BIG_PACKETS;
     }
@@ -540,58 +415,59 @@ void NetPktGroup::ReadBits(unsigned int& uValue, int iBits)
 // FUNCTION: SWBF2 0x005d9790
 void NetPktGroup::WriteFixed(float f, float fMin, float fMax, int iBits)
 {
-    if (doHiRes || iBits >= 32)
+    if (doHiRes)
     {
-        WriteBits(*(unsigned int*)&f, 32);
+        WriteBits(*(const unsigned int*)&f, 32);
         return;
     }
+    if (iBits >= 32)
+    {
+        WriteBits(*(const unsigned int*)&f, 32);
+        return;
+    }
+    unsigned int uValue;
     if (f <= fMin)
     {
-        WriteBits(0, iBits);
+        uValue = 0;
     }
     else if (f >= fMax)
     {
-        WriteBits(0xffffffff, iBits);
+        uValue = 0xffffffff;
     }
     else
     {
-        WriteBits((unsigned int)((float)(unsigned int)((1 << iBits) - 2) * ((f - fMin) / (fMax - fMin)) + 0.5f), iBits);
+        uValue = (unsigned int)((float)(unsigned int)((1 << iBits) - 2) * ((f - fMin) / (fMax - fMin)) + 0.5f);
     }
+    WriteBits(uValue, iBits);
 }
 
 // FUNCTION: SWBF2 0x005d9860
 void NetPktGroup::ReadFixed(float& f, float fMin, float fMax, int iBits)
 {
-    if (bad)
+    if (doHiRes)
     {
-        f = 0.0f;
+        ReadBits(*(unsigned int*)&f, 32);
         return;
     }
-    if (doHiRes || iBits >= 32)
+    if (iBits >= 32)
     {
         ReadBits(*(unsigned int*)&f, 32);
         return;
     }
     unsigned int uValue;
     ReadBits(uValue, iBits);
-    if (bad)
-    {
-        f = 0.0f;
-        return;
-    }
-    const unsigned int uMax = (1 << iBits) - 1;
     if (uValue == 0)
     {
         f = fMin;
+        return;
     }
-    else if (uValue == uMax)
+    if (uValue == (unsigned int)((1 << iBits) - 1))
     {
         f = fMax;
+        return;
     }
-    else
-    {
-        f = (float)uValue / (float)(uMax - 1) * (fMax - fMin) + fMin;
-    }
+    f = (float)uValue / (float)(unsigned int)((1 << iBits) - 2) *
+        (fMax - fMin) + fMin;
 }
 
 // FUNCTION: SWBF2 0x005d9920
@@ -626,7 +502,7 @@ void NetPktGroupClampFixed(float& f, float fMin, float fMax, int iBits)
     }
     else
     {
-        f = (float)uValue / (float)(uMax - 1) * (fMax - fMin) + fMin;
+        f = (float)uValue / (float)(unsigned int)((1 << iBits) - 2) * (fMax - fMin) + fMin;
     }
 }
 
@@ -706,16 +582,8 @@ void NetPktGroup::ReadBytes(char* pData, int iLen)
 void NetPacket::Free()
 {
     mCurIndex = 0;
-    if (GetNum() >= MAX_BIG_PACKETS)
-    {
-        freeSmallPackets.PushFront(this);
-        PblAsanPoison(this, sizeof(NetSmallPacket));
-    }
-    else
-    {
-        freeBigPackets.PushFront(this);
-        PblAsanPoison(this, sizeof(NetBigPacket));
-    }
+    NetPktGroup& freePackets = GetNumSmall(this) >= 0 ? freeSmallPackets : freeBigPackets;
+    freePackets.PushFront(this);
 }
 
 // FUNCTION: SWBF2 0x005d8f40
@@ -735,23 +603,27 @@ bool NetPacket::Write(unsigned char value)
 // FUNCTION: SWBF2 0x005d9010
 bool NetPacket::Read(unsigned char& value)
 {
-    if (mCurIndex + 1 > mMaxIndex)
+    int iByte = mCurIndex;
+    if (iByte + 1 > mMaxIndex)
     {
         return false;
     }
-    value = mData[mCurIndex++];
+    value = mData[iByte];
+    mCurIndex += 1;
     return true;
 }
 
 // FUNCTION: SWBF2 0x005d9040
 bool NetPacket::Write(unsigned short value)
 {
-    if (mCurIndex + 2 > mMaxIndex)
+    const int iByte = mCurIndex;
+    if (iByte + 2 > mMaxIndex)
     {
         return false;
     }
-    mData[mCurIndex] = (char)value;
-    mData[mCurIndex + 1] = (char)(value >> 8);
+    const char* pSrc = (const char*)&value;
+    mData[iByte] = pSrc[0];
+    mData[iByte + 1] = pSrc[1];
     mCurIndex += 2;
     return true;
 }
@@ -759,16 +631,17 @@ bool NetPacket::Write(unsigned short value)
 // FUNCTION: SWBF2 0x005d9200
 void NetPktGroup::Set(NetPacket* pPkt)
 {
-    bad = false;
-    firstPkt = pPkt->GetNum();
+    const int iFirst = pPkt->GetNum();
     pktCount = 1;
-    lastPkt = firstPkt;
+    firstPkt = iFirst;
+    int last = iFirst;
     while (pPkt->mNextPkt != -1)
     {
-        lastPkt = pPkt->mNextPkt;
-        pPkt = NetPacket::Get(lastPkt);
         ++pktCount;
+        last = pPkt->mNextPkt;
+        pPkt = NetPacket::Get(last);
     }
+    lastPkt = last;
 }
 
 // FUNCTION: SWBF2 0x005d92a0
@@ -778,7 +651,11 @@ bool NetPktGroup::IsEnd() const
     {
         return true;
     }
-    return pktPtr->GetNum() == lastPkt && pktPtr->mCurIndex >= pktPtr->mMaxIndex;
+    if (pktPtr->GetNum() != lastPkt)
+    {
+        return false;
+    }
+    return pktPtr->mCurIndex >= pktPtr->mMaxIndex;
 }
 
 // FUNCTION: SWBF2 0x005d92d0
@@ -830,13 +707,13 @@ PBL_ASAN_NO_SANITIZE void NetPktGroup::PushFront(NetPacket* pPkt)
 {
     int num = pPkt->GetNum();
     pPkt->mNextPkt = (short)firstPkt;
-    if (pktCount)
+    if (pktCount == 0)
     {
-        NetPacket::Get(firstPkt)->mPrevPkt = (short)num;
+        lastPkt = num;
     }
     else
     {
-        lastPkt = num;
+        NetPacket::Get(firstPkt)->mPrevPkt = (short)num;
     }
     firstPkt = num;
     pPkt->mPrevPkt = -1;
@@ -861,8 +738,8 @@ NetPacket* NetPktGroup::PopBack()
     {
         NetPacket::Get(lastPkt)->mNextPkt = -1;
     }
-    pPkt->mNextPkt = -1;
     pPkt->mPrevPkt = -1;
+    pPkt->mNextPkt = -1;
     return pPkt;
 }
 
@@ -879,11 +756,12 @@ void NetPktGroup::Remove(NetPacket* pPkt)
         PopBack();
         return;
     }
-    NetPacket::Get(pPkt->mNextPkt)->mPrevPkt = pPkt->mPrevPkt;
-    NetPacket::Get(pPkt->mPrevPkt)->mNextPkt = pPkt->mNextPkt;
+    NetPacket* next = NetPacket::Get(pPkt->mNextPkt);
+    NetPacket* prev = NetPacket::Get(pPkt->mPrevPkt);
+    prev->mNextPkt = pPkt->mNextPkt;
+    next->mPrevPkt = pPkt->mPrevPkt;
     --pktCount;
-    pPkt->mNextPkt = -1;
-    pPkt->mPrevPkt = -1;
+    pPkt->mNextPkt = pPkt->mPrevPkt = -1;
 }
 
 // FUNCTION: SWBF2 0x005d9b40
@@ -907,7 +785,11 @@ void NetPktGroup::Tell(NetPktGroupOffset& offset)
 // FUNCTION: SWBF2 0x005d9280
 int NetPktGroup::GetBytes()
 {
-    return pktPtr ? pktPtr->mCurIndex + 998 * pktCount - 1012 : 0;
+    if (!pktPtr)
+    {
+        return 0;
+    }
+    return 998 * pktCount - 1012 + pktPtr->mCurIndex;
 }
 
 // FUNCTION: SWBF2 0x005d8de0
@@ -964,7 +846,7 @@ void NetPktGroup::Seek(const NetPktGroupOffset& offset)
 {
     bad = false;
     pktPtr = NetPacket::Get(firstPkt);
-    for (int i = 0; i < offset.pktNum; ++i)
+    for (int n = offset.pktNum; n; --n)
     {
         pktPtr = NetPacket::Get(pktPtr->mNextPkt);
     }
@@ -996,17 +878,17 @@ bool NetPacket::Read(unsigned short& value)
 }
 
 // FUNCTION: SWBF2 0x005d9570
-void __stdcall InsertLatencyPacketBefore(NetPacket* pBefore, NetPacket* pNew)
+void NetPktGroup::InsertBefore(NetPacket* pBefore, NetPacket* pNew)
 {
     pNew->mPrevPkt = pBefore->mPrevPkt;
     int iBefore = pBefore->GetNum();
     pNew->mNextPkt = (short)iBefore;
     int iNew = pNew->GetNum();
     pBefore->mPrevPkt = (short)iNew;
-    ++latencyQueue.pktCount;
-    if (latencyQueue.firstPkt == iBefore)
+    ++pktCount;
+    if (firstPkt == iBefore)
     {
-        latencyQueue.firstPkt = iNew;
+        firstPkt = iNew;
     }
     else
     {

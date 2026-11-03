@@ -30,7 +30,8 @@ public:
     {
     }
 
-    virtual ~SunFlareEffect();
+    // SYNTHETIC: SWBF2 0x0042d0d0
+    // SunFlareEffect::`scalar deleting destructor'
     virtual void Render(int value);
     virtual void Init();
     virtual void Cleanup();
@@ -64,6 +65,9 @@ public:
  
 
  
+ // VTABLE: SWBF2 0x00796a70 Thread
+ // VTABLE: SWBF2 0x00796aa0
+ // VTABLE: SWBF2 0x00796ab8 PblHandled
  class SunFlare : public FLEffectClass, public FLEffectObject
 {
     friend class SunFlareEffect;
@@ -73,7 +77,8 @@ public:
     struct Rect;
 
     template <class VERTEX>
-    void EmitSunRings(VERTEX*& pVertices, const PblVector3& vPosition, float fTexU, float fTexV) const;
+    void EmitSunRings(VERTEX*& pVertices, const PblVector3& vPosition, float radius,
+                      float fTexU, float fTexV) const;
 
     SunFlare();
     SunFlare(const SunFlare& that);

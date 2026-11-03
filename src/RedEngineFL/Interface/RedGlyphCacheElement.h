@@ -95,7 +95,7 @@ public:
 
     static Quad s_aQuads[512];
 
-    RedFont* m_pFont;
+    const RedFont* m_pFont;
     BlendModeT m_eBlendMode;
     TextStyleT m_eStyle;
     unsigned int* m_puiNumGlyphs;

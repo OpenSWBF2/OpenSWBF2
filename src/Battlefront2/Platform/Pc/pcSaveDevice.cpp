@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+// STRING: SWBF2 0x007965c0
 unsigned short* SAVE_DIRECTORY = (unsigned short*)L"SaveGames";
 
 // GLOBAL: SWBF2 0x007886c0

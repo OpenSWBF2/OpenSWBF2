@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "EntityProp.h"
@@ -42,16 +44,16 @@ public:
     virtual ~EntityPropAnimatedClass();
     virtual EntityClass* Derive(unsigned int uHash);
     virtual Entity* Build(const EntityDesc& desc);
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
 
     bool InitAnimations(const char* pszName);
     bool SetupAnimation(ZephyrPoseDyn<32>& kPose, int iAnim, float fTime, bool bLoop);
 
     static PblHash rttiHashEntityPropAnimatedClass;
-    static char rttiNameEntityPropAnimatedClass[];
+    static const char rttiNameEntityPropAnimatedClass[];
 
     ZephyrAnim* mAnimations[5];
     RedAnimation* mAnimObj;
@@ -76,7 +78,10 @@ public:
  
  
 
-// VTABLE: SWBF2 0x0079c9e0
+// VTABLE: SWBF2 0x0079c9e0 EntityEx
+// VTABLE: SWBF2 0x0079c90c RedSceneObject
+// VTABLE: SWBF2 0x0079c974 CollisionObject
+// VTABLE: SWBF2 0x0079c9c8
 class EntityPropAnimated : public EntityProp, public Thread
 {
 public:
@@ -97,7 +102,7 @@ public:
     void SetAnimation(unsigned int uAnimationId, bool bLoop);
 
     static PblHash rttiHashEntityPropAnimated;
-    static char rttiNameEntityPropAnimated[];
+    static const char rttiNameEntityPropAnimated[];
 
     EntityPropAnimatedClass* mAnimatedClass;
     float mAnimationTime;
@@ -129,3 +134,47 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x004db370
+inline bool EntityPropAnimatedClass::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashEntityPropAnimatedClass == uRtti)
+    {
+        return true;
+    }
+    return EntityPropClass::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x004db2a0
+inline bool EntityPropAnimated::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashEntityPropAnimated == uRtti)
+    {
+        return true;
+    }
+    return EntityProp::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x004db3a0
+inline unsigned int EntityPropAnimatedClass::GetDerivedRtti() const
+{
+    return rttiHashEntityPropAnimatedClass;
+}
+
+// FUNCTION: SWBF2 0x004db3b0
+inline const char* EntityPropAnimatedClass::GetDerivedRttiName() const
+{
+    return rttiNameEntityPropAnimatedClass;
+}
+
+// FUNCTION: SWBF2 0x004db2f0
+inline unsigned int EntityPropAnimated::GetDerivedRtti() const
+{
+    return rttiHashEntityPropAnimated;
+}
+
+// FUNCTION: SWBF2 0x004db300
+inline const char* EntityPropAnimated::GetDerivedRttiName() const
+{
+    return rttiNameEntityPropAnimated;
+}

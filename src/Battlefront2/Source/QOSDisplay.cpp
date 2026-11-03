@@ -26,7 +26,7 @@ extern float netSecondsPerTurn;
 extern unsigned int clientTurnNumber;
 extern int netTurnsPerSecond;
 extern int clientAhead;
-extern int clientHostTurnNumber;
+extern unsigned int clientHostTurnNumber;
 extern int clientUpdateCount;
 extern bool netIsClient;
 
@@ -48,35 +48,45 @@ const int QosValue20[3] = { 8, 6, 4 };
 // GLOBAL: SWBF2 0x01faa210
 QOSDisplayThread* displayThread;
 
-// GLOBAL: SWBF2 0x01f39d90
 // SYNTHETIC: SWBF2 0x00406100
 // `dynamic initializer for 'msgGroup''
 // SYNTHETIC: SWBF2 0x007693f0
 // `dynamic atexit destructor for 'msgGroup''
+
+// GLOBAL: SWBF2 0x01f39d90
+// msgGroup
 RedScreenGroupElement msgGroup;
-// GLOBAL: SWBF2 0x01f39e30
 // SYNTHETIC: SWBF2 0x00406120
 // `dynamic initializer for 'hostQosText''
 // SYNTHETIC: SWBF2 0x00769400
 // `dynamic atexit destructor for 'hostQosText''
+
+// GLOBAL: SWBF2 0x01f39e30
+// hostQosText
 RedTextElement hostQosText;
-// GLOBAL: SWBF2 0x01f39fb0
 // SYNTHETIC: SWBF2 0x00406140
 // `dynamic initializer for 'clientQosText1''
 // SYNTHETIC: SWBF2 0x00769410
 // `dynamic atexit destructor for 'clientQosText1''
+
+// GLOBAL: SWBF2 0x01f39fb0
+// clientQosText1
 RedTextElement clientQosText1;
-// GLOBAL: SWBF2 0x01f39ef0
 // SYNTHETIC: SWBF2 0x00406160
 // `dynamic initializer for 'clientQosText2''
 // SYNTHETIC: SWBF2 0x00769420
 // `dynamic atexit destructor for 'clientQosText2''
+
+// GLOBAL: SWBF2 0x01f39ef0
+// clientQosText2
 RedTextElement clientQosText2;
-// GLOBAL: SWBF2 0x01f3a070
 // SYNTHETIC: SWBF2 0x00406180
 // `dynamic initializer for 'QosIcon''
 // SYNTHETIC: SWBF2 0x00769430
 // `dynamic atexit destructor for 'QosIcon''
+
+// GLOBAL: SWBF2 0x01f3a070
+// QosIcon
 RedBitmapElement QosIcon;
 
 // FUNCTION: SWBF2 0x0062e270

@@ -1,8 +1,11 @@
 #pragma once
 
+#include <stddef.h>
 #include "PblListSingle.h"
 
-class PblListSingleSorted : public PblListSingle
+// SYNTHETIC: SWBF2 0x00748bf0
+// PblListSingleSorted::~PblListSingleSorted
+class PblListSingleSorted : protected PblListSingle
 {
 public:
     enum Flags
@@ -13,11 +16,27 @@ public:
     class Node
     {
     public:
-
         explicit Node(float fSortValue) : mSortValue(fSortValue) {}
+
+        void* GetObjectA(const PblListSingleSorted* pList, unsigned int uiOffset) const;
 
         float mSortValue;
         PblListSingle::Node mNode;
+    };
+
+    class Itor : public PblListSingle::Itor
+    {
+    public:
+        Itor(const PblListSingleSorted* pList) : PblListSingle::Itor(pList) {}
+        Itor(const PblListSingleSorted& rList) : PblListSingle::Itor(rList) {}
+
+        Node* GetNode(const PblListSingleSorted* pList)
+        {
+            PblListSingle::Node* pNode = PblListSingle::Itor::GetNode();
+            return pNode == static_cast<const PblListSingle*>(pList)->GetTerminator()
+                ? const_cast<Node*>(pList->GetTerminator())
+                : (Node*)((char*)pNode - offsetof(Node, mNode));
+        }
     };
 
     explicit PblListSingleSorted(bool bSortOnAdd)
@@ -27,10 +46,45 @@ public:
 
     const Node* GetTerminator() const { return (const Node*)this; }
 
-    void Add(Node* pNode);
+    Node* GetFirst() const
+    {
+        PblListSingle::Node* pNode = PblListSingle::GetFirst();
+        return pNode == PblListSingle::GetTerminator()
+            ? (Node*)pNode
+            : (Node*)((char*)pNode - offsetof(Node, mNode));
+    }
 
+    // FUNCTION: SWBF2 0x00748c00
+    void Add(Node* pNode)
+    {
+        if (mFlags & flags_sortOnAdd)
+        {
+            for (Itor itor(this); ; ++itor)
+            {
+                Node* const pCur = itor.GetNode(this);
+                if (pCur == GetTerminator())
+                {
+                    break;
+                }
+                if (pCur->mSortValue > pNode->mSortValue)
+                {
+                    PblListSingle::AddAfter(&pCur->mNode, &pNode->mNode);
+                    return;
+                }
+            }
+            PblListSingle::AddLast(&pNode->mNode);
+        }
+        else
+        {
+            PblListSingle::AddLast(&pNode->mNode);
+        }
+    }
+
+private:
     unsigned char mFlags;
 };
 
- 
- 
+inline void* PblListSingleSorted::Node::GetObjectA(const PblListSingleSorted* pList, unsigned int uiOffset) const
+{
+    return this == pList->GetTerminator() ? 0 : (char*)this - uiOffset;
+}

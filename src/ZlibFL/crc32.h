@@ -1,3 +1,5 @@
+// GLOBAL: SWBF2 0x0076d640
+// crc_table
 local const unsigned long FAR crc_table[TBLS][256] =
 {
   {

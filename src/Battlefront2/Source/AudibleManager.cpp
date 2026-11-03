@@ -87,7 +87,7 @@ void AudibleManager::UpdateAudience(Controller* pController)
             }
 
             UnitController* pUnit = static_cast<UnitController*>(it->mCtrl);
-            AI::UnitThreatManager& threats = *reinterpret_cast<AI::UnitThreatManager*>(pUnit->mThreatManager);
+            AI::UnitThreatManager& threats = pUnit->mThreatManager;
             if (vDelta.x * vDelta.x + vDelta.y * vDelta.y + vDelta.z * vDelta.z > 9.0f)
             {
                 threats.AudibleResult(pController->mOwner->GetGameObject());
@@ -107,7 +107,8 @@ void AudibleManager::UpdateAudience(Controller* pController)
     }
 }
 
-namespace AudibleManager {
+namespace AudibleManager
+{
 
 // FUNCTION: SWBF2 0x00447fe0
 void Reset()

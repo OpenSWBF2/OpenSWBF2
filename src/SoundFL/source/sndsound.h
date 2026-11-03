@@ -135,10 +135,6 @@ public:
         SourceBus::Stop(this);
         VoiceVirtual::Stop();
         mProperties = 0;
-        if (mNode.mNext)
-        {
-            mNode.Remove();
-        }
     }
 
     Properties* mProperties;

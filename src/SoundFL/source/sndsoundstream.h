@@ -3,6 +3,7 @@
 #include <stddef.h>
 
 #include "PebbleFL/Common/PblListDoubleSorted.h"
+#include "PebbleFL/Common/PblVector.h"
 #include "sndobjectweightlist.h"
 #include "sndsoundproperties.h"
 #include "sndsource2d3d.h"
@@ -11,7 +12,6 @@
 #include "sndstreambase.h"
 #include "sndvoicevirtualbus.h"
 
-class PblVector3;
 
 namespace Snd
 {
@@ -28,6 +28,7 @@ public:
     ~SoundStream();
 
     void SetProperties(const Properties* pProps);
+    const Properties* GetProperties() const;
 
     void Play(bool bQueue);
 
@@ -43,8 +44,8 @@ public:
 
         Properties* mProperties;
 
-        unsigned char mPos[12];
-        unsigned char mVel[12];
+        PblVector3 mPos;
+        PblVector3 mVel;
 
         float mPitch;
         float mGain;
@@ -60,10 +61,11 @@ public:
 
 private:
 
-    static FireForget* __cdecl GetFireForget(unsigned int uiIndex);
+    static FireForget* __cdecl GetFireForget(const unsigned int streamIndex);
 
-    static FireForget* __cdecl AllocFireForget(unsigned int uiIndex, float fPriority, bool bNoSteal);
-public:
+    static FireForget* __cdecl AllocFireForget(const unsigned int streamIndex, const float priority,
+                                               const bool is3D);
+    static void __cdecl FreeFireForget(const unsigned int streamIndex, FireForget* const fireForget);
 
     static unsigned int smCount[6];
     static Properties* smPlayingProps[6];
@@ -122,11 +124,32 @@ public:
 
  
 
+// FUNCTION: SWBF2 0x004fb890
+inline SoundStream::SoundStream()
+    : VoiceVirtualBus(0, 0, true),
+      mProperties(0),
+      mInfo(0)
+{
+    smList.AddLast(&mNode);
+}
+
+// FUNCTION: SWBF2 0x004fb920
+inline SoundStream::~SoundStream()
+{
+    mInfo = 0;
+    mProperties = 0;
+}
+
 inline void SoundStream::SetProperties(const Properties* pProps)
 {
     mInfo = 0;
     pProps->SetupSoundStream(this);
     mProperties = pProps;
+}
+
+inline const SoundStream::Properties* SoundStream::GetProperties() const
+{
+    return mProperties;
 }
 
  

@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "pcNormalShader.h"
 
 #include "PebbleFL/Common/PblChunk.h"
@@ -26,7 +27,11 @@
 #include "RedEngineFL/Graphics/RedCamera.h"
 #include "PebbleFL/pc/PblD3DX.h"
 
+// GLOBAL: SWBF2 0x007846d0
+// __xmm@3f8000003e4ccccd3e4ccccd3e4ccccd
+
 void __cdecl PblTraceP(const char* Format, ...);
+
 
 unsigned int pcNormalShader::s_uiID;
 pcRedShader::GetStateFuncT pcNormalShader::GetStateFuncArray[MAX_PIPELINES];
@@ -53,18 +58,10 @@ D3DMATERIAL9 s_d3dMat;
 // FUNCTION: SWBF2 0x006fe7e0
 pcNormalShader::pcNormalShader()
 {
-    GetStateFuncArray[PIPELINE_FIXED] = 0;
-    GetStateFuncArray[PIPELINE_PROG1] = 0;
-    GetStateFuncArray[PIPELINE_PROG2] = 0;
-    BeginFuncArray[PIPELINE_FIXED] = 0;
-    BeginFuncArray[PIPELINE_PROG1] = 0;
-    BeginFuncArray[PIPELINE_PROG2] = 0;
-    EndFuncArray[PIPELINE_FIXED] = 0;
-    EndFuncArray[PIPELINE_PROG1] = 0;
-    EndFuncArray[PIPELINE_PROG2] = 0;
-    RenderFuncArray[PIPELINE_FIXED] = 0;
-    RenderFuncArray[PIPELINE_PROG1] = 0;
-    RenderFuncArray[PIPELINE_PROG2] = 0;
+    memset(GetStateFuncArray, 0, sizeof(GetStateFuncArray));
+    memset(BeginFuncArray, 0, sizeof(BeginFuncArray));
+    memset(EndFuncArray, 0, sizeof(EndFuncArray));
+    memset(RenderFuncArray, 0, sizeof(RenderFuncArray));
 
     s_uiID = _Register(s_uiRenderTypeHash, this);
 
@@ -91,20 +88,20 @@ pcRedShaderDef* pcNormalShader::GetShaderDef() const
     return &s_shaderDef;
 }
 
-// GLOBAL: SWBF2 0x00784668
-static const pcRedShaderDef::FixedFunctionStateT kFixedFunctionStates[5] =
-{
-    { 1, { 0x42, 0x00, 0x00, 0x00 } },
-    { 1, { 0x42, 0x00, 0x00, 0x00 } },
-    { 2, { 0x42, 0x21, 0x00, 0x00 } },
-    { 1, { 0x42, 0x00, 0x00, 0x00 } },
-    { 2, { 0x42, 0x21, 0x00, 0x00 } },
-};
-
 // FUNCTION: SWBF2 0x006ff990
 void pcNormalShader::InitFixedFunctionShaderDef() const
 {
-    GetShaderDef()->InitFixedFunction(0x28, 5, kFixedFunctionStates);
+    // GLOBAL: SWBF2 0x00784668
+    static const pcRedShaderDef::FixedFunctionStateT aFFStates[5] =
+    {
+        { 1, { 0x42, 0x00, 0x00, 0x00 } },
+        { 1, { 0x42, 0x00, 0x00, 0x00 } },
+        { 2, { 0x42, 0x21, 0x00, 0x00 } },
+        { 1, { 0x42, 0x00, 0x00, 0x00 } },
+        { 2, { 0x42, 0x21, 0x00, 0x00 } },
+    };
+
+    GetShaderDef()->InitFixedFunction(0x28, 5, aFFStates);
 }
 
 // FUNCTION: SWBF2 0x007011d0
@@ -326,7 +323,7 @@ bool s_bDetailTextureTransformPrev;
 class PblMatrix;
 extern PblMatrix gMatrixIdentity;
 
-void* RedShadingState::operator new(size_t uiSize)
+inline void* RedShadingState::operator new(unsigned int uiSize)
 {
     return sMemoryPool.Allocate(uiSize);
 }
@@ -337,13 +334,7 @@ void RedShadingState::operator delete(void* pBlock)
     sMemoryPool.Free(pBlock);
 }
 
-RedShadingState::RedShadingState(unsigned int uiRenderTypeHash)
-{
-    m_uiRenderTypeHash = uiRenderTypeHash;
-    m_uiNumValues = 0;
-    m_ParamHash.Clear();
-    m_ParamHashNumEntries = 0;
-}
+
 
 // SYNTHETIC: SWBF2 0x006fe9b0
 // RedShadingState::`scalar deleting destructor'
@@ -609,9 +600,11 @@ void pcNormalShader::RenderZPrepass(const RenderItem* pItem) const
     pItem->pPrim->Draw();
 }
 
-// GLOBAL: SWBF2 0x009c92a4
 // SYNTHETIC: SWBF2 0x00409850
 // `dynamic initializer for 'kuiLinearRamp''
+
+// GLOBAL: SWBF2 0x009c92a4
+// kuiLinearRamp
 static unsigned int kuiLinearRamp = PblHash("linear_ramp");
 
 // FUNCTION: SWBF2 0x006fea10
@@ -760,7 +753,7 @@ void pcNormalShader::Begin_Fixed(unsigned int uiState, unsigned int uiPass) cons
         mShadow.m[2][0] = vU.z; mShadow.m[2][1] = vV.z; mShadow.m[2][2] = vW.z; mShadow.m[2][3] = 0.0f;
         mShadow.m[3][0] = vU.w; mShadow.m[3][1] = vV.w; mShadow.m[3][2] = vW.w; mShadow.m[3][3] = 1.0f;
         PblMatrix mTexture;
-        D3DXMatrixMultiply(&mTexture, &mCamera, &mShadow);
+        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mTexture), reinterpret_cast<const D3DXMATRIX*>(&mCamera), reinterpret_cast<const D3DXMATRIX*>(&mShadow));
         RedRenderer::pcFFSetTextureTransform(1, mTexture);
 
         RedRenderer::pcSetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
@@ -1343,6 +1336,7 @@ void pcNormalShader::UpdateAnimation()
     }
     else if (m_material.materialFlags & 0x2000000)
     {
+        // GLOBAL: SWBF2 0x009c94dc
         static float s_fBlinkScale = PblMath::fTwoPi * 10.0f * kInv255;
         const float fSin = PblMath::Sin(pAnim->blinkRate * s_fBlinkScale * fTime) * 0.5f + 0.5f;
         const float fIntensity = pAnim->minIntensity * kInv255 * (1.0f - fSin) + fSin;
@@ -1353,6 +1347,7 @@ void pcNormalShader::UpdateAnimation()
 
     if (m_material.materialFlags & 0x8000000)
     {
+        // GLOBAL: SWBF2 0x009c94e4
         static RedColorValue s_minColor(0.2f, 0.2f, 0.2f, 1.0f);
         if (!m_material.animationData->attachedLight)
         {
@@ -1390,30 +1385,37 @@ void pcNormalShader::UpdateAnimation()
     transform.m_Transform[2][1] = fScrollV;
 }
 
-// GLOBAL: SWBF2 0x009c938c
 // SYNTHETIC: SWBF2 0x004097f0
 // `dynamic initializer for 'pcNormalShader::s_uiRenderTypeHash''
+
+// GLOBAL: SWBF2 0x009c938c
+// pcNormalShader::s_uiRenderTypeHash
 unsigned int pcNormalShader::s_uiRenderTypeHash = PblHash("Normal");
 
-// GLOBAL: SWBF2 0x009c92a8
 // SYNTHETIC: SWBF2 0x004097b0
 // `dynamic initializer for 'pcNormalShader::s_Factory''
 // SYNTHETIC: SWBF2 0x00769c30
 // `dynamic atexit destructor for 'pcNormalShader::s_Factory''
+
+// GLOBAL: SWBF2 0x009c92a8
+// pcNormalShader::s_Factory
 pcNormalShader pcNormalShader::s_Factory;
 
-// GLOBAL: SWBF2 0x009c934c
 // SYNTHETIC: SWBF2 0x004097d0
 // `dynamic initializer for 'pcNormalShader::s_shaderDef''
 // SYNTHETIC: SWBF2 0x00769c50
 // `dynamic atexit destructor for 'pcNormalShader::s_shaderDef''
+
+// GLOBAL: SWBF2 0x009c934c
+// pcNormalShader::s_shaderDef
 pcRedShaderDef pcNormalShader::s_shaderDef("normal_shader.xml");
 
 // SYNTHETIC: SWBF2 0x00409810
-// `dynamic initializer for 'PblMath::fOneOverHalfPi''
+// PblMath::`dynamic initializer for 'fOneOverHalfPi''
 
 // SYNTHETIC: SWBF2 0x00409830
-// `dynamic initializer for 'PblMath::fOneOverTwoPi''
+// PblMath::`dynamic initializer for 'fOneOverTwoPi''
 
 // GLOBAL: SWBF2 0x009c9268
+// g_pcNormalShader
 unsigned int g_pcNormalShader;

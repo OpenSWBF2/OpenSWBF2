@@ -18,39 +18,19 @@
 #include "RedEngineFL/Memory/RedMemory.h"
 #include "RedEngineFL/input/RedKeyboard.h"
 #include "PlayerController.h"
+#include "PebbleFL/Common/PblMath.h"
 
 // GLOBAL: SWBF2 0x007e6900
 HUD::Editor::Mode HUD::gEditMode = HUD::Editor::mode_Disabled;
 
 static const float EPSILON = 0.0001f;
 
-static inline int const Clamp(int iValue, int iMin, int iMax)
-{
-    if (iValue < iMin)
-    {
-        return iMin;
-    }
-    if (iValue > iMax)
-    {
-        return iMax;
-    }
-    return iValue;
-}
 
-static inline float const Clamp(float fValue, float fMin, float fMax)
-{
-    if (fValue < fMin)
-    {
-        return fMin;
-    }
-    if (fValue > fMax)
-    {
-        return fMax;
-    }
-    return fValue;
-}
 
-namespace HUD {
+
+
+namespace HUD
+{
 
 class EditHeap
 {
@@ -62,19 +42,18 @@ public:
             mHeap = RedSetCurrentHeap(gEditHeap);
         }
     }
-    ~EditHeap();
+    // FUNCTION: SWBF2 0x00544c70
+    ~EditHeap()
+    {
+        if (gEditHeap != -1)
+        {
+            RedSetCurrentHeap(mHeap);
+        }
+    }
 
     int mHeap;
 };
 
-// FUNCTION: SWBF2 0x00544c70
-EditHeap::~EditHeap()
-{
-    if (gEditHeap != -1)
-    {
-        RedSetCurrentHeap(mHeap);
-    }
-}
 }
 
 namespace FLRenderer
@@ -97,7 +76,7 @@ HUD::Editor::Editor()
 
     mSafeZone.Enable(false);
 
-    mScreenElement.m_bUseSafeZone = false;
+    mScreenElement.SetUseSafezone(false);
     mScreenElement.SetZOrder(0);
     mScreenElement.Enable(true);
     mScreenElement.AddElement(&mInfo);
@@ -147,7 +126,7 @@ void HUD::Editor::Enable(bool bEnable)
 
     if (bEnable)
     {
-        mScreenElement.m_bUseSafeZone = false;
+        mScreenElement.SetUseSafezone(false);
         FLRenderer::AddInterfaceElement(&mScreenElement,
                                         RedInterfaceScreen::LEFT,
                                         RedInterfaceScreen::TOP, true);
@@ -267,7 +246,7 @@ void HUD::Editor::Update(RawControllerInputs* const pInputs, float fDelta)
     {
         mInfo.SetFont("systemfont");
         mInfo.SetTextScale(0.8f, 0.8f);
-        for (int i = 0; i < 26; i++)
+        for (unsigned int i = 0; i < 26; i++)
         {
             mMenu[i].SetFont("systemfont");
             mMenu[i].SetTextScale(0.8f, 0.8f);
@@ -824,7 +803,7 @@ void HUD::Editor::HighlightElement(bool bHighlight)
 
     EditHeap heap;
     RedTextElement* pMenu = mMenu;
-    for (int i = 0; i < 26; i++)
+    for (unsigned int i = 0; i < 26; i++)
     {
         mMenu[i].SetText("", true);
         mMenu[i].Enable(false);
@@ -1071,7 +1050,7 @@ PblVector3 HUD::Editor::GetScreenElementPosition()
         fOffsetY = (float)RedInterfaceScreen::GetScreenHeight() * fOffsetY;
         PblMatrix mScreen = mElement->CalculateScreenMatrix();
         mInfo.SetMatrix(mScreen);
-        vPos = *(const PblVector3*)mScreen.m[3];
+        vPos = mScreen.GetTranslation();
         vPos.x -= fOffsetX;
         vPos.y -= fOffsetY;
     }
@@ -1224,7 +1203,7 @@ void HUD::Editor::SetMode(Mode eMode)
         EditHeap heap;
         if (mMode != mode_SelectProperty && mMode != mode_SelectElement)
         {
-            for (int i = 0; i < 26; i++)
+            for (unsigned int i = 0; i < 26; i++)
             {
                 mMenu[i].Enable(false);
                 mMenu[i].SetText("", true);

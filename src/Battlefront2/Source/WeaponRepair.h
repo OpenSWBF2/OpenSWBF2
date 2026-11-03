@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "Weapon.h"
@@ -15,13 +17,13 @@ public:
     virtual ~WeaponRepairClass();
 
     static PblHash rttiHashWeaponRepairClass;
-    static char rttiNameWeaponRepairClass[];
+    static const char rttiNameWeaponRepairClass[];
 
     virtual WeaponClass* Derive(unsigned int uHash);
     virtual Weapon* Build(const WeaponDesc& desc);
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
 
     float mShotDelay;
@@ -64,7 +66,7 @@ protected:
 public:
 
     static PblHash rttiHashWeaponRepair;
-    static char rttiNameWeaponRepair[];
+    static const char rttiNameWeaponRepair[];
 
     bool mFired;
 
@@ -75,3 +77,47 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x006905f0
+inline bool WeaponRepairClass::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashWeaponRepairClass == uRtti)
+    {
+        return true;
+    }
+    return WeaponClass::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x00690620
+inline unsigned int WeaponRepairClass::GetDerivedRtti() const
+{
+    return rttiHashWeaponRepairClass;
+}
+
+// FUNCTION: SWBF2 0x00690630
+inline const char* WeaponRepairClass::GetDerivedRttiName() const
+{
+    return rttiNameWeaponRepairClass;
+}
+
+// FUNCTION: SWBF2 0x006905a0
+inline bool WeaponRepair::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashWeaponRepair == uRtti)
+    {
+        return true;
+    }
+    return reinterpret_cast<const Weapon*>(this)->Weapon::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x006905d0
+inline unsigned int WeaponRepair::GetDerivedRtti() const
+{
+    return rttiHashWeaponRepair;
+}
+
+// FUNCTION: SWBF2 0x006905e0
+inline const char* WeaponRepair::GetDerivedRttiName() const
+{
+    return rttiNameWeaponRepair;
+}

@@ -54,31 +54,19 @@ bool AI::PatrolPath::ReadPropertyScope(PblConfig& config, PblConfig::Data& data,
 // FUNCTION: SWBF2 0x00615a40
 void AI::PatrolPath::SetReservingObject(const GameObject* pObj)
 {
-    mReservingObject.mObject = pObj;
-    mReservingObject.mSavedHandleId = pObj ? pObj->mHandleId : 0;
+    mReservingObject = pObj;
     mReservingTime = GameLoop::GetMissionTime();
 }
 
 // FUNCTION: SWBF2 0x00615a80
 const GameObject* AI::PatrolPath::GetReservingObject()
 {
-    const GameObject* pObject = mReservingObject.mObject;
-    if (pObject &&
-        (PBL_HANDLE_ID(pObject) != mReservingObject.mSavedHandleId
-         || GameLoop::GetMissionTime() - 8.0f > mReservingTime))
+    if (mReservingObject && GameLoop::GetMissionTime() - 8.0f > mReservingTime)
     {
-        mReservingObject.mSavedHandleId = 0;
-        mReservingObject.mObject = 0;
+        mReservingObject = 0;
     }
 
-    pObject = mReservingObject.mObject;
-    if (pObject && PBL_HANDLE_ID(pObject) != mReservingObject.mSavedHandleId)
-    {
-        mReservingObject.mObject = 0;
-        mReservingObject.mSavedHandleId = 0;
-        return 0;
-    }
-    return pObject;
+    return mReservingObject;
 }
 
 // FUNCTION: SWBF2 0x00615ae0
@@ -90,13 +78,12 @@ AIPath* AI::PatrolPath::GetAIPath()
         return 0;
     }
 
-    const int iNumPoints = GetNumPoints();
     if (GetSplineType() == RedPath::CatmullRom)
     {
-        for (int i = 0; i < iNumPoints - 1; ++i)
+        for (int i = 0; i < GetNumPoints() - 1; ++i)
         {
-            const PblVector3& p1 = *GetPointPosition(i);
-            const PblVector3& p2 = *GetPointPosition(i + 1);
+            const PblVector3 p1 = *GetPointPosition(i);
+            const PblVector3 p2 = *GetPointPosition(i + 1);
             PblVector3 p0, p3;
             if (i > 0)
             {
@@ -110,7 +97,7 @@ AIPath* AI::PatrolPath::GetAIPath()
                                   (const D3DXVECTOR3*)&delta);
                 p0 = PblVector3(p1.x - direction.x, p1.y - direction.y, p1.z - direction.z);
             }
-            if (i < iNumPoints - 2)
+            if (i < GetNumPoints() - 2)
             {
                 p3 = *GetPointPosition(i + 2);
             }
@@ -129,13 +116,14 @@ AIPath* AI::PatrolPath::GetAIPath()
                 pPath->Append(pos, 0);
             }
         }
-        pPath->Append(*GetPointPosition(iNumPoints - 1), 0);
+        pPath->Append(*GetPointPosition(GetNumPoints() - 1), 0);
     }
     else
     {
-        for (int i = 0; i < iNumPoints; ++i)
+        for (int i = 0; i < GetNumPoints(); ++i)
         {
-            pPath->Append(*GetPointPosition(i), 0);
+            const PblVector3 point = *GetPointPosition(i);
+            pPath->Append(point, 0);
         }
     }
     return pPath;

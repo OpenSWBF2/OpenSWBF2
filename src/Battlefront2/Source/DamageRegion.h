@@ -16,6 +16,7 @@ public:
         float shieldScale;
     };
 
+    // VTABLE: SWBF2 0x00798df8
     class UpdateThread : public Thread
     {
     public:

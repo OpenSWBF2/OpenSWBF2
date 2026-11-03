@@ -28,12 +28,12 @@ public:
 namespace
 {
 
-    unsigned int GameObjectHandleId(const GameObject* pObject)
+    inline unsigned int GameObjectHandleId(const GameObject* pObject)
     {
         return PBL_HANDLE_ID(pObject);
     }
 
-    Controllable* GetControllable(GameObject* pObject)
+    inline Controllable* GetControllable(GameObject* pObject)
     {
         typedef Controllable*(__thiscall * GetControllableFn)(GameObject*);
         return pObject->GetControllable();
@@ -46,38 +46,42 @@ namespace
     }
 }
 
-// GLOBAL: SWBF2 0x01ef2578
 // SYNTHETIC: SWBF2 0x004059f0
 // `dynamic initializer for 'Ordnance::rttiHashOrdnance''
-PblHash Ordnance::rttiHashOrdnance("Ordnance");
-char Ordnance::rttiNameOrdnance[] = "Ordnance";
+// Ordnance::rttiHashOrdnance
 
-// GLOBAL: SWBF2 0x01ef2574
+// GLOBAL: SWBF2 0x01ef2578
+// Ordnance::rttiHashOrdnance
+PblHash Ordnance::rttiHashOrdnance("Ordnance");
+// GLOBAL: SWBF2 0x0078a750
+// Ordnance::rttiNameOrdnance
+const char Ordnance::rttiNameOrdnance[] = "Ordnance";
+
 // SYNTHETIC: SWBF2 0x00405a00
 // `dynamic initializer for 'OrdnanceClass::rttiHashOrdnanceClass''
-PblHash OrdnanceClass::rttiHashOrdnanceClass("OrdnanceClass");
-char OrdnanceClass::rttiNameOrdnanceClass[] = "OrdnanceClass";
+// OrdnanceClass::rttiHashOrdnanceClass
 
-// GLOBAL: SWBF2 0x01ef25c0
+// GLOBAL: SWBF2 0x01ef2574
+// OrdnanceClass::rttiHashOrdnanceClass
+PblHash OrdnanceClass::rttiHashOrdnanceClass("OrdnanceClass");
+// GLOBAL: SWBF2 0x0078a740
+// OrdnanceClass::rttiNameOrdnanceClass
+const char OrdnanceClass::rttiNameOrdnanceClass[] = "OrdnanceClass";
+
 // SYNTHETIC: SWBF2 0x004059d0
 // `dynamic initializer for 'Ordnance::sMemoryPool''
 // SYNTHETIC: SWBF2 0x007691f0
 // `dynamic atexit destructor for 'Ordnance::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ef25c0
+// Ordnance::sMemoryPool
 MemoryPool Ordnance::sMemoryPool("Ordnance", 0x98);
 
 // FUNCTION: SWBF2 0x005f7e70
 OrdnanceClass::OrdnanceClass(unsigned int uHash)
-    : Factory<Ordnance, OrdnanceClass, OrdnanceDesc>(uHash)
+    : Factory<Ordnance, OrdnanceClass, OrdnanceDesc>(uHash),
+      mDamage(DamageOwner(0, 0, 0, 0, 0, 1.0f), 0.0f)
 {
-    DamageOwner owner(0, 0, 0, 0, 0, 1.0f);
-    mDamage.mDamageOwner = owner;
-    mDamage.mBaseValue = 0.0f;
-    for (int i = 0; i < 8; ++i)
-    {
-        mDamage.mHealthScale[i] = 1.0f;
-    }
-    mDamage.mShieldScale = 1.0f;
-
     mStrengthLimit = 0.0f;
     mNextCharge = this;
     mLifeSpan = FLT_MAX;
@@ -92,23 +96,11 @@ OrdnanceClass::OrdnanceClass(unsigned int uHash)
     mImpactExplosionEffect = 0;
 }
 
-// FUNCTION: SWBF2 0x005f71a0
-bool Ordnance::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashOrdnance;
-}
 
-// FUNCTION: SWBF2 0x005f71c0
-unsigned int Ordnance::GetDerivedRtti() const
-{
-    return rttiHashOrdnance;
-}
 
-// FUNCTION: SWBF2 0x005f71d0
-const char* Ordnance::GetDerivedRttiName() const
-{
-    return rttiNameOrdnance;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x005f71f0
 const PblVector3& Ordnance::GetPosition() const
@@ -144,38 +136,16 @@ void Ordnance::CreateRicochet(const PblVector3& vPos, const PblVector3& vNormal,
 {
 }
 
-// FUNCTION: SWBF2 0x005f7240
-GameObject* Ordnance::GetOwner() const
-{
-    PblHandle<GameObject>& owner = const_cast<PblHandle<GameObject>&>(mOwner);
-    if (owner.mObject && GameObjectHandleId(owner.mObject) != owner.mSavedHandleId)
-    {
-        owner.mObject = 0;
-        owner.mSavedHandleId = 0;
-    }
-    return owner.mObject;
-}
+
 
 // SYNTHETIC: SWBF2 0x005f7270
 // Ordnance::`scalar deleting destructor'
 
-// FUNCTION: SWBF2 0x005f72a0
-bool OrdnanceClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashOrdnanceClass;
-}
 
-// FUNCTION: SWBF2 0x005f72c0
-unsigned int OrdnanceClass::GetDerivedRtti()
-{
-    return rttiHashOrdnanceClass;
-}
 
-// FUNCTION: SWBF2 0x005f72d0
-const char* OrdnanceClass::GetDerivedRttiName()
-{
-    return rttiNameOrdnanceClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x005f72e0
 float OrdnanceClass::GetVelocity()
@@ -259,7 +229,7 @@ Ordnance::Ordnance(OrdnanceClass* pClass, const OrdnanceDesc& desc)
     {
         if (desc.mDamageOwner.mCharacter)
         {
-            desc.mDamageOwner.mCharacter->GetPlayerStats().AddShot();
+            Character::GetPlayerStats(desc.mDamageOwner.mCharacter).AddShot();
         }
     }
 
@@ -296,7 +266,7 @@ Ordnance::~Ordnance()
 }
 
 // SYNTHETIC: SWBF2 0x005f8ace
-// [thunk]:Ordnance::`vector deleting destructor' adjustor{24}
+// ??_EOrdnance@@WBI@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x005f7880
 void Ordnance::AddOrdnanceToCollisionManager()
@@ -425,14 +395,12 @@ bool Ordnance::CheckCollision()
 {
     const PblVector3 vStart = GetOldPosition();
     const PblVector3& vEnd = GetPosition();
-    PblVector3 vDir(vEnd.x - vStart.x, vEnd.y - vStart.y, vEnd.z - vStart.z);
+    PblVector3 vDir = vEnd - vStart;
     const float fDist = sqrtf(vDir.y * vDir.y + vDir.x * vDir.x + vDir.z * vDir.z);
     if (fDist > 0.0f)
     {
         const float fInv = 1.0f / fDist;
-        vDir.x *= fInv;
-        vDir.y *= fInv;
-        vDir.z *= fInv;
+        vDir *= fInv;
 
         CollisionObject* pHitObject = 0;
         PblVector3 vNormal;
@@ -442,8 +410,7 @@ bool Ordnance::CheckCollision()
         if (fHit < 1.0f)
         {
             const float fAlong = fHit * fDist;
-            PblVector3 vHit(vDir.x * fAlong + vStart.x, vDir.y * fAlong + vStart.y,
-                            vDir.z * fAlong + vStart.z);
+            PblVector3 vHit = vDir * fAlong + vStart;
             return !Collide(pHitObject, vHit, vNormal, CollisionManager::GetLastRayHitBodyId());
         }
     }
@@ -455,17 +422,9 @@ bool Ordnance::CheckCollision()
 
 // FUNCTION: SWBF2 0x005f7fe0
 OrdnanceClass::OrdnanceClass(OrdnanceClass* pBase, unsigned int uHash)
-    : Factory<Ordnance, OrdnanceClass, OrdnanceDesc>(pBase, uHash)
+    : Factory<Ordnance, OrdnanceClass, OrdnanceDesc>(pBase, uHash),
+      mDamage(DamageOwner(0, 0, 0, 0, 0, 1.0f), 0.0f)
 {
-    DamageOwner owner(0, 0, 0, 0, 0, 1.0f);
-    mDamage.mDamageOwner = owner;
-    mDamage.mBaseValue = 0.0f;
-    for (int i = 0; i < 8; ++i)
-    {
-        mDamage.mHealthScale[i] = 1.0f;
-    }
-    mDamage.mShieldScale = 1.0f;
-
     mStrengthLimit = pBase->mStrengthLimit;
     mNextCharge = this;
     mLifeSpan = pBase->mLifeSpan;
@@ -483,8 +442,10 @@ OrdnanceClass::OrdnanceClass(OrdnanceClass* pBase, unsigned int uHash)
     mSoundCollision = pBase->mSoundCollision;
 }
 
-// SYNTHETIC: SWBF2 0x005f8180
-// OrdnanceClass::~OrdnanceClass
+// FUNCTION: SWBF2 0x005f8180
+OrdnanceClass::~OrdnanceClass()
+{
+}
 
 // FUNCTION: SWBF2 0x005f81c0
 DamageDesc OrdnanceClass::GetDamage(const DamageOwner& owner, float fUnused, float fRatio,
@@ -724,7 +685,8 @@ void OrdnanceClass::SetProperty(unsigned int uProperty, const char* pszValue)
     }
 }
 
-// FUNCTION: SWBF2 0x005f89c0
+// TEMPLATE: SWBF2 0x005f89c0
+// Factory<Ordnance,OrdnanceClass,OrdnanceDesc>::Factory<Ordnance,OrdnanceClass,OrdnanceDesc>
 template Factory<Ordnance, OrdnanceClass, OrdnanceDesc>::Factory(OrdnanceClass*, unsigned int);
 
 // SYNTHETIC: SWBF2 0x005f8a80
@@ -732,6 +694,3 @@ template Factory<Ordnance, OrdnanceClass, OrdnanceDesc>::Factory(OrdnanceClass*,
 
 // SYNTHETIC: SWBF2 0x005fa200
 // OrdnanceBeamClass::`scalar deleting destructor'
-
-// SYNTHETIC: SWBF2 0x005fa2d0
-// OrdnanceBeamClass::~OrdnanceBeamClass

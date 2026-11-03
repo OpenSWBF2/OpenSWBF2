@@ -7,7 +7,10 @@
 #include "RedEngineFL/Util/ext/SubAllocator.h"
 #include "RedEngineFL/Util/ext/ListAllocator.h"
 
-namespace pvs { class IDisplayable; }
+namespace pvs
+{
+class IDisplayable;
+}
 
  
               

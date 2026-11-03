@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include <float.h>
 #include <string.h>
 
@@ -55,18 +56,14 @@ extern bool netTeamDamage;
 
 // FUNCTION: SWBF2 0x00488570
 DamageOwner::DamageOwner(Character* pCharacter, GameObject* pGameObject, int iTeam,
-                         EntityClass* pClass, WeaponClass* pWeapon, float fDamageMultiplier)
+                         const EntityClass* pClass, const WeaponClass* pWeapon, float fDamageMultiplier)
+    : mCharacter(pCharacter),
+      mGameObject(pGameObject),
+      mTeam(iTeam),
+      mClass(pClass),
+      mWeapon(pWeapon),
+      mDamageMultiplier(fDamageMultiplier)
 {
-    mCharacter = pCharacter;
-    mGameObject.mObject = pGameObject;
-    mGameObject.mSavedHandleId =
-        pGameObject
-            ? pGameObject->mHandleId
-            : 0;
-    mTeam = iTeam;
-    mClass = pClass;
-    mWeapon = pWeapon;
-    mDamageMultiplier = fDamageMultiplier;
 }
 
 // FUNCTION: SWBF2 0x004885c0
@@ -107,6 +104,7 @@ Damageable::~Damageable()
 // Damageable::`scalar deleting destructor'
 
 // GLOBAL: SWBF2 0x007e6328
+// Damageable::sSameTeamDamageScale
 float Damageable::sSameTeamDamageScale = 1.0f;
 
 // FUNCTION: SWBF2 0x004887b0
@@ -129,6 +127,7 @@ void Damageable::SetTeamDamageScale(float fScale)
     sSameTeamDamageScale = fScale;
 }
 
+
 extern PblVector3 gVectorZero;
 class PblMatrix;
 extern PblMatrix gMatrixIdentity;
@@ -145,93 +144,6 @@ template <>
 void Event<GameObject, DamageOwner>::Callback::Trigger(GameObject& item, DamageOwner& param);
 }
 
-static PblList<Controllable>& GameObject_GetControllableList(GameObject* pObject)
-{
-    return pObject->mControllableList;
-}
-
-static int GameObject_GetTeam(const GameObject* pObject)
-{
-    return pObject->GetTeam();
-}
-
-static int Damageable_GetTeam(const Damageable* pThis)
-{
-    return static_cast<const GameObject*>(pThis)->GetTeam();
-}
-
-static GameObjectClass* GameObject_GetClass(GameObject* pObject)
-{
-    return pObject->GetGameObjectClass();
-}
-
-static Damageable* GameObject_GetDamageable(GameObject* pObject)
-{
-    return static_cast<Damageable*>(pObject);
-}
-
-static CollisionObject* GameObject_GetCollisionObject(GameObject* pObject)
-{
-    return static_cast<CollisionObject*>(pObject);
-}
-
-static GameObject* GetHandleObject(const PblHandle<GameObject>& handle)
-{
-    PblHandle<GameObject>& h = const_cast<PblHandle<GameObject>&>(handle);
-    if (h.mObject &&
-        PBL_HANDLE_ID(h.mObject) !=
-            h.mSavedHandleId)
-    {
-        h.mObject = 0;
-        h.mSavedHandleId = 0;
-    }
-    return h.mObject;
-}
-
-static inline void FlashLocalPlayers(Damageable* pThis, GameObject* pObject, float fHealthLost)
-{
-    PblList<Controllable>& list = GameObject_GetControllableList(pObject);
-    for (PblList<Controllable>::Itor it = list.Begin(); it != list.End(); ++it)
-    {
-        if (it->mPlayerId < 0)
-        {
-            continue;
-        }
-        int iViewport = NetGame::GetJoystickIndex(it->mPlayerId);
-        if (iViewport >= 0 && pThis->mIsAlive)
-        {
-            float fAmount;
-            if (pThis->mCurHealth > 0.0f)
-            {
-                fAmount = fHealthLost / (pThis->mCurHealth * 0.2f);
-                if (fAmount > 1.0f)
-                {
-                    fAmount = 1.0f;
-                }
-            }
-            else
-            {
-                fAmount = 1.0f;
-            }
-            RedColor color = RedColor::RED;
-            color.a = (unsigned char)(int)(fAmount * 96.0f + 32.0f);
-            float fTime = fAmount * 0.15f + 0.15f;
-            ScreenFilterEffect::Instance()->TimedFilter(iViewport, fTime, 0.0f, fTime, color,
-                                                        0xDE020766);
-        }
-    }
-}
-
-// FUNCTION: SWBF2 0x00438a40
-DamageDesc::DamageDesc(DamageOwner owner, float fBaseValue)
-    : mDamageOwner(owner), mBaseValue(fBaseValue)
-{
-    for (int i = 0; i < 8; ++i)
-    {
-        mHealthScale[i] = 1.0f;
-    }
-    mShieldScale = 1.0f;
-}
 
 // FUNCTION: SWBF2 0x00488820
 void Damageable::SetCurHealth(float fHealth, bool bNotify, DamageOwner* pOwner)
@@ -299,7 +211,7 @@ void Damageable::UpdateStatus(float fDeltaTime)
 // FUNCTION: SWBF2 0x004889d0
 void Damageable::InstantDeath(const DamageOwner& owner, bool bCheckProtection)
 {
-    if (mIsAlive)
+    if (IsAlive())
     {
         mDamageOwner = owner;
     }
@@ -315,7 +227,7 @@ void Damageable::InstantDeath(const DamageOwner& owner, bool bCheckProtection)
         }
         if (GameLoop::gInvincible && !NetGame::IsEnabled())
         {
-            PblList<Controllable>& list = GameObject_GetControllableList(GetGameObject());
+            const PblList<Controllable>& list = GetGameObject()->GetControllableList();
             for (PblList<Controllable>::Itor it = list.Begin(); it != list.End(); ++it)
             {
                 if (it->mPlayerId >= 0)
@@ -343,7 +255,7 @@ void Damageable::ApplyNetClientDamage(const DamageDesc& damage, unsigned int uFl
 {
     GameObject* pObject = GetGameObject();
     float fDamage = damage.mBaseValue * fMultiplier * damage.mDamageOwner.mDamageMultiplier;
-    if (damage.mDamageOwner.mTeam == Damageable_GetTeam(this))
+    if (damage.mDamageOwner.mTeam == static_cast<const GameObject*>(this)->GetTeam())
     {
         Character* pAttacker = damage.mDamageOwner.mCharacter;
         if (pAttacker && pAttacker->mPlayerId < 0 && pObject->GetControllable() &&
@@ -361,9 +273,38 @@ void Damageable::ApplyNetClientDamage(const DamageDesc& damage, unsigned int uFl
             bool bBigHit = fHealthLost > mCurHealth * 0.02f;
             if (bBigHit)
             {
-                FlashLocalPlayers(this, pObject, fHealthLost);
+                const PblList<Controllable>& list = pObject->GetControllableList();
+                for (PblList<Controllable>::Itor it = list.Begin(); it != list.End(); ++it)
+                {
+                    if (it->mPlayerId < 0)
+                    {
+                        continue;
+                    }
+                    int iViewport = NetGame::GetJoystickIndex(it->mPlayerId);
+                    if (iViewport >= 0 && mIsAlive)
+                    {
+                        float fAmount;
+                        if (mCurHealth > 0.0f)
+                        {
+                            fAmount = fHealthLost / (mCurHealth * 0.2f);
+                            if (fAmount > 1.0f)
+                            {
+                                fAmount = 1.0f;
+                            }
+                        }
+                        else
+                        {
+                            fAmount = 1.0f;
+                        }
+                        RedColor color = RedColor::RED;
+                        color.a = (unsigned char)(int)(fAmount * 96.0f + 32.0f);
+                        float fTime = fAmount * 0.15f + 0.15f;
+                        ScreenFilterEffect::Instance()->TimedFilter(iViewport, fTime, 0.0f, fTime, color,
+                                                                    0xDE020766);
+                    }
+                }
             }
-            if (mIsAlive)
+            if (IsAlive())
             {
                 if (bBigHit && (uFlags & 4))
                 {
@@ -393,7 +334,7 @@ void Damageable::ApplyDamageCommon(const DamageDesc& damage, unsigned int uFlags
         return;
     }
 
-    bool bWasAlive = mIsAlive;
+    bool bWasAlive = IsAlive();
     if (damage.mDamageOwner.mCharacter && mMaxHealth < FLT_MAX)
     {
         Character::GetPlayerStats(damage.mDamageOwner.mCharacter).AddHit();
@@ -404,7 +345,7 @@ void Damageable::ApplyDamageCommon(const DamageDesc& damage, unsigned int uFlags
     }
     if (GameLoop::gInvincible && !NetGame::IsEnabled())
     {
-        PblList<Controllable>& list = GameObject_GetControllableList(pObject);
+        const PblList<Controllable>& list = pObject->GetControllableList();
         for (PblList<Controllable>::Itor it = list.Begin(); it != list.End(); ++it)
         {
             if (it->mPlayerId >= 0)
@@ -429,7 +370,7 @@ void Damageable::ApplyDamageCommon(const DamageDesc& damage, unsigned int uFlags
     }
 
     float fDamage = damage.mBaseValue * fMultiplier * damage.mDamageOwner.mDamageMultiplier;
-    if (Team::sTeams[Damageable_GetTeam(this)]->mAffiliation[damage.mDamageOwner.mTeam] > 0)
+    if (Team::sTeams[static_cast<const GameObject*>(this)->GetTeam()]->mAffiliation[damage.mDamageOwner.mTeam] > 0)
     {
         Character* pAttacker = damage.mDamageOwner.mCharacter;
         if (pAttacker && pAttacker->mPlayerId < 0 && pObject->GetControllable() &&
@@ -492,9 +433,38 @@ void Damageable::ApplyDamageCommon(const DamageDesc& damage, unsigned int uFlags
             bool bBigHit = fHealthLost > mCurHealth * 0.02f;
             if (bBigHit)
             {
-                FlashLocalPlayers(this, pObject, fHealthLost);
+                const PblList<Controllable>& list = pObject->GetControllableList();
+                for (PblList<Controllable>::Itor it = list.Begin(); it != list.End(); ++it)
+                {
+                    if (it->mPlayerId < 0)
+                    {
+                        continue;
+                    }
+                    int iViewport = NetGame::GetJoystickIndex(it->mPlayerId);
+                    if (iViewport >= 0 && mIsAlive)
+                    {
+                        float fAmount;
+                        if (mCurHealth > 0.0f)
+                        {
+                            fAmount = fHealthLost / (mCurHealth * 0.2f);
+                            if (fAmount > 1.0f)
+                            {
+                                fAmount = 1.0f;
+                            }
+                        }
+                        else
+                        {
+                            fAmount = 1.0f;
+                        }
+                        RedColor color = RedColor::RED;
+                        color.a = (unsigned char)(int)(fAmount * 96.0f + 32.0f);
+                        float fTime = fAmount * 0.15f + 0.15f;
+                        ScreenFilterEffect::Instance()->TimedFilter(iViewport, fTime, 0.0f, fTime, color,
+                                                                    0xDE020766);
+                    }
+                }
             }
-            if (mIsAlive)
+            if (IsAlive())
             {
                 if (bBigHit && (uFlags & 4))
                 {
@@ -509,8 +479,8 @@ void Damageable::ApplyDamageCommon(const DamageDesc& damage, unsigned int uFlags
     }
 
     if (damage.mDamageOwner.mCharacter &&
-        GameObject_GetClass(GetGameObject())->GetVehicleType() != 9 &&
-        GameObject_GetTeam(GetGameObject()) != damage.mDamageOwner.mTeam)
+        GetGameObject()->GetGameObjectClass()->GetVehicleType() != 9 &&
+        GetGameObject()->GetTeam() != damage.mDamageOwner.mTeam)
     {
         Character* pAttacker = damage.mDamageOwner.mCharacter;
         if (GetGameObject() == pAttacker->GetDamagedVehicle())
@@ -527,12 +497,9 @@ void Damageable::ApplyDamageCommon(const DamageDesc& damage, unsigned int uFlags
     {
         if (mDamageOwner.mCharacter)
         {
-            mDamageOwner.mCharacter->RegisterHit(GameObject_GetTeam(pObject), fMultiplier);
+            mDamageOwner.mCharacter->RegisterHit(pObject->GetTeam(), fMultiplier);
         }
-        if (!(NetGame::IsEnabled() && NetGame::IsClient()))
-        {
-            EventManager::ObjectEvent::mDamage.Trigger(*pObject, mDamageOwner);
-        }
+        EventManager::ObjectEvent::mDamage.Trigger(*pObject, mDamageOwner);
     }
 }
 
@@ -549,7 +516,7 @@ bool Damageable::ApplyDamage(const DamageDesc& damage, const PblVector3& vDir,
             fMultiplier = 1.0f;
         }
     }
-    GameObject* pAttackerObject = GetHandleObject(damage.mDamageOwner.mGameObject);
+    GameObject* pAttackerObject = damage.mDamageOwner.mGameObject;
     bool bWasAlive = mIsAlive;
     if (fMultiplier > 1.0f && pAttackerObject &&
         pAttackerObject->GetAffiliationToMe(GetGameObject()) < 0 &&
@@ -575,9 +542,9 @@ bool Damageable::ApplyDamage(const DamageDesc& damage, const PblVector3& vDir,
     vFlat.y = 0.0001f;
     vFlat.z = vDir.z;
     PblVector3 vNormal;
-    D3DXVec3Normalize(&vNormal, &vFlat);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNormal), reinterpret_cast<const D3DXVECTOR3*>(&vFlat));
     vFlat = vNormal;
-    const PblMatrix& mMatrix = GameObject_GetCollisionObject(GetGameObject())->GetMatrix();
+    const PblMatrix& mMatrix = GetGameObject()->GetMatrix();
     PblVector3 vHit;
     vHit.x = mMatrix.m[3][0] - vFlat.x * 30.0f;
     vHit.y = mMatrix.m[3][1] - vFlat.y * 30.0f;
@@ -618,7 +585,7 @@ void Damageable::SpreadDamageEvent(const DamageDesc& damage, bool bIsShot, const
     GameObject* pObject = GetGameObject();
     float fShieldHit = damage.mShieldScale * damage.mBaseValue;
     float fHealthHit =
-        damage.mHealthScale[GameObject_GetDamageable(pObject)->mHealthType] * damage.mBaseValue;
+        damage.mHealthScale[pObject->mHealthType] * damage.mBaseValue;
     if (!(fShieldHit > 1.0f) && !(fHealthHit > 1.0f))
     {
         return;
@@ -627,8 +594,9 @@ void Damageable::SpreadDamageEvent(const DamageDesc& damage, bool bIsShot, const
     if (GetGameObject()->GetControllable() &&
         GetGameObject()->GetControllable()->mCharacter)
     {
+        GameObject* pOwner = GetGameObject();
         float fMaxHealth = mMaxHealth;
-        GetGameObject()->GetControllable()->mCharacter->GetAdrenaline().GetHit(fHealthHit / fMaxHealth);
+        pOwner->GetControllable()->mCharacter->GetAdrenaline().GetHit(fHealthHit / fMaxHealth);
     }
     damage.mDamageOwner.mCharacter->GetAdrenaline().AddHit(fHealthHit / mMaxHealth);
 
@@ -638,7 +606,7 @@ void Damageable::SpreadDamageEvent(const DamageDesc& damage, bool bIsShot, const
         pObject = pObject->GetControllable()->mCharacter->mVehicle->GetGameObject();
     }
 
-    PblList<Controllable>& list = GameObject_GetControllableList(pObject);
+    const PblList<Controllable>& list = pObject->GetControllableList();
     for (PblList<Controllable>::Itor it = list.Begin(); it != list.End(); ++it)
     {
         Controller* pController = it->mCtrl;
@@ -659,15 +627,12 @@ void Damageable::HealthChangeCallback(bool, float)
         mIsAlive = false;
     }
     GameObject* pObject = GetGameObject();
-    if (!(NetGame::IsEnabled() && NetGame::IsClient()))
-    {
-        EventManager::ObjectEvent::mHealthChange.Trigger(*pObject, mCurHealth);
-    }
+    EventManager::ObjectEvent::mHealthChange.Trigger(*pObject, mCurHealth);
     if (!GetGameObject())
     {
         return;
     }
-    GameObjectClass* pClass = GameObject_GetClass(GetGameObject());
+    GameObjectClass* pClass = GetGameObject()->GetGameObjectClass();
     if (!pClass)
     {
         return;
@@ -740,10 +705,7 @@ void Damageable::HealthChangeCallback(bool, float)
                 pEmitter->SetInheritVelocity(pStage->mInheritVelocity);
             }
             PblMatrix mOffset = gMatrixIdentity;
-            mOffset.m[3][0] = pStage->mAttachOffset.x;
-            mOffset.m[3][1] = pStage->mAttachOffset.y;
-            mOffset.m[3][2] = pStage->mAttachOffset.z;
-            mOffset.m[3][3] = 1.0f;
+            mOffset.SetTranslation(pStage->mAttachOffset);
             const EntityGeometry* pGeometry =
                 reinterpret_cast<const EntityGeometry*>(GetGameObject()->GetEntity());
             if (pStage->mHardPoint == 0)
@@ -766,10 +728,7 @@ void Damageable::HealthChangeCallback(bool, float)
 void Damageable::ShieldChangeCallback(float)
 {
     GameObject* pObject = GetGameObject();
-    if (!(NetGame::IsEnabled() && NetGame::IsClient()))
-    {
-        EventManager::ObjectEvent::mShieldChange.Trigger(*pObject, mCurShield);
-    }
+    EventManager::ObjectEvent::mShieldChange.Trigger(*pObject, mCurShield);
 }
 
 // FUNCTION: SWBF2 0x00489c00
@@ -781,15 +740,7 @@ void Damageable::SetDamageRegionTime()
 namespace EventManager
 {
 
-// FUNCTION: SWBF2 0x00489c50
-template <>
-void Event<GameObject, DamageOwner>::Trigger(GameObject& object, DamageOwner& owner)
-{
-    if (!NetGame::IsEnabled() || !NetGame::IsClient())
-    {
-        mRoot.Trigger(object, owner);
-    }
-}
+
 
 // FUNCTION: SWBF2 0x00489c90
 template <>
@@ -802,8 +753,13 @@ void Event<GameObject, DamageOwner>::Callback::Trigger(GameObject& item, DamageO
         if (pChild)
         {
             pChild->AddRef();
-            while (pChild->IsAlive())
+            while (pChild)
             {
+                if (!pChild->IsAlive())
+                {
+                    pChild->Release();
+                    break;
+                }
                 Callback* pNext = (Callback*)pChild->mSibling;
                 if (pNext)
                 {
@@ -812,14 +768,6 @@ void Event<GameObject, DamageOwner>::Callback::Trigger(GameObject& item, DamageO
                 pChild->Trigger(item, param);
                 pChild->Release();
                 pChild = pNext;
-                if (!pChild)
-                {
-                    break;
-                }
-            }
-            if (pChild)
-            {
-                pChild->Release();
             }
         }
     }
@@ -837,8 +785,13 @@ void Event<GameObject, float>::Callback::Trigger(GameObject& item, float& param)
         if (pChild)
         {
             pChild->AddRef();
-            while (pChild->IsAlive())
+            while (pChild)
             {
+                if (!pChild->IsAlive())
+                {
+                    pChild->Release();
+                    break;
+                }
                 Callback* pNext = (Callback*)pChild->mSibling;
                 if (pNext)
                 {
@@ -847,14 +800,6 @@ void Event<GameObject, float>::Callback::Trigger(GameObject& item, float& param)
                 pChild->Trigger(item, param);
                 pChild->Release();
                 pChild = pNext;
-                if (!pChild)
-                {
-                    break;
-                }
-            }
-            if (pChild)
-            {
-                pChild->Release();
             }
         }
     }
@@ -862,17 +807,7 @@ void Event<GameObject, float>::Callback::Trigger(GameObject& item, float& param)
 }
 }
 
-// FUNCTION: SWBF2 0x00488530
-DamageOwner& DamageOwner::operator=(const DamageOwner& other)
-{
-    mCharacter = other.mCharacter;
-    mGameObject = other.mGameObject;
-    mTeam = other.mTeam;
-    mClass = other.mClass;
-    mWeapon = other.mWeapon;
-    mDamageMultiplier = other.mDamageMultiplier;
-    return *this;
-}
+
 
 // TEMPLATE: SWBF2 0x004479e0
 // PblHandle<FLEffectObject>::operator=

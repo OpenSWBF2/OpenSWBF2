@@ -7,6 +7,7 @@
 #include "RedEngineFL/Interface/RedBitmapElement.h"
 #include "RedEngineFL/Interface/RedInterfaceScreen.h"
 
+// VTABLE: SWBF2 0x007992c8
 class EndDisplay : public Thread
 {
 public:
@@ -45,6 +46,9 @@ public:
     bool mHideIt : 1;
 
     static void Create();
+    static EndDisplay* Instance() { return sInstance; }
+
+private:
     static EndDisplay* sInstance;
     static bool sCanRender;
 };

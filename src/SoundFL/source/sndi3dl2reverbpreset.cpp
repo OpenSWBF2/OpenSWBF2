@@ -6,18 +6,22 @@
 namespace Snd
 {
 
-// GLOBAL: SWBF2 0x007e3890
 // SYNTHETIC: SWBF2 0x0040c190
 // `dynamic initializer for 'Snd::I3DL2ReverbPreset::smFreeList''
 // SYNTHETIC: SWBF2 0x0076a4b0
 // `dynamic atexit destructor for 'Snd::I3DL2ReverbPreset::smFreeList''
-FreeList I3DL2ReverbPreset::smFreeList(sizeof(I3DL2ReverbPreset), 1, 4, 1);
 
-// GLOBAL: SWBF2 0x007e38ac
+// GLOBAL: SWBF2 0x007e3890
+// I3DL2ReverbPreset::smFreeList
+FreeList I3DL2ReverbPreset::smFreeList(sizeof(I3DL2ReverbPreset), 1, true, 4);
+
 // SYNTHETIC: SWBF2 0x0040c1b0
 // `dynamic initializer for 'Snd::I3DL2ReverbPreset::smList''
 // SYNTHETIC: SWBF2 0x0076a4c0
 // `dynamic atexit destructor for 'Snd::I3DL2ReverbPreset::smList''
+
+// GLOBAL: SWBF2 0x007e38ac
+// I3DL2ReverbPreset::smList
 PblListSingle I3DL2ReverbPreset::smList;
 
 // FUNCTION: SWBF2 0x00744e10
@@ -32,8 +36,8 @@ I3DL2ReverbPreset* __cdecl I3DL2ReverbPreset::Find(unsigned int uiHashID)
     for (PblListSingle::Node* pNode = smList.mHead.mNext; pNode != &smList.mHead;
          pNode = pNode->mNext)
     {
-        I3DL2ReverbPreset* const pPreset = reinterpret_cast<I3DL2ReverbPreset*>(reinterpret_cast<char*>(pNode) - offsetof(I3DL2ReverbPreset, mNode));
-        if (pPreset->mHashID == uiHashID)
+        I3DL2ReverbPreset* const pPreset = static_cast<I3DL2ReverbPreset*>(pNode->GetObjectA(&smList, offsetof(I3DL2ReverbPreset, mNode)));
+        if (uiHashID == pPreset->mHashID)
         {
             return pPreset;
         }
@@ -48,14 +52,14 @@ void I3DL2ReverbPreset::Read(PblFileChunk& chunk)
     {
         PblFileChunk child = chunk.ReadNextChild();
         const unsigned int uiID = child._pFile->Read32();
-        if (uiID == 0x8D39BDE6u)
+        if (uiID != 0x8D39BDE6u)
         {
-            child._pFile->Read8();
-            mHashID = child._pFile->Read32();
+            I3DL2Reverb::Read(child, uiID);
         }
         else
         {
-            I3DL2Reverb::Read(child, uiID);
+            child._pFile->Read8();
+            mHashID = child._pFile->Read32();
         }
     }
 }
@@ -85,16 +89,17 @@ void __cdecl I3DL2ReverbPreset::Load(PblFileChunk& chunk, bool bOnce)
 
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x00744e30
 void __cdecl I3DL2ReverbPreset::DestroyAll()
 {
-    for (PblListSingle::Node* pNode = smList.mHead.mNext; pNode != &smList.mHead;)
+    for (PblListSingle::Itor itor(smList); itor.GetNode() != smList.GetTerminator();)
     {
-        I3DL2ReverbPreset* const pPreset =
-            (I3DL2ReverbPreset*)((char*)pNode - offsetof(I3DL2ReverbPreset, mNode));
-        pNode = pNode->mNext;
+        I3DL2ReverbPreset* const pPreset = (I3DL2ReverbPreset*)itor.GetNode()->GetObjectA(
+            &smList, offsetof(I3DL2ReverbPreset, mNode));
+        ++itor;
         delete pPreset;
     }
 }
@@ -105,9 +110,5 @@ namespace Snd
 
 I3DL2ReverbPreset::~I3DL2ReverbPreset()
 {
-    if (mNode.mNext)
-    {
-        mNode.Remove();
-    }
 }
 }

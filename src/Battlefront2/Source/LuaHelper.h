@@ -32,6 +32,8 @@ inline bool IsNumber(int iIndex) { return lua_isnumber(mState, iIndex) != 0; }
 
 // FUNCTION: SWBF2 0x00580860
 inline bool IsNoneOrNil(int iIndex) { return lua_type(mState, iIndex) <= LUA_TNIL; }
+inline bool IsNil(int iIndex) { return lua_type(mState, iIndex) == LUA_TNIL; }
+inline bool IsTable(int iIndex) { return lua_type(mState, iIndex) == LUA_TTABLE; }
 // FUNCTION: SWBF2 0x00580880
 inline bool IsBool(int iIndex) { return lua_type(mState, iIndex) == LUA_TBOOLEAN; }
 
@@ -47,23 +49,77 @@ bool PushRefProc(int iRef);
 
 void PushString(unsigned short const* pusString);
 
-void PushString(const char* pString);
+// FUNCTION: SWBF2 0x00437590
+inline void PushString(const char* pString)
+{
+    lua_pushstring(mState, pString);
+}
 
-bool __fastcall IsString(int iIndex);
-void PushInt(int iValue);
-int GetTop();
-int TableGetN(int iStack);
-void TableGetByPosition(int iStack, int iIndex);
-void RawGetFromTable(int iStack);
+// FUNCTION: SWBF2 0x00437550
+inline bool IsString(int iIndex)
+{
+    return lua_isstring(mState, iIndex) != 0;
+}
+// FUNCTION: SWBF2 0x0050b470
+inline void PushInt(int iValue)
+{
+    lua_pushnumber(mState, (float)iValue);
+}
+inline void PushFloat(float fValue)
+{
+    lua_pushnumber(mState, fValue);
+}
+inline void PushBool(bool bValue)
+{
+    lua_pushboolean(mState, bValue);
+}
+inline void PushNil()
+{
+    lua_pushnil(mState);
+}
+inline void PushEmptyTable()
+{
+    lua_newtable(mState);
+}
+// FUNCTION: SWBF2 0x0057dc20
+inline int GetTop()
+{
+    return lua_gettop(mState);
+}
+inline int GetStackSpace()
+{
+    return lua_gettop(mState);
+}
+
+// FUNCTION: SWBF2 0x0057dc50
+inline int TableGetN(int iStack)
+{
+    return luaL_getn(mState, iStack);
+}
+// FUNCTION: SWBF2 0x0057dc60
+inline void TableGetByPosition(int iStack, int iIndex)
+{
+    lua_rawgeti(mState, iStack, iIndex);
+}
+// FUNCTION: SWBF2 0x005808a0
+inline void RawGetFromTable(int iStack)
+{
+    lua_rawget(mState, iStack);
+}
+inline void RawSetToTable(int iStack)
+{
+    lua_rawset(mState, iStack);
+}
 bool PushGlobalProc(char const* pcFunc);
 bool PushTableProc(char const* pcTable, char const* pcFunc);
 bool PushTableProcWThis(char const* pcTable, char const* pcFunc);
 
-int CallProc(int);
+int CallProc(int aReturns);
 bool CallProc(char const* pcName);
 bool CallGlobalProc(char const* pcFunc);
 
 bool CallGlobalProc(char const* pcFunc, float fArg);
+bool CallGlobalProc(char const* pcFunc, bool bArg);
 
 bool CallGlobalProc(char const* pcFunc, unsigned short const* pusArg);
 bool CallTableProcWThis(char const* pcTable, char const* pcFunc);
@@ -93,10 +149,14 @@ void TableWriteVal(char const* pcKey, float fVal);
 void TableWriteVal(char const* pcKey, bool bVal);
 
 void TableWriteVal(char const* pcKey, char const* pcVal);
-void SetGlobal(char const* pcName);
-void TableReadVal(char const* pcKey, float& fVal, bool bRequired);
-void TableReadVal(char const* pcKey, int& iVal, bool bRequired);
+// FUNCTION: SWBF2 0x00527fa0
+inline void SetGlobal(char const* pcName)
+{
+    lua_setglobal(mState, pcName);
+}
+void TableReadVal(char const* pcKey, float& fVal, bool aNilOk);
+void TableReadVal(char const* pcKey, int& iVal, bool aNilOk);
 void TableReadVal(char const* pcKey, bool& bVal);
-void TableReadVal(char const* pcKey, char* pcVal, unsigned int uSize, bool bRequired);
+void TableReadVal(char const* pcKey, char* pcVal, unsigned int uSize, bool aNilOk);
 
 }

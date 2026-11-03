@@ -1,3 +1,10 @@
+#include <d3dx9math.h>
+#ifdef min
+#undef min
+#endif
+#ifdef max
+#undef max
+#endif
 #include <float.h>
 #include <math.h>
 #include <string.h>
@@ -11,7 +18,7 @@
 #include "PathManager.h"
 #include "PebbleFL/Common/PblHeap.h"
 #include "PebbleFL/Common/PblMatrix.h"
-#include "PebbleFL/pc/PblD3DX.h"
+
 
 extern int WORLD_EXTENTS;
 
@@ -19,18 +26,22 @@ static const float EPSILON = 0.0001f;
 static const float HEAP_MAX_VALUE = 100000.0f;
 static const float EXTRA_OBSTACLE_PUSHOUT_OFFSET = 0.5f;
 
-// GLOBAL: SWBF2 0x01ef7cf0
 // SYNTHETIC: SWBF2 0x00405dd0
 // `dynamic initializer for 'Obstacle::sMemoryPool''
 // SYNTHETIC: SWBF2 0x007692a0
 // `dynamic atexit destructor for 'Obstacle::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ef7cf0
+// Obstacle::sMemoryPool
 MemoryPool Obstacle::sMemoryPool("Obstacle", sizeof(Obstacle));
 
-// GLOBAL: SWBF2 0x01ef7d40
 // SYNTHETIC: SWBF2 0x00405df0
 // `dynamic initializer for 'PathFinder::PathNode::sMemoryPool''
 // SYNTHETIC: SWBF2 0x007692b0
 // `dynamic atexit destructor for 'PathFinder::PathNode::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ef7d40
+// PathFinder::PathNode::sMemoryPool
 MemoryPool PathFinder::PathNode::sMemoryPool("PathNode", sizeof(PathFinder::PathNode));
 
 // GLOBAL: SWBF2 0x007e8ee8
@@ -112,7 +123,7 @@ void Obstacle::UpdatePosition(const PblMatrix& rMatrix, float fOffsetX, float fO
     if (rVelocity.x * rVelocity.x + rVelocity.y * rVelocity.y + rVelocity.z * rVelocity.z < 36.0f)
     {
         SetEnabled(true);
-        PblVector3 forward = AIUtil::GetSafeNormalXZ(*(const PblVector3*)rMatrix.m[2]);
+        PblVector3 forward = AIUtil::GetSafeNormalXZ(rMatrix.GetZAxis());
         float fPosX = rMatrix.m[3][0] + forward.x * fOffsetZ + -forward.z * fOffsetX;
         float fPosZ = rMatrix.m[3][2] + forward.z * fOffsetZ + forward.x * fOffsetX;
         float fDX = fPosX - mPosX;
@@ -142,13 +153,10 @@ bool Obstacle::IsPointInside(const PblVector3& rPos, float fRadius) const
         return false;
     }
 
-    PblVector3 pos = GetTranslation();
-    PblVector3 d(pos.x - rPos.x, pos.y - rPos.y, pos.z - rPos.z);
-    PblVector3 xAxis = GetXAxis();
-    if ((float)fabs(xAxis.x * d.x + xAxis.y * d.y + xAxis.z * d.z) < mSizeX + fRadius)
+    PblVector3 dist = GetTranslation() - rPos;
+    if (fabsf(DotProduct(GetXAxis(), dist)) < mSizeX + fRadius)
     {
-        PblVector3 zAxis = GetZAxis();
-        if ((float)fabs(zAxis.x * d.x + zAxis.y * d.y + zAxis.z * d.z) < mSizeZ + fRadius)
+        if (fabsf(DotProduct(GetZAxis(), dist)) < mSizeZ + fRadius)
         {
             return true;
         }
@@ -159,24 +167,19 @@ bool Obstacle::IsPointInside(const PblVector3& rPos, float fRadius) const
 // FUNCTION: SWBF2 0x006101d0
 PblVector3 Obstacle::GetVertexXZ(int iVertex, float fRadius, float fPushOut) const
 {
-    float fX = mSizeX + fRadius + fPushOut;
-    float fZ = mSizeZ + fRadius + fPushOut;
-    PblVector3 xAxis = GetXAxis();
-    PblVector3 zAxis = GetZAxis();
-    PblVector3 x(xAxis.x * fX, xAxis.y * fX, xAxis.z * fX);
-    PblVector3 z(zAxis.x * fZ, zAxis.y * fZ, zAxis.z * fZ);
-    PblVector3 pos = GetTranslation();
+    PblVector3 x = GetXAxis() * (mSizeX + fRadius + fPushOut);
+    PblVector3 z = GetZAxis() * (mSizeZ + fRadius + fPushOut);
 
     switch (iVertex)
     {
     case 0:
-        return PblVector3(pos.x + x.x + z.x, pos.y + x.y + z.y, pos.z + x.z + z.z);
+        return (GetTranslation() + x + z);
     case 1:
-        return PblVector3(pos.x + x.x - z.x, pos.y + x.y - z.y, pos.z + x.z - z.z);
+        return (GetTranslation() + x - z);
     case 2:
-        return PblVector3(pos.x - x.x - z.x, pos.y - x.y - z.y, pos.z - x.z - z.z);
+        return (GetTranslation() - x - z);
     default:
-        return PblVector3(pos.x - x.x + z.x, pos.y - x.y + z.y, pos.z - x.z + z.z);
+        return (GetTranslation() - x + z);
     }
 }
 
@@ -190,15 +193,15 @@ PblVector3 Obstacle::GetPushedOutVertexXZ(int iVertex, float fRadius) const
 float GetDistanceSquaredFromLineSegment(const PblVector3& rEnd, const PblVector3& rStart,
                                         const PblVector3& rPos, PblVector3& rClosest)
 {
-    PblVector3 dir(rEnd.x - rStart.x, rEnd.y - rStart.y, rEnd.z - rStart.z);
-    float fT = (rPos.x - rStart.x) * dir.x + (rPos.y - rStart.y) * dir.y + (rPos.z - rStart.z) * dir.z;
+    PblVector3 dir = rEnd - rStart;
+    float fT = DotProduct(rPos - rStart, dir);
     if (fT <= 0.0f)
     {
         rClosest = rStart;
     }
     else
     {
-        float fLengthSq = dir.x * dir.x + dir.y * dir.y + dir.z * dir.z;
+        float fLengthSq = DotProduct(dir, dir);
         if (fT >= fLengthSq)
         {
             rClosest = rEnd;
@@ -206,13 +209,10 @@ float GetDistanceSquaredFromLineSegment(const PblVector3& rEnd, const PblVector3
         else
         {
             fT /= fLengthSq;
-            rClosest = PblVector3(rStart.x + dir.x * fT, rStart.y + dir.y * fT, rStart.z + dir.z * fT);
+            rClosest = (rStart + dir * fT);
         }
     }
-    float fDX = rPos.x - rClosest.x;
-    float fDY = rPos.y - rClosest.y;
-    float fDZ = rPos.z - rClosest.z;
-    return fDX * fDX + fDY * fDY + fDZ * fDZ;
+    return SquaredLength(rPos - rClosest);
 }
 
 // FUNCTION: SWBF2 0x00610420
@@ -229,8 +229,8 @@ float Obstacle::GetDistFromSideXZ(const PblVector3& rPos, float fRadius, int iSi
 
     PblVector3 normal(v1.z - v0.z, 0.0f, -(v1.x - v0.x));
     PblVector3 n;
-    D3DXVec3Normalize(&n, &normal);
-    rClosest = PblVector3(closest.x + n.x * 0.1f, closest.y + n.y * 0.1f, closest.z + n.z * 0.1f);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&n), reinterpret_cast<const D3DXVECTOR3*>(&normal));
+    rClosest = (closest + n * 0.1f);
     return fDistSq;
 }
 
@@ -306,7 +306,7 @@ bool Obstacle::IntersectionNewer(const ObstacleTest& rTest, float fRadius, float
 
     *pDistSq = (dir.x * dir.x + dir.y * dir.y + dir.z * dir.z) * fBest * fBest;
     PblVector3 n;
-    D3DXVec3Normalize(&n, pNormal);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&n), reinterpret_cast<const D3DXVECTOR3*>(pNormal));
     *pNormal = n;
     return true;
 }
@@ -321,7 +321,7 @@ void Obstacle::FindCorners(const PblVector3& rSrc, const PblVector3& rDest, floa
         dir = PblVector3(1.0f, 0.0f, 0.0f);
     }
     PblVector3 dirN;
-    D3DXVec3Normalize(&dirN, &dir);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&dirN), reinterpret_cast<const D3DXVECTOR3*>(&dir));
 
     float fBestLeft = 1.0f;
     float fBestRight = 1.0f;
@@ -332,7 +332,7 @@ void Obstacle::FindCorners(const PblVector3& rSrc, const PblVector3& rDest, floa
         if (d.x * d.x + d.y * d.y + d.z * d.z > EPSILON * EPSILON)
         {
             PblVector3 n;
-            D3DXVec3Normalize(&n, &d);
+            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&n), reinterpret_cast<const D3DXVECTOR3*>(&d));
             float fDot = dirN.x * n.x + dirN.y * n.y + dirN.z * n.z;
             float fCross = dirN.z * n.x - dirN.x * n.z;
             if (fCross < 0.0f && fDot < fBestLeft)
@@ -420,10 +420,9 @@ void PathFinder::AddObstacle(const PblMatrix& rMatrix, const PblVector4& rSize, 
                              unsigned int uName)
 {
     Obstacle* pObstacle = new Obstacle(rMatrix, rSize, eProhibit, uName);
-    const PblVector3& rPos = *(const PblVector3*)rMatrix.m[3];
+    const PblVector3& rPos = rMatrix.GetTranslation();
     pObstacle->SetCollisionCenter(rPos);
     pObstacle->SetCollisionRadius(rSize.w);
-    pObstacle->Set2DCollisionRadius(rSize.w);
     sObstacles->Add(pObstacle, rPos, rSize.w * 2.0f);
 }
 
@@ -455,8 +454,8 @@ void PathFinder::CreateGameObjectBarrier(Obstacle*& rpObstacle, GameObject* pObj
     size.z = fSizeZ;
     size.w = 0.0f;
     PblMatrix mat = pCollision->GetMatrix();
-    PblVector3 xAxis = AIUtil::GetSafeNormalXZ(*(const PblVector3*)mat.m[0]);
-    PblVector3 zAxis = AIUtil::GetSafeNormalXZ(*(const PblVector3*)mat.m[2]);
+    PblVector3 xAxis = AIUtil::GetSafeNormalXZ(mat.GetXAxis());
+    PblVector3 zAxis = AIUtil::GetSafeNormalXZ(mat.GetZAxis());
     mat.m[3][0] += zAxis.x * fOffsetZ + xAxis.x * fOffsetX;
     mat.m[3][1] += zAxis.y * fOffsetZ + xAxis.y * fOffsetX;
     mat.m[3][2] += zAxis.z * fOffsetZ + xAxis.z * fOffsetX;
@@ -593,7 +592,7 @@ bool PathFinder::PushValidPoint(const PblVector3& rSrc, PblVector3& rDest, PblVe
 
     PblVector3 dir(rDest.x - rSrc.x, rDest.y - rSrc.y, rDest.z - rSrc.z);
     PblVector3 dirN;
-    D3DXVec3Normalize(&dirN, &dir);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&dirN), reinterpret_cast<const D3DXVECTOR3*>(&dir));
     data.mRayDir = dirN;
     data.mRadius = fRadius;
     data.mProhibit = eProhibit;
@@ -672,10 +671,7 @@ bool PathFinder::GetClosestValidPoint(const PblVector3& rPos, PblVector3& rOut, 
 // FUNCTION: SWBF2 0x00611750
 float PathFinder::sInvertedTotalCost(const PathNode* pNode)
 {
-    const PblVector3& rPos = pNode->GetPos();
-    float fDX = sDestPos.x - rPos.x;
-    float fDZ = sDestPos.z - rPos.z;
-    float fCost = sqrtf(fDX * fDX + fDZ * fDZ) + pNode->GetCostSoFar() + 0.01f;
+    float fCost = LengthXZ(sDestPos - pNode->GetPos()) + pNode->GetCostSoFar() + 0.01f;
     if (fCost < HEAP_MAX_VALUE)
     {
         return HEAP_MAX_VALUE - fCost;
@@ -711,6 +707,7 @@ bool PathFinder::FindClosestObstacleIntersection(const PblVector3& rSrc, const P
                    (rSrc.z < rDest.z ? rSrc.z : rDest.z) - fRadius);
     PblVector3 max((rSrc.x > rDest.x ? rSrc.x : rDest.x) + fRadius, FLT_MAX,
                    (rSrc.z > rDest.z ? rSrc.z : rDest.z) + fRadius);
+    // GLOBAL: SWBF2 0x01faac10
     static ObstacleData data;
     data.mLength = 0;
     sObstacles->CallbackOnRect(min, max, GenerateObstacleListCallback, &data);
@@ -816,6 +813,7 @@ bool PathFinder::TestTrivialStraightLineHit(const PblVector3& from, const PblVec
                    (to.z < from.z ? to.z : from.z) - fRadius);
     PblVector3 max((to.x > from.x ? to.x : from.x) + fRadius, FLT_MAX,
                    (to.z > from.z ? to.z : from.z) + fRadius);
+    // GLOBAL: SWBF2 0x01faabc0
     static TrivialIntersectData data;
 
     ObstacleTest test;
@@ -842,9 +840,7 @@ bool PathFinder::TestTrivialStraightLineHit(const PblVector3& from, const PblVec
 // FUNCTION: SWBF2 0x00611d20
 bool PathFinder::sSamePosXZ(const PblVector3& a, const PblVector3& b)
 {
-    float fDX = a.x - b.x;
-    float fDZ = a.z - b.z;
-    return fDX * fDX + fDZ * fDZ < EPSILON * EPSILON;
+    return SquaredLengthXZ(a - b) < EPSILON * EPSILON;
 }
 
 // FUNCTION: SWBF2 0x00611d50
@@ -1086,3 +1082,4 @@ bool AIDebug::PauseAfterPathFind()
 {
     return false;
 }
+#include <new>

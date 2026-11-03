@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include <math.h>
 
 #include "OrdnanceGrapplingHook.h"
@@ -7,33 +8,26 @@
 #include "Controllable.h"
 #include "EntitySoldier.h"
 #include "WeaponGrapplingHook.h"
-#include "PebbleFL/pc/PblD3DX.h"
+
 
 extern PblVector3 gVectorZero;
 
-// GLOBAL: SWBF2 0x01ef2630
 // SYNTHETIC: SWBF2 0x00405aa0
 // `dynamic initializer for 'OrdnanceGrapplingHook::rttiHashOrdnanceGrapplingHook''
+// OrdnanceGrapplingHook::rttiHashOrdnanceGrapplingHook
+
+// GLOBAL: SWBF2 0x01ef2630
+// OrdnanceGrapplingHook::rttiHashOrdnanceGrapplingHook
 PblHash OrdnanceGrapplingHook::rttiHashOrdnanceGrapplingHook("OrdnanceGrapplingHook");
-char OrdnanceGrapplingHook::rttiNameOrdnanceGrapplingHook[] = "OrdnanceGrapplingHook";
+// GLOBAL: SWBF2 0x0078a88c
+// OrdnanceGrapplingHook::rttiNameOrdnanceGrapplingHook
+const char OrdnanceGrapplingHook::rttiNameOrdnanceGrapplingHook[] = "OrdnanceGrapplingHook";
 
-// FUNCTION: SWBF2 0x005ff090
-bool OrdnanceGrapplingHook::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashOrdnanceGrapplingHook || OrdnanceBullet::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x005ff0c0
-unsigned int OrdnanceGrapplingHook::GetDerivedRtti() const
-{
-    return rttiHashOrdnanceGrapplingHook;
-}
 
-// FUNCTION: SWBF2 0x005ff0d0
-const char* OrdnanceGrapplingHook::GetDerivedRttiName() const
-{
-    return rttiNameOrdnanceGrapplingHook;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x005ff160
 OrdnanceGrapplingHook::OrdnanceGrapplingHook(OrdnanceGrapplingHookClass* pClass, const OrdnanceDesc& desc)
@@ -44,7 +38,7 @@ OrdnanceGrapplingHook::OrdnanceGrapplingHook(OrdnanceGrapplingHookClass* pClass,
     {
         mFireWeapon = (WeaponGrapplingHook*)desc.mFireWeapon;
         PblMatrix inverse = mOwner->GetMatrix().GetInverseFast();
-        D3DXVec3TransformCoord(&mWeaponOffset, &mFireWeapon->mAimer->mFirePos, &inverse);
+        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&mWeaponOffset), reinterpret_cast<const D3DXVECTOR3*>(&mFireWeapon->mAimer->mFirePos), reinterpret_cast<const D3DXMATRIX*>(&inverse));
     }
     else
     {
@@ -67,9 +61,9 @@ OrdnanceGrapplingHook::OrdnanceGrapplingHook(OrdnanceGrapplingHookClass* pClass,
 // SYNTHETIC: SWBF2 0x005ff0e0
 // OrdnanceGrapplingHook::`scalar deleting destructor'
 // SYNTHETIC: SWBF2 0x00600011
-// [thunk]:OrdnanceGrapplingHook::`scalar deleting destructor' adjustor{24}
+// ??_EOrdnanceGrapplingHook@@WBI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00600019
-// [thunk]:OrdnanceGrapplingHook::`scalar deleting destructor' adjustor{152}
+// ??_EOrdnanceGrapplingHook@@WJI@AEPAXI@Z
 // FUNCTION: SWBF2 0x005ff360
 OrdnanceGrapplingHook::~OrdnanceGrapplingHook()
 {
@@ -109,7 +103,7 @@ bool OrdnanceGrapplingHook::Collide(CollisionObject* pObject, const PblVector3& 
     const PblVector3& vFirePos = mFireWeapon->mAimer->mFirePos;
     PblVector3 vDelta(vPos.x - vFirePos.x, vPos.y - vFirePos.y, vPos.z - vFirePos.z);
     PblVector3 vDir;
-    D3DXVec3Normalize(&vDir, &vDelta);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vDelta));
 
     CollisionObjectType eType = pObject->GetCollisionType();
     if (eType != COLL_STATIC && eType != COLL_RIGID)
@@ -126,7 +120,7 @@ bool OrdnanceGrapplingHook::Collide(CollisionObject* pObject, const PblVector3& 
                                                                    pObject->GetPose());
         mCollBodyID = iBodyId;
         PblMatrix inverse = world.GetInverseFast();
-        D3DXVec3TransformCoord(&mCollOffset, &vPos, &inverse);
+        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&mCollOffset), reinterpret_cast<const D3DXVECTOR3*>(&vPos), reinterpret_cast<const D3DXMATRIX*>(&inverse));
     }
 
     CollisionManager::RemoveOrdnance(this);
@@ -183,14 +177,14 @@ bool OrdnanceGrapplingHook::Update(float fDeltaTime)
     {
         PblMatrix world = mHitObject->GetCollisionObject()->mCollisionModel->GetWorldMatrix(
             mCollBodyID, mHitObject->GetMatrix(), mHitObject->GetCollisionObject()->GetPose());
-        D3DXVec3TransformCoord(&mPosition, &mCollOffset, &world);
+        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&mPosition), reinterpret_cast<const D3DXVECTOR3*>(&mCollOffset), reinterpret_cast<const D3DXMATRIX*>(&world));
 
         float fSpeed = sqrtf(mVelocity.x * mVelocity.x + mVelocity.y * mVelocity.y +
                              mVelocity.z * mVelocity.z);
         const PblVector3& vFirePos = mFireWeapon->mAimer->mFirePos;
         PblVector3 vDelta(mPosition.x - vFirePos.x, mPosition.y - vFirePos.y, mPosition.z - vFirePos.z);
         PblVector3 vDir;
-        D3DXVec3Normalize(&vDir, &vDelta);
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vDelta));
         mVelocity = PblVector3(vDir.x * fSpeed, vDir.y * fSpeed, vDir.z * fSpeed);
     }
 
@@ -275,11 +269,16 @@ bool OrdnanceGrapplingHook::Update(float fDeltaTime)
     return true;
 }
 
-// GLOBAL: SWBF2 0x01ef2634
 // SYNTHETIC: SWBF2 0x00405ab0
 // `dynamic initializer for 'OrdnanceGrapplingHookClass::rttiHashOrdnanceGrapplingHookClass''
+// OrdnanceGrapplingHookClass::rttiHashOrdnanceGrapplingHookClass
+
+// GLOBAL: SWBF2 0x01ef2634
+// OrdnanceGrapplingHookClass::rttiHashOrdnanceGrapplingHookClass
 PblHash OrdnanceGrapplingHookClass::rttiHashOrdnanceGrapplingHookClass("OrdnanceGrapplingHookClass");
-char OrdnanceGrapplingHookClass::rttiNameOrdnanceGrapplingHookClass[] = "OrdnanceGrapplingHookClass";
+// GLOBAL: SWBF2 0x0078a870
+// OrdnanceGrapplingHookClass::rttiNameOrdnanceGrapplingHookClass
+const char OrdnanceGrapplingHookClass::rttiNameOrdnanceGrapplingHookClass[] = "OrdnanceGrapplingHookClass";
 
 // FUNCTION: SWBF2 0x005ffe30
 OrdnanceGrapplingHookClass::OrdnanceGrapplingHookClass(unsigned int uHash)
@@ -295,23 +294,11 @@ OrdnanceGrapplingHookClass::OrdnanceGrapplingHookClass(OrdnanceGrapplingHookClas
     mAttachSoldierAnimation = pBase->mAttachSoldierAnimation;
 }
 
-// FUNCTION: SWBF2 0x005ff110
-bool OrdnanceGrapplingHookClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashOrdnanceGrapplingHookClass || OrdnanceBulletClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x005ff140
-unsigned int OrdnanceGrapplingHookClass::GetDerivedRtti()
-{
-    return rttiHashOrdnanceGrapplingHookClass;
-}
 
-// FUNCTION: SWBF2 0x005ff150
-const char* OrdnanceGrapplingHookClass::GetDerivedRttiName()
-{
-    return rttiNameOrdnanceGrapplingHookClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x005fffe0
 void OrdnanceGrapplingHookClass::SetProperty(unsigned int uProperty, const char* pszValue)

@@ -8,6 +8,7 @@ struct internal_state      {int dummy;};
 extern void exit OF((int));
 #endif
 
+// GLOBAL: SWBF2 0x76f640
 const char * const z_errmsg[10] = {
 "need dictionary",
 "stream end",

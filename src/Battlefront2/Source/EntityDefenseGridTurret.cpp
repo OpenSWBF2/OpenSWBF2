@@ -5,31 +5,45 @@
 
 #include <stdio.h>
 
-// GLOBAL: SWBF2 0x01ebb990
 // SYNTHETIC: SWBF2 0x004029b0
 // `dynamic initializer for 'EntityDefenseGridTurretClass::rttiHashEntityDefenseGridTurretClass''
-PblHash EntityDefenseGridTurretClass::rttiHashEntityDefenseGridTurretClass("EntityDefenseGridTurretClass");
-char EntityDefenseGridTurretClass::rttiNameEntityDefenseGridTurretClass[] = "EntityDefenseGridTurretClass";
+// EntityDefenseGridTurretClass::rttiHashEntityDefenseGridTurretClass
 
-// GLOBAL: SWBF2 0x01ebb994
+// GLOBAL: SWBF2 0x01ebb990
+// EntityDefenseGridTurretClass::rttiHashEntityDefenseGridTurretClass
+PblHash EntityDefenseGridTurretClass::rttiHashEntityDefenseGridTurretClass("EntityDefenseGridTurretClass");
+// GLOBAL: SWBF2 0x007890cc
+// EntityDefenseGridTurretClass::rttiNameEntityDefenseGridTurretClass
+const char EntityDefenseGridTurretClass::rttiNameEntityDefenseGridTurretClass[] = "EntityDefenseGridTurretClass";
+
 // SYNTHETIC: SWBF2 0x004029a0
 // `dynamic initializer for 'EntityDefenseGridTurret::rttiHashEntityDefenseGridTurret''
-PblHash EntityDefenseGridTurret::rttiHashEntityDefenseGridTurret("EntityDefenseGridTurret");
-char EntityDefenseGridTurret::rttiNameEntityDefenseGridTurret[] = "EntityDefenseGridTurret";
+// EntityDefenseGridTurret::rttiHashEntityDefenseGridTurret
 
-// GLOBAL: SWBF2 0x01ebb940
+// GLOBAL: SWBF2 0x01ebb994
+// EntityDefenseGridTurret::rttiHashEntityDefenseGridTurret
+PblHash EntityDefenseGridTurret::rttiHashEntityDefenseGridTurret("EntityDefenseGridTurret");
+// GLOBAL: SWBF2 0x007890f8
+// EntityDefenseGridTurret::rttiNameEntityDefenseGridTurret
+const char EntityDefenseGridTurret::rttiNameEntityDefenseGridTurret[] = "EntityDefenseGridTurret";
+
 // SYNTHETIC: SWBF2 0x00402980
 // `dynamic initializer for 'EntityDefenseGridTurret::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00766f20
 // `dynamic atexit destructor for 'EntityDefenseGridTurret::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ebb940
+// EntityDefenseGridTurret::sMemoryPool
 MemoryPool EntityDefenseGridTurret::sMemoryPool("EntityDefenseGridTurret", 0x6c0);
 
-void* EntityDefenseGridTurret::operator new(size_t uSize)
+inline void* EntityDefenseGridTurret::operator new(unsigned int uSize)
 {
     return sMemoryPool.Allocate(uSize);
 }
 
-void EntityDefenseGridTurret::operator delete(void* pBlock)
+// SYNTHETIC: SWBF2 0x00497a20
+// EntityDefenseGridTurret::operator delete
+inline void EntityDefenseGridTurret::operator delete(void* pBlock)
 {
     sMemoryPool.Free(pBlock);
 }
@@ -43,9 +57,6 @@ EntityDefenseGridTurret::EntityDefenseGridTurret(EntityDefenseGridTurretClass* p
     mRespawnTimer = pClass->mRespawnTime;
 }
 
-EntityDefenseGridTurret::~EntityDefenseGridTurret()
-{
-}
 
 // FUNCTION: SWBF2 0x00497b40
 bool EntityDefenseGridTurret::Update(float fDeltaTime)
@@ -54,7 +65,7 @@ bool EntityDefenseGridTurret::Update(float fDeltaTime)
                          netEnabledNext && netClientActive;
     if (!bClient)
     {
-        if (!mIsAlive)
+        if (!IsAlive())
         {
             mRespawnTimer -= fDeltaTime;
             if (mRespawnTimer < 0.0f)
@@ -66,43 +77,28 @@ bool EntityDefenseGridTurret::Update(float fDeltaTime)
         if (mMatrix.m[3][1] < -500.0f)
         {
             Kill();
-            static_cast<RedSceneObject*>(this)->Deactivate();
+            Deactivate();
         }
     }
     return true;
 }
 
-// SYNTHETIC: SWBF2 0x00497a30
-// EntityDefenseGridTurret::`scalar deleting destructor'
 // SYNTHETIC: SWBF2 0x00497dd2
-// [thunk]:EntityDefenseGridTurret::`vector deleting destructor'`adjustor{148}'
+// ??_EEntityDefenseGridTurret@@WJE@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00497ddd
-// [thunk]:EntityDefenseGridTurret::`vector deleting destructor'`adjustor{320}'
+// ??_EEntityDefenseGridTurret@@WBEA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00497de8
-// [thunk]:EntityDefenseGridTurret::`vector deleting destructor'`adjustor{12}'
+// ??_EEntityDefenseGridTurret@@WM@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00497df0
-// [thunk]:EntityDefenseGridTurret::`vector deleting destructor'`adjustor{512}'
+// ??_EEntityDefenseGridTurret@@WCAA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00497dfb
-// [thunk]:EntityDefenseGridTurret::`vector deleting destructor'`adjustor{608}'
+// ??_EEntityDefenseGridTurret@@WCGA@AEPAXI@Z
 
-// FUNCTION: SWBF2 0x004979a0
-bool EntityDefenseGridTurret::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashEntityDefenseGridTurret ||
-           EntityBuildingArmedDynamic::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00497a00
-unsigned int EntityDefenseGridTurret::GetDerivedRtti() const
-{
-    return rttiHashEntityDefenseGridTurret;
-}
 
-// FUNCTION: SWBF2 0x00497a10
-const char* EntityDefenseGridTurret::GetDerivedRttiName() const
-{
-    return rttiNameEntityDefenseGridTurret;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00497d00
 Entity* EntityDefenseGridTurretClass::Build(const EntityDesc& desc)
@@ -114,7 +110,7 @@ Entity* EntityDefenseGridTurretClass::Build(const EntityDesc& desc)
     EntityDefenseGridTurret* pTurret = new EntityDefenseGridTurret(this, desc);
     if (pTurret)
     {
-        CollisionManager::AddItemBody(static_cast<CollisionObject*>(pTurret));
+        pTurret->AddStaticToCollisionManager();
         pTurret->ActivatePhysics();
     }
     return pTurret;
@@ -149,23 +145,11 @@ EntityClass* EntityDefenseGridTurretClass::Derive(unsigned int uHash)
     return new EntityDefenseGridTurretClass(this, uHash);
 }
 
-// FUNCTION: SWBF2 0x00497a60
-bool EntityDefenseGridTurretClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashEntityDefenseGridTurretClass || EntityBuildingArmedDynamicClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00497ab0
-unsigned int EntityDefenseGridTurretClass::GetDerivedRtti()
-{
-    return rttiHashEntityDefenseGridTurretClass;
-}
 
-// FUNCTION: SWBF2 0x00497ac0
-const char* EntityDefenseGridTurretClass::GetDerivedRttiName()
-{
-    return rttiNameEntityDefenseGridTurretClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00497da0
 void EntityDefenseGridTurretClass::SetProperty(unsigned int uProperty, const char* pszValue)

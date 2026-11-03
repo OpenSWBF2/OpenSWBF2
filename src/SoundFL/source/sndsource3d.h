@@ -15,7 +15,10 @@ struct GainMatrix;
 class Source3D
 {
 public:
-    ~Source3D();
+    // FUNCTION: SWBF2 0x00537ef0
+    ~Source3D()
+    {
+    }
     static float sPitchMultiplier;
     enum Flags
     {
@@ -67,6 +70,7 @@ public:
         }
 
         bool GetDopplerMode() const { return (mFlags & flags_dopplerMode) != 0; }
+        bool GetCentrePeakMode() const { return (mFlags & flags_centrePeakMode) != 0; }
 
     protected:
 
@@ -126,19 +130,19 @@ public:
     void SetPosVel3D(::PblVector3* pPos, ::PblVector3* pVel)
     {
         mFlags |= (unsigned char)(flags_pos3DChanged | flags_vel3DChanged);
-        mPos3D = pPos;
-        mVel3D = pVel;
+        mPos3D = pPos ? pPos : &Globals::smNullVector;
+        mVel3D = pVel ? pVel : &Globals::smNullVector;
     }
 
     void SetPosition(const ::PblVector3* pPos)
     {
-        mPos3D = pPos ? const_cast< ::PblVector3*>(pPos) : &Globals::smNullVector;
         mFlags |= flags_pos3DChanged;
+        mPos3D = pPos ? const_cast< ::PblVector3*>(pPos) : &Globals::smNullVector;
     }
     void SetVelocity(const ::PblVector3* pVel)
     {
-        mVel3D = pVel ? const_cast< ::PblVector3*>(pVel) : &Globals::smNullVector;
         mFlags |= flags_vel3DChanged;
+        mVel3D = pVel ? const_cast< ::PblVector3*>(pVel) : &Globals::smNullVector;
     }
 
     void SetProperties(Properties* pProps) { mProps = pProps; }

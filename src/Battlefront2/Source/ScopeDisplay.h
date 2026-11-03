@@ -15,7 +15,8 @@ public:
     {
     public:
         BinocularSound();
-        ~BinocularSound();
+        // SYNTHETIC: SWBF2 0x00633970
+        // ScopeDisplay::BinocularSound::~BinocularSound
 
         void Enter();
         void Exit();

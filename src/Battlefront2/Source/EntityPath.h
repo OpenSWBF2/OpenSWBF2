@@ -5,6 +5,7 @@
 #include "PebbleFL/Common/PblListDouble.h"
 #include "RedEngineFL/Util/RedRegion.h"
 
+// VTABLE: SWBF2 0x0079c454
 class EntityPath : public GamePath
 {
 public:

@@ -174,8 +174,8 @@ private:
  
  
  
- // VTABLE: SWBF2 0x007a015c
-// VTABLE: SWBF2 0x007a0150
+ // VTABLE: SWBF2 0x007a015c EntityClass
+// VTABLE: SWBF2 0x007a0150 FLEffectClass
 class GodrayClass : public EntityClass, public FLEffectClass
 {
 public:
@@ -209,12 +209,21 @@ public:
  
  
 
+// VTABLE: SWBF2 0x007a0114 PblHandled
+// VTABLE: SWBF2 0x007a0180 Thread
 class GodrayEffectObject : public FLEffectObject
 {
     friend class GodrayClass;
      
 public:
-    virtual ~GodrayEffectObject();
+    // SYNTHETIC: SWBF2 0x0053e4b0
+    // GodrayEffectObject::`scalar deleting destructor'
+    // SYNTHETIC: SWBF2 0x005409d7
+    // ??_EGodrayEffectObject@@WBI@AEPAXI@Z
+    virtual ~GodrayEffectObject()
+    {
+        GodrayManager::s_pInstance->RemoveGodray(m_hGodray);
+    }
     virtual bool IsEffectActive() const;
 private:
     GodrayEffectObject(unsigned int hGodray) : m_hGodray(hGodray) {}

@@ -10,7 +10,6 @@ class RedShadowRegionFactory : public RedRegionFactory
 {
 public:
     RedShadowRegionFactory() : RedRegionFactory("shadow") {}
-    virtual ~RedShadowRegionFactory() {}
 
     virtual void* CreateRegion(RedRegionDesc& desc, const char* pcName) const;
     virtual void ReadParameter(const char* pcRegionName, const char* pcParameter,
@@ -55,8 +54,6 @@ public:
     PblList<RedShadowRegion>::Node m_Node;
     PblList<RedShadowRegion>::Node m_VisibleNode;
 };
- 
- 
- 
- 
- 
+
+// SYNTHETIC: SWBF2 0x00719450
+// RedShadowRegion::Info::~Info

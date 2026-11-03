@@ -1,9 +1,9 @@
-#include <new>
 
 #include "sndstreamrenderer.h"
 
-// TEMPLATE: SWBF2 0x00749120
-// Snd::Allocator<Snd::DSBufferRenderer>::operator delete
+// TEMPLATE: SWBF2 0x00749120 SYMBOL
+// ??3?$Allocator@VDSBufferRenderer@Snd@@@Snd@@SAXPAX0_N@Z
+// Snd::Allocator<Snd::DSBufferRenderer>::operator delete(void*, void*, bool)
 
 #include "SoundFL/source/sndglobals.h"
 #include "sndsoftoutput.h"
@@ -11,14 +11,6 @@
 
 namespace Snd
 {
-
-// FUNCTION: SWBF2 0x00748fe0
-StreamRendererBase::StreamRendererBase()
-    : Source3D(0)
-{
-
-    Source3D::mProps = static_cast<Source3D::Properties*>(this);
-}
 
 // FUNCTION: SWBF2 0x00748f30
 StreamRenderer::StreamRenderer()
@@ -57,7 +49,7 @@ void StreamRenderer::ConnectInternal()
     {
 
         mHardwareRenderer->SetFormat(mFormat, mNumChannels, mFrequency,
-                                     (Source2D3D::mFlags & 1) != 0, 200.0f,
+                                     Source2D3D::Get3DMode(), 200.0f,
                                      false, 0, mChannelMask, false);
     }
 
@@ -86,6 +78,7 @@ void StreamRenderer::DisconnectInternal()
     }
 }
 
+
 // FUNCTION: SWBF2 0x00749370
 void StreamRenderer::Flush()
 {
@@ -104,11 +97,11 @@ StreamPacket* StreamRenderer::GetPacket(unsigned int)
 {
     StreamNodeSource* const pInputNode = mConnection.mInputNode;
 
-    if (pInputNode == 0)
+    if (pInputNode != 0)
     {
-        return 0;
+        return pInputNode->GetPacket(mConnection.mInputNodeOutputIndex);
     }
-    return pInputNode->GetPacket(mConnection.mInputNodeOutputIndex);
+    return 0;
 }
 
 // FUNCTION: SWBF2 0x007493c0
@@ -120,7 +113,7 @@ bool StreamRenderer::SetFormat(SampleInfo::Format eFormat,
 
     mChannelMask = ulFlags;
 
-    bool bOk = true;
+    bool bOk;
 
     if (mHardwareRenderer != 0)
     {
@@ -134,6 +127,10 @@ bool StreamRenderer::SetFormat(SampleInfo::Format eFormat,
             mFrequency = 0;
             return false;
         }
+    }
+    else
+    {
+        bOk = true;
     }
 
     mFormat = eFormat;
@@ -182,7 +179,7 @@ void StreamRenderer::Update()
         break;
     }
 
-    const bool b3D = (Source2D3D::mFlags & 1) != 0;
+    const bool b3D = Source2D3D::Get3DMode();
     if (b3D)
     {
         Source3D::mFlags |= Source3D::flags_updateListener;
@@ -191,7 +188,7 @@ void StreamRenderer::Update()
 
     if (mHardwareRenderer)
     {
-        if (b3D != ((mHardwareRenderer->Source2D3D::mFlags & 1) != 0))
+        if (b3D != (mHardwareRenderer->Get3DMode()))
         {
             mHardwareRenderer->Set3DMode(b3D, mChannelMask);
         }
@@ -246,7 +243,8 @@ void StreamRenderer::Update()
 
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x007490a0
 StreamRenderer::~StreamRenderer()

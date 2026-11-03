@@ -204,6 +204,7 @@ public:
     void SetConquestIcon(unsigned int uIcon) { mConquestIcon = uIcon; }
     void SetCTFIcon(unsigned int uIcon) { mCTFIcon = uIcon; }
     void SetAffiliation(int iTeam, int iAffiliation) { mAffiliation[iTeam] = (char)iAffiliation; }
+    // FUNCTION: SWBF2 0x00429350
     int GetCurReinforcements() const { return mCurReinforcements; }
 
     // FUNCTION: SWBF2 0x00438ae0
@@ -214,7 +215,8 @@ public:
 
     const GameObjectClass* GetHeroClass() const;
 
-    RedColor GetColor(int iTeam) const;
+    // FUNCTION: SWBF2 0x00429300
+    RedColor GetColor(int iTeam) const { return mColor[iTeam]; }
 
     virtual ~Team();
     virtual void Init();

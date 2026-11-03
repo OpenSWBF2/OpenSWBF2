@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include <float.h>
 #include <math.h>
 
@@ -25,6 +26,7 @@ float GetFarSceneRange();
 float GetNearSceneFadeEnd();
 }
 
+
 // GLOBAL: SWBF2 0x009a08a8
 RedSceneManager* RedSceneManager::sInstance;
 
@@ -49,44 +51,57 @@ void j_nullsub_177()
     sub_725190();
 }
 
-// FUNCTION: SWBF2 0x006aee30
+// TEMPLATE: SWBF2 0x006aee30
+// util::BaseArray<int *,util::TypedArrayAllocator<int *,util::SingletonAllocator<util::DefaultStaticAllocator> > >::Reserve_
 template bool util::BaseArray<int*,
     util::TypedArrayAllocator<int*, util::SingletonAllocator<util::DefaultStaticAllocator> > >::Reserve_(int, bool);
-// FUNCTION: SWBF2 0x006aed30
+// TEMPLATE: SWBF2 0x006aed30
+// util::BaseArray<unsigned int,util::TypedArrayAllocator<unsigned int,util::SingletonAllocator<util::DefaultStaticAllocator> > >::Reserve_
 template bool util::BaseArray<unsigned int,
     util::TypedArrayAllocator<unsigned int, util::SingletonAllocator<util::DefaultStaticAllocator> > >::Reserve_(int, bool);
-// FUNCTION: SWBF2 0x006aef30
+// TEMPLATE: SWBF2 0x006aef30
+// util::BaseArray<char const *,util::TypedArrayAllocator<char const *,util::SingletonAllocator<util::DefaultStaticAllocator> > >::Reserve_
 template bool util::BaseArray<char const*,
     util::TypedArrayAllocator<char const*, util::SingletonAllocator<util::DefaultStaticAllocator> > >::Reserve_(int, bool);
-// FUNCTION: SWBF2 0x006af1e0
+// TEMPLATE: SWBF2 0x006af1e0
+// util::Vector<int *,util::BaseArray<int *,util::TypedArrayAllocator<int *,util::SingletonAllocator<util::DefaultStaticAllocator> > > >::SetSize_
 template bool util::Vector<int*, util::BaseArray<int*,
     util::TypedArrayAllocator<int*, util::SingletonAllocator<util::DefaultStaticAllocator> > > >::SetSize_(int, bool);
-// FUNCTION: SWBF2 0x006af130
+// TEMPLATE: SWBF2 0x006af130
+// util::Vector<unsigned int,util::BaseArray<unsigned int,util::TypedArrayAllocator<unsigned int,util::SingletonAllocator<util::DefaultStaticAllocator> > > >::SetSize_
 template bool util::Vector<unsigned int, util::BaseArray<unsigned int,
     util::TypedArrayAllocator<unsigned int, util::SingletonAllocator<util::DefaultStaticAllocator> > > >::SetSize_(int, bool);
-// FUNCTION: SWBF2 0x006af290
+// TEMPLATE: SWBF2 0x006af290
+// util::Vector<char const *,util::BaseArray<char const *,util::TypedArrayAllocator<char const *,util::SingletonAllocator<util::DefaultStaticAllocator> > > >::SetSize_
 template bool util::Vector<char const*, util::BaseArray<char const*,
     util::TypedArrayAllocator<char const*, util::SingletonAllocator<util::DefaultStaticAllocator> > > >::SetSize_(int, bool);
-// FUNCTION: SWBF2 0x006adb00
+// TEMPLATE: SWBF2 0x006adb00
+// util::HashTable_<int *,char const *,util::Vector<int *,util::BaseArray<int *,util::TypedArrayAllocator<int *,util::SingletonAllocator<util::DefaultStaticAllocator> > > >,util::Vector<char const *,util::BaseArray<char const *,util::TypedArrayAllocator<char const *,util::SingletonAllocator<util::DefaultStaticAllocator> > > >,util::Vector<unsigned int,util::BaseArray<unsigned int,util::TypedArrayAllocator<unsigned int,util::SingletonAllocator<util::DefaultStaticAllocator> > > > >::FindIndex_
 template unsigned int util::HashTable_<int*, char const*, util::HashTable<int*, char const*, util::SingletonAllocator<util::DefaultStaticAllocator> >::ElemVecT, util::HashTable<int*, char const*, util::SingletonAllocator<util::DefaultStaticAllocator> >::KeyVecT, util::HashTable<int*, char const*, util::SingletonAllocator<util::DefaultStaticAllocator> >::HashVecT>::FindIndex_(unsigned int) const;
 
-// FUNCTION: SWBF2 0x006ad580
+// TEMPLATE: SWBF2 0x006ad580
+// util::BaseArray<unsigned int,util::TypedArrayAllocator<unsigned int,util::SingletonAllocator<util::DefaultStaticAllocator> > >::~BaseArray<unsigned int,util::TypedArrayAllocator<unsigned int,util::SingletonAllocator<util::DefaultStaticAllocator> > >
 template util::BaseArray<unsigned int,
     util::TypedArrayAllocator<unsigned int, util::SingletonAllocator<util::DefaultStaticAllocator> > >::~BaseArray();
-// FUNCTION: SWBF2 0x006ad5d0
+// TEMPLATE: SWBF2 0x006ad5d0
+// util::BaseArray<int *,util::TypedArrayAllocator<int *,util::SingletonAllocator<util::DefaultStaticAllocator> > >::~BaseArray<int *,util::TypedArrayAllocator<int *,util::SingletonAllocator<util::DefaultStaticAllocator> > >
 template util::BaseArray<int*,
     util::TypedArrayAllocator<int*, util::SingletonAllocator<util::DefaultStaticAllocator> > >::~BaseArray();
-// FUNCTION: SWBF2 0x006ad620
+// TEMPLATE: SWBF2 0x006ad620
+// util::BaseArray<char const *,util::TypedArrayAllocator<char const *,util::SingletonAllocator<util::DefaultStaticAllocator> > >::~BaseArray<char const *,util::TypedArrayAllocator<char const *,util::SingletonAllocator<util::DefaultStaticAllocator> > >
 template util::BaseArray<char const*,
     util::TypedArrayAllocator<char const*, util::SingletonAllocator<util::DefaultStaticAllocator> > >::~BaseArray();
 
-// FUNCTION: SWBF2 0x006ae950
+// TEMPLATE: SWBF2 0x006ae950
+// util::HashTable_<int *,char const *,util::Vector<int *,util::BaseArray<int *,util::TypedArrayAllocator<int *,util::SingletonAllocator<util::DefaultStaticAllocator> > > >,util::Vector<char const *,util::BaseArray<char const *,util::TypedArrayAllocator<char const *,util::SingletonAllocator<util::DefaultStaticAllocator> > > >,util::Vector<unsigned int,util::BaseArray<unsigned int,util::TypedArrayAllocator<unsigned int,util::SingletonAllocator<util::DefaultStaticAllocator> > > > >::Get
 template int*& util::HashTable_<int*, char const*, util::HashTable<int*, char const*, util::SingletonAllocator<util::DefaultStaticAllocator> >::ElemVecT, util::HashTable<int*, char const*, util::SingletonAllocator<util::DefaultStaticAllocator> >::KeyVecT, util::HashTable<int*, char const*, util::SingletonAllocator<util::DefaultStaticAllocator> >::HashVecT>::Get(char const* const&);
 
-// FUNCTION: SWBF2 0x006ae9d0
+// TEMPLATE: SWBF2 0x006ae9d0
+// util::VariableSet<util::SingletonAllocator<util::DefaultStaticAllocator> >::GetInt
 template int& util::VariableSet<util::SingletonAllocator<util::DefaultStaticAllocator> >::GetInt(char const*);
 
-// FUNCTION: SWBF2 0x006aead0
+// TEMPLATE: SWBF2 0x006aead0
+// util::HashTable<int *,char const *,util::SingletonAllocator<util::DefaultStaticAllocator> >::Reallocate
 template void util::HashTable<int*, char const*, util::SingletonAllocator<util::DefaultStaticAllocator> >::Reallocate(int);
 
 // GLOBAL: SWBF2 0x009a0878
@@ -123,9 +138,11 @@ float g_fCameraCosHalfFOVX;
 // GLOBAL: SWBF2 0x009a08a0
 float g_fCameraCosHalfFOVY;
 
-// GLOBAL: SWBF2 0x009a08b0
 // SYNTHETIC: SWBF2 0x004089d0
 // `dynamic initializer for 'sRedSceneCamera''
+
+// GLOBAL: SWBF2 0x009a08b0
+// sRedSceneCamera
 static RedSceneCamera sRedSceneCamera;
 // GLOBAL: SWBF2 0x007df954
 static int sMaxNumFarObjects = 256;
@@ -392,12 +409,15 @@ void RedSceneAABox::Move(RedSceneObject* pObject)
     pBox->Add(pObject);
 }
 
-// FUNCTION: SWBF2 0x006e2a00
+// TEMPLATE: SWBF2 0x006e2a00
+// PblHeap<RedSceneAABox *,float>::Pop
 template void PblHeap<RedSceneAABox*, float>::Pop();
-// FUNCTION: SWBF2 0x006e2a90
+// TEMPLATE: SWBF2 0x006e2a90
+// PblHeap<RedSceneObject *,float>::Pop
 template void PblHeap<RedSceneObject*, float>::Pop();
 
-// FUNCTION: SWBF2 0x006e2b20
+// TEMPLATE: SWBF2 0x006e2b20
+// PblHeap<RedSceneObject *,float>::Push
 template void PblHeap<RedSceneObject*, float>::Push(RedSceneObject*&, float);
 
 // FUNCTION: SWBF2 0x006e2b80
@@ -516,11 +536,7 @@ void RenderFarObjects()
     float fMinScreenSize = RedLodManager::GetMinScreenSize();
     RedSceneObject* objects[256];
     int iCount = 0;
-    int iMax = 256;
-    if (sMaxNumFarObjects < iMax)
-    {
-        iMax = sMaxNumFarObjects;
-    }
+    int iMax = Min(sMaxNumFarObjects, 256);
     int iClass2Budget = 10;
     sMaxNumFarObjects = iMax;
     float fMinRatio = fMinScreenSize * fMinScreenSize / 798720.0f;
@@ -602,11 +618,7 @@ void RenderFarObjects()
                     + (p->_Sphere.y - sRedSceneCamera.mPosition.y) * sRedSceneCamera.mFront.y
                     + (p->_Sphere.z - sRedSceneCamera.mPosition.z) * sRedSceneCamera.mFront.z
                     + fRadius;
-        float fAlpha = (fDist - fFadeStart) / 20.0f;
-        if (!(1.0f > fAlpha))
-        {
-            fAlpha = 1.0f;
-        }
+        float fAlpha = Min((fDist - fFadeStart) / 20.0f, 1.0f);
         float fLimit = fRadius + fFarRange;
         if (fDist >= fLimit - 20.0f)
         {
@@ -684,7 +696,7 @@ bool RenderObject(RedSceneObject* pObject, unsigned int uiFlags, int iClip)
         fZoom = pCamera->GetZoom();
     }
     PblVector3 vView;
-    D3DXVec3TransformCoord(&vView, &*(const PblVector3*)&pObject->_Sphere, &pCamera->GetMatrixInverse());
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vView), reinterpret_cast<const D3DXVECTOR3*>(&*(const PblVector3*)&pObject->_Sphere), reinterpret_cast<const D3DXMATRIX*>(&pCamera->GetMatrixInverse()));
 
     if (pLodData->HasLowRes() && !pLodData->CrossFadeLowRes())
     {
@@ -796,10 +808,7 @@ bool RedSceneAABox::SetupBox()
             local._vMin = PblVector3(-vHalf.x, -vHalf.y, -vHalf.z);
             local._vMax = vHalf;
             PblMatrix m = pObject->GetBBoxMatrix();
-            m.m[3][0] = vPos.x;
-            m.m[3][1] = vPos.y;
-            m.m[3][2] = vPos.z;
-            m.m[3][3] = 1.0f;
+            m.SetTranslation(vPos);
             box = local.GetTransformedBox(m);
         }
         else
@@ -962,22 +971,22 @@ void SetupPlanes(const PblMatrix& m, float fNear, float fWidth, float fHeight,
 
     PblVector3 v, n0, n1, n2, n3;
     v = PblVector3(vFront.x - vRight.x + vUp.x, vFront.y - vRight.y + vUp.y, vFront.z - vRight.z + vUp.z);
-    D3DXVec3Normalize(&n0, &v);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&n0), reinterpret_cast<const D3DXVECTOR3*>(&v));
     v = PblVector3(vRight.x + vFront.x + vUp.x, vRight.y + vFront.y + vUp.y, vRight.z + vFront.z + vUp.z);
-    D3DXVec3Normalize(&n1, &v);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&n1), reinterpret_cast<const D3DXVECTOR3*>(&v));
     v = PblVector3(vFront.x - vRight.x - vUp.x, vFront.y - vRight.y - vUp.y, vFront.z - vRight.z - vUp.z);
-    D3DXVec3Normalize(&n2, &v);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&n2), reinterpret_cast<const D3DXVECTOR3*>(&v));
     v = PblVector3(vRight.x + vFront.x - vUp.x, vRight.y + vFront.y - vUp.y, vRight.z + vFront.z - vUp.z);
-    D3DXVec3Normalize(&n3, &v);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&n3), reinterpret_cast<const D3DXVECTOR3*>(&v));
 
     v = PblVector3(n0.z * n2.y - n0.y * n2.z, n2.z * n0.x - n0.z * n2.x, n0.y * n2.x - n2.y * n0.x);
-    D3DXVec3Normalize(&pPlanes[0], &v);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&pPlanes[0]), reinterpret_cast<const D3DXVECTOR3*>(&v));
     v = PblVector3(n3.z * n1.y - n3.y * n1.z, n1.z * n3.x - n3.z * n1.x, n3.y * n1.x - n1.y * n3.x);
-    D3DXVec3Normalize(&pPlanes[1], &v);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&pPlanes[1]), reinterpret_cast<const D3DXVECTOR3*>(&v));
     v = PblVector3(n1.z * n0.y - n1.y * n0.z, n0.z * n1.x - n1.z * n0.x, n1.y * n0.x - n0.y * n1.x);
-    D3DXVec3Normalize(&pPlanes[2], &v);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&pPlanes[2]), reinterpret_cast<const D3DXVECTOR3*>(&v));
     v = PblVector3(n3.y * n2.z - n3.z * n2.y, n3.z * n2.x - n2.z * n3.x, n2.y * n3.x - n3.y * n2.x);
-    D3DXVec3Normalize(&pPlanes[3], &v);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&pPlanes[3]), reinterpret_cast<const D3DXVECTOR3*>(&v));
 
     for (int i = 0; i < 4; ++i)
     {
@@ -1023,11 +1032,9 @@ void RedSceneManager::_Add(RedSceneObject* pObject)
 // FUNCTION: SWBF2 0x006e4350
 void RedSceneManager::_AddTransparentObject(RedSceneObject* pObject, float fDist)
 {
-    PblHeap<RedSceneObject*, float>* pHeap =
-        static_cast<PblHeap<RedSceneObject*, float>*>(mTransparentObjects);
-    if (!pHeap->IsFull())
+    if (!mTransparentObjects->IsFull())
     {
-        pHeap->Push(pObject, fDist);
+        mTransparentObjects->Push(pObject, fDist);
     }
 }
 
@@ -1148,7 +1155,7 @@ void RedSceneManager::_Update(RedSceneObject* pObject)
 }
 
 // SYNTHETIC: SWBF2 0x00408990
-// `dynamic initializer for 'PblMath::fOneOverHalfPi''
+// PblMath::`dynamic initializer for 'fOneOverHalfPi''
 
 // SYNTHETIC: SWBF2 0x004089b0
-// `dynamic initializer for 'PblMath::fOneOverTwoPi''
+// PblMath::`dynamic initializer for 'fOneOverTwoPi''

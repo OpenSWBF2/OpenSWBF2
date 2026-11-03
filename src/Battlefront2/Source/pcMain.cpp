@@ -48,32 +48,53 @@ void CloseJournal();
 
 extern bool sPauseMenuSoundEnabled;
 
+// GLOBAL: SWBF2 0x007e8ef8
 char appName[260] = "Star Wars Battlefront II";
 
+// GLOBAL: SWBF2 0x007e8eeb
 bool gAppActive = true;
 
+// GLOBAL: SWBF2 0x01fa8c50
 void* s_memoryArena;
+// GLOBAL: SWBF2 0x01fa8c54
+// g_hMutex
 void* g_hMutex;
 
 // GLOBAL: SWBF2 0x01eaedd4
 bool gAltMeleeHitEffects;
 
+// GLOBAL: SWBF2 0x01eaedd6
 bool pcForceFixedFunction;
+// GLOBAL: SWBF2 0x01eaedd7
+// pcWindowed
 bool pcWindowed;
-
-static const UINT kWmDpiChanged = 0x02E0;
+// GLOBAL: SWBF2 0x01eaedd8
+// hGlobalWnd
 HWND hGlobalWnd;
+// GLOBAL: SWBF2 0x01eaede4
 bool pcPostInstall;
 
 // GLOBAL: SWBF2 0x01eaede5
 bool gIsQuitting;
+// GLOBAL: SWBF2 0x01eaede6
 bool pcEnableLogging;
+// GLOBAL: SWBF2 0x01eaede7
+// gbMutexValid
 bool gbMutexValid;
+// GLOBAL: SWBF2 0x01eaede8
+// hGlobalInstance
 HINSTANCE hGlobalInstance;
+// GLOBAL: SWBF2 0x01eaedec
+// PCDebugHeap
 int PCDebugHeap;
 
+// GLOBAL: SWBF2 0x01eaeddc
 int pcHeight;
+// GLOBAL: SWBF2 0x01eaede0
 int pcWidth;
+
+// GLOBAL: SWBF2 0x01fa8c58
+D3DGAMMARAMP s_originalGammaRamp;
 
 // FUNCTION: SWBF2 0x006170f0
 bool ToggleAltMeleeHitEffectsCheat()
@@ -154,7 +175,7 @@ void Startup_DebugHeap()
 
 // FUNCTION: SWBF2 0x00617200
 
-extern "C" void Startup_RedInitHeap()
+extern "C" void Startup_RedInitHeap(int, int)
 {
     Startup_InitApplicationMemory();
     Startup_DebugHeap();
@@ -678,19 +699,4 @@ void InitializeMainCameraState()
 {
 }
 
-// GLOBAL: SWBF2 0x01faa8f8
 
-void* sHeapScratchBuffer;
-
-// GLOBAL: SWBF2 0x01faa8fc
-
-bool sHeapScratchAllocated;
-
-// FUNCTION: SWBF2 0x00766ed0
-void __cdecl ReleaseHeapScratchBuffer()
-{
-    if (sHeapScratchAllocated)
-    {
-        ::operator delete[](sHeapScratchBuffer);
-    }
-}

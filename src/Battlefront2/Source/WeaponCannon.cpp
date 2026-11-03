@@ -1,3 +1,5 @@
+#include "AmmoCounter.h"
+#include <d3dx9math.h>
 #include "WeaponCannon.h"
 
 #include <math.h>
@@ -18,23 +20,32 @@
 #include "WeaponCannonInstance.h"
 #include "PebbleFL/Common/PblRandom.h"
 #include "SoundFL/source/sndvoicevirtualbus.h"
-#include "PebbleFL/pc/PblD3DX.h"
+#include "PebbleFL/Common/PblMath.h"
 
 extern int gDebugCount;
 extern bool netIsLocalTurn;
 
-namespace CombatUtil { void SendDamageEvent(const Controllable* pOwner, const GameObject* pTarget, const Trigger* pTrigger); }
-namespace GameLoop { extern float sClientDeltaTime; }
+
+namespace CombatUtil
+{
+void SendDamageEvent(const Controllable* pOwner, const GameObject* pTarget, const Trigger* pTrigger);
+}
+namespace GameLoop
+{
+extern float sClientDeltaTime;
+}
+
+
 
 namespace
 {
 
-    const PblVector3& GetVelocity(GameObject* pObject)
+    inline const PblVector3& GetVelocity(GameObject* pObject)
     {
         return pObject->GetVelocity();
     }
 
-    const PblMatrix& GetCollisionMatrix(const GameObject* pObject)
+    inline const PblMatrix& GetCollisionMatrix(const GameObject* pObject)
     {
         return static_cast<const CollisionObject*>(pObject)->GetMatrix();
     }
@@ -44,22 +55,18 @@ namespace
         return pObject->IsAlive();
     }
 
-    float GetCurHealth(const GameObject* pObject)
+    inline float GetCurHealth(const GameObject* pObject)
     {
         return pObject->mCurHealth;
     }
 
-    const PblVector3& GetTranslation(const PblMatrix& m)
-    {
-        return *reinterpret_cast<const PblVector3*>(m.m[3]);
-    }
 
-    int GetTeam(const GameObject* pObject)
+    inline int GetTeam(const GameObject* pObject)
     {
         return pObject->GetTeam();
     }
 
-    EntityClass* GetEntityClass(GameObject* pObject)
+    inline EntityClass* GetEntityClass(GameObject* pObject)
     {
         return pObject->GetEntityClass();
     }
@@ -76,18 +83,6 @@ namespace
         return h.mObject;
     }
 
-    float Clamp(float f, float fMin, float fMax)
-    {
-        if (fMin > f)
-        {
-            return fMin;
-        }
-        if (f > fMax)
-        {
-            return fMax;
-        }
-        return f;
-    }
 }
 
 // FUNCTION: SWBF2 0x00680050
@@ -137,53 +132,39 @@ WeaponCannonClass::WeaponCannonClass(unsigned int uHash)
     mSecondaryOrdnancePeriod = 0;
 }
 
-// GLOBAL: SWBF2 0x01f9a894
 // SYNTHETIC: SWBF2 0x004070a0
 // `dynamic initializer for 'WeaponCannon::rttiHashWeaponCannon''
-PblHash WeaponCannon::rttiHashWeaponCannon("WeaponCannon");
-char WeaponCannon::rttiNameWeaponCannon[] = "WeaponCannon";
+// WeaponCannon::rttiHashWeaponCannon
 
-// GLOBAL: SWBF2 0x01f9a898
+// GLOBAL: SWBF2 0x01f9a894
+// WeaponCannon::rttiHashWeaponCannon
+PblHash WeaponCannon::rttiHashWeaponCannon("WeaponCannon");
+// GLOBAL: SWBF2 0x0078be8c
+// WeaponCannon::rttiNameWeaponCannon
+const char WeaponCannon::rttiNameWeaponCannon[] = "WeaponCannon";
+
 // SYNTHETIC: SWBF2 0x004070b0
 // `dynamic initializer for 'WeaponCannonClass::rttiHashWeaponCannonClass''
+// WeaponCannonClass::rttiHashWeaponCannonClass
+
+// GLOBAL: SWBF2 0x01f9a898
+// WeaponCannonClass::rttiHashWeaponCannonClass
 PblHash WeaponCannonClass::rttiHashWeaponCannonClass("WeaponCannonClass");
-char WeaponCannonClass::rttiNameWeaponCannonClass[] = "WeaponCannonClass";
+// GLOBAL: SWBF2 0x0078be70
+// WeaponCannonClass::rttiNameWeaponCannonClass
+const char WeaponCannonClass::rttiNameWeaponCannonClass[] = "WeaponCannonClass";
 
-// FUNCTION: SWBF2 0x0067e3c0
-bool WeaponCannon::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashWeaponCannon || Weapon::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x0067e3f0
-unsigned int WeaponCannon::GetDerivedRtti() const
-{
-    return rttiHashWeaponCannon;
-}
 
-// FUNCTION: SWBF2 0x0067e400
-const char* WeaponCannon::GetDerivedRttiName() const
-{
-    return rttiNameWeaponCannon;
-}
 
-// FUNCTION: SWBF2 0x0067e440
-bool WeaponCannonClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashWeaponCannonClass || WeaponClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x0067e470
-unsigned int WeaponCannonClass::GetDerivedRtti()
-{
-    return rttiHashWeaponCannonClass;
-}
 
-// FUNCTION: SWBF2 0x0067e480
-const char* WeaponCannonClass::GetDerivedRttiName()
-{
-    return rttiNameWeaponCannonClass;
-}
+
+
+
+
+
+
 
 // FUNCTION: SWBF2 0x0067e490
 WeaponCannon::WeaponCannon(const WeaponCannonClass* pClass, const WeaponDesc& desc)
@@ -238,7 +219,7 @@ bool WeaponCannon::Update(float fDeltaTime)
     }
     else
     {
-        pPos = &GetTranslation(GetCollisionMatrix(pObject));
+        pPos = &(GetCollisionMatrix(pObject)).GetTranslation();
     }
     const PblVector3* pVel = &GetVelocity(pObject);
 
@@ -322,10 +303,10 @@ float WeaponCannon::GetYawSpread() const
     float fYaw = pClass->mYawSpread;
     if (fYaw == 0.0f && mOwner->mPlayerId < 0 && pClass->mTriggerSingle && pClass->mZoomMax >= 6.0f &&
         UnitControllerPtr(mOwner->mCtrl) &&
-        reinterpret_cast<AILowLevel*>(UnitControllerPtr(mOwner->mCtrl)->mLowLevel)->GetTarget())
+        UnitControllerPtr(mOwner->mCtrl)->mLowLevel.GetTarget())
     {
         const GameObject* pTarget =
-            reinterpret_cast<AILowLevel*>(UnitControllerPtr(mOwner->mCtrl)->mLowLevel)->GetTarget();
+            UnitControllerPtr(mOwner->mCtrl)->mLowLevel.GetTarget();
         const PblMatrix& mOwnerMatrix = mOwner->GetMatrix();
         const PblMatrix& mTargetMatrix = GetCollisionMatrix(pTarget);
         float fX = mTargetMatrix.m[3][0] - mOwnerMatrix.m[3][0];
@@ -489,7 +470,7 @@ bool WeaponCannon::UpdateFire(float fDeltaTime)
 
         if (mSalvoCount > 0)
         {
-            while (!(mSalvoDelay > 0.0f))
+            while (mSalvoDelay <= 0.0f)
             {
                 pClass = static_cast<const WeaponCannonClass*>(mClass);
                 bool bFirstShot = mSalvoCount == pClass->mSalvoCount;
@@ -497,7 +478,7 @@ bool WeaponCannon::UpdateFire(float fDeltaTime)
                 {
                     const WeaponCannonClass* pShotClass = static_cast<const WeaponCannonClass*>(mClass);
                     if (!m_pAmmoCounter->CanExpendRounds(pShotClass->mRoundsPerShot) ||
-                        (m_pEnergyBar->IsOverheating() && pShotClass->mHeatPerShot > 0.0f))
+                        (m_pEnergyBar->IsOverheating() && !(pShotClass->mHeatPerShot <= 0.0f)))
                     {
                         mSalvoCount = 0;
                         break;
@@ -549,7 +530,7 @@ bool WeaponCannon::UpdateFire(float fDeltaTime)
             }
             fRemaining -= fStep;
             mStateTimer += fStep;
-            if (mStateTimer < mStateLimit || static_cast<const WeaponCannonClass*>(mClass)->mTriggerSingle ||
+            if (!(mStateTimer >= mStateLimit) || static_cast<const WeaponCannonClass*>(mClass)->mTriggerSingle ||
                 !CheckFire() || CheckReload() || CheckEmpty())
             {
                 break;
@@ -668,7 +649,7 @@ bool WeaponCannon::FireDone() const
     {
         return true;
     }
-    if (mSalvoCount > 0 || mStateTimer < mStateLimit)
+    if (mSalvoCount > 0 || !(mStateTimer >= mStateLimit))
     {
         return false;
     }
@@ -755,7 +736,7 @@ bool WeaponCannon::Fire()
     desc.mPosition = mAimer->mFirePos;
     PblVector3 vDir(fSinYaw * fCosPitch, -fSinPitch, fCosYaw * fCosPitch);
     PblVector3 vWorldDir;
-    D3DXVec3TransformNormal(&vWorldDir, &vDir, &mFire);
+    D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vWorldDir), reinterpret_cast<const D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXMATRIX*>(&mFire));
     desc.mDirection = vWorldDir;
     desc.mStrength = mStrength;
     desc.mOwner = mOwner->GetGameObject();
@@ -838,7 +819,7 @@ void WeaponCannon::PlayWarmUpSound()
     const PblMatrix& mMatrix = GetCollisionMatrix(pObject);
     const PblVector3& vVel = GetVelocity(pObject);
     mSoundPropsWarmUp = pClass->mWarmUpSound;
-    mSoundControlWarmUp.Play(&mSoundPropsWarmUp, &GetTranslation(mMatrix), &vVel, true);
+    mSoundControlWarmUp.Play(&mSoundPropsWarmUp, &mMatrix.GetTranslation(), &vVel, true);
     if (Snd::VoiceVirtual* pVoice = mSoundControlWarmUp.GetVoiceVirtual())
     {
         static_cast<Snd::VoiceVirtualBus*>(pVoice)->SetGain(0.0f);
@@ -942,7 +923,7 @@ void WeaponCannon::PlayBarrelSound()
     const PblMatrix& mMatrix = GetCollisionMatrix(pObject);
     const PblVector3& vVel = GetVelocity(pObject);
     mSoundPropsBarrel = pClass->mBarrelSound;
-    mSoundControlBarrel.Play(&mSoundPropsBarrel, &GetTranslation(mMatrix), &vVel, true);
+    mSoundControlBarrel.Play(&mSoundPropsBarrel, &mMatrix.GetTranslation(), &vVel, true);
     if (Snd::VoiceVirtual* pVoice = mSoundControlBarrel.GetVoiceVirtual())
     {
         static_cast<Snd::VoiceVirtualBus*>(pVoice)->SetGain(0.0f);
@@ -1016,7 +997,7 @@ void WeaponCannon::PlayCoolDownSound()
     const PblMatrix& mMatrix = GetCollisionMatrix(pObject);
     const PblVector3& vVel = GetVelocity(pObject);
     mSoundPropsCoolDown = pClass->mCoolDownSound;
-    mSoundControlCoolDown.Play(&mSoundPropsCoolDown, &GetTranslation(mMatrix), &vVel, true);
+    mSoundControlCoolDown.Play(&mSoundPropsCoolDown, &mMatrix.GetTranslation(), &vVel, true);
     if (Snd::VoiceVirtual* pVoice = mSoundControlCoolDown.GetVoiceVirtual())
     {
         static_cast<Snd::VoiceVirtualBus*>(pVoice)->SetGain(0.0f);
@@ -1362,19 +1343,19 @@ Weapon* WeaponCannonClass::Build(const WeaponDesc& desc)
 }
 
 // FUNCTION: SWBF2 0x00680b50
-float WeaponCannonClass::GetHeatPerSalvo()
+float WeaponCannonClass::GetHeatPerSalvo() const
 {
     return (float)mShotsPerSalvo * mHeatPerShot;
 }
 
 // FUNCTION: SWBF2 0x00680b80
-float WeaponCannonClass::GetShotsPerSalvo()
+float WeaponCannonClass::GetShotsPerSalvo() const
 {
     return (float)mShotsPerSalvo;
 }
 
 // FUNCTION: SWBF2 0x00680ba0
-int WeaponCannonClass::GetBarrageMin()
+int WeaponCannonClass::GetBarrageMin() const
 {
     if (mTriggerSingle)
     {
@@ -1384,7 +1365,7 @@ int WeaponCannonClass::GetBarrageMin()
 }
 
 // FUNCTION: SWBF2 0x00680bc0
-int WeaponCannonClass::GetBarrageMax()
+int WeaponCannonClass::GetBarrageMax() const
 {
     if (mTriggerSingle)
     {
@@ -1396,5 +1377,7 @@ int WeaponCannonClass::GetBarrageMax()
 // SYNTHETIC: SWBF2 0x006801e0
 // WeaponCannonClass::`scalar deleting destructor'
 
-// SYNTHETIC: SWBF2 0x00680450
-// WeaponCannonClass::~WeaponCannonClass
+// FUNCTION: SWBF2 0x00680450
+WeaponCannonClass::~WeaponCannonClass()
+{
+}

@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "RedEngineFL/Util/RedCommandConsole.h"
 #include "RedEngineFL/Graphics/PC/Shaders/pcStencilShadowShader.h"
 #include "RedEngineFL/Application/RedTerrain.h"
@@ -92,12 +93,13 @@ void FLRenderer::AddInterfaceElement(RedScreenGroupElement* pElement, float fX,
 {
     pElement->m_fScreenRelativeX = fX;
     pElement->m_fScreenRelativeY = fY;
-    pElement->m_bUseSafeZone = bUseSafeZone;
+    pElement->SetUseSafezone(bUseSafeZone);
 
     RedInterfaceScreen::s_screenFull.AddElement(pElement);
 }
 
 extern bool g_bNoRender;
+
 
 // GLOBAL: SWBF2 0x007de9dc
 PblList<ReflectionRegion> ReflectionRegion::s_List;
@@ -119,12 +121,24 @@ FLRenderer::TransitionT sViewTransitions[2] = {
 bool FLRenderer::m_bEnableFadeAdjustWithZoom;
 // GLOBAL: SWBF2 0x008f6d9a
 bool FLRenderer::m_bSceneEnable[1];
+namespace FLRenderer
+{
 
 // GLOBAL: SWBF2 0x008f6d9b
-namespace FLRenderer { bool m_bInterfaceEnable[1]; }
-namespace FLRenderer { extern float m_fWorldFogStart; }
-namespace FLRenderer { extern float m_fWorldFogEnd; }
-namespace FLRenderer { extern RedColor m_colorReflectionFog; }
+bool m_bInterfaceEnable[1];
+}
+namespace FLRenderer
+{
+extern float m_fWorldFogStart;
+}
+namespace FLRenderer
+{
+extern float m_fWorldFogEnd;
+}
+namespace FLRenderer
+{
+extern RedColor m_colorReflectionFog;
+}
 
 // FUNCTION: SWBF2 0x006beac0
 void FLRenderer::RenderableList::RenderReflections(unsigned int uiFlags) const
@@ -173,10 +187,10 @@ RedTexture* FLRenderer::pcGetReflectionTexture(char)
 // FUNCTION: SWBF2 0x006bf690
 void ReflectionRegion::_UpdateReflectionMatrix()
 {
-    const float x = m_reflectionPlane.x;
-    const float y = m_reflectionPlane.y;
-    const float z = m_reflectionPlane.z;
-    const float w = m_reflectionPlane.w;
+    const float x = m_reflectionPlane.GetA();
+    const float y = m_reflectionPlane.GetB();
+    const float z = m_reflectionPlane.GetC();
+    const float w = m_reflectionPlane.GetD();
     const float xx = x * x, yy = y * y, zz = z * z;
     const float inverse = 1.0f / ((xx + yy) + zz);
     const float twice = -2.0f * inverse;
@@ -211,10 +225,16 @@ unsigned int FLRenderer::mViewCount;
 float fl_fog_start;
 // GLOBAL: SWBF2 0x008f6dc0
 float fl_fog_end;
+namespace FLRenderer
+{
 // GLOBAL: SWBF2 0x008f6dc4
-namespace FLRenderer { float m_fWorldFogStart; }
+float m_fWorldFogStart;
+}
+namespace FLRenderer
+{
 // GLOBAL: SWBF2 0x008f6dc8
-namespace FLRenderer { float m_fWorldFogEnd; }
+float m_fWorldFogEnd;
+}
 // GLOBAL: SWBF2 0x008f6dcc
 float FLRenderer::m_fViewNearPlane;
 // GLOBAL: SWBF2 0x008f6dd0
@@ -223,8 +243,11 @@ float FLRenderer::m_fViewNearSceneFadeStart[2];
 float FLRenderer::m_fViewNearSceneFadeEnd[2];
 // GLOBAL: SWBF2 0x008f6de0
 float FLRenderer::m_fViewFarPlane[2];
+namespace FLRenderer
+{
 // GLOBAL: SWBF2 0x008f6de8
-namespace FLRenderer { float m_fNearSceneRangeFactor; }
+float m_fNearSceneRangeFactor;
+}
 // GLOBAL: SWBF2 0x008f6dec
 
 bool sFarSceneRangeEnabled[1];
@@ -234,10 +257,16 @@ RedInterfaceScreen* FLRenderer::m_pViewInterfaceScreen[1];
 ReflectionRegionFactory* FLRenderer::m_pReflectionRegionFactory;
 // GLOBAL: SWBF2 0x008f6df8
 RedTexture* FLRenderer::m_reflectionRenderTarget;
+namespace FLRenderer
+{
 // GLOBAL: SWBF2 0x008f6dfc
-namespace FLRenderer { IDirect3DSurface9* m_reflectionDepthBuffer; }
+IDirect3DSurface9* m_reflectionDepthBuffer;
+}
+namespace FLRenderer
+{
 // GLOBAL: SWBF2 0x008f6e00
-namespace FLRenderer { IDirect3DSurface9* m_FarSceneDepthBuffer; }
+IDirect3DSurface9* m_FarSceneDepthBuffer;
+}
 // GLOBAL: SWBF2 0x008f6ed0
 unsigned int FLRenderer::m_numCurFrameReflections;
 // GLOBAL: SWBF2 0x008f6ed4
@@ -246,26 +275,35 @@ RedTexture* FLRenderer::m_previousFrameTex;
 _D3DFORMAT FLRenderer::m_formatReflectionTarget_Medium;
 // GLOBAL: SWBF2 0x008f6edc
 _D3DFORMAT FLRenderer::m_formatReflectionDepth_Medium;
-// GLOBAL: SWBF2 0x008f6ef0
 // SYNTHETIC: SWBF2 0x00407930
-// `dynamic initializer for 'FLRenderer::mCursorImage''
+// FLRenderer::`dynamic initializer for 'mCursorImage''
 // SYNTHETIC: SWBF2 0x00769880
-// `dynamic atexit destructor for 'FLRenderer::mCursorImage''
+// FLRenderer::`dynamic atexit destructor for 'mCursorImage''
+
+// GLOBAL: SWBF2 0x008f6ef0
+// FLRenderer::mCursorImage
 RedBitmapElement FLRenderer::mCursorImage;
 
 // GLOBAL: SWBF2 0x008f6ff0
 RedColor FLRenderer::m_colorFog;
+namespace FLRenderer
+{
 // GLOBAL: SWBF2 0x008f6ff4
-namespace FLRenderer { RedColor m_colorReflectionFog; }
-// GLOBAL: SWBF2 0x008f7000
+RedColor m_colorReflectionFog;
+}
 // SYNTHETIC: SWBF2 0x00407910
-// `dynamic initializer for 'FLRenderer::mCursorGroup''
+// FLRenderer::`dynamic initializer for 'mCursorGroup''
 // SYNTHETIC: SWBF2 0x00769870
-// `dynamic atexit destructor for 'FLRenderer::mCursorGroup''
+// FLRenderer::`dynamic atexit destructor for 'mCursorGroup''
+
+// GLOBAL: SWBF2 0x008f7000
+// FLRenderer::mCursorGroup
 RedScreenGroupElement FLRenderer::mCursorGroup;
-// GLOBAL: SWBF2 0x008f70a0
 // SYNTHETIC: SWBF2 0x00407950
-// `dynamic initializer for 'FLRenderer::m_curFrameReflections''
+// FLRenderer::`dynamic initializer for 'm_curFrameReflections''
+
+// GLOBAL: SWBF2 0x008f70a0
+// FLRenderer::m_curFrameReflections
 FLRenderer::ReflectionT FLRenderer::m_curFrameReflections[255];
 
 // FUNCTION: SWBF2 0x006bb240
@@ -273,7 +311,8 @@ FLRenderer::ReflectionT::ReflectionT()
 {
 }
 
-// FUNCTION: SWBF2 0x006bb280
+// TEMPLATE: SWBF2 0x006bb280
+// PblOrderedList<Renderable,int>::Add
 template void PblOrderedList<Renderable, int>::Add(PblOrderedList<Renderable, int>::Node*, Renderable*, int);
 
 // FUNCTION: SWBF2 0x006bb2e0
@@ -355,16 +394,8 @@ float FLRenderer::GetNearPlane()
 // FUNCTION: SWBF2 0x006bc6c0
 float FLRenderer::GetNearSceneFadeEnd()
 {
-    float fFactor = RedRenderer::pcGetRenderOptions().mNearSceneFadeFactor;
-    if (0.0f > fFactor)
-    {
-        fFactor = 0.0f;
-    }
-    else if (fFactor > 1.0f)
-    {
-        fFactor = 1.0f;
-    }
-    return (m_fViewNearSceneFadeEnd[1] - m_fViewNearSceneFadeEnd[0]) * fFactor +
+    return (m_fViewNearSceneFadeEnd[1] - m_fViewNearSceneFadeEnd[0]) *
+           Clamp(RedRenderer::pcGetRenderOptions().mNearSceneFadeFactor, 0.0f, 1.0f) +
            m_fViewNearSceneFadeEnd[0];
 }
 
@@ -513,7 +544,7 @@ void FLRenderer::Cleanup()
     RedLodManager::Cleanup();
     RedLight::DeinitSys();
 
-    for (int i = 0; i < 10; i++)
+    for (unsigned int i = 0; i < 10; i++)
     {
         _RenderableLists[i].Clear();
     }
@@ -667,7 +698,7 @@ bool ReflectionRegion::_IsVisible(const RedCamera* pCamera) const
     switch (mType)
     {
     case type_sphere:
-        return pCamera->ClassifySphere(*(const PblVector3*)&mMatrix.m[3][0],
+        return pCamera->ClassifySphere(mMatrix.GetTranslation(),
                                        mSize.w + fMargin, -1.0f) != RedCamera::VISIBILITY_NONE;
     case type_box:
     case type_cylinder:
@@ -675,22 +706,22 @@ bool ReflectionRegion::_IsVisible(const RedCamera* pCamera) const
                      PblVector3(mSize.x + fMargin, mSize.y + fMargin, mSize.z + fMargin))
                != RedCamera::VISIBILITY_NONE;
     case type_plane:
-        return pCamera->ClassifyPlane(*(const PblVector3*)&mMatrix.m[2][0], mSize.w + fMargin)
+        return pCamera->ClassifyPlane(mMatrix.GetZAxis(), mSize.w + fMargin)
                != RedCamera::VISIBILITY_NONE;
     case type_box_aligned:
-        return pCamera->ClassifyAABox(*(const PblVector3*)&mMatrix.m[3][0],
+        return pCamera->ClassifyAABox(mMatrix.GetTranslation(),
                      PblVector3(mSize.x + fMargin, mSize.y + fMargin, mSize.z + fMargin))
                != RedCamera::VISIBILITY_NONE;
     case type_cylinder_xaligned:
-        return pCamera->ClassifyAABox(*(const PblVector3*)&mMatrix.m[3][0],
+        return pCamera->ClassifyAABox(mMatrix.GetTranslation(),
                      PblVector3(mSize.y + fMargin, mSize.x + fMargin, mSize.x + fMargin))
                != RedCamera::VISIBILITY_NONE;
     case type_cylinder_yaligned:
-        return pCamera->ClassifyAABox(*(const PblVector3*)&mMatrix.m[3][0],
+        return pCamera->ClassifyAABox(mMatrix.GetTranslation(),
                      PblVector3(mSize.x + fMargin, mSize.y + fMargin, mSize.z + fMargin))
                != RedCamera::VISIBILITY_NONE;
     case type_cylinder_zaligned:
-        return pCamera->ClassifyAABox(*(const PblVector3*)&mMatrix.m[3][0],
+        return pCamera->ClassifyAABox(mMatrix.GetTranslation(),
                      PblVector3(mSize.x + fMargin, mSize.x + fMargin, mSize.y + fMargin))
                != RedCamera::VISIBILITY_NONE;
     default:
@@ -732,11 +763,9 @@ ReflectionRegion::ReflectionRegion(RedRegionDesc& desc) : RedRegion(desc)
         const float fX = mMatrix.m[3][0] - mMatrix.m[1][0] * fHalfHeight;
         const float fY = mMatrix.m[3][1] - mMatrix.m[1][1] * fHalfHeight;
         const float fZ = mMatrix.m[3][2] - mMatrix.m[1][2] * fHalfHeight;
-        m_reflectionPlane.x = mMatrix.m[1][0];
-        m_reflectionPlane.y = mMatrix.m[1][1];
-        m_reflectionPlane.z = mMatrix.m[1][2];
-        m_reflectionPlane.w = -(m_reflectionPlane.x * fX + m_reflectionPlane.y * fY +
-                                m_reflectionPlane.z * fZ);
+        m_reflectionPlane = PblPlane(mMatrix.m[1][0], mMatrix.m[1][1], mMatrix.m[1][2],
+                                    -(mMatrix.m[1][0] * fX + mMatrix.m[1][1] * fY +
+                                      mMatrix.m[1][2] * fZ));
         break;
     }
     default:
@@ -756,7 +785,7 @@ void FLRenderer::AddInterfaceElement(unsigned int uiView, RedScreenGroupElement*
 {
     pElement->m_fScreenRelativeX = fX;
     pElement->m_fScreenRelativeY = fY;
-    pElement->m_bUseSafeZone = bUseSafeZone;
+    pElement->SetUseSafezone(bUseSafeZone);
 
     m_pViewInterfaceScreen[uiView]->AddElement(pElement);
 }
@@ -775,13 +804,13 @@ void FLRenderer::AddReflectionObject(char reflectionID, const PblBox& box, bool 
     }
 
     PblVector3 vCorner;
-    D3DXVec3TransformCoord(&aPoints[0], &box._vMin, &mView);
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&aPoints[0]), reinterpret_cast<const D3DXVECTOR3*>(&box._vMin), reinterpret_cast<const D3DXMATRIX*>(&mView));
     vCorner = PblVector3(box._vMax.x, box._vMin.y, box._vMin.z);
-    D3DXVec3TransformCoord(&aPoints[1], &vCorner, &mView);
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&aPoints[1]), reinterpret_cast<const D3DXVECTOR3*>(&vCorner), reinterpret_cast<const D3DXMATRIX*>(&mView));
     vCorner = PblVector3(box._vMax.x, box._vMin.y, box._vMax.z);
-    D3DXVec3TransformCoord(&aPoints[2], &vCorner, &mView);
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&aPoints[2]), reinterpret_cast<const D3DXVECTOR3*>(&vCorner), reinterpret_cast<const D3DXMATRIX*>(&mView));
     vCorner = PblVector3(box._vMin.x, box._vMin.y, box._vMax.z);
-    D3DXVec3TransformCoord(&aPoints[3], &vCorner, &mView);
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&aPoints[3]), reinterpret_cast<const D3DXVECTOR3*>(&vCorner), reinterpret_cast<const D3DXMATRIX*>(&mView));
     aPoints[0].z = -aPoints[0].z;
     aPoints[1].z = -aPoints[1].z;
     aPoints[2].z = -aPoints[2].z;
@@ -884,7 +913,8 @@ void FLRenderer::CaptureFrame(unsigned int uiView)
     pTarget->Release();
 }
 
-// FUNCTION: SWBF2 0x006bbe40
+// TEMPLATE: SWBF2 0x006bbe40
+// PblList<ReflectionRegion>::RemoveAll
 template void PblList<ReflectionRegion>::RemoveAll();
 
 // FUNCTION: SWBF2 0x006bbe80
@@ -1099,16 +1129,9 @@ bool FLRenderer::GetFadeAdjustWithZoom()
 // FUNCTION: SWBF2 0x006bc650
 float FLRenderer::GetFarSceneRange()
 {
-    float fFactor = RedRenderer::pcGetRenderOptions().mFarSceneRangeFactor;
-    if (0.0f > fFactor)
-    {
-        fFactor = 0.0f;
-    }
-    else if (fFactor > 1.0f)
-    {
-        fFactor = 1.0f;
-    }
-    return (m_fViewFarPlane[1] - m_fViewFarPlane[0]) * fFactor + m_fViewFarPlane[0];
+    return (m_fViewFarPlane[1] - m_fViewFarPlane[0]) *
+           Clamp(RedRenderer::pcGetRenderOptions().mFarSceneRangeFactor, 0.0f, 1.0f) +
+           m_fViewFarPlane[0];
 }
 
 // FUNCTION: SWBF2 0x006bc6a0
@@ -1120,16 +1143,8 @@ RedInterfaceScreen* FLRenderer::GetInterfaceView(int iView)
 // FUNCTION: SWBF2 0x006bc710
 float FLRenderer::GetNearSceneFadeStart()
 {
-    float fFactor = RedRenderer::pcGetRenderOptions().mNearSceneFadeFactor;
-    if (0.0f > fFactor)
-    {
-        fFactor = 0.0f;
-    }
-    else if (fFactor > 1.0f)
-    {
-        fFactor = 1.0f;
-    }
-    return (m_fViewNearSceneFadeStart[1] - m_fViewNearSceneFadeStart[0]) * fFactor +
+    return (m_fViewNearSceneFadeStart[1] - m_fViewNearSceneFadeStart[0]) *
+           Clamp(RedRenderer::pcGetRenderOptions().mNearSceneFadeFactor, 0.0f, 1.0f) +
            m_fViewNearSceneFadeStart[0];
 }
 
@@ -1487,6 +1502,7 @@ void FLRenderer::Render()
     RedRenderer::EndFrame();
 }
 
+
 static inline void Vec3Cross_(PblVector3& rOut, const PblVector3& a, const PblVector3& b)
 {
     rOut.x = a.y * b.z - a.z * b.y;
@@ -1706,30 +1722,29 @@ void FLRenderer::RenderReflections()
         const PblMatrix& mCamera = pCamera->GetMatrix();
         const RedCamera* pSceneCamera = 0;
         bool bClipPlane;
-        if (mCamera.m[3][1] * plane.y + plane.x * mCamera.m[3][0] + mCamera.m[3][2] * plane.z +
-                plane.w > 0.0f)
+        if (mCamera.m[3][1] * plane.GetB() + plane.GetA() * mCamera.m[3][0] + mCamera.m[3][2] * plane.GetC() +
+                plane.GetD() > 0.0f)
         {
             RedRenderer::pcSetFrontFace(PCREDFRONT_CW);
 
             PblMatrix mReflect = gMatrixIdentity;
-            float fInvLenSq = 1.0f / (plane.y * plane.y + plane.x * plane.x + plane.z * plane.z);
+            float fInvLenSq = 1.0f / (plane.GetB() * plane.GetB() + plane.GetA() * plane.GetA() + plane.GetC() * plane.GetC());
             float fScale = fInvLenSq * -2.0f;
-            mReflect.m[0][0] = (plane.y * plane.y - plane.x * plane.x + plane.z * plane.z) * fInvLenSq;
-            mReflect.m[0][1] = fScale * plane.x * plane.y;
-            mReflect.m[0][2] = fScale * plane.x * plane.z;
-            mReflect.m[1][0] = fScale * plane.x * plane.y;
-            mReflect.m[1][1] = (plane.x * plane.x - plane.y * plane.y + plane.z * plane.z) * fInvLenSq;
-            mReflect.m[1][2] = plane.y * fScale * plane.z;
-            mReflect.m[2][0] = plane.x * fScale * plane.z;
-            mReflect.m[2][1] = plane.y * fScale * plane.z;
-            mReflect.m[2][2] = (plane.y * plane.y + plane.x * plane.x - plane.z * plane.z) * fInvLenSq;
-            mReflect.m[3][0] = plane.x * fScale * plane.w;
-            mReflect.m[3][1] = plane.y * fScale * plane.w;
-            mReflect.m[3][2] = plane.z * fScale * plane.w;
+            mReflect.m[0][0] = (plane.GetB() * plane.GetB() - plane.GetA() * plane.GetA() + plane.GetC() * plane.GetC()) * fInvLenSq;
+            mReflect.m[0][1] = fScale * plane.GetA() * plane.GetB();
+            mReflect.m[0][2] = fScale * plane.GetA() * plane.GetC();
+            mReflect.m[1][0] = fScale * plane.GetA() * plane.GetB();
+            mReflect.m[1][1] = (plane.GetA() * plane.GetA() - plane.GetB() * plane.GetB() + plane.GetC() * plane.GetC()) * fInvLenSq;
+            mReflect.m[1][2] = plane.GetB() * fScale * plane.GetC();
+            mReflect.m[2][0] = plane.GetA() * fScale * plane.GetC();
+            mReflect.m[2][1] = plane.GetB() * fScale * plane.GetC();
+            mReflect.m[2][2] = (plane.GetB() * plane.GetB() + plane.GetA() * plane.GetA() - plane.GetC() * plane.GetC()) * fInvLenSq;
+            mReflect.m[3][0] = plane.GetA() * fScale * plane.GetD();
+            mReflect.m[3][1] = plane.GetB() * fScale * plane.GetD();
+            mReflect.m[3][2] = plane.GetC() * fScale * plane.GetD();
             bClipPlane = true;
 
-            PblMatrix mReflected;
-            D3DXMatrixMultiply(&mReflected, &mCamera, &mReflect);
+            PblMatrix mReflected = mCamera * mReflect;
             reflectCamera.SetMatrix(mReflected);
 
             float fFadeEnd = GetNearSceneFadeEnd() * fZoom;
@@ -1751,7 +1766,7 @@ void FLRenderer::RenderReflections()
                 mBasis.m[3][2] = 0.0f;
                 mBasis.m[3][3] = 1.0f;
                 PblVector3 vDir;
-                D3DXVec3Normalize(&vDir, &vCentre);
+                D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vCentre));
                 mBasis.m[2][0] = vDir.x;
                 mBasis.m[2][1] = vDir.y;
                 mBasis.m[2][2] = vDir.z;
@@ -1761,13 +1776,13 @@ void FLRenderer::RenderReflections()
                 if (fHalfX > fHalfY)
                 {
                     Vec3Cross_(vCross, vDir, gVectorUnitX);
-                    D3DXVec3Normalize(&vUp, &vCross);
+                    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vUp), reinterpret_cast<const D3DXVECTOR3*>(&vCross));
                     Vec3Cross_(vRight, vUp, vDir);
                 }
                 else
                 {
                     Vec3Cross_(vCross, gVectorUnitY, vDir);
-                    D3DXVec3Normalize(&vRight, &vCross);
+                    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vRight), reinterpret_cast<const D3DXVECTOR3*>(&vCross));
                     Vec3Cross_(vUp, vDir, vRight);
                 }
                 mBasis.m[0][0] = vRight.x;
@@ -1783,8 +1798,7 @@ void FLRenderer::RenderReflections()
                 float fNearPlane = vMin.z;
                 float fCos = (vDir.y * -0.0f - fEdgeY * fTanY * vDir.x) + vDir.z;
 
-                PblMatrix mClip;
-                D3DXMatrixMultiply(&mClip, &mBasis, &reflectCamera.GetMatrix());
+                PblMatrix mClip = mBasis * reflectCamera.GetMatrix();
                 clipCamera.SetMatrix(mClip);
                 clipCamera.SetFrustum(fNearPlane, fCos * fFadeEnd, fHalfX * 2.0f * fNearPlane,
                                       fHalfY * 2.0f * fNearPlane);
@@ -2052,7 +2066,11 @@ void FLRenderer::pcUpdateRefractionBuffer()
 
 namespace FLRenderer
 {
+// GLOBAL: SWBF2 0x008f6e04
+// m_numPotentialReflections
 unsigned int m_numPotentialReflections;
+// GLOBAL: SWBF2 0x008f6e08
+// m_potentialReflections
 Renderable* m_potentialReflections[50];
 }
 

@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "EntityBuilding.h"
 #include "PebbleFL/Common/PblVector.h"
 
@@ -62,11 +63,7 @@ EntityBuildingClass::EntityBuildingClass(unsigned int uHash)
     mIsDestructable = (uHash == PblHash("destructablebuilding"));
 }
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
+
 
 // FUNCTION: SWBF2 0x00475ed0
 const PblBox& EntityBuilding::GetBBox() const
@@ -74,35 +71,33 @@ const PblBox& EntityBuilding::GetBBox() const
     return GetModel()->_mModel->_TotalBoundingBox;
 }
 
-// GLOBAL: SWBF2 0x01eb986c
 // SYNTHETIC: SWBF2 0x00402890
 // `dynamic initializer for 'EntityBuildingClass::rttiHashEntityBuildingClass''
-PblHash EntityBuildingClass::rttiHashEntityBuildingClass("EntityBuildingClass");
-char EntityBuildingClass::rttiNameEntityBuildingClass[] = "EntityBuildingClass";
+// EntityBuildingClass::rttiHashEntityBuildingClass
 
-// GLOBAL: SWBF2 0x01ebb874
+// GLOBAL: SWBF2 0x01eb986c
+// EntityBuildingClass::rttiHashEntityBuildingClass
+PblHash EntityBuildingClass::rttiHashEntityBuildingClass("EntityBuildingClass");
+// GLOBAL: SWBF2 0x00788f50
+// EntityBuildingClass::rttiNameEntityBuildingClass
+const char EntityBuildingClass::rttiNameEntityBuildingClass[] = "EntityBuildingClass";
+
 // SYNTHETIC: SWBF2 0x00402880
 // `dynamic initializer for 'EntityBuilding::rttiHashEntityBuilding''
+// EntityBuilding::rttiHashEntityBuilding
+
+// GLOBAL: SWBF2 0x01ebb874
+// EntityBuilding::rttiHashEntityBuilding
 PblHash EntityBuilding::rttiHashEntityBuilding("EntityBuilding");
-char EntityBuilding::rttiNameEntityBuilding[] = "EntityBuilding";
+// GLOBAL: SWBF2 0x00788f70
+// EntityBuilding::rttiNameEntityBuilding
+const char EntityBuilding::rttiNameEntityBuilding[] = "EntityBuilding";
 
-// FUNCTION: SWBF2 0x00475ef0
-bool EntityBuildingClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashEntityBuildingClass || GameObjectClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00492390
-unsigned int EntityBuildingClass::GetDerivedRtti()
-{
-    return rttiHashEntityBuildingClass;
-}
 
-// FUNCTION: SWBF2 0x004923a0
-const char* EntityBuildingClass::GetDerivedRttiName()
-{
-    return rttiNameEntityBuildingClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x004923b0
 bool EntityBuildingClass::IsDestructableBuilding()
@@ -132,8 +127,10 @@ EntityBuildingClass::EntityBuildingClass(EntityBuildingClass* pBase, unsigned in
     mIsDestructable = pBase->mIsDestructable;
 }
 
-// SYNTHETIC: SWBF2 0x00493920
-// EntityBuildingClass::~EntityBuildingClass
+// FUNCTION: SWBF2 0x00493920
+EntityBuildingClass::~EntityBuildingClass()
+{
+}
 
 // SYNTHETIC: SWBF2 0x004937d0
 // EntityBuildingClass::`scalar deleting destructor'
@@ -175,8 +172,8 @@ void EntityBuildingClass::SetProperty(unsigned int uProperty, const char* pszVal
         const CollisionMesh* pMesh = CollisionMesh::_HashTable.Find(PblHash(pszValue));
         if (pMesh)
         {
-            mCollisionModel.AddBody(new CollisionBodyMesh(pMesh, "CollisionMesh", _IdentityMatrix, 0));
-            PblBox box = pMesh->GetWorldspaceAABB(_IdentityMatrix);
+            mCollisionModel.AddBody(new CollisionBodyMesh(pMesh, "CollisionMesh", gMatrixIdentity, 0));
+            PblBox box = pMesh->GetWorldspaceAABB(gMatrixIdentity);
             if (mBarrierX <= 0.0f)
             {
                 mBarrierX = box._vMax.x - box._vMin.x;
@@ -197,7 +194,7 @@ void EntityBuildingClass::SetProperty(unsigned int uProperty, const char* pszVal
         const CollisionMesh* pMesh = CollisionMesh::_HashTable.Find(PblHash(pszValue));
         if (pMesh)
         {
-            mDestroyedCollisionModel.AddBody(new CollisionBodyMesh(pMesh, "DestroyedCollisionMesh", _IdentityMatrix, 0));
+            mDestroyedCollisionModel.AddBody(new CollisionBodyMesh(pMesh, "DestroyedCollisionMesh", gMatrixIdentity, 0));
         }
 
         CollisionBodyPrimitive* pPrimitive;
@@ -222,7 +219,7 @@ void EntityBuildingClass::SetProperty(unsigned int uProperty, const char* pszVal
         const CollisionMesh* pMesh = CollisionMesh::_HashTable.Find(PblHash(pszValue));
         if (pMesh)
         {
-            mUnbuiltCollisionModel.AddBody(new CollisionBodyMesh(pMesh, "UnbuiltCollisionMesh", _IdentityMatrix, 0));
+            mUnbuiltCollisionModel.AddBody(new CollisionBodyMesh(pMesh, "UnbuiltCollisionMesh", gMatrixIdentity, 0));
         }
         break;
     }
@@ -309,11 +306,7 @@ bool GameObject::AddToTeamManager() const
     return true;
 }
 
-// FUNCTION: SWBF2 0x00475de0
-bool EntityBuilding::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashEntityBuilding || GameObject::IsRtti(uRtti);
-}
+
 
 // FUNCTION: SWBF2 0x004923e0
 EntityBuilding::EntityBuilding(EntityBuildingClass* pClass, const EntityDesc& desc)
@@ -328,7 +321,7 @@ EntityBuilding::EntityBuilding(EntityBuildingClass* pClass, const EntityDesc& de
         SetCollisionModel(&mClass->mUnbuiltCollisionModel);
 
         PblVector3 vCenter;
-        D3DXVec3TransformCoord(&vCenter, &mModel->_mModel->_BoundingSphere.GetCenter(), &mMatrix);
+        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vCenter), reinterpret_cast<const D3DXVECTOR3*>(&mModel->_mModel->_BoundingSphere.GetCenter()), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
         SetCollisionCenter(vCenter);
         float fRadius = mModel->_mModel->_BoundingSphere.GetRadius();
         if (!(fRadius > mClass->mPotentialCollisionRadius))
@@ -336,7 +329,6 @@ EntityBuilding::EntityBuilding(EntityBuildingClass* pClass, const EntityDesc& de
             fRadius = mClass->mPotentialCollisionRadius;
         }
         SetCollisionRadius(fRadius);
-        Set2DCollisionRadius(fRadius);
         RecalculateAABB();
         SetRenderPos(GetCollisionCenter());
         SetRenderRadius(GetCollisionRadius());
@@ -354,8 +346,7 @@ EntityBuilding::EntityBuilding(EntityBuildingClass* pClass, const EntityDesc& de
             PblMatrix mBone;
             if (mClass->mUnbuiltModel->_mLod[0]->GetBoneMatrix(0xD1E4CC7A, mBone))
             {
-                PblMatrix mWorld;
-                D3DXMatrixMultiply(&mWorld, &mBone, &GetMatrix());
+                PblMatrix mWorld = mBone * GetMatrix();
                 hologramDesc.mMatrix = mWorld;
             }
             else
@@ -417,25 +408,17 @@ EntityBuilding::~EntityBuilding()
 // SYNTHETIC: SWBF2 0x00492360
 // EntityBuilding::`scalar deleting destructor'
 // SYNTHETIC: SWBF2 0x004940b5
-// [thunk]:EntityBuilding::`scalar deleting destructor' adjustor{320}
+// ??_EEntityBuilding@@WBEA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004940c0
-// [thunk]:EntityBuilding::`scalar deleting destructor' adjustor{12}
+// ??_EEntityBuilding@@WM@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004940c8
-// [thunk]:EntityBuilding::`scalar deleting destructor' adjustor{512}
+// ??_EEntityBuilding@@WCAA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004940d3
-// [thunk]:EntityBuilding::`scalar deleting destructor' adjustor{148}
+// ??_EEntityBuilding@@WJE@AEPAXI@Z
 
-// FUNCTION: SWBF2 0x00492330
-unsigned int EntityBuilding::GetDerivedRtti() const
-{
-    return rttiHashEntityBuilding;
-}
 
-// FUNCTION: SWBF2 0x00492340
-const char* EntityBuilding::GetDerivedRttiName() const
-{
-    return rttiNameEntityBuilding;
-}
+
+
 
 // FUNCTION: SWBF2 0x00475e90
 bool EntityBuilding::IsUnbuilt() const
@@ -458,9 +441,10 @@ float EntityBuilding::GetMaxStrafe() const
 // FUNCTION: SWBF2 0x00475e60
 Controllable* EntityBuilding::GetControllable()
 {
-    if (mControllableList.GetCount() == 1)
+    const PblList<Controllable>& list = GetControllableList();
+    if (list.GetCount() == 1)
     {
-        return mControllableList.GetFirst()->_pObject;
+        return list.GetFirst()->_pObject;
     }
     return 0;
 }
@@ -468,9 +452,10 @@ Controllable* EntityBuilding::GetControllable()
 // FUNCTION: SWBF2 0x00475e40
 const Controllable* EntityBuilding::GetControllable() const
 {
-    if (mControllableList.GetCount() == 1)
+    const PblList<Controllable>& list = GetControllableList();
+    if (list.GetCount() == 1)
     {
-        return mControllableList.GetFirst()->_pObject;
+        return list.GetFirst()->_pObject;
     }
     return 0;
 }
@@ -496,13 +481,10 @@ const PblMatrix* EntityBuilding::GetRenderMatrix() const
 // FUNCTION: SWBF2 0x00475eb0
 const RedPose* EntityBuilding::GetRenderPose() const
 {
-    return static_cast<const CollisionObject*>(this)->GetPose();
+    return GetPose();
 }
 
-static inline Damageable* AsDamageable(EntityBuilding* pBuilding)
-{
-    return static_cast<Damageable*>(pBuilding);
-}
+
 
 static GameObject* GetHandleObject(PblHandle<GameObject>& handle)
 {
@@ -524,18 +506,18 @@ void EntityBuilding::ClientKill()
     {
         return;
     }
-    DamageOwner& damageOwner = AsDamageable(this)->mDamageOwner;
+    DamageOwner& damageOwner = mDamageOwner;
     DamageOwner owner(damageOwner.mCharacter, GetHandleObject(damageOwner.mGameObject), damageOwner.mTeam, pClass,
                       0, 1.0f);
     PblVector3 vPos;
-    D3DXVec3TransformCoord(&vPos, &mClass->mExplosionOffset, &mMatrix);
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vPos), reinterpret_cast<const D3DXVECTOR3*>(&mClass->mExplosionOffset), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
     pClass->mExplosion->CreateExplosion(vPos, owner, false, COLL_UNKNOWN);
 }
 
 // FUNCTION: SWBF2 0x004929b0
 void EntityBuilding::HealthChangeCallback(bool bArg, float fDelta)
 {
-    Damageable* pDamageable = AsDamageable(this);
+    Damageable* pDamageable = this;
     bool bClient = NetGame::IsEnabled() && NetGame::IsClient();
     if (pDamageable->mCurHealth > 0.0f)
     {
@@ -603,7 +585,7 @@ void EntityBuilding::Kill()
 
         SetMatrix(mMatrix);
         PblVector3 vCenter;
-        D3DXVec3TransformCoord(&vCenter, &mModel->_mModel->_BoundingSphere.GetCenter(), &mMatrix);
+        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vCenter), reinterpret_cast<const D3DXVECTOR3*>(&mModel->_mModel->_BoundingSphere.GetCenter()), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
         SetCollisionCenter(vCenter);
         float fRadius = mModel->_mModel->_BoundingSphere.GetRadius();
         if (!(fRadius > mClass->mPotentialCollisionRadius))
@@ -611,7 +593,6 @@ void EntityBuilding::Kill()
             fRadius = mClass->mPotentialCollisionRadius;
         }
         SetCollisionRadius(fRadius);
-        Set2DCollisionRadius(fRadius);
         RecalculateAABB();
         SetRenderPos(GetCollisionCenter());
         SetRenderRadius(GetCollisionRadius());
@@ -646,7 +627,7 @@ void EntityBuilding::Kill()
         DamageOwner owner(damageOwner.mCharacter, GetHandleObject(damageOwner.mGameObject), damageOwner.mTeam,
                           pClass, 0, 1.0f);
         PblVector3 vPos;
-        D3DXVec3TransformCoord(&vPos, &mClass->mExplosionOffset, &mMatrix);
+        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vPos), reinterpret_cast<const D3DXVECTOR3*>(&mClass->mExplosionOffset), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
         pClass->mExplosion->CreateExplosion(vPos, owner, false, COLL_UNKNOWN);
     }
 
@@ -660,14 +641,6 @@ void EntityBuilding::Kill()
         mObstacle->SetEnabled(false);
     }
     GameObject::Kill();
-}
-
-// FUNCTION: SWBF2 0x004922b0
-void __fastcall RestoreDamageableHealth(Damageable* pDamageable)
-{
-    pDamageable->mCurHealth = pDamageable->mMaxHealth;
-    pDamageable->mCurShield = pDamageable->mMaxShield;
-    pDamageable->mDamageOwner = DamageOwner(0, 0, 0, 0, 0, 1.0f);
 }
 
 // FUNCTION: SWBF2 0x00492f30
@@ -708,7 +681,7 @@ void EntityBuilding::Respawn()
 
         SetMatrix(mMatrix);
         PblVector3 vCenter;
-        D3DXVec3TransformCoord(&vCenter, &mModel->_mModel->_BoundingSphere.GetCenter(), &mMatrix);
+        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vCenter), reinterpret_cast<const D3DXVECTOR3*>(&mModel->_mModel->_BoundingSphere.GetCenter()), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
         SetCollisionCenter(vCenter);
         float fRadius = mModel->_mModel->_BoundingSphere.GetRadius();
         if (!(fRadius > mClass->mPotentialCollisionRadius))
@@ -716,7 +689,6 @@ void EntityBuilding::Respawn()
             fRadius = mClass->mPotentialCollisionRadius;
         }
         SetCollisionRadius(fRadius);
-        Set2DCollisionRadius(fRadius);
         RecalculateAABB();
         SetRenderPos(GetCollisionCenter());
         SetRenderRadius(GetCollisionRadius());
@@ -732,7 +704,7 @@ void EntityBuilding::Respawn()
     }
 
     mAddHealth = mClass->mAddHealth;
-    RestoreDamageableHealth(AsDamageable(this));
+    ResetStatus();
     SetCurShield(mClass->mAddShield > 0.0f ? 0.0f : mClass->mMaxShield, false, 0);
     mMaxShield = mClass->mMaxShield;
     mAddShield = mClass->mAddShield;
@@ -756,23 +728,11 @@ bool EntityBuilding::ApplyDamage(const DamageDesc& damage, const PblVector3& vDi
     return true;
 }
 
-// FUNCTION: SWBF2 0x004923c0
-TreeGrid* CollisionManager::GetTreeGrid()
-{
-    return sInstance ? sInstance->mTreeGrid : 0;
-}
 
-// FUNCTION: SWBF2 0x004439c0
-const GameModel* GameModel::Find(unsigned int uHash)
-{
-    return _HashTable.Find(uHash);
-}
 
-// FUNCTION: SWBF2 0x004920c0
-CollisionBodyPrimitive* CollisionBodyPrimitive::Find(unsigned int uHash)
-{
-    return _HashTable.Find(uHash);
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00493280
 void EntityBuilding::SetPosition(const PblVector3& vPos)
@@ -850,7 +810,7 @@ void EntityBuilding::Render(unsigned char uFlags, float fDist, unsigned int uMas
         Character* pCharacter = Character::FindPlayer(iPlayer);
         Team* pTeam = pCharacter ? pCharacter->mTeamPtr : Team::sTeams[1];
 
-        color *= pTeam->mColor[GetGameObject()->GetTeam()];
+        color *= pTeam->GetColor(GetGameObject()->GetTeam());
     }
 
     if (!mModel)
@@ -867,8 +827,7 @@ void EntityBuilding::Render(unsigned char uFlags, float fDist, unsigned int uMas
     PblMatrix mReflection;
     if (FLRenderer::IsReflected(GetCollisionCenter(), GetCollisionRadius(), mReflection, false))
     {
-        PblMatrix mWorld;
-        D3DXMatrixMultiply(&mWorld, GetRenderMatrix(), &mReflection);
+        PblMatrix mWorld = *GetRenderMatrix() * mReflection;
         mReflection = mWorld;
         mModel->Render(uFlags, fDist, &mReflection, GetRenderPose(), color,
                        (uMask & ~0x10000) | 0x10000100, NULL);

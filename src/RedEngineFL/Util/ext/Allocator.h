@@ -10,6 +10,8 @@
 namespace util
 {
 
+void SetLastError(char* pError);
+
 class NewAllocator
 {
 public:
@@ -19,7 +21,7 @@ public:
         rBuf.data_ = RedAllocFromHeap(__RedCurrHeap, rBuf.size_, 0);
         if (!rBuf.data_)
         {
-            printf("util::NewAllocator::Allocate failed - new[] failed - out of memory!");
+            SetLastError("util::NewAllocator::Allocate failed - new[] failed - out of memory!");
         }
     }
 
@@ -34,7 +36,8 @@ class TypedArrayAllocator : public ALLOC
 {
 public:
 
-    // FUNCTION: SWBF2 0x0052b3f0
+    // TEMPLATE: SWBF2 0x0052b3f0
+    // util::TypedArrayAllocator<unsigned short,util::NewAllocator>::Allocate_
 
     static TYPE* Allocate_(int& riCount)
     {
@@ -148,6 +151,12 @@ public:
     bool allocated_;
 };
 
+class DefaultStackAllocator
+{
+public:
+    static IAllocator& GetInstance();
+};
+
 class DefaultStaticAllocator
 {
 public:
@@ -186,3 +195,9 @@ private:
 };
 
 }
+
+// VTABLE: SWBF2 0x00783938
+// class util::StaticMemoryBlock<4096>
+
+// VTABLE: SWBF2 0x00783918
+// class util::StaticMemoryBlock<1024>

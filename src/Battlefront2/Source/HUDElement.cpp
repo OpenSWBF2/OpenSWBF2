@@ -21,8 +21,7 @@ PblMatrix HUD::Element::CalculateGroupMatrix(HUD::ElementGroupBase* const pGroup
     if (pElement->mGroup)
     {
         const PblMatrix parent = CalculateGroupMatrix(pElement->mGroup);
-        D3DXMatrixMultiply((D3DXMATRIX*)&result, (const D3DXMATRIX*)&local,
-                           (const D3DXMATRIX*)&parent);
+        result = local * parent;
     }
     else
     {
@@ -53,11 +52,13 @@ float HUD::Element::sViewportWidth;
 
 float HUD::Element::sViewportHeight;
 
-// GLOBAL: SWBF2 0x007eba18
 // SYNTHETIC: SWBF2 0x00403fb0
 // `dynamic initializer for 'HUD::Element::sList''
 // SYNTHETIC: SWBF2 0x00768b20
 // `dynamic atexit destructor for 'HUD::Element::sList''
+
+// GLOBAL: SWBF2 0x007eba18
+// HUD::Element::sList
 PblListDouble HUD::Element::sList;
 
 // GLOBAL: SWBF2 0x007e6904
@@ -95,11 +96,7 @@ static const unsigned int kAnimEnable = 0xbdbfd84f;
 static const unsigned int kAnimDisable = 0x6242102c;
 static const unsigned int kAnimChange = 0x3455b0a8;
 
-static const PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
+
 
 // FUNCTION: SWBF2 0x00547010
 float HUD::ConvertRelativeToPixels(RelativeMode eMode, float fValue, float fFrameSize,
@@ -107,6 +104,8 @@ float HUD::ConvertRelativeToPixels(RelativeMode eMode, float fValue, float fFram
 {
     switch (eMode)
     {
+    case relativeMode_Pixels:
+        return fValue;
     case relativeMode_Screen:
         return fValue * fScreenSize;
     case relativeMode_Viewport:
@@ -123,6 +122,8 @@ float HUD::ConvertPixelsToRelative(RelativeMode eMode, float fValue, float fFram
 {
     switch (eMode)
     {
+    case relativeMode_Pixels:
+        return fValue;
     case relativeMode_Screen:
         return fScreenSize != 0.0f ? fValue / fScreenSize : 0.0f;
     case relativeMode_Viewport:
@@ -322,14 +323,10 @@ void HUD::Matrix::SetRotation(float fX, float fY, float fZ)
         fZ += 360.0f;
     }
 
-    PblMatrix matrix = _IdentityMatrix;
-    PblMatrix rotation;
-    D3DXMatrixMultiply((D3DXMATRIX*)&matrix, (D3DXMATRIX*)&matrix,
-                       D3DXMatrixRotationX((D3DXMATRIX*)&rotation, fX * 0.017453292f));
-    D3DXMatrixMultiply((D3DXMATRIX*)&matrix, (D3DXMATRIX*)&matrix,
-                       D3DXMatrixRotationY((D3DXMATRIX*)&rotation, fY * 0.017453292f));
-    D3DXMatrixMultiply((D3DXMATRIX*)&matrix, (D3DXMATRIX*)&matrix,
-                       D3DXMatrixRotationZ((D3DXMATRIX*)&rotation, fZ * 0.017453292f));
+    PblMatrix matrix = gMatrixIdentity;
+    matrix.RotateX(fX * 0.017453292f);
+    matrix.RotateY(fY * 0.017453292f);
+    matrix.RotateZ(fZ * 0.017453292f);
 
     float fPosX = mMatrix->m[3][0];
     float fPosY = mMatrix->m[3][1];
@@ -382,9 +379,7 @@ void HUD::Matrix::ApplyScale()
         mMatrix->m[i][3] = 0.0f;
     }
 
-    PblMatrix scaling;
-    D3DXMatrixMultiply((D3DXMATRIX*)mMatrix, (D3DXMATRIX*)mMatrix,
-                       D3DXMatrixScaling((D3DXMATRIX*)&scaling, mScale.x, mScale.y, mScale.z));
+    (*mMatrix).Scale(mScale.x, mScale.y, mScale.z);
 
     mMatrix->m[3][0] = fPosX;
     mMatrix->m[3][1] = fPosY;
@@ -511,14 +506,6 @@ HUD::Element::~Element()
                 pGroup->RemoveElement(mElement);
             }
         }
-    }
-    if (mNode.IsAttached())
-    {
-        mNode.Remove();
-    }
-    if (mGroupNode.IsAttached())
-    {
-        mGroupNode.Remove();
     }
 }
 
@@ -1165,10 +1152,9 @@ void HUD::Element::UpdateEnableState(EnableState eState)
 // FUNCTION: SWBF2 0x00549e50
 void HUD::Element::SetRuntimeScaleAll(float fScale)
 {
-    for (PblListDouble::Node* pNode = sList.mTerminator.mNext; pNode != &sList.mTerminator;
-         pNode = pNode->mNext)
+    for (PblListDouble::Itor itor(&sList); itor.GetNode() != sList.GetTerminator(); ++itor)
     {
-        Element* pElement = (Element*)((char*)pNode - offsetof(Element, mNode));
+        Element* pElement = static_cast<Element*>(itor.GetNode()->GetObjectA(&sList, offsetof(Element, mNode)));
         pElement->SetRuntimeScale(fScale);
     }
     sRuntimeScale = fScale;
@@ -1279,9 +1265,7 @@ PblMatrix HUD::Element::CalculateScreenMatrix() const
     if (mGroup)
     {
         const PblMatrix parent = CalculateGroupMatrix(mGroup);
-        PblMatrix combined;
-        D3DXMatrixMultiply((D3DXMATRIX*)&combined, (const D3DXMATRIX*)&parent,
-                           (const D3DXMATRIX*)&result);
+        PblMatrix combined = parent * result;
         result = combined;
     }
     return result;
@@ -1320,7 +1304,7 @@ HUD::Element* HUD::Element::FindByHashID(unsigned int uHashID)
 {
     for (Element* pElement = GetFirst(); pElement; pElement = GetNext(pElement))
     {
-        if (pElement->mNameHash == uHashID)
+        if (pElement->GetNameHash() == uHashID)
         {
             return pElement;
         }

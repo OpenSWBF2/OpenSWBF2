@@ -295,7 +295,8 @@ static const char *max_expand (MatchState *ms, const char *s,
 
 // FUNCTION: SWBF2 0x0069f2e0
 static const char *min_expand (MatchState *ms, const char *s,
-                                 const char *p, const char *ep) {
+const char *p, const char *ep)
+{
   for (;;) {
     const char *res = match(ms, s, ep+1);
     if (res != NULL)
@@ -323,7 +324,8 @@ static const char *start_capture (MatchState *ms, const char *s,
 
 // FUNCTION: SWBF2 0x0069e8b0
 static const char *end_capture (MatchState *ms, const char *s,
-                                  const char *p) {
+const char *p)
+{
   int l = capture_to_close(ms);
   const char *res;
   ms->capture[l].len = s - ms->capture[l].init;
@@ -423,7 +425,8 @@ static const char *match (MatchState *ms, const char *s, const char *p) {
 
 // FUNCTION: SWBF2 0x0069ea20
 static const char *lmemfind (const char *s1, size_t l1,
-                               const char *s2, size_t l2) {
+const char *s2, size_t l2)
+{
   if (l2 == 0) return s1;
   else if (l2 > l1) return NULL;
   else {
@@ -548,7 +551,8 @@ static int gfind (lua_State *L) {
 
 // FUNCTION: SWBF2 0x0069e720
 static void add_s (MatchState *ms, luaL_Buffer *b,
-                   const char *s, const char *e) {
+const char *s, const char *e)
+{
   lua_State *L = ms->L;
   if (lua_isstring(L, 3)) {
     const char *news = lua_tostring(L, 3);
@@ -740,6 +744,7 @@ static int str_format (lua_State *L) {
   return 1;
 }
 
+// GLOBAL: SWBF2 0x7706f0
 static const luaL_reg strlib[] = {
   {"len", str_len},
   {"sub", str_sub},

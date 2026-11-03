@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "Controller.h"
 #include "AIDifficulty.h"
 #include "AIUtil.h"
@@ -27,51 +28,40 @@ public:
     static PblHash rttiHashEntityFlyer;
 };
 
-// GLOBAL: SWBF2 0x01eb97a8
+
 // SYNTHETIC: SWBF2 0x00402790
 // `dynamic initializer for 'Controller::rttiHashController''
+// Controller::rttiHashController
+
+// GLOBAL: SWBF2 0x01eb97a8
+// Controller::rttiHashController
 PblHash Controller::rttiHashController("Controller");
-char Controller::rttiNameController[] = "Controller";
+// GLOBAL: SWBF2 0x00788d90
+// Controller::rttiNameController
+const char Controller::rttiNameController[] = "Controller";
 
 static Trackable* GetTrackable(Controllable* pControllable)
 {
     return pControllable;
 }
 
-static int GetTeam(const GameObject* pObject)
+static inline int GetTeam(const GameObject* pObject)
 {
     return pObject->mTeam;
 }
 
-// FUNCTION: SWBF2 0x00485100
-bool Controller::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashController;
-}
 
-// FUNCTION: SWBF2 0x00485120
-unsigned int Controller::GetDerivedRtti() const
-{
-    return rttiHashController;
-}
 
-// FUNCTION: SWBF2 0x00485130
-const char* Controller::GetDerivedRttiName() const
-{
-    return rttiNameController;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00485150
 void Controller::KillController()
 {
 }
 
-Controller::~Controller()
-{
-}
 
-// SYNTHETIC: SWBF2 0x00485160
-// Controller::`scalar deleting destructor'
 
 // FUNCTION: SWBF2 0x00485190
 Controller::Controller(Controllable* pOwner)
@@ -92,10 +82,6 @@ Controller::Controller(Controllable* pOwner)
       mCrowdEnemies(0),
       mCrowdAllies(0)
 {
-    mTargetBubbleRotation._fX = 0.0f;
-    mTargetBubbleRotation._fY = 0.0f;
-    mTargetBubbleRotation._fZ = 0.0f;
-    mTargetBubbleRotation._fS = 1.0f;
 }
 
 // FUNCTION: SWBF2 0x004856d0
@@ -104,7 +90,7 @@ PblVector3 Controller::GetTargetBubbleCircle() const
     PblVector3 vOffset = mTargetBubbleOffset;
     vOffset.z = 0.0f;
     PblVector3 vCircle;
-    D3DXVec3Normalize(&vCircle, &vOffset);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vCircle), reinterpret_cast<const D3DXVECTOR3*>(&vOffset));
     return vCircle;
 }
 
@@ -255,7 +241,7 @@ void Controller::UpdateTargetBubbleSize(float dt)
     PblVector3 vRandom = PblRandom::_Global.GetVector3();
     PblVector3 vAxis(mTargetBubbleAxis.x + vRandom.x, mTargetBubbleAxis.y + vRandom.y,
                      mTargetBubbleAxis.z + vRandom.z);
-    D3DXVec3Normalize(&vRandom, &vAxis);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vRandom), reinterpret_cast<const D3DXVECTOR3*>(&vAxis));
     mTargetBubbleAxis = vRandom;
 
     float fAngle = dt * 2.0f;
@@ -295,7 +281,7 @@ void Controller::UpdateFreeSpace()
         const Obstacle* pIgnore = AIUtil::GetGameObjectBarrier(mOwner->GetGameObject());
         const PblMatrix& mMatrix = mOwner->GetMatrix();
         GameObject* pObject = mOwner->GetGameObject();
-        if (PathFinder::IsPointValid(*(const PblVector3*)&mMatrix.m[3][0],
+        if (PathFinder::IsPointValid(mMatrix.GetTranslation(),
                                      fRadius + AIUtil::GetCollisionRadius(pObject),
                                      AIUtil::GetAIType(pObject), 0, &pIgnore, 1))
         {
@@ -381,9 +367,3 @@ bool Controller::IsInCrowd() const
     return mCrowdAllies > 3 && !mCrowdEnemies;
 }
 
-// FUNCTION: SWBF2 0x00485b10
-bool IsPilotControlState(const void* pControllable)
-{
-    const unsigned int state = static_cast<const Controllable*>(pControllable)->mPilotType;
-    return state == 1 || state == 4;
-}

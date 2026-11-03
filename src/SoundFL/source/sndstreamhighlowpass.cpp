@@ -7,8 +7,7 @@ namespace Snd
 StreamLowHighPass::StreamLowHighPass()
     : mBufferSize(0)
 {
-    mSink.mConnection.mInputNode = 0;
-    mSink.mConnection.mInputNodeOutputIndex = 0;
+
 }
 
 // FUNCTION: SWBF2 0x00747e00
@@ -29,68 +28,60 @@ void StreamLowHighPass::Flush()
 // FUNCTION: SWBF2 0x00747ef0
 StreamPacket* StreamLowHighPass::GetPacket(unsigned int uiOutput)
 {
-    typedef StreamPacket* (__thiscall* GetPacketFn)(StreamNodeSource* pThis,
-                                                    unsigned int uiOutput);
     (void)uiOutput;
 
-    if (mInputPacket.GetPacket() == 0)
+    StreamPacketIO* const pIO = &mInputPacket;
+    if (pIO->GetPacket() == 0)
     {
 
-        StreamNodeSource* const pNode = mSink.mConnection.mInputNode;
-        mInputPacket.SetPacket(
+        StreamNodeSource* const pNode = StreamNodeSink::mConnection.mInputNode;
+        pIO->SetPacket(
             pNode != 0
-                ? pNode->GetPacket(mSink.mConnection.mInputNodeOutputIndex)
+                ? pNode->GetPacket(StreamNodeSink::mConnection.mInputNodeOutputIndex)
                 : 0);
     }
 
-    StreamPacket* const pInput = mInputPacket.GetPacket();
-    if (pInput == 0 || mOutputPacket.mRefCount > 0)
+    StreamPacket* const pInput = pIO->GetPacket();
+    if (pInput == 0 || mOutputPacket.IsLocked())
     {
         return 0;
     }
 
-    short* const pOut = (short*)mOutputPacket.mBuffer;
-    unsigned int uiSize = mInputPacket.GetDataLeft(pInput->mBufferUsed);
+    StreamPacket* const pOutput = &mOutputPacket;
+    short* const pOut = (short*)pOutput->GetBuffer();
+    unsigned int uiSize = pIO->GetDataLeft(pInput->mBufferUsed);
     if (uiSize > mBufferSize)
     {
         uiSize = mBufferSize;
     }
 
-    mFilter.Process16((const short*)mInputPacket.GetData(), uiSize >> 1, pOut);
+    DSP::HighLowPassFilter::Process16((const short*)pIO->GetData(), uiSize >> 1, pOut);
 
-    mOutputPacket.mBufferUsed = uiSize;
-    mOutputPacket.mPos = pInput->mPos + (mInputPacket.GetOffset() >> 1);
+    pOutput->SetUsed(uiSize);
+    pOutput->SetPosition(pInput->GetPosition() + (pIO->GetOffset() >> 1));
 
-    if (mInputPacket.UpdateOffset(pInput->mBufferUsed, uiSize))
+    if (pIO->UpdateOffset(pInput->mBufferUsed, uiSize))
     {
-        if ((pInput->mFlags & 1) != 0)
+        pOutput->SetLast(pInput->GetLast());
+        if (pInput->GetDiscontinuity())
         {
-            mOutputPacket.mFlags |= 1;
+            pOutput->mFlags |= 2;
         }
         else
         {
-            mOutputPacket.mFlags &= ~1;
-        }
-
-        if ((pInput->mFlags & 2) != 0)
-        {
-            mOutputPacket.mFlags |= 2;
-        }
-        else
-        {
-            mOutputPacket.mFlags &= ~2;
+            pOutput->mFlags &= ~2;
         }
 
         mInputPacket.Flush();
     }
     else
     {
-        mOutputPacket.mFlags &= ~1;
-        mOutputPacket.mFlags &= ~2;
+        pOutput->SetLast(false);
+        pOutput->mFlags &= ~2;
     }
 
-    ++mOutputPacket.mRefCount;
-    return &mOutputPacket;
+    pOutput->Lock();
+    return pOutput;
 }
 
 // FUNCTION: SWBF2 0x00748050

@@ -8,6 +8,7 @@
 #include "EntityMine.h"
 #include "EntityTerrain.h"
 #include "EntityWater.h"
+#include "Ordnance.h"
 #include "GameObject.h"
 #include "NetGame.h"
 #include "Ordnance.h"
@@ -19,7 +20,17 @@
 
 #include <d3dx9math.h>
 #include "TreeGridCache.h"
-#include "TeamManager.h"
+#include "PebbleFL/Common/PblMath.h"
+
+// GLOBAL: SWBF2 0x007b2770
+// __xmm@01010101010101010101010101010101
+
+
+namespace TeamManager
+{
+void AddObject(GameObject* pObject);
+void RemoveObject(GameObject* pObject);
+}
 
 class CollisionObjectCallbackData : public TreeGridCallbackData
 {
@@ -47,7 +58,7 @@ struct GetObjectsRectData : public CollisionObjectCallbackData
     int mLength;
     PblVector3 mMinPos;
     PblVector3 mMaxPos;
-    GameObject* mMe;
+    const GameObject* mMe;
 };
  
 
@@ -58,7 +69,7 @@ struct GetObjectsRangeData : public CollisionObjectCallbackData
     int mLength;
     PblVector3 mCenter;
     float mRadius;
-    GameObject* mMe;
+    const GameObject* mMe;
 };
  
 
@@ -67,8 +78,8 @@ struct GetObjectsRegionData : public CollisionObjectCallbackData
     GameObject** mArray;
     int mMaxLength;
     int mLength;
-    RedRegion* mRegion;
-    GameObject* mMe;
+    const RedRegion* mRegion;
+    const GameObject* mMe;
 };
  
 
@@ -87,10 +98,7 @@ struct RayData : public CollisionObjectCallbackData
 };
  
 
-static inline float Max(float a, float b)
-{
-    return a > b ? a : b;
-}
+
 
 // FUNCTION: SWBF2 0x0045db70
 PblVector3 Min(const PblVector3& a, const PblVector3& b)
@@ -173,6 +181,12 @@ static PblList<CollisionObject>::Itor* sSafetyIt;
 static CollisionObject** sSafetyObjPointer;
 // GLOBAL: SWBF2 0x01e30368
 static CollisionObject** sSafetyColliderPointer;
+
+static inline PblList<CollisionObject>::Node* CollisionNode(CollisionObject* pObject)
+{
+
+    return &pObject->mCollisionObjectNode;
+}
 
 // FUNCTION: SWBF2 0x0045db30
 void PerformSafeRemove(CollisionObject* pObject)
@@ -517,14 +531,12 @@ float CollisionManager::RayHit(const PblVector3& vStart, const PblVector3& vEnd,
 {
     if (sInstance)
     {
-        PblVector3 vDir(vEnd.x - vStart.x, vEnd.y - vStart.y, vEnd.z - vStart.z);
+        PblVector3 vDir = vEnd - vStart;
         float fLength = sqrtf(vDir.x * vDir.x + vDir.y * vDir.y + vDir.z * vDir.z);
         if (fLength != 0.0f)
         {
             float fInvLength = 1.0f / fLength;
-            vDir.x *= fInvLength;
-            vDir.y *= fInvLength;
-            vDir.z *= fInvLength;
+            vDir *= fInvLength;
             return RayHit(vStart, vDir, fLength, pHitObject, pNormal, pIgnore, iIgnoreCount, iFilter, bOrdnance);
         }
     }
@@ -555,7 +567,7 @@ bool CollisionManager::RayTest(const PblVector3& vStart, const PblVector3& vEnd,
         return false;
     }
 
-    PblVector3 vDir(vEnd.x - vStart.x, vEnd.y - vStart.y, vEnd.z - vStart.z);
+    PblVector3 vDir = vEnd - vStart;
     float fLength = sqrtf(vDir.x * vDir.x + vDir.y * vDir.y + vDir.z * vDir.z);
     if (fLength == 0.0f)
     {
@@ -563,9 +575,7 @@ bool CollisionManager::RayTest(const PblVector3& vStart, const PblVector3& vEnd,
     }
 
     float fInvLength = 1.0f / fLength;
-    vDir.x *= fInvLength;
-    vDir.y *= fInvLength;
-    vDir.z *= fInvLength;
+    vDir *= fInvLength;
     return sInstance->I_RayTest(vStart, vDir, fLength, pIgnore, iIgnoreCount,
                                 iFilter ? iFilter : kDefaultRayFilter);
 }
@@ -598,10 +608,7 @@ CollisionManager::CollisionManager(const PblVector3& vMin, const PblVector3& vMa
 // SYNTHETIC: SWBF2 0x0045e710
 // CollisionManager::`scalar deleting destructor'
 
-// FUNCTION: SWBF2 0x0045e740
-CollisionManager::OrdnanceUpdate::~OrdnanceUpdate()
-{
-}
+
 
 // TEMPLATE: SWBF2 0x00460960
 // PblList<CollisionObject>::RemoveAll
@@ -804,7 +811,7 @@ int CollisionManager::I_GetObjectsInRect(const PblVector3& vMin, const PblVector
     data.mLength = 0;
     data.mMinPos = vMin;
     data.mMaxPos = vMax;
-    data.mMe = (GameObject*)pIgnore;
+    data.mMe = pIgnore;
 
     if (mTreeGrid)
     {
@@ -859,17 +866,19 @@ int CollisionManager::I_GetObjectsInRange(const PblVector3& vCenter, float fRadi
     data.mLength = 0;
     data.mCenter = vCenter;
     data.mRadius = fRadius;
-    data.mMe = (GameObject*)pIgnore;
+    data.mMe = pIgnore;
 
-    PblVector3 vMin(vCenter.x - fRadius, vCenter.y - fRadius, vCenter.z - fRadius);
-    PblVector3 vMax(vCenter.x + fRadius, vCenter.y + fRadius, vCenter.z + fRadius);
     if (mTreeGrid)
     {
-        mTreeGrid->CallbackOnRect(vMin, vMax, GetObjectsRangeCallback, &data);
+        mTreeGrid->CallbackOnRect(vCenter - PblVector3(fRadius, fRadius, fRadius),
+                                  vCenter + PblVector3(fRadius, fRadius, fRadius),
+                                  GetObjectsRangeCallback, &data);
     }
     else
     {
-        I_GetObjectsFromLists(vMin, vMax, GetObjectsRangeCallback, iFilter, &data);
+        I_GetObjectsFromLists(vCenter - PblVector3(fRadius, fRadius, fRadius),
+                              vCenter + PblVector3(fRadius, fRadius, fRadius),
+                              GetObjectsRangeCallback, iFilter, &data);
     }
     return data.mLength;
 }
@@ -910,13 +919,13 @@ int CollisionManager::I_GetObjectsInRegion(const RedRegion& rRegion, GameObject*
     data.mArray = pObjects;
     data.mMaxLength = iMaxCount;
     data.mLength = 0;
-    data.mRegion = (RedRegion*)&rRegion;
-    data.mMe = (GameObject*)pIgnore;
+    data.mRegion = &rRegion;
+    data.mMe = pIgnore;
 
-    const PblVector3& vPos = *(const PblVector3*)rRegion.mMatrix.m[3];
+    const PblVector3& vPos = rRegion.mMatrix.GetTranslation();
     float fRadius = rRegion.mSize.w;
-    PblVector3 vMin(vPos.x - fRadius, vPos.y - fRadius, vPos.z - fRadius);
-    PblVector3 vMax(vPos.x + fRadius, vPos.y + fRadius, vPos.z + fRadius);
+    PblVector3 vMin = vPos - PblVector3(fRadius, fRadius, fRadius);
+    PblVector3 vMax = vPos + PblVector3(fRadius, fRadius, fRadius);
     if (mTreeGrid)
     {
         mTreeGrid->CallbackOnRect(vMin, vMax, GetObjectsRegionCallback, &data);
@@ -938,7 +947,7 @@ int CollisionManager::I_GetObjectsInFatRay(const PblVector3& vFrom, const PblVec
     data.mArray = pObjects;
     data.mMaxLength = iMaxCount;
     data.mLength = 0;
-    data.mMe = (GameObject*)pIgnore;
+    data.mMe = pIgnore;
 
     if (!mTreeGrid)
     {
@@ -1059,7 +1068,7 @@ bool CollisionManager::I_RayTest(const PblVector3& vStart, const PblVector3& vDi
     data.mBodyID = NULL;
     data.mOrdnanceCollision = true;
 
-    PblVector3 vEnd(vStart.x + vDir.x * fLength, vStart.y + vDir.y * fLength, vStart.z + vDir.z * fLength);
+    PblVector3 vEnd = vStart + vDir * fLength;
     PblVector3 vMin = Min(vStart, vEnd);
     PblVector3 vMax = Max(vStart, vEnd);
     if (mTreeGrid)
@@ -1190,13 +1199,6 @@ struct MatrixStruct
     PblMatrix* matrices;
 };
  
-
-static inline const PblMatrix operator*(const PblMatrix& a, const PblMatrix& b)
-{
-    PblMatrix result;
-    D3DXMatrixMultiply((D3DXMATRIX*)&result, (const D3DXMATRIX*)&a, (const D3DXMATRIX*)&b);
-    return result;
-}
 
 static const float EPSILON = 0.0001f;
 

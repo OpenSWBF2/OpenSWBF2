@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "AnimatedAddon.h"
 
 #include "GameModel.h"
@@ -5,7 +6,7 @@
 #include "PebbleFL/Common/PblHashTable.h"
 #include "RedEngineFL/Graphics/RedModel.h"
 #include "RedEngineFL/Util/RedAnimation.h"
-#include "PebbleFL/pc/PblD3DX.h"
+
 
 // FUNCTION: SWBF2 0x004439f0
 AnimatedAddon::AnimatedAddon(const ZephyrSkeletonShared& parentSkeleton)
@@ -70,16 +71,14 @@ void AnimatedAddon::Render(TentacleSimulator* pTentacles, const PblVector3& vVel
         return;
     }
 
-    PblMatrix mWorld;
-    D3DXMatrixMultiply(&mWorld, pJoint, &mMatrix);
+    PblMatrix mWorld = *pJoint * mMatrix;
     RedPose pose;
     mModel->GetRedModel(0)->SetupPose(pose);
 
     const PblMatrix* pRoot = pPose->Find(0xE5B51072);
     if (pRoot)
     {
-        PblMatrix mRelative;
-        D3DXMatrixMultiply(&mRelative, pRoot, &pJoint->GetInverseFast());
+        PblMatrix mRelative = *pRoot * pJoint->GetInverseFast();
         PblMatrix mRoot = mRelative;
         pose.Store(0xE5B51072, &mRoot);
     }

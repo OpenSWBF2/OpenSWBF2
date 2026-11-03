@@ -23,50 +23,48 @@ CommandBuildingClass::~CommandBuildingClass()
 // SYNTHETIC: SWBF2 0x00476430
 // CommandBuildingClass::`scalar deleting destructor'
 // SYNTHETIC: SWBF2 0x004766c3
-// [thunk]:CommandBuildingClass::`scalar deleting destructor' adjustor{1680}
+// ??_ECommandBuildingClass@@WGJA@AEPAXI@Z
 
-// GLOBAL: SWBF2 0x01eb83c4
 // SYNTHETIC: SWBF2 0x00402630
 // `dynamic initializer for 'CommandBuildingClass::rttiHashCommandBuildingClass''
+// CommandBuildingClass::rttiHashCommandBuildingClass
+
+// GLOBAL: SWBF2 0x01eb83c4
+// CommandBuildingClass::rttiHashCommandBuildingClass
 PblHash CommandBuildingClass::rttiHashCommandBuildingClass("CommandBuildingClass");
-char CommandBuildingClass::rttiNameCommandBuildingClass[] = "CommandBuildingClass";
+// GLOBAL: SWBF2 0x00788bb4
+// CommandBuildingClass::rttiNameCommandBuildingClass
+const char CommandBuildingClass::rttiNameCommandBuildingClass[] = "CommandBuildingClass";
 
-// FUNCTION: SWBF2 0x004760a0
-bool CommandBuildingClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashCommandBuildingClass || EntityBuildingAnimatedClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x004760f0
-unsigned int CommandBuildingClass::GetDerivedRtti()
-{
-    return rttiHashCommandBuildingClass;
-}
 
-// FUNCTION: SWBF2 0x00476100
-const char* CommandBuildingClass::GetDerivedRttiName()
-{
-    return rttiNameCommandBuildingClass;
-}
 
-// GLOBAL: SWBF2 0x01eb667c
+
+
+
 // SYNTHETIC: SWBF2 0x00402620
 // `dynamic initializer for 'CommandBuilding::rttiHashCommandBuilding''
+// CommandBuilding::rttiHashCommandBuilding
+
+// GLOBAL: SWBF2 0x01eb667c
+// CommandBuilding::rttiHashCommandBuilding
 PblHash CommandBuilding::rttiHashCommandBuilding("CommandBuilding");
-char CommandBuilding::rttiNameCommandBuilding[] = "CommandBuilding";
+// GLOBAL: SWBF2 0x00788ba4
+// CommandBuilding::rttiNameCommandBuilding
+const char CommandBuilding::rttiNameCommandBuilding[] = "CommandBuilding";
 
 // SYNTHETIC: SWBF2 0x00476070
 // CommandBuilding::`scalar deleting destructor'
 // SYNTHETIC: SWBF2 0x0047669a
-// [thunk]:CommandBuilding::`scalar deleting destructor' adjustor{608}
+// ??_ECommandBuilding@@WCGA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004766a5
-// [thunk]:CommandBuilding::`scalar deleting destructor' adjustor{148}
+// ??_ECommandBuilding@@WJE@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004766b0
-// [thunk]:CommandBuilding::`scalar deleting destructor' adjustor{320}
+// ??_ECommandBuilding@@WBEA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004766bb
-// [thunk]:CommandBuilding::`scalar deleting destructor' adjustor{12}
+// ??_ECommandBuilding@@WM@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004766ce
-// [thunk]:CommandBuilding::`scalar deleting destructor' adjustor{512}
+// ??_ECommandBuilding@@WCAA@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x004761c0
 CommandBuilding::~CommandBuilding()
@@ -92,23 +90,11 @@ void CommandBuilding::Respawn()
     }
 }
 
-// FUNCTION: SWBF2 0x00476040
-unsigned int CommandBuilding::GetDerivedRtti() const
-{
-    return rttiHashCommandBuilding;
-}
 
-// FUNCTION: SWBF2 0x00476050
-const char* CommandBuilding::GetDerivedRttiName() const
-{
-    return rttiNameCommandBuilding;
-}
 
-// FUNCTION: SWBF2 0x00475ff0
-bool CommandBuilding::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashCommandBuilding || EntityBuildingAnimated::IsRtti(uRtti);
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00476110
 CommandBuilding::CommandBuilding(CommandBuildingClass* pClass, const EntityDesc& desc)

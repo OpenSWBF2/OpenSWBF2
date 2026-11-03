@@ -131,18 +131,22 @@ void pcRedPrimitive::Draw() const
         dx::StateManager_DX::GetInstance().DrawIndexedPrimitive(m_primType, m_startVertex, 0,
                                                                 m_numVertices, m_startIndex,
                                                                 m_primCount);
+        // GLOBAL: SWBF2 0x007f58c0
         static int& s_numDrawIP = perFrame.GetInt("numDrawIP");
         ++s_numDrawIP;
     }
     else if (m_primCount)
     {
         dx::StateManager_DX::GetInstance().DrawPrimitive(m_primType, m_startVertex, m_primCount);
+        // GLOBAL: SWBF2 0x007f58c8
         static int& s_numDrawP = perFrame.GetInt("numDrawP");
         ++s_numDrawP;
     }
 
+    // GLOBAL: SWBF2 0x007f58cc
     static int& s_numVerts = perFrame.GetInt("numVerts");
     s_numVerts += m_numVertices;
+    // GLOBAL: SWBF2 0x007f58d0
     static int& s_numPrims = perFrame.GetInt("numPrims");
     s_numPrims += m_primCount;
 }

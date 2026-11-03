@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include "Fsm.h"
 #include "PebbleFL/Common/PblHashTable.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
@@ -22,12 +24,14 @@ public:
         STATE_START = 1
     };
 
-    static void* operator new(size_t uiSize);
+    static void* operator new(unsigned int uiSize);
+    // SYNTHETIC: SWBF2 0x0043ab10
+    // Navigator::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
     static MemoryPool sMemoryPool;
 
     static PblHash rttiHashNavigator;
-    static char rttiNameNavigator[];
+    static const char rttiNameNavigator[];
 
     virtual ~Navigator();
 
@@ -69,3 +73,23 @@ protected:
 };
 
  
+
+// FUNCTION: SWBF2 0x005ab2d0
+inline bool Navigator::IsRtti(unsigned int uRtti) const
+{
+    return rttiHashNavigator == uRtti;
+}
+
+// FUNCTION: SWBF2 0x005ab2f0
+inline unsigned int Navigator::GetDerivedRtti() const
+{
+    return rttiHashNavigator;
+}
+
+// FUNCTION: SWBF2 0x005ab300
+inline const char* Navigator::GetDerivedRttiName() const
+{
+    return rttiNameNavigator;
+}
+
+

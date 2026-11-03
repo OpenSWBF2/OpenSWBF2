@@ -26,6 +26,9 @@ int markMouseX;
 // GLOBAL: SWBF2 0x01e57964
 int markMouseY;
 
+// GLOBAL: SWBF2 0x007e8270
+// sPCCallbacks
+
 namespace Lua_Callbacks
 {
 
@@ -134,17 +137,22 @@ int ScriptCB_SetDeadZone(lua_State*)
 // FUNCTION: SWBF2 0x005994d0
 int ScriptCB_IsJoystickEnabled(lua_State*)
 {
-    lua_gettop(LuaHelper::mState);
+    LuaHelper::GetTop();
+    bool joyEnabled = true;
     PlayerProfile::tProfile* pProfile = PlayerProfile::GetCurProfile();
-    lua_pushboolean(LuaHelper::mState, pProfile ? pProfile->mPCOptions.mJoyEnabled : true);
+    if (pProfile)
+    {
+        joyEnabled = pProfile->mPCOptions.mJoyEnabled;
+    }
+    LuaHelper::PushBool(joyEnabled);
     return 1;
 }
 
 // FUNCTION: SWBF2 0x00599510
 int ScriptCB_SetJoystickEnabled(lua_State*)
 {
-    lua_gettop(LuaHelper::mState);
-    bool bEnabled = lua_isnumber(LuaHelper::mState, 1) || lua_isstring(LuaHelper::mState, 1);
+    LuaHelper::GetTop();
+    bool bEnabled = LuaHelper::IsNumber(1) || LuaHelper::IsString(1);
     PlayerProfile::tProfile* pProfile = PlayerProfile::GetCurProfile();
     if (pProfile && pProfile->mPCOptions.mJoyEnabled != bEnabled)
     {
@@ -158,8 +166,13 @@ int ScriptCB_SetJoystickEnabled(lua_State*)
 // FUNCTION: SWBF2 0x0059abb0
 int ScriptCB_GetProfileJoinIP(lua_State*)
 {
+    const char* pJoinIP = "";
     PlayerProfile::tProfile* pProfile = PlayerProfile::GetCurProfile();
-    lua_pushstring(LuaHelper::mState, pProfile ? pProfile->mPCOptions.mJoinIp : "");
+    if (pProfile)
+    {
+        pJoinIP = pProfile->mPCOptions.mJoinIp;
+    }
+    LuaHelper::PushString(pJoinIP);
     return 1;
 }
 
@@ -218,28 +231,30 @@ int ScriptCB_GetCustomResolution(lua_State*)
 // FUNCTION: SWBF2 0x0059ac80
 int ScriptCB_IsVideoModeSupported(lua_State*)
 {
-    int iArgs = lua_gettop(LuaHelper::mState);
-    if ((unsigned)(iArgs - 2) > 2 || !lua_isnumber(LuaHelper::mState, 1) ||
-        !lua_isnumber(LuaHelper::mState, 2))
+    int iArgs = LuaHelper::GetTop();
+    if ((unsigned)(iArgs - 2) > 2 || !LuaHelper::IsNumber(1) ||
+        !LuaHelper::IsNumber(2))
     {
         return 0;
     }
-    int iWidth = (int)luaL_checknumber(LuaHelper::mState, 1);
-    int iHeight = (int)luaL_checknumber(LuaHelper::mState, 2);
-    int iType = 0, iQuality = 0;
+    int iWidth = LuaHelper::GetInt(1);
+    int iHeight = LuaHelper::GetInt(2);
+    unsigned long dwMultisampleType = 0;
+    unsigned long dwMultisampleQuality = 0;
     if (iArgs > 2)
     {
-        if (lua_isnumber(LuaHelper::mState, 3))
+        if (LuaHelper::IsNumber(3))
         {
-            iType = (int)luaL_checknumber(LuaHelper::mState, 3);
+            dwMultisampleType = LuaHelper::GetInt(3);
         }
-        if (iArgs > 3 && lua_isnumber(LuaHelper::mState, 4))
+        if (iArgs > 3 && LuaHelper::IsNumber(4))
         {
-            iQuality = (int)luaL_checknumber(LuaHelper::mState, 4);
+            dwMultisampleQuality = LuaHelper::GetInt(4);
         }
     }
-    lua_pushboolean(LuaHelper::mState, RedVideoConfig::VidMode_Usable(
-        iWidth, iHeight, (D3DMULTISAMPLE_TYPE)iType, iQuality));
+    bool bIsSupported = RedVideoConfig::VidMode_Usable(
+        iWidth, iHeight, (D3DMULTISAMPLE_TYPE)dwMultisampleType, dwMultisampleQuality);
+    LuaHelper::PushBool(bIsSupported);
     return 1;
 }
 
@@ -257,59 +272,77 @@ int ScriptCB_IsMultisamplingModeForcedFromDriver(lua_State*)
 // FUNCTION: SWBF2 0x0059adb0
 int ScriptCB_IsMultisamplingModeSupported(lua_State*)
 {
-    int iArgs = lua_gettop(LuaHelper::mState);
-    if ((unsigned)(iArgs - 1) > 1 || !lua_isnumber(LuaHelper::mState, 1))
+    int iArgs = LuaHelper::GetTop();
+    if ((unsigned)(iArgs - 1) > 1 || !LuaHelper::IsNumber(1))
     {
         return 0;
     }
-    int iType = (int)luaL_checknumber(LuaHelper::mState, 1);
-    int iQuality = iArgs == 2 && lua_isnumber(LuaHelper::mState, 2)
-        ? (int)luaL_checknumber(LuaHelper::mState, 2) : 0;
-    lua_pushboolean(LuaHelper::mState, RedVideoConfig::VidMode_MultisamplingModeUseable(
-        (D3DMULTISAMPLE_TYPE)iType, iQuality));
+    unsigned long dwMultisampleType = LuaHelper::GetInt(1);
+    unsigned long dwMultisampleQuality = 0;
+    if (iArgs > 1 && LuaHelper::IsNumber(2))
+    {
+        dwMultisampleQuality = LuaHelper::GetInt(2);
+    }
+    bool bIsSupported = RedVideoConfig::VidMode_MultisamplingModeUseable(
+        (D3DMULTISAMPLE_TYPE)dwMultisampleType, dwMultisampleQuality);
+    LuaHelper::PushBool(bIsSupported);
     return 1;
 }
 
 // FUNCTION: SWBF2 0x0059ae50
 int ScriptCB_GetMaxScreenSizeForMultisamplingMode(lua_State*)
 {
-    int iArgs = lua_gettop(LuaHelper::mState);
-    if ((unsigned)(iArgs - 1) > 1 || !lua_isnumber(LuaHelper::mState, 1))
+    int iArgs = LuaHelper::GetTop();
+    if ((unsigned)(iArgs - 1) > 1 || !LuaHelper::IsNumber(1))
     {
         return 0;
     }
-    int iType = (int)luaL_checknumber(LuaHelper::mState, 1);
-    int iQuality = iArgs == 2 && lua_isnumber(LuaHelper::mState, 2)
-        ? (int)luaL_checknumber(LuaHelper::mState, 2) : 0;
-    int iWidth = 0, iHeight = 0;
-    if (RedVideoConfig::VidMode_GetMaxScreenSizeForMultisamplingMode(
-        (D3DMULTISAMPLE_TYPE)iType, iQuality, iWidth, iHeight))
+    unsigned long dwMultisampleType = LuaHelper::GetInt(1);
+    unsigned long dwMultisampleQuality = 0;
+    if (iArgs > 1 && LuaHelper::IsNumber(2))
     {
-        lua_pushnumber(LuaHelper::mState, (float)iWidth);
-        lua_pushnumber(LuaHelper::mState, (float)iHeight);
+        dwMultisampleQuality = LuaHelper::GetInt(2);
     }
-    else { lua_pushnil(LuaHelper::mState); lua_pushnil(LuaHelper::mState); }
+    int iWidth = 0, iHeight = 0;
+    bool bIsSupported = RedVideoConfig::VidMode_GetMaxScreenSizeForMultisamplingMode(
+        (D3DMULTISAMPLE_TYPE)dwMultisampleType, dwMultisampleQuality, iWidth, iHeight);
+    if (bIsSupported)
+    {
+        LuaHelper::PushInt(iWidth);
+        LuaHelper::PushInt(iHeight);
+    }
+    else
+    {
+        LuaHelper::PushNil();
+        LuaHelper::PushNil();
+    }
     return 2;
 }
 
 // FUNCTION: SWBF2 0x0059af60
 int ScriptCB_GetMaxMultisamplingModeForScreenSize(lua_State*)
 {
-    if (lua_gettop(LuaHelper::mState) != 2 || !lua_isnumber(LuaHelper::mState, 1) ||
-        !lua_isnumber(LuaHelper::mState, 2))
+    int iArgs = LuaHelper::GetTop();
+    if (iArgs != 2 || !LuaHelper::IsNumber(1) ||
+        !LuaHelper::IsNumber(2))
     {
         return 0;
     }
-    int iWidth = (int)luaL_checknumber(LuaHelper::mState, 1);
-    int iHeight = (int)luaL_checknumber(LuaHelper::mState, 2);
+    int iWidth = LuaHelper::GetInt(1);
+    int iHeight = LuaHelper::GetInt(2);
     D3DMULTISAMPLE_TYPE eType;
     unsigned long ulQuality;
-    if (RedVideoConfig::VidMode_GetMaxMultisamplingModeForScreenSize(iWidth, iHeight, eType, ulQuality))
+    bool bIsSupported = RedVideoConfig::VidMode_GetMaxMultisamplingModeForScreenSize(iWidth, iHeight, eType, ulQuality);
+    if (bIsSupported)
     {
-        lua_pushnumber(LuaHelper::mState, (float)eType);
-        lua_pushnumber(LuaHelper::mState, (float)ulQuality);
+        LuaHelper::PushInt(eType);
+        LuaHelper::PushInt(ulQuality);
     }
-    else { lua_pushnil(LuaHelper::mState); lua_pushnil(LuaHelper::mState); }
+    else
+    {
+        LuaHelper::PushNil();
+        LuaHelper::PushNil();
+    }
     return 2;
 }
 
@@ -327,22 +360,25 @@ int ScriptCB_GetNumMultisamplingQualityModes(lua_State*)
 // FUNCTION: SWBF2 0x0059b0a0
 int ScriptCB_GetMultisamplingModeDescription(lua_State*)
 {
-    int iArgs = lua_gettop(LuaHelper::mState);
-    if ((unsigned)(iArgs - 1) > 1 || !lua_isnumber(LuaHelper::mState, 1))
+    int iArgs = LuaHelper::GetTop();
+    if ((unsigned)(iArgs - 1) > 1 || !LuaHelper::IsNumber(1))
     {
         return 0;
     }
-    int iType = (int)luaL_checknumber(LuaHelper::mState, 1);
-    int iQuality = iArgs == 2 && lua_isnumber(LuaHelper::mState, 2)
-        ? (int)luaL_checknumber(LuaHelper::mState, 2) : 0;
-    const char* pcDesc = RedVideoConfig::VidMode_GetMultiSampleDescription((D3DMULTISAMPLE_TYPE)iType, iQuality);
+    unsigned long dwMultisampleType = LuaHelper::GetInt(1);
+    unsigned long dwMultisampleQuality = 0;
+    if (iArgs > 1 && LuaHelper::IsNumber(2))
+    {
+        dwMultisampleQuality = LuaHelper::GetInt(2);
+    }
+    const char* pcDesc = RedVideoConfig::VidMode_GetMultiSampleDescription((D3DMULTISAMPLE_TYPE)dwMultisampleType, dwMultisampleQuality);
     if (pcDesc && *pcDesc && *pcDesc != 'U')
     {
-        lua_pushstring(LuaHelper::mState, pcDesc);
+        LuaHelper::PushString(pcDesc);
     }
     else
     {
-        lua_pushnil(LuaHelper::mState);
+        LuaHelper::PushNil();
     }
     return 1;
 }
@@ -419,8 +455,7 @@ static int ScriptCB_MarkDisplayOptions(lua_State* L);
 static int ScriptCB_RestoreDisplayOptions(lua_State* L);
 static int ScriptCB_SaveDisplayOptions(lua_State* L);
 
-// GLOBAL: SWBF2 0x007e8270
-static const CallbackEntryT sPCCallbacks[44] =
+static const CallbackEntryT sPCCallbacks[36] =
 {
     { "ScriptCB_GetMouseSensitivity", ScriptCB_GetMouseSensitivity },
     { "ScriptCB_GetJoySensitivity", ScriptCB_GetJoySensitivity },
@@ -489,26 +524,26 @@ int ScriptCB_GetMouseSensitivity(lua_State* L)
 // FUNCTION: SWBF2 0x00599200
 int ScriptCB_GetJoySensitivity(lua_State* L)
 {
-    lua_gettop(LuaHelper::mState);
-    int iAxis = (int)luaL_checknumber(LuaHelper::mState, 1);
-    int iSensitivity = 0;
+    LuaHelper::GetTop();
+    int iAxis = LuaHelper::GetInt(1);
+    float joySens = 0.0f;
     PlayerProfile::tProfile* pProfile = PlayerProfile::GetCurProfile();
     if (pProfile)
     {
-        int iMode = FLInputManager::s_instance.GetPlayerJoystick(
-            GuiManager::GetJoystickFromViewport(GuiManager::mCurViewport))->GetInputMode();
+        int iJoystick = GuiManager::GetJoystickFromViewport(GuiManager::mCurViewport);
+        RawControllerInputs* pJoystick = FLInputManager::s_instance.GetPlayerJoystick(iJoystick);
         if (iAxis == 0)
         {
-            iSensitivity = pProfile->mGameOptions.mJoystickSensitivityX[iMode];
+            joySens = pProfile->mGameOptions.mJoystickSensitivityX[pJoystick->GetInputMode()];
         }
         else
         {
-            iSensitivity = pProfile->mGameOptions.mJoystickSensitivityY[iMode];
+            joySens = pProfile->mGameOptions.mJoystickSensitivityY[pJoystick->GetInputMode()];
         }
     }
-    lua_pushnumber(LuaHelper::mState, (float)iSensitivity);
-    lua_pushnumber(LuaHelper::mState, 1.0f);
-    lua_pushnumber(LuaHelper::mState, 10.0f);
+    LuaHelper::PushFloat(joySens);
+    LuaHelper::PushFloat(1.0f);
+    LuaHelper::PushFloat(10.0f);
     return 3;
 }
 
@@ -950,14 +985,14 @@ int ScriptCB_SetPCBrightnessContrast(lua_State* L)
 // FUNCTION: SWBF2 0x0059ab80
 int ScriptCB_IsPCVideoFixedFunction(lua_State* L)
 {
-    lua_pushboolean(LuaHelper::mState, RedRenderer::pcGetRenderCaps().pipeline == PIPELINE_FIXED);
+    LuaHelper::PushBool(RedRenderer::pcGetRenderCaps().pipeline == PIPELINE_FIXED);
     return 1;
 }
 
 // FUNCTION: SWBF2 0x0059b170
 void InitPC()
 {
-    for (int i = 0; i < 44; ++i)
+    for (unsigned int i = 0; i < 36; ++i)
     {
         LuaHelper::Register(sPCCallbacks[i].pcName, sPCCallbacks[i].pfnCallback, 0);
     }

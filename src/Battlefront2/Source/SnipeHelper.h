@@ -1,6 +1,8 @@
 #pragma once
 
 #include <stddef.h>
+#include "UnitAgent.h"
+#include "UnitController.h"
 
 #include "Fsm.h"
 #include "Controllable.h"
@@ -73,3 +75,23 @@ protected:
     float mNextHintCheckTime;
 };
   
+
+inline const Controllable* SnipeHelper::GetMe() const
+{
+    return mOwner->GetMe();
+}
+
+inline Controllable* SnipeHelper::GetMe()
+{
+    return mOwner->GetMe();
+}
+
+inline UnitController* SnipeHelper::GetCtrl()
+{
+    return mOwner->mCtrl;
+}
+
+inline const AttackHelper* SnipeHelper::GetAttackHelper() const
+{
+    return &mOwner->mAttackHelper;
+}

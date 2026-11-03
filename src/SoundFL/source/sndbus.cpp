@@ -23,29 +23,33 @@ static inline Bus* BusFromNode(PblListSingle::Node* pNode)
     return reinterpret_cast<Bus*>(reinterpret_cast<char*>(pNode) - offsetof(Bus, mNode));
 }
 
-// GLOBAL: SWBF2 0x007e325c
 // SYNTHETIC: SWBF2 0x0040b450
 // `dynamic initializer for 'Snd::Bus::smFreeList''
 // SYNTHETIC: SWBF2 0x0076a140
 // `dynamic atexit destructor for 'Snd::Bus::smFreeList''
-FreeList Bus::smFreeList(sizeof(Bus), 1, 8, 1);
 
-// GLOBAL: SWBF2 0x007e3278
+// GLOBAL: SWBF2 0x007e325c
+// Bus::smFreeList
+FreeList Bus::smFreeList(sizeof(Bus), 1, true, 8);
+
 // SYNTHETIC: SWBF2 0x0040b470
 // `dynamic initializer for 'Snd::Bus::smRootBus''
 // SYNTHETIC: SWBF2 0x0076a150
 // `dynamic atexit destructor for 'Snd::Bus::smRootBus''
+
+// GLOBAL: SWBF2 0x007e3278
+// Bus::smRootBus
 Bus Bus::smRootBus(0, 0x20FD0E45u);
 
 // GLOBAL: SWBF2 0x009cf494
 bool Bus::smBusSolo;
 
 // FUNCTION: SWBF2 0x00731360
-void Bus::Update(float fDeltaTime, bool bForce)
+__declspec(noinline) void Bus::Update(float fDeltaTime, bool bForce)
 {
     const float fOldGain = Fader::mGain;
     Fader::Update(fDeltaTime);
-    if (Fader::mGain != fOldGain || bForce)
+    if (fOldGain != Fader::mGain || bForce)
     {
         UpdateFinalGain();
         bForce = true;
@@ -54,7 +58,8 @@ void Bus::Update(float fDeltaTime, bool bForce)
     for (PblListSingle::Node* pNode = mSubBusList.mHead.mNext;
          pNode != &mSubBusList.mHead; pNode = pNode->mNext)
     {
-        BusFromNode(pNode)->Update(fDeltaTime, bForce);
+        Bus* const pSub = BusFromNode(pNode);
+        pSub->Update(fDeltaTime, bForce);
     }
 }
 
@@ -77,7 +82,8 @@ void Bus::SetGain(float fGain, bool bStopFade)
     for (PblListSingle::Node* pNode = mSubBusList.mHead.mNext;
          pNode != &mSubBusList.mHead; pNode = pNode->mNext)
     {
-        BusFromNode(pNode)->Update(0.0f, true);
+        Bus* const pSub = BusFromNode(pNode);
+        pSub->Update(0.0f, true);
     }
 }
 
@@ -89,8 +95,9 @@ void __cdecl Bus::MuteAll(Bus* pBus)
         pBus = &smRootBus;
     }
 
-    for (PblListSingle::Node* pNode = pBus->mSubBusList.mHead.mNext;
-         pNode != &pBus->mSubBusList.mHead; pNode = pNode->mNext)
+    PblListSingle* const pSubList = &pBus->mSubBusList;
+    for (PblListSingle::Node* pNode = pSubList->mHead.mNext;
+         pNode != &pSubList->mHead; pNode = pNode->mNext)
     {
         Bus* const pSub = BusFromNode(pNode);
         if (!(pSub->mFlags & flags_Solo))
@@ -105,9 +112,10 @@ void __cdecl Bus::MuteAll(Bus* pBus)
 // FUNCTION: SWBF2 0x00730db0
 void Bus::DestroySubBuses()
 {
-    while (!mSubBusList.IsEmpty())
+    for (;;)
     {
-        Bus* pBus = BusFromNode(mSubBusList.mHead.mNext);
+        PblListSingle::Node* const pNode = mSubBusList.mHead.mNext;
+        Bus* const pBus = pNode == &mSubBusList.mHead ? 0 : BusFromNode(pNode);
         if (!pBus)
         {
             break;
@@ -116,23 +124,7 @@ void Bus::DestroySubBuses()
     }
 }
 
-// FUNCTION: SWBF2 0x00730c00
-Bus::~Bus()
-{
-    if (mFlags & flags_Solo)
-    {
-        smBusSolo = false;
-    }
-    DestroySubBuses();
-    if (mParentBus)
-    {
-        mNode.Remove();
-    }
-    if (mNode.mNext)
-    {
-        mNode.Remove();
-    }
-}
+
 
 // FUNCTION: SWBF2 0x00730cd0
 Bus* Bus::AddSubBus(unsigned int uiHashID)
@@ -151,7 +143,8 @@ Bus* Bus::FindSubBusByHashID(unsigned int uiHashID)
     for (PblListSingle::Node* pNode = mSubBusList.mHead.mNext;
          pNode != &mSubBusList.mHead; pNode = pNode->mNext)
     {
-        Bus* const pFound = BusFromNode(pNode)->FindSubBusByHashID(uiHashID);
+        Bus* const pSub = (Bus*)pNode->GetObjectA(&mSubBusList, offsetof(Bus, mNode));
+        Bus* const pFound = pSub->FindSubBusByHashID(uiHashID);
         if (pFound)
         {
             return pFound;
@@ -161,7 +154,7 @@ Bus* Bus::FindSubBusByHashID(unsigned int uiHashID)
 }
 
 // FUNCTION: SWBF2 0x00730e20
-Bus* Bus::FindByHashID(unsigned int uiHashID)
+__declspec(noinline) Bus* Bus::FindByHashID(unsigned int uiHashID)
 {
     return smRootBus.FindSubBusByHashID(uiHashID);
 }
@@ -172,43 +165,42 @@ void Bus::Read(PblFileChunk& chunk)
     while (chunk.HasMoreChildren())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        PblFile* const pFile = child._pFile;
-        switch (pFile->Read32())
+        switch ((unsigned int)child._pFile->Read32())
         {
         case 0x247DB064u:
-            pFile->Read8();
-            mAttenuateBus = FindByHashID(pFile->Read32());
+            child._pFile->Read8();
+            mAttenuateBus = FindByHashID(child._pFile->Read32());
             break;
         case 0x1B5426FEu:
-            pFile->Read8();
-            SetGain(Clamp(pFile->ReadFloat(), 0.0f, 1.0f), true);
+            child._pFile->Read8();
+            SetGain(Clamp(child._pFile->ReadFloat(), 0.0f, 1.0f), true);
             break;
         case 0x5BA00EF7u:
-            pFile->Read8();
-            mAttenuation = Clamp(pFile->ReadFloat(), 0.0f, 1.0f);
+            child._pFile->Read8();
+            mAttenuation = Clamp(child._pFile->ReadFloat(), 0.0f, 1.0f);
             break;
         case 0x8D39BDE6u:
-            pFile->Read8();
-            mHashID = pFile->Read32();
+            child._pFile->Read8();
+            mHashID = child._pFile->Read32();
             break;
         case 0xD16089AAu:
-            pFile->Read8();
-            mAttenuationLeadInTime = pFile->ReadFloat();
+            child._pFile->Read8();
+            mAttenuationLeadInTime = child._pFile->ReadFloat();
             break;
         case 0xE9634B4Au:
-            pFile->Read8();
+            child._pFile->Read8();
             mFlags = (unsigned char)((mFlags & ~flags_Mute) | flags_Solo);
             smBusSolo = true;
             break;
         case 0xD6069F54u:
-            pFile->Read8();
+            child._pFile->Read8();
             SetGain(0.0f, true);
             mFlags |= flags_Mute;
             break;
         case 0xEACDFCFDu:
         {
-            pFile->Read8();
-            Bus* const pParent = FindByHashID(pFile->Read32());
+            child._pFile->Read8();
+            Bus* const pParent = FindByHashID(child._pFile->Read32());
             mNode.Remove();
             pParent->mSubBusList.AddLast(&mNode);
             mParentBus = pParent;
@@ -216,8 +208,8 @@ void Bus::Read(PblFileChunk& chunk)
             break;
         }
         case 0xF247D163u:
-            pFile->Read8();
-            mAttenuationLeadOutTime = pFile->ReadFloat();
+            child._pFile->Read8();
+            mAttenuationLeadOutTime = child._pFile->ReadFloat();
             break;
         }
     }
@@ -245,7 +237,8 @@ void __cdecl Bus::Load(PblFileChunk& chunk, bool bOnce)
 
         child._pFile->Read32();
         child = chunk.ReadNextChild();
-        smRootBus.AddSubBus(0)->Read(child);
+        Bus* const pBus = smRootBus.AddSubBus(0);
+        pBus->Read(child);
         if (bOnce)
         {
             break;

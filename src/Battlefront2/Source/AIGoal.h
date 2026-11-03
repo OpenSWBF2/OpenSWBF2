@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "PebbleFL/Common/PblHashTable.h"
@@ -12,7 +14,8 @@ class Character;
 class CommandPost;
 class GameObject;
 
-namespace AI {
+namespace AI
+{
 
 enum AIGoalType
 {
@@ -38,11 +41,11 @@ enum GoalTargetType
 
 struct GoalTarget
 {
-    GoalTarget& operator=(const GoalTarget& other);
+    // SYNTHETIC: SWBF2 0x00488290
+    // AI::GoalTarget::operator=
+    GoalTarget& operator=(const GoalTarget& other) = default;
     GoalTarget()
     {
-        mGameObj.mObject = 0;
-        mGameObj.mSavedHandleId = 0;
     }
 
     GoalTarget(const PblVector3& vPos);
@@ -88,7 +91,7 @@ public:
     unsigned char GetTeam() { return mTeam; }
 
     static PblHash rttiHashAIGoal;
-    static char rttiNameAIGoal[];
+    static const char rttiNameAIGoal[];
     static MemoryPool sMemoryPool;
 
     PblList<Character> mUnitList;
@@ -104,3 +107,21 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x00439ab0
+inline bool AI::AIGoal::IsRtti(unsigned int uRtti) const
+{
+    return rttiHashAIGoal == uRtti;
+}
+
+// FUNCTION: SWBF2 0x00439ad0
+inline unsigned int AI::AIGoal::GetDerivedRtti() const
+{
+    return rttiHashAIGoal;
+}
+
+// FUNCTION: SWBF2 0x00439ae0
+inline const char* AI::AIGoal::GetDerivedRttiName() const
+{
+    return rttiNameAIGoal;
+}

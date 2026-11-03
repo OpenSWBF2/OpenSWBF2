@@ -66,5 +66,4 @@ RedColorValue::RedColorValue(const RedColor& color)
     a = color.a * kInv255;
 }
 
-// SYNTHETIC: SWBF2 0x0048ebf0
-// RedColorValue::RedColorValue
+

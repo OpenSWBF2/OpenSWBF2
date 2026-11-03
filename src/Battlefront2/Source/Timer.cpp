@@ -9,23 +9,19 @@ namespace EventManager
 template <>
 void Event<Timer, char>::Callback::Trigger(Timer& item, char& param);
 }
-
-// GLOBAL: SWBF2 0x01f7ced8
-int Timer::sMapNumEntries;
-// GLOBAL: SWBF2 0x01f7cedc
 // SYNTHETIC: SWBF2 0x00406aa0
 // `dynamic initializer for 'Timer::sMap''
 
+// GLOBAL: SWBF2 0x01f7ced8
 PblHashTable<Timer, 64> Timer::sMap;
-// GLOBAL: SWBF2 0x01f99418
 // SYNTHETIC: SWBF2 0x00406ac0
 // `dynamic initializer for 'Timer::sMemoryPool''
 // SYNTHETIC: SWBF2 0x007695f0
 // `dynamic atexit destructor for 'Timer::sMemoryPool''
-MemoryPool Timer::sMemoryPool("Timer", 0x2c);
 
-// GLOBAL: SWBF2 0x01e51e25
-namespace EventManager { static char noContext; }
+// GLOBAL: SWBF2 0x01f99418
+// Timer::sMemoryPool
+MemoryPool Timer::sMemoryPool("Timer", 0x2c);
 
 // FUNCTION: SWBF2 0x00657a80
 bool Timer::Update(float fDeltaTime)
@@ -36,10 +32,7 @@ bool Timer::Update(float fDeltaTime)
         if (mTime <= 0.0f)
         {
             DeactivateThread();
-            if (!NetGame::IsEnabled() || !NetGame::IsClient())
-            {
-                EventManager::TimerEvent::mElapsed.Trigger(*this, EventManager::noContext);
-            }
+            EventManager::TimerEvent::mElapsed.Trigger(*this, EventManager::noContext);
         }
     }
     return true;
@@ -63,6 +56,12 @@ void Timer::Stop()
     }
 }
 
+// FUNCTION: SWBF2 0x00657b60
+bool Timer::IsRunning() const
+{
+    return const_cast<Timer*>(this)->IsThreadActive();
+}
+
 // FUNCTION: SWBF2 0x00657ba0
 Timer* Timer::Find(const char* pcName)
 {
@@ -76,10 +75,7 @@ Timer::~Timer()
     {
         HUD::GameEvents::SetObjectiveTimer(0);
     }
-    if (sMap.Remove(mId))
-    {
-        --sMapNumEntries;
-    }
+    sMap.Remove(mId);
     StringDB::Remove(mId);
 }
 
@@ -90,17 +86,14 @@ Timer::Timer(const char* pcName)
     mTime = 0.0f;
     mRate = 1.0f;
     StringDB::Store(mId, pcName);
-    if (sMap.Store(mId, this))
-    {
-        ++sMapNumEntries;
-    }
+    sMap.Store(mId, this);
 }
 
 // SYNTHETIC: SWBF2 0x006579b0
 // Timer::`scalar deleting destructor'
 
 // SYNTHETIC: SWBF2 0x00657ce7
-// [thunk]:Timer::`scalar deleting destructor' adjustor{24}
+// ??_ETimer@@WBI@AEPAXI@Z
 
 namespace EventManager
 {
@@ -116,8 +109,13 @@ void Event<Timer, char>::Callback::Trigger(Timer& item, char& param)
         if (pChild)
         {
             pChild->AddRef();
-            while (pChild->IsAlive())
+            while (pChild)
             {
+                if (!pChild->IsAlive())
+                {
+                    pChild->Release();
+                    break;
+                }
                 Callback* pNext = (Callback*)pChild->mSibling;
                 if (pNext)
                 {
@@ -126,14 +124,6 @@ void Event<Timer, char>::Callback::Trigger(Timer& item, char& param)
                 pChild->Trigger(item, param);
                 pChild->Release();
                 pChild = pNext;
-                if (!pChild)
-                {
-                    break;
-                }
-            }
-            if (pChild)
-            {
-                pChild->Release();
             }
         }
     }
@@ -144,5 +134,4 @@ void Event<Timer, char>::Callback::Trigger(Timer& item, char& param)
 void Timer::Clear()
 {
     sMap.Clear();
-    sMapNumEntries = 0;
 }

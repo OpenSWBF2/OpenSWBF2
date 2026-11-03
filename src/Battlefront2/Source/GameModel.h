@@ -14,6 +14,7 @@ class RedPose;
 class RedShadingPose;
 class RedSkeleton;
 
+// VTABLE: SWBF2 0x0079f874
 class GameModel
 {
 public:
@@ -30,7 +31,11 @@ public:
 
     static void Reset();
 
-    static const GameModel* Find(unsigned int uHash);
+    // FUNCTION: SWBF2 0x004439c0
+    static const GameModel* Find(unsigned int uHash)
+    {
+        return _HashTable.Find(uHash);
+    }
 
     const RedModel* GetRedModel(unsigned char lod) const { return _mLod[lod]; }
 

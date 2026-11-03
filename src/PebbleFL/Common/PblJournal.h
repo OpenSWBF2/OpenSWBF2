@@ -26,7 +26,8 @@ public:
         (void)type;
     }
 
-    void RecordLow(void* pData, int iSize);
+    // FUNCTION: SWBF2 0x005b4230
+    void RecordLow(void*, int) {}
 
     PblJournalMode mMode;
 };

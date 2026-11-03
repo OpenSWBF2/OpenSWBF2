@@ -5,7 +5,10 @@
 #include "HUDElementGroup.h"
 #include "RedEngineFL/Interface/RedBorderElement.h"
 
-namespace HUD {
+namespace HUD
+{
+// VTABLE: SWBF2 0x007a03e4 RedGroupElement
+// VTABLE: SWBF2 0x007a0434 HUD::ElementGroupBase
 class BorderedBox : public HUD::ElementGroup
 {
 public:

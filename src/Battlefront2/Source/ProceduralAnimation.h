@@ -32,6 +32,7 @@ public:
  
  
 
+// VTABLE: SWBF2 0x007ade20
 class PAAnimation
 {
 public:
@@ -51,8 +52,6 @@ public:
     bool GetKeys(float fTime, PABaseKey& key0, PABaseKey& key1, bool bRotation, unsigned char,
                  unsigned char* pKeyIndex) const;
     void InterpolateKeys(PABaseKey key0, PABaseKey key1, float fTime, PABaseKey& result) const;
-
-    static int _HashTableNumEntries;
     static PblHashTable<PAAnimation, 32> _HashTable;
 
     unsigned char mNumPosKeys;
@@ -71,8 +70,8 @@ public:
 struct PAAnimationData
 {
 
-    // FUNCTION: SWBF2 0x00626bf0
-    PAAnimationData() {}
+    // SYNTHETIC: SWBF2 0x00626bf0
+    // PAAnimationData::PAAnimationData
 
     unsigned int mAnimHash;
     unsigned int mObjHash;
@@ -112,6 +111,7 @@ public:
  
  
 
+// VTABLE: SWBF2 0x007ade00
 class PAAnimationGroup
 {
 public:
@@ -144,8 +144,6 @@ public:
     static void UpdateTreeGrid(CollisionObject* pObject);
 
     void UpdateAnimations(float fDeltaTime);
-
-    static int _HashTableNumEntries;
     static PblHashTable<PAAnimationGroup, 32> _HashTable;
 
     static int mNumHierarchies;
@@ -168,11 +166,10 @@ public:
  
  
 
+// VTABLE: SWBF2 0x007adde8
 class PAManagerInterpolator : public Thread
 {
 public:
-    PAManagerInterpolator() {}
-    virtual ~PAManagerInterpolator() {}
     virtual bool Update(float fDeltaTime);
 
     void Create();

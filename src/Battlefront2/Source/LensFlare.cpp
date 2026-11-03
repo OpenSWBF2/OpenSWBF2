@@ -5,11 +5,6 @@
 // GLOBAL: SWBF2 0x01e573d8
 LensFlareEffect* LensFlareEffect::s_pInstance;
 
-// SYNTHETIC: SWBF2 0x0056f430
-// LensFlareEffect::`scalar deleting destructor'
-LensFlareEffect::~LensFlareEffect()
-{
-}
 
 // FUNCTION: SWBF2 0x0056f5d0
 void LensFlareEffect::Create()
@@ -84,6 +79,12 @@ LensFlare::LensFlare(const LensFlare& that)
     , _fSquaredDrawDistance(that._fSquaredDrawDistance)
     , _uiHideInView(0)
 {
+}
+
+// FUNCTION: SWBF2 0x0056f8c0
+void LensFlareEffect::LensFlareList::Cleanup()
+{
+    RemoveAll();
 }
 
 // FUNCTION: SWBF2 0x0056f8d0

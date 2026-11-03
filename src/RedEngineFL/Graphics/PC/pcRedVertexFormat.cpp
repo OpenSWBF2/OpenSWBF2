@@ -10,10 +10,6 @@
 pcRedVertexFormat::pcRedVertexFormat()
 {
 
-    m_node._pList = 0;
-    m_node._pNext = 0;
-    m_node._pPrev = 0;
-    m_node._pObject = 0;
 
     m_uiVertexBufferFVF = 0;
     m_uiVertexInputRVF = 0;

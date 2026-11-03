@@ -6,29 +6,21 @@
 #include "UnitCmdInfo.h"
 #include "UnitController.h"
 
-// GLOBAL: SWBF2 0x01eb980c
 // SYNTHETIC: SWBF2 0x00402800
 // `dynamic initializer for 'AI::DestroyGoal::rttiHashDestroyGoal''
+
+// GLOBAL: SWBF2 0x01eb980c
+// AI::DestroyGoal::rttiHashDestroyGoal
 PblHash AI::DestroyGoal::rttiHashDestroyGoal("DestroyGoal");
-char AI::DestroyGoal::rttiNameDestroyGoal[] = "DestroyGoal";
+// GLOBAL: SWBF2 0x00788ea4
+// AI::DestroyGoal::rttiNameDestroyGoal
+const char AI::DestroyGoal::rttiNameDestroyGoal[] = "DestroyGoal";
 
-// FUNCTION: SWBF2 0x0048c6b0
-bool AI::DestroyGoal::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashDestroyGoal || AIGoal::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x0048c6e0
-unsigned int AI::DestroyGoal::GetDerivedRtti() const
-{
-    return rttiHashDestroyGoal;
-}
 
-// FUNCTION: SWBF2 0x0048c6f0
-const char* AI::DestroyGoal::GetDerivedRttiName() const
-{
-    return rttiNameDestroyGoal;
-}
+
+
+
 
 // SYNTHETIC: SWBF2 0x0048c700
 // AI::DestroyGoal::`scalar deleting destructor'
@@ -64,14 +56,14 @@ void AI::DestroyGoal::Update()
 {
     if (mEnabled)
     {
-        if (mTarget.mType == GTT_GAMEOBJECT && mTarget.mGameObj && !mTarget.mGameObj->mIsAlive)
+        if (mTarget.mType == GTT_GAMEOBJECT && mTarget.mGameObj && !mTarget.mGameObj->IsAlive())
         {
             SetEnabled(false);
             return;
         }
         AIGoal::Update();
     }
-    else if (mTarget.mType == GTT_GAMEOBJECT && mTarget.mGameObj && mTarget.mGameObj->mIsAlive)
+    else if (mTarget.mType == GTT_GAMEOBJECT && mTarget.mGameObj && mTarget.mGameObj->IsAlive())
     {
         SetEnabled(true);
     }

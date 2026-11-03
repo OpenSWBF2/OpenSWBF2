@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "GameObject.h"
@@ -18,13 +20,13 @@ public:
     virtual EntityClass* Derive(unsigned int uHash);
 
     virtual Entity* Build(const EntityDesc& desc);
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
 
     static PblHash rttiHashEntityItemClass;
-    static char rttiNameEntityItemClass[];
+    static const char rttiNameEntityItemClass[];
 
     float mLifeSpan;
     bool mNoLifeSpanDisplay : 1;
@@ -61,12 +63,12 @@ class FLEffectObject;
 class NetPktGroup;
 class Restrictor;
 
-// VTABLE: SWBF2 0x0079bda8
+// VTABLE: SWBF2 0x0079bda8 EntityEx
 // VTABLE: SWBF2 0x0079befc CollisionObject
 // VTABLE: SWBF2 0x0079bf50 RedSceneObject
 // VTABLE: SWBF2 0x0079bed0 Damageable
 // VTABLE: SWBF2 0x0079bec8 PblHandled
-// VTABLE: SWBF2 0x0079bd90 Thread
+// VTABLE: SWBF2 0x0079bd90
 class EntityItem : public GameObject, public Thread
 {
 public:
@@ -96,6 +98,7 @@ public:
 
     virtual bool Update(float fDeltaTime);
 
+    Character* GetOwner() const { return mOwner; }
     float GetLifeTimer() const { return mLifeTimer; }
     bool NoDisplayLifeTimer() const;
 
@@ -108,7 +111,7 @@ public:
     PblHandle<FLEffectObject> mTrailEmitterObj;
 
     static PblHash rttiHashEntityItem;
-    static char rttiNameEntityItem[];
+    static const char rttiNameEntityItem[];
 };
  
  
@@ -118,3 +121,47 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x004cabd0
+inline bool EntityItemClass::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashEntityItemClass == uRtti)
+    {
+        return true;
+    }
+    return GameObjectClass::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x004cac10
+inline unsigned int EntityItemClass::GetDerivedRtti() const
+{
+    return rttiHashEntityItemClass;
+}
+
+// FUNCTION: SWBF2 0x004cac20
+inline const char* EntityItemClass::GetDerivedRttiName() const
+{
+    return rttiNameEntityItemClass;
+}
+
+// FUNCTION: SWBF2 0x004caae0
+inline bool EntityItem::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashEntityItem == uRtti)
+    {
+        return true;
+    }
+    return GameObject::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x004cab20
+inline unsigned int EntityItem::GetDerivedRtti() const
+{
+    return rttiHashEntityItem;
+}
+
+// FUNCTION: SWBF2 0x004cab30
+inline const char* EntityItem::GetDerivedRttiName() const
+{
+    return rttiNameEntityItem;
+}

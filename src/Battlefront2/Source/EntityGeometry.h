@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "CollisionModel.h"
@@ -100,10 +102,10 @@ public:
 
     int GetNumChunks();
 
-    virtual bool IsRtti(unsigned int uRtti);
+    virtual bool IsRtti(unsigned int uRtti) const;
 
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
 
     virtual void PostReadSetup();
 
@@ -122,7 +124,7 @@ protected:
 public:
 
     static PblHash rttiHashEntityGeometryClass;
-    static char rttiNameEntityGeometryClass[];
+    static const char rttiNameEntityGeometryClass[];
 
     ChunkDescriptor* mChunkDescriptors[10];
     CollisionModel* mFullChunkCollisions[10];
@@ -161,6 +163,9 @@ public:
  
  
 
+// VTABLE: SWBF2 0x0079b65c EntityEx
+// VTABLE: SWBF2 0x0079b6b8 CollisionObject
+// VTABLE: SWBF2 0x0079b70c RedSceneObject
 class EntityGeometry : public EntityEx, public CollisionObject, public RedSceneObject
 {
 public:
@@ -174,8 +179,9 @@ public:
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
     // FUNCTION: SWBF2 0x00444120
     virtual Entity* GetEntity() { return this; }
-    // SYNTHETIC: SWBF2 0x00446e2c
     // [thunk]:EntityGeometry::GetEntity`adjustor{12}'
+    // SYNTHETIC: SWBF2 0x00446e2c
+    // ?GetEntity@EntityGeometry@@WM@BEPBVEntity@@XZ
 
     // FUNCTION: SWBF2 0x00444110
     virtual const Entity* GetEntity() const { return this; }
@@ -235,10 +241,54 @@ public:
     AttachedEffects* m_pAttachedEffects;
 
     static PblHash rttiHashEntityGeometry;
-    static char rttiNameEntityGeometry[];
+    static const char rttiNameEntityGeometry[];
 };
  
  
  
  
  
+
+// FUNCTION: SWBF2 0x004440d0
+inline bool EntityGeometry::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashEntityGeometry == uRtti)
+    {
+        return true;
+    }
+    return EntityEx::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x004441b0
+inline bool EntityGeometryClass::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashEntityGeometryClass == uRtti)
+    {
+        return true;
+    }
+    return EntityClass::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x004ba080
+inline unsigned int EntityGeometry::GetDerivedRtti() const
+{
+    return rttiHashEntityGeometry;
+}
+
+// FUNCTION: SWBF2 0x004ba090
+inline const char* EntityGeometry::GetDerivedRttiName() const
+{
+    return rttiNameEntityGeometry;
+}
+
+// FUNCTION: SWBF2 0x004ba0d0
+inline unsigned int EntityGeometryClass::GetDerivedRtti() const
+{
+    return rttiHashEntityGeometryClass;
+}
+
+// FUNCTION: SWBF2 0x004ba0e0
+inline const char* EntityGeometryClass::GetDerivedRttiName() const
+{
+    return rttiNameEntityGeometryClass;
+}

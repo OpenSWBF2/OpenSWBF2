@@ -93,6 +93,8 @@ public:
 
         float GetReinforcementCount() const;
 
+        void Enable(const bool enabled) { mEnabled = enabled; }
+
         bool IsEnabled() const { return mEnabled; }
 
         unsigned int mID;
@@ -109,6 +111,8 @@ public:
 
         ~Group();
 
+        // SYNTHETIC: SWBF2 0x0065d3f0
+        // TriggerSoundRegion::Group::operator delete
         static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
     };
 
@@ -118,10 +122,6 @@ public:
 
     ~TriggerSoundRegion()
     {
-        if (mNode.mNext != 0)
-        {
-            mNode.Remove();
-        }
     }
 
     static PblListSingle sList;
@@ -137,6 +137,8 @@ public:
         return sMemoryPool.Allocate(sizeof(TriggerSoundRegion));
     }
 
+    // SYNTHETIC: SWBF2 0x0065d3e0
+    // TriggerSoundRegion::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
     static MemoryPool sMemoryPool;

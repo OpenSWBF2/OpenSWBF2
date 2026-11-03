@@ -8,8 +8,6 @@
 namespace EventManager
 {
 
-template <>
-void Event<GameObject, DamageOwner>::Trigger(GameObject& object, DamageOwner& owner);
 
 template <>
 bool LuaPushItem<GameObject>(GameObject& object);
@@ -32,7 +30,11 @@ class ObjectMatches
 {
 public:
 
-    static const char* GetName();
+    ObjectMatches(GameObject* pObject) : mObject(pObject) {}
+
+    ObjectMatches(const char* pcName) : mObject(EntityEx::Find(PblHash(pcName))) {}
+
+    static const char* GetName() { return "Match"; }
 
     bool operator()(GameObject& object, PARAM&) const
     {
@@ -44,6 +46,7 @@ public:
         return mObject == other.mObject;
     }
 
+private:
     EntityEx* mObject;
 };
 
@@ -51,7 +54,9 @@ template <class PARAM>
 class ObjectMatchesName
 {
 public:
-    static const char* GetName();
+
+    ObjectMatchesName(const char* pcName) : mName(PblHash(pcName)) {}
+    static const char* GetName() { return "Name"; }
 
     bool operator()(GameObject& object, PARAM&) const
     {
@@ -63,6 +68,7 @@ public:
         return mName == other.mName;
     }
 
+private:
     unsigned int mName;
 };
 
@@ -73,7 +79,7 @@ public:
 
     ObjectMatchesTeam(int iTeam) : mTeam(iTeam) {}
 
-    static const char* GetName();
+    static const char* GetName() { return "Team"; }
 
     bool operator()(GameObject& object, PARAM&) const
     {
@@ -85,6 +91,7 @@ public:
         return mTeam == other.mTeam;
     }
 
+private:
     int mTeam;
 };
 
@@ -92,7 +99,9 @@ template <class PARAM>
 class ObjectMatchesClass
 {
 public:
-    static const char* GetName();
+
+    ObjectMatchesClass(const char* pcName) : mClass(Factory<Entity, EntityClass, EntityDesc>::Find(PblHash(pcName))) {}
+    static const char* GetName() { return "Class"; }
 
     bool operator()(GameObject& object, PARAM&) const
     {
@@ -104,6 +113,7 @@ public:
         return mClass == other.mClass;
     }
 
+private:
     EntityClass* mClass;
 };
 

@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "Weapon.h"
 
 #include <math.h>
@@ -31,7 +32,7 @@
 #include "RedEngineFL/Graphics/RedPose.h"
 #include "RedEngineFL/Util/RedLocalizeDB.h"
 #include "RedEngineFL/Graphics/RedMaterial.h"
-#include "PebbleFL/pc/PblD3DX.h"
+#include "PebbleFL/Common/PblMath.h"
 
 // FUNCTION: SWBF2 0x00679250
 bool Weapon::CheckFire() const
@@ -46,13 +47,13 @@ bool Weapon::FireDone() const
 }
 
 // FUNCTION: SWBF2 0x0067bce0
-float WeaponClass::GetHeatPerSalvo()
+float WeaponClass::GetHeatPerSalvo() const
 {
     return mHeatPerShot;
 }
 
 // FUNCTION: SWBF2 0x0067bcf0
-float WeaponClass::GetShotsPerSalvo()
+float WeaponClass::GetShotsPerSalvo() const
 {
     return 1.0f;
 }
@@ -83,19 +84,25 @@ WeaponClass* WeaponClass::Derive(unsigned int uHash)
     return new WeaponClass(this, uHash);
 }
 
+
 extern bool netIsLateTurn;
 
-namespace GameLoop { extern bool gUnlimitedAmmo; }
+
+
+namespace GameLoop
+{
+extern bool gUnlimitedAmmo;
+}
 
 namespace
 {
 
-    const PblMatrix& GetCollisionMatrix(GameObject* pObject)
+    inline const PblMatrix& GetCollisionMatrix(GameObject* pObject)
     {
         return static_cast<CollisionObject*>(pObject)->GetMatrix();
     }
 
-    const PblVector3& GetVelocity(GameObject* pObject)
+    inline const PblVector3& GetVelocity(GameObject* pObject)
     {
         return pObject->GetVelocity();
     }
@@ -105,42 +112,13 @@ namespace
         return pObject->GetEntityType();
     }
 
-    int GetTeam(GameObject* pObject)
+    inline int GetTeam(GameObject* pObject)
     {
         return pObject->GetTeam();
     }
 
-    const PblVector3& GetTranslation(const PblMatrix& m)
-    {
-        return *reinterpret_cast<const PblVector3*>(m.m[3]);
-    }
 
-    const GameObject* GetHandleObject(const PblHandle<const GameObject>& handle)
-    {
-        PblHandle<const GameObject>& h = const_cast<PblHandle<const GameObject>&>(handle);
-        if (h.mObject &&
-            PBL_HANDLE_ID(h.mObject) != h.mSavedHandleId)
-        {
-            h.mObject = 0;
-            h.mSavedHandleId = 0;
-        }
-        return h.mObject;
-    }
-
-    float Clamp(float f, float fMin, float fMax)
-    {
-        if (fMin > f)
-        {
-            return fMin;
-        }
-        if (f > fMax)
-        {
-            return fMax;
-        }
-        return f;
-    }
-
-    bool ObjectIsRtti(GameObject* pObject, unsigned int uRtti)
+    inline bool ObjectIsRtti(GameObject* pObject, unsigned int uRtti)
     {
         return pObject->IsRtti(uRtti);
     }
@@ -156,9 +134,6 @@ public:
 WeaponClass::WeaponClass(unsigned int uHash)
     : Factory<Weapon, WeaponClass, WeaponDesc>(uHash)
 {
-    mEnergyBarClass.m_fEnergyMax = 0.0f;
-    mEnergyBarClass.m_fEnergyMin = 0.0f;
-    mEnergyBarClass.m_fEnergyOverheat = 0.0f;
 
     mPostLoadInit = false;
 
@@ -281,9 +256,6 @@ WeaponClass::WeaponClass(WeaponClass* pBase, unsigned int uHash)
     : Factory<Weapon, WeaponClass, WeaponDesc>(pBase, uHash)
 {
 
-    mEnergyBarClass.m_fEnergyMax = 0.0f;
-    mEnergyBarClass.m_fEnergyMin = 0.0f;
-    mEnergyBarClass.m_fEnergyOverheat = 0.0f;
 
     mPostLoadInit = false;
     mStrengthLimit = pBase->mStrengthLimit;
@@ -1175,7 +1147,7 @@ void WeaponClass::CreateMuzzleFlash(const PblMatrix& mFire) const
     {
         return;
     }
-    if (!CameraManager::sInstance->IsInsideAnyCamera(*reinterpret_cast<const PblVector3*>(mFire.m[3]), 30.0f, 70.0f))
+    if (!CameraManager::sInstance->IsInsideAnyCamera(mFire.GetTranslation(), 30.0f, 70.0f))
     {
         return;
     }
@@ -1186,13 +1158,13 @@ void WeaponClass::CreateMuzzleFlash(const PblMatrix& mFire) const
 }
 
 // FUNCTION: SWBF2 0x0067bd00
-int WeaponClass::GetBarrageMin()
+int WeaponClass::GetBarrageMin() const
 {
     return mBarrageMin;
 }
 
 // FUNCTION: SWBF2 0x0067bd10
-int WeaponClass::GetBarrageMax()
+int WeaponClass::GetBarrageMax() const
 {
     return mBarrageMax;
 }
@@ -1238,77 +1210,78 @@ void WeaponClass::RenderFlash(const PblVector3& vPos, const PblVector3& vDir, fl
     mFlash.m[2][1] = vDir.y * r;
     mFlash.m[2][2] = vDir.z * r;
     mFlash.m[2][3] = 0.0f;
-    mFlash.m[3][0] = vPos.x;
-    mFlash.m[3][1] = vPos.y;
-    mFlash.m[3][2] = vPos.z;
-    mFlash.m[3][3] = 1.0f;
+    mFlash.SetTranslation(vPos);
     mMuzzleFlashModel->Render(&mFlash, 0, color, 0, 0);
 }
 
-// GLOBAL: SWBF2 0x01f9a73c
 // SYNTHETIC: SWBF2 0x00407020
 // `dynamic initializer for 'Weapon::rttiHashWeapon''
-PblHash Weapon::rttiHashWeapon("Weapon");
-char Weapon::rttiNameWeapon[] = "Weapon";
+// Weapon::rttiHashWeapon
 
-// GLOBAL: SWBF2 0x01f9a880
+// GLOBAL: SWBF2 0x01f9a73c
+// Weapon::rttiHashWeapon
+PblHash Weapon::rttiHashWeapon("Weapon");
+// GLOBAL: SWBF2 0x0078bdec
+// Weapon::rttiNameWeapon
+const char Weapon::rttiNameWeapon[] = "Weapon";
+
 // SYNTHETIC: SWBF2 0x00407030
 // `dynamic initializer for 'WeaponClass::rttiHashWeaponClass''
-PblHash WeaponClass::rttiHashWeaponClass("WeaponClass");
-char WeaponClass::rttiNameWeaponClass[] = "WeaponClass";
+// WeaponClass::rttiHashWeaponClass
 
-// GLOBAL: SWBF2 0x01f9a318
+// GLOBAL: SWBF2 0x01f9a880
+// WeaponClass::rttiHashWeaponClass
+PblHash WeaponClass::rttiHashWeaponClass("WeaponClass");
+// GLOBAL: SWBF2 0x0078bdd0
+// WeaponClass::rttiNameWeaponClass
+const char WeaponClass::rttiNameWeaponClass[] = "WeaponClass";
+
 // SYNTHETIC: SWBF2 0x00407040
 // `dynamic initializer for 'WeaponClass::sWeaponChangeUnableSound''
 // SYNTHETIC: SWBF2 0x007697e0
 // `dynamic atexit destructor for 'WeaponClass::sWeaponChangeUnableSound''
+
+// GLOBAL: SWBF2 0x01f9a318
+// WeaponClass::sWeaponChangeUnableSound
 GameSound WeaponClass::sWeaponChangeUnableSound;
 
-// GLOBAL: SWBF2 0x01f9a830
 // SYNTHETIC: SWBF2 0x00407000
 // `dynamic initializer for 'Weapon::sMemoryPool''
 // SYNTHETIC: SWBF2 0x007697d0
 // `dynamic atexit destructor for 'Weapon::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01f9a830
+// Weapon::sMemoryPool
 MemoryPool Weapon::sMemoryPool("Weapon", 0x110);
 
-void Weapon::operator delete(void* p)
+// SYNTHETIC: SWBF2 0x00677650
+// Weapon::operator delete
+inline void Weapon::operator delete(void* p)
 {
     sMemoryPool.Free(p);
 }
 
-void* Weapon::operator new(size_t uSize)
+inline void* Weapon::operator new(size_t uSize)
 {
     return sMemoryPool.Allocate(uSize);
 }
 
-// FUNCTION: SWBF2 0x00677610
-bool Weapon::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashWeapon;
-}
 
-// FUNCTION: SWBF2 0x00677630
-unsigned int Weapon::GetDerivedRtti() const
-{
-    return rttiHashWeapon;
-}
 
-// FUNCTION: SWBF2 0x00677640
-const char* Weapon::GetDerivedRttiName() const
-{
-    return rttiNameWeapon;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00677660
 bool Weapon::IsLocked() const
 {
-    return GetHandleObject(mTarget) != 0;
+    return mTarget != 0;
 }
 
 // FUNCTION: SWBF2 0x006776a0
 const GameObject* Weapon::GetLocked() const
 {
-    return GetHandleObject(mTarget);
+    return &mTarget();
 }
 
 // FUNCTION: SWBF2 0x006776d0
@@ -1390,23 +1363,11 @@ bool Weapon::IsBusy() const
 // SYNTHETIC: SWBF2 0x006777a0
 // Weapon::`scalar deleting destructor'
 
-// FUNCTION: SWBF2 0x006777d0
-bool WeaponClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashWeaponClass;
-}
 
-// FUNCTION: SWBF2 0x006777f0
-unsigned int WeaponClass::GetDerivedRtti()
-{
-    return rttiHashWeaponClass;
-}
 
-// FUNCTION: SWBF2 0x00677800
-const char* WeaponClass::GetDerivedRttiName()
-{
-    return rttiNameWeaponClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00677810
 bool WeaponClass::PostLoadInit()
@@ -1425,63 +1386,32 @@ bool WeaponClass::PostLoadInit()
 
 // FUNCTION: SWBF2 0x00677840
 Weapon::Weapon(const WeaponClass* pClass, const WeaponDesc& desc)
+    : mStart(pClass),
+      mClass(pClass),
+      mRenderClass(pClass),
+      mOwner(desc.mOwner),
+      mAimer(desc.mAimer),
+      mTrigger(desc.mTrigger),
+      mReload(desc.mReload),
+      m_pAmmoCounter(desc.m_pAmmoCounter ? desc.m_pAmmoCounter->AddRef()
+                                       : new AmmoCounter(&pClass->mAmmoCounterClass, desc.mNumClips)),
+      m_pEnergyBar(desc.m_pEnergyBar ? desc.m_pEnergyBar->AddRef()
+                                   : new EnergyBar(&pClass->mEnergyBarClass)),
+      mHideWeapon(0),
+      mFiredFlag(0),
+      mSelectedFlag(0),
+      mState(IDLE),
+      mStateTimer(0.0f),
+      mStateLimit(1.0f),
+      mZoom(pClass->mZoomMin),
+      mZoomTurnScale(pClass->mZoomTurnDivisorMin),
+      mSoldierAnimationMap(-1),
+      mSkipTime(0.0f),
+      mSkip(false),
+      mCharged(false),
+      mDeactivateScheduled(0),
+      mTargetBodyID(-1)
 {
-    mStart = const_cast<WeaponClass*>(pClass);
-    mClass = const_cast<WeaponClass*>(pClass);
-    mRenderClass = const_cast<WeaponClass*>(pClass);
-    mOwner = desc.mOwner;
-    mAimer = desc.mAimer;
-    mTrigger = desc.mTrigger;
-    mReload = desc.mReload;
-
-    if (desc.m_pAmmoCounter)
-    {
-        m_pAmmoCounter = desc.m_pAmmoCounter->AddRef();
-    }
-    else
-    {
-        void* p = AmmoCounter::sMemoryPool.Allocate(sizeof(AmmoCounter));
-        m_pAmmoCounter = p ? new (p) AmmoCounter(&pClass->mAmmoCounterClass, desc.mNumClips) : 0;
-    }
-
-    EnergyBar* pEnergyBar;
-    if (desc.m_pEnergyBar)
-    {
-        pEnergyBar = desc.m_pEnergyBar->AddRef();
-    }
-    else
-    {
-        pEnergyBar = static_cast<EnergyBar*>(EnergyBar::sMemoryPool.Allocate(sizeof(EnergyBar)));
-        if (pEnergyBar)
-        {
-            pEnergyBar->m_pClass = &pClass->mEnergyBarClass;
-            pEnergyBar->m_fEnergy = pClass->mEnergyBarClass.m_fEnergyMax;
-            pEnergyBar->m_bOverheat = 0;
-            pEnergyBar->m_uiRefCount = 1;
-        }
-    }
-    mHideWeapon = 0;
-    mFiredFlag = 0;
-    mSelectedFlag = 0;
-    m_pEnergyBar = pEnergyBar;
-
-    mState = IDLE;
-    mStateTimer = 0.0f;
-    mStateLimit = 1.0f;
-    mZoom = pClass->mZoomMin;
-    mZoomTurnScale = pClass->mZoomTurnDivisorMin;
-    mSoldierAnimationMap = -1;
-
-    mChargeUpEmitter.mObject = 0;
-    mChargeUpEmitter.mSavedHandleId = 0;
-    mSkip = false;
-    mCharged = false;
-    mSkipTime = 0.0f;
-    mDeactivateScheduled = 0;
-    mTarget.mObject = 0;
-    mTarget.mSavedHandleId = 0;
-    mTargetBodyID = -1;
-
     mAimer->SetWeapon(this);
 
     if (pClass->mSoldierAnimationWeapon != -1 && mOwner &&
@@ -1536,49 +1466,42 @@ void Weapon::Init()
 // FUNCTION: SWBF2 0x00677bf0
 void Weapon::UpdateZoom(float fDeltaTime, float fInput)
 {
-    const WeaponClass* pClass = mClass;
-    float fZoom = mZoom * fInput * pClass->mZoomRate * fDeltaTime + mZoom;
-    if (pClass->mZoomMin > fZoom)
+    mZoom = Clamp(mZoom * fInput * mClass->mZoomRate * fDeltaTime + mZoom,
+                  mClass->mZoomMin, mClass->mZoomMax);
+    if (mClass->mZoomMax - mClass->mZoomMin > 0.0001f)
     {
-        fZoom = pClass->mZoomMin;
-    }
-    else if (fZoom > pClass->mZoomMax)
-    {
-        fZoom = pClass->mZoomMax;
-    }
-    mZoom = fZoom;
-
-    float fRange = pClass->mZoomMax - pClass->mZoomMin;
-    if (fRange > 0.0001f)
-    {
-        float t = (fZoom - pClass->mZoomMin) / fRange;
-        mZoomTurnScale = (1.0f - t) * pClass->mZoomTurnDivisorMin + pClass->mZoomTurnDivisorMax * t;
+        const float scaleT = (mZoom - mClass->mZoomMin) / (mClass->mZoomMax - mClass->mZoomMin);
+        mZoomTurnScale = (1.0f - scaleT) * mClass->mZoomTurnDivisorMin +
+                         mClass->mZoomTurnDivisorMax * scaleT;
     }
     else
     {
-        mZoomTurnScale = pClass->mZoomTurnDivisorMax;
+        mZoomTurnScale = mClass->mZoomTurnDivisorMax;
     }
 }
 
 // FUNCTION: SWBF2 0x00677ca0
 bool Weapon::CycleZoom(bool bCycle)
 {
-    const WeaponClass* pClass = mClass;
-    if (!bCycle)
+    if (bCycle)
     {
-        mZoom = pClass->mZoomMin;
-        mZoomTurnScale = pClass->mZoomTurnDivisorMin;
+        if (mZoom == mClass->mZoomMin && mClass->mZoomMin != mClass->mZoomMax &&
+            mClass->mZoomRate == 0.0f)
+        {
+            mZoom = mClass->mZoomMax;
+            mZoomTurnScale = mClass->mZoomTurnDivisorMax;
+            return true;
+        }
+        mZoom = mClass->mZoomMin;
+        mZoomTurnScale = mClass->mZoomTurnDivisorMin;
+        return false;
+    }
+    else
+    {
+        mZoom = mClass->mZoomMin;
+        mZoomTurnScale = mClass->mZoomTurnDivisorMin;
         return true;
     }
-    if (mZoom == pClass->mZoomMin && pClass->mZoomMin != pClass->mZoomMax && pClass->mZoomRate == 0.0f)
-    {
-        mZoom = pClass->mZoomMax;
-        mZoomTurnScale = pClass->mZoomTurnDivisorMax;
-        return true;
-    }
-    mZoom = pClass->mZoomMin;
-    mZoomTurnScale = pClass->mZoomTurnDivisorMin;
-    return false;
 }
 
 // FUNCTION: SWBF2 0x00677d40
@@ -1669,15 +1592,16 @@ float Weapon::GetOrdnanceVelocity() const
         {
             pOrdnance = pOrdnance->mNextCharge;
         }
-        if (pOrdnance->mStrengthLimit <= fCharge &&
-            pOrdnance->mStrengthLimit < pOrdnance->mNextCharge->mStrengthLimit)
+        if (pOrdnance->mStrengthLimit > fCharge ||
+            pOrdnance->mStrengthLimit >= pOrdnance->mNextCharge->mStrengthLimit)
         {
-            float t = (fCharge - pOrdnance->mStrengthLimit) /
-                      (pOrdnance->mNextCharge->mStrengthLimit - pOrdnance->mStrengthLimit);
-            float fLow = pOrdnance->GetVelocity();
-            float fHigh = pOrdnance->mNextCharge->GetVelocity();
-            return (fHigh - fLow) * t + fLow;
+            return pOrdnance->GetVelocity();
         }
+        float t = (fCharge - pOrdnance->mStrengthLimit) /
+                  (pOrdnance->mNextCharge->mStrengthLimit - pOrdnance->mStrengthLimit);
+        float fLow = pOrdnance->GetVelocity();
+        float fHigh = pOrdnance->mNextCharge->GetVelocity();
+        return (fHigh - fLow) * t + fLow;
     }
     return pOrdnance->GetVelocity();
 }
@@ -1697,15 +1621,16 @@ float Weapon::GetOrdnanceGravity() const
         {
             pOrdnance = pOrdnance->mNextCharge;
         }
-        if (pOrdnance->mStrengthLimit <= fCharge &&
-            pOrdnance->mStrengthLimit < pOrdnance->mNextCharge->mStrengthLimit)
+        if (pOrdnance->mStrengthLimit > fCharge ||
+            pOrdnance->mStrengthLimit >= pOrdnance->mNextCharge->mStrengthLimit)
         {
-            float t = (fCharge - pOrdnance->mStrengthLimit) /
-                      (pOrdnance->mNextCharge->mStrengthLimit - pOrdnance->mStrengthLimit);
-            float fLow = pOrdnance->GetGravity();
-            float fHigh = pOrdnance->mNextCharge->GetGravity();
-            return (fHigh - fLow) * t + fLow;
+            return pOrdnance->GetGravity();
         }
+        float t = (fCharge - pOrdnance->mStrengthLimit) /
+                  (pOrdnance->mNextCharge->mStrengthLimit - pOrdnance->mStrengthLimit);
+        float fLow = pOrdnance->GetGravity();
+        float fHigh = pOrdnance->mNextCharge->GetGravity();
+        return (fHigh - fLow) * t + fLow;
     }
     return pOrdnance->GetGravity();
 }
@@ -1725,7 +1650,7 @@ void Weapon::Select(unsigned int, bool bOffhand)
     mMuzzleFlashStartTime = GameLoop::GetMissionTime() - 1.0f;
     if (!bOffhand)
     {
-        mClass->mWeaponChangeSound.Play(&GetTranslation(GetCollisionMatrix(pObject)),
+        mClass->mWeaponChangeSound.Play(&(GetCollisionMatrix(pObject)).GetTranslation(),
                                         &GetVelocity(pObject), false, true);
     }
 }
@@ -1784,7 +1709,7 @@ bool Weapon::Update(float fDeltaTime)
     }
 
     GameObject* pObject = mOwner->GetGameObject();
-    const PblVector3& vPos = GetTranslation(GetCollisionMatrix(pObject));
+    const PblVector3& vPos = (GetCollisionMatrix(pObject)).GetTranslation();
     const PblVector3& vVel = GetVelocity(pObject);
     if (mSoundControl.mFlags & GameSoundControllable::flags_playing)
     {
@@ -1869,7 +1794,7 @@ bool Weapon::Update(float fDeltaTime)
                     mTrigger->IsPressed())
                 {
                     mSoundPropsFire = mClass->mFireEmptySound;
-                    mSoundControlFire.Play(&mSoundPropsFire, &GetTranslation(GetCollisionMatrix(pObject)),
+                    mSoundControlFire.Play(&mSoundPropsFire, &(GetCollisionMatrix(pObject)).GetTranslation(),
                                            &GetVelocity(pObject), true);
                 }
                 return true;
@@ -1914,7 +1839,7 @@ bool Weapon::Update(float fDeltaTime)
                 if (mOwner && mOwner->mPlayerId >= 0 && mSelectedFlag && mTrigger->IsPressed())
                 {
                     mSoundPropsFire = mClass->mFireEmptySound;
-                    mSoundControlFire.Play(&mSoundPropsFire, &GetTranslation(GetCollisionMatrix(pObject)),
+                    mSoundControlFire.Play(&mSoundPropsFire, &(GetCollisionMatrix(pObject)).GetTranslation(),
                                            &GetVelocity(pObject), true);
                 }
                 return true;
@@ -1931,7 +1856,7 @@ bool Weapon::Update(float fDeltaTime)
                 if (mSelectedFlag && mTrigger->IsPressed() && mOwner && mOwner->mPlayerId >= 0)
                 {
                     mSoundPropsFire = mClass->mFireEmptySound;
-                    mSoundControlFire.Play(&mSoundPropsFire, &GetTranslation(GetCollisionMatrix(pObject)),
+                    mSoundControlFire.Play(&mSoundPropsFire, &(GetCollisionMatrix(pObject)).GetTranslation(),
                                            &GetVelocity(pObject), true);
                 }
                 return true;
@@ -1950,7 +1875,7 @@ bool Weapon::Update(float fDeltaTime)
                 if (mOwner && mOwner->mPlayerId >= 0 && mSelectedFlag && mTrigger->IsPressed())
                 {
                     mSoundPropsFire = mClass->mFireEmptySound;
-                    mSoundControlFire.Play(&mSoundPropsFire, &GetTranslation(GetCollisionMatrix(pObject)),
+                    mSoundControlFire.Play(&mSoundPropsFire, &(GetCollisionMatrix(pObject)).GetTranslation(),
                                            &GetVelocity(pObject), true);
                 }
                 return true;
@@ -2025,7 +1950,7 @@ void Weapon::EnterIdle()
     {
         mSoundProps = mClass->mOverheatSound;
         GameObject* pObject = mOwner->GetGameObject();
-        mSoundControl.Play(&mSoundProps, &GetTranslation(GetCollisionMatrix(mOwner->GetGameObject())),
+        mSoundControl.Play(&mSoundProps, &(GetCollisionMatrix(mOwner->GetGameObject())).GetTranslation(),
                            &GetVelocity(pObject), true);
         if (Snd::VoiceVirtual* pVoice = mSoundControl.GetVoiceVirtual())
         {
@@ -2074,7 +1999,7 @@ void Weapon::ExitIdle()
 void Weapon::PlayFireSound(bool bNoLoop)
 {
     GameObject* pObject = mOwner->GetGameObject();
-    const PblVector3* pPos = mAimer ? &mAimer->mFirePos : &GetTranslation(GetCollisionMatrix(pObject));
+    const PblVector3* pPos = mAimer ? &mAimer->mFirePos : &(GetCollisionMatrix(pObject)).GetTranslation();
     const PblVector3& vVel = GetVelocity(pObject);
     if (mClass->mFireSoundStop && (mSoundControlFire.mFlags & GameSoundControllable::flags_playing))
     {
@@ -2121,7 +2046,7 @@ void Weapon::PlayFoleyFX(unsigned int uIndex)
     {
         GameObject* pObject = mOwner->GetGameObject();
         mFoleyFXProps = mClass->mFoleyFX[uIndex];
-        mFoleyFXControl.Play(&mFoleyFXProps, &GetTranslation(mOwner->GetMatrix()),
+        mFoleyFXControl.Play(&mFoleyFXProps, &mOwner->GetMatrix().GetTranslation(),
                              pObject ? &GetVelocity(pObject) : 0, true);
     }
 }
@@ -2163,7 +2088,7 @@ void Weapon::EnterCharge()
     if (!IsRtti(0xe33ded9d) || NetGame::GetJoystickIndex(mOwner->mPlayerId) >= 0)
     {
         mSoundProps = mClass->mChargeSound;
-        const PblVector3* pPos = mAimer ? &mAimer->mFirePos : &GetTranslation(GetCollisionMatrix(pObject));
+        const PblVector3* pPos = mAimer ? &mAimer->mFirePos : &(GetCollisionMatrix(pObject)).GetTranslation();
         mSoundControl.Play(&mSoundProps, pPos, &GetVelocity(pObject), true);
     }
     if (Snd::VoiceVirtual* pVoice = mSoundControl.GetVoiceVirtual())
@@ -2245,7 +2170,7 @@ bool Weapon::UpdateCharge(float fDeltaTime)
     if (mStateTimer > mStateLimit && !mCharged)
     {
         GameObject* pObject = mOwner->GetGameObject();
-        const PblVector3* pPos = mAimer ? &mAimer->mFirePos : &GetTranslation(GetCollisionMatrix(pObject));
+        const PblVector3* pPos = mAimer ? &mAimer->mFirePos : &(GetCollisionMatrix(pObject)).GetTranslation();
         mClass->mChargedSound.Play(pPos, &GetVelocity(pObject), false, true);
         mCharged = true;
         if (mClass->mStopChargeSound)
@@ -2272,7 +2197,7 @@ void Weapon::EnterReload()
     mStateTimer = 0.0f;
     mStateLimit = mClass->mReloadTime;
     mSoundProps = mClass->mReloadSound;
-    const PblVector3* pPos = mAimer ? &mAimer->mFirePos : &GetTranslation(GetCollisionMatrix(pObject));
+    const PblVector3* pPos = mAimer ? &mAimer->mFirePos : &(GetCollisionMatrix(pObject)).GetTranslation();
     mSoundControl.Play(&mSoundProps, pPos, &GetVelocity(pObject), true);
     if (mOwner->mPlayerId >= 0 && GameLoop::gUnlimitedAmmo && !NetGame::IsEnabled())
     {
@@ -2347,7 +2272,7 @@ bool Weapon::CheckEmpty() const
 // FUNCTION: SWBF2 0x00679290
 bool Weapon::ForceReload() const
 {
-    return mReload && mReload->IsPressed() && m_pAmmoCounter->mCurClip < 1.0f;
+    return mReload && mReload->IsPressed() && !(m_pAmmoCounter->mCurClip >= 1.0f);
 }
 
 // FUNCTION: SWBF2 0x006792c0
@@ -2397,12 +2322,12 @@ void Weapon::Render(const PblMatrix& mat, const RedPose* pPose, const RedColor& 
     PblMatrix mBoneMatrix;
     if (pPose)
     {
-        const PblMatrix* pBone = pPose->_Table.Find(mRenderClass->mIsOffhand ? 0xB7EC1D31 : 0x2B960099);
+        const PblMatrix* pBone = pPose->Find(mRenderClass->mIsOffhand ? 0xB7EC1D31 : 0x2B960099);
         if (!pBone)
         {
             return;
         }
-        D3DXMatrixMultiply(&mBoneMatrix, pBone, &mat);
+        mBoneMatrix = *pBone * mat;
         pMatrix = &mBoneMatrix;
     }
 
@@ -2414,14 +2339,14 @@ void Weapon::Render(const PblMatrix& mat, const RedPose* pPose, const RedColor& 
 
     pThis->mFirePointMatrix = *pMatrix;
     PblVector3 vFirePos;
-    D3DXVec3TransformCoord(&vFirePos, &mRenderClass->mFirePointOffset, pMatrix);
-    *reinterpret_cast<PblVector3*>(pThis->mFirePointMatrix.m[3]) = vFirePos;
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vFirePos), reinterpret_cast<const D3DXVECTOR3*>(&mRenderClass->mFirePointOffset), reinterpret_cast<const D3DXMATRIX*>(pMatrix));
+    pThis->mFirePointMatrix[3] = vFirePos;
     pThis->mFirePointMatrix.m[3][3] = 1.0f;
 
     float fFlash = mMuzzleFlashStartTime - GameLoop::GetMissionTime();
     if (fFlash > 0.0f)
     {
-        mRenderClass->RenderFlash(GetTranslation(mFirePointMatrix), mAimer->mDirection,
+        mRenderClass->RenderFlash(mFirePointMatrix.GetTranslation(), mAimer->mDirection,
                                   (1.0f / mClass->mFlashLength) * fFlash);
     }
 
@@ -2496,12 +2421,12 @@ void WeaponClass::Render(const PblMatrix& mMatrix, const RedPose* pPose, const R
     PblMatrix mBoneMatrix;
     if (pPose)
     {
-        const PblMatrix* pBone = pPose->_Table.Find(mIsOffhand ? 0xB7EC1D31 : 0x2B960099);
+        const PblMatrix* pBone = pPose->Find(mIsOffhand ? 0xB7EC1D31 : 0x2B960099);
         if (!pBone)
         {
             return;
         }
-        D3DXMatrixMultiply(&mBoneMatrix, pBone, &mMatrix);
+        mBoneMatrix = *pBone * mMatrix;
         pMatrix = &mBoneMatrix;
     }
     mModel->Render(pMatrix, 0, color, uiFlags, 0);

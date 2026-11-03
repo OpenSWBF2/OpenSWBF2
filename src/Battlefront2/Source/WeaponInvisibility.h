@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "Weapon.h"
@@ -15,7 +17,7 @@ public:
     virtual ~WeaponInvisibilityClass();
 
     static PblHash rttiHashWeaponInvisibilityClass;
-    static char rttiNameWeaponInvisibilityClass[];
+    static const char rttiNameWeaponInvisibilityClass[];
 
     enum TRIGGER_TYPE
     {
@@ -26,9 +28,9 @@ public:
 
     virtual WeaponClass* Derive(unsigned int uHash);
     virtual Weapon* Build(const WeaponDesc& desc);
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
 
     TRIGGER_TYPE m_eInvisibilityTrigger;
@@ -103,7 +105,7 @@ public:
     void StartFlicker();
 
     static PblHash rttiHashWeaponInvisibility;
-    static char rttiNameWeaponInvisibility[];
+    static const char rttiNameWeaponInvisibility[];
 
     float m_fInvisibilityFactor;
     float m_fInvisibilityPersistTimer;
@@ -118,3 +120,47 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x00685cc0
+inline bool WeaponInvisibility::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashWeaponInvisibility == uRtti)
+    {
+        return true;
+    }
+    return Weapon::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x00685cf0
+inline unsigned int WeaponInvisibility::GetDerivedRtti() const
+{
+    return rttiHashWeaponInvisibility;
+}
+
+// FUNCTION: SWBF2 0x00685d00
+inline const char* WeaponInvisibility::GetDerivedRttiName() const
+{
+    return rttiNameWeaponInvisibility;
+}
+
+// FUNCTION: SWBF2 0x00685d10
+inline bool WeaponInvisibilityClass::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashWeaponInvisibilityClass == uRtti)
+    {
+        return true;
+    }
+    return WeaponClass::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x00685d40
+inline unsigned int WeaponInvisibilityClass::GetDerivedRtti() const
+{
+    return rttiHashWeaponInvisibilityClass;
+}
+
+// FUNCTION: SWBF2 0x00685d50
+inline const char* WeaponInvisibilityClass::GetDerivedRttiName() const
+{
+    return rttiNameWeaponInvisibilityClass;
+}

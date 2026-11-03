@@ -17,8 +17,8 @@ public:
         mFormat = (char)eFormat;
         mFrequency = (unsigned int)fFrequency;
         mHashID = uiHashID;
-        mLength = uiLength;
         mAddress = pAddress;
+        mLength = uiLength;
         mLengthSamples = uiLengthSamples;
         mAliasSample = pAlias;
     }

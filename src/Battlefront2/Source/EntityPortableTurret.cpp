@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "EntityPortableTurret.h"
 
 #include <float.h>
@@ -21,24 +22,37 @@ EntityPortableTurretClass::EntityPortableTurretClass(unsigned int uHash)
     mFriction = 0.5f;
 }
 
-// GLOBAL: SWBF2 0x01ebbf94
 // SYNTHETIC: SWBF2 0x00402cb0
 // `dynamic initializer for 'EntityPortableTurretClass::rttiHashEntityPortableTurretClass''
-PblHash EntityPortableTurretClass::rttiHashEntityPortableTurretClass("EntityPortableTurretClass");
-char EntityPortableTurretClass::rttiNameEntityPortableTurretClass[] = "EntityPortableTurretClass";
+// EntityPortableTurretClass::rttiHashEntityPortableTurretClass
 
-// GLOBAL: SWBF2 0x01ebbfe8
+// GLOBAL: SWBF2 0x01ebbf94
+// EntityPortableTurretClass::rttiHashEntityPortableTurretClass
+PblHash EntityPortableTurretClass::rttiHashEntityPortableTurretClass("EntityPortableTurretClass");
+// GLOBAL: SWBF2 0x00789464
+// EntityPortableTurretClass::rttiNameEntityPortableTurretClass
+const char EntityPortableTurretClass::rttiNameEntityPortableTurretClass[] = "EntityPortableTurretClass";
+
 // SYNTHETIC: SWBF2 0x00402ca0
 // `dynamic initializer for 'EntityPortableTurret::rttiHashEntityPortableTurret''
-PblHash EntityPortableTurret::rttiHashEntityPortableTurret("EntityPortableTurret");
-char EntityPortableTurret::rttiNameEntityPortableTurret[] = "EntityPortableTurret";
+// EntityPortableTurret::rttiHashEntityPortableTurret
 
-// GLOBAL: SWBF2 0x01ebbff0
+// GLOBAL: SWBF2 0x01ebbfe8
+// EntityPortableTurret::rttiHashEntityPortableTurret
+PblHash EntityPortableTurret::rttiHashEntityPortableTurret("EntityPortableTurret");
+// GLOBAL: SWBF2 0x00789448
+// EntityPortableTurret::rttiNameEntityPortableTurret
+const char EntityPortableTurret::rttiNameEntityPortableTurret[] = "EntityPortableTurret";
+
 // SYNTHETIC: SWBF2 0x00402c80
 // `dynamic initializer for 'EntityPortableTurret::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00766f90
 // `dynamic atexit destructor for 'EntityPortableTurret::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ebbff0
+// EntityPortableTurret::sMemoryPool
 MemoryPool EntityPortableTurret::sMemoryPool("EntityPortableTurret", 0x6d0);
+
 
 extern PblVector3 gVectorZero;
 
@@ -48,11 +62,7 @@ extern bool netIsLateTurn;
 
 PblMatrix NormalMatrix(const PblVector3& vDir, const PblVector3& vNormal, const PblVector3& vPos);
 
-// FUNCTION: SWBF2 0x004d7b90
-bool EntityPortableTurret::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashEntityPortableTurret || EntityBuildingArmedDynamic::IsRtti(uRtti);
-}
+
 
 // FUNCTION: SWBF2 0x004d7cf0
 EntityPortableTurret::EntityPortableTurret(EntityPortableTurretClass* pClass, const EntityDesc& desc)
@@ -65,20 +75,20 @@ EntityPortableTurret::EntityPortableTurret(EntityPortableTurretClass* pClass, co
     mStationary = false;
     mBecomeStationaryNow = false;
 
-    PblVector3& vRight = *(PblVector3*)mMatrix.m[0];
-    PblVector3& vUp = *(PblVector3*)mMatrix.m[1];
-    PblVector3& vFront = *(PblVector3*)mMatrix.m[2];
+    PblVector3& vRight = mMatrix[0];
+    PblVector3& vUp = mMatrix[1];
+    PblVector3& vFront = mMatrix[2];
     vUp = gVectorUnitY;
     mMatrix.m[1][3] = 0.0f;
     PblVector3 vCross(vUp.y * vFront.z - vUp.z * vFront.y, vUp.z * vFront.x - vUp.x * vFront.z,
                       vUp.x * vFront.y - vUp.y * vFront.x);
     PblVector3 vNorm;
-    D3DXVec3Normalize(&vNorm, &vCross);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNorm), reinterpret_cast<const D3DXVECTOR3*>(&vCross));
     vRight = vNorm;
     mMatrix.m[0][3] = 0.0f;
     vCross = PblVector3(vRight.y * vUp.z - vRight.z * vUp.y, vRight.z * vUp.x - vRight.x * vUp.z,
                         vRight.x * vUp.y - vRight.y * vUp.x);
-    D3DXVec3Normalize(&vNorm, &vCross);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNorm), reinterpret_cast<const D3DXVECTOR3*>(&vCross));
     vFront = vNorm;
     mMatrix.m[2][3] = 0.0f;
 
@@ -121,16 +131,16 @@ EntityPortableTurret::EntityPortableTurret(EntityPortableTurretClass* pClass, co
 // SYNTHETIC: SWBF2 0x004d7c50
 // EntityPortableTurret::`scalar deleting destructor'
 // SYNTHETIC: SWBF2 0x004d8d10
-// [thunk]:EntityPortableTurret::`scalar deleting destructor' adjustor{320}
+// ??_EEntityPortableTurret@@WBEA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004d8d1b
-// [thunk]:EntityPortableTurret::`scalar deleting destructor' adjustor{12}
+// ??_EEntityPortableTurret@@WM@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004d8d23
-// [thunk]:EntityPortableTurret::`scalar deleting destructor' adjustor{512}
+// ??_EEntityPortableTurret@@WCAA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004d8d39
-// [thunk]:EntityPortableTurret::`scalar deleting destructor' adjustor{148}
+// ??_EEntityPortableTurret@@WJE@AEPAXI@Z
 
 // SYNTHETIC: SWBF2 0x004d8d2e
-// [thunk]:EntityPortableTurret::`scalar deleting destructor'`adjustor{608}'
+// ??_EEntityPortableTurret@@WCGA@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x004d8230
 bool EntityPortableTurret::Update(float fDeltaTime)
@@ -153,7 +163,7 @@ bool EntityPortableTurret::Update(float fDeltaTime)
         mStationary = true;
         mBecomeStationaryNow = false;
         CollisionManager::RemoveBody(this);
-        CollisionManager::AddRigidBody(this);
+        this->AddRigidToCollisionManager();
     }
 
     if (!mStationary)
@@ -221,10 +231,10 @@ bool EntityPortableTurret::CollisionCallback(const CollisionResult* pResult, Col
             (pOther->GetCollisionType() == COLL_WATER ? mClass->mCollisionWaterSound : mClass->mCollisionSound)
                 .Play((const PblVector3*)mMatrix.m[3], 0, false, true);
             PblVector3 vUnit;
-            D3DXVec3Normalize(&vUnit, &vNormal);
+            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vUnit), reinterpret_cast<const D3DXVECTOR3*>(&vNormal));
             if (vUnit.y > 0.7f)
             {
-                mMatrix = NormalMatrix(*(const PblVector3*)mMatrix.m[2], vNormal, *(const PblVector3*)mMatrix.m[3]);
+                mMatrix = NormalMatrix(mMatrix.GetZAxis(), vNormal, mMatrix.GetTranslation());
                 mVelocity = gVectorZero;
                 mBecomeStationaryNow = true;
             }
@@ -232,9 +242,7 @@ bool EntityPortableTurret::CollisionCallback(const CollisionResult* pResult, Col
             {
                 float fRebound = mClass->mRebound;
                 float fFriction = mClass->mFriction * fDot * (fRebound + 1.0f);
-                mVelocity.x -= vNormal.x * fDot;
-                mVelocity.y -= vNormal.y * fDot;
-                mVelocity.z -= vNormal.z * fDot;
+                mVelocity -= vNormal * fDot;
                 float fScale = -(fFriction / sqrtf(mVelocity.x * mVelocity.x + mVelocity.y * mVelocity.y +
                                                    mVelocity.z * mVelocity.z));
                 if (!(1.0f > fScale))
@@ -245,9 +253,7 @@ bool EntityPortableTurret::CollisionCallback(const CollisionResult* pResult, Col
                 mVelocity.y -= mVelocity.y * fScale;
                 mVelocity.z -= mVelocity.z * fScale;
                 float fBounce = fRebound * fDot;
-                mVelocity.x -= vNormal.x * fBounce;
-                mVelocity.y -= vNormal.y * fBounce;
-                mVelocity.z -= vNormal.z * fBounce;
+                mVelocity -= vNormal * fBounce;
             }
         }
     }
@@ -264,17 +270,9 @@ bool EntityPortableTurret::CollisionCallback(const CollisionResult* pResult, Col
     return bResult;
 }
 
-// FUNCTION: SWBF2 0x004d7bf0
-unsigned int EntityPortableTurret::GetDerivedRtti() const
-{
-    return rttiHashEntityPortableTurret;
-}
 
-// FUNCTION: SWBF2 0x004d7c00
-const char* EntityPortableTurret::GetDerivedRttiName() const
-{
-    return rttiNameEntityPortableTurret;
-}
+
+
 
 // FUNCTION: SWBF2 0x004d7c20
 const PblVector3& EntityPortableTurret::GetVelocity() const
@@ -293,23 +291,11 @@ void EntityPortableTurret::RecalculateAABB()
 {
 }
 
-// FUNCTION: SWBF2 0x004d7c80
-bool EntityPortableTurretClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashEntityPortableTurretClass || EntityBuildingArmedDynamicClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x004d7cd0
-unsigned int EntityPortableTurretClass::GetDerivedRtti()
-{
-    return rttiHashEntityPortableTurretClass;
-}
 
-// FUNCTION: SWBF2 0x004d7ce0
-const char* EntityPortableTurretClass::GetDerivedRttiName()
-{
-    return rttiNameEntityPortableTurretClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x004d8a70
 EntityPortableTurretClass::EntityPortableTurretClass(EntityPortableTurretClass* pBase, unsigned int uHash)
@@ -349,7 +335,7 @@ Entity* EntityPortableTurretClass::Build(const EntityDesc& desc)
     EntityPortableTurret* pTurret = new EntityPortableTurret(this, desc);
     if (pTurret)
     {
-        CollisionManager::AddSoftBody(pTurret);
+        pTurret->AddSoftToCollisionManager();
         pTurret->ActivatePhysics();
     }
     return pTurret;

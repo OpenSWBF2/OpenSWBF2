@@ -63,18 +63,18 @@ public:
         mFront = const_cast< ::PblVector3*>(pF);
         const ::PblVector3* pU = pUp ? pUp : &Globals::smUpVector;
         mUp = const_cast< ::PblVector3*>(pU);
-        ::PblVector3 vRight;
         if (pRight)
         {
-            vRight = *pRight;
+            mRight = *pRight;
         }
         else
         {
+            ::PblVector3 vRight;
             vRight.x = pU->y * pF->z - pU->z * pF->y;
             vRight.y = pU->z * pF->x - pU->x * pF->z;
             vRight.z = pU->x * pF->y - pU->y * pF->x;
+            mRight = vRight;
         }
-        mRight = vRight;
     }
 
     void SetPositonSpace(const ::PblVector3* pPos)

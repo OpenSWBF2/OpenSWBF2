@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "OrdnanceBullet.h"
@@ -14,9 +16,9 @@ public:
 
     virtual OrdnanceClass* Derive(unsigned int uHash);
     virtual Ordnance* Build(const OrdnanceDesc& desc);
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
 
     float mLaserWidth;
@@ -29,7 +31,7 @@ public:
     float mFadeOutSpeed;
 
     static PblHash rttiHashOrdnanceLaserClass;
-    static char rttiNameOrdnanceLaserClass[];
+    static const char rttiNameOrdnanceLaserClass[];
 };
   
  
@@ -41,6 +43,9 @@ public:
  
  
 
+// VTABLE: SWBF2 0x007acc38 PblHandled
+// VTABLE: SWBF2 0x007acc40
+// VTABLE: SWBF2 0x007acccc Thread
 class OrdnanceLaser : public OrdnanceBullet
 {
 public:
@@ -64,7 +69,7 @@ public:
     float mMaxLength;
 
     static PblHash rttiHashOrdnanceLaser;
-    static char rttiNameOrdnanceLaser[];
+    static const char rttiNameOrdnanceLaser[];
 };
  
  
@@ -72,3 +77,47 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x00601180
+inline bool OrdnanceLaserClass::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashOrdnanceLaserClass == uRtti)
+    {
+        return true;
+    }
+    return OrdnanceBulletClass::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x006011b0
+inline unsigned int OrdnanceLaserClass::GetDerivedRtti() const
+{
+    return rttiHashOrdnanceLaserClass;
+}
+
+// FUNCTION: SWBF2 0x006011c0
+inline const char* OrdnanceLaserClass::GetDerivedRttiName() const
+{
+    return rttiNameOrdnanceLaserClass;
+}
+
+// FUNCTION: SWBF2 0x00601100
+inline bool OrdnanceLaser::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashOrdnanceLaser == uRtti)
+    {
+        return true;
+    }
+    return OrdnanceBullet::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x00601130
+inline unsigned int OrdnanceLaser::GetDerivedRtti() const
+{
+    return rttiHashOrdnanceLaser;
+}
+
+// FUNCTION: SWBF2 0x00601140
+inline const char* OrdnanceLaser::GetDerivedRttiName() const
+{
+    return rttiNameOrdnanceLaser;
+}

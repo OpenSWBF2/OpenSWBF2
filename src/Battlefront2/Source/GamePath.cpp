@@ -16,10 +16,9 @@ bool GamePath::Read(PblConfig& config)
 // SYNTHETIC: SWBF2 0x004b99b0
 // GamePath::`scalar deleting destructor'
 
-GamePath::~GamePath()
-{
-}
 
+// GLOBAL: SWBF2 0x007eb8ec
+// GamePathFactory::sList
 PblList<GamePathFactory> GamePathFactory::sList;
 
 // FUNCTION: SWBF2 0x00537b10
@@ -47,7 +46,8 @@ void GamePathFactory::ClearFactoryList()
     sList.RemoveAll();
 }
 
-// FUNCTION: SWBF2 0x00537ea0
+// TEMPLATE: SWBF2 0x00537ea0
+// PblList<GamePathFactory>::RemoveAll
 template void PblList<GamePathFactory>::RemoveAll();
 
 // FUNCTION: SWBF2 0x00537c60

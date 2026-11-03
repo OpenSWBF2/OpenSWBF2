@@ -28,69 +28,11 @@ extern PblMatrix gMatrixIdentity;
 static const float EPSILON = 0.0001f;
 static const float fHalfPi = PblMath::fPi * 0.5f;
 
-static inline PblQuaternion PblQuaternion_FromAxisAngle(const PblVector3& vAxis, float fAngle)
-{
-    float fSin, fCos;
-    PblMath::SinCos(&fSin, &fCos, fAngle * 0.5f);
-    PblQuaternion q;
-    q._fX = vAxis.x * fSin;
-    q._fY = vAxis.y * fSin;
-    q._fZ = vAxis.z * fSin;
-    q._fS = fCos;
-    return q;
-}
 
-static inline PblQuaternion RotateByOmega(const PblQuaternion& q, const PblVector3& vOmega)
-{
-    float fAngle = sqrtf(vOmega.x * vOmega.x + vOmega.y * vOmega.y + vOmega.z * vOmega.z);
-    if (fAngle > EPSILON)
-    {
-        float fInv = 1.0f / fAngle;
-        return q * PblQuaternion_FromAxisAngle(PblVector3(vOmega.x * fInv, vOmega.y * fInv, vOmega.z * fInv), fAngle);
-    }
-    return q;
-}
 
-static inline PblMatrix MatrixFromQuat(const PblQuaternion& q, const PblVector3& vPos)
-{
-    PblQuaternion qUnit;
-    PblMatrix mNew;
-    D3DXQuaternionNormalize((D3DXQUATERNION*)&qUnit, (const D3DXQUATERNION*)&q);
-    D3DXMatrixRotationQuaternion((D3DXMATRIX*)&mNew, (const D3DXQUATERNION*)&qUnit);
-    mNew.m[3][0] = vPos.x;
-    mNew.m[3][1] = vPos.y;
-    mNew.m[3][2] = vPos.z;
-    mNew.m[3][3] = 1.0f;
-    return mNew;
-}
 
-static inline void SetWingMatrix(PblMatrix& rMatrix, const PblQuaternion& q)
-{
-    PblQuaternion qUnit;
-    PblMatrix mNew;
-    D3DXQuaternionNormalize((D3DXQUATERNION*)&qUnit, (const D3DXQUATERNION*)&q);
-    D3DXMatrixRotationQuaternion((D3DXMATRIX*)&mNew, (const D3DXQUATERNION*)&qUnit);
-    for (int i = 0; i < 3; i++)
-    {
-        for (int j = 0; j < 4; j++)
-        {
-            rMatrix.m[i][j] = mNew.m[i][j];
-        }
-    }
-    rMatrix.m[3][0] = 0.0f;
-    rMatrix.m[3][1] = 0.0f;
-    rMatrix.m[3][2] = 0.0f;
-    rMatrix.m[3][3] = 1.0f;
-}
 
-static inline void PoseWing(PblMatrix& rMatrix, float fRoll)
-{
-    rMatrix = gMatrixIdentity;
-    PblQuaternion q = PblQuaternion(rMatrix);
-    q = q * PblQuaternion_FromAxisAngle(PblVector3(0.0f, 0.0f, 1.0f), fRoll);
-    q = q * PblQuaternion_FromAxisAngle(PblVector3(0.0f, 1.0f, 0.0f), fHalfPi * 0.5f);
-    SetWingMatrix(rMatrix, q);
-}
+
 
 // FUNCTION: SWBF2 0x00427110
 const PblBox& RedSceneObject::GetBBox() const
@@ -213,40 +155,52 @@ pvs::Sector* pvs::BaseDisplayable<T>::GetSector()
     return sector_;
 }
 
-// FUNCTION: SWBF2 0x00446c30
+// TEMPLATE: SWBF2 0x00446c30
+// pvs::BaseDisplayable<pvs::IDisplayable>::OnTraverse
 template void pvs::BaseDisplayable<pvs::IDisplayable>::OnTraverse(pvs::ITraverser&);
 
-// FUNCTION: SWBF2 0x00446c40
+// TEMPLATE: SWBF2 0x00446c40
+// pvs::BaseDisplayable<pvs::IDisplayable>::SetActive
 template void pvs::BaseDisplayable<pvs::IDisplayable>::SetActive(int);
 
-// FUNCTION: SWBF2 0x00446c50
+// TEMPLATE: SWBF2 0x00446c50
+// pvs::BaseDisplayable<pvs::IDisplayable>::IsActive
 template bool pvs::BaseDisplayable<pvs::IDisplayable>::IsActive(int) const;
 
-// FUNCTION: SWBF2 0x00446c70
+// TEMPLATE: SWBF2 0x00446c70
+// pvs::BaseDisplayable<pvs::IDisplayable>::SetProcessed
 template void pvs::BaseDisplayable<pvs::IDisplayable>::SetProcessed(int);
 
-// FUNCTION: SWBF2 0x00446c80
+// TEMPLATE: SWBF2 0x00446c80
+// pvs::BaseDisplayable<pvs::IDisplayable>::IsProcessed
 template bool pvs::BaseDisplayable<pvs::IDisplayable>::IsProcessed(int) const;
 
-// FUNCTION: SWBF2 0x00446ca0
+// TEMPLATE: SWBF2 0x00446ca0
+// pvs::BaseDisplayable<pvs::IDisplayable>::PortalActive
 template bool pvs::BaseDisplayable<pvs::IDisplayable>::PortalActive() const;
 
-// FUNCTION: SWBF2 0x00446cb0
+// TEMPLATE: SWBF2 0x00446cb0
+// pvs::BaseDisplayable<pvs::IDisplayable>::SetPortalActive
 template void pvs::BaseDisplayable<pvs::IDisplayable>::SetPortalActive(bool);
 
-// FUNCTION: SWBF2 0x00446cd0
+// TEMPLATE: SWBF2 0x00446cd0
+// pvs::BaseDisplayable<pvs::IDisplayable>::PortalClip
 template bool pvs::BaseDisplayable<pvs::IDisplayable>::PortalClip() const;
 
-// FUNCTION: SWBF2 0x00446ce0
+// TEMPLATE: SWBF2 0x00446ce0
+// pvs::BaseDisplayable<pvs::IDisplayable>::SetPortalClip
 template void pvs::BaseDisplayable<pvs::IDisplayable>::SetPortalClip(bool);
 
-// FUNCTION: SWBF2 0x00446d00
+// TEMPLATE: SWBF2 0x00446d00
+// pvs::BaseDisplayable<pvs::IDisplayable>::Dynamic
 template bool pvs::BaseDisplayable<pvs::IDisplayable>::Dynamic() const;
 
-// FUNCTION: SWBF2 0x00446d10
+// TEMPLATE: SWBF2 0x00446d10
+// pvs::BaseDisplayable<pvs::IDisplayable>::SetDynamic
 template void pvs::BaseDisplayable<pvs::IDisplayable>::SetDynamic(bool);
 
-// FUNCTION: SWBF2 0x00446d30
+// TEMPLATE: SWBF2 0x00446d30
+// pvs::BaseDisplayable<pvs::IDisplayable>::GetSector
 template pvs::Sector* pvs::BaseDisplayable<pvs::IDisplayable>::GetSector();
 
 // GLOBAL: SWBF2 0x01e30314
@@ -376,10 +330,31 @@ bool BirdParticle::UpdateWalkingCircleBird(float fDeltaTime)
     vPos.y = RedTerrain::GetHoleHeight(vPos) + mType.mSize * 0.125f;
 
     PblQuaternion q = PblQuaternion(gMatrixIdentity);
-    q = RotateByOmega(q, PblVector3(0.0f, fAngle + fHalfPi, 0.0f));
-    q = RotateByOmega(q, PblVector3(fHalfPi * -0.5f, 0.0f, 0.0f));
-    q = RotateByOmega(q, PblVector3(0.0f, 0.0f, PblMath::Sin(mFlapTime * 10.0f) * 0.5f));
-    mMatrix = MatrixFromQuat(q, vPos);
+    {
+        PblVector3 initomega = PblVector3(0.0f, fAngle + fHalfPi, 0.0f);
+        float initAngle = Length(initomega);
+        if (initAngle > EPSILON)
+        {
+            q *= PblQuaternion(initomega / initAngle, initAngle);
+        }
+    }
+    {
+        PblVector3 initomega = PblVector3(fHalfPi * -0.5f, 0.0f, 0.0f);
+        float initAngle = Length(initomega);
+        if (initAngle > EPSILON)
+        {
+            q *= PblQuaternion(initomega / initAngle, initAngle);
+        }
+    }
+    {
+        PblVector3 initomega = PblVector3(0.0f, 0.0f, PblMath::Sin(mFlapTime * 10.0f) * 0.5f);
+        float initAngle = Length(initomega);
+        if (initAngle > EPSILON)
+        {
+            q *= PblQuaternion(initomega / initAngle, initAngle);
+        }
+    }
+    mMatrix = PblMatrix(q, vPos);
     SetRenderPos(vPos);
     return true;
 }
@@ -432,15 +407,36 @@ bool BirdParticle::UpdateStandingBird(float fDeltaTime)
         mMatrix.m[0][3] = 0.0f;
 
         PblQuaternion q = PblQuaternion(mMatrix);
-        q = RotateByOmega(q, PblVector3(fHalfPi * -0.5f, 0.0f, 0.0f));
-        q = RotateByOmega(q, PblVector3(0.0f, 0.0f, PblMath::Sin(mFlapTime * 20.0f) * 0.5f));
-        q = RotateByOmega(q, PblVector3(0.0f, PblMath::Sin(mFlapTime * 5.0f) * 0.3f, 0.0f));
+        {
+            PblVector3 initomega = PblVector3(fHalfPi * -0.5f, 0.0f, 0.0f);
+            float initAngle = Length(initomega);
+            if (initAngle > EPSILON)
+            {
+                q *= PblQuaternion(initomega / initAngle, initAngle);
+            }
+        }
+        {
+            PblVector3 initomega = PblVector3(0.0f, 0.0f, PblMath::Sin(mFlapTime * 20.0f) * 0.5f);
+            float initAngle = Length(initomega);
+            if (initAngle > EPSILON)
+            {
+                q *= PblQuaternion(initomega / initAngle, initAngle);
+            }
+        }
+        {
+            PblVector3 initomega = PblVector3(0.0f, PblMath::Sin(mFlapTime * 5.0f) * 0.3f, 0.0f);
+            float initAngle = Length(initomega);
+            if (initAngle > EPSILON)
+            {
+                q *= PblQuaternion(initomega / initAngle, initAngle);
+            }
+        }
 
         const PblVector3& vOld = mMatrix.GetTranslation();
         PblVector3 vPos(vOld.x + mVelocity.x * fDeltaTime, vOld.y + mVelocity.y * fDeltaTime,
                         vOld.z + mVelocity.z * fDeltaTime);
         vPos.y = RedTerrain::GetHoleHeight(vPos) + mType.mSize * 0.125f;
-        mMatrix = MatrixFromQuat(q, vPos);
+        mMatrix = PblMatrix(q, vPos);
         SetRenderPos(vPos);
 
         if (mTotalLifetime > 1.5f)
@@ -718,8 +714,22 @@ void BirdParticle::RespawnGroundBird(const PblVector3& vPos, const BirdParticleT
     mVelocity = PblVector3(0.0f, 0.0f, 0.0f);
 
     PblQuaternion q = PblQuaternion(gMatrixIdentity);
-    q = RotateByOmega(q, PblVector3(0.0f, PblRandom::GetGlobalFloat() * PblMath::fTwoPi, 0.0f));
-    q = RotateByOmega(q, PblVector3(fHalfPi * -0.5f, 0.0f, 0.0f));
+    {
+        PblVector3 initomega = PblVector3(0.0f, PblRandom::GetGlobalFloat() * PblMath::fTwoPi, 0.0f);
+        float initAngle = Length(initomega);
+        if (initAngle > EPSILON)
+        {
+            q *= PblQuaternion(initomega / initAngle, initAngle);
+        }
+    }
+    {
+        PblVector3 initomega = PblVector3(fHalfPi * -0.5f, 0.0f, 0.0f);
+        float initAngle = Length(initomega);
+        if (initAngle > EPSILON)
+        {
+            q *= PblQuaternion(initomega / initAngle, initAngle);
+        }
+    }
 
     mTotalCircleTime = (PblRandom::GetGlobalFloat() + 0.7f) * 10.0f;
     mCircleRadius = PblRandom::GetGlobalFloat() * 2.0f;
@@ -733,7 +743,7 @@ void BirdParticle::RespawnGroundBird(const PblVector3& vPos, const BirdParticleT
     vNewPos.z += mCircleRadius * fCos;
     vNewPos.y = RedTerrain::GetHoleHeight(vNewPos) + type.mSize * 0.125f;
 
-    mMatrix = MatrixFromQuat(q, vNewPos);
+    mMatrix = PblMatrix(q, vNewPos);
     mInitMatrix = mMatrix;
     mIsValid = true;
     mType = type;
@@ -744,8 +754,18 @@ void BirdParticle::RespawnGroundBird(const PblVector3& vPos, const BirdParticleT
     StartBirdSound();
     mBirdSound.Update(&BirdParticleManager::sInstance->mBirdSound, &mMatrix.GetTranslation(), &mVelocity);
 
-    PoseWing(mWing1Matrix, fHalfPi * 0.9f);
-    PoseWing(mWing2Matrix, fHalfPi * 0.9f + PblMath::fPi);
+    float angle = fHalfPi * 0.9f;
+    mWing1Matrix = gMatrixIdentity;
+    q = PblQuaternion(mWing1Matrix);
+    q *= PblQuaternion(PblVector3(0.0f, 0.0f, 1.0f), angle);
+    q *= PblQuaternion(PblVector3(0.0f, 1.0f, 0.0f), fHalfPi * 0.5f);
+    mWing1Matrix = PblMatrix(q, PblVector3(0.0f, 0.0f, 0.0f));
+    angle = fHalfPi * 0.9f + PblMath::fPi;
+    mWing2Matrix = gMatrixIdentity;
+    q = PblQuaternion(mWing2Matrix);
+    q *= PblQuaternion(PblVector3(0.0f, 0.0f, 1.0f), angle);
+    q *= PblQuaternion(PblVector3(0.0f, 1.0f, 0.0f), fHalfPi * 0.5f);
+    mWing2Matrix = PblMatrix(q, PblVector3(0.0f, 0.0f, 0.0f));
 }
 
 // FUNCTION: SWBF2 0x00449380
@@ -804,9 +824,23 @@ void BirdParticle::RespawnScatterBird(const PblVector3& vPos, const BirdParticle
     mFlapTime = PblRandom::GetGlobalFloat() * PblMath::fTwoPi;
 
     PblQuaternion q = PblQuaternion(gMatrixIdentity);
-    q = RotateByOmega(q, PblVector3(0.0f, PblRandom::GetGlobalFloat() * PblMath::fTwoPi, 0.0f));
-    q = RotateByOmega(q, PblVector3((-0.25f - PblRandom::GetGlobalFloat() * 0.25f) * fHalfPi, 0.0f, 0.0f));
-    mMatrix = MatrixFromQuat(q, vPos);
+    {
+        PblVector3 initomega = PblVector3(0.0f, PblRandom::GetGlobalFloat() * PblMath::fTwoPi, 0.0f);
+        float initAngle = Length(initomega);
+        if (initAngle > EPSILON)
+        {
+            q *= PblQuaternion(initomega / initAngle, initAngle);
+        }
+    }
+    {
+        PblVector3 initomega = PblVector3((-0.25f - PblRandom::GetGlobalFloat() * 0.25f) * fHalfPi, 0.0f, 0.0f);
+        float initAngle = Length(initomega);
+        if (initAngle > EPSILON)
+        {
+            q *= PblQuaternion(initomega / initAngle, initAngle);
+        }
+    }
+    mMatrix = PblMatrix(q, vPos);
 
     mRandomness = PblRandom::GetGlobalFloat();
 
@@ -850,15 +884,23 @@ void BirdParticle::UpdateFlying(float fDeltaTime)
     PblVector3 vInitPos = mInitMatrix.GetTranslation();
     float fFlap = (mRandomness * 8.0f + 8.0f) * mFlapTime;
 
-    PoseWing(mWing1Matrix, PblMath::Sin(fFlap) * (fHalfPi * 0.5f));
+    float angle = PblMath::Sin(fFlap) * (fHalfPi * 0.5f);
+    mWing1Matrix = gMatrixIdentity;
+    PblQuaternion initRotation(mWing1Matrix);
+    initRotation *= PblQuaternion(PblVector3(0.0f, 0.0f, 1.0f), angle);
+    initRotation *= PblQuaternion(PblVector3(0.0f, 1.0f, 0.0f), fHalfPi * 0.5f);
+    mWing1Matrix = PblMatrix(initRotation, PblVector3(0.0f, 0.0f, 0.0f));
     float fWing2 = PblMath::Sin(fFlap - 0.5654867f) * (fHalfPi * 0.7f);
-    PoseWing(mWing2Matrix, fWing2);
+    angle = fWing2;
+    mWing2Matrix = gMatrixIdentity;
+    initRotation = PblQuaternion(mWing2Matrix);
+    initRotation *= PblQuaternion(PblVector3(0.0f, 0.0f, 1.0f), angle);
+    initRotation *= PblQuaternion(PblVector3(0.0f, 1.0f, 0.0f), fHalfPi * 0.5f);
+    mWing2Matrix = PblMatrix(initRotation, PblVector3(0.0f, 0.0f, 0.0f));
 
     float fBob = PblMath::Sin(fWing2) * 0.1f;
     const PblVector3& vUp = mInitMatrix.GetYAxis();
-    PblVector3 vPos(mVelocity.x * mTotalLifetime + (vInitPos.x - vUp.x * fBob),
-                    mVelocity.y * mTotalLifetime + (vInitPos.y - vUp.y * fBob),
-                    mVelocity.z * mTotalLifetime + (vInitPos.z - vUp.z * fBob));
+    PblVector3 vPos = mVelocity * mTotalLifetime + (vInitPos - vUp * fBob);
     mMatrix.m[3][0] = vPos.x;
     mMatrix.m[3][1] = vPos.y;
     mMatrix.m[3][2] = vPos.z;
@@ -1074,15 +1116,7 @@ bool BirdParticleManager::Update(float fDeltaTime)
     return true;
 }
 
-// TEMPLATE: SWBF2 0x00446d70
-// PblList<Factory<Entity,EntityClass,EntityDesc> >::GetFirst
-template PblList<Factory<Entity, EntityClass, EntityDesc> >::Node*
-PblList<Factory<Entity, EntityClass, EntityDesc> >::GetFirst() const;
 
-// TEMPLATE: SWBF2 0x00446d80
-// PblList<Factory<Entity,EntityClass,EntityDesc> >::Itor::Itor
-template PblList<Factory<Entity, EntityClass, EntityDesc> >::Itor::Itor(
-    PblList<Factory<Entity, EntityClass, EntityDesc> >::Node*);
 
 // TEMPLATE: SWBF2 0x00446d90
 // PblList<Factory<Entity,EntityClass,EntityDesc> >::Itor::operator->
@@ -1094,12 +1128,4 @@ PblList<Factory<Entity, EntityClass, EntityDesc> >::Itor::operator->() const;
 template Factory<Entity, EntityClass, EntityDesc>&
 PblList<Factory<Entity, EntityClass, EntityDesc> >::Itor::operator*() const;
 
-// TEMPLATE: SWBF2 0x00446db0
-// PblList<Factory<Entity,EntityClass,EntityDesc> >::Itor::operator Factory<Entity,EntityClass,EntityDesc> *
-template PblList<Factory<Entity, EntityClass, EntityDesc> >::Itor::
-    operator Factory<Entity, EntityClass, EntityDesc>*() const;
 
-// TEMPLATE: SWBF2 0x00446dc0
-// PblList<Factory<Entity,EntityClass,EntityDesc> >::Itor::operator++
-template PblList<Factory<Entity, EntityClass, EntityDesc> >::Itor&
-PblList<Factory<Entity, EntityClass, EntityDesc> >::Itor::operator++();

@@ -11,6 +11,7 @@
 #include "pcCrash.h"
 #include "LuaFL/include/lua.h"
 
+// GLOBAL: SWBF2 0x007e85d0
 MemPoolInfo gGamePoolInfo[48] = {
     {  6933,   8, 0 }, {  3427,   6, 0 }, {  1764,  10, 0 }, {  1622,  18, 0 },
     {  1567,  80, 0 }, {  1405,   4, 0 }, {  1420,   7, 0 }, {   895, 160, 0 },
@@ -26,6 +27,7 @@ MemPoolInfo gGamePoolInfo[48] = {
     {    16,  68, 0 }, {    16,  56, 0 }, {    13,  58, 0 }, {    12,  53, 0 },
 };
 
+// GLOBAL: SWBF2 0x007e8750
 MemPoolInfo gShellPoolInfo[48] = {
     {  2648,   8, 0 }, {  1648,   6, 0 }, {  1150,   4, 0 }, {  1070,  10, 0 },
     {   578,   7, 0 }, {   551,  18, 0 }, {   520,   9, 0 }, {   449,  40, 0 },
@@ -41,11 +43,18 @@ MemPoolInfo gShellPoolInfo[48] = {
     {     5,  67, 0 }, {     5, 320, 0 }, {     4,  98, 0 }, {     4,  56, 0 },
 };
 
+// GLOBAL: SWBF2 0x01f9cde0
 MemPoolInfo gPoolInfo[48];
+// GLOBAL: SWBF2 0x01f9cf60
 MemoryPool* gPools[48];
 
+// GLOBAL: SWBF2 0x01e579a4
 unsigned int gLuaUsedMemory;
-namespace LuaMemory { unsigned int gLuaNumBlocks; }
+namespace LuaMemory
+{
+// GLOBAL: SWBF2 0x01e579a8
+unsigned int gLuaNumBlocks;
+}
 
 // FUNCTION: SWBF2 0x005a15d0
 void LuaMemory::CreatePools(bool bMission)
@@ -54,7 +63,7 @@ void LuaMemory::CreatePools(bool bMission)
     RedAllocFromHeap(iOldHeap, 4, 0);
 
     MemPoolInfo* pInfo = bMission ? gGamePoolInfo : gShellPoolInfo;
-    int i;
+    unsigned int i;
     for (i = 0; i < 48; ++i)
     {
 
@@ -81,7 +90,7 @@ MemoryPool* LuaMemory::LocatePool(unsigned int uiSize, void* pBlock)
     unsigned int uiBin = (uiSize + 3) >> 2;
 
     MemoryPool* pPool = 0;
-    int i;
+    unsigned int i;
     for (i = 0; i < 48; ++i)
     {
         if ((unsigned int)gPoolInfo[i].mBin == uiBin)
@@ -169,7 +178,7 @@ void __cdecl LuaScript_CallWARNINGF(char const* pcMessage)
 void LuaMemory::Reset()
 {
     int iOldHeap = RedSetCurrentHeap(GameMemory::LuaHeap);
-    int i;
+    unsigned int i;
     for (i = 0; i < 48; ++i)
     {
         delete gPools[i];

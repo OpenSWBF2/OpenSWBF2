@@ -8,64 +8,42 @@
 namespace Snd
 {
 
-// GLOBAL: SWBF2 0x007e39b8
 // SYNTHETIC: SWBF2 0x0040c3c0
 // `dynamic initializer for 'Snd::ParameterGraph::ControlPoint::smFreeList''
 // SYNTHETIC: SWBF2 0x0076a4d0
 // `dynamic atexit destructor for 'Snd::ParameterGraph::ControlPoint::smFreeList''
-FreeList ParameterGraph::ControlPoint::smFreeList(12, 1, 16, 1);
 
-// GLOBAL: SWBF2 0x007e39d4
+// GLOBAL: SWBF2 0x007e39b8
+// ParameterGraph::ControlPoint::smFreeList
+FreeList ParameterGraph::ControlPoint::smFreeList(12, 1, true, 16);
+
 // SYNTHETIC: SWBF2 0x0040c3e0
 // `dynamic initializer for 'Snd::ParameterGraph::smFreeList''
 // SYNTHETIC: SWBF2 0x0076a4e0
 // `dynamic atexit destructor for 'Snd::ParameterGraph::smFreeList''
-FreeList ParameterGraph::smFreeList(16, 1, 8, 1);
 
-// GLOBAL: SWBF2 0x007e39f0
+// GLOBAL: SWBF2 0x007e39d4
+// ParameterGraph::smFreeList
+FreeList ParameterGraph::smFreeList(16, 1, true, 8);
+
 // SYNTHETIC: SWBF2 0x0040c400
 // `dynamic initializer for 'Snd::ParameterGraph::smParameterGraphs''
 // SYNTHETIC: SWBF2 0x0076a4f0
 // `dynamic atexit destructor for 'Snd::ParameterGraph::smParameterGraphs''
+
+// GLOBAL: SWBF2 0x007e39f0
+// ParameterGraph::smParameterGraphs
 PblListSingle ParameterGraph::smParameterGraphs;
 
 // FUNCTION: SWBF2 0x00748b30
 ParameterGraph::~ParameterGraph()
 {
-    while (!mControlPoints.IsEmpty())
+    while (mControlPoints.GetFirst() != mControlPoints.GetTerminator())
     {
-        delete reinterpret_cast<ControlPoint*>(reinterpret_cast<char*>(mControlPoints.mHead.mNext) -
-                                               offsetof(ControlPoint, mNode.mNode));
-    }
-    if (mNode.mNext)
-    {
-        mNode.Remove();
+        delete (ControlPoint*)mControlPoints.GetFirst()->GetObjectA(&mControlPoints, offsetof(ControlPoint, mNode));
     }
 }
 
-}
-
-// FUNCTION: SWBF2 0x00748c00
-void PblListSingleSorted::Add(Node* pNode)
-{
-    if (mFlags & flags_sortOnAdd)
-    {
-        for (PblListSingle::Node* pLink = mHead.mNext; pLink != &mHead; pLink = pLink->mNext)
-        {
-            Node* const pCur = (Node*)((char*)pLink - offsetof(Node, mNode));
-            if (pCur == GetTerminator())
-            {
-                break;
-            }
-            if (pCur->mSortValue > pNode->mSortValue)
-            {
-                pNode->mNode.mNext = pCur->mNode.mNext;
-                pCur->mNode.mNext = &pNode->mNode;
-                return;
-            }
-        }
-    }
-    AddLast(&pNode->mNode);
 }
 
 namespace Snd
@@ -77,7 +55,7 @@ const ParameterGraph* __cdecl ParameterGraph::FindByHashID(unsigned int uiHashID
     for (PblListSingle::Node* pLink = smParameterGraphs.mHead.mNext; pLink != &smParameterGraphs.mHead;
          pLink = pLink->mNext)
     {
-        const ParameterGraph* const pGraph = (const ParameterGraph*)((char*)pLink - offsetof(ParameterGraph, mNode));
+        const ParameterGraph* const pGraph = (const ParameterGraph*)pLink->GetObjectA(&smParameterGraphs, offsetof(ParameterGraph, mNode));
         if (pGraph->mHashID == uiHashID)
         {
             return pGraph;
@@ -117,15 +95,18 @@ void ParameterGraph::Read(PblFileChunk& chunk)
         PblFileChunk child = chunk.ReadNextChild();
         const unsigned int uiID = child._pFile->Read32();
         child._pFile->Read8();
-        if (uiID == 0x415B9110u)
+        switch (uiID)
+        {
+        case 0x415B9110u:
         {
             const float fInput = child._pFile->ReadFloat();
             const float fOutput = child._pFile->ReadFloat();
             new ControlPoint(fInput, fOutput, mControlPoints);
+            break;
         }
-        else if (uiID == 0x8D39BDE6u)
-        {
+        case 0x8D39BDE6u:
             mHashID = child._pFile->Read32();
+            break;
         }
     }
 }
@@ -134,16 +115,11 @@ void ParameterGraph::Read(PblFileChunk& chunk)
 float ParameterGraph::CalculateOutputValue(float fInput) const
 {
     const ControlPoint* pPrev = 0;
-    for (const PblListSingle::Node* pLink = mControlPoints.mHead.mNext; pLink != &mControlPoints.mHead;
-         pLink = pLink->mNext)
+    for (PblListSingleSorted::Itor itor(mControlPoints);
+         itor.GetNode(&mControlPoints) != mControlPoints.GetTerminator(); ++itor)
     {
-        const PblListSingleSorted::Node* const pNode =
-            (const PblListSingleSorted::Node*)((const char*)pLink - offsetof(PblListSingleSorted::Node, mNode));
-        if (pNode == mControlPoints.GetTerminator())
-        {
-            break;
-        }
-        const ControlPoint* const pPoint = (const ControlPoint*)pNode;
+        const ControlPoint* const pPoint = (const ControlPoint*)itor.GetNode(&mControlPoints)->GetObjectA(
+            &mControlPoints, offsetof(ControlPoint, mNode));
         if (pPoint->mNode.mSortValue > fInput)
         {
             if (!pPrev)
@@ -161,19 +137,16 @@ float ParameterGraph::CalculateOutputValue(float fInput) const
 
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x00748d00
 void __cdecl ParameterGraph::DestroyAll()
 {
     while (!smParameterGraphs.IsEmpty())
     {
-        ParameterGraph* const pGraph = reinterpret_cast<ParameterGraph*>(reinterpret_cast<char*>(smParameterGraphs.mHead.mNext) - offsetof(ParameterGraph, mNode));
-        if (pGraph)
-        {
-            pGraph->~ParameterGraph();
-            smFreeList.Free(pGraph);
-        }
+        delete (ParameterGraph*)smParameterGraphs.GetFirst()->GetObjectA(
+            &smParameterGraphs, offsetof(ParameterGraph, mNode));
     }
 }
 }

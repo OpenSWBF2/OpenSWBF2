@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "GameSound.h"
@@ -24,6 +26,8 @@ public:
     static MemoryPool sMemoryPool;
 
     static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
+    // SYNTHETIC: SWBF2 0x004de000
+    // AcklayData::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
     GameSound mFootSound[2];
@@ -77,24 +81,27 @@ public:
 
     virtual EntityClass* Derive(unsigned int uHash);
     virtual Entity* Build(const EntityDesc& desc);
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
     virtual void PostReadSetup();
-    virtual int GetSoldierType();
-    virtual const void* GetControllableClass();
-    virtual int GetWeaponCount();
-    virtual const WeaponClass* GetWeaponClass(int iIndex);
+    virtual int GetSoldierType() const;
+    virtual const ControllableClass* GetControllableClass() const;
+    virtual int GetWeaponCount() const;
+    virtual const WeaponClass* GetWeaponClass(int iIndex) const;
 
     unsigned int GetSndHeroSelectable() { return mSndHeroSelectable; }
     unsigned int GetSndHeroSpawned() { return mSndHeroSpawned; }
     unsigned int GetSndHeroDefeated() { return mSndHeroDefeated; }
     unsigned int GetSndForHeroKiller() { return mSndForHeroKiller; }
     static PblHash rttiHashEntitySoldierClass;
+    static const char rttiNameEntitySoldierClass[];
 
     // FUNCTION: SWBF2 0x004294a0
     static unsigned int GetRtti() { return rttiHashEntitySoldierClass; }
+
+    bool CanJetJump() const { return mJetFuelRechargeRate > 0.0f; }
 
     float GetJetFuelMinBorder() const { return mJetFuelMinBorder; }
 
@@ -173,7 +180,7 @@ public:
     int mSoldierType;
     bool mImmuneToMines;
     AimerClass* mAimerClass;
-    CameraTrackSetting mCameraSettings[2][4];
+    CameraTrackSetting mCameraSettings[4][2];
     float mCameraSettingBlendTime[3];
     CollisionModel mCollisionModels[3];
     CollisionModel mDeadCollision;
@@ -353,10 +360,18 @@ class TargetInfo;
 class TentacleSimulator;
 class Weapon;
 
+// VTABLE: SWBF2 0x0079cf2c Thread
+// VTABLE: SWBF2 0x0079cffc Damageable
+// VTABLE: SWBF2 0x0079d028 Trackable
+// VTABLE: SWBF2 0x0079d08c PblHandled
+// VTABLE: SWBF2 0x0079d0ac RedSceneObject
+// VTABLE: SWBF2 0x0079d114 EntityEx
+// VTABLE: SWBF2 0x0079d240
+// VTABLE: SWBF2 0x0079d250 CollisionObject
 class EntitySoldier : public GameObject,
                       public Controllable,
-                      public PlayableEntitySounds,
-                      public VehicleEngine
+                      public VehicleEngine,
+                      public PlayableEntitySounds
 {
 public:
 
@@ -366,7 +381,8 @@ public:
     public:
 
         PostCollision(EntitySoldier* pOwner) : mOwner(pOwner) {}
-        virtual ~PostCollision();
+        // SYNTHETIC: SWBF2 0x004de420
+        // EntitySoldier::PostCollision::~PostCollision
         virtual bool Update(float fDeltaTime);
 
         EntitySoldier* mOwner;
@@ -415,6 +431,8 @@ public:
     virtual ~EntitySoldier();
 
     static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
+    // SYNTHETIC: SWBF2 0x004de070
+    // EntitySoldier::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
     virtual bool IsRtti(unsigned int uRtti) const;
@@ -659,7 +677,7 @@ public:
 
     float GetJetFuel() const { return mJetFuel; }
     static MemoryPool sMemoryPool;
-    static char rttiNameEntitySoldier[];
+    static const char rttiNameEntitySoldier[];
 
     PblHandle<GameObject> mStandingOnObj;
     int mStandingOnBody;
@@ -736,7 +754,7 @@ public:
     float mLeftFootElevation;
     float mRightFootElevation;
 
-    unsigned char mEnergyBar[12];
+    EnergyBar mEnergyBar;
     int mCameraSettingPrev;
     float mCameraSettingTimer;
     float mDrownTime;
@@ -847,3 +865,50 @@ public:
  
 
 #include "SoldierAnimator.h"
+
+// FUNCTION: SWBF2 0x004de010
+inline bool EntitySoldier::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashEntitySoldier == uRtti)
+    {
+        return true;
+    }
+    return GameObject::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x004de050
+inline unsigned int EntitySoldier::GetDerivedRtti() const
+{
+    return rttiHashEntitySoldier;
+}
+
+// FUNCTION: SWBF2 0x004de060
+inline const char* EntitySoldier::GetDerivedRttiName() const
+{
+    return rttiNameEntitySoldier;
+}
+
+// FUNCTION: SWBF2 0x004de430
+inline bool EntitySoldierClass::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashEntitySoldierClass == uRtti)
+    {
+        return true;
+    }
+    return GameObjectClass::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x004de470
+inline unsigned int EntitySoldierClass::GetDerivedRtti() const
+{
+    return rttiHashEntitySoldierClass;
+}
+
+// FUNCTION: SWBF2 0x004de480
+inline const char* EntitySoldierClass::GetDerivedRttiName() const
+{
+    return rttiNameEntitySoldierClass;
+}
+
+
+

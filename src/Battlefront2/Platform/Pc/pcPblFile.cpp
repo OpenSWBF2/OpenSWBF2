@@ -13,19 +13,24 @@
 #include "Battlefront2/Source/GameMemory.h"
 #include "Battlefront2/Source/NetGame.h"
 
-namespace RedMissionLog { bool Enabled(); }
+namespace RedMissionLog
+{
+    bool Enabled();
+}
 
-// GLOBAL: SWBF2 0x007ec440
-
-int sPreviousHeap;
 // GLOBAL: SWBF2 0x01e2fd3c
-int _fileOpCompleted;
+volatile int _fileOpCompleted;
 
+// GLOBAL: SWBF2 0x01e2fd38
+// PblFile::_blockCallbackFunc
 void(__cdecl* PblFile::_blockCallbackFunc)(void) = 0;
 
 // FUNCTION: SWBF2 0x00425840
 static void PblFile_SetHeap(bool bSet)
 {
+    // GLOBAL: SWBF2 0x007ec440
+    static int heap = -1;
+
     if (bSet)
     {
         int iHeap;
@@ -41,12 +46,12 @@ static void PblFile_SetHeap(bool bSet)
         {
             iHeap = GameMemory::TempLoadHeap;
         }
-        sPreviousHeap = RedSetCurrentHeap(iHeap);
+        heap = RedSetCurrentHeap(iHeap);
     }
-    else if (sPreviousHeap != -1)
+    else if (heap != -1)
     {
-        RedSetCurrentHeap(sPreviousHeap);
-        sPreviousHeap = -1;
+        RedSetCurrentHeap(heap);
+        heap = -1;
     }
 }
 
@@ -146,7 +151,7 @@ bool PblFile::Open(const char* pcFileName, bool bAsynchronous, bool bOSBuffer, b
         _Buffer = (char*)new Snd::FilePlatform();
         if (_Buffer)
         {
-            _bIsOpen = ((Snd::FilePlatform*)_Buffer)->Open(pcFileName, bOSBuffer ? 8 | 1 : 1,
+            _bIsOpen = ((Snd::FilePlatform*)_Buffer)->Open(pcFileName, (bOSBuffer ? 8 : 0) | 1,
                                                            bBuffer ? 0x20000 : 0, 0x800, 4);
             if (_bIsOpen)
             {
@@ -230,15 +235,15 @@ int PblFile::GetSize()
     {
         return MemGetSize();
     }
-    if (_Buffer == 0)
+    if (_Buffer)
     {
-        return 0;
+        if (_bAsynchronous)
+        {
+            return ((Snd::File*)_Buffer)->GetSize();
+        }
+        return ((Snd::FilePlatform*)_Buffer)->GetSize();
     }
-    if (_bAsynchronous)
-    {
-        return ((Snd::File*)_Buffer)->GetSize();
-    }
-    return ((Snd::FilePlatform*)_Buffer)->GetSize();
+    return 0;
 }
 
 // FUNCTION: SWBF2 0x00425d00
@@ -308,7 +313,12 @@ void PblFile::WriteData(void* pBuffer, int iNumBytes)
 // FUNCTION: SWBF2 0x00425e10
 void PblFile::WriteString(const char* pcText)
 {
-    WriteData((void*)pcText, strlen(pcText));
+    int iLength = 0;
+    for (const char* pc = pcText; *pc; ++pc)
+    {
+        ++iLength;
+    }
+    WriteData((void*)pcText, iLength);
 }
 
 // FUNCTION: SWBF2 0x00425e40
@@ -366,69 +376,11 @@ int PblFile::Tell() const
     return ((Snd::FilePlatform*)_Buffer)->GetPos();
 }
 
-void PblFile::SeekAlign(int iAlign)
+namespace RedMissionLog
 {
-    int iPad = -Tell() & (iAlign - 1);
-    if (iPad)
-    {
-        Seek(iPad, SeekFromHere);
-    }
+    // GLOBAL: SWBF2 0x00964f78
+    bool mEnabled;
 }
-
-unsigned int PblFile::MemGetSize() const
-{
-    return _iBufferSize;
-}
-
-void PblFile::MemRead(void* pBuffer, int iNumBytes)
-{
-    if (_iPos + iNumBytes > _iBufferSize)
-    {
-        iNumBytes = _iBufferSize - _iPos;
-    }
-    if (iNumBytes != 0)
-    {
-        memcpy(pBuffer, _Buffer + _iPos, iNumBytes);
-        _iPos += iNumBytes;
-    }
-}
-
-void PblFile::MemWrite(void* pBuffer, int iNumBytes)
-{
-    if (_iPos + iNumBytes > _iBufferSize)
-    {
-        iNumBytes = _iBufferSize - _iPos;
-    }
-    if (iNumBytes != 0)
-    {
-        memcpy(_Buffer + _iPos, pBuffer, iNumBytes);
-        _iPos += iNumBytes;
-    }
-}
-
-unsigned int PblFile::MemTell() const
-{
-    return _iPos;
-}
-
-void PblFile::MemSeek(int iOffset, SeekType eFrom)
-{
-    switch (eFrom)
-    {
-    case SeekFromHere:
-        _iPos += iOffset;
-        break;
-    case SeekFromStart:
-        _iPos = iOffset;
-        break;
-    case SeekFromEnd:
-        _iPos = _iBufferSize - iOffset;
-        break;
-    }
-}
-
-// GLOBAL: SWBF2 0x00964f78
-namespace RedMissionLog { bool mEnabled; }
 
 // FUNCTION: SWBF2 0x006ccca0
 bool RedMissionLog::Enabled()

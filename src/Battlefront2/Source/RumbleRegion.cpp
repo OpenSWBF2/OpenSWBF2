@@ -8,30 +8,38 @@
 #include "PebbleFL/Common/PblRandom.h"
 
 // SYNTHETIC: SWBF2 0x00631377
-// [thunk]:RumbleEffectClass::`scalar deleting destructor' adjustor{24}
+// ??_ERumbleEffectClass@@WBI@AEPAXI@Z
 
-// GLOBAL: SWBF2 0x007ec288
 // SYNTHETIC: SWBF2 0x00406220
 // `dynamic initializer for 'RumbleEffectClass::s_RumbleEffectClassList''
 // SYNTHETIC: SWBF2 0x00769460
 // `dynamic atexit destructor for 'RumbleEffectClass::s_RumbleEffectClassList''
+
+// GLOBAL: SWBF2 0x007ec288
+// RumbleEffectClass::s_RumbleEffectClassList
 ListPool<RumbleEffectClass*, int> RumbleEffectClass::s_RumbleEffectClassList(16);
-// GLOBAL: SWBF2 0x007ec298
 // SYNTHETIC: SWBF2 0x00406270
 // `dynamic initializer for 'RumbleRegionManager::sRegions''
 // SYNTHETIC: SWBF2 0x00769470
 // `dynamic atexit destructor for 'RumbleRegionManager::sRegions''
+
+// GLOBAL: SWBF2 0x007ec298
+// RumbleRegionManager::sRegions
 ListPool<RumbleRegion*, int> RumbleRegionManager::sRegions(16);
-// GLOBAL: SWBF2 0x007ec278
 // SYNTHETIC: SWBF2 0x004062c0
 // `dynamic initializer for 'RumbleEffectClass::s_RumbleEffectList''
 // SYNTHETIC: SWBF2 0x00769480
 // `dynamic atexit destructor for 'RumbleEffectClass::s_RumbleEffectList''
+
+// GLOBAL: SWBF2 0x007ec278
+// RumbleEffectClass::s_RumbleEffectList
 ListPool<RumbleEffect*, int> RumbleEffectClass::s_RumbleEffectList(32);
 
-// GLOBAL: SWBF2 0x01f3a1ac
 // SYNTHETIC: SWBF2 0x00406310
 // `dynamic initializer for 'rumbleRandom''
+
+// GLOBAL: SWBF2 0x01f3a1ac
+// rumbleRandom
 PblRandom rumbleRandom;
 
 // FUNCTION: SWBF2 0x00630e90

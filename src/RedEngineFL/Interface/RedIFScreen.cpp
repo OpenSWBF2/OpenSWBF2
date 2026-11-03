@@ -32,17 +32,16 @@ void IFScreen::AddToRedScreen()
 {
     for (int i = 0; i < mNumElements; i++)
     {
-        RedScreenGroupElement* pElement = mElements[i];
-        pElement->Visible(true);
+        mElements[i]->Visible(true);
         if (mViewport == -1)
         {
-            FLRenderer::AddInterfaceElement(pElement, pElement->m_fScreenRelativeX,
-                                            pElement->m_fScreenRelativeY, pElement->m_bUseSafeZone);
+            FLRenderer::AddInterfaceElement(mElements[i], mElements[i]->m_fScreenRelativeX,
+                                            mElements[i]->m_fScreenRelativeY, mElements[i]->m_bUseSafeZone);
         }
         else
         {
-            FLRenderer::AddInterfaceElement(mViewport, pElement, pElement->m_fScreenRelativeX,
-                                            pElement->m_fScreenRelativeY, pElement->m_bUseSafeZone);
+            FLRenderer::AddInterfaceElement(mViewport, mElements[i], mElements[i]->m_fScreenRelativeX,
+                                            mElements[i]->m_fScreenRelativeY, mElements[i]->m_bUseSafeZone);
         }
     }
 }

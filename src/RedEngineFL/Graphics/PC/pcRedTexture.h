@@ -98,8 +98,6 @@ public:
 
     static PblHashTable<RedTexture, 4096> s_textureHashTable;
 
-    static int s_textureHashTableNumEntries;
-
     static PblList<RedTexture> s_defaultPoolTextures;
 };
 

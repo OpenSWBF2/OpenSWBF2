@@ -11,16 +11,16 @@ RedCamera::VisibilityT RedCamera::ClassifyPoints(const PblVector3* pPoints, int 
         return VISIBILITY_NONE;
     }
 
-    bool hasInside = false;
+    int sharedMask = 0;
     bool hasOutside = false;
-    unsigned int sharedMask = 0;
+    bool hasInside = false;
     for (int i = 0; i < iNumPoints; ++i)
     {
-        D3DXVECTOR3 point;
-        D3DXVec3TransformCoord(&point, (const D3DXVECTOR3*)&pPoints[i],
+        PblVector3 point;
+        D3DXVec3TransformCoord((D3DXVECTOR3*)&point, (const D3DXVECTOR3*)&pPoints[i],
                                (const D3DXMATRIX*)&_MatrixInverse);
         float depth = -point.z;
-        unsigned int mask = 0;
+        int mask = 0;
         if (depth >= _fNear)
         {
             mask |= 1;
@@ -61,11 +61,11 @@ RedCamera::VisibilityT RedCamera::ClassifyPoints(const PblVector3* pPoints, int 
         }
         sharedMask |= mask;
     }
-    if (hasInside)
+    if (hasOutside)
     {
-        return VISIBILITY_FULL;
+        return sharedMask == 63 ? VISIBILITY_PARTIAL : VISIBILITY_NONE;
     }
-    return sharedMask == 63 ? VISIBILITY_PARTIAL : VISIBILITY_NONE;
+    return VISIBILITY_FULL;
 }
 
 // FUNCTION: SWBF2 0x006cb5c0
@@ -243,18 +243,11 @@ RedCamera::VisibilityT RedCamera::ClassifyBoxInternal(const PblMatrix& rMatrix, 
 // FUNCTION: SWBF2 0x00692c70
 RedCamera::VisibilityT RedCamera::ClassifyBox(const PblMatrix& rMatrix, const PblVector3& vExtents) const
 {
-    PblMatrix m;
-    D3DXMatrixMultiply((D3DXMATRIX*)&m, (const D3DXMATRIX*)&rMatrix, (const D3DXMATRIX*)&_MatrixInverse);
-    return ClassifyBoxInternal(m, *(const PblVector3*)&m.m[3][0], vExtents);
+    PblMatrix m = rMatrix * _MatrixInverse;
+    return ClassifyBoxInternal(m, m.GetTranslation(), vExtents);
 }
 
-// FUNCTION: SWBF2 0x00433eb0
-RedCamera::VisibilityT RedCamera::ClassifyAABox(const PblVector3& vCenter, const PblVector3& vExtents) const
-{
-    PblVector3 v;
-    D3DXVec3TransformCoord((D3DXVECTOR3*)&v, (const D3DXVECTOR3*)&vCenter, (const D3DXMATRIX*)&_MatrixInverse);
-    return ClassifyBoxInternal(_MatrixInverse, v, vExtents);
-}
+
 
 // FUNCTION: SWBF2 0x006cb980
 RedCamera::VisibilityT RedCamera::ClassifySphere(const PblVector3& vCenter, float fRadius, float fFar) const
@@ -409,10 +402,14 @@ void RedCamera::GetPos(geo::Vector3<float>& rPos) const
 // FUNCTION: SWBF2 0x006cbda0
 void RedCamera::GetSphereBound(geo::Sphere& rSphere) const
 {
-    geo::Sphere sphere;
-    GetPos(sphere.center_);
-    sphere.radius_ = _fZoom > 1.01f ? 16.0f : 4.0f;
-    rSphere = sphere;
+    geo::Vector3<float> pos;
+    GetPos(pos);
+    float radius = 4.0f;
+    if (_fZoom > 1.01f)
+    {
+        radius = 16.0f;
+    }
+    rSphere = geo::Sphere(pos, radius);
 }
 
 // FUNCTION: SWBF2 0x006cbe20
@@ -452,7 +449,7 @@ void RedCamera::SetNearFarPlane(float fNear, float fFar)
 {
     _fNear = fNear;
     _fFar = fFar;
-    UpdateMatrixAndFrustumDependents();
+    UpdateFrustumDependents();
 }
 
 // FUNCTION: SWBF2 0x006cbf60
@@ -498,9 +495,7 @@ void RedCamera::UpdateFrustumDependents()
 void RedCamera::UpdateMatrixAndFrustumDependents()
 {
     ComputeProjMatrix(_ProjMatrix);
-    PblMatrix mViewProj;
-    D3DXMatrixMultiply((D3DXMATRIX*)&mViewProj, (const D3DXMATRIX*)&_MatrixInverse,
-                       (const D3DXMATRIX*)&_ProjMatrix);
+    PblMatrix mViewProj = _MatrixInverse * _ProjMatrix;
     _ViewProjMatrix = mViewProj;
 
     const float* vRight = _Matrix.m[0];

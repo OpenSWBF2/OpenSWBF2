@@ -13,11 +13,7 @@
 
 #include "RedEngineFL/Graphics/RedShadingState.h"
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
+
 
 // FUNCTION: SWBF2 0x0048cb30
 void DroidekaElement::SetScale(float fScale)
@@ -85,7 +81,7 @@ void DroidekaElement::BuildWorldMatrices()
         kRoot.kTrans.z = mTranslationOffset.z + kRoot.kTrans.z;
     }
 
-    mZephyrSkeleton.BuildWorldMatrices(_IdentityMatrix);
+    mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity);
 
     if (mState == EntityDroideka::Rolling)
     {
@@ -144,22 +140,10 @@ void DroidekaElement::RenderUsingContext(const PblMatrix& mContext, const RedCol
     mScreen.m[3][2] *= fScale;
     mScreen.m[3][3] = 1.0f;
 
-    PblMatrix mWorld;
-    PblQuaternion qUnit;
-    D3DXMatrixRotationQuaternion((D3DXMATRIX*)&mWorld,
-                                 D3DXQuaternionNormalize((D3DXQUATERNION*)&qUnit,
-                                                         (const D3DXQUATERNION*)&mRotation));
-    mWorld.m[3][0] = mTranslation.x;
-    mWorld.m[3][1] = mTranslation.y;
-    mWorld.m[3][2] = mTranslation.z;
-    mWorld.m[3][3] = 1.0f;
+    PblMatrix mWorld(mRotation, mTranslation);
 
-    PblMatrix mScaling;
-    D3DXMatrixMultiply((D3DXMATRIX*)&mWorld, (const D3DXMATRIX*)&mWorld,
-                       D3DXMatrixScaling((D3DXMATRIX*)&mScaling, mScale, mScale, mScale));
-    D3DXMatrixMultiply((D3DXMATRIX*)&mScaling, (const D3DXMATRIX*)&mWorld,
-                       (const D3DXMATRIX*)&mScreen);
-    mScreen = mScaling;
+    mWorld.Scale(mScale);
+    mScreen = mWorld * mScreen;
 
     BuildWorldMatrices();
     mModel->GetRedModel(0)->Render(&mScreen, &mPose, color, 0x4000000, 0);
@@ -275,8 +259,3 @@ void DroidekaElement::SetSelected(bool bSelected)
     UpdateState(!bSelected);
 }
 
-// FUNCTION: SWBF2 0x0048d770
-void __fastcall ResetShadingPose(RedShadingPose* pThis)
-{
-    pThis->Reset();
-}

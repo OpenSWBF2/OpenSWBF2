@@ -19,11 +19,13 @@ bool DecalClass::IsBumped()
     return m_bumpTextureHash != 0;
 }
 
-// GLOBAL: SWBF2 0x01eb97b8
 // SYNTHETIC: SWBF2 0x004027d0
 // `dynamic initializer for 'Decal::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00766ec0
 // `dynamic atexit destructor for 'Decal::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01eb97b8
+// Decal::sMemoryPool
 MemoryPool Decal::sMemoryPool("Decal", 0x40);
 
 // GLOBAL: SWBF2 0x01e30944
@@ -242,7 +244,8 @@ DecalClass::~DecalClass()
     }
 }
 
-namespace {
+namespace
+{
 
 inline unsigned char ClampColorComponent(float f)
 {

@@ -31,7 +31,8 @@ bool Sample::UploadData(void* const pData, unsigned int uiSize)
 
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x0074c3b0
 Sample::~Sample()

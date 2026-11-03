@@ -151,7 +151,6 @@ class ReflectionRegionFactory : public RedRegionFactory
 {
 public:
     ReflectionRegionFactory() : RedRegionFactory("reflection") {}
-    virtual ~ReflectionRegionFactory() {}
 
     virtual void* CreateRegion(RedRegionDesc& desc, const char* pcName) const;
 };

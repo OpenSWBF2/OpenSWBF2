@@ -10,6 +10,7 @@
 class RedModel;
 class MemoryPool;
 
+// VTABLE: SWBF2 0x00784648
 class RedShadingState : public PblRef
 {
 public:
@@ -51,8 +52,6 @@ public:
     unsigned int m_uiRenderTypeHash;
     unsigned int m_uiNumValues;
     Value m_aValues[31];
-
-    int m_ParamHashNumEntries;
     PblHashTable<Value, 32> m_ParamHash;
 };
  
@@ -62,6 +61,12 @@ public:
 class RedShadingPose
 {
 public:
+
+    RedShadingPose() : m_pFirstEntry(0), m_pModel(0) {}
+
+    // FUNCTION: SWBF2 0x0048d770
+    ~RedShadingPose() { Reset(); }
+
     struct Entry
     {
         static void* operator new(size_t uiSize);
@@ -86,3 +91,9 @@ public:
 };
  
  
+
+inline RedShadingState::RedShadingState(unsigned int uiRenderTypeHash)
+{
+    m_uiRenderTypeHash = uiRenderTypeHash;
+    m_uiNumValues = 0;
+}

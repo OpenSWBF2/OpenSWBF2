@@ -1,3 +1,5 @@
+#include <string.h>
+#include <d3dx9math.h>
 #include "PowerupStation.h"
 
 #include <math.h>
@@ -22,23 +24,16 @@
 #include "RedEngineFL/Util/RedRegion.h"
 #include "PebbleFL/pc/PblD3DX.h"
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
+
 
 // FUNCTION: SWBF2 0x00625cf0
 PowerupStationClass::PowerupStationClass(unsigned int uHash)
     : EntityBuildingClass(uHash)
 {
     mPowerupDelay = 0.5f;
-    for (int i = 0; i < 8; i++)
-    {
-        mAddHealth[i] = 0.0f;
-        mAddAmmo[i] = 0.0f;
-        mAddEnergy[i] = 0.0f;
-    }
+    memset(mAddHealth, 0, sizeof(mAddHealth));
+    memset(mAddAmmo, 0, sizeof(mAddAmmo));
+    memset(mAddEnergy, 0, sizeof(mAddEnergy));
     mBuffOffenseTimer = 0.0f;
     mBuffOffenseMult = 0.0f;
     mBuffDefenseTimer = 0.0f;
@@ -50,22 +45,24 @@ PowerupStationClass::PowerupStationClass(unsigned int uHash)
     mIdleRotateSpeed = 0.0f;
     mIdleWaitTime = 0.0f;
     mIdleWobbleHash = 0;
-    mBaseWobbleMatrix = _IdentityMatrix;
+    mBaseWobbleMatrix = gMatrixIdentity;
     mIdleWobbleFactor = 0.0f;
     mIdleWobbleLeftFootHash = 0;
     mIdleWobbleRightFootHash = 0;
-    for (int i = 0; i < 4; i++)
-    {
-        mActiveRotateHash[i] = 0;
-    }
+    memset(mActiveRotateHash, 0, sizeof(mActiveRotateHash));
     mActiveSpinHash = 0;
 }
 
-// GLOBAL: SWBF2 0x01efa228
 // SYNTHETIC: SWBF2 0x00405fb0
 // `dynamic initializer for 'PowerupStationClass::rttiHashPowerupStationClass''
+// PowerupStationClass::rttiHashPowerupStationClass
+
+// GLOBAL: SWBF2 0x01efa228
+// PowerupStationClass::rttiHashPowerupStationClass
 PblHash PowerupStationClass::rttiHashPowerupStationClass("PowerupStationClass");
-char PowerupStationClass::rttiNamePowerupStationClass[] = "PowerupStationClass";
+// GLOBAL: SWBF2 0x0078ac30
+// PowerupStationClass::rttiNamePowerupStationClass
+const char PowerupStationClass::rttiNamePowerupStationClass[] = "PowerupStationClass";
 
 // FUNCTION: SWBF2 0x00625e80
 PowerupStationClass::PowerupStationClass(PowerupStationClass* pBase, unsigned int uHash)
@@ -110,23 +107,11 @@ PowerupStationClass::~PowerupStationClass()
 // SYNTHETIC: SWBF2 0x00625e50
 // PowerupStationClass::`scalar deleting destructor'
 
-// FUNCTION: SWBF2 0x006245a0
-bool PowerupStationClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashPowerupStationClass || EntityBuildingClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x006245e0
-unsigned int PowerupStationClass::GetDerivedRtti()
-{
-    return rttiHashPowerupStationClass;
-}
 
-// FUNCTION: SWBF2 0x006245f0
-const char* PowerupStationClass::GetDerivedRttiName()
-{
-    return rttiNamePowerupStationClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00626090
 void PowerupStationClass::SetProperty(unsigned int uProperty, const char* pszValue)
@@ -232,7 +217,7 @@ void PowerupStationClass::SetProperty(unsigned int uProperty, const char* pszVal
         mIdleWobbleHash = PblTEMPHash(pszValue);
         RedPose pose;
         mModel->GetRedModel(0)->SetupPose(pose);
-        const PblMatrix* pMatrix = pose._Table.Find(mIdleWobbleHash);
+        const PblMatrix* pMatrix = pose.Find(mIdleWobbleHash);
         if (pMatrix)
         {
             mBaseWobbleMatrix = *pMatrix;
@@ -294,29 +279,22 @@ Entity* PowerupStationClass::Build(const EntityDesc& desc)
     return (Entity*)pStation;
 }
 
-// GLOBAL: SWBF2 0x01efa22c
 // SYNTHETIC: SWBF2 0x00405fa0
 // `dynamic initializer for 'PowerupStation::rttiHashPowerupStation''
+// PowerupStation::rttiHashPowerupStation
+
+// GLOBAL: SWBF2 0x01efa22c
+// PowerupStation::rttiHashPowerupStation
 PblHash PowerupStation::rttiHashPowerupStation("PowerupStation");
-char PowerupStation::rttiNamePowerupStation[] = "PowerupStation";
+// GLOBAL: SWBF2 0x0078ac1c
+// PowerupStation::rttiNamePowerupStation
+const char PowerupStation::rttiNamePowerupStation[] = "PowerupStation";
 
-// FUNCTION: SWBF2 0x006244f0
-bool PowerupStation::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashPowerupStation || EntityBuilding::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00624540
-unsigned int PowerupStation::GetDerivedRtti() const
-{
-    return rttiHashPowerupStation;
-}
 
-// FUNCTION: SWBF2 0x00624550
-const char* PowerupStation::GetDerivedRttiName() const
-{
-    return rttiNamePowerupStation;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00624560
 EntityType PowerupStation::GetEntityType() const
@@ -369,15 +347,15 @@ PowerupStation::~PowerupStation()
 // SYNTHETIC: SWBF2 0x00624760
 // PowerupStation::`scalar deleting destructor'
 // SYNTHETIC: SWBF2 0x00626650
-// [thunk]:PowerupStation::`scalar deleting destructor' adjustor{320}
+// ??_EPowerupStation@@WBEA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x0062665b
-// [thunk]:PowerupStation::`scalar deleting destructor' adjustor{12}
+// ??_EPowerupStation@@WM@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00626663
-// [thunk]:PowerupStation::`scalar deleting destructor' adjustor{512}
+// ??_EPowerupStation@@WCAA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x0062666e
-// [thunk]:PowerupStation::`scalar deleting destructor' adjustor{608}
+// ??_EPowerupStation@@WCGA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00626679
-// [thunk]:PowerupStation::`scalar deleting destructor' adjustor{148}
+// ??_EPowerupStation@@WJE@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x00624850
 void PowerupStation::SetProperty(unsigned int uProperty, const char* pszValue)
@@ -446,7 +424,7 @@ static PblMatrix PblMatrix_FromQuaternion(const PblQuaternion& q, const PblVecto
 {
     PblQuaternion qUnit;
     PblMatrix m;
-    D3DXMatrixRotationQuaternion(&m, D3DXQuaternionNormalize(&qUnit, &q));
+    D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&m), D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&qUnit), reinterpret_cast<const D3DXQUATERNION*>(&q)));
     m.m[3][0] = vPos.x;
     m.m[3][1] = vPos.y;
     m.m[3][2] = vPos.z;
@@ -470,17 +448,7 @@ public:
     static PblHash rttiHashEntityFlyer;
 };
 
-static inline PblQuaternion PblQuaternion_FromAxisAngle(const PblVector3& vAxis, float fAngle)
-{
-    float fSin, fCos;
-    PblMath::SinCos(&fSin, &fCos, fAngle * 0.5f);
-    PblQuaternion q;
-    q._fX = vAxis.x * fSin;
-    q._fY = vAxis.y * fSin;
-    q._fZ = vAxis.z * fSin;
-    q._fS = fCos;
-    return q;
-}
+
 
 // FUNCTION: SWBF2 0x006249a0
 bool PowerupStation::Update(float fDeltaTime)
@@ -592,7 +560,7 @@ bool PowerupStation::Update(float fDeltaTime)
     PblMatrix* pWobbleMatrix = 0;
     if (mClass->mIdleWobbleHash)
     {
-        const PblMatrix* pMatrix = mPose._Table.Find(mClass->mIdleWobbleHash);
+        const PblMatrix* pMatrix = mPose.Find(mClass->mIdleWobbleHash);
         if (pMatrix)
         {
             pWobbleMatrix = &mProceduralMatrix[0];
@@ -623,7 +591,7 @@ bool PowerupStation::Update(float fDeltaTime)
         float fAngle = (float)mRotateDir * mClass->mIdleRotateSpeed * fDeltaTime;
         if (fabs(fAngle) > 0.0001f)
         {
-            q = q * PblQuaternion_FromAxisAngle(gVectorUnitY, fAngle);
+            q = q * PblQuaternion(gVectorUnitY, fAngle);
         }
         mRenderMatrix = PblMatrix_FromQuaternion(q, vPos);
 
@@ -633,11 +601,11 @@ bool PowerupStation::Update(float fDeltaTime)
             if (pWobbleMatrix)
             {
                 PblVector3 vWobblePos = pWobbleMatrix->GetTranslation();
-                *pWobbleMatrix = _IdentityMatrix;
+                *pWobbleMatrix = gMatrixIdentity;
                 PblQuaternion qWobble = PblQuaternion(*pWobbleMatrix);
                 if (fabs(fWobble) > 0.0001f)
                 {
-                    qWobble = qWobble * PblQuaternion_FromAxisAngle(gVectorUnitZ, fWobble);
+                    qWobble = qWobble * PblQuaternion(gVectorUnitZ, fWobble);
                 }
                 *pWobbleMatrix = PblMatrix_FromQuaternion(qWobble, vWobblePos);
             }
@@ -711,7 +679,7 @@ bool PowerupStation::Update(float fDeltaTime)
             if (pWobbleMatrix)
             {
                 PblVector3 vWobblePos = pWobbleMatrix->GetTranslation();
-                *pWobbleMatrix = _IdentityMatrix;
+                *pWobbleMatrix = gMatrixIdentity;
                 float fCos = PblMath::Cos(mRotateWaitTime * PblMath::fTwoPi);
                 vWobblePos.y += (fCos - 1.0f) * (mClass->mIdleWobbleFactor * 0.5f);
                 pWobbleMatrix->m[3][0] = vWobblePos.x;
@@ -763,7 +731,7 @@ bool PowerupStation::Update(float fDeltaTime)
             {
                 continue;
             }
-            const PblMatrix* pNode = mPose._Table.Find(uHash);
+            const PblMatrix* pNode = mPose.Find(uHash);
             if (!pNode || iNumProcedural >= 5)
             {
                 continue;
@@ -777,7 +745,7 @@ bool PowerupStation::Update(float fDeltaTime)
                 *pMatrix = *pNode;
             }
 
-            PblMatrix mDefault(_IdentityMatrix);
+            PblMatrix mDefault(gMatrixIdentity);
             pSkeleton = mModel->GetRedModel(0)->GetSkeleton();
             for (unsigned int uBone = 0; uBone < 128; uBone++)
             {
@@ -794,7 +762,7 @@ bool PowerupStation::Update(float fDeltaTime)
             PblQuaternion q = PblQuaternion(*pMatrix);
             if (fabs(fAngle) > 0.0001f)
             {
-                q = q * PblQuaternion_FromAxisAngle(gVectorUnitX, fAngle);
+                q = q * PblQuaternion(gVectorUnitX, fAngle);
             }
             *pMatrix = PblMatrix_FromQuaternion(q, vNodePos);
         }
@@ -804,7 +772,7 @@ bool PowerupStation::Update(float fDeltaTime)
         {
             return true;
         }
-        const PblMatrix* pNode = mPose._Table.Find(uSpinHash);
+        const PblMatrix* pNode = mPose.Find(uSpinHash);
         if (!pNode || iNumProcedural >= 5)
         {
             return true;
@@ -817,7 +785,7 @@ bool PowerupStation::Update(float fDeltaTime)
             *pMatrix = *pNode;
         }
 
-        PblMatrix mDefault(_IdentityMatrix);
+        PblMatrix mDefault(gMatrixIdentity);
         pSkeleton = mModel->GetRedModel(0)->GetSkeleton();
         for (unsigned int uBone = 0; uBone < 128; uBone++)
         {
@@ -834,7 +802,7 @@ bool PowerupStation::Update(float fDeltaTime)
         PblQuaternion q = PblQuaternion(*pMatrix);
         if (fabs(fAngle) > 0.0001f)
         {
-            q = q * PblQuaternion_FromAxisAngle(gVectorUnitZ, fAngle);
+            q = q * PblQuaternion(gVectorUnitZ, fAngle);
         }
         *pMatrix = PblMatrix_FromQuaternion(q, vNodePos);
         return true;

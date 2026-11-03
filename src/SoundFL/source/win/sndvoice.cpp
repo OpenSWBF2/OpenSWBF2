@@ -129,12 +129,13 @@ void Voice::Update3DMode()
     case Engine::mixConfig_DirectSoundSoftware:
     {
         const bool b3D = Get3DMode();
-        if (mRenderer.mFormat != SampleInfo::format_Unknown
-            && ((mRenderer.Source2D3D::mFlags & 1) != 0) != b3D
-            && mRenderer.mNumChannels == 1)
+        StreamRenderer* const pRenderer = &mRenderer;
+        if (pRenderer->mFormat != SampleInfo::format_Unknown
+            && (pRenderer->Get3DMode()) != b3D
+            && pRenderer->mNumChannels == 1)
         {
-            mRenderer.SetFormat(mRenderer.mFormat, 1, mRenderer.mFrequency, b3D,
-                                mRenderer.mChannelMask, 200.0f);
+            pRenderer->SetFormat(pRenderer->mFormat, 1, pRenderer->mFrequency, b3D,
+                                 pRenderer->mChannelMask, 200.0f);
         }
         break;
     }
@@ -395,7 +396,34 @@ void __cdecl Voice::UpdatePlayState(Voice* pVoice, PlayState ePlayState)
 void Voice::UpdateSample()
 {
     const Sample* pSample = VoiceBase::mSample;
-    if (!pSample)
+    if (pSample)
+    {
+        switch (Engine::GetMixConfig())
+        {
+        case Engine::mixConfig_DirectSoundHardware:
+            if (Engine::GetBassManagement() && Get3DMode())
+            {
+                mSourceResamplerLFE.ClearAll();
+                mSourceResamplerLFE.Setup(pSample, mSetupPackets);
+                mSourceResamplerLFE.Stop();
+                mSourceResamplerLFE.Flush();
+            }
+
+        case Engine::mixConfig_DirectSoundSoftware:
+            mRenderer.Flush();
+
+        case Engine::mixConfig_Software:
+            mSourceResampler.ClearAll();
+            mSourceResampler.Setup(pSample, mSetupPackets);
+            mSourceResampler.Stop();
+            mSourceResampler.Flush();
+            mSetupPackets = false;
+            break;
+        default:
+            break;
+        }
+    }
+    else
     {
         if ((unsigned int)(Engine::GetMixConfig() - 1) <= 2)
         {
@@ -403,32 +431,6 @@ void Voice::UpdateSample()
         }
         SourceTransport::Stop();
         mSample = 0;
-        return;
-    }
-
-    switch (Engine::GetMixConfig())
-    {
-    case Engine::mixConfig_DirectSoundHardware:
-        if (Engine::GetBassManagement() && Get3DMode())
-        {
-            mSourceResamplerLFE.ClearAll();
-            mSourceResamplerLFE.Setup(pSample, mSetupPackets);
-            mSourceResamplerLFE.Stop();
-            mSourceResamplerLFE.Flush();
-        }
-
-    case Engine::mixConfig_DirectSoundSoftware:
-        mRenderer.Flush();
-
-    case Engine::mixConfig_Software:
-        mSourceResampler.ClearAll();
-        mSourceResampler.Setup(pSample, mSetupPackets);
-        mSourceResampler.Stop();
-        mSourceResampler.Flush();
-        mSetupPackets = false;
-        break;
-    default:
-        break;
     }
 }
 
@@ -449,7 +451,10 @@ namespace Snd
 // FUNCTION: SWBF2 0x00745a90
 void Voice::SourceResampler::ClearAll()
 {
-    if (mPackets[0].mRefCount == 0)
+    if (mPackets[0].mRefCount > 0)
+    {
+    }
+    else
     {
         mPackets[0].mBuffer = 0;
         mPackets[0].mBufferUsed = 0;
@@ -480,7 +485,8 @@ void Voice::SourceResampler::Stop()
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x007458f0
 Voice::SourceResampler::~SourceResampler()
@@ -496,7 +502,8 @@ Voice::SourceResampler::~SourceResampler()
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x007459a0
 Voice::~Voice()
@@ -518,7 +525,8 @@ Voice::~Voice()
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x00746120
 void __cdecl Voice::UpdateGain(Voice* pVoice, GainMatrix& rMatrix, bool bPanChanged)
@@ -528,7 +536,8 @@ void __cdecl Voice::UpdateGain(Voice* pVoice, GainMatrix& rMatrix, bool bPanChan
     case Engine::mixConfig_Software:
         if (pVoice->Get3DMode())
         {
-            const float fGain = pVoice->mGain * pVoice->CalculateGainEstimate();
+            float fGain = pVoice->mGain;
+            fGain *= pVoice->CalculateGainEstimate();
             pVoice->Source3D::CalculateGain(fGain, pVoice->mReverbGain, rMatrix);
         }
         else
@@ -557,7 +566,8 @@ void __cdecl Voice::UpdateGain(Voice* pVoice, GainMatrix& rMatrix, bool bPanChan
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x00746250
 void __cdecl Voice::UpdatePitch(Voice* pVoice, float fPitch)
@@ -597,8 +607,3 @@ void __cdecl Voice::UpdatePitch(Voice* pVoice, float fPitch)
 }
 }
 
-// FUNCTION: SWBF2 0x00746a50
-void __fastcall DestroyStreamNodeSourceAlias(Snd::StreamNodeSource* pSource)
-{
-    pSource->Snd::StreamNodeSource::~StreamNodeSource();
-}

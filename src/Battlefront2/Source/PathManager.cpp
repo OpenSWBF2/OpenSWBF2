@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include <windows.h>
 #include <new>
 #include <string.h>
@@ -10,33 +11,40 @@
 #include "UnitController.h"
 #include "PebbleFL/pc/PblD3DX.h"
 
+
 // FUNCTION: SWBF2 0x0050b400
 void PblRef::Kill()
 {
     mAliveFlag = 0;
 }
 
-// GLOBAL: SWBF2 0x01ef7df8
 // SYNTHETIC: SWBF2 0x00405e30
 // `dynamic initializer for 'AIPathNode::sMemoryPool''
 // SYNTHETIC: SWBF2 0x007692d0
 // `dynamic atexit destructor for 'AIPathNode::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ef7df8
+// AIPathNode::sMemoryPool
 MemoryPool AIPathNode::sMemoryPool("AIPathNode", sizeof(AIPathNode));
-// GLOBAL: SWBF2 0x01ef7e98
 // SYNTHETIC: SWBF2 0x00405e50
 // `dynamic initializer for 'AIPath::sMemoryPool''
 // SYNTHETIC: SWBF2 0x007692e0
 // `dynamic atexit destructor for 'AIPath::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ef7e98
+// AIPath::sMemoryPool
 MemoryPool AIPath::sMemoryPool("AIPath", sizeof(AIPath));
 
 namespace PathManager
 {
 
-// GLOBAL: SWBF2 0x01ef7e48
 // SYNTHETIC: SWBF2 0x00405e70
 // `dynamic initializer for 'PathManager::PathRequest::sMemoryPool''
 // SYNTHETIC: SWBF2 0x007692f0
 // `dynamic atexit destructor for 'PathManager::PathRequest::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ef7e48
+// PathRequest::sMemoryPool
 MemoryPool PathRequest::sMemoryPool("PathRequest", sizeof(PathRequest));
 
 // GLOBAL: SWBF2 0x01eaedc8
@@ -53,11 +61,13 @@ int sPathManagerUnknown0;
 // GLOBAL: SWBF2 0x01eaedd0
 int sPathManagerUnknown1;
 
-// GLOBAL: SWBF2 0x007ebc38
 // SYNTHETIC: SWBF2 0x00405e90
-// `dynamic initializer for 'PathManager::mTimer''
+// PathManager::`dynamic initializer for 'mTimer''
 // SYNTHETIC: SWBF2 0x00769300
-// `dynamic atexit destructor for 'PathManager::mTimer''
+// PathManager::`dynamic atexit destructor for 'mTimer''
+
+// GLOBAL: SWBF2 0x007ebc38
+// mTimer
 PblPerformanceTimer mTimer;
 
 }
@@ -70,30 +80,22 @@ AIPath::AIPath() : mNodes()
 // FUNCTION: SWBF2 0x00614010
 AIPath::~AIPath()
 {
-    PblList<AIPathNode>::Node* pHead = mNodes.End().GetNode();
-    while (mNodes.GetFirst() != pHead)
+    PblList<AIPathNode>::Itor it(mNodes);
+    while (it)
     {
-        PblList<AIPathNode>::Node* pNode = mNodes.GetFirst();
-        AIPathNode* pObj = pNode->_pObject;
-        mNodes.Remove(pNode);
-        AIPathNode::sMemoryPool.Free(pObj);
+        AIPathNode* pNode = it;
+        ++it;
+        mNodes.Remove(pNode->GetListNode());
+        delete pNode;
     }
 }
 
 // FUNCTION: SWBF2 0x006140b0
 void AIPath::Prepend(const PblVector3& pos, unsigned short uFlags)
 {
-    if (AIPathNode::sMemoryPool.mUsed < AIPathNode::sMemoryPool.mCount)
+    if (!AIPathNode::sMemoryPool.IsFull())
     {
-        AIPathNode* pNode = (AIPathNode*)AIPathNode::sMemoryPool.Allocate(sizeof(AIPathNode));
-        if (pNode)
-        {
-            new (pNode) AIPathNode(pos, uFlags);
-        }
-        else
-        {
-            pNode = 0;
-        }
+        AIPathNode* pNode = new AIPathNode(pos, uFlags);
         mNodes.AddFirst(pNode->GetListNode(), pNode);
     }
 }
@@ -101,17 +103,9 @@ void AIPath::Prepend(const PblVector3& pos, unsigned short uFlags)
 // FUNCTION: SWBF2 0x00614120
 void AIPath::Append(const PblVector3& pos, unsigned short uFlags)
 {
-    if (AIPathNode::sMemoryPool.mUsed < AIPathNode::sMemoryPool.mCount)
+    if (!AIPathNode::sMemoryPool.IsFull())
     {
-        AIPathNode* pNode = (AIPathNode*)AIPathNode::sMemoryPool.Allocate(sizeof(AIPathNode));
-        if (pNode)
-        {
-            new (pNode) AIPathNode(pos, uFlags);
-        }
-        else
-        {
-            pNode = 0;
-        }
+        AIPathNode* pNode = new AIPathNode(pos, uFlags);
         mNodes.AddLast(pNode->GetListNode(), pNode);
     }
 }
@@ -119,81 +113,67 @@ void AIPath::Append(const PblVector3& pos, unsigned short uFlags)
 // FUNCTION: SWBF2 0x00614190
 void AIPath::AppendPath(const AIPath* pOther)
 {
-    typedef PblList<AIPathNode>::Node Node;
-    Node* pOtherHead = pOther->mNodes.End().GetNode();
-    Node* pNode = pOther->mNodes.GetFirst();
-
-    AIPathNode* pFirst = pNode->_pObject;
-    AIPathNode* pMyLast = mNodes.GetLast()->_pObject;
-    if (pMyLast->mPos.x == pFirst->mPos.x && pMyLast->mPos.y == pFirst->mPos.y
-        && pMyLast->mPos.z == pFirst->mPos.z)
+    PblList<AIPathNode>::Itor it(pOther->GetNodeList());
+    if (GetNodeList().GetLast()->_pObject->mPos == it->mPos)
     {
-        pNode = pNode->_pNext;
+        ++it;
     }
-    for (; pNode != pOtherHead; pNode = pNode->_pNext)
+    for (; it; ++it)
     {
-        AIPathNode* pObj = pNode->_pObject;
-        Append(pObj->mPos, pObj->mFlags);
+        AIPathNode* pNode = it;
+        Append(pNode->mPos, pNode->mFlags);
     }
 }
 
 // FUNCTION: SWBF2 0x00614210
 void AIPath::PrependPath(const AIPath* pOther)
 {
-    typedef PblList<AIPathNode>::Node Node;
-    Node* pOtherHead = pOther->mNodes.End().GetNode();
-    for (Node* pNode = pOther->mNodes.GetFirst(); pNode != pOtherHead; pNode = pNode->_pNext)
+    for (PblList<AIPathNode>::Itor it(pOther->GetNodeList()); it; ++it)
     {
-        AIPathNode* pObj = pNode->_pObject;
-        Prepend(pObj->mPos, pObj->mFlags);
+        AIPathNode* pNode = it;
+        Prepend(pNode->mPos, pNode->mFlags);
     }
 }
 
 // FUNCTION: SWBF2 0x00614250
 void AIPath::PopHead()
 {
-    PblList<AIPathNode>::Node* pNode = mNodes.GetFirst();
-    AIPathNode* pObj = pNode->_pObject;
-    mNodes.Remove(pNode);
-    AIPathNode::sMemoryPool.Free(pObj);
+    AIPathNode* pNode = mNodes.GetFirst()->_pObject;
+    mNodes.Remove(pNode->GetListNode());
+    delete pNode;
 }
 
 // FUNCTION: SWBF2 0x006142a0
 void AIPath::TrimBefore(AIPathNode* pStop)
 {
-    typedef PblList<AIPathNode>::Node Node;
-    Node* pHead = mNodes.End().GetNode();
-    Node* pNode = mNodes.GetFirst();
-    while (pNode != pHead && pNode->_pObject != pStop)
+    PblList<AIPathNode>::Itor it(mNodes);
+    while (it && (AIPathNode*)it != pStop)
     {
-        Node* pNext = pNode->_pNext;
-        AIPathNode* pObj = pNode->_pObject;
-        mNodes.Remove(pNode);
-        AIPathNode::sMemoryPool.Free(pObj);
-        pNode = pNext;
+        AIPathNode* pNode = it;
+        ++it;
+        mNodes.Remove(pNode->GetListNode());
+        delete pNode;
     }
 }
 
 // FUNCTION: SWBF2 0x00614320
 bool AIPath::SmoothCorners(float fCornerDist, float fRadius, int eProhibit)
 {
-    typedef PblList<AIPathNode>::Node Node;
-
     if (mNodes.GetCount() < 3)
     {
         return false;
     }
 
     bool bSmoothed = false;
-    Node* pNode = mNodes.GetFirst();
-    AIPathNode* pCur = pNode->_pObject;
-    pNode = pNode->_pNext;
-    AIPathNode* pNext = pNode->_pObject;
-    for (pNode = pNode->_pNext; pNode->_pObject; pNode = pNode->_pNext)
+    PblList<AIPathNode>::Itor it(mNodes);
+    AIPathNode* pCur = it;
+    ++it;
+    AIPathNode* pNext = it;
+    for (++it; it; ++it)
     {
         AIPathNode* pPrev = pCur;
         pCur = pNext;
-        pNext = pNode->_pObject;
+        pNext = it;
 
         if ((int)(AIPathNode::sMemoryPool.mCount - AIPathNode::sMemoryPool.mUsed) < 64 || mNodes.GetCount() >= 30)
         {
@@ -205,42 +185,36 @@ bool AIPath::SmoothCorners(float fCornerDist, float fRadius, int eProhibit)
         const PblVector3& vNext = pNext->mPos;
         float fMinDistSq = fCornerDist * fCornerDist * 4.0f;
 
-        float fX = vPrev.x - vCur.x, fY = vPrev.y - vCur.y, fZ = vPrev.z - vCur.z;
-        if (fMinDistSq > fX * fX + fY * fY + fZ * fZ)
+        if (fMinDistSq > SquaredLength(vPrev - vCur))
         {
             continue;
         }
 
-        fX = vCur.x - vNext.x, fY = vCur.y - vNext.y, fZ = vCur.z - vNext.z;
-        if (fMinDistSq > fX * fX + fY * fY + fZ * fZ)
+        if (fMinDistSq > SquaredLength(vCur - vNext))
         {
 
-            pNode = pNode->_pNext;
-            if (!pNode->_pObject)
+            ++it;
+            if (!it)
             {
                 break;
             }
             continue;
         }
 
-        PblVector3 vIn(vCur.x - vPrev.x, vCur.y - vPrev.y, vCur.z - vPrev.z);
+        PblVector3 vIn = vCur - vPrev;
         PblVector3 vDirIn;
-        D3DXVec3Normalize(&vDirIn, &vIn);
-        PblVector3 vOut(vNext.x - vCur.x, vNext.y - vCur.y, vNext.z - vCur.z);
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDirIn), reinterpret_cast<const D3DXVECTOR3*>(&vIn));
+        PblVector3 vOut = vNext - vCur;
         PblVector3 vDirOut;
-        D3DXVec3Normalize(&vDirOut, &vOut);
-        if (vDirOut.x * vDirIn.x + vDirIn.y * vDirOut.y + vDirIn.z * vDirOut.z > 0.984f)
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDirOut), reinterpret_cast<const D3DXVECTOR3*>(&vOut));
+        if (DotProduct(vDirIn, vDirOut) > 0.984f)
         {
             continue;
         }
 
-        PblVector3 vStart(vCur.x - vDirIn.x * fCornerDist, vCur.y - vDirIn.y * fCornerDist,
-                          vCur.z - vDirIn.z * fCornerDist);
-        PblVector3 vEnd(vCur.x + vDirOut.x * fCornerDist, vCur.y + vDirOut.y * fCornerDist,
-                        vCur.z + vDirOut.z * fCornerDist);
-        PblVector3 vMid((vCur.x + vStart.x + vEnd.x) * (1.0f / 3.0f),
-                        (vCur.y + vStart.y + vEnd.y) * (1.0f / 3.0f),
-                        (vCur.z + vStart.z + vEnd.z) * (1.0f / 3.0f));
+        PblVector3 vStart = vCur - vDirIn * fCornerDist;
+        PblVector3 vEnd = vCur + vDirOut * fCornerDist;
+        PblVector3 vMid = (vCur + vStart + vEnd) / 3.0f;
 
         if (PathFinder::TestTrivialStraightLineHit(vStart, vMid, fRadius, eProhibit, 0, 0, false))
         {
@@ -251,26 +225,10 @@ bool AIPath::SmoothCorners(float fCornerDist, float fRadius, int eProhibit)
             continue;
         }
 
-        AIPathNode* pStart = (AIPathNode*)AIPathNode::sMemoryPool.Allocate(sizeof(AIPathNode));
-        if (pStart)
-        {
-            new (pStart) AIPathNode(vStart, 0);
-        }
-        else
-        {
-            pStart = 0;
-        }
+        AIPathNode* pStart = new AIPathNode(vStart, 0);
         mNodes.AddBefore(pCur->GetListNode(), pStart->GetListNode(), pStart);
 
-        AIPathNode* pEnd = (AIPathNode*)AIPathNode::sMemoryPool.Allocate(sizeof(AIPathNode));
-        if (pEnd)
-        {
-            new (pEnd) AIPathNode(vEnd, 0);
-        }
-        else
-        {
-            pEnd = 0;
-        }
+        AIPathNode* pEnd = new AIPathNode(vEnd, 0);
         mNodes.AddAfter(pCur->GetListNode(), pEnd->GetListNode(), pEnd);
 
         bSmoothed = true;
@@ -285,11 +243,10 @@ bool AIPath::SmoothCorners(float fCornerDist, float fRadius, int eProhibit)
 // PblRef::`scalar deleting destructor'
 
 // FUNCTION: SWBF2 0x006148b0
-bool PathManager::GetPathPriority(const PblVector3* a, const PblVector3* b)
+unsigned char PathManager::GetPathPriority(const PblVector3& aSrc, const PblVector3& aDest)
 {
-    float dx = a->x - b->x;
-    float dz = a->z - b->z;
-    return dx * dx + dz * dz >= 2500.0f;
+    float lengthSqXZ = SquaredLengthXZ(aSrc - aDest);
+    return lengthSqXZ < 2500.0f ? 0 : 1;
 }
 
 namespace PathManager
@@ -360,14 +317,14 @@ void LowerRequestPriority(UnitController* pCtrl)
         return;
     }
 
-    for (PblList<PathRequest>::Itor it(*sRequests); it != sRequests->End(); ++it)
+    for (PblList<PathRequest>::Itor it(*sRequests); it; ++it)
     {
         PathRequest* pReq = it;
         if (pReq->mUnit == pCtrl)
         {
             if (pReq->mPriority)
             {
-                pReq->mPriority = reinterpret_cast<AILowLevel*>(pCtrl->mLowLevel)->GetPathQueueDepth();
+                pReq->mPriority = pReq->mUnit->mLowLevel.GetPathQueueDepth();
             }
             return;
         }
@@ -379,7 +336,7 @@ bool RequestPath(UnitController* pUnit, const PblVector3& vStart, const PblVecto
                  float fRadius, int eProhibit, unsigned char uPriority,
                  const ConnectivityArc* pArc, const Obstacle** ppIgnore, int iIgnoreCount)
 {
-    AILowLevel* pLow = reinterpret_cast<AILowLevel*>(pUnit->mLowLevel);
+    AILowLevel* pLow = &pUnit->mLowLevel;
     unsigned char uPriorityPlusDepth = (unsigned char)(pLow->GetPathQueueDepth() + uPriority);
     RemovePathRequest(pUnit);
 
@@ -459,8 +416,8 @@ void Update(float fDeltaTime)
     mCostConstraint = (int)(fDeltaTime * 10.0f * 5.0f / 5.0f);
     PathFinder::ResetCost();
 
-    mTimer._iAccum = 0;
-    QueryPerformanceCounter((LARGE_INTEGER*)&mTimer._iValue);
+    mTimer.Reset();
+    mTimer.Start();
 
     if (IsWithinTimeConstraint())
     {
@@ -516,9 +473,7 @@ void Update(float fDeltaTime)
         }
     }
 
-    LARGE_INTEGER qEnd;
-    QueryPerformanceCounter(&qEnd);
-    mTimer._iAccum += qEnd.QuadPart - mTimer._iValue;
+    mTimer.Stop();
 }
 
 // FUNCTION: SWBF2 0x00614e00
@@ -528,3 +483,12 @@ bool IsWithinTimeConstraint()
 }
 
 }
+
+// FUNCTION: SWBF2 0x00613f60
+AIPathNode::AIPathNode(const PblVector3& pos, unsigned short flags) : mPos(pos), mFlags(flags) {}
+
+// FUNCTION: SWBF2 0x00613fa0
+PblList<AIPathNode>::Node* AIPathNode::GetListNode() { return &mNode; }
+
+// FUNCTION: SWBF2 0x00614310
+const PblList<AIPathNode>& AIPath::GetNodeList() const { return mNodes; }

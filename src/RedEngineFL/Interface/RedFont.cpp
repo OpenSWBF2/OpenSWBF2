@@ -23,13 +23,10 @@ RedTexture* s_systemFontTexture;
 // GLOBAL: SWBF2 0x0099843c
 CustomFontData* s_cfdata;
 
-// GLOBAL: SWBF2 0x00998450
-int RedFont::s_fontHashTableNumEntries;
-
-// GLOBAL: SWBF2 0x00998454
 // SYNTHETIC: SWBF2 0x00408440
 // `dynamic initializer for 'RedFont::s_fontHashTable''
 
+// GLOBAL: SWBF2 0x00998450
 PblHashTable<RedFont, 16> RedFont::s_fontHashTable;
 
 // GLOBAL: SWBF2 0x00998440
@@ -2122,8 +2119,12 @@ void RedFont::SetNextFont(RedFont* pFont)
 
 // FUNCTION: SWBF2 0x006d94d0
 RedVariableWidthFont::RedVariableWidthFont()
-    : m_apTextures(0), m_uiNumTextures(0), m_aRanges(0), m_uiNumRanges(0)
 {
+    m_pNextFont = 0;
+    m_apTextures = 0;
+    m_uiNumTextures = 0;
+    m_aRanges = 0;
+    m_uiNumRanges = 0;
     m_pNextFont = s_SpecialFont;
 }
 
@@ -2163,20 +2164,20 @@ void RedVariableWidthFont::CreateCustom(const CustomFontData& cfd)
         g = cfd.glyphs_[i];
 
         const unsigned char uiWidth = g.width;
-        g.left = 0;
         g.top = 0;
-        g.right = uiWidth;
-        g.bottom = uiWidth;
-        g.uLeft = 0.0f;
-        g.uRight = 1.0f;
         g.vTop = 0.0f;
+        g.uLeft = 0.0f;
         g.vBottom = 1.0f;
+        g.uRight = 1.0f;
+        g.left = 0;
+        g.bottom = uiWidth;
+        g.right = uiWidth;
 
         if (m_uiNumRanges == 0)
         {
             m_uiNumRanges = 1;
         }
-        else if ((unsigned int)g.value > (unsigned int)(unsigned short)(uiPrev + 1))
+        else if ((int)g.value > uiPrev + 1)
         {
             m_uiNumRanges++;
         }
@@ -2201,7 +2202,7 @@ void RedVariableWidthFont::CreateCustom(const CustomFontData& cfd)
             iRange = 0;
             m_aRanges[0].first = g.value;
         }
-        else if ((unsigned int)g.value > (unsigned int)(unsigned short)(uiPrev + 1))
+        else if ((int)g.value > uiPrev + 1)
         {
             m_aRanges[iRange].last = uiPrev;
             iRange++;
@@ -2216,10 +2217,10 @@ void RedVariableWidthFont::CreateCustom(const CustomFontData& cfd)
 RedFixedWidthFont::RedFixedWidthFont(const char* pcName, const RedTexture* pTexture,
                                      unsigned char uiCharWidth, unsigned char uiCharHeight,
                                      char iAscent, unsigned int uiMaxGlyphs)
+    : m_pTexture(pTexture)
 {
     m_iAscent = (char)(uiCharHeight - iAscent);
     m_iDescent = iAscent;
-    m_pTexture = pTexture;
     m_uiHeight = uiCharHeight;
 
     const unsigned int uiPerRow = pTexture->m_uiWidth / uiCharWidth;
@@ -2238,13 +2239,12 @@ RedFixedWidthFont::RedFixedWidthFont(const char* pcName, const RedTexture* pText
 
     for (unsigned int i = 0; i < (unsigned int)m_uiNumGlyphs; i++)
     {
-        Glyph& g = m_aGlyphs[i];
-
         const unsigned int uiCol = i % uiPerRow;
         const unsigned int uiRow = i / uiPerRow;
         const unsigned int uiX = uiCharWidth * uiCol + 1;
         const unsigned int uiY = m_uiHeight * uiRow + 1;
 
+        Glyph& g = m_aGlyphs[i];
         g.value = (unsigned short)(0x20 + i);
         g.width = (unsigned char)(uiCharWidth - 4);
         g.texnum = 0;
@@ -2264,10 +2264,7 @@ RedFixedWidthFont::RedFixedWidthFont(const char* pcName, const RedTexture* pText
 
     if (!s_fontHashTable.Find(m_crcName))
     {
-        if (s_fontHashTable.Store(m_crcName, this))
-        {
-            s_fontHashTableNumEntries++;
-        }
+        s_fontHashTable.Store(m_crcName, this);
     }
 }
 
@@ -2285,11 +2282,12 @@ CustomFontData& RedFont::GetMagicCharFontData()
 // FUNCTION: SWBF2 0x006d9a60
 unsigned char RedFixedWidthFont::GetNumTextures() const
 {
-    if (!m_pNextFont)
+    unsigned char uiCount = 1;
+    if (m_pNextFont)
     {
-        return 1;
+        uiCount = m_pNextFont->GetNumTextures() + 1;
     }
-    return (unsigned char)(m_pNextFont->GetNumTextures() + 1);
+    return uiCount;
 }
 
 // FUNCTION: SWBF2 0x006d9a80
@@ -2318,11 +2316,11 @@ const RedTexture* RedVariableWidthFont::GetTexture(unsigned char uiTexture) cons
 {
     if (uiTexture >= 0x80)
     {
-        uiTexture -= 0x80;
         if (m_pNextFont)
         {
-            return m_pNextFont->GetTexture(uiTexture);
+            return m_pNextFont->GetTexture(uiTexture - 0x80);
         }
+        uiTexture -= 0x80;
     }
     if (m_pNextFont && uiTexture >= m_uiNumTextures)
     {
@@ -2366,10 +2364,7 @@ void RedFont::Read(PblFileChunk& chunk)
         return;
     }
 
-    if (s_fontHashTable.Store(pFont->m_crcName, pFont))
-    {
-        s_fontHashTableNumEntries++;
-    }
+    s_fontHashTable.Store(pFont->m_crcName, pFont);
 }
 
 // FUNCTION: SWBF2 0x006d9e30
@@ -2488,22 +2483,12 @@ void RedVariableWidthFont::Read(PblFileChunk& chunk)
     m_aRanges[iRange].last = uiPrev;
 }
 
-RedFixedWidthFont::~RedFixedWidthFont()
-{
-}
 
-RedVariableWidthFont::~RedVariableWidthFont()
-{
-}
 
-// SYNTHETIC: SWBF2 0x006d9520
-// RedFixedWidthFont::`scalar deleting destructor'
 
 // SYNTHETIC: SWBF2 0x006d9550
 // RedFont::`scalar deleting destructor'
 
-// SYNTHETIC: SWBF2 0x006d9580
-// RedVariableWidthFont::`scalar deleting destructor'
 
 // FUNCTION: SWBF2 0x006d99a0
 unsigned char RedFixedWidthFont::GetBaseNumTextures() const
@@ -2520,19 +2505,22 @@ unsigned char RedVariableWidthFont::GetBaseNumTextures() const
 // FUNCTION: SWBF2 0x006d98a0
 const RedFont::Glyph* RedFixedWidthFont::FindGlyph(unsigned short uiChar) const
 {
-    const Glyph* pGlyph = 0;
-    int iIndex = uiChar - ' ';
+    const int iIndex = uiChar - ' ';
     if (iIndex >= 0 && iIndex < m_uiNumGlyphs)
     {
-        pGlyph = &m_aGlyphs[iIndex];
+        const Glyph* pGlyph = &m_aGlyphs[iIndex];
+        if (pGlyph)
+        {
+            return pGlyph;
+        }
     }
 
-    if (!pGlyph && m_pNextFont)
+    if (m_pNextFont)
     {
-        pGlyph = m_pNextFont->FindGlyph(uiChar);
+        return m_pNextFont->FindGlyph(uiChar);
     }
 
-    return pGlyph;
+    return 0;
 }
 
 // FUNCTION: SWBF2 0x006d98f0
@@ -2540,18 +2528,18 @@ const RedFont::Glyph* RedVariableWidthFont::FindGlyph(unsigned short uiChar) con
 {
     const Glyph* pGlyph = 0;
     unsigned int uiBase = 0;
-    unsigned int i;
-    for (i = 0; i < m_uiNumRanges; ++i)
+    const unsigned int uiNumRanges = m_uiNumRanges;
+    for (unsigned int i = 0; i < uiNumRanges; ++i)
     {
         if (uiChar <= m_aRanges[i].last)
         {
+            if (uiChar >= m_aRanges[i].first)
+            {
+                pGlyph = &m_aGlyphs[uiBase + uiChar - m_aRanges[i].first];
+            }
             break;
         }
         uiBase += m_aRanges[i].last - m_aRanges[i].first + 1;
-    }
-    if (i < m_uiNumRanges && uiChar >= m_aRanges[i].first)
-    {
-        pGlyph = &m_aGlyphs[uiBase + uiChar - m_aRanges[i].first];
     }
 
     if (!pGlyph && m_pNextFont)
@@ -2559,9 +2547,9 @@ const RedFont::Glyph* RedVariableWidthFont::FindGlyph(unsigned short uiChar) con
         pGlyph = m_pNextFont->FindGlyph(uiChar);
     }
 
-    if (pGlyph)
+    if (pGlyph && !GetTexture(pGlyph->texnum))
     {
-        return GetTexture(pGlyph->texnum) ? pGlyph : 0;
+        pGlyph = 0;
     }
     return pGlyph;
 }
@@ -2571,7 +2559,11 @@ bool RedFixedWidthFont::IsPrintingChar(unsigned short uiChar) const
 {
     bool bPrinting = uiChar > ' ' && (int)uiChar - ' ' < m_uiNumGlyphs;
     int iIndex = uiChar - ' ';
-    if ((iIndex < 0 || iIndex >= m_uiNumGlyphs) && m_pNextFont)
+    if (iIndex >= 0 && iIndex < m_uiNumGlyphs)
+    {
+        return bPrinting;
+    }
+    if (m_pNextFont)
     {
         return m_pNextFont->IsPrintingChar(uiChar);
     }
@@ -2629,7 +2621,6 @@ void RedFont::Cleanup()
         delete (RedFont*)i;
     }
     s_fontHashTable.Clear();
-    s_fontHashTableNumEntries = 0;
 
     delete s_systemFontTexture;
 
@@ -2643,10 +2634,10 @@ void RedFont::Cleanup()
 }
 
 // SYNTHETIC: SWBF2 0x00408460
-// `dynamic initializer for 'PblMath::fOneOverHalfPi''
+// PblMath::`dynamic initializer for 'fOneOverHalfPi''
 
 // SYNTHETIC: SWBF2 0x00408480
-// `dynamic initializer for 'PblMath::fOneOverTwoPi''
+// PblMath::`dynamic initializer for 'fOneOverTwoPi''
 
-// SYNTHETIC: SWBF2 0x006d74a0
-// util::HashTable_<unsigned short,unsigned int,util::Vector<unsigned short,util::BaseArray<unsigned short,util::TypedArrayAllocator<unsigned short,util::NewAllocator> > >,util::Vector<unsigned int,util::BaseArray<unsigned int,util::TypedArrayAllocator<unsigned int,util::NewAllocator> > >,util::Vector<unsigned int,util::BaseArray<unsigned int,util::TypedArrayAllocator<unsigned int,util::NewAllocator> > > >::~HashTable_
+// TEMPLATE: SWBF2 0x006d74a0
+// util::HashTable_<unsigned short,unsigned int,util::Vector<unsigned short,util::BaseArray<unsigned short,util::TypedArrayAllocator<unsigned short,util::NewAllocator> > >,util::Vector<unsigned int,util::BaseArray<unsigned int,util::TypedArrayAllocator<unsigned int,util::NewAllocator> > >,util::Vector<unsigned int,util::BaseArray<unsigned int,util::TypedArrayAllocator<unsigned int,util::NewAllocator> > > >::~HashTable_<unsigned short,unsigned int,util::Vector<unsigned short,util::BaseArray<unsigned short,util::TypedArrayAllocator<unsigned short,util::NewAllocator> > >,util::Vector<unsigned int,util::BaseArray<unsigned int,util::TypedArrayAllocator<unsigned int,util::NewAllocator> > >,util::Vector<unsigned int,util::BaseArray<unsigned int,util::TypedArrayAllocator<unsigned int,util::NewAllocator> > > >

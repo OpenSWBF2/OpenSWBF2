@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "SoldierAnimatorClass.h"
 #include "PebbleFL/Common/PblVector.h"
 
@@ -25,29 +26,12 @@
 #include "Zephyr/Source/ZephyrSkeletonShared.h"
 #include "PebbleFL/pc/PblD3DX.h"
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
+
 
 static const float ANIM_FRAME_SPEED = 1.0f / 30.0f;
 
 // GLOBAL: SWBF2 0x01eafb1c
 SoldierAnimatorClass* SoldierAnimatorClass::sInstance;
-
-namespace
-{
-inline int SoldierPlayerId(const EntitySoldier* pSoldier)
-{
-    return pSoldier->mPlayerId;
-}
-
-inline const SoldierAnimator* SoldierAnimatorOf(const EntitySoldier* pSoldier)
-{
-    return pSoldier->mSoldierAnimator;
-}
-}
 
 // GLOBAL: SWBF2 0x007ae72c
 static const unsigned int s_auiAnimatedJoints[] = { 0x16e27226, 0x2b960099, 0 };
@@ -213,12 +197,10 @@ SoldierAnimator* SoldierAnimatorClass::GetAnimator(float)
 {
     for (PblList<SoldierAnimator>::Itor it = mLRU_List.Begin(); it != mLRU_List.End(); ++it)
     {
-        SoldierAnimator* pAnimator = it;
-        const EntitySoldier* pOwner =
-            pAnimator->mOwner ? pAnimator->mOwner : (const EntitySoldier*)pAnimator->mOwnerId;
-        if (!pOwner || SoldierPlayerId(pOwner) < 0 || SoldierAnimatorOf(pOwner) != pAnimator)
+        SoldierAnimator& sa = *it;
+        if (!sa.GetOwner() || !sa.GetOwner()->IsPlayer() || sa.GetOwner()->mSoldierAnimator != &sa)
         {
-            return pAnimator;
+            return &sa;
         }
     }
     return mLRU_List.GetFirst()->_pObject;
@@ -407,7 +389,7 @@ bool SoldierAnimatorClass::_GetAnimationBoneMatrix(const ZephyrSkeletonShared* p
 
     kPoseStatic.Set(kPoseUpper, upperBodyMask, true);
     kPoseStatic.Set(kPoseLower, lowerBodyMask, true);
-    kSkeleton.BuildWorldMatrices(_IdentityMatrix, iJoint);
+    kSkeleton.BuildWorldMatrices(gMatrixIdentity, iJoint);
     matrix = kSkeleton.m_pWorldMatrices[iJoint];
     return true;
 }
@@ -415,29 +397,40 @@ bool SoldierAnimatorClass::_GetAnimationBoneMatrix(const ZephyrSkeletonShared* p
 // FUNCTION: SWBF2 0x006440f0
 void SoldierAnimatorClass::SetupJointTransformAnimationFlag(ZephyrSkeletonShared* pSkel)
 {
-    for (int i = 1; i < (int)pSkel->m_uNumJoints; ++i)
+    int idx;
+    for (idx = 1; idx < (int)pSkel->m_uNumJoints; ++idx)
     {
-        pSkel->SetJointTransformAnimationFlag(i, false);
+        pSkel->SetJointTransformAnimationFlag(idx, false);
     }
 
-    const unsigned int* auiJoints;
-    if ((int)pSkel->m_kHashCRC2Joint.Find(0x7a89c91f) - 1 >= 0)
+    idx = pSkel->GetJointIdxByCrc(0x7a89c91f);
+    if (idx < 0)
     {
-        auiJoints = s_auiAnimatedJoints_7a89c91f;
-    }
-    else if ((int)pSkel->m_kHashCRC2Joint.Find(0x93e93819) - 1 >= 0)
-    {
-        auiJoints = s_auiAnimatedJoints_93e93819;
+        idx = pSkel->GetJointIdxByCrc(0x93e93819);
+        if (idx < 0)
+        {
+            for (int t = 0; s_auiAnimatedJoints[t]; ++t)
+            {
+                idx = pSkel->GetJointIdxByCrc(s_auiAnimatedJoints[t]);
+                pSkel->SetJointTransformAnimationFlag(idx, true);
+            }
+        }
+        else
+        {
+            for (int t = 0; s_auiAnimatedJoints_93e93819[t]; ++t)
+            {
+                idx = pSkel->GetJointIdxByCrc(s_auiAnimatedJoints_93e93819[t]);
+                pSkel->SetJointTransformAnimationFlag(idx, true);
+            }
+        }
     }
     else
     {
-        auiJoints = s_auiAnimatedJoints;
-    }
-
-    for (int i = 0; auiJoints[i]; ++i)
-    {
-        int iJoint = (int)pSkel->m_kHashCRC2Joint.Find(auiJoints[i]) - 1;
-        pSkel->SetJointTransformAnimationFlag(iJoint, true);
+        for (int t = 0; s_auiAnimatedJoints_7a89c91f[t]; ++t)
+        {
+            idx = pSkel->GetJointIdxByCrc(s_auiAnimatedJoints_7a89c91f[t]);
+            pSkel->SetJointTransformAnimationFlag(idx, true);
+        }
     }
 }
 
@@ -600,9 +593,9 @@ const PblMatrix* SoldierAnimatorClass::_GetBoneMatrix(unsigned int uiJointCrc, c
     pPose->BindToSkeleton(NULL);
     pAnim->SetupDynamicPose(poseDyn, (pAnim->GetAnimationNumFrames() - 1) * ANIM_FRAME_SPEED * 0.5f);
     poseStatic.Set(poseDyn, true);
-    skeleton.BuildWorldMatrices(_IdentityMatrix);
+    skeleton.BuildWorldMatrices(gMatrixIdentity);
     pPose->ConvertFromZephyrPose(poseStatic);
-    return pPose->_Table.Find(uiJointCrc);
+    return pPose->Find(uiJointCrc);
 }
 
 // FUNCTION: SWBF2 0x006446c0
@@ -953,8 +946,8 @@ private:
 
 public:
     MyStack<Entry, 3> m_Stack;
-    int mMaxCount;
-    RedAnimation** mAnimBank;
+    const int mMaxCount;
+    const RedAnimation** const mAnimBank;
     int& mAnimBankCount;
     int m_iAnim;
     SoldierAnimationData* m_pAnimData;
@@ -974,7 +967,7 @@ public:
  
  
 
-void* SoldierAnimation::operator new(size_t uiSize)
+inline void* SoldierAnimation::operator new(unsigned int uiSize)
 {
     return sMemoryPool.Allocate(uiSize);
 }
@@ -1069,7 +1062,7 @@ SoldierAnimatorClass::AnimationMap* CachedBankStack::AddBankParent(SoldierAnimat
 
 // FUNCTION: SWBF2 0x00644e50
 AnimationFinder::AnimationFinder(const RedAnimation** const ppAnimBank, int& iAnimBankCount, int iMaxCount)
-    : mMaxCount(iMaxCount), mAnimBank((RedAnimation**)ppAnimBank), mAnimBankCount(iAnimBankCount)
+    : mMaxCount(iMaxCount), mAnimBank(ppAnimBank), mAnimBankCount(iAnimBankCount)
 {
     Entry* pEntry = m_Stack.Push();
     if (pEntry)
@@ -1477,7 +1470,11 @@ unsigned int AnimationFinder::AssignCustomAnimationFromBankParent(const char* pc
 // FUNCTION: SWBF2 0x00645990
 bool AnimationFinder::_AddBank(const RedAnimation* pBank)
 {
-    if (!pBank || !pBank->_pZephyrAnimBank)
+    if (!pBank)
+    {
+        return false;
+    }
+    if (!pBank->_pZephyrAnimBank)
     {
         return false;
     }
@@ -1488,13 +1485,13 @@ bool AnimationFinder::_AddBank(const RedAnimation* pBank)
             return false;
         }
     }
-    if (mAnimBankCount >= mMaxCount)
+    if (mAnimBankCount < mMaxCount)
     {
-        return false;
+        mAnimBank[mAnimBankCount] = pBank;
+        ++mAnimBankCount;
+        return true;
     }
-    mAnimBank[mAnimBankCount] = const_cast<RedAnimation*>(pBank);
-    ++mAnimBankCount;
-    return true;
+    return false;
 }
 
 // FUNCTION: SWBF2 0x00645a00
@@ -2390,8 +2387,10 @@ void SoldierAnimatorClass::_PostLoad()
         // GLOBAL: SWBF2 0x01fac204
         static const PblVector3 s_vHeadOffset(0.035f, 0.03f, 0.0f);
         // GLOBAL: SWBF2 0x01fac1f8
+        // s_vTorsoOffset
         static const PblVector3 s_vTorsoOffset(-0.12f, 0.12f, 0.0f);
         // GLOBAL: SWBF2 0x01fac228
+        // s_vTorsoOffset_Jump
         static const PblVector3 s_vTorsoOffset_Jump(-0.12f, -0.05f, 0.0f);
         // GLOBAL: SWBF2 0x01fac21c
         static const PblVector3 s_vPivotAxisOffset(0.26f, -0.16f, 0.0f);
@@ -2446,7 +2445,7 @@ void SoldierAnimatorClass::_PostLoad()
                         PblVector3 vHead;
                         GetAnimationBoneMatrix(eMap, s_aPosture[iPosture], eMoveAnim, uiBoneHead,
                                                iStep * NUM_SAMPLES_INV * fAnimDuration, mBone);
-                        D3DXVec3TransformCoord(&vHead, &s_vHeadOffset, &mBone);
+                        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vHead), reinterpret_cast<const D3DXVECTOR3*>(&s_vHeadOffset), reinterpret_cast<const D3DXMATRIX*>(&mBone));
                         table.avHeadPos[iEntry].x += vHead.x * NUM_SAMPLES_INV;
                         table.avHeadPos[iEntry].y += vHead.y * NUM_SAMPLES_INV;
                         table.avHeadPos[iEntry].z += vHead.z * NUM_SAMPLES_INV;
@@ -2454,7 +2453,7 @@ void SoldierAnimatorClass::_PostLoad()
                         PblVector3 vTorso;
                         GetAnimationBoneMatrix(eMap, s_aPosture[iPosture], eMoveAnim, uiBoneTorso,
                                                iStep * NUM_SAMPLES_INV * fAnimDuration, mBone);
-                        D3DXVec3TransformCoord(&vTorso, &s_vTorsoOffset, &mBone);
+                        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vTorso), reinterpret_cast<const D3DXVECTOR3*>(&s_vTorsoOffset), reinterpret_cast<const D3DXMATRIX*>(&mBone));
                         table.avTorsoPos[iEntry].x += vTorso.x * NUM_SAMPLES_INV;
                         table.avTorsoPos[iEntry].y += vTorso.y * NUM_SAMPLES_INV;
                         table.avTorsoPos[iEntry].z += vTorso.z * NUM_SAMPLES_INV;
@@ -2462,7 +2461,7 @@ void SoldierAnimatorClass::_PostLoad()
                         PblVector3 vPitch;
                         GetAnimationBoneMatrix(eMap, s_aPosture[iPosture], eMoveAnim, uiBonePitch,
                                                iStep * NUM_SAMPLES_INV * fAnimDuration, mBone);
-                        D3DXVec3TransformCoord(&vPitch, &vPitchAxisOffset, &mBone);
+                        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vPitch), reinterpret_cast<const D3DXVECTOR3*>(&vPitchAxisOffset), reinterpret_cast<const D3DXMATRIX*>(&mBone));
                         table.avPitchAxis[iEntry].x += vPitch.x * NUM_SAMPLES_INV;
                         table.avPitchAxis[iEntry].y += vPitch.y * NUM_SAMPLES_INV;
                         table.avPitchAxis[iEntry].z += vPitch.z * NUM_SAMPLES_INV;
@@ -2475,11 +2474,11 @@ void SoldierAnimatorClass::_PostLoad()
             fAnimDuration = (pAnim->GetAnimationNumFrames() - 1) * ANIM_FRAME_SPEED;
             PblVector3 vJumpHead;
             GetAnimationBoneMatrix(eMap, SoldierAnimType::JUMP_UP, uiBoneHead, fAnimDuration, mBone);
-            D3DXVec3TransformCoord(&vJumpHead, &s_vHeadOffset, &mBone);
+            D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vJumpHead), reinterpret_cast<const D3DXVECTOR3*>(&s_vHeadOffset), reinterpret_cast<const D3DXMATRIX*>(&mBone));
             table.avHeadPos[16] = vJumpHead;
             PblVector3 vJumpTorso;
             GetAnimationBoneMatrix(eMap, SoldierAnimType::JUMP_UP, uiBoneTorso, fAnimDuration, mBone);
-            D3DXVec3TransformCoord(&vJumpTorso, &s_vTorsoOffset_Jump, &mBone);
+            D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vJumpTorso), reinterpret_cast<const D3DXVECTOR3*>(&s_vTorsoOffset_Jump), reinterpret_cast<const D3DXMATRIX*>(&mBone));
             table.avTorsoPos[16] = vJumpTorso;
 
             GetAnimationBoneMatrix(eMap, SoldierAnimType::JUMP_UP, uiBoneRoot, fAnimDuration, mBone);
@@ -2499,12 +2498,12 @@ void SoldierAnimatorClass::_PostLoad()
                 PblVector3 vHead;
                 GetAnimationBoneMatrix(eMap, (SoldierAnimationBank::ANIMATION)iCustom, uiBoneHead, FRAME_9POSE_CENTER,
                                        mBone);
-                D3DXVec3TransformCoord(&vHead, &s_vHeadOffset, &mBone);
+                D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vHead), reinterpret_cast<const D3DXVECTOR3*>(&s_vHeadOffset), reinterpret_cast<const D3DXMATRIX*>(&mBone));
                 table.avHeadPos[19 + iCustom] = vHead;
                 PblVector3 vTorso;
                 GetAnimationBoneMatrix(eMap, (SoldierAnimationBank::ANIMATION)iCustom, uiBoneTorso, FRAME_9POSE_CENTER,
                                        mBone);
-                D3DXVec3TransformCoord(&vTorso, &s_vTorsoOffset, &mBone);
+                D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vTorso), reinterpret_cast<const D3DXVECTOR3*>(&s_vTorsoOffset), reinterpret_cast<const D3DXMATRIX*>(&mBone));
                 table.avTorsoPos[19 + iCustom] = vTorso;
             }
         }

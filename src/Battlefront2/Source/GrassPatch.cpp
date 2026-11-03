@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include <math.h>
 #include <stdio.h>
 
@@ -8,7 +9,7 @@
 #include "NetGame.h"
 #include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblRandom.h"
-#include "PebbleFL/pc/PblD3DX.h"
+
 
 class PblMatrix;
 extern PblMatrix gMatrixIdentity;
@@ -75,7 +76,7 @@ GrassPatch::GrassPatch(GrassPatchClass* pClass, const PblMatrix& matrix)
                       mMatrix.m[1][0] * vBack.z - mMatrix.m[1][2] * vBack.x,
                       mMatrix.m[1][1] * vBack.x - mMatrix.m[1][0] * vBack.y);
     PblVector3 vOut;
-    D3DXVec3Normalize(&vOut, &vRight);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vOut), reinterpret_cast<const D3DXVECTOR3*>(&vRight));
     mMatrix.m[0][0] = vOut.x;
     mMatrix.m[0][1] = vOut.y;
     mMatrix.m[0][2] = vOut.z;
@@ -84,7 +85,7 @@ GrassPatch::GrassPatch(GrassPatchClass* pClass, const PblMatrix& matrix)
     PblVector3 vAt(mMatrix.m[1][2] * mMatrix.m[0][1] - mMatrix.m[1][1] * mMatrix.m[0][2],
                    mMatrix.m[1][0] * mMatrix.m[0][2] - mMatrix.m[0][0] * mMatrix.m[1][2],
                    mMatrix.m[0][0] * mMatrix.m[1][1] - mMatrix.m[1][0] * mMatrix.m[0][1]);
-    D3DXVec3Normalize(&vOut, &vAt);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vOut), reinterpret_cast<const D3DXVECTOR3*>(&vAt));
     mMatrix.m[2][0] = vOut.x;
     mMatrix.m[2][1] = vOut.y;
     mMatrix.m[2][2] = vOut.z;
@@ -96,7 +97,7 @@ GrassPatch::GrassPatch(GrassPatchClass* pClass, const PblMatrix& matrix)
     mMatrix.m[3][3] = 1.0f;
 
     PblVector3 vCenter;
-    D3DXVec3TransformCoord(&vCenter, &mClass->mBoundingOffset, &mMatrix);
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vCenter), reinterpret_cast<const D3DXVECTOR3*>(&mClass->mBoundingOffset), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
     SetRenderPos(vCenter);
     SetRenderRadius(mClass->mBoundingRadius);
     Activate();
@@ -110,7 +111,7 @@ GrassPatch::~GrassPatch()
 }
 
 // SYNTHETIC: SWBF2 0x005421b5
-// [thunk]:GrassPatch::`scalar deleting destructor' adjustor{88}
+// ??_EGrassPatch@@WFI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00540c70
 // GrassPatch::`scalar deleting destructor'
 
@@ -134,7 +135,7 @@ GrassPatchClass::~GrassPatchClass()
 // GrassPatchClass::`scalar deleting destructor'
 
 // SYNTHETIC: SWBF2 0x005421bd
-// [thunk]:GrassPatchClass::`scalar deleting destructor' adjustor{24}
+// ??_EGrassPatchClass@@WBI@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x00540f70
 void GrassPatchClass::CreateClient()
@@ -361,9 +362,9 @@ void GrassPatchClass::Init()
                     const float fX = PblRandom::GetGlobalFloat() - 0.5f;
                     particle.mUp = PblVector3(fX, 0.0f, fZ);
                 } while (fabsf(particle.mUp.x) < 0.01f && fabsf(particle.mUp.z) < 0.01f);
-                D3DXVec3Normalize(&particle.mUp, &particle.mUp);
+                D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&particle.mUp), reinterpret_cast<const D3DXVECTOR3*>(&particle.mUp));
                 particle.mUp.y = (PblRandom::GetGlobalFloat() - 0.5f) * 0.3f;
-                D3DXVec3Normalize(&particle.mUp, &particle.mUp);
+                D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&particle.mUp), reinterpret_cast<const D3DXVECTOR3*>(&particle.mUp));
             }
             else
             {
@@ -384,30 +385,12 @@ void GrassPatchClass::Init()
         }
 
         const float fHalfSize = particle.mSize * 0.5f;
-        if (particle.mPos.x - fHalfSize <= vMin.x)
-        {
-            vMin.x = particle.mPos.x - fHalfSize;
-        }
-        if (particle.mPos.y - particle.mSize <= vMin.y)
-        {
-            vMin.y = particle.mPos.y - particle.mSize;
-        }
-        if (particle.mPos.z - fHalfSize <= vMin.z)
-        {
-            vMin.z = particle.mPos.z - fHalfSize;
-        }
-        if (particle.mPos.x + fHalfSize >= vMax.x)
-        {
-            vMax.x = particle.mPos.x + fHalfSize;
-        }
-        if (particle.mPos.y + particle.mSize >= vMax.y)
-        {
-            vMax.y = particle.mPos.y + particle.mSize;
-        }
-        if (particle.mPos.z + fHalfSize >= vMax.z)
-        {
-            vMax.z = particle.mPos.z + fHalfSize;
-        }
+        vMin.x = Min(vMin.x, particle.mPos.x - fHalfSize);
+        vMin.y = Min(vMin.y, particle.mPos.y - particle.mSize);
+        vMin.z = Min(vMin.z, particle.mPos.z - fHalfSize);
+        vMax.x = Max(vMax.x, particle.mPos.x + fHalfSize);
+        vMax.y = Max(vMax.y, particle.mPos.y + particle.mSize);
+        vMax.z = Max(vMax.z, particle.mPos.z + fHalfSize);
     }
 
     mBoundingOffset.x = (vMax.x + vMin.x) * 0.5f;
@@ -425,10 +408,7 @@ void GrassPatchClass::Init()
         const float fY = vPos.y - mBoundingOffset.y;
         const float fZ = vPos.z - mBoundingOffset.z;
         const float fRadius = sqrtf(fX * fX + fY * fY + fZ * fZ) + mParticle[i].mSize;
-        if (fRadius > mBoundingRadius)
-        {
-            mBoundingRadius = fRadius;
-        }
+        mBoundingRadius = Max(fRadius, mBoundingRadius);
     }
 
     ActivateThread(0, PER_FRAME);
@@ -490,5 +470,6 @@ void GrassPatchClass::Reset()
     sObjects.RemoveAll();
 }
 
-// FUNCTION: SWBF2 0x00542170
+// TEMPLATE: SWBF2 0x00542170
+// PblList<GrassPatchClass>::RemoveAll
 template void PblList<GrassPatchClass>::RemoveAll();

@@ -39,6 +39,60 @@ enum VO_MeInfo
 };
 enum VO_Adrenaline { VO_ADR_None = 0, VO_ADR_Low = 1, VO_ADR_Medium = 2, VO_ADR_High = 3 };
 
+enum VOType
+{
+    VOT_NONE = 0,
+    VOT_AcquiredTarget = 1,
+    VOT_FriendlyFire = 2,
+    VOT_MissileLocking = 3,
+    VOT_MissileLocked = 4,
+    VOT_MissileIncoming = 5,
+    VOT_PathFollowWait = 6,
+    VOT_CollisionDamage = 7,
+    VOT_Kill = 8,
+    VOT_HeadshotKill = 9,
+    VOT_Grenade = 10,
+    VOT_RebelsShootDeadBody = 11,
+    VOT_KillingSpree4 = 12,
+    VOT_KillingSpree8 = 13,
+    VOT_KillingSpree12 = 14,
+    VOT_KillingSpree16 = 15,
+    VOT_RepairStart = 16,
+    VOT_RepairEnd = 17,
+    VOT_GivePowerup = 18,
+    VOT_DefendIdleLookWeapon = 19,
+    VOT_DefendIdleLookAround = 20,
+    VOT_DefendIdleLookPlayer = 21,
+    VOT_SC_Follow = 22,
+    VOT_SC_FollowResponse = 23,
+    VOT_SC_StopFollow = 24,
+    VOT_SC_StopFollowResponse = 25,
+    VOT_SC_VehicleWaitUp = 26,
+    VOT_SC_VehicleWaitUpResponse = 27,
+    VOT_SC_GetIn = 28,
+    VOT_SC_GetInResponse = 29,
+    VOT_SC_GetInResponseRepeat = 30,
+    VOT_SC_GetOut = 31,
+    VOT_SC_GetOutResponse = 32,
+    VOT_NotShootingCriticalHit = 33,
+    VOT_HasClearShotAtCriticalHit = 34,
+    VOT_NearbyFriendlySlaughter = 35,
+    VOT_NearbyEnemySlaughter = 36,
+    VOT_NearbyTeamKillSlaughter = 37,
+    VOT_JustBoardedVehicle = 38,
+    VOT_VehicleWaitingImpatiently = 39,
+    VOT_TA_First = 40,
+    VOT_TA_Spotted = 40,
+    VOT_TA_NeedMedic = 41,
+    VOT_TA_NeedRepair = 42,
+    VOT_TA_NeedAmmo = 43,
+    VOT_TA_NeedPickup = 44,
+    VOT_TA_NeedBackup = 45,
+    VOT_TA_AttackPosition = 46,
+    VOT_TA_DefendPosition = 47,
+    VOT_Count = 48
+};
+
 struct VOModifier
 {
     unsigned int mAboveBelowCover : 2;
@@ -131,7 +185,7 @@ extern QueuedSound mSndQueue[20];
 
 void SetModifier(VOModifier& modifier, const char* pszWord, const char* pszDebug);
 
-int TypeStrToEnum(const char* pszType);
+VOType TypeStrToEnum(const char* pszType);
 
 VOSound* GetNewVOSound(const char* pszSound, const char* pszType, const VOModifier& modifiers);
 

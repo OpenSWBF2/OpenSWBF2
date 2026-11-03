@@ -1,13 +1,16 @@
 #pragma once
 
 #include <stddef.h>
+#include <string.h>
 
 #include "PebbleFL/Common/PblHashTable.h"
+#include "PebbleFL/Common/PblVector.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 #include "GameSound.h"
 #include "SoldierAnimationBank.h"
 
 class PblConfig;
+class PblMatrix;
 class WeaponMelee;
 class ZephyrSkeletonShared;
 
@@ -20,58 +23,25 @@ public:
     class Transition;
     class State;
 
-    class Transition
-    {
-    public:
-
-        Condition* AddCondition();
-
-        void SetEnergyCost(float fCost)
-        {
-            int iCost = (int)(fCost * ENERGY_SCALE_INV);
-            if (iCost < 0)
-            {
-                iCost = 0;
-            }
-            else if (iCost > 1023)
-            {
-                iCost = 1023;
-            }
-            m_uiEnergyCost = iCost;
-        }
-
-    private:
-        friend class State;
-
-        void _Init(unsigned int uiTargetState)
-        {
-            m_uiTargetState = uiTargetState;
-            m_aCondition = 0;
-            m_uiNumConditions = 0;
-            m_uiEnergyCost = 0;
-            z_uiReserved0 = 0;
-        }
-
-        void _ReadConfig(PblConfig& config, const char* pszComboName, const char* pszStateName);
-
-    public:
-
-        static MemoryPool sMemoryPool;
-
-        static void* operator new(size_t uiSize) { return sMemoryPool.Allocate(uiSize); }
-
-        static const float ENERGY_SCALE_INV;
-
-        unsigned int m_uiTargetState;
-        Condition* m_aCondition;
-        unsigned int m_uiNumConditions : 6;
-        unsigned int m_uiEnergyCost : 10;
-        unsigned int z_uiReserved0 : 16;
-    };
-
     class Condition
     {
     public:
+
+        enum BUTTON
+        {
+            BUTTON_NONE = 0,
+            BUTTON_FIRE = 1,
+            BUTTON_FIRE_SECONDARY = 2,
+            BUTTON_JUMP = 3,
+            BUTTON_SPRINT = 4,
+            BUTTON_CROUCH = 5,
+            BUTTON_RELOAD = 6,
+            BUTTON_FIRE_BOTH = 7,
+            NUM_VIRTUAL_BUTTONS = 8,
+            NUM_BUTTONS = 7
+        };
+
+        BUTTON GetButton() const { return (BUTTON)m_uiButton; }
 
         bool TestSoldierState(int iState, float fTime) const;
 
@@ -81,6 +51,21 @@ public:
 
         bool TestVelocity(float fX, float fY, float fZ) const;
 
+        float GetInputMagRef() const { return m_uiInputMagRef * INPUT_MAG_SCALE; }
+        float GetInputDirMinRad() const { return m_iInputDirMin * INPUT_DIR_SCALE_RAD; }
+        float GetInputDirMaxRad() const { return m_iInputDirMax * INPUT_DIR_SCALE_RAD; }
+        float GetVelocityXZDirMinRad() const { return m_iVelocityXZDirMin * VELOCITYXZ_DIR_SCALE_RAD; }
+        float GetVelocityXZDirMaxRad() const { return m_iVelocityXZDirMax * VELOCITYXZ_DIR_SCALE_RAD; }
+        float GetVelocityYRef() const
+        {
+            float fRef = (float)m_uiVelocityYRef;
+            if (m_bVelocityYSigned)
+            {
+                return fRef * VELOCITYY_VAL_SCALE + VELOCITYY_VAL_OFFSET;
+            }
+            return fRef * VELOCITYY_MAG_SCALE;
+        }
+
         void SetTimeStart(float fTime, bool bFromEnd);
         void SetTimeEnd(float fTime, bool bFromEnd, bool b);
         void SetInputMag(float fMag, bool bLess);
@@ -89,7 +74,23 @@ public:
         void SetSoldierStateTime(float fTime, bool bLess);
         void SetEnergy(float fEnergy, bool bLess);
         void SetInputDir(float fMin, float fMax);
-        void SetVelocityY(float fVelocity, bool bSigned, bool bLess);
+        // FUNCTION: SWBF2 0x00470bd0
+        void SetVelocityY(float fVelocity, bool bSigned, bool bLess)
+        {
+            int iVelocity = (int)(bSigned ? (fVelocity - VELOCITYY_VAL_OFFSET) * VELOCITYY_VAL_SCALE_INV
+                                          : fVelocity * VELOCITYY_MAG_SCALE_INV);
+            if (iVelocity < 0)
+            {
+                iVelocity = 0;
+            }
+            else if (iVelocity > 63)
+            {
+                iVelocity = 63;
+            }
+            m_uiVelocityYRef = iVelocity;
+            m_bVelocityYSigned = bSigned;
+            m_bVelocityYLess = bLess;
+        }
         void SetVelocityXZMag(float fMag, bool bLess);
         void SetVelocityXZDir(float fMin, float fMax);
 
@@ -115,10 +116,7 @@ public:
 
         void _Init()
         {
-            for (int i = 0; i < 5; ++i)
-            {
-                m_auiPackedData[i] = 0;
-            }
+            memset(m_auiPackedData, 0, sizeof(m_auiPackedData));
             m_bTimeEndFromEnd = 1;
         }
 
@@ -204,9 +202,87 @@ public:
         };
     };
 
+    class Transition
+    {
+    public:
+
+        unsigned int GetNumConditions() const { return m_uiNumConditions; }
+        const Condition* GetCondition(unsigned int iCondition) const { return &m_aCondition[iCondition]; }
+
+        Condition* AddCondition();
+
+        void SetEnergyCost(float fCost)
+        {
+            int iCost = (int)(fCost * ENERGY_SCALE_INV);
+            if (iCost < 0)
+            {
+                iCost = 0;
+            }
+            else if (iCost > 1023)
+            {
+                iCost = 1023;
+            }
+            m_uiEnergyCost = iCost;
+        }
+
+    private:
+        friend class State;
+
+        void _Init(unsigned int uiTargetState)
+        {
+            memset(this, 0, sizeof(*this));
+            m_uiTargetState = uiTargetState;
+        }
+
+        void _ReadConfig(PblConfig& config, const char* pszComboName, const char* pszStateName);
+
+    public:
+
+        static MemoryPool sMemoryPool;
+
+        static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }
+
+        static const float ENERGY_SCALE_INV;
+
+        unsigned int m_uiTargetState;
+        Condition* m_aCondition;
+        unsigned int m_uiNumConditions : 6;
+        unsigned int m_uiEnergyCost : 10;
+        unsigned int z_uiReserved0 : 16;
+    };
+
+    class DamageSample
+    {
+    public:
+        static MemoryPool sMemoryPool;
+        static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }
+        static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
+
+        float fTime;
+        PblVector3 vPos;
+        PblVector3 vDir;
+    };
+
+
     class Attack
     {
     public:
+        unsigned int GetAttackId() const { return m_uiAttackId; }
+        unsigned int GetDamageEdge() const { return m_uiDamageEdge; }
+        bool IsDamageTimeStartFromAnim() const { return m_bDamageTimeStartFromAnim != 0; }
+        bool IsDamageTimeEndFromAnim() const { return m_bDamageTimeStartFromAnim != 0; }
+        float GetDamageTimeStart() const { return m_uiDamageTimeStart * 0.01f; }
+        float GetDamageTimeEnd() const { return m_uiDamageTimeEnd * 0.01f; }
+        bool IsDamageLengthFromEdge() const { return m_bDamageLengthFromEdge != 0; }
+        bool IsDamageWidthFromEdge() const { return m_bDamageWidthFromEdge != 0; }
+        float GetDamageLength() const { return m_uiDamageLength * 0.01f; }
+        float GetDamageWidth() const { return m_uiDamageWidth * 0.01f; }
+        float GetDamage() const { return static_cast<float>(m_uiDamage); }
+        bool IsPush() const { return m_uiSpecialType == 0; }
+        float GetPushStrength() const { return m_uiSpecial * 0.1f; }
+        unsigned int GetNumDamageSamples() const { return m_uiNumDamageSamples; }
+        const DamageSample* GetDamageSample(unsigned int iSample) const { return &m_aDamageSample[iSample]; }
+
         void AddDamageSample(float fTime, const PblVector3& vBegin, const PblVector3& vEnd);
         bool _ResolveDamageData(const Combo* pCombo, const State* pState,
                                 unsigned int uiAttach, const PblVector3& vBegin,
@@ -214,9 +290,51 @@ public:
 
         void _Init();
 
-        void SetDamageTimeStart(float fTime, bool bFromAnim);
-        void SetDamageTimeEnd(float fTime, bool bFromAnim);
-        void SetDamageLength(float fLength, bool bFromEdge);
+        // FUNCTION: SWBF2 0x00470d10
+        void SetDamageTimeStart(float fTime, bool bFromAnim)
+        {
+            int iTime = (int)(fTime * TIME_SCALE_INV);
+            if (iTime < 0)
+            {
+                iTime = 0;
+            }
+            else if (iTime > 1023)
+            {
+                iTime = 1023;
+            }
+            m_uiDamageTimeStart = iTime;
+            m_bDamageTimeStartFromAnim = bFromAnim;
+        }
+        // FUNCTION: SWBF2 0x00470d60
+        void SetDamageTimeEnd(float fTime, bool bFromAnim)
+        {
+            int iTime = (int)(fTime * TIME_SCALE_INV);
+            if (iTime < 0)
+            {
+                iTime = 0;
+            }
+            else if (iTime > 1023)
+            {
+                iTime = 1023;
+            }
+            m_uiDamageTimeEnd = iTime;
+            m_bDamageTimeEndFromAnim = bFromAnim;
+        }
+        // FUNCTION: SWBF2 0x00470db0
+        void SetDamageLength(float fLength, bool bFromEdge)
+        {
+            int iLength = (int)(fLength * LENGTH_SCALE_INV);
+            if (iLength < 0)
+            {
+                iLength = 0;
+            }
+            else if (iLength > 1023)
+            {
+                iLength = 1023;
+            }
+            m_uiDamageLength = iLength;
+            m_bDamageLengthFromEdge = bFromEdge;
+        }
         void SetDamage(float fDamage);
 
         void SetDamage() { m_uiDamage = 0xfff; }
@@ -310,32 +428,152 @@ public:
     public:
 
         unsigned char GetAnimIndex() const { return (unsigned char)m_uiAnimIndex; }
+        void SetAnimIndex(unsigned char uiAnimIndex) { m_uiAnimIndex = uiAnimIndex; }
         const Deflect* GetDeflect() const { return m_pDeflect; }
+        unsigned int GetNumTransitions() const { return m_uiNumTransitions; }
+        const Transition* GetTransition(unsigned int iTransition) const { return &m_aTransition[iTransition]; }
         unsigned int GetNumAttacks() const { return m_uiNumAttacks; }
+        Attack* GetAttack(unsigned int iAttack) { return &m_aAttack[iAttack]; }
+        const Attack* GetAttack(unsigned int iAttack) const { return &m_aAttack[iAttack]; }
+        float GetDuration() const { return m_uiDuration * 0.01f; }
+        bool IsAnimatedMove() const { return m_bAnimatedMove != 0; }
+        bool IsDuration() const { return m_uiDuration != DURATION_INVALID; }
+        bool IsVelocityZFromAnim() const { return m_bVelocityZFromAnim && m_bAnimatedMove; }
+        // FUNCTION: SWBF2 0x00470ea0
+        bool IsVelocityXFromAnim() const { return m_bVelocityXFromAnim && m_bAnimatedMove; }
+        float GetVelocityZ() const { return m_iVelocityZ * 0.02f; }
+        float GetVelocityX() const { return m_iVelocityX * 0.02f; }
+        float GetVelocityFromThrust() const { return m_uiVelocityFromThrust * 0.1f; }
+        float GetVelocityFromStrafe() const { return m_uiVelocityFromStrafe * 0.1f; }
+        bool IsAlignedToThrust() const { return m_bAlignToThrust != 0; }
 
-        void SetDuration(float fDuration);
+        // FUNCTION: SWBF2 0x00470ec0
+        void SetDuration(float fDuration)
+        {
+            if (fDuration < 0.0f)
+            {
+                m_uiDuration = DURATION_INVALID;
+                return;
+            }
+            int iDuration = (int)(fDuration * TIME_SCALE_INV);
+            if (iDuration < 0)
+            {
+                iDuration = 0;
+            }
+            else if (iDuration > DURATION_MAX)
+            {
+                iDuration = DURATION_MAX;
+            }
+            m_uiDuration = iDuration;
+        }
 
         void SetSound(const char* pName, float fTime);
 
-        void SetVelocityZ(float fVelocity, bool bFromAnim);
+        // FUNCTION: SWBF2 0x00470f70
+        void SetVelocityZ(float fVelocity, bool bFromAnim)
+        {
+            int iVelocity = (int)(fVelocity * VELOCITY_SCALE_INV);
+            if (iVelocity < VELOCITY_MIN)
+            {
+                iVelocity = VELOCITY_MIN;
+            }
+            else if (iVelocity > VELOCITY_MAX)
+            {
+                iVelocity = VELOCITY_MAX;
+            }
+            m_iVelocityZ = iVelocity;
+            m_bVelocityZFromAnim = bFromAnim;
+        }
 
-        void SetVelocityX(float fVelocity, bool bFromAnim);
+        // FUNCTION: SWBF2 0x00470fc0
+        void SetVelocityX(float fVelocity, bool bFromAnim)
+        {
+            int iVelocity = (int)(fVelocity * VELOCITY_SCALE_INV);
+            if (iVelocity < VELOCITY_MIN)
+            {
+                iVelocity = VELOCITY_MIN;
+            }
+            else if (iVelocity > VELOCITY_MAX)
+            {
+                iVelocity = VELOCITY_MAX;
+            }
+            m_iVelocityX = iVelocity;
+            m_bVelocityXFromAnim = bFromAnim;
+        }
 
         void SetInputLock(unsigned int uiInputLock, float fDuration);
 
         void SetEnergyRestoreRate(float fRate, bool b);
 
-        void SetThrustFactor(float fFactor);
+        // FUNCTION: SWBF2 0x004710c0
+        void SetThrustFactor(float fFactor)
+        {
+            int iFactor = (int)(fFactor * INPUT_SCALE_INV);
+            if (iFactor < 0)
+            {
+                iFactor = 0;
+            }
+            else if (iFactor > INPUT_MAX)
+            {
+                iFactor = INPUT_MAX;
+            }
+            m_uiThrustFactor = iFactor;
+        }
 
-        void SetStrafeFactor(float fFactor);
+        // FUNCTION: SWBF2 0x004710f0
+        void SetStrafeFactor(float fFactor)
+        {
+            int iFactor = (int)(fFactor * INPUT_SCALE_INV);
+            if (iFactor < 0)
+            {
+                iFactor = 0;
+            }
+            else if (iFactor > INPUT_MAX)
+            {
+                iFactor = INPUT_MAX;
+            }
+            m_uiStrafeFactor = iFactor;
+        }
 
-        void SetPitchFactor(float fFactor);
+        // FUNCTION: SWBF2 0x00471120
+        void SetPitchFactor(float fFactor)
+        {
+            int iFactor = (int)(fFactor * INPUT_SCALE_INV);
+            if (iFactor < 0)
+            {
+                iFactor = 0;
+            }
+            else if (iFactor > INPUT_MAX)
+            {
+                iFactor = INPUT_MAX;
+            }
+            m_uiPitchFactor = iFactor;
+        }
 
         void SetGravity(float fGravity);
 
-        void SetGravityVelocityYTarget(float fVelocity, bool bZeroAtTarget);
+        // FUNCTION: SWBF2 0x00471180
+        void SetGravityVelocityYTarget(float fVelocity, bool bZeroAtTarget)
+        {
+            int iVelocity = (int)(fVelocity * VELOCITYY_SCALE_INV);
+            if (iVelocity < VELOCITYY_MIN)
+            {
+                iVelocity = VELOCITYY_MIN;
+            }
+            else if (iVelocity > VELOCITYY_MAX)
+            {
+                iVelocity = VELOCITYY_MAX;
+            }
+            m_iGravityVelocityYTarget = iVelocity;
+            m_bGravityZeroAtTarget = bZeroAtTarget;
+        }
 
-        void SetVelocityYImpulse(float fVelocity, bool bZeroAtTarget);
+        // FUNCTION: SWBF2 0x004711e0
+        void SetVelocityYImpulse(float fVelocity, bool bZeroAtTarget)
+        {
+            m_iGravity = GRAVITY_IMPULSE;
+            SetGravityVelocityYTarget(fVelocity, bZeroAtTarget);
+        }
 
         Transition* AddTransition(unsigned int uiTargetState);
         Attack* AddAttack();
@@ -437,6 +675,7 @@ public:
         static const float GRAVITY_SCALE_INV;
         static const float VELOCITYY_SCALE_INV;
         static const float VELOCITYDELTA_SCALE_INV;
+        static const unsigned char ANIMATION_INVALID = 0xff;
         static const int DURATION_MAX = 1022;
         static const unsigned int DURATION_INVALID = 0x3ff;
         static const int INPUTLOCK_DURATION_MAX = 1023;
@@ -504,14 +743,25 @@ public:
             unsigned int m_auiPackedData[6];
         };
     };
-    class DamageSample { public: static MemoryPool sMemoryPool; };
-
     class Deflect
     {
     public:
 
-        bool TestDeflect(const float* pMatrix, const float* pRight, const float* pAttack, int iUnused,
-                         unsigned char uiFallback, unsigned char* pResult) const;
+        enum DEFLECT_DIRECTION
+        {
+            DEFLECT_FORWARD = 1,
+            DEFLECT_RIGHT = 2,
+            DEFLECT_BACK_RIGHT = 4,
+            DEFLECT_LEFT = 8,
+            DEFLECT_BACK_LEFT = 16,
+            DEFLECT_BACK = 32,
+            DEFLECT_ALL = 63,
+            NUM_DIRECTIONS = 6
+        };
+
+        bool TestDeflect(const PblMatrix& mSoldier, const PblVector3& vFacingDir,
+                         const PblVector3& vDir, const PblVector3& vCollisionPoint,
+                         unsigned char uiAnimIndexPrev, unsigned char& o_uiAnimIndex) const;
         struct DEFLECT_ANIM
         {
             unsigned char uiAnimIndex;
@@ -546,10 +796,7 @@ public:
 
         void _Init()
         {
-            for (int i = 0; i < 9; ++i)
-            {
-                m_auiPackedData[i] = 0;
-            }
+            memset(m_auiPackedData, 0, sizeof(m_auiPackedData));
         }
 
         void _ReadConfig(PblConfig& config, const Combo& combo, const char* pszStateName);
@@ -579,18 +826,21 @@ public:
     static void Init();
 
     Combo();
-    Combo* CopyConstructor(const Combo& other);
+    Combo(const Combo& copy) { *this = copy; }
+    const Combo& operator=(const Combo& copy);
     void ReadConfig(PblConfig& config);
     static void PostLoad();
-    static void* operator new(size_t uiSize) { return sMemoryPool.Allocate(uiSize); }
+    static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }
+    // SYNTHETIC: SWBF2 0x00470950
+    // Combo::operator delete
+    static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
     static const Combo* Find(unsigned int uiNameHash) { return s_ComboTable.Find(uiNameHash); }
     unsigned int GetNumStates() const { return m_uiNumStates; }
+    State* GetState(unsigned int i) { return &m_aState[i]; }
     const State* GetState(unsigned int i) const { return &m_aState[i]; }
 
     static MemoryPool sMemoryPool;
-
-    static int s_ComboTableNumEntries;
     static PblHashTable<const Combo, 32> s_ComboTable;
 
     void InitDefault(unsigned int uiNameHash);
@@ -618,14 +868,14 @@ private:
 
 public:
 
-    static void* _AllocDamageSample();
+    static DamageSample* _AllocDamageSample();
 
     static unsigned int __fastcall GetNameHashForMap(unsigned int uComboHash, SoldierAnimationBank::MAP eMap);
 
     unsigned int m_uiNameHash;
     int m_eCombo;
     int m_eMap;
-    ZephyrSkeletonShared* m_pSkeleton;
+    const ZephyrSkeletonShared* m_pSkeleton;
     State* m_aState;
     State* m_pCatchState;
     State* m_pTakeKneeState;

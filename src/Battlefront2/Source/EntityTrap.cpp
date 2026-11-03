@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "EntityTrap.h"
 #include "PebbleFL/Common/PblVector.h"
 
@@ -23,7 +24,7 @@
 #include "RedEngineFL/Util/RedAnimation.h"
 #include "Zephyr/Source/ZephyrAnim.h"
 #include "Zephyr/Source/ZephyrPoseStatic.h"
-#include "PebbleFL/pc/PblD3DX.h"
+
 
 static PblMatrix _IdentityMatrix(
     PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
@@ -61,27 +62,31 @@ EntityTrapClass::EntityTrapClass(unsigned int uHash)
     mRayTriggerMinSpeed = -1.0f;
 }
 
-// GLOBAL: SWBF2 0x01ebc254
 // SYNTHETIC: SWBF2 0x00402eb0
 // `dynamic initializer for 'EntityTrapClass::rttiHashEntityTrapClass''
-PblHash EntityTrapClass::rttiHashEntityTrapClass("EntityTrapClass");
-char EntityTrapClass::rttiNameEntityTrapClass[] = "EntityTrapClass";
+// EntityTrapClass::rttiHashEntityTrapClass
 
-// GLOBAL: SWBF2 0x01ebc258
+// GLOBAL: SWBF2 0x01ebc254
+// EntityTrapClass::rttiHashEntityTrapClass
+PblHash EntityTrapClass::rttiHashEntityTrapClass("EntityTrapClass");
+// GLOBAL: SWBF2 0x00789684
+// EntityTrapClass::rttiNameEntityTrapClass
+const char EntityTrapClass::rttiNameEntityTrapClass[] = "EntityTrapClass";
+
 // SYNTHETIC: SWBF2 0x00402ea0
 // `dynamic initializer for 'EntityTrap::rttiHashEntityTrap''
+// EntityTrap::rttiHashEntityTrap
+
+// GLOBAL: SWBF2 0x01ebc258
+// EntityTrap::rttiHashEntityTrap
 PblHash EntityTrap::rttiHashEntityTrap("EntityTrap");
-char EntityTrap::rttiNameEntityTrap[] = "EntityTrap";
+// GLOBAL: SWBF2 0x00789678
+// EntityTrap::rttiNameEntityTrap
+const char EntityTrap::rttiNameEntityTrap[] = "EntityTrap";
 
-static inline CollisionObject* AsCollisionObject(EntityTrap* pTrap)
-{
-    return static_cast<CollisionObject*>(pTrap);
-}
 
-static inline Damageable* AsDamageable(EntityTrap* pTrap)
-{
-    return static_cast<Damageable*>(pTrap);
-}
+
+
 
 // FUNCTION: SWBF2 0x004fcd90
 EntityTrap::EntityTrap(EntityTrapClass* pClass, const EntityDesc& desc)
@@ -109,33 +114,21 @@ EntityTrap::~EntityTrap()
 // SYNTHETIC: SWBF2 0x004fcd00
 // EntityTrap::`scalar deleting destructor'
 // SYNTHETIC: SWBF2 0x004ff4ab
-// [thunk]:EntityTrap::`scalar deleting destructor' adjustor{320}
+// ??_EEntityTrap@@WBEA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004ff4b6
-// [thunk]:EntityTrap::`scalar deleting destructor' adjustor{12}
+// ??_EEntityTrap@@WM@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004ff4be
-// [thunk]:EntityTrap::`scalar deleting destructor' adjustor{512}
+// ??_EEntityTrap@@WCAA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004ff4c9
-// [thunk]:EntityTrap::`scalar deleting destructor' adjustor{608}
+// ??_EEntityTrap@@WCGA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004ff4d4
-// [thunk]:EntityTrap::`scalar deleting destructor' adjustor{148}
+// ??_EEntityTrap@@WJE@AEPAXI@Z
 
-// FUNCTION: SWBF2 0x004fcc70
-bool EntityTrap::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashEntityTrap || EntityBuilding::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x004fccc0
-unsigned int EntityTrap::GetDerivedRtti() const
-{
-    return rttiHashEntityTrap;
-}
 
-// FUNCTION: SWBF2 0x004fccd0
-const char* EntityTrap::GetDerivedRttiName() const
-{
-    return rttiNameEntityTrap;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x004fcce0
 const RedPose* EntityTrap::GetPose() const
@@ -167,7 +160,7 @@ void EntityTrap::SetAnimation(const ZephyrAnim* pAnim)
 void EntityTrap::Render(unsigned char uFlags, float fDist, unsigned int uMask)
 {
     if (mTrapClass->mHideUnbuiltModel && mState == STATE_UNBUILT &&
-        AsCollisionObject(this)->mCollisionModel == &mTrapClass->mBuildBoxCollisionModel)
+        mCollisionModel == &mTrapClass->mBuildBoxCollisionModel)
     {
         return;
     }
@@ -187,7 +180,7 @@ bool EntityTrap::CollisionCallback(const CollisionResult* pResult, CollisionObje
             pDamageable->InstantDeath(DamageOwner(0, 0, 0, 0, 0, 1.0f), true);
         }
     }
-    return AsCollisionObject(this)->CollisionObject::CollisionCallback(pResult, pOther, pRestrictor);
+    return CollisionObject::CollisionCallback(pResult, pOther, pRestrictor);
 }
 
 // FUNCTION: SWBF2 0x004fdef0
@@ -196,16 +189,15 @@ void EntityTrap::HealthChangeCallback(bool bArg, float fDelta)
     typedef void(__thiscall * SetModelFn)(void*, const GameModel*);
     typedef void(__thiscall * DeactivateFn)(void*);
 
-    Damageable* pDamageable = AsDamageable(this);
+    Damageable* pDamageable = this;
     if (mState == STATE_UNBUILT && pDamageable->mCurHealth >= pDamageable->mMaxHealth)
     {
-        CollisionObject* pCollision = AsCollisionObject(this);
+        CollisionObject* pCollision = this;
         if (mTrapClass->mBuildBoxOdf)
         {
             pCollision->SetCollisionModel(&mTrapClass->mTrapCollisionModel);
             pCollision->SetCollisionCenter(mTrapCollisionSphere.GetCenter());
             pCollision->SetCollisionRadius(mTrapCollisionSphere.GetRadius());
-            pCollision->Set2DCollisionRadius(mTrapCollisionSphere.GetRadius());
             pCollision->RecalculateAABB();
             if (pCollision->IsInCollisionList())
             {
@@ -236,7 +228,7 @@ void EntityTrap::HealthChangeCallback(bool bArg, float fDelta)
         {
 
             EntityProp* pProp = static_cast<EntityProp*>(mBuildBox);
-            static_cast<RedSceneObject*>(pProp)->Deactivate();
+            pProp->Deactivate();
             pProp->RemoveFromCollisionManager();
         }
         pDamageable->mHealthType = HEALTH_TYPE_BUILDING;
@@ -499,23 +491,11 @@ EntityClass* EntityTrapClass::Derive(unsigned int uHash)
     return new EntityTrapClass(this, uHash);
 }
 
-// FUNCTION: SWBF2 0x004fcd30
-bool EntityTrapClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashEntityTrapClass || EntityBuildingClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x004fcd70
-unsigned int EntityTrapClass::GetDerivedRtti()
-{
-    return rttiHashEntityTrapClass;
-}
 
-// FUNCTION: SWBF2 0x004fcd80
-const char* EntityTrapClass::GetDerivedRttiName()
-{
-    return rttiNameEntityTrapClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x004fd0b0
 bool EntityTrap::Update(float fDeltaTime)
@@ -550,7 +530,6 @@ bool EntityTrap::Update(float fDeltaTime)
                 SetCollisionModel(&mTrapClass->mBuildBoxCollisionModel);
                 SetCollisionCenter(mBuildBoxCollisionSphere.GetCenter());
                 SetCollisionRadius(mBuildBoxCollisionSphere.GetRadius());
-                Set2DCollisionRadius(mBuildBoxCollisionSphere.GetRadius());
                 RecalculateAABB();
                 if (IsInCollisionList())
                 {
@@ -620,14 +599,11 @@ bool EntityTrap::Update(float fDeltaTime)
             GetModel()->GetRedModel(0)->GetBoneMatrix(mTrapClass->mTriggerNode, mNode);
         }
         PblMatrix mOffset = _IdentityMatrix;
-        mOffset.m[3][0] = mTrapClass->mTriggerOffset.x;
-        mOffset.m[3][1] = mTrapClass->mTriggerOffset.y;
-        mOffset.m[3][2] = mTrapClass->mTriggerOffset.z;
-        mOffset.m[3][3] = 1.0f;
+        mOffset.SetTranslation(mTrapClass->mTriggerOffset);
         PblMatrix mLocal;
-        D3DXMatrixMultiply(&mLocal, &mOffset, &mNode);
+        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mLocal), reinterpret_cast<const D3DXMATRIX*>(&mOffset), reinterpret_cast<const D3DXMATRIX*>(&mNode));
         PblMatrix mWorld;
-        D3DXMatrixMultiply(&mWorld, &mLocal, &mMatrix);
+        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mWorld), reinterpret_cast<const D3DXMATRIX*>(&mLocal), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
 
         PblVector3 vTrigger = mWorld.GetTranslation();
         if (RedTerrain::_bEnable)
@@ -735,14 +711,11 @@ bool EntityTrap::Update(float fDeltaTime)
             GetModel()->GetRedModel(0)->GetBoneMatrix(mTrapClass->mTriggerNode, mNode);
         }
         PblMatrix mOffset(_IdentityMatrix);
-        mOffset.m[3][0] = mTrapClass->mTriggerOffset.x;
-        mOffset.m[3][1] = mTrapClass->mTriggerOffset.y;
-        mOffset.m[3][2] = mTrapClass->mTriggerOffset.z;
-        mOffset.m[3][3] = 1.0f;
+        mOffset.SetTranslation(mTrapClass->mTriggerOffset);
         PblMatrix mLocal;
-        D3DXMatrixMultiply(&mLocal, &mOffset, &mNode);
+        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mLocal), reinterpret_cast<const D3DXMATRIX*>(&mOffset), reinterpret_cast<const D3DXMATRIX*>(&mNode));
         PblMatrix mWorld;
-        D3DXMatrixMultiply(&mWorld, &mLocal, &mMatrix);
+        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mWorld), reinterpret_cast<const D3DXMATRIX*>(&mLocal), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
 
         PblVector3 vTrigger = mWorld.GetTranslation();
         if (RedTerrain::_bEnable)
@@ -767,10 +740,7 @@ bool EntityTrap::Update(float fDeltaTime)
             if (pEffectClass)
             {
                 PblMatrix mEffect = _IdentityMatrix;
-                mEffect.m[3][0] = mTrapClass->mDeathEffectOffset.x;
-                mEffect.m[3][1] = mTrapClass->mDeathEffectOffset.y;
-                mEffect.m[3][2] = mTrapClass->mDeathEffectOffset.z;
-                mEffect.m[3][3] = 1.0f;
+                mEffect.SetTranslation(mTrapClass->mDeathEffectOffset);
                 FLEffectObject* pEffect = pEffectClass->BuildEffect();
                 if (pEffect)
                 {
@@ -806,7 +776,7 @@ bool EntityTrap::Update(float fDeltaTime)
         if (mBuildBox->IsRtti(EntityProp::rttiHashEntityProp))
         {
             EntityProp* pProp = static_cast<EntityProp*>(mBuildBox);
-            static_cast<RedSceneObject*>(pProp)->Activate();
+            pProp->Activate();
             pProp->AddStaticToCollisionManager();
         }
         mBuildingTrap = false;
@@ -822,16 +792,13 @@ Entity* EntityTrapClass::Build(const EntityDesc& desc)
     if (mBuildBoxOdf)
     {
         EntityDesc kBoxDesc;
-        D3DXMatrixMultiply(&kBoxDesc.mMatrix, &mBuildOffset, &desc.mMatrix);
+        kBoxDesc.mMatrix = mBuildOffset * desc.mMatrix;
         PblVector3 vPos = kBoxDesc.mMatrix.GetTranslation();
         if (RedTerrain::_bEnable)
         {
             vPos.y = RedTerrain::GetInterpolatedHeight(vPos.x, vPos.z);
         }
-        kBoxDesc.mMatrix.m[3][0] = vPos.x;
-        kBoxDesc.mMatrix.m[3][1] = vPos.y;
-        kBoxDesc.mMatrix.m[3][2] = vPos.z;
-        kBoxDesc.mMatrix.m[3][3] = 1.0f;
+        kBoxDesc.mMatrix.SetTranslation(vPos);
         pTrap->mBuildBox = mBuildBoxOdf->Build(kBoxDesc);
 
         if (pTrap->m_pHologram)
@@ -845,7 +812,7 @@ Entity* EntityTrapClass::Build(const EntityDesc& desc)
                     PblMatrix mBone;
                     if (pProp->GetModel()->GetRedModel(0)->GetBoneMatrix(0xD1E4CC7A, mBone))
                     {
-                        D3DXMatrixMultiply(&mHologram, &mBone, &pProp->GetMatrix());
+                        mHologram = mBone * pProp->GetMatrix();
                     }
                     else
                     {
@@ -878,8 +845,7 @@ Entity* EntityTrapClass::Build(const EntityDesc& desc)
         mBody.m[3][2] = kBoxDesc.mMatrix.m[3][2] + vOffset.z;
         mBody.m[3][3] = 1.0f;
         PblMatrix mInverse = pTrap->GetMatrix().GetInverseFast();
-        PblMatrix mLocal;
-        D3DXMatrixMultiply(&mLocal, &mBody, &mInverse);
+        PblMatrix mLocal = mBody * mInverse;
 
         mBuildBoxCollisionModel.AddBody(new CollisionBodyPrimitive(kPrimitive, "main_body", mLocal, 0));
         pTrap->SetCollisionModel(&mBuildBoxCollisionModel);
@@ -893,7 +859,6 @@ Entity* EntityTrapClass::Build(const EntityDesc& desc)
                                                              kBoxDesc.mMatrix.m[3][2] + vOffset.z));
         pTrap->SetCollisionCenter(pTrap->mBuildBoxCollisionSphere.GetCenter());
         pTrap->SetCollisionRadius(pTrap->mBuildBoxCollisionSphere.GetRadius());
-        pTrap->Set2DCollisionRadius(pTrap->mBuildBoxCollisionSphere.GetRadius());
         pTrap->RecalculateAABB();
     }
 

@@ -1,3 +1,4 @@
+#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -34,14 +35,15 @@
 
 extern PblVector3 gVectorZero;
 
-namespace EventManager { namespace FlagEvent {
+namespace EventManager
+{
+namespace FlagEvent
+{
 extern Event<FlagItem, Character> mPickUp;
 extern Event<FlagItem, Character> mDrop;
 extern Event<FlagItem, char> mReset;
 }
 
-template <>
-void Event<FlagItem, Character>::Trigger(FlagItem& item, Character& param);
 template <>
 void Event<FlagItem, Character>::Callback::Trigger(FlagItem& item, Character& param);
 template <>
@@ -49,7 +51,10 @@ void Event<FlagItem, char>::Callback::Trigger(FlagItem& item, char& param);
 }
 
 extern int gSpawnInvicibility;
-namespace GameLoop { extern bool mbHistoricalRules; }
+namespace GameLoop
+{
+extern bool mbHistoricalRules;
+}
 
 namespace
 {
@@ -58,41 +63,6 @@ CollisionObject* FlagCollision(FlagItem* pItem)
     return static_cast<CollisionObject*>(pItem);
 }
 
-RedSceneObject* FlagScene(FlagItem* pItem)
-{
-    return static_cast<RedSceneObject*>(pItem);
-}
-
-void SetFlagTransform(FlagItem* pItem, const PblVector3& pos)
-{
-    D3DXQUATERNION normalized;
-    PblMatrix matrix;
-    D3DXQuaternionNormalize(&normalized,
-        reinterpret_cast<const D3DXQUATERNION*>(&pItem->mStartRotation));
-    D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&matrix), &normalized);
-    memcpy(&matrix.m[3][0], &pos, sizeof(pos));
-    matrix.m[3][3] = 1.0f;
-    FlagCollision(pItem)->SetMatrix(matrix);
-}
-
-void RestoreFlagModel(FlagItem* pItem)
-{
-    GameModel* pModel = pItem->mDroppedModel;
-    GameModel* pLanding = pItem->mDroppedInLandingZoneModel;
-    if (pLanding && pItem->IsInLandingZone())
-    {
-        reinterpret_cast<EntityGeometry*>(pItem)->SetModel(pLanding);
-    }
-    else if (pModel)
-    {
-        reinterpret_cast<EntityGeometry*>(pItem)->SetModel(pModel);
-    }
-    else
-    {
-        FlagScene(pItem)->Activate();
-        pItem->SetupCollisionGeometry();
-    }
-}
 }
 
 // FUNCTION: SWBF2 0x00523fd0
@@ -131,10 +101,8 @@ bool FlagItem::Drop()
     Character* pCarrier = reinterpret_cast<EntityItem*>(pItem)->mOwner;
     if (pCarrier && pCarrier->mUnit)
     {
-        const PblMatrix& carrierMatrix = pCarrier->mUnit->GetMatrix();
-        const PblVector3& vPos = carrierMatrix.GetTranslation();
-        PblVector3 dropPos(vPos.x, vPos.y + 1.0f, vPos.z);
-        SetFlagTransform(pItem, dropPos);
+        static_cast<CollisionObject*>(pItem)->SetMatrix(PblMatrix(pItem->mStartRotation,
+            pCarrier->mUnit->GetMatrix().GetTranslation() + PblVector3(0.0f, 1.0f, 0.0f)));
         reinterpret_cast<EntityItem*>(pItem)->mVelocity = PblVector3(0.0f, 0.0f, 0.0f);
     }
 
@@ -142,7 +110,19 @@ bool FlagItem::Drop()
     pItem->ClearCarrierFlagItem();
     reinterpret_cast<EntityItem*>(pItem)->mOwner = 0;
     reinterpret_cast<EntityItem*>(pItem)->mStationary = false;
-    RestoreFlagModel(pItem);
+    if (pItem->mDroppedInLandingZoneModel && pItem->IsInLandingZone())
+    {
+        reinterpret_cast<EntityGeometry*>(pItem)->SetModel(pItem->mDroppedInLandingZoneModel);
+    }
+    else if (pItem->mDroppedModel)
+    {
+        reinterpret_cast<EntityGeometry*>(pItem)->SetModel(pItem->mDroppedModel);
+    }
+    else
+    {
+        static_cast<RedSceneObject*>(pItem)->Activate();
+        pItem->SetupCollisionGeometry();
+    }
 
     if (reinterpret_cast<EntityItem*>(pItem)->m_pLight)
     {
@@ -168,10 +148,9 @@ bool FlagItem::Drop()
 void FlagItem::ResetFlag()
 {
     FlagItem* pItem = this;
-    const PblVector3& startPos = pItem->mStartPosition;
-    SetFlagTransform(pItem, startPos);
-    PblVector3& pos = pItem->mLastPosition;
-    pos = startPos;
+    static_cast<CollisionObject*>(pItem)->SetMatrix(PblMatrix(pItem->mStartRotation,
+        pItem->mStartPosition));
+    pItem->mLastPosition = pItem->mStartPosition;
 
     if (!NetGame::IsEnabled() || !netEnabledNext || !netClientActive)
     {
@@ -185,7 +164,19 @@ void FlagItem::ResetFlag()
     pItem->ClearCarrierFlagItem();
     reinterpret_cast<EntityItem*>(pItem)->mOwner = 0;
     reinterpret_cast<EntityItem*>(pItem)->mStationary = false;
-    RestoreFlagModel(pItem);
+    if (pItem->mDroppedInLandingZoneModel && pItem->IsInLandingZone())
+    {
+        reinterpret_cast<EntityGeometry*>(pItem)->SetModel(pItem->mDroppedInLandingZoneModel);
+    }
+    else if (pItem->mDroppedModel)
+    {
+        reinterpret_cast<EntityGeometry*>(pItem)->SetModel(pItem->mDroppedModel);
+    }
+    else
+    {
+        static_cast<RedSceneObject*>(pItem)->Activate();
+        pItem->SetupCollisionGeometry();
+    }
     reinterpret_cast<EntityGeometry*>(pItem)->SetVelocity(gVectorZero);
     if (reinterpret_cast<EntityItem*>(pItem)->m_pLight)
     {
@@ -224,7 +215,6 @@ void FlagItem::SetupCollisionGeometry()
 
     CollisionObject* pCollision = FlagCollision(this);
     pCollision->SetCollisionRadius(fRadius);
-    pCollision->Set2DCollisionRadius(fRadius);
     const PblVector3& vPos = mMatrix.GetTranslation();
     pCollision->SetCollisionCenter(vPos);
     pCollision->SetCollisionModel(pModel);
@@ -258,7 +248,7 @@ bool FlagItem::IsInLandingZone() const
     {
         TriggerRegionManager::TriggerRegionData* pData = pManager->GetTriggerRegionData(i);
         if (pData && pData->mType == TriggerRegionManager::TRIGGER_LANDING &&
-            pData->mRegion->IsPointInside(*(const PblVector3*)pCollision->GetMatrix().m[3]))
+            pData->mRegion->IsPointInside(pCollision->GetMatrix().GetTranslation()))
         {
             return true;
         }
@@ -280,8 +270,13 @@ void Event<FlagItem, Character>::Callback::Trigger(FlagItem& item, Character& pa
         if (pChild)
         {
             pChild->AddRef();
-            while (pChild->IsAlive())
+            while (pChild)
             {
+                if (!pChild->IsAlive())
+                {
+                    pChild->Release();
+                    break;
+                }
                 Callback* pNext = (Callback*)pChild->mSibling;
                 if (pNext)
                 {
@@ -290,14 +285,6 @@ void Event<FlagItem, Character>::Callback::Trigger(FlagItem& item, Character& pa
                 pChild->Trigger(item, param);
                 pChild->Release();
                 pChild = pNext;
-                if (!pChild)
-                {
-                    break;
-                }
-            }
-            if (pChild)
-            {
-                pChild->Release();
             }
         }
     }
@@ -315,8 +302,13 @@ void Event<FlagItem, char>::Callback::Trigger(FlagItem& item, char& param)
         if (pChild)
         {
             pChild->AddRef();
-            while (pChild->IsAlive())
+            while (pChild)
             {
+                if (!pChild->IsAlive())
+                {
+                    pChild->Release();
+                    break;
+                }
                 Callback* pNext = (Callback*)pChild->mSibling;
                 if (pNext)
                 {
@@ -325,14 +317,6 @@ void Event<FlagItem, char>::Callback::Trigger(FlagItem& item, char& param)
                 pChild->Trigger(item, param);
                 pChild->Release();
                 pChild = pNext;
-                if (!pChild)
-                {
-                    break;
-                }
-            }
-            if (pChild)
-            {
-                pChild->Release();
             }
         }
     }
@@ -355,23 +339,35 @@ FlagItemClass::FlagItemClass(unsigned int uHash)
     mCarriedDroidekaBoneHash = 0x698AED8Au;
 }
 
-// GLOBAL: SWBF2 0x01ebc2b8
 // SYNTHETIC: SWBF2 0x00403850
 // `dynamic initializer for 'FlagItem::rttiHashFlagItem''
-PblHash FlagItem::rttiHashFlagItem("FlagItem");
-char FlagItem::rttiNameFlagItem[] = "FlagItem";
+// FlagItem::rttiHashFlagItem
 
-// GLOBAL: SWBF2 0x01ebc2b4
+// GLOBAL: SWBF2 0x01ebc2b8
+// FlagItem::rttiHashFlagItem
+PblHash FlagItem::rttiHashFlagItem("FlagItem");
+// GLOBAL: SWBF2 0x00789858
+// FlagItem::rttiNameFlagItem
+const char FlagItem::rttiNameFlagItem[] = "FlagItem";
+
 // SYNTHETIC: SWBF2 0x00403860
 // `dynamic initializer for 'FlagItemClass::rttiHashFlagItemClass''
-PblHash FlagItemClass::rttiHashFlagItemClass("FlagItemClass");
-char FlagItemClass::rttiNameFlagItemClass[] = "FlagItemClass";
+// FlagItemClass::rttiHashFlagItemClass
 
-// GLOBAL: SWBF2 0x01ebcfa0
+// GLOBAL: SWBF2 0x01ebc2b4
+// FlagItemClass::rttiHashFlagItemClass
+PblHash FlagItemClass::rttiHashFlagItemClass("FlagItemClass");
+// GLOBAL: SWBF2 0x00789848
+// FlagItemClass::rttiNameFlagItemClass
+const char FlagItemClass::rttiNameFlagItemClass[] = "FlagItemClass";
+
 // SYNTHETIC: SWBF2 0x00403830
 // `dynamic initializer for 'FlagItem::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00768720
 // `dynamic atexit destructor for 'FlagItem::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ebcfa0
+// FlagItem::sMemoryPool
 MemoryPool FlagItem::sMemoryPool("FlagItem", 0x450);
 
 // GLOBAL: SWBF2 0x007eb888
@@ -389,12 +385,7 @@ void FlagItem::RenderHelper(unsigned char ucLod, float fAlpha, unsigned int uiFl
 {
     const FlagItemClass* pClass = static_cast<const FlagItemClass*>(mEntityClass);
     const bool bCarried = mOwner != 0;
-    const GameModel* pModel = mModel;
-    const unsigned int nCloth = pModel->mClothCount;
     EntityCloth* const* pCloth = mClothPiece;
-    const PblMatrix& mWorld = mMatrix;
-    const float fLife = mLifeTimer;
-    const float fFade = fLife + 1.0f < 1.0f ? fLife + 1.0f : 1.0f;
 
     if (pClass->mTeamColorize[bCarried ? 1 : 0])
     {
@@ -408,14 +399,17 @@ void FlagItem::RenderHelper(unsigned char ucLod, float fAlpha, unsigned int uiFl
         Team* pTeam = pCharacter && pCharacter->mPlayerId == iLocal
                     ? pCharacter->mTeamPtr : Team::sTeams[1];
         const int iFlagTeam = mTeam;
-        RedColor color = pTeam->mColor[iFlagTeam];
+        RedColor color = pTeam->GetColor(iFlagTeam);
+        const float fLife = mLifeTimer;
+        const float fFade = fLife + 1.0f > 1.0f ? 1.0f : fLife + 1.0f;
         color.a = static_cast<unsigned char>(static_cast<int>(color.a * fAlpha * fFade));
-        if (nCloth)
+        const PblMatrix mWorld = mMatrix;
+        if (mModel->mClothCount)
         {
             RedColor modelColor = RedColor::WHITE;
             modelColor.a = color.a;
-            pModel->Render(ucLod, fAlpha, &mWorld, 0, modelColor, uiFlags, 0);
-            for (unsigned int i = 0; i < nCloth; ++i)
+            mModel->Render(ucLod, fAlpha, &mWorld, 0, modelColor, uiFlags, 0);
+            for (unsigned int i = 0; i < mModel->mClothCount; ++i)
             {
                 if (pCloth[i])
                 {
@@ -425,20 +419,23 @@ void FlagItem::RenderHelper(unsigned char ucLod, float fAlpha, unsigned int uiFl
         }
         else
         {
-            pModel->Render(ucLod, fAlpha, &mWorld, 0, color, uiFlags, 0);
+            mModel->Render(ucLod, fAlpha, &mWorld, 0, color, uiFlags, 0);
         }
     }
     else
     {
         reinterpret_cast<EntityItem*>(this)->EntityItem::Render(ucLod, fAlpha, uiFlags);
-        if (nCloth)
+        if (mModel->mClothCount)
         {
-            RedColor color = RedColor::WHITE;
-            color.a = static_cast<unsigned char>(static_cast<int>(fAlpha * fFade * 255.0f));
-            for (unsigned int i = 0; i < nCloth; ++i)
+            const PblMatrix mWorld = mMatrix;
+            const float fLife = mLifeTimer;
+            const float fFade = fLife + 1.0f > 1.0f ? 1.0f : fLife + 1.0f;
+            for (unsigned int i = 0; i < mModel->mClothCount; ++i)
             {
                 if (pCloth[i])
                 {
+                    RedColor color = RedColor::WHITE;
+                    color.a = static_cast<unsigned char>(static_cast<int>(fAlpha * fFade * 255.0f));
                     pCloth[i]->Render(mWorld, 0, ucLod, color, uiFlags, 1);
                 }
             }
@@ -446,41 +443,17 @@ void FlagItem::RenderHelper(unsigned char ucLod, float fAlpha, unsigned int uiFl
     }
 }
 
-// FUNCTION: SWBF2 0x00524010
-bool FlagItemClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashFlagItemClass || EntityItemClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00524050
-unsigned int FlagItemClass::GetDerivedRtti()
-{
-    return rttiHashFlagItemClass;
-}
 
-// FUNCTION: SWBF2 0x00524060
-const char* FlagItemClass::GetDerivedRttiName()
-{
-    return rttiNameFlagItemClass;
-}
 
-// FUNCTION: SWBF2 0x00523f30
-bool FlagItem::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashFlagItem || EntityItem::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00523f80
-unsigned int FlagItem::GetDerivedRtti() const
-{
-    return rttiHashFlagItem;
-}
 
-// FUNCTION: SWBF2 0x00523f90
-const char* FlagItem::GetDerivedRttiName() const
-{
-    return rttiNameFlagItem;
-}
+
+
+
+
+
+
 
 // FUNCTION: SWBF2 0x00523fb0
 EntityType FlagItem::GetEntityType() const
@@ -502,7 +475,8 @@ void FlagItem::Reset()
     sFlagGameplayType = (FlagGameplayType)0;
 }
 
-// FUNCTION: SWBF2 0x00525bf0
+// TEMPLATE: SWBF2 0x00525bf0
+// PblList<FlagItem>::RemoveAll
 template void PblList<FlagItem>::RemoveAll();
 
 // FUNCTION: SWBF2 0x00524460
@@ -571,51 +545,65 @@ FlagItemClass::~FlagItemClass()
 // FUNCTION: SWBF2 0x00525910
 void FlagItemClass::SetProperty(unsigned int uProperty, const char* pszValue)
 {
-    if (uProperty == 0x05CEA8DE)
+    switch (uProperty)
+    {
+    case 0x05CEA8DE:
     {
         mCarriedModel = const_cast<GameModel*>(GameModel::Find(PblHash(pszValue)));
+            break;
     }
-    else if (uProperty == 0x0E0C4B60)
+    case 0x0E0C4B60:
     {
         mDroppedInLandingZoneModel = const_cast<GameModel*>(GameModel::Find(PblHash(pszValue)));
+            break;
     }
-    else if (uProperty == 0x58A48A9E)
+    case 0x58A48A9E:
     {
         float x, y, z;
         sscanf(pszValue, "%f %f %f", &x, &y, &z);
         mCarriedOffset = PblVector3(x, y, z);
+            break;
     }
-    else if (uProperty == 0xDA070BBA)
+    case 0xDA070BBA:
     {
         mTeamColorize[0] = atoi(pszValue) != 0;
+            break;
     }
-    else if (uProperty == 0xCC229F56)
+    case 0xCC229F56:
     {
         mTeamColorize[1] = atoi(pszValue) != 0;
+            break;
     }
-    else if (uProperty == 0x759C8F54)
+    case 0x759C8F54:
     {
         mPickupSound.SetID(pszValue, false, false);
+            break;
     }
-    else if (uProperty == 0x5B2F29F3)
+    case 0x5B2F29F3:
     {
         mDropSound.SetID(pszValue, false, false);
+            break;
     }
-    else if (uProperty == 0x65A920BA)
+    case 0x65A920BA:
     {
         mAmbientSound.SetID(pszValue, false, false);
+            break;
     }
-    else if (uProperty == 0x826BFFDA)
+    case 0x826BFFDA:
     {
         mCarriedSoldierBoneHash = PblTEMPHash(pszValue);
+            break;
     }
-    else if (uProperty == 0x4B80027B)
+    case 0x4B80027B:
     {
         mCarriedDroidekaBoneHash = PblTEMPHash(pszValue);
+            break;
     }
-    else
+    default:
     {
         EntityItemClass::SetProperty(uProperty, pszValue);
+            break;
+    }
     }
 }
 
@@ -625,15 +613,7 @@ EntityClass* FlagItemClass::Derive(unsigned int uHash)
     return new FlagItemClass(this, uHash);
 }
 
-// FUNCTION: SWBF2 0x00525c30
-template <>
-void EventManager::Event<FlagItem, Character>::Trigger(FlagItem& item, Character& param)
-{
-    if (!NetGame::IsEnabled() || !netEnabledNext || !netClientActive)
-    {
-        mRoot.Trigger(item, param);
-    }
-}
+
 
 // FUNCTION: SWBF2 0x005240b0
 FlagItem::FlagItem(FlagItemClass* pClass, const EntityDesc& desc)
@@ -658,10 +638,7 @@ FlagItem::FlagItem(FlagItemClass* pClass, const EntityDesc& desc)
     SetPortalActive(false);
     pvs::IManager::GetInstance().UnregisterDynamic(*this);
 
-    for (int i = 0; i < 8; ++i)
-    {
-        mClothPiece[i] = 0;
-    }
+    memset(mClothPiece, 0, sizeof(mClothPiece));
     for (unsigned int i = 0; i < mModel->mClothCount; ++i)
     {
         EntityClass* pClothClass = EntityClass::Find(mModel->mClothList[i]);
@@ -695,15 +672,15 @@ FlagItem::~FlagItem()
 // SYNTHETIC: SWBF2 0x005242f0
 // FlagItem::`scalar deleting destructor'
 // SYNTHETIC: SWBF2 0x00525ea7
-// [thunk]:FlagItem::`scalar deleting destructor' adjustor{512}
+// ??_EFlagItem@@WCAA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00525eb2
-// [thunk]:FlagItem::`scalar deleting destructor' adjustor{576}
+// ??_EFlagItem@@WCEA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00525ebd
-// [thunk]:FlagItem::`scalar deleting destructor' adjustor{148}
+// ??_EFlagItem@@WJE@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00525ec8
-// [thunk]:FlagItem::`scalar deleting destructor' adjustor{320}
+// ??_EFlagItem@@WBEA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00525ed3
-// [thunk]:FlagItem::`scalar deleting destructor' adjustor{12}
+// ??_EFlagItem@@WM@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x005244f0
 bool FlagItem::PickUp(GameObject* pObject)
@@ -761,7 +738,7 @@ bool FlagItem::PickUp(GameObject* pObject)
     mOwner = pCharacter;
     mStationary = true;
     pCharacter->mCarriedFlagPtr = this;
-    mOwner->GetPlayerStats().PointsProcess(0x1a, 0);
+    Character::GetPlayerStats(mOwner).PointsProcess(0x1a, 0);
     if (mCarriedModel)
     {
         SetModel(mCarriedModel);
@@ -842,7 +819,7 @@ void FlagItem::BroadcastMessage(unsigned int uHash)
 // FUNCTION: SWBF2 0x00524de0
 bool FlagItem::Update(float fDeltaTime)
 {
-    if (!mIsAlive)
+    if (!IsAlive())
     {
         return false;
     }
@@ -859,7 +836,7 @@ bool FlagItem::Update(float fDeltaTime)
             GameObject* pCarrier = static_cast<Trackable*>(pControllable)->GetGameObject();
             if (pCarrier)
             {
-                if (!pCarrier->mIsAlive)
+                if (!pCarrier->IsAlive())
                 {
                     Drop();
                 }
@@ -919,11 +896,11 @@ bool FlagItem::Update(float fDeltaTime)
 bool FlagItem::CollisionCallback(const CollisionResult* pResult, CollisionObject* pOther,
                                  Restrictor* pRestrictor)
 {
-    if (mIsAlive && !mOwner &&
+    if (IsAlive() && !mOwner &&
         (!mStationary || mClass->mLifeSpan - mLifeTimer > 0.5f))
     {
         GameObject* pObject = pOther->GetGameObject();
-        if (pObject && pObject->mIsAlive &&
+        if (pObject && pObject->IsAlive() &&
             (((pObject->mTeam ^ mTeam) & 0xf) || (mAllowTeamPickup && mMoved)) &&
             PickUp(pObject))
         {

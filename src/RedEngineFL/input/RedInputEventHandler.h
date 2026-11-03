@@ -43,7 +43,9 @@ public:
 
     // FUNCTION: SWBF2 0x00529ac0
     virtual void KeyboardEvent(RedInputEventType, RedKeyboard*, unsigned char,
-                               unsigned char, unsigned short) {}
+unsigned char, unsigned short)
+{
+}
 
     // FUNCTION: SWBF2 0x00527f10
     virtual void JoystickEvent(RedInputEventType, RedJoystick*) {}

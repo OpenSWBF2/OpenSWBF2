@@ -1,8 +1,12 @@
 #include "pcRedInputManager.h"
 
 #include "PebbleFL/Common/PblJournal.h"
+#include "PebbleFL/Common/PblValues.h"
 #include "Battlefront2/Source/NetSetup.h"
 #include "lglcd/lgLcd.h"
+
+// GLOBAL: SWBF2 0x007873e4
+// IID_IDirectInput8A
 
 extern HINSTANCE hGlobalInstance;
 
@@ -134,26 +138,33 @@ static IDirectInput8A* CreateFakeInput()
 namespace RedInputManager
 {
 
+// GLOBAL: SWBF2 0x0099cd01
 bool isReadingJournal;
 IDirectInput8A* m_pDI;
 unsigned int m_numJoysticks;
-// GLOBAL: SWBF2 0x0099cd18
 // SYNTHETIC: SWBF2 0x004085d0
-// `dynamic initializer for 'RedInputManager::m_keyboards''
+// RedInputManager::`dynamic initializer for 'm_keyboards''
 // SYNTHETIC: SWBF2 0x007699d0
-// `dynamic atexit destructor for 'RedInputManager::m_keyboards''
+// RedInputManager::`dynamic atexit destructor for 'm_keyboards''
+
+// GLOBAL: SWBF2 0x0099cd18
+// m_keyboards
 RedKeyboard m_keyboards[1];
-// GLOBAL: SWBF2 0x0099d138
 // SYNTHETIC: SWBF2 0x00408630
-// `dynamic initializer for 'RedInputManager::m_mouses''
+// RedInputManager::`dynamic initializer for 'm_mouses''
 // SYNTHETIC: SWBF2 0x00769a10
-// `dynamic atexit destructor for 'RedInputManager::m_mouses''
+// RedInputManager::`dynamic atexit destructor for 'm_mouses''
+
+// GLOBAL: SWBF2 0x0099d138
+// m_mouses
 RedMouse m_mouses[1];
-// GLOBAL: SWBF2 0x0099d188
 // SYNTHETIC: SWBF2 0x004085a0
-// `dynamic initializer for 'RedInputManager::m_joysticks''
+// RedInputManager::`dynamic initializer for 'm_joysticks''
 // SYNTHETIC: SWBF2 0x007699b0
-// `dynamic atexit destructor for 'RedInputManager::m_joysticks''
+// RedInputManager::`dynamic atexit destructor for 'm_joysticks''
+
+// GLOBAL: SWBF2 0x0099d188
+// m_joysticks
 RedJoystick m_joysticks[10];
 
 // FUNCTION: SWBF2 0x006dbec0
@@ -165,19 +176,21 @@ RedMouse* GetMouse(unsigned char ucPort)
 // FUNCTION: SWBF2 0x006dbf50
 void Init()
 {
+    PblValues::Record('i', PVT_FULL);
 
     isReadingJournal = (PblJournal::Get(PJT_FULL)->mMode == PJM_READING);
 
-    if (g_bNoRender)
+    if (!g_bNoRender)
     {
-
-        m_pDI = 0;
+        if (!isReadingJournal)
+        {
+            DirectInput8Create(hGlobalInstance, DIRECTINPUT_VERSION, IID_IDirectInput8A,
+                               (void**)&m_pDI, 0);
+        }
     }
-    else if (!isReadingJournal)
+    else
     {
-
-        DirectInput8Create(hGlobalInstance, DIRECTINPUT_VERSION, IID_IDirectInput8A,
-                           (void**)&m_pDI, 0);
+        m_pDI = 0;
     }
 
     if (!m_pDI)
@@ -192,8 +205,8 @@ void Init()
 
     if (!gDisableLCD)
     {
-        ConnectLCDPanel(&gLCDPanels[0], 0);
-        OpenLCDPanel(&gLCDPanels[0]);
+        gLCDPanels[0].ConnectLCDPanel(0);
+        gLCDPanels[0].OpenLCDPanel();
     }
 
     RedKeyboard::StaticInit();
@@ -205,13 +218,11 @@ void Init()
     m_numJoysticks = 0;
     if (!isReadingJournal)
     {
-
         m_pDI->EnumDevices(DI8DEVCLASS_GAMECTRL, pcEnumJoystickDevice, 0,
                            DIEDFL_ATTACHEDONLY);
     }
     else
     {
-
         bool bMoreJoysticks = false;
         while (bMoreJoysticks)
         {
@@ -273,10 +284,10 @@ RedLogitechLCD* GetLCDPanel(unsigned char ucPort)
 // FUNCTION: SWBF2 0x006dbc30
 void Cleanup()
 {
-    for (unsigned char ucPort = 0; ucPort < 10; ++ucPort)
+    for (int iPort = 0; iPort < 10; ++iPort)
     {
-        m_joysticks[ucPort].Remove();
-        m_joysticks[ucPort].Cleanup();
+        m_joysticks[iPort].Remove();
+        m_joysticks[iPort].Cleanup();
     }
 
     m_keyboards[0].Remove();
@@ -286,8 +297,8 @@ void Cleanup()
 
     if (!gDisableLCD)
     {
-        CloseLCDPanel(&gLCDPanels[0]);
-        DisconnectLCDPanel(&gLCDPanels[0]);
+        gLCDPanels[0].CloseLCDPanel();
+        gLCDPanels[0].DisconnectLCDPanel();
     }
 
     m_numJoysticks = 0;
@@ -336,57 +347,20 @@ void RedInputManager::Update(float fDeltaTime)
     m_mouses[0].Update(fDeltaTime);
     if (!gDisableLCD)
     {
-        UpdateLCDPanel(&gLCDPanels[0], fDeltaTime);
+        gLCDPanels[0].UpdateLCDPanel(fDeltaTime);
     }
 }
 
 // LIBRARY: SWBF2 0x00754920
 // DirectInput8Create
 
-// FUNCTION: SWBF2 0x006f00d0
-void DisconnectLCDPanel(RedLogitechLCD* pThis)
-{
-    if (pThis->mConnected)
-    {
-        lgLcdDisconnect(pThis->mConnectCtx.connection);
-    }
-    lgLcdDeInit();
-    pThis->mConnected = false;
-}
 
-// FUNCTION: SWBF2 0x006f0620
-void CloseLCDPanel(RedLogitechLCD* pThis)
-{
-    if (pThis->mpBitmap)
-    {
-        delete pThis->mpBitmap;
-        pThis->mpBitmap = 0;
-    }
-    if (pThis->mhBitmap)
-    {
-        DeleteObject(pThis->mhBitmap);
-        pThis->mhBitmap = 0;
-        pThis->mpBits = 0;
-    }
-    if (pThis->mpBitmapInfo)
-    {
-        delete[] (BYTE*)pThis->mpBitmapInfo;
-        pThis->mpBitmapInfo = 0;
-    }
-    if (pThis->mhDC)
-    {
-        DeleteDC(pThis->mhDC);
-        pThis->mhDC = 0;
-    }
-    if (pThis->mhFont)
-    {
-        DeleteObject(pThis->mhFont);
-        pThis->mhFont = 0;
-    }
-    pThis->mhOldBitmap = 0;
-    if (pThis->mOpened && pThis->mConnected)
-    {
-        lgLcdClose(pThis->mOpenCtx.device);
-        pThis->mOpened = false;
-    }
-}
+
+
+
+// GLOBAL: SWBF2 0x99cd08
+// RedInputManager::m_numJoysticks
+
+// GLOBAL: SWBF2 0x99cd04
+// RedInputManager::m_pDI
+

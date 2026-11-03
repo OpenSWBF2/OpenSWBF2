@@ -59,6 +59,7 @@ local const config configuration_table[2] = {
   {0,    0,  0,    0, deflate_stored},
   {4,    4,  8,    4, deflate_fast}};
 #else
+// GLOBAL: SWBF2 0x76d588
 local const config configuration_table[10] = {
 
   {0,    0,  0,    0, deflate_stored},

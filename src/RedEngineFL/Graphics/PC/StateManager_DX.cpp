@@ -4,7 +4,8 @@
 
 #include "RedEngineFL/Memory/RedMemory.h"
 
-namespace dx {
+namespace dx
+{
 
 // GLOBAL: SWBF2 0x009caafc
 StateManager_DX* localInstance_;

@@ -14,6 +14,7 @@ class pcRedPrimitive;
 class pcRedShader;
 class ShadowRenderable;
 
+// VTABLE: SWBF2 0x0078385c
 class RedStencilShadow
 {
 public:
@@ -83,6 +84,7 @@ public:
  
  
 
+// VTABLE: SWBF2 0x00783864
 struct ShadowData
 {
 public:

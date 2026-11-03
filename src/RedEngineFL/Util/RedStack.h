@@ -5,20 +5,10 @@
 class RedStack
 {
 public:
-    RedStack() : mMemIdx(sMemIdx)
-    {
-#if defined(__SANITIZE_ADDRESS__)
-        PblAsanPoison(&sMem[sMemIdx], sizeof(sMem) - sMemIdx);
-#endif
-    }
-
-    ~RedStack()
-    {
-#if defined(__SANITIZE_ADDRESS__)
-        PblAsanPoison(&sMem[mMemIdx], sMemIdx - mMemIdx);
-#endif
-        sMemIdx = mMemIdx;
-    }
+    RedStack() : mMemIdx(sMemIdx) {}
+    // SYNTHETIC: SWBF2 0x0045db20
+    // RedStack::~RedStack
+    ~RedStack() { sMemIdx = mMemIdx; }
 
     void* Alloc(int iSize)
     {

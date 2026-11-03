@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 #include "PebbleFL/Common/PblBitVector.h"
 #include "RedEngineFL/Interface/Red3DModelAnimator.h"
@@ -16,7 +18,7 @@ public:
     virtual bool IsRtti(unsigned int uRtti) const;
     virtual unsigned int GetDerivedRtti() const;
     virtual const char* GetDerivedRttiName() const;
-    virtual ~IFaceSoldierAnimator();
+    virtual ~IFaceSoldierAnimator() {}
     // SYNTHETIC: SWBF2 0x0056a1d0
     // IFaceSoldierAnimator::`scalar deleting destructor'
     virtual void Open();
@@ -29,7 +31,7 @@ public:
     void QueueUpperLowerAnimations(unsigned int uUpperAnimHash, unsigned int uLowerAnimHash);
 
     static PblHash rttiHashIFaceSoldierAnimator;
-    static char rttiNameIFaceSoldierAnimator[];
+    static const char rttiNameIFaceSoldierAnimator[];
 
     unsigned int mLowerAnimHash;
     unsigned int mQueuedLowerAnim;
@@ -45,3 +47,25 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x0056a130
+inline bool IFaceSoldierAnimator::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashIFaceSoldierAnimator == uRtti)
+    {
+        return true;
+    }
+    return Red3DModelAnimator::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x0056a160
+inline unsigned int IFaceSoldierAnimator::GetDerivedRtti() const
+{
+    return rttiHashIFaceSoldierAnimator;
+}
+
+// FUNCTION: SWBF2 0x0056a170
+inline const char* IFaceSoldierAnimator::GetDerivedRttiName() const
+{
+    return rttiNameIFaceSoldierAnimator;
+}

@@ -333,6 +333,7 @@ int flush;
 #ifdef GUNZIP
     unsigned char hbuf[4];
 #endif
+    // GLOBAL: SWBF2 0x0076d4a8
     static const unsigned short order[19] =
         {16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15};
 

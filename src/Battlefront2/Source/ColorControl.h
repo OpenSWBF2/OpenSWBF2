@@ -7,8 +7,6 @@
 #include "RedEngineFL/Interface/RedInterfaceScreen.h"
 #include "RedEngineFL/Interface/RedVectorElement.h"
 
-// VTABLE: SWBF2 0x007974b4
-
 enum ControlT
 {
     COLORCONTROL_GAMMA_CONTRAST = 0,
@@ -17,6 +15,7 @@ enum ControlT
     COLORCONTROL_MAX = 3
 };
 
+// VTABLE: SWBF2 0x007974b4
 class ColorControl : public FLEffect
 {
 public:

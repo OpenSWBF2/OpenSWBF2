@@ -44,6 +44,11 @@ public:
     // FUNCTION: SWBF2 0x0044c530
     unsigned int GetCount() const { return mCount; }
 
+    int GetIndex(void* pBlock) const
+    {
+        return ((char*)pBlock - (char*)mPool) / mSize;
+    }
+
     bool IsFull() const { return mUsed >= mCount; }
 
     bool IsSufficientSpace(unsigned int uCount) const { return mUsed + uCount <= mCount; }

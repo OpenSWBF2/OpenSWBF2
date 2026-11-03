@@ -11,8 +11,7 @@ public:
     // FUNCTION: SWBF2 0x00726840
     RedMoviePlayerRenderer();
 
-    // FUNCTION: SWBF2 0x00726870
-    ~RedMoviePlayerRenderer() {}
+    ~RedMoviePlayerRenderer();
 
     bool OpenRenderer(int iHeap, RedBitmapElement** ppBitmaps,
                       unsigned int uiNumBitmaps);

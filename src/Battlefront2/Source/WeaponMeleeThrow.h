@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "Weapon.h"
@@ -16,9 +18,9 @@ public:
 
     virtual WeaponClass* Derive(unsigned int uHash);
     virtual Weapon* Build(const WeaponDesc& desc);
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
 
     int m_iPrimaryWeaponIndex;
@@ -28,7 +30,7 @@ public:
 
     // FUNCTION: SWBF2 0x0046dbf0
     static unsigned int GetRtti() { return rttiHashWeaponMeleeThrowClass; }
-    static char rttiNameWeaponMeleeThrowClass[];
+    static const char rttiNameWeaponMeleeThrowClass[];
 };
   
  
@@ -51,6 +53,7 @@ public:
     virtual Ordnance* CreateOrdnance(OrdnanceDesc& desc);
     void NotifyThrow();
     void NotifyReturned();
+    bool IsCurrentlyThrown() const { return m_bThrow; }
     virtual bool IsBusy() const;
     virtual bool Update(float fDeltaTime);
     virtual void Write(NetPktGroup& group);
@@ -80,8 +83,52 @@ public:
     PblMatrix m_mThrow0Local;
 
     static PblHash rttiHashWeaponMeleeThrow;
-    static char rttiNameWeaponMeleeThrow[];
+    static const char rttiNameWeaponMeleeThrow[];
 };
   
  
  
+
+// FUNCTION: SWBF2 0x0068f520
+inline bool WeaponMeleeThrow::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashWeaponMeleeThrow == uRtti)
+    {
+        return true;
+    }
+    return Weapon::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x0068f550
+inline unsigned int WeaponMeleeThrow::GetDerivedRtti() const
+{
+    return rttiHashWeaponMeleeThrow;
+}
+
+// FUNCTION: SWBF2 0x0068f560
+inline const char* WeaponMeleeThrow::GetDerivedRttiName() const
+{
+    return rttiNameWeaponMeleeThrow;
+}
+
+// FUNCTION: SWBF2 0x0068f5c0
+inline bool WeaponMeleeThrowClass::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashWeaponMeleeThrowClass == uRtti)
+    {
+        return true;
+    }
+    return WeaponClass::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x0068f5f0
+inline unsigned int WeaponMeleeThrowClass::GetDerivedRtti() const
+{
+    return rttiHashWeaponMeleeThrowClass;
+}
+
+// FUNCTION: SWBF2 0x0068f600
+inline const char* WeaponMeleeThrowClass::GetDerivedRttiName() const
+{
+    return rttiNameWeaponMeleeThrowClass;
+}

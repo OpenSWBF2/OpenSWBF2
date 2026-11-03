@@ -12,17 +12,10 @@ void RedInterfaceElement::Rotate(float fAngle)
 {
     float fSin, fCos;
     PblMath::SinCos(&fSin, &fCos, fAngle);
-    float oldX[3], oldY[3];
-    for (int i = 0; i != 3; ++i)
-    {
-        oldX[i] = m_mLocal.m[0][i];
-        oldY[i] = m_mLocal.m[1][i];
-    }
-    for (int i = 0; i != 3; ++i)
-    {
-        m_mLocal.m[0][i] = oldX[i] * fCos + oldY[i] * fSin;
-        m_mLocal.m[1][i] = oldX[i] * -fSin + oldY[i] * fCos;
-    }
+    PblVector3 vY = m_mLocal[1];
+    PblVector3 vX = m_mLocal[0];
+    m_mLocal[0] = vX * fCos + vY * fSin;
+    m_mLocal[1] = vX * -fSin + vY * fCos;
     m_mLocal.m[0][3] = 0.0f;
     m_mLocal.m[1][3] = 0.0f;
 }
@@ -32,60 +25,40 @@ void RedInterfaceElement::Rotate(float fX, float fY, float fAngle)
 {
     float fSin, fCos;
     PblMath::SinCos(&fSin, &fCos, fAngle);
-    float oldX[3], oldY[3];
-    for (int i = 0; i != 3; ++i)
-    {
-        oldX[i] = m_mLocal.m[0][i];
-        oldY[i] = m_mLocal.m[1][i];
-    }
-    for (int i = 0; i != 3; ++i)
-    {
-        m_mLocal.m[0][i] = oldX[i] * fCos + oldY[i] * fSin;
-        m_mLocal.m[1][i] = oldX[i] * -fSin + oldY[i] * fCos;
-        m_mLocal.m[3][i] = m_mLocal.m[3][i] + oldX[i] * fX + oldY[i] * fY;
-    }
+    PblVector3 vX = m_mLocal[0];
+    PblVector3 vY = m_mLocal[1];
+    m_mLocal[0] = vX * fCos + vY * fSin;
     m_mLocal.m[0][3] = 0.0f;
+    m_mLocal[1] = vX * -fSin + vY * fCos;
     m_mLocal.m[1][3] = 0.0f;
+    m_mLocal[3] = m_mLocal[3] + vX * fX + vY * fY;
     m_mLocal.m[3][3] = 1.0f;
 }
 
 // GLOBAL: SWBF2 0x008fe488
 unsigned int RedInterfaceElement::s_uiUnnamedCRC;
 
-// GLOBAL: SWBF2 0x008fe498
-int RedInterfaceElement::sAllObjectsListNumEntries;
-
-// GLOBAL: SWBF2 0x008fe49c
 // SYNTHETIC: SWBF2 0x00407a10
 // `dynamic initializer for 'RedInterfaceElement::sAllObjectsList''
 
+// GLOBAL: SWBF2 0x008fe498
 PblHashTable<RedInterfaceElement, 32768> RedInterfaceElement::sAllObjectsList;
 
 PblPtrSet<65536> RedInterfaceElement::sLuaHandles;
 
 // FUNCTION: SWBF2 0x006bfeb0
 RedInterfaceElement::RedInterfaceElement(const char* pcName)
+    : m_color(0xFF, 0xFF, 0xFF, 0xFF)
 {
     m_zorder = 128;
     m_bEnabled = true;
 
-    m_groupNode._pList = 0;
-    m_groupNode._pNext = 0;
-    m_groupNode._pPrev = 0;
-    m_groupNode._pObject = 0;
+    m_mLocal.SetXAxis(1.0f, 0.0f, 0.0f, 0.0f);
+    m_mLocal.SetYAxis(0.0f, 1.0f, 0.0f, 0.0f);
+    m_mLocal.SetZAxis(0.0f, 0.0f, 1.0f, 0.0f);
+    m_mLocal.SetTranslation(0.0f, 0.0f, 0.0f, 1.0f);
 
-    m_color.b = 0xFF;
-    m_color.g = 0xFF;
-    m_color.r = 0xFF;
-    m_color.a = 0xFF;
-
-    for (int i = 0; i < 4; i++)
-    {
-        for (int j = 0; j < 4; j++)
-        {
-            m_mLocal.m[i][j] = (i == j) ? 1.0f : 0.0f;
-        }
-    }
+    SetColor(RedColor(0xFF, 0xFF, 0xFF, 0xFF));
 
     m_bInAllObjectList = false;
     m_uiFlags = 0;
@@ -97,29 +70,20 @@ RedInterfaceElement::RedInterfaceElement(const char* pcName)
 
 // FUNCTION: SWBF2 0x006bff90
 RedInterfaceElement::RedInterfaceElement()
+    : m_zorder(128)
+    , m_bEnabled(true)
+    , m_color(0xFF, 0xFF, 0xFF, 0xFF)
 {
-    m_zorder = 128;
-    m_bEnabled = true;
+    m_mLocal.SetXAxis(1.0f, 0.0f, 0.0f, 0.0f);
+    m_mLocal.SetYAxis(0.0f, 1.0f, 0.0f, 0.0f);
+    m_mLocal.SetZAxis(0.0f, 0.0f, 1.0f, 0.0f);
+    m_mLocal.SetTranslation(0.0f, 0.0f, 0.0f, 1.0f);
 
-    m_groupNode._pList = 0;
-    m_groupNode._pNext = 0;
-    m_groupNode._pPrev = 0;
-    m_groupNode._pObject = 0;
+    SetColor(RedColor(0xFF, 0xFF, 0xFF, 0xFF));
 
-    m_color.b = 0xFF;
-    m_color.g = 0xFF;
-    m_color.r = 0xFF;
-    m_color.a = 0xFF;
-
-    for (int i = 0; i < 4; i++)
-    {
-        for (int j = 0; j < 4; j++)
-        {
-            m_mLocal.m[i][j] = (i == j) ? 1.0f : 0.0f;
-        }
-    }
-
-    m_crcName = s_uiUnnamedCRC++;
+    const unsigned int uiCRC = s_uiUnnamedCRC;
+    m_crcName = uiCRC;
+    s_uiUnnamedCRC = uiCRC + 1;
 
     m_bInAllObjectList = false;
     m_uiFlags = 0;
@@ -143,10 +107,7 @@ RedInterfaceElement::~RedInterfaceElement()
     if (m_bInAllObjectList)
     {
         m_bInAllObjectList = false;
-        if (sAllObjectsList.Remove(m_crcName))
-        {
-            --sAllObjectsListNumEntries;
-        }
+        sAllObjectsList.Remove(m_crcName);
     }
 
     if (m_groupNode._pList)
@@ -189,34 +150,18 @@ void RedInterfaceElement::SendToBack()
 void RedInterfaceElement::SetMatrixPosScale(float fX, float fY, float fScaleX,
                                             float fScaleY)
 {
-    m_mLocal.m[0][0] = fScaleX;
-    m_mLocal.m[0][1] = 0.0f;
-    m_mLocal.m[0][2] = 0.0f;
-    m_mLocal.m[0][3] = 0.0f;
-    m_mLocal.m[1][0] = 0.0f;
-    m_mLocal.m[1][1] = fScaleY;
-    m_mLocal.m[1][2] = 0.0f;
-    m_mLocal.m[1][3] = 0.0f;
-    m_mLocal.m[2][0] = 0.0f;
-    m_mLocal.m[2][1] = 0.0f;
-    m_mLocal.m[2][2] = 1.0f;
-    m_mLocal.m[2][3] = 0.0f;
-    m_mLocal.m[3][0] = fX;
-    m_mLocal.m[3][1] = fY;
-    m_mLocal.m[3][2] = 0.0f;
-    m_mLocal.m[3][3] = 1.0f;
+    m_mLocal.SetXAxis(fScaleX, 0.0f, 0.0f, 0.0f);
+    m_mLocal.SetYAxis(0.0f, fScaleY, 0.0f, 0.0f);
+    m_mLocal.SetZAxis(0.0f, 0.0f, 1.0f, 0.0f);
+    m_mLocal.SetTranslation(fX, fY, 0.0f, 1.0f);
 }
 
 // FUNCTION: SWBF2 0x006c0510
 void RedInterfaceElement::Scale(float fScaleX, float fScaleY)
 {
-    m_mLocal.m[0][0] *= fScaleX;
-    m_mLocal.m[0][1] *= fScaleX;
-    m_mLocal.m[0][2] *= fScaleX;
+    m_mLocal[0] = fScaleX * m_mLocal[0];
     m_mLocal.m[0][3] = 0.0f;
-    m_mLocal.m[1][0] *= fScaleY;
-    m_mLocal.m[1][1] *= fScaleY;
-    m_mLocal.m[1][2] *= fScaleY;
+    m_mLocal[1] = fScaleY * m_mLocal[1];
     m_mLocal.m[1][3] = 0.0f;
 }
 
@@ -239,24 +184,24 @@ void RedInterfaceElement::SetZOrder(unsigned char uZOrder)
 
     pList->Remove(&m_groupNode);
 
-    PblList<RedInterfaceElement>::Node* pAt = pList->GetFirst();
-    while (pAt->_pObject != pList->_head._pObject && uZOrder < pAt->_pObject->m_zorder)
+    PblList<RedInterfaceElement>::Itor it(*pList);
+    while (it != pList->End())
     {
-        pAt = pAt->_pNext;
+        unsigned char uOther = it->m_zorder;
+        if (uZOrder >= uOther)
+        {
+            break;
+        }
+        ++it;
     }
 
-    pList->AddBefore(pAt, &m_groupNode, this);
+    pList->AddBefore(it.GetNode(), &m_groupNode, this);
 }
 
 // FUNCTION: SWBF2 0x006c0820
 void RedInterfaceElement::SetPosition(float fX, float fY)
 {
-    const float fZ = m_mLocal.m[3][2];
-
-    m_mLocal.m[3][0] = fX;
-    m_mLocal.m[3][1] = fY;
-    m_mLocal.m[3][2] = fZ;
-    m_mLocal.m[3][3] = 1.0f;
+    m_mLocal.SetTranslation(fX, fY, m_mLocal.m[3][2], 1.0f);
 }
 
 // FUNCTION: SWBF2 0x006c0850
@@ -271,7 +216,7 @@ void RedInterfaceElement::SetPosition(float fX, float fY, float fZ)
 // FUNCTION: SWBF2 0x006c0800
 void RedInterfaceElement::SetPosition(const PblVector3& vPos)
 {
-    SetPosition(vPos.x, vPos.y, vPos.z);
+    m_mLocal.SetTranslation(vPos);
 }
 
 // FUNCTION: SWBF2 0x006c0210
@@ -289,10 +234,7 @@ RedGroupElement* RedInterfaceElement::GetGroup() const
 void RedInterfaceElement::AddToSearchList(const char* pcName)
 {
     SetName(pcName);
-    if (sAllObjectsList.Store(m_crcName, this))
-    {
-        ++sAllObjectsListNumEntries;
-    }
+    sAllObjectsList.Store(m_crcName, this);
     m_bInAllObjectList = true;
 }
 
@@ -312,7 +254,6 @@ RedInterfaceElement* RedInterfaceElement::Find(const char* pcName)
 void RedInterfaceElement::Reset()
 {
     sAllObjectsList.Clear();
-    sAllObjectsListNumEntries = 0;
     s_uiUnnamedCRC = 0;
     sLuaHandles.Clear();
     Lua_Callbacks::pCurCreateObject = 0;
@@ -323,14 +264,10 @@ void RedInterfaceElement::Reset()
 // FUNCTION: SWBF2 0x006c05f0
 void RedInterfaceElement::SetMatrix(const PblMatrix& matrix)
 {
-    for (int i = 0; i < 4; i++)
-    {
-        m_mLocal.m[i][0] = matrix.m[i][0];
-        m_mLocal.m[i][1] = matrix.m[i][1];
-        m_mLocal.m[i][2] = matrix.m[i][2];
-        m_mLocal.m[i][3] = 0.0f;
-    }
-    m_mLocal.m[3][3] = 1.0f;
+    m_mLocal.SetXAxis(matrix.m[0][0], matrix.m[0][1], matrix.m[0][2], 0.0f);
+    m_mLocal.SetYAxis(matrix.m[1][0], matrix.m[1][1], matrix.m[1][2], 0.0f);
+    m_mLocal.SetZAxis(matrix.m[2][0], matrix.m[2][1], matrix.m[2][2], 0.0f);
+    m_mLocal.SetTranslation(matrix.m[3][0], matrix.m[3][1], matrix.m[3][2], 1.0f);
 }
 
 // FUNCTION: SWBF2 0x006c0680
@@ -339,20 +276,8 @@ void RedInterfaceElement::SetMatrixPosRotScale(float fX, float fY, float fRotati
 {
     float fSin, fCos;
     PblMath::SinCos(&fSin, &fCos, fRotation);
-    m_mLocal.m[0][0] = fCos * fScaleX;
-    m_mLocal.m[0][1] = fSin * fScaleX;
-    m_mLocal.m[0][2] = 0.0f;
-    m_mLocal.m[0][3] = 0.0f;
-    m_mLocal.m[1][0] = -(fSin * fScaleY);
-    m_mLocal.m[1][1] = fCos * fScaleY;
-    m_mLocal.m[1][2] = 0.0f;
-    m_mLocal.m[1][3] = 0.0f;
-    m_mLocal.m[2][0] = 0.0f;
-    m_mLocal.m[2][1] = 0.0f;
-    m_mLocal.m[2][2] = 1.0f;
-    m_mLocal.m[2][3] = 0.0f;
-    m_mLocal.m[3][0] = fX;
-    m_mLocal.m[3][1] = fY;
-    m_mLocal.m[3][2] = 0.0f;
-    m_mLocal.m[3][3] = 1.0f;
+    m_mLocal.SetXAxis(fCos * fScaleX, fSin * fScaleX, 0.0f, 0.0f);
+    m_mLocal.SetYAxis(-(fSin * fScaleY), fCos * fScaleY, 0.0f, 0.0f);
+    m_mLocal.SetZAxis(0.0f, 0.0f, 1.0f, 0.0f);
+    m_mLocal.SetTranslation(fX, fY, 0.0f, 1.0f);
 }

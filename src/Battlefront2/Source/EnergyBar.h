@@ -6,6 +6,8 @@
 class EnergyBarClass
 {
 public:
+    EnergyBarClass() : m_fEnergyMax(0.0f), m_fEnergyMin(0.0f), m_fEnergyOverheat(0.0f) {}
+
     void Init(float fEnergyMax, float fEnergyOverheat);
     bool SetProperty(unsigned int uProperty, const char* pszValue);
 
@@ -45,6 +47,9 @@ public:
     bool IsOverheating() const { return m_bOverheat != 0; }
     static void SetupMemoryPool(unsigned int count, unsigned int size,
                                 unsigned int grow) { sMemoryPool.Setup(count, size, grow); }
+    static void* operator new(unsigned int size) { return sMemoryPool.Allocate(size); }
+    static void operator delete(void* block) { sMemoryPool.Free(block); }
+
     static MemoryPool sMemoryPool;
 
     const EnergyBarClass* m_pClass;

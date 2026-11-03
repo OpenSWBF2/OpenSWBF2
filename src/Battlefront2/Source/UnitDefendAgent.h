@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "UnitAgent.h"
@@ -14,7 +16,10 @@ class UnitDefendAgent : public UnitAgent
 public:
 
     UnitDefendAgent(UnitController* pCtrl, const AI::GoalTarget& target);
-    virtual ~UnitDefendAgent();
+    // SYNTHETIC: SWBF2 0x00665bb0
+    // UnitDefendAgent::`scalar deleting destructor'
+    // SYNTHETIC: SWBF2 0x00665be0
+    // UnitDefendAgent::~UnitDefendAgent
     virtual void Kill();
     virtual bool IsRtti(unsigned int uRtti) const;
     virtual unsigned int GetDerivedRtti() const;
@@ -36,7 +41,7 @@ public:
     bool mMaintainVisualContact;
 
     static PblHash rttiHashUnitDefendAgent;
-    static char rttiNameUnitDefendAgent[];
+    static const char rttiNameUnitDefendAgent[];
 };
 
  
@@ -44,3 +49,25 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x00665b60
+inline bool UnitDefendAgent::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashUnitDefendAgent == uRtti)
+    {
+        return true;
+    }
+    return UnitAgent::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x00665b90
+inline unsigned int UnitDefendAgent::GetDerivedRtti() const
+{
+    return rttiHashUnitDefendAgent;
+}
+
+// FUNCTION: SWBF2 0x00665ba0
+inline const char* UnitDefendAgent::GetDerivedRttiName() const
+{
+    return rttiNameUnitDefendAgent;
+}

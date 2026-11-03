@@ -1,3 +1,4 @@
+#include <string.h>
 #include "pcHDRShader.h"
 
 #include "PebbleFL/Common/PblChunk.h"
@@ -26,18 +27,10 @@ pcRedShaderDef pcHDRShader::s_shaderDef("hdr_shader.xml");
 // FUNCTION: SWBF2 0x007138b0
 pcHDRShader::pcHDRShader()
 {
-    GetStateFuncArray[PIPELINE_FIXED] = 0;
-    GetStateFuncArray[PIPELINE_PROG1] = 0;
-    GetStateFuncArray[PIPELINE_PROG2] = 0;
-    BeginFuncArray[PIPELINE_FIXED] = 0;
-    BeginFuncArray[PIPELINE_PROG1] = 0;
-    BeginFuncArray[PIPELINE_PROG2] = 0;
-    EndFuncArray[PIPELINE_FIXED] = 0;
-    EndFuncArray[PIPELINE_PROG1] = 0;
-    EndFuncArray[PIPELINE_PROG2] = 0;
-    RenderFuncArray[PIPELINE_FIXED] = 0;
-    RenderFuncArray[PIPELINE_PROG1] = 0;
-    RenderFuncArray[PIPELINE_PROG2] = 0;
+    memset(GetStateFuncArray, 0, sizeof(GetStateFuncArray));
+    memset(BeginFuncArray, 0, sizeof(BeginFuncArray));
+    memset(EndFuncArray, 0, sizeof(EndFuncArray));
+    memset(RenderFuncArray, 0, sizeof(RenderFuncArray));
 
     s_uiID = _Register(s_uiRenderTypeHash, this);
 
@@ -137,16 +130,16 @@ unsigned int pcHDRShader::GetState_Prog1(const RenderItem*) const
     return m_state;
 }
 
-// GLOBAL: SWBF2 0x00785790
-static const pcRedShaderDef::FixedFunctionStateT kFixedFunctionStates[1] =
-{
-    { 1, { 0x11, 0x00, 0x00, 0x00 } },
-};
-
 // FUNCTION: SWBF2 0x00713c50
 void pcHDRShader::InitFixedFunctionShaderDef() const
 {
-    GetShaderDef()->InitFixedFunction(0, 1, kFixedFunctionStates);
+    // GLOBAL: SWBF2 0x00785790
+    static const pcRedShaderDef::FixedFunctionStateT aFFStates[1] =
+    {
+        { 1, { 0x11, 0x00, 0x00, 0x00 } },
+    };
+
+    GetShaderDef()->InitFixedFunction(0, 1, aFFStates);
 }
 
 // FUNCTION: SWBF2 0x00713c70
@@ -322,11 +315,13 @@ void pcHDRShader::_StaticInit() const
 // `dynamic initializer for 'pcHDRShader::s_uiRenderTypeHash''
 unsigned int pcHDRShader::s_uiRenderTypeHash = PblHash("hdr");
 
-// GLOBAL: SWBF2 0x009caa80
 // SYNTHETIC: SWBF2 0x0040a800
 // `dynamic initializer for 'pcHDRShader::s_Factory''
 // SYNTHETIC: SWBF2 0x0076a050
 // `dynamic atexit destructor for 'pcHDRShader::s_Factory''
+
+// GLOBAL: SWBF2 0x009caa80
+// pcHDRShader::s_Factory
 pcHDRShader pcHDRShader::s_Factory;
 
 // GLOBAL: SWBF2 0x009caa44

@@ -52,4 +52,7 @@ namespace VisionManager
     int GetRelativePriority(const GameObject* pMe, const GameObject* pObj);
 }
 
-namespace VisionManager { void __fastcall AddFakeRayhitResult(UnitController* pUnit, const GameObject* pObject); }
+namespace VisionManager
+{
+void __fastcall AddFakeRayhitResult(UnitController* pUnit, const GameObject* pObject);
+}

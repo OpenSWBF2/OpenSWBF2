@@ -8,7 +8,11 @@
 namespace Snd
 {
 
-class StreamSplitter : public StreamNodeSource
+// SYNTHETIC: SWBF2 0x0074cf40
+// Snd::StreamSplitter::`scalar deleting destructor'
+
+// VTABLE: SWBF2 0x00786d24
+class StreamSplitter : public StreamNode, public StreamNodeSink, public StreamNodeSource
 {
 public:
     StreamSplitter();
@@ -23,8 +27,6 @@ public:
 
     virtual StreamPacket* GetPacket(unsigned int uiOutput);
 
-    StreamNode mNode;
-    StreamNodeSink mSink;
     StreamPacket** mPackets;
     unsigned short* mRemaining;
     unsigned short* mRefCount;

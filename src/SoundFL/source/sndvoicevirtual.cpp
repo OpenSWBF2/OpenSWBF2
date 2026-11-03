@@ -8,10 +8,18 @@
 namespace Snd
 {
 
+// FUNCTION: SWBF2 0x00737dc0
+void VoiceVirtual::ResetPriority()
+{
+    mFlags |= flags_updatePriority;
+    Source3D::mFlags |= Source3D::flags_updateListener;
+}
+
+
 // FUNCTION: SWBF2 0x00737be0
 void VoiceVirtual::Pause()
 {
-    if (mFlags & flags_active)
+    if (((unsigned char)(mFlags >> 1)) & 1)
     {
         mVoiceManager->RemoveVoice(this);
         mFlags &= ~(unsigned int)flags_active;
@@ -38,7 +46,7 @@ VoiceVirtual::VoiceVirtual(unsigned int uiCustomFlags,
     if (!mVoiceManager)
     {
         mVoiceManager =
-            EngineBase::GetVoiceVirtualManager((Source2D3D::mFlags & 1) != 0);
+            EngineBase::GetVoiceVirtualManager(Source2D3D::Get3DMode());
     }
 
     mFlags |= (unsigned int)((bRestorePlaybackPos ? flags_restorePlaybackPos : 0)
@@ -250,7 +258,8 @@ void VoiceVirtual::Update(float fDeltaTime)
 
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x00737a90
 VoiceVirtual::~VoiceVirtual()
@@ -259,7 +268,8 @@ VoiceVirtual::~VoiceVirtual()
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x00737c80
 void VoiceVirtual::Play(bool bRestart)
@@ -278,7 +288,8 @@ void VoiceVirtual::Play(bool bRestart)
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x00737dd0
 void VoiceVirtual::Set3DMode(bool b3DMode)
@@ -288,7 +299,8 @@ void VoiceVirtual::Set3DMode(bool b3DMode)
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x00737e10
 void VoiceVirtual::SetInactiveCallback(void (__cdecl* pfnCallback)(const VoiceVirtual* const, void* const),
@@ -299,7 +311,8 @@ void VoiceVirtual::SetInactiveCallback(void (__cdecl* pfnCallback)(const VoiceVi
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x00737e90
 void VoiceVirtual::SetVoiceVirtualManager(VoiceVirtualManager* pManager)

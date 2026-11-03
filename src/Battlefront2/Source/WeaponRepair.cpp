@@ -1,3 +1,4 @@
+#include "AmmoCounter.h"
 #include <stdio.h>
 
 #include "WeaponRepair.h"
@@ -17,7 +18,11 @@
 #include "StatusDisplay.h"
 #include "Trigger.h"
 
-namespace GameLoop { extern float sClientDeltaTime; }
+namespace GameLoop
+{
+extern float sClientDeltaTime;
+}
+
 
 class EntityWalker { public: static PblHash rttiHashEntityWalker; };
 class EntityHover { public: static PblHash rttiHashEntityHover; };
@@ -33,11 +38,16 @@ extern Event<GameObject, DamageOwner> mHack;
 }
 }
 
-// GLOBAL: SWBF2 0x01f9a90c
 // SYNTHETIC: SWBF2 0x00407290
 // `dynamic initializer for 'WeaponRepairClass::rttiHashWeaponRepairClass''
+// WeaponRepairClass::rttiHashWeaponRepairClass
+
+// GLOBAL: SWBF2 0x01f9a90c
+// WeaponRepairClass::rttiHashWeaponRepairClass
 PblHash WeaponRepairClass::rttiHashWeaponRepairClass("WeaponRepairClass");
-char WeaponRepairClass::rttiNameWeaponRepairClass[] = "WeaponRepairClass";
+// GLOBAL: SWBF2 0x0078c254
+// WeaponRepairClass::rttiNameWeaponRepairClass
+const char WeaponRepairClass::rttiNameWeaponRepairClass[] = "WeaponRepairClass";
 
 // FUNCTION: SWBF2 0x006910c0
 WeaponRepairClass::WeaponRepairClass(unsigned int uHash)
@@ -76,23 +86,11 @@ WeaponRepairClass::~WeaponRepairClass()
 // SYNTHETIC: SWBF2 0x00691130
 // WeaponRepairClass::`scalar deleting destructor'
 
-// FUNCTION: SWBF2 0x006905f0
-bool WeaponRepairClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashWeaponRepairClass || WeaponClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00690620
-unsigned int WeaponRepairClass::GetDerivedRtti()
-{
-    return rttiHashWeaponRepairClass;
-}
 
-// FUNCTION: SWBF2 0x00690630
-const char* WeaponRepairClass::GetDerivedRttiName()
-{
-    return rttiNameWeaponRepairClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x006911e0
 void WeaponRepairClass::SetProperty(unsigned int uProperty, const char* pszValue)
@@ -213,29 +211,22 @@ WeaponRepair::WeaponRepair(const WeaponRepairClass* pClass, const WeaponDesc& de
 {
 }
 
-// GLOBAL: SWBF2 0x01f9a910
 // SYNTHETIC: SWBF2 0x00407280
 // `dynamic initializer for 'WeaponRepair::rttiHashWeaponRepair''
+// WeaponRepair::rttiHashWeaponRepair
+
+// GLOBAL: SWBF2 0x01f9a910
+// WeaponRepair::rttiHashWeaponRepair
 PblHash WeaponRepair::rttiHashWeaponRepair("WeaponRepair");
-char WeaponRepair::rttiNameWeaponRepair[] = "WeaponRepair";
+// GLOBAL: SWBF2 0x0078c23c
+// WeaponRepair::rttiNameWeaponRepair
+const char WeaponRepair::rttiNameWeaponRepair[] = "WeaponRepair";
 
-// FUNCTION: SWBF2 0x006905a0
-bool WeaponRepair::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashWeaponRepair || reinterpret_cast<const Weapon*>(this)->Weapon::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x006905d0
-unsigned int WeaponRepair::GetDerivedRtti() const
-{
-    return rttiHashWeaponRepair;
-}
 
-// FUNCTION: SWBF2 0x006905e0
-const char* WeaponRepair::GetDerivedRttiName() const
-{
-    return rttiNameWeaponRepair;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00690830
 bool WeaponRepair::IsBusy() const
@@ -283,7 +274,7 @@ bool WeaponRepair::IsLocked() const
     {
         PilotType ePilot = pTarget->GetControllable()->mPilotType;
         if ((ePilot == PILOT_VEHICLE || ePilot == PILOT_VEHICLESELF ||
-             pTarget->GetControllable()->mPilotType == PILOT_REMOTE) &&
+             pTarget->GetControllable()->IsRemoteVehicle()) &&
             mOwner->GetGameObject() && mOwner->GetGameObject()->IsMyEnemy(pTarget))
         {
             bHack = true;
@@ -335,7 +326,7 @@ bool WeaponRepair::UpdateFire(float fDeltaTime)
                 }
                 fTimeLeft -= fStep;
                 mStateTimer += fStep;
-                if (mStateTimer < mStateLimit || mClass->mTriggerSingle || !CheckFire() ||
+                if (!(mStateTimer >= mStateLimit) || mClass->mTriggerSingle || !CheckFire() ||
                     CheckReload() || CheckEmpty())
                 {
                     break;

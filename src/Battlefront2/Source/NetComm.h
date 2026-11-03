@@ -20,25 +20,7 @@ enum NetArch
     NET_ARCH_FAKE = 3
 };
 
-#pragma pack(push, 4)
-struct NetDest
-{
-    bool connected;
-    NetPktGroup outQueue;
 
-    NetSocketPeerRecord mPeer;
-    NetArch arch;
-    float lastRecv;
-    PipeType pipe;
-    int ping;
-    int PLKills;
-    int PLDeaths;
-    int PLCPs;
-    int upBandwidth;
-    int downBandwidth;
-    int nextGroupNum;
-};
-#pragma pack(pop)
  
 
 const int MAX_DESTS = 67;
@@ -146,8 +128,8 @@ public:
     static NetArch GetMyArch();
 
     static bool IsLAN();
-    static int SetBandwidthPercent();
-    static void SendVoice(int iDest, NetPacket* pPacket, unsigned short uSequence);
+    static void SetBandwidthPercent(int percent);
+    static void SendVoice(int iDest, PktType type, NetPacket* pPacket, int voiceDataOffset);
 
     static NetArch GetArch(int iDest);
 
@@ -181,7 +163,7 @@ public:
     static void Update();
     static void Send(int iDest, PktType uType, NetPacket* pPacket);
     static void Send(int iDest, int uType, NetPktGroup* pGroup);
-    static bool Recv(NetPktGroup* pGroup, int eType);
+    static bool Recv(NetPktGroup& group, PktType eType);
     static void Disconnect(int iDest);
 };
  
@@ -214,3 +196,18 @@ public:
     static const NetSocketPeerRecord* GetPeer(int iDest);
     static int __fastcall FindJoinSource(const NetSocketPeerRecord* pAddress);
 };
+
+// FUNCTION: SWBF2 0x005aecb0
+inline int GetSrc(NetPacket* pkt)
+{
+    return NetComm::Header(pkt).src;
+}
+
+// FUNCTION: SWBF2 0x005b2350
+inline void SetGroup(NetPacket* pkt, int group, int idx, int count)
+{
+    NetComm::PktHeader& header = NetComm::Header(pkt);
+    header.count = count;
+    header.group = group;
+    header.idx = idx;
+}

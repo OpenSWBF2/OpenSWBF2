@@ -13,6 +13,7 @@
 #include "GameObject.h"
 #include "NetGame.h"
 #include "PebbleFL/Common/PblHashTable.h"
+#include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblUnicode.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 #include "RedEngineFL/Util/RedLocalizeDB.h"
@@ -49,17 +50,23 @@ unsigned int Team::sWinningTeams;
 
 // GLOBAL: SWBF2 0x007ebc98
 RedColor gFriendColor = { 0x01, 0x56, 0xd5, 0xff };
-// GLOBAL: SWBF2 0x01f7ce80
 // SYNTHETIC: SWBF2 0x00406890
 // `dynamic initializer for 'gEnemyColor''
+
+// GLOBAL: SWBF2 0x01f7ce80
+// gEnemyColor
 RedColor gEnemyColor = RedColor::RED;
-// GLOBAL: SWBF2 0x01f6deb4
 // SYNTHETIC: SWBF2 0x004068c0
 // `dynamic initializer for 'gLocalColor''
+
+// GLOBAL: SWBF2 0x01f6deb4
+// gLocalColor
 RedColor gLocalColor = RedColor::WHITE;
-// GLOBAL: SWBF2 0x01f75f0c
 // SYNTHETIC: SWBF2 0x004068f0
 // `dynamic initializer for 'gNeutralColor''
+
+// GLOBAL: SWBF2 0x01f75f0c
+// gNeutralColor
 RedColor gNeutralColor = RedColor::YELLOW;
 
 // FUNCTION: SWBF2 0x00652dd0
@@ -166,7 +173,7 @@ void Team::CopyFromHost()
         pTeam->SetCurReinforcements(sHostTeams[i]->mCurReinforcements);
         for (int j = 0; j < 8; ++j)
         {
-            sTeams[i]->mColor[j] = sHostTeams[i]->mColor[j];
+            sTeams[i]->mColor[j] = sHostTeams[i]->GetColor(j);
             sTeams[i]->mAffiliation[j] = sHostTeams[i]->mAffiliation[j];
         }
         sTeams[i]->SetPoints(sHostTeams[i]->mPoints);
@@ -516,10 +523,7 @@ void Team::Update(float)
 void Team::SetCurReinforcements(int iCount)
 {
     mCurReinforcements = iCount;
-    if (!NetGame::IsEnabled() || !NetGame::IsClient())
-    {
-        EventManager::TeamEvent::mTicketCountChange.Trigger(*this, mCurReinforcements);
-    }
+    EventManager::TeamEvent::mTicketCountChange.Trigger(*this, mCurReinforcements);
 }
 
 // FUNCTION: SWBF2 0x00653c10
@@ -530,10 +534,7 @@ void Team::AddReinforcements(int iCount)
         return;
     }
     mCurReinforcements += iCount;
-    if (!NetGame::IsEnabled() || !NetGame::IsClient())
-    {
-        EventManager::TeamEvent::mTicketCountChange.Trigger(*this, mCurReinforcements);
-    }
+    EventManager::TeamEvent::mTicketCountChange.Trigger(*this, mCurReinforcements);
 }
 
 // FUNCTION: SWBF2 0x00653c70
@@ -615,10 +616,10 @@ Character* Team::GetRandomLiveCharacter() const
     }
     if (iCount > 0)
     {
-        unsigned int uPick = PblRandom::GetGlobalInt() % iCount;
+        int pick = PblRandom::GetGlobalInt() % iCount;
         for (int i = 0; i < mMemberCount; ++i)
         {
-            if (mMemberArray[i]->mUnit && uPick-- == 0)
+            if (mMemberArray[i]->mUnit && pick-- == 0)
             {
                 return mMemberArray[i];
             }
@@ -656,7 +657,8 @@ bool Team::AddSpecialClass(GameObjectClass* pClass)
     if (mClassCount < mClassLimit)
     {
         pClass->SetHeroFlag();
-        mClassArray[mClassCount++] = pClass;
+        ++mClassCount;
+        mClassArray[mClassCount - 1] = pClass;
         ++mSpecialClassCount;
         _SetClassUnitCounts(mClassCount - 1, 0, 1);
         return true;
@@ -731,20 +733,14 @@ void Team::SetCarrier(const char* pcName)
 void Team::SetBleedRate(float fRate)
 {
     mBleedRate = fRate;
-    if (!NetGame::IsEnabled() || !NetGame::IsClient())
-    {
-        EventManager::TeamEvent::mTicketBleedChange.Trigger(*this, mBleedRate);
-    }
+    EventManager::TeamEvent::mTicketBleedChange.Trigger(*this, mBleedRate);
 }
 
 // FUNCTION: SWBF2 0x00654130
 void Team::SetPoints(int iPoints)
 {
     mPoints = iPoints;
-    if (!NetGame::IsEnabled() || !NetGame::IsClient())
-    {
-        EventManager::TeamEvent::mPointsChange.Trigger(*this, mPoints);
-    }
+    EventManager::TeamEvent::mPointsChange.Trigger(*this, mPoints);
 }
 
 // FUNCTION: SWBF2 0x00654180
@@ -755,10 +751,7 @@ void Team::AddPoints(int iPoints)
         return;
     }
     mPoints += iPoints;
-    if (!NetGame::IsEnabled() || !NetGame::IsClient())
-    {
-        EventManager::TeamEvent::mPointsChange.Trigger(*this, mPoints);
-    }
+    EventManager::TeamEvent::mPointsChange.Trigger(*this, mPoints);
 }
 
 // FUNCTION: SWBF2 0x006541e0
@@ -934,9 +927,7 @@ void Team::SetAggressiveness(float fAggressiveness)
 // FUNCTION: SWBF2 0x00654770
 int Team::GetTeamMemberCount(int& iTeam1, int& iTeam2)
 {
-    int aiCount[3];
-    aiCount[1] = 0;
-    aiCount[2] = 0;
+    int aiCount[2] = {0, 0};
     for (int i = 0; i < netCurMaxPlayers; ++i)
     {
         if (!NetGame::IsPlaying(i, false))
@@ -946,11 +937,11 @@ int Team::GetTeamMemberCount(int& iTeam1, int& iTeam2)
         Character* pCharacter = Character::GetPtr(i);
         if (pCharacter && pCharacter->mUnit && pCharacter->mTeamNumber > 0)
         {
-            ++aiCount[pCharacter->mTeamNumber];
+            ++aiCount[pCharacter->mTeamNumber - 1];
         }
     }
-    iTeam1 = aiCount[1];
-    iTeam2 = aiCount[2];
+    iTeam1 = aiCount[0];
+    iTeam2 = aiCount[1];
     return iTeam1 >= iTeam2 ? 2 : 1;
 }
 
@@ -1006,27 +997,8 @@ void Team::_ClampClassCounts(int iIndex)
     }
 
     MemoryPool* pPool = MemoryPool::Find("EntityDroideka");
-    int iMin = mClassMinUnits[iIndex];
-    if (iMin < 0)
-    {
-        iMin = 0;
-    }
-    else if (iMin > (int)pPool->GetCount())
-    {
-        iMin = pPool->GetCount();
-    }
-    mClassMinUnits[iIndex] = iMin;
-
-    int iMax = mClassMaxUnits[iIndex];
-    if (iMax < 0)
-    {
-        iMax = 0;
-    }
-    else if (iMax > (int)pPool->GetCount())
-    {
-        iMax = pPool->GetCount();
-    }
-    mClassMaxUnits[iIndex] = iMax;
+    mClassMinUnits[iIndex] = Clamp(mClassMinUnits[iIndex], 0, (int)pPool->GetCount());
+    mClassMaxUnits[iIndex] = Clamp(mClassMaxUnits[iIndex], 0, (int)pPool->GetCount());
 }
 
 namespace EventManager
@@ -1043,8 +1015,13 @@ void Event<Team, int>::Callback::Trigger(Team& item, int& param)
         if (pChild)
         {
             pChild->AddRef();
-            while (pChild->IsAlive())
+            while (pChild)
             {
+                if (!pChild->IsAlive())
+                {
+                    pChild->Release();
+                    break;
+                }
                 Callback* pNext = (Callback*)pChild->mSibling;
                 if (pNext)
                 {
@@ -1053,14 +1030,6 @@ void Event<Team, int>::Callback::Trigger(Team& item, int& param)
                 pChild->Trigger(item, param);
                 pChild->Release();
                 pChild = pNext;
-                if (!pChild)
-                {
-                    break;
-                }
-            }
-            if (pChild)
-            {
-                pChild->Release();
             }
         }
     }
@@ -1078,8 +1047,13 @@ void Event<Team, float>::Callback::Trigger(Team& item, float& param)
         if (pChild)
         {
             pChild->AddRef();
-            while (pChild->IsAlive())
+            while (pChild)
             {
+                if (!pChild->IsAlive())
+                {
+                    pChild->Release();
+                    break;
+                }
                 Callback* pNext = (Callback*)pChild->mSibling;
                 if (pNext)
                 {
@@ -1088,14 +1062,6 @@ void Event<Team, float>::Callback::Trigger(Team& item, float& param)
                 pChild->Trigger(item, param);
                 pChild->Release();
                 pChild = pNext;
-                if (!pChild)
-                {
-                    break;
-                }
-            }
-            if (pChild)
-            {
-                pChild->Release();
             }
         }
     }

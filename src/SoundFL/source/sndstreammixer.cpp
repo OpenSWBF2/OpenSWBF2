@@ -1,4 +1,3 @@
-#include <new>
 #include <string.h>
 
 #include "sndstreamsourceproducer.h"
@@ -22,7 +21,7 @@ StreamMixer::StreamMixer()
     mFlags = 0;
     mInputChannels = 1;
     mOutputChannels = 1;
-    mInterpolationRate = 0x0A;
+    mInterpolationRate = 10;
 
     memset(mActive, 0, sizeof(mActive));
     memset(mMixedPacket, 0, sizeof(mMixedPacket));
@@ -39,36 +38,33 @@ void StreamMixer::SetConstantOutputPacketSize(bool bConstant)
 {
     if (bConstant)
     {
-        mFlags = (unsigned char)(mFlags | flags_CPS);
+        mFlags |= flags_CPS;
     }
     else
     {
-        mFlags = (unsigned char)(mFlags & ~flags_CPS);
+        mFlags &= (unsigned char)~flags_CPS;
     }
 }
 
 // FUNCTION: SWBF2 0x0073fc90
-void StreamMixer::SetLastPacketInfo(unsigned char uc)
+void StreamMixer::SetLastPacketInfo(bool b)
 {
-    if (uc)
+    if (b)
     {
-        mFlags = (unsigned char)(mFlags | flags_LastPck);
+        mFlags |= flags_LastPck;
     }
     else
     {
-        mFlags = (unsigned char)(mFlags & ~flags_LastPck);
+        mFlags &= (unsigned char)~flags_LastPck;
     }
 }
 
 // FUNCTION: SWBF2 0x0073fcb0
 void StreamMixer::SetMixBuffer(int* const pBuffer)
 {
-    const unsigned int uiSize = (mPacketSize >> 1) << 2;
-
-    memset(pBuffer, 0, uiSize);
-
     mMixBuffer = pBuffer;
-    mMixBufferSize = uiSize;
+    mMixBufferSize = (GetPacketSize() >> 1) * sizeof(*pBuffer);
+    memset(mMixBuffer, 0, mMixBufferSize);
     mMixBufferDataSize = 0;
 }
 
@@ -77,12 +73,12 @@ void StreamMixer::SetPacketArray(StreamPacketIO* const pIO,
                                  unsigned int* const puOffsets)
 {
 
-    const unsigned int uiNumInputs = mSink.GetNumInputs();
+    const unsigned int uiNumInputs = StreamNodeSinkNInput::GetNumInputs();
 
     mInputPackets = pIO;
     mMixBufferOffsets = puOffsets;
 
-    if (puOffsets == 0 || uiNumInputs == 0)
+    if (puOffsets == 0)
     {
         return;
     }
@@ -109,43 +105,40 @@ void StreamMixer::SetChannels(unsigned char ucIn, unsigned char ucOut)
 // FUNCTION: SWBF2 0x0073fbe0
 void StreamMixer::SetGainArray(int* pGains)
 {
-    const unsigned int uiNumInputs = mSink.GetNumInputs();
+    const unsigned int uiNumInputs = StreamNodeSinkNInput::GetNumInputs();
 
-    if (uiNumInputs == 0)
+    if (uiNumInputs != 0)
     {
-        mGain = 0;
-        return;
-    }
+        mGain = pGains;
 
-    mGain = pGains;
+        const unsigned int uiOutputs = mOutputChannels;
 
-    const unsigned int uiOutputs = mOutputChannels;
-
-    if (pGains == 0)
-    {
-        return;
-    }
-
-    unsigned int uiSlotA = 0;
-    unsigned int uiSlotB = uiOutputs * uiNumInputs;
-
-    for (unsigned int i = 0; i < uiNumInputs; ++i)
-    {
-        for (unsigned int j = 0; j < uiOutputs; ++j)
+        if (pGains != 0)
         {
-            mGain[uiSlotA + j] = 0x7FFF0000;
-            mGain[uiSlotB + j] = 0x7FFF0000;
-        }
+            unsigned int uiSlotA = 0;
+            unsigned int uiSlotB = uiOutputs * uiNumInputs;
 
-        uiSlotA += uiOutputs;
-        uiSlotB += uiOutputs;
+            for (unsigned int i = 0; i < uiNumInputs; ++i)
+            {
+                for (unsigned int j = 0; j < uiOutputs; ++j)
+                {
+                    mGain[uiSlotA + j] = 0x7FFF0000;
+                    mGain[uiSlotB + j] = 0x7FFF0000;
+                }
+
+                uiSlotA += uiOutputs;
+                uiSlotB += uiOutputs;
+            }
+        }
+        return;
     }
+    mGain = 0;
 }
 
 // FUNCTION: SWBF2 0x0073fd80
-void StreamMixer::SetStopOnLast(unsigned char uc)
+void StreamMixer::SetStopOnLast(bool b)
 {
-    if (uc)
+    if (b)
     {
         mFlags = (unsigned char)(mFlags | 0x40);
     }
@@ -181,6 +174,9 @@ void StreamMixer::SetSynchronizedDeactivation(bool b)
     }
 }
 
+// SYNTHETIC: SWBF2 0x0073f8a0
+// Snd::StreamMixer::`scalar deleting destructor'
+
 // FUNCTION: SWBF2 0x0073f920
 void StreamMixer::Discontinuity(unsigned int uiInput, bool bFlush)
 {
@@ -197,7 +193,7 @@ void StreamMixer::Flush()
     memset(mActive, 0, sizeof(mActive));
     memset(mMixedPacket, 0, sizeof(mMixedPacket));
 
-    const unsigned int uiNumInputs = mSink.GetNumInputs();
+    const unsigned int uiNumInputs = StreamNodeSinkNInput::GetNumInputs();
     if (mInputPackets)
     {
         for (unsigned int i = 0; i < uiNumInputs; ++i)
@@ -229,10 +225,10 @@ StreamPacket* StreamMixer::ConnectionGetPacket(unsigned int uiInput)
             }
             pIO->Flush();
         }
-        pIO->SetPacket(mSink.ConnectionGetPacket(uiInput));
+        pIO->SetPacket(StreamNodeSinkNInput::ConnectionGetPacket(uiInput));
         return pIO->GetPacket();
     }
-    return mSink.ConnectionGetPacket(uiInput);
+    return StreamNodeSinkNInput::ConnectionGetPacket(uiInput);
 }
 
 // FUNCTION: SWBF2 0x0073fe00
@@ -270,14 +266,7 @@ StreamPacket* StreamMixer::GetPacket(unsigned int uiOutput)
     return StreamSourceProducer::GetPacket(uiOutput);
 }
 
-namespace
-{
-struct MixerNode : public StreamNode
-{
-    using StreamNode::UpdateNode;
-    using SourceTransport::SetPlayState;
-};
-}
+
 
 // FUNCTION: SWBF2 0x0073fab0
 bool StreamMixer::IsActive() const
@@ -285,7 +274,7 @@ bool StreamMixer::IsActive() const
     bool bActive = false;
     for (unsigned int i = 0; i < sizeof(mActive); ++i)
     {
-        bActive |= (mActive[i] != 0);
+        bActive |= (mActive[i] > 0);
     }
     return bActive;
 }
@@ -298,13 +287,12 @@ void StreamMixer::Update()
         return;
     }
 
-    MixerNode* const pNode = static_cast<MixerNode*>(&mNode);
-    if (pNode->UpdateNode(true))
+    if (StreamNode::UpdateNode(true))
     {
         Flush();
     }
 
-    switch (pNode->GetCurrentPlayState())
+    switch (StreamNode::GetCurrentPlayState())
     {
     case SourceTransport::playState_playing:
         break;
@@ -313,7 +301,7 @@ void StreamMixer::Update()
         {
             break;
         }
-        pNode->SetPlayState(SourceTransport::playState_paused);
+        StreamNode::SetPlayState(SourceTransport::playState_paused);
         return;
     default:
         return;
@@ -325,7 +313,7 @@ void StreamMixer::Update()
         unsigned int uiNumMixed = 0;
         StreamPacket* const pOutPacket = GetReadPacket();
         unsigned int uiNumActive = 0;
-        const unsigned int uiNumInputs = mSink.GetNumInputs();
+        const unsigned int uiNumInputs = StreamNodeSinkNInput::GetNumInputs();
         if (pOutPacket == 0)
         {
             return;
@@ -644,7 +632,7 @@ void StreamMixer::Update()
         if (mSynchronizedMixing ? (uiNumActive != 0 && uiNumActive == uiNumMixed)
                                 : (uiNumMixed != 0))
         {
-            const unsigned int uiPos = pNode->mPlaybackPosition;
+            const unsigned int uiPos = StreamNode::mPlaybackPosition;
             int* pSum = mMixBuffer;
             short* pOut = (short*)pOutPacket->mBuffer;
             const unsigned int uiSamples = mMixBufferDataSize * mOutputChannels;
@@ -695,7 +683,7 @@ void StreamMixer::Update()
             const bool bInactive = !IsActive();
             PacketComplete(pOutPacket, uiSamples * sizeof(short), mMixBufferDataSize,
                            (mFlags & flags_LastPck) != 0 && bInactive, bInactive, uiPos);
-            pNode->mPlaybackPosition = uiPos + mMixBufferDataSize;
+            StreamNode::mPlaybackPosition = uiPos + mMixBufferDataSize;
             mMixBufferDataSize = 0;
 
             if (bInactive)
@@ -703,7 +691,7 @@ void StreamMixer::Update()
                 mFlags &= (unsigned char)~flags_Discon;
                 if (mFlags & flags_StopOnLast)
                 {
-                    pNode->Stop();
+                    StreamNode::Stop();
                     return;
                 }
             }
@@ -713,14 +701,17 @@ void StreamMixer::Update()
 
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x0073fb60
 void StreamMixer::SetGain(unsigned int uiInput, unsigned int uiChannel,
                           float fGain, bool bImmediate)
 {
+    const unsigned char ucOutputChannels = mOutputChannels;
     const unsigned int uiTarget =
-        mSink.GetNumInputs() * mOutputChannels + uiInput * mOutputChannels + uiChannel;
+        StreamNodeSinkNInput::GetNumInputs() * ucOutputChannels
+        + uiInput * ucOutputChannels + uiChannel;
     int iGain;
     if (fGain > 0.0f)
     {
@@ -752,7 +743,7 @@ void Snd::StreamMixer::SetOutputGain(float fGain)
 }
 
 // FUNCTION: SWBF2 0x0073faf0
-bool Snd::StreamMixer::HasMixedPacket(unsigned int uiInput) const
+bool Snd::StreamMixer::IsMixed(unsigned int uiInput) const
 {
     return (mMixedPacket[uiInput >> 3] & (1u << (uiInput & 7))) != 0;
 }

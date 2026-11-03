@@ -3,6 +3,9 @@
 struct NetAddr;
 struct NetKey;
 struct NetSessionId;
+struct NetSocketPeerRecord;
+struct FindGamePlayer;
+enum FindType;
 class NetPacket;
 
 class NetMatch
@@ -11,40 +14,40 @@ public:
 
     static char* GetIPAddr();
 
-    static char SetNoCableError();
+    static void SetNoCableError();
 
     static void ClearGameError();
 
     static int GetPercentDone();
 
-    static char __fastcall EndFindGames(bool bCancel);
+    static void __fastcall EndFindGames(bool bCancel);
 
     static void StartRegisterGame(bool bMatchService);
 
     static void StartLogin(int iViewport, bool bArg2, char const* pcArg3, char const* pcArg4,
                            char const* pcArg5, bool bArg6);
 
-    static char __fastcall StartJoinGame(const NetSessionId* pId);
+    static void StartJoinGame(NetAddr& address, NetKey& key);
 
-    static char EndJoinGame();
+    static void EndJoinGame();
 
-    static bool StartConnect();
+    static bool StartConnect(NetAddr& address, NetKey& key, int destination);
 
-    static bool UpdateConnect(const NetAddr* pAddr, const NetKey* pKey, int iDest, int* pReason);
+    static bool UpdateConnect(NetAddr& address, NetKey& key, int destination, int& connected);
 
-    static void EndConnect();
+    static void EndConnect(NetAddr& address, NetKey& key, int destination);
 
     static bool IsDoneFindGames();
 
     static void UpdateFindGames();
 
-    static bool PingServerByAddress();
+    static bool PingServerByAddress(const NetAddr& address);
 
-    static bool GetPlayerDataByAddress();
+    static bool GetPlayerDataByAddress(const NetAddr& address, int player, FindGamePlayer& data);
 
-    static unsigned int HostGetAddr(const NetAddr* pAddr, void* pOut, int iDest);
+    static void HostGetAddr(NetAddr& address, NetAddr& output, int destination);
 
-    static unsigned int __fastcall GetSessionId(NetSessionId* pId);
+    static void GetSessionId(NetSessionId& session);
 
     static void SetLocalGSID(unsigned int lo, unsigned int hi);
 
@@ -68,25 +71,30 @@ public:
     static void GetGameError(char const*& pcError, int& iSeverity);
 
     static void ChangeRegisterGame();
-    static void __fastcall ReceiveRegisterPacket(const char* pData, int iLen, const void* pSource);
-    static char StartFindGames(int, const NetSessionId* id);
+    static void __cdecl ReceiveRegisterPacket(const char* pData, int iLen, const void* pSource);
+    static void StartFindGames(bool useMatch, FindType type, const char* address, NetSessionId* id);
     static void PauseFindGames();
     static void UpdateJoinGame();
     static void HandleLoginError(bool);
     static void StartFindAddress();
     static void EndFindAddress();
     static bool UpdateFindAddress();
-    static void ClientGetAddr();
-    static int __fastcall SetAddr(unsigned int* pOut, const unsigned int* pIn);
+    static void ClientGetAddr(NetAddr& address);
+    static void SetAddr(NetAddr& address, const NetSocketPeerRecord& peer);
 };
 
-bool __fastcall IsPrivateIP(unsigned long netAddr);
 unsigned long GetPrivateIP();
 void __fastcall HandleFindPacket(NetPacket* pPacket);
 void __fastcall HandleFoundPacket(NetPacket* pPacket, const void* pSource);
 void UpdateFindLanGames();
 
-bool __fastcall IsSameNet(const unsigned int* pLeft, const unsigned int* pRight);
+bool IsSameNet(NetAddr& left, NetAddr& right);
 
 class NetPktGroup;
-int __fastcall ReadSessionId(NetPktGroup* pGroup, unsigned int* pWords);
+void ReadSessionId(NetPktGroup& group, NetSessionId& session);
+
+void WriteAddr(NetPktGroup& group, NetAddr& address);
+
+void ReadAddr(NetPktGroup& group, NetAddr& address);
+
+void WriteSessionId(NetPktGroup& group, NetSessionId& session);

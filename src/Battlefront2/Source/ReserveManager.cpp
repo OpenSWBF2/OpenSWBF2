@@ -24,7 +24,8 @@ namespace ReserveManager
 
 struct ReserveStruct
 {
-    ~ReserveStruct();
+    // SYNTHETIC: SWBF2 0x0062f9b0
+    // ReserveManager::ReserveStruct::~ReserveStruct
 
     PblHandle<const GameObject> mObj;
     float mReserveTime;
@@ -338,13 +339,16 @@ void UnreserveObject(const GameObject* pObj, ReserveType eType)
  
  
 
-// FUNCTION: SWBF2 0x006300e0
+// TEMPLATE: SWBF2 0x006300e0
+// ListPool<ReserveManager::ReserveStruct,int>::ListPool<ReserveManager::ReserveStruct,int>
 template ListPool<ReserveManager::ReserveStruct, int>::ListPool(int);
 
-// FUNCTION: SWBF2 0x00630190
+// TEMPLATE: SWBF2 0x00630190
+// ListPool<ReserveManager::ReserveStruct,int>::Remove
 template void ListPool<ReserveManager::ReserveStruct, int>::Remove(int);
 
-namespace ReserveManager {
+namespace ReserveManager
+{
 
 // FUNCTION: SWBF2 0x0062f5c0
 void Reset()
@@ -353,7 +357,3 @@ void Reset()
 }
 }
 
-// FUNCTION: SWBF2 0x0062f9b0
-ReserveManager::ReserveStruct::~ReserveStruct()
-{
-}

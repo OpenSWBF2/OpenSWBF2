@@ -1,7 +1,7 @@
 #pragma once
 
 class GameObject;
-class DamageOwner;
+struct DamageOwner;
 
 namespace PowerupUtility
 {

@@ -20,30 +20,22 @@
 #include <d3dx9math.h>
 #include "PebbleFL/Common/PblHashTable.h"
 
-// GLOBAL: SWBF2 0x01f9938c
 // SYNTHETIC: SWBF2 0x00406c90
 // `dynamic initializer for 'UnitDeathmatchAgent::rttiHashUnitDeathmatchAgent''
+// UnitDeathmatchAgent::rttiHashUnitDeathmatchAgent
+
+// GLOBAL: SWBF2 0x01f9938c
+// UnitDeathmatchAgent::rttiHashUnitDeathmatchAgent
 PblHash UnitDeathmatchAgent::rttiHashUnitDeathmatchAgent("UnitDeathmatchAgent");
-char UnitDeathmatchAgent::rttiNameUnitDeathmatchAgent[] = "UnitDeathmatchAgent";
+// GLOBAL: SWBF2 0x0078b7ec
+// UnitDeathmatchAgent::rttiNameUnitDeathmatchAgent
+const char UnitDeathmatchAgent::rttiNameUnitDeathmatchAgent[] = "UnitDeathmatchAgent";
 
-// FUNCTION: SWBF2 0x006653a0
-bool UnitDeathmatchAgent::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashUnitDeathmatchAgent || uRtti == UnitAgent::rttiHashUnitAgent ||
-           uRtti == Agent::rttiHashAgent;
-}
 
-// FUNCTION: SWBF2 0x006653d0
-unsigned int UnitDeathmatchAgent::GetDerivedRtti() const
-{
-    return rttiHashUnitDeathmatchAgent;
-}
 
-// FUNCTION: SWBF2 0x006653e0
-const char* UnitDeathmatchAgent::GetDerivedRttiName() const
-{
-    return rttiNameUnitDeathmatchAgent;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00665b50
 const char* UnitDeathmatchAgent::NFINAL_GetStateString(int) const
@@ -237,7 +229,7 @@ void UnitDeathmatchAgent::UpdateStatePostVision(float dt)
 {
     if (mCurState != STATE_Combat)
     {
-        reinterpret_cast<AttackHelper*>(mAttackHelper)->Update();
+        mAttackHelper.Update();
     }
 
     switch (mCurState)

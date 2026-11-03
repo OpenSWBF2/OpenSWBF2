@@ -8,42 +8,65 @@ namespace utf8
 {
 typedef unsigned char uint8_t;
 typedef unsigned int uint32_t;
+// SYNTHETIC: SWBF2 0x005d4a20
+// utf8::exception::`scalar deleting destructor'
+// SYNTHETIC: SWBF2 0x005d8610 SYMBOL
+// ??0exception@utf8@@QAE@ABV01@@Z
+// utf8::exception::exception(class utf8::exception const &)
 
+// VTABLE: SWBF2 0x007aba68
 class exception : public std::exception
 {
-public:
-    exception() {}
-    exception(const exception& rhs);
-    virtual ~exception();
 };
 
+// SYNTHETIC: SWBF2 0x005d8a10
+// utf8::not_enough_room::`scalar deleting destructor'
+// SYNTHETIC: SWBF2 0x005d85f0 SYMBOL
+// ??0not_enough_room@utf8@@QAE@ABV01@@Z
+// utf8::not_enough_room::not_enough_room(class utf8::not_enough_room const &)
+
+// VTABLE: SWBF2 0x007ab9a0
 class not_enough_room : public exception
 {
 public:
-    not_enough_room() {}
-    not_enough_room(const not_enough_room& rhs);
-    virtual ~not_enough_room();
-    virtual const char* what() const throw();
+    // FUNCTION: SWBF2 0x005d4aa0
+    virtual const char* what() const throw() { return "Not enough space"; }
 };
 
+// SYNTHETIC: SWBF2 0x005d4a60
+// utf8::invalid_utf8::`scalar deleting destructor'
+// SYNTHETIC: SWBF2 0x005d8630 SYMBOL
+// ??0invalid_utf8@utf8@@QAE@ABV01@@Z
+// utf8::invalid_utf8::invalid_utf8(class utf8::invalid_utf8 const &)
+
+// VTABLE: SWBF2 0x007ab994
 class invalid_utf8 : public exception
 {
+    uint8_t u8;
+
 public:
-    unsigned char byte;
-    invalid_utf8() {}
-    invalid_utf8(const invalid_utf8& rhs);
-    virtual ~invalid_utf8();
-    virtual const char* what() const throw();
+    invalid_utf8(uint8_t u) : u8(u) {}
+    // FUNCTION: SWBF2 0x005d4a50
+    virtual const char* what() const throw() { return "Invalid UTF-8"; }
+    uint8_t utf8_octet() const { return u8; }
 };
 
+// SYNTHETIC: SWBF2 0x005d49e0
+// utf8::invalid_code_point::`scalar deleting destructor'
+// SYNTHETIC: SWBF2 0x005d8660 SYMBOL
+// ??0invalid_code_point@utf8@@QAE@ABV01@@Z
+// utf8::invalid_code_point::invalid_code_point(class utf8::invalid_code_point const &)
+
+// VTABLE: SWBF2 0x007ab970
 class invalid_code_point : public exception
 {
+    uint32_t cp;
+
 public:
-    unsigned int code;
-    invalid_code_point() {}
-    invalid_code_point(const invalid_code_point& rhs);
-    virtual ~invalid_code_point();
-    virtual const char* what() const throw();
+    invalid_code_point(uint32_t cp) : cp(cp) {}
+    // FUNCTION: SWBF2 0x005d49d0
+    virtual const char* what() const throw() { return "Invalid code point"; }
+    uint32_t code_point() const { return cp; }
 };
 
 namespace internal
@@ -276,9 +299,7 @@ octet_iterator append(uint32_t cp, octet_iterator result)
 {
     if (!internal::is_code_point_valid(cp))
     {
-        invalid_code_point error;
-        error.code = cp;
-        throw error;
+        throw invalid_code_point(cp);
     }
 
     if (cp < 0x80)
@@ -359,15 +380,11 @@ uint32_t next(octet_iterator& it, octet_iterator end)
     case internal::INCOMPLETE_SEQUENCE:
     case internal::OVERLONG_SEQUENCE:
     {
-        invalid_utf8 error;
-        error.byte = internal::mask8(*it);
-        throw error;
+        throw invalid_utf8(*it);
     }
     case internal::INVALID_CODE_POINT:
     {
-        invalid_code_point error;
-        error.code = cp;
-        throw error;
+        throw invalid_code_point(cp);
     }
     }
     return cp;

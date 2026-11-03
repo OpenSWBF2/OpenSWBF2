@@ -8,23 +8,14 @@
 namespace Snd
 {
 
-static inline PblListDoubleSorted::Node* NodeFromLink(const PblListDoubleSorted& list,
-                                                      PblListDouble::Node* pLink)
-{
-    if (pLink == &list.mTerminator)
-    {
-        return (PblListDoubleSorted::Node*)list.GetTerminator();
-    }
-    return (PblListDoubleSorted::Node*)((char*)pLink - offsetof(PblListDoubleSorted::Node, mNode));
-}
-
 // FUNCTION: SWBF2 0x00748900
 VoiceBase* VoiceVirtualManager::GetFreeVoice()
 {
-    for (PblListSingle::Node* pLink = mVoiceList.mHead.mNext; pLink != &mVoiceList.mHead;
-         pLink = pLink->mNext)
+    for (PblListSingle::Itor itor(mVoiceList);
+         itor.GetNode() != mVoiceList.GetTerminator(); ++itor)
     {
-        VoiceBase* pVoice = (VoiceBase*)((char*)pLink - offsetof(VoiceBase, mNode));
+        VoiceBase* const pVoice = (VoiceBase*)itor.GetNode()->GetObjectA(
+            &mVoiceList, offsetof(VoiceBase, mNode));
         if (!pVoice->GetLocked())
         {
             return pVoice;
@@ -60,30 +51,19 @@ void VoiceVirtualManager::Update(float fDeltaTime)
 {
     unsigned int uiNumActive = 0;
 
-    PblListDouble::Node* pLink = mInactiveList.mTerminator.mNext;
-    for (;;)
+    PblListDoubleSorted::Itor itor = mInactiveList.Begin();
+    while (itor.GetNode(&mInactiveList) != mInactiveList.GetTerminator())
     {
-        PblListDoubleSorted::Node* pNode = NodeFromLink(mInactiveList, pLink);
-        if (pNode == mInactiveList.GetTerminator())
-        {
-            break;
-        }
-        VoiceVirtual* pVoice = pNode == mInactiveList.GetTerminator()
-            ? 0
-            : (VoiceVirtual*)((char*)pNode - offsetof(VoiceVirtual, mNode));
-        pLink = pLink->mNext;
+        PblListDoubleSorted::Node* pNode = itor.GetNode(&mInactiveList);
+        VoiceVirtual* pVoice = (VoiceVirtual*)pNode->GetObjectA(&mInactiveList, offsetof(VoiceVirtual, mNode));
+        ++itor;
         pVoice->Update(fDeltaTime);
     }
 
-    for (pLink = mActiveList.mTerminator.mNext; pLink != &mActiveList.mTerminator;
-         pLink = pLink->mNext)
+    for (itor = mActiveList.Begin(); itor.GetNode(&mActiveList) != mActiveList.GetTerminator(); ++itor)
     {
-        PblListDoubleSorted::Node* pNode = NodeFromLink(mActiveList, pLink);
-        if (pNode == mActiveList.GetTerminator())
-        {
-            break;
-        }
-        VoiceVirtual* pVoice = (VoiceVirtual*)((char*)pNode - offsetof(VoiceVirtual, mNode));
+        PblListDoubleSorted::Node* pNode = itor.GetNode(&mActiveList);
+        VoiceVirtual* pVoice = (VoiceVirtual*)pNode->GetObjectA(&mActiveList, offsetof(VoiceVirtual, mNode));
         pVoice->DetermineClosestListener();
         pVoice->CalculatePriority(false);
         ++uiNumActive;
@@ -94,29 +74,23 @@ void VoiceVirtualManager::Update(float fDeltaTime)
         mActiveList.Sort();
     }
 
-    for (pLink = &NodeFromLink(mActiveList, mActiveList.mTerminator.mPrev)->mNode;
-         pLink != &mActiveList.mTerminator;)
+    for (itor = mActiveList.End(); itor.GetNode(&mActiveList) != mActiveList.GetTerminator();)
     {
-        PblListDoubleSorted::Node* pNode = NodeFromLink(mActiveList, pLink);
-        if (pNode == mActiveList.GetTerminator())
-        {
-            break;
-        }
         --uiNumActive;
-        VoiceVirtual* pVoice = pNode == mActiveList.GetTerminator()
-            ? 0
-            : (VoiceVirtual*)((char*)pNode - offsetof(VoiceVirtual, mNode));
-        pLink = pLink->mPrev;
+        PblListDoubleSorted::Node* pNode = itor.GetNode(&mActiveList);
+        VoiceVirtual* pVoice = (VoiceVirtual*)pNode->GetObjectA(&mActiveList, offsetof(VoiceVirtual, mNode));
+        VoiceBase* pHardwareVoice = pVoice->GetVoice();
+        --itor;
         if (uiNumActive < mNumManagedVoices)
         {
-            if (!pVoice->mVoice)
+            if (!pHardwareVoice)
             {
                 pVoice->SetVoice(GetFreeVoice());
             }
         }
-        else if (pVoice->mVoice)
+        else if (pHardwareVoice)
         {
-            pVoice->mVoice->SourceTransport::Stop();
+            pHardwareVoice->SourceTransport::Stop();
             pVoice->SetVoice(0);
         }
         pVoice->Update(fDeltaTime);
@@ -125,8 +99,3 @@ void VoiceVirtualManager::Update(float fDeltaTime)
 
 }
 
-// FUNCTION: SWBF2 0x00748bf0
-extern "C" void __fastcall ClearUnsignedWord(unsigned int* pValue)
-{
-    *pValue = 0;
-}

@@ -7,14 +7,13 @@ namespace Snd
 void StreamNodeSinkNInput::Connect(StreamNodeSource* const pSource,
                                    unsigned int uiOutput, unsigned int uiInput)
 {
-    mConnections[uiInput].mInputNode = pSource;
-    mConnections[uiInput].mInputNodeOutputIndex = uiOutput;
+    mConnections[uiInput].Initialize(pSource, uiOutput);
 }
 
 // FUNCTION: SWBF2 0x0073d600
 StreamNodeSource* StreamNodeSinkNInput::ConnectionGetNode(unsigned int uiInput) const
 {
-    return mConnections[uiInput].mInputNode;
+    return mConnections[uiInput].GetInputNode();
 }
 
 // FUNCTION: SWBF2 0x0073d5c0
@@ -78,6 +77,7 @@ void StreamNode::SetStarved(bool bStarved)
 bool StreamNode::UpdateNode(bool bAllowPausing)
 {
 
+    bool bResult = false;
     const PlayState eDesired = QueryDesiredPlayState();
 
     SourceTransport::mFlags = (unsigned short)
@@ -87,44 +87,43 @@ bool StreamNode::UpdateNode(bool bAllowPausing)
     {
     case playState_playing:
         SetPlayState(playState_playing);
-        return false;
+        break;
 
     case playState_paused:
         SetStarved(false);
 
         SetPlayState(bAllowPausing ? playState_pausing : playState_paused);
-        return false;
+        break;
 
     case playState_stopped:
         SetStarved(false);
 
+        bResult = true;
         SourceTransport::mPlaybackPosition = 0;
         SetPlayState(playState_stopped);
-        return true;
+        break;
 
     default:
 
-        return false;
+        break;
     }
+    return bResult;
 }
 
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x0073d610
 StreamPacket* StreamNodeSinkNInput::ConnectionGetPacket(unsigned int uiInput) const
 {
-    const StreamNodeConnection& connection = mConnections[uiInput];
-    if (connection.mInputNode == 0)
-    {
-        return 0;
-    }
-    return connection.mInputNode->GetPacket(connection.mInputNodeOutputIndex);
+    return mConnections[uiInput].GetPacket();
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x0073d650
 unsigned int StreamNodeSinkNInput::GetNumInputs() const

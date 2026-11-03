@@ -2,36 +2,31 @@
 #include "PebbleFL/Common/PblChunk.h"
 #include "PebbleFL/Common/PblFile.h"
 
-// GLOBAL: SWBF2 0x01ebd01c
 // SYNTHETIC: SWBF2 0x00403ad0
 // `dynamic initializer for 'FoleyFXImpact::rttiHashFoleyFXImpact''
-PblHash FoleyFXImpact::rttiHashFoleyFXImpact("FoleyFXImpact");
-char FoleyFXImpact::rttiNameFoleyFXImpact[] = "FoleyFXImpact";
+// FoleyFXImpact::rttiHashFoleyFXImpact
 
-// GLOBAL: SWBF2 0x007ec188
+// GLOBAL: SWBF2 0x01ebd01c
+// FoleyFXImpact::rttiHashFoleyFXImpact
+PblHash FoleyFXImpact::rttiHashFoleyFXImpact("FoleyFXImpact");
+// GLOBAL: SWBF2 0x007898b8
+// FoleyFXImpact::rttiNameFoleyFXImpact
+const char FoleyFXImpact::rttiNameFoleyFXImpact[] = "FoleyFXImpact";
+
 // SYNTHETIC: SWBF2 0x00403ab0
 // `dynamic initializer for 'FoleyFXImpact::smFreeList''
 // SYNTHETIC: SWBF2 0x007687e0
 // `dynamic atexit destructor for 'FoleyFXImpact::smFreeList''
-Snd::FreeList FoleyFXImpact::smFreeList(sizeof(FoleyFXImpact), 4, 8, 1);
 
-// FUNCTION: SWBF2 0x0052c9e0
-bool FoleyFXImpact::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashFoleyFXImpact || FoleyFX::IsRtti(uRtti);
-}
+// GLOBAL: SWBF2 0x007ec188
+// FoleyFXImpact::smFreeList
+Snd::FreeList FoleyFXImpact::smFreeList(sizeof(FoleyFXImpact), 4, true, 8);
 
-// FUNCTION: SWBF2 0x0052ca10
-unsigned int FoleyFXImpact::GetDerivedRtti() const
-{
-    return rttiHashFoleyFXImpact;
-}
 
-// FUNCTION: SWBF2 0x0052ca20
-const char* FoleyFXImpact::GetDerivedRttiName() const
-{
-    return rttiNameFoleyFXImpact;
-}
+
+
+
+
 
 // FUNCTION: SWBF2 0x0052ca30
 FoleyFXImpact::FoleyFXImpact()

@@ -193,6 +193,8 @@ unsigned long ZEXPORT crc32(crc, buf, len)
             crc_table[1][(c >> 16) & 0xff] ^ crc_table[0][c >> 24]
 #define DOLIT32 DOLIT4; DOLIT4; DOLIT4; DOLIT4; DOLIT4; DOLIT4; DOLIT4; DOLIT4
 
+// LIBRARY: SWBF2 0x006981f0
+// crc32_little
 local unsigned long crc32_little(crc, buf, len)
     unsigned long crc;
     const unsigned char FAR *buf;

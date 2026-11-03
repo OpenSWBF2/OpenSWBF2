@@ -1,4 +1,5 @@
 #include <string.h>
+#include "PebbleFL/Common/PblMath.h"
 
 #include "pcRedInputManager.h"
 #include "RedEngineFL/Application/pc/pcFLRender.h"
@@ -10,6 +11,11 @@
 #include "RedEngineFL/Graphics/PC/pcRedTexture.h"
 #include "RedEngineFL/Graphics/PC/pcDisplaySettings.h"
 #include "RedEngineFL/Util/RedLog.h"
+
+// GLOBAL: SWBF2 0x00787484
+// GUID_SysMouse
+// GLOBAL: SWBF2 0x00787bc4
+// c_dfDIMouse2
 
 extern HWND hGlobalWnd;
 extern bool gAppActive;
@@ -337,21 +343,23 @@ void RedMouse::Init(unsigned char ucPortNum)
         return;
     }
 
-    HRESULT hrDataFormat = pc_device->SetDataFormat(&c_dfDIMouse2);
+    HRESULT hr = pc_device->SetDataFormat(&c_dfDIMouse2);
 
     DIPROPRANGE diprg;
+    diprg.diph.dwHow = DIPH_DEVICE;
+    diprg.diph.dwObj = 0;
     diprg.diph.dwSize = sizeof(DIPROPRANGE);
     diprg.diph.dwHeaderSize = sizeof(DIPROPHEADER);
-    diprg.diph.dwObj = 0;
-    diprg.diph.dwHow = DIPH_DEVICE;
     diprg.lMin = (LONG)0x80000000;
     diprg.lMax = 0x7FFFFFFF;
     pc_device->GetProperty(DIPROP_RANGE, &diprg.diph);
     pc_device->SetProperty(DIPROP_RANGE, &diprg.diph);
 
-    if (FAILED(hrDataFormat)
-        || FAILED(pc_device->SetCooperativeLevel(hGlobalWnd,
-                                                 DISCL_EXCLUSIVE | DISCL_FOREGROUND)))
+    if (SUCCEEDED(hr))
+    {
+        hr = pc_device->SetCooperativeLevel(hGlobalWnd, DISCL_EXCLUSIVE | DISCL_FOREGROUND);
+    }
+    if (FAILED(hr))
     {
         pc_device->Release();
         pc_device = 0;
@@ -396,10 +404,8 @@ void RedMouse::SetCursorPos(int iX, int iY)
     m_X = iX;
     m_Y = iY;
 
-    const int iWidth = (int)RedInterfaceScreen::GetScreenWidth();
-    const int iHeight = (int)RedInterfaceScreen::GetScreenHeight();
-    m_X = (iX < 0) ? 0 : (iX > iWidth ? iWidth : iX);
-    m_Y = (iY < 0) ? 0 : (iY > iHeight ? iHeight : iY);
+    m_X = Clamp(iX, 0, (int)RedInterfaceScreen::GetScreenWidth());
+    m_Y = Clamp(iY, 0, (int)RedInterfaceScreen::GetScreenHeight());
     FLRenderer::SetCursorPos((float)m_X, (float)m_Y);
 
     if (gAppActive && hGlobalWnd)
@@ -574,10 +580,8 @@ void RedMouse::Update(float fDeltaTime)
     }
     m_Z += m_dZ;
 
-    const int iWidth = (int)RedInterfaceScreen::GetScreenWidth();
-    const int iHeight = (int)RedInterfaceScreen::GetScreenHeight();
-    m_X = (m_X < 0) ? 0 : (m_X > iWidth ? iWidth : m_X);
-    m_Y = (m_Y < 0) ? 0 : (m_Y > iHeight ? iHeight : m_Y);
+    m_X = Clamp(m_X, 0, (int)RedInterfaceScreen::GetScreenWidth());
+    m_Y = Clamp(m_Y, 0, (int)RedInterfaceScreen::GetScreenHeight());
     FLRenderer::SetCursorPos((float)m_X, (float)m_Y);
 
     const unsigned int uiPrevDown = m_uiDownButtons;
@@ -589,9 +593,6 @@ void RedMouse::Update(float fDeltaTime)
             uiRaw |= 1 << i;
         }
     }
-    m_uiDownButtons = DisplayLogic::CursorButtonLatch(uiRaw, suiRawPrevDown, bBlockNew, suiLatched);
-    suiRawPrevDown = uiRaw;
-    const unsigned int uiChanged = uiPrevDown ^ m_uiDownButtons;
-    m_uiPressedButtons = m_uiDownButtons & uiChanged;
-    m_uiReleasedButtons = uiPrevDown & uiChanged;
+    m_uiPressedButtons = m_uiDownButtons & (m_uiDownButtons ^ uiPrevDown);
+    m_uiReleasedButtons = uiPrevDown & (m_uiDownButtons ^ uiPrevDown);
 }

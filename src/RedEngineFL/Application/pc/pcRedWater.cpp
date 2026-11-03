@@ -151,9 +151,11 @@ static float WATERRING_MAX_ALPHASCALE_AFTER_TIME = 1.0f / (1.0f - WATERRING_MAX_
 // GLOBAL: SWBF2 0x007e2620
 static float WATERSPLASH_MAX_SEGMENTS_RADIUSINV = 1.0f / WATERSPLASH_MAX_SEGMENTS_RADIUS;
 
-// GLOBAL: SWBF2 0x009cae8c
 // SYNTHETIC: SWBF2 0x0040ab20
 // `dynamic initializer for 'WATERSPLASH_COLOR''
+
+// GLOBAL: SWBF2 0x009cae8c
+// WATERSPLASH_COLOR
 static RedColor WATERSPLASH_COLOR = RedColor::LTGREY;
 
 // GLOBAL: SWBF2 0x007e262c
@@ -177,65 +179,90 @@ static pcNormalMapAdderShader* s_pWaterDistortionRingShader;
 // GLOBAL: SWBF2 0x009cae54
 static pcClearShader* s_pUnderWaterShader;
 
-// GLOBAL: SWBF2 0x009cae74
 // SYNTHETIC: SWBF2 0x0040ab90
 // `dynamic initializer for 'kuiNormalMapAdderShader''
+
+// GLOBAL: SWBF2 0x009cae74
+// kuiNormalMapAdderShader
 unsigned int kuiNormalMapAdderShader = PblHash("NormalMapAdder");
-// GLOBAL: SWBF2 0x009cae80
 // SYNTHETIC: SWBF2 0x0040abb0
 // `dynamic initializer for 'kuiOceanShader''
+
+// GLOBAL: SWBF2 0x009cae80
+// kuiOceanShader
 unsigned int kuiOceanShader = PblHash("Ocean");
-// GLOBAL: SWBF2 0x009cae88
 // SYNTHETIC: SWBF2 0x0040abd0
 // `dynamic initializer for 'kuiPreReflectionShader''
+
+// GLOBAL: SWBF2 0x009cae88
+// kuiPreReflectionShader
 unsigned int kuiPreReflectionShader = PblHash("PreReflection");
-// GLOBAL: SWBF2 0x009cae78
 // SYNTHETIC: SWBF2 0x0040abf0
 // `dynamic initializer for 'kuiUnderWaterShader''
+
+// GLOBAL: SWBF2 0x009cae78
+// kuiUnderWaterShader
 unsigned int kuiUnderWaterShader = PblHash("Clear");
-// GLOBAL: SWBF2 0x009cae58
 // SYNTHETIC: SWBF2 0x0040ac10
 // `dynamic initializer for 'kuiWaterDistortionRingTextureHash''
+
+// GLOBAL: SWBF2 0x009cae58
+// kuiWaterDistortionRingTextureHash
 unsigned int kuiWaterDistortionRingTextureHash = PblHash("fx_ringbump");
-// GLOBAL: SWBF2 0x009cae5c
 // SYNTHETIC: SWBF2 0x0040ac30
 // `dynamic initializer for 'kuiWaterRingShader''
+
+// GLOBAL: SWBF2 0x009cae5c
+// kuiWaterRingShader
 unsigned int kuiWaterRingShader = PblHash("Particle");
-// GLOBAL: SWBF2 0x009cae64
 // SYNTHETIC: SWBF2 0x0040ac50
 // `dynamic initializer for 'kuiWaterRingTextureHash''
+
+// GLOBAL: SWBF2 0x009cae64
+// kuiWaterRingTextureHash
 unsigned int kuiWaterRingTextureHash = PblHash("FXrippl1");
-// GLOBAL: SWBF2 0x009cae90
 // SYNTHETIC: SWBF2 0x0040ac70
 // `dynamic initializer for 'kuiWaterShader''
+
+// GLOBAL: SWBF2 0x009cae90
+// kuiWaterShader
 unsigned int kuiWaterShader = PblHash("Water");
-// GLOBAL: SWBF2 0x009cae68
 // SYNTHETIC: SWBF2 0x0040ac90
 // `dynamic initializer for 'kuiWaterSplashShader''
+
+// GLOBAL: SWBF2 0x009cae68
+// kuiWaterSplashShader
 unsigned int kuiWaterSplashShader = PblHash("Particle");
-// GLOBAL: SWBF2 0x009cae60
 // SYNTHETIC: SWBF2 0x0040acb0
 // `dynamic initializer for 'kuiWaterSplashTextureHash''
+
+// GLOBAL: SWBF2 0x009cae60
+// kuiWaterSplashTextureHash
 unsigned int kuiWaterSplashTextureHash = PblHash("fx_splash");
 
 static const float kInv255 = 1.0f / 255.0f;
 
-namespace
-{
-
 struct CompressedNormal
 {
+    void SetNormal(float fX, float fY, float fZ)
+    {
+        x = (unsigned char)((fX + 1.0f) * 127.5f);
+        y = (unsigned char)((fY + 1.0f) * 127.5f);
+        z = (unsigned char)((fZ + 1.0f) * 127.5f);
+    }
+
     unsigned char z;
     unsigned char y;
     unsigned char x;
     unsigned char w;
 };
-struct CompressedTexCoord
+
+struct NormalXYZ
 {
-    short u;
-    short v;
+    void SetNormal(float fX, float fY, float fZ) { x = fX; y = fY; z = fZ; }
+
+    float x, y, z;
 };
-}
 
 struct CompressedOceanVertex
 {
@@ -248,10 +275,10 @@ struct CompressedOceanVertex
 
 struct OceanVertex
 {
-    PblVector3 pos;
-    PblVector3 normal;
+    PosXYZ pos;
+    NormalXYZ normal;
     RedColor color;
-    float u, v;
+    TexCoord uv;
 };
 struct CompressedWaterVertex
 {
@@ -261,9 +288,9 @@ struct CompressedWaterVertex
 };
 struct WaterVertex
 {
-    PblVector3 pos;
-    PblVector3 normal;
-    float u, v;
+    PosXYZ pos;
+    NormalXYZ normal;
+    TexCoord uv;
 };
 struct CompressedWaterRingVertex
 {
@@ -273,9 +300,9 @@ struct CompressedWaterRingVertex
 };
 struct WaterRingVertex
 {
-    PblVector3 pos;
+    PosXYZ pos;
     RedColor color;
-    float u, v;
+    TexCoord uv;
 };
  
  
@@ -283,121 +310,37 @@ struct WaterRingVertex
  
  
 
-// FUNCTION: SWBF2 0x00719c70
-template <>
-pcRedPrimitive* RedWater::pcCreateDynamicPatchPrimitive<CompressedOceanVertex, 53922>(
+// TEMPLATE: SWBF2 0x00719c70
+// RedWater::pcCreateDynamicPatchPrimitive<CompressedOceanVertex,53922>
+// TEMPLATE: SWBF2 0x0071a040
+// RedWater::pcCreateDynamicPatchPrimitive<OceanVertex,674>
+template <class T, unsigned int FORMAT>
+pcRedPrimitive* RedWater::pcCreateDynamicPatchPrimitive(
     PblVector3* pPositions, PblVector3* pNormals, unsigned int uiPointsX,
     unsigned int uiPointsZ, unsigned int uiStep)
 {
     unsigned int uiNumX = (uiPointsX - 1) / uiStep + 1;
     unsigned int uiNumZ = (uiPointsZ - 1) / uiStep + 1;
-    pcRedPrimitive* pPrim = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, 53922,
-                                                   sizeof(CompressedOceanVertex),
+    pcRedPrimitive* pPrim = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, FORMAT, sizeof(T),
                                                    uiNumX * uiNumZ,
                                                    2 * ((uiNumX - 1) * uiNumZ + uiNumX) - 4,
                                                    false);
-    CompressedOceanVertex* pVert = (CompressedOceanVertex*)pPrim->BeginVertexData();
+    T* pVert = (T*)pPrim->BeginVertexData();
     if (!pVert)
     {
         return pPrim;
     }
 
-    PblVector3 vMin(0.0f, m_fWaterHeightOffset + m_waterHeight + m_minPatchHeight, 0.0f);
+    PblBox box;
+    box._vMin = PblVector3(0.0f, m_fWaterHeightOffset + m_waterHeight + m_minPatchHeight, 0.0f);
     PblVector3 vSize(m_metersPerPatch + 0.001f, m_maxPatchHeight - m_minPatchHeight,
                      m_metersPerPatch + 0.001f);
-    PblVector3 vMax(vMin.x + vSize.x, vMin.y + vSize.y, vMin.z + vSize.z);
-    pPrim->m_bbox._vMin = vMin;
-    pPrim->m_bbox._vMax = vMax;
-
-    PblVector3 vBoxMin = { vMin.x, vMin.y, vMin.z };
-    PblVector3 vExtent = { vMax.x - vMin.x, vMax.y - vMin.y, vMax.z - vMin.z };
-    CompressedPos::s_vMin = vBoxMin;
-    CompressedPos::s_vScale = vExtent * (1.0f / 65535.0f);
-    CompressedPos::s_vScaleInv.x = 1.0f / CompressedPos::s_vScale.x;
-    CompressedPos::s_vScaleInv.y = 1.0f / CompressedPos::s_vScale.y;
-    CompressedPos::s_vScaleInv.z = 1.0f / CompressedPos::s_vScale.z;
-
-    float fHeightScale = vExtent.y;
-    float fHeightBase = vMin.y;
-    for (unsigned int x = 0; x < uiPointsX; x += uiStep)
-    {
-        for (unsigned int z = 0; z < uiPointsZ; z += uiStep)
-        {
-            unsigned int i = z + x * m_pointsPerPatchZ;
-            const PblVector3& rPos = pPositions[i];
-            const PblVector3& rNormal = pNormals[i];
-            pVert->pos.x = (short)((rPos.x * m_metersPerPatch - CompressedPos::s_vMin.x)
-                                   * CompressedPos::s_vScaleInv.x - 32767.5f);
-            pVert->pos.y = (short)((rPos.y * fHeightScale + fHeightBase - CompressedPos::s_vMin.y)
-                                   * CompressedPos::s_vScaleInv.y - 32767.5f);
-            pVert->pos.z = (short)((rPos.z * m_metersPerPatch - CompressedPos::s_vMin.z)
-                                   * CompressedPos::s_vScaleInv.z - 32767.5f);
-            pVert->normal.x = (unsigned char)((rNormal.x + 1.0f) * 127.5f);
-            pVert->normal.y = (unsigned char)((rNormal.y + 1.0f) * 127.5f);
-            pVert->normal.z = (unsigned char)((rNormal.z + 1.0f) * 127.5f);
-            pVert->uv.u = (short)(rPos.x * 2048.0f);
-            pVert->uv.v = (short)(rPos.z * 2048.0f);
-            RedColor color = RedColor::WHITE;
-            color.a = m_foamIntensity[i];
-            pVert->color = color;
-            ++pVert;
-        }
-    }
-    pPrim->EndVertexData();
-
-    unsigned short* pIndex = pPrim->BeginIndexData();
-    unsigned int n = 0;
-    for (unsigned int x = 0; x < uiNumX - 1; ++x)
-    {
-        unsigned int z;
-        for (z = 0; z < uiNumZ; ++z)
-        {
-            pIndex[n++] = (unsigned short)(z + x * uiNumZ);
-            pIndex[n++] = (unsigned short)(z + (x + 1) * uiNumZ);
-        }
-        if (x != uiNumX - 2)
-        {
-            pIndex[n++] = (unsigned short)(z + (x + 1) * uiNumZ - 1);
-            pIndex[n++] = (unsigned short)((x + 1) * uiNumZ);
-        }
-    }
-    pPrim->EndIndexData();
-    return pPrim;
-}
-
-// FUNCTION: SWBF2 0x0071a040
-template <>
-pcRedPrimitive* RedWater::pcCreateDynamicPatchPrimitive<OceanVertex, 674>(
-    PblVector3* pPositions, PblVector3* pNormals, unsigned int uiPointsX,
-    unsigned int uiPointsZ, unsigned int uiStep)
-{
-    unsigned int uiNumX = (uiPointsX - 1) / uiStep + 1;
-    unsigned int uiNumZ = (uiPointsZ - 1) / uiStep + 1;
-    pcRedPrimitive* pPrim = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, 674,
-                                                   sizeof(OceanVertex), uiNumX * uiNumZ,
-                                                   2 * ((uiNumX - 1) * uiNumZ + uiNumX) - 4,
-                                                   false);
-    OceanVertex* pVert = (OceanVertex*)pPrim->BeginVertexData();
-    if (!pVert)
-    {
-        return pPrim;
-    }
-
-    PblVector3 vMin(0.0f, m_fWaterHeightOffset + m_waterHeight + m_minPatchHeight, 0.0f);
-    PblVector3 vSize(m_metersPerPatch + 0.001f, m_maxPatchHeight - m_minPatchHeight,
-                     m_metersPerPatch + 0.001f);
-    PblVector3 vMax(vMin.x + vSize.x, vMin.y + vSize.y, vMin.z + vSize.z);
-    pPrim->m_bbox._vMin = vMin;
-    pPrim->m_bbox._vMax = vMax;
-    PblVector3 vBoxMin = {vMin.x, vMin.y, vMin.z};
-    PblVector3 vExtent = {vMax.x - vMin.x, vMax.y - vMin.y,
-                               vMax.z - vMin.z};
-    PblVector3 vScale = vExtent * (1.0f / 65535.0f);
-    PblVector3 vScaleInv = {1.0f / vScale.x, 1.0f / vScale.y,
-                                 1.0f / vScale.z};
-    CompressedPos::s_vMin = vBoxMin;
-    CompressedPos::s_vScale = vScale;
-    CompressedPos::s_vScaleInv = vScaleInv;
+    box._vMax = PblVector3(box._vMin.x + vSize.x, box._vMin.y + vSize.y,
+                           box._vMin.z + vSize.z);
+    pPrim->m_bbox = box;
+    CompressedPos::SetBoundingBox(box);
+    float fHeightScale = box._vMax.y - box._vMin.y;
+    float fHeightBase = box._vMin.y;
     for (unsigned int x = 0; x < uiPointsX; x += uiStep)
     {
         for (unsigned int z = 0; z < uiPointsZ; z += uiStep)
@@ -405,12 +348,10 @@ pcRedPrimitive* RedWater::pcCreateDynamicPatchPrimitive<OceanVertex, 674>(
             unsigned int i = z + x * m_pointsPerPatchZ;
             const PblVector3& pos = pPositions[i];
             const PblVector3& normal = pNormals[i];
-            pVert->pos.x = pos.x * m_metersPerPatch;
-            pVert->pos.y = pos.y * vExtent.y + vMin.y;
-            pVert->pos.z = pos.z * m_metersPerPatch;
-            pVert->normal = normal;
-            pVert->u = pos.x;
-            pVert->v = pos.z;
+            pVert->pos.SetPos(pos.x * m_metersPerPatch, pos.y * fHeightScale + fHeightBase,
+                              pos.z * m_metersPerPatch);
+            pVert->normal.SetNormal(normal.x, normal.y, normal.z);
+            pVert->uv.SetUV(pos.x, pos.z);
             pVert->color = RedColor::WHITE;
             pVert->color.a = m_foamIntensity[i];
             ++pVert;
@@ -438,9 +379,42 @@ pcRedPrimitive* RedWater::pcCreateDynamicPatchPrimitive<OceanVertex, 674>(
     return pPrim;
 }
 
-static void pcWriteWaterPatchIndices(pcRedPrimitive* pPrim,
-                                     unsigned int uiPointsX, unsigned int uiPointsZ)
+// TEMPLATE: SWBF2 0x0071a360
+// RedWater::pcCreateStaticPatchPrimitive<CompressedWaterVertex,53794>
+// TEMPLATE: SWBF2 0x0071a6c0
+// RedWater::pcCreateStaticPatchPrimitive<WaterVertex,546>
+template <class T, unsigned int FORMAT>
+pcRedPrimitive* RedWater::pcCreateStaticPatchPrimitive(
+    unsigned int uiPointsX, unsigned int uiPointsZ)
 {
+    float fStepX = m_metersPerPatch / (float)(uiPointsX - 1);
+    float fStepZ = m_metersPerPatch / (float)(uiPointsZ - 1);
+    float fX = 0.0f;
+    pcRedPrimitive* pPrim = pcRedPrimitive::Create(
+        D3DPT_TRIANGLESTRIP, FORMAT, sizeof(T),
+        uiPointsX * uiPointsZ,
+        2 * ((uiPointsX - 1) * uiPointsZ + uiPointsX) - 4, true);
+    T* pVert = (T*)pPrim->BeginVertexData();
+    if (!pVert)
+    {
+        return pPrim;
+    }
+    PblBox box(0.0f, 0.0f, 0.0f, m_metersPerPatch + 0.01f, 1.0f, m_metersPerPatch + 0.01f);
+    pPrim->m_bbox = box;
+    CompressedPos::SetBoundingBox(box);
+    for (unsigned int x = 0; x < uiPointsX; ++x, fX += fStepX)
+    {
+        float fZ = 0.0f;
+        for (unsigned int z = 0; z < uiPointsZ; ++z, fZ += fStepZ)
+        {
+            pVert->pos.SetPos(fX, 0.0f, fZ);
+            pVert->normal.SetNormal(0.0f, 1.0f, 0.0f);
+            pVert->uv.SetUV((float)x / (float)(uiPointsX - 1),
+                             (float)z / (float)(uiPointsZ - 1));
+            ++pVert;
+        }
+    }
+    pPrim->EndVertexData();
     unsigned short* pIndex = pPrim->BeginIndexData();
     unsigned int n = 0;
     for (unsigned int x = 0; x < uiPointsX - 1; ++x)
@@ -458,113 +432,9 @@ static void pcWriteWaterPatchIndices(pcRedPrimitive* pPrim,
         }
     }
     pPrim->EndIndexData();
-}
-
-static void pcSetStaticWaterPatchBox(pcRedPrimitive* pPrim)
-{
-    PblVector3 vMin(0.0f, 0.0f, 0.0f);
-    PblVector3 vMax(RedWater::m_metersPerPatch + 0.01f, 1.0f,
-                    RedWater::m_metersPerPatch + 0.01f);
-    pPrim->m_bbox._vMin = vMin;
-    pPrim->m_bbox._vMax = vMax;
-    PblVector3 vBoxMin = {0.0f, 0.0f, 0.0f};
-    PblVector3 vExtent = {vMax.x - vMin.x, vMax.y - vMin.y,
-                               vMax.z - vMin.z};
-    PblVector3 vScale = vExtent * (1.0f / 65535.0f);
-    PblVector3 vScaleInv = {1.0f / vScale.x, 65535.0f,
-                                  1.0f / vScale.z};
-    CompressedPos::s_vMin = vBoxMin;
-    CompressedPos::s_vScale = vScale;
-    CompressedPos::s_vScaleInv = vScaleInv;
-}
-
-// FUNCTION: SWBF2 0x0071a360
-template <>
-pcRedPrimitive* RedWater::pcCreateStaticPatchPrimitive<CompressedWaterVertex, 53794>(
-    unsigned int uiPointsX, unsigned int uiPointsZ)
-{
-    pcRedPrimitive* pPrim = pcRedPrimitive::Create(
-        D3DPT_TRIANGLESTRIP, 53794, sizeof(CompressedWaterVertex),
-        uiPointsX * uiPointsZ,
-        2 * ((uiPointsX - 1) * uiPointsZ + uiPointsX) - 4, true);
-    CompressedWaterVertex* pVert =
-        (CompressedWaterVertex*)pPrim->BeginVertexData();
-    if (!pVert)
-    {
-        return pPrim;
-    }
-    pcSetStaticWaterPatchBox(pPrim);
-    float fStepX = m_metersPerPatch / (float)(uiPointsX - 1);
-    float fStepZ = m_metersPerPatch / (float)(uiPointsZ - 1);
-    float fX = 0.0f;
-    for (unsigned int x = 0; x < uiPointsX; ++x, fX += fStepX)
-    {
-        float fZ = 0.0f;
-        for (unsigned int z = 0; z < uiPointsZ; ++z, fZ += fStepZ)
-        {
-            pVert->pos.x = (short)(fX * CompressedPos::s_vScaleInv.x - 32767.5f);
-            pVert->pos.y = (short)(-32767.5f);
-            pVert->pos.z = (short)(fZ * CompressedPos::s_vScaleInv.z - 32767.5f);
-            pVert->normal.z = 127;
-            pVert->normal.y = 255;
-            pVert->normal.x = 127;
-            pVert->uv.u = (short)(((float)x / (float)(uiPointsX - 1)) * 2048.0f);
-            pVert->uv.v = (short)(((float)z / (float)(uiPointsZ - 1)) * 2048.0f);
-            ++pVert;
-        }
-    }
-    pPrim->EndVertexData();
-    pcWriteWaterPatchIndices(pPrim, uiPointsX, uiPointsZ);
     return pPrim;
 }
 
-// FUNCTION: SWBF2 0x0071a6c0
-template <>
-pcRedPrimitive* RedWater::pcCreateStaticPatchPrimitive<WaterVertex, 546>(
-    unsigned int uiPointsX, unsigned int uiPointsZ)
-{
-    pcRedPrimitive* pPrim = pcRedPrimitive::Create(
-        D3DPT_TRIANGLESTRIP, 546, sizeof(WaterVertex), uiPointsX * uiPointsZ,
-        2 * ((uiPointsX - 1) * uiPointsZ + uiPointsX) - 4, true);
-    WaterVertex* pVert = (WaterVertex*)pPrim->BeginVertexData();
-    if (!pVert)
-    {
-        return pPrim;
-    }
-    pcSetStaticWaterPatchBox(pPrim);
-    float fStepX = m_metersPerPatch / (float)(uiPointsX - 1);
-    float fStepZ = m_metersPerPatch / (float)(uiPointsZ - 1);
-    float fX = 0.0f;
-    for (unsigned int x = 0; x < uiPointsX; ++x, fX += fStepX)
-    {
-        float fZ = 0.0f;
-        for (unsigned int z = 0; z < uiPointsZ; ++z, fZ += fStepZ)
-        {
-            pVert->pos.x = fX;
-            pVert->pos.y = 0.0f;
-            pVert->pos.z = fZ;
-            pVert->normal.x = 0.0f;
-            pVert->normal.y = 1.0f;
-            pVert->normal.z = 0.0f;
-            pVert->u = (float)x / (float)(uiPointsX - 1);
-            pVert->v = (float)z / (float)(uiPointsZ - 1);
-            ++pVert;
-        }
-    }
-    pPrim->EndVertexData();
-    pcWriteWaterPatchIndices(pPrim, uiPointsX, uiPointsZ);
-    return pPrim;
-}
-
-namespace
-{
-
-struct TexCoord
-{
-    float u;
-    float v;
-};
-}
 
 struct CompressedWaterDistortionRingVertex
 {
@@ -577,10 +447,10 @@ struct CompressedWaterDistortionRingVertex
 };
 struct WaterDistortionRingVertex
 {
-    PblVector3 pos;
-    PblVector3 normal;
-    PblVector3 binormal_s;
-    PblVector3 binormal_t;
+    PosXYZ pos;
+    NormalXYZ normal;
+    NormalXYZ binormal_s;
+    NormalXYZ binormal_t;
     RedColor color;
     TexCoord uv;
 };
@@ -628,64 +498,38 @@ static void pcSetPos(CompressedPos& out, const PblVector3& v)
     out.z = (short)((v.z - CompressedPos::s_vMin.z) * CompressedPos::s_vScaleInv.z
                     - 32767.5f);
 }
-static void pcSetPos(PblVector3& out, const PblVector3& v)
-{
-    out = v;
-}
-static void pcSetNormal(CompressedNormal& out, const PblVector3& v)
-{
-    out.z = (unsigned char)((v.z + 1.0f) * 127.5f);
-    out.y = (unsigned char)((v.y + 1.0f) * 127.5f);
-    out.x = (unsigned char)((v.x + 1.0f) * 127.5f);
-}
-static void pcSetNormal(PblVector3& out, const PblVector3& v)
-{
-    out = v;
-}
-static void pcSetTexCoord(CompressedTexCoord& out, float u, float v)
-{
-    out.u = (short)(u * 2048.0f);
-    out.v = (short)(v * 2048.0f);
-}
-static void pcSetTexCoord(TexCoord& out, float u, float v)
-{
-    out.u = u;
-    out.v = v;
-}
-
 template <class T>
 static void pcSetDistortionRingVertex(T& vert, const PblVector3& vPos, float fSin, float fCos,
                                       float fDist, RedColor color, float u, float v)
 {
-    pcSetPos(vert.pos, PblVector3(vPos.x + fCos * fDist, vPos.y + WATERRING_HEIGHT_BIAS,
-                                  vPos.z + fSin * fDist));
-    pcSetNormal(vert.normal, PblVector3(0.0f, 1.0f, 0.0f));
-    pcSetNormal(vert.binormal_s, PblVector3(-fSin, 0.0f, fCos));
-    pcSetNormal(vert.binormal_t, PblVector3(-fCos, 0.0f, -fSin));
+    vert.pos.SetPos(vPos.x + fCos * fDist, vPos.y + WATERRING_HEIGHT_BIAS,
+                    vPos.z + fSin * fDist);
+    vert.normal.SetNormal(0.0f, 1.0f, 0.0f);
+    vert.binormal_s.SetNormal(-fSin, 0.0f, fCos);
+    vert.binormal_t.SetNormal(-fCos, 0.0f, -fSin);
     vert.color = color;
-    pcSetTexCoord(vert.uv, u, v);
-}
-
-static float pcRingAlphaScale(float fLifetime, float fAge)
-{
-    float fTime = fAge / fLifetime;
-    if (fTime < WATERRING_MAX_ALPHA_AT_TIME)
-    {
-        return fTime * WATERRING_MAX_ALPHASCALE_BEFORE_TIME;
-    }
-    return (1.0f - fTime) * WATERRING_MAX_ALPHASCALE_AFTER_TIME;
+    vert.uv.SetUV(u, v);
 }
 
 // TEMPLATE: SWBF2 0x0071ae80
 // RedWater::pcRenderDistortionRing<WaterDistortionRingVertex,738>
 
-// FUNCTION: SWBF2 0x0071a9c0
+// TEMPLATE: SWBF2 0x0071a9c0
+// RedWater::pcRenderDistortionRing<CompressedWaterDistortionRingVertex,53986>
 template <class T, unsigned int FORMAT>
 void RedWater::pcRenderDistortionRing(pcRedShader* pShader, const PblVector3& vWorldMin,
                                       const PblVector3& vWorldMax, const PblVector3& vPos,
                                       float fRadius, float fLifetime, float fAge)
 {
-    float fAlphaScale = pcRingAlphaScale(fLifetime, fAge);
+    float fAlphaScale = fAge / fLifetime;
+    if (fAlphaScale < WATERRING_MAX_ALPHA_AT_TIME)
+    {
+        fAlphaScale = WATERRING_MAX_ALPHASCALE_BEFORE_TIME * fAlphaScale;
+    }
+    else
+    {
+        fAlphaScale = (1.0f - fAlphaScale) * WATERRING_MAX_ALPHASCALE_AFTER_TIME;
+    }
     float fU = 0.0f;
     if (fAlphaScale < 0.0f)
     {
@@ -697,9 +541,13 @@ void RedWater::pcRenderDistortionRing(pcRedShader* pShader, const PblVector3& vW
         fAlpha = WATERRING_MAX_ALPHA;
     }
 
+    PblBox box;
+    box._vMin = vWorldMin;
+    box._vMax = vWorldMax;
     pcRedPrimitive* pPrim = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, FORMAT, sizeof(T),
                                                    82, 0, false);
-    pcSetRingBoundingBox(pPrim, vWorldMin, vWorldMax);
+    pPrim->m_bbox = box;
+    CompressedPos::SetBoundingBox(box);
     T* pVert = (T*)pPrim->BeginVertexData();
     if (!pVert)
     {
@@ -714,14 +562,25 @@ void RedWater::pcRenderDistortionRing(pcRedShader* pShader, const PblVector3& vW
         fInnerV = fInner / -(WATERDISTORTIONRING_INNERWIDTH + WATERDISTORTIONRING_OUTERWIDTH);
         fInner = 0.0f;
     }
-    RedColor color = RedColor::WHITE;
-    color.a = (unsigned char)(fAlpha * 255.0f);
+    RedColor color(255, 255, 255, (unsigned char)(fAlpha * 255.0f));
     for (int i = 0; i <= 40; ++i)
     {
         float fSin, fCos;
         PblMath::SinCos(&fSin, &fCos, (float)i * PblMath::fTwoPi / 40.0f);
-        pcSetDistortionRingVertex(pVert[0], vPos, fSin, fCos, fInner, color, fU, 1.0f - fInnerV);
-        pcSetDistortionRingVertex(pVert[1], vPos, fSin, fCos, fOuter, color, fU, 0.0f);
+        pVert[0].pos.SetPos(vPos.x + fCos * fInner, vPos.y + WATERRING_HEIGHT_BIAS,
+                           vPos.z + fSin * fInner);
+        pVert[0].normal.SetNormal(0.0f, 1.0f, 0.0f);
+        pVert[0].binormal_s.SetNormal(-fSin, 0.0f, fCos);
+        pVert[0].binormal_t.SetNormal(-fCos, 0.0f, -fSin);
+        pVert[0].uv.SetUV(fU, 1.0f - fInnerV);
+        pVert[0].color = color;
+        pVert[1].pos.SetPos(vPos.x + fCos * fOuter, vPos.y + WATERRING_HEIGHT_BIAS,
+                           vPos.z + fSin * fOuter);
+        pVert[1].normal.SetNormal(0.0f, 1.0f, 0.0f);
+        pVert[1].binormal_s.SetNormal(-fSin, 0.0f, fCos);
+        pVert[1].binormal_t.SetNormal(-fCos, 0.0f, -fSin);
+        pVert[1].uv.SetUV(fU, 0.0f);
+        pVert[1].color = color;
         pVert += 2;
         fU += WATERRING_TEX_STEP;
     }
@@ -735,231 +594,23 @@ void RedWater::pcRenderDistortionRing(pcRedShader* pShader, const PblVector3& vW
 // TEMPLATE: SWBF2 0x0071bfb0
 // RedWater::pcRenderDistortionWakeRing<WaterDistortionRingVertex,738>
 
-// FUNCTION: SWBF2 0x0071b270
+// TEMPLATE: SWBF2 0x0071b270
+// RedWater::pcRenderDistortionWakeRing<CompressedWaterDistortionRingVertex,53986>
 template <class T, unsigned int FORMAT>
 void RedWater::pcRenderDistortionWakeRing(pcRedShader* pShader, const PblVector3& vWorldMin,
                                           const PblVector3& vWorldMax, const PblVector3& vPos,
                                           float fRadius, const PblVector3& vVelocity,
                                           float fLifetime, float fAge)
 {
-    float fAlphaScale = pcRingAlphaScale(fLifetime, fAge);
-    if (fAlphaScale < 0.0f)
+    float fAlphaScale = fAge / fLifetime;
+    if (fAlphaScale < WATERRING_MAX_ALPHA_AT_TIME)
     {
-        return;
-    }
-    float fAlpha = fLifetime * WATERRING_MAX_ALPHA / WATERRING_MAX_ALPHA_AT_LIFETIME * fAlphaScale;
-    if (fAlpha > WATERRING_MAX_ALPHA)
-    {
-        fAlpha = WATERRING_MAX_ALPHA;
-    }
-
-    float fSpeed = (float)sqrt(vVelocity.x * vVelocity.x + vVelocity.y * vVelocity.y +
-                               vVelocity.z * vVelocity.z);
-    if (fSpeed < WATERRING_SPEED)
-    {
-        if (fSpeed <= 0.0f)
-        {
-            return;
-        }
-        fAlpha = WATERRING_SPEEDINV * fSpeed * fAlpha;
-    }
-
-    float fGroundSpeed = (float)sqrt(vVelocity.z * vVelocity.z + vVelocity.x * vVelocity.x);
-    float fStretch = WATERRING_SPEEDINV * fGroundSpeed;
-    PblVector3 vDir = vVelocity;
-    float fFalloff = 150.0f;
-    if (fGroundSpeed > 0.01f)
-    {
-        float fInv = 1.0f / fGroundSpeed;
-        vDir.x *= fInv;
-        vDir.z *= fInv;
-        fFalloff = fInv * WATERRING_SPEED;
+        fAlphaScale = WATERRING_MAX_ALPHASCALE_BEFORE_TIME * fAlphaScale;
     }
     else
     {
-        vDir = PblVector3(1.0f, 0.0f, 0.0f);
+        fAlphaScale = (1.0f - fAlphaScale) * WATERRING_MAX_ALPHASCALE_AFTER_TIME;
     }
-
-    float fK = (fStretch - 1.0f) * (fStretch - 1.0f) * 4.0f + 0.4f;
-    float fWakeAlpha = fK / (fK + 1.0f) * fAlpha;
-    if (fWakeAlpha <= kInv255)
-    {
-        return;
-    }
-
-    float afAlpha[40];
-    float afSin[40];
-    float afCos[40];
-    int iStart = -1;
-    bool bStartFound = false;
-    for (int i = 0; i < 40; ++i)
-    {
-        float fSin, fCos;
-        PblMath::SinCos(&fSin, &fCos, (float)i * PblMath::fTwoPi / 40.0f);
-        float fDot = vDir.z * fSin + vDir.x * fCos;
-        float fShape;
-        if (fStretch > 1.0f)
-        {
-            float fBehind = 1.0f - fDot * fStretch;
-            fShape = 1.0f - fBehind * fFalloff * fBehind;
-        }
-        else
-        {
-            float fBehind = (1.0f - fDot) * fStretch;
-            fShape = (1.0f - fBehind * fBehind) * (2.0f - fStretch);
-        }
-        float fSegAlpha = fShape * fWakeAlpha;
-        if (fSegAlpha > kInv255)
-        {
-            if (iStart != -1)
-            {
-                bStartFound = true;
-            }
-        }
-        else
-        {
-            fSegAlpha = 0.0f;
-            if (!bStartFound)
-            {
-                iStart = i;
-            }
-        }
-        afSin[i] = fSin;
-        afCos[i] = fCos;
-        afAlpha[i] = fSegAlpha;
-    }
-    if (!bStartFound)
-    {
-        iStart = 39;
-    }
-
-    unsigned int uiNumVertices = 0;
-    bool bLastVisible = true;
-    for (int i = 0; i <= 40; ++i)
-    {
-        if (i == 0 || afAlpha[(i + iStart) % 40] != 0.0f)
-        {
-            if (!bLastVisible)
-            {
-                uiNumVertices += 4;
-            }
-            uiNumVertices += 2;
-            bLastVisible = true;
-        }
-        else
-        {
-            if (bLastVisible)
-            {
-                uiNumVertices += 2;
-            }
-            bLastVisible = false;
-        }
-    }
-
-    pcRedPrimitive* pPrim = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, FORMAT, sizeof(T),
-                                                   uiNumVertices, 0, false);
-    pcSetRingBoundingBox(pPrim, vWorldMin, vWorldMax);
-    T* pVert = (T*)pPrim->BeginVertexData();
-    if (!pVert)
-    {
-        return;
-    }
-
-    float fInner = fRadius - WATERDISTORTIONRING_INNERWIDTH;
-    float fOuter = fRadius + WATERDISTORTIONRING_OUTERWIDTH;
-    float fInnerV = 0.0f;
-    if (fInner < 0.0f)
-    {
-        fInnerV = fInner / -(WATERDISTORTIONRING_INNERWIDTH + WATERDISTORTIONRING_OUTERWIDTH);
-        fInner = 0.0f;
-    }
-
-    float fU = (float)(iStart - 20) * WATERRING_TEX_STEP;
-    float fLastU = 0.0f;
-    int iLast = 0;
-    int iPrev = 0;
-    bLastVisible = true;
-    for (int i = 0; i <= 40; ++i)
-    {
-        int iSeg = (i + iStart) % 40;
-        bool bVisible = i == 0 || afAlpha[iSeg] != 0.0f;
-        if (bVisible || bLastVisible)
-        {
-            if (!bLastVisible)
-            {
-                RedColor lastColor = RedColor::WHITE;
-                lastColor.a = (unsigned char)(afAlpha[iLast] * 255.0f);
-                RedColor prevColor = RedColor::WHITE;
-                prevColor.a = (unsigned char)(afAlpha[iPrev] * 255.0f);
-                pcSetDistortionRingVertex(pVert[0], vPos, afSin[iLast], afCos[iLast], fOuter,
-                                          lastColor, fLastU, 0.0f);
-                pcSetDistortionRingVertex(pVert[1], vPos, afSin[iPrev], afCos[iPrev], fInner,
-                                          prevColor, fU - WATERRING_TEX_STEP, 1.0f - fInnerV);
-                pcSetDistortionRingVertex(pVert[2], vPos, afSin[iPrev], afCos[iPrev], fInner,
-                                          prevColor, fU - WATERRING_TEX_STEP, 1.0f - fInnerV);
-                pcSetDistortionRingVertex(pVert[3], vPos, afSin[iPrev], afCos[iPrev], fOuter,
-                                          prevColor, fU - WATERRING_TEX_STEP, 0.0f);
-                pVert += 4;
-            }
-
-            RedColor color = RedColor::WHITE;
-            color.a = (unsigned char)(afAlpha[iSeg] * 255.0f);
-            pcSetDistortionRingVertex(pVert[0], vPos, afSin[iSeg], afCos[iSeg], fInner, color, fU,
-                                      1.0f - fInnerV);
-            pcSetDistortionRingVertex(pVert[1], vPos, afSin[iSeg], afCos[iSeg], fOuter, color, fU,
-                                      0.0f);
-            pVert += 2;
-            iLast = iSeg;
-            fLastU = fU;
-            fU += WATERRING_TEX_STEP;
-        }
-        iPrev = iSeg;
-        bLastVisible = bVisible;
-    }
-    pPrim->EndVertexData();
-    RedRenderer::pcRenderPrimitive(pPrim, pShader,
-                                   gMatrixIdentity,
-                                   RedColor::WHITE, 0x200, 0, 0, 0);
-    pPrim->Release();
-}
-
-static void pcSetRingVertex(CompressedWaterRingVertex& vert, const PblVector3& vPos,
-                            RedColor color, float u, float v)
-{
-    pcSetPos(vert.pos, vPos);
-    vert.color = color;
-    pcSetTexCoord(vert.uv, u, v);
-}
-static void pcSetRingVertex(WaterRingVertex& vert, const PblVector3& vPos, RedColor color,
-                            float u, float v)
-{
-    vert.pos = vPos;
-    vert.color = color;
-    vert.u = u;
-    vert.v = v;
-}
-
-template <class T>
-static void pcSetWakeRingVertex(T& vert, const PblVector3& vPos, float fSin, float fCos,
-                                float fDist, RedColor color, float u, float v)
-{
-    pcSetRingVertex(vert,
-                    PblVector3(vPos.x + fCos * fDist, vPos.y + WATERRING_HEIGHT_BIAS,
-                               vPos.z + fSin * fDist),
-                    color, u, v);
-}
-
-// TEMPLATE: SWBF2 0x0071e9f0
-// RedWater::pcRenderWakeRing<WaterRingVertex,642>
-
-// FUNCTION: SWBF2 0x0071df70
-template <class T, unsigned int FORMAT>
-void RedWater::pcRenderWakeRing(pcRedShader* pShader, const PblVector3& vWorldMin,
-                                const PblVector3& vWorldMax, const PblVector3& vPos,
-                                float fRadius, const PblVector3& vVelocity, float fLifetime,
-                                float fAge)
-{
-    float fAlphaScale = pcRingAlphaScale(fLifetime, fAge);
     if (fAlphaScale < 0.0f)
     {
         return;
@@ -1073,9 +724,236 @@ void RedWater::pcRenderWakeRing(pcRedShader* pShader, const PblVector3& vWorldMi
         }
     }
 
+    PblBox box;
+    box._vMin = vWorldMin;
+    box._vMax = vWorldMax;
     pcRedPrimitive* pPrim = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, FORMAT, sizeof(T),
                                                    uiNumVertices, 0, false);
-    pcSetRingBoundingBox(pPrim, vWorldMin, vWorldMax);
+    pPrim->m_bbox = box;
+    CompressedPos::SetBoundingBox(box);
+    T* pVert = (T*)pPrim->BeginVertexData();
+    if (!pVert)
+    {
+        return;
+    }
+
+    float fInner = fRadius - WATERDISTORTIONRING_INNERWIDTH;
+    float fOuter = fRadius + WATERDISTORTIONRING_OUTERWIDTH;
+    float fInnerV = 0.0f;
+    if (fInner < 0.0f)
+    {
+        fInnerV = fInner / -(WATERDISTORTIONRING_INNERWIDTH + WATERDISTORTIONRING_OUTERWIDTH);
+        fInner = 0.0f;
+    }
+
+    float fU = (float)(iStart - 20) * WATERRING_TEX_STEP;
+    float fLastU = 0.0f;
+    int iLast = 0;
+    int iPrev = 0;
+    bLastVisible = true;
+    for (int i = 0; i <= 40; ++i)
+    {
+        int iSeg = (i + iStart) % 40;
+        bool bVisible = i == 0 || afAlpha[iSeg] != 0.0f;
+        if (bVisible || bLastVisible)
+        {
+            if (!bLastVisible)
+            {
+                RedColor lastColor(255, 255, 255, (unsigned char)(afAlpha[iLast] * 255.0f));
+                RedColor prevColor(255, 255, 255, (unsigned char)(afAlpha[iPrev] * 255.0f));
+                pcSetDistortionRingVertex(pVert[0], vPos, afSin[iLast], afCos[iLast], fOuter,
+                                          lastColor, fLastU, 0.0f);
+                pcSetDistortionRingVertex(pVert[1], vPos, afSin[iPrev], afCos[iPrev], fInner,
+                                          prevColor, fU - WATERRING_TEX_STEP, 1.0f - fInnerV);
+                pcSetDistortionRingVertex(pVert[2], vPos, afSin[iPrev], afCos[iPrev], fInner,
+                                          prevColor, fU - WATERRING_TEX_STEP, 1.0f - fInnerV);
+                pcSetDistortionRingVertex(pVert[3], vPos, afSin[iPrev], afCos[iPrev], fOuter,
+                                          prevColor, fU - WATERRING_TEX_STEP, 0.0f);
+                pVert += 4;
+            }
+
+            RedColor color(255, 255, 255, (unsigned char)(afAlpha[iSeg] * 255.0f));
+            float fSin = afSin[iSeg];
+            float fCos = afCos[iSeg];
+            pVert[0].pos.SetPos(vPos.x + fCos * fInner, vPos.y + WATERRING_HEIGHT_BIAS,
+                               vPos.z + fSin * fInner);
+            pVert[0].normal.SetNormal(0.0f, 1.0f, 0.0f);
+            pVert[0].binormal_s.SetNormal(-fSin, 0.0f, fCos);
+            pVert[0].binormal_t.SetNormal(-fCos, 0.0f, -fSin);
+            pVert[0].uv.SetUV(fU, 1.0f - fInnerV);
+            pVert[0].color = color;
+            pVert[1].pos.SetPos(vPos.x + fCos * fOuter, vPos.y + WATERRING_HEIGHT_BIAS,
+                               vPos.z + fSin * fOuter);
+            pVert[1].normal.SetNormal(0.0f, 1.0f, 0.0f);
+            pVert[1].binormal_s.SetNormal(-fSin, 0.0f, fCos);
+            pVert[1].binormal_t.SetNormal(-fCos, 0.0f, -fSin);
+            pVert[1].uv.SetUV(fU, 0.0f);
+            pVert[1].color = color;
+            pVert += 2;
+            iLast = iSeg;
+            fLastU = fU;
+            fU += WATERRING_TEX_STEP;
+        }
+        iPrev = iSeg;
+        bLastVisible = bVisible;
+    }
+    pPrim->EndVertexData();
+    RedRenderer::pcRenderPrimitive(pPrim, pShader,
+                                   gMatrixIdentity,
+                                   RedColor::WHITE, 0x200, 0, 0, 0);
+    pPrim->Release();
+}
+
+template <class T>
+static void pcSetWakeRingVertex(T& vert, const PblVector3& vPos, float fSin, float fCos,
+                                float fDist, RedColor color, float u, float v)
+{
+    vert.pos.SetPos(vPos.x + fCos * fDist, vPos.y + WATERRING_HEIGHT_BIAS,
+                    vPos.z + fSin * fDist);
+    vert.uv.SetUV(u, v);
+    vert.color = color;
+}
+
+// TEMPLATE: SWBF2 0x0071e9f0
+// RedWater::pcRenderWakeRing<WaterRingVertex,642>
+
+// TEMPLATE: SWBF2 0x0071df70
+// RedWater::pcRenderWakeRing<CompressedWaterRingVertex,37506>
+template <class T, unsigned int FORMAT>
+void RedWater::pcRenderWakeRing(pcRedShader* pShader, const PblVector3& vWorldMin,
+                                const PblVector3& vWorldMax, const PblVector3& vPos,
+                                float fRadius, const PblVector3& vVelocity, float fLifetime,
+                                float fAge)
+{
+    float fAlphaScale = fAge / fLifetime;
+    if (fAlphaScale < WATERRING_MAX_ALPHA_AT_TIME)
+    {
+        fAlphaScale = WATERRING_MAX_ALPHASCALE_BEFORE_TIME * fAlphaScale;
+    }
+    else
+    {
+        fAlphaScale = (1.0f - fAlphaScale) * WATERRING_MAX_ALPHASCALE_AFTER_TIME;
+    }
+    if (fAlphaScale < 0.0f)
+    {
+        return;
+    }
+    float fAlpha = fLifetime * WATERRING_MAX_ALPHA / WATERRING_MAX_ALPHA_AT_LIFETIME * fAlphaScale;
+    if (fAlpha > WATERRING_MAX_ALPHA)
+    {
+        fAlpha = WATERRING_MAX_ALPHA;
+    }
+
+    float fSpeed = (float)sqrt(vVelocity.y * vVelocity.y + vVelocity.x * vVelocity.x +
+                               vVelocity.z * vVelocity.z);
+    if (fSpeed < WATERRING_SPEED)
+    {
+        if (fSpeed <= 0.0f)
+        {
+            return;
+        }
+        fAlpha = WATERRING_SPEEDINV * fSpeed * fAlpha;
+    }
+
+    float fGroundSpeed = (float)sqrt(vVelocity.z * vVelocity.z + vVelocity.x * vVelocity.x);
+    float fStretch = WATERRING_SPEEDINV * fGroundSpeed;
+    PblVector3 vDir = vVelocity;
+    float fFalloff = 150.0f;
+    if (fGroundSpeed > 0.01f)
+    {
+        float fInv = 1.0f / fGroundSpeed;
+        vDir.x *= fInv;
+        vDir.z *= fInv;
+        fFalloff = fInv * WATERRING_SPEED;
+    }
+    else
+    {
+        vDir = PblVector3(1.0f, 0.0f, 0.0f);
+    }
+
+    float fK = (fStretch - 1.0f) * (fStretch - 1.0f) * 4.0f + 0.4f;
+    float fWakeAlpha = fK / (fK + 1.0f) * fAlpha;
+    if (fWakeAlpha <= kInv255)
+    {
+        return;
+    }
+
+    float afAlpha[40];
+    float afSin[40];
+    float afCos[40];
+    int iStart = -1;
+    bool bStartFound = false;
+    for (int i = 0; i < 40; ++i)
+    {
+        float fSin, fCos;
+        PblMath::SinCos(&fSin, &fCos, (float)i * PblMath::fTwoPi / 40.0f);
+        float fDot = vDir.z * fSin + vDir.x * fCos;
+        float fShape;
+        if (fStretch > 1.0f)
+        {
+            float fBehind = 1.0f - fDot * fStretch;
+            fShape = 1.0f - fBehind * fFalloff * fBehind;
+        }
+        else
+        {
+            float fBehind = (1.0f - fDot) * fStretch;
+            fShape = (1.0f - fBehind * fBehind) * (2.0f - fStretch);
+        }
+        float fSegAlpha = fShape * fWakeAlpha;
+        if (fSegAlpha > kInv255)
+        {
+            if (iStart != -1)
+            {
+                bStartFound = true;
+            }
+        }
+        else
+        {
+            fSegAlpha = 0.0f;
+            if (!bStartFound)
+            {
+                iStart = i;
+            }
+        }
+        afSin[i] = fSin;
+        afCos[i] = fCos;
+        afAlpha[i] = fSegAlpha;
+    }
+    if (!bStartFound)
+    {
+        iStart = 39;
+    }
+
+    unsigned int uiNumVertices = 0;
+    bool bLastVisible = true;
+    for (int i = 0; i <= 40; ++i)
+    {
+        if (i == 0 || afAlpha[(i + iStart) % 40] != 0.0f)
+        {
+            if (!bLastVisible)
+            {
+                uiNumVertices += 4;
+            }
+            uiNumVertices += 2;
+            bLastVisible = true;
+        }
+        else
+        {
+            if (bLastVisible)
+            {
+                uiNumVertices += 2;
+            }
+            bLastVisible = false;
+        }
+    }
+
+    PblBox box;
+    box._vMin = vWorldMin;
+    box._vMax = vWorldMax;
+    pcRedPrimitive* pPrim = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, FORMAT, sizeof(T),
+                                                   uiNumVertices, 0, false);
+    pPrim->m_bbox = box;
+    CompressedPos::SetBoundingBox(box);
     T* pVert = (T*)pPrim->BeginVertexData();
     if (!pVert)
     {
@@ -1104,10 +982,8 @@ void RedWater::pcRenderWakeRing(pcRedShader* pShader, const PblVector3& vWorldMi
         {
             if (!bLastVisible)
             {
-                RedColor lastColor = RedColor::WHITE;
-                lastColor.a = (unsigned char)(afAlpha[iLast] * 255.0f);
-                RedColor prevColor = RedColor::WHITE;
-                prevColor.a = (unsigned char)(afAlpha[iPrev] * 255.0f);
+                RedColor lastColor(255, 255, 255, (unsigned char)(afAlpha[iLast] * 255.0f));
+                RedColor prevColor(255, 255, 255, (unsigned char)(afAlpha[iPrev] * 255.0f));
                 pcSetWakeRingVertex(pVert[0], vPos, afSin[iLast], afCos[iLast], fOuter,
                                     lastColor, fLastU, 0.0f);
                 pcSetWakeRingVertex(pVert[1], vPos, afSin[iPrev], afCos[iPrev], fInner,
@@ -1119,12 +995,17 @@ void RedWater::pcRenderWakeRing(pcRedShader* pShader, const PblVector3& vWorldMi
                 pVert += 4;
             }
 
-            RedColor color = RedColor::WHITE;
-            color.a = (unsigned char)(afAlpha[iSeg] * 255.0f);
-            pcSetWakeRingVertex(pVert[0], vPos, afSin[iSeg], afCos[iSeg], fInner, color, fU,
-                                1.0f - fInnerV);
-            pcSetWakeRingVertex(pVert[1], vPos, afSin[iSeg], afCos[iSeg], fOuter, color, fU,
-                                0.0f);
+            RedColor color(255, 255, 255, (unsigned char)(afAlpha[iSeg] * 255.0f));
+            float fSin = afSin[iSeg];
+            float fCos = afCos[iSeg];
+            pVert[0].pos.SetPos(vPos.x + fCos * fInner, vPos.y + WATERRING_HEIGHT_BIAS,
+                               vPos.z + fSin * fInner);
+            pVert[0].uv.SetUV(fU, 1.0f - fInnerV);
+            pVert[0].color = color;
+            pVert[1].pos.SetPos(vPos.x + fCos * fOuter, vPos.y + WATERRING_HEIGHT_BIAS,
+                               vPos.z + fSin * fOuter);
+            pVert[1].uv.SetUV(fU, 0.0f);
+            pVert[1].color = color;
             pVert += 2;
             iLast = iSeg;
             fLastU = fU;
@@ -1414,11 +1295,7 @@ void RedWater::pcRegisterReflection()
         PblMatrix mMesh = gMatrixIdentity;
         mMesh.m[3][1] = m_fWaterHeightOffset;
 
-        PblPlane plane;
-        plane.x = 0.0f;
-        plane.y = 1.0f;
-        plane.z = 0.0f;
-        plane.w = -(m_waterHeight + m_fWaterHeightOffset);
+        PblPlane plane(0.0f, 1.0f, 0.0f, -(m_waterHeight + m_fWaterHeightOffset));
 
         m_reflectionID = FLRenderer::RegisterReflection(
             reinterpret_cast<Renderable*>(&_WaterRenderable), plane,
@@ -1447,10 +1324,7 @@ void RedWater::pcRegisterReflection()
             }
             else
             {
-                mPatch.m[3][0] = rPatch.bbox._vMin.x;
-                mPatch.m[3][1] = rPatch.bbox._vMin.y;
-                mPatch.m[3][2] = rPatch.bbox._vMin.z;
-                mPatch.m[3][3] = 1.0f;
+                mPatch.SetTranslation(rPatch.bbox._vMin);
                 RedRenderer::pcRenderPrimitive(m_pLowResPrim,
                                                s_pPreReflectionShader,
                                                mPatch,
@@ -2148,10 +2022,7 @@ void RedWater::pcAccumulateNormalMap()
         }
         else
         {
-            mPatch.m[3][0] = patch.bbox._vMin.x;
-            mPatch.m[3][1] = patch.bbox._vMin.y;
-            mPatch.m[3][2] = patch.bbox._vMin.z;
-            mPatch.m[3][3] = 1.0f;
+            mPatch.SetTranslation(patch.bbox._vMin);
             RedRenderer::pcRenderPrimitive(m_pLowResPrim, s_pNormalMapAdderShader, mPatch,
                                            RedColor::WHITE, 0x200, 0, 0, 0);
         }
@@ -2531,10 +2402,7 @@ void RedWater::pcRenderWaterPatches()
         else
         {
             PblMatrix mPatch = mWorld;
-            mPatch.m[3][0] = patch.bbox._vMin.x;
-            mPatch.m[3][1] = patch.bbox._vMin.y;
-            mPatch.m[3][2] = patch.bbox._vMin.z;
-            mPatch.m[3][3] = 1.0f;
+            mPatch.SetTranslation(patch.bbox._vMin);
             RedRenderer::pcRenderPrimitive(m_pHighResPrim,
                                            s_pNormalWaterShader,
                                            mPatch,
@@ -2547,16 +2415,6 @@ void RedWater::pcRenderWaterPatches()
         RedWater::pcEndVisibilityTest(uiLastVisibilityID);
     }
 }
-
-struct CompressedWaterRingVertex;
-struct WaterRingVertex;
-template <>
-void RedWater::pcRenderRing<CompressedWaterRingVertex, 37506>(pcRedShader*, const PblVector3&,
-                                                              const PblVector3&, const PblVector3&,
-                                                              float, float, float);
-template <>
-void RedWater::pcRenderRing<WaterRingVertex, 642>(pcRedShader*, const PblVector3&, const PblVector3&,
-                                                  const PblVector3&, float, float, float);
 
 // FUNCTION: SWBF2 0x007219a0
 void RedWater::pcRenderWaterRings()
@@ -2617,165 +2475,74 @@ void RedWater::pcRenderWaterRings()
     }
 }
 
-// FUNCTION: SWBF2 0x0071ca70
-template <>
-void RedWater::pcRenderRing<CompressedWaterRingVertex, 37506>(pcRedShader* pShader, const PblVector3& vWorldMin,
-                        const PblVector3& vWorldMax, const PblVector3& vPos,
-                        float fRadius, float fLifetime, float fAge)
+// TEMPLATE: SWBF2 0x0071ca70
+// RedWater::pcRenderRing<CompressedWaterRingVertex,37506>
+// TEMPLATE: SWBF2 0x0071ce70
+// RedWater::pcRenderRing<WaterRingVertex,642>
+template <class T, unsigned int FORMAT>
+void RedWater::pcRenderRing(pcRedShader* pShader, const PblVector3& vWorldMin,
+                            const PblVector3& vWorldMax, const PblVector3& vPos,
+                            float fRadius, float fLifetime, float fAge)
 {
-    float fRatio = fAge / fLifetime;
-    float fFade = fRatio < 0.15f ? fRatio * 6.6666665f
-                                 : (1.0f - fRatio) * 1.1764705f;
+    float fFade = fAge / fLifetime;
+    if (fFade < WATERRING_MAX_ALPHA_AT_TIME)
+    {
+        fFade = WATERRING_MAX_ALPHASCALE_BEFORE_TIME * fFade;
+    }
+    else
+    {
+        fFade = (1.0f - fFade) * WATERRING_MAX_ALPHASCALE_AFTER_TIME;
+    }
+    float fU = 0.0f;
     if (fFade < 0.0f)
     {
         return;
     }
-    float fAlpha = (fLifetime * 0.75f / 3.0f) * fFade;
-    if (fAlpha > 0.75f)
+    float fAlpha = (fLifetime * WATERRING_MAX_ALPHA / WATERRING_MAX_ALPHA_AT_LIFETIME) * fFade;
+    if (fAlpha > WATERRING_MAX_ALPHA)
     {
-        fAlpha = 0.75f;
+        fAlpha = WATERRING_MAX_ALPHA;
     }
 
-    pcRedPrimitive* pPrim = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, 37506,
-                                                   sizeof(CompressedWaterRingVertex),
+    PblBox box;
+    box._vMin = vWorldMin;
+    box._vMax = vWorldMax;
+    pcRedPrimitive* pPrim = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, FORMAT, sizeof(T),
                                                    82, 0, false);
-    pPrim->m_bbox._vMin = vWorldMin;
-    pPrim->m_bbox._vMax = vWorldMax;
-    PblVector3 vBoxMin = {vWorldMin.x, vWorldMin.y, vWorldMin.z};
-    PblVector3 vExtent = {vWorldMax.x - vWorldMin.x,
-                               vWorldMax.y - vWorldMin.y,
-                               vWorldMax.z - vWorldMin.z};
-    PblVector3 vScale = vExtent * (1.0f / 65535.0f);
-    PblVector3 vScaleInv = {1.0f / vScale.x, 1.0f / vScale.y,
-                                 1.0f / vScale.z};
-    CompressedPos::s_vMin = vBoxMin;
-    CompressedPos::s_vScale = vScale;
-    CompressedPos::s_vScaleInv = vScaleInv;
-
-    CompressedWaterRingVertex* pVert =
-        (CompressedWaterRingVertex*)pPrim->BeginVertexData();
+    pPrim->m_bbox = box;
+    CompressedPos::SetBoundingBox(box);
+    T* pVert = (T*)pPrim->BeginVertexData();
     if (!pVert)
     {
         return;
     }
-    float fInner = fRadius - 0.35f;
-    float fOuter = fRadius + 0.35f;
-    float fInnerV = 1.0f;
+    float fInner = fRadius - WATERRING_INNERWIDTH;
+    float fOuter = fRadius + WATERRING_OUTERWIDTH;
+    float fInnerV = 0.0f;
     if (fInner < 0.0f)
     {
-        fInnerV += fInner / 0.7f;
+        fInnerV = fInner / -(WATERRING_INNERWIDTH + WATERRING_OUTERWIDTH);
         fInner = 0.0f;
     }
-    RedColor color = RedColor::WHITE;
-    color.a = (unsigned char)(fAlpha * 255.0f);
-    float fU = 0.0f;
+    RedColor color(255, 255, 255, (unsigned char)(fAlpha * 255.0f));
     for (int i = 0; i <= 40; ++i)
     {
         float fSin, fCos;
-        PblMath::SinCos(&fSin, &fCos, (float)i * 6.2831855f / 40.0f);
-        PblVector3 inner(vPos.x + fCos * fInner, vPos.y + 0.01f,
-                         vPos.z + fSin * fInner);
-        PblVector3 outer(vPos.x + fCos * fOuter, vPos.y + 0.01f,
-                         vPos.z + fSin * fOuter);
-        pVert[0].pos.x = (short)((inner.x - vWorldMin.x) * vScaleInv.x - 32767.5f);
-        pVert[0].pos.y = (short)((inner.y - vWorldMin.y) * vScaleInv.y - 32767.5f);
-        pVert[0].pos.z = (short)((inner.z - vWorldMin.z) * vScaleInv.z - 32767.5f);
+        PblMath::SinCos(&fSin, &fCos, (float)i * PblMath::fTwoPi / 40.0f);
+        pVert[0].pos.SetPos(vPos.x + fCos * fInner, vPos.y + WATERRING_HEIGHT_BIAS,
+                           vPos.z + fSin * fInner);
+        pVert[0].uv.SetUV(fU, 1.0f - fInnerV);
         pVert[0].color = color;
-        pVert[0].uv.u = (short)(fU * 2048.0f);
-        pVert[0].uv.v = (short)(fInnerV * 2048.0f);
-        pVert[1].pos.x = (short)((outer.x - vWorldMin.x) * vScaleInv.x - 32767.5f);
-        pVert[1].pos.y = (short)((outer.y - vWorldMin.y) * vScaleInv.y - 32767.5f);
-        pVert[1].pos.z = (short)((outer.z - vWorldMin.z) * vScaleInv.z - 32767.5f);
+        pVert[1].pos.SetPos(vPos.x + fCos * fOuter, vPos.y + WATERRING_HEIGHT_BIAS,
+                           vPos.z + fSin * fOuter);
+        pVert[1].uv.SetUV(fU, 0.0f);
         pVert[1].color = color;
-        pVert[1].uv.u = (short)(fU * 2048.0f);
-        pVert[1].uv.v = 0;
         pVert += 2;
-        fU += 0.25f;
+        fU += WATERRING_TEX_STEP;
     }
     pPrim->EndVertexData();
-    RedRenderer::pcRenderPrimitive(pPrim,
-                                   pShader,
-                                   gMatrixIdentity,
-                                   RedColor::WHITE,
-                                   0x200, 0, 0, 0);
-    pPrim->Release();
-}
-
-// FUNCTION: SWBF2 0x0071ce70
-template <>
-void RedWater::pcRenderRing<WaterRingVertex, 642>(pcRedShader* pShader, const PblVector3& vWorldMin,
-                        const PblVector3& vWorldMax, const PblVector3& vPos,
-                        float fRadius, float fLifetime, float fAge)
-{
-    float fRatio = fAge / fLifetime;
-    float fFade = fRatio < 0.15f ? fRatio * 6.6666665f
-                                 : (1.0f - fRatio) * 1.1764705f;
-    if (fFade < 0.0f)
-    {
-        return;
-    }
-    float fAlpha = (fLifetime * 0.75f / 3.0f) * fFade;
-    if (fAlpha > 0.75f)
-    {
-        fAlpha = 0.75f;
-    }
-
-    pcRedPrimitive* pPrim = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, 642,
-                                                   sizeof(WaterRingVertex), 82, 0, false);
-    pPrim->m_bbox._vMin = vWorldMin;
-    pPrim->m_bbox._vMax = vWorldMax;
-    PblVector3 vBoxMin = {vWorldMin.x, vWorldMin.y, vWorldMin.z};
-    PblVector3 vExtent = {vWorldMax.x - vWorldMin.x,
-                               vWorldMax.y - vWorldMin.y,
-                               vWorldMax.z - vWorldMin.z};
-    PblVector3 vScale = vExtent * (1.0f / 65535.0f);
-    PblVector3 vScaleInv = {1.0f / vScale.x, 1.0f / vScale.y,
-                                 1.0f / vScale.z};
-    CompressedPos::s_vMin = vBoxMin;
-    CompressedPos::s_vScale = vScale;
-    CompressedPos::s_vScaleInv = vScaleInv;
-
-    WaterRingVertex* pVert = (WaterRingVertex*)pPrim->BeginVertexData();
-    if (!pVert)
-    {
-        return;
-    }
-    float fInner = fRadius - 0.35f;
-    float fOuter = fRadius + 0.35f;
-    float fInnerV = 1.0f;
-    if (fInner < 0.0f)
-    {
-        fInnerV += fInner / 0.7f;
-        fInner = 0.0f;
-    }
-    RedColor color = RedColor::WHITE;
-    color.a = (unsigned char)(fAlpha * 255.0f);
-    float fU = 0.0f;
-    for (int i = 0; i <= 40; ++i)
-    {
-        float fSin, fCos;
-        PblMath::SinCos(&fSin, &fCos, (float)i * 6.2831855f / 40.0f);
-        pVert[0].pos.x = vPos.x + fCos * fInner;
-        pVert[0].pos.y = vPos.y + 0.01f;
-        pVert[0].pos.z = vPos.z + fSin * fInner;
-        pVert[0].color = color;
-        pVert[0].u = fU;
-        pVert[0].v = fInnerV;
-        pVert[1].pos.x = vPos.x + fCos * fOuter;
-        pVert[1].pos.y = vPos.y + 0.01f;
-        pVert[1].pos.z = vPos.z + fSin * fOuter;
-        pVert[1].color = color;
-        pVert[1].u = fU;
-        pVert[1].v = 0.0f;
-        pVert += 2;
-        fU += 0.25f;
-    }
-    pPrim->EndVertexData();
-    RedRenderer::pcRenderPrimitive(pPrim,
-                                   pShader,
-                                   gMatrixIdentity,
-                                   RedColor::WHITE,
-                                   0x200, 0, 0, 0);
+    RedRenderer::pcRenderPrimitive(pPrim, pShader, gMatrixIdentity,
+                                   RedColor::WHITE, 0x200, 0, 0, 0);
     pPrim->Release();
 }
 
@@ -2834,10 +2601,7 @@ void RedWater::pcRenderFarWaterPatches()
             }
             else
             {
-                mPatch.m[3][0] = patch.bbox._vMin.x;
-                mPatch.m[3][1] = patch.bbox._vMin.y;
-                mPatch.m[3][2] = patch.bbox._vMin.z;
-                mPatch.m[3][3] = 1.0f;
+                mPatch.SetTranslation(patch.bbox._vMin);
                 RedRenderer::pcRenderPrimitive(m_pLowResPrim,
                                                s_pNormalWaterShader,
                                                mPatch,

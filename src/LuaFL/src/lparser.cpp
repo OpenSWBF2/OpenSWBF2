@@ -770,6 +770,7 @@ static BinOpr getbinopr (int op) {
   }
 }
 
+// GLOBAL: SWBF2 0x007717a0
 static const struct {
   lu_byte left;
   lu_byte right;

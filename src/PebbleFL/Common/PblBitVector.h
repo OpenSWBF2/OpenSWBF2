@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string.h>
+
 template <int N>
 class PblBitVector
 {
@@ -8,12 +10,14 @@ public:
 
     PblBitVector() {}
 
+    PblBitVector(const PblBitVector& v)
+    {
+        *this = v;
+    }
+
     void ClearAll()
     {
-        for (unsigned int i = 0; i < NUM_UINTS; ++i)
-        {
-            m_auiData[i] = 0;
-        }
+        memset(m_auiData, 0, sizeof(m_auiData));
     }
 
     void Or(const PblBitVector& rOther)
@@ -33,12 +37,12 @@ public:
     }
     void ClearBit(unsigned int uBit)
     {
-        m_auiData[uBit >> 5] &= ~(1 << (uBit & 31));
+        m_auiData[NUM_UINTS == 1 ? 0 : (uBit >> 5)] &= ~(1 << (NUM_UINTS == 1 ? uBit : (uBit & 31)));
     }
 
     void SetBit(unsigned int uBit)
     {
-        m_auiData[uBit >> 5] |= 1 << (uBit & 31);
+        m_auiData[NUM_UINTS == 1 ? 0 : (uBit >> 5)] |= 1 << (NUM_UINTS == 1 ? uBit : (uBit & 31));
     }
     void InvertAll()
     {
@@ -66,7 +70,7 @@ public:
     }
     bool IsBitSet(unsigned int uBit) const
     {
-        return (m_auiData[uBit >> 5] & (1 << (uBit & 31))) != 0;
+        return (m_auiData[NUM_UINTS == 1 ? 0 : (uBit >> 5)] & (1 << (NUM_UINTS == 1 ? uBit : (uBit & 31)))) != 0;
     }
 
     unsigned int m_auiData[NUM_UINTS];

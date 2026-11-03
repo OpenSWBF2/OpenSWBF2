@@ -31,7 +31,7 @@ inline float GetMaxShield(const GameObject* p) { return p->mMaxShield; }
 inline bool IsAlive(const GameObject* p) { return p->IsAlive(); }
 inline int GetTeam(const GameObject* p) { return p->GetTeam(); }
 
-const RedColor Interpolate(const RedColor& a, const RedColor& b, float t)
+inline const RedColor Interpolate(const RedColor& a, const RedColor& b, float t)
 {
     RedColor result;
     result.b = (unsigned char)(int)(a.b * (1.0f - t) + b.b * t + 0.5f);
@@ -51,11 +51,13 @@ inline int GetMapMode(const HUD::ElementMap* pMap)
 // GLOBAL: SWBF2 0x01eafb2c
 SpaceAssault* SpaceAssault::mInstance;
 
-// GLOBAL: SWBF2 0x01f6de48
 // SYNTHETIC: SWBF2 0x004063b0
 // `dynamic initializer for 'SpaceAssault::ViewportData::sMemoryPool''
 // SYNTHETIC: SWBF2 0x007694c0
 // `dynamic atexit destructor for 'SpaceAssault::ViewportData::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01f6de48
+// SpaceAssault::ViewportData::sMemoryPool
 MemoryPool SpaceAssault::ViewportData::sMemoryPool("SpaceAssault::ViewportData", 0x2410);
 
 // FUNCTION: SWBF2 0x0064b7c0
@@ -64,10 +66,6 @@ SpaceAssault::ViewportData::ViewportData()
 {
 }
 
-// FUNCTION: SWBF2 0x0064ba80
-SpaceAssault::ViewportData::~ViewportData()
-{
-}
 
 // FUNCTION: SWBF2 0x0064b860
 void SpaceAssault::Create()
@@ -333,22 +331,19 @@ bool SpaceAssault::Update(float fDeltaTime)
         HUD::ElementMap* pMap = HUD::ElementMap::FindByPlayerIndex(iView);
         if (pMap)
         {
-            HUD::Event event;
             if (GetMapMode(pMap) == HUD::ElementMap::mode_Small)
             {
                 if (!vp.isVisible)
                 {
                     vp.isVisible = true;
-                    event.mClass = HUD::GameEvents::gPlayerEvents[iView].spaceAssaultStatus;
-                    event.mData.boolValue = true;
+                    HUD::Event event(HUD::GameEvents::gPlayerEvents[iView].spaceAssaultStatus, true);
                     event.Send();
                 }
             }
             else if (vp.isVisible)
             {
                 vp.isVisible = false;
-                event.mClass = HUD::GameEvents::gPlayerEvents[iView].spaceAssaultStatusDisable;
-                event.mData.boolValue = true;
+                HUD::Event event(HUD::GameEvents::gPlayerEvents[iView].spaceAssaultStatusDisable, true);
                 event.Send();
             }
         }
@@ -368,7 +363,7 @@ void SpaceAssault::AddCriticalSystem(const char* pName, short pointValue, float 
     }
 
     unsigned int uNameHashId = PblHash(pName);
-    EntityEx* pEntity = EntityEx::mIdMap.Find(uNameHashId);
+    EntityEx* pEntity = EntityEx::Find(uNameHashId);
     if (!pEntity)
     {
         return;
@@ -430,7 +425,7 @@ short SpaceAssault::GetPointValue(unsigned int uNameHashId, Character* pCharacte
         }
     }
 
-    EntityEx* pEntity = EntityEx::mIdMap.Find(uNameHashId);
+    EntityEx* pEntity = EntityEx::Find(uNameHashId);
     if (pEntity && GetTeam(pEntity->GetGameObject()) == pCharacter->mTeamNumber)
     {
         return -value;

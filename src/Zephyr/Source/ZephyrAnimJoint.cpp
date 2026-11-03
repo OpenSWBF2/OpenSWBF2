@@ -10,17 +10,15 @@ void ZephyrAnimJoint::DecompTranToFrame(PblVector3& kTrans, unsigned short u16Fr
 {
     if (!m_bTransDyn)
     {
-        kTrans.x = m_fTranOffset[0];
-        kTrans.y = m_fTranOffset[1];
-        kTrans.z = m_fTranOffset[2];
+        kTrans = PblVector3(m_fTranOffset[0], m_fTranOffset[1], m_fTranOffset[2]);
         return;
     }
 
     if (kState.u16Frame == u16Frame + 1)
     {
-        kTrans.x = (float)kState.i16PrevVal[0] * m_fTranScale + m_fTranOffset[0];
-        kTrans.y = (float)kState.i16PrevVal[1] * m_fTranScale + m_fTranOffset[1];
-        kTrans.z = (float)kState.i16PrevVal[2] * m_fTranScale + m_fTranOffset[2];
+        kTrans = PblVector3((float)kState.i16PrevVal[0] * m_fTranScale + m_fTranOffset[0],
+                            (float)kState.i16PrevVal[1] * m_fTranScale + m_fTranOffset[1],
+                            (float)kState.i16PrevVal[2] * m_fTranScale + m_fTranOffset[2]);
         return;
     }
 
@@ -56,8 +54,11 @@ void ZephyrAnimJoint::DecompTranToFrame(PblVector3& kTrans, unsigned short u16Fr
             short i16PrevVal = kState.i16PrevVal[i];
             while (u16Cur < u16Frame)
             {
-                if (*pi8Dat == (char)0x80)
+                // 0x80 n: the value holds for n frames; 0x81 lo hi: a new 16-bit value;
+                // anything else: a signed 8-bit delta to the value.
+                switch (*pi8Dat)
                 {
+                case (char)0x80:
                     i16PrevVal = i16Val;
                     u16Cur = (unsigned short)(u16Cur + (unsigned char)pi8Dat[1]);
                     if (u16Cur > u16Frame)
@@ -65,21 +66,19 @@ void ZephyrAnimJoint::DecompTranToFrame(PblVector3& kTrans, unsigned short u16Fr
                         kState.u8RLECount[i] = (unsigned char)(u16Cur - u16Frame);
                     }
                     pi8Dat += 2;
-                }
-                else
-                {
-                    ++u16Cur;
+                    break;
+                case (char)0x81:
                     i16PrevVal = i16Val;
-                    if (*pi8Dat == (char)0x81)
-                    {
-                        i16Val = (short)(((unsigned char)pi8Dat[2] << 8) | (unsigned char)pi8Dat[1]);
-                        pi8Dat += 3;
-                    }
-                    else
-                    {
-                        i16Val = (short)(i16Val + *pi8Dat);
-                        ++pi8Dat;
-                    }
+                    ++u16Cur;
+                    i16Val = (short)(((unsigned char)pi8Dat[2] << 8) | (unsigned char)pi8Dat[1]);
+                    pi8Dat += 3;
+                    break;
+                default:
+                    i16PrevVal = i16Val;
+                    ++u16Cur;
+                    i16Val = (short)(i16Val + *pi8Dat);
+                    ++pi8Dat;
+                    break;
                 }
             }
             kState.pi8Dat[i] = pi8Dat;
@@ -89,9 +88,9 @@ void ZephyrAnimJoint::DecompTranToFrame(PblVector3& kTrans, unsigned short u16Fr
         kState.u16Frame = u16Frame;
     }
 
-    kTrans.x = (float)kState.i16Val[0] * m_fTranScale + m_fTranOffset[0];
-    kTrans.y = (float)kState.i16Val[1] * m_fTranScale + m_fTranOffset[1];
-    kTrans.z = (float)kState.i16Val[2] * m_fTranScale + m_fTranOffset[2];
+    kTrans = PblVector3((float)kState.i16Val[0] * m_fTranScale + m_fTranOffset[0],
+                        (float)kState.i16Val[1] * m_fTranScale + m_fTranOffset[1],
+                        (float)kState.i16Val[2] * m_fTranScale + m_fTranOffset[2]);
 }
 
 // FUNCTION: SWBF2 0x0072e6b0
@@ -102,17 +101,20 @@ void ZephyrAnimJoint::GetTranslationUncached(PblVector3& kTrans, unsigned short 
     DecompTranToFrame(kTrans, u16Frame, kState);
 }
 
+// The four rotation channels hold the quaternion's x, y, z and s as fixed-point values (1.0 = 2047).
+static inline PblQuaternion QuatFromChannels(const short* pi16Val)
+{
+    const float fScale = 1.0f / 2047.0f;
+    return PblQuaternion((float)pi16Val[3] * fScale, (float)pi16Val[0] * fScale,
+                         (float)pi16Val[1] * fScale, (float)pi16Val[2] * fScale);
+}
+
 // FUNCTION: SWBF2 0x0072e210
 void ZephyrAnimJoint::DecompQuatToFrame(PblQuaternion& kQuat, unsigned short u16Frame, DecompQuatState& kState) const
 {
-    const float fScale = 1.0f / 2047.0f;
-
     if (kState.u16Frame == u16Frame + 1)
     {
-        kQuat._fX = (float)kState.i16PrevVal[0] * fScale;
-        kQuat._fY = (float)kState.i16PrevVal[1] * fScale;
-        kQuat._fZ = (float)kState.i16PrevVal[2] * fScale;
-        kQuat._fS = (float)kState.i16PrevVal[3] * fScale;
+        kQuat = QuatFromChannels(kState.i16PrevVal);
         return;
     }
 
@@ -148,8 +150,11 @@ void ZephyrAnimJoint::DecompQuatToFrame(PblQuaternion& kQuat, unsigned short u16
             short i16PrevVal = kState.i16PrevVal[i];
             while (u16Cur < u16Frame)
             {
-                if (*pi8Dat == (char)0x80)
+                // 0x80 n: the value holds for n frames; 0x81 lo hi: a new 16-bit value;
+                // anything else: a signed 8-bit delta to the value.
+                switch (*pi8Dat)
                 {
+                case (char)0x80:
                     i16PrevVal = i16Val;
                     u16Cur = (unsigned short)(u16Cur + (unsigned char)pi8Dat[1]);
                     if (u16Cur > u16Frame)
@@ -157,21 +162,19 @@ void ZephyrAnimJoint::DecompQuatToFrame(PblQuaternion& kQuat, unsigned short u16
                         kState.u8RLECount[i] = (unsigned char)(u16Cur - u16Frame);
                     }
                     pi8Dat += 2;
-                }
-                else
-                {
-                    ++u16Cur;
+                    break;
+                case (char)0x81:
                     i16PrevVal = i16Val;
-                    if (*pi8Dat == (char)0x81)
-                    {
-                        i16Val = (short)(((unsigned char)pi8Dat[2] << 8) | (unsigned char)pi8Dat[1]);
-                        pi8Dat += 3;
-                    }
-                    else
-                    {
-                        i16Val = (short)(i16Val + *pi8Dat);
-                        ++pi8Dat;
-                    }
+                    ++u16Cur;
+                    i16Val = (short)(((unsigned char)pi8Dat[2] << 8) | (unsigned char)pi8Dat[1]);
+                    pi8Dat += 3;
+                    break;
+                default:
+                    i16PrevVal = i16Val;
+                    ++u16Cur;
+                    i16Val = (short)(i16Val + *pi8Dat);
+                    ++pi8Dat;
+                    break;
                 }
             }
             kState.pi8Dat[i] = pi8Dat;
@@ -181,10 +184,7 @@ void ZephyrAnimJoint::DecompQuatToFrame(PblQuaternion& kQuat, unsigned short u16
         kState.u16Frame = u16Frame;
     }
 
-    kQuat._fX = (float)kState.i16Val[0] * fScale;
-    kQuat._fY = (float)kState.i16Val[1] * fScale;
-    kQuat._fZ = (float)kState.i16Val[2] * fScale;
-    kQuat._fS = (float)kState.i16Val[3] * fScale;
+    kQuat = QuatFromChannels(kState.i16Val);
 }
 
 // FUNCTION: SWBF2 0x0072e6f0

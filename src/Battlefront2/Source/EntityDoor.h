@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "EntityProp.h"
@@ -28,17 +30,17 @@ public:
     virtual ~EntityDoorClass();
     virtual EntityClass* Derive(unsigned int uHash);
     virtual Entity* Build(const EntityDesc& desc);
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
 
     bool InitAnimations(const char* pszName);
 
     static PblHash rttiHashEntityDoorClass;
-    static char rttiNameEntityDoorClass[];
+    static const char rttiNameEntityDoorClass[];
 
-    ZephyrAnim* mAnimation;
+    const ZephyrAnim* mAnimation;
     RedAnimation* mAnimObj;
     AnimationTrigger mAnimationTriggers[3];
     GameSound mOpenSound;
@@ -57,6 +59,10 @@ public:
 class EntityDoorClass;
 class EntityClass;
 
+// VTABLE: SWBF2 0x0079a810
+// VTABLE: SWBF2 0x0079a828 RedSceneObject
+// VTABLE: SWBF2 0x0079a890 CollisionObject
+// VTABLE: SWBF2 0x0079a8e4 EntityEx
 class EntityDoor : public EntityProp, public Thread
 {
 public:
@@ -67,6 +73,8 @@ public:
 
     static void EnterClient();
     static void LeaveClient();
+
+    void SetIsLocked(bool locked) { mIsLocked = locked; }
 
     static EntityDoor* Find(unsigned int uHash);
     static void BeginIter();
@@ -88,11 +96,8 @@ public:
     virtual bool Update(float fDeltaTime);
 
     static PblHash rttiHashEntityDoor;
-    static char rttiNameEntityDoor[];
-
-    static int msHostDoorsNumEntries;
+    static const char rttiNameEntityDoor[];
     static PblHashTable<EntityDoor, 32> msHostDoors;
-    static int msClientDoorsNumEntries;
     static PblHashTable<EntityDoor, 32> msClientDoors;
     static PblHashTable<EntityDoor, 32>* mspDoors;
     static PblHashTable<EntityDoor, 32>::Itor msDoorIter;
@@ -124,3 +129,47 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x00497f70
+inline unsigned int EntityDoor::GetDerivedRtti() const
+{
+    return rttiHashEntityDoor;
+}
+
+// FUNCTION: SWBF2 0x00497f80
+inline const char* EntityDoor::GetDerivedRttiName() const
+{
+    return rttiNameEntityDoor;
+}
+
+// FUNCTION: SWBF2 0x00497f20
+inline bool EntityDoor::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashEntityDoor == uRtti)
+    {
+        return true;
+    }
+    return reinterpret_cast<const EntityProp*>(this)->EntityProp::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x00497ff0
+inline bool EntityDoorClass::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashEntityDoorClass == uRtti)
+    {
+        return true;
+    }
+    return EntityPropClass::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x00498020
+inline unsigned int EntityDoorClass::GetDerivedRtti() const
+{
+    return rttiHashEntityDoorClass;
+}
+
+// FUNCTION: SWBF2 0x00498030
+inline const char* EntityDoorClass::GetDerivedRttiName() const
+{
+    return rttiNameEntityDoorClass;
+}

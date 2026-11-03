@@ -31,7 +31,10 @@ struct LuaObject
         luaL_unref(LuaHelper::mState, LUA_REGISTRYINDEX, mRef);
     }
 
-    void Push() const;
+    void Push() const
+    {
+        lua_rawgeti(LuaHelper::mState, LUA_REGISTRYINDEX, mRef);
+    }
 
     int mRef;
 };
@@ -52,7 +55,7 @@ public:
 
     LuaObjectMatches(lua_State* L, int iIndex) : mMatch(L, iIndex) {}
 
-    static const char* GetName();
+    static const char* GetName() { return "Match"; }
 
     bool operator()(LuaObject& item, LuaObject&) const
     {

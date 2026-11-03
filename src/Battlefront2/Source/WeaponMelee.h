@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "Damageable.h"
@@ -45,9 +47,9 @@ public:
 
     virtual WeaponClass* Derive(unsigned int uHash);
     virtual Weapon* Build(const WeaponDesc& desc);
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
 
     bool IsLightSaber() const;
@@ -58,7 +60,7 @@ public:
                 unsigned int uiFlags, bool bArg) const;
 
     static PblHash rttiHashWeaponMeleeClass;
-    static char rttiNameWeaponMeleeClass[];
+    static const char rttiNameWeaponMeleeClass[];
 
     Combo* m_pComboODF;
     Combo* m_pCombo;
@@ -114,3 +116,25 @@ protected:
  
  
  
+
+// FUNCTION: SWBF2 0x00687c90
+inline bool WeaponMeleeClass::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashWeaponMeleeClass == uRtti)
+    {
+        return true;
+    }
+    return WeaponClass::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x00687cc0
+inline unsigned int WeaponMeleeClass::GetDerivedRtti() const
+{
+    return rttiHashWeaponMeleeClass;
+}
+
+// FUNCTION: SWBF2 0x00687cd0
+inline const char* WeaponMeleeClass::GetDerivedRttiName() const
+{
+    return rttiNameWeaponMeleeClass;
+}

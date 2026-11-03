@@ -1,3 +1,4 @@
+#include <string.h>
 #include "pcStencilShadowShader.h"
 
 #include <d3d9.h>
@@ -10,6 +11,15 @@
 #include "RedEngineFL/Graphics/RedDirectionalLight.h"
 #include "RedEngineFL/Graphics/RedOmniLight.h"
 #include "RedEngineFL/Graphics/RedSpotLight.h"
+
+// GLOBAL: SWBF2 0x00784e30
+// __xmm@3dcccccd3f4ccccd3e4ccccd3f4ccccd
+// GLOBAL: SWBF2 0x00784e40
+// __xmm@3e99999a00000000000000003f800000
+// GLOBAL: SWBF2 0x00784e50
+// __xmm@3e99999a3f800000000000003f800000
+// GLOBAL: SWBF2 0x00784e60
+// __xmm@3e99999a3f8000003e4ccccd3e4ccccd
 
 void __cdecl PblTraceP(const char* Format, ...);
 
@@ -103,18 +113,10 @@ static const D3DVERTEXELEMENT9 s_softskinned_generatenormal_ShadowFormat[10] =
 // FUNCTION: SWBF2 0x00706f60
 pcStencilShadowShader::pcStencilShadowShader()
 {
-    GetStateFuncArray[PIPELINE_FIXED] = 0;
-    GetStateFuncArray[PIPELINE_PROG1] = 0;
-    GetStateFuncArray[PIPELINE_PROG2] = 0;
-    BeginFuncArray[PIPELINE_FIXED] = 0;
-    BeginFuncArray[PIPELINE_PROG1] = 0;
-    BeginFuncArray[PIPELINE_PROG2] = 0;
-    EndFuncArray[PIPELINE_FIXED] = 0;
-    EndFuncArray[PIPELINE_PROG1] = 0;
-    EndFuncArray[PIPELINE_PROG2] = 0;
-    RenderFuncArray[PIPELINE_FIXED] = 0;
-    RenderFuncArray[PIPELINE_PROG1] = 0;
-    RenderFuncArray[PIPELINE_PROG2] = 0;
+    memset(GetStateFuncArray, 0, sizeof(GetStateFuncArray));
+    memset(BeginFuncArray, 0, sizeof(BeginFuncArray));
+    memset(EndFuncArray, 0, sizeof(EndFuncArray));
+    memset(RenderFuncArray, 0, sizeof(RenderFuncArray));
 
     s_uiID = _Register(s_uiRenderTypeHash, this);
 
@@ -275,16 +277,16 @@ unsigned int pcStencilShadowShader::GetState_Prog1(const RenderItem* pItem) cons
     return STATES_ARRAY[1][m_mode];
 }
 
-// GLOBAL: SWBF2 0x00784e1c
-static const pcRedShaderDef::FixedFunctionStateT kFixedFunctionStates[1] =
-{
-    { 2, { 0x21, 0x00, 0x00, 0x00 } },
-};
-
 // FUNCTION: SWBF2 0x00707410
 void pcStencilShadowShader::InitFixedFunctionShaderDef() const
 {
-    GetShaderDef()->InitFixedFunction(0, 1, kFixedFunctionStates);
+    // GLOBAL: SWBF2 0x00784e1c
+    static const pcRedShaderDef::FixedFunctionStateT aFFStates[1] =
+    {
+        { 2, { 0x21, 0x00, 0x00, 0x00 } },
+    };
+
+    GetShaderDef()->InitFixedFunction(0, 1, aFFStates);
 }
 
 // FUNCTION: SWBF2 0x00707430
@@ -348,7 +350,9 @@ void pcStencilShadowShader::Render_Fixed(const RenderItem* pItem, unsigned int u
 {
     if (s_bDebugShadowVolumes)
     {
+        // GLOBAL: SWBF2 0x009c9d3c
         static const RedColorValue backColor(0.2f, 0.2f, 1.0f, 0.3f);
+        // GLOBAL: SWBF2 0x009c9d50
         static const RedColorValue frontColor(1.0f, 0.0f, 0.0f, 0.3f);
         RedRenderer::pcSetRenderState(D3DRS_TEXTUREFACTOR,
                                       ColorValueToARGB(uiPass ? backColor : frontColor));
@@ -359,7 +363,9 @@ void pcStencilShadowShader::Render_Fixed(const RenderItem* pItem, unsigned int u
 
     if (s_bDebugShadowVolumes)
     {
+        // GLOBAL: SWBF2 0x009c9d60
         static const RedColorValue visibleColor(1.0f, 0.0f, 1.0f, 0.3f);
+        // GLOBAL: SWBF2 0x009c9d70
         static const RedColorValue hiddenColor(0.8f, 0.2f, 0.8f, 0.1f);
         RedRenderer::pcSetCullMode(PCREDCULL_NONE);
         RedRenderer::pcSetRenderState(D3DRS_FILLMODE, D3DFILL_WIREFRAME);
@@ -560,10 +566,11 @@ pcStencilShadowShader pcStencilShadowShader::s_Factory;
 pcRedShaderDef pcStencilShadowShader::s_shaderDef("stencilshadow_shader.xml");
 
 // SYNTHETIC: SWBF2 0x00409ee0
-// `dynamic initializer for 'PblMath::fOneOverTwoPi''
+// PblMath::`dynamic initializer for 'fOneOverTwoPi''
 
 // SYNTHETIC: SWBF2 0x00409ec0
-// `dynamic initializer for 'PblMath::fOneOverHalfPi''
+// PblMath::`dynamic initializer for 'fOneOverHalfPi''
 
 // GLOBAL: SWBF2 0x009c9cd4
+// g_pcStencilShadowShader
 unsigned int g_pcStencilShadowShader;

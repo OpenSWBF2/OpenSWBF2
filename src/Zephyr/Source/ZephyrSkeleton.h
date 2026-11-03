@@ -12,10 +12,8 @@ class ZephyrSkeleton
 {
 public:
 
-    // FUNCTION: SWBF2 0x0072bbf0
-    ZephyrSkeleton() { m_pShared = 0; }
-    // FUNCTION: SWBF2 0x0072bc10
-    ~ZephyrSkeleton() { m_pShared = 0; }
+    ZephyrSkeleton();
+    ~ZephyrSkeleton();
 
     bool Open(const ZephyrSkeletonShared& kShared, const ZephyrPoseStatic<N>& kPoseFinal);
 
@@ -29,6 +27,8 @@ public:
     void BuildWorldMatrices(const PblMatrix& kRootMatrix, int iJoint, PblBitVector<N>& kDirty);
     void BuildWorldMatrices(const PblMatrix& kRootMatrix, const PblBitVector<N>& kMask);
 
+    PblMatrix* GetWorldMatrix(int iJoint) { return &m_pWorldMatrices[iJoint]; }
+    const PblMatrix* GetWorldMatrix(int iJoint) const { return &m_pWorldMatrices[iJoint]; }
     int GetNumJoints() const { return m_pShared->m_uNumJoints; }
     const ZephyrJointShared* GetJointShared(int iJoint) const { return &m_pShared->m_pJoints[iJoint]; }
 

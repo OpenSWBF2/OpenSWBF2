@@ -62,13 +62,13 @@ char* GameMovie::sFilename;
 unsigned int gMovieOpenFailures;
 
 // FUNCTION: SWBF2 0x005343f0
-void GameMovie::Create()
+void GameMovie::Create(const int defaultHeap)
 {
     if (GameMovie::sUseMovies)
     {
 
-        sDefaultHeap = GameMemory::RunTimeHeap;
-        int iOldHeap = RedSetCurrentHeap(GameMemory::RunTimeHeap);
+        sDefaultHeap = defaultHeap == -1 ? GameMemory::RunTimeHeap : defaultHeap;
+        const int iOldHeap = RedSetCurrentHeap(sDefaultHeap);
 
         sRedMovie = new RedMovie;
 
@@ -240,10 +240,9 @@ extern int g_InGameMoviePlayerState;
 // FUNCTION: SWBF2 0x00534ab0
 void EnableSceneAndInterface(bool bEnable)
 {
-    CameraManager* pCameras = CameraManager::sInstance;
-    for (unsigned int i = 0; i < pCameras->m_iNumCam; ++i)
+    for (unsigned int i = 0; i < CameraManager::sInstance->m_iNumCam; ++i)
     {
-        unsigned int iView = pCameras->m_hView[i];
+        unsigned int iView = CameraManager::sInstance->m_hView[i];
         FLRenderer::SetSceneEnable(iView, bEnable);
         FLRenderer::SetInterfaceEnable(iView, bEnable);
     }
@@ -257,20 +256,11 @@ void EnableSceneAndInterface(bool bEnable)
     const unsigned int numCameras = CameraManager::sInstance->m_iNumCam;
     for (unsigned int i = 0; i < numCameras; ++i)
     {
-        Character* pCharacter = 0;
-        if (Character::sCharacters && (int)i < Character::sCharacterLimit)
-        {
-            Character* pCandidate = &Character::sCharacters[i];
-            if (pCandidate->mPlayerId == (int)i)
-            {
-                pCharacter = pCandidate;
-            }
-        }
-
         if (bEnable)
         {
             if (g_InGameMovieSpawnDisplayActive[i])
             {
+                Character* pCharacter = Character::GetPtr(i);
                 SpawnDisplay::Instance(0)->Show(pCharacter);
                 g_InGameMovieSpawnDisplayActive[i] = false;
             }
@@ -279,7 +269,7 @@ void EnableSceneAndInterface(bool bEnable)
         {
             pSpawnDisplay = SpawnDisplay::Instance(0);
             g_InGameMovieSpawnDisplayActive[i] = pSpawnDisplay->mMode == SpawnDisplay::eCHANGECLASS;
-            pSpawnDisplay->Hide(pCharacter);
+            pSpawnDisplay->Hide(Character::GetPtr(i));
         }
     }
 }
@@ -302,7 +292,7 @@ void UpdatInGameMovie()
         if (g_InGameMoviePlayerFrame == 0)
         {
             GameSoundEngine::StopAll();
-            GameMovie::Create();
+            GameMovie::Create(GameMemory::RunTimeHeap);
             GameMovie::Open(g_InGameMovieFilename, ingame_movie_idname,
                             GameMemory::RunTimeHeap, GameMemory::RunTimeHeap);
             g_InGameMoviePlayerState = 2;
@@ -344,24 +334,6 @@ void UpdatInGameMovie()
         }
         break;
     }
-}
-
-// FUNCTION: SWBF2 0x00738a20
-void* Snd::QueueBase::Get(unsigned int uStride, char* pData, unsigned int uCapacity)
-{
-    unsigned short* pQueue = (unsigned short*)this;
-    if (pQueue[0] == pQueue[1] && !(pQueue[2] & 1))
-    {
-        return 0;
-    }
-    const unsigned int uIndex = pQueue[1];
-    pQueue[1] = (unsigned short)(uIndex + 1);
-    if (pQueue[1] == uCapacity)
-    {
-        pQueue[1] = 0;
-    }
-    pQueue[2] &= ~1u;
-    return pData + uStride * uIndex;
 }
 
 // FUNCTION: SWBF2 0x005347a0
@@ -419,7 +391,7 @@ bool GameMovie::PropertiesPlaying(const char* const pcProperties, bool bCurrent)
 
     if (bCurrent)
     {
-        const RedMovie::Properties* pCurrent = sRedMovie->GetProperties();
+        const RedMovie::Properties* const pCurrent = sRedMovie->GetProperties();
         if (!pCurrent)
         {
             return false;
@@ -427,7 +399,7 @@ bool GameMovie::PropertiesPlaying(const char* const pcProperties, bool bCurrent)
         return pCurrent->GetHashID() == PblHash(pcProperties);
     }
 
-    const RedMovie::Properties* pProperties =
+    const RedMovie::Properties* const pProperties =
         RedMovie::Properties::FindByHashID(PblHash(pcProperties));
     if (pProperties)
     {
@@ -484,9 +456,11 @@ int g_InGameMoviePlayerState;
 // GLOBAL: SWBF2 0x01e56270
 int g_InGameMoviePlayerFrame;
 
-// GLOBAL: SWBF2 0x01ec0c44
 // SYNTHETIC: SWBF2 0x00403da0
 // `dynamic initializer for 'g_InGameMovieQueue''
 // SYNTHETIC: SWBF2 0x00768a80
 // `dynamic atexit destructor for 'g_InGameMovieQueue''
+
+// GLOBAL: SWBF2 0x01ec0c44
+// g_InGameMovieQueue
 Snd::Queue<unsigned int, 12> g_InGameMovieQueue;

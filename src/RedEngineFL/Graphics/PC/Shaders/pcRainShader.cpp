@@ -1,3 +1,4 @@
+#include <string.h>
 #include "pcRainShader.h"
 
 #include "PebbleFL/Common/PblChunk.h"
@@ -15,28 +16,22 @@ pcRedShader::BeginFuncT pcRainShader::BeginFuncArray[MAX_PIPELINES];
 pcRedShader::EndFuncT pcRainShader::EndFuncArray[MAX_PIPELINES];
 pcRedShader::RenderFuncT pcRainShader::RenderFuncArray[MAX_PIPELINES];
 
-// GLOBAL: SWBF2 0x009c9a68
 // SYNTHETIC: SWBF2 0x00409c00
 // `dynamic initializer for 'pcRainShader::s_shaderDef''
 // SYNTHETIC: SWBF2 0x00769d70
 // `dynamic atexit destructor for 'pcRainShader::s_shaderDef''
+
+// GLOBAL: SWBF2 0x009c9a68
+// pcRainShader::s_shaderDef
 pcRedShaderDef pcRainShader::s_shaderDef("rain_shader.xml");
 
 // FUNCTION: SWBF2 0x00704c60
 pcRainShader::pcRainShader()
 {
-    GetStateFuncArray[PIPELINE_FIXED] = 0;
-    GetStateFuncArray[PIPELINE_PROG1] = 0;
-    GetStateFuncArray[PIPELINE_PROG2] = 0;
-    BeginFuncArray[PIPELINE_FIXED] = 0;
-    BeginFuncArray[PIPELINE_PROG1] = 0;
-    BeginFuncArray[PIPELINE_PROG2] = 0;
-    EndFuncArray[PIPELINE_FIXED] = 0;
-    EndFuncArray[PIPELINE_PROG1] = 0;
-    EndFuncArray[PIPELINE_PROG2] = 0;
-    RenderFuncArray[PIPELINE_FIXED] = 0;
-    RenderFuncArray[PIPELINE_PROG1] = 0;
-    RenderFuncArray[PIPELINE_PROG2] = 0;
+    memset(GetStateFuncArray, 0, sizeof(GetStateFuncArray));
+    memset(BeginFuncArray, 0, sizeof(BeginFuncArray));
+    memset(EndFuncArray, 0, sizeof(EndFuncArray));
+    memset(RenderFuncArray, 0, sizeof(RenderFuncArray));
 
     s_uiID = _Register(s_uiRenderTypeHash, this);
 
@@ -143,16 +138,16 @@ unsigned int pcRainShader::GetState_Prog1(const RenderItem*) const
     return 0;
 }
 
-// GLOBAL: SWBF2 0x00784af8
-static const pcRedShaderDef::FixedFunctionStateT kFixedFunctionStates[1] =
-{
-    { 1, { 0x21, 0x00, 0x00, 0x00 } },
-};
-
 // FUNCTION: SWBF2 0x00704fb0
 void pcRainShader::InitFixedFunctionShaderDef() const
 {
-    GetShaderDef()->InitFixedFunction(4, 1, kFixedFunctionStates);
+    // GLOBAL: SWBF2 0x00784af8
+    static const pcRedShaderDef::FixedFunctionStateT aFFStates[1] =
+    {
+        { 1, { 0x21, 0x00, 0x00, 0x00 } },
+    };
+
+    GetShaderDef()->InitFixedFunction(4, 1, aFFStates);
 }
 
 // FUNCTION: SWBF2 0x00704fd0
@@ -328,22 +323,26 @@ void pcRainShader::_StaticInit() const
 {
 }
 
-// GLOBAL: SWBF2 0x009c9a64
 // SYNTHETIC: SWBF2 0x00409c20
 // `dynamic initializer for 'pcRainShader::s_uiRenderTypeHash''
+
+// GLOBAL: SWBF2 0x009c9a64
+// pcRainShader::s_uiRenderTypeHash
 unsigned int pcRainShader::s_uiRenderTypeHash = PblHash("Rain");
 
 // SYNTHETIC: SWBF2 0x00409c40
-// `dynamic initializer for 'PblMath::fOneOverHalfPi''
+// PblMath::`dynamic initializer for 'fOneOverHalfPi''
 
 // SYNTHETIC: SWBF2 0x00409c60
-// `dynamic initializer for 'PblMath::fOneOverTwoPi''
+// PblMath::`dynamic initializer for 'fOneOverTwoPi''
 
-// GLOBAL: SWBF2 0x009c9a30
 // SYNTHETIC: SWBF2 0x00409be0
 // `dynamic initializer for 'pcRainShader::s_Factory''
 // SYNTHETIC: SWBF2 0x00769d50
 // `dynamic atexit destructor for 'pcRainShader::s_Factory''
+
+// GLOBAL: SWBF2 0x009c9a30
+// pcRainShader::s_Factory
 pcRainShader pcRainShader::s_Factory;
 
 // GLOBAL: SWBF2 0x009c9a2c

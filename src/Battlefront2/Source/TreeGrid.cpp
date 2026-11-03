@@ -1,3 +1,5 @@
+#include <new>
+#include <d3dx9math.h>
 #include <math.h>
 #include <string.h>
 
@@ -7,25 +9,27 @@
 #include "PebbleFL/Common/PblVector.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 #include "RedEngineFL/Util/RedStack.h"
-#include "PebbleFL/pc/PblD3DX.h"
+
 
 const int MAX_TREEGRID_STACKS = 15;
 
 static const float EPSILON = 0.0001f;
 
-// GLOBAL: SWBF2 0x01f9a068
 // SYNTHETIC: SWBF2 0x00406b40
 // `dynamic initializer for 'TreeGridStack::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00769640
 // `dynamic atexit destructor for 'TreeGridStack::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01f9a068
+// TreeGridStack::sMemoryPool
 MemoryPool TreeGridStack::sMemoryPool("TreeGridStack", sizeof(TreeGridStack));
 
-void* TreeGridStack::operator new(size_t uiSize)
+inline void* TreeGridStack::operator new(unsigned int uiSize)
 {
     return sMemoryPool.Allocate(uiSize);
 }
 
-void TreeGridStack::operator delete(void* pBlock)
+inline void TreeGridStack::operator delete(void* pBlock)
 {
     sMemoryPool.Free(pBlock);
 }
@@ -326,7 +330,7 @@ void TreeGrid::CallbackOnLazyRay(const PblVector3& rFrom, const PblVector3& rTo,
     PblVector3 vDir(rTo.x - rFrom.x, rTo.y - rFrom.y, rTo.z - rFrom.z);
     float fLength = sqrtf(vDir.x * vDir.x + vDir.y * vDir.y + vDir.z * vDir.z);
     PblVector3 vNormal;
-    D3DXVec3Normalize(&vNormal, &vDir);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNormal), reinterpret_cast<const D3DXVECTOR3*>(&vDir));
     vDir = vNormal;
 
     float fDist = 1e11f;
@@ -464,7 +468,9 @@ bool TreeGrid::ProcessNeighborhood(int iX, int iZ, int iGridSize, int iStartInde
                                    TreeGridCallback pCallback, TreeGridCallbackData* pData,
                                    float& fDist, bool bFull)
 {
+    // GLOBAL: SWBF2 0x01fac368
     static int sLastX;
+    // GLOBAL: SWBF2 0x01fac364
     static int sLastZ;
 
     if (bFull)
@@ -713,7 +719,7 @@ void TreeGrid::CallbackOnFatRay(const PblVector3& rFrom, const PblVector3& rTo, 
     int aiExtents[4] = { 0, 0, 0, 0 };
     PblVector3 vDir(rTo.x - rFrom.x, rTo.y - rFrom.y, rTo.z - rFrom.z);
     PblVector3 vNormal;
-    D3DXVec3Normalize(&vNormal, &vDir);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNormal), reinterpret_cast<const D3DXVECTOR3*>(&vDir));
 
     PblVector3 vHalf(vNormal.x * fRadius * 0.5f, vNormal.y * fRadius * 0.5f,
                      vNormal.z * fRadius * 0.5f);

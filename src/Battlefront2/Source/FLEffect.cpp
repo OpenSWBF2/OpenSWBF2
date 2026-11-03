@@ -38,6 +38,8 @@
 #include "WeatherEffect.h"
 #include "WorldShadowMapEffect.h"
 
+#include "GameObject.h"
+
 PblMatrix DirectionMatrix(const PblVector3& vDir, const PblVector3& vUp, const PblVector3& vPos);
 
 extern bool netFrameLock;
@@ -53,36 +55,34 @@ extern PblMatrix gMatrixIdentity;
 // GLOBAL: SWBF2 0x01e51e26
 bool FLEffect::s_bInitRender;
 
-// GLOBAL: SWBF2 0x01ebd020
-int FLEffect::s_EffectFactoriesNumEntries;
-
-// GLOBAL: SWBF2 0x01ebd024
 // SYNTHETIC: SWBF2 0x004038f0
 // `dynamic initializer for 'FLEffect::s_EffectFactories''
 
+// GLOBAL: SWBF2 0x01ebd020
 PblHashTable<FLEffect, 32> FLEffect::s_EffectFactories;
 
-// GLOBAL: SWBF2 0x01ebd124
 // SYNTHETIC: SWBF2 0x004038d0
 // `dynamic initializer for 'FLEffect::_Thread''
 // SYNTHETIC: SWBF2 0x00768740
 // `dynamic atexit destructor for 'FLEffect::_Thread''
+
+// GLOBAL: SWBF2 0x01ebd124
+// FLEffect::_Thread
 FLEffect::FLEffectThread FLEffect::_Thread;
 
-// GLOBAL: SWBF2 0x01ebd140
-int FLEffect::s_EffectClassesNumEntries;
-
-// GLOBAL: SWBF2 0x01ebd144
 // SYNTHETIC: SWBF2 0x00403910
 // `dynamic initializer for 'FLEffect::s_EffectClasses''
 
+// GLOBAL: SWBF2 0x01ebd140
 PblHashTable<FLEffectClass, 256> FLEffect::s_EffectClasses;
 
-// GLOBAL: SWBF2 0x01ebd960
 // SYNTHETIC: SWBF2 0x00403930
 // `dynamic initializer for 'FLEffectObject::s_OffsetMatrixPool''
 // SYNTHETIC: SWBF2 0x00768750
 // `dynamic atexit destructor for 'FLEffectObject::s_OffsetMatrixPool''
+
+// GLOBAL: SWBF2 0x01ebd960
+// FLEffectObject::s_OffsetMatrixPool
 MemoryPool FLEffectObject::s_OffsetMatrixPool("FLEffectObject::OffsetMatrix", 0x40);
 
 PblPtrSet<1024> FLEffectObject::sLuaHandles;
@@ -149,7 +149,7 @@ void FLEffect::CleanupAll()
         (*i).Cleanup();
     }
 
-    while (s_EffectClassesNumEntries)
+    while (s_EffectClasses.GetNumEntries())
     {
         FLEffectClass* pClass = s_EffectClasses.Begin();
         if (pClass)
@@ -158,7 +158,6 @@ void FLEffect::CleanupAll()
         }
     }
     s_EffectClasses.Clear();
-    s_EffectClassesNumEntries = 0;
 
     ParticleEmitterEffect::Destroy();
     LightBeamEffect::Destroy();
@@ -187,8 +186,6 @@ void FLEffect::CleanupAll()
     EntityLightFXParser::Destroy();
 
     s_EffectFactories.Clear();
-    s_EffectFactoriesNumEntries = 0;
-    FLEffectObject::sLuaHandles.Clear();
 }
 
 // FUNCTION: SWBF2 0x00526db0
@@ -229,10 +226,7 @@ void FLEffect::Read(PblFileChunk& chunk)
                     if (!s_EffectClasses.Find(uiName))
                     {
                         pClass->SetClassName(uiName);
-                        if (s_EffectClasses.Store(uiName, pClass))
-                        {
-                            ++s_EffectClassesNumEntries;
-                        }
+                        s_EffectClasses.Store(uiName, pClass);
                     }
                 }
             }
@@ -243,10 +237,7 @@ void FLEffect::Read(PblFileChunk& chunk)
 // FUNCTION: SWBF2 0x00526f50
 void FLEffect::RegisterManager(FLEffect* pEffect, unsigned int uiName)
 {
-    if (s_EffectFactories.Store(uiName, pEffect))
-    {
-        ++s_EffectFactoriesNumEntries;
-    }
+    s_EffectFactories.Store(uiName, pEffect);
 }
 
 // FUNCTION: SWBF2 0x00526f70
@@ -257,10 +248,7 @@ void FLEffect::UnregisterManager(FLEffect* pEffect)
     {
         if (i == pEffect)
         {
-            if (s_EffectFactories.Remove(i.GetKey()))
-            {
-                --s_EffectFactoriesNumEntries;
-            }
+            s_EffectFactories.Remove(i.GetKey());
             return;
         }
     }
@@ -313,9 +301,9 @@ bool FLEffect::FLEffectThread::Update(float fDeltaTime)
 // FUNCTION: SWBF2 0x005270d0
 void FLEffect::Unregister(unsigned int uiClassName)
 {
-    if (s_EffectClasses.Find(uiClassName) && s_EffectClasses.Remove(uiClassName))
+    if (s_EffectClasses.Find(uiClassName))
     {
-        --s_EffectClassesNumEntries;
+        s_EffectClasses.Remove(uiClassName);
     }
 }
 
@@ -326,7 +314,7 @@ void FLEffectObject::Init()
 }
 
 // SYNTHETIC: SWBF2 0x00433dd0
-// [thunk]:FLEffectObject::`scalar deleting destructor' adjustor{24}
+// ??_EFLEffectObject@@WBI@AEPAXI@Z
 // FUNCTION: SWBF2 0x00527130
 FLEffectObject::~FLEffectObject()
 {
@@ -435,7 +423,7 @@ void FLEffectObject::AttachEffectToObject(const EntityGeometry* pObject, const P
     m_uiAttachFlags &= ~(ATTACHED_DYNAMIC | ATTACHED_TO_GAMEOBJECT | ATTACHED_TO_VECTOR);
     if (pObject->GetGameObject() && pObject->GetGameObject()->mHandleId)
     {
-        m_hobjAttachedToObject = pObject->GetGameObject();
+        m_hobjAttachedToObject = PblHandle<GameObject const>(pObject->GetGameObject());
         m_uiAttachFlags |= ATTACHED_TO_GAMEOBJECT;
     }
     else
@@ -455,7 +443,28 @@ void FLEffectObject::AttachEffectToObject(const EntityGeometry* pObject, const P
 void FLEffectObject::AttachEffectToObject(const EntityGeometry* pObject, const PblMatrix* pMatrix,
                                           bool bDynamic)
 {
-    AttachEffectToObject(pObject, pMatrix, _IdentityMatrix, bDynamic);
+    if (!pObject)
+    {
+        return;
+    }
+
+    m_uiAttachFlags &= ~(ATTACHED_DYNAMIC | ATTACHED_TO_GAMEOBJECT | ATTACHED_TO_VECTOR);
+    if (pObject->GetGameObject() && pObject->GetGameObject()->mHandleId)
+    {
+        m_hobjAttachedToObject = PblHandle<GameObject const>(pObject->GetGameObject());
+        m_uiAttachFlags |= ATTACHED_TO_GAMEOBJECT;
+    }
+    else
+    {
+        _SetObject(pObject);
+    }
+
+    m_pmAttachedToMatrix = const_cast<PblMatrix*>(pMatrix);
+    if (bDynamic)
+    {
+        m_uiAttachFlags |= ATTACHED_DYNAMIC;
+    }
+    _Attach(_IdentityMatrix);
 }
 
 // FUNCTION: SWBF2 0x005273a0
@@ -470,7 +479,7 @@ void FLEffectObject::AttachEffectToObject(const EntityGeometry* pObject, unsigne
     m_uiAttachFlags &= ~(ATTACHED_DYNAMIC | ATTACHED_TO_GAMEOBJECT | ATTACHED_TO_VECTOR);
     if (pObject->GetGameObject() && pObject->GetGameObject()->mHandleId)
     {
-        m_hobjAttachedToObject = pObject->GetGameObject();
+        m_hobjAttachedToObject = PblHandle<GameObject const>(pObject->GetGameObject());
         m_uiAttachFlags |= ATTACHED_TO_GAMEOBJECT;
     }
     else
@@ -483,7 +492,7 @@ void FLEffectObject::AttachEffectToObject(const EntityGeometry* pObject, unsigne
     {
         if (pObject->GetPose())
         {
-            m_pmAttachedToMatrix = const_cast<PblMatrix*>(pObject->GetPose()->_Table.Find(uiBone));
+            m_pmAttachedToMatrix = const_cast<PblMatrix*>(pObject->GetPose()->Find(uiBone));
         }
 
         if (!m_pmAttachedToMatrix && pObject->GetModel() && pObject->GetModel()->GetRedModel(0))
@@ -507,20 +516,100 @@ void FLEffectObject::AttachEffectToObject(const EntityGeometry* pObject, unsigne
 void FLEffectObject::AttachEffectToObject(const EntityGeometry* pObject, unsigned int uiBone,
                                           bool bDynamic)
 {
-    AttachEffectToObject(pObject, uiBone, _IdentityMatrix, bDynamic);
+    if (!pObject)
+    {
+        return;
+    }
+
+    m_uiAttachFlags &= ~(ATTACHED_DYNAMIC | ATTACHED_TO_GAMEOBJECT | ATTACHED_TO_VECTOR);
+    if (pObject->GetGameObject() && pObject->GetGameObject()->mHandleId)
+    {
+        m_hobjAttachedToObject = PblHandle<GameObject const>(pObject->GetGameObject());
+        m_uiAttachFlags |= ATTACHED_TO_GAMEOBJECT;
+    }
+    else
+    {
+        _SetObject(pObject);
+    }
+
+    m_pmAttachedToMatrix = 0;
+    if (uiBone)
+    {
+        if (pObject->GetPose())
+        {
+            m_pmAttachedToMatrix = const_cast<PblMatrix*>(pObject->GetPose()->Find(uiBone));
+        }
+
+        if (!m_pmAttachedToMatrix && pObject->GetModel() && pObject->GetModel()->GetRedModel(0))
+        {
+            const RedSkeleton* pSkeleton = pObject->GetModel()->GetRedModel(0)->GetSkeleton();
+            if (pSkeleton)
+            {
+                m_pmAttachedToMatrix = pSkeleton->GetBoneMatrixByName(uiBone);
+            }
+        }
+    }
+
+    if (bDynamic)
+    {
+        m_uiAttachFlags |= ATTACHED_DYNAMIC;
+    }
+    _Attach(_IdentityMatrix);
 }
 
 // FUNCTION: SWBF2 0x00527590
 void FLEffectObject::AttachEffectToObject(const EntityGeometry* pObject, const PblMatrix& mOffset,
                                           bool bDynamic)
 {
-    AttachEffectToObject(pObject, (const PblMatrix*)0, mOffset, bDynamic);
+    if (!pObject)
+    {
+        return;
+    }
+
+    m_uiAttachFlags &= ~(ATTACHED_DYNAMIC | ATTACHED_TO_GAMEOBJECT | ATTACHED_TO_VECTOR);
+    if (pObject->GetGameObject() && pObject->GetGameObject()->mHandleId)
+    {
+        m_hobjAttachedToObject = PblHandle<GameObject const>(pObject->GetGameObject());
+        m_uiAttachFlags |= ATTACHED_TO_GAMEOBJECT;
+    }
+    else
+    {
+        _SetObject(pObject);
+    }
+
+    m_pmAttachedToMatrix = 0;
+    if (bDynamic)
+    {
+        m_uiAttachFlags |= ATTACHED_DYNAMIC;
+    }
+    _Attach(mOffset);
 }
 
 // FUNCTION: SWBF2 0x00527610
 void FLEffectObject::AttachEffectToObject(const EntityGeometry* pObject, bool bDynamic)
 {
-    AttachEffectToObject(pObject, (const PblMatrix*)0, _IdentityMatrix, bDynamic);
+    if (!pObject)
+    {
+        return;
+    }
+
+    m_uiAttachFlags &= ~(ATTACHED_DYNAMIC | ATTACHED_TO_GAMEOBJECT | ATTACHED_TO_VECTOR);
+    if (pObject->GetGameObject() && pObject->GetGameObject()->mHandleId)
+    {
+        m_hobjAttachedToObject = PblHandle<GameObject const>(pObject->GetGameObject());
+        m_uiAttachFlags |= ATTACHED_TO_GAMEOBJECT;
+    }
+    else
+    {
+        _SetObject(pObject);
+    }
+
+    m_pmAttachedToMatrix = 0;
+    if (bDynamic)
+    {
+        m_uiAttachFlags |= ATTACHED_DYNAMIC;
+    }
+    _Attach(_IdentityMatrix);
 }
 
 // FUNCTION: SWBF2 0x005276a0
@@ -555,11 +644,11 @@ void FLEffectObject::AttachEffectToVector(const PblVector3* pVector, bool b)
         m_uiAttachFlags |= ATTACHED_DYNAMIC;
     }
 
-    *(PblVector3*)m_mWorldMatrix.m[0] = gVectorUnitX;
+    m_mWorldMatrix[0] = gVectorUnitX;
     m_mWorldMatrix.m[0][3] = 0.0f;
-    *(PblVector3*)m_mWorldMatrix.m[1] = gVectorUnitY;
+    m_mWorldMatrix[1] = gVectorUnitY;
     m_mWorldMatrix.m[1][3] = 0.0f;
-    *(PblVector3*)m_mWorldMatrix.m[2] = gVectorUnitZ;
+    m_mWorldMatrix[2] = gVectorUnitZ;
     m_mWorldMatrix.m[2][3] = 0.0f;
     _Attach(_IdentityMatrix);
 }
@@ -577,14 +666,14 @@ void FLEffectObject::AttachEffectToVector(const PblVector3* pVector, const PblVe
         m_uiAttachFlags |= ATTACHED_DYNAMIC;
     }
 
-    m_mWorldMatrix = DirectionMatrix(vDir, gVectorUnitY, *(const PblVector3*)m_mWorldMatrix.m[3]);
+    m_mWorldMatrix = DirectionMatrix(vDir, gVectorUnitY, m_mWorldMatrix.GetTranslation());
     _Attach(_IdentityMatrix);
 }
 
 // FUNCTION: SWBF2 0x00527860
 void FLEffectObject::SetOrientation(const PblVector3& vDir)
 {
-    m_mWorldMatrix = DirectionMatrix(vDir, gVectorUnitY, *(const PblVector3*)m_mWorldMatrix.m[3]);
+    m_mWorldMatrix = DirectionMatrix(vDir, gVectorUnitY, m_mWorldMatrix.GetTranslation());
     UpdatedWorldMatrix();
 }
 
@@ -598,7 +687,7 @@ void FLEffectObject::SetMatrix(const PblMatrix& mMatrix)
 // FUNCTION: SWBF2 0x00527900
 void FLEffectObject::SetPosition(const PblVector3& vPos)
 {
-    *(PblVector3*)m_mWorldMatrix.m[3] = vPos;
+    m_mWorldMatrix[3] = vPos;
     m_mWorldMatrix.m[3][3] = 1.0f;
     UpdatedWorldMatrix();
 }
@@ -724,7 +813,7 @@ void FLEffectObject::_UpdateWorldMatrix()
             }
             else
             {
-                *(PblVector3*)m_mWorldMatrix.m[3] = *m_pvAttachedToVector;
+                m_mWorldMatrix[3] = *m_pvAttachedToVector;
             }
             m_mWorldMatrix.m[3][3] = 1.0f;
             UpdatedWorldMatrix();

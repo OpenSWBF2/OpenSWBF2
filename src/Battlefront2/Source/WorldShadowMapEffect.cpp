@@ -32,12 +32,7 @@ void WorldShadowMapEffect::Destroy()
     s_pInstance = 0;
 }
 
-// SYNTHETIC: SWBF2 0x00695080
-// WorldShadowMapEffect::`scalar deleting destructor'
 
-WorldShadowMapEffect::~WorldShadowMapEffect()
-{
-}
 
 // FUNCTION: SWBF2 0x00695070
 void WorldShadowMapEffect::Render(int)

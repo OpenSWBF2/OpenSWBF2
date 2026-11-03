@@ -2,6 +2,7 @@
 
 #include <stddef.h>
 
+
  
 
 void ParseCommandLine(char const* pcAppName, char const* pcCmdLine);
@@ -26,5 +27,11 @@ extern bool gSeedSet;
 extern unsigned int gSeed;
 extern int gBootLaggerPing;
 
-namespace PlayerPrefs { extern int gDefaultDifficulty; }
-namespace PlayerPrefs { extern int gDefaultTeamNum; }
+namespace PlayerPrefs
+{
+extern int gDefaultDifficulty;
+}
+namespace PlayerPrefs
+{
+extern int gDefaultTeamNum;
+}

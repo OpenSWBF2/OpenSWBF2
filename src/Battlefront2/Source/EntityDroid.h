@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "Aimer.h"
@@ -20,11 +22,6 @@ class FLEffectObject;
 class GameObject;
 class Weapon;
 
-void* __fastcall GetFirstWeaponFactoryNode(const void* pList);
-void* __fastcall GetWeaponFactoryIteratorObject(const void* pItor);
-void* __fastcall DereferenceWeaponFactoryIterator(const void* pItor);
-void* __fastcall ConvertWeaponFactoryIteratorToPointer(const void* pItor);
-
 // VTABLE: SWBF2 0x0079aac0
 class EntityDroidClass : public GameObjectClass, public ControllableClass
 {
@@ -35,16 +32,16 @@ public:
 
     virtual EntityClass* Derive(unsigned int uHash);
     virtual Entity* Build(const EntityDesc& desc);
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
-    virtual const void* GetControllableClass();
-    virtual int GetWeaponCount();
-    virtual const WeaponClass* GetWeaponClass(int iIndex);
+    virtual const ControllableClass* GetControllableClass() const;
+    virtual int GetWeaponCount() const;
+    virtual const WeaponClass* GetWeaponClass(int iIndex) const;
 
     static PblHash rttiHashEntityDroidClass;
-    static char rttiNameEntityDroidClass[];
+    static const char rttiNameEntityDroidClass[];
 
     float mSetAltitude;
     float mGravityScale;
@@ -116,12 +113,12 @@ public:
 class CollisionResult;
 class Restrictor;
 
-// VTABLE: SWBF2 0x0079ab0c
+// VTABLE: SWBF2 0x0079ab0c EntityEx
 // VTABLE: SWBF2 0x0079ac7c CollisionObject
 // VTABLE: SWBF2 0x0079aa14 RedSceneObject
 // VTABLE: SWBF2 0x0079aa94 Damageable
 // VTABLE: SWBF2 0x0079acd0 PblHandled
-// VTABLE: SWBF2 0x0079a944 Controllable
+// VTABLE: SWBF2 0x0079a944 Thread
 // VTABLE: SWBF2 0x0079ac34 Trackable
 class EntityDroid : public GameObject, public Controllable
 {
@@ -150,6 +147,8 @@ public:
     virtual ~EntityDroid();
 
     static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
+    // SYNTHETIC: SWBF2 0x00499390
+    // EntityDroid::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
     virtual bool IsRtti(unsigned int uRtti) const;
@@ -235,7 +234,7 @@ public:
     bool Smooth(float fDeltaTime) const;
     static PblHash rttiHashEntityDroid;
     static MemoryPool sMemoryPool;
-    static char rttiNameEntityDroid[];
+    static const char rttiNameEntityDroid[];
 
     EntityDroidClass* mClass;
     PblVector3 mGroundNormal;
@@ -247,7 +246,7 @@ public:
     int mWeaponIndex[2];
     GameSoundControllable mAmbientSound;
     GameSoundControllable mAmbient2Sound;
-    char mEnergyBar[12];
+    EnergyBar mEnergyBar;
     State mState;
     float mKillTimer;
     PblHandle<FLEffectObject> mDestructChargeEffectHandle;
@@ -269,3 +268,49 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x00499370
+inline unsigned int EntityDroid::GetDerivedRtti() const
+{
+    return rttiHashEntityDroid;
+}
+
+// FUNCTION: SWBF2 0x00499380
+inline const char* EntityDroid::GetDerivedRttiName() const
+{
+    return rttiNameEntityDroid;
+}
+
+// FUNCTION: SWBF2 0x00499560
+inline bool EntityDroidClass::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashEntityDroidClass == uRtti)
+    {
+        return true;
+    }
+    return GameObjectClass::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x004995a0
+inline unsigned int EntityDroidClass::GetDerivedRtti() const
+{
+    return rttiHashEntityDroidClass;
+}
+
+// FUNCTION: SWBF2 0x004995b0
+inline const char* EntityDroidClass::GetDerivedRttiName() const
+{
+    return rttiNameEntityDroidClass;
+}
+
+// FUNCTION: SWBF2 0x00499330
+inline bool EntityDroid::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashEntityDroid == uRtti)
+    {
+        return true;
+    }
+    return GameObject::IsRtti(uRtti);
+}
+
+

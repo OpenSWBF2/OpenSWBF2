@@ -16,8 +16,10 @@ void pcRedVertexShader::Read(PblFileChunk& chunk)
         RedRenderer::pcGetDevice()->CreateVertexShader((const DWORD*)pcCode, &m_pD3DVertexShader);
         delete[] pcCode;
 
+        // GLOBAL: SWBF2 0x009c9240
         static util::VariableSet<util::SingletonAllocator<util::DefaultStaticAllocator> >& s_load =
             util::Globals::GetInstance().GetSet("load");
+        // GLOBAL: SWBF2 0x009c9248
         static int& s_iVertexShaders = s_load.GetInt("VertexShaders");
         ++s_iVertexShaders;
     }

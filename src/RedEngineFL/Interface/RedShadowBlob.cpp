@@ -1,12 +1,15 @@
 #include "RedShadowBlob.h"
 #include "PebbleFL/Common/PblRandom.h"
+#include "PebbleFL/Common/PblMath.h"
 
 // GLOBAL: SWBF2 0x009c8954
 RedShadowBlob* RedShadowBlob::sInstance;
 
-// GLOBAL: SWBF2 0x009c8958
 // SYNTHETIC: SWBF2 0x00409520
 // `dynamic initializer for 'shadowBlobRandom''
+
+// GLOBAL: SWBF2 0x009c8958
+// shadowBlobRandom
 PblRandom shadowBlobRandom;
 
 // FUNCTION: SWBF2 0x006fc810
@@ -25,41 +28,36 @@ int gShadowBlurPassCount = 3;
 // FUNCTION: SWBF2 0x006fc840
 void RedShadowBlob::Update()
 {
-
-    BlobVertex (*data)[15] = mData;
     for (int row = 0; row < 15; ++row)
     {
         for (int col = 0; col < 20; ++col)
         {
-            data[col][row].intensity = data[col][row].setValue;
-            data[col][row].blurValue = data[col][row].setValue;
+            mData[col][row].blurValue = mData[col][row].intensity = mData[col][row].setValue;
         }
     }
 
-    for (int pass = 0; pass < gShadowBlurPassCount; ++pass)
+    const int iNumPasses = gShadowBlurPassCount;
+    for (int pass = 0; pass < iNumPasses; ++pass)
     {
+        const float fWeight = gShadowBlurNeighborWeight;
         for (int row = 1; row < 14; ++row)
         {
             for (int col = 1; col < 19; ++col)
             {
-                BlobVertex& v = data[col][row];
-                float intensity = data[col + 1][row].blurValue * gShadowBlurNeighborWeight;
-                intensity += v.intensity;
-                intensity += data[col][row + 1].blurValue * gShadowBlurNeighborWeight;
-                intensity += data[col - 1][row].blurValue * gShadowBlurNeighborWeight;
-                intensity += data[col][row - 1].blurValue * gShadowBlurNeighborWeight;
-                if (intensity >= 1.0f)
-                {
-                    intensity = 1.0f;
-                }
-                v.intensity = intensity;
+                float intensity = mData[col + 1][row].blurValue * fWeight;
+                intensity += mData[col][row].intensity;
+                intensity += mData[col][row + 1].blurValue * fWeight;
+                intensity += mData[col - 1][row].blurValue * fWeight;
+                intensity += mData[col][row - 1].blurValue * fWeight;
+                intensity = Min(intensity, 1.0f);
+                mData[col][row].intensity = intensity;
             }
         }
         for (int row = 1; row < 14; ++row)
         {
             for (int col = 1; col < 19; ++col)
             {
-                data[col][row].blurValue = data[col][row].intensity;
+                mData[col][row].blurValue = mData[col][row].intensity;
             }
         }
     }
@@ -68,7 +66,7 @@ void RedShadowBlob::Update()
     {
         for (int col = 0; col < 20; ++col)
         {
-            float& value = data[col][row].setValue;
+            float& value = mData[col][row].setValue;
             value += (0.0f - value) * 0.02f;
         }
     }

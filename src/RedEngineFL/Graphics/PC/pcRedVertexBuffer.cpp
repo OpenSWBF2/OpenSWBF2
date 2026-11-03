@@ -10,10 +10,6 @@ pcRedVertexBuffer::pcRedVertexBuffer(unsigned int uiMaxVertices,
                                      bool bStatic, bool bShared)
 {
 
-    m_listNode._pList = 0;
-    m_listNode._pNext = 0;
-    m_listNode._pPrev = 0;
-    m_listNode._pObject = 0;
 
     m_static = bStatic;
     m_maxVertices = uiMaxVertices;
@@ -59,23 +55,16 @@ pcRedVertexBuffer::~pcRedVertexBuffer()
 // GLOBAL: SWBF2 0x007df16c
 PblList<pcRedVertexBuffer> s_nonSharedVertexBufferList;
 
-// GLOBAL: SWBF2 0x00960f58
-
-int sStaticVertexBufferCount;
-
-// GLOBAL: SWBF2 0x00960f5c
 // SYNTHETIC: SWBF2 0x00407e60
 // `dynamic initializer for 'sStaticVertexBufferHashTable''
 
+// GLOBAL: SWBF2 0x00960f58
 PblHashTable<PblList<pcRedVertexBuffer>, 1024> sStaticVertexBufferHashTable;
-// GLOBAL: SWBF2 0x00962f68
 
-int sDynamicVertexBufferCount;
-
-// GLOBAL: SWBF2 0x00962f6c
 // SYNTHETIC: SWBF2 0x00407e40
 // `dynamic initializer for 'sDynamicVertexBufferHashTable''
 
+// GLOBAL: SWBF2 0x00962f68
 PblHashTable<PblList<pcRedVertexBuffer>, 1024> sDynamicVertexBufferHashTable;
 
 // FUNCTION: SWBF2 0x006ca790
@@ -137,10 +126,8 @@ void pcRedVertexBuffer::Cleanup()
     }
 
     sDynamicVertexBufferHashTable.Clear();
-    sDynamicVertexBufferCount = 0;
 
     sStaticVertexBufferHashTable.Clear();
-    sStaticVertexBufferCount = 0;
 }
 
 // FUNCTION: SWBF2 0x006ca7d0
@@ -210,17 +197,11 @@ pcRedVertexBuffer* pcRedVertexBuffer::Create(unsigned int uiNumVertices,
 
     if (bStatic)
     {
-        if (sStaticVertexBufferHashTable.Store(uiVertexSize, pNewList))
-        {
-            sStaticVertexBufferCount++;
-        }
+        sStaticVertexBufferHashTable.Store(uiVertexSize, pNewList);
     }
     else
     {
-        if (sDynamicVertexBufferHashTable.Store(uiVertexSize, pNewList))
-        {
-            sDynamicVertexBufferCount++;
-        }
+        sDynamicVertexBufferHashTable.Store(uiVertexSize, pNewList);
     }
 
     pBuffer->AddRef();
@@ -231,10 +212,8 @@ pcRedVertexBuffer* pcRedVertexBuffer::Create(unsigned int uiNumVertices,
 void pcRedVertexBuffer::Init()
 {
     sDynamicVertexBufferHashTable.Clear();
-    sDynamicVertexBufferCount = 0;
 
     sStaticVertexBufferHashTable.Clear();
-    sStaticVertexBufferCount = 0;
 
     s_nonSharedVertexBufferList.Clear();
 

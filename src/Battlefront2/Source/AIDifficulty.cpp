@@ -1,4 +1,7 @@
+#include <stdlib.h>
+
 #include "AIDifficulty.h"
+#include "PebbleFL/Common/PblMath.h"
 
 #include "AIDifficultyLevel.h"
 #include "AIUtil.h"
@@ -8,13 +11,28 @@
 #include "NetGame.h"
 #include "PlayerProfile.h"
 #include "UnitController.h"
+#include "GameLoop.h"
+#include "ControllerManager.h"
+#include "CollisionObject.h"
+#include "CameraManager.h"
+#include "CombatUtil.h"
+#include "Damageable.h"
+#include "EntityCarrier.h"
+#include "FlagItem.h"
+#include "Ordnance.h"
+#include "SpaceAssault.h"
+#include "Team.h"
+#include "WeaponCannonInstance.h"
+
+// GLOBAL: SWBF2 0x007887a0
+// sDifficultyPlayer
+// GLOBAL: SWBF2 0x007887ac
+// sDifficultyEnemy
 
 namespace AIDifficulty
 {
-// GLOBAL: SWBF2 0x007887a0
 static const int sDifficultyPlayer[3] = { 6, 11, 11 };
 
-// GLOBAL: SWBF2 0x007887ac
 static const int sDifficultyEnemy[3] = { 4, 14, 17 };
 
 // GLOBAL: SWBF2 0x01e2fda4
@@ -50,6 +68,7 @@ float mCritSysBias;
 static float GetFloatSkill_RangedLinear(const UnitController* pController, float fMin,
                                         float fMax, bool bClamp);
 
+// FUNCTION: SWBF2 0x004395e0
 static void SpaceAssault_Init()
 {
     mNextFlyerKillTime = SpaceAssault_GetRandomFlyerKillTime();
@@ -336,24 +355,17 @@ float AIDifficulty::GetFlyerReactionTime()
 // FUNCTION: SWBF2 0x004390c0
 float AIDifficulty::GetRangedSpeed(float fSkill, float fMin, float fMid, float fMax, float fBoost)
 {
-    if (fSkill < 0.0f)
-    {
-        fSkill = 0.0f;
-    }
-    else if (fSkill > 1.5f)
-    {
-        fSkill = 1.5f;
-    }
+    fSkill = Clamp(fSkill, 0.0f, 1.5f);
 
     if (fSkill < 0.5f)
     {
-        return (fMid - fMin) * (fSkill * 2.0f) + fMin;
+        return Interpolate(fMin, fMid, fSkill * 2.0f);
     }
     if (fSkill < 1.0f)
     {
-        return (fMax - fMid) * ((fSkill - 0.5f) * 2.0f) + fMid;
+        return Interpolate(fMid, fMax, (fSkill - 0.5f) * 2.0f);
     }
-    return (fBoost - fMax) * ((fSkill - 1.0f) * 2.0f) + fMax;
+    return Interpolate(fMax, fBoost, (fSkill - 1.0f) * 2.0f);
 }
 
 // FUNCTION: SWBF2 0x00439160
@@ -365,7 +377,8 @@ void AIDifficulty::GetFlyerSpeedRange(const UnitController* pController, float f
     rHigh = (rLow > fHigh) ? rLow : fHigh;
 }
 
-namespace AIDifficulty {
+namespace AIDifficulty
+{
 
 // FUNCTION: SWBF2 0x004392e0
 float SpaceAssault_GetFlyerKillForPlayerTeam()
@@ -374,11 +387,333 @@ float SpaceAssault_GetFlyerKillForPlayerTeam()
 }
 }
 
-namespace AIDifficulty {
+namespace AIDifficulty
+{
 
 // FUNCTION: SWBF2 0x004392f0
 float SpaceAssault_GetCritSysKillForPlayerTeam()
 {
     return AIDifficulty::GetFloatSkill_RangedLinear(0, 0.4f, 0.25f, true);
 }
+}
+
+namespace
+{
+
+inline const CollisionObject* GetCollisionObject(const GameObject* pObject)
+{
+    return static_cast<const CollisionObject*>(pObject);
+}
+
+}
+
+namespace AI
+{
+
+enum AIAffil
+{
+    AFFIL_ENEMY = 1,
+    AFFIL_NEUTRAL = 2,
+    AFFIL_ALLY = 4,
+    AFFIL_ALLYNEUTRAL = 6,
+    AFFIL_ALL = 7
+};
+}
+
+namespace ControllerManager
+{
+int GetAIInRange(const PblVector3& vPos, float fRadius, GameObject** const ppObjects,
+                 int iMax, const Team* pTeam, AI::AIAffil eAffil);
+}
+
+namespace AIDifficulty
+{
+
+// FUNCTION: SWBF2 0x00439620
+static GameObject* GetRandomFlyer(const Team* pTeam, AI::AIAffil eAffil)
+{
+    GameObject* apObjects[40];
+    const PblVector3 vOrigin(0.0f, 0.0f, 0.0f);
+    const int iCount = ControllerManager::GetAIInRange(vOrigin, 3.402823466e38f,
+                                                         apObjects, 40, pTeam, eAffil);
+    for (int i = iCount - 1; i >= 0; --i)
+    {
+        GameObject* pObject = apObjects[i];
+        if (!pObject || !pObject->GetControllable() ||
+            !pObject->IsRtti(EntityFlyer::rttiHashEntityFlyer))
+        {
+            continue;
+        }
+        if (!CameraManager::Instance()->IsInsideAnyCamera(
+                GetCollisionObject(pObject)->GetPosition(), 100.0f, 3000.0f) &&
+            AIUtil::CountHumansInVehicle(pObject->GetControllable()) <= 0)
+        {
+            return pObject;
+        }
+    }
+    return 0;
+}
+}
+
+namespace AIDifficulty
+{
+
+// FUNCTION: SWBF2 0x004396e0
+static void SpaceAssault_RandomFlyerKill(const Team* pTeam)
+{
+    GameObject* pVictim = AIDifficulty::GetRandomFlyer(pTeam, AI::AFFIL_ALLY);
+    if (!pVictim)
+    {
+        return;
+    }
+    GameObject* pKiller = AIDifficulty::GetRandomFlyer(pTeam, AI::AFFIL_ENEMY);
+    if (!pKiller)
+    {
+        return;
+    }
+    Controllable* pCtrl = pKiller->GetControllable();
+    DamageOwner owner(pCtrl->mCharacter, pKiller, pKiller->GetTeam(),
+                      pKiller->mEntityClass, pCtrl->GetCurWpn()->mClass, 1.0f);
+    pVictim->InstantDeath(owner, true);
+}
+}
+
+namespace AIDifficulty
+{
+
+// FUNCTION: SWBF2 0x00439770
+static void SpaceAssault_RandomCritSysDamage(const Team* pTeam)
+{
+    GameObject* pFlyer = AIDifficulty::GetRandomFlyer(pTeam, AI::AFFIL_ENEMY);
+    if (!pFlyer)
+    {
+        return;
+    }
+    GameObject* pTarget = SpaceAssault::mInstance->GetRandomCritSys(
+        pTeam, AIDifficulty::mCritSysBias);
+    if (!pTarget)
+    {
+        return;
+    }
+
+    Controllable* pCtrl = pFlyer->GetControllable();
+    DamageOwner owner(pCtrl->mCharacter, pFlyer, pFlyer->GetTeam(),
+                      pFlyer->mEntityClass, 0, 1.0f);
+    const WeaponClass* pBestWeapon = 0;
+    float fBestDamage = 0.0f;
+    for (int i = 0; i < pCtrl->GetWeaponCount(); ++i)
+    {
+        Weapon* pWeapon = pCtrl->GetWeaponPtr(i);
+        OrdnanceClass* pOrdnance = pWeapon->mClass->mOrdnanceClass;
+        float fDamage = CombatUtil::CalcDamagePerSecond(pCtrl, pWeapon->mClass, pTarget);
+        owner.mWeapon = pWeapon->mClass;
+        float fMinDamage = 0.0f;
+        float fShieldDamage = 0.0f;
+        CombatUtil::GetAverageDamageValues(owner, pOrdnance, pTarget,
+                                           fMinDamage, fShieldDamage);
+        if (fDamage < fMinDamage * 2.0f)
+        {
+            fDamage = fMinDamage * 2.0f;
+        }
+        if (fDamage > fBestDamage)
+        {
+            fBestDamage = fDamage;
+            pBestWeapon = pWeapon->mClass;
+        }
+    }
+    if (!pBestWeapon)
+    {
+        return;
+    }
+
+    if (pTarget->mCurHealth > 0.0f)
+    {
+        float fCap = fBestDamage * 5.0f;
+        if (fCap > 15000.0f)
+        {
+            fCap = 15000.0f;
+        }
+        if (pTarget->mCurHealth < fCap)
+        {
+            fCap = pTarget->mCurHealth;
+        }
+        fBestDamage = fCap;
+    }
+    owner.mWeapon = pBestWeapon;
+    DamageDesc damage(owner, fBestDamage);
+    pTarget->ApplyDamage(damage, ~0u);
+}
+}
+
+namespace AIDifficulty
+{
+
+// FUNCTION: SWBF2 0x00439930
+void SpaceAssault_CheatLikeABastard()
+{
+    if (GameLoop::GetMissionTime() < 30.0f)
+    {
+        return;
+    }
+
+    float fIntervalScale = 1.0f;
+    if (AIDifficulty::mAutoBalancePlayerModifier < 0)
+    {
+        fIntervalScale = -1.0f / (AIDifficulty::mAutoBalancePlayerModifier - 1);
+    }
+
+    const float fTime = GameLoop::GetMissionTime();
+    if (fTime > AIDifficulty::mNextFlyerKillTime)
+    {
+        AIDifficulty::mNextFlyerKillTime = fTime + AIDifficulty::SpaceAssault_GetRandomFlyerKillTime() * fIntervalScale;
+        const bool bEnemy = AIUtil::IsPlayerTeam(1) ^
+            (AIUtil::GetRandomInt(0, 100) > AIDifficulty::SpaceAssault_GetFlyerKillForPlayerTeam() * 100.0f);
+        AIDifficulty::SpaceAssault_RandomFlyerKill(Team::GetPtr(bEnemy ? 2 : 1));
+    }
+
+    if (fTime > AIDifficulty::mNextCritSysDamageTime)
+    {
+        AIDifficulty::mNextCritSysDamageTime = fTime + AIDifficulty::SpaceAssault_GetRandomCritSysDamageTime() * fIntervalScale;
+        const float fRoll = (float)AIUtil::GetRandomInt(0, 100);
+        const bool bEnemy = AIUtil::IsPlayerTeam(1) ^ (fRoll > AIDifficulty::SpaceAssault_GetCritSysKillForPlayerTeam() * 100.0f);
+        AIDifficulty::SpaceAssault_RandomCritSysDamage(Team::GetPtr(bEnemy ? 2 : 1));
+    }
+}
+}
+
+namespace AIDifficulty
+{
+
+// FUNCTION: SWBF2 0x00439320
+int GetAutoBalanceMode()
+{
+    if (FlagItem::sFlagGameplayType == FlagItem::FLAG_GAMEPLAY_1FLAG ||
+        FlagItem::sFlagGameplayType == FlagItem::FLAG_GAMEPLAY_2FLAG)
+    {
+        return 0;
+    }
+    if (FlagItem::sFlagGameplayType == FlagItem::FLAG_GAMEPLAY_CAMPAIGN)
+    {
+        return 3;
+    }
+    if (SpaceAssault::mInstance && SpaceAssault::mInstance->mbEnabled)
+    {
+        return 1;
+    }
+    if (Team::GetPtr(1)->GetCurReinforcements() >= 1000 || Team::GetPtr(2)->GetCurReinforcements() >= 1000)
+    {
+        return 3;
+    }
+    return 2;
+}
+}
+
+namespace AIDifficulty
+{
+
+// FUNCTION: SWBF2 0x00439380
+bool AutoBalanceActive()
+{
+    return AIDifficulty::gAutoBalanceEnabled && AIDifficulty::mAutoBalanceEnabled && AIDifficulty::GetAutoBalanceMode() != 3;
+}
+}
+
+namespace AIDifficulty
+{
+
+// FUNCTION: SWBF2 0x004393b0
+void GetAutoBalanceScores(int& iPlayerScore, int& iEnemyScore, int& iThreshold, int& iDivisor)
+{
+    bool bPlayerTeam1 = AIUtil::IsPlayerTeam(1);
+    Team* pPlayer = Team::GetPtr(bPlayerTeam1 ? 1 : 2);
+    Team* pEnemy = Team::GetPtr(bPlayerTeam1 ? 2 : 1);
+    switch (AIDifficulty::GetAutoBalanceMode())
+    {
+    case 0:
+        iPlayerScore = pPlayer->GetPoints();
+        iEnemyScore = pEnemy->GetPoints();
+        iThreshold = 0;
+        iDivisor = 1;
+        break;
+    case 1:
+        iPlayerScore = pPlayer->GetPoints();
+        iEnemyScore = pEnemy->GetPoints();
+        iThreshold = 20;
+        iDivisor = 10;
+        break;
+    case 2:
+        iPlayerScore = pPlayer->GetCurReinforcements();
+        iEnemyScore = pEnemy->GetCurReinforcements();
+        iThreshold = 15;
+        iDivisor = 10;
+        break;
+    }
+}
+}
+
+namespace AIDifficulty
+{
+
+// FUNCTION: SWBF2 0x00439470
+void UpdateAutoBalance()
+{
+    int iDifficulty = NetGame::IsEnabled() ? PlayerPrefs::mAllUserPrefs[0].mDifficulty
+                                           : PlayerProfile::GetProfile(0)->mGameOptions.mCurDiffLevel;
+    if (iDifficulty != AIDifficulty::GetProfileDifficulty())
+    {
+        AIDifficulty::mProfileDifficulty = iDifficulty;
+    }
+    AIDifficulty::mAutoBalancePlayerModifier = 0;
+    AIDifficulty::mAutoBalanceEnemyModifier = 0;
+
+    if (!AIDifficulty::AutoBalanceActive())
+    {
+        return;
+    }
+    bool bPlayerTeam1 = AIUtil::IsPlayerTeam(1);
+    if (bPlayerTeam1 == AIUtil::IsPlayerTeam(2))
+    {
+        return;
+    }
+
+    int iPlayerScore, iEnemyScore, iThreshold, iDivisor;
+    AIDifficulty::GetAutoBalanceScores(iPlayerScore, iEnemyScore, iThreshold, iDivisor);
+
+    Team* pEnemy = Team::GetPtr(bPlayerTeam1 ? 2 : 1);
+    float fMax = (float)pEnemy->GetMaxReinforcements();
+    float fCur = (float)pEnemy->GetCurReinforcements();
+    int iHandicap = 0;
+    if (fMax * 0.25f > fCur)
+    {
+        iHandicap = -20;
+    }
+    else if (fMax * 0.5f > fCur)
+    {
+        iHandicap = -10;
+    }
+
+    int iDiff = iPlayerScore - iHandicap - iEnemyScore;
+    if (abs(iDiff) > iThreshold)
+    {
+        int iStep = (iDiff - (iDiff > 0 ? iThreshold : -iThreshold)) / iDivisor;
+        int iPlayer = -iStep;
+        AIDifficulty::mAutoBalancePlayerModifier = iPlayer < -4 ? -4 : (iPlayer > 4 ? 4 : iPlayer);
+        AIDifficulty::mAutoBalanceEnemyModifier = iStep < -4 ? -4 : (iStep > 4 ? 4 : iStep);
+    }
+
+    if (AIDifficulty::GetAutoBalanceMode() == 1)
+    {
+        AIDifficulty::SpaceAssault_CheatLikeABastard();
+    }
+}
+}
+
+// FUNCTION: SWBF2 0x00438c50
+void AIDifficulty::SetAILuaModifier(int iPlayer, int iEnemy, int iDifficulty)
+{
+    if ((unsigned int)(iDifficulty - 1) < 3)
+    {
+        AIDifficulty::mScriptPlayerModifier[iDifficulty - 1] = iPlayer;
+        AIDifficulty::mScriptEnemyModifier[iDifficulty - 1] = iEnemy;
+    }
 }

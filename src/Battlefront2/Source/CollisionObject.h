@@ -5,6 +5,7 @@
 #include "PebbleFL/Common/PblVector.h"
 #include "PebbleFL/Common/PblList.h"
 
+#include "PebbleFL/Common/PblList.h"
 class CollisionModel;
 class CollisionObject;
 class CollisionOptimizationInfo;
@@ -124,6 +125,7 @@ public:
         return mStackPtr ? mStackPtr->mData[iIndex][mStackIdx] : mData[iIndex];
     }
 
+    // FUNCTION: SWBF2 0x0045dad0
     void SetObjectData(int iIndex, int iData)
     {
         if (mStackPtr)
@@ -133,6 +135,7 @@ public:
         mData[iIndex] = iData;
     }
 
+    // FUNCTION: SWBF2 0x00497e10
     const PblSphere& GetCollisionSphere() const
     {
         return mStackPtr ? mStackPtr->mSphere[mStackIdx] : mCollisionSphere;
@@ -152,6 +155,7 @@ public:
         mCollisionSphere.y = rCenter.y;
         mCollisionSphere.z = rCenter.z;
     }
+    // FUNCTION: SWBF2 0x00454da0
     void SetCollisionRadius(float fRadius)
     {
         if (mStackPtr)
@@ -159,6 +163,7 @@ public:
             mStackPtr->mSphere[mStackIdx].w = fRadius;
         }
         mCollisionSphere.w = fRadius;
+        m2dRadius = fRadius;
     }
     void Set2DCollisionRadius(float fRadius) { m2dRadius = fRadius; }
 
@@ -171,6 +176,7 @@ public:
 };
  
 
+// VTABLE: SWBF2 0x00797460
 class CollisionObject : public TreeGridObject, public FoleyFXCollider, public FoleyFXCollidee
 {
 public:
@@ -227,11 +233,7 @@ public:
 
     void SetCollisionType(CollisionObjectType eType)
     {
-        if (mStackPtr)
-        {
-            mStackPtr->mData[0][mStackIdx] = eType;
-        }
-        mData[0] = eType;
+        SetObjectData(0, eType);
     }
     CollisionObjectType GetCollisionType() const;
 
@@ -256,3 +258,10 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x0043ec10
+inline CollisionObjectType CollisionObject::GetCollisionType() const
+{
+    const CollisionObject* pObject = (const CollisionObject*)this;
+    return (CollisionObjectType)pObject->GetObjectData(0);
+}

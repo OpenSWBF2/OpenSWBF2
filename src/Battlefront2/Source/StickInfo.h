@@ -17,14 +17,8 @@ public:
     static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
-    // FUNCTION: SWBF2 0x004d0880
-    StickInfo()
-    {
-        mLocalRotation._fS = 1.0f;
-        mLocalRotation._fX = 0.0f;
-        mLocalRotation._fY = 0.0f;
-        mLocalRotation._fZ = 0.0f;
-    }
+    // SYNTHETIC: SWBF2 0x004d0880
+    // StickInfo::StickInfo
 
     PblHandle<GameObject> mCollHandle;
     CollisionObject* mCollObject;

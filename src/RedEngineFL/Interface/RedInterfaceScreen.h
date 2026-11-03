@@ -4,10 +4,9 @@
 
 #include "RedGroupElement.h"
 
-// VTABLE: SWBF2 0x00772a0c
-
 class RedInterfaceScreen;
 
+// VTABLE: SWBF2 0x00772a0c
 class RedScreenGroupElement : public RedGroupElement
 {
 public:
@@ -21,8 +20,8 @@ public:
     // SYNTHETIC: SWBF2 0x005656e0
     // RedScreenGroupElement::`vector deleting destructor'
 
-    // FUNCTION: SWBF2 0x004297b0
-    virtual ~RedScreenGroupElement() {}
+    // SYNTHETIC: SWBF2 0x004297b0
+    // RedScreenGroupElement::~RedScreenGroupElement
 
     // FUNCTION: SWBF2 0x00543ec0
     virtual bool IsScreenGroup() const { return true; }

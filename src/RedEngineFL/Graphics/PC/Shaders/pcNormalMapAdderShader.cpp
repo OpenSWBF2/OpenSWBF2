@@ -1,3 +1,4 @@
+#include <string.h>
 #include "pcNormalMapAdderShader.h"
 
 #include "PebbleFL/Common/PblChunk.h"
@@ -15,36 +16,30 @@ pcRedShader::BeginFuncT pcNormalMapAdderShader::BeginFuncArray[MAX_PIPELINES];
 pcRedShader::EndFuncT pcNormalMapAdderShader::EndFuncArray[MAX_PIPELINES];
 pcRedShader::RenderFuncT pcNormalMapAdderShader::RenderFuncArray[MAX_PIPELINES];
 
-// GLOBAL: SWBF2 0x009ca1b0
 // SYNTHETIC: SWBF2 0x0040a150
 // `dynamic initializer for 'pcNormalMapAdderShader::s_shaderDef''
 // SYNTHETIC: SWBF2 0x00769ef0
 // `dynamic atexit destructor for 'pcNormalMapAdderShader::s_shaderDef''
+
+// GLOBAL: SWBF2 0x009ca1b0
+// pcNormalMapAdderShader::s_shaderDef
 pcRedShaderDef pcNormalMapAdderShader::s_shaderDef("normalmapadder_shader.xml");
 
-// GLOBAL: SWBF2 0x009ca1e4
 // SYNTHETIC: SWBF2 0x0040a1d0
 // `dynamic initializer for 'kuiHemisphereNormalizationMap''
+
+// GLOBAL: SWBF2 0x009ca1e4
+// kuiHemisphereNormalizationMap
 static unsigned int kuiHemisphereNormalizationMap = PblHash("hemisphere_normalizationmap");
 
 // FUNCTION: SWBF2 0x0070b4e0
 pcNormalMapAdderShader::pcNormalMapAdderShader()
 {
-    m_textureTransform1.m_bTransform = 0;
-    m_textureTransform2.m_bTransform = 0;
 
-    GetStateFuncArray[PIPELINE_FIXED] = 0;
-    GetStateFuncArray[PIPELINE_PROG1] = 0;
-    GetStateFuncArray[PIPELINE_PROG2] = 0;
-    BeginFuncArray[PIPELINE_FIXED] = 0;
-    BeginFuncArray[PIPELINE_PROG1] = 0;
-    BeginFuncArray[PIPELINE_PROG2] = 0;
-    EndFuncArray[PIPELINE_FIXED] = 0;
-    EndFuncArray[PIPELINE_PROG1] = 0;
-    EndFuncArray[PIPELINE_PROG2] = 0;
-    RenderFuncArray[PIPELINE_FIXED] = 0;
-    RenderFuncArray[PIPELINE_PROG1] = 0;
-    RenderFuncArray[PIPELINE_PROG2] = 0;
+    memset(GetStateFuncArray, 0, sizeof(GetStateFuncArray));
+    memset(BeginFuncArray, 0, sizeof(BeginFuncArray));
+    memset(EndFuncArray, 0, sizeof(EndFuncArray));
+    memset(RenderFuncArray, 0, sizeof(RenderFuncArray));
 
     s_uiID = _Register(s_uiRenderTypeHash, this);
 
@@ -60,8 +55,6 @@ pcNormalMapAdderShader::pcNormalMapAdderShader(unsigned int uiFlags,
                                                const RedColor& color1,
                                                float fArg7)
 {
-    m_textureTransform1.m_bTransform = 0;
-    m_textureTransform2.m_bTransform = 0;
     _BindPipeline(GetStateFuncArray, BeginFuncArray, EndFuncArray, RenderFuncArray);
     _Init(uiFlags, pParams, uiNumParams, uiMaterialFlags, color0, color1, fArg7);
 }
@@ -152,16 +145,16 @@ unsigned int pcNormalMapAdderShader::GetState_Prog1(const RenderItem*) const
     return m_iShaderState;
 }
 
-// GLOBAL: SWBF2 0x00785134
-static const pcRedShaderDef::FixedFunctionStateT kFixedFunctionStates[1] =
-{
-    { 1, { 0x00, 0x00, 0x00, 0x00 } },
-};
-
 // FUNCTION: SWBF2 0x0070b820
 void pcNormalMapAdderShader::InitFixedFunctionShaderDef() const
 {
-    GetShaderDef()->InitFixedFunction(0x10, 1, kFixedFunctionStates);
+    // GLOBAL: SWBF2 0x00785134
+    static const pcRedShaderDef::FixedFunctionStateT aFFStates[1] =
+    {
+        { 1, { 0x00, 0x00, 0x00, 0x00 } },
+    };
+
+    GetShaderDef()->InitFixedFunction(0x10, 1, aFFStates);
 }
 
 // FUNCTION: SWBF2 0x0070b840
@@ -311,22 +304,26 @@ void pcNormalMapAdderShader::_StaticInit() const
 {
 }
 
-// GLOBAL: SWBF2 0x009ca254
 // SYNTHETIC: SWBF2 0x0040a170
 // `dynamic initializer for 'pcNormalMapAdderShader::s_uiRenderTypeHash''
+
+// GLOBAL: SWBF2 0x009ca254
+// pcNormalMapAdderShader::s_uiRenderTypeHash
 unsigned int pcNormalMapAdderShader::s_uiRenderTypeHash = PblHash("NormalMapAdder");
 
 // SYNTHETIC: SWBF2 0x0040a190
-// `dynamic initializer for 'PblMath::fOneOverHalfPi''
+// PblMath::`dynamic initializer for 'fOneOverHalfPi''
 
 // SYNTHETIC: SWBF2 0x0040a1b0
-// `dynamic initializer for 'PblMath::fOneOverTwoPi''
+// PblMath::`dynamic initializer for 'fOneOverTwoPi''
 
-// GLOBAL: SWBF2 0x009ca1e8
 // SYNTHETIC: SWBF2 0x0040a130
 // `dynamic initializer for 'pcNormalMapAdderShader::s_Factory''
 // SYNTHETIC: SWBF2 0x00769ed0
 // `dynamic atexit destructor for 'pcNormalMapAdderShader::s_Factory''
+
+// GLOBAL: SWBF2 0x009ca1e8
+// pcNormalMapAdderShader::s_Factory
 pcNormalMapAdderShader pcNormalMapAdderShader::s_Factory;
 
 // GLOBAL: SWBF2 0x009ca1ac

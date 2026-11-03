@@ -47,56 +47,60 @@ void SourceI3DL2::CopyParameters(const SourceI3DL2& rSource)
 // FUNCTION: SWBF2 0x00748140
 bool SourceI3DL2::Read(PblFileChunk& chunk, unsigned int uiPropertyID)
 {
-    PblFile* const pFile = chunk._pFile;
+
+    bool bResult = true;
     switch (uiPropertyID)
     {
     case 0x116C5DFFu:
-        pFile->Read8();
-        mDirectGain = Clamp(pFile->ReadFloat(), 0.0f, 3.16f);
+        chunk._pFile->Read8();
+        mDirectGain = Clamp(chunk._pFile->ReadFloat(), 0.0f, 3.16f);
         mFlags |= flags_directGain;
-        return true;
+        break;
     case 0x74C54AE1u:
-        pFile->Read8();
-        mDirectHFGain = Clamp(pFile->ReadFloat(), 0.0f, 1.0f);
+        chunk._pFile->Read8();
+        mDirectHFGain = Clamp(chunk._pFile->ReadFloat(), 0.0f, 1.0f);
         mFlags |= flags_directHFGain;
-        return true;
+        break;
     case 0x5676AB7Du:
-        pFile->Read8();
-        mRoomGain = Clamp(pFile->ReadFloat(), 0.0f, 3.16f);
+        chunk._pFile->Read8();
+        mRoomGain = Clamp(chunk._pFile->ReadFloat(), 0.0f, 3.16f);
         mFlags |= flags_roomGain;
-        return true;
+        break;
     case 0x89695A93u:
-        pFile->Read8();
-        mRoomHFGain = Clamp(pFile->ReadFloat(), 0.0f, 1.0f);
+        chunk._pFile->Read8();
+        mRoomHFGain = Clamp(chunk._pFile->ReadFloat(), 0.0f, 1.0f);
         mFlags |= flags_roomHFGain;
-        return true;
+        break;
     case 0xDFF9620Du:
-        pFile->Read8();
-        mRoomRollOffFactor = Clamp(pFile->ReadFloat(), 0.0f, 10.0f);
+        chunk._pFile->Read8();
+        mRoomRollOffFactor = Clamp(chunk._pFile->ReadFloat(), 0.0f, 10.0f);
         mFlags |= flags_roomRollOffFactor;
-        return true;
+        break;
     case 0x0DB31274u:
-        pFile->Read8();
-        mObstructionHFGain = Clamp(pFile->ReadFloat(), 0.0f, 1.0f);
+        chunk._pFile->Read8();
+        mObstructionHFGain = Clamp(chunk._pFile->ReadFloat(), 0.0f, 1.0f);
         mFlags |= flags_obstructionHFGain;
-        return true;
+        break;
     case 0xA0A3A78Au:
-        pFile->Read8();
-        mObstructionLFRatio = Clamp(pFile->ReadFloat(), 0.0f, 1.0f);
+        chunk._pFile->Read8();
+        mObstructionLFRatio = Clamp(chunk._pFile->ReadFloat(), 0.0f, 1.0f);
         mFlags |= flags_obstructionLFRatio;
-        return true;
+        break;
     case 0x7C8A1B8Bu:
-        pFile->Read8();
-        mOcclusionHFGain = Clamp(pFile->ReadFloat(), 0.0f, 1.0f);
+        chunk._pFile->Read8();
+        mOcclusionHFGain = Clamp(chunk._pFile->ReadFloat(), 0.0f, 1.0f);
         mFlags |= flags_occlusionHFGain;
-        return true;
+        break;
     case 0xA96B06AFu:
-        pFile->Read8();
-        mOcclusionLFRatio = Clamp(pFile->ReadFloat(), 0.0f, 1.0f);
+        chunk._pFile->Read8();
+        mOcclusionLFRatio = Clamp(chunk._pFile->ReadFloat(), 0.0f, 1.0f);
         mFlags |= flags_occlusionLFRatio;
-        return true;
+        break;
+    default:
+        bResult = false;
+        break;
     }
-    return false;
+    return bResult;
 }
 
 // FUNCTION: SWBF2 0x007480e0

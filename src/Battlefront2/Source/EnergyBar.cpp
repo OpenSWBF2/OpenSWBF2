@@ -2,11 +2,13 @@
 
 #include <stdio.h>
 
-// GLOBAL: SWBF2 0x01eb9810
 // SYNTHETIC: SWBF2 0x00402810
 // `dynamic initializer for 'EnergyBar::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00766ef0
 // `dynamic atexit destructor for 'EnergyBar::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01eb9810
+// EnergyBar::sMemoryPool
 MemoryPool EnergyBar::sMemoryPool("EnergyBar", 0xc);
 
 // FUNCTION: SWBF2 0x00491470
@@ -147,20 +149,21 @@ EnergyBar::~EnergyBar()
 // FUNCTION: SWBF2 0x004916c0
 bool EnergyBar::SpendEnergy(float fEnergy)
 {
-    if (fEnergy > 0.0f)
+    if (fEnergy <= 0.0f)
     {
-        if (m_bOverheat)
+        return true;
+    }
+    if (m_bOverheat)
+    {
+        return false;
+    }
+    m_fEnergy -= fEnergy;
+    if (0.0f > m_fEnergy)
+    {
+        m_bOverheat = 1;
+        if (m_pClass->m_fEnergyMin > m_fEnergy)
         {
-            return false;
-        }
-        m_fEnergy -= fEnergy;
-        if (0.0f > m_fEnergy)
-        {
-            m_bOverheat = 1;
-            if (m_pClass->m_fEnergyMin > m_fEnergy)
-            {
-                m_fEnergy = m_pClass->m_fEnergyMin;
-            }
+            m_fEnergy = m_pClass->m_fEnergyMin;
         }
     }
     return true;

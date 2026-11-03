@@ -1,6 +1,7 @@
 #include "ZephyrPoseDyn.h"
 
-// FUNCTION: SWBF2 0x0072cc90
+// TEMPLATE: SWBF2 0x0072cc90
+// ZephyrPoseDyn<32>::ZephyrPoseDyn<32>
 template <int N>
 ZephyrPoseDyn<N>::ZephyrPoseDyn()
     : m_pSkel(0),
@@ -16,14 +17,16 @@ ZephyrPoseDyn<N>::ZephyrPoseDyn()
 {
 }
 
-// FUNCTION: SWBF2 0x0072cd70
+// TEMPLATE: SWBF2 0x0072cd70
+// ZephyrPoseDyn<32>::~ZephyrPoseDyn<32>
 template <int N>
 ZephyrPoseDyn<N>::~ZephyrPoseDyn()
 {
     Close();
 }
 
-// FUNCTION: SWBF2 0x0072d3f0
+// TEMPLATE: SWBF2 0x0072d3f0
+// ZephyrPoseDyn<32>::Open
 template <int N>
 void ZephyrPoseDyn<N>::Open(const ZephyrSkeleton<N>& kSkel)
 {
@@ -32,37 +35,40 @@ void ZephyrPoseDyn<N>::Open(const ZephyrSkeleton<N>& kSkel)
     m_pSkel = const_cast<ZephyrSkeleton<N>*>(&kSkel);
 }
 
-// FUNCTION: SWBF2 0x0072cd90
+// TEMPLATE: SWBF2 0x0072cd90
+// ZephyrPoseDyn<32>::Close
 template <int N>
-void ZephyrPoseDyn<N>::Close()
+inline void ZephyrPoseDyn<N>::Close()
 {
     m_kAnim.SetAnim(NULL, NULL);
 }
 
-// FUNCTION: SWBF2 0x0072d430
+// TEMPLATE: SWBF2 0x0072d430 SYMBOL
+// ?SetAnimation@?$ZephyrPoseDyn@$0CA@@@QAEXPBVZephyrAnim@@M@Z
 template <int N>
 void ZephyrPoseDyn<N>::SetAnimation(const ZephyrAnim* pkAnim, float fSpeed)
 {
-    m_kAnim.SetAnim(pkAnim, m_pSkel);
-
     if (pkAnim)
     {
+        m_kAnim.SetAnim(pkAnim, m_pSkel);
         m_fCurT = 0.0f;
         m_bAnimFinished = false;
         ZephyrTransform kTemp;
         GetJointTransform(kTemp, 0);
         m_kRootTrans = kTemp.kTrans;
-        m_fAnimSpeed = fSpeed;
     }
     else
     {
+        m_kAnim.SetAnim(NULL, m_pSkel);
         m_fCurT = 0.0f;
         m_bAnimFinished = false;
-        m_fAnimSpeed = fSpeed;
     }
+
+    m_fAnimSpeed = fSpeed;
 }
 
-// FUNCTION: SWBF2 0x0072d5b0
+// TEMPLATE: SWBF2 0x0072d5b0
+// ZephyrPoseDyn<32>::SetFrameNum
 template <int N>
 bool ZephyrPoseDyn<N>::SetFrameNum(int iFrameNum)
 {
@@ -78,7 +84,8 @@ bool ZephyrPoseDyn<N>::SetFrameNum(int iFrameNum)
     return true;
 }
 
-// FUNCTION: SWBF2 0x0072d650
+// TEMPLATE: SWBF2 0x0072d650
+// ZephyrPoseDyn<32>::SetFrameNumFloat
 template <int N>
 bool ZephyrPoseDyn<N>::SetFrameNumFloat(float fFrameNum)
 {
@@ -94,7 +101,8 @@ bool ZephyrPoseDyn<N>::SetFrameNumFloat(float fFrameNum)
     return true;
 }
 
-// FUNCTION: SWBF2 0x0072d790
+// TEMPLATE: SWBF2 0x0072d790 SYMBOL
+// ?Update@?$ZephyrPoseDyn@$0CA@@@QAEXM@Z
 template <int N>
 void ZephyrPoseDyn<N>::Update(float fElapsed)
 {
@@ -102,8 +110,8 @@ void ZephyrPoseDyn<N>::Update(float fElapsed)
 
     m_iEventsIter = 0;
 
-    int iNumFrames = GetNumFrames();
-    if (iNumFrames <= 1)
+    unsigned short u16NumFrames = m_kAnim.GetNumFrames();
+    if (u16NumFrames <= 1)
     {
         m_fCurT = 0.0f;
         if (!m_bLoop)
@@ -118,7 +126,7 @@ void ZephyrPoseDyn<N>::Update(float fElapsed)
 
         if (m_bLoop || !m_bAnimFinished)
         {
-            m_fCurT += m_fAnimSpeed * fElapsed / (float)(iNumFrames - 1);
+            m_fCurT += m_fAnimSpeed * fElapsed / (float)(u16NumFrames - 1);
         }
 
         if (m_fCurT > 1.0f)
@@ -141,7 +149,7 @@ void ZephyrPoseDyn<N>::Update(float fElapsed)
 
         if (m_bLoop || !m_bAnimFinished)
         {
-            m_fCurT -= m_fAnimSpeed * fElapsed / (float)(iNumFrames - 1);
+            m_fCurT -= m_fAnimSpeed * fElapsed / (float)(u16NumFrames - 1);
         }
 
         if (m_fCurT < 0.0f)
@@ -166,7 +174,8 @@ void ZephyrPoseDyn<N>::Update(float fElapsed)
     }
 }
 
-// FUNCTION: SWBF2 0x0072cdc0
+// TEMPLATE: SWBF2 0x0072cdc0
+// ZephyrPoseDyn<32>::GetJointTransform
 template <int N>
 void ZephyrPoseDyn<N>::GetJointTransform(ZephyrTransform& kTransform, unsigned short u16JointNum, float fT) const
 {
@@ -183,11 +192,9 @@ void ZephyrPoseDyn<N>::GetJointTransform(ZephyrTransform& kTransform, unsigned s
             if (m_bLoop)
             {
                 m_kAnim.GetTransformCached(nextTransform, u16JointNum, 1);
-                PblVector3 tmp;
-                m_kAnim.GetTranslationCached(tmp, u16JointNum, m_kAnim.GetNumFrames() - 1);
-                nextTransform.kTrans.x += tmp.x;
-                nextTransform.kTrans.y += tmp.y;
-                nextTransform.kTrans.z += tmp.z;
+                PblVector3 kLastFrameTrans;
+                m_kAnim.GetTranslationCached(kLastFrameTrans, u16JointNum, m_kAnim.GetNumFrames() - 1);
+                nextTransform.kTrans += kLastFrameTrans;
             }
             else
             {
@@ -203,26 +210,27 @@ void ZephyrPoseDyn<N>::GetJointTransform(ZephyrTransform& kTransform, unsigned s
         perc2NextFrame -= (float)(int)perc2NextFrame;
 
         kTransform.kQuat = Interpolate(kTransform.kQuat, nextTransform.kQuat, perc2NextFrame);
-
-        kTransform.kTrans.x = (nextTransform.kTrans.x - kTransform.kTrans.x) * perc2NextFrame + kTransform.kTrans.x;
-        kTransform.kTrans.y = (nextTransform.kTrans.y - kTransform.kTrans.y) * perc2NextFrame + kTransform.kTrans.y;
-        kTransform.kTrans.z = (nextTransform.kTrans.z - kTransform.kTrans.z) * perc2NextFrame + kTransform.kTrans.z;
+        kTransform.kTrans = Interpolate(kTransform.kTrans, nextTransform.kTrans, perc2NextFrame);
     }
 }
 
-// FUNCTION: SWBF2 0x0072cda0
+// TEMPLATE: SWBF2 0x0072cda0
+// ZephyrPoseDyn<32>::GetJointTransform
 template <int N>
-void ZephyrPoseDyn<N>::GetJointTransform(ZephyrTransform& kTransform, unsigned short u16JointNum) const
+inline void ZephyrPoseDyn<N>::GetJointTransform(ZephyrTransform& kTransform, unsigned short u16JointNum) const
 {
     GetJointTransform(kTransform, u16JointNum, m_fCurT);
 }
 
+// TEMPLATE: SWBF2 0x0072d180
+// ZephyrPoseDyn<64>::GetRootTransDelta
 template <int N>
 PblVector3 ZephyrPoseDyn<N>::GetRootTransDelta()
 {
     ZephyrTransform kTemp;
 
-    PblVector3 kLastRootTrans = m_kRootTrans;
+    PblVector3 kLastRootTrans;
+    kLastRootTrans = m_kRootTrans;
     GetJointTransform(kTemp, 0);
     m_kRootTrans = kTemp.kTrans;
 
@@ -230,30 +238,21 @@ PblVector3 ZephyrPoseDyn<N>::GetRootTransDelta()
     {
         if (!m_bPlayingBackward && (m_fLastT > m_fCurT))
         {
-
             GetJointTransform(kTemp, 0, 1.0f);
-            PblVector3 kBeforeLoop(kTemp.kTrans.x - kLastRootTrans.x, kTemp.kTrans.y - kLastRootTrans.y,
-                                   kTemp.kTrans.z - kLastRootTrans.z);
+            PblVector3 kBeforeLoop = kTemp.kTrans - kLastRootTrans;
             GetJointTransform(kTemp, 0, 0.0f);
-            return PblVector3((m_kRootTrans.x - kTemp.kTrans.x) + kBeforeLoop.x,
-                              (m_kRootTrans.y - kTemp.kTrans.y) + kBeforeLoop.y,
-                              (m_kRootTrans.z - kTemp.kTrans.z) + kBeforeLoop.z);
+            return (m_kRootTrans - kTemp.kTrans) + kBeforeLoop;
         }
         else if (m_bPlayingBackward && (m_fLastT < m_fCurT))
         {
-
             GetJointTransform(kTemp, 0, 0.0f);
-            PblVector3 kBeforeLoop(kTemp.kTrans.x - kLastRootTrans.x, kTemp.kTrans.y - kLastRootTrans.y,
-                                   kTemp.kTrans.z - kLastRootTrans.z);
+            PblVector3 kBeforeLoop = kTemp.kTrans - kLastRootTrans;
             GetJointTransform(kTemp, 0, 1.0f);
-            return PblVector3((m_kRootTrans.x - kTemp.kTrans.x) + kBeforeLoop.x,
-                              (m_kRootTrans.y - kTemp.kTrans.y) + kBeforeLoop.y,
-                              (m_kRootTrans.z - kTemp.kTrans.z) + kBeforeLoop.z);
+            return (m_kRootTrans - kTemp.kTrans) + kBeforeLoop;
         }
     }
 
-    return PblVector3(m_kRootTrans.x - kLastRootTrans.x, m_kRootTrans.y - kLastRootTrans.y,
-                      m_kRootTrans.z - kLastRootTrans.z);
+    return m_kRootTrans - kLastRootTrans;
 }
 
 template class ZephyrPoseDyn<32>;
@@ -267,9 +266,6 @@ template class ZephyrPoseDyn<64>;
 
 // TEMPLATE: SWBF2 0x0072cfb0
 // ZephyrPoseDyn<64>::GetJointTransform
-
-// TEMPLATE: SWBF2 0x0072d180
-// ZephyrPoseDyn<64>::GetRootTransDelta
 
 // TEMPLATE: SWBF2 0x0072d410
 // ZephyrPoseDyn<64>::Open

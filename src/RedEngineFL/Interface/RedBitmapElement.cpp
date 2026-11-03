@@ -31,7 +31,7 @@ void RedBitmapElement::SetRect(float fLeft, float fTop, float fRight, float fBot
 void RedBitmapElement::SetRect(float fWidth, float fHeight, BitmapHAlignT eHAlign,
                                BitmapVAlignT eVAlign)
 {
-    float fLeft = 0.0f, fRight = 0.0f, fTop = 0.0f, fBottom = 0.0f;
+    float fBottom = 0.0f, fLeft = 0.0f, fRight = 0.0f, fTop = 0.0f;
     switch (eHAlign)
     {
     case BITMAP_HALIGN_LEFT:

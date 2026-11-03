@@ -3,11 +3,7 @@
 namespace Snd
 {
 
-// FUNCTION: SWBF2 0x0073d100
-StreamCodec::~StreamCodec()
-{
 
-}
 
 // FUNCTION: SWBF2 0x0074bc50
 bool StreamCodec::BufferPackets()
@@ -29,7 +25,8 @@ bool StreamCodec::BufferPackets()
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x0074bc90
 bool StreamCodec::Update()

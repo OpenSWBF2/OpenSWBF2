@@ -27,6 +27,26 @@ public:
         KEY _iOrder;
     };
 
+    class Itor
+    {
+    public:
+        Itor() : _pNode(0) {}
+        Itor(const PblOrderedList* pList) : _pNode(pList->GetFirst()) {}
+        Itor(const PblOrderedList& list) : _pNode(list.GetFirst()) {}
+        Itor(Node* pNode) : _pNode(pNode) {}
+
+        TYPE* operator->() const { return _pNode->_pObject; }
+        TYPE& operator()() const { return *_pNode->_pObject; }
+        TYPE& operator*() const { return *_pNode->_pObject; }
+        operator TYPE*() const { return _pNode->_pObject; }
+        const Itor& operator++() { _pNode = _pNode->_pNext; return *this; }
+        const Itor& operator--() { _pNode = _pNode->_pPrev; return *this; }
+        Node* GetNode() { return _pNode; }
+
+    private:
+        Node* _pNode;
+    };
+
     PblOrderedList()
     {
         _head._pNext = &_head;
@@ -36,6 +56,12 @@ public:
 
     void Add(Node* pNode, TYPE* pObject, KEY iOrder);
     void Clear();
+
+    int GetCount() const { return _iCount; }
+    Node* GetFirst() const { return _head._pNext; }
+    Node* GetLast() const { return _head._pPrev; }
+    Itor Begin() const { return Itor(GetFirst()); }
+    Itor End() const { return Itor(const_cast<Node*>(&_head)); }
 
     void Remove(Node* pNode)
     {

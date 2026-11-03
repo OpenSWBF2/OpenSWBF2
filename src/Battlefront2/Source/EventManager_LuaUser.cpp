@@ -25,10 +25,7 @@ LuaObjectMatches LuaGetItem<LuaObjectMatches>(int iIndex)
     return LuaObjectMatches(LuaHelper::mState, iIndex);
 }
 
-void LuaObject::Push() const
-{
-    lua_rawgeti(LuaHelper::mState, LUA_REGISTRYINDEX, mRef);
-}
+
 
 namespace LuaUserEvent
 {
@@ -40,10 +37,7 @@ static int Trigger(lua_State*)
         (Event<LuaObject, LuaObject>*)lua_topointer(LuaHelper::mState, lua_upvalueindex(1));
     LuaObject item(LuaHelper::mState, 1);
     LuaObject param(LuaHelper::mState, 2);
-    if (!NetGame::IsEnabled() || !NetGame::IsClient())
-    {
-        pEvent->Trigger(item, param);
-    }
+    pEvent->Trigger(item, param);
     return 0;
 }
 }
@@ -69,17 +63,9 @@ int Create(lua_State*)
 }
 }
 
-const char* LuaObjectMatches::GetName()
-{
-    return "Match";
-}
 
-// FUNCTION: SWBF2 0x00513ca0
-template <class ITEM, class PARAM>
-bool Event<ITEM, PARAM>::Callback::operator()(ITEM&, PARAM&)
-{
-    return true;
-}
+// TEMPLATE: SWBF2 0x00513ca0
+// EventManager::Event<EventManager::LuaObject,EventManager::LuaObject>::Callback::operator()
 
 // SYNTHETIC: SWBF2 0x00513cb0
 // EventManager::Event<EventManager::LuaObject,EventManager::LuaObject>::Callback::`scalar deleting destructor'
@@ -95,8 +81,13 @@ void Event<ITEM, PARAM>::Callback::Trigger(ITEM& item, PARAM& param)
         if (pChild)
         {
             pChild->AddRef();
-            while (pChild->IsAlive())
+            while (pChild)
             {
+                if (!pChild->IsAlive())
+                {
+                    pChild->Release();
+                    break;
+                }
                 Callback* pNext = (Callback*)pChild->mSibling;
                 if (pNext)
                 {
@@ -105,66 +96,17 @@ void Event<ITEM, PARAM>::Callback::Trigger(ITEM& item, PARAM& param)
                 pChild->Trigger(item, param);
                 pChild->Release();
                 pChild = pNext;
-                if (!pChild)
-                {
-                    break;
-                }
-            }
-            if (pChild)
-            {
-                pChild->Release();
             }
         }
     }
     Release();
 }
 
-// FUNCTION: SWBF2 0x005142f0
-template <class ITEM, class PARAM>
-void Event<ITEM, PARAM>::Unregister(Callback& callback)
-{
-    Node* pParent = callback.mParent;
-    callback.DetachFromParent();
-    while (pParent && pParent->mParent && !pParent->mChild)
-    {
-        Node* pNext = pParent->mParent;
-        pParent->DetachFromParent();
-        pParent = pNext;
-    }
-}
 
-template <class ITEM, class PARAM>
-template <class PREDICATE>
-Event<ITEM, PARAM>::Filter<PREDICATE>::Filter(PREDICATE& predicate)
-    : mPredicate(predicate)
-{
-}
 
-// FUNCTION: SWBF2 0x005145d0
-template <class ITEM, class PARAM>
-template <class PREDICATE>
-auto Event<ITEM, PARAM>::GetFilter(PREDICATE& predicate, Callback* pParent)
-    -> Filter<PREDICATE>*
-{
-    if (!pParent)
-    {
-        pParent = &mRoot;
-    }
 
-    for (Node* pNode = pParent->mChild; pNode; pNode = pNode->mSibling)
-    {
-        if (pNode->GetName() == PREDICATE::GetName() &&
-            ((Filter<PREDICATE>*)pNode)->mPredicate == predicate)
-        {
-            pNode->AddRef();
-            return (Filter<PREDICATE>*)pNode;
-        }
-    }
-
-    Filter<PREDICATE>* pFilter = new Filter<PREDICATE>(predicate);
-    pFilter->AttachToParent(pParent);
-    return pFilter;
-}
+// TEMPLATE: SWBF2 0x005145d0
+// EventManager::Event<EventManager::LuaObject,EventManager::LuaObject>::GetFilter<EventManager::LuaObjectMatches>
 
 // FUNCTION: SWBF2 0x00514330
 template <class ITEM, class PARAM>
@@ -179,14 +121,7 @@ LuaCallback<ITEM, PARAM>::LuaCallback(int iRef)
 
 // SYNTHETIC: SWBF2 0x005144a0
 // EventManager::LuaCallback<EventManager::LuaObject,EventManager::LuaObject>::`scalar deleting destructor'
-template <class ITEM, class PARAM>
-LuaCallback<ITEM, PARAM>::~LuaCallback()
-{
-    if (mFunction != -1)
-    {
-        lua_unref(LuaHelper::mState, mFunction);
-    }
-}
+
 
 // FUNCTION: SWBF2 0x005143c0
 template <class ITEM, class PARAM>
@@ -213,21 +148,11 @@ bool LuaCallback<ITEM, PARAM>::operator()(ITEM& item, PARAM& param)
     return true;
 }
 
-// FUNCTION: SWBF2 0x00514490
-template <class ITEM, class PARAM>
-template <class PREDICATE>
-const char* Event<ITEM, PARAM>::Filter<PREDICATE>::GetName()
-{
-    return PREDICATE::GetName();
-}
+// TEMPLATE: SWBF2 0x00514490
+// EventManager::Event<EventManager::LuaObject,EventManager::LuaObject>::Filter<EventManager::LuaObjectMatches>::GetName
 
-// FUNCTION: SWBF2 0x00514430
-template <class ITEM, class PARAM>
-template <class PREDICATE>
-bool Event<ITEM, PARAM>::Filter<PREDICATE>::operator()(ITEM& item, PARAM& param)
-{
-    return mPredicate(item, param);
-}
+// TEMPLATE: SWBF2 0x00514430
+// EventManager::Event<EventManager::LuaObject,EventManager::LuaObject>::Filter<EventManager::LuaObjectMatches>::operator()
 
 // SYNTHETIC: SWBF2 0x00514540
 // EventManager::Event<EventManager::LuaObject,EventManager::LuaObject>::Filter<EventManager::LuaObjectMatches>::`scalar deleting destructor'
@@ -362,9 +287,11 @@ template void RegisterRegisterLuaCallback<LuaObject, LuaObject, LuaObjectMatches
 
 }
 
-namespace EventManager {
+namespace EventManager
+{
 
-// FUNCTION: SWBF2 0x00513c40
+// TEMPLATE: SWBF2 0x00513c40
+// EventManager::Event<EventManager::LuaObject,EventManager::LuaObject>::Callback::~Callback
 template Event<LuaObject, LuaObject>::Callback::~Callback();
 }
 
@@ -372,7 +299,10 @@ namespace EventManager
 {
 
 int DummyLuaCallback(lua_State* L);
-namespace LuaUserEvent { int Create(lua_State* L); void Init(); }
+namespace LuaUserEvent
+{
+int Create(lua_State* L); void Init();
+}
 
 // FUNCTION: SWBF2 0x00513c20
 void LuaUserEvent::Init()

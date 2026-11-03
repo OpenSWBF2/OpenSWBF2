@@ -13,21 +13,21 @@
 #include "PebbleFL/Common/PblHashTable.h"
 #include "PebbleFL/Common/PblRandom.h"
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
+class GameObject
+{
+public:
+
+    char mInheritedObjectStorage[0x204];
+    unsigned int mHandleId;
+};
+
+
 
 AttachedEffectsClass::AttachClassData AttachedEffectsClass::s_aAttachClassData[MAX_ATTACHED];
 unsigned int AttachedEffectsClass::s_uiNumAttached;
 bool AttachedEffectsClass::s_bDynamic;
 
-AttachedEffectsClass::AttachedEffectsClass()
-{
-    m_uiNumAttached = 0;
-    m_bDynamic = 0;
-}
+
 
 // FUNCTION: SWBF2 0x00447910
 AttachedEffectsClass* AttachedEffectsClass::BuildAttachedEffectsClass()
@@ -101,7 +101,7 @@ AttachedEffects* AttachedEffectsClass::BuildEffects(const EntityGeometry* pGeome
         if (classData.bIsOdf)
         {
             EntityDesc desc;
-            desc.mMatrix = _IdentityMatrix;
+            desc.mMatrix = gMatrixIdentity;
             desc.mMatrix = pGeometry->GetMatrix();
             Entity* pEntity = classData.pOdfClass->Build(desc);
             if (pEntity->IsRtti(EntityLight::GetRtti()))
@@ -145,17 +145,7 @@ AttachedEffects* AttachedEffectsClass::BuildEffects(const EntityGeometry* pGeome
     return pEffects;
 }
 
-// FUNCTION: SWBF2 0x00447650
-AttachedEffects::AttachData::AttachData()
-{
-    pEffect.mObject = 0;
-    pEffect.mSavedHandleId = 0;
-}
 
-// FUNCTION: SWBF2 0x00447660
-AttachedEffects::AttachData::~AttachData()
-{
-}
 
 // FUNCTION: SWBF2 0x00447670
 bool AttachedEffectsClass::SetProperty(unsigned int uiProperty, const char* pszValue)

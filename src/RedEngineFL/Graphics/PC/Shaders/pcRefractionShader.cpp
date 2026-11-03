@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "pcRefractionShader.h"
 
 #include "PebbleFL/Common/PblChunk.h"
@@ -17,6 +18,7 @@
 
 void __cdecl PblTraceP(const char* Format, ...);
 
+
 // GLOBAL: SWBF2 0x009ca4a8
 static D3DMATERIAL9 s_d3dMat;
 
@@ -32,16 +34,18 @@ static unsigned int PIPELINE1_STATE_MAP[16];
 // GLOBAL: SWBF2 0x009ca5b0
 static unsigned int PIPELINE1_INV_STATE_MAP[16];
 
-// GLOBAL: SWBF2 0x009ca4f0
 // SYNTHETIC: SWBF2 0x0040a390
 // `dynamic initializer for 's_bumpMat''
 
+// GLOBAL: SWBF2 0x009ca4f0
+// s_bumpMat
 PblMatrix s_bumpMat;
 
-// GLOBAL: SWBF2 0x009ca530
 // SYNTHETIC: SWBF2 0x0040a3a0
 // `dynamic initializer for 's_refractionTexMat''
 
+// GLOBAL: SWBF2 0x009ca530
+// s_refractionTexMat
 PblMatrix s_refractionTexMat;
 
 static PblMatrix _IdentityMatrix(
@@ -64,18 +68,10 @@ pcRedShader::RenderFuncT pcRefractionShader::RenderFuncArray[MAX_PIPELINES];
 // FUNCTION: SWBF2 0x0070cae0
 pcRefractionShader::pcRefractionShader()
 {
-    GetStateFuncArray[PIPELINE_FIXED] = 0;
-    GetStateFuncArray[PIPELINE_PROG1] = 0;
-    GetStateFuncArray[PIPELINE_PROG2] = 0;
-    BeginFuncArray[PIPELINE_FIXED] = 0;
-    BeginFuncArray[PIPELINE_PROG1] = 0;
-    BeginFuncArray[PIPELINE_PROG2] = 0;
-    EndFuncArray[PIPELINE_FIXED] = 0;
-    EndFuncArray[PIPELINE_PROG1] = 0;
-    EndFuncArray[PIPELINE_PROG2] = 0;
-    RenderFuncArray[PIPELINE_FIXED] = 0;
-    RenderFuncArray[PIPELINE_PROG1] = 0;
-    RenderFuncArray[PIPELINE_PROG2] = 0;
+    memset(GetStateFuncArray, 0, sizeof(GetStateFuncArray));
+    memset(BeginFuncArray, 0, sizeof(BeginFuncArray));
+    memset(EndFuncArray, 0, sizeof(EndFuncArray));
+    memset(RenderFuncArray, 0, sizeof(RenderFuncArray));
 
     s_uiID = _Register(s_uiRenderTypeHash, this);
 
@@ -224,12 +220,12 @@ void pcRefractionShader::Begin_Fixed(unsigned int uiState, unsigned int uiPass) 
 
         PblMatrix mTmp;
         PblMatrix mRot = _IdentityMatrix;
-        D3DXMatrixMultiply(&mRot, &mRot, D3DXMatrixRotationZ(&mTmp, fAngle));
+        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mRot), reinterpret_cast<const D3DXMATRIX*>(&mRot), D3DXMatrixRotationZ(reinterpret_cast<D3DXMATRIX*>(&mTmp), fAngle));
         PblMatrix mScale = _IdentityMatrix;
-        D3DXMatrixMultiply(&mScale, &mScale,
-                           D3DXMatrixScaling(&mTmp, m_distortionScale, m_distortionScale,
+        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mScale), reinterpret_cast<const D3DXMATRIX*>(&mScale),
+                           D3DXMatrixScaling(reinterpret_cast<D3DXMATRIX*>(&mTmp), m_distortionScale, m_distortionScale,
                                              m_distortionScale));
-        D3DXMatrixMultiply(&mTmp, &mScale, &mRot);
+        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mTmp), reinterpret_cast<const D3DXMATRIX*>(&mScale), reinterpret_cast<const D3DXMATRIX*>(&mRot));
         s_bumpMat = mTmp;
 
         const PblMatrix mBias(PblVector4{ 0.5f, 0.0f, 0.0f, 0.0f },
@@ -238,7 +234,7 @@ void pcRefractionShader::Begin_Fixed(unsigned int uiState, unsigned int uiPass) 
                               PblVector4{ 0.5f, 0.5f, 1.0f, 1.0f });
         PblMatrix mProj;
         RedRenderer::pcGetDevice()->GetTransform(D3DTS_PROJECTION, (D3DMATRIX*)&mProj);
-        D3DXMatrixMultiply(&mTmp, &mProj, &mBias);
+        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mTmp), reinterpret_cast<const D3DXMATRIX*>(&mProj), reinterpret_cast<const D3DXMATRIX*>(&mBias));
         s_refractionTexMat = mTmp;
     }
 }
@@ -278,12 +274,10 @@ void pcRefractionShader::Begin_Prog1(unsigned int uiState, unsigned int) const
 
         PblMatrix mTmp;
         PblMatrix mRot = _IdentityMatrix;
-        D3DXMatrixMultiply(&mRot, &mRot, D3DXMatrixRotationZ(&mTmp, fAngle));
+        mRot.RotateZ(fAngle);
         PblMatrix mScale = _IdentityMatrix;
-        D3DXMatrixMultiply(&mScale, &mScale,
-                           D3DXMatrixScaling(&mTmp, m_distortionScale, m_distortionScale,
-                                             m_distortionScale));
-        D3DXMatrixMultiply(&mTmp, &mScale, &mRot);
+        mScale.Scale(m_distortionScale, m_distortionScale, m_distortionScale);
+        mTmp = mScale * mRot;
         s_bumpMat = mTmp;
 
         RedRenderer::pcSetTextureStageState(1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_PROJECTED);
@@ -296,6 +290,7 @@ void pcRefractionShader::Begin_Prog1(unsigned int uiState, unsigned int) const
     if (uiFlags & 2)
     {
         // GLOBAL: SWBF2 0x009ca5f0
+        // kClipToTextureMatrix
 
         static const PblMatrix kClipToTextureMatrix(
             PblVector4{ 0.5f, 0.0f, 0.0f, 0.0f },
@@ -304,11 +299,8 @@ void pcRefractionShader::Begin_Prog1(unsigned int uiState, unsigned int) const
             PblVector4{ 0.5f, 0.5f, 0.5f, 1.0f });
 
         const RedCamera* pCamera = RedRenderer::GetCamera();
-        PblMatrix mViewProj;
-        D3DXMatrixMultiply(&mViewProj, &pCamera->GetMatrixInverse(),
-                           &RedRenderer::GetProjectionMatrix());
-        PblMatrix mTex;
-        D3DXMatrixMultiply(&mTex, &mViewProj, &kClipToTextureMatrix);
+        PblMatrix mViewProj = pCamera->GetMatrixInverse() * RedRenderer::GetProjectionMatrix();
+        PblMatrix mTex = mViewProj * kClipToTextureMatrix;
         s_refractionTexMat = mTex;
     }
 }
@@ -436,19 +428,19 @@ unsigned int pcRefractionShader::GetZPrepassState() const
     return (m_material.materialFlags >> 1) & 1;
 }
 
-// GLOBAL: SWBF2 0x007852a8
-static const pcRedShaderDef::FixedFunctionStateT kFixedFunctionStates[4] =
-{
-    { 1, { 0x42, 0x00, 0x00, 0x00 } },
-    { 2, { 0x21, 0x42, 0x00, 0x00 } },
-    { 1, { 0x42, 0x00, 0x00, 0x00 } },
-    { 1, { 0x21, 0x00, 0x00, 0x00 } },
-};
-
 // FUNCTION: SWBF2 0x0070da30
 void pcRefractionShader::InitFixedFunctionShaderDef() const
 {
-    GetShaderDef()->InitFixedFunction(0x18, 4, kFixedFunctionStates);
+    // GLOBAL: SWBF2 0x007852a8
+    static const pcRedShaderDef::FixedFunctionStateT aFFStates[4] =
+    {
+        { 1, { 0x42, 0x00, 0x00, 0x00 } },
+        { 2, { 0x21, 0x42, 0x00, 0x00 } },
+        { 1, { 0x42, 0x00, 0x00, 0x00 } },
+        { 1, { 0x21, 0x00, 0x00, 0x00 } },
+    };
+
+    GetShaderDef()->InitFixedFunction(0x18, 4, aFFStates);
 }
 
 // FUNCTION: SWBF2 0x0070da50
@@ -680,8 +672,7 @@ void pcRefractionShader::Render_Prog1(const RenderItem* pItem, unsigned int) con
         pRegs[40].component[2] = m_distortionScale * 8.0f;
         pRegs[40].component[3] = 0.0f;
 
-        PblMatrix mTex;
-        D3DXMatrixMultiply(&mTex, pItem->pmObjWorld, &s_refractionTexMat);
+        PblMatrix mTex = *pItem->pmObjWorld * s_refractionTexMat;
         pRegs[41].SetMatrix4x4(mTex);
 
         const RedTextureTransform& diffuse = m_material.diffuseTexTransform;
@@ -993,35 +984,44 @@ void pcRefractionShader::_StaticInit() const
          s_projectedBump);
 }
 
-// GLOBAL: SWBF2 0x009ca3ac
 // SYNTHETIC: SWBF2 0x0040a310
 // `dynamic initializer for 'pcRefractionShader::s_uiRenderTypeHash''
+
+// GLOBAL: SWBF2 0x009ca3ac
+// pcRefractionShader::s_uiRenderTypeHash
 unsigned int pcRefractionShader::s_uiRenderTypeHash = PblHash("Refraction");
 
-// GLOBAL: SWBF2 0x009ca3e0
 // SYNTHETIC: SWBF2 0x0040a2d0
 // `dynamic initializer for 'pcRefractionShader::s_Factory''
 // SYNTHETIC: SWBF2 0x00769f30
 // `dynamic atexit destructor for 'pcRefractionShader::s_Factory''
+
+// GLOBAL: SWBF2 0x009ca3e0
+// pcRefractionShader::s_Factory
 pcRefractionShader pcRefractionShader::s_Factory;
 
-// GLOBAL: SWBF2 0x009ca3b0
 // SYNTHETIC: SWBF2 0x0040a2f0
 // `dynamic initializer for 'pcRefractionShader::s_shaderDef''
 // SYNTHETIC: SWBF2 0x00769f50
 // `dynamic atexit destructor for 'pcRefractionShader::s_shaderDef''
+
+// GLOBAL: SWBF2 0x009ca3b0
+// pcRefractionShader::s_shaderDef
 pcRedShaderDef pcRefractionShader::s_shaderDef("refration_shader.xml");
 
-// GLOBAL: SWBF2 0x009ca3dc
 // SYNTHETIC: SWBF2 0x0040a370
 // `dynamic initializer for 'kuiLinearRamp''
+
+// GLOBAL: SWBF2 0x009ca3dc
+// kuiLinearRamp
 static unsigned int kuiLinearRamp = PblHash("linear_ramp");
 
 // SYNTHETIC: SWBF2 0x0040a330
-// `dynamic initializer for 'PblMath::fOneOverHalfPi''
+// PblMath::`dynamic initializer for 'fOneOverHalfPi''
 
 // SYNTHETIC: SWBF2 0x0040a350
-// `dynamic initializer for 'PblMath::fOneOverTwoPi''
+// PblMath::`dynamic initializer for 'fOneOverTwoPi''
 
 // GLOBAL: SWBF2 0x009ca370
+// g_pcRefractionShader
 unsigned int g_pcRefractionShader;

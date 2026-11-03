@@ -144,7 +144,6 @@ public:
         Create(&valloc_, 0x1000, sizeof(T));
     }
 
-    virtual ~StaticSubAlloc() {}
 
     void Create(IAllocator* pAlloc, int iPageBytes, unsigned int uiElemSize)
     {
@@ -156,3 +155,6 @@ public:
 };
 
 }
+
+// VTABLE: SWBF2 0x007836e4
+// class util::StaticSubAlloc<util::SLNode<pvs::IDisplayable *>>

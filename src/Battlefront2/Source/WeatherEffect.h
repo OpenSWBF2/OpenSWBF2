@@ -95,9 +95,9 @@ enum PRECIPITATION_TYPE
     PRECIPITATION_STREAKS = 1
 };
 
-// VTABLE: SWBF2 0x007b1dc4
-// VTABLE: SWBF2 0x007b1d80
-class PrecipitationEffect : public FLEffect, public RedRegionFactory
+// VTABLE: SWBF2 0x007b1dc4 FLEffect
+// VTABLE: SWBF2 0x007b1d80 RedRegionFactory
+class PrecipitationEffect : public FLEffect, private RedRegionFactory
 {
 public:
     class RainShadowRegion;

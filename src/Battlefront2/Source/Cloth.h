@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "Entity.h"
@@ -16,9 +18,13 @@ class RedColor;
 class RedPose;
 struct ClothConstraint;
 struct RedLightingState;
-namespace util { class IAllocator; }
+namespace util
+{
+class IAllocator;
+}
 
-// VTABLE: SWBF2 0x007972b4
+// VTABLE: SWBF2 0x007972b4 Entity
+// VTABLE: SWBF2 0x007972e8 Thread
 class EntityCloth : public Entity, public Thread
 {
 public:
@@ -38,7 +44,9 @@ public:
 
     EntityCloth(EntityClothClass* pClass, const EntityDesc& desc);
 
-    static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
+    static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }
+    // SYNTHETIC: SWBF2 0x00458b30
+    // EntityCloth::operator delete
     static void operator delete(void* p) { sMemoryPool.Free(p); }
 
     static bool IsEnabled();
@@ -79,7 +87,7 @@ public:
     float mRenderDt;
 
     static PblHash rttiHashEntityCloth;
-    static char rttiNameEntityCloth[];
+    static const char rttiNameEntityCloth[];
 
     static MemoryPool sMemoryPool;
 
@@ -167,8 +175,6 @@ public:
     static void Cleanup();
 
     static MemoryPool sMemoryPool;
-
-    static int s_clothDataHashTableNumEntries;
     static PblHashTable<ClothData, 64> s_clothDataHashTable;
 
     void _Read(PblFileChunk& chunk);
@@ -230,9 +236,9 @@ public:
 
     virtual EntityClass* Derive(unsigned int uHash);
     virtual Entity* Build(const EntityDesc& desc);
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
 
     unsigned int mModelHash;
@@ -251,7 +257,7 @@ public:
     unsigned int m_uiTransparent : 1;
 
     static PblHash rttiHashEntityClothClass;
-    static char rttiNameEntityClothClass[];
+    static const char rttiNameEntityClothClass[];
 };
   
  
@@ -263,3 +269,49 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x00458ae0
+inline bool EntityCloth::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashEntityCloth == uRtti)
+    {
+        return true;
+    }
+    return Entity::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x00458b10
+inline unsigned int EntityCloth::GetDerivedRtti() const
+{
+    return rttiHashEntityCloth;
+}
+
+// FUNCTION: SWBF2 0x00458b20
+inline const char* EntityCloth::GetDerivedRttiName() const
+{
+    return rttiNameEntityCloth;
+}
+
+// FUNCTION: SWBF2 0x00458b60
+inline bool EntityClothClass::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashEntityClothClass == uRtti)
+    {
+        return true;
+    }
+    return EntityClass::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x00458b90
+inline unsigned int EntityClothClass::GetDerivedRtti() const
+{
+    return rttiHashEntityClothClass;
+}
+
+// FUNCTION: SWBF2 0x00458ba0
+inline const char* EntityClothClass::GetDerivedRttiName() const
+{
+    return rttiNameEntityClothClass;
+}
+
+

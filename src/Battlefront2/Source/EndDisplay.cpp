@@ -11,6 +11,7 @@
 #include "ScreenTransition.h"
 #include "Team.h"
 #include "VoiceOverManager.h"
+#include "PebbleFL/Common/PblTime.h"
 #include "RedEngineFL/Graphics/RedColor.h"
 #include "SoundFL/source/sndbus.h"
 #include "SoundFL/source/win/sndstream.h"
@@ -29,7 +30,10 @@ void AddInterfaceElement(unsigned int hView, RedScreenGroupElement* pElement, fl
                          bool bUseSafeZone);
 }
 
-namespace GameLoop { extern bool mbHistoricalRules; }
+namespace GameLoop
+{
+    extern bool mbHistoricalRules;
+}
 
 // GLOBAL: SWBF2 0x01e3094c
 EndDisplay* EndDisplay::sInstance;
@@ -259,10 +263,8 @@ void GameMovie::StartInGameMoviePlay(const char* pcFile, const char* pcName)
     strcpy(g_InGameMovieFilename, "Movies\\");
     strcat(g_InGameMovieFilename, pcFile);
     strcpy(ingame_movie_idname, pcName);
-    LARGE_INTEGER start;
-    QueryPerformanceCounter(&start);
-    g_InGameMovieStartTime = start.QuadPart;
-    g_InGameMovieStartSystemTime = GameState::GetSystemTimeBase()->GetTime();
+    unsigned __int64 perfCount = PblTime::GetTickCount();
+    g_InGameMovieStartTime = perfCount;
 }
 
 // FUNCTION: SWBF2 0x004912e0

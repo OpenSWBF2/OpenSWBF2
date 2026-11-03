@@ -1,15 +1,12 @@
+#include <d3dx9math.h>
 #include "RedSkeleton.h"
 #include "PebbleFL/Common/PblVector.h"
 #include "RedPose.h"
 #include "PebbleFL/Common/PblChunk.h"
 #include "PebbleFL/Common/PblFile.h"
-#include "PebbleFL/pc/PblD3DX.h"
+#include <new>
 
-static const PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
+
 
 static PblMatrix* _NewAlignedMatrices(unsigned int uiCount)
 {
@@ -32,10 +29,10 @@ static PblMatrix* _NewAlignedMatrices(unsigned int uiCount)
 // GLOBAL: SWBF2 0x009a0a18
 RedSkeleton* RedSkeleton::s_pCurrentSkeleton;
 
-// GLOBAL: SWBF2 0x009a0a2c
 // SYNTHETIC: SWBF2 0x00408ae0
 // `dynamic initializer for 'RedSkeleton::_HashTable''
 
+// GLOBAL: SWBF2 0x009a0a28
 PblHashTable<RedSkeleton, 512> RedSkeleton::_HashTable;
 
 // FUNCTION: SWBF2 0x006e87e0
@@ -89,12 +86,9 @@ void RedSkeleton::SetupPose(RedPose& pose) const
 {
     for (unsigned int i = 0; i < m_uiNumBones; ++i)
     {
-        if (m_auiNameHash[i] && !pose._Table.Find(m_auiNameHash[i]))
+        if (m_auiNameHash[i] && !pose.Find(m_auiNameHash[i]))
         {
-            if (pose._Table.Store(m_auiNameHash[i], &m_amDefaultPose[i]))
-            {
-                ++pose._iNumEntries;
-            }
+            pose.Store(m_auiNameHash[i], &m_amDefaultPose[i]);
         }
     }
 }
@@ -103,8 +97,7 @@ void RedSkeleton::SetupPose(RedPose& pose) const
 unsigned int RedSkeleton::_PostProcess(const PblMatrix& mParent, unsigned int uiBone)
 {
     unsigned int uiCount = 1;
-    PblMatrix mWorld;
-    D3DXMatrixMultiply(&mWorld, &m_amDefaultPose[uiBone], &mParent);
+    PblMatrix mWorld = m_amDefaultPose[uiBone] * mParent;
     m_amDefaultPose[uiBone] = mWorld;
     m_amDefaultPoseInv[uiBone] = m_amDefaultPose[uiBone].GetInverseFast();
     for (int iChild = m_aConnections[uiBone].iChild; iChild >= 0;
@@ -194,5 +187,5 @@ void RedSkeleton::_Read(PblFileChunk& chunk)
             break;
         }
     }
-    _PostProcess(_IdentityMatrix, 0);
+    _PostProcess(gMatrixIdentity, 0);
 }

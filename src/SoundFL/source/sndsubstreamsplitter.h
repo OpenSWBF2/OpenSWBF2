@@ -6,15 +6,15 @@
 namespace Snd
 {
 
-class SubstreamSplitter : public StreamNodeSource,
-                          public StreamNode,
+// VTABLE: SWBF2 0x00786c30
+class SubstreamSplitter : public StreamNode,
+                          public StreamNodeSource,
                           public StreamNodeSink
 {
 public:
     SubstreamSplitter();
 
-    // FUNCTION: SWBF2 0x0074ae90
-    virtual ~SubstreamSplitter() {}
+    virtual ~SubstreamSplitter();
 
     virtual StreamPacket* GetPacket(unsigned int uiSubstream);
     void Flush();

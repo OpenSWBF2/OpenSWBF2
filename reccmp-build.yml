@@ -1,0 +1,5 @@
+project: .
+targets:
+  SWBF2:
+    path: bin/Win32/Release/BattlefrontII.exe
+    pdb: obj/Win32/Release/BattlefrontII.pdb

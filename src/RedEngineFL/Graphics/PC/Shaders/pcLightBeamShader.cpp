@@ -20,18 +20,10 @@ pcRedShader::RenderFuncT pcLightBeamShader::RenderFuncArray[MAX_PIPELINES];
 // FUNCTION: SWBF2 0x00704480
 pcLightBeamShader::pcLightBeamShader()
 {
-    GetStateFuncArray[PIPELINE_FIXED] = 0;
-    GetStateFuncArray[PIPELINE_PROG1] = 0;
-    GetStateFuncArray[PIPELINE_PROG2] = 0;
-    BeginFuncArray[PIPELINE_FIXED] = 0;
-    BeginFuncArray[PIPELINE_PROG1] = 0;
-    BeginFuncArray[PIPELINE_PROG2] = 0;
-    EndFuncArray[PIPELINE_FIXED] = 0;
-    EndFuncArray[PIPELINE_PROG1] = 0;
-    EndFuncArray[PIPELINE_PROG2] = 0;
-    RenderFuncArray[PIPELINE_FIXED] = 0;
-    RenderFuncArray[PIPELINE_PROG1] = 0;
-    RenderFuncArray[PIPELINE_PROG2] = 0;
+    memset(GetStateFuncArray, 0, sizeof(GetStateFuncArray));
+    memset(BeginFuncArray, 0, sizeof(BeginFuncArray));
+    memset(EndFuncArray, 0, sizeof(EndFuncArray));
+    memset(RenderFuncArray, 0, sizeof(RenderFuncArray));
 
     s_uiID = _Register(s_uiRenderTypeHash, this);
 
@@ -102,16 +94,16 @@ pcRedShaderDef* pcLightBeamShader::GetShaderDef() const
     return &s_shaderDef;
 }
 
-// GLOBAL: SWBF2 0x00784a68
-static const pcRedShaderDef::FixedFunctionStateT kFixedFunctionStates[1] =
-{
-    { 1, { 0x21, 0x00, 0x00, 0x00 } },
-};
-
 // FUNCTION: SWBF2 0x00704900
 void pcLightBeamShader::InitFixedFunctionShaderDef() const
 {
-    GetShaderDef()->InitFixedFunction(4, 1, kFixedFunctionStates);
+    // GLOBAL: SWBF2 0x00784a68
+    static const pcRedShaderDef::FixedFunctionStateT aFFStates[1] =
+    {
+        { 1, { 0x21, 0x00, 0x00, 0x00 } },
+    };
+
+    GetShaderDef()->InitFixedFunction(4, 1, aFFStates);
 }
 
 // FUNCTION: SWBF2 0x007048e0
@@ -250,28 +242,36 @@ void pcLightBeamShader::_StaticInit() const
 {
 }
 
-// GLOBAL: SWBF2 0x009c9994
 // SYNTHETIC: SWBF2 0x00409b60
 // `dynamic initializer for 'pcLightBeamShader::s_uiRenderTypeHash''
+
+// GLOBAL: SWBF2 0x009c9994
+// pcLightBeamShader::s_uiRenderTypeHash
 unsigned int pcLightBeamShader::s_uiRenderTypeHash = PblHash("LightBeam");
 
-// GLOBAL: SWBF2 0x009c99d0
 // SYNTHETIC: SWBF2 0x00409b20
 // `dynamic initializer for 'pcLightBeamShader::s_Factory''
 // SYNTHETIC: SWBF2 0x00769d20
 // `dynamic atexit destructor for 'pcLightBeamShader::s_Factory''
+
+// GLOBAL: SWBF2 0x009c99d0
+// pcLightBeamShader::s_Factory
 pcLightBeamShader pcLightBeamShader::s_Factory;
 
-// GLOBAL: SWBF2 0x009c999c
 // SYNTHETIC: SWBF2 0x00409b40
 // `dynamic initializer for 'pcLightBeamShader::s_shaderDef''
 // SYNTHETIC: SWBF2 0x00769d40
 // `dynamic atexit destructor for 'pcLightBeamShader::s_shaderDef''
+
+// GLOBAL: SWBF2 0x009c999c
+// pcLightBeamShader::s_shaderDef
 pcRedShaderDef pcLightBeamShader::s_shaderDef("lightbeam_shader.xml");
 
-// GLOBAL: SWBF2 0x009c9998
 // SYNTHETIC: SWBF2 0x00409bc0
 // `dynamic initializer for 'kuiLinearRamp''
+
+// GLOBAL: SWBF2 0x009c9998
+// kuiLinearRamp
 static unsigned int kuiLinearRamp = PblHash("linear_ramp");
 
 // FUNCTION: SWBF2 0x00704600
@@ -323,10 +323,11 @@ void pcLightBeamShader::Begin_Fixed(unsigned int, unsigned int) const
 }
 
 // SYNTHETIC: SWBF2 0x00409b80
-// `dynamic initializer for 'PblMath::fOneOverHalfPi''
+// PblMath::`dynamic initializer for 'fOneOverHalfPi''
 
 // SYNTHETIC: SWBF2 0x00409ba0
-// `dynamic initializer for 'PblMath::fOneOverTwoPi''
+// PblMath::`dynamic initializer for 'fOneOverTwoPi''
 
 // GLOBAL: SWBF2 0x009c9990
+// g_pcLightBeamShader
 unsigned int g_pcLightBeamShader;

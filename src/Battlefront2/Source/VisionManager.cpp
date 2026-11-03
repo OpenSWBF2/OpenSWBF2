@@ -21,6 +21,13 @@
 
 #include <math.h>
 
+// GLOBAL: SWBF2 0x007b2760
+// __xmm@00000064000000640000006400000064
+// GLOBAL: SWBF2 0x007b26d0
+// __xmm@00000002000000010000000000000000
+// GLOBAL: SWBF2 0x007b2710
+// __xmm@00000004000000020000000100000001
+
 class EntityFlyer
 {
 public:
@@ -46,11 +53,13 @@ namespace CombatUtil
                                   const GameObject* pObj, const PblVector3& vPos);
 }
 
-// GLOBAL: SWBF2 0x01f9a2c8
 // SYNTHETIC: SWBF2 0x00406f30
 // `dynamic initializer for 'VisionManager::RayRequest::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00769770
 // `dynamic atexit destructor for 'VisionManager::RayRequest::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01f9a2c8
+// VisionManager::RayRequest::sMemoryPool
 MemoryPool VisionManager::RayRequest::sMemoryPool("RayRequest", 0x14);
 
 namespace VisionManager
@@ -219,7 +228,7 @@ void UpdatePotentiallyVisible(UnitController* pController)
         }
     }
 
-    AI::UnitThreatManager& threats = *reinterpret_cast<AI::UnitThreatManager*>(pController->mThreatManager);
+    AI::UnitThreatManager& threats = pController->mThreatManager;
     for (int i = 0; i < AI::UnitThreatManager::MAX_THREATS; ++i)
     {
         const AI::Threat& threat = threats.GetThreat(i);
@@ -348,7 +357,7 @@ int GetVisualPriority(const Controllable* pMe, const GameObject* pObj)
     for (int i = 0; i < pMe->GetWeaponCount(); ++i)
     {
         if (pMe->GetWeaponPtr(i) &&
-            pMe->GetWeaponPtr(i)->mClass->IsRtti(WeaponTowCableClass::rttiHashWeaponTowCableClass))
+            pMe->GetWeaponPtr(i)->mClass->IsRtti(WeaponTowCableClass::GetRtti()))
         {
             if (!pObj->GetControllable() || !AIUtil::IsATAT(pObj->GetControllable()))
             {
@@ -400,7 +409,7 @@ bool VisionTest(UnitController* pController, GameObject* pTarget)
         AI::EventInfo info(AI::EVT_Vision_CanSeeEnemy, pTarget, vSeenPos);
         pController->SendEvent(&info);
     }
-    reinterpret_cast<AI::UnitThreatManager*>(pController->mThreatManager)->RayhitResult(pTarget, bCanSee);
+    pController->mThreatManager.RayhitResult(pTarget, bCanSee);
 
     UnitController* pHim = UnitControllerPtr(pTarget->mControllableList.GetFirst()->_pObject);
     if (pHim && bCanSee)
@@ -408,8 +417,8 @@ bool VisionTest(UnitController* pController, GameObject* pTarget)
         AI::EventInfo info(AI::EVT_Vision_CanSeeEnemy, pController->mOwner->GetGameObject());
         if (!pHim->IsNewCommand() && pHim->SendEvent(&info) == AI::EVT_Handled)
         {
-            reinterpret_cast<AI::UnitThreatManager*>(pHim->mThreatManager)
-                ->ForceThreat(pController->mOwner->GetGameObject());
+            pHim->mThreatManager
+                .ForceThreat(pController->mOwner->GetGameObject());
         }
     }
     return true;
@@ -469,16 +478,20 @@ void RemoveRequests(UnitController* pController)
 
 }
 
-// FUNCTION: SWBF2 0x00671280
+// TEMPLATE: SWBF2 0x00671280
+// PblHeap<PblHandle<GameObject>,int>::PblHeap<PblHandle<GameObject>,int>
 template PblHeap<PblHandle<GameObject>, int>::PblHeap(int, int, void*);
 
-// FUNCTION: SWBF2 0x006714e0
+// TEMPLATE: SWBF2 0x006714e0
+// PblHeap<VisionManager::RayRequest *,int>::SortDown
 template void PblHeap<VisionManager::RayRequest*, int>::SortDown(int, VisionManager::RayRequest*&, int);
 
-// FUNCTION: SWBF2 0x00671540
+// TEMPLATE: SWBF2 0x00671540
+// PblHeap<PblHandle<GameObject>,int>::SortDown
 template void PblHeap<PblHandle<GameObject>, int>::SortDown(int, PblHandle<GameObject>&, int);
 
-// FUNCTION: SWBF2 0x006713a0
+// TEMPLATE: SWBF2 0x006713a0
+// PblHeap<PblHandle<GameObject>,int>::Pop
 template void PblHeap<PblHandle<GameObject>, int>::Pop();
 
 // TEMPLATE: SWBF2 0x00671190
@@ -499,12 +512,15 @@ void __fastcall VisionManager::AddFakeRayhitResult(UnitController* pUnit, const 
     }
 
     GameObject* pHim = const_cast<GameObject*>(pObject);
-    reinterpret_cast<AI::UnitThreatManager*>(pUnit->mThreatManager)->ForceThreat(pHim);
+    pUnit->mThreatManager.ForceThreat(pHim);
     AI::EventInfo info(AI::EVT_Vision_CanSeeEnemy, pHim);
     pUnit->SendEvent(&info);
 }
 
-namespace VisionManager { bool RayTests(int iMaxHits); }
+namespace VisionManager
+{
+bool RayTests(int iMaxHits);
+}
 
 // FUNCTION: SWBF2 0x00670b40
 bool VisionManager::RayTests(int iMaxHits)
@@ -551,7 +567,8 @@ bool VisionManager::RayTests(int iMaxHits)
 // PblHeap<PblHandle<GameObject>,int>::Get
 template PblHandle<GameObject> PblHeap<PblHandle<GameObject>, int>::Get(int);
 
-namespace VisionManager {
+namespace VisionManager
+{
 
 // FUNCTION: SWBF2 0x006703c0
 void Reset()
@@ -570,28 +587,33 @@ void Reset()
 // PblHeap<PblHandle<GameObject>,int>::RECORD::~RECORD
  
 
-namespace VisionManager {
+namespace VisionManager
+{
 
 // GLOBAL: SWBF2 0x01eafd24
 GameObject** sPVRect;
 }
 
-namespace VisionManager {
+namespace VisionManager
+{
 // GLOBAL: SWBF2 0x01eafd20
 PblHeap<RayRequest*, int>* sHeap1;
 }
 
-namespace VisionManager {
+namespace VisionManager
+{
 // GLOBAL: SWBF2 0x01eafd2c
 PblHeap<RayRequest*, int>* sHeap2;
 }
 
-namespace VisionManager {
+namespace VisionManager
+{
 // GLOBAL: SWBF2 0x01eafcfc
 PblHeap<RayRequest*, int>* sHeap;
 }
 
-namespace VisionManager {
+namespace VisionManager
+{
 // GLOBAL: SWBF2 0x01eafcf8
 PblHeap<RayRequest*, int>* sTmpHeap;
 }

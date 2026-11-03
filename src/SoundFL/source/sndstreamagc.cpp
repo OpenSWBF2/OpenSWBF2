@@ -1,4 +1,3 @@
-#include <new>
 #include <stdlib.h>
 
 #include "sndstreamagc.h"
@@ -13,15 +12,16 @@ StreamAGC::StreamAGC()
       mGainDest(0x7FFF),
       mGain(0x7FFF),
       mGainMax(0x7FFF),
-      mShiftRateMask(0xFFFFFFF8u),
       mShiftRate(4)
 {
+    mShiftRateMask = 0xFFFFFFF8u;
 }
 
 // FUNCTION: SWBF2 0x00741e00
 StreamAGC::~StreamAGC()
 {
 }
+
 
 }
 
@@ -39,8 +39,6 @@ namespace Snd
 // FUNCTION: SWBF2 0x00741e50
 StreamPacket* StreamAGC::GetPacket(unsigned int uiOutput)
 {
-    typedef StreamPacket* (__thiscall* GetPacketFn)(StreamNodeSource* pThis,
-                                                    unsigned int uiOutput);
     (void)uiOutput;
 
     if (GetCurrentPlayState() != playState_playing)
@@ -48,79 +46,62 @@ StreamPacket* StreamAGC::GetPacket(unsigned int uiOutput)
         return 0;
     }
 
-    StreamNodeSource* const pNode = mConnection.mInputNode;
-    if (pNode == 0)
+    StreamPacket* const pPacket = mConnection.mInputNode != 0
+        ? mConnection.mInputNode->GetPacket(mConnection.mInputNodeOutputIndex)
+        : 0;
+    if (pPacket != 0)
     {
-        return 0;
-    }
-    StreamPacket* const pPacket = pNode->GetPacket(mConnection.mInputNodeOutputIndex);
-    if (pPacket == 0)
-    {
-        return 0;
-    }
+        short* const pSamples = (short*)pPacket->mBuffer;
+        const unsigned int uiNumSamples = pPacket->mBufferUsed >> 1;
+        mPlaybackPosition = pPacket->mPos;
 
-    short* const pSamples = (short*)pPacket->mBuffer;
-    const unsigned int uiNumSamples = pPacket->mBufferUsed >> 1;
-    mPlaybackPosition = pPacket->mPos;
+        for (unsigned int i = 0; i < uiNumSamples; i++)
+        {
+            const unsigned short uLevel = (unsigned short)abs(pSamples[i]);
+            unsigned __int64 uValue = mGain * uLevel;
 
-    for (unsigned int i = 0; i < uiNumSamples; i++)
-    {
-        const unsigned short uLevel = (unsigned short)abs(pSamples[i]);
-        unsigned __int64 uValue = mGain * uLevel;
+            const unsigned int uiDesiredGain = uLevel > mGateThreshold
+                ? (mClipThreshold * 0x7FFFu) / uLevel : 0;
+            mGainDest = uiDesiredGain > mGainMax ? mGainMax : uiDesiredGain;
 
-        if (uLevel > mGateThreshold)
-        {
-            mGainDest = (mClipThreshold * 0x7FFFu) / uLevel;
-        }
-        else
-        {
-            mGainDest = 0;
-        }
-        if (mGainDest > mGainMax)
-        {
-            mGainDest = mGainMax;
-        }
-
-        uValue >>= 16;
-        if (uValue > 0x7FFF)
-        {
-            uValue = 0x7FFF;
-        }
-        if (pSamples[i] < 0)
-        {
-            uValue = -(int)uValue;
-        }
-        pSamples[i] = (short)uValue;
-
-        if (mGainDest < mGain)
-        {
-            const unsigned int uDelta = mGain - mGainDest;
-            if ((uDelta & mShiftRateMask) != 0)
+            uValue >>= 16;
+            if (uValue > 0x7FFF)
             {
-                mGain = mGain - (uDelta >> mShiftRate) - 1;
+                uValue = 0x7FFF;
             }
-            else
+            pSamples[i] = (short)(pSamples[i] < 0 ? -uValue : uValue);
+
+            if (mGainDest < mGain)
             {
-                mGain = mGainDest;
+                const unsigned int uDelta = mGain - mGainDest;
+                if ((uDelta & mShiftRateMask) != 0)
+                {
+                    mGain = mGain - (uDelta >> mShiftRate) - 1;
+                }
+                else
+                {
+                    mGain = mGainDest;
+                }
+            }
+            else if (mGainDest > mGain)
+            {
+                const unsigned int uDelta = mGainDest - mGain;
+                if ((uDelta & mShiftRateMask) != 0)
+                {
+                    mGain = mGain + (uDelta >> mShiftRate) + 1;
+                }
+                else
+                {
+                    mGain = mGainDest;
+                }
             }
         }
-        else if (mGainDest > mGain)
-        {
-            const unsigned int uDelta = mGainDest - mGain;
-            if ((uDelta & mShiftRateMask) != 0)
-            {
-                mGain = mGain + (uDelta >> mShiftRate) + 1;
-            }
-            else
-            {
-                mGain = mGainDest;
-            }
-        }
-    }
 
-    if ((pPacket->mFlags & 1) != 0)
-    {
-        Stop();
+        if ((pPacket->mFlags & 1) != 0)
+        {
+            Stop();
+        }
+
     }
 
     return pPacket;

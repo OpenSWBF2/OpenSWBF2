@@ -12,50 +12,17 @@ namespace ObjectiveManager
 extern PblList<HUD::ObjectiveList>* gObjectiveLists;
 }
 
-namespace ObjectiveManager { void AddObjective(unsigned int uiTextHashID, unsigned int uiPopupTextID, int iTeam); }
-
-// FUNCTION: SWBF2 0x005f67f0
-void ObjectiveManager::AddObjective(unsigned int uiTextHashID, unsigned int uiPopupTextID, int iTeam)
+namespace ObjectiveManager
 {
-    if (!ObjectiveManager::gObjectiveLists)
-    {
-        return;
-    }
-    for (PblList<HUD::ObjectiveList>::Itor it = ObjectiveManager::gObjectiveLists->Begin();
-         it != ObjectiveManager::gObjectiveLists->End(); ++it)
-    {
-        it->AddObjective(uiTextHashID, uiPopupTextID, iTeam);
-    }
+void AddObjective(unsigned int uiTextHashID, unsigned int uiPopupTextID, int iTeam);
 }
 
-namespace ObjectiveManager { void SetObjectiveState(unsigned int uiTextHashID, int iState); }
 
-// FUNCTION: SWBF2 0x005f6840
-void ObjectiveManager::SetObjectiveState(unsigned int uiTextHashID, int iState)
+namespace ObjectiveManager
 {
-    HUD::Objective::ObjectiveState state = (HUD::Objective::ObjectiveState)iState;
-    for (PblList<HUD::ObjectiveList>::Itor it = ObjectiveManager::gObjectiveLists->Begin();
-         it != ObjectiveManager::gObjectiveLists->End(); ++it)
-    {
-        HUD::ObjectiveList* pList = it;
-        if (state == HUD::Objective::ACTIVE && pList->GetState(uiTextHashID) != state)
-        {
-            HUD::ElementMap* pMap = HUD::ElementMap::FindByPlayerIndex(pList->GetViewport());
-            if (pMap && pMap->GetMode() == HUD::ElementMap::mode_Small)
-            {
-                HUD::Event event;
-                event.mClass = HUD::GameEvents::gPlayerEvents[pList->GetViewport()].objectivesUpdated;
-                event.mData.boolValue = true;
-                event.SendDelayed(0.25f);
-                HUD::Event eventOff;
-                eventOff.mClass = HUD::GameEvents::gPlayerEvents[it->GetViewport()].objectivesUpdatedDisable;
-                eventOff.mData.boolValue = true;
-                eventOff.SendDelayed(6.0f);
-            }
-        }
-        it->SetState(uiTextHashID, state);
-    }
+void SetObjectiveState(unsigned int uiTextHashID, int iState);
 }
+
 
 namespace ODFPropertySet
 {

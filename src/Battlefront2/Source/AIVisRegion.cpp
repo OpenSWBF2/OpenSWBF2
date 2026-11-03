@@ -12,7 +12,7 @@
 namespace
 {
 
-    Controllable* GetControllable(GameObject* pObject)
+    inline Controllable* GetControllable(GameObject* pObject)
     {
         return pObject->GetControllable();
     }
@@ -23,11 +23,13 @@ namespace
     }
 }
 
-// GLOBAL: SWBF2 0x007eb76c
 // SYNTHETIC: SWBF2 0x00402230
 // `dynamic initializer for 'AIVisRegionManager::sRegions''
 // SYNTHETIC: SWBF2 0x00766d60
 // `dynamic atexit destructor for 'AIVisRegionManager::sRegions''
+
+// GLOBAL: SWBF2 0x007eb76c
+// AIVisRegionManager::sRegions
 ListPool<AIVisRegion*, int> AIVisRegionManager::sRegions(20);
 
 // GLOBAL: SWBF2 0x01e2fdd4

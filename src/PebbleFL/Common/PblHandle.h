@@ -1,17 +1,16 @@
 #pragma once
 
-#include "PebbleFL/Common/PblAsan.h"
-
+// VTABLE: SWBF2 0x00785b04
 class PblHandled
 {
 public:
 
     PblHandled();
 
+    // FUNCTION: SWBF2 0x0042cf20
     virtual ~PblHandled() { mHandleId = 0; }
 
-    // FUNCTION: SWBF2 0x00423e90
-    PBL_ASAN_NO_SANITIZE PBL_ASAN_NO_INLINE unsigned int GetHandleId() const { return mHandleId; }
+    unsigned int GetHandleId() const;
 
     static unsigned int SetNextHandleId(unsigned int uId);
 
@@ -29,17 +28,17 @@ class PblHandle
 {
 public:
 
-    // FUNCTION: SWBF2 0x0043a120
-    TYPE* GetValidObject() const { return GetObject(); }
 
-    TYPE* operator()() const { return GetObject(); }
+    TYPE& operator()() const { return *GetObjectA(); }
 
     TYPE* mObject;
     unsigned int mSavedHandleId;
 
     // TEMPLATE: SWBF2 0x00439a80
-    // PblHandle<GameObject>::PblHandle
+    // PblHandle<GameObject>::PblHandle<GameObject>
     PblHandle(TYPE* pObject) : mObject(pObject), mSavedHandleId(pObject ? pObject->mHandleId : 0) {}
+    // TEMPLATE: SWBF2 0x0042e950
+    // PblHandle<GameObject const >::PblHandle<GameObject const >
     PblHandle() : mObject(0), mSavedHandleId(0) {}
 
     // TEMPLATE: SWBF2 0x0042cd10
@@ -66,7 +65,7 @@ public:
     unsigned int GetHandleId() const { return mSavedHandleId; }
 
     // TEMPLATE: SWBF2 0x0043cd00
-    // PblHandle<GameObject const>::operator==
+    // PblHandle<GameObject const >::operator==
 
     // TEMPLATE: SWBF2 0x00470880
     // PblHandle<GameObject>::operator==
@@ -75,29 +74,42 @@ public:
     // PblHandle<FLEffectObject>::operator==
     bool operator==(TYPE* pObject) const
     {
-        return GetObject() == pObject;
+        return pObject == GetObjectA();
     }
 
     // TEMPLATE: SWBF2 0x00424b00
     // PblHandle<GameObject>::operator->
-    TYPE* operator->() const { return GetObject(); }
+    // TEMPLATE: SWBF2 0x0043a120
+    // PblHandle<GameObject const >::operator->
+    TYPE* operator->() const { return GetObjectA(); }
 
     // TEMPLATE: SWBF2 0x0043a150
-    // PblHandle<GameObject const>::operator GameObject const *
+    // PblHandle<GameObject const >::operator GameObject const *
 
     // TEMPLATE: SWBF2 0x00428e60
     // PblHandle<ParticleEmitterObject>::operator ParticleEmitterObject *
-    operator TYPE*() const { return GetObject(); }
+    // TEMPLATE: SWBF2 0x00424b30
+    // PblHandle<GameObject>::operator GameObject *
+    operator TYPE*() const { return GetObjectA(); }
 
     // TEMPLATE: SWBF2 0x00447a10
     // PblHandle<FLEffectObject>::operator!=
 
+    // TEMPLATE: SWBF2 0x004850c0
+    // PblHandle<GameObject>::operator!=
+
     // TEMPLATE: SWBF2 0x0043a0f0
     // PblHandle<GameObject const >::operator!=
-    bool operator!=(TYPE* pObject) const { return GetObject() != pObject; }
+    bool operator!=(TYPE* pObject) const { return pObject != GetObjectA(); }
+
+    void operator=(const PblHandle& other)
+    {
+        mObject = other.mObject;
+        mSavedHandleId = other.mSavedHandleId;
+    }
 
     // TEMPLATE: SWBF2 0x0043ccd0
-    // PblHandle<GameObject const>::operator=
+    // PblHandle<GameObject const >::operator=
 
     // TEMPLATE: SWBF2 0x0042cd30
     // PblHandle<GameObject>::operator=
@@ -108,14 +120,20 @@ public:
     }
 
 private:
-    TYPE* GetObject() const
+    // TEMPLATE: SWBF2 0x00428e40
+    // PblHandle<ParticleEmitterObject>::GetObjectA
+    TYPE* GetObjectA() const
     {
-        if (mObject && PBL_HANDLE_ID(mObject) != mSavedHandleId)
+        if (mObject)
         {
+            if (mObject->mHandleId == mSavedHandleId)
+            {
+                return mObject;
+            }
             PblHandle* pThis = const_cast<PblHandle*>(this);
             pThis->mObject = 0;
             pThis->mSavedHandleId = 0;
         }
-        return mObject;
+        return 0;
     }
 };

@@ -8,6 +8,7 @@
 // GLOBAL: SWBF2 0x01eafcc4
 unsigned int TeamAssist::sColorHash;
 
+// GLOBAL: SWBF2 0x0078b5d0
 static const unsigned int sMarkerTexture[TeamAssistManager::Max] = {
     0x1e9ab20a,
     0x16d1df7b,
@@ -24,11 +25,13 @@ TeamAssistManager* TeamAssistManager::sInstance;
 
 float TeamAssistManager::sDuration = 5.0f;
 
-// GLOBAL: SWBF2 0x01f7ce88
 // SYNTHETIC: SWBF2 0x00406920
 // `dynamic initializer for 'TeamAssist::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00769560
 // `dynamic atexit destructor for 'TeamAssist::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01f7ce88
+// TeamAssist::sMemoryPool
 MemoryPool TeamAssist::sMemoryPool("TeamAssist", sizeof(TeamAssist));
 
 // FUNCTION: SWBF2 0x00654bd0

@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include <math.h>
 #include <stdio.h>
 
@@ -30,7 +31,8 @@ LeafPatchClass::~LeafPatchClass()
 }
 
 // SYNTHETIC: SWBF2 0x0056f41d
-// [thunk]:LeafPatchClass::`scalar deleting destructor' adjustor{24}
+// ??_ELeafPatchClass@@WBI@AEPAXI@Z
+
 
 // FUNCTION: SWBF2 0x0056dc00
 void LeafPatchClass::CreateClient()
@@ -263,7 +265,7 @@ void LeafPatchClass::CreateVineBranch(PblVector3 vPos, PblVector3 vDir, int iCou
         vDir.y += vWander.y;
         vDir.z += vWander.z;
         PblVector3 vNorm;
-        D3DXVec3Normalize(&vNorm, &vDir);
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNorm), reinterpret_cast<const D3DXVECTOR3*>(&vDir));
         vDir = vNorm;
 
         vPos.x += vDir.x * fSize * mVineSpread;
@@ -288,7 +290,7 @@ void LeafPatchClass::CreateVineBranch(PblVector3 vPos, PblVector3 vDir, int iCou
                            (rand.GetFloat() - rand.GetFloat()) * mVineZSpread);
         PblVector3 vBranch = Interpolate(vDir, vTarget, 0.8f);
         PblVector3 vNorm;
-        D3DXVec3Normalize(&vNorm, &vBranch);
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNorm), reinterpret_cast<const D3DXVECTOR3*>(&vBranch));
         vBranch = vNorm;
         const int iSplit = (int)((rand.GetFloat() * 0.5f + 0.25f) * (float)iLeft);
         CreateVineBranch(PblVector3(vBranch.x * fSize * mVineSpread + vPos.x,
@@ -299,7 +301,7 @@ void LeafPatchClass::CreateVineBranch(PblVector3 vPos, PblVector3 vDir, int iCou
         vTarget = PblVector3((rand.GetFloat() - rand.GetFloat()) * mVineXSpread, 0.0f,
                              (rand.GetFloat() - rand.GetFloat()) * mVineZSpread);
         vBranch = Interpolate(vDir, vTarget, 0.8f);
-        D3DXVec3Normalize(&vNorm, &vBranch);
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNorm), reinterpret_cast<const D3DXVECTOR3*>(&vBranch));
         vBranch = vNorm;
         CreateVineBranch(PblVector3(vBranch.x * fSize * mVineSpread + vPos.x,
                                     vBranch.y * fSize * mVineSpread + vPos.y,
@@ -381,7 +383,7 @@ void LeafPatchClass::Init()
         const RedDirectionalLight* pLight = RedLight::m_sGlobalDirectionals[0];
         const float fDarkness = rand.GetFloat() * fDarknessRange * 0.5f + mDarknessMin;
         PblVector3 vNormal;
-        D3DXVec3Normalize(&vNormal, &particle.mPos);
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNormal), reinterpret_cast<const D3DXVECTOR3*>(&particle.mPos));
         particle.mColor.a = mAlpha;
         const float fShade = fDarkness
                              - (pLight->m_vDirection.y * vNormal.y + vNormal.x * pLight->m_vDirection.x
@@ -397,30 +399,12 @@ void LeafPatchClass::Init()
         particle.mPos.z += vOffset.z;
 
         const float fHalfSize = particle.mSize * 0.5f;
-        if (particle.mPos.x - fHalfSize <= vMin.x)
-        {
-            vMin.x = particle.mPos.x - fHalfSize;
-        }
-        if ((particle.mPos.y - fHalfSize) * mHeightScale <= vMin.y)
-        {
-            vMin.y = (particle.mPos.y - fHalfSize) * mHeightScale;
-        }
-        if (particle.mPos.z - fHalfSize <= vMin.z)
-        {
-            vMin.z = particle.mPos.z - fHalfSize;
-        }
-        if (fHalfSize + particle.mPos.x >= vMax.x)
-        {
-            vMax.x = fHalfSize + particle.mPos.x;
-        }
-        if ((fHalfSize + particle.mPos.y) * mHeightScale >= vMax.y)
-        {
-            vMax.y = (fHalfSize + particle.mPos.y) * mHeightScale;
-        }
-        if (fHalfSize + particle.mPos.z >= vMax.z)
-        {
-            vMax.z = fHalfSize + particle.mPos.z;
-        }
+        vMin.x = Min(vMin.x, particle.mPos.x - fHalfSize);
+        vMin.y = Min(vMin.y, (particle.mPos.y - fHalfSize) * mHeightScale);
+        vMin.z = Min(vMin.z, particle.mPos.z - fHalfSize);
+        vMax.x = Max(vMax.x, fHalfSize + particle.mPos.x);
+        vMax.y = Max(vMax.y, (fHalfSize + particle.mPos.y) * mHeightScale);
+        vMax.z = Max(vMax.z, fHalfSize + particle.mPos.z);
     }
 
     mBoundingOffset.x = (vMax.x + vMin.x) * 0.5f;
@@ -440,8 +424,8 @@ void LeafPatchClass::Init()
         const float fHalfSize = particle.mSize * 0.5f;
         const float fDist = sqrtf(fX * fX + fY * fY + fZ * fZ);
         const float fScaled = mHeightScale * fHalfSize;
-        const float fRadius = fDist + (fHalfSize > fScaled ? fHalfSize : fScaled);
-        mBoundingRadius = fRadius > mBoundingRadius ? fRadius : mBoundingRadius;
+        const float fRadius = fDist + Max(fHalfSize, fScaled);
+        mBoundingRadius = Max(fRadius, mBoundingRadius);
     }
 
     ActivateThread(0, PER_FRAME);
@@ -491,7 +475,7 @@ LeafPatch::LeafPatch(LeafPatchClass* pClass, const PblMatrix& matrix)
                       mMatrix.m[1][0] * vBack.z - mMatrix.m[1][2] * vBack.x,
                       mMatrix.m[1][1] * vBack.x - mMatrix.m[1][0] * vBack.y);
     PblVector3 vOut;
-    D3DXVec3Normalize(&vOut, &vRight);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vOut), reinterpret_cast<const D3DXVECTOR3*>(&vRight));
     mMatrix.m[0][0] = vOut.x;
     mMatrix.m[0][1] = vOut.y;
     mMatrix.m[0][2] = vOut.z;
@@ -500,7 +484,7 @@ LeafPatch::LeafPatch(LeafPatchClass* pClass, const PblMatrix& matrix)
     PblVector3 vAt(mMatrix.m[1][2] * mMatrix.m[0][1] - mMatrix.m[1][1] * mMatrix.m[0][2],
                    mMatrix.m[1][0] * mMatrix.m[0][2] - mMatrix.m[0][0] * mMatrix.m[1][2],
                    mMatrix.m[0][0] * mMatrix.m[1][1] - mMatrix.m[1][0] * mMatrix.m[0][1]);
-    D3DXVec3Normalize(&vOut, &vAt);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vOut), reinterpret_cast<const D3DXVECTOR3*>(&vAt));
     mMatrix.m[2][0] = vOut.x;
     mMatrix.m[2][1] = vOut.y;
     mMatrix.m[2][2] = vOut.z;
@@ -511,12 +495,11 @@ LeafPatch::LeafPatch(LeafPatchClass* pClass, const PblMatrix& matrix)
     mMatrix.m[3][2] = matrix.m[3][2];
     mMatrix.m[3][3] = 1.0f;
 
-    SetCollisionCenter(*(const PblVector3*)mMatrix.m[3]);
+    SetCollisionCenter(mMatrix.GetTranslation());
     SetCollisionRadius(mClass->mRadius);
-    Set2DCollisionRadius(mClass->mRadius);
 
     PblVector3 vCenter;
-    D3DXVec3TransformCoord(&vCenter, &mClass->mBoundingOffset, &mMatrix);
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vCenter), reinterpret_cast<const D3DXVECTOR3*>(&mClass->mBoundingOffset), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
     SetRenderPos(vCenter);
     SetRenderRadius(mClass->mBoundingRadius);
     Activate();
@@ -545,9 +528,9 @@ LeafPatch::~LeafPatch()
 }
 
 // SYNTHETIC: SWBF2 0x0056f415
-// [thunk]:LeafPatch::`scalar deleting destructor' adjustor{88}
+// ??_ELeafPatch@@WFI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x0056f425
-// [thunk]:LeafPatch::`scalar deleting destructor' adjustor{96}
+// ??_ELeafPatch@@WGA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x0056d400
 // LeafPatch::`scalar deleting destructor'
 
@@ -560,7 +543,7 @@ void LeafPatch::DeactivateLeaf()
 // FUNCTION: SWBF2 0x0056cf00
 const PblVector3& LeafPatch::GetPosition() const
 {
-    return *(const PblVector3*)mMatrix.m[3];
+    return mMatrix.GetTranslation();
 }
 
 // FUNCTION: SWBF2 0x0056cf10
@@ -582,7 +565,7 @@ void LeafPatch::SetProperty(unsigned int uProperty, const char* pszValue)
 bool LeafPatch::RayTest(const PblVector3& vStart, const PblVector3& vDir, float fMaxT)
 {
     const float fRadiusSq = GetCollisionRadius() * GetCollisionRadius();
-    const PblVector3 vEnd(vStart.x + vDir.x * fMaxT, vStart.y + vDir.y * fMaxT, vStart.z + vDir.z * fMaxT);
+    const PblVector3 vEnd = vStart + vDir * fMaxT;
     const PblVector3& vCenter = GetCollisionCenter();
     float dx = vEnd.x - vCenter.x;
     float dy = vEnd.y - vCenter.y;
@@ -604,9 +587,9 @@ float LeafPatch::RayHit(const PblVector3& vStart, const PblVector3& vDir, float 
 {
     const PblMatrix inverse = mMatrix.GetInverseFast();
     PblVector3 vLocalStart;
-    D3DXVec3TransformCoord(&vLocalStart, &vStart, &inverse);
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vLocalStart), reinterpret_cast<const D3DXVECTOR3*>(&vStart), reinterpret_cast<const D3DXMATRIX*>(&inverse));
     PblVector3 vLocalDir;
-    D3DXVec3TransformNormal(&vLocalDir, &vDir, &inverse);
+    D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vLocalDir), reinterpret_cast<const D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXMATRIX*>(&inverse));
     if (0.0f >= mClass->mRadius || 0.0f >= mClass->mHeight)
     {
         return 1.0f;
@@ -633,7 +616,7 @@ float LeafPatch::RayHit(const PblVector3& vStart, const PblVector3& vDir, float 
         pNormal->y *= mClass->mHeight;
         pNormal->z *= mClass->mRadius;
         PblVector3 vNormal;
-        D3DXVec3Normalize(&vNormal, pNormal);
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNormal), reinterpret_cast<const D3DXVECTOR3*>(pNormal));
         *pNormal = vNormal;
     }
     return fHit;
@@ -662,7 +645,7 @@ void LeafPatch::Render(unsigned char ucViewport, float fDist, unsigned int uiFla
         {
             continue;
         }
-        PblVector3 vPos = *(const PblVector3*)mMatrix.m[3];
+        PblVector3 vPos = mMatrix.GetTranslation();
         const float fX = (PblRandom::GetGlobalFloat() * 2.0f - 1.0f) * mClass->mRadius;
         const float fY = (PblRandom::GetGlobalFloat() * 2.0f - 1.0f) * mClass->mHeight * mClass->mHeightScale;
         const float fZ = (PblRandom::GetGlobalFloat() * 2.0f - 1.0f) * mClass->mRadius;
@@ -686,7 +669,8 @@ void LeafPatchClass::Reset()
     sObjects.RemoveAll();
 }
 
-// FUNCTION: SWBF2 0x0056f3d0
+// TEMPLATE: SWBF2 0x0056f3d0
+// PblList<LeafPatchClass>::RemoveAll
 template void PblList<LeafPatchClass>::RemoveAll();
 
 // GLOBAL: SWBF2 0x007ebad8

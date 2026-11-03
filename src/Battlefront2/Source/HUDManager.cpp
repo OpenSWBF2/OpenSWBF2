@@ -1,5 +1,6 @@
 #include <new>
 #include <string.h>
+#include <math.h>
 
 #include "HUDManager.h"
 
@@ -30,7 +31,21 @@
 #include "HUDTransformNumberVector3.h"
 #include "HUDViewPort.h"
 
-void AdjustScreenGroupAspect(RedScreenGroupElement* pGroup);
+// FUNCTION: SWBF2 0x00565060
+void AdjustScreenGroupAspect(RedScreenGroupElement* pGroup)
+{
+    float fHeight = (float)RedInterfaceScreen::GetScreenHeight();
+    float fHeight43 = (float)RedInterfaceScreen::GetScreenWidth() * 3.0f / 4.0f;
+    if (fabsf(fHeight - fHeight43) < 2.0f)
+        return;
+
+    PblVector3 vPos = pGroup->GetPosition();
+    if (fHeight43 > fHeight)
+    {
+        float fExtra = fHeight43 - fHeight;
+        pGroup->SetMatrixPosScale(vPos.x, fExtra * 0.5f, 1.0f, 1.0f - fExtra / fHeight);
+    }
+}
 
 #pragma warning(disable : 4316)
 
@@ -231,19 +246,27 @@ void HUD::Manager::ConfigFile::WriteData(HUD::File& file, unsigned int uTabs)
     }
 }
 
-namespace HUD {
+namespace HUD
+{
 // GLOBAL: SWBF2 0x007e69c8
 bool gScreenGroupEditEnabled = true;
+// GLOBAL: SWBF2 0x007e69cc
 int gEditHeap = -1;
+// GLOBAL: SWBF2 0x01e56fbc
 void* gEditHeapMem;
+// GLOBAL: SWBF2 0x01e573c8
 RedScreenGroupElement* gScreenGroup;
+// GLOBAL: SWBF2 0x01e573cc
 RedScreenGroupElement* gScreenGroupEdit;
 }
 
 // GLOBAL: SWBF2 0x01e573c0
 HUD::Editor* gEditor;
+namespace HUD
+{
 // GLOBAL: SWBF2 0x01e573c4
-namespace HUD { int gNumConfigFiles; }
+int gNumConfigFiles;
+}
 
 // FUNCTION: SWBF2 0x00565140
 void HUD::Manager::Open()
@@ -293,7 +316,7 @@ void HUD::Manager::Open()
     HUD::gScreenGroup->m_fScreenRelativeX = 0.0f;
     HUD::gScreenGroup->m_fScreenRelativeY = 0.0f;
     HUD::gScreenGroup->Enable(true);
-    HUD::gScreenGroup->m_bUseSafeZone = false;
+    HUD::gScreenGroup->SetUseSafezone(false);
     HUD::gScreenGroup->m_bUsePerspectiveHack = true;
     HUD::gScreenGroup->AddToRedScreen();
 
@@ -301,7 +324,7 @@ void HUD::Manager::Open()
     HUD::gScreenGroupEdit->m_fScreenRelativeX = 0.0f;
     HUD::gScreenGroupEdit->m_fScreenRelativeY = 0.0f;
     HUD::gScreenGroupEdit->Enable(HUD::gScreenGroupEditEnabled);
-    HUD::gScreenGroupEdit->m_bUseSafeZone = false;
+    HUD::gScreenGroupEdit->SetUseSafezone(false);
     HUD::gScreenGroupEdit->m_bUsePerspectiveHack = true;
     HUD::gScreenGroupEdit->AddToRedScreen();
 
@@ -368,7 +391,7 @@ bool HUD::Manager::Write()
         if ((Item*)*ppConfig == pItem)
         {
             char acName[0x400];
-            _snprintf(acName, sizeof(acName) - 1, "data\%s.hud", pItem->GetName());
+            _snprintf(acName, sizeof(acName) - 1, "data\\%s.hud", pItem->GetName());
             acName[sizeof(acName) - 1] = 0;
             if (file.IsOpen())
             {
@@ -429,7 +452,7 @@ void HUD::Manager::Load(PblFileChunk& chunk)
             HUD::gScreenGroup[i + 1].m_fScreenRelativeX = 0.0f;
             HUD::gScreenGroup[i + 1].m_fScreenRelativeY = 0.0f;
             HUD::gScreenGroup[i + 1].Enable(true);
-            HUD::gScreenGroup[i + 1].m_bUseSafeZone = false;
+            HUD::gScreenGroup[i + 1].SetUseSafezone(false);
             HUD::gScreenGroup[i + 1].m_bUsePerspectiveHack = true;
             AdjustScreenGroupAspect(&HUD::gScreenGroup[i + 1]);
             FLRenderer::AddInterfaceElement(i, &HUD::gScreenGroup[i + 1], RedInterfaceScreen::LEFT,
@@ -441,7 +464,7 @@ void HUD::Manager::Load(PblFileChunk& chunk)
             HUD::gScreenGroupEdit[i + 1].m_fScreenRelativeX = 0.0f;
             HUD::gScreenGroupEdit[i + 1].m_fScreenRelativeY = 0.0f;
             HUD::gScreenGroupEdit[i + 1].Enable(HUD::gScreenGroupEditEnabled);
-            HUD::gScreenGroupEdit[i + 1].m_bUseSafeZone = false;
+            HUD::gScreenGroupEdit[i + 1].SetUseSafezone(false);
             HUD::gScreenGroupEdit[i + 1].m_bUsePerspectiveHack = true;
             FLRenderer::AddInterfaceElement(i, &HUD::gScreenGroupEdit[i + 1], RedInterfaceScreen::LEFT,
                                             RedInterfaceScreen::TOP, false);

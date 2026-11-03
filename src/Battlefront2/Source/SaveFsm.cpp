@@ -1,3 +1,5 @@
+#include <stdarg.h>
+
 #include "SaveFsm.h"
 #include "PebbleFL/Common/PblJournal.h"
 #include "PebbleFL/Common/PblUnicode.h"
@@ -9,41 +11,33 @@
 extern void* GetNextSaveFile(void* pDevice);
 extern void sub_631640();
 extern unsigned int CalcCRC(void const* pData, unsigned int uiSize, unsigned int uiSeed);
-namespace RedLocalizeDB { const unsigned short* Find(unsigned int uiHash, bool bNullIfMissing); }
-
-extern int SafeLocalizeSPrintf(void* pDest, unsigned int uiSize, char const* pcFormat, int iArg);
-
-extern int SafeLocalizeSPrintf(void* pDest, unsigned int uiSize, char const* pcFormat,
-                       void const* pArg1, int iArg2);
-
-// FUNCTION: SWBF2 0x00631550
-int SafeLocalizeSPrintf(void* pDest, unsigned int uiSize, char const* pcFormat, int iArg)
+namespace RedLocalizeDB
 {
-    const unsigned short* pusFormat = RedLocalizeDB::Find(PblHash(pcFormat), false);
-    if (pusFormat)
-    {
-        return PblUnicode::uvsnprintf((unsigned short*)pDest, uiSize, pusFormat,
-                                      (char*)&iArg);
-    }
-    PblUnicode::ustrncnv((unsigned short*)pDest, pcFormat, uiSize);
-    return 0;
+const unsigned short* Find(unsigned int uiHash, bool bNullIfMissing);
 }
 
-int SafeLocalizeSPrintf(void* pDest, unsigned int uiSize, char const* pcFormat,
-               void const* pArg1, int iArg2)
+// FUNCTION: SWBF2 0x00631550
+static int SafeLocalizeSPrintf(unsigned short* dst, unsigned int aDstLen, const char* fmt, ...)
 {
-    const unsigned short* pusFormat = RedLocalizeDB::Find(PblHash(pcFormat), false);
-    if (pusFormat)
+    const unsigned short* lfmt = RedLocalizeDB::Find(PblHash(fmt), false);
+    if (!lfmt)
     {
-        return PblUnicode::uvsnprintf((unsigned short*)pDest, uiSize, pusFormat,
-                                      (char*)&pArg1);
+        PblUnicode::ustrncnv(dst, fmt, aDstLen);
+        return 0;
     }
-    PblUnicode::ustrncnv((unsigned short*)pDest, pcFormat, uiSize);
-    return 0;
+
+    va_list args;
+    va_start(args, fmt);
+    int nwritten = PblUnicode::uvsnprintf(dst, unsigned int(-1), lfmt, args);
+    va_end(args);
+    return nwritten;
 }
 unsigned short* SafeLocalizeStrcpy(unsigned short* pusDest, char const* pcSrc, unsigned int uiSize);
 
-namespace RedLocalizeDB { const unsigned short* Find(unsigned int uiHash, bool bNullIfMissing); }
+namespace RedLocalizeDB
+{
+const unsigned short* Find(unsigned int uiHash, bool bNullIfMissing);
+}
 
 // FUNCTION: SWBF2 0x00631600
 unsigned int Hash16(unsigned short const* pusString)
@@ -171,335 +165,33 @@ void SaveFsm::EnterState()
 {
     switch (mCurState)
     {
-    case 5:
-        mErrorSuccess = false;
-        {
-            int iResult = mSaveDevice.GetStatus();
-            if (iResult == -2 || iResult == -4)
-            {
-                SetNextState(3);
-            }
-            else
-            {
-                int iNeeded = (int)SaveDevice::BytesToBlocks(0x1800);
-                unsigned int uiNeeded = 35;
-                if (iNeeded > 35)
-                {
-                    uiNeeded = iNeeded;
-                }
-                unsigned int uiFree = mSaveDevice.GetFreeSpace();
-                if (uiFree >= uiNeeded)
-                {
-                    SetNextState(3);
-                }
-                else
-                {
-                    mXBOXTotalFreeNeeded = uiNeeded >> 10;
-                    mXBOXAdditionalFreeNeeded = uiNeeded - uiFree;
-                    SetNextState(6);
-                }
-            }
-        }
-        return;
-
-    case 6:
-        if (mSaveDevice.StartRefreshFileList())
-        {
-            SafeLocalizeStrcpy(mMsgStr1, "ifs.loadsave_pc.save08", 400);
-            SafeLocalizeStrcpy(mBtnB, "common.ok", 100);
-            mBtns = 2;
-            mBtnDefault = 2;
-            SetNextState(7);
-        }
-        else
-        {
-            SafeLocalizeStrcpy(mMsgStr1, "ifs.loadsave_pc.save19", 400);
-            mBtns = 0;
-            ShowLoadSavePopup(true);
-        }
-        return;
-
-    case 7:
-    case 0xA:
-        mLoadSavePopupAnswer = -1;
-        ShowLoadSavePopup(true);
-        return;
-
-    case 8:
-        Enter_PreOp();
-        return;
-
-    case 9:
-
-        if (m_preop_SilentFail)
-        {
-            SetNextState(4);
-        }
-        else
-        {
-            mLoadSavePopupAnswer = -1;
-            ShowLoadSavePopup(true);
-        }
-        return;
-
-    case 0xC:
-        SafeLocalizeSPrintf(mMsgStr1, 400, "ifs.loadsave_pc.save10", (int)mFailOpStr);
-        SafeLocalizeStrcpy(mBtnB, "common.no", 100);
-        SafeLocalizeStrcpy(mBtnC, "common.yes", 100);
-        mBtns = 6;
-        mBtnDefault = 2;
-        mLoadSavePopupAnswer = -1;
-        ShowLoadSavePopup(true);
-        return;
-
-    case 0xD:
-        SafeLocalizeStrcpy(mMsgStr1, "ifs.loadsave_pc.save11", 400);
-        mBtns = 0;
-        ShowLoadSavePopup(true);
-        {
-            int iResult = mSaveDevice.GetStatus();
-            if (iResult == -4)
-            {
-
-                if ((unsigned int)mSaveDevice.StartFormat() < 2)
-                {
-                    return;
-                }
-
-                const unsigned short* pJoy = RedLocalizeDB::Find(0x7CF9A572u, false);
-                SafeLocalizeSPrintf(mMsgStr1, 400, "ifs.loadsave_pc.save13", (int)pJoy);
-                SafeLocalizeStrcpy(mBtnB, "common.ok", 100);
-            }
-            else
-            {
-                const unsigned short* pJoy = RedLocalizeDB::Find(0x7CF9A572u, false);
-                SafeLocalizeSPrintf(mMsgStr1, 400, iResult == -2 ? "ifs.loadsave_pc.save04" : "ifs.loadsave_pc.save13", (int)pJoy);
-                SafeLocalizeStrcpy(mBtnB, "common.ok", 100);
-            }
-        }
-        mBtns = 2;
-        mBtnDefault = 2;
-        SetNextState(9);
-        return;
-
-    case 0xE:
-        {
-            int iIdx = mLoadQueueCnt - 1;
-            mSaveErrorAfterClose = false;
-            int iType = mLoadType[iIdx];
-            if (!iType || (mCurSaveFile = mSaveDevice.FindFileInList(mLoadFilename[iIdx], iType), sub_631640(), mCurSaveFile != 0))
-            {
-                SetNextState(0x11);
-            }
-            else
-            {
-                SetNextState(0x10);
-            }
-        }
-        return;
-
-    case 0xF:
-        SafeLocalizeStrcpy(mMsgStr1, "ifs.loadsave_pc.save14", 400);
-        SafeLocalizeStrcpy(mBtnA, "ifs.loadsave_pc.yes", 100);
-        SafeLocalizeStrcpy(mBtnB, "ifs.loadsave_pc.no", 100);
-        mBtns = 3;
-        mBtnDefault = 2;
-        mLoadSavePopupAnswer = -1;
-        ShowLoadSavePopup(true);
-        return;
-
-    case 0x10:
-        {
-            SafeLocalizeStrcpy(mMsgStr1, "ifs.loadsave_pc.save15", 400);
-            mBtns = 0;
-            mLoadSavePopupAnswer = -1;
-            ShowLoadSavePopup(true);
-            int iIdx = mLoadQueueCnt - 1;
-            int iResult = mSaveDevice.StartCreateFile(mLoadFilename[iIdx], mLoadType[iIdx]);
-            if ((unsigned int)iResult >= 2)
-            {
-                SetNextState(iResult == -6 ? 22 : 21);
-            }
-        }
-        return;
-
-    case 0x11:
-        {
-            SafeLocalizeStrcpy(mMsgStr1, "ifs.loadsave_pc.save15", 400);
-            mBtns = 0;
-            ShowLoadSavePopup(true);
-            int iIdx = mLoadQueueCnt - 1;
-            mCurSaveFile = mSaveDevice.FindFileInList(mLoadFilename[iIdx], mLoadType[iIdx]);
-            sub_631640();
-            if (!mCurSaveFile || (unsigned int)mSaveDevice.StartOpenFile(*mCurSaveFile, false) >= 2)
-            {
-                SetNextState(21);
-            }
-        }
-        return;
-
-    case 0x12:
-        {
-            int iIdx = mLoadQueueCnt - 1;
-            if (mLoadType[iIdx])
-            {
-                mChecksum = CalcCRC(mLoadDest[iIdx], mLoadSize[iIdx], 0);
-                if ((unsigned int)mSaveDevice.StartWriteFile(*mCurSaveFile, &mChecksum, CRC_SIZE) >= 2)
-                {
-                    mSaveErrorAfterClose = true;
-                    SetNextState(0x14);
-                }
-            }
-            else
-            {
-                SetNextState(0x13);
-            }
-        }
-        return;
-
-    case 0x13:
-        {
-            int iIdx = mLoadQueueCnt - 1;
-            if ((unsigned int)mSaveDevice.StartWriteFile(*mCurSaveFile, mLoadDest[iIdx], mLoadSize[iIdx]) >= 2)
-            {
-                mSaveErrorAfterClose = true;
-                SetNextState(0x14);
-            }
-        }
-        return;
-
-    case 0x14:
-        if ((unsigned int)mSaveDevice.StartCloseFile(*mCurSaveFile, false) >= 2)
-        {
-            SetNextState(21);
-        }
-        return;
-
-    case 0x15:
-        SafeLocalizeStrcpy(mMsgStr1, "ifs.loadsave_pc.save16", 400);
-        SafeLocalizeStrcpy(mBtnB, "ifs.loadsave_pc.ok", 100);
-        mBtns = 2;
-        mBtnDefault = 2;
-        mLoadSavePopupAnswer = -1;
-        ShowLoadSavePopup(true);
-        return;
-
-    case 0x16:
-        SafeLocalizeStrcpy(mMsgStr1, "ifs.loadsave_pc.save03", 400);
-        SafeLocalizeStrcpy(mBtnB, "common.ok", 100);
-        mBtns = 2;
-        mBtnDefault = 2;
-        mLoadSavePopupAnswer = -1;
-        ShowLoadSavePopup(true);
-        return;
-
-    case 0x17:
-        mLoadErrorAfterClose = false;
-        SafeLocalizeStrcpy(mMsgStr1, "ifs.loadsave_pc.save18", 400);
-        mBtns = 0;
-        ShowLoadSavePopup(true);
-        {
-            int iIdx = mLoadQueueCnt - 1;
-            mCurSaveFile = mSaveDevice.FindFileInList(mLoadFilename[iIdx], mLoadType[iIdx]);
-            sub_631640();
-            SetNextState(mCurSaveFile ? 24 : 28);
-        }
-        return;
-
-    case 0x18:
-        if ((unsigned int)mSaveDevice.StartOpenFile(*mCurSaveFile, false) >= 2)
-        {
-            SetNextState(28);
-        }
-        return;
-
-    case 0x19:
-        if ((unsigned int)mSaveDevice.StartReadFile(*mCurSaveFile, &mChecksum, CRC_SIZE) >= 2)
-        {
-            mLoadErrorAfterClose = true;
-            SetNextState(27);
-        }
-        return;
-
-    case 0x1A:
-        {
-            int iIdx = mLoadQueueCnt - 1;
-            if ((unsigned int)mSaveDevice.StartReadFile(*mCurSaveFile, mLoadDest[iIdx], mLoadSize[iIdx]) >= 2)
-            {
-                mLoadErrorAfterClose = true;
-                SetNextState(27);
-            }
-        }
-        return;
-
-    case 0x1B:
-        if ((unsigned int)mSaveDevice.StartCloseFile(*mCurSaveFile, false) >= 2)
-        {
-            SetNextState(28);
-        }
-        return;
-
-    case 0x1C:
-        SafeLocalizeStrcpy(mMsgStr1, "ifs.loadsave_pc.save17", 400);
-        SafeLocalizeStrcpy(mBtnA, "ifs.loadsave_pc.ok", 100);
-        mBtns = 1;
-        mBtnDefault = 1;
-        mLoadSavePopupAnswer = -1;
-        ShowLoadSavePopup(true);
-        return;
-
-    case 0x1D:
-        {
-
-            int iIdx = mLoadQueueCnt - 1;
-            char const* pcMsg = mLoadOp[iIdx] != 3 ? "ifs.loadsave_pc.save22" : "ifs.loadsave_pc.save15";
-            mLoadErrorAfterClose = false;
-            SafeLocalizeStrcpy(mMsgStr1, pcMsg, 400);
-            mBtns = 0;
-            ShowLoadSavePopup(true);
-            mCurSaveFile = mSaveDevice.FindFileInList(mLoadFilename[iIdx], mLoadType[iIdx]);
-            sub_631640();
-
-            if (!mCurSaveFile || (unsigned int)mSaveDevice.StartDeleteFile(mLoadFilename[iIdx], mLoadType[iIdx], 0) >= 2)
-            {
-                SetNextState(30);
-            }
-        }
-        return;
-
-    case 0x1E:
-        SafeLocalizeStrcpy(mMsgStr1, "ifs.loadsave_pc.save23", 400);
-        SafeLocalizeStrcpy(mBtnA, "ifs.loadsave_pc.ok", 100);
-        mBtns = 1;
-        mBtnDefault = 1;
-        mLoadSavePopupAnswer = -1;
-        ShowLoadSavePopup(true);
-        return;
-
-    case 0x1F:
-        {
-
-            int iCnt = mLoadQueueCnt;
-            if (iCnt)
-            {
-                switch (mLoadOp[iCnt - 1])
-                {
-                case 0: SetNextState(23); break;
-                case 1: SetNextState(14); break;
-                case 2:
-                case 3: SetNextState(29); break;
-                default: return;
-                }
-            }
-            else
-            {
-                SetNextState(3);
-            }
-        }
-        return;
-
-    default:
-        return;
+    case 5: Enter_InitialMemcardCheck(); return;
+    case 6: Enter_InitialMemcardCheck_CheckProfile(); return;
+    case 7: Enter_InitialMemcardCheck_Error(); return;
+    case 8: Enter_PreOp(); return;
+    case 9: Enter_PreOp_Error(); return;
+    case 10: Enter_PreOp_ConfirmDashboard(); return;
+    case 12: Enter_PreOp_Format_Prompt(); return;
+    case 13: Enter_PreOp_Format(); return;
+    case 14: Enter_Save_CheckExist(); return;
+    case 15: Enter_Save_Overwrite(); return;
+    case 16: Enter_Save_Create(); return;
+    case 17: Enter_Save_Open(); return;
+    case 18: Enter_Save_WriteChecksum(); return;
+    case 19: Enter_Save_WriteData(); return;
+    case 20: Enter_Save_Close(); return;
+    case 21: Enter_Save_Error(); return;
+    case 22: Enter_Save_TooManyFiles(); return;
+    case 23: Enter_Load_Start(); return;
+    case 24: Enter_Load_Open(); return;
+    case 25: Enter_Load_ReadChecksum(); return;
+    case 26: Enter_Load_ReadData(); return;
+    case 27: Enter_Load_Close(); return;
+    case 28: Enter_Load_Error(); return;
+    case 29: Enter_Delete(); return;
+    case 30: Enter_Delete_Error(); return;
+    case 31: Enter_ProcessLastQueuedFile(); return;
+    default: return;
     }
 }
 
@@ -539,6 +231,380 @@ void SaveFsm::UpdateState(float fDeltaTime)
     }
 }
 
+// FUNCTION: SWBF2 0x00631b20
+void SaveFsm::Enter_InitialMemcardCheck()
+{
+    mErrorSuccess = false;
+    {
+        int iResult = mSaveDevice.GetStatus();
+        if (iResult == -2 || iResult == -4)
+        {
+            SetNextState(3);
+        }
+        else
+        {
+            int iNeeded = (int)SaveDevice::BytesToBlocks(0x1800);
+            unsigned int uiNeeded = 35;
+            if (iNeeded > 35)
+            {
+                uiNeeded = iNeeded;
+            }
+            unsigned int uiFree = mSaveDevice.GetFreeSpace();
+            if (uiFree >= uiNeeded)
+            {
+                SetNextState(3);
+            }
+            else
+            {
+                mXBOXTotalFreeNeeded = uiNeeded >> 10;
+                mXBOXAdditionalFreeNeeded = uiNeeded - uiFree;
+                SetNextState(6);
+            }
+        }
+    }
+}
+
+// FUNCTION: SWBF2 0x00631b90
+void SaveFsm::Enter_InitialMemcardCheck_CheckProfile()
+{
+    if (mSaveDevice.StartRefreshFileList())
+    {
+        SafeLocalizeStrcpy(mMsgStr1, "ifs.loadsave_pc.save08", 400);
+        SafeLocalizeStrcpy(mBtnB, "common.ok", 100);
+        mBtns = 2;
+        mBtnDefault = 2;
+        SetNextState(7);
+    }
+    else
+    {
+        SafeLocalizeStrcpy(mMsgStr1, "ifs.loadsave_pc.save19", 400);
+        mBtns = 0;
+        ShowLoadSavePopup(true);
+    }
+}
+
+// FUNCTION: SWBF2 0x00631d60
+void SaveFsm::Enter_InitialMemcardCheck_Error()
+{
+    mLoadSavePopupAnswer = -1;
+    ShowLoadSavePopup(true);
+}
+
+// FUNCTION: SWBF2 0x00631fc0
+void SaveFsm::Enter_PreOp_Error()
+{
+    if (m_preop_SilentFail)
+    {
+        SetNextState(4);
+    }
+    else
+    {
+        mLoadSavePopupAnswer = -1;
+        ShowLoadSavePopup(true);
+    }
+}
+
+// FUNCTION: SWBF2 0x00632020
+void SaveFsm::Enter_PreOp_ConfirmDashboard()
+{
+    mLoadSavePopupAnswer = -1;
+    ShowLoadSavePopup(true);
+}
+
+// FUNCTION: SWBF2 0x00632170
+void SaveFsm::Enter_PreOp_Format_Prompt()
+{
+    SafeLocalizeSPrintf(mMsgStr1, 400, "ifs.loadsave_pc.save10", mFailOpStr);
+    SafeLocalizeStrcpy(mBtnB, "common.no", 100);
+    SafeLocalizeStrcpy(mBtnC, "common.yes", 100);
+    mBtns = 6;
+    mBtnDefault = 2;
+    mLoadSavePopupAnswer = -1;
+    ShowLoadSavePopup(true);
+}
+
+// FUNCTION: SWBF2 0x00632230
+void SaveFsm::Enter_PreOp_Format()
+{
+    SafeLocalizeStrcpy(mMsgStr1, "ifs.loadsave_pc.save11", 400);
+    mBtns = 0;
+    ShowLoadSavePopup(true);
+    {
+        int iResult = mSaveDevice.GetStatus();
+        if (iResult == -4)
+        {
+
+            if ((unsigned int)mSaveDevice.StartFormat() < 2)
+            {
+                return;
+            }
+
+            const unsigned short* pJoy = RedLocalizeDB::Find(0x7CF9A572u, false);
+            SafeLocalizeSPrintf(mMsgStr1, 400, "ifs.loadsave_pc.save13", pJoy);
+            SafeLocalizeStrcpy(mBtnB, "common.ok", 100);
+        }
+        else
+        {
+            const unsigned short* pJoy = RedLocalizeDB::Find(0x7CF9A572u, false);
+            SafeLocalizeSPrintf(mMsgStr1, 400, iResult == -2 ? "ifs.loadsave_pc.save04" : "ifs.loadsave_pc.save13", pJoy);
+            SafeLocalizeStrcpy(mBtnB, "common.ok", 100);
+        }
+    }
+    mBtns = 2;
+    mBtnDefault = 2;
+    SetNextState(9);
+}
+
+// FUNCTION: SWBF2 0x00632380
+void SaveFsm::Enter_Save_CheckExist()
+{
+    int iIdx = mLoadQueueCnt - 1;
+    mSaveErrorAfterClose = false;
+    int iType = mLoadType[iIdx];
+    if (!iType || (mCurSaveFile = mSaveDevice.FindFileInList(mLoadFilename[iIdx], iType), sub_631640(), mCurSaveFile != 0))
+    {
+        SetNextState(0x11);
+    }
+    else
+    {
+        SetNextState(0x10);
+    }
+}
+
+// FUNCTION: SWBF2 0x006323e0
+void SaveFsm::Enter_Save_Overwrite()
+{
+    SafeLocalizeStrcpy(mMsgStr1, "ifs.loadsave_pc.save14", 400);
+    SafeLocalizeStrcpy(mBtnA, "ifs.loadsave_pc.yes", 100);
+    SafeLocalizeStrcpy(mBtnB, "ifs.loadsave_pc.no", 100);
+    mBtns = 3;
+    mBtnDefault = 2;
+    mLoadSavePopupAnswer = -1;
+    ShowLoadSavePopup(true);
+}
+
+// FUNCTION: SWBF2 0x00632480
+void SaveFsm::Enter_Save_Create()
+{
+    SafeLocalizeStrcpy(mMsgStr1, "ifs.loadsave_pc.save15", 400);
+    mBtns = 0;
+    mLoadSavePopupAnswer = -1;
+    ShowLoadSavePopup(true);
+    int iIdx = mLoadQueueCnt - 1;
+    int iResult = mSaveDevice.StartCreateFile(mLoadFilename[iIdx], mLoadType[iIdx]);
+    if ((unsigned int)iResult >= 2)
+    {
+        if (iResult == -6)
+        {
+            SetNextState(22);
+        }
+        else
+        {
+            SetNextState(21);
+        }
+    }
+}
+
+// FUNCTION: SWBF2 0x00632530
+void SaveFsm::Enter_Save_Open()
+{
+    SafeLocalizeStrcpy(mMsgStr1, "ifs.loadsave_pc.save15", 400);
+    mBtns = 0;
+    ShowLoadSavePopup(true);
+    int iIdx = mLoadQueueCnt - 1;
+    mCurSaveFile = mSaveDevice.FindFileInList(mLoadFilename[iIdx], mLoadType[iIdx]);
+    sub_631640();
+    if (!mCurSaveFile || (unsigned int)mSaveDevice.StartOpenFile(*mCurSaveFile, false) >= 2)
+    {
+        SetNextState(21);
+    }
+}
+
+// FUNCTION: SWBF2 0x006325f0
+void SaveFsm::Enter_Save_WriteChecksum()
+{
+    int iIdx = mLoadQueueCnt - 1;
+    if (mLoadType[iIdx])
+    {
+        mChecksum = CalcCRC(mLoadDest[iIdx], mLoadSize[iIdx], 0);
+        if ((unsigned int)mSaveDevice.StartWriteFile(*mCurSaveFile, &mChecksum, CRC_SIZE) >= 2)
+        {
+            mSaveErrorAfterClose = true;
+            SetNextState(0x14);
+        }
+    }
+    else
+    {
+        SetNextState(0x13);
+    }
+}
+
+// FUNCTION: SWBF2 0x00632690
+void SaveFsm::Enter_Save_WriteData()
+{
+    int iIdx = mLoadQueueCnt - 1;
+    if ((unsigned int)mSaveDevice.StartWriteFile(*mCurSaveFile, mLoadDest[iIdx], mLoadSize[iIdx]) >= 2)
+    {
+        mSaveErrorAfterClose = true;
+        SetNextState(0x14);
+    }
+}
+
+// FUNCTION: SWBF2 0x006326f0
+void SaveFsm::Enter_Save_Close()
+{
+    if ((unsigned int)mSaveDevice.StartCloseFile(*mCurSaveFile, false) >= 2)
+    {
+        SetNextState(21);
+    }
+}
+
+// FUNCTION: SWBF2 0x00632790
+void SaveFsm::Enter_Save_Error()
+{
+    SafeLocalizeStrcpy(mMsgStr1, "ifs.loadsave_pc.save16", 400);
+    SafeLocalizeStrcpy(mBtnB, "ifs.loadsave_pc.ok", 100);
+    mBtns = 2;
+    mBtnDefault = 2;
+    mLoadSavePopupAnswer = -1;
+    ShowLoadSavePopup(true);
+}
+
+// FUNCTION: SWBF2 0x00632820
+void SaveFsm::Enter_Save_TooManyFiles()
+{
+    SafeLocalizeStrcpy(mMsgStr1, "ifs.loadsave_pc.save03", 400);
+    SafeLocalizeStrcpy(mBtnB, "common.ok", 100);
+    mBtns = 2;
+    mBtnDefault = 2;
+    mLoadSavePopupAnswer = -1;
+    ShowLoadSavePopup(true);
+}
+
+// FUNCTION: SWBF2 0x006328b0
+void SaveFsm::Enter_Load_Start()
+{
+    mLoadErrorAfterClose = false;
+    SafeLocalizeStrcpy(mMsgStr1, "ifs.loadsave_pc.save18", 400);
+    mBtns = 0;
+    ShowLoadSavePopup(true);
+    {
+        int iIdx = mLoadQueueCnt - 1;
+        mCurSaveFile = mSaveDevice.FindFileInList(mLoadFilename[iIdx], mLoadType[iIdx]);
+        sub_631640();
+        if (mCurSaveFile)
+        {
+            SetNextState(24);
+        }
+        else
+        {
+            SetNextState(28);
+        }
+    }
+}
+
+// FUNCTION: SWBF2 0x00632930
+void SaveFsm::Enter_Load_Open()
+{
+    if ((unsigned int)mSaveDevice.StartOpenFile(*mCurSaveFile, false) >= 2)
+    {
+        SetNextState(28);
+    }
+}
+
+// FUNCTION: SWBF2 0x00632980
+void SaveFsm::Enter_Load_ReadChecksum()
+{
+    if ((unsigned int)mSaveDevice.StartReadFile(*mCurSaveFile, &mChecksum, CRC_SIZE) >= 2)
+    {
+        mLoadErrorAfterClose = true;
+        SetNextState(27);
+    }
+}
+
+// FUNCTION: SWBF2 0x006329f0
+void SaveFsm::Enter_Load_ReadData()
+{
+    int iIdx = mLoadQueueCnt - 1;
+    if ((unsigned int)mSaveDevice.StartReadFile(*mCurSaveFile, mLoadDest[iIdx], mLoadSize[iIdx]) >= 2)
+    {
+        mLoadErrorAfterClose = true;
+        SetNextState(27);
+    }
+}
+
+// FUNCTION: SWBF2 0x00632a90
+void SaveFsm::Enter_Load_Close()
+{
+    if ((unsigned int)mSaveDevice.StartCloseFile(*mCurSaveFile, false) >= 2)
+    {
+        SetNextState(28);
+    }
+}
+
+// FUNCTION: SWBF2 0x00632b30
+void SaveFsm::Enter_Load_Error()
+{
+    SafeLocalizeStrcpy(mMsgStr1, "ifs.loadsave_pc.save17", 400);
+    SafeLocalizeStrcpy(mBtnA, "ifs.loadsave_pc.ok", 100);
+    mBtns = 1;
+    mBtnDefault = 1;
+    mLoadSavePopupAnswer = -1;
+    ShowLoadSavePopup(true);
+}
+
+// FUNCTION: SWBF2 0x00632bb0
+void SaveFsm::Enter_Delete()
+{
+
+    int iIdx = mLoadQueueCnt - 1;
+    char const* pcMsg = mLoadOp[iIdx] != 3 ? "ifs.loadsave_pc.save22" : "ifs.loadsave_pc.save15";
+    mLoadErrorAfterClose = false;
+    SafeLocalizeStrcpy(mMsgStr1, pcMsg, 400);
+    mBtns = 0;
+    ShowLoadSavePopup(true);
+    mCurSaveFile = mSaveDevice.FindFileInList(mLoadFilename[iIdx], mLoadType[iIdx]);
+    sub_631640();
+
+    if (!mCurSaveFile || (unsigned int)mSaveDevice.StartDeleteFile(mLoadFilename[iIdx], mLoadType[iIdx], 0) >= 2)
+    {
+        SetNextState(30);
+    }
+}
+
+// FUNCTION: SWBF2 0x00632ce0
+void SaveFsm::Enter_Delete_Error()
+{
+    SafeLocalizeStrcpy(mMsgStr1, "ifs.loadsave_pc.save23", 400);
+    SafeLocalizeStrcpy(mBtnA, "ifs.loadsave_pc.ok", 100);
+    mBtns = 1;
+    mBtnDefault = 1;
+    mLoadSavePopupAnswer = -1;
+    ShowLoadSavePopup(true);
+}
+
+// FUNCTION: SWBF2 0x00632d60
+bool SaveFsm::Enter_ProcessLastQueuedFile()
+{
+    int iCnt = mLoadQueueCnt;
+    if (iCnt)
+    {
+        switch (mLoadOp[iCnt - 1])
+        {
+        case 0: SetNextState(23); break;
+        case 1: SetNextState(14); break;
+        case 2:
+        case 3: SetNextState(29); break;
+        default: break;
+        }
+    }
+    else
+    {
+        SetNextState(3);
+    }
+    return true;
+}
+
 // FUNCTION: SWBF2 0x00631dd0
 void SaveFsm::Enter_PreOp()
 {
@@ -549,7 +615,7 @@ void SaveFsm::Enter_PreOp()
     int iResult = mSaveDevice.GetStatus();
     if (iResult == -2)
     {
-        SafeLocalizeSPrintf(mMsgStr1, 400, "ifs.loadsave_pc.save04", (int)mFailOpStr);
+        SafeLocalizeSPrintf(mMsgStr1, 400, "ifs.loadsave_pc.save04", mFailOpStr);
         SafeLocalizeStrcpy(mBtnB, "common.ok", 100);
         mBtns = 2;
         mBtnDefault = 2;
@@ -560,7 +626,7 @@ void SaveFsm::Enter_PreOp()
     {
         if (!m_preop_AllowFormat)
         {
-            SafeLocalizeSPrintf(mMsgStr1, 400, "ifs.loadsave_pc.save05", (int)mFailOpStr);
+            SafeLocalizeSPrintf(mMsgStr1, 400, "ifs.loadsave_pc.save05", mFailOpStr);
             SafeLocalizeStrcpy(mBtnB, "common.ok", 100);
             mBtns = 2;
             mBtnDefault = 2;
@@ -709,7 +775,14 @@ void SaveFsm::Update_PreOp_Error()
         return;
     }
     ShowLoadSavePopup(false);
-    SetNextState(mLoadSavePopupAnswer == 1 ? 8 : 4);
+    if (mLoadSavePopupAnswer == 1)
+    {
+        SetNextState(8);
+    }
+    else
+    {
+        SetNextState(4);
+    }
 }
 
 // FUNCTION: SWBF2 0x00632040
@@ -805,7 +878,7 @@ void SaveFsm::Update_PreOp_Format()
     {
 
         const unsigned short* pJoy = RedLocalizeDB::Find(0x7CF9A572u, false);
-        SafeLocalizeSPrintf(mMsgStr1, 400, "ifs.loadsave_pc.save13", (int)pJoy);
+        SafeLocalizeSPrintf(mMsgStr1, 400, "ifs.loadsave_pc.save13", pJoy);
         SafeLocalizeStrcpy(mBtnB, "common.ok", 100);
         mBtns = 2;
         mBtnDefault = 2;
@@ -846,7 +919,14 @@ void SaveFsm::Update_Save_Create()
     }
     if (iResult)
     {
-        SetNextState(iResult == -6 ? 22 : 21);
+        if (iResult == -6)
+        {
+            SetNextState(22);
+        }
+        else
+        {
+            SetNextState(21);
+        }
     }
     else
     {
@@ -977,7 +1057,14 @@ void SaveFsm::Update_Load_Open()
     {
         return;
     }
-    SetNextState(iResult ? 28 : 25);
+    if (iResult)
+    {
+        SetNextState(28);
+    }
+    else
+    {
+        SetNextState(25);
+    }
 }
 
 // FUNCTION: SWBF2 0x006329c0

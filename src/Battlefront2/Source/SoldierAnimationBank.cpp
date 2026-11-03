@@ -248,15 +248,9 @@ SoldierAnimationBank::WEAPON SoldierAnimationBank::GetWeaponRoot(WEAPON eWeapon)
     return eWeapon;
 }
 
-SoldierAnimationBank::WEAPON SoldierAnimationBank::GetWeaponParent(WEAPON eWeapon)
-{
-    return _GetWeapon(eWeapon)->eParent;
-}
 
-SoldierAnimationBank::BANK SoldierAnimationBank::GetBankParent(BANK eBank)
-{
-    return _GetBank(eBank)->eParent;
-}
+
+
 
 // FUNCTION: SWBF2 0x0063c650
 SoldierAnimationBank::WEAPON SoldierAnimationBank::FindWeapon(const char* pcName)

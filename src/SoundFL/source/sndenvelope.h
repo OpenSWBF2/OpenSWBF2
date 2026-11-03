@@ -18,7 +18,7 @@ protected:
 
     float GetLevel(float fTime) const
     {
-        if (mLength == 0.0f || fTime > mLength)
+        if (0.0f == mLength || fTime > mLength)
         {
             return mEndLevel;
         }

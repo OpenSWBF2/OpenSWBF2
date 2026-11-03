@@ -1,16 +1,14 @@
 #include "HUDEnvelope.h"
 
 #include <float.h>
+#include <string.h>
 
 // FUNCTION: SWBF2 0x0055d900
 HUD::Envelope::Envelope()
     : mTime(0.0f),
       mPhase(phase_Inactive)
 {
-    for (int i = 0; i < phase_MAX; ++i)
-    {
-        mPhaseTime[i] = 0.0f;
-    }
+    memset(mPhaseTime, 0, sizeof(mPhaseTime));
     mPhaseTime[phase_Hold] = FLT_MAX;
 }
 
@@ -104,9 +102,15 @@ float HUD::Envelope::CalculateValue() const
 // FUNCTION: SWBF2 0x0055db00
 HUD::Envelope& HUD::Envelope::operator=(const Envelope& other)
 {
-    for (int i = 0; i < phase_MAX; ++i)
-    {
-        mPhaseTime[i] = other.mPhaseTime[i];
-    }
+    memcpy(mPhaseTime, other.mPhaseTime, sizeof(mPhaseTime));
     return *this;
 }
+
+// FUNCTION: SWBF2 0x0055da60
+HUD::Envelope::Phase HUD::Envelope::GetPhase() const { return mPhase; }
+
+// FUNCTION: SWBF2 0x0055daf0
+float HUD::Envelope::GetPhaseTime(Phase ePhase) const { return mPhaseTime[ePhase]; }
+
+// FUNCTION: SWBF2 0x0055dae0
+void HUD::Envelope::SetPhaseTime(Phase ePhase, float fTime) { mPhaseTime[ePhase] = fTime; }

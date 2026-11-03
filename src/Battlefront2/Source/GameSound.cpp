@@ -76,7 +76,6 @@
 
 extern bool gSoundEnabled;
 
-bool CanPlayForNetworkState();
 
 // GLOBAL: SWBF2 0x01e56390
 GameSound** GameSound::sDeferredSounds;
@@ -120,7 +119,7 @@ void GameSound::AddDeferred(GameSound* const pSound)
 GameSound::GameSound(bool bDeferred)
 {
     (void)bDeferred;
-    mSoundDescription = 0;
+    mProps = 0;
     mType = 0;
 }
 
@@ -144,7 +143,7 @@ bool GameSound::CanPlay() const
     {
         return false;
     }
-    return CanPlayForNetworkState();
+    return NetGame::IsOnceClientTurn();
 }
 
 // FUNCTION: SWBF2 0x00538010
@@ -152,14 +151,14 @@ void GameSound::Play(const PblVector3* pPos, const PblVector3* pVel, bool bArg3,
                      bool bArg4) const
 {
     (void)bArg3;
-    while (CanPlay() && mSoundDescription)
+    while (CanPlay() && mProps)
     {
         switch (mType)
         {
         case type_sound:
         {
             const Snd::Sound::Properties* pProps =
-                (const Snd::Sound::Properties*)mSoundDescription;
+                (const Snd::Sound::Properties*)mProps;
             if (pProps->Get3DMode())
             {
                 Snd::Source3D source3D;
@@ -179,13 +178,13 @@ void GameSound::Play(const PblVector3* pPos, const PblVector3* pVel, bool bArg3,
             source3D.SetPosition(pPos);
             source3D.SetVelocity(pVel);
             Snd::SoundLayered::Play(&source3D,
-                                    (const Snd::SoundLayered::Properties*)mSoundDescription);
+                                    (const Snd::SoundLayered::Properties*)mProps);
             return;
         }
         case type_soundStream:
         {
             const Snd::SoundStream::Properties* pProps =
-                (const Snd::SoundStream::Properties*)mSoundDescription;
+                (const Snd::SoundStream::Properties*)mProps;
             if (pProps->Get3DMode())
             {
                 Snd::Source3D source3D;
@@ -200,7 +199,7 @@ void GameSound::Play(const PblVector3* pPos, const PblVector3* pVel, bool bArg3,
             return;
         }
         case type_ID:
-            const_cast<GameSound*>(this)->SetID((unsigned int)mSoundDescription, false, false);
+            const_cast<GameSound*>(this)->SetID((unsigned int)mProps, false, false);
             if (mType == type_ID)
             {
                 return;
@@ -216,7 +215,7 @@ void GameSound::Play(const PblVector3* pPos, const PblVector3* pVel, bool bArg3,
 // FUNCTION: SWBF2 0x005381c0
 void GameSound::SetID(const char* pName, bool, bool bDeferred)
 {
-    mSoundDescription = 0;
+    mProps = 0;
     mType = type_invalid;
     if (!pName || !strlen(pName))
     {
@@ -239,7 +238,7 @@ void GameSound::SetID(const char* pName, bool, bool bDeferred)
     if ((strlen(pModifier) && PblHash(pModifier) == 0x1A01FB3B) || bDeferred)
     {
         mType = type_ID;
-        mSoundDescription = (char*)uID;
+        mProps = (const void*)uID;
         AddDeferred(this);
     }
     else
@@ -253,27 +252,27 @@ void GameSound::SetID(unsigned int uID, bool, bool)
 {
     if (!uID)
     {
-        mSoundDescription = 0;
+        mProps = 0;
         return;
     }
-    mSoundDescription = (char*)Snd::Sound::Properties::FindByHashID(uID);
-    mType = mSoundDescription ? type_sound : type_invalid;
+    mProps = Snd::Sound::Properties::FindByHashID(uID);
+    mType = mProps ? type_sound : type_invalid;
     if (mType == type_invalid)
     {
-        mSoundDescription = (char*)Snd::SoundLayered::Properties::FindByHashID(uID);
-        mType = mSoundDescription ? type_soundLayered : type_invalid;
+        mProps = Snd::SoundLayered::Properties::FindByHashID(uID);
+        mType = mProps ? type_soundLayered : type_invalid;
     }
     if (mType == type_invalid)
     {
-        mSoundDescription = (char*)Snd::SoundStream::Properties::FindByHashID(uID);
-        mType = mSoundDescription ? type_soundStream : type_invalid;
+        mProps = Snd::SoundStream::Properties::FindByHashID(uID);
+        mType = mProps ? type_soundStream : type_invalid;
     }
 }
 
 // FUNCTION: SWBF2 0x00538310
 unsigned int GameSound::GetPropertiesHashID() const
 {
-    switch (GetPropertiesType())
+    switch (mType)
     {
     case type_sound:
         return ((const Snd::Sound::Properties*)GetProperties())->mHashID;
@@ -291,17 +290,17 @@ unsigned int GameSound::GetPropertiesHashID() const
 // FUNCTION: SWBF2 0x00538350
 float GameSound::GetMuteDistance() const
 {
-    if (mSoundDescription)
+    if (mProps)
     {
         switch (mType)
         {
         case type_sound:
-            return ((const Snd::Sound::Properties*)mSoundDescription)->mMuteDistance;
+            return ((const Snd::Sound::Properties*)mProps)->mMuteDistance;
         case type_soundLayered:
-            return ((const Snd::SoundLayered::Properties*)mSoundDescription)
+            return ((const Snd::SoundLayered::Properties*)mProps)
                 ->FindLayerByIndex(0)->mSoundProps->mMuteDistance;
         case type_soundStream:
-            return ((const Snd::SoundStream::Properties*)mSoundDescription)->mMuteDistance;
+            return ((const Snd::SoundStream::Properties*)mProps)->mMuteDistance;
         }
     }
     return 0.0f;
@@ -310,7 +309,7 @@ float GameSound::GetMuteDistance() const
 // FUNCTION: SWBF2 0x005383a0
 const void* GameSound::GetProperties() const
 {
-    return mSoundDescription;
+    return mProps;
 }
 
 // FUNCTION: SWBF2 0x005383b0
@@ -326,7 +325,7 @@ GameSound& GameSound::operator=(const GameSound& other)
     {
         const_cast<GameSound&>(other).SetID((unsigned int)other.GetProperties(), false, false);
     }
-    mSoundDescription = other.mSoundDescription;
+    mProps = other.mProps;
     mType = other.mType;
     return *this;
 }
@@ -337,12 +336,12 @@ float GameSound::GetGain() const
     switch (mType)
     {
     case type_sound:
-        return ((const Snd::Sound::Properties*)mSoundDescription)->mGain;
+        return ((const Snd::Sound::Properties*)mProps)->mGain;
     case type_soundLayered:
-        return ((const Snd::SoundLayered::Properties*)mSoundDescription)
+        return ((const Snd::SoundLayered::Properties*)mProps)
             ->FindLayerByIndex(0)->mSoundProps->mGain;
     case type_soundStream:
-        return ((const Snd::SoundStream::Properties*)mSoundDescription)->mGain;
+        return ((const Snd::SoundStream::Properties*)mProps)->mGain;
     }
     return 0.0f;
 }
@@ -353,12 +352,12 @@ float GameSound::GetPitch() const
     switch (mType)
     {
     case type_sound:
-        return ((const Snd::Sound::Properties*)mSoundDescription)->mPitch;
+        return ((const Snd::Sound::Properties*)mProps)->mPitch;
     case type_soundLayered:
-        return ((const Snd::SoundLayered::Properties*)mSoundDescription)
+        return ((const Snd::SoundLayered::Properties*)mProps)
             ->FindLayerByIndex(0)->mSoundProps->mPitch;
     case type_soundStream:
-        return ((const Snd::SoundStream::Properties*)mSoundDescription)->mPitch;
+        return ((const Snd::SoundStream::Properties*)mProps)->mPitch;
     }
     return 0.0f;
 }
@@ -512,27 +511,6 @@ void GameSoundControllable::StolenCallback(Snd::VoiceVirtual* pVoice, void* pDat
     {
         pThis->ReleaseVoice();
     }
-}
-
-extern bool netIsLocalTurn;
-extern bool netIsLateTurn;
-
-// FUNCTION: SWBF2 0x004ddf50
-bool CanPlayForNetworkState()
-{
-    if (!NetGame::IsEnabled())
-    {
-        return true;
-    }
-    if (NetGame::IsDedicated())
-    {
-        return false;
-    }
-    if (NetGame::IsClient())
-    {
-        return netIsLocalTurn;
-    }
-    return NetGame::IsOneWorld() && !netIsLateTurn;
 }
 
 // SYNTHETIC: SWBF2 0x0047e660

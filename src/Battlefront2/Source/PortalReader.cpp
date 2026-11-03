@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "PortalReader.h"
 
 #include "Entity.h"
@@ -10,18 +11,6 @@
 #include <math.h>
 #include "PebbleFL/pc/PblD3DX.h"
 
-static_assert(sizeof(geo::Vector3<float>) == sizeof(PblVector3), "portal vector size");
-
-namespace
-{
-
-struct RawArray
-{
-    void* _elements;
-    int _numElements;
-    int _size;
-};
-}
 
 namespace pvs
 {
@@ -37,7 +26,7 @@ void PortalReader::FindRegisterStatics(ISector& sector)
 {
     for (unsigned int* it = sector.GetStaticNames().Begin(); it != sector.GetStaticNames().End(); ++it)
     {
-        EntityEx* pEntity = EntityEx::GetEntityMap().Find(*it);
+        EntityEx* pEntity = EntityEx::Find(*it);
         if (pEntity && pEntity->IsRtti(EntityProp::GetRtti()))
         {
             IDisplayable& displayable = *static_cast<EntityProp*>(pEntity);
@@ -119,18 +108,8 @@ void PortalReader::Read(ISector& sector, PblConfig& config, const char* pcName)
 
 }
 
-// FUNCTION: SWBF2 0x006215c0
-void __fastcall DestroyPortalScratchArray(void* pArray)
-{
-    RawArray* pThis = (RawArray*)pArray;
-    if (pThis->_elements)
-    {
-        RedFreeToHeap(__RedCurrHeap, pThis->_elements, 0);
-        pThis->_elements = 0;
-    }
-    pThis->_numElements = 0;
-    pThis->_size = 0;
-}
+// SYNTHETIC: SWBF2 0x006215c0
+// util::BaseString::~BaseString
 
 namespace pvs
 {
@@ -249,7 +228,7 @@ void PortalReader::Read(IPortal& portal, PblConfig& config, IManager& manager, c
 
         PblQuaternion unit;
         PblMatrix transform;
-        D3DXMatrixRotationQuaternion(&transform, D3DXQuaternionNormalize(&unit, &rotation));
+        D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&transform), D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&unit), reinterpret_cast<const D3DXQUATERNION*>(&rotation)));
         transform.m[3][0] = position.x;
         transform.m[3][1] = position.y;
         transform.m[3][2] = position.z;
@@ -260,7 +239,7 @@ void PortalReader::Read(IPortal& portal, PblConfig& config, IManager& manager, c
         for (geo::Vector3<float>* it = portal.GetPoly().points_.Begin(); it != portal.GetPoly().points_.End(); ++it, ++pCorner)
         {
             geo::Vector3<float> v;
-            D3DXVec3TransformCoord(reinterpret_cast<PblVector3*>(&v), reinterpret_cast<const PblVector3*>(pCorner), &transform);
+            D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&v), reinterpret_cast<const D3DXVECTOR3*>(pCorner), reinterpret_cast<const D3DXMATRIX*>(&transform));
             *it = v;
         }
     }
@@ -338,7 +317,7 @@ typedef util::HashTable_<pvs::ISector*, char const*, PortalReaderSectorTable_::E
  
 
 // TEMPLATE: SWBF2 0x006223b0
-// util::HashTable_<pvs::ISector *,char const *,util::Vector<pvs::ISector *,util::BaseArray<pvs::ISector *,util::TypedArrayAllocator<pvs::ISector *,util::TNewArrayAlloc<pvs::ISector *> > > >,util::Vector<char const *,util::BaseArray<char const *,util::TypedArrayAllocator<char const *,util::TNewArrayAlloc<pvs::ISector *> > > >,util::Vector<unsigned int,util::BaseArray<unsigned int,util::TypedArrayAllocator<unsigned int,util::TNewArrayAlloc<pvs::ISector *> > > > >::HashTable_
+// util::HashTable_<pvs::ISector *,char const *,util::Vector<pvs::ISector *,util::BaseArray<pvs::ISector *,util::TypedArrayAllocator<pvs::ISector *,util::TNewArrayAlloc<pvs::ISector *> > > >,util::Vector<char const *,util::BaseArray<char const *,util::TypedArrayAllocator<char const *,util::TNewArrayAlloc<pvs::ISector *> > > >,util::Vector<unsigned int,util::BaseArray<unsigned int,util::TypedArrayAllocator<unsigned int,util::TNewArrayAlloc<pvs::ISector *> > > > >::HashTable_<pvs::ISector *,char const *,util::Vector<pvs::ISector *,util::BaseArray<pvs::ISector *,util::TypedArrayAllocator<pvs::ISector *,util::TNewArrayAlloc<pvs::ISector *> > > >,util::Vector<char const *,util::BaseArray<char const *,util::TypedArrayAllocator<char const *,util::TNewArrayAlloc<pvs::ISector *> > > >,util::Vector<unsigned int,util::BaseArray<unsigned int,util::TypedArrayAllocator<unsigned int,util::TNewArrayAlloc<pvs::ISector *> > > > >
 template PortalReaderSectorTableBase_::HashTable_();
 
 // TEMPLATE: SWBF2 0x00622770
@@ -377,37 +356,26 @@ template bool util::Vector<unsigned int, util::BaseArray<unsigned int, util::Typ
 // util::BaseArray<unsigned int,util::TypedArrayAllocator<unsigned int,util::TNewArrayAlloc<pvs::ISector *> > >::Reserve_
 template bool util::BaseArray<unsigned int, util::TypedArrayAllocator<unsigned int, util::TNewArrayAlloc<pvs::ISector*> > >::Reserve_(int, bool);
 
-// FUNCTION: SWBF2 0x00622380
-void __fastcall DestroyPortalPodArray(void* pArray)
-{
-    RawArray* pThis = (RawArray*)pArray;
-    if (pThis->_elements)
-    {
-        RedFreeToHeap(__RedCurrHeap, pThis->_elements, 0);
-        pThis->_elements = 0;
-    }
-    pThis->_numElements = 0;
-    pThis->_size = 0;
-}
+// SYNTHETIC: SWBF2 0x00622380
+// util::Vector<geo::Vector2<float>,util::BaseArray<geo::Vector2<float>,util::TNewArrayAlloc<geo::Vector2<float> > > >::~Vector<geo::Vector2<float>,util::BaseArray<geo::Vector2<float>,util::TNewArrayAlloc<geo::Vector2<float> > > >
 
-// FUNCTION: SWBF2 0x00622480
+// TEMPLATE: SWBF2 0x00622480
+// PblHashTable<EntityEx,1024>::Begin
 template PblHashTable<EntityEx, 1024>::Itor PblHashTable<EntityEx, 1024>::Begin() const;
 
-// FUNCTION: SWBF2 0x006224c0
+// TEMPLATE: SWBF2 0x006224c0
+// PblHashTable<EntityEx,1024>::Itor::operator++
 template const PblHashTable<EntityEx, 1024>::Itor& PblHashTable<EntityEx, 1024>::Itor::operator++();
 
-// FUNCTION: SWBF2 0x006224b0
-void __fastcall DestroyPortalBaseStringArray(void* pArray)
-{
-    ((util::BaseArray<util::BaseString>*)pArray)->~BaseArray();
-}
+// SYNTHETIC: SWBF2 0x006224b0
+// util::Vector<util::BaseString,util::BaseArray<util::BaseString,util::TNewArrayAlloc<util::BaseString> > >::~Vector<util::BaseString,util::BaseArray<util::BaseString,util::TNewArrayAlloc<util::BaseString> > >
 
 // TEMPLATE: SWBF2 0x006228a0
 // util::Vector<util::BaseString,util::BaseArray<util::BaseString,util::TNewArrayAlloc<util::BaseString> > >::Add
 template bool util::Vector<util::BaseString>::Add(util::BaseString const&);
 
 // TEMPLATE: SWBF2 0x00622eb0
-// util::BaseArray<util::BaseString,util::TNewArrayAlloc<util::BaseString> >::~BaseArray
+// util::BaseArray<util::BaseString,util::TNewArrayAlloc<util::BaseString> >::~BaseArray<util::BaseString,util::TNewArrayAlloc<util::BaseString> >
 template util::BaseArray<util::BaseString>::~BaseArray();
 
 // TEMPLATE: SWBF2 0x00623510

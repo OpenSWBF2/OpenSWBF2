@@ -19,9 +19,10 @@ Stream::Stream()
     for (unsigned int i = 0; i < 8; ++i)
     {
         mPackets[i].mBuffer = mStreamBuf[i];
-        mADPCMPackets[0][i].mBuffer = mADPCMPacketBuf[0][i];
-        mADPCMPackets[1][i].mBuffer = mADPCMPacketBuf[1][i];
-        mADPCMPackets[2][i].mBuffer = mADPCMPacketBuf[2][i];
+        for (unsigned int j = 0; j < 3; ++j)
+        {
+            mADPCMPackets[j][i].mBuffer = mADPCMPacketBuf[j][i];
+        }
     }
 
     StreamBase::mUpdateI3DL2Source = 0;
@@ -39,11 +40,9 @@ void Stream::Flush(bool bThreadPaused, bool bFlushRenderers)
     mSource.Stop();
     mSource.Update();
 
-    const Info* pInfo = 0;
-    if (!mInfoList.IsEmpty())
-    {
-        pInfo = (const Info*)((ObjectList::Node*)PblListSingle::Itor(mInfoList).GetNode())->mObject;
-    }
+    const Info* pInfo = mInfoList.IsEmpty()
+        ? 0
+        : (const Info*)ObjectList::Itor(&mInfoList).GetObjectA(&mInfoList);
 
     for (unsigned int i = 0; i < pInfo->mNumSubstreams; ++i)
     {
@@ -139,7 +138,8 @@ void Stream::Update(float fDeltaTime)
     StreamBase::Update(fDeltaTime);
 
     const Info* pInfo = mInfoList.IsEmpty()
-        ? 0 : (const Info*)((ObjectList::Node*)mInfoList.mHead.mNext)->mObject;
+        ? 0
+        : (const Info*)ObjectList::Itor(&mInfoList).GetObjectA(&mInfoList);
     const unsigned int uiNumSubstreams = pInfo->mNumSubstreams;
 
     if (GetGainChanged())
@@ -176,15 +176,15 @@ void Stream::Update(float fDeltaTime)
     for (unsigned int i = 0; i < uiNumSubstreams; ++i)
     {
         StreamRenderer& rRenderer = mRenderer[i];
-        const bool b3D = (Source2D3D::mFlags & 1) != 0;
+        const bool b3D = Source2D3D::Get3DMode();
         if (rRenderer.mFormat != SampleInfo::format_Unknown
-            && ((rRenderer.Source2D3D::mFlags & 1) != 0) != b3D
+            && (rRenderer.Get3DMode()) != b3D
             && rRenderer.mNumChannels == 1)
         {
             rRenderer.SetFormat(rRenderer.mFormat, rRenderer.mNumChannels,
                                 rRenderer.mFrequency, b3D, rRenderer.mChannelMask, 200.0f);
         }
-        if (Source2D3D::mFlags & 1)
+        if (Source2D3D::Get3DMode())
         {
             rRenderer.Source3D::CopyParameters(*this);
             rRenderer.Set3DMode(Get3DMode());
@@ -270,14 +270,15 @@ void Stream::Update(float fDeltaTime)
 
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x00734920
 bool Stream::AppendSegments(PblFileChunk& chunk, unsigned int uiHashID, const char* pcFileName,
                             void (__cdecl* pfnIdle)(StreamBase*, void*), void* pIdleData)
 {
-    const bool bWasClosed = !IsOpen();
     bool bOk = false;
+    const bool bWasClosed = !IsOpen();
 
     Engine::GetThreadUpdate()->Pause(false);
     if (StreamBase::AppendSegments(chunk, uiHashID, pcFileName, 0, 0, false))
@@ -302,13 +303,15 @@ bool Stream::AppendSegments(PblFileChunk& chunk, unsigned int uiHashID, const ch
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x00734a90
 void Stream::Connect(StreamNodeSink** ppSinks)
 {
     const Info* pInfo = mInfoList.IsEmpty()
-        ? 0 : (const Info*)((ObjectList::Node*)mInfoList.mHead.mNext)->mObject;
+        ? 0
+        : (const Info*)ObjectList::Itor(&mInfoList).GetObjectA(&mInfoList);
     const unsigned int uiNumSubstreams = pInfo->mNumSubstreams;
 
     if (uiNumSubstreams == 1)
@@ -325,13 +328,15 @@ void Stream::Connect(StreamNodeSink** ppSinks)
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x00734c80
 void Stream::Open(File& rFile)
 {
     const Info* pInfo = mInfoList.IsEmpty()
-        ? 0 : (const Info*)((ObjectList::Node*)mInfoList.mHead.mNext)->mObject;
+        ? 0
+        : (const Info*)ObjectList::Itor(&mInfoList).GetObjectA(&mInfoList);
     const Segment* pSegment = mCurrentSegment;
     const unsigned int uiNumSubstreams = pInfo->mNumSubstreams;
     SampleInfo::Format eFormat = pInfo->mFormat;
@@ -370,7 +375,7 @@ void Stream::Open(File& rFile)
     for (unsigned int i = 0; i < 24; ++i)
     {
         StreamPacket& rPacket = mSplitterPackets[i];
-        if (rPacket.mRefCount > 0)
+        if (rPacket.mRefCount != 0)
         {
             rPacket.Unlock();
         }
@@ -384,7 +389,7 @@ void Stream::Open(File& rFile)
     for (unsigned int i = 0; i < uiNumSubstreams; ++i)
     {
         mADPCMDecoder[i].SetPackets(0x1B000, mADPCMPackets[i], 8, uiNumChannels);
-        const bool b3D = (Source2D3D::mFlags & 1) != 0;
+        const bool b3D = Source2D3D::Get3DMode();
         if (uiNumChannels == 1 || uiNumSubstreams == 1)
         {
             aulChannelMask[i] = 0;
@@ -395,7 +400,8 @@ void Stream::Open(File& rFile)
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x00734f40
 bool Stream::Open(PblFileChunk& chunk, unsigned int uiSegment, char const* pcFileName,

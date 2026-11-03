@@ -73,6 +73,7 @@ class Controllable;
 class GameObject;
 class Tracker;
 
+// VTABLE: SWBF2 0x00798c50
 class Trackable
 {
 public:

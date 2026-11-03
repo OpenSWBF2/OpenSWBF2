@@ -1,3 +1,6 @@
+#include <d3dx9math.h>
+
+#include "EntityHover.h"
 #include "VehicleCoverHelper.h"
 #include "AILowLevel.h"
 #include "AIUtil.h"
@@ -19,7 +22,7 @@
 #include <float.h>
 #include <math.h>
 #include <stddef.h>
-#include "PebbleFL/pc/PblD3DX.h"
+
 
 namespace CombatUtil
 {
@@ -29,29 +32,24 @@ namespace CombatUtil
 namespace
 {
 
-    const PblHash kRttiHashEntityHover("EntityHover");
 
-    const PblVector3& GetPos(const PblMatrix& m)
+
+    inline AILowLevel& GetLowLevel(UnitController* pCtrl)
     {
-        return *(const PblVector3*)&m.m[3][0];
+        return pCtrl->mLowLevel;
     }
 
-    AILowLevel& GetLowLevel(UnitController* pCtrl)
+    inline AttackHelper* GetAttackHelper(UnitAgent* pOwner)
     {
-        return *reinterpret_cast<AILowLevel*>(pCtrl->mLowLevel);
+        return &pOwner->mAttackHelper;
     }
 
-    AttackHelper* GetAttackHelper(UnitAgent* pOwner)
-    {
-        return reinterpret_cast<AttackHelper*>(pOwner->mAttackHelper);
-    }
-
-    CollisionObject* GetCollisionObject(GameObject* pObj)
+    inline CollisionObject* GetCollisionObject(GameObject* pObj)
     {
         return pObj->GetCollisionObject();
     }
 
-    const CollisionObject* GetCollisionObject(const GameObject* pObj)
+    inline const CollisionObject* GetCollisionObject(const GameObject* pObj)
     {
         return pObj->GetCollisionObject();
     }
@@ -59,18 +57,15 @@ namespace
 
 // FUNCTION: SWBF2 0x0066bd20
 VehicleCoverHelper::VehicleCoverHelper(UnitAgent* pOwner)
-    : HelperFsm(STATE_START, STATE_START)
+    : HelperFsm(STATE_START, STATE_START), mOwner(pOwner)
 {
-    mOwner = pOwner;
-    mVehicleCoverTarget.mObject = NULL;
-    mVehicleCoverTarget.mSavedHandleId = 0;
     mHint = NULL;
 }
 
 // FUNCTION: SWBF2 0x0066bd60
 bool VehicleCoverHelper::CheckForHintAndInit(const GameObject* pTarget)
 {
-    if (!GetMe()->GetEntity()->IsRtti(kRttiHashEntityHover))
+    if (!GetMe()->GetEntity()->IsRtti(EntityHover::rttiHashEntityHover))
     {
         return false;
     }
@@ -100,12 +95,12 @@ void VehicleCoverHelper::EnterState()
     {
 
         mHint->Reserve(GetMe()->GetGameObject());
-        PblVector3 vMe = GetPos(GetMe()->GetMatrix());
+        PblVector3 vMe = GetMe()->GetMatrix().GetTranslation();
         const PblVector3& vHint = mHint->GetCollisionCenter();
         PblVector3 vDir(vHint.x - vMe.x, vHint.y - vMe.y, vHint.z - vMe.z);
         float fDist = sqrtf(vDir.x * vDir.x + vDir.y * vDir.y + vDir.z * vDir.z);
         PblVector3 vNorm;
-        D3DXVec3Normalize(&vNorm, &vDir);
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNorm), reinterpret_cast<const D3DXVECTOR3*>(&vDir));
         fDist += 4.0f;
         PblVector3 vDest(vNorm.x * fDist + vMe.x, vNorm.y * fDist + vMe.y, vNorm.z * fDist + vMe.z);
         GetLowLevel(GetCtrl()).SetNavigator_Goto(vDest, NULL, false, false);
@@ -162,7 +157,7 @@ void VehicleCoverHelper::EnterState()
 // FUNCTION: SWBF2 0x0066c260
 void VehicleCoverHelper::ExitState()
 {
-    AttackHelper* pAttack = reinterpret_cast<AttackHelper*>(mOwner->mAttackHelper);
+    AttackHelper* pAttack = &mOwner->mAttackHelper;
     switch (mCurState)
     {
     case STATE_GOTO:
@@ -285,7 +280,7 @@ void VehicleCoverHelper::UpdateState(float dt)
             Controllable* pMe = GetMe();
             const PblVector3& vZ = mHint->GetZAxis();
             PblVector3 vAhead(vZ.x * 30.0f, vZ.y * 30.0f, vZ.z * 30.0f);
-            const PblVector3& vPos = GetPos(pMe->GetMatrix());
+            const PblVector3& vPos = pMe->GetMatrix().GetTranslation();
             PblVector3 vLook(vAhead.x + vPos.x, vPos.y + vAhead.y, vPos.z + vAhead.z);
             mOwner->GetLowLevel().SetHeading(vLook, 0.0f);
         }
@@ -310,7 +305,7 @@ bool VehicleCoverHelper::HELPERFaceTarget() const
         return true;
     }
 
-    PblVector3 vMe = GetPos(GetMe()->GetMatrix());
+    PblVector3 vMe = GetMe()->GetMatrix().GetTranslation();
     PblVector3 vHint = mHint->GetCollisionCenter();
     float fRadius = GetCollisionObject(GetMe()->GetGameObject())->GetCollisionRadius() + 1.0f;
     float dx = vHint.x - vMe.x;
@@ -358,7 +353,7 @@ const VehicleCoverHint* VehicleCoverHelper::FindHint() const
 {
     float fMaxDist = GetMaxHintDist();
     const BaseHint* pHints[30];
-    int iCount = HintManager::RequestVehicleCoverHints(GetCtrl(), GetPos(GetMe()->GetMatrix()),
+    int iCount = HintManager::RequestVehicleCoverHints(GetCtrl(), GetMe()->GetMatrix().GetTranslation(),
                                                        (int)fMaxDist, 30, pHints);
     return SelectHint(iCount, pHints);
 }
@@ -391,7 +386,7 @@ const VehicleCoverHint* VehicleCoverHelper::SelectHint(int iCount, const BaseHin
 // FUNCTION: SWBF2 0x0066c8e0
 float VehicleCoverHelper::IsHintSuitable_Combat(const VehicleCoverHint* pHint) const
 {
-    PblVector3 vMe = GetPos(GetMe()->GetMatrix());
+    PblVector3 vMe = GetMe()->GetMatrix().GetTranslation();
     PblVector3 vTarget = GetAttackHelper(mOwner)->GetLastSeenTargetPos();
     PblVector3 vMeToTarget(vTarget.x - vMe.x, 0.0f, vTarget.z - vMe.z);
     PblVector3 vHint = pHint->GetCollisionCenter();

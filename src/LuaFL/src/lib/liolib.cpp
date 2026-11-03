@@ -417,7 +417,9 @@ static int f_flush (lua_State *L) {
 
 #endif
 
+// GLOBAL: SWBF2 0x00770edc
 static const luaL_reg iolib[]  = { {NULL, NULL} };
+// GLOBAL: SWBF2 0x770ee4
 static const luaL_reg flib[]   = { {NULL, NULL} };
 
 // LIBRARY: SWBF2 0x006a0d40
@@ -593,6 +595,7 @@ static int io_exit (lua_State *L) {
 
 #endif
 
+// GLOBAL: SWBF2 0x00770eec
 static const luaL_reg syslib[] = { {NULL, NULL} };
 
 // LIBRARY: SWBF2 0x006a0d90

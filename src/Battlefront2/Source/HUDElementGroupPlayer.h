@@ -5,7 +5,9 @@
 #include "HUDElementGroup.h"
 #include "HUDEvent.h"
 
-namespace HUD {
+namespace HUD
+{
+// VTABLE: SWBF2 0x007a117c
 class ElementGroupPlayer : public HUD::ElementGroupBase
 {
 public:
@@ -17,6 +19,9 @@ public:
     public:
         // FUNCTION: SWBF2 0x0054f640
         Factory(unsigned int uHashID);
+
+        // SYNTHETIC: SWBF2 0x0054f6f0
+        // HUD::ElementGroupPlayer::Factory::~Factory
 
         // SYNTHETIC: SWBF2 0x0054f6c0
         // HUD::ElementGroupPlayer::Factory::`scalar deleting destructor'

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "GameObject.h"
@@ -17,16 +19,16 @@ public:
 
     virtual EntityClass* Derive(unsigned int uHash);
     virtual Entity* Build(const EntityDesc& desc);
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
     void FillRegion(const char* pcRegion, int iCount, PblVector3 vMin, PblVector3 vMax);
     void FillPath(const char* pcPath, float fDensity, int iCount,
                     PblVector3 vMin, PblVector3 vMax);
 
     static PblHash rttiHashAsteroidClass;
-    static char rttiNameAsteroidClass[];
+    static const char rttiNameAsteroidClass[];
 
     struct ChildAsteroidDesc
     {
@@ -59,12 +61,12 @@ public:
 #include "Thread.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 
-// VTABLE: SWBF2 0x00796d00
+// VTABLE: SWBF2 0x00796d00 EntityEx
 // VTABLE: SWBF2 0x00796cac CollisionObject
 // VTABLE: SWBF2 0x00796e20 RedSceneObject
 // VTABLE: SWBF2 0x00796c80 Damageable
 // VTABLE: SWBF2 0x00796e88 PblHandled
-// VTABLE: SWBF2 0x00796c68 Thread
+// VTABLE: SWBF2 0x00796c68
 class Asteroid : public GameObject, public Thread
 {
 public:
@@ -73,7 +75,9 @@ public:
 
     virtual ~Asteroid();
 
-    static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
+    static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }
+    // SYNTHETIC: SWBF2 0x00444530
+    // Asteroid::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
     virtual bool IsRtti(unsigned int uRtti) const;
@@ -118,9 +122,55 @@ public:
 
     static MemoryPool sMemoryPool;
     static PblHash rttiHashAsteroid;
-    static char rttiNameAsteroid[];
+    static const char rttiNameAsteroid[];
 };
  
  
  
  
+
+// FUNCTION: SWBF2 0x00444790
+inline bool AsteroidClass::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashAsteroidClass == uRtti)
+    {
+        return true;
+    }
+    return GameObjectClass::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x004447d0
+inline unsigned int AsteroidClass::GetDerivedRtti() const
+{
+    return rttiHashAsteroidClass;
+}
+
+// FUNCTION: SWBF2 0x004447e0
+inline const char* AsteroidClass::GetDerivedRttiName() const
+{
+    return rttiNameAsteroidClass;
+}
+
+// FUNCTION: SWBF2 0x004444d0
+inline bool Asteroid::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashAsteroid == uRtti)
+    {
+        return true;
+    }
+    return GameObject::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x00444510
+inline unsigned int Asteroid::GetDerivedRtti() const
+{
+    return rttiHashAsteroid;
+}
+
+// FUNCTION: SWBF2 0x00444520
+inline const char* Asteroid::GetDerivedRttiName() const
+{
+    return "Asteroid";
+}
+
+

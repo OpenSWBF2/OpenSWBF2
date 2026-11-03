@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "UnitWaitSecondaryAgent.h"
 #include "AILowLevel.h"
 #include "AIUtil.h"
@@ -11,8 +12,7 @@
 #include "UnitController.h"
 #include "PebbleFL/Common/PblMatrix.h"
 #include "PebbleFL/Common/PblVector.h"
-#include "PebbleFL/pc/PblD3DX.h"
-#include "VOHelper.h"
+
 
 class EntityFlyer
 {
@@ -25,31 +25,41 @@ namespace ReserveManager
 int GetReservationCountForObject(const GameObject* pObj, int iTeam, ReserveType eType);
 }
 
-namespace AIUtil { GameObject* FindFirstAIInVehicle(GameObject* pVehicle); }
+namespace AIUtil
+{
+GameObject* FindFirstAIInVehicle(GameObject* pVehicle);
+}
 
-// GLOBAL: SWBF2 0x01f9a25c
+namespace AI
+{
+enum VOType
+{
+    VOT_VehicleWaitingImpatiently = 39
+};
+namespace VOHelper
+{
+
+int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,
+         const GameObject* pOther, float fDelay);
+}
+}
+
 // SYNTHETIC: SWBF2 0x00406d60
 // `dynamic initializer for 'UnitWaitSecondaryAgent::rttiHashUnitWaitSecondaryAgent''
+// UnitWaitSecondaryAgent::rttiHashUnitWaitSecondaryAgent
+
+// GLOBAL: SWBF2 0x01f9a25c
+// UnitWaitSecondaryAgent::rttiHashUnitWaitSecondaryAgent
 PblHash UnitWaitSecondaryAgent::rttiHashUnitWaitSecondaryAgent("UnitWaitSecondaryAgent");
-char UnitWaitSecondaryAgent::rttiNameUnitWaitSecondaryAgent[] = "UnitWaitSecondaryAgent";
+// GLOBAL: SWBF2 0x0078b9e0
+// UnitWaitSecondaryAgent::rttiNameUnitWaitSecondaryAgent
+const char UnitWaitSecondaryAgent::rttiNameUnitWaitSecondaryAgent[] = "UnitWaitSecondaryAgent";
 
-// FUNCTION: SWBF2 0x0066b670
-bool UnitWaitSecondaryAgent::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashUnitWaitSecondaryAgent || UnitAgent::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x0066b6a0
-unsigned int UnitWaitSecondaryAgent::GetDerivedRtti() const
-{
-    return rttiHashUnitWaitSecondaryAgent;
-}
 
-// FUNCTION: SWBF2 0x0066b6b0
-const char* UnitWaitSecondaryAgent::GetDerivedRttiName() const
-{
-    return rttiNameUnitWaitSecondaryAgent;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x0066b6c0
 bool UnitWaitSecondaryAgent::ShouldQueueCurCmd(const UnitCmdInfo& cmd) const
@@ -76,7 +86,7 @@ void UnitWaitSecondaryAgent::EnterState()
 {
     if (mCurState == 2)
     {
-        ((AILowLevel*)mCtrl->mLowLevel)->SetNavigator_Stationary();
+        mCtrl->mLowLevel.SetNavigator_Stationary();
     }
 }
 
@@ -120,7 +130,7 @@ GameObject* UnitWaitSecondaryAgent::IsPlayerLookingAtVehicle()
         }
 
         PblVector3 vDir;
-        D3DXVec3Normalize(&vDir, &vDelta);
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vDelta));
         if (mHim.m[2][0] * vDir.x + mHim.m[2][1] * vDir.y + mHim.m[2][2] * vDir.z > 0.866f)
         {
             return pCharacter->mUnit->GetGameObject();
@@ -182,7 +192,7 @@ const char* UnitWaitSecondaryAgent::NFINAL_GetStateString(int iState) const
 // FUNCTION: SWBF2 0x0066b960
 void UnitWaitSecondaryAgent::UpdateStatePostVision(float dt)
 {
-    reinterpret_cast<AttackHelper*>(mAttackHelper)->Update();
+    mAttackHelper.Update();
     if (mCurState != 2)
     {
         return;

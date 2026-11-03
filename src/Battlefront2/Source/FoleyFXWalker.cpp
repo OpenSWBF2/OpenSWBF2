@@ -5,36 +5,31 @@
 #include "PebbleFL/Common/PblChunk.h"
 #include "PebbleFL/Common/PblFile.h"
 
-// GLOBAL: SWBF2 0x01ebdc4c
 // SYNTHETIC: SWBF2 0x00403b40
 // `dynamic initializer for 'FoleyFXWalker::rttiHashFoleyFXWalker''
-PblHash FoleyFXWalker::rttiHashFoleyFXWalker("FoleyFXWalker");
-char FoleyFXWalker::rttiNameFoleyFXWalker[] = "FoleyFXWalker";
+// FoleyFXWalker::rttiHashFoleyFXWalker
 
-// GLOBAL: SWBF2 0x007ec1c0
+// GLOBAL: SWBF2 0x01ebdc4c
+// FoleyFXWalker::rttiHashFoleyFXWalker
+PblHash FoleyFXWalker::rttiHashFoleyFXWalker("FoleyFXWalker");
+// GLOBAL: SWBF2 0x007898e8
+// FoleyFXWalker::rttiNameFoleyFXWalker
+const char FoleyFXWalker::rttiNameFoleyFXWalker[] = "FoleyFXWalker";
+
 // SYNTHETIC: SWBF2 0x00403b20
 // `dynamic initializer for 'FoleyFXWalker::smFreeList''
 // SYNTHETIC: SWBF2 0x00768810
 // `dynamic atexit destructor for 'FoleyFXWalker::smFreeList''
-Snd::FreeList FoleyFXWalker::smFreeList(sizeof(FoleyFXWalker), 4, 8, 1);
 
-// FUNCTION: SWBF2 0x0052d000
-bool FoleyFXWalker::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashFoleyFXWalker || FoleyFX::IsRtti(uRtti);
-}
+// GLOBAL: SWBF2 0x007ec1c0
+// FoleyFXWalker::smFreeList
+Snd::FreeList FoleyFXWalker::smFreeList(sizeof(FoleyFXWalker), 4, true, 8);
 
-// FUNCTION: SWBF2 0x0052d030
-unsigned int FoleyFXWalker::GetDerivedRtti() const
-{
-    return rttiHashFoleyFXWalker;
-}
 
-// FUNCTION: SWBF2 0x0052d040
-const char* FoleyFXWalker::GetDerivedRttiName() const
-{
-    return rttiNameFoleyFXWalker;
-}
+
+
+
+
 
 // FUNCTION: SWBF2 0x0052d050
 FoleyFXWalker::FoleyFXWalker()

@@ -16,40 +16,20 @@
 // LIBRARY: SWBF2 0x0041fa10
 // sqrtf
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
 
-static inline const PblVector3 operator-(const PblVector3& a, const PblVector3& b)
-{
-    return PblVector3(a.x - b.x, a.y - b.y, a.z - b.z);
-}
 
-static inline const float Length(const PblVector3& v)
-{
-    return sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
-}
 
-static inline const PblMatrix operator*(const PblMatrix& a, const PblMatrix& b)
-{
-    PblMatrix result;
-    D3DXMatrixMultiply((D3DXMATRIX*)&result, (const D3DXMATRIX*)&a, (const D3DXMATRIX*)&b);
-    return result;
-}
+
+
 
 static inline const PblVector3& LastPosition(const CollisionObject* pObject)
 {
     return pObject->mLastPosition;
 }
-
-// GLOBAL: SWBF2 0x01eb1368
-int CollisionBodyPrimitive::_HashTableNumEntries;
-// GLOBAL: SWBF2 0x01eb136c
 // SYNTHETIC: SWBF2 0x00402440
 // `dynamic initializer for 'CollisionBodyPrimitive::_HashTable''
 
+// GLOBAL: SWBF2 0x01eb1368
 PblHashTable<CollisionBodyPrimitive, 1024> CollisionBodyPrimitive::_HashTable;
 
 // FUNCTION: SWBF2 0x0045ce40
@@ -101,7 +81,7 @@ PblMatrix CollisionBody::GetLocalMatrix(const RedPose* pPose) const
 {
     if (pPose && mParentHashName)
     {
-        const PblMatrix* pParent = pPose->_Table.Find(mParentHashName);
+        const PblMatrix* pParent = pPose->Find(mParentHashName);
         if (pParent)
         {
             return mMatrix * *pParent;
@@ -124,7 +104,7 @@ float CollisionBody::GetHeight() const
 
 // FUNCTION: SWBF2 0x0045d0a0
 CollisionBodyPrimitive::CollisionBodyPrimitive()
-    : CollisionBody(NULL, _IdentityMatrix, 0)
+    : CollisionBody(NULL, gMatrixIdentity, 0)
 {
     mMask = 0;
     bIsMesh = false;
@@ -133,10 +113,7 @@ CollisionBodyPrimitive::CollisionBodyPrimitive()
 // SYNTHETIC: SWBF2 0x0045d0d0
 // CollisionBodyPrimitive::`scalar deleting destructor'
 
-// FUNCTION: SWBF2 0x004550b0
-CollisionBodyPrimitive::~CollisionBodyPrimitive()
-{
-}
+
 
 // FUNCTION: SWBF2 0x0045d100
 CollisionBodyPrimitive::CollisionBodyPrimitive(CollisionPrimitive primitive, const char* pcName,
@@ -270,10 +247,7 @@ void CollisionBodyPrimitive::Read(PblFileChunk& chunk)
                     {
                         pBody->SetMask(ucMask);
                     }
-                    if (_HashTable.Store(uiHash, pBody))
-                    {
-                        ++_HashTableNumEntries;
-                    }
+                    _HashTable.Store(uiHash, pBody);
                 }
             }
             ++iPrim;
@@ -303,7 +277,7 @@ float CollisionBodyPrimitive::GetRadius() const
 // FUNCTION: SWBF2 0x0045d6e0
 PblMatrix CollisionBodyPrimitive::GetMomentOfInertia() const
 {
-    PblMatrix inertia = _IdentityMatrix;
+    PblMatrix inertia = gMatrixIdentity;
     float fXX, fYY, fZZ;
     if (mPrimitive.mType == CollisionPrimitive::BOX)
     {
@@ -352,7 +326,6 @@ float CollisionBodyPrimitive::GetHeight() const
 void CollisionBodyPrimitive::ClearAll()
 {
     _HashTable.Clear();
-    _HashTableNumEntries = 0;
 }
 
 // FUNCTION: SWBF2 0x0045d830
@@ -365,12 +338,7 @@ CollisionBodyMesh::CollisionBodyMesh(const CollisionMesh* pMesh, const char* pcN
     bIsMesh = true;
 }
 
-// SYNTHETIC: SWBF2 0x0045d870
-// CollisionBodyMesh::`scalar deleting destructor'
 
-CollisionBodyMesh::~CollisionBodyMesh()
-{
-}
 
 // FUNCTION: SWBF2 0x0045d8a0
 bool CollisionBodyMesh::RayTest(const RedPose*, const PblVector3& vStart, const PblVector3& vEnd, float fLength)

@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "SoldierAnimatorLowRes.h"
 
 #include <math.h>
@@ -25,15 +26,15 @@
 
 static const char* const HUMAN_LOWRES_BANK = "humanlz";
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
 
-namespace GameLoop { extern float sClientDeltaTime; }
+
+namespace GameLoop
+{
+extern float sClientDeltaTime;
+}
 
 extern PblVector3 gVectorZero;
+
 
 // GLOBAL: SWBF2 0x007e99d0
 SoldierAnimatorLowResClass::PoseClass SoldierAnimatorLowResClass::s_PoseClasses[7] = {
@@ -76,10 +77,6 @@ int SoldierAnimatorLowRes::GetFramesSinceUsed() const
     return 0;
 }
 
-// FUNCTION: SWBF2 0x00647cb0
-SoldierAnimatorLowRes_UnsharedPool::~SoldierAnimatorLowRes_UnsharedPool()
-{
-}
 
 // FUNCTION: SWBF2 0x00647cc0
 bool SoldierAnimatorLowRes_UnsharedPool::GetRootMatrixAnimation(const EntitySoldier& soldier,
@@ -88,10 +85,6 @@ bool SoldierAnimatorLowRes_UnsharedPool::GetRootMatrixAnimation(const EntitySold
     return false;
 }
 
-// FUNCTION: SWBF2 0x00647cd0
-SoldierAnimatorLowRes_HighResPool::~SoldierAnimatorLowRes_HighResPool()
-{
-}
 
 // FUNCTION: SWBF2 0x00647ce0
 void SoldierAnimatorLowResClass::Create()
@@ -788,25 +781,26 @@ static const unsigned int s_auiRootJoints[2] = { 0x16e27226, 0 };
 // FUNCTION: SWBF2 0x00649380
 void SoldierAnimatorLowResClass::SetupJointTransformAnimationFlag(ZephyrSkeletonShared* pSkeleton)
 {
-    if ((int)pSkeleton->m_kHashCRC2Joint.Find(0x7a89c91f) - 1 >= 0)
+    int idx = pSkeleton->GetJointIdxByCrc(0x7a89c91f);
+    if (idx < 0)
     {
-        for (int i = 0; s_auiRootJoints[i]; ++i)
+        for (idx = 1; idx < (int)pSkeleton->m_uNumJoints; ++idx)
         {
-            int iJoint = (int)pSkeleton->m_kHashCRC2Joint.Find(s_auiRootJoints[i]) - 1;
-            pSkeleton->SetJointTransformAnimationFlag(iJoint, true);
+            pSkeleton->SetJointTransformAnimationFlag(idx, false);
+        }
+
+        for (int t = 0; t < 2; ++t)
+        {
+            idx = pSkeleton->GetJointIdxByCrc(s_auiNoRootJoints[t]);
+            pSkeleton->SetJointTransformAnimationFlag(idx, true);
         }
     }
     else
     {
-        for (int i = 1; i < (int)pSkeleton->m_uNumJoints; ++i)
+        for (int t = 0; s_auiRootJoints[t]; ++t)
         {
-            pSkeleton->SetJointTransformAnimationFlag(i, false);
-        }
-
-        for (int i = 0; i < 2; ++i)
-        {
-            int iJoint = (int)pSkeleton->m_kHashCRC2Joint.Find(s_auiNoRootJoints[i]) - 1;
-            pSkeleton->SetJointTransformAnimationFlag(iJoint, true);
+            idx = pSkeleton->GetJointIdxByCrc(s_auiRootJoints[t]);
+            pSkeleton->SetJointTransformAnimationFlag(idx, true);
         }
     }
 }
@@ -889,7 +883,7 @@ void SoldierAnimatorLowRes::Initialize(const ZephyrSkeletonShared* pSkeleton, co
         kPoseStatic.Set(kPoseDyn, true);
     }
 
-    mZephyrSkeleton.BuildWorldMatrices(_IdentityMatrix, kMask);
+    mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity, kMask);
     mPose.ConvertFromZephyrPose(kPoseStatic);
     mZephyrSkeleton.Close();
 }
@@ -921,21 +915,14 @@ bool SoldierAnimatorLowRes::GetRootMatrixAnimation(const EntitySoldier& soldier,
         PblVector3 vFront(fRight * fInvSpeed, 0.0f, fFront * fInvSpeed);
         PblVector3 vRight(vFront.z, 0.0f, -vFront.x);
 
-        PblMatrix kRoot;
-        *(PblVector3*)&kRoot.m[0][0] = vRight;
-        kRoot.m[0][3] = 0.0f;
-        *(PblVector3*)&kRoot.m[1][0] = gVectorUnitY;
-        kRoot.m[1][3] = 0.0f;
-        *(PblVector3*)&kRoot.m[2][0] = vFront;
-        kRoot.m[2][3] = 0.0f;
-        *(PblVector3*)&kRoot.m[3][0] = gVectorZero;
-        kRoot.m[3][3] = 1.0f;
+        PblMatrix kRoot(vRight, gVectorUnitY, vFront, gVectorZero);
         kMatrix = kRoot;
         return true;
     }
 
     if (soldier.mState == SoldierState::ROLL)
     {
+        // GLOBAL: SWBF2 0x01fac23c
         static PblVector3 s_vRollCenter(0.0f, 0.5f, 0.0f);
 
         const PblVector3& vVelocity = soldier.GetVelocity();
@@ -945,16 +932,15 @@ bool SoldierAnimatorLowRes::GetRootMatrixAnimation(const EntitySoldier& soldier,
                             vVelocity.x * kSoldier.m[2][0] + vVelocity.y * kSoldier.m[2][1] +
                                 vVelocity.z * kSoldier.m[2][2]);
 
-        D3DXMatrixRotationX(&kMatrix, soldier.mStateTimer * 8.0f + 1.0f);
+        kMatrix.SetRotateX(soldier.mStateTimer * 8.0f + 1.0f);
         PblVector3 vCenter;
-        D3DXVec3TransformNormal(&vCenter, &s_vRollCenter, &kMatrix);
+        D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vCenter), reinterpret_cast<const D3DXVECTOR3*>(&s_vRollCenter), reinterpret_cast<const D3DXMATRIX*>(&kMatrix));
         kMatrix.m[3][0] = s_vRollCenter.x - vCenter.x;
         kMatrix.m[3][1] = s_vRollCenter.y - vCenter.y;
         kMatrix.m[3][2] = s_vRollCenter.z - vCenter.z;
         kMatrix.m[3][3] = 1.0f;
 
-        PblMatrix kYaw;
-        D3DXMatrixMultiply(&kMatrix, &kMatrix, D3DXMatrixRotationY(&kYaw, fYaw));
+        kMatrix.RotateY(fYaw);
         return true;
     }
 
@@ -994,7 +980,7 @@ bool SoldierAnimatorLowRes::GetRootMatrixAnimation(const EntitySoldier& soldier,
         fSpin = 6.0f;
     }
 
-    D3DXMatrixRotationAxis(&kMatrix, &vAxis, soldier.mStateTimer * fSpin);
+    D3DXMatrixRotationAxis(reinterpret_cast<D3DXMATRIX*>(&kMatrix), reinterpret_cast<const D3DXVECTOR3*>(&vAxis), soldier.mStateTimer * fSpin);
     kMatrix.m[3][0] = 0.0f;
     kMatrix.m[3][1] = 0.0f;
     kMatrix.m[3][2] = soldier.mState == SoldierState::FLY ? 1.0f : 0.0f;
@@ -1063,7 +1049,7 @@ void SoldierAnimatorLowRes_Pool::Initialize(const ZephyrSkeletonShared* pSkeleto
         mZephyrPoseStatic.Set(mZephyrPoseDyn, true);
     }
 
-    mZephyrSkeleton.BuildWorldMatrices(_IdentityMatrix, kMask);
+    mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity, kMask);
 }
 
 // FUNCTION: SWBF2 0x00649e20
@@ -1076,7 +1062,8 @@ const RedPose* SoldierAnimatorLowRes_Pool::GetPose()
     {
         mZephyrPoseDyn.Update(fElapsed);
         mZephyrPoseStatic.Set(mZephyrPoseDyn, true);
-        mZephyrSkeleton.BuildWorldMatrices(_IdentityMatrix, mZephyrJointMask);
+        const PblBitVector<32>& kMask = mZephyrJointMask;
+        mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity, kMask);
         m_iLastFrame = iFrame;
     }
 
@@ -1113,15 +1100,7 @@ bool SoldierAnimatorLowRes_Pool::GetRootMatrixAnimation(const EntitySoldier& sol
     PblVector3 vFront(fSin, 0.0f, fCos);
     PblVector3 vRight(fCos, 0.0f, -fSin);
 
-    PblMatrix kRoot;
-    *(PblVector3*)&kRoot.m[0][0] = vRight;
-    kRoot.m[0][3] = 0.0f;
-    *(PblVector3*)&kRoot.m[1][0] = gVectorUnitY;
-    kRoot.m[1][3] = 0.0f;
-    *(PblVector3*)&kRoot.m[2][0] = vFront;
-    kRoot.m[2][3] = 0.0f;
-    *(PblVector3*)&kRoot.m[3][0] = gVectorZero;
-    kRoot.m[3][3] = 1.0f;
+    PblMatrix kRoot(vRight, gVectorUnitY, vFront, gVectorZero);
     kMatrix = kRoot;
     return true;
 }
@@ -1238,9 +1217,8 @@ void SoldierAnimatorLowRes_HighResPool::ResetAnim(SoldierAnimationBank::MAP eMap
     m_eMap = eMap;
     m_uiAnimIndex = uiAnimIndex;
     const SoldierAnimation* pAnimation = SoldierAnimatorClass::Instance()->GetUpperBodyAnimation(eMap, uiAnimIndex);
-    const ZephyrAnim* pAnim = pAnimation->GetAnimation();
-    mZephyrPoseDyn.SetAnimation(pAnim, 30.0f);
-    if (pAnim)
+    mZephyrPoseDyn.SetAnimation(pAnimation->GetAnimation(), 30.0f);
+    if (pAnimation->GetAnimation())
     {
         mZephyrPoseDyn.SetCurTime(0.0f);
     }

@@ -1,5 +1,6 @@
+#include <d3dx9math.h>
 #include "RedTerrain.h"
-
+#include <new>
 #include <math.h>
 #include <string.h>
 #include <xmmintrin.h>
@@ -27,6 +28,7 @@ bool PointInSphere(const PblVector3& vPoint, const PblVector3& vCenter, float fR
     const float fZ = vPoint.z - vCenter.z;
     return fRadius * fRadius > fX * fX + fY * fY + fZ * fZ;
 }
+
 
 static const float EPSILON = 0.001f;
 
@@ -267,7 +269,7 @@ static PblVector3 TriangleNormal(const PblVector3& p0, const PblVector3& p1, con
 {
     const PblVector3 a(p1.x - p0.x, p1.y - p0.y, p1.z - p0.z);
     const PblVector3 b(p2.x - p0.x, p2.y - p0.y, p2.z - p0.z);
-    return PblVector3(b.y * a.z - b.z * a.y, b.z * a.x - b.x * a.z, b.x * a.y - b.y * a.x);
+    return CrossProduct(b, a);
 }
 
 // FUNCTION: SWBF2 0x006c1b50
@@ -331,7 +333,7 @@ const PblVector3 RedTerrain::GetInterpolatedNormal(float fX, float fZ)
     }
 
     PblVector3 vResult;
-    D3DXVec3Normalize(&vResult, &vNormal);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vResult), reinterpret_cast<const D3DXVECTOR3*>(&vNormal));
     return vResult;
 }
 
@@ -364,7 +366,9 @@ bool RedTerrain::PointInHole(const PblVector3& vPos)
         return false;
     }
 
+    // GLOBAL: SWBF2 0x0093eb80
     static PblVector3 vLastPos(FLT_MAX, FLT_MAX, FLT_MAX);
+    // GLOBAL: SWBF2 0x0093eb90
     static bool bLastInHole;
     if (vPos.x == vLastPos.x && vPos.y == vLastPos.y && vPos.z == vLastPos.z)
     {
@@ -718,7 +722,6 @@ void RedTerrain::Read(PblFileChunk& chunk)
                             vCenter.z = pPartFile->ReadFloat();
                             pHole->SetCollisionCenter(vCenter);
                             pHole->SetCollisionRadius(fRadius);
-                            pHole->Set2DCollisionRadius(fRadius);
 
                             iOldHeap = RedSetCurrentHeap(iHeap);
                             pHole->aPlanes = new PblVector4[pHole->iNumPlanes];
@@ -768,7 +771,7 @@ float RedTerrain::_RayHit(const PblVector3& vStart, const PblVector3& vEnd, floa
     while ((vFrom.y - vTo.y) * (vFrom.y - vTo.y) + (vFrom.x - vTo.x) * (vFrom.x - vTo.x) +
                (vFrom.z - vTo.z) * (vFrom.z - vTo.z) > fTolerance2)
     {
-        const PblVector3 vMid((vTo.x + vFrom.x) * 0.5f, (vTo.y + vFrom.y) * 0.5f, (vTo.z + vFrom.z) * 0.5f);
+        const PblVector3 vMid = (vTo + vFrom) * 0.5f;
         const float fAbove = GetInterpolatedHeight(vMid.x, vMid.z) - vMid.y;
         if (fAbove > fTolerance)
         {
@@ -827,7 +830,8 @@ void RedTerrain::Reset()
     mTerrainBytesUsed = 0;
 }
 
-// FUNCTION: SWBF2 0x006c1650
+// TEMPLATE: SWBF2 0x006c1650
+// PblList<RedTerrain::Hole>::RemoveAll
 template void PblList<RedTerrain::Hole>::RemoveAll();
 
 // FUNCTION: SWBF2 0x004108f0

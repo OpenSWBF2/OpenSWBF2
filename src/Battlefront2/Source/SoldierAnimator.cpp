@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include <math.h>
 #include "PebbleFL/Common/PblVector.h"
 
@@ -34,13 +35,14 @@ static const float FIRST_PERSON_ANIMATION_SCALE = 0.45f;
 static const float MOVEANGLE_BLEND_RATE = 7.5f;
 static const float OVERLAY_FADEOUT_RATE = 8.0f;
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
 
-namespace GameLoop { extern float sClientDeltaTime; }
+
+
+
+namespace GameLoop
+{
+extern float sClientDeltaTime;
+}
 
 const float UnitCircleNormalize(float fAngle);
 
@@ -54,17 +56,7 @@ inline const EntitySoldierClass* SoldierClass(const EntitySoldier* pSoldier)
 
 const unsigned char NO_MELEE_ANIM = 0xa4;
 
-inline PblQuaternion PblQuaternion_FromAxisAngle(const PblVector3& vAxis, float fAngle)
-{
-    float fSin, fCos;
-    PblMath::SinCos(&fSin, &fCos, fAngle * 0.5f);
-    PblQuaternion q;
-    q._fX = vAxis.x * fSin;
-    q._fY = vAxis.y * fSin;
-    q._fZ = vAxis.z * fSin;
-    q._fS = fCos;
-    return q;
-}
+
 }
 
 // FUNCTION: SWBF2 0x0063e760
@@ -653,13 +645,12 @@ void SoldierAnimator::SetWeaponAnimationMap(SoldierAnimationBank::MAP eMap)
 
     mWeaponState = 0;
     mWeaponAnimationMap = eMap;
-    bool bMelee = SoldierAnimationBank::GetWeaponRoot(SoldierAnimationBank::GetMapWeapon(eMap)) ==
-                  SoldierAnimationBank::MELEE;
+    mWeaponAnim = SoldierAnimationBank::GetWeaponRoot(SoldierAnimationBank::GetMapWeapon(eMap)) ==
+                      SoldierAnimationBank::MELEE ? SoldierAnimType::WEAPON_MELEE : SoldierAnimType::WEAPON_IDLE;
     mWeaponMeleeAnim = NO_MELEE_ANIM;
     mWeaponMeleeAnimNext = NO_MELEE_ANIM;
     m_fAlertTimer = 0.0f;
     m_fAlertBlendDuration = 0.5f;
-    mWeaponAnim = bMelee ? SoldierAnimType::WEAPON_MELEE : SoldierAnimType::WEAPON_IDLE;
     m_bAlert = false;
     m_bRestartWeaponAnim = false;
     m_bAnimControlledMove = false;
@@ -751,9 +742,7 @@ void SoldierAnimator::SetWeaponComboState(int eState, bool bRestart, unsigned ch
 // FUNCTION: SWBF2 0x0063fa70
 void SoldierAnimator::SetAimDirection(const PblVector3& aimDir)
 {
-    PblVector3 vDir;
-    D3DXVec3Normalize(&vDir, &aimDir);
-    mAimDir = vDir;
+    mAimDir = Normalize(aimDir);
 }
 
 // FUNCTION: SWBF2 0x0063faa0
@@ -831,7 +820,7 @@ void SoldierAnimator::SetupPose(RedPose& pose)
                 overlayPose.SetAnimation(pOverlayAnim, 30.0f);
                 mZephyrPoseStatic.Blend(overlayPose, mUpperBodyAnimMask, fOverlayBlend);
             }
-            mZephyrSkeleton.BuildWorldMatrices(_IdentityMatrix);
+            mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity);
         }
         pose.ConvertFromZephyrPose(mZephyrSkeleton);
         return;
@@ -1123,22 +1112,22 @@ inline PblMatrix& RotateJointWorldMatrix(ZephyrSkeleton<32>& kSkel, int iJoint, 
 {
     PblMatrix mRotate;
     PblMatrix mTemp;
-    D3DXMatrixRotationY(&mRotate, fYaw);
-    D3DXMatrixMultiply(&mRotate, &mRotate, D3DXMatrixRotationX(&mTemp, fPitch));
-    kSkel.BuildWorldMatrices(_IdentityMatrix, iJoint, kDirty);
+    D3DXMatrixRotationY(reinterpret_cast<D3DXMATRIX*>(&mRotate), fYaw);
+    D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mRotate), reinterpret_cast<const D3DXMATRIX*>(&mRotate), D3DXMatrixRotationX(reinterpret_cast<D3DXMATRIX*>(&mTemp), fPitch));
+    kSkel.BuildWorldMatrices(gMatrixIdentity, iJoint, kDirty);
 
     PblMatrix& mWorld = kSkel.m_pWorldMatrices[iJoint];
     PblVector3 vOrigin;
     if (pParent)
     {
-        const ZephyrTransform& kBase = *(const ZephyrTransform*)kSkel.m_pShared->m_pJoints[iJoint].m_kBaseTransform;
-        D3DXVec3TransformCoord(&vOrigin, &kBase.kTrans, pParent);
+        const ZephyrTransform& kBase = kSkel.m_pShared->m_pJoints[iJoint].m_kBaseTransform;
+        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vOrigin), reinterpret_cast<const D3DXVECTOR3*>(&kBase.kTrans), reinterpret_cast<const D3DXMATRIX*>(pParent));
     }
     else
     {
         vOrigin = mWorld.GetTranslation();
     }
-    D3DXMatrixMultiply(&mTemp, &mWorld, &mRotate);
+    D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mTemp), reinterpret_cast<const D3DXMATRIX*>(&mWorld), reinterpret_cast<const D3DXMATRIX*>(&mRotate));
     mWorld = mTemp;
     mWorld.m[3][0] = vOrigin.x;
     mWorld.m[3][1] = vOrigin.y;
@@ -1153,7 +1142,7 @@ void SoldierAnimator::ApplyProceduralAnimationAndBuildWorldMatrices(float fDelta
 {
     if (!(m_uiAimState & 0x33))
     {
-        mZephyrSkeleton.BuildWorldMatrices(_IdentityMatrix);
+        mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity);
         return;
     }
 
@@ -1167,7 +1156,7 @@ void SoldierAnimator::ApplyProceduralAnimationAndBuildWorldMatrices(float fDelta
         m_uiAimState &= ~0x30;
         if (!(m_uiAimState & 0x33))
         {
-            mZephyrSkeleton.BuildWorldMatrices(_IdentityMatrix);
+            mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity);
             return;
         }
         fBlend = 1.0f;
@@ -1300,7 +1289,7 @@ void SoldierAnimator::ApplyProceduralAnimationAndBuildWorldMatrices(float fDelta
         }
     }
 
-    mZephyrSkeleton.BuildWorldMatrices(_IdentityMatrix, kDirty);
+    mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity, kDirty);
 }
 
 // FUNCTION: SWBF2 0x00640860
@@ -1441,13 +1430,13 @@ bool SoldierAnimator::UpdateActionAnimation(SoldierAnimType::ActionAnimation eAc
         PblVector3 vAxis;
         if (vTravel.x * vTravel.x + vTravel.y * vTravel.y + vTravel.z * vTravel.z > 0.0001f)
         {
-            D3DXVec3Normalize(&vAxis, &vTravel);
+            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vAxis), reinterpret_cast<const D3DXVECTOR3*>(&vTravel));
         }
         else
         {
             vAxis = PblVector3(1.0f, 0.0f, 0.0f);
         }
-        mZephyrPoseStatic.m_pJoints[uiRoot].kQuat = PblQuaternion_FromAxisAngle(vAxis, mRotAngle);
+        mZephyrPoseStatic.m_pJoints[uiRoot].kQuat = PblQuaternion(vAxis, mRotAngle);
     }
     return bFinished;
 }
@@ -1522,8 +1511,10 @@ void SoldierAnimator::UpdateMovementAnimation(float fDeltaTime, const ZephyrAnim
                 if (eMove <= SoldierAnimType::IDLE_LOOK_AROUND)
                 {
 
+                    // GLOBAL: SWBF2 0x01faa738
                     static const float sTurnLeftLimit[SoldierAnimType::NUM_STANDARD_POSTURES] = {
                         PblMath::fHalfPi * 0.25f, PblMath::fHalfPi * 0.25f, PblMath::fHalfPi * 0.3f };
+                    // GLOBAL: SWBF2 0x01faa744
                     static const float sTurnRightLimit[SoldierAnimType::NUM_STANDARD_POSTURES] = {
                         PblMath::fHalfPi * -0.45f, PblMath::fHalfPi * -0.45f, PblMath::fHalfPi * -0.3f };
                     if (fLegAngle > sTurnLeftLimit[mPosture])
@@ -2238,11 +2229,11 @@ float SoldierAnimator::CalculateBlendFactorDelta(float fPrevFactor, float fFacto
     {
         return 0.0f;
     }
-    if (fPrevFactor > 0.0f)
+    if (fPrevFactor <= 0.0f)
     {
-        return (fFactor - fPrevFactor) / (1.0f - fPrevFactor);
+        return fFactor;
     }
-    return fFactor;
+    return (fFactor - fPrevFactor) / (1.0f - fPrevFactor);
 }
 
 // FUNCTION: SWBF2 0x006426e0
@@ -2266,8 +2257,9 @@ float SoldierAnimator::GetLowerBodyBlendFactor()
 // FUNCTION: SWBF2 0x00642760
 void SoldierAnimator::RotateLowerBody(float fAngle)
 {
+    // GLOBAL: SWBF2 0x01fac1f0
     static unsigned short uiRoot = (unsigned short)mZephyrSkeleton.m_pShared->GetJointIdxByCrc(0x4446e9b8);
-    mZephyrPoseStatic.m_pJoints[uiRoot].kQuat = PblQuaternion_FromAxisAngle(PblVector3(0.0f, 1.0f, 0.0f), fAngle);
+    mZephyrPoseStatic.m_pJoints[uiRoot].kQuat = PblQuaternion(PblVector3(0.0f, 1.0f, 0.0f), fAngle);
 }
 
 // FUNCTION: SWBF2 0x00643470
@@ -2357,25 +2349,6 @@ void SoldierAnimator::SetAlert(bool bAlert)
 // FUNCTION: SWBF2 0x00643650
 void SoldierAnimation::SetVelocity(float fVelocityX, float fVelocityZ)
 {
-    float fX = fVelocityX * 100.0f + 16383.0f + 0.5f;
-    if (fX < 0.0f)
-    {
-        fX = 0.0f;
-    }
-    else if (fX > 32767.0f)
-    {
-        fX = 32767.0f;
-    }
-    m_iVelocityX = (int)fX - 16383;
-
-    float fZ = fVelocityZ * 100.0f + 16383.0f + 0.5f;
-    if (fZ < 0.0f)
-    {
-        fZ = 0.0f;
-    }
-    else if (fZ > 32767.0f)
-    {
-        fZ = 32767.0f;
-    }
-    m_iVelocityZ = (int)fZ - 16383;
+    m_iVelocityX = (int)Clamp(fVelocityX * 100.0f + 16383.0f + 0.5f, 0.0f, 32767.0f) - 16383;
+    m_iVelocityZ = (int)Clamp(fVelocityZ * 100.0f + 16383.0f + 0.5f, 0.0f, 32767.0f) - 16383;
 }

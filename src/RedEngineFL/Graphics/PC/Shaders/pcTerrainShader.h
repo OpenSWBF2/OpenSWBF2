@@ -1,9 +1,9 @@
 #pragma once
 
 #include <stddef.h>
+#include "PebbleFL/Common/PblVector.h"
 #include "RedEngineFL/Graphics/PC/pcRedShader.h"
 
-class PblVector4;
 class PblMatrix;
 class RedTexture;
 

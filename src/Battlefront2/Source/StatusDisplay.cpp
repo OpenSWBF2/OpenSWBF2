@@ -36,7 +36,10 @@ namespace GameVoiceChat
 class Transport;
 Transport* GetTransport();
 }
-namespace FriendBuddyList { bool __fastcall IsFriendBuddy(int iPlayer); }
+namespace FriendBuddyList
+{
+    bool __fastcall IsFriendBuddy(int ignored, int iPlayer);
+}
 
 extern int gDebugCount;
 
@@ -49,13 +52,17 @@ StatusDisplay* StatusDisplay::sInstance[1];
 // GLOBAL: SWBF2 0x01eafb41
 bool StatusDisplay::mDisable;
 
-// GLOBAL: SWBF2 0x01f6dd94
 // SYNTHETIC: SWBF2 0x00406470
 // `dynamic initializer for 'SquadCommandGroup::sRelativeX''
+
+// GLOBAL: SWBF2 0x01f6dd94
+// SquadCommandGroup::sRelativeX
 float SquadCommandGroup::sRelativeX = RedInterfaceScreen::RIGHT;
-// GLOBAL: SWBF2 0x01f6de98
 // SYNTHETIC: SWBF2 0x00406490
 // `dynamic initializer for 'SquadCommandGroup::sRelativeY''
+
+// GLOBAL: SWBF2 0x01f6de98
+// SquadCommandGroup::sRelativeY
 float SquadCommandGroup::sRelativeY = RedInterfaceScreen::BOTTOM;
 
 float SquadCommandGroup::sFadeSpeed = 0.5f;
@@ -189,7 +196,7 @@ unsigned short* SquadCommandGroup::sCommands[4][4];
 // FUNCTION: SWBF2 0x00650c20
 void SquadCommandGroup::Create()
 {
-    for (int i = 0; i < 4; ++i)
+    for (unsigned int i = 0; i < 4; ++i)
     {
         for (unsigned int j = 0; j < 4; ++j)
         {
@@ -477,7 +484,7 @@ void VoiceChatGroup::UpdateLines()
     int iLocal = NetGame::GetLocalIndex(mParent->mJoystickIndex);
     Character* pLocal = Character::FindPlayer(iLocal);
 
-    for (int i = 0; i < 4; ++i)
+    for (unsigned int i = 0; i < 4; ++i)
     {
         Line& line = mLines[i];
         if (line.mId < 0)
@@ -660,19 +667,17 @@ bool StatusDisplay::Update(float fDeltaTime)
     return true;
 }
 
-// FUNCTION: SWBF2 0x006509c0
-DamageArrowGroup::Arrow::Arrow()
-{
-}
 
 // FUNCTION: SWBF2 0x00650e60
 SquadCommandGroup::Command::Command()
 {
 }
 
-// GLOBAL: SWBF2 0x007ec2d0
 // SYNTHETIC: SWBF2 0x00406400
 // `dynamic initializer for 'DamageArrowGroup::sData''
+
+// GLOBAL: SWBF2 0x007ec2d0
+// DamageArrowGroup::sData
 DamageArrowGroup::Data DamageArrowGroup::sData[4] =
 {
     { RedInterfaceScreen::RIGHT, RedInterfaceScreen::CENTER, 0.0f, 0.0f, -PblMath::fHalfPi },
@@ -684,10 +689,12 @@ DamageArrowGroup::Data DamageArrowGroup::sData[4] =
 extern RedColor gFriendColor;
 extern RedColor gEnemyColor;
 
-// GLOBAL: SWBF2 0x007ec388
 
 // SYNTHETIC: SWBF2 0x00406940
 // `dynamic initializer for 'gVoiceChatTeamColors''
+
+// GLOBAL: SWBF2 0x007ec388
+// gVoiceChatTeamColors
 RedColor gVoiceChatTeamColors[2] = { gFriendColor, gEnemyColor };
 
 // GLOBAL: SWBF2 0x007ec390, BGRA bytes CA F9 10 FF.

@@ -1,6 +1,5 @@
 #include <windows.h>
 #include <string.h>
-#include <new>
 
 #include "sndstreamdsdmo.h"
 
@@ -9,7 +8,11 @@
 #include "sndengine.h"
 #include "sndsoftoutput.h"
 
-namespace Snd {
+// GLOBAL: SWBF2 0x007e3be4
+// kStandardEffects
+
+namespace Snd
+{
 }
 
 namespace Snd
@@ -55,7 +58,7 @@ bool StreamDSDMO::CreateDMO(const _GUID& rCLSID, const StreamFormat& rIn,
             mInputFrameSize = uiInputFrameSize;
 
             unsigned int uiMinSize = ulSize;
-            for (int i = 0; i < 9; ++i)
+            for (unsigned int i = 0; i < 9; ++i)
             {
                 if (rCLSID.Data1 != kStandardEffects[i]->Data1)
                 {
@@ -103,10 +106,7 @@ unsigned int StreamDSDMO::GetMinInputSize() const
     return mMinSize;
 }
 
-struct StreamNodeUpdateAccess : public StreamNode
-{
-    using StreamNode::UpdateNode;
-};
+
 
  
 
@@ -116,9 +116,8 @@ void StreamDSDMO::Update()
 
     StreamPacketIO* const pInputIO = &mInputPacket;
     StreamPacketIOLite* const pOutputIO = &mOutputPacket;
-    StreamNodeUpdateAccess* const pNode = (StreamNodeUpdateAccess*)&mNode;
 
-    if (pNode->UpdateNode(true))
+    if (StreamNode::UpdateNode(true))
     {
         pInputIO->Flush();
         pOutputIO->Reset();
@@ -127,7 +126,7 @@ void StreamDSDMO::Update()
         mFlags = 0;
     }
 
-    if (pNode->GetCurrentPlayState() == SourceTransport::playState_stopped)
+    if (StreamNode::GetCurrentPlayState() == SourceTransport::playState_stopped)
     {
         return;
     }
@@ -152,12 +151,12 @@ void StreamDSDMO::Update()
         if (pInPacket == 0)
         {
 
-            StreamNodeSource* const pInputNode = mSink.mConnection.mInputNode;
+            StreamNodeSource* const pInputNode = StreamNodeSink::mConnection.mInputNode;
             if (pInputNode != 0)
             {
                 typedef StreamPacket* (__thiscall* GetPacketFn)(
                     StreamNodeSource* pThis, unsigned int uiOutput);
-                pInPacket = pInputNode->GetPacket(mSink.mConnection.mInputNodeOutputIndex);
+                pInPacket = pInputNode->GetPacket(StreamNodeSink::mConnection.mInputNodeOutputIndex);
             }
             else
             {
@@ -268,7 +267,7 @@ void StreamDSDMO::Update()
             }
         }
 
-        const unsigned int uiPacketSize = mPacketSize;
+        const unsigned int uiPacketSize = GetPacketSize();
         const unsigned int uiOutLeft =
             pOutputIO->GetDataLeft(uiPacketSize);
         void* const pOutData = pOutputIO->GetData(pOutPacket);
@@ -312,7 +311,7 @@ void StreamDSDMO::Update()
         if (bProduced)
         {
 
-            const unsigned int uiPos = pNode->mPlaybackPosition;
+            const unsigned int uiPos = StreamNode::mPlaybackPosition;
             const unsigned int uiBytes = pOutputIO->GetOffset();
 
             const unsigned int uiFrames = uiBytes / mAudioFrameSize;
@@ -331,7 +330,7 @@ void StreamDSDMO::Update()
             PacketComplete(pOutPacket, uiBytes, uiFrames, bFlagBit0, bFlagBit1,
                            uiPos);
 
-            pNode->mPlaybackPosition = uiPos + uiFrames;
+            StreamNode::mPlaybackPosition = uiPos + uiFrames;
             pOutputIO->Reset();
         }
 
@@ -348,6 +347,7 @@ void StreamDSDMO::Update()
     }
 }
 
+
 // FUNCTION: SWBF2 0x0074da70
 StreamPacket* StreamDSDMO::GetPacket(unsigned int uiOutput)
 {
@@ -358,16 +358,12 @@ StreamPacket* StreamDSDMO::GetPacket(unsigned int uiOutput)
     {
         Update();
         pPacket = StreamSourceProducer::GetPacket(uiOutput);
-        if (pPacket == 0)
-        {
-            return 0;
-        }
     }
 
-    if ((pPacket->mFlags & 0x01) != 0)
+    if (pPacket != 0 && (pPacket->mFlags & 0x01) != 0)
     {
 
-        mNode.Stop();
+        StreamNode::Stop();
     }
 
     return pPacket;
@@ -424,7 +420,8 @@ void StreamDSDMO::SetInputBuffer(void* pBuffer, unsigned int uiSize)
 
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x0074d6e0
 StreamDSDMO::StreamDSDMO()
@@ -434,12 +431,12 @@ StreamDSDMO::StreamDSDMO()
       mInputFrameSize(0),
       mFlags(0)
 {
-    mSink.mConnection.mInputNode = 0;
-    mSink.mConnection.mInputNodeOutputIndex = 0;
+
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x0074d7a0
 StreamDSDMO::~StreamDSDMO()

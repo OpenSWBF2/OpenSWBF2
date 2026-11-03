@@ -26,18 +26,10 @@ pcRedShader::RenderFuncT pcZPrepassShader::RenderFuncArray[MAX_PIPELINES];
 // FUNCTION: SWBF2 0x00702390
 pcZPrepassShader::pcZPrepassShader()
 {
-    GetStateFuncArray[PIPELINE_FIXED] = 0;
-    GetStateFuncArray[PIPELINE_PROG1] = 0;
-    GetStateFuncArray[PIPELINE_PROG2] = 0;
-    BeginFuncArray[PIPELINE_FIXED] = 0;
-    BeginFuncArray[PIPELINE_PROG1] = 0;
-    BeginFuncArray[PIPELINE_PROG2] = 0;
-    EndFuncArray[PIPELINE_FIXED] = 0;
-    EndFuncArray[PIPELINE_PROG1] = 0;
-    EndFuncArray[PIPELINE_PROG2] = 0;
-    RenderFuncArray[PIPELINE_FIXED] = 0;
-    RenderFuncArray[PIPELINE_PROG1] = 0;
-    RenderFuncArray[PIPELINE_PROG2] = 0;
+    memset(GetStateFuncArray, 0, sizeof(GetStateFuncArray));
+    memset(BeginFuncArray, 0, sizeof(BeginFuncArray));
+    memset(EndFuncArray, 0, sizeof(EndFuncArray));
+    memset(RenderFuncArray, 0, sizeof(RenderFuncArray));
 
     s_uiID = _Register(s_uiRenderTypeHash, this);
 
@@ -173,17 +165,17 @@ unsigned int pcZPrepassShader::GetState_Prog1(const RenderItem*) const
     return m_material.diffuseMapHash != 0;
 }
 
-// GLOBAL: SWBF2 0x00784828
-static const pcRedShaderDef::FixedFunctionStateT kFixedFunctionStates[2] =
-{
-    { 1, { 0x21, 0x00, 0x00, 0x00 } },
-    { 1, { 0x21, 0x00, 0x00, 0x00 } },
-};
-
 // FUNCTION: SWBF2 0x007027d0
 void pcZPrepassShader::InitFixedFunctionShaderDef() const
 {
-    GetShaderDef()->InitFixedFunction(0x28, 2, kFixedFunctionStates);
+    // GLOBAL: SWBF2 0x00784828
+    static const pcRedShaderDef::FixedFunctionStateT aFFStates[2] =
+    {
+        { 1, { 0x21, 0x00, 0x00, 0x00 } },
+        { 1, { 0x21, 0x00, 0x00, 0x00 } },
+    };
+
+    GetShaderDef()->InitFixedFunction(0x28, 2, aFFStates);
 }
 
 // FUNCTION: SWBF2 0x007027f0
@@ -364,10 +356,11 @@ pcZPrepassShader pcZPrepassShader::s_Factory;
 pcRedShaderDef pcZPrepassShader::s_shaderDef("zprepass_shader.xml");
 
 // SYNTHETIC: SWBF2 0x00409990
-// `dynamic initializer for 'PblMath::fOneOverTwoPi''
+// PblMath::`dynamic initializer for 'fOneOverTwoPi''
 
 // SYNTHETIC: SWBF2 0x00409970
-// `dynamic initializer for 'PblMath::fOneOverHalfPi''
+// PblMath::`dynamic initializer for 'fOneOverHalfPi''
 
 // GLOBAL: SWBF2 0x009c95dc
+// g_pcZPrepassShader
 unsigned int g_pcZPrepassShader;

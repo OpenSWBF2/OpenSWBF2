@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "LockOnManager.h"
 #include "CameraManager.h"
 #include "Character.h"
@@ -27,7 +28,7 @@
 #include "MountedTurret.h"
 #include <float.h>
 #include "CollisionManager.h"
-#include "PebbleFL/pc/PblD3DX.h"
+
 
 // GLOBAL: SWBF2 0x01e573f8
 unsigned int LockOnManager::sNumLockOnManagers;
@@ -35,11 +36,13 @@ unsigned int LockOnManager::sNumLockOnManagers;
 // GLOBAL: SWBF2 0x01e57400
 LockOnManager* LockOnManager::sLockOnManagers[4];
 
-// GLOBAL: SWBF2 0x01ec7d30
 // SYNTHETIC: SWBF2 0x00404180
 // `dynamic initializer for 'LockOnManager::sTargetLockSound''
 // SYNTHETIC: SWBF2 0x00768c80
 // `dynamic atexit destructor for 'LockOnManager::sTargetLockSound''
+
+// GLOBAL: SWBF2 0x01ec7d30
+// LockOnManager::sTargetLockSound
 GameSound LockOnManager::sTargetLockSound;
 
 static inline void ClearHandle(PblHandle<GameObject>& handle)
@@ -52,10 +55,6 @@ static inline void ClearHandle(PblHandle<GameObject>& handle)
 LockOnManager::LockOnManager(int iPlayerIndex)
     : mPlayerIndex(iPlayerIndex), mPlayerCharacter(0)
 {
-    ClearHandle(mNewAttacker);
-    ClearHandle(mLockedObj);
-    ClearHandle(mForceNewLockTarget);
-
     mPlayerCharacter = Character::FindPlayer(NetGame::GetLocalIndex(mPlayerIndex));
 
     ClearHandle(mNewAttacker);
@@ -146,9 +145,7 @@ void LockOnManager::SetDisplayIconsOnEverything(bool bEverything)
             mTargetPlayer[i].SetObj(0, &mTargetPlayerInfo[i]);
             if (mPlayerIndex >= 0)
             {
-                HUD::Event event;
-                event.mClass = HUD::GameEvents::gPlayerEvents[mPlayerIndex].targetResetPlayer;
-                event.mData.uintValue = i;
+                HUD::Event event(HUD::GameEvents::gPlayerEvents[mPlayerIndex].targetResetPlayer, i);
                 event.Send();
             }
         }
@@ -171,7 +168,7 @@ void LockOnManager::CreateAll()
     {
         new LockOnManager(i);
     }
-    for (int i = 0; i < 32; i++)
+    for (unsigned int i = 0; i < 32; i++)
     {
         sTargetCommon[i].obj = 0;
         sTargetCommon[i].teamMask = 0;
@@ -212,7 +209,7 @@ void LockOnManager::Update(float fDeltaTime)
         }
         if (mNewNumAttackerTargets != mNumAttackerTargets || mNewNumNearestTargets != mNumNearestTargets)
         {
-            for (int i = 0; i < 64; i++)
+            for (unsigned int i = 0; i < 64; i++)
             {
                 mTargetPlayer[i].SetObj(0, &mTargetPlayerInfo[i]);
                 mTargetPlayerInfo[i].Clean();
@@ -239,12 +236,12 @@ void LockOnManager::Update(float fDeltaTime)
     unsigned int uChanged = 0;
     if (mTargetVisibilityUpdate && pCtrl)
     {
-        for (int i = 0; i < 64; i++)
+        for (unsigned int i = 0; i < 64; i++)
         {
             UpdateTargetVisibility(pCtrl, pCamera, vEye, mTargetPlayer[i], mTargetPlayerInfo[i], false, uTeamMask,
                                    bOffFrame, uChanged);
         }
-        for (int i = 0; i < 32; i++)
+        for (unsigned int i = 0; i < 32; i++)
         {
             UpdateTargetVisibility(pCtrl, pCamera, vEye, sTargetCommon[i], mTargetCommonInfo[i], true, uTeamMask,
                                    bOffFrame, uChanged);
@@ -279,14 +276,17 @@ void LockOnManager::UpdateAll(float fDeltaTime)
 }
 
 extern bool netFrameLock;
-namespace GameLoop { extern bool mbHistoricalRules; }
+namespace GameLoop
+{
+extern bool mbHistoricalRules;
+}
 
 // FUNCTION: SWBF2 0x0057b430
 void LockOnManager::CalculateScreenCoordinates(Controllable* const pCtrl, RedCamera* const pCamera, const PblVector3* pPos, float* pScreenX, float* pScreenY, bool* pOffScreen, bool bAimRay)
 {
     LockOnManager* pThis = (LockOnManager*)this;
     PblVector3 vCamera;
-    D3DXVec3TransformCoord(&vCamera, pPos, &pCamera->GetMatrixInverse());
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vCamera), reinterpret_cast<const D3DXVECTOR3*>(pPos), reinterpret_cast<const D3DXMATRIX*>(&pCamera->GetMatrixInverse()));
     const PblVector3 vProjected = pCamera->TransformCameraPointToProjectionSpace(vCamera);
 
     PblVector3 vToTarget;
@@ -305,7 +305,7 @@ void LockOnManager::CalculateScreenCoordinates(Controllable* const pCtrl, RedCam
                                pPos->y - pCtrl->mEyePoint.y, pPos->z - pCtrl->mEyePoint.z);
     }
 
-    D3DXVec3Normalize(&vToTarget, &vToTarget);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vToTarget), reinterpret_cast<const D3DXVECTOR3*>(&vToTarget));
     const float fDot = vForward.x * vToTarget.x + vForward.y * vToTarget.y +
                        vForward.z * vToTarget.z;
 
@@ -370,7 +370,7 @@ void LockOnManager::UpdateTargetVisibility(Controllable* const pCtrl, RedCamera*
     {
         if (const PblMatrix* pBone = pPose->Find(0x3483A489u))
         {
-            D3DXVec3TransformCoord(&vPos, (const PblVector3*)pBone->m[3], &pObject->GetMatrix());
+            D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vPos), reinterpret_cast<const D3DXVECTOR3*>((const PblVector3*)pBone->m[3]), reinterpret_cast<const D3DXMATRIX*>(&pObject->GetMatrix()));
         }
     }
     else if (const GameModel* pModel = pObject->GetModel())
@@ -378,7 +378,7 @@ void LockOnManager::UpdateTargetVisibility(Controllable* const pCtrl, RedCamera*
         PblMatrix mBone;
         if (pModel->GetRedModel(0) && pModel->GetRedModel(0)->GetBoneMatrix(0x3483A489u, mBone))
         {
-            D3DXVec3TransformCoord(&vPos, (const PblVector3*)mBone.m[3], &pObject->GetMatrix());
+            D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vPos), reinterpret_cast<const D3DXVECTOR3*>((const PblVector3*)mBone.m[3]), reinterpret_cast<const D3DXMATRIX*>(&pObject->GetMatrix()));
         }
     }
 
@@ -386,7 +386,7 @@ void LockOnManager::UpdateTargetVisibility(Controllable* const pCtrl, RedCamera*
     if (bCommon)
     {
         PblVector3 vUp(0.0f, 1.3f, 0.0f);
-        D3DXVec3TransformNormal(&vLift, &vUp, &pObject->GetMatrix());
+        D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vLift), reinterpret_cast<const D3DXVECTOR3*>(&vUp), reinterpret_cast<const D3DXMATRIX*>(&pObject->GetMatrix()));
     }
     else if (rInfo.mLocked)
     {
@@ -404,7 +404,7 @@ void LockOnManager::UpdateTargetVisibility(Controllable* const pCtrl, RedCamera*
             float fUp = pObject->GetCollisionRadius() * 0.7f;
             vUp = PblVector3(0.0f, 4.0f > fUp ? fUp : 4.0f, 0.0f);
         }
-        D3DXVec3TransformNormal(&vLift, &vUp, &pObject->GetMatrix());
+        D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vLift), reinterpret_cast<const D3DXVECTOR3*>(&vUp), reinterpret_cast<const D3DXMATRIX*>(&pObject->GetMatrix()));
     }
 
     float fDist = sqrtf((vPos.y - vEye.y) * (vPos.y - vEye.y) + (vPos.x - vEye.x) * (vPos.x - vEye.x) +
@@ -501,7 +501,7 @@ void LockOnManager::SetLockedTarget(GameObject* const pObject, TargetInfo* const
     if (pObject)
     {
         sTargetLockSound.Play(0, 0, false, true);
-        for (int i = 0; i < 64; ++i)
+        for (unsigned int i = 0; i < 64; ++i)
         {
             mTargetPlayerInfo[i].mLocked = (pInfo == &mTargetPlayerInfo[i]);
         }
@@ -524,9 +524,10 @@ void LockOnManager::RemoveTargetLock()
     TargetInfo* pInfo = 0;
     for (unsigned int i = 0; i < 64; i++)
     {
-        if ((GameObject*)mLockedObj == (GameObject*)mTargetPlayer[i].obj)
+        Target& target = mTargetPlayer[i];
+        if (target.obj == (GameObject*)mLockedObj)
         {
-            mTargetPlayer[i].SetObj(0, 0);
+            target.SetObj(0, 0);
             pInfo = &mTargetPlayerInfo[i];
             pInfo->Clean();
             break;
@@ -538,14 +539,15 @@ void LockOnManager::RemoveTargetLock()
 }
 
 // FUNCTION: SWBF2 0x0057db80
-LockOnManager::Target* LockOnManager::FindTargetByGameObject(Target* const pTargets, unsigned int uNumTargets,
+LockOnManager::Target* LockOnManager::FindTargetByGameObject(Target* const pTargets, const unsigned int uNumTargets,
                                                              const GameObject* const pObject)
 {
     for (unsigned int i = 0; i < uNumTargets; ++i)
     {
-        if ((GameObject*)pTargets[i].obj == pObject)
+        Target* const target = &pTargets[i];
+        if (pObject == (GameObject*)target->obj)
         {
-            return &pTargets[i];
+            return target;
         }
     }
     return 0;
@@ -674,6 +676,7 @@ bool LockOnManager::IsTargetObjectTypeAllowed(GameObject* gameObject, GameObject
     }
     return typeAllowed;
 }
+
 
 // FUNCTION: SWBF2 0x0057be70
 void LockOnManager::SetupNearestTargets(Controllable* const playerControllable, GameObject* const playerObject,
@@ -896,7 +899,7 @@ void LockOnManager::SetupNearestTargets(Controllable* const playerControllable, 
                 else
                 {
                     PblVector3 direction;
-                    D3DXVec3Normalize(&direction, &toTargetVector);
+                    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&direction), reinterpret_cast<const D3DXVECTOR3*>(&toTargetVector));
                     dot = direction.x * playerControllable->mEyeDir.x + direction.y * playerControllable->mEyeDir.y +
                           direction.z * playerControllable->mEyeDir.z;
                 }
@@ -1069,7 +1072,7 @@ void LockOnManager::SetupNearestTargets(Controllable* const playerControllable, 
                                                         targetPos.y - playerControllable->mEyePoint.y,
                                                         targetPos.z - playerControllable->mEyePoint.z);
                                     PblVector3 direction;
-                                    D3DXVec3Normalize(&direction, &toTarget);
+                                    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&direction), reinterpret_cast<const D3DXVECTOR3*>(&toTarget));
                                     dot = direction.x * playerControllable->mEyeDir.x +
                                           direction.y * playerControllable->mEyeDir.y +
                                           direction.z * playerControllable->mEyeDir.z;
@@ -1145,9 +1148,7 @@ void LockOnManager::SetupNearestTargets(Controllable* const playerControllable, 
                     if (mPlayerIndex >= 0)
                     {
 
-                        HUD::Event resetTargetPlayer;
-                        resetTargetPlayer.mClass = HUD::GameEvents::gPlayerEvents[mPlayerIndex].targetResetPlayer;
-                        resetTargetPlayer.mData.uintValue = i;
+                        HUD::Event resetTargetPlayer(HUD::GameEvents::gPlayerEvents[mPlayerIndex].targetResetPlayer, i);
                         resetTargetPlayer.Send();
                     }
 
@@ -1192,7 +1193,7 @@ bool LockOnManager::TargetHistory::Check(GameObject* const pObject) const
 {
     for (unsigned int i = 0; i < mCount; ++i)
     {
-        if ((GameObject*)mHistory[i] == pObject)
+        if (pObject == (GameObject*)mHistory[i])
         {
             return true;
         }
@@ -1243,38 +1244,39 @@ void LockOnManager::DestroyAll()
 }
 
 // FUNCTION: SWBF2 0x0057db10
-void LockOnManager::RemoveTargetCommon(GameObject* pActor, unsigned int uTeamMask)
+void LockOnManager::RemoveTargetCommon(GameObject* const pActor, unsigned int uTeamMask)
 {
+    unsigned int teamMaskLeft = uTeamMask;
     for (unsigned int i = 0; i < 32; ++i)
     {
         LockOnManager::Target& target = LockOnManager::sTargetCommon[i];
-        if ((GameObject*)target.obj != pActor)
+        if (!(target.obj == pActor))
         {
             continue;
         }
-        const unsigned int uTaken = target.teamMask & uTeamMask;
-        if (!uTaken)
+        unsigned int turnOff = target.teamMask & teamMaskLeft;
+        if (!turnOff)
         {
             continue;
         }
-        uTeamMask &= ~uTaken;
-        target.teamMask &= ~uTaken;
+        teamMaskLeft &= ~turnOff;
+        target.teamMask &= ~turnOff;
         if (!target.teamMask)
         {
-            target.obj.mObject = 0;
-            target.obj.mSavedHandleId = 0;
-            target.teamMask = 0;
+            target.SetObj(0, 0);
         }
-        if (!uTeamMask)
+        if (!teamMaskLeft)
         {
             break;
         }
     }
 }
 
-// GLOBAL: SWBF2 0x01ec7d50
 // SYNTHETIC: SWBF2 0x004041a0
 // `dynamic initializer for 'LockOnManager::sTargetCommon''
 // SYNTHETIC: SWBF2 0x00768c90
 // `dynamic atexit destructor for 'LockOnManager::sTargetCommon''
+
+// GLOBAL: SWBF2 0x01ec7d50
+// LockOnManager::sTargetCommon
 LockOnManager::Target LockOnManager::sTargetCommon[32];

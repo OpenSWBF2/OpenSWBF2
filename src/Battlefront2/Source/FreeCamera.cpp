@@ -58,7 +58,8 @@ static bool sResetFollowPosition;
 
 static bool sResetFollowRotation;
 
-namespace AIDebug {
+namespace AIDebug
+{
 
 // FUNCTION: SWBF2 0x00438670
 bool AllowUpdateFreeCamSpeeds()
@@ -69,15 +70,10 @@ bool AllowUpdateFreeCamSpeeds()
 
 // FUNCTION: SWBF2 0x0052d650
 FreeCamera::FreeCamera(CameraManager* pManager, int iView)
-    : GameCamera(pManager, iView)
+    : GameCamera(pManager, iView),
+      mPitch(0.0f), mYaw(0.0f), mMultiplier(1.0f), mTurnMultiplier(1.0f),
+      mButtonFasterDown(false), mButtonSlowerDown(false), mVelocity(gVectorZero)
 {
-    mPitch = 0.0f;
-    mYaw = 0.0f;
-    mMultiplier = 1.0f;
-    mTurnMultiplier = 1.0f;
-    mButtonFasterDown = false;
-    mButtonSlowerDown = false;
-    mVelocity = gVectorZero;
     mMatrix.Reset();
 }
 
@@ -107,6 +103,7 @@ PblMatrix FreeCamera::GetMatrix() const
 // FUNCTION: SWBF2 0x0052d7b0
 void FreeCamera::Update(float fDeltaTime)
 {
+    // GLOBAL: SWBF2 0x01faa97c
     static PblVector3 sTetherOffset;
 
     GUIInputs* pGuiInputs = FLInputManager::s_instance.GetPlayerGuiInputs(mView);
@@ -282,9 +279,9 @@ void FreeCamera::UpdateOrientation(const ProcessedInputs& rInputs, float fDeltaT
     mYaw -= fTurn * pJoystick->GetMouseX();
     mPitch -= fTurn * fMouseY;
 
-    D3DXMATRIX mRot, mRotY;
-    D3DXMatrixRotationX(&mRot, mPitch);
-    D3DXMatrixMultiply(&mRot, &mRot, D3DXMatrixRotationY(&mRotY, mYaw));
+    PblMatrix mRot;
+    mRot.SetRotateX(mPitch);
+    mRot.RotateY(mYaw);
 
     for (int i = 0; i < 3; i++)
     {
@@ -305,7 +302,7 @@ void FreeCamera::UpdateTranslation(const ProcessedInputs& rInputs, float fDeltaT
                       (float)iHeight * sHeightScale,
                       -rInputs.GetMoveAxis() * sMoveScale);
 
-    D3DXMATRIX mRotY;
+    PblMatrix mRotY;
     const D3DXMATRIX* pMatrix;
     if (sQuakeControl)
     {
@@ -313,7 +310,8 @@ void FreeCamera::UpdateTranslation(const ProcessedInputs& rInputs, float fDeltaT
     }
     else
     {
-        pMatrix = D3DXMatrixRotationY(&mRotY, mYaw);
+        mRotY.SetRotateY(mYaw);
+        pMatrix = reinterpret_cast<const D3DXMATRIX*>(&mRotY);
     }
 
     D3DXVECTOR3 vOut;

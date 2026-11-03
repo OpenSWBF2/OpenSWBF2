@@ -14,9 +14,21 @@
 #include "PebbleFL/Common/PblUnicode.h"
 #include "SoundFL/source/sndbus.h"
 
-namespace PopupText { extern void DisablePopup(); }
-namespace PopupText { void __fastcall ShowPopup(int iType, unsigned int uTextId); }
-namespace HUD { namespace GameEvents { extern void DisableAllForObjectiveDisplay(int iViewport, bool bInit); } }
+namespace PopupText
+{
+    extern void DisablePopup();
+}
+namespace PopupText
+{
+    void __fastcall ShowPopup(int iType, unsigned int uTextId);
+}
+namespace HUD
+{
+namespace GameEvents
+{
+extern void DisableAllForObjectiveDisplay(int iViewport, bool bInit);
+}
+}
 
 // FUNCTION: SWBF2 0x00527ea0
 bool GUIInputs::IsLeftPressed() const
@@ -119,7 +131,7 @@ void __fastcall PopupText::ShowPopup(int iType, unsigned int uTextId)
 
     if (iType == HINT)
     {
-        HUD::Event(HUD::GameEvents::gObjectiveEvents.hintPopup, (int)gHints[gCurHint]).Send();
+        HUD::Event(HUD::GameEvents::gObjectiveEvents.hintPopup, gHints[gCurHint]).Send();
         unsigned short page[16];
         PblUnicode::usnprintf(page, 16, "%d/%d", gCurHint + 1, gNumHints);
         HUD::Event(HUD::GameEvents::gObjectiveEvents.hintPopupPageNumber,
@@ -128,12 +140,12 @@ void __fastcall PopupText::ShowPopup(int iType, unsigned int uTextId)
     else if (iType == OBJECTIVE && uTextId)
     {
         gLastObjectiveTextID = uTextId;
-        HUD::Event(HUD::GameEvents::gObjectiveEvents.objectivePopup, (int)uTextId).Send();
+        HUD::Event(HUD::GameEvents::gObjectiveEvents.objectivePopup, uTextId).Send();
     }
     else if (iType == SELECTION && uTextId)
     {
         gLastObjectiveTextID = 0;
-        HUD::Event(HUD::GameEvents::gObjectiveEvents.selectionPopup, (int)uTextId).Send();
+        HUD::Event(HUD::GameEvents::gObjectiveEvents.selectionPopup, uTextId).Send();
     }
 
     HUD::Event(HUD::GameEvents::gPlayerEvents[0].pressSelectToReturnDisable, true).Send();
@@ -257,7 +269,10 @@ bool PopupText::GetPreventJump()
     return gPreventJump;
 }
 
-namespace PopupText { int GetNumHints(); }
+namespace PopupText
+{
+    int GetNumHints();
+}
 
 // FUNCTION: SWBF2 0x00620ee0
 int PopupText::GetNumHints()

@@ -1,3 +1,4 @@
+#include <string.h>
 #include <stdlib.h>
 
 #include "EntityBuildingArmed.h"
@@ -24,10 +25,7 @@ static int sCurrentSection = -1;
 EntityBuildingArmedClass::EntityBuildingArmedClass(unsigned int uHash)
     : EntityBuildingClass(uHash)
 {
-    for (int i = 0; i < 8; i++)
-    {
-        mTurretClass[i] = 0;
-    }
+    memset(mTurretClass, 0, sizeof(mTurretClass));
     sCurrentSection = -1;
     mRespawnTime = 120.0f;
 }
@@ -37,17 +35,27 @@ EntityBuildingArmedClass::~EntityBuildingArmedClass()
 {
 }
 
-// GLOBAL: SWBF2 0x01ebb888
 // SYNTHETIC: SWBF2 0x004028e0
 // `dynamic initializer for 'EntityBuildingArmed::rttiHashEntityBuildingArmed''
-PblHash EntityBuildingArmed::rttiHashEntityBuildingArmed("EntityBuildingArmed");
-char EntityBuildingArmed::rttiNameEntityBuildingArmed[] = "EntityBuildingArmed";
+// EntityBuildingArmed::rttiHashEntityBuildingArmed
 
-// GLOBAL: SWBF2 0x01ebb88c
+// GLOBAL: SWBF2 0x01ebb888
+// EntityBuildingArmed::rttiHashEntityBuildingArmed
+PblHash EntityBuildingArmed::rttiHashEntityBuildingArmed("EntityBuildingArmed");
+// GLOBAL: SWBF2 0x0078902c
+// EntityBuildingArmed::rttiNameEntityBuildingArmed
+const char EntityBuildingArmed::rttiNameEntityBuildingArmed[] = "EntityBuildingArmed";
+
 // SYNTHETIC: SWBF2 0x004028f0
 // `dynamic initializer for 'EntityBuildingArmedClass::rttiHashEntityBuildingArmedClass''
+// EntityBuildingArmedClass::rttiHashEntityBuildingArmedClass
+
+// GLOBAL: SWBF2 0x01ebb88c
+// EntityBuildingArmedClass::rttiHashEntityBuildingArmedClass
 PblHash EntityBuildingArmedClass::rttiHashEntityBuildingArmedClass("EntityBuildingArmedClass");
-char EntityBuildingArmedClass::rttiNameEntityBuildingArmedClass[] = "EntityBuildingArmedClass";
+// GLOBAL: SWBF2 0x00789008
+// EntityBuildingArmedClass::rttiNameEntityBuildingArmedClass
+const char EntityBuildingArmedClass::rttiNameEntityBuildingArmedClass[] = "EntityBuildingArmedClass";
 
 // SYNTHETIC: SWBF2 0x00496710
 // EntityBuildingArmedClass::`scalar deleting destructor'
@@ -85,23 +93,11 @@ Entity* EntityBuildingArmedClass::Build(const EntityDesc& desc)
     return pBuilding;
 }
 
-// FUNCTION: SWBF2 0x00476e90
-bool EntityBuildingArmedClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashEntityBuildingArmedClass || EntityBuildingClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00495a20
-unsigned int EntityBuildingArmedClass::GetDerivedRtti()
-{
-    return rttiHashEntityBuildingArmedClass;
-}
 
-// FUNCTION: SWBF2 0x00495a30
-const char* EntityBuildingArmedClass::GetDerivedRttiName()
-{
-    return rttiNameEntityBuildingArmedClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x004959e0
 EntityType EntityBuildingArmed::GetEntityType() const
@@ -206,15 +202,15 @@ EntityBuildingArmed::~EntityBuildingArmed()
 // SYNTHETIC: SWBF2 0x004959f0
 // EntityBuildingArmed::`scalar deleting destructor'
 // SYNTHETIC: SWBF2 0x00496a81
-// [thunk]:EntityBuildingArmed::`scalar deleting destructor' adjustor{320}
+// ??_EEntityBuildingArmed@@WBEA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00496a8c
-// [thunk]:EntityBuildingArmed::`scalar deleting destructor' adjustor{12}
+// ??_EEntityBuildingArmed@@WM@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00496a94
-// [thunk]:EntityBuildingArmed::`scalar deleting destructor' adjustor{512}
+// ??_EEntityBuildingArmed@@WCAA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00496a9f
-// [thunk]:EntityBuildingArmed::`scalar deleting destructor' adjustor{608}
+// ??_EEntityBuildingArmed@@WCGA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00496aaa
-// [thunk]:EntityBuildingArmed::`scalar deleting destructor' adjustor{148}
+// ??_EEntityBuildingArmed@@WJE@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x00495d90
 void EntityBuildingArmed::Init()
@@ -343,7 +339,7 @@ void EntityBuildingArmed::Respawn()
         for (PblList<Controllable>::Itor it(GetControllableList()); it; ++it)
         {
             Controllable* pControllable = it;
-            if (pControllable->mPilotType != PILOT_SELF && pControllable->mPilotType != PILOT_VEHICLESELF)
+            if (!pControllable->IsSelfPilotable())
             {
                 continue;
             }
@@ -375,9 +371,10 @@ void EntityBuildingArmed::SetProperty(unsigned int uProperty, const char* pszVal
 // FUNCTION: SWBF2 0x00476e50
 Controllable* EntityBuildingArmed::GetControllable()
 {
-    if (mControllableList.GetCount() == 1)
+    const PblList<Controllable>& list = GetControllableList();
+    if (list.GetCount() == 1)
     {
-        return mControllableList.GetFirst()->_pObject;
+        return list.GetFirst()->_pObject;
     }
     return 0;
 }
@@ -385,9 +382,10 @@ Controllable* EntityBuildingArmed::GetControllable()
 // FUNCTION: SWBF2 0x00476e30
 const Controllable* EntityBuildingArmed::GetControllable() const
 {
-    if (mControllableList.GetCount() == 1)
+    const PblList<Controllable>& list = GetControllableList();
+    if (list.GetCount() == 1)
     {
-        return mControllableList.GetFirst()->_pObject;
+        return list.GetFirst()->_pObject;
     }
     return 0;
 }
@@ -414,23 +412,11 @@ Trackable* EntityBuildingArmed::GetTrackable()
     return 0;
 }
 
-// FUNCTION: SWBF2 0x00476db0
-bool EntityBuildingArmed::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashEntityBuildingArmed || EntityBuilding::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x004959c0
-unsigned int EntityBuildingArmed::GetDerivedRtti() const
-{
-    return rttiHashEntityBuildingArmed;
-}
 
-// FUNCTION: SWBF2 0x004959d0
-const char* EntityBuildingArmed::GetDerivedRttiName() const
-{
-    return rttiNameEntityBuildingArmed;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00476e00
 int EntityBuildingArmed::GetTurretCount() const

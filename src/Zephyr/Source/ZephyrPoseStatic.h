@@ -23,6 +23,10 @@ public:
     void Blend(const ZephyrPoseDyn<N>& kPose, const PblBitVector<N>& kMask, float fWeight);
 
     const ZephyrSkeleton<N>* GetSkeleton() const { return m_pSkel; }
+    const ZephyrTransform* GetJointTransform(unsigned short u16JointNum) const
+    {
+        return &m_pJoints[u16JointNum];
+    }
 
     ZephyrSkeleton<N>* m_pSkel;
     ZephyrTransform m_pJoints[N];

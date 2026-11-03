@@ -1,10 +1,16 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "Controller.h"
 #include "CommandFsm.h"
 #include "UnitCmdInfo.h"
+#include "AILowLevel.h"
+#include "UnitThreatManager.h"
+#include "SquadCommands.h"
+#include "Thread.h"
 #include "PebbleFL/Common/PblHandle.h"
 #include "PebbleFL/Common/PblVector.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
@@ -13,9 +19,18 @@ class UnitAgent;
 class AILowLevel;
 class Character;
 class GameObject;
-namespace AI { class EventInfo; }
-namespace SquadCommands { class SquadCommandOrder; }
+namespace AI
+{
+class EventInfo;
+}
+namespace SquadCommands
+{
+class SquadCommandOrder;
+}
 
+// VTABLE: SWBF2 0x007af818 CommandFsm
+// VTABLE: SWBF2 0x007af858 Controller
+// VTABLE: SWBF2 0x007af870 PblHandled
 class UnitController : public Controller, public CommandFsm, public PblHandled
 {
 public:
@@ -50,7 +65,10 @@ public:
     int SendEvent(AI::EventInfo* pInfo);
     int SendEvent(AI::EventInfo* pInfo) const;
 
+    float GetUpdateTime() const { return mNextUpdateTime; }
     float GetUpdateRate() const;
+    PblOrderedList<UnitController, float>::Node* GetManagerNode() { return &mManagerNode; }
+    const PblOrderedList<UnitController, float>::Node* GetManagerNode() const { return &mManagerNode; }
     void UpdateHighLevel();
     void UpdateLowLevel(float dt);
 
@@ -78,6 +96,8 @@ public:
     bool IsLookAheadOnly() const;
     const PblVector3& GetOriginalAheadDir() const;
 
+    // SYNTHETIC: SWBF2 0x00499600
+    // UnitController::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
     static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
@@ -85,10 +105,10 @@ public:
 
     static unsigned int GetRtti() { return rttiHashUnitController; }
     static PblHash rttiHashUnitController;
-    static char rttiNameUnitController[];
+    static const char rttiNameUnitController[];
 
-    AILowLevel& GetLowLevel() { return *reinterpret_cast<AILowLevel*>(mLowLevel); }
-    const AILowLevel& GetLowLevel() const { return *reinterpret_cast<const AILowLevel*>(mLowLevel); }
+    AILowLevel& GetLowLevel() { return mLowLevel; }
+    const AILowLevel& GetLowLevel() const { return mLowLevel; }
 
 protected:
     UnitController();
@@ -108,26 +128,26 @@ protected:
     void UseAutoTurrets();
 
 public:
-    unsigned char mManagerNode[20];
+    PblOrderedList<UnitController, float>::Node mManagerNode;
     float mNextUpdateTime;
     float mLastUpdateTime;
     float mUpdateRate;
     char mLowLevelUpdateSkips;
     float mLowLevelUpdateSkipDt;
-    unsigned char mThreatManager[204];
+    AI::UnitThreatManager mThreatManager;
     UnitAgent* mAgent;
-    unsigned char mLowLevel[232];
+    AILowLevel mLowLevel;
     int mLodState;
     Character* mLodHumanPlayer;
     float mLodStateUpdateTime;
-    unsigned char mLastSquadCommand[20];
+    SquadCommands::SquadCommandOrder mLastSquadCommand;
     bool mJustEnteredVehicleGoToPickupAgent;
     bool mLookAheadOnly;
     PblVector3 mOriginalAheadDir;
     int mSeed;
     float mCrowdCheckTime;
     int mFriendlyCount;
-    unsigned char mFriendly[64];
+    PblHandle<const GameObject> mFriendly[8];
     bool mSkip;
     int mVisionSkip;
     float mLastShotDistSq;
@@ -148,3 +168,27 @@ const UnitController* UnitControllerPtr(const Controllable* pControllable);
  
  
  
+
+// FUNCTION: SWBF2 0x00663050
+inline bool UnitController::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashUnitController == uRtti)
+    {
+        return true;
+    }
+    return Controller::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x00663080
+inline unsigned int UnitController::GetDerivedRtti() const
+{
+    return rttiHashUnitController;
+}
+
+// FUNCTION: SWBF2 0x00663090
+inline const char* UnitController::GetDerivedRttiName() const
+{
+    return rttiNameUnitController;
+}
+
+

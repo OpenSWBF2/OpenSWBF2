@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "OrdnanceBullet.h"
@@ -10,21 +12,22 @@ class pcRedShader;
 class OrdnanceTowCableClass : public OrdnanceBulletClass
 {
 public:
+    virtual ~OrdnanceTowCableClass();
     OrdnanceTowCableClass(unsigned int uHash);
     OrdnanceTowCableClass(OrdnanceTowCableClass* pBase, unsigned int uHash);
 
     virtual OrdnanceClass* Derive(unsigned int uHash);
     virtual Ordnance* Build(const OrdnanceDesc& desc);
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
 
     float mInitialCableLimit;
     float mCableLimit;
 
     static PblHash rttiHashOrdnanceTowCableClass;
-    static char rttiNameOrdnanceTowCableClass[];
+    static const char rttiNameOrdnanceTowCableClass[];
 };
   
  
@@ -75,9 +78,9 @@ public:
 };
  
 
-// VTABLE: SWBF2 0x007ad1cc
+// VTABLE: SWBF2 0x007ad1cc Thread
 // VTABLE: SWBF2 0x007ad20c
-// VTABLE: SWBF2 0x007ad274
+// VTABLE: SWBF2 0x007ad274 PblHandled
 class OrdnanceTowCable : public OrdnanceBullet
 {
 public:
@@ -93,6 +96,8 @@ public:
 
     void SetFakeCable(bool bFake) { mFakeCable = bFake; }
 
+    // SYNTHETIC: SWBF2 0x006072f0
+    // OrdnanceTowCable::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
     static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
@@ -116,7 +121,7 @@ public:
     bool mDeleteNextUpdate;
 
     static PblHash rttiHashOrdnanceTowCable;
-    static char rttiNameOrdnanceTowCable[];
+    static const char rttiNameOrdnanceTowCable[];
     static MemoryPool sMemoryPool;
 
     static void PlatformInit();
@@ -133,3 +138,49 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x006072a0
+inline bool OrdnanceTowCable::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashOrdnanceTowCable == uRtti)
+    {
+        return true;
+    }
+    return OrdnanceBullet::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x006072d0
+inline unsigned int OrdnanceTowCable::GetDerivedRtti() const
+{
+    return rttiHashOrdnanceTowCable;
+}
+
+// FUNCTION: SWBF2 0x006072e0
+inline const char* OrdnanceTowCable::GetDerivedRttiName() const
+{
+    return rttiNameOrdnanceTowCable;
+}
+
+// FUNCTION: SWBF2 0x00607330
+inline bool OrdnanceTowCableClass::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashOrdnanceTowCableClass == uRtti)
+    {
+        return true;
+    }
+    return OrdnanceBulletClass::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x00607360
+inline unsigned int OrdnanceTowCableClass::GetDerivedRtti() const
+{
+    return rttiHashOrdnanceTowCableClass;
+}
+
+// FUNCTION: SWBF2 0x00607370
+inline const char* OrdnanceTowCableClass::GetDerivedRttiName() const
+{
+    return rttiNameOrdnanceTowCableClass;
+}
+
+

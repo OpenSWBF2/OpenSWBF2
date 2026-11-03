@@ -19,14 +19,40 @@ public:
 
         Block(void* pAllocAddress)
         {
-            mNode.mNext = 0;
-            mBitmap.mBitmap = 0;
-            mBitmap.mBitmapSize = 0;
-            mBitmap.mSearchEntry = 0;
             mAllocAddress = pAllocAddress;
         }
 
-        void* AllocEntry(unsigned int uiEntrySize, unsigned int uiEntriesPerBlock);
+        // FUNCTION: SWBF2 0x00738720
+        void* AllocEntry(unsigned int uiEntrySize, unsigned int uiEntriesPerBlock)
+        {
+            void* const pEntries = (char*)this - uiEntriesPerBlock * uiEntrySize;
+            void* pEntry = 0;
+            AllocBitmap::Handle handle;
+            if (mBitmap.Alloc(1, handle))
+            {
+                pEntry = (char*)pEntries + handle.GetAllocatedEntryIndex() * uiEntrySize;
+                handle.Reset();
+            }
+            return pEntry;
+        }
+
+        void FreeEntry(void* pEntry, unsigned int uiEntrySize, unsigned int uiEntriesPerBlock)
+        {
+            void* const pEntries = (char*)this - uiEntriesPerBlock * uiEntrySize;
+            const unsigned int uiEntryIndex =
+                (unsigned int)((char*)pEntry - (char*)pEntries) / uiEntrySize;
+            mBitmap.Reserve(uiEntryIndex, 1, false);
+        }
+
+        bool IsValid(void* pEntry, unsigned int uiEntrySize, unsigned int uiEntriesPerBlock)
+        {
+            void* const pEntries = (char*)this - uiEntriesPerBlock * uiEntrySize;
+            return pEntry >= pEntries &&
+                pEntry < (char*)pEntries + uiEntriesPerBlock * uiEntrySize;
+        }
+
+        const AllocBitmap& GetAllocator() const { return mBitmap; }
+        void* GetAllocationAddress() const { return mAllocAddress; }
 
         PblListSingle::Node mNode;
         AllocBitmap mBitmap;
@@ -34,13 +60,15 @@ public:
     };
 
     FreeList(unsigned int uiEntrySize, unsigned int uiAlignment,
-             unsigned int uiEntriesPerBlock, unsigned char ucFlags)
+             bool bPurgeOnFree, unsigned int uiEntriesPerBlock,
+             void* (__cdecl* pAllocFunc)(unsigned int) = Globals::smAlloc,
+             void (__cdecl* pFreeFunc)(void*) = Globals::smFree)
         : mEntrySize(uiEntrySize),
           mAlignment(uiAlignment),
           mEntriesPerBlock(uiEntriesPerBlock),
-          mAllocFunc(0),
-          mFreeFunc(0),
-          mFlags(ucFlags)
+          mAllocFunc(pAllocFunc),
+          mFreeFunc(pFreeFunc),
+          mFlags(bPurgeOnFree ? flags_purgeOnFree : 0)
     {
     }
 
@@ -55,6 +83,15 @@ public:
                      Block** ppFirstBlock);
     void Free(void* p);
     void PurgeBlocks();
+
+    void CheckAllocator()
+    {
+        if (mAllocFunc == 0 || mFreeFunc == 0)
+        {
+            mAllocFunc = Globals::smAlloc;
+            mFreeFunc = Globals::smFree;
+        }
+    }
 
     unsigned int mEntrySize;
     unsigned int mAlignment;

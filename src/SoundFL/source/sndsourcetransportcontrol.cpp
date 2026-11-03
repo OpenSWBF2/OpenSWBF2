@@ -27,24 +27,23 @@ SourceTransportControl::SourceTransportControl()
 // FUNCTION: SWBF2 0x0074b650
 bool SourceTransportControl::Read(PblFileChunk& chunk, unsigned int uiPropertyID)
 {
-    PblFile* const pFile = chunk._pFile;
     switch (uiPropertyID)
     {
     case 0xA7930B6Eu:
-        pFile->Read8();
-        mPlayProbability = Clamp(pFile->ReadFloat(), 0.0f, 1.0f);
+        chunk._pFile->Read8();
+        mPlayProbability = Clamp(chunk._pFile->ReadFloat(), 0.0f, 1.0f);
         return true;
     case 0x010B9ECAu:
-        pFile->Read8();
-        mPlayInterval = pFile->ReadFloat();
+        chunk._pFile->Read8();
+        mPlayInterval = chunk._pFile->ReadFloat();
         return true;
     case 0x3AF79D76u:
-        pFile->Read8();
-        SetRandomPlayPosition(pFile->ReadFloat() == 1.0f);
+        chunk._pFile->Read8();
+        SetRandomPlayPosition(chunk._pFile->ReadFloat() == 1.0f);
         return true;
     case 0xEDCE1E71u:
-        pFile->Read8();
-        mPlayIntervalDev = pFile->ReadFloat();
+        chunk._pFile->Read8();
+        mPlayIntervalDev = chunk._pFile->ReadFloat();
         return true;
     }
     return false;
@@ -52,7 +51,8 @@ bool SourceTransportControl::Read(PblFileChunk& chunk, unsigned int uiPropertyID
 
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x0074b540
 bool SourceTransportControl::DeterminePlaySource(bool bArg) const

@@ -93,7 +93,10 @@ public:
  
 
 class FlagItem;
-namespace AI { struct GoalTarget; }
+namespace AI
+{
+struct GoalTarget;
+}
 
 class UnitGoalAgentInfo : public UnitCmdInfo
 {

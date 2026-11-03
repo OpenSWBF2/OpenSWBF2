@@ -72,31 +72,26 @@ extern int netPlayerLimit;
 extern int netNumBots;
 extern bool gAttractMode;
 
-namespace PlayerPrefs { int __fastcall FindByPlayerId(int iPlayer); }
-
-namespace FriendBuddyList { bool __fastcall IsFriendBuddy(int iPlayerId); }
-
-namespace PblUnicode { unsigned int ustrncnv(unsigned short* pDest, const unsigned char* pSrc, unsigned int uiCount); }
-
-static GameObject* GetGameObject(CommandPost* pPost)
+namespace PlayerPrefs
 {
-    PblHandle<GameObject>& handle = pPost->mObject;
-    if (handle.mObject &&
-        PBL_HANDLE_ID(handle.mObject) !=
-            handle.mSavedHandleId)
-    {
-        handle.mObject = 0;
-        handle.mSavedHandleId = 0;
-    }
-    return handle.mObject;
+int __fastcall FindByPlayerId(int iPlayer);
 }
 
-static bool IsAlive(const GameObject* pObject)
+namespace FriendBuddyList
 {
-    return pObject->IsAlive();
+bool __fastcall IsFriendBuddy(int iLocalIndex, int iPlayerId);
 }
 
-static int GetTeam(const GameObject* pObject)
+namespace PblUnicode
+{
+unsigned int ustrncnv(unsigned short* pDest, const unsigned char* pSrc, unsigned int uiCount);
+}
+
+
+
+
+
+static inline int GetTeam(const GameObject* pObject)
 {
     return pObject->GetTeam();
 }
@@ -109,7 +104,7 @@ static int GetAllyCount(const CommandPost* pPost)
 // FUNCTION: SWBF2 0x0061c490
 int __fastcall PlayerPrefs::FindByPlayerId(int iPlayer)
 {
-    for (int i = 0; i < 1; ++i)
+    for (unsigned int i = 0; i < 1; ++i)
     {
         if ((&PlayerPrefs::mAllUserPrefs[0].mPlayerId)[i * 11] == iPlayer)
         {
@@ -180,7 +175,7 @@ void SpawnManager::AddPlayerCharacter(int iTeam, int iPlayer)
         int iSlot = PlayerPrefs::FindByPlayerId(iPlayer);
         if (iSlot >= 0)
         {
-            pProfile = PlayerProfile::GetProfile(playerJoystickNumbers[11 * iSlot]);
+            pProfile = PlayerProfile::GetProfile(PlayerPrefs::mAllUserPrefs[iSlot].mJoystick);
         }
         const unsigned short* pName = pProfile->GetName();
         if (pProfile && *pName)
@@ -260,7 +255,7 @@ void SpawnManager::InitialUpdate()
     if (NetGame::IsEnabled() && NetGame::IsClient() && !NetGame::IsOneWorld())
     {
         SpawnManager* pHost = sHostInstance;
-        for (int i = 0; i < 8; ++i)
+        for (unsigned int i = 0; i < 8; ++i)
         {
             mMaxUnitCount[i] = pHost->mMaxUnitCount[i];
             mCycleDelay[i] = pHost->mCycleDelay[i];
@@ -270,7 +265,7 @@ void SpawnManager::InitialUpdate()
 
     Character::CreateAll(GetTotalCharacterCount());
 
-    for (int i = 0; i < 8; ++i)
+    for (unsigned int i = 0; i < 8; ++i)
     {
         mCycleTimer[i] = mCycleDelay[i];
         if (gAttractMode || !NetGame::IsEnabled())
@@ -334,7 +329,7 @@ void SpawnManager::InitialUpdate()
             int iSlot = PlayerPrefs::FindByPlayerId(i);
             if (iSlot >= 0)
             {
-                iTeam = playerTeamNumbers[11 * iSlot];
+                iTeam = PlayerPrefs::mAllUserPrefs[iSlot].mTeamNum;
             }
             AddPlayerCharacter(iTeam, i);
         }
@@ -361,7 +356,7 @@ bool SpawnManager::Update(float fDeltaTime)
     for (CommandPostItor itor = CommandPostManager::Instance()->GetItor(); itor; ++itor)
     {
         CommandPost* pPost = NetGame::ConvertCP(*itor);
-        if (pPost && Team::sTeams[GetTeam(GetGameObject(pPost))]->mAffiliation[3] > 0)
+        if (pPost && Team::sTeams[GetTeam(pPost->GetGameObject())]->mAffiliation[3] > 0)
         {
             mAllyUnitCount += GetAllyCount(pPost);
         }
@@ -409,7 +404,7 @@ CommandPost* SpawnManager::RequestSpawnPoint(CommandPost* pPost, Character* pChr
     {
         return Request(pPost, pChr->mTeamNumber);
     }
-    if (pPost && IsAlive(GetGameObject(pPost)) && pPost->CanTeamSpawnHere(pChr->mTeamNumber))
+    if (pPost && pPost->GetGameObject()->IsAlive() && pPost->CanTeamSpawnHere(pChr->mTeamNumber))
     {
         return pPost;
     }
@@ -419,12 +414,12 @@ CommandPost* SpawnManager::RequestSpawnPoint(CommandPost* pPost, Character* pChr
 // FUNCTION: SWBF2 0x0064ec30
 CommandPost* SpawnManager::Request(CommandPost* pPost, int iTeam)
 {
-    if (!pPost || !GetGameObject(pPost))
+    if (!pPost || !pPost->GetGameObject())
     {
         return NetGame::ConvertCP(CommandPostManager::Instance()->FindPostClosestToEnemy(iTeam));
     }
 
-    if (IsAlive(GetGameObject(pPost)) && pPost->CanTeamSpawnHere(iTeam))
+    if (pPost->GetGameObject()->IsAlive() && pPost->CanTeamSpawnHere(iTeam))
     {
         return pPost;
     }
@@ -490,3 +485,6 @@ void SpawnManager::Destroy()
     }
     Character::DestroyAll();
 }
+
+// FUNCTION: SWBF2 0x0064ee40
+int SpawnManager::GetUnitCount(int iTeam) const { return mMaxUnitCount[iTeam]; }

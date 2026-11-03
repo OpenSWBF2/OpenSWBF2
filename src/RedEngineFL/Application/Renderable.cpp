@@ -5,10 +5,10 @@
 #include "RedEngineFL/Memory/engineAlloc.h"
 
 // SYNTHETIC: SWBF2 0x00639955
-// [thunk]:SkyObjectManager::SkyObjectClass::`scalar deleting destructor' adjustor{28}
+// ??_ESkyObjectClass@SkyObjectManager@@WBM@AEPAXI@Z
 
 // SYNTHETIC: SWBF2 0x00695054
-// [thunk]:PrecipitationEffect::`scalar deleting destructor' adjustor{36}
+// ??_EPrecipitationEffect@@WCE@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x006c3c60
 Renderable::Renderable(int iPhase)

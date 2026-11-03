@@ -18,18 +18,23 @@ extern bool netIsLocalTurn;
 
 namespace
 {
-    EntityClass* GetEntityClass(GameObject* pObject)
+    inline EntityClass* GetEntityClass(GameObject* pObject)
     {
         typedef EntityClass* (__thiscall *Fn)(GameObject*);
         return pObject->GetEntityClass();
     }
 }
 
-// GLOBAL: SWBF2 0x01f9a8fc
 // SYNTHETIC: SWBF2 0x00407240
 // `dynamic initializer for 'WeaponMeleeThrow::rttiHashWeaponMeleeThrow''
+// WeaponMeleeThrow::rttiHashWeaponMeleeThrow
+
+// GLOBAL: SWBF2 0x01f9a8fc
+// WeaponMeleeThrow::rttiHashWeaponMeleeThrow
 PblHash WeaponMeleeThrow::rttiHashWeaponMeleeThrow("WeaponMeleeThrow");
-char WeaponMeleeThrow::rttiNameWeaponMeleeThrow[] = "WeaponMeleeThrow";
+// GLOBAL: SWBF2 0x0078c1cc
+// WeaponMeleeThrow::rttiNameWeaponMeleeThrow
+const char WeaponMeleeThrow::rttiNameWeaponMeleeThrow[] = "WeaponMeleeThrow";
 
 // FUNCTION: SWBF2 0x0068f610
 WeaponMeleeThrow::WeaponMeleeThrow(const WeaponMeleeThrowClass* pClass, const WeaponDesc& desc)
@@ -64,23 +69,11 @@ WeaponMeleeThrow::WeaponMeleeThrow(const WeaponMeleeThrowClass* pClass, const We
         uiThrowAnim, 0x2B960099, pClass->m_fInitialSalvoDelay, m_mThrow0Local);
 }
 
-// FUNCTION: SWBF2 0x0068f520
-bool WeaponMeleeThrow::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashWeaponMeleeThrow || Weapon::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x0068f550
-unsigned int WeaponMeleeThrow::GetDerivedRtti() const
-{
-    return rttiHashWeaponMeleeThrow;
-}
 
-// FUNCTION: SWBF2 0x0068f560
-const char* WeaponMeleeThrow::GetDerivedRttiName() const
-{
-    return rttiNameWeaponMeleeThrow;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x0068f570
 bool WeaponMeleeThrow::IsMeleeThrow() const
@@ -247,7 +240,7 @@ void WeaponMeleeThrow::Fire()
     desc.mDamageOwner = DamageOwner(mOwner->mCharacter, pOwnerObject,
         pOwnerObject ? pOwnerObject->GetTeam() : 0,
         GetEntityClass(pOwnerObject), mClass, mOwner->GetOffenseMultiplier());
-    desc.mTarget = IsLocked() ? const_cast<GameObject*>(mTarget.GetValidObject()) : 0;
+    desc.mTarget = IsLocked() ? const_cast<GameObject*>(static_cast<const GameObject*>(mTarget)) : 0;
     desc.mBodyID = IsLocked() ? mTargetBodyID : -1;
     desc.mFireWeapon = this;
 
@@ -285,11 +278,16 @@ Ordnance* WeaponMeleeThrow::CreateOrdnance(OrdnanceDesc& desc)
     return mClass->mOrdnanceClass->Build(desc);
 }
 
-// GLOBAL: SWBF2 0x01f9a900
 // SYNTHETIC: SWBF2 0x00407250
 // `dynamic initializer for 'WeaponMeleeThrowClass::rttiHashWeaponMeleeThrowClass''
+// WeaponMeleeThrowClass::rttiHashWeaponMeleeThrowClass
+
+// GLOBAL: SWBF2 0x01f9a900
+// WeaponMeleeThrowClass::rttiHashWeaponMeleeThrowClass
 PblHash WeaponMeleeThrowClass::rttiHashWeaponMeleeThrowClass("WeaponMeleeThrowClass");
-char WeaponMeleeThrowClass::rttiNameWeaponMeleeThrowClass[] = "WeaponMeleeThrowClass";
+// GLOBAL: SWBF2 0x0078c1e4
+// WeaponMeleeThrowClass::rttiNameWeaponMeleeThrowClass
+const char WeaponMeleeThrowClass::rttiNameWeaponMeleeThrowClass[] = "WeaponMeleeThrowClass";
 
 // FUNCTION: SWBF2 0x0068fcd0
 WeaponMeleeThrowClass::WeaponMeleeThrowClass(unsigned int uHash)
@@ -299,23 +297,11 @@ WeaponMeleeThrowClass::WeaponMeleeThrowClass(unsigned int uHash)
     m_fInitialSalvoDelay = 0.0f;
 }
 
-// FUNCTION: SWBF2 0x0068f5c0
-bool WeaponMeleeThrowClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashWeaponMeleeThrowClass || WeaponClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x0068f5f0
-unsigned int WeaponMeleeThrowClass::GetDerivedRtti()
-{
-    return rttiHashWeaponMeleeThrowClass;
-}
 
-// FUNCTION: SWBF2 0x0068f600
-const char* WeaponMeleeThrowClass::GetDerivedRttiName()
-{
-    return rttiNameWeaponMeleeThrowClass;
-}
+
+
+
 
 // SYNTHETIC: SWBF2 0x0068fd00
 // WeaponMeleeThrowClass::`scalar deleting destructor'

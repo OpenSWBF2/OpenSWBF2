@@ -7,8 +7,10 @@
 #include "LockOnManager.h"
 #include "RedEngineFL/Interface/RedGroupElement.h"
 
-namespace HUD {
-// VTABLE: SWBF2 0x007a17fc
+namespace HUD
+{
+// VTABLE: SWBF2 0x007a17fc HUD::ElementGroupPlayer
+// VTABLE: SWBF2 0x007a18f0 RedGroupElement
 class ElementTarget : public HUD::ElementGroupPlayer, public RedGroupElement
 {
 public:
@@ -65,7 +67,8 @@ public:
         targetPlayerState_MAX = 16
     };
 
-    // VTABLE: SWBF2 0x007a184c
+    // VTABLE: SWBF2 0x007a184c HUD::ElementBitmapBase
+    // VTABLE: SWBF2 0x007a1888 RedBitmapElement
     class Target : public HUD::ElementBitmap
     {
     public:

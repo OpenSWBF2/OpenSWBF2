@@ -8,7 +8,10 @@ class Controllable;
 class UnitAgent;
 class UnitController;
 class PblVector3;
-namespace AI { class PatrolPath; class EventInfo; }
+namespace AI
+{
+class PatrolPath; class EventInfo;
+}
 
 // VTABLE: SWBF2 0x007ad64c
 class PatrolPathHelper : public HelperFsm

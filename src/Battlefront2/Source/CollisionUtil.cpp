@@ -41,11 +41,9 @@ bool CollisionUtil::CollideSphereAABB(const PblVector3& rCenter, float fRadius,
 bool CollisionUtil::CollideSphereRay(const PblVector3& rCenter, float fRadius,
                                      const PblVector3& rFrom, const PblVector3& rDir, float fLength)
 {
-    float fX = rCenter.x - rFrom.x;
-    float fY = rCenter.y - rFrom.y;
-    float fZ = rCenter.z - rFrom.z;
-    float fProj = fX * rDir.x + rDir.y * fY + rDir.z * fZ;
-    float fDist2 = fX * fX + fY * fY + fZ * fZ;
+    PblVector3 vDelta = rCenter - rFrom;
+    float fProj = DotProduct(vDelta, rDir);
+    float fDist2 = DotProduct(vDelta, vDelta);
     float fRadius2 = fRadius * fRadius;
 
     if (fRadius2 > fDist2)
@@ -61,7 +59,7 @@ bool CollisionUtil::CollideSphereRay(const PblVector3& rCenter, float fRadius,
     {
         return false;
     }
-    float fHalfChord = sqrtf(fRadius2 - fPerp2);
+    float fHalfChord = PblMath::Sqrt(fRadius2 - fPerp2);
     float fHit = fDist2 > fRadius2 ? fProj - fHalfChord : fProj + fHalfChord;
     if (fHit < 0.0f)
     {
@@ -74,10 +72,10 @@ bool CollisionUtil::CollideSphereRay(const PblVector3& rCenter, float fRadius,
 bool CollisionUtil::CollideSpheres2(const PblVector3& rCenter1, float fRadius1,
                                     const PblVector3& rCenter2, float fRadius2)
 {
-    float fX = rCenter2.x - rCenter1.x;
-    float fY = rCenter2.y - rCenter1.y;
-    float fZ = rCenter2.z - rCenter1.z;
-    return fX * fX + fY * fY + fZ * fZ < (fRadius1 + fRadius2) * (fRadius1 + fRadius2);
+    PblVector3 vDelta = rCenter2 - rCenter1;
+    float fRadii = fRadius1 + fRadius2;
+    float fDist2 = SquaredLength(vDelta);
+    return fDist2 < fRadii * fRadii;
 }
 
 // FUNCTION: SWBF2 0x0046ae60
@@ -165,7 +163,8 @@ int FindAACenteredBoxRayIntersection(const PblVector3& vStart, const PblVector3&
     return aSide[nPlane] * (nPlane + 1);
 }
 
-namespace CollisionUtil {
+namespace CollisionUtil
+{
 
 // FUNCTION: SWBF2 0x00469670
 bool IsPointInsideAxisAlignedCylinder(const PblVector3& vOffset, float fRadius, float fHalfHeight)
@@ -174,7 +173,7 @@ bool IsPointInsideAxisAlignedCylinder(const PblVector3& vOffset, float fRadius, 
     {
         return false;
     }
-    return fRadius * fRadius > vOffset.x * vOffset.x + vOffset.z * vOffset.z;
+    return fRadius * fRadius > SquaredLengthXZ(vOffset);
 }
 }
 
@@ -192,30 +191,28 @@ static inline PblVector3 ToWorld(const PblMatrix& m, float x, float y, float z)
                       m.m[0][2] * x + m.m[1][2] * y + m.m[2][2] * z);
 }
 
-namespace CollisionUtil {
+namespace CollisionUtil
+{
 
 // FUNCTION: SWBF2 0x0046a700
 bool CollideSpheres(const PblVector3& vCenter, float fRadius, const PblVector3& vSphereCenter, float fSphereRadius,
                 PblVector3& vNormal, float& fDepth)
 {
-    float fX = vSphereCenter.x - vCenter.x;
-    float fY = vSphereCenter.y - vCenter.y;
-    float fZ = vSphereCenter.z - vCenter.z;
+    PblVector3 vDelta = vSphereCenter - vCenter;
     float fRadii = fRadius + fSphereRadius;
-    float fDist = fX * fX + fY * fY + fZ * fZ;
+    float fDist = SquaredLength(vDelta);
     if (fDist >= fRadii * fRadii)
     {
         return false;
     }
     if (fDist > 0.0f)
     {
-        fDist = (float)sqrt((double)fDist);
+        fDist = sqrtf(fDist);
     }
     fDepth = fRadii - fDist;
     if (fDist > 0.0f)
     {
-        float fInv = 1.0f / fDist;
-        vNormal = PblVector3(fX * fInv, fY * fInv, fZ * fInv);
+        vNormal = vDelta / fDist;
     }
     else
     {
@@ -225,7 +222,8 @@ bool CollideSpheres(const PblVector3& vCenter, float fRadius, const PblVector3& 
 }
 }
 
-namespace CollisionUtil {
+namespace CollisionUtil
+{
 
 // FUNCTION: SWBF2 0x00469e90
 bool CollideBoxSphere(const PblMatrix& matrix, float fWidth, float fDepth, float fHeight, const PblVector3& vSphereCenter,
@@ -312,7 +310,8 @@ bool CollideBoxSphere(const PblMatrix& matrix, float fWidth, float fDepth, float
 }
 }
 
-namespace CollisionUtil {
+namespace CollisionUtil
+{
 
 // FUNCTION: SWBF2 0x00469e20
 bool CollideSphereBox(const PblVector3& vCenter, float fRadius, const PblMatrix& matrix, float fWidth, float fDepth,
@@ -326,7 +325,8 @@ bool CollideSphereBox(const PblVector3& vCenter, float fRadius, const PblMatrix&
 }
 }
 
-namespace CollisionUtil {
+namespace CollisionUtil
+{
 
 // FUNCTION: SWBF2 0x0046a280
 bool CollideCylinderSphere(const PblMatrix& matrix, float fRadius, float fHalfHeight, const PblVector3& vSphereCenter,
@@ -397,7 +397,8 @@ bool CollideCylinderSphere(const PblMatrix& matrix, float fRadius, float fHalfHe
 }
 }
 
-namespace CollisionUtil {
+namespace CollisionUtil
+{
 
 // FUNCTION: SWBF2 0x004696b0
 bool GetClosestPointInPolygon(const PblVector3& vPos, int iNumCorners, const PblVector3* pCorners, PblVector3& vOutPos,
@@ -537,7 +538,7 @@ bool CollisionUtil::CollideBoxes(const PblVector3& vVelocityA, const PblMatrix& 
 
     PblMatrix mInvA = mA.GetInverseFast();
     PblMatrix mRel;
-    D3DXMatrixMultiply((D3DXMATRIX*)&mRel, (const D3DXMATRIX*)&mB, (const D3DXMATRIX*)&mInvA);
+    mRel = mB * mInvA;
 
     PblVector3 vRelVel(vVelocityB.x - vVelocityA.x, vVelocityB.y - vVelocityA.y, vVelocityB.z - vVelocityA.z);
     PblVector3 vRelDir;
@@ -668,7 +669,8 @@ bool CollisionUtil::CollideBoxCylinder(const PblVector3& vVelocityA, const PblMa
                         fDepth);
 }
 
-namespace CollisionUtil {
+namespace CollisionUtil
+{
 
 // FUNCTION: SWBF2 0x004687e0
 bool CollideCylinders(const PblMatrix& m1, float fRadius1, float fHalfHeight1, const PblMatrix& m2, float fRadius2,
@@ -678,7 +680,8 @@ bool CollideCylinders(const PblMatrix& m1, float fRadius1, float fHalfHeight1, c
 }
 }
 
-namespace CollisionUtil {
+namespace CollisionUtil
+{
 
 // FUNCTION: SWBF2 0x00469200
 bool CollideCapsules(const PblMatrix& m1, float fRadius1, float fHalfHeight1, const PblMatrix& m2, float fRadius2,
@@ -726,7 +729,7 @@ bool CollisionUtil::CollideAxisAlignedCylinders(PblVector3& vDelta, float fRadiu
                                                 float fHeightB, float& fDepth)
 {
     float fAbsY = Fabs(vDelta.y);
-    float fDistXZ = sqrtf(vDelta.x * vDelta.x + vDelta.z * vDelta.z);
+    float fDistXZ = LengthXZ(vDelta);
     float fRadii = fRadiusA + fRadiusB;
     if (fDistXZ >= fRadii)
     {
@@ -858,58 +861,376 @@ float CollisionUtil::RayHitSphere(const PblVector3& vStart, const PblVector3& vD
     return fHit / fLength;
 }
 
-namespace CollisionUtil {
+namespace CollisionUtil
+{
 
 // FUNCTION: SWBF2 0x0046ab20
 float RayHitBubble(const PblVector3& vStart, const PblVector3& vDir, float fLength, const PblMatrix& matrix,
                  const PblVector3& vSize, PblVector3* pNormal)
 {
-    float fInvX = 1.0f / vSize.x;
-    float fInvY = 1.0f / vSize.y;
-    float fInvZ = 1.0f / vSize.z;
-
-    float fDX = vStart.x - matrix.m[3][0];
-    float fDY = vStart.y - matrix.m[3][1];
-    float fDZ = vStart.z - matrix.m[3][2];
-    float fSX = (matrix.m[0][0] * fDX + matrix.m[0][1] * fDY + matrix.m[0][2] * fDZ) * fInvX;
-    float fSY = (matrix.m[1][0] * fDX + matrix.m[1][1] * fDY + matrix.m[1][2] * fDZ) * fInvY;
-    float fSZ = (matrix.m[2][0] * fDX + matrix.m[2][1] * fDY + matrix.m[2][2] * fDZ) * fInvZ;
-    float fC = fSX * fSX + fSY * fSY + fSZ * fSZ;
-    if (fC < 1.0f)
+    PblVector3 vSizeInv(1.0f / vSize.x, 1.0f / vSize.y, 1.0f / vSize.z);
+    PblVector3 vStartPosRel = vStart - matrix.GetTranslation();
+    PblVector3 vStartPosLocal(DotProduct(matrix.GetXAxis(), vStartPosRel) * vSizeInv.x,
+                             DotProduct(matrix.GetYAxis(), vStartPosRel) * vSizeInv.y,
+                             DotProduct(matrix.GetZAxis(), vStartPosRel) * vSizeInv.z);
+    float fDistSqr = SquaredLength(vStartPosLocal);
+    if (fDistSqr < 1.0f)
     {
         return 1.0f;
     }
 
-    float fRX = (matrix.m[0][0] * vDir.x + matrix.m[0][1] * vDir.y + matrix.m[0][2] * vDir.z) * (fInvX * fLength);
-    float fRY = (matrix.m[1][0] * vDir.x + matrix.m[1][1] * vDir.y + matrix.m[1][2] * vDir.z) * (fInvY * fLength);
-    float fRZ = (matrix.m[2][0] * vDir.x + matrix.m[2][1] * vDir.y + matrix.m[2][2] * vDir.z) * (fInvZ * fLength);
-    float fB = fRX * fSX + fRY * fSY + fRZ * fSZ;
-    if (fB >= 0.0f)
+    PblVector3 vRayLocal(DotProduct(matrix.GetXAxis(), vDir) * (vSizeInv.x * fLength),
+                        DotProduct(matrix.GetYAxis(), vDir) * (vSizeInv.y * fLength),
+                        DotProduct(matrix.GetZAxis(), vDir) * (vSizeInv.z * fLength));
+    float fRayDotR = DotProduct(vRayLocal, vStartPosLocal);
+    if (fRayDotR >= 0.0f)
     {
         return 1.0f;
     }
 
-    float fA = fRX * fRX + fRY * fRY + fRZ * fRZ;
-    float fDisc = fB * fB - (fC - 1.0f) * fA;
-    if (fDisc <= 0.0f)
+    float fRaySqr = SquaredLength(vRayLocal);
+    float fQ = fRayDotR * fRayDotR - (fDistSqr - 1.0f) * fRaySqr;
+    if (fQ <= 0.0f)
     {
         return 1.0f;
     }
-    float fEnd = fA + fB;
-    if (fEnd < 0.0f && fEnd * fEnd > fDisc)
+    float fEnd = fRaySqr + fRayDotR;
+    if (fEnd < 0.0f && fEnd * fEnd > fQ)
     {
         return 1.0f;
     }
 
-    float fT = (-fB - (float)sqrt((double)fDisc)) / fA;
+    float fT = (-fRayDotR - sqrtf(fQ)) / fRaySqr;
     if (pNormal)
     {
-        PblVector3 vLocal((fSX + fRX * fT) * fInvX, (fSY + fRY * fT) * fInvY, (fSZ + fRZ * fT) * fInvZ);
-        PblVector3 vWorld, vUnit;
-        D3DXVec3TransformNormal((D3DXVECTOR3*)&vWorld, (const D3DXVECTOR3*)&vLocal, (const D3DXMATRIX*)&matrix);
-        D3DXVec3Normalize((D3DXVECTOR3*)&vUnit, (const D3DXVECTOR3*)&vWorld);
-        *pNormal = vUnit;
+        PblVector3 vNormal = (vStartPosLocal + vRayLocal * fT) * vSizeInv;
+        *pNormal = Normalize(matrix.ApplyRotation(vNormal));
     }
     return fT;
+}
+}
+
+
+static inline PblVector3 InverseRotate(const PblMatrix& m, float x, float y, float z)
+{
+    return PblVector3(m.m[0][0] * x + m.m[0][1] * y + m.m[0][2] * z,
+                      m.m[1][0] * x + m.m[1][1] * y + m.m[1][2] * z,
+                      m.m[2][0] * x + m.m[2][1] * y + m.m[2][2] * z);
+}
+
+namespace CollisionUtil
+{
+
+// FUNCTION: SWBF2 0x0046b130
+float RayHitBox(const PblVector3& vStart, const PblVector3& vDir, float fLength, const PblMatrix& matrix,
+                 float fWidth, float fDepth, float fHeight, PblVector3* pNormal)
+{
+    const PblVector3& vPos = matrix.GetTranslation();
+    PblVector3 vLocalStart = InverseRotate(matrix, vStart.x - vPos.x, vStart.y - vPos.y, vStart.z - vPos.z);
+    PblVector3 vLocalDir = InverseRotate(matrix, vDir.x, vDir.y, vDir.z);
+
+    float fHit = 0.0f;
+    int face = FindAACenteredBoxRayIntersection(vLocalStart, vLocalDir, fLength, fWidth, fHeight, fDepth, fHit);
+    if (face == 0)
+    {
+        return 1.0f;
+    }
+    if (pNormal)
+    {
+        switch (face)
+        {
+        case 1: *pNormal = matrix.GetXAxis(); break;
+        case 2: *pNormal = matrix.GetYAxis(); break;
+        case 3: *pNormal = matrix.GetZAxis(); break;
+        case -1:
+            *pNormal = PblVector3(matrix.m[0][0] * -1.0f, matrix.m[0][1] * -1.0f, matrix.m[0][2] * -1.0f);
+            break;
+        case -2:
+            *pNormal = PblVector3(matrix.m[1][0] * -1.0f, matrix.m[1][1] * -1.0f, matrix.m[1][2] * -1.0f);
+            break;
+        case -3:
+            *pNormal = PblVector3(matrix.m[2][0] * -1.0f, matrix.m[2][1] * -1.0f, matrix.m[2][2] * -1.0f);
+            break;
+        default:
+            *pNormal = PblVector3(0.0f, 1.0f, 0.0f);
+            break;
+        }
+    }
+    return fHit;
+}
+}
+
+// FUNCTION: SWBF2 0x0046b3e0
+float RayHitAACylinder(const PblVector3& vStart, const PblVector3& vDir, float fLength, const PblVector3& vCenter,
+                 float fRadius, float fHalfHeight, PblVector3* pNormal)
+{
+    PblVector3 vOffset(vStart.x - vCenter.x, vStart.y - vCenter.y, vStart.z - vCenter.z);
+    if (CollisionUtil::IsPointInsideAxisAlignedCylinder(vOffset, fRadius, fHalfHeight))
+    {
+        if (pNormal)
+        {
+            pNormal->x = 0.0f;
+            pNormal->z = 0.0f;
+            if (vStart.y > vCenter.y)
+            {
+                pNormal->y = 1.0f;
+            }
+            else
+            {
+                pNormal->y = -1.0f;
+            }
+        }
+        return 1.0f;
+    }
+
+    float fClipped = fLength;
+    float fEndY = vDir.y * fLength + vStart.y;
+    float fBottom = vCenter.y - fHalfHeight;
+    float fTop = vCenter.y + fHalfHeight;
+    if (fBottom > fEndY)
+    {
+        fClipped = (vStart.y - fBottom) / (vStart.y - fEndY) * fLength;
+    }
+    else if (fEndY > fTop)
+    {
+        fClipped = (vStart.y - fTop) / (vStart.y - fEndY) * fLength;
+    }
+
+    PblVector3 vFlat(vDir.x * fClipped, 0.0f, vDir.z * fClipped);
+    float fFlatLen = sqrtf(vFlat.x * vFlat.x + vFlat.y * vFlat.y + vFlat.z * vFlat.z);
+    if (fFlatLen < 0.0001f)
+    {
+        return 1.0f;
+    }
+    float fInv = 1.0f / fFlatLen;
+    PblVector3 vFlatDir(vFlat.x * fInv, vFlat.y * fInv, vFlat.z * fInv);
+
+    float fProj = (vCenter.x - vStart.x) * vFlatDir.x + (vCenter.y - vStart.y) * vFlatDir.y +
+                  (vCenter.z - vStart.z) * vFlatDir.z;
+    if (fProj < 0.0f || fProj > fFlatLen + fRadius)
+    {
+        return 1.0f;
+    }
+    float fDx = vStart.x + vFlatDir.x * fProj - vCenter.x;
+    float fDz = vStart.z + vFlatDir.z * fProj - vCenter.z;
+    float fDist2 = fDx * fDx + fDz * fDz;
+    if (fDist2 > fRadius * fRadius)
+    {
+        return 1.0f;
+    }
+    float fEnter = fProj - sqrtf(fRadius * fRadius - fDist2);
+    if (fEnter > fFlatLen)
+    {
+        return 1.0f;
+    }
+
+    float fHit = fEnter / fFlatLen * fClipped;
+    if (pNormal)
+    {
+        *pNormal = PblVector3(vStart.x + vDir.x * fHit - vCenter.x, vStart.y + vDir.y * fHit - vCenter.y,
+                              vStart.z + vDir.z * fHit - vCenter.z);
+        pNormal->y = 0.0f;
+        PblVector3 vUnit;
+        D3DXVec3Normalize((D3DXVECTOR3*)&vUnit, (const D3DXVECTOR3*)pNormal);
+        *pNormal = vUnit;
+    }
+    return fHit / fLength;
+}
+
+namespace CollisionUtil
+{
+
+// FUNCTION: SWBF2 0x0046b710
+float RayHitAxisAlignedCylinder(const PblVector3& vStart, const PblVector3& vDir, float fLength, const PblVector3& vCenter,
+                 float fRadius, float fHalfHeight, PblVector3* pNormal)
+{
+    float fEndY = vDir.y * fLength + vStart.y;
+    float fPlane;
+    float fNormalY;
+
+    float fTop = vCenter.y + fHalfHeight;
+    if (vStart.y > fTop)
+    {
+        if (!(fTop > fEndY))
+        {
+            return 1.0f;
+        }
+        fPlane = fTop;
+        fNormalY = 1.0f;
+    }
+    else
+    {
+        float fBottom = vCenter.y - fHalfHeight;
+        if (!(fBottom > vStart.y))
+        {
+            return RayHitAACylinder(vStart, vDir, fLength, vCenter, fRadius, fHalfHeight, pNormal);
+        }
+        if (!(fEndY > fBottom))
+        {
+            return 1.0f;
+        }
+        fPlane = fBottom;
+        fNormalY = -1.0f;
+    }
+
+    float t = (vStart.y - fPlane) / (vStart.y - fEndY);
+    float dx = t * fLength * vDir.x + vStart.x - vCenter.x;
+    float dz = t * fLength * vDir.z + vStart.z - vCenter.z;
+    if (fRadius * fRadius > dx * dx + dz * dz)
+    {
+        if (pNormal)
+        {
+            *pNormal = PblVector3(0.0f, fNormalY, 0.0f);
+        }
+        return t;
+    }
+
+    t += 0.0001f;
+    float fStep = t * fLength;
+    PblVector3 vS(fStep * vDir.x + vStart.x, fStep * vDir.y + vStart.y, fStep * vDir.z + vStart.z);
+    float fRest = 1.0f - t;
+    float fHit = RayHitAACylinder(vS, vDir, fRest * fLength, vCenter, fRadius, fHalfHeight, pNormal);
+    if (fHit < 1.0f)
+    {
+        return fRest * fHit + t;
+    }
+    return 1.0f;
+}
+}
+
+namespace CollisionUtil
+{
+
+// FUNCTION: SWBF2 0x0046b9c0
+float RayHitCylinder(const PblVector3& vStart, const PblVector3& vDir, float fLength, const PblMatrix& matrix,
+                 float fRadius, float fHalfHeight, PblVector3* pNormal)
+{
+    const PblVector3& vPos = matrix.GetTranslation();
+    PblVector3 vLocalStart = InverseRotate(matrix, vStart.x - vPos.x, vStart.y - vPos.y, vStart.z - vPos.z);
+    PblVector3 vLocalDir = InverseRotate(matrix, vDir.x, vDir.y, vDir.z);
+    PblVector3 vCenter(0.0f, 0.0f, 0.0f);
+    PblVector3 vLocalNormal;
+
+    float fHit = CollisionUtil::RayHitAxisAlignedCylinder(vLocalStart, vLocalDir, fLength, vCenter, fRadius, fHalfHeight, &vLocalNormal);
+    if (fHit < 1.0f && pNormal)
+    {
+        *pNormal = PblVector3(
+            matrix.m[0][0] * vLocalNormal.x + matrix.m[1][0] * vLocalNormal.y + matrix.m[2][0] * vLocalNormal.z,
+            matrix.m[0][1] * vLocalNormal.x + matrix.m[1][1] * vLocalNormal.y + matrix.m[2][1] * vLocalNormal.z,
+            matrix.m[0][2] * vLocalNormal.x + matrix.m[1][2] * vLocalNormal.y + matrix.m[2][2] * vLocalNormal.z);
+    }
+    return fHit;
+}
+}
+
+namespace CollisionUtil
+{
+
+// FUNCTION: SWBF2 0x0046bf30
+void GetClosestPoint_SegmentPoint(const PblVector3& vSegStart, const PblVector3& vSegEnd, const PblVector3& vPoint,
+                PblVector3& vClosest)
+{
+    PblVector3 vDelta = vSegEnd - vSegStart;
+    PblVector3 vOffset = vPoint - vSegStart;
+    float fProj = DotProduct(vOffset, vDelta);
+    if (fProj <= 0.0f)
+    {
+        vClosest = vSegStart;
+        return;
+    }
+    float fLen2 = DotProduct(vDelta, vDelta);
+    if (fProj >= fLen2)
+    {
+        vClosest = vSegEnd;
+        return;
+    }
+    float fT = fProj / fLen2;
+    vClosest = vSegStart + fT * vDelta;
+}
+}
+
+namespace CollisionUtil
+{
+
+// FUNCTION: SWBF2 0x0046bc00
+void GetClosestPoints_SegmentSegment(const PblVector3& vSStart, const PblVector3& vSEnd, const PblVector3& vTStart,
+                const PblVector3& vTEnd, PblVector3& vSPoint, PblVector3& vTPoint)
+{
+    const float SMALL = 0.0001f;
+    float fUX = vSEnd.x - vSStart.x, fUY = vSEnd.y - vSStart.y, fUZ = vSEnd.z - vSStart.z;
+    float fVX = vTEnd.x - vTStart.x, fVY = vTEnd.y - vTStart.y, fVZ = vTEnd.z - vTStart.z;
+    float fWX = vSStart.x - vTStart.x, fWY = vSStart.y - vTStart.y, fWZ = vSStart.z - vTStart.z;
+    float a = fUX * fUX + fUY * fUY + fUZ * fUZ;
+    float b = fVX * fUX + fVY * fUY + fVZ * fUZ;
+    float c = fVX * fVX + fVY * fVY + fVZ * fVZ;
+    float d = fWX * fUX + fWY * fUY + fWZ * fUZ;
+    float e = fWX * fVX + fWY * fVY + fWZ * fVZ;
+    float D = c * a - b * b;
+    float sN, sD = D, tN, tD = D;
+
+    if (D < SMALL)
+    {
+        sN = 0.0f;
+        sD = 1.0f;
+        tN = e;
+        tD = c;
+    }
+    else
+    {
+        sN = e * b - d * c;
+        tN = e * a - d * b;
+        if (sN < 0.0f)
+        {
+            sN = 0.0f;
+            tN = e;
+            tD = c;
+        }
+        else if (sN > sD)
+        {
+            sN = sD;
+            tN = e + b;
+            tD = c;
+        }
+    }
+
+    if (tN < 0.0f)
+    {
+        tN = 0.0f;
+        if (-d < 0.0f)
+        {
+            sN = 0.0f;
+        }
+        else if (-d > a)
+        {
+            sN = sD;
+        }
+        else
+        {
+            sN = -d;
+            sD = a;
+        }
+    }
+    else if (tN > tD)
+    {
+        tN = tD;
+        if (b - d < 0.0f)
+        {
+            sN = 0.0f;
+        }
+        else if (b - d > a)
+        {
+            sN = sD;
+        }
+        else
+        {
+            sN = b - d;
+            sD = a;
+        }
+    }
+
+    float sc = fabs(sN) < SMALL ? 0.0f : sN / sD;
+    float tc = fabs(tN) < SMALL ? 0.0f : tN / tD;
+    vSPoint = PblVector3(vSStart.x + fUX * sc, vSStart.y + fUY * sc, vSStart.z + fUZ * sc);
+    vTPoint = PblVector3(vTStart.x + fVX * tc, vTStart.y + fVY * tc, vTStart.z + fVZ * tc);
 }
 }

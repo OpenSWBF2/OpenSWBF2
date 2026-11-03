@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "AIUtil.h"
 
 #include <math.h>
@@ -63,8 +64,7 @@
 #include "TreeGrid.h"
 #include "PebbleFL/Common/PblHeap.h"
 #include "TeamManager.h"
-#include "PebbleFL/pc/PblD3DX.h"
-#include "VOHelper.h"
+
 
 extern PblVector3 gVectorZero;
 
@@ -83,22 +83,22 @@ PblMatrix DirectionMatrix(const PblVector3& vDir, const PblVector3& vUp, const P
 namespace
 {
 
-    const PblVector3& GetVelocity(const GameObject* pObj)
+    inline const PblVector3& GetVelocity(const GameObject* pObj)
     {
         return pObj->GetVelocity();
     }
 
-    bool IsRtti(const GameObject* pObj, unsigned int uRtti)
+    inline bool IsRtti(const GameObject* pObj, unsigned int uRtti)
     {
         return pObj->IsRtti(uRtti);
     }
 
-    float GetMaxSpeed(const GameObject* pObj)
+    inline float GetMaxSpeed(const GameObject* pObj)
     {
         return pObj->GetMaxSpeed();
     }
 
-    const Controllable* GetControllable(const GameObject* pObj)
+    inline const Controllable* GetControllable(const GameObject* pObj)
     {
         return pObj->GetControllable();
     }
@@ -108,7 +108,7 @@ namespace
         return pObj->GetEntityType();
     }
 
-    int GetFlyerState(const GameObject* pObj)
+    inline int GetFlyerState(const GameObject* pObj)
     {
         return static_cast<const EntityFlyer*>(pObj)->GetState();
     }
@@ -120,8 +120,11 @@ namespace
     }
 }
 
-// GLOBAL: SWBF2 0x0078e770
-namespace ControllerManager { extern const int UPDATES_PER_SECOND = 2; }
+namespace ControllerManager
+{
+    // GLOBAL: SWBF2 0x0078e770
+    extern const int UPDATES_PER_SECOND = 2;
+}
 
 // GLOBAL: SWBF2 0x01e2fdb2
 bool AIUtil::sUberMode;
@@ -161,10 +164,22 @@ namespace VisionManager
     };
 }
 
-namespace VisionManager { void Reset(); }
-namespace AudibleManager { void Reset(); }
-namespace HintManager { void Reset(); }
-namespace ReserveManager { void Reset(); }
+namespace VisionManager
+{
+    void Reset();
+}
+namespace AudibleManager
+{
+    void Reset();
+}
+namespace HintManager
+{
+    void Reset();
+}
+namespace ReserveManager
+{
+    void Reset();
+}
 
 // FUNCTION: SWBF2 0x0043f280
 void AIUtil::Reset()
@@ -212,38 +227,34 @@ float AIUtil::gSnipeSuitabilityDist = 70.0f;
 // GLOBAL: SWBF2 0x01f9af80
 static unsigned __int64 sSpied[600];
 
+// FUNCTION: SWBF2 0x004417d0
 void AIUtil::ResetSpied(Character* pWatcher)
 {
-    sSpied[pWatcher - Character::sCharacters] = 0;
+    sSpied[Character::GetIndex(pWatcher)] = 0;
 }
 
-namespace AIUtil {
+namespace AIUtil
+{
 
 // FUNCTION: SWBF2 0x00441780
-void __fastcall AddSpied(Character* pWatcher, Character* pTarget)
+void __fastcall AddSpied(Character* aSpy, Character* aSpotter)
 {
-    const int watcher = pWatcher - Character::sCharacters;
-    const int target = pTarget - Character::sCharacters;
-    const unsigned int mask = 1u << (target & 31);
-    sSpied[watcher] |= (unsigned __int64)mask | ((unsigned __int64)((int)mask < 0 ? 0xffffffffu : 0u) << 32);
+    sSpied[Character::GetIndex(aSpy)] |= 1 << Character::GetIndex(aSpotter);
 }
 }
 
-namespace AIUtil {
+namespace AIUtil
+{
 
 // FUNCTION: SWBF2 0x00441800
-bool __fastcall IsSpied(const Character* pWatcher, const Character* pTarget)
+bool __fastcall IsSpied(Character* aSpy, Character* aSpotter)
 {
-    const int watcher = pWatcher - Character::sCharacters;
-    const int target = pTarget - Character::sCharacters;
-    const unsigned int mask = 1u << (target & 31);
-    const unsigned __int64 bits = (unsigned __int64)mask |
-        ((unsigned __int64)((int)mask < 0 ? 0xffffffffu : 0u) << 32);
-    return (sSpied[watcher] & bits) != 0;
+    return (sSpied[Character::GetIndex(aSpy)] & (1 << Character::GetIndex(aSpotter))) != 0;
 }
 }
 
-namespace AIUtil {
+namespace AIUtil
+{
 
 // FUNCTION: SWBF2 0x00442b30
 bool __fastcall ShouldStayInVehicle(Controllable* pMe)
@@ -253,7 +264,7 @@ bool __fastcall ShouldStayInVehicle(Controllable* pMe)
     {
         return true;
     }
-    if (pMe->mPilotType != PILOT_VEHICLE && pMe->mPilotType != PILOT_VEHICLESELF)
+    if (!pMe->IsPilotable())
     {
         return true;
     }
@@ -291,11 +302,33 @@ bool AIUtil::IsNearNonAllyCommandPost(const GameObject* pObject, const CommandPo
     return *ppPost != 0;
 }
 
-namespace AIDifficulty { void Init(); }
-namespace VisionManager { void Initialize(); }
-namespace AudibleManager { void Initialize(); }
-namespace HintManager { void Initialize(); }
-namespace ReserveManager { void Init(); }
+namespace AIDifficulty
+{
+    void Init();
+}
+namespace VisionManager
+{
+    void Initialize();
+}
+namespace AudibleManager
+{
+    void Initialize();
+}
+namespace HintManager
+{
+    void Initialize();
+}
+namespace ReserveManager
+{
+    void Init();
+}
+namespace AI
+{
+    namespace VOHelper
+    {
+        void Reset();
+    }
+}
 
 // FUNCTION: SWBF2 0x0043f060
 void AIUtil::Init()
@@ -359,10 +392,7 @@ int AIUtil::GetRandomIntPerSecond(int iMin, int iMax)
 // FUNCTION: SWBF2 0x0043f300
 PblVector3 AIUtil::UnrotateVector(const PblMatrix& rMatrix, const PblVector3& vDir)
 {
-    PblVector3 vResult;
-    const PblMatrix mInverse = rMatrix.GetInverseFast();
-    D3DXVec3TransformNormal(&vResult, &vDir, &mInverse);
-    return vResult;
+    return rMatrix.GetInverseFast().ApplyRotation(vDir);
 }
 
 // FUNCTION: SWBF2 0x0043f340
@@ -376,7 +406,7 @@ PblVector3 AIUtil::GetSafeNormalXZ(const PblVector3& v)
         return vNormal;
     }
     PblVector3 vTmp;
-    D3DXVec3Normalize(&vTmp, &vNormal);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vTmp), reinterpret_cast<const D3DXVECTOR3*>(&vNormal));
     vNormal = vTmp;
     return vNormal;
 }
@@ -391,7 +421,7 @@ PblVector3 AIUtil::GetSafeNormal(const PblVector3& v)
         return vNormal;
     }
     PblVector3 vTmp;
-    D3DXVec3Normalize(&vTmp, &vNormal);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vTmp), reinterpret_cast<const D3DXVECTOR3*>(&vNormal));
     vNormal = vTmp;
     return vNormal;
 }
@@ -435,7 +465,7 @@ static void sCalculateTurnControls(const Controllable* pMe, float fScale, const 
         PblVector3 vDir;
         if (pMe->GetEntity()->IsRtti(EntityFlyer::rttiHashEntityFlyer))
         {
-            D3DXVec3Normalize(&vDir, &vLocal);
+            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vLocal));
         }
         else
         {
@@ -448,33 +478,17 @@ static void sCalculateTurnControls(const Controllable* pMe, float fScale, const 
             fSide = fSide < 0.0f ? -1.0f : 1.0f;
         }
 
-        float fRate = fTurnRate;
-        if (fRate < 1.0f)
-        {
-            fRate = 1.0f;
-        }
-        else if (fRate > 3.0f)
-        {
-            fRate = 3.0f;
-        }
+        const float fRate = Clamp(fTurnRate, 1.0f, 3.0f);
         const float fGain = 4.5f - fRate;
 
         float fTurn = 0.0f;
         if (fSide < 0.0f)
         {
-            fTurn = fGain * fSide;
-            if (fTurn <= -1.0f)
-            {
-                fTurn = -1.0f;
-            }
+            fTurn = Max(fGain * fSide, -1.0f);
         }
         else if (fSide > 0.0f)
         {
-            fTurn = fGain * fSide;
-            if (fTurn >= 1.0f)
-            {
-                fTurn = 1.0f;
-            }
+            fTurn = Min(fGain * fSide, 1.0f);
         }
         *pfTurn = fTurn * fTurn * (fTurn < 0.0f ? -1.0f : 1.0f);
     }
@@ -503,15 +517,8 @@ static void sCalculateTurnControls(const Controllable* pMe, float fScale, const 
 
         const UnitController* pUnit = UnitControllerPtr(static_cast<const Controller*>(pMe->mCtrl));
         const float fMax =
-            reinterpret_cast<const AILowLevel*>(pUnit->mLowLevel)->UseFastTurn() ? 2.0f : 1.0f;
-        if (-fMax > *pfTurn)
-        {
-            *pfTurn = -fMax;
-        }
-        else if (*pfTurn > fMax)
-        {
-            *pfTurn = fMax;
-        }
+            pUnit->mLowLevel.UseFastTurn() ? 2.0f : 1.0f;
+        *pfTurn = Clamp(*pfTurn, -fMax, fMax);
     }
 
     const PblMatrix mEye = DirectionMatrix(pMe->mEyeDir, gVectorUnitY, pMe->mEyePoint);
@@ -524,35 +531,19 @@ static void sCalculateTurnControls(const Controllable* pMe, float fScale, const 
     {
         const PblVector3 vLocal = UnrotateVector(mEye, vToDest2);
         PblVector3 vDir;
-        D3DXVec3Normalize(&vDir, &vLocal);
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vLocal));
 
-        float fRate = fPitchRate;
-        if (fRate < 1.0f)
-        {
-            fRate = 1.0f;
-        }
-        else if (fRate > 3.0f)
-        {
-            fRate = 3.0f;
-        }
+        const float fRate = Clamp(fPitchRate, 1.0f, 3.0f);
         const float fGain = 5.0f - fRate;
 
         float fPitch = 0.0f;
         if (vDir.y < 0.0f)
         {
-            fPitch = vDir.y * fGain;
-            if (fPitch <= -1.0f)
-            {
-                fPitch = -1.0f;
-            }
+            fPitch = Max(vDir.y * fGain, -1.0f);
         }
         else if (vDir.y > 0.0f)
         {
-            fPitch = vDir.y * fGain;
-            if (fPitch >= 1.0f)
-            {
-                fPitch = 1.0f;
-            }
+            fPitch = Min(vDir.y * fGain, 1.0f);
         }
         *pfPitch = fPitch * fPitch * (fPitch < 0.0f ? -1.0f : 1.0f);
         return;
@@ -579,14 +570,7 @@ static void sCalculateTurnControls(const Controllable* pMe, float fScale, const 
         fPitch /= fDiv;
     }
     *pfPitch = fPitch;
-    if (-1.0f > fPitch)
-    {
-        *pfPitch = -1.0f;
-    }
-    else if (fPitch > 1.0f)
-    {
-        *pfPitch = 1.0f;
-    }
+    *pfPitch = Clamp(fPitch, -1.0f, 1.0f);
 }
 }
 
@@ -618,12 +602,12 @@ PblVector3 AIUtil::CalculateBubbleOffset(const Controllable* pControllable, cons
             const PblVector3 vCross(vTo.y * 0.0f - vTo.z, vTo.z * 0.0f - vTo.x * 0.0f,
                                     vTo.x - vTo.y * 0.0f);
             PblVector3 vSide;
-            D3DXVec3Normalize(&vSide, &vCross);
+            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vSide), reinterpret_cast<const D3DXVECTOR3*>(&vCross));
             const PblVector3 vCross2(vTo.y * vSide.z - vTo.z * vSide.y,
                                      vTo.z * vSide.x - vTo.x * vSide.z,
                                      vTo.x * vSide.y - vTo.y * vSide.x);
             PblVector3 vUp;
-            D3DXVec3Normalize(&vUp, &vCross2);
+            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vUp), reinterpret_cast<const D3DXVECTOR3*>(&vCross2));
 
             vOffset = PblVector3(vSide.x * vCircle.x + vUp.x * vCircle.y,
                                  vSide.y * vCircle.x + vUp.y * vCircle.y,
@@ -635,14 +619,10 @@ PblVector3 AIUtil::CalculateBubbleOffset(const Controllable* pControllable, cons
         }
 
         const float fSize = pTargetCtrl->mCtrl->mTargetBubbleSize_Cached;
-        vOffset.x *= fSize;
-        vOffset.y *= fSize;
-        vOffset.z *= fSize;
+        vOffset *= fSize;
 
         const float fMultiplier = pWeaponClass ? pWeaponClass->mAIBubbleSizeMultiplier : 1.0f;
-        vOffset.x *= fMultiplier;
-        vOffset.y *= fMultiplier;
-        vOffset.z *= fMultiplier;
+        vOffset *= fMultiplier;
 
         if (!IsRtti(pTarget, EntityFlyer::rttiHashEntityFlyer) || GetFlyerState(pTarget) != 2)
         {
@@ -793,11 +773,7 @@ static const float FOV_ANGLE = 2.70526028f;
 // GLOBAL: SWBF2 0x01e2fdb0
 bool gAllSoldiers;
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
+
 
 namespace
 {
@@ -811,13 +787,14 @@ namespace
         return static_cast<const EntityFlyer*>(pFlyer)->mObstacle;
     }
 
-    const AILowLevel* GetLowLevel(const UnitController* pUnit)
+    inline const AILowLevel* GetLowLevel(const UnitController* pUnit)
     {
-        return reinterpret_cast<const AILowLevel*>(pUnit->mLowLevel);
+        return &pUnit->mLowLevel;
     }
 }
 
-namespace AIUtil {
+namespace AIUtil
+{
 
 // FUNCTION: SWBF2 0x00440380
 void UpdatePhysics(const Controllable* pMe, float fScale, const ControllableDestination& rDest,
@@ -856,7 +833,7 @@ void UpdatePhysics(const Controllable* pMe, float fScale, const ControllableDest
         else
         {
             PblVector3 vDir;
-            D3DXVec3Normalize(&vDir, &vToDest);
+            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vToDest));
 
             PblVector3 vFwd = pMe->GetMatrix().GetZAxis();
             PblVector3 vFwdXZ;
@@ -867,7 +844,7 @@ void UpdatePhysics(const Controllable* pMe, float fScale, const ControllableDest
             else
             {
                 vFwd.y = 0.0f;
-                D3DXVec3Normalize(&vFwdXZ, &vFwd);
+                D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vFwdXZ), reinterpret_cast<const D3DXVECTOR3*>(&vFwd));
             }
             const float fForward = vDir.x * vFwdXZ.x + vFwdXZ.y * vDir.y + vFwdXZ.z * vDir.z;
             const float fSide = -(vFwdXZ.z * vDir.x - vDir.z * vFwdXZ.x);
@@ -875,7 +852,7 @@ void UpdatePhysics(const Controllable* pMe, float fScale, const ControllableDest
             float fSpeed = 1.0f;
             if (bStopping)
             {
-                fSpeed = sqrtf(vToDest.x * vToDest.x + vToDest.z * vToDest.z) / fStop;
+                fSpeed = LengthXZ(vToDest) / fStop;
                 if (0.0f > fSpeed)
                 {
                     fSpeed = 0.0f;
@@ -988,10 +965,10 @@ void AIUtil::CalculateFlyerSteerPoint(const PblVector3& vPos, const PblVector3& 
 
     PblVector3 vFlat(vDir.x, 0.0f, vDir.z);
     PblVector3 vFwd;
-    D3DXVec3Normalize(&vFwd, &vFlat);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vFwd), reinterpret_cast<const D3DXVECTOR3*>(&vFlat));
     vFlat = PblVector3(vGoalDir.x, 0.0f, vGoalDir.z);
     PblVector3 vGoalFwd;
-    D3DXVec3Normalize(&vGoalFwd, &vFlat);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vGoalFwd), reinterpret_cast<const D3DXVECTOR3*>(&vFlat));
 
     float fGoalCircleX = fGoalX + vGoalFwd.z * fRadius;
     float fGoalCircleZ = fGoalZ - vGoalFwd.x * fRadius;
@@ -1106,24 +1083,21 @@ void AIUtil::CalculateSoldierSteerPoint(const PblVector3& vPrev, const PblVector
 {
     const PblVector3 vFrom(vPrev.x, vPos.y, vPrev.z);
     const PblVector3 vTo(vGoto.x, vPos.y, vGoto.z);
-    const PblVector3 vLeg(vTo.x - vFrom.x, vTo.y - vFrom.y, vTo.z - vFrom.z);
-    if (0.0001f > vLeg.x * vLeg.x + vLeg.y * vLeg.y + vLeg.z * vLeg.z)
+    const PblVector3 vLeg = vTo - vFrom;
+    if (0.0001f > SquaredLength(vLeg))
     {
         vSteer = vTo;
         return;
     }
 
-    PblVector3 vDir;
-    D3DXVec3Normalize(&vDir, &vLeg);
-    const float fAhead = vDir.y * (vPos.y - vFrom.y) + (vPos.x - vFrom.x) * vDir.x +
-                         vDir.z * (vPos.z - vFrom.z) + fSpeed + 0.2f;
-    if (fAhead * fAhead > vLeg.z * vLeg.z + vLeg.x * vLeg.x)
+    PblVector3 vDir = Normalize(vLeg);
+    const float fAhead = DotProduct(vDir, vPos - vFrom) + fSpeed + 0.2f;
+    if (fAhead * fAhead > SquaredLengthXZ(vLeg))
     {
         vSteer = vTo;
         return;
     }
-    vSteer = PblVector3(vDir.x * fAhead + vFrom.x, vDir.y * fAhead + vFrom.y,
-                        vDir.z * fAhead + vFrom.z);
+    vSteer = (vDir * fAhead + vFrom);
 }
 
 // FUNCTION: SWBF2 0x00440f20
@@ -1265,7 +1239,7 @@ PblVector3 AIUtil::GetRandomPtInRegion(const RedRegion* pRegion)
 {
     if (!pRegion)
     {
-        return _IdentityMatrix.GetTranslation();
+        return gMatrixIdentity.GetTranslation();
     }
 
     switch (pRegion->mType)
@@ -1276,18 +1250,16 @@ PblVector3 AIUtil::GetRandomPtInRegion(const RedRegion* pRegion)
         do
         {
             v = PblRandom::GetGlobalVector3();
-        } while (v.x * v.x + v.y * v.y + v.z * v.z > 1.0f);
-        const PblVector3& vCenter = pRegion->mMatrix.GetTranslation();
-        return PblVector3(vCenter.x + v.x * pRegion->mSize.x, vCenter.y + v.y * pRegion->mSize.x,
-                          vCenter.z + v.z * pRegion->mSize.x);
+        } while (SquaredLength(v) > 1.0f);
+        return pRegion->mMatrix.ApplyTranslation(v * pRegion->mSize.x);
     }
     case PblRegion::type_box:
     case PblRegion::type_box_aligned:
     {
         const PblVector3 v = PblRandom::GetGlobalVector3();
-        const PblVector3 vLocal(pRegion->mSize.x * v.x, pRegion->mSize.y * v.y, pRegion->mSize.z * v.z);
+        const PblVector3 vLocal = pRegion->mSize * v;
         PblVector3 vPoint;
-        D3DXVec3TransformCoord(&vPoint, &vLocal, &pRegion->mMatrix);
+        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vPoint), reinterpret_cast<const D3DXVECTOR3*>(&vLocal), reinterpret_cast<const D3DXMATRIX*>(&pRegion->mMatrix));
         return vPoint;
     }
     case PblRegion::type_cylinder:
@@ -1299,10 +1271,10 @@ PblVector3 AIUtil::GetRandomPtInRegion(const RedRegion* pRegion)
         do
         {
             v = PblRandom::GetGlobalVector3();
-        } while (v.x * v.x + v.z * v.z > 1.0f);
-        const PblVector3 vLocal(pRegion->mSize.x * v.x, pRegion->mSize.y * v.y, pRegion->mSize.z * v.z);
+        } while (SquaredLengthXZ(v) > 1.0f);
+        const PblVector3 vLocal = pRegion->mSize * v;
         PblVector3 vPoint;
-        D3DXVec3TransformCoord(&vPoint, &vLocal, &pRegion->mMatrix);
+        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vPoint), reinterpret_cast<const D3DXVECTOR3*>(&vLocal), reinterpret_cast<const D3DXMATRIX*>(&pRegion->mMatrix));
         return vPoint;
     }
     default:
@@ -1364,11 +1336,13 @@ bool AIUtil::IsNearPost(const Controllable* pMe, const CommandPost* pPost, const
     return fRadius * fRadius > fDistSq;
 }
 
-namespace AIUtil {
+namespace AIUtil
+{
 
 // FUNCTION: SWBF2 0x00441860
-bool __fastcall CanPotentiallySee(Controllable* pMe, const GameObject* pObject, float* pOut)
+bool __cdecl CanPotentiallySee(Controllable* pMe, const GameObject* pObject, float* pOut)
 {
+    // GLOBAL: SWBF2 0x01faa7d0
     static const float sCosHalfFOV = PblMath::Cos(FOV_ANGLE * 0.5f);
 
     const PblVector3 vTarget = pObject->GetTargetPoint(pMe->mEyePoint, pMe->mEyeDir, -1);
@@ -1415,7 +1389,7 @@ void AIUtil::DeployCargo(GameObject* pObject, const CommandPost*  )
 // FUNCTION: SWBF2 0x00441c10
 float AIUtil::GetCollisionRadius(const GameObject* pObj)
 {
-    GameObjectClass* pClass = pObj->GetGameObjectClass();
+    const GameObjectClass* pClass = pObj->GetGameObjectClass();
     const float fCached = pClass->mAICollisionRadius;
     if (fCached > 0.0f)
     {
@@ -1493,25 +1467,19 @@ bool AIUtil::AvoidBarriers(EntityFlyer* pFlyer, const PblVector3&  , PblVector3*
     return true;
 }
 
-namespace AIUtil {
+namespace AIUtil
+{
 
 // FUNCTION: SWBF2 0x00441f60
-float GetTargetSpeedForRealSpeed(float fNum, float fDenom)
+float GetTargetSpeedForRealSpeed(float aSpd, float aMinSpd, float aMidSpd, float aMaxSpd)
 {
-    const float f = fNum / fDenom;
-    if (0.0f > f)
-    {
-        return 0.0f;
-    }
-    if (f > 1.0f)
-    {
-        return 1.0f;
-    }
-    return f;
+    float targetSpeed = aSpd / aMaxSpd;
+    return Clamp(targetSpeed, 0.0f, 1.0f);
 }
 }
 
-namespace AIUtil {
+namespace AIUtil
+{
 
 // FUNCTION: SWBF2 0x00441f80
 float GetThrustForTargetSpeed(float fT, float fA, float fB, float fC)
@@ -1541,7 +1509,8 @@ float GetThrustForTargetSpeed(float fT, float fA, float fB, float fC)
 }
 }
 
-namespace AIUtil {
+namespace AIUtil
+{
 
 // FUNCTION: SWBF2 0x00442000
 bool ShouldSoldierDodgeThisType(int eType)
@@ -1683,7 +1652,8 @@ bool AIUtil::HasCPMoved(const CommandPost* pPost, Controllable* pMe, const PblVe
     return false;
 }
 
-namespace AIUtil {
+namespace AIUtil
+{
 
 // FUNCTION: SWBF2 0x00442430
 bool IsImportant(const GameObject* pObj)
@@ -1767,17 +1737,9 @@ PblVector3 AIUtil::DumbDown(const GameObject* pObject, float fDeltaTime, Aimer* 
                              vDir.x * vAim.y - vDir.y * vAim.x);
         const PblVector3 vRight(vDir.y * vUp.z - vDir.z * vUp.y, vDir.z * vUp.x - vDir.x * vUp.z,
                                 vDir.x * vUp.y - vDir.y * vUp.x);
-        PblMatrix mAim;
-        *(PblVector3*)&mAim.m[0][0] = vRight;
-        mAim.m[0][3] = 0.0f;
-        *(PblVector3*)&mAim.m[1][0] = vUp;
-        mAim.m[1][3] = 0.0f;
-        *(PblVector3*)&mAim.m[2][0] = vDir;
-        mAim.m[2][3] = 0.0f;
-        *(PblVector3*)&mAim.m[3][0] = gVectorZero;
-        mAim.m[3][3] = 1.0f;
+        PblMatrix mAim(vRight, vUp, vDir, gVectorZero);
         PblMatrix mRotate;
-        D3DXMatrixMultiply(&mAim, &mAim, D3DXMatrixRotationY(&mRotate, vUp.y > 0.0f ? 0.523598790f
+        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mAim), reinterpret_cast<const D3DXMATRIX*>(&mAim), D3DXMatrixRotationY(reinterpret_cast<D3DXMATRIX*>(&mRotate), vUp.y > 0.0f ? 0.523598790f
                                                                                   : -0.523598790f));
         vAim = mAim.GetZAxis();
         pAimer->SetAngVel(gVectorZero);
@@ -1803,7 +1765,7 @@ PblVector3 AIUtil::DumbDown(const GameObject* pObject, float fDeltaTime, Aimer* 
     const PblVector3 vNext(vAngVel.x * fDeltaTime + vAim.x, vAngVel.y * fDeltaTime + vAim.y,
                            vAngVel.z * fDeltaTime + vAim.z);
     PblVector3 vResult;
-    D3DXVec3Normalize(&vResult, &vNext);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vResult), reinterpret_cast<const D3DXVECTOR3*>(&vNext));
     return vResult;
 }
 
@@ -1842,8 +1804,7 @@ PblVector3 AIUtil::GetHisVisionTargetPos(const Controllable* pMe, const GameObje
         const PblVector3 vHisEye = pObj->GetControllable()->GetEyePoint();
         const PblVector3 vDir = pMe->mEyeDir;
         const PblVector3 vTarget = pObj->GetTargetPoint(vMyPos, vDir, -1);
-        return PblVector3((vTarget.x + vHisEye.x) * 0.5f, (vTarget.y + vHisEye.y) * 0.5f,
-                          (vTarget.z + vHisEye.z) * 0.5f);
+        return ((vTarget + vHisEye) * 0.5f);
     }
     return pObj->GetTargetPoint(vMyPos, pMe->mEyeDir, -1);
 }
@@ -2065,6 +2026,11 @@ PblVector3 AIUtil::GetRandomAccessiblePoint(const UnitController* pCtrl)
     return vDest;
 }
 
+namespace TeamManager
+{
+int GetObjectsInRange(const PblVector3& vPos, float fRange, GameObject** const ppObjects, int iMax,
+               const Team* pTeam, int iAffilMask); }
+
 // FUNCTION: SWBF2 0x00443220
 bool AIUtil::AreEnemiesInRange(int iTeam, const PblVector3& vPos, float fRange)
 {
@@ -2081,7 +2047,8 @@ bool AIUtil::AreEnemiesInRange(int iTeam, const PblVector3& vPos, float fRange)
     return false;
 }
 
-namespace AIUtil {
+namespace AIUtil
+{
 
 // FUNCTION: SWBF2 0x00443290
 float GetThreatSwitchTime(const UnitController* pCtrl)
@@ -2123,6 +2090,7 @@ void AIUtil::TellAIToExit(GameObject* pObject)
 
 namespace
 {
+    // FUNCTION: SWBF2 0x00443020
     GameObject* FindFirstInVehicle(GameObject* pVehicle, bool bPlayer)
     {
         const PblList<Controllable>& list = pVehicle->GetControllableList();

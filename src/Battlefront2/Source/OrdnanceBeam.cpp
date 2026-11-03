@@ -18,23 +18,41 @@ static const RedColor kBlueBeamGlowColor  = { 0x0a, 0x0a, 0x7f, 0x64 };
 extern bool netIsLocalTurn;
 extern bool netIsLateTurn;
 
-// GLOBAL: SWBF2 0x01ef2614
+class Weapon
+{
+public:
+
+    char mWeaponState[0x70];
+    Aimer* mAimer;
+};
+
 // SYNTHETIC: SWBF2 0x00405a30
 // `dynamic initializer for 'OrdnanceBeam::rttiHashOrdnanceBeam''
+// OrdnanceBeam::rttiHashOrdnanceBeam
+
+// GLOBAL: SWBF2 0x01ef2614
+// OrdnanceBeam::rttiHashOrdnanceBeam
 PblHash OrdnanceBeam::rttiHashOrdnanceBeam("OrdnanceBeam");
-char OrdnanceBeam::rttiNameOrdnanceBeam[] = "OrdnanceBeam";
+// GLOBAL: SWBF2 0x0078a7b8
+// OrdnanceBeam::rttiNameOrdnanceBeam
+const char OrdnanceBeam::rttiNameOrdnanceBeam[] = "OrdnanceBeam";
 
 // FUNCTION: SWBF2 0x005f9670
-unsigned int OrdnanceBeamClass::GetDerivedRtti() { return rttiHashOrdnanceBeamClass; }
+unsigned int OrdnanceBeamClass::GetDerivedRtti() const { return rttiHashOrdnanceBeamClass; }
 
 // FUNCTION: SWBF2 0x005f9680
-const char* OrdnanceBeamClass::GetDerivedRttiName() { return rttiNameOrdnanceBeamClass; }
+const char* OrdnanceBeamClass::GetDerivedRttiName() const { return rttiNameOrdnanceBeamClass; }
 
-// GLOBAL: SWBF2 0x01ef2618
 // SYNTHETIC: SWBF2 0x00405a40
 // `dynamic initializer for 'OrdnanceBeamClass::rttiHashOrdnanceBeamClass''
+// OrdnanceBeamClass::rttiHashOrdnanceBeamClass
+
+// GLOBAL: SWBF2 0x01ef2618
+// OrdnanceBeamClass::rttiHashOrdnanceBeamClass
 PblHash OrdnanceBeamClass::rttiHashOrdnanceBeamClass("OrdnanceBeamClass");
-char OrdnanceBeamClass::rttiNameOrdnanceBeamClass[] = "OrdnanceBeamClass";
+// GLOBAL: SWBF2 0x0078a79c
+// OrdnanceBeamClass::rttiNameOrdnanceBeamClass
+const char OrdnanceBeamClass::rttiNameOrdnanceBeamClass[] = "OrdnanceBeamClass";
 
 // FUNCTION: SWBF2 0x005fa180
 OrdnanceBeamClass::OrdnanceBeamClass(unsigned int uHash)
@@ -78,18 +96,14 @@ OrdnanceClass* OrdnanceBeamClass::Derive(unsigned int uHash)
 
 static BeamLodData beamloddata;
 
-// FUNCTION: SWBF2 0x005f9640
-bool OrdnanceBeamClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashOrdnanceBeamClass || OrdnanceClass::IsRtti(uRtti);
-}
+
 
 // FUNCTION: SWBF2 0x005f96d0
 OrdnanceBeam::OrdnanceBeam(OrdnanceBeamClass* pClass, const OrdnanceDesc& desc)
     : Ordnance(pClass, desc),
-      RedSceneObject(&beamloddata)
+      RedSceneObject(&beamloddata),
+      mDirection(desc.mDirection)
 {
-    mDirection = desc.mDirection;
     mLength = 0.0f;
     mAttachAimer = 0;
     m_pRicochet = 0;
@@ -130,9 +144,9 @@ OrdnanceBeam::~OrdnanceBeam()
 }
 
 // SYNTHETIC: SWBF2 0x005fa7ff
-// [thunk]:OrdnanceBeam::`scalar deleting destructor' adjustor{24}
+// ??_EOrdnanceBeam@@WBI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x005fa807
-// [thunk]:OrdnanceBeam::`scalar deleting destructor' adjustor{152}
+// ??_EOrdnanceBeam@@WJI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x005f96a0
 // OrdnanceBeam::`scalar deleting destructor'
 
@@ -267,23 +281,11 @@ void OrdnanceBeam::SetDead()
     }
 }
 
-// FUNCTION: SWBF2 0x005f95f0
-bool OrdnanceBeam::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashOrdnanceBeam || Ordnance::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x005f9620
-unsigned int OrdnanceBeam::GetDerivedRtti() const
-{
-    return rttiHashOrdnanceBeam;
-}
 
-// FUNCTION: SWBF2 0x005f9630
-const char* OrdnanceBeam::GetDerivedRttiName() const
-{
-    return rttiNameOrdnanceBeam;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x005f9cc0
 void OrdnanceBeam::CreateRicochet(const PblVector3& vPos, const PblVector3& vNormal,
@@ -520,4 +522,9 @@ void OrdnanceBeamClass::SetProperty(unsigned int uProperty, const char* pszValue
         OrdnanceClass::SetProperty(uProperty, pszValue);
         break;
     }
+}
+
+// FUNCTION: SWBF2 0x005fa2d0
+OrdnanceBeamClass::~OrdnanceBeamClass()
+{
 }

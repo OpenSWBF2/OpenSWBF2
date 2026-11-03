@@ -2,29 +2,22 @@
 #include "AILowLevel.h"
 #include "AttackHelper.h"
 
-// GLOBAL: SWBF2 0x01f9a254
 // SYNTHETIC: SWBF2 0x00406d40
 // `dynamic initializer for 'UnitUnBoardAgent::rttiHashUnitUnBoardAgent''
+// UnitUnBoardAgent::rttiHashUnitUnBoardAgent
+
+// GLOBAL: SWBF2 0x01f9a254
+// UnitUnBoardAgent::rttiHashUnitUnBoardAgent
 PblHash UnitUnBoardAgent::rttiHashUnitUnBoardAgent("UnitUnBoardAgent");
-char UnitUnBoardAgent::rttiNameUnitUnBoardAgent[] = "UnitUnBoardAgent";
+// GLOBAL: SWBF2 0x0078b998
+// UnitUnBoardAgent::rttiNameUnitUnBoardAgent
+const char UnitUnBoardAgent::rttiNameUnitUnBoardAgent[] = "UnitUnBoardAgent";
 
-// FUNCTION: SWBF2 0x0066b1b0
-bool UnitUnBoardAgent::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashUnitUnBoardAgent || UnitAgent::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x0066b1e0
-unsigned int UnitUnBoardAgent::GetDerivedRtti() const
-{
-    return rttiHashUnitUnBoardAgent;
-}
 
-// FUNCTION: SWBF2 0x0066b1f0
-const char* UnitUnBoardAgent::GetDerivedRttiName() const
-{
-    return rttiNameUnitUnBoardAgent;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x0066b200
 bool UnitUnBoardAgent::ShouldQueueCurCmd(const UnitCmdInfo& cmd) const
@@ -59,7 +52,7 @@ void UnitUnBoardAgent::UpdateStatePostVision(float dt)
 {
     if (mCurState != 100)
     {
-        reinterpret_cast<AttackHelper*>(mAttackHelper)->Update();
+        mAttackHelper.Update();
     }
 }
 

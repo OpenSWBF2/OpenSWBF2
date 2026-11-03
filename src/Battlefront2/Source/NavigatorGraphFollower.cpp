@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include <string.h>
 
 #include "NavigatorGraphFollower.h"
@@ -12,40 +13,29 @@
 #include "PathManager.h"
 #include "UnitController.h"
 #include "PebbleFL/Common/PblMatrix.h"
-#include "PebbleFL/pc/PblD3DX.h"
+
 
 namespace
 {
 
-    const PblVector3& GetPos(const PblMatrix& m)
-    {
-        return *(const PblVector3*)&m.m[3][0];
-    }
 }
 
-// GLOBAL: SWBF2 0x01ecb250
 // SYNTHETIC: SWBF2 0x004043d0
 // `dynamic initializer for 'NavigatorGraphFollower::rttiHashNavigatorGraphFollower''
+// NavigatorGraphFollower::rttiHashNavigatorGraphFollower
+
+// GLOBAL: SWBF2 0x01ecb250
+// NavigatorGraphFollower::rttiHashNavigatorGraphFollower
 PblHash NavigatorGraphFollower::rttiHashNavigatorGraphFollower("NavigatorGraphFollower");
-char NavigatorGraphFollower::rttiNameNavigatorGraphFollower[] = "NavigatorGraphFollower";
+// GLOBAL: SWBF2 0x0078a620
+// NavigatorGraphFollower::rttiNameNavigatorGraphFollower
+const char NavigatorGraphFollower::rttiNameNavigatorGraphFollower[] = "NavigatorGraphFollower";
 
-// FUNCTION: SWBF2 0x005ac4e0
-bool NavigatorGraphFollower::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashNavigatorGraphFollower || Navigator::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x005ad230
-unsigned int NavigatorGraphFollower::GetDerivedRtti() const
-{
-    return rttiHashNavigatorGraphFollower;
-}
 
-// FUNCTION: SWBF2 0x005ad240
-const char* NavigatorGraphFollower::GetDerivedRttiName() const
-{
-    return rttiNameNavigatorGraphFollower;
-}
+
+
+
 
 // SYNTHETIC: SWBF2 0x005ad250
 // NavigatorGraphFollower::`scalar deleting destructor'
@@ -117,7 +107,7 @@ void NavigatorGraphFollower::EnterState()
     }
 
     Controllable* pMe = mOwner->mOwner->mOwner;
-    PblVector3 vFrom = GetPos(pMe->GetMatrix());
+    PblVector3 vFrom = pMe->GetMatrix().GetTranslation();
     PblVector3 vTo = mGlobalDest;
     const GameObject* pObj = pMe->GetGameObject();
 
@@ -162,7 +152,7 @@ void NavigatorGraphFollower::EnterState()
             pPath->Prepend(vDest, 0);
             PblVector3 vDelta(vDest.x - vFrom.x, vDest.y - vFrom.y, vDest.z - vFrom.z);
             PblVector3 vDir;
-            D3DXVec3Normalize(&vDir, &vDelta);
+            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vDelta));
             PblVector3 vJump(vDir.x * 0.1f + vFrom.x, vDir.y * 0.1f + vFrom.y, vDir.z * 0.1f + vFrom.z);
             pPath->Prepend(vJump, uFlags);
             pPath->Prepend(vFrom, 0);
@@ -245,7 +235,7 @@ void NavigatorGraphFollower::ReceivePathResult(AIPath* pPath)
             pLegPath->Prepend(vTo, 0);
             PblVector3 vDelta(vTo.x - vFrom.x, vTo.y - vFrom.y, vTo.z - vFrom.z);
             PblVector3 vDir;
-            D3DXVec3Normalize(&vDir, &vDelta);
+            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vDelta));
             PblVector3 vJump(vDir.x * 0.1f + vFrom.x, vDir.y * 0.1f + vFrom.y, vDir.z * 0.1f + vFrom.z);
             pLegPath->Prepend(vJump, uFlags);
             pLegPath->Prepend(vFrom, 0);

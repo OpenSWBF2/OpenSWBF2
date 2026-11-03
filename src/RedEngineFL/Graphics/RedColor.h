@@ -9,6 +9,8 @@ public:
 
     // FUNCTION: SWBF2 0x0040f750
     RedColor(const RedColor& c) : b(c.b), g(c.g), r(c.r), a(c.a) {}
+    RedColor(const RedColor& color, unsigned char aA)
+        : b(color.b), g(color.g), r(color.r), a(aA) {}
     RedColor(unsigned char aR, unsigned char aG, unsigned char aB, unsigned char aA)
         : b(aB), g(aG), r(aR), a(aA) {}
 
@@ -17,7 +19,12 @@ public:
     unsigned char r;
     unsigned char a;
 
-    unsigned int GetARGB() const;
+    // FUNCTION: SWBF2 0x0041bbe0
+    unsigned int GetARGB() const
+    {
+        return ((unsigned int)a << 24) | ((unsigned int)r << 16) |
+               ((unsigned int)g << 8) | (unsigned int)b;
+    }
 
     static RedColor WHITE;
     static RedColor LTGREY;

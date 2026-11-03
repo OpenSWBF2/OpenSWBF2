@@ -12,8 +12,7 @@ class SourceBus
 public:
     SourceBus();
 
-    // FUNCTION: SWBF2 0x00738370
-    ~SourceBus() {}
+    ~SourceBus();
 
     void Stop(SourceTransport* pTransport);
 
@@ -25,8 +24,7 @@ public:
 
     void Play(SourceTransport* pTransport);
 
-    // FUNCTION: SWBF2 0x00738380
-    Bus* GetBus() const { return mBus; }
+    Bus* GetBus() const;
 
 protected:
 

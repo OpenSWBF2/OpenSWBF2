@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "EntityBuilding.h"
@@ -29,16 +31,16 @@ public:
 
     virtual EntityClass* Derive(unsigned int uHash);
     virtual Entity* Build(const EntityDesc& desc);
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
 
     bool InitAnimations(const char* pszName);
     bool SetupAnimation(ZephyrPoseDyn<64>& kPose, const ZephyrAnim* pAnim, float fTime);
 
     static PblHash rttiHashEntityTrapClass;
-    static char rttiNameEntityTrapClass[];
+    static const char rttiNameEntityTrapClass[];
 
     ZephyrAnim* mAnimBuildTrap;
     PblMatrix mBuildOffset;
@@ -89,6 +91,12 @@ public:
  
  
 
+// VTABLE: SWBF2 0x0079d5a8 PblHandled
+// VTABLE: SWBF2 0x0079d5b0 EntityEx
+// VTABLE: SWBF2 0x0079d6d8
+// VTABLE: SWBF2 0x0079d6f0 CollisionObject
+// VTABLE: SWBF2 0x0079d744 Damageable
+// VTABLE: SWBF2 0x0079d770 RedSceneObject
 class EntityTrap : public EntityBuilding, public Thread
 {
 public:
@@ -118,7 +126,7 @@ public:
     virtual GameObject* AddToClient();
 
     static PblHash rttiHashEntityTrap;
-    static char rttiNameEntityTrap[];
+    static const char rttiNameEntityTrap[];
 
     float mAnimationTime;
     EntityTrapClass* mTrapClass;
@@ -149,3 +157,47 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x004fcc70
+inline bool EntityTrap::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashEntityTrap == uRtti)
+    {
+        return true;
+    }
+    return EntityBuilding::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x004fccc0
+inline unsigned int EntityTrap::GetDerivedRtti() const
+{
+    return rttiHashEntityTrap;
+}
+
+// FUNCTION: SWBF2 0x004fccd0
+inline const char* EntityTrap::GetDerivedRttiName() const
+{
+    return rttiNameEntityTrap;
+}
+
+// FUNCTION: SWBF2 0x004fcd30
+inline bool EntityTrapClass::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashEntityTrapClass == uRtti)
+    {
+        return true;
+    }
+    return EntityBuildingClass::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x004fcd70
+inline unsigned int EntityTrapClass::GetDerivedRtti() const
+{
+    return rttiHashEntityTrapClass;
+}
+
+// FUNCTION: SWBF2 0x004fcd80
+inline const char* EntityTrapClass::GetDerivedRttiName() const
+{
+    return rttiNameEntityTrapClass;
+}

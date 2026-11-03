@@ -2,11 +2,13 @@
 #include "PebbleFL/Common/PblChunk.h"
 #include "PebbleFL/Common/PblFile.h"
 
-// GLOBAL: SWBF2 0x007eb8cc
 // SYNTHETIC: SWBF2 0x00403aa0
 // `dynamic initializer for 'FoleyFXGroup::smList''
 // SYNTHETIC: SWBF2 0x007687d0
 // `dynamic atexit destructor for 'FoleyFXGroup::smList''
+
+// GLOBAL: SWBF2 0x007eb8cc
+// FoleyFXGroup::smList
 PblListSingle FoleyFXGroup::smList;
 
 // GLOBAL: SWBF2 0x01e55f74
@@ -25,10 +27,6 @@ FoleyFXGroup::FoleyFXGroup()
 // FUNCTION: SWBF2 0x0052c7c0
 FoleyFXGroup::~FoleyFXGroup()
 {
-    if (mNode.mNext)
-    {
-        mNode.Remove();
-    }
 }
 
 // FUNCTION: SWBF2 0x0052c800
@@ -92,7 +90,7 @@ FoleyFX* FoleyFXGroup::FindFoleyFX(unsigned int uClassID) const
          pNode = pNode->mNext)
     {
         FoleyFX* pFX = (FoleyFX*)((const Snd::ObjectList::Node*)pNode)->mObject;
-        if (pFX->GetClassID() == uClassID)
+        if (uClassID == pFX->GetClassID())
         {
             return pFX;
         }

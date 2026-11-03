@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "CollisionObject.h"
@@ -7,6 +9,7 @@
 #include "Factory.h"
 #include "FoleyFX.h"
 #include "GameSound.h"
+#include "GameObject.h"
 #include "Thread.h"
 #include "RedEngineFL/Graphics/RedColor.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
@@ -57,15 +60,16 @@ class OrdnanceClass : public Factory<Ordnance, OrdnanceClass, OrdnanceDesc>,
                       public FoleyFXCollideeClass
 {
 public:
+    virtual ~OrdnanceClass();
     OrdnanceClass(unsigned int uHash);
 
     OrdnanceClass(OrdnanceClass* pBase, unsigned int uHash);
 
     static void Read(PblFileChunk& chunk);
 
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
     virtual float GetVelocity();
     virtual float GetGravity();
@@ -95,7 +99,7 @@ public:
     GameSound mSoundCollisionShield;
 
     static PblHash rttiHashOrdnanceClass;
-    static char rttiNameOrdnanceClass[];
+    static const char rttiNameOrdnanceClass[];
 };
  
  
@@ -116,8 +120,8 @@ public:
  
  
 
-// VTABLE: SWBF2 0x007ac40c
-// VTABLE: SWBF2 0x007ac48c
+// VTABLE: SWBF2 0x007ac40c Thread
+// VTABLE: SWBF2 0x007ac48c PblHandled
 class Ordnance : public Thread, public PblHandled, public FoleyFXCollider, public FoleyFXCollidee
 {
 protected:
@@ -145,6 +149,8 @@ public:
     DamageDesc GetDamage();
     void AddOrdnanceToCollisionManager();
 
+    // SYNTHETIC: SWBF2 0x005f71e0
+    // Ordnance::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
     static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
@@ -163,8 +169,8 @@ public:
 
     OrdnanceClass* mClass;
     float mRatio;
-    bool mCheckStaticCollision;
-    bool mDecrementLifeTime;
+    unsigned char mCheckStaticCollision;
+    unsigned char mDecrementLifeTime;
     float mLifeTime;
     float mLifeElapsed;
     RedColor mRenderColor;
@@ -177,7 +183,7 @@ public:
     int mInterpIndex;
 
     static PblHash rttiHashOrdnance;
-    static char rttiNameOrdnance[];
+    static const char rttiNameOrdnance[];
     static MemoryPool sMemoryPool;
 };
  
@@ -191,3 +197,48 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x005f7240
+inline GameObject* Ordnance::GetOwner() const
+{
+    return static_cast<GameObject*>(mOwner);
+}
+
+// FUNCTION: SWBF2 0x005f71a0
+inline bool Ordnance::IsRtti(unsigned int uRtti) const
+{
+    return rttiHashOrdnance == uRtti;
+}
+
+// FUNCTION: SWBF2 0x005f71c0
+inline unsigned int Ordnance::GetDerivedRtti() const
+{
+    return rttiHashOrdnance;
+}
+
+// FUNCTION: SWBF2 0x005f71d0
+inline const char* Ordnance::GetDerivedRttiName() const
+{
+    return rttiNameOrdnance;
+}
+
+// FUNCTION: SWBF2 0x005f72a0
+inline bool OrdnanceClass::IsRtti(unsigned int uRtti) const
+{
+    return rttiHashOrdnanceClass == uRtti;
+}
+
+// FUNCTION: SWBF2 0x005f72c0
+inline unsigned int OrdnanceClass::GetDerivedRtti() const
+{
+    return rttiHashOrdnanceClass;
+}
+
+// FUNCTION: SWBF2 0x005f72d0
+inline const char* OrdnanceClass::GetDerivedRttiName() const
+{
+    return rttiNameOrdnanceClass;
+}
+
+
+

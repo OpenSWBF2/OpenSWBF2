@@ -1,7 +1,7 @@
 #include "PblHandle.h"
 
 // GLOBAL: SWBF2 0x007e2c78
-unsigned int sNextHandleId = 1;
+static unsigned int sNextHandleId = 1;
 
 // FUNCTION: SWBF2 0x00727d20
 PblHandled::PblHandled()
@@ -19,4 +19,10 @@ unsigned int PblHandled::SetNextHandleId(unsigned int uId)
     unsigned int uOld = sNextHandleId;
     sNextHandleId = uId;
     return uOld;
+}
+
+// FUNCTION: SWBF2 0x00423e90
+unsigned int PblHandled::GetHandleId() const
+{
+    return mHandleId;
 }

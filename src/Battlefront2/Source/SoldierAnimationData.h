@@ -50,21 +50,7 @@ public:
         unsigned char uiBlendTime;
     };
 
-    struct NameTable
-    {
-        NameTable() { _table.Clear(); _iNumEntries = 0; }
-        void* Find(unsigned int uiHash) const { return _table.Find(uiHash); }
-        void Store(unsigned int uiHash, void* pValue)
-        {
-            if (_table.Store(uiHash, pValue))
-            {
-                ++_iNumEntries;
-            }
-        }
-
-        int _iNumEntries;
-        PblHashTable<void, 512> _table;
-    };
+    typedef PblHashTable<void, 512> AnimationNameTable;
 
     void Init(unsigned char uiAnimIndex, SoldierAnimType::Scope eScope)
     {
@@ -162,7 +148,7 @@ public:
     static SoldierAnimationData* s_aAnimationData;
     static BlendOverrideT* s_aAnimationOverrideData;
     static unsigned int s_uiNumOverrides;
-    static NameTable* s_pAnimationNameTable;
+    static AnimationNameTable* s_pAnimationNameTable;
     static unsigned int* s_auiSyncTypeTable;
     static char** s_aszSyncTypeNames;
 };

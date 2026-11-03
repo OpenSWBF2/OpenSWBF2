@@ -2,7 +2,10 @@
 #include "NetGame.h"
 
 extern int netCurMaxPlayers;
-namespace FriendBuddyList { bool __fastcall IsFriendBuddy(int iPlayer); }
+namespace FriendBuddyList
+{
+bool __fastcall IsFriendBuddy(int ignored, int iPlayer);
+}
 
 namespace GameVoiceChat
 {
@@ -20,120 +23,125 @@ void Transport::SetReceiveEnableUsingMask(unsigned char node, Mask mask, bool bE
 }
 
 // FUNCTION: SWBF2 0x0053dd00
-void Transport::SetSendReceiveEnableUsingMask(unsigned char node, Mask mask, bool bEnable, bool bSend,
-                                              bool bKeepCurrent)
+void Transport::SetSendReceiveEnableUsingMask(const unsigned char nodeID, const Mask mask,
+                                              bool enable, const bool send, const bool maskExisting)
 {
-    if (mask == mask_TeamFriend || mask == mask_TeamEnemy)
+    int nodeTeam = -1;
+    NetPlayerTeamInfo teamInfo[64];
+    switch (mask)
     {
-        NetPlayerTeamInfo players[64];
-        int ownTeam = -1;
-        const unsigned int count = BuildPlayerTeamInfo(players, 64, node, &ownTeam);
-        for (unsigned int i = 0; i < count; ++i)
+    case mask_TeamFriend:
+    case mask_TeamEnemy:
+    {
+        const unsigned int numPlayers = BuildPlayerTeamInfo(teamInfo, 64, nodeID, &nodeTeam);
+        for (unsigned int i = 0; i < numPlayers; ++i)
         {
-            const int other = players[i].player;
-            if (other < 0 || other == node || (unsigned int)other >= mNumNodes)
+            if (teamInfo[i].player < 0 || teamInfo[i].player == nodeID)
             {
                 continue;
             }
-            const bool selected = mask == mask_TeamFriend ? players[i].team == ownTeam
-                                                         : players[i].team != ownTeam;
-            if (!selected && bKeepCurrent)
+            const bool selected = mask == mask_TeamFriend ? teamInfo[i].team == nodeTeam
+                                                         : teamInfo[i].team != nodeTeam;
+            if (!selected && maskExisting)
             {
                 continue;
             }
-            bool enable = bEnable && selected;
-            if (bKeepCurrent && bEnable)
+            const unsigned char remoteNodeID = (unsigned char)teamInfo[i].player;
+            if (send)
             {
-                enable = bSend ? GetSendEnable(node, (unsigned char)other)
-                               : GetReceiveEnable(node, (unsigned char)other);
-            }
-            if (bSend)
-            {
-                SetSendEnable(node, (unsigned char)other, enable, false);
+                SetSendEnable(nodeID, remoteNodeID,
+                    maskExisting ? enable && GetSendEnable(nodeID, remoteNodeID) : enable && selected, false);
             }
             else
             {
-                SetReceiveEnable(node, (unsigned char)other, enable, false);
+                SetReceiveEnable(nodeID, remoteNodeID,
+                    maskExisting ? enable && GetReceiveEnable(nodeID, remoteNodeID) : enable && selected, false);
             }
         }
-        return;
+        break;
     }
-
-    if (mask == mask_FriendsBuddies)
+    case mask_FriendsBuddies:
     {
-        for (unsigned int other = 0; other < mNumNodes; ++other)
+        unsigned int iNode = 0;
+        const unsigned int numNodes = GetNumNodes();
+        for (; iNode < numNodes; ++iNode)
         {
-            if (other == node)
+            const unsigned char remoteNodeID = (unsigned char)iNode;
+            if (remoteNodeID == nodeID)
             {
                 continue;
             }
-            const bool selected = FriendBuddyList::IsFriendBuddy(other);
-            if (!selected && bKeepCurrent)
+            const bool friendBuddy = FriendBuddyList::IsFriendBuddy(0, iNode);
+            if (!friendBuddy && maskExisting)
             {
                 continue;
             }
-            bool enable = bEnable && selected;
-            if (bKeepCurrent && bEnable)
+            if (send)
             {
-                enable = bSend ? GetSendEnable(node, (unsigned char)other)
-                               : GetReceiveEnable(node, (unsigned char)other);
-            }
-            if (bSend)
-            {
-                SetSendEnable(node, (unsigned char)other, enable, false);
+                SetSendEnable(nodeID, remoteNodeID,
+                    maskExisting ? enable && GetSendEnable(nodeID, remoteNodeID) : enable && friendBuddy, false);
             }
             else
             {
-                SetReceiveEnable(node, (unsigned char)other, enable, false);
+                SetReceiveEnable(nodeID, remoteNodeID,
+                    maskExisting ? enable && GetReceiveEnable(nodeID, remoteNodeID) : enable && friendBuddy, false);
             }
         }
-        return;
+        break;
     }
+    case mask_Noone:
+        enable = !enable;
 
-    if (mask == mask_Everyone || mask == mask_Noone)
+    case mask_Everyone:
     {
-        const bool selected = mask == mask_Everyone ? bEnable : !bEnable;
-        for (unsigned int other = 0; other < mNumNodes; ++other)
+        unsigned int iNode = 0;
+        const unsigned int numNodes = GetNumNodes();
+        for (; iNode < numNodes; ++iNode)
         {
-            if (other == node)
+            const unsigned char remoteNodeID = (unsigned char)iNode;
+            if (remoteNodeID == nodeID)
             {
                 continue;
             }
-            bool enable = selected;
-            if (bKeepCurrent && selected)
+            if (send)
             {
-                enable = bSend ? GetSendEnable(node, (unsigned char)other)
-                               : GetReceiveEnable(node, (unsigned char)other);
-            }
-            if (bSend)
-            {
-                SetSendEnable(node, (unsigned char)other, enable, false);
+                SetSendEnable(nodeID, remoteNodeID,
+                    maskExisting ? enable && GetSendEnable(nodeID, remoteNodeID) : enable, false);
             }
             else
             {
-                SetReceiveEnable(node, (unsigned char)other, enable, false);
+                SetReceiveEnable(nodeID, remoteNodeID,
+                    maskExisting ? enable && GetReceiveEnable(nodeID, remoteNodeID) : enable, false);
             }
         }
+        break;
+    }
+    default:
+        break;
     }
 }
 
 // FUNCTION: SWBF2 0x0053e040
-unsigned int Transport::BuildPlayerTeamInfo(NetPlayerTeamInfo* pInfo, unsigned int uMax, int iNode,
-                                            int* pTeam) const
+unsigned int Transport::BuildPlayerTeamInfo(NetPlayerTeamInfo* teamInfo, unsigned int teamInfoSize,
+                                            const int queryNode, int* queryTeam) const
 {
-    (void)uMax;
-    unsigned int uCount = 0;
-    for (int iPlayer = 0; iPlayer < netCurMaxPlayers && uCount < 64; ++iPlayer, ++uCount)
+    (void)teamInfoSize;
+    unsigned int numPlayers = 0;
+    for (int i = 0; i < netCurMaxPlayers; ++i)
     {
-        pInfo[uCount].player = iPlayer;
-        const int iTeam = NetGame::GetStartTeam(iPlayer);
-        pInfo[uCount].team = iTeam;
-        if (pInfo[uCount].player == iNode && pTeam)
+        if (numPlayers >= 64)
         {
-            *pTeam = iTeam;
+            break;
         }
+        teamInfo[numPlayers].player = i;
+        teamInfo[numPlayers].team = NetGame::GetStartTeam(i);
+        if (teamInfo[numPlayers].player == queryNode && queryTeam)
+        {
+            *queryTeam = teamInfo[numPlayers].team;
+        }
+        ++numPlayers;
     }
-    return uCount;
+    return numPlayers;
 }
 
 }

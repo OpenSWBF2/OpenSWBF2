@@ -20,9 +20,12 @@ public:
     static unsigned int __cdecl GetFrameSize(Format eFormat);
     static unsigned int __cdecl GetSamplesPerFrame(Format eFormat);
 
-    static const unsigned int smSamplesPerFrame[5];
-    static const unsigned int smFrameSize[5];
-    static const unsigned char smBitDepth[5];
+private:
+    static unsigned int smSamplesPerFrame[];
+    static unsigned int smFrameSize[];
+    static unsigned char smBitDepth[];
+
+public:
 
     char mFormat;
     unsigned int mFrequency;

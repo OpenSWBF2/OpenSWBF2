@@ -39,6 +39,11 @@
 
 #include "Steam/gfGalaxy.h"
 
+// GLOBAL: SWBF2 0x007b2620
+// __xmm@0000000000000000000000003f800000
+// GLOBAL: SWBF2 0x007b2670
+// __xmm@00000000bf8000000000000000000000
+
 static const unsigned int kEventToggleMapModeHash = 0x233d39ec;
 static const unsigned int kEventChangeMapModeHash = 0x0d533bd4;
 static const unsigned int kEventPostHideHash = 0x6d95d5e9;
@@ -81,11 +86,7 @@ static BackdropDefaults gBackdropDefaults[3] =
     { 0.6f, 0.5f, 0.65f }
 };
 
-static const PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
+
 
 // GLOBAL: SWBF2 0x00789ad4
 char* HUD::ElementMap::sModeStrings[3] = { "Small", "Large", "Spawn" };
@@ -156,11 +157,8 @@ bool HUD::ElementMap::BitmapGroup::SetProperty(const unsigned int uHashID, const
 // HUD::ElementMap::BitmapGroup::`scalar deleting destructor'
 
 // SYNTHETIC: SWBF2 0x00555c35
-// [thunk]:HUD::ElementMap::BitmapGroup::`scalar deleting destructor' adjustor{288}
-// FUNCTION: SWBF2 0x0054fa60
-HUD::ElementMap::BitmapGroup::~BitmapGroup()
-{
-}
+// ??_EBitmapGroup@ElementMap@HUD@@WBCA@AEPAXI@Z
+
 
 // SYNTHETIC: SWBF2 0x0054fe40
 // HUD::ElementMap::Factory::~Factory
@@ -184,15 +182,11 @@ HUD::ElementMap::BitmapGroup::~BitmapGroup()
 // HUD::ElementText::`default constructor closure'
 
 // SYNTHETIC: SWBF2 0x00555c2a
-// [thunk]:HUD::ElementMap::`scalar deleting destructor' adjustor{384}
+// ??_EElementMap@HUD@@WBIA@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x005511b0
 HUD::ElementMap::~ElementMap()
 {
-    if (mMapNode.mNext)
-    {
-        mMapNode.Remove();
-    }
 }
 
 // FUNCTION: SWBF2 0x0054f970
@@ -585,7 +579,7 @@ void HUD::ElementMap::PostReadSetup()
 
     for (unsigned int i = 0; i < mode_MAX; ++i)
     {
-        PblMatrix matrix = _IdentityMatrix;
+        PblMatrix matrix = gMatrixIdentity;
         matrix.m[3][0] = mPosition[i].x;
         matrix.m[3][1] = mPosition[i].y;
         matrix.m[3][2] = mPosition[i].z;
@@ -709,9 +703,9 @@ bool HUD::ElementMap::ReadData(PblConfig& config, PblConfig::Data& data)
 // FUNCTION: SWBF2 0x00555840
 HUD::ElementMap* HUD::ElementMap::FindByPlayerIndex(int iPlayerIndex)
 {
-    for (PblListSingle::Node* pNode = sMapList.mHead.mNext; pNode != &sMapList.mHead; pNode = pNode->mNext)
+    for (PblListSingle::Itor itor(sMapList); itor.GetNode() != &sMapList.mHead; ++itor)
     {
-        ElementMap* pMap = (ElementMap*)((char*)pNode - offsetof(ElementMap, mMapNode));
+        ElementMap* pMap = (ElementMap*)((char*)itor.GetNode() - offsetof(ElementMap, mMapNode));
         if (pMap->mPlayerIndex == iPlayerIndex)
         {
             return pMap;
@@ -737,12 +731,18 @@ HUD::ElementMap* HUD::ElementMap::FindByPlayerIndex(int iPlayerIndex)
 // GLOBAL: SWBF2 0x01e56c38
 static bool updating;
 
-namespace FriendBuddyList { bool __fastcall IsFriendBuddy(int iPlayerId); }
+namespace FriendBuddyList
+{
+bool __fastcall IsFriendBuddy(int iLocalIndex, int iPlayerId);
+}
 
 const RedColor Interpolate(const RedColor& a, const RedColor& b, float t);
 
 extern RedColor gHudHighlightColor;
-namespace GameLoop { extern bool mbHistoricalRules; }
+namespace GameLoop
+{
+extern bool mbHistoricalRules;
+}
 extern bool netFrameLock;
 extern PblVector3 gVectorZero;
 
@@ -815,7 +815,7 @@ void HUD::ElementMap::Update(const float fElapsed)
             {
                 GameObject* pControlled = pControllable->GetGameObject();
                 const PblVector3& vVelocity = pControlled->GetVelocity();
-                const float fSpeed = sqrtf(vVelocity.x * vVelocity.x + vVelocity.z * vVelocity.z);
+                const float fSpeed = LengthXZ(vVelocity);
 
                 Controllable* pPilot = 0;
                 const PblList<Controllable>& list = pControlled->GetControllableList();
@@ -865,14 +865,9 @@ void HUD::ElementMap::Update(const float fElapsed)
             }
 
             PblMatrix rotation;
-            D3DXMatrixRotationZ((D3DXMATRIX*)&rotation, fRotation);
-            rotation.m[3][0] = gVectorZero.x;
-            rotation.m[3][1] = gVectorZero.y;
-            rotation.m[3][2] = gVectorZero.z;
-            rotation.m[3][3] = 1.0f;
-            PblMatrix matrix;
-            D3DXMatrixMultiply((D3DXMATRIX*)&matrix, (const D3DXMATRIX*)&rotation,
-                               (const D3DXMATRIX*)&mGroupMatrix);
+            rotation.SetRotateZ(fRotation);
+            rotation.SetTranslation(gVectorZero);
+            PblMatrix matrix = rotation * mGroupMatrix;
             RedGroupElement::SetMatrix(matrix);
             UpdateBackdropTexCoords();
         }
@@ -978,9 +973,7 @@ void HUD::ElementMap::UpdateNorthIcon(float)
         {
             fAngle = 0.0f;
         }
-        PblMatrix rotation;
-        D3DXMatrixMultiply((D3DXMATRIX*)&matrix, (const D3DXMATRIX*)&matrix,
-                           D3DXMatrixRotationZ((D3DXMATRIX*)&rotation, fAngle));
+        matrix.RotateZ(fAngle);
         mNorthIcon[mMode].SetMatrix(matrix);
     }
 }
@@ -1033,14 +1026,11 @@ void HUD::ElementMap::UpdatePlayerIcon()
         PblVector4{ 0.0f, 0.0f, -1.0f, 0.0f },
         PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
         PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
-    PblMatrix temp;
 
     const PblVector3& vViewScale = mPlayerFOV[mMode].HUD::Element::mMatrix.GetScale();
     PblMatrix matrix = mFlat;
-    D3DXMatrixMultiply((D3DXMATRIX*)&matrix, (const D3DXMATRIX*)&matrix,
-                       D3DXMatrixRotationZ((D3DXMATRIX*)&temp, fViewAngle - PblMath::fPi));
-    D3DXMatrixMultiply((D3DXMATRIX*)&matrix, (const D3DXMATRIX*)&matrix,
-                       D3DXMatrixScaling((D3DXMATRIX*)&temp, vViewScale.x, vViewScale.y, vViewScale.z));
+    matrix.RotateZ(fViewAngle - PblMath::fPi);
+    matrix.Scale(vViewScale.x, vViewScale.y, vViewScale.z);
     matrix.m[3][0] = fX;
     matrix.m[3][1] = fY;
     matrix.m[3][2] = 0.0f;
@@ -1052,10 +1042,8 @@ void HUD::ElementMap::UpdatePlayerIcon()
     {
         const PblVector3& vMoveScale = mDirection[mMode].HUD::Element::mMatrix.GetScale();
         matrix = mFlat;
-        D3DXMatrixMultiply((D3DXMATRIX*)&matrix, (const D3DXMATRIX*)&matrix,
-                           D3DXMatrixRotationZ((D3DXMATRIX*)&temp, fMoveAngle - PblMath::fPi));
-        D3DXMatrixMultiply((D3DXMATRIX*)&matrix, (const D3DXMATRIX*)&matrix,
-                           D3DXMatrixScaling((D3DXMATRIX*)&temp, vMoveScale.x, vMoveScale.y, vMoveScale.z));
+        matrix.RotateZ(fMoveAngle - PblMath::fPi);
+        matrix.Scale(vMoveScale.x, vMoveScale.y, vMoveScale.z);
         matrix.m[3][0] = fX;
         matrix.m[3][1] = fY;
         matrix.m[3][2] = 0.0f;
@@ -1113,7 +1101,7 @@ void HUD::ElementMap::UpdateTargetIcons(const Controllable* pPlayer)
         }
 
         const Team* pPlayerTeam = GetPlayerTeam();
-        RedColor color = pPlayerTeam->mColor[iTeam];
+        RedColor color = pPlayerTeam->GetColor(iTeam);
         const int iAffiliation = pTeam->GetAffiliation(pPlayerTeam->mTeamNumber);
         bitmap.m_color.a = (unsigned char)(int)(mTargetAll[mMode].mAlpha * 255.0f);
 
@@ -1343,7 +1331,7 @@ void HUD::ElementMap::UpdatePostIcons(float fElapsed, float fRotation)
             if (post.actor->GetGameObject() && post.actor->GetGameObject()->IsAlive())
             {
                 const int iTeam = post.actor->GetGameObject()->GetTeam();
-                bitmap.SetColorOnly(pTeam->mColor[iTeam]);
+                bitmap.SetColorOnly(pTeam->GetColor(iTeam));
 
                 const int iHoldTeam = post.actor->mHoldTeam;
                 if (iHoldTeam != 0 && iHoldTeam != iTeam)
@@ -1351,7 +1339,7 @@ void HUD::ElementMap::UpdatePostIcons(float fElapsed, float fRotation)
                     const float fTime = (float)fmod((double)GameLoop::GetMissionTime(), 1.0);
                     if (fTime < 0.25f)
                     {
-                        const RedColor holdColor = pTeam->mColor[iHoldTeam < 0 ? 0 : iHoldTeam];
+                        const RedColor holdColor = pTeam->GetColor(iHoldTeam < 0 ? 0 : iHoldTeam);
                         if (fTime < 0.125f)
                         {
                             bitmap.m_color = Interpolate(bitmap.m_color, holdColor, fTime * 8.0f);
@@ -1494,7 +1482,7 @@ void HUD::ElementMap::UpdateMarkerIcons()
             vPosition.z = vCenter.z + fOffsetZ;
             if (marker.color.a == 0)
             {
-                color = pTeam->mColor[((GameObject*)marker.actor)->GetTeam()];
+                color = pTeam->GetColor(((GameObject*)marker.actor)->GetTeam());
             }
         }
         bitmap.m_color = color;
@@ -1683,14 +1671,9 @@ void HUD::ElementMap::SetMode(Mode eMode)
     if (mMode != mode_Small && mInitialized)
     {
         PblMatrix rotation;
-        D3DXMatrixRotationZ((D3DXMATRIX*)&rotation, 0.0f);
-        rotation.m[3][0] = gVectorZero.x;
-        rotation.m[3][1] = gVectorZero.y;
-        rotation.m[3][2] = gVectorZero.z;
-        rotation.m[3][3] = 1.0f;
-        PblMatrix matrix;
-        D3DXMatrixMultiply((D3DXMATRIX*)&matrix, (const D3DXMATRIX*)&rotation,
-                           (const D3DXMATRIX*)&mGroupMatrix);
+        rotation.SetRotateZ(0.0f);
+        rotation.SetTranslation(gVectorZero);
+        PblMatrix matrix = rotation * mGroupMatrix;
         RedGroupElement::SetMatrix(matrix);
     }
 
@@ -1773,11 +1756,11 @@ CommandPost* HUD::ElementMap::GetPost(float fX, float fY, CommandPost* pExcluded
             continue;
         }
         GameObject* pObject = post.actor->mObject;
-        if (pObject->mTeam != iTeam || !mPost[i].m_pHotSpot)
+        if (pObject->mTeam != iTeam)
         {
             continue;
         }
-        if (mPost[i].m_pHotSpot->IsPointInside(fX, fY) && post.actor != pExcludedPost)
+        if (mPost[i].TestHotSpot(fX, fY) && post.actor != pExcludedPost)
         {
             return post.actor;
         }
@@ -1819,7 +1802,7 @@ bool HUD::ElementMap::GetProperty(const unsigned int uHashID, void* pValue)
 // FUNCTION: SWBF2 0x005522a0
 bool HUD::ElementMap::SetProperty(const unsigned int uHashID, const void* pValue)
 {
-    PblMatrix matrix = _IdentityMatrix;
+    PblMatrix matrix = gMatrixIdentity;
     matrix.m[3][0] = mPosition[mMode].x;
     matrix.m[3][1] = mPosition[mMode].y;
     matrix.m[3][2] = mPosition[mMode].z;
@@ -1934,9 +1917,9 @@ void HUD::ElementMap::WriteData(HUD::File& file, unsigned int uTabs)
 {
     for (unsigned int i = 0; i < mode_MAX; ++i)
     {
-        PblMatrix matrix(PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f }, PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-                         PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-                         PblVector4{ mPosition[i].x, mPosition[i].y, mPosition[i].z, 1.0f });
+        PblMatrix matrix;
+        matrix.Reset();
+        matrix.SetTranslation(mPosition[i]);
         mMatrix[i].SetMatrix(&matrix);
         char buffer[256];
         _snprintf(buffer, sizeof(buffer), "Position%s", sModeStrings[i]);
@@ -1996,7 +1979,8 @@ const char* HUD::ElementMap::PropertyTranslateEnum(const unsigned int uHashID,
     }
 }
 
-namespace FriendBuddyList {
+namespace FriendBuddyList
+{
 
 // FUNCTION: SWBF2 0x0052e140
 unsigned int GetFriendBuddyCount()
@@ -2005,7 +1989,8 @@ unsigned int GetFriendBuddyCount()
 }
 }
 
-namespace FriendBuddyList {
+namespace FriendBuddyList
+{
 
 // FUNCTION: SWBF2 0x0052e150
 int __fastcall GetFriendBuddy(unsigned int index)
@@ -2019,7 +2004,8 @@ int __fastcall GetFriendBuddy(unsigned int index)
 }
 }
 
-namespace FriendBuddyList {
+namespace FriendBuddyList
+{
 
 // FUNCTION: SWBF2 0x0052e190
 bool __fastcall IsFriendBuddy(int playerId)
@@ -2086,7 +2072,7 @@ void HUD::ElementMap::EventToggleMapMode(const HUD::Event& event, void* const pD
 }
 
 // FUNCTION: SWBF2 0x00555740
-void __fastcall HUD::ElementMap::WriteBitmapElement(HUD::ElementBitmapBase* pBitmap, HUD::File* pFile,
+void __cdecl HUD::ElementMap::WriteBitmapElement(HUD::ElementBitmapBase* pBitmap, HUD::File* pFile,
                            unsigned int uTabs)
 {
     RedBitmapElement* pElement = (RedBitmapElement*)pBitmap->mElement;
@@ -2109,7 +2095,7 @@ void HUD::ElementMap::EventRefreshMarker(const HUD::Event& event, void* const pD
     {
         return;
     }
-    const unsigned int index = event.mData.uintValue;
+    const unsigned int index = event.GetData().uintValue;
     if (index >= TargetManager::MAX_MARKERS)
     {
         return;
@@ -2176,11 +2162,13 @@ void HUD::ElementMap::EventRefreshPost(const HUD::Event& event, void* const pDat
     pMap->mPostText[uIndex].Enable(false);
 }
 
-// GLOBAL: SWBF2 0x007eb9fc
 // SYNTHETIC: SWBF2 0x00403fc0
 // `dynamic initializer for 'HUD::ElementMap::sMapList''
 // SYNTHETIC: SWBF2 0x00768b40
 // `dynamic atexit destructor for 'HUD::ElementMap::sMapList''
+
+// GLOBAL: SWBF2 0x007eb9fc
+// HUD::ElementMap::sMapList
 PblListSingle HUD::ElementMap::sMapList;
 
 // GLOBAL: SWBF2 0x01e56c39

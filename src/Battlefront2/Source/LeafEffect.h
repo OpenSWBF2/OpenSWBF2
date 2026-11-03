@@ -21,6 +21,7 @@ enum LeafState
     LEAF_NONE = 4
 };
 
+// VTABLE: SWBF2 0x007a3a2c
 class LeafSpawner
 {
 public:

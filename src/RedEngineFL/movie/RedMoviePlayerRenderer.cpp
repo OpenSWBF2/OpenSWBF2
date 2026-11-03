@@ -24,11 +24,13 @@ void RemoveInterfaceElement(RedScreenGroupElement* pElement);
 
 // FUNCTION: SWBF2 0x00726840
 RedMoviePlayerRenderer::RedMoviePlayerRenderer()
-    : mGroupElement(0)
+    : mBitmaps(0), mNumBitmaps(0), mRenderBitmap(0), mGroupElement(0)
 {
-    mBitmaps = 0;
-    mNumBitmaps = 0;
-    mRenderBitmap = 0;
+}
+
+// FUNCTION: SWBF2 0x00726870
+RedMoviePlayerRenderer::~RedMoviePlayerRenderer()
+{
 }
 
 // FUNCTION: SWBF2 0x00726880

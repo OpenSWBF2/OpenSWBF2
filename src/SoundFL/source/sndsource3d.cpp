@@ -1,4 +1,5 @@
 #include <math.h>
+#include <d3dx9math.h>
 
 #include "sndsource3d.h"
 #include "sndsource.h"
@@ -6,29 +7,12 @@
 #include "PebbleFL/Common/PblChunk.h"
 #include "PebbleFL/Common/PblMath.h"
 #include "sndenginebase.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 namespace Snd
 {
 
+// GLOBAL: SWBF2 0x007e37a0
 float Source3D::sPitchMultiplier = 1.0f;
-
-static const float fLength2EstAlpha = 0.94805944f;
-static const float fLength2EstBeta = 0.39269909f;
-
-static float Length2Est(float fX, float fY, float fZ)
-{
-
-    float fA = (float)fabs(fX);
-    float fB = (float)fabs(fY);
-    float fXY = (fA > fB) ? (fA * fLength2EstAlpha + fB * fLength2EstBeta)
-                          : (fA * fLength2EstBeta + fB * fLength2EstAlpha);
-
-    float fC = (float)fabs(fXY);
-    float fD = (float)fabs(fZ);
-    return (fC > fD) ? (fC * fLength2EstAlpha + fD * fLength2EstBeta)
-                     : (fC * fLength2EstBeta + fD * fLength2EstAlpha);
-}
 
 // FUNCTION: SWBF2 0x0073afd0
 Source3D::Properties::Properties()
@@ -62,17 +46,20 @@ void Source3D::CalculateGain(float& rfGain) const
 {
     const Properties* pProps = mProps;
     float fDistance = mDistanceLength;
+    float rollInDistance = pProps->mRollInDistance;
+    float minDistance = pProps->mMinDistance;
+    float maxDistance = pProps->mMaxDistance;
 
-    if (pProps->mRollInDistance > fDistance)
+    if (rollInDistance > fDistance)
     {
-        float fOffset = pProps->mRollInDistance - fDistance;
-        rfGain = (pProps->mRollInDistance - fOffset)
+        float fOffset = rollInDistance - fDistance;
+        rfGain = (rollInDistance - fOffset)
                / (pProps->mRollOffFactor * mClosestListener->mRollOffFactor
                     * fOffset
-                  + pProps->mRollInDistance);
+                  + rollInDistance);
     }
 
-    else if (pProps->mMinDistance >= fDistance)
+    else if (minDistance >= fDistance)
     {
         rfGain = 1.0f;
     }
@@ -83,15 +70,15 @@ void Source3D::CalculateGain(float& rfGain) const
     }
     else
     {
-        float fOffset = fDistance - pProps->mMinDistance;
-        float fRange = pProps->mMaxDistance - pProps->mMinDistance;
+        float fOffset = fDistance - minDistance;
+        float fRange = maxDistance - minDistance;
         rfGain = (fRange - fOffset)
                / (pProps->mRollOffFactor * mClosestListener->mRollOffFactor
                     * fOffset
                   + fRange);
     }
 
-    if (!(mProps->mFlags & Properties::flags_centrePeakMode))
+    if (!mProps->GetCentrePeakMode())
     {
         return;
     }
@@ -100,15 +87,17 @@ void Source3D::CalculateGain(float& rfGain) const
     CalculateNormalizedDirection(vDirection);
 
     const Listener* pListener = mClosestListener;
+    const ::PblVector3 right = pListener->mRight;
+    const ::PblVector3 front = *pListener->mFront;
 
-    float fRight = pListener->mRight.x * vDirection.x
-                 + pListener->mRight.y * vDirection.y
-                 + pListener->mRight.z * vDirection.z;
-    float fCone = 1.0f - (float)fabs(fRight) * 2.0f;
+    float fRight = right.x * vDirection.x
+                 + right.y * vDirection.y
+                 + right.z * vDirection.z;
+    float fCone = 1.0f - (float)fabs((double)fRight) * 2.0f;
 
-    float fFront = pListener->mFront->x * vDirection.x
-                 + pListener->mFront->y * vDirection.y
-                 + pListener->mFront->z * vDirection.z;
+    float fFront = front.x * vDirection.x
+                 + front.y * vDirection.y
+                 + front.z * vDirection.z;
     fCone *= -fFront;
 
     if (mProps->mOffCentreGain > fCone)
@@ -264,34 +253,20 @@ void Source3D::CalculateGain(float fGain, float fReverbGain, GainMatrix& rMatrix
 // FUNCTION: SWBF2 0x0073b590
 void Source3D::CalculateNormalizedDirection(::PblVector3& rvDirection) const
 {
-    if (0.0f == mDistance.x && 0.0f == mDistance.y && 0.0f == mDistance.z)
-    {
-        rvDirection = *mClosestListener->mFront;
-        return;
-    }
-
     ::PblVector3 vNormal;
 
-    if (EngineBase::smSpeakerConfig == EngineBase::speakerConfig_AnalogSurround)
+    if (0.0f == mDistance.x && 0.0f == mDistance.y && 0.0f == mDistance.z)
     {
-        D3DXVec3Normalize(&vNormal, &mDistance);
+        vNormal = *mClosestListener->mFront;
+    }
+    else if (EngineBase::smSpeakerConfig == EngineBase::speakerConfig_AnalogSurround)
+    {
+        D3DXVec3Normalize((D3DXVECTOR3*)&vNormal,
+                           (const D3DXVECTOR3*)&mDistance);
     }
     else
     {
-        float fLength = Length2Est(mDistance.x, mDistance.y, mDistance.z);
-
-        if (fLength == 0.0f)
-        {
-            vNormal = mDistance;
-        }
-        else
-        {
-
-            float fScale = 1.0f / fLength;
-            vNormal.x = mDistance.x * fScale;
-            vNormal.y = mDistance.y * fScale;
-            vNormal.z = mDistance.z * fScale;
-        }
+        vNormal = NormalizeEst(mDistance);
     }
 
     rvDirection = vNormal;
@@ -300,35 +275,22 @@ void Source3D::CalculateNormalizedDirection(::PblVector3& rvDirection) const
 // FUNCTION: SWBF2 0x0073b6f0
 float Source3D::CalculatePitch() const
 {
-
-    if (!(mProps->mFlags & Properties::flags_dopplerMode))
+    if (mProps->GetDopplerMode())
     {
-        return 1.0f;
+        const Listener* listener = mClosestListener;
+        float lastDistance = LengthEst((*mPos3D - *mVel3D)
+                                       - (*listener->mPos - *listener->mVel));
+        float distance = LengthEst(*mPos3D - *listener->mPos);
+        float diff = lastDistance - distance;
+
+        if (diff < 172.0f)
+        {
+            float speed = listener->mDistanceFactor * 344.0f;
+            float closing = (distance - lastDistance) * listener->mDopplerFactor;
+            return (speed - closing) / speed * sPitchMultiplier;
+        }
     }
-
-    const Listener* pListener = mClosestListener;
-
-    float fNextX = (mPos3D->x - mVel3D->x)
-                 - (pListener->mPos->x - pListener->mVel->x);
-    float fNextY = (mPos3D->y - mVel3D->y)
-                 - (pListener->mPos->y - pListener->mVel->y);
-    float fNextZ = (mPos3D->z - mVel3D->z)
-                 - (pListener->mPos->z - pListener->mVel->z);
-    float fNext = Length2Est(fNextX, fNextY, fNextZ);
-
-    float fNow = Length2Est(mPos3D->x - pListener->mPos->x,
-                            mPos3D->y - pListener->mPos->y,
-                            mPos3D->z - pListener->mPos->z);
-
-    if (172.0f <= fNext - fNow)
-    {
-        return 1.0f;
-    }
-
-    float fSpeed = pListener->mDistanceFactor * 344.0f;
-    float fClosing = (fNow - fNext) * pListener->mDopplerFactor;
-
-    return (fSpeed - fClosing) / fSpeed * sPitchMultiplier;
+    return 1.0f;
 }
 
 // FUNCTION: SWBF2 0x0073b8a0
@@ -382,40 +344,39 @@ void Source3D::DetermineClosestListener()
 // FUNCTION: SWBF2 0x0073b990
 bool Source3D::Properties::Read(PblFileChunk& chunk, unsigned int uiPropertyID)
 {
-    PblFile* const pFile = chunk._pFile;
     switch (uiPropertyID)
     {
     case 0x1CE8C2E1u:
-        pFile->Read8();
-        SetRollIn(pFile->ReadFloat());
+        chunk._pFile->Read8();
+        SetRollIn(chunk._pFile->ReadFloat());
         return true;
     case 0x0FBA43F2u:
-        pFile->Read8();
-        SetDopplerMode(pFile->ReadFloat() > 0.0f);
+        chunk._pFile->Read8();
+        SetDopplerMode(chunk._pFile->ReadFloat() > 0.0f);
         return true;
     case 0x47C87922u:
-        pFile->Read8();
-        mSpaceDistance = pFile->ReadFloat();
+        chunk._pFile->Read8();
+        mSpaceDistance = chunk._pFile->ReadFloat();
         return true;
     case 0x80A163FEu:
-        pFile->Read8();
-        SetRollInDistance(pFile->ReadFloat());
+        chunk._pFile->Read8();
+        SetRollInDistance(chunk._pFile->ReadFloat());
         return true;
     case 0xAB59D4BBu:
-        pFile->Read8();
-        SetRollOff(pFile->ReadFloat());
+        chunk._pFile->Read8();
+        SetRollOff(chunk._pFile->ReadFloat());
         return true;
     case 0xB835CF50u:
-        pFile->Read8();
-        SetMinDistance(pFile->ReadFloat());
+        chunk._pFile->Read8();
+        SetMinDistance(chunk._pFile->ReadFloat());
         return true;
     case 0xE4B12EDFu:
-        pFile->Read8();
-        SetMuteDistance(pFile->ReadFloat());
+        chunk._pFile->Read8();
+        SetMuteDistance(chunk._pFile->ReadFloat());
         return true;
     case 0xE6915CF6u:
-        pFile->Read8();
-        SetMaxDistance(pFile->ReadFloat());
+        chunk._pFile->Read8();
+        SetMaxDistance(chunk._pFile->ReadFloat());
         return true;
     }
     return false;

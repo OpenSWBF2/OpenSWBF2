@@ -101,11 +101,13 @@ bool bForceFullDetail = true;
 // `dynamic initializer for 'cvForceFullDetail''
 static RedCommandConsole cvForceFullDetail("terrain.ForceFullDetail", MultiVar(&bForceFullDetail));
 
-// GLOBAL: SWBF2 0x00998240
 // SYNTHETIC: SWBF2 0x004081a0
 // `dynamic initializer for '_TerrainRenderable''
 // SYNTHETIC: SWBF2 0x00769980
 // `dynamic atexit destructor for '_TerrainRenderable''
+
+// GLOBAL: SWBF2 0x00998240
+// _TerrainRenderable
 TerrainRenderable _TerrainRenderable;
 
 // FUNCTION: SWBF2 0x006d34f0
@@ -128,7 +130,22 @@ void RedTerrain::Activate()
 {
     if (RedTerrain::_bEnable)
     {
-        _TerrainRenderable._SetQuality();
+        _TerrainRenderable.Activate();
+    }
+}
+
+// FUNCTION: SWBF2 0x006d35c0
+void TerrainRenderable::Activate()
+{
+    QualityT eQuality = RedRenderer::pcGetRenderOptions().terrainQuality;
+    bool bBumpMapping = RedRenderer::pcGetRenderOptions().bumpMapping;
+    if (m_eQuality != eQuality || m_bEnableBumpMapping != bBumpMapping)
+    {
+        m_eQuality = eQuality;
+        m_bEnableBumpMapping = bBumpMapping;
+        RedTerrain::RenderDetail = eQuality > QUALITY_LOW;
+        _InitPixelLighting(RedRenderer::pcGetRenderCaps().pipeline != PIPELINE_FIXED &&
+                           m_eQuality == QUALITY_HIGH);
     }
 }
 
@@ -142,14 +159,8 @@ void TerrainRenderable::_SetQuality()
         m_eQuality = eQuality;
         m_bEnableBumpMapping = bBumpMapping;
         RedTerrain::RenderDetail = eQuality > QUALITY_LOW;
-        if (RedRenderer::pcGetRenderCaps().pipeline != PIPELINE_FIXED && m_eQuality == QUALITY_HIGH)
-        {
-            _InitPixelLighting(true);
-        }
-        else
-        {
-            _InitPixelLighting(false);
-        }
+        _InitPixelLighting(RedRenderer::pcGetRenderCaps().pipeline != PIPELINE_FIXED &&
+                           m_eQuality == QUALITY_HIGH);
     }
 }
 

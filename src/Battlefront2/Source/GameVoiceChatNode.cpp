@@ -11,19 +11,19 @@ GameVoiceChat::Node::Node(Encoder* const encoder, Decoder* const decoder)
 }
 
 // FUNCTION: SWBF2 0x0053dbe0
-void GameVoiceChat::Node::SetSendMask(int iMask)
+void GameVoiceChat::Node::SetSendMask(Transport::Mask mask, bool enable, bool maskExisting)
 {
-    mSendMask.mMask = (Transport::Mask)iMask;
-    mSendMask.mEnable = true;
-    mSendMask.mMaskExisting = false;
+    mSendMask.mMask = mask;
+    mSendMask.mEnable = enable;
+    mSendMask.mMaskExisting = maskExisting;
 }
 
 // FUNCTION: SWBF2 0x0053dc20
-void GameVoiceChat::Node::SetReceiveMask(int iMask)
+void GameVoiceChat::Node::SetReceiveMask(Transport::Mask mask, bool enable, bool maskExisting)
 {
-    mReceiveMask.mMask = (Transport::Mask)iMask;
-    mReceiveMask.mEnable = true;
-    mReceiveMask.mMaskExisting = false;
+    mReceiveMask.mMask = mask;
+    mReceiveMask.mEnable = enable;
+    mReceiveMask.mMaskExisting = maskExisting;
 }
 
 // FUNCTION: SWBF2 0x0053dc60

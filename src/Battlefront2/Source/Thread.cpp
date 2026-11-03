@@ -12,14 +12,17 @@ extern ThreadGroup* sFrameThreadList;
 extern ThreadGroup* sTurnThreadList;
 extern bool gThreadIsEven;
 
-namespace FrameUpdate { void Update(); }
+namespace FrameUpdate
+{
+void Update();
+}
 
 // FUNCTION: SWBF2 0x00657400
 ThreadGroup::ThreadGroup(int iPriority)
+    : mPriority(iPriority)
+    , mNext(this)
+    , mPrev(this)
 {
-    mPriority = iPriority;
-    mNext = this;
-    mPrev = this;
 }
 
 // FUNCTION: SWBF2 0x00657440
@@ -113,23 +116,19 @@ Thread::~Thread()
 // FUNCTION: SWBF2 0x006576f0
 void Thread::ActivateThread(int iOrder, ThreadType eThreadType)
 {
-    ThreadGroup* pGroup;
+    ThreadGroup* pList = sTurnThreadList;
     if (eThreadType == PER_FRAME)
     {
-        pGroup = sFrameThreadList;
+        pList = sFrameThreadList;
     }
-    else if (NetGame::IsEnabled() && sTurnThreadList == &sClientTurnThreadList &&
+    else if (NetGame::IsEnabled() && pList == &sClientTurnThreadList &&
              eThreadType != PER_TURN)
     {
-        pGroup = &sClientLocalTurnThreadList;
-    }
-    else
-    {
-        pGroup = sTurnThreadList;
+        pList = &sClientLocalTurnThreadList;
     }
 
-    pGroup = pGroup->FindCreate(-iOrder);
-    pGroup->mThreads.Add(&mThreadListNode, this, PblPtrOrderKey(this));
+    ThreadGroup* pGroup = pList->FindCreate(-iOrder);
+    pGroup->mThreads.Add(&mThreadListNode, this, (int)this);
 }
 
 // FUNCTION: SWBF2 0x00657760
@@ -183,45 +182,53 @@ void Thread::UpdateAll(float fDeltaTime, bool bFrame, bool bLocalTurn)
     }
 }
 
-// FUNCTION: SWBF2 0x00657860
-template void PblOrderedList<Thread, intptr_t>::Add(PblOrderedList<Thread, intptr_t>::Node*, Thread*, intptr_t);
+// TEMPLATE: SWBF2 0x00657860
+// PblOrderedList<Thread,int>::Add
+template void PblOrderedList<Thread, int>::Add(PblOrderedList<Thread, int>::Node*, Thread*, int);
 
-// FUNCTION: SWBF2 0x006578c0
-template void PblOrderedList<Thread, intptr_t>::Clear();
+// TEMPLATE: SWBF2 0x006578c0
+// PblOrderedList<Thread,int>::Clear
+template void PblOrderedList<Thread, int>::Clear();
 
-#ifndef _WIN64
-static_assert(sizeof(PblOrderedList<Thread, intptr_t>::Node) == 20, "thread node layout");
-#endif
-
-// GLOBAL: SWBF2 0x01f993f0
 // SYNTHETIC: SWBF2 0x004069f0
 // `dynamic initializer for 'sHostFrameThreadList''
 // SYNTHETIC: SWBF2 0x007695a0
 // `dynamic atexit destructor for 'sHostFrameThreadList''
+
+// GLOBAL: SWBF2 0x01f993f0
+// sHostFrameThreadList
 ThreadGroup sHostFrameThreadList(0x7FFFFFFF);
-// GLOBAL: SWBF2 0x01f99330
 // SYNTHETIC: SWBF2 0x00406a10
 // `dynamic initializer for 'sHostTurnThreadList''
 // SYNTHETIC: SWBF2 0x007695b0
 // `dynamic atexit destructor for 'sHostTurnThreadList''
+
+// GLOBAL: SWBF2 0x01f99330
+// sHostTurnThreadList
 ThreadGroup sHostTurnThreadList(0x7FFFFFFF);
-// GLOBAL: SWBF2 0x01f99390
 // SYNTHETIC: SWBF2 0x00406a30
 // `dynamic initializer for 'sClientFrameThreadList''
 // SYNTHETIC: SWBF2 0x007695c0
 // `dynamic atexit destructor for 'sClientFrameThreadList''
+
+// GLOBAL: SWBF2 0x01f99390
+// sClientFrameThreadList
 ThreadGroup sClientFrameThreadList(0x7FFFFFFF);
-// GLOBAL: SWBF2 0x01f99360
 // SYNTHETIC: SWBF2 0x00406a50
 // `dynamic initializer for 'sClientTurnThreadList''
 // SYNTHETIC: SWBF2 0x007695d0
 // `dynamic atexit destructor for 'sClientTurnThreadList''
+
+// GLOBAL: SWBF2 0x01f99360
+// sClientTurnThreadList
 ThreadGroup sClientTurnThreadList(0x7FFFFFFF);
-// GLOBAL: SWBF2 0x01f993c0
 // SYNTHETIC: SWBF2 0x00406a70
 // `dynamic initializer for 'sClientLocalTurnThreadList''
 // SYNTHETIC: SWBF2 0x007695e0
 // `dynamic atexit destructor for 'sClientLocalTurnThreadList''
+
+// GLOBAL: SWBF2 0x01f993c0
+// sClientLocalTurnThreadList
 ThreadGroup sClientLocalTurnThreadList(0x7FFFFFFF);
 
 // GLOBAL: SWBF2 0x007e9ab4
@@ -236,9 +243,11 @@ bool sHostThreadIsEven = true;
 // GLOBAL: SWBF2 0x007e9ab8
 bool sClientThreadIsEven = true;
 
-// GLOBAL: SWBF2 0x01f7ce84
 // SYNTHETIC: SWBF2 0x00406a90
 // `dynamic initializer for 'Thread::sExecutingThread''
+
+// GLOBAL: SWBF2 0x01f7ce84
+// Thread::sExecutingThread
 Thread::ThreadListNode* Thread::sExecutingThread = sFrameThreadList->mThreads._head._pNext;
 
 // FUNCTION: SWBF2 0x00657650

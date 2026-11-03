@@ -17,6 +17,7 @@ public:
     bool HasLod(int iLod) const { return (_LodBitmask & (1 << iLod)) != 0; }
 
     int GetLodClass() const { return _LodClass; }
+    void SetMaxDist(float fMaxDist) { mMaxDist = fMaxDist; }
     int HasLowRes() const { return mLowRezFlags & 1; }
     int CrossFadeLowRes() const { return mLowRezFlags & 2; }
     int HasTransparentSegment() const { return mLowRezFlags & 4; }
@@ -63,6 +64,8 @@ class LargeEffectLodData : public RedLodData
 public:
     LargeEffectLodData();
 };
+extern SmallEffectLodData smallEffectLodData;
+extern MediumEffectLodData mediumEffectLodData;
 extern LargeEffectLodData largeEffectLodData;
  
 

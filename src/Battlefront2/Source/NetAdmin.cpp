@@ -42,7 +42,187 @@ public:
     static bool ParseLineLocal(unsigned short* pusLine, bool bConsole);
 };
 
+struct MD5_CTX
+{
+    unsigned int state[4];
+    unsigned int count[2];
+    unsigned char buffer[64];
+};
+
+void __cdecl MD5Transform(unsigned int* pState, const unsigned char* pBlock);
+void __cdecl MD5EncodeWords(unsigned char* pDest, const unsigned int* pSource, unsigned int uLength);
+void __cdecl MD5DecodeWords(unsigned int* pWords, const unsigned char* pBlock, unsigned int uLength);
+void* __cdecl MD5CopyBytes(void* pDest, const void* pSource, unsigned int uLength);
+void __cdecl MD5ClearBytes(void* pDest, int iValue, unsigned int uLength);
+void __cdecl MD5Update(MD5_CTX* pState, const unsigned char* pData, unsigned int uLength);
+void __cdecl MD5Print(const unsigned char* pDigest, char* pcHex);
 extern char adminPlayerIdText[32];
+
+// GLOBAL: SWBF2 0x007e88d0
+unsigned char md5Padding[64] = { 0x80 };
+
+// FUNCTION: SWBF2 0x005a2730
+void __cdecl MD5Init(MD5_CTX* pState)
+{
+    pState->count[0] = pState->count[1] = 0;
+    pState->state[0] = 0x67452301;
+    pState->state[1] = 0xefcdab89;
+    pState->state[2] = 0x98badcfe;
+    pState->state[3] = 0x10325476;
+}
+
+// FUNCTION: SWBF2 0x005a2760
+void __cdecl MD5Update(MD5_CTX* pState, const unsigned char* pData, unsigned int uLength)
+{
+    unsigned int uIndex = (pState->count[0] >> 3) & 63;
+    unsigned int uBits = uLength << 3;
+    pState->count[0] += uBits;
+    if (pState->count[0] < uBits)
+    {
+        ++pState->count[1];
+    }
+    pState->count[1] += uLength >> 29;
+    unsigned int uPart = 64 - uIndex;
+    unsigned int i = 0;
+    if (uLength >= uPart)
+    {
+        MD5CopyBytes(pState->buffer + uIndex, pData, uPart);
+        MD5Transform(pState->state, pState->buffer);
+        for (i = uPart; i + 63 < uLength; i += 64)
+        {
+            MD5Transform(pState->state, pData + i);
+        }
+        uIndex = 0;
+    }
+    MD5CopyBytes(pState->buffer + uIndex, pData + i, uLength - i);
+}
+
+// FUNCTION: SWBF2 0x005a2810
+void __cdecl MD5Final(unsigned char* pDigest, MD5_CTX* pState)
+{
+    unsigned char aucBits[8];
+    MD5EncodeWords(aucBits, pState->count, 8);
+    unsigned int uIndex = (pState->count[0] >> 3) & 63;
+    MD5Update(pState, md5Padding, (uIndex < 56 ? 56 : 120) - uIndex);
+    MD5Update(pState, aucBits, 8);
+    MD5EncodeWords(pDigest, pState->state, 16);
+    MD5ClearBytes(pState, 0, sizeof(*pState));
+}
+
+#define MD5_F(x, y, z) (((x) & (y)) | (~(x) & (z)))
+#define MD5_G(x, y, z) (((x) & (z)) | ((y) & ~(z)))
+#define MD5_H(x, y, z) ((x) ^ (y) ^ (z))
+#define MD5_I(x, y, z) ((y) ^ ((x) | ~(z)))
+#define MD5_ROL(x, n) (((x) << (n)) | ((x) >> (32 - (n))))
+#define MD5_STEP(f, a, b, c, d, x, s, ac) { (a) += f((b), (c), (d)) + (x) + (unsigned int)(ac); (a) = MD5_ROL((a), (s)); (a) += (b); }
+
+// FUNCTION: SWBF2 0x005a2880
+void __cdecl MD5Transform(unsigned int* pState, const unsigned char* pBlock)
+{
+    unsigned int a = pState[0], b = pState[1], c = pState[2], d = pState[3];
+    unsigned int x[16];
+    MD5DecodeWords(x, pBlock, 64);
+
+    MD5_STEP(MD5_F, a, b, c, d, x[ 0],  7, 0xd76aa478); MD5_STEP(MD5_F, d, a, b, c, x[ 1], 12, 0xe8c7b756);
+    MD5_STEP(MD5_F, c, d, a, b, x[ 2], 17, 0x242070db); MD5_STEP(MD5_F, b, c, d, a, x[ 3], 22, 0xc1bdceee);
+    MD5_STEP(MD5_F, a, b, c, d, x[ 4],  7, 0xf57c0faf); MD5_STEP(MD5_F, d, a, b, c, x[ 5], 12, 0x4787c62a);
+    MD5_STEP(MD5_F, c, d, a, b, x[ 6], 17, 0xa8304613); MD5_STEP(MD5_F, b, c, d, a, x[ 7], 22, 0xfd469501);
+    MD5_STEP(MD5_F, a, b, c, d, x[ 8],  7, 0x698098d8); MD5_STEP(MD5_F, d, a, b, c, x[ 9], 12, 0x8b44f7af);
+    MD5_STEP(MD5_F, c, d, a, b, x[10], 17, 0xffff5bb1); MD5_STEP(MD5_F, b, c, d, a, x[11], 22, 0x895cd7be);
+    MD5_STEP(MD5_F, a, b, c, d, x[12],  7, 0x6b901122); MD5_STEP(MD5_F, d, a, b, c, x[13], 12, 0xfd987193);
+    MD5_STEP(MD5_F, c, d, a, b, x[14], 17, 0xa679438e); MD5_STEP(MD5_F, b, c, d, a, x[15], 22, 0x49b40821);
+
+    MD5_STEP(MD5_G, a, b, c, d, x[ 1],  5, 0xf61e2562); MD5_STEP(MD5_G, d, a, b, c, x[ 6],  9, 0xc040b340);
+    MD5_STEP(MD5_G, c, d, a, b, x[11], 14, 0x265e5a51); MD5_STEP(MD5_G, b, c, d, a, x[ 0], 20, 0xe9b6c7aa);
+    MD5_STEP(MD5_G, a, b, c, d, x[ 5],  5, 0xd62f105d); MD5_STEP(MD5_G, d, a, b, c, x[10],  9, 0x02441453);
+    MD5_STEP(MD5_G, c, d, a, b, x[15], 14, 0xd8a1e681); MD5_STEP(MD5_G, b, c, d, a, x[ 4], 20, 0xe7d3fbc8);
+    MD5_STEP(MD5_G, a, b, c, d, x[ 9],  5, 0x21e1cde6); MD5_STEP(MD5_G, d, a, b, c, x[14],  9, 0xc33707d6);
+    MD5_STEP(MD5_G, c, d, a, b, x[ 3], 14, 0xf4d50d87); MD5_STEP(MD5_G, b, c, d, a, x[ 8], 20, 0x455a14ed);
+    MD5_STEP(MD5_G, a, b, c, d, x[13],  5, 0xa9e3e905); MD5_STEP(MD5_G, d, a, b, c, x[ 2],  9, 0xfcefa3f8);
+    MD5_STEP(MD5_G, c, d, a, b, x[ 7], 14, 0x676f02d9); MD5_STEP(MD5_G, b, c, d, a, x[12], 20, 0x8d2a4c8a);
+
+    MD5_STEP(MD5_H, a, b, c, d, x[ 5],  4, 0xfffa3942); MD5_STEP(MD5_H, d, a, b, c, x[ 8], 11, 0x8771f681);
+    MD5_STEP(MD5_H, c, d, a, b, x[11], 16, 0x6d9d6122); MD5_STEP(MD5_H, b, c, d, a, x[14], 23, 0xfde5380c);
+    MD5_STEP(MD5_H, a, b, c, d, x[ 1],  4, 0xa4beea44); MD5_STEP(MD5_H, d, a, b, c, x[ 4], 11, 0x4bdecfa9);
+    MD5_STEP(MD5_H, c, d, a, b, x[ 7], 16, 0xf6bb4b60); MD5_STEP(MD5_H, b, c, d, a, x[10], 23, 0xbebfbc70);
+    MD5_STEP(MD5_H, a, b, c, d, x[13],  4, 0x289b7ec6); MD5_STEP(MD5_H, d, a, b, c, x[ 0], 11, 0xeaa127fa);
+    MD5_STEP(MD5_H, c, d, a, b, x[ 3], 16, 0xd4ef3085); MD5_STEP(MD5_H, b, c, d, a, x[ 6], 23, 0x04881d05);
+    MD5_STEP(MD5_H, a, b, c, d, x[ 9],  4, 0xd9d4d039); MD5_STEP(MD5_H, d, a, b, c, x[12], 11, 0xe6db99e5);
+    MD5_STEP(MD5_H, c, d, a, b, x[15], 16, 0x1fa27cf8); MD5_STEP(MD5_H, b, c, d, a, x[ 2], 23, 0xc4ac5665);
+
+    MD5_STEP(MD5_I, a, b, c, d, x[ 0],  6, 0xf4292244); MD5_STEP(MD5_I, d, a, b, c, x[ 7], 10, 0x432aff97);
+    MD5_STEP(MD5_I, c, d, a, b, x[14], 15, 0xab9423a7); MD5_STEP(MD5_I, b, c, d, a, x[ 5], 21, 0xfc93a039);
+    MD5_STEP(MD5_I, a, b, c, d, x[12],  6, 0x655b59c3); MD5_STEP(MD5_I, d, a, b, c, x[ 3], 10, 0x8f0ccc92);
+    MD5_STEP(MD5_I, c, d, a, b, x[10], 15, 0xffeff47d); MD5_STEP(MD5_I, b, c, d, a, x[ 1], 21, 0x85845dd1);
+    MD5_STEP(MD5_I, a, b, c, d, x[ 8],  6, 0x6fa87e4f); MD5_STEP(MD5_I, d, a, b, c, x[15], 10, 0xfe2ce6e0);
+    MD5_STEP(MD5_I, c, d, a, b, x[ 6], 15, 0xa3014314); MD5_STEP(MD5_I, b, c, d, a, x[13], 21, 0x4e0811a1);
+    MD5_STEP(MD5_I, a, b, c, d, x[ 4],  6, 0xf7537e82); MD5_STEP(MD5_I, d, a, b, c, x[11], 10, 0xbd3af235);
+    MD5_STEP(MD5_I, c, d, a, b, x[ 2], 15, 0x2ad7d2bb); MD5_STEP(MD5_I, b, c, d, a, x[ 9], 21, 0xeb86d391);
+
+    pState[0] += a;
+    pState[1] += b;
+    pState[2] += c;
+    pState[3] += d;
+}
+
+// FUNCTION: SWBF2 0x005a2f40
+void __cdecl MD5EncodeWords(unsigned char* pDest, const unsigned int* pSource, unsigned int uLength)
+{
+    unsigned char* pOut = pDest;
+    const unsigned char* pIn = (const unsigned char*)pSource;
+    for (unsigned int i = 0; i < uLength; i += 4)
+    {
+        pOut[i] = pIn[i];
+        pOut[i + 1] = pIn[i + 1];
+        pOut[i + 2] = pIn[i + 2];
+        pOut[i + 3] = pIn[i + 3];
+    }
+}
+
+// FUNCTION: SWBF2 0x005a2f90
+void __cdecl MD5DecodeWords(unsigned int* pWords, const unsigned char* pBlock, unsigned int uLength)
+{
+    for (unsigned int i = 0, j = 0; j < uLength; ++i, j += 4)
+    {
+        pWords[i] = (unsigned int)pBlock[j] |
+                    ((unsigned int)pBlock[j + 1] << 8) |
+                    ((unsigned int)pBlock[j + 2] << 16) |
+                    ((unsigned int)pBlock[j + 3] << 24);
+    }
+}
+
+// FUNCTION: SWBF2 0x005a2fd0
+void* __cdecl MD5CopyBytes(void* pDest, const void* pSource, unsigned int uLength)
+{
+    return memcpy(pDest, pSource, uLength);
+}
+
+// FUNCTION: SWBF2 0x005a2ff0
+void __cdecl MD5ClearBytes(void* pDest, int iValue, unsigned int uLength)
+{
+    memset(pDest, iValue, uLength);
+}
+
+// FUNCTION: SWBF2 0x005a3010
+void __cdecl MD5Print(const unsigned char* pDigest, char* pcHex)
+{
+    for (unsigned int i = 0; i < 16; ++i)
+    {
+        sprintf(pcHex, "%02x", pDigest[i]);
+        pcHex += 2;
+    }
+}
+
+// FUNCTION: SWBF2 0x005a3050
+void MD5Digest(const char* pcText, unsigned int uLength, char* pcHex)
+{
+    MD5_CTX context;
+    unsigned char aucDigest[16];
+    MD5Init(&context);
+    MD5Update(&context, (const unsigned char*)pcText, uLength);
+    MD5Final(aucDigest, &context);
+    MD5Print(aucDigest, pcHex);
+}
 
 // GLOBAL: SWBF2 0x01ecb270
 Admin adminDests[3];
@@ -130,61 +310,8 @@ int __fastcall FindAdminSource(int iDest)
     return -1;
 }
 
-extern NetJoinSlot joinSlots[64];
 extern bool isLAN;
 
-static int FindAdminDest(unsigned __int64 uPeer)
-{
-    for (int i = 0; i < 64; ++i)
-    {
-        NetJoinSlot& kSlot = joinSlots[i];
-        if (GetAdminPeer(kSlot.mPeer) == uPeer)
-        {
-            kSlot.mLastTime = NetComm::GetTime();
-            return i + 69;
-        }
-    }
-    return -1;
-}
-
-// FUNCTION: SWBF2 0x005b3800
-int __fastcall NetCommP::FindJoinSource(const NetSocketPeerRecord* pAddress)
-{
-    const float fNow = NetComm::GetTime();
-    for (int i = 0; i < 64; ++i)
-    {
-        NetJoinSlot* pEntry = &joinSlots[i];
-        bool bSame;
-        if (isLAN)
-        {
-            int ip1, port1, ip2, port2;
-            NetSocket::GetAddr(pAddress, ip1, port1);
-            NetSocket::GetAddr(&pEntry->mPeer, ip2, port2);
-            bSame = ip1 == ip2 && port1 == port2;
-        }
-        else
-        {
-            bSame = pAddress->mGalaxyId == pEntry->mPeer.mGalaxyId;
-        }
-        if (bSame)
-        {
-            pEntry->mLastTime = fNow;
-            return i + 69;
-        }
-    }
-    for (int i = 0; i < 64; ++i)
-    {
-        NetJoinSlot* pEntry = &joinSlots[i];
-        const float fLast = pEntry->mLastTime;
-        if (fNow - fLast > 1.0f || fLast == 0.0f)
-        {
-            pEntry->mPeer = *pAddress;
-            pEntry->mLastTime = fNow;
-            return i + 69;
-        }
-    }
-    return -1;
-}
 
 // GLOBAL: SWBF2 0x007e7fec
 unsigned int lastTurn = 1000;
@@ -208,7 +335,7 @@ extern int netCurMaxPlayers;
 extern char remoteResponse[0x1800];
 extern bool remoteLoggedIn;
 extern int adminBandwidth;
-void WriteString(NetPktGroup* pGroup, const char* pText, unsigned int uCapacity);
+void WriteString(NetPktGroup& pGroup, const char* pText, unsigned int uCapacity);
 
 // FUNCTION: SWBF2 0x005b1920
 void __fastcall SendAdminMessage(char* pcMessage)
@@ -234,7 +361,7 @@ void __fastcall SendAdminMessage(char* pcMessage)
             group.BeginWrite();
             group.WriteBits((char)adminKey[adminKeyCount & 1], 8);
             group.WriteBits(1, 8);
-            WriteString(&group, pcMessage, 128);
+            WriteString(group, pcMessage, 128);
             group.WriteBits(0, 8);
             group.EndWrite();
             NetComm::Send(iDest, PKT_CONSOLE_ACK, &group);
@@ -395,7 +522,7 @@ extern FILE* Stream;
 extern bool adminStatusRequested;
 
 // GLOBAL: SWBF2 0x01fa24d0
-bool admins[64];
+static bool admins[64];
 
 extern char Destination[16];
 
@@ -508,17 +635,17 @@ bool GetCommand(char* pcToken, AdminCommand& cmd, bool& bNo)
         return false;
     }
 
-    char* pcName = pcToken + 1;
+    ++pcToken;
     bNo = false;
-    if ((pcName[0] == 'n' || pcName[0] == 'N') && (pcName[1] == 'o' || pcName[1] == 'O'))
+    if ((pcToken[0] == 'n' || pcToken[0] == 'N') && (pcToken[1] == 'o' || pcToken[1] == 'O'))
     {
         bNo = true;
-        pcName += 2;
+        pcToken += 2;
     }
 
     for (int i = 0; i < 94; ++i)
     {
-        if (!_stricmp(adminCommands[i].token, pcName))
+        if (!_stricmp(adminCommands[i].token, pcToken))
         {
             cmd = adminCommands[i].cmd;
             return true;
@@ -528,8 +655,14 @@ bool GetCommand(char* pcToken, AdminCommand& cmd, bool& bNo)
 }
 
 void __fastcall SendAdminMessage(char* pcMessage);
-namespace GameLoop { extern bool sQuitRequested; }
-namespace GameLoop { extern unsigned int sQuitTurn; }
+namespace GameLoop
+{
+extern bool sQuitRequested;
+}
+namespace GameLoop
+{
+extern unsigned int sQuitTurn;
+}
 
 // FUNCTION: SWBF2 0x005aedb0
 void NetAdmin::RemovePlayer(int iPlayer)
@@ -583,7 +716,7 @@ const char* __fastcall GetMissionModeCode(const char* pcMission)
 extern int netCurMaxPlayers;
 
 // FUNCTION: SWBF2 0x005aef60
-void __fastcall CountConnectedTeams(int* piTeam1, int* piTeam2, int* piWaiting)
+void __cdecl CountConnectedTeams(int* piTeam1, int* piTeam2, int* piWaiting)
 {
     *piWaiting = 0;
     *piTeam2 = 0;
@@ -760,6 +893,7 @@ public:
     int GetDeaths(int iTeam, int iStat) const;
 };
 
+// FUNCTION: SWBF2 0x005b12a0
 static bool IsMatch(char* pcMatch, unsigned short* pusLine)
 {
     while (*pusLine == ' ')
@@ -772,17 +906,18 @@ static bool IsMatch(char* pcMatch, unsigned short* pusLine)
     }
     ++pusLine;
 
-    int c = *pcMatch;
-    while (c)
+    int c1 = *pcMatch;
+    int c2 = *pusLine;
+    while (c1)
     {
-        if (c != *pusLine && c + 32 != *pusLine)
+        if (c1 != c2 && c1 + 32 != c2)
         {
             return false;
         }
-        c = *++pcMatch;
-        ++pusLine;
+        c1 = *++pcMatch;
+        c2 = *++pusLine;
     }
-    return c == ' ' || c == 0;
+    return c1 == ' ' || c1 == 0;
 }
 
 // FUNCTION: SWBF2 0x005b1300
@@ -818,18 +953,26 @@ static bool GetNextArg(unsigned short*& pusLine, char* pcArg, int iMax)
     for (;;)
     {
         --iMax;
-        unsigned short c = *pusLine++;
+        int c = *pusLine++;
         if (bQuoted && c == '"')
         {
             --pusLine;
             break;
         }
         *pcArg++ = (char)c;
-        if (bQuoted ? *pusLine == '"' : *pusLine == ' ')
+        c = *pusLine;
+        if (bQuoted)
+        {
+            if (c == '"')
+            {
+                break;
+            }
+        }
+        else if (c == ' ')
         {
             break;
         }
-        if (*pusLine == 0 || iMax <= 0)
+        if (c == 0 || iMax <= 0)
         {
             break;
         }
@@ -877,12 +1020,18 @@ static void PutMsg(char* pcMsg)
 // FUNCTION: SWBF2 0x005b1480
 bool IsNum(unsigned short c)
 {
-    return c >= '0' && c <= '9';
+    if (c < '0')
+    {
+        return false;
+    }
+    return c <= '9';
 }
 
 // FUNCTION: SWBF2 0x005b14a0
 static bool IsNextArgInt(unsigned short* pusLine)
 {
+    char token[8];
+    char* p = token;
     while (*pusLine == ' ')
     {
         ++pusLine;
@@ -892,7 +1041,7 @@ static bool IsNextArgInt(unsigned short* pusLine)
         return false;
     }
 
-    for (int i = 0; i < 8; ++i)
+    do
     {
         unsigned short c = *++pusLine;
         if (c == ' ' || c == 0)
@@ -903,7 +1052,7 @@ static bool IsNextArgInt(unsigned short* pusLine)
         {
             return false;
         }
-    }
+    } while (++p != token + sizeof(token));
     return false;
 }
 
@@ -914,7 +1063,11 @@ static bool IsNextArgString(unsigned short* pusLine)
     {
         ++pusLine;
     }
-    return *pusLine != '/' && *pusLine != 0;
+    if (*pusLine == '/')
+    {
+        return false;
+    }
+    return *pusLine != 0;
 }
 
 // FUNCTION: SWBF2 0x005aecf0
@@ -1093,7 +1246,7 @@ bool NetAdmin::ParseLineRemote(int iPlayer, unsigned short* pusLine, bool bConso
                     int iDeaths;
                     if (pCharacter)
                     {
-                        PlayerStats& stats = pCharacter->GetPlayerStats();
+                        PlayerStats& stats = Character::GetPlayerStats(pCharacter);
                         iPoints = stats.GetPoints();
                         iKills = stats.GetKills(-1, -1);
                         iDeaths = stats.GetDeaths(-1, -1);
@@ -2374,13 +2527,15 @@ void NetAdmin::ReceiveConsole()
     for (NetPacket* pPacket = NetComm::Recv(PKT_CONSOLE, PKT_NONE);
          pPacket; pPacket = NetComm::Recv(PKT_CONSOLE, PKT_NONE))
     {
-        int iDest = NetComm::Header(pPacket).src;
+        int iDest = GetSrc(pPacket);
         pPacket->BeginRead();
         unsigned char uCommand, uKey;
         pPacket->Read(uCommand);
         pPacket->Read(uKey);
 
-        if (uCommand == 0x29)
+        switch (uCommand)
+        {
+        case 0x29:
         {
             const unsigned __int64 uPeer = GetAdminPeer(iDest);
             if (uPeer)
@@ -2397,29 +2552,32 @@ void NetAdmin::ReceiveConsole()
             reply.WriteBits(0, 8);
             reply.EndWrite();
             NetComm::Send(iDest, PKT_CONSOLE_ACK, &reply);
+            break;
         }
-        else if (uCommand == 's')
+        case 's':
         {
             pPacket->Free();
             NetPktGroup reply;
             reply.BeginWrite();
             reply.WriteBits((char)adminKey[adminKeyCount & 1], 8);
             reply.WriteBits(1, 8);
-            WriteString(&reply, "hello", 128);
+            WriteString(reply, "hello", 128);
             reply.WriteBits(0, 8);
             reply.EndWrite();
             NetComm::Send(iDest, PKT_CONSOLE_ACK, &reply);
+            break;
         }
-        else if (uCommand == 'J')
+        case 'J':
         {
             unsigned char uUnused = 0, uLength = 0;
             unsigned short ausLine[64];
-            ausLine[0] = 0;
-            if (pPacket->Read(uUnused) && pPacket->Read(uLength))
+            char* p1 = pPacket->mData + pPacket->mCurIndex;
+            unsigned short* p2 = ausLine;
+            while (uLength--)
             {
-                const char* pcData = pPacket->mData + pPacket->mCurIndex;
-                NetWire::ReadRconLine(pcData, pPacket->mMaxIndex - pPacket->mCurIndex, uLength, ausLine);
+                *p2++ = *p1++;
             }
+            *p2 = 0;
             pPacket->Free();
 
             int iAdmin = FindAdminSource(iDest);
@@ -2446,16 +2604,17 @@ void NetAdmin::ReceiveConsole()
                 }
                 *pcEnd = 0;
                 reply.WriteBits(1, 8);
-                WriteString(&reply, pcLine, 128);
+                WriteString(reply, pcLine, 128);
                 pcLine = pcEnd + 1;
             }
             reply.WriteBits(0, 8);
             reply.EndWrite();
             NetComm::Send(iDest, PKT_CONSOLE_ACK, &reply);
+            break;
         }
-        else
-        {
+        default:
             pPacket->Free();
+            break;
         }
     }
     SendStateTransitions();

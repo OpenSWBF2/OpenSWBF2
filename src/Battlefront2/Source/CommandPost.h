@@ -91,15 +91,15 @@ public:
 class ConstCommandPostHandle
 {
 public:
-    ConstCommandPostHandle(const CommandPost* pPost) : mPost(const_cast<CommandPost*>(pPost)) {}
+    ConstCommandPostHandle(const CommandPost* pPost) : mPost(pPost) {}
 
-    void operator=(const CommandPost* pPost) { mPost = const_cast<CommandPost*>(pPost); }
+    void operator=(const CommandPost* pPost) { mPost = pPost; }
 
     operator const CommandPost*() const;
 
     const CommandPost* operator->() const;
 
-    CommandPost* mPost;
+    const CommandPost* mPost;
 };
 
 #include "GameSoundStream.h"
@@ -134,7 +134,8 @@ public:
         };
 
         VoiceOver();
-        ~VoiceOver();
+        // SYNTHETIC: SWBF2 0x0047a6e0
+        // CommandPost::VoiceOver::~VoiceOver
 
         GameSoundStream mStream[Team::side_MAX][stream_MAX];
     };
@@ -189,7 +190,6 @@ public:
     // FUNCTION: SWBF2 0x0044f940
     int GetBiasTeam() const { return mBiasTeam; }
 
-    // FUNCTION: SWBF2 0x00429350
     const unsigned short* GetLocalizeName() const { return mLocalizeName; }
 
     void Kill();
@@ -227,7 +227,7 @@ public:
     // FUNCTION: SWBF2 0x0043ed40
     const GameObject* GetGameObject() const
     {
-        return const_cast<CommandPost*>(this)->GetGameObject();
+        return mObject;
     }
 
     int GetStrategicDefendValue(Team::Side eSide) const;
@@ -322,7 +322,14 @@ inline CommandPostHandle::operator CommandPost*() const
 // FUNCTION: SWBF2 0x004503e0
 inline CommandPost* CommandPostHandle::operator->() const
 {
-    return *this;
+    if (mPost)
+    {
+        if (!mPost->GetGameObject())
+        {
+            return 0;
+        }
+    }
+    return mPost;
 }
  
  
@@ -343,4 +350,44 @@ inline CommandPost* CommandPostHandle::operator->() const
  
  
 
-unsigned int __fastcall GetDoorEntityId(const unsigned int* pRecord);
+
+inline void CommandPostHandle::operator=(CommandPost* pPost)
+{
+    mPost = pPost;
+}
+
+// FUNCTION: SWBF2 0x00450410
+inline ConstCommandPostHandle::operator const CommandPost*() const
+{
+    if (mPost)
+    {
+        if (!mPost->GetGameObject())
+        {
+            return 0;
+        }
+    }
+    return mPost;
+}
+
+// FUNCTION: SWBF2 0x0066e7e0
+inline const CommandPost* ConstCommandPostHandle::operator->() const
+{
+    if (mPost)
+    {
+        if (!mPost->GetGameObject())
+        {
+            return 0;
+        }
+    }
+    return mPost;
+}
+
+// FUNCTION: SWBF2 0x0043ed70
+inline const PblMatrix& CommandPost::GetMatrix() const
+{
+    if (!(GameObject*)mObject)
+    {
+        return gMatrixIdentity;
+    }
+    return ((GameObject*)mObject)->GetMatrix();
+}

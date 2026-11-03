@@ -1,3 +1,4 @@
+#include "AmmoCounter.h"
 #include <stdio.h>
 
 #include "WeaponLaser.h"
@@ -12,42 +13,43 @@
 #include <new>
 
 extern bool netIsLocalTurn;
-namespace GameLoop { extern float sClientDeltaTime; }
+namespace GameLoop
+{
+extern float sClientDeltaTime;
+}
 
-namespace CombatUtil { void SendDamageEvent(const Controllable* pOwner, const GameObject* pTarget, const Trigger* pTrigger); }
+namespace CombatUtil
+{
+void SendDamageEvent(const Controllable* pOwner, const GameObject* pTarget, const Trigger* pTrigger);
+}
+
+
 
 namespace
 {
-    EntityClass* GetEntityClass(GameObject* pObject)
+    inline EntityClass* GetEntityClass(GameObject* pObject)
     {
         typedef EntityClass* (__thiscall *Fn)(GameObject*);
         return pObject->GetEntityClass();
     }
 }
 
-// GLOBAL: SWBF2 0x01f9a8e0
 // SYNTHETIC: SWBF2 0x004071c0
 // `dynamic initializer for 'WeaponLaser::rttiHashWeaponLaser''
+// WeaponLaser::rttiHashWeaponLaser
+
+// GLOBAL: SWBF2 0x01f9a8e0
+// WeaponLaser::rttiHashWeaponLaser
 PblHash WeaponLaser::rttiHashWeaponLaser("WeaponLaser");
-char WeaponLaser::rttiNameWeaponLaser[] = "WeaponLaser";
+// GLOBAL: SWBF2 0x0078c06c
+// WeaponLaser::rttiNameWeaponLaser
+const char WeaponLaser::rttiNameWeaponLaser[] = "WeaponLaser";
 
-// FUNCTION: SWBF2 0x00686a10
-bool WeaponLaser::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashWeaponLaser || Weapon::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00686a40
-unsigned int WeaponLaser::GetDerivedRtti() const
-{
-    return rttiHashWeaponLaser;
-}
 
-// FUNCTION: SWBF2 0x00686a50
-const char* WeaponLaser::GetDerivedRttiName() const
-{
-    return rttiNameWeaponLaser;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00686ae0
 WeaponLaser::WeaponLaser(const WeaponLaserClass* pClass, const WeaponDesc& desc)
@@ -181,7 +183,7 @@ bool WeaponLaser::Fire(float fTime)
     desc.mOwner = pOwnerObject;
     desc.mDamageOwner = DamageOwner(mOwner->mCharacter, mOwner->GetGameObject(), mOwner->GetGameObject()->GetTeam(),
                                     GetEntityClass(mOwner->GetGameObject()), mClass, mOwner->GetOffenseMultiplier());
-    desc.mTarget = const_cast<GameObject*>(mTarget.GetValidObject());
+    desc.mTarget = const_cast<GameObject*>(static_cast<const GameObject*>(mTarget));
     desc.mBodyID = mTargetBodyID;
 
     bool bFlash = true;
@@ -205,7 +207,7 @@ bool WeaponLaser::Fire(float fTime)
         mClass->CreateMuzzleFlash(mFirePointMatrix);
     }
     mClass->mOrdnanceClass->Build(desc);
-    CombatUtil::SendDamageEvent(mOwner, mTarget.GetValidObject(), mTrigger);
+    CombatUtil::SendDamageEvent(mOwner, static_cast<const GameObject*>(mTarget), mTrigger);
     return true;
 }
 
@@ -216,11 +218,16 @@ void WeaponLaser::EnterEmpty()
     mStateLimit = static_cast<const WeaponLaserClass*>(mClass)->mShotDelay;
 }
 
-// GLOBAL: SWBF2 0x01f9a8dc
 // SYNTHETIC: SWBF2 0x004071d0
 // `dynamic initializer for 'WeaponLaserClass::rttiHashWeaponLaserClass''
+// WeaponLaserClass::rttiHashWeaponLaserClass
+
+// GLOBAL: SWBF2 0x01f9a8dc
+// WeaponLaserClass::rttiHashWeaponLaserClass
 PblHash WeaponLaserClass::rttiHashWeaponLaserClass("WeaponLaserClass");
-char WeaponLaserClass::rttiNameWeaponLaserClass[] = "WeaponLaserClass";
+// GLOBAL: SWBF2 0x0078c07c
+// WeaponLaserClass::rttiNameWeaponLaserClass
+const char WeaponLaserClass::rttiNameWeaponLaserClass[] = "WeaponLaserClass";
 
 // FUNCTION: SWBF2 0x006870c0
 WeaponLaserClass::WeaponLaserClass(unsigned int uHash)
@@ -230,23 +237,11 @@ WeaponLaserClass::WeaponLaserClass(unsigned int uHash)
     mSalvoTime = 0.5f;
 }
 
-// FUNCTION: SWBF2 0x00686a90
-bool WeaponLaserClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashWeaponLaserClass || WeaponClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00686ac0
-unsigned int WeaponLaserClass::GetDerivedRtti()
-{
-    return rttiHashWeaponLaserClass;
-}
 
-// FUNCTION: SWBF2 0x00686ad0
-const char* WeaponLaserClass::GetDerivedRttiName()
-{
-    return rttiNameWeaponLaserClass;
-}
+
+
+
 
 // SYNTHETIC: SWBF2 0x006870f0
 // WeaponLaserClass::`scalar deleting destructor'

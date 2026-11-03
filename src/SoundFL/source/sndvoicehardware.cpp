@@ -37,7 +37,8 @@ void VoiceHardware::Update(Voice* pVoice)
                                             mProps->mSpaceDistance,
                                             eDesiredPlayState != playState_playing);
             Voice::UpdateGain(pVoice, gainMatrix, false);
-            Voice::UpdatePitch(pVoice, mPitch * Source3D::CalculatePitch());
+            const float fPitch = mPitch;
+            Voice::UpdatePitch(pVoice, fPitch * Source3D::CalculatePitch());
         }
         else
         {

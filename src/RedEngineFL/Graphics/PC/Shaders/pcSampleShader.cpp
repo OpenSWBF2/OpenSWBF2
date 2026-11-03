@@ -22,28 +22,22 @@ pcRedShader::BeginFuncT pcSampleShader::BeginFuncArray[MAX_PIPELINES];
 pcRedShader::EndFuncT pcSampleShader::EndFuncArray[MAX_PIPELINES];
 pcRedShader::RenderFuncT pcSampleShader::RenderFuncArray[MAX_PIPELINES];
 
-// GLOBAL: SWBF2 0x009c9b24
 // SYNTHETIC: SWBF2 0x00409ca0
 // `dynamic initializer for 'pcSampleShader::s_shaderDef''
 // SYNTHETIC: SWBF2 0x00769da0
 // `dynamic atexit destructor for 'pcSampleShader::s_shaderDef''
+
+// GLOBAL: SWBF2 0x009c9b24
+// pcSampleShader::s_shaderDef
 pcRedShaderDef pcSampleShader::s_shaderDef("sample_shader.xml");
 
 // FUNCTION: SWBF2 0x00705510
 pcSampleShader::pcSampleShader()
 {
-    GetStateFuncArray[PIPELINE_FIXED] = 0;
-    GetStateFuncArray[PIPELINE_PROG1] = 0;
-    GetStateFuncArray[PIPELINE_PROG2] = 0;
-    BeginFuncArray[PIPELINE_FIXED] = 0;
-    BeginFuncArray[PIPELINE_PROG1] = 0;
-    BeginFuncArray[PIPELINE_PROG2] = 0;
-    EndFuncArray[PIPELINE_FIXED] = 0;
-    EndFuncArray[PIPELINE_PROG1] = 0;
-    EndFuncArray[PIPELINE_PROG2] = 0;
-    RenderFuncArray[PIPELINE_FIXED] = 0;
-    RenderFuncArray[PIPELINE_PROG1] = 0;
-    RenderFuncArray[PIPELINE_PROG2] = 0;
+    memset(GetStateFuncArray, 0, sizeof(GetStateFuncArray));
+    memset(BeginFuncArray, 0, sizeof(BeginFuncArray));
+    memset(EndFuncArray, 0, sizeof(EndFuncArray));
+    memset(RenderFuncArray, 0, sizeof(RenderFuncArray));
 
     s_uiID = _Register(s_uiRenderTypeHash, this);
 
@@ -159,16 +153,16 @@ unsigned int pcSampleShader::GetState_Prog1(const RenderItem*) const
     return 0;
 }
 
-// GLOBAL: SWBF2 0x00784b8c
-static const pcRedShaderDef::FixedFunctionStateT kFixedFunctionStates[1] =
-{
-    { 1, { 0x21, 0x00, 0x00, 0x00 } },
-};
-
 // FUNCTION: SWBF2 0x007058c0
 void pcSampleShader::InitFixedFunctionShaderDef() const
 {
-    GetShaderDef()->InitFixedFunction(0x10, 1, kFixedFunctionStates);
+    // GLOBAL: SWBF2 0x00784b8c
+    static const pcRedShaderDef::FixedFunctionStateT aFFStates[1] =
+    {
+        { 1, { 0x21, 0x00, 0x00, 0x00 } },
+    };
+
+    GetShaderDef()->InitFixedFunction(0x10, 1, aFFStates);
 }
 
 // FUNCTION: SWBF2 0x00705b20
@@ -325,22 +319,26 @@ void pcSampleShader::_StaticInit() const
 {
 }
 
-// GLOBAL: SWBF2 0x009c9b20
 // SYNTHETIC: SWBF2 0x00409cc0
 // `dynamic initializer for 'pcSampleShader::s_uiRenderTypeHash''
+
+// GLOBAL: SWBF2 0x009c9b20
+// pcSampleShader::s_uiRenderTypeHash
 unsigned int pcSampleShader::s_uiRenderTypeHash = PblHash("sample");
 
 // SYNTHETIC: SWBF2 0x00409ce0
-// `dynamic initializer for 'PblMath::fOneOverHalfPi''
+// PblMath::`dynamic initializer for 'fOneOverHalfPi''
 
 // SYNTHETIC: SWBF2 0x00409d00
-// `dynamic initializer for 'PblMath::fOneOverTwoPi''
+// PblMath::`dynamic initializer for 'fOneOverTwoPi''
 
-// GLOBAL: SWBF2 0x009c9ad0
 // SYNTHETIC: SWBF2 0x00409c80
 // `dynamic initializer for 'pcSampleShader::s_Factory''
 // SYNTHETIC: SWBF2 0x00769d80
 // `dynamic atexit destructor for 'pcSampleShader::s_Factory''
+
+// GLOBAL: SWBF2 0x009c9ad0
+// pcSampleShader::s_Factory
 pcSampleShader pcSampleShader::s_Factory;
 
 // GLOBAL: SWBF2 0x009c9acc

@@ -1,3 +1,5 @@
+#include "AmmoCounter.h"
+#include <d3dx9math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -23,36 +25,39 @@
 #include "CollisionManager.h"
 #include "PebbleFL/pc/PblD3DX.h"
 
-namespace gf { bool isInitialized(); bool checkError(); }
+namespace gf
+{
+bool isInitialized(); bool checkError();
+}
 void ProcessGalaxyData();
+
 
 PblMatrix DirectionMatrix(const PblVector3& vDir, const PblVector3& vUp, const PblVector3& vPos);
 
-namespace GameLoop { extern float sClientDeltaTime; }
 
-// GLOBAL: SWBF2 0x01f9a8c0
+
+
+namespace GameLoop
+{
+extern float sClientDeltaTime;
+}
+
 // SYNTHETIC: SWBF2 0x00407150
 // `dynamic initializer for 'WeaponDispenserClass::rttiHashWeaponDispenserClass''
+// WeaponDispenserClass::rttiHashWeaponDispenserClass
+
+// GLOBAL: SWBF2 0x01f9a8c0
+// WeaponDispenserClass::rttiHashWeaponDispenserClass
 PblHash WeaponDispenserClass::rttiHashWeaponDispenserClass("WeaponDispenserClass");
-char WeaponDispenserClass::rttiNameWeaponDispenserClass[] = "WeaponDispenserClass";
+// GLOBAL: SWBF2 0x0078bf94
+// WeaponDispenserClass::rttiNameWeaponDispenserClass
+const char WeaponDispenserClass::rttiNameWeaponDispenserClass[] = "WeaponDispenserClass";
 
-// FUNCTION: SWBF2 0x00682430
-bool WeaponDispenserClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashWeaponDispenserClass || WeaponClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x006836d0
-unsigned int WeaponDispenserClass::GetDerivedRtti()
-{
-    return rttiHashWeaponDispenserClass;
-}
 
-// FUNCTION: SWBF2 0x006836e0
-const char* WeaponDispenserClass::GetDerivedRttiName()
-{
-    return rttiNameWeaponDispenserClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00684670
 WeaponDispenserClass::WeaponDispenserClass(WeaponDispenserClass* pBase, unsigned int uHash)
@@ -78,8 +83,10 @@ WeaponDispenserClass::WeaponDispenserClass(WeaponDispenserClass* pBase, unsigned
 // SYNTHETIC: SWBF2 0x00684640
 // WeaponDispenserClass::`scalar deleting destructor'
 
-// SYNTHETIC: SWBF2 0x00684760
-// WeaponDispenserClass::~WeaponDispenserClass
+// FUNCTION: SWBF2 0x00684760
+WeaponDispenserClass::~WeaponDispenserClass()
+{
+}
 
 // FUNCTION: SWBF2 0x00684770
 void WeaponDispenserClass::SetProperty(unsigned int uProperty, const char* pszValue)
@@ -201,14 +208,14 @@ bool WeaponDispenserClass::PostLoadInit()
                 SoldierAnimationBank::HUMAN_RIFLE, SoldierAnimType::STAND, SoldierAnimType::SHOOT_SECONDARY,
                 0x2B960099, mInitialSalvoDelay[0], mBone))
         {
-            D3DXVec3TransformCoord(&vPos, &mFirePointOffset, &mBone);
+            D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vPos), reinterpret_cast<const D3DXVECTOR3*>(&mFirePointOffset), reinterpret_cast<const D3DXMATRIX*>(&mBone));
             m_avFireOffset[0] = vPos;
         }
         if (SoldierAnimatorClass::Instance()->GetAnimationBoneMatrix(
                 SoldierAnimationBank::HUMAN_RIFLE, SoldierAnimType::STAND, SoldierAnimType::SHOOT_SECONDARY2,
                 0x2B960099, mInitialSalvoDelay[1], mBone))
         {
-            D3DXVec3TransformCoord(&vPos, &mFirePointOffset, &mBone);
+            D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vPos), reinterpret_cast<const D3DXVECTOR3*>(&mFirePointOffset), reinterpret_cast<const D3DXMATRIX*>(&mBone));
             m_avFireOffset[1] = vPos;
         }
     }
@@ -247,29 +254,22 @@ WeaponDispenserClass::WeaponDispenserClass(unsigned int uHash)
     }
 }
 
-// GLOBAL: SWBF2 0x01f9a8bc
 // SYNTHETIC: SWBF2 0x00407140
 // `dynamic initializer for 'WeaponDispenser::rttiHashWeaponDispenser''
+// WeaponDispenser::rttiHashWeaponDispenser
+
+// GLOBAL: SWBF2 0x01f9a8bc
+// WeaponDispenser::rttiHashWeaponDispenser
 PblHash WeaponDispenser::rttiHashWeaponDispenser("WeaponDispenser");
-char WeaponDispenser::rttiNameWeaponDispenser[] = "WeaponDispenser";
+// GLOBAL: SWBF2 0x0078bf80
+// WeaponDispenser::rttiNameWeaponDispenser
+const char WeaponDispenser::rttiNameWeaponDispenser[] = "WeaponDispenser";
 
-// FUNCTION: SWBF2 0x00682400
-bool WeaponDispenser::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashWeaponDispenser || reinterpret_cast<const Weapon*>(this)->Weapon::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x006836b0
-unsigned int WeaponDispenser::GetDerivedRtti() const
-{
-    return rttiHashWeaponDispenser;
-}
 
-// FUNCTION: SWBF2 0x006836c0
-const char* WeaponDispenser::GetDerivedRttiName() const
-{
-    return rttiNameWeaponDispenser;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x006836f0
 WeaponDispenser::WeaponDispenser(const WeaponDispenserClass* pClass, const WeaponDesc& desc)
@@ -471,7 +471,7 @@ void WeaponDispenser::ExitEmpty()
 // FUNCTION: SWBF2 0x00683b80
 bool WeaponDispenser::CheckCharge() const
 {
-    if (!mTrigger || !(((const WeaponDispenserClass*)mClass)->mMaxPressedTime > 0.0f))
+    if (!mTrigger || ((const WeaponDispenserClass*)mClass)->mMaxPressedTime <= 0.0f)
     {
         return false;
     }
@@ -555,13 +555,11 @@ Entity* WeaponDispenser::Fire()
                 static_cast<EntitySoldier*>(mOwner->GetGameObject())->mClass->mSkeletonRootScale;
             if (fScale != 1.0f)
             {
-                vPos.x *= fScale;
-                vPos.y *= fScale;
-                vPos.z *= fScale;
+                vPos *= fScale;
             }
         }
         PblVector3 vWorld;
-        D3DXVec3TransformCoord(&vWorld, &vPos, &mOwner->GetMatrix());
+        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vWorld), reinterpret_cast<const D3DXVECTOR3*>(&vPos), reinterpret_cast<const D3DXMATRIX*>(&mOwner->GetMatrix()));
         vPos = vWorld;
     }
     else
@@ -570,7 +568,7 @@ Entity* WeaponDispenser::Fire()
     }
 
     PblVector3 vExtra;
-    D3DXVec3TransformNormal(&vExtra, &pClass->mFirePointExtraOffset, &mOwner->GetMatrix());
+    D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vExtra), reinterpret_cast<const D3DXVECTOR3*>(&pClass->mFirePointExtraOffset), reinterpret_cast<const D3DXMATRIX*>(&mOwner->GetMatrix()));
     vPos.x = vExtra.x + vPos.x;
     vPos.y = vExtra.y + vPos.y;
     vPos.z = vExtra.z + vPos.z;
@@ -581,7 +579,7 @@ Entity* WeaponDispenser::Fire()
         PblVector3 vEnd = vPos;
         PblVector3 vDelta(vPos.x - vCenter.x, vPos.y - vCenter.y, vPos.z - vCenter.z);
         PblVector3 vDir;
-        D3DXVec3Normalize(&vDir, &vDelta);
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vDelta));
         const GameObject* pIgnore = pMe;
         vEnd.x = vDir.x + vEnd.x;
         vEnd.y = vDir.y + vEnd.y;
@@ -614,7 +612,7 @@ Entity* WeaponDispenser::Fire()
                 pItem = *pHandle;
                 if (pItem->GetAffiliationToMe(pMe) >= 0)
                 {
-                    if (!pOldest || pOldest->mCreatedTime > ((GameObject*)*pHandle)->mCreatedTime)
+                    if (!pOldest || pOldest->GetCreatedTime() > ((GameObject*)*pHandle)->GetCreatedTime())
                     {
                         pOldest = *pHandle;
                     }
@@ -661,21 +659,15 @@ Entity* WeaponDispenser::Fire()
     if (pObject->IsRtti(EntityItem::rttiHashEntityItem))
     {
         static_cast<EntityItem*>(pObject)->mOwner = mOwner->mCharacter;
-        if (!NetGame::IsEnabled() || !NetGame::IsClient())
-        {
-            EventManager::CharacterEvent::mDispensePowerup.Trigger(*mOwner->mCharacter, *pObject);
-        }
+        EventManager::CharacterEvent::mDispensePowerup.Trigger(*mOwner->mCharacter, *pObject);
     }
     else
     {
-        if (!NetGame::IsEnabled() || !NetGame::IsClient())
-        {
-            EventManager::CharacterEvent::mDispenseControllable.Trigger(*mOwner->mCharacter, *pObject);
-        }
+        EventManager::CharacterEvent::mDispenseControllable.Trigger(*mOwner->mCharacter, *pObject);
 
         Controllable* pControllable = pObject->GetControllable();
         if (pControllable &&
-            (pControllable->mPilotType == PILOT_SELF || pControllable->mPilotType == PILOT_VEHICLESELF) &&
+            (pControllable->IsSelfPilotable()) &&
             !pControllable->GetPilot())
         {
             Controller* pController = pControllable->mCtrl;
@@ -714,13 +706,7 @@ const GameObject* WeaponDispenser::GetItem(int iIndex) const
     {
         return 0;
     }
-    PblHandle<GameObject>& h = (*mItemArray)[iIndex];
-    if (h.mObject && PBL_HANDLE_ID(h.mObject) != h.mSavedHandleId)
-    {
-        h.mObject = 0;
-        h.mSavedHandleId = 0;
-    }
-    return h.mObject;
+    return (*mItemArray)[iIndex];
 }
 
 // FUNCTION: SWBF2 0x005d5a40

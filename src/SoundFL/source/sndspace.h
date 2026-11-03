@@ -113,10 +113,6 @@ public:
 
     ~Region()
     {
-        if (mSpaceNode.mNext)
-        {
-            mSpaceNode.Remove();
-        }
     }
 
     PblListSingle::Node mSpaceNode;

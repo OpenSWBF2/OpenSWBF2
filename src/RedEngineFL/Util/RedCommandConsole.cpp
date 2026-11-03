@@ -1,4 +1,5 @@
 #include <ctype.h>
+#include "PebbleFL/Common/PblMath.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -263,7 +264,7 @@ void MultiVar::Set(char const* pcValue)
         *m_pVar_FLOAT32 = (float)atof(pcValue);
         break;
     case VAR_TYPE_FLOAT64:
-        *(double*)m_pVar_FLOAT64 = atof(pcValue);
+        *m_pVar_FLOAT64 = atof(pcValue);
         break;
     case VAR_TYPE_STRING:
         strlcpy(m_pVar_STRING, pcValue, m_uiVarLength);
@@ -321,7 +322,7 @@ void MultiVar::Run(RedConsole* pConsole, char const* pcName, unsigned int uiID, 
         pConsole->PrintfMsg("%s = %f\n", pcName, *m_pVar_FLOAT32);
         break;
     case VAR_TYPE_FLOAT64:
-        pConsole->PrintfMsg("%s = %f\n", pcName, *(double*)m_pVar_FLOAT64);
+        pConsole->PrintfMsg("%s = %f\n", pcName, *m_pVar_FLOAT64);
         break;
     case VAR_TYPE_STRING:
         pConsole->PrintfMsg("%s = %s\n", pcName, m_pVar_STRING);
@@ -331,3 +332,148 @@ void MultiVar::Run(RedConsole* pConsole, char const* pcName, unsigned int uiID, 
         break;
     }
 }
+
+// FUNCTION: SWBF2 0x006eca70
+RedCommandConsole::Command* RedCommandConsole::Group::FindCommand(unsigned int uiID)
+{
+    for (PblList<Command>::Node* pNode = mCommandList._head._pNext; pNode->_pObject; pNode = pNode->_pNext)
+    {
+        if (pNode->_pObject->mID == uiID)
+        {
+            return pNode->_pObject;
+        }
+    }
+    return 0;
+}
+
+// FUNCTION: SWBF2 0x006ecaa0
+RedCommandConsole::Command* RedCommandConsole::Group::FindCommand(char const* pcName)
+{
+    return FindCommand(PblHash(pcName));
+}
+
+// FUNCTION: SWBF2 0x006ecb30
+void RedCommandConsole::Command::Run(RedConsole* pConsole, char const* pcArgs)
+{
+    mVar.Run(pConsole, mName, mID, pcArgs);
+}
+
+// FUNCTION: SWBF2 0x006ecac0
+int RedCommandConsole::Process(RedConsole* pConsole, char const* pcLine)
+{
+    Command* pCommand = _FindCommand(pcLine);
+    if (!pCommand)
+    {
+        return 0;
+    }
+
+    const char* pcArgs = pcLine;
+    while (*pcArgs && !isspace(*pcArgs))
+    {
+        ++pcArgs;
+    }
+    while (isspace(*pcArgs))
+    {
+        ++pcArgs;
+    }
+    pCommand->Run(pConsole, pcArgs);
+    return 1;
+}
+
+// FUNCTION: SWBF2 0x006ed150
+RedCommandConsole::Command* RedCommandConsole::_FindCommand(char const* pcPath)
+{
+    if (!pcPath || !*pcPath)
+    {
+        return 0;
+    }
+    Group* pGroup = _FindGroup(pcPath, true);
+    if (!pGroup)
+    {
+        return 0;
+    }
+
+    const char* pcLastDot = 0;
+    const char* pcEnd = pcPath;
+    while (*pcEnd && !isspace(*pcEnd))
+    {
+        if (*pcEnd == '.')
+        {
+            pcLastDot = pcEnd;
+        }
+        ++pcEnd;
+    }
+    const char* pcName = pcLastDot ? pcLastDot + 1 : pcPath;
+    if (!*pcName || isspace(*pcName))
+    {
+        return 0;
+    }
+    int iLen = pcEnd - pcName;
+    if (iLen > 31)
+    {
+        return 0;
+    }
+
+    char acName[32];
+    if (*pcEnd)
+    {
+        strlcpy(acName, pcName, Min(iLen + 1, 32));
+        pcName = acName;
+    }
+    return pGroup->FindCommand(pcName);
+}
+
+// FUNCTION: SWBF2 0x006ed240
+RedCommandConsole::Group* RedCommandConsole::_FindGroup(char const* pcPath, bool bLeafIsCommand)
+{
+    if (!sRootNode)
+    {
+        return 0;
+    }
+    if (!*pcPath || isspace(*pcPath))
+    {
+        return bLeafIsCommand ? 0 : sRootNode;
+    }
+
+    Group* pGroup = sRootNode;
+    char acName[32];
+    char* pcOut = acName;
+    while (*pcPath == '.')
+    {
+        ++pcPath;
+    }
+    while (*pcPath && !isspace(*pcPath))
+    {
+        if (*pcPath == '.')
+        {
+            *pcOut = 0;
+            pGroup = pGroup->mChildList.Find(acName);
+            if (!pGroup)
+            {
+                return 0;
+            }
+            pcOut = acName;
+            acName[0] = 0;
+            do
+                ++pcPath;
+            while (*pcPath == '.');
+            continue;
+        }
+        if (pcOut == &acName[31])
+        {
+            return 0;
+        }
+        *pcOut++ = *pcPath++;
+    }
+    if (!bLeafIsCommand && acName[0])
+    {
+        *pcOut = 0;
+        pGroup = pGroup->mChildList.Find(acName);
+        if (!pGroup)
+        {
+            return 0;
+        }
+    }
+    return pGroup;
+}
+

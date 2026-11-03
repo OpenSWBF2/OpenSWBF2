@@ -1,4 +1,5 @@
 #include "LuaCallbacks_Stats.h"
+#include "FLInputManager.h"
 #include "LuaHelper.h"
 #include "PlayerProfile.h"
 #include "PlayerStats.h"
@@ -22,9 +23,25 @@
 #include "RedEngineFL/Interface/RedTextElement.h"
 #include "RedEngineFL/Util/RedLocalizeDB.h"
 
+// GLOBAL: SWBF2 0x007b2610
+// __xmm@00000000000000000000000000000000
+// GLOBAL: SWBF2 0x007b2680
+// __xmm@00000001000000010000000100000001
+// GLOBAL: SWBF2 0x007b26b0
+// __xmm@00000001000000030000000500000004
+// GLOBAL: SWBF2 0x007b26f0
+// __xmm@00000003000000010000000200000005
+// GLOBAL: SWBF2 0x007b2700
+// __xmm@00000003000000020000000100000000
+// GLOBAL: SWBF2 0x007b2720
+// __xmm@00000004000000030000000200000001
+// GLOBAL: SWBF2 0x007b2730
+// __xmm@00000004000000050000000400000002
+// GLOBAL: SWBF2 0x007b2740
+// __xmm@00000005000000030000000200000001
+
 using namespace PblUnicode;
 
-extern int gActiveViewport;
 
 // GLOBAL: SWBF2 0x01e57990
 int gTeamStatsSortMode;
@@ -32,22 +49,22 @@ int gTeamStatsSortMode;
 bool gTeamStatsSortInvert;
 
 // FUNCTION: SWBF2 0x0059eac0
-const char* GetSideIcon(int iSide)
+static const char* GetSideIcon(int iSide)
 {
-    static const char* const sIcons[] =
+    static const char* sideIcons[7] =
     {
         0, "com_icon_alliance", "com_icon_imperial", "com_icon_republic", "com_icon_CIS", 0, 0
     };
-    if (iSide == Team::side_Locals)
+    if (iSide != Team::side_Locals)
     {
-        if (GameLoop::mMissionScriptHash == 0x2b6c2d0d || GameLoop::mMissionScriptHash == 0x41c2e16a ||
-            GameLoop::mMissionScriptHash == 0xcdb830bd)
-        {
-            return "com_icon_republic";
-        }
-        return 0;
+        return sideIcons[iSide];
     }
-    return sIcons[iSide];
+    if (GameLoop::mMissionScriptHash == 0x2b6c2d0d || GameLoop::mMissionScriptHash == 0x41c2e16a ||
+        GameLoop::mMissionScriptHash == 0xcdb830bd)
+    {
+        return "com_icon_republic";
+    }
+    return 0;
 }
 
 // FUNCTION: SWBF2 0x005a3180
@@ -86,8 +103,11 @@ short MedalsMgr::GetMedalsThisGame(int iType) const
         return 0;
     }
     PlayerProfile::tProfile* pProfile = mOwner->GetProfile();
-    short sCurrent = GetMedals(iType);
-    return pProfile ? sCurrent - pProfile->mGameOptions.mMedalsGathered[iType] : sCurrent;
+    if (!pProfile)
+    {
+        return GetMedals(iType);
+    }
+    return GetMedals(iType) - pProfile->mGameOptions.mMedalsGathered[iType];
 }
 
 namespace Lua_Callbacks
@@ -246,14 +266,15 @@ int ScriptCB_GetMedalStats(lua_State*)
 // FUNCTION: SWBF2 0x005a00a0
 int ScriptCB_GetCareerRank(lua_State*)
 {
-    if (lua_gettop(LuaHelper::mState) != 1 || !lua_isnumber(LuaHelper::mState, 1))
+    int numArgs = LuaHelper::GetTop();
+    if (numArgs != 1 || !LuaHelper::IsNumber(1))
     {
         return 0;
     }
-    int iCharacter = (int)luaL_checknumber(LuaHelper::mState, 1);
-    Character* pCharacter = Character::sCharacters && iCharacter >= 0 &&
-        iCharacter < Character::sCharacterLimit ? &Character::sCharacters[iCharacter] : 0;
-    lua_pushnumber(LuaHelper::mState, (float)pCharacter->mMedalsMgr->GetRank());
+    int charIdx = LuaHelper::GetInt(1);
+    Character* c = Character::GetPtr(charIdx);
+    int rank = c->mMedalsMgr->GetRank();
+    LuaHelper::PushInt(rank);
     return 1;
 }
 
@@ -593,7 +614,7 @@ static void Stats_AddLabelNameTime(const unsigned short* pusLabel, const unsigne
     if (pusName)
     {
         ustrlcpy(usText, pusName, 64);
-        for (unsigned short* p = ustrchr(usText, '\n'); p; p = ustrchr(usText, '\n'))
+        for (unsigned short* p = ustrrchr(usText, '\n'); p; p = ustrrchr(usText, '\n'))
         {
             *p = ' ';
         }
@@ -729,6 +750,9 @@ int __cdecl TeamStatSortCallback(const void* pA, const void* pB)
     return 0;
 }
 
+// GLOBAL: SWBF2 0x007e8540
+// sStatsCallbacks
+
 namespace Lua_Callbacks
 {
 
@@ -746,7 +770,7 @@ static void CareerMedals_AddItem(const unsigned short* pusLabel, int iVal1, int 
 // FUNCTION: SWBF2 0x0059e500
 int GetStatsPageJoystick()
 {
-    return gActiveViewport;
+    return FLInputManager::Instance()->GetPrimaryPort();
 }
 
 // FUNCTION: SWBF2 0x0059e570
@@ -828,14 +852,14 @@ int ScriptCB_GetTeamstats(lua_State* L)
         if (apSorted[i]->mPlayerId >= 0)
         {
             int iLocal = NetGame::GetJoystickIndex(apSorted[i]->mPlayerId);
-            if (iLocal < 0 || playerJoystickNumbers[iLocal * 11] < 0)
+            if (iLocal < 0 || PlayerPrefs::mAllUserPrefs[iLocal].mJoystick < 0)
             {
                 color = RedColor::YELLOW;
             }
             else
             {
                 color = RedColor::WHITE;
-                if (playerJoystickNumbers[iLocal * 11] == GetStatsPageJoystick())
+                if (PlayerPrefs::mAllUserPrefs[iLocal].mJoystick == GetStatsPageJoystick())
                 {
                     iLocalRank = i;
                 }
@@ -882,7 +906,7 @@ int ScriptCB_TeamStatsGetTeamColor(lua_State* L)
     Team* pTeam = Team::Lookup((int)fTeam);
     if (pTeam && PblInBounds(pTeam->mColor, (int)fSlot))
     {
-        RedColor color = pTeam->mColor[(int)fSlot];
+        RedColor color = pTeam->GetColor((int)fSlot);
         lua_pushnumber(LuaHelper::mState, (float)color.r);
         lua_pushnumber(LuaHelper::mState, (float)color.g);
         lua_pushnumber(LuaHelper::mState, (float)color.b);
@@ -945,16 +969,10 @@ int ScriptCB_TeamStatsSetTitles(lua_State* L)
         Red3DModelElementLite* pIcon = (Red3DModelElementLite*)RedInterfaceElement::Find(0xb0fcda7cu);
         const bool bSlot = PblInBounds(pTeam1->mColor, (int)fSlot);
         pIcon->SetModel(GetSideIcon(pTeam1->GetSide()));
-        if (bSlot)
-        {
-            pIcon->SetColor(pTeam1->mColor[(int)fSlot]);
-        }
+        pIcon->SetColor(pTeam1->GetColor((int)fSlot));
         pIcon = (Red3DModelElementLite*)RedInterfaceElement::Find(0x14bdc17du);
         pIcon->SetModel(GetSideIcon(pTeam2->GetSide()));
-        if (bSlot)
-        {
-            pIcon->SetColor(pTeam2->mColor[(int)fSlot]);
-        }
+        pIcon->SetColor(pTeam2->GetColor((int)fSlot));
     }
     return 0;
 }
@@ -974,10 +992,7 @@ int ScriptCB_PersonalStatsSetTitles(lua_State* L)
         }
         Red3DModelElementLite* pIcon = (Red3DModelElementLite*)RedInterfaceElement::Find(0x262d6743u);
         pIcon->SetModel(GetSideIcon(pTeam->GetSide()));
-        if (PblInBounds(pTeam->mColor, iSlot))
-        {
-            pIcon->SetColor(pTeam->mColor[iSlot]);
-        }
+        pIcon->SetColor(pTeam->GetColor(iSlot));
     }
     return 0;
 }
@@ -1267,7 +1282,7 @@ int ScriptCB_GetAwardStats(lua_State* L)
                 Team* pAwardTeam = pCharacter->mTeamPtr;
                 pIcon->SetModel(GetSideIcon(pAwardTeam->GetSide()));
 
-                RedColor color = pAwardTeam->mColor[(int)fTeam];
+                RedColor color = pAwardTeam->GetColor((int)fTeam);
                 color.a = 0;
                 pIcon->SetColor(color);
                 LuaHelper::CallGlobalProc("ifs_awardstats_seticonstartside",
@@ -1296,11 +1311,10 @@ int ScriptCB_ClientGotStats(lua_State* L)
     {
         bGotStats = PlayerStats::mGotMPStats;
     }
-    lua_pushboolean(LuaHelper::mState, bGotStats);
+    LuaHelper::PushBool(bGotStats);
     return 1;
 }
 
-// GLOBAL: SWBF2 0x007e8540
 static const CallbackEntryT sStatsCallbacks[18] =
 {
     { "ScriptCB_ClientGotStats", ScriptCB_ClientGotStats },
@@ -1326,7 +1340,7 @@ static const CallbackEntryT sStatsCallbacks[18] =
 // FUNCTION: SWBF2 0x005a06f0
 void InitStats()
 {
-    for (int i = 0; i < 18; ++i)
+    for (unsigned int i = 0; i < 18; ++i)
     {
         LuaHelper::Register(sStatsCallbacks[i].pcName, sStatsCallbacks[i].pfnCallback, 0);
     }
@@ -1335,19 +1349,19 @@ void InitStats()
 // FUNCTION: SWBF2 0x005a0730
 int ScriptCB_SetPlayerStatsPoints(lua_State*)
 {
-    if (lua_gettop(LuaHelper::mState) == 1 && lua_type(LuaHelper::mState, 1) == LUA_TTABLE)
+    if (LuaHelper::GetTop() == 1 && LuaHelper::IsTable(1))
     {
-        lua_gettop(LuaHelper::mState);
-        int iCount = luaL_getn(LuaHelper::mState, 1);
+        LuaHelper::GetStackSpace();
+        int iCount = LuaHelper::TableGetN(1);
         for (int i = 1; i <= iCount; ++i)
         {
-            lua_rawgeti(LuaHelper::mState, 1, i);
+            LuaHelper::TableGetByPosition(1, i);
             int iPoints = 0;
             LuaHelper::TableReadVal("point_gain", iPoints, false);
             PlayerStats::SetPointsTable(i - 1, iPoints);
-            lua_settop(LuaHelper::mState, -2);
+            LuaHelper::Pop(1);
         }
-        lua_gettop(LuaHelper::mState);
+        LuaHelper::GetStackSpace();
     }
     return 0;
 }

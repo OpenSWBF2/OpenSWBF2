@@ -15,7 +15,10 @@ class CommandPost;
 class Controllable;
 class Team;
 
-namespace HUD {
+namespace HUD
+{
+// VTABLE: SWBF2 0x007a1258 HUD::ElementGroupPlayer
+// VTABLE: SWBF2 0x007a129c RedGroupElement
 class ElementMap : public HUD::ElementGroupPlayer, public RedGroupElement
 {
 public:
@@ -54,7 +57,8 @@ public:
 
     Mode GetMode() const { return mMode; }
 
-    // VTABLE: SWBF2 0x007a121c
+    // VTABLE: SWBF2 0x007a121c HUD::ElementBitmapBase
+    // VTABLE: SWBF2 0x007a11c0 RedBitmapElement
     class BitmapGroup : public HUD::ElementBitmap
     {
     public:
@@ -63,7 +67,8 @@ public:
             : HUD::ElementBitmap(pName), mMap(0), mMapMode(0), mBitmaps(0), mNumBitmaps(0)
         {
         }
-        virtual ~BitmapGroup();
+        // SYNTHETIC: SWBF2 0x0054fa60
+        // HUD::ElementMap::BitmapGroup::~BitmapGroup
 
         void Init(HUD::ElementMap* pMap, unsigned int uMapMode, RedBitmapElement* pBitmaps,
                   unsigned int uNumBitmaps)
@@ -150,7 +155,7 @@ public:
 protected:
     virtual void PlayerIndexChanged();
 
-    static void __fastcall WriteBitmapElement(HUD::ElementBitmapBase* pBitmap, HUD::File* pFile,
+    static void __cdecl WriteBitmapElement(HUD::ElementBitmapBase* pBitmap, HUD::File* pFile,
                                               unsigned int uTabs);
 
     void EnableModeElements(bool bEnable);

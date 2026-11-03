@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "Ordnance.h"
@@ -18,9 +20,9 @@ public:
 
     virtual OrdnanceClass* Derive(unsigned int uHash);
     virtual Ordnance* Build(const OrdnanceDesc& desc);
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
     virtual float GetRange();
     virtual DamageDesc GetDamage(const DamageOwner& owner, float fUnused, float fRatio,
@@ -70,7 +72,7 @@ public:
     ExplosionClass* mExplosion;
 
     static PblHash rttiHashOrdnanceEmitterClass;
-    static char rttiNameOrdnanceEmitterClass[];
+    static const char rttiNameOrdnanceEmitterClass[];
 };
   
  
@@ -107,3 +109,25 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x005fc3b0
+inline bool OrdnanceEmitterClass::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashOrdnanceEmitterClass == uRtti)
+    {
+        return true;
+    }
+    return OrdnanceClass::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x005fc3e0
+inline unsigned int OrdnanceEmitterClass::GetDerivedRtti() const
+{
+    return rttiHashOrdnanceEmitterClass;
+}
+
+// FUNCTION: SWBF2 0x005fc3f0
+inline const char* OrdnanceEmitterClass::GetDerivedRttiName() const
+{
+    return rttiNameOrdnanceEmitterClass;
+}

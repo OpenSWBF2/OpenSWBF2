@@ -8,11 +8,13 @@ extern NoLodData noloddata;
 
 extern SmallEffectLodData smallEffectLodData;
 
-// GLOBAL: SWBF2 0x01ef26c8
 // SYNTHETIC: SWBF2 0x00405c60
 // `dynamic initializer for 'ParticleEmitter::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00769210
 // `dynamic atexit destructor for 'ParticleEmitter::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ef26c8
+// ParticleEmitter::sMemoryPool
 MemoryPool ParticleEmitter::sMemoryPool("ParticleEmitter", 0x40);
 
 // FUNCTION: SWBF2 0x00609ed0
@@ -73,15 +75,6 @@ ParticleEmitter* ParticleEmitter::Create(const ParticleEmitterClass* pClass)
     return new ParticleEmitter(pClass);
 }
 
-// FUNCTION: SWBF2 0x00609c40
-float VarianceValue::GetValue(PblRandom& rand) const
-{
-    if (mVariance == 0.0f)
-    {
-        return mValue;
-    }
-    return rand.GetFloat() * mVariance + mValue;
-}
 
 // FUNCTION: SWBF2 0x0060a130
 void ParticleEmitter::Reset(const ParticleEmitterClass* pClass)
@@ -198,11 +191,13 @@ bool ParticleEmitterObject::IsReflected() const
 // SYNTHETIC: SWBF2 0x00609e70
 // ParticleEmitterObject::`scalar deleting destructor'
 
-// GLOBAL: SWBF2 0x01ef4730
 // SYNTHETIC: SWBF2 0x00405c80
 // `dynamic initializer for 'sPEO''
 // SYNTHETIC: SWBF2 0x00769220
 // `dynamic atexit destructor for 'sPEO''
+
+// GLOBAL: SWBF2 0x01ef4730
+// sPEO
 ParticleEmitterObject sPEO;
 
 // FUNCTION: SWBF2 0x0060b8f0
@@ -220,15 +215,18 @@ void ParticleEmitterClass::SetNextSeed(unsigned int uSeed)
     }
 }
 
-// GLOBAL: SWBF2 0x01ef2730
 // SYNTHETIC: SWBF2 0x00405be0
 // `dynamic initializer for 'sParticleCache''
+
+// GLOBAL: SWBF2 0x01ef2730
+// sParticleCache
 Particle sParticleCache[128];
 
-// GLOBAL: SWBF2 0x01ef4840
 // SYNTHETIC: SWBF2 0x00405c20
 // `dynamic initializer for 'sEmitterCache''
+
+// GLOBAL: SWBF2 0x01ef4840
+// sEmitterCache
 Particle sEmitterCache[32];
 
-// SYNTHETIC: SWBF2 0x0048ebf0
-// RedColorValue::RedColorValue
+

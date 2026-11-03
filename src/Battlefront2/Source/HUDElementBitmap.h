@@ -8,8 +8,10 @@
 
 class RedGroupElement;
 
-namespace HUD {
+namespace HUD
+{
 
+// VTABLE: SWBF2 0x007a0c84
 class ElementBitmapBase : public HUD::Element
 {
 public:
@@ -70,6 +72,8 @@ public:
     unsigned char mVAlign;
 };
 
+// VTABLE: SWBF2 0x007a0870 HUD::ElementBitmapBase
+// VTABLE: SWBF2 0x007a0974 RedBitmapElement
 class ElementBitmap : public HUD::ElementBitmapBase, public RedBitmapElement
 {
 public:
@@ -90,7 +94,8 @@ public:
 
     ElementBitmap(const char* const pName = 0, Factory::ItemCallback pCallback = 0,
                   void* const pUserData = 0);
-    virtual ~ElementBitmap();
+    // SYNTHETIC: SWBF2 0x0054a730
+    // HUD::ElementBitmap::~ElementBitmap
     virtual void* GetParent();
 
     void SetTexture(const char* pName);
@@ -105,6 +110,8 @@ public:
     }
 };
 
+// VTABLE: SWBF2 0x007a0cc0 HUD::ElementBitmapBase
+// VTABLE: SWBF2 0x007a0cfc RedMaskedBitmapElement
 class ElementBitmapMasked : public HUD::ElementBitmapBase, public RedMaskedBitmapElement
 {
 public:
@@ -128,7 +135,16 @@ public:
 
     ElementBitmapMasked(const char* const pName = 0, Factory::ItemCallback pCallback = 0,
                         void* const pUserData = 0);
-    virtual ~ElementBitmapMasked();
+    // SYNTHETIC: SWBF2 0x0054e1a9
+    // ??_EElementBitmapMasked@HUD@@WBCA@AEPAXI@Z
+    // SYNTHETIC: SWBF2 0x0054cc40
+    // HUD::ElementBitmapMasked::`scalar deleting destructor'
+    // FUNCTION: SWBF2 0x0054cbc0
+    // HUD::ElementBitmapMasked::~ElementBitmapMasked
+    virtual ~ElementBitmapMasked()
+    {
+        FreeName(&mMaskTextureName);
+    }
 
     virtual bool SetProperty(const unsigned int uHashID, const void* const pValue);
     virtual bool GetProperty(const unsigned int uHashID, void* const pValue);
@@ -162,3 +178,26 @@ public:
  
  
  
+
+inline HUD::ElementBitmap::ElementBitmap(const char* const pName, Factory::ItemCallback pCallback,
+                                  void* const pUserData)
+    : HUD::ElementBitmapBase(*static_cast<RedBitmapElement*>(this), pName, pCallback, pUserData)
+{
+    RedBitmapElement::Enable(false);
+}
+
+inline HUD::ElementBitmapMasked::ElementBitmapMasked(const char* const pName,
+                                              Factory::ItemCallback pCallback,
+                                              void* const pUserData)
+    : HUD::ElementBitmapBase(*static_cast<RedMaskedBitmapElement*>(this), pName, pCallback,
+                             pUserData),
+      mMaskTextureName(0)
+{
+    RedMaskedBitmapElement::Enable(false);
+}
+
+inline HUD::ElementBitmap::Factory::Factory()
+    : HUD::ElementBitmapBase::Factory(0x46544626u)
+{
+    mName = "Bitmap";
+}

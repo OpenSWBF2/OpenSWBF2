@@ -16,6 +16,7 @@ class RedShadingPose;
 class RedSkeleton;
 class RedStencilShadow;
 
+// VTABLE: SWBF2 0x00772b00
 class RedModel
 {
 public:

@@ -1,3 +1,4 @@
+#include "AmmoCounter.h"
 #include <stdio.h>
 #include <new>
 
@@ -14,35 +15,35 @@
 
 extern bool netIsLocalTurn;
 
-// GLOBAL: SWBF2 0x01f9a8a4
+
+
 // SYNTHETIC: SWBF2 0x004070e0
 // `dynamic initializer for 'WeaponDestruct::rttiHashWeaponDestruct''
+// WeaponDestruct::rttiHashWeaponDestruct
+
+// GLOBAL: SWBF2 0x01f9a8a4
+// WeaponDestruct::rttiHashWeaponDestruct
 PblHash WeaponDestruct::rttiHashWeaponDestruct("WeaponDestruct");
-char WeaponDestruct::rttiNameWeaponDestruct[] = "WeaponDestruct";
+// GLOBAL: SWBF2 0x0078bee4
+// WeaponDestruct::rttiNameWeaponDestruct
+const char WeaponDestruct::rttiNameWeaponDestruct[] = "WeaponDestruct";
 
-// FUNCTION: SWBF2 0x00681a10
-bool WeaponDestruct::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashWeaponDestruct || Weapon::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00681a40
-unsigned int WeaponDestruct::GetDerivedRtti() const
-{
-    return rttiHashWeaponDestruct;
-}
 
-// FUNCTION: SWBF2 0x00681a50
-const char* WeaponDestruct::GetDerivedRttiName() const
-{
-    return rttiNameWeaponDestruct;
-}
 
-// GLOBAL: SWBF2 0x01f9a8a8
+
+
+
 // SYNTHETIC: SWBF2 0x004070f0
 // `dynamic initializer for 'WeaponDestructClass::rttiHashWeaponDestructClass''
+// WeaponDestructClass::rttiHashWeaponDestructClass
+
+// GLOBAL: SWBF2 0x01f9a8a8
+// WeaponDestructClass::rttiHashWeaponDestructClass
 PblHash WeaponDestructClass::rttiHashWeaponDestructClass("WeaponDestructClass");
-char WeaponDestructClass::rttiNameWeaponDestructClass[] = "WeaponDestructClass";
+// GLOBAL: SWBF2 0x0078befc
+// WeaponDestructClass::rttiNameWeaponDestructClass
+const char WeaponDestructClass::rttiNameWeaponDestructClass[] = "WeaponDestructClass";
 
 // FUNCTION: SWBF2 0x00682190
 WeaponDestructClass::WeaponDestructClass(unsigned int uHash)
@@ -72,23 +73,11 @@ WeaponDestructClass::~WeaponDestructClass()
 // SYNTHETIC: SWBF2 0x006821f0
 // WeaponDestructClass::`scalar deleting destructor'
 
-// FUNCTION: SWBF2 0x00681a60
-bool WeaponDestructClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashWeaponDestructClass || WeaponClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00681a90
-unsigned int WeaponDestructClass::GetDerivedRtti()
-{
-    return rttiHashWeaponDestructClass;
-}
 
-// FUNCTION: SWBF2 0x00681aa0
-const char* WeaponDestructClass::GetDerivedRttiName()
-{
-    return rttiNameWeaponDestructClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00682290
 void WeaponDestructClass::SetProperty(unsigned int uProperty, const char* pszValue)
@@ -256,7 +245,7 @@ void WeaponDestruct::ExitFire()
 {
     Weapon::ExitFire();
     GameObject* pObject = mOwner->GetGameObject();
-    DamageOwner owner(mOwner->mCharacter, pObject, pObject->GetTeam(),
+    DamageOwner owner(mOwner->GetCharacter(), pObject, pObject->GetTeam(),
                       pObject->GetEntityClass(), mClass, 1.0f);
     WeaponDestructClass* pClass = (WeaponDestructClass*)mClass;
     if (pClass->mExplosionClass)

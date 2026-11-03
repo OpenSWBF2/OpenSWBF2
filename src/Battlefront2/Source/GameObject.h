@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "Damageable.h"
@@ -34,7 +36,10 @@ struct DamageEffectClass
  
  
 
-namespace AI { class VOSound; }
+namespace AI
+{
+class VOSound;
+}
 
 // VTABLE: SWBF2 0x0079fac8
 class GameObjectClass : public EntityGeometryClass
@@ -55,23 +60,23 @@ public:
 
     GameObjectClass(GameObjectClass* pBase, unsigned int uHash);
 
-    virtual bool IsRtti(unsigned int uRtti);
+    virtual bool IsRtti(unsigned int uRtti) const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
 
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
 
     virtual ~GameObjectClass();
 
-    virtual int GetSoldierType();
-    virtual int GetVehicleType();
-    virtual const void* GetControllableClass();
-    virtual int GetWeaponCount();
-    virtual const class WeaponClass* GetWeaponClass(int iIndex);
-    virtual float GetCollisionInflict();
-    virtual const DamageEffectClass* GetDamageEffectClass(int iIndex);
-    virtual float GetTimeRequiredToEject();
-    virtual float GetReboardTime();
+    virtual int GetSoldierType() const;
+    virtual int GetVehicleType() const;
+    virtual const class ControllableClass* GetControllableClass() const;
+    virtual int GetWeaponCount() const;
+    virtual const class WeaponClass* GetWeaponClass(int iIndex) const;
+    virtual float GetCollisionInflict() const;
+    virtual const DamageEffectClass* GetDamageEffectClass(int iIndex) const;
+    virtual float GetTimeRequiredToEject() const;
+    virtual float GetReboardTime() const;
 
     enum VehicleType
     {
@@ -137,13 +142,13 @@ public:
     AI::VOSound* mVOSoundList;
     int mVOUnitType;
     float mVORadius;
-    float mAICollisionRadius;
+    mutable float mAICollisionRadius;
     int mPointsToUnlock;
     unsigned int mDisabledEffect;
     float mRadiusDamageSizeScale;
 
     static PblHash rttiHashGameObjectClass;
-    static char rttiNameGameObjectClass[];
+    static const char rttiNameGameObjectClass[];
 };
  
  
@@ -189,7 +194,8 @@ public:
 class GameObjectInterpolator
 {
 public:
-    GameObjectInterpolator();
+    // SYNTHETIC: SWBF2 0x005373f0
+    // GameObjectInterpolator::GameObjectInterpolator
 
     void GetMatrix(int iNetUniqueId, PblMatrix& mMatrix);
 
@@ -200,7 +206,7 @@ public:
 
     void GetVector(int iNetUniqueId, PblVector3& vVector);
 
-    float GetLoopingFloat(int iNetUniqueId, int iIndex, float fMax, float fDirection, bool& bWrapped);
+    float GetLoopingFloat(int iNetUniqueId, int iIndex, float fDirection, float fMax, bool& bWrapped);
 
     float GetFloat(int iNetUniqueId, int iIndex);
 
@@ -244,6 +250,11 @@ class PlayableEntitySounds;
 class TargetInfo;
 extern PblVector3 gVectorZero;
 
+// VTABLE: SWBF2 0x0079f8b8 CollisionObject
+// VTABLE: SWBF2 0x0079f90c EntityEx
+// VTABLE: SWBF2 0x0079fa2c Damageable
+// VTABLE: SWBF2 0x0079fa58 PblHandled
+// VTABLE: SWBF2 0x0079fa60 RedSceneObject
 class GameObject : public EntityGeometry, public Damageable, public PblHandled
 {
 public:
@@ -260,10 +271,12 @@ public:
 
     // FUNCTION: SWBF2 0x00444310
     virtual const GameObject* GetGameObject() const { return this; }
-    // SYNTHETIC: SWBF2 0x00446e09
     // [thunk]:GameObject::GetGameObject`adjustor{320}'
-    // SYNTHETIC: SWBF2 0x00446e1c
+    // SYNTHETIC: SWBF2 0x00446e09
+    // ?GetGameObject@GameObject@@WBEA@BEPBV1@XZ
     // [thunk]:GameObject::GetGameObject`adjustor{12}'
+    // SYNTHETIC: SWBF2 0x00446e1c
+    // ?GetGameObject@GameObject@@WM@BEPBV1@XZ
     // FUNCTION: SWBF2 0x00444300
     virtual GameObject* GetGameObject() { return this; }
     virtual void Init();
@@ -370,7 +383,10 @@ public:
     virtual void Respawn();
     virtual float GetDamageMultiplier(int iBodyId) const;
 
-    GameObjectClass* GetGameObjectClass() const { return (GameObjectClass*)mEntityClass; }
+    // FUNCTION: SWBF2 0x00438ac0
+    GameObjectClass* GetGameObjectClass() { return (GameObjectClass*)mEntityClass; }
+    const GameObjectClass* GetGameObjectClass() const { return (const GameObjectClass*)mEntityClass; }
+    Controllable* GetFirstControllable() const { return PblList<Controllable>::Itor(mControllableList); }
     const PblList<Controllable>& GetControllableList() const;
 
     // FUNCTION: SWBF2 0x00499310
@@ -412,7 +428,9 @@ public:
     void* mPrevFoliageObj;
     GameSoundControllable mGameObjectAttachedSound;
     PblHandle<FLEffectObject> mDisabledEffectHandle;
+protected:
     float mCreatedTime;
+public:
     int mTeam : 4;
     int mPerceivedTeam : 4;
     int mOwningTeam : 4;
@@ -420,7 +438,7 @@ public:
     bool mIsTargetable : 1;
 
     static PblHash rttiHashGameObject;
-    static char rttiNameGameObject[];
+    static const char rttiNameGameObject[];
 };
  
 
@@ -432,3 +450,47 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x00444400
+inline bool GameObjectClass::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashGameObjectClass == uRtti)
+    {
+        return true;
+    }
+    return EntityGeometryClass::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x00535080
+inline unsigned int GameObjectClass::GetDerivedRtti() const
+{
+    return rttiHashGameObjectClass;
+}
+
+// FUNCTION: SWBF2 0x00535090
+inline const char* GameObjectClass::GetDerivedRttiName() const
+{
+    return rttiNameGameObjectClass;
+}
+
+// FUNCTION: SWBF2 0x00535060
+inline unsigned int GameObject::GetDerivedRtti() const
+{
+    return rttiHashGameObject;
+}
+
+// FUNCTION: SWBF2 0x00535070
+inline const char* GameObject::GetDerivedRttiName() const
+{
+    return rttiNameGameObject;
+}
+
+// FUNCTION: SWBF2 0x004441f0
+inline bool GameObject::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashGameObject == uRtti)
+    {
+        return true;
+    }
+    return EntityGeometry::IsRtti(uRtti);
+}

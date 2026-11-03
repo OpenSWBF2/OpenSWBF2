@@ -34,7 +34,8 @@ class HashTable_
 {
 public:
 
-    // FUNCTION: SWBF2 0x006d7070
+    // TEMPLATE: SWBF2 0x006d7070
+    // util::HashTable_<unsigned short,unsigned int,util::Vector<unsigned short,util::BaseArray<unsigned short,util::TypedArrayAllocator<unsigned short,util::NewAllocator> > >,util::Vector<unsigned int,util::BaseArray<unsigned int,util::TypedArrayAllocator<unsigned int,util::NewAllocator> > >,util::Vector<unsigned int,util::BaseArray<unsigned int,util::TypedArrayAllocator<unsigned int,util::NewAllocator> > > >::HashTable_<unsigned short,unsigned int,util::Vector<unsigned short,util::BaseArray<unsigned short,util::TypedArrayAllocator<unsigned short,util::NewAllocator> > >,util::Vector<unsigned int,util::BaseArray<unsigned int,util::TypedArrayAllocator<unsigned int,util::NewAllocator> > >,util::Vector<unsigned int,util::BaseArray<unsigned int,util::TypedArrayAllocator<unsigned int,util::NewAllocator> > > >
     HashTable_()
         : size_(0), reserveMult_(2.0f)
     {
@@ -51,7 +52,8 @@ public:
 
     ~HashTable_() {}
 
-    // FUNCTION: SWBF2 0x0052b080
+    // TEMPLATE: SWBF2 0x0052b080
+    // util::HashTable_<unsigned short,unsigned int,util::Vector<unsigned short,util::BaseArray<unsigned short,util::TypedArrayAllocator<unsigned short,util::NewAllocator> > >,util::Vector<unsigned int,util::BaseArray<unsigned int,util::TypedArrayAllocator<unsigned int,util::NewAllocator> > >,util::Vector<unsigned int,util::BaseArray<unsigned int,util::TypedArrayAllocator<unsigned int,util::NewAllocator> > > >::FindIndex_
     unsigned int FindIndex_(unsigned int uiHash) const
     {
         const unsigned int uiSize = (unsigned int)hashes_.GetSize();
@@ -153,7 +155,8 @@ public:
 
     ~HashTable() {}
 
-    // FUNCTION: SWBF2 0x0052ad80
+    // TEMPLATE: SWBF2 0x0052ad80
+    // util::HashTable<unsigned short,unsigned int,util::NewAllocator>::Reallocate
     void Reallocate(int iSize)
     {
         ElemVecT aElements;
@@ -198,7 +201,8 @@ public:
         }
     }
 
-    // FUNCTION: SWBF2 0x0052af70
+    // TEMPLATE: SWBF2 0x0052af70
+    // util::HashTable<unsigned short,unsigned int,util::NewAllocator>::operator[]
     ELEM& operator[](const KEY& rKey)
     {
         CheckSpace_();

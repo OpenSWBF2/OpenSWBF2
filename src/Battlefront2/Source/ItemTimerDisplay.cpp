@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "ItemTimerDisplay.h"
 
 #include <float.h>
@@ -19,46 +20,8 @@ void AddInterfaceElement(unsigned int hView, RedScreenGroupElement* pElement, fl
                          bool bUseSafeZone);
 }
 
-static bool EntityItem_NoDisplayLifeTimer(const EntityItem* pItem)
-{
-    return pItem->mClass->mNoLifeSpanDisplay;
-}
-
-static float EntityItem_GetLifeTimer(const EntityItem* pItem)
-{
-    return pItem->mLifeTimer;
-}
-
-static const TreeGridObject* EntityItem_GetTreeGridObject(const EntityItem* pItem)
-{
-    return static_cast<const TreeGridObject*>(pItem);
-}
-
-static Character* EntityItem_GetOwner(const EntityItem* pItem)
-{
-    return pItem->mOwner;
-}
-
 // GLOBAL: SWBF2 0x01f9c2e0
 ItemTimerDisplay::DisplayThread* sDisplayThread[1];
-
-static bool ShowTimers()
-{
-    return !NetGame::IsEnabled() || NetGame::IsClient() ||
-           (NetGame::IsOneWorld() && NetGame::IsHost() && !NetGame::IsDedicated());
-}
-
-// FUNCTION: SWBF2 0x0056a6b0
-const PblVector3 RedCamera::TransformWorldPointToProjectionSpace(const PblVector3& rPoint) const
-{
-    PblVector3 vCameraPoint;
-    D3DXVec3TransformCoord(&vCameraPoint, &rPoint, &_MatrixInverse);
-    return TransformCameraPointToProjectionSpace(vCameraPoint);
-}
-
-ItemTimerDisplay::DisplayThread::~DisplayThread()
-{
-}
 
 // FUNCTION: SWBF2 0x0056a6f0
 void ItemTimerDisplay::Create()
@@ -113,27 +76,28 @@ void ItemTimerDisplay::Reset()
 // FUNCTION: SWBF2 0x0056a9c0
 void ItemTimerDisplay::AddItemTimer(EntityItem* pItem)
 {
-    if (!ShowTimers())
+    if (NetGame::IsEnabled() && !NetGame::IsClient() &&
+        (!NetGame::IsOneWorld() || !NetGame::IsHost() || NetGame::IsDedicated()))
     {
         return;
     }
-    if (EntityItem_NoDisplayLifeTimer(pItem))
+    if (pItem->NoDisplayLifeTimer())
     {
         return;
     }
 
     for (unsigned int i = 0; i < CameraManager::sInstance->m_iNumCam; ++i)
     {
-        DisplayThread* pThread = sDisplayThread[i];
-        if (pThread->mItemTimerCount >= 8)
+        if (sDisplayThread[i]->mItemTimerCount >= 8)
         {
             continue;
         }
 
         Character* pPlayer = Character::FindPlayer(NetGame::GetLocalIndex(i));
-        Character* pOwner = EntityItem_GetOwner(pItem);
-        if ((!pOwner || pOwner == pPlayer) && EntityItem_GetLifeTimer(pItem) < FLT_MAX)
+        Character* pOwner = pItem->mOwner;
+        if ((!pOwner || pOwner == pPlayer) && pItem->GetLifeTimer() < FLT_MAX)
         {
+            DisplayThread* pThread = sDisplayThread[i];
             pThread->mItemArray[pThread->mItemTimerCount++] = pItem;
         }
     }
@@ -142,7 +106,8 @@ void ItemTimerDisplay::AddItemTimer(EntityItem* pItem)
 // FUNCTION: SWBF2 0x0056aac0
 void ItemTimerDisplay::RemoveItemTimer(EntityItem* pItem)
 {
-    if (!ShowTimers())
+    if (NetGame::IsEnabled() && !NetGame::IsClient() &&
+        (!NetGame::IsOneWorld() || !NetGame::IsHost() || NetGame::IsDedicated()))
     {
         return;
     }
@@ -172,7 +137,8 @@ void ItemTimerDisplay::RemoveItemTimer(EntityItem* pItem)
 // FUNCTION: SWBF2 0x0056ab90
 void ItemTimerDisplay::HideAll()
 {
-    if (!ShowTimers())
+    if (NetGame::IsEnabled() && !NetGame::IsClient() &&
+        (!NetGame::IsOneWorld() || !NetGame::IsHost() || NetGame::IsDedicated()))
     {
         return;
     }
@@ -204,7 +170,7 @@ bool ItemTimerDisplay::DisplayThread::Update(float fDeltaTime)
 
     for (int i = 0; i < mItemTimerCount; ++i)
     {
-        const TreeGridObject* pObject = EntityItem_GetTreeGridObject(mItemArray[i]);
+        const EntityItem* pObject = mItemArray[i];
         float fHeight = pObject->GetCollisionRadius() * 1.2f;
         const PblVector3& vCenter = pObject->GetCollisionCenter();
         PblVector3 vPos(vCenter.x + gVectorUnitY.x * fHeight,
@@ -218,10 +184,10 @@ bool ItemTimerDisplay::DisplayThread::Update(float fDeltaTime)
         }
 
         const PblMatrix& mCamera = pCamera->GetMatrix();
-        PblVector3 vCamPos = *(const PblVector3*)&mCamera.m[3][0];
+        PblVector3 vCamPos = mCamera.GetTranslation();
         PblVector3 vDelta(vPos.x - vCamPos.x, vPos.y - vCamPos.y, vPos.z - vCamPos.z);
         PblVector3 vDir;
-        D3DXVec3Normalize(&vDir, &vDelta);
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vDelta));
         if (vDir.y * -mCamera.m[2][1] + vDir.x * -mCamera.m[2][0] + vDir.z * -mCamera.m[2][2] <= 0.0f)
         {
             continue;
@@ -248,7 +214,7 @@ bool ItemTimerDisplay::DisplayThread::Update(float fDeltaTime)
         color.r = 0x43;
         color.a = uAlpha;
         pText->SetColor(color);
-        pText->SetTextFormatted("%d", (int)ceilf(EntityItem_GetLifeTimer(mItemArray[i])));
+        pText->SetTextFormatted("%d", (int)ceilf(mItemArray[i]->GetLifeTimer()));
 
         RedScreenGroupElement* pGroup = &mItemGroup[i];
         pGroup->SetScreenRelativePos(vScreen.x * 0.5f + 0.5f, vScreen.y * 0.5f + 0.5f);

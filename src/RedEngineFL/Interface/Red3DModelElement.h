@@ -9,7 +9,10 @@
 
 class Red3DModelAnimator;
 class Red3DModelElement;
+// SYNTHETIC: SWBF2 0x006dab40
+// Red3DModelElement::`scalar deleting destructor'
 
+// VTABLE: SWBF2 0x007832ec
 class Red3DModelElement : public Red3DModelElementLite
 {
 public:

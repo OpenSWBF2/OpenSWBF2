@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
-#include <stddef.h>
-
+#include <new>
 #include "SoldierAnimationData.h"
 #include "PebbleFL/Common/PblConfig.h"
 #include "PebbleFL/Common/PblUnicode.h"
@@ -23,7 +22,7 @@ SoldierAnimationData::BlendOverrideT* SoldierAnimationData::s_aAnimationOverride
 // GLOBAL: SWBF2 0x01eaf648
 unsigned int SoldierAnimationData::s_uiNumOverrides;
 // GLOBAL: SWBF2 0x01eafb14
-SoldierAnimationData::NameTable* SoldierAnimationData::s_pAnimationNameTable;
+SoldierAnimationData::AnimationNameTable* SoldierAnimationData::s_pAnimationNameTable;
 // GLOBAL: SWBF2 0x01eafb18
 unsigned int* SoldierAnimationData::s_auiSyncTypeTable;
 // GLOBAL: SWBF2 0x01eaf64c
@@ -275,7 +274,7 @@ void SoldierAnimationData::InitLoadTimeData()
     }
 
     int iOldHeap = RedSetCurrentHeap(__RedTempHeap);
-    s_pAnimationNameTable = new NameTable;
+    s_pAnimationNameTable = new AnimationNameTable;
     s_auiSyncTypeTable = new unsigned int[256];
     s_aszSyncTypeNames = new char*[256];
     RedSetCurrentHeap(iOldHeap);

@@ -13,9 +13,10 @@ class ReticuleInterpolator : public Thread
 {
 public:
 
-    // FUNCTION: SWBF2 0x00630480
-    ReticuleInterpolator() {}
-    virtual ~ReticuleInterpolator();
+    // SYNTHETIC: SWBF2 0x00630480
+    // ReticuleInterpolator::ReticuleInterpolator
+    // SYNTHETIC: SWBF2 0x00630490
+    // ReticuleInterpolator::~ReticuleInterpolator
 
     virtual bool Update(float fDeltaTime);
 

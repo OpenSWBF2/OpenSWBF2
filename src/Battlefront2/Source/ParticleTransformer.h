@@ -20,7 +20,10 @@ public:
 
         // SYNTHETIC: SWBF2 0x0060ea90
         // ParticleTransformer::TransformState::`scalar deleting destructor'
-        virtual ~TransformState();
+        virtual ~TransformState()
+        {
+            delete mNextState;
+        }
 
         TransformState* mNextState;
         float mLifeTime;

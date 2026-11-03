@@ -19,12 +19,12 @@ public:
                                   const GameObject* pIgnore, int iMask);
 };
 
-static CollisionObject* GetCollisionObject(GameObject* pObject)
+static inline CollisionObject* GetCollisionObject(GameObject* pObject)
 {
     return &static_cast<CollisionObject&>(*pObject);
 }
 
-static Damageable* GetDamageable(GameObject* pObject)
+static inline Damageable* GetDamageable(GameObject* pObject)
 {
     return &static_cast<Damageable&>(*pObject);
 }

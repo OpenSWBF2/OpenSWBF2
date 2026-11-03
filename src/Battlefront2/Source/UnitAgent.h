@@ -1,9 +1,13 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "Agent.h"
+#include "AttackHelper.h"
 #include "Controllable.h"
+#include "UnitController.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 
 class AILowLevel;
@@ -11,7 +15,10 @@ class GameObject;
 class PblHash;
 class UnitController;
 class UnitCmdInfo;
-namespace AI { class EventInfo; }
+namespace AI
+{
+class EventInfo;
+}
 
 // VTABLE: SWBF2 0x007af6a4
 class UnitAgent : public Agent
@@ -21,7 +28,9 @@ class UnitAgent : public Agent
 
 public:
 
-    static void* operator new(size_t uiSize) { return sMemoryPool.Allocate(uiSize); }
+    static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }
+    // SYNTHETIC: SWBF2 0x0065dd30
+    // UnitAgent::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
     static MemoryPool sMemoryPool;
 
@@ -48,11 +57,20 @@ public:
     virtual int EventHandler(AI::EventInfo* pInfo);
 
     static PblHash rttiHashUnitAgent;
-    static char rttiNameUnitAgent[];
+    static const char rttiNameUnitAgent[];
 
-    const Controllable* GetMe() const;
-    Controllable* GetMe();
-    AILowLevel& GetLowLevel();
+    const Controllable* GetMe() const
+    {
+        return mCtrl->mOwner;
+    }
+    Controllable* GetMe()
+    {
+        return mCtrl->mOwner;
+    }
+    AILowLevel& GetLowLevel()
+    {
+        return mCtrl->mLowLevel;
+    }
 
     bool RunForVehicle(const GameObject* pVehicle) const;
 
@@ -72,9 +90,33 @@ private:
 public:
 
     UnitController* mCtrl;
-    unsigned char mAttackHelper[52];
+    AttackHelper mAttackHelper;
     float mCheckNearbyUnitsTime;
     bool mNearbyUnitsInCombat;
 };
 
  
+
+// FUNCTION: SWBF2 0x0065dce0
+inline bool UnitAgent::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashUnitAgent == uRtti)
+    {
+        return true;
+    }
+    return Agent::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x0065dd10
+inline unsigned int UnitAgent::GetDerivedRtti() const
+{
+    return rttiHashUnitAgent;
+}
+
+// FUNCTION: SWBF2 0x0065dd20
+inline const char* UnitAgent::GetDerivedRttiName() const
+{
+    return rttiNameUnitAgent;
+}
+
+

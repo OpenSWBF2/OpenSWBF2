@@ -1,4 +1,5 @@
-namespace RedProfile {
+namespace RedProfile
+{
 
 // FUNCTION: SWBF2 0x006f7430
 void Cleanup()
@@ -7,7 +8,8 @@ void Cleanup()
 
 }
 
-namespace RedProfile {
+namespace RedProfile
+{
 
 // FUNCTION: SWBF2 0x006f7440
 void DisplayCountersByGroup()

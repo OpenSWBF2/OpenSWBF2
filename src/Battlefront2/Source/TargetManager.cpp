@@ -13,12 +13,11 @@
 // FUNCTION: SWBF2 0x0057acb0
 void LockOnManager::Target::InitCommon(GameObject* const pObject, unsigned int uTeamMask)
 {
-    obj.mObject = pObject;
-    obj.mSavedHandleId = pObject ? pObject->mHandleId : 0;
+    obj = pObject;
     teamMask = uTeamMask;
     maxDistTrack = 10000.0f;
-    maxDist = 10000.0f;
     minDist = 100.0f;
+    maxDist = 10000.0f;
     timer = 0.0f;
 }
 
@@ -59,50 +58,14 @@ void LockOnManager::AddTargetCommon(GameObject* pActor, unsigned int uTeamMask)
             LockOnManager::ClearVisibilityChecked(pManager->mTargetCommonInfo, 32);
         }
     }
-    HUD::Event event;
-    event.mClass = HUD::GameEvents::gTargetResetCommon;
-    event.mData.uintValue = i;
+    HUD::Event event(HUD::GameEvents::gTargetResetCommon, i);
     event.Send();
 }
 
 namespace
 {
 
-inline GameObject* HandleObject(PblHandle<GameObject>& handle)
-{
-    if (handle.mObject &&
-        PBL_HANDLE_ID(handle.mObject) != handle.mSavedHandleId)
-    {
-        handle.mObject = 0;
-        handle.mSavedHandleId = 0;
-    }
-    return handle.mObject;
-}
-
-inline unsigned int HandleId(const GameObject* pObject)
-{
-    return pObject->mHandleId;
-}
-
-inline EntityClass* CharacterClass(const Character* pCharacter)
-{
-    return pCharacter->mClassPtr;
-}
-
-inline GameObject* UnitObject(Controllable* pUnit)
-{
-    return static_cast<Trackable*>(pUnit)->GetGameObject();
-}
-
-inline void SendRefresh(HUD::EventClass* pClass, unsigned int uIndex)
-{
-    HUD::Event event;
-    event.mClass = pClass;
-    event.mData.uintValue = uIndex;
-    event.Send();
-}
-
-const RedColor Interpolate(const RedColor& a, const RedColor& b, float t)
+inline const RedColor Interpolate(const RedColor& a, const RedColor& b, float t)
 {
     RedColor result;
     result.b = (unsigned char)(int)(a.b * (1.0f - t) + b.b * t + 0.5f);
@@ -123,14 +86,18 @@ ClassMarker _gClassMarker[MAX_CLASS_MARKERS];
 // GLOBAL: SWBF2 0x01eafb9c
 Marker* _gMarkers;
 
-// GLOBAL: SWBF2 0x01f6de9c
 // SYNTHETIC: SWBF2 0x00406600
-// `dynamic initializer for 'TargetManager::gMarkers''
+// TargetManager::`dynamic initializer for 'gMarkers''
+
+// GLOBAL: SWBF2 0x01f6de9c
+// gMarkers
 Marker* gMarkers = _gMarkers;
 
-// GLOBAL: SWBF2 0x01f76410
 // SYNTHETIC: SWBF2 0x00406520
-// `dynamic initializer for 'TargetManager::_gPost''
+// TargetManager::`dynamic initializer for '_gPost''
+
+// GLOBAL: SWBF2 0x01f76410
+// _gPost
 Post _gPost[MAX_POSTS];
 
 // SYNTHETIC: SWBF2 0x00652170
@@ -138,16 +105,20 @@ Post _gPost[MAX_POSTS];
 // SYNTHETIC: SWBF2 0x006521e0
 // TargetManager::Target::~Target
 
-// GLOBAL: SWBF2 0x01f76710
 // SYNTHETIC: SWBF2 0x004064f0
-// `dynamic initializer for 'TargetManager::_gTarget''
+// TargetManager::`dynamic initializer for '_gTarget''
 // SYNTHETIC: SWBF2 0x00769500
-// `dynamic atexit destructor for 'TargetManager::_gTarget''
+// TargetManager::`dynamic atexit destructor for '_gTarget''
+
+// GLOBAL: SWBF2 0x01f76710
+// _gTarget
 Target _gTarget[MAX_TARGETS];
 
-// GLOBAL: SWBF2 0x007ec320
 // SYNTHETIC: SWBF2 0x00406610
-// `dynamic initializer for 'gColorTable''
+// TargetManager::`dynamic initializer for 'gColorTable''
+
+// GLOBAL: SWBF2 0x007ec320
+// gColorTable
 Color gColorTable[MAX_COLORS] =
 {
     { 0x00000000, { 0, 0, 0, 0 } },
@@ -188,9 +159,9 @@ void ClassMarker::Clear()
         {
             Character* pCharacter = Character::GetPtr(i);
             Controllable* pUnit = pCharacter->mUnit;
-            if (pUnit && CharacterClass(pCharacter)->mId == classID)
+            if (pUnit && pCharacter->mClassPtr->mId == classID)
             {
-                RemoveMarker(UnitObject(pUnit), 0, teamMask);
+                RemoveMarker(pUnit->GetGameObject(), 0, teamMask);
             }
         }
     }
@@ -213,9 +184,9 @@ const RedColor& ColorByHash(unsigned int hashID)
 // FUNCTION: SWBF2 0x00652360
 unsigned int HashByColor(RedColor& color)
 {
-    for (int i = 0; i < MAX_COLORS; ++i)
+    for (unsigned int i = 0; i < MAX_COLORS; ++i)
     {
-        if (memcmp(&color, &gColorTable[i].color, sizeof(color)) == 0)
+        if (color.GetARGB() == gColorTable[i].color.GetARGB())
         {
             return gColorTable[i].hashID;
         }
@@ -293,12 +264,12 @@ void AddTarget(GameObject* const actor, bool alwaysVisibleToFriends)
     unsigned int uIndex = MAX_TARGETS;
     for (unsigned int i = 0; i < MAX_TARGETS; ++i)
     {
-        if (HandleObject(_gTarget[i].actor) == actor)
+        if (_gTarget[i].actor == actor)
         {
             uIndex = i;
             break;
         }
-        if (uIndex == MAX_TARGETS && !HandleObject(_gTarget[i].actor))
+        if (uIndex == MAX_TARGETS && !_gTarget[i].actor)
         {
             uIndex = i;
         }
@@ -307,11 +278,11 @@ void AddTarget(GameObject* const actor, bool alwaysVisibleToFriends)
     if (uIndex != MAX_TARGETS)
     {
         Target& target = _gTarget[uIndex];
-        target.actor.mObject = actor;
-        target.actor.mSavedHandleId = HandleId(actor);
+        target.actor = actor;
         target.alwaysVisibleToFriends = alwaysVisibleToFriends;
         target.mapParams = pClass->mMapParams;
-        SendRefresh(HUD::GameEvents::gPlayerEvents[0].mapRefreshTarget, uIndex);
+        HUD::Event event(HUD::GameEvents::gPlayerEvents[0].mapRefreshTarget, uIndex);
+        event.Send();
     }
 }
 
@@ -326,10 +297,9 @@ void RemoveTarget(GameObject* const actor)
     unsigned int i;
     for (i = 0; i < MAX_TARGETS; ++i)
     {
-        if (HandleObject(_gTarget[i].actor) == actor)
+        if (_gTarget[i].actor == actor)
         {
-            _gTarget[i].actor.mObject = 0;
-            _gTarget[i].actor.mSavedHandleId = 0;
+            _gTarget[i].actor = 0;
             _gTarget[i].alwaysVisibleToFriends = false;
             break;
         }
@@ -337,7 +307,8 @@ void RemoveTarget(GameObject* const actor)
 
     if (i != MAX_TARGETS)
     {
-        SendRefresh(HUD::GameEvents::gPlayerEvents[0].mapRefreshTarget, i);
+        HUD::Event event(HUD::GameEvents::gPlayerEvents[0].mapRefreshTarget, i);
+        event.Send();
     }
 }
 
@@ -387,9 +358,9 @@ void AddClassMarker(unsigned int classID, unsigned int textureHash, float scale,
     {
         Character* pCharacter = Character::GetPtr(i);
         Controllable* pUnit = pCharacter->mUnit;
-        if (pUnit && CharacterClass(pCharacter)->mId == classID)
+        if (pUnit && pCharacter->mClassPtr->mId == classID)
         {
-            AddMarker(UnitObject(pUnit), 0, textureHash, scale, teamMask, colorHash,
+            AddMarker(pUnit->GetGameObject(), 0, textureHash, scale, teamMask, colorHash,
                       showHudTarget, flashAlpha, pulseSize, pulseStartScale);
         }
     }
@@ -415,7 +386,7 @@ void AddPost(CommandPost* const post)
     {
         return;
     }
-    GameObject* pObject = HandleObject(post->mObject);
+    GameObject* pObject = post->mObject;
     if (!pObject)
     {
         return;
@@ -444,7 +415,8 @@ void AddPost(CommandPost* const post)
     {
         _gPost[uIndex].actor = post;
         _gPost[uIndex].mapParams = pClass->mMapParams;
-        SendRefresh(HUD::GameEvents::gPlayerEvents[0].mapRefreshPost, uIndex);
+        HUD::Event event(HUD::GameEvents::gPlayerEvents[0].mapRefreshPost, uIndex);
+        event.Send();
     }
 }
 
@@ -455,7 +427,7 @@ void RemovePost(CommandPost* const post)
     {
         return;
     }
-    GameObject* pObject = HandleObject(post->mObject);
+    GameObject* pObject = post->mObject;
     if (!pObject)
     {
         return;
@@ -474,7 +446,8 @@ void RemovePost(CommandPost* const post)
             break;
         }
     }
-    SendRefresh(HUD::GameEvents::gPlayerEvents[0].mapRefreshPost, i);
+    HUD::Event event(HUD::GameEvents::gPlayerEvents[0].mapRefreshPost, i);
+    event.Send();
 }
 
 // FUNCTION: SWBF2 0x00652a40
@@ -505,7 +478,7 @@ void AddMarker(GameObject* const actor, const RedRegion* const region, unsigned 
             }
             continue;
         }
-        if (!((actor && HandleObject(marker.actor) == actor) ||
+        if (!((actor && marker.actor == actor) ||
               (region && marker.region == region)))
         {
             continue;
@@ -549,8 +522,7 @@ void AddMarker(GameObject* const actor, const RedRegion* const region, unsigned 
         if (uIndex < MAX_MARKERS)
         {
             Marker& marker = _gMarkers[uIndex];
-            marker.actor.mObject = actor;
-            marker.actor.mSavedHandleId = actor ? HandleId(actor) : 0;
+            marker.actor = actor;
             marker.region = const_cast<RedRegion*>(region);
             marker.teamMask = teamMask;
             marker.scale = scale;
@@ -573,7 +545,8 @@ void AddMarker(GameObject* const actor, const RedRegion* const region, unsigned 
     }
     if (UpdateInterface())
     {
-        SendRefresh(HUD::GameEvents::gPlayerEvents[0].mapRefreshMarker, uIndex);
+        HUD::Event event(HUD::GameEvents::gPlayerEvents[0].mapRefreshMarker, uIndex);
+        event.Send();
     }
 }
 
@@ -589,7 +562,7 @@ void RemoveMarker(GameObject* const actor, const RedRegion* const region, unsign
     for (unsigned int i = 0; i < MAX_MARKERS; ++i)
     {
         Marker& marker = _gMarkers[i];
-        if (!((actor && HandleObject(marker.actor) == actor) ||
+        if (!((actor && marker.actor == actor) ||
               (region && marker.region == region)))
         {
             continue;
@@ -639,21 +612,27 @@ void CheckObjectClassMarker(GameObject* const actor)
 namespace TargetManager
 {
 
-// GLOBAL: SWBF2 0x01f75f10
 // SYNTHETIC: SWBF2 0x004065a0
-// `dynamic initializer for 'TargetManager::_gHostMarkers''
+// TargetManager::`dynamic initializer for '_gHostMarkers''
 // SYNTHETIC: SWBF2 0x00769520
-// `dynamic atexit destructor for 'TargetManager::_gHostMarkers''
+// TargetManager::`dynamic atexit destructor for '_gHostMarkers''
+
+// GLOBAL: SWBF2 0x01f75f10
+// _gHostMarkers
 Marker _gHostMarkers[MAX_MARKERS];
 
-// GLOBAL: SWBF2 0x01f7c980
 // SYNTHETIC: SWBF2 0x004065d0
-// `dynamic initializer for 'TargetManager::_gClientMarkers''
+// TargetManager::`dynamic initializer for '_gClientMarkers''
 // SYNTHETIC: SWBF2 0x00769540
-// `dynamic atexit destructor for 'TargetManager::_gClientMarkers''
+// TargetManager::`dynamic atexit destructor for '_gClientMarkers''
+
+// GLOBAL: SWBF2 0x01f7c980
+// _gClientMarkers
 Marker _gClientMarkers[MAX_MARKERS];
 
 }
 
 // SYNTHETIC: SWBF2 0x005c6370
 // TargetManager::Marker::Marker
+// SYNTHETIC: SWBF2 0x005c63c0
+// TargetManager::Marker::~Marker

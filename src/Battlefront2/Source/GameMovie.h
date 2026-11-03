@@ -8,7 +8,7 @@ public:
     static bool IsOpen();
 
     // FUNCTION: SWBF2 0x005343f0
-    static void Create();
+    static void Create(const int defaultHeap);
 
     static void Destroy(bool bDestroyAll);
 

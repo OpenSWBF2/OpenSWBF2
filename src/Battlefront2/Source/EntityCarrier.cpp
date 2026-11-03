@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include <new>
 #include <stdio.h>
 #include <string.h>
@@ -42,78 +43,24 @@ void EntityFlyer::SetupCameraZoomFactor(float& rZoom)
     }
 }
 
-// FUNCTION: SWBF2 0x004b5c10
-void EntityFlyer::SetupCameraFOV(float& rFOV)
-{
-    if (!mIsAlive)
-    {
-        rFOV = GetDefaultFOV();
-        return;
-    }
 
-    const bool bFirstPerson = mTargetInfo.mIsAiming ||
-        (mTracker && mTracker->IsFirstPersonView());
-    ControllableClass* pControlClass = GetControllableClass();
-    float fDefaultFOV = bFirstPerson ? pControlClass->mFirstPersonFOV :
-                                     pControlClass->mThirdPersonFOV;
-    float fEffectFOV = bFirstPerson ? mClass->mFOVEffect1st :
-                                    mClass->mFOVEffect3rd;
-    float fBlend = 0.0f;
-    if (mGetSpeedSpeed > 0.0f && fEffectFOV != 0.0f)
-    {
-        float fMaxSpeed = GetFlyerMaxSpeed();
-        if (fMaxSpeed < mClass->mBoostFlyerSpeed)
-        {
-            fMaxSpeed = mClass->mBoostFlyerSpeed;
-        }
-        fBlend = mGetSpeedSpeed / fMaxSpeed;
-        if (fBlend < 0.0f)
-        {
-            fBlend = 0.0f;
-        }
-        else if (fBlend > 1.0f)
-        {
-            fBlend = 1.0f;
-        }
-        rFOV = fDefaultFOV * (1.0f - fBlend) + fEffectFOV * fBlend;
-    }
-    else
-    {
-        rFOV = fDefaultFOV;
-    }
-
-    if (!bFirstPerson)
-    {
-        PblVector3 vOffset(
-            mClass->mFOVEFFectMinCamOffset3rd.x * (1.0f - fBlend) +
-                mClass->mFOVEFFectMaxCamOffset3rd.x * fBlend,
-            mClass->mFOVEFFectMinCamOffset3rd.y * (1.0f - fBlend) +
-                mClass->mFOVEFFectMaxCamOffset3rd.y * fBlend,
-            mClass->mFOVEFFectMinCamOffset3rd.z * (1.0f - fBlend) +
-                mClass->mFOVEFFectMaxCamOffset3rd.z * fBlend);
-        if (vOffset.x != 0.0f || vOffset.y != 0.0f || vOffset.z != 0.0f)
-        {
-            mClass->mCameraSettings.mCameraTrackOffset = vOffset;
-        }
-    }
-}
 
 // SYNTHETIC: SWBF2 0x00496ea0
 // EntityCarrier::`scalar deleting destructor'
 // SYNTHETIC: SWBF2 0x00497941
-// [thunk]:EntityCarrier::`scalar deleting destructor'`adjustor{576}'
+// ??_EEntityCarrier@@WCEA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x0049794c
-// [thunk]:EntityCarrier::`scalar deleting destructor'`adjustor{148}'
+// ??_EEntityCarrier@@WJE@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00497962
-// [thunk]:EntityCarrier::`scalar deleting destructor'`adjustor{320}'
+// ??_EEntityCarrier@@WBEA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x0049796d
-// [thunk]:EntityCarrier::`scalar deleting destructor'`adjustor{972}'
+// ??_EEntityCarrier@@WDMM@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00497978
-// [thunk]:EntityCarrier::`scalar deleting destructor'`adjustor{600}'
+// ??_EEntityCarrier@@WCFI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00497983
-// [thunk]:EntityCarrier::`scalar deleting destructor'`adjustor{12}'
+// ??_EEntityCarrier@@WM@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x0049798b
-// [thunk]:EntityCarrier::`scalar deleting destructor'`adjustor{512}'
+// ??_EEntityCarrier@@WCAA@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x00497060
 EntityCarrier::~EntityCarrier()
@@ -121,17 +68,17 @@ EntityCarrier::~EntityCarrier()
 }
 
 // SYNTHETIC: SWBF2 0x00478579
-// [thunk]:EntityFlyer::GetGameObject`adjustor{320}'
+// ?GetGameObject@EntityFlyer@@WBEA@BEPBVGameObject@@XZ
 // SYNTHETIC: SWBF2 0x004785ad
-// [thunk]:EntityFlyer::GetGameObject`adjustor{12}'
+// ?GetGameObject@EntityFlyer@@WM@BEPBVGameObject@@XZ
 // SYNTHETIC: SWBF2 0x004785bd
-// [thunk]:EntityFlyer::GetEntity`adjustor{12}'
+// ?GetEntity@EntityFlyer@@WM@BEPBVEntity@@XZ
 // SYNTHETIC: SWBF2 0x004785db
-// [thunk]:EntityFlyer::GetControllable`adjustor{600}'
+// ?GetControllable@EntityFlyer@@WCFI@AEPAVControllable@@XZ
 // SYNTHETIC: SWBF2 0x004785e6
-// [thunk]:EntityFlyer::GetControllable`adjustor{600}'
+// ?GetControllable@EntityFlyer@@WCFI@BEPBVControllable@@XZ
 // SYNTHETIC: SWBF2 0x004785fc
-// [thunk]:EntityFlyer::`scalar deleting destructor'`adjustor{960}'
+// ?GetMatrix@EntityFlyer@@WDMA@BEABVPblMatrix@@XZ
 
 // FUNCTION: SWBF2 0x00496f60
 EntityCarrier::EntityCarrier(EntityCarrierClass* pClass, const EntityDesc& desc)
@@ -145,7 +92,7 @@ EntityCarrier::EntityCarrier(EntityCarrierClass* pClass, const EntityDesc& desc)
 }
 
 // SYNTHETIC: SWBF2 0x00497957
-// [thunk]:EntityCarrier::Kill`adjustor{256}'
+// ?Kill@EntityCarrier@@WBAA@AEXXZ
 
 // FUNCTION: SWBF2 0x00497110
 void EntityCarrier::Kill()
@@ -193,26 +140,24 @@ bool EntityCarrier::Update(float fDeltaTime)
 
         PblMatrix matrix = mMatrix;
         PblVector3 position;
-        D3DXVec3TransformCoord(&position, &mCargoArray[i].mOffset, &matrix);
-        matrix.m[3][0] = position.x;
-        matrix.m[3][1] = position.y;
-        matrix.m[3][2] = position.z;
-        matrix.m[3][3] = 1.0f;
+        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&position), reinterpret_cast<const D3DXVECTOR3*>(&mCargoArray[i].mOffset), reinterpret_cast<const D3DXMATRIX*>(&matrix));
+        matrix.SetTranslation(position);
         pObject->SetMatrix(matrix);
         pObject->SetVelocity(mVelocity);
     }
     return true;
 }
 
+
 namespace
 {
 
-    void EntityFlyerUpdateCollisionSphere(EntityFlyer* pFlyer)
+    inline void EntityFlyerUpdateCollisionSphere(EntityFlyer* pFlyer)
     {
         const PblMatrix& matrix = pFlyer->mMatrix;
         const GameModel* pModel = pFlyer->mModel;
         PblVector3 center;
-        D3DXVec3TransformCoord(&center, &pModel->_mModel->_BoundingSphere.GetCenter(), &matrix);
+        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&center), reinterpret_cast<const D3DXVECTOR3*>(&pModel->_mModel->_BoundingSphere.GetCenter()), reinterpret_cast<const D3DXMATRIX*>(&matrix));
         CollisionObject* pCollision = static_cast<CollisionObject*>(pFlyer);
         pCollision->SetCollisionCenter(center);
         pCollision->RecalculateAABB();
@@ -223,10 +168,7 @@ namespace
 void EntityFlyer::SetPosition(const PblVector3& vPos)
 {
     PblMatrix& matrix = mMatrix;
-    matrix.m[3][0] = vPos.x;
-    matrix.m[3][1] = vPos.y;
-    matrix.m[3][2] = vPos.z;
-    matrix.m[3][3] = 1.0f;
+    matrix.SetTranslation(vPos);
     EntityFlyerUpdateCollisionSphere(this);
 }
 
@@ -237,12 +179,7 @@ void EntityFlyer::SetMatrix(const PblMatrix& mMatrix)
     EntityFlyerUpdateCollisionSphere(this);
 }
 
-// FUNCTION: SWBF2 0x00477870
-bool EntityFlyer::GetFollowingPath() const
-{
-    return mFollowingPath && mState == FLYING && mIsAlive &&
-           mAIEng.ai.mFreeFlyTime <= 0.0f && !mInRoll && !mInFlip;
-}
+
 
 // FUNCTION: SWBF2 0x004778d0
 Trackable* EntityFlyer::GetTrackable()
@@ -264,95 +201,83 @@ bool EntityFlyer::CanJoinSquadron() const
 }
 
 // FUNCTION: SWBF2 0x00477b00
-int EntityFlyerClass::GetVehicleType()
+int EntityFlyerClass::GetVehicleType() const
 {
     return mVehicleType;
 }
 
 // FUNCTION: SWBF2 0x00477b10
-int EntityFlyerClass::GetWeaponCount()
+int EntityFlyerClass::GetWeaponCount() const
 {
     return mWeaponCount;
 }
 
 // FUNCTION: SWBF2 0x00477b20
-const WeaponClass* EntityFlyerClass::GetWeaponClass(int iIndex)
+const WeaponClass* EntityFlyerClass::GetWeaponClass(int iIndex) const
 {
     return mWeaponClass[iIndex];
 }
 
 // FUNCTION: SWBF2 0x00477b40
-float EntityFlyerClass::GetTimeRequiredToEject()
+float EntityFlyerClass::GetTimeRequiredToEject() const
 {
     return mTimeRequiredToEject;
 }
 
 // FUNCTION: SWBF2 0x00477b50
-float EntityFlyerClass::GetReboardTime()
+float EntityFlyerClass::GetReboardTime() const
 {
     return mTimeTilReboard;
 }
 
 // FUNCTION: SWBF2 0x00477b60
-const void* EntityFlyerClass::GetControllableClass()
+const ControllableClass* EntityFlyerClass::GetControllableClass() const
 {
     return this ? static_cast<const ControllableClass*>(this) : 0;
 }
 
-// GLOBAL: SWBF2 0x01ebb8ec
 // SYNTHETIC: SWBF2 0x00402960
 // `dynamic initializer for 'EntityCarrier::rttiHashEntityCarrier''
-PblHash EntityCarrier::rttiHashEntityCarrier("EntityCarrier");
-char EntityCarrier::rttiNameEntityCarrier[] = "EntityCarrier";
+// EntityCarrier::rttiHashEntityCarrier
 
-// GLOBAL: SWBF2 0x01ebb8f0
+// GLOBAL: SWBF2 0x01ebb8ec
+// EntityCarrier::rttiHashEntityCarrier
+PblHash EntityCarrier::rttiHashEntityCarrier("EntityCarrier");
+// GLOBAL: SWBF2 0x007890b4
+// EntityCarrier::rttiNameEntityCarrier
+const char EntityCarrier::rttiNameEntityCarrier[] = "EntityCarrier";
+
 // SYNTHETIC: SWBF2 0x00402940
 // `dynamic initializer for 'EntityCarrier::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00766f10
 // `dynamic atexit destructor for 'EntityCarrier::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ebb8f0
+// EntityCarrier::sMemoryPool
 MemoryPool EntityCarrier::sMemoryPool("EntityCarrier", 0x1df0);
 
-// FUNCTION: SWBF2 0x00496e20
-bool EntityCarrier::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashEntityCarrier || EntityFlyer::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00496e70
-unsigned int EntityCarrier::GetDerivedRtti() const
-{
-    return rttiHashEntityCarrier;
-}
 
-// FUNCTION: SWBF2 0x00496e80
-const char* EntityCarrier::GetDerivedRttiName() const
-{
-    return rttiNameEntityCarrier;
-}
 
-// GLOBAL: SWBF2 0x01ebb8e8
+
+
+
 // SYNTHETIC: SWBF2 0x00402970
 // `dynamic initializer for 'EntityCarrierClass::rttiHashEntityCarrierClass''
+// EntityCarrierClass::rttiHashEntityCarrierClass
+
+// GLOBAL: SWBF2 0x01ebb8e8
+// EntityCarrierClass::rttiHashEntityCarrierClass
 PblHash EntityCarrierClass::rttiHashEntityCarrierClass("EntityCarrierClass");
-char EntityCarrierClass::rttiNameEntityCarrierClass[] = "EntityCarrierClass";
+// GLOBAL: SWBF2 0x007890a0
+// EntityCarrierClass::rttiNameEntityCarrierClass
+const char EntityCarrierClass::rttiNameEntityCarrierClass[] = "EntityCarrierClass";
 
-// FUNCTION: SWBF2 0x00496f00
-bool EntityCarrierClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashEntityCarrierClass || EntityFlyerClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00496f40
-unsigned int EntityCarrierClass::GetDerivedRtti()
-{
-    return rttiHashEntityCarrierClass;
-}
 
-// FUNCTION: SWBF2 0x00496f50
-const char* EntityCarrierClass::GetDerivedRttiName()
-{
-    return rttiNameEntityCarrierClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00497300
 bool EntityCarrier::AttachCargo(int, GameObject* pGameObject)
@@ -461,13 +386,7 @@ EntityCarrierClass::EntityCarrierClass(unsigned int uHash)
 {
     mPilotType = PILOT_NONE;
 
-    for (int i = 0; i < 4; ++i)
-    {
-        mCargoInfo[i].mHash = 0;
-        mCargoInfo[i].mOffset.x = 0.0f;
-        mCargoInfo[i].mOffset.y = 0.0f;
-        mCargoInfo[i].mOffset.z = 0.0f;
-    }
+    memset(mCargoInfo, 0, sizeof(mCargoInfo));
 
     mCargoCount = 0;
 }
@@ -489,7 +408,7 @@ CommandFlyerClass::~CommandFlyerClass()
 }
 
 // SYNTHETIC: SWBF2 0x004785f1
-// [thunk]:CommandFlyerClass::`scalar deleting destructor'`adjustor{4256}'
+// ??_ECommandFlyerClass@@WBAKA@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x00497610
 EntityCarrierClass::EntityCarrierClass(EntityCarrierClass* pSrc, unsigned int uHash)
@@ -537,7 +456,7 @@ void EntityCarrierClass::SetProperty(unsigned int uProperty, const char* pszValu
                     {
 
                         const PblMatrix& mBone = pSkeleton->GetDefaultPoseMatrix(i);
-                        mCargoInfo[mCargoCount].mOffset = *(const PblVector3*)&mBone.m[3][0];
+                        mCargoInfo[mCargoCount].mOffset = mBone.GetTranslation();
                         ++mCargoCount;
                         break;
                     }
@@ -561,13 +480,13 @@ EntityClass* EntityCarrierClass::Derive(unsigned int uHash)
     return (EntityClass*)new EntityCarrierClass(this, uHash);
 }
 
-extern unsigned int gCarrierBuildLimit;
-extern unsigned int gCarrierBuildCount;
+
+
 
 // FUNCTION: SWBF2 0x004978a0
 Entity* EntityCarrierClass::Build(const EntityDesc& desc)
 {
-    if (gCarrierBuildCount >= gCarrierBuildLimit)
+    if (EntityCarrier::sMemoryPool.IsFull())
     {
         return 0;
     }
@@ -575,17 +494,18 @@ Entity* EntityCarrierClass::Build(const EntityDesc& desc)
     EntityCarrier* pCarrier = new EntityCarrier(this, desc);
     if (pCarrier)
     {
-        CollisionManager::AddRigidBody(static_cast<CollisionObject*>(pCarrier));
+        (static_cast<CollisionObject*>(pCarrier))->AddRigidToCollisionManager();
         pCarrier->ActivatePhysics();
         static_cast<EntityGeometry*>(pCarrier)->BuildEffects();
     }
     return (Entity*)pCarrier;
 }
 
-void* EntityCarrier::operator new(size_t uSize)
+inline void* EntityCarrier::operator new(unsigned int uSize)
 {
     return sMemoryPool.Allocate(uSize);
 }
+
 
 PblMatrix DirectionMatrix(const PblVector3& vDir, const PblVector3& vUp, const PblVector3& vPos);
 
@@ -610,7 +530,7 @@ void EntityFlyer::SetupCameraTrackMatrix(PblMatrix& rMatrix, float fDeltaTime)
             }
         }
         PblVector3 vCamera = rMatrix.GetTranslation();
-        const PblMatrix& mBody = static_cast<CollisionObject*>(this)->GetMatrix();
+        const PblMatrix& mBody = GetMatrix();
         PblVector3 vBack(-mBody.m[2][0], -mBody.m[2][1], -mBody.m[2][2]);
         const PblVector3& vCenter = GetCollisionCenter();
         PblVector3 vOffset(vCamera.x - vCenter.x, vCamera.y - vCenter.y, vCamera.z - vCenter.z);
@@ -618,7 +538,7 @@ void EntityFlyer::SetupCameraTrackMatrix(PblMatrix& rMatrix, float fDeltaTime)
                 mClass->mGuidedMissileDeathCamMinDistance < 0.0f)
         {
             float fPullback = mClass->mGuidedMissileDeathCamPullbackSpeed * fDeltaTime;
-            const PblMatrix& mNow = static_cast<CollisionObject*>(this)->GetMatrix();
+            const PblMatrix& mNow = GetMatrix();
             PblVector3 vDir(-mNow.m[2][0], -mNow.m[2][1], -mNow.m[2][2]);
             const GameObject* pIgnore = GetGameObject();
             CollisionObject* pHit;
@@ -649,11 +569,10 @@ void EntityFlyer::SetupCameraTrackMatrix(PblMatrix& rMatrix, float fDeltaTime)
     else
     {
         PblMatrix mUnbank;
-        PblMatrix mUnpitch;
-        D3DXMatrixRotationZ(&mUnbank, -mBankRollAngle);
-        D3DXMatrixMultiply(&mUnbank, &mUnbank, D3DXMatrixRotationX(&mUnpitch, -mBankPitchAngle));
+        mUnbank.SetRotateZ(-mBankRollAngle);
+        mUnbank.RotateX(-mBankPitchAngle);
         PblMatrix mBody;
-        D3DXMatrixMultiply(&mBody, &mUnbank, &mTarget);
+        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mBody), reinterpret_cast<const D3DXMATRIX*>(&mUnbank), reinterpret_cast<const D3DXMATRIX*>(&mTarget));
 
         if (mTowCableWalker != 0)
         {
@@ -662,7 +581,7 @@ void EntityFlyer::SetupCameraTrackMatrix(PblMatrix& rMatrix, float fDeltaTime)
             PblVector3 vPos = mBody.GetTranslation();
             const PblVector3& vWalker = mTowCableWalker->GetCollisionObject()->GetPosition();
             PblVector3 vToCamera(vPos.x - vWalker.x, vPos.y - vWalker.y, vPos.z - vWalker.z);
-            D3DXVec3Normalize(&vPos, &vToCamera);
+            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vPos), reinterpret_cast<const D3DXVECTOR3*>(&vToCamera));
             const float fSide = vPos.x * mTarget.m[0][0] + vPos.y * mTarget.m[0][1] + vPos.z * mTarget.m[0][2];
             rSettings.mCameraTrackOffset.y = 0.5f;
             rSettings.mCameraTrackOffset.z = 8.0f;
@@ -743,11 +662,11 @@ void EntityFlyer::SetupCameraTrackMatrix(PblMatrix& rMatrix, float fDeltaTime)
             if (mTrickCameraInterpDir > 0.0f)
             {
                 PblVector3 vPoint;
-                D3DXVec3TransformCoord(&vPoint, &vAhead, &mBody);
+                D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vPoint), reinterpret_cast<const D3DXVECTOR3*>(&vAhead), reinterpret_cast<const D3DXMATRIX*>(&mBody));
                 PblVector3 vToPoint(vPoint.x - rMatrix.m[3][0], vPoint.y - rMatrix.m[3][1],
                                     vPoint.z - rMatrix.m[3][2]);
                 PblVector3 vNormal;
-                D3DXVec3Normalize(&vNormal, &vToPoint);
+                D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNormal), reinterpret_cast<const D3DXVECTOR3*>(&vToPoint));
                 vAim = vNormal;
             }
             else
@@ -813,8 +732,6 @@ void EntityFlyer::SetupCameraTrackMatrix(PblMatrix& rMatrix, float fDeltaTime)
     }
 }
 
-// GLOBAL: SWBF2 0x01ebb924
-unsigned int gCarrierBuildLimit = 0u;
 
-// GLOBAL: SWBF2 0x01ebb92c
-unsigned int gCarrierBuildCount = 0u;
+
+

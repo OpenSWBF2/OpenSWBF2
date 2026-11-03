@@ -37,7 +37,6 @@ public:
 
     CoverHelper(UnitAgent* pOwner);
 
-    virtual ~CoverHelper() {}
 
     void HELPERClean();
     bool InitAtHint(CoverType eType, const BaseHint* pHint);

@@ -4,7 +4,8 @@
 
 #include "HUDItem.h"
 
-namespace HUD {
+namespace HUD
+{
 // VTABLE: SWBF2 0x007a07ac
 class ElementBar
 {
@@ -12,6 +13,8 @@ public:
 
     ElementBar();
 
+    // SYNTHETIC: SWBF2 0x0054a140
+    // HUD::ElementBar::~ElementBar
     virtual ~ElementBar() {}
 
     // SYNTHETIC: SWBF2 0x0054a160
@@ -52,7 +55,5 @@ public:
 };
 }
 
- 
- 
- 
- 
+// SYNTHETIC: SWBF2 0x0054a990
+// HUD::ElementBar::Factory::~Factory

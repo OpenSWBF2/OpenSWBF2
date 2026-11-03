@@ -14,11 +14,13 @@ static const unsigned int kHardpointHash        = 0x4e2c2692;
 static const unsigned int kInheritMeshInfoHash  = 0x36ea8575;
 static const unsigned int kMeshInfoHash         = 0x4b426ca0;
 
-// GLOBAL: SWBF2 0x007eba38
 // SYNTHETIC: SWBF2 0x00403fd0
 // `dynamic initializer for 'HUD::ElementModel3D::sModelList''
 // SYNTHETIC: SWBF2 0x00768b50
 // `dynamic atexit destructor for 'HUD::ElementModel3D::sModelList''
+
+// GLOBAL: SWBF2 0x007eba38
+// HUD::ElementModel3D::sModelList
 PblListDouble HUD::ElementModel3D::sModelList;
 
 // FUNCTION: SWBF2 0x00555c50
@@ -174,13 +176,10 @@ HUD::ElementModel3D::ElementModel3D(const char* const pName, Factory::ItemCallba
 
 // SYNTHETIC: SWBF2 0x006d6cb0
 // Red3DModelElementLite::`scalar deleting destructor'
-// FUNCTION: SWBF2 0x00556290
-Red3DModelElementLite::~Red3DModelElementLite()
-{
-}
+
 
 // SYNTHETIC: SWBF2 0x00557103
-// [thunk]:HUD::ElementModel3D::`scalar deleting destructor' adjustor{256}
+// ??_EElementModel3D@HUD@@WBAA@AEPAXI@Z
 // FUNCTION: SWBF2 0x005562a0
 HUD::ElementModel3D::~ElementModel3D()
 {
@@ -191,10 +190,6 @@ HUD::ElementModel3D::~ElementModel3D()
     {
         delete[] mMeshInfo;
         mMeshInfo = 0;
-    }
-    if (mModelNode.IsAttached())
-    {
-        mModelNode.Remove();
     }
 }
 
@@ -576,3 +571,4 @@ void HUD::ElementModel3D::EventMesh(const HUD::Event& event, void* const pData)
         break;
     }
 }
+#include <new>

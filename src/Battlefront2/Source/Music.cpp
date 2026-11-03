@@ -10,24 +10,30 @@
 #include "SoundFL/source/sndenginebase.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 
-// GLOBAL: SWBF2 0x01ecb1a8
 // SYNTHETIC: SWBF2 0x00404350
 // `dynamic initializer for 'Music::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00768d30
 // `dynamic atexit destructor for 'Music::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ecb1a8
+// Music::sMemoryPool
 MemoryPool Music::sMemoryPool("Music", 0x48);
 
-// GLOBAL: SWBF2 0x007ec23c
 // SYNTHETIC: SWBF2 0x00404370
 // `dynamic initializer for 'Music::sMusicInactive''
 // SYNTHETIC: SWBF2 0x00768d40
 // `dynamic atexit destructor for 'Music::sMusicInactive''
+
+// GLOBAL: SWBF2 0x007ec23c
+// Music::sMusicInactive
 PblListDoubleSorted Music::sMusicInactive(true);
-// GLOBAL: SWBF2 0x007ec230
 // SYNTHETIC: SWBF2 0x00404380
 // `dynamic initializer for 'Music::sMusicActive''
 // SYNTHETIC: SWBF2 0x00768d60
 // `dynamic atexit destructor for 'Music::sMusicActive''
+
+// GLOBAL: SWBF2 0x007ec230
+// Music::sMusicActive
 PblListDoubleSorted Music::sMusicActive(true);
 // GLOBAL: SWBF2 0x01e579ec
 unsigned int Music::sMusicPlaying;
@@ -38,52 +44,7 @@ float Music::sInactiveTime;
 // GLOBAL: SWBF2 0x01e579c6
 bool Music::sIgnoreInactiveTime;
 
-// FUNCTION: SWBF2 0x005a9420
-void PblListDoubleSorted::Sort()
-{
-    PblListDouble::Node* pLink = mTerminator.mNext;
-    Node* pPrev = (pLink == &mTerminator) ? 0 : (Node*)((char*)pLink - offsetof(Node, mNode));
 
-    for (pLink = pLink->mNext; pLink != &mTerminator; pLink = pLink->mNext)
-    {
-        Node* pNode = (Node*)((char*)pLink - offsetof(Node, mNode));
-        if (pNode == 0)
-        {
-            break;
-        }
-
-        if (pNode->mSortValue > pPrev->mSortValue)
-        {
-            Node* pAfter;
-            PblListDouble::Node* pScan = &pNode->mNode;
-            for (;;)
-            {
-                pScan = pScan->mPrev;
-                if (pScan == &mTerminator)
-                {
-                    pAfter = 0;
-                    break;
-                }
-                pAfter = (Node*)((char*)pScan - offsetof(Node, mNode));
-                if (pAfter == 0 || !(pNode->mSortValue > pAfter->mSortValue))
-                {
-                    break;
-                }
-            }
-
-            pNode->mNode.Remove();
-
-            PblListDouble::Node* pAt = pAfter ? pAfter->mNode.mNext : mTerminator.mNext;
-            pNode->mNode.mNext = pAt;
-            pNode->mNode.mPrev = pAt->mPrev;
-            pAt->mPrev->mNext = &pNode->mNode;
-            pAt->mPrev = &pNode->mNode;
-        }
-
-        pPrev = pNode;
-        pLink = &pNode->mNode;
-    }
-}
 
 // FUNCTION: SWBF2 0x005a94b0
 Music::Music()
@@ -502,7 +463,7 @@ void Music::Load(PblFileChunk& chunk)
     Music::sMusicInactive.Sort();
 }
 
-void* Music::operator new(size_t uSize)
+inline void* Music::operator new(unsigned int uSize)
 {
     return sMemoryPool.Allocate(uSize);
 }

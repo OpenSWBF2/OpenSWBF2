@@ -23,7 +23,8 @@ public:
     {
     public:
         AmbientMusic();
-        ~AmbientMusic();
+        // SYNTHETIC: SWBF2 0x00675400
+        // VoiceOverManager::AmbientMusic::~AmbientMusic
 
         GameMusic mMusic;
         int mReinforcementCount;

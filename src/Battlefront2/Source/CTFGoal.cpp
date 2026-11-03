@@ -8,10 +8,7 @@
 
 namespace
 {
-inline unsigned int GameObjectHandleId(const GameObject* pObject)
-{
-    return PBL_HANDLE_ID(pObject);
-}
+
 
 inline int GameObjectTeam(const GameObject* pObject)
 {
@@ -23,47 +20,23 @@ inline Character* ItemOwner(const GameObject* pItem)
     return static_cast<const FlagItem*>(pItem)->mOwner;
 }
 
-inline const GameObject* ReadHandle(const PblHandle<const GameObject>& handle)
-{
-    PblHandle<const GameObject>& h = const_cast<PblHandle<const GameObject>&>(handle);
-    if (h.mObject && GameObjectHandleId(h.mObject) != h.mSavedHandleId)
-    {
-        h.mObject = 0;
-        h.mSavedHandleId = 0;
-    }
-    return h.mObject;
 }
 
-inline void SetHandle(PblHandle<const GameObject>& handle, const GameObject* pObject)
-{
-    handle.mObject = pObject;
-    handle.mSavedHandleId = pObject ? GameObjectHandleId(pObject) : 0;
-}
-}
-
-// GLOBAL: SWBF2 0x01eb97ac
 // SYNTHETIC: SWBF2 0x004027a0
 // `dynamic initializer for 'AI::CTFGoal::rttiHashCTFGoal''
+
+// GLOBAL: SWBF2 0x01eb97ac
+// AI::CTFGoal::rttiHashCTFGoal
 PblHash AI::CTFGoal::rttiHashCTFGoal("CTFGoal");
-char AI::CTFGoal::rttiNameCTFGoal[] = "CTFGoal";
+// GLOBAL: SWBF2 0x00788de4
+// AI::CTFGoal::rttiNameCTFGoal
+const char AI::CTFGoal::rttiNameCTFGoal[] = "CTFGoal";
 
-// FUNCTION: SWBF2 0x00487c20
-bool AI::CTFGoal::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashCTFGoal || AIGoal::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00487c50
-unsigned int AI::CTFGoal::GetDerivedRtti() const
-{
-    return rttiHashCTFGoal;
-}
 
-// FUNCTION: SWBF2 0x00487c60
-const char* AI::CTFGoal::GetDerivedRttiName() const
-{
-    return rttiNameCTFGoal;
-}
+
+
+
 
 // SYNTHETIC: SWBF2 0x00487c70
 // AI::CTFGoal::`scalar deleting destructor'
@@ -73,15 +46,15 @@ AI::CTFGoal::CTFGoal(unsigned char uTeam, float fWeight, const GoalTarget& targe
     : AIGoal(AIGOAL_CTFOFFENSE, uTeam, fWeight)
 {
     mCapturePos = target.mPos;
-    SetHandle(mFlag, ReadHandle(target.mGameObj));
-    if (!ReadHandle(mFlag))
+    mFlag = static_cast<const GameObject*>(target.mGameObj);
+    if (!static_cast<const GameObject*>(mFlag))
     {
-        for (PblList<FlagItem>::Itor it(*FlagItem::sList); it; ++it)
+        for (PblList<FlagItem>::Itor it = FlagItem::sList->Begin(); it; ++it)
         {
             const GameObject* pFlag = reinterpret_cast<const GameObject*>(static_cast<FlagItem*>(it));
             if (GameObjectTeam(pFlag) != uTeam)
             {
-                SetHandle(mFlag, pFlag);
+                mFlag = pFlag;
                 break;
             }
         }
@@ -91,7 +64,7 @@ AI::CTFGoal::CTFGoal(unsigned char uTeam, float fWeight, const GoalTarget& targe
 // FUNCTION: SWBF2 0x00487d80
 void AI::CTFGoal::Assign(Character* pChr)
 {
-    if (!ReadHandle(mFlag) || !pChr || !pChr->GetControllable())
+    if (!static_cast<const GameObject*>(mFlag) || !pChr || !pChr->GetControllable())
     {
         return;
     }
@@ -100,7 +73,7 @@ void AI::CTFGoal::Assign(Character* pChr)
     if (pCtrl)
     {
         pCtrl->ForceCommand(UnitGoalAgentInfo(
-            CMD_CTFOFFENSE, reinterpret_cast<const FlagItem*>(ReadHandle(mFlag)), mCapturePos));
+            CMD_CTFOFFENSE, reinterpret_cast<const FlagItem*>(static_cast<const GameObject*>(mFlag)), mCapturePos));
     }
 }
 
@@ -114,17 +87,16 @@ void AI::CTFGoal::Update()
         {
             continue;
         }
-        const GameObject* pFlag = ReadHandle(mFlag);
+        const GameObject* pFlag = static_cast<const GameObject*>(mFlag);
         if (!pFlag || ItemOwner(pFlag) != pChr)
         {
             continue;
         }
-        Controllable* pControllable = pChr->GetControllable();
-        if (!pControllable)
+        if (!pChr->GetControllable())
         {
             continue;
         }
-        UnitController* pCtrl = UnitControllerPtr(pControllable->mCtrl);
+        UnitController* pCtrl = UnitControllerPtr(pChr->GetControllable()->mCtrl);
         if (pCtrl && (pCtrl->GetCurCmdType() != CMD_CTFOFFENSE || pCtrl->IsAgentDone()) &&
             !pCtrl->IsNewCommand())
         {

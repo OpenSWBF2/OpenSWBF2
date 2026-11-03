@@ -29,7 +29,6 @@ public:
 
     VehicleCoverHelper(UnitAgent* pOwner);
 
-    virtual ~VehicleCoverHelper() {}
 
     // SYNTHETIC: SWBF2 0x0066bcf0
     // VehicleCoverHelper::`scalar deleting destructor'

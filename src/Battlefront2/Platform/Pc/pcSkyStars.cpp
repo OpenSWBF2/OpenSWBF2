@@ -7,6 +7,9 @@
 
 #include <string.h>
 
+// GLOBAL: SWBF2 0x007b28f0
+// __xmm@3fc00000bfc00000bf000000bfc00000
+
 // FUNCTION: SWBF2 0x00428ef0
 void SkyStars::_PlatformInit()
 {

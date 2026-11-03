@@ -39,18 +39,21 @@ namespace VisionManager
     int GetVisualPriority(const Controllable* pMe, const GameObject* pObj);
 }
 
-namespace CombatUtil { bool TestWpnConstraintsPos(Controllable* pMe, const PblVector3& vAim, const PblVector3& vPos); }
+namespace CombatUtil
+{
+bool TestWpnConstraintsPos(Controllable* pMe, const PblVector3& vAim, const PblVector3& vPos);
+}
 
 namespace
 {
-    unsigned int GameObjectHandleId(const GameObject* pObject)
+    inline unsigned int GameObjectHandleId(const GameObject* pObject)
     {
         return pObject->mHandleId;
     }
 
-    AILowLevel& LowLevelOf(Controller* pCtrl)
+    inline AILowLevel& LowLevelOf(Controller* pCtrl)
     {
-        return *reinterpret_cast<AILowLevel*>(UnitControllerPtr(pCtrl)->mLowLevel);
+        return UnitControllerPtr(pCtrl)->mLowLevel;
     }
 }
 
@@ -64,8 +67,7 @@ AttackHelper::AttackHelper(UnitAgent* pAgent)
 // FUNCTION: SWBF2 0x00447ab0
 void AttackHelper::Reset()
 {
-    mTargetHandle.mObject = 0;
-    mTargetHandle.mSavedHandleId = 0;
+    mTargetHandle = 0;
     mWaitingForTarget = false;
     mTargetVisible = false;
     mLastTimeSeen = -1000.0f;
@@ -100,7 +102,7 @@ void AttackHelper::SetTargetInfo(GameObject const* pTarget, PblVector3 const& vP
 bool AttackHelper::UpdateTarget()
 {
     const AI::UnitThreatManager& threats =
-        *reinterpret_cast<const AI::UnitThreatManager*>(mAgent->mCtrl->mThreatManager);
+        mAgent->mCtrl->mThreatManager;
     const GameObject* pVisible = threats.GetVisibleObject();
     const GameObject* pOldTarget = GetTarget();
     const GameObject* pTarget = pOldTarget;
@@ -224,13 +226,14 @@ Controllable* AttackHelper::GetMe()
 // FUNCTION: SWBF2 0x00447ea0
 bool AttackHelper::HasTarget() const
 {
-    return GetTarget() != 0;
+    const GameObject* target = AIUtil::GetAlivePtr(mTargetHandle, false);
+    return target != 0;
 }
 
 // FUNCTION: SWBF2 0x00447eb0
 GameObject const* AttackHelper::GetVisibleTarget() const
 {
-    return mTargetVisible ? GetTarget() : 0;
+    return mTargetVisible ? AIUtil::GetAlivePtr(mTargetHandle, false) : 0;
 }
 
 // FUNCTION: SWBF2 0x00447ec0

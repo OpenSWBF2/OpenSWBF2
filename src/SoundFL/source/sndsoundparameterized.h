@@ -28,10 +28,6 @@ public:
             Properties() {}
             ~Properties()
             {
-                if (mNode.mNext)
-                {
-                    mNode.Remove();
-                }
             }
             static void* operator new(size_t) { return smFreeList.Alloc(); }
             static void operator delete(void* p) { smFreeList.Free(p); }
@@ -49,10 +45,12 @@ public:
     {
     public:
 
-        Layer();
+        // FUNCTION: SWBF2 0x00735790
+        Layer() { Reset(); }
 
-        static void* __cdecl operator new(size_t uiSize);
-        static void __cdecl operator delete(void* p);
+        static void* __cdecl operator new(unsigned int) { return smFreeList.Alloc(); }
+        // FUNCTION: SWBF2 0x00735ae0
+        static void __cdecl operator delete(void* p) { smFreeList.Free(p); }
 
         void Reset()
         {
@@ -67,7 +65,7 @@ public:
         class Properties
         {
         public:
-            Properties() : mHashID(0) {}
+            Properties();
             ~Properties();
             static void* operator new(size_t) { return smFreeList.Alloc(); }
             static void operator delete(void* p) { smFreeList.Free(p); }
@@ -88,24 +86,10 @@ public:
     {
     public:
 
-        Properties() : mHashID(0), mSoundLayeredProps(0)
-        {
-            smPropertyList.AddLast(&mNode);
-        }
+        Properties();
 
-        ~Properties()
-        {
-            while (!mLayerList.IsEmpty())
-            {
-                delete (Layer::Properties*)((char*)mLayerList.mHead.mNext
-                                            - offsetof(Layer::Properties, mNode));
-            }
-            if (mNode.mNext)
-            {
-                mNode.Remove();
-            }
-        }
-        static void* operator new(size_t) { return smFreeList.Alloc(); }
+        ~Properties();
+        static void* operator new(unsigned int) { return smFreeList.Alloc(); }
         static void operator delete(void* p) { smFreeList.Free(p); }
 
         static void __cdecl Load(PblFileChunk& chunk, bool bOnce);
@@ -134,6 +118,7 @@ public:
     static void __cdecl RemoveAll();
 
     static void __cdecl UpdateAll(float fDeltaTime);
+    static void __cdecl Alloc();
     static void __cdecl Free();
     static SoundLayer* __cdecl LayerCreate();
     static void __cdecl LayerDestroy(SoundLayer* pLayer);
@@ -151,5 +136,18 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x00735c60
+inline SoundLayered::SoundLayer* __cdecl SoundParameterized::LayerCreate()
+{
+    return new Layer;
+}
+
+// FUNCTION: SWBF2 0x00735cd0
+inline void __cdecl SoundParameterized::LayerDestroy(SoundLayer* pLayer)
+{
+    delete static_cast<Layer*>(pLayer);
+}
+
 
 }

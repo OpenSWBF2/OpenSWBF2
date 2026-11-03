@@ -1,3 +1,11 @@
+#include <d3dx9math.h>
+
+#include "EntityCarrier.h"
+#include "EntityDroideka.h"
+#include "EntityHover.h"
+#include "EntitySoldier.h"
+#include "EntityWalker.h"
+#include "MountedTurret.h"
 #include "CombatHelper.h"
 
 #include "AIUtil.h"
@@ -28,6 +36,7 @@
 
 class Weapon;
 
+
 namespace CombatUtil
 {
 
@@ -38,42 +47,37 @@ namespace CombatUtil
     bool EngageInCombat(const UnitController* pCtrl, const GameObject* pTarget, bool bFlag);
 }
 
-namespace CombatUtil { float GetCombatRange(const Controllable* pMe); }
+namespace AI
+{
+
+enum VOType
+{
+    VOT_RebelsShootDeadBody = 11
+};
+
+namespace VOHelper
+{
+
+int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget, const GameObject* pOther, float fDelay);
+}
+}
+
+namespace CombatUtil
+{
+float GetCombatRange(const Controllable* pMe);
+}
 
 namespace
 {
 
-    const PblHash kRttiHashEntityFlyer("EntityFlyer");
-    const PblHash kRttiHashEntitySoldier("EntitySoldier");
-    const PblHash kRttiHashEntityDroideka("EntityDroideka");
-    const PblHash kRttiHashEntityHover("EntityHover");
-    const PblHash kRttiHashEntityWalker("EntityWalker");
-    const PblHash kRttiHashWeaponMelee("WeaponMelee");
-    const PblHash kRttiHashMountedTurret("MountedTurret");
 
-    const GameObject* HandleObject(PblHandle<const GameObject>& handle)
-    {
-        if (handle.mObject &&
-            PBL_HANDLE_ID(handle.mObject) != handle.mSavedHandleId)
-        {
-            handle.mObject = 0;
-            handle.mSavedHandleId = 0;
-        }
-        return handle.mObject;
-    }
 
-    void HandleSet(PblHandle<const GameObject>& handle, const GameObject* pObj)
-    {
-        handle.mObject = pObj;
-        handle.mSavedHandleId = pObj ? pObj->mHandleId : 0;
-    }
-
-    const PblVector3& GetPosition(const GameObject* pObj)
+    inline const PblVector3& GetPosition(const GameObject* pObj)
     {
         return static_cast<const CollisionObject*>(pObj)->GetPosition();
     }
 
-    bool WeaponIsRtti(Weapon* pWpn, unsigned int uRtti)
+    inline bool WeaponIsRtti(Weapon* pWpn, unsigned int uRtti)
     {
         return pWpn->IsRtti(uRtti);
     }
@@ -88,19 +92,17 @@ namespace
     float GetCurShield(const Damageable* pDamageable) { return pDamageable->mCurShield; }
     float GetMaxShield(const Damageable* pDamageable) { return pDamageable->mMaxShield; }
 
-    float DotXZ(const PblVector3& vTarget, const PblVector3& vFacing)
+    inline float DotXZ(const PblVector3& vTarget, const PblVector3& vFacing)
     {
         PblVector3 a, b, vFacingXZ = vFacing, vTargetXZ = vTarget;
         vTargetXZ.y = 0.0f;
         vFacingXZ.y = 0.0f;
-        D3DXVec3Normalize(&a, &vFacingXZ);
-        D3DXVec3Normalize(&b, &vTargetXZ);
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&a), reinterpret_cast<const D3DXVECTOR3*>(&vFacingXZ));
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&b), reinterpret_cast<const D3DXVECTOR3*>(&vTargetXZ));
         return a.x * b.x + a.y * b.y + a.z * b.z;
     }
 }
 
-// SYNTHETIC: SWBF2 0x0046c2e0
-// CombatHelper::`scalar deleting destructor'
 
 // FUNCTION: SWBF2 0x0046c330
 CombatHelper::CombatHelper(UnitAgent* pOwner)
@@ -108,8 +110,6 @@ CombatHelper::CombatHelper(UnitAgent* pOwner)
     , mOwner(pOwner)
     , mAttackPatternHelper(pOwner)
 {
-    mTargetHandle.mObject = 0;
-    mTargetHandle.mSavedHandleId = 0;
     mTargetPos.x = 0.0f;
     mTargetPos.y = 0.0f;
     mTargetPos.z = 0.0f;
@@ -128,35 +128,12 @@ CombatHelper::CombatHelper(UnitAgent* pOwner)
     mDeflectTimer = 0.0f;
 }
 
-CombatHelper::~CombatHelper()
-{
-}
 
 // FUNCTION: SWBF2 0x0046c400
 void CombatHelper::Kill()
 {
     mAttackPatternHelper.Kill();
     Fsm::Kill();
-}
-
-UnitController* CombatHelper::GetCtrl()
-{
-    return mOwner->mCtrl;
-}
-
-Controllable* CombatHelper::GetMe()
-{
-    return mOwner->mCtrl->mOwner;
-}
-
-AILowLevel& CombatHelper::GetLowLevel()
-{
-    return *reinterpret_cast<AILowLevel*>(mOwner->mCtrl->mLowLevel);
-}
-
-AttackHelper& CombatHelper::GetAttackHelper()
-{
-    return *reinterpret_cast<AttackHelper*>(mOwner->mAttackHelper);
 }
 
 // FUNCTION: SWBF2 0x0046c420
@@ -186,11 +163,10 @@ void CombatHelper::Init(const UnitCombatInfo& info)
     case UnitCombatInfo::INVESTIGATE:
     {
         SetNextState(STATE_Investigate);
-        HandleSet(mTargetHandle, info.GetWho());
-        const GameObject* pTarget = HandleObject(mTargetHandle);
-        if (pTarget)
+        mTargetHandle = info.GetWho();
+        if (mTargetHandle)
         {
-            mTargetPos = GetPosition(pTarget);
+            mTargetPos = mTargetHandle->GetPosition();
         }
         else
         {
@@ -222,11 +198,11 @@ void CombatHelper::EnterState()
     mEnterStateTime = GameLoop::GetMissionTime();
     GetLowLevel().mFoldStatus = FOLD_UNFOLD;
 
-    if ((GetMe()->GetEntity()->IsRtti(kRttiHashEntityFlyer) &&
+    if ((GetMe()->GetEntity()->IsRtti(EntityFlyer::rttiHashEntityFlyer) &&
          mCurState > STATE_START && mCurState < STATE_FINAL && mCurState != STATE_Engage) ||
         (mCurState == STATE_LookAround &&
-         !GetMe()->GetEntity()->IsRtti(kRttiHashEntitySoldier) &&
-         !GetMe()->GetEntity()->IsRtti(kRttiHashEntityDroideka)))
+         !GetMe()->GetEntity()->IsRtti(EntitySoldier::rttiHashEntitySoldier) &&
+         !GetMe()->GetEntity()->IsRtti(EntityDroideka::rttiHashEntityDroideka)))
     {
         SetNextState(100);
         return;
@@ -294,8 +270,8 @@ void CombatHelper::EnterState()
         PblVector3 vDest(vDir.x * 20.0f + mMe.m[3][0], mMe.m[3][1] + vDir.y * 20.0f,
                          vDir.z * 20.0f + mMe.m[3][2]);
 
-        if (GetMe()->GetEntity()->IsRtti(kRttiHashEntityHover) ||
-            GetMe()->GetEntity()->IsRtti(kRttiHashEntityWalker))
+        if (GetMe()->GetEntity()->IsRtti(EntityHover::rttiHashEntityHover) ||
+            GetMe()->GetEntity()->IsRtti(EntityWalker::rttiHashEntityWalker))
         {
 
             const PblMatrix& mNow = GetMe()->GetMatrix();
@@ -338,7 +314,7 @@ void CombatHelper::ExitState()
     GetLowLevel().mFoldStatus = FOLD_FOLD;
 
     Weapon* pWpn = GetMe()->GetCurWpn();
-    if (pWpn && WeaponIsRtti(pWpn, kRttiHashWeaponMelee))
+    if (pWpn && WeaponIsRtti(pWpn, WeaponMelee::rttiHashWeaponMelee))
     {
         AI_ForceDeflectState(pWpn, false);
     }
@@ -371,8 +347,7 @@ void CombatHelper::SetRandomHeading()
     }
 
     PblMatrix mLook = GetMe()->GetMatrix();
-    PblMatrix mRot;
-    D3DXMatrixMultiply(&mLook, &mLook, D3DXMatrixRotationY(&mRot, mLookAngle));
+    mLook.RotateY(mLookAngle);
     const float fX = mLook.m[2][0] * 100.0f;
     const float fZ = mLook.m[2][2] * 100.0f;
     const PblMatrix& mMe = GetMe()->GetMatrix();
@@ -392,7 +367,7 @@ void CombatHelper::UpdateState(float dt)
     GetLowLevel().SetAlert();
 
     Weapon* pWpn = GetMe()->GetCurWpn();
-    if (pWpn && WeaponIsRtti(pWpn, kRttiHashWeaponMelee))
+    if (pWpn && WeaponIsRtti(pWpn, WeaponMelee::rttiHashWeaponMelee))
     {
         if (GameLoop::GetMissionTime() > mDeflectTimer)
         {
@@ -487,9 +462,9 @@ void CombatHelper::UpdateState(float dt)
             const float fTurnTo = AIUtil::GetRandomFloat(0.1f, 0.3f);
             const float fStay = AIUtil::GetRandomFloat(0.4f, 0.7f);
             const float fTurnBack = AIUtil::GetRandomFloat(0.1f, 0.3f);
-            if ((PblRandom::GetGlobalInt() & 1) && HandleObject(mTargetHandle))
+            if ((PblRandom::GetGlobalInt() & 1) && static_cast<const GameObject*>(mTargetHandle))
             {
-                GetLowLevel().HeadLook_Object(HandleObject(mTargetHandle), fTurnTo, fStay, fTurnBack);
+                GetLowLevel().HeadLook_Object(static_cast<const GameObject*>(mTargetHandle), fTurnTo, fStay, fTurnBack);
             }
             else
             {
@@ -553,7 +528,7 @@ void CombatHelper::UpdateState(float dt)
         mAttackPatternHelper.FSMUpdate(dt, false);
         const bool bOverrideFire = mAttackPatternHelper.HELPERGetOverrideFire();
 
-        if (GetMe()->GetEntity()->IsRtti(kRttiHashEntityDroideka))
+        if (GetMe()->GetEntity()->IsRtti(EntityDroideka::rttiHashEntityDroideka))
         {
             const Damageable* pDamageable = GetDamageable(GetMe()->GetGameObject());
             if (!IsShielded(pDamageable) &&
@@ -572,8 +547,8 @@ void CombatHelper::UpdateState(float dt)
     }
 
     case STATE_FleeEvent:
-        if (GetMe()->GetEntity()->IsRtti(kRttiHashEntityHover) ||
-            GetMe()->GetEntity()->IsRtti(kRttiHashEntityWalker))
+        if (GetMe()->GetEntity()->IsRtti(EntityHover::rttiHashEntityHover) ||
+            GetMe()->GetEntity()->IsRtti(EntityWalker::rttiHashEntityWalker))
         {
             GetLowLevel().SetHeight(HEIGHT_SPRINT);
         }
@@ -584,13 +559,13 @@ void CombatHelper::UpdateState(float dt)
         break;
 
     case STATE_ShootDeadBody:
-        if (HandleObject(mTargetHandle) == 0)
+        if (mTargetHandle == 0)
         {
             SetNextState(STATE_Engage);
             break;
         }
         GetLowLevel().SetTarget(0);
-        GetLowLevel().SetHeading(GetPosition(HandleObject(mTargetHandle)), 0.0f);
+        GetLowLevel().SetHeading(mTargetHandle->GetPosition(), 0.0f);
         GetLowLevel().SetNextWeapon(mDeadBodyWeaponIdx);
         GetLowLevel().SetFireRequest(true, false);
         return;
@@ -620,7 +595,7 @@ bool CombatHelper::DeadBodyCheck()
     }
 
     GameObject* pMe = GetMe()->GetGameObject();
-    if (!pMe->IsRtti(kRttiHashEntitySoldier))
+    if (!pMe->IsRtti(EntitySoldier::rttiHashEntitySoldier))
     {
         return false;
     }
@@ -639,7 +614,7 @@ bool CombatHelper::DeadBodyCheck()
         {
             continue;
         }
-        if (!pObject->IsRtti(kRttiHashEntitySoldier))
+        if (!pObject->IsRtti(EntitySoldier::rttiHashEntitySoldier))
         {
             continue;
         }
@@ -675,7 +650,7 @@ int CombatHelper::EventHandler(AI::EventInfo* pInfo)
         return mOwner->RunForVehicle(pInfo->mGameObject) ? AI::EVT_NotHandled : AI::EVT_Ignored;
 
     case AI::EVT_Grenade:
-        if (GetMe()->GetEntity()->IsRtti(kRttiHashMountedTurret) || mCurState == STATE_FleeEvent)
+        if (GetMe()->GetEntity()->IsRtti(MountedTurret::rttiHashMountedTurret) || mCurState == STATE_FleeEvent)
         {
             return AI::EVT_Ignored;
         }
@@ -689,8 +664,8 @@ int CombatHelper::EventHandler(AI::EventInfo* pInfo)
         mOwner->DamagedEventPlayerCentricness(pInfo);
         mOwner->PlayDamageEventVO(pInfo);
 
-        if ((GetMe()->GetEntity()->IsRtti(kRttiHashEntityHover) ||
-             GetMe()->GetEntity()->IsRtti(kRttiHashEntityWalker)) &&
+        if ((GetMe()->GetEntity()->IsRtti(EntityHover::rttiHashEntityHover) ||
+             GetMe()->GetEntity()->IsRtti(EntityWalker::rttiHashEntityWalker)) &&
             pDamaged->mIsCriticalHit && mCurState != STATE_FleeEvent)
         {
             PblVector3 vFrom = GetMe()->GetMatrix().GetTranslation();
@@ -740,7 +715,7 @@ int CombatHelper::EventHandler(AI::EventInfo* pInfo)
         {
             return AI::EVT_Ignored;
         }
-        reinterpret_cast<AI::UnitThreatManager*>(GetCtrl()->mThreatManager)->AddThreat(pInfo->mGameObject);
+        GetCtrl()->mThreatManager.AddThreat(pInfo->mGameObject);
         mTargetHandle = pInfo->mGameObject;
         mTargetPos = GetPosition(pInfo->mGameObject);
         SetNextState(STATE_Investigate);

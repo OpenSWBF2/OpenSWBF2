@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "Weapon.h"
@@ -15,13 +17,13 @@ public:
     virtual ~WeaponDisguiseClass();
 
     static PblHash rttiHashWeaponDisguiseClass;
-    static char rttiNameWeaponDisguiseClass[];
+    static const char rttiNameWeaponDisguiseClass[];
 
     virtual WeaponClass* Derive(unsigned int uHash);
     virtual Weapon* Build(const WeaponDesc& desc);
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
 
     float m_fChangeRate;
@@ -80,7 +82,7 @@ public:
     void FinishDroppingDisguise();
 
     static PblHash rttiHashWeaponDisguise;
-    static char rttiNameWeaponDisguise[];
+    static const char rttiNameWeaponDisguise[];
 
     GameModel* mSavedOwnerModel;
     Team* mOtherTeam;
@@ -92,3 +94,47 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x00682cb0
+inline bool WeaponDisguiseClass::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashWeaponDisguiseClass == uRtti)
+    {
+        return true;
+    }
+    return WeaponClass::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x00682ce0
+inline unsigned int WeaponDisguiseClass::GetDerivedRtti() const
+{
+    return rttiHashWeaponDisguiseClass;
+}
+
+// FUNCTION: SWBF2 0x00682cf0
+inline const char* WeaponDisguiseClass::GetDerivedRttiName() const
+{
+    return rttiNameWeaponDisguiseClass;
+}
+
+// FUNCTION: SWBF2 0x00682c60
+inline bool WeaponDisguise::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashWeaponDisguise == uRtti)
+    {
+        return true;
+    }
+    return Weapon::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x00682c90
+inline unsigned int WeaponDisguise::GetDerivedRtti() const
+{
+    return rttiHashWeaponDisguise;
+}
+
+// FUNCTION: SWBF2 0x00682ca0
+inline const char* WeaponDisguise::GetDerivedRttiName() const
+{
+    return rttiNameWeaponDisguise;
+}

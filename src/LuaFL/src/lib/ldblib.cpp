@@ -128,10 +128,13 @@ static int setupvalue (lua_State *L) {
   return auxupvalue(L, 0);
 }
 
+// GLOBAL: SWBF2 0x00770328
+// KEY_HOOK
 static const char KEY_HOOK = 'h';
 
 // FUNCTION: SWBF2 0x0069cff0
 static void hookf (lua_State *L, lua_Debug *ar) {
+  // GLOBAL: SWBF2 0x770478
   static const char *const hooknames[] =
     {"call", "return", "line", "count", "tail return"};
   lua_pushlightuserdata(L, (void *)&KEY_HOOK);
@@ -266,6 +269,7 @@ static int errorfb (lua_State *L) {
   return 1;
 }
 
+// GLOBAL: SWBF2 0x770330
 static const luaL_reg dblib[] = {
   {"getlocal", getlocal},
   {"getinfo", getinfo},

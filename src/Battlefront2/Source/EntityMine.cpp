@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,7 +18,7 @@
 #include "ItemTimerDisplay.h"
 #include "PebbleFL/Common/PblQuaternion.h"
 #include "SoundFL/source/sndvoicevirtual.h"
-#include "PebbleFL/pc/PblD3DX.h"
+
 
 extern PblVector3 gVectorZero;
 
@@ -37,29 +38,22 @@ EntityMineClass::EntityMineClass(unsigned int uHash)
     mTickPitch = 1.0f;
 }
 
-// GLOBAL: SWBF2 0x01ebbf90
 // SYNTHETIC: SWBF2 0x00402c70
 // `dynamic initializer for 'EntityMineClass::rttiHashEntityMineClass''
+// EntityMineClass::rttiHashEntityMineClass
+
+// GLOBAL: SWBF2 0x01ebbf90
+// EntityMineClass::rttiHashEntityMineClass
 PblHash EntityMineClass::rttiHashEntityMineClass("EntityMineClass");
-char EntityMineClass::rttiNameEntityMineClass[] = "EntityMineClass";
+// GLOBAL: SWBF2 0x0078935c
+// EntityMineClass::rttiNameEntityMineClass
+const char EntityMineClass::rttiNameEntityMineClass[] = "EntityMineClass";
 
-// FUNCTION: SWBF2 0x004cf580
-bool EntityMineClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashEntityMineClass || EntityItemClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x004cf5c0
-unsigned int EntityMineClass::GetDerivedRtti()
-{
-    return rttiHashEntityMineClass;
-}
 
-// FUNCTION: SWBF2 0x004cf5d0
-const char* EntityMineClass::GetDerivedRttiName()
-{
-    return rttiNameEntityMineClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x004d0aa0
 Entity* EntityMineClass::Build(const EntityDesc& desc)
@@ -72,7 +66,7 @@ Entity* EntityMineClass::Build(const EntityDesc& desc)
     EntityMine* pMine = new EntityMine(this, desc);
     if (pMine)
     {
-        CollisionManager::AddItemBody(static_cast<CollisionObject*>(pMine));
+        (static_cast<CollisionObject*>(pMine))->AddItemToCollisionManager();
 
         pMine->ActivatePhysics();
 
@@ -112,57 +106,76 @@ EntityClass* EntityMineClass::Derive(unsigned int uHash)
 // FUNCTION: SWBF2 0x004d0b50
 void EntityMineClass::SetProperty(unsigned int uProperty, const char* pszValue)
 {
-    if (uProperty == 0x02BB1FE0 ||
-        uProperty == 0x6A5E371C ||
-        uProperty == 0x9B30E763)
+    switch (uProperty)
+    {
+    case 0x02BB1FE0:
+    case 0x6A5E371C:
+    case 0x9B30E763:
     {
         mExplosionTrigger = ExplosionClass::Find(PblHash(pszValue));
+            break;
     }
-    else if (uProperty == 0x2E51081F)
+    case 0x2E51081F:
     {
         mExplosionExpire = ExplosionClass::Find(PblHash(pszValue));
+            break;
     }
-    else if (uProperty == 0xA2723442)
+    case 0xA2723442:
     {
         mExplosionDeath = ExplosionClass::Find(PblHash(pszValue));
+            break;
     }
-    else if (uProperty == 0xACFE0D9B)
+    case 0xACFE0D9B:
     {
         mTick.SetID(pszValue, false, false);
+            break;
     }
-    else if (uProperty == 0x18953967)
+    case 0x18953967:
     {
         sscanf("%f", pszValue, &mTickPitch);
+            break;
     }
-    else if (uProperty == 0xBFB22E35)
+    case 0xBFB22E35:
     {
         mTriggerContact = atoi(pszValue) != 0;
+            break;
     }
-    else if (uProperty == 0xC461D811)
+    case 0xC461D811:
     {
         sscanf(pszValue, "%f", &mTriggerRadius);
+            break;
     }
-    else if (uProperty == 0xCE754894)
+    case 0xCE754894:
     {
         sscanf(pszValue, "%f", &mSuppressRadius);
+            break;
     }
-    else
+    default:
     {
         EntityItemClass::SetProperty(uProperty, pszValue);
+            break;
+    }
     }
 }
 
-// GLOBAL: SWBF2 0x01ebbf8c
 // SYNTHETIC: SWBF2 0x00402c60
 // `dynamic initializer for 'EntityMine::rttiHashEntityMine''
-PblHash EntityMine::rttiHashEntityMine("EntityMine");
-char EntityMine::rttiNameEntityMine[] = "EntityMine";
+// EntityMine::rttiHashEntityMine
 
-// GLOBAL: SWBF2 0x01ebbf98
+// GLOBAL: SWBF2 0x01ebbf8c
+// EntityMine::rttiHashEntityMine
+PblHash EntityMine::rttiHashEntityMine("EntityMine");
+// GLOBAL: SWBF2 0x00789340
+// EntityMine::rttiNameEntityMine
+const char EntityMine::rttiNameEntityMine[] = "EntityMine";
+
 // SYNTHETIC: SWBF2 0x00402c40
 // `dynamic initializer for 'EntityMine::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00766f80
 // `dynamic atexit destructor for 'EntityMine::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ebbf98
+// EntityMine::sMemoryPool
 MemoryPool EntityMine::sMemoryPool("EntityMine", 0x2a0);
 
 // FUNCTION: SWBF2 0x004cf5e0
@@ -191,34 +204,21 @@ EntityMine::~EntityMine()
 // SYNTHETIC: SWBF2 0x004cf550
 // EntityMine::`scalar deleting destructor'
 // SYNTHETIC: SWBF2 0x004d0cc9
-// [thunk]:EntityMine::`vector deleting destructor'`adjustor{148}'
+// ??_EEntityMine@@WJE@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004d0cd4
-// [thunk]:EntityMine::`vector deleting destructor'`adjustor{320}'
+// ??_EEntityMine@@WBEA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004d0cdf
-// [thunk]:EntityMine::`vector deleting destructor'`adjustor{12}'
+// ??_EEntityMine@@WM@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004d0ce7
-// [thunk]:EntityMine::`vector deleting destructor'`adjustor{512}'
+// ??_EEntityMine@@WCAA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004d0cf2
-// [thunk]:EntityMine::`vector deleting destructor'`adjustor{576}'
+// ??_EEntityMine@@WCEA@AEPAXI@Z
 
-// FUNCTION: SWBF2 0x004cf4c0
-bool EntityMine::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashEntityMine ||
-           EntityItem::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x004cf510
-unsigned int EntityMine::GetDerivedRtti() const
-{
-    return rttiHashEntityMine;
-}
 
-// FUNCTION: SWBF2 0x004cf520
-const char* EntityMine::GetDerivedRttiName() const
-{
-    return rttiNameEntityMine;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x004cf540
 EntityType EntityMine::GetEntityType() const
@@ -248,7 +248,7 @@ void EntityMine::ClientKill()
                 false, COLL_UNKNOWN);
         }
     }
-    else if (mIsAlive)
+    else if (IsAlive())
     {
         if (pClass->mExplosionTrigger)
         {
@@ -289,7 +289,7 @@ bool EntityMine::Update(float fDeltaTime)
         {
             PblQuaternion qRot;
             PblMatrix mStick;
-            D3DXMatrixRotationQuaternion(&mStick, D3DXQuaternionNormalize(&qRot, &mStickInfo->mLocalRotation));
+            D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mStick), D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&qRot), reinterpret_cast<const D3DXQUATERNION*>(&mStickInfo->mLocalRotation)));
             mStick.m[3][0] = mStickInfo->mLocalPosition.x;
             mStick.m[3][1] = mStickInfo->mLocalPosition.y;
             mStick.m[3][2] = mStickInfo->mLocalPosition.z;
@@ -299,7 +299,7 @@ bool EntityMine::Update(float fDeltaTime)
             {
                 PblMatrix mBody = pObject->mCollisionModel->GetWorldMatrix(mStickInfo->mCollBodyID,
                                                                            pObject->GetMatrix(), pObject->GetPose());
-                D3DXMatrixMultiply(&mStick, &mStick, &mBody);
+                mStick *= mBody;
             }
             SetMatrix(mStick);
             if (fDeltaTime > 0.0f)
@@ -308,7 +308,7 @@ bool EntityMine::Update(float fDeltaTime)
                 mVelocity.x = (mMatrix.m[3][0] - mOldPosition.x) * fInv;
                 mVelocity.y = (mMatrix.m[3][1] - mOldPosition.y) * fInv;
                 mVelocity.z = (mMatrix.m[3][2] - mOldPosition.z) * fInv;
-                mOldPosition = *(const PblVector3*)mMatrix.m[3];
+                mOldPosition = mMatrix.GetTranslation();
             }
             mStationary = true;
         }
@@ -365,7 +365,7 @@ bool EntityMine::Update(float fDeltaTime)
 
     if (mStationary && pClass->mExplosionTrigger && pClass->mTriggerRadius > 0.0f)
     {
-        PblVector3 vPos = *(const PblVector3*)mMatrix.m[3];
+        PblVector3 vPos = mMatrix.GetTranslation();
         const float fRange =
             pClass->mTriggerRadius > pClass->mSuppressRadius ? pClass->mTriggerRadius : pClass->mSuppressRadius;
         GameObject* apObjects[64];
@@ -511,8 +511,8 @@ bool EntityMine::CollisionCallback(const CollisionResult* pResult, CollisionObje
         PblVector3 vStart(mMatrix.m[3][0] + vNormal.x * 0.5f, mMatrix.m[3][1] + vNormal.y * 0.5f,
                           mMatrix.m[3][2] + vNormal.z * 0.5f);
         pOther->RayHit(vStart, vDown, 1.0f, &vNormal, 0, true, 0.0f);
-        PblMatrix mStick = NormalMatrix(*(const PblVector3*)mMatrix.m[2], vNormal,
-                                      *(const PblVector3*)mMatrix.m[3]);
+        PblMatrix mStick = NormalMatrix(mMatrix.GetZAxis(), vNormal,
+                                      mMatrix.GetTranslation());
 
         mStickInfo = new StickInfo;
         mStickInfo->mCollHandle = pOther->GetGameObject();
@@ -521,7 +521,7 @@ bool EntityMine::CollisionCallback(const CollisionResult* pResult, CollisionObje
         {
             PblMatrix mBody = pModel->GetWorldMatrix(pResult->mReceiverId, pOther->GetMatrix(), pOther->GetPose());
             const PblMatrix mInverse = mBody.GetInverseFast();
-            D3DXMatrixMultiply(&mStick, &mStick, &mInverse);
+            mStick *= mInverse;
             mStickInfo->mCollBodyID = pResult->mReceiverId;
         }
         else
@@ -533,7 +533,7 @@ bool EntityMine::CollisionCallback(const CollisionResult* pResult, CollisionObje
 
         mParent = pOther;
         mVelocity = gVectorZero;
-        mOldPosition = *(const PblVector3*)mMatrix.m[3];
+        mOldPosition = mMatrix.GetTranslation();
         if (!mHitSurface)
         {
             mHitSurface = 1;
@@ -553,9 +553,7 @@ bool EntityMine::CollisionCallback(const CollisionResult* pResult, CollisionObje
     {
         const float fRebound = pClass->mRebound;
         const float fFriction = pClass->mFriction * fDot * (fRebound + 1.0f);
-        mVelocity.x -= vNormal.x * fDot;
-        mVelocity.y -= vNormal.y * fDot;
-        mVelocity.z -= vNormal.z * fDot;
+        mVelocity -= vNormal * fDot;
         float fScale = -(fFriction / sqrtf(mVelocity.x * mVelocity.x + mVelocity.y * mVelocity.y +
                                            mVelocity.z * mVelocity.z));
         if (!(1.0f > fScale))
@@ -566,9 +564,7 @@ bool EntityMine::CollisionCallback(const CollisionResult* pResult, CollisionObje
         mVelocity.y -= mVelocity.y * fScale;
         mVelocity.z -= mVelocity.z * fScale;
         const float fBounce = fRebound * fDot;
-        mVelocity.x -= vNormal.x * fBounce;
-        mVelocity.y -= vNormal.y * fBounce;
-        mVelocity.z -= vNormal.z * fBounce;
+        mVelocity -= vNormal * fBounce;
         if (!mHitSurface)
         {
             mHitSurface = 1;

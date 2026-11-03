@@ -7,12 +7,12 @@ namespace Snd
 StreamConsumer::StreamConsumer()
     : mReady(0)
 {
-    StreamNodeSink::Connect(0, 0);
 }
 
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x0074ded0
 StreamConsumer::~StreamConsumer()

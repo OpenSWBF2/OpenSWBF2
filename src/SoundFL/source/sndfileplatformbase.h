@@ -24,10 +24,9 @@ public:
 
         void Init(void* const pBuffer, unsigned int uiSize)
         {
-            mSize = uiSize;
-            mUsed = 0;
-            mOffset = 0;
             mBuffer = pBuffer;
+            mSize = uiSize;
+            Flush();
         }
 
         void Flush()

@@ -5,6 +5,8 @@
 #include "PebbleFL/Common/PblHashTable.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 
+// VTABLE: SWBF2 0x007af5c8 Thread
+// VTABLE: SWBF2 0x007af5e0 PblHandled
 class Timer : public Thread, public PblHandled
 {
 public:
@@ -15,6 +17,8 @@ public:
 
     const char* GetName();
 
+    // SYNTHETIC: SWBF2 0x0058aa80
+    // Timer::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
     // FUNCTION: SWBF2 0x0058aa70
@@ -32,8 +36,7 @@ public:
     // FUNCTION: SWBF2 0x0058aaa0
     float GetRate() const { return mRate; }
 
-    // FUNCTION: SWBF2 0x00657b60
-    bool IsRunning() const { return const_cast<Timer*>(this)->IsThreadActive(); }
+    bool IsRunning() const;
 
     void Start();
     void Stop();
@@ -44,9 +47,9 @@ public:
 
     unsigned int mId;
     float mTime;
+protected:
     float mRate;
-
-    static int sMapNumEntries;
+public:
     static PblHashTable<Timer, 64> sMap;
     static MemoryPool sMemoryPool;
 };

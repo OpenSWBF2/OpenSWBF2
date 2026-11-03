@@ -21,33 +21,59 @@ bool GetBreakOnWarning()
     return gBreakOnWarning;
 }
 
+// GLOBAL: SWBF2 0x007e15cc
 static char* kapcSEVERITYSHORT[6] = { "*", "?", "#", "$", "%", "!" };
+// GLOBAL: SWBF2 0x007e15e4
 static char* kapcSEVERITYLONG[6] = { "VERBOSE", "INFORM", "WARNING", "ERROR", "BUG", "FATAL" };
 
-namespace RedWarning { bool g_bOverwriteLogFile = true; }
+namespace RedWarning
+{
+// GLOBAL: SWBF2 0x007e15fc
+// g_bOverwriteLogFile
+bool g_bOverwriteLogFile = true;
+}
 
+// GLOBAL: SWBF2 0x0078403c
 static char kpcNullFileName[7] = "[NULL]";
+// GLOBAL: SWBF2 0x00784044
 static char kpcNullDate[7] = "[NULL]";
+// GLOBAL: SWBF2 0x0078404c
 static char kpcNullTime[7] = "[NULL]";
 
 namespace RedWarning
 {
 
+// GLOBAL: SWBF2 0x009c8448
 RED_ERROR_SEVERITY g_eSeverityMin;
+// GLOBAL: SWBF2 0x009c844c
+// g_aeSeverityToDestination
 RED_ERROR_SEVERITY g_aeSeverityToDestination[6];
+// GLOBAL: SWBF2 0x009c8464
 unsigned int g_auiFormatToDestination[5];
+// GLOBAL: SWBF2 0x009c8478
+// g_fnLogCallback
 void(__cdecl* g_fnLogCallback)(char const*, ...);
+// GLOBAL: SWBF2 0x009c847c
+// g_eSeverity
 RED_ERROR_SEVERITY g_eSeverity;
+// GLOBAL: SWBF2 0x009c8480
 char* g_pcFileName;
+// GLOBAL: SWBF2 0x009c8484
 char* g_pcCompileDate;
+// GLOBAL: SWBF2 0x009c8488
 char* g_pcCompileTime;
+// GLOBAL: SWBF2 0x009c848c
 int g_iLineNumber;
+// GLOBAL: SWBF2 0x009c8490
+// g_bFormatted
 bool g_bFormatted;
+// GLOBAL: SWBF2 0x009c8491
 bool g_bValidLogFile;
+// GLOBAL: SWBF2 0x009c8492
 bool g_bInitialized;
 
-char g_pcLogFileName[260];
-bool g_bSuppressDialogs;
+// GLOBAL: SWBF2 0x009c8498
+char g_pcLogFileName[64];
 
 }
 

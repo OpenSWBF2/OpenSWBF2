@@ -45,7 +45,7 @@ public:
     static void Destroy();
     static void Init();
 
-    static void __fastcall EnableViewport(int iViewport);
+    static void EnableViewport(int iViewport, bool bEnable);
 
     static SpawnDisplay* Instance(int iIndex);
 
@@ -56,6 +56,9 @@ public:
     void Hide(Character* pCharacter);
     void ChangeClass(Character* pCharacter);
     void Write(NetPktGroup& group, int iPlayer);
+
+    void SetWaitingForTeam(bool waiting) { mNetWaitingForTeam = waiting; }
+    bool IsWaitingForTeam() { return mNetWaitingForTeam; }
 
     void SelectTeam(int iTeam);
     void SelectClass(int iClass);

@@ -24,9 +24,10 @@ void RedBorderElement::SetBorderTexCoords(float fLeft, float fTop, float fRight,
     const float fX1 = fLeft + fBorderX;
     const float fX2 = fRight - fBorderX;
 
-    for (int r = 0; r < 4; ++r)
+    Vertex* pRow = m_vertices;
+    int r = 0;
+    do
     {
-        Vertex* pRow = &m_vertices[r * 4];
         const float fY = afY[r];
         pRow[0].u = fLeft;
         pRow[0].v = fY;
@@ -36,7 +37,9 @@ void RedBorderElement::SetBorderTexCoords(float fLeft, float fTop, float fRight,
         pRow[2].v = fY;
         pRow[3].u = fRight;
         pRow[3].v = fY;
-    }
+        pRow += 4;
+        ++r;
+    } while (r < 4);
 }
 
 // FUNCTION: SWBF2 0x006f7500
@@ -70,11 +73,11 @@ RedBorderElement::~RedBorderElement()
 // FUNCTION: SWBF2 0x006f7680
 const RedTexture* RedBorderElement::GetTexture() const
 {
-    if (m_pInterfaceShader)
+    if (!m_pInterfaceShader)
     {
-        return RedTexture::Find(m_pInterfaceShader->GetTexture());
+        return 0;
     }
-    return 0;
+    return RedTexture::Find(m_pInterfaceShader->GetTexture());
 }
 
 // FUNCTION: SWBF2 0x006f76b0
@@ -105,9 +108,9 @@ void RedBorderElement::SetRoundedVertexPositions(float fLeft, float fTop, float 
     const float fX1 = fLeft + fBorderX;
     const float fX2 = fRight - fBorderX;
 
-    for (int r = 0; r < 4; ++r)
+    Vertex* pRow = m_vertices;
+    for (int r = 0; r != 4; ++r)
     {
-        Vertex* pRow = &m_vertices[r * 4];
         const float fY = afY[r];
         pRow[0].x = fLeft;
         pRow[0].y = fY;
@@ -117,6 +120,7 @@ void RedBorderElement::SetRoundedVertexPositions(float fLeft, float fTop, float 
         pRow[2].y = fY;
         pRow[3].x = fRight;
         pRow[3].y = fY;
+        pRow += 4;
     }
 }
 
@@ -204,6 +208,7 @@ void RedBorderElement::BeforeRender()
 // FUNCTION: SWBF2 0x006f7720
 void RedBorderElement::RenderUsingContext(const PblMatrix& mContext, const RedColor& color)
 {
+    // GLOBAL: SWBF2 0x00784140
     static const unsigned short sIndices[28] = {
         0, 4, 1, 5, 2, 6, 3, 7, 7, 4,
         4, 8, 5, 9, 6, 10, 7, 11, 11, 8,
@@ -260,34 +265,34 @@ void RedBorderElement::SetAlignedBorderRect(float fWidth, float fHeight,
                                         int eHorizontal, int eVertical,
                                         float fBorderX, float fBorderY)
 {
-    float fLeft = 0.0f, fRight = 0.0f;
-    if (eHorizontal == 0)
+    float fBottom = 0.0f, fLeft = 0.0f, fRight = 0.0f, fTop = 0.0f;
+    switch (eHorizontal)
     {
+    case 0:
         fRight = fWidth;
-    }
-    else if (eHorizontal == 1)
-    {
+        fLeft = 0.0f;
+        break;
+    case 1:
         fLeft = fWidth * -0.5f;
         fRight = -fLeft;
-    }
-    else if (eHorizontal == 2)
-    {
+        break;
+    case 2:
         fLeft = -fWidth;
+        break;
     }
-
-    float fTop = 0.0f, fBottom = 0.0f;
-    if (eVertical == 0)
+    switch (eVertical)
     {
+    case 0:
+        fTop = 0.0f;
         fBottom = fHeight;
-    }
-    else if (eVertical == 1)
-    {
+        break;
+    case 1:
         fTop = fHeight * -0.5f;
         fBottom = -fTop;
-    }
-    else if (eVertical == 2)
-    {
+        break;
+    case 2:
         fTop = -fHeight;
+        break;
     }
 
     SetBorderRect(fLeft, fTop, fRight, fBottom, fBorderX, fBorderY);

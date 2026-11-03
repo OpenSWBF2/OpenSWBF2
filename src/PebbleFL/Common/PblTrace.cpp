@@ -2,6 +2,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+// GLOBAL: SWBF2 0x009ceff0
 char lastTraceMessage[1024];
 void (__cdecl* gPblTraceSink)(char const*) = 0;
 

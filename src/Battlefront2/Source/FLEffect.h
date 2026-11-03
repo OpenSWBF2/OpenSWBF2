@@ -56,11 +56,7 @@ public:
     static void Unregister(unsigned int uiClassName);
 
     static FLEffectClass* Get(unsigned int uHash);
-
-    static int s_EffectClassesNumEntries;
     static PblHashTable<FLEffectClass, 256> s_EffectClasses;
-
-    static int s_EffectFactoriesNumEntries;
     static PblHashTable<FLEffect, 32> s_EffectFactories;
 
     static bool s_bInitRender;
@@ -70,7 +66,6 @@ public:
     {
     public:
         FLEffectThread() {}
-        virtual ~FLEffectThread() {}
 
         virtual bool Update(float fDeltaTime);
     };
@@ -100,6 +95,8 @@ protected:
  
  
  
+  // VTABLE: SWBF2 0x00796a04 Thread
+  // VTABLE: SWBF2 0x00796a68 PblHandled
   class FLEffectObject : public Thread, public PblHandled
 {
 public:
@@ -118,8 +115,6 @@ public:
         , m_pmAttachedToMatrix(0)
         , m_pmLocalOffsetMatrix(0)
     {
-        m_hobjAttachedToObject.mObject = 0;
-        m_hobjAttachedToObject.mSavedHandleId = 0;
     }
 
     virtual ~FLEffectObject();
@@ -205,3 +200,8 @@ public:
  
  
  
+// FUNCTION: SWBF2 0x00446e40
+inline FLEffectClass* FLEffect::Get(unsigned int uHash)
+{
+    return s_EffectClasses.Find(uHash);
+}

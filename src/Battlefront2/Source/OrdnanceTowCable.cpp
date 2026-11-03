@@ -27,70 +27,55 @@ void sRenderHermiteSegment(PblHermiteVector3& segment, unsigned char ucViewport,
 
 extern PblVector3 gVectorZero;
 
-// GLOBAL: SWBF2 0x01ef26c0
 // SYNTHETIC: SWBF2 0x00405bc0
 // `dynamic initializer for 'OrdnanceTowCable::rttiHashOrdnanceTowCable''
-PblHash OrdnanceTowCable::rttiHashOrdnanceTowCable("OrdnanceTowCable");
-char OrdnanceTowCable::rttiNameOrdnanceTowCable[] = "OrdnanceTowCable";
+// OrdnanceTowCable::rttiHashOrdnanceTowCable
 
-// GLOBAL: SWBF2 0x01ef26c4
+// GLOBAL: SWBF2 0x01ef26c0
+// OrdnanceTowCable::rttiHashOrdnanceTowCable
+PblHash OrdnanceTowCable::rttiHashOrdnanceTowCable("OrdnanceTowCable");
+// GLOBAL: SWBF2 0x0078aa68
+// OrdnanceTowCable::rttiNameOrdnanceTowCable
+const char OrdnanceTowCable::rttiNameOrdnanceTowCable[] = "OrdnanceTowCable";
+
 // SYNTHETIC: SWBF2 0x00405bd0
 // `dynamic initializer for 'OrdnanceTowCableClass::rttiHashOrdnanceTowCableClass''
-PblHash OrdnanceTowCableClass::rttiHashOrdnanceTowCableClass("OrdnanceTowCableClass");
-char OrdnanceTowCableClass::rttiNameOrdnanceTowCableClass[] = "OrdnanceTowCableClass";
+// OrdnanceTowCableClass::rttiHashOrdnanceTowCableClass
 
-// GLOBAL: SWBF2 0x01ef2670
+// GLOBAL: SWBF2 0x01ef26c4
+// OrdnanceTowCableClass::rttiHashOrdnanceTowCableClass
+PblHash OrdnanceTowCableClass::rttiHashOrdnanceTowCableClass("OrdnanceTowCableClass");
+// GLOBAL: SWBF2 0x0078aa3c
+// OrdnanceTowCableClass::rttiNameOrdnanceTowCableClass
+const char OrdnanceTowCableClass::rttiNameOrdnanceTowCableClass[] = "OrdnanceTowCableClass";
+
 // SYNTHETIC: SWBF2 0x00405ba0
 // `dynamic initializer for 'OrdnanceTowCable::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00769200
 // `dynamic atexit destructor for 'OrdnanceTowCable::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ef2670
+// OrdnanceTowCable::sMemoryPool
 MemoryPool OrdnanceTowCable::sMemoryPool("OrdnanceTowCable", 0x670);
 
 // GLOBAL: SWBF2 0x01eaed60
 unsigned int OrdnanceTowCable::sTextureHash;
 
-// FUNCTION: SWBF2 0x006072a0
-bool OrdnanceTowCable::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashOrdnanceTowCable || OrdnanceBullet::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x006072d0
-unsigned int OrdnanceTowCable::GetDerivedRtti() const
-{
-    return rttiHashOrdnanceTowCable;
-}
 
-// FUNCTION: SWBF2 0x006072e0
-const char* OrdnanceTowCable::GetDerivedRttiName() const
-{
-    return rttiNameOrdnanceTowCable;
-}
 
 // SYNTHETIC: SWBF2 0x00609c29
-// [thunk]:OrdnanceTowCable::`scalar deleting destructor' adjustor{24}
+// ??_EOrdnanceTowCable@@WBI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00609c31
-// [thunk]:OrdnanceTowCable::`scalar deleting destructor' adjustor{152}
+// ??_EOrdnanceTowCable@@WJI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00607300
 // OrdnanceTowCable::`scalar deleting destructor'
 
-// FUNCTION: SWBF2 0x00607330
-bool OrdnanceTowCableClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashOrdnanceTowCableClass || OrdnanceBulletClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00607360
-unsigned int OrdnanceTowCableClass::GetDerivedRtti()
-{
-    return rttiHashOrdnanceTowCableClass;
-}
 
-// FUNCTION: SWBF2 0x00607370
-const char* OrdnanceTowCableClass::GetDerivedRttiName()
-{
-    return rttiNameOrdnanceTowCableClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00607380
 OrdnanceTowCable::OrdnanceTowCable(OrdnanceTowCableClass* pClass, const OrdnanceDesc& desc)
@@ -382,7 +367,7 @@ bool OrdnanceTowCable::Update(float fDeltaTime)
     RecalculateCenterAndRadius();
     if (mHitWalker)
     {
-        if (!mHitWalker->mIsAlive)
+        if (!mHitWalker->IsAlive())
         {
             CalculateWorldSpacePoints();
         }
@@ -428,7 +413,7 @@ bool OrdnanceTowCable::Update(float fDeltaTime)
             Damageable::SetTeamDamageScale(1.0f);
             if (mOwner)
             {
-                for (PblList<Controllable>::Itor itor(mOwner->mControllableList); (Controllable*)itor; ++itor)
+                for (PblList<Controllable>::Itor itor(mOwner->GetControllableList()); (Controllable*)itor; ++itor)
                 {
                     if (!itor->GetPilot())
                     {
@@ -633,8 +618,10 @@ OrdnanceTowCableClass::OrdnanceTowCableClass(unsigned int uHash)
     mCableLimit = 45.0f;
 }
 
-// SYNTHETIC: SWBF2 0x006091b0
-// OrdnanceTowCableClass::~OrdnanceTowCableClass
+// FUNCTION: SWBF2 0x006091b0
+OrdnanceTowCableClass::~OrdnanceTowCableClass()
+{
+}
 
 // SYNTHETIC: SWBF2 0x00609140
 // OrdnanceTowCableClass::`scalar deleting destructor'
@@ -727,9 +714,7 @@ void TowCableRenderObject::AddAttachPoint(int iBodyID, const PblVector3& vOffset
     if (fLength > 0.0f)
     {
         float fScale = 10.0f / fLength;
-        point.mFinalSlope.x *= fScale;
-        point.mFinalSlope.y *= fScale;
-        point.mFinalSlope.z *= fScale;
+        point.mFinalSlope *= fScale;
     }
     point.mFallSpeed = 0.0f;
     point.mFinalHeight = 0.0f;
@@ -925,18 +910,4 @@ void TowCableRenderObject::Render(GameObject* pObject, unsigned char ucViewport,
     }
 }
 
-// FUNCTION: SWBF2 0x00424b60
-float PblHermiteVector3::GetLengthApproximation(int iSteps) const
-{
-    float fLength = 0.0f;
-    for (int i = 0; i < iSteps; i++)
-    {
-        PblVector3 v0 = getValue((float)i / (float)iSteps);
-        PblVector3 v1 = getValue((float)(i + 1) / (float)iSteps);
-        float dx = v1.x - v0.x;
-        float dy = v1.y - v0.y;
-        float dz = v1.z - v0.z;
-        fLength += sqrtf(dx * dx + dy * dy + dz * dz);
-    }
-    return fLength;
-}
+

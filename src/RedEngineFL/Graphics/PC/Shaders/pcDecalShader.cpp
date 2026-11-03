@@ -1,3 +1,4 @@
+#include <string.h>
 #include "pcDecalShader.h"
 
 #include "PebbleFL/Common/PblChunk.h"
@@ -19,18 +20,10 @@ pcRedShader::RenderFuncT pcDecalShader::RenderFuncArray[MAX_PIPELINES];
 // FUNCTION: SWBF2 0x0070efa0
 pcDecalShader::pcDecalShader()
 {
-    GetStateFuncArray[PIPELINE_FIXED] = 0;
-    GetStateFuncArray[PIPELINE_PROG1] = 0;
-    GetStateFuncArray[PIPELINE_PROG2] = 0;
-    BeginFuncArray[PIPELINE_FIXED] = 0;
-    BeginFuncArray[PIPELINE_PROG1] = 0;
-    BeginFuncArray[PIPELINE_PROG2] = 0;
-    EndFuncArray[PIPELINE_FIXED] = 0;
-    EndFuncArray[PIPELINE_PROG1] = 0;
-    EndFuncArray[PIPELINE_PROG2] = 0;
-    RenderFuncArray[PIPELINE_FIXED] = 0;
-    RenderFuncArray[PIPELINE_PROG1] = 0;
-    RenderFuncArray[PIPELINE_PROG2] = 0;
+    memset(GetStateFuncArray, 0, sizeof(GetStateFuncArray));
+    memset(BeginFuncArray, 0, sizeof(BeginFuncArray));
+    memset(EndFuncArray, 0, sizeof(EndFuncArray));
+    memset(RenderFuncArray, 0, sizeof(RenderFuncArray));
 
     s_uiID = _Register(s_uiRenderTypeHash, this);
 
@@ -171,16 +164,16 @@ unsigned int pcDecalShader::GetState_Prog1(const RenderItem*) const
     return 0;
 }
 
-// GLOBAL: SWBF2 0x00785370
-static const pcRedShaderDef::FixedFunctionStateT kFixedFunctionStates[1] =
-{
-    { 1, { 0x21, 0x00, 0x00, 0x00 } },
-};
-
 // FUNCTION: SWBF2 0x0070f430
 void pcDecalShader::InitFixedFunctionShaderDef() const
 {
-    GetShaderDef()->InitFixedFunction(0x10, 1, kFixedFunctionStates);
+    // GLOBAL: SWBF2 0x00785370
+    static const pcRedShaderDef::FixedFunctionStateT aFFStates[1] =
+    {
+        { 1, { 0x21, 0x00, 0x00, 0x00 } },
+    };
+
+    GetShaderDef()->InitFixedFunction(0x10, 1, aFFStates);
 }
 
 // FUNCTION: SWBF2 0x0070f450
@@ -314,35 +307,44 @@ void pcDecalShader::_StaticInit() const
 {
 }
 
-// GLOBAL: SWBF2 0x009ca6d0
 // SYNTHETIC: SWBF2 0x0040a3f0
 // `dynamic initializer for 'pcDecalShader::s_uiRenderTypeHash''
+
+// GLOBAL: SWBF2 0x009ca6d0
+// pcDecalShader::s_uiRenderTypeHash
 unsigned int pcDecalShader::s_uiRenderTypeHash = PblHash("Decal");
 
-// GLOBAL: SWBF2 0x009ca6a4
 // SYNTHETIC: SWBF2 0x0040a3b0
 // `dynamic initializer for 'pcDecalShader::s_Factory''
 // SYNTHETIC: SWBF2 0x00769f60
 // `dynamic atexit destructor for 'pcDecalShader::s_Factory''
+
+// GLOBAL: SWBF2 0x009ca6a4
+// pcDecalShader::s_Factory
 pcDecalShader pcDecalShader::s_Factory;
 
-// GLOBAL: SWBF2 0x009ca678
 // SYNTHETIC: SWBF2 0x0040a3d0
 // `dynamic initializer for 'pcDecalShader::s_shaderDef''
 // SYNTHETIC: SWBF2 0x00769f80
 // `dynamic atexit destructor for 'pcDecalShader::s_shaderDef''
+
+// GLOBAL: SWBF2 0x009ca678
+// pcDecalShader::s_shaderDef
 pcRedShaderDef pcDecalShader::s_shaderDef("decal_shader.xml");
 
-// GLOBAL: SWBF2 0x009ca66c
 // SYNTHETIC: SWBF2 0x0040a450
 // `dynamic initializer for 'kuiLinearRamp''
+
+// GLOBAL: SWBF2 0x009ca66c
+// kuiLinearRamp
 static unsigned int kuiLinearRamp = PblHash("linear_ramp");
 
 // SYNTHETIC: SWBF2 0x0040a410
-// `dynamic initializer for 'PblMath::fOneOverHalfPi''
+// PblMath::`dynamic initializer for 'fOneOverHalfPi''
 
 // SYNTHETIC: SWBF2 0x0040a430
-// `dynamic initializer for 'PblMath::fOneOverTwoPi''
+// PblMath::`dynamic initializer for 'fOneOverTwoPi''
 
 // GLOBAL: SWBF2 0x009ca668
+// g_pcDecalShader
 unsigned int g_pcDecalShader;

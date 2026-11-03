@@ -1,3 +1,4 @@
+#include <string.h>
 #include "pcPerVertexDiffuseLightingShader.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "RedEngineFL/Graphics/PC/pcRedPrimitive.h"
@@ -23,18 +24,10 @@ pcRedShader::RenderFuncT pcPerVertexDiffuseLightingShader::RenderFuncArray[MAX_P
 // FUNCTION: SWBF2 0x00710560
 pcPerVertexDiffuseLightingShader::pcPerVertexDiffuseLightingShader()
 {
-    GetStateFuncArray[PIPELINE_FIXED] = 0;
-    GetStateFuncArray[PIPELINE_PROG1] = 0;
-    GetStateFuncArray[PIPELINE_PROG2] = 0;
-    BeginFuncArray[PIPELINE_FIXED] = 0;
-    BeginFuncArray[PIPELINE_PROG1] = 0;
-    BeginFuncArray[PIPELINE_PROG2] = 0;
-    EndFuncArray[PIPELINE_FIXED] = 0;
-    EndFuncArray[PIPELINE_PROG1] = 0;
-    EndFuncArray[PIPELINE_PROG2] = 0;
-    RenderFuncArray[PIPELINE_FIXED] = 0;
-    RenderFuncArray[PIPELINE_PROG1] = 0;
-    RenderFuncArray[PIPELINE_PROG2] = 0;
+    memset(GetStateFuncArray, 0, sizeof(GetStateFuncArray));
+    memset(BeginFuncArray, 0, sizeof(BeginFuncArray));
+    memset(EndFuncArray, 0, sizeof(EndFuncArray));
+    memset(RenderFuncArray, 0, sizeof(RenderFuncArray));
 
     s_uiID = _Register(s_uiRenderTypeHash, this);
 
@@ -157,17 +150,17 @@ unsigned int pcPerVertexDiffuseLightingShader::GetState_Prog1(const RenderItem* 
     return (pItem->flags & 0x10) ? 0 : 4;
 }
 
-// GLOBAL: SWBF2 0x007854a4
-static const pcRedShaderDef::FixedFunctionStateT kFixedFunctionStates[2] =
-{
-    { 1, { 0x21, 0x00, 0x00, 0x00 } },
-    { 1, { 0x21, 0x00, 0x00, 0x00 } },
-};
-
 // FUNCTION: SWBF2 0x00710940
 void pcPerVertexDiffuseLightingShader::InitFixedFunctionShaderDef() const
 {
-    GetShaderDef()->InitFixedFunction(0x28, 2, kFixedFunctionStates);
+    // GLOBAL: SWBF2 0x007854a4
+    static const pcRedShaderDef::FixedFunctionStateT aFFStates[2] =
+    {
+        { 1, { 0x21, 0x00, 0x00, 0x00 } },
+        { 1, { 0x21, 0x00, 0x00, 0x00 } },
+    };
+
+    GetShaderDef()->InitFixedFunction(0x28, 2, aFFStates);
 }
 
 // FUNCTION: SWBF2 0x00710960
@@ -460,10 +453,11 @@ pcPerVertexDiffuseLightingShader pcPerVertexDiffuseLightingShader::s_Factory;
 pcRedShaderDef pcPerVertexDiffuseLightingShader::s_shaderDef("pervertexdiffuselighting_shader.xml");
 
 // SYNTHETIC: SWBF2 0x0040a590
-// `dynamic initializer for 'PblMath::fOneOverTwoPi''
+// PblMath::`dynamic initializer for 'fOneOverTwoPi''
 
 // SYNTHETIC: SWBF2 0x0040a570
-// `dynamic initializer for 'PblMath::fOneOverHalfPi''
+// PblMath::`dynamic initializer for 'fOneOverHalfPi''
 
 // GLOBAL: SWBF2 0x009ca874
+// g_pcPerVertexDiffuseLightingShader
 unsigned int g_pcPerVertexDiffuseLightingShader;

@@ -138,7 +138,8 @@ bool MuzzleFlash::Destroy()
     return true;
 }
 
-namespace MuzzleFlash {
+namespace MuzzleFlash
+{
 
 // FUNCTION: SWBF2 0x005aa6e0
 bool Init()

@@ -31,8 +31,8 @@ public:
   
  
 
-// VTABLE: SWBF2 0x007b0060 (the Entity subobject's 13 slots)
-// VTABLE: SWBF2 0x007b0048 (the Thread subobject's 5 slots, base offset +4)
+// VTABLE: SWBF2 0x007b0060 Entity
+// VTABLE: SWBF2 0x007b0048 Thread
 class VehicleSpawn : public Entity, public Thread
 {
 public:

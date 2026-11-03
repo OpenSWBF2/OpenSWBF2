@@ -19,11 +19,6 @@ const char* Node::GetName()
     return 0;
 }
 
-Node::~Node()
-{
-    Clear();
-    DetachFromParent();
-}
 
 // SYNTHETIC: SWBF2 0x0050b4a0
 // EventManager::Node::`scalar deleting destructor'
@@ -36,73 +31,15 @@ bool LuaPushItem<AI::EventType>(AI::EventType& eType)
     return true;
 }
 
-template <class PARAM>
-CharacterMatchesName<PARAM>::CharacterMatchesName(const char* pcName)
-    : mId(PblHash(pcName))
-{
-}
 
-template <class PARAM>
-CharacterMatchesClass<PARAM>::CharacterMatchesClass(const char* pcName)
-    : mClass(EntityClass::Find(PblHash(pcName)))
-{
-}
 
-template <class PARAM>
-const char* CharacterMatchesName<PARAM>::GetName()
-{
-    return "Name";
-}
 
-template <class PARAM>
-const char* CharacterMatchesTeam<PARAM>::GetName()
-{
-    return "Team";
-}
 
-template <class PARAM>
-const char* CharacterMatchesClass<PARAM>::GetName()
-{
-    return "Class";
-}
 
-template <class PARAM>
-bool CharacterMatchesName<PARAM>::operator()(const Character& character, const PARAM&)
-{
-    const Controllable* pControllable = character.GetControllable();
-    if (!pControllable)
-    {
-        return false;
-    }
-    const EntityEx* pEntity = (const EntityEx*)pControllable->GetEntity();
-    if (!pEntity)
-    {
-        return false;
-    }
-    return pEntity->mId == mId;
-}
 
-template <class PARAM>
-bool CharacterMatchesTeam<PARAM>::operator()(const Character& character, const PARAM&) const
-{
-    return character.mTeamNumber == mTeam;
-}
 
-template <class PARAM>
-bool CharacterMatchesClass<PARAM>::operator()(const Character& character, const PARAM&)
-{
-    const Controllable* pControllable = character.GetControllable();
-    if (!pControllable)
-    {
-        return false;
-    }
-    const Entity* pEntity = pControllable->GetEntity();
-    if (!pEntity)
-    {
-        return false;
-    }
-    return pEntity->GetEntityClass() == mClass;
-}
+
+
 
 // FUNCTION: SWBF2 0x0050b530
 template <>
@@ -136,28 +73,28 @@ CharacterMatchesName<AI::EventType> LuaGetItem<CharacterMatchesName<AI::EventTyp
 template <>
 CharacterMatchesTeam<DamageOwner> LuaGetItem<CharacterMatchesTeam<DamageOwner> >(int iIndex)
 {
-    return CharacterMatchesTeam<DamageOwner>((unsigned int)luaL_checknumber(LuaHelper::mState, iIndex));
+    return CharacterMatchesTeam<DamageOwner>((int)luaL_checknumber(LuaHelper::mState, iIndex));
 }
 
 // FUNCTION: SWBF2 0x0050b610
 template <>
 CharacterMatchesTeam<char> LuaGetItem<CharacterMatchesTeam<char> >(int iIndex)
 {
-    return CharacterMatchesTeam<char>((unsigned int)luaL_checknumber(LuaHelper::mState, iIndex));
+    return CharacterMatchesTeam<char>((int)luaL_checknumber(LuaHelper::mState, iIndex));
 }
 
 // FUNCTION: SWBF2 0x0050b630
 template <>
 CharacterMatchesTeam<GameObject> LuaGetItem<CharacterMatchesTeam<GameObject> >(int iIndex)
 {
-    return CharacterMatchesTeam<GameObject>((unsigned int)luaL_checknumber(LuaHelper::mState, iIndex));
+    return CharacterMatchesTeam<GameObject>((int)luaL_checknumber(LuaHelper::mState, iIndex));
 }
 
 // FUNCTION: SWBF2 0x0050b650
 template <>
 CharacterMatchesTeam<AI::EventType> LuaGetItem<CharacterMatchesTeam<AI::EventType> >(int iIndex)
 {
-    return CharacterMatchesTeam<AI::EventType>((unsigned int)luaL_checknumber(LuaHelper::mState, iIndex));
+    return CharacterMatchesTeam<AI::EventType>((int)luaL_checknumber(LuaHelper::mState, iIndex));
 }
 
 // FUNCTION: SWBF2 0x0050b670
@@ -188,62 +125,11 @@ CharacterMatchesClass<AI::EventType> LuaGetItem<CharacterMatchesClass<AI::EventT
     return CharacterMatchesClass<AI::EventType>(luaL_checkstring(LuaHelper::mState, iIndex));
 }
 
-template <class ITEM, class PARAM>
-bool Event<ITEM, PARAM>::Callback::operator()(ITEM&, PARAM&)
-{
-    return true;
-}
 
-// TEMPLATE: SWBF2 0x0050e0c0
-// EventManager::Event<Character,DamageOwner>::Unregister
 
-template <class ITEM, class PARAM>
-void Event<ITEM, PARAM>::Unregister(Callback& callback)
-{
-    Node* pParent = callback.mParent;
-    callback.DetachFromParent();
-    while (pParent && pParent->mParent && !pParent->mChild)
-    {
-        Node* pNext = pParent->mParent;
-        pParent->DetachFromParent();
-        pParent = pNext;
-    }
-}
-
-template <class ITEM, class PARAM>
-template <class PREDICATE>
-Event<ITEM, PARAM>::Filter<PREDICATE>::Filter(PREDICATE& predicate)
-    : mPredicate(predicate)
-{
-}
 
 // TEMPLATE: SWBF2 0x0050f130
 // EventManager::Event<Character,DamageOwner>::GetFilter<EventManager::CharacterMatchesName<DamageOwner> >
-
-template <class ITEM, class PARAM>
-template <class PREDICATE>
-auto Event<ITEM, PARAM>::GetFilter(PREDICATE& predicate, Callback* pParent)
-    -> Filter<PREDICATE>*
-{
-    if (!pParent)
-    {
-        pParent = &mRoot;
-    }
-
-    for (Node* pNode = pParent->mChild; pNode; pNode = pNode->mSibling)
-    {
-        if (pNode->GetName() == PREDICATE::GetName() &&
-            ((Filter<PREDICATE>*)pNode)->mPredicate == predicate)
-        {
-            pNode->AddRef();
-            return (Filter<PREDICATE>*)pNode;
-        }
-    }
-
-    Filter<PREDICATE>* pFilter = new Filter<PREDICATE>(predicate);
-    pFilter->AttachToParent(pParent);
-    return pFilter;
-}
 
 // TEMPLATE: SWBF2 0x0050e1c0
 // EventManager::LuaCallback<Character,DamageOwner>::LuaCallback<Character,DamageOwner>
@@ -261,14 +147,7 @@ LuaCallback<ITEM, PARAM>::LuaCallback(int iRef)
     }
 }
 
-template <class ITEM, class PARAM>
-LuaCallback<ITEM, PARAM>::~LuaCallback()
-{
-    if (mFunction != -1)
-    {
-        lua_unref(LuaHelper::mState, mFunction);
-    }
-}
+
 
 // SYNTHETIC: SWBF2 0x0050e970
 // EventManager::LuaCallback<Character,DamageOwner>::`scalar deleting destructor'
@@ -303,22 +182,8 @@ bool LuaCallback<ITEM, PARAM>::operator()(ITEM& item, PARAM& param)
 // TEMPLATE: SWBF2 0x0050e310
 // EventManager::Event<Character,DamageOwner>::Filter<EventManager::CharacterMatchesName<DamageOwner> >::GetName
 
-template <class ITEM, class PARAM>
-template <class PREDICATE>
-const char* Event<ITEM, PARAM>::Filter<PREDICATE>::GetName()
-{
-    return PREDICATE::GetName();
-}
-
 // TEMPLATE: SWBF2 0x0050e2c0
 // EventManager::Event<Character,DamageOwner>::Filter<EventManager::CharacterMatchesName<DamageOwner> >::operator()
-
-template <class ITEM, class PARAM>
-template <class PREDICATE>
-bool Event<ITEM, PARAM>::Filter<PREDICATE>::operator()(ITEM& item, PARAM& param)
-{
-    return mPredicate(item, param);
-}
 
 // TEMPLATE: SWBF2 0x0050cf40
 // EventManager::UnregisterLuaCallback<Character,GameObject>
@@ -668,8 +533,13 @@ void Event<Character, AI::EventType>::Callback::Trigger(Character& item, AI::Eve
         if (pChild)
         {
             pChild->AddRef();
-            while (pChild->IsAlive())
+            while (pChild)
             {
+                if (!pChild->IsAlive())
+                {
+                    pChild->Release();
+                    break;
+                }
                 Callback* pNext = (Callback*)pChild->mSibling;
                 if (pNext)
                 {
@@ -678,14 +548,6 @@ void Event<Character, AI::EventType>::Callback::Trigger(Character& item, AI::Eve
                 pChild->Trigger(item, param);
                 pChild->Release();
                 pChild = pNext;
-                if (!pChild)
-                {
-                    break;
-                }
-            }
-            if (pChild)
-            {
-                pChild->Release();
             }
         }
     }
@@ -926,81 +788,103 @@ namespace EventManager
 namespace CharacterEvent
 {
 
-// GLOBAL: SWBF2 0x007eba20
 // SYNTHETIC: SWBF2 0x00402f30
-// `dynamic initializer for 'EventManager::CharacterEvent::mDeath''
+// EventManager::CharacterEvent::`dynamic initializer for 'mDeath''
 // SYNTHETIC: SWBF2 0x00767020
-// `dynamic atexit destructor for 'EventManager::CharacterEvent::mDeath''
+// EventManager::CharacterEvent::`dynamic atexit destructor for 'mDeath''
+
+// GLOBAL: SWBF2 0x007eba20
+// mDeath
 Event<Character, DamageOwner> mDeath("CharacterDeath");
 
-// GLOBAL: SWBF2 0x007eba00
 // SYNTHETIC: SWBF2 0x00402f60
-// `dynamic initializer for 'EventManager::CharacterEvent::mSpawn''
+// EventManager::CharacterEvent::`dynamic initializer for 'mSpawn''
 // SYNTHETIC: SWBF2 0x007670a0
-// `dynamic atexit destructor for 'EventManager::CharacterEvent::mSpawn''
+// EventManager::CharacterEvent::`dynamic atexit destructor for 'mSpawn''
+
+// GLOBAL: SWBF2 0x007eba00
+// mSpawn
 Event<Character, char> mSpawn("CharacterSpawn");
 
-// GLOBAL: SWBF2 0x007eba40
 // SYNTHETIC: SWBF2 0x00402f90
-// `dynamic initializer for 'EventManager::CharacterEvent::mChangeClass''
+// EventManager::CharacterEvent::`dynamic initializer for 'mChangeClass''
 // SYNTHETIC: SWBF2 0x00767120
-// `dynamic atexit destructor for 'EventManager::CharacterEvent::mChangeClass''
+// EventManager::CharacterEvent::`dynamic atexit destructor for 'mChangeClass''
+
+// GLOBAL: SWBF2 0x007eba40
+// mChangeClass
 Event<Character, char> mChangeClass("CharacterChangeClass");
 
-// GLOBAL: SWBF2 0x007eb900
 // SYNTHETIC: SWBF2 0x00402fc0
-// `dynamic initializer for 'EventManager::CharacterEvent::mDispensePowerup''
+// EventManager::CharacterEvent::`dynamic initializer for 'mDispensePowerup''
 // SYNTHETIC: SWBF2 0x007671a0
-// `dynamic atexit destructor for 'EventManager::CharacterEvent::mDispensePowerup''
+// EventManager::CharacterEvent::`dynamic atexit destructor for 'mDispensePowerup''
+
+// GLOBAL: SWBF2 0x007eb900
+// mDispensePowerup
 Event<Character, GameObject> mDispensePowerup("CharacterDispensePowerup");
 
-// GLOBAL: SWBF2 0x007eb8d0
 // SYNTHETIC: SWBF2 0x00402ff0
-// `dynamic initializer for 'EventManager::CharacterEvent::mDispenseControllable''
+// EventManager::CharacterEvent::`dynamic initializer for 'mDispenseControllable''
 // SYNTHETIC: SWBF2 0x00767220
-// `dynamic atexit destructor for 'EventManager::CharacterEvent::mDispenseControllable''
+// EventManager::CharacterEvent::`dynamic atexit destructor for 'mDispenseControllable''
+
+// GLOBAL: SWBF2 0x007eb8d0
+// mDispenseControllable
 Event<Character, GameObject> mDispenseControllable("CharacterDispenseControllable");
 
-// GLOBAL: SWBF2 0x007eb9d0
 // SYNTHETIC: SWBF2 0x00403020
-// `dynamic initializer for 'EventManager::CharacterEvent::mLandedFlyer''
+// EventManager::CharacterEvent::`dynamic initializer for 'mLandedFlyer''
 // SYNTHETIC: SWBF2 0x007672a0
-// `dynamic atexit destructor for 'EventManager::CharacterEvent::mLandedFlyer''
+// EventManager::CharacterEvent::`dynamic atexit destructor for 'mLandedFlyer''
+
+// GLOBAL: SWBF2 0x007eb9d0
+// mLandedFlyer
 Event<Character, GameObject> mLandedFlyer("CharacterLandedFlyer");
 
-// GLOBAL: SWBF2 0x007eb980
 // SYNTHETIC: SWBF2 0x00403050
-// `dynamic initializer for 'EventManager::CharacterEvent::mEnterVehicle''
+// EventManager::CharacterEvent::`dynamic initializer for 'mEnterVehicle''
 // SYNTHETIC: SWBF2 0x00767320
-// `dynamic atexit destructor for 'EventManager::CharacterEvent::mEnterVehicle''
+// EventManager::CharacterEvent::`dynamic atexit destructor for 'mEnterVehicle''
+
+// GLOBAL: SWBF2 0x007eb980
+// mEnterVehicle
 Event<Character, GameObject> mEnterVehicle("CharacterEnterVehicle");
 
-// GLOBAL: SWBF2 0x007eb9a0
 // SYNTHETIC: SWBF2 0x00403080
-// `dynamic initializer for 'EventManager::CharacterEvent::mIssueAICommand''
+// EventManager::CharacterEvent::`dynamic initializer for 'mIssueAICommand''
 // SYNTHETIC: SWBF2 0x007673a0
-// `dynamic atexit destructor for 'EventManager::CharacterEvent::mIssueAICommand''
+// EventManager::CharacterEvent::`dynamic atexit destructor for 'mIssueAICommand''
+
+// GLOBAL: SWBF2 0x007eb9a0
+// mIssueAICommand
 Event<Character, AI::EventType> mIssueAICommand("CharacterIssueAICommand");
 
-// GLOBAL: SWBF2 0x007eb930
 // SYNTHETIC: SWBF2 0x004030b0
-// `dynamic initializer for 'EventManager::CharacterEvent::mKillsChange''
+// EventManager::CharacterEvent::`dynamic initializer for 'mKillsChange''
 // SYNTHETIC: SWBF2 0x00767420
-// `dynamic atexit destructor for 'EventManager::CharacterEvent::mKillsChange''
+// EventManager::CharacterEvent::`dynamic atexit destructor for 'mKillsChange''
+
+// GLOBAL: SWBF2 0x007eb930
+// mKillsChange
 Event<Character, int> mKillsChange("KillsChange");
 
-// GLOBAL: SWBF2 0x007eb960
 // SYNTHETIC: SWBF2 0x004030e0
-// `dynamic initializer for 'EventManager::CharacterEvent::mDeathsChange''
+// EventManager::CharacterEvent::`dynamic initializer for 'mDeathsChange''
 // SYNTHETIC: SWBF2 0x007674a0
-// `dynamic atexit destructor for 'EventManager::CharacterEvent::mDeathsChange''
+// EventManager::CharacterEvent::`dynamic atexit destructor for 'mDeathsChange''
+
+// GLOBAL: SWBF2 0x007eb960
+// mDeathsChange
 Event<Character, int> mDeathsChange("DeathsChange");
 
-// GLOBAL: SWBF2 0x007eb8b0
 // SYNTHETIC: SWBF2 0x00403110
-// `dynamic initializer for 'EventManager::CharacterEvent::mScoreChange''
+// EventManager::CharacterEvent::`dynamic initializer for 'mScoreChange''
 // SYNTHETIC: SWBF2 0x00767520
-// `dynamic atexit destructor for 'EventManager::CharacterEvent::mScoreChange''
+// EventManager::CharacterEvent::`dynamic atexit destructor for 'mScoreChange''
+
+// GLOBAL: SWBF2 0x007eb8b0
+// mScoreChange
 Event<Character, int> mScoreChange("ScoreChange");
 
 }

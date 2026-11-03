@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "ReticuleDisplay.h"
 #include "CameraManager.h"
 #include "Character.h"
@@ -11,7 +12,7 @@
 #include "NetGame.h"
 #include "PebbleFL/Common/PblMatrix.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
-#include "PebbleFL/pc/PblD3DX.h"
+
 
 namespace
 {
@@ -28,17 +29,16 @@ extern bool netIsLocalTurn;
 // GLOBAL: SWBF2 0x01eaeffc
 ReticuleDisplay* ReticuleDisplay::sInstance[1];
 
-// GLOBAL: SWBF2 0x01f3a170
 // SYNTHETIC: SWBF2 0x004061e0
 // `dynamic initializer for 'reticuleInterpolator''
 // SYNTHETIC: SWBF2 0x00769440
 // `dynamic atexit destructor for 'reticuleInterpolator''
+
+// GLOBAL: SWBF2 0x01f3a170
+// reticuleInterpolator
 ReticuleInterpolator reticuleInterpolator[1];
 
-// FUNCTION: SWBF2 0x00630490
-ReticuleInterpolator::~ReticuleInterpolator()
-{
-}
+
 
 // SYNTHETIC: SWBF2 0x006304a0
 // ReticuleInterpolator::`scalar deleting destructor'
@@ -216,20 +216,18 @@ bool ReticuleDisplay::Update(float fDeltaTime)
                     pControllable->mTargetInfo.mAimStart.y + pControllable->mEyeDir.y * 1024.0f,
                     pControllable->mTargetInfo.mAimStart.z + pControllable->mEyeDir.z * 1024.0f);
     PblVector3 vCamera;
-    D3DXVec3TransformCoord(&vCamera, &vAim, &pCamera->_MatrixInverse);
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vCamera), reinterpret_cast<const D3DXVECTOR3*>(&vAim), reinterpret_cast<const D3DXMATRIX*>(&pCamera->_MatrixInverse));
     PblVector3 vPos = pCamera->TransformCameraPointToProjectionSpace(vCamera);
 
     HUD::ElementMap* pMap = HUD::ElementMap::FindByPlayerIndex(mJoystickIndex);
     if ((!pMap || GetMapMode(pMap) != HUD::ElementMap::mode_Large) && !GameLoop::sPauseMode)
     {
-        for (int i = 0; i < 2; ++i)
+        for (unsigned int i = 0; i < 2; ++i)
         {
             vPos.x = 0.5f;
             vPos.y = vPos.y * 0.5f + 0.5f;
             vPos.z = 0.0f;
-            HUD::Event event;
-            event.mClass = HUD::GameEvents::gPlayerEvents[mJoystickIndex].weapons[i].reticulePosition;
-            event.mData.vector3 = &vPos;
+            HUD::Event event(HUD::GameEvents::gPlayerEvents[mJoystickIndex].weapons[i].reticulePosition, &vPos);
             event.Send();
         }
     }

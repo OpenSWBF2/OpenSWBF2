@@ -34,6 +34,8 @@ public:
     TerrainRenderable();
     virtual ~TerrainRenderable();
 
+    void Activate();
+
     virtual void Deactivate();
 
     virtual void Render(int value);

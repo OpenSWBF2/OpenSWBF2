@@ -9,6 +9,7 @@
 #include "GameState.h"
 #include "PauseMenu.h"
 #include "PebbleFL/Common/PblHashTable.h"
+#include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblUnicode.h"
 #include "RedEngineFL/Graphics/PC/pcRedAutoSettings.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
@@ -28,6 +29,7 @@
 #include "SoundFL/source/win/sndengine.h"
 
 #include <math.h>
+#include "GameVoiceChat.h"
 #include "GameVoiceChatNode.h"
 #include "NetMatch.h"
 #include "RedEngineFL/input/RedJoystick.h"
@@ -37,26 +39,35 @@ BOOL CALLBACK EnumObjectsCallback(DIDEVICEOBJECTINSTANCEA const* pObject, void* 
 // GLOBAL: SWBF2 0x01fa9264
 unsigned int mLastDirtyCRC[1];
 
-namespace PblBuildType { extern unsigned char gCreateMemoryProfile; }
+namespace PblBuildType
+{
+extern unsigned char gCreateMemoryProfile;
+}
 
 extern bool pcWindowed;
 extern bool g_bNoRender;
 extern int pcWidth;
 extern int pcHeight;
 
-namespace ParticleSystem { void SetFadeBias(float fBias); }
+namespace ParticleSystem
+{
+void SetFadeBias(float fBias);
+}
 using ParticleSystem::SetFadeBias;
 
-namespace GameVoiceChat { void* FindNodeByDeviceID(); }
 
-// GLOBAL: SWBF2 0x01ef90d0
 // SYNTHETIC: SWBF2 0x00405f40
 // `dynamic initializer for 'mProfiles''
+
+// GLOBAL: SWBF2 0x01ef90d0
+// mProfiles
 PlayerProfile::tProfile mProfiles[1];
 
-// GLOBAL: SWBF2 0x01ef7fd0
 // SYNTHETIC: SWBF2 0x00405f50
 // `dynamic initializer for 'mDefaultProfile''
+
+// GLOBAL: SWBF2 0x01ef7fd0
+// mDefaultProfile
 PlayerProfile::tProfile mDefaultProfile;
 
 // FUNCTION: SWBF2 0x0061c870
@@ -69,7 +80,7 @@ bool PlayerProfile::tProfile::GetUnlockableState(int iIndex)
 void PlayerProfile::tProfile::SetUnlockableState(int iIndex, bool)
 {
     unsigned int bit = 1u << iIndex;
-    if (!(mGameOptions.mUnlockableState & bit))
+    if ((mGameOptions.mUnlockableState & bit) <= 0)
     {
         mGameOptions.mUnlockableState |= bit;
         UpdateProfCRC();
@@ -122,14 +133,22 @@ const unsigned short* PlayerProfile::GetDefaultProfileName()
 {
     return mDefaultProfile.mName;
 }
+namespace PlayerPrefs
+{
+
+// SYNTHETIC: SWBF2 0x00405f30
+// PlayerPrefs::`dynamic initializer for 'mAllUserPrefs''
 
 // GLOBAL: SWBF2 0x01ef7fa0
-// SYNTHETIC: SWBF2 0x00405f30
-// `dynamic initializer for 'PlayerPrefs::mAllUserPrefs''
-namespace PlayerPrefs { OnePrefs mAllUserPrefs[1]; }
+// mAllUserPrefs
+OnePrefs mAllUserPrefs[1];
+}
+namespace PlayerProfile
+{
 
 // GLOBAL: SWBF2 0x01eaedf4
-namespace PlayerProfile { int mCurProfile; }
+int mCurProfile;
+}
 
 // GLOBAL: SWBF2 0x01eaedf8
 bool mSafeMode;
@@ -158,8 +177,8 @@ void PlayerPrefs::InitAll()
     PlayerProfile::ResetAllProfiles();
     PlayerPrefs::mAllUserPrefs[0].Clear();
 
-    PlayerPrefs::mAllUserPrefs[0].mPlayerId = 0;
     PlayerPrefs::mAllUserPrefs[0].mViewport = 0;
+    PlayerPrefs::mAllUserPrefs[0].mPlayerId = 0;
     PlayerPrefs::mAllUserPrefs[0].mJoystick = 0;
 
     PlayerPrefs::mAllUserPrefs[0].pProfile = PlayerProfile::GetProfile(0);
@@ -191,10 +210,10 @@ void PlayerProfile::tGameOpt::ResetToDefault()
     mCockpitCam = false;
     mCockpitCamFlyer = false;
 
+    mCurDiffLevel = (eGAME_DIFFICULTY)PlayerPrefs::gDefaultDifficulty;
+
     mbMetaAllMaps = false;
     mbObjectiveDetails = true;
-
-    mCurDiffLevel = (eGAME_DIFFICULTY)PlayerPrefs::gDefaultDifficulty;
 
     mu8MovieSubtitles = 0;
     mbSoldierHints = false;
@@ -210,12 +229,12 @@ void PlayerProfile::tGameOpt::ResetToDefault()
     mReticuleAlpha = 0.5f;
     mFriendlyFire = 100;
     mUnlockableState = 0;
+    memset(mPadding, 0, sizeof(mPadding));
+
     mbAimAssist = false;
     mbStickyReticule = false;
     mbFlyerRolling = true;
     mbWidescreen = false;
-
-    memset(mPadding, 0, sizeof(mPadding));
 }
 
 // FUNCTION: SWBF2 0x0061c5a0
@@ -245,25 +264,23 @@ bool PlayerProfile::tGameOpt::ResetBindings(int iPort)
 // FUNCTION: SWBF2 0x0061c660
 bool PlayerProfile::tGameOpt::NoteBindingChange()
 {
-    bool bChanged = false;
-    for (int iMode = 0; iMode < 5; ++iMode)
+    bool flag = false;
+    for (int i = 0; i < 5; ++i)
     {
-        RawControllerInputs* pJoystick =
+        RawControllerInputs* pRawInput =
             FLInputManager::s_instance.GetPlayerJoystick(PauseMenu::GetPausingViewport());
-        bool bFlip = pJoystick->GetFlipForMode(iMode);
-        if (mFlip[iMode] != bFlip)
+        if (mFlip[i] != pRawInput->mFlip[i])
         {
-            mFlip[iMode] = bFlip;
-            bChanged = true;
+            mFlip[i] = pRawInput->mFlip[i];
+            flag |= true;
         }
-        bool bAssist = pJoystick->mMouseAssist[iMode];
-        if (mMouseAssist[iMode] != bAssist)
+        if (mMouseAssist[i] != pRawInput->mMouseAssist[i])
         {
-            mMouseAssist[iMode] = bAssist;
-            bChanged = true;
+            mMouseAssist[i] = pRawInput->mMouseAssist[i];
+            flag |= true;
         }
     }
-    return bChanged;
+    return flag;
 }
 
 // FUNCTION: SWBF2 0x0061c6b0
@@ -320,17 +337,17 @@ void PlayerProfile::tSoundOpt::ResetToDefault()
 {
     memset(mPadding, 0, sizeof(mPadding));
 
+    mEffectsEnabled = 1;
+    mu8MasterVol = 8;
+    mBassManagement = 0;
+    mu8BattleSpeechVol = 10;
     mu8MusicVol = 7;
     mu8SFXVol = 7;
     mu8SpeechVol = 9;
     mPlaybackMode = GameSoundEngine::gDefaultSpeakerConfig
                         ? (unsigned char)GameSoundEngine::gDefaultSpeakerConfig
-                        : 3;
+                        : (unsigned char)3;
     mMixerMode = 1;
-    mEffectsEnabled = 1;
-    mu8MasterVol = 8;
-    mBassManagement = 0;
-    mu8BattleSpeechVol = 10;
 }
 
 // FUNCTION: SWBF2 0x0061c900
@@ -398,7 +415,7 @@ void PlayerProfile::tSoundOpt::EnsureIsSafe()
     mEffectsEnabled = 0;
     mPlaybackMode = GameSoundEngine::gDefaultSpeakerConfig
                         ? (unsigned char)GameSoundEngine::gDefaultSpeakerConfig
-                        : 3;
+                        : (unsigned char)3;
 }
 
 // FUNCTION: SWBF2 0x0061ca70
@@ -435,38 +452,10 @@ void PlayerProfile::tPCOpt::SanityCheck()
         ResetToDefault();
     }
 
-    if (renderOptions.mGammaBrightness < 0.2f)
-    {
-        renderOptions.mGammaBrightness = 0.2f;
-    }
-    else if (renderOptions.mGammaBrightness > 0.8f)
-    {
-        renderOptions.mGammaBrightness = 0.8f;
-    }
-    if (renderOptions.mGammaContrast < 0.2f)
-    {
-        renderOptions.mGammaContrast = 0.2f;
-    }
-    else if (renderOptions.mGammaContrast > 0.8f)
-    {
-        renderOptions.mGammaContrast = 0.8f;
-    }
-    if (renderOptions.mFarSceneRangeFactor < 0.0f)
-    {
-        renderOptions.mFarSceneRangeFactor = 0.0f;
-    }
-    else if (renderOptions.mFarSceneRangeFactor > 1.0f)
-    {
-        renderOptions.mFarSceneRangeFactor = 1.0f;
-    }
-    if (renderOptions.mNearSceneFadeFactor < 0.0f)
-    {
-        renderOptions.mNearSceneFadeFactor = 0.0f;
-    }
-    else if (renderOptions.mNearSceneFadeFactor > 1.0f)
-    {
-        renderOptions.mNearSceneFadeFactor = 1.0f;
-    }
+    renderOptions.mGammaBrightness = Clamp(renderOptions.mGammaBrightness, 0.2f, 0.8f);
+    renderOptions.mGammaContrast = Clamp(renderOptions.mGammaContrast, 0.2f, 0.8f);
+    renderOptions.mFarSceneRangeFactor = Clamp(renderOptions.mFarSceneRangeFactor, 0.0f, 1.0f);
+    renderOptions.mNearSceneFadeFactor = Clamp(renderOptions.mNearSceneFadeFactor, 0.0f, 1.0f);
 
     for (unsigned int i = 0; i < sizeof(mPadding); ++i)
     {
@@ -1277,18 +1266,6 @@ void PlayerProfile::tOnlineOpt::ResetToDefault()
     mu8VoiceMask = 0;
     mu8VoiceToTVVol = 0;
     mu8DisplayGamertags = 0xff;
-
-    memset(mGamespyNickname, 0, sizeof(mGamespyNickname));
-    mMustBeZero1 = 0;
-    memset(mGamespyEmail, 0, sizeof(mGamespyEmail));
-    mMustBeZero2 = 0;
-    memset(mGamespyPassword, 0, sizeof(mGamespyPassword));
-    mMustBeZero3 = 0;
-
-    mu8_SaveInfo = 0x11;
-    mHasSeenEULA = false;
-    mu8VoiceRecordVol = 10;
-    mu8VoicePlayVol = 10;
     mu8PlayersSupported = 0;
     mu8TurnsPerSecond = 20;
     mOnlineIcon = 1;
@@ -1300,13 +1277,23 @@ void PlayerProfile::tOnlineOpt::ResetToDefault()
     mMapIdx = 0;
     mEraIdx = 0;
     mServerIdx = 0;
-
     memset(mGameNameFilter, 0, sizeof(mGameNameFilter));
-    mMustBeZero4 = 0;
 
+    memset(mGamespyNickname, 0, sizeof(mGamespyNickname));
+    memset(mGamespyEmail, 0, sizeof(mGamespyEmail));
+    memset(mGamespyPassword, 0, sizeof(mGamespyPassword));
+    mu8_SaveInfo = 0x11;
+    mHasSeenEULA = false;
+    mu8VoiceRecordVol = 10;
+    mu8VoicePlayVol = 10;
     mVoiceRecordDevice = 0xff;
     mVoiceRecordInput = 0xff;
     mVoicePlaybackDevice = 0xff;
+
+    mMustBeZero1 = 0;
+    mMustBeZero2 = 0;
+    mMustBeZero3 = 0;
+    mMustBeZero4 = 0;
 }
 
 // FUNCTION: SWBF2 0x0061cf70
@@ -1353,7 +1340,7 @@ void PlayerProfile::tOnlineOpt::ApplySettings()
     unsigned int uiState = GameState::GetState();
     bool bShellOrNet = uiState == 0x11E1FC01 || NetGame::IsEnabled();
 
-    VoiceChat::Node* pNode = (VoiceChat::Node*)GameVoiceChat::FindNodeByDeviceID();
+    VoiceChat::Node* pNode = (VoiceChat::Node*)GameVoiceChat::FindNodeByDeviceID(iIndex);
     int iPlayer = FLInputManager::s_instance.GetPlayerFromHWPort(iIndex);
     if (uiState != 0x11E1FC01)
     {
@@ -1402,10 +1389,10 @@ void PlayerProfile::tOnlineOpt::ApplySettings()
 // FUNCTION: SWBF2 0x0061d190
 void PlayerProfile::tToolTipOpt::ResetToDefault()
 {
-    memset(mToolTipCount, 0, sizeof(mToolTipCount));
+    memset(mPadding, 0, sizeof(mPadding));
     mOn = false;
     mOff = false;
-    memset(mPadding, 0, sizeof(mPadding));
+    memset(mToolTipCount, 0, sizeof(mToolTipCount));
 }
 
 // FUNCTION: SWBF2 0x0061d1b0
@@ -1445,8 +1432,8 @@ void PlayerProfile::tProfile::ResetProfile()
     mInitialized = false;
 
     mGameOptions.ResetToDefault();
-    memset(mGameOptions.mMedalsGathered, 0, sizeof(mGameOptions.mMedalsGathered));
     memset(mGameOptions.mCampaignProgress, 0, sizeof(mGameOptions.mCampaignProgress));
+    memset(mGameOptions.mMedalsGathered, 0, sizeof(mGameOptions.mMedalsGathered));
 
     ResetBindings();
 
@@ -1463,7 +1450,8 @@ void PlayerProfile::tProfile::ResetProfile()
 void PlayerProfile::tProfile::ResetToDefault()
 {
     ResetProfile();
-    PblUnicode::ustrlcpy(mName, RedLocalizeDB::Find(0x62a0afc0, false), 16);
+    const unsigned short* pStr = RedLocalizeDB::Find(0x62a0afc0, false);
+    PblUnicode::ustrncpy(mName, pStr, 16);
     mName[15] = 0;
 }
 
@@ -1592,15 +1580,7 @@ void PlayerProfile::tProfile::ApplySettings()
 {
     if (this == &mProfiles[0])
     {
-        int iPort = -1;
-        const char* pRecord = (const char*)&PlayerPrefs::mAllUserPrefs[0].mJoystick;
-        for (int i = 0; i < 1; ++i, pRecord += 0x2c)
-        {
-            if (*(const int*)pRecord == 0)
-            {
-                iPort = i;
-            }
-        }
+        int iPort = PlayerPrefs::FindByJoystick(0);
         mGameOptions.ApplySettings(iPort, 0);
     }
 
@@ -1623,12 +1603,11 @@ PlayerProfile::tProfile* PlayerProfile::GetProfile(unsigned int uiIndex)
 // FUNCTION: SWBF2 0x0061d5f0
 PlayerProfile::tProfile* PlayerProfile::GetCurProfile()
 {
-    if ((unsigned int)PlayerProfile::mCurProfile >= sizeof(mProfiles) / sizeof(mProfiles[0]))
+    if ((unsigned int)PlayerProfile::mCurProfile < sizeof(mProfiles) / sizeof(mProfiles[0]))
     {
-        return 0;
+        return &mProfiles[PlayerProfile::mCurProfile];
     }
-
-    return &mProfiles[PlayerProfile::mCurProfile];
+    return 0;
 }
 
 // FUNCTION: SWBF2 0x0061d610
@@ -1642,12 +1621,12 @@ bool PlayerProfile::SetCurProfile(unsigned int uiIndex)
 {
     PlayerProfile::mCurProfile = uiIndex;
 
-    tProfile* pProfile = GetCurProfile();
-    if (!pProfile)
+    if (uiIndex >= sizeof(mProfiles) / sizeof(mProfiles[0]))
     {
         return true;
     }
 
+    tProfile* pProfile = &mProfiles[uiIndex];
     pProfile->ApplySettings();
 
     bool bDirty = pProfile->mIsDirty;
@@ -1698,8 +1677,8 @@ void PlayerProfile::tProfile::InitProfile(unsigned short const* pusName)
         mbFakeProfile = true;
     }
 
-    memset(mGameOptions.mMedalsGathered, 0, sizeof(mGameOptions.mMedalsGathered));
     memset(mGameOptions.mCampaignProgress, 0, sizeof(mGameOptions.mCampaignProgress));
+    memset(mGameOptions.mMedalsGathered, 0, sizeof(mGameOptions.mMedalsGathered));
     mGameOptions.ResetToDefault();
     ResetBindings();
     mSoundOptions.ResetToDefault();
@@ -1714,7 +1693,8 @@ void PlayerProfile::tProfile::InitProfile(unsigned short const* pusName)
     mIsDirty = mName[0] != 0;
 }
 
-namespace PlayerProfile {
+namespace PlayerProfile
+{
 
 // FUNCTION: SWBF2 0x0061d850
 int GetDefaultProfileIdx()
@@ -1723,7 +1703,7 @@ int GetDefaultProfileIdx()
     {
         return -1;
     }
-    for (int i = 0; i < 1; ++i)
+    for (unsigned int i = 0; i < 1; ++i)
     {
         if (mProfiles[i].IsDefaultProfile())
         {
@@ -1734,33 +1714,30 @@ int GetDefaultProfileIdx()
 }
 }
 
-namespace PlayerProfile {
+namespace PlayerProfile
+{
 
 // FUNCTION: SWBF2 0x0061d8a0
-bool tProfile::IsDirty(bool bArg)
+bool tProfile::IsDirty(bool bNoCache)
 {
-    for (int i = 0; i < 1; ++i)
+    if (this != &mProfiles[0])
     {
-        if (this != &mProfiles[i])
-        {
-            continue;
-        }
-        if (PblBuildType::gCreateMemoryProfile)
-        {
-            return false;
-        }
-        if (bArg)
-        {
-            return mIsDirty;
-        }
-        if (!mIsDirty || mLastDirtyCRC[i] == mCRC)
-        {
-            return false;
-        }
-        mLastDirtyCRC[i] = mCRC;
-        return true;
+        return false;
     }
-    return false;
+    if (PblBuildType::gCreateMemoryProfile)
+    {
+        return false;
+    }
+    if (bNoCache)
+    {
+        return mIsDirty;
+    }
+    if (!mIsDirty || mLastDirtyCRC[0] == mCRC)
+    {
+        return false;
+    }
+    mLastDirtyCRC[0] = mCRC;
+    return true;
 }
 }
 

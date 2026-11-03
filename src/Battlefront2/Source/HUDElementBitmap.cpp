@@ -61,11 +61,7 @@ HUD::ElementBitmapBase::Factory::Factory(unsigned int uHashID)
     mEventBitmap.Init("EventBitmap", mProperties, Property::type_Event);
 }
 
-HUD::ElementBitmap::Factory::Factory()
-    : HUD::ElementBitmapBase::Factory(0x46544626u)
-{
-    mName = "Bitmap";
-}
+
 
 // FUNCTION: SWBF2 0x0054deb0
 HUD::ElementBitmapMasked::Factory::Factory()
@@ -74,15 +70,7 @@ HUD::ElementBitmapMasked::Factory::Factory()
     mBitmapMask.Init("Mask", mProperties, Property::type_Texture);
 }
 
-HUD::ElementBitmapMasked::ElementBitmapMasked(const char* const pName,
-                                              Factory::ItemCallback pCallback,
-                                              void* const pUserData)
-    : HUD::ElementBitmapBase(*static_cast<RedMaskedBitmapElement*>(this), pName, pCallback,
-                             pUserData),
-      mMaskTextureName(0)
-{
-    RedMaskedBitmapElement::Enable(false);
-}
+
 
 // FUNCTION: SWBF2 0x0054cb10
 HUD::Item* HUD::ElementBitmapMasked::Factory::CreateItem(const char* const pName,
@@ -97,14 +85,7 @@ HUD::Item* HUD::ElementBitmapMasked::Factory::CreateItem(const char* const pName
     return 0;
 }
 
-// SYNTHETIC: SWBF2 0x0054e1a9
-// [thunk]:HUD::ElementBitmapMasked::`scalar deleting destructor' adjustor{288}
 
-// FUNCTION: SWBF2 0x0054cbc0
-HUD::ElementBitmapMasked::~ElementBitmapMasked()
-{
-    FreeName(&mMaskTextureName);
-}
 
 // FUNCTION: SWBF2 0x0054cc30
 void* HUD::ElementBitmapMasked::GetParent()
@@ -112,8 +93,6 @@ void* HUD::ElementBitmapMasked::GetParent()
     return this;
 }
 
-// SYNTHETIC: SWBF2 0x0054cc40
-// HUD::ElementBitmapMasked::`scalar deleting destructor'
 
 // FUNCTION: SWBF2 0x0054cf20
 HUD::ElementBitmapBase::ElementBitmapBase(RedBitmapElement& element, const char* const pName,
@@ -160,7 +139,7 @@ void HUD::ElementBitmap::SetTexture(const char* pName)
 {
     FreeName(&mBitmapName);
     CopyName(&mBitmapName, pName, 0);
-    SetTexture((unsigned int)PblHash(pName));
+    RedBitmapElement::SetTexture(pName);
 }
 
 // FUNCTION: SWBF2 0x0054d0f0
@@ -282,23 +261,14 @@ bool HUD::ElementBitmapBase::GetProperty(const unsigned int uHashID, void* const
 const char* HUD::ElementBitmapBase::PropertyTranslateEnum(const unsigned int uHashID,
                                                           const unsigned int uValue)
 {
-    if (uHashID == kBitmapHAlignHash)
+    switch (uHashID)
     {
-        return Factory::sBitmapHAlignStrings[uValue];
+    case kBitmapStyleHash: return Factory::sBitmapStyleStrings[uValue];
+    case kBitmapHAlignHash: return Factory::sBitmapHAlignStrings[uValue];
+    case kBitmapVAlignHash: return Factory::sBitmapVAlignStrings[uValue];
+    case kRelativeWidthHeightHash: return gRelativeModeStrings[uValue];
+    default: return HUD::Element::PropertyTranslateEnum(uHashID, uValue);
     }
-    if (uHashID == kRelativeWidthHeightHash)
-    {
-        return gRelativeModeStrings[uValue];
-    }
-    if (uHashID == kBitmapVAlignHash)
-    {
-        return Factory::sBitmapVAlignStrings[uValue];
-    }
-    if (uHashID == kBitmapStyleHash)
-    {
-        return Factory::sBitmapStyleStrings[uValue];
-    }
-    return HUD::Element::PropertyTranslateEnum(uHashID, uValue);
 }
 
 // FUNCTION: SWBF2 0x0054d480
@@ -472,18 +442,18 @@ void HUD::ElementBitmapBase::WriteData(HUD::File& file, unsigned int uTabs)
 // FUNCTION: SWBF2 0x0054dbf0
 void HUD::ElementBitmapBase::EventBitmap(const HUD::Event& event, void* const pData)
 {
-    const EventClass::Type eType = event.GetClass()->GetType();
-    if (eType == EventClass::type_Uint)
+    switch (event.GetClass()->GetType())
     {
-        ((RedBitmapElement*)((ElementBitmapBase*)pData)->mElement)
-            ->SetTexture(event.GetData().uintValue);
-        EventChanged(event, pData);
-    }
-    else if (eType == EventClass::type_Texture)
-    {
+    case EventClass::type_Texture:
         ((RedBitmapElement*)((ElementBitmapBase*)pData)->mElement)
             ->SetTexture((const RedTexture*)event.GetData().texture);
         EventChanged(event, pData);
+        break;
+    case EventClass::type_Uint:
+        ((RedBitmapElement*)((ElementBitmapBase*)pData)->mElement)
+            ->SetTexture(event.GetData().uintValue);
+        EventChanged(event, pData);
+        break;
     }
 }
 
@@ -505,7 +475,7 @@ void HUD::ElementBitmap::CopyToBitmaps(RedBitmapElement* const pBitmaps, unsigne
         bitmap.SetBlendMode(GetBlendMode());
 
         PblMatrix matrix = m_mLocal;
-        *(PblVector3*)matrix.m[3] = bitmap.GetPosition();
+        matrix[3] = bitmap.GetPosition();
         matrix.m[3][3] = 1.0f;
         bitmap.SetMatrix(matrix);
 
@@ -541,7 +511,7 @@ void HUD::ElementBitmapMasked::SetMaskTexture(const char* pName)
 {
     FreeName(&mMaskTextureName);
     CopyName(&mMaskTextureName, pName, 0);
-    SetMaskTexture((unsigned int)PblHash(pName));
+    RedMaskedBitmapElement::SetMaskTexture(pName);
 }
 
 // FUNCTION: SWBF2 0x0054dfb0

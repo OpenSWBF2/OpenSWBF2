@@ -8,16 +8,11 @@
 #include "PebbleFL/Common/PblUnicode.h"
 #include "RedEngineFL/Util/RedLocalizeDB.h"
 
-extern bool g_bNoRender;
-
-// GLOBAL: SWBF2 0x008eed8c
 // SYNTHETIC: SWBF2 0x00407750
 // `dynamic initializer for 'RedTexture::s_textureHashTable''
 
-PblHashTable<RedTexture, 4096> RedTexture::s_textureHashTable;
-
 // GLOBAL: SWBF2 0x008eed88
-int RedTexture::s_textureHashTableNumEntries;
+PblHashTable<RedTexture, 4096> RedTexture::s_textureHashTable;
 
 // GLOBAL: SWBF2 0x007de9a0
 PblList<RedTexture> RedTexture::s_defaultPoolTextures;
@@ -85,9 +80,9 @@ RedTexture::RedTexture()
 // FUNCTION: SWBF2 0x006ba140
 RedTexture::~RedTexture()
 {
-    if (m_uiNameHash && s_textureHashTable.Remove(m_uiNameHash))
+    if (m_uiNameHash)
     {
-        --s_textureHashTableNumEntries;
+        s_textureHashTable.Remove(m_uiNameHash);
     }
 
     if (m_pTexture)
@@ -117,7 +112,6 @@ void PblList<RedTexture>::Clear()
 void RedTexture::Init()
 {
     s_textureHashTable.Clear();
-    s_textureHashTableNumEntries = 0;
 
     RedRenderer::pcRegisterResetFunction(&RedTexture::pcReset);
 
@@ -136,7 +130,6 @@ void RedTexture::Cleanup()
     }
 
     s_textureHashTable.Clear();
-    s_textureHashTableNumEntries = 0;
 }
 
 // FUNCTION: SWBF2 0x006ba370
@@ -166,10 +159,7 @@ RedTexture* RedTexture::Read(PblFileChunk& chunk)
         delete pOld;
     }
 
-    if (s_textureHashTable.Store(pTexture->m_uiNameHash, pTexture))
-    {
-        ++s_textureHashTableNumEntries;
-    }
+    s_textureHashTable.Store(pTexture->m_uiNameHash, pTexture);
 
     return pTexture;
 }
@@ -485,15 +475,9 @@ void RedTexture::pcInit(IDirect3DBaseTexture9* pTexture, unsigned int uiNameHash
     {
         if (s_textureHashTable.Find(uiNameHash))
         {
-            if (s_textureHashTable.Remove(uiNameHash))
-            {
-                --s_textureHashTableNumEntries;
-            }
+            s_textureHashTable.Remove(uiNameHash);
         }
-        if (s_textureHashTable.Store(uiNameHash, this))
-        {
-            ++s_textureHashTableNumEntries;
-        }
+        s_textureHashTable.Store(uiNameHash, this);
     }
 
     if (m_pool == D3DPOOL_DEFAULT)

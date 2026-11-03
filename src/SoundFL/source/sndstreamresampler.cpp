@@ -1,4 +1,3 @@
-#include <new>
 #include <string.h>
 
 #include "sndstreamresampler.h"
@@ -16,7 +15,6 @@ StreamResampler::StreamResampler()
       mPrevSample(0)
 {
 
-    StreamNodeSink::Connect(0, 0);
 }
 
 // FUNCTION: SWBF2 0x0074ceb0
@@ -26,6 +24,7 @@ void StreamResampler::SetBuffer(void* pBuffer, unsigned int uiSize)
     mOutputPacket.mBuffer = pBuffer;
     mOutputPacket.mBufferUsed = 0;
 }
+
 
 // FUNCTION: SWBF2 0x0074cc10
 void StreamResampler::CompletePacket()
@@ -166,7 +165,8 @@ StreamPacket* StreamResampler::GetPacket(unsigned int)
 
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x0074ced0
 void StreamResampler::Update()
@@ -175,7 +175,8 @@ void StreamResampler::Update()
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x0074cbd0
 StreamResampler::~StreamResampler()

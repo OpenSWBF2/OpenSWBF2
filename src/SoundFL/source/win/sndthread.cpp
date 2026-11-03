@@ -24,32 +24,33 @@ bool Thread::Start(void* pArgs)
         uiPriority = 0xFFFFFFFB;
     }
 
-    switch (uiPriority / 0x24924925)
+    int iNativePriority;
+    switch (uiPriority / (0xFFFFFFFFu / 7))
     {
     case 0:
-        SetThreadPriority(hThread, THREAD_PRIORITY_TIME_CRITICAL);
+        iNativePriority = THREAD_PRIORITY_TIME_CRITICAL;
         break;
     case 1:
-        SetThreadPriority(hThread, THREAD_PRIORITY_HIGHEST);
+        iNativePriority = THREAD_PRIORITY_HIGHEST;
         break;
     case 2:
-        SetThreadPriority(hThread, THREAD_PRIORITY_ABOVE_NORMAL);
+        iNativePriority = THREAD_PRIORITY_ABOVE_NORMAL;
         break;
     case 3:
-        SetThreadPriority(hThread, THREAD_PRIORITY_NORMAL);
+        iNativePriority = THREAD_PRIORITY_NORMAL;
         break;
     case 4:
-        SetThreadPriority(hThread, THREAD_PRIORITY_BELOW_NORMAL);
+        iNativePriority = THREAD_PRIORITY_BELOW_NORMAL;
         break;
     case 5:
-        SetThreadPriority(hThread, THREAD_PRIORITY_LOWEST);
+        iNativePriority = THREAD_PRIORITY_LOWEST;
         break;
     default:
-        SetThreadPriority(hThread, THREAD_PRIORITY_IDLE);
+        iNativePriority = THREAD_PRIORITY_IDLE;
         break;
     }
 
-    CloseHandle(hThread);
+    SetThreadPriority(hThread, iNativePriority);
     return true;
 }
 

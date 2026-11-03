@@ -9,6 +9,9 @@
 #include "RedEngineFL/Graphics/PC/Shaders/pcFilterCopyShader.h"
 #include "RedEngineFL/Application/pc/pcRenderHelpers.h"
 
+// GLOBAL: SWBF2 0x007b2930
+// __xmm@41f00000000000000000000000000000
+
 // GLOBAL: SWBF2 0x007e5820
 FilterCopyShaderSample BoxFilter[8] = {
     { 0.125f, -0.5f, -0.5f }, { 0.125f, -0.5f, 0.5f },

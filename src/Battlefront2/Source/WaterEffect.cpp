@@ -24,7 +24,7 @@ void WaterEffect::Init()
 {
     RedWater::Init();
     m_numWaterEffects = 0;
-    for (int i = 0; i < 200; i++)
+    for (unsigned int i = 0; i < 200; i++)
     {
         m_waterEffects[i] = new WaterEffectData;
     }
@@ -44,7 +44,7 @@ void WaterEffect::Cleanup()
         }
     }
 
-    for (int i = 0; i < 200; i++)
+    for (unsigned int i = 0; i < 200; i++)
     {
         if (m_waterEffects[i])
         {
@@ -99,10 +99,7 @@ void WaterEffect::Update(float fDeltaTime)
     }
 }
 
-// FUNCTION: SWBF2 0x00677080
-WaterEffect::~WaterEffect()
-{
-}
+
 
 // FUNCTION: SWBF2 0x00677070
 void WaterEffect::Render(int)

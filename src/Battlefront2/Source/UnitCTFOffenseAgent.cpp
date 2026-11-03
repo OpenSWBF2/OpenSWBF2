@@ -40,11 +40,16 @@ float UnitCTFOffenseAgent::GetUpdateRate() const
     }
 }
 
-// GLOBAL: SWBF2 0x01f99388
 // SYNTHETIC: SWBF2 0x00406c80
 // `dynamic initializer for 'UnitCTFOffenseAgent::rttiHashUnitCTFOffenseAgent''
+// UnitCTFOffenseAgent::rttiHashUnitCTFOffenseAgent
+
+// GLOBAL: SWBF2 0x01f99388
+// UnitCTFOffenseAgent::rttiHashUnitCTFOffenseAgent
 PblHash UnitCTFOffenseAgent::rttiHashUnitCTFOffenseAgent("UnitCTFOffenseAgent");
-char UnitCTFOffenseAgent::rttiNameUnitCTFOffenseAgent[] = "UnitCTFOffenseAgent";
+// GLOBAL: SWBF2 0x0078b7c4
+// UnitCTFOffenseAgent::rttiNameUnitCTFOffenseAgent
+const char UnitCTFOffenseAgent::rttiNameUnitCTFOffenseAgent[] = "UnitCTFOffenseAgent";
 
 // FUNCTION: SWBF2 0x00664730
 UnitCTFOffenseAgent::UnitCTFOffenseAgent(UnitController* pCtrl, const FlagItem* pFlag, const PblVector3& vPos)
@@ -58,13 +63,7 @@ UnitCTFOffenseAgent::UnitCTFOffenseAgent(UnitController* pCtrl, const FlagItem* 
     mDefendCarrierOffset = AIUtil::GetRandomFloat(1.0f, 6.0f);
 }
 
-// SYNTHETIC: SWBF2 0x00664630
-// UnitCTFOffenseAgent::`scalar deleting destructor'
 
-// FUNCTION: SWBF2 0x00664660
-UnitCTFOffenseAgent::~UnitCTFOffenseAgent()
-{
-}
 
 // FUNCTION: SWBF2 0x006647e0
 void UnitCTFOffenseAgent::Kill()
@@ -100,25 +99,11 @@ int GetFormationType(const UnitController* pCtrl)
     return (static_cast<unsigned int>(value - 2) > 1) + 2;
 }
 
-// FUNCTION: SWBF2 0x006645e0
-bool UnitCTFOffenseAgent::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashUnitCTFOffenseAgent ||
-           uRtti == UnitAgent::rttiHashUnitAgent ||
-           uRtti == Agent::rttiHashAgent;
-}
 
-// FUNCTION: SWBF2 0x00664610
-unsigned int UnitCTFOffenseAgent::GetDerivedRtti() const
-{
-    return rttiHashUnitCTFOffenseAgent;
-}
 
-// FUNCTION: SWBF2 0x00664620
-const char* UnitCTFOffenseAgent::GetDerivedRttiName() const
-{
-    return rttiNameUnitCTFOffenseAgent;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00665390
 const char* UnitCTFOffenseAgent::NFINAL_GetStateString(int) const
@@ -145,7 +130,7 @@ namespace
         return 0;
     }
 
-    const CollisionObject* GetCollisionObject(const GameObject* pObject)
+    inline const CollisionObject* GetCollisionObject(const GameObject* pObject)
     {
         return static_cast<const CollisionObject*>(pObject);
     }
@@ -249,27 +234,18 @@ void UnitCTFOffenseAgent::ExitState()
     }
 }
 
-namespace
-{
-
-    Character* FlagCarrier(const GameObject* pFlag)
-    {
-        return static_cast<const EntityItem*>(pFlag)->mOwner;
-    }
-}
-
 // FUNCTION: SWBF2 0x00664880
 bool UnitCTFOffenseAgent::IsFlagNeutral() const
 {
     const GameObject* pFlag = mFlag;
-    return pFlag && !FlagCarrier(pFlag);
+    return pFlag && !static_cast<const EntityItem*>(pFlag)->GetOwner();
 }
 
 // FUNCTION: SWBF2 0x006648c0
 bool UnitCTFOffenseAgent::IsFlagInMyHands() const
 {
     const GameObject* pFlag = mFlag;
-    return pFlag && FlagCarrier(pFlag) == mCtrl->mOwner->mCharacter;
+    return pFlag && static_cast<const EntityItem*>(pFlag)->GetOwner() == mCtrl->mOwner->mCharacter;
 }
 
 // FUNCTION: SWBF2 0x00664910
@@ -280,7 +256,7 @@ bool UnitCTFOffenseAgent::IsFlagInAlliedHandsButNotMine() const
     {
         return false;
     }
-    const Character* pCarrier = FlagCarrier(pFlag);
+    const Character* pCarrier = static_cast<const EntityItem*>(pFlag)->GetOwner();
     if (!pCarrier)
     {
         return false;
@@ -301,7 +277,7 @@ bool UnitCTFOffenseAgent::IsFlagInEnemyHands() const
     {
         return false;
     }
-    const Character* pCarrier = FlagCarrier(pFlag);
+    const Character* pCarrier = static_cast<const EntityItem*>(pFlag)->GetOwner();
     if (!pCarrier)
     {
         return false;
@@ -315,7 +291,7 @@ void UnitCTFOffenseAgent::FaceTargetIfClose(ControllableHeight eHeight)
     AILowLevel& lowLevel = mCtrl->GetLowLevel();
     lowLevel.SetHeight(eHeight);
     const PblMatrix& myMat = mCtrl->mOwner->GetMatrix();
-    AttackHelper* pAttack = reinterpret_cast<AttackHelper*>(mAttackHelper);
+    AttackHelper* pAttack = &mAttackHelper;
     const GameObject* pTarget = pAttack->GetVisibleTarget();
     PblVector3 vLastSeen = pAttack->HasTarget() ? pAttack->GetLastSeenTargetPos() : PblVector3(0, 0, 0);
 
@@ -380,7 +356,7 @@ void UnitCTFOffenseAgent::EnterState()
         }
         else if (IsFlagInAlliedHandsButNotMine())
         {
-            Controllable* pCarrier = FlagCarrier(pFlag)->GetControllable();
+            Controllable* pCarrier = static_cast<const EntityItem*>(pFlag)->GetOwner()->GetControllable();
             if (pCarrier)
             {
                 GameObject* pCarrierObj = pCarrier->GetGameObject();
@@ -409,7 +385,7 @@ void UnitCTFOffenseAgent::EnterState()
 
     case 2:
         mCtrl->GetLowLevel().SetNavigator_Goto(
-            *reinterpret_cast<const PblVector3*>(&GetCollisionObject(mFlag.GetValidObject())->GetMatrix().m[3][0]),
+            *reinterpret_cast<const PblVector3*>(&GetCollisionObject(static_cast<const GameObject*>(mFlag))->GetMatrix().m[3][0]),
             0, false, false);
         break;
 
@@ -430,7 +406,7 @@ void UnitCTFOffenseAgent::EnterState()
     case 7:
     {
         const RedRegion* pHome = reinterpret_cast<const FlagItem*>(pFlag)->GetHomeRegion();
-        PblVector3 vPos = pHome ? *reinterpret_cast<const PblVector3*>(&pHome->mMatrix.m[3][0])
+        PblVector3 vPos = pHome ? pHome->mMatrix.GetTranslation()
                                 : GetCollisionObject(pFlag)->GetPosition();
         mDefendHelper.Init(AI::GoalTarget(vPos));
         break;
@@ -461,7 +437,7 @@ void UnitCTFOffenseAgent::UpdateStatePostVision(float dt)
 
     if (mCurState != 8)
     {
-        reinterpret_cast<AttackHelper*>(mAttackHelper)->Update();
+        mAttackHelper.Update();
     }
 
     switch (mCurState)
@@ -496,7 +472,7 @@ void UnitCTFOffenseAgent::UpdateStatePostVision(float dt)
             SetNextState(1);
             return;
         }
-        Character* pCarrier = FlagCarrier(pFlag);
+        Character* pCarrier = static_cast<const EntityItem*>(pFlag)->GetOwner();
         if (!pCarrier || !pCarrier->GetControllable())
         {
             break;
@@ -517,7 +493,7 @@ void UnitCTFOffenseAgent::UpdateStatePostVision(float dt)
             SetNextState(1);
             return;
         }
-        GameObject* pCarrierObj = FlagCarrier(pFlag)->GetControllable()->GetGameObject();
+        GameObject* pCarrierObj = static_cast<const EntityItem*>(pFlag)->GetOwner()->GetControllable()->GetGameObject();
         AIUtil::Slide(mCtrl->mOwner->GetGameObject(), pCarrierObj, false, &mPathing, &mPathTime, 4.0f, 3.0f);
         FaceTargetIfClose(HEIGHT_STAND);
         break;

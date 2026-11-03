@@ -8,7 +8,8 @@
 namespace Snd
 {
 
-class StreamSource : public StreamNodeSource, public StreamNode
+// VTABLE: SWBF2 0x00786c0c
+class StreamSource : public StreamNode, public StreamNodeSource
 {
 public:
 
@@ -68,8 +69,8 @@ public:
     SegmentProperties mNextSegment;
     File mFile;
     Semaphore mLock;
-    unsigned char mFlags;
-    unsigned char mPacketReadPos;
+    volatile unsigned char mFlags;
+    volatile unsigned char mPacketReadPos;
     unsigned char mPacketLockPos;
     unsigned char mNumPackets;
     unsigned int mPacketSize;

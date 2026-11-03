@@ -20,24 +20,13 @@ void HUD::ElementGroupBase::GetSize(float& fWidth, float& fHeight)
     fHeight = GetHeightPixelsFloat();
 }
 
-// FUNCTION: SWBF2 0x00543f40
-HUD::ElementGroup::ElementGroup(const char* const pName, Factory::ItemCallback pCallback,
-                                void* const pUserData)
-    : HUD::ElementGroupBase(*static_cast<RedGroupElement*>(this), pName, pCallback, pUserData)
-{
-    RedGroupElement::Enable(false);
-}
+
 
 // SYNTHETIC: SWBF2 0x005440c0
 // HUD::ElementGroup::`scalar deleting destructor'
 
 // SYNTHETIC: SWBF2 0x00544937
-// [thunk]:HUD::ElementGroup::`scalar deleting destructor' adjustor{368}
-// FUNCTION: SWBF2 0x00543fd0
-HUD::ElementGroup::~ElementGroup()
-{
-    ElementGroupBase::RemoveAllElements();
-}
+// ??_EElementGroup@HUD@@WBHA@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x00544040
 void* HUD::ElementGroup::GetParent()
@@ -87,7 +76,7 @@ HUD::BorderedBox::BorderedBox(const char* const pName, Factory::ItemCallback pCa
 // HUD::BorderedBox::`scalar deleting destructor'
 
 // SYNTHETIC: SWBF2 0x0054492c
-// [thunk]:HUD::BorderedBox::`scalar deleting destructor' adjustor{368}
+// ??_EBorderedBox@HUD@@WBHA@AEPAXI@Z
 // FUNCTION: SWBF2 0x005444a0
 HUD::BorderedBox::~BorderedBox()
 {

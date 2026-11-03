@@ -346,6 +346,8 @@ static TObject *newkey (lua_State *L, Table *t, const TObject *key) {
   return val;
 }
 
+// LIBRARY: SWBF2 0x006a4a00
+// luaH_getany
 static const TObject *luaH_getany (Table *t, const TObject *key) {
   if (ttisnil(key)) return &luaO_nilobject;
   else {

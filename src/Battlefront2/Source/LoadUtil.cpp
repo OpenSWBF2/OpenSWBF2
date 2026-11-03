@@ -89,9 +89,21 @@ int sUnknownChunkSeen;
 class PblMatrix;
 extern PblMatrix gMatrixIdentity;
 
-namespace HUD { namespace Manager { void Load(PblFileChunk& chunk); } }
-namespace PropGenerator { void Read(PblFileChunk& chunk); }
-namespace SkyManager { void Read(PblFileChunk& chunk); }
+namespace HUD
+{
+    namespace Manager
+    {
+        void Load(PblFileChunk& chunk);
+    }
+}
+namespace PropGenerator
+{
+    void Read(PblFileChunk& chunk);
+}
+namespace SkyManager
+{
+    void Read(PblFileChunk& chunk);
+}
 
 extern bool sLoadNestedLevels;
 
@@ -104,9 +116,6 @@ char RedStack::sMem[40960];
 // GLOBAL: SWBF2 0x009aba40
 int RedStack::sMemIdx;
 
-pvs::PortalReader::~PortalReader()
-{
-}
 
 // FUNCTION: SWBF2 0x00578ff0
 void FileBlockCallback()
@@ -535,20 +544,6 @@ bool LoadUtil::ReadDataFile(PblFile& file, void* pUnused, unsigned int const* pu
     return true;
 }
 
-static void ReadTransform(PblFile* pFile, PblMatrix& mMatrix)
-{
-    for (int iRow = 0; iRow < 4; iRow++)
-    {
-        const float fX = pFile->ReadFloat();
-        const float fY = pFile->ReadFloat();
-        const float fZ = pFile->ReadFloat();
-        mMatrix.m[iRow][0] = fX;
-        mMatrix.m[iRow][1] = fY;
-        mMatrix.m[iRow][2] = fZ;
-        mMatrix.m[iRow][3] = (iRow == 3) ? 1.0f : 0.0f;
-    }
-}
-
 // FUNCTION: SWBF2 0x00579c50
 void LoadUtil::ProcessWorld(PblFileChunk& chunk)
 {
@@ -616,8 +611,25 @@ Entity* LoadUtil::ProcessEntityInfo(PblFileChunk& chunk)
                 PblHash(child.ReadString(acName, sizeof(acName))));
             break;
         case 0x4D524658:
-            ReadTransform(child._pFile, desc.mMatrix);
+        {
+            float x = child._pFile->ReadFloat();
+            float y = child._pFile->ReadFloat();
+            float z = child._pFile->ReadFloat();
+            desc.mMatrix.SetXAxis(x, y, z, 0.0f);
+            x = child._pFile->ReadFloat();
+            y = child._pFile->ReadFloat();
+            z = child._pFile->ReadFloat();
+            desc.mMatrix.SetYAxis(x, y, z, 0.0f);
+            x = child._pFile->ReadFloat();
+            y = child._pFile->ReadFloat();
+            z = child._pFile->ReadFloat();
+            desc.mMatrix.SetZAxis(x, y, z, 0.0f);
+            x = child._pFile->ReadFloat();
+            y = child._pFile->ReadFloat();
+            z = child._pFile->ReadFloat();
+            desc.mMatrix.SetTranslation(x, y, z, 1.0f);
             break;
+        }
         }
     }
 
@@ -688,8 +700,25 @@ RedRegion* LoadUtil::ProcessRegionInfo(PblFileChunk& chunk)
             break;
         }
         case 0x4D524658:
-            ReadTransform(child._pFile, desc.mMatrix);
+        {
+            float x = child._pFile->ReadFloat();
+            float y = child._pFile->ReadFloat();
+            float z = child._pFile->ReadFloat();
+            desc.mMatrix.SetXAxis(x, y, z, 0.0f);
+            x = child._pFile->ReadFloat();
+            y = child._pFile->ReadFloat();
+            z = child._pFile->ReadFloat();
+            desc.mMatrix.SetYAxis(x, y, z, 0.0f);
+            x = child._pFile->ReadFloat();
+            y = child._pFile->ReadFloat();
+            z = child._pFile->ReadFloat();
+            desc.mMatrix.SetZAxis(x, y, z, 0.0f);
+            x = child._pFile->ReadFloat();
+            y = child._pFile->ReadFloat();
+            z = child._pFile->ReadFloat();
+            desc.mMatrix.SetTranslation(x, y, z, 1.0f);
             break;
+        }
         }
     }
 
@@ -731,12 +760,13 @@ void LoadUtil::ProcessRegion(PblFileChunk& chunk)
 
 bool __cdecl IsCoverHintFilteringEnabled();
 
-void* BaseHint::operator new(size_t uSize)
+inline void* BaseHint::operator new(unsigned int uSize)
 {
     return sMemoryPool.Allocate(uSize);
 }
 
-namespace LoadUtil {
+namespace LoadUtil
+{
 
 // FUNCTION: SWBF2 0x0057a3e0
 BaseHint* ProcessHintInfo(PblFileChunk& chunk)
@@ -757,8 +787,25 @@ BaseHint* ProcessHintInfo(PblFileChunk& chunk)
             uType = PblHash(child.ReadString(acName, sizeof(acName)));
             break;
         case 0x4D524658:
-            ReadTransform(child._pFile, desc.mMatrix);
+        {
+            float x = child._pFile->ReadFloat();
+            float y = child._pFile->ReadFloat();
+            float z = child._pFile->ReadFloat();
+            desc.mMatrix.SetXAxis(x, y, z, 0.0f);
+            x = child._pFile->ReadFloat();
+            y = child._pFile->ReadFloat();
+            z = child._pFile->ReadFloat();
+            desc.mMatrix.SetYAxis(x, y, z, 0.0f);
+            x = child._pFile->ReadFloat();
+            y = child._pFile->ReadFloat();
+            z = child._pFile->ReadFloat();
+            desc.mMatrix.SetZAxis(x, y, z, 0.0f);
+            x = child._pFile->ReadFloat();
+            y = child._pFile->ReadFloat();
+            z = child._pFile->ReadFloat();
+            desc.mMatrix.SetTranslation(x, y, z, 1.0f);
             break;
+        }
         }
     }
 
@@ -823,7 +870,8 @@ void LoadUtil::ProcessHint(PblFileChunk& chunk)
     }
 }
 
-namespace LoadUtil {
+namespace LoadUtil
+{
 
 // FUNCTION: SWBF2 0x0057a790
 void ProcessBarrierInfo(PblFileChunk& chunk)
@@ -858,9 +906,25 @@ void ProcessBarrierInfo(PblFileChunk& chunk)
             break;
         }
         case 0x4D524658:
-            ReadTransform(child._pFile, mMatrix);
-            mMatrix.m[3][2] = -mMatrix.m[3][2];
+        {
+            float x = child._pFile->ReadFloat();
+            float y = child._pFile->ReadFloat();
+            float z = child._pFile->ReadFloat();
+            mMatrix.SetXAxis(x, y, z, 0.0f);
+            x = child._pFile->ReadFloat();
+            y = child._pFile->ReadFloat();
+            z = child._pFile->ReadFloat();
+            mMatrix.SetYAxis(x, y, z, 0.0f);
+            x = child._pFile->ReadFloat();
+            y = child._pFile->ReadFloat();
+            z = child._pFile->ReadFloat();
+            mMatrix.SetZAxis(x, y, z, 0.0f);
+            x = child._pFile->ReadFloat();
+            y = child._pFile->ReadFloat();
+            z = child._pFile->ReadFloat();
+            mMatrix.SetTranslation(x, y, -z, 1.0f);
             break;
+        }
         }
     }
 
@@ -889,7 +953,8 @@ void LoadUtil::ProcessBarrier(PblFileChunk& chunk)
     }
 }
 
-// FUNCTION: SWBF2 0x00446c00
+// TEMPLATE: SWBF2 0x00446c00
+// Factory<Entity,EntityClass,EntityDesc>::Find
 template EntityClass* Factory<Entity, EntityClass, EntityDesc>::Find(unsigned int);
 
 // TEMPLATE: SWBF2 0x00578f10

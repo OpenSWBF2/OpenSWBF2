@@ -30,7 +30,6 @@ int GetStatsPageJoystick();
 
 }
 
-const char* GetSideIcon(int iSide);
 int __cdecl TeamStatSortCallback(const void* pA, const void* pB);
 extern int gTeamStatsSortMode;
 extern bool gTeamStatsSortInvert;

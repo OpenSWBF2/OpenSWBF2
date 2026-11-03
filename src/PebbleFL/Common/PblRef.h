@@ -13,28 +13,30 @@ public:
 
     virtual void Kill();
 
+    // SYNTHETIC: SWBF2 0x0050b410
+    // PblRef::~PblRef
     virtual ~PblRef()
     {
         mValidFlag = 0;
         mAliveFlag = 0;
     }
 
-    unsigned short AddRef()
+    unsigned short AddRef() const
     {
         ++mRefCount;
         return mRefCount;
     }
 
     // FUNCTION: SWBF2 0x0040cbb0
-    unsigned short Release()
+    unsigned short Release() const
     {
         --mRefCount;
-        unsigned short count = (unsigned short)mRefCount;
-        if (count == 0)
+        if (mRefCount == 0)
         {
             delete this;
+            return 0;
         }
-        return count;
+        return mRefCount;
     }
 
     bool IsAlive() const
@@ -44,7 +46,7 @@ public:
 
     unsigned short mValidFlag : 1;
     unsigned short mAliveFlag : 1;
-    unsigned short mRefCount : 14;
+    mutable unsigned short mRefCount : 14;
 };
  
 

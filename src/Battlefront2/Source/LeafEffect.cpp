@@ -29,17 +29,7 @@ public:
                                 int iMaxObjects, const GameObject* pIgnore, int iMask);
 };
 
-static inline PblQuaternion PblQuaternion_FromAxisAngle(const PblVector3& vAxis, float fAngle)
-{
-    float fSin, fCos;
-    PblMath::SinCos(&fSin, &fCos, fAngle * 0.5f);
-    PblQuaternion q;
-    q._fX = vAxis.x * fSin;
-    q._fY = vAxis.y * fSin;
-    q._fZ = vAxis.z * fSin;
-    q._fS = fCos;
-    return q;
-}
+
 
 // FUNCTION: SWBF2 0x0056b370
 FallingLeafParticle::FallingLeafParticle()
@@ -74,17 +64,10 @@ void FallingLeafParticle::RespawnLeaf(const PblVector3& vPos, LeafSpawner* pSpaw
     if (fAngle > EPSILON)
     {
         float fInv = 1.0f / fAngle;
-        q = q * PblQuaternion_FromAxisAngle(PblVector3(vOmega.x * fInv, vOmega.y * fInv, vOmega.z * fInv), fAngle);
+        q = q * PblQuaternion(PblVector3(vOmega.x * fInv, vOmega.y * fInv, vOmega.z * fInv), fAngle);
     }
 
-    PblQuaternion qUnit;
-    PblMatrix mNew;
-    D3DXQuaternionNormalize((D3DXQUATERNION*)&qUnit, (const D3DXQUATERNION*)&q);
-    D3DXMatrixRotationQuaternion((D3DXMATRIX*)&mNew, (const D3DXQUATERNION*)&qUnit);
-    mNew.m[3][0] = vPos.x;
-    mNew.m[3][1] = vPos.y;
-    mNew.m[3][2] = vPos.z;
-    mNew.m[3][3] = 1.0f;
+    PblMatrix mNew(q, vPos);
     mMatrix = mNew;
     mInitMatrix = mNew;
     mIsValid = true;
@@ -115,8 +98,10 @@ void FallingLeafParticle::SetConstantWindVelocity(const PblVector3& vVelocity)
 void FallingLeafParticle::DoFlutterUpdate(float fDeltaTime)
 {
 
+    // GLOBAL: SWBF2 0x01faaa58
     static PblVector3 sFlutterSinkVelocity(0.0f, -0.5f, 0.0f);
 
+    // GLOBAL: SWBF2 0x01faaa68
     static float sFlutterMaxRockAngle = PblMath::fPi * 0.25f;
 
     float fSin = PblMath::Sin(mFallTime * 2.0f);
@@ -128,21 +113,14 @@ void FallingLeafParticle::DoFlutterUpdate(float fDeltaTime)
     if (fAngle > EPSILON)
     {
         float fInv = 1.0f / fAngle;
-        q = q * PblQuaternion_FromAxisAngle(PblVector3(vOmega.x * fInv, vOmega.y * fInv, vOmega.z * fInv), fAngle);
+        q = q * PblQuaternion(PblVector3(vOmega.x * fInv, vOmega.y * fInv, vOmega.z * fInv), fAngle);
     }
     if (mRandomness < 0.15f)
     {
-        q = q * PblQuaternion_FromAxisAngle(PblVector3(0.0f, 1.0f, 0.0f), (mRandomness - 1.0f) * 10.0f * mFallTime);
+        q = q * PblQuaternion(PblVector3(0.0f, 1.0f, 0.0f), (mRandomness - 1.0f) * 10.0f * mFallTime);
     }
 
-    PblQuaternion qUnit;
-    PblMatrix mNew;
-    D3DXQuaternionNormalize((D3DXQUATERNION*)&qUnit, (const D3DXQUATERNION*)&q);
-    D3DXMatrixRotationQuaternion((D3DXMATRIX*)&mNew, (const D3DXQUATERNION*)&qUnit);
-    mNew.m[3][0] = vPos.x;
-    mNew.m[3][1] = vPos.y;
-    mNew.m[3][2] = vPos.z;
-    mNew.m[3][3] = 1.0f;
+    PblMatrix mNew(q, vPos);
     mMatrix = mNew;
 
     float fSlide = fSin * -1.8f;
@@ -166,17 +144,10 @@ void FallingLeafParticle::DoTumbleUpdate(float fDeltaTime)
     if (fAngle > EPSILON)
     {
         float fInv = 1.0f / fAngle;
-        q = q * PblQuaternion_FromAxisAngle(PblVector3(vOmega.x * fInv, vOmega.y * fInv, vOmega.z * fInv), fAngle);
+        q = q * PblQuaternion(PblVector3(vOmega.x * fInv, vOmega.y * fInv, vOmega.z * fInv), fAngle);
     }
 
-    PblQuaternion qUnit;
-    PblMatrix mNew;
-    D3DXQuaternionNormalize((D3DXQUATERNION*)&qUnit, (const D3DXQUATERNION*)&q);
-    D3DXMatrixRotationQuaternion((D3DXMATRIX*)&mNew, (const D3DXQUATERNION*)&qUnit);
-    mNew.m[3][0] = vPos.x;
-    mNew.m[3][1] = vPos.y;
-    mNew.m[3][2] = vPos.z;
-    mNew.m[3][3] = 1.0f;
+    PblMatrix mNew(q, vPos);
     mMatrix = mNew;
 
     float fSpeed = mRandomness * 0.3f + 0.3f;
@@ -249,21 +220,14 @@ bool FallingLeafParticle::Update(float fDeltaTime)
         if (fAngle > EPSILON)
         {
             float fInv = 1.0f / fAngle;
-            q = q * PblQuaternion_FromAxisAngle(PblVector3(vOmega.x * fInv, vOmega.y * fInv, vOmega.z * fInv), fAngle);
+            q = q * PblQuaternion(PblVector3(vOmega.x * fInv, vOmega.y * fInv, vOmega.z * fInv), fAngle);
         }
 
         vPos.x += (mConstantWindVelocity.x + mWindVelocity.x) * fDeltaTime;
         vPos.y += (mWindVelocity.y + mConstantWindVelocity.y) * fDeltaTime;
         vPos.z += (mWindVelocity.z + mConstantWindVelocity.z) * fDeltaTime;
 
-        PblQuaternion qUnit;
-        PblMatrix mNew;
-        D3DXQuaternionNormalize((D3DXQUATERNION*)&qUnit, (const D3DXQUATERNION*)&q);
-        D3DXMatrixRotationQuaternion((D3DXMATRIX*)&mNew, (const D3DXQUATERNION*)&qUnit);
-        mNew.m[3][0] = vPos.x;
-        mNew.m[3][1] = vPos.y;
-        mNew.m[3][2] = vPos.z;
-        mNew.m[3][3] = 1.0f;
+        PblMatrix mNew(q, vPos);
         mMatrix = mNew;
 
         float fDamp = fDeltaTime * 2.0f;
@@ -300,9 +264,7 @@ bool FallingLeafParticle::Update(float fDeltaTime)
 void FallingLeafParticle::AddWindVelocity(const PblVector3& vVelocity)
 {
     float fSpeed = sqrtf(vVelocity.x * vVelocity.x + vVelocity.y * vVelocity.y + vVelocity.z * vVelocity.z);
-    mWindVelocity.x += vVelocity.x * 0.9f;
-    mWindVelocity.y += vVelocity.y * 0.9f;
-    mWindVelocity.z += vVelocity.z * 0.9f;
+    mWindVelocity += vVelocity * 0.9f;
     mWindVelocity.x += 0.0f;
     mWindVelocity.y += fSpeed * 0.4f;
     mWindVelocity.z += 0.0f;

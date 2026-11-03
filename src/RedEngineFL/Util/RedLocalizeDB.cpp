@@ -15,24 +15,30 @@ FLLocalizeEntry* mPatchLocalizeFile;
 
 void __cdecl PblTraceP(const char* Format, ...);
 
+// GLOBAL: SWBF2 0x00940bec
+// mMasterLocalizeFile
 FLLocalizeEntry* mMasterLocalizeFile;
 
+// GLOBAL: SWBF2 0x00940bf4
 bool gbDeterminedLang;
+// GLOBAL: SWBF2 0x00940bf8
 eGAMELANGUAGE gUseLang;
-int mSkipCount;
-
-int sMasterLocalizeHashNumEntries;
-// GLOBAL: SWBF2 0x00940c04
+// GLOBAL: SWBF2 0x00940bfc
+static int mSkipCount;
 // SYNTHETIC: SWBF2 0x00407d60
 // `dynamic initializer for 'sMasterLocalizeHash''
 
+// GLOBAL: SWBF2 0x00940c00
 PblHashTable<FLLocalizeEntry, 16384> sMasterLocalizeHash;
 
+// GLOBAL: SWBF2 0x00960c04
 char const* gLanguageStr;
 
+// GLOBAL: SWBF2 0x007def94
 eGAMELANGUAGE gForceLang = eLANG_AUTODETERMINE;
 
-namespace PblBuildType {
+namespace PblBuildType
+{
 // GLOBAL: SWBF2 0x007e2e00
 eGAMELANGUAGE gForceLang1 = eLANG_UNRESTRICTED;
 // GLOBAL: SWBF2 0x007e2e04
@@ -47,6 +53,12 @@ bool gDemoBuild;
 
 namespace RedLocalizeDB
 {
+
+// FUNCTION: SWBF2 0x006c6010
+void SetSkipCount(int count)
+{
+    mSkipCount = count;
+}
 
 // FUNCTION: SWBF2 0x006c5c30
 void PickLanguage()
@@ -204,10 +216,9 @@ void ReadMasterLocalizeFile(PblFileChunk& chunk)
     for (FLLocalizeEntry* pEntry = mMasterLocalizeFile; pEntry->mEntryLen;
          pEntry = (FLLocalizeEntry*)((char*)pEntry + pEntry->mEntryLen))
     {
-        if (!sMasterLocalizeHash.Find(pEntry->mEntryHash)
-            && sMasterLocalizeHash.Store(pEntry->mEntryHash, pEntry))
+        if (!sMasterLocalizeHash.Find(pEntry->mEntryHash))
         {
-            ++sMasterLocalizeHashNumEntries;
+            sMasterLocalizeHash.Store(pEntry->mEntryHash, pEntry);
         }
     }
 }
@@ -218,7 +229,6 @@ void ReadMasterLocalizeFile(PblFileChunk& chunk)
 void RedLocalizeDB::Reset()
 {
     sMasterLocalizeHash.Clear();
-    sMasterLocalizeHashNumEntries = 0;
     mMasterLocalizeFile = 0;
     mPatchLocalizeFile = 0;
 }

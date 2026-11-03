@@ -8,6 +8,16 @@
 namespace Snd
 {
 
+// FUNCTION: SWBF2 0x00738380
+Bus* SourceBus::GetBus() const { return mBus; }
+
+
+// FUNCTION: SWBF2 0x00738370
+SourceBus::~SourceBus()
+{
+}
+
+
 // FUNCTION: SWBF2 0x00738350
 SourceBus::SourceBus()
     : mBus(&Bus::smRootBus),
@@ -36,9 +46,11 @@ void SourceBus::Stop(SourceTransport* pTransport)
         return;
     }
 
-    if (mBus->mAttenuateBus && --mBus->mAttenuationRefCount == 0)
+    Bus* const pBus = mBus;
+    Bus* const pAttenuateBus = pBus->mAttenuateBus;
+    if (pAttenuateBus && --pBus->mAttenuationRefCount == 0)
     {
-        mBus->mAttenuateBus->Fade(mBus->mAttenuationLeadOutTime, 1.0f, -1.0f);
+        pAttenuateBus->Fade(pBus->mAttenuationLeadOutTime, 1.0f, -1.0f);
     }
     mPlayState = SourceTransport::playState_stopped;
 }
@@ -58,9 +70,11 @@ void SourceBus::Update(Source* pSource, SourceTransport* pTransport)
     if (mPlayState == SourceTransport::playState_playing
         && pTransport->GetPlayState() == SourceTransport::playState_stopped)
     {
-        if (mBus->mAttenuateBus && --mBus->mAttenuationRefCount == 0)
+        Bus* const pBus = mBus;
+        Bus* const pAttenuateBus = pBus->mAttenuateBus;
+        if (pAttenuateBus && --pBus->mAttenuationRefCount == 0)
         {
-            mBus->mAttenuateBus->Fade(mBus->mAttenuationLeadOutTime, 1.0f, -1.0f);
+            pAttenuateBus->Fade(pBus->mAttenuationLeadOutTime, 1.0f, -1.0f);
         }
         mPlayState = SourceTransport::playState_stopped;
     }
@@ -68,7 +82,8 @@ void SourceBus::Update(Source* pSource, SourceTransport* pTransport)
 
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x007383a0
 void SourceBus::Play(SourceTransport* pTransport)
@@ -78,16 +93,18 @@ void SourceBus::Play(SourceTransport* pTransport)
         return;
     }
 
-    if (mBus->mAttenuateBus && mBus->mAttenuationRefCount++ == 0)
+    Bus* const pBus = mBus;
+    if (pBus->mAttenuateBus && pBus->mAttenuationRefCount++ == 0)
     {
-        mBus->mAttenuateBus->Fade(mBus->mAttenuationLeadInTime,
-                                  1.0f - mBus->mAttenuation, -1.0f);
+        pBus->mAttenuateBus->Fade(pBus->mAttenuationLeadInTime,
+                                  1.0f - pBus->mAttenuation, -1.0f);
     }
     mPlayState = SourceTransport::playState_playing;
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x00738430
 void SourceBus::SetGain(Source* pSource, float fGain)

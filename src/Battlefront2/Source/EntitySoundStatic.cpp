@@ -1,11 +1,16 @@
 #include "EntitySoundStatic.h"
 #include "SoundFL/source/sndvoicevirtual.h"
 
-// GLOBAL: SWBF2 0x01ebc1a4
 // SYNTHETIC: SWBF2 0x00402e50
 // `dynamic initializer for 'EntitySoundStaticClass::rttiHashEntitySoundStaticClass''
+// EntitySoundStaticClass::rttiHashEntitySoundStaticClass
+
+// GLOBAL: SWBF2 0x01ebc1a4
+// EntitySoundStaticClass::rttiHashEntitySoundStaticClass
 PblHash EntitySoundStaticClass::rttiHashEntitySoundStaticClass("EntitySoundStaticClass");
-char EntitySoundStaticClass::rttiNameEntitySoundStaticClass[] = "EntitySoundStaticClass";
+// GLOBAL: SWBF2 0x00789604
+// EntitySoundStaticClass::rttiNameEntitySoundStaticClass
+const char EntitySoundStaticClass::rttiNameEntitySoundStaticClass[] = "EntitySoundStaticClass";
 
 // FUNCTION: SWBF2 0x004fb6b0
 EntitySoundStaticClass::EntitySoundStaticClass(unsigned int uHash)
@@ -44,11 +49,7 @@ EntityClass* EntitySoundStaticClass::Derive(unsigned int uHash)
     return new EntitySoundStaticClass(this, uHash);
 }
 
-// FUNCTION: SWBF2 0x004fb480
-bool EntitySoundStaticClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashEntitySoundStaticClass || EntitySoundClass::IsRtti(uRtti);
-}
+
 
 // FUNCTION: SWBF2 0x004fb7d0
 Entity* EntitySoundStaticClass::Build(const EntityDesc& desc)
@@ -56,50 +57,35 @@ Entity* EntitySoundStaticClass::Build(const EntityDesc& desc)
     return new EntitySoundStatic(this, desc);
 }
 
-// FUNCTION: SWBF2 0x004fb4b0
-unsigned int EntitySoundStaticClass::GetDerivedRtti()
-{
-    return rttiHashEntitySoundStaticClass;
-}
 
-// FUNCTION: SWBF2 0x004fb4c0
-const char* EntitySoundStaticClass::GetDerivedRttiName()
-{
-    return rttiNameEntitySoundStaticClass;
-}
 
-// GLOBAL: SWBF2 0x01ebc1a8
 // SYNTHETIC: SWBF2 0x00402e20
 // `dynamic initializer for 'EntitySoundStatic::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00766ff0
 // `dynamic atexit destructor for 'EntitySoundStatic::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ebc1a8
+// EntitySoundStatic::sMemoryPool
 MemoryPool EntitySoundStatic::sMemoryPool("EntitySoundStatic", 0x4c);
 
-// GLOBAL: SWBF2 0x01ebc1f8
 // SYNTHETIC: SWBF2 0x00402e40
 // `dynamic initializer for 'EntitySoundStatic::rttiHashEntitySoundStatic''
+// EntitySoundStatic::rttiHashEntitySoundStatic
+
+// GLOBAL: SWBF2 0x01ebc1f8
+// EntitySoundStatic::rttiHashEntitySoundStatic
 PblHash EntitySoundStatic::rttiHashEntitySoundStatic("EntitySoundStatic");
-char EntitySoundStatic::rttiNameEntitySoundStatic[] = "EntitySoundStatic";
+// GLOBAL: SWBF2 0x00789620
+// EntitySoundStatic::rttiNameEntitySoundStatic
+const char EntitySoundStatic::rttiNameEntitySoundStatic[] = "EntitySoundStatic";
 
-// FUNCTION: SWBF2 0x004fb420
-bool EntitySoundStatic::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashEntitySoundStatic || Entity::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x004fb450
-unsigned int EntitySoundStatic::GetDerivedRtti() const
-{
-    return rttiHashEntitySoundStatic;
-}
 
-// FUNCTION: SWBF2 0x004fb460
-const char* EntitySoundStatic::GetDerivedRttiName() const
-{
-    return rttiNameEntitySoundStatic;
-}
 
-void* EntitySoundStatic::operator new(size_t uSize)
+
+
+
+inline void* EntitySoundStatic::operator new(unsigned int uSize)
 {
     return sMemoryPool.Allocate(uSize);
 }
@@ -115,7 +101,7 @@ EntitySoundStatic::EntitySoundStatic(EntitySoundStaticClass* pClass, const Entit
 // EntitySoundStatic::`scalar deleting destructor'
 
 // SYNTHETIC: SWBF2 0x004fb835
-// [thunk]:EntitySoundStatic::`vector deleting destructor'
+// ??_EEntitySoundStatic@@WCI@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x004fb580
 EntitySoundStatic::~EntitySoundStatic()

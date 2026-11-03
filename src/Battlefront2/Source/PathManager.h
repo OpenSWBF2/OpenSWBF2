@@ -29,13 +29,14 @@ public:
         AIPN_ROLLIN = 256
     };
 
-    // FUNCTION: SWBF2 0x00613f60
-    AIPathNode(const PblVector3& pos, unsigned short flags) : mPos(pos), mFlags(flags) {}
+    AIPathNode(const PblVector3& pos, unsigned short flags);
 
     AIPathNode() : mFlags(0) {}
 
-    // FUNCTION: SWBF2 0x00613fa0
-    PblList<AIPathNode>::Node* GetListNode() { return &mNode; }
+    static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }
+    static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
+
+    PblList<AIPathNode>::Node* GetListNode();
 
     PblList<AIPathNode>::Node mNode;
     PblVector3 mPos;
@@ -49,8 +50,7 @@ class AIPath : public PblRef
 {
 public:
 
-    // FUNCTION: SWBF2 0x00614310
-    const PblList<AIPathNode>& GetNodeList() const { return mNodes; }
+    const PblList<AIPathNode>& GetNodeList() const;
 
     static void* operator new(size_t uiSize);
 
@@ -59,7 +59,7 @@ public:
     virtual ~AIPath();
 
     // SYNTHETIC: SWBF2 0x00613fe0
-    // AIPath::`scalar deleting destructor' -- compiler-generated from the
+    // AIPath::`scalar deleting destructor'
 
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
@@ -125,4 +125,7 @@ bool IsWithinTimeConstraint();
 
 }
 
-namespace PathManager { bool GetPathPriority(const PblVector3* a, const PblVector3* b); }
+namespace PathManager
+{
+unsigned char GetPathPriority(const PblVector3& aSrc, const PblVector3& aDest);
+}

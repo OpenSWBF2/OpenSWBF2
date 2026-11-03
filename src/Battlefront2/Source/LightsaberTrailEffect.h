@@ -20,7 +20,8 @@ public:
 
     void RenderLightsaberTrail(const class LightsaberTrail* pTrail, unsigned int uiFlags) const;
 
-    virtual ~LightsaberTrailEffect();
+    // SYNTHETIC: SWBF2 0x00573d30
+    // LightsaberTrailEffect::`scalar deleting destructor'
     virtual void Render(int value);
     virtual void Init();
     virtual void Cleanup();
@@ -59,7 +60,11 @@ class LightsaberTrailClass : public FLEffectClass
 public:
 
     LightsaberTrailClass();
-    virtual ~LightsaberTrailClass();
+    // SYNTHETIC: SWBF2 0x00687ce0
+    // LightsaberTrailClass::~LightsaberTrailClass
+    // SYNTHETIC: SWBF2 0x00687d50
+    // LightsaberTrailClass::`scalar deleting destructor'
+    virtual ~LightsaberTrailClass() {}
     virtual FLEffectObject* BuildEffect();
 
     PblVector3 m_vOffsetPos;
@@ -72,15 +77,22 @@ public:
  
  
 
-// VTABLE: SWBF2 0x007a3d20
-// VTABLE: SWBF2 0x007a3d18
+// VTABLE: SWBF2 0x007a3d20 Thread
+// VTABLE: SWBF2 0x007a3d18 PblHandled
 class LightsaberTrail : public FLEffectObject
 {
 public:
     enum { MAX_SAMPLES_PER_TRAIL = 8 };
 
     LightsaberTrail(const LightsaberTrailClass* pClass);
-    virtual ~LightsaberTrail();
+    // SYNTHETIC: SWBF2 0x00573df0
+    // LightsaberTrail::`scalar deleting destructor'
+    // SYNTHETIC: SWBF2 0x0057552c
+    // ??_ELightsaberTrail@@WBI@AEPAXI@Z
+    virtual ~LightsaberTrail()
+    {
+        m_bEffectActive = false;
+    }
     virtual bool IsEffectActive() const;
     virtual void ActivateEffect();
     virtual void DeactivateEffect();
@@ -91,14 +103,22 @@ protected:
 
 public:
 
+    bool IsTrailOn() const { return m_bTrailWasOn; }
+    unsigned int GetNumSamples() const { return m_uiNumSamples; }
+    float GetTime(int iSample) const { return m_afTime[(m_uiSampleNext - m_uiNumSamples + iSample) & 7]; }
+    const PblVector3& GetPos(int iSample) const { return m_avPos[(m_uiSampleNext - m_uiNumSamples + iSample) & 7]; }
+    const PblVector3& GetDir(int iSample) const { return m_avDir[(m_uiSampleNext - m_uiNumSamples + iSample) & 7]; }
+    float GetDist(int iSample) const { return m_afDist[(m_uiSampleNext - m_uiNumSamples + iSample) & 7]; }
+    float GetTimer() const { return m_fTimer; }
+
     float GetLastTime() const;
 
-    int GetTotalNumSteps(float fMaxTimeStep, float fMaxDistanceStep, unsigned char* pSteps,
+    unsigned int GetTotalNumSteps(float fMaxTimeStep, float fMaxDistanceStep, unsigned char* pSteps,
                          float* pTotalDistance) const;
     PblBox GetBoundingBox(float fLength) const;
-    int _SetSample(float fTime) const;
-    PblVector3* GetInterpolatedPos(float fTime, PblVector3* pResult) const;
-    PblVector3* GetInterpolatedDir(float fTime, PblVector3* pResult) const;
+    void _SetSample(float fTime) const;
+    PblVector3 GetInterpolatedPos(float fTime) const;
+    PblVector3 GetInterpolatedDir(float fTime) const;
 
 protected:
 
@@ -135,3 +155,6 @@ public:
  
  
  
+inline LightsaberTrailClass::LightsaberTrailClass()
+{
+}

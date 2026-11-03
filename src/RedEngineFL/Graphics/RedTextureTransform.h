@@ -5,6 +5,8 @@ class RedTextureTransform
 {
 public:
 
+    RedTextureTransform() : m_bTransform(0) {}
+
     float operator()(int iRow, int iCol) const
     {
         if (m_bTransform)

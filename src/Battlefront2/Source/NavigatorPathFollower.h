@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include "Navigator.h"
 
 class Obstacle;
@@ -17,7 +19,7 @@ public:
     };
 
     static PblHash rttiHashNavigatorPathFollower;
-    static char rttiNameNavigatorPathFollower[];
+    static const char rttiNameNavigatorPathFollower[];
 
     NavigatorPathFollower(AILowLevel* pOwner, bool bDoCallbacksOnPts,
                           const Obstacle** ppIgnore, int iIgnoreCnt,
@@ -45,3 +47,25 @@ public:
 };
 
  
+
+// FUNCTION: SWBF2 0x005adad0
+inline bool NavigatorPathFollower::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashNavigatorPathFollower == uRtti)
+    {
+        return true;
+    }
+    return Navigator::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x005adb00
+inline unsigned int NavigatorPathFollower::GetDerivedRtti() const
+{
+    return rttiHashNavigatorPathFollower;
+}
+
+// FUNCTION: SWBF2 0x005adb10
+inline const char* NavigatorPathFollower::GetDerivedRttiName() const
+{
+    return rttiNameNavigatorPathFollower;
+}

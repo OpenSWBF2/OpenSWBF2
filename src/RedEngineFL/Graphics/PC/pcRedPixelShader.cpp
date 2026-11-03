@@ -14,8 +14,10 @@ void pcRedPixelShader::Read(PblFileChunk& chunk)
     RedRenderer::pcGetDevice()->CreatePixelShader(pdwCode, &m_pD3DPixelShader);
     delete[] pdwCode;
 
+    // GLOBAL: SWBF2 0x009c9258
     static util::VariableSet<util::SingletonAllocator<util::DefaultStaticAllocator> >& s_load =
         util::Globals::GetInstance().GetSet("load");
+    // GLOBAL: SWBF2 0x009c9260
     static int& s_iPixelShaders = s_load.GetInt("PixelShaders");
     ++s_iPixelShaders;
 }

@@ -10,6 +10,9 @@ class ParticleEmitter;
 class ParticleEmitterClass;
 class RedColorValue;
 
+// VTABLE: SWBF2 0x007ad28c PblHandled
+// VTABLE: SWBF2 0x007ad294
+// VTABLE: SWBF2 0x007ad308 Thread
 class ParticleEmitterObject : public FLEffectObject, public RedSceneObject
 {
 public:
@@ -47,6 +50,8 @@ public:
     static ParticleEmitterObject* Create(const ParticleEmitterClass* pClass);
 
     static void* operator new(size_t size) { return sMemoryPool.Allocate((unsigned int)size); }
+    // SYNTHETIC: SWBF2 0x00609d70
+    // ParticleEmitterObject::operator delete
     static void operator delete(void* p) { sMemoryPool.Free(p); }
 
     static MemoryPool sMemoryPool;

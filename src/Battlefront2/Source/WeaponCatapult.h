@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "Weapon.h"
@@ -16,13 +18,13 @@ public:
     virtual ~WeaponCatapultClass();
 
     static PblHash rttiHashWeaponCatapultClass;
-    static char rttiNameWeaponCatapultClass[];
+    static const char rttiNameWeaponCatapultClass[];
 
     virtual WeaponClass* Derive(unsigned int uHash);
     virtual Weapon* Build(const WeaponDesc& desc);
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
 
     RedModel* mOrdnanceModel;
@@ -68,7 +70,7 @@ protected:
 
 public:
     static PblHash rttiHashWeaponCatapult;
-    static char rttiNameWeaponCatapult[];
+    static const char rttiNameWeaponCatapult[];
 
     PblMatrix mArmPoseMatrix;
     WeaponCatapultClass* mCatapultClass;
@@ -90,3 +92,47 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x00680be0
+inline bool WeaponCatapult::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashWeaponCatapult == uRtti)
+    {
+        return true;
+    }
+    return Weapon::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x00680c10
+inline unsigned int WeaponCatapult::GetDerivedRtti() const
+{
+    return rttiHashWeaponCatapult;
+}
+
+// FUNCTION: SWBF2 0x00680c20
+inline const char* WeaponCatapult::GetDerivedRttiName() const
+{
+    return rttiNameWeaponCatapult;
+}
+
+// FUNCTION: SWBF2 0x00680c30
+inline bool WeaponCatapultClass::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashWeaponCatapultClass == uRtti)
+    {
+        return true;
+    }
+    return WeaponClass::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x00680c60
+inline unsigned int WeaponCatapultClass::GetDerivedRtti() const
+{
+    return rttiHashWeaponCatapultClass;
+}
+
+// FUNCTION: SWBF2 0x00680c70
+inline const char* WeaponCatapultClass::GetDerivedRttiName() const
+{
+    return rttiNameWeaponCatapultClass;
+}

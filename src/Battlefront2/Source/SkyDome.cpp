@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "SkyDome.h"
 #include "PebbleFL/Common/PblVector.h"
 
@@ -12,13 +13,9 @@
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 
 #include "RedEngineFL/Application/RedTerrain.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
+
+
 
 extern PblVector3 gVectorZero;
 
@@ -77,12 +74,6 @@ SkyDome::DomeModel::DomeModel()
 {
 }
 
-// FUNCTION: SWBF2 0x006377c0
-SkyDome::EffectData::EffectData()
-{
-    effect.mObject = 0;
-    effect.mSavedHandleId = 0;
-}
 
 // FUNCTION: SWBF2 0x006378a0
 void SkyDome::Read(PblConfig& config)
@@ -134,7 +125,7 @@ void SkyDome::Read(PblConfig& config)
                     PblVector3 vAxis(model.GetFloatArg(1), model.GetFloatArg(2), model.GetFloatArg(3));
 
                     PblVector3 vNormal;
-                    D3DXVec3Normalize(&vNormal, &vAxis);
+                    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNormal), reinterpret_cast<const D3DXVECTOR3*>(&vAxis));
                     mDomeModels[mNumDomeModels].mRotationAxis = vNormal;
                     break;
                 }
@@ -312,7 +303,7 @@ void SkyDome::Read(PblConfig& config)
             for (int j = 0; j < 8; ++j)
             {
                 EntityDesc desc;
-                desc.mMatrix = _IdentityMatrix;
+                desc.mMatrix = gMatrixIdentity;
 
                 const float z = ((float)j + PblRandom::_Global.GetFloat() * 0.8f - 4.0f) * 250.0f;
                 const float y = PblRandom::_Global.GetFloat() * 35.0f + fCloudHeight;
@@ -367,9 +358,9 @@ bool SkyDome::Update(float fDeltaTime)
                 rData.pos = gVectorZero;
                 rData.effect->AttachEffectToVector(&rData.pos, true);
 
-                ParticleEmitterObject* pEffect = rData.effect;
-                pEffect->Deactivate();
-                pEffect->mbAddedToScene = false;
+                ParticleEmitterObject* pEmitter = rData.effect;
+                pEmitter->Deactivate();
+                pEmitter->mbAddedToScene = false;
             }
         }
     }

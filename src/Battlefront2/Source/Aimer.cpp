@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,14 +18,17 @@
 #include "RedEngineFL/Graphics/RedPose.h"
 #include "PebbleFL/pc/PblD3DX.h"
 
-// GLOBAL: SWBF2 0x01eb0460
 // SYNTHETIC: SWBF2 0x00402210
 // `dynamic initializer for 'Aimer::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00766d50
 // `dynamic atexit destructor for 'Aimer::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01eb0460
+// Aimer::sMemoryPool
 MemoryPool Aimer::sMemoryPool("Aimer", 0x220);
 
 extern PblVector3 gVectorZero;
+
 
 PblMatrix DirectionMatrix(const PblVector3& vDir, const PblVector3& vUp, const PblVector3& vPos);
 
@@ -41,54 +45,41 @@ extern bool netIsLateTurn;
 namespace
 {
 
-    const CollisionObject* GetCollisionObject(const GameObject* pObject)
+    inline const CollisionObject* GetCollisionObject(const GameObject* pObject)
     {
         return &static_cast<const CollisionObject&>(*pObject);
     }
 
-    const Controllable* GetControllable(const GameObject* pObject)
+    inline const Controllable* GetControllable(const GameObject* pObject)
     {
         return pObject->GetControllable();
     }
 
-    PblVector3& Row(PblMatrix& m, int i) { return *reinterpret_cast<PblVector3*>(m.m[i]); }
-    const PblVector3& Row(const PblMatrix& m, int i) { return *reinterpret_cast<const PblVector3*>(m.m[i]); }
 
-    PblMatrix MakeMatrix(const PblQuaternion& q, const PblVector3& v)
-    {
-        PblQuaternion qUnit;
-        PblMatrix m;
-        D3DXMatrixRotationQuaternion(&m, D3DXQuaternionNormalize(&qUnit, &q));
-        m.m[3][0] = v.x;
-        m.m[3][1] = v.y;
-        m.m[3][2] = v.z;
-        m.m[3][3] = 1.0f;
-        return m;
-    }
+
+
+
 
     void PoseRemove(RedPose& pose, unsigned int uHash)
     {
-        if (pose._Table.Remove(uHash))
-        {
-            --pose._iNumEntries;
-        }
+        pose.Remove(uHash);
     }
 
     void PoseStore(RedPose& pose, unsigned int uHash, const PblMatrix* pMatrix)
     {
-        if (pose._Table.Store(uHash, pMatrix))
-        {
-            ++pose._iNumEntries;
-        }
+        pose.Store(uHash, pMatrix);
     }
 }
 
-// FUNCTION: SWBF2 0x0043eb80
+// TEMPLATE: SWBF2 0x0043eb80
+// PblHashTable<PblMatrix const ,128>::Find
 template const PblMatrix* PblHashTable<const PblMatrix, 128>::Find(unsigned int) const;
-// FUNCTION: SWBF2 0x0043eba0
-template bool PblHashTable<const PblMatrix, 128>::Store(unsigned int, const PblMatrix*);
-// FUNCTION: SWBF2 0x0043ebd0
-template bool PblHashTable<const PblMatrix, 128>::Remove(unsigned int);
+// TEMPLATE: SWBF2 0x0043eba0
+// PblHashTable<PblMatrix const ,128>::Store
+template void PblHashTable<const PblMatrix, 128>::Store(unsigned int, const PblMatrix*);
+// TEMPLATE: SWBF2 0x0043ebd0
+// PblHashTable<PblMatrix const ,128>::Remove
+template void PblHashTable<const PblMatrix, 128>::Remove(unsigned int);
 
 // GLOBAL: SWBF2 0x01f9af7c
 int sCurBarrel;
@@ -96,11 +87,6 @@ int sCurBarrel;
 // FUNCTION: SWBF2 0x0043e4c0
 AimerClass::AimerClass()
 {
-    mOffsetRot._fS = 1.0f;
-    mOffsetRot._fX = 0.0f;
-    mOffsetRot._fY = 0.0f;
-    mOffsetRot._fZ = 0.0f;
-
     memset(mBarrelInfo, 0, sizeof(mBarrelInfo));
 
     mNumBarrels = 0;
@@ -117,6 +103,7 @@ AimerClass::AimerClass()
     mOffsetPos.x = 0.0f;
     mOffsetPos.y = 0.0f;
     mOffsetPos.z = 0.0f;
+    mOffsetRot = PblQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
     mMountHash = 0;
     mParentHash = 0;
     mIsInert = false;
@@ -236,7 +223,7 @@ bool AimerClass::SetProperty(unsigned int uProperty, const char* pszValue, const
             pClass->mParentHash = pModel->GetParentBoneAndOffsetMatrix(pClass->mMountHash, mOffset);
             if (pClass->mParentHash)
             {
-                pClass->mOffsetPos = Row(mOffset, 3);
+                pClass->mOffsetPos = mOffset[3];
                 pClass->mOffsetRot = PblQuaternion(mOffset);
             }
             for (unsigned int uBone = pClass->mMountHash; uBone; uBone = pModel->GetParentBone(uBone))
@@ -289,10 +276,6 @@ Aimer::Aimer(AimerClass* pClass, const Controllable* pOwner, const PblMatrix* pP
     mParentMatrix = pParentMatrix;
     mClass = pClass;
     mOwner = pOwner;
-    mMountRot._fX = 0.0f;
-    mMountRot._fY = 0.0f;
-    mMountRot._fZ = 0.0f;
-    mMountRot._fS = 1.0f;
     mPose = pPose;
     mWithinLimitsFlag = true;
     mOffsetPos = pClass->mOffsetPos;
@@ -311,13 +294,13 @@ Aimer::Aimer(AimerClass* pClass, const Controllable* pOwner, const PblMatrix* pP
     mOmegaYaw = 0.0f;
 
     PblVector3 v;
-    D3DXVec3TransformNormal(&v, &pClass->mRestDir, mParentMatrix);
+    D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&v), reinterpret_cast<const D3DXVECTOR3*>(&pClass->mRestDir), reinterpret_cast<const D3DXMATRIX*>(mParentMatrix));
     mDirection = v;
     mMountPos = mOffsetPos;
     mMountRot = mClass->mOffsetRot;
-    D3DXVec3TransformCoord(&v, &mMountPos, mParentMatrix);
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&v), reinterpret_cast<const D3DXVECTOR3*>(&mMountPos), reinterpret_cast<const D3DXMATRIX*>(mParentMatrix));
     mRootPos = v;
-    mFirePos = Row(*mParentMatrix, 3);
+    mFirePos = (*mParentMatrix)[3];
     mOldRootPos.x = 0.0f;
     mOldRootPos.y = 0.0f;
     mOldRootPos.z = 0.0f;
@@ -351,10 +334,10 @@ Aimer::Aimer(AimerClass* pClass, const Controllable* pOwner, const PblMatrix* pP
 // FUNCTION: SWBF2 0x0043ce90
 const PblMatrix Aimer::GetMatrix() const
 {
-    PblMatrix mRot = MakeMatrix(mMountRot, mMountPos);
+    PblMatrix mRot = PblMatrix(mMountRot, mMountPos);
     PblMatrix mMount;
-    D3DXMatrixMultiply(&mMount, &mRot, mParentMatrix);
-    return DirectionMatrix(mDirection, Row(mMount, 1), Row(mMount, 3));
+    D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mMount), reinterpret_cast<const D3DXMATRIX*>(&mRot), reinterpret_cast<const D3DXMATRIX*>(mParentMatrix));
+    return DirectionMatrix(mDirection, mMount[1], mMount[3]);
 }
 
 // FUNCTION: SWBF2 0x0043d280
@@ -386,17 +369,17 @@ void Aimer::SetupPose(const PblMatrix& mParent, RedPose& pose, bool bRecurse) co
 {
     if (mClass->mMountHash && mClass->mParentHash)
     {
-        const PblMatrix* pParentBone = pose._Table.Find(mClass->mParentHash);
+        const PblMatrix* pParentBone = pose.Find(mClass->mParentHash);
         if (pParentBone)
         {
-            PblMatrix mOffset = MakeMatrix(mClass->mOffsetRot, mOffsetPos);
+            PblMatrix mOffset = PblMatrix(mClass->mOffsetRot, mOffsetPos);
             PblMatrix mMount;
-            D3DXMatrixMultiply(&mMount, &mOffset, pParentBone);
+            mMount = mOffset * *pParentBone;
             PblVector3 vDir;
-            D3DXVec3TransformNormal(&vDir, &mDirection, &mParent);
-            mMountPoseMatrix = DirectionMatrix(vDir, Row(mMount, 1), Row(mMount, 3));
+            D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&mDirection), reinterpret_cast<const D3DXMATRIX*>(&mParent));
+            mMountPoseMatrix = DirectionMatrix(vDir, mMount[1], mMount[3]);
 
-            const PblMatrix* pOld = pose._Table.Find(mClass->mMountHash);
+            const PblMatrix* pOld = pose.Find(mClass->mMountHash);
             if (pOld != &mMountPoseMatrix)
             {
                 if (pOld)
@@ -413,7 +396,7 @@ void Aimer::SetupPose(const PblMatrix& mParent, RedPose& pose, bool bRecurse) co
         const AimerClass::BarrelInfo& barrel = mClass->mBarrelInfo[i];
         if (barrel.mHash && barrel.mParentHash)
         {
-            const PblMatrix* pParentBone = pose._Table.Find(barrel.mParentHash);
+            const PblMatrix* pParentBone = pose.Find(barrel.mParentHash);
             if (pParentBone)
             {
                 mBarrelPoseMatrix[i] = *pParentBone;
@@ -423,13 +406,13 @@ void Aimer::SetupPose(const PblMatrix& mParent, RedPose& pose, bool bRecurse) co
                     vOffset.z += -(barrel.mRecoil * mRecoil[i]);
                 }
                 PblVector3 vPos;
-                D3DXVec3TransformCoord(&vPos, &vOffset, &mBarrelPoseMatrix[i]);
+                D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vPos), reinterpret_cast<const D3DXVECTOR3*>(&vOffset), reinterpret_cast<const D3DXMATRIX*>(&mBarrelPoseMatrix[i]));
                 mBarrelPoseMatrix[i].m[3][0] = vPos.x;
                 mBarrelPoseMatrix[i].m[3][1] = vPos.y;
                 mBarrelPoseMatrix[i].m[3][2] = vPos.z;
                 mBarrelPoseMatrix[i].m[3][3] = 1.0f;
 
-                const PblMatrix* pOld = pose._Table.Find(barrel.mHash);
+                const PblMatrix* pOld = pose.Find(barrel.mHash);
                 if (pOld != &mBarrelPoseMatrix[i])
                 {
                     if (pOld)
@@ -483,7 +466,7 @@ bool Aimer::UpdateFire(Aimer*& pNextAimer, bool bFire)
                              barrel.mOffset.y + barrel.mFireOffset.y,
                              barrel.mOffset.z + barrel.mFireOffset.z);
     PblVector3 vPos;
-    D3DXVec3TransformCoord(&vPos, &vOffset, &mMatrix);
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vPos), reinterpret_cast<const D3DXVECTOR3*>(&vOffset), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
     mFirePos = vPos;
     mPrevFirePos = PblVector3(mFirePos.x - mPrevFirePos.x, mFirePos.y - mPrevFirePos.y,
                               mFirePos.z - mPrevFirePos.z);
@@ -570,7 +553,7 @@ bool Aimer::Update(float fDeltaTime)
         }
         const GameObject* pObject = 0;
 
-        Controllable* pOwner = const_cast<Controllable*>(mOwner);
+        const Controllable* pOwner = mOwner;
         if (pOwner->GetPilot())
         {
             pObject = pOwner->GetPilot()->GetGameObject();
@@ -601,21 +584,21 @@ bool Aimer::Update(float fDeltaTime)
     if (mPose && mParentMatrix == &GetCollisionObject(mOwner->GetGameObject())->GetMatrix()
         && mClass->mParentHash)
     {
-        const PblMatrix* pParentBone = mPose->_Table.Find(mClass->mParentHash);
+        const PblMatrix* pParentBone = mPose->Find(mClass->mParentHash);
         if (pParentBone)
         {
-            PblMatrix mOffset = MakeMatrix(mClass->mOffsetRot, mOffsetPos);
+            PblMatrix mOffset = PblMatrix(mClass->mOffsetRot, mOffsetPos);
             PblMatrix mMount;
-            D3DXMatrixMultiply(&mMount, &mOffset, pParentBone);
-            mMountPos = Row(mMount, 3);
+            D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mMount), reinterpret_cast<const D3DXMATRIX*>(&mOffset), reinterpret_cast<const D3DXMATRIX*>(pParentBone));
+            mMountPos = mMount[3];
             mMountRot = PblQuaternion(mMount);
         }
     }
 
-    PblMatrix mRot = MakeMatrix(mMountRot, mMountPos);
+    PblMatrix mRot = PblMatrix(mMountRot, mMountPos);
     PblMatrix mMount;
-    D3DXMatrixMultiply(&mMount, &mRot, mParentMatrix);
-    mRootPos = Row(mMount, 3);
+    D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mMount), reinterpret_cast<const D3DXMATRIX*>(&mRot), reinterpret_cast<const D3DXMATRIX*>(mParentMatrix));
+    mRootPos = mMount[3];
 
     if (mWeapon)
     {
@@ -634,7 +617,7 @@ bool Aimer::Update(float fDeltaTime)
                       vAimPoint.y - (mFirePos.y - mDirection.y * t),
                       vAimPoint.z - (mFirePos.z - mDirection.z * t));
     PblVector3 vDir;
-    D3DXVec3Normalize(&vDir, &vDelta);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vDelta));
 
     const UnitController* pCtrl = UnitControllerPtr(mOwner);
     if (pCtrl)
@@ -698,13 +681,13 @@ bool Aimer::Update(float fDeltaTime)
             mRecoil[i] -= fDeltaTime * 4.0f;
         }
 
-        const PblMatrix mAim = DirectionMatrix(mDirection, Row(mMount, 1), mRootPos);
+        const PblMatrix mAim = DirectionMatrix(mDirection, mMount[1], mRootPos);
         const AimerClass::BarrelInfo& barrel = mClass->mBarrelInfo[mCurrentBarrel];
         const PblVector3 vOffset(barrel.mOffset.x + barrel.mFireOffset.x,
                                  barrel.mOffset.y + barrel.mFireOffset.y,
                                  barrel.mOffset.z + barrel.mFireOffset.z);
         PblVector3 vPos;
-        D3DXVec3TransformCoord(&vPos, &vOffset, &mAim);
+        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vPos), reinterpret_cast<const D3DXVECTOR3*>(&vOffset), reinterpret_cast<const D3DXMATRIX*>(&mAim));
         mFirePos = vPos;
     }
     else
@@ -782,7 +765,7 @@ bool Aimer::ClampDirection(const PblMatrix& mMatrix)
     PblMath::SinCos(&fSinPitch, &fCosPitch, mPitch);
     const PblVector3 vLocal(fCosPitch * fSinYaw, fSinPitch, fCosPitch * fCosYaw);
     PblVector3 vDir;
-    D3DXVec3TransformNormal(&vDir, &vLocal, &mMatrix);
+    D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vLocal), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
     mDirection = vDir;
     return bWithin;
 }

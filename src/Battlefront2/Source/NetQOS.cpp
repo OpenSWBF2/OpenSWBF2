@@ -85,3 +85,18 @@ void DoThrottle()
         NetComm::SetBandwidth(64, gAutoNetPlayers * 0xa000, iDown);
     }
 }
+
+// FUNCTION: SWBF2 0x005daf30
+bool NetQOS::Update(bool)
+{
+    return false;
+}
+
+// FUNCTION: SWBF2 0x005daf40
+bool NetQOS::IsDone()
+{
+    return true;
+}
+
+// FUNCTION: SWBF2 0x005daf20
+void NetQOS::CancelGame() {}

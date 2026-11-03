@@ -17,12 +17,9 @@
 
 namespace
 {
-    const PblVector3& GetMatrixPos(const PblMatrix& m)
-    {
-        return *(const PblVector3*)&m.m[3][0];
-    }
 
-    const PblMatrix& GameObjectGetMatrix(const GameObject* pObj)
+
+    inline const PblMatrix& GameObjectGetMatrix(const GameObject* pObj)
     {
         return static_cast<const CollisionObject*>(pObj)->GetMatrix();
     }
@@ -38,29 +35,22 @@ namespace
     }
 }
 
-// GLOBAL: SWBF2 0x01f9a248
 // SYNTHETIC: SWBF2 0x00406d10
 // `dynamic initializer for 'UnitRandomAgent::rttiHashUnitRandomAgent''
+// UnitRandomAgent::rttiHashUnitRandomAgent
+
+// GLOBAL: SWBF2 0x01f9a248
+// UnitRandomAgent::rttiHashUnitRandomAgent
 PblHash UnitRandomAgent::rttiHashUnitRandomAgent("UnitRandomAgent");
-char UnitRandomAgent::rttiNameUnitRandomAgent[] = "UnitRandomAgent";
+// GLOBAL: SWBF2 0x0078b914
+// UnitRandomAgent::rttiNameUnitRandomAgent
+const char UnitRandomAgent::rttiNameUnitRandomAgent[] = "UnitRandomAgent";
 
-// FUNCTION: SWBF2 0x00669320
-bool UnitRandomAgent::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashUnitRandomAgent || UnitAgent::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00669350
-unsigned int UnitRandomAgent::GetDerivedRtti() const
-{
-    return rttiHashUnitRandomAgent;
-}
 
-// FUNCTION: SWBF2 0x00669360
-const char* UnitRandomAgent::GetDerivedRttiName() const
-{
-    return rttiNameUnitRandomAgent;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00669370
 bool UnitRandomAgent::ShouldQueueCurCmd(const UnitCmdInfo& cmd) const
@@ -75,7 +65,7 @@ bool UnitRandomAgent::ShouldQueueCurCmd(const UnitCmdInfo& cmd) const
 UnitRandomAgent::UnitRandomAgent(UnitController* pCtrl)
     : UnitAgent(pCtrl)
 {
-    mStartPos = GetMatrixPos(GetMe()->GetMatrix());
+    mStartPos = GetMe()->GetMatrix().GetTranslation();
     mCurState = 1;
     mNextState = 2;
 }
@@ -84,16 +74,16 @@ UnitRandomAgent::UnitRandomAgent(UnitController* pCtrl)
 bool UnitRandomAgent::IsPointValid(const PblVector3& vPoint)
 {
     const GameObject* pObj = GetMe()->GetGameObject();
-    PblVector3 vPos = GetMatrixPos(GameObjectGetMatrix(pObj));
+    PblVector3 vPos = (GameObjectGetMatrix(pObj)).GetTranslation();
     return PathFinder::IsPointValid(vPos, AIUtil::GetCollisionRadius(pObj), AIUtil::GetAIType(pObj), 0, 0, 0);
 }
 
 // FUNCTION: SWBF2 0x00669480
 void UnitRandomAgent::PickRandomDest()
 {
-    PblVector3 vPos = GetMatrixPos(GetMe()->GetMatrix());
+    PblVector3 vPos = GetMe()->GetMatrix().GetTranslation();
     PblVector3 vRand = PblRandom::GetGlobalVector3();
-    PblVector3 vDest(vPos.x + vRand.x * 10.0f, vPos.y + vRand.y * 10.0f, vPos.z + vRand.z * 10.0f);
+    PblVector3 vDest = vPos + vRand * 10.0f;
     GetLowLevel().SetNavigator_GotoDirect(vDest, true, false);
     mRandTime = GameLoop::GetMissionTime();
 }
@@ -110,13 +100,13 @@ void UnitRandomAgent::EnterState()
 // FUNCTION: SWBF2 0x00669540
 void UnitRandomAgent::ExitState()
 {
-    reinterpret_cast<AILowLevel*>(mCtrl->mLowLevel)->mFoldStatus = FOLD_FOLD;
+    mCtrl->mLowLevel.mFoldStatus = FOLD_FOLD;
 }
 
 // FUNCTION: SWBF2 0x00669550
 void UnitRandomAgent::UpdateStatePostVision(float dt)
 {
-    reinterpret_cast<AttackHelper*>(mAttackHelper)->Update();
+    mAttackHelper.Update();
     if (mCurState == 2)
     {
         float fRange = 6.0f;
@@ -126,7 +116,7 @@ void UnitRandomAgent::UpdateStatePostVision(float dt)
             fRange = 2.0f;
         }
 
-        PblVector3 vPos = GetMatrixPos(GameObjectGetMatrix(GetMe()->GetGameObject()));
+        PblVector3 vPos = (GameObjectGetMatrix(GetMe()->GetGameObject())).GetTranslation();
         float fX = vPos.x - mStartPos.x;
         float fY = vPos.y - mStartPos.y;
         float fZ = vPos.z - mStartPos.z;

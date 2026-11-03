@@ -19,22 +19,23 @@ PblVector3 Max(const PblVector3& a, const PblVector3& b);
 // GLOBAL: SWBF2 0x01eaed56
 bool ParticleEmitterObject::sForceRegisterStep;
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
+
 
 extern Particle sParticleCache[128];
 extern ParticleEmitterObject sPEO;
 
-namespace ParticleSystem { bool IsLodActive(int iLod); }
+namespace ParticleSystem
+{
+bool IsLodActive(int iLod);
+}
 
-// GLOBAL: SWBF2 0x01ef5090
 // SYNTHETIC: SWBF2 0x00405cc0
 // `dynamic initializer for 'ParticleEmitterObject::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00769240
 // `dynamic atexit destructor for 'ParticleEmitterObject::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ef5090
+// ParticleEmitterObject::sMemoryPool
 MemoryPool ParticleEmitterObject::sMemoryPool("ParticleEmitterObject", 0x110);
 
 // FUNCTION: SWBF2 0x0060b910
@@ -89,9 +90,9 @@ ParticleEmitterObject::ParticleEmitterObject(const ParticleEmitterClass* pClass)
 }
 
 // SYNTHETIC: SWBF2 0x0060b8f5
-// [thunk]:ParticleEmitterObject::`scalar deleting destructor' adjustor{24}
+// ??_EParticleEmitterObject@@WBI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x0060b8fd
-// [thunk]:ParticleEmitterObject::`scalar deleting destructor' adjustor{128}
+// ??_EParticleEmitterObject@@WIA@AEPAXI@Z
 // FUNCTION: SWBF2 0x0060bc60
 ParticleEmitterObject::~ParticleEmitterObject()
 {
@@ -565,9 +566,9 @@ void ParticleEmitter::Render(float fTime)
             {
                 for (int r = 0; r < 3; ++r)
                 {
-                    mat.m[r][0] = _IdentityMatrix.m[r][0];
-                    mat.m[r][1] = _IdentityMatrix.m[r][1];
-                    mat.m[r][2] = _IdentityMatrix.m[r][2];
+                    mat.m[r][0] = gMatrixIdentity.m[r][0];
+                    mat.m[r][1] = gMatrixIdentity.m[r][1];
+                    mat.m[r][2] = gMatrixIdentity.m[r][2];
                     mat.m[r][3] = 0.0f;
                 }
             }
@@ -754,9 +755,9 @@ void ParticleEmitter::RenderAsEmitter(float fTime)
             {
                 for (int r = 0; r < 3; ++r)
                 {
-                    mat.m[r][0] = _IdentityMatrix.m[r][0];
-                    mat.m[r][1] = _IdentityMatrix.m[r][1];
-                    mat.m[r][2] = _IdentityMatrix.m[r][2];
+                    mat.m[r][0] = gMatrixIdentity.m[r][0];
+                    mat.m[r][1] = gMatrixIdentity.m[r][1];
+                    mat.m[r][2] = gMatrixIdentity.m[r][2];
                     mat.m[r][3] = 0.0f;
                 }
             }

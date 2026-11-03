@@ -15,6 +15,11 @@
 #include "RedEngineFL/Util/RedLocalizeDB.h"
 #include "PebbleFL/Common/PblUnicode.h"
 
+// GLOBAL: SWBF2 0x007b2960
+// __xmm@7fffffffffffffff7fffffffffffffff
+// GLOBAL: SWBF2 0x007b2970
+// __xmm@80000000000000008000000000000000
+
 // FUNCTION: SWBF2 0x00415c60
 void RawControllerInputs::CloseChatMode()
 {
@@ -75,9 +80,11 @@ int mask_chat;
 
 unsigned short __cdecl RawInputToActionKey(unsigned short usRawInput);
 
-// GLOBAL: SWBF2 0x01f9a928
 // SYNTHETIC: SWBF2 0x004014d0
 // `dynamic initializer for 'RawControllerInputs::sDefaultKeyboardBindings''
+
+// GLOBAL: SWBF2 0x01f9a928
+// RawControllerInputs::sDefaultKeyboardBindings
 ActionKey RawControllerInputs::sDefaultKeyboardBindings[5][43] =
 {
 

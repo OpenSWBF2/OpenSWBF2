@@ -10,11 +10,13 @@
 #include "NetGame.h"
 #include "TeamManager.h"
 
-// GLOBAL: SWBF2 0x01f7d0e0
 // SYNTHETIC: SWBF2 0x004069a0
 // `dynamic initializer for 'sTeamList''
 // SYNTHETIC: SWBF2 0x00769570
 // `dynamic atexit destructor for 'sTeamList''
+
+// GLOBAL: SWBF2 0x01f7d0e0
+// sTeamList
 static TeamManager::ObjCacheData sTeamList[8][600];
 
 // GLOBAL: SWBF2 0x01faa430
@@ -26,6 +28,10 @@ int sUnmatchedRemovalCount = 1;
 // GLOBAL: SWBF2 0x01faa214
 static bool sDirty[8];
 
+namespace TeamManager
+{
+void Init();
+}
 
 // FUNCTION: SWBF2 0x00654fd0
 void TeamManager::Init()
@@ -240,7 +246,8 @@ void EnterClient() {}
 void LeaveClient() {}
 }
 
-namespace TeamManager {
+namespace TeamManager
+{
 
 // FUNCTION: SWBF2 0x006554f0
 int GetObjectsInRange(const PblVector3& vPos, float fRange, GameObject** const ppObjects, int iMax,

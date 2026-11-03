@@ -45,7 +45,7 @@ public:
 
     const ConnectivityNode* GetOtherNode(const ConnectivityNode* pNode) const
     {
-        return n1 == pNode ? n2 : n1;
+        return pNode == n1 ? n2 : n1;
     }
 
     ConnectivityNode* n1;

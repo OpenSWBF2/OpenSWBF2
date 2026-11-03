@@ -3,6 +3,7 @@
 #include <stddef.h>
 
 #include "Fsm.h"
+#include "UnitAgent.h"
 #include "CoverHelper.h"
 #include "VehicleCoverHelper.h"
 #include "JetJumpHintHelper.h"
@@ -65,11 +66,26 @@ protected:
     virtual void ExitState();
     virtual void UpdateState(float dt);
 
-    const Controllable* GetMe() const;
-    Controllable* GetMe();
-    UnitController* GetCtrl();
-    const AttackHelper* GetAttackHelper() const;
-    AttackHelper* GetAttackHelper();
+    const Controllable* GetMe() const
+    {
+        return mOwner->mCtrl->mOwner;
+    }
+    Controllable* GetMe()
+    {
+        return mOwner->mCtrl->mOwner;
+    }
+    UnitController* GetCtrl()
+    {
+        return mOwner->mCtrl;
+    }
+    const AttackHelper* GetAttackHelper() const
+    {
+        return &mOwner->mAttackHelper;
+    }
+    AttackHelper* GetAttackHelper()
+    {
+        return &mOwner->mAttackHelper;
+    }
 
     friend class CoverHelper;
     static float GetNear(const Controllable* pMe);

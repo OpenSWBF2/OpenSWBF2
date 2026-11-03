@@ -68,7 +68,10 @@ void AddInterfaceElement(unsigned int hView, RedScreenGroupElement* pElement, fl
                          bool bUseSafeZone);
 }
 
-namespace PblUnicode { unsigned int ustrncnv(unsigned short* pDest, const unsigned char* pSrc, unsigned int uiCount); }
+namespace PblUnicode
+{
+unsigned int ustrncnv(unsigned short* pDest, const unsigned char* pSrc, unsigned int uiCount);
+}
 
 // FUNCTION: SWBF2 0x0044d280
 void BootDisplay::Create()

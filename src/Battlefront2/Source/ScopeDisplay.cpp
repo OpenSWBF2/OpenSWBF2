@@ -85,10 +85,6 @@ void ScopeDisplay::BinocularSound::SetAmbientID(const char* pName)
     mAmbientProps.SetID(pName, false, false);
 }
 
-// FUNCTION: SWBF2 0x00633970
-ScopeDisplay::BinocularSound::~BinocularSound()
-{
-}
 
 // FUNCTION: SWBF2 0x00633630
 void ScopeDisplay::BinocularSound::SetZoomInID(const char* pName)

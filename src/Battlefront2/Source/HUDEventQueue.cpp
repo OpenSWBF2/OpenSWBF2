@@ -1,18 +1,21 @@
 #include "HUDEventQueue.h"
 #include "GameLoop.h"
 
-namespace HUD {
+namespace HUD
+{
 
 // SYNTHETIC: SWBF2 0x0055e1a0
 // HUD::DelayedEvent::DelayedEvent
 // SYNTHETIC: SWBF2 0x0055e1b0
 // HUD::DelayedEvent::~DelayedEvent
 
-// GLOBAL: SWBF2 0x01ec6110
 // SYNTHETIC: SWBF2 0x00404000
-// `dynamic initializer for 'HUD::gEventList''
+// HUD::`dynamic initializer for 'gEventList''
 // SYNTHETIC: SWBF2 0x00768b90
-// `dynamic atexit destructor for 'HUD::gEventList''
+// HUD::`dynamic atexit destructor for 'gEventList''
+
+// GLOBAL: SWBF2 0x01ec6110
+// gEventList
 DelayedEvent gEventList[32];
 
 // FUNCTION: SWBF2 0x0055e1c0
@@ -71,9 +74,11 @@ HUD::EventQueue::EventQueue()
     RemoveAllEvents();
 }
 
-// GLOBAL: SWBF2 0x01ec60f0
 // SYNTHETIC: SWBF2 0x00404030
 // `dynamic initializer for 'HUD::EventQueue::sEventQueue''
 // SYNTHETIC: SWBF2 0x00768bb0
 // `dynamic atexit destructor for 'HUD::EventQueue::sEventQueue''
+
+// GLOBAL: SWBF2 0x01ec60f0
+// HUD::EventQueue::sEventQueue
 HUD::EventQueue HUD::EventQueue::sEventQueue;

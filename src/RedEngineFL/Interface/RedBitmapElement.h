@@ -107,6 +107,7 @@ public:
     void GetRect(float& rfLeft, float& rfTop, float& rfRight, float& rfBottom) const;
     void GetTexCoords(float& rfU0, float& rfV0, float& rfU1, float& rfV1) const;
     void SetTexture(const RedTexture* const pTexture);
+    void SetTexture(const char* texName) { SetTexture((unsigned int)PblHash(texName)); }
 
     BitmapStyleT GetStyle() const { return m_eStyle; }
     void SetStyle(BitmapStyleT eStyle) { m_eStyle = eStyle; }

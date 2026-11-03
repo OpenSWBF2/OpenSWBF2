@@ -210,3 +210,13 @@ public:
  
  
  
+
+inline SoldierAnimationBank::WEAPON SoldierAnimationBank::GetWeaponParent(WEAPON eWeapon)
+{
+    return _GetWeapon(eWeapon)->eParent;
+}
+
+inline SoldierAnimationBank::BANK SoldierAnimationBank::GetBankParent(BANK eBank)
+{
+    return _GetBank(eBank)->eParent;
+}

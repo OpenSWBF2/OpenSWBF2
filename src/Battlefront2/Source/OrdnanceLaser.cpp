@@ -8,14 +8,20 @@
 #include "CollisionManager.h"
 #include "RedEngineFL/Application/pc/pcRedParticle.h"
 #include "PebbleFL/Common/PblVector.h"
+#include "PebbleFL/Common/PblMath.h"
 
 extern bool netIsLateTurn;
 
-// GLOBAL: SWBF2 0x01ef2648
 // SYNTHETIC: SWBF2 0x00405b10
 // `dynamic initializer for 'OrdnanceLaserClass::rttiHashOrdnanceLaserClass''
+// OrdnanceLaserClass::rttiHashOrdnanceLaserClass
+
+// GLOBAL: SWBF2 0x01ef2648
+// OrdnanceLaserClass::rttiHashOrdnanceLaserClass
 PblHash OrdnanceLaserClass::rttiHashOrdnanceLaserClass("OrdnanceLaserClass");
-char OrdnanceLaserClass::rttiNameOrdnanceLaserClass[] = "OrdnanceLaserClass";
+// GLOBAL: SWBF2 0x0078a938
+// OrdnanceLaserClass::rttiNameOrdnanceLaserClass
+const char OrdnanceLaserClass::rttiNameOrdnanceLaserClass[] = "OrdnanceLaserClass";
 
 // FUNCTION: SWBF2 0x00601b40
 OrdnanceLaserClass::OrdnanceLaserClass(unsigned int uHash)
@@ -49,23 +55,11 @@ OrdnanceLaserClass::OrdnanceLaserClass(OrdnanceLaserClass* pBase, unsigned int u
     mFadeOutSpeed = pBase->mFadeOutSpeed;
 }
 
-// FUNCTION: SWBF2 0x00601180
-bool OrdnanceLaserClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashOrdnanceLaserClass || OrdnanceBulletClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x006011b0
-unsigned int OrdnanceLaserClass::GetDerivedRtti()
-{
-    return rttiHashOrdnanceLaserClass;
-}
 
-// FUNCTION: SWBF2 0x006011c0
-const char* OrdnanceLaserClass::GetDerivedRttiName()
-{
-    return rttiNameOrdnanceLaserClass;
-}
+
+
+
 
 static const RedColor kRedBoltColor   = { 0xff, 0x0a, 0x0a, 0x64 };
 static const RedColor kGreenBoltColor = { 0x64, 0xff, 0x64, 0x50 };
@@ -211,11 +205,16 @@ Ordnance* OrdnanceLaserClass::Build(const OrdnanceDesc& desc)
     return pLaser;
 }
 
-// GLOBAL: SWBF2 0x01ef264c
 // SYNTHETIC: SWBF2 0x00405b00
 // `dynamic initializer for 'OrdnanceLaser::rttiHashOrdnanceLaser''
+// OrdnanceLaser::rttiHashOrdnanceLaser
+
+// GLOBAL: SWBF2 0x01ef264c
+// OrdnanceLaser::rttiHashOrdnanceLaser
 PblHash OrdnanceLaser::rttiHashOrdnanceLaser("OrdnanceLaser");
-char OrdnanceLaser::rttiNameOrdnanceLaser[] = "OrdnanceLaser";
+// GLOBAL: SWBF2 0x0078a924
+// OrdnanceLaser::rttiNameOrdnanceLaser
+const char OrdnanceLaser::rttiNameOrdnanceLaser[] = "OrdnanceLaser";
 
 static inline float ChargeLerp(float fValue, float fNext, float fRatio)
 {
@@ -235,23 +234,17 @@ OrdnanceLaser::OrdnanceLaser(OrdnanceLaserClass* pClass, const OrdnanceDesc& des
     const OrdnanceLaserClass* pNext = (const OrdnanceLaserClass*)pLaser->mNextCharge;
     float fMax = ChargeLerp(pLaser->mLaserLength, pNext->mLaserLength, mRatio);
     const float fGlow = ChargeLerp(pLaser->mGlowLength, pNext->mGlowLength, mRatio);
-    if (fMax <= fGlow)
-    {
-        fMax = fGlow;
-    }
+    fMax = Max(fMax, fGlow);
     const float fBlur = ChargeLerp(pLaser->mBlurLength, pNext->mBlurLength, mRatio);
-    if (fMax <= fBlur)
-    {
-        fMax = fBlur;
-    }
+    fMax = Max(fMax, fBlur);
     mMaxLength = fMax;
     SetRenderRadius(mMaxLength * 2.0f);
 }
 
 // SYNTHETIC: SWBF2 0x00602165
-// [thunk]:OrdnanceLaser::`scalar deleting destructor' adjustor{152}
+// ??_EOrdnanceLaser@@WJI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00602170
-// [thunk]:OrdnanceLaser::`scalar deleting destructor' adjustor{24}
+// ??_EOrdnanceLaser@@WBI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00601150
 // OrdnanceLaser::`scalar deleting destructor'
 
@@ -260,23 +253,11 @@ OrdnanceLaser::~OrdnanceLaser()
 {
 }
 
-// FUNCTION: SWBF2 0x00601100
-bool OrdnanceLaser::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashOrdnanceLaser || OrdnanceBullet::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00601130
-unsigned int OrdnanceLaser::GetDerivedRtti() const
-{
-    return rttiHashOrdnanceLaser;
-}
 
-// FUNCTION: SWBF2 0x00601140
-const char* OrdnanceLaser::GetDerivedRttiName() const
-{
-    return rttiNameOrdnanceLaser;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00601310
 void OrdnanceLaser::KillOrdnance()
@@ -368,14 +349,7 @@ void OrdnanceLaser::Render(unsigned char, float, unsigned int)
             if (pClass->mDamageTransitionPeriod > 0.0f)
             {
                 t = fElapsed / pClass->mDamageTransitionPeriod;
-                if (t < 0.0f)
-                {
-                    t = 0.0f;
-                }
-                else if (t > 1.0f)
-                {
-                    t = 1.0f;
-                }
+                t = Clamp(t, 0.0f, 1.0f);
             }
             color.b = (unsigned char)(int)(pClass->mEndGlowColor.b * t + color.b * (1.0f - t) + 0.5f);
             color.g = (unsigned char)(int)(pClass->mEndGlowColor.g * t + color.g * (1.0f - t) + 0.5f);
@@ -393,14 +367,8 @@ void OrdnanceLaser::Render(unsigned char, float, unsigned int)
     }
 
     float fWidth = (mFadeOutTime * 0.9f + 0.1f) * fLaserWidth;
-    if (mGrowLength <= fLaserLength)
-    {
-        fLaserLength = mGrowLength;
-    }
-    if (mGrowLength <= fGlowLength)
-    {
-        fGlowLength = mGrowLength;
-    }
+    fLaserLength = Min(fLaserLength, mGrowLength);
+    fGlowLength = Min(fGlowLength, mGrowLength);
 
     const float fRadius = (fWidth * 3.0f + mGrowLength) * 2.0f;
     const PblVector3 vMax(mPosition.x + fRadius, mPosition.y + fRadius, mPosition.z + fRadius);

@@ -1,12 +1,20 @@
 #pragma once
 
-class PblRandom;
+#include "PebbleFL/Common/PblRandom.h"
 
 class VarianceValue
 {
 public:
 
-    float GetValue(PblRandom& rand) const;
+    // FUNCTION: SWBF2 0x00609c40
+    float GetValue(PblRandom& rand) const
+    {
+        if (mVariance == 0.0f)
+        {
+            return mValue;
+        }
+        return rand.GetFloat() * mVariance + mValue;
+    }
 
     void Setup(float fValue)
     {

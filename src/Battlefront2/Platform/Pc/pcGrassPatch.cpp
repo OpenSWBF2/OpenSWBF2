@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "pcGrassPatch.h"
 #include "pcDynamicSprite.h"
 
@@ -12,9 +13,10 @@
 #include "RedEngineFL/Graphics/PC/pcRedVertexBuffer.h"
 #include "RedEngineFL/Application/pc/pcRenderHelpers.h"
 #include <new>
-#include "PebbleFL/pc/PblD3DX.h"
+
 
 // GLOBAL: SWBF2 0x007eb6e0
+// sBox
 static PblBox sBox(-100.0f, -100.0f, -100.0f, 100.0f, 100.0f, 100.0f);
 
 namespace
@@ -393,7 +395,7 @@ void GrassPatchRenderable::Begin()
     m_vUp.y -= mat.m[2][1] * fDot;
     m_vUp.z -= mat.m[2][2] * fDot;
     PblVector3 vNorm;
-    D3DXVec3Normalize(&vNorm, &m_vUp);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNorm), reinterpret_cast<const D3DXVECTOR3*>(&m_vUp));
     m_vUp = PblVector3(vNorm.x * fScale, vNorm.y * fScale, vNorm.z * fScale);
 
     PblVector3 vFront(mat.m[2][0] * fScale, mat.m[2][1] * fScale, mat.m[2][2] * fScale);
@@ -416,7 +418,7 @@ void GrassPatchRenderable::Begin()
     }
     else
     {
-        D3DXVec3Normalize(&vNorm, &m_vFlatFront);
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNorm), reinterpret_cast<const D3DXVECTOR3*>(&m_vFlatFront));
         m_vFlatFront = vNorm;
     }
 }
@@ -450,12 +452,12 @@ void GrassPatchRenderable::AddParticle(const GrassPatchClass::GrassParticle& par
         PblVector3 vSide(u.y * vDir.z - u.z * vDir.y, u.z * vDir.x - u.x * vDir.z, u.x * vDir.y - u.y * vDir.x);
         vSide.y = u.y + vSide.y;
         PblVector3 n1;
-        D3DXVec3Normalize(&n1, &vSide);
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&n1), reinterpret_cast<const D3DXVECTOR3*>(&vSide));
 
         PblVector3 vCross(n1.y * vDir.z - n1.z * vDir.y, n1.z * vDir.x - n1.x * vDir.z,
                           n1.x * vDir.y - n1.y * vDir.x);
         PblVector3 n2;
-        D3DXVec3Normalize(&n2, &vCross);
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&n2), reinterpret_cast<const D3DXVECTOR3*>(&vCross));
 
         float fSize = particle.mSize * fScale;
         vRight = PblVector3(n1.x * fSize, n1.y * fSize, n1.z * fSize);

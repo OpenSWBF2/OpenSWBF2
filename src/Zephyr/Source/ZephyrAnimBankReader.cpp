@@ -13,27 +13,29 @@ bool ZephyrAnimBankReader::ReadFile(PblMemChunk& kChunk)
     int iSize = kChunk._iSize;
     ZephyrAnimFileHeaderD kHeader = *(const ZephyrAnimFileHeaderD*)pcData;
     pcData += sizeof(ZephyrAnimFileHeaderD);
+    const ZephyrAnimFileHeaderD* pkHeader = &kHeader;
 
-    if (kHeader.kHeader.uiID != ZEPHYR_HEADER_ID('A', 'N', 'M', 'S'))
+    if (pkHeader->kHeader.uiID != ZEPHYR_HEADER_ID('A', 'N', 'M', 'S'))
     {
         return false;
     }
-    if (kHeader.u16MajorVersion != ZEPHYR_FILE_MAJOR_VERSION || kHeader.u16MinorVersion > ZEPHYR_FILE_MINOR_VERSION)
+    if (ZEPHYR_FILE_MAJOR_VERSION != pkHeader->u16MajorVersion || ZEPHYR_FILE_MINOR_VERSION < pkHeader->u16MinorVersion)
     {
         return false;
     }
 
+    // The bank object, then the runtime data (uRuntimeSize bytes), then the file's data after the descriptions.
     const unsigned int uBankSize = ZEPHYR_ALIGN(sizeof(ZephyrAnimBank), 8);
     unsigned int uDescSize, uRuntimeSize;
-    unsigned int uMemSize = ZEPHYR_ALIGN(uBankSize + ZephyrAnimBank::GetRequiredMemSize(&kHeader, uDescSize, uRuntimeSize), 8);
-    unsigned int uDataSize = iSize - sizeof(ZephyrAnimFileHeaderD) - uDescSize;
-
-    m_pBank = (ZephyrAnimBank*)RedAllocFromHeap(GameMemory::RunTimeHeap, ZEPHYR_ALIGN(uBankSize + uRuntimeSize + uDataSize, 8), 0);
+    unsigned int uMemSize = ZEPHYR_ALIGN(uBankSize + ZephyrAnimBank::GetRequiredMemSize(pkHeader, uDescSize, uRuntimeSize), 8);
+    unsigned int uAllocSize = ZEPHYR_ALIGN(uBankSize + uRuntimeSize + (iSize - uDescSize - sizeof(ZephyrAnimFileHeaderD)), 8);
+    m_pBank = (ZephyrAnimBank*)RedAllocFromHeap(GameMemory::RunTimeHeap, uAllocSize, 0);
     if (!m_pBank)
     {
         return false;
     }
 
+    // The descriptions are only needed while the bank opens: read them into a temporary buffer.
     int iTempHeap = GameMemory::TempLoadHeap;
     if (iTempHeap <= 0)
     {
@@ -47,8 +49,9 @@ bool ZephyrAnimBankReader::ReadFile(PblMemChunk& kChunk)
     memcpy(pcDesc, pcData, uDescSize);
 
     char* pcMem = (char*)m_pBank + uBankSize;
-    memcpy(pcMem + uRuntimeSize, pcData + uDescSize, iSize - uDescSize - sizeof(ZephyrAnimFileHeaderD));
-    if (!m_pBank->Open(pcMem, uMemSize - uBankSize, pcDesc, &kHeader))
+    unsigned int uDataSize = iSize - uDescSize - sizeof(ZephyrAnimFileHeaderD);
+    memcpy(pcMem + uRuntimeSize, pcData + uDescSize, uDataSize);
+    if (!m_pBank->Open(pcMem, uMemSize - uBankSize, pcDesc, pkHeader))
     {
         return false;
     }

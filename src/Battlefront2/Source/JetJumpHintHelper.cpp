@@ -47,8 +47,8 @@ void JetJumpHintHelper::EnterState()
     switch (mCurState)
     {
     case STATE_GOTO:
-        reinterpret_cast<AILowLevel*>(GetCtrl()->mLowLevel)
-            ->SetNavigator_Goto(mHint->GetCollisionCenter(), NULL, false, false);
+        GetCtrl()->mLowLevel
+            .SetNavigator_Goto(mHint->GetCollisionCenter(), NULL, false, false);
         break;
 
     case STATE_JUMPING:
@@ -58,9 +58,9 @@ void JetJumpHintHelper::EnterState()
         const PblMatrix& mMe = GetMe()->GetMatrix();
         PblVector3 vDest(mMe.m[3][0] + vOffset.x, mMe.m[3][1] + vOffset.y,
                          mMe.m[3][2] + vOffset.z);
-        reinterpret_cast<AILowLevel*>(GetCtrl()->mLowLevel)
-            ->SetNavigator_Goto(vDest, NULL, false, false);
-        reinterpret_cast<AILowLevel*>(GetCtrl()->mLowLevel)->SetJetJump(vDir);
+        GetCtrl()->mLowLevel
+            .SetNavigator_Goto(vDest, NULL, false, false);
+        GetCtrl()->mLowLevel.SetJetJump(vDir);
         mJumpTime = GameLoop::GetMissionTime();
         break;
     }
@@ -76,7 +76,7 @@ void JetJumpHintHelper::UpdateState(float dt)
         break;
 
     case STATE_GOTO:
-        if (reinterpret_cast<AILowLevel*>(GetCtrl()->mLowLevel)->IsAtDest())
+        if (GetCtrl()->mLowLevel.IsAtDest())
         {
             SetNextState(STATE_JUMPING);
         }
@@ -84,7 +84,7 @@ void JetJumpHintHelper::UpdateState(float dt)
 
     case STATE_JUMPING:
         if (GameLoop::GetMissionTime() > mJumpTime + 1.0f &&
-            !reinterpret_cast<AILowLevel*>(GetCtrl()->mLowLevel)->mJetJumping)
+            !GetCtrl()->mLowLevel.mJetJumping)
         {
             SetNextState(100);
         }

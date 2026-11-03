@@ -19,8 +19,10 @@ public:
 
     struct AttachData
     {
-        AttachData();
-        ~AttachData();
+        // SYNTHETIC: SWBF2 0x00447650
+        // AttachedEffects::AttachData::AttachData
+        // SYNTHETIC: SWBF2 0x00447660
+        // AttachedEffects::AttachData::~AttachData
 
         PblHandle<FLEffectObject> pEffect;
         float fTimer;
@@ -88,3 +90,9 @@ public:
  
  
  
+
+inline AttachedEffectsClass::AttachedEffectsClass()
+{
+    m_uiNumAttached = 0;
+    m_bDynamic = 0;
+}

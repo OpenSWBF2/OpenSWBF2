@@ -1,8 +1,9 @@
 #include <string.h>
 #include <d3dx9math.h>
-
+#include <new>
 #include "EntityFormation.h"
 #include "PebbleFL/Common/PblHashTable.h"
+#include "PebbleFL/Common/PblMatrix.h"
 
 // GLOBAL: SWBF2 0x007eb7ec
 PblList<EntityFormation> EntityFormation::sList;
@@ -32,11 +33,7 @@ EntityFormation::~EntityFormation()
 // FUNCTION: SWBF2 0x004b9b00
 void EntityFormation::CalculatePoint(int i, const PblMatrix& matrix, PblVector3& point) const
 {
-    D3DXVECTOR3 v;
-    D3DXVec3TransformNormal(&v, (const D3DXVECTOR3*)&GetPointPosition(i), (const D3DXMATRIX*)&matrix);
-    point.x = v.x;
-    point.y = v.y;
-    point.z = v.z;
+    point = matrix.ApplyRotation(GetPointPosition(i));
 }
 
 // FUNCTION: SWBF2 0x004b9b40

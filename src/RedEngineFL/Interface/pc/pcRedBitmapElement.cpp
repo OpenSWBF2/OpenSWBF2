@@ -45,11 +45,11 @@ void RedBitmapElement::GetTexCoords(float& rfU0, float& rfV0, float& rfU1, float
 // FUNCTION: SWBF2 0x006e4930
 const RedTexture* RedBitmapElement::GetTexture() const
 {
-    if (m_pInterfaceBitmapShader)
+    if (!m_pInterfaceBitmapShader)
     {
-        return RedTexture::Find(m_pInterfaceBitmapShader->GetTexture());
+        return 0;
     }
-    return 0;
+    return RedTexture::Find(m_pInterfaceBitmapShader->GetTexture());
 }
 
 // FUNCTION: SWBF2 0x006e4960
@@ -106,10 +106,10 @@ void RedBitmapElement::RenderUsingContext(const PblMatrix& mContext,
 // FUNCTION: SWBF2 0x006e4a90
 void RedBitmapElement::SetRect_(float fLeft, float fTop, float fRight, float fBottom)
 {
-    fLeft = (float)floor(fLeft + 0.5f);
-    fTop = (float)floor(fTop + 0.5f);
-    fRight = (float)floor(fRight + 0.5f);
-    fBottom = (float)floor(fBottom + 0.5f);
+    fLeft = floorf(fLeft + 0.5f);
+    fTop = floorf(fTop + 0.5f);
+    fRight = floorf(fRight + 0.5f);
+    fBottom = floorf(fBottom + 0.5f);
     m_vertices[0].x = fLeft;
     m_vertices[1].x = fLeft;
     m_vertices[0].y = fTop;
@@ -130,11 +130,11 @@ void RedBitmapElement::SetTexCoords(float fU0, float fV0, float fU1, float fV1,
     m_vertices[1].u0 = fU0;
     m_vertices[1].v0 = fV1;
 
-    m_vertices[2].u0 = fU1;
-    m_vertices[2].v0 = fV0;
-
     m_vertices[3].u0 = bSwapDiagonal ? fU0 : fU1;
     m_vertices[3].v0 = bSwapDiagonal ? fV0 : fV1;
+
+    m_vertices[2].u0 = fU1;
+    m_vertices[2].v0 = fV0;
 }
 
 // FUNCTION: SWBF2 0x006e4c20

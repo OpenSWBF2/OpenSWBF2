@@ -6,16 +6,11 @@ namespace Snd
 
 // FUNCTION: SWBF2 0x0073bfc0
 VoiceBase::VoiceBase()
-    : Source3D(0)
+    : Source3D(0),
+      mManager(0),
+      mSample(0),
+      mFlags(0)
 {
-
-    SourceTransport::mFlags = (unsigned short)SourceTransport::flags_stopped;
-    SourceTransport::mPlaybackPosition = 0;
-
-    mNode.mNext = 0;
-    mManager = 0;
-    mSample = 0;
-    mFlags = 0;
 
     SetGain(1.0f);
     SetPitch(1.0f);
@@ -38,10 +33,6 @@ VoiceBase::~VoiceBase()
 {
     SourceTransport::Stop();
     SetSample(0);
-    if (mNode.mNext != 0)
-    {
-        mNode.Remove();
-    }
 }
 
 // FUNCTION: SWBF2 0x0073c100
@@ -50,7 +41,7 @@ void VoiceBase::CopyParameters(const VoiceBase& rOther, bool bSample)
     Source::CopyParameters(rOther);
     Source2D::CopyParameters(rOther);
     Source3D::CopyParameters(rOther);
-    Set3DMode(rOther.Get3DMode());
+    Source2D3D::CopyParameters(rOther);
     if (bSample)
     {
         SetSample(rOther.mSample);

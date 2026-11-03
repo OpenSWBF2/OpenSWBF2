@@ -33,11 +33,11 @@ public:
     void Update();
 
     void SetID(unsigned int uChannel);
-    void SetSendMask(int iMask);
-    void SetReceiveMask(int iMask);
+    void SetSendMask(Transport::Mask mask, bool enable, bool maskExisting);
+    void SetReceiveMask(Transport::Mask mask, bool enable, bool maskExisting);
 
-    unsigned char* GetSendMask(unsigned int* pMask, unsigned char* pFirst, unsigned char* pSecond) const;
-    unsigned char* GetReceiveMask(unsigned int* pMask, unsigned char* pFirst, unsigned char* pSecond) const;
+    void GetSendMask(Transport::Mask& mask, bool& enable, bool& maskExisting) const;
+    void GetReceiveMask(Transport::Mask& mask, bool& enable, bool& maskExisting) const;
 
     Mask mSendMask;
     Mask mReceiveMask;

@@ -11,36 +11,30 @@
 #include "UnitCmdInfo.h"
 #include "UnitController.h"
 
-// GLOBAL: SWBF2 0x01eb01f4
 // SYNTHETIC: SWBF2 0x004021e0
 // `dynamic initializer for 'AI::AIGoal::rttiHashAIGoal''
-PblHash AI::AIGoal::rttiHashAIGoal("AIGoal");
-char AI::AIGoal::rttiNameAIGoal[] = "AIGoal";
 
-// GLOBAL: SWBF2 0x01eb0410
+// GLOBAL: SWBF2 0x01eb01f4
+// AI::AIGoal::rttiHashAIGoal
+PblHash AI::AIGoal::rttiHashAIGoal("AIGoal");
+// GLOBAL: SWBF2 0x007887b8
+// AI::AIGoal::rttiNameAIGoal
+const char AI::AIGoal::rttiNameAIGoal[] = "AIGoal";
+
 // SYNTHETIC: SWBF2 0x004021f0
 // `dynamic initializer for 'AI::AIGoal::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00766d40
 // `dynamic atexit destructor for 'AI::AIGoal::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01eb0410
+// AI::AIGoal::sMemoryPool
 MemoryPool AI::AIGoal::sMemoryPool("AIGoal", 0x20);
 
-// FUNCTION: SWBF2 0x00439ab0
-bool AI::AIGoal::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashAIGoal;
-}
 
-// FUNCTION: SWBF2 0x00439ad0
-unsigned int AI::AIGoal::GetDerivedRtti() const
-{
-    return rttiHashAIGoal;
-}
 
-// FUNCTION: SWBF2 0x00439ae0
-const char* AI::AIGoal::GetDerivedRttiName() const
-{
-    return rttiNameAIGoal;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00439b50
 bool AI::GoalTarget::GetLocation(PblVector3& vPos)
@@ -61,7 +55,7 @@ bool AI::GoalTarget::GetLocation(PblVector3& vPos)
         {
             return false;
         }
-        vPos = *(const PblVector3*)&pCtrl->GetMatrix().m[3][0];
+        vPos = pCtrl->GetMatrix().GetTranslation();
         return true;
     }
     case GTT_POS:

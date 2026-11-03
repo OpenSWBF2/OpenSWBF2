@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "Aimer.h"
@@ -26,12 +28,13 @@ public:
 
     bool SetProperty(unsigned int uHash, const char* pcValue, const RedModel* pModel);
 
-    virtual ~MountedTurretClass();
+    // SYNTHETIC: SWBF2 0x005a8b40
+    // MountedTurretClass::`scalar deleting destructor'
     virtual EntityClass* Derive(unsigned int uHash);
     virtual Entity* Build(const EntityDesc& desc);
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
 
     AimerClass mAimerClass[4];
     WeaponClass* mWeaponClass[4];
@@ -72,7 +75,7 @@ public:
     int mFirstPersonModelHandle;
 
     static PblHash rttiHashMountedTurretClass;
-    static char rttiNameMountedTurretClass[];
+    static const char rttiNameMountedTurretClass[];
 };
  
  
@@ -90,6 +93,8 @@ public:
  
 
 // VTABLE: SWBF2 0x007aa618
+// VTABLE: SWBF2 0x007aa5b8 Trackable
+// VTABLE: SWBF2 0x007aa650 Thread
 class MountedTurret : public EntityEx, public Controllable
 {
 public:
@@ -108,6 +113,8 @@ public:
     virtual ~MountedTurret();
 
     static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
+    // SYNTHETIC: SWBF2 0x00494fd0
+    // MountedTurret::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
     virtual bool IsRtti(unsigned int uRtti) const;
@@ -201,7 +208,7 @@ public:
     int mInterpIndex;
 
     static PblHash rttiHashMountedTurret;
-    static char rttiNameMountedTurret[];
+    static const char rttiNameMountedTurret[];
     static MemoryPool sMemoryPool;
 };
  
@@ -218,3 +225,49 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x005a5160
+inline bool MountedTurret::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashMountedTurret == uRtti)
+    {
+        return true;
+    }
+    return EntityEx::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x005a5190
+inline unsigned int MountedTurret::GetDerivedRtti() const
+{
+    return rttiHashMountedTurret;
+}
+
+// FUNCTION: SWBF2 0x005a51a0
+inline const char* MountedTurret::GetDerivedRttiName() const
+{
+    return rttiNameMountedTurret;
+}
+
+// FUNCTION: SWBF2 0x005a52f0
+inline bool MountedTurretClass::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashMountedTurretClass == uRtti)
+    {
+        return true;
+    }
+    return EntityClass::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x005a5320
+inline unsigned int MountedTurretClass::GetDerivedRtti() const
+{
+    return rttiHashMountedTurretClass;
+}
+
+// FUNCTION: SWBF2 0x005a5330
+inline const char* MountedTurretClass::GetDerivedRttiName() const
+{
+    return rttiNameMountedTurretClass;
+}
+
+

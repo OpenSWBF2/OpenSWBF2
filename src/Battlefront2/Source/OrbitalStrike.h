@@ -37,6 +37,8 @@ public:
  
  
 
+// VTABLE: SWBF2 0x007ac3ec PblHandled
+// VTABLE: SWBF2 0x007ac3f4 Thread
 class OrbitalStrike : public Thread, public PblHandled
 {
 public:

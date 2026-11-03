@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include <float.h>
 #include <math.h>
 #include <stddef.h>
@@ -21,6 +22,7 @@ namespace FLRenderer
 {
 unsigned int GetViewportCount();
 }
+
 
 // GLOBAL: SWBF2 0x007deff0
 float RedShadowMap::_fShadowMapScale = 1.0f;
@@ -85,7 +87,8 @@ RedAmbientLight* RedLight::m_sGlobalAmbient;
 // GLOBAL: SWBF2 0x00960f40
 unsigned int RedLight::m_sGlobalEnvMapHash;
 
-// FUNCTION: SWBF2 0x006c6ae0
+// TEMPLATE: SWBF2 0x006c6ae0
+// PblList<RedLight>::RemoveAll
 template void PblList<RedLight>::RemoveAll();
 
 // FUNCTION: SWBF2 0x006c6a60
@@ -1176,7 +1179,7 @@ void RedLight::Read(PblFileChunk& chunk)
 // FUNCTION: SWBF2 0x006c9030
 void RedLight::ReadLight(PblConfig& config, unsigned int uiName)
 {
-    PblQuaternion qRotation(0.0f, 0.0f, 0.0f, 1.0f);
+    PblQuaternion qRotation(1.0f, 0.0f, 0.0f, 0.0f);
     PblVector3 vPosition;
     RedColorValue color;
     color.r = RedColor::BLACK.r * kf1by255;
@@ -1271,7 +1274,7 @@ void RedLight::ReadLight(PblConfig& config, unsigned int uiName)
 
     PblQuaternion qUnit;
     PblMatrix mTransform;
-    D3DXMatrixRotationQuaternion(&mTransform, D3DXQuaternionNormalize(&qUnit, &qRotation));
+    D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mTransform), D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&qUnit), reinterpret_cast<const D3DXQUATERNION*>(&qRotation)));
     mTransform.m[3][0] = vPosition.x;
     mTransform.m[3][1] = vPosition.y;
     mTransform.m[3][2] = vPosition.z;

@@ -158,9 +158,6 @@ public:
     unsigned short m_bUseDirectionalJumps : 1;
     unsigned short m_bUseDirectionalDeaths : 1;
     unsigned short m_bRestartJumpForJedi : 1;
-    float m_fLastNonZeroDT;
-    SoldierAnimation* m_aAnimPrev;
-    SoldierAnimationData* m_aZephyrAnimData;
 };
  
  

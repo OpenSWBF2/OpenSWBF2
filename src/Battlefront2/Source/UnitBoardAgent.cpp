@@ -27,6 +27,16 @@ namespace AIUtil
 Obstacle* GetGameObjectBarrier(GameObject* pObj);
 }
 
+namespace AI
+{
+namespace VOHelper
+{
+
+int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,
+         const GameObject* pOther, float fDelay);
+}
+}
+
 namespace AIUtil
 {
 GameObject* GetAlivePtr(PblHandle<GameObject> const& hObj, bool bIncludeBuildings);
@@ -40,7 +50,7 @@ unsigned int GetHandleId(const GameObject* pObj)
     return PBL_HANDLE_ID(pObj);
 }
 
-GameObject* ResolveHandle(PblHandle<GameObject>& handle)
+inline GameObject* ResolveHandle(PblHandle<GameObject>& handle)
 {
     GameObject* pObj = handle.mObject;
     if (pObj)
@@ -55,17 +65,13 @@ GameObject* ResolveHandle(PblHandle<GameObject>& handle)
     return 0;
 }
 
-const CollisionObject* GetCollisionObject(const GameObject* pObj)
+inline const CollisionObject* GetCollisionObject(const GameObject* pObj)
 {
     return static_cast<const CollisionObject*>(pObj);
 }
 
-const PblVector3& GetTrans(const PblMatrix& m)
-{
-    return *reinterpret_cast<const PblVector3*>(&m.m[3][0]);
-}
 
-float DistSq(const PblVector3& a, const PblVector3& b)
+inline float DistSq(const PblVector3& a, const PblVector3& b)
 {
     float fX = a.x - b.x;
     float fY = a.y - b.y;
@@ -74,29 +80,22 @@ float DistSq(const PblVector3& a, const PblVector3& b)
 }
 }
 
-// GLOBAL: SWBF2 0x01f99354
 // SYNTHETIC: SWBF2 0x00406c20
 // `dynamic initializer for 'UnitBoardAgent::rttiHashUnitBoardAgent''
+// UnitBoardAgent::rttiHashUnitBoardAgent
+
+// GLOBAL: SWBF2 0x01f99354
+// UnitBoardAgent::rttiHashUnitBoardAgent
 PblHash UnitBoardAgent::rttiHashUnitBoardAgent("UnitBoardAgent");
-char UnitBoardAgent::rttiNameUnitBoardAgent[] = "UnitBoardAgent";
+// GLOBAL: SWBF2 0x0078b728
+// UnitBoardAgent::rttiNameUnitBoardAgent
+const char UnitBoardAgent::rttiNameUnitBoardAgent[] = "UnitBoardAgent";
 
-// FUNCTION: SWBF2 0x00661f80
-bool UnitBoardAgent::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashUnitBoardAgent || UnitAgent::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00661fb0
-unsigned int UnitBoardAgent::GetDerivedRtti() const
-{
-    return rttiHashUnitBoardAgent;
-}
 
-// FUNCTION: SWBF2 0x00661fc0
-const char* UnitBoardAgent::GetDerivedRttiName() const
-{
-    return rttiNameUnitBoardAgent;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00661fd0
 bool UnitBoardAgent::ShouldQueueCurCmd(const UnitCmdInfo& cmd) const
@@ -111,11 +110,7 @@ bool UnitBoardAgent::ShouldQueueCurCmd(const UnitCmdInfo& cmd) const
 UnitBoardAgent::UnitBoardAgent(UnitController* pCtrl, GameObject* pVehicle, int iVOResponseHandle)
     : UnitAgent(pCtrl)
 {
-    mVehicle.mObject = 0;
-    mVehicle.mSavedHandleId = 0;
-    mVehicle.mObject = pVehicle;
-    mVehicle.mSavedHandleId =
-        pVehicle ? pVehicle->mHandleId : 0;
+    mVehicle = pVehicle;
     mVOResponseHandle = iVOResponseHandle;
     mCurState = 1;
     mNextState = 2;
@@ -137,8 +132,8 @@ int UnitBoardAgent::EventHandler(AI::EventInfo* pInfo)
         {
             return 0;
         }
-        if (DistSq(GetCollisionObject(ResolveHandle(mVehicle))->GetPosition(), GetTrans(GetMe()->GetMatrix())) <=
-            DistSq(GetCollisionObject(ResolveHandle(pInfo->mGameObject))->GetPosition(), GetTrans(GetMe()->GetMatrix())))
+        if (DistSq(GetCollisionObject(ResolveHandle(mVehicle))->GetPosition(), GetMe()->GetMatrix().GetTranslation()) <=
+            DistSq(GetCollisionObject(ResolveHandle(pInfo->mGameObject))->GetPosition(), GetMe()->GetMatrix().GetTranslation()))
         {
             return 0;
         }
@@ -242,7 +237,7 @@ void UnitBoardAgent::UpdateStatePostVision(float dt)
         return;
     }
 
-    reinterpret_cast<AttackHelper*>(mAttackHelper)->Update();
+    mAttackHelper.Update();
     GameObject* pVehicle = AIUtil::GetAlivePtr(mVehicle, false);
     if (pVehicle &&
         (!pVehicle->IsRtti(EntityFlyer::rttiHashEntityFlyer) ||

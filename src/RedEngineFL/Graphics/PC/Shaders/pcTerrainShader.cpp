@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "pcTerrainShader.h"
 
 #include <string.h>
@@ -15,7 +16,7 @@
 #include "RedEngineFL/Graphics/PC/pcRedTexture.h"
 #include "RedEngineFL/Graphics/PC/pcRedVertexFormat.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
-#include "PebbleFL/pc/PblD3DX.h"
+
 
 void __cdecl PblTraceP(const char* Format, ...);
 
@@ -74,9 +75,11 @@ PblVector4 pcTerrainShader::s_FarDetailTextureTransform;
 
 PblMatrix pcTerrainShader::s_mProjectionRestore;
 
-// GLOBAL: SWBF2 0x009c88d0
 // SYNTHETIC: SWBF2 0x004093e0
 // `dynamic initializer for 'pcTerrainShader::s_uiRenderTypeHash''
+
+// GLOBAL: SWBF2 0x009c88d0
+// pcTerrainShader::s_uiRenderTypeHash
 unsigned int pcTerrainShader::s_uiRenderTypeHash = PblHash("Terrain");
 
 // SYNTHETIC: SWBF2 0x00409330
@@ -168,18 +171,10 @@ static inline void SetModulate2XBlend()
 // FUNCTION: SWBF2 0x006f8910
 pcTerrainShader::pcTerrainShader()
 {
-    GetStateFuncArray[PIPELINE_FIXED] = 0;
-    GetStateFuncArray[PIPELINE_PROG1] = 0;
-    GetStateFuncArray[PIPELINE_PROG2] = 0;
-    BeginFuncArray[PIPELINE_FIXED] = 0;
-    BeginFuncArray[PIPELINE_PROG1] = 0;
-    BeginFuncArray[PIPELINE_PROG2] = 0;
-    EndFuncArray[PIPELINE_FIXED] = 0;
-    EndFuncArray[PIPELINE_PROG1] = 0;
-    EndFuncArray[PIPELINE_PROG2] = 0;
-    RenderFuncArray[PIPELINE_FIXED] = 0;
-    RenderFuncArray[PIPELINE_PROG1] = 0;
-    RenderFuncArray[PIPELINE_PROG2] = 0;
+    memset(GetStateFuncArray, 0, sizeof(GetStateFuncArray));
+    memset(BeginFuncArray, 0, sizeof(BeginFuncArray));
+    memset(EndFuncArray, 0, sizeof(EndFuncArray));
+    memset(RenderFuncArray, 0, sizeof(RenderFuncArray));
 
     s_uiID = _Register(s_uiRenderTypeHash, this);
 
@@ -199,21 +194,14 @@ pcTerrainShader::pcTerrainShader(unsigned int uiFlags,
     _Init(uiFlags, pParams, uiNumParams, uiMaterialFlags, color0, color1, fSpecularPower);
 }
 
-// GLOBAL: SWBF2 0x009c8674
 // SYNTHETIC: SWBF2 0x00409440
 // `dynamic initializer for 'kuiLinearRamp''
+
+// GLOBAL: SWBF2 0x009c8674
+// kuiLinearRamp
 static unsigned int kuiLinearRamp = PblHash("linear_ramp");
 
-static PblMatrix AxesMatrix(float rx, float ry, float rz, float ux, float uy, float uz,
-                            float fx, float fy, float fz, float ox, float oy, float oz)
-{
-    PblMatrix m;
-    m.m[0][0] = rx; m.m[0][1] = ry; m.m[0][2] = rz; m.m[0][3] = 0.0f;
-    m.m[1][0] = ux; m.m[1][1] = uy; m.m[1][2] = uz; m.m[1][3] = 0.0f;
-    m.m[2][0] = fx; m.m[2][1] = fy; m.m[2][2] = fz; m.m[2][3] = 0.0f;
-    m.m[3][0] = ox; m.m[3][1] = oy; m.m[3][2] = oz; m.m[3][3] = 1.0f;
-    return m;
-}
+
 
 static PblMatrix CameraToWorld()
 {
@@ -227,14 +215,14 @@ static PblMatrix CameraToWorld()
 
 static PblMatrix XZTextureMatrix(const PblVector4& v)
 {
-    return AxesMatrix(v.x, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, v.y, 0.0f, v.z, v.w, 0.0f);
+    return PblMatrix(PblVector3(v.x, 0.0f, 0.0f), PblVector3(0.0f, 0.0f, 0.0f), PblVector3(0.0f, v.y, 0.0f), PblVector3(v.z, v.w, 0.0f));
 }
 
 static void SetCameraSpaceTransform(unsigned int uiStage, const PblMatrix& mWorldToTexture)
 {
     const PblMatrix mCamera = CameraToWorld();
     PblMatrix mTexture;
-    D3DXMatrixMultiply(&mTexture, &mCamera, &mWorldToTexture);
+    D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mTexture), reinterpret_cast<const D3DXMATRIX*>(&mCamera), reinterpret_cast<const D3DXMATRIX*>(&mWorldToTexture));
     RedRenderer::pcFFSetTextureTransform(uiStage, mTexture);
 }
 
@@ -400,8 +388,7 @@ void pcTerrainShader::Begin_Fixed(unsigned int uiState, unsigned int uiPass) con
             const PblVector4& vU = RedShadowMap::_vShadowMapTransformU;
             const PblVector4& vV = RedShadowMap::_vShadowMapTransformV;
             const PblVector4& vW = RedShadowMap::_vShadowMapTransformW;
-            SetCameraSpaceTransform(1, AxesMatrix(vU.x, vV.x, vW.x, vU.y, vV.y, vW.y,
-                                                  vU.z, vV.z, vW.z, vU.w, vV.w, vW.w));
+            SetCameraSpaceTransform(1, PblMatrix(PblVector3(vU.x, vV.x, vW.x), PblVector3(vU.y, vV.y, vW.y), PblVector3(vU.z, vV.z, vW.z), PblVector3(vU.w, vV.w, vW.w)));
             RedRenderer::pcSetTextureStageState(1, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
             RedRenderer::pcSetTextureStageState(1, D3DTSS_TEXTURETRANSFORMFLAGS,
                                                 D3DTTFF_COUNT3 | D3DTTFF_PROJECTED);
@@ -434,8 +421,7 @@ void pcTerrainShader::Begin_Fixed(unsigned int uiState, unsigned int uiPass) con
     SetMipBias(0, kfDetailTextureMipBias);
     const PblVector4& vT0 = s_DetailTextureTransform[0];
     const PblVector4& vT1 = s_DetailTextureTransform[1];
-    SetCameraSpaceTransform(0, AxesMatrix(vT0.x, vT1.x, 0.0f, vT0.y, vT1.y, 0.0f,
-                                          vT0.z, vT1.z, 0.0f, vT0.w, vT1.w, 0.0f));
+    SetCameraSpaceTransform(0, PblMatrix(PblVector3(vT0.x, vT1.x, 0.0f), PblVector3(vT0.y, vT1.y, 0.0f), PblVector3(vT0.z, vT1.z, 0.0f), PblVector3(vT0.w, vT1.w, 0.0f)));
     RedRenderer::pcSetTextureStageState(0, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
     RedRenderer::pcSetTextureStageState(0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
 
@@ -448,8 +434,7 @@ void pcTerrainShader::Begin_Fixed(unsigned int uiState, unsigned int uiPass) con
 
     const float fHalf = s_fDetailFadeDistance * 0.5f;
     const float fScale = 1.0f / (s_fDetailFadeDistance - fHalf);
-    const PblMatrix mFade = AxesMatrix(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-                                       fScale, 0.0f, 0.0f, -(fScale * fHalf), 0.0f, 0.0f);
+    const PblMatrix mFade = PblMatrix(PblVector3(0.0f, 0.0f, 0.0f), PblVector3(0.0f, 0.0f, 0.0f), PblVector3(fScale, 0.0f, 0.0f), PblVector3(-(fScale * fHalf), 0.0f, 0.0f));
     RedRenderer::pcFFSetTextureTransform(1, mFade);
     RedRenderer::pcSetTextureStageState(1, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
     RedRenderer::pcSetTextureStageState(1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
@@ -824,23 +809,23 @@ unsigned int pcTerrainShader::GetZPrepassState() const
     return 0;
 }
 
-// GLOBAL: SWBF2 0x00784348
-static const pcRedShaderDef::FixedFunctionStateT kFixedFunctionStates[8] =
-{
-    { 1, { 0x021, 0x000, 0x000, 0x000 } },
-    { 1, { 0x021, 0x000, 0x000, 0x000 } },
-    { 2, { 0x121, 0x142, 0x000, 0x000 } },
-    { 3, { 0x121, 0x142, 0x021, 0x000 } },
-    { 2, { 0x121, 0x142, 0x000, 0x000 } },
-    { 3, { 0x121, 0x142, 0x021, 0x000 } },
-    { 1, { 0x121, 0x000, 0x000, 0x000 } },
-    { 1, { 0x121, 0x000, 0x000, 0x000 } },
-};
-
 // FUNCTION: SWBF2 0x006faeb0
 void pcTerrainShader::InitFixedFunctionShaderDef() const
 {
-    GetShaderDef()->InitFixedFunction(8, 8, kFixedFunctionStates);
+    // GLOBAL: SWBF2 0x00784348
+    static const pcRedShaderDef::FixedFunctionStateT aFFStates[8] =
+    {
+        { 1, { 0x021, 0x000, 0x000, 0x000 } },
+        { 1, { 0x021, 0x000, 0x000, 0x000 } },
+        { 2, { 0x121, 0x142, 0x000, 0x000 } },
+        { 3, { 0x121, 0x142, 0x021, 0x000 } },
+        { 2, { 0x121, 0x142, 0x000, 0x000 } },
+        { 3, { 0x121, 0x142, 0x021, 0x000 } },
+        { 1, { 0x121, 0x000, 0x000, 0x000 } },
+        { 1, { 0x121, 0x000, 0x000, 0x000 } },
+    };
+
+    GetShaderDef()->InitFixedFunction(8, 8, aFFStates);
 }
 
 // FUNCTION: SWBF2 0x006faed0
@@ -855,7 +840,7 @@ static PblMatrix LayerTextureMatrix(unsigned int uiLayer)
 {
     const PblVector4& v0 = pcTerrainShader::s_TextureTransform[uiLayer][0];
     const PblVector4& v1 = pcTerrainShader::s_TextureTransform[uiLayer][1];
-    return AxesMatrix(v0.x, v1.x, 0.0f, v0.y, v1.y, 0.0f, v0.z, v1.z, 0.0f, v0.w, v1.w, 0.0f);
+    return PblMatrix(PblVector3(v0.x, v1.x, 0.0f), PblVector3(v0.y, v1.y, 0.0f), PblVector3(v0.z, v1.z, 0.0f), PblVector3(v0.w, v1.w, 0.0f));
 }
 
 // FUNCTION: SWBF2 0x006faf00
@@ -1242,11 +1227,13 @@ void pcTerrainShader::_StaticInit() const
     memset(&s_d3dMat, 0, sizeof(s_d3dMat));
 }
 
-// GLOBAL: SWBF2 0x009c8620
 // SYNTHETIC: SWBF2 0x00409350
 // `dynamic initializer for 'pcTerrainShader::s_Factory''
 // SYNTHETIC: SWBF2 0x00769bd0
 // `dynamic atexit destructor for 'pcTerrainShader::s_Factory''
+
+// GLOBAL: SWBF2 0x009c8620
+// pcTerrainShader::s_Factory
 pcTerrainShader pcTerrainShader::s_Factory;
 
 // SYNTHETIC: SWBF2 0x004093c0
@@ -1256,10 +1243,11 @@ pcTerrainShader pcTerrainShader::s_Factory;
 pcRedShaderDef pcTerrainShader::s_shaderDef("terrain_shader.xml");
 
 // SYNTHETIC: SWBF2 0x00409420
-// `dynamic initializer for 'PblMath::fOneOverTwoPi''
+// PblMath::`dynamic initializer for 'fOneOverTwoPi''
 
 // SYNTHETIC: SWBF2 0x00409400
-// `dynamic initializer for 'PblMath::fOneOverHalfPi''
+// PblMath::`dynamic initializer for 'fOneOverHalfPi''
 
 // GLOBAL: SWBF2 0x009c8510
+// g_pcTerrainShader
 unsigned int g_pcTerrainShader;

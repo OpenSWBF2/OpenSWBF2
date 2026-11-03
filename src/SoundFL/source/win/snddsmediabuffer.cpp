@@ -46,11 +46,13 @@ unsigned long __stdcall DSMediaBuffer::Release()
         if (mDynamic)
         {
             delete this;
-            return lRef;
         }
-        mData = 0;
-        mMaxLength = 0;
-        mLength = 0;
+        else
+        {
+            mData = 0;
+            mMaxLength = 0;
+            mLength = 0;
+        }
     }
     return lRef;
 }
@@ -65,7 +67,8 @@ void DSMediaBuffer::SetBuffer(void* const pData, long lLength, long lMaxLength)
 
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x00750e00
 DSMediaBuffer::DSMediaBuffer()
@@ -79,7 +82,8 @@ DSMediaBuffer::DSMediaBuffer()
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x00750e90
 long DSMediaBuffer::Create(unsigned char* pData, long lMaxLength, const _GUID& riid,
@@ -89,11 +93,14 @@ long DSMediaBuffer::Create(unsigned char* pData, long lMaxLength, const _GUID& r
     if (pMediaBuffer == NULL)
     {
         pMediaBuffer = new DSMediaBuffer(pData, lMaxLength);
-        if (pMediaBuffer == NULL)
+        if (pMediaBuffer != NULL)
+        {
+            pMediaBuffer->mDynamic = true;
+        }
+        else
         {
             return E_OUTOFMEMORY;
         }
-        pMediaBuffer->mDynamic = true;
     }
 
     pMediaBuffer->SetBuffer(pData, 0, lMaxLength);
@@ -101,7 +108,8 @@ long DSMediaBuffer::Create(unsigned char* pData, long lMaxLength, const _GUID& r
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x00750e30
 DSMediaBuffer::~DSMediaBuffer()
@@ -110,7 +118,13 @@ DSMediaBuffer::~DSMediaBuffer()
 }
 }
 
-namespace Snd {
+namespace Snd
+{
+
+}
+
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x00750f10
 long __stdcall DSMediaBuffer::GetBufferAndLength(unsigned char** ppBuffer, unsigned long* pulLength)
@@ -125,7 +139,19 @@ long __stdcall DSMediaBuffer::GetBufferAndLength(unsigned char** ppBuffer, unsig
 }
 }
 
-namespace Snd {
+namespace Snd
+{
+
+// FUNCTION: SWBF2 0x00750f40
+unsigned int DSMediaBuffer::GetLength() const
+{
+    const DSMediaBuffer* pBuffer = (const DSMediaBuffer*)this;
+    return pBuffer->mLength;
+}
+}
+
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x00750f50
 long __stdcall DSMediaBuffer::GetMaxLength(unsigned long* pulMaxLength)
@@ -139,7 +165,8 @@ long __stdcall DSMediaBuffer::GetMaxLength(unsigned long* pulMaxLength)
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x00751090
 long __stdcall DSMediaBuffer::SetLength(unsigned long ulLength)

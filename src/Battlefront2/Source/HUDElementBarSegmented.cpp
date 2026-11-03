@@ -22,10 +22,10 @@ HUD::ElementBarSegmented::Factory::Factory()
 }
 
 // SYNTHETIC: SWBF2 0x0054bc90
-// HUD::ElementBarSegmented::Factory::~Factory -- see the header: eight
+// HUD::ElementBarSegmented::Factory::~Factory
 
 // SYNTHETIC: SWBF2 0x0054b860
-// HUD::ElementGroup::Factory::~Factory -- 5 PDB bytes (pdb_functions.tsv),
+// HUD::ElementGroup::Factory::~Factory
 
 // FUNCTION: SWBF2 0x0054b7b0
 HUD::Item* HUD::ElementGroup::Factory::CreateItem(const char* const pName, ItemCallback pCallback,
@@ -51,19 +51,11 @@ HUD::Item* HUD::ElementBarSegmented::Factory::CreateItem(const char* const pName
     return 0;
 }
 
-// FUNCTION: SWBF2 0x0054b8f0
-HUD::ElementBarSegmented::Segment::Segment()
-    : HUD::ElementBitmap(0, 0, 0)
-{
-    mGroup = 0;
-}
+
 
 // SYNTHETIC: SWBF2 0x0054cae2
-// [thunk]:HUD::ElementBarSegmented::Segment::`scalar deleting destructor' adjustor{288}
-// FUNCTION: SWBF2 0x0054baa0
-HUD::ElementBarSegmented::Segment::~Segment()
-{
-}
+// ??_ESegment@ElementBarSegmented@HUD@@WBCA@AEPAXI@Z
+
 
 // FUNCTION: SWBF2 0x0054b990
 bool HUD::ElementBarSegmented::Segment::SetProperty(const unsigned int uHashID, const void* const pValue)
@@ -93,11 +85,7 @@ static const unsigned int kAngleEnd = 0x7197bcbd;
 static const unsigned int kNumSegments = 0x40fbdebd;
 static const unsigned int kCircular = 0x026723e0;
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
+
 
 // FUNCTION: SWBF2 0x0054bd00
 HUD::ElementBarSegmented::ElementBarSegmented(const char* const pName, Factory::ItemCallback pCallback,
@@ -119,9 +107,9 @@ HUD::ElementBarSegmented::ElementBarSegmented(const char* const pName, Factory::
 }
 
 // SYNTHETIC: SWBF2 0x0054caa0
-// [thunk]:HUD::ElementBarSegmented::`scalar deleting destructor' adjustor{512}
+// ??_EElementBarSegmented@HUD@@WCAA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x0054cac1
-// [thunk]:HUD::ElementBarSegmented::`scalar deleting destructor' adjustor{368}
+// ??_EElementBarSegmented@HUD@@WBHA@AEPAXI@Z
 // FUNCTION: SWBF2 0x0054bec0
 HUD::ElementBarSegmented::~ElementBarSegmented()
 {
@@ -129,7 +117,7 @@ HUD::ElementBarSegmented::~ElementBarSegmented()
 }
 
 // SYNTHETIC: SWBF2 0x0054caab
-// [thunk]:HUD::ElementBarSegmented::SetProperty adjustor{512}
+// ?SetProperty@ElementBarSegmented@HUD@@WCAA@AE_NIQBX@Z
 // FUNCTION: SWBF2 0x0054bf90
 bool HUD::ElementBarSegmented::SetProperty(const unsigned int uHashID, const void* const pValue)
 {
@@ -159,7 +147,7 @@ bool HUD::ElementBarSegmented::SetProperty(const unsigned int uHashID, const voi
 }
 
 // SYNTHETIC: SWBF2 0x0054cacc
-// [thunk]:HUD::ElementBarSegmented::GetProperty adjustor{512}
+// ?GetProperty@ElementBarSegmented@HUD@@WCAA@AE_NIPAX@Z
 // FUNCTION: SWBF2 0x0054c070
 bool HUD::ElementBarSegmented::GetProperty(const unsigned int uHashID, void* pValue)
 {
@@ -207,7 +195,7 @@ float HUD::ElementBarSegmented::SetValue(const float fValue)
             const float fX = fSin * fHalfWidth + fHalfWidth;
             const float fY = fHalfHeight - 0.75f / RedRenderer::GetScreenAspectRatio() * (fCos * fHalfHeight);
 
-            D3DXMatrixRotationZ((D3DXMATRIX*)&matrix, fAngle);
+            matrix.SetRotateZ(fAngle);
             matrix.m[3][0] = fX;
             matrix.m[3][1] = fY;
             matrix.m[3][2] = 0.0f;
@@ -227,7 +215,7 @@ float HUD::ElementBarSegmented::SetValue(const float fValue)
         float fPos = 0.0f;
         const float fStep = (float)(int)fWidth / (float)(int)mNumSegments;
         const float fLit = fWidth * fValueApplied + fPos;
-        matrix = _IdentityMatrix;
+        matrix = gMatrixIdentity;
 
         for (; fPos < fLit && i < mNumSegments; fPos += fStep, ++i)
         {
@@ -309,7 +297,7 @@ void HUD::ElementBarSegmented::SetupSegments(unsigned int uNumSegments)
 }
 
 // SYNTHETIC: SWBF2 0x0054cad7
-// [thunk]:HUD::ElementBarSegmented::PostReadSetup adjustor{512}
+// ?PostReadSetup@ElementBarSegmented@HUD@@OCAA@AEXXZ
 // FUNCTION: SWBF2 0x0054c790
 void HUD::ElementBarSegmented::PostReadSetup()
 {
@@ -333,7 +321,7 @@ void HUD::ElementBarSegmented::Read(PblConfig& config, Factory::ItemCallback pCa
         PblConfig::Data data = config.ReadNextData();
         if (config.m_pChunk->PeekNextChildId() == 0x504f4353)
         {
-            if (data.GetId() == mSegmentAll.GetNameHash())
+            if (mSegmentAll.GetNameHash() == data.GetId())
             {
                 PblConfig scope(config.ReadNextScope(), true);
                 mSegmentAll.Read(scope, 0, 0);
@@ -352,7 +340,7 @@ void HUD::ElementBarSegmented::Read(PblConfig& config, Factory::ItemCallback pCa
 }
 
 // SYNTHETIC: SWBF2 0x0054caed
-// [thunk]:HUD::ElementBarSegmented::ReadData adjustor{512}
+// ?ReadData@ElementBarSegmented@HUD@@OCAA@AE_NAAVPblConfig@@AAVData@3@@Z
 // FUNCTION: SWBF2 0x0054c8f0
 bool HUD::ElementBarSegmented::ReadData(PblConfig& config, PblConfig::Data& data)
 {
@@ -375,7 +363,7 @@ bool HUD::ElementBarSegmented::ReadData(PblConfig& config, PblConfig::Data& data
 }
 
 // SYNTHETIC: SWBF2 0x0054cab6
-// [thunk]:HUD::ElementBarSegmented::WriteData adjustor{512}
+// ?WriteData@ElementBarSegmented@HUD@@OCAA@AEXAAVFile@2@I@Z
 
 // FUNCTION: SWBF2 0x0054c9e0
 void HUD::ElementBarSegmented::WriteData(HUD::File& file, unsigned int uTabs)

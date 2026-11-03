@@ -20,27 +20,7 @@ class FlagItem;
 
 namespace
 {
-    unsigned int GameObjectHandleId(const GameObject* pObject)
-    {
-        return PBL_HANDLE_ID(pObject);
-    }
-
-    GameObject* HandleObject(PblHandle<GameObject>& handle)
-    {
-        if (handle.mObject && GameObjectHandleId(handle.mObject) != handle.mSavedHandleId)
-        {
-            handle.mObject = 0;
-            handle.mSavedHandleId = 0;
-        }
-        return handle.mObject;
-    }
-
-    const PblList<Controllable>& ControllableList(const GameObject* pObject)
-    {
-        return pObject->mControllableList;
-    }
-
-    const Controllable* GetControllable(const GameObject* pObject)
+    inline const Controllable* GetControllable(const GameObject* pObject)
     {
         return pObject->GetControllable();
     }
@@ -50,24 +30,28 @@ namespace
         return pCharacter->mCarriedFlagPtr;
     }
 
-    const PblVector3& GameObjectPosition(const GameObject* pObject)
+    inline const PblVector3& GameObjectPosition(const GameObject* pObject)
     {
         return static_cast<const CollisionObject*>(pObject)->GetPosition();
     }
 }
 
-// GLOBAL: SWBF2 0x007ec3cc
 // SYNTHETIC: SWBF2 0x00406db0
 // `dynamic initializer for 'sHostVehicles''
 // SYNTHETIC: SWBF2 0x00769700
 // `dynamic atexit destructor for 'sHostVehicles''
+
+// GLOBAL: SWBF2 0x007ec3cc
+// sHostVehicles
 ListPool<PblHandle<GameObject>, int> sHostVehicles(1200);
 
-// GLOBAL: SWBF2 0x007ec3dc
 // SYNTHETIC: SWBF2 0x00406e60
 // `dynamic initializer for 'sClientVehicles''
 // SYNTHETIC: SWBF2 0x00769730
 // `dynamic atexit destructor for 'sClientVehicles''
+
+// GLOBAL: SWBF2 0x007ec3dc
+// sClientVehicles
 ListPool<PblHandle<GameObject>, int> sClientVehicles(1200);
 
 // GLOBAL: SWBF2 0x01eafcf4
@@ -111,17 +95,15 @@ void VehicleManager::Add(GameObject* pObject)
         return;
     }
 
-    PblHandle<GameObject> handle;
-    handle.mObject = pObject;
-    handle.mSavedHandleId = GameObjectHandleId(pObject);
+    PblHandle<GameObject> handle(pObject);
     for (int i = 0; i < sVehicles->GetLength(); ++i)
     {
-        if (HandleObject(handle) == HandleObject((*sVehicles)[i]))
+        if ((*sVehicles)[i] == handle)
         {
             return;
         }
     }
-    sVehicles->Append(handle);
+    sVehicles->Append(pObject);
 }
 
 // FUNCTION: SWBF2 0x0066ddc0
@@ -142,20 +124,12 @@ template void ListPool<PblHandle<GameObject>, int>::RemoveObject(const PblHandle
 // FUNCTION: SWBF2 0x0066ddf0
 bool VehicleManager::sIsFull(const GameObject* pObject)
 {
-    for (PblList<Controllable>::Itor it(ControllableList(pObject)); (Controllable*)it; ++it)
+    for (PblList<Controllable>::Itor it(pObject->GetControllableList()); (Controllable*)it; ++it)
     {
         const Controllable* pSeat = it;
-        PilotType type = pSeat->mPilotType;
-        if (type != PILOT_VEHICLE && type != PILOT_VEHICLESELF)
+        if (pSeat->IsPilotable() && !pSeat->GetPilot() && !pSeat->IsSelfPilotable())
         {
-            continue;
-        }
-        if (type == PILOT_SELF || (type == PILOT_VEHICLESELF && pSeat->mPilot == pSeat) || !pSeat->mPilot)
-        {
-            if (type != PILOT_SELF && type != PILOT_VEHICLESELF)
-            {
-                return false;
-            }
+            return false;
         }
     }
     return true;
@@ -251,7 +225,7 @@ void VehicleManager::Update()
         if (!pObject->GetEntity()->IsRtti(EntityBuilding::rttiHashEntityBuilding))
         {
             const Obstacle* pBarrier = AIUtil::GetGameObjectBarrier(pObject);
-            if (!PathFinder::IsPointValid(*(const PblVector3*)&pObject->GetMatrix().m[3][0], 2.0f, 1, 0,
+            if (!PathFinder::IsPointValid(pObject->GetMatrix().GetTranslation(), 2.0f, 1, 0,
                                           &pBarrier, 1))
             {
                 continue;
@@ -261,7 +235,7 @@ void VehicleManager::Update()
         {
             const Obstacle* pBarrier = AIUtil::GetGameObjectBarrier(pObject);
             int eProhibit = pObject->GetGameObjectClass()->mAIType;
-            if (!PathFinder::IsPointValid(*(const PblVector3*)&pObject->GetMatrix().m[3][0],
+            if (!PathFinder::IsPointValid(pObject->GetMatrix().GetTranslation(),
                                           AIUtil::GetCollisionRadius(pObject), eProhibit, 0, &pBarrier, 1))
             {
                 continue;
@@ -269,13 +243,13 @@ void VehicleManager::Update()
         }
 
         GameObject* apObjects[30];
-        int iCount = TeamManager::GetObjectsInRange(*(const PblVector3*)&pObject->GetMatrix().m[3][0],
+        int iCount = TeamManager::GetObjectsInRange(pObject->GetMatrix().GetTranslation(),
                                                     sNotifyRadius, apObjects, 30, pObject,
                                                     AI::AFFIL_ALLYNEUTRAL);
         if (iCount > 1)
         {
             sGameObjSortFlagPriority = pObject->IsRtti(EntityFlyer::rttiHashEntityFlyer);
-            sGameObjSortFrom = *(const PblVector3*)&pObject->GetMatrix().m[3][0];
+            sGameObjSortFrom = pObject->GetMatrix().GetTranslation();
             qsort(apObjects, iCount, sizeof(GameObject*), sGameObjSortByDistance);
         }
 

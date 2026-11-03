@@ -25,14 +25,6 @@ public:
 
         ~Boost()
         {
-            if (mGlobalLink.mNext)
-            {
-                mGlobalLink.Remove();
-            }
-            if (mLink.mNext)
-            {
-                mLink.Remove();
-            }
         }
 
         static void* operator new(size_t uiSize);

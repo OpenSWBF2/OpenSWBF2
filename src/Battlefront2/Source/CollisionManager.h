@@ -14,15 +14,18 @@ class GameObject;
 class Ordnance;
 class RedRegion;
 
+// VTABLE: SWBF2 0x00797418
 class CollisionManager : public Thread
 {
 public:
 
+    // VTABLE: SWBF2 0x00797430
     class OrdnanceUpdate : public Thread
     {
     public:
         OrdnanceUpdate(CollisionManager* pOwner);
-        virtual ~OrdnanceUpdate();
+        // SYNTHETIC: SWBF2 0x0045e740
+        // CollisionManager::OrdnanceUpdate::~OrdnanceUpdate
         virtual bool Update(float fDeltaTime);
 
         CollisionManager* mOwner;
@@ -151,10 +154,9 @@ public:
     static CollisionManager* sHostInstance;
     static CollisionManager* sClientInstance;
 };
- 
- 
- 
- 
- 
- 
- 
+
+// FUNCTION: SWBF2 0x004923c0
+inline TreeGrid* CollisionManager::GetTreeGrid()
+{
+    return sInstance ? sInstance->mTreeGrid : 0;
+}

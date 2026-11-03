@@ -2,19 +2,19 @@
 
 #include "NetGame.h"
 #include "GameVoiceChat.h"
+#include "GameVoiceChatNode.h"
 #include "GameVoiceChatTransport.h"
 #include "VoiceChatNode.h"
 
 #include "NetPacket.h"
 #include "SoundFL/source/sndqueue.h"
 
-namespace GameVoiceChat { void* GetNode(); }
 
 // FUNCTION: SWBF2 0x0053e300
 void* VoiceChat::NetPacketAudio::Receive()
 {
     NetPacket* pPacket = 0;
-    for (int i = 0; i < 4; ++i)
+    for (unsigned int i = 0; i < 4; ++i)
     {
         if (!GameVoiceChat::gPacketQueue[i].IsEmpty())
         {
@@ -86,17 +86,18 @@ void VoiceChat::NetPacketAudio::Free(void* pPacket)
 // Snd::Queue<NetPacket *,4>::~Queue<NetPacket *,4>
 template Snd::Queue<NetPacket*, 4>::~Queue();
 
-namespace GameVoiceChat {
+namespace GameVoiceChat
+{
 
 // FUNCTION: SWBF2 0x0053e1f0
-bool __fastcall SendVoice(NetPacket* packet, unsigned char destination, unsigned short sequence)
+bool __cdecl SendVoice(NetPacket* packet, unsigned char destination, unsigned int voiceDataOffset)
 {
     unsigned int node = destination == 0xff ? 64 : destination;
     if (netInShell ? netEnabled : netEnabledNext)
     {
         if (NetComm::IsConnected(node))
         {
-            NetComm::SendVoice(node, packet, sequence);
+            NetComm::SendVoice(node, PKT_VOICE, packet, voiceDataOffset);
             return true;
         }
     }
@@ -111,7 +112,7 @@ bool __fastcall SendVoice(NetPacket* packet, unsigned char destination, unsigned
                 unsigned int i = 0;
                 if (count)
                 {
-                    VoiceChat::Node* voiceNode = (VoiceChat::Node*)GameVoiceChat::GetNode();
+                    VoiceChat::Node* voiceNode = GameVoiceChat::GetNode(i);
                     while (i < count)
                     {
                         if (voiceNode && voiceNode->GetID() == node)
@@ -137,29 +138,32 @@ bool __fastcall SendVoice(NetPacket* packet, unsigned char destination, unsigned
 }
 
 // FUNCTION: SWBF2 0x0053e2e0
-bool __fastcall VoiceChat::NetPacketAudio::Send(NetPacket** packet, unsigned char destination,
-                            unsigned short sequence)
+void __cdecl VoiceChat::NetPacketAudio::Send(NetPacketAudio* packet, unsigned char destination,
+                            unsigned int voiceDataOffset)
 {
-    (*packet)->EndWrite();
-    return GameVoiceChat::SendVoice(*packet, destination, sequence);
+    NetPacket* appPacket = static_cast<NetPacket*>(packet->mAppPacket);
+    appPacket->EndWrite();
+    GameVoiceChat::SendVoice(appPacket, destination, voiceDataOffset);
 }
 
 // TEMPLATE: SWBF2 0x0053e3f0
-// Snd::Queue<NetPacket*,4>::Add(NetPacket* const&)
+// Snd::Queue<NetPacket *,4>::Add
 template class Snd::Queue<NetPacket*, 4>;
 
 // TEMPLATE: SWBF2 0x0053e3d0
-// Snd::Queue<NetPacket *,4>::Queue
+// Snd::Queue<NetPacket *,4>::Queue<NetPacket *,4>
 
 class NetPacket;
 
 namespace GameVoiceChat
 {
 
-// GLOBAL: SWBF2 0x01ec6020
 // SYNTHETIC: SWBF2 0x00403ef0
-// `dynamic initializer for 'GameVoiceChat::gPacketQueue''
+// GameVoiceChat::`dynamic initializer for 'gPacketQueue''
 // SYNTHETIC: SWBF2 0x00768af0
-// `dynamic atexit destructor for 'GameVoiceChat::gPacketQueue''
+// GameVoiceChat::`dynamic atexit destructor for 'gPacketQueue''
+
+// GLOBAL: SWBF2 0x01ec6020
+// gPacketQueue
 Snd::Queue<NetPacket*, 4> gPacketQueue[4];
 }

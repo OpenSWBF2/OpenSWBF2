@@ -18,11 +18,7 @@ namespace FLRenderer
 unsigned int GetCurrentViewport();
 }
 
-static const PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
+
 
 // FUNCTION: SWBF2 0x00639960
 SkyStars::SkyStars()
@@ -50,7 +46,8 @@ SkyStars::~SkyStars()
     memset(m_aStarFields, 0, sizeof(m_aStarFields));
 }
 
-namespace {
+namespace
+{
 
 inline unsigned char ClampColorComponent(float f)
 {
@@ -348,7 +345,7 @@ void SkyStars::Render(unsigned int uiFlags) const
     const float fScale = fNear * 2.0f;
     PblMatrix mScale;
 
-    PblMatrix mTop = _IdentityMatrix;
+    PblMatrix mTop = gMatrixIdentity;
     D3DXMatrixScaling((D3DXMATRIX*)&mScale, fScale, fScale, fScale);
     D3DXMatrixMultiply((D3DXMATRIX*)&mTop, (D3DXMATRIX*)&mTop, (D3DXMATRIX*)&mScale);
     mTop.m[3][0] = mCamera.m[3][0];
@@ -356,11 +353,7 @@ void SkyStars::Render(unsigned int uiFlags) const
     mTop.m[3][2] = mCamera.m[3][2];
     mTop.m[3][3] = 1.0f;
 
-    PblMatrix mBottom;
-    mBottom.m[0][0] = 1.0f; mBottom.m[0][1] = 0.0f;  mBottom.m[0][2] = 0.0f; mBottom.m[0][3] = 0.0f;
-    mBottom.m[1][0] = 0.0f; mBottom.m[1][1] = -1.0f; mBottom.m[1][2] = 0.0f; mBottom.m[1][3] = 0.0f;
-    mBottom.m[2][0] = 0.0f; mBottom.m[2][1] = 0.0f;  mBottom.m[2][2] = 1.0f; mBottom.m[2][3] = 0.0f;
-    mBottom.m[3][0] = 0.0f; mBottom.m[3][1] = 0.0f;  mBottom.m[3][2] = 0.0f; mBottom.m[3][3] = 1.0f;
+    PblMatrix mBottom(PblVector3(1.0f, 0.0f, 0.0f), PblVector3(0.0f, -1.0f, 0.0f), PblVector3(0.0f, 0.0f, 1.0f), PblVector3(0.0f, 0.0f, 0.0f));
     D3DXMatrixScaling((D3DXMATRIX*)&mScale, fScale, fScale, fScale);
     D3DXMatrixMultiply((D3DXMATRIX*)&mBottom, (D3DXMATRIX*)&mBottom, (D3DXMATRIX*)&mScale);
     mBottom.m[3][0] = mCamera.m[3][0];

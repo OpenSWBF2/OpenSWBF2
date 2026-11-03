@@ -68,18 +68,10 @@ float HUD::Element::GetFadeHoldElapsed() const
 }
 
 // SYNTHETIC: SWBF2 0x00558b63
-// [thunk]:HUD::ElementMultilineText::Line::`scalar deleting destructor' adjustor{256}
-// FUNCTION: SWBF2 0x00557120
-HUD::ElementMultilineText::Line::Line()
-    : HUD::ElementText(0, 0, 0),
-      mGroup(0)
-{
-}
+// ??_ELine@ElementMultilineText@HUD@@WBAA@AEPAXI@Z
 
-// FUNCTION: SWBF2 0x00557210
-HUD::ElementMultilineText::Line::~Line()
-{
-}
+
+
 
 // FUNCTION: SWBF2 0x00557150
 bool HUD::ElementMultilineText::Line::SetProperty(const unsigned int uHashID,
@@ -122,7 +114,7 @@ HUD::ElementMultilineText::ElementMultilineText(const char* const pName,
 }
 
 // SYNTHETIC: SWBF2 0x00558b6e
-// [thunk]:HUD::ElementMultilineText::`scalar deleting destructor' adjustor{368}
+// ??_EElementMultilineText@HUD@@WBHA@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x00557630
 HUD::ElementMultilineText::~ElementMultilineText()
@@ -355,8 +347,8 @@ void HUD::ElementMultilineText::Update(const float fElapsed)
 void HUD::ElementMultilineText::RefreshTextBoxSize(unsigned int uLineHeight, unsigned int uWidth,
                                                    unsigned int uHeight)
 {
-    GetText(mFormat).SetTextBox(uWidth, uHeight);
-    mMaxDisplayLines = GetText(mFormat).GetMaxLines(uLineHeight);
+    mFormat.RedTextElement::SetTextBox(uWidth, uHeight);
+    mMaxDisplayLines = mFormat.RedTextElement::GetMaxLines(uLineHeight);
 }
 
 // FUNCTION: SWBF2 0x00557d70
@@ -670,10 +662,10 @@ void HUD::ElementMultilineText::EventText(const HUD::Event& event, void* const p
     switch (event.GetClass()->GetType())
     {
     case EventClass::type_Uint:
-        pText = RedLocalizeDB::Find(event.mData.uintValue, false);
+        pText = RedLocalizeDB::Find(event.GetData().uintValue, false);
         break;
     case EventClass::type_String:
-        pText = event.mData.string;
+        pText = event.GetData().string;
         if (!pText)
         {
             static const unsigned short acNewline[] = { '\n', 0 };
@@ -693,10 +685,9 @@ void HUD::ElementMultilineText::EventColor(const HUD::Event& event, void* const 
     if (event.GetClass()->GetType() == EventClass::type_Color)
     {
         ElementMultilineText* pDisplay = (ElementMultilineText*)pData;
-        const RedColor& color = *event.mData.color;
-        GetText(pDisplay->mFormat).m_color = color;
-        pDisplay->mFormat.mColorDefault = color;
-        pDisplay->mFormat.mAlpha = (float)color.a / 255.0f;
+        pDisplay->mFormat.RedInterfaceElement::SetColor(*event.GetData().color);
+        pDisplay->mFormat.SetColorDefault(*event.GetData().color);
+        pDisplay->mFormat.SetAlpha((float)event.GetData().color->a / 255.0f);
     }
 }
 

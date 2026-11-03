@@ -3,6 +3,7 @@
 #include "RedEngineFL/Memory/engineAlloc.h"
 #include "RedEngineFL/Application/pc/pcRenderHelpers.h"
 #include "PebbleFL/Common/PblMatrix.h"
+#include "PebbleFL/Common/PblPlane.h"
 #include <d3dx9math.h>
 #include "pcRedDeviceEnumerator.h"
 #include "pcRedShader.h"
@@ -54,610 +55,47 @@ unsigned int gAdapter = 0;
 #include "pcRedPixelShader.h"
 #include "pcRedVertexShader.h"
 
-enum ResetKind
-{
-    kResetKindNone = 0,
-    kResetKindRecover,
-    kResetKindFatal,
-    kResetKindInitLost,
-    kResetKindFlap,
-    kResetKindLaterInit,
-    kResetKindApplyMode,
-    kResetKindApplyModeSmall,
-    kResetKindApplyFail,
-    kResetKindApplyPresentFail,
-    kResetKindApplyAdapter,
-    kResetKindApplyTargetFail,
-    kResetKindGammaPass,
-    kResetKindGammaFallback,
-    kResetKindGammaDrawFail,
-    kResetKindGammaLost,
-    kResetKindShellStretch,
-    kResetKindMenuApplyFail
-};
+// GLOBAL: SWBF2 0x00772760
+// __xmm@000000003f8000003f8000003f800000
+// GLOBAL: SWBF2 0x007727a0
+// __xmm@3f0000003f0000003f0000003f000000
 
-struct ResetScript
-{
-    bool bInit;
-    ResetKind eKind;
-    unsigned int uiFrames;
-    unsigned int uiLost;
-    unsigned int uiPolls;
-    unsigned int uiInits;
-    DWORD dwSkewMs;
-    bool bArmed;
-    bool bDone;
-    unsigned int uiBaseW;
-    unsigned int uiBaseH;
-    bool bBaseWindowed;
-    bool bApplyDone;
-    bool bPresentFailPending;
-    bool bPresentFailed;
-    bool bTargetsPending;
-    unsigned int uiGammaFrames;
-    bool bGammaLevelsSet;
-    unsigned int uiGammaLostPolls;
-};
-
-struct TrackedTarget
-{
-    FakeD3DTexture* pTexture;
-    unsigned int uiW;
-    unsigned int uiH;
-};
-
-static ResetScript gResetScript;
-static TrackedTarget gTrackedTargets[256];
-static FakeD3DSurface gTrackedBackStore;
-static FakeD3DSurface gTrackedDepthStore;
-static FakeD3DSurface* gTrackedBack;
-static FakeD3DSurface* gTrackedDepth;
-static TrackedTarget gGammaTargets[16];
-static unsigned int gGammaAlive;
-static unsigned int gGammaW;
-static unsigned int gGammaH;
-static unsigned int gGammaDraws;
-static unsigned int gGammaRampNonId;
-static unsigned int gGammaRampId;
-static bool gGammaPending;
-static bool gGammaDrawPending;
-
-static ResetScript& GetResetScript()
-{
-    if (!gResetScript.bInit)
-    {
-        gResetScript.bInit = true;
-        const char* pcKind = g_bNoRender ? pcCrash::GetCrashTest() : 0;
-        if (pcKind && strcmp(pcKind, "resetrecover") == 0)
-        {
-            gResetScript.eKind = kResetKindRecover;
-        }
-        else if (pcKind && strcmp(pcKind, "resetfatal") == 0)
-        {
-            gResetScript.eKind = kResetKindFatal;
-        }
-        else if (pcKind && strcmp(pcKind, "resetinitlost") == 0)
-        {
-            gResetScript.eKind = kResetKindInitLost;
-        }
-        else if (pcKind && strcmp(pcKind, "resetflap") == 0)
-        {
-            gResetScript.eKind = kResetKindFlap;
-        }
-        else if (pcKind && strcmp(pcKind, "resetlaterinit") == 0)
-        {
-            gResetScript.eKind = kResetKindLaterInit;
-        }
-        else if (pcKind && strcmp(pcKind, "applymode") == 0)
-        {
-            gResetScript.eKind = kResetKindApplyMode;
-        }
-        else if (pcKind && strcmp(pcKind, "applymodesmall") == 0)
-        {
-            gResetScript.eKind = kResetKindApplyModeSmall;
-        }
-        else if (pcKind && strcmp(pcKind, "applyfail") == 0)
-        {
-            gResetScript.eKind = kResetKindApplyFail;
-        }
-        else if (pcKind && strcmp(pcKind, "applypresentfail") == 0)
-        {
-            gResetScript.eKind = kResetKindApplyPresentFail;
-        }
-        else if (pcKind && strcmp(pcKind, "applyadapter") == 0)
-        {
-            gResetScript.eKind = kResetKindApplyAdapter;
-        }
-        else if (pcKind && strcmp(pcKind, "applytargetfail") == 0)
-        {
-            gResetScript.eKind = kResetKindApplyTargetFail;
-        }
-        else if (pcKind && strcmp(pcKind, "gammapass") == 0)
-        {
-            gResetScript.eKind = kResetKindGammaPass;
-        }
-        else if (pcKind && strcmp(pcKind, "gammafallback") == 0)
-        {
-            gResetScript.eKind = kResetKindGammaFallback;
-        }
-        else if (pcKind && strcmp(pcKind, "gammadrawfail") == 0)
-        {
-            gResetScript.eKind = kResetKindGammaDrawFail;
-        }
-        else if (pcKind && strcmp(pcKind, "gammalost") == 0)
-        {
-            gResetScript.eKind = kResetKindGammaLost;
-        }
-        else if (pcKind && strcmp(pcKind, "shellstretch") == 0)
-        {
-            gResetScript.eKind = kResetKindShellStretch;
-        }
-        else if (pcKind && strcmp(pcKind, "menuapplyfail") == 0)
-        {
-            gResetScript.eKind = kResetKindMenuApplyFail;
-        }
-    }
-    return gResetScript;
-}
-
-static bool IsApplyKind(ResetKind eKind)
-{
-    return eKind == kResetKindApplyMode || eKind == kResetKindApplyModeSmall ||
-           eKind == kResetKindApplyFail ||
-           eKind == kResetKindApplyPresentFail || eKind == kResetKindApplyAdapter ||
-           eKind == kResetKindApplyTargetFail || eKind == kResetKindGammaPass;
-}
-
-static bool IsGammaKind(ResetKind eKind)
-{
-    return eKind == kResetKindGammaPass || eKind == kResetKindGammaFallback ||
-           eKind == kResetKindGammaDrawFail || eKind == kResetKindGammaLost;
-}
-
-static bool IsTargetTrackKind(ResetKind eKind)
-{
-    return eKind == kResetKindApplyMode || eKind == kResetKindApplyModeSmall;
-}
-
-static bool gTrackedTargetsFull;
-
-static void TrackTarget(FakeD3DTexture* pTexture, unsigned int uiW, unsigned int uiH)
-{
-    for (unsigned int i = 0; i < sizeof(gTrackedTargets) / sizeof(gTrackedTargets[0]); ++i)
-    {
-        if (!gTrackedTargets[i].pTexture)
-        {
-            gTrackedTargets[i].pTexture = pTexture;
-            gTrackedTargets[i].uiW = uiW;
-            gTrackedTargets[i].uiH = uiH;
-            return;
-        }
-    }
-    if (!gTrackedTargetsFull)
-    {
-        gTrackedTargetsFull = true;
-        LOG(LogRender, Error, "OPENSWBF2 APPLY TARGETS tracking full at %u entries",
-            (unsigned int)(sizeof(gTrackedTargets) / sizeof(gTrackedTargets[0])));
-    }
-}
-
-static void UntrackTarget(FakeD3DTexture* pTexture)
-{
-    for (unsigned int i = 0; i < sizeof(gTrackedTargets) / sizeof(gTrackedTargets[0]); ++i)
-    {
-        if (gTrackedTargets[i].pTexture == pTexture)
-        {
-            gTrackedTargets[i].pTexture = 0;
-            return;
-        }
-    }
-}
-
-static TrackedTarget gFixedTargets[256];
-static unsigned int gFixedTargetCount;
-
-static bool IsBufferTexture(const FakeD3DTexture* pTexture)
-{
-    for (unsigned int b = 0; b < 3; ++b)
-    {
-        const RedTexture* pBuffer = RedRenderer::m_buffers[b];
-        if (pBuffer && pBuffer->m_pTexture &&
-            (const IDirect3DBaseTexture9*)pTexture == pBuffer->m_pTexture)
-        {
-            return true;
-        }
-    }
-    return false;
-}
-
-static void SnapshotFixedTargets(const ResetScript& s)
-{
-    const DisplayLogic::BufferSet kBase = DisplayLogic::BufferSizes(
-        s.uiBaseW, s.uiBaseH, RedRenderer::m_deviceCaps.MaxTextureWidth,
-        RedRenderer::m_deviceCaps.MaxTextureHeight, RedRenderer::m_renderCaps.nonpow2textures != 0);
-    const DisplayLogic::BufferSize& rSky = kBase.akBuf[PC_BUFFER_SKY];
-    gFixedTargetCount = 0;
-    for (unsigned int i = 0; i < sizeof(gTrackedTargets) / sizeof(gTrackedTargets[0]); ++i)
-    {
-        const TrackedTarget& t = gTrackedTargets[i];
-        if (!t.pTexture || IsBufferTexture(t.pTexture) || (t.uiW == rSky.uiW && t.uiH == rSky.uiH))
-        {
-            continue;
-        }
-        gFixedTargets[gFixedTargetCount++] = t;
-    }
-}
-
-static unsigned int FixedTargetsAt(unsigned int uiW, unsigned int uiH)
-{
-    unsigned int uiCount = 0;
-    for (unsigned int i = 0; i < gFixedTargetCount; ++i)
-    {
-        if (gFixedTargets[i].uiW == uiW && gFixedTargets[i].uiH == uiH)
-        {
-            ++uiCount;
-        }
-    }
-    return uiCount;
-}
-
-static void LogApplyTargets(const ResetScript& s)
-{
-    const DisplayLogic::BufferSet kNew = DisplayLogic::BufferSizes(
-        RedRenderer::m_d3dpp.BackBufferWidth, RedRenderer::m_d3dpp.BackBufferHeight,
-        RedRenderer::m_deviceCaps.MaxTextureWidth, RedRenderer::m_deviceCaps.MaxTextureHeight,
-        RedRenderer::m_renderCaps.nonpow2textures != 0);
-    const DisplayLogic::BufferSet kBase = DisplayLogic::BufferSizes(
-        s.uiBaseW, s.uiBaseH, RedRenderer::m_deviceCaps.MaxTextureWidth,
-        RedRenderer::m_deviceCaps.MaxTextureHeight, RedRenderer::m_renderCaps.nonpow2textures != 0);
-    unsigned int uiMoved = 0;
-    unsigned int uiBuffers = 0;
-    unsigned int b;
-    for (b = 0; b < 3; ++b)
-    {
-        const DisplayLogic::BufferSize& rNew = kNew.akBuf[b];
-        const DisplayLogic::BufferSize& rOld = kBase.akBuf[b];
-        if (rNew.uiW != rOld.uiW || rNew.uiH != rOld.uiH)
-        {
-            ++uiMoved;
-        }
-        const RedTexture* pBuffer = RedRenderer::m_buffers[b];
-        if (!pBuffer || !pBuffer->m_pTexture)
-        {
-            continue;
-        }
-        for (unsigned int i = 0; i < sizeof(gTrackedTargets) / sizeof(gTrackedTargets[0]); ++i)
-        {
-            const TrackedTarget& t = gTrackedTargets[i];
-            if (t.pTexture && (IDirect3DBaseTexture9*)t.pTexture == pBuffer->m_pTexture &&
-                t.uiW == rNew.uiW && t.uiH == rNew.uiH)
-            {
-                ++uiBuffers;
-                break;
-            }
-        }
-    }
-    unsigned int uiAlive = 0;
-    unsigned int uiFresh = 0;
-    unsigned int uiStale = 0;
-    char acSizes[512];
-    unsigned int uiLen = 0;
-    acSizes[0] = '\0';
-    for (unsigned int i = 0; i < sizeof(gTrackedTargets) / sizeof(gTrackedTargets[0]); ++i)
-    {
-        const TrackedTarget& t = gTrackedTargets[i];
-        if (!t.pTexture)
-        {
-            continue;
-        }
-        ++uiAlive;
-        bool bInNew = false;
-        for (b = 0; b < 3; ++b)
-        {
-            bInNew = bInNew || (t.uiW == kNew.akBuf[b].uiW && t.uiH == kNew.akBuf[b].uiH);
-        }
-        if (bInNew)
-        {
-            ++uiFresh;
-        }
-        if (uiLen + 24 < sizeof(acSizes))
-        {
-            uiLen += sprintf(acSizes + uiLen, "%s%ux%u", uiLen ? "," : "", t.uiW, t.uiH);
-        }
-    }
-    for (b = 0; b < 3; ++b)
-    {
-        const DisplayLogic::BufferSize& rOld = kBase.akBuf[b];
-        bool bSeen = false;
-        bool bInNew = false;
-        for (unsigned int c = 0; c < b; ++c)
-        {
-            bSeen = bSeen || (kBase.akBuf[c].uiW == rOld.uiW && kBase.akBuf[c].uiH == rOld.uiH);
-        }
-        for (unsigned int c = 0; c < 3; ++c)
-        {
-            bInNew = bInNew || (kNew.akBuf[c].uiW == rOld.uiW && kNew.akBuf[c].uiH == rOld.uiH);
-        }
-        if (bSeen || bInNew)
-        {
-            continue;
-        }
-        unsigned int uiAt = 0;
-        for (unsigned int i = 0; i < sizeof(gTrackedTargets) / sizeof(gTrackedTargets[0]); ++i)
-        {
-            const TrackedTarget& t = gTrackedTargets[i];
-            if (t.pTexture && t.uiW == rOld.uiW && t.uiH == rOld.uiH)
-            {
-                ++uiAt;
-            }
-        }
-        const unsigned int uiFixed = FixedTargetsAt(rOld.uiW, rOld.uiH);
-        if (uiAt > uiFixed)
-        {
-            uiStale += uiAt - uiFixed;
-        }
-    }
-    LOG(LogRender, Inform,
-        "OPENSWBF2 APPLY TARGETS alive=%u fresh=%u stale=%u buffers=%u/3 moved=%u sizes=%s",
-        uiAlive, uiFresh, uiStale, uiBuffers, uiMoved, acSizes);
-}
-
-static void TrackGammaTarget(FakeD3DTexture* pTexture, unsigned int uiW, unsigned int uiH)
-{
-    gGammaW = uiW;
-    gGammaH = uiH;
-    gGammaDraws = 0;
-    gGammaPending = true;
-    gGammaDrawPending = true;
-    for (unsigned int i = 0; i < sizeof(gGammaTargets) / sizeof(gGammaTargets[0]); ++i)
-    {
-        if (!gGammaTargets[i].pTexture)
-        {
-            gGammaTargets[i].pTexture = pTexture;
-            gGammaTargets[i].uiW = uiW;
-            gGammaTargets[i].uiH = uiH;
-            ++gGammaAlive;
-            return;
-        }
-    }
-    check(!"gamma target slots full");
-}
-
-static void UntrackGammaTarget(FakeD3DTexture* pTexture)
-{
-    for (unsigned int i = 0; i < sizeof(gGammaTargets) / sizeof(gGammaTargets[0]); ++i)
-    {
-        if (gGammaTargets[i].pTexture == pTexture)
-        {
-            gGammaTargets[i].pTexture = 0;
-            --gGammaAlive;
-            gGammaPending = true;
-            return;
-        }
-    }
-}
-
-static void GammaScriptFrame(ResetScript& s)
-{
-    ++s.uiGammaFrames;
-    if (!s.bGammaLevelsSet && s.uiGammaFrames >= 10 && ColorControl::s_pInstance)
-    {
-        s.bGammaLevelsSet = true;
-        if (s.eKind == kResetKindGammaLost)
-        {
-            s.uiGammaLostPolls = 20;
-        }
-        ColorControl::s_pInstance->SetLevel(COLORCONTROL_GAMMA_CONTRAST, 0.8f);
-        ColorControl::s_pInstance->SetLevel(COLORCONTROL_GAMMA_BRIGHTNESS, 0.8f);
-        ColorControl::s_pInstance->Update(0.0f);
-    }
-    if (s.eKind == kResetKindGammaPass && s.uiGammaFrames >= 60 && s.bApplyDone && !s.bArmed)
-    {
-        s.bArmed = true;
-        SetFocus(0);
-    }
-}
-
-static void ResetScriptFrame()
-{
-    ResetScript& s = GetResetScript();
-    if (IsGammaKind(s.eKind))
-    {
-        GammaScriptFrame(s);
-    }
-    if (s.eKind == kResetKindShellStretch && !s.bArmed && ++s.uiFrames >= 60)
-    {
-        s.bArmed = true;
-        SetFocus(0);
-    }
-    if ((s.eKind == kResetKindRecover || s.eKind == kResetKindFatal || s.eKind == kResetKindFlap) &&
-        !s.bDone)
-    {
-        if (++s.uiFrames >= 30 && !s.bArmed)
-        {
-            s.bArmed = true;
-            SetFocus(0);
-            if (s.eKind == kResetKindFatal)
-            {
-                RedRenderer::m_d3dpp.BackBufferWidth += 16;
-            }
-        }
-    }
-    if (IsApplyKind(s.eKind) && !s.bApplyDone && ++s.uiFrames >= 30)
-    {
-        s.bApplyDone = true;
-        s.uiBaseW = RedRenderer::m_d3dpp.BackBufferWidth;
-        s.uiBaseH = RedRenderer::m_d3dpp.BackBufferHeight;
-        s.bBaseWindowed = RedRenderer::m_d3dpp.Windowed != FALSE;
-        SnapshotFixedTargets(s);
-        if (s.eKind == kResetKindApplyAdapter)
-        {
-            RedRenderer::pcRequestAdapter(1);
-            RedRenderer::pcRequestAdapter(0);
-            return;
-        }
-        unsigned int uiW = 1280;
-        unsigned int uiH = 720;
-        if (s.uiBaseW == uiW && s.uiBaseH == uiH)
-        {
-            uiW = 1024;
-            uiH = 768;
-        }
-        if (s.eKind == kResetKindApplyModeSmall)
-        {
-            uiW = DisplayLogic::kMinW;
-            uiH = DisplayLogic::kMinH;
-        }
-        const DisplayLogic::DisplayMode eMode =
-            s.bBaseWindowed ? DisplayLogic::kModeFullscreen : DisplayLogic::kModeWindowed;
-        RedRenderer::pcApplyDisplayMode(uiW, uiH, eMode, uiW, uiH, true, D3DMULTISAMPLE_NONE, 0);
-    }
-}
-
-static void ResetScriptInit()
-{
-    ResetScript& s = GetResetScript();
-    if (s.eKind == kResetKindLaterInit && ++s.uiInits == 2)
-    {
-        s.bArmed = true;
-    }
-}
-
-static DWORD ResetClock()
-{
-    return GetTickCount() + gResetScript.dwSkewMs;
-}
-
-static IDirect3DSurface9* AcquireTracked(FakeD3DSurface*& pSurface, FakeD3DSurface& store)
-{
-    if (!pSurface)
-    {
-        pSurface = &store;
-        pSurface->bTracked = true;
-    }
-    pSurface->AddRef();
-    return pSurface;
-}
-
-extern bool g_bNoWait;
-extern float g_fFixedRate;
-
-static void FakePresentWait()
-{
-    if (!g_bNoWait)
-    {
-        if (g_fFixedRate > 0.0f)
-        {
-            Sleep(static_cast<int>(1000.0f / g_fFixedRate));
-        }
-        else
-        {
-            Sleep(16);
-        }
-    }
-}
-
-static unsigned int gShellChainAlive;
-static D3DTEXTUREFILTERTYPE gShellLastFilter = D3DTEXF_NONE;
-
-static const char* FilterName(D3DTEXTUREFILTERTYPE eFilter)
-{
-    if (eFilter == D3DTEXF_LINEAR)
-    {
-        return "linear";
-    }
-    if (eFilter == D3DTEXF_NONE)
-    {
-        return "none";
-    }
-    return "other";
-}
-
-class FakeD3DSwapChain : public IDirect3DSwapChain9
+class pcRedVertexShaderConstants
 {
 public:
-    FakeD3DSwapChain(unsigned int uiW, unsigned int uiH)
-        : refCount(1), w(uiW), h(uiH), presents(0)
-    {
-        ++gShellChainAlive;
-    }
 
-    ~FakeD3DSwapChain()
+    pcRedVertexShaderConstantRegister* GetRegisters(int creg0, int numregs)
     {
-        --gShellChainAlive;
-    }
-
-    STDMETHOD(QueryInterface)(REFIID, void**)
-    {
-        return D3DERR_INVALIDCALL;
-    }
-
-    STDMETHOD_(ULONG, AddRef)()
-    {
-        return (ULONG)++refCount;
-    }
-
-    STDMETHOD_(ULONG, Release)()
-    {
-        const int iLeft = --refCount;
-        if (iLeft <= 0)
+        int iLast = creg0 + numregs - 1;
+        if (m_iMinConstantSet > creg0)
         {
-            delete this;
-            return 0;
+            m_iMinConstantSet = creg0;
         }
-        return (ULONG)iLeft;
-    }
-
-    STDMETHOD(Present)(CONST RECT*, CONST RECT*, HWND, CONST RGNDATA*, DWORD)
-    {
-        FakePresentWait();
-        if (++presents == 30)
+        if (m_iMaxConstantSet < iLast)
         {
-            LOG(LogRender, Inform, "OPENSWBF2 SHELLSTRETCH FAKE chain=%ux%u presents=%u filter=%s",
-                w, h, presents, FilterName(gShellLastFilter));
+            m_iMaxConstantSet = iLast;
         }
-        return D3D_OK;
+        return m_Registers;
     }
 
-    STDMETHOD(GetFrontBufferData)(IDirect3DSurface9*)
+    pcRedVertexShaderConstantRegister* GetRegisterArray(int iFirst, int iCount)
     {
-        return D3DERR_INVALIDCALL;
-    }
-
-    STDMETHOD(GetBackBuffer)(UINT, D3DBACKBUFFER_TYPE, IDirect3DSurface9** ppBackBuffer)
-    {
-        if (!ppBackBuffer)
+        if (m_iMinConstantSet > iFirst)
         {
-            return D3DERR_INVALIDCALL;
+            m_iMinConstantSet = iFirst;
         }
-        *ppBackBuffer = new FakeD3DSurface;
-        return D3D_OK;
+        if (m_iMaxConstantSet < iFirst + iCount - 1)
+        {
+            m_iMaxConstantSet = iFirst + iCount - 1;
+        }
+        return m_Registers;
     }
 
-    STDMETHOD(GetRasterStatus)(D3DRASTER_STATUS*)
-    {
-        return D3DERR_INVALIDCALL;
-    }
+    void Update();
 
-    STDMETHOD(GetDisplayMode)(D3DDISPLAYMODE*)
-    {
-        return D3DERR_INVALIDCALL;
-    }
-
-    STDMETHOD(GetDevice)(IDirect3DDevice9**)
-    {
-        return D3DERR_INVALIDCALL;
-    }
-
-    STDMETHOD(GetPresentParameters)(D3DPRESENT_PARAMETERS*)
-    {
-        return D3DERR_INVALIDCALL;
-    }
-
-    int refCount;
-    unsigned int w;
-    unsigned int h;
-    unsigned int presents;
+    pcRedVertexShaderConstantRegister m_Registers[96];
+    int m_iMinConstantSet;
+    int m_iMaxConstantSet;
 };
 
 // FUNCTION: SWBF2 0x006b01e0
@@ -2653,6 +2091,7 @@ STDMETHODIMP FakeD3DVolumeTexture::UnlockBox(UINT)
     return 0;
 }
 
+// GLOBAL: SWBF2 0x007f58e8
 RedViewport RedRenderer::m_normalizedViewport;
 
 // FUNCTION: SWBF2 0x006b8480
@@ -3096,36 +2535,67 @@ void RedRenderer::pcUnregisterResetFunction(void(__cdecl* pFunction)(ResetFlagsT
     }
 }
 
+// GLOBAL: SWBF2 0x007de2a0
+// RedRenderer::sLightingEnable
 bool RedRenderer::sLightingEnable = true;
+// GLOBAL: SWBF2 0x007fa025
+// RedRenderer::m_bStencilShadowZFail
 bool RedRenderer::m_bStencilShadowZFail;
+// GLOBAL: SWBF2 0x007fa026
+// RedRenderer::m_bScreenSpaceShadows
 bool RedRenderer::m_bScreenSpaceShadows;
+// GLOBAL: SWBF2 0x007fa028
+// RedRenderer::m_fStencilShadowLength
 float RedRenderer::m_fStencilShadowLength;
+// GLOBAL: SWBF2 0x007fa048
+// RedRenderer::m_iImmediateMode
 int RedRenderer::m_iImmediateMode;
-int RedRenderer::m_uiCurMatrixPoolOffset;
+// GLOBAL: SWBF2 0x007fa04c
+// RedRenderer::m_uiCurMatrixPoolOffset
+unsigned int RedRenderer::m_uiCurMatrixPoolOffset;
+// GLOBAL: SWBF2 0x007fa050
+// RedRenderer::m_curRenderItemOffset
 unsigned int RedRenderer::m_curRenderItemOffset;
+// GLOBAL: SWBF2 0x007f58e0
+// RedRenderer::m_camera
 RedCamera* RedRenderer::m_camera;
+// GLOBAL: SWBF2 0x007fbe74
+// RedRenderer::m_pLightingState
 RedLightingState* RedRenderer::m_pLightingState;
-intptr_t RedRenderer::m_pmObjWorldPrev;
-intptr_t RedRenderer::m_pmBoneMatricesPrev;
-intptr_t RedRenderer::m_pPrimPrev;
-intptr_t RedRenderer::m_pLightingStatePrev;
+// GLOBAL: SWBF2 0x007fbeac
+// RedRenderer::m_pmObjWorldPrev
+const PblMatrix* RedRenderer::m_pmObjWorldPrev;
+// GLOBAL: SWBF2 0x007fbeb0
+// RedRenderer::m_pmBoneMatricesPrev
+const PblMatrix* RedRenderer::m_pmBoneMatricesPrev;
+// GLOBAL: SWBF2 0x007fbeb4
+// RedRenderer::m_pPrimPrev
+const pcRedPrimitive* RedRenderer::m_pPrimPrev;
+// GLOBAL: SWBF2 0x007fbeb8
+// RedRenderer::m_pLightingStatePrev
+const RedLightingState* RedRenderer::m_pLightingStatePrev;
 
-// GLOBAL: SWBF2 0x008bef50
 // SYNTHETIC: SWBF2 0x00407590
 // `dynamic initializer for 'RedRenderer::m_amMatrixPool''
 
+// GLOBAL: SWBF2 0x008bef50
+// RedRenderer::m_amMatrixPool
 PblMatrix RedRenderer::m_amMatrixPool[3062];
 
 // SYNTHETIC: SWBF2 0x00407610
 // `dynamic initializer for 'RedRenderer::m_mView''
 
+// GLOBAL: SWBF2 0x008eecd0
+// RedRenderer::m_mView
 __declspec(align(16)) PblMatrix RedRenderer::m_mView;
 
-// GLOBAL: SWBF2 0x008174f0
 // SYNTHETIC: SWBF2 0x004076e0
 // `dynamic initializer for 'RedRenderer::m_renderItemPool''
 // SYNTHETIC: SWBF2 0x00769840
 // `dynamic atexit destructor for 'RedRenderer::m_renderItemPool''
+
+// GLOBAL: SWBF2 0x008174f0
+// RedRenderer::m_renderItemPool
 RenderItem RedRenderer::m_renderItemPool[4748];
 
 int GetPhasePass_(RenderPhaseT ePhase);
@@ -3523,7 +2993,7 @@ void RedRenderer::pcRenderPrimitive(pcRedPrimitive* pPrim, pcRedShader* pShader,
 }
 
 template <class ITEM, class KEY>
-TransparentHeap<ITEM, KEY>::TransparentHeap(unsigned int uiMaxSize)
+inline TransparentHeap<ITEM, KEY>::TransparentHeap(unsigned int uiMaxSize)
 {
     InitNodePool(uiMaxSize);
     globalPass_ = 0;
@@ -3552,23 +3022,29 @@ void TransparentHeap<ITEM, KEY>::InitNodePool(unsigned int uiMaxSize)
     m_aNodePool[m_iMaxSize - 1].pNext = 0;
 }
 
-// GLOBAL: SWBF2 0x007fbec8
 // SYNTHETIC: SWBF2 0x004076b0
 // `dynamic initializer for 'RedRenderer::m_preShadowTransparentItems''
 // SYNTHETIC: SWBF2 0x00769830
 // `dynamic atexit destructor for 'RedRenderer::m_preShadowTransparentItems''
+
+// GLOBAL: SWBF2 0x007fbec8
+// RedRenderer::m_preShadowTransparentItems
 TransparentHeap<RenderItem*, unsigned int> RedRenderer::m_preShadowTransparentItems(100);
-// GLOBAL: SWBF2 0x0086ac50
 // SYNTHETIC: SWBF2 0x00407710
 // `dynamic initializer for 'RedRenderer::m_transparentItems''
 // SYNTHETIC: SWBF2 0x00769860
 // `dynamic atexit destructor for 'RedRenderer::m_transparentItems''
+
+// GLOBAL: SWBF2 0x0086ac50
+// RedRenderer::m_transparentItems
 TransparentHeap<RenderItem*, unsigned int> RedRenderer::m_transparentItems(800);
-// GLOBAL: SWBF2 0x0086ac74
 // SYNTHETIC: SWBF2 0x00407680
 // `dynamic initializer for 'RedRenderer::m_posttransparentItems''
 // SYNTHETIC: SWBF2 0x00769820
 // `dynamic atexit destructor for 'RedRenderer::m_posttransparentItems''
+
+// GLOBAL: SWBF2 0x0086ac74
+// RedRenderer::m_posttransparentItems
 TransparentHeap<RenderItem*, unsigned int> RedRenderer::m_posttransparentItems(512);
 
 extern bool g_bNoRender;
@@ -3623,6 +3099,7 @@ static unsigned int sDisplayGeneration;
 static unsigned int sDisplayGenW;
 static unsigned int sDisplayGenH;
 // GLOBAL: SWBF2 0x007f5f28
+// RedRenderer::m_resetFunctions
 void(__cdecl* RedRenderer::m_resetFunctions[100])(ResetFlagsT);
 // GLOBAL: SWBF2 0x007f60b8
 unsigned int RedRenderer::m_numResetFunctions;
@@ -3656,20 +3133,22 @@ int RedRenderer::m_frameNumber;
 // GLOBAL: SWBF2 0x007f58e7
 bool RedRenderer::m_bFogEnable;
 // GLOBAL: SWBF2 0x007fa054
-int RedRenderer::m_uiCurLightingStatePoolOffset;
+unsigned int RedRenderer::m_uiCurLightingStatePoolOffset;
 
-// GLOBAL: SWBF2 0x007fbec4
 // SYNTHETIC: SWBF2 0x004075b0
 // `dynamic initializer for 'RedRenderer::m_colorFog''
+
+// GLOBAL: SWBF2 0x007fbec4
+// RedRenderer::m_colorFog
 RedColor RedRenderer::m_colorFog = RedColor::BLACK;
 // GLOBAL: SWBF2 0x0086ac70
 RedColor RedRenderer::m_lightingScaleColor;
 
 // SYNTHETIC: SWBF2 0x00408c60
-// `dynamic initializer for 'PblMath::fOneOverHalfPi''
+// PblMath::`dynamic initializer for 'fOneOverHalfPi''
 
 // SYNTHETIC: SWBF2 0x00408c80
-// `dynamic initializer for 'PblMath::fOneOverTwoPi''
+// PblMath::`dynamic initializer for 'fOneOverTwoPi''
 
 static void ApplyCurrentMode(bool bMinimized)
 {
@@ -4112,6 +3591,7 @@ void RedRenderer::SetCursorImage(RedTexture const* pTexture, unsigned int uiX,
 extern bool pcForceFixedFunction;
 
 // GLOBAL: SWBF2 0x007fbea8
+// RedRenderer::internalRenderFunc
 void(__cdecl* RedRenderer::internalRenderFunc)(RenderItem*, unsigned int, unsigned int);
 
 // FUNCTION: SWBF2 0x006b6f70
@@ -4317,11 +3797,13 @@ const pcRedPixelShader* RedRenderer::m_curPixelShader;
 // GLOBAL: SWBF2 0x007fbe98
 const pcRedVertexFormat* RedRenderer::m_curFormat;
 
-// GLOBAL: SWBF2 0x008174e0
 // SYNTHETIC: SWBF2 0x00407670
 // `dynamic initializer for 'RedRenderer::m_opaqueQueues''
 // SYNTHETIC: SWBF2 0x00769810
 // `dynamic atexit destructor for 'RedRenderer::m_opaqueQueues''
+
+// GLOBAL: SWBF2 0x008174e0
+// RedRenderer::m_opaqueQueues
 util::Vector<RedRenderer::SortHeap> RedRenderer::m_opaqueQueues;
 // GLOBAL: SWBF2 0x007de348 -- .data, and the image's 1,544 bytes there are zero
 
@@ -4379,21 +3861,28 @@ D3DCULL RedRenderer::m_backCull;
 // GLOBAL: SWBF2 0x0086ac6c
 RedColor RedRenderer::m_clearColor;
 
-// FUNCTION: SWBF2 0x006ad760
+// TEMPLATE: SWBF2 0x006ad760
+// util::TypedArrayAllocator<dx::NVStateID,util::NewAllocator>::Allocate_
 template dx::NVStateID* util::TypedArrayAllocator<dx::NVStateID>::Allocate_(int&);
-// FUNCTION: SWBF2 0x006af030
+// TEMPLATE: SWBF2 0x006af030
+// util::BaseArray<dx::NVStateID,util::TNewArrayAlloc<dx::NVStateID> >::Reserve_
 template bool util::BaseArray<dx::NVStateID>::Reserve_(int, bool);
-// FUNCTION: SWBF2 0x006b0140
+// TEMPLATE: SWBF2 0x006b0140
+// util::Vector<dx::NVStateID,util::BaseArray<dx::NVStateID,util::TNewArrayAlloc<dx::NVStateID> > >::Add
 template bool util::Vector<dx::NVStateID>::Add(dx::NVStateID const&);
-// FUNCTION: SWBF2 0x006b0340
+// TEMPLATE: SWBF2 0x006b0340
+// util::TypedArrayAllocator<util::TKeyPair_<RenderItem *,unsigned int>,util::NewAllocator>::Allocate_
 template util::TKeyPair_<RenderItem*, unsigned int>* util::TypedArrayAllocator<util::TKeyPair_<RenderItem*, unsigned int> >::Allocate_(int&);
-// FUNCTION: SWBF2 0x006b0390
+// TEMPLATE: SWBF2 0x006b0390
+// util::TypedArrayAllocator<RedRenderer::SortHeap,util::NewAllocator>::Allocate_
 template RedRenderer::SortHeap* util::TypedArrayAllocator<RedRenderer::SortHeap>::Allocate_(int&);
 // FUNCTION: SWBF2 0x006afbe0
 template util::Vector<util::TKeyPair_<RenderItem*, unsigned int> >::Vector(util::Vector<util::TKeyPair_<RenderItem*, unsigned int> > const&);
-// FUNCTION: SWBF2 0x006b2e30
+// TEMPLATE: SWBF2 0x006b2e30
+// util::BaseArray<util::TKeyPair_<RenderItem *,unsigned int>,util::TNewArrayAlloc<util::TKeyPair_<RenderItem *,unsigned int> > >::Reserve_
 template bool util::BaseArray<util::TKeyPair_<RenderItem*, unsigned int> >::Reserve_(int, bool);
-// FUNCTION: SWBF2 0x006b2f20
+// TEMPLATE: SWBF2 0x006b2f20
+// util::BaseArray<RedRenderer::SortHeap,util::TNewArrayAlloc<RedRenderer::SortHeap> >::Reserve_
 template bool util::BaseArray<RedRenderer::SortHeap>::Reserve_(int, bool);
 
 // TEMPLATE: SWBF2 0x006afe10
@@ -5269,7 +4758,7 @@ void RedRenderer::internalStateStackInit()
 pcRedVertexShaderConstantRegister* RedRenderer::pcLockVertexShaderConstants(int iFirst,
                                                                             int iCount)
 {
-    return m_VSConstants.GetRegisterArray(iFirst, iCount);
+    return m_VSConstants.GetRegisters(iFirst, iCount);
 }
 
 // FUNCTION: SWBF2 0x006b9800
@@ -5352,10 +4841,7 @@ void RedRenderer::SetLightingScale(float fScale)
 {
     m_lightingScale = fScale;
     unsigned char uc = (unsigned char)(int)(fScale * 255.0f);
-    m_lightingScaleColor.b = uc;
-    m_lightingScaleColor.g = uc;
-    m_lightingScaleColor.r = uc;
-    m_lightingScaleColor.a = 0xFF;
+    m_lightingScaleColor = RedColor(uc, uc, uc, 0xFF);
 }
 
 // FUNCTION: SWBF2 0x006b9590
@@ -5423,7 +4909,7 @@ void RedRenderer::pcUnlockVertexShaderConstants(pcRedVertexShaderConstantRegiste
     m_VSConstants.Update();
 }
 
-void pcRedVertexShaderConstants::Update()
+inline void pcRedVertexShaderConstants::Update()
 {
     if (m_iMaxConstantSet >= m_iMinConstantSet)
     {
@@ -5492,38 +4978,33 @@ RedColor RedRenderer::pcGetClearColor()
     return m_clearColor;
 }
 
-// FUNCTION: SWBF2 0x006afd00
-RedLight::RedLight(TypeT eType)
-{
-    m_uiHideInView = 0;
-    m_uiFlags = 0;
-    m_eType = eType;
-    m_uiProjTexHash = 0;
-    m_uiProjTexWrapMode = 3;
-    m_uiProjTexBlendMode = 0;
-}
 
-// GLOBAL: SWBF2 0x0086ac90
+
 // SYNTHETIC: SWBF2 0x004075e0
 // `dynamic initializer for 'RedRenderer::m_mProjection''
 
+// GLOBAL: SWBF2 0x0086ac90
+// RedRenderer::m_mProjection
 PblMatrix RedRenderer::m_mProjection;
-// GLOBAL: SWBF2 0x008eed20
 // SYNTHETIC: SWBF2 0x00407620
 // `dynamic initializer for 'RedRenderer::m_mViewProjection''
 
+// GLOBAL: SWBF2 0x008eed20
+// RedRenderer::m_mViewProjection
 PblMatrix RedRenderer::m_mViewProjection;
-// GLOBAL: SWBF2 0x008bef10
 // SYNTHETIC: SWBF2 0x00407640
 // `dynamic initializer for 'RedRenderer::m_nearSceneFadeTexTransform''
 
+// GLOBAL: SWBF2 0x008bef10
+// RedRenderer::m_nearSceneFadeTexTransform
 PblMatrix RedRenderer::m_nearSceneFadeTexTransform;
 
-// GLOBAL: SWBF2 0x008eed10
 // SYNTHETIC: SWBF2 0x00407740
 // `dynamic initializer for 'RedRenderer::m_userNearClipPlane''
 
-PblVector4 RedRenderer::m_userNearClipPlane;
+// GLOBAL: SWBF2 0x008eed10
+// RedRenderer::m_userNearClipPlane
+PblPlane RedRenderer::m_userNearClipPlane;
 
 // FUNCTION: SWBF2 0x006b81a0
 void RedRenderer::pcFFSetTextureTransform(unsigned int uiStage, const PblMatrix& rMatrix)
@@ -5598,7 +5079,7 @@ void RedRenderer::pcSetTransform(D3DTRANSFORMSTATETYPE eState, const PblMatrix& 
 // FUNCTION: SWBF2 0x006b9db0
 void RedRenderer::pcSetUserNearClipPlane(const PblPlane& plane)
 {
-    RedRenderer::m_userNearClipPlane = *(const PblVector4*)&plane;
+    RedRenderer::m_userNearClipPlane = plane;
     if (RedRenderer::m_userNearClipPlaneEnable)
     {
         internalUpdateSceneConstants();
@@ -5645,15 +5126,7 @@ void pcRedVertexShaderConstantRegister::SetMatrix4x4(const PblMatrix& rMatrix)
     }
 }
 
-// FUNCTION: SWBF2 0x006b3ec0
-void dx::StateManager_DX::SetTransform(D3DTRANSFORMSTATETYPE State, const D3DMATRIX* pMatrix)
-{
-    if (pMatrix)
-    {
-        m_DirtyStates.Add(NVStateID(9, State, 0));
-        memcpy(m_CurrentState.m_Matrices[State], pMatrix, sizeof(D3DMATRIX));
-    }
-}
+
 
 // FUNCTION: SWBF2 0x006b4430
 void RedRenderer::internalBeginConstants()
@@ -5835,13 +5308,16 @@ void RedRenderer::internalUpdateSceneConstants()
 
     if (RedRenderer::m_userNearClipPlaneEnable)
     {
-        PblMatrix mViewProj, mClip;
+        PblMatrix mViewProj;
         D3DXMatrixMultiply((D3DXMATRIX*)&mViewProj, (const D3DXMATRIX*)&rView,
                            (const D3DXMATRIX*)&rProj);
-        D3DXMatrixInverse((D3DXMATRIX*)&mClip, 0, (const D3DXMATRIX*)&mViewProj);
+        PblMatrix mClip = mViewProj.GetInverse();
         mClip.Transpose4x4();
 
-        PblVector4 vPlane = RedRenderer::m_userNearClipPlane;
+        PblVector4 vPlane(RedRenderer::m_userNearClipPlane.GetA(),
+                         RedRenderer::m_userNearClipPlane.GetB(),
+                         RedRenderer::m_userNearClipPlane.GetC(),
+                         RedRenderer::m_userNearClipPlane.GetD());
         D3DXVECTOR4 vIn(vPlane.x, vPlane.y, vPlane.z, vPlane.w);
         D3DXVECTOR4 vClip;
         D3DXVec4Transform(&vClip, &vIn, (const D3DXMATRIX*)&mClip);
@@ -5859,16 +5335,14 @@ void RedRenderer::internalUpdateSceneConstants()
             mOblique.m[1][2] = vClip.y;
             mOblique.m[2][2] = vClip.z;
             mOblique.m[3][2] = vClip.w;
-            D3DXMatrixMultiply((D3DXMATRIX*)&rProj, (const D3DXMATRIX*)&rProj,
-                               (const D3DXMATRIX*)&mOblique);
+            rProj *= mOblique;
         }
     }
 
     PblMatrix mOffset = rIdentity;
     mOffset.m[3][0] = 2.0f / (float)m_d3dpp.BackBufferWidth * RedRenderer::m_screenOffsetX;
     mOffset.m[3][1] = -(2.0f / (float)m_d3dpp.BackBufferHeight * RedRenderer::m_screenOffsetY);
-    D3DXMatrixMultiply((D3DXMATRIX*)&rProj, (const D3DXMATRIX*)&rProj,
-                       (const D3DXMATRIX*)&mOffset);
+    rProj *= mOffset;
 
     if (stateManagerEnabled_)
     {
@@ -6006,39 +5480,23 @@ const PblMatrix& RedLight::GetProjectionMatrix() const
     return gMatrixIdentity;
 }
 
-// FUNCTION: SWBF2 0x006b00d0
+// TEMPLATE: SWBF2 0x006b00d0
+// util::Vector<util::TKeyPair_<RenderItem *,unsigned int>,util::BaseArray<util::TKeyPair_<RenderItem *,unsigned int>,util::TNewArrayAlloc<util::TKeyPair_<RenderItem *,unsigned int> > > >::Add
 template bool util::Vector<util::TKeyPair_<RenderItem*, unsigned int> >::Add(util::TKeyPair_<RenderItem*, unsigned int> const&);
 
-template <class TABLE>
-static void ZeroAllVariables_(TABLE& rTable)
-{
-    for (int i = 0; i < rTable.hashes_.GetSize(); ++i)
-    {
-        if (rTable.hashes_[i] != 0)
-        {
-            *rTable.elements_[i] = 0;
-        }
-    }
-}
-
-template <class ALLOC>
-void util::VariableSet<ALLOC>::ResetAll()
-{
-    ZeroAllVariables_(int32Map_);
-    ZeroAllVariables_(floatMap_);
-    ZeroAllVariables_(boolMap_);
-}
-
-// FUNCTION: SWBF2 0x006b3110
+// TEMPLATE: SWBF2 0x006b3110
+// util::VariableSet<util::SingletonAllocator<util::DefaultStaticAllocator> >::ResetAll
 template void util::VariableSet<util::SingletonAllocator<util::DefaultStaticAllocator> >::ResetAll();
 
-// GLOBAL: SWBF2 0x0086ad10
 // SYNTHETIC: SWBF2 0x00407560
 // `dynamic initializer for 'RedRenderer::m_aLightingStatePool''
 // SYNTHETIC: SWBF2 0x007697f0
 // `dynamic atexit destructor for 'RedRenderer::m_aLightingStatePool''
 // SYNTHETIC: SWBF2 0x006afd70
 // RedLightingState::RedLightingState
+
+// GLOBAL: SWBF2 0x0086ad10
+// RedRenderer::m_aLightingStatePool
 RedLightingState RedRenderer::m_aLightingStatePool[2051];
 
 // FUNCTION: SWBF2 0x006b0270
@@ -6059,7 +5517,7 @@ PblMatrix* RedRenderer::AllocBoneMatricesInCache(unsigned int uiCount)
 RedLightingState* RedRenderer::AllocLightingStateInCache()
 {
     RedLightingState* pState = &m_aLightingStatePool[RedRenderer::m_uiCurLightingStatePoolOffset];
-    RedRenderer::m_uiCurLightingStatePoolOffset = (unsigned int)(RedRenderer::m_uiCurLightingStatePoolOffset + 1) < 2048 ? RedRenderer::m_uiCurLightingStatePoolOffset + 1 : 1;
+    RedRenderer::m_uiCurLightingStatePoolOffset = RedRenderer::m_uiCurLightingStatePoolOffset + 1 < 2048 ? RedRenderer::m_uiCurLightingStatePoolOffset + 1 : 1;
     memset(pState, 0, sizeof(RedLightingState));
     return pState;
 }
@@ -6068,7 +5526,7 @@ RedLightingState* RedRenderer::AllocLightingStateInCache()
 const PblMatrix* RedRenderer::AllocMatrixInCache(const PblMatrix& mat)
 {
     PblMatrix* pMatrix = &RedRenderer::m_amMatrixPool[RedRenderer::m_uiCurMatrixPoolOffset];
-    if ((unsigned int)(RedRenderer::m_uiCurMatrixPoolOffset + 1) >= 3062)
+    if (RedRenderer::m_uiCurMatrixPoolOffset + 1 >= 3062)
     {
         RedRenderer::m_uiCurMatrixPoolOffset = 0;
     }
@@ -6155,6 +5613,7 @@ bool RedRenderer::BeginFrame()
     RedRenderer::m_curVisibilityIndex = (RedRenderer::m_frameNumber & 1) ? 0x7E8 : 0;
     sOcclusionQuerySubmitIndex = (RedRenderer::m_frameNumber & 1) ? 700 : 0;
 
+    // GLOBAL: SWBF2 0x008eed60
     static util::VariableSet<util::SingletonAllocator<util::DefaultStaticAllocator> >& s_perFrame =
         util::Globals::GetInstance().GetSet("perFrame");
     s_perFrame.ResetAll();
@@ -6555,10 +6014,11 @@ struct OcclusionQueryT
 
 // SYNTHETIC: SWBF2 0x006afc80
 // OcclusionQueryT::OcclusionQueryT
-// GLOBAL: SWBF2 0x007fbf60
 // SYNTHETIC: SWBF2 0x00407650
 // `dynamic initializer for 'RedRenderer::m_occlusionQueries''
 
+// GLOBAL: SWBF2 0x007fbf60
+// RedRenderer::m_occlusionQueries
 OcclusionQueryT RedRenderer::m_occlusionQueries[1400];
 
 // FUNCTION: SWBF2 0x006b0d70
@@ -6722,10 +6182,11 @@ int GetPhasePass_(RenderPhaseT ePhase)
     return ePhase == RENDERPHASE_TRANSPARENT ? 20 : 0;
 }
 
-// GLOBAL: SWBF2 0x0086acd0
 // SYNTHETIC: SWBF2 0x004075f0
 // `dynamic initializer for 'RedRenderer::m_mProjectionTemp''
 
+// GLOBAL: SWBF2 0x0086acd0
+// RedRenderer::m_mProjectionTemp
 PblMatrix RedRenderer::m_mProjectionTemp;
 
 // FUNCTION: SWBF2 0x006b16f0
@@ -6808,7 +6269,8 @@ void TransparentHeap<ITEM, KEY>::Push(ITEM& rItem, KEY idSort)
     }
 }
 
-// FUNCTION: SWBF2 0x006b2820
+// TEMPLATE: SWBF2 0x006b2820
+// TransparentHeap<RenderItem *,unsigned int>::Push
 template void TransparentHeap<RenderItem*, unsigned int>::Push(RenderItem*&, unsigned int);
 
 // FUNCTION: SWBF2 0x006b33c0
@@ -7365,9 +6827,9 @@ void __cdecl RedRenderer::internalRenderProg1(RenderItem* pItem, unsigned int ui
     internalShaderBeginEnd(pItem, uiShaderID, uiPass);
 
     pcRedVertexShaderConstantRegister* pRegs;
-    if (pItem->pBoneMatrices && (intptr_t)pItem->pBoneMatrices != RedRenderer::m_pmBoneMatricesPrev)
+    if (pItem->pBoneMatrices && pItem->pBoneMatrices != RedRenderer::m_pmBoneMatricesPrev)
     {
-        RedRenderer::m_pmBoneMatricesPrev = (intptr_t)pItem->pBoneMatrices;
+        RedRenderer::m_pmBoneMatricesPrev = pItem->pBoneMatrices;
         pRegs = m_VSConstants.GetRegisterArray(51, 3 * pItem->numBoneMatrices);
         for (unsigned short i = 0; i < pItem->numBoneMatrices; ++i)
         {
@@ -7378,9 +6840,9 @@ void __cdecl RedRenderer::internalRenderProg1(RenderItem* pItem, unsigned int ui
 
     float fSpotW = 2.0f;
     float fSpotProjected = 0.0f;
-    if ((intptr_t)pItem->pPrim != RedRenderer::m_pPrimPrev)
+    if (pItem->pPrim != RedRenderer::m_pPrimPrev)
     {
-        RedRenderer::m_pPrimPrev = (intptr_t)pItem->pPrim;
+        RedRenderer::m_pPrimPrev = pItem->pPrim;
         pRegs = m_VSConstants.GetRegisterArray(12, 4);
         if (uiRVF & 0x4000)
         {
@@ -7434,9 +6896,9 @@ void __cdecl RedRenderer::internalRenderProg1(RenderItem* pItem, unsigned int ui
         pRegs[15].component[3] = 1.0f;
     }
 
-    if ((intptr_t)pItem->pmObjWorld != RedRenderer::m_pmObjWorldPrev)
+    if (pItem->pmObjWorld != RedRenderer::m_pmObjWorldPrev)
     {
-        RedRenderer::m_pmObjWorldPrev = (intptr_t)pItem->pmObjWorld;
+        RedRenderer::m_pmObjWorldPrev = pItem->pmObjWorld;
         pRegs = m_VSConstants.GetRegisterArray(16, 3);
         PblMatrix mWorld = *pItem->pmObjWorld;
         pRegs[16].SetMatrix4x3(mWorld);
@@ -7449,7 +6911,7 @@ void __cdecl RedRenderer::internalRenderProg1(RenderItem* pItem, unsigned int ui
         const RedLightingState* pLS = pItem->pLightingState;
         sAccumulatedLightingBits |= uiLights;
         pRegs = m_VSConstants.GetRegisterArray(19, 6);
-        RedRenderer::m_pLightingStatePrev = (intptr_t)pLS;
+        RedRenderer::m_pLightingStatePrev = pLS;
         sCurrentFormatHasNormals = bNormals;
         float fDirProjected = 0.0f;
         float fOmniProjected = 0.0f;
@@ -7633,9 +7095,9 @@ void __cdecl RedRenderer::internalRenderProg1(RenderItem* pItem, unsigned int ui
         const RedLightingState* pDefault =
             bNormals ? &RedRenderer::m_aLightingStatePool[2048]
                      : &RedRenderer::m_aLightingStatePool[2049];
-        if ((intptr_t)pDefault != RedRenderer::m_pLightingStatePrev)
+        if (pDefault != RedRenderer::m_pLightingStatePrev)
         {
-            RedRenderer::m_pLightingStatePrev = (intptr_t)pDefault;
+            RedRenderer::m_pLightingStatePrev = pDefault;
             pRegs = m_VSConstants.GetRegisterArray(19, 2);
             const RedAmbientLight& rAmbient = pDefault->ambientLight;
             SetColor_(pRegs[19], rAmbient.m_topColor);
@@ -7688,9 +7150,9 @@ void RedRenderer::internalRenderZPrepassProg1(RenderItem* pItem, unsigned int ui
 
     pcRedVertexShaderConstantRegister* pRegs;
     if (pItem->pBoneMatrices &&
-        (intptr_t)pItem->pBoneMatrices != RedRenderer::m_pmBoneMatricesPrev)
+        pItem->pBoneMatrices != RedRenderer::m_pmBoneMatricesPrev)
     {
-        RedRenderer::m_pmBoneMatricesPrev = (intptr_t)pItem->pBoneMatrices;
+        RedRenderer::m_pmBoneMatricesPrev = pItem->pBoneMatrices;
         pRegs = m_VSConstants.GetRegisterArray(51, 3 * pItem->numBoneMatrices);
         for (unsigned short i = 0; i < pItem->numBoneMatrices; ++i)
         {
@@ -7699,9 +7161,9 @@ void RedRenderer::internalRenderZPrepassProg1(RenderItem* pItem, unsigned int ui
         m_VSConstants.Update();
     }
 
-    if ((intptr_t)pItem->pPrim != RedRenderer::m_pPrimPrev)
+    if (pItem->pPrim != RedRenderer::m_pPrimPrev)
     {
-        RedRenderer::m_pPrimPrev = (intptr_t)pItem->pPrim;
+        RedRenderer::m_pPrimPrev = pItem->pPrim;
         pRegs = m_VSConstants.GetRegisterArray(12, 4);
         pRegs[12].component[0] = (uiRVF & 0x4000) ? 2.0f : 1.0f;
         pRegs[12].component[1] = (uiRVF & 0x4000) ? -1.0f : 0.0f;
@@ -7738,9 +7200,9 @@ void RedRenderer::internalRenderZPrepassProg1(RenderItem* pItem, unsigned int ui
         pRegs[15].component[3] = 1.0f;
     }
 
-    if ((intptr_t)pItem->pmObjWorld != RedRenderer::m_pmObjWorldPrev)
+    if (pItem->pmObjWorld != RedRenderer::m_pmObjWorldPrev)
     {
-        RedRenderer::m_pmObjWorldPrev = (intptr_t)pItem->pmObjWorld;
+        RedRenderer::m_pmObjWorldPrev = pItem->pmObjWorld;
         pRegs = m_VSConstants.GetRegisterArray(16, 3);
         PblMatrix world = *pItem->pmObjWorld;
         pRegs[16].SetMatrix4x3(world);
@@ -7962,8 +7424,10 @@ void RedRenderer::pcSetTexture(unsigned int uiStage, const RedTexture* pTexture)
     if (pTexture && pTexture->m_uiLastFrameUsed < (unsigned int)RedRenderer::m_frameNumber)
     {
         const_cast<RedTexture*>(pTexture)->m_uiLastFrameUsed = RedRenderer::m_frameNumber;
+        // GLOBAL: SWBF2 0x008eed68
         static util::VariableSet<util::SingletonAllocator<util::DefaultStaticAllocator> >& s_perFrame =
             util::Globals::GetInstance().GetSet("perFrame");
+        // GLOBAL: SWBF2 0x008eed70
         static int& s_numTexUsed = s_perFrame.GetInt("numTexUsed");
         ++s_numTexUsed;
     }
@@ -8167,15 +7631,17 @@ void dx::StateManager_DX::FlushStateEx_()
     }
 }
 
-// GLOBAL: SWBF2 0x007fbee0
 // SYNTHETIC: SWBF2 0x00407630
 // `dynamic initializer for 'RedRenderer::m_mViewUndo''
 
+// GLOBAL: SWBF2 0x007fbee0
+// RedRenderer::m_mViewUndo
 PblMatrix RedRenderer::m_mViewUndo;
-// GLOBAL: SWBF2 0x007fbf20
 // SYNTHETIC: SWBF2 0x00407600
 // `dynamic initializer for 'RedRenderer::m_mProjectionUndo''
 
+// GLOBAL: SWBF2 0x007fbf20
+// RedRenderer::m_mProjectionUndo
 PblMatrix RedRenderer::m_mProjectionUndo;
 // GLOBAL: SWBF2 0x007fb07b
 bool bSetNullTexture;
@@ -8253,12 +7719,12 @@ void RedRenderer::internalStateStackPop()
         }
     }
 
-    PblMatrix mViewProj;
-    D3DXMatrixMultiply((D3DXMATRIX*)&mViewProj, (const D3DXMATRIX*)&rView, (const D3DXMATRIX*)&rProj);
+    PblMatrix mViewProj = rView * rProj;
     RedRenderer::m_mViewProjection = mViewProj;
 }
 
-// FUNCTION: SWBF2 0x006af340
+// TEMPLATE: SWBF2 0x006af340
+// util::HeapInsert_<util::TKeyPair_<RenderItem *,unsigned int>,util::Vector<util::TKeyPair_<RenderItem *,unsigned int>,util::BaseArray<util::TKeyPair_<RenderItem *,unsigned int>,util::TNewArrayAlloc<util::TKeyPair_<RenderItem *,unsigned int> > > >,util::GreaterEqOp<util::TKeyPair_<RenderItem *,unsigned int> > >
 template void util::HeapInsert_<util::TKeyPair_<RenderItem*, unsigned int>, util::Vector<util::TKeyPair_<RenderItem*, unsigned int> >,
                                 util::GreaterEqOp<util::TKeyPair_<RenderItem*, unsigned int> > >(
     util::Vector<util::TKeyPair_<RenderItem*, unsigned int> >&, int, util::TKeyPair_<RenderItem*, unsigned int> const&);
@@ -8375,10 +7841,12 @@ void RedRenderer::internalRenderFromHeap(HEAP& heap)
     pItem->Free();
 }
 
-// FUNCTION: SWBF2 0x006af430
+// TEMPLATE: SWBF2 0x006af430
+// RedRenderer::internalRenderFromHeap<TransparentHeap<RenderItem *,unsigned int> >
 template void RedRenderer::internalRenderFromHeap<TransparentHeap<RenderItem*, unsigned int> >(
     TransparentHeap<RenderItem*, unsigned int>&);
-// FUNCTION: SWBF2 0x006af820
+// TEMPLATE: SWBF2 0x006af820
+// RedRenderer::internalRenderFromHeap<RedRenderer::SortHeap>
 template void RedRenderer::internalRenderFromHeap<RedRenderer::SortHeap>(RedRenderer::SortHeap&);
 
 // FUNCTION: SWBF2 0x006aff80
@@ -8406,7 +7874,7 @@ RedLightingState& RedLightingState::operator=(const RedLightingState& rOther)
 }
 
 // FUNCTION: SWBF2 0x006b28a0
-void RedRenderer::SortHeap::Push(RenderItem* pItem, unsigned int uiKey)
+inline void RedRenderer::SortHeap::Push(RenderItem* pItem, unsigned int uiKey)
 {
     util::TKeyPair_<RenderItem*, unsigned int> pair(pItem, uiKey);
     int iIndex = GetSize();
@@ -8512,6 +7980,7 @@ void RedRenderer::pcSetImmediateMode(int iValue)
 // FUNCTION: SWBF2 0x006b9650
 void RedRenderer::pcSetRenderTarget(RedTexture* pTarget, IDirect3DSurface9* pDepth)
 {
+    // GLOBAL: SWBF2 0x00772314
     static const RedViewport s_fullViewport = { 0.0f, 0.0f, 1.0f, 1.0f };
 
     if (!pTarget && !m_pBackBufferSurface)

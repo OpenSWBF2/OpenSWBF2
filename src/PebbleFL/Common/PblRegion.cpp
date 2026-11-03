@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "PblRegion.h"
 
 #include <math.h>
@@ -11,86 +12,43 @@ bool PblRegion::IsPointInside(const PblVector3& rPoint) const
     {
     case type_sphere:
     {
+        const float fR2 = mSize.w * mSize.w;
         const float fDx = mMatrix.m[3][0] - rPoint.x;
         const float fDy = mMatrix.m[3][1] - rPoint.y;
         const float fDz = mMatrix.m[3][2] - rPoint.z;
-
-        return mSize.w * mSize.w
-             > fDy * fDy + fDx * fDx + fDz * fDz;
+        return fDy * fDy + fDx * fDx + fDz * fDz < fR2;
     }
 
     case type_box:
     {
-        const float fDx = rPoint.x - mMatrix.m[3][0];
-        const float fDy = rPoint.y - mMatrix.m[3][1];
-        const float fDz = rPoint.z - mMatrix.m[3][2];
-
-        const float fAlong0 = (float)fabs(mMatrix.m[0][1] * fDy
-                                          + mMatrix.m[0][0] * fDx
-                                          + mMatrix.m[0][2] * fDz);
-        if (!(mSize.x > fAlong0))
-        {
-            return false;
-        }
-
-        const float fAlong1 = (float)fabs(mMatrix.m[1][1] * fDy
-                                          + mMatrix.m[1][0] * fDx
-                                          + mMatrix.m[1][2] * fDz);
-        if (!(mSize.y > fAlong1))
-        {
-            return false;
-        }
-
-        const float fAlong2 = (float)fabs(mMatrix.m[2][1] * fDy
-                                          + mMatrix.m[2][0] * fDx
-                                          + mMatrix.m[2][2] * fDz);
-        return mSize.z > fAlong2;
+        const PblVector3 vDiff = rPoint - mMatrix[3];
+        return mSize.x > (float)fabs(DotProduct(vDiff, mMatrix[0]))
+            && mSize.y > (float)fabs(DotProduct(vDiff, mMatrix[1]))
+            && mSize.z > (float)fabs(vDiff.x * mMatrix.m[2][0] + vDiff.y * mMatrix.m[2][1] + vDiff.z * mMatrix.m[2][2]);
     }
 
     case type_cylinder:
     {
-        const float fDx = rPoint.x - mMatrix.m[3][0];
-        const float fDy = rPoint.y - mMatrix.m[3][1];
-        const float fDz = rPoint.z - mMatrix.m[3][2];
+        const PblVector3 vDiff = rPoint - mMatrix[3];
 
-        const float fAxial = (float)fabs(mMatrix.m[1][1] * fDy
-                                         + mMatrix.m[1][0] * fDx
-                                         + mMatrix.m[1][2] * fDz);
+        const float fAxial = (float)fabs(DotProduct(mMatrix[1], vDiff));
         if (fAxial >= mSize.y)
         {
             return false;
         }
 
-        const float fRadial0 = mMatrix.m[0][1] * fDy
-                             + mMatrix.m[0][0] * fDx
-                             + mMatrix.m[0][2] * fDz;
-        const float fRadial2 = mMatrix.m[2][1] * fDy
-                             + mMatrix.m[2][0] * fDx
-                             + mMatrix.m[2][2] * fDz;
-
-        return mSize.x * mSize.x
-             > fRadial2 * fRadial2 + fRadial0 * fRadial0;
+        const float fRadial0 = DotProduct(mMatrix[0], vDiff);
+        const float fRadial2 = DotProduct(mMatrix[2], vDiff);
+        return mSize.x * mSize.x > fRadial2 * fRadial2 + fRadial0 * fRadial0;
     }
 
     case type_plane:
-
-        return mSize.w > mMatrix.m[2][1] * rPoint.y
-                       + mMatrix.m[2][0] * rPoint.x
-                       + mMatrix.m[2][2] * rPoint.z;
+        return DotProduct(mMatrix[2], rPoint) < mSize.w;
 
     case type_box_aligned:
-    {
-        if (!(mSize.x > (float)fabs(rPoint.x - mMatrix.m[3][0])))
-        {
-            return false;
-        }
-        if (!(mSize.y > (float)fabs(rPoint.y - mMatrix.m[3][1])))
-        {
-            return false;
-        }
-        return mSize.z > (float)fabs(rPoint.z - mMatrix.m[3][2]);
-
-    }
+        return mSize.x > (float)fabs(rPoint.x - mMatrix.m[3][0])
+            && mSize.y > (float)fabs(rPoint.y - mMatrix.m[3][1])
+            && mSize.z > (float)fabs(rPoint.z - mMatrix.m[3][2]);
 
     case type_cylinder_xaligned:
     {
@@ -98,40 +56,22 @@ bool PblRegion::IsPointInside(const PblVector3& rPoint) const
         const float fDy = rPoint.y - mMatrix.m[3][1];
         const float fDz = rPoint.z - mMatrix.m[3][2];
 
-        if (!(mSize.y > (float)fabs(fDx)))
-        {
-            return false;
-        }
-        return mSize.x * mSize.x > fDz * fDz + fDy * fDy;
-
+        return mSize.y > (float)fabs(fDx)
+            && mSize.x * mSize.x > fDz * fDz + fDy * fDy;
     }
 
     case type_cylinder_yaligned:
     {
-        const float fDx = rPoint.x - mMatrix.m[3][0];
-        const float fDy = rPoint.y - mMatrix.m[3][1];
-        const float fDz = rPoint.z - mMatrix.m[3][2];
-
-        if (!(mSize.y > (float)fabs(fDy)))
-        {
-            return false;
-        }
-        return mSize.x * mSize.x > fDx * fDx + fDz * fDz;
-
+        const PblVector3 vDiff = rPoint - mMatrix[3];
+        return mSize.y > (float)fabs(vDiff.y)
+            && mSize.x * mSize.x > vDiff.z * vDiff.z + vDiff.x * vDiff.x;
     }
 
     case type_cylinder_zaligned:
     {
-        const float fDx = rPoint.x - mMatrix.m[3][0];
-        const float fDy = rPoint.y - mMatrix.m[3][1];
-        const float fDz = rPoint.z - mMatrix.m[3][2];
-
-        if (!(mSize.y > (float)fabs(fDz)))
-        {
-            return false;
-        }
-        return mSize.x * mSize.x > fDx * fDx + fDy * fDy;
-
+        const PblVector3 vDiff = rPoint - mMatrix[3];
+        return mSize.y > (float)fabs(vDiff.z)
+            && mSize.x * mSize.x > vDiff.y * vDiff.y + vDiff.x * vDiff.x;
     }
 
     default:
@@ -139,11 +79,13 @@ bool PblRegion::IsPointInside(const PblVector3& rPoint) const
     }
 }
 
-// GLOBAL: SWBF2 0x007e2c9c
 // SYNTHETIC: SWBF2 0x0040aef0
 // `dynamic initializer for 'PblRegion::sList''
 // SYNTHETIC: SWBF2 0x0076a0d0
 // `dynamic atexit destructor for 'PblRegion::sList''
+
+// GLOBAL: SWBF2 0x007e2c9c
+// PblRegion::sList
 PblListSingle PblRegion::sList;
 
 // FUNCTION: SWBF2 0x00727f00
@@ -162,10 +104,7 @@ PblRegion::PblRegion()
 {
     sList.AddLast(&mNode);
     mMatrix.Reset();
-    mSize.x = 0.0f;
-    mSize.y = 0.0f;
-    mSize.z = 0.0f;
-    mSize.w = 0.0f;
+    mSize.x = mSize.y = mSize.z = mSize.w = 0.0f;
 }
 
 // FUNCTION: SWBF2 0x00727fd0
@@ -173,6 +112,7 @@ PblRegion::~PblRegion()
 {
     mNode.Remove();
 }
+
 
 // FUNCTION: SWBF2 0x00728ef0
 bool PblRegion::DoesSphereIntersect(const PblVector3& rCenter, float fRadius) const
@@ -182,55 +122,49 @@ bool PblRegion::DoesSphereIntersect(const PblVector3& rCenter, float fRadius) co
     {
     case type_sphere:
     {
-        const float fDx = rCenter.x - mMatrix.m[3][0];
-        const float fDy = rCenter.y - mMatrix.m[3][1];
-        const float fDz = rCenter.z - mMatrix.m[3][2];
         const float fR = mSize.w + fRadius;
-        return fR * fR > fDy * fDy + fDx * fDx + fDz * fDz;
+        const PblVector3 vDiff(rCenter.x - mMatrix.m[3][0], rCenter.y - mMatrix.m[3][1], rCenter.z - mMatrix.m[3][2]);
+        return DotProduct(vDiff, vDiff) < fR * fR;
     }
 
     case type_box:
     {
-        const PblMatrix inv = mMatrix.GetInverseFast();
-        D3DXVec3TransformCoord(&v, &rCenter, &inv);
-        return PblRegion::DoesSphereIntersectBox(*(const PblVector3*)&mSize, v, fRadius);
+        const PblVector3 vLocal = mMatrix.GetInverseFast().ApplyTransform(rCenter);
+        return DoesSphereIntersectBox(mSize, vLocal, fRadius);
     }
 
     case type_cylinder:
     {
-        const PblMatrix inv = mMatrix.GetInverseFast();
-        D3DXVec3TransformCoord(&v, &rCenter, &inv);
-        return PblRegion::DoesSphereIntersectYCylinder(*(const PblVector3*)&mSize, v, fRadius);
+        const PblVector3 vLocal = mMatrix.GetInverseFast().ApplyTransform(rCenter);
+        return DoesSphereIntersectYCylinder(mSize, vLocal, fRadius);
     }
 
     case type_plane:
-        return mSize.w + fRadius > mMatrix.m[2][1] * rCenter.y
-                                 + mMatrix.m[2][0] * rCenter.x
-                                 + mMatrix.m[2][2] * rCenter.z;
+        return DotProduct(rCenter, mMatrix[2]) < mSize.w + fRadius;
 
     case type_box_aligned:
         v.x = rCenter.x - mMatrix.m[3][0];
         v.y = rCenter.y - mMatrix.m[3][1];
         v.z = rCenter.z - mMatrix.m[3][2];
-        return PblRegion::DoesSphereIntersectBox(*(const PblVector3*)&mSize, v, fRadius);
+        return DoesSphereIntersectBox(mSize, v, fRadius);
 
     case type_cylinder_xaligned:
         v.x = rCenter.z - mMatrix.m[3][2];
         v.y = rCenter.x - mMatrix.m[3][0];
         v.z = rCenter.y - mMatrix.m[3][1];
-        return PblRegion::DoesSphereIntersectYCylinder(*(const PblVector3*)&mSize, v, fRadius);
+        return DoesSphereIntersectYCylinder(mSize, v, fRadius);
 
     case type_cylinder_yaligned:
         v.x = rCenter.x - mMatrix.m[3][0];
         v.y = rCenter.y - mMatrix.m[3][1];
         v.z = rCenter.z - mMatrix.m[3][2];
-        return PblRegion::DoesSphereIntersectYCylinder(*(const PblVector3*)&mSize, v, fRadius);
+        return DoesSphereIntersectYCylinder(mSize, v, fRadius);
 
     case type_cylinder_zaligned:
         v.x = rCenter.y - mMatrix.m[3][1];
         v.y = rCenter.z - mMatrix.m[3][2];
         v.z = rCenter.x - mMatrix.m[3][0];
-        return PblRegion::DoesSphereIntersectYCylinder(*(const PblVector3*)&mSize, v, fRadius);
+        return DoesSphereIntersectYCylinder(mSize, v, fRadius);
     }
     return false;
 }
@@ -244,7 +178,8 @@ bool PblRegion::DoesSphereIntersectBox(const PblVector3& vSize, const PblVector3
     const float fDz = fAz > vSize.z ? fAz - vSize.z : 0.0f;
     const float fDy = fAy > vSize.y ? fAy - vSize.y : 0.0f;
     const float fDx = fAx > vSize.x ? fAx - vSize.x : 0.0f;
-    return fRadius * fRadius > fDx * fDx + fDy * fDy + fDz * fDz;
+    const float fDistSq = fDx * fDx + fDy * fDy + fDz * fDz;
+    return fDistSq < fRadius * fRadius;
 }
 
 // FUNCTION: SWBF2 0x007291d0
@@ -272,20 +207,20 @@ bool PblRegion::DoesSphereIntersectYCylinder(const PblVector3& vSize, const PblV
     }
     const float fDy = fAxial - vSize.y;
     const float fDr = (float)sqrt((double)fRadial2) - vSize.x;
-    return fRadius * fRadius > fDr * fDr + fDy * fDy;
+    return fDr * fDr + fDy * fDy < fRadius * fRadius;
 }
 
 // FUNCTION: SWBF2 0x00728010
 bool PblRegion::DoesAABoxIntersect(const PblVector3& vCenter, const PblVector3& vExtents) const
 {
-    float fAx, fAz;
     switch (mType)
     {
     case type_sphere:
     {
-        fAx = (float)fabs(vCenter.x - mMatrix.m[3][0]);
-        const float fAy = (float)fabs(vCenter.y - mMatrix.m[3][1]);
-        fAz = (float)fabs(vCenter.z - mMatrix.m[3][2]);
+        const PblVector3 vDiff = vCenter - mMatrix[3];
+        const float fAx = (float)fabs(vDiff.x);
+        const float fAy = (float)fabs(vDiff.y);
+        const float fAz = (float)fabs(vDiff.z);
         const float fDx = fAx > vExtents.x ? fAx - vExtents.x : 0.0f;
         const float fDy = fAy > vExtents.y ? fAy - vExtents.y : 0.0f;
         const float fDz = fAz > vExtents.z ? fAz - vExtents.z : 0.0f;
@@ -294,45 +229,41 @@ bool PblRegion::DoesAABoxIntersect(const PblVector3& vCenter, const PblVector3& 
 
     case type_box:
     {
-        const float f00 = (float)fabs(mMatrix.m[0][0]);
-        const float f01 = (float)fabs(mMatrix.m[0][1]);
-        const float f02 = (float)fabs(mMatrix.m[0][2]);
-        const float f10 = (float)fabs(mMatrix.m[1][0]);
-        const float f11 = (float)fabs(mMatrix.m[1][1]);
-        const float f12 = (float)fabs(mMatrix.m[1][2]);
-        const float f20 = (float)fabs(mMatrix.m[2][0]);
-        const float f21 = (float)fabs(mMatrix.m[2][1]);
-        const float f22 = (float)fabs(mMatrix.m[2][2]);
-        if ((float)fabs(vCenter.x - mMatrix.m[3][0]) >= mSize.y * f10 + f00 * mSize.x + f20 * mSize.z)
+        const PblVector3 vAbs0((float)fabs(mMatrix.m[0][0]), (float)fabs(mMatrix.m[0][1]), (float)fabs(mMatrix.m[0][2]));
+        const PblVector3 vAbs1((float)fabs(mMatrix.m[1][0]), (float)fabs(mMatrix.m[1][1]), (float)fabs(mMatrix.m[1][2]));
+        const PblVector3 vAbs2((float)fabs(mMatrix.m[2][0]), (float)fabs(mMatrix.m[2][1]), (float)fabs(mMatrix.m[2][2]));
+        const PblVector3 vDiff = vCenter - mMatrix[3];
+        if ((float)fabs(vDiff.x) >= mSize.y * vAbs1.x + vAbs0.x * mSize.x + vAbs2.x * mSize.z)
         {
             return false;
         }
-        if ((float)fabs(vCenter.y - mMatrix.m[3][1]) >= mSize.y * f11 + f01 * mSize.x + f21 * mSize.z)
+        if ((float)fabs(vDiff.y) >= mSize.y * vAbs1.y + vAbs0.y * mSize.x + vAbs2.y * mSize.z)
         {
             return false;
         }
-        if ((float)fabs(vCenter.z - mMatrix.m[3][2]) >= mSize.y * f12 + f02 * mSize.x + f22 * mSize.z)
+        if ((float)fabs(vDiff.z) >= mSize.y * vAbs1.z + vAbs0.z * mSize.x + vAbs2.z * mSize.z)
         {
             return false;
         }
-        const PblMatrix inv = mMatrix.GetInverseFast();
-        PblVector3 v;
-        D3DXVec3TransformCoord(&v, &vCenter, &inv);
-        if ((float)fabs(v.x) >= vExtents.y * f01 + vExtents.x * f00 + vExtents.z * f02)
+        const PblVector3 v = mMatrix.GetInverseFast().ApplyTransform(vCenter);
+        if ((float)fabs(v.x) >= DotProduct(vExtents, vAbs0))
         {
             return false;
         }
-        if ((float)fabs(v.y) >= vExtents.y * f11 + vExtents.x * f10 + vExtents.z * f12)
+        if ((float)fabs(v.y) >= DotProduct(vExtents, vAbs1))
         {
             return false;
         }
-        return (float)fabs(v.z) < vExtents.y * f21 + vExtents.x * f20 + vExtents.z * f22;
+        if ((float)fabs(v.z) >= DotProduct(vExtents, vAbs2))
+        {
+            return false;
+        }
+        return true;
     }
 
     case type_plane:
     {
-        const float fDist = vCenter.y * mMatrix.m[2][1] + vCenter.x * mMatrix.m[2][0]
-                          + vCenter.z * mMatrix.m[2][2];
+        const float fDist = DotProduct(vCenter, mMatrix[2]);
         if (mSize.w > fDist)
         {
             return true;
@@ -348,51 +279,82 @@ bool PblRegion::DoesAABoxIntersect(const PblVector3& vCenter, const PblVector3& 
             && mSize.z + vExtents.z > (float)fabs(vCenter.z - mMatrix.m[3][2]);
 
     case type_cylinder_xaligned:
+    {
         if ((float)fabs(vCenter.x - mMatrix.m[3][0]) >= mSize.y + vExtents.y)
         {
             return false;
         }
-        fAx = (float)fabs(vCenter.z - mMatrix.m[3][2]);
-        fAz = (float)fabs(vCenter.y - mMatrix.m[3][1]);
-        break;
+        const float fA = (float)fabs(vCenter.z - mMatrix.m[3][2]);
+        if (fA >= vExtents.x + mSize.x)
+        {
+            return false;
+        }
+        const float fB = (float)fabs(vCenter.y - mMatrix.m[3][1]);
+        if (fB >= vExtents.z + mSize.x)
+        {
+            return false;
+        }
+        if (vExtents.x > fA && vExtents.z > fB)
+        {
+            return true;
+        }
+        const float fDa = fA - vExtents.x;
+        const float fDb = fB - vExtents.z;
+        return mSize.x * mSize.x > fDb * fDb + fDa * fDa;
+    }
 
     case type_cylinder_yaligned:
+    {
         if ((float)fabs(vCenter.y - mMatrix.m[3][1]) >= mSize.y + vExtents.y)
         {
             return false;
         }
-        fAx = (float)fabs(vCenter.x - mMatrix.m[3][0]);
-        fAz = (float)fabs(vCenter.z - mMatrix.m[3][2]);
-        break;
+        const float fA = (float)fabs(vCenter.x - mMatrix.m[3][0]);
+        if (fA >= vExtents.x + mSize.x)
+        {
+            return false;
+        }
+        const float fB = (float)fabs(vCenter.z - mMatrix.m[3][2]);
+        if (fB >= vExtents.z + mSize.x)
+        {
+            return false;
+        }
+        if (vExtents.x > fA && vExtents.z > fB)
+        {
+            return true;
+        }
+        const float fDa = fA - vExtents.x;
+        const float fDb = fB - vExtents.z;
+        return mSize.x * mSize.x > fDb * fDb + fDa * fDa;
+    }
 
     case type_cylinder_zaligned:
+    {
         if ((float)fabs(vCenter.z - mMatrix.m[3][2]) >= mSize.y + vExtents.y)
         {
             return false;
         }
-        fAx = (float)fabs(vCenter.y - mMatrix.m[3][1]);
-        fAz = (float)fabs(vCenter.x - mMatrix.m[3][0]);
-        break;
-
-    default:
-        return false;
+        const float fA = (float)fabs(vCenter.y - mMatrix.m[3][1]);
+        if (fA >= vExtents.x + mSize.x)
+        {
+            return false;
+        }
+        const float fB = (float)fabs(vCenter.x - mMatrix.m[3][0]);
+        if (fB >= vExtents.z + mSize.x)
+        {
+            return false;
+        }
+        if (vExtents.x > fA && vExtents.z > fB)
+        {
+            return true;
+        }
+        const float fDa = fA - vExtents.x;
+        const float fDb = fB - vExtents.z;
+        return mSize.x * mSize.x > fDb * fDb + fDa * fDa;
+    }
     }
 
-    if (fAx >= vExtents.x + mSize.x)
-    {
-        return false;
-    }
-    if (fAz >= vExtents.z + mSize.x)
-    {
-        return false;
-    }
-    if (vExtents.x > fAx && vExtents.z > fAz)
-    {
-        return true;
-    }
-    const float fDx = fAx - vExtents.x;
-    const float fDz = fAz - vExtents.z;
-    return mSize.x * mSize.x > fDz * fDz + fDx * fDx;
+    return false;
 }
 
 // FUNCTION: SWBF2 0x007286b0
@@ -402,19 +364,13 @@ bool PblRegion::DoesRayIntersect(const PblVector3& rStart, const PblVector3& rEn
     {
     case type_sphere:
     {
-        const float fDx = rEnd.x - rStart.x;
-        const float fDy = rEnd.y - rStart.y;
-        const float fDz = rEnd.z - rStart.z;
-        const float fCx = mMatrix.m[3][0] - rStart.x;
-        const float fCy = mMatrix.m[3][1] - rStart.y;
-        const float fCz = mMatrix.m[3][2] - rStart.z;
+        const PblVector3 vDir = rEnd - rStart;
+        const PblVector3 vToCenter = mMatrix[3] - rStart;
         const float fR2 = mSize.w * mSize.w;
-        const float fLen2 = fDx * fDx + fDy * fDy + fDz * fDz;
-        const float fT = (fCx * fDx + fCy * fDy + fCz * fDz) / fLen2;
-        const float fEx = fCx - fDx * fT;
-        const float fEy = fCy - fDy * fT;
-        const float fEz = fCz - fDz * fT;
-        const float fDist2 = fEx * fEx + fEy * fEy + fEz * fEz;
+        const float fLen2 = SquaredLength(vDir);
+        const float fT = DotProduct(vToCenter, vDir) / fLen2;
+        const PblVector3 vOffset = vToCenter - vDir * fT;
+        const float fDist2 = SquaredLength(vOffset);
         if (fDist2 > fR2)
         {
             return false;
@@ -563,10 +519,10 @@ bool PblRegion::DoesRayIntersect(const PblVector3& rStart, const PblVector3& rEn
 // FUNCTION: SWBF2 0x007292b0
 PblRegion* PblRegion::Find(unsigned int uId)
 {
-    for (PblListSingle::Itor it(sList); !it.IsDone(); ++it)
+    for (PblListSingle::Itor it(sList); it.GetNode() != sList.GetTerminator(); ++it)
     {
-        PblRegion* pRegion = (PblRegion*)((char*)it.GetNode() - offsetof(PblRegion, mNode));
-        if (pRegion->mId == uId)
+        PblRegion* pRegion = (PblRegion*)it.GetNode()->GetObjectA(&sList, offsetof(PblRegion, mNode));
+        if (uId == pRegion->mId)
         {
             return pRegion;
         }
@@ -574,21 +530,6 @@ PblRegion* PblRegion::Find(unsigned int uId)
     return 0;
 }
 
-bool PblRegion::Contains(const PblRegion* pRegion)
-{
-    if (!pRegion)
-    {
-        return false;
-    }
-    for (PblListSingle::Itor it(sList); !it.IsDone(); ++it)
-    {
-        if ((const PblRegion*)((const char*)it.GetNode() - offsetof(PblRegion, mNode)) == pRegion)
-        {
-            return true;
-        }
-    }
-    return false;
-}
 
 // FUNCTION: SWBF2 0x007292e0
 void PblRegion::Initialize(const Description& desc)
@@ -602,12 +543,7 @@ void PblRegion::Initialize(const Description& desc)
     {
     case type_box:
     {
-        float afLen[3];
-        for (int i = 0; i < 3; ++i)
-        {
-            const float* r = mMatrix.m[i];
-            afLen[i] = (float)sqrt((double)(r[0] * r[0] + r[1] * r[1] + r[2] * r[2]));
-        }
+        const float afLen[3] = { Length(mMatrix[0]), Length(mMatrix[1]), Length(mMatrix[2]) };
 
         unsigned int auMask[3] = { 7, 7, 7 };
         int i;
@@ -634,7 +570,8 @@ void PblRegion::Initialize(const Description& desc)
         if (i == 3 && !(auMask[0] & auMask[1] & auMask[2]))
         {
             mType = type_box_aligned;
-            for (int j = 0; j < 3; ++j)
+            // i is 3 here (every axis was checked)
+            for (int j = 0; j < i; ++j)
             {
                 if (auMask[j] & 1)
                 {
@@ -649,23 +586,21 @@ void PblRegion::Initialize(const Description& desc)
                     mSize.z = afLen[j] * (&desc.mSize.x)[j];
                 }
             }
-            *(PblVector3*)mMatrix.m[0] = gVectorUnitX;
+            mMatrix[0] = gVectorUnitX;
             mMatrix.m[0][3] = 0.0f;
-            *(PblVector3*)mMatrix.m[1] = gVectorUnitY;
+            mMatrix[1] = gVectorUnitY;
             mMatrix.m[1][3] = 0.0f;
-            *(PblVector3*)mMatrix.m[2] = gVectorUnitZ;
+            mMatrix[2] = gVectorUnitZ;
             mMatrix.m[2][3] = 0.0f;
         }
         else
         {
-            for (int j = 0; j < 3; ++j)
-            {
-                const float fInv = 1.0f / afLen[j];
-                mMatrix.m[j][0] *= fInv;
-                mMatrix.m[j][1] *= fInv;
-                mMatrix.m[j][2] *= fInv;
-                mMatrix.m[j][3] = 0.0f;
-            }
+            mMatrix[0] = (1.0f / afLen[0]) * mMatrix[0];
+            mMatrix.m[0][3] = 0.0f;
+            mMatrix[1] = (1.0f / afLen[1]) * mMatrix[1];
+            mMatrix.m[1][3] = 0.0f;
+            mMatrix[2] = (1.0f / afLen[2]) * mMatrix[2];
+            mMatrix.m[2][3] = 0.0f;
             mSize.x *= afLen[0];
             mSize.y *= afLen[1];
             mSize.z *= afLen[2];
@@ -675,12 +610,9 @@ void PblRegion::Initialize(const Description& desc)
 
     case type_cylinder:
     {
-        float afLen[3];
-        for (int i = 0; i < 3; ++i)
-        {
-            const float* r = mMatrix.m[i];
-            afLen[i] = (float)sqrt((double)(r[0] * r[0] + r[1] * r[1] + r[2] * r[2]));
-        }
+        const float fLenX = Length(mMatrix[0]);
+        const float fLenY = Length(mMatrix[1]);
+        const float fLenZ = Length(mMatrix[2]);
 
         unsigned int uMask = 7;
         if ((float)fabs(mMatrix.m[1][0]) > 0.02f)
@@ -696,66 +628,67 @@ void PblRegion::Initialize(const Description& desc)
             uMask &= 4;
         }
 
-        mSize.y *= afLen[1];
-        const float fX = mSize.x * afLen[0];
-        const float fZ = mSize.z * afLen[2];
-        const float fRadius = (float)sqrt((double)(fX * fX + fZ * fZ));
+        mSize.y *= fLenY;
+        const float fX = mSize.x * fLenX;
+        const float fZ = mSize.z * fLenZ;
+        const float fX2 = fX * fX;
+        const float fRadius = (float)sqrt((double)(fX2 + fZ * fZ));
         mSize.x = fRadius;
         mSize.z = fRadius;
 
         if (!uMask)
         {
-            for (int j = 0; j < 3; ++j)
-            {
-                const float fInv = 1.0f / afLen[j];
-                mMatrix.m[j][0] *= fInv;
-                mMatrix.m[j][1] *= fInv;
-                mMatrix.m[j][2] *= fInv;
-                mMatrix.m[j][3] = 0.0f;
-            }
-        }
-        else if (uMask == 1)
-        {
-            mType = type_cylinder_xaligned;
-            *(PblVector3*)mMatrix.m[0] = gVectorUnitY;
+            mMatrix[0] = mMatrix[0] / fLenX;
             mMatrix.m[0][3] = 0.0f;
-            *(PblVector3*)mMatrix.m[1] = gVectorUnitZ;
+            mMatrix[1] = mMatrix[1] * (1.0f / fLenY);
             mMatrix.m[1][3] = 0.0f;
-            *(PblVector3*)mMatrix.m[2] = gVectorUnitX;
-            mMatrix.m[2][3] = 0.0f;
-        }
-        else if (uMask == 4)
-        {
-            mType = type_cylinder_zaligned;
-            *(PblVector3*)mMatrix.m[0] = gVectorUnitZ;
-            mMatrix.m[0][3] = 0.0f;
-            *(PblVector3*)mMatrix.m[1] = gVectorUnitX;
-            mMatrix.m[1][3] = 0.0f;
-            *(PblVector3*)mMatrix.m[2] = gVectorUnitY;
+            mMatrix[2] = mMatrix[2] / fLenZ;
             mMatrix.m[2][3] = 0.0f;
         }
         else
         {
-            mType = type_cylinder_yaligned;
-            *(PblVector3*)mMatrix.m[0] = gVectorUnitX;
-            mMatrix.m[0][3] = 0.0f;
-            *(PblVector3*)mMatrix.m[1] = gVectorUnitY;
-            mMatrix.m[1][3] = 0.0f;
-            *(PblVector3*)mMatrix.m[2] = gVectorUnitZ;
-            mMatrix.m[2][3] = 0.0f;
+            switch (uMask)
+            {
+            case 1:
+                mType = type_cylinder_xaligned;
+                mMatrix[0] = gVectorUnitY;
+                mMatrix.m[0][3] = 0.0f;
+                mMatrix[1] = gVectorUnitZ;
+                mMatrix.m[1][3] = 0.0f;
+                mMatrix[2] = gVectorUnitX;
+                mMatrix.m[2][3] = 0.0f;
+                break;
+
+            case 4:
+                mType = type_cylinder_zaligned;
+                mMatrix[0] = gVectorUnitZ;
+                mMatrix.m[0][3] = 0.0f;
+                mMatrix[1] = gVectorUnitX;
+                mMatrix.m[1][3] = 0.0f;
+                mMatrix[2] = gVectorUnitY;
+                mMatrix.m[2][3] = 0.0f;
+                break;
+
+            default:
+                mType = type_cylinder_yaligned;
+                mMatrix[0] = gVectorUnitX;
+                mMatrix.m[0][3] = 0.0f;
+                mMatrix[1] = gVectorUnitY;
+                mMatrix.m[1][3] = 0.0f;
+                mMatrix[2] = gVectorUnitZ;
+                mMatrix.m[2][3] = 0.0f;
+                break;
+            }
         }
         break;
     }
 
     case type_plane:
     {
-        PblVector3& vNormal = *(PblVector3*)mMatrix.m[2];
-        PblVector3 v;
-        D3DXVec3Normalize(&v, &vNormal);
-        vNormal = v;
+        PblVector3& vNormal = mMatrix[2];
+        vNormal = Normalize(vNormal);
         mMatrix.m[2][3] = 0.0f;
-        mSize.w = mMatrix.m[3][0] * vNormal.x + mMatrix.m[3][1] * vNormal.y
-                + mMatrix.m[3][2] * vNormal.z;
+        mSize.w = mMatrix.m[3][0] * vNormal.x + mMatrix.m[3][1] * vNormal.y + mMatrix.m[3][2] * vNormal.z;
         break;
     }
     }

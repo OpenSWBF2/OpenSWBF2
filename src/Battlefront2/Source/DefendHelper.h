@@ -1,6 +1,8 @@
 #pragma once
 
 #include <stddef.h>
+#include "UnitAgent.h"
+#include "UnitController.h"
 
 #include "Fsm.h"
 #include "AIGoal.h"
@@ -18,6 +20,7 @@ class UnitAgent;
 class UnitController;
 #include "EventInfo.h"
 
+// VTABLE: SWBF2 0x00798f58
 class DefendHelper : public HelperFsm
 {
 public:
@@ -39,7 +42,6 @@ public:
 
     DefendHelper(UnitAgent* pOwner);
 
-    virtual ~DefendHelper();
 
     // SYNTHETIC: SWBF2 0x0048b650
     // DefendHelper::`scalar deleting destructor'
@@ -88,3 +90,18 @@ public:
  
  
  
+
+inline UnitController* DefendHelper::GetCtrl()
+{
+    return mOwner->mCtrl;
+}
+
+inline Controllable* DefendHelper::GetMe()
+{
+    return mOwner->mCtrl->mOwner;
+}
+
+inline AILowLevel& DefendHelper::GetLowLevel()
+{
+    return GetCtrl()->mLowLevel;
+}

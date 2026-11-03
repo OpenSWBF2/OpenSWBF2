@@ -9,7 +9,7 @@
 #include "RedEngineFL/Util/RedWarning.h"
 
 #include "CommandLine.h"
-#include "LocalLimits.h"
+#include "FLInputManager.h"
 #include "GameLoop.h"
 #include "GameSoundEngine.h"
 #include "GameState.h"
@@ -24,11 +24,13 @@
 #include "RedEngineFL/input/pc/pcRedInputManager.h"
 #include "RedEngineFL/Interface/RedFont.h"
 #include "RedEngineFL/Util/RedLocalizeDB.h"
+#include "PebbleFL/Common/PblMath.h"
 
 extern bool mSafeMode;
 extern eGAMELANGUAGE gForceLang;
 
-namespace PlayerProfile {
+namespace PlayerProfile
+{
 
 // FUNCTION: SWBF2 0x0061d8f0
 void SetSafeMode()
@@ -37,7 +39,8 @@ void SetSafeMode()
 }
 }
 
-namespace RedLocalizeDB {
+namespace RedLocalizeDB
+{
 
 // FUNCTION: SWBF2 0x006c5b80
 void ForceLanguageID(int iLanguage)
@@ -54,22 +57,27 @@ void ForceLanguageID(int iLanguage)
 }
 }
 
+// GLOBAL: SWBF2 0x01e3073c
+// gGamespyAutoName
 char gGamespyAutoName[32];
+// GLOBAL: SWBF2 0x01e30760
 char gGamespyAutoConnectAddr[64];
+// GLOBAL: SWBF2 0x01e307a0
 char gGamespyAutoPassStr[128];
+// GLOBAL: SWBF2 0x01e30820
+// gGamespyAutoEmail
 char gGamespyAutoEmail[64];
+// GLOBAL: SWBF2 0x01e30860
+// gGamespyAutoPPass
 char gGamespyAutoPPass[32];
+// GLOBAL: SWBF2 0x01e30880
 unsigned int gGamespyAutoPass;
+// GLOBAL: SWBF2 0x01e30736
 bool gBootLagger;
 bool gShowLoadSpam;
+// GLOBAL: SWBF2 0x01e3075c
 bool gLogFinalScore;
-bool gExitOnGameOver;
-int gDigestTrace;
-bool gFactoryLog;
-bool gNoFocusPause;
-bool gAllowUploads = LocalLimits::kUploadsDefault;
-bool gSeedSet;
-unsigned int gSeed;
+// GLOBAL: SWBF2 0x007e6310
 int gBootLaggerPing = 300;
 
 // GLOBAL: SWBF2 0x007e69c9
@@ -78,15 +86,20 @@ bool sLoadNestedLevels = true;
 
 // GLOBAL: SWBF2 0x007e666d
 bool GameMovie::sUseMovies = true;
-// GLOBAL: SWBF2 0x01ec0ace
 
-bool gMissionSpecified;
+// GLOBAL: SWBF2 0x01e57a10
 char Destination[16];
 
-// GLOBAL: SWBF2 0x007e9030
-namespace PlayerPrefs { int gDefaultDifficulty = 2; }
-// GLOBAL: SWBF2 0x007e9034
-namespace PlayerPrefs { int gDefaultTeamNum = 1; }
+namespace PlayerPrefs
+{
+    // GLOBAL: SWBF2 0x007e9030
+    int gDefaultDifficulty = 2;
+}
+namespace PlayerPrefs
+{
+    // GLOBAL: SWBF2 0x007e9034
+    int gDefaultTeamNum = 1;
+}
 
 extern bool pcWindowed;
 extern bool pcEnableLogging;
@@ -110,7 +123,10 @@ extern bool gNoAIRespawn;
 extern bool gSoundWarningEnabled;
 extern bool gProfileOptionEnabled;
 extern bool netAutoAssignTeamsOriginalSetting;
-namespace AIDifficulty { extern bool gAutoBalanceEnabled; }
+namespace AIDifficulty
+{
+    extern bool gAutoBalanceEnabled;
+}
 extern bool gCentreSpeakerEnhancement;
 
 extern bool netIsOneWorld;
@@ -128,9 +144,18 @@ extern int netVoiceMode;
 extern int netThrottle;
 extern int gAutoNetPlayers;
 extern int gSpawnInvicibility;
-namespace GameSoundEngine { extern int gSamplerate; }
-namespace GameSoundEngine { extern int gMaxVoices; }
-namespace GameSoundEngine { extern float gSoftMixerBufferSizeMs; }
+namespace GameSoundEngine
+{
+    extern int gSamplerate;
+}
+namespace GameSoundEngine
+{
+    extern int gMaxVoices;
+}
+namespace GameSoundEngine
+{
+    extern float gSoftMixerBufferSizeMs;
+}
 
 extern int dragBandwidth;
 extern int netHeroRuleTeam;
@@ -148,23 +173,17 @@ extern int netFPS;
 extern float gGameSlice;
 
 void AddAutoNetMission(char const* pcArg, int iA, int iB);
-namespace PlayerProfile { void SetSafeMode(); }
-void SetNetAwardsEnabled(int);
-namespace RedLocalizeDB { void ForceLanguageID(int iLanguage); }
-
-// FUNCTION: SWBF2 0x00414900
-int const Clamp(int iValue, int iMin, int iMax)
+namespace PlayerProfile
 {
-    if (iValue < iMin)
-    {
-        return iMin;
-    }
-    if (iValue > iMax)
-    {
-        return iMax;
-    }
-    return iValue;
+    void SetSafeMode();
 }
+void SetNetAwardsEnabled(int);
+namespace RedLocalizeDB
+{
+    void ForceLanguageID(int iLanguage);
+}
+
+
 
 // FUNCTION: SWBF2 0x004795a0
 void ParseCommandLine(char const* pcAppName, char const* pcCmdLine)
@@ -281,7 +300,7 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             else
             {
                 GameLoop::SetNextMission(pcArg);
-                gMissionSpecified = true;
+                FLInputManager::Instance()->SetAutoAcquire(true);
             }
             continue;
         }
@@ -839,6 +858,8 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
                                         : ShellLoop::eLEGALSCREENS_SHOWFAST);
     }
 }
+
+
 
 // GLOBAL: SWBF2 0x01e2fdbb
 

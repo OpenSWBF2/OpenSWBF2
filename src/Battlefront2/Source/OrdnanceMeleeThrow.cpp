@@ -29,9 +29,9 @@ OrdnanceMeleeThrow::~OrdnanceMeleeThrow()
 }
 
 // SYNTHETIC: SWBF2 0x006048b6
-// [thunk]:OrdnanceMeleeThrow::`scalar deleting destructor' adjustor{24}
+// ??_EOrdnanceMeleeThrow@@WBI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x006048be
-// [thunk]:OrdnanceMeleeThrow::`scalar deleting destructor' adjustor{152}
+// ??_EOrdnanceMeleeThrow@@WJI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x006021f0
 // OrdnanceMeleeThrow::`scalar deleting destructor'
 
@@ -142,35 +142,33 @@ namespace
     }
 }
 
-// GLOBAL: SWBF2 0x01ef2654
 // SYNTHETIC: SWBF2 0x00405b20
 // `dynamic initializer for 'OrdnanceMeleeThrow::rttiHashOrdnanceMeleeThrow''
-PblHash OrdnanceMeleeThrow::rttiHashOrdnanceMeleeThrow("OrdnanceMeleeThrow");
-char OrdnanceMeleeThrow::rttiNameOrdnanceMeleeThrow[] = "OrdnanceMeleeThrow";
+// OrdnanceMeleeThrow::rttiHashOrdnanceMeleeThrow
 
-// GLOBAL: SWBF2 0x01ef2650
+// GLOBAL: SWBF2 0x01ef2654
+// OrdnanceMeleeThrow::rttiHashOrdnanceMeleeThrow
+PblHash OrdnanceMeleeThrow::rttiHashOrdnanceMeleeThrow("OrdnanceMeleeThrow");
+// GLOBAL: SWBF2 0x0078a94c
+// OrdnanceMeleeThrow::rttiNameOrdnanceMeleeThrow
+const char OrdnanceMeleeThrow::rttiNameOrdnanceMeleeThrow[] = "OrdnanceMeleeThrow";
+
 // SYNTHETIC: SWBF2 0x00405b30
 // `dynamic initializer for 'OrdnanceMeleeThrowClass::rttiHashOrdnanceMeleeThrowClass''
+// OrdnanceMeleeThrowClass::rttiHashOrdnanceMeleeThrowClass
+
+// GLOBAL: SWBF2 0x01ef2650
+// OrdnanceMeleeThrowClass::rttiHashOrdnanceMeleeThrowClass
 PblHash OrdnanceMeleeThrowClass::rttiHashOrdnanceMeleeThrowClass("OrdnanceMeleeThrowClass");
-char OrdnanceMeleeThrowClass::rttiNameOrdnanceMeleeThrowClass[] = "OrdnanceMeleeThrowClass";
+// GLOBAL: SWBF2 0x0078a96c
+// OrdnanceMeleeThrowClass::rttiNameOrdnanceMeleeThrowClass
+const char OrdnanceMeleeThrowClass::rttiNameOrdnanceMeleeThrowClass[] = "OrdnanceMeleeThrowClass";
 
-// FUNCTION: SWBF2 0x00602180
-bool OrdnanceMeleeThrow::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashOrdnanceMeleeThrow || Ordnance::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x006021b0
-unsigned int OrdnanceMeleeThrow::GetDerivedRtti() const
-{
-    return rttiHashOrdnanceMeleeThrow;
-}
 
-// FUNCTION: SWBF2 0x006021c0
-const char* OrdnanceMeleeThrow::GetDerivedRttiName() const
-{
-    return rttiNameOrdnanceMeleeThrow;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x006021d0
 const PblVector3& OrdnanceMeleeThrow::GetOldPosition() const
@@ -184,23 +182,11 @@ const PblVector3& OrdnanceMeleeThrow::GetVelocity() const
     return mVelocity;
 }
 
-// FUNCTION: SWBF2 0x00602220
-bool OrdnanceMeleeThrowClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashOrdnanceMeleeThrowClass || OrdnanceClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00602250
-unsigned int OrdnanceMeleeThrowClass::GetDerivedRtti()
-{
-    return rttiHashOrdnanceMeleeThrowClass;
-}
 
-// FUNCTION: SWBF2 0x00602260
-const char* OrdnanceMeleeThrowClass::GetDerivedRttiName()
-{
-    return rttiNameOrdnanceMeleeThrowClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00602270
 float OrdnanceMeleeThrowClass::GetVelocity()
@@ -243,26 +229,18 @@ void OrdnanceMeleeThrow::Return()
 
 extern bool netIsLateTurn;
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
+
 
 // FUNCTION: SWBF2 0x00602290
 OrdnanceMeleeThrow::OrdnanceMeleeThrow(OrdnanceMeleeThrowClass* pClass, const OrdnanceDesc& desc)
     : Ordnance(pClass, desc),
       RedSceneObject(&((OrdnanceMeleeThrowClass*)mClass)->mLodData),
-      m_pOwner(desc.mOwner)
+      m_pOwner(desc.mOwner),
+      mOldPosition(desc.mPosition),
+      mVelocity(desc.mDirection * Interpolate(
+          ((const OrdnanceMeleeThrowClass*)mClass)->mVelocity,
+          ((const OrdnanceMeleeThrowClass*)mClass->mNextCharge)->mVelocity, mRatio))
 {
-    mOldPosition = desc.mPosition;
-    OrdnanceMeleeThrowClass* pCharge = (OrdnanceMeleeThrowClass*)mClass;
-    const float fSpeed =
-        (((OrdnanceMeleeThrowClass*)pCharge->mNextCharge)->mVelocity - pCharge->mVelocity) * mRatio +
-        pCharge->mVelocity;
-    mVelocity.x = fSpeed * desc.mDirection.x;
-    mVelocity.y = desc.mDirection.y * fSpeed;
-    mVelocity.z = desc.mDirection.z * fSpeed;
     m_pDamageData = 0;
     m_pLight = 0;
     mOffscreenTime = 0.0f;
@@ -274,8 +252,7 @@ OrdnanceMeleeThrow::OrdnanceMeleeThrow(OrdnanceMeleeThrowClass* pClass, const Or
     m_pWeapon->NotifyThrow();
     m_bLastFrameIndicator = false;
 
-    D3DXMatrixMultiply((D3DXMATRIX*)&m_mMatrix, (const D3DXMATRIX*)&m_pWeapon->m_mThrow0Local,
-                       (const D3DXMATRIX*)&m_pOwner->GetMatrix());
+    m_mMatrix = m_pWeapon->m_mThrow0Local * m_pOwner->GetMatrix();
 
     const WeaponMeleeClass* pWeaponClass = (const WeaponMeleeClass*)m_pWeapon->m_pPrimaryWeapon->mClass;
     PblVector3 vEdgeDir = gVectorUnitZ;
@@ -345,14 +322,11 @@ OrdnanceMeleeThrow::OrdnanceMeleeThrow(OrdnanceMeleeThrowClass* pClass, const Or
             {
                 m_pLight->SetColor(pClass->m_colorLight);
             }
-            PblMatrix matrix = _IdentityMatrix;
-            matrix.m[3][0] = mPosition.x;
-            matrix.m[3][1] = mPosition.y;
-            matrix.m[3][2] = mPosition.z;
-            matrix.m[3][3] = 1.0f;
+            PblMatrix matrix = gMatrixIdentity;
+            matrix.SetTranslation(mPosition);
             if (m_pLight->_fBeamLength > 0.0f)
             {
-                *(PblVector3*)matrix.m[1] = vDir;
+                matrix[1] = vDir;
                 matrix.m[1][3] = 0.0f;
                 PblVector3 vFront(vDir.x * vDir.y - gVectorUnitY.x, vDir.y * vDir.y - gVectorUnitY.y,
                                   vDir.z * vDir.y - gVectorUnitY.z);
@@ -364,14 +338,12 @@ OrdnanceMeleeThrow::OrdnanceMeleeThrow(OrdnanceMeleeThrowClass* pClass, const Or
                     fLength2 = vFront.x * vFront.x + vFront.y * vFront.y + vFront.z * vFront.z;
                 }
                 const float fInv = 1.0f / (float)sqrt((double)fLength2);
-                vFront.x *= fInv;
-                vFront.y *= fInv;
-                vFront.z *= fInv;
+                vFront *= fInv;
                 matrix.m[0][0] = vDir.y * vFront.z - vDir.z * vFront.y;
                 matrix.m[0][1] = vDir.z * vFront.x - vDir.x * vFront.z;
                 matrix.m[0][2] = vDir.x * vFront.y - vDir.y * vFront.x;
                 matrix.m[0][3] = 0.0f;
-                *(PblVector3*)matrix.m[2] = vFront;
+                matrix[2] = vFront;
                 matrix.m[2][3] = 0.0f;
             }
             m_pLight->SetMatrix(matrix);
@@ -384,11 +356,8 @@ OrdnanceMeleeThrow::OrdnanceMeleeThrow(OrdnanceMeleeThrowClass* pClass, const Or
             m_pLight->SetOmniLightRadius(pClass->m_fRadiusLight);
             m_pLight->SetHaloRadius(0.0f);
             m_pLight->SetFlareIntensity(0.0f);
-            PblMatrix matrix = _IdentityMatrix;
-            matrix.m[3][0] = mPosition.x;
-            matrix.m[3][1] = mPosition.y;
-            matrix.m[3][2] = mPosition.z;
-            matrix.m[3][3] = 1.0f;
+            PblMatrix matrix = gMatrixIdentity;
+            matrix.SetTranslation(mPosition);
             m_pLight->SetMatrix(matrix);
             m_pLight->TurnOn();
         }
@@ -446,13 +415,10 @@ bool OrdnanceMeleeThrow::Update(float fDeltaTime)
         mPosition.x += mVelocity.x * fStep;
         mPosition.y += mVelocity.y * fStep;
         mPosition.z += mVelocity.z * fStep;
-        PblMatrix mRotate = _IdentityMatrix;
+        PblMatrix mRotate = gMatrixIdentity;
         D3DXMatrixRotationAxis((D3DXMATRIX*)&mRotate, (const D3DXVECTOR3*)&m_vRotationAxis, pClass->m_fOmega * fStep);
-        D3DXMatrixMultiply((D3DXMATRIX*)&m_mMatrix, (const D3DXMATRIX*)&m_mMatrix, (const D3DXMATRIX*)&mRotate);
-        m_mMatrix.m[3][0] = mPosition.x;
-        m_mMatrix.m[3][1] = mPosition.y;
-        m_mMatrix.m[3][2] = mPosition.z;
-        m_mMatrix.m[3][3] = 1.0f;
+        m_mMatrix = m_mMatrix * mRotate;
+        m_mMatrix.SetTranslation(mPosition);
 
         if (!Ordnance::Update(fStep) && mLifeTime > 0.0f)
         {
@@ -494,14 +460,11 @@ bool OrdnanceMeleeThrow::Update(float fDeltaTime)
     mPosition.x = (vTarget.x - mOldPosition.x) * fT + mOldPosition.x;
     mPosition.y = (vTarget.y - mOldPosition.y) * fT + mOldPosition.y;
     mPosition.z = (vTarget.z - mOldPosition.z) * fT + mOldPosition.z;
-    PblMatrix mRotate(_IdentityMatrix);
+    PblMatrix mRotate(gMatrixIdentity);
     D3DXMatrixRotationAxis((D3DXMATRIX*)&mRotate, (const D3DXVECTOR3*)&m_vRotationAxis,
                            pClass->m_fOmega * fDeltaTime * 0.5f);
-    D3DXMatrixMultiply((D3DXMATRIX*)&m_mMatrix, (const D3DXMATRIX*)&m_mMatrix, (const D3DXMATRIX*)&mRotate);
-    m_mMatrix.m[3][0] = mPosition.x;
-    m_mMatrix.m[3][1] = mPosition.y;
-    m_mMatrix.m[3][2] = mPosition.z;
-    m_mMatrix.m[3][3] = 1.0f;
+    m_mMatrix = m_mMatrix * mRotate;
+    m_mMatrix.SetTranslation(mPosition);
     m_pWeapon->m_pPrimaryWeapon->UpdateEffects(fDeltaTime, mPosition, mVelocity, 0);
     SetRenderPos(mPosition);
     ApplyDamage(fDeltaTime);
@@ -541,10 +504,10 @@ void OrdnanceMeleeThrow::ApplyDamage(float fDeltaTime)
     const int iNumSteps = (int)(fDeltaTime / fStepTime) + 1;
     const float fStep = fDeltaTime / (float)iNumSteps;
 
-    PblMatrix mRotate = _IdentityMatrix;
+    PblMatrix mRotate = gMatrixIdentity;
     D3DXMatrixRotationAxis((D3DXMATRIX*)&mRotate, (const D3DXVECTOR3*)&m_vRotationAxis, fStep * pClass->m_fOmega);
     PblMatrix mFirst;
-    D3DXMatrixMultiply((D3DXMATRIX*)&mFirst, (const D3DXMATRIX*)&m_mMatrix, (const D3DXMATRIX*)&mRotate);
+    mFirst = m_mMatrix * mRotate;
     mFirst.m[3][0] = m_mMatrix.m[3][0] + mVelocity.x * fStep;
     mFirst.m[3][1] = m_mMatrix.m[3][1] + mVelocity.y * fStep;
     mFirst.m[3][2] = m_mMatrix.m[3][2] + mVelocity.z * fStep;
@@ -554,7 +517,7 @@ void OrdnanceMeleeThrow::ApplyDamage(float fDeltaTime)
     {
         D3DXMatrixRotationAxis((D3DXMATRIX*)&mRotate, (const D3DXVECTOR3*)&m_vRotationAxis,
                                fDeltaTime * pClass->m_fOmega);
-        D3DXMatrixMultiply((D3DXMATRIX*)&mLast, (const D3DXMATRIX*)&m_mMatrix, (const D3DXMATRIX*)&mRotate);
+        mLast = m_mMatrix * mRotate;
         mLast.m[3][0] = mVelocity.x * fDeltaTime + m_mMatrix.m[3][0];
         mLast.m[3][1] = m_mMatrix.m[3][1] + mVelocity.y * fDeltaTime;
         mLast.m[3][2] = m_mMatrix.m[3][2] + mVelocity.z * fDeltaTime;
@@ -641,7 +604,7 @@ void OrdnanceMeleeThrow::ApplyDamage(float fDeltaTime)
         {
             D3DXMatrixRotationAxis((D3DXMATRIX*)&mRotate, (const D3DXVECTOR3*)&m_vRotationAxis,
                                    fTime * pClass->m_fOmega);
-            D3DXMatrixMultiply((D3DXMATRIX*)&mStep, (const D3DXMATRIX*)&m_mMatrix, (const D3DXMATRIX*)&mRotate);
+            mStep = m_mMatrix * mRotate;
             mStep.m[3][0] = mVelocity.x * fTime + m_mMatrix.m[3][0];
             mStep.m[3][1] = m_mMatrix.m[3][1] + mVelocity.y * fTime;
             mStep.m[3][2] = m_mMatrix.m[3][2] + mVelocity.z * fTime;
@@ -771,19 +734,24 @@ OrdnanceMeleeThrowClass::OrdnanceMeleeThrowClass(OrdnanceMeleeThrowClass* pBase,
 // FUNCTION: SWBF2 0x00604530
 void OrdnanceMeleeThrowClass::SetProperty(unsigned int uProperty, const char* pszValue)
 {
-    if (uProperty == 0x32741C32)
+    switch (uProperty)
+    {
+    case 0x32741C32:
     {
         sscanf(pszValue, "%f", &mVelocity);
+            break;
     }
-    else if (uProperty == 0x2776564D)
+    case 0x2776564D:
     {
         sscanf(pszValue, "%f", &m_fRadiusLight);
+            break;
     }
-    else if (uProperty == 0x0DDA9B5B)
+    case 0x0DDA9B5B:
     {
         sscanf(pszValue, "%f", &m_fReturnDuration);
+            break;
     }
-    else if (uProperty == 0x746CE73E)
+    case 0x746CE73E:
     {
         int r, g, b, a;
         int iCount = sscanf(pszValue, "%d %d %d %d", &r, &g, &b, &a);
@@ -806,12 +774,14 @@ void OrdnanceMeleeThrowClass::SetProperty(unsigned int uProperty, const char* ps
         }
         color.a = 255;
         m_colorLight = color;
+            break;
     }
-    else if (uProperty == 0xDE71B19F)
+    case 0xDE71B19F:
     {
         m_OnSound.SetID(pszValue, false, false);
+            break;
     }
-    else if (uProperty == 0xC3B311DC)
+    case 0xC3B311DC:
     {
         char acEdge[256];
         m_bDamageLengthFromEdge = 0;
@@ -819,18 +789,21 @@ void OrdnanceMeleeThrowClass::SetProperty(unsigned int uProperty, const char* ps
         {
             m_bDamageLengthFromEdge = 1;
         }
+            break;
     }
-    else if (uProperty == 0xE369687E)
+    case 0xE369687E:
     {
         m_uiLightOdfNameHash = PblHash(pszValue);
+            break;
     }
-    else if (uProperty == 0xE6989765)
+    case 0xE6989765:
     {
         float fRate;
         sscanf(pszValue, "%f", &fRate);
         m_fOmega = 6.2831855f * fRate;
+            break;
     }
-    else if (uProperty == 0xE4B667AC)
+    case 0xE4B667AC:
     {
         char acEdge[256];
         m_bDamageWidthFromEdge = 0;
@@ -838,10 +811,13 @@ void OrdnanceMeleeThrowClass::SetProperty(unsigned int uProperty, const char* ps
         {
             m_bDamageWidthFromEdge = 1;
         }
+            break;
     }
-    else
+    default:
     {
         OrdnanceClass::SetProperty(uProperty, pszValue);
+            break;
+    }
     }
 }
 

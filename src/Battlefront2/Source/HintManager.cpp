@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "HintManager.h"
 
 #include <float.h>
@@ -22,11 +23,13 @@
 #include "TeamManager.h"
 #include "PebbleFL/pc/PblD3DX.h"
 
-// GLOBAL: SWBF2 0x01ec6090
 // SYNTHETIC: SWBF2 0x00403f20
 // `dynamic initializer for 'BaseHint::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00768b10
 // `dynamic atexit destructor for 'BaseHint::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ec6090
+// BaseHint::sMemoryPool
 MemoryPool BaseHint::sMemoryPool("BaseHint", 0x40);
 
 extern int WORLD_EXTENTS;
@@ -58,7 +61,6 @@ void HintManager::AddHint(BaseHint* pHint)
 
     pHint->SetCollisionCenter(pHint->GetCollisionCenter());
     pHint->SetCollisionRadius(1.0f);
-    pHint->Set2DCollisionRadius(1.0f);
     sHints->Add(pHint, pHint->GetCollisionCenter(), pHint->GetCollisionRadius());
 }
 
@@ -125,15 +127,13 @@ void BaseHint::SetReserveDelay(const GameObject* pObj, float fDelay) const
     const_cast<ReserveObject&>(mReserve).SetReserveDelay(0, fDelay);
 }
 
+
 // FUNCTION: SWBF2 0x00543480
 PblMatrix BaseHint::BuildMatrix() const
 {
     PblMatrix mat;
     const PblVector3& vPos = GetCollisionCenter();
-    mat.m[3][0] = vPos.x;
-    mat.m[3][1] = vPos.y;
-    mat.m[3][2] = vPos.z;
-    mat.m[3][3] = 1.0f;
+    mat.SetTranslation(vPos);
     mat.m[2][0] = mForward.x;
     mat.m[2][1] = mForward.y;
     mat.m[2][2] = mForward.z;
@@ -144,7 +144,7 @@ PblMatrix BaseHint::BuildMatrix() const
                       mForward.z * vUp.x - mForward.x * vUp.z,
                       mForward.x * vUp.y - mForward.y * vUp.x);
     PblVector3 vX;
-    D3DXVec3Normalize(&vX, &vRight);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vX), reinterpret_cast<const D3DXVECTOR3*>(&vRight));
     mat.m[0][0] = vX.x;
     mat.m[0][1] = vX.y;
     mat.m[0][2] = vX.z;
@@ -523,7 +523,8 @@ int RequestLandHints(const UnitController* pController, const PblVector3& vPos,
 
 }
 
-namespace HintManager {
+namespace HintManager
+{
 
 // FUNCTION: SWBF2 0x005438e0
 void Reset()

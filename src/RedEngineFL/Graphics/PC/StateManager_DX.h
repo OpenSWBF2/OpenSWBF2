@@ -7,12 +7,14 @@
 #include <new>
 #include <stddef.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "RedEngineFL/Memory/RedMemory.h"
 #include "RedEngineFL/Util/ext/basevector.h"
 #include "RedEngineFL/Util/ext/types.h"
 
-namespace util {
+namespace util
+{
 
 template <class ELEM, class KEY>
 struct TKeyPair_
@@ -28,12 +30,13 @@ struct TKeyPair_
 
 }
 
-namespace dx {
+namespace dx
+{
 
 class NVStateID
 {
 public:
-    NVStateID() {}
+    NVStateID() : m_Type(0), m_dwValue0(0), m_dwValue1(0) {}
 
     NVStateID(unsigned long type, unsigned long value0, unsigned long value1)
         : m_Type(type), m_dwValue0(value0), m_dwValue1(value1) {}
@@ -104,6 +107,7 @@ public:
     NVIndexData m_IndexData;
 };
 
+// VTABLE: SWBF2 0x007857d0
 class StateManager_DX
 {
 public:
@@ -173,36 +177,14 @@ extern StateManager_DX* localInstance_;
 
 }
 
- 
- 
- 
-
- 
- 
- 
- 
- 
- 
- 
- 
- 
-
- 
- 
- 
- 
- 
-
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
+// FUNCTION: SWBF2 0x006b3ec0
+inline void dx::StateManager_DX::SetTransform(D3DTRANSFORMSTATETYPE State, const D3DMATRIX* pMatrix)
+{
+    if (pMatrix)
+    {
+        m_DirtyStates.Add(NVStateID(9, State, 0));
+        memcpy(m_CurrentState.m_Matrices[State], pMatrix, sizeof(D3DMATRIX));
+    }
+}
 
 #endif

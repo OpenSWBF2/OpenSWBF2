@@ -5,11 +5,13 @@
 #include "PathFinder.h"
 #include "UnitController.h"
 
-// GLOBAL: SWBF2 0x01eb9750
 // SYNTHETIC: SWBF2 0x00402740
 // `dynamic initializer for 'ConnectivityGraphFollower::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00766eb0
 // `dynamic atexit destructor for 'ConnectivityGraphFollower::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01eb9750
+// ConnectivityGraphFollower::sMemoryPool
 MemoryPool ConnectivityGraphFollower::sMemoryPool("ConnectivityGraphFollower", 0x3c);
 
 static inline float DistSq(const PblVector3& a, const PblVector3& b)

@@ -129,7 +129,8 @@ bool StreamPacketIO::UpdateOffset(unsigned int uiDataSize,
 
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x0073cd40
 unsigned int StreamPacketIOLite::ClampToDataLeft(unsigned int uiDataSize, unsigned int uiAmount)
@@ -143,7 +144,8 @@ unsigned int StreamPacketIOLite::ClampToDataLeft(unsigned int uiDataSize, unsign
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x0073cdb0
 void StreamPacketIOHeavy::Flush()
@@ -153,7 +155,8 @@ void StreamPacketIOHeavy::Flush()
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x0073ce20
 void* StreamPacketIOHeavy::GetData() const
@@ -162,7 +165,8 @@ void* StreamPacketIOHeavy::GetData() const
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x0073ce50
 unsigned int StreamPacketIOHeavy::GetDataLeft(unsigned int uiDataSize) const
@@ -171,7 +175,8 @@ unsigned int StreamPacketIOHeavy::GetDataLeft(unsigned int uiDataSize) const
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x0073cea0
 StreamPacket* StreamPacketIOHeavy::GetPacket() const
@@ -180,7 +185,8 @@ StreamPacket* StreamPacketIOHeavy::GetPacket() const
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x0073ceb0
 unsigned int StreamPacketIOHeavy::GetPacketSize() const
@@ -189,7 +195,8 @@ unsigned int StreamPacketIOHeavy::GetPacketSize() const
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x0073cf30
 void StreamPacketIOHeavy::SetPacket(StreamPacket* const pPacket, unsigned int uiPacketSize)
@@ -200,7 +207,8 @@ void StreamPacketIOHeavy::SetPacket(StreamPacket* const pPacket, unsigned int ui
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x0073d000
 bool StreamPacketIOHeavy::UpdateOffset(unsigned int uiAmount)

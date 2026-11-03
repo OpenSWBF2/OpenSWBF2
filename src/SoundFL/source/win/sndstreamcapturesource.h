@@ -19,7 +19,8 @@
 namespace Snd
 {
 
-// VTABLE: SWBF2 0x007869c0
+// VTABLE: SWBF2 0x007869c0 Snd::StreamCaptureSourceBase
+// VTABLE: SWBF2 0x007869cc Snd::ThreadUpdate::Object
 class StreamCaptureSource : public StreamCaptureSourceBase,
                             public ThreadUpdate::Object
 {

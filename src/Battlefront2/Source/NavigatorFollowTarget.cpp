@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "NavigatorFollowTarget.h"
 #include "AILowLevel.h"
 #include "CollisionObject.h"
@@ -13,7 +14,7 @@
 #include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblMatrix.h"
 #include "PebbleFL/Common/PblRandom.h"
-#include "PebbleFL/pc/PblD3DX.h"
+
 
 namespace ReserveManager
 {
@@ -22,12 +23,12 @@ namespace ReserveManager
 
 namespace
 {
-    unsigned int GameObjectHandleId(const GameObject* pObject)
+    inline unsigned int GameObjectHandleId(const GameObject* pObject)
     {
         return PBL_HANDLE_ID(pObject);
     }
 
-    const GameObject* HandleObject(PblHandle<const GameObject>& handle)
+    inline const GameObject* HandleObject(PblHandle<const GameObject>& handle)
     {
         if (handle.mObject && GameObjectHandleId(handle.mObject) != handle.mSavedHandleId)
         {
@@ -37,7 +38,7 @@ namespace
         return handle.mObject;
     }
 
-    const PblVector3& GameObjectPosition(const GameObject* pObject)
+    inline const PblVector3& GameObjectPosition(const GameObject* pObject)
     {
         return static_cast<const CollisionObject&>(*pObject).GetPosition();
     }
@@ -47,10 +48,6 @@ namespace
         return static_cast<const CollisionObject&>(*pObject).GetMatrix();
     }
 
-    const PblVector3& GetPos(const PblMatrix& m)
-    {
-        return *(const PblVector3*)&m.m[3][0];
-    }
 }
 
 // FUNCTION: SWBF2 0x005ac930
@@ -68,29 +65,22 @@ PblVector3 GetSineRandomOffsetXZ(const GameObject* pObj, const int i)
     return PblVector3(fX, 0.0f, fZ * 0.5f);
 }
 
-// GLOBAL: SWBF2 0x01ecb1fc
 // SYNTHETIC: SWBF2 0x004043c0
 // `dynamic initializer for 'NavigatorFollowTarget::rttiHashNavigatorFollowTarget''
+// NavigatorFollowTarget::rttiHashNavigatorFollowTarget
+
+// GLOBAL: SWBF2 0x01ecb1fc
+// NavigatorFollowTarget::rttiHashNavigatorFollowTarget
 PblHash NavigatorFollowTarget::rttiHashNavigatorFollowTarget("NavigatorFollowTarget");
-char NavigatorFollowTarget::rttiNameNavigatorFollowTarget[] = "NavigatorFollowTarget";
+// GLOBAL: SWBF2 0x0078a608
+// NavigatorFollowTarget::rttiNameNavigatorFollowTarget
+const char NavigatorFollowTarget::rttiNameNavigatorFollowTarget[] = "NavigatorFollowTarget";
 
-// FUNCTION: SWBF2 0x005ac510
-bool NavigatorFollowTarget::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashNavigatorFollowTarget || NavigatorGraphFollower::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x005ac540
-unsigned int NavigatorFollowTarget::GetDerivedRtti() const
-{
-    return rttiHashNavigatorFollowTarget;
-}
 
-// FUNCTION: SWBF2 0x005ac550
-const char* NavigatorFollowTarget::GetDerivedRttiName() const
-{
-    return rttiNameNavigatorFollowTarget;
-}
+
+
+
 
 // SYNTHETIC: SWBF2 0x005ac560
 // NavigatorFollowTarget::`scalar deleting destructor'
@@ -109,11 +99,9 @@ NavigatorFollowTarget* NavigatorFollowTargetPtr(Navigator* pNavigator)
 NavigatorFollowTarget::NavigatorFollowTarget(AILowLevel* pOwner, const GameObject* pTarget,
                                              const Obstacle** ppIgnore, int iIgnoreCnt,
                                              const PblVector3& followOffset)
-    : NavigatorGraphFollower(pOwner, GameObjectPosition(pTarget), ppIgnore, iIgnoreCnt, false)
+    : NavigatorGraphFollower(pOwner, GameObjectPosition(pTarget), ppIgnore, iIgnoreCnt, false),
+      mFollowTarget(pTarget), mFollowOffset(followOffset)
 {
-    mFollowTarget.mObject = pTarget;
-    mFollowTarget.mSavedHandleId = GameObjectHandleId(pTarget);
-    mFollowOffset = followOffset;
     mGraphFollower = 0;
     mCrumbHead = 0;
     mCrumbTail = 0;
@@ -258,7 +246,7 @@ void NavigatorFollowTarget::UpdateTarget()
     const PblVector3 vOffset(vWobble.x * 0.3f, vWobble.y * 0.3f, vWobble.z * 0.3f);
 
     PblVector3 vPos;
-    D3DXVec3TransformCoord(&vPos, &mFollowOffset, &GameObjectMatrix(HandleObject(mFollowTarget)));
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vPos), reinterpret_cast<const D3DXVECTOR3*>(&mFollowOffset), reinterpret_cast<const D3DXMATRIX*>(&GameObjectMatrix(HandleObject(mFollowTarget))));
     PblVector3& vHead = mCrumbBuffer[mCrumbHead];
     vHead = PblVector3(vPos.x + vOffset.x, vPos.y + vOffset.y, vPos.z + vOffset.z);
 
@@ -288,7 +276,7 @@ void NavigatorFollowTarget::UpdateTarget()
 bool NavigatorFollowTarget::LookForCrumbs()
 {
     bool bCheckLOS = false;
-    const PblVector3& vMyPos = GetPos(GetMatrix());
+    const PblVector3& vMyPos = GetMatrix().GetTranslation();
     const float fTime = GameLoop::GetMissionTime();
     if (fTime > mLastShortcutCheck + 2.0f)
     {
@@ -337,7 +325,7 @@ void NavigatorFollowTarget::UpdateFollowCrumbs()
 {
     LookForCrumbs();
 
-    const PblVector3& vMyPos = GetPos(GetMatrix());
+    const PblVector3& vMyPos = GetMatrix().GetTranslation();
     const PblVector3& vHead = mCrumbBuffer[mCrumbHead];
     const float dx = vHead.x - vMyPos.x;
     const float dz = vHead.z - vMyPos.z;
@@ -389,7 +377,7 @@ void NavigatorFollowTarget::UpdateFollowCrumbs()
 
     delete mPathFollower;
     mPathFollower = 0;
-    mPathFollower = new PathFollower(mOwner->mOwner, GetPos(GetMatrix()), vCrumb,
+    mPathFollower = new PathFollower(mOwner->mOwner, GetMatrix().GetTranslation(), vCrumb,
                                      (const Obstacle**)mIgnore, mIgnoreCnt, false);
 }
 

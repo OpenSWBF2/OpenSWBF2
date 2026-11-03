@@ -69,7 +69,7 @@ typedef LUA_UACNUMBER l_uacNumber;
 typedef unsigned long Instruction;
 
 #ifndef LUA_MAXCALLS
-#define LUA_MAXCALLS        4096
+#define LUA_MAXCALLS        256  /* the game's value; stock Lua 5.0 has 4096 */
 #endif
 
 #ifndef LUA_MAXCCALLS
@@ -77,7 +77,7 @@ typedef unsigned long Instruction;
 #endif
 
 #ifndef LUA_MAXCSTACK
-#define LUA_MAXCSTACK        2048
+#define LUA_MAXCSTACK        1024  /* the game's value; stock Lua 5.0 has 2048 */
 #endif
 
 #define MAXSTACK	128
@@ -91,7 +91,7 @@ typedef unsigned long Instruction;
 #endif
 
 #ifndef MAXPARAMS
-#define MAXPARAMS 100
+#define MAXPARAMS 64  /* the game's value; stock Lua 5.0 has 100 */
 #endif
 
 #ifndef MINSTRTABSIZE

@@ -1,16 +1,14 @@
 #include "HUDSound.h"
 
-HUD::Sound::Factory::Factory()
-    : HUD::Item::Factory(0x0E0D9594u)
-{
-    mName = "Sound";
-}
 
-// GLOBAL: SWBF2 0x007eba9c
+
 // SYNTHETIC: SWBF2 0x004040a0
 // `dynamic initializer for 'HUD::Sound::sList''
 // SYNTHETIC: SWBF2 0x00768c10
 // `dynamic atexit destructor for 'HUD::Sound::sList''
+
+// GLOBAL: SWBF2 0x007eba9c
+// HUD::Sound::sList
 PblListSingle HUD::Sound::sList;
 
 static const unsigned int kSoundHash = 0x0e0d9594;
@@ -50,10 +48,6 @@ HUD::Sound::Sound(const char* const, Factory::ItemCallback, void* const)
 HUD::Sound::~Sound()
 {
     HUD::FreeName(&mSoundID);
-    if (mSoundNode.mNext)
-    {
-        mSoundNode.Remove();
-    }
 }
 
 // FUNCTION: SWBF2 0x005670c0

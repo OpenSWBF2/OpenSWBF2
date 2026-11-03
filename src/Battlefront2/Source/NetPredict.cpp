@@ -1,9 +1,11 @@
+#include <d3dx9math.h>
 #include "NetPredict.h"
 #include "NetGame.h"
 #include "PebbleFL/Common/PblIndex.h"
 #include "PebbleFL/pc/PblD3DX.h"
 
 NetInterpolator netInterpolator;
+
 
 // GLOBAL: SWBF2 0x01ead160
 unsigned int interpId[64];
@@ -14,16 +16,19 @@ int interpNext;
 // GLOBAL: SWBF2 0x01ead368
 int interpCount[64];
 
-extern PblVector3 interpPos[2][64];
-extern PblMatrix interpMat[2][64];
+extern PblVector3 interpPos[64][2];
+extern PblMatrix interpMat[64][2];
 
 // FUNCTION: SWBF2 0x005daa90
 bool NetInterpolator::GetIndex(int& iIndex, int iId, unsigned int uHandleId)
 {
-    if (iIndex < 0 || interpCat[iIndex] != iId || interpId[iIndex] != uHandleId)
+    if (iIndex < 0 || iId != interpCat[iIndex] || uHandleId != interpId[iIndex])
     {
         iIndex = interpNext;
-        interpNext = interpNext + 1 < 64 ? interpNext + 1 : 0;
+        if (++interpNext >= sizeof(interpId) / sizeof(interpId[0]))
+        {
+            interpNext = 0;
+        }
         interpCount[iIndex] = 0;
         interpCat[iIndex] = iId;
         interpId[iIndex] = uHandleId;
@@ -40,33 +45,35 @@ void NetInterpolator::Prev(int iIndex)
 // FUNCTION: SWBF2 0x005dab10
 void NetInterpolator::SetNext(int iIndex, const PblVector3* pVec)
 {
-    if (iIndex < 0)
+    if (iIndex >= 0)
     {
-        return;
+        if (pVec)
+        {
+            interpPos[iIndex][interpCount[iIndex] & 1] = *pVec;
+            ++interpCount[iIndex];
+        }
+        else
+        {
+            interpCount[iIndex] = 0;
+        }
     }
-    if (!pVec)
-    {
-        interpCount[iIndex] = 0;
-        return;
-    }
-    (&interpPos[0][0])[2 * iIndex + (interpCount[iIndex] & 1)] = *pVec;
-    ++interpCount[iIndex];
 }
 
 // FUNCTION: SWBF2 0x005dac60
 void NetInterpolator::SetNext(int iIndex, const PblMatrix* pMat)
 {
-    if (iIndex < 0)
+    if (iIndex >= 0)
     {
-        return;
+        if (pMat)
+        {
+            interpMat[iIndex][interpCount[iIndex] & 1] = *pMat;
+            ++interpCount[iIndex];
+        }
+        else
+        {
+            interpCount[iIndex] = 0;
+        }
     }
-    if (!pMat)
-    {
-        interpCount[iIndex] = 0;
-        return;
-    }
-    (&interpMat[0][0])[2 * iIndex + (interpCount[iIndex] & 1)] = *pMat;
-    ++interpCount[iIndex];
 }
 
 // FUNCTION: SWBF2 0x005dab70
@@ -77,17 +84,15 @@ void NetInterpolator::GetVec(int iIndex, PblVector3& vVec)
         return;
     }
     const int iNew = (interpCount[iIndex] - 1) & 1;
-    const PblVector3& vNew = (&interpPos[0][0])[2 * iIndex + iNew];
+    const PblVector3& vNew = interpPos[iIndex][iNew];
     if (interpCount[iIndex] < 2)
     {
         vVec = vNew;
         return;
     }
-    const PblVector3& vOld = (&interpPos[0][0])[2 * iIndex + (interpCount[iIndex] & 1)];
     const float fRatio = NetGame::GetTurnRatio();
-    vVec.x = (vNew.x - vOld.x) * fRatio + vOld.x;
-    vVec.y = (vNew.y - vOld.y) * fRatio + vOld.y;
-    vVec.z = (vNew.z - vOld.z) * fRatio + vOld.z;
+    const PblVector3& vOld = interpPos[iIndex][interpCount[iIndex] & 1];
+    vVec = Interpolate(vOld, vNew, fRatio);
 }
 
 // FUNCTION: SWBF2 0x005dacd0
@@ -98,27 +103,25 @@ void NetInterpolator::GetMat(int iIndex, PblMatrix& mMat)
         return;
     }
     const int iNew = (interpCount[iIndex] - 1) & 1;
-    const PblMatrix& mNew = (&interpMat[0][0])[2 * iIndex + iNew];
+    const PblMatrix& mNew = interpMat[iIndex][iNew];
     if (interpCount[iIndex] < 2)
     {
         mMat = mNew;
         return;
     }
-    const PblMatrix& mOld = (&interpMat[0][0])[2 * iIndex + (interpCount[iIndex] & 1)];
-    float fRatio = NetGame::GetTurnRatio();
-    PblQuaternion qOld(mOld), qNew(mNew);
-    PblQuaternion qInterpolated = Interpolate(qOld, qNew, fRatio);
-    PblQuaternion qNormalized;
-    D3DXQuaternionNormalize(&qNormalized, &qInterpolated);
-    D3DXMatrixRotationQuaternion(&mMat, &qNormalized);
-    for (int i = 0; i < 3; ++i)
-    {
-        mMat.m[3][i] = (mNew.m[3][i] - mNew.m[3][i]) * fRatio + mNew.m[3][i];
-    }
-    mMat.m[3][3] = 1.0f;
+
+    PblQuaternion qNew(mNew);
+    const PblVector3 vNew = mNew.GetTranslation();
+    const float fRatio = NetGame::GetTurnRatio();
+    const PblMatrix& mOld = interpMat[iIndex][interpCount[iIndex] & 1];
+    PblQuaternion qOld(mOld);
+    const PblVector3 vOld = mNew.GetTranslation();
+    const PblVector3 vBlend = Interpolate(vOld, vNew, fRatio);
+    mMat = PblMatrix(Interpolate(qOld, qNew, fRatio), vBlend);
 }
 
 extern int gDebugCount;
+extern PblVector3 gVectorZero;
 extern bool netIsLocalTurn;
 extern bool netIsLastUpdateTurn;
 
@@ -137,29 +140,29 @@ extern SmoothInfo smoothInfo[64];
 // FUNCTION: SWBF2 0x005da0a0
 void SmoothInfo::SetRenderMatrix(const PblMatrix& mat)
 {
-    SmoothInfo& info = *(SmoothInfo*)this;
-    for (int i = 3; i > 0; --i)
-    {
-        info.lastRenderMat[i] = info.lastRenderMat[i - 1];
-        info.lastRenderTime[i] = info.lastRenderTime[i - 1];
-    }
-    info.lastRenderMat[0] = mat;
-    info.lastRenderTime[0] = renderTime;
-    ++info.renderCount;
+    lastRenderMat[3] = lastRenderMat[2];
+    lastRenderMat[2] = lastRenderMat[1];
+    lastRenderMat[1] = lastRenderMat[0];
+    lastRenderMat[0] = mat;
+    lastRenderTime[3] = lastRenderTime[2];
+    lastRenderTime[2] = lastRenderTime[1];
+    lastRenderTime[1] = lastRenderTime[0];
+    lastRenderTime[0] = renderTime;
+    ++renderCount;
 }
 
 // FUNCTION: SWBF2 0x005da1b0
 PblMatrix& SmoothInfo::GetRenderMatrix()
 {
     int i = 0;
-    for (; i < 4; ++i)
+    for (; i < sizeof(lastRenderTime) / sizeof(lastRenderTime[0]); ++i)
     {
         if (renderTime == lastRenderTime[i])
         {
             break;
         }
     }
-    if (i == 4)
+    if (i >= sizeof(lastRenderTime) / sizeof(lastRenderTime[0]))
     {
         i = 0;
     }
@@ -171,21 +174,21 @@ PblMatrix& SmoothInfo::GetRenderMatrix()
 }
 
 // FUNCTION: SWBF2 0x005da540
-void __fastcall Jump(SmoothInfo* pInfo)
+void Jump(SmoothInfo& smooth)
 {
-    ((SmoothInfo&)(*pInfo)).SetRenderMatrix(pInfo->lastPredictMat[0]);
+    smooth.SetRenderMatrix(smooth.lastPredictMat[0]);
 }
 
 // FUNCTION: SWBF2 0x005da730
-void __fastcall SmoothSoldier(SmoothInfo* pInfo)
+void SmoothSoldier(SmoothInfo& smooth)
 {
-    SmoothLocal(pInfo);
+    SmoothLocal(smooth);
 }
 
 // FUNCTION: SWBF2 0x005da740
-void __fastcall SmoothWalker(SmoothInfo* pInfo)
+void SmoothWalker(SmoothInfo& smooth)
 {
-    Filter(pInfo);
+    Filter(smooth);
 }
 
 // FUNCTION: SWBF2 0x005da210
@@ -195,160 +198,147 @@ void Smooth(SmoothInfo& info, float fSmallJump, float fLargeJump)
     {
         ++gDebugCount;
     }
-    const float fX = info.lastPredictMat[0].m[3][0] - info.lastRenderMat[0].m[3][0];
-    const float fY = info.lastPredictMat[0].m[3][1] - info.lastRenderMat[0].m[3][1];
-    const float fZ = info.lastPredictMat[0].m[3][2] - info.lastRenderMat[0].m[3][2];
-    const float fDistanceSquared = fX * fX + fY * fY + fZ * fZ;
+    PblVector3 diff = info.lastPredictMat[0].GetTranslation() - info.lastRenderMat[0].GetTranslation();
+    float fDistanceSquared = SquaredLength(diff);
     if (fDistanceSquared >= fLargeJump * fLargeJump)
     {
-        Jump(&info);
+        Jump(info);
         return;
     }
     if (fDistanceSquared >= fSmallJump * fSmallJump)
     {
-        Filter(&info);
+        Filter(info);
         return;
     }
     if (NetGame::GetJoystickIndex(info.mPlayerId) >= 0)
     {
-        SmoothLocal(&info);
+        SmoothLocal(info);
         return;
     }
     if (info.renderCount <= 3)
     {
         if (info.renderCount > 0)
         {
-            Filter(&info);
+            Filter(info);
         }
         else
         {
-            Jump(&info);
+            Jump(info);
         }
         return;
     }
     switch (info.type)
     {
-    case ST_SOLDIER: SmoothSoldier(&info); break;
-    case ST_WALKER: SmoothWalker(&info); break;
-    case ST_VEHICLE: SmoothVehicle(&info); break;
+    case ST_SOLDIER: SmoothSoldier(info); break;
+    case ST_WALKER: SmoothWalker(info); break;
+    case ST_VEHICLE: SmoothVehicle(info); break;
     }
+}
+
+inline float Filter(float target, float current, float rate)
+{
+    if (rate < 0.0001f)
+    {
+        return current;
+    }
+    if (rate >= 1.0f)
+    {
+        return target;
+    }
+    return current + (target - current) * rate;
 }
 
 // FUNCTION: SWBF2 0x005da300
-void __fastcall Filter(SmoothInfo* pInfo)
+void Filter(SmoothInfo& smooth)
 {
-    if (pInfo->renderCount <= 0)
+    if (smooth.renderCount <= 0)
     {
-        Jump(pInfo);
+        Jump(smooth);
         return;
     }
-    const float fElapsed = renderTime - pInfo->lastRenderTime[0];
-    PblQuaternion qOld(pInfo->lastPredictMat[0]);
-    PblQuaternion qNew(pInfo->lastRenderMat[0]);
-    PblQuaternion qBlended = Interpolate(qOld, qNew, fElapsed * 10.0f);
-    PblQuaternion qNormal;
-    D3DXQuaternionNormalize(&qNormal, &qBlended);
-    PblMatrix mResult;
-    D3DXMatrixRotationQuaternion(&mResult, &qNormal);
-    float fPosRatio = fElapsed * 5.0f;
-    for (int i = 0; i < 3; ++i)
+    float dt = renderTime - smooth.lastRenderTime[0];
+    const PblMatrix* mats = smooth.lastPredictMat;
+    PblQuaternion q0(mats[0]);
+    PblQuaternion q1(smooth.lastRenderMat[0]);
+    PblQuaternion q = Interpolate(q0, q1, dt * 10.0f);
+    float tx = Filter(mats[0].GetTranslation().x, smooth.lastRenderMat[0].GetTranslation().x, dt * 5.0f);
+    float ty = Filter(mats[0].GetTranslation().y, smooth.lastRenderMat[0].GetTranslation().y, dt * 5.0f);
+    float tz = Filter(mats[0].GetTranslation().z, smooth.lastRenderMat[0].GetTranslation().z, dt * 5.0f);
+    PblMatrix mat(q, PblVector3(tx, ty, tz));
+    if (smooth.mErrTime > 0.0f)
     {
-        float fOld = pInfo->lastRenderMat[0].m[3][i];
-        float fNew = pInfo->lastPredictMat[0].m[3][i];
-        mResult.m[3][i] = fPosRatio >= 0.0001f
-            ? (fPosRatio < 1.0f ? (fNew - fOld) * fPosRatio + fOld : fNew)
-            : fOld;
+        PblVector3 posErr = mat.GetTranslation() - mats[0].GetTranslation();
+        PblVector3 frontErr = mat.GetZAxis() - mats[0].GetZAxis();
+        smooth.mPosErr = posErr;
+        smooth.mFrontErr = frontErr;
+        smooth.mRotErr = PblQuaternion();
     }
-    mResult.m[3][3] = 1.0f;
-    if (pInfo->mErrTime > 0.0f)
-    {
-        for (int i = 0; i < 3; ++i)
-        {
-            (&pInfo->mPosErr.x)[i] = mResult.m[3][i] - pInfo->lastPredictMat[0].m[3][i];
-            (&pInfo->mFrontErr.x)[i] = mResult.m[2][i] - pInfo->lastPredictMat[0].m[2][i];
-        }
-        pInfo->mRotErr = PblQuaternion(0.0f, 0.0f, 0.0f, 1.0f);
-    }
-    ((SmoothInfo&)(*pInfo)).SetRenderMatrix(mResult);
+    smooth.SetRenderMatrix(mat);
 }
 
 // FUNCTION: SWBF2 0x005da550
-void __fastcall SmoothVehicle(SmoothInfo* pInfo)
+void SmoothVehicle(SmoothInfo& smooth)
 {
-    const float fElapsed = renderTime - pInfo->lastRenderTime[0];
-    const float fPredictTime = (renderTime + 0.25f) - renderTime;
-    const float fRatio = fElapsed / ((renderTime + 0.25f) - pInfo->lastRenderTime[0]);
-    PblMatrix mResult;
-    PblQuaternion qOld(pInfo->lastRenderMat[0]);
-    PblQuaternion qNew(pInfo->lastPredictMat[0]);
-    PblQuaternion qBlended = Interpolate(qOld, qNew, fElapsed * 10.0f);
-    PblQuaternion qNormal;
-    D3DXQuaternionNormalize(&qNormal, &qBlended);
-    D3DXMatrixRotationQuaternion(&mResult, &qNormal);
-    for (int i = 0; i < 3; ++i)
-    {
-        float fOld = pInfo->lastRenderMat[0].m[3][i];
-        float fExtrapolated = pInfo->lastPredictMat[0].m[3][i] + (&pInfo->mVelocity.x)[i] * fPredictTime;
-        mResult.m[3][i] = fRatio >= 0.0001f
-            ? (fRatio < 1.0f ? (fExtrapolated - fOld) * fRatio + fOld : fExtrapolated)
-            : fOld;
-    }
-    mResult.m[3][3] = 1.0f;
-    ((SmoothInfo&)(*pInfo)).SetRenderMatrix(mResult);
+    float nextTime = renderTime + 0.25f;
+    float deltaTime = renderTime - smooth.lastRenderTime[0];
+    PblVector3 nextPos = smooth.lastPredictMat[0].GetTranslation() + smooth.mVelocity * (nextTime - renderTime);
+    float ratio = deltaTime / (nextTime - smooth.lastRenderTime[0]);
+    float x = Filter(nextPos.x, smooth.lastRenderMat[0].GetTranslation().x, ratio);
+    float y = Filter(nextPos.y, smooth.lastRenderMat[0].GetTranslation().y, ratio);
+    float z = Filter(nextPos.z, smooth.lastRenderMat[0].GetTranslation().z, ratio);
+    PblQuaternion q0(smooth.lastRenderMat[0]);
+    PblQuaternion q1(smooth.lastPredictMat[0]);
+    PblQuaternion q = Interpolate(q0, q1, deltaTime * 10.0f);
+    PblMatrix mat(q, PblVector3(x, y, z));
+    smooth.SetRenderMatrix(mat);
 }
 
 // FUNCTION: SWBF2 0x005da750
-void __fastcall SmoothLocal(SmoothInfo* pInfo)
+void SmoothLocal(SmoothInfo& smooth)
 {
-    if (pInfo - smoothInfo == 8)
+    if (&smooth - smoothInfo == 8)
     {
         ++gDebugCount;
     }
-    if (!pInfo->mPlayerId)
+    if (!smooth.mPlayerId)
     {
         ++gDebugCount;
     }
-    const float fElapsed = renderTime - pInfo->lastRenderTime[0];
-    const float fRemaining = pInfo->mErrTime - fElapsed;
-    if (fRemaining <= 0.0f)
+    float dt = renderTime - smooth.lastRenderTime[0];
+    float errTime = smooth.mErrTime - dt;
+    if (errTime < 0.0f)
     {
-        pInfo->mPosErr = PblVector3(0.0001f, 0.0001f, 0.0001f);
-        pInfo->mFrontErr = PblVector3(0.0001f, 0.0001f, 0.0001f);
-        ((SmoothInfo&)(*pInfo)).SetRenderMatrix(pInfo->lastPredictMat[0]);
-        pInfo->mErrTime = fRemaining < 0.0f ? 0.0f : fRemaining;
-        return;
+        errTime = 0.0f;
     }
-    const float fRatio = fElapsed / pInfo->mErrTime;
-    for (int i = 0; i < 3; ++i)
+    if (errTime <= 0.0f)
     {
-        (&pInfo->mPosErr.x)[i] = (0.0f - (&pInfo->mPosErr.x)[i]) * fRatio + (&pInfo->mPosErr.x)[i];
+        smooth.mPosErr.SetAll(0.0001f);
+        smooth.mFrontErr.SetAll(0.0001f);
+        smooth.SetRenderMatrix(smooth.lastPredictMat[0]);
     }
-    PblQuaternion qIdentity(0.0f, 0.0f, 0.0f, 1.0f);
-    pInfo->mRotErr = Interpolate(pInfo->mRotErr, qIdentity, fRatio);
-    PblQuaternion qNormal;
-    D3DXQuaternionNormalize(&qNormal, &pInfo->mRotErr);
-    PblMatrix mCorrection, mResult;
-    D3DXMatrixRotationQuaternion(&mCorrection, &qNormal);
-    PblMatrix mPredict = pInfo->lastPredictMat[0];
-    mPredict.m[3][0] = mPredict.m[3][1] = mPredict.m[3][2] = 0.0f;
-    mPredict.m[3][3] = 1.0f;
-    D3DXMatrixMultiply(&mResult, &mPredict, &mCorrection);
-    for (int i = 0; i < 3; ++i)
+    else
     {
-        mResult.m[3][i] = pInfo->lastPredictMat[0].m[3][i] + (&pInfo->mPosErr.x)[i];
+        float ratio = dt / smooth.mErrTime;
+        smooth.mPosErr = Interpolate(smooth.mPosErr, gVectorZero, ratio);
+        PblQuaternion z;
+        smooth.mRotErr = Interpolate(smooth.mRotErr, z, ratio);
+        PblMatrix r(smooth.mRotErr, PblVector3(0.0f, 0.0f, 0.0f));
+        PblMatrix m = smooth.lastPredictMat[0];
+        m.SetTranslation(0.0f, 0.0f, 0.0f, 1.0f);
+        m = m * r;
+        m.SetTranslation(smooth.lastPredictMat[0].GetTranslation() + smooth.mPosErr);
+        smooth.SetRenderMatrix(m);
+        smooth.mErrTime -= dt;
+        smooth.mFrontErr *= 1.0f - ratio;
     }
-    mResult.m[3][3] = 1.0f;
-    ((SmoothInfo&)(*pInfo)).SetRenderMatrix(mResult);
-    pInfo->mErrTime = fRemaining;
-    for (int i = 0; i < 3; ++i)
-    {
-        (&pInfo->mFrontErr.x)[i] *= 1.0f - fRatio;
-    }
+    smooth.mErrTime = errTime;
 }
 
-// GLOBAL: SWBF2 0x01ee8390
 // SYNTHETIC: SWBF2 0x004055f0
 // `dynamic initializer for 'smoothInfo''
+
+// GLOBAL: SWBF2 0x01ee8390
+// smoothInfo
 SmoothInfo smoothInfo[64];
 
 static SmoothInfo sDiscardSmoothInfo;
@@ -442,7 +432,7 @@ void SmoothInfo::SetMat(const PblMatrix& mat, float fParam1, float fParam2)
         newRot.m[3][3] = 1.0f;
         PblMatrix newInverse = newRot.GetInverseFast();
         PblMatrix relMatrix;
-        D3DXMatrixMultiply(&relMatrix, &newInverse, &oldRot);
+        relMatrix = newInverse * oldRot;
         mRotErr = PblQuaternion(relMatrix);
     }
 }
@@ -450,28 +440,28 @@ void SmoothInfo::SetMat(const PblMatrix& mat, float fParam1, float fParam2)
 // FUNCTION: SWBF2 0x005d9c20
 void SmoothInfo::ResetMat(const PblMatrix& mat)
 {
+    PblQuaternion z;
     lastPredictMat[0] = mat;
     predictCount = 1;
     lastRenderMat[0] = mat;
     renderCount = 1;
     lastRenderTime[0] = renderTime;
     mErrTime = 0.0f;
-    mPosErr = PblVector3(0.0001f, 0.0001f, 0.0001f);
-    mFrontErr = PblVector3(0.0001f, 0.0001f, 0.0001f);
-    mRotErr._fX = 0.0f;
-    mRotErr._fY = 0.0f;
-    mRotErr._fZ = 0.0f;
-    mRotErr._fS = 1.0f;
+    mPosErr.x = mPosErr.y = mPosErr.z = 0.0001f;
+    mFrontErr.x = mFrontErr.y = mFrontErr.z = 0.0001f;
+    mRotErr = z;
 }
 
-// GLOBAL: SWBF2 0x01ee7d90
 // SYNTHETIC: SWBF2 0x00405680
 // `dynamic initializer for 'interpPos''
 
-PblVector3 interpPos[2][64];
+// GLOBAL: SWBF2 0x01ee7d90
+// interpPos
+PblVector3 interpPos[64][2];
 
-// GLOBAL: SWBF2 0x01eeff90
 // SYNTHETIC: SWBF2 0x004056a0
 // `dynamic initializer for 'interpMat''
 
-PblMatrix interpMat[2][64];
+// GLOBAL: SWBF2 0x01eeff90
+// interpMat
+PblMatrix interpMat[64][2];

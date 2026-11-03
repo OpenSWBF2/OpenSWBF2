@@ -9,8 +9,6 @@
 
 extern bool netIsLocalTurn;
 
-typedef PblList<OrdnanceClass>::Itor OrdnanceItor;
-
 // FUNCTION: SWBF2 0x005f6f80
 OrbitalStrikeClass::OrbitalStrikeClass(unsigned int uHash)
 {
@@ -35,10 +33,9 @@ OrbitalStrikeClass::OrbitalStrikeClass(OrbitalStrikeClass* pBase, unsigned int u
 
 // FUNCTION: SWBF2 0x005f6aa0
 OrbitalStrike::OrbitalStrike(const OrbitalStrikeClass* pClass, OrbitalStrikeDesc& desc)
-    : Thread(), PblHandled(), mClass(const_cast<OrbitalStrikeClass*>(pClass))
+    : Thread(), PblHandled(), mClass(const_cast<OrbitalStrikeClass*>(pClass)),
+      mPosition(desc.mPosition), mDamageOwner(desc.mDamageOwner)
 {
-    mPosition = desc.mPosition;
-    mDamageOwner = desc.mDamageOwner;
     mSalvoCount = pClass->mSalvoCount;
     mSalvoDelay = pClass->mInitialSalvoDelay;
     ActivateThread(-40, PER_LOCAL_TURN);
@@ -53,7 +50,7 @@ OrbitalStrike::~OrbitalStrike()
 // OrbitalStrike::`scalar deleting destructor'
 
 // SYNTHETIC: SWBF2 0x005f7193
-// [thunk]:OrbitalStrike::`scalar deleting destructor' adjustor{24}
+// ??_EOrbitalStrike@@WBI@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x005f6ba0
 bool OrbitalStrike::Update(float fDeltaTime)
@@ -67,14 +64,13 @@ bool OrbitalStrike::Update(float fDeltaTime)
 
         while (mSalvoDelay <= 0.0f)
         {
-            D3DXMATRIXA16 aim;
-            D3DXMATRIXA16 yaw;
-            D3DXMatrixRotationX(&aim, -mClass->mAimElevation);
-            D3DXMatrixMultiply(&aim, &aim, D3DXMatrixRotationY(&yaw, mClass->mAimAzimuth));
-            aim._41 = mPosition.x;
-            aim._42 = mPosition.y;
-            aim._43 = mPosition.z;
-            aim._44 = 1.0f;
+            PblMatrix aim;
+            aim.SetRotateX(-mClass->mAimElevation);
+            aim.RotateY(mClass->mAimAzimuth);
+            aim.m[3][0] = mPosition.x;
+            aim.m[3][1] = mPosition.y;
+            aim.m[3][2] = mPosition.z;
+            aim.m[3][3] = 1.0f;
 
             OrdnanceDesc desc;
             PblRandom& rand = PblRandom::GetSim();
@@ -82,9 +78,9 @@ bool OrbitalStrike::Update(float fDeltaTime)
                                      (rand.GetFloat() - rand.GetFloat()) * mClass->mScatterDistance,
                                      mClass->mAimDistance);
             D3DXVECTOR3 pos;
-            D3DXVec3TransformCoord(&pos, &offset, &aim);
+            D3DXVec3TransformCoord(&pos, &offset, reinterpret_cast<const D3DXMATRIX*>(&aim));
             desc.mPosition = PblVector3(pos.x, pos.y, pos.z);
-            desc.mDirection = PblVector3(-aim._31, -aim._32, -aim._33);
+            desc.mDirection = PblVector3(-aim.m[2][0], -aim.m[2][1], -aim.m[2][2]);
             desc.mDamageOwner = mDamageOwner;
 
             if (NetGame::IsEnabled() && !NetGame::IsClient())
@@ -111,7 +107,8 @@ bool OrbitalStrike::Update(float fDeltaTime)
     return true;
 }
 
-// FUNCTION: SWBF2 0x005f7140
+// TEMPLATE: SWBF2 0x005f7140
+// Factory<Ordnance,OrdnanceClass,OrdnanceDesc>::Find
 template OrdnanceClass* Factory<Ordnance, OrdnanceClass, OrdnanceDesc>::Find(unsigned int);
 
 // FUNCTION: SWBF2 0x005f7010
@@ -154,33 +151,3 @@ bool OrbitalStrikeClass::SetProperty(unsigned int uProperty, const char* pszValu
     return false;
 }
 
-// FUNCTION: SWBF2 0x005d3b50
-OrdnanceItor* InitOrdnanceItor(OrdnanceItor* pItor, PblList<OrdnanceClass>::Node* pNode)
-{
-    pItor->_pNode = pNode;
-    return pItor;
-}
-
-// FUNCTION: SWBF2 0x005d3b70
-OrdnanceClass* GetOrdnanceItorObjectForCheck(const OrdnanceItor* pItor)
-{
-    return *pItor;
-}
-
-// FUNCTION: SWBF2 0x005d3b90
-OrdnanceClass* GetOrdnanceItorObjectForReturn(const OrdnanceItor* pItor)
-{
-    return *pItor;
-}
-
-// FUNCTION: SWBF2 0x005d3bb0
-OrdnanceClass* GetOrdnanceItorObjectForEndTest(const OrdnanceItor* pItor)
-{
-    return *pItor;
-}
-
-// FUNCTION: SWBF2 0x005d3bd0
-OrdnanceItor* AdvanceOrdnanceItor(OrdnanceItor* pItor)
-{
-    return &++*pItor;
-}

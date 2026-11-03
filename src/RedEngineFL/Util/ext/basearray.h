@@ -13,8 +13,10 @@ class BaseArray : public ALLOC
 public:
 
     BaseArray()
-        : _elements(0), _numElements(0), _size(0)
     {
+        _elements = 0;
+        _size = 0;
+        _numElements = 0;
     }
 
     ~BaseArray()
@@ -55,7 +57,8 @@ public:
         rOther._size = iSize;
     }
 
-    // FUNCTION: SWBF2 0x006d8190
+    // TEMPLATE: SWBF2 0x006d8190
+    // util::BaseArray<unsigned short,util::TNewArrayAlloc<unsigned short> >::Reserve_
     bool Reserve_(int iCount, bool bForce)
     {
         if (iCount == _size)
@@ -82,17 +85,11 @@ public:
         int i = 0;
         for (; i < iKeep; i++)
         {
-            if (pNew)
-            {
-                new (pNew + i) TYPE(_elements[i]);
-            }
+            new (pNew + i) TYPE(_elements[i]);
         }
         for (; i < iCount; i++)
         {
-            if (pNew)
-            {
-                new (pNew + i) TYPE();
-            }
+            new (pNew + i) TYPE();
         }
 
         if (_elements)

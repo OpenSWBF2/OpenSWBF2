@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "AIGoal.h"
@@ -8,7 +10,8 @@
 
 class GameObject;
 
-namespace AI {
+namespace AI
+{
 
 // VTABLE: SWBF2 0x00798d48
 class CTFGoal : public AIGoal
@@ -29,7 +32,7 @@ protected:
 
 public:
     static PblHash rttiHashCTFGoal;
-    static char rttiNameCTFGoal[];
+    static const char rttiNameCTFGoal[];
 
     PblHandle<const GameObject> mFlag;
     PblVector3 mCapturePos;
@@ -40,3 +43,25 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x00487c20
+inline bool AI::CTFGoal::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashCTFGoal == uRtti)
+    {
+        return true;
+    }
+    return AIGoal::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x00487c50
+inline unsigned int AI::CTFGoal::GetDerivedRtti() const
+{
+    return rttiHashCTFGoal;
+}
+
+// FUNCTION: SWBF2 0x00487c60
+inline const char* AI::CTFGoal::GetDerivedRttiName() const
+{
+    return rttiNameCTFGoal;
+}

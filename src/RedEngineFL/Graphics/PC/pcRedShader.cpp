@@ -17,10 +17,13 @@ void __cdecl PblTraceP(const char* Format, ...);
 // SYNTHETIC: SWBF2 0x004072e0
 // `dynamic initializer for 'pcRedShader::s_ShaderFactoryByRenderType''
 
+// GLOBAL: SWBF2 0x007f5050
+// pcRedShader::s_ShaderFactoryByRenderType
 PblHashTable<const pcRedShader, pcRedShader::FACTORY_SLOTS>
     pcRedShader::s_ShaderFactoryByRenderType;
-int pcRedShader::s_ShaderFactoryByRenderTypeNumEntries;
 
+// GLOBAL: SWBF2 0x007f4fe8
+// pcRedShaderDef::s_IDCount
 unsigned int pcRedShaderDef::s_IDCount;
 
 // FUNCTION: SWBF2 0x006ac5c0
@@ -83,17 +86,11 @@ void pcRedShaderDef::BindOnRead(pcRedShader* pShader)
 // FUNCTION: SWBF2 0x006ac740
 void __cdecl pcRedShader::Cleanup()
 {
-    const unsigned int* const puiKeys = s_ShaderFactoryByRenderType._table;
-    const pcRedShader* const* const ppValues =
-        (const pcRedShader* const*)(puiKeys + FACTORY_SLOTS);
-
-    for (unsigned int i = 0; i < FACTORY_SLOTS; ++i)
+    for (PblHashTable<const pcRedShader, FACTORY_SLOTS>::Itor it = s_ShaderFactoryByRenderType.Begin();
+         it != s_ShaderFactoryByRenderType.End(); ++it)
     {
-        if (puiKeys[i] == 0)
-        {
-            continue;
-        }
-        ppValues[i]->GetShaderDef()->Reset();
+        const pcRedShader* pShader = it;
+        pShader->GetShaderDef()->Reset();
     }
 
     pcRedShaderDef::Cleanup();
@@ -158,18 +155,10 @@ void __cdecl pcRedShader::Init()
 
     pcRedShaderDef::Init();
 
-    const unsigned int* const puiKeys = s_ShaderFactoryByRenderType._table;
-    const pcRedShader* const* const ppValues =
-        (const pcRedShader* const*)(puiKeys + FACTORY_SLOTS);
-
-    for (unsigned int i = 0; i < FACTORY_SLOTS; ++i)
+    for (PblHashTable<const pcRedShader, FACTORY_SLOTS>::Itor it = s_ShaderFactoryByRenderType.Begin();
+         it != s_ShaderFactoryByRenderType.End(); ++it)
     {
-        if (puiKeys[i] == 0)
-        {
-            continue;
-        }
-
-        const pcRedShader* pFactory = ppValues[i];
+        const pcRedShader* pFactory = it;
 
         pFactory->_StaticInit();
         if (uiPipeline == 0 || pFactory->GetShaderDef()->m_uiNameHash == 0)
@@ -494,12 +483,9 @@ void pcRedShader::_BindPipeline(const GetStateFuncT* pGetState,
 // FUNCTION: SWBF2 0x006ad200
 unsigned int __cdecl pcRedShader::_Register(unsigned int uiHash, const pcRedShader* pFactory)
 {
-    if (s_ShaderFactoryByRenderType.Store(uiHash, pFactory))
-    {
-        ++s_ShaderFactoryByRenderTypeNumEntries;
-    }
+    s_ShaderFactoryByRenderType.Store(uiHash, pFactory);
 
-    return (unsigned int)s_ShaderFactoryByRenderTypeNumEntries;
+    return (unsigned int)s_ShaderFactoryByRenderType.GetNumEntries();
 }
 
 // FUNCTION: SWBF2 0x006ad230
@@ -540,207 +526,259 @@ extern unsigned int g_pcTerrainShader;
 // FUNCTION: SWBF2 0x006ad2c0
 static int _link_pcNormalShader() { return ++g_pcNormalShader; }
 
-// GLOBAL: SWBF2 0x007f5040
 // SYNTHETIC: SWBF2 0x004073c0
 // `dynamic initializer for 's_pcNormalShaderLinked''
+
+// GLOBAL: SWBF2 0x007f5040
+// s_pcNormalShaderLinked
 static unsigned int s_pcNormalShaderLinked = _link_pcNormalShader();
 
 // FUNCTION: SWBF2 0x006ad290
 static int _link_pcInterfaceShader() { return ++g_pcInterfaceShader; }
 
-// GLOBAL: SWBF2 0x007f5858
 // SYNTHETIC: SWBF2 0x00407390
 // `dynamic initializer for 's_pcInterfaceShaderLinked''
+
+// GLOBAL: SWBF2 0x007f5858
+// s_pcInterfaceShaderLinked
 static unsigned int s_pcInterfaceShaderLinked = _link_pcInterfaceShader();
 
 // FUNCTION: SWBF2 0x006ad3d0
 static int _link_pcZPrepassShader() { return ++g_pcZPrepassShader; }
 
-// GLOBAL: SWBF2 0x007f5034
 // SYNTHETIC: SWBF2 0x004074d0
 // `dynamic initializer for 's_pcZPrepassShaderLinked''
+
+// GLOBAL: SWBF2 0x007f5034
+// s_pcZPrepassShaderLinked
 static unsigned int s_pcZPrepassShaderLinked = _link_pcZPrepassShader();
 
 // FUNCTION: SWBF2 0x006ad2e0
 static int _link_pcParticleShader() { return ++g_pcParticleShader; }
 
-// GLOBAL: SWBF2 0x007f5044
 // SYNTHETIC: SWBF2 0x004073e0
 // `dynamic initializer for 's_pcParticleShaderLinked''
+
+// GLOBAL: SWBF2 0x007f5044
+// s_pcParticleShaderLinked
 static unsigned int s_pcParticleShaderLinked = _link_pcParticleShader();
 
 // FUNCTION: SWBF2 0x006ad3a0
 static int _link_pcTerrainShader2() { return ++g_pcTerrainShader2; }
 
-// GLOBAL: SWBF2 0x007f504c
 // SYNTHETIC: SWBF2 0x004074a0
 // `dynamic initializer for 's_pcTerrainShader2Linked''
+
+// GLOBAL: SWBF2 0x007f504c
+// s_pcTerrainShader2Linked
 static unsigned int s_pcTerrainShader2Linked = _link_pcTerrainShader2();
 
 // FUNCTION: SWBF2 0x006ad370
 static int _link_pcSkyFogShader() { return ++g_pcSkyFogShader; }
 
-// GLOBAL: SWBF2 0x007f585c
 // SYNTHETIC: SWBF2 0x00407470
 // `dynamic initializer for 's_pcSkyFogShaderLinked''
+
+// GLOBAL: SWBF2 0x007f585c
+// s_pcSkyFogShaderLinked
 static unsigned int s_pcSkyFogShaderLinked = _link_pcSkyFogShader();
 
 // FUNCTION: SWBF2 0x006ad2a0
 static int _link_pcLightBeamShader() { return ++g_pcLightBeamShader; }
 
-// GLOBAL: SWBF2 0x007f5030
 // SYNTHETIC: SWBF2 0x004073a0
 // `dynamic initializer for 's_pcLightBeamShaderLinked''
+
+// GLOBAL: SWBF2 0x007f5030
+// s_pcLightBeamShaderLinked
 static unsigned int s_pcLightBeamShaderLinked = _link_pcLightBeamShader();
 
 // FUNCTION: SWBF2 0x006ad320
 static int _link_pcRainShader() { return ++g_pcRainShader; }
 
-// GLOBAL: SWBF2 0x007f503c
 // SYNTHETIC: SWBF2 0x00407420
 // `dynamic initializer for 's_pcRainShaderLinked''
+
+// GLOBAL: SWBF2 0x007f503c
+// s_pcRainShaderLinked
 static unsigned int s_pcRainShaderLinked = _link_pcRainShader();
 
 // FUNCTION: SWBF2 0x006ad340
 static int _link_pcSampleShader() { return ++g_pcSampleShader; }
 
-// GLOBAL: SWBF2 0x007f5000
 // SYNTHETIC: SWBF2 0x00407440
 // `dynamic initializer for 's_pcSampleShaderLinked''
+
+// GLOBAL: SWBF2 0x007f5000
+// s_pcSampleShaderLinked
 static unsigned int s_pcSampleShaderLinked = _link_pcSampleShader();
 
 // FUNCTION: SWBF2 0x006ad270
 static int _link_pcFlareShader() { return ++g_pcFlareShader; }
 
-// GLOBAL: SWBF2 0x007f5854
 // SYNTHETIC: SWBF2 0x00407370
 // `dynamic initializer for 's_pcFlareShaderLinked''
+
+// GLOBAL: SWBF2 0x007f5854
+// s_pcFlareShaderLinked
 static unsigned int s_pcFlareShaderLinked = _link_pcFlareShader();
 
 // FUNCTION: SWBF2 0x006ad240
 static int _link_pcClearShader() { return ++g_pcClearShader; }
 
-// GLOBAL: SWBF2 0x007f5860
 // SYNTHETIC: SWBF2 0x00407340
 // `dynamic initializer for 's_pcClearShaderLinked''
+
+// GLOBAL: SWBF2 0x007f5860
+// s_pcClearShaderLinked
 static unsigned int s_pcClearShaderLinked = _link_pcClearShader();
 
 // FUNCTION: SWBF2 0x006ad390
 static int _link_pcStencilShadowShader() { return ++g_pcStencilShadowShader; }
 
-// GLOBAL: SWBF2 0x007f5024
 // SYNTHETIC: SWBF2 0x00407490
 // `dynamic initializer for 's_pcStencilShadowShaderLinked''
+
+// GLOBAL: SWBF2 0x007f5024
+// s_pcStencilShadowShaderLinked
 static unsigned int s_pcStencilShadowShaderLinked = _link_pcStencilShadowShader();
 
 // FUNCTION: SWBF2 0x006ad350
 static int _link_pcShadowQuadShader() { return ++g_pcShadowQuadShader; }
 
-// GLOBAL: SWBF2 0x007f5014
 // SYNTHETIC: SWBF2 0x00407450
 // `dynamic initializer for 's_pcShadowQuadShaderLinked''
+
+// GLOBAL: SWBF2 0x007f5014
+// s_pcShadowQuadShaderLinked
 static unsigned int s_pcShadowQuadShaderLinked = _link_pcShadowQuadShader();
 
 // FUNCTION: SWBF2 0x006ad3c0
 static int _link_pcWaterShader() { return ++g_pcWaterShader; }
 
-// GLOBAL: SWBF2 0x007f4ff8
 // SYNTHETIC: SWBF2 0x004074c0
 // `dynamic initializer for 's_pcWaterShaderLinked''
+
+// GLOBAL: SWBF2 0x007f4ff8
+// s_pcWaterShaderLinked
 static unsigned int s_pcWaterShaderLinked = _link_pcWaterShader();
 
 // FUNCTION: SWBF2 0x006ad310
 static int _link_pcPreReflectionShader() { return ++g_pcPreReflectionShader; }
 
-// GLOBAL: SWBF2 0x007f502c
 // SYNTHETIC: SWBF2 0x00407410
 // `dynamic initializer for 's_pcPreReflectionShaderLinked''
+
+// GLOBAL: SWBF2 0x007f502c
+// s_pcPreReflectionShaderLinked
 static unsigned int s_pcPreReflectionShaderLinked = _link_pcPreReflectionShader();
 
 // FUNCTION: SWBF2 0x006ad2b0
 static int _link_pcNormalMapAdderShader() { return ++g_pcNormalMapAdderShader; }
 
-// GLOBAL: SWBF2 0x007f4ff4
 // SYNTHETIC: SWBF2 0x004073b0
 // `dynamic initializer for 's_pcNormalMapAdderShaderLinked''
+
+// GLOBAL: SWBF2 0x007f4ff4
+// s_pcNormalMapAdderShaderLinked
 static unsigned int s_pcNormalMapAdderShaderLinked = _link_pcNormalMapAdderShader();
 
 // FUNCTION: SWBF2 0x006ad2d0
 static int _link_pcOceanShader() { return ++g_pcOceanShader; }
 
-// GLOBAL: SWBF2 0x007f5028
 // SYNTHETIC: SWBF2 0x004073d0
 // `dynamic initializer for 's_pcOceanShaderLinked''
+
+// GLOBAL: SWBF2 0x007f5028
+// s_pcOceanShaderLinked
 static unsigned int s_pcOceanShaderLinked = _link_pcOceanShader();
 
 // FUNCTION: SWBF2 0x006ad330
 static int _link_pcRefractionShader() { return ++g_pcRefractionShader; }
 
-// GLOBAL: SWBF2 0x007f5020
 // SYNTHETIC: SWBF2 0x00407430
 // `dynamic initializer for 's_pcRefractionShaderLinked''
+
+// GLOBAL: SWBF2 0x007f5020
+// s_pcRefractionShaderLinked
 static unsigned int s_pcRefractionShaderLinked = _link_pcRefractionShader();
 
 // FUNCTION: SWBF2 0x006ad250
 static int _link_pcDecalShader() { return ++g_pcDecalShader; }
 
-// GLOBAL: SWBF2 0x007f501c
 // SYNTHETIC: SWBF2 0x00407350
 // `dynamic initializer for 's_pcDecalShaderLinked''
+
+// GLOBAL: SWBF2 0x007f501c
+// s_pcDecalShaderLinked
 static unsigned int s_pcDecalShaderLinked = _link_pcDecalShader();
 
 // FUNCTION: SWBF2 0x006ad260
 static int _link_pcFilterCopyShader() { return ++g_pcFilterCopyShader; }
 
-// GLOBAL: SWBF2 0x007f4ff0
 // SYNTHETIC: SWBF2 0x00407360
 // `dynamic initializer for 's_pcFilterCopyShaderLinked''
+
+// GLOBAL: SWBF2 0x007f4ff0
+// s_pcFilterCopyShaderLinked
 static unsigned int s_pcFilterCopyShaderLinked = _link_pcFilterCopyShader();
 
 // FUNCTION: SWBF2 0x006ad360
 static int _link_pcShieldShader() { return ++g_pcShieldShader; }
 
-// GLOBAL: SWBF2 0x007f5038
 // SYNTHETIC: SWBF2 0x00407460
 // `dynamic initializer for 's_pcShieldShaderLinked''
+
+// GLOBAL: SWBF2 0x007f5038
+// s_pcShieldShaderLinked
 static unsigned int s_pcShieldShaderLinked = _link_pcShieldShader();
 
 // FUNCTION: SWBF2 0x006ad300
 static int _link_pcPerVertexDiffuseLightingShader() { return ++g_pcPerVertexDiffuseLightingShader; }
 
-// GLOBAL: SWBF2 0x007f5048
 // SYNTHETIC: SWBF2 0x00407400
 // `dynamic initializer for 's_pcPerVertexDiffuseLightingShaderLinked''
+
+// GLOBAL: SWBF2 0x007f5048
+// s_pcPerVertexDiffuseLightingShaderLinked
 static unsigned int s_pcPerVertexDiffuseLightingShaderLinked = _link_pcPerVertexDiffuseLightingShader();
 
 // FUNCTION: SWBF2 0x006ad2f0
 static int _link_pcPerPixelDiffuseLightingShader() { return ++g_pcPerPixelDiffuseLightingShader; }
 
-// GLOBAL: SWBF2 0x007f5018
 // SYNTHETIC: SWBF2 0x004073f0
 // `dynamic initializer for 's_pcPerPixelDiffuseLightingShaderLinked''
+
+// GLOBAL: SWBF2 0x007f5018
+// s_pcPerPixelDiffuseLightingShaderLinked
 static unsigned int s_pcPerPixelDiffuseLightingShaderLinked = _link_pcPerPixelDiffuseLightingShader();
 
 // FUNCTION: SWBF2 0x006ad380
 static int _link_pcSpecularLightingShader() { return ++g_pcSpecularLightingShader; }
 
-// GLOBAL: SWBF2 0x007f5010
 // SYNTHETIC: SWBF2 0x00407480
 // `dynamic initializer for 's_pcSpecularLightingShaderLinked''
+
+// GLOBAL: SWBF2 0x007f5010
+// s_pcSpecularLightingShaderLinked
 static unsigned int s_pcSpecularLightingShaderLinked = _link_pcSpecularLightingShader();
 
 // FUNCTION: SWBF2 0x006ad280
 static int _link_pcHDRShader() { return ++g_pcHDRShader; }
 
-// GLOBAL: SWBF2 0x007f500c
 // SYNTHETIC: SWBF2 0x00407380
 // `dynamic initializer for 's_pcHDRShaderLinked''
+
+// GLOBAL: SWBF2 0x007f500c
+// s_pcHDRShaderLinked
 static unsigned int s_pcHDRShaderLinked = _link_pcHDRShader();
 
 // FUNCTION: SWBF2 0x006ad3b0
 static int _link_pcTerrainShader() { return ++g_pcTerrainShader; }
 
-// GLOBAL: SWBF2 0x007f4ffc
 // SYNTHETIC: SWBF2 0x004074b0
 // `dynamic initializer for 's_pcTerrainShaderLinked''
+
+// GLOBAL: SWBF2 0x007f4ffc
+// s_pcTerrainShaderLinked
 static unsigned int s_pcTerrainShaderLinked = _link_pcTerrainShader();

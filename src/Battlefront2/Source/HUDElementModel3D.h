@@ -6,8 +6,10 @@
 
 class RedModel;
 
-namespace HUD {
-// VTABLE: SWBF2 0x007a136c
+namespace HUD
+{
+// VTABLE: SWBF2 0x007a136c HUD::Element
+// VTABLE: SWBF2 0x007a13a8 Red3DModelElementLite
 class ElementModel3D : public HUD::Element, public Red3DModelElementLite
 {
 public:
@@ -132,3 +134,4 @@ public:
  
  
  
+#include <new>

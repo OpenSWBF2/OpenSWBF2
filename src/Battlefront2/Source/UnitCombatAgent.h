@@ -1,18 +1,24 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "UnitAgent.h"
 #include "UnitCmdInfo.h"
 #include "CombatHelper.h"
 
-namespace AI { class EventInfo; }
+namespace AI
+{
+class EventInfo;
+}
 
+// VTABLE: SWBF2 0x007af7b0
 class UnitCombatAgent : public UnitAgent
 {
 public:
     static PblHash rttiHashUnitCombatAgent;
-    static char rttiNameUnitCombatAgent[];
+    static const char rttiNameUnitCombatAgent[];
 
     enum
     {
@@ -45,3 +51,26 @@ public:
 
  
  
+
+// FUNCTION: SWBF2 0x00662e10
+inline bool UnitCombatAgent::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashUnitCombatAgent == uRtti)
+    {
+        return true;
+    }
+    return UnitAgent::rttiHashUnitAgent == uRtti ||
+           Agent::rttiHashAgent == uRtti;
+}
+
+// FUNCTION: SWBF2 0x00662e40
+inline unsigned int UnitCombatAgent::GetDerivedRtti() const
+{
+    return rttiHashUnitCombatAgent;
+}
+
+// FUNCTION: SWBF2 0x00662e50
+inline const char* UnitCombatAgent::GetDerivedRttiName() const
+{
+    return rttiNameUnitCombatAgent;
+}

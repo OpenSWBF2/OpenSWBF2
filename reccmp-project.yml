@@ -1,0 +1,6 @@
+targets:
+  SWBF2:
+    filename: BattlefrontII_Steam.exe
+    source-root: src
+    hash:
+      sha256: 3bfdb0931885de776126957aa4883b691fc391b58126ff639e36592309d75e90

@@ -5,7 +5,10 @@
 #include "GameSoundStream.h"
 #include "PebbleFL/Common/PblListDoubleSorted.h"
 
-namespace Snd { class Stream; }
+namespace Snd
+{
+class Stream;
+}
 class MemoryPool;
 class PblFileChunk;
 

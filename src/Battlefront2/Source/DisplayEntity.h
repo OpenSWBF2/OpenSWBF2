@@ -8,6 +8,7 @@
 
 class GameModel;
 
+// VTABLE: SWBF2 0x00799008
 class EntityElement : public RedInterfaceElement
 {
 public:

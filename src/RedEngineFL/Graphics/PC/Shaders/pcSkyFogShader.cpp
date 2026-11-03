@@ -1,3 +1,4 @@
+#include <string.h>
 #include "pcSkyFogShader.h"
 
 #include "PebbleFL/Common/PblChunk.h"
@@ -11,6 +12,9 @@
 
 #include "PebbleFL/Common/PblMatrix.h"
 
+// GLOBAL: SWBF2 0x007849d0
+// __xmm@3f800000bf8000000000000000000000
+
 void __cdecl PblTraceP(const char* Format, ...);
 
 class PblMatrix;
@@ -22,28 +26,22 @@ pcRedShader::BeginFuncT pcSkyFogShader::BeginFuncArray[MAX_PIPELINES];
 pcRedShader::EndFuncT pcSkyFogShader::EndFuncArray[MAX_PIPELINES];
 pcRedShader::RenderFuncT pcSkyFogShader::RenderFuncArray[MAX_PIPELINES];
 
-// GLOBAL: SWBF2 0x009c9904
 // SYNTHETIC: SWBF2 0x00409aa0
 // `dynamic initializer for 'pcSkyFogShader::s_shaderDef''
 // SYNTHETIC: SWBF2 0x00769d10
 // `dynamic atexit destructor for 'pcSkyFogShader::s_shaderDef''
+
+// GLOBAL: SWBF2 0x009c9904
+// pcSkyFogShader::s_shaderDef
 pcRedShaderDef pcSkyFogShader::s_shaderDef("skyfog_shader.xml");
 
 // FUNCTION: SWBF2 0x00703cb0
 pcSkyFogShader::pcSkyFogShader()
 {
-    GetStateFuncArray[PIPELINE_FIXED] = 0;
-    GetStateFuncArray[PIPELINE_PROG1] = 0;
-    GetStateFuncArray[PIPELINE_PROG2] = 0;
-    BeginFuncArray[PIPELINE_FIXED] = 0;
-    BeginFuncArray[PIPELINE_PROG1] = 0;
-    BeginFuncArray[PIPELINE_PROG2] = 0;
-    EndFuncArray[PIPELINE_FIXED] = 0;
-    EndFuncArray[PIPELINE_PROG1] = 0;
-    EndFuncArray[PIPELINE_PROG2] = 0;
-    RenderFuncArray[PIPELINE_FIXED] = 0;
-    RenderFuncArray[PIPELINE_PROG1] = 0;
-    RenderFuncArray[PIPELINE_PROG2] = 0;
+    memset(GetStateFuncArray, 0, sizeof(GetStateFuncArray));
+    memset(BeginFuncArray, 0, sizeof(BeginFuncArray));
+    memset(EndFuncArray, 0, sizeof(EndFuncArray));
+    memset(RenderFuncArray, 0, sizeof(RenderFuncArray));
 
     s_uiID = _Register(s_uiRenderTypeHash, this);
 
@@ -69,16 +67,16 @@ pcRedShaderDef* pcSkyFogShader::GetShaderDef() const
     return &s_shaderDef;
 }
 
-// GLOBAL: SWBF2 0x007849b0
-static const pcRedShaderDef::FixedFunctionStateT kFixedFunctionStates[1] =
-{
-    { 1, { 0x21, 0x00, 0x00, 0x00 } },
-};
-
 // FUNCTION: SWBF2 0x007040f0
 void pcSkyFogShader::InitFixedFunctionShaderDef() const
 {
-    GetShaderDef()->InitFixedFunction(0x10, 1, kFixedFunctionStates);
+    // GLOBAL: SWBF2 0x007849b0
+    static const pcRedShaderDef::FixedFunctionStateT aFFStates[1] =
+    {
+        { 1, { 0x21, 0x00, 0x00, 0x00 } },
+    };
+
+    GetShaderDef()->InitFixedFunction(0x10, 1, aFFStates);
 }
 
 // FUNCTION: SWBF2 0x00704270
@@ -304,22 +302,26 @@ void pcSkyFogShader::_StaticInit() const
 {
 }
 
-// GLOBAL: SWBF2 0x009c9900
 // SYNTHETIC: SWBF2 0x00409ac0
 // `dynamic initializer for 'pcSkyFogShader::s_uiRenderTypeHash''
+
+// GLOBAL: SWBF2 0x009c9900
+// pcSkyFogShader::s_uiRenderTypeHash
 unsigned int pcSkyFogShader::s_uiRenderTypeHash = PblHash("SkyFog");
 
 // SYNTHETIC: SWBF2 0x00409ae0
-// `dynamic initializer for 'PblMath::fOneOverHalfPi''
+// PblMath::`dynamic initializer for 'fOneOverHalfPi''
 
 // SYNTHETIC: SWBF2 0x00409b00
-// `dynamic initializer for 'PblMath::fOneOverTwoPi''
+// PblMath::`dynamic initializer for 'fOneOverTwoPi''
 
-// GLOBAL: SWBF2 0x009c9938
 // SYNTHETIC: SWBF2 0x00409a80
 // `dynamic initializer for 'pcSkyFogShader::s_Factory''
 // SYNTHETIC: SWBF2 0x00769cf0
 // `dynamic atexit destructor for 'pcSkyFogShader::s_Factory''
+
+// GLOBAL: SWBF2 0x009c9938
+// pcSkyFogShader::s_Factory
 pcSkyFogShader pcSkyFogShader::s_Factory;
 
 // GLOBAL: SWBF2 0x009c98fc

@@ -9,9 +9,12 @@
 namespace Snd
 {
 
+// SYNTHETIC: SWBF2 0x007420b0
+// Snd::StreamVAD::`scalar deleting destructor'
+
 // VTABLE: SWBF2 0x00786a80
-class StreamVAD : public StreamNodeSource,
-                  public StreamNode,
+class StreamVAD : public StreamNode,
+                  public StreamNodeSource,
                   public StreamNodeSink
 {
 public:
@@ -19,6 +22,7 @@ public:
     virtual ~StreamVAD();
     virtual StreamPacket* GetPacket(unsigned int uiOutput);
     void Update();
+    void Flush();
 
     Queue<StreamPacket*, 4> mPacketQueue;
     unsigned int mSampleRate;

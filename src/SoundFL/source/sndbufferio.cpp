@@ -70,7 +70,8 @@ unsigned int BufferIO::Write(const void* pSrc, unsigned int uiSize)
 
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x007510b0
 BufferIO::BufferIO()
@@ -81,7 +82,8 @@ BufferIO::BufferIO()
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x007510d0
 BufferIO::~BufferIO()

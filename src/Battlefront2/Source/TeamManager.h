@@ -37,6 +37,10 @@ int GetApproxObjectsAlongLine(const PblVector3& vStart, const PblVector3& vEnd, 
                               GameObject** const ppObjects, int iMax, const GameObject* pIgnore,
                               AI::AIAffil eAffil);
 }
+namespace TeamManager
+{
+void UpdatePositions();
+}
 
 class GameObject;
 
@@ -46,8 +50,8 @@ namespace TeamManager
 struct ObjCacheData
 {
 
-    // FUNCTION: SWBF2 0x00654fb0
-    ObjCacheData() {}
+    // SYNTHETIC: SWBF2 0x00654fb0
+    // TeamManager::ObjCacheData::ObjCacheData
 
     // FUNCTION: SWBF2 0x00654fc0
     ~ObjCacheData() {}

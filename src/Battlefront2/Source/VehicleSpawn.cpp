@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "VehicleSpawn.h"
 #include "NetGame.h"
 
@@ -24,45 +25,20 @@
 #include "RedEngineFL/Graphics/RedModel.h"
 
 #include <math.h>
-#include "PebbleFL/pc/PblD3DX.h"
 
-// GLOBAL: SWBF2 0x01f9a278
+
 // SYNTHETIC: SWBF2 0x00406f10
 // `dynamic initializer for 'VehicleSpawn::VehicleTracker::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00769760
 // `dynamic atexit destructor for 'VehicleSpawn::VehicleTracker::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01f9a278
+// VehicleSpawn::VehicleTracker::sMemoryPool
 MemoryPool VehicleSpawn::VehicleTracker::sMemoryPool("VehicleSpawn::VehicleTracker", 0x1c);
 
-static unsigned int HandleId(const GameObject* pObject)
-{
-    return PBL_HANDLE_ID(pObject);
-}
-
-static bool IsAlive(const GameObject* pObject)
-{
-    return pObject->mIsAlive;
-}
-
-static int GetTeam(const GameObject* pObject)
+static inline int GetTeam(const GameObject* pObject)
 {
     return pObject->mTeam;
-}
-
-static GameObject* GetObject(const PblHandle<GameObject>& handle)
-{
-    PblHandle<GameObject>& h = const_cast<PblHandle<GameObject>&>(handle);
-    if (h.mObject && HandleId(h.mObject) != h.mSavedHandleId)
-    {
-        h.mObject = 0;
-        h.mSavedHandleId = 0;
-    }
-    return h.mObject;
-}
-
-static const GameObject* GetPostObject(const ConstCommandPostHandle& post)
-{
-    const CommandPost* pPost = post;
-    return GetObject(pPost->mObject);
 }
 
 // FUNCTION: SWBF2 0x0066ff80
@@ -147,7 +123,7 @@ VehicleSpawn::VehicleSpawn(VehicleSpawnClass* pClass, const EntityDesc& desc)
 }
 
 // SYNTHETIC: SWBF2 0x00670155
-// [thunk]:VehicleSpawn::`scalar deleting destructor' adjustor{4}
+// ??_EVehicleSpawn@@W3AEPAXI@Z
 // SYNTHETIC: SWBF2 0x0066e9f0
 // VehicleSpawn::`scalar deleting destructor'
 
@@ -230,7 +206,7 @@ void VehicleSpawn::gCalcBeginLandPos(const EntityFlyerClass& flyerClass, PblMatr
     const PblVector3 vOffset(0.0f, fTime * 0.5f * flyerClass.mLandingSpeed + flyerClass.mLandedHeight,
                              fTime * -0.5f * flyerClass.mMinFlyerSpeed);
     PblVector3 vPos;
-    D3DXVec3TransformCoord(&vPos, &vOffset, pMatrix);
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vPos), reinterpret_cast<const D3DXVECTOR3*>(&vOffset), reinterpret_cast<const D3DXMATRIX*>(pMatrix));
     pMatrix->m[3][0] = vPos.x;
     pMatrix->m[3][1] = vPos.y;
     pMatrix->m[3][2] = vPos.z;
@@ -251,9 +227,9 @@ static const Controllable* GetPilot(const Controllable* pControllable)
 // FUNCTION: SWBF2 0x0066ecf0
 void VehicleSpawn::UpdateLive(float fDeltaTime, VehicleTracker& tracker)
 {
-    if (GetObject(mCarrier))
+    if (static_cast<GameObject*>(mCarrier))
     {
-        EntityCarrier* pCarrier = reinterpret_cast<EntityCarrier*>(GetObject(mCarrier));
+        EntityCarrier* pCarrier = reinterpret_cast<EntityCarrier*>(static_cast<GameObject*>(mCarrier));
         EntityFlyer* pFlyer = reinterpret_cast<EntityFlyer*>(pCarrier);
         if (pFlyer->GetState() == EntityFlyer::LANDED)
         {
@@ -263,23 +239,23 @@ void VehicleSpawn::UpdateLive(float fDeltaTime, VehicleTracker& tracker)
         }
         if (pFlyer->GetState() == EntityFlyer::FLYING)
         {
-            delete GetObject(mCarrier);
+            delete static_cast<GameObject*>(mCarrier);
             mCarrier = 0;
         }
     }
 
-    GameObject* pVehicle = GetObject(tracker.mVehicle);
+    GameObject* pVehicle = static_cast<GameObject*>(tracker.mVehicle);
     if (!BoundaryManager::sInstance->IsOutOfBounds(pVehicle->GetMatrix().GetTranslation()))
     {
         const CommandPost* pPost = mCommandPost.mPost;
-        if (!pPost || !GetObject(pPost->mObject) || GetTeam(GetObject(tracker.mVehicle)) != 0)
+        if (!pPost || !static_cast<GameObject*>(pPost->mObject) || GetTeam(static_cast<GameObject*>(tracker.mVehicle)) != 0)
         {
             tracker.mEmptyTimer = 0.0f;
             return;
         }
     }
 
-    for (PblList<Controllable>::Itor it(GetObject(tracker.mVehicle)->GetControllableList()); it; ++it)
+    for (PblList<Controllable>::Itor it(tracker.mVehicle->GetControllableList()); it; ++it)
     {
         const Controllable* pControllable = it;
         if (GetPilot(pControllable))
@@ -291,8 +267,8 @@ void VehicleSpawn::UpdateLive(float fDeltaTime, VehicleTracker& tracker)
 
     float fExpireTime = mExpireTimeField;
     const CommandPost* pPost = mCommandPost.mPost;
-    if (pPost && GetObject(pPost->mObject) && IsAlive(GetObject(pPost->mObject)) &&
-        pPost->IsInsideControlRegion(GetObject(tracker.mVehicle)))
+    if (pPost && static_cast<GameObject*>(pPost->mObject) && pPost->mObject->IsAlive() &&
+        pPost->IsInsideControlRegion(static_cast<GameObject*>(tracker.mVehicle)))
     {
         if (mSpawnClass[mVehicleTeam] != mSpawnClass[mSpawnTeam])
         {
@@ -300,10 +276,10 @@ void VehicleSpawn::UpdateLive(float fDeltaTime, VehicleTracker& tracker)
         }
         else
         {
-            if (mVehicleTeam != mSpawnTeam && GetObject(tracker.mVehicle) &&
-                !GetObject(tracker.mVehicle)->GetGameObjectClass()->AvailableForAnyTeam())
+            if (mVehicleTeam != mSpawnTeam && static_cast<GameObject*>(tracker.mVehicle) &&
+                !tracker.mVehicle->GetGameObjectClass()->AvailableForAnyTeam())
             {
-                GetObject(tracker.mVehicle)->SetOwningTeam(mSpawnTeam);
+                tracker.mVehicle->SetOwningTeam(mSpawnTeam);
             }
             return;
         }
@@ -316,7 +292,7 @@ void VehicleSpawn::UpdateLive(float fDeltaTime, VehicleTracker& tracker)
     }
     mCycleTimer += 1.0f;
 
-    const CollisionObject* pCollision = GetObject(tracker.mVehicle)->GetCollisionObject();
+    const CollisionObject* pCollision = tracker.mVehicle->GetCollisionObject();
     const PblVector3& vCenter = pCollision->GetCollisionCenter();
     const float fRadius = pCollision->GetCollisionRadius();
     int iNearby = 0;
@@ -328,7 +304,7 @@ void VehicleSpawn::UpdateLive(float fDeltaTime, VehicleTracker& tracker)
             continue;
         }
         Controllable* pControllable = pCharacter->GetControllable();
-        if (!pControllable || !pControllable->CanEnterVehicle(GetObject(tracker.mVehicle)))
+        if (!pControllable || !pControllable->CanEnterVehicle(static_cast<GameObject*>(tracker.mVehicle)))
         {
             continue;
         }
@@ -351,9 +327,9 @@ void VehicleSpawn::UpdateLive(float fDeltaTime, VehicleTracker& tracker)
     tracker.mEmptyTimer += 1.0f;
     if (tracker.mEmptyTimer > fExpireTime)
     {
-        GameObject* pDecaying = GetObject(tracker.mVehicle);
+        GameObject* pDecaying = static_cast<GameObject*>(tracker.mVehicle);
         const DamageDesc damage(DamageOwner(0, 0, 0, 0, 0, 1.0f), pDecaying->mMaxHealth / mDecayTime);
-        static_cast<Damageable*>(GetObject(tracker.mVehicle))->ApplyDamage(damage, (unsigned int)-1);
+        static_cast<Damageable*>(static_cast<GameObject*>(tracker.mVehicle))->ApplyDamage(damage, (unsigned int)-1);
     }
 }
 
@@ -368,11 +344,8 @@ void VehicleSpawn::UpdateSpawn(float fDeltaTime)
                               (box._vMax.z - box._vMin.z) * 0.5f);
     mSpawnRegion.mMatrix = mMatrix;
     PblVector3 vPos;
-    D3DXVec3TransformCoord(&vPos, &vCenter, &mMatrix);
-    mSpawnRegion.mMatrix.m[3][0] = vPos.x;
-    mSpawnRegion.mMatrix.m[3][1] = vPos.y;
-    mSpawnRegion.mMatrix.m[3][2] = vPos.z;
-    mSpawnRegion.mMatrix.m[3][3] = 1.0f;
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vPos), reinterpret_cast<const D3DXVECTOR3*>(&vCenter), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
+    mSpawnRegion.mMatrix.SetTranslation(vPos);
 
     mSpawnRegion.mSize.x = vExtents.x;
     mSpawnRegion.mSize.y = vExtents.y;
@@ -416,7 +389,7 @@ void VehicleSpawn::UpdateSpawn(float fDeltaTime)
     desc.mMatrix = mMatrix;
     desc.mNameId = mNameId;
     int iIndex = 0;
-    while (EntityEx::GetEntityMap().Find(desc.mNameId))
+    while (EntityEx::Find(desc.mNameId))
     {
         char acName[256];
         _snprintf(acName, 255, "%s%d", StringDB::Find(desc.mNameId), ++iIndex);
@@ -425,7 +398,7 @@ void VehicleSpawn::UpdateSpawn(float fDeltaTime)
         StringDB::Store(desc.mNameId, acName);
     }
 
-    PblVector3& vTranslation = *(PblVector3*)&desc.mMatrix.m[3][0];
+    PblVector3& vTranslation = desc.mMatrix[3];
     const PblVector3 vStart(vTranslation.x + gVectorUnitY.x, vTranslation.y + gVectorUnitY.y,
                             vTranslation.z + gVectorUnitY.z);
     const PblVector3 vDir(-gVectorUnitY.x, -gVectorUnitY.y, -gVectorUnitY.z);
@@ -572,10 +545,10 @@ bool VehicleSpawn::Update(float fDeltaTime)
 
     if (mCommandPost)
     {
-        int iTeam = IsAlive(GetPostObject(mCommandPost)) ? GetTeam(GetPostObject(mCommandPost)) : 0;
+        int iTeam = mCommandPost->mObject->IsAlive() ? GetTeam(static_cast<GameObject*>(mCommandPost->mObject)) : 0;
         if (mSpawnTeam != iTeam)
         {
-            mSpawnTeam = GetTeam(GetPostObject(mCommandPost));
+            mSpawnTeam = GetTeam(static_cast<GameObject*>(mCommandPost->mObject));
             mSpawnTimer = mSpawnTime;
         }
     }
@@ -583,7 +556,7 @@ bool VehicleSpawn::Update(float fDeltaTime)
     for (PblList<VehicleTracker>::Itor it(mTrackerList); it; ++it)
     {
         VehicleTracker* pTracker = it;
-        if (GetObject(pTracker->mVehicle) && IsAlive(GetObject(pTracker->mVehicle)))
+        if (static_cast<GameObject*>(pTracker->mVehicle) && pTracker->mVehicle->IsAlive())
         {
             UpdateLive(fDeltaTime, *pTracker);
         }
@@ -609,14 +582,11 @@ void VehicleSpawn::Reset()
     sVehicleSpawnList.RemoveAll();
 }
 
-// FUNCTION: SWBF2 0x00670110
+// TEMPLATE: SWBF2 0x00670110
+// PblList<VehicleSpawn>::RemoveAll
 template void PblList<VehicleSpawn>::RemoveAll();
 
-// FUNCTION: SWBF2 0x0066e7e0
-const CommandPost* ConstCommandPostHandle::operator->() const
-{
-    return *this;
-}
+
 
 // GLOBAL: SWBF2 0x007ebebc
 PblList<VehicleSpawn> VehicleSpawn::sVehicleSpawnList;

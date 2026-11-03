@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include "RedEngineFL/Graphics/PC/pcRedShader.h"
 
+// VTABLE: SWBF2 0x007846f8
 class pcInterfaceShader : public pcRedShader
 {
 public:

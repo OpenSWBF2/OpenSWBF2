@@ -5,36 +5,31 @@
 #include "PebbleFL/Common/PblChunk.h"
 #include "PebbleFL/Common/PblFile.h"
 
-// GLOBAL: SWBF2 0x01ebc2bc
 // SYNTHETIC: SWBF2 0x00403a90
 // `dynamic initializer for 'FoleyFX::rttiHashFoleyFX''
-PblHash FoleyFX::rttiHashFoleyFX("FoleyFX");
-char FoleyFX::rttiNameFoleyFX[] = "FoleyFX";
+// FoleyFX::rttiHashFoleyFX
 
-// GLOBAL: SWBF2 0x007eb8c8
+// GLOBAL: SWBF2 0x01ebc2bc
+// FoleyFX::rttiHashFoleyFX
+PblHash FoleyFX::rttiHashFoleyFX("FoleyFX");
+// GLOBAL: SWBF2 0x007898a4
+// FoleyFX::rttiNameFoleyFX
+const char FoleyFX::rttiNameFoleyFX[] = "FoleyFX";
+
 // SYNTHETIC: SWBF2 0x00403a80
 // `dynamic initializer for 'FoleyFX::smList''
 // SYNTHETIC: SWBF2 0x007687c0
 // `dynamic atexit destructor for 'FoleyFX::smList''
+
+// GLOBAL: SWBF2 0x007eb8c8
+// FoleyFX::smList
 PblListSingle FoleyFX::smList;
 
-// FUNCTION: SWBF2 0x0052c040
-bool FoleyFX::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashFoleyFX;
-}
 
-// FUNCTION: SWBF2 0x0052c060
-unsigned int FoleyFX::GetDerivedRtti() const
-{
-    return rttiHashFoleyFX;
-}
 
-// FUNCTION: SWBF2 0x0052c070
-const char* FoleyFX::GetDerivedRttiName() const
-{
-    return rttiNameFoleyFX;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x0052c090
 FoleyFX::FoleyFX()
@@ -46,10 +41,6 @@ FoleyFX::FoleyFX()
 // FUNCTION: SWBF2 0x0052c0f0
 FoleyFX::~FoleyFX()
 {
-    if (mNode.mNext)
-    {
-        mNode.Remove();
-    }
 }
 
 // SYNTHETIC: SWBF2 0x0052c0c0

@@ -1,3 +1,5 @@
+#include <string.h>
+#include <new>
 #include "WalkerAnimation.h"
 
 #include "PebbleFL/Common/PblVector.h"
@@ -7,18 +9,22 @@
 #include "Zephyr/Source/ZephyrAnimJoint.h"
 #include "Zephyr/Source/ZephyrPoseStatic.h"
 
-// GLOBAL: SWBF2 0x01f9a790
 // SYNTHETIC: SWBF2 0x00406fa0
 // `dynamic initializer for 'WalkerBlend::sMemoryPool''
 // SYNTHETIC: SWBF2 0x007697a0
 // `dynamic atexit destructor for 'WalkerBlend::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01f9a790
+// WalkerBlend::sMemoryPool
 MemoryPool WalkerBlend::sMemoryPool("WalkerBlend", 76);
 
-// GLOBAL: SWBF2 0x01f9a740
 // SYNTHETIC: SWBF2 0x00406fc0
 // `dynamic initializer for 'WalkerBlendUnit::sMemoryPool''
 // SYNTHETIC: SWBF2 0x007697b0
 // `dynamic atexit destructor for 'WalkerBlendUnit::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01f9a740
+// WalkerBlendUnit::sMemoryPool
 MemoryPool WalkerBlendUnit::sMemoryPool("WalkerBlendUnit", 4924);
 
 // FUNCTION: SWBF2 0x00675990
@@ -31,10 +37,7 @@ WalkerBlend::WalkerBlend(int iTotal, ZephyrSkeleton<64>& rSkeleton)
       mTime(0.0f),
       mSpeed(0.0f)
 {
-    for (int i = 0; i < 8; ++i)
-    {
-        mUnits[i] = 0;
-    }
+    memset(mUnits, 0, sizeof(mUnits));
 
     for (int i = 0; i < mTotal; ++i)
     {
@@ -85,9 +88,19 @@ void WalkerBlend::EnableTransitionBlending(bool bEnable)
 void WalkerBlend::Reverse()
 {
     m_bReversed = !m_bReversed;
-    for (int i = 0; i < mCount; ++i)
+    if (m_bReversed)
     {
-        mUnits[i]->mPose.m_bPlayingBackward = m_bReversed;
+        for (int i = 0; i < mCount; ++i)
+        {
+            mUnits[i]->mPose.m_bPlayingBackward = true;
+        }
+    }
+    else
+    {
+        for (int i = 0; i < mCount; ++i)
+        {
+            mUnits[i]->mPose.m_bPlayingBackward = false;
+        }
     }
 }
 
@@ -179,8 +192,8 @@ const ZephyrAnim* GetWalkerAnimation(const RedAnimation* const* ppAnims, int iNu
 WalkerAnimation::WalkerAnimation(const RedAnimation* const* ppAnims, int iNumAnims, unsigned int uiHash)
     : m_bHasTiltAnims(false), m_bFullWalkAnim(false), mSpeed(0.0f), mTimeTotal(0.0f)
 {
-    mAnimations = new ZephyrAnim*[1];
-    mAnimations[0] = const_cast<ZephyrAnim*>(GetWalkerAnimation(ppAnims, iNumAnims, uiHash));
+    mAnimations = new const ZephyrAnim*[1];
+    mAnimations[0] = GetWalkerAnimation(ppAnims, iNumAnims, uiHash);
     mSpeed = 0.0f;
     mTimeTotal = 0.0f;
     if (mAnimations[0])
@@ -224,16 +237,16 @@ WalkerAnimation::WalkerAnimation(const RedAnimation* const* ppAnims, int iNumAni
 
     if (pAnims[0] && pAnims[1] && pAnims[2])
     {
-        mAnimations = new ZephyrAnim*[3];
-        mAnimations[0] = const_cast<ZephyrAnim*>(pAnims[0]);
-        mAnimations[1] = const_cast<ZephyrAnim*>(pAnims[1]);
-        mAnimations[2] = const_cast<ZephyrAnim*>(pAnims[2]);
+        mAnimations = new const ZephyrAnim*[3];
+        mAnimations[0] = pAnims[0];
+        mAnimations[1] = pAnims[1];
+        mAnimations[2] = pAnims[2];
         m_bHasTiltAnims = true;
     }
     else
     {
-        mAnimations = new ZephyrAnim*[1];
-        mAnimations[0] = const_cast<ZephyrAnim*>(pAnims[0]);
+        mAnimations = new const ZephyrAnim*[1];
+        mAnimations[0] = pAnims[0];
     }
 
     mSpeed = 0.0f;
@@ -280,7 +293,7 @@ void WalkerAnimation::Setup(WalkerBlend& rBlend, float fTime, float fBlendDurati
         rBlend.mBlendFactor = 1.0f;
     }
 
-    ZephyrAnim* pAnim = mAnimations[0];
+    const ZephyrAnim* pAnim = mAnimations[0];
     if (!pAnim)
     {
         rBlend.mCount = 0;
@@ -297,7 +310,7 @@ void WalkerAnimation::Setup(WalkerBlend& rBlend, float fTime, float fBlendDurati
     rBlend.mCount = 1;
 
     ZephyrPoseDyn<64>& rPose = rBlend.mUnits[0]->mPose;
-    rPose.m_bLoop = bLoop;
+    rPose.SetLoop(bLoop);
     rPose.m_bPlayingBackward = bReversed;
     rPose.SetAnimation(pAnim, 30.0f);
     rPose.SetCurTime(ComputeTime(fTime));

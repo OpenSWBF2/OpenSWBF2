@@ -6,7 +6,10 @@
 #include "HUDEvent.h"
 #include "RedEngineFL/Interface/RedTextElement.h"
 
-namespace HUD {
+namespace HUD
+{
+// VTABLE: SWBF2 0x007a1aac RedTextElement
+// VTABLE: SWBF2 0x007a1b00 HUD::Element
 class ElementText : public HUD::Element, public RedTextElement
 {
 public:
