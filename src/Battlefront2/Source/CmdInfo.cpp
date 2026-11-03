@@ -14,7 +14,7 @@ ConstCommandPostHandle::operator const CommandPost*() const
     {
         PblHandle<GameObject>& object = mPost->mObject;
         if (object.mObject &&
-            object.mObject->mHandleId != object.mSavedHandleId)
+            PBL_HANDLE_ID(object.mObject) != object.mSavedHandleId)
         {
             object.mObject = 0;
             object.mSavedHandleId = 0;

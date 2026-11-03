@@ -223,6 +223,7 @@ NetPacket* NetPacket::Alloc(bool bSmall)
             return 0;
         }
     }
+    PblAsanUnpoison(pPacket, bSmall ? sizeof(NetSmallPacket) : sizeof(NetBigPacket));
     pPacket->mSeqNo = (unsigned short)sNextSeqNo++;
     pPacket->mCurIndex = 2;
     return pPacket;
@@ -237,6 +238,7 @@ NetPacket* NetPacket::AllocRecv(bool bSmall)
         return 0;
     }
     NetPacket* pPacket = freePackets.PopFront();
+    PblAsanUnpoison(pPacket, bSmall ? sizeof(NetSmallPacket) : sizeof(NetBigPacket));
     pPacket->mSeqNo = (unsigned short)sNextSeqNo++;
     pPacket->mCurIndex = 2;
     return pPacket;
@@ -267,6 +269,8 @@ void NetPacket::Create()
     {
         freeSmallPackets.PushBack(NetPacket::Get(i));
     }
+    PblAsanPoison(netBigPackets, sizeof(netBigPackets));
+    PblAsanPoison(netSmallPackets, sizeof(netSmallPackets));
 }
 
 // FUNCTION: SWBF2 0x005d8ed0
@@ -307,7 +311,7 @@ void NetPktGroup::Reset()
 }
 
 // FUNCTION: SWBF2 0x005d93c0
-void NetPktGroup::PushBack(NetPacket* pPkt)
+PBL_ASAN_NO_SANITIZE void NetPktGroup::PushBack(NetPacket* pPkt)
 {
     const int iNum = pPkt->GetNum();
     pPkt->mPrevPkt = (short)lastPkt;
@@ -705,10 +709,12 @@ void NetPacket::Free()
     if (GetNum() >= MAX_BIG_PACKETS)
     {
         freeSmallPackets.PushFront(this);
+        PblAsanPoison(this, sizeof(NetSmallPacket));
     }
     else
     {
         freeBigPackets.PushFront(this);
+        PblAsanPoison(this, sizeof(NetBigPacket));
     }
 }
 
@@ -820,7 +826,7 @@ void NetPktGroup::BeginRead()
 void NetPktGroup::EndRead() {}
 
 // FUNCTION: SWBF2 0x005d9360
-void NetPktGroup::PushFront(NetPacket* pPkt)
+PBL_ASAN_NO_SANITIZE void NetPktGroup::PushFront(NetPacket* pPkt)
 {
     int num = pPkt->GetNum();
     pPkt->mNextPkt = (short)firstPkt;
@@ -921,7 +927,7 @@ void NetPktGroup::Free()
 }
 
 // FUNCTION: SWBF2 0x005d9420
-NetPacket* NetPktGroup::PopFront()
+PBL_ASAN_NO_SANITIZE NetPacket* NetPktGroup::PopFront()
 {
     if (pktCount == 0)
     {

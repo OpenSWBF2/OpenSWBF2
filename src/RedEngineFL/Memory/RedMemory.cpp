@@ -4,6 +4,7 @@
 
 #include "RedMemory.h"
 #include "RedEngineFL/Memory/engineAlloc.h"
+#include "PebbleFL/Common/PblAsan.h"
 
 extern "C"
 {
@@ -18,7 +19,7 @@ extern "C"
 }
 
 // FUNCTION: SWBF2 0x006c3a50
-extern "C" unsigned int RedGetHeapFree(int heap)
+extern "C" PBL_ASAN_NO_SANITIZE unsigned int RedGetHeapFree(int heap)
 {
     unsigned int total = 0;
     for (Tag* tag = heapobj[heap].free.first; tag; tag = tag->next_)
@@ -45,9 +46,9 @@ namespace RedMemory
 
 extern "C" void Startup_RedInitHeap();
 
-void TagAddList(TagList* list, Tag* tag);
-void TagMergeIntoList(TagList* list, Tag* tag);
-void TagRemoveList(TagList* list, Tag* tag);
+PBL_ASAN_NO_SANITIZE void TagAddList(TagList* list, Tag* tag);
+PBL_ASAN_NO_SANITIZE void TagMergeIntoList(TagList* list, Tag* tag);
+PBL_ASAN_NO_SANITIZE void TagRemoveList(TagList* list, Tag* tag);
 
 // FUNCTION: SWBF2 0x006c3540
 void* __cdecl operator new(size_t size)
@@ -108,7 +109,7 @@ void __cdecl operator delete[](void* block, size_t)
 }
 
 // FUNCTION: SWBF2 0x006c35c0
-void* RedAllocFromHeapInternal(int heap, unsigned int size, int bTop)
+PBL_ASAN_NO_SANITIZE void* RedAllocFromHeapInternal(int heap, unsigned int size, int bTop)
 {
     if (!isHeapObjInitialized)
     {
@@ -196,11 +197,14 @@ void* RedAllocFromHeapInternal(int heap, unsigned int size, int bTop)
         }
     }
     TagAddList(&h.used, tag);
-    return (char*)tag + hdr;
+    PblAsanPoison(tag, need);
+    void* pUser = (char*)tag + hdr;
+    PblAsanUnpoison(pUser, size);
+    return pUser;
 }
 
 // FUNCTION: SWBF2 0x006c3730
-bool RedFreeToHeapInternal(int heap, void* block, unsigned int flags)
+PBL_ASAN_NO_SANITIZE bool RedFreeToHeapInternal(int heap, void* block, unsigned int flags)
 {
     (void)flags;
     if (!isHeapObjInitialized)
@@ -220,12 +224,14 @@ bool RedFreeToHeapInternal(int heap, void* block, unsigned int flags)
     unsigned int hdr = (h.align + sizeof(Tag) - 1) & ~(h.align - 1);
     Tag* tag = (Tag*)((char*)block - hdr);
     TagRemoveList(&h.used, tag);
+    unsigned int uiBlockSize = tag->size;
     TagMergeIntoList(&h.free, tag);
+    PblAsanPoison(tag, uiBlockSize);
     return true;
 }
 
 // FUNCTION: SWBF2 0x006c37b0
-void TagAddList(TagList* list, Tag* tag)
+PBL_ASAN_NO_SANITIZE void TagAddList(TagList* list, Tag* tag)
 {
     if (list->first)
     {
@@ -241,7 +247,7 @@ void TagAddList(TagList* list, Tag* tag)
 }
 
 // FUNCTION: SWBF2 0x006c37f0
-void TagMergeIntoList(TagList* list, Tag* tag)
+PBL_ASAN_NO_SANITIZE void TagMergeIntoList(TagList* list, Tag* tag)
 {
     Tag* prev = 0;
     Tag* next = list->first;
@@ -300,7 +306,7 @@ void TagMergeIntoList(TagList* list, Tag* tag)
 }
 
 // FUNCTION: SWBF2 0x006c3880
-void TagRemoveList(TagList* list, Tag* tag)
+PBL_ASAN_NO_SANITIZE void TagRemoveList(TagList* list, Tag* tag)
 {
     if (tag->next_)
     {
@@ -344,6 +350,7 @@ int RedCreateHeap(void* start, void* end, int align, char const* name)
     char* s = (char*)(((uintptr_t)start + align - 1) & mask);
     char* e = (char*)((uintptr_t)end & mask);
     size_t size = (size_t)(e - s);
+    PblAsanUnpoison(s, size);
     if (size)
     {
         memset(s, 0, size);
@@ -359,6 +366,7 @@ int RedCreateHeap(void* start, void* end, int align, char const* name)
     }
     if (i >= maxheaps)
     {
+        PblAsanPoison(s, size);
         return -1;
     }
 
@@ -377,6 +385,7 @@ int RedCreateHeap(void* start, void* end, int align, char const* name)
     heap.align = align;
     heap.name = (char*)name;
     heap.frozen = false;
+    PblAsanPoison(s, size);
     return i;
 }
 
@@ -384,6 +393,10 @@ int RedCreateHeap(void* start, void* end, int align, char const* name)
 void RedDestroyHeap(int heap)
 {
     HeapObj& h = heapobj[heap];
+    if (h.size)
+    {
+        PblAsanPoison(h.start, h.size);
+    }
     h.free.first = 0;
     h.free.last = 0;
     h.used.first = 0;

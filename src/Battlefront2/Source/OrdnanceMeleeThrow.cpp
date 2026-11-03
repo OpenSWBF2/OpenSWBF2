@@ -217,7 +217,7 @@ float OrdnanceMeleeThrowClass::GetRange()
 // FUNCTION: SWBF2 0x006034e0
 void OrdnanceMeleeThrow::Render(unsigned char, float, unsigned int uiFlags)
 {
-    if (m_pOwner.mObject && m_pOwner.mObject->mHandleId != m_pOwner.mSavedHandleId)
+    if (m_pOwner.mObject && PBL_HANDLE_ID(m_pOwner.mObject) != m_pOwner.mSavedHandleId)
     {
         return;
     }
@@ -404,7 +404,7 @@ bool OrdnanceMeleeThrow::Update(float fDeltaTime)
     }
 
     OrdnanceMeleeThrowClass* pClass = (OrdnanceMeleeThrowClass*)mClass;
-    if ((m_pOwner.mObject && m_pOwner.mObject->mHandleId != m_pOwner.mSavedHandleId) || m_bLastFrameIndicator)
+    if ((m_pOwner.mObject && PBL_HANDLE_ID(m_pOwner.mObject) != m_pOwner.mSavedHandleId) || m_bLastFrameIndicator)
     {
         return false;
     }

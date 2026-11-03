@@ -391,6 +391,17 @@ SkyDome::~SkyDome()
         delete m_pStars;
         m_pStars = 0;
     }
+    for (int iDome = 0; iDome < mNumDomeModels; ++iDome)
+    {
+        DomeModel& rDome = mDomeModels[iDome];
+        for (int i = 0; i < rDome.mNumEffectData; ++i)
+        {
+            if (rDome.mEffectData[i].effect)
+            {
+                rDome.mEffectData[i].effect->DetachFromTarget();
+            }
+        }
+    }
     Cleanup();
     Deactivate();
     DeactivateThread();

@@ -35,7 +35,7 @@ MemoryPool VehicleSpawn::VehicleTracker::sMemoryPool("VehicleSpawn::VehicleTrack
 
 static unsigned int HandleId(const GameObject* pObject)
 {
-    return pObject->mHandleId;
+    return PBL_HANDLE_ID(pObject);
 }
 
 static bool IsAlive(const GameObject* pObject)

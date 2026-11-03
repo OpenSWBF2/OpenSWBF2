@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 #include "RedEngineFL/Memory/RedMemory.h"
+#include "PebbleFL/Common/PblAsan.h"
 
 #include "IAllocator.h"
 
@@ -83,12 +84,18 @@ class StackAllocator : public IAllocator
 {
 public:
     StackAllocator(bool bClear, bool bDealloc, unsigned int uiAlign)
-        : alloc_(0), clear_(bClear), dealloc_(bDealloc), align_(uiAlign), pos_(0)
+        : alloc_(0), clear_(bClear), dealloc_(bDealloc), align_(uiAlign), pos_(0), bpos_(0)
     {
     }
 
     virtual ~StackAllocator()
     {
+#if defined(__SANITIZE_ADDRESS__)
+        if (pool_.data_)
+        {
+            PblAsanUnpoison(pool_.data_, pool_.size_);
+        }
+#endif
         if (alloc_)
         {
             Buffer buf(pool_.data_, pool_.size_);
@@ -103,6 +110,9 @@ public:
     {
         pool_ = TBuffer<char>(rBuf);
         pos_ = pool_.data_;
+#if defined(__SANITIZE_ADDRESS__)
+        PblAsanPoison(pool_.data_, pool_.size_);
+#endif
     }
 
     IAllocator*   alloc_;

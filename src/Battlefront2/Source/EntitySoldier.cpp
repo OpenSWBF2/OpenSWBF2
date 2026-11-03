@@ -794,7 +794,7 @@ GameObject* ResolveGameObjectHandle(PblHandle<GameObject>& handle)
     GameObject* pObject = handle.mObject;
     if (pObject)
     {
-        if (pObject->mHandleId == handle.mSavedHandleId)
+        if (PBL_HANDLE_ID(pObject) == handle.mSavedHandleId)
         {
             return pObject;
         }

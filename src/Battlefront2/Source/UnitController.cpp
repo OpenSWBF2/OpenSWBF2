@@ -128,7 +128,7 @@ namespace
         GameObject* pObject = h.mObject;
         if (pObject)
         {
-        if (pObject->mHandleId == h.mSavedHandleId)
+        if (PBL_HANDLE_ID(pObject) == h.mSavedHandleId)
         {
                 return pObject;
         }

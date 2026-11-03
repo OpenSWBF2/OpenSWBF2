@@ -479,7 +479,7 @@ float CoverHelper::IsHintSuitable_ForwardCover(const BaseHint* pHint) const
 {
     const PblVector3& vHint = pHint->GetCollisionCenter();
     const GameObject* pTarget = mCoverTarget.mObject;
-    if (pTarget && pTarget->mHandleId != mCoverTarget.mSavedHandleId)
+    if (pTarget && PBL_HANDLE_ID(pTarget) != mCoverTarget.mSavedHandleId)
     {
         CoverHelper* pMutable = const_cast<CoverHelper*>(this);
         pMutable->mCoverTarget.mObject = NULL;

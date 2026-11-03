@@ -30,9 +30,9 @@ function Invoke-Git([string]$dir, [string[]]$gitArgs) {
     return $out
 }
 
-function Build-Tests([string]$wt, [string]$logPath) {
+function Build-Tests([string]$wt, [string]$logPath, [string]$config = $script:TestsConfiguration) {
     $ErrorActionPreference = 'Continue'
-    $out = & $script:msbuild (Join-Path $wt 'tests\OpenSWBF2Tests.vcxproj') "/p:Configuration=$script:TestsConfiguration" '/p:Platform=Win32' /m /v:minimal /nologo 2>&1
+    $out = & $script:msbuild (Join-Path $wt 'tests\OpenSWBF2Tests.vcxproj') "/p:Configuration=$config" '/p:Platform=Win32' /m /v:minimal /nologo 2>&1
     $code = $LASTEXITCODE
     $out | Set-Content -Path $logPath -Encoding ASCII
     return ($code -eq 0)
@@ -69,7 +69,7 @@ function Run-Smoke([string]$wt, [string]$tag, $case) {
     return New-Object PSObject -Property @{ Ok = $ok; Class = $res.Class; Code = $res.Code; Dumps = @($res.Dumps).Count; LogText = $res.LogText }
 }
 
-function Run-Case([string]$exe, [string]$wt, [string]$name) {
+function Run-Case([string]$exe, [string]$wt, [string]$name, [string]$asanDir) {
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = $exe
     $isProbe = $name -like 'strictness probe*'
@@ -79,13 +79,20 @@ function Run-Case([string]$exe, [string]$wt, [string]$name) {
     $psi.RedirectStandardOutput = $true
     $psi.RedirectStandardError = $true
     $psi.CreateNoWindow = $true
+    if ($asanDir) {
+        if (Test-Path -LiteralPath $asanDir) { Remove-Item -LiteralPath $asanDir -Recurse -Force }
+        New-Item -ItemType Directory -Force -Path $asanDir | Out-Null
+        $psi.EnvironmentVariables['ASAN_OPTIONS'] = Get-AsanOptions $asanDir
+    }
     $p = [System.Diagnostics.Process]::Start($psi)
     $o = $p.StandardOutput.ReadToEndAsync()
     $e = $p.StandardError.ReadToEndAsync()
     if (-not $p.WaitForExit($CaseTimeout * 1000)) {
         try { $p.Kill() } catch {}
         $p.WaitForExit()
-        return New-Object PSObject -Property @{ State = 'RED'; Detail = 'timeout'; Code = 124; Text = $o.Result + $e.Result }
+        $report = $null
+        if ($asanDir) { $report = Get-AsanReport $asanDir 124 }
+        return New-Object PSObject -Property @{ State = 'RED'; Detail = 'timeout'; Code = 124; Text = $o.Result + $e.Result; Report = $report }
     }
     $code = [BitConverter]::ToUInt32([BitConverter]::GetBytes([int]$p.ExitCode), 0)
     $text = $o.Result + $e.Result
@@ -103,7 +110,16 @@ function Run-Case([string]$exe, [string]$wt, [string]$name) {
     elseif ($code -eq 2) { $state = 'NO-MATCH' }
     elseif ($code -eq 1) { $state = 'RED' }
     else { $detail = ('crash 0x{0:X8}' -f $code) }
-    return New-Object PSObject -Property @{ State = $state; Detail = $detail; Code = $code; Text = $text }
+    $report = $null
+    if ($asanDir) {
+        $report = Get-AsanReport $asanDir $code
+        if ($report) {
+            $state = 'RED'
+            $detail = (@($detail, 'asan report') | Where-Object { $_ }) -join ' '
+            $text += "`r`n" + $report
+        }
+    }
+    return New-Object PSObject -Property @{ State = $state; Detail = $detail; Code = $code; Text = $text; Report = $report }
 }
 
 function Set-Anchor([string]$path, [string]$anchor, [string]$replacement) {
@@ -127,7 +143,7 @@ function Set-Anchor([string]$path, [string]$anchor, [string]$replacement) {
 try {
     . $RowsFile
     $rows = @($GuardRevertRows)
-    $dupIds = @($rows | Group-Object Id | Where-Object { $_.Count -gt 1 } | ForEach-Object { $_.Name })
+    $dupIds = @($rows | Group-Object { $_.Id } | Where-Object { $_.Count -gt 1 } | ForEach-Object { $_.Name })
     if ($dupIds.Count) { throw "duplicate row Id: $($dupIds -join ', ')" }
     if ($Row) { $rows = @($rows | Where-Object { $Row -contains $_.Id }) }
     if ($rows.Count -eq 0) { Write-Host 'No rows selected.'; exit 2 }
@@ -135,7 +151,8 @@ try {
     $smokeRows = @($rows | Where-Object { $_.Kind -eq 'Smoke' })
     $hardRows = @($rows | Where-Object { $_.Kind -eq 'Hardening' })
     $tlogRows = @($rows | Where-Object { $_.Kind -eq 'Tlog' })
-    $rows = @($rows | Where-Object { $_.Kind -ne 'Smoke' -and $_.Kind -ne 'Hardening' -and $_.Kind -ne 'Tlog' })
+    $asanRows = @($rows | Where-Object { $_.Kind -eq 'AsanCanary' -or $_.Asan })
+    $rows = @($rows | Where-Object { $_.Kind -ne 'Smoke' -and $_.Kind -ne 'Hardening' -and $_.Kind -ne 'Tlog' -and $_.Kind -ne 'AsanCanary' -and -not $_.Asan })
     $gameData = Find-GameDataRoot
     $smokeCases = @{}
     foreach ($w in 'Crash', 'Standard') {
@@ -209,6 +226,73 @@ try {
                         $code = ($codes -join ',')
                         $detail = ($details -join ',')
                         if ($states -contains 'NO-MATCH') { $result = 'NO-MATCH' }
+                        elseif ($states -contains 'RED') { $result = 'RED' }
+                        elseif ($states -contains 'SKIP') { $result = 'SKIP' }
+                        else { $result = 'STILL-GREEN' }
+                    }
+                }
+                catch {
+                    $result = 'ERROR'
+                    $detail = $_.Exception.Message
+                }
+                finally {
+                    if ($orig) { [IO.File]::WriteAllBytes($path, $orig) }
+                }
+                $table += New-Object PSObject -Property @{ Id = $r.Id; Tests = ($r.Tests -join ' | '); Control = $ctl; Reverted = $result; Exit = $code; Detail = $detail }
+                if ($result -ne 'RED' -or $ctl -ne 'GREEN') { $failed = $true }
+                Write-Host ('{0,-12} control={1,-8} reverted={2,-11} exit={3} {4}' -f $r.Id, $ctl, $result, $code, $detail)
+            }
+        }
+
+        if ($asanRows.Count -gt 0) {
+            $asanExe = Join-Path $wt 'bin\Tests\Asan\OpenSWBF2Tests.exe'
+            $asanOut = Join-Path $OutDir 'asan'
+            $safe = { param($s) $s -replace '[^A-Za-z0-9_.-]', '_' }
+            $asanState = {
+                param($r, $c)
+                if ($r.Kind -eq 'AsanCanary') { return (Get-AsanCanaryState $c.Code $c.Report $r.Report) }
+                return $c.State
+            }
+            if (-not (Build-Tests $wt (Join-Path $OutDir 'build-asan-control.log') 'Asan')) { throw "asan control build failed, see $(Join-Path $OutDir 'build-asan-control.log')" }
+            $asanControl = @{}
+            foreach ($name in ($asanRows | ForEach-Object { $_.Tests } | Select-Object -Unique)) {
+                $asanControl[$name] = Run-Case $asanExe $wt $name (Join-Path $asanOut ('control-' + (& $safe $name)))
+                Set-Content -Path (Join-Path $OutDir ('asan-control-' + (& $safe $name) + '.txt')) -Value $asanControl[$name].Text -Encoding ASCII
+            }
+            foreach ($r in $asanRows) {
+                $path = Join-Path $wt $r.File
+                $orig = $null
+                $result = 'BUILD-FAIL'
+                $detail = ''
+                $code = ''
+                $want = 'GREEN'
+                if ($r.Kind -eq 'AsanCanary') { $want = 'REPORTED' }
+                $ctl = 'GREEN'
+                foreach ($name in $r.Tests) {
+                    $s = & $asanState $r $asanControl[$name]
+                    if ($s -ne $want) { $ctl = $s }
+                }
+                try {
+                    $orig = Set-Anchor $path $r.Anchor $r.Replacement
+                    if (Build-Tests $wt (Join-Path $OutDir "build-$($r.Id).log") 'Asan') {
+                        $states = @()
+                        $codes = @()
+                        $details = @()
+                        foreach ($name in $r.Tests) {
+                            $c = Run-Case $asanExe $wt $name (Join-Path $asanOut ("$($r.Id)-" + (& $safe $name)))
+                            Set-Content -Path (Join-Path $OutDir ("asan-$($r.Id)-" + (& $safe $name) + '.txt')) -Value $c.Text -Encoding ASCII
+                            $states += (& $asanState $r $c)
+                            $codes += $c.Code
+                            if ($c.Detail) { $details += $c.Detail }
+                        }
+                        $code = ($codes -join ',')
+                        $detail = ($details -join ',')
+                        if ($r.Kind -eq 'AsanCanary') {
+                            if ($states -contains 'REPORTED') { $result = 'STILL-GREEN' }
+                            elseif (@($states | Where-Object { $_ -ne 'CLEAN' }).Count) { $result = 'WRONG-RED' }
+                            else { $result = 'RED' }
+                        }
+                        elseif ($states -contains 'NO-MATCH') { $result = 'NO-MATCH' }
                         elseif ($states -contains 'RED') { $result = 'RED' }
                         elseif ($states -contains 'SKIP') { $result = 'SKIP' }
                         else { $result = 'STILL-GREEN' }

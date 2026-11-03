@@ -174,7 +174,7 @@ bool NavigatorSlide::IsEqual(AILowLevel* pOwner, const GameObject* pSlideObj, fl
     }
 
     if (mSlideObj.mObject &&
-        mSlideObj.mObject->mHandleId != mSlideObj.mSavedHandleId)
+        PBL_HANDLE_ID(mSlideObj.mObject) != mSlideObj.mSavedHandleId)
     {
         mSlideObj.mObject = 0;
         mSlideObj.mSavedHandleId = 0;

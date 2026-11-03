@@ -7,7 +7,7 @@
 
 static unsigned int GetHandleId(const GameObject* pObject)
 {
-    return pObject->mHandleId;
+    return PBL_HANDLE_ID(pObject);
 }
 
 static const GameObject* GetObject(PblHandle<const GameObject>& handle)

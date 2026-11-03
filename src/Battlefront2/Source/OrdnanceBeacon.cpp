@@ -19,7 +19,7 @@ namespace
     {
         GameObject* pObject = handle.mObject;
         if (pObject &&
-            pObject->mHandleId !=
+            PBL_HANDLE_ID(pObject) !=
                 handle.mSavedHandleId)
         {
             handle.mObject = 0;

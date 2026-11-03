@@ -422,9 +422,9 @@ void SunFlareEffect::RenderSky(unsigned int uiPass) const
 // FUNCTION: SWBF2 0x0042dfa0
 void SunFlareEffect::SunFlareList::Cleanup()
 {
-    for (Itor it = Begin(); it != End(); ++it)
+    while (GetCount() > 0)
     {
-        delete (SunFlare*)it;
+        delete GetFirst()->_pObject;
     }
     RemoveAll();
 }

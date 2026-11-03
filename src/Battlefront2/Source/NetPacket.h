@@ -1,6 +1,8 @@
 #pragma once
 #include <stddef.h>
 
+#include "PebbleFL/Common/PblAsan.h"
+
 class NetPacket
 {
 public:
@@ -121,9 +123,9 @@ public:
 
     int GetBytes();
 
-    void PushBack(NetPacket* pPkt);
+    PBL_ASAN_NO_SANITIZE void PushBack(NetPacket* pPkt);
 
-    NetPacket* PopFront();
+    PBL_ASAN_NO_SANITIZE NetPacket* PopFront();
 
     void Free();
 
@@ -132,7 +134,7 @@ public:
     bool IsEnd() const;
     void BeginWrite();
     void EndWrite();
-    void PushFront(NetPacket* pPkt);
+    PBL_ASAN_NO_SANITIZE void PushFront(NetPacket* pPkt);
     NetPacket* PopBack();
 
     void WritePacked();

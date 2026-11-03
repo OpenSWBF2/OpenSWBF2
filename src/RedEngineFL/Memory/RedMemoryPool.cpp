@@ -57,15 +57,14 @@ void MemoryPool::Create(unsigned int uiCount, unsigned int uiSize, unsigned int 
     }
     *(char**)((char*)mPool + (mCount - 1) * mSize) = 0;
     mFree = mPool;
+    PblAsanPoison(mPool, mSize * mCount);
 }
 
 bool MemoryPool::sErrorOnExpansion;
 
 // FUNCTION: SWBF2 0x006dc370
-void* MemoryPool::Allocate(unsigned int uiSize)
+PBL_ASAN_NO_SANITIZE void* MemoryPool::Allocate(unsigned int uiSize)
 {
-    (void)uiSize;
-
     if (mPool == 0)
     {
         Create(mCount, mSize, mGrow);
@@ -94,6 +93,7 @@ void* MemoryPool::Allocate(unsigned int uiSize)
             *(char**)((char*)mFree + i * mSize) = (char*)mFree + (i + 1) * mSize;
         }
         *(char**)((char*)mFree + (mGrow - 1) * mSize) = 0;
+        PblAsanPoison(mFree, mSize * mGrow);
 
         if (mPool == 0)
         {
@@ -104,11 +104,12 @@ void* MemoryPool::Allocate(unsigned int uiSize)
     void* pBlock = mFree;
     mFree = *(void**)pBlock;
     ++mUsed;
+    PblAsanUnpoison(pBlock, uiSize < mSize ? uiSize : mSize);
     return pBlock;
 }
 
 // FUNCTION: SWBF2 0x006dc5f0
-void MemoryPool::Free(void* pBlock)
+PBL_ASAN_NO_SANITIZE void MemoryPool::Free(void* pBlock)
 {
     if (pBlock == 0)
     {
@@ -122,6 +123,7 @@ void MemoryPool::Free(void* pBlock)
         *(void**)pBlock = mFree;
         --mUsed;
         mFree = pBlock;
+        PblAsanPoison(pBlock, mSize);
         return;
     }
 
@@ -137,6 +139,7 @@ void MemoryPool::Free(void* pBlock)
     *(void**)pBlock = *(void**)pcNode;
     *(void**)pcNode = pBlock;
     --mUsed;
+    PblAsanPoison(pBlock, mSize);
 }
 
 // FUNCTION: SWBF2 0x006dc6a0

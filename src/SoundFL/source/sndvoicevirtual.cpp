@@ -105,6 +105,7 @@ void VoiceVirtual::SetVoice(VoiceBase* pVoice)
     {
         mVoice->SourceTransport::Stop();
         mVoice->Lock(false);
+        mVoice->SetPosVel3D(&Globals::smNullVector, &Globals::smNullVector);
     }
     if (pVoice)
     {

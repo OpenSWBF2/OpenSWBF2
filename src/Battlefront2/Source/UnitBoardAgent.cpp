@@ -37,7 +37,7 @@ namespace
 
 unsigned int GetHandleId(const GameObject* pObj)
 {
-    return pObj->mHandleId;
+    return PBL_HANDLE_ID(pObj);
 }
 
 GameObject* ResolveHandle(PblHandle<GameObject>& handle)

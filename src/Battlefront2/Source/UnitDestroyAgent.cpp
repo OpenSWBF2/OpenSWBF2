@@ -58,7 +58,7 @@ namespace
         const GameObject* pObject = handle.mObject;
         if (pObject)
         {
-            if (pObject->mHandleId ==
+            if (PBL_HANDLE_ID(pObject) ==
                 handle.mSavedHandleId)
             {
                 return pObject;

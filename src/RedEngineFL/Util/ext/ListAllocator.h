@@ -35,12 +35,12 @@ public:
     ListAllocatorImpl(unsigned int uBaseMem, unsigned int uMaxMem);
     virtual ~ListAllocatorImpl();
 
-    virtual void Allocate(Buffer& rBuf);
-    virtual void Deallocate(Buffer& rBuf);
+    PBL_ASAN_NO_SANITIZE virtual void Allocate(Buffer& rBuf);
+    PBL_ASAN_NO_SANITIZE virtual void Deallocate(Buffer& rBuf);
     virtual void SetMaxMem(int iMax);
     virtual void UnitTest_();
 
-    DLNode<Buffer>* Convert_(Buffer& rBuf)
+    PBL_ASAN_NO_SANITIZE DLNode<Buffer>* Convert_(Buffer& rBuf)
     {
         DLNode<Buffer>* pNode = (DLNode<Buffer>*)rBuf.data_ - 1;
         rBuf = pNode->elem_;
@@ -48,8 +48,8 @@ public:
     }
 
     DLNode<Buffer>* ExternalAlloc_(unsigned int uSize);
-    DLNode<Buffer>* FindFreeBlock(const Buffer& rBuf);
-    bool MergeBlocks_(DLNode<Buffer>* pFirst, DLNode<Buffer>* pSecond);
+    PBL_ASAN_NO_SANITIZE DLNode<Buffer>* FindFreeBlock(const Buffer& rBuf);
+    PBL_ASAN_NO_SANITIZE bool MergeBlocks_(DLNode<Buffer>* pFirst, DLNode<Buffer>* pSecond);
 
     VNewAllocator valloc_;
     DummyNonAllocator dalloc_;

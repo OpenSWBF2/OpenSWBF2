@@ -432,7 +432,7 @@ foreach ($t in 'PASS', 'FAIL', 'SKIP', 'TIMEOUT', 'CRASH') {
 $summary += 'Known bugs'
 $summary += ('  {0,-8} {1}' -f 'KNOWN', @($kn | Where-Object { $_.Final -eq 'KNOWN' }).Count)
 $summary += ('  {0,-8} {1}' -f 'PASS', @($kn | Where-Object { $_.Final -eq 'PASS' }).Count)
-if ($asanT1 -or $asanSmoke) { $summary += $script:SmokeAsanLabel }
+if ($asanT1 -or $asanSmoke) { $summary += $script:SmokeAsanCoverage }
 if ($smokeActive -and $asanSmoke) {
     if ($asanRemoved.Count -gt 0) { $summary += "ASan excluded smoke cases: $($asanRemoved -join ', ')" }
     else { $summary += 'ASan excluded smoke cases: none in this group' }

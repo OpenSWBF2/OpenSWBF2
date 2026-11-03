@@ -8774,7 +8774,7 @@ void ReadEvent_ConnectTowCable(NetPktGroup& group, ReliableNetEvent& event)
     }
 
     GameObject* owner = data.mOwnerObject;
-    if (owner && owner->mHandleId != data.mOwnerHandleId)
+    if (owner && PBL_HANDLE_ID(owner) != data.mOwnerHandleId)
     {
         data.mOwnerObject = 0;
         data.mOwnerHandleId = 0;

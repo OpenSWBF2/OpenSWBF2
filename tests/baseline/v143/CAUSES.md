@@ -30,7 +30,7 @@ re-measured on the fixed build.
 | geo1c_con | same | 0 | none in the window; C2 after turn 1600, see below |
 | nab2g_c | same | 0 | none |
 | hot1g_con | same | 0 (1397 on the Phase 20 build) | C1, fixed; see below |
-| spa3c_ass | same | 0 | none in the window; C2 after turn 1600, see below |
+| spa3c_ass | same until 26-06, then differs | 0 until 26-06, then 555 | C-SLOT-SOLDANIM since 26-06 (fixed, digest re-baselined); C2 after turn 1600, see below |
 
 `digests.txt` and `digests-hog.txt` are byte-identical to VS2013, and every `state=` matches
 `tests/smoke/digest-expected.txt`, where no row has changed. No reference digest moved in Phase 20.
@@ -38,6 +38,9 @@ In 20-15 the Standard group gained `digest-dag1c_ctf` and `digest-kas2c_uber`, w
 VS2013 turn-1500 digests of the C1 mission dag1c_ctf (first split 202) and the C2 mission
 kas2c_uber (first split 636); guard-revert rows SIMFIX-C1S and SIMFIX-C2S turn them RED when the
 C1 or C2 fix is reverted.
+
+In 26-06 the `digest-spa3c_ass` row moved for cause C-SLOT-SOLDANIM, the only row changed since
+Phase 20. The `spa3c_ass` traces and digests in this directory are from before that fix.
 
 hot1g_con: on the Phase 20 build only turns 1397 and 1398 differed, and only in `state=`
 (`0x1A9B6C97` vs `0x6D1DD393`, `0x38735EB1` vs `0xAFCEE16D`). `rand=` was identical on every turn,
@@ -64,8 +67,8 @@ The `<cmath>` float overloads are load-bearing. A v143 build without them splits
 
 ## Causes
 
-Every v143 difference from VS2013 in the sim and in `finalscore.log` has one of these four
-causes. C1 and C2 were found with the D-15 bisect (code-bug screen, then `<cmath>`, `/fp`, CRT,
+Every v143 difference from VS2013 in the sim and in `finalscore.log` has one of these five
+causes (C1, C2, C3, C-OOB-SIDE and, since 26-06, C-SLOT-SOLDANIM). C1 and C2 were found with the D-15 bisect (code-bug screen, then `<cmath>`, `/fp`, CRT,
 per-TU toolchain) on the first split of dag1c_ctf and geo1c_con. Each mission was then attributed
 by experiment, see `## -Smoke All vs VS2013`. C3 was found with the same bisect on the one
 geo1c_xl turn that still differed with C1 and C2 neutralised. The evidence (field and stage
@@ -219,6 +222,37 @@ traces, neutral builds, probes) is kept under `artifacts\gap20`, which is not tr
   T1 `side name prefix is bounded` and `final score uses the bounded side name`, guard-revert row
   SIDENAME-01. Fix check: tat2g_eli's final line equals VS2013's,
   `tat2g_eli 1371s L= 32u@11P -1r 178p W= 32u@14 -1r 180p`.
+
+### C-SLOT-SOLDANIM
+
+- Function: `AnimationFinder::AssignAnimation` in `src/Battlefront2/Source/SoldierAnimatorClass.cpp`
+  (TU `SoldierAnimatorClass.cpp`), `// FUNCTION: SWBF2 0x00645170`, the `new SoldierAnimation(...)`
+  calls (line 1232 in the first report), through `SoldierAnimation::operator new` into
+  `SoldierAnimation::sMemoryPool` (`MemoryPool("SoldierAnimation", 0xc)`, `SoldierAnimation.cpp`).
+- Mechanism: a 16-byte object in a 12-byte pool slot. The decomp class had a fourth member,
+  `char* mName`, which nothing uses and which the retail slot size of 0xc rules out. `/sdl` zeroes
+  the whole object (16 bytes) in `new` before the constructor runs, so every allocation overwrote
+  the first 4 bytes of the next slot: the free-list link of a free slot (which ended the free list
+  and made the pool grow early) or the `m_pZephyrAnim` of a live neighbour animation. Which of the
+  two moves spa3c_ass was not separated.
+- Class: code bug (decomp layout error plus a memory overwrite in every build).
+- Evidence: the Asan smoke reported `use-after-poison` WRITE of size 16 in `_asan_memset` from
+  `AssignAnimation` in every mission once `MemoryPool` was hooked (26-ASAN-FINDINGS row 4). A
+  temporary `static_assert(sizeof(Owner) <= N)` after every literal-sized `MemoryPool` in `src`
+  failed only for `SoldierAnimation`.
+- Affected row: `digest-spa3c_ass` (Twice group) only. With the fix, the spa3c_ass digest trace
+  equals the earlier v143 trace through turn 554 and splits at turn 555. The other five gated rows
+  (geo1c_con, twice-digest-1/2, digest-hot1g_con, trace-seed-1), `digest-dag1c_ctf` and
+  `digest-kas2c_uber` are unchanged, the geo1c_con, nab2g_c and hot1g_con traces are identical over
+  1600 turns, all four `factory-<m>.txt` logs are byte-identical (creation order unchanged), and
+  the `-hogaddrspace` spa3c_ass digest equals the normal one.
+- Values: before `rand=529082281/2897934758 state=0x7385D175`, after
+  `rand=2329233471/2392100820 state=0x247DCD93` (turns=1500 time=50.000 snd=49.923 on both), the
+  same on Release and Test.
+- Status: fixed in 26-06 by removing `mName` (`sizeof(SoldierAnimation)` is 0xc). T1 `soldier
+  animation fits its pool slot`, guard-revert row SOLDANIM-01. The `digest-spa3c_ass` row in
+  `tests/smoke/digest-expected.txt` was re-baselined by decision D-29. The `spa3c_ass` row (the
+  `-Smoke All` case of the same mission) was not edited and was not measured in 26-06.
 
 ## Factory
 

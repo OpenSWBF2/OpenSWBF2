@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblAsan.h"
+
 class PblHandled
 {
 public:
@@ -9,12 +11,18 @@ public:
     virtual ~PblHandled() { mHandleId = 0; }
 
     // FUNCTION: SWBF2 0x00423e90
-    unsigned int GetHandleId() const { return mHandleId; }
+    PBL_ASAN_NO_SANITIZE PBL_ASAN_NO_INLINE unsigned int GetHandleId() const { return mHandleId; }
 
     static unsigned int SetNextHandleId(unsigned int uId);
 
     unsigned int mHandleId;
 };
+
+#if defined(__SANITIZE_ADDRESS__)
+#define PBL_HANDLE_ID(pObject) ((pObject)->PblHandled::GetHandleId())
+#else
+#define PBL_HANDLE_ID(pObject) ((pObject)->mHandleId)
+#endif
 
 template <class TYPE>
 class PblHandle
@@ -102,7 +110,7 @@ public:
 private:
     TYPE* GetObject() const
     {
-        if (mObject && mObject->mHandleId != mSavedHandleId)
+        if (mObject && PBL_HANDLE_ID(mObject) != mSavedHandleId)
         {
             PblHandle* pThis = const_cast<PblHandle*>(this);
             pThis->mObject = 0;

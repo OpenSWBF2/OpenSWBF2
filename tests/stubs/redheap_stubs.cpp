@@ -1,55 +1,27 @@
-#include "RedEngineFL/Memory/RedMemory.h"
-
-extern "C"
-{
-    HeapObj* heapobj;
-    int maxheaps;
-    void (*OnFailure)(int heap, unsigned int size);
-
-    unsigned int RedGetHeapFree(int heap)
-    {
-        return heapobj[heap].size;
-    }
-
-    char const* RedGetHeapName(int heap)
-    {
-        if (heap >= 0 && heap < maxheaps && heapobj[heap].name)
-        {
-            return heapobj[heap].name;
-        }
-        return "?";
-    }
-}
-
 #include <stdlib.h>
 
-extern "C"
+#include "RedEngineFL/Memory/RedMemory.h"
+
+namespace GameMemory { int LuaHeap = -1; }
+
+static char* sT1Arena;
+
+extern "C" void Startup_RedInitHeap()
 {
-    int __RedCurrHeap;
-    unsigned int gFakeHeapBudget = 0xFFFFFFFFu;
-    unsigned int gFakeHeapFrees;
-
-    int RedSetCurrentHeap(int heap)
+    const unsigned int uiArenaSize = 0x4000000;
+    const unsigned int uiLuaSize = 0x1000000;
+    if (!sT1Arena)
     {
-        int iOld = __RedCurrHeap;
-        __RedCurrHeap = heap;
-        return iOld;
+        sT1Arena = (char*)malloc(uiArenaSize);
+        if (!sT1Arena)
+        {
+            return;
+        }
     }
-
-    void* RedAllocFromHeap(int heap, unsigned int size, int bTop)
-    {
-        (void)heap;
-        (void)bTop;
-        return size <= gFakeHeapBudget ? malloc(size ? size : 1) : 0;
-    }
-
-    void RedFreeToHeap(int heap, void* block, int flags)
-    {
-        (void)heap;
-        (void)flags;
-        ++gFakeHeapFrees;
-        free(block);
-    }
+    char* pEnd = sT1Arena + uiArenaSize;
+    char* pLuaStart = pEnd - uiLuaSize;
+    char* pStart = RedInitHeap(sT1Arena, pEnd, 9);
+    RedCreateHeap(pStart, pLuaStart, 0x10, "T1");
+    GameMemory::LuaHeap = RedCreateHeap(pLuaStart, pEnd, 4, "Lua");
+    RedSetCurrentHeap(0);
 }
-
-namespace GameMemory { int LuaHeap = 3; }

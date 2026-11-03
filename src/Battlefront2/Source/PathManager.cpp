@@ -434,7 +434,7 @@ PathRequest* GetNextPathRequest()
             {
                 sRequests->Remove(&pReq->mNode);
                 UnitController* pObj = pReq->mUnit.mObject;
-                if (pObj && pObj->mHandleId == pReq->mUnit.mSavedHandleId)
+                if (pObj && PBL_HANDLE_ID(pObj) == pReq->mUnit.mSavedHandleId)
                 {
                     return pReq;
                 }

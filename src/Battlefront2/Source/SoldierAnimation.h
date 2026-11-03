@@ -57,6 +57,5 @@ public:
         unsigned int m_uiData;
     };
     SoldierAnimationData* m_pAnimData;
-    char* mName;
 };
  

@@ -507,7 +507,7 @@ static inline Damageable* AsDamageable(EntityBuilding* pBuilding)
 static GameObject* GetHandleObject(PblHandle<GameObject>& handle)
 {
     if (handle.mObject &&
-        handle.mObject->mHandleId !=
+        PBL_HANDLE_ID(handle.mObject) !=
             handle.mSavedHandleId)
     {
         handle.mObject = 0;

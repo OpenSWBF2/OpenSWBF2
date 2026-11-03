@@ -127,6 +127,7 @@ public:
     virtual void ActivateEffect();
     virtual void DeactivateEffect();
     virtual void StopAndFinish();
+    void DetachFromTarget();
 protected:
     virtual bool Update(float fDeltaTime);
     virtual void UpdatedWorldMatrix();

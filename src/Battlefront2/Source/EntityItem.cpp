@@ -333,6 +333,7 @@ EntityItem::~EntityItem()
     delete m_pLight;
     if (mTrailEmitterObj)
     {
+        mTrailEmitterObj->DetachFromTarget();
         mTrailEmitterObj->DeactivateEffect();
     }
     Deactivate();

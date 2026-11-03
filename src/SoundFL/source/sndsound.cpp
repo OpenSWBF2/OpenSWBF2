@@ -310,6 +310,15 @@ void __cdecl Sound::VoiceVirtualRelease(VoiceVirtual* pVoice)
     FireForget* pThis = static_cast<FireForget*>(pVoice);
     pThis->SetStolenCallback(0, 0);
     pVoice->SetInactiveCallback(&FireForget::InactiveCallback, pVoice);
+    const unsigned int i = (unsigned int)(pThis - smVoiceVirtuals);
+    smSource3DPositions[i] = *pVoice->mPos3D;
+    smSource3DVelocities[i] = *pVoice->mVel3D;
+    pVoice->SetPosition(&smSource3DPositions[i]);
+    pVoice->SetVelocity(&smSource3DVelocities[i]);
+    if (pVoice->mVoice)
+    {
+        pVoice->mVoice->SetPosVel3D(&smSource3DPositions[i], &smSource3DVelocities[i]);
+    }
 }
 
 // FUNCTION: SWBF2 0x0073a430

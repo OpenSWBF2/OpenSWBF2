@@ -335,11 +335,24 @@ const PblVector3 RedTerrain::GetInterpolatedNormal(float fX, float fZ)
     return vResult;
 }
 
+static int ClampToGrid(float fGrid)
+{
+    if (!(fGrid >= 0.0f))
+    {
+        return 0;
+    }
+    if (fGrid > (float)(RedTerrain::_iPointsPerDimension - 1))
+    {
+        return RedTerrain::_iPointsPerDimension - 1;
+    }
+    return (int)fGrid;
+}
+
 // FUNCTION: SWBF2 0x006c1ee0
 float RedTerrain::GetLight(float fX, float fZ)
 {
-    const int iX = (int)((fX + _fTerrainCenterX) * _fPointsPerMeter + 0.5f);
-    const int iZ = (int)((fZ + _fTerrainCenterZ) * _fPointsPerMeter + 0.5f);
+    const int iX = ClampToGrid((fX + _fTerrainCenterX) * _fPointsPerMeter + 0.5f);
+    const int iZ = ClampToGrid((fZ + _fTerrainCenterZ) * _fPointsPerMeter + 0.5f);
     return (float)_puiLuminosity[iX * _iPointsPerDimension + iZ] * (1.0f / 255.0f);
 }
 
@@ -360,8 +373,8 @@ bool RedTerrain::PointInHole(const PblVector3& vPos)
     vLastPos = vPos;
     bLastInHole = false;
 
-    const int iX = (int)((vPos.x + _fTerrainCenterX) * _fPointsPerMeter);
-    const int iZ = (int)((vPos.z + _fTerrainCenterZ) * _fPointsPerMeter);
+    const int iX = ClampToGrid((vPos.x + _fTerrainCenterX) * _fPointsPerMeter);
+    const int iZ = ClampToGrid((vPos.z + _fTerrainCenterZ) * _fPointsPerMeter);
     const int iPatch = (iX >> _iHeightPatchPointsPerDimensionLog2) +
                        ((iZ >> _iHeightPatchPointsPerDimensionLog2) << _iHeightPatchesPerDimensionLog2);
     const unsigned char uiHoles = _pHeightExpand[iPatch].uiFlags & 0xf;

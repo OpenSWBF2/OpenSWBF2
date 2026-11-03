@@ -621,7 +621,7 @@ bool Aimer::Update(float fDeltaTime)
     {
         PblHandle<const GameObject>& hTarget = mWeapon->mTarget;
         if (hTarget.mObject
-            && hTarget.mObject->mHandleId != hTarget.mSavedHandleId)
+            && PBL_HANDLE_ID(hTarget.mObject) != hTarget.mSavedHandleId)
         {
             hTarget.mObject = 0;
             hTarget.mSavedHandleId = 0;

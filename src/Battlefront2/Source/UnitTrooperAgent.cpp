@@ -73,7 +73,7 @@ namespace
         GameObject* pObj = handle.mObject;
         if (pObj)
         {
-            if (pObj->mHandleId == handle.mSavedHandleId)
+            if (PBL_HANDLE_ID(pObj) == handle.mSavedHandleId)
             {
                 return pObj;
             }

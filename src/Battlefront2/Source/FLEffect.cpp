@@ -382,6 +382,17 @@ bool FLEffectObject::Update(float fDeltaTime)
     return true;
 }
 
+void FLEffectObject::DetachFromTarget()
+{
+    if (m_hobjAttachedToObject.mObject || !(m_uiAttachFlags & ATTACHED_DYNAMIC))
+    {
+        return;
+    }
+    _UpdateWorldMatrix();
+    m_uiAttachFlags &= ~(ATTACHED_DYNAMIC | ATTACHED_TO_VECTOR);
+    m_pmAttachedToMatrix = 0;
+}
+
 // FUNCTION: SWBF2 0x00527270
 void FLEffectObject::SetLocalOffsetMatrix(const PblMatrix& mOffset)
 {

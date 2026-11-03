@@ -2,6 +2,7 @@
 
 #include <stddef.h>
 
+#include "PebbleFL/Common/PblAsan.h"
 #include "PebbleFL/Common/PblList.h"
 
 class MemoryPool
@@ -31,9 +32,9 @@ public:
     // FUNCTION: SWBF2 0x004374f0
     unsigned int GetGrow() const { return mGrow; }
 
-    void* Allocate(unsigned int uiSize);
+    PBL_ASAN_NO_SANITIZE void* Allocate(unsigned int uiSize);
 
-    void Free(void* pBlock);
+    PBL_ASAN_NO_SANITIZE void Free(void* pBlock);
 
     ~MemoryPool();
 

@@ -3,6 +3,7 @@
 #include "RedGlyphMemoryManager.h"
 
 #include "RedEngineFL/Memory/RedMemory.h"
+#include "PebbleFL/Common/PblAsan.h"
 
 // FUNCTION: SWBF2 0x007223f0
 RedGlyphMemoryManager::Iterator::Iterator(const Iterator& rOther)
@@ -35,6 +36,9 @@ RedGlyphMemoryManager::RedGlyphMemoryManager(unsigned int uiNumVertices)
     }
 
     m_pPool[uiNumBlocks - 1].pNext = 0;
+#if defined(__SANITIZE_ADDRESS__)
+    PblAsanPoison(m_pPool, uiBytes);
+#endif
 }
 
 // FUNCTION: SWBF2 0x00722510
@@ -82,6 +86,9 @@ RedGlyphMemoryManager::VertexBlock* RedGlyphMemoryManager::AllocBlock()
     VertexBlock* pBlock = m_pFirstFree;
     if (pBlock)
     {
+#if defined(__SANITIZE_ADDRESS__)
+        PblAsanUnpoison(pBlock, sizeof(VertexBlock));
+#endif
         m_pFirstFree = pBlock->pNext;
         pBlock->uiNumVertices = 48;
     }
@@ -116,6 +123,9 @@ void RedGlyphMemoryManager::FreeBlock(VertexBlock* pBlock)
     pBlock->uiNumVertices = 0;
     pBlock->pNext = m_pFirstFree;
     m_pFirstFree = pBlock;
+#if defined(__SANITIZE_ADDRESS__)
+    PblAsanPoison(pBlock, sizeof(VertexBlock));
+#endif
 }
 
 // FUNCTION: SWBF2 0x007226b0

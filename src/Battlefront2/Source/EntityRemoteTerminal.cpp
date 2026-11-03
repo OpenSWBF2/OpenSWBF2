@@ -67,7 +67,7 @@ inline Damageable* GameObjectDamageable(GameObject* pObject)
 }
 inline unsigned int GameObjectHandleId(GameObject* pObject)
 {
-    return pObject->mHandleId;
+    return PBL_HANDLE_ID(pObject);
 }
 
 inline GameObject* HandleObject(PblHandle<GameObject>& handle)

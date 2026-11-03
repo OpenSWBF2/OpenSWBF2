@@ -1,5 +1,6 @@
 #pragma once
 
+#include "PebbleFL/Common/PblAsan.h"
 #include "IAllocator.h"
 
 namespace util
@@ -140,7 +141,7 @@ public:
         return bFound;
     }
 
-    bool Remove_(NODE* pNode)
+    PBL_ASAN_NO_SANITIZE bool Remove_(NODE* pNode)
     {
         NODE* pNext = pNode->next_;
         NODE* pPrev = pNode->prev_;

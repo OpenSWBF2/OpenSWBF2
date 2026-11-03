@@ -1602,7 +1602,7 @@ void EntityHoverClass::SetProperty(unsigned int uProperty, const char* pszValue)
 
         GameObjectClass::SetProperty(uProperty, pszValue);
         int iMaskId = mCollisionModel.GetMaskId(PblHash(pszValue));
-        if (iMaskId >= 0)
+        if (iMaskId >= 0 && mNumWakeEmitters < 6)
         {
             mWakeEmitterPrimitives[mNumWakeEmitters++] = iMaskId;
         }
@@ -1660,6 +1660,7 @@ EntityHover::~EntityHover()
     VehicleManager::Remove(this);
     if (mWaterEmitter)
     {
+        mWaterEmitter->DetachFromTarget();
         mWaterEmitter->DeactivateEffect();
     }
     for (int i = 0; i < 6; ++i)

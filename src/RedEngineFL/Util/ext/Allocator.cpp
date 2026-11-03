@@ -17,6 +17,7 @@ void StackAllocator::Allocate(Buffer& rBuf)
     }
 
     rBuf.data_ = pPos;
+    PblAsanUnpoison(pPos, rBuf.size_);
     pos_ += rBuf.size_;
     sizes_[bpos_] = rBuf.size_;
     bpos_ = (bpos_ + 1) % 8;
@@ -37,8 +38,9 @@ void StackAllocator::Deallocate(Buffer& rBuf)
         return;
     }
 
-    bpos_ = (bpos_ - 1) % 8;
+    bpos_ = (bpos_ + 7) % 8;
     pos_ -= rBuf.size_;
+    PblAsanPoison(pos_, rBuf.size_);
     rBuf.data_ = 0;
 }
 

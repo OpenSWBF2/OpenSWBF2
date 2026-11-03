@@ -487,7 +487,7 @@ bool OrdnanceBullet::Update(float fDeltaTime)
     {
         if (mFinalCollision &&
             !(mFinalCollisionHandle.mObject &&
-              mFinalCollisionHandle.mObject->mHandleId != mFinalCollisionHandle.mSavedHandleId))
+              PBL_HANDLE_ID(mFinalCollisionHandle.mObject) != mFinalCollisionHandle.mSavedHandleId))
         {
             Collide(mFinalCollision, mPosition, mFinalCollisionNormal, 0);
         }

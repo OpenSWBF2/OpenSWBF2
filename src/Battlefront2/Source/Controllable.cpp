@@ -70,7 +70,7 @@ GameObject* GetAlivePtr(PblHandle<GameObject> const& hObj, bool bIncludeBuilding
 
 static inline unsigned int GameObjectHandleId(const GameObject* pObject)
 {
-    return pObject->mHandleId;
+    return PBL_HANDLE_ID(pObject);
 }
 
 // FUNCTION: SWBF2 0x004833b0
