@@ -462,7 +462,7 @@ static GameObject* GetHandleObject(const PblHandle<GameObject>& handle)
 {
     PblHandle<GameObject>& h = const_cast<PblHandle<GameObject>&>(handle);
     if (h.mObject &&
-        h.mObject->mHandleId !=
+        PBL_HANDLE_ID(h.mObject) !=
             h.mSavedHandleId)
     {
         h.mObject = 0;

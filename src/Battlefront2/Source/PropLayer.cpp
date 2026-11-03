@@ -49,11 +49,18 @@ void PropLayer::Read(PblFileChunk& chunk)
             PropModelMesh* pModel = new PropModelMesh;
             PblFileChunk modelChunk = chunk.ReadNextChild();
             pModel->Read(modelChunk);
-            if (pModel->mMaxDist > mMaxDistance)
+            if (mNumModels < 32)
             {
-                mMaxDistance = pModel->mMaxDist;
+                if (pModel->mMaxDist > mMaxDistance)
+                {
+                    mMaxDistance = pModel->mMaxDist;
+                }
+                mModels[mNumModels++] = pModel;
             }
-            mModels[mNumModels++] = pModel;
+            else
+            {
+                delete pModel;
+            }
         }
         else if (uiHash == 0xdbe276e9)
         {

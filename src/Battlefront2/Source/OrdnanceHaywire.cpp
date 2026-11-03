@@ -50,7 +50,7 @@ bool OrdnanceHaywire::Update(float fDeltaTime)
     if (mStickInfo && mStickInfo->mCollHandle.mObject)
     {
         GameObject* pObject = mStickInfo->mCollHandle.mObject;
-        if (pObject->mHandleId == mStickInfo->mCollHandle.mSavedHandleId)
+        if (PBL_HANDLE_ID(pObject) == mStickInfo->mCollHandle.mSavedHandleId)
         {
             pObject->mDisableTime = ((OrdnanceHaywireClass*)mClass)->mDisableTime;
         }

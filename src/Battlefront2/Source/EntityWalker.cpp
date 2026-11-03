@@ -130,6 +130,7 @@ static bool s_bSetZephyrSkeletonShared;
 static bool sPassengerSlotSection;
 // GLOBAL: SWBF2 0x01e51e20
 static unsigned int sTowCableCollisionMask;
+static WalkerLegPairInfo* sOwnLegPairInfo;
 
 // FUNCTION: SWBF2 0x005076e0
 EntityWalkerClass::EntityWalkerClass(unsigned int uHash)
@@ -155,6 +156,7 @@ EntityWalkerClass::EntityWalkerClass(unsigned int uHash)
     sCurrentSection = -1;
     sWeaponSection = 0;
     sCurPair = -1;
+    sOwnLegPairInfo = 0;
     s_bSetZephyrSkeletonShared = false;
 
     memset(m_aAttackAnims, 0, sizeof(m_aAttackAnims));
@@ -537,6 +539,7 @@ EntityWalkerClass::EntityWalkerClass(EntityWalkerClass* pBase, unsigned int uHas
     sCurrentSection = -1;
     sWeaponSection = 0;
     sCurPair = -1;
+    sOwnLegPairInfo = 0;
     s_bSetZephyrSkeletonShared = false;
 
     mAnimations = new WalkerAnimation*[mAnimationCount];
@@ -747,6 +750,15 @@ void ReadAngleLimits(const char* pszValue, float& rMin, float& rMax)
     rMin *= 0.017453292f;
     rMax *= 0.017453292f;
 }
+}
+
+static WalkerLegPairInfo* CurLegPair(WalkerLegPairInfo* pInfo, int iCount)
+{
+    if (pInfo && sCurPair >= 0 && sCurPair < iCount)
+    {
+        return &pInfo[sCurPair];
+    }
+    return 0;
 }
 
 // FUNCTION: SWBF2 0x005087b0
@@ -1208,30 +1220,58 @@ void EntityWalkerClass::SetProperty(unsigned int uProperty, const char* pszValue
         break;
 
     case 0x153289ae:
-        sscanf(pszValue, "%d", &mLegPairCount);
+    {
+        int iCount = 0;
+        sscanf(pszValue, "%d", &iCount);
+        if (iCount < 0)
+        {
+            iCount = 0;
+        }
+        else if (iCount > 3)
+        {
+            iCount = 3;
+        }
+        if (mLegPairInfo == sOwnLegPairInfo)
+        {
+            delete[] mLegPairInfo;
+        }
+        mLegPairCount = iCount;
         mLegPairInfo = new WalkerLegPairInfo[mLegPairCount];
+        sOwnLegPairInfo = mLegPairInfo;
         sCurPair = -1;
         break;
+    }
     case 0x2aea4add:
         ++sCurPair;
         break;
     case 0xd382edb2:
-        if (m_pZephyrSkeletonShared)
+    {
+        WalkerLegPairInfo* pPair = CurLegPair(mLegPairInfo, mLegPairCount);
+        if (pPair && m_pZephyrSkeletonShared)
         {
-            mLegPairInfo[sCurPair].mFootIndices[0] = m_pZephyrSkeletonShared->GetJointIdxByCrc(PblTEMPHash(pszValue));
+            pPair->mFootIndices[0] = m_pZephyrSkeletonShared->GetJointIdxByCrc(PblTEMPHash(pszValue));
         }
         break;
+    }
     case 0xa2f4825f:
-        if (m_pZephyrSkeletonShared)
+    {
+        WalkerLegPairInfo* pPair = CurLegPair(mLegPairInfo, mLegPairCount);
+        if (pPair && m_pZephyrSkeletonShared)
         {
-            mLegPairInfo[sCurPair].mFootIndices[1] = m_pZephyrSkeletonShared->GetJointIdxByCrc(PblTEMPHash(pszValue));
+            pPair->mFootIndices[1] = m_pZephyrSkeletonShared->GetJointIdxByCrc(PblTEMPHash(pszValue));
         }
         break;
+    }
     case 0x21322adb:
     {
-        WalkerLegPairInfo& rPair = mLegPairInfo[sCurPair];
+        WalkerLegPairInfo* pPair = CurLegPair(mLegPairInfo, mLegPairCount);
+        if (!pPair)
+        {
+            break;
+        }
+        WalkerLegPairInfo& rPair = *pPair;
         rPair.mFootCollisionBody[0] = mCollisionModel.GetMaskId(PblHash(pszValue));
-        if (rPair.mFootCollisionBody[0] >= 0)
+        if (rPair.mFootCollisionBody[0] >= 0 && mNumFeet < 6)
         {
             mFootPrimitives[mNumFeet++] = rPair.mFootCollisionBody[0];
         }
@@ -1239,56 +1279,73 @@ void EntityWalkerClass::SetProperty(unsigned int uProperty, const char* pszValue
     }
     case 0xb62deb24:
     {
-        WalkerLegPairInfo& rPair = mLegPairInfo[sCurPair];
+        WalkerLegPairInfo* pPair = CurLegPair(mLegPairInfo, mLegPairCount);
+        if (!pPair)
+        {
+            break;
+        }
+        WalkerLegPairInfo& rPair = *pPair;
         rPair.mFootCollisionBody[1] = mCollisionModel.GetMaskId(PblHash(pszValue));
-        if (rPair.mFootCollisionBody[1] >= 0)
+        if (rPair.mFootCollisionBody[1] >= 0 && mNumFeet < 6)
         {
             mFootPrimitives[mNumFeet++] = rPair.mFootCollisionBody[1];
         }
         break;
     }
     case 0x03fd0638:
-        if (m_pZephyrSkeletonShared)
+    {
+        WalkerLegPairInfo* pPair = CurLegPair(mLegPairInfo, mLegPairCount);
+        if (pPair && m_pZephyrSkeletonShared)
         {
             int iJoint = m_pZephyrSkeletonShared->GetJointIdxByCrc(PblTEMPHash(pszValue));
             if (iJoint >= 0)
             {
-                mLegPairInfo[sCurPair].mLegJoints[0] = iJoint;
-                mLegPairInfo[sCurPair].mLegMasks[0] = HierarchyJointMask(mAnimObj[0]->GetZephyrSkeletonShared(), iJoint);
+                pPair->mLegJoints[0] = iJoint;
+                pPair->mLegMasks[0] = HierarchyJointMask(mAnimObj[0]->GetZephyrSkeletonShared(), iJoint);
             }
         }
         break;
+    }
     case 0xc42be48d:
-        if (m_pZephyrSkeletonShared)
+    {
+        WalkerLegPairInfo* pPair = CurLegPair(mLegPairInfo, mLegPairCount);
+        if (pPair && m_pZephyrSkeletonShared)
         {
             int iJoint = m_pZephyrSkeletonShared->GetJointIdxByCrc(PblTEMPHash(pszValue));
             if (iJoint >= 0)
             {
-                mLegPairInfo[sCurPair].mLegJoints[1] = iJoint;
-                mLegPairInfo[sCurPair].mLegMasks[1] = HierarchyJointMask(mAnimObj[0]->GetZephyrSkeletonShared(), iJoint);
+                pPair->mLegJoints[1] = iJoint;
+                pPair->mLegMasks[1] = HierarchyJointMask(mAnimObj[0]->GetZephyrSkeletonShared(), iJoint);
             }
         }
         break;
+    }
     case 0x580f4d75:
-        if (m_pZephyrSkeletonShared)
+    {
+        WalkerLegPairInfo* pPair = CurLegPair(mLegPairInfo, mLegPairCount);
+        if (pPair && m_pZephyrSkeletonShared)
         {
             int iJoint = m_pZephyrSkeletonShared->GetJointIdxByCrc(PblTEMPHash(pszValue));
             if (iJoint >= 0)
             {
-                mLegPairInfo[sCurPair].mLegTopMasks[0] = HierarchyJointMask(mAnimObj[0]->GetZephyrSkeletonShared(), iJoint);
+                pPair->mLegTopMasks[0] = HierarchyJointMask(mAnimObj[0]->GetZephyrSkeletonShared(), iJoint);
             }
         }
         break;
+    }
     case 0x9eb9fc8e:
-        if (m_pZephyrSkeletonShared)
+    {
+        WalkerLegPairInfo* pPair = CurLegPair(mLegPairInfo, mLegPairCount);
+        if (pPair && m_pZephyrSkeletonShared)
         {
             int iJoint = m_pZephyrSkeletonShared->GetJointIdxByCrc(PblTEMPHash(pszValue));
             if (iJoint >= 0)
             {
-                mLegPairInfo[sCurPair].mLegTopMasks[1] = HierarchyJointMask(mAnimObj[0]->GetZephyrSkeletonShared(), iJoint);
+                pPair->mLegTopMasks[1] = HierarchyJointMask(mAnimObj[0]->GetZephyrSkeletonShared(), iJoint);
             }
         }
         break;
+    }
     case 0x391bbcda:
         sscanf(pszValue, "%f", &mLegRayHitLength);
         break;
@@ -1519,8 +1576,12 @@ bool EntityWalkerClass::InitAnimations(const char* pszName)
 
     while (mAnimObj[mNumAnimObjs])
     {
+        if (++mNumAnimObjs >= 3)
+        {
+            break;
+        }
         char szName[128];
-        _snprintf(szName, 127, "%s%d", pszName, ++mNumAnimObjs);
+        _snprintf(szName, 127, "%s%d", pszName, mNumAnimObjs);
         szName[127] = 0;
         mAnimObj[mNumAnimObjs] = RedAnimation::Find(PblHash(szName));
     }
@@ -1916,6 +1977,10 @@ EntityWalker::EntityWalker(EntityWalkerClass* pClass, const EntityDesc& desc)
     for (int i = 0; i < 4; ++i)
     {
         mWeapon[i] = 0;
+    }
+    for (int i = 0; i < 3; ++i)
+    {
+        mLegPairs[i] = 0;
     }
 
     for (int i = 0; i < mClass->mWeaponCount; ++i)
@@ -2486,10 +2551,14 @@ void EntityWalker::Render(unsigned char ucViewport, float fDist, unsigned int ui
         float fDir = mDirection == Backward ? -1.0f : 1.0f;
         float fBlendState = gameObjectInterpolator.GetLoopingFloat(mNetUniqueId, 0, mBlend->GetStateLimit(), fDir,
                                                                     bWrapped);
-        float fLegState = gameObjectInterpolator.GetLoopingFloat(mNetUniqueId, 1, mLegPairs[0]->GetStateLimit(),
-                                                                  mDirection == Backward ? -1.0f : 1.0f, bWrapped);
+        float fLegState = gameObjectInterpolator.GetLoopingFloat(
+            mNetUniqueId, 1, mLegPairCount > 0 ? mLegPairs[0]->GetStateLimit() : 0.0f,
+            mDirection == Backward ? -1.0f : 1.0f, bWrapped);
         mBlend->SetFrameState(fBlendState);
-        mLegPairs[0]->SetFrameState(fLegState);
+        if (mLegPairCount > 0)
+        {
+            mLegPairs[0]->SetFrameState(fLegState);
+        }
         if (mLegPairCount > 1)
         {
             fDir = -1.0f;
@@ -2649,7 +2718,10 @@ void EntityWalker::Render(unsigned char ucViewport, float fDist, unsigned int ui
     if (!netFrameLock && NetGame::IsEnabled())
     {
         mBlend->ResetTurnState();
-        mLegPairs[0]->ResetTurnState();
+        if (mLegPairCount > 0)
+        {
+            mLegPairs[0]->ResetTurnState();
+        }
         if (mLegPairCount > 1)
         {
             mLegPairs[1]->ResetTurnState();
@@ -4469,7 +4541,8 @@ bool EntityWalker::PostCollisionUpdate(float fDeltaTime)
         {
             gameObjectInterpolator.SetNext(mNetUniqueId, &GetSmoothedMatrix());
             gameObjectInterpolator.SetNextFloat(mNetUniqueId, 0, mBlend->GetTurnState());
-            gameObjectInterpolator.SetNextFloat(mNetUniqueId, 1, mLegPairs[0]->GetTurnState());
+            gameObjectInterpolator.SetNextFloat(mNetUniqueId, 1,
+                                                mLegPairCount > 0 ? mLegPairs[0]->GetTurnState() : 0.0f);
             gameObjectInterpolator.SetNextFloat(mNetUniqueId, 2,
                                                 mLegPairCount > 1 ? mLegPairs[1]->GetTurnState() : 0.0f);
             if (mAimer[0])

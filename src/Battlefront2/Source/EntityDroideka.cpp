@@ -1570,7 +1570,7 @@ void EntityDroidekaClass::SetProperty(unsigned int uProperty, const char* pszVal
             else if (uProperty == 0xAFE693CE)
             {
                 int iMask = mCollisionModel.GetMaskId(PblHash(pszValue));
-                if (iMask >= 0)
+                if (iMask >= 0 && mNumFeet < 3)
                 {
                     mFootPrimitives[mNumFeet++] = iMask;
                 }

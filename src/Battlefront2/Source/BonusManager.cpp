@@ -84,7 +84,7 @@ static GameObject* GetGameObject(CommandPost* pPost)
 {
     PblHandle<GameObject>& handle = pPost->mObject;
     if (handle.mObject &&
-        handle.mObject->mHandleId !=
+        PBL_HANDLE_ID(handle.mObject) !=
             handle.mSavedHandleId)
     {
         handle.mObject = 0;

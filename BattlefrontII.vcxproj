@@ -95,11 +95,6 @@
       <PreprocessorDefinitions>OPENSWBF2_TEST;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)'=='Asan'">
-    <ClCompile>
-      <PreprocessorDefinitions>_DISABLE_VECTOR_ANNOTATION;_DISABLE_STRING_ANNOTATION;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-    </ClCompile>
-  </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcBirdEffect.cpp" />
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcBlurEffect.cpp" />

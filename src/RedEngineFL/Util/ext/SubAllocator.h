@@ -1,5 +1,6 @@
 #pragma once
 
+#include "PebbleFL/Common/PblAsan.h"
 #include "IAllocator.h"
 #include "Allocator.h"
 #include "basevector.h"
@@ -60,8 +61,14 @@ public:
             {
                 freelist_.Add((char*)page.data_ + elemSize_ * i);
             }
+#if defined(__SANITIZE_ADDRESS__)
+            PblAsanPoison(page.data_, uiBytes);
+#endif
         }
         rBuf.data_ = freelist_[--freelist_._numElements];
+#if defined(__SANITIZE_ADDRESS__)
+        PblAsanUnpoison(rBuf.data_, rBuf.size_ && rBuf.size_ < elemSize_ ? rBuf.size_ : elemSize_);
+#endif
     }
 
     // FUNCTION: SWBF2 0x006dfef0
@@ -69,6 +76,9 @@ public:
     {
         (void)riTotal;
         freelist_.Add(rBuf.data_);
+#if defined(__SANITIZE_ADDRESS__)
+        PblAsanPoison(rBuf.data_, elemSize_);
+#endif
     }
 
     // FUNCTION: SWBF2 0x006df8c0
@@ -77,6 +87,9 @@ public:
         for (int i = 0; i < pagelist_.GetSize(); i++)
         {
             Buffer page(pagelist_[i], elemSize_ * chunkSize_);
+#if defined(__SANITIZE_ADDRESS__)
+            PblAsanUnpoison(page.data_, page.size_);
+#endif
             alloc_->Deallocate(page);
         }
         freelist_.Clear();

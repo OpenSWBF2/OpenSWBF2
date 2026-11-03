@@ -33,7 +33,7 @@ void LockOnManager::AddTargetCommon(GameObject* pActor, unsigned int uTeamMask)
         {
             break;
         }
-        if (target.obj.mObject->mHandleId != target.obj.mSavedHandleId)
+        if (PBL_HANDLE_ID(target.obj.mObject) != target.obj.mSavedHandleId)
         {
             target.obj.mObject = 0;
             target.obj.mSavedHandleId = 0;
@@ -71,7 +71,7 @@ namespace
 inline GameObject* HandleObject(PblHandle<GameObject>& handle)
 {
     if (handle.mObject &&
-        handle.mObject->mHandleId != handle.mSavedHandleId)
+        PBL_HANDLE_ID(handle.mObject) != handle.mSavedHandleId)
     {
         handle.mObject = 0;
         handle.mSavedHandleId = 0;

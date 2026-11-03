@@ -313,7 +313,7 @@ float WalkerAnimation::ComputeTime(float fTime)
 // FUNCTION: SWBF2 0x00676270
 void WalkerAnimationIdle::Setup(WalkerBlend& rBlend, float fTime, float fBlendDuration, bool bLoop, bool bReversed)
 {
-    if (!mAnimations[1] || !mAnimations[2])
+    if (!m_bHasTiltAnims)
     {
         WalkerAnimation::Setup(rBlend, fTime, fBlendDuration, bLoop, bReversed);
         return;

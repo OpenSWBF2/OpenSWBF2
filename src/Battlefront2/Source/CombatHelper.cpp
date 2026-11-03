@@ -54,7 +54,7 @@ namespace
     const GameObject* HandleObject(PblHandle<const GameObject>& handle)
     {
         if (handle.mObject &&
-            handle.mObject->mHandleId != handle.mSavedHandleId)
+            PBL_HANDLE_ID(handle.mObject) != handle.mSavedHandleId)
         {
             handle.mObject = 0;
             handle.mSavedHandleId = 0;

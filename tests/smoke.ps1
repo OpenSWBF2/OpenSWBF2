@@ -7,7 +7,7 @@ $script:SmokeAsanTimeoutScale = 15
 $script:SourceExtensions = @('.h', '.hpp', '.inl', '.c', '.cpp')
 $script:T1Suites = @('unit', 'characterisation', 'regression', 'known_bug', 'corpus', 'fuzz', 'stress')
 $script:SmokeAsanExcluded = @('crash-nullderef', 'crash-divzero', 'crash-stackoverflow', 'crash-debugbreak', 'crash-abort', 'crash-invalidparam', 'crash-fastfail', 'crash-check', 'crash-hang', 'crash-arenaoom', 'crash-debugheapoom', 'crash-luapanic', 'crash-resetfatal', 'fatal-init')
-$script:SmokeAsanLabel = 'ASan coverage: stack, globals, CRT malloc and T1 heap only'
+$script:SmokeAsanCoverage = 'ASan covers stack, globals, CRT heap and the game heaps and pools'
 
 function Get-AsanOptions([string]$caseDir) {
     if ($caseDir.Contains("'")) { throw "ASan log_path cannot be quoted for a path that contains an apostrophe: $caseDir" }
@@ -23,6 +23,12 @@ function Get-AsanReport([string]$caseDir, $code) {
     }
     if ($code -eq 66) { return 'ASan exit 66 without an asan.* report: the ASan runtime failed before main (check ASAN_OPTIONS)' }
     return $null
+}
+
+function Get-AsanCanaryState($code, $report, [string]$regex) {
+    if ($code -ne 0 -and $null -ne $report -and $report -match $regex) { return 'REPORTED' }
+    if ($code -eq 0 -and $null -eq $report) { return 'CLEAN' }
+    return 'OTHER'
 }
 
 function Find-GameDataRoot {

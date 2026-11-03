@@ -54,11 +54,41 @@ finally {
     Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
 }
 if ($Configuration -eq 'Asan') {
+    $asanCanaries = @(
+        @('asan canary heap overflow is reported', 'heap-buffer-overflow'),
+        @('asan canary red heap overflow is reported', 'use-after-poison[\s\S]*Startup_RedInitHeap'),
+        @('asan canary red heap use after free is reported', 'use-after-poison[\s\S]*Startup_RedInitHeap'),
+        @('asan canary memory pool overflow is reported', 'use-after-poison[\s\S]*Startup_RedInitHeap'),
+        @('asan canary memory pool use after free is reported', 'use-after-poison[\s\S]*Startup_RedInitHeap'),
+        @('asan canary lua bin overflow is reported', 'use-after-poison[\s\S]*Startup_RedInitHeap'),
+        @('asan canary lua bin use after free is reported', 'use-after-poison[\s\S]*Startup_RedInitHeap'),
+        @('asan canary net packet overflow is reported', 'use-after-poison[\s\S]*netBigPackets'),
+        @('asan canary net packet use after free is reported', 'use-after-poison[\s\S]*netBigPackets'),
+        @('asan canary red stack overflow is reported', 'use-after-poison[\s\S]*sMem'),
+        @('asan canary red stack use after scope is reported', 'use-after-poison[\s\S]*sMem'),
+        @('asan canary stack allocator overflow is reported', 'use-after-poison[\s\S]*Startup_RedInitHeap'),
+        @('asan canary stack allocator use after free is reported', 'use-after-poison[\s\S]*Startup_RedInitHeap'),
+        @('asan canary sub allocator overflow is reported', 'use-after-poison[\s\S]*Startup_RedInitHeap'),
+        @('asan canary sub allocator use after free is reported', 'use-after-poison[\s\S]*Startup_RedInitHeap'),
+        @('asan canary list allocator overflow is reported', 'use-after-poison[\s\S]*Startup_RedInitHeap'),
+        @('asan canary list allocator use after free is reported', 'use-after-poison[\s\S]*Startup_RedInitHeap'),
+        @('asan canary snd free list overflow is reported', 'use-after-poison[\s\S]*Startup_RedInitHeap'),
+        @('asan canary snd free list use after free is reported', 'use-after-poison[\s\S]*Startup_RedInitHeap'),
+        @('asan canary glyph memory overflow is reported', 'use-after-poison[\s\S]*Startup_RedInitHeap'),
+        @('asan canary glyph memory use after free is reported', 'use-after-poison[\s\S]*Startup_RedInitHeap')
+    )
+    foreach ($canary in $asanCanaries) {
+        $n++
+        $out = (& powershell -NoProfile -File $run -Configuration Asan -NoBuild -Smoke None -Suite asan_canary -Filter $canary[0] 2>&1 | Out-String)
+        $code = $LASTEXITCODE
+        if ($code -ne 1 -or -not $out.Contains("[FAIL] $($canary[0])") -or $out -notmatch $canary[1]) { $failed++; Write-Host "FAILED ${n}: $($canary[0]): exit $code, expected 1 with [FAIL] and /$($canary[1])/" }
+        else { Write-Host "OK $n $($canary[0])" }
+    }
     $n++
-    $out = (& powershell -NoProfile -File $run -Configuration Asan -NoBuild -Smoke None -Suite asan_canary 2>&1 | Out-String)
-    $code = $LASTEXITCODE
-    if ($code -ne 1 -or $out -notmatch '\[FAIL\]' -or $out -notmatch 'heap-buffer-overflow') { $failed++; Write-Host "FAILED ${n}: asan canary: exit $code, expected 1 with [FAIL] and heap-buffer-overflow" }
-    else { Write-Host "OK $n asan canary overflow is a FAIL" }
+    $canarySource = Get-Content -Raw (Join-Path $PSScriptRoot 'unit\asan_canary.cpp')
+    $canaryCases = ([regex]::Matches($canarySource, 'TEST_CASE\("asan canary')).Count
+    if ($canaryCases -ne $asanCanaries.Count) { $failed++; Write-Host "FAILED ${n}: asan canary table has $($asanCanaries.Count) entries, asan_canary.cpp has $canaryCases cases" }
+    else { Write-Host "OK $n asan canary table covers all $canaryCases cases" }
 }
 else { Write-Host 'SKIP canary: needs -Configuration Asan' }
 . (Join-Path $PSScriptRoot 'smoke.ps1')
@@ -157,6 +187,21 @@ try {
     catch { $why = $_.Exception.Message }
     if ($why) { $failed++; Write-Host "FAILED ${n}: asan report without a file: $why" }
     else { Write-Host "OK $n asan report without a file" }
+    $n++
+    $canaryRx = 'use-after-poison[\s\S]*Startup_RedInitHeap'
+    $canaryChecks = @(
+        @(66, 'ERROR: AddressSanitizer: use-after-poison ... Startup_RedInitHeap', 'REPORTED'),
+        @(0, $null, 'CLEAN'),
+        @(66, 'ERROR: AddressSanitizer: heap-buffer-overflow', 'OTHER'),
+        @(1, $null, 'OTHER')
+    )
+    $why = $null
+    foreach ($cc in $canaryChecks) {
+        $got = Get-AsanCanaryState $cc[0] $cc[1] $canaryRx
+        if ($got -ne $cc[2]) { $why = "code $($cc[0]) report '$($cc[1])' gave $got, expected $($cc[2])"; break }
+    }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: asan canary state classifier: $why" }
+    else { Write-Host "OK $n asan canary state classifier" }
     $n++
     $allNames = @(Get-SmokeCases 'All' @() $false $null | ForEach-Object { $_.Name })
     $excl = @($script:SmokeAsanExcluded)

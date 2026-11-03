@@ -21,7 +21,7 @@ namespace
 {
 inline unsigned int GameObjectHandleId(const GameObject* pObject)
 {
-    return pObject->mHandleId;
+    return PBL_HANDLE_ID(pObject);
 }
 
 inline int GameObjectTeam(const GameObject* pObject)

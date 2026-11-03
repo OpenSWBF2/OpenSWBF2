@@ -702,11 +702,7 @@ void PrecipitationEffect::Destroy()
 // FUNCTION: SWBF2 0x006938d0
 PrecipitationEffect::~PrecipitationEffect()
 {
-    for (PblList<RainShadowRegion>::Itor it = m_RainShadows.Begin(); it != m_RainShadows.End(); ++it)
-    {
-        RainShadowRegion* pRegion = it;
-        delete pRegion;
-    }
+    m_RainShadows.Clear();
     Cleanup();
 }
 

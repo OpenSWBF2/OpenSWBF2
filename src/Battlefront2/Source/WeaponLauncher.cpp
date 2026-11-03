@@ -149,7 +149,7 @@ bool WeaponLauncher::IsLocked() const
 const GameObject* WeaponLauncher::GetLocked() const
 {
     PblHandle<const GameObject>& h = const_cast<WeaponLauncher*>(this)->mCurTarget;
-    if (h.mObject && h.mObject->mHandleId != h.mSavedHandleId)
+    if (h.mObject && PBL_HANDLE_ID(h.mObject) != h.mSavedHandleId)
     {
         h.mObject = 0;
         h.mSavedHandleId = 0;

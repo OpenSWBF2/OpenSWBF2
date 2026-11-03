@@ -28,8 +28,11 @@ bool EntitySquadronClass::SetProperty(unsigned int uProperty, const char* pszVal
         mMember = PblHash(pszValue);
         return true;
     case 0xe5108b93:
-        mFormations[mNumFormations] = PblHash(pszValue);
-        mNumFormations++;
+        if (mNumFormations < 10)
+        {
+            mFormations[mNumFormations] = PblHash(pszValue);
+            mNumFormations++;
+        }
         return true;
     default:
         return ODFPropertySet::SetProperty(sPropertySet, sizeof(sPropertySet) / sizeof(sPropertySet[0]),
@@ -361,7 +364,7 @@ bool EntitySquadronClass::FormationSupported(unsigned int uFormation) const
 const EntityFormation* EntitySquadronClass::SelectFormation(unsigned int uNumSlots) const
 {
     RedStack stack;
-    const EntityFormation** ppFormations = (const EntityFormation**)stack.Alloc(mNumFormations);
+    const EntityFormation** ppFormations = (const EntityFormation**)stack.Alloc((int)(mNumFormations * sizeof(*ppFormations)));
     int iNumFound = 0;
     for (unsigned int i = 0; i < mNumFormations; ++i)
     {

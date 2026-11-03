@@ -64,7 +64,7 @@ const GameObject* AI::PatrolPath::GetReservingObject()
 {
     const GameObject* pObject = mReservingObject.mObject;
     if (pObject &&
-        (pObject->mHandleId != mReservingObject.mSavedHandleId
+        (PBL_HANDLE_ID(pObject) != mReservingObject.mSavedHandleId
          || GameLoop::GetMissionTime() - 8.0f > mReservingTime))
     {
         mReservingObject.mSavedHandleId = 0;
@@ -72,7 +72,7 @@ const GameObject* AI::PatrolPath::GetReservingObject()
     }
 
     pObject = mReservingObject.mObject;
-    if (pObject && pObject->mHandleId != mReservingObject.mSavedHandleId)
+    if (pObject && PBL_HANDLE_ID(pObject) != mReservingObject.mSavedHandleId)
     {
         mReservingObject.mObject = 0;
         mReservingObject.mSavedHandleId = 0;

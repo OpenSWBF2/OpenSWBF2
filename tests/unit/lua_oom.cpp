@@ -3,19 +3,49 @@
 #include "testutil.h"
 #include "nettest.h"
 #include "Battlefront2/Source/LuaMemory.h"
+#include "Battlefront2/Source/GameMemory.h"
 #include "RedEngineFL/Memory/RedMemory.h"
 #include "LuaFL/include/lua.h"
-
-extern "C" unsigned int gFakeHeapBudget;
-extern "C" unsigned int gFakeHeapFrees;
 
 namespace
 {
 
-struct BudgetGuard
+struct FillGuard
 {
-    BudgetGuard(unsigned int uiBudget) { gFakeHeapBudget = uiBudget; }
-    ~BudgetGuard() { gFakeHeapBudget = 0xFFFFFFFFu; }
+    FillGuard(int iHeap, unsigned int uiLeave) : miHeap(iHeap), mpFiller(0)
+    {
+        unsigned int uiLow = 0;
+        unsigned int uiHigh = 0x7FFFFFFFu;
+        while (uiLow < uiHigh)
+        {
+            unsigned int uiMid = uiLow + (uiHigh - uiLow + 1) / 2;
+            void* pProbe = RedAllocFromHeap(iHeap, uiMid, 0);
+            if (pProbe)
+            {
+                RedFreeToHeap(iHeap, pProbe, 0);
+                uiLow = uiMid;
+            }
+            else
+            {
+                uiHigh = uiMid - 1;
+            }
+        }
+        if (uiLow > uiLeave)
+        {
+            mpFiller = RedAllocFromHeap(iHeap, uiLow - uiLeave, 0);
+        }
+    }
+
+    ~FillGuard()
+    {
+        if (mpFiller)
+        {
+            RedFreeToHeap(miHeap, mpFiller, 0);
+        }
+    }
+
+    int miHeap;
+    void* mpFiller;
 };
 
 int AllocHuge(lua_State* L)
@@ -32,7 +62,7 @@ int AllocSmall(lua_State* L)
 
 int RaiseWithHeap(lua_State* L)
 {
-    RedSetCurrentHeap(7);
+    RedSetCurrentHeap(0);
     lua_pushstring(L, "boom");
     lua_error(L);
     return 0;
@@ -47,7 +77,7 @@ TEST_CASE("lua oom is raised as LUA_ERRMEM" * doctest::test_suite("regression"))
     REQUIRE(L);
     {
         LogCapture capture;
-        BudgetGuard guard(0x100000);
+        FillGuard guard(GameMemory::LuaHeap, 0x100000);
         CHECK(lua_cpcall(L, AllocHuge, 0) == LUA_ERRMEM);
         CHECK(capture.Contains("Lua out of memory"));
     }
@@ -60,23 +90,24 @@ TEST_CASE("lua failed shrink keeps the old block" * doctest::test_suite("regress
     ExpectLog expect("Lua out of memory");
     void* pBlock = Lua_Red_realloc(0, 0, 100);
     REQUIRE(pBlock);
-    const unsigned int uiFrees = gFakeHeapFrees;
     {
-        BudgetGuard guard(0);
+        FillGuard guard(GameMemory::LuaHeap, 0);
+        const unsigned int uiFull = RedGetHeapFree(GameMemory::LuaHeap);
         CHECK(!Lua_Red_realloc(pBlock, 100, 50));
+        CHECK(RedGetHeapFree(GameMemory::LuaHeap) == uiFull);
     }
-    CHECK(gFakeHeapFrees == uiFrees);
+    const unsigned int uiFree = RedGetHeapFree(GameMemory::LuaHeap);
     Lua_Red_Free(pBlock, 100);
-    CHECK(gFakeHeapFrees == uiFrees + 1);
+    CHECK(RedGetHeapFree(GameMemory::LuaHeap) > uiFree);
 }
 
 TEST_CASE("lua error restores the current heap" * doctest::test_suite("regression"))
 {
     lua_State* L = lua_open();
     REQUIRE(L);
-    RedSetCurrentHeap(2);
+    RedSetCurrentHeap(GameMemory::LuaHeap);
     CHECK(lua_cpcall(L, RaiseWithHeap, 0) == LUA_ERRRUN);
-    CHECK(__RedCurrHeap == 2);
+    CHECK(__RedCurrHeap == GameMemory::LuaHeap);
     lua_close(L);
 }
 

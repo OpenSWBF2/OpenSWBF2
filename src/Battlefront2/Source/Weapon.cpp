@@ -119,7 +119,7 @@ namespace
     {
         PblHandle<const GameObject>& h = const_cast<PblHandle<const GameObject>&>(handle);
         if (h.mObject &&
-            h.mObject->mHandleId != h.mSavedHandleId)
+            PBL_HANDLE_ID(h.mObject) != h.mSavedHandleId)
         {
             h.mObject = 0;
             h.mSavedHandleId = 0;

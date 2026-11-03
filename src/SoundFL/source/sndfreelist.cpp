@@ -2,6 +2,8 @@
 
 #include "sndglobals.h"
 
+#include "PebbleFL/Common/PblAsan.h"
+
 #include <stddef.h>
 
 namespace Snd
@@ -41,6 +43,9 @@ bool FreeList::AllocBlocks(unsigned int uiNumBlocks, Block** ppFirstBlock)
 
         pNew->mBitmap.Initialize((unsigned char*)pNew + sizeof(Block),
                                  mEntriesPerBlock);
+#if defined(__SANITIZE_ADDRESS__)
+        PblAsanPoison(pEntries, uiBlockBytes);
+#endif
 
         mBlockList.AddLast(&pNew->mNode);
 
@@ -63,7 +68,13 @@ void* FreeList::Block::AllocEntry(unsigned int uiEntrySize, unsigned int uiEntri
     {
         return 0;
     }
+#if defined(__SANITIZE_ADDRESS__)
+    char* const pEntry = (char*)this - (uiEntriesPerBlock - handle.mStartEntry) * uiEntrySize;
+    PblAsanUnpoison(pEntry, uiEntrySize);
+    return pEntry;
+#else
     return (char*)this - (uiEntriesPerBlock - handle.mStartEntry) * uiEntrySize;
+#endif
 }
 
 // FUNCTION: SWBF2 0x00738560
@@ -123,6 +134,9 @@ void FreeList::Free(void* p)
             const unsigned int uiIndex =
                 (unsigned int)((char*)p - pEntries) / uiEntrySize;
             pBlock->mBitmap.Reserve(uiIndex, 1, false);
+#if defined(__SANITIZE_ADDRESS__)
+            PblAsanPoison(p, uiEntrySize);
+#endif
             break;
         }
     }
@@ -171,6 +185,10 @@ void FreeList::PurgeBlocks()
             Snd::FreeTemp(pBlock);
         }
 
+#if defined(__SANITIZE_ADDRESS__)
+        PblAsanUnpoison((char*)pBlock - mEntriesPerBlock * mEntrySize,
+                        mEntriesPerBlock * mEntrySize);
+#endif
         mFreeFunc(pAllocAddress);
     }
 }

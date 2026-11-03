@@ -360,7 +360,7 @@ bool EntityCarrier::AttachCargo(int, GameObject* pGameObject)
 
     if (mCargoArray[0].mObject.mObject)
     {
-        if (mCargoArray[0].mObject.mObject->mHandleId != mCargoArray[0].mObject.mSavedHandleId)
+        if (PBL_HANDLE_ID(mCargoArray[0].mObject.mObject) != mCargoArray[0].mObject.mSavedHandleId)
         {
             mCargoArray[0].mObject.mObject = 0;
             mCargoArray[0].mObject.mSavedHandleId = 0;
@@ -399,7 +399,7 @@ bool EntityCarrier::DetachCargo(int iSlot)
         return false;
     }
 
-    if (pSlot->mObject.mObject->mHandleId != pSlot->mObject.mSavedHandleId)
+    if (PBL_HANDLE_ID(pSlot->mObject.mObject) != pSlot->mObject.mSavedHandleId)
     {
         pSlot->mObject.mObject = 0;
         pSlot->mObject.mSavedHandleId = 0;
@@ -431,7 +431,7 @@ void EntityCarrier::UpdateLandedHeight()
             continue;
         }
 
-        if (pSlot->mObject.mObject->mHandleId != pSlot->mObject.mSavedHandleId)
+        if (PBL_HANDLE_ID(pSlot->mObject.mObject) != pSlot->mObject.mSavedHandleId)
         {
             pSlot->mObject.mObject = 0;
             pSlot->mObject.mSavedHandleId = 0;

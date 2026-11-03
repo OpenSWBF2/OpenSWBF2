@@ -715,7 +715,7 @@ const GameObject* WeaponDispenser::GetItem(int iIndex) const
         return 0;
     }
     PblHandle<GameObject>& h = (*mItemArray)[iIndex];
-    if (h.mObject && h.mObject->mHandleId != h.mSavedHandleId)
+    if (h.mObject && PBL_HANDLE_ID(h.mObject) != h.mSavedHandleId)
     {
         h.mObject = 0;
         h.mSavedHandleId = 0;

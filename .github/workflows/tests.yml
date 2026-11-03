@@ -39,7 +39,7 @@ jobs:
           retention-days: 7
 
   asan:
-    name: asan (stack, globals, CRT malloc and T1 heap only)
+    name: asan
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, windows, v143]
     timeout-minutes: 120

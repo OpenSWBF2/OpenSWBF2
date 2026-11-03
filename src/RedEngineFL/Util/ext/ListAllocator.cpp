@@ -30,6 +30,9 @@ ListAllocatorImpl::~ListAllocatorImpl()
     {
         for (int i = 0; i < pages_.GetSize(); i++)
         {
+#if defined(__SANITIZE_ADDRESS__)
+            PblAsanUnpoison(pages_[i].data_, pages_[i].size_);
+#endif
             baseAlloc_->Deallocate(pages_[i]);
         }
     }
@@ -50,8 +53,11 @@ void DummyNonAllocator::Allocate(Buffer&)
 }
 
 // FUNCTION: SWBF2 0x006e94a0
-void ListAllocatorImpl::Allocate(Buffer& rBuf)
+PBL_ASAN_NO_SANITIZE void ListAllocatorImpl::Allocate(Buffer& rBuf)
 {
+#if defined(__SANITIZE_ADDRESS__)
+    unsigned int uiRequest = rBuf.size_;
+#endif
     if (rBuf.size_ % roundsize_)
     {
         rBuf.size_ = (rBuf.size_ / roundsize_ + 1) * roundsize_;
@@ -63,9 +69,16 @@ void ListAllocatorImpl::Allocate(Buffer& rBuf)
         if (baseAlloc_)
         {
             int iSize = rBuf.size_;
-            if (ExternalAlloc_(Max_(pageSize_, iSize)))
+            if (ExternalAlloc_(Max_(pageSize_, iSize + 2 * (int)sizeof(DLNode<Buffer>))))
             {
                 Allocate(rBuf);
+#if defined(__SANITIZE_ADDRESS__)
+                if (rBuf.data_)
+                {
+                    PblAsanPoison(rBuf.data_, rBuf.size_);
+                    PblAsanUnpoison(rBuf.data_, uiRequest);
+                }
+#endif
             }
             else
             {
@@ -110,6 +123,10 @@ void ListAllocatorImpl::Allocate(Buffer& rBuf)
         freelist_.Remove_(pNode);
         freemem_ -= rBuf.size_;
     }
+#if defined(__SANITIZE_ADDRESS__)
+    PblAsanPoison(pNode, sizeof(DLNode<Buffer>) + pNode->elem_.size_);
+    PblAsanUnpoison(rBuf.data_, uiRequest);
+#endif
 }
 
 // FUNCTION: SWBF2 0x006e95a0
@@ -127,7 +144,7 @@ void DummyNonAllocator::Deallocate(Buffer&)
 }
 
 // FUNCTION: SWBF2 0x006e9670
-void ListAllocatorImpl::Deallocate(Buffer& rBuf)
+PBL_ASAN_NO_SANITIZE void ListAllocatorImpl::Deallocate(Buffer& rBuf)
 {
     if (!rBuf.data_)
     {
@@ -189,6 +206,9 @@ void ListAllocatorImpl::Deallocate(Buffer& rBuf)
     }
     freelist_.size_++;
     freemem_ += rBuf.size_;
+#if defined(__SANITIZE_ADDRESS__)
+    PblAsanPoison(pNode, sizeof(DLNode<Buffer>) + rBuf.size_);
+#endif
 
     DLNode<Buffer>* pPrev = pNode->prev_;
     DLNode<Buffer>* pNext = pNode->next_;
@@ -233,7 +253,7 @@ DLNode<Buffer>* ListAllocatorImpl::ExternalAlloc_(unsigned int uSize)
 }
 
 // FUNCTION: SWBF2 0x006e97f0
-DLNode<Buffer>* ListAllocatorImpl::FindFreeBlock(const Buffer& rBuf)
+PBL_ASAN_NO_SANITIZE DLNode<Buffer>* ListAllocatorImpl::FindFreeBlock(const Buffer& rBuf)
 {
     for (DLNode<Buffer>* p = freelist_.first_; p; p = p->next_)
     {
@@ -250,7 +270,7 @@ DLNode<Buffer>* ListAllocatorImpl::FindFreeBlock(const Buffer& rBuf)
 }
 
 // FUNCTION: SWBF2 0x006e98a0
-bool ListAllocatorImpl::MergeBlocks_(DLNode<Buffer>* pFirst, DLNode<Buffer>* pSecond)
+PBL_ASAN_NO_SANITIZE bool ListAllocatorImpl::MergeBlocks_(DLNode<Buffer>* pFirst, DLNode<Buffer>* pSecond)
 {
     if ((char*)pSecond->elem_.data_ - (char*)pFirst->elem_.data_ - pFirst->elem_.size_
         - sizeof(DLNode<Buffer>) != 0)

@@ -23,6 +23,7 @@
 #include "lzio.h"
 
 #include "RedEngineFL/Memory/RedMemory.h"
+#include "PebbleFL/Common/PblAsan.h"
 
 struct lua_longjmp {
   struct lua_longjmp *previous;
@@ -56,6 +57,7 @@ static void seterrorobj (lua_State *L, int errcode, StkId oldtop) {
 void luaD_throw (lua_State *L, int errcode) {
   if (L->errorJmp) {
     L->errorJmp->status = errcode;
+    PblAsanNoReturn();
     longjmp(L->errorJmp->b, 1);
   }
   else {

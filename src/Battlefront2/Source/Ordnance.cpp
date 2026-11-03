@@ -30,7 +30,7 @@ namespace
 
     unsigned int GameObjectHandleId(const GameObject* pObject)
     {
-        return pObject->mHandleId;
+        return PBL_HANDLE_ID(pObject);
     }
 
     Controllable* GetControllable(GameObject* pObject)
@@ -289,6 +289,7 @@ Ordnance::~Ordnance()
     DeactivateThread();
     if (mTrailEmitterObj)
     {
+        mTrailEmitterObj->DetachFromTarget();
         mTrailEmitterObj->DeactivateEffect();
     }
     mSoundOrdnance.Stop(true);

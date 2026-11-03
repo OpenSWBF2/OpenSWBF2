@@ -39,6 +39,7 @@ void WaterEffect::Cleanup()
     {
         if (m_waterEffects[i]->effect)
         {
+            m_waterEffects[i]->effect->DetachFromTarget();
             m_waterEffects[i]->effect->DeactivateEffect();
         }
     }

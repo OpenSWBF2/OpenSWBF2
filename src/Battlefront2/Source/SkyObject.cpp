@@ -34,7 +34,10 @@ void SkyObjectManager::Clear()
 // FUNCTION: SWBF2 0x00638d50
 void SkyObjectManager::Load(PblConfig& config)
 {
-    mObjectClasses[mNumObjectClasses++] = new SkyObjectClass(config);
+    if (mNumObjectClasses < 10)
+    {
+        mObjectClasses[mNumObjectClasses++] = new SkyObjectClass(config);
+    }
 }
 
 // FUNCTION: SWBF2 0x00638de0
