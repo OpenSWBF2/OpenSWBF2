@@ -126,6 +126,7 @@ LUA_API const char *lua_getlocal (lua_State *L, const lua_Debug *ar, int n) {
   fp = getluaproto(ci);
   if (fp) {
     name = luaF_getlocalname(fp, n, currentpc(ci));
+    if (name && n > fp->maxstacksize) name = NULL;
     if (name)
       luaA_pushobject(L, ci->base+(n-1));
   }
@@ -146,6 +147,7 @@ LUA_API const char *lua_setlocal (lua_State *L, const lua_Debug *ar, int n) {
   L->top--;
   if (fp) {
     name = luaF_getlocalname(fp, n, currentpc(ci));
+    if (n > fp->maxstacksize) name = NULL;
     if (!name || name[0] == '(')
       name = NULL;
     else
@@ -271,7 +273,8 @@ LUA_API int lua_getinfo (lua_State *L, const char *what, lua_Debug *ar) {
 static int precheck (const Proto *pt) {
   check(pt->maxstacksize <= MAXSTACK);
   check(pt->sizelineinfo == pt->sizecode || pt->sizelineinfo == 0);
-  lua_assert(pt->numparams+pt->is_vararg <= pt->maxstacksize);
+  check(pt->numparams+pt->is_vararg <= pt->maxstacksize);
+  check(pt->sizecode > 0);
   check(GET_OPCODE(pt->code[pt->sizecode-1]) == OP_RETURN);
   return 1;
 }
@@ -280,14 +283,24 @@ static int precheck (const Proto *pt) {
 // checkopenop
 static int checkopenop (const Proto *pt, int pc) {
   Instruction i = pt->code[pc+1];
+  int ia = GETARG_A(i);
+  int pa = GETARG_A(pt->code[pc]);
   switch (GET_OPCODE(i)) {
     case OP_CALL:
-    case OP_TAILCALL:
-    case OP_RETURN: {
+    case OP_TAILCALL: {
+      check(ia < pa);
       check(GETARG_B(i) == 0);
       return 1;
     }
-    case OP_SETLISTO: return 1;
+    case OP_RETURN: {
+      check(ia <= pa);
+      check(GETARG_B(i) == 0);
+      return 1;
+    }
+    case OP_SETLISTO: {
+      check(ia <= pa);
+      return 1;
+    }
     default: return 0;
   }
 }
@@ -300,9 +313,10 @@ static int checkRK (const Proto *pt, int r) {
 
 // LIBRARY: SWBF2 0x006a1d80
 // luaG_symbexec
-static Instruction luaG_symbexec (const Proto *pt, int lastpc, int reg) {
+static Instruction luaG_symbexec (const Proto *pt, int lastpc, int reg, int *badpc) {
   int pc;
   int last;
+  if (badpc) *badpc = -1;
   last = pt->sizecode-1;
   check(precheck(pt));
   for (pc = 0; pc < lastpc; pc++) {
@@ -311,6 +325,8 @@ static Instruction luaG_symbexec (const Proto *pt, int lastpc, int reg) {
     int a = GETARG_A(i);
     int b = 0;
     int c = 0;
+    if (badpc) *badpc = pc;
+    check(op < NUM_OPCODES);
     checkreg(pt, a);
     switch (getOpMode(op)) {
       case iABC: {
@@ -344,6 +360,7 @@ static Instruction luaG_symbexec (const Proto *pt, int lastpc, int reg) {
     }
     switch (op) {
       case OP_LOADBOOL: {
+        check(b <= 1);
         check(c == 0 || pc+2 < pt->sizecode);
         break;
       }
@@ -364,6 +381,7 @@ static Instruction luaG_symbexec (const Proto *pt, int lastpc, int reg) {
       }
       case OP_SELF: {
         checkreg(pt, a+1);
+        if (c >= MAXSTACK) check(ttisstring(&pt->k[c-MAXSTACK]));
         if (reg == a+1) last = pc;
         break;
       }
@@ -372,10 +390,15 @@ static Instruction luaG_symbexec (const Proto *pt, int lastpc, int reg) {
         check(c < MAXSTACK && b < c);
         break;
       }
+      case OP_NEWTABLE: {
+        check((b >> 3) <= 16);
+        break;
+      }
       case OP_TFORLOOP:
         checkreg(pt, a+c+5);
         if (reg >= a) last = pc;
 
+      case OP_TFORPREP:
       case OP_FORLOOP:
         checkreg(pt, a+2);
 
@@ -434,7 +457,11 @@ static Instruction luaG_symbexec (const Proto *pt, int lastpc, int reg) {
 // LIBRARY: SWBF2 0x006a1c10
 // luaG_checkcode
 int luaG_checkcode (const Proto *pt) {
-  return luaG_symbexec(pt, pt->sizecode, NO_REG);
+  return luaG_symbexec(pt, pt->sizecode, NO_REG, NULL);
+}
+
+int luaG_checkcodepc (const Proto *pt, int *badpc) {
+  return luaG_symbexec(pt, pt->sizecode, NO_REG, badpc);
 }
 
 // LIBRARY: SWBF2 0x006a1bb0
@@ -457,7 +484,7 @@ static const char *getobjname (CallInfo *ci, int stackpos, const char **name) {
     *name = luaF_getlocalname(p, stackpos+1, pc);
     if (*name)
       return "local";
-    i = luaG_symbexec(p, pc, stackpos);
+    i = luaG_symbexec(p, pc, stackpos, NULL);
     lua_assert(pc != -1);
     switch (GET_OPCODE(i)) {
       case OP_GETGLOBAL: {

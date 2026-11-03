@@ -17,5 +17,6 @@ int luaG_ordererror (lua_State *L, const TObject *p1, const TObject *p2);
 void luaG_runerror (lua_State *L, const char *fmt, ...);
 void luaG_errormsg (lua_State *L);
 int luaG_checkcode (const Proto *pt);
+int luaG_checkcodepc (const Proto *pt, int *badpc);
 
 #endif
