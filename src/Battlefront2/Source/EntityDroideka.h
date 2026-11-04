@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "Aimer.h"
@@ -38,7 +40,7 @@ class EntityDroidekaClass : public GameObjectClass,
 public:
 
     static PblHash rttiHashEntityDroidekaClass;
-    static char rttiNameEntityDroidekaClass[];
+    static const char rttiNameEntityDroidekaClass[];
 
     // FUNCTION: SWBF2 0x004294b0
     static unsigned int GetRtti() { return rttiHashEntityDroidekaClass; }
@@ -50,15 +52,15 @@ public:
 
     virtual EntityClass* Derive(unsigned int uHash);
     virtual Entity* Build(const EntityDesc& desc);
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
     virtual void PostReadSetup();
-    virtual int GetVehicleType();
-    virtual const void* GetControllableClass();
-    virtual int GetWeaponCount();
-    virtual const WeaponClass* GetWeaponClass(int iIndex);
+    virtual int GetVehicleType() const;
+    virtual const ControllableClass* GetControllableClass() const;
+    virtual int GetWeaponCount() const;
+    virtual const WeaponClass* GetWeaponClass(int iIndex) const;
     virtual bool InitAnimations(const char* pszBank);
 
 protected:
@@ -244,10 +246,18 @@ class NetObjState;
 class NetPktGroup;
 class Restrictor;
 
+// VTABLE: SWBF2 0x0079add4 CollisionObject
+// VTABLE: SWBF2 0x0079ae40 Damageable
+// VTABLE: SWBF2 0x0079ae6c Trackable
+// VTABLE: SWBF2 0x0079af04 PblHandled
+// VTABLE: SWBF2 0x0079af0c EntityEx
+// VTABLE: SWBF2 0x0079b044 RedSceneObject
+// VTABLE: SWBF2 0x0079b0ac Thread
+// VTABLE: SWBF2 0x0079b17c
 class EntityDroideka : public GameObject,
                        public Controllable,
-                       public PlayableEntitySounds,
-                       public VehicleEngine
+                       public VehicleEngine,
+                       public PlayableEntitySounds
 {
 public:
     enum eState
@@ -287,7 +297,8 @@ public:
     public:
 
         PostCollision(EntityDroideka* pOwner) : mOwner(pOwner) {}
-        virtual ~PostCollision();
+        // SYNTHETIC: SWBF2 0x0049e9f0
+        // EntityDroideka::PostCollision::~PostCollision
         virtual bool Update(float fDeltaTime);
 
         EntityDroideka* mOwner;
@@ -298,6 +309,8 @@ public:
     virtual ~EntityDroideka();
 
     static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
+    // SYNTHETIC: SWBF2 0x0049e3d0
+    // EntityDroideka::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
     virtual bool IsRtti(unsigned int uRtti) const;
@@ -443,7 +456,7 @@ public:
 
     static PblHash rttiHashEntityDroideka;
     static MemoryPool sMemoryPool;
-    static char rttiNameEntityDroideka[];
+    static const char rttiNameEntityDroideka[];
     static StateTableEntry sStateTable[];
 
     bool mCallUpdateWalkingGroundNormal;
@@ -487,7 +500,7 @@ public:
     float mStompTime;
     float mFallTimer;
 
-    unsigned char mEnergyBar[12];
+    EnergyBar mEnergyBar;
     PblHandle<FLEffectObject> mWakeEmitter;
     float mTurnState;
     float mBuffOffenseTimer;
@@ -561,3 +574,49 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x0049e370
+inline bool EntityDroideka::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashEntityDroideka == uRtti)
+    {
+        return true;
+    }
+    return GameObject::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x0049e3b0
+inline unsigned int EntityDroideka::GetDerivedRtti() const
+{
+    return rttiHashEntityDroideka;
+}
+
+// FUNCTION: SWBF2 0x0049e3c0
+inline const char* EntityDroideka::GetDerivedRttiName() const
+{
+    return rttiNameEntityDroideka;
+}
+
+// FUNCTION: SWBF2 0x0049ea00
+inline bool EntityDroidekaClass::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashEntityDroidekaClass == uRtti)
+    {
+        return true;
+    }
+    return GameObjectClass::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x0049ea40
+inline unsigned int EntityDroidekaClass::GetDerivedRtti() const
+{
+    return rttiHashEntityDroidekaClass;
+}
+
+// FUNCTION: SWBF2 0x0049ea50
+inline const char* EntityDroidekaClass::GetDerivedRttiName() const
+{
+    return rttiNameEntityDroidekaClass;
+}
+
+

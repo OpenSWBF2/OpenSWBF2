@@ -13,7 +13,8 @@ public:
 
     explicit PortalReader(IManager& manager);
 
-    ~PortalReader();
+    // SYNTHETIC: SWBF2 0x00579920
+    // pvs::PortalReader::~PortalReader
 
     void Read(IManager& manager, PblConfig& config);
 

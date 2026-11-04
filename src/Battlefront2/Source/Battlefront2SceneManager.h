@@ -8,7 +8,8 @@ class FrontlineSceneManager : public RedSceneManager
 public:
 
     FrontlineSceneManager();
-    virtual ~FrontlineSceneManager();
+    // SYNTHETIC: SWBF2 0x00448920
+    // FrontlineSceneManager::`scalar deleting destructor'
 
 protected:
     virtual void BeginSceneRender();

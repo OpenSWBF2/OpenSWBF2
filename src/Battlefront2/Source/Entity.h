@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 class PblFileChunk;
 
 #include <stddef.h>
@@ -7,6 +9,7 @@ class PblFileChunk;
 #include "Factory.h"
 #include "PebbleFL/Common/PblHashTable.h"
 #include "PebbleFL/Common/PblMatrix.h"
+#include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblPtrSet.h"
 
 class Entity;
@@ -21,7 +24,9 @@ struct EntityDesc
     // FUNCTION: SWBF2 0x00443f10
     EntityDesc()
         : mMatrix(*reinterpret_cast<const PblMatrix*>(&gMatrixIdentity)),
-          mNameId(0), mPlayerId(-1), mPriority(0.001f) {}
+mNameId(0), mPlayerId(-1), mPriority(0.001f)
+{
+}
 
     PblMatrix mMatrix;
     unsigned int mNameId;
@@ -37,7 +42,7 @@ public:
     Entity() {}
 
     // FUNCTION: SWBF2 0x00443ea0
-    virtual bool IsRtti(unsigned int uRtti) const { return uRtti == rttiHashEntity; }
+    virtual bool IsRtti(unsigned int uRtti) const { return rttiHashEntity == uRtti; }
     // FUNCTION: SWBF2 0x00458a00
     virtual unsigned int GetDerivedRtti() const { return rttiHashEntity; }
     // FUNCTION: SWBF2 0x00458a10
@@ -64,7 +69,7 @@ public:
     static PblHash rttiHashEntity;
 
     static unsigned int GetRtti() { return rttiHashEntity; }
-    static char rttiNameEntity[];
+    static const char rttiNameEntity[];
 };
  
 
@@ -86,6 +91,7 @@ public:
     // FUNCTION: SWBF2 0x00443f00
     virtual const EntityClass* GetEntityClass() const { return mEntityClass; }
 
+    // FUNCTION: SWBF2 0x0047a670
     unsigned int GetId() const { return mId; }
 
     unsigned int mId;
@@ -94,8 +100,7 @@ public:
     static PblHash rttiHashEntityEx;
 
     static unsigned int GetRtti() { return rttiHashEntityEx; }
-    static char rttiNameEntityEx[];
-    static int mIdMapNumEntries;
+    static const char rttiNameEntityEx[];
     static PblHashTable<EntityEx, 1024> mIdMap;
     static PblPtrSet<32768> sLive;
 
@@ -114,6 +119,7 @@ private:
  
  
 
+// VTABLE: SWBF2 0x00799328
 class EntityClass : public Factory<Entity, EntityClass, EntityDesc>
 {
 public:
@@ -123,7 +129,8 @@ public:
     class MapParams
     {
     public:
-        MapParams();
+        MapParams(float scale = 1.0f, float speedMin = 10.0f, float speedMax = 100.0f,
+                  float viewRangeMin = 125.0f, float viewRangeMax = 250.0f);
 
         float mScale;
         float mSpeedMin;
@@ -142,14 +149,14 @@ public:
     EntityClass(EntityClass* pParent, unsigned int uHash);
 
     virtual ~EntityClass();
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
     virtual void PostReadSetup();
 
     static PblHash rttiHashEntityClass;
-    static char rttiNameEntityClass[];
+    static const char rttiNameEntityClass[];
 
     unsigned short* mLabel;
     unsigned int mIconTexture;
@@ -177,3 +184,59 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x00443f60
+inline bool EntityClass::IsRtti(unsigned int uRtti) const
+{
+    return rttiHashEntityClass == uRtti;
+}
+
+// FUNCTION: SWBF2 0x0048ec00
+inline unsigned int EntityClass::GetDerivedRtti() const
+{
+    return rttiHashEntityClass;
+}
+
+// FUNCTION: SWBF2 0x0048ec10
+inline const char* EntityClass::GetDerivedRttiName() const
+{
+    return rttiNameEntityClass;
+}
+
+// FUNCTION: SWBF2 0x00443ec0
+inline bool EntityEx::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashEntityEx == uRtti)
+    {
+        return true;
+    }
+    return Entity::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x00491700
+inline unsigned int EntityEx::GetDerivedRtti() const
+{
+    return rttiHashEntityEx;
+}
+
+// FUNCTION: SWBF2 0x00491710
+inline const char* EntityEx::GetDerivedRttiName() const
+{
+    return rttiNameEntityEx;
+}
+
+inline EntityClass::MapParams::MapParams(float scale, float speedMin, float speedMax,
+                                         float viewRangeMin, float viewRangeMax)
+{
+    mScale = scale;
+    mSpeedMin = speedMin;
+    mSpeedMax = speedMax;
+    mViewRangeMin = viewRangeMin;
+    mViewRangeMax = viewRangeMax;
+    mTexture = 0;
+    mTargetFadeTime = 32.0f;
+    mRangeOverall = 15.0f;
+    mRangeShooting = 1000.0f;
+    mRangeViewCone = 60.0f;
+    mViewConeCosine = PblMath::Cos(0.41887903f);
+}

@@ -25,14 +25,14 @@ enum HealthType
     NUM_HEALTH_TYPES = 8
 };
 
-class DamageOwner
+struct DamageOwner
 {
 public:
 
     DamageOwner() {}
 
     DamageOwner(Character* pCharacter, GameObject* pGameObject, int iTeam,
-                EntityClass* pClass, WeaponClass* pWeapon, float fDamageMultiplier);
+                const EntityClass* pClass, const WeaponClass* pWeapon, float fDamageMultiplier);
 
     DamageOwner& operator=(const DamageOwner& other);
 
@@ -42,8 +42,8 @@ public:
     Character* mCharacter;
     PblHandle<GameObject> mGameObject;
     int mTeam;
-    EntityClass* mClass;
-    WeaponClass* mWeapon;
+    const EntityClass* mClass;
+    const WeaponClass* mWeapon;
     float mDamageMultiplier;
 };
  
@@ -72,6 +72,7 @@ public:
  
  
 
+// VTABLE: SWBF2 0x00798dcc
 class Damageable
 {
 public:
@@ -83,6 +84,7 @@ public:
     virtual ~Damageable();
     virtual void Kill();
     virtual void Respawn();
+    void ResetStatus();
     virtual GameObject* GetGameObject();
     virtual const GameObject* GetGameObject() const;
     virtual bool ApplyDamage(const DamageDesc& damage, const PblVector3& vDir, const PblVector3& vPos, int iBodyPart, unsigned int uFlags);
@@ -99,6 +101,7 @@ public:
 
     void SetAIDamageThreshold(float fThreshold) { mAIDamageThreshold = fThreshold; }
 
+    // FUNCTION: SWBF2 0x00450380
     void InstantVanish()
     {
         mIsAlive = false;
@@ -156,3 +159,34 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x00488530
+inline DamageOwner& DamageOwner::operator=(const DamageOwner& other)
+{
+    mCharacter = other.mCharacter;
+    mGameObject = other.mGameObject;
+    mTeam = other.mTeam;
+    mClass = other.mClass;
+    mWeapon = other.mWeapon;
+    mDamageMultiplier = other.mDamageMultiplier;
+    return *this;
+}
+
+// FUNCTION: SWBF2 0x00438a40
+inline DamageDesc::DamageDesc(DamageOwner owner, float fBaseValue)
+    : mDamageOwner(owner), mBaseValue(fBaseValue)
+{
+    for (int i = 0; i < 8; ++i)
+    {
+        mHealthScale[i] = 1.0f;
+    }
+    mShieldScale = 1.0f;
+}
+
+// FUNCTION: SWBF2 0x004922b0
+inline void Damageable::ResetStatus()
+{
+    mCurHealth = mMaxHealth;
+    mCurShield = mMaxShield;
+    mDamageOwner = DamageOwner(0, 0, 0, 0, 0, 1.0f);
+}

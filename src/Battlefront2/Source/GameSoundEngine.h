@@ -1,7 +1,5 @@
 #pragma once
 
-#include <stddef.h>
-
 #include "SoundFL/source/sndenginebase.h"
 
 extern bool gSoundEnabled;
@@ -29,14 +27,17 @@ void Term(bool);
 
 }
 
-void* __cdecl SndAlloc(size_t uiSize);
+void* __cdecl SndAlloc(unsigned int uiSize);
 void __cdecl SndFree(void* pBlock);
 void* __cdecl SndTempAlloc(unsigned int uiSize);
 void __cdecl SndTempFree(void* pBlock);
 
 void __cdecl PrintDebugString(char const* pcMessage);
 
-namespace GameSoundEngine { bool __cdecl UseKmixer(); }
+namespace GameSoundEngine
+{
+bool __cdecl UseKmixer();
+}
 
 namespace GameSoundEngine
 {

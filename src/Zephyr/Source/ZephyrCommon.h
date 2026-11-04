@@ -11,14 +11,6 @@
 
 struct ZephyrTransform
 {
-    ZephyrTransform()
-    {
-        kQuat._fX = 0.0f;
-        kQuat._fY = 0.0f;
-        kQuat._fZ = 0.0f;
-        kQuat._fS = 1.0f;
-    }
-
     bool IsValid() const { return kQuat._fS != 1000000.0f; }
 
     PblQuaternion kQuat;

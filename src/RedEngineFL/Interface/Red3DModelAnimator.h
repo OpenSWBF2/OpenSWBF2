@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "PebbleFL/Common/PblHashTable.h"
@@ -47,7 +49,7 @@ public:
     void SetAnimationTime(float fTime) { mAnimationTime = fTime; }
 
     static PblHash rttiHashRed3DModelAnimator;
-    static char rttiNameRed3DModelAnimator[];
+    static const char rttiNameRed3DModelAnimator[];
 
 protected:
     const ZephyrAnim* FindAnimation(unsigned int uAnimHash);
@@ -82,3 +84,25 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x0056a110
+inline bool Red3DModelAnimator::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashRed3DModelAnimator == uRtti)
+    {
+        return true;
+    }
+    return false;
+}
+
+// FUNCTION: SWBF2 0x006f83a0
+inline unsigned int Red3DModelAnimator::GetDerivedRtti() const
+{
+    return rttiHashRed3DModelAnimator;
+}
+
+// FUNCTION: SWBF2 0x006f83b0
+inline const char* Red3DModelAnimator::GetDerivedRttiName() const
+{
+    return rttiNameRed3DModelAnimator;
+}

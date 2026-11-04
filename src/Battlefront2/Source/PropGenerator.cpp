@@ -34,24 +34,29 @@ bool mInitFlag;
 // GLOBAL: SWBF2 0x01eaeff4
 bool mLoaded;
 
-// GLOBAL: SWBF2 0x01f03000
 // SYNTHETIC: SWBF2 0x00406060
-// `dynamic initializer for 'PropGenerator::mPropLayers''
+// PropGenerator::`dynamic initializer for 'mPropLayers''
 // SYNTHETIC: SWBF2 0x00769360
-// `dynamic atexit destructor for 'PropGenerator::mPropLayers''
+// PropGenerator::`dynamic atexit destructor for 'mPropLayers''
+
+// GLOBAL: SWBF2 0x01f03000
+// mPropLayers
 PropLayer mPropLayers[4];
 
-// GLOBAL: SWBF2 0x01f03250
 // SYNTHETIC: SWBF2 0x00406090
 // `dynamic initializer for 'PropGenerator::m_amCamera''
 
+// GLOBAL: SWBF2 0x01f03250
+// m_amCamera
 PblMatrix m_amCamera[1];
 
-// GLOBAL: SWBF2 0x01efd044
 // SYNTHETIC: SWBF2 0x004060a0
-// `dynamic initializer for 'PropGenerator::mThread''
+// PropGenerator::`dynamic initializer for 'mThread''
 // SYNTHETIC: SWBF2 0x00769380
-// `dynamic atexit destructor for 'PropGenerator::mThread''
+// PropGenerator::`dynamic atexit destructor for 'mThread''
+
+// GLOBAL: SWBF2 0x01efd044
+// mThread
 PropGeneratorThread mThread;
 
 // GLOBAL: SWBF2 0x01eaefcc
@@ -114,29 +119,29 @@ static const float mRandValues[256] = {
 
 static const float MAX_CLUSTER_DISTANCE = 100.0f;
 
-// GLOBAL: SWBF2 0x01efce04
 // SYNTHETIC: SWBF2 0x004060c0
 // `dynamic initializer for 'afScore''
 // SYNTHETIC: SWBF2 0x00769390
 // `dynamic atexit destructor for 'afScore''
+
+// GLOBAL: SWBF2 0x01efce04
+// afScore
 static util::Vector<float> afScore;
 
-// FUNCTION: SWBF2 0x0062b8e0
+// TEMPLATE: SWBF2 0x0062b8e0
+// util::BaseArray<float,util::TNewArrayAlloc<float> >::Reserve_
 template bool util::BaseArray<float>::Reserve_(int, bool);
 
-// FUNCTION: SWBF2 0x0062ba60
+// TEMPLATE: SWBF2 0x0062ba60
+// util::TypedArrayAllocator<float,util::NewAllocator>::Allocate_
 template float* util::TypedArrayAllocator<float, util::NewAllocator>::Allocate_(int& riCount);
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
+
 
 // FUNCTION: SWBF2 0x0062a010
 void PropGenerator::Init()
 {
-    m_amCamera[0] = _IdentityMatrix;
+    m_amCamera[0] = gMatrixIdentity;
     mLayerCellWidth = 16.0f;
     mLayerCellWidthAspect = 1.0f / 16.0f;
     mLayerMapWidth = 512;
@@ -192,6 +197,7 @@ bool PropGenerator::PropGeneratorThread::Update(float fDeltaTime)
 // PropGenerator::PropGeneratorThread::`scalar deleting destructor'
 
 // GLOBAL: SWBF2 0x007e9039
+// flushClusterObjs_
 bool flushClusterObjs_ = true;
 
 // FUNCTION: SWBF2 0x0062a180
@@ -513,7 +519,10 @@ void PropGenerator::Update()
     ResetClusterRenderedFlags();
 }
 
-namespace TreeLine { void CreateTreeLine(PblFileChunk& chunk); }
+namespace TreeLine
+{
+void CreateTreeLine(PblFileChunk& chunk);
+}
 void CreateTreeLineOnPath(unsigned int uPathName, PblFileChunk& chunk);
 
 // FUNCTION: SWBF2 0x0065c890
@@ -569,7 +578,7 @@ void CreateTreeLineOnPath(unsigned int uPathName, PblFileChunk& chunk)
     const float fSpacingSquared = fSpacing * fSpacing;
     for (int iPoint = 1; iPoint < pPath->GetNumPoints(); ++iPoint)
     {
-        const PblVector3& vEnd = pPath->GetPointPosition(iPoint);
+        const PblVector3 vEnd = pPath->GetPointPosition(iPoint);
         PblVector3 vDelta(vEnd.x - vPrevious.x, vEnd.y - vPrevious.y, vEnd.z - vPrevious.z);
         while (vDelta.x * vDelta.x + vDelta.y * vDelta.y + vDelta.z * vDelta.z > fSpacingSquared)
         {
@@ -911,10 +920,12 @@ const RedLodData* PropGenerator::GetLodData(int iIndex)
     return pBest;
 }
 
-// FUNCTION: SWBF2 0x0062b810
+// TEMPLATE: SWBF2 0x0062b810
+// util::Vector<float,util::BaseArray<float,util::TNewArrayAlloc<float> > >::SetSize
 template bool util::Vector<float>::SetSize(int);
 
-namespace PropGenerator {
+namespace PropGenerator
+{
 
 // FUNCTION: SWBF2 0x0062b660
 void GetTerrainYAndNormal(float x, float z, float& y, PblVector3& vNormal)

@@ -11,18 +11,16 @@
 #include "Zephyr/Source/ZephyrPoseStatic.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 
-// GLOBAL: SWBF2 0x01f9a7e0
 // SYNTHETIC: SWBF2 0x00406fe0
 // `dynamic initializer for 'WalkerLegPair::sMemoryPool''
 // SYNTHETIC: SWBF2 0x007697c0
 // `dynamic atexit destructor for 'WalkerLegPair::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01f9a7e0
+// WalkerLegPair::sMemoryPool
 MemoryPool WalkerLegPair::sMemoryPool("WalkerLegPair", 0x130);
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
+
 
 // FUNCTION: SWBF2 0x00676770
 float WalkerLegPair::GetTurnState()
@@ -80,7 +78,7 @@ WalkerLegPair::WalkerLegPair(EntityWalker* pParent, const WalkerLegPairInfo& inf
     mLegJoints[Left] = info.mLegJoints[Left];
     mLegJoints[Right] = info.mLegJoints[Right];
 
-    PblQuaternion identity(0.0f, 0.0f, 0.0f, 1.0f);
+    PblQuaternion identity(1.0f, 0.0f, 0.0f, 0.0f);
     mLegAdjustments[Left] = identity;
     mLegAdjustments[Right] = identity;
     mBlendFactor = 0.0f;
@@ -102,8 +100,8 @@ void WalkerLegPair::BuildBlendLookupTable()
     {
         mBlend->mUnits[1]->mWeight = fBlend;
         mBlend->Blend(mParent->mZephyrPoseStatic);
-        mParent->mZephyrSkeleton.BuildWorldMatrices(_IdentityMatrix);
-        *pEntry++ = pModel->GetWorldMatrix(mFootCollisionBody[Left], _IdentityMatrix,
+        mParent->mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity);
+        *pEntry++ = pModel->GetWorldMatrix(mFootCollisionBody[Left], gMatrixIdentity,
                                            mParent->GetPose()).m[3][1];
         fBlend += 0.125f;
     } while (fBlend <= 1.0f);
@@ -116,7 +114,7 @@ void WalkerLegPair::BuildBlendLookupTable()
 
     mBlend->mUnits[1]->mWeight = 0.0f;
     mBlend->Blend(mParent->mZephyrPoseStatic);
-    mParent->mZephyrSkeleton.BuildWorldMatrices(_IdentityMatrix);
+    mParent->mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity);
     mBlend->mUnits[0]->mMask.SetAll();
     mBlend->mUnits[1]->mMask.SetAll();
     mBlend->mUnits[2]->mMask.SetAll();
@@ -242,7 +240,7 @@ void WalkerLegPair::ApplyBlend()
 // FUNCTION: SWBF2 0x006767d0
 void WalkerLegPair::CorrectJoints()
 {
-    PblQuaternion kAdjust(-mParent->mPitchOffset.mSin, 0.0f, 0.0f, mParent->mPitchOffset.mCos);
+    PblQuaternion kAdjust(mParent->mPitchOffset.mCos, -mParent->mPitchOffset.mSin, 0.0f, 0.0f);
     AdjustLeg(Left, kAdjust);
     AdjustLeg(Right, kAdjust);
 }

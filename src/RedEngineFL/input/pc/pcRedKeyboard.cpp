@@ -4,6 +4,24 @@
 #include "RedEngineFL/input/RedInputEventHandler.h"
 #include "PebbleFL/Common/PblJournal.h"
 #include "PebbleFL/Common/PblUnicode.h"
+#include "PebbleFL/Common/PblValues.h"
+
+// GLOBAL: SWBF2 0x00772cd0
+// __xmm@2a3826375e3625352434233340322131
+// GLOBAL: SWBF2 0x00772ce0
+// __xmm@2b2b3636353534342d2d003900380037
+// GLOBAL: SWBF2 0x00772cf0
+// __xmm@4b6b4a6a486847674666446453734161
+// GLOBAL: SWBF2 0x00772d00
+// __xmm@4d6d4e6e42625676436358785a7a7c5c
+// GLOBAL: SWBF2 0x00772d10
+// __xmm@50704f6f496955755979547452724565
+// GLOBAL: SWBF2 0x00772d20
+// __xmm@57775171090908082b3d5f2d29302839
+// GLOBAL: SWBF2 0x00787494
+// GUID_SysKeyboard
+// GLOBAL: SWBF2 0x007879bc
+// c_dfDIKeyboard
 
 void __cdecl PblTraceP(const char* Format, ...);
 
@@ -11,9 +29,13 @@ extern HWND hGlobalWnd;
 
 typedef LONG(WINAPI* RtlGetVersionFn)(OSVERSIONINFOW*);
 
+// GLOBAL: SWBF2 0x00960c10
 char sAsciiCodeMap[256][2];
+// GLOBAL: SWBF2 0x00960e10
 unsigned char sRedKeyMap[256];
+// GLOBAL: SWBF2 0x00960f10
 float s_keyRepeatDelay;
+// GLOBAL: SWBF2 0x00960f14
 float s_keyRepeatSpeed;
 
 // FUNCTION: SWBF2 0x006c6230
@@ -204,8 +226,7 @@ unsigned short AnsiToUnicode(char cAnsi)
 unsigned char RedKeyboard::pcGetAsciiValue(unsigned int uiScanCode)
 {
 
-    unsigned short achChar[10];
-    memset(achChar, 0, sizeof(achChar));
+    unsigned short achChar[10] = { 0 };
 
     UINT uVirtKey = MapVirtualKeyA(uiScanCode, MAPVK_VSC_TO_VK);
 
@@ -244,20 +265,20 @@ unsigned char RedKeyboard::pcGetAsciiValue(unsigned int uiScanCode)
     if (iCount != 0)
     {
 
-        const unsigned char cChar = (unsigned char)uiChar;
+        unsigned char cChar = (unsigned char)uiChar;
 
         if (cChar >= 0xAC && cChar <= 0xB8)
         {
             if (cChar == 0xAC || cChar == 0xB1 || cChar == 0xB2
                 || cChar == 0xB3 || cChar == 0xB4 || cChar == 0xB8)
             {
-                return 0;
+                cChar = 0;
             }
         }
 
         else if (cChar == 0xFE)
         {
-            return 0;
+            cChar = 0;
         }
 
         return cChar;
@@ -304,10 +325,15 @@ void RedKeyboard::Update(float fDeltaTime)
 
     if (FAILED(pc_pKeyboardDevice->Poll()))
     {
-        while (pc_pKeyboardDevice->Acquire() == DIERR_INPUTLOST)
-            ;
+        HRESULT hr = pc_pKeyboardDevice->Acquire();
+        while (hr == DIERR_INPUTLOST)
+        {
+            hr = pc_pKeyboardDevice->Acquire();
+        }
         return;
     }
+
+    PblValues::Record(0x141, PVT_FULL);
 
     unsigned char aucOldKeys[256];
     memcpy(aucOldKeys, pc_DownKeys, sizeof(aucOldKeys));
@@ -400,8 +426,8 @@ unsigned short RedKeyboard::GetFlags()
 bool RedKeyboard::pcGetKeyName(unsigned int uiKey, unsigned short* pusName, unsigned int uiSize)
 {
     DIPROPSTRING dips;
-    dips.diph.dwSize = sizeof(DIPROPSTRING);
     dips.diph.dwHeaderSize = sizeof(DIPROPHEADER);
+    dips.diph.dwSize = sizeof(DIPROPSTRING);
     dips.diph.dwObj = uiKey;
     dips.diph.dwHow = DIPH_BYOFFSET;
     memset(dips.wsz, 0, sizeof(dips.wsz));
@@ -409,13 +435,12 @@ bool RedKeyboard::pcGetKeyName(unsigned int uiKey, unsigned short* pusName, unsi
     HRESULT hr = pc_pKeyboardDevice->GetProperty(DIPROP_KEYNAME, &dips.diph);
     dips.wsz[MAX_PATH - 1] = 0;
     PblUnicode::ustrlcpy(pusName, (const unsigned short*)dips.wsz, uiSize);
-    if (hr != DI_OK)
+    if (hr == DI_OK)
     {
-        return false;
+        PblJournal::Get(PJT_FULL);
+        return true;
     }
-
-    PblJournal::Get(PJT_FULL);
-    return true;
+    return false;
 }
 
 // FUNCTION: SWBF2 0x006c6120

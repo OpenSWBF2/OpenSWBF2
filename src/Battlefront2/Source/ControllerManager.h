@@ -6,7 +6,10 @@ class Controller;
 class PblVector3;
 class PlayerController;
 class UnitController;
-namespace AI { class EventInfo; }
+namespace AI
+{
+class EventInfo;
+}
 
 template <class TYPE, class KEY> class PblOrderedList;
 

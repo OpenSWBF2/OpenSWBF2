@@ -5,7 +5,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <stddef.h>
 
 #include "sndengine.h"
 
@@ -24,6 +23,13 @@
 #include "sndsoftoutput.h"
 #include "sndstream.h"
 #include "sndvoice.h"
+
+// GLOBAL: SWBF2 0x007874a4
+// DSDEVID_DefaultPlayback
+// GLOBAL: SWBF2 0x007874e4
+// IID_IDirectSound8
+// GLOBAL: SWBF2 0x007874f4
+// IID_IDirectSound3DListener
 
 // FUNCTION: SWBF2 0x00731830
 template <> void Snd::Allocator<Snd::SoftOutput>::operator delete(void* p, void*, bool)
@@ -64,12 +70,12 @@ extern const GUID kEAX30BufferPropertySet =
     { 0x1B86B823, 0x22DF, 0x4EAE, { 0x8B, 0x3C, 0x12, 0x78, 0xCE, 0x54, 0x42, 0x27 } };
 // GLOBAL: SWBF2 0x00787cbc
 
-static const GUID kEAX20ListenerPropertySet =
+extern const GUID kEAX20ListenerPropertySet =
     { 0x0CF95C8F, 0xA3CC, 0x4849, { 0xB0, 0xB6, 0x83, 0x2E, 0xCC, 0x18, 0x22, 0xDF } };
 
 // GLOBAL: SWBF2 0x00787dbc
 
-static const GUID kAlternateDirectSoundClassId =
+extern const GUID kAlternateDirectSoundClassId =
     { 0xCA503B60, 0xB176, 0x11D4, { 0xA0, 0x94, 0xD0, 0xC0, 0xBF, 0x3A, 0x56, 0x0C } };
 
 // GLOBAL: SWBF2 0x009cfda0
@@ -123,11 +129,13 @@ SoftOutput* Engine::smSoftOutput;
 // GLOBAL: SWBF2 0x009d7e50
 HWND Engine::smApplicationWindow;
 
-// GLOBAL: SWBF2 0x009d7e68
 // SYNTHETIC: SWBF2 0x0040b500
 // `dynamic initializer for 'Snd::Engine::smDummySecBuffer''
 // SYNTHETIC: SWBF2 0x0076a160
 // `dynamic atexit destructor for 'Snd::Engine::smDummySecBuffer''
+
+// GLOBAL: SWBF2 0x009d7e68
+// Engine::smDummySecBuffer
 DSBuffer Engine::smDummySecBuffer;
 
 // GLOBAL: SWBF2 0x007e3310
@@ -135,11 +143,13 @@ bool Engine::smErrorsEnabled = true;
 // GLOBAL: SWBF2 0x007e3314
 float Engine::smMinStreamBufferSize = 100.0f;
 
-// GLOBAL: SWBF2 0x009d7eac
 // SYNTHETIC: SWBF2 0x0040b560
-// `dynamic initializer for 'Snd::sndEngineThreadUpdate''
+// Snd::`dynamic initializer for 'sndEngineThreadUpdate''
 // SYNTHETIC: SWBF2 0x0076a1a0
-// `dynamic atexit destructor for 'Snd::sndEngineThreadUpdate''
+// Snd::`dynamic atexit destructor for 'sndEngineThreadUpdate''
+
+// GLOBAL: SWBF2 0x009d7eac
+// sndEngineThreadUpdate
 ThreadUpdate sndEngineThreadUpdate(0, 0x2000);
 
 // GLOBAL: SWBF2 0x009cf4b0
@@ -240,9 +250,10 @@ void Engine::PrintDSError(long hr, const char* pcFile, unsigned int uiLine)
 
     switch (hr)
     {
-    case DSERR_UNSUPPORTED:
-
-        return;
+    case DSERR_ACCESSDENIED:
+        PrintDebugMessage("DirectSound Error: The request failed because "
+                          "access was denied.\n", pcFile, uiLine);
+        break;
 
     case DSERR_ALLOCATED:
         PrintDebugMessage("DirectSound Error: The request failed because "
@@ -250,39 +261,9 @@ void Engine::PrintDSError(long hr, const char* pcFile, unsigned int uiLine)
                           "in use by another caller. \n", pcFile, uiLine);
         break;
 
-    case DSERR_CONTROLUNAVAIL:
-        PrintDebugMessage("DirectSound Error: The buffer control (volume, "
-                          "pan, and so on) requested by the caller is not "
-                          "available. \n", pcFile, uiLine);
-        break;
-
-    case DSERR_INVALIDPARAM:
-        PrintDebugMessage("DirectSound Error: An invalid parameter was passed "
-                          "to the returning function. \n", pcFile, uiLine);
-        break;
-
-    case DSERR_INVALIDCALL:
-        PrintDebugMessage("DirectSound Error: This function is not valid for "
-                          "the current state of this object. \n",
-                          pcFile, uiLine);
-        break;
-
-    case DSERR_GENERIC:
-        PrintDebugMessage("DirectSound Error: An undetermined error occurred "
-                          "inside the DirectSound subsystem. \n",
-                          pcFile, uiLine);
-        break;
-
-    case DSERR_PRIOLEVELNEEDED:
-        PrintDebugMessage("DirectSound Error: The caller does not have the "
-                          "priority level required for the function to "
-                          "succeed. \n", pcFile, uiLine);
-        break;
-
-    case DSERR_OUTOFMEMORY:
-        PrintDebugMessage("DirectSound Error: The DirectSound subsystem could "
-                          "not allocate sufficient memory to complete the "
-                          "caller's request. \n", pcFile, uiLine);
+    case DSERR_ALREADYINITIALIZED:
+        PrintDebugMessage("DirectSound Error: The object is already "
+                          "initialized. \n", pcFile, uiLine);
         break;
 
     case DSERR_BADFORMAT:
@@ -290,20 +271,10 @@ void Engine::PrintDSError(long hr, const char* pcFile, unsigned int uiLine)
                           "not supported.\n", pcFile, uiLine);
         break;
 
-    case DSERR_NODRIVER:
-        PrintDebugMessage("DirectSound Error: No sound driver is available "
-                          "for use, or the given GUID is not a valid "
-                          "DirectSound device ID. \n", pcFile, uiLine);
-        break;
-
-    case DSERR_ALREADYINITIALIZED:
-        PrintDebugMessage("DirectSound Error: The object is already "
-                          "initialized. \n", pcFile, uiLine);
-        break;
-
-    case DSERR_NOAGGREGATION:
-        PrintDebugMessage("DirectSound Error: The object does not support "
-                          "aggregation. \n", pcFile, uiLine);
+    case DSERR_BADSENDBUFFERGUID:
+        PrintDebugMessage("DirectSound Error: The GUID specified in an "
+                          "audiopath file does not match a valid mix-in "
+                          "buffer.\n", pcFile, uiLine);
         break;
 
     case DSERR_BUFFERLOST:
@@ -311,33 +282,16 @@ void Engine::PrintDSError(long hr, const char* pcFile, unsigned int uiLine)
                           "and must be restored.\n", pcFile, uiLine);
         break;
 
-    case DSERR_OTHERAPPHASPRIO:
-        PrintDebugMessage("DirectSound Error: Another application has a "
-                          "higher priority level, preventing this call from "
-                          "succeeding. \n", pcFile, uiLine);
-        break;
-
-    case DSERR_UNINITIALIZED:
-        PrintDebugMessage("DirectSound Error: The IDirectSound8::Initialize "
-                          "method has not been called or has not been called "
-                          "successfully before other methods were called. \n",
-                          pcFile, uiLine);
-        break;
-
-    case DSERR_NOINTERFACE:
-        PrintDebugMessage("DirectSound Error: The requested COM interface is "
-                          "not available. \n", pcFile, uiLine);
-        break;
-
-    case DSERR_ACCESSDENIED:
-        PrintDebugMessage("DirectSound Error: The request failed because "
-                          "access was denied.\n", pcFile, uiLine);
-        break;
-
     case DSERR_BUFFERTOOSMALL:
         PrintDebugMessage("DirectSound Error: The buffer size is not great "
                           "enough to enable effects processing. \n",
                           pcFile, uiLine);
+        break;
+
+    case DSERR_CONTROLUNAVAIL:
+        PrintDebugMessage("DirectSound Error: The buffer control (volume, "
+                          "pan, and so on) requested by the caller is not "
+                          "available. \n", pcFile, uiLine);
         break;
 
     case DSERR_DS8_REQUIRED:
@@ -354,21 +308,77 @@ void Engine::PrintDSError(long hr, const char* pcFile, unsigned int uiLine)
                           "software. \n", pcFile, uiLine);
         break;
 
-    case DSERR_SENDLOOP:
-        PrintDebugMessage("DirectSound Error: A circular loop of send effects "
-                          "was detected. \n", pcFile, uiLine);
+    case DSERR_GENERIC:
+        PrintDebugMessage("DirectSound Error: An undetermined error occurred "
+                          "inside the DirectSound subsystem. \n",
+                          pcFile, uiLine);
         break;
 
-    case DSERR_BADSENDBUFFERGUID:
-        PrintDebugMessage("DirectSound Error: The GUID specified in an "
-                          "audiopath file does not match a valid mix-in "
-                          "buffer.\n", pcFile, uiLine);
+    case DSERR_INVALIDCALL:
+        PrintDebugMessage("DirectSound Error: This function is not valid for "
+                          "the current state of this object. \n",
+                          pcFile, uiLine);
+        break;
+
+    case DSERR_INVALIDPARAM:
+        PrintDebugMessage("DirectSound Error: An invalid parameter was passed "
+                          "to the returning function. \n", pcFile, uiLine);
+        break;
+
+    case DSERR_NOAGGREGATION:
+        PrintDebugMessage("DirectSound Error: The object does not support "
+                          "aggregation. \n", pcFile, uiLine);
+        break;
+
+    case DSERR_NODRIVER:
+        PrintDebugMessage("DirectSound Error: No sound driver is available "
+                          "for use, or the given GUID is not a valid "
+                          "DirectSound device ID. \n", pcFile, uiLine);
+        break;
+
+    case DSERR_NOINTERFACE:
+        PrintDebugMessage("DirectSound Error: The requested COM interface is "
+                          "not available. \n", pcFile, uiLine);
         break;
 
     case DSERR_OBJECTNOTFOUND:
         PrintDebugMessage("DirectSound Error: The requested object was not "
                           "found. \n", pcFile, uiLine);
         break;
+
+    case DSERR_OTHERAPPHASPRIO:
+        PrintDebugMessage("DirectSound Error: Another application has a "
+                          "higher priority level, preventing this call from "
+                          "succeeding. \n", pcFile, uiLine);
+        break;
+
+    case DSERR_OUTOFMEMORY:
+        PrintDebugMessage("DirectSound Error: The DirectSound subsystem could "
+                          "not allocate sufficient memory to complete the "
+                          "caller's request. \n", pcFile, uiLine);
+        break;
+
+    case DSERR_PRIOLEVELNEEDED:
+        PrintDebugMessage("DirectSound Error: The caller does not have the "
+                          "priority level required for the function to "
+                          "succeed. \n", pcFile, uiLine);
+        break;
+
+    case DSERR_SENDLOOP:
+        PrintDebugMessage("DirectSound Error: A circular loop of send effects "
+                          "was detected. \n", pcFile, uiLine);
+        break;
+
+    case DSERR_UNINITIALIZED:
+        PrintDebugMessage("DirectSound Error: The IDirectSound8::Initialize "
+                          "method has not been called or has not been called "
+                          "successfully before other methods were called. \n",
+                          pcFile, uiLine);
+        break;
+
+    case DSERR_UNSUPPORTED:
+
+        return;
 
     default:
         PrintDebugMessage("DirectSound Error: Undocumented DirectSound error "
@@ -456,7 +466,7 @@ void Engine::SetBassManagement(bool bEnable)
 
             DSBufferRenderer& rRenderer = smSoftOutput->GetRenderer();
 
-            const bool b3D = (rRenderer.Source2D3D::mFlags & 1) != 0;
+            const bool b3D = rRenderer.Get3DMode();
 
             rRenderer.SetFormat(rRenderer.mFormat, rRenderer.mNumChannels,
                                 rRenderer.mFrequency, b3D,
@@ -495,11 +505,11 @@ void Engine::SetCentrePeakMode(bool bEnable)
         return;
     }
 
-    for (unsigned int uiOffset = 0; uiOffset < 0xA800; uiOffset += 0x540)
+    for (unsigned int i = 0;
+         i < sizeof(EngineBase::smVoiceStorage) / sizeof(Voice); ++i)
     {
 
-        Voice& rVoice =
-            *(Voice*)((unsigned char*)EngineBase::smVoices + uiOffset);
+        Voice& rVoice = EngineBase::smVoices[i];
 
         if (bWanted)
         {
@@ -567,41 +577,41 @@ void Engine::SetGlobalReverb(const I3DL2Reverb* pReverb)
         {
             EAXREVERBPROPERTIES props;
 
-            props.ulEnvironment = 0;
-            props.flEnvironmentSize = 7.5f;
-            props.flEnvironmentDiffusion =
-                ClampRange(pReverb->mDiffusion, 0.0f, 1.0f);
-            props.lRoom = ConvertLinearToLog(pReverb->mRoomGain);
-            props.lRoomHF = ConvertLinearToLog(pReverb->mRoomHFGain);
-            props.lRoomLF = 0;
-            props.flDecayTime =
-                ClampRange(pReverb->mDecayTime, 0.1f, 20.0f);
+            props.flAirAbsorptionHF = 0.0f;
             props.flDecayHFRatio =
                 ClampRange(pReverb->mDecayHFRatio, 0.1f, 2.0f);
             props.flDecayLFRatio = 1.0f;
-            props.lReflections = ConvertLinearToLog(pReverb->mERGain);
-            props.flReflectionsDelay =
-                ClampRange(pReverb->mERDelay, 0.0f, 0.3f);
-            props.vReflectionsPan[0] = 0.0f;
-            props.vReflectionsPan[1] = 0.0f;
-            props.vReflectionsPan[2] = 0.0f;
-            props.lReverb = ConvertLinearToLog(pReverb->mReverbGain);
-            props.flReverbDelay =
-                ClampRange(pReverb->mReverbDelay, 0.0f, 0.1f);
-            props.vReverbPan[0] = 0.0f;
-            props.vReverbPan[1] = 0.0f;
-            props.vReverbPan[2] = 0.0f;
-            props.flEchoTime = 0.25f;
+            props.flDecayTime =
+                ClampRange(pReverb->mDecayTime, 0.1f, 20.0f);
             props.flEchoDepth = 0.0f;
-            props.flModulationTime = 0.25f;
-            props.flModulationDepth = 0.0f;
-            props.flAirAbsorptionHF = 0.0f;
+            props.flEchoTime = 0.25f;
+            props.flEnvironmentDiffusion =
+                ClampRange(pReverb->mDiffusion, 0.0f, 1.0f);
+            props.flEnvironmentSize = 7.5f;
             props.flHFReference =
                 ClampRange(pReverb->mHFReference, 1000.0f, 20000.0f);
             props.flLFReference = 250.0f;
+            props.flModulationDepth = 0.0f;
+            props.flModulationTime = 0.25f;
+            props.flReflectionsDelay =
+                ClampRange(pReverb->mERDelay, 0.0f, 0.3f);
+            props.flReverbDelay =
+                ClampRange(pReverb->mReverbDelay, 0.0f, 0.1f);
             props.flRoomRolloffFactor =
                 ClampRange(pReverb->mRoomRollOff, 0.0f, 10.0f);
+            props.lReflections = ConvertLinearToLog(pReverb->mERGain);
+            props.lReverb = ConvertLinearToLog(pReverb->mReverbGain);
+            props.lRoom = ConvertLinearToLog(pReverb->mRoomGain);
+            props.lRoomHF = ConvertLinearToLog(pReverb->mRoomHFGain);
+            props.lRoomLF = 0;
+            props.ulEnvironment = 0;
             props.ulFlags = 0;
+            props.vReflectionsPan[0] = 0.0f;
+            props.vReflectionsPan[1] = 0.0f;
+            props.vReflectionsPan[2] = 0.0f;
+            props.vReverbPan[0] = 0.0f;
+            props.vReverbPan[1] = 0.0f;
+            props.vReverbPan[2] = 0.0f;
 
             smDummySecBuffer.SetProperty(*smEAXFXSlot, 1, &props,
                                          sizeof(props));
@@ -620,31 +630,11 @@ void Engine::SetSpeakerConfig(EngineBase::SpeakerConfig eConfig)
 {
     if (eConfig != EngineBase::smSpeakerConfig)
     {
-        if (smMixConfig == mixConfig_Software)
+        if (smMixConfig != mixConfig_Software &&
+            smMixConfig >= mixConfig_DirectSoundHardware &&
+            smMixConfig <= mixConfig_DirectSoundSoftware)
         {
-            unsigned long ulSpeakerConfig;
-
-            if (eConfig > EngineBase::speakerConfig_AnalogSurround)
-            {
-                eConfig = EngineBase::speakerConfig_AnalogSurround;
-                ulSpeakerConfig = DSSPEAKER_STEREO;
-            }
-            else if (eConfig == EngineBase::speakerConfig_Mono)
-            {
-                ulSpeakerConfig = DSSPEAKER_MONO;
-            }
-            else
-            {
-                ulSpeakerConfig = DSSPEAKER_STEREO;
-            }
-
-            smDirectSound->SetSpeakerConfig(ulSpeakerConfig);
-            EngineBase::SetSpeakerConfig(eConfig);
-        }
-        else if (smMixConfig == mixConfig_DirectSoundHardware ||
-                 smMixConfig == mixConfig_DirectSoundSoftware)
-        {
-            unsigned long ulSpeakerConfig;
+            unsigned long ulSpeakerConfig = 0;
 
             switch (eConfig)
             {
@@ -669,9 +659,6 @@ void Engine::SetSpeakerConfig(EngineBase::SpeakerConfig eConfig)
             case EngineBase::speakerConfig_7point1:
                 ulSpeakerConfig = DSSPEAKER_7POINT1;
                 break;
-            default:
-                ulSpeakerConfig = 0;
-                break;
             }
 
             if (SUCCEEDED(smDirectSound->SetSpeakerConfig(ulSpeakerConfig)))
@@ -685,6 +672,18 @@ void Engine::SetSpeakerConfig(EngineBase::SpeakerConfig eConfig)
                     smMixConfig == mixConfig_DirectSoundHardware);
             }
         }
+        else if (smMixConfig == mixConfig_Software)
+        {
+            if (eConfig > EngineBase::speakerConfig_AnalogSurround)
+            {
+                eConfig = EngineBase::speakerConfig_AnalogSurround;
+            }
+
+            smDirectSound->SetSpeakerConfig(eConfig == EngineBase::speakerConfig_Mono
+                                                ? DSSPEAKER_MONO
+                                                : DSSPEAKER_STEREO);
+            EngineBase::SetSpeakerConfig(eConfig);
+        }
     }
 
     SetBassManagement(smBassManagement);
@@ -692,6 +691,7 @@ void Engine::SetSpeakerConfig(EngineBase::SpeakerConfig eConfig)
 
 }
 
+// VTABLE: SWBF2 0x00785d14
 class EngineUpdate : public Snd::ThreadUpdate::Object
 {
 public:
@@ -714,11 +714,13 @@ void EngineUpdate::UpdateObject()
     }
 }
 
-// GLOBAL: SWBF2 0x009d7e54
 // SYNTHETIC: SWBF2 0x0040b520
 // `dynamic initializer for 'smEngineUpdater''
 // SYNTHETIC: SWBF2 0x0076a170
 // `dynamic atexit destructor for 'smEngineUpdater''
+
+// GLOBAL: SWBF2 0x009d7e54
+// smEngineUpdater
 static EngineUpdate smEngineUpdater;
 
 namespace Snd
@@ -726,11 +728,13 @@ namespace Snd
 
 }
 
-// GLOBAL: SWBF2 0x009d7ed8
 // SYNTHETIC: SWBF2 0x0040b540
 // `dynamic initializer for '_smHighLowPass''
 // SYNTHETIC: SWBF2 0x0076a190
 // `dynamic atexit destructor for '_smHighLowPass''
+
+// GLOBAL: SWBF2 0x009d7ed8
+// _smHighLowPass
 Snd::StreamLowHighPass _smHighLowPass;
 
 // GLOBAL: SWBF2 0x009d7f90
@@ -757,12 +761,9 @@ bool Engine::DSClose()
             StreamLowHighPass* const pFilter = &_smHighLowPass;
             DSBufferRenderer& rRenderer = smSoftOutput->GetRenderer();
 
-            rRenderer.mConnection.mInputNode =
-                pFilter->mSink.mConnection.mInputNode;
-            rRenderer.mConnection.mInputNodeOutputIndex = 0;
+            rRenderer.Connect(pFilter->StreamNodeSink::ConnectionGetNode(), 0);
 
-            pFilter->mSink.mConnection.mInputNode = 0;
-            pFilter->mSink.mConnection.mInputNodeOutputIndex = 0;
+            pFilter->StreamNodeSink::Connect(0, 0);
             pFilter->Flush();
         }
 
@@ -799,9 +800,10 @@ bool Engine::DSClose()
 
     sndEngineThreadUpdate.Pause(false);
 
-    for (unsigned int uiStream = 0; uiStream < 6; uiStream++)
+    for (unsigned int i = 0;
+         i < sizeof(EngineBase::smStreamStorage) / sizeof(Stream); ++i)
     {
-        Stream* const pStream = &EngineBase::smStreams[uiStream];
+        Stream* const pStream = &EngineBase::smStreams[i];
 
         pStream->SourceBus::Stop(pStream);
 
@@ -811,7 +813,7 @@ bool Engine::DSClose()
                                 SourceTransport::flags_updatePause)) |
                              SourceTransport::flags_updateStop);
 
-        pStream->Update(0.0f);
+        EngineBase::smStreams[i].Update(0.0f);
     }
 
     DSBufferRenderer::UpdateParameters();
@@ -829,8 +831,8 @@ bool Engine::DSClose()
     if (smDirectSound)
     {
         smDirectSound->Release();
-        smDirectSound = 0;
     }
+    smDirectSound = 0;
 
     if (smSampleRAM)
     {
@@ -1219,21 +1221,18 @@ bool Engine::Open(HWND hwnd, MixConfig eMixConfig, bool bEnable,
 
                     StreamLowHighPass& rFilter = _smHighLowPass;
 
-                    rFilter.mSink.mConnection.mInputNode =
-                        rRenderer.StreamNodeSink::mConnection.mInputNode;
-                    rFilter.mSink.mConnection.mInputNodeOutputIndex = 0;
-                    rRenderer.StreamNodeSink::mConnection.mInputNode =
-                        (StreamNodeSource*)&_smHighLowPass;
-                    rRenderer.StreamNodeSink::mConnection
-                        .mInputNodeOutputIndex = 0;
+                    rFilter.StreamNodeSink::Connect(
+                        rRenderer.StreamNodeSink::ConnectionGetNode(), 0);
+                    rRenderer.StreamNodeSink::Connect(
+                        (StreamNodeSource*)&_smHighLowPass, 0);
 
                     rFilter.SetBuffer(_smHighLowPassBuffer, 0x400);
-                    rFilter.mFilter.SetNumChannels(2);
-                    rFilter.mFilter.SetMode(
+                    rFilter.DSP::HighLowPassFilter::SetNumChannels(2);
+                    rFilter.DSP::HighLowPassFilter::SetMode(
                         DSP::HighLowPassFilter::mode_LowPass);
-                    rFilter.mFilter.SetSampleRate(
+                    rFilter.DSP::HighLowPassFilter::SetSampleRate(
                         (float)smSoftOutput->GetOutputFrequency());
-                    rFilter.mFilter.SetCutOffFrequency(60.0f);
+                    rFilter.DSP::HighLowPassFilter::SetCutOffFrequency(60.0f);
                 }
             }
         }
@@ -1242,7 +1241,7 @@ bool Engine::Open(HWND hwnd, MixConfig eMixConfig, bool bEnable,
             (unsigned int)(fMinStreamBufferSizeMs * 0.25f));
     }
 
-    EngineBase::smSoundRAMAllocator.Initialize((uintptr_t)smSampleRAM,
+    EngineBase::smSoundRAMAllocator.Initialize((unsigned int)smSampleRAM,
                                                0x2000000, 0x80,
                                                smSampleRAMBitmap);
 
@@ -1502,7 +1501,7 @@ void Engine::SetupEAXSource(void* const pA, void* const pB,
 // malloc
 
 // LIBRARY: SWBF2 0x007535e0
-// _alloca_probe
+// _chkstk
 
 // LIBRARY: SWBF2 0x007548fc
 // DirectSoundCreate8

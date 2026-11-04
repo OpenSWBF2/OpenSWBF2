@@ -42,7 +42,7 @@ void __cdecl StreamSource::FileOpComplete(File* pFile, void* pCallbackData,
 
         if ((pThis->mFlags & flags_SeekPending) != 0)
         {
-            pThis->mFlags &= (unsigned char)~flags_SeekPending;
+            pThis->mFlags &= ~flags_SeekPending;
             pThis->mFlags |= (unsigned char)flags_SeekReady;
 
             pPacket->mFlags |= 2;
@@ -114,9 +114,13 @@ void StreamSource::Flush()
 
     StartFlush();
 
-    StreamPacket* pPacket;
-    while ((pPacket = GetPacket(0)) != 0)
+    for (;;)
     {
+        StreamPacket* const pPacket = GetPacket(0);
+        if (pPacket == 0)
+        {
+            break;
+        }
         pPacket->Unlock();
     }
 
@@ -130,7 +134,7 @@ void StreamSource::Flush()
 
     if ((mFlags & flags_SeekPending) != 0)
     {
-        mFlags &= (unsigned char)~flags_SeekPending;
+        mFlags = (unsigned char)(mFlags & ~flags_SeekPending);
         mFlags |= (unsigned char)flags_SeekReady;
     }
 
@@ -233,10 +237,10 @@ void StreamSource::Update()
 {
     for (;;)
     {
-        const PlayState eDesired = QueryDesiredPlayState();
+        const PlayState eDesired = SourceTransport::QueryDesiredPlayState();
         SourceTransport::mFlags = (unsigned short)
             (SourceTransport::mFlags & ~(unsigned int)flags_updateTransport);
-        const PlayState eCurrent = GetCurrentPlayState();
+        const PlayState eCurrent = SourceTransport::GetCurrentPlayState();
 
         const bool bSeek =
             (SourceTransport::mFlags & flags_updatePlaybackPosition) != 0;
@@ -401,7 +405,8 @@ void StreamSource::Update()
 
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x00749950
 StreamSource::~StreamSource()
@@ -415,7 +420,8 @@ StreamSource::~StreamSource()
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x00749e20
 bool StreamSource::Open(File& rFile, unsigned int uiPacketSize, unsigned char uiNumPackets,
@@ -428,7 +434,7 @@ bool StreamSource::Open(File& rFile, unsigned int uiPacketSize, unsigned char ui
     }
     else
     {
-        mFlags &= ~flags_MediaSecBase2;
+        mFlags &= 0x7f;
     }
 
     for (unsigned int i = 0; i < uiNumPackets; ++i)
@@ -453,7 +459,8 @@ bool StreamSource::Open(File& rFile, unsigned int uiPacketSize, unsigned char ui
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x00749fb0
 void StreamSource::SetLooping(bool bLooping)

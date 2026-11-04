@@ -104,24 +104,26 @@ bool __cdecl PblHashTableCode::_Remove(unsigned int* pTable, int iCount, unsigne
 
     *pSlot = 0;
 
-    for (;;)
+    if (pSlot <= pTable)
     {
+        pSlot += iHalf;
+    }
+    --pSlot;
+
+    while (*pSlot)
+    {
+        const unsigned int uiMoved = *pSlot;
+        *pSlot = 0;
+        _Store(pTable, iCount, uiMoved, (void*)pSlot[iHalf]);
+
         if (pSlot <= pTable)
         {
             pSlot += iHalf;
         }
         --pSlot;
-
-        if (!*pSlot)
-        {
-            return true;
-        }
-
-        const unsigned int uiMoved = *pSlot;
-        void* const pMovedValue = (void*)pSlot[iHalf];
-        *pSlot = 0;
-        _Store(pTable, iCount, uiMoved, pMovedValue);
     }
+
+    return true;
 }
 
 // FUNCTION: SWBF2 0x00726e50
@@ -178,6 +180,7 @@ PblHash::PblHash(unsigned int uiSeed, const char* pcText)
     _uiValue = _MakeHash(pcText, uiSeed);
 }
 
+// GLOBAL: SWBF2 0x7e2860
 static const unsigned int _auiCRCTable[256] =
 {
     0x00000000, 0x04c11db7, 0x09823b6e, 0x0d4326d9, 0x130476dc, 0x17c56b6b, 0x1a864db2, 0x1e475005,
@@ -224,7 +227,7 @@ unsigned int __cdecl PblTEMPHash(const char* pcText)
     {
         do
         {
-            char cChar = *pcText++;
+            char cChar = *pcText;
 
             if (cChar >= 'A' && cChar <= 'Z')
             {
@@ -232,6 +235,7 @@ unsigned int __cdecl PblTEMPHash(const char* pcText)
             }
 
             uiCRC = (uiCRC << 8) ^ _auiCRCTable[(uiCRC >> 24) ^ (unsigned char)cChar];
+            pcText++;
         } while (--uiLength);
     }
 

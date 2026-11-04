@@ -1,3 +1,4 @@
+#include <string.h>
 #include "EntityBuildingAnimatedArmed.h"
 #include "Controllable.h"
 #include "NetGame.h"
@@ -12,10 +13,7 @@ static int sCurrentSection = -1;
 EntityBuildingAnimatedArmedClass::EntityBuildingAnimatedArmedClass(unsigned int uHash)
     : EntityBuildingAnimatedClass(uHash)
 {
-    for (int i = 0; i < 8; i++)
-    {
-        mTurretClass[i] = 0;
-    }
+    memset(mTurretClass, 0, sizeof(mTurretClass));
     sCurrentSection = -1;
     mRespawnTime = 120.0f;
 }
@@ -74,30 +72,22 @@ Entity* EntityBuildingAnimatedArmedClass::Build(const EntityDesc& desc)
     return pBuilding;
 }
 
-// GLOBAL: SWBF2 0x01ebb884
 // SYNTHETIC: SWBF2 0x004028d0
 // `dynamic initializer for 'EntityBuildingAnimatedArmedClass::rttiHashEntityBuildingAnimatedArmedClass''
+// EntityBuildingAnimatedArmedClass::rttiHashEntityBuildingAnimatedArmedClass
+
+// GLOBAL: SWBF2 0x01ebb884
+// EntityBuildingAnimatedArmedClass::rttiHashEntityBuildingAnimatedArmedClass
 PblHash EntityBuildingAnimatedArmedClass::rttiHashEntityBuildingAnimatedArmedClass("EntityBuildingAnimatedArmedClass");
-char EntityBuildingAnimatedArmedClass::rttiNameEntityBuildingAnimatedArmedClass[] = "EntityBuildingAnimatedArmedClass";
+// GLOBAL: SWBF2 0x00788fe4
+// EntityBuildingAnimatedArmedClass::rttiNameEntityBuildingAnimatedArmedClass
+const char EntityBuildingAnimatedArmedClass::rttiNameEntityBuildingAnimatedArmedClass[] = "EntityBuildingAnimatedArmedClass";
 
-// FUNCTION: SWBF2 0x00476780
-bool EntityBuildingAnimatedArmedClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashEntityBuildingAnimatedArmedClass ||
-           EntityBuildingAnimatedClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00495040
-unsigned int EntityBuildingAnimatedArmedClass::GetDerivedRtti()
-{
-    return rttiHashEntityBuildingAnimatedArmedClass;
-}
 
-// FUNCTION: SWBF2 0x00495050
-const char* EntityBuildingAnimatedArmedClass::GetDerivedRttiName()
-{
-    return rttiNameEntityBuildingAnimatedArmedClass;
-}
+
+
+
 
 // SYNTHETIC: SWBF2 0x00495630
 // EntityBuildingAnimatedArmedClass::`scalar deleting destructor'
@@ -141,15 +131,15 @@ EntityBuildingAnimatedArmed::EntityBuildingAnimatedArmed(
 // SYNTHETIC: SWBF2 0x00495010
 // EntityBuildingAnimatedArmed::`scalar deleting destructor'
 // SYNTHETIC: SWBF2 0x0049597a
-// [thunk]:EntityBuildingAnimatedArmed::`scalar deleting destructor'`adjustor{512}'
+// ??_EEntityBuildingAnimatedArmed@@WCAA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00495985
-// [thunk]:EntityBuildingAnimatedArmed::`scalar deleting destructor'`adjustor{608}'
+// ??_EEntityBuildingAnimatedArmed@@WCGA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00495990
-// [thunk]:EntityBuildingAnimatedArmed::`scalar deleting destructor'`adjustor{148}'
+// ??_EEntityBuildingAnimatedArmed@@WJE@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x0049599b
-// [thunk]:EntityBuildingAnimatedArmed::`scalar deleting destructor'`adjustor{320}'
+// ??_EEntityBuildingAnimatedArmed@@WBEA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004959a6
-// [thunk]:EntityBuildingAnimatedArmed::`scalar deleting destructor'`adjustor{12}'
+// ??_EEntityBuildingAnimatedArmed@@WM@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x004951a0
 EntityBuildingAnimatedArmed::~EntityBuildingAnimatedArmed()
@@ -163,12 +153,7 @@ EntityBuildingAnimatedArmed::~EntityBuildingAnimatedArmed()
     }
 }
 
-// FUNCTION: SWBF2 0x004766e0
-bool EntityBuildingAnimatedArmed::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashEntityBuildingAnimatedArmed ||
-           EntityBuildingAnimated::IsRtti(uRtti);
-}
+
 
 // FUNCTION: SWBF2 0x00495290
 void EntityBuildingAnimatedArmed::Init()
@@ -286,38 +271,27 @@ void EntityBuildingAnimatedArmed::Render(unsigned char uFlags, float fDist, unsi
     }
 }
 
-// FUNCTION: SWBF2 0x0043cf70
-Controllable* Controllable::GetPilot()
-{
-    if (mPilotType == PILOT_SELF || (mPilotType == PILOT_VEHICLESELF && mPilot == this))
-    {
-        return 0;
-    }
-    return mPilot;
-}
+
 
 static inline Controllable* TurretControllable(MountedTurret* pTurret)
 {
     return static_cast<Controllable*>(pTurret);
 }
 
-// GLOBAL: SWBF2 0x01ebb880
 // SYNTHETIC: SWBF2 0x004028c0
 // `dynamic initializer for 'EntityBuildingAnimatedArmed::rttiHashEntityBuildingAnimatedArmed''
+// EntityBuildingAnimatedArmed::rttiHashEntityBuildingAnimatedArmed
+
+// GLOBAL: SWBF2 0x01ebb880
+// EntityBuildingAnimatedArmed::rttiHashEntityBuildingAnimatedArmed
 PblHash EntityBuildingAnimatedArmed::rttiHashEntityBuildingAnimatedArmed("EntityBuildingAnimatedArmed");
-char EntityBuildingAnimatedArmed::rttiNameEntityBuildingAnimatedArmed[] = "EntityBuildingAnimatedArmed";
+// GLOBAL: SWBF2 0x00788fb8
+// EntityBuildingAnimatedArmed::rttiNameEntityBuildingAnimatedArmed
+const char EntityBuildingAnimatedArmed::rttiNameEntityBuildingAnimatedArmed[] = "EntityBuildingAnimatedArmed";
 
-// FUNCTION: SWBF2 0x00494fe0
-unsigned int EntityBuildingAnimatedArmed::GetDerivedRtti() const
-{
-    return rttiHashEntityBuildingAnimatedArmed;
-}
 
-// FUNCTION: SWBF2 0x00494ff0
-const char* EntityBuildingAnimatedArmed::GetDerivedRttiName() const
-{
-    return rttiNameEntityBuildingAnimatedArmed;
-}
+
+
 
 // FUNCTION: SWBF2 0x00476770
 GameObjectType EntityBuildingAnimatedArmed::GetGameObjectType()
@@ -358,7 +332,7 @@ const Controllable* EntityBuildingAnimatedArmed::GetTurretPtr(int iIndex) const
 }
 
 // FUNCTION: SWBF2 0x00476730
-unsigned int GetArmedBuildingRttiHash()
+unsigned int EntityBuildingAnimatedArmed::GetRtti()
 {
     return EntityBuildingAnimatedArmed::rttiHashEntityBuildingAnimatedArmed;
 }

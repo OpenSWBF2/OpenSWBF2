@@ -2,9 +2,18 @@
 
 #include "LuaCallbacks.h"
 
-namespace GameLoop { void SetFunctionIdForButtonId(int iButton, int iFunction); }
-namespace GameLoop { int GetFunctionIdForButtonId(int iButton); }
-namespace GameLoop { int GetFunctionIdForAnalog(); }
+namespace GameLoop
+{
+void SetFunctionIdForButtonId(int iButton, int iFunction);
+}
+namespace GameLoop
+{
+int GetFunctionIdForButtonId(int iButton);
+}
+namespace GameLoop
+{
+int GetFunctionIdForAnalog();
+}
 int LuaButtonIndexToEnum(int iButton);
 int LuaFunctionIndexToEnum(unsigned int iFunction, unsigned int iMode);
 int EnumToLuaFunctionIndex(int iEnum, int iMode);

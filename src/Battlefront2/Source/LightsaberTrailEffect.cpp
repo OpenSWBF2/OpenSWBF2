@@ -1,7 +1,7 @@
+#include <d3dx9math.h>
 #include <math.h>
 
 #include "LightsaberTrailEffect.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 // GLOBAL: SWBF2 0x01e573ec
 LightsaberTrailEffect* LightsaberTrailEffect::s_pInstance;
@@ -26,12 +26,7 @@ void LightsaberTrailEffect::Init()
     _PlatformInit();
 }
 
-LightsaberTrailEffect::~LightsaberTrailEffect()
-{
-}
 
-// SYNTHETIC: SWBF2 0x00573d30
-// LightsaberTrailEffect::`scalar deleting destructor'
 
 // FUNCTION: SWBF2 0x00573d20
 void LightsaberTrailEffect::Render(int)
@@ -62,8 +57,12 @@ void LightsaberTrailEffect::Destroy()
     s_pInstance = 0;
 }
 
+namespace GameLoop
+{
+
 // GLOBAL: SWBF2 0x01e56058
-namespace GameLoop { float sClientDeltaTime; }
+float sClientDeltaTime;
+}
 
 // FUNCTION: SWBF2 0x00573f60
 LightsaberTrail::LightsaberTrail(const LightsaberTrailClass* pClass)
@@ -80,16 +79,8 @@ LightsaberTrail::LightsaberTrail(const LightsaberTrailClass* pClass)
     m_uiNumSamples = 0;
 }
 
-LightsaberTrail::~LightsaberTrail()
-{
-    m_bEffectActive = false;
-}
 
-// SYNTHETIC: SWBF2 0x00573df0
-// LightsaberTrail::`scalar deleting destructor'
 
-// SYNTHETIC: SWBF2 0x0057552c
-// [thunk]:LightsaberTrail::`scalar deleting destructor' adjustor{24}
 
 // FUNCTION: SWBF2 0x00573da0
 bool LightsaberTrail::IsEffectActive() const
@@ -126,8 +117,8 @@ void LightsaberTrail::UpdatedWorldMatrix()
     if (fDeltaTime > 0.0f)
     {
         PblVector3 vPos, vDir;
-        D3DXVec3TransformCoord(&vPos, &m_pClass->m_vOffsetPos, &m_mWorldMatrix);
-        D3DXVec3TransformNormal(&vDir, &m_pClass->m_vOffsetDir, &m_mWorldMatrix);
+        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vPos), reinterpret_cast<const D3DXVECTOR3*>(&m_pClass->m_vOffsetPos), reinterpret_cast<const D3DXMATRIX*>(&m_mWorldMatrix));
+        D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&m_pClass->m_vOffsetDir), reinterpret_cast<const D3DXMATRIX*>(&m_mWorldMatrix));
 
         const float dx = vPos.x - m_vPosPrev.x;
         const float dy = vPos.y - m_vPosPrev.y;
@@ -148,70 +139,55 @@ void LightsaberTrail::UpdatedWorldMatrix()
 void LightsaberTrail::_Update(float fDeltaTime, const PblVector3& vPos, const PblVector3& vDir,
                               const PblVector3& vPosPrev, const PblVector3& vDirPrev, bool bTrailOn)
 {
-    if (fDeltaTime > 0.0f)
+    if (fDeltaTime <= 0.0f)
     {
-        m_fTimer += fDeltaTime;
-
-        unsigned char i;
-        for (i = 0; i < m_uiNumSamples; ++i)
-        {
-            unsigned char uiSample = (unsigned char)((m_uiSampleFirst + i) % MAX_SAMPLES_PER_TRAIL);
-            if (m_afTime[uiSample] >=
-                m_fTimer - LightsaberTrailEffect::s_pInstance->m_fLIGHTSABER_TRAIL_PERSIST_TIME)
-            {
-                if (m_afDist[uiSample] > 0.0f)
-                {
-                    --i;
-                }
-                break;
-            }
-            m_afDist[uiSample] = 0.0f;
-        }
-
-        if (i)
-        {
-            if (i < m_uiNumSamples)
-            {
-                m_uiNumSamples -= i;
-            }
-            else
-            {
-                m_uiNumSamples = m_afTime[m_uiNumSamples - 1] >= m_fTimer - fDeltaTime * 1.5f;
-            }
-            m_uiSampleFirst = (unsigned char)((m_uiSampleNext - m_uiNumSamples + MAX_SAMPLES_PER_TRAIL) %
-                                              MAX_SAMPLES_PER_TRAIL);
-        }
-
-        if (bTrailOn || m_bTrailWasOn)
-        {
-            if (!m_uiNumSamples || m_fTimer - GetLastTime() > fDeltaTime * 1.5f)
-            {
-                _AddSample(m_fTimer - fDeltaTime, vPosPrev, vDirPrev, false);
-            }
-            _AddSample(m_fTimer, vPos, vDir, true);
-        }
-        m_bTrailWasOn = bTrailOn;
+        return;
     }
+
+    m_fTimer += fDeltaTime;
+
+    unsigned char i;
+    for (i = 0; i < m_uiNumSamples; ++i)
+    {
+        unsigned char uiSample = (unsigned char)((m_uiSampleFirst + i) % MAX_SAMPLES_PER_TRAIL);
+        if (m_afTime[uiSample] >=
+            m_fTimer - LightsaberTrailEffect::s_pInstance->m_fLIGHTSABER_TRAIL_PERSIST_TIME)
+        {
+            if (m_afDist[uiSample] > 0.0f)
+            {
+                --i;
+            }
+            break;
+        }
+        m_afDist[uiSample] = 0.0f;
+    }
+
+    if (i)
+    {
+        if (i < m_uiNumSamples)
+        {
+            m_uiNumSamples -= i;
+        }
+        else
+        {
+            m_uiNumSamples = m_afTime[m_uiNumSamples - 1] >= m_fTimer - fDeltaTime * 1.5f;
+        }
+        m_uiSampleFirst = (unsigned char)((m_uiSampleNext - m_uiNumSamples + MAX_SAMPLES_PER_TRAIL) %
+                                          MAX_SAMPLES_PER_TRAIL);
+    }
+
+    if (bTrailOn || m_bTrailWasOn)
+    {
+        if (!m_uiNumSamples || m_fTimer - GetLastTime() > fDeltaTime * 1.5f)
+        {
+            _AddSample(m_fTimer - fDeltaTime, vPosPrev, vDirPrev, false);
+        }
+        _AddSample(m_fTimer, vPos, vDir, true);
+    }
+    m_bTrailWasOn = bTrailOn;
 }
 
 extern PblVector3 gVectorZero;
-
-namespace
-{
-
-inline float ArcLengthEstimate(const PblVector3& v0, const PblVector3& v1)
-{
-    const float fLen0 = sqrtf(v0.x * v0.x + v0.y * v0.y + v0.z * v0.z);
-    const float fLen1 = sqrtf(v1.x * v1.x + v1.y * v1.y + v1.z * v1.z);
-    float fLen = (fLen1 + fLen0) * 0.5f;
-    if (fLen0 > 0.001f && fLen1 > 0.001f)
-    {
-        fLen = ((v0.x * v1.x * 0.25f + v0.y * v1.y * 0.25f + v0.z * v1.z * 0.25f) / (fLen1 * fLen0) + 0.75f) *
-               fLen;
-    }
-    return fLen;
-}
-}
 
 // FUNCTION: SWBF2 0x005742f0
 void LightsaberTrail::_AddSample(float fTime, const PblVector3& vPos, const PblVector3& vDir, bool bHead)
@@ -222,85 +198,69 @@ void LightsaberTrail::_AddSample(float fTime, const PblVector3& vPos, const PblV
 
     if (m_uiNumSamples && bHead)
     {
-        const int iCur = m_uiSampleNext;
-        const int iPrev = (iCur + MAX_SAMPLES_PER_TRAIL - 1) % MAX_SAMPLES_PER_TRAIL;
-        const float fDeltaTime = fTime - m_afTime[iPrev];
-        const float fInvDeltaTime = 1.0f / fDeltaTime;
-
-        PblVector3 vVel;
-        vVel.x = (vPos.x - m_avPos[iPrev].x) * fInvDeltaTime;
-        vVel.y = (vPos.y - m_avPos[iPrev].y) * fInvDeltaTime;
-        vVel.z = (vPos.z - m_avPos[iPrev].z) * fInvDeltaTime;
-
-        const PblVector3& vDirPrev = m_avDir[iPrev];
-        const float fDot = vDir.x * vDirPrev.x + vDir.y * vDirPrev.y + vDir.z * vDirPrev.z;
-
-        PblVector3 vOmgPrev;
-        if (fDot >= 0.999f)
+        const int iSamplePrev = (m_uiSampleNext + MAX_SAMPLES_PER_TRAIL - 1) % MAX_SAMPLES_PER_TRAIL;
+        const float fDt = fTime - m_afTime[iSamplePrev];
+        const float fDtInv = 1.0f / fDt;
+        const PblVector3 vDPosDt = (vPos - m_avPos[iSamplePrev]) * fDtInv;
+        PblVector3 vDDirDt;
+        const float fC = DotProduct(vDir, m_avDir[iSamplePrev]);
+        if (fC < 0.999f)
         {
-            m_avOmg[iCur].x = (vDir.x - vDirPrev.x) * fInvDeltaTime;
-            m_avOmg[iCur].y = (vDir.y - vDirPrev.y) * fInvDeltaTime;
-            m_avOmg[iCur].z = (vDir.z - vDirPrev.z) * fInvDeltaTime;
-            vOmgPrev = m_avOmg[m_uiSampleNext];
+            const float fLen = sqrtf(fC * 2.0f + 2.0f);
+            const float fF = ((2.0f - fLen) * fDtInv * 4.0f) / ((1.0f - fC) * fLen);
+            m_avOmg[m_uiSampleNext] = vDir * (fF * fC) - m_avDir[iSamplePrev] * fF;
+            vDDirDt = vDir * fF - m_avDir[iSamplePrev] * (fF * fC);
         }
         else
         {
-            const float fLen = sqrtf(fDot * 2.0f + 2.0f);
-            const float fA = ((2.0f - fLen) * (fInvDeltaTime * 4.0f)) / ((1.0f - fDot) * fLen);
-            const float fB = fA * fDot;
-            m_avOmg[iCur].x = vDir.x * fB - vDirPrev.x * fA;
-            m_avOmg[iCur].y = vDir.y * fB - vDirPrev.y * fA;
-            m_avOmg[iCur].z = vDir.z * fB - vDirPrev.z * fA;
-            vOmgPrev.x = vDir.x * fA - vDirPrev.x * fB;
-            vOmgPrev.y = vDir.y * fA - vDirPrev.y * fB;
-            vOmgPrev.z = vDir.z * fA - vDirPrev.z * fB;
+            m_avOmg[m_uiSampleNext] = (vDir - m_avDir[iSamplePrev]) * fDtInv;
+            vDDirDt = m_avOmg[m_uiSampleNext];
         }
 
-        if (m_uiNumSamples == 1 || !(m_afDist[iPrev] > 0.0f))
+        if (m_uiNumSamples == 1 || m_afDist[iSamplePrev] <= 0.0f)
         {
-            m_avVel[iPrev] = vVel;
-            m_avOmg[iPrev] = vOmgPrev;
+            m_avVel[iSamplePrev] = vDPosDt;
+            m_avOmg[iSamplePrev] = vDDirDt;
         }
         else
         {
-            const float fT = (fDeltaTime * 0.5f) /
-                             (fTime - m_afTime[(m_uiSampleNext + MAX_SAMPLES_PER_TRAIL - 1) % MAX_SAMPLES_PER_TRAIL]);
-            const float fU = 1.0f - fT;
-            m_avVel[iPrev].x = m_avVel[iPrev].x * fT + vVel.x * fU;
-            m_avVel[iPrev].y = m_avVel[iPrev].y * fT + vVel.y * fU;
-            m_avVel[iPrev].z = m_avVel[iPrev].z * fT + vVel.z * fU;
-            m_avOmg[iPrev].x = m_avOmg[iPrev].x * fT + vOmgPrev.x * fU;
-            m_avOmg[iPrev].y = m_avOmg[iPrev].y * fT + vOmgPrev.y * fU;
-            m_avOmg[iPrev].z = m_avOmg[iPrev].z * fT + vOmgPrev.z * fU;
+            const float fF = (fDt * 0.5f) /
+                (fTime - m_afTime[(m_uiSampleNext + MAX_SAMPLES_PER_TRAIL - 1) % MAX_SAMPLES_PER_TRAIL]);
+            m_avVel[iSamplePrev] = m_avVel[iSamplePrev] * fF + vDPosDt * (1.0f - fF);
+            m_avOmg[iSamplePrev] = m_avOmg[iSamplePrev] * fF + vDDirDt * (1.0f - fF);
         }
+        m_avVel[m_uiSampleNext] = vDPosDt * 2.0f - m_avVel[iSamplePrev];
 
-        PblVector3& vVelCur = m_avVel[m_uiSampleNext];
-        vVelCur.x = vVel.x * 2.0f - m_avVel[iPrev].x;
-        vVelCur.y = vVel.y * 2.0f - m_avVel[iPrev].y;
-        vVelCur.z = vVel.z * 2.0f - m_avVel[iPrev].z;
-
-        const int iNext = m_uiSampleNext;
-        const float fDistVel = ArcLengthEstimate(m_avVel[iNext], m_avVel[iPrev]) * fDeltaTime;
-
-        PblVector3 vTip, vTipPrev;
-        vTip.x = m_avVel[iNext].x + m_avOmg[iNext].x;
-        vTip.y = m_avVel[iNext].y + m_avOmg[iNext].y;
-        vTip.z = m_avVel[iNext].z + m_avOmg[iNext].z;
-        vTipPrev.x = m_avVel[iPrev].x + m_avOmg[iPrev].x;
-        vTipPrev.y = m_avVel[iPrev].y + m_avOmg[iPrev].y;
-        vTipPrev.z = m_avVel[iPrev].z + m_avOmg[iPrev].z;
-        const float fDistTip = ArcLengthEstimate(vTip, vTipPrev) * fDeltaTime;
-
-        float fDist = fDistVel;
-        if (fDistTip > fDist)
+        const float fVel = Length(m_avVel[m_uiSampleNext]);
+        const float fVelPrev = Length(m_avVel[iSamplePrev]);
+        float fDistance = (fVel + fVelPrev) * 0.5f;
+        if (fVel > 0.001f && fVelPrev > 0.001f)
         {
-            fDist = fDistTip;
+            fDistance *= DotProduct(m_avVel[m_uiSampleNext], m_avVel[iSamplePrev]) * 0.25f /
+                         (fVel * fVelPrev) + 0.75f;
         }
-        if (fDist < 0.001f)
+        fDistance *= fDt;
+
+        const PblVector3 vVelEnd = m_avVel[m_uiSampleNext] + m_avOmg[m_uiSampleNext];
+        const PblVector3 vVelEndPrev = m_avVel[iSamplePrev] + m_avOmg[iSamplePrev];
+        const float fVelEnd = Length(vVelEnd);
+        const float fVelEndPrev = Length(vVelEndPrev);
+        float fDistanceEnd = (fVelEnd + fVelEndPrev) * 0.5f;
+        if (fVelEnd > 0.001f && fVelEndPrev > 0.001f)
         {
-            fDist = 0.001f;
+            fDistanceEnd *= DotProduct(vVelEnd, vVelEndPrev) * 0.25f /
+                            (fVelEnd * fVelEndPrev) + 0.75f;
         }
-        m_afDist[iNext] = fDist;
+        fDistanceEnd *= fDt;
+        if (fDistance < fDistanceEnd)
+        {
+            fDistance = fDistanceEnd;
+        }
+        if (fDistance < 0.001f)
+        {
+            fDistance = 0.001f;
+        }
+        m_afDist[m_uiSampleNext] = fDistance;
     }
     else
     {
@@ -328,4 +288,166 @@ float LightsaberTrail::GetLastTime() const
         return m_afTime[(m_uiSampleNext + MAX_SAMPLES_PER_TRAIL - 1) % MAX_SAMPLES_PER_TRAIL];
     }
     return -3.402823466e+38f;
+}
+
+// FUNCTION: SWBF2 0x00574bb0
+unsigned int LightsaberTrail::GetTotalNumSteps(float fMaxTimeStep, float fMaxDistanceStep,
+                                      unsigned char* pSteps, float* pTotalDistance) const
+{
+    const unsigned char uiCount = m_uiNumSamples;
+    if (!uiCount)
+    {
+        return 0;
+    }
+    if (pSteps)
+    {
+        pSteps[0] = 1;
+    }
+    if (pTotalDistance)
+    {
+        *pTotalDistance = 0.0f;
+    }
+
+    unsigned int uiStepCount = 1;
+    float fPreviousTime = m_afTime[m_uiSampleFirst];
+    for (unsigned char i = 1; i < uiCount; ++i)
+    {
+        const unsigned char uiIndex = static_cast<unsigned char>((m_uiSampleFirst + i) % MAX_SAMPLES_PER_TRAIL);
+        const float fDistance = m_afDist[uiIndex];
+        unsigned int uiSteps = 1;
+        if (fDistance > 0.0f)
+        {
+            const float fElapsed = m_afTime[uiIndex] - fPreviousTime;
+            if (fElapsed > fMaxTimeStep)
+            {
+                uiSteps = static_cast<unsigned int>(fElapsed / fMaxTimeStep) + 1;
+            }
+            if (fDistance > fMaxDistanceStep)
+            {
+                const unsigned int uiDistanceSteps =
+                    static_cast<unsigned int>(fDistance / fMaxDistanceStep) + 1;
+                if (uiSteps < uiDistanceSteps)
+                {
+                    uiSteps = uiDistanceSteps;
+                }
+            }
+            if (pTotalDistance)
+            {
+                *pTotalDistance += fDistance;
+            }
+        }
+        if (pSteps)
+        {
+            pSteps[i] = static_cast<unsigned char>(uiSteps);
+        }
+        fPreviousTime = m_afTime[uiIndex];
+        uiStepCount += uiSteps;
+    }
+    return uiStepCount;
+}
+
+// FUNCTION: SWBF2 0x00574d00
+PblBox LightsaberTrail::GetBoundingBox(float fLength) const
+{
+    PblBox bbox(m_avPos[m_uiSampleFirst]);
+    unsigned char uiSamplePrev = m_uiSampleFirst;
+    for (unsigned char i = 1; i < m_uiNumSamples; ++i)
+    {
+        const unsigned char uiSample = static_cast<unsigned char>((m_uiSampleFirst + i) % MAX_SAMPLES_PER_TRAIL);
+        const PblVector3 vPosEnd = m_avPos[uiSample] + m_avDir[uiSample] * fLength;
+        bbox.AddPoint(m_avPos[uiSample]);
+        bbox.AddPoint(vPosEnd);
+        if (m_afDist[uiSample] > 0.0f)
+        {
+            const float fExtrapolateTime = (m_afTime[uiSample] - m_afTime[uiSamplePrev]) * 0.5f;
+            bbox.AddPoint(m_avPos[uiSamplePrev] + m_avVel[uiSamplePrev] * fExtrapolateTime);
+            bbox.AddPoint(m_avPos[uiSample] - m_avVel[uiSample] * fExtrapolateTime);
+        }
+        uiSamplePrev = uiSample;
+    }
+    bbox.SetMax(PblVector3(fLength * 1.5f, fLength * 1.5f, fLength * 1.5f) + bbox.GetMax());
+    bbox.SetMin(bbox.GetMin() - PblVector3(fLength * 1.5f, fLength * 1.5f, fLength * 1.5f));
+    return bbox;
+}
+
+// GLOBAL: SWBF2 0x01e56fa1
+unsigned char LightsaberTrail::s_uiSample = 0;
+// GLOBAL: SWBF2 0x01e56fa2
+unsigned char LightsaberTrail::s_uiSamplePrev = 0;
+// GLOBAL: SWBF2 0x01e573e8
+float LightsaberTrail::s_fDeltaTimeInv = 0.0f;
+
+// FUNCTION: SWBF2 0x00575140
+void LightsaberTrail::_SetSample(float fTime) const
+{
+    unsigned char uiEnd = LightsaberTrail::s_uiSample;
+    if (LightsaberTrail::s_uiSample == LightsaberTrail::s_uiSamplePrev || m_afTime[LightsaberTrail::s_uiSamplePrev] > fTime)
+    {
+        LightsaberTrail::s_uiSamplePrev = m_uiSampleFirst;
+        uiEnd = (LightsaberTrail::s_uiSample + 1) & 7;
+        LightsaberTrail::s_uiSample = uiEnd;
+        LightsaberTrail::s_fDeltaTimeInv = 1.0f / (m_afTime[uiEnd] - m_afTime[LightsaberTrail::s_uiSamplePrev]);
+    }
+    if (fTime > m_afTime[uiEnd])
+    {
+        do
+        {
+            const unsigned char uiNext = (uiEnd + 1) & 7;
+            if (uiNext == m_uiSampleNext)
+            {
+                break;
+            }
+            const unsigned char uiPrevious = uiEnd;
+            uiEnd = uiNext;
+            LightsaberTrail::s_uiSamplePrev = uiPrevious;
+            LightsaberTrail::s_uiSample = uiEnd;
+            const float fNextTime = m_afTime[uiEnd];
+            LightsaberTrail::s_fDeltaTimeInv = 1.0f / (fNextTime - m_afTime[uiPrevious]);
+            if (fTime <= fNextTime)
+            {
+                break;
+            }
+        }
+        while (true);
+    }
+}
+
+// FUNCTION: SWBF2 0x00575230
+PblVector3 LightsaberTrail::GetInterpolatedPos(float fTime) const
+{
+    PblVector3 result;
+    _SetSample(fTime);
+    const unsigned int uiBegin = LightsaberTrail::s_uiSamplePrev;
+    const unsigned int uiEnd = LightsaberTrail::s_uiSample;
+    const float fElapsed = fTime - m_afTime[uiBegin];
+    const float fFraction = LightsaberTrail::s_fDeltaTimeInv * fElapsed;
+    const float fRemaining = 1.0f - fFraction;
+    const float fWeightedElapsed = fRemaining * fElapsed;
+    const float fEndVelocityWeight = fWeightedElapsed * fFraction;
+    const float fBeginVelocityWeight = fRemaining * fWeightedElapsed;
+    const float fEndWeight = (3.0f - 2.0f * fFraction) * fFraction * fFraction;
+    const float fBeginWeight = 1.0f - fEndWeight;
+    return m_avPos[uiBegin] * fBeginWeight + m_avPos[uiEnd] * fEndWeight
+         + m_avVel[uiBegin] * fBeginVelocityWeight
+         - m_avVel[uiEnd] * fEndVelocityWeight;
+}
+
+// FUNCTION: SWBF2 0x005753b0
+PblVector3 LightsaberTrail::GetInterpolatedDir(float fTime) const
+{
+    PblVector3 result;
+    _SetSample(fTime);
+    const unsigned int uiBegin = LightsaberTrail::s_uiSamplePrev;
+    const unsigned int uiEnd = LightsaberTrail::s_uiSample;
+    const float fElapsed = fTime - m_afTime[uiBegin];
+    const float fFraction = LightsaberTrail::s_fDeltaTimeInv * fElapsed;
+    const float fRemaining = 1.0f - fFraction;
+    const float fWeightedElapsed = fRemaining * fElapsed;
+    const float fEndVelocityWeight = fWeightedElapsed * fFraction;
+    const float fBeginVelocityWeight = fRemaining * fWeightedElapsed;
+    const float fEndWeight = (3.0f - 2.0f * fFraction) * fFraction * fFraction;
+    const float fBeginWeight = 1.0f - fEndWeight;
+    return m_avDir[uiBegin] * fBeginWeight + m_avDir[uiEnd] * fEndWeight
+         + m_avOmg[uiBegin] * fBeginVelocityWeight
+         - m_avOmg[uiEnd] * fEndVelocityWeight;
 }

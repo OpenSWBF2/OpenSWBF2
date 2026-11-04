@@ -37,10 +37,6 @@ VoiceOverManager::VoiceOverManager()
     mAttackingTeam = 0;
 }
 
-// FUNCTION: SWBF2 0x00675400
-VoiceOverManager::AmbientMusic::~AmbientMusic()
-{
-}
 
 // FUNCTION: SWBF2 0x00675410
 VoiceOverManager::~VoiceOverManager()
@@ -51,27 +47,27 @@ VoiceOverManager::~VoiceOverManager()
 // FUNCTION: SWBF2 0x006754c0
 VoiceOverManager::GameStage VoiceOverManager::DetermineGameStage() const
 {
-    int stage = gameStage_max;
+    GameStage minGameStage = gameStage_max;
     for (int team = 0; team < 2; ++team)
     {
-        int reinforcements = Team::sTeams[team + 1]->mCurReinforcements;
+        int reinforcements = Team::sTeams[team + 1]->GetCurReinforcements();
         for (int i = gameStage_max - 1; i >= 0; --i)
         {
             if (reinforcements <= mAmbientMusic[team][i].mReinforcementCount)
             {
-                if (i < stage)
+                if (i < minGameStage)
                 {
-                    stage = i;
+                    minGameStage = (GameStage)i;
                 }
                 break;
             }
         }
     }
-    if (stage == gameStage_max)
+    if (minGameStage == gameStage_max)
     {
-        stage = gameStage_beginning;
+        minGameStage = gameStage_beginning;
     }
-    return (GameStage)stage;
+    return minGameStage;
 }
 
 // FUNCTION: SWBF2 0x00675520

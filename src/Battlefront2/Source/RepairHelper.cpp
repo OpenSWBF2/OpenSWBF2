@@ -1,3 +1,4 @@
+#include "AmmoCounter.h"
 #include <float.h>
 #include <math.h>
 
@@ -17,8 +18,39 @@
 #include "WeaponDispenser.h"
 #include "WeaponRepair.h"
 #include "PebbleFL/Common/PblMatrix.h"
-#include "VOHelper.h"
-#include "TeamManager.h"
+
+namespace AI
+{
+
+enum AIAffil
+{
+    AFFIL_ENEMY = 1,
+    AFFIL_NEUTRAL = 2,
+    AFFIL_ALLY = 4,
+    AFFIL_ALLYNEUTRAL = 6,
+    AFFIL_ALL = 7
+};
+
+enum VOType
+{
+    VOT_RepairStart = 16,
+    VOT_RepairEnd = 17,
+    VOT_GivePowerup = 18
+};
+
+namespace VOHelper
+{
+
+int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget, const GameObject* pOther, float fDelay);
+}
+}
+
+namespace TeamManager
+{
+
+int GetObjectsInRange(const PblVector3& vPos, float fRadius, GameObject** const ppObjects,
+                      int iMax, const GameObject* pIgnore, AI::AIAffil eAffil);
+}
 
 namespace AIUtil
 {
@@ -44,13 +76,7 @@ int GetOpenReservableSlots(const GameObject* pObj, int iTeam, ReserveType eType)
 void Reserve(const GameObject* pObj, const GameObject* pReserver, ReserveType eType);
 }
 
-// GLOBAL: SWBF2 0x007ec54c
 
-int gOutOfAmmoWeaponCount;
-
-// GLOBAL: SWBF2 0x007ec550
-
-int gRepairSearchTimeoutCount;
 
 namespace
 {
@@ -60,12 +86,12 @@ namespace
         return static_cast<const CollisionObject*>(pObj);
     }
 
-    HealthType GetHealthType(const GameObject* pObj)
+    inline HealthType GetHealthType(const GameObject* pObj)
     {
         return (HealthType)pObj->mHealthType;
     }
 
-    float GetCurHealth(const GameObject* pObj)
+    inline float GetCurHealth(const GameObject* pObj)
     {
         return pObj->mCurHealth;
     }
@@ -75,12 +101,12 @@ namespace
         return pObj->mMaxHealth;
     }
 
-    const CollisionObject* GetCollisionObject(const GameObject* pObj)
+    inline const CollisionObject* GetCollisionObject(const GameObject* pObj)
     {
         return pObj->GetCollisionObject();
     }
 
-    const Controllable* GetControllable(const GameObject* pObj)
+    inline const Controllable* GetControllable(const GameObject* pObj)
     {
         return pObj->GetControllable();
     }
@@ -111,22 +137,14 @@ namespace
     }
 }
 
-Controllable* RepairHelper::GetMe()
-{
-    return mAgent->mCtrl->mOwner;
-}
 
-UnitController* RepairHelper::GetCtrl()
-{
-    return mAgent->mCtrl;
-}
+
+
 
 // FUNCTION: SWBF2 0x0062e2c0
 RepairHelper::RepairHelper(UnitAgent* pAgent)
     : mAgent(pAgent)
 {
-    mAidTarget.mObject = 0;
-    mAidTarget.mSavedHandleId = 0;
     mCheckForRecipientTime = 0.0f;
 }
 
@@ -252,7 +270,7 @@ bool RepairHelper::CheckForRecipientAndInit()
     mSearchTime = GameLoop::GetMissionTime();
     mPathing = false;
     mPathTime = -100.0f;
-    reinterpret_cast<AILowLevel*>(GetCtrl()->mLowLevel)->SetNavigator_Stationary();
+    GetCtrl()->mLowLevel.SetNavigator_Stationary();
     AI::VOHelper::Play(AI::VOT_RepairStart, GetMe()->GetGameObject(), 0, pBest, 0.0f);
     return true;
 }
@@ -262,16 +280,16 @@ bool RepairHelper::SetAidWpn(bool* pbChanged)
 {
     for (int i = 0; i < GetMe()->GetWeaponCount(); ++i)
     {
-        WeaponClass* pClass = GetMe()->GetWeaponPtr(i)->mClass;
+        const WeaponClass* pClass = GetMe()->GetWeaponPtr(i)->mClass;
         float fAdd;
         if (pClass->IsRtti(WeaponRepairClass::rttiHashWeaponRepairClass))
         {
-            WeaponRepairClass* pRepair = static_cast<WeaponRepairClass*>(pClass);
+            const WeaponRepairClass* pRepair = static_cast<const WeaponRepairClass*>(pClass);
             fAdd = mAidType.ammo ? pRepair->mAddAmmo[mAidType.type] : pRepair->mAddHealth[mAidType.type];
         }
         else if (pClass->IsRtti(WeaponDispenserClass::rttiHashWeaponDispenserClass))
         {
-            EntityClass* pDispense = static_cast<WeaponDispenserClass*>(pClass)->mDispenseClass;
+            EntityClass* pDispense = static_cast<const WeaponDispenserClass*>(pClass)->mDispenseClass;
             if (!pDispense || !pDispense->IsRtti(PowerupItemClass::rttiHashPowerupItemClass))
             {
                 continue;
@@ -288,7 +306,7 @@ bool RepairHelper::SetAidWpn(bool* pbChanged)
         {
             if (GetMe()->GetWeaponIndex(GetMe()->GetWpnChannel()) != i)
             {
-                reinterpret_cast<AILowLevel*>(UnitControllerPtr(GetMe()->mCtrl)->mLowLevel)->SetNextWeapon(i);
+                UnitControllerPtr(GetMe()->mCtrl)->mLowLevel.SetNextWeapon(i);
                 *pbChanged = true;
                 return true;
             }
@@ -302,6 +320,9 @@ bool RepairHelper::SetAidWpn(bool* pbChanged)
 // FUNCTION: SWBF2 0x0062e910
 void RepairHelper::CalcMyAidTypes(unsigned int* pHealth, unsigned int* pAmmo)
 {
+    // GLOBAL: SWBF2 0x007ec54c
+    static int iii = 1;
+
     *pAmmo = 0;
     *pHealth = 0;
     for (int i = 0; i < GetMe()->GetWeaponCount(); ++i)
@@ -309,18 +330,18 @@ void RepairHelper::CalcMyAidTypes(unsigned int* pHealth, unsigned int* pAmmo)
         Weapon* pWeapon = GetMe()->GetWeaponPtr(i);
         if (pWeapon->m_pAmmoCounter->GetNumRounds() <= 0)
         {
-            ++gOutOfAmmoWeaponCount;
+            ++iii;
             continue;
         }
 
         if (pWeapon->IsRtti(WeaponRepair::rttiHashWeaponRepair))
         {
-            WeaponRepairClass* pClass = static_cast<WeaponRepairClass*>(pWeapon->mClass);
+            const WeaponRepairClass* pClass = static_cast<const WeaponRepairClass*>(pWeapon->mClass);
             AddAidTypes(pClass->mAddHealth, pClass->mAddAmmo, pHealth, pAmmo);
         }
         else if (pWeapon->IsRtti(WeaponDispenser::rttiHashWeaponDispenser))
         {
-            EntityClass* pDispense = static_cast<WeaponDispenserClass*>(pWeapon->mClass)->mDispenseClass;
+            EntityClass* pDispense = static_cast<const WeaponDispenserClass*>(pWeapon->mClass)->mDispenseClass;
             if (pDispense && pDispense->IsRtti(PowerupItemClass::rttiHashPowerupItemClass))
             {
                 PowerupItemClass* pPowerup = static_cast<PowerupItemClass*>(pDispense);
@@ -440,6 +461,9 @@ bool RepairHelper::FireRepairWeapon(float dt, const GameObject* pTarget)
 // FUNCTION: SWBF2 0x0062f080
 bool RepairHelper::Update(float dt)
 {
+    // GLOBAL: SWBF2 0x007ec550
+    static int iii = 1;
+
     GameObject* pTarget = AIUtil::GetAlivePtr(mAidTarget, true);
     if (!pTarget)
     {
@@ -457,7 +481,7 @@ bool RepairHelper::Update(float dt)
     Controllable* pMe = GetMe();
     UnitControllerPtr(pMe->mCtrl)->GetLowLevel().SetTarget(pTarget);
     const PblVector3 vHisPos = *reinterpret_cast<const PblVector3*>(&AsCollisionObject(pTarget)->GetMatrix().m[3][0]);
-    const PblVector3 vMyPos = *reinterpret_cast<const PblVector3*>(&pMe->GetMatrix().m[3][0]);
+    const PblVector3 vMyPos = pMe->GetMatrix().GetTranslation();
     const float fRange = CombatUtil::GetWeaponMaxRange(pMe);
     const float fDistSq = (vMyPos.x - vHisPos.x) * (vMyPos.x - vHisPos.x) + (vMyPos.z - vHisPos.z) * (vMyPos.z - vHisPos.z);
     const bool bTouching = pMe->GetCurrentCollision() == pTarget;
@@ -517,7 +541,7 @@ bool RepairHelper::Update(float dt)
             {
                 return false;
             }
-            ++gRepairSearchTimeoutCount;
+            ++iii;
         }
         AIUtil::Slide(GetMe()->GetGameObject(), pTarget, false, &mPathing, &mPathTime, 8.0f, 1.6f);
         mContactTime = FLT_MAX;

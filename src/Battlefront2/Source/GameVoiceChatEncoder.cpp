@@ -16,21 +16,32 @@
 
 #include "SoundFL/source/sndstreamcodec.h"
 
-namespace GameVoiceChat { unsigned int CalculatePlayCaptureBufferSizeSamples(float fMilliseconds); }
-namespace GameVoiceChat { unsigned int CalculateEncodedPacketSize(unsigned int uiSamples); }
+namespace GameVoiceChat
+{
+unsigned int CalculatePlayCaptureBufferSizeSamples(float fMilliseconds);
+}
+namespace GameVoiceChat
+{
+unsigned int CalculateEncodedPacketSize(unsigned int uiSamples);
+}
 
-namespace VoiceChat { void* Alloc(unsigned int uiSize); }
-namespace VoiceChat { void Free(void* pBlock); }
+namespace VoiceChat
+{
+void* Alloc(unsigned int uiSize);
+}
+namespace VoiceChat
+{
+void Free(void* pBlock);
+}
 
 namespace Snd
 {
 
 }
 
-void __fastcall StreamVAD__Flush(void* pVad);
 
 // FUNCTION: SWBF2 0x0053d4c0
-bool GameVoiceChat::Encoder::Open(float fMaxPacketMs)
+bool GameVoiceChat::Encoder::Open(unsigned int captureDeviceIndex, float fMaxPacketMs, unsigned int minBuffers)
 {
 
     float fMs = fMaxPacketMs;
@@ -84,12 +95,9 @@ bool GameVoiceChat::Encoder::Open(float fMaxPacketMs)
 
     mEncoder.SetPackets(uiEncodedBytes, mEncoderPackets, 1);
 
-    mEncoder.mConnection.mInputNode = &mVAD;
-    mEncoder.mConnection.mInputNodeOutputIndex = 0;
-    mVAD.mConnection.mInputNode = &mAGC;
-    mVAD.mConnection.mInputNodeOutputIndex = 0;
-    mAGC.mConnection.mInputNode = &mSource;
-    mAGC.mConnection.mInputNodeOutputIndex = 0;
+    mEncoder.Connect(&mVAD, 0);
+    mVAD.Connect(&mAGC, 0);
+    mAGC.Connect(&mSource, 0);
     mAudioPacketIndex = 0;
     mSourceDeviceIndex = 0xFF;
     mPacketSizeMs = fMs;
@@ -116,12 +124,9 @@ void GameVoiceChat::Encoder::FreeBuffers()
 // FUNCTION: SWBF2 0x0053d710
 void GameVoiceChat::Encoder::Close()
 {
-    mEncoder.mConnection.mInputNode = 0;
-    mEncoder.mConnection.mInputNodeOutputIndex = 0;
-    mVAD.mConnection.mInputNode = 0;
-    mVAD.mConnection.mInputNodeOutputIndex = 0;
-    mAGC.mConnection.mInputNode = 0;
-    mAGC.mConnection.mInputNodeOutputIndex = 0;
+    mEncoder.Connect(0, 0);
+    mVAD.Connect(0, 0);
+    mAGC.Connect(0, 0);
 
     if (IsPlaying())
     {
@@ -164,7 +169,7 @@ void GameVoiceChat::Encoder::Flush()
 
     mSource.Flush(false);
     mAGC.Flush();
-    StreamVAD__Flush(&mVAD);
+    mVAD.Flush();
     mEncoder.Flush();
 }
 
@@ -173,10 +178,10 @@ void GameVoiceChat::Encoder::Stop()
 {
     Flush();
 
-    static_cast<Snd::SourceTransport&>(mSource).Stop();
-    static_cast<Snd::SourceTransport&>(mAGC).Stop();
-    static_cast<Snd::SourceTransport&>(mVAD).Stop();
-    static_cast<Snd::SourceTransport&>(mEncoder).Stop();
+    mSource.Stop();
+    mAGC.Stop();
+    mVAD.Stop();
+    mEncoder.Stop();
 
     mPlaying = false;
 }
@@ -206,9 +211,9 @@ float GameVoiceChat::Encoder::GetMaxOutputPacketSizeMs() const
 }
 
 // FUNCTION: SWBF2 0x0053da70
-bool VoiceChat::Encoder::Open()
+bool VoiceChat::Encoder::Open(unsigned int captureDeviceIndex, float minBufferSizeMs, unsigned int minBuffers)
 {
-    return static_cast<GameVoiceChat::Encoder*>(this)->Open(VoiceChat::Node::sBufferSizeMs);
+    return static_cast<GameVoiceChat::Encoder*>(this)->Open(captureDeviceIndex, minBufferSizeMs, minBuffers);
 }
 
 // FUNCTION: SWBF2 0x0053daa0
@@ -268,14 +273,20 @@ GameVoiceChat::Encoder::~Encoder()
 {
 }
 
-namespace GameVoiceChat { bool IsSuspended(); }
-namespace GameVoiceChat { bool IsBanned(); }
+namespace GameVoiceChat
+{
+bool IsSuspended();
+}
+namespace GameVoiceChat
+{
+bool IsBanned();
+}
 
 // FUNCTION: SWBF2 0x0053da10
 unsigned char GameVoiceChat::Encoder::IsEnabled()
 {
     return mPlaying
-        && static_cast<const Snd::SourceTransport&>(mSource).GetPlayState()
+        && mSource.GetPlayState()
                != Snd::SourceTransport::playState_stopped;
 }
 
@@ -348,10 +359,10 @@ VoiceChat::AudioPacket* GameVoiceChat::Encoder::GetData()
 // FUNCTION: SWBF2 0x0053d8e0
 void GameVoiceChat::Encoder::Play()
 {
-    static_cast<Snd::SourceTransport&>(mSource).Play(true);
-    static_cast<Snd::SourceTransport&>(mAGC).Play(true);
-    static_cast<Snd::SourceTransport&>(mVAD).Play(true);
-    static_cast<Snd::SourceTransport&>(mEncoder).Play(true);
+    mSource.Play(true);
+    mAGC.Play(true);
+    mVAD.Play(true);
+    mEncoder.Play(true);
 
     mPlaying = true;
 }

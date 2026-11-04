@@ -15,7 +15,7 @@ extern bool netIsLocalTurn;
 namespace
 {
 
-    GameObject* ResolveHandle(PblHandle<GameObject>& handle)
+    inline GameObject* ResolveHandle(PblHandle<GameObject>& handle)
     {
         GameObject* pObject = handle.mObject;
         if (pObject &&
@@ -30,17 +30,27 @@ namespace
     }
 }
 
-// GLOBAL: SWBF2 0x01ef2610
 // SYNTHETIC: SWBF2 0x00405a10
 // `dynamic initializer for 'OrdnanceBeacon::rttiHashOrdnanceBeacon''
-PblHash OrdnanceBeacon::rttiHashOrdnanceBeacon("OrdnanceBeacon");
-char OrdnanceBeacon::rttiNameOrdnanceBeacon[] = "OrdnanceBeacon";
+// OrdnanceBeacon::rttiHashOrdnanceBeacon
 
-// GLOBAL: SWBF2 0x01ef257c
+// GLOBAL: SWBF2 0x01ef2610
+// OrdnanceBeacon::rttiHashOrdnanceBeacon
+PblHash OrdnanceBeacon::rttiHashOrdnanceBeacon("OrdnanceBeacon");
+// GLOBAL: SWBF2 0x0078a78c
+// OrdnanceBeacon::rttiNameOrdnanceBeacon
+const char OrdnanceBeacon::rttiNameOrdnanceBeacon[] = "OrdnanceBeacon";
+
 // SYNTHETIC: SWBF2 0x00405a20
 // `dynamic initializer for 'OrdnanceBeaconClass::rttiHashOrdnanceBeaconClass''
+// OrdnanceBeaconClass::rttiHashOrdnanceBeaconClass
+
+// GLOBAL: SWBF2 0x01ef257c
+// OrdnanceBeaconClass::rttiHashOrdnanceBeaconClass
 PblHash OrdnanceBeaconClass::rttiHashOrdnanceBeaconClass("OrdnanceBeaconClass");
-char OrdnanceBeaconClass::rttiNameOrdnanceBeaconClass[] = "OrdnanceBeaconClass";
+// GLOBAL: SWBF2 0x0078a768
+// OrdnanceBeaconClass::rttiNameOrdnanceBeaconClass
+const char OrdnanceBeaconClass::rttiNameOrdnanceBeaconClass[] = "OrdnanceBeaconClass";
 
 // FUNCTION: SWBF2 0x005f8b10
 const PblVector3& OrdnanceBullet::GetOldPosition() const
@@ -72,28 +82,13 @@ float OrdnanceShellClass::GetGravity()
     return mGravity;
 }
 
-// FUNCTION: SWBF2 0x005f8c70
-bool OrdnanceBeacon::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashOrdnanceBeacon || OrdnanceSticky::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x005f8cb0
-unsigned int OrdnanceBeacon::GetDerivedRtti() const
-{
-    return rttiHashOrdnanceBeacon;
-}
 
-// FUNCTION: SWBF2 0x005f8cc0
-const char* OrdnanceBeacon::GetDerivedRttiName() const
-{
-    return rttiNameOrdnanceBeacon;
-}
 
 // SYNTHETIC: SWBF2 0x005f95d6
-// [thunk]:OrdnanceBeacon::`scalar deleting destructor' adjustor{152}
+// ??_EOrdnanceBeacon@@WJI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x005f95e1
-// [thunk]:OrdnanceBeacon::`scalar deleting destructor' adjustor{24}
+// ??_EOrdnanceBeacon@@WBI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x005f8cd0
 // OrdnanceBeacon::`scalar deleting destructor'
 
@@ -116,29 +111,28 @@ bool OrdnanceBeacon::Update(float fDeltaTime)
     {
         OrdnanceBeaconClass* pClass = static_cast<OrdnanceBeaconClass*>(mClass);
 
-        D3DXMATRIXA16 aim;
-        D3DXMATRIXA16 yaw;
-        D3DXMatrixRotationX(&aim, -pClass->mAimElevation);
-        D3DXMatrixMultiply(&aim, &aim, D3DXMatrixRotationY(&yaw, pClass->mAimAzimuth));
+        PblMatrix aim;
+        aim.SetRotateX(-pClass->mAimElevation);
+        aim.RotateY(pClass->mAimAzimuth);
 
         OrdnanceDesc desc;
         desc.mPosition = mPosition;
         const float fDist = pClass->mAimDistance;
-        desc.mPosition.x += aim._31 * fDist;
-        desc.mPosition.y += aim._32 * fDist;
-        desc.mPosition.z += aim._33 * fDist;
+        desc.mPosition.x += aim.m[2][0] * fDist;
+        desc.mPosition.y += aim.m[2][1] * fDist;
+        desc.mPosition.z += aim.m[2][2] * fDist;
 
         PblRandom& rand = PblRandom::GetSim();
         const float fRight = (rand.GetFloat() - rand.GetFloat()) * pClass->mScatterDistance;
-        desc.mPosition.x += aim._11 * fRight;
-        desc.mPosition.y += aim._12 * fRight;
-        desc.mPosition.z += aim._13 * fRight;
+        desc.mPosition.x += aim.m[0][0] * fRight;
+        desc.mPosition.y += aim.m[0][1] * fRight;
+        desc.mPosition.z += aim.m[0][2] * fRight;
         const float fUp = (rand.GetFloat() - rand.GetFloat()) * pClass->mScatterDistance;
-        desc.mPosition.x += aim._21 * fUp;
-        desc.mPosition.y += aim._22 * fUp;
-        desc.mPosition.z += aim._23 * fUp;
+        desc.mPosition.x += aim.m[1][0] * fUp;
+        desc.mPosition.y += aim.m[1][1] * fUp;
+        desc.mPosition.z += aim.m[1][2] * fUp;
 
-        desc.mDirection = PblVector3(-aim._31, -aim._32, -aim._33);
+        desc.mDirection = PblVector3(-aim.m[2][0], -aim.m[2][1], -aim.m[2][2]);
         desc.mStrength = 1.0f;
         desc.mOwner = ResolveHandle(mOwner);
         desc.mDamageOwner = mDamageOwner;
@@ -160,23 +154,11 @@ bool OrdnanceBeacon::Update(float fDeltaTime)
     return OrdnanceSticky::Update(fDeltaTime);
 }
 
-// FUNCTION: SWBF2 0x005f8d00
-bool OrdnanceBeaconClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashOrdnanceBeaconClass || OrdnanceStickyClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x005f8d40
-unsigned int OrdnanceBeaconClass::GetDerivedRtti()
-{
-    return rttiHashOrdnanceBeaconClass;
-}
 
-// FUNCTION: SWBF2 0x005f8d50
-const char* OrdnanceBeaconClass::GetDerivedRttiName()
-{
-    return rttiNameOrdnanceBeaconClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x005f9270
 OrdnanceBeaconClass::OrdnanceBeaconClass(unsigned int uHash)
@@ -207,8 +189,10 @@ OrdnanceBeaconClass::OrdnanceBeaconClass(OrdnanceBeaconClass* pBase, unsigned in
     mOrdnanceClass = pBase->mOrdnanceClass;
 }
 
-// SYNTHETIC: SWBF2 0x005f9390
-// OrdnanceBeaconClass::~OrdnanceBeaconClass
+// FUNCTION: SWBF2 0x005f9390
+OrdnanceBeaconClass::~OrdnanceBeaconClass()
+{
+}
 
 // FUNCTION: SWBF2 0x005f93a0
 void OrdnanceBeaconClass::SetProperty(unsigned int uProperty, const char* pszValue)

@@ -49,6 +49,11 @@
 #include "RedEngineFL/Util/RedLocalizeDB.h"
 #include "SoundFL/source/sndbus.h"
 
+// GLOBAL: SWBF2 0x007b2840
+// __xmm@3f8000003f0000003f0000003f000000
+// GLOBAL: SWBF2 0x007b2890
+// __xmm@3f8000003f8000003f8000003f800000
+
 // FUNCTION: SWBF2 0x0042cb80
 void SpawnDisplay::UpdateSpectate(Character* pCharacter)
 {
@@ -96,17 +101,22 @@ void SpawnDisplay::UpdateSpectate(Character* pCharacter)
 }
 
 // FUNCTION: SWBF2 0x0042b620
-void __fastcall SpawnDisplay::EnableViewport(int iViewport)
+void SpawnDisplay::EnableViewport(int iViewport, bool bEnable)
 {
-    HUD::Event event;
-    event.mClass = HUD::GameEvents::gPlayerEvents[iViewport].spawnDisplayDisable;
-    event.mData.boolValue = true;
+    HUD::Event event(bEnable ? HUD::GameEvents::gPlayerEvents[iViewport].spawnDisplayEnable
+                            : HUD::GameEvents::gPlayerEvents[iViewport].spawnDisplayDisable, true);
     event.Send();
 }
 
 extern int g_InGameMoviePlayerState;
 
-namespace HUD { namespace GameEvents { void DisableAllForObjectiveDisplay(int iPlayer, bool bFlag); } }
+namespace HUD
+{
+    namespace GameEvents
+    {
+        void DisableAllForObjectiveDisplay(int iPlayer, bool bFlag);
+    }
+}
 
 // FUNCTION: SWBF2 0x005636b0
 void HUD::GameEvents::DisableAllForObjectiveDisplay(int iPlayer, bool bFlag)
@@ -129,7 +139,10 @@ void HUD::GameEvents::DisableAllForObjectiveDisplay(int iPlayer, bool bFlag)
     HUD::Event(HUD::GameEvents::gObjectiveEvents.timerDisable, true).Send();
 }
 
-namespace GameLoop { bool GetCanSwitchSides(); }
+namespace GameLoop
+{
+    bool GetCanSwitchSides();
+}
 
 extern bool gAttractMode;
 
@@ -178,22 +191,6 @@ GuiManager* SpawnDisplay::m_pGuiManager;
 
 namespace
 {
-
-void SendEvent(HUD::EventClass* pClass, bool bValue)
-{
-    HUD::Event event;
-    event.mClass = pClass;
-    event.mData.boolValue = bValue;
-    event.Send();
-}
-
-void SendEvent(HUD::EventClass* pClass, int iValue)
-{
-    HUD::Event event;
-    event.mClass = pClass;
-    event.mData.intValue = iValue;
-    event.Send();
-}
 
 const Damageable* GetDamageable(const GameObject* pObject)
 {
@@ -365,7 +362,7 @@ void SpawnDisplay::UpdateUnitCountText()
     }
 
     PlayerStats::UnselectableReason eReason;
-    if (!mOwner->GetPlayerStats().IsClassSelectable(pTeam->GetClassIndex(pClass), &eReason))
+    if (!Character::GetPlayerStats(mOwner).IsClassSelectable(pTeam->GetClassIndex(pClass), &eReason))
     {
         switch (eReason)
         {
@@ -374,7 +371,7 @@ void SpawnDisplay::UpdateUnitCountText()
             break;
         case PlayerStats::NOT_ENOUGH_POINTS:
             PblUnicode::usnprintf(text, 255, RedLocalizeDB::Find(0x155AB074, false),
-                                  pClass->mPointsToUnlock - mOwner->GetPlayerStats().GetPoints(true));
+                                  pClass->mPointsToUnlock - Character::GetPlayerStats(mOwner).GetPoints(true));
             break;
         }
     }
@@ -471,7 +468,7 @@ void SpawnDisplay::Show(Character* pCharacter)
                 pBus->Fade(sInGameBusFadeTime, sInGameBusGain, -1.0f);
             }
         }
-        SendEvent(HUD::GameEvents::gPlayerEvents[mJoystickIndex].spawnDisplayEnable, true);
+        HUD::Event(HUD::GameEvents::gPlayerEvents[mJoystickIndex].spawnDisplayEnable, true).Send();
         mVisible = true;
         mVisibleTimer = 0.0f;
         ScreenTransition::sInstance->SetTransition(0, ScreenTransition::BLUR);
@@ -502,7 +499,7 @@ void SpawnDisplay::Show(Character* pCharacter)
     mDPadPressed = false;
     if (pCharacter && !(NetGame::IsEnabled() && NetGame::IsClient()))
     {
-        pCharacter->GetPlayerStats().TimingPause();
+        Character::GetPlayerStats(pCharacter).TimingPause();
     }
 
     if (!IsLocal(mPlayerIdx))
@@ -518,8 +515,8 @@ void SpawnDisplay::Show(Character* pCharacter)
     mGroupMainCB.Visible(true);
     mTextReady.Enable(true);
     mTextReady.Visible(true);
-    SendEvent(HUD::GameEvents::gPlayerEvents[mPlayerIdx].mapMode, 2);
-    SendEvent(HUD::GameEvents::gPlayerEvents[mPlayerIdx].index, mPlayerIdx);
+    HUD::Event(HUD::GameEvents::gPlayerEvents[mPlayerIdx].mapMode, 2).Send();
+    HUD::Event(HUD::GameEvents::gPlayerEvents[mPlayerIdx].index, mPlayerIdx).Send();
     BootDisplay::Instance(mPlayerIdx)->SetSpawnMode(true);
     HeroMessageDisplay::Instance(mPlayerIdx)->SetSpawnMode(true);
     mTextSpawnTimer.Enable(false);
@@ -580,7 +577,7 @@ void SpawnDisplay::Show(Character* pCharacter)
         SetupSlots();
         break;
     case eFINISHED:
-        SendEvent(HUD::GameEvents::gPlayerEvents[mPlayerIdx].mapMode, 0);
+        HUD::Event(HUD::GameEvents::gPlayerEvents[mPlayerIdx].mapMode, 0).Send();
         BootDisplay::Instance(mPlayerIdx)->SetSpawnMode(false);
         HeroMessageDisplay::Instance(mPlayerIdx)->SetSpawnMode(false);
         mGroupTimer.Enable(true);
@@ -630,7 +627,7 @@ void SpawnDisplay::Hide(Character* pCharacter)
 
     if (mOwner && !(NetGame::IsEnabled() && NetGame::IsClient()))
     {
-        mOwner->GetPlayerStats().TimingUnpause();
+        Character::GetPlayerStats(mOwner).TimingUnpause();
     }
 
     mMode = eSPAWNDISPLAY;
@@ -663,12 +660,12 @@ void SpawnDisplay::Hide(Character* pCharacter)
     mTextSpawnTimer.Enable(false);
     mTextSpawnTimer.Visible(false);
     mTextSpawnTimer.SetText("", true);
-    SendEvent(HUD::GameEvents::gPlayerEvents[iPlayerIdx].mapMode, 0);
+    HUD::Event(HUD::GameEvents::gPlayerEvents[iPlayerIdx].mapMode, 0).Send();
     BootDisplay::Instance(iPlayerIdx)->SetSpawnMode(false);
     HeroMessageDisplay::Instance(iPlayerIdx)->SetSpawnMode(false);
     mBackdropModel.Enable(false);
     mBackdropModel.Visible(false);
-    SendEvent(HUD::GameEvents::gPlayerEvents[mJoystickIndex].spawnDisplayDisable, true);
+    HUD::Event(HUD::GameEvents::gPlayerEvents[mJoystickIndex].spawnDisplayDisable, true).Send();
 }
 
 // FUNCTION: SWBF2 0x0042a670
@@ -688,9 +685,14 @@ bool SpawnDisplay::Update(float fDeltaTime)
         return true;
     }
 
+    // GLOBAL: SWBF2 0x01faa7b0
+    // sLightDir
     static PblVector3 sLightDir(-0.57735f, -0.57735f, -0.57735f);
+    // GLOBAL: SWBF2 0x01faa78c
     static RedColorValue sLightColor(1.0f, 1.0f, 1.0f, 1.0f);
+    // GLOBAL: SWBF2 0x01faa79c
     static RedColorValue sAmbientTop(0.5f, 0.5f, 0.5f, 1.0f);
+    // GLOBAL: SWBF2 0x01faa77c
     static RedColorValue sAmbientBottom(0.5f, 0.5f, 0.5f, 1.0f);
     RedInterfaceScreen::s_directionalLight[0].SetDirection(sLightDir);
     RedInterfaceScreen::s_directionalLight[0].SetColor(sLightColor);
@@ -817,7 +819,7 @@ bool SpawnDisplay::Update(float fDeltaTime)
         }
         UpdateInput();
         m_pEntityElement->SetColor(
-            mOwner->GetPlayerStats().IsClassSelectable(mOwner->mClassIndex, 0) ? RedColor::WHITE
+            Character::GetPlayerStats(mOwner).IsClassSelectable(mOwner->mClassIndex, 0) ? RedColor::WHITE
                                                                                : RedColor::BLACK);
         UpdateUnitCountText();
         m_pEntityElement->Update(fDeltaTime);
@@ -1013,8 +1015,8 @@ void SpawnDisplay::SelectTeam(int iTeam)
     {
         mSpawnPointChange.Play(0, 0, false, true);
     }
-    m_pSideModel[0]->SetColor(pTeam->mColor[1]);
-    m_pSideModel[1]->SetColor(pTeam->mColor[2]);
+    m_pSideModel[0]->SetColor(pTeam->GetColor(1));
+    m_pSideModel[1]->SetColor(pTeam->GetColor(2));
     LuaHelper::CallGlobalProc("ifs_pc_spawnselect_animateicons", (float)iTeam - 1.0f);
     mTeamDisplayRot = 3.14159265f;
     m_pInfoBoxText[mClassIndex]->m_color.a = 0x80;
@@ -1068,12 +1070,7 @@ void SpawnDisplay::SetCommandPost(CommandPost* pPost)
         ++gDebugCount;
     }
     mCommandPost = pPost;
-    GameObject* pObject = 0;
-    if (pPost)
-    {
-        pObject = pPost->GetGameObject();
-    }
-    mCommandObject = pObject;
+    mCommandObject = pPost ? pPost->GetGameObject() : 0;
 }
 
 // FUNCTION: SWBF2 0x0042ba40
@@ -1104,7 +1101,7 @@ void SpawnDisplay::ChangeMode(Mode)
         static_cast<RedGroupElement*>(RedInterfaceElement::Find(acBuffer))->AddElement(m_pEntityElement);
         m_pEntityElement->Enable(true);
         m_pEntityElement->Visible(true);
-        SendEvent(HUD::GameEvents::gPlayerEvents[mPlayerIdx].mapDisable, true);
+        HUD::Event(HUD::GameEvents::gPlayerEvents[mPlayerIdx].mapDisable, true).Send();
         BootDisplay::Instance(0)->SetSpawnMode(false);
         HeroMessageDisplay::Instance(0)->SetSpawnMode(false);
         UpdateSideSelectText(1);
@@ -1141,7 +1138,7 @@ void SpawnDisplay::ChangeMode(Mode)
             m_pGuiManager->PushScreen(acBuffer, 0, 0);
             SelectTeam(mTeamNumber);
         }
-        SendEvent(HUD::GameEvents::gPlayerEvents[mPlayerIdx].mapMode, 2);
+        HUD::Event(HUD::GameEvents::gPlayerEvents[mPlayerIdx].mapMode, 2).Send();
         mTextReady.Enable(false);
         mTextReady.Visible(false);
         mGroupTimer.Enable(false);
@@ -1170,7 +1167,7 @@ void SpawnDisplay::ChangeMode(Mode)
             }
             m_pGuiManager->PushScreen(acScreen, 0, 0);
         }
-        SendEvent(HUD::GameEvents::gPlayerEvents[mPlayerIdx].mapMode, 0);
+        HUD::Event(HUD::GameEvents::gPlayerEvents[mPlayerIdx].mapMode, 0).Send();
         mGroupTimer.Enable(true);
         mGroupTimer.Visible(true);
         mTextReady.Enable(true);
@@ -1262,7 +1259,7 @@ void SpawnDisplay::Initialize()
             break;
         }
         m_pSideModel[i]->SetModel(uModel);
-        m_pSideModel[i]->SetColor(pTeam->mColor[i + 1]);
+        m_pSideModel[i]->SetColor(pTeam->GetColor(i + 1));
         m_pSideModel[i]->Enable(true);
         m_pSideModel[i]->Visible(true);
         m_pSideModel[i]->BringToFront();

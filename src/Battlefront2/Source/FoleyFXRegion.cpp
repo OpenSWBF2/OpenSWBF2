@@ -32,9 +32,11 @@ void* FoleyFXRegionFactory::CreateRegion(RedRegionDesc& desc, const char* pcName
     return new FoleyFXRegion(desc, pGroup);
 }
 
-// GLOBAL: SWBF2 0x007eb8e8
 // SYNTHETIC: SWBF2 0x00403ae0
 // `dynamic initializer for 'FoleyFXRegion::smList''
 // SYNTHETIC: SWBF2 0x007687f0
 // `dynamic atexit destructor for 'FoleyFXRegion::smList''
+
+// GLOBAL: SWBF2 0x007eb8e8
+// FoleyFXRegion::smList
 PblListSingle FoleyFXRegion::smList;

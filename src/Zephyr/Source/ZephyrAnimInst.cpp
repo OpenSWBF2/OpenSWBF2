@@ -1,12 +1,14 @@
 #include "ZephyrAnimInst.h"
 
-// FUNCTION: SWBF2 0x0072f2b0
+// TEMPLATE: SWBF2 0x0072f2b0
+// ZephyrAnimInst<32>::ZephyrAnimInst<32>
 template <int N>
 ZephyrAnimInst<N>::ZephyrAnimInst() : m_pkAnim(0), m_pSkel(0)
 {
 }
 
-// FUNCTION: SWBF2 0x0072f3f0
+// TEMPLATE: SWBF2 0x0072f3f0
+// ZephyrAnimInst<32>::SetAnim
 template <int N>
 void ZephyrAnimInst<N>::SetAnim(const ZephyrAnim* pkAnim, const ZephyrSkeleton<N>* pSkel)
 {
@@ -21,18 +23,18 @@ void ZephyrAnimInst<N>::SetAnim(const ZephyrAnim* pkAnim, const ZephyrSkeleton<N
         return;
     }
 
-    for (int i = 0; i < GetNumSkelJoints(); i++)
+    for (int i = 0; i < pSkel->GetNumJoints(); i++)
     {
         m_piAnimJointIdx[i] = -1;
     }
 
-    for (unsigned short j = 0; j < m_pkAnim->m_u16NumJoints; j++)
+    for (int j = 0; j < m_pkAnim->m_u16NumJoints; j++)
     {
-        short iSkel = (short)((int)pSkel->m_pShared->m_kHashCRC2Joint.Find(
-                                  m_pkAnim->m_pkJoints[j].GetNameCRC()) - 1);
+        unsigned short u16Joint = (unsigned short)j;
+        short iSkel = (short)pSkel->m_pShared->GetJointIdxByCrc(m_pkAnim->m_pkJoints[u16Joint].GetNameCRC());
         if (iSkel >= 0)
         {
-            m_piAnimJointIdx[iSkel] = j;
+            m_piAnimJointIdx[iSkel] = u16Joint;
         }
         m_piSkelJointIdx[j] = iSkel;
         m_pkJointQuatStates[j].u16Frame = ZephyrAnimJoint::INVALID_FRAME;
@@ -52,7 +54,8 @@ template void ZephyrAnimInst<64>::SetAnim(const ZephyrAnim* pkAnim, const Zephyr
 // TEMPLATE: SWBF2 0x0072f2d0
 // ZephyrAnimInst<64>::ZephyrAnimInst<64>
 
-// FUNCTION: SWBF2 0x0072f2f0
+// TEMPLATE: SWBF2 0x0072f2f0
+// ZephyrAnimInst<32>::GetRotationCached
 template <int N>
 void ZephyrAnimInst<N>::GetRotationCached(PblQuaternion& kDst, unsigned short u16JointNum, unsigned short u16FrameNum) const
 {
@@ -63,7 +66,8 @@ void ZephyrAnimInst<N>::GetRotationCached(PblQuaternion& kDst, unsigned short u1
 // TEMPLATE: SWBF2 0x0072f330
 // ZephyrAnimInst<64>::GetRotationCached
 
-// FUNCTION: SWBF2 0x0072f370
+// TEMPLATE: SWBF2 0x0072f370
+// ZephyrAnimInst<32>::GetTranslationCached
 template <int N>
 void ZephyrAnimInst<N>::GetTranslationCached(PblVector3& kDst, unsigned short u16JointNum, unsigned short u16FrameNum) const
 {

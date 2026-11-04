@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "EntityItem.h"
@@ -25,9 +27,9 @@ public:
 
     virtual EntityClass* Derive(unsigned int uHash);
     virtual Entity* Build(const EntityDesc& desc);
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
 
     GameModel* mCarriedModel;
@@ -41,7 +43,7 @@ public:
     unsigned int mCarriedDroidekaBoneHash;
 
     static PblHash rttiHashFlagItemClass;
-    static char rttiNameFlagItemClass[];
+    static const char rttiNameFlagItemClass[];
 };
   
  
@@ -54,12 +56,12 @@ public:
  
  
 
-// VTABLE: SWBF2 0x0079ecd8
+// VTABLE: SWBF2 0x0079ecd8 EntityEx
 // VTABLE: SWBF2 0x0079ec38 CollisionObject
 // VTABLE: SWBF2 0x0079ee2c RedSceneObject
 // VTABLE: SWBF2 0x0079ee00 Damageable
 // VTABLE: SWBF2 0x0079edf8 PblHandled
-// VTABLE: SWBF2 0x0079ec20 Thread
+// VTABLE: SWBF2 0x0079ec20
 class FlagItem : public EntityItem
 {
 public:
@@ -68,7 +70,9 @@ public:
 
     virtual ~FlagItem();
 
-    static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
+    static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }
+    // SYNTHETIC: SWBF2 0x00523fa0
+    // FlagItem::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
     virtual bool IsRtti(unsigned int uRtti) const;
@@ -162,7 +166,7 @@ public:
     static FlagGameplayType sFlagGameplayType;
     static PblHash rttiHashFlagItem;
     static unsigned int GetRtti();
-    static char rttiNameFlagItem[];
+    static const char rttiNameFlagItem[];
 };
  
  
@@ -175,3 +179,49 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x00524010
+inline bool FlagItemClass::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashFlagItemClass == uRtti)
+    {
+        return true;
+    }
+    return EntityItemClass::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x00524050
+inline unsigned int FlagItemClass::GetDerivedRtti() const
+{
+    return rttiHashFlagItemClass;
+}
+
+// FUNCTION: SWBF2 0x00524060
+inline const char* FlagItemClass::GetDerivedRttiName() const
+{
+    return rttiNameFlagItemClass;
+}
+
+// FUNCTION: SWBF2 0x00523f30
+inline bool FlagItem::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashFlagItem == uRtti)
+    {
+        return true;
+    }
+    return EntityItem::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x00523f80
+inline unsigned int FlagItem::GetDerivedRtti() const
+{
+    return rttiHashFlagItem;
+}
+
+// FUNCTION: SWBF2 0x00523f90
+inline const char* FlagItem::GetDerivedRttiName() const
+{
+    return rttiNameFlagItem;
+}
+
+

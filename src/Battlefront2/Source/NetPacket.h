@@ -12,6 +12,9 @@ public:
 
     int GetNum() const;
 
+    // FUNCTION: SWBF2 0x005b2340
+    NetPacket* GetNext() { return Get(mNextPkt); }
+
     static void SetHiRes(bool bHiRes);
 
     static void Reset();
@@ -118,12 +121,14 @@ public:
 
     // FUNCTION: SWBF2 0x005aeca0
     NetPktGroup() : isSmall(false), bad(false) {}
+    NetPktGroup(bool bSmall) : isSmall(bSmall), bad(false) {}
 
     void Reset();
 
     int GetBytes();
 
     PBL_ASAN_NO_SANITIZE void PushBack(NetPacket* pPkt);
+    void InsertBefore(NetPacket* pBefore, NetPacket* pNew);
 
     PBL_ASAN_NO_SANITIZE NetPacket* PopFront();
 
@@ -141,10 +146,20 @@ public:
     void ReadPacked();
     void WriteBits(unsigned int uValue, int iBits);
     void ReadBits(unsigned int& uValue, int iBits);
-    void Write(bool bValue);
+    // FUNCTION: SWBF2 0x0053e0a0
+    void Write(bool bValue)
+    {
+        WriteBits(bValue != 0, 1);
+    }
     void Write(int iValue);
     void Write(const float& fValue);
-    void Read(bool& bValue);
+    // FUNCTION: SWBF2 0x0053e0c0
+    void Read(bool& bValue)
+    {
+        unsigned int uValue;
+        ReadBits(uValue, 1);
+        bValue = uValue != 0;
+    }
     void Read(float& fValue);
     void Read(int& iValue);
     void WriteFixed(float f, float fMin, float fMax, int iBits);
@@ -185,6 +200,27 @@ void NetRejectReset();
 
 static const int kRecvReserveBig = 128;
 static const int kRecvReserveSmall = 32;
+
+template <class CONVERT>
+void WriteFixed(CONVERT& convert, NetPktGroup& group, float fValue)
+{
+    convert.TrackValue(fValue);
+    group.WriteFixed(fValue, convert.GetMin(), convert.GetMax(), convert.GetBits());
+}
+
+template <class CONVERT>
+void ReadFixed(CONVERT& convert, NetPktGroup& group, float& fValue)
+{
+    group.ReadFixed(fValue, convert.GetMin(), convert.GetMax(), convert.GetBits());
+}
+
+class ConvertValues
+{
+public:
+
+    // FUNCTION: SWBF2 0x005b4000
+    void TrackValue(float fValue) {}
+};
  
 
 void NetPktGroupClampFixed(float& f, float fMin, float fMax, int iBits);

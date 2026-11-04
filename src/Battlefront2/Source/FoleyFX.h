@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "SoundFL/source/sndobjectlist.h"
@@ -32,7 +34,7 @@ public:
     PblListSingle::Node mNode;
 
     static PblHash rttiHashFoleyFX;
-    static char rttiNameFoleyFX[];
+    static const char rttiNameFoleyFX[];
     static PblListSingle smList;
 };
  
@@ -91,3 +93,21 @@ public:
 };
  
  
+
+// FUNCTION: SWBF2 0x0052c040
+inline bool FoleyFX::IsRtti(unsigned int uRtti) const
+{
+    return rttiHashFoleyFX == uRtti;
+}
+
+// FUNCTION: SWBF2 0x0052c060
+inline unsigned int FoleyFX::GetDerivedRtti() const
+{
+    return rttiHashFoleyFX;
+}
+
+// FUNCTION: SWBF2 0x0052c070
+inline const char* FoleyFX::GetDerivedRttiName() const
+{
+    return rttiNameFoleyFX;
+}

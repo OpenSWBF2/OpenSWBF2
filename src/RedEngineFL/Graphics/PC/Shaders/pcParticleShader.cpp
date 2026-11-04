@@ -1,3 +1,5 @@
+#include <string.h>
+#include <d3dx9math.h>
 #include "pcParticleShader.h"
 
 #include "PebbleFL/Common/PblChunk.h"
@@ -9,14 +11,24 @@
 #include "RedEngineFL/Graphics/PC/pcRedTexture.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
 #include "PebbleFL/Common/PblVector.h"
-#include "PebbleFL/pc/PblD3DX.h"
+
+// GLOBAL: SWBF2 0x007848f0
+// __xmm@0000000000000000000000003f000000
+// GLOBAL: SWBF2 0x00784900
+// __xmm@00000000000000003f00000000000000
+// GLOBAL: SWBF2 0x00784910
+// __xmm@0000000000000000bf00000000000000
+// GLOBAL: SWBF2 0x00784920
+// __xmm@3f8000003f8000003f0000003f000000
 
 void __cdecl PblTraceP(const char* Format, ...);
 
-// GLOBAL: SWBF2 0x009c9740
+
 // SYNTHETIC: SWBF2 0x00409a70
 // `dynamic initializer for 's_blurTexMatrix''
 
+// GLOBAL: SWBF2 0x009c9740
+// s_blurTexMatrix
 static PblMatrix s_blurTexMatrix;
 
 // GLOBAL: SWBF2 0x007e1b90
@@ -35,18 +47,10 @@ pcRedShader::RenderFuncT pcParticleShader::RenderFuncArray[MAX_PIPELINES];
 // FUNCTION: SWBF2 0x00702d30
 pcParticleShader::pcParticleShader()
 {
-    GetStateFuncArray[PIPELINE_FIXED] = 0;
-    GetStateFuncArray[PIPELINE_PROG1] = 0;
-    GetStateFuncArray[PIPELINE_PROG2] = 0;
-    BeginFuncArray[PIPELINE_FIXED] = 0;
-    BeginFuncArray[PIPELINE_PROG1] = 0;
-    BeginFuncArray[PIPELINE_PROG2] = 0;
-    EndFuncArray[PIPELINE_FIXED] = 0;
-    EndFuncArray[PIPELINE_PROG1] = 0;
-    EndFuncArray[PIPELINE_PROG2] = 0;
-    RenderFuncArray[PIPELINE_FIXED] = 0;
-    RenderFuncArray[PIPELINE_PROG1] = 0;
-    RenderFuncArray[PIPELINE_PROG2] = 0;
+    memset(GetStateFuncArray, 0, sizeof(GetStateFuncArray));
+    memset(BeginFuncArray, 0, sizeof(BeginFuncArray));
+    memset(EndFuncArray, 0, sizeof(EndFuncArray));
+    memset(RenderFuncArray, 0, sizeof(RenderFuncArray));
 
     s_uiID = _Register(s_uiRenderTypeHash, this);
 
@@ -82,6 +86,7 @@ void pcParticleShader::Begin_Prog1(unsigned int, unsigned int) const
     if (m_blurEnable)
     {
         // GLOBAL: SWBF2 0x009c9880
+        // s_BiasToTextureMatrix
 
         static const PblMatrix s_BiasToTextureMatrix(
             PblVector4{ 0.5f, 0.0f, 0.0f, 0.0f },
@@ -90,11 +95,8 @@ void pcParticleShader::Begin_Prog1(unsigned int, unsigned int) const
             PblVector4{ 0.5f, 0.5f, 0.0f, 1.0f });
 
         const RedCamera* pCamera = RedRenderer::GetCamera();
-        PblMatrix mViewProj;
-        D3DXMatrixMultiply(&mViewProj, &pCamera->GetMatrixInverse(),
-                           &RedRenderer::GetProjectionMatrix());
-        PblMatrix mTex;
-        D3DXMatrixMultiply(&mTex, &mViewProj, &s_BiasToTextureMatrix);
+        PblMatrix mViewProj = pCamera->GetMatrixInverse() * RedRenderer::GetProjectionMatrix();
+        PblMatrix mTex = mViewProj * s_BiasToTextureMatrix;
         s_blurTexMatrix = mTex;
 
         RedRenderer::pcSetSamplerState(1, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
@@ -128,18 +130,19 @@ void pcParticleShader::Begin_Fixed(unsigned int uiState, unsigned int) const
 
     if (uiState == 1)
     {
+        // GLOBAL: SWBF2 0x009c97b0
         static const PblMatrix mBias(PblVector4{ 0.5f, 0.0f, 0.0f, 0.0f },
                                      PblVector4{ 0.0f, -0.5f, 0.0f, 0.0f },
                                      PblVector4{ 0.0f, 0.0f, 0.0f, 0.0f },
                                      PblVector4{ 0.5f, 0.5f, 1.0f, 1.0f });
+        // GLOBAL: SWBF2 0x009c9800
         static PblMatrix mProjection;
+        // GLOBAL: SWBF2 0x009c9840
         static PblMatrix mView;
         RedRenderer::pcGetDevice()->GetTransform(D3DTS_PROJECTION, (D3DMATRIX*)&mProjection);
         RedRenderer::pcGetDevice()->GetTransform(D3DTS_VIEW, (D3DMATRIX*)&mView);
-        PblMatrix mViewProj;
-        D3DXMatrixMultiply(&mViewProj, &mView, &mProjection);
-        PblMatrix mTex;
-        D3DXMatrixMultiply(&mTex, &mViewProj, &mBias);
+        PblMatrix mViewProj = mView * mProjection;
+        PblMatrix mTex = mViewProj * mBias;
         s_blurTexMatrix = mTex;
 
         RedRenderer::pcSetSamplerState(1, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
@@ -207,11 +210,8 @@ void pcParticleShader::Render_Fixed(const RenderItem* pItem, unsigned int) const
         mInvView.m[3][0] = 0.0f; mInvView.m[3][1] = 0.0f; mInvView.m[3][2] = 0.0f; mInvView.m[3][3] = 1.0f;
         PblMatrix mInvWorld = pItem->pmObjWorld->GetInverseFast();
         mInvWorld.m[3][0] = 0.0f; mInvWorld.m[3][1] = 0.0f; mInvWorld.m[3][2] = 0.0f; mInvWorld.m[3][3] = 1.0f;
-        PblMatrix m1, m2, m3;
-        D3DXMatrixMultiply(&m1, &mInvView, &mInvWorld);
-        D3DXMatrixMultiply(&m2, &m1, pItem->pmObjWorld);
-        D3DXMatrixMultiply(&m3, &m2, &s_blurTexMatrix);
-        RedRenderer::pcFFSetTextureTransform(1, m3);
+        PblMatrix texMatrix = mInvView * mInvWorld * *pItem->pmObjWorld * s_blurTexMatrix;
+        RedRenderer::pcFFSetTextureTransform(1, texMatrix);
         RedRenderer::pcSetTexture(0, RedTexture::Find(m_uiTextureHash));
         RedRenderer::pcSetTexture(1, m_blurBuffer);
     }
@@ -280,17 +280,17 @@ unsigned int pcParticleShader::GetState_Prog1(const RenderItem*) const
     return m_blurEnable != 0;
 }
 
-// GLOBAL: SWBF2 0x007848c8
-static const pcRedShaderDef::FixedFunctionStateT kFixedFunctionStates[2] =
-{
-    { 1, { 0x21, 0x00, 0x00, 0x00 } },
-    { 1, { 0x41, 0x00, 0x00, 0x00 } },
-};
-
 // FUNCTION: SWBF2 0x00703500
 void pcParticleShader::InitFixedFunctionShaderDef() const
 {
-    GetShaderDef()->InitFixedFunction(0x14, 2, kFixedFunctionStates);
+    // GLOBAL: SWBF2 0x007848c8
+    static const pcRedShaderDef::FixedFunctionStateT aFFStates[2] =
+    {
+        { 1, { 0x21, 0x00, 0x00, 0x00 } },
+        { 1, { 0x41, 0x00, 0x00, 0x00 } },
+    };
+
+    GetShaderDef()->InitFixedFunction(0x14, 2, aFFStates);
 }
 
 // FUNCTION: SWBF2 0x00703710
@@ -352,8 +352,7 @@ void pcParticleShader::Render_Prog1(const RenderItem* pItem, unsigned int) const
         pRegs[41].component[1] = m_fTextureScale;
         pRegs[41].component[2] = 0.0f;
         pRegs[41].component[3] = 0.0f;
-        PblMatrix mTex;
-        D3DXMatrixMultiply(&mTex, pItem->pmObjWorld, &s_blurTexMatrix);
+        PblMatrix mTex = *pItem->pmObjWorld * s_blurTexMatrix;
         pRegs[42].SetMatrix4x4(mTex);
         RedRenderer::pcUnlockVertexShaderConstants(pRegs);
         RedRenderer::pcSetTexture(0, RedTexture::s_textureHashTable.Find(m_uiTextureHash));
@@ -471,35 +470,44 @@ void pcParticleShader::_StaticInit() const
 {
 }
 
-// GLOBAL: SWBF2 0x009c96ec
 // SYNTHETIC: SWBF2 0x004099f0
 // `dynamic initializer for 'pcParticleShader::s_uiRenderTypeHash''
+
+// GLOBAL: SWBF2 0x009c96ec
+// pcParticleShader::s_uiRenderTypeHash
 unsigned int pcParticleShader::s_uiRenderTypeHash = PblHash("Particle");
 
-// GLOBAL: SWBF2 0x009c96f0
 // SYNTHETIC: SWBF2 0x004099b0
 // `dynamic initializer for 'pcParticleShader::s_Factory''
 // SYNTHETIC: SWBF2 0x00769cc0
 // `dynamic atexit destructor for 'pcParticleShader::s_Factory''
+
+// GLOBAL: SWBF2 0x009c96f0
+// pcParticleShader::s_Factory
 pcParticleShader pcParticleShader::s_Factory;
 
-// GLOBAL: SWBF2 0x009c9780
 // SYNTHETIC: SWBF2 0x004099d0
 // `dynamic initializer for 'pcParticleShader::s_shaderDef''
 // SYNTHETIC: SWBF2 0x00769ce0
 // `dynamic atexit destructor for 'pcParticleShader::s_shaderDef''
+
+// GLOBAL: SWBF2 0x009c9780
+// pcParticleShader::s_shaderDef
 pcRedShaderDef pcParticleShader::s_shaderDef("particle_shader.xml");
 
-// GLOBAL: SWBF2 0x009c9734
 // SYNTHETIC: SWBF2 0x00409a50
 // `dynamic initializer for 'kuiLinearRamp''
+
+// GLOBAL: SWBF2 0x009c9734
+// kuiLinearRamp
 static unsigned int kuiLinearRamp = PblHash("linear_ramp");
 
 // SYNTHETIC: SWBF2 0x00409a10
-// `dynamic initializer for 'PblMath::fOneOverHalfPi''
+// PblMath::`dynamic initializer for 'fOneOverHalfPi''
 
 // SYNTHETIC: SWBF2 0x00409a30
-// `dynamic initializer for 'PblMath::fOneOverTwoPi''
+// PblMath::`dynamic initializer for 'fOneOverTwoPi''
 
 // GLOBAL: SWBF2 0x009c96e8
+// g_pcParticleShader
 unsigned int g_pcParticleShader;

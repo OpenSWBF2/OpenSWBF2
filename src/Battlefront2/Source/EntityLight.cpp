@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -12,7 +13,6 @@
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 
 #include "LightBeam.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 extern PblVector3 gVectorZero;
 
@@ -24,28 +24,38 @@ const RedColor Interpolate(const RedColor& a, const RedColor& b, float t);
 // GLOBAL: SWBF2 0x01e51de0
 EntityLightFXParser* EntityLightFXParser::s_pInstance;
 
-// GLOBAL: SWBF2 0x01ebbe30
 // SYNTHETIC: SWBF2 0x00402c00
 // `dynamic initializer for 'EntityLight::rttiHashEntityLight''
+// EntityLight::rttiHashEntityLight
+
+// GLOBAL: SWBF2 0x01ebbe30
+// EntityLight::rttiHashEntityLight
 PblHash EntityLight::rttiHashEntityLight("EntityLight");
-char EntityLight::rttiNameEntityLight[] = "EntityLight";
-// GLOBAL: SWBF2 0x01ebbe34
+// GLOBAL: SWBF2 0x00789334
+// EntityLight::rttiNameEntityLight
+const char EntityLight::rttiNameEntityLight[] = "EntityLight";
 // SYNTHETIC: SWBF2 0x00402c10
 // `dynamic initializer for 'EntityLightClass::rttiHashEntityLightClass''
+// EntityLightClass::rttiHashEntityLightClass
+
+// GLOBAL: SWBF2 0x01ebbe34
+// EntityLightClass::rttiHashEntityLightClass
 PblHash EntityLightClass::rttiHashEntityLightClass("EntityLightClass");
-char EntityLightClass::rttiNameEntityLightClass[] = "EntityLightClass";
-// GLOBAL: SWBF2 0x01ebbe38
+// GLOBAL: SWBF2 0x0078930c
+// EntityLightClass::rttiNameEntityLightClass
+const char EntityLightClass::rttiNameEntityLightClass[] = "EntityLightClass";
 // SYNTHETIC: SWBF2 0x00402be0
 // `dynamic initializer for 'EntityLight::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00766f70
 // `dynamic atexit destructor for 'EntityLight::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ebbe38
+// EntityLight::sMemoryPool
 MemoryPool EntityLight::sMemoryPool("EntityLight", 0x2e0);
-// GLOBAL: SWBF2 0x01ebbe88
-int EntityLightClass::sLightClassTableNumEntries;
-// GLOBAL: SWBF2 0x01ebbe8c
 // SYNTHETIC: SWBF2 0x00402c20
 // `dynamic initializer for 'EntityLightClass::sLightClassTable''
 
+// GLOBAL: SWBF2 0x01ebbe88
 PblHashTable<EntityLightClass, 32> EntityLightClass::sLightClassTable;
 
 // FUNCTION: SWBF2 0x004ce920
@@ -118,19 +128,6 @@ RedColor ReadColor(const PblConfig::Data& data)
     return color;
 }
 
-// FUNCTION: SWBF2 0x004708b0
-bool PblConfig::Data::IsStringArg(unsigned int i) const
-{
-    if (i < m_uiNumArgs)
-    {
-        unsigned int uiOffset = m_auiArgs[i];
-        if (uiOffset >= m_uiNumArgs * 4 && uiOffset < 0x200)
-        {
-            return true;
-        }
-    }
-    return false;
-}
 
 // FUNCTION: SWBF2 0x004cc320
 void ManagedLightBeam::Render(unsigned char, float, unsigned int uiFlags)
@@ -145,21 +142,7 @@ void ManagedLightBeam::Unhide()
     _Flare._uiHideInView = 0;
 }
 
-// FUNCTION: SWBF2 0x004cc870
-void ManagedLightBeam::HideInView(unsigned int uiView, bool bHide)
-{
-    const unsigned int mask = 1u << uiView;
-    if (bHide)
-    {
-        _uiHideInView |= mask;
-        _Flare._uiHideInView |= mask;
-    }
-    else
-    {
-        _uiHideInView &= ~mask;
-        _Flare._uiHideInView &= ~mask;
-    }
-}
+
 
 // FUNCTION: SWBF2 0x004cc8c0
 bool ManagedLightBeam::IsHiddenInView(unsigned int uiView)
@@ -167,55 +150,15 @@ bool ManagedLightBeam::IsHiddenInView(unsigned int uiView)
     return (_uiHideInView & (1u << uiView)) != 0;
 }
 
-// FUNCTION: SWBF2 0x004cc340
-void ManagedLightBeam::SetHeadPosition(const PblVector3& vPos)
-{
-    LightBeam::SetHeadPosition(vPos);
-    if (_bActive)
-    {
-        _UpdateBoundingSphere();
-    }
-}
 
-// FUNCTION: SWBF2 0x004cc3d0
-void ManagedLightBeam::SetDirection(const PblVector3& vDir)
-{
-    LightBeam::SetDirection(vDir);
-    if (_bActive)
-    {
-        _UpdateBoundingSphere();
-    }
-}
 
-// FUNCTION: SWBF2 0x004cc450
-void ManagedLightBeam::SetLength(float fLength)
-{
-    LightBeam::SetLength(fLength);
-    if (_bActive)
-    {
-        _UpdateBoundingSphere();
-    }
-}
 
-// FUNCTION: SWBF2 0x004cc4c0
-void ManagedLightBeam::SetHeadTailPosition(const PblVector3& vHead, const PblVector3& vTail)
-{
-    LightBeam::SetHeadTailPosition(vHead, vTail);
-    if (_bActive)
-    {
-        _UpdateBoundingSphere();
-    }
-}
 
-// FUNCTION: SWBF2 0x004cc530
-void ManagedLightBeam::SetPositionOmni(const PblVector3& vPos)
-{
-    LightBeam::SetPositionOmni(vPos);
-    if (_bActive)
-    {
-        _UpdateBoundingSphere();
-    }
-}
+
+
+
+
+
 
 // FUNCTION: SWBF2 0x004cc660
 void ManagedLightBeam::SetInitialWidth(float fWidthX, float fWidthZ)
@@ -257,46 +200,13 @@ void ManagedLightBeam::SetFinalWidth(float fWidthX, float fWidthZ)
     }
 }
 
-// FUNCTION: SWBF2 0x004cc7e0
-void ManagedLightBeam::SetFadeLength(float fLength)
-{
-    LightBeam::SetFadeLength(fLength);
-    if (_bActive)
-    {
-        _UpdateBoundingSphere();
-    }
-}
 
-// FUNCTION: SWBF2 0x004cc8e0
-void ManagedLightBeam::UpdatedWorldMatrix()
-{
-    LightBeam::UpdatedWorldMatrix();
-    if (_bActive)
-    {
-        _UpdateBoundingSphere();
-    }
-}
 
-void ManagedLightBeam::_UpdateBoundingSphere()
-{
-    PblVector3 vCenter;
-    float fRadius;
-    GetLocalBoundingSphere(vCenter, fRadius);
-    SetRenderRadius(fRadius);
-    PblVector3 vPos;
-    D3DXVec3TransformCoord(&vPos, &vCenter, &m_mWorldMatrix);
-    SetRenderPos(vPos);
-}
 
-// FUNCTION: SWBF2 0x004cc940
-void ManagedLightBeam::AddToRenderList()
-{
-    if (!_bActive)
-    {
-        _UpdateBoundingSphere();
-        Activate();
-    }
-}
+
+
+
+
 
 // FUNCTION: SWBF2 0x004cc9a0
 void ManagedLightBeam::RemoveFromRenderList()
@@ -304,62 +214,21 @@ void ManagedLightBeam::RemoveFromRenderList()
     Deactivate();
 }
 
-// SYNTHETIC: SWBF2 0x004cf48c
-// [thunk]:ManagedLightBeam::`scalar deleting destructor' adjustor{96}
-// SYNTHETIC: SWBF2 0x004cf494
-// [thunk]:ManagedLightBeam::`scalar deleting destructor' adjustor{136}
-// SYNTHETIC: SWBF2 0x004cf4a7
-// [thunk]:ManagedLightBeam::`scalar deleting destructor' adjustor{112}
-// SYNTHETIC: SWBF2 0x004cc9b0
-// ManagedLightBeam::`scalar deleting destructor'
 
-// FUNCTION: SWBF2 0x004cca10
-ManagedLightBeam::~ManagedLightBeam()
-{
-}
 
-ManagedLightBeam::ManagedLightBeam()
-    : RedSceneObject(&largeEffectLodData)
-    , LightBeam()
-    , _uiHideInView(0)
-{
-}
 
-// FUNCTION: SWBF2 0x004cca60
-bool EntityLight::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashEntityLight || Entity::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x004cca90
-unsigned int EntityLight::GetDerivedRtti() const
-{
-    return rttiHashEntityLight;
-}
 
-// FUNCTION: SWBF2 0x004ccaa0
-const char* EntityLight::GetDerivedRttiName() const
-{
-    return rttiNameEntityLight;
-}
 
-// FUNCTION: SWBF2 0x004ccab0
-bool EntityLightClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashEntityLightClass || EntityClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x004ccae0
-unsigned int EntityLightClass::GetDerivedRtti()
-{
-    return rttiHashEntityLightClass;
-}
 
-// FUNCTION: SWBF2 0x004ccaf0
-const char* EntityLightClass::GetDerivedRttiName()
-{
-    return rttiNameEntityLightClass;
-}
+
+
+
+
+
+
+
 
 // FUNCTION: SWBF2 0x004ccb00
 void EntityLightFXParser::Init()
@@ -690,12 +559,7 @@ void EntityLightFXParser::Render(int)
 {
 }
 
-// SYNTHETIC: SWBF2 0x004ccb30
-// EntityLightFXParser::`scalar deleting destructor'
 
-EntityLightFXParser::~EntityLightFXParser()
-{
-}
 
 // FUNCTION: SWBF2 0x004ccba0
 EntityLight::EntityLight()
@@ -721,9 +585,9 @@ EntityLight::EntityLight()
 }
 
 // SYNTHETIC: SWBF2 0x004cf49f
-// [thunk]:EntityLight::`scalar deleting destructor' adjustor{40}
+// ??_EEntityLight@@WCI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004cf4af
-// [thunk]:EntityLight::`scalar deleting destructor' adjustor{16}
+// ??_EEntityLight@@WBA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004ccdf0
 // EntityLight::`scalar deleting destructor'
 
@@ -1168,7 +1032,7 @@ EntityLightClass::EntityLightClass(unsigned int uHash)
 }
 
 // SYNTHETIC: SWBF2 0x004cf484
-// [thunk]:EntityLightClass::`scalar deleting destructor' adjustor{96}
+// ??_EEntityLightClass@@WGA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004cddd0
 // EntityLightClass::`scalar deleting destructor'
 
@@ -1218,10 +1082,7 @@ EntityLightClass::EntityLightClass(EntityLightClass* pParent, unsigned int uHash
         _puiProjectedTextures = 0;
     }
 
-    if (sLightClassTable.Store(uHash, this))
-    {
-        ++sLightClassTableNumEntries;
-    }
+    sLightClassTable.Store(uHash, this);
 }
 
 // FUNCTION: SWBF2 0x004ce010
@@ -1591,7 +1452,6 @@ EntityClass* EntityLightClass::Derive(unsigned int uHash)
 void EntityLightClass::Reset()
 {
     sLightClassTable.Clear();
-    sLightClassTableNumEntries = 0;
 }
 
 // FUNCTION: SWBF2 0x004ceb20
@@ -1614,4 +1474,17 @@ void EntityLight::SetFlareIntensity(float fIntensity)
 }
 
 // LIBRARY: SWBF2 0x00410860
-// fabs
+// fabsf
+
+inline void ManagedLightBeam::_UpdateBoundingSphere()
+{
+    PblVector3 vCenter;
+    float fRadius;
+    GetLocalBoundingSphere(vCenter, fRadius);
+    SetRenderRadius(fRadius);
+    PblVector3 vPos;
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vPos), reinterpret_cast<const D3DXVECTOR3*>(&vCenter), reinterpret_cast<const D3DXMATRIX*>(&m_mWorldMatrix));
+    SetRenderPos(vPos);
+}
+
+

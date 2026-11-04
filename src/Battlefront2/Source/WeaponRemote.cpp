@@ -7,35 +7,31 @@
 #include "NetGame.h"
 #include "Trigger.h"
 
-// GLOBAL: SWBF2 0x01f9a904
 // SYNTHETIC: SWBF2 0x00407270
 // `dynamic initializer for 'WeaponRemoteClass::rttiHashWeaponRemoteClass''
-PblHash WeaponRemoteClass::rttiHashWeaponRemoteClass("WeaponRemoteClass");
-char WeaponRemoteClass::rttiNameWeaponRemoteClass[] = "WeaponRemoteClass";
+// WeaponRemoteClass::rttiHashWeaponRemoteClass
 
-// GLOBAL: SWBF2 0x01f9a908
+// GLOBAL: SWBF2 0x01f9a904
+// WeaponRemoteClass::rttiHashWeaponRemoteClass
+PblHash WeaponRemoteClass::rttiHashWeaponRemoteClass("WeaponRemoteClass");
+// GLOBAL: SWBF2 0x0078c208
+// WeaponRemoteClass::rttiNameWeaponRemoteClass
+const char WeaponRemoteClass::rttiNameWeaponRemoteClass[] = "WeaponRemoteClass";
+
 // SYNTHETIC: SWBF2 0x00407260
 // `dynamic initializer for 'WeaponRemote::rttiHashWeaponRemote''
+// WeaponRemote::rttiHashWeaponRemote
+
+// GLOBAL: SWBF2 0x01f9a908
+// WeaponRemote::rttiHashWeaponRemote
 PblHash WeaponRemote::rttiHashWeaponRemote("WeaponRemote");
-char WeaponRemote::rttiNameWeaponRemote[] = "WeaponRemote";
+const char WeaponRemote::rttiNameWeaponRemote[] = "WeaponRemote";
 
-// FUNCTION: SWBF2 0x0068ff10
-bool WeaponRemoteClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashWeaponRemoteClass || WeaponDispenserClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x0068ff40
-unsigned int WeaponRemoteClass::GetDerivedRtti()
-{
-    return rttiHashWeaponRemoteClass;
-}
 
-// FUNCTION: SWBF2 0x0068ff50
-const char* WeaponRemoteClass::GetDerivedRttiName()
-{
-    return rttiNameWeaponRemoteClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x006903b0
 WeaponRemoteClass::WeaponRemoteClass(unsigned int uHash)
@@ -91,23 +87,11 @@ WeaponDispenser* WeaponRemoteClass::Build(const WeaponDesc& desc)
     return new WeaponRemote(this, desc);
 }
 
-// FUNCTION: SWBF2 0x0068fec0
-bool WeaponRemote::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashWeaponRemote || WeaponDispenser::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x0068fef0
-unsigned int WeaponRemote::GetDerivedRtti() const
-{
-    return rttiHashWeaponRemote;
-}
 
-// FUNCTION: SWBF2 0x0068ff00
-const char* WeaponRemote::GetDerivedRttiName() const
-{
-    return "WeaponRemote";
-}
+
+
+
 
 // FUNCTION: SWBF2 0x0068ff60
 WeaponRemote::WeaponRemote(const WeaponRemoteClass* pClass, const WeaponDesc& desc)

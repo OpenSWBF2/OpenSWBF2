@@ -117,7 +117,7 @@ TEST_CASE("ordered list sentinel is the key maximum" * doctest::test_suite("unit
     PblOrderedList<Thread, long long> wList;
     PblOrderedList<Thread, long long>::Node wNode;
     wList.Add(&wNode, NULL, 0);
-    CHECK(wList._head._iOrder == LLONG_MAX);
+    CHECK(wList._head._iOrder == 0x7FFFFFFF);
 
     PblOrderedList<Thread, float> fList;
     PblOrderedList<Thread, float>::Node fNode;

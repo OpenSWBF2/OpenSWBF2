@@ -5,11 +5,18 @@
 namespace EventManager
 {
 
+extern char noContext;
+
+// VTABLE: SWBF2 0x0079e17c
 class Node : public PblRef
 {
 public:
 
-    virtual ~Node();
+    virtual ~Node()
+    {
+        Clear();
+        DetachFromParent();
+    }
 
     virtual const char* GetName();
 

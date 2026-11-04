@@ -15,7 +15,11 @@ SubstreamSplitter::SubstreamSplitter()
       mLockPos(0)
 {
 
-    StreamNodeSink::Connect(0, 0);
+}
+
+// FUNCTION: SWBF2 0x0074ae90
+SubstreamSplitter::~SubstreamSplitter()
+{
 }
 
 }
@@ -46,11 +50,7 @@ StreamPacket* SubstreamSplitter::GetPacket(unsigned int uiSubstream)
 {
     Update();
 
-    if (GetCurrentPlayState() != playState_playing)
-    {
-        return 0;
-    }
-    if (mPackets == 0 || mLockPos == 0)
+    if (GetCurrentPlayState() != playState_playing || mPackets == 0 || mLockPos == 0)
     {
         return 0;
     }
@@ -180,7 +180,8 @@ fill:
 
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x0074b070
 void SubstreamSplitter::Setup(unsigned int uiNumSubstreams, unsigned int uiSubstreamInterleave,

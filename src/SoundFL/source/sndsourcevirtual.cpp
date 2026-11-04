@@ -12,17 +12,15 @@ namespace Snd
 // FUNCTION: SWBF2 0x0074b4a0
 bool SourceVirtual::Read(PblFileChunk& chunk, unsigned int uiPropertyID)
 {
-    PblFile* const pFile = chunk._pFile;
-    if (uiPropertyID == 0x94E4E309u)
+    switch (uiPropertyID)
     {
-        pFile->Read8();
-        SetPriority(pFile->ReadFloat());
+    case 0x94E4E309u:
+        chunk._pFile->Read8();
+        SetPriority(chunk._pFile->ReadFloat());
         return true;
-    }
-    if (uiPropertyID == 0xBA467EC4u)
-    {
-        pFile->Read8();
-        SetBias(pFile->ReadFloat());
+    case 0xBA467EC4u:
+        chunk._pFile->Read8();
+        SetBias(chunk._pFile->ReadFloat());
         return true;
     }
     return false;
@@ -30,26 +28,28 @@ bool SourceVirtual::Read(PblFileChunk& chunk, unsigned int uiPropertyID)
 
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x0074b380
 float SourceVirtual::CalculatePriority(unsigned char ePlayState, float fArg, bool bLooping,
                                        float fBusGain) const
 {
-    if (ePlayState != SourceTransport::playState_playing)
+    if (ePlayState == SourceTransport::playState_playing)
     {
-        return 0.0f;
+        float fScale = 1.0f;
+        if (!bLooping)
+        {
+            fScale = (1.0f - fArg) * 0.0099999998f + 0.99000001f;
+        }
+        return ((1.0f - mBias) * fBusGain + mBias * mPriority) * fScale;
     }
-    float fScale = 1.0f;
-    if (!bLooping)
-    {
-        fScale = (1.0f - fArg) * 0.0099999998f + 0.99000001f;
-    }
-    return ((1.0f - mBias) * fBusGain + mBias * mPriority) * fScale;
+    return 0.0f;
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x0074b3e0
 float SourceVirtual::CalculatePriority(const SourceTransport* pTransport,

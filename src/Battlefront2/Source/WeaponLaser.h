@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "Weapon.h"
@@ -14,13 +16,13 @@ public:
     virtual ~WeaponLaserClass();
 
     static PblHash rttiHashWeaponLaserClass;
-    static char rttiNameWeaponLaserClass[];
+    static const char rttiNameWeaponLaserClass[];
 
     virtual WeaponClass* Derive(unsigned int uHash);
     virtual Weapon* Build(const WeaponDesc& desc);
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
 
     float mShotDelay;
@@ -58,9 +60,53 @@ protected:
 
 public:
     static PblHash rttiHashWeaponLaser;
-    static char rttiNameWeaponLaser[];
+    static const char rttiNameWeaponLaser[];
 
     float mSalvoTimer;
 };
   
  
+
+// FUNCTION: SWBF2 0x00686a10
+inline bool WeaponLaser::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashWeaponLaser == uRtti)
+    {
+        return true;
+    }
+    return Weapon::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x00686a40
+inline unsigned int WeaponLaser::GetDerivedRtti() const
+{
+    return rttiHashWeaponLaser;
+}
+
+// FUNCTION: SWBF2 0x00686a50
+inline const char* WeaponLaser::GetDerivedRttiName() const
+{
+    return rttiNameWeaponLaser;
+}
+
+// FUNCTION: SWBF2 0x00686a90
+inline bool WeaponLaserClass::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashWeaponLaserClass == uRtti)
+    {
+        return true;
+    }
+    return WeaponClass::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x00686ac0
+inline unsigned int WeaponLaserClass::GetDerivedRtti() const
+{
+    return rttiHashWeaponLaserClass;
+}
+
+// FUNCTION: SWBF2 0x00686ad0
+inline const char* WeaponLaserClass::GetDerivedRttiName() const
+{
+    return rttiNameWeaponLaserClass;
+}

@@ -46,12 +46,12 @@ struct SmoothInfo
 };
 
 void Smooth(SmoothInfo& info, float fSmallJump, float fLargeJump);
-void __fastcall Filter(SmoothInfo* pInfo);
-void __fastcall Jump(SmoothInfo* pInfo);
-void __fastcall SmoothVehicle(SmoothInfo* pInfo);
-void __fastcall SmoothSoldier(SmoothInfo* pInfo);
-void __fastcall SmoothWalker(SmoothInfo* pInfo);
-void __fastcall SmoothLocal(SmoothInfo* pInfo);
+void Filter(SmoothInfo& smooth);
+void Jump(SmoothInfo& smooth);
+void SmoothVehicle(SmoothInfo& smooth);
+void SmoothSoldier(SmoothInfo& smooth);
+void SmoothWalker(SmoothInfo& smooth);
+void SmoothLocal(SmoothInfo& smooth);
 
  
  

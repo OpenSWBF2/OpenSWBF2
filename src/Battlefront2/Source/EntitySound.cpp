@@ -12,10 +12,12 @@ public:
 
     SoundSpaceRegion(const RedRegion& rRegion) : Region(rRegion) {}
 
-    static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
+    static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }
 
     ~SoundSpaceRegion() {}
 
+    // SYNTHETIC: SWBF2 0x004fad10
+    // SoundSpaceRegion::operator delete
     static void operator delete(void* p) { sMemoryPool.Free(p); }
 
     static void DestroyAll();
@@ -24,67 +26,57 @@ public:
 };
  
 
-// GLOBAL: SWBF2 0x01ebc1a0
 // SYNTHETIC: SWBF2 0x00402dd0
 // `dynamic initializer for 'EntitySound::rttiHashEntitySound''
-PblHash EntitySound::rttiHashEntitySound("EntitySound");
-char EntitySound::rttiNameEntitySound[] = "EntitySound";
+// EntitySound::rttiHashEntitySound
 
-// GLOBAL: SWBF2 0x01ebc0fc
+// GLOBAL: SWBF2 0x01ebc1a0
+// EntitySound::rttiHashEntitySound
+PblHash EntitySound::rttiHashEntitySound("EntitySound");
+// GLOBAL: SWBF2 0x007895e4
+// EntitySound::rttiNameEntitySound
+const char EntitySound::rttiNameEntitySound[] = "EntitySound";
+
 // SYNTHETIC: SWBF2 0x00402df0
 // `dynamic initializer for 'EntitySoundClass::rttiHashEntitySoundClass''
-PblHash EntitySoundClass::rttiHashEntitySoundClass("EntitySoundClass");
-char EntitySoundClass::rttiNameEntitySoundClass[] = "EntitySoundClass";
+// EntitySoundClass::rttiHashEntitySoundClass
 
-// GLOBAL: SWBF2 0x01ebc150
+// GLOBAL: SWBF2 0x01ebc0fc
+// EntitySoundClass::rttiHashEntitySoundClass
+PblHash EntitySoundClass::rttiHashEntitySoundClass("EntitySoundClass");
+// GLOBAL: SWBF2 0x007895f0
+// EntitySoundClass::rttiNameEntitySoundClass
+const char EntitySoundClass::rttiNameEntitySoundClass[] = "EntitySoundClass";
+
 // SYNTHETIC: SWBF2 0x00402e00
 // `dynamic initializer for 'SoundSpaceRegion::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00766fe0
 // `dynamic atexit destructor for 'SoundSpaceRegion::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ebc150
+// SoundSpaceRegion::sMemoryPool
 MemoryPool SoundSpaceRegion::sMemoryPool("SoundSpaceRegion", 0x70);
 
-// GLOBAL: SWBF2 0x007eb884
 // SYNTHETIC: SWBF2 0x00402de0
 // `dynamic initializer for 'EntitySound::sEntitySoundList''
 // SYNTHETIC: SWBF2 0x00766fd0
 // `dynamic atexit destructor for 'EntitySound::sEntitySoundList''
+
+// GLOBAL: SWBF2 0x007eb884
+// EntitySound::sEntitySoundList
 PblListSingle EntitySound::sEntitySoundList;
 
-// FUNCTION: SWBF2 0x004fac70
-bool EntitySound::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashEntitySound || Entity::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x004faca0
-unsigned int EntitySound::GetDerivedRtti() const
-{
-    return rttiHashEntitySound;
-}
 
-// FUNCTION: SWBF2 0x004facb0
-const char* EntitySound::GetDerivedRttiName() const
-{
-    return rttiNameEntitySound;
-}
 
-// FUNCTION: SWBF2 0x004facc0
-bool EntitySoundClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashEntitySoundClass || EntityClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x004facf0
-unsigned int EntitySoundClass::GetDerivedRtti()
-{
-    return rttiHashEntitySoundClass;
-}
 
-// FUNCTION: SWBF2 0x004fad00
-const char* EntitySoundClass::GetDerivedRttiName()
-{
-    return rttiNameEntitySoundClass;
-}
+
+
+
+
+
+
 
 // SYNTHETIC: SWBF2 0x004fad20
 // EntitySound::`scalar deleting destructor'
@@ -105,17 +97,13 @@ EntitySound::EntitySound(EntitySoundClass* pClass, const EntityDesc& desc)
     {
         SetMaxDistance(pClass->mMaxDistance);
     }
-    mPosition = *(const PblVector3*)desc.mMatrix.m[3];
+    mPosition = desc.mMatrix.GetTranslation();
     sEntitySoundList.AddLast(&mNode);
 }
 
 // FUNCTION: SWBF2 0x004fadf0
 EntitySound::~EntitySound()
 {
-    if (mNode.mNext)
-    {
-        mNode.Remove();
-    }
 }
 
 // FUNCTION: SWBF2 0x004fae20
@@ -242,7 +230,7 @@ EntitySound* EntitySoundClass::CreateSoundFromRegion(RedRegionDesc& desc, const 
 unsigned int Snd::Space::GetCount()
 {
     unsigned int uCount = 0;
-    for (PblListSingle::Itor it(smSpaceList); !it.IsDone(); ++it)
+    for (PblListSingle::Itor it(smSpaceList); it.GetNode() != smSpaceList.GetTerminator(); ++it)
     {
         ++uCount;
     }
@@ -253,7 +241,7 @@ unsigned int Snd::Space::GetCount()
 unsigned int Snd::Space::GetRegionCount() const
 {
     unsigned int uCount = 0;
-    for (PblListSingle::Itor it(mList); !it.IsDone(); ++it)
+    for (PblListSingle::Itor it(mList); it.GetNode() != mList.GetTerminator(); ++it)
     {
         ++uCount;
     }

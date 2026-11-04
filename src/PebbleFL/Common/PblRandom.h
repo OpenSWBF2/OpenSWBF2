@@ -13,9 +13,13 @@ public:
     // FUNCTION: SWBF2 0x00428e80
     unsigned int GetInt()
     {
-        const unsigned int uLow = (_uiSeed = _uiSeed * 0x19660Du + 0x3C6EF35Fu) >> 16;
-        const unsigned int uHigh = (_uiSeed = _uiSeed * 0x19660Du + 0x3C6EF35Fu) & 0xFFFF0000u;
-        return uHigh | uLow;
+        _uiSeed *= 0x19660Du;
+        _uiSeed += 0x3C6EF35Fu;
+        unsigned int uiReturn = _uiSeed >> 16;
+        _uiSeed *= 0x19660Du;
+        _uiSeed += 0x3C6EF35Fu;
+        uiReturn |= _uiSeed & 0xFFFF0000u;
+        return uiReturn;
     }
 
     // FUNCTION: SWBF2 0x00448950
@@ -43,8 +47,7 @@ public:
     // FUNCTION: SWBF2 0x0043ec30
     const PblVector3 GetVector3()
     {
-        return PblVector3((GetFloat() - 0.5f) * 2.0f, (GetFloat() - 0.5f) * 2.0f,
-                          (GetFloat() - 0.5f) * 2.0f);
+        return PblVector3(GetFloat() - 0.5f, GetFloat() - 0.5f, GetFloat() - 0.5f) * 2.0f;
     }
 
     static const PblVector3 GetGlobalVector3() { return _Global.GetVector3(); }

@@ -32,12 +32,6 @@ HUD::ElementVehicleSeating::Factory::Factory()
     mName = "VehicleSeating";
 }
 
-// SYNTHETIC: SWBF2 0x0055d8e6
-// [thunk]:HUD::ElementVehicleSeating::SeatingMarker::`scalar deleting destructor' adjustor{256}
-// FUNCTION: SWBF2 0x0055c920
-HUD::ElementVehicleSeating::SeatingMarker::~SeatingMarker()
-{
-}
 
 // FUNCTION: SWBF2 0x0055c940
 bool HUD::ElementVehicleSeating::SeatingMarker::SetProperty(const unsigned int uHashID, const void* pValue)
@@ -67,31 +61,17 @@ void* HUD::ElementVehicleSeating::GetParent()
     return this;
 }
 
-// SYNTHETIC: SWBF2 0x0055c9b0
-// HUD::ElementVehicleSeating::SeatingMarker::`scalar deleting destructor'
 
-// SYNTHETIC: SWBF2 0x0055c9f0
-// HUD::ElementVehicleSeating::SeatingText::`scalar deleting destructor'
 
-// SYNTHETIC: SWBF2 0x0055d8f1
-// [thunk]:HUD::ElementVehicleSeating::SeatingText::`scalar deleting destructor' adjustor{256}
-// FUNCTION: SWBF2 0x0055ca20
-HUD::ElementVehicleSeating::SeatingText::~SeatingText()
-{
-}
 
 // SYNTHETIC: SWBF2 0x0055cdb0
 // HUD::ElementVehicleSeating::`scalar deleting destructor'
 
 // SYNTHETIC: SWBF2 0x0055d8db
-// [thunk]:HUD::ElementVehicleSeating::`scalar deleting destructor' adjustor{384}
+// ??_EElementVehicleSeating@HUD@@WBIA@AEPAXI@Z
 // FUNCTION: SWBF2 0x0055ce20
 HUD::ElementVehicleSeating::~ElementVehicleSeating()
 {
-    if (mNode.mNext)
-    {
-        mNode.Remove();
-    }
 }
 
 // FUNCTION: SWBF2 0x0055c8a0
@@ -397,17 +377,18 @@ void HUD::ElementVehicleSeating::Update(const float fElapsed)
 }
 
 // FUNCTION: SWBF2 0x0055d8b0
-HUD::ElementVehicleSeating* HUD::ElementVehicleSeating::FindByPlayerIndex(int iPlayerIndex)
+HUD::ElementVehicleSeating* HUD::ElementVehicleSeating::FindByPlayerIndex(const int playerIndex)
 {
-    PblListSingle::Node* pHead = &sSeatingDisplays.mHead;
-    for (PblListSingle::Node* pNode = pHead->mNext; pNode != pHead; pNode = pNode->mNext)
+    PblListSingle::Itor itor(sSeatingDisplays);
+    while (itor.GetNode() != sSeatingDisplays.GetTerminator())
     {
         ElementVehicleSeating* pDisplay = reinterpret_cast<ElementVehicleSeating*>(
-            reinterpret_cast<char*>(pNode) - offsetof(ElementVehicleSeating, mNode));
-        if (pDisplay->mPlayerIndex == iPlayerIndex)
+            reinterpret_cast<char*>(itor.GetNode()) - offsetof(ElementVehicleSeating, mNode));
+        if (pDisplay->mPlayerIndex == playerIndex)
         {
             return pDisplay;
         }
+        ++itor;
     }
     return 0;
 }
@@ -452,9 +433,11 @@ void HUD::ElementVehicleSeating::WriteData(HUD::File& file, unsigned int uTabs)
     }
 }
 
-// GLOBAL: SWBF2 0x007eba58
 // SYNTHETIC: SWBF2 0x00403fe0
 // `dynamic initializer for 'HUD::ElementVehicleSeating::sSeatingDisplays''
 // SYNTHETIC: SWBF2 0x00768b70
 // `dynamic atexit destructor for 'HUD::ElementVehicleSeating::sSeatingDisplays''
+
+// GLOBAL: SWBF2 0x007eba58
+// HUD::ElementVehicleSeating::sSeatingDisplays
 PblListSingle HUD::ElementVehicleSeating::sSeatingDisplays;

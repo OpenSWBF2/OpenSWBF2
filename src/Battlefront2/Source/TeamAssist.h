@@ -18,6 +18,8 @@ public:
     {
         return sMemoryPool.Allocate((unsigned int)size);
     }
+    // SYNTHETIC: SWBF2 0x00654bc0
+    // TeamAssist::operator delete
     static void operator delete(void* p)
     {
         sMemoryPool.Free(p);

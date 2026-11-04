@@ -17,7 +17,8 @@ public:
         Enable(false);
     }
 
-    virtual ~WorldShadowMapEffect();
+    // SYNTHETIC: SWBF2 0x00695080
+    // WorldShadowMapEffect::`scalar deleting destructor'
     virtual void Render(int value);
     virtual bool IsReflected();
     virtual void Init();

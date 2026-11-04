@@ -75,7 +75,7 @@ void* EntityPath::BranchRegionFactory::CreateRegion(RedRegionDesc& desc, const c
     {
         return 0;
     }
-    return new BranchRegion(*(const PblVector3*)&desc.mMatrix.m[3][0], desc.mSize.w, PblHash(pcID));
+    return new BranchRegion(desc.mMatrix.GetTranslation(), desc.mSize.w, PblHash(pcID));
 }
 
 // FUNCTION: SWBF2 0x004d0fb0
@@ -126,15 +126,15 @@ void EntityPath::NodeProperties::CalculateNodePosition(const PblVector3* const p
         PblVector3 vDirection = *pDirection;
         PblMatrix matrix;
         EntityPath::BuildMatrix(vDirection, matrix, 0);
-        PblVector3 vOffset = RandomVector(*(const PblVector3*)matrix.m[0], mVariance.x, mVariance.x, mVariance.x);
+        PblVector3 vOffset = RandomVector(matrix.GetXAxis(), mVariance.x, mVariance.x, mVariance.x);
         vPosition.x += vOffset.x;
         vPosition.y += vOffset.y;
         vPosition.z += vOffset.z;
-        vOffset = RandomVector(*(const PblVector3*)matrix.m[1], mVariance.y, mVariance.y, mVariance.y);
+        vOffset = RandomVector(matrix.GetYAxis(), mVariance.y, mVariance.y, mVariance.y);
         vPosition.x += vOffset.x;
         vPosition.y += vOffset.y;
         vPosition.z += vOffset.z;
-        vOffset = RandomVector(*(const PblVector3*)matrix.m[2], mVariance.z, mVariance.z, mVariance.z);
+        vOffset = RandomVector(matrix.GetZAxis(), mVariance.z, mVariance.z, mVariance.z);
         vPosition.x += vOffset.x;
         vPosition.y += vOffset.y;
         vPosition.z += vOffset.z;
@@ -145,9 +145,9 @@ void EntityPath::NodeProperties::CalculateNodePosition(const PblVector3* const p
 PblVector3 EntityPath::NodeProperties::RandomVector(const PblVector3& v, float fX, float fY, float fZ)
 {
     PblVector3 vResult;
-    vResult.x = (PblRandom::GetGlobalFloat() - 0.5f) * fX + v.x;
-    vResult.y = (PblRandom::GetGlobalFloat() - 0.5f) * fY + v.y;
-    vResult.z = (PblRandom::GetGlobalFloat() - 0.5f) * fZ + v.z;
+    vResult.x = PblRandom::GetGlobalFloatRange(v.x, fX);
+    vResult.y = PblRandom::GetGlobalFloatRange(v.y, fY);
+    vResult.z = PblRandom::GetGlobalFloatRange(v.z, fZ);
     return vResult;
 }
 
@@ -608,7 +608,7 @@ bool EntityPath::IsEnabled()
     {
         return true;
     }
-    EntityEx* pEntity = EntityEx::mIdMap.Find(mEnableObject);
+    EntityEx* pEntity = EntityEx::Find(mEnableObject);
     if (pEntity && pEntity->IsRtti(GameObject::rttiHashGameObject))
     {
         return static_cast<GameObject*>(pEntity)->mIsAlive;
@@ -652,9 +652,10 @@ void EntityPath::EnablePathByName(unsigned int uName, bool bEnable)
 {
     for (PblList<EntityPath>::Itor it(sList); it; ++it)
     {
-        if (it->GetName() == uName)
+        EntityPath* const path = it;
+        if (path->mName == uName)
         {
-            it->mEnabled = bEnable;
+            path->mEnabled = bEnable;
         }
     }
 }

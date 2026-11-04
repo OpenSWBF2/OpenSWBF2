@@ -129,6 +129,7 @@ public:
                  const PblVector3& direction, SafeHeight safeHeight,
                  float fTaperFactor, float fMaxSpeed);
     void SetDestCurrent();
+    ControllableDestination& GetDest() { return mDest; }
     unsigned char GetPathQueueDepth();
     bool HasPath() const;
     bool IsAtDest() const;

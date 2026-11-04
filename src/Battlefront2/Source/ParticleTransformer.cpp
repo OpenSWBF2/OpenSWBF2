@@ -1,39 +1,43 @@
 #include "ParticleTransformer.h"
 #include "Particle.h"
 
-// GLOBAL: SWBF2 0x01ef7b50
 // SYNTHETIC: SWBF2 0x00405d20
 // `dynamic initializer for 'ParticleTransformer::PositionTransformer::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00769250
 // `dynamic atexit destructor for 'ParticleTransformer::PositionTransformer::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ef7b50
+// ParticleTransformer::PositionTransformer::sMemoryPool
 MemoryPool ParticleTransformer::PositionTransformer::sMemoryPool("ParticleTransformer::PositionTransformer",
                                                                  sizeof(ParticleTransformer::PositionTransformer));
-// GLOBAL: SWBF2 0x01ef7bf0
 // SYNTHETIC: SWBF2 0x00405d40
 // `dynamic initializer for 'ParticleTransformer::SizeTransformer::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00769260
 // `dynamic atexit destructor for 'ParticleTransformer::SizeTransformer::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ef7bf0
+// ParticleTransformer::SizeTransformer::sMemoryPool
 MemoryPool ParticleTransformer::SizeTransformer::sMemoryPool("ParticleTransformer::SizeTransformer",
                                                              sizeof(ParticleTransformer::SizeTransformer));
-// GLOBAL: SWBF2 0x01ef7c40
 // SYNTHETIC: SWBF2 0x00405d60
 // `dynamic initializer for 'ParticleTransformer::RotationTransformer::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00769270
 // `dynamic atexit destructor for 'ParticleTransformer::RotationTransformer::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ef7c40
+// ParticleTransformer::RotationTransformer::sMemoryPool
 MemoryPool ParticleTransformer::RotationTransformer::sMemoryPool("ParticleTransformer::RotationTransformer",
                                                                  sizeof(ParticleTransformer::RotationTransformer));
-// GLOBAL: SWBF2 0x01ef7ba0
 // SYNTHETIC: SWBF2 0x00405d80
 // `dynamic initializer for 'ParticleTransformer::ColorTransformer::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00769280
 // `dynamic atexit destructor for 'ParticleTransformer::ColorTransformer::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ef7ba0
+// ParticleTransformer::ColorTransformer::sMemoryPool
 MemoryPool ParticleTransformer::ColorTransformer::sMemoryPool("ParticleTransformer::ColorTransformer",
                                                               sizeof(ParticleTransformer::ColorTransformer));
 
-ParticleTransformer::TransformState::~TransformState()
-{
-    delete mNextState;
-}
 
 // FUNCTION: SWBF2 0x0060ebc0
 ParticleTransformer::ParticleTransformer()
@@ -124,9 +128,7 @@ void ParticleTransformer::PositionTransformer::Update(PblVector3& position, PblV
     float fScale = GetScale(fTime);
     float fStep = (fScale < 1.0f ? fScale : 1.0f) * 0.5f * mLifeTime;
 
-    position.x += velocity.x * fStep;
-    position.y += velocity.y * fStep;
-    position.z += velocity.z * fStep;
+    position += velocity * fStep;
 
     switch (mType)
     {
@@ -153,9 +155,7 @@ void ParticleTransformer::PositionTransformer::Update(PblVector3& position, PblV
         }
         else
         {
-            velocity.x *= 1.0f - fScale;
-            velocity.y *= 1.0f - fScale;
-            velocity.z *= 1.0f - fScale;
+            velocity = velocity * (1.0f - fScale);
             velocity.x += mData.mReach.mVelX * fScale * fDeltaTime;
             velocity.y += mData.mReach.mVelY * fScale * fDeltaTime;
             velocity.z += mData.mReach.mVelZ * fScale * fDeltaTime;
@@ -164,9 +164,7 @@ void ParticleTransformer::PositionTransformer::Update(PblVector3& position, PblV
     case SCALE:
         if (fScale >= 1.0f)
         {
-            velocity.x *= mData.mScale.mScale;
-            velocity.y *= mData.mScale.mScale;
-            velocity.z *= mData.mScale.mScale;
+            velocity = velocity * mData.mScale.mScale;
         }
         else
         {
@@ -177,9 +175,7 @@ void ParticleTransformer::PositionTransformer::Update(PblVector3& position, PblV
         break;
     }
 
-    position.x += velocity.x * fStep;
-    position.y += velocity.y * fStep;
-    position.z += velocity.z * fStep;
+    position += velocity * fStep;
 
     if (fScale > 1.0f)
     {
@@ -190,9 +186,7 @@ void ParticleTransformer::PositionTransformer::Update(PblVector3& position, PblV
         else
         {
             float fRest = (fScale - 1.0f) * mLifeTime;
-            position.x += velocity.x * fRest;
-            position.y += velocity.y * fRest;
-            position.z += velocity.z * fRest;
+            position += velocity * fRest;
         }
     }
 }
@@ -243,17 +237,15 @@ void ParticleTransformer::SizeTransformer::Update(float& fSize, float fTime) con
 void ParticleTransformer::RotationTransformer::Update(float& fRotation, float& fRotVelocity, float fTime) const
 {
     const RotationTransformer* pState = this;
-    for (;;)
+    float fScale = pState->GetScale(fTime);
+    pState->mData.Update(fRotVelocity, fScale);
+    while (fScale > 1.0f && pState->mNextState)
     {
-        float fScale = pState->GetScale(fTime);
-        pState->mData.Update(fRotVelocity, fScale);
-        if (fScale <= 1.0f || !pState->mNextState)
-        {
-            break;
-        }
         fRotation += pState->mLifeTime * fRotVelocity;
         fTime -= pState->mLifeTime;
         pState = (const RotationTransformer*)pState->mNextState;
+        fScale = pState->GetScale(fTime);
+        pState->mData.Update(fRotVelocity, fScale);
     }
     fRotation += fRotVelocity * fTime;
 }

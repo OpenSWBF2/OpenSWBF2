@@ -69,3 +69,7 @@ FLList<T>::~FLList()
 
 // SYNTHETIC: SWBF2 0x00529a90
 // FLList<GuiManager::Event *>::`scalar deleting destructor'
+#include <new>
+
+// VTABLE: SWBF2 0x0079f17c
+// class FLList<GuiManager::Event *>

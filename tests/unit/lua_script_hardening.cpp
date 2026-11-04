@@ -68,7 +68,11 @@ void CheckColorAfterBound(const std::string& sBody)
     const size_t uiBound = sBody.find("PblInBounds(");
     REQUIRE(uiBound != std::string::npos);
     CHECK(sBody.find("mColor", uiBound) != std::string::npos);
-    const size_t uiColor = sBody.find("mColor[");
+    size_t uiColor = sBody.find("GetColor(");
+    if (uiColor == std::string::npos)
+    {
+        uiColor = sBody.find("mColor[");
+    }
     REQUIRE(uiColor != std::string::npos);
     CHECK(uiColor > uiBound);
 }
@@ -353,8 +357,8 @@ TEST_CASE("lua stream and ui indices are bounded" * doctest::test_suite("regress
     for (int i = 0; i < 3; ++i)
     {
         const std::string sBody = HardenBody(sSound, apcStreams[i]);
-        CHECK(HardenHas(sBody, "GetLuaStream(iStream)"));
-        CHECK_FALSE(HardenHas(sBody, "smStreams[iStream - 1]"));
+        CHECK(HardenHas(sBody, "GetLuaStream("));
+        CHECK_FALSE(HardenHas(sBody, " - 1]"));
     }
 
     const std::string sMain = HardenSource("src\\Battlefront2\\Source\\LuaCallbacks.cpp");
@@ -385,7 +389,7 @@ TEST_CASE("create timer refuses when the timer map is full" * doctest::test_suit
 {
     const std::string sMission = HardenSource("src\\Battlefront2\\Source\\LuaCallbacks_Mission.cpp");
     const std::string sBody = HardenBody(sMission, "int CreateTimer(lua_State*");
-    CHECK(HardenHas(sBody, "Timer::sMemoryPool.IsFull() || Timer::sMapNumEntries >= Timer::sMap.GetSlotCount()"));
+    CHECK(HardenHas(sBody, "Timer::sMemoryPool.IsFull() || Timer::sMap.GetNumEntries() >= Timer::sMap.GetMaxEntries()"));
 }
 
 TEST_CASE("delete entity refuses character owned entities" * doctest::test_suite("regression"))

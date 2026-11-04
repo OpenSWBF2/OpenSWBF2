@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include <string.h>
 
 #include "CameraManager.h"
@@ -28,7 +29,14 @@
 #include "SoundFL/source/sndspace.h"
 #include "SoundFL/source/win/sndlistener.h"
 #include "SoundFL/source/win/sndengine.h"
-#include "PebbleFL/pc/PblD3DX.h"
+#include "PebbleFL/Common/PblMath.h"
+
+// GLOBAL: SWBF2 0x007b27e0
+// __xmm@3f0000003f8000000000000000000000
+// GLOBAL: SWBF2 0x007b27f0
+// __xmm@3f0000003f8000003f00000000000000
+// GLOBAL: SWBF2 0x007b2850
+// __xmm@3f8000003f8000000000000000000000
 
 namespace FLRenderer
 {
@@ -40,22 +48,27 @@ void SetSceneEnable(unsigned int uiView, bool bEnable);
 class PblMatrix;
 extern PblMatrix gMatrixIdentity;
 
+
 extern bool netFrameLock;
 
 extern bool netIsLocalTurn;
 extern bool netIsLateTurn;
 extern bool gCentreSpeakerEnhancement;
 
+typedef const PblVector3& (__fastcall *ObjectVelocityFn)(GameObject* pThis, void*);
+typedef Controllable* (__fastcall *ObjectControllableFn)(GameObject* pThis, void*);
 static CollisionObject* GetObjectCollision(GameObject* pObject)
 {
     return static_cast<CollisionObject*>(pObject);
 }
 
-// GLOBAL: SWBF2 0x01eb0fd0
 // SYNTHETIC: SWBF2 0x00402370
 // `dynamic initializer for 'cameraInterpolator''
 // SYNTHETIC: SWBF2 0x00766dc0
 // `dynamic atexit destructor for 'cameraInterpolator''
+
+// GLOBAL: SWBF2 0x01eb0fd0
+// cameraInterpolator
 CameraInterpolator cameraInterpolator[1];
 
 // GLOBAL: SWBF2 0x01e30324
@@ -71,13 +84,6 @@ void CameraManager::Create(int iNumCameras)
 // FUNCTION: SWBF2 0x0044e6f0
 CameraManager::CameraManager()
 {
-    for (int i = 0; i < 16; i++)
-    {
-        mShotRotation[i]._fX = 0.0f;
-        mShotRotation[i]._fY = 0.0f;
-        mShotRotation[i]._fZ = 0.0f;
-        mShotRotation[i]._fS = 1.0f;
-    }
 
     m_iNumCam = 0;
     float fAspectRatio = RedRenderer::GetScreenAspectRatio();
@@ -182,26 +188,6 @@ void CameraManager::RefreshAspect()
     {
         mRedCamera[i]->SetPerspective(0.7f, 120.0f, 0.83775806f, fAspectRatio);
     }
-}
-
-// FUNCTION: SWBF2 0x0044e3c0
-bool Tracker::IsFirstPersonView()
-{
-    Trackable* pTrackable = mTrackable;
-    if (pTrackable && pTrackable != (Trackable*)-1 &&
-        (unsigned int)pTrackable->mTracker != 0xDDDDDDDDu &&
-        pTrackable->GetControllable())
-    {
-        Controllable* pCtrl = pTrackable->GetControllable();
-        switch (pCtrl->GetControllableClass()->mForceMode)
-        {
-        case 1:
-            return false;
-        case 2:
-            return true;
-        }
-    }
-    return mIsFirstPersonView;
 }
 
 // SYNTHETIC: SWBF2 0x0044e500
@@ -508,10 +494,7 @@ bool CameraManager::IsInsideAnyCamera(const PblVector3& vPos, float fRadius, flo
             float fMaxDistance = pCamera->GetZoom() * 8.0f + fDistance;
             float fNear, fFar, fWidth, fHeight;
             pCamera->GetFrustum(fNear, fFar, fWidth, fHeight);
-            if (fFar <= fMaxDistance)
-            {
-                fMaxDistance = fFar;
-            }
+            fMaxDistance = Min(fMaxDistance, fFar);
 
             RedCamera::VisibilityT eVisibility;
             if (fRadius > 0.0f)
@@ -547,23 +530,15 @@ int CameraManager::GetCameraIdForView(unsigned int uiView) const
 // FUNCTION: SWBF2 0x0044f640
 float CameraManager::UpdateTrackDistance(int iCam, float fDistance, float fDeltaTime)
 {
-    float fCurrent = mTrackDistance[iCam];
-    if (fCurrent > fDistance)
+    if (mTrackDistance[iCam] > fDistance)
     {
         mTrackDistance[iCam] = fDistance;
-        return fDistance;
     }
-    if (fDistance == 1.0f || fDistance > fCurrent + 0.15f)
+    else if (fDistance == 1.0f || fDistance > mTrackDistance[iCam] + 0.15f)
     {
-        float fNew = fDeltaTime * 0.75f + fCurrent;
-        if (fDistance <= fNew)
-        {
-            fNew = fDistance;
-        }
-        mTrackDistance[iCam] = fNew;
-        return fNew;
+        mTrackDistance[iCam] = Min(fDeltaTime * 0.75f + mTrackDistance[iCam], fDistance);
     }
-    return fCurrent;
+    return mTrackDistance[iCam];
 }
 
 // FUNCTION: SWBF2 0x0044f6b0
@@ -595,7 +570,7 @@ bool CameraInterpolator::Update(float)
         PblQuaternion qRot = Interpolate(qNew, qOld, fT);
         PblQuaternion qUnit;
         PblMatrix mBlend;
-        D3DXMatrixRotationQuaternion(&mBlend, D3DXQuaternionNormalize(&qUnit, &qRot));
+        D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mBlend), D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&qUnit), reinterpret_cast<const D3DXQUATERNION*>(&qRot)));
         mBlend.m[3][0] = vPos.x;
         mBlend.m[3][1] = vPos.y;
         mBlend.m[3][2] = vPos.z;
@@ -638,5 +613,5 @@ float GetWidescreenFOVAdjustment(float fFOV)
         ((float)FLRenderer::GetViewHeight(0) * (float)uScreenWidth) /
         ((float)FLRenderer::GetViewWidth(0) * (float)uScreenHeight);
     const float fScale = 0.75f / fAspect;
-    return (float)atan((double)(fScale * (float)tan((double)(fFOV * 0.5f)))) * 2.0f;
+    return atanf(fScale * tanf(fFOV * 0.5f)) * 2.0f;
 }

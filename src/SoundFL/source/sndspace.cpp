@@ -9,33 +9,41 @@
 namespace Snd
 {
 
-// GLOBAL: SWBF2 0x009d83c8
 // SYNTHETIC: SWBF2 0x0040b640
 // `dynamic initializer for 'Snd::Space::smDefaultSpace''
 // SYNTHETIC: SWBF2 0x0076a1b0
 // `dynamic atexit destructor for 'Snd::Space::smDefaultSpace''
+
+// GLOBAL: SWBF2 0x009d83c8
+// Space::smDefaultSpace
 Space Space::smDefaultSpace;
 
-// GLOBAL: SWBF2 0x007e33bc
 // SYNTHETIC: SWBF2 0x0040b6d0
 // `dynamic initializer for 'Snd::Space::smSpaceList''
 // SYNTHETIC: SWBF2 0x0076a1e0
 // `dynamic atexit destructor for 'Snd::Space::smSpaceList''
+
+// GLOBAL: SWBF2 0x007e33bc
+// Space::smSpaceList
 PblListSingle Space::smSpaceList;
 
-// GLOBAL: SWBF2 0x007e341c
 // SYNTHETIC: SWBF2 0x0040b690
 // `dynamic initializer for 'Snd::Space::Connected::smFreeList''
 // SYNTHETIC: SWBF2 0x0076a1c0
 // `dynamic atexit destructor for 'Snd::Space::Connected::smFreeList''
-FreeList Space::Connected::smFreeList(8, 1, 8, 1);
 
-// GLOBAL: SWBF2 0x007e3400
+// GLOBAL: SWBF2 0x007e341c
+// Space::Connected::smFreeList
+FreeList Space::Connected::smFreeList(8, 1, true, 8);
+
 // SYNTHETIC: SWBF2 0x0040b6b0
 // `dynamic initializer for 'Snd::Space::smFreeList''
 // SYNTHETIC: SWBF2 0x0076a1d0
 // `dynamic atexit destructor for 'Snd::Space::smFreeList''
-FreeList Space::smFreeList(sizeof(Space), 1, 8, 1);
+
+// GLOBAL: SWBF2 0x007e3400
+// Space::smFreeList
+FreeList Space::smFreeList(sizeof(Space), 1, true, 8);
 
 // FUNCTION: SWBF2 0x00733a70
 bool Space::Open()
@@ -55,7 +63,7 @@ Space* __cdecl Space::GetSpace(const ::PblVector3& rPos)
          pNode = pNode->mNext)
     {
 
-        Space* const pSpace = reinterpret_cast<Space*>(reinterpret_cast<char*>(pNode) - offsetof(Space, mNode));
+        Space* const pSpace = static_cast<Space*>(pNode->GetObjectA(&smSpaceList, offsetof(Space, mNode)));
 
         if (pSpace->mPriority > pBest->mPriority)
         {
@@ -226,53 +234,54 @@ void Space::SetupSourceInterpolated(SourceI3DL2Interpolated* pSource,
                                   fObstructionLFRatio, fOcclusionLFRatio,
                                   bInsideSpace);
 
-    pSource->mTarget.mFlags |=
+    SourceI3DL2* const pTarget = &pSource->mTarget;
+    pTarget->mFlags |=
         (unsigned short)SourceI3DL2::flags_obstructionHFGain;
-    pSource->mTarget.mObstructionHFGain = fObstructionHFGain;
+    pTarget->mObstructionHFGain = fObstructionHFGain;
     pSource->mFlags |=
         (unsigned char)SourceI3DL2Interpolated::flags_interpolate;
 
-    pSource->mTarget.mFlags |=
+    pTarget->mFlags |=
         (unsigned short)SourceI3DL2::flags_obstructionLFRatio;
-    pSource->mTarget.mObstructionLFRatio = fObstructionLFRatio;
+    pTarget->mObstructionLFRatio = fObstructionLFRatio;
     pSource->mFlags |=
         (unsigned char)SourceI3DL2Interpolated::flags_interpolate;
 
-    pSource->mTarget.mFlags |=
+    pTarget->mFlags |=
         (unsigned short)SourceI3DL2::flags_occlusionHFGain;
-    pSource->mTarget.mOcclusionHFGain = fOcclusionHFGain;
+    pTarget->mOcclusionHFGain = fOcclusionHFGain;
     pSource->mFlags |=
         (unsigned char)SourceI3DL2Interpolated::flags_interpolate;
 
-    pSource->mTarget.mFlags |=
+    pTarget->mFlags |=
         (unsigned short)SourceI3DL2::flags_occlusionLFRatio;
-    pSource->mTarget.mOcclusionLFRatio = fOcclusionLFRatio;
+    pTarget->mOcclusionLFRatio = fOcclusionLFRatio;
     pSource->mFlags |=
         (unsigned char)SourceI3DL2Interpolated::flags_interpolate;
 
-    pSource->mTarget.mFlags |= (unsigned short)SourceI3DL2::flags_directGain;
-    pSource->mTarget.mDirectGain = mDirectGain;
+    pTarget->mFlags |= (unsigned short)SourceI3DL2::flags_directGain;
+    pTarget->mDirectGain = mDirectGain;
     pSource->mFlags |=
         (unsigned char)SourceI3DL2Interpolated::flags_interpolate;
 
-    pSource->mTarget.mFlags |= (unsigned short)SourceI3DL2::flags_directHFGain;
-    pSource->mTarget.mDirectHFGain = mDirectHFGain;
+    pTarget->mFlags |= (unsigned short)SourceI3DL2::flags_directHFGain;
+    pTarget->mDirectHFGain = mDirectHFGain;
     pSource->mFlags |=
         (unsigned char)SourceI3DL2Interpolated::flags_interpolate;
 
-    pSource->mTarget.mFlags |= (unsigned short)SourceI3DL2::flags_roomGain;
-    pSource->mTarget.mRoomGain = mRoomGain;
+    pTarget->mFlags |= (unsigned short)SourceI3DL2::flags_roomGain;
+    pTarget->mRoomGain = mRoomGain;
     pSource->mFlags |=
         (unsigned char)SourceI3DL2Interpolated::flags_interpolate;
 
-    pSource->mTarget.mFlags |= (unsigned short)SourceI3DL2::flags_roomHFGain;
-    pSource->mTarget.mRoomHFGain = mRoomHFGain;
+    pTarget->mFlags |= (unsigned short)SourceI3DL2::flags_roomHFGain;
+    pTarget->mRoomHFGain = mRoomHFGain;
     pSource->mFlags |=
         (unsigned char)SourceI3DL2Interpolated::flags_interpolate;
 
-    pSource->mTarget.mFlags |=
+    pTarget->mFlags |=
         (unsigned short)SourceI3DL2::flags_roomRollOffFactor;
-    pSource->mTarget.mRoomRollOffFactor = mRoomRollOffFactor;
+    pTarget->mRoomRollOffFactor = mRoomRollOffFactor;
     pSource->mFlags |=
         (unsigned char)SourceI3DL2Interpolated::flags_interpolate;
 }
@@ -297,10 +306,6 @@ Space::~Space()
         mReverbPreset = 0;
     }
 
-    if (mNode.mNext != 0)
-    {
-        mNode.Remove();
-    }
 
 }
 
@@ -316,7 +321,7 @@ Space* __cdecl Space::Find(unsigned int uiHashID)
     for (PblListSingle::Node* pNode = smSpaceList.mHead.mNext;
          pNode != &smSpaceList.mHead; pNode = pNode->mNext)
     {
-        Space* const pSpace = reinterpret_cast<Space*>(reinterpret_cast<char*>(pNode) - offsetof(Space, mNode));
+        Space* const pSpace = static_cast<Space*>(pNode->GetObjectA(&smSpaceList, offsetof(Space, mNode)));
         if (pSpace->mHashID == uiHashID)
         {
             return pSpace;
@@ -385,8 +390,8 @@ void Space::Read(PblFileChunk& chunk)
                     continue;
                 }
                 entry._pFile->Read8();
-                const unsigned int uiHashID = entry._pFile->Read32();
-                const float fGainFactor = entry._pFile->ReadFloat();
+                const unsigned int uiHashID = child._pFile->Read32();
+                const float fGainFactor = child._pFile->ReadFloat();
                 Space* const pOther = Find(uiHashID);
                 if (pOther)
                 {
@@ -419,7 +424,7 @@ void __cdecl Space::Load(PblFileChunk& chunk, bool bOnce)
 
         Space* const pSpace = new Space(true);
         pSpace->Read(child);
-        if (pSpace->mHashID == smDefaultSpace.mHashID)
+        if (smDefaultSpace.mHashID == pSpace->mHashID)
         {
             smDefaultSpace.SetReverbPreset((I3DL2ReverbPreset*)pSpace->mReverbPreset);
             smDefaultSpace.CopyParameters(*pSpace);
@@ -434,7 +439,8 @@ void __cdecl Space::Load(PblFileChunk& chunk, bool bOnce)
 
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x00733620
 void Space::Close()
@@ -442,7 +448,8 @@ void Space::Close()
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x00733630
 void __cdecl Space::DestroyAll()

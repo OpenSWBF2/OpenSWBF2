@@ -30,9 +30,9 @@ extern PblVector3 gVectorZero;
 namespace
 {
 
-    AILowLevel& LowLevel(UnitController* pCtrl)
+    inline AILowLevel& LowLevel(UnitController* pCtrl)
     {
-        return *reinterpret_cast<AILowLevel*>(pCtrl->mLowLevel);
+        return pCtrl->mLowLevel;
     }
 }
 
@@ -79,7 +79,7 @@ void PatrolHelper::EnterState()
             {
                 const PblMatrix& mVehicle = pVehicle->GetMatrix();
                 if (AIUtil::AreEnemiesInRange(pVehicle->GetGameObject()->GetTeam(),
-                                              *(const PblVector3*)&mVehicle.m[3][0], 20.0f) == true)
+                                              mVehicle.GetTranslation(), 20.0f) == true)
                 {
                     AI::GoalTarget target(AIUtil::GetCommandPostPos(pPost));
                     UnitGoalAgentInfo cmd(CMD_DEFEND, &target);

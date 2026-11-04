@@ -2,6 +2,17 @@
 
 #include "SoldierAnimType.h"
 
+// GLOBAL: SWBF2 0x007aed08
+// postureTable
+// GLOBAL: SWBF2 0x007aed20
+// weaponAnimationTable
+// GLOBAL: SWBF2 0x007aed38
+// actionAnimationTable
+// GLOBAL: SWBF2 0x007aedd0
+// movementAnimationTable
+// GLOBAL: SWBF2 0x0078b4d4
+// s_asz_ScopeName
+
 namespace SoldierAnimType
 {
 
@@ -13,17 +24,14 @@ static const int kFirstMeleeAnimIndex =
 static const int kEndAnimIndex =
     kFirstMeleeAnimIndex + SoldierAnimationBank::MAX_COMBO_ANIMATIONS;
 
-// GLOBAL: SWBF2 0x007aed08
 static const char* postureTable[NUM_POSTURES] = {
     "stand", "crouch", "prone", "standalert", "crouchalert", "pronealert",
 };
 
-// GLOBAL: SWBF2 0x007aed20
 static const char* weaponAnimationTable[NUM_WEAPON_ANIMATIONS] = {
     "shoot", "shoot2", "shoot_secondary", "shoot_secondary2", "charge", "reload",
 };
 
-// GLOBAL: SWBF2 0x007aed38
 static const char* actionAnimationTable[NUM_ACTION_ANIMATIONS] = {
     "sprint",
     "jump",
@@ -65,7 +73,6 @@ static const char* actionAnimationTable[NUM_ACTION_ANIMATIONS] = {
     "stand_hitright",
 };
 
-// GLOBAL: SWBF2 0x007aedd0
 static const char* movementAnimationTable[NUM_MOVEMENT_ANIMATIONS] = {
     "idle_emote",
     "idle_checkweapon",
@@ -82,7 +89,6 @@ static const char* movementAnimationTable[NUM_MOVEMENT_ANIMATIONS] = {
     "runleft",
 };
 
-// GLOBAL: SWBF2 0x0078b4d4
 static const char* s_asz_ScopeName[NUM_SCOPES] = {
     "_upper",
     "_lower",
@@ -222,6 +228,7 @@ const char* GetScopeExtension(Scope scope)
 // FUNCTION: SWBF2 0x0064a5a0
 const char* AnimIndexToName(unsigned char animIndex, Scope scope)
 {
+    // GLOBAL: SWBF2 0x01fac250
     static char s_szName[256];
 
     int length;

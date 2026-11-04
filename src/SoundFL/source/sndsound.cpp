@@ -16,28 +16,35 @@
 namespace Snd
 {
 
+// GLOBAL: SWBF2 0x01e2b4c0
+// Sound::smVoiceVirtuals
 Sound::FireForget* Sound::smVoiceVirtuals;
+// GLOBAL: SWBF2 0x01e2b4c8
 unsigned char Sound::smVoiceVirtualStorage[12800];
 
 // SYNTHETIC: SWBF2 0x00739c30
 // Snd::Source3D::`default constructor closure'
 
-// GLOBAL: SWBF2 0x01e2e9d0
 // SYNTHETIC: SWBF2 0x0040bca0
 // `dynamic initializer for 'Snd::Sound::smSource3Ds''
 // SYNTHETIC: SWBF2 0x0076a440
 // `dynamic atexit destructor for 'Snd::Sound::smSource3Ds''
+
+// GLOBAL: SWBF2 0x01e2e9d0
+// Sound::smSource3Ds
 Source3D Sound::smSource3Ds[64];
 
-// GLOBAL: SWBF2 0x01e2e6c8
 // SYNTHETIC: SWBF2 0x0040bc60
 // `dynamic initializer for 'Snd::Sound::smSource3DPositions''
 
+// GLOBAL: SWBF2 0x01e2e6c8
+// Sound::smSource3DPositions
 ::PblVector3 Sound::smSource3DPositions[64];
-// GLOBAL: SWBF2 0x01e2f3d0
 // SYNTHETIC: SWBF2 0x0040bc80
 // `dynamic initializer for 'Snd::Sound::smSource3DVelocities''
 
+// GLOBAL: SWBF2 0x01e2f3d0
+// Sound::smSource3DVelocities
 ::PblVector3 Sound::smSource3DVelocities[64];
 
 // FUNCTION: SWBF2 0x00739f50
@@ -71,31 +78,37 @@ void Sound::Close()
     smVoiceVirtuals = 0;
 }
 
-// GLOBAL: SWBF2 0x007e36dc
 // SYNTHETIC: SWBF2 0x0040bc20
 // `dynamic initializer for 'Snd::Sound::Properties::smFreeList''
 // SYNTHETIC: SWBF2 0x0076a410
 // `dynamic atexit destructor for 'Snd::Sound::Properties::smFreeList''
-FreeList Sound::Properties::smFreeList(sizeof(Sound::Properties), 1, 8, 1);
 
-// GLOBAL: SWBF2 0x007e36f8
+// GLOBAL: SWBF2 0x007e36dc
+// Sound::Properties::smFreeList
+FreeList Sound::Properties::smFreeList(sizeof(Sound::Properties), 1, true, 8);
+
 // SYNTHETIC: SWBF2 0x0040bc40
 // `dynamic initializer for 'Snd::Sound::Properties::smPropertyList''
 // SYNTHETIC: SWBF2 0x0076a420
 // `dynamic atexit destructor for 'Snd::Sound::Properties::smPropertyList''
+
+// GLOBAL: SWBF2 0x007e36f8
+// Sound::Properties::smPropertyList
 PblListSingle Sound::Properties::smPropertyList;
 
-// GLOBAL: SWBF2 0x007e36fc
 // SYNTHETIC: SWBF2 0x0040bc50
 // `dynamic initializer for 'Snd::Sound::smSoundList''
 // SYNTHETIC: SWBF2 0x0076a430
 // `dynamic atexit destructor for 'Snd::Sound::smSoundList''
+
+// GLOBAL: SWBF2 0x007e36fc
+// Sound::smSoundList
 PblListSingle Sound::smSoundList;
 
 // FUNCTION: SWBF2 0x00739b70
 Sound::Properties::Properties()
+    : mSelObjectWeightList(&mObjectWeightList)
 {
-    mSelObjectWeightList = &mObjectWeightList;
     smPropertyList.AddLast(&mNode);
 }
 
@@ -135,7 +148,9 @@ void Sound::Properties::Read(PblFileChunk& chunk)
     {
         PblFileChunk child = chunk.ReadNextChild();
         const unsigned int uiID = child._pFile->Read32();
-        if (uiID == 0x4143ACAFu)
+        switch (uiID)
+        {
+        case 0x4143ACAFu:
         {
             child = chunk.ReadNextChild();
             if (mObjectWeightList.ReadObjectWeights(child, 0x96E382A7u,
@@ -143,8 +158,9 @@ void Sound::Properties::Read(PblFileChunk& chunk)
             {
                 mSelObjectWeightList = &mObjectWeightList;
             }
+            break;
         }
-        else if (uiID == 0xCA04EFE0u)
+        case 0xCA04EFE0u:
         {
             child._pFile->Read8();
             const unsigned int uiParentID = child._pFile->Read32();
@@ -182,13 +198,17 @@ void Sound::Properties::Read(PblFileChunk& chunk)
                 SetRandomPlayPosition(pParent->GetRandomPlayPosition());
                 break;
             }
+            break;
         }
-        else if (!SoundProperties::Read(child, uiID)
-                 && !Source2D3D::Read(child, uiID)
-                 && !SourceVirtual::Read(child, uiID)
-                 && !SourceVariation::Read(child, uiID))
-        {
-            mObjectWeightList.Read(child, uiID);
+        default:
+            if (!SoundProperties::Read(child, uiID)
+                && !Source2D3D::Read(child, uiID)
+                && !SourceVirtual::Read(child, uiID)
+                && !SourceVariation::Read(child, uiID))
+            {
+                mObjectWeightList.Read(child, uiID);
+            }
+            break;
         }
     }
 }
@@ -204,13 +224,13 @@ void __cdecl Sound::RemoveAll()
 {
     while (!smSoundList.IsEmpty())
     {
-        Sound* const pSound = (Sound*)((char*)smSoundList.mHead.mNext - offsetof(Sound, mNode));
+        Sound* const pSound = (Sound*)smSoundList.GetFirst()->GetObjectA(&smSoundList, offsetof(Sound, mNode));
         pSound->VoiceVirtual::RemoveAll();
         pSound->SourceBus::Stop(pSound);
         pSound->VoiceVirtual::Stop();
         pSound->SetBus(&Bus::smRootBus);
         pSound->mProperties = 0;
-        pSound->mNode.Remove();
+        smSoundList.GetFirst()->Remove();
     }
 }
 
@@ -235,42 +255,28 @@ extern PblRandom sndRandom;
 // FUNCTION: SWBF2 0x00739df0
 VoiceVirtual* __cdecl Sound::GetFreeVoice(VoiceVirtualManager* pManager)
 {
-    for (PblListDouble::Node* pLink = pManager->mInactiveList.mTerminator.mNext;
-         pLink != &pManager->mInactiveList.mTerminator; pLink = pLink->mNext)
+    const PblListDoubleSorted* const pList = &pManager->mInactiveList;
+    for (PblListDoubleSorted::Itor itor(pList); ; ++itor)
     {
-        PblListDoubleSorted::Node* pNode =
-            (PblListDoubleSorted::Node*)((char*)pLink - offsetof(PblListDoubleSorted::Node, mNode));
-        if (pNode == pManager->mInactiveList.GetTerminator())
-        {
-            break;
-        }
-        VoiceVirtual* pVoice = (VoiceVirtual*)((char*)pNode - offsetof(VoiceVirtual, mNode));
-        if (pVoice->mCustomFlags == (unsigned int)smVoiceVirtuals)
+        VoiceVirtual* const pVoice = (VoiceVirtual*)itor.GetNode(pList)->GetObjectA(
+            pList, offsetof(VoiceVirtual, mNode));
+        if (pVoice == 0 || pVoice->GetCustomFlags() == (unsigned int)smVoiceVirtuals)
         {
             return pVoice;
         }
     }
-    return 0;
 }
 
 // FUNCTION: SWBF2 0x0073acf0
 VoiceVirtual* __cdecl Sound::StealVoice(VoiceVirtualManager* pManager, float fPriority)
 {
     PblListDoubleSorted& list = pManager->mActiveList;
-    PblListDouble::Node* pTail = list.mTerminator.mPrev;
-    PblListDoubleSorted::Node* pTailNode = pTail == &list.mTerminator
-        ? (PblListDoubleSorted::Node*)list.GetTerminator()
-        : (PblListDoubleSorted::Node*)((char*)pTail - offsetof(PblListDoubleSorted::Node, mNode));
-    for (PblListDouble::Node* pLink = &pTailNode->mNode; pLink != &list.mTerminator; pLink = pLink->mPrev)
+    for (PblListDoubleSorted::Itor itor = list.End();
+         itor.GetNode(&list) != list.GetTerminator(); --itor)
     {
-        PblListDoubleSorted::Node* pNode =
-            (PblListDoubleSorted::Node*)((char*)pLink - offsetof(PblListDoubleSorted::Node, mNode));
-        if (pNode == list.GetTerminator())
-        {
-            break;
-        }
-        VoiceVirtual* pVoice = (VoiceVirtual*)((char*)pNode - offsetof(VoiceVirtual, mNode));
-        if (pVoice->mCustomFlags != (unsigned int)smVoiceVirtuals)
+        VoiceVirtual* pVoice = (VoiceVirtual*)itor.GetNode(&list)->GetObjectA(
+            &list, offsetof(VoiceVirtual, mNode));
+        if (pVoice->GetCustomFlags() != (unsigned int)smVoiceVirtuals)
         {
             continue;
         }
@@ -463,8 +469,9 @@ void Sound::Properties::SetupVoiceVirtual(VoiceVirtualBus* pVoice, Source3D* pSo
 
     if (GetRandomPlayPosition())
     {
+        const float fLength = (float)pSample->mLengthSamples;
         pVoice->mPlaybackPosition =
-            (unsigned int)(sndRandom.GetFloat() * (float)pSample->mLengthSamples);
+            (unsigned int)(sndRandom.GetFloat() * fLength);
         pVoice->SourceTransport::mFlags |= SourceTransport::flags_updatePlaybackPosition;
     }
 
@@ -505,17 +512,13 @@ void __cdecl Sound::UpdateAll(float fDeltaTime)
 // FUNCTION: SWBF2 0x0073aeb0
 void __cdecl Sound::UpdateVoices(VoiceVirtualManager* pManager, float fDeltaTime)
 {
-    for (PblListDouble::Node* pLink = pManager->mActiveList.mTerminator.mNext;
-         pLink != &pManager->mActiveList.mTerminator; pLink = pLink->mNext)
+    PblListDoubleSorted& list = pManager->mActiveList;
+    for (PblListDoubleSorted::Itor itor = list.Begin();
+         itor.GetNode(&list) != list.GetTerminator(); ++itor)
     {
-        PblListDoubleSorted::Node* pNode =
-            (PblListDoubleSorted::Node*)((char*)pLink - offsetof(PblListDoubleSorted::Node, mNode));
-        if (pNode == pManager->mActiveList.GetTerminator())
-        {
-            break;
-        }
-        FireForget* pVoice = (FireForget*)((char*)pNode - offsetof(VoiceVirtual, mNode));
-        if (pVoice->mCustomFlags != (unsigned int)smVoiceVirtuals)
+        FireForget* pVoice = (FireForget*)itor.GetNode(&list)->GetObjectA(
+            &list, offsetof(VoiceVirtual, mNode));
+        if (pVoice->GetCustomFlags() != (unsigned int)smVoiceVirtuals)
         {
             continue;
         }
@@ -540,7 +543,8 @@ VoiceVirtual* __cdecl Sound::VoiceVirtualHandleToVoiceVirtual(unsigned short uHa
 // FUNCTION: SWBF2 0x0073afb0
 unsigned short __cdecl Sound::VoiceVirtualToVoiceVirtualHandle(const VoiceVirtual* const pVoice)
 {
-    return (unsigned short)(static_cast<const FireForget*>(pVoice) - smVoiceVirtuals + 1);
+    return (unsigned short)(((unsigned int)pVoice - (unsigned int)smVoiceVirtuals)
+                            / sizeof(*smVoiceVirtuals) + 1);
 }
 
 // FUNCTION: SWBF2 0x0073a2f0
@@ -554,7 +558,8 @@ void Sound::Play(bool bRestart)
     SetSample((const Sample*)mProperties->mSelObjectWeightList->GetObjectA());
     if (mProperties->GetRandomPlayPosition())
     {
-        mPlaybackPosition = (unsigned int)(sndRandom.GetFloat() * (float)mSample->mLengthSamples);
+        const float fLength = (float)mSample->mLengthSamples;
+        mPlaybackPosition = (unsigned int)(sndRandom.GetFloat() * fLength);
         SourceTransport::mFlags |= SourceTransport::flags_updatePlaybackPosition;
     }
 
@@ -608,77 +613,76 @@ void __cdecl Sound::ParamSetGain(Sound* pSound, float fValue)
 // FUNCTION: SWBF2 0x0073a0c0
 void __cdecl Sound::ParamSetMaxDistance(Sound* pSound, float fValue)
 {
-    static_cast<Source3D::Properties*>(static_cast<Source2D3D*>(pSound))->SetMaxDistance(
+    pSound->SetMaxDistance(
         ClampNonnegative(pSound->mProperties->mMaxDistance * fValue));
 }
 
 // FUNCTION: SWBF2 0x0073a0f0
 void __cdecl Sound::ParamSetMinDistance(Sound* pSound, float fValue)
 {
-    static_cast<Source3D::Properties*>(static_cast<Source2D3D*>(pSound))->SetMinDistance(
+    pSound->SetMinDistance(
         ClampNonnegative(pSound->mProperties->mMinDistance * fValue));
 }
 
 // FUNCTION: SWBF2 0x0073a120
 void __cdecl Sound::ParamSetMuteDistance(Sound* pSound, float fValue)
 {
-    static_cast<Source3D::Properties*>(static_cast<Source2D3D*>(pSound))->SetMuteDistance(
+    pSound->SetMuteDistance(
         ClampNonnegative(pSound->mProperties->mMuteDistance * fValue));
 }
 
 // FUNCTION: SWBF2 0x0073a150
 void __cdecl Sound::ParamSetPan(Sound* pSound, float fValue)
 {
-    static_cast<Source2D*>(static_cast<Source2D3D*>(pSound))->SetPan(
+    pSound->SetPan(
         ClampParameter(pSound->mProperties->mPan * fValue, -1.0f, 1.0f));
 }
 
 // FUNCTION: SWBF2 0x0073a190
 void __cdecl Sound::ParamSetPitch(Sound* pSound, float fValue)
 {
-    static_cast<Source*>(static_cast<Source2D3D*>(pSound))->SetPitch(
+    pSound->SetPitch(
         ClampNonnegative(pSound->mProperties->mPitch * fValue));
 }
 
 // FUNCTION: SWBF2 0x0073a1c0
 void __cdecl Sound::ParamSetReverbGain(Sound* pSound, float fValue)
 {
-    static_cast<Source*>(static_cast<Source2D3D*>(pSound))->SetReverbGain(
+    pSound->SetReverbGain(
         ClampParameter(pSound->mProperties->mReverbGain * fValue, 0.0f, 1.0f));
 }
 
 // FUNCTION: SWBF2 0x0073a200
 void __cdecl Sound::ParamSetRollIn(Sound* pSound, float fValue)
 {
-    static_cast<Source3D::Properties*>(static_cast<Source2D3D*>(pSound))->SetRollIn(
+    pSound->SetRollIn(
         ClampNonnegative(pSound->mProperties->mRollInFactor * fValue));
 }
 
 // FUNCTION: SWBF2 0x0073a230
 void __cdecl Sound::ParamSetRollInDistance(Sound* pSound, float fValue)
 {
-    static_cast<Source3D::Properties*>(static_cast<Source2D3D*>(pSound))->SetRollInDistance(
+    pSound->SetRollInDistance(
         ClampNonnegative(pSound->mProperties->mRollInDistance * fValue));
 }
 
 // FUNCTION: SWBF2 0x0073a260
 void __cdecl Sound::ParamSetRollOff(Sound* pSound, float fValue)
 {
-    static_cast<Source3D::Properties*>(static_cast<Source2D3D*>(pSound))->SetRollOff(
+    pSound->SetRollOff(
         ClampNonnegative(pSound->mProperties->mRollOffFactor * fValue));
 }
 
 // FUNCTION: SWBF2 0x0073a290
 void __cdecl Sound::ParamSetTrigger(Sound* pSound, float fValue)
 {
-    SourceTransport* pTransport = static_cast<SourceTransport*>(pSound);
-    if (pTransport->GetPlayState() == SourceTransport::playState_stopped && fValue > 0.5f)
+    if (pSound->SourceTransport::GetPlayState() == SourceTransport::playState_stopped && fValue > 0.5f)
     {
         pSound->Play(true);
     }
-    else if (pTransport->GetPlayState() == SourceTransport::playState_playing)
+    else if (pSound->SourceTransport::GetPlayState() == SourceTransport::playState_playing)
     {
-        pSound->SourceBus::Stop(pTransport);
+        pSound->SourceBus::Stop(static_cast<SourceTransport*>(pSound));
         pSound->VoiceVirtual::Stop();
     }
 }
@@ -688,7 +692,7 @@ unsigned int __cdecl Sound::FindParameterIndexByHashID(unsigned int uiHashID)
 {
     for (unsigned int i = 0; i < 11; ++i)
     {
-        if (smParameterFunctions[i].GetHashID() == uiHashID)
+        if (uiHashID == smParameterFunctions[i].GetHashID())
         {
             return i;
         }
@@ -696,26 +700,24 @@ unsigned int __cdecl Sound::FindParameterIndexByHashID(unsigned int uiHashID)
     return ~0u;
 }
 
-// FUNCTION: SWBF2 0x00537ef0
-Source3D::~Source3D()
+
+}
+
+namespace Snd
 {
-}
-
-}
-
-namespace Snd {
 
 // FUNCTION: SWBF2 0x00739d20
 void __cdecl Sound::Properties::DestroyAll()
 {
     while (!smPropertyList.IsEmpty())
     {
-        delete (Properties*)((char*)smPropertyList.mHead.mNext - offsetof(Properties, mNode));
+        delete (Properties*)smPropertyList.GetFirst()->GetObjectA(&smPropertyList, offsetof(Properties, mNode));
     }
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x00739d90
 const Sound::Properties* __cdecl Sound::Properties::FindByHashID(unsigned int uiHashID)
@@ -724,7 +726,7 @@ const Sound::Properties* __cdecl Sound::Properties::FindByHashID(unsigned int ui
          pNode != &smPropertyList.mHead; pNode = pNode->mNext)
     {
         const Properties* const pProps =
-            (const Properties*)((char*)pNode - offsetof(Properties, mNode));
+            (const Properties*)pNode->GetObjectA(&smPropertyList, offsetof(Properties, mNode));
         if (pProps->mHashID == uiHashID)
         {
             return pProps;
@@ -739,9 +741,5 @@ namespace Snd
 
 Sound::Properties::~Properties()
 {
-    if (mNode.mNext)
-    {
-        mNode.Remove();
-    }
 }
 }

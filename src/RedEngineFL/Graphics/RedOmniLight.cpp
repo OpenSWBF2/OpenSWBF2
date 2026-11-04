@@ -11,27 +11,29 @@ extern PblMatrix gMatrixIdentity;
 
 static const float POINT_LIGHT_VISIBILITY_RADIUS_FUDGE = 10.0f;
 
-// GLOBAL: SWBF2 0x009acbb0
 // SYNTHETIC: SWBF2 0x00408df0
 // `dynamic initializer for 'RedOmniLight::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00769b10
 // `dynamic atexit destructor for 'RedOmniLight::sMemoryPool''
+
+// GLOBAL: SWBF2 0x009acbb0
+// RedOmniLight::sMemoryPool
 MemoryPool RedOmniLight::sMemoryPool("RedOmniLight", 0x120);
 
-// GLOBAL: SWBF2 0x009acc00
 // SYNTHETIC: SWBF2 0x00408d40
 // `dynamic initializer for 'RedOmniLight::BLACK''
 // SYNTHETIC: SWBF2 0x00769b00
 // `dynamic atexit destructor for 'RedOmniLight::BLACK''
+
+// GLOBAL: SWBF2 0x009acc00
+// RedOmniLight::BLACK
 RedOmniLight RedOmniLight::BLACK(PblVector3(0.0f, 0.0f, 0.0f), 0.0f,
                                  RedColorValue(RedColor::BLACK));
 
 // FUNCTION: SWBF2 0x006ee990
 RedOmniLight::RedOmniLight(const PblVector3& pos, float fRadius, const RedColorValue& color)
-    : RedLight(TYPE_POINT)
+    : RedLight(TYPE_POINT), m_mProjection(gMatrixIdentity), m_bProjectionDirty(true)
 {
-    memcpy(&m_mProjection, &gMatrixIdentity, sizeof(m_mProjection));
-    m_bProjectionDirty = true;
     memset(&m_d3dLight, 0, sizeof(m_d3dLight));
     m_d3dLight.Type = D3DLIGHT_POINT;
     m_d3dLight.Range = 1.0f;
@@ -75,7 +77,7 @@ void RedOmniLight::SetColor(const RedColorValue& color)
 {
     float fScale = (m_radius * 0.5f) * (m_radius * 0.5f);
     m_color = color;
-    m_d3dLight.Diffuse = *(const D3DCOLORVALUE*)&color;
+    m_d3dLight.Diffuse = color;
     m_d3dLight.Diffuse.r *= fScale;
     m_d3dLight.Diffuse.g *= fScale;
     m_d3dLight.Diffuse.b *= fScale;
@@ -103,17 +105,14 @@ void RedOmniLight::SetRadius(float fRadius)
 // FUNCTION: SWBF2 0x006eec90
 void RedOmniLight::_RecalculateProjectionMatrix() const
 {
-    memcpy(&m_mProjection, &gMatrixIdentity, sizeof(m_mProjection));
+    m_mProjection = gMatrixIdentity;
     if (m_radius > 0.0f)
     {
         float fInv = 1.0f / m_radius;
         m_mProjection.m[0][0] = fInv;
         m_mProjection.m[1][1] = fInv;
         m_mProjection.m[2][2] = fInv;
-        m_mProjection.m[3][0] = -m_pos.x * fInv;
-        m_mProjection.m[3][1] = -m_pos.y * fInv;
-        m_mProjection.m[3][2] = -m_pos.z * fInv;
-        m_mProjection.m[3][3] = 1.0f;
+        m_mProjection.SetTranslation(-m_pos * fInv);
     }
     m_bProjectionDirty = false;
 }

@@ -9,6 +9,12 @@
 
 #include "pcRedAutoSettings.h"
 
+const unsigned int kuiNormalShader = 0xe68b9c52;
+const unsigned int kuiFlareShader = 0x96834737;
+const unsigned int kuiHDRShader = 0xfeb6dbe1;
+const unsigned int kuiSampleShader = 0x96e382a7;
+const unsigned int kuiShimmerShader = 0x4cc5882a;
+
 class PblFileChunk;
 class RedShadingState;
 class pcRedPixelShader;
@@ -145,7 +151,7 @@ public:
     unsigned int m_uiNumShadersToBind;
     pcRedShader** m_apShadersToBind;
 
-    // GLOBAL: SWBF2 0x007f4fe8
+
     static unsigned int s_IDCount;
 
     // FUNCTION: SWBF2 0x006ac920
@@ -174,6 +180,8 @@ public:
     // FUNCTION: SWBF2 0x006ac5c0
     pcRedShader();
 
+    // FUNCTION: SWBF2 0x006ac690
+    // pcRedShader::~pcRedShader
     virtual ~pcRedShader()
     {
     }
@@ -238,13 +246,14 @@ public:
                                        const RedColor& color1,
                                        float fArg7);
 
-    enum { FACTORY_SLOTS = 256 };
+enum
+{
+FACTORY_SLOTS = 256
+}
+;
 
-    // GLOBAL: SWBF2 0x007f5054
     static PblHashTable<const pcRedShader, FACTORY_SLOTS> s_ShaderFactoryByRenderType;
 
-    // GLOBAL: SWBF2 0x007f5050
-    static int s_ShaderFactoryByRenderTypeNumEntries;
 
 protected:
 

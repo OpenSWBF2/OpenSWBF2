@@ -32,5 +32,6 @@ public:
     float mTimeWithPilot;
     GameMusic mMusic[8];
 };
- 
- 
+
+// SYNTHETIC: SWBF2 0x004b6f40
+// VehicleMusicClass::~VehicleMusicClass

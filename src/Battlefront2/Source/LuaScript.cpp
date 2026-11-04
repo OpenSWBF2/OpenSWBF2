@@ -147,5 +147,6 @@ void LuaScriptFactory::PurgeUnused()
     }
 }
 
-// FUNCTION: SWBF2 0x005a1b30
+// TEMPLATE: SWBF2 0x005a1b30
+// PblList<LuaScriptFactory>::RemoveAll
 template void PblList<LuaScriptFactory>::RemoveAll();

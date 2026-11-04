@@ -94,7 +94,6 @@ class FlashyTextManager : public Thread
 {
 public:
     FlashyTextManager();
-    virtual ~FlashyTextManager();
 
     // SYNTHETIC: SWBF2 0x00526980
     // FlashyTextManager::`scalar deleting destructor'

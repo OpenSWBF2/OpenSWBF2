@@ -9,14 +9,36 @@
 #include "PebbleFL/Common/PblHeap.h"
 #include "PebbleFL/Common/PblList.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
-#include "TeamManager.h"
 #include <new>
 
-// GLOBAL: SWBF2 0x01f9a8b8
+namespace AI
+{
+enum AIAffil
+{
+    AFFIL_ENEMY = 1,
+    AFFIL_NEUTRAL = 2,
+    AFFIL_ALLY = 4,
+    AFFIL_ALLYNEUTRAL = 6,
+    AFFIL_ALL = 7
+};
+}
+
+namespace TeamManager
+{
+int GetObjectsInRange(const PblVector3& vPos, float fRange, GameObject** const ppObjects, int iMax,
+                      const GameObject* pObject, AI::AIAffil eAffil);
+}
+
 // SYNTHETIC: SWBF2 0x00407130
 // `dynamic initializer for 'WeaponDisguiseClass::rttiHashWeaponDisguiseClass''
+// WeaponDisguiseClass::rttiHashWeaponDisguiseClass
+
+// GLOBAL: SWBF2 0x01f9a8b8
+// WeaponDisguiseClass::rttiHashWeaponDisguiseClass
 PblHash WeaponDisguiseClass::rttiHashWeaponDisguiseClass("WeaponDisguiseClass");
-char WeaponDisguiseClass::rttiNameWeaponDisguiseClass[] = "WeaponDisguiseClass";
+// GLOBAL: SWBF2 0x0078bf48
+// WeaponDisguiseClass::rttiNameWeaponDisguiseClass
+const char WeaponDisguiseClass::rttiNameWeaponDisguiseClass[] = "WeaponDisguiseClass";
 
 // FUNCTION: SWBF2 0x00683390
 WeaponDisguiseClass::WeaponDisguiseClass(unsigned int uHash)
@@ -41,23 +63,11 @@ WeaponDisguiseClass::~WeaponDisguiseClass()
 // SYNTHETIC: SWBF2 0x006833d0
 // WeaponDisguiseClass::`scalar deleting destructor'
 
-// FUNCTION: SWBF2 0x00682cb0
-bool WeaponDisguiseClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashWeaponDisguiseClass || WeaponClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00682ce0
-unsigned int WeaponDisguiseClass::GetDerivedRtti()
-{
-    return rttiHashWeaponDisguiseClass;
-}
 
-// FUNCTION: SWBF2 0x00682cf0
-const char* WeaponDisguiseClass::GetDerivedRttiName()
-{
-    return rttiNameWeaponDisguiseClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00683430
 void WeaponDisguiseClass::SetProperty(unsigned int uProperty, const char* pszValue)
@@ -75,29 +85,22 @@ WeaponClass* WeaponDisguiseClass::Derive(unsigned int uHash)
     return new WeaponDisguiseClass(this, uHash);
 }
 
-// GLOBAL: SWBF2 0x01f9a8b4
 // SYNTHETIC: SWBF2 0x00407120
 // `dynamic initializer for 'WeaponDisguise::rttiHashWeaponDisguise''
+// WeaponDisguise::rttiHashWeaponDisguise
+
+// GLOBAL: SWBF2 0x01f9a8b4
+// WeaponDisguise::rttiHashWeaponDisguise
 PblHash WeaponDisguise::rttiHashWeaponDisguise("WeaponDisguise");
-char WeaponDisguise::rttiNameWeaponDisguise[] = "WeaponDisguise";
+// GLOBAL: SWBF2 0x0078bf64
+// WeaponDisguise::rttiNameWeaponDisguise
+const char WeaponDisguise::rttiNameWeaponDisguise[] = "WeaponDisguise";
 
-// FUNCTION: SWBF2 0x00682c60
-bool WeaponDisguise::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashWeaponDisguise || Weapon::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00682c90
-unsigned int WeaponDisguise::GetDerivedRtti() const
-{
-    return rttiHashWeaponDisguise;
-}
 
-// FUNCTION: SWBF2 0x00682ca0
-const char* WeaponDisguise::GetDerivedRttiName() const
-{
-    return rttiNameWeaponDisguise;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00682d00
 WeaponDisguise::WeaponDisguise(const WeaponDisguiseClass* pClass, const WeaponDesc& desc)
@@ -223,7 +226,7 @@ void WeaponDisguise::FinishRaisingDisguise()
 {
     GameObjectClass* pDisguise = mOtherTeam->GetClassPtr(0);
     mOwner->GetGameObject()->SetModel(pDisguise->GetModel());
-    mRenderClass = const_cast<WeaponClass*>(pDisguise->GetWeaponClass(0));
+    mRenderClass = pDisguise->GetWeaponClass(0);
     mSoldierAnimationMap = SoldierAnimationBank::INVALID_MAP;
     if (mRenderClass->mSoldierAnimationWeapon != -1 && mOwner &&
         mOwner->GetSoldierAnimationBank() != SoldierAnimationBank::INVALID_BANK)

@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "MountedTurret.h"
 
 #include <float.h>
@@ -11,7 +12,6 @@
 #include "CameraManager.h"
 #include "Character.h"
 #include "CollisionManager.h"
-#include "EntityFlyer.h"
 #include "FirstPerson.h"
 #include "GameModel.h"
 #include "GameObject.h"
@@ -36,7 +36,6 @@
 #include "RedEngineFL/Graphics/RedModel.h"
 #include "RedEngineFL/Graphics/RedSkeleton.h"
 #include "SoundFL/source/sndvoicevirtualbus.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 PblMatrix DirectionMatrix(const PblVector3& vDir, const PblVector3& vUp, const PblVector3& vPos);
 
@@ -49,12 +48,6 @@ bool IsTurretCameraTargeting(const MountedTurret& turret)
             (turret.mTracker && turret.mTracker->IsFirstPersonView()));
 }
 
-PblMatrix TurretDirectionMatrix(const MountedTurret& turret)
-{
-    PblVector3 vDirection(-turret.mEyeDir.x, -turret.mEyeDir.y, -turret.mEyeDir.z);
-    const PblVector3& vUp = *(const PblVector3*)&turret.mAimMatrix.m[1][0];
-    return DirectionMatrix(vDirection, vUp, turret.mEyePoint);
-}
 }
 
 // FUNCTION: SWBF2 0x005a8500
@@ -68,11 +61,11 @@ void MountedTurret::SetupCameraTrackMatrixHUDTargeting(PblMatrix& rMatrix)
 {
     if (IsTurretCameraTargeting(*this))
     {
-        rMatrix = TurretDirectionMatrix(*this);
+        rMatrix = DirectionMatrix(-mEyeDir, mAimMatrix.GetYAxis(), mEyePoint);
         return;
     }
     const PblMatrix& rTarget = mClass->mTrackUseRoot ? mParent->GetMatrix() : mAimMatrix;
-    const PblVector3& vAimDir = *(const PblVector3*)&mAimMatrix.m[2][0];
+    const PblVector3& vAimDir = mAimMatrix.GetZAxis();
     mClass->mCameraSettings.SetupCameraTrackMatrixHUDTargeting(rMatrix, rTarget, vAimDir);
 }
 
@@ -81,7 +74,7 @@ void MountedTurret::SetupCameraTrackMatrix(PblMatrix& rMatrix, float fDeltaTime)
 {
     if (IsTurretCameraTargeting(*this))
     {
-        rMatrix = TurretDirectionMatrix(*this);
+        rMatrix = DirectionMatrix(-mEyeDir, mAimMatrix.GetYAxis(), mEyePoint);
         int iView = GetFirstPersonIndex();
         if (iView >= 0 && !mTargetInfo.mIsAiming)
         {
@@ -90,7 +83,7 @@ void MountedTurret::SetupCameraTrackMatrix(PblMatrix& rMatrix, float fDeltaTime)
         return;
     }
     const PblMatrix& rTarget = mClass->mTrackUseRoot ? mParent->GetMatrix() : mAimMatrix;
-    const PblVector3& vAimDir = *(const PblVector3*)&mAimMatrix.m[2][0];
+    const PblVector3& vAimDir = mAimMatrix.GetZAxis();
     mClass->mCameraSettings.SetupCameraTrackMatrix(this, rMatrix, fDeltaTime, rTarget,
                                                      vAimDir, 1.0f, 1.0f, mParent);
 }
@@ -172,42 +165,62 @@ void RemoveChildren(const GameObject* pObject, RedPose& rPose, int iBone)
 extern bool netFrameLock;
 extern bool netIsLocalTurn;
 
-// GLOBAL: SWBF2 0x01ecb150
+class EntityFlyer
+{
+public:
+    enum State
+    {
+        LANDED = 0,
+        TAKEOFF = 1,
+        FLYING = 2,
+        LANDING = 3,
+        CRASHING = 4,
+        CRASHED = 5
+    };
+
+    char mFlyerBaseStorage[0x564];
+    State mState;
+
+    static PblHash rttiHashEntityFlyer;
+};
+ 
+
 // SYNTHETIC: SWBF2 0x00404340
 // `dynamic initializer for 'MountedTurret::rttiHashMountedTurret''
-PblHash MountedTurret::rttiHashMountedTurret("MountedTurret");
-char MountedTurret::rttiNameMountedTurret[] = "MountedTurret";
+// MountedTurret::rttiHashMountedTurret
 
-// GLOBAL: SWBF2 0x01ecb154
+// GLOBAL: SWBF2 0x01ecb150
+// MountedTurret::rttiHashMountedTurret
+PblHash MountedTurret::rttiHashMountedTurret("MountedTurret");
+// GLOBAL: SWBF2 0x0078a57c
+// MountedTurret::rttiNameMountedTurret
+const char MountedTurret::rttiNameMountedTurret[] = "MountedTurret";
+
 // SYNTHETIC: SWBF2 0x00404330
 // `dynamic initializer for 'MountedTurretClass::rttiHashMountedTurretClass''
-PblHash MountedTurretClass::rttiHashMountedTurretClass("MountedTurretClass");
-char MountedTurretClass::rttiNameMountedTurretClass[] = "MountedTurretClass";
+// MountedTurretClass::rttiHashMountedTurretClass
 
-// GLOBAL: SWBF2 0x01ecb158
+// GLOBAL: SWBF2 0x01ecb154
+// MountedTurretClass::rttiHashMountedTurretClass
+PblHash MountedTurretClass::rttiHashMountedTurretClass("MountedTurretClass");
+// GLOBAL: SWBF2 0x0078a5a0
+// MountedTurretClass::rttiNameMountedTurretClass
+const char MountedTurretClass::rttiNameMountedTurretClass[] = "MountedTurretClass";
+
 // SYNTHETIC: SWBF2 0x00404310
 // `dynamic initializer for 'MountedTurret::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00768d20
 // `dynamic atexit destructor for 'MountedTurret::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ecb158
+// MountedTurret::sMemoryPool
 MemoryPool MountedTurret::sMemoryPool("MountedTurret", 0x2c0);
 
-// FUNCTION: SWBF2 0x005a5160
-bool MountedTurret::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashMountedTurret || EntityEx::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x005a5190
-unsigned int MountedTurret::GetDerivedRtti() const
-{
-    return rttiHashMountedTurret;
-}
 
-// FUNCTION: SWBF2 0x005a51a0
-const char* MountedTurret::GetDerivedRttiName() const
-{
-    return rttiNameMountedTurret;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x005a51b0
 const PblMatrix& MountedTurret::GetMatrix() const
@@ -287,23 +300,11 @@ bool MountedTurret::PostCollision::Update(float fDeltaTime)
 // SYNTHETIC: SWBF2 0x005a52e0
 // MountedTurret::PostCollision::~PostCollision
 
-// FUNCTION: SWBF2 0x005a52f0
-bool MountedTurretClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashMountedTurretClass || EntityClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x005a5320
-unsigned int MountedTurretClass::GetDerivedRtti()
-{
-    return rttiHashMountedTurretClass;
-}
 
-// FUNCTION: SWBF2 0x005a5330
-const char* MountedTurretClass::GetDerivedRttiName()
-{
-    return rttiNameMountedTurretClass;
-}
+
+
+
 
 // SYNTHETIC: SWBF2 0x005a5340
 // MountedTurret::`scalar deleting destructor'
@@ -602,17 +603,17 @@ void MountedTurret::GetPilotMatrix(const PblMatrix& mIn, PblMatrix& mOut)
 
     if (pClass->mAnimatedPilotNodeFlag)
     {
-        D3DXMatrixMultiply(&mMatrix, pBone, &mIn);
+        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mMatrix), reinterpret_cast<const D3DXMATRIX*>(pBone), reinterpret_cast<const D3DXMATRIX*>(&mIn));
     }
     else if (pBone)
     {
         PblMatrix mOffset;
-        D3DXMatrixMultiply(&mOffset, &pClass->mPilotOffsetMatrix, pBone);
-        D3DXMatrixMultiply(&mMatrix, &mOffset, &mIn);
+        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mOffset), reinterpret_cast<const D3DXMATRIX*>(&pClass->mPilotOffsetMatrix), reinterpret_cast<const D3DXMATRIX*>(pBone));
+        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mMatrix), reinterpret_cast<const D3DXMATRIX*>(&mOffset), reinterpret_cast<const D3DXMATRIX*>(&mIn));
     }
     else
     {
-        D3DXMatrixMultiply(&mMatrix, &pClass->mPilotOffsetMatrix, &mIn);
+        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mMatrix), reinterpret_cast<const D3DXMATRIX*>(&pClass->mPilotOffsetMatrix), reinterpret_cast<const D3DXMATRIX*>(&mIn));
     }
 
     if (mOldRoot.m[3][3] != 0.0f)
@@ -752,15 +753,15 @@ bool MountedTurret::Update(float aDt)
                 mParent->GetTeam() != pPilot->GetGameObject()->GetTeam())
             {
                 SpaceDustEffect::Stop(iJoystick);
-                if (mPilotType == PILOT_REMOTE)
+                if (IsRemoteVehicle())
                 {
                     pPilot->ExitRemote();
                 }
-                else if (mPilotType == PILOT_VEHICLE || mPilotType == PILOT_VEHICLESELF)
+                else if (IsPilotable())
                 {
 
                     if (!(GetGameObject() && GetGameObject()->IsRtti(EntityFlyer::rttiHashEntityFlyer) &&
-                          static_cast<EntityFlyer*>(GetGameObject())->mState != EntityFlyer::LANDED))
+                          ((EntityFlyer*)GetGameObject())->mState != EntityFlyer::LANDED))
                     {
                         if (pPilot->mCharacter && pPilot->mCharacter->mRemote)
                         {
@@ -916,7 +917,7 @@ bool MountedTurret::Update(float aDt)
         {
             PblMatrix mInverse = parentMatrix.GetInverseFast();
             PblVector3 aimLocal;
-            D3DXVec3TransformNormal(&aimLocal, &mAimMatrix.GetZAxis(), &mInverse);
+            D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&aimLocal), reinterpret_cast<const D3DXVECTOR3*>(&mAimMatrix.GetZAxis()), reinterpret_cast<const D3DXMATRIX*>(&mInverse));
             float aimYaw = atan2(aimLocal.x, aimLocal.z);
             if (mClass->mShiftYaw && aimYaw < 0.0f)
             {
@@ -999,8 +1000,8 @@ bool MountedTurret::Update(float aDt)
         const PblMatrix* pParentBone = mPose->Find(mClass->mParentHash);
         if (pParentBone)
         {
-            D3DXVec3TransformCoord(&mountPos, &mClass->mMountPos, pParentBone);
-            D3DXVec3TransformNormal(&mountUp, &mClass->mMountUp, pParentBone);
+            D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&mountPos), reinterpret_cast<const D3DXVECTOR3*>(&mClass->mMountPos), reinterpret_cast<const D3DXMATRIX*>(pParentBone));
+            D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&mountUp), reinterpret_cast<const D3DXVECTOR3*>(&mClass->mMountUp), reinterpret_cast<const D3DXMATRIX*>(pParentBone));
         }
     }
 
@@ -1028,7 +1029,7 @@ bool MountedTurret::Update(float aDt)
         }
     }
 
-    if (mPilotType != PILOT_REMOTE)
+    if (!IsRemoteVehicle())
     {
         if (mClass->mIsPilotAnimation9Pose)
         {
@@ -1093,11 +1094,11 @@ bool MountedTurret::Update(float aDt)
     {
         const PblVector3& vParentDir = mParent->GetControllable()->mEyeDir;
         PblMatrix mInverse = parentMatrix.GetInverseFast();
-        D3DXVec3TransformNormal(&aimDir, &vParentDir, &mInverse);
+        D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&aimDir), reinterpret_cast<const D3DXVECTOR3*>(&vParentDir), reinterpret_cast<const D3DXMATRIX*>(&mInverse));
     }
     PblMatrix mDirection = DirectionMatrix(aimDir, mountUp, mountPos);
     PblMatrix aimMat;
-    D3DXMatrixMultiply(&aimMat, &mDirection, &parentMatrix);
+    aimMat = mDirection * parentMatrix;
     mAimMatrix = aimMat;
 
     mEyePoint = mClass->mCameraSettings.CalcEyePoint(mAimMatrix);
@@ -1125,7 +1126,7 @@ bool MountedTurret::Update(float aDt)
             tiltRot._fS = fCos;
             PblQuaternion qRot = targetRot * tiltRot;
             PblQuaternion qUnit;
-            D3DXMatrixRotationQuaternion(&aimMat, D3DXQuaternionNormalize(&qUnit, &qRot));
+            D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&aimMat), D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&qUnit), reinterpret_cast<const D3DXQUATERNION*>(&qRot)));
             aimMat.m[3][0] = gVectorZero.x;
             aimMat.m[3][1] = gVectorZero.y;
             aimMat.m[3][2] = gVectorZero.z;
@@ -1330,7 +1331,7 @@ int MountedTurret::GetFirstPersonIndex()
 // FUNCTION: SWBF2 0x005a7b00
 int MountedTurret::GetJoystickIndex()
 {
-    if (mPlayerId < 0)
+    if (!IsPlayer())
     {
         return -1;
     }
@@ -1457,7 +1458,7 @@ void MountedTurret::Render(const PblMatrix& aRootMatrix, const PblMatrix& aInvRo
     if (pMount)
     {
         const PblVector3& vVelocity = mParent->GetVelocity();
-        D3DXVec3TransformCoord(&pThis->mTurretWorldTranslation, &pMount->GetTranslation(), &mParent->GetMatrix());
+        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&pThis->mTurretWorldTranslation), reinterpret_cast<const D3DXVECTOR3*>(&pMount->GetTranslation()), reinterpret_cast<const D3DXMATRIX*>(&mParent->GetMatrix()));
         pThis->mTurretPitchSound.Update(&mClass->mTurretPitchSound, &mTurretWorldTranslation, &vVelocity);
         pThis->mTurretYawSound.Update(&mClass->mTurretYawSound, &mTurretWorldTranslation, &vVelocity);
     }
@@ -1575,12 +1576,7 @@ MountedTurretClass::MountedTurretClass(unsigned int uHash)
     mFirstPersonModelHandle = -1;
 }
 
-MountedTurretClass::~MountedTurretClass()
-{
-}
 
-// SYNTHETIC: SWBF2 0x005a8b40
-// MountedTurretClass::`scalar deleting destructor'
 
 // FUNCTION: SWBF2 0x005a8bb0
 EntityClass* MountedTurretClass::Derive(unsigned int)
@@ -1649,8 +1645,8 @@ bool MountedTurretClass::SetProperty(unsigned int uHash, const char* pcValue, co
             mParentHash = pModel->GetParentBoneAndOffsetMatrix(mMountHash, mat);
             if (mParentHash)
             {
-                mMountPos = *(const PblVector3*)&mat.m[3][0];
-                mMountUp = *(const PblVector3*)&mat.m[1][0];
+                mMountPos = mat.GetTranslation();
+                mMountUp = mat.GetYAxis();
             }
             for (unsigned int uBone = mMountHash; uBone; uBone = pModel->GetParentBone(uBone))
             {
@@ -1795,16 +1791,16 @@ bool MountedTurretClass::SetProperty(unsigned int uHash, const char* pcValue, co
 }
 
 // SYNTHETIC: SWBF2 0x005a93f4
-// [thunk]:MountedTurret::GetGameObject`adjustor{36}'
+// ?GetGameObject@MountedTurret@@WCE@BEPBVGameObject@@XZ
 
 // SYNTHETIC: SWBF2 0x005a9404
-// [thunk]:MountedTurret::GetEntity`adjustor{12}'
+// ?GetEntity@MountedTurret@@WM@BEPBVEntity@@XZ
 
 // SYNTHETIC: SWBF2 0x005a940c
-// [thunk]:MountedTurret::`vector deleting destructor' adjustor{36}
+// ??_EMountedTurret@@WCE@AEPAXI@Z
 
 // SYNTHETIC: SWBF2 0x005a9414
-// [thunk]:MountedTurret::`vector deleting destructor' adjustor{12}
+// ??_EMountedTurret@@WM@AEPAXI@Z
 
 // SYNTHETIC: SWBF2 0x005a93ec
-// [thunk]:MountedTurret::GetGameObject`adjustor{36}'
+// ?GetGameObject@MountedTurret@@WCE@AEPAVGameObject@@XZ

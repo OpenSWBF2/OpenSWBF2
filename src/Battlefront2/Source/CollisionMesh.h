@@ -31,7 +31,7 @@ class CollisionTreeNode
 {
 public:
 
-    static void* operator new(size_t uSize)
+    static void* operator new(unsigned int uSize)
     {
         void* p = memblock + membytes;
         membytes += uSize;
@@ -89,6 +89,8 @@ public:
     CollisionAABB() {}
     CollisionAABB(const CollisionAABB& parent, const CompressedAABB& compressed);
 
+    PblVector3 GetMidPoint() const { return 0.5f * (boxmin + boxmax); }
+
     PblVector3 boxmin;
     PblVector3 boxmax;
 };
@@ -96,11 +98,11 @@ public:
  
  
 
-// VTABLE: SWBF2 0x00797448
 template <int N> class PolyListContainer;
 class CollisionMeshCache;
 class EntitySoldier;
 
+// VTABLE: SWBF2 0x00797448
 class CollisionMesh
 {
 public:
@@ -125,11 +127,13 @@ public:
     // CollisionMesh::`scalar deleting destructor'
 
     static PblHashTable<CollisionMesh, 1024> _HashTable;
-
-    static int _HashTableNumEntries;
     static void ClearAll();
 
-    static const CollisionMesh* Find(unsigned int uHash);
+    // FUNCTION: SWBF2 0x004447f0
+    static const CollisionMesh* Find(unsigned int uHash)
+    {
+        return _HashTable.Find(uHash);
+    }
 
     void _Read(PblFileChunk& chunk);
 
@@ -152,7 +156,7 @@ public:
     CollisionTreeNode* mHitLeaf;
     unsigned char mMask;
     CollisionTreeLeaf* mDrawThisLeaf;
-    char mDrawThisAABB[24];
+    CollisionAABB mDrawThisAABB;
 };
  
  
@@ -181,6 +185,8 @@ template <int N>
 class PolyListContainer
 {
 public:
+    // TEMPLATE: SWBF2 0x004644a0
+    // PolyListContainer<100>::PolyListContainer<100>
     PolyListContainer() {}
 
     void Clear()

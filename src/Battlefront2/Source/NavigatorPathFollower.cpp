@@ -6,29 +6,22 @@
 #include "PathFollower.h"
 #include "UnitController.h"
 
-// GLOBAL: SWBF2 0x01ecb254
 // SYNTHETIC: SWBF2 0x004043e0
 // `dynamic initializer for 'NavigatorPathFollower::rttiHashNavigatorPathFollower''
+// NavigatorPathFollower::rttiHashNavigatorPathFollower
+
+// GLOBAL: SWBF2 0x01ecb254
+// NavigatorPathFollower::rttiHashNavigatorPathFollower
 PblHash NavigatorPathFollower::rttiHashNavigatorPathFollower("NavigatorPathFollower");
-char NavigatorPathFollower::rttiNameNavigatorPathFollower[] = "NavigatorPathFollower";
+// GLOBAL: SWBF2 0x0078a650
+// NavigatorPathFollower::rttiNameNavigatorPathFollower
+const char NavigatorPathFollower::rttiNameNavigatorPathFollower[] = "NavigatorPathFollower";
 
-// FUNCTION: SWBF2 0x005adad0
-bool NavigatorPathFollower::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashNavigatorPathFollower || Navigator::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x005adb00
-unsigned int NavigatorPathFollower::GetDerivedRtti() const
-{
-    return rttiHashNavigatorPathFollower;
-}
 
-// FUNCTION: SWBF2 0x005adb10
-const char* NavigatorPathFollower::GetDerivedRttiName() const
-{
-    return rttiNameNavigatorPathFollower;
-}
+
+
+
 
 // SYNTHETIC: SWBF2 0x005adb20
 // NavigatorPathFollower::`scalar deleting destructor'

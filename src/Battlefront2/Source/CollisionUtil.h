@@ -31,51 +31,64 @@ namespace CollisionUtil
 
 int FindAACenteredBoxRayIntersection(const PblVector3& vStart, const PblVector3& vDir, float fLength,
                                      float fWidth, float fHeight, float fDepth, float& fHit);
-namespace CollisionUtil { bool IsPointInsideAxisAlignedCylinder(const PblVector3& vOffset, float fRadius, float fHalfHeight); }
+namespace CollisionUtil
+{
+bool IsPointInsideAxisAlignedCylinder(const PblVector3& vOffset, float fRadius, float fHalfHeight);
+}
 
 class PblMatrix;
-namespace CollisionUtil {
+namespace CollisionUtil
+{
 bool CollideSpheres(const PblVector3& vCenter, float fRadius, const PblVector3& vSphereCenter, float fSphereRadius,
                 PblVector3& vNormal, float& fDepth);
 }
-namespace CollisionUtil {
+namespace CollisionUtil
+{
 bool CollideBoxSphere(const PblMatrix& matrix, float fWidth, float fDepth, float fHeight, const PblVector3& vSphereCenter,
                 float fSphereRadius, PblVector3& vNormal, float& fPenetration);
 }
-namespace CollisionUtil {
+namespace CollisionUtil
+{
 bool CollideCylinderSphere(const PblMatrix& matrix, float fRadius, float fHalfHeight, const PblVector3& vSphereCenter,
                 float fSphereRadius, PblVector3& vNormal, float& fDepth);
 }
 
-namespace CollisionUtil {
+namespace CollisionUtil
+{
 bool GetClosestPointInPolygon(const PblVector3& vPos, int iNumCorners, const PblVector3* pCorners, PblVector3& vOutPos,
                 float fMaxDist);
 }
 
-namespace CollisionUtil {
+namespace CollisionUtil
+{
 void GetClosestPoint_SegmentPoint(const PblVector3& vSegStart, const PblVector3& vSegEnd, const PblVector3& vPoint,
                 PblVector3& vClosest);
 }
-namespace CollisionUtil {
+namespace CollisionUtil
+{
 void GetClosestPoints_SegmentSegment(const PblVector3& vSStart, const PblVector3& vSEnd, const PblVector3& vTStart,
                 const PblVector3& vTEnd, PblVector3& vSPoint, PblVector3& vTPoint);
 }
 
-namespace CollisionUtil {
+namespace CollisionUtil
+{
 float RayHitBubble(const PblVector3& vStart, const PblVector3& vDir, float fLength, const PblMatrix& matrix,
                  const PblVector3& vSize, PblVector3* pNormal);
 }
 
-namespace CollisionUtil {
+namespace CollisionUtil
+{
 bool CollideCylinders(const PblMatrix& m1, float fRadius1, float fHalfHeight1, const PblMatrix& m2, float fRadius2,
                 float fHalfHeight2, PblVector3& vNormal, float& fDepth);
 }
-namespace CollisionUtil {
+namespace CollisionUtil
+{
 bool CollideCapsules(const PblMatrix& m1, float fRadius1, float fHalfHeight1, const PblMatrix& m2, float fRadius2,
                 float fHalfHeight2, PblVector3& vNormal, float& fDepth);
 }
 
-namespace CollisionUtil {
+namespace CollisionUtil
+{
 bool CollideSphereBox(const PblVector3& vCenter, float fRadius, const PblMatrix& matrix, float fWidth, float fDepth,
                 float fHeight, PblVector3& vNormal, float& fPenetration);
 }

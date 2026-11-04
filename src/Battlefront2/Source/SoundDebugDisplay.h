@@ -6,8 +6,12 @@
 #include "RedEngineFL/Interface/RedTextElement.h"
 
 class GameObject;
-namespace Snd { class VoiceVirtualManager; }
+namespace Snd
+{
+class VoiceVirtualManager;
+}
 
+// VTABLE: SWBF2 0x007af20c
 class SoundDebugDisplay : public Thread
 {
 public:

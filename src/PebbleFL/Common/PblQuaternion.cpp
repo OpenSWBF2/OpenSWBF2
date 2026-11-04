@@ -1,11 +1,15 @@
 #include "PblQuaternion.h"
 
 #include <math.h>
+#include <d3dx9math.h>
 
 #include "PblMath.h"
 #include "PblMatrix.h"
 #include "PblVector.h"
-#include "PebbleFL/pc/PblD3DX.h"
+
+
+
+
 
 enum QUAT_INDEX
 {
@@ -60,21 +64,23 @@ PblQuaternion::PblQuaternion(const PblMatrix& rMatrix)
 // FUNCTION: SWBF2 0x0072a2a0
 PblQuaternion operator*(const PblQuaternion& q0, const PblQuaternion& q1)
 {
-    PblQuaternion q;
-    q._fS = q1._fS * q0._fS - q1._fX * q0._fX - q1._fY * q0._fY - q1._fZ * q0._fZ;
-    q._fX = q0._fX * q1._fS + q1._fX * q0._fS - q0._fZ * q1._fY + q1._fZ * q0._fY;
-    q._fY = q0._fZ * q1._fX + q0._fY * q1._fS + q1._fY * q0._fS - q1._fZ * q0._fX;
-    q._fZ = q0._fZ * q1._fS - q0._fY * q1._fX + q1._fY * q0._fX + q1._fZ * q0._fS;
-    return q;
+    return PblQuaternion(
+        q1.GetS() * q0.GetS() - q1.GetX() * q0.GetX() - q1.GetY() * q0.GetY() - q1.GetZ() * q0.GetZ(),
+        q0.GetX() * q1.GetS() + q1.GetX() * q0.GetS() - q0.GetZ() * q1.GetY() + q1.GetZ() * q0.GetY(),
+        q0.GetZ() * q1.GetX() + q0.GetY() * q1.GetS() + q1.GetY() * q0.GetS() - q1.GetZ() * q0.GetX(),
+        q0.GetZ() * q1.GetS() - q0.GetY() * q1.GetX() + q1.GetY() * q0.GetX() + q1.GetZ() * q0.GetS());
 }
 
 // FUNCTION: SWBF2 0x0072a380
 PblQuaternion Interpolate(const PblQuaternion& q0, const PblQuaternion& q1, float fT)
 {
-    const float fCos = q0._fX * q1._fX + q1._fS * q0._fS + q1._fY * q0._fY + q1._fZ * q0._fZ;
+    const float fCos = q0.GetS() * q1.GetS() + q0.GetX() * q1.GetX()
+                     + q0.GetY() * q1.GetY() + q0.GetZ() * q1.GetZ();
 
     float fScale0;
     float fScale1;
+    float fAngle;
+    float fInvSin;
     if (fCos >= 0.0f)
     {
         if (1.0f - fCos < 0.0001f)
@@ -84,8 +90,8 @@ PblQuaternion Interpolate(const PblQuaternion& q0, const PblQuaternion& q1, floa
         }
         else
         {
-            const float fAngle = (float)acos((double)fCos);
-            const float fInvSin = 1.0f / PblMath::Sin(fAngle);
+            fAngle = acosf(fCos);
+            fInvSin = 1.0f / PblMath::Sin(fAngle);
             fScale0 = PblMath::Sin((1.0f - fT) * fAngle) * fInvSin;
             fScale1 = PblMath::Sin(fAngle * fT) * fInvSin;
         }
@@ -100,29 +106,20 @@ PblQuaternion Interpolate(const PblQuaternion& q0, const PblQuaternion& q1, floa
         }
         else
         {
-            const float fAngle = (float)acos((double)fNegCos);
-            const float fInvSin = 1.0f / PblMath::Sin(fAngle);
+            fAngle = acosf(fNegCos);
+            fInvSin = 1.0f / PblMath::Sin(fAngle);
             fScale0 = PblMath::Sin((1.0f - fT) * fAngle) * fInvSin;
             fScale1 = -(PblMath::Sin(fAngle * fT) * fInvSin);
         }
     }
 
-    PblQuaternion q;
-    q._fS = fScale0 * q0._fS + q1._fS * fScale1;
-    q._fY = q0._fY * fScale0 + q1._fY * fScale1;
-    q._fX = q0._fX * fScale0 + q1._fX * fScale1;
-    q._fZ = q0._fZ * fScale0 + q1._fZ * fScale1;
+    PblQuaternion q = q0.Scale(fScale0) + q1.Scale(fScale1);
 
-    const float fLengthSq = q._fX * q._fX + q._fS * q._fS + q._fY * q._fY + q._fZ * q._fZ;
-    if ((float)fabs((double)(fLengthSq - 1.0f)) > 0.0001f)
+    const float fLengthSq = q.GetX() * q.GetX() + q.GetS() * q.GetS()
+                          + q.GetY() * q.GetY() + q.GetZ() * q.GetZ();
+    if (fabsf(fLengthSq - 1.0f) > 0.0001f)
     {
-        const float fInvLength = 1.0f / (float)sqrt((double)fLengthSq);
-        PblQuaternion n;
-        n._fX = fInvLength * q._fX;
-        n._fY = fInvLength * q._fY;
-        n._fZ = fInvLength * q._fZ;
-        n._fS = fInvLength * q._fS;
-        q = n;
+        q = q.Scale(1.0f / PblMath::Sqrt(fLengthSq));
     }
     return q;
 }
@@ -130,14 +127,16 @@ PblQuaternion Interpolate(const PblQuaternion& q0, const PblQuaternion& q1, floa
 // FUNCTION: SWBF2 0x0072a670
 PblVector3 PblQuaternion::RotateVector(const PblVector3& v) const
 {
-    PblQuaternion qUnit;
+    D3DXQUATERNION qUnit;
     PblMatrix mRot;
-    D3DXMatrixRotationQuaternion(&mRot, D3DXQuaternionNormalize(&qUnit, this));
+    D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mRot),
+        D3DXQuaternionNormalize(&qUnit, reinterpret_cast<const D3DXQUATERNION*>(this)));
     mRot.m[3][0] = 0.0f;
     mRot.m[3][1] = 0.0f;
     mRot.m[3][2] = 0.0f;
     mRot.m[3][3] = 1.0f;
     PblVector3 vOut;
-    D3DXVec3TransformNormal(&vOut, &v, &mRot);
+    D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vOut),
+        reinterpret_cast<const D3DXVECTOR3*>(&v), reinterpret_cast<const D3DXMATRIX*>(&mRot));
     return vOut;
 }

@@ -1,3 +1,5 @@
+#include <string.h>
+#include <d3dx9math.h>
 #include <math.h>
 #include "PebbleFL/Common/PblVector.h"
 #include <stdio.h>
@@ -32,18 +34,13 @@
 #include "PebbleFL/Common/PblChunk.h"
 #include "PebbleFL/Common/PblFile.h"
 #include "RedEngineFL/Graphics/RedModel.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
+
 
 // GLOBAL: SWBF2 0x007e6660
-static int sCurrentTrail = 0;
+static int sCurrentTrail = -1;
 // GLOBAL: SWBF2 0x007e665c
-static int sCurrentSmoke = 0;
+static int sCurrentSmoke = -1;
 
 // FUNCTION: SWBF2 0x0051c980
 Ordnance* ExplosionClass::Build(const OrdnanceDesc&)
@@ -53,17 +50,9 @@ Ordnance* ExplosionClass::Build(const OrdnanceDesc&)
 
 // FUNCTION: SWBF2 0x0051c9a0
 ExplosionClass::ExplosionClass(unsigned int uHash)
-    : Factory<Ordnance, ExplosionClass, OrdnanceDesc>(uHash)
+    : Factory<Ordnance, ExplosionClass, OrdnanceDesc>(uHash),
+      mDamage(DamageOwner(0, 0, 0, 0, 0, 1.0f), 0.0f)
 {
-    DamageOwner owner(0, 0, 0, 0, 0, 1.0f);
-    mDamage.mDamageOwner = owner;
-    mDamage.mBaseValue = 0.0f;
-    for (int i = 0; i < 8; ++i)
-    {
-        mDamage.mHealthScale[i] = 1.0f;
-    }
-    mDamage.mShieldScale = 1.0f;
-
     mDamageRadius[0] = 0.0f;
     mDamageRadius[1] = 0.0f;
     mRumbleLight = 0.0f;
@@ -81,10 +70,7 @@ ExplosionClass::ExplosionClass(unsigned int uHash)
     mPushRadius[1] = 0.0f;
     mPushDeadOnly = true;
     mNumEffects = 0;
-    for (int i = 0; i < 5; ++i)
-    {
-        mEffects[i] = 0;
-    }
+    memset(mEffects, 0, sizeof(mEffects));
     mDecalHash = 0;
     mWaterEffectHash = 0;
     mShieldEffectHash = 0x6B369C5Fu;
@@ -322,7 +308,7 @@ void ExplosionClass::SetProperty(unsigned int uProperty, const char* pszValue)
             float fCenterY = (box._vMin.y + box._vMax.y) * 0.5f;
             float fCenterZ = (box._vMin.z + box._vMax.z) * 0.5f;
             CollisionPrimitive primitive;
-            PblMatrix matrix = _IdentityMatrix;
+            PblMatrix matrix = gMatrixIdentity;
             float fHalfX = (float)fabs(box._vMax.x - box._vMin.x) * 0.5f;
             float fHalfY = (float)fabs(box._vMax.y - box._vMin.y) * 0.5f;
             float fHalfZ = (float)fabs(box._vMax.z - box._vMin.z) * 0.5f;
@@ -445,36 +431,6 @@ ExplosionClass* ExplosionClass::Derive(unsigned int uHash)
     return new ExplosionClass(this, uHash);
 }
 
-static CollisionObject* GameObject_GetCollisionBase(GameObject* pObject)
-{
-    return static_cast<CollisionObject*>(pObject);
-}
-static Damageable* GameObject_GetDamageable(GameObject* pObject)
-{
-    return static_cast<Damageable*>(pObject);
-}
-static bool GameObject_IsRtti(GameObject* pObject, unsigned int uRtti)
-{
-    return reinterpret_cast<Entity*>(pObject)->IsRtti(uRtti);
-}
-
-static GameObject* GetHandleObject(const PblHandle<GameObject>& handle)
-{
-    PblHandle<GameObject>& h = const_cast<PblHandle<GameObject>&>(handle);
-    if (h.mObject &&
-        PBL_HANDLE_ID(h.mObject) !=
-            h.mSavedHandleId)
-    {
-        h.mObject = 0;
-        h.mSavedHandleId = 0;
-    }
-    return h.mObject;
-}
-
-static const GameSound& ParticleEmitterClass_GetAmbientSound(const FLEffectClass* pClass)
-{
-    return static_cast<const ParticleEmitterClass*>(pClass)->mAmbientSound;
-}
 
 // FUNCTION: SWBF2 0x0051dc10
 void ExplosionClass::CreateExplosion(const PblVector3& aPos, const DamageOwner& aOwner, bool aFlying,
@@ -575,7 +531,7 @@ void ExplosionClass::CreateExplosion(const PblVector3& aPos, const DamageOwner& 
         FLEffectClass* pEffectClass = mEffects[iEffect];
         if (pEffectClass && pEffectClass->mType == 1)
         {
-            ParticleEmitterClass_GetAmbientSound(pEffectClass).Play(&aPos, 0, false, true);
+            static_cast<const ParticleEmitterClass*>(pEffectClass)->mAmbientSound.Play(&aPos, 0, false, true);
         }
     }
 
@@ -611,12 +567,9 @@ void ExplosionClass::CreateExplosion(const PblVector3& aPos, const DamageOwner& 
                 q._fS = fCosHalf;
                 PblQuaternion qNorm;
                 PblMatrix mRot;
-                D3DXMatrixRotationQuaternion(&mRot, D3DXQuaternionNormalize(&qNorm, &q));
+                D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mRot), D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&qNorm), reinterpret_cast<const D3DXQUATERNION*>(&q)));
                 mChunkDescriptor.mMatrix = mRot;
-                mChunkDescriptor.mMatrix.m[3][0] = aPos.x;
-                mChunkDescriptor.mMatrix.m[3][1] = aPos.y;
-                mChunkDescriptor.mMatrix.m[3][2] = aPos.z;
-                mChunkDescriptor.mMatrix.m[3][3] = 1.0f;
+                mChunkDescriptor.mMatrix.SetTranslation(aPos);
 
                 PblVector3 vRand;
                 if (aFlying)
@@ -638,7 +591,7 @@ void ExplosionClass::CreateExplosion(const PblVector3& aPos, const DamageOwner& 
                     vRand.z = (0.5f - rand.GetFloat()) * 2.0f;
                 }
                 PblVector3 vDir;
-                D3DXVec3Normalize(&vDir, &vRand);
+                D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vRand));
                 float fSpeed;
                 if (mInitialChunkSpeedMin < 0.0f)
                 {
@@ -654,7 +607,7 @@ void ExplosionClass::CreateExplosion(const PblVector3& aPos, const DamageOwner& 
                 mChunkDescriptor.mVelocity.z = fSpeed * vDir.z;
 
                 PblVector3 vOut;
-                D3DXVec3Normalize(&vOut, &mChunkDescriptor.mVelocity);
+                D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vOut), reinterpret_cast<const D3DXVECTOR3*>(&mChunkDescriptor.mVelocity));
                 mChunkDescriptor.mMatrix.m[3][0] = vOut.x * mChunkStartDistance + aPos.x;
                 mChunkDescriptor.mMatrix.m[3][1] = aPos.y + mChunkStartDistance * vOut.y;
                 mChunkDescriptor.mMatrix.m[3][2] = aPos.z + mChunkStartDistance * vOut.z;
@@ -683,15 +636,15 @@ void ExplosionClass::CreateExplosion(const PblVector3& aPos, const DamageOwner& 
         while (count--)
         {
             GameObject* pObject = array[count];
-            if (!mDoDamageToOwner && GetHandleObject(aOwner.mGameObject) &&
-                pObject == GetHandleObject(aOwner.mGameObject))
+            if (!mDoDamageToOwner && aOwner.mGameObject &&
+                pObject == aOwner.mGameObject)
             {
                 continue;
             }
 
-            CollisionObject* pBase = GameObject_GetCollisionBase(pObject);
+            GameObject* pBase = pObject;
             if (pBase->GetCollisionType() == COLL_ITEM &&
-                !GameObject_IsRtti(pObject, EntityMine::rttiHashEntityMine))
+                !pObject->IsRtti(EntityMine::rttiHashEntityMine))
             {
                 continue;
             }
@@ -715,7 +668,7 @@ void ExplosionClass::CreateExplosion(const PblVector3& aPos, const DamageOwner& 
             {
                 pObject->ApplyRadiusDamage(aPos, mDamageRadius[0], mDamageRadius[1], damage);
             }
-            if (!mPushDeadOnly || !GameObject_GetDamageable(pObject)->mIsAlive)
+            if (!mPushDeadOnly || !pObject->IsAlive())
             {
                 if (mPushRadius[1] > 0.0f)
                 {
@@ -761,7 +714,8 @@ void ExplosionClass::CreateExplosion(const PblVector3& aPos, const DamageOwner& 
     }
 }
 
-// FUNCTION: SWBF2 0x0051eba0
+// TEMPLATE: SWBF2 0x0051eba0
+// Factory<Ordnance,ExplosionClass,OrdnanceDesc>::Factory<Ordnance,ExplosionClass,OrdnanceDesc>
 template Factory<Ordnance, ExplosionClass, OrdnanceDesc>::Factory(ExplosionClass*, unsigned int);
 
 // SYNTHETIC: SWBF2 0x0051ec60

@@ -35,10 +35,12 @@ void RedGroupElement::Visible(bool bVisible)
     }
 
     PblList<RedInterfaceElement>::Node* pNode = m_children.GetFirst();
-    while (pNode->_pObject != m_children._head._pObject)
+    RedInterfaceElement* pChild = pNode->_pObject;
+    while (pChild != m_children._head._pObject)
     {
-        pNode->_pObject->Visible(bVisible);
+        pChild->Visible(bVisible);
         pNode = pNode->_pNext;
+        pChild = pNode->_pObject;
     }
 
     m_bVisible = bVisible;
@@ -48,10 +50,12 @@ void RedGroupElement::Visible(bool bVisible)
 void RedGroupElement::SetBlendMode(BlendModeT eBlendMode)
 {
     PblList<RedInterfaceElement>::Node* pNode = m_children.GetFirst();
-    while (pNode->_pObject != m_children._head._pObject)
+    RedInterfaceElement* pChild = pNode->_pObject;
+    while (pChild != m_children._head._pObject)
     {
-        pNode->_pObject->SetBlendMode(eBlendMode);
+        pChild->SetBlendMode(eBlendMode);
         pNode = pNode->_pNext;
+        pChild = pNode->_pObject;
     }
 }
 
@@ -59,10 +63,12 @@ void RedGroupElement::SetBlendMode(BlendModeT eBlendMode)
 void RedGroupElement::Cleanup()
 {
     PblList<RedInterfaceElement>::Node* pNode = m_children.GetFirst();
-    while (pNode->_pObject != m_children._head._pObject)
+    RedInterfaceElement* pChild = pNode->_pObject;
+    while (pChild != m_children._head._pObject)
     {
-        pNode->_pObject->Cleanup();
+        pChild->Cleanup();
         pNode = pNode->_pNext;
+        pChild = pNode->_pObject;
     }
 }
 
@@ -79,15 +85,15 @@ void RedGroupElement::RemoveAllElements()
 // FUNCTION: SWBF2 0x006d69c0
 bool RedGroupElement::AddElement(RedInterfaceElement* pElement)
 {
-
     if (pElement->m_groupNode._pList)
     {
         return false;
     }
 
     PblList<RedInterfaceElement>::Node* pAt = m_children.GetFirst();
+    const unsigned char uiOrder = pElement->m_zorder;
     while (pAt->_pObject != m_children._head._pObject &&
-           pElement->m_zorder <= pAt->_pObject->m_zorder)
+           uiOrder <= pAt->_pObject->m_zorder)
     {
         pAt = pAt->_pNext;
     }
@@ -113,7 +119,8 @@ bool RedGroupElement::RemoveElement(RedInterfaceElement* pElement)
 void RedGroupElement::RenderUsingContext(const PblMatrix& mContext, const RedColor& color)
 {
     PblList<RedInterfaceElement>::Node* pNode = m_children.GetFirst();
-    if (pNode->_pObject == m_children._head._pObject)
+    RedInterfaceElement* pChild = pNode->_pObject;
+    if (pChild == m_children._head._pObject)
     {
         return;
     }
@@ -121,7 +128,7 @@ void RedGroupElement::RenderUsingContext(const PblMatrix& mContext, const RedCol
     RedColor childColor;
     childColor.a = 0xFF;
 
-    do
+    while (pChild != m_children._head._pObject)
     {
         childColor.r = color.r;
         childColor.g = color.g;
@@ -137,9 +144,10 @@ void RedGroupElement::RenderUsingContext(const PblMatrix& mContext, const RedCol
         }
         else
         {
-            pNode->_pObject->Render(mContext, childColor);
+            pChild->Render(mContext, childColor);
         }
 
         pNode = pNode->_pNext;
-    } while (pNode->_pObject != m_children._head._pObject);
+        pChild = pNode->_pObject;
+    }
 }

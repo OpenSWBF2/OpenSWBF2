@@ -7,3 +7,5 @@ ipch/
 *.opensdf
 *.suo
 *.user
+reports/
+BattlefrontII_Steam.exe

@@ -13,7 +13,6 @@ public:
 
     struct FilterData
     {
-        FilterData() {}
 
         int uiState;
         float fStartFadeInTime;

@@ -104,7 +104,7 @@ HUD::ElementText::ElementText(const char* const pName, Factory::ItemCallback pCa
 // HUD::ElementText::`scalar deleting destructor'
 
 // SYNTHETIC: SWBF2 0x0055c892
-// [thunk]:HUD::ElementText::`scalar deleting destructor' adjustor{256}
+// ??_EElementText@HUD@@WBAA@AEPAXI@Z
 // FUNCTION: SWBF2 0x0055b310
 HUD::ElementText::~ElementText()
 {
@@ -359,22 +359,21 @@ void HUD::ElementText::FreeString(char** ppString)
 void HUD::ElementText::EventText(const HUD::Event& event, void* const pData)
 {
     ElementText* pText = (ElementText*)pData;
-    RedTextElement& textElement = static_cast<RedTextElement&>(pText->GetRedInterfaceElement());
     switch (event.GetClass()->GetType())
     {
     case EventClass::type_Uint:
-        textElement.SetText(RedLocalizeDB::Find(event.GetData().uintValue, false), true);
+        static_cast<RedTextElement&>(pText->GetRedInterfaceElement()).SetText(RedLocalizeDB::Find(event.GetData().uintValue, false), true);
         break;
     case EventClass::type_String:
     {
         const unsigned short* pString = event.GetData().string;
         if (pString)
         {
-            textElement.SetText(pString, true);
+            static_cast<RedTextElement&>(pText->GetRedInterfaceElement()).SetText(pString, true);
         }
         else
         {
-            textElement.SetText("", true);
+            static_cast<RedTextElement&>(pText->GetRedInterfaceElement()).SetText("", true);
         }
         break;
     }

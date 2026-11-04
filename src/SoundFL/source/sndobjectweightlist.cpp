@@ -5,19 +5,22 @@
 #include "PebbleFL/Common/PblFile.h"
 #include "PebbleFL/Common/PblRandom.h"
 
-namespace Snd {
+namespace Snd
+{
 extern PblRandom sndRandom;
 }
 
 namespace Snd
 {
 
-// GLOBAL: SWBF2 0x007e3b5c
 // SYNTHETIC: SWBF2 0x0040c610
 // `dynamic initializer for 'Snd::ObjectWeight::smFreeList''
 // SYNTHETIC: SWBF2 0x0076a500
 // `dynamic atexit destructor for 'Snd::ObjectWeight::smFreeList''
-FreeList ObjectWeight::smFreeList(sizeof(ObjectWeight), 1, 32, 1);
+
+// GLOBAL: SWBF2 0x007e3b5c
+// ObjectWeight::smFreeList
+FreeList ObjectWeight::smFreeList(sizeof(ObjectWeight), 1, true, 32);
 
 // FUNCTION: SWBF2 0x0074b880
 void __cdecl ObjectWeight::operator delete(void* p)
@@ -35,14 +38,14 @@ ObjectWeightList::ObjectWeightList()
 // FUNCTION: SWBF2 0x0074ba20
 bool ObjectWeightList::Read(PblFileChunk& chunk, unsigned int uiPropertyID)
 {
+    bool bOK = true;
     if (uiPropertyID != 0x4D5AF670u)
     {
         return false;
     }
-    PblFile* const pFile = chunk._pFile;
-    pFile->Read8();
-    mSelectMode = (unsigned char)((int)Clamp(pFile->ReadFloat(), 0.0f, 3.0f) + 1);
-    return true;
+    chunk._pFile->Read8();
+    mSelectMode = (unsigned char)((int)Clamp(chunk._pFile->ReadFloat(), 0.0f, 3.0f) + 1);
+    return bOK;
 }
 
 // FUNCTION: SWBF2 0x0074ba80
@@ -56,15 +59,14 @@ bool ObjectWeightList::ReadObjectWeights(PblFileChunk& chunk, unsigned int uiObj
         float fInterval = 0.0f;
         float fIntervalDev = 0.0f;
         PblFileChunk child = chunk.ReadNextChild();
-        PblFile* const pFile = child._pFile;
-        pFile->Read32();
-        const int iType = pFile->Read8();
-        const unsigned int uiHash = (unsigned int)pFile->Read32();
-        const float fWeight = pFile->ReadFloat();
+        child._pFile->Read32();
+        const int iType = child._pFile->Read8();
+        const unsigned int uiHash = (unsigned int)child._pFile->Read32();
+        const float fWeight = child._pFile->ReadFloat();
         if (iType == 4)
         {
-            fInterval = pFile->ReadFloat();
-            fIntervalDev = pFile->ReadFloat();
+            fInterval = child._pFile->ReadFloat();
+            fIntervalDev = child._pFile->ReadFloat();
         }
 
         void const* pObject = (void const*)uiHash;
@@ -107,21 +109,23 @@ bool ObjectWeightList::ReadObjectWeights(PblFileChunk& chunk, unsigned int uiObj
 
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x0074b7f0
 ObjectWeightList::~ObjectWeightList()
 {
-    for (PblListSingle::Node* pNode = mHead.mNext; pNode != &mHead;)
+    for (PblListSingle::Itor itor(this); itor.GetNode() != GetTerminator();)
     {
-        ObjectWeight* const pWeight = (ObjectWeight*)((char*)pNode - offsetof(ObjectWeight, mNode));
-        pNode = pNode->mNext;
+        ObjectWeight* const pWeight = (ObjectWeight*)itor.GetNode()->GetObjectA(this, offsetof(ObjectWeight, mNode));
+        ++itor;
         delete pWeight;
     }
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x0074b8a0
 void const* ObjectWeightList::GetObjectA() const
@@ -167,7 +171,8 @@ void const* ObjectWeightList::GetObjectA() const
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x0074b990
 const ObjectWeight* ObjectWeightList::GetObjectNode(const ObjectWeight* const pExclude) const
@@ -175,10 +180,10 @@ const ObjectWeight* ObjectWeightList::GetObjectNode(const ObjectWeight* const pE
     const float fRandom = sndRandom.GetFloat();
     const ObjectWeight* pPrev = 0;
     const ObjectWeight* pWeight = 0;
-    for (const PblListSingle::Node* pNode = mHead.mNext; pNode != &mHead; pNode = pNode->mNext)
+    for (PblListSingle::Itor itor(this); itor.GetNode() != GetTerminator(); ++itor)
     {
         pPrev = pWeight;
-        pWeight = pNode == &mHead ? 0 : reinterpret_cast<const ObjectWeight*>(reinterpret_cast<const char*>(pNode) - offsetof(ObjectWeight, mNode));
+        pWeight = (const ObjectWeight*)itor.GetNode()->GetObjectA(this, offsetof(ObjectWeight, mNode));
         if (fRandom >= pWeight->mPlayProbability && pWeight != pExclude)
         {
             return pWeight;

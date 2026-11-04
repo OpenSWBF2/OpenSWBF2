@@ -13,8 +13,8 @@
 class GrassPatch;
 class GrassPatchRenderable;
 
-// VTABLE: SWBF2 0x007a01b0
-// VTABLE: SWBF2 0x007a0264
+// VTABLE: SWBF2 0x007a01b0 Thread
+// VTABLE: SWBF2 0x007a0264 EntityClass
 class GrassPatchClass : public Thread, public EntityClass
 {
 public:
@@ -132,8 +132,8 @@ struct GrassPatchClass::GrassParticle
  
  
 
-// VTABLE: SWBF2 0x007a01c8
-// VTABLE: SWBF2 0x007a0230
+// VTABLE: SWBF2 0x007a01c8 RedSceneObject
+// VTABLE: SWBF2 0x007a0230 Entity
 class GrassPatch : public RedSceneObject, public Entity
 {
 public:

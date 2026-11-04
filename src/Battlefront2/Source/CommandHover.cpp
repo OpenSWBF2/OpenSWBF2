@@ -4,41 +4,31 @@
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 #include "GameModel.h"
 
-// GLOBAL: SWBF2 0x01eb96a8
 // SYNTHETIC: SWBF2 0x004026c0
 // `dynamic initializer for 'CommandHover::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00766e90
 // `dynamic atexit destructor for 'CommandHover::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01eb96a8
+// CommandHover::sMemoryPool
 MemoryPool CommandHover::sMemoryPool("CommandHover", 0x1d20);
 
-// GLOBAL: SWBF2 0x01eb96a4
 // SYNTHETIC: SWBF2 0x004026e0
 // `dynamic initializer for 'CommandHover::rttiHashCommandHover''
+// CommandHover::rttiHashCommandHover
+
+// GLOBAL: SWBF2 0x01eb96a4
+// CommandHover::rttiHashCommandHover
 PblHash CommandHover::rttiHashCommandHover("CommandHover");
-char CommandHover::rttiNameCommandHover[] = "CommandHover";
+// GLOBAL: SWBF2 0x00788ca4
+// CommandHover::rttiNameCommandHover
+const char CommandHover::rttiNameCommandHover[] = "CommandHover";
 
-// FUNCTION: SWBF2 0x00478e70
-bool CommandHover::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashCommandHover ||
-           uRtti == EntityHover::rttiHashEntityHover ||
-           uRtti == GameObject::rttiHashGameObject ||
-           uRtti == EntityGeometry::rttiHashEntityGeometry ||
-           uRtti == EntityEx::rttiHashEntityEx ||
-           uRtti == Entity::rttiHashEntity;
-}
 
-// FUNCTION: SWBF2 0x00478ec0
-unsigned int CommandHover::GetDerivedRtti() const
-{
-    return rttiHashCommandHover;
-}
 
-// FUNCTION: SWBF2 0x00478ed0
-const char* CommandHover::GetDerivedRttiName() const
-{
-    return rttiNameCommandHover;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00478ef0
 EntityType CommandHover::GetEntityType() const
@@ -124,34 +114,27 @@ CommandHoverClass::CommandHoverClass(unsigned int uHash)
     mIsNeutralWhenEmpty = false;
 }
 
-// GLOBAL: SWBF2 0x01eb96a0
 // SYNTHETIC: SWBF2 0x004026f0
 // `dynamic initializer for 'CommandHoverClass::rttiHashCommandHoverClass''
+// CommandHoverClass::rttiHashCommandHoverClass
+
+// GLOBAL: SWBF2 0x01eb96a0
+// CommandHoverClass::rttiHashCommandHoverClass
 PblHash CommandHoverClass::rttiHashCommandHoverClass("CommandHoverClass");
-char CommandHoverClass::rttiNameCommandHoverClass[] = "CommandHoverClass";
+// GLOBAL: SWBF2 0x00788cb8
+// CommandHoverClass::rttiNameCommandHoverClass
+const char CommandHoverClass::rttiNameCommandHoverClass[] = "CommandHoverClass";
 
-// FUNCTION: SWBF2 0x00478f30
-bool CommandHoverClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashCommandHoverClass || EntityHoverClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00478f80
-unsigned int CommandHoverClass::GetDerivedRtti()
-{
-    return rttiHashCommandHoverClass;
-}
 
-// FUNCTION: SWBF2 0x00478f90
-const char* CommandHoverClass::GetDerivedRttiName()
-{
-    return rttiNameCommandHoverClass;
-}
+
+
+
 
 // SYNTHETIC: SWBF2 0x00479220
 // CommandHoverClass::`scalar deleting destructor'
 // SYNTHETIC: SWBF2 0x004794f6
-// [thunk]:CommandHoverClass::`scalar deleting destructor'`adjustor{3696}'
+// ??_ECommandHoverClass@@WOHA@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x00479250
 CommandHoverClass::CommandHoverClass(CommandHoverClass* pBase, unsigned int uHash)
@@ -178,7 +161,7 @@ EntityClass* CommandHoverClass::Derive(unsigned int uHash)
 }
 
 // FUNCTION: SWBF2 0x00478f70
-unsigned int GetHoverClassRtti()
+unsigned int CommandHoverClass::GetRtti()
 {
     return CommandHoverClass::rttiHashCommandHoverClass;
 }
@@ -195,7 +178,7 @@ Entity* CommandHoverClass::Build(const EntityDesc& desc)
     if (pHover)
     {
         NetGame::Created(pHover);
-        CollisionManager::AddRigidBody(pHover);
+        pHover->AddRigidToCollisionManager();
         pHover->ActivatePhysics();
         if (!NetGame::IsEnabled() || !NetGame::IsClient())
         {

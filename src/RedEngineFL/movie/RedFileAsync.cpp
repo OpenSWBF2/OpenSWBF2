@@ -34,6 +34,12 @@ void __cdecl RedFileAsync::FileOpComplete(Snd::File* pFile, void* pData, bool bR
     pThis->mFileOpComplete = true;
 }
 
+// FUNCTION: SWBF2 0x00726c70
+unsigned int RedFileAsync::GetPos() const
+{
+    return mFile.GetPos();
+}
+
 // FUNCTION: SWBF2 0x00726c80
 bool RedFileAsync::Open(const char* const pFileName, unsigned int uiPriority, bool bBuffer)
 {
@@ -45,4 +51,17 @@ bool RedFileAsync::Open(const char* const pFileName, unsigned int uiPriority, bo
         Sleep(0);
     }
     return mOpenRetVal;
+}
+
+// FUNCTION: SWBF2 0x00726ce0
+void RedFileAsync::Read(void* pBuffer, unsigned int uiSize)
+{
+    mFileOpComplete = false;
+    mFile.Read(pBuffer, uiSize);
+}
+
+// FUNCTION: SWBF2 0x00726cf0
+void RedFileAsync::Seek(unsigned int uiPos)
+{
+    mFile.Seek(uiPos);
 }

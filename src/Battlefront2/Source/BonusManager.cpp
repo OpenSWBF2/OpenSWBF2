@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include <string.h>
 
 #include "BonusManager.h"
@@ -21,7 +22,7 @@
 #include "PebbleFL/Common/PblVector.h"
 #include "RedEngineFL/Application/RedPath.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
-#include "PebbleFL/pc/PblD3DX.h"
+
 
 extern bool netHeroesEnabled;
 extern int netHeroRuleTeam;
@@ -40,7 +41,7 @@ static Trackable* GetTrackable(Controllable* pControllable)
     return static_cast<Trackable*>(pControllable);
 }
 
-static Damageable* GetDamageable(GameObject* pObject)
+static inline Damageable* GetDamageable(GameObject* pObject)
 {
     return static_cast<Damageable*>(pObject);
 }
@@ -55,12 +56,9 @@ static float& MaxHealth(Damageable* pDamageable)
     return pDamageable->mMaxHealth;
 }
 
-static bool IsAlive(const GameObject* pGameObject)
-{
-    return pGameObject->Damageable::IsAlive();
-}
 
-static int GetTeam(const GameObject* pGameObject)
+
+static inline int GetTeam(const GameObject* pGameObject)
 {
     return pGameObject->GetTeam();
 }
@@ -75,23 +73,12 @@ static void SetTeam(GameObject* pGameObject, int iTeam)
     pGameObject->SetTeam(iTeam);
 }
 
-static Entity* AsEntity(EntityDefenseGridTurret* pTurret)
+static inline Entity* AsEntity(EntityDefenseGridTurret* pTurret)
 {
     return reinterpret_cast<Entity*>(pTurret);
 }
 
-static GameObject* GetGameObject(CommandPost* pPost)
-{
-    PblHandle<GameObject>& handle = pPost->mObject;
-    if (handle.mObject &&
-        PBL_HANDLE_ID(handle.mObject) !=
-            handle.mSavedHandleId)
-    {
-        handle.mObject = 0;
-        handle.mSavedHandleId = 0;
-    }
-    return handle.mObject;
-}
+
 
 static int GetSide(const Team* pTeam)
 {
@@ -102,11 +89,13 @@ const float BonusManager::sTeamBonusLeaderUnlockTime = 120.0f;
 const float BonusManager::sTeamBonusGarrisonThreshold = 0.2f;
 const float BonusManager::sTeamBonusGarrisonExtraReinforcements = 0.2f;
 
-// GLOBAL: SWBF2 0x01eb0630
 // SYNTHETIC: SWBF2 0x00402350
 // `dynamic initializer for 'BonusManager::sInstance''
 // SYNTHETIC: SWBF2 0x00766db0
 // `dynamic atexit destructor for 'BonusManager::sInstance''
+
+// GLOBAL: SWBF2 0x01eb0630
+// BonusManager::sInstance
 BonusManager BonusManager::sInstance;
 
 // FUNCTION: SWBF2 0x0044c5b0
@@ -412,14 +401,14 @@ void BonusManager::UpdateTeamBonusAutoturrets(int iTeam, float fDeltaTime)
         CommandPost* pPost = data.pCommandPost;
         if (bActive)
         {
-            if (IsAlive(GetGameObject(pPost)) && GetTeam(GetGameObject(pPost)) == iTeam)
+            if (pPost->GetGameObject()->IsAlive() && GetTeam(pPost->GetGameObject()) == iTeam)
             {
                 AddTurretsToCP(data, iTeam);
             }
         }
         else
         {
-            if (GetGameObject(pPost) && GetTeam(GetGameObject(pPost)) == iTeam)
+            if (pPost->GetGameObject() && GetTeam(pPost->GetGameObject()) == iTeam)
             {
                 RemoveTurretsFromCP(data);
             }
@@ -441,8 +430,8 @@ void BonusManager::AddTurretsToCP(CommandPostData& data, int iTeam)
                 const PblVector3& vPosition = pPath->GetPointPosition(i);
                 PblQuaternion qRotation;
                 PblMatrix matrix;
-                D3DXMatrixRotationQuaternion(&matrix,
-                                             D3DXQuaternionNormalize(&qRotation, &pPath->GetPointRotation(i)));
+                D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&matrix),
+                                             D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&qRotation), reinterpret_cast<const D3DXQUATERNION*>(&pPath->GetPointRotation(i))));
                 matrix.m[3][0] = vPosition.x;
                 matrix.m[3][1] = vPosition.y;
                 matrix.m[3][2] = vPosition.z;

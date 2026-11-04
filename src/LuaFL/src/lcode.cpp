@@ -632,7 +632,8 @@ void luaK_infix (FuncState *fs, BinOpr op, expdesc *v) {
 
 // FUNCTION: SWBF2 0x006ab3f0
 static void codebinop (FuncState *fs, expdesc *res, BinOpr op,
-                       int o1, int o2) {
+int o1, int o2)
+{
   if (op <= OPR_POW) {
     OpCode opc = cast(OpCode, (op - OPR_ADD) + OP_ADD);
     res->info = luaK_codeABC(fs, opc, 0, o1, o2);

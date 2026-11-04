@@ -4,23 +4,25 @@
 
 namespace StringDB
 {
-
-int mMapNumEntries;
-// GLOBAL: SWBF2 0x01f6df0c
 // SYNTHETIC: SWBF2 0x004064d0
-// `dynamic initializer for 'StringDB::mMap''
+// StringDB::`dynamic initializer for 'mMap''
 
+// GLOBAL: SWBF2 0x01f6df08
 PblHashTable<char, 4096> mMap;
 
+// GLOBAL: SWBF2 0x01eafb90
+// mPool
 char* mPool;
+// GLOBAL: SWBF2 0x01eafb94
+// mNext
 char* mNext;
+// GLOBAL: SWBF2 0x01eafb98
 int mPoolSize;
 
 // FUNCTION: SWBF2 0x00651ed0
 void Init()
 {
     mMap.Clear();
-    mMapNumEntries = 0;
 
     mPoolSize = 0x8000;
 
@@ -33,7 +35,6 @@ void Init()
 void Cleanup()
 {
     mMap.Clear();
-    mMapNumEntries = 0;
 
     operator delete(mPool);
     mPool = 0;
@@ -47,10 +48,7 @@ bool Remove(unsigned int uiHash)
     {
         return false;
     }
-    if (mMap.Remove(uiHash))
-    {
-        --mMapNumEntries;
-    }
+    mMap.Remove(uiHash);
     return true;
 }
 
@@ -70,10 +68,7 @@ const char* Store(unsigned int uiHash, const char* pcText)
     char* pcCopy = mNext;
     memcpy(pcCopy, pcText, uiLen + 1);
     pcCopy[uiLen + 1] = 0;
-    if (mMap.Store(uiHash, pcCopy))
-    {
-        ++mMapNumEntries;
-    }
+    mMap.Store(uiHash, pcCopy);
     mNext += uiLen + 1;
     return pcCopy;
 }

@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "DustEffect.h"
 
 #include <math.h>
@@ -11,7 +12,8 @@
 #include "RedEngineFL/Graphics/RedCamera.h"
 #include "RedEngineFL/Util/RedSceneManager.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
-#include "PebbleFL/pc/PblD3DX.h"
+#include "PebbleFL/Common/PblMath.h"
+
 
 class PblMatrix;
 extern PblMatrix gMatrixIdentity;
@@ -42,11 +44,7 @@ PblList<DustEffectClass> DustEffectClass::sDustEffectClasses;
 // GLOBAL: SWBF2 0x007eb7bc
 PblList<DustEffect> DustEffectClass::sDustEffects;
 
-// FUNCTION: SWBF2 0x00443f60
-bool EntityClass::IsRtti(unsigned int uRtti)
-{
-    return rttiHashEntityClass == uRtti;
-}
+
 
 // FUNCTION: SWBF2 0x0048ec20
 DustEffect::DustEffect(DustEffectClass* pClass, const PblMatrix& matrix)
@@ -65,7 +63,7 @@ DustEffect::DustEffect(DustEffectClass* pClass, const PblMatrix& matrix)
                       mMatrix.m[1][0] * vBack.z - mMatrix.m[1][2] * vBack.x,
                       mMatrix.m[1][1] * vBack.x - mMatrix.m[1][0] * vBack.y);
     PblVector3 vOut;
-    D3DXVec3Normalize(&vOut, &vRight);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vOut), reinterpret_cast<const D3DXVECTOR3*>(&vRight));
     mMatrix.m[0][0] = vOut.x;
     mMatrix.m[0][1] = vOut.y;
     mMatrix.m[0][2] = vOut.z;
@@ -74,7 +72,7 @@ DustEffect::DustEffect(DustEffectClass* pClass, const PblMatrix& matrix)
     PblVector3 vAt(mMatrix.m[1][2] * mMatrix.m[0][1] - mMatrix.m[1][1] * mMatrix.m[0][2],
                    mMatrix.m[1][0] * mMatrix.m[0][2] - mMatrix.m[0][0] * mMatrix.m[1][2],
                    mMatrix.m[0][0] * mMatrix.m[1][1] - mMatrix.m[1][0] * mMatrix.m[0][1]);
-    D3DXVec3Normalize(&vOut, &vAt);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vOut), reinterpret_cast<const D3DXVECTOR3*>(&vAt));
     mMatrix.m[2][0] = vOut.x;
     mMatrix.m[2][1] = vOut.y;
     mMatrix.m[2][2] = vOut.z;
@@ -85,7 +83,7 @@ DustEffect::DustEffect(DustEffectClass* pClass, const PblMatrix& matrix)
     mMatrix.m[3][2] = matrix.m[3][2];
     mMatrix.m[3][3] = 1.0f;
 
-    SetRenderPos(*(const PblVector3*)mMatrix.m[3]);
+    SetRenderPos(mMatrix.GetTranslation());
     SetRenderRadius(mClass->mBoundingRadius);
     Activate();
 
@@ -93,7 +91,7 @@ DustEffect::DustEffect(DustEffectClass* pClass, const PblMatrix& matrix)
 }
 
 // SYNTHETIC: SWBF2 0x00490b1d
-// [thunk]:DustEffect::`scalar deleting destructor' adjustor{88}
+// ??_EDustEffect@@WFI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x0048eed0
 // DustEffect::`scalar deleting destructor'
 
@@ -118,7 +116,7 @@ void DustEffect::Render(unsigned char ucViewport, float fDist, unsigned int uiFl
         mMatrix.m[3][0] = camMatrix.m[3][0];
         mMatrix.m[3][2] = camMatrix.m[3][2];
         mMatrix.m[3][3] = 1.0f;
-        SetRenderPos(*(const PblVector3*)mMatrix.m[3]);
+        SetRenderPos(mMatrix.GetTranslation());
     }
 
     float fDistance = camMatrix.m[2][1] * (camMatrix.m[3][1] - mMatrix.m[3][1]) +
@@ -132,10 +130,7 @@ void DustEffect::Render(unsigned char ucViewport, float fDist, unsigned int uiFl
     }
 
     float fAlpha = (mClass->mMaxDistance - fDistance) * 0.005f;
-    if (fAlpha >= 1.0f)
-    {
-        fAlpha = 1.0f;
-    }
+    fAlpha = Min(fAlpha, 1.0f);
     if (mClass->mMinDistance > 0.0f && mClass->mMinDistance + 100.0f > fDistance)
     {
         fAlpha = (fDistance - mClass->mMinDistance) * 0.01f;
@@ -277,7 +272,7 @@ bool DustEffectClass::Update(float fDeltaTime)
         {
             vWind = PblVector3(0.0f, 0.0f, 0.0f);
         }
-        mOldCamPos = *(const PblVector3*)camMatrix.m[3];
+        mOldCamPos = camMatrix.GetTranslation();
     }
 
     mTimer += fDeltaTime;
@@ -336,9 +331,9 @@ DustEffectClass::DustEffectClass(unsigned int uHash)
 }
 
 // SYNTHETIC: SWBF2 0x00490b0d
-// [thunk]:DustEffectClass::`scalar deleting destructor' adjustor{24}
+// ??_EDustEffectClass@@WBI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00490b15
-// [thunk]:DustEffectClass::`scalar deleting destructor' adjustor{120}
+// ??_EDustEffectClass@@WHI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x0048fa10
 // DustEffectClass::`scalar deleting destructor'
 
@@ -532,10 +527,12 @@ void DustEffectClass::Reset()
     sDustEffects.RemoveAll();
 }
 
-// FUNCTION: SWBF2 0x00490ac0
+// TEMPLATE: SWBF2 0x00490ac0
+// PblList<DustEffectClass>::RemoveAll
 template void PblList<DustEffectClass>::RemoveAll();
 
-// FUNCTION: SWBF2 0x00490a70
+// TEMPLATE: SWBF2 0x00490a70
+// PblList<DustEffect>::RemoveAll
 template void PblList<DustEffect>::RemoveAll();
 
 // FUNCTION: SWBF2 0x00490250
@@ -594,15 +591,20 @@ EntityClass* CloudClusterClass::Derive(unsigned int uHash)
 // FUNCTION: SWBF2 0x00490400
 Entity* CloudClusterClass::Build(const EntityDesc& desc)
 {
-    return new CloudClusterObject(this, *(const PblVector3*)desc.mMatrix.m[3]);
+    return new CloudClusterObject(this, desc.mMatrix.GetTranslation());
 }
 
 // FUNCTION: SWBF2 0x00490470
 void CloudClusterClass::RenderDustEffects(const PblVector3& vPos, unsigned int uSeed, unsigned int uiFlags)
 {
     PblMatrix matrix = gMatrixIdentity;
-    static PblHeap<int, float> sHeap(20, 100000.0f, 0);
-    static PblVector3 sPositions[20];
+    // SYNTHETIC: SWBF2 0x00766ed0
+    // `CloudClusterClass::RenderDustEffects'::`2'::`dynamic atexit destructor for 'positionHeap''
+
+    // GLOBAL: SWBF2 0x01faa8f0
+    static PblHeap<int, float> positionHeap(20, 100000.0f, 0);
+    // GLOBAL: SWBF2 0x01faa800
+    static PblVector3 positions[20];
     PblRandom random = { uSeed ^ 0xc71c2830 };
     const PblMatrix& camMatrix = RedRenderer::GetCamera()->GetMatrix();
 
@@ -624,30 +626,27 @@ void CloudClusterClass::RenderDustEffects(const PblVector3& vPos, unsigned int u
                 PblVector3 vOffset((random.GetFloat() - 0.5f) * mHorizontalSpread * 2.0f,
                                    (random.GetFloat() - 0.5f) * mVerticalSpread * 2.0f,
                                    (random.GetFloat() - 0.5f) * mHorizontalSpread * 2.0f);
-                sPositions[j].x = vOffset.x;
-                sPositions[j].y = vOffset.y;
-                sPositions[j].z = vOffset.z;
-                sPositions[j].x += vPos.x;
-                sPositions[j].y += vPos.y;
-                sPositions[j].z += vPos.z;
-                const float fDistance = (camMatrix.m[3][0] - sPositions[j].x) * camMatrix.m[2][0] +
-                                        (camMatrix.m[3][1] - sPositions[j].y) * camMatrix.m[2][1] +
-                                        (camMatrix.m[3][2] - sPositions[j].z) * camMatrix.m[2][2];
+                positions[j].x = vOffset.x;
+                positions[j].y = vOffset.y;
+                positions[j].z = vOffset.z;
+                positions[j].x += vPos.x;
+                positions[j].y += vPos.y;
+                positions[j].z += vPos.z;
+                const float fDistance = (camMatrix.m[3][0] - positions[j].x) * camMatrix.m[2][0] +
+                                        (camMatrix.m[3][1] - positions[j].y) * camMatrix.m[2][1] +
+                                        (camMatrix.m[3][2] - positions[j].z) * camMatrix.m[2][2];
                 if (pEffect->mMaxDistance > fDistance &&
                     (pEffect->mMinDistance <= 0.0f || fDistance > pEffect->mMinDistance))
                 {
-                    sHeap.Push(j, fDistance);
+                    positionHeap.Push(j, fDistance);
                 }
             }
         }
-        while (!sHeap.IsEmpty())
+        while (!positionHeap.IsEmpty())
         {
-            const float fDistance = sHeap.Value(0);
-            const PblVector3& vObject = sPositions[sHeap.Get(0)];
-            matrix.m[3][0] = vObject.x;
-            matrix.m[3][1] = vObject.y;
-            matrix.m[3][2] = vObject.z;
-            matrix.m[3][3] = 1.0f;
+            const float fDistance = positionHeap.Value(0);
+            const PblVector3& vObject = positions[positionHeap.Get(0)];
+            matrix.SetTranslation(vObject);
             float fAlpha = (pEffect->mMaxDistance - fDistance) * 0.002f;
             if (!(1.0f > fAlpha))
             {
@@ -658,7 +657,7 @@ void CloudClusterClass::RenderDustEffects(const PblVector3& vPos, unsigned int u
                 fAlpha = (fDistance - pEffect->mMinDistance) * 0.005f * fAlpha;
             }
             pEffect->Render(matrix, fAlpha * 0.9f, uiFlags);
-            sHeap.Pop();
+            positionHeap.Pop();
         }
     }
 }
@@ -681,7 +680,7 @@ CloudClusterObject::~CloudClusterObject()
 }
 
 // SYNTHETIC: SWBF2 0x00490b05
-// [thunk]:CloudClusterObject::`scalar deleting destructor' adjustor{88}
+// ??_ECloudClusterObject@@WFI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004909e0
 // CloudClusterObject::`scalar deleting destructor'
 

@@ -1,4 +1,5 @@
 #include "ParticleSystem.h"
+#include "Battlefront2Lod.h"
 
 #include <float.h>
 
@@ -8,6 +9,7 @@
 #include "RedEngineFL/Graphics/RedCamera.h"
 #include "RedEngineFL/Graphics/RedMaterial.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
+#include "PebbleFL/Common/PblMath.h"
 
 struct CacheParticle
 {
@@ -38,24 +40,18 @@ static bool sLodFadeMask[4][4] = {
 namespace ParticleSystem
 {
 
-// GLOBAL: SWBF2 0x01eb05ac
 
-float sSmallEffectMaxDist;
-// GLOBAL: SWBF2 0x01eb05cc
 
-float sLargeEffectMaxDist;
-// GLOBAL: SWBF2 0x01eb05ec
 
-float sMediumEffectMaxDist;
 // GLOBAL: SWBF2 0x01eaed90
 float mFadeBias;
 
 // FUNCTION: SWBF2 0x0060e3a0
 void SetMaxDistanceBias(float fBias)
 {
-    sSmallEffectMaxDist = fBias + 50.0f;
-    sMediumEffectMaxDist = fBias + 150.0f;
-    sLargeEffectMaxDist = fBias + 500.0f;
+    smallEffectLodData.SetMaxDist(fBias + 50.0f);
+    mediumEffectLodData.SetMaxDist(fBias + 150.0f);
+    largeEffectLodData.SetMaxDist(fBias + 500.0f);
 }
 
 // FUNCTION: SWBF2 0x0060e3e0
@@ -122,10 +118,7 @@ bool PrepareForRender(ParticleEmitter* pEmitter, const PblVector3& vPos, int iUn
         if (fDist > fFadeStart)
         {
             float fT = (fDist - fFadeStart) / (fFadeEnd - fFadeStart);
-            if (fT >= 1.0f)
-            {
-                fT = 1.0f;
-            }
+            fT = Min(fT, 1.0f);
             fAlpha = (1.0f - fT) * fAlpha;
         }
     }
@@ -136,27 +129,14 @@ bool PrepareForRender(ParticleEmitter* pEmitter, const PblVector3& vPos, int iUn
     }
 
     const float fDepth = fDist - fRadius;
-    if (fMaxDist >= 90.0f)
-    {
-        fMaxDist = 90.0f;
-    }
+    fMaxDist = Min(fMaxDist, 90.0f);
     mFadeVal = fAlpha;
 
     float fLod = (4.0f / (fMaxDist + ParticleSystem::mFadeBias - 20.0f)) * (fDepth - 20.0f);
-    if (fLod <= 0.0f)
-    {
-        fLod = 0.0f;
-    }
-    else if (fLod >= 3.0f)
-    {
-        fLod = 3.0f;
-    }
+    fLod = Clamp(fLod, 0.0f, 3.0f);
     const int iLod = (int)fLod;
     mLodFadeVal = 1.0f - (fLod - (float)iLod);
-    if (fLod < 1.0f)
-    {
-        fLod = 1.0f;
-    }
+    fLod = Max(1.0f, fLod);
     ParticleSystem::mCurrentLod = iLod;
     mSizeMultiplier = fLod * 0.1f + 1.2f;
     mMinParticleSize = fDepth * 0.002f + 0.01f;
@@ -225,7 +205,8 @@ void FlushParticleCache()
 
 }
 
-namespace ParticleSystem {
+namespace ParticleSystem
+{
 
 // FUNCTION: SWBF2 0x0060e380
 PblBox& GetBoundingBox()
@@ -235,7 +216,8 @@ PblBox& GetBoundingBox()
 
 }
 
-namespace ParticleSystem {
+namespace ParticleSystem
+{
 
 // FUNCTION: SWBF2 0x0060e660
 float GetSizeMultiplier()
@@ -245,7 +227,8 @@ float GetSizeMultiplier()
 
 }
 
-namespace ParticleSystem {
+namespace ParticleSystem
+{
 
 // FUNCTION: SWBF2 0x0060e670
 float GetMinParticleSize()
@@ -255,7 +238,8 @@ float GetMinParticleSize()
 
 }
 
-namespace ParticleSystem {
+namespace ParticleSystem
+{
 
 // FUNCTION: SWBF2 0x0060e680
 bool IsLodActive(int iLod)
@@ -265,7 +249,8 @@ bool IsLodActive(int iLod)
 
 }
 
-namespace ParticleSystem {
+namespace ParticleSystem
+{
 
 // FUNCTION: SWBF2 0x0060e690
 float GetLodAlpha(int iLod)
@@ -280,7 +265,8 @@ float GetLodAlpha(int iLod)
 
 }
 
-namespace ParticleSystem {
+namespace ParticleSystem
+{
 
 // FUNCTION: SWBF2 0x0060e6b0
 void SetupParticleCache(unsigned int uTexture, RedBlendMode eBlend, float fBlurValue, int iBlurParam)
@@ -297,7 +283,8 @@ void SetupParticleCache(unsigned int uTexture, RedBlendMode eBlend, float fBlurV
 
 }
 
-namespace ParticleSystem {
+namespace ParticleSystem
+{
 
 // FUNCTION: SWBF2 0x0060e700
 void CacheParticle(const PblVector3& vPos, const RedColorValue& color, float fSize, float fRotation)
@@ -321,7 +308,9 @@ template void PblHeap<unsigned int, float>::Pop();
 // SYNTHETIC: SWBF2 0x0060e370
 // CacheParticle::CacheParticle
 
-// GLOBAL: SWBF2 0x01ef5120
 // SYNTHETIC: SWBF2 0x00405d00
 // `dynamic initializer for 'sCachedParticles''
+
+// GLOBAL: SWBF2 0x01ef5120
+// sCachedParticles
 CacheParticle sCachedParticles[300];

@@ -75,13 +75,14 @@ void StreamSplitter::Flush()
 namespace Snd
 {
 
+
 // FUNCTION: SWBF2 0x0074cfe0
 StreamPacket* StreamSplitter::GetPacket(unsigned int uiOutput)
 {
     typedef StreamPacket* (__thiscall* GetPacketFn)(StreamNodeSource* pThis,
                                                     unsigned int uiOutput);
 
-    if (mNode.GetPlayState() == SourceTransport::playState_stopped &&
+    if (StreamNode::GetPlayState() == SourceTransport::playState_stopped &&
         !mFlushing)
     {
         return 0;
@@ -90,9 +91,9 @@ StreamPacket* StreamSplitter::GetPacket(unsigned int uiOutput)
     StreamPacket** const ppWrite = &mPackets[mReadPos];
     if (*ppWrite == 0 && !mFlushing)
     {
-        StreamNodeSource* const pInput = mSink.mConnection.mInputNode;
+        StreamNodeSource* const pInput = StreamNodeSink::mConnection.mInputNode;
         *ppWrite = pInput
-            ? pInput->GetPacket(mSink.mConnection.mInputNodeOutputIndex)
+            ? pInput->GetPacket(StreamNodeSink::mConnection.mInputNodeOutputIndex)
             : 0;
         if (*ppWrite)
         {
@@ -138,7 +139,8 @@ StreamPacket* StreamSplitter::GetPacket(unsigned int uiOutput)
 
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x0074cee0
 StreamSplitter::StreamSplitter()
@@ -150,13 +152,12 @@ StreamSplitter::StreamSplitter()
       mReadPos(0),
       mFlushing(0)
 {
-    mSink.mConnection.mInputNode = 0;
-    mSink.mConnection.mInputNodeOutputIndex = 0;
 
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x0074cf30
 StreamSplitter::~StreamSplitter()

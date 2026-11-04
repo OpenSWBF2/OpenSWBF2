@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "WeaponCannon.h"
@@ -42,7 +44,7 @@ protected:
 public:
 
     static PblHash rttiHashWeaponLauncher;
-    static char rttiNameWeaponLauncher[];
+    static const char rttiNameWeaponLauncher[];
 
     PblHandle<const GameObject> mCurTarget;
     int mCurTargetBodyID;
@@ -67,14 +69,14 @@ public:
     virtual ~WeaponLauncherClass();
 
     static PblHash rttiHashWeaponLauncherClass;
-    static char rttiNameWeaponLauncherClass[];
+    static const char rttiNameWeaponLauncherClass[];
 
     virtual WeaponClass* Derive(unsigned int uHash);
 
     virtual WeaponLauncher* Build(const WeaponDesc& desc);
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
 
     float mLockTime;
@@ -85,3 +87,47 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x00687340
+inline bool WeaponLauncherClass::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashWeaponLauncherClass == uRtti)
+    {
+        return true;
+    }
+    return WeaponCannonClass::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x00687370
+inline unsigned int WeaponLauncherClass::GetDerivedRtti() const
+{
+    return rttiHashWeaponLauncherClass;
+}
+
+// FUNCTION: SWBF2 0x00687380
+inline const char* WeaponLauncherClass::GetDerivedRttiName() const
+{
+    return rttiNameWeaponLauncherClass;
+}
+
+// FUNCTION: SWBF2 0x006872a0
+inline bool WeaponLauncher::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashWeaponLauncher == uRtti)
+    {
+        return true;
+    }
+    return reinterpret_cast<const Weapon*>(this)->Weapon::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x006872d0
+inline unsigned int WeaponLauncher::GetDerivedRtti() const
+{
+    return rttiHashWeaponLauncher;
+}
+
+// FUNCTION: SWBF2 0x006872e0
+inline const char* WeaponLauncher::GetDerivedRttiName() const
+{
+    return rttiNameWeaponLauncher;
+}

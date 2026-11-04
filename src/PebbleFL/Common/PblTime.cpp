@@ -11,16 +11,20 @@ PblTime::PblTime()
     ticksPerSecond = Frequency.QuadPart;
 }
 
-// GLOBAL: SWBF2 0x009cef84
 // SYNTHETIC: SWBF2 0x0040b000
 // `dynamic initializer for 'pblTime''
+
+// GLOBAL: SWBF2 0x009cef84
+// pblTime
 PblTime pblTime;
 
 // GLOBAL: SWBF2 0x009cef94
 
 unsigned int sStartupWordSource;
 
-// GLOBAL: SWBF2 0x009cefb8
 // SYNTHETIC: SWBF2 0x0040b010
 // `dynamic initializer for 'sStartupWordCopy''
+
+// GLOBAL: SWBF2 0x009cefb8
+// sStartupWordCopy
 unsigned int sStartupWordCopy = sStartupWordSource;

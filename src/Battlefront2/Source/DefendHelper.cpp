@@ -23,12 +23,8 @@ public:
 namespace
 {
 
-    const PblVector3& GetMatrixPos(const PblMatrix& m)
-    {
-        return *(const PblVector3*)&m.m[3][0];
-    }
 
-    float DistSq(const PblVector3& a, const PblVector3& b)
+    inline float DistSq(const PblVector3& a, const PblVector3& b)
     {
         float fX = a.x - b.x;
         float fY = a.y - b.y;
@@ -53,9 +49,6 @@ DefendHelper::DefendHelper(UnitAgent* pOwner)
     mTarget.mType = AI::GTT_NONE;
 }
 
-DefendHelper::~DefendHelper()
-{
-}
 
 // FUNCTION: SWBF2 0x0048b760
 void DefendHelper::Kill()
@@ -67,6 +60,7 @@ void DefendHelper::Kill()
     Fsm::Kill();
 }
 
+// FUNCTION: SWBF2 0x0048b800
 void DefendHelper::Clean()
 {
     ExitState();
@@ -90,20 +84,11 @@ float DefendHelper::GetUpdateRate() const
     return 1.5f;
 }
 
-UnitController* DefendHelper::GetCtrl()
-{
-    return mOwner->mCtrl;
-}
 
-Controllable* DefendHelper::GetMe()
-{
-    return mOwner->mCtrl->mOwner;
-}
 
-AILowLevel& DefendHelper::GetLowLevel()
-{
-    return *reinterpret_cast<AILowLevel*>(GetCtrl()->mLowLevel);
-}
+
+
+
 
 // FUNCTION: SWBF2 0x0048b840
 void DefendHelper::EnterState()
@@ -165,7 +150,7 @@ void DefendHelper::EnterState()
 
         PblVector3 vPos = mFortificationHint->GetCollisionCenter();
 
-        const PblVector3& vMyPos = GetMatrixPos(GetMe()->GetMatrix());
+        const PblVector3& vMyPos = GetMe()->GetMatrix().GetTranslation();
         (void)vMyPos;
         PathFinder::GetClosestValidPoint(vPos, vPos, GetMe()->GetGameObject());
         GetLowLevel().SetNavigator_Goto(vPos, 0, true, false);
@@ -177,7 +162,7 @@ void DefendHelper::EnterState()
     {
 
         const Obstacle* pHit = 0;
-        const PblVector3& vMyPos = GetMatrixPos(GetMe()->GetMatrix());
+        const PblVector3& vMyPos = GetMe()->GetMatrix().GetTranslation();
         GameObject* pObj = GetMe()->GetGameObject();
         PblVector3 vOutPos;
 
@@ -266,7 +251,7 @@ void DefendHelper::ExitState()
 // FUNCTION: SWBF2 0x0048be20
 bool DefendHelper::CheckTargetPosition(const PblVector3& vPos)
 {
-    const PblVector3& vMyPos = GetMatrixPos(GetMe()->GetMatrix());
+    const PblVector3& vMyPos = GetMe()->GetMatrix().GetTranslation();
     if (DistSq(vMyPos, vPos) > 2500.0f)
     {
         float fRange = mCurState == STATE_Goto ? 25.0f : 5.0f;
@@ -492,7 +477,7 @@ void DefendHelper::UpdateState(float dt)
         else if (!GetLowLevel().IsNavigatorInProgress())
         {
             vPos = mFortificationHint->GetCollisionCenter();
-            if (DistSq(vPos, GetMatrixPos(GetMe()->GetMatrix())) > 25.0f)
+            if (DistSq(vPos, GetMe()->GetMatrix().GetTranslation()) > 25.0f)
             {
                 SetNextState(STATE_Goto);
             }

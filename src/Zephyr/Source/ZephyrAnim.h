@@ -7,7 +7,9 @@ struct ZephyrAnimBlockHeader
 };
  
 
-struct ZephyrAnimFileHeaderD
+// 8-byte aligned: Steam's ZephyrAnimBankReader::ReadFile aligns its stack frame to keep its copy
+// of the header at an 8-byte boundary, though no member needs it. Still 24 bytes.
+struct __declspec(align(8)) ZephyrAnimFileHeaderD
 {
     ZephyrAnimBlockHeader kHeader;
     unsigned short u16MajorVersion;
@@ -18,6 +20,7 @@ struct ZephyrAnimFileHeaderD
     unsigned char u8DebugLevel;
     unsigned char u8Padding;
 };
+static_assert(sizeof(ZephyrAnimFileHeaderD) == 24, "ZephyrAnimFileHeaderD is the file's 24-byte header");
  
 
 struct ZephyrAnimD

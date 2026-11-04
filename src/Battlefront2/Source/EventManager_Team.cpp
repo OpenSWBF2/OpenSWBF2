@@ -75,18 +75,24 @@ void Cleanup();
 }
 }
 
-namespace EventManager {
-namespace TeamEvent {
+namespace EventManager
+{
+namespace TeamEvent
+{
 extern Event<Team, int> mTicketCountChange;
 }
 }
-namespace EventManager {
-namespace TeamEvent {
+namespace EventManager
+{
+namespace TeamEvent
+{
 extern Event<Team, float> mTicketBleedChange;
 }
 }
-namespace EventManager {
-namespace TeamEvent {
+namespace EventManager
+{
+namespace TeamEvent
+{
 extern Event<Team, int> mPointsChange;
 }
 }
@@ -102,11 +108,6 @@ bool LuaPushItem<Team>(Team& team)
     return true;
 }
 
-template <class PARAM>
-const char* TeamMatches<PARAM>::GetName()
-{
-    return "Team";
-}
 
 template <class ITEM, class PARAM>
 LuaCallback<ITEM, PARAM>::LuaCallback(int iRef)
@@ -118,14 +119,7 @@ LuaCallback<ITEM, PARAM>::LuaCallback(int iRef)
     }
 }
 
-template <class ITEM, class PARAM>
-LuaCallback<ITEM, PARAM>::~LuaCallback()
-{
-    if (mFunction != -1)
-    {
-        lua_unref(LuaHelper::mState, mFunction);
-    }
-}
+
 
 template <class ITEM, class PARAM>
 bool LuaCallback<ITEM, PARAM>::operator()(ITEM& item, PARAM& param)
@@ -151,30 +145,11 @@ bool LuaCallback<ITEM, PARAM>::operator()(ITEM& item, PARAM& param)
     return true;
 }
 
-template <class ITEM, class PARAM>
-template <class PREDICATE>
-const char* Event<ITEM, PARAM>::Filter<PREDICATE>::GetName()
-{
-    return PREDICATE::GetName();
-}
-
-template <class ITEM, class PARAM>
-template <class PREDICATE>
-bool Event<ITEM, PARAM>::Filter<PREDICATE>::operator()(ITEM& item, PARAM& param)
-{
-    return mPredicate(item, param);
-}
-
-template <class ITEM, class PARAM>
-bool Event<ITEM, PARAM>::Callback::operator()(ITEM&, PARAM&)
-{
-    return true;
-}
-
 // TEMPLATE: SWBF2 0x0051b0e0
 // EventManager::Event<Team,float>::Callback::operator()
 
-// FUNCTION: SWBF2 0x0051b340
+// TEMPLATE: SWBF2 0x0051b340
+// EventManager::RegisterLuaCallback<Team,int>
 template <class ITEM, class PARAM>
 int RegisterLuaCallback(lua_State*)
 {
@@ -240,7 +215,8 @@ template int RegisterLuaCallback<Team, int>(lua_State*);
 
 }
 
-namespace EventManager {
+namespace EventManager
+{
 
 // FUNCTION: SWBF2 0x0051aff0
 void TeamEvent::Cleanup()
@@ -251,15 +227,19 @@ void TeamEvent::Cleanup()
 }
 }
 
-namespace EventManager {
+namespace EventManager
+{
 
-// FUNCTION: SWBF2 0x0051b010
+// TEMPLATE: SWBF2 0x0051b010
+// EventManager::Event<Team,int>::Callback::~Callback
 template Event<Team, int>::Callback::~Callback();
 }
 
-namespace EventManager {
+namespace EventManager
+{
 
-// FUNCTION: SWBF2 0x0051b080
+// TEMPLATE: SWBF2 0x0051b080
+// EventManager::Event<Team,float>::Callback::~Callback
 template Event<Team, float>::Callback::~Callback();
 }
 
@@ -267,31 +247,25 @@ namespace EventManager
 {
 
 int DummyLuaCallback(lua_State* L);
-namespace TeamEvent { void Init(); }
-
-template <class MATCH>
-static MATCH* ReadNumber(MATCH* pMatch)
+namespace TeamEvent
 {
-    pMatch->mTeam = (unsigned int)luaL_checknumber(LuaHelper::mState, 2);
-    return pMatch;
+void Init();
 }
+
+
 
 // FUNCTION: SWBF2 0x0051af60
 template <>
 TeamMatches<int> LuaGetItem<TeamMatches<int> >(int)
 {
-    TeamMatches<int> match(0);
-    ReadNumber(&match);
-    return match;
+    return TeamMatches<int>((int)luaL_checknumber(LuaHelper::mState, 2));
 }
 
 // FUNCTION: SWBF2 0x0051af80
 template <>
 TeamMatches<float> LuaGetItem<TeamMatches<float> >(int)
 {
-    TeamMatches<float> match(0);
-    ReadNumber(&match);
-    return match;
+    return TeamMatches<float>((int)luaL_checknumber(LuaHelper::mState, 2));
 }
 
 template <class ITEM, class PARAM>
@@ -335,48 +309,8 @@ int RegisterLuaCallback(lua_State*)
     return 1;
 }
 
-template <class ITEM, class PARAM>
-void Event<ITEM, PARAM>::Unregister(Callback& callback)
-{
-    Node* pParent = callback.mParent;
-    callback.DetachFromParent();
-    while (pParent && pParent->mParent && !pParent->mChild)
-    {
-        Node* pNext = pParent->mParent;
-        pParent->DetachFromParent();
-        pParent = pNext;
-    }
-}
 
-template <class ITEM, class PARAM>
-template <class PREDICATE>
-Event<ITEM, PARAM>::Filter<PREDICATE>::Filter(PREDICATE& predicate)
-    : mPredicate(predicate)
-{
-}
 
-template <class ITEM, class PARAM>
-template <class PREDICATE>
-auto Event<ITEM, PARAM>::GetFilter(PREDICATE& predicate, Callback* pParent)
-    -> Filter<PREDICATE>*
-{
-    if (!pParent)
-    {
-        pParent = &mRoot;
-    }
-    for (Node* pNode = pParent->mChild; pNode; pNode = pNode->mSibling)
-    {
-        if (pNode->GetName() == PREDICATE::GetName() &&
-            ((Filter<PREDICATE>*)pNode)->mPredicate == predicate)
-        {
-            pNode->AddRef();
-            return (Filter<PREDICATE>*)pNode;
-        }
-    }
-    Filter<PREDICATE>* pFilter = new Filter<PREDICATE>(predicate);
-    pFilter->AttachToParent(pParent);
-    return pFilter;
-}
 
 template <class ITEM, class PARAM>
 void RegisterUnregisterLuaCallback(Event<ITEM, PARAM>& event, lua_CFunction pfnClient)
@@ -479,13 +413,13 @@ Event<Team, float>::GetFilter(TeamMatches<float>&, Callback*);
 // EventManager::RegisterRegisterLuaCallback<Team,float,EventManager::TeamMatches<float> >
 
 // TEMPLATE: SWBF2 0x0051b1d0
-// EventManager::UnregisterLuaCallback<classTeam,int>
+// EventManager::UnregisterLuaCallback<Team,int>
 
 // TEMPLATE: SWBF2 0x0051b4f0
-// EventManager::RegisterLuaCallback<classTeam,int,classEventManager::TeamMatches<int>>
+// EventManager::RegisterLuaCallback<Team,int,EventManager::TeamMatches<int> >
 
 // TEMPLATE: SWBF2 0x0051b7e0
-// EventManager::RegisterLuaCallback<classTeam,float>
+// EventManager::RegisterLuaCallback<Team,float>
 
 // TEMPLATE: SWBF2 0x0051bb10
 // EventManager::Event<Team,int>::Unregister
@@ -503,7 +437,7 @@ Event<Team, float>::GetFilter(TeamMatches<float>&, Callback*);
 // EventManager::UnregisterLuaCallback<Team,float>
 
 // TEMPLATE: SWBF2 0x0051b990
-// EventManager::RegisterLuaCallback<Team,float,TeamMatches<float> >
+// EventManager::RegisterLuaCallback<Team,float,EventManager::TeamMatches<float> >
 
 }
 
@@ -532,25 +466,31 @@ namespace EventManager
 namespace TeamEvent
 {
 
-// GLOBAL: SWBF2 0x007ec0c0
 // SYNTHETIC: SWBF2 0x00403710
-// `dynamic initializer for 'EventManager::TeamEvent::mTicketCountChange''
+// EventManager::TeamEvent::`dynamic initializer for 'mTicketCountChange''
 // SYNTHETIC: SWBF2 0x00768520
-// `dynamic atexit destructor for 'EventManager::TeamEvent::mTicketCountChange''
+// EventManager::TeamEvent::`dynamic atexit destructor for 'mTicketCountChange''
+
+// GLOBAL: SWBF2 0x007ec0c0
+// mTicketCountChange
 Event<Team, int> mTicketCountChange("TicketCountChange");
 
-// GLOBAL: SWBF2 0x007ec0e0
 // SYNTHETIC: SWBF2 0x00403740
-// `dynamic initializer for 'EventManager::TeamEvent::mTicketBleedChange''
+// EventManager::TeamEvent::`dynamic initializer for 'mTicketBleedChange''
 // SYNTHETIC: SWBF2 0x007685a0
-// `dynamic atexit destructor for 'EventManager::TeamEvent::mTicketBleedChange''
+// EventManager::TeamEvent::`dynamic atexit destructor for 'mTicketBleedChange''
+
+// GLOBAL: SWBF2 0x007ec0e0
+// mTicketBleedChange
 Event<Team, float> mTicketBleedChange("TicketBleedChange");
 
-// GLOBAL: SWBF2 0x007ec100
 // SYNTHETIC: SWBF2 0x00403770
-// `dynamic initializer for 'EventManager::TeamEvent::mPointsChange''
+// EventManager::TeamEvent::`dynamic initializer for 'mPointsChange''
 // SYNTHETIC: SWBF2 0x00768620
-// `dynamic atexit destructor for 'EventManager::TeamEvent::mPointsChange''
+// EventManager::TeamEvent::`dynamic atexit destructor for 'mPointsChange''
+
+// GLOBAL: SWBF2 0x007ec100
+// mPointsChange
 Event<Team, int> mPointsChange("TeamPointsChange");
 
 }

@@ -10,19 +10,17 @@
 #include "UnitAgent.h"
 #include "PebbleFL/Common/PblMatrix.h"
 #include "PebbleFL/Common/PblVector.h"
+#include "PebbleFL/Common/PblMath.h"
 
 class GameObject;
 
 namespace
 {
-    const PblVector3& GetPos(const PblMatrix& m)
-    {
-        return *(const PblVector3*)&m.m[3][0];
-    }
+
 
     const PblVector3& GetFront(const PblMatrix& m)
     {
-        return *(const PblVector3*)&m.m[2][0];
+        return m.GetZAxis();
     }
 
     const PblVector3& GetTargetVelocity(const GameObject* pTarget)
@@ -40,7 +38,7 @@ void AttackPatterns::DoFlyDirect()
     const EntityFlyerClass* pClass =
         static_cast<const EntityFlyerClass*>(GetMe()->GetEntity()->GetEntityClass());
 
-    PblVector3 vPos = GetPos(GetMe()->GetMatrix());
+    PblVector3 vPos = GetMe()->GetMatrix().GetTranslation();
     PblVector3 vTarget = GetAttackHelper()->GetLastSeenTargetPos();
     PblVector3 vToTarget;
     vToTarget.x = vTarget.x - vPos.x;
@@ -82,10 +80,7 @@ void AttackPatterns::DoFlyDirect()
             vDest.x = vVelocity.x + vTarget.x;
             vDest.y = vVelocity.y + vTarget.y;
             vDest.z = vVelocity.z + vTarget.z;
-            if (vDest.y > AIUtil::gMaxFlyHeight)
-            {
-                vDest.y = AIUtil::gMaxFlyHeight;
-            }
+            vDest.y = Min(vDest.y, AIUtil::gMaxFlyHeight);
         }
         else
         {
@@ -94,10 +89,7 @@ void AttackPatterns::DoFlyDirect()
             vDest.y = vFront.y * fAhead + vPos.y;
             vDest.z = vFront.z * fAhead + vPos.z;
             float fMid = (AIUtil::gMinFlyHeight + AIUtil::gMaxFlyHeight) * 0.5f;
-            if (vDest.y > fMid)
-            {
-                vDest.y = fMid;
-            }
+            vDest.y = Min(vDest.y, fMid);
         }
         mOwner->GetLowLevel().SetNavigator_GotoDirect(vDest, false, false);
     }
@@ -108,7 +100,7 @@ void AttackPatterns::DoFlyDirect()
 // FUNCTION: SWBF2 0x00667550
 void AttackPatterns::GeneratePath()
 {
-    PblVector3 vPos = GetPos(GetMe()->GetMatrix());
+    PblVector3 vPos = GetMe()->GetMatrix().GetTranslation();
     PblVector3 vTarget = GetAttackHelper()->GetLastSeenTargetPos();
     PblVector3 vToTarget;
     vToTarget.x = vTarget.x - vPos.x;
@@ -118,8 +110,10 @@ void AttackPatterns::GeneratePath()
 
     const EntityFlyerClass* pClass =
         static_cast<const EntityFlyerClass*>(GetMe()->GetEntity()->GetEntityClass());
-    static const float fBack = (pClass->mMaxFlyerSpeed * 4.0f < 160.0f) ? 160.0f : pClass->mMaxFlyerSpeed * 4.0f;
-    static const float fSide = (pClass->mMaxFlyerSpeed < 40.0f) ? 40.0f : pClass->mMaxFlyerSpeed;
+    // GLOBAL: SWBF2 0x01fac374
+    static const float fBack = Max(160.0f, pClass->mMaxFlyerSpeed * 4.0f);
+    // GLOBAL: SWBF2 0x01fac36c
+    static const float fSide = Max(40.0f, pClass->mMaxFlyerSpeed);
 
     PblVector3 vBehind;
     vBehind.x = (vTarget.x - vDir.x * fBack) + gVectorUnitY.x * 90.0f;
@@ -134,18 +128,9 @@ void AttackPatterns::GeneratePath()
     vPast.y = (vDir.y * fSide + vTarget.y) + gVectorUnitY.y * 30.0f;
     vPast.z = (vDir.z * fSide + vTarget.z) + gVectorUnitY.z * 30.0f;
 
-    if (vBehind.y >= AIUtil::gMaxFlyHeight)
-    {
-        vBehind.y = AIUtil::gMaxFlyHeight;
-    }
-    if (vNear.y >= AIUtil::gMaxFlyHeight)
-    {
-        vNear.y = AIUtil::gMaxFlyHeight;
-    }
-    if (vPast.y >= AIUtil::gMaxFlyHeight)
-    {
-        vPast.y = AIUtil::gMaxFlyHeight;
-    }
+    vBehind.y = Min(vBehind.y, AIUtil::gMaxFlyHeight);
+    vNear.y = Min(vNear.y, AIUtil::gMaxFlyHeight);
+    vPast.y = Min(vPast.y, AIUtil::gMaxFlyHeight);
 
     AIPath* pPath = new AIPath();
     if (pPath)
@@ -163,8 +148,8 @@ void AttackPatterns::GeneratePath()
 void AttackPatterns::DoFlyStrafe()
 {
     const GameObject* pTarget = GetAttackHelper()->GetTarget();
-    PblVector3 vPos = GetPos(GetMe()->GetMatrix());
-    PblVector3 vTarget = GetPos(static_cast<const CollisionObject*>(pTarget)->GetMatrix());
+    PblVector3 vPos = GetMe()->GetMatrix().GetTranslation();
+    PblVector3 vTarget = (static_cast<const CollisionObject*>(pTarget)->GetMatrix()).GetTranslation();
     PblVector3 vToTarget;
     vToTarget.x = vTarget.x - vPos.x;
     vToTarget.y = vTarget.y - vPos.y;

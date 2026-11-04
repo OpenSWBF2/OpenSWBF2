@@ -2,7 +2,8 @@
 
 #include <stddef.h>
 
-namespace HUD {
+namespace HUD
+{
 class Envelope
 {
 public:
@@ -25,14 +26,11 @@ public:
     void Start();
     void Stop();
 
-    // FUNCTION: SWBF2 0x0055da60
-    Phase GetPhase() const { return mPhase; }
+    Phase GetPhase() const;
     float GetElapsed() const { return mTime; }
-    // FUNCTION: SWBF2 0x0055daf0
-    float GetPhaseTime(Phase ePhase) const { return mPhaseTime[ePhase]; }
+    float GetPhaseTime(Phase ePhase) const;
 
-    // FUNCTION: SWBF2 0x0055dae0
-    void SetPhaseTime(Phase ePhase, float fTime) { mPhaseTime[ePhase] = fTime; }
+    void SetPhaseTime(Phase ePhase, float fTime);
 
     float mPhaseTime[phase_MAX];
     float mTime;

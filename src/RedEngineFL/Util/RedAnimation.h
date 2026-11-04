@@ -12,8 +12,6 @@ class ZephyrAnimBank;
 class ZephyrEventBank;
 class ZephyrAnim;
 
-extern int RedAnimation_HashTableNumEntries;
-
 // VTABLE: SWBF2 0x007834a0
 class RedAnimation
 {

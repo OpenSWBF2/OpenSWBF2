@@ -82,7 +82,7 @@ TEST_CASE("voice chat local node ids stay below the transport node count" * doct
     CHECK(sHead.find("uChannel = 0xFF;") != std::string::npos);
 
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\GameVoiceChatTransport.cpp", sText));
-    CHECK(sText.find("if (other < 0 || other == node || (unsigned int)other >= mNumNodes)") != std::string::npos);
+    CHECK(sText.find("if (teamInfo[i].player < 0 || teamInfo[i].player == nodeID || (unsigned int)teamInfo[i].player >= mNumNodes)") != std::string::npos);
 }
 
 TEST_CASE("voice chat header bitmap holds a relay header" * doctest::test_suite("regression"))

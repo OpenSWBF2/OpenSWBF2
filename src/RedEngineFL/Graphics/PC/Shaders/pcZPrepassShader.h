@@ -39,7 +39,7 @@ private:
     // FUNCTION: SWBF2 0x007027a0
     virtual pcRedShaderDef* GetShaderDef() const;
 
-    // FUNCTION: SWBF2 0x007027d0
+
     virtual void InitFixedFunctionShaderDef() const;
 
 public:

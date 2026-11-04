@@ -31,7 +31,8 @@ public:
     bool SetProperty(unsigned int uProperty, const char* pszValue);
 
     PlayableEntitySoundsClass(const PlayableEntitySoundsClass* pBase);
-    ~PlayableEntitySoundsClass();
+    // SYNTHETIC: SWBF2 0x004a78e0
+    // PlayableEntitySoundsClass::~PlayableEntitySoundsClass
 
     GameSound mAICommands[13];
     GameSound mPlayerCommands[13];
@@ -44,6 +45,7 @@ public:
  
  
 
+// VTABLE: SWBF2 0x007ad7e4
 class PlayableEntitySounds
 {
 public:

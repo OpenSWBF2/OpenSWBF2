@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include <float.h>
 #include <math.h>
 #include <stdio.h>
@@ -17,13 +18,13 @@
 #include "PebbleFL/Common/PblVector.h"
 #include "RedEngineFL/Application/pc/pcFLRender.h"
 #include "RedEngineFL/Portals/Portal.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x004cbb10
 bool EntityItem::NoDisplayLifeTimer() const
 {
     return mClass->mNoLifeSpanDisplay;
 }
+
 
 extern PblVector3 gVectorZero;
 
@@ -33,35 +34,24 @@ extern bool netIsLateTurn;
 
 PblMatrix NormalMatrix(const PblVector3& vDir, const PblVector3& vNormal, const PblVector3& vPos);
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
 
-// GLOBAL: SWBF2 0x01ebbe2c
+
 // SYNTHETIC: SWBF2 0x00402bd0
 // `dynamic initializer for 'EntityItemClass::rttiHashEntityItemClass''
+// EntityItemClass::rttiHashEntityItemClass
+
+// GLOBAL: SWBF2 0x01ebbe2c
+// EntityItemClass::rttiHashEntityItemClass
 PblHash EntityItemClass::rttiHashEntityItemClass("EntityItemClass");
-char EntityItemClass::rttiNameEntityItemClass[] = "EntityItemClass";
+// GLOBAL: SWBF2 0x007892fc
+// EntityItemClass::rttiNameEntityItemClass
+const char EntityItemClass::rttiNameEntityItemClass[] = "EntityItemClass";
 
-// FUNCTION: SWBF2 0x004cabd0
-bool EntityItemClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashEntityItemClass || GameObjectClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x004cac10
-unsigned int EntityItemClass::GetDerivedRtti()
-{
-    return rttiHashEntityItemClass;
-}
 
-// FUNCTION: SWBF2 0x004cac20
-const char* EntityItemClass::GetDerivedRttiName()
-{
-    return rttiNameEntityItemClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x004cbb20
 EntityItemClass::EntityItemClass(unsigned int uHash)
@@ -114,24 +104,30 @@ EntityItemClass::~EntityItemClass()
 // FUNCTION: SWBF2 0x004cbd30
 void EntityItemClass::SetProperty(unsigned int uProperty, const char* pszValue)
 {
-    if (uProperty == 0x7C7C544B)
+    switch (uProperty)
+    {
+    case 0x7C7C544B:
     {
         sscanf(pszValue, "%f", &mLifeSpan);
+            break;
     }
-    else if (uProperty == 0x039975BE)
+    case 0x039975BE:
     {
         mNoLifeSpanDisplay = atoi(pszValue) != 0;
+            break;
     }
-    else if (uProperty == 0xC28F0C96 ||
-             uProperty == 0xEDC6251A)
+    case 0xC28F0C96:
+    case 0xEDC6251A:
     {
         mCollisionSound.SetID(pszValue, false, false);
+            break;
     }
-    else if (uProperty == 0x2297E47D)
+    case 0x2297E47D:
     {
         mCollisionWaterSound.SetID(pszValue, false, false);
+            break;
     }
-    else if (uProperty == 0x7E71E2C6)
+    case 0x7E71E2C6:
     {
         if (*pszValue)
         {
@@ -141,24 +137,29 @@ void EntityItemClass::SetProperty(unsigned int uProperty, const char* pszValue)
         {
             mTrailEffect = 0;
         }
+            break;
     }
-    else if (uProperty == 0xD209FF45)
+    case 0xD209FF45:
     {
         sscanf(pszValue, "%f", &mGravity);
+            break;
     }
-    else if (uProperty == 0x678DE338)
+    case 0x678DE338:
     {
         sscanf(pszValue, "%f", &mRebound);
+            break;
     }
-    else if (uProperty == 0xA51BE2BB)
+    case 0xA51BE2BB:
     {
         sscanf(pszValue, "%f", &mFriction);
+            break;
     }
-    else if (uProperty == 0xE369687E)
+    case 0xE369687E:
     {
         m_uiLightOdfNameHash = PblHash(pszValue);
+            break;
     }
-    else if (uProperty == 0x746CE73E)
+    case 0x746CE73E:
     {
         int r, g, b, a;
         int iCount = sscanf(pszValue, "%d %d %d %d", &r, &g, &b, &a);
@@ -181,12 +182,14 @@ void EntityItemClass::SetProperty(unsigned int uProperty, const char* pszValue)
         }
         color.a = 255;
         m_colorLight = color;
+            break;
     }
-    else if (uProperty == 0x2776564D)
+    case 0x2776564D:
     {
         sscanf(pszValue, "%f", &m_fRadiusLight);
+            break;
     }
-    else if (uProperty == 0x47C86B4A)
+    case 0x47C86B4A:
     {
         GameObjectClass::SetProperty(0x47C86B4A, pszValue);
         if (mCollisionModel.GetNumBodies() == 0 && mModel)
@@ -198,17 +201,20 @@ void EntityItemClass::SetProperty(unsigned int uProperty, const char* pszValue)
             float fZ = box._vMax.z - box._vMin.z;
             float fLength = sqrtf(fY * fY + fX * fX + fZ * fZ);
             primitive.SetBox(fX * 0.5f, fY * 0.5f, fZ * 0.5f, fLength * 0.5f);
-            PblMatrix matrix = _IdentityMatrix;
+            PblMatrix matrix = gMatrixIdentity;
             matrix.m[3][0] = (box._vMin.x + box._vMax.x) * 0.5f;
             matrix.m[3][1] = (box._vMin.y + box._vMax.y) * 0.5f;
             matrix.m[3][2] = (box._vMin.z + box._vMax.z) * 0.5f;
             matrix.m[3][3] = 1.0f;
             mCollisionModel.AddBody(new CollisionBodyPrimitive(primitive, "main_body", matrix, 0));
         }
+            break;
     }
-    else
+    default:
     {
         GameObjectClass::SetProperty(uProperty, pszValue);
+            break;
+    }
     }
 }
 
@@ -218,11 +224,16 @@ EntityClass* EntityItemClass::Derive(unsigned int uHash)
     return new EntityItemClass(this, uHash);
 }
 
-// GLOBAL: SWBF2 0x01ebbe28
 // SYNTHETIC: SWBF2 0x00402bc0
 // `dynamic initializer for 'EntityItem::rttiHashEntityItem''
+// EntityItem::rttiHashEntityItem
+
+// GLOBAL: SWBF2 0x01ebbe28
+// EntityItem::rttiHashEntityItem
 PblHash EntityItem::rttiHashEntityItem("EntityItem");
-char EntityItem::rttiNameEntityItem[] = "EntityItem";
+// GLOBAL: SWBF2 0x007892f0
+// EntityItem::rttiNameEntityItem
+const char EntityItem::rttiNameEntityItem[] = "EntityItem";
 
 class CollisionManager
 {
@@ -237,7 +248,7 @@ Entity* EntityItemClass::Build(const EntityDesc& desc)
     EntityItem* pItem = new EntityItem(this, desc);
     if (pItem)
     {
-        CollisionManager::AddItemBody(pItem);
+        pItem->AddItemToCollisionManager();
         pItem->ActivatePhysics();
         pItem->BuildEffects();
     }
@@ -254,8 +265,6 @@ EntityItem::EntityItem(EntityItemClass* pClass, const EntityDesc& desc)
     mLifeTimer = pClass->mLifeSpan;
     mOwner = 0;
     m_pLight = 0;
-    mTrailEmitterObj.mObject = 0;
-    mTrailEmitterObj.mSavedHandleId = 0;
 
     Activate();
 
@@ -272,20 +281,20 @@ EntityItem::EntityItem(EntityItemClass* pClass, const EntityDesc& desc)
             {
                 m_pLight->SetColor(mClass->m_colorLight);
             }
-            PblMatrix matrix = _IdentityMatrix;
+            PblMatrix matrix = gMatrixIdentity;
             matrix.m[3][0] = mMatrix.m[3][0];
             matrix.m[3][1] = mMatrix.m[3][1];
             matrix.m[3][2] = mMatrix.m[3][2];
             matrix.m[3][3] = 1.0f;
             if (m_pLight->_fBeamLength > 0.0f)
             {
-                *(PblVector3*)matrix.m[0] = gVectorUnitX;
+                matrix[0] = gVectorUnitX;
                 matrix.m[0][3] = 0.0f;
                 matrix.m[1][0] = -gVectorUnitZ.x;
                 matrix.m[1][1] = -gVectorUnitZ.y;
                 matrix.m[1][2] = -gVectorUnitZ.z;
                 matrix.m[1][3] = 0.0f;
-                *(PblVector3*)matrix.m[2] = gVectorUnitY;
+                matrix[2] = gVectorUnitY;
                 matrix.m[2][3] = 0.0f;
             }
             m_pLight->SetMatrix(matrix);
@@ -298,7 +307,7 @@ EntityItem::EntityItem(EntityItemClass* pClass, const EntityDesc& desc)
             m_pLight->SetOmniLightRadius(mClass->m_fRadiusLight);
             m_pLight->SetHaloRadius(0.0f);
             m_pLight->SetFlareIntensity(0.0f);
-            PblMatrix matrix = _IdentityMatrix;
+            PblMatrix matrix = gMatrixIdentity;
             matrix.m[3][0] = mMatrix.m[3][0];
             matrix.m[3][1] = mMatrix.m[3][1];
             matrix.m[3][2] = mMatrix.m[3][2];
@@ -315,7 +324,7 @@ EntityItem::EntityItem(EntityItemClass* pClass, const EntityDesc& desc)
         if (mTrailEmitterObj)
         {
             mTrailEmitterObj->AttachEffectToVector((const PblVector3*)mMatrix.m[3], true);
-            mTrailEmitterObj->SetOrientation(*(const PblVector3*)mMatrix.m[2]);
+            mTrailEmitterObj->SetOrientation(mMatrix.GetZAxis());
         }
     }
     else
@@ -342,15 +351,15 @@ EntityItem::~EntityItem()
 // SYNTHETIC: SWBF2 0x004caba0
 // EntityItem::`scalar deleting destructor'
 // SYNTHETIC: SWBF2 0x004cc2df
-// [thunk]:EntityItem::`scalar deleting destructor' adjustor{320}
+// ??_EEntityItem@@WBEA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004cc2ea
-// [thunk]:EntityItem::`scalar deleting destructor' adjustor{12}
+// ??_EEntityItem@@WM@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004cc2f2
-// [thunk]:EntityItem::`scalar deleting destructor' adjustor{512}
+// ??_EEntityItem@@WCAA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004cc2fd
-// [thunk]:EntityItem::`scalar deleting destructor' adjustor{576}
+// ??_EEntityItem@@WCEA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004cc308
-// [thunk]:EntityItem::`scalar deleting destructor' adjustor{148}
+// ??_EEntityItem@@WJE@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x004cab40
 const PblVector3& EntityItem::GetVelocity() const
@@ -434,6 +443,8 @@ void EntityItem::Render(unsigned char ucLod, float fAlpha, unsigned int uiFlags)
     {
         uiFlags |= 0x80;
     }
+    // GLOBAL: SWBF2 0x01faa924
+    // sPlayerShadow
     static PblHash sPlayerShadow("player_shadow");
     SetupShadow(this, mModel, ucLod, uiFlags, sPlayerShadow);
 
@@ -455,7 +466,7 @@ void EntityItem::Render(unsigned char ucLod, float fAlpha, unsigned int uiFlags)
     if (FLRenderer::IsReflected(GetRenderPos(), _Sphere.w, mReflection, false))
     {
         PblMatrix mWorld;
-        D3DXMatrixMultiply(&mWorld, pMatrix, &mReflection);
+        mWorld = *pMatrix * mReflection;
         mReflection = mWorld;
         mModel->Render(ucLod, fAlpha, &mReflection, 0, color, (uiFlags & ~0x10000) | 0x10000100, 0);
     }
@@ -486,8 +497,8 @@ bool EntityItem::CollisionCallback(const CollisionResult* pResult, CollisionObje
                 .Play((const PblVector3*)mMatrix.m[3], 0, false, true);
             if (fDot > -1.0f)
             {
-                mMatrix = NormalMatrix(*(const PblVector3*)mMatrix.m[2], vNormal,
-                                     *(const PblVector3*)mMatrix.m[3]);
+                mMatrix = NormalMatrix(mMatrix.GetZAxis(), vNormal,
+                                     mMatrix.GetTranslation());
                 mVelocity = gVectorZero;
                 mStationary = true;
                 CollisionManager::DeactivateItem(EntityGeometry::GetCollisionObject());
@@ -496,9 +507,7 @@ bool EntityItem::CollisionCallback(const CollisionResult* pResult, CollisionObje
             {
                 float fRebound = mClass->mRebound;
                 float fFriction = mClass->mFriction * fDot * (fRebound + 1.0f);
-                mVelocity.x -= vNormal.x * fDot;
-                mVelocity.y -= vNormal.y * fDot;
-                mVelocity.z -= vNormal.z * fDot;
+                mVelocity -= vNormal * fDot;
                 float fScale = -(fFriction / sqrtf(mVelocity.x * mVelocity.x + mVelocity.y * mVelocity.y +
                                                    mVelocity.z * mVelocity.z));
                 if (!(1.0f > fScale))
@@ -509,9 +518,7 @@ bool EntityItem::CollisionCallback(const CollisionResult* pResult, CollisionObje
                 mVelocity.y -= mVelocity.y * fScale;
                 mVelocity.z -= mVelocity.z * fScale;
                 float fBounce = fRebound * fDot;
-                mVelocity.x -= vNormal.x * fBounce;
-                mVelocity.y -= vNormal.y * fBounce;
-                mVelocity.z -= vNormal.z * fBounce;
+                mVelocity -= vNormal * fBounce;
             }
         }
     }
@@ -534,23 +541,11 @@ void EntityItem::SetPosition(const PblVector3& vPosition)
     }
 }
 
-// FUNCTION: SWBF2 0x004caae0
-bool EntityItem::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashEntityItem || GameObject::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x004cab20
-unsigned int EntityItem::GetDerivedRtti() const
-{
-    return rttiHashEntityItem;
-}
 
-// FUNCTION: SWBF2 0x004cab30
-const char* EntityItem::GetDerivedRttiName() const
-{
-    return rttiNameEntityItem;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x004cab70
 float EntityItem::GetMaxSpeed() const

@@ -15,6 +15,13 @@
 #include "RedEngineFL/Graphics/PC/pcRedTexture.h"
 #include "RedEngineFL/Graphics/PC/pcRedVertexFormat.h"
 
+// GLOBAL: SWBF2 0x00784560
+// __xmm@3f68f5c33f68f5c33f68f5c33f68f5c3
+// GLOBAL: SWBF2 0x00784570
+// __xmm@3fdc28f63fdc28f63fdc28f63fdc28f6
+// GLOBAL: SWBF2 0x00784580
+// __xmm@404ccccd404ccccd404ccccd404ccccd
+
 void __cdecl PblTraceP(const char* Format, ...);
 
 unsigned int pcTerrainShader2::s_uiID;
@@ -23,22 +30,26 @@ pcRedShader::BeginFuncT pcTerrainShader2::BeginFuncArray[MAX_PIPELINES];
 pcRedShader::EndFuncT pcTerrainShader2::EndFuncArray[MAX_PIPELINES];
 pcRedShader::RenderFuncT pcTerrainShader2::RenderFuncArray[MAX_PIPELINES];
 
-// GLOBAL: SWBF2 0x009c8a8c
 // SYNTHETIC: SWBF2 0x004095a0
 // `dynamic initializer for 'pcTerrainShader2::s_uiRenderTypeHash''
+
+// GLOBAL: SWBF2 0x009c8a8c
+// pcTerrainShader2::s_uiRenderTypeHash
 unsigned int pcTerrainShader2::s_uiRenderTypeHash = PblHash("Terrain2");
 
 // SYNTHETIC: SWBF2 0x004095c0
-// `dynamic initializer for 'PblMath::fOneOverHalfPi''
+// PblMath::`dynamic initializer for 'fOneOverHalfPi''
 
 // SYNTHETIC: SWBF2 0x004095e0
-// `dynamic initializer for 'PblMath::fOneOverTwoPi''
+// PblMath::`dynamic initializer for 'fOneOverTwoPi''
 
-// GLOBAL: SWBF2 0x009c8f80
 // SYNTHETIC: SWBF2 0x00409580
 // `dynamic initializer for 'pcTerrainShader2::s_shaderDef''
 // SYNTHETIC: SWBF2 0x00769c20
 // `dynamic atexit destructor for 'pcTerrainShader2::s_shaderDef''
+
+// GLOBAL: SWBF2 0x009c8f80
+// pcTerrainShader2::s_shaderDef
 pcRedShaderDef pcTerrainShader2::s_shaderDef("normal_terrain_shader.xml");
 
 // GLOBAL: SWBF2 0x007e1950
@@ -81,58 +92,68 @@ static bool sForceSimpleLighting;
 // GLOBAL: SWBF2 0x009c8a8a
 static bool sDrawNormals;
 
-// GLOBAL: SWBF2 0x009c8a90
 // SYNTHETIC: SWBF2 0x004096e0
 // `dynamic initializer for 's_ShadowMapTextureTransform''
 
+// GLOBAL: SWBF2 0x009c8a90
+// s_ShadowMapTextureTransform
 static PblVector4 s_ShadowMapTextureTransform[3];
-// GLOBAL: SWBF2 0x009c8ac0
 // SYNTHETIC: SWBF2 0x00409680
 // `dynamic initializer for 's_DiffuseTexTransform''
 
+// GLOBAL: SWBF2 0x009c8ac0
+// s_DiffuseTexTransform
 static PblVector4 s_DiffuseTexTransform[16];
-// GLOBAL: SWBF2 0x009c8bc0
 // SYNTHETIC: SWBF2 0x00409640
 // `dynamic initializer for 's_BumpTexTransform''
 
+// GLOBAL: SWBF2 0x009c8bc0
+// s_BumpTexTransform
 static PblVector4 s_BumpTexTransform[16];
-// GLOBAL: SWBF2 0x009c8cd0
 // SYNTHETIC: SWBF2 0x00409600
 // `dynamic initializer for 's_BumpLuminosityTextureTransform''
 
+// GLOBAL: SWBF2 0x009c8cd0
+// s_BumpLuminosityTextureTransform
 static PblVector4 s_BumpLuminosityTextureTransform[2];
 
-// GLOBAL: SWBF2 0x009c8fac
 // SYNTHETIC: SWBF2 0x00409620
 // `dynamic initializer for 's_BumpSpecularTextureTransform''
 
+// GLOBAL: SWBF2 0x009c8fac
+// s_BumpSpecularTextureTransform
 PblVector4 s_BumpSpecularTextureTransform[2];
 
-// GLOBAL: SWBF2 0x009c8cf0
 // SYNTHETIC: SWBF2 0x004096b0
 // `dynamic initializer for 's_UnreferencedTextureTransformA''
 
+// GLOBAL: SWBF2 0x009c8cf0
+// s_UnreferencedTextureTransformA
 PblVector4 s_UnreferencedTextureTransformA;
-// GLOBAL: SWBF2 0x009c8cc0
 // SYNTHETIC: SWBF2 0x004096a0
 // `dynamic initializer for 's_UnreferencedTextureTransformB''
 
+// GLOBAL: SWBF2 0x009c8cc0
+// s_UnreferencedTextureTransformB
 PblVector4 s_UnreferencedTextureTransformB;
 
-// GLOBAL: SWBF2 0x009c8d00
 // SYNTHETIC: SWBF2 0x00409660
 // `dynamic initializer for 's_DetailTextureTransform''
 
+// GLOBAL: SWBF2 0x009c8d00
+// s_DetailTextureTransform
 static PblVector4 s_DetailTextureTransform[4][2];
-// GLOBAL: SWBF2 0x009c8d80
 // SYNTHETIC: SWBF2 0x00409700
 // `dynamic initializer for 's_TextureTransform''
 
+// GLOBAL: SWBF2 0x009c8d80
+// s_TextureTransform
 static PblVector4 s_TextureTransform[16][2];
-// GLOBAL: SWBF2 0x009c8ff0
 // SYNTHETIC: SWBF2 0x004096c0
 // `dynamic initializer for 's_NoiseTexTransform''
 
+// GLOBAL: SWBF2 0x009c8ff0
+// s_NoiseTexTransform
 static PblVector4 s_NoiseTexTransform[16];
 // GLOBAL: SWBF2 0x009c90f8
 static RedMaterial s_material;
@@ -198,18 +219,10 @@ static inline void SetVector(pcRedVertexShaderConstantRegister& reg, const PblVe
 // FUNCTION: SWBF2 0x006fcb60
 pcTerrainShader2::pcTerrainShader2()
 {
-    GetStateFuncArray[PIPELINE_FIXED] = 0;
-    GetStateFuncArray[PIPELINE_PROG1] = 0;
-    GetStateFuncArray[PIPELINE_PROG2] = 0;
-    BeginFuncArray[PIPELINE_FIXED] = 0;
-    BeginFuncArray[PIPELINE_PROG1] = 0;
-    BeginFuncArray[PIPELINE_PROG2] = 0;
-    EndFuncArray[PIPELINE_FIXED] = 0;
-    EndFuncArray[PIPELINE_PROG1] = 0;
-    EndFuncArray[PIPELINE_PROG2] = 0;
-    RenderFuncArray[PIPELINE_FIXED] = 0;
-    RenderFuncArray[PIPELINE_PROG1] = 0;
-    RenderFuncArray[PIPELINE_PROG2] = 0;
+    memset(GetStateFuncArray, 0, sizeof(GetStateFuncArray));
+    memset(BeginFuncArray, 0, sizeof(BeginFuncArray));
+    memset(EndFuncArray, 0, sizeof(EndFuncArray));
+    memset(RenderFuncArray, 0, sizeof(RenderFuncArray));
 
     s_uiID = _Register(s_uiRenderTypeHash, this);
 
@@ -347,24 +360,25 @@ unsigned short pcTerrainShader2::GetShaderChain(pcRedShader** const ppOut,
                                                 unsigned short,
                                                 const RenderItem* pItem)
 {
-    if (bLightingEnable && s_PipelineVersion < 2.0f)
+    if (!bLightingEnable || s_PipelineVersion >= 2.0f)
     {
-        m_lightingInSeparatePass = false;
-        const bool bSpecial = (pItem->flags & 0x10220010) != 0;
-        sForceSimpleLighting = RedRenderer::pcGetRenderOptions().mGraphicsTier < 1;
-        sUseHighTierLighting = RedRenderer::pcGetRenderOptions().mGraphicsTier > 1;
-        if (sUseHighTierLighting && !sForceSimpleLighting && !bSpecial)
-        {
-            ppOut[0] = RedRenderer::pcGetSystemShader(SYSTEM_SHADER_PERPIXELDIFFUSELIGHTING);
-            ppOut[1] = this;
-            m_lightingInSeparatePass = true;
-            return 2;
-        }
         ppOut[0] = this;
+        m_lightingInSeparatePass = false;
         return 1;
     }
-    ppOut[0] = this;
+
     m_lightingInSeparatePass = false;
+    const bool bSpecial = (pItem->flags & 0x10220010) != 0;
+    sForceSimpleLighting = RedRenderer::pcGetRenderOptions().mGraphicsTier < 1;
+    sUseHighTierLighting = RedRenderer::pcGetRenderOptions().mGraphicsTier > 1;
+    if (sUseHighTierLighting && !sForceSimpleLighting && !bSpecial)
+    {
+        ppOut[0] = RedRenderer::pcGetSystemShader(SYSTEM_SHADER_PERPIXELDIFFUSELIGHTING);
+        ppOut[1] = this;
+        m_lightingInSeparatePass = true;
+        return 2;
+    }
+    ppOut[0] = this;
     return 1;
 }
 
@@ -415,7 +429,10 @@ void pcTerrainShader2::InitFixedFunctionShaderDef() const
 // FUNCTION: SWBF2 0x006fd230
 bool pcTerrainShader2::IsEnabled()
 {
-    s_Enabled = s_Enabled && RedRenderer::pcGetRenderCaps().pipeline != 0;
+    if (RedRenderer::pcGetRenderCaps().pipeline == PIPELINE_FIXED)
+    {
+        s_Enabled = false;
+    }
     return s_Enabled;
 }
 
@@ -666,14 +683,11 @@ void pcTerrainShader2::_InitDetail(unsigned int uiHash,
 // FUNCTION: SWBF2 0x006fdcc0
 void pcTerrainShader2::_InitDiffuseMap(int iIndex, unsigned int uiHash, const PblVector4& vScale)
 {
-    s_diffuseTextures[iIndex] = uiHash ? RedTexture::s_textureHashTable.Find(uiHash) : 0;
+    s_diffuseTextures[iIndex] = uiHash ? RedTexture::Find(uiHash) : 0;
     const float fHalf = RedTerrain::_fMetersPerPoint * 0.5f;
-    PblVector4 v;
-    v.x = vScale.x;
-    v.y = vScale.y;
-    v.z = fHalf - 0.5f + 0.0f;
-    v.w = -0.5f - fHalf + 0.0f;
-    s_DiffuseTexTransform[iIndex] = v;
+    PblVector4 scaleoff(vScale.x, vScale.y,
+                        fHalf - 0.5f + 0.0f, -0.5f - fHalf + 0.0f);
+    s_DiffuseTexTransform[iIndex] = scaleoff;
 }
 
 // FUNCTION: SWBF2 0x006fdd60
@@ -706,51 +720,53 @@ void pcTerrainShader2::_InitMaps(float fScale)
         s_PipelineVersion = 1.1f;
         return;
     }
-    if (s_PipelineVersion < 2.0f)
+    if (s_PipelineVersion >= 2.0f)
     {
-        return;
+        _InitNoiseMap(0, PblHash("height0"),
+                      PblVector4(1.0f / fScale, 1.0f / fScale, 0.0f, 0.0f), PblVector4(0.0f));
+        _InitNoiseMap(1, PblHash("terrain_amb"),
+                      PblVector4(1.0f / fScale, 1.0f / fScale, 0.0f, 0.0f), PblVector4(0.0f));
+        _InitNoiseMap(3, PblHash("fractal0"),
+                      PblVector4(1.0f / fScale, 1.0f / fScale, 0.0f, 0.0f), PblVector4(0.0f));
+        _InitNoiseMap(4, PblHash("noise0"),
+                      PblVector4(1.1f / fScale, 1.1f / fScale, 0.0f, 0.0f), PblVector4(0.0f));
+        _InitNoiseMap(5, PblHash("noise0"),
+                      PblVector4(2.0f / fScale, 2.0f / fScale, 0.0f, 0.0f), PblVector4(0.0f));
+        _InitNoiseMap(6, PblHash("noise0"),
+                      PblVector4(3.9f / fScale, 3.9f / fScale, 0.0f, 0.0f), PblVector4(0.0f));
+
+        _InitDiffuseMap(0, PblHash("diffuse0"),
+                        PblVector4(99.0f / fScale, 99.0f / fScale, 0.0f, 0.0f));
+        _InitDiffuseMap(1, PblHash("diffuse1"),
+                        PblVector4(99.0f / fScale, 99.0f / fScale, 0.0f, 0.0f));
+        _InitDiffuseMap(2, PblHash("diffuse2"),
+                        PblVector4(99.0f / fScale, 99.0f / fScale, 0.0f, 0.0f));
+        _InitDiffuseMap(3, PblHash("diffuse3"),
+                        PblVector4(99.0f / fScale, 99.0f / fScale, 0.0f, 0.0f));
     }
-
-    const PblVector4 vZero = { 0.0f, 0.0f, 0.0f, 0.0f };
-    const float fInv = 1.0f / fScale;
-    PblVector4 vScale = { fInv, fInv, 0.0f, 0.0f };
-    _InitNoiseMap(0, PblHash("height0"), vScale, vZero);
-    _InitNoiseMap(1, PblHash("terrain_amb"), vScale, vZero);
-    _InitNoiseMap(3, PblHash("fractal0"), vScale, vZero);
-    vScale.x = vScale.y = 1.1f / fScale;
-    _InitNoiseMap(4, PblHash("noise0"), vScale, vZero);
-    vScale.x = vScale.y = 2.0f / fScale;
-    _InitNoiseMap(5, PblHash("noise0"), vScale, vZero);
-    vScale.x = vScale.y = 3.9f / fScale;
-    _InitNoiseMap(6, PblHash("noise0"), vScale, vZero);
-
-    vScale.x = vScale.y = 99.0f / fScale;
-    _InitDiffuseMap(0, PblHash("diffuse0"), vScale);
-    _InitDiffuseMap(1, PblHash("diffuse1"), vScale);
-    _InitDiffuseMap(2, PblHash("diffuse2"), vScale);
-    _InitDiffuseMap(3, PblHash("diffuse3"), vScale);
 }
 
 // FUNCTION: SWBF2 0x006fe140
 void pcTerrainShader2::_InitNoiseMap(int iIndex, unsigned int uiHash,
                                      const PblVector4& vScale, const PblVector4& vOffset)
 {
-    RedTexture* pTexture = uiHash ? RedTexture::s_textureHashTable.Find(uiHash) : 0;
+    RedTexture* pTexture = uiHash ? RedTexture::Find(uiHash) : 0;
     s_noiseTextures[iIndex] = pTexture;
 
     float fWidth = 1.0f;
     float fHeight = 1.0f;
     if (pTexture)
     {
-        fWidth = (float)pTexture->m_uiWidth;
-        fHeight = (float)pTexture->m_uiHeight;
+        fWidth = (float)pTexture->GetWidth();
+        fHeight = (float)pTexture->GetHeight();
     }
     float fBaseWidth = fWidth;
     float fBaseHeight = fHeight;
-    if (s_noiseTextures[0])
+    const RedTexture* basetex = s_noiseTextures[0];
+    if (basetex)
     {
-        fBaseWidth = (float)s_noiseTextures[0]->m_uiWidth;
-        fBaseHeight = (float)s_noiseTextures[0]->m_uiHeight;
+        fBaseWidth = (float)basetex->GetWidth();
+        fBaseHeight = (float)basetex->GetHeight();
     }
 
     PblVector4 v;
@@ -873,18 +889,21 @@ void pcTerrainShader2::_StaticInit() const
     s_material.animationData = 0;
 }
 
-// GLOBAL: SWBF2 0x009c8fcc
 // SYNTHETIC: SWBF2 0x00409560
 // `dynamic initializer for 'pcTerrainShader2::s_Factory''
 // SYNTHETIC: SWBF2 0x00769c00
 // `dynamic atexit destructor for 'pcTerrainShader2::s_Factory''
+
+// GLOBAL: SWBF2 0x009c8fcc
+// pcTerrainShader2::s_Factory
 pcTerrainShader2 pcTerrainShader2::s_Factory;
 
 // GLOBAL: SWBF2 0x009c89a8
 unsigned int g_pcTerrainShader2;
 
-// GLOBAL: SWBF2 0x009c9170
 // SYNTHETIC: SWBF2 0x00409720
 // `dynamic initializer for 's_mProjectionRestore''
 
+// GLOBAL: SWBF2 0x009c9170
+// s_mProjectionRestore
 static PblMatrix s_mProjectionRestore;

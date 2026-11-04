@@ -99,6 +99,13 @@ bool RetailRemove(unsigned int* pTable, int iCount, unsigned int uiHash)
     }
 }
 
+struct HashCode : PblHashTableCode
+{
+    using PblHashTableCode::_Find;
+    using PblHashTableCode::_Store;
+    using PblHashTableCode::_Remove;
+};
+
 int* FakeValue(unsigned int uiKey)
 {
     return (int*)(0x10000 + uiKey * 16);
@@ -107,34 +114,44 @@ int* FakeValue(unsigned int uiKey)
 template <int SLOTS>
 void CheckFullTable(const unsigned int* puiKeys, unsigned int uiAbsent)
 {
-    PblHashTable<int, SLOTS> kTable;
-    kTable.Clear();
+    unsigned int auiTable[2 * SLOTS];
+    memset(auiTable, 0, sizeof(auiTable));
     for (int i = 0; i < SLOTS; ++i)
     {
-        REQUIRE(kTable.Store(puiKeys[i], FakeValue(puiKeys[i])));
+        REQUIRE(HashCode::_Store(auiTable, 2 * SLOTS, puiKeys[i], FakeValue(puiKeys[i])));
     }
     for (int i = 0; i < SLOTS; ++i)
     {
-        CHECK(kTable.Find(puiKeys[i]) == FakeValue(puiKeys[i]));
+        CHECK(HashCode::_Find(auiTable, 2 * SLOTS, puiKeys[i]) == FakeValue(puiKeys[i]));
     }
 
     unsigned int auiBefore[2 * SLOTS];
-    memcpy(auiBefore, kTable._table, sizeof(auiBefore));
+    memcpy(auiBefore, auiTable, sizeof(auiBefore));
 
-    CHECK(kTable.Find(uiAbsent) == (int*)0);
-    CHECK_FALSE(kTable.Store(uiAbsent, FakeValue(uiAbsent)));
-    CHECK_FALSE(kTable.Remove(uiAbsent));
-    CHECK(memcmp(auiBefore, kTable._table, sizeof(auiBefore)) == 0);
+    CHECK(HashCode::_Find(auiTable, 2 * SLOTS, uiAbsent) == (void*)0);
+    CHECK_FALSE(HashCode::_Store(auiTable, 2 * SLOTS, uiAbsent, FakeValue(uiAbsent)));
+    CHECK_FALSE(HashCode::_Remove(auiTable, 2 * SLOTS, uiAbsent));
+    CHECK(memcmp(auiBefore, auiTable, sizeof(auiBefore)) == 0);
 
-    CHECK(kTable.Remove(puiKeys[0]));
-    CHECK(kTable.Find(puiKeys[0]) == (int*)0);
+    CHECK(HashCode::_Remove(auiTable, 2 * SLOTS, puiKeys[0]));
+    CHECK(HashCode::_Find(auiTable, 2 * SLOTS, puiKeys[0]) == (void*)0);
     for (int i = 1; i < SLOTS; ++i)
     {
-        CHECK(kTable.Find(puiKeys[i]) == FakeValue(puiKeys[i]));
+        CHECK(HashCode::_Find(auiTable, 2 * SLOTS, puiKeys[i]) == FakeValue(puiKeys[i]));
     }
-    CHECK(kTable.Store(uiAbsent, FakeValue(uiAbsent)));
-    CHECK(kTable.Find(uiAbsent) == FakeValue(uiAbsent));
-    CHECK(PblHashTable<int, SLOTS>::GetSlotCount() == SLOTS);
+    CHECK(HashCode::_Store(auiTable, 2 * SLOTS, uiAbsent, FakeValue(uiAbsent)));
+    CHECK(HashCode::_Find(auiTable, 2 * SLOTS, uiAbsent) == FakeValue(uiAbsent));
+
+    PblHashTable<int, SLOTS> kTable;
+    for (int i = 0; i < SLOTS; ++i)
+    {
+        kTable.Store(puiKeys[i], FakeValue(puiKeys[i]));
+    }
+    CHECK(kTable.GetNumEntries() == SLOTS);
+    kTable.Store(uiAbsent, FakeValue(uiAbsent));
+    CHECK(kTable.GetNumEntries() == SLOTS);
+    CHECK(kTable.Find(uiAbsent) == (int*)0);
+    CHECK(kTable.GetMaxEntries() == SLOTS);
 }
 
 }
@@ -161,8 +178,8 @@ TEST_CASE("hash table full table probes terminate" * doctest::test_suite("regres
 
 TEST_CASE("hash table non-full probes match retail layout" * doctest::test_suite("regression"))
 {
-    PblHashTable<int, 16> kTable;
-    memset(kTable._table, 0, sizeof(kTable._table));
+    unsigned int auiTable[32];
+    memset(auiTable, 0, sizeof(auiTable));
     unsigned int auiRetail[32];
     memset(auiRetail, 0, sizeof(auiRetail));
 
@@ -181,7 +198,7 @@ TEST_CASE("hash table non-full probes match retail layout" * doctest::test_suite
 
         if (uiKind == 0)
         {
-            CHECK(kTable.Find(uiKey) == (int*)RetailFind(auiRetail, 32, uiKey));
+            CHECK(HashCode::_Find(auiTable, 32, uiKey) == RetailFind(auiRetail, 32, uiKey));
         }
         else if (uiKind == 1)
         {
@@ -189,7 +206,7 @@ TEST_CASE("hash table non-full probes match retail layout" * doctest::test_suite
             {
                 continue;
             }
-            const bool bNew = kTable.Store(uiKey, FakeValue(uiKey));
+            const bool bNew = HashCode::_Store(auiTable, 32, uiKey, FakeValue(uiKey));
             const bool bOld = RetailStore(auiRetail, 32, uiKey, FakeValue(uiKey));
             CHECK(bNew == bOld);
             if (bNew)
@@ -199,7 +216,7 @@ TEST_CASE("hash table non-full probes match retail layout" * doctest::test_suite
         }
         else
         {
-            const bool bNew = kTable.Remove(uiKey);
+            const bool bNew = HashCode::_Remove(auiTable, 32, uiKey);
             const bool bOld = RetailRemove(auiRetail, 32, uiKey);
             CHECK(bNew == bOld);
             if (bNew && uiKey)
@@ -207,6 +224,6 @@ TEST_CASE("hash table non-full probes match retail layout" * doctest::test_suite
                 --iLive;
             }
         }
-        REQUIRE(memcmp(kTable._table, auiRetail, sizeof(auiRetail)) == 0);
+        REQUIRE(memcmp(auiTable, auiRetail, sizeof(auiRetail)) == 0);
     }
 }

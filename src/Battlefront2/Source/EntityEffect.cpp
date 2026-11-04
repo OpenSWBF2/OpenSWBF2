@@ -1,11 +1,16 @@
 #include "EntityEffect.h"
 #include "FLEffect.h"
 
-// GLOBAL: SWBF2 0x01ebbc60
 // SYNTHETIC: SWBF2 0x00402aa0
 // `dynamic initializer for 'EntityEffectClass::rttiHashEntityEffectClass''
+// EntityEffectClass::rttiHashEntityEffectClass
+
+// GLOBAL: SWBF2 0x01ebbc60
+// EntityEffectClass::rttiHashEntityEffectClass
 PblHash EntityEffectClass::rttiHashEntityEffectClass("EntityEffectClass");
-char EntityEffectClass::rttiNameEntityEffectClass[] = "EntityEffectClass";
+// GLOBAL: SWBF2 0x007891c4
+// EntityEffectClass::rttiNameEntityEffectClass
+const char EntityEffectClass::rttiNameEntityEffectClass[] = "EntityEffectClass";
 
 // FUNCTION: SWBF2 0x004a9a00
 EntityEffectClass::EntityEffectClass(unsigned int uHash)
@@ -14,23 +19,11 @@ EntityEffectClass::EntityEffectClass(unsigned int uHash)
     mEffectClass = 0;
 }
 
-// FUNCTION: SWBF2 0x004a99b0
-bool EntityEffectClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashEntityEffectClass || EntityClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x004a99e0
-unsigned int EntityEffectClass::GetDerivedRtti()
-{
-    return rttiHashEntityEffectClass;
-}
 
-// FUNCTION: SWBF2 0x004a99f0
-const char* EntityEffectClass::GetDerivedRttiName()
-{
-    return rttiNameEntityEffectClass;
-}
+
+
+
 
 // SYNTHETIC: SWBF2 0x004a9a30
 // EntityEffectClass::`scalar deleting destructor'

@@ -9,16 +9,50 @@
 
 #include <math.h>
 
-// FUNCTION: SWBF2 0x00694f90
-void PrecipitationEffect::RainShadowRegion::UpdateVisibility(const PblBox& box)
+// FUNCTION: SWBF2 0x00694e20
+void PrecipitationEffect::RainShadowRegion::UpdateVisibility(const RedCamera* pCamera)
 {
-    PblVector3 vCenter((box._vMin.x + box._vMax.x) * 0.5f,
-                       (box._vMin.y + box._vMax.y) * 0.5f,
-                       (box._vMin.z + box._vMax.z) * 0.5f);
-    PblVector3 vExtents(box._vMax.x - vCenter.x,
-                        box._vMax.y - vCenter.y,
-                        box._vMax.z - vCenter.z);
-    m_bVisible = DoesAABoxIntersect(vCenter, vExtents);
+    switch (mType)
+    {
+    case type_sphere:
+        m_bVisible = pCamera->ClassifySphere(mMatrix.GetTranslation(), mSize.w, -1.0f)
+                     != RedCamera::VISIBILITY_NONE;
+        break;
+    case type_box:
+    case type_cylinder:
+        m_bVisible = pCamera->ClassifyBox(mMatrix, mSize) != RedCamera::VISIBILITY_NONE;
+        break;
+    case type_plane:
+        m_bVisible = pCamera->ClassifyPlane(mMatrix.GetZAxis(), mSize.w)
+                     != RedCamera::VISIBILITY_NONE;
+        break;
+    case type_box_aligned:
+    case type_cylinder_yaligned:
+        m_bVisible = pCamera->ClassifyAABox(mMatrix.GetTranslation(), mSize)
+                     != RedCamera::VISIBILITY_NONE;
+        break;
+    case type_cylinder_xaligned:
+        m_bVisible = pCamera->ClassifyAABox(mMatrix.GetTranslation(),
+                                           PblVector3(mSize.y, mSize.x, mSize.x))
+                     != RedCamera::VISIBILITY_NONE;
+        break;
+    case type_cylinder_zaligned:
+        m_bVisible = pCamera->ClassifyAABox(mMatrix.GetTranslation(),
+                                           PblVector3(mSize.x, mSize.x, mSize.y))
+                     != RedCamera::VISIBILITY_NONE;
+        break;
+    default:
+        m_bVisible = false;
+        break;
+    }
+}
+
+// FUNCTION: SWBF2 0x00694f90
+void PrecipitationEffect::RainShadowRegion::UpdateVisibility(const PblBox& bbox)
+{
+    PblVector3 vCenter = (bbox._vMin + bbox._vMax) * 0.5f;
+    PblVector3 vSize = bbox._vMax - vCenter;
+    m_bVisible = DoesAABoxIntersect(vCenter, vSize);
 }
 
 // GLOBAL: SWBF2 0x01eafd74
@@ -596,8 +630,8 @@ void PrecipitationEffect::Update(float fDeltaTime)
         const float fReach = mGroundEffectSpread + 3.0f;
         const PblMatrix& mCamera = CameraManager::sInstance->GetCamera(uCam)->GetMatrix();
         PblBox& box = aBoxes[uCam];
-        box._vMin = *(const PblVector3*)mCamera.m[3];
-        box._vMax = *(const PblVector3*)mCamera.m[3];
+        box._vMin = mCamera.GetTranslation();
+        box._vMax = mCamera.GetTranslation();
 
         const PblVector3 vCentre(mCamera.m[3][0] - fReach * mCamera.m[2][0],
                                  mCamera.m[3][1] - mCamera.m[2][1] * fReach,

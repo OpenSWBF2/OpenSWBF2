@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include <string.h>
 
 #include "Battlefront2/Source/Cloth.h"
@@ -8,21 +9,12 @@
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "RedEngineFL/Graphics/PC/pcRedShader.h"
 #include "RedEngineFL/Application/pc/pcRenderHelpers.h"
-#include "PebbleFL/pc/PblD3DX.h"
+
 
 namespace
 {
 
-struct PosXYZ
-{
-    void SetPos(float fX, float fY, float fZ)
-    {
-        x = fX;
-        y = fY;
-        z = fZ;
-    }
-    float x, y, z;
-};
+
 
 struct NormalXYZ
 {
@@ -35,10 +27,7 @@ struct NormalXYZ
     float x, y, z;
 };
 
-struct TexCoord
-{
-    float u, v;
-};
+
 
 struct ClothVertex
 {
@@ -116,8 +105,7 @@ void EntityCloth::PlatformRender(unsigned char ucViewport, RedColor color, unsig
     if (!(uiFlags & 0x200000)
         && FLRenderer::IsReflected(sphere.GetCenter(), sphere.GetRadius(), mReflection, false))
     {
-        PblMatrix mReflected;
-        D3DXMatrixMultiply(&mReflected, &m_worldMat, &mReflection);
+        PblMatrix mReflected = m_worldMat * mReflection;
         RedRenderer::pcRenderPrimitive(pPrimitive, mData->m_pShader,
                                        mReflected, color,
                                        uiFlags | 0x10000100, 0, 0, 0);

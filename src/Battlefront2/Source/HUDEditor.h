@@ -15,11 +15,14 @@ class RedModel;
 class RedTexture;
 class RawControllerInputs;
 
-namespace HUD { class Element; }
+namespace HUD
+{
+class Element;
+}
 
+namespace HUD
+{
 // VTABLE: SWBF2 0x007a0578
-
-namespace HUD {
 class Editor : public RedInputEventHandler
 {
 public:
@@ -146,7 +149,8 @@ public:
 };
 }
 
-namespace HUD {
+namespace HUD
+{
 
 extern Editor::Mode gEditMode;
 }

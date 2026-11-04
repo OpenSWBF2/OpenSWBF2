@@ -48,10 +48,6 @@ void __cdecl FreeTemp(void* p)
     Globals::smFree(p);
 }
 
-Source3D::~Source3D()
-{
-}
-
 VoiceBase::~VoiceBase()
 {
 }

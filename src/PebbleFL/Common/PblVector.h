@@ -1,11 +1,13 @@
 #pragma once
 
 #include <stddef.h>
+#include <d3dx9math.h>
+#include "PblMath.h"
 #include <cmath>
 
 static_assert(sizeof(sin(1.0f)) == 4, "float math overloads");
 
-class PblVector3
+class PblVector3 : public D3DXVECTOR3
 {
 public:
 
@@ -23,9 +25,7 @@ public:
     // FUNCTION: SWBF2 0x0040c9e0
     PblVector3(const PblVector3& v)
     {
-        x = v.x;
-        y = v.y;
-        z = v.z;
+        *this = v;
     }
 
     // FUNCTION: SWBF2 0x0043ec00
@@ -40,16 +40,29 @@ public:
         return x != v.x || y != v.y || z != v.z;
     }
 
-    // FUNCTION: SWBF2 0x0040ca00
-    float GetX() const { return x; }
-    // FUNCTION: SWBF2 0x0040ca10
-    float GetY() const { return y; }
-    // FUNCTION: SWBF2 0x0040ca20
-    float GetZ() const { return z; }
+    bool operator==(const PblVector3& v) const
+    {
+        return x == v.x && y == v.y && z == v.z;
+    }
 
-    float x;
-    float y;
-    float z;
+    const PblVector3& operator+=(const PblVector3& rhs);
+    const PblVector3& operator-=(const PblVector3& rhs);
+    const PblVector3& operator*=(float rhs);
+    const PblVector3& operator/=(float rhs);
+    const PblVector3 operator-() const;
+
+    float& operator[](int i);
+    float operator[](int i) const;
+    float& operator()(int i);
+    float operator()(int i) const;
+
+    float GetX() const;
+    float GetY() const;
+    float GetZ() const;
+
+    void AddY(float value);
+    void MulY(float value);
+
 };
 
  
@@ -57,12 +70,27 @@ public:
  
  
 
+const PblVector3 operator+(const PblVector3& lhs, const PblVector3& rhs);
+const PblVector3 operator-(const PblVector3& lhs, const PblVector3& rhs);
+const PblVector3 operator*(const PblVector3& lhs, float rhs);
+const PblVector3 operator*(float lhs, const PblVector3& rhs);
+const PblVector3 operator*(const PblVector3& lhs, const PblVector3& rhs);
+const PblVector3 operator/(const PblVector3& lhs, float rhs);
+
+float DotProduct(const PblVector3& vVector1, const PblVector3& vVector2);
+const float Length(const PblVector3& vVector);
+const float LengthXZ(const PblVector3& vVector);
+const float SquaredLength(const PblVector3& vVector);
+const float SquaredLengthXZ(const PblVector3& vVector);
+const PblVector3 CrossProduct(const PblVector3& lhs, const PblVector3& rhs);
+const PblVector3 Normalize(const PblVector3& vVector);
+
+
+
 inline const PblVector3 Interpolate(const PblVector3& v0, const PblVector3& v1, float fT)
 {
     PblVector3 v;
-    v.x = (v1.x - v0.x) * fT + v0.x;
-    v.y = (v1.y - v0.y) * fT + v0.y;
-    v.z = (v1.z - v0.z) * fT + v0.z;
+    D3DXVec3Lerp(&v, &v0, &v1, fT);
     return v;
 }
 
@@ -70,13 +98,17 @@ extern PblVector3 gVectorUnitX;
 extern PblVector3 gVectorUnitY;
 extern PblVector3 gVectorUnitZ;
 
-class PblVector4
+class PblVector4 : public D3DXVECTOR4
 {
 public:
 
     // FUNCTION: SWBF2 0x00463a30
     PblVector4() {}
-    PblVector4(float fX, float fY, float fZ, float fW) : x(fX), y(fY), z(fZ), w(fW) {}
+    PblVector4(float fX, float fY, float fZ, float fW) : D3DXVECTOR4(fX, fY, fZ, fW) {}
+    explicit PblVector4(float fValue);
+
+
+    operator const PblVector3&() const;
 
     void Set(float fX, float fY, float fZ, float fW)
     {
@@ -86,15 +118,14 @@ public:
         w = fW;
     }
 
-    float x;
-    float y;
-    float z;
-    float w;
 };
+
+#include "PebbleFL/pc/pcPblVector.h"
 
 class PblSphere : public PblVector4
 {
 public:
+    // FUNCTION: SWBF2 0x0040fdf0
     const PblVector3& GetCenter() const { return *(const PblVector3*)this; }
     float GetRadius() const { return w; }
 
@@ -102,7 +133,17 @@ public:
     void SetRadius(float fRadius) { w = fRadius; }
 };
 
-const PblVector3 __cdecl NormalizeEst(const PblVector3& rv);
+inline const float LengthEst(const PblVector3& rv)
+{
+    return PblMath::Length3Est(rv.x, rv.y, rv.z);
+}
+
+// FUNCTION: SWBF2 0x004a9b50
+inline const PblVector3 NormalizeEst(const PblVector3& rv)
+{
+    const float length = LengthEst(rv);
+    return length != 0.0f ? rv / length : rv;
+}
 
 class PblBox
 {
@@ -112,8 +153,7 @@ public:
     {
         if (_vMin.x > _vMax.x)
         {
-            _vMax = rv;
-            _vMin = rv;
+            _vMin = _vMax = rv;
             return;
         }
         if (_vMin.x > rv.x)
@@ -147,9 +187,16 @@ public:
     PblBox() {}
 
     explicit PblBox(const PblVector3& rv) : _vMin(rv), _vMax(rv) {}
+    PblBox(const PblVector3& vMin, const PblVector3& vMax) : _vMin(vMin), _vMax(vMax) {}
     // FUNCTION: SWBF2 0x0040c930
     PblBox(float fMinX, float fMinY, float fMinZ, float fMaxX, float fMaxY, float fMaxZ)
-        : _vMin(fMinX, fMinY, fMinZ), _vMax(fMaxX, fMaxY, fMaxZ) {}
+: _vMin(fMinX, fMinY, fMinZ), _vMax(fMaxX, fMaxY, fMaxZ)
+{
+}
+
+    void Set(const PblVector3& vMin, const PblVector3& vMax) { _vMin = vMin; _vMax = vMax; }
+    void SetMin(const PblVector3& rv) { _vMin = rv; }
+    void SetMax(const PblVector3& rv) { _vMax = rv; }
 
     // FUNCTION: SWBF2 0x0040c980
     const PblVector3& GetMin() const { return _vMin; }

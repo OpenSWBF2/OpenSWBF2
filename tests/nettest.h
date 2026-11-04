@@ -15,4 +15,4 @@ void NetStampAndQueue(NetPacket* pPacket, unsigned short uGroup, unsigned char u
 
 void NetDeliverDatagram(const unsigned char* pData, unsigned int uiSize, unsigned int uiPrefix);
 
-bool __fastcall RecvGroup(NetPktGroup* pGroup, NetPacket* pPacket);
+bool __fastcall RecvGroup(NetPktGroup& complete, NetPacket* pPacket);

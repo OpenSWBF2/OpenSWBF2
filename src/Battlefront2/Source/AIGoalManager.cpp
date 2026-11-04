@@ -18,7 +18,8 @@
 #include "NetGame.h"
 #include "TeamManager.h"
 
-namespace AI {
+namespace AI
+{
 
 // FUNCTION: SWBF2 0x0043a1c0
 void AIGoalManager::Create()

@@ -12,11 +12,14 @@ CollisionResult CollisionModel::sCollisionResult;
 CollisionResult CollisionModel::sHostCollisionResult;
 // GLOBAL: SWBF2 0x01eb57e0
 CollisionResult CollisionModel::sClientCollisionResult;
-// GLOBAL: SWBF2 0x01eb53a0
 // SYNTHETIC: SWBF2 0x00402480
 // `dynamic initializer for 'CollisionModel::sHostCollisionMask''
+
+// GLOBAL: SWBF2 0x01eb53a0
+// CollisionModel::sHostCollisionMask
 CollisionMask CollisionModel::sHostCollisionMask[64];
 // GLOBAL: SWBF2 0x007e5f04
+// CollisionModel::sCollisionMask
 CollisionMask (*CollisionModel::sCollisionMask)[64] = &CollisionModel::sHostCollisionMask;
 
 // FUNCTION: SWBF2 0x004621a0
@@ -35,18 +38,7 @@ void CollisionModel::LeaveClient()
     sCollisionResult = sHostCollisionResult;
 }
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
 
-static inline const PblMatrix operator*(const PblMatrix& a, const PblMatrix& b)
-{
-    PblMatrix result;
-    D3DXMatrixMultiply((D3DXMATRIX*)&result, (const D3DXMATRIX*)&a, (const D3DXMATRIX*)&b);
-    return result;
-}
 
 static inline bool IsEmpty(const CollisionMask& mask)
 {
@@ -63,22 +55,14 @@ CollisionModel::CollisionModel()
 {
     mNumBodies = 0;
 
-    mSoftMask.mMask[0] = 0;
-    mSoftMask.mMask[1] = 0;
-    mRigidMask.mMask[0] = 0;
-    mRigidMask.mMask[1] = 0;
-    mStaticMask.mMask[0] = 0;
-    mStaticMask.mMask[1] = 0;
-    mTerrainMask.mMask[0] = 0;
-    mTerrainMask.mMask[1] = 0;
-    mOrdnanceMask.mMask[0] = 0;
-    mOrdnanceMask.mMask[1] = 0;
-    mTowCableMask.mMask[0] = 0;
-    mTowCableMask.mMask[1] = 0;
-    mTargetableMask.mMask[0] = 0;
-    mTargetableMask.mMask[1] = 0;
-    mFlyingOrdnanceMask.mMask[0] = 0;
-    mFlyingOrdnanceMask.mMask[1] = 0;
+    mTerrainMask.ClearAll();
+    mStaticMask.ClearAll();
+    mRigidMask.ClearAll();
+    mSoftMask.ClearAll();
+    mOrdnanceMask.ClearAll();
+    mTowCableMask.ClearAll();
+    mTargetableMask.ClearAll();
+    mFlyingOrdnanceMask.ClearAll();
 
     mDenyFlyerLand = false;
     mDeathOnFlyerLand = false;
@@ -123,22 +107,14 @@ void CollisionModel::ClearAll(bool bDeleteBodies)
         mNumBodies = 0;
     }
 
-    mSoftMask.mMask[0] = 0;
-    mSoftMask.mMask[1] = 0;
-    mRigidMask.mMask[0] = 0;
-    mRigidMask.mMask[1] = 0;
-    mStaticMask.mMask[0] = 0;
-    mStaticMask.mMask[1] = 0;
-    mTerrainMask.mMask[0] = 0;
-    mTerrainMask.mMask[1] = 0;
-    mOrdnanceMask.mMask[0] = 0;
-    mOrdnanceMask.mMask[1] = 0;
-    mTowCableMask.mMask[0] = 0;
-    mTowCableMask.mMask[1] = 0;
-    mTargetableMask.mMask[0] = 0;
-    mTargetableMask.mMask[1] = 0;
-    mFlyingOrdnanceMask.mMask[0] = 0;
-    mFlyingOrdnanceMask.mMask[1] = 0;
+    mTerrainMask.ClearAll();
+    mStaticMask.ClearAll();
+    mRigidMask.ClearAll();
+    mSoftMask.ClearAll();
+    mOrdnanceMask.ClearAll();
+    mTowCableMask.ClearAll();
+    mTargetableMask.ClearAll();
+    mFlyingOrdnanceMask.ClearAll();
 }
 
 // FUNCTION: SWBF2 0x00462520
@@ -471,8 +447,7 @@ bool CollisionModel::PrepareCollision(CollisionObject*, const CollisionModel*, C
         }
         else
         {
-            (*sCollisionMask)[i].mMask[0] = 0;
-            (*sCollisionMask)[i].mMask[1] = 0;
+            (*sCollisionMask)[i].ClearAll();
         }
     }
     return true;
@@ -611,7 +586,7 @@ const PblMatrix& CollisionModel::GetBodyMatrix(int id) const
     {
         return mBody[id]->mMatrix;
     }
-    return _IdentityMatrix;
+    return gMatrixIdentity;
 }
 
 // FUNCTION: SWBF2 0x00463750
@@ -631,7 +606,7 @@ PblMatrix CollisionModel::GetLocalMatrix(int id, const RedPose* pPose) const
     {
         return mBody[id]->GetLocalMatrix(pPose);
     }
-    return _IdentityMatrix;
+    return gMatrixIdentity;
 }
 
 // FUNCTION: SWBF2 0x00463820
@@ -639,11 +614,11 @@ const CollisionMask& CollisionModel::GetCollisionMask(const CollisionObjectType&
 {
     switch (eType)
     {
+    case COLL_STATIC:
+        return mStaticMask;
     case COLL_ASTEROID:
     case COLL_RIGID:
         return mRigidMask;
-    case COLL_STATIC:
-        return mStaticMask;
     case COLL_SPECIAL:
         return mFlyingOrdnanceMask;
     case COLL_TERRAIN:
@@ -711,9 +686,11 @@ CollisionBody* CollisionModel::GetBody(int id)
     return mBody[id];
 }
 
-// GLOBAL: SWBF2 0x01eb55e0
 // SYNTHETIC: SWBF2 0x004024b0
 // `dynamic initializer for 'CollisionModel::sClientCollisionMask''
+
+// GLOBAL: SWBF2 0x01eb55e0
+// CollisionModel::sClientCollisionMask
 CollisionMask CollisionModel::sClientCollisionMask[64];
 
 // SYNTHETIC: SWBF2 0x00478410

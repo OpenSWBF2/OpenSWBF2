@@ -8,66 +8,44 @@ CommandBuildingAnimatedArmedClass::CommandBuildingAnimatedArmedClass(unsigned in
 {
 }
 
-// GLOBAL: SWBF2 0x01eb83c8
 // SYNTHETIC: SWBF2 0x00402640
 // `dynamic initializer for 'CommandBuildingAnimatedArmed::rttiHashCommandBuildingAnimatedArmed''
+// CommandBuildingAnimatedArmed::rttiHashCommandBuildingAnimatedArmed
+
+// GLOBAL: SWBF2 0x01eb83c8
+// CommandBuildingAnimatedArmed::rttiHashCommandBuildingAnimatedArmed
 PblHash CommandBuildingAnimatedArmed::rttiHashCommandBuildingAnimatedArmed("CommandBuildingAnimatedArmed");
-char CommandBuildingAnimatedArmed::rttiNameCommandBuildingAnimatedArmed[] = "CommandBuildingAnimatedArmed";
+// GLOBAL: SWBF2 0x00788bcc
+// CommandBuildingAnimatedArmed::rttiNameCommandBuildingAnimatedArmed
+const char CommandBuildingAnimatedArmed::rttiNameCommandBuildingAnimatedArmed[] = "CommandBuildingAnimatedArmed";
 
-// FUNCTION: SWBF2 0x004767d0
-bool CommandBuildingAnimatedArmed::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashCommandBuildingAnimatedArmed ||
-           uRtti == EntityBuildingAnimatedArmed::rttiHashEntityBuildingAnimatedArmed ||
-           uRtti == EntityBuildingAnimated::rttiHashEntityBuildingAnimated ||
-           uRtti == EntityBuilding::rttiHashEntityBuilding ||
-           uRtti == GameObject::rttiHashGameObject ||
-           uRtti == EntityGeometry::rttiHashEntityGeometry ||
-           uRtti == EntityEx::rttiHashEntityEx ||
-           uRtti == Entity::rttiHashEntity;
-}
 
-// FUNCTION: SWBF2 0x00476830
-unsigned int CommandBuildingAnimatedArmed::GetDerivedRtti() const
-{
-    return rttiHashCommandBuildingAnimatedArmed;
-}
 
-// FUNCTION: SWBF2 0x00476840
-const char* CommandBuildingAnimatedArmed::GetDerivedRttiName() const
-{
-    return rttiNameCommandBuildingAnimatedArmed;
-}
 
-// GLOBAL: SWBF2 0x01eb83cc
+
+
+
 // SYNTHETIC: SWBF2 0x00402650
 // `dynamic initializer for 'CommandBuildingAnimatedArmedClass::rttiHashCommandBuildingAnimatedArmedClass''
+// CommandBuildingAnimatedArmedClass::rttiHashCommandBuildingAnimatedArmedClass
+
+// GLOBAL: SWBF2 0x01eb83cc
+// CommandBuildingAnimatedArmedClass::rttiHashCommandBuildingAnimatedArmedClass
 PblHash CommandBuildingAnimatedArmedClass::rttiHashCommandBuildingAnimatedArmedClass("CommandBuildingAnimatedArmedClass");
-char CommandBuildingAnimatedArmedClass::rttiNameCommandBuildingAnimatedArmedClass[] = "CommandBuildingAnimatedArmedClass";
+// GLOBAL: SWBF2 0x00788bf4
+// CommandBuildingAnimatedArmedClass::rttiNameCommandBuildingAnimatedArmedClass
+const char CommandBuildingAnimatedArmedClass::rttiNameCommandBuildingAnimatedArmedClass[] = "CommandBuildingAnimatedArmedClass";
 
-// FUNCTION: SWBF2 0x00476890
-bool CommandBuildingAnimatedArmedClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashCommandBuildingAnimatedArmedClass ||
-           EntityBuildingAnimatedArmedClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x004768e0
-unsigned int CommandBuildingAnimatedArmedClass::GetDerivedRtti()
-{
-    return rttiHashCommandBuildingAnimatedArmedClass;
-}
 
-// FUNCTION: SWBF2 0x004768f0
-const char* CommandBuildingAnimatedArmedClass::GetDerivedRttiName()
-{
-    return rttiNameCommandBuildingAnimatedArmedClass;
-}
+
+
+
 
 // SYNTHETIC: SWBF2 0x00476b00
 // CommandBuildingAnimatedArmedClass::`scalar deleting destructor'
 // SYNTHETIC: SWBF2 0x00476d93
-// [thunk]:CommandBuildingAnimatedArmedClass::`scalar deleting destructor' adjustor{1712}
+// ??_ECommandBuildingAnimatedArmedClass@@WGLA@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x00476b30
 CommandBuildingAnimatedArmedClass::CommandBuildingAnimatedArmedClass(CommandBuildingAnimatedArmedClass* pBase,
@@ -117,15 +95,15 @@ CommandBuildingAnimatedArmed::~CommandBuildingAnimatedArmed()
 // SYNTHETIC: SWBF2 0x00476860
 // CommandBuildingAnimatedArmed::`scalar deleting destructor'
 // SYNTHETIC: SWBF2 0x00476d6a
-// [thunk]:CommandBuildingAnimatedArmed::`scalar deleting destructor' adjustor{320}
+// ??_ECommandBuildingAnimatedArmed@@WBEA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00476d75
-// [thunk]:CommandBuildingAnimatedArmed::`scalar deleting destructor' adjustor{12}
+// ??_ECommandBuildingAnimatedArmed@@WM@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00476d7d
-// [thunk]:CommandBuildingAnimatedArmed::`scalar deleting destructor' adjustor{512}
+// ??_ECommandBuildingAnimatedArmed@@WCAA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00476d88
-// [thunk]:CommandBuildingAnimatedArmed::`scalar deleting destructor' adjustor{608}
+// ??_ECommandBuildingAnimatedArmed@@WCGA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00476d9e
-// [thunk]:CommandBuildingAnimatedArmed::`scalar deleting destructor' adjustor{148}
+// ??_ECommandBuildingAnimatedArmed@@WJE@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x004769e0
 void CommandBuildingAnimatedArmed::Init()

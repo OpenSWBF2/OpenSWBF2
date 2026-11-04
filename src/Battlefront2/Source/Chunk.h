@@ -33,7 +33,6 @@ class Chunk : public CollisionObject
 {
 public:
     Chunk();
-    virtual ~Chunk();
     virtual const PblVector3& GetPosition() const;
     virtual void SetPosition(const PblVector3& vPos);
     virtual bool CollisionCallback(const CollisionResult* pResult, CollisionObject* pOther,

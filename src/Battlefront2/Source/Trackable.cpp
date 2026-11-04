@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include <math.h>
 #include <stdio.h>
 
@@ -16,7 +17,6 @@
 #include "PebbleFL/Common/PblMatrix.h"
 #include "PebbleFL/Common/PblQuaternion.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x004832d0
 GameObject* Trackable::GetGameObject() { return 0; }
@@ -35,6 +35,7 @@ void Trackable::TrackDeath(int iPlayer, Character* pKiller)
 {
     Tracker::SetDeathTrackable(this, iPlayer, pKiller);
 }
+
 
 PblMatrix DirectionMatrix(const PblVector3& vDir, const PblVector3& vUp, const PblVector3& vPos);
 
@@ -59,7 +60,7 @@ namespace
         return *reinterpret_cast<void* const* const*>(pThis);
     }
 
-    bool GameObject_IsRtti(const GameObject* pObject, unsigned int uRtti)
+    inline bool GameObject_IsRtti(const GameObject* pObject, unsigned int uRtti)
     {
         typedef bool(__thiscall * Fn)(const GameObject*, unsigned int);
         return reinterpret_cast<Fn>(VTable(pObject)[0])(pObject, uRtti);
@@ -77,10 +78,7 @@ namespace
         return reinterpret_cast<Fn>(VTable(pObject)[68])(pObject);
     }
 
-    const PblVector3& Row(const PblMatrix& rMatrix, int iRow)
-    {
-        return *reinterpret_cast<const PblVector3*>(rMatrix.m[iRow]);
-    }
+
 }
 
 static const float Sign(float f)
@@ -154,7 +152,7 @@ void Trackable::SetupCameraTrackMatrixHUDTargeting(PblMatrix& rMatrix)
     {
         PblMatrix mObject = GameObject_GetSmoothedMatrix(GameObject_GetGameObject(pObject));
         PblVector3 vDir(-pControllable->mEyeDir.x, -pControllable->mEyeDir.y, -pControllable->mEyeDir.z);
-        rMatrix = DirectionMatrix(vDir, Row(mObject, 1), pControllable->mEyePoint);
+        rMatrix = DirectionMatrix(vDir, mObject[1], pControllable->mEyePoint);
     }
 }
 
@@ -240,9 +238,9 @@ bool Trackable::CheckFirstPerson(int iPlayer) const
         }
         return false;
     }
-    if (iLocal < 1 && playerJoystickNumbers[11 * iLocal] >= 0)
+    if (iLocal < 1 && PlayerPrefs::mAllUserPrefs[iLocal].mJoystick >= 0)
     {
-        PlayerProfile::tProfile* pProfile = PlayerProfile::GetProfile(playerJoystickNumbers[11 * iLocal]);
+        PlayerProfile::tProfile* pProfile = PlayerProfile::GetProfile(PlayerPrefs::mAllUserPrefs[iLocal].mJoystick);
         if (pProfile)
         {
             if (GetGameObject() && GameObject_IsRtti(GetGameObject(), EntityFlyer::rttiHashEntityFlyer))
@@ -280,9 +278,9 @@ bool Trackable::RenderTrackable(unsigned int uView) const
 void Trackable::SwitchControlView(int iPlayer)
 {
     int iLocal = NetGame::GetJoystickIndex(iPlayer);
-    if (iLocal >= 0 && iLocal < 1 && playerJoystickNumbers[11 * iLocal] >= 0)
+    if (iLocal >= 0 && iLocal < 1 && PlayerPrefs::mAllUserPrefs[iLocal].mJoystick >= 0)
     {
-        PlayerProfile::tProfile* pProfile = PlayerProfile::GetProfile(playerJoystickNumbers[11 * iLocal]);
+        PlayerProfile::tProfile* pProfile = PlayerProfile::GetProfile(PlayerPrefs::mAllUserPrefs[iLocal].mJoystick);
         if (pProfile)
         {
             if (GetGameObject() && GameObject_IsRtti(GetGameObject(), EntityFlyer::rttiHashEntityFlyer))
@@ -326,7 +324,7 @@ CameraTrackSetting::CameraTrackSetting()
 PblVector3 CameraTrackSetting::CalcEyePoint(const PblMatrix& rMatrix)
 {
     PblVector3 vPoint;
-    D3DXVec3TransformCoord(&vPoint, &mCameraEyePointOffset, &rMatrix);
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vPoint), reinterpret_cast<const D3DXVECTOR3*>(&mCameraEyePointOffset), reinterpret_cast<const D3DXMATRIX*>(&rMatrix));
     return vPoint;
 }
 
@@ -334,7 +332,7 @@ PblVector3 CameraTrackSetting::CalcEyePoint(const PblMatrix& rMatrix)
 PblVector3 CameraTrackSetting::CalcCenterPoint(const PblMatrix& rMatrix)
 {
     PblVector3 vPoint;
-    D3DXVec3TransformCoord(&vPoint, &mCameraTrackCenter, &rMatrix);
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vPoint), reinterpret_cast<const D3DXVECTOR3*>(&mCameraTrackCenter), reinterpret_cast<const D3DXMATRIX*>(&rMatrix));
     return vPoint;
 }
 
@@ -342,7 +340,7 @@ PblVector3 CameraTrackSetting::CalcCenterPoint(const PblMatrix& rMatrix)
 PblVector3 CameraTrackSetting::CalcCameraSafePoint(const PblMatrix& rMatrix)
 {
     PblVector3 vPoint;
-    D3DXVec3TransformCoord(&vPoint, &mCameraSafePoint, &rMatrix);
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vPoint), reinterpret_cast<const D3DXVECTOR3*>(&mCameraSafePoint), reinterpret_cast<const D3DXMATRIX*>(&rMatrix));
     return vPoint;
 }
 
@@ -350,7 +348,7 @@ PblVector3 CameraTrackSetting::CalcCameraSafePoint(const PblMatrix& rMatrix)
 PblVector3 CameraTrackSetting::CalcCameraPoint(const PblMatrix& rMatrix, const PblMatrix& rRotation)
 {
     PblVector3 vOffset;
-    D3DXVec3TransformNormal(&vOffset, &mCameraTrackOffset, &rRotation);
+    D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vOffset), reinterpret_cast<const D3DXVECTOR3*>(&mCameraTrackOffset), reinterpret_cast<const D3DXMATRIX*>(&rRotation));
     PblVector3 vCenter = CalcCenterPoint(rMatrix);
     PblVector3 vPoint;
     vPoint.x = vOffset.x + vCenter.x;
@@ -375,7 +373,7 @@ void CameraTrackSetting::SetupCameraTrackMatrixHUDTargeting(PblMatrix& rMatrix, 
                                                             const PblVector3& vAimDir)
 {
     PblVector3 vDir(-vAimDir.x, -vAimDir.y, -vAimDir.z);
-    PblQuaternion qLook = PblQuaternion(DirectionMatrix(vDir, Row(rTarget, 1), gVectorZero));
+    PblQuaternion qLook = PblQuaternion(DirectionMatrix(vDir, rTarget[1], gVectorZero));
 
     float fSin, fCos;
     PblMath::SinCos(&fSin, &fCos, -GetCameraTiltValue() * 0.5f);
@@ -388,17 +386,11 @@ void CameraTrackSetting::SetupCameraTrackMatrixHUDTargeting(PblMatrix& rMatrix, 
     PblQuaternion q = qLook * qTilt;
     PblQuaternion qUnit;
     PblMatrix mCamera;
-    D3DXMatrixRotationQuaternion(&mCamera, D3DXQuaternionNormalize(&qUnit, &q));
-    mCamera.m[3][0] = gVectorZero.x;
-    mCamera.m[3][1] = gVectorZero.y;
-    mCamera.m[3][2] = gVectorZero.z;
-    mCamera.m[3][3] = 1.0f;
+    D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mCamera), D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&qUnit), reinterpret_cast<const D3DXQUATERNION*>(&q)));
+    mCamera.SetTranslation(gVectorZero);
 
     PblVector3 vPoint = CalcCameraPoint(rTarget, mCamera);
-    mCamera.m[3][0] = vPoint.x;
-    mCamera.m[3][1] = vPoint.y;
-    mCamera.m[3][2] = vPoint.z;
-    mCamera.m[3][3] = 1.0f;
+    mCamera.SetTranslation(vPoint);
     rMatrix = mCamera;
 }
 
@@ -416,10 +408,10 @@ void CameraTrackSetting::SetupCameraTrackMatrixHUDTargeting(const CameraTrackSet
     }
 
     PblVector3 vCenter;
-    D3DXVec3TransformCoord(&vCenter, &vTrackCenter, &rTarget);
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vCenter), reinterpret_cast<const D3DXVECTOR3*>(&vTrackCenter), reinterpret_cast<const D3DXMATRIX*>(&rTarget));
 
     PblVector3 vDir(-vAimDir.x, -vAimDir.y, -vAimDir.z);
-    PblQuaternion qLook = PblQuaternion(DirectionMatrix(vDir, Row(rTarget, 1), gVectorZero));
+    PblQuaternion qLook = PblQuaternion(DirectionMatrix(vDir, rTarget[1], gVectorZero));
 
     float fSin, fCos;
     PblMath::SinCos(&fSin, &fCos, fTilt * -0.5f);
@@ -432,16 +424,13 @@ void CameraTrackSetting::SetupCameraTrackMatrixHUDTargeting(const CameraTrackSet
     PblQuaternion q = qLook * qTilt;
     PblQuaternion qUnit;
     PblMatrix mCamera;
-    D3DXMatrixRotationQuaternion(&mCamera, D3DXQuaternionNormalize(&qUnit, &q));
-    mCamera.m[3][0] = gVectorZero.x;
-    mCamera.m[3][1] = gVectorZero.y;
-    mCamera.m[3][2] = gVectorZero.z;
-    mCamera.m[3][3] = 1.0f;
+    D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mCamera), D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&qUnit), reinterpret_cast<const D3DXQUATERNION*>(&q)));
+    mCamera.SetTranslation(gVectorZero);
 
     PblVector3 vOffset;
-    D3DXVec3TransformNormal(&vOffset, &vTrackOffset, &mCamera);
+    D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vOffset), reinterpret_cast<const D3DXVECTOR3*>(&vTrackOffset), reinterpret_cast<const D3DXMATRIX*>(&mCamera));
     PblVector3 vPoint;
-    D3DXVec3TransformCoord(&vPoint, &vTrackCenter, &rTarget);
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vPoint), reinterpret_cast<const D3DXVECTOR3*>(&vTrackCenter), reinterpret_cast<const D3DXMATRIX*>(&rTarget));
     mCamera.m[3][0] = vOffset.x + vPoint.x;
     mCamera.m[3][1] = vOffset.y + vPoint.y;
     mCamera.m[3][2] = vOffset.z + vPoint.z;
@@ -456,14 +445,14 @@ void CameraTrackSetting::SetupCameraTrackMatrix(Trackable* pTrackable, PblMatrix
                                                 const GameObject* pIgnore)
 {
     PblQuaternion qCurrent = PblQuaternion(rMatrix);
-    PblVector3 vCurrent = Row(rMatrix, 3);
+    PblVector3 vCurrent = rMatrix[3];
 
     PblVector3 vCenter = CalcCenterPoint(rTarget);
     PblVector3 vToCenter(vCenter.x - vCurrent.x, vCenter.y - vCurrent.y, vCenter.z - vCurrent.z);
     bool bSnap = vToCenter.x * vToCenter.x + vToCenter.y * vToCenter.y + vToCenter.z * vToCenter.z > 62500.0f;
 
     PblVector3 vDir(-vAimDir.x, -vAimDir.y, -vAimDir.z);
-    PblQuaternion qTarget = PblQuaternion(DirectionMatrix(vDir, Row(rTarget, 1), gVectorZero));
+    PblQuaternion qTarget = PblQuaternion(DirectionMatrix(vDir, rTarget[1], gVectorZero));
 
     float fSin, fCos;
     PblMath::SinCos(&fSin, &fCos, -GetCameraTiltValue() * 0.5f);
@@ -486,11 +475,8 @@ void CameraTrackSetting::SetupCameraTrackMatrix(Trackable* pTrackable, PblMatrix
 
     PblQuaternion qUnit;
     PblMatrix mCamera;
-    D3DXMatrixRotationQuaternion(&mCamera, D3DXQuaternionNormalize(&qUnit, &q));
-    mCamera.m[3][0] = gVectorZero.x;
-    mCamera.m[3][1] = gVectorZero.y;
-    mCamera.m[3][2] = gVectorZero.z;
-    mCamera.m[3][3] = 1.0f;
+    D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mCamera), D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&qUnit), reinterpret_cast<const D3DXQUATERNION*>(&q)));
+    mCamera.SetTranslation(gVectorZero);
 
     PblVector3 vCamera = CalcCameraPoint(rTarget, mCamera);
     PblVector3 vSafe = CalcCameraSafePoint(rTarget);
@@ -498,7 +484,7 @@ void CameraTrackSetting::SetupCameraTrackMatrix(Trackable* pTrackable, PblMatrix
     if (vDelta.x * vDelta.x + vDelta.y * vDelta.y + vDelta.z * vDelta.z > 0.0001f)
     {
         PblVector3 vRay;
-        D3DXVec3Normalize(&vRay, &vDelta);
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vRay), reinterpret_cast<const D3DXVECTOR3*>(&vDelta));
 
         float fNear = 0.0f;
         float fFar = 0.0f;
@@ -510,8 +496,8 @@ void CameraTrackSetting::SetupCameraTrackMatrix(Trackable* pTrackable, PblMatrix
         PblVector3 vNear(vCamera.x - vRay.x * fNear, vCamera.y - vRay.y * fNear, vCamera.z - vRay.z * fNear);
         const GameObject* apIgnore[1] = { pIgnore };
 
-        const PblVector3& vRight = Row(mCamera, 0);
-        const PblVector3& vUp = Row(mCamera, 1);
+        const PblVector3& vRight = mCamera[0];
+        const PblVector3& vUp = mCamera[1];
         PblVector3 vCorner;
         switch (pTrackable->whichCornerToCastForCamera)
         {
@@ -565,10 +551,9 @@ void CameraTrackSetting::SetupCameraTrackMatrix(Trackable* pTrackable, PblMatrix
     if (!bSnap)
     {
         PblVector3 vMove(vCamera.x - vCurrent.x, vCamera.y - vCurrent.y, vCamera.z - vCurrent.z);
-        PblMatrix mInverse;
-        D3DXMatrixInverse(&mInverse, 0, &mCamera);
+        PblMatrix mInverse = mCamera.GetInverse();
         PblVector3 vLocal;
-        D3DXVec3TransformNormal(&vLocal, &vMove, &mInverse);
+        D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vLocal), reinterpret_cast<const D3DXVECTOR3*>(&vMove), reinterpret_cast<const D3DXMATRIX*>(&mInverse));
 
         float fTension = vLocal.x > 0.0f ? mCameraMoveTensionL : mCameraMoveTensionR;
         vLocal.x = (1.0f - expf(-(fTension * fMoveTensionScale * fDeltaTime))) * vLocal.x;
@@ -578,16 +563,13 @@ void CameraTrackSetting::SetupCameraTrackMatrix(Trackable* pTrackable, PblMatrix
         vLocal.z = (1.0f - expf(-(fTension * fMoveTensionScale * fDeltaTime))) * vLocal.z;
 
         PblVector3 vWorld;
-        D3DXVec3TransformNormal(&vWorld, &vLocal, &mCamera);
+        D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vWorld), reinterpret_cast<const D3DXVECTOR3*>(&vLocal), reinterpret_cast<const D3DXMATRIX*>(&mCamera));
         vCamera.x = vCurrent.x + vWorld.x;
         vCamera.y = vCurrent.y + vWorld.y;
         vCamera.z = vWorld.z + vCurrent.z;
     }
 
-    mCamera.m[3][0] = vCamera.x;
-    mCamera.m[3][1] = vCamera.y;
-    mCamera.m[3][2] = vCamera.z;
-    mCamera.m[3][3] = 1.0f;
+    mCamera.SetTranslation(vCamera);
     rMatrix = mCamera;
 }
 
@@ -599,7 +581,7 @@ void CameraTrackSetting::SetupCameraTrackMatrix(Trackable* pTrackable, const Cam
                                                 const GameObject* pIgnore)
 {
     PblQuaternion qCurrent = PblQuaternion(rMatrix);
-    PblVector3 vCurrent = Row(rMatrix, 3);
+    PblVector3 vCurrent = rMatrix[3];
 
     PblVector3 vTrackCenter = Interpolate(rOther.mCameraTrackCenter, mCameraTrackCenter, fBlend);
     PblVector3 vTrackOffset = Interpolate(rOther.mCameraTrackOffset, mCameraTrackOffset, fBlend);
@@ -611,12 +593,12 @@ void CameraTrackSetting::SetupCameraTrackMatrix(Trackable* pTrackable, const Cam
     }
 
     PblVector3 vCenter;
-    D3DXVec3TransformCoord(&vCenter, &vTrackCenter, &rTarget);
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vCenter), reinterpret_cast<const D3DXVECTOR3*>(&vTrackCenter), reinterpret_cast<const D3DXMATRIX*>(&rTarget));
     PblVector3 vToCenter(vCenter.x - vCurrent.x, vCenter.y - vCurrent.y, vCenter.z - vCurrent.z);
     bool bSnap = vToCenter.y * vToCenter.y + vToCenter.x * vToCenter.x + vToCenter.z * vToCenter.z > 22500.0f;
 
     PblVector3 vDir(-vAimDir.x, -vAimDir.y, -vAimDir.z);
-    PblQuaternion qTarget = PblQuaternion(DirectionMatrix(vDir, Row(rTarget, 1), gVectorZero));
+    PblQuaternion qTarget = PblQuaternion(DirectionMatrix(vDir, rTarget[1], gVectorZero));
 
     float fSin, fCos;
     PblMath::SinCos(&fSin, &fCos, fTilt * -0.5f);
@@ -639,25 +621,22 @@ void CameraTrackSetting::SetupCameraTrackMatrix(Trackable* pTrackable, const Cam
 
     PblQuaternion qUnit;
     PblMatrix mCamera;
-    D3DXMatrixRotationQuaternion(&mCamera, D3DXQuaternionNormalize(&qUnit, &q));
-    mCamera.m[3][0] = gVectorZero.x;
-    mCamera.m[3][1] = gVectorZero.y;
-    mCamera.m[3][2] = gVectorZero.z;
-    mCamera.m[3][3] = 1.0f;
+    D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mCamera), D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&qUnit), reinterpret_cast<const D3DXQUATERNION*>(&q)));
+    mCamera.SetTranslation(gVectorZero);
 
     PblVector3 vOffset;
-    D3DXVec3TransformNormal(&vOffset, &vTrackOffset, &mCamera);
+    D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vOffset), reinterpret_cast<const D3DXVECTOR3*>(&vTrackOffset), reinterpret_cast<const D3DXMATRIX*>(&mCamera));
     PblVector3 vPoint;
-    D3DXVec3TransformCoord(&vPoint, &vTrackCenter, &rTarget);
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vPoint), reinterpret_cast<const D3DXVECTOR3*>(&vTrackCenter), reinterpret_cast<const D3DXMATRIX*>(&rTarget));
     PblVector3 vCamera(vOffset.x + vPoint.x, vOffset.y + vPoint.y, vOffset.z + vPoint.z);
     PblVector3 vSafe;
-    D3DXVec3TransformCoord(&vSafe, &vSafePoint, &rTarget);
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vSafe), reinterpret_cast<const D3DXVECTOR3*>(&vSafePoint), reinterpret_cast<const D3DXMATRIX*>(&rTarget));
 
     PblVector3 vDelta(vCamera.x - vSafe.x, vCamera.y - vSafe.y, vCamera.z - vSafe.z);
     if (vDelta.x * vDelta.x + vDelta.y * vDelta.y + vDelta.z * vDelta.z > 0.0001f)
     {
         PblVector3 vRay;
-        D3DXVec3Normalize(&vRay, &vDelta);
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vRay), reinterpret_cast<const D3DXVECTOR3*>(&vDelta));
 
         float fNear = 0.0f;
         float fFar = 0.0f;
@@ -673,8 +652,8 @@ void CameraTrackSetting::SetupCameraTrackMatrix(Trackable* pTrackable, const Cam
 
         float fDistance = CollisionManager::RayHit(vSafe, vNear, pHitObject, 0, apIgnore, bIgnore, 0x90, true);
 
-        const PblVector3& vRight = Row(mCamera, 0);
-        const PblVector3& vUp = Row(mCamera, 1);
+        const PblVector3& vRight = mCamera[0];
+        const PblVector3& vUp = mCamera[1];
         PblVector3 avCorner[4] = {
             PblVector3(vUp.x * 0.4f + vRight.x * 0.4f, vUp.y * 0.4f + vRight.y * 0.4f,
                        vUp.z * 0.4f + vRight.z * 0.4f),
@@ -705,10 +684,9 @@ void CameraTrackSetting::SetupCameraTrackMatrix(Trackable* pTrackable, const Cam
     if (!bSnap)
     {
         PblVector3 vMove(vCamera.x - vCurrent.x, vCamera.y - vCurrent.y, vCamera.z - vCurrent.z);
-        PblMatrix mInverse;
-        D3DXMatrixInverse(&mInverse, 0, &mCamera);
+        PblMatrix mInverse = mCamera.GetInverse();
         PblVector3 vLocal;
-        D3DXVec3TransformNormal(&vLocal, &vMove, &mInverse);
+        D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vLocal), reinterpret_cast<const D3DXVECTOR3*>(&vMove), reinterpret_cast<const D3DXMATRIX*>(&mInverse));
 
         float fTension = vLocal.x > 0.0f ? mCameraMoveTensionL : mCameraMoveTensionR;
         vLocal.x = (1.0f - expf(-(fTension * fMoveTensionScale * fDeltaTime))) * vLocal.x;
@@ -718,16 +696,13 @@ void CameraTrackSetting::SetupCameraTrackMatrix(Trackable* pTrackable, const Cam
         vLocal.z = (1.0f - expf(-(fTension * fMoveTensionScale * fDeltaTime))) * vLocal.z;
 
         PblVector3 vWorld;
-        D3DXVec3TransformNormal(&vWorld, &vLocal, &mCamera);
+        D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vWorld), reinterpret_cast<const D3DXVECTOR3*>(&vLocal), reinterpret_cast<const D3DXMATRIX*>(&mCamera));
         vCamera.x = vCurrent.x + vWorld.x;
         vCamera.y = vWorld.y + vCurrent.y;
         vCamera.z = vWorld.z + vCurrent.z;
     }
 
-    mCamera.m[3][0] = vCamera.x;
-    mCamera.m[3][1] = vCamera.y;
-    mCamera.m[3][2] = vCamera.z;
-    mCamera.m[3][3] = 1.0f;
+    mCamera.SetTranslation(vCamera);
     rMatrix = mCamera;
 }
 
@@ -741,7 +716,7 @@ void CameraTrackSetting::SetupAmbientShift(PblMatrix& rMatrix, PblVector3& vShif
     }
 
     PblVector3 vWorld;
-    D3DXVec3TransformNormal(&vWorld, &vShift, &rMatrix);
+    D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vWorld), reinterpret_cast<const D3DXVECTOR3*>(&vShift), reinterpret_cast<const D3DXMATRIX*>(&rMatrix));
     rMatrix.m[3][0] += vWorld.x;
     rMatrix.m[3][1] += vWorld.y;
     rMatrix.m[3][2] += vWorld.z;

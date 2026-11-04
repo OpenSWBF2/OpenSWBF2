@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "UnitAgent.h"
@@ -41,8 +43,30 @@ public:
     float mWaitTime;
 
     static PblHash rttiHashUnitFlyAgent;
-    static char rttiNameUnitFlyAgent[];
+    static const char rttiNameUnitFlyAgent[];
 };
  
  
  
+
+// FUNCTION: SWBF2 0x006666f0
+inline bool UnitFlyAgent::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashUnitFlyAgent == uRtti)
+    {
+        return true;
+    }
+    return UnitAgent::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x00666720
+inline unsigned int UnitFlyAgent::GetDerivedRtti() const
+{
+    return rttiHashUnitFlyAgent;
+}
+
+// FUNCTION: SWBF2 0x00666730
+inline const char* UnitFlyAgent::GetDerivedRttiName() const
+{
+    return rttiNameUnitFlyAgent;
+}

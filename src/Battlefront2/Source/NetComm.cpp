@@ -28,42 +28,109 @@ public:
     static NetPacket* ReceiveLocal();
 };
 
+struct NetDest
+{
+    bool connected;
+    NetPktGroup outQueue;
+
+    NetSocketPeerRecord mAddress;
+    NetArch arch;
+    float lastRecv;
+    PipeType pipe;
+    int ping;
+    int PLKills;
+    int PLDeaths;
+    int PLCPs;
+    int upBandwidth;
+    int downBandwidth;
+    int nextGroupNum;
+
+    void Init()
+    {
+        ping = 250;
+        PLDeaths = 0;
+        PLKills = 0;
+        upBandwidth = 0x10000;
+        downBandwidth = 0x10000;
+        pipe = PIPE_INTERNET;
+        nextGroupNum = 0;
+    }
+    void Clean()
+    {
+        connected = false;
+        lastRecv = 0.0f;
+        ping = 250;
+        PLDeaths = 0;
+        PLKills = 0;
+        upBandwidth = 0x10000;
+        downBandwidth = 0x10000;
+        pipe = PIPE_INTERNET;
+        nextGroupNum = 0;
+    }
+};
+
+// GLOBAL: SWBF2 0x01fa3d58
+// netLocalIndex
 int netLocalIndex[2];
 
-// GLOBAL: SWBF2 0x01ecc0c0
 // SYNTHETIC: SWBF2 0x00404400
 // `dynamic initializer for 'netDests''
 
+// GLOBAL: SWBF2 0x01ecc0c0
+// netDests
 NetDest netDests[MAX_DESTS];
 
+// GLOBAL: SWBF2 0x01fa3d60
+// netTime
 float netTime;
 
 // GLOBAL: SWBF2 0x01e57a0d
 bool netIsHost;
 
-// GLOBAL: SWBF2 0x01ecd9e0
 // SYNTHETIC: SWBF2 0x00404460
 // `dynamic initializer for 'netTimeBase''
+
+// GLOBAL: SWBF2 0x01ecd9e0
+// netTimeBase
 PblTimeBase netTimeBase;
 
-// GLOBAL: SWBF2 0x007ec248
 // SYNTHETIC: SWBF2 0x00404470
 // `dynamic initializer for 'netTimeStamp''
+
+// GLOBAL: SWBF2 0x007ec248
+// netTimeStamp
 PblTimeBase::Stamp netTimeStamp(&netTimeBase);
 
-// GLOBAL: SWBF2 0x01ecb2a0
 // SYNTHETIC: SWBF2 0x00404490
 // `dynamic initializer for 'inPktGroups''
+
+// GLOBAL: SWBF2 0x01ecb2a0
+// inPktGroups
 NetPktGroup inPktGroups[64];
 
 // GLOBAL: SWBF2 0x01ecb9a0
 NetPktGroup inQueue;
 
-// GLOBAL: SWBF2 0x01ecb9c0
+#pragma pack(push, 4)
+struct JoinSlot
+{
+    float reqTime;
+    NetSocketPeerRecord addr;
+};
+#pragma pack(pop)
+
+static_assert(sizeof(JoinSlot) == 28, "JoinSlot size");
+static_assert(__alignof(JoinSlot) == 4, "JoinSlot alignment");
+static_assert(offsetof(JoinSlot, reqTime) == 0, "JoinSlot request time offset");
+static_assert(offsetof(JoinSlot, addr) == 4, "JoinSlot address offset");
+
 // SYNTHETIC: SWBF2 0x00404430
 // `dynamic initializer for 'joinSlots''
 
-NetJoinSlot joinSlots[64];
+// GLOBAL: SWBF2 0x01ecb9c0
+// joinSlots
+static JoinSlot joinSlots[64];
+static_assert(sizeof(joinSlots) == 1792, "joinSlots array size");
 
 // GLOBAL: SWBF2 0x01fa3d48
 unsigned __int64 lastTicks;
@@ -79,9 +146,6 @@ int bwPercent = 100;
 
 extern int TEMP_bandwith;
 
-// GLOBAL: SWBF2 0x01ecd914
-int gInternetBandwidthScale;
-
 extern int bps[PIPE_MAX];
 extern float sendBits[PIPE_MAX];
 
@@ -90,21 +154,30 @@ int inBytes;
 // GLOBAL: SWBF2 0x01e62e8c
 int netOutBytes;
 
+// FUNCTION: SWBF2 0x005b2370
+inline bool IsSame(const void* pLeft, const void* pRight)
+{
+    if (NetComm::IsLAN())
+    {
+        int leftIP, leftPort, rightIP, rightPort;
+        NetSocket::GetAddr(pLeft, leftIP, leftPort);
+        NetSocket::GetAddr(pRight, rightIP, rightPort);
+        return leftIP == rightIP && leftPort == rightPort;
+    }
+    const unsigned int* pA = (const unsigned int*)pLeft;
+    const unsigned int* pB = (const unsigned int*)pRight;
+    return pA[0] == pB[0] && pA[1] == pB[1];
+}
+
 // FUNCTION: SWBF2 0x005b23d0
 void NetComm::Init()
 {
     netLocalIndex[0] = -1;
     netLocalIndex[1] = -1;
 
-    for (int i = 0; i < MAX_DESTS; i++)
+    for (int i = 0; i < _countof(netDests); i++)
     {
-        netDests[i].pipe = PIPE_INTERNET;
-        netDests[i].ping = 250;
-        netDests[i].PLKills = 0;
-        netDests[i].PLDeaths = 0;
-        netDests[i].upBandwidth = 0x10000;
-        netDests[i].downBandwidth = 0x10000;
-        netDests[i].nextGroupNum = 0;
+        netDests[i].Init();
     }
 
     NetSocket::StartSockets();
@@ -132,28 +205,24 @@ void NetComm::Create(bool bMission)
     netOutBytes = 0;
 
     const float fTime = GetTime();
-    for (int i = 0; i < MAX_DESTS; i++)
+    for (int i = 0; i < _countof(netDests); i++)
     {
         NetDest& dest = netDests[i];
-        dest.nextGroupNum = 0;
         if (!bMission)
         {
-            dest.connected = false;
-            dest.lastRecv = 0.0f;
-            dest.ping = 250;
-            dest.PLDeaths = 0;
-            dest.PLKills = 0;
-            dest.upBandwidth = 0x10000;
-            dest.downBandwidth = 0x10000;
-            dest.pipe = PIPE_INTERNET;
+            dest.Clean();
             dest.arch = GetMyArch();
+        }
+        else
+        {
+            dest.nextGroupNum = 0;
         }
         dest.outQueue.Reset();
         dest.lastRecv = fTime;
     }
 
     inQueue.Reset();
-    for (int i = 0; i < 64; i++)
+    for (unsigned int i = 0; i < _countof(inPktGroups); i++)
     {
         inPktGroups[i].Reset();
     }
@@ -206,7 +275,7 @@ void NetComm::EndShell()
 void NetComm::BeginShell()
 {
     const float fTime = GetTime();
-    for (int i = 0; i < MAX_DESTS; ++i)
+    for (int i = 0; i < _countof(netDests); ++i)
     {
         netDests[i].lastRecv = fTime;
     }
@@ -306,8 +375,6 @@ float NetComm::GetTime()
     return netTime;
 }
 
-bool IsSame(const void* pLeft, const void* pRight);
-
 // FUNCTION: SWBF2 0x005b2ce0
 bool NetCommP::SameAddr(int iDest, int iOther)
 {
@@ -320,7 +387,13 @@ bool NetCommP::SameAddr(int iDest, int iOther)
     {
         return false;
     }
-    return IsSame(NetCommP::GetAddr(iDest), NetCommP::GetAddr(iOther));
+    const unsigned __int64* pLeft = (unsigned int)iDest < MAX_DESTS
+        ? &netDests[iDest].mAddress.mGalaxyId.value
+        : &joinSlots[iDest - 69].addr.mGalaxyId.value;
+    const unsigned __int64* pRight = (unsigned int)iOther < MAX_DESTS
+        ? &netDests[iOther].mAddress.mGalaxyId.value
+        : &joinSlots[iOther - 69].addr.mGalaxyId.value;
+    return IsSame(pLeft, pRight);
 }
 
 // FUNCTION: SWBF2 0x005b2d80
@@ -409,29 +482,20 @@ unsigned __int64* __fastcall NetCommP::GetAddr(int iDest)
 {
     if ((unsigned int)iDest < MAX_DESTS)
     {
-        return &netDests[iDest].mPeer.mGalaxyId;
+        return &netDests[iDest].mAddress.mGalaxyId.value;
     }
-    if (iDest == MAX_DESTS)
-    {
-        return (unsigned __int64*)&inPktGroups[63].lastPkt;
-    }
-    if (iDest == MAX_DESTS + 1)
-    {
-        return (unsigned __int64*)&inQueue.lastPkt;
-    }
-
-    return &joinSlots[iDest - 69].mPeer.mGalaxyId;
+    return &joinSlots[iDest - 69].addr.mGalaxyId.value;
 }
 
 const NetSocketPeerRecord* NetCommP::GetPeer(int iDest)
 {
     if ((unsigned int)iDest < MAX_DESTS)
     {
-        return &netDests[iDest].mPeer;
+        return &netDests[iDest].mAddress;
     }
     if (iDest >= 69 && iDest < 69 + 64)
     {
-        return &joinSlots[iDest - 69].mPeer;
+        return &joinSlots[iDest - 69].addr;
     }
     return 0;
 }
@@ -462,18 +526,15 @@ unsigned __int64* __fastcall CopyEnteredLobbyId(unsigned __int64* pID)
 }
 
 // FUNCTION: SWBF2 0x00618560
-unsigned short __fastcall NetSocket::SetAddr(void* pDest, unsigned int uIP, unsigned short uPort)
+void NetSocket::SetAddr(NetSocketPeerRecord& peer, int ip, int port)
 {
-    NetSocketPeerRecord* pPeer = (NetSocketPeerRecord*)pDest;
-    sockaddr_in* pAddr = (sockaddr_in*)pPeer->mSocketAddress;
-    pAddr->sin_family = AF_INET;
-    pAddr->sin_addr.s_addr = uIP;
-    pAddr->sin_port = htons(uPort);
-    return pAddr->sin_port;
+    peer.mSocketAddress.sin_family = AF_INET;
+    peer.mSocketAddress.sin_addr.s_addr = ip;
+    peer.mSocketAddress.sin_port = htons(port);
 }
 
 // FUNCTION: SWBF2 0x005b2300
-galaxy::api::IMatchmaking* GetGalaxyMatchmakingForNetComm()
+void* GetGalaxyMatchmakingForNetComm()
 {
     if (!galaxy::api::GalaxyFactory::GetInstance())
     {
@@ -484,7 +545,7 @@ galaxy::api::IMatchmaking* GetGalaxyMatchmakingForNetComm()
 }
 
 // FUNCTION: SWBF2 0x005b2320
-galaxy::api::INetworking* GetGalaxyNetworkingForNetComm()
+void* GetGalaxyNetworkingForNetComm()
 {
     if (!galaxy::api::GalaxyFactory::GetInstance())
     {
@@ -498,13 +559,13 @@ galaxy::api::INetworking* GetGalaxyNetworkingForNetComm()
 int NetComm::GetPing(int iDest)
 {
     NetDest& dest = netDests[iDest];
-    const unsigned __int64 peer = dest.mPeer.mGalaxyId;
+    const unsigned __int64 peer = dest.mAddress.mGalaxyId.ToUint64();
     if (!peer)
     {
         return dest.ping;
     }
-    galaxy::api::INetworking* pNetworking = GetGalaxyNetworkingForNetComm();
-    int iPing = pNetworking->GetPingWith(galaxy::api::GalaxyID(peer));
+    void* pNetworking = GetGalaxyNetworkingForNetComm();
+    int iPing = ((galaxy::api::INetworking*)pNetworking)->GetPingWith(galaxy::api::GalaxyID(peer));
     return iPing < 0 ? dest.ping : iPing;
 }
 
@@ -522,9 +583,12 @@ void NetComm::GetBandwidth(int iDest, int& iUp, int& iDown)
 void DoSends();
 void DoRecvs();
 void __fastcall SendLow(NetPacket* pPacket);
-bool __fastcall RecvGroup(NetPktGroup* pGroup, NetPacket* pPacket);
+bool __fastcall RecvGroup(NetPktGroup& group, NetPacket* pPacket);
 void __fastcall HandleCommPacketOut(NetPacket* pPacket);
-namespace gf { bool checkError(); }
+namespace gf
+{
+bool checkError();
+}
 
 // FUNCTION: SWBF2 0x005b2740
 void NetComm::Update()
@@ -538,7 +602,7 @@ void NetComm::Send(int iDest, PktType uType, NetPacket* pPacket)
 {
     Header(pPacket).src = (unsigned char)iDest;
     Header(pPacket).type = uType;
-    if (iDest < MAX_DESTS)
+    if ((unsigned int)iDest < MAX_DESTS)
     {
         netDests[iDest].outQueue.PushBack(pPacket);
     }
@@ -553,29 +617,27 @@ void NetComm::Send(int iDest, PktType uType, NetPacket* pPacket)
 // FUNCTION: SWBF2 0x005b2900
 void NetComm::Send(int iDest, int uType, NetPktGroup* pGroup)
 {
-    unsigned short uSequence = 0;
-    if (iDest < MAX_DESTS)
+    int uSequence = 0;
+    if ((unsigned int)iDest < MAX_DESTS)
     {
-        uSequence = (unsigned short)netDests[iDest].nextGroupNum++;
+        uSequence = netDests[iDest].nextGroupNum++;
     }
     const int iCount = pGroup->pktCount;
     for (int i = 0; i < iCount; ++i)
     {
         NetPacket* pPacket = pGroup->PopFront();
-        Header(pPacket).count = (unsigned char)iCount;
-        Header(pPacket).group = uSequence;
-        Header(pPacket).idx = (unsigned char)i;
+        SetGroup(pPacket, uSequence, i, iCount);
         NetComm::Send(iDest, (PktType)uType, pPacket);
     }
 }
 
 // FUNCTION: SWBF2 0x005b2a60
-bool NetComm::Recv(NetPktGroup* pGroup, int eType)
+bool NetComm::Recv(NetPktGroup& group, PktType eType)
 {
-    for (NetPacket* pPacket = NetComm::Recv((PktType)eType, PKT_NONE);
-         pPacket; pPacket = NetComm::Recv((PktType)eType, PKT_NONE))
+    for (NetPacket* pPacket = NetComm::Recv(eType, PKT_NONE);
+         pPacket; pPacket = NetComm::Recv(eType, PKT_NONE))
     {
-        if (RecvGroup(pGroup, pPacket))
+        if (RecvGroup(group, pPacket))
         {
             return true;
         }
@@ -584,14 +646,14 @@ bool NetComm::Recv(NetPktGroup* pGroup, int eType)
 }
 
 // FUNCTION: SWBF2 0x005b2aa0
-void __fastcall ClearGroup(NetPktGroup* pGroup, int iDest)
+void __fastcall ClearGroup(NetPktGroup& group, int iDest)
 {
-    for (NetPacket* pPacket = pGroup->GetFront(); pPacket; )
+    for (NetPacket* pPacket = group.GetFront(); pPacket; )
     {
-        NetPacket* pNext = NetPacket::Get(pPacket->mNextPkt);
-        if (NetComm::Header(pPacket).src == iDest)
+        NetPacket* pNext = pPacket->GetNext();
+        if (GetSrc(pPacket) == iDest)
         {
-            pGroup->Remove(pPacket);
+            group.Remove(pPacket);
         }
         pPacket = pNext;
     }
@@ -600,36 +662,62 @@ void __fastcall ClearGroup(NetPktGroup* pGroup, int iDest)
 // FUNCTION: SWBF2 0x005b2af0
 void NetComm::Disconnect(int iDest)
 {
-    ClearGroup(&inQueue, iDest);
-    for (int i = 0; i < 64; ++i)
+    ClearGroup(inQueue, iDest);
+    for (int i = 0; i < _countof(inPktGroups); ++i)
     {
-        ClearGroup(&inPktGroups[i], iDest);
+        ClearGroup(inPktGroups[i], iDest);
     }
-    NetDest& dest = netDests[iDest];
-    dest.connected = false;
-    dest.lastRecv = 0.0f;
-    dest.ping = 250;
-    dest.PLDeaths = 0;
-    dest.PLKills = 0;
-    dest.upBandwidth = 0x10000;
-    dest.downBandwidth = 0x10000;
-    dest.pipe = PIPE_INTERNET;
-    dest.nextGroupNum = 0;
-    unsigned __int64* pPeer = &dest.mPeer.mGalaxyId;
-    if (iDest == 64 && *pPeer)
+    netDests[iDest].Clean();
+    if (iDest == 64 && netDests[iDest].mAddress.mGalaxyId.value)
     {
-        galaxy::api::IMatchmaking* pInterface = GetGalaxyMatchmakingForNetComm();
-        pInterface->LeaveLobby(galaxy::api::GalaxyID(*pPeer));
+        void* pInterface = GetGalaxyMatchmakingForNetComm();
+        ((galaxy::api::IMatchmaking*)pInterface)->LeaveLobby(galaxy::api::GalaxyID(netDests[iDest].mAddress.mGalaxyId.value));
         gf::checkError();
     }
-    *pPeer = 0;
-    NetSocket::SetAddr(pPeer, 0, 0);
+    netDests[iDest].mAddress.mGalaxyId.value = 0;
+    NetSocket::SetAddr(netDests[iDest].mAddress, 0, 0);
 }
+
+// GLOBAL: SWBF2 0x01e62e98
+int freeGroupCycle;
+
+// FUNCTION: SWBF2 0x005b2be0
+void NetCommP::FreePackets()
+{
+    if (inQueue.pktCount)
+    {
+        unsigned int iCycle = (unsigned int)freeGroupCycle;
+        inPktGroups[iCycle].Free();
+        freeGroupCycle = iCycle < 64 ? iCycle : 0;
+        for (int i = 0; i < 64; ++i)
+        {
+            NetPacket* pPacket = inQueue.PopFront();
+            if (!pPacket)
+            {
+                break;
+            }
+            pPacket->Free();
+        }
+    }
+    else
+    {
+        inQueue.Free();
+        for (int i = 0; i < _countof(netDests); ++i)
+        {
+            netDests[i].outQueue.Free();
+        }
+        for (int i = 0; i < _countof(inPktGroups); ++i)
+        {
+            inPktGroups[i].Free();
+        }
+    }
+}
+
 
 // FUNCTION: SWBF2 0x005b2e30
 void __fastcall SendLow(NetPacket* pPacket)
 {
-    const unsigned int iDest = NetComm::Header(pPacket).src;
+    const unsigned int iDest = GetSrc(pPacket);
     HandleCommPacketOut(pPacket);
     NetDrag::Send(pPacket, iDest);
     if (iDest < MAX_DESTS && iDest != 64)
@@ -652,12 +740,11 @@ void __fastcall PackHeader(NetPacket* pPacket)
 {
     pPacket->mCommIndex = pPacket->mDataIndex - 5;
     pPacket->mCurIndex = (signed char)pPacket->mCommIndex;
-    const unsigned int a = *(unsigned int*)&NetComm::Header(pPacket).group;
-    const unsigned int b = *(unsigned int*)&NetComm::Header(pPacket).idx;
-    pPacket->Write((unsigned char)(a >> 16));
-    pPacket->Write((unsigned short)a);
-    pPacket->Write((unsigned char)b);
-    pPacket->Write((unsigned char)((b >> 8) | (((b >> 16) & 0xff) ? 0x80 : 0)));
+    NetComm::PktHeader header = NetComm::Header(pPacket);
+    pPacket->Write(header.type);
+    pPacket->Write(header.group);
+    pPacket->Write(header.idx);
+    pPacket->Write((unsigned char)(header.count | (header.compressed ? 0x80 : 0)));
 }
 
 // FUNCTION: SWBF2 0x005b3130
@@ -673,7 +760,7 @@ void __fastcall CleanGroups(int iDest, int iSequence)
     {
         iOld += 0x10000;
     }
-    for (int i = 0; i < 64; ++i)
+    for (int i = 0; i < _countof(inPktGroups); ++i)
     {
         NetPktGroup& group = inPktGroups[i];
         if (!group.pktCount)
@@ -700,22 +787,20 @@ static const int kMaxFragments = 64;
 static const int kMaxPartialPerSource = 8;
 
 // FUNCTION: SWBF2 0x005b2f90
-bool __fastcall RecvGroup(NetPktGroup* pComplete, NetPacket* pPacket)
+bool __fastcall RecvGroup(NetPktGroup& complete, NetPacket* pPacket)
 {
-    const NetComm::PktHeader& header = NetComm::Header(pPacket);
-    const unsigned short uSequence = header.group;
-    const unsigned char uType = header.type;
-    const unsigned char uDest = header.src;
-    const unsigned char uFragment = header.idx;
-    const unsigned char uCount = header.count;
-    CleanGroups(uDest, uSequence);
-    if (uCount == 1 && uFragment == 0)
+    CleanGroups(NetComm::Header(pPacket).src, NetComm::Header(pPacket).group);
+    if (NetComm::Header(pPacket).count == 1 && NetComm::Header(pPacket).idx == 0)
     {
         pPacket->mNextPkt = pPacket->mPrevPkt = -1;
-        pComplete->Set(pPacket);
+        complete.Set(pPacket);
         return true;
     }
 
+    const unsigned short uSequence = NetComm::Header(pPacket).group;
+    const unsigned char uDest = NetComm::Header(pPacket).src;
+    const unsigned char uFragment = NetComm::Header(pPacket).idx;
+    const unsigned char uCount = NetComm::Header(pPacket).count;
     if (uCount == 0 || uFragment >= uCount || uCount > kMaxFragments)
     {
         const int iReason = uCount == 0 ? NET_REJECT_FRAG_COUNT_ZERO
@@ -726,7 +811,7 @@ bool __fastcall RecvGroup(NetPktGroup* pComplete, NetPacket* pPacket)
     }
 
     NetPktGroup* pPartial = 0;
-    for (int i = 0; i < 64; ++i)
+    for (int i = 0; i < _countof(inPktGroups); ++i)
     {
         NetPktGroup& group = inPktGroups[i];
         if (!group.pktCount)
@@ -734,9 +819,9 @@ bool __fastcall RecvGroup(NetPktGroup* pComplete, NetPacket* pPacket)
             continue;
         }
         NetPacket* pFirst = NetPacket::Get(group.firstPkt);
-        if (NetComm::Header(pFirst).group == uSequence &&
-            NetComm::Header(pFirst).type == uType &&
-            NetComm::Header(pFirst).src == uDest)
+        if (NetComm::Header(pFirst).group == NetComm::Header(pPacket).group &&
+            NetComm::Header(pFirst).type == NetComm::Header(pPacket).type &&
+            NetComm::Header(pFirst).src == NetComm::Header(pPacket).src)
         {
             pPartial = &group;
             break;
@@ -744,7 +829,7 @@ bool __fastcall RecvGroup(NetPktGroup* pComplete, NetPacket* pPacket)
     }
     if (!pPartial)
     {
-        for (int i = 0; i < 64; ++i)
+        for (int i = 0; i < _countof(inPktGroups); ++i)
         {
             if (!inPktGroups[i].pktCount)
             {
@@ -797,7 +882,7 @@ bool __fastcall RecvGroup(NetPktGroup* pComplete, NetPacket* pPacket)
         for (int i = 0; i < iPackets; ++i)
         {
             NetPacket* pNext = NetPacket::Get(pCur->mNextPkt);
-            if (NetComm::Header(pCur).idx == uFragment)
+            if (NetComm::Header(pCur).idx == NetComm::Header(pPacket).idx)
             {
                 pPartial->Remove(pCur);
                 pCur->Free();
@@ -806,7 +891,7 @@ bool __fastcall RecvGroup(NetPktGroup* pComplete, NetPacket* pPacket)
         }
     }
     pPartial->PushBack(pPacket);
-    if (pPartial->pktCount != uCount)
+    if (pPartial->pktCount != NetComm::Header(pPacket).count)
     {
         return false;
     }
@@ -832,10 +917,10 @@ bool __fastcall RecvGroup(NetPktGroup* pComplete, NetPacket* pPacket)
         }
         apSlots[uSlot] = pNext;
     }
-    pComplete->Reset();
+    complete.Reset();
     for (int i = 0; i < uCount; ++i)
     {
-        pComplete->PushBack(apSlots[i]);
+        complete.PushBack(apSlots[i]);
     }
     return true;
 }
@@ -872,20 +957,7 @@ int NetComm::GetDirectPort()
     return netDirectPort;
 }
 
-// FUNCTION: SWBF2 0x005b2370
-bool IsSame(const void* pLeft, const void* pRight)
-{
-    if (NetComm::IsLAN())
-    {
-        int leftIP, leftPort, rightIP, rightPort;
-        NetSocket::GetAddr(pLeft, leftIP, leftPort);
-        NetSocket::GetAddr(pRight, rightIP, rightPort);
-        return leftIP == rightIP && leftPort == rightPort;
-    }
-    const unsigned int* pA = (const unsigned int*)pLeft;
-    const unsigned int* pB = (const unsigned int*)pRight;
-    return pA[0] == pB[0] && pA[1] == pB[1];
-}
+
 
 // FUNCTION: SWBF2 0x005b2a10
 NetPacket* NetComm::RecvRange(int iFirstType, int iLastType)
@@ -893,7 +965,7 @@ NetPacket* NetComm::RecvRange(int iFirstType, int iLastType)
     for (NetPacket* pPkt = NetPacket::Get(inQueue.firstPkt); pPkt;
          pPkt = NetPacket::Get(pPkt->mNextPkt))
     {
-        int iType = NetComm::Header(pPkt).type;
+        int iType = (unsigned char)pPkt->mData[2];
         if (iType >= iFirstType && iType <= iLastType)
         {
             inQueue.Remove(pPkt);
@@ -952,7 +1024,7 @@ NetPacket* NetComm::Recv(PktType eType, PktType eType2)
 {
     for (NetPacket* pPkt = NetPacket::Get(inQueue.firstPkt); pPkt; pPkt = NetPacket::Get(pPkt->mNextPkt))
     {
-        const int iType = NetComm::Header(pPkt).type;
+        const int iType = (unsigned char)pPkt->mData[2];
         if (iType == eType || iType == eType2)
         {
             inQueue.Remove(pPkt);
@@ -962,7 +1034,8 @@ NetPacket* NetComm::Recv(PktType eType, PktType eType2)
     return 0;
 }
 
-// FUNCTION: SWBF2 0x005b3930
+// TEMPLATE: SWBF2 0x005b3930
+// PblJournal::Record<unsigned __int64>
 template void PblJournal::Record<unsigned __int64>(unsigned __int64& value, PblJournalType type);
 
 // FUNCTION: SWBF2 0x005b26d0
@@ -972,68 +1045,60 @@ bool NetComm::IsLAN()
 }
 
 // FUNCTION: SWBF2 0x005b36b0
-int NetComm::SetBandwidthPercent()
+void NetComm::SetBandwidthPercent(int percent)
 {
-    bwPercent = TEMP_bandwith;
+    bwPercent = percent;
     sendBits[PIPE_INTERNET] = 0.0f;
-    bps[PIPE_INTERNET] = TEMP_bandwith * gInternetBandwidthScale / 100;
-    return bps[PIPE_INTERNET];
+    bps[PIPE_INTERNET] = percent * netDests[64].upBandwidth / 100;
 }
 
 // FUNCTION: SWBF2 0x005b3700
-int __fastcall FindSource(const NetSocketPeerRecord* pSource, unsigned int uType)
+int __fastcall FindSource(const void* pSource, unsigned int uType)
 {
-    unsigned int uIP = (unsigned int)pSource->mGalaxyId;
-    unsigned int uPort = (unsigned int)(pSource->mGalaxyId >> 32);
-    unsigned int iDest = RoutesToHostDestination(uType) ? 64 : 0;
-
-    if (iDest == 64 && !NetComm::IsLAN())
+    NetSocketPeerRecord address = *static_cast<const NetSocketPeerRecord*>(pSource);
+    int iDest = 0;
+    if (RoutesToHostDestination(uType))
     {
-        unsigned __int64 peerID;
-        CopyEnteredLobbyId(&peerID);
-        galaxy::api::IMatchmaking* pInterface = GetGalaxyMatchmakingForNetComm();
-        galaxy::api::GalaxyID mappedID =
-            pInterface->GetLobbyOwner(galaxy::api::GalaxyID(peerID));
-        if (mappedID.value == pSource->mGalaxyId)
+        iDest = 64;
+        if (!NetComm::IsLAN())
         {
-            uIP = (unsigned int)peerID;
-            uPort = (unsigned int)(peerID >> 32);
+            unsigned __int64 peerID;
+            CopyEnteredLobbyId(&peerID);
+            void* pInterface = GetGalaxyMatchmakingForNetComm();
+            if (((galaxy::api::IMatchmaking*)pInterface)->GetLobbyOwner(galaxy::api::GalaxyID(peerID)) ==
+                static_cast<const NetSocketPeerRecord*>(pSource)->mGalaxyId)
+            {
+                address.mGalaxyId.value = peerID;
+            }
         }
     }
 
-    for (; iDest < MAX_DESTS; ++iDest)
+    for (; iDest < _countof(netDests); ++iDest)
     {
-        const NetSocketPeerRecord* pAddress = &netDests[iDest].mPeer;
         if (NetComm::IsLAN())
         {
             int sourceIP, sourcePort, destIP, destPort;
-            NetSocket::GetAddr(pSource, sourceIP, sourcePort);
-            NetSocket::GetAddr(pAddress, destIP, destPort);
+            NetSocket::GetAddr(&address, sourceIP, sourcePort);
+            NetSocket::GetAddr(&netDests[iDest].mAddress, destIP, destPort);
             if (sourceIP == destIP && sourcePort == destPort)
             {
                 return iDest;
             }
         }
-        else
+        else if (address.mGalaxyId.value == netDests[iDest].mAddress.mGalaxyId.value)
         {
-            const unsigned __int64 uiPeer = pAddress->mGalaxyId;
-            if (uIP == (unsigned int)uiPeer && uPort == (unsigned int)(uiPeer >> 32))
-            {
-                return iDest;
-            }
+            return iDest;
         }
     }
     return -1;
 }
 
 // FUNCTION: SWBF2 0x005b2970
-void NetComm::SendVoice(int iDest, NetPacket* pPacket, unsigned short uSequence)
+void NetComm::SendVoice(int iDest, PktType type, NetPacket* pPacket, int voiceDataOffset)
 {
     Header(pPacket).src = (unsigned char)iDest;
-    Header(pPacket).type = PKT_VOICE;
-    Header(pPacket).group = uSequence;
-    Header(pPacket).idx = 0;
-    Header(pPacket).count = 1;
+    Header(pPacket).type = static_cast<unsigned char>(type);
+    SetGroup(pPacket, voiceDataOffset, 0, 1);
     if ((unsigned int)iDest < MAX_DESTS)
     {
         netDests[iDest].outQueue.PushBack(pPacket);
@@ -1057,10 +1122,10 @@ void DoSends()
         }
         if (NetComm::IsConnected(iDest))
         {
-            NetPktGroup& queue = netDests[iDest].outQueue;
-            while (queue.pktCount > 0)
+            while (netDests[iDest].outQueue.pktCount > 0)
             {
-                SendLow(queue.PopFront());
+                NetPacket* pPacket = netDests[iDest].outQueue.PopFront();
+                SendLow(pPacket);
             }
         }
     }
@@ -1168,7 +1233,7 @@ NetPacket* NetCommP::MakeReceivedPacket(const unsigned char* pData, unsigned int
 }
 
 // FUNCTION: SWBF2 0x005b3290
-void __fastcall NetCommP::RecvPacket(NetPacket* pPacket, const NetSocketPeerRecord* pSource)
+void __fastcall NetCommP::RecvPacket(NetPacket* pPacket, const void* pSource)
 {
     const int iRead = (signed char)pPacket->mCommIndex;
     inBytes += pPacket->mMaxIndex - iRead;
@@ -1201,7 +1266,7 @@ void __fastcall NetCommP::RecvPacket(NetPacket* pPacket, const NetSocketPeerReco
     {
         if (IsAdminPacketAuthorized((const unsigned char*)pPacket))
         {
-            iDest = NetCommP::FindJoinSource(pSource);
+            iDest = NetCommP::FindJoinSource((const int*)pSource);
         }
         else
         {
@@ -1217,7 +1282,7 @@ void __fastcall NetCommP::RecvPacket(NetPacket* pPacket, const NetSocketPeerReco
     {
         if (uType == PKT_JOIN || (NetComm::IsLAN() && (uType == PKT_QUERY || uType == PKT_QUERY_RESPONSE)))
         {
-            iDest = NetCommP::FindJoinSource(pSource);
+            iDest = NetCommP::FindJoinSource((const int*)pSource);
         }
         if (iDest == -1)
         {
@@ -1277,3 +1342,36 @@ float sendBits[2];
 
 // GLOBAL: SWBF2 0x007e8e10
 char netGameName[64] = "SWBF2";
+
+// FUNCTION: SWBF2 0x005b2ca0
+void __fastcall NetCommP::Connect(int iDest, const void* pAddress)
+{
+    netDests[iDest].mAddress = *static_cast<const NetSocketPeerRecord*>(pAddress);
+    netDests[iDest].connected = true;
+    netDests[iDest].lastRecv = NetComm::GetTime();
+}
+
+// FUNCTION: SWBF2 0x005b3800
+int __fastcall NetCommP::FindJoinSource(const int* pAddress)
+{
+    const float fNow = NetComm::GetTime();
+    for (int i = 0; i < _countof(joinSlots); ++i)
+    {
+        if (IsSame(pAddress, &joinSlots[i].addr))
+        {
+            joinSlots[i].reqTime = fNow;
+            return i + 69;
+        }
+    }
+    for (int i = 0; i < _countof(joinSlots); ++i)
+    {
+        const float fLast = joinSlots[i].reqTime;
+        if (fNow - fLast > 1.0f || fLast == 0.0f)
+        {
+            joinSlots[i].addr = *reinterpret_cast<const NetSocketPeerRecord*>(pAddress);
+            joinSlots[i].reqTime = fNow;
+            return i + 69;
+        }
+    }
+    return -1;
+}

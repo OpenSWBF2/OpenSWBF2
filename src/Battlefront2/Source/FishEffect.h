@@ -1,3 +1,4 @@
+#include "RedEngineFL/Graphics/PC/pcRedPrimitive.h"
 #pragma once
 
 #include <stddef.h>
@@ -17,11 +18,7 @@ enum FishState
     FISH_JUMP = 2
 };
 
-struct TexCoord
-{
-    float u;
-    float v;
-};
+
 
 struct FishParticleType
 {

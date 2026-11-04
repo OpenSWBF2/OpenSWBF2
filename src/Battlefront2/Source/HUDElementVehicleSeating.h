@@ -10,7 +10,10 @@
 class Character;
 class GameObject;
 
-namespace HUD {
+namespace HUD
+{
+// VTABLE: SWBF2 0x007a1ba0 RedGroupElement
+// VTABLE: SWBF2 0x007a1bf0 HUD::ElementGroupPlayer
 class ElementVehicleSeating : public HUD::ElementGroupPlayer, public RedGroupElement
 {
 public:
@@ -35,7 +38,8 @@ public:
                                       void* const pUserData);
     };
 
-    // VTABLE: SWBF2 0x007a1c40
+    // VTABLE: SWBF2 0x007a1c40 HUD::Element
+    // VTABLE: SWBF2 0x007a1cc4 Red3DModelElementLite
     class SeatingMarker : public HUD::ElementModel3D
     {
     public:
@@ -45,7 +49,13 @@ public:
         // SYNTHETIC: SWBF2 0x0055cde0
         // HUD::ElementVehicleSeating::SeatingMarker::`default constructor closure'
 
-        virtual ~SeatingMarker();
+        // SYNTHETIC: SWBF2 0x0055d8e6
+        // ??_ESeatingMarker@ElementVehicleSeating@HUD@@WBAA@AEPAXI@Z
+        // SYNTHETIC: SWBF2 0x0055c9b0
+        // HUD::ElementVehicleSeating::SeatingMarker::`scalar deleting destructor'
+        // FUNCTION: SWBF2 0x0055c920
+        // HUD::ElementVehicleSeating::SeatingMarker::~SeatingMarker
+        virtual ~SeatingMarker() {}
         virtual bool SetProperty(const unsigned int uHashID, const void* pValue);
 
         SeatingMarker& operator=(const SeatingMarker& other)
@@ -57,7 +67,8 @@ public:
         ElementVehicleSeating* mSeatingDisplay;
     };
 
-    // VTABLE: SWBF2 0x007a1d0c
+    // VTABLE: SWBF2 0x007a1d0c HUD::Element
+    // VTABLE: SWBF2 0x007a1c7c RedTextElement
     class SeatingText : public HUD::ElementText
     {
     public:
@@ -67,7 +78,12 @@ public:
         // SYNTHETIC: SWBF2 0x0055ce00
         // HUD::ElementVehicleSeating::SeatingText::`default constructor closure'
 
-        virtual ~SeatingText();
+        // SYNTHETIC: SWBF2 0x0055c9f0
+        // HUD::ElementVehicleSeating::SeatingText::`scalar deleting destructor'
+        // SYNTHETIC: SWBF2 0x0055d8f1
+        // ??_ESeatingText@ElementVehicleSeating@HUD@@WBAA@AEPAXI@Z
+        // SYNTHETIC: SWBF2 0x0055ca20
+        // HUD::ElementVehicleSeating::SeatingText::~SeatingText
         virtual bool SetProperty(const unsigned int uHashID, const void* pValue);
 
         ElementVehicleSeating* mSeatingDisplay;

@@ -7,15 +7,23 @@
 #include "sndengine.h"
 #include "sndsoftoutput.h"
 
+// GLOBAL: SWBF2 0x00787dcc
+// IID_IMediaBuffer
+// GLOBAL: SWBF2 0x00787ddc
+// IID_IMediaObject
+// GLOBAL: SWBF2 0x00787dfc
+// IID_IMediaObjectInPlace
+// GLOBAL: SWBF2 0x00787e5c
+// kMediaTypeAudio
+// GLOBAL: SWBF2 0x00787e6c
+// kMediaSubTypePcm
+// GLOBAL: SWBF2 0x00787e7c
+// kFormatWaveFormatEx
+// GLOBAL: SWBF2 0x00787e8c
+// IID_IUnknown
+
 namespace Snd
 {
-
-// FUNCTION: SWBF2 0x00750f40
-unsigned int Snd::DSMediaBuffer::GetLength() const
-{
-    const DSMediaBuffer* pBuffer = (const DSMediaBuffer*)this;
-    return pBuffer->mLength;
-}
 
 // FUNCTION: SWBF2 0x0074d530
 bool DSDMO::DeliverInputData(void* const pData, unsigned int uiSize)
@@ -28,14 +36,14 @@ bool DSDMO::DeliverInputData(void* const pData, unsigned int uiSize)
 unsigned int DSDMO::GetOutputData(void* const pData, unsigned int uiSize)
 {
     DSMediaBuffer buffer;
-    IMediaBuffer* pMediaBuffer = 0;
+    IMediaBuffer* pMediaBuffer;
     DSMediaBuffer::Create((unsigned char*)pData, uiSize, IID_IMediaBuffer,
                           (void**)&pMediaBuffer, &buffer);
 
     DMO_OUTPUT_DATA_BUFFER output = { pMediaBuffer, 0, 0, 0 };
     DWORD dwStatus;
     const HRESULT hr = mObject->ProcessOutput(1, 1, &output, &dwStatus);
-    unsigned int uiLength = ((Snd::DSMediaBuffer*)(&buffer))->GetLength();
+    unsigned int uiLength = buffer.GetLength();
     pMediaBuffer->Release();
     if (Engine::Failed(hr, "source\\win\\snddsdmo.cpp", 252))
     {
@@ -43,8 +51,6 @@ unsigned int DSDMO::GetOutputData(void* const pData, unsigned int uiSize)
     }
     return uiLength;
 }
-
-static const char kFile[] = "source\\win\\snddsdmo.cpp";
 
 static const GUID kMediaTypeAudio =
     { 0x73647561, 0x0000, 0x0010, { 0x80, 0x00, 0x00, 0xAA, 0x00, 0x38, 0x9B, 0x71 } };
@@ -64,15 +70,15 @@ MediaType::MediaType(const StreamFormat& rFormat)
 
     majortype = kMediaTypeAudio;
     subtype = kMediaSubTypePcm;
-    formattype = kFormatWaveFormatEx;
 
-    bFixedSizeSamples = TRUE;
-    bTemporalCompression = FALSE;
+    pbFormat = (BYTE*)&mWaveformat;
     lSampleSize = mWaveformat.Format.wBitsPerSample >> 3;
 
-    pUnk = 0;
+    formattype = kFormatWaveFormatEx;
     cbFormat = sizeof(WAVEFORMATEX);
-    pbFormat = (BYTE*)&mWaveformat;
+    bFixedSizeSamples = TRUE;
+    bTemporalCompression = FALSE;
+    pUnk = 0;
 }
 
 // FUNCTION: SWBF2 0x0074d370
@@ -81,12 +87,8 @@ bool DSDMO::Create(const _GUID& rCLSID, const StreamFormat* const pInput,
 {
     if (Engine::Failed(CoCreateInstance(rCLSID, 0, CLSCTX_INPROC,
                                         IID_IMediaObject, (void**)&mObject),
-                       kFile, 88))
-    {
-        return false;
-    }
-
-    if (!mObject)
+                       "source\\win\\snddsdmo.cpp", 88)
+        || !mObject)
     {
         return false;
     }
@@ -101,12 +103,12 @@ bool DSDMO::Create(const _GUID& rCLSID, const StreamFormat* const pInput,
     MediaType output(*pOutput);
 
     if (Engine::Succeeded(mObject->SetInputType(0, &input, DMO_SET_TYPEF_TEST_ONLY),
-                          kFile, 105)
-        && Engine::Succeeded(mObject->SetInputType(0, &input, 0), kFile, 108)
+                          "source\\win\\snddsdmo.cpp", 105)
+        && Engine::Succeeded(mObject->SetInputType(0, &input, 0), "source\\win\\snddsdmo.cpp", 108)
         && Engine::Succeeded(mObject->SetOutputType(0, &output, DMO_SET_TYPEF_TEST_ONLY),
-                             kFile, 110)
-        && Engine::Succeeded(mObject->SetOutputType(0, &output, 0), kFile, 113)
-        && Engine::Succeeded(mObject->AllocateStreamingResources(), kFile, 115))
+                             "source\\win\\snddsdmo.cpp", 110)
+        && Engine::Succeeded(mObject->SetOutputType(0, &output, 0), "source\\win\\snddsdmo.cpp", 113)
+        && Engine::Succeeded(mObject->AllocateStreamingResources(), "source\\win\\snddsdmo.cpp", 115))
     {
         return true;
     }
@@ -146,24 +148,29 @@ IMediaObject* DSDMO::GetMediaObject() const
 // FUNCTION: SWBF2 0x0074d6d0
 bool DSDMO::IsValid() const
 {
-    return mObject != 0;
+    if (mObject == 0)
+    {
+        return false;
+    }
+
+    return true;
 }
 
 // FUNCTION: SWBF2 0x0074d6a0
 bool DSDMO::IsInputDataComplete()
 {
-    if (mInputData.GetRefCount() != 1)
+    if (mInputData.GetRefCount() == 1)
     {
-        return false;
+        mInputData.SetBuffer(0, 0, 0);
+        return true;
     }
-
-    mInputData.SetBuffer(0, 0, 0);
-    return true;
+    return false;
 }
 
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x0074d1b0
 DSDMO::DSDMO()
@@ -175,7 +182,8 @@ DSDMO::DSDMO()
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x0074d2d0
 DSDMO::~DSDMO()

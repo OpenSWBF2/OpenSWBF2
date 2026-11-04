@@ -6,7 +6,8 @@
 #include "HUDEvent.h"
 #include "GameSound.h"
 
-namespace HUD {
+namespace HUD
+{
 // VTABLE: SWBF2 0x007a3548
 class Sound : public HUD::Item
 {
@@ -58,3 +59,9 @@ public:
  
  
  
+
+inline HUD::Sound::Factory::Factory()
+    : HUD::Item::Factory(0x0E0D9594u)
+{
+    mName = "Sound";
+}

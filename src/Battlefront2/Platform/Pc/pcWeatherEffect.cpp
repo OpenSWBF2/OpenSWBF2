@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include <math.h>
 
 #include "Battlefront2/Source/CameraManager.h"
@@ -19,7 +20,7 @@
 #include "RedEngineFL/Application/RedTerrain.h"
 #include "pcSunFlare.h"
 #include "RedEngineFL/Graphics/PC/Shaders/pcRainShader.h"
-#include "PebbleFL/pc/PblD3DX.h"
+
 
 namespace
 {
@@ -88,17 +89,7 @@ struct UntexturedVertex
     };
 };
 
-void CompressedPos_SetBoundingBox(const PblBox& box)
-{
-    PblVector3 vMin = { box._vMin.x, box._vMin.y, box._vMin.z };
-    PblVector3 vExtent = { box._vMax.x - box._vMin.x, box._vMax.y - box._vMin.y,
-                                box._vMax.z - box._vMin.z };
-    CompressedPos::s_vMin = vMin;
-    CompressedPos::s_vScale = vExtent * (1.0f / 65535.0f);
-    CompressedPos::s_vScaleInv.x = 1.0f / CompressedPos::s_vScale.x;
-    CompressedPos::s_vScaleInv.y = 1.0f / CompressedPos::s_vScale.y;
-    CompressedPos::s_vScaleInv.z = 1.0f / CompressedPos::s_vScale.z;
-}
+
 }
 
 // FUNCTION: SWBF2 0x00433ef0
@@ -170,7 +161,7 @@ void FogCloudEffect::Render(int value)
     box._vMax = box._vMin;
     box.AddPoint(PblVector3(vPos[0] - vAt[0] * DISTANCE_FAR, vPos[1] - vAt[1] * DISTANCE_FAR,
                             vPos[2] - vAt[2] * DISTANCE_FAR));
-    for (int i = 0; i < 4; ++i)
+    for (unsigned int i = 0; i < 4; ++i)
     {
         box.AddPoint(PblVector3(vPos[0] + vCorners[i].x * DISTANCE_NEAR,
                                 vPos[1] + vCorners[i].y * DISTANCE_NEAR,
@@ -228,7 +219,7 @@ void FogCloudEffect::Render(int value)
     if (RedRenderer::pcGetGeometryMode())
     {
         pVertexBuffer = pcRedVertexBuffer::Create(usNumVertices, sizeof(TexturedVertex::VertexC), false, true);
-        CompressedPos_SetBoundingBox(bbox);
+        CompressedPos::SetBoundingBox(bbox);
     }
     else
     {
@@ -321,7 +312,7 @@ void FogCloudEffect::Render(int value)
                 if (RedRenderer::pcGetGeometryMode())
                 {
                     TexturedVertex::VertexC* pVertex = (TexturedVertex::VertexC*)pVertices;
-                    for (int i = 0; i < 4; ++i)
+                    for (unsigned int i = 0; i < 4; ++i)
                     {
                         pVertex[i].SetPos(aCorners[i]);
                         pVertex[i].SetColor(color);
@@ -332,7 +323,7 @@ void FogCloudEffect::Render(int value)
                 else
                 {
                     TexturedVertex::VertexU* pVertex = (TexturedVertex::VertexU*)pVertices;
-                    for (int i = 0; i < 4; ++i)
+                    for (unsigned int i = 0; i < 4; ++i)
                     {
                         pVertex[i].SetPos(aCorners[i]);
                         pVertex[i].SetColor(color);
@@ -394,12 +385,6 @@ inline PblVector3 CameraManager::GetCameraVelocity(int iCam) const
     return mCurGameCamera[iCam]->GetVelocity();
 }
 
-// FUNCTION: SWBF2 0x00694e20
-void PrecipitationEffect::RainShadowRegion::UpdateVisibility(const RedCamera* pCamera)
-{
-    m_bVisible = RedRegion::IsVisible(pCamera, 0.0f);
-}
-
 // FUNCTION: SWBF2 0x004356b0
 void PrecipitationEffect::Render(int value)
 {
@@ -424,13 +409,13 @@ void PrecipitationEffect::Render(int value)
                 if (CAMERA_CROSSVELOCITY_SCALE != 1.0f || CAMERA_AXIALVELOCITY_SCALE != 1.0f)
                 {
                     PblVector3 vLocal;
-                    D3DXVec3TransformNormal(&vLocal, &vCameraVelocity,
-                                            &RedRenderer::GetCamera()->GetMatrixInverse());
+                    D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vLocal), reinterpret_cast<const D3DXVECTOR3*>(&vCameraVelocity),
+                                            reinterpret_cast<const D3DXMATRIX*>(&RedRenderer::GetCamera()->GetMatrixInverse()));
                     vCameraVelocity.x = vLocal.x * CAMERA_CROSSVELOCITY_SCALE;
                     vCameraVelocity.y = vLocal.y * CAMERA_CROSSVELOCITY_SCALE;
                     vCameraVelocity.z = CAMERA_AXIALVELOCITY_SCALE * vLocal.z;
                     PblVector3 vWorld;
-                    D3DXVec3TransformNormal(&vWorld, &vCameraVelocity, &mCamera);
+                    D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vWorld), reinterpret_cast<const D3DXVECTOR3*>(&vCameraVelocity), reinterpret_cast<const D3DXMATRIX*>(&mCamera));
                     vCameraVelocity = vWorld;
                 }
                 break;
@@ -466,7 +451,7 @@ void PrecipitationEffect::Render(int value)
         {
             pPrimitive = pcRedPrimitive::Create(D3DPT_LINELIST, 0x1082, sizeof(UntexturedVertex::VertexC),
                                                 usNumVertices, 0, false);
-            CompressedPos_SetBoundingBox(box);
+            CompressedPos::SetBoundingBox(box);
         }
         else
         {
@@ -543,7 +528,7 @@ void PrecipitationEffect::Render(int value)
         {
             pPrimitive = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, 0x9282, sizeof(TexturedVertex::VertexC),
                                                 usNumVertices, usNumIndices, false);
-            CompressedPos::SetBoundingBox(&box);
+            CompressedPos::SetBoundingBox(box);
         }
         else
         {
@@ -594,7 +579,7 @@ void PrecipitationEffect::Render(int value)
             if (RedRenderer::pcGetGeometryMode())
             {
                 TexturedVertex::VertexC* pVertex = (TexturedVertex::VertexC*)pVertices;
-                for (int j = 0; j < 4; ++j)
+                for (unsigned int j = 0; j < 4; ++j)
                 {
                     pVertex[j].SetPos(aCorners[j]);
                     pVertex[j].SetColor(color);
@@ -605,7 +590,7 @@ void PrecipitationEffect::Render(int value)
             else
             {
                 TexturedVertex::VertexU* pVertex = (TexturedVertex::VertexU*)pVertices;
-                for (int j = 0; j < 4; ++j)
+                for (unsigned int j = 0; j < 4; ++j)
                 {
                     pVertex[j].SetPos(aCorners[j]);
                     pVertex[j].SetColor(color);
@@ -705,7 +690,7 @@ void PrecipitationEffect::Render(int value)
     iEndZ += iStepZ;
 
     PblMatrix mWorld = gMatrixIdentity;
-    const PblVector3& vCellCenter = *(const PblVector3*)mWorld.m[3];
+    const PblVector3& vCellCenter = mWorld.GetTranslation();
     float fHalfBox = BOX_SIZE * 0.5f;
     PblVector3 vExtents(fHalfBox, fHalfBox, fHalfBox);
 

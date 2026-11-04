@@ -14,6 +14,11 @@ public:
     {
     }
 
+    Thread(void(__cdecl* pfnThreadFunc)(void*), unsigned int uiPriority, unsigned int uiStackSize)
+        : ThreadBase(pfnThreadFunc, uiPriority, uiStackSize)
+    {
+    }
+
     bool Start(void* pArgs);
 };
  

@@ -39,23 +39,35 @@ EntityRemoteTerminalClass::EntityRemoteTerminalClass(unsigned int uHash)
 // FUNCTION: SWBF2 0x004dd960
 EntityRemoteTerminalClass::~EntityRemoteTerminalClass() {}
 
-// GLOBAL: SWBF2 0x01ebc050
 // SYNTHETIC: SWBF2 0x00402d30
 // `dynamic initializer for 'EntityRemoteTerminalClass::rttiHashEntityRemoteTerminalClass''
-PblHash EntityRemoteTerminalClass::rttiHashEntityRemoteTerminalClass("EntityRemoteTerminalClass");
-char EntityRemoteTerminalClass::rttiNameEntityRemoteTerminalClass[] = "EntityRemoteTerminalClass";
+// EntityRemoteTerminalClass::rttiHashEntityRemoteTerminalClass
 
-// GLOBAL: SWBF2 0x01ebc04c
+// GLOBAL: SWBF2 0x01ebc050
+// EntityRemoteTerminalClass::rttiHashEntityRemoteTerminalClass
+PblHash EntityRemoteTerminalClass::rttiHashEntityRemoteTerminalClass("EntityRemoteTerminalClass");
+// GLOBAL: SWBF2 0x00789510
+// EntityRemoteTerminalClass::rttiNameEntityRemoteTerminalClass
+const char EntityRemoteTerminalClass::rttiNameEntityRemoteTerminalClass[] = "EntityRemoteTerminalClass";
+
 // SYNTHETIC: SWBF2 0x00402d20
 // `dynamic initializer for 'EntityRemoteTerminal::rttiHashEntityRemoteTerminal''
-PblHash EntityRemoteTerminal::rttiHashEntityRemoteTerminal("EntityRemoteTerminal");
-char EntityRemoteTerminal::rttiNameEntityRemoteTerminal[] = "EntityRemoteTerminal";
+// EntityRemoteTerminal::rttiHashEntityRemoteTerminal
 
-// GLOBAL: SWBF2 0x01ebc058
+// GLOBAL: SWBF2 0x01ebc04c
+// EntityRemoteTerminal::rttiHashEntityRemoteTerminal
+PblHash EntityRemoteTerminal::rttiHashEntityRemoteTerminal("EntityRemoteTerminal");
+// GLOBAL: SWBF2 0x007894ec
+// EntityRemoteTerminal::rttiNameEntityRemoteTerminal
+const char EntityRemoteTerminal::rttiNameEntityRemoteTerminal[] = "EntityRemoteTerminal";
+
 // SYNTHETIC: SWBF2 0x00402d00
 // `dynamic initializer for 'EntityRemoteTerminal::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00766fa0
 // `dynamic atexit destructor for 'EntityRemoteTerminal::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ebc058
+// EntityRemoteTerminal::sMemoryPool
 MemoryPool EntityRemoteTerminal::sMemoryPool("EntityRemoteTerminal", 0x3f0);
 
 namespace
@@ -84,10 +96,7 @@ inline Controllable* AsControllable(EntityRemoteTerminal* pTerminal)
 {
     return static_cast<Controllable*>(pTerminal);
 }
-inline Damageable* AsDamageable(EntityRemoteTerminal* pTerminal)
-{
-    return static_cast<Damageable*>(pTerminal);
-}
+
 
 inline const Controllable* SoldierControllable(const EntitySoldier* pSoldier)
 {
@@ -104,10 +113,6 @@ inline EntitySoldier* PilotSoldier(Controllable* pPilot)
     return pPilot ? static_cast<EntitySoldier*>(pPilot) : 0;
 }
 
-inline PblList<Controllable>& GameObject_GetControllableList(GameObject* pObject)
-{
-    return pObject->mControllableList;
-}
 }
 
 // FUNCTION: SWBF2 0x004dcc90
@@ -132,17 +137,17 @@ EntityRemoteTerminal::EntityRemoteTerminal(EntityRemoteTerminalClass* pClass, co
 }
 
 // SYNTHETIC: SWBF2 0x004ddea4
-// [thunk]:EntityRemoteTerminal::`scalar deleting destructor' adjustor{320}
+// ??_EEntityRemoteTerminal@@WBEA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004ddeaf
-// [thunk]:EntityRemoteTerminal::`scalar deleting destructor' adjustor{600}
+// ??_EEntityRemoteTerminal@@WCFI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004ddeba
-// [thunk]:EntityRemoteTerminal::`scalar deleting destructor' adjustor{12}
+// ??_EEntityRemoteTerminal@@WM@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004ddec2
-// [thunk]:EntityRemoteTerminal::`scalar deleting destructor' adjustor{512}
+// ??_EEntityRemoteTerminal@@WCAA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004ddecd
-// [thunk]:EntityRemoteTerminal::`scalar deleting destructor' adjustor{576}
+// ??_EEntityRemoteTerminal@@WCEA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004ddee3
-// [thunk]:EntityRemoteTerminal::`scalar deleting destructor' adjustor{148}
+// ??_EEntityRemoteTerminal@@WJE@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x004dce60
 EntityRemoteTerminal::~EntityRemoteTerminal()
@@ -186,35 +191,18 @@ void EntityRemoteTerminal::Render(unsigned char ucViewport, float fDist, unsigne
     {
         return;
     }
-    PblMatrix mWorld;
-    D3DXMatrixMultiply((D3DXMATRIX*)&mWorld, (const D3DXMATRIX*)GetRenderMatrix(), (const D3DXMATRIX*)&mReflection);
+    PblMatrix mWorld = *GetRenderMatrix() * mReflection;
     mModel->Render(ucViewport, fDist, &mWorld, GetRenderPose(), color,
                    (uiFlags & ~0x10000) | 0x10000100, 0);
 }
 
-// FUNCTION: SWBF2 0x004dc920
-bool EntityRemoteTerminal::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashEntityRemoteTerminal ||
-           reinterpret_cast<const GameObject*>(this)->GameObject::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x004dc960
-unsigned int EntityRemoteTerminal::GetDerivedRtti() const
-{
-    return rttiHashEntityRemoteTerminal;
-}
 
-// FUNCTION: SWBF2 0x004dc970
-const char* EntityRemoteTerminal::GetDerivedRttiName() const
-{
-    return rttiNameEntityRemoteTerminal;
-}
 
 // SYNTHETIC: SWBF2 0x004dde83
-// [thunk]:EntityRemoteTerminal::GetEntity const adjustor{576}
+// ?GetEntity@EntityRemoteTerminal@@WCEA@BEPBVEntity@@XZ
 // SYNTHETIC: SWBF2 0x004ddef6
-// [thunk]:EntityRemoteTerminal::GetEntity const adjustor{12}
+// ?GetEntity@EntityRemoteTerminal@@WM@BEPBVEntity@@XZ
 // FUNCTION: SWBF2 0x004dc9c0
 const Entity* EntityRemoteTerminal::GetEntity() const
 {
@@ -222,9 +210,9 @@ const Entity* EntityRemoteTerminal::GetEntity() const
 }
 
 // SYNTHETIC: SWBF2 0x004dde78
-// [thunk]:EntityRemoteTerminal::GetEntity adjustor{576}
+// ?GetEntity@EntityRemoteTerminal@@WCEA@AEPAVEntity@@XZ
 // SYNTHETIC: SWBF2 0x004ddeee
-// [thunk]:EntityRemoteTerminal::GetEntity adjustor{12}
+// ?GetEntity@EntityRemoteTerminal@@WM@AEPAVEntity@@XZ
 // FUNCTION: SWBF2 0x004dc9b0
 Entity* EntityRemoteTerminal::GetEntity()
 {
@@ -232,11 +220,11 @@ Entity* EntityRemoteTerminal::GetEntity()
 }
 
 // SYNTHETIC: SWBF2 0x004dde47
-// [thunk]:EntityRemoteTerminal::GetGameObject const adjustor{320}
+// ?GetGameObject@EntityRemoteTerminal@@WBEA@BEPBVGameObject@@XZ
 // SYNTHETIC: SWBF2 0x004dde5d
-// [thunk]:EntityRemoteTerminal::GetGameObject const adjustor{600}
+// ?GetGameObject@EntityRemoteTerminal@@WCFI@BEPBVGameObject@@XZ
 // SYNTHETIC: SWBF2 0x004dde70
-// [thunk]:EntityRemoteTerminal::GetGameObject const adjustor{12}
+// ?GetGameObject@EntityRemoteTerminal@@WM@BEPBVGameObject@@XZ
 // FUNCTION: SWBF2 0x004dc9a0
 const GameObject* EntityRemoteTerminal::GetGameObject() const
 {
@@ -244,11 +232,11 @@ const GameObject* EntityRemoteTerminal::GetGameObject() const
 }
 
 // SYNTHETIC: SWBF2 0x004dde3c
-// [thunk]:EntityRemoteTerminal::GetGameObject adjustor{320}
+// ?GetGameObject@EntityRemoteTerminal@@WBEA@AEPAVGameObject@@XZ
 // SYNTHETIC: SWBF2 0x004dde52
-// [thunk]:EntityRemoteTerminal::GetGameObject adjustor{600}
+// ?GetGameObject@EntityRemoteTerminal@@WCFI@AEPAVGameObject@@XZ
 // SYNTHETIC: SWBF2 0x004dde68
-// [thunk]:EntityRemoteTerminal::GetGameObject adjustor{12}
+// ?GetGameObject@EntityRemoteTerminal@@WM@AEPAVGameObject@@XZ
 // FUNCTION: SWBF2 0x004dc990
 GameObject* EntityRemoteTerminal::GetGameObject()
 {
@@ -256,7 +244,7 @@ GameObject* EntityRemoteTerminal::GetGameObject()
 }
 
 // SYNTHETIC: SWBF2 0x004dded8
-// [thunk]:EntityRemoteTerminal::GetMatrix adjustor{564}
+// ?GetMatrix@EntityRemoteTerminal@@WCDE@BEABVPblMatrix@@XZ
 
 // FUNCTION: SWBF2 0x004dc9d0
 const PblMatrix& EntityRemoteTerminal::GetMatrix() const
@@ -273,7 +261,7 @@ const PblMatrix* EntityRemoteTerminal::GetRenderMatrix() const
 // FUNCTION: SWBF2 0x004dc9f0
 const RedPose* EntityRemoteTerminal::GetRenderPose() const
 {
-    return static_cast<const CollisionObject*>(this)->GetPose();
+    return GetPose();
 }
 
 // FUNCTION: SWBF2 0x004dca00
@@ -295,7 +283,7 @@ Trackable* EntityRemoteTerminal::GetTrackable()
 }
 
 // SYNTHETIC: SWBF2 0x004dde99
-// [thunk]:EntityRemoteTerminal::GetControllable adjustor{600}
+// ?GetControllable@EntityRemoteTerminal@@WCFI@BEPBVControllable@@XZ
 // FUNCTION: SWBF2 0x004dcae0
 Controllable* EntityRemoteTerminal::GetControllable()
 {
@@ -303,7 +291,7 @@ Controllable* EntityRemoteTerminal::GetControllable()
 }
 
 // SYNTHETIC: SWBF2 0x004dde8e
-// [thunk]:EntityRemoteTerminal::GetControllable const adjustor{600}
+// ?GetControllable@EntityRemoteTerminal@@WCFI@AEPAVControllable@@XZ
 // FUNCTION: SWBF2 0x004dcad0
 const Controllable* EntityRemoteTerminal::GetControllable() const
 {
@@ -334,40 +322,16 @@ float EntityRemoteTerminal::GetMaxStrafe() const
     return 0.0f;
 }
 
-// FUNCTION: SWBF2 0x004dcb30
-EntityRemoteTerminal* EntityRemoteTerminal::GetNextLinkedTerminal()
-{
-    if (!mNextLinkedTerminal)
-    {
-        EntityEx* pEntity = EntityEx::mIdMap.Find(mNextLinkedTerminalHash);
-        if (pEntity && pEntity->IsRtti(rttiHashEntityRemoteTerminal))
-        {
-            mNextLinkedTerminal = reinterpret_cast<EntityRemoteTerminal*>(pEntity);
-        }
-    }
-    return mNextLinkedTerminal;
-}
 
-// FUNCTION: SWBF2 0x004dcb90
-EntityRemoteTerminal* EntityRemoteTerminal::GetPrevLinkedTerminal()
-{
-    if (!mPrevLinkedTerminal)
-    {
-        EntityEx* pEntity = EntityEx::mIdMap.Find(mPrevLinkedTerminalHash);
-        if (pEntity && pEntity->IsRtti(rttiHashEntityRemoteTerminal))
-        {
-            mPrevLinkedTerminal = reinterpret_cast<EntityRemoteTerminal*>(pEntity);
-        }
-    }
-    return mPrevLinkedTerminal;
-}
+
+
 
 // FUNCTION: SWBF2 0x0046db50
 GameObject* EntityRemoteTerminal::GetRemoteGameObject()
 {
     if (!HandleObject(mRemoteGameObject))
     {
-        EntityEx* pEntity = EntityEx::mIdMap.Find(mRemoteGameObjectHash);
+        EntityEx* pEntity = EntityEx::Find(mRemoteGameObjectHash);
         if (pEntity)
         {
             GameObject* pObject = pEntity->GetGameObject();
@@ -384,7 +348,7 @@ void EntityRemoteTerminal::Init()
     reinterpret_cast<GameObject*>(this)->GameObject::Init();
     if (!NetGame::IsEnabled() || !NetGame::IsClient())
     {
-        for (PblList<Controllable>::Itor it(mControllableList); (Controllable*)it; ++it)
+        for (PblList<Controllable>::Itor it(GetControllableList()); (Controllable*)it; ++it)
         {
             it->SetupController();
         }
@@ -406,8 +370,8 @@ ControllableClass* EntityRemoteTerminal::GetControllableClass()
 // FUNCTION: SWBF2 0x004dcf90
 bool EntityRemoteTerminal::UpdateIndirect(float fDeltaTime)
 {
-    reinterpret_cast<AILowLevel*>(UnitControllerPtr(AsControllable(this)->mCtrl)->mLowLevel)
-        ->UpdateIndirect(fDeltaTime);
+    UnitControllerPtr(mCtrl)->mLowLevel
+        .UpdateIndirect(fDeltaTime);
     return true;
 }
 
@@ -421,14 +385,14 @@ bool EntityRemoteTerminal::Update(float fDeltaTime)
 
     UpdateHealthRemote(0.0f);
 
-    Controllable* pThis = AsControllable(this);
+    Controllable* pThis = this;
     if (!(NetGame::IsEnabled() && NetGame::IsClient()) && pThis->mPilot &&
         pThis->mPilot->GetEntity()->IsRtti(EntitySoldier::rttiHashEntitySoldier))
     {
         GameObject* pRemote = GetRemoteGameObject();
         if (pRemote)
         {
-            PblList<Controllable>& list = GameObject_GetControllableList(pRemote);
+            const PblList<Controllable>& list = pRemote->GetControllableList();
             if (list.GetCount() > 0)
             {
                 Controllable* pRemoteControl = list.GetFirst()->_pObject;
@@ -491,11 +455,11 @@ void EntityRemoteTerminal::UpdateHealthRemote(float fAddHealth)
 
         float fOldHealth = mCurHealth;
         mMaxHealth = fMaxHealth;
-        AsDamageable(this)->SetCurHealth(fHealth, false, 0);
+        SetCurHealth(fHealth, false, 0);
         mHealthType = pRemoteDamageable->mHealthType;
         if (fOldHealth != fHealth)
         {
-            AsDamageable(this)->Damageable::HealthChangeCallback(false, fOldHealth - fHealth);
+            Damageable::HealthChangeCallback(false, fOldHealth - fHealth);
         }
     }
     else
@@ -505,7 +469,7 @@ void EntityRemoteTerminal::UpdateHealthRemote(float fAddHealth)
 
     if (mCurHealth <= 0.0f)
     {
-        Controllable* pPilot = AsControllable(this)->mPilot;
+        Controllable* pPilot = mPilot;
         if (pPilot)
         {
             pPilot->Kill();
@@ -535,7 +499,7 @@ void EntityRemoteTerminal::HealthChangeCallback(bool bUnused, float fDelta)
 // FUNCTION: SWBF2 0x004dd2f0
 void EntityRemoteTerminal::SetupController()
 {
-    Controllable* pThis = AsControllable(this);
+    Controllable* pThis = this;
     Controller* pController = 0;
     if (pThis->mPlayerId >= 0)
     {
@@ -556,14 +520,14 @@ void EntityRemoteTerminal::SetupController()
 // FUNCTION: SWBF2 0x004dd5d0
 void EntityRemoteTerminal::SetPilot(Controllable* pPilot)
 {
-    Controllable* pThis = AsControllable(this);
+    Controllable* pThis = this;
     if (pPilot)
     {
         pThis->Controllable::SetPilot(pPilot);
         GameObject* pRemote = GetRemoteGameObject();
         if (pRemote)
         {
-            for (PblList<Controllable>::Itor it(GameObject_GetControllableList(pRemote)); (Controllable*)it; ++it)
+            for (PblList<Controllable>::Itor it(pRemote->GetControllableList()); (Controllable*)it; ++it)
             {
                 if (it->mPilotType != PILOT_REMOTE)
                 {
@@ -625,13 +589,15 @@ EntityRemoteTerminal* EntityRemoteTerminal::GetPrevAvailableTerminal(const Entit
 // FUNCTION: SWBF2 0x004dd7c0
 void EntityRemoteTerminal::ActivatePhysics()
 {
-    AsControllable(this)->ActivateThread(0, PER_TURN);
+    Controllable* pThis = this;
+    pThis->ActivateThread(0, PER_TURN);
 }
 
 // FUNCTION: SWBF2 0x004dd7e0
 void EntityRemoteTerminal::DeactivatePhysics()
 {
-    AsControllable(this)->DeactivateThread();
+    Controllable* pThis = this;
+    pThis->DeactivateThread();
 }
 
 // FUNCTION: SWBF2 0x004dd7f0
@@ -722,26 +688,14 @@ void EntityRemoteTerminalClass::SetProperty(unsigned int uProperty, const char* 
     }
 }
 
-// FUNCTION: SWBF2 0x004dcc20
-bool EntityRemoteTerminalClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashEntityRemoteTerminalClass || GameObjectClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x004dcc60
-unsigned int EntityRemoteTerminalClass::GetDerivedRtti()
-{
-    return rttiHashEntityRemoteTerminalClass;
-}
 
-// FUNCTION: SWBF2 0x004dcc70
-const char* EntityRemoteTerminalClass::GetDerivedRttiName()
-{
-    return rttiNameEntityRemoteTerminalClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x004dcc80
-int EntityRemoteTerminalClass::GetVehicleType()
+int EntityRemoteTerminalClass::GetVehicleType() const
 {
     return mVehicleType;
 }

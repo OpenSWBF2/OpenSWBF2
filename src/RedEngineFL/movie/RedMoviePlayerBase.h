@@ -8,7 +8,8 @@
 class PblFileChunk;
 class RedTexture;
 
-class RedMoviePlayerBase
+// VTABLE: SWBF2 0x00785a84
+class RedMoviePlayerBase : private PblList<RedMoviePlayerBase>::Node
 {
 public:
 
@@ -100,8 +101,7 @@ public:
     class TextureStack
     {
     public:
-        // FUNCTION: SWBF2 0x007253e0
-        TextureStack() { mHeight = 0; }
+        TextureStack();
 
         void Empty();
 
@@ -120,14 +120,15 @@ public:
     class TextureQueue
     {
     public:
-        // FUNCTION: SWBF2 0x007253d0
-        TextureQueue() { mHead = 0; mUsed = 0; }
+        TextureQueue();
 
         void Add(RedTexture** const ppTextures, RedTexture* const pTexture, unsigned int uiSize);
 
         void Empty();
 
         RedTexture* Get(RedTexture** const ppTextures, unsigned int uiSize);
+
+        unsigned int GetNumEntries() const;
 
         unsigned int mHead;
         unsigned int mUsed;
@@ -138,8 +139,7 @@ public:
     public:
         enum Flags { flags_playAtEnd = 1 };
 
-        // FUNCTION: SWBF2 0x007253c0
-        SegmentSequence() { mSegment = 0; mFlags = 0; }
+        SegmentSequence();
         Segment* GetSegment() const;
         bool PlayAtEnd() const;
         void Setup(Segment* pSegment, bool bPlayAtEnd);
@@ -237,7 +237,7 @@ public:
 
     static PblList<RedMoviePlayerBase> sMovieList;
 
-    PblList<RedMoviePlayerBase>::Node mNode;
+
     RedTexture** mTextures;
     unsigned int mNumTextures;
     NotifyCallback mNotifyCallback;

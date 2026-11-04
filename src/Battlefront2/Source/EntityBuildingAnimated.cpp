@@ -1,3 +1,4 @@
+#include <string.h>
 #include "EntityBuildingAnimated.h"
 #include "PebbleFL/Common/PblVector.h"
 
@@ -29,14 +30,8 @@ EntityBuildingAnimatedClass::EntityBuildingAnimatedClass(unsigned int uHash)
     mAnimObj = 0;
     mAnimations[0] = 0;
     mAnimations[1] = 0;
-    for (int i = 0; i < 5; i++)
-    {
-        mDeathEffectHash[i] = 0;
-    }
-    for (int i = 0; i < 5; i++)
-    {
-        mDeathEffectNodeHash[i] = 0;
-    }
+    memset(mDeathEffectHash, 0, sizeof(mDeathEffectHash));
+    memset(mDeathEffectNodeHash, 0, sizeof(mDeathEffectNodeHash));
     mDeathExplosions = false;
 }
 
@@ -45,41 +40,35 @@ EntityBuildingAnimatedClass::~EntityBuildingAnimatedClass()
 {
 }
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
 
-// GLOBAL: SWBF2 0x01ebb87c
+
 // SYNTHETIC: SWBF2 0x004028b0
 // `dynamic initializer for 'EntityBuildingAnimatedClass::rttiHashEntityBuildingAnimatedClass''
-PblHash EntityBuildingAnimatedClass::rttiHashEntityBuildingAnimatedClass("EntityBuildingAnimatedClass");
-char EntityBuildingAnimatedClass::rttiNameEntityBuildingAnimatedClass[] = "EntityBuildingAnimatedClass";
+// EntityBuildingAnimatedClass::rttiHashEntityBuildingAnimatedClass
 
-// GLOBAL: SWBF2 0x01ebb878
+// GLOBAL: SWBF2 0x01ebb87c
+// EntityBuildingAnimatedClass::rttiHashEntityBuildingAnimatedClass
+PblHash EntityBuildingAnimatedClass::rttiHashEntityBuildingAnimatedClass("EntityBuildingAnimatedClass");
+// GLOBAL: SWBF2 0x00788f84
+// EntityBuildingAnimatedClass::rttiNameEntityBuildingAnimatedClass
+const char EntityBuildingAnimatedClass::rttiNameEntityBuildingAnimatedClass[] = "EntityBuildingAnimatedClass";
+
 // SYNTHETIC: SWBF2 0x004028a0
 // `dynamic initializer for 'EntityBuildingAnimated::rttiHashEntityBuildingAnimated''
+// EntityBuildingAnimated::rttiHashEntityBuildingAnimated
+
+// GLOBAL: SWBF2 0x01ebb878
+// EntityBuildingAnimated::rttiHashEntityBuildingAnimated
 PblHash EntityBuildingAnimated::rttiHashEntityBuildingAnimated("EntityBuildingAnimated");
-char EntityBuildingAnimated::rttiNameEntityBuildingAnimated[] = "EntityBuildingAnimated";
+// GLOBAL: SWBF2 0x00788fa0
+// EntityBuildingAnimated::rttiNameEntityBuildingAnimated
+const char EntityBuildingAnimated::rttiNameEntityBuildingAnimated[] = "EntityBuildingAnimated";
 
-// FUNCTION: SWBF2 0x00475fb0
-bool EntityBuildingAnimatedClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashEntityBuildingAnimatedClass || EntityBuildingClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00494140
-unsigned int EntityBuildingAnimatedClass::GetDerivedRtti()
-{
-    return rttiHashEntityBuildingAnimatedClass;
-}
 
-// FUNCTION: SWBF2 0x00494150
-const char* EntityBuildingAnimatedClass::GetDerivedRttiName()
-{
-    return rttiNameEntityBuildingAnimatedClass;
-}
+
+
+
 
 // SYNTHETIC: SWBF2 0x00494b90
 // EntityBuildingAnimatedClass::`scalar deleting destructor'
@@ -209,11 +198,7 @@ Entity* EntityBuildingAnimatedClass::Build(const EntityDesc& desc)
     return (Entity*)pBuilding;
 }
 
-// FUNCTION: SWBF2 0x00475f30
-bool EntityBuildingAnimated::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashEntityBuildingAnimated || EntityBuilding::IsRtti(uRtti);
-}
+
 
 // FUNCTION: SWBF2 0x00475fa0
 const RedPose* EntityBuildingAnimated::GetPose() const
@@ -221,17 +206,9 @@ const RedPose* EntityBuildingAnimated::GetPose() const
     return &mPose;
 }
 
-// FUNCTION: SWBF2 0x004940f0
-unsigned int EntityBuildingAnimated::GetDerivedRtti() const
-{
-    return rttiHashEntityBuildingAnimated;
-}
 
-// FUNCTION: SWBF2 0x00494100
-const char* EntityBuildingAnimated::GetDerivedRttiName() const
-{
-    return rttiNameEntityBuildingAnimated;
-}
+
+
 
 // FUNCTION: SWBF2 0x00475f80
 EntityClass* EntityBuildingAnimated::GetEntityClass()
@@ -272,15 +249,15 @@ EntityBuildingAnimated::EntityBuildingAnimated(EntityBuildingAnimatedClass* pCla
 // SYNTHETIC: SWBF2 0x00494110
 // EntityBuildingAnimated::`scalar deleting destructor'
 // SYNTHETIC: SWBF2 0x00494f98
-// [thunk]: EntityBuildingAnimated::`scalar deleting destructor' adjustor{320}
+// ??_EEntityBuildingAnimated@@WBEA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00494fa3
-// [thunk]: EntityBuildingAnimated::`scalar deleting destructor' adjustor{12}
+// ??_EEntityBuildingAnimated@@WM@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00494fab
-// [thunk]: EntityBuildingAnimated::`scalar deleting destructor' adjustor{512}
+// ??_EEntityBuildingAnimated@@WCAA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00494fb6
-// [thunk]: EntityBuildingAnimated::`scalar deleting destructor' adjustor{608}
+// ??_EEntityBuildingAnimated@@WCGA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00494fc1
-// [thunk]: EntityBuildingAnimated::`scalar deleting destructor' adjustor{148}
+// ??_EEntityBuildingAnimated@@WJE@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x00494320
 EntityBuildingAnimated::~EntityBuildingAnimated()
@@ -346,7 +323,7 @@ void EntityBuildingAnimated::SetAnimation(unsigned int uAnimationId, bool bLoop)
     mZephyrSkeleton.Open(*mZephyrSkeleton.m_pShared, kPose);
     kPose.Open(mZephyrSkeleton);
     kPose.Set(mZephyrPoseDyn, true);
-    mZephyrSkeleton.BuildWorldMatrices(_IdentityMatrix);
+    mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity);
     mPose.ConvertFromZephyrPose(mZephyrSkeleton);
     mAnimationId = uAnimationId;
 }
@@ -395,7 +372,7 @@ bool EntityBuildingAnimated::Update(float fDeltaTime)
                 PblMatrix mEffect;
                 GetModel()->GetRedModel(0)->GetBoneMatrix(mAnimatedClass->mDeathEffectNodeHash[i], mEffect);
                 PblMatrix mWorld;
-                D3DXMatrixMultiply((D3DXMATRIX*)&mWorld, (const D3DXMATRIX*)&mMatrix, (const D3DXMATRIX*)&mEffect);
+                mWorld = mMatrix * mEffect;
                 mEffect = mWorld;
                 if (CameraManager::sInstance->IsInsideAnyCamera(mEffect.GetTranslation(), 60.0f, 70.0f))
                 {
@@ -420,7 +397,7 @@ bool EntityBuildingAnimated::Update(float fDeltaTime)
             mZephyrPoseDyn.Update(fDeltaTime);
             kPose.Set(mZephyrPoseDyn, true);
         }
-        mZephyrSkeleton.BuildWorldMatrices(_IdentityMatrix);
+        mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity);
         mPose.ConvertFromZephyrPose(mZephyrSkeleton);
     }
 

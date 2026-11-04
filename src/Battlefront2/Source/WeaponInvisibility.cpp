@@ -10,35 +10,33 @@
 #include "Trigger.h"
 #include "PebbleFL/Common/PblRandom.h"
 
-// GLOBAL: SWBF2 0x01f9a8d4
 // SYNTHETIC: SWBF2 0x004071a0
 // `dynamic initializer for 'WeaponInvisibility::rttiHashWeaponInvisibility''
+// WeaponInvisibility::rttiHashWeaponInvisibility
+
+// GLOBAL: SWBF2 0x01f9a8d4
+// WeaponInvisibility::rttiHashWeaponInvisibility
 PblHash WeaponInvisibility::rttiHashWeaponInvisibility("WeaponInvisibility");
-char WeaponInvisibility::rttiNameWeaponInvisibility[] = "WeaponInvisibility";
+// GLOBAL: SWBF2 0x0078c04c
+// WeaponInvisibility::rttiNameWeaponInvisibility
+const char WeaponInvisibility::rttiNameWeaponInvisibility[] = "WeaponInvisibility";
 
-// FUNCTION: SWBF2 0x00685cc0
-bool WeaponInvisibility::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashWeaponInvisibility || Weapon::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00685cf0
-unsigned int WeaponInvisibility::GetDerivedRtti() const
-{
-    return rttiHashWeaponInvisibility;
-}
 
-// FUNCTION: SWBF2 0x00685d00
-const char* WeaponInvisibility::GetDerivedRttiName() const
-{
-    return rttiNameWeaponInvisibility;
-}
 
-// GLOBAL: SWBF2 0x01f9a8d8
+
+
+
 // SYNTHETIC: SWBF2 0x004071b0
 // `dynamic initializer for 'WeaponInvisibilityClass::rttiHashWeaponInvisibilityClass''
+// WeaponInvisibilityClass::rttiHashWeaponInvisibilityClass
+
+// GLOBAL: SWBF2 0x01f9a8d8
+// WeaponInvisibilityClass::rttiHashWeaponInvisibilityClass
 PblHash WeaponInvisibilityClass::rttiHashWeaponInvisibilityClass("WeaponInvisibilityClass");
-char WeaponInvisibilityClass::rttiNameWeaponInvisibilityClass[] = "WeaponInvisibilityClass";
+// GLOBAL: SWBF2 0x0078c028
+// WeaponInvisibilityClass::rttiNameWeaponInvisibilityClass
+const char WeaponInvisibilityClass::rttiNameWeaponInvisibilityClass[] = "WeaponInvisibilityClass";
 
 // FUNCTION: SWBF2 0x006865f0
 WeaponInvisibilityClass::WeaponInvisibilityClass(unsigned int uHash)
@@ -90,23 +88,11 @@ WeaponInvisibilityClass::~WeaponInvisibilityClass()
 // SYNTHETIC: SWBF2 0x006866b0
 // WeaponInvisibilityClass::`scalar deleting destructor'
 
-// FUNCTION: SWBF2 0x00685d10
-bool WeaponInvisibilityClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashWeaponInvisibilityClass || WeaponClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00685d40
-unsigned int WeaponInvisibilityClass::GetDerivedRtti()
-{
-    return rttiHashWeaponInvisibilityClass;
-}
 
-// FUNCTION: SWBF2 0x00685d50
-const char* WeaponInvisibilityClass::GetDerivedRttiName()
-{
-    return rttiNameWeaponInvisibilityClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x006867b0
 void WeaponInvisibilityClass::SetProperty(unsigned int uProperty, const char* pszValue)

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "Controllable.h"
@@ -22,22 +24,28 @@ public:
 
     virtual EntityClass* Derive(unsigned int uHash);
     virtual Entity* Build(const EntityDesc& desc);
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
-    virtual int GetVehicleType();
+    virtual int GetVehicleType() const;
 
     int mVehicleType;
 
     static PblHash rttiHashEntityRemoteTerminalClass;
-    static char rttiNameEntityRemoteTerminalClass[];
+    static const char rttiNameEntityRemoteTerminalClass[];
 };
   
  
  
 
-// VTABLE: SWBF2 0x0079ca9c
+// VTABLE: SWBF2 0x0079ca9c EntityEx
+// VTABLE: SWBF2 0x0079cbc4 Trackable
+// VTABLE: SWBF2 0x0079cc0c Damageable
+// VTABLE: SWBF2 0x0079cc38 RedSceneObject
+// VTABLE: SWBF2 0x0079cca0 PblHandled
+// VTABLE: SWBF2 0x0079ccf4 Thread
+// VTABLE: SWBF2 0x0079cdc4 CollisionObject
 class EntityRemoteTerminal : public GameObject, public Controllable
 {
 public:
@@ -86,21 +94,47 @@ public:
     virtual bool UpdateIndirect(float fDeltaTime);
 
     GameObject* GetRemoteGameObject();
-    EntityRemoteTerminal* GetNextLinkedTerminal();
-    EntityRemoteTerminal* GetPrevLinkedTerminal();
+    // FUNCTION: SWBF2 0x004dcb30
+    EntityRemoteTerminal* GetNextLinkedTerminal()
+    {
+        if (!mNextLinkedTerminal)
+        {
+            EntityEx* pEntity = EntityEx::Find(mNextLinkedTerminalHash);
+            if (pEntity && pEntity->IsRtti(rttiHashEntityRemoteTerminal))
+            {
+                mNextLinkedTerminal = reinterpret_cast<EntityRemoteTerminal*>(pEntity);
+            }
+        }
+        return mNextLinkedTerminal;
+    }
+    // FUNCTION: SWBF2 0x004dcb90
+    EntityRemoteTerminal* GetPrevLinkedTerminal()
+    {
+        if (!mPrevLinkedTerminal)
+        {
+            EntityEx* pEntity = EntityEx::Find(mPrevLinkedTerminalHash);
+            if (pEntity && pEntity->IsRtti(rttiHashEntityRemoteTerminal))
+            {
+                mPrevLinkedTerminal = reinterpret_cast<EntityRemoteTerminal*>(pEntity);
+            }
+        }
+        return mPrevLinkedTerminal;
+    }
     bool IsTerminalAvailable(const EntitySoldier* pSoldier);
     EntityRemoteTerminal* GetNextAvailableTerminal(const EntitySoldier* pSoldier);
     EntityRemoteTerminal* GetPrevAvailableTerminal(const EntitySoldier* pSoldier);
     void UpdateHealthRemote(float fAddHealth);
 
-    static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
+    static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }
+    // SYNTHETIC: SWBF2 0x004dc980
+    // EntityRemoteTerminal::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
     static PblHash rttiHashEntityRemoteTerminal;
 
     // FUNCTION: SWBF2 0x0043ef30
     static unsigned int GetRtti() { return rttiHashEntityRemoteTerminal; }
-    static char rttiNameEntityRemoteTerminal[];
+    static const char rttiNameEntityRemoteTerminal[];
     static MemoryPool sMemoryPool;
 
     EntityRemoteTerminalClass* mClass;
@@ -123,3 +157,49 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x004dc920
+inline bool EntityRemoteTerminal::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashEntityRemoteTerminal == uRtti)
+    {
+        return true;
+    }
+    return reinterpret_cast<const GameObject*>(this)->GameObject::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x004dc960
+inline unsigned int EntityRemoteTerminal::GetDerivedRtti() const
+{
+    return rttiHashEntityRemoteTerminal;
+}
+
+// FUNCTION: SWBF2 0x004dc970
+inline const char* EntityRemoteTerminal::GetDerivedRttiName() const
+{
+    return rttiNameEntityRemoteTerminal;
+}
+
+// FUNCTION: SWBF2 0x004dcc20
+inline bool EntityRemoteTerminalClass::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashEntityRemoteTerminalClass == uRtti)
+    {
+        return true;
+    }
+    return GameObjectClass::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x004dcc60
+inline unsigned int EntityRemoteTerminalClass::GetDerivedRtti() const
+{
+    return rttiHashEntityRemoteTerminalClass;
+}
+
+// FUNCTION: SWBF2 0x004dcc70
+inline const char* EntityRemoteTerminalClass::GetDerivedRttiName() const
+{
+    return rttiNameEntityRemoteTerminalClass;
+}
+
+

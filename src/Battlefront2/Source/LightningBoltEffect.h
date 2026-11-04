@@ -13,8 +13,8 @@
 class LightningBoltEffectObject;
 class PblConfig;
 
-// VTABLE: SWBF2 0x007a3c38
-// VTABLE: SWBF2 0x007a3c20
+// VTABLE: SWBF2 0x007a3c38 FLEffectClass
+// VTABLE: SWBF2 0x007a3c20 Thread
 class LightningBoltEffectClass : public FLEffectClass, public Thread
 {
 public:
@@ -77,8 +77,9 @@ public:
 };
  
  
- // VTABLE: SWBF2 0x007a3c44
+ // VTABLE: SWBF2 0x007a3c44 Thread
 // VTABLE: SWBF2 0x007a3c74
+// VTABLE: SWBF2 0x007a3cdc PblHandled
 class LightningBoltEffectObject : public FLEffectObject, public RedSceneObject
 {
 public:
@@ -87,7 +88,9 @@ public:
 
     static LightningBoltEffectObject* Create(const LightningBoltEffectClass* pClass);
 
-    static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
+    static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }
+    // SYNTHETIC: SWBF2 0x00570e30
+    // LightningBoltEffectObject::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
     virtual bool IsEffectActive() const;

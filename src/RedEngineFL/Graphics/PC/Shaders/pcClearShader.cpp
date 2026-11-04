@@ -1,3 +1,4 @@
+#include <string.h>
 #include "pcClearShader.h"
 #include "PebbleFL/Common/PblMath.h"
 
@@ -14,28 +15,22 @@ pcRedShader::GetStateFuncT pcClearShader::GetStateFuncArray[MAX_PIPELINES];
 pcRedShader::BeginFuncT pcClearShader::BeginFuncArray[MAX_PIPELINES];
 pcRedShader::EndFuncT pcClearShader::EndFuncArray[MAX_PIPELINES];
 pcRedShader::RenderFuncT pcClearShader::RenderFuncArray[MAX_PIPELINES];
-// GLOBAL: SWBF2 0x009c9c5c
 // SYNTHETIC: SWBF2 0x00409de0
 // `dynamic initializer for 'pcClearShader::s_shaderDef''
 // SYNTHETIC: SWBF2 0x00769e00
 // `dynamic atexit destructor for 'pcClearShader::s_shaderDef''
+
+// GLOBAL: SWBF2 0x009c9c5c
+// pcClearShader::s_shaderDef
 pcRedShaderDef pcClearShader::s_shaderDef;
 
 // FUNCTION: SWBF2 0x00706840
 pcClearShader::pcClearShader()
 {
-    GetStateFuncArray[PIPELINE_FIXED] = 0;
-    GetStateFuncArray[PIPELINE_PROG1] = 0;
-    GetStateFuncArray[PIPELINE_PROG2] = 0;
-    BeginFuncArray[PIPELINE_FIXED] = 0;
-    BeginFuncArray[PIPELINE_PROG1] = 0;
-    BeginFuncArray[PIPELINE_PROG2] = 0;
-    EndFuncArray[PIPELINE_FIXED] = 0;
-    EndFuncArray[PIPELINE_PROG1] = 0;
-    EndFuncArray[PIPELINE_PROG2] = 0;
-    RenderFuncArray[PIPELINE_FIXED] = 0;
-    RenderFuncArray[PIPELINE_PROG1] = 0;
-    RenderFuncArray[PIPELINE_PROG2] = 0;
+    memset(GetStateFuncArray, 0, sizeof(GetStateFuncArray));
+    memset(BeginFuncArray, 0, sizeof(BeginFuncArray));
+    memset(EndFuncArray, 0, sizeof(EndFuncArray));
+    memset(RenderFuncArray, 0, sizeof(RenderFuncArray));
 
     s_uiID = _Register(s_uiRenderTypeHash, this);
 
@@ -123,16 +118,16 @@ unsigned int pcClearShader::GetState_Fixed(const RenderItem*) const
     return 0;
 }
 
-// GLOBAL: SWBF2 0x00784ca0
-static const pcRedShaderDef::FixedFunctionStateT kFixedFunctionStates[1] =
-{
-    { 1, { 0x11, 0x00, 0x00, 0x00 } },
-};
-
 // FUNCTION: SWBF2 0x00706b30
 void pcClearShader::InitFixedFunctionShaderDef() const
 {
-    GetShaderDef()->InitFixedFunction(0, 1, kFixedFunctionStates);
+    // GLOBAL: SWBF2 0x00784ca0
+    static const pcRedShaderDef::FixedFunctionStateT aFFStates[1] =
+    {
+        { 1, { 0x11, 0x00, 0x00, 0x00 } },
+    };
+
+    GetShaderDef()->InitFixedFunction(0, 1, aFFStates);
 }
 
 // FUNCTION: SWBF2 0x00706b50
@@ -297,23 +292,28 @@ void pcClearShader::_StaticInit() const
 {
 }
 
-// GLOBAL: SWBF2 0x009c9c88
 // SYNTHETIC: SWBF2 0x00409e00
 // `dynamic initializer for 'pcClearShader::s_uiRenderTypeHash''
+
+// GLOBAL: SWBF2 0x009c9c88
+// pcClearShader::s_uiRenderTypeHash
 unsigned int pcClearShader::s_uiRenderTypeHash = PblHash("clear");
 
-// GLOBAL: SWBF2 0x009c9c24
 // SYNTHETIC: SWBF2 0x00409dc0
 // `dynamic initializer for 'pcClearShader::s_Factory''
 // SYNTHETIC: SWBF2 0x00769de0
 // `dynamic atexit destructor for 'pcClearShader::s_Factory''
+
+// GLOBAL: SWBF2 0x009c9c24
+// pcClearShader::s_Factory
 pcClearShader pcClearShader::s_Factory;
 
 // SYNTHETIC: SWBF2 0x00409e20
-// `dynamic initializer for 'PblMath::fOneOverHalfPi''
+// PblMath::`dynamic initializer for 'fOneOverHalfPi''
 
 // SYNTHETIC: SWBF2 0x00409e40
-// `dynamic initializer for 'PblMath::fOneOverTwoPi''
+// PblMath::`dynamic initializer for 'fOneOverTwoPi''
 
 // GLOBAL: SWBF2 0x009c9c20
+// g_pcClearShader
 unsigned int g_pcClearShader;

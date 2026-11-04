@@ -6,7 +6,10 @@
 #include "Character.h"
 #include "NetGame.h"
 
-namespace ObjectiveManager { void AddObjectiveList(HUD::ObjectiveList* pList); }
+namespace ObjectiveManager
+{
+void AddObjectiveList(HUD::ObjectiveList* pList);
+}
 
 // FUNCTION: SWBF2 0x00565e90
 HUD::ObjectiveList::Factory::Factory()
@@ -89,7 +92,7 @@ HUD::ObjectiveList::ObjectiveList(const char* const pName, Factory::ItemCallback
 // HUD::ObjectiveList::`scalar deleting destructor'
 
 // SYNTHETIC: SWBF2 0x00566740
-// [thunk]:HUD::ObjectiveList::`scalar deleting destructor' adjustor{368}
+// ??_EObjectiveList@HUD@@WBHA@AEPAXI@Z
 // FUNCTION: SWBF2 0x00566070
 HUD::ObjectiveList::~ObjectiveList()
 {
@@ -237,6 +240,19 @@ void HUD::ObjectiveList::SetupText()
             fY += fBottom - fTop + 2.0f;
         }
     }
+}
+
+// FUNCTION: SWBF2 0x005663f0
+unsigned int HUD::ObjectiveList::GetCurrentPopupText()
+{
+    for (PblList<Objective>::Itor it(_objectives); it != _objectives.End(); ++it)
+    {
+        if (it->_state == Objective::ACTIVE && it->_popupTextID)
+        {
+            return it->_popupTextID;
+        }
+    }
+    return 0;
 }
 
 // FUNCTION: SWBF2 0x005666e0

@@ -1,3 +1,5 @@
+#include "AmmoCounter.h"
+#include <d3dx9math.h>
 #include <math.h>
 #include <stdlib.h>
 
@@ -18,42 +20,37 @@
 #include "RedEngineFL/Graphics/RedPose.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 #include <new>
-#include "PebbleFL/pc/PblD3DX.h"
 
 extern bool netIsLocalTurn;
 
+
+
+
 namespace
 {
-    EntityClass* GetEntityClass(GameObject* pObject)
+    inline EntityClass* GetEntityClass(GameObject* pObject)
     {
         typedef EntityClass* (__thiscall *Fn)(GameObject*);
         return pObject->GetEntityClass();
     }
 }
 
-// GLOBAL: SWBF2 0x01f9a89c
 // SYNTHETIC: SWBF2 0x004070c0
 // `dynamic initializer for 'WeaponCatapult::rttiHashWeaponCatapult''
+// WeaponCatapult::rttiHashWeaponCatapult
+
+// GLOBAL: SWBF2 0x01f9a89c
+// WeaponCatapult::rttiHashWeaponCatapult
 PblHash WeaponCatapult::rttiHashWeaponCatapult("WeaponCatapult");
-char WeaponCatapult::rttiNameWeaponCatapult[] = "WeaponCatapult";
+// GLOBAL: SWBF2 0x0078beb0
+// WeaponCatapult::rttiNameWeaponCatapult
+const char WeaponCatapult::rttiNameWeaponCatapult[] = "WeaponCatapult";
 
-// FUNCTION: SWBF2 0x00680be0
-bool WeaponCatapult::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashWeaponCatapult || Weapon::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00680c10
-unsigned int WeaponCatapult::GetDerivedRtti() const
-{
-    return rttiHashWeaponCatapult;
-}
 
-// FUNCTION: SWBF2 0x00680c20
-const char* WeaponCatapult::GetDerivedRttiName() const
-{
-    return rttiNameWeaponCatapult;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00681450
 bool WeaponCatapult::CheckReload() const
@@ -130,12 +127,12 @@ void WeaponCatapult::SetArmAngle(float fAngle)
         const float fInv = 1.0f / fLength;
         float fSin, fCos;
         PblMath::SinCos(&fSin, &fCos, fLength * 0.5f);
-        qArm = qArm * PblQuaternion(vOmega.x * fInv * fSin, vOmega.y * fInv * fSin, vOmega.z * fInv * fSin, fCos);
+        qArm = qArm * PblQuaternion(fCos, vOmega.x * fInv * fSin, vOmega.y * fInv * fSin, vOmega.z * fInv * fSin);
     }
 
     PblQuaternion qUnit;
     PblMatrix mPose;
-    D3DXMatrixRotationQuaternion(&mPose, D3DXQuaternionNormalize(&qUnit, &qArm));
+    D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mPose), D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&qUnit), reinterpret_cast<const D3DXQUATERNION*>(&qArm)));
     mPose.m[3][0] = pArm->m[3][0];
     mPose.m[3][1] = pArm->m[3][1];
     mPose.m[3][2] = pArm->m[3][2];
@@ -270,7 +267,7 @@ bool WeaponCatapult::Fire()
     desc.mOwner = mOwner->GetGameObject();
     desc.mDamageOwner = DamageOwner(mOwner->mCharacter, mOwner->GetGameObject(), mOwner->GetGameObject()->GetTeam(),
                                     GetEntityClass(mOwner->GetGameObject()), mClass, mOwner->GetOffenseMultiplier());
-    desc.mTarget = const_cast<GameObject*>(mTarget.GetValidObject());
+    desc.mTarget = const_cast<GameObject*>(static_cast<const GameObject*>(mTarget));
     desc.mBodyID = mTargetBodyID;
 
     if (NetGame::IsEnabled())
@@ -305,8 +302,7 @@ void WeaponCatapult::Render(const PblMatrix& matrix, const RedPose* pPose, const
             const float fY = pArm->m[3][1] + vBase.y - vFirePos.y;
             const float fZ = pArm->m[3][2] + vBase.z - vFirePos.z;
             const float fDist = sqrtf(fX * fX + fY * fY + fZ * fZ);
-            PblMatrix mOrdnance;
-            D3DXMatrixMultiply(&mOrdnance, pArm, &mCatapultBuilding->GetMatrix());
+            PblMatrix mOrdnance = *pArm * mCatapultBuilding->GetMatrix();
             mOrdnance.m[3][0] += mOrdnance.m[1][0] * fDist;
             mOrdnance.m[3][1] += mOrdnance.m[1][1] * fDist;
             mOrdnance.m[3][2] += mOrdnance.m[1][2] * fDist;
@@ -317,11 +313,16 @@ void WeaponCatapult::Render(const PblMatrix& matrix, const RedPose* pPose, const
     Weapon::Render(matrix, pPose, color, uFlags, bArg);
 }
 
-// GLOBAL: SWBF2 0x01f9a8a0
 // SYNTHETIC: SWBF2 0x004070d0
 // `dynamic initializer for 'WeaponCatapultClass::rttiHashWeaponCatapultClass''
+// WeaponCatapultClass::rttiHashWeaponCatapultClass
+
+// GLOBAL: SWBF2 0x01f9a8a0
+// WeaponCatapultClass::rttiHashWeaponCatapultClass
 PblHash WeaponCatapultClass::rttiHashWeaponCatapultClass("WeaponCatapultClass");
-char WeaponCatapultClass::rttiNameWeaponCatapultClass[] = "WeaponCatapultClass";
+// GLOBAL: SWBF2 0x0078bec0
+// WeaponCatapultClass::rttiNameWeaponCatapultClass
+const char WeaponCatapultClass::rttiNameWeaponCatapultClass[] = "WeaponCatapultClass";
 
 // FUNCTION: SWBF2 0x006817d0
 WeaponCatapultClass::WeaponCatapultClass(unsigned int uHash)
@@ -349,23 +350,11 @@ WeaponCatapultClass::~WeaponCatapultClass()
 // SYNTHETIC: SWBF2 0x00681810
 // WeaponCatapultClass::`scalar deleting destructor'
 
-// FUNCTION: SWBF2 0x00680c30
-bool WeaponCatapultClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashWeaponCatapultClass || WeaponClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00680c60
-unsigned int WeaponCatapultClass::GetDerivedRtti()
-{
-    return rttiHashWeaponCatapultClass;
-}
 
-// FUNCTION: SWBF2 0x00680c70
-const char* WeaponCatapultClass::GetDerivedRttiName()
-{
-    return rttiNameWeaponCatapultClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x006818a0
 void WeaponCatapultClass::SetProperty(unsigned int uProperty, const char* pszValue)

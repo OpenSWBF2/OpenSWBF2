@@ -1,7 +1,4 @@
-#include "sndvoicebase.h"
-
 #include <string.h>
-#include <stddef.h>
 
 #include "sndallocbitmap.h"
 
@@ -24,20 +21,16 @@ bool AllocBitmap::Alloc(unsigned int uiNumEntries, Handle& handle)
             uiByte = 0;
         }
 
-        const unsigned char ucByte = mBitmap[uiByte];
-        if (ucByte == 0)
+        if (mBitmap[uiByte] == 0)
         {
             if (uiRun == 0)
             {
                 uiRunStart = uiByte * 8;
             }
             uiRun += 8;
-            if (uiRun > uiLargestRun)
-            {
-                uiLargestRun = uiRun;
-            }
+            uiLargestRun = uiRun > uiLargestRun ? uiRun : uiLargestRun;
         }
-        else if (ucByte == 0xFF)
+        else if (mBitmap[uiByte] == 0xFF)
         {
             uiRunStart = uiByte * 8;
             uiRun = 0;
@@ -46,12 +39,7 @@ bool AllocBitmap::Alloc(unsigned int uiNumEntries, Handle& handle)
         {
             for (unsigned int b = 0; b < 8; b++)
             {
-                if (ucByte & (1 << b))
-                {
-                    uiRunStart = b + uiByte * 8;
-                    uiRun = 0;
-                }
-                else
+                if (!(mBitmap[uiByte] & (1 << b)))
                 {
                     if (uiRun == 0)
                     {
@@ -59,15 +47,17 @@ bool AllocBitmap::Alloc(unsigned int uiNumEntries, Handle& handle)
                     }
                     uiRun++;
                 }
+                else
+                {
+                    uiRunStart = b + uiByte * 8;
+                    uiRun = 0;
+                }
                 if (uiRun == uiNumEntries)
                 {
                     break;
                 }
             }
-            if (uiRun > uiLargestRun)
-            {
-                uiLargestRun = uiRun;
-            }
+            uiLargestRun = uiRun > uiLargestRun ? uiRun : uiLargestRun;
         }
 
         if (uiRun >= uiNumEntries)
@@ -89,6 +79,12 @@ bool AllocBitmap::Alloc(unsigned int uiNumEntries, Handle& handle)
     handle.mNumEntries = uiRun;
     mSearchEntry = uiRunStart + uiRun;
     return true;
+}
+
+// FUNCTION: SWBF2 0x007452f0
+MemoryBitmap::MemoryBitmap()
+    : mStartAddress(0), mMemorySize(0), mEntrySize(0)
+{
 }
 
 // FUNCTION: SWBF2 0x00745430
@@ -126,16 +122,15 @@ unsigned int AllocBitmap::GetFreeEntries() const
 
     for (unsigned int i = 0; i < mBitmapSize; i++)
     {
-        const unsigned char ucByte = mBitmap[i];
-        if (ucByte == 0)
+        if (mBitmap[i] == 0)
         {
             uiFree += 8;
         }
-        else if (ucByte != 0xFF)
+        else if (mBitmap[i] != 0xFF)
         {
-            for (unsigned int b = 0; b < 8; b++)
+            for (unsigned char b = 0; b < 8; b++)
             {
-                if (!(ucByte & (1 << b)))
+                if (!(mBitmap[i] & (1 << b)))
                 {
                     uiFree++;
                 }
@@ -147,7 +142,7 @@ unsigned int AllocBitmap::GetFreeEntries() const
 }
 
 // FUNCTION: SWBF2 0x00745520
-uintptr_t MemoryBitmap::GetStartAddress() const
+unsigned int MemoryBitmap::GetStartAddress() const
 {
     return mStartAddress;
 }
@@ -171,7 +166,7 @@ void AllocBitmap::Initialize(unsigned char* pBitmap, unsigned int uiNumEntries)
 }
 
 // FUNCTION: SWBF2 0x00745590
-void MemoryBitmap::Initialize(uintptr_t uiStartAddress, unsigned int uiMemorySize,
+void MemoryBitmap::Initialize(unsigned int uiStartAddress, unsigned int uiMemorySize,
                               unsigned int uiEntrySize, unsigned char* pBitmap)
 {
     mStartAddress = uiStartAddress;
@@ -184,6 +179,7 @@ void MemoryBitmap::Initialize(uintptr_t uiStartAddress, unsigned int uiMemorySiz
 // FUNCTION: SWBF2 0x00745600
 void AllocBitmap::Reserve(unsigned int uiStartEntry, unsigned int uiNumEntries, bool bReserve)
 {
+    const unsigned char ucMask = bReserve ? 1 : 0;
     const unsigned int uiFirstByte = uiStartEntry >> 3;
     const unsigned int uiLastByte = (uiStartEntry + uiNumEntries) >> 3;
     const unsigned char ucFirstBit = (unsigned char)(uiStartEntry & 7);
@@ -196,14 +192,14 @@ void AllocBitmap::Reserve(unsigned int uiStartEntry, unsigned int uiNumEntries, 
 
         if (ucFrom == 0 && ucTo == 8)
         {
-            mBitmap[i] = bReserve ? (unsigned char)0xFF : (unsigned char)0x00;
+            mBitmap[i] = (unsigned char)-ucMask;
             continue;
         }
 
-        for (unsigned char b = ucFrom; b < ucTo; b++)
+        for (unsigned int b = ucFrom; b < ucTo; b++)
         {
             mBitmap[i] &= (unsigned char)~(1 << b);
-            mBitmap[i] |= (unsigned char)(bReserve << b);
+            mBitmap[i] |= (unsigned char)(ucMask << b);
         }
     }
 }
@@ -211,7 +207,7 @@ void AllocBitmap::Reserve(unsigned int uiStartEntry, unsigned int uiNumEntries, 
 // FUNCTION: SWBF2 0x007456c0
 bool AllocBitmap::Resize(unsigned int uiNumEntries, Handle& handle)
 {
-    const unsigned int uiOldEntries = handle.mNumEntries;
+    const Handle tempHandle = handle;
 
     Free(handle);
 
@@ -220,7 +216,7 @@ bool AllocBitmap::Resize(unsigned int uiNumEntries, Handle& handle)
         return true;
     }
 
-    Alloc(uiOldEntries, handle);
+    Alloc(tempHandle.GetNumAllocatedEntries(), handle);
     return false;
 }
 
@@ -230,21 +226,4 @@ bool MemoryBitmap::Resize(unsigned int uiSize, MemoryHandle& handle)
     return AllocBitmap::Resize((uiSize - 1 + mEntrySize) / mEntrySize, handle);
 }
 
-}
-
-namespace
-{
-struct VoiceBaseDestructorAccess : Snd::VoiceBase
-{
-    static void Destroy(Snd::VoiceBase* pVoice)
-    {
-        ((VoiceBaseDestructorAccess*)pVoice)->Snd::VoiceBase::~VoiceBase();
-    }
-};
-}
-
-// FUNCTION: SWBF2 0x00745a80
-void __fastcall DestroyVoiceBaseAlias(Snd::VoiceBase* pVoice)
-{
-    VoiceBaseDestructorAccess::Destroy(pVoice);
 }

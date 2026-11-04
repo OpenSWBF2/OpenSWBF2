@@ -18,12 +18,7 @@
 #include "PebbleFL/Common/PblFile.h"
 #include "PebbleFL/Common/PblHashTable.h"
 #include "pcRedIndexBuffer.h"
-#include "Battlefront2/Platform/Pc/pcSunFlare.h"
 
-pcShaderSegment::~pcShaderSegment()
-{
-    Free();
-}
 
 // FUNCTION: SWBF2 0x00717b50
 RedShadingState* pcShaderSegment::CreateShadingState() const
@@ -113,39 +108,20 @@ static const float kInv255 = 1.0f / 255.0f;
 static const PblMatrix& _GetSkinMatrix(unsigned int uiNumBones, const unsigned char* puiWeights,
                                        const unsigned char* puiIndices, const PblMatrix* pMatrices);
 
-inline PblVector3 operator-(const PblVector3& a,
-                                 const PblVector3& b)
-{
-    PblVector3 result;
-    result.x = a.x - b.x;
-    result.y = a.y - b.y;
-    result.z = a.z - b.z;
-    return result;
-}
 
-// GLOBAL: SWBF2 0x007de270
-
-// GLOBAL: SWBF2 0x007de27c
 
 // GLOBAL: SWBF2 0x007f5870
 
 PblVector3 CompressedPos::s_vMin;
-PblVector3 CompressedPos::s_vScale;
-PblVector3 CompressedPos::s_vScaleInv;
+// GLOBAL: SWBF2 0x007de270
+// CompressedPos::s_vScale
+PblVector3 CompressedPos::s_vScale(1.0f / 65535.0f, 1.0f / 65535.0f, 1.0f / 65535.0f);
+// GLOBAL: SWBF2 0x007de27c
+// CompressedPos::s_vScaleInv
+PblVector3 CompressedPos::s_vScaleInv(65535.0f, 65535.0f, 65535.0f);
 
-// FUNCTION: SWBF2 0x00717980
-pcSoftwareSkinnedShaderSegment::pcSoftwareSkinnedShaderSegment()
-    : m_pVertexData(0), m_puiSkinData(0), m_uiSkinNumBones(0),
-      m_pIndexBuffer(0), m_PrimType(5), m_uiStartIndex(0),
-      m_uiPrimCount(0), m_uiNumVertices(0), m_uiNumIndices(0),
-      m_pShader(0), m_uiSegmentRenderFlags(0)
-{
-}
 
-pcSoftwareSkinnedShaderSegment::~pcSoftwareSkinnedShaderSegment()
-{
-    Free();
-}
+
 
 // FUNCTION: SWBF2 0x00717b60
 RedShadingState* pcSoftwareSkinnedShaderSegment::CreateShadingState() const

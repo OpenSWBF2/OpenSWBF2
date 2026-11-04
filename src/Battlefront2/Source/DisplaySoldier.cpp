@@ -20,7 +20,10 @@
 #include "RedEngineFL/Graphics/RedShadingState.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 
-namespace GameLoop { extern float sDeltaTime; }
+namespace GameLoop
+{
+extern float sDeltaTime;
+}
 
 extern PblVector3 gVectorZero;
 
@@ -53,10 +56,7 @@ SoldierElement::SoldierElement()
     mIsSetup = false;
     mID = reinterpret_cast<EntitySoldier*>(this);
     mGroundNormal = PblVector3(0.0f, 1.0f, 0.0f);
-    for (int i = 0; i < 8; ++i)
-    {
-        mClothPiece[i] = 0;
-    }
+    memset(mClothPiece, 0, sizeof(mClothPiece));
     mTentacles = 0;
     Reset();
 }
@@ -225,19 +225,10 @@ void SoldierElement::RenderUsingContext(const PblMatrix& mContext, const RedColo
     mScreen.m[3][2] *= fScale;
     mScreen.m[3][3] = 1.0f;
 
-    PblMatrix mWorld;
-    PblQuaternion qUnit;
-    D3DXMatrixRotationQuaternion((D3DXMATRIX*)&mWorld,
-                                 D3DXQuaternionNormalize((D3DXQUATERNION*)&qUnit,
-                                                         (const D3DXQUATERNION*)&mRotation));
-    mWorld.m[3][0] = mTranslation.x;
-    mWorld.m[3][1] = mTranslation.y;
-    mWorld.m[3][2] = mTranslation.z;
-    mWorld.m[3][3] = 1.0f;
+    PblMatrix mWorld(mRotation, mTranslation);
 
     PblMatrix mScaling;
-    D3DXMatrixMultiply((D3DXMATRIX*)&mWorld, (const D3DXMATRIX*)&mWorld,
-                       D3DXMatrixScaling((D3DXMATRIX*)&mScaling, mScale, mScale, mScale));
+    mWorld.Scale(mScale);
     D3DXMatrixMultiply((D3DXMATRIX*)&mScaling, (const D3DXMATRIX*)&mWorld,
                        (const D3DXMATRIX*)&mScreen);
     mScreen = mScaling;
@@ -343,8 +334,6 @@ void SoldierElement::RenderUsingContext(const PblMatrix& mContext, const RedColo
     {
 
         RedShadingPose shadingPose;
-        shadingPose.m_pFirstEntry = 0;
-        shadingPose.m_pModel = 0;
         shadingPose.BindToModel(pRedModel);
         if (RedShadingState* pState = shadingPose.CreateShadingState(0xdc5803e9))
         {
@@ -358,7 +347,6 @@ void SoldierElement::RenderUsingContext(const PblMatrix& mContext, const RedColo
             }
         }
         pRedModel->Render(&mRender, &pose, color, 0x4000000, &shadingPose);
-        shadingPose.Reset();
     }
     else
     {

@@ -7,6 +7,7 @@ class CollisionObject;
 class PblVector3;
 class Restrictor;
 
+// VTABLE: SWBF2 0x0079d4dc
 class EntityTerrain : public CollisionObject
 {
 public:

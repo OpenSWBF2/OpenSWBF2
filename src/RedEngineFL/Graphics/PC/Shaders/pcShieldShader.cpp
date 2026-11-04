@@ -40,26 +40,20 @@ PblVector3 pcShieldShader::s_vLightY;
 
 static D3DMATERIAL9 s_d3dMat;
 
-// GLOBAL: SWBF2 0x00965048
 // SYNTHETIC: SWBF2 0x00407fc0
 // `dynamic initializer for 'kuiSpecularSpotMap''
+
+// GLOBAL: SWBF2 0x00965048
+// kuiSpecularSpotMap
 static unsigned int kuiSpecularSpotMap = PblHash("specularspot");
 
 // FUNCTION: SWBF2 0x006ccce0
 pcShieldShader::pcShieldShader()
 {
-    GetStateFuncArray[PIPELINE_FIXED] = 0;
-    GetStateFuncArray[PIPELINE_PROG1] = 0;
-    GetStateFuncArray[PIPELINE_PROG2] = 0;
-    BeginFuncArray[PIPELINE_FIXED] = 0;
-    BeginFuncArray[PIPELINE_PROG1] = 0;
-    BeginFuncArray[PIPELINE_PROG2] = 0;
-    EndFuncArray[PIPELINE_FIXED] = 0;
-    EndFuncArray[PIPELINE_PROG1] = 0;
-    EndFuncArray[PIPELINE_PROG2] = 0;
-    RenderFuncArray[PIPELINE_FIXED] = 0;
-    RenderFuncArray[PIPELINE_PROG1] = 0;
-    RenderFuncArray[PIPELINE_PROG2] = 0;
+    memset(GetStateFuncArray, 0, sizeof(GetStateFuncArray));
+    memset(BeginFuncArray, 0, sizeof(BeginFuncArray));
+    memset(EndFuncArray, 0, sizeof(EndFuncArray));
+    memset(RenderFuncArray, 0, sizeof(RenderFuncArray));
 
     s_uiID = _Register(s_uiRenderTypeHash, this);
 
@@ -175,11 +169,7 @@ void pcShieldShader::Render_Fixed(const RenderItem* pItem, unsigned int) const
         if (pItem->uiShaderState == 1)
         {
             RedRenderer::pcSetTexture(0, RedTexture::Find(m_uiTextureHash));
-            PblMatrix mOffset;
-            mOffset.m[0][0] = 1.0f; mOffset.m[0][1] = 0.0f; mOffset.m[0][2] = 0.0f; mOffset.m[0][3] = 0.0f;
-            mOffset.m[1][0] = 0.0f; mOffset.m[1][1] = 1.0f; mOffset.m[1][2] = 0.0f; mOffset.m[1][3] = 0.0f;
-            mOffset.m[2][0] = m_fOffsetU; mOffset.m[2][1] = m_fOffsetV; mOffset.m[2][2] = 0.0f; mOffset.m[2][3] = 0.0f;
-            mOffset.m[3][0] = 0.0f; mOffset.m[3][1] = 0.0f; mOffset.m[3][2] = 0.0f; mOffset.m[3][3] = 1.0f;
+            PblMatrix mOffset(PblVector3(1.0f, 0.0f, 0.0f), PblVector3(0.0f, 1.0f, 0.0f), PblVector3(m_fOffsetU, m_fOffsetV, 0.0f), PblVector3(0.0f, 0.0f, 0.0f));
             RedRenderer::pcFFSetTextureTransform(0, mOffset);
         }
         else
@@ -261,9 +251,7 @@ void pcShieldShader::Begin_Prog1(unsigned int, unsigned int) const
         else
         {
             const float fInvLen = 1.0f / sqrtf(fLenSq);
-            s_vLightX.x *= fInvLen;
-            s_vLightX.y *= fInvLen;
-            s_vLightX.z *= fInvLen;
+            s_vLightX *= fInvLen;
         }
 
         s_vLightY = PblVector3(s_vLightDir.y * s_vLightX.z - s_vLightDir.z * s_vLightX.y,
@@ -330,17 +318,17 @@ unsigned int pcShieldShader::GetState_Prog1(const RenderItem*) const
     return 0;
 }
 
-// GLOBAL: SWBF2 0x00772f30
-static const pcRedShaderDef::FixedFunctionStateT kFixedFunctionStates[2] =
-{
-    { 1, { 0x141, 0x00, 0x00, 0x00 } },
-    { 1, { 0x241, 0x00, 0x00, 0x00 } },
-};
-
 // FUNCTION: SWBF2 0x006cd530
 void pcShieldShader::InitFixedFunctionShaderDef() const
 {
-    GetShaderDef()->InitFixedFunction(0x28, 2, kFixedFunctionStates);
+    // GLOBAL: SWBF2 0x00772f30
+    static const pcRedShaderDef::FixedFunctionStateT aFFStates[2] =
+    {
+        { 1, { 0x141, 0x00, 0x00, 0x00 } },
+        { 1, { 0x241, 0x00, 0x00, 0x00 } },
+    };
+
+    GetShaderDef()->InitFixedFunction(0x28, 2, aFFStates);
 }
 
 // FUNCTION: SWBF2 0x006cd8e0
@@ -551,18 +539,21 @@ void pcShieldShader::_Read(PblFileChunk& chunk) const
 // `dynamic initializer for 'pcShieldShader::s_uiRenderTypeHash''
 unsigned int pcShieldShader::s_uiRenderTypeHash = PblHash("Shield");
 
-// GLOBAL: SWBF2 0x00964fc8
 // SYNTHETIC: SWBF2 0x00407f00
 // `dynamic initializer for 'pcShieldShader::s_Factory''
 // SYNTHETIC: SWBF2 0x007698f0
 // `dynamic atexit destructor for 'pcShieldShader::s_Factory''
+
+// GLOBAL: SWBF2 0x00964fc8
+// pcShieldShader::s_Factory
 pcShieldShader pcShieldShader::s_Factory;
 
 // GLOBAL: SWBF2 0x00964fc0
 unsigned int g_pcShieldShader;
 
-// GLOBAL: SWBF2 0x00964fc4
 // SYNTHETIC: SWBF2 0x00407fa0
 // `dynamic initializer for 'kuiLinearRamp''
 
+// GLOBAL: SWBF2 0x00964fc4
+// kuiLinearRamp
 unsigned int kuiLinearRamp = PblHash("linear_ramp");

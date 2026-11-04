@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "DeathCamera.h"
 #include "CameraManager.h"
 #include "Character.h"
@@ -7,7 +8,7 @@
 #include "Trackable.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
 #include "PebbleFL/Common/PblQuaternion.h"
-#include "PebbleFL/pc/PblD3DX.h"
+#include "PebbleFL/Common/PblMath.h"
 
 static CollisionObject* GetCollisionObject(GameObject* pObject);
 
@@ -51,7 +52,7 @@ void DeathCamera::SetInfo(Trackable* pOwner, Character* pKiller, const PblMatrix
 
     PblVector3 vForward(rMatrix.m[2][0], 0.0f, rMatrix.m[2][2]);
     PblVector3 vNormalized;
-    D3DXVec3Normalize(&vNormalized, &vForward);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNormalized), reinterpret_cast<const D3DXVECTOR3*>(&vForward));
     mDeathMidPos = PblVector3(rObjectMatrix.m[3][0] + vNormalized.x,
                               rObjectMatrix.m[3][1] + 1.0f + 0.5f,
                               rObjectMatrix.m[3][2] + vNormalized.z);
@@ -74,7 +75,8 @@ PblMatrix DirectionMatrix(const PblVector3& vDir, const PblVector3& vUp, const P
 
 PblQuaternion Interpolate(const PblQuaternion& q0, const PblQuaternion& q1, float fT);
 
-static CollisionObject* GetCollisionObject(GameObject* pObject)
+
+static inline CollisionObject* GetCollisionObject(GameObject* pObject)
 {
     return static_cast<CollisionObject*>(pObject);
 }
@@ -104,19 +106,12 @@ void DeathCamera::Update(float fDeltaTime)
     PblVector3 vOldPos(mMatrix.m[3][0], mMatrix.m[3][1], mMatrix.m[3][2]);
     PblVector3 vTarget = mDeathPos;
     PblVector3 vEye = mDeathMidPos;
-    float fBlend = 1.0f;
+    float fBlend = Min(mTimer, 1.0f);
 
-    if (mTimer < 1.0f)
-    {
-        fBlend = mTimer;
-    }
-    else if (mTimer > 1.5f && mKiller)
+    if (mTimer > 1.5f && mKiller)
     {
         fBlend = (mTimer - 1.5f) * 0.5f;
-        if (fBlend >= 1.0f)
-        {
-            fBlend = 1.0f;
-        }
+        fBlend = Min(fBlend, 1.0f);
 
         Controllable* pUnit = mKiller->mVehicle;
         if (!pUnit)
@@ -132,7 +127,7 @@ void DeathCamera::Update(float fDeltaTime)
 
     PblVector3 vDelta(vTarget.x - vEye.x, vTarget.y - vEye.y, vTarget.z - vEye.z);
     PblVector3 vDir;
-    D3DXVec3Normalize(&vDir, &vDelta);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vDelta));
 
     CollisionObject* pHitObject;
     PblVector3 vUpper(vEye.x + 0.0f, vEye.y + 0.75f, vEye.z + 0.0f);
@@ -142,7 +137,7 @@ void DeathCamera::Update(float fDeltaTime)
     vBack = PblVector3(-vDir.x, -vDir.y, -vDir.z);
     float fHitLower = CollisionManager::RayHit(vLower, vBack, 6.0f, pHitObject, NULL, NULL, 0, 0x90, false);
 
-    float fHit = fHitLower > fHitUpper ? fHitUpper : fHitLower;
+    float fHit = Min(fHitLower, fHitUpper);
     float fDist = fHit * 6.0f - 1.0f;
     PblVector3 vPos(vEye.x - vDir.x * fDist, vEye.y - vDir.y * fDist, vEye.z - vDir.z * fDist);
 
@@ -153,8 +148,8 @@ void DeathCamera::Update(float fDeltaTime)
 
     PblQuaternion qUnit;
     PblMatrix mNew;
-    D3DXQuaternionNormalize(&qUnit, &qRot);
-    D3DXMatrixRotationQuaternion(&mNew, &qUnit);
+    D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&qUnit), reinterpret_cast<const D3DXQUATERNION*>(&qRot));
+    D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mNew), reinterpret_cast<const D3DXQUATERNION*>(&qUnit));
     mNew.m[3][0] = (vPos.x - vOldPos.x) * fBlend + vOldPos.x;
     mNew.m[3][1] = (vPos.y - vOldPos.y) * fBlend + vOldPos.y;
     mNew.m[3][2] = (vPos.z - vOldPos.z) * fBlend + vOldPos.z;
@@ -175,17 +170,18 @@ void DeathCamera::SetupIconVisibility(int iView)
     mManager->m_uiVisibleIconMask[iView] = 0;
 }
 
+
 // FUNCTION: SWBF2 0x0043cd40
 PblMatrix DirectionMatrix(const PblVector3& vDir, const PblVector3& vUp, const PblVector3& vPos)
 {
     PblVector3 vFront;
-    D3DXVec3Normalize(&vFront, &vDir);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vFront), reinterpret_cast<const D3DXVECTOR3*>(&vDir));
 
     PblVector3 vCross(vUp.y * vDir.z - vUp.z * vDir.y,
                       vUp.z * vDir.x - vUp.x * vDir.z,
                       vUp.x * vDir.y - vUp.y * vDir.x);
     PblVector3 vRight;
-    D3DXVec3Normalize(&vRight, &vCross);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vRight), reinterpret_cast<const D3DXVECTOR3*>(&vCross));
 
     PblVector3 vNewUp(vFront.y * vRight.z - vFront.z * vRight.y,
                       vFront.z * vRight.x - vFront.x * vRight.z,

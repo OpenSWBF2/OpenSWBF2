@@ -36,16 +36,20 @@ unsigned short FAR *work;
     int end;
     unsigned short count[MAXBITS+1];
     unsigned short offs[MAXBITS+1];
+    // GLOBAL: SWBF2 0x0076f708
     static const unsigned short lbase[31] = {
         3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31,
         35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258, 0, 0};
+    // GLOBAL: SWBF2 0x0076f748
     static const unsigned short lext[31] = {
         16, 16, 16, 16, 16, 16, 16, 16, 17, 17, 17, 17, 18, 18, 18, 18,
         19, 19, 19, 19, 20, 20, 20, 20, 21, 21, 21, 21, 16, 199, 198};
+    // GLOBAL: SWBF2 0x0076f788
     static const unsigned short dbase[32] = {
         1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129, 193,
         257, 385, 513, 769, 1025, 1537, 2049, 3073, 4097, 6145,
         8193, 12289, 16385, 24577, 0, 0};
+    // GLOBAL: SWBF2 0x0076f7c8
     static const unsigned short dext[32] = {
         16, 16, 16, 16, 17, 17, 18, 18, 19, 19, 20, 20, 21, 21, 22, 22,
         23, 23, 24, 24, 25, 25, 26, 26, 27, 27,

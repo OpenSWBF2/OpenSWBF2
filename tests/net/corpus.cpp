@@ -64,7 +64,7 @@ static void DrainAndCheck(bool& bOk)
     {
         NetPktGroup out;
         out.Reset();
-        while (NetComm::Recv(&out, iType))
+        while (NetComm::Recv(out, (PktType)iType))
         {
             out.Free();
             out.Reset();

@@ -1,4 +1,5 @@
 #include "LuaCallbacks_Net.h"
+#include "FLInputManager.h"
 #include "LuaHelper.h"
 #include "LuaCallbacks_IFace.h"
 #include "LuaWideString.h"
@@ -35,57 +36,39 @@
 
 void JRR_to_Errorbox(JoinRejectReason eReason);
 extern int hostVoteThreshold;
-namespace FriendBuddyList { bool __fastcall IsFriendBuddy(int iPlayer); }
-
-// FUNCTION: SWBF2 0x00429300
-RedColor Team::GetColor(int iTeam) const
+namespace FriendBuddyList
 {
-    return mColor[iTeam];
+    bool __fastcall IsFriendBuddy(int ignored, int iPlayer);
 }
 
-// GLOBAL: SWBF2 0x01e57728
-namespace Lua_Callbacks { unsigned int HighestError; }
+namespace Lua_Callbacks
+{
+    // GLOBAL: SWBF2 0x01e57728
+    unsigned int HighestError;
+}
 
 namespace Lua_Callbacks
 {
 extern unsigned short sTempReturnString16[256];
 }
 
-// FUNCTION: SWBF2 0x00437550
-bool __fastcall LuaHelper::IsString(int iArg)
-{
-    return lua_isstring(LuaHelper::mState, iArg) != 0;
-}
 
-// FUNCTION: SWBF2 0x0052e3c0
-unsigned int __fastcall HashGalaxyID(const unsigned char* pID)
-{
-    unsigned int hash = 0x811c9dc5;
-    for (int i = 0; i < 8; ++i)
-    {
-        hash = (hash ^ pID[i]) * 0x01000193;
-    }
-    return hash;
-}
+
 
 // FUNCTION: SWBF2 0x0053dc00
-unsigned char* GameVoiceChat::Node::GetSendMask(unsigned int* pWord, unsigned char* pFirst,
-                                               unsigned char* pSecond) const
+void GameVoiceChat::Node::GetSendMask(Transport::Mask& mask, bool& enable, bool& maskExisting) const
 {
-    *pWord = (unsigned int)mSendMask.mMask;
-    *pFirst = mSendMask.mEnable;
-    *pSecond = mSendMask.mMaskExisting;
-    return pSecond;
+    mask = mSendMask.mMask;
+    enable = mSendMask.mEnable;
+    maskExisting = mSendMask.mMaskExisting;
 }
 
 // FUNCTION: SWBF2 0x0053dc40
-unsigned char* GameVoiceChat::Node::GetReceiveMask(unsigned int* pWord, unsigned char* pFirst,
-                                                  unsigned char* pSecond) const
+void GameVoiceChat::Node::GetReceiveMask(Transport::Mask& mask, bool& enable, bool& maskExisting) const
 {
-    *pWord = (unsigned int)mReceiveMask.mMask;
-    *pFirst = mReceiveMask.mEnable;
-    *pSecond = mReceiveMask.mMaskExisting;
-    return pSecond;
+    mask = mReceiveMask.mMask;
+    enable = mReceiveMask.mEnable;
+    maskExisting = mReceiveMask.mMaskExisting;
 }
 
 extern int hostPlayer;
@@ -141,9 +124,10 @@ bool gVoiceLocalEchoEnabled;
 
 int gFriendListIcon;
 
-namespace GameVoiceChat { void* GetNode(); }
-namespace GameVoiceChat { void* FindNodeByDeviceID(); }
-namespace GameVoiceChat { unsigned int GetNumNodes(); }
+namespace GameVoiceChat
+{
+    unsigned int GetNumNodes();
+}
 
 // FUNCTION: SWBF2 0x00596020
 static void VoiceLocalEchoEnable(const bool bEnable)
@@ -160,7 +144,7 @@ static void VoiceLocalEchoEnable(const bool bEnable)
     {
         for (unsigned int i = 0; i < uNumNodes; ++i)
         {
-            void* pNode = GameVoiceChat::GetNode();
+            GameVoiceChat::Node* pNode = GameVoiceChat::GetNode(i);
             if (pNode && ((VoiceChat::Node*)pNode)->IsOpen())
             {
                 ((GameVoiceChat::Node*)pNode)->SetID(i);
@@ -170,7 +154,7 @@ static void VoiceLocalEchoEnable(const bool bEnable)
 
     for (unsigned int i = 0; i < uNumNodes; ++i)
     {
-        const unsigned char ucID = ((VoiceChat::Node*)GameVoiceChat::GetNode())->GetID();
+        const unsigned char ucID = GameVoiceChat::GetNode(i)->GetID();
         if (ucID != 0xFF)
         {
             pTransport->SetSendEnable(ucID, ucID, bEnable, false);
@@ -182,7 +166,7 @@ static void VoiceLocalEchoEnable(const bool bEnable)
     {
         for (unsigned int i = 0; i < uNumNodes; ++i)
         {
-            void* pNode = GameVoiceChat::GetNode();
+            GameVoiceChat::Node* pNode = GameVoiceChat::GetNode(i);
             if (pNode && ((VoiceChat::Node*)pNode)->IsOpen())
             {
                 ((GameVoiceChat::Node*)pNode)->SetID(0xFF);
@@ -195,7 +179,6 @@ static void VoiceLocalEchoEnable(const bool bEnable)
 
 extern char gLoginName[];
 
-extern int gActiveViewport;
 extern int netNumBots;
 extern int netRequestedCameraCount;
 
@@ -332,7 +315,7 @@ int ScriptCB_GetLoginName(lua_State* L)
 // FUNCTION: SWBF2 0x00591e30
 int ScriptCB_StartLoginDedicatedServer(lua_State* L)
 {
-    const int iViewport = gActiveViewport;
+    const int iViewport = FLInputManager::Instance()->GetPrimaryPort();
     NetSetup::StartLogin(iViewport, false, 0, 0, 0, false);
     PlayerProfile::ResetAllProfiles();
 
@@ -350,7 +333,7 @@ int ScriptCB_StartLoginDedicatedServer(lua_State* L)
 // FUNCTION: SWBF2 0x00592640
 int ScriptCB_UpdateLobby(lua_State* L)
 {
-    const bool bForce = lua_toboolean(LuaHelper::mState, 1) != 0;
+    const bool bForce = LuaHelper::GetBool(1);
     GuiManager* pGui = GuiManager::Instance();
 
     if (!NetGame::InShell())
@@ -505,16 +488,16 @@ int ScriptCB_LobbyAction(lua_State* L)
     const int iTop = lua_gettop(LuaHelper::mState);
     if (iTop == 3)
     {
-        if (!lua_isnumber(LuaHelper::mState, 1) || !lua_isstring(LuaHelper::mState, 2) ||
-            !lua_isstring(LuaHelper::mState, iTop))
+        if (!LuaHelper::IsNumber(1) || !LuaHelper::IsString(2) ||
+            !LuaHelper::IsString(iTop))
         {
             return 0;
         }
 
-        const int iIndex = (int)luaL_checknumber(LuaHelper::mState, 1);
+        const int iIndex = LuaHelper::GetInt(1);
         const int iCount = GetLobbyPlayerCount();
-        luaL_checkstring(LuaHelper::mState, 2);
-        const unsigned int uiAction = PblHash(luaL_checkstring(LuaHelper::mState, iTop));
+        LuaHelper::GetString(2);
+        const unsigned int uiAction = PblHash(LuaHelper::GetString(iTop));
 
         if (uiAction == 0x789A24E4u)
         {
@@ -552,16 +535,16 @@ int ScriptCB_LobbyAction(lua_State* L)
     {
         return 0;
     }
-    if (!lua_isnumber(LuaHelper::mState, 1) || !lua_isstring(LuaHelper::mState, 2) ||
-        !lua_isnumber(LuaHelper::mState, 3) || !lua_isstring(LuaHelper::mState, 4))
+    if (!LuaHelper::IsNumber(1) || !LuaHelper::IsString(2) ||
+        !LuaHelper::IsNumber(3) || !LuaHelper::IsString(4))
     {
         return 0;
     }
 
-    const int iIndex = (int)luaL_checknumber(LuaHelper::mState, 1);
+    const int iIndex = LuaHelper::GetInt(1);
     const int iCount = GetLobbyPlayerCount();
     const float fReason = (float)luaL_checknumber(LuaHelper::mState, 3);
-    const char* pcAction = luaL_checkstring(LuaHelper::mState, 4);
+    const char* pcAction = LuaHelper::GetString(4);
     int iJoystick = PauseMenu::GetPausingJoystick();
     if (iTop == 5)
     {
@@ -597,12 +580,12 @@ int ScriptCB_LobbyAction(lua_State* L)
 // FUNCTION: SWBF2 0x00592c60
 int ScriptCB_VoteKick(lua_State* L)
 {
-    if (lua_gettop(LuaHelper::mState) != 1 || !lua_isstring(LuaHelper::mState, 1))
+    if (lua_gettop(LuaHelper::mState) != 1 || !LuaHelper::IsString(1))
     {
         return 0;
     }
 
-    const char* pcName = luaL_checkstring(LuaHelper::mState, 1);
+    const char* pcName = LuaHelper::GetString(1);
     for (int i = 0; i < GetLobbyPlayerCount(); ++i)
     {
         const int iPlayer = GetLobbyPlayerIndex(i);
@@ -656,7 +639,7 @@ int ScriptCB_UpdateSessionList(lua_State* L)
 {
     if (!findGame)
     {
-        lua_pushnumber(LuaHelper::mState, 0.0f);
+        LuaHelper::PushInt(0);
         return 1;
     }
 
@@ -664,20 +647,20 @@ int ScriptCB_UpdateSessionList(lua_State* L)
     lua_gettable(LuaHelper::mState, LUA_GLOBALSINDEX);
     int iSelected;
     LuaHelper::TableReadVal("SelectedIdx", iSelected, true);
-    lua_settop(LuaHelper::mState, -2);
+    LuaHelper::Pop(1);
 
     if (iSelected > 0)
     {
         lua_pushstring(LuaHelper::mState, "mpsessionlist_listbox_contents");
         lua_gettable(LuaHelper::mState, LUA_GLOBALSINDEX);
         int iSession = iSelected;
-        if (iSelected <= luaL_getn(LuaHelper::mState, -1))
+        if (iSelected <= LuaHelper::TableGetN(-1))
         {
-            lua_rawgeti(LuaHelper::mState, -1, iSelected);
+            LuaHelper::TableGetByPosition(-1, iSelected);
             LuaHelper::TableReadVal("sessionIdx", iSession, false);
-            lua_settop(LuaHelper::mState, -2);
+            LuaHelper::Pop(1);
         }
-        lua_settop(LuaHelper::mState, -2);
+        LuaHelper::Pop(1);
         findGame->SetSelectedSession(iSession - 1);
     }
     else
@@ -713,7 +696,7 @@ int ScriptCB_UpdateSessionList(lua_State* L)
         }
     }
 
-    lua_pushnumber(LuaHelper::mState, (float)(iCount > 0));
+    LuaHelper::PushInt(iCount > 0);
     return 1;
 }
 
@@ -724,18 +707,18 @@ int ScriptCB_LaunchSessionList(lua_State* L)
     lua_gettable(LuaHelper::mState, LUA_GLOBALSINDEX);
     int iSelected;
     LuaHelper::TableReadVal("SelectedIdx", iSelected, false);
-    lua_settop(LuaHelper::mState, -2);
+    LuaHelper::Pop(1);
 
     lua_pushstring(LuaHelper::mState, "mpsessionlist_listbox_contents");
     lua_gettable(LuaHelper::mState, LUA_GLOBALSINDEX);
     int iSession = iSelected;
-    if (iSelected <= luaL_getn(LuaHelper::mState, -1))
+    if (iSelected <= LuaHelper::TableGetN(-1))
     {
-        lua_rawgeti(LuaHelper::mState, -1, iSelected);
+        LuaHelper::TableGetByPosition(-1, iSelected);
         LuaHelper::TableReadVal("sessionIdx", iSession, false);
-        lua_settop(LuaHelper::mState, -2);
+        LuaHelper::Pop(1);
     }
-    lua_settop(LuaHelper::mState, -2);
+    LuaHelper::Pop(1);
 
     findGame->SelectFirst();
     if (iSession > 1)
@@ -892,9 +875,9 @@ int ScriptCB_IsAutoNet(lua_State* L)
 int ScriptCB_OpenNetShell(lua_State* L)
 {
     int iStage = 1;
-    if (lua_gettop(LuaHelper::mState) == 1 && lua_isnumber(LuaHelper::mState, 1))
+    if (lua_gettop(LuaHelper::mState) == 1 && LuaHelper::IsNumber(1))
     {
-        iStage = (int)luaL_checknumber(LuaHelper::mState, 1);
+        iStage = LuaHelper::GetInt(1);
     }
     NetGame::BeginShell(iStage);
     return 0;
@@ -928,7 +911,7 @@ int ScriptCB_CheckForPatch(lua_State* L)
     }
 
     int iResult = 0;
-    switch ((int)luaL_checknumber(LuaHelper::mState, 1))
+    switch (LuaHelper::GetInt(1))
     {
     case 1:
         InitPatchCheck();
@@ -958,7 +941,8 @@ int ScriptCB_ResetSkipToNTGUI(lua_State* L)
 // FUNCTION: SWBF2 0x00591660
 int ScriptCB_SetInNetGame(lua_State* L)
 {
-    NetSetup::SetInNetGame(lua_toboolean(LuaHelper::mState, 1) != 0);
+    bool tOrF = LuaHelper::GetBool(1);
+    NetSetup::SetInNetGame(tOrF);
     return 1;
 }
 
@@ -973,9 +957,9 @@ int ScriptCB_InMultiplayer(lua_State* L)
 int ScriptCB_CloseNetShell(lua_State* L)
 {
     int iStage = 1;
-    if (lua_gettop(LuaHelper::mState) == 1 && lua_isnumber(LuaHelper::mState, 1))
+    if (lua_gettop(LuaHelper::mState) == 1 && LuaHelper::IsNumber(1))
     {
-        iStage = (int)luaL_checknumber(LuaHelper::mState, 1);
+        iStage = LuaHelper::GetInt(1);
     }
     NetGame::EndShell(iStage);
     return 0;
@@ -984,12 +968,12 @@ int ScriptCB_CloseNetShell(lua_State* L)
 // FUNCTION: SWBF2 0x00591a10
 int ScriptCB_SetConnectType(lua_State* L)
 {
-    if (lua_gettop(LuaHelper::mState) != 1 || !lua_isstring(LuaHelper::mState, 1))
+    if (lua_gettop(LuaHelper::mState) != 1 || !LuaHelper::IsString(1))
     {
         return 0;
     }
 
-    if (strcmp(luaL_checkstring(LuaHelper::mState, 1), "lan") == 0)
+    if (strcmp(LuaHelper::GetString(1), "lan") == 0)
     {
         NetComm::SetConnectType(CT_LAN);
         NetSetup::EnableOnlineService(false);
@@ -1045,7 +1029,7 @@ int ScriptCB_IsCmdlineJoinPending(lua_State* L)
 // FUNCTION: SWBF2 0x005915c0
 int ScriptCB_SetAmHost(lua_State* L)
 {
-    if (lua_toboolean(LuaHelper::mState, 1))
+    if (LuaHelper::GetBool(1))
     {
         NetSetup::SetAsHost();
         gWasHost = true;
@@ -1068,7 +1052,8 @@ int ScriptCB_InNetGame(lua_State* L)
 // FUNCTION: SWBF2 0x00591780
 int ScriptCB_SetDedicated(lua_State* L)
 {
-    NetSetup::SetAsDedicated(lua_toboolean(LuaHelper::mState, 1) != 0);
+    bool tOrF = LuaHelper::GetBool(1);
+    NetSetup::SetAsDedicated(tOrF);
     return 0;
 }
 
@@ -1099,7 +1084,7 @@ int ScriptCB_GetConnectType(lua_State* L)
 int ScriptCB_StartLogin(lua_State* L)
 {
     lua_gettop(LuaHelper::mState);
-    NetSetup::StartLogin(gActiveViewport, false, 0, 0, 0, false);
+    NetSetup::StartLogin(FLInputManager::Instance()->GetPrimaryPort(), false, 0, 0, 0, false);
     return 0;
 }
 
@@ -1152,24 +1137,18 @@ int ScriptCB_GetGSProfileInfo(lua_State* L)
 // FUNCTION: SWBF2 0x00596280
 int ScriptCB_GetVoiceEnable(lua_State* L)
 {
-    int iJoystick;
-    if (lua_gettop(LuaHelper::mState) >= 1)
-    {
-        iJoystick = (int)luaL_checknumber(LuaHelper::mState, 1);
-    }
-    else
-    {
-        iJoystick = PauseMenu::GetPausingJoystick();
-    }
+    const unsigned int iJoystick = lua_gettop(LuaHelper::mState) >= 1
+        ? LuaHelper::GetInt(1) : PauseMenu::GetPausingJoystick();
+    int iPlayer = iJoystick;
     if (GameState::GetState() != 0x11e1fc01)
     {
-        iJoystick = NetGame::GetLocalIndex(PauseMenu::GetPausingViewport());
+        iPlayer = NetGame::GetLocalIndex(PauseMenu::GetPausingViewport());
     }
 
     bool bEnabled = false;
-    if (iJoystick >= 0)
+    if (iPlayer >= 0)
     {
-        VoiceChat::Node* pNode = (VoiceChat::Node*)GameVoiceChat::FindNodeByDeviceID();
+        VoiceChat::Node* pNode = (VoiceChat::Node*)GameVoiceChat::FindNodeByDeviceID(iJoystick);
         bEnabled = pNode && pNode->GetID() != 0xFF;
     }
     lua_pushboolean(LuaHelper::mState, bEnabled);
@@ -1179,7 +1158,7 @@ int ScriptCB_GetVoiceEnable(lua_State* L)
 // FUNCTION: SWBF2 0x00596310
 int ScriptCB_SetVoiceLocalEchoEnable(lua_State* L)
 {
-    VoiceLocalEchoEnable((int)luaL_checknumber(LuaHelper::mState, 1) > 0);
+    VoiceLocalEchoEnable(LuaHelper::GetInt(1) > 0);
     return 0;
 }
 
@@ -1190,7 +1169,7 @@ int ScriptCB_GetVoiceCaptureConnected(lua_State* L)
     {
         return 0;
     }
-    VoiceChat::Node* pNode = (VoiceChat::Node*)GameVoiceChat::FindNodeByDeviceID();
+    VoiceChat::Node* pNode = (VoiceChat::Node*)GameVoiceChat::FindNodeByDeviceID(PauseMenu::GetPausingJoystick());
     if (!pNode || pNode->GetID() == 0xFF)
     {
         return 0;
@@ -1209,7 +1188,7 @@ int ScriptCB_GetVoiceTVGain(lua_State* L)
     int iGain = 0;
     if (GameVoiceChat::IsOpen())
     {
-        VoiceChat::Node* pNode = (VoiceChat::Node*)GameVoiceChat::FindNodeByDeviceID();
+        VoiceChat::Node* pNode = (VoiceChat::Node*)GameVoiceChat::FindNodeByDeviceID(PauseMenu::GetPausingJoystick());
         if (pNode && pNode->GetID() != 0xFF && pNode->GetDecoder().GetNumOutputs() > 1)
         {
             iGain = (unsigned char)(int)(pNode->GetDecoder().GetGain(1) * 10.0f);
@@ -1233,10 +1212,12 @@ int ScriptCB_CanClientLeaveStats(lua_State* L)
 }
 }
 
+// GLOBAL: SWBF2 0x007e7a60
+// sNetCallbacks
+
 namespace Lua_Callbacks
 {
 
-// GLOBAL: SWBF2 0x007e7a60
 static const CallbackEntryT sNetCallbacks[135] =
 {
     { "ScriptCB_AutoNetJoin", ScriptCB_AutoNetJoin },
@@ -1379,7 +1360,7 @@ static const CallbackEntryT sNetCallbacks[135] =
 // FUNCTION: SWBF2 0x005969a0
 void InitNet()
 {
-    for (int i = 0; i < 135; ++i)
+    for (unsigned int i = 0; i < 135; ++i)
     {
         LuaHelper::Register(sNetCallbacks[i].pcName, sNetCallbacks[i].pfnCallback, 0);
     }
@@ -1549,7 +1530,14 @@ extern void SetNetAwardsEnabled(int);
 
 extern bool netAutoAssignTeams;
 
-namespace Lua_Callbacks { static const unsigned int netPlayersSupported[9] = {3, 6, 9, 12, 19, 25, 38, 76, 153}; }
+namespace Lua_Callbacks
+{
+static const unsigned int netPlayersSupported[9] =
+{
+3, 6, 9, 12, 19, 25, 38, 76, 153
+}
+;
+}
 
 // GLOBAL: SWBF2 0x007e8edb
 bool NetSetup::mLoginErrorsAreFatal = true;
@@ -1668,7 +1656,6 @@ bool netIsHostDedicated;
 // GLOBAL: SWBF2 0x01e57930
 int sortTopTeam;
 
-extern NetDest netDests[MAX_DESTS];
 extern int netPlayerLimit;
 
 // FUNCTION: SWBF2 0x00592120
@@ -1888,7 +1875,7 @@ int ScriptCB_GetVoiceRenderConnected(lua_State*)
     {
         return 0;
     }
-    VoiceChat::Node* pNode = (VoiceChat::Node*)GameVoiceChat::FindNodeByDeviceID();
+    VoiceChat::Node* pNode = (VoiceChat::Node*)GameVoiceChat::FindNodeByDeviceID(PauseMenu::GetPausingJoystick());
     if (!pNode || pNode->GetID() == 0xFF)
     {
         return 0;
@@ -1977,17 +1964,17 @@ int ScriptCB_IsBadNetworkConnection(lua_State*)
     lua_pushstring(LuaHelper::mState, "mpsessionlist_listbox_layout");
     lua_gettable(LuaHelper::mState, LUA_GLOBALSINDEX);
     LuaHelper::TableReadVal("SelectedIdx", selected, false);
-    lua_settop(LuaHelper::mState, -2);
+    LuaHelper::Pop(1);
     lua_pushstring(LuaHelper::mState, "mpsessionlist_listbox_contents");
     lua_gettable(LuaHelper::mState, LUA_GLOBALSINDEX);
     int session = selected;
-    if (selected <= luaL_getn(LuaHelper::mState, -1))
+    if (selected <= LuaHelper::TableGetN(-1))
     {
-        lua_rawgeti(LuaHelper::mState, -1, selected);
+        LuaHelper::TableGetByPosition(-1, selected);
         LuaHelper::TableReadVal("sessionIdx", session, false);
-        lua_settop(LuaHelper::mState, -2);
+        LuaHelper::Pop(1);
     }
-    lua_settop(LuaHelper::mState, -2);
+    LuaHelper::Pop(1);
     findGame->SelectFirst();
     if (session > 1)
     {
@@ -2128,7 +2115,7 @@ int ScriptCB_IsNetCableIn(lua_State*)
 // FUNCTION: SWBF2 0x005955a0
 int ScriptCB_SetNoticeNoCable(lua_State*)
 {
-    NetSetup::mNoticeNoCable = lua_toboolean(LuaHelper::mState, 1) != 0;
+    NetSetup::mNoticeNoCable = LuaHelper::GetBool(1);
     return 0;
 }
 
@@ -2142,11 +2129,11 @@ int ScriptCB_GetIPAddr(lua_State*)
 // FUNCTION: SWBF2 0x005955e0
 int ScriptCB_SetNetLoginName(lua_State*)
 {
-    if (lua_gettop(LuaHelper::mState) == 1 && lua_isstring(LuaHelper::mState, 1))
+    if (lua_gettop(LuaHelper::mState) == 1 && LuaHelper::IsString(1))
     {
         unsigned short name[34];
         PblUnicode::ustrncnv((char*)name, LuaWideString::Check(LuaHelper::mState, 1), 66);
-        NetSetup::SetLoginName(gActiveViewport, (const char*)name);
+        NetSetup::SetLoginName(FLInputManager::Instance()->GetPrimaryPort(), (const char*)name);
     }
     return 0;
 }
@@ -2242,9 +2229,9 @@ int ScriptCB_BeginJoinSpecial(lua_State*)
 int ScriptCB_LaunchQuickmatch(lua_State*)
 {
     const char* password = 0;
-    if (lua_gettop(LuaHelper::mState) == 1 && lua_isstring(LuaHelper::mState, 1))
+    if (lua_gettop(LuaHelper::mState) == 1 && LuaHelper::IsString(1))
     {
-        password = luaL_checkstring(LuaHelper::mState, 1);
+        password = LuaHelper::GetString(1);
         if (password && !password[0])
         {
             password = 0;
@@ -2258,11 +2245,10 @@ int ScriptCB_LaunchQuickmatch(lua_State*)
 // FUNCTION: SWBF2 0x00593e70
 int ScriptCB_SetFilters(lua_State*)
 {
-    lua_State* L = LuaHelper::mState;
-    if (lua_gettop(L) != 6 || !lua_isstring(L, 1) ||
-        !lua_isnumber(L, 2) || !lua_isnumber(L, 3) ||
-        !lua_isnumber(L, 4) || !lua_isnumber(L, 5) ||
-        !lua_isnumber(L, 6))
+    if (lua_gettop(LuaHelper::mState) != 6 || !LuaHelper::IsString(1) ||
+        !LuaHelper::IsNumber(2) || !LuaHelper::IsNumber(3) ||
+        !LuaHelper::IsNumber(4) || !LuaHelper::IsNumber(5) ||
+        !LuaHelper::IsNumber(6))
     {
         return 0;
     }
@@ -2271,11 +2257,11 @@ int ScriptCB_SetFilters(lua_State*)
     if (pProfile)
     {
         PlayerProfile::tOnlineOpt& options = pProfile->mOnlineOptions;
-        strlcpy(options.mGameNameFilter, luaL_checkstring(L, 1), sizeof(options.mGameNameFilter));
-        options.mMinPlayers = (unsigned char)(int)(float)luaL_checknumber(L, 2);
-        options.mMapIdx = (unsigned char)(int)(float)luaL_checknumber(L, 3);
-        options.mEraIdx = (unsigned char)(int)(float)luaL_checknumber(L, 4);
-        int maxPing = (int)(float)luaL_checknumber(L, 5);
+        strlcpy(options.mGameNameFilter, LuaHelper::GetString(1), sizeof(options.mGameNameFilter));
+        options.mMinPlayers = (unsigned char)LuaHelper::GetInt(2);
+        options.mMapIdx = (unsigned char)LuaHelper::GetInt(3);
+        options.mEraIdx = (unsigned char)LuaHelper::GetInt(4);
+        int maxPing = LuaHelper::GetInt(5);
         if (maxPing < 0)
         {
             maxPing = 0;
@@ -2285,7 +2271,7 @@ int ScriptCB_SetFilters(lua_State*)
             maxPing = 65520;
         }
         options.mMaxPing = (unsigned short)maxPing;
-        options.mServerIdx = (unsigned char)(int)(float)luaL_checknumber(L, 6);
+        options.mServerIdx = (unsigned char)LuaHelper::GetInt(6);
         pProfile->UpdateProfCRC();
     }
     return 0;
@@ -2294,19 +2280,18 @@ int ScriptCB_SetFilters(lua_State*)
 // FUNCTION: SWBF2 0x00593fc0
 int ScriptCB_ApplyFilters(lua_State*)
 {
-    lua_State* L = LuaHelper::mState;
-    if (lua_gettop(L) != 7)
+    if (lua_gettop(LuaHelper::mState) != 7)
     {
         return 0;
     }
     pFilters[6][0] = 0;
     for (int i = 0; i < 7; ++i)
     {
-        if (!lua_isstring(L, i + 1))
+        if (!LuaHelper::IsString(i + 1))
         {
             return 0;
         }
-        strlcpy(pFilters[i], luaL_checkstring(L, i + 1), sizeof(pFilters[i]));
+        strlcpy(pFilters[i], LuaHelper::GetString(i + 1), sizeof(pFilters[i]));
     }
     const char* all = "ifs.gsprofile.all";
     const int allFilters[] = {2, 3, 5, 6};
@@ -2329,10 +2314,9 @@ int ScriptCB_ApplyFilters(lua_State*)
 // FUNCTION: SWBF2 0x005941a0
 int ScriptCB_SetSessionSortMode(lua_State*)
 {
-    lua_State* L = LuaHelper::mState;
-    if (lua_gettop(L) == 1 && lua_isnumber(L, 1))
+    if (lua_gettop(LuaHelper::mState) == 1 && LuaHelper::IsNumber(1))
     {
-        int mode = (int)(float)luaL_checknumber(L, 1);
+        int mode = LuaHelper::GetInt(1);
         if (mode < 1)
         {
             mode = 1;
@@ -2358,13 +2342,12 @@ int ScriptCB_SetSessionSortMode(lua_State*)
 // FUNCTION: SWBF2 0x00594230
 int ScriptCB_SetAsFavorite(lua_State*)
 {
-    lua_State* L = LuaHelper::mState;
-    if (lua_gettop(L) != 2 || !lua_isnumber(L, 1) || lua_type(L, 2) != LUA_TBOOLEAN)
+    if (lua_gettop(LuaHelper::mState) != 2 || !LuaHelper::IsNumber(1) || !LuaHelper::IsBool(2))
     {
         return 0;
     }
-    const int index = (int)(float)luaL_checknumber(L, 1) - 1;
-    const bool favorite = lua_toboolean(L, 2) != 0;
+    const int index = LuaHelper::GetInt(1) - 1;
+    const bool favorite = LuaHelper::GetBool(2);
     if (findGame)
     {
         findGame->SelectFirst();
@@ -2831,8 +2814,7 @@ void ResortSessions(bool bForward)
 // FUNCTION: SWBF2 0x00594900
 int ScriptCB_GetSessionList(lua_State*)
 {
-    lua_State* L = LuaHelper::mState;
-    lua_gettop(L);
+    lua_gettop(LuaHelper::mState);
     if (!findGame)
     {
         return 0;
@@ -2845,13 +2827,13 @@ int ScriptCB_GetSessionList(lua_State*)
     };
     for (int i = 0; i < 3; ++i)
     {
-        lua_newtable(L);
-        lua_pushstring(L, contentNames[i]);
-        lua_insert(L, -2);
-        lua_settable(L, LUA_GLOBALSINDEX);
+        lua_newtable(LuaHelper::mState);
+        lua_pushstring(LuaHelper::mState, contentNames[i]);
+        lua_insert(LuaHelper::mState, -2);
+        lua_settable(LuaHelper::mState, LUA_GLOBALSINDEX);
     }
     DoPeriodicLuaGC(true);
-    lua_newtable(L);
+    lua_newtable(LuaHelper::mState);
     const int count = lastSessionCount;
     if (findGame->GetDirty())
     {
@@ -2886,7 +2868,7 @@ int ScriptCB_GetSessionList(lua_State*)
             }
             if (sortPosition < 1000)
             {
-                lua_newtable(L);
+                lua_newtable(LuaHelper::mState);
                 ++visible;
                 players += numPlayers;
                 maxPlayers += maxSessionPlayers;
@@ -2901,7 +2883,7 @@ int ScriptCB_GetSessionList(lua_State*)
                 LuaHelper::TableWriteVal("servertype", serverType);
                 LuaHelper::TableWriteVal("pingint", (int)(float)(ping * 1000.0f));
                 LuaHelper::TableWriteVal("sessionIdx", i + 1);
-                lua_rawseti(L, -2, sortPosition + 1);
+                lua_rawseti(LuaHelper::mState, -2, sortPosition + 1);
                 if (i == findGame->GetSelectedSession())
                 {
                     selected = sortPosition + 1;
@@ -2910,25 +2892,25 @@ int ScriptCB_GetSessionList(lua_State*)
         }
         findGame->Select(1);
     }
-    lua_pushstring(L, "mpsessionlist_listbox_contents");
-    lua_insert(L, -2);
-    lua_settable(L, LUA_GLOBALSINDEX);
+    lua_pushstring(LuaHelper::mState, "mpsessionlist_listbox_contents");
+    lua_insert(LuaHelper::mState, -2);
+    lua_settable(LuaHelper::mState, LUA_GLOBALSINDEX);
     DoPeriodicLuaGC(true);
-    lua_pushstring(L, "ifs_mp_sessionlist");
-    lua_gettable(L, LUA_GLOBALSINDEX);
+    lua_pushstring(LuaHelper::mState, "ifs_mp_sessionlist");
+    lua_gettable(LuaHelper::mState, LUA_GLOBALSINDEX);
     LuaHelper::TableWriteVal("iNumSessions", visible);
     LuaHelper::TableWriteVal("iNumPlayers", players);
     LuaHelper::TableWriteVal("iMaxPlayers", maxPlayers);
-    lua_pushstring(L, "ifs_mp_sessionlist");
-    lua_insert(L, -2);
-    lua_settable(L, LUA_GLOBALSINDEX);
+    lua_pushstring(LuaHelper::mState, "ifs_mp_sessionlist");
+    lua_insert(LuaHelper::mState, -2);
+    lua_settable(LuaHelper::mState, LUA_GLOBALSINDEX);
     if (selected != -1)
     {
-        lua_pushstring(L, "mpsessionlist_listbox_layout");
-        lua_gettable(L, LUA_GLOBALSINDEX);
+        lua_pushstring(LuaHelper::mState, "mpsessionlist_listbox_layout");
+        lua_gettable(LuaHelper::mState, LUA_GLOBALSINDEX);
         LuaHelper::TableWriteVal("SelectedIdx", selected);
         LuaHelper::TableWriteVal("CursorIdx", selected);
-        lua_settop(L, -2);
+        lua_settop(LuaHelper::mState, -2);
     }
     return 0;
 }
@@ -2936,22 +2918,21 @@ int ScriptCB_GetSessionList(lua_State*)
 // FUNCTION: SWBF2 0x00595180
 int ScriptCB_BeginJoin(lua_State*)
 {
-    lua_State* L = LuaHelper::mState;
-    lua_gettop(L);
+    lua_gettop(LuaHelper::mState);
     int session;
-    lua_pushstring(L, "mpsessionlist_listbox_layout");
-    lua_gettable(L, LUA_GLOBALSINDEX);
+    lua_pushstring(LuaHelper::mState, "mpsessionlist_listbox_layout");
+    lua_gettable(LuaHelper::mState, LUA_GLOBALSINDEX);
     LuaHelper::TableReadVal("SelectedIdx", session, false);
-    lua_settop(L, -2);
-    lua_pushstring(L, "mpsessionlist_listbox_contents");
-    lua_gettable(L, LUA_GLOBALSINDEX);
-    if (session <= luaL_getn(L, -1))
+    LuaHelper::Pop(1);
+    lua_pushstring(LuaHelper::mState, "mpsessionlist_listbox_contents");
+    lua_gettable(LuaHelper::mState, LUA_GLOBALSINDEX);
+    if (session <= LuaHelper::TableGetN(-1))
     {
-        lua_rawgeti(L, -1, session);
+        LuaHelper::TableGetByPosition(-1, session);
         LuaHelper::TableReadVal("sessionIdx", session, false);
-        lua_settop(L, -2);
+        LuaHelper::Pop(1);
     }
-    lua_settop(L, -2);
+    LuaHelper::Pop(1);
 
     findGame->SelectFirst();
     if (session > 1)
@@ -2975,9 +2956,9 @@ int ScriptCB_BeginJoin(lua_State*)
     }
 
     const char* password = 0;
-    if (lua_gettop(L) == 1 && lua_isstring(L, 1))
+    if (LuaHelper::GetTop() == 1 && LuaHelper::IsString(1))
     {
-        password = luaL_checkstring(L, 1);
+        password = LuaHelper::GetString(1);
     }
     NetSetup::SetPassword(password);
     if (!NetComm::IsLAN() && password)
@@ -2992,21 +2973,20 @@ int ScriptCB_BeginJoin(lua_State*)
         }
     }
     joinGame = NetSetup::JoinGame(findGame);
-    lua_gettop(L);
+    lua_gettop(LuaHelper::mState);
     return 0;
 }
 
 // FUNCTION: SWBF2 0x00595640
 int ScriptCB_GetLobbyPlayerFlags(lua_State*)
 {
-    lua_State* L = LuaHelper::mState;
     bool isFriend = false;
     bool canKick = false;
     bool friendUnavailable = true;
-    if (lua_gettop(L) == 2 && lua_isstring(L, 1))
+    if (lua_gettop(LuaHelper::mState) == 2 && LuaHelper::IsString(1))
     {
-        const char* name = luaL_checkstring(L, 1);
-        const int wantedPlayer = (int)(float)luaL_checknumber(L, 2);
+        const char* name = LuaHelper::GetString(1);
+        const int wantedPlayer = LuaHelper::GetInt(2);
         for (int i = 0; i < GetLobbyPlayerCount(); ++i)
         {
             const int player = GetLobbyPlayerIndex(i);
@@ -3046,11 +3026,11 @@ int ScriptCB_GetLobbyPlayerFlags(lua_State*)
             break;
         }
     }
-    lua_pushboolean(L, 0);
-    lua_pushboolean(L, isFriend);
-    lua_pushboolean(L, canKick);
-    lua_pushboolean(L, 0);
-    lua_pushboolean(L, friendUnavailable);
+    lua_pushboolean(LuaHelper::mState, 0);
+    lua_pushboolean(LuaHelper::mState, isFriend);
+    lua_pushboolean(LuaHelper::mState, canKick);
+    lua_pushboolean(LuaHelper::mState, 0);
+    lua_pushboolean(LuaHelper::mState, friendUnavailable);
     return 5;
 }
 
@@ -3062,7 +3042,7 @@ namespace Lua_Callbacks
 // FUNCTION: SWBF2 0x00595c70
 int ScriptCB_BeginFriends(lua_State*)
 {
-    lua_toboolean(LuaHelper::mState, 1);
+    LuaHelper::GetBool(1);
     RefreshLuaFriends(false);
     return 0;
 }
@@ -3070,7 +3050,7 @@ int ScriptCB_BeginFriends(lua_State*)
 // FUNCTION: SWBF2 0x00595ca0
 int ScriptCB_UpdateFriends(lua_State*)
 {
-    lua_toboolean(LuaHelper::mState, 1);
+    LuaHelper::GetBool(1);
     if (gf::friends::getAndResetDirty())
     {
         RefreshLuaFriends(false);
@@ -3102,12 +3082,11 @@ int ScriptCB_GetFriendActions(lua_State*)
 // FUNCTION: SWBF2 0x00595d70
 int ScriptCB_DoFriendAction(lua_State*)
 {
-    lua_State* L = LuaHelper::mState;
-    if (lua_gettop(L) != 2 || !lua_isstring(L, 1))
+    if (lua_gettop(LuaHelper::mState) != 2 || !LuaHelper::IsString(1))
     {
         return 0;
     }
-    const char* action = luaL_checkstring(L, 1);
+    const char* action = LuaHelper::GetString(1);
     int index = 14;
     for (int i = 0; i < 14; ++i)
     {
@@ -3138,20 +3117,19 @@ int ScriptCB_DoFriendAction(lua_State*)
 int ScriptCB_SetGSProfileInfo(lua_State*)
 {
     PlayerProfile::tProfile* pProfile = PlayerProfile::GetCurProfile();
-    lua_State* L = LuaHelper::mState;
-    if (!pProfile || lua_gettop(L) != 5 ||
-        !lua_isstring(L, 1) || !lua_isstring(L, 2) ||
-        !lua_isstring(L, 3) || !lua_isstring(L, 4) ||
-        !lua_isnumber(L, 5))
+    if (!pProfile || lua_gettop(LuaHelper::mState) != 5 ||
+        !LuaHelper::IsString(1) || !LuaHelper::IsString(2) ||
+        !LuaHelper::IsString(3) || !LuaHelper::IsString(4) ||
+        !LuaHelper::IsNumber(5))
     {
         return 0;
     }
 
-    luaL_checkstring(L, 1);
-    const char* email = luaL_checkstring(L, 2);
-    const char* password = luaL_checkstring(L, 3);
-    const char* saveInfo = luaL_checkstring(L, 4);
-    int autoLogin = (int)(float)luaL_checknumber(L, 5);
+    luaL_checkstring(LuaHelper::mState, 1);
+    const char* email = LuaHelper::GetString(2);
+    const char* password = LuaHelper::GetString(3);
+    const char* saveInfo = LuaHelper::GetString(4);
+    int autoLogin = LuaHelper::GetInt(5);
     if (autoLogin < 0)
     {
         autoLogin = 0;
@@ -3192,11 +3170,11 @@ int ScriptCB_SetVoiceSendPreset(lua_State*)
 {
     if (GameVoiceChat::IsOpen())
     {
-        const int preset = (int)(float)luaL_checknumber(LuaHelper::mState, 1);
-        void* node = GameVoiceChat::FindNodeByDeviceID();
+        const GameVoiceChat::Transport::Mask preset = static_cast<GameVoiceChat::Transport::Mask>(LuaHelper::GetInt(1));
+        GameVoiceChat::Node* node = GameVoiceChat::FindNodeByDeviceID(PauseMenu::GetPausingJoystick());
         if (node)
         {
-            ((GameVoiceChat::Node*)node)->SetSendMask(preset);
+            ((GameVoiceChat::Node*)node)->SetSendMask(preset, true, false);
             static_cast<GameVoiceChat::Node*>(node)->Update();
         }
     }
@@ -3206,17 +3184,19 @@ int ScriptCB_SetVoiceSendPreset(lua_State*)
 // FUNCTION: SWBF2 0x00596390
 int ScriptCB_GetVoiceSendPreset(lua_State*)
 {
-    unsigned int preset = 5;
     if (GameVoiceChat::IsOpen())
     {
-        void* node = GameVoiceChat::FindNodeByDeviceID();
+        GameVoiceChat::Node* node = GameVoiceChat::FindNodeByDeviceID(PauseMenu::GetPausingJoystick());
         if (node)
         {
-            unsigned char enabled, keepCurrent;
-            ((GameVoiceChat::Node*)node)->GetSendMask(&preset, &enabled, &keepCurrent);
+            GameVoiceChat::Transport::Mask sendMask;
+            bool enable, maskExisting;
+            node->GetSendMask(sendMask, enable, maskExisting);
+            LuaHelper::PushInt(sendMask);
+            return 1;
         }
     }
-    lua_pushnumber(LuaHelper::mState, (float)(int)preset);
+    LuaHelper::PushInt(GameVoiceChat::Transport::mask_Noone);
     return 1;
 }
 
@@ -3225,11 +3205,11 @@ int ScriptCB_SetVoiceReceivePreset(lua_State*)
 {
     if (GameVoiceChat::IsOpen())
     {
-        const int preset = (int)(float)luaL_checknumber(LuaHelper::mState, 1);
-        void* node = GameVoiceChat::FindNodeByDeviceID();
+        const GameVoiceChat::Transport::Mask preset = static_cast<GameVoiceChat::Transport::Mask>(LuaHelper::GetInt(1));
+        GameVoiceChat::Node* node = GameVoiceChat::FindNodeByDeviceID(PauseMenu::GetPausingJoystick());
         if (node)
         {
-            ((GameVoiceChat::Node*)node)->SetReceiveMask(preset);
+            ((GameVoiceChat::Node*)node)->SetReceiveMask(preset, true, false);
             static_cast<GameVoiceChat::Node*>(node)->Update();
         }
     }
@@ -3239,17 +3219,19 @@ int ScriptCB_SetVoiceReceivePreset(lua_State*)
 // FUNCTION: SWBF2 0x00596440
 int ScriptCB_GetVoiceReceivePreset(lua_State*)
 {
-    unsigned int preset = 5;
     if (GameVoiceChat::IsOpen())
     {
-        void* node = GameVoiceChat::FindNodeByDeviceID();
+        GameVoiceChat::Node* node = GameVoiceChat::FindNodeByDeviceID(PauseMenu::GetPausingJoystick());
         if (node)
         {
-            unsigned char enabled, keepCurrent;
-            ((GameVoiceChat::Node*)node)->GetReceiveMask(&preset, &enabled, &keepCurrent);
+            GameVoiceChat::Transport::Mask receiveMask;
+            bool enable, maskExisting;
+            node->GetReceiveMask(receiveMask, enable, maskExisting);
+            LuaHelper::PushInt(receiveMask);
+            return 1;
         }
     }
-    lua_pushnumber(LuaHelper::mState, (float)(int)preset);
+    LuaHelper::PushInt(GameVoiceChat::Transport::mask_Noone);
     return 1;
 }
 
@@ -3258,12 +3240,12 @@ int ScriptCB_SetVoiceSendEnable(lua_State*)
 {
     if (GameVoiceChat::IsOpen())
     {
-        const unsigned int selected = (unsigned int)luaL_checknumber(LuaHelper::mState, 1);
+        const unsigned int selected = LuaHelper::GetInt(1);
         const unsigned char player = (unsigned char)GetLobbyPlayerIndex(selected);
-        VoiceChat::Node* node = (VoiceChat::Node*)GameVoiceChat::FindNodeByDeviceID();
+        VoiceChat::Node* node = (VoiceChat::Node*)GameVoiceChat::FindNodeByDeviceID(PauseMenu::GetPausingJoystick());
         if (node)
         {
-            const bool enabled = lua_toboolean(LuaHelper::mState, 2) != 0;
+            const bool enabled = LuaHelper::GetBool(2);
             GameVoiceChat::GetTransport()->SetSendEnable(node->GetID(), player, enabled, false);
         }
     }
@@ -3275,12 +3257,12 @@ int ScriptCB_SetVoiceReceiveEnable(lua_State*)
 {
     if (GameVoiceChat::IsOpen())
     {
-        const unsigned int selected = (unsigned int)luaL_checknumber(LuaHelper::mState, 1);
+        const unsigned int selected = LuaHelper::GetInt(1);
         const unsigned char player = (unsigned char)GetLobbyPlayerIndex(selected);
-        VoiceChat::Node* node = (VoiceChat::Node*)GameVoiceChat::FindNodeByDeviceID();
+        VoiceChat::Node* node = (VoiceChat::Node*)GameVoiceChat::FindNodeByDeviceID(PauseMenu::GetPausingJoystick());
         if (node)
         {
-            const bool enabled = lua_toboolean(LuaHelper::mState, 2) != 0;
+            const bool enabled = LuaHelper::GetBool(2);
             GameVoiceChat::GetTransport()->SetReceiveEnable(node->GetID(), player, enabled, false);
         }
     }
@@ -3294,10 +3276,10 @@ int ScriptCB_GetVoiceSendStatus(lua_State*)
     if (GameVoiceChat::IsOpen())
     {
         const int player = lua_gettop(LuaHelper::mState) >= 1
-            ? GetLobbyPlayerIndex((unsigned int)luaL_checknumber(LuaHelper::mState, 1))
+            ? GetLobbyPlayerIndex(LuaHelper::GetInt(1))
             : PauseMenu::GetPausingJoystick();
         const unsigned char selected = (unsigned char)player;
-        VoiceChat::Node* node = (VoiceChat::Node*)GameVoiceChat::FindNodeByDeviceID();
+        VoiceChat::Node* node = (VoiceChat::Node*)GameVoiceChat::FindNodeByDeviceID(PauseMenu::GetPausingJoystick());
         GameVoiceChat::Transport* transport = GameVoiceChat::GetTransport();
         if (!node || node->GetID() == 0xff)
         {
@@ -3341,10 +3323,10 @@ int ScriptCB_GetVoiceReceiveStatus(lua_State*)
     if (GameVoiceChat::IsOpen())
     {
         const int player = lua_gettop(LuaHelper::mState) >= 1
-            ? GetLobbyPlayerIndex((unsigned int)luaL_checknumber(LuaHelper::mState, 1))
+            ? GetLobbyPlayerIndex(LuaHelper::GetInt(1))
             : PauseMenu::GetPausingJoystick();
         const unsigned char selected = (unsigned char)player;
-        VoiceChat::Node* node = (VoiceChat::Node*)GameVoiceChat::FindNodeByDeviceID();
+        VoiceChat::Node* node = (VoiceChat::Node*)GameVoiceChat::FindNodeByDeviceID(PauseMenu::GetPausingJoystick());
         GameVoiceChat::Transport* transport = GameVoiceChat::GetTransport();
         if (!node || node->GetID() == 0xff)
         {
@@ -3399,19 +3381,18 @@ int ScriptCB_VoiceEnable(lua_State*)
     {
         return 0;
     }
-    lua_State* L = LuaHelper::mState;
-    const int joystick = lua_gettop(L) >= 2
-        ? (int)(float)luaL_checknumber(L, 2) : PauseMenu::GetPausingJoystick();
+    const int joystick = lua_gettop(LuaHelper::mState) >= 2
+        ? LuaHelper::GetInt(2) : PauseMenu::GetPausingJoystick();
     const int local = GameState::GetState() == 0x11e1fc01
         ? joystick : NetGame::GetLocalIndex(PauseMenu::GetPausingViewport());
     bool enabled = false;
     VoiceChat::Decoder* decoder = 0;
     if (local >= 0)
     {
-        VoiceChat::Node* node = (VoiceChat::Node*)GameVoiceChat::FindNodeByDeviceID();
+        VoiceChat::Node* node = (VoiceChat::Node*)GameVoiceChat::FindNodeByDeviceID(joystick);
         if (node)
         {
-            enabled = lua_toboolean(L, 1) != 0;
+            enabled = LuaHelper::GetBool(1);
             ((GameVoiceChat::Node*)node)->SetID(enabled ? local : 0xff);
             if (enabled)
             {
@@ -3444,98 +3425,113 @@ int ScriptCB_VoiceEnable(lua_State*)
 
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 
 // FUNCTION: SWBF2 0x005916b0
 int ScriptCB_InNetSession(lua_State*) { lua_pushboolean(LuaHelper::mState, NetSetup::IsInSession()); return 1; }
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 
 // FUNCTION: SWBF2 0x005916d0
 int ScriptCB_NetWasHost(lua_State*) { lua_pushboolean(LuaHelper::mState, NetSetup::WasHost()); return 1; }
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 
 // FUNCTION: SWBF2 0x005916f0
 int ScriptCB_NetWasDedicated(lua_State*) { lua_pushboolean(LuaHelper::mState, NetSetup::WasDedicated()); return 1; }
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 
 // FUNCTION: SWBF2 0x00591710
 int ScriptCB_NetWasDedicatedQuit(lua_State*) { lua_pushnumber(LuaHelper::mState, (float)(unsigned char)PauseMenu::sPauseDedicated); return 1; }
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 
 // FUNCTION: SWBF2 0x00591740
 int ScriptCB_NetWasClient(lua_State*) { lua_pushboolean(LuaHelper::mState, NetSetup::WasClient()); return 1; }
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 
 // FUNCTION: SWBF2 0x005917f0
 int ScriptCB_EndAutoNet(lua_State*) { autoNetEnabled = false; return 0; }
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 
 // FUNCTION: SWBF2 0x00591800
 int ScriptCB_GetAutoNetMode(lua_State*) { lua_pushstring(LuaHelper::mState, autoNetScript); return 1; }
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 
 // FUNCTION: SWBF2 0x00591910
 int ScriptCB_IsBootInvitePending(lua_State*) { lua_pushboolean(LuaHelper::mState, 0); return 1; }
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 
 // FUNCTION: SWBF2 0x00591930
 int ScriptCB_GetAutoAssignTeams(lua_State*) { lua_pushboolean(LuaHelper::mState, netAutoAssignTeams); return 1; }
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 
 // FUNCTION: SWBF2 0x005919a0
 int ScriptCB_GetGameName(lua_State*) { lua_pushstring(LuaHelper::mState, NetSetup::GetHostName()); return 1; }
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 
 // FUNCTION: SWBF2 0x005919c0
 int ScriptCB_SetGameName(lua_State*)
 {
-    if (lua_gettop(LuaHelper::mState) == 1 && lua_isstring(LuaHelper::mState, 1))
+    if (lua_gettop(LuaHelper::mState) == 1 && LuaHelper::IsString(1))
     {
-        NetSetup::SetGameName(luaL_checklstring(LuaHelper::mState, 1, 0));
+        NetSetup::SetGameName(LuaHelper::GetString(1));
     }
     return 0;
 }
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 
 // FUNCTION: SWBF2 0x00591b50
 int ScriptCB_EnableJournal(lua_State*) { NetGame::EnableJournal(); return 0; }
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 
 // FUNCTION: SWBF2 0x00591b60
 int ScriptCB_EnablePlayback(lua_State*) { NetGame::EnablePlayback(); return 0; }
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 
 // FUNCTION: SWBF2 0x00591ef0
-int ScriptCB_TrackLoginErrors(lua_State*) { NetSetup::mLoginErrorsAreFatal = lua_toboolean(LuaHelper::mState, 1) != 0; return 0; }
+int ScriptCB_TrackLoginErrors(lua_State*) { NetSetup::mLoginErrorsAreFatal = LuaHelper::GetBool(1); return 0; }
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 
 // FUNCTION: SWBF2 0x00591f30
 int ScriptCB_BeginLobby(lua_State*)
@@ -3581,28 +3577,31 @@ int ScriptCB_BeginLobby(lua_State*)
 }
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 
 // FUNCTION: SWBF2 0x005969e0
 int ScriptCB_SearchStatsRank(lua_State*) { return 1; }
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 
 // FUNCTION: SWBF2 0x005969f0
 int ScriptCB_GetBandwidth(lua_State*) { lua_pushnumber(LuaHelper::mState, (float)TEMP_bandwith); return 1; }
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 
 // FUNCTION: SWBF2 0x00596a20
 int ScriptCB_SetBandwidth(lua_State*)
 {
-    if (lua_isnumber(LuaHelper::mState, 1))
+    if (LuaHelper::IsNumber(1))
     {
         float bandwidth = (float)luaL_checknumber(LuaHelper::mState, 1);
         TEMP_bandwith = (int)bandwidth;
-        NetComm::SetBandwidthPercent();
+        NetComm::SetBandwidthPercent(TEMP_bandwith);
     }
     return 0;
 }
@@ -3671,14 +3670,9 @@ char gLoginName[256];
 // FUNCTION: SWBF2 0x0052e430
 void sub_52E430() {}
 
-// FUNCTION: SWBF2 0x00530150
-void __stdcall sub_530150(unsigned int) {}
-
-// FUNCTION: SWBF2 0x00530160
-void __stdcall sub_530160(unsigned int) {}
 
 // FUNCTION: SWBF2 0x00530170
-int __fastcall FillWordRange(unsigned int first, unsigned int last, const int* value)
+int __cdecl FillWordRange(unsigned int first, unsigned int last, const int* value)
 {
     unsigned int count = first > last ? 0 : (last - first + 3) >> 2;
     int result = 0;

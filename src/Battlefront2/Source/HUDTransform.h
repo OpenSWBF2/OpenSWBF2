@@ -4,7 +4,8 @@
 #include "HUDItem.h"
 #include "HUDEvent.h"
 
-namespace HUD {
+namespace HUD
+{
 // VTABLE: SWBF2 0x007a3590
 class Transform : public HUD::Item
 {

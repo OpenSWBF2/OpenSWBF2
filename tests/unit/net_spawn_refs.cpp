@@ -130,7 +130,7 @@ TEST_CASE("net message and chunk events ignore null references" * doctest::test_
     CHECK(NetRefCount(sMessage, "if (!pCharacter1 || !LocalLimits::IsValidNetPlayer(iPlayer))") == 2);
     CHECK(NetRefCount(sMessage, "NetGame::GetLocalPlayer(j) && pTeam") == 1);
 
-    const std::string sChunk = NetRefBody(sText, "void ReadEvent_CreateChunkCluster(NetPktGroup& group, ReliableNetEvent& event)");
+    const std::string sChunk = NetRefBody(sText, "void ReadEvent_CreateChunkCluster(NetPktGroup& group, ReliableNetEvent& event, PblMatrix&)");
     CHECK(NetRefBefore(sChunk, "PblInBounds(relChunkClusterData", "ReadEntityClass(group)"));
 }
 

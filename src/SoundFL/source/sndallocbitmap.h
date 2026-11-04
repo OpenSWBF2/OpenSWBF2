@@ -1,7 +1,5 @@
 #pragma once
 
-#include <stddef.h>
-
 namespace Snd
 {
 
@@ -9,11 +7,22 @@ class AllocBitmap
 {
 public:
 
+    AllocBitmap() : mBitmap(0), mBitmapSize(0), mSearchEntry(0) {}
+
     class Handle
     {
     public:
 
-        Handle() : mStartEntry(0), mNumEntries(0) {}
+        Handle() { Reset(); }
+
+        unsigned int GetAllocatedEntryIndex() const { return mStartEntry; }
+        unsigned int GetNumAllocatedEntries() const { return mNumEntries; }
+
+        void Reset()
+        {
+            mStartEntry = 0;
+            mNumEntries = 0;
+        }
 
         unsigned int mStartEntry;
         unsigned int mNumEntries;
@@ -38,11 +47,13 @@ class MemoryBitmap : public AllocBitmap
 {
 public:
 
+    MemoryBitmap();
+
     class MemoryHandle : public AllocBitmap::Handle
     {
     public:
 
-        uintptr_t GetAddress(MemoryBitmap& bitmap) const
+        unsigned int GetAddress(MemoryBitmap& bitmap) const
         {
             return mStartEntry * bitmap.GetEntrySize() + bitmap.GetStartAddress();
         }
@@ -57,12 +68,12 @@ public:
     bool Resize(unsigned int uiSize, MemoryHandle& handle);
 
     unsigned int GetEntrySize() const;
-    uintptr_t GetStartAddress() const;
+    unsigned int GetStartAddress() const;
 
-    void Initialize(uintptr_t uiStartAddress, unsigned int uiMemorySize,
+    void Initialize(unsigned int uiStartAddress, unsigned int uiMemorySize,
                     unsigned int uiEntrySize, unsigned char* pBitmap);
 
-    uintptr_t mStartAddress;
+    unsigned int mStartAddress;
     unsigned int mMemorySize;
     unsigned int mEntrySize;
 };

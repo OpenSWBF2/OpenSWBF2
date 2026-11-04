@@ -94,6 +94,19 @@ public:
     RedLogitechLCD();
     virtual ~RedLogitechLCD();
 
+    void ConnectLCDPanel(unsigned char ucPortIndex);
+    void OpenLCDPanel();
+    void ClearLCD();
+    void PrepareLCDDrawing();
+    void DrawLCDText(char const* lpString, int x, int y);
+    void PresentLCD();
+    void UpdateLCDPanel(float fPriority);
+    void DrawLCDLine(int x0, int y0, int x1, int y1);
+    void DrawLCDWideText(const unsigned short* pwString, int x, int y);
+    void DrawLCDWrappedText(const unsigned short* pwString);
+    void CloseLCDPanel();
+    void DisconnectLCDPanel();
+
     unsigned char mPortIndex;
     bool mOpened;
     bool mConnected;
@@ -117,17 +130,8 @@ public:
 
 extern RedLogitechLCD gLCDPanels[1];
 
-void ConnectLCDPanel(RedLogitechLCD* pThis, unsigned char ucPortIndex);
-void OpenLCDPanel(RedLogitechLCD* pThis);
 
-void ClearLCD(RedLogitechLCD* pThis);
-void PrepareLCDDrawing(RedLogitechLCD* pThis);
-void DrawLCDText(RedLogitechLCD* pThis, char const* lpString, int x, int y);
-void PresentLCD(RedLogitechLCD* pThis);
-void UpdateLCDPanel(RedLogitechLCD* pThis, float fPriority);
 
-void CloseLCDPanel(RedLogitechLCD* pThis);
-void DisconnectLCDPanel(RedLogitechLCD* pThis);
 
 extern char* lpString2;
 extern int dword_7E143C;

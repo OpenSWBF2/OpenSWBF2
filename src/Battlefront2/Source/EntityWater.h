@@ -5,6 +5,8 @@
 #include "CollisionObject.h"
 #include "Thread.h"
 
+// VTABLE: SWBF2 0x0079de48 Thread
+// VTABLE: SWBF2 0x0079de60 CollisionObject
 class EntityWater : public CollisionObject, public Thread
 {
 public:

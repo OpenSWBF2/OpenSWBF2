@@ -9,29 +9,22 @@
 #include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblMatrix.h"
 
-// GLOBAL: SWBF2 0x01f9a258
 // SYNTHETIC: SWBF2 0x00406d50
 // `dynamic initializer for 'UnitWaitAgent::rttiHashUnitWaitAgent''
+// UnitWaitAgent::rttiHashUnitWaitAgent
+
+// GLOBAL: SWBF2 0x01f9a258
+// UnitWaitAgent::rttiHashUnitWaitAgent
 PblHash UnitWaitAgent::rttiHashUnitWaitAgent("UnitWaitAgent");
-char UnitWaitAgent::rttiNameUnitWaitAgent[] = "UnitWaitAgent";
+// GLOBAL: SWBF2 0x0078b9b8
+// UnitWaitAgent::rttiNameUnitWaitAgent
+const char UnitWaitAgent::rttiNameUnitWaitAgent[] = "UnitWaitAgent";
 
-// FUNCTION: SWBF2 0x0066b330
-bool UnitWaitAgent::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashUnitWaitAgent || UnitAgent::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x0066b360
-unsigned int UnitWaitAgent::GetDerivedRtti() const
-{
-    return rttiHashUnitWaitAgent;
-}
 
-// FUNCTION: SWBF2 0x0066b370
-const char* UnitWaitAgent::GetDerivedRttiName() const
-{
-    return rttiNameUnitWaitAgent;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x0066b3b0
 UnitWaitAgent::UnitWaitAgent(UnitController* pCtrl)
@@ -80,7 +73,7 @@ void UnitWaitAgent::SetNewSearchHeading()
 // FUNCTION: SWBF2 0x0066b500
 void UnitWaitAgent::UpdateStatePostVision(float dt)
 {
-    AttackHelper& attack = *reinterpret_cast<AttackHelper*>(mAttackHelper);
+    AttackHelper& attack = mAttackHelper;
     attack.Update();
     if (mCurState != 2)
     {

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "CollisionModel.h"
@@ -21,13 +23,13 @@ public:
     virtual ~WeaponShieldClass();
 
     static PblHash rttiHashWeaponShieldClass;
-    static char rttiNameWeaponShieldClass[];
+    static const char rttiNameWeaponShieldClass[];
 
     virtual WeaponClass* Derive(unsigned int uHash);
     virtual Weapon* Build(const WeaponDesc& desc);
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
     virtual void PostReadInit();
 
@@ -58,7 +60,7 @@ class FLEffectObject;
 class CollisionResult;
 class Restrictor;
 
-// VTABLE: SWBF2 0x007b1a9c
+// VTABLE: SWBF2 0x007b1a9c Weapon
 // VTABLE: SWBF2 0x007b1b94 CollisionObject
 class WeaponShield : public Weapon, public CollisionObject
 {
@@ -92,9 +94,53 @@ public:
     static PblHash rttiHashWeaponShield;
 
     static unsigned int GetRtti() { return rttiHashWeaponShield; }
-    static char rttiNameWeaponShield[];
+    static const char rttiNameWeaponShield[];
 
     FLEffectObject* mShieldEffect;
 };
  
  
+
+// FUNCTION: SWBF2 0x00691770
+inline bool WeaponShieldClass::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashWeaponShieldClass == uRtti)
+    {
+        return true;
+    }
+    return WeaponClass::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x006917a0
+inline unsigned int WeaponShieldClass::GetDerivedRtti() const
+{
+    return rttiHashWeaponShieldClass;
+}
+
+// FUNCTION: SWBF2 0x006917b0
+inline const char* WeaponShieldClass::GetDerivedRttiName() const
+{
+    return rttiNameWeaponShieldClass;
+}
+
+// FUNCTION: SWBF2 0x00691700
+inline bool WeaponShield::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashWeaponShield == uRtti)
+    {
+        return true;
+    }
+    return Weapon::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x00691730
+inline unsigned int WeaponShield::GetDerivedRtti() const
+{
+    return rttiHashWeaponShield;
+}
+
+// FUNCTION: SWBF2 0x00691740
+inline const char* WeaponShield::GetDerivedRttiName() const
+{
+    return "WeaponShield";
+}

@@ -9,13 +9,23 @@
 namespace Snd
 {
 
-class StreamSourceMemory : public StreamSourceProducer, public StreamNode
+// SYNTHETIC: SWBF2 0x0074c820
+// Snd::StreamSourceMemory::`scalar deleting destructor'
+
+// VTABLE: SWBF2 0x00786d00
+class StreamSourceMemory : public StreamNode, public StreamSourceProducer
 {
 public:
 
     class SegmentProperties
     {
     public:
+        SegmentProperties()
+            : mOffset(0),
+              mLength(0)
+        {
+        }
+
         unsigned int mOffset;
         unsigned int mLength;
     };
@@ -30,7 +40,7 @@ public:
     void Setup(const StreamFormat& rFormat, void* const pData, unsigned int uiDataSize,
                unsigned int uiPacketSize, StreamPacket* pPackets, unsigned char uiNumPackets,
                bool bLooping);
-    void SetLooping(bool bLooping);
+    void SetLooping(unsigned char bLooping);
     void Flush()
     {
         StartFlush();
@@ -49,7 +59,7 @@ public:
     unsigned int mDataSize;
     unsigned int mAudioFrameSize;
     StreamFormat mFormat;
-    unsigned char mLooping;
+    bool mLooping;
 };
 
  

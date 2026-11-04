@@ -7,11 +7,13 @@
 #include "HUDItem.h"
 #include "PebbleFL/Common/PblHashTable.h"
 
-// GLOBAL: SWBF2 0x007eba5c
 // SYNTHETIC: SWBF2 0x00403ff0
 // `dynamic initializer for 'HUD::EventClass::sList''
 // SYNTHETIC: SWBF2 0x00768b80
 // `dynamic atexit destructor for 'HUD::EventClass::sList''
+
+// GLOBAL: SWBF2 0x007eba5c
+// HUD::EventClass::sList
 PblListSingle HUD::EventClass::sList;
 
 // FUNCTION: SWBF2 0x0055dc30
@@ -45,19 +47,15 @@ HUD::EventClass* HUD::EventClass::Create(Type eType, const char* pFormat, ...)
 
 // FUNCTION: SWBF2 0x0055db20
 HUD::EventHandler::EventHandler()
+    : mFunc(0)
+    , mData(0)
+    , mClass(0)
 {
-    mFunc = 0;
-    mData = 0;
-    mClass = 0;
 }
 
 // FUNCTION: SWBF2 0x0055db70
 HUD::EventHandler::~EventHandler()
 {
-    if (mNode.IsAttached())
-    {
-        mNode.Remove();
-    }
     if (mNode.IsAttached())
     {
         mNode.Remove();
@@ -87,10 +85,11 @@ HUD::EventClass::Type HUD::EventClass::GetType() const
 void HUD::EventClass::Send(const Event& event) const
 {
 
-    for (const PblListDouble::Node* pNode = mHandlerList.mTerminator.mNext;
-         pNode != &mHandlerList.mTerminator; pNode = pNode->mNext)
+    for (PblListDouble::Itor itor(mHandlerList);
+         itor.GetNode() != mHandlerList.GetTerminator(); ++itor)
     {
-        const EventHandler* pHandler = (const EventHandler*)((const char*)pNode - offsetof(EventHandler, mNode));
+        const EventHandler* pHandler = static_cast<EventHandler*>(
+            itor.GetNode()->GetObjectA(&mHandlerList, offsetof(EventHandler, mNode)));
         pHandler->HandleEvent(event);
     }
 }
@@ -199,7 +198,7 @@ const char* HUD::EventHandler::GetRegisteredClassName(bool bEmptyIfMissing) cons
 {
     if (mClass)
     {
-        return mClass->mName;
+        return mClass->GetName();
     }
     return bEmptyIfMissing ? "" : 0;
 }
@@ -242,13 +241,8 @@ HUD::EventClass* HUD::EventClass::GetNext(EventClass* pEvent)
 // FUNCTION: SWBF2 0x0055df80
 HUD::EventClass* HUD::EventClass::GetPrevious(EventClass* pEvent)
 {
-    PblListSingle::Node* const current = &pEvent->mNode;
-    PblListSingle::Node* node = current;
-    while (node->mNext != current)
-    {
-        node = node->mNext;
-    }
-    return node == &sList.mHead ? 0 : reinterpret_cast<EventClass*>(reinterpret_cast<char*>(node) - offsetof(EventClass, mNode));
+    return static_cast<EventClass*>(pEvent->mNode.GetPrevious()->GetObjectA(
+        &sList, offsetof(EventClass, mNode)));
 }
 
 // FUNCTION: SWBF2 0x0055e220
@@ -284,13 +278,6 @@ HUD::EventClass::~EventClass()
         FreeName(&mName);
     }
     mHandlerList.Clear();
-
-    if (mNode.mNext)
-    {
-        mNode.Remove();
-    }
-    mHandlerList.mTerminator.mNext = 0;
-    mHandlerList.mTerminator.mPrev = 0;
 }
 
 // FUNCTION: SWBF2 0x0055dd50
@@ -313,9 +300,11 @@ unsigned int HUD::EventClass::AddRef()
 // FUNCTION: SWBF2 0x0055dee0
 HUD::EventClass* HUD::EventClass::FindByHashID(unsigned int uHashID)
 {
-    for (PblListSingle::Node* pNode = sList.mHead.mNext; pNode != &sList.mHead; pNode = pNode->mNext)
+    for (PblListSingle::Itor itor(sList);
+         itor.GetNode() != sList.GetTerminator(); ++itor)
     {
-        EventClass* pEvent = (EventClass*)((char*)pNode - offsetof(EventClass, mNode));
+        EventClass* pEvent = static_cast<EventClass*>(
+            itor.GetNode()->GetObjectA(&sList, offsetof(EventClass, mNode)));
         if (pEvent->mHashID == uHashID)
         {
             return pEvent;
@@ -344,9 +333,8 @@ HUD::Event::Data HUD::Event::GetData() const
 }
 
 // FUNCTION: SWBF2 0x0055e040
-HUD::Event* InitializeEventWithData(HUD::Event* pEvent, HUD::EventClass* pClass, HUD::Event::Data data)
+HUD::Event::Event(const EventClass* const pClass, unsigned int uValue)
 {
-    pEvent->mClass = pClass;
-    pEvent->mData = data;
-    return pEvent;
+    mClass = const_cast<EventClass*>(pClass);
+    mData.uintValue = uValue;
 }

@@ -1,3 +1,4 @@
+#include <new>
 #include <float.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -143,10 +144,6 @@ HUD::Item::Factory::Property::~Property()
     delete mData;
     mData = 0;
 
-    if (mNode.mNext)
-    {
-        mNode.Remove();
-    }
 }
 
 // FUNCTION: SWBF2 0x00563d60
@@ -232,18 +229,17 @@ void HUD::Item::Factory::Property::Init(char* pName, PblListSingle& list, Type e
 }
 
 // FUNCTION: SWBF2 0x00563f80
-void HUD::Item::Factory::Property::InitVectorRange(Axis eAxis, float fMin, float fMax,
-                                                   float fStep)
+void HUD::Item::Factory::Property::InitVectorRange(Axis eAxis, const float fMin,
+                                                   const float fMax, const float fStep)
 {
     if (!mData)
     {
         return;
     }
 
-    Info::FloatRange& range = mData->mInfo.vectorRange.range[eAxis - 1];
-    range.minValue = fMin;
-    range.maxValue = fMax;
-    range.stepValue = fStep;
+    mData->mInfo.vectorRange.range[eAxis - 1].minValue = fMin;
+    mData->mInfo.vectorRange.range[eAxis - 1].maxValue = fMax;
+    mData->mInfo.vectorRange.range[eAxis - 1].stepValue = fStep;
 }
 
 // FUNCTION: SWBF2 0x00563fc0
@@ -324,11 +320,13 @@ float HUD::Item::Factory::Property::GetStepVectorValue(Axis eAxis) const
     return mData ? mData->mInfo.vectorRange.range[eAxis - 1].stepValue : 0.0f;
 }
 
-// GLOBAL: SWBF2 0x007eba78
 // SYNTHETIC: SWBF2 0x00404080
 // `dynamic initializer for 'HUD::Item::Factory::sList''
 // SYNTHETIC: SWBF2 0x00768be0
 // `dynamic atexit destructor for 'HUD::Item::Factory::sList''
+
+// GLOBAL: SWBF2 0x007eba78
+// HUD::Item::Factory::sList
 PblListDouble HUD::Item::Factory::sList;
 
 // FUNCTION: SWBF2 0x00564110
@@ -343,10 +341,6 @@ HUD::Item::Factory::Factory(unsigned int uHashID)
 // FUNCTION: SWBF2 0x005641a0
 HUD::Item::Factory::~Factory()
 {
-    if (mNode.IsAttached())
-    {
-        mNode.Remove();
-    }
 }
 
 // FUNCTION: SWBF2 0x005641e0
@@ -368,8 +362,8 @@ const HUD::Item::Factory::Property* HUD::Item::Factory::PropertyGetFirst() const
     {
         return 0;
     }
-    const PblListSingle::Node* pNode = mProperties.mHead.mNext;
-    return pNode != &mProperties.mHead ? (const Property*)pNode : 0;
+    return static_cast<const Property*>(
+        mProperties.GetFirst()->GetObjectA(&mProperties, offsetof(Property, mNode)));
 }
 
 // FUNCTION: SWBF2 0x00564220
@@ -392,31 +386,25 @@ const HUD::Item::Factory::Property* HUD::Item::Factory::PropertyGetLast() const
 const HUD::Item::Factory::Property* HUD::Item::Factory::PropertyGetNext(
     const Property* const pProperty) const
 {
-    const PblListSingle::Node* pNode = pProperty->mNode.mNext;
-    return pNode != &mProperties.mHead ? (const Property*)pNode : 0;
+    PblListSingle::Node* const node = pProperty->mNode.GetNext();
+    return static_cast<const Property*>(node->GetObjectA(&mProperties, offsetof(Property, mNode)));
 }
 
 // FUNCTION: SWBF2 0x00564270
 const HUD::Item::Factory::Property* HUD::Item::Factory::PropertyGetPrevious(
     const Property* const pProperty) const
 {
-    const PblListSingle::Node* pPrev;
-    const PblListSingle::Node* pNode = &pProperty->mNode;
-    do
-    {
-        pPrev = pNode;
-        pNode = pNode->mNext;
-    } while (pNode != &pProperty->mNode);
-    return pPrev != &mProperties.mHead ? (const Property*)pPrev : 0;
+    return static_cast<const Property*>(
+        pProperty->mNode.GetPrevious()->GetObjectA(&mProperties, offsetof(Property, mNode)));
 }
 
 // FUNCTION: SWBF2 0x005642a0
 HUD::Item::Factory* HUD::Item::Factory::FindByHashID(unsigned int uHashID)
 {
-    for (PblListDouble::Node* pNode = sList.mTerminator.mNext; pNode != &sList.mTerminator;
-         pNode = pNode->mNext)
+    for (PblListDouble::Itor itor(sList); itor.GetNode() != sList.GetTerminator(); ++itor)
     {
-        Factory* pFactory = (Factory*)((char*)pNode - offsetof(Factory, mNode));
+        Factory* pFactory = static_cast<Factory*>(
+            itor.GetNode()->GetObjectA(&sList, offsetof(Factory, mNode)));
         if (pFactory->mHashID == uHashID)
         {
             return pFactory;
@@ -438,11 +426,13 @@ void HUD::Item::Factory::DestroyAll()
     sList.Clear();
 }
 
-// GLOBAL: SWBF2 0x007eba98
 // SYNTHETIC: SWBF2 0x00404090
 // `dynamic initializer for 'HUD::Item::sList''
 // SYNTHETIC: SWBF2 0x00768c00
 // `dynamic atexit destructor for 'HUD::Item::sList''
+
+// GLOBAL: SWBF2 0x007eba98
+// HUD::Item::sList
 PblListSingle HUD::Item::sList;
 
 // FUNCTION: SWBF2 0x00564310
@@ -692,7 +682,7 @@ HUD::EventClass* HUD::Item::CreateEventA(const char* const pName, EventClass::Ty
 }
 
 // FUNCTION: SWBF2 0x00564890
-unsigned int HUD::CopyName(char** ppDest, const char* const pSource, bool bUseUnnamed)
+void HUD::CopyName(char** ppDest, const char* const pSource, bool bUseUnnamed)
 {
     if (pSource)
     {
@@ -710,8 +700,6 @@ unsigned int HUD::CopyName(char** ppDest, const char* const pSource, bool bUseUn
     {
         *ppDest = bUseUnnamed ? sDefaultNames[1] : sDefaultNames[0];
     }
-
-    return (unsigned int)(*ppDest);
 }
 
 // FUNCTION: SWBF2 0x005648f0

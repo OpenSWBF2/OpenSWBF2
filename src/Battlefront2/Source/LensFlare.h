@@ -18,7 +18,7 @@ public:
     {
     public:
 
-        void Cleanup() { RemoveAll(); }
+        void Cleanup();
 
         void Add(LensFlare* pFlare);
         void Remove(LensFlare* pFlare);
@@ -32,7 +32,8 @@ public:
     {
     }
 
-    virtual ~LensFlareEffect();
+    // SYNTHETIC: SWBF2 0x0056f430
+    // LensFlareEffect::`scalar deleting destructor'
     virtual void Render(int value);
     virtual void Init();
     virtual void Cleanup();
@@ -50,15 +51,20 @@ public:
 };
  
  
+ // VTABLE: SWBF2 0x0079b860 PblHandled
+ // VTABLE: SWBF2 0x0079b868
+ // VTABLE: SWBF2 0x0079b8e0 Thread
  class LensFlare : public FLEffectClass, public FLEffectObject
 {
 public:
     LensFlare();
     LensFlare(const LensFlare& that);
-    // SYNTHETIC: SWBF2 0x004c0902
     // [thunk]:LensFlare::`scalar deleting destructor' adjustor{40}
-    // SYNTHETIC: SWBF2 0x004c090a
+    // SYNTHETIC: SWBF2 0x004c0902
+    // ??_ELensFlare@@WCI@AEPAXI@Z
     // [thunk]:LensFlare::`scalar deleting destructor' adjustor{16}
+    // SYNTHETIC: SWBF2 0x004c090a
+    // ??_ELensFlare@@WBA@AEPAXI@Z
     // SYNTHETIC: SWBF2 0x004bdb80
     // LensFlare::`scalar deleting destructor'
     // FUNCTION: SWBF2 0x004bdb00

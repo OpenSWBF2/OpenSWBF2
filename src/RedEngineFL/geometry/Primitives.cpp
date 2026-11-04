@@ -13,11 +13,7 @@ namespace
 Vector3<float> Convert_(const Vector3<float>& rLocal, const Vector3<float>& rX,
                         const Vector3<float>& rY, const Vector3<float>& rZ)
 {
-    Vector3<float> v;
-    v.x = rX.x * rLocal.x + rY.x * rLocal.y + rZ.x * rLocal.z;
-    v.y = rX.y * rLocal.x + rY.y * rLocal.y + rZ.y * rLocal.z;
-    v.z = rX.z * rLocal.x + rY.z * rLocal.y + rZ.z * rLocal.z;
-    return v;
+    return rX * rLocal.x + rY * rLocal.y + rZ * rLocal.z;
 }
 
 }
@@ -28,20 +24,20 @@ Sphere::Sphere(const BasePoly3D& rPoly)
     center_ = Vector3<float>(0, 0, 0);
     for (int i = 0; i < rPoly.numPoints_; ++i)
     {
-        center_.x += rPoly.points_[i].x;
-        center_.y += rPoly.points_[i].y;
-        center_.z += rPoly.points_[i].z;
+        const Vector3<float>& rPt = rPoly.points_[i];
+        center_.x += rPt.x;
+        center_.y += rPt.y;
+        center_.z += rPt.z;
     }
     float fInv = 1.0f / (float)rPoly.numPoints_;
-    center_.x *= fInv;
-    center_.y *= fInv;
-    center_.z *= fInv;
+    center_ = center_ * fInv;
 
     for (int i = 0; i < rPoly.numPoints_; ++i)
     {
-        float fX = center_.x - rPoly.points_[i].x;
-        float fY = center_.y - rPoly.points_[i].y;
-        float fZ = center_.z - rPoly.points_[i].z;
+        const Vector3<float>& rPt = rPoly.points_[i];
+        float fX = center_.x - rPt.x;
+        float fY = center_.y - rPt.y;
+        float fZ = center_.z - rPt.z;
         float fDist = (float)sqrt((double)(fX * fX + fY * fY + fZ * fZ));
         radius_ = Max_(radius_, fDist);
     }
@@ -50,42 +46,31 @@ Sphere::Sphere(const BasePoly3D& rPoly)
 // FUNCTION: SWBF2 0x007229d0
 Sphere::Sphere(const ExtrudedPoly3D& rPoly)
 {
-    const Vector2<float>* pPts = rPoly.points_._elements;
-    const int nPts = rPoly.points_._numElements;
-
     center_ = Vector3<float>(0, 0, 0);
-    for (int i = 0; i < nPts; ++i)
+    for (int i = 0; i < rPoly.points_._numElements; ++i)
     {
-        Vector3<float> top = Convert_(Vector3<float>(pPts[i].x, pPts[i].y, rPoly.max_),
+        const Vector2<float>& rPt = rPoly.points_._elements[i];
+        Vector3<float> top = Convert_(Vector3<float>(rPt.x, rPt.y, rPoly.max_),
                                       rPoly.xaxis_, rPoly.yaxis_, rPoly.zaxis_);
-        Vector3<float> bot = Convert_(Vector3<float>(pPts[i].x, pPts[i].y, rPoly.min_),
+        Vector3<float> bot = Convert_(Vector3<float>(rPt.x, rPt.y, rPoly.min_),
                                       rPoly.xaxis_, rPoly.yaxis_, rPoly.zaxis_);
-        center_.x += top.x + bot.x;
-        center_.y += top.y + bot.y;
-        center_.z += top.z + bot.z;
+        Vector3<float> sum = top + bot;
+        center_.x = sum.x + center_.x;
+        center_.y = sum.y + center_.y;
+        center_.z = sum.z + center_.z;
     }
-    float fInv = 0.5f / (float)nPts;
-    center_.x *= fInv;
-    center_.y *= fInv;
-    center_.z *= fInv;
+    center_ = center_ * (0.5f / (float)rPoly.points_._numElements);
 
-    for (int i = 0; i < nPts; ++i)
+    for (int i = 0; i < rPoly.points_._numElements; ++i)
     {
-        Vector3<float> top = Convert_(Vector3<float>(pPts[i].x, pPts[i].y, rPoly.max_),
+        const Vector2<float>& rPt = rPoly.points_._elements[i];
+        Vector3<float> top = Convert_(Vector3<float>(rPt.x, rPt.y, rPoly.max_),
                                       rPoly.xaxis_, rPoly.yaxis_, rPoly.zaxis_);
-        float fX = center_.x - top.x;
-        float fY = center_.y - top.y;
-        float fZ = center_.z - top.z;
-        float fDist = (float)sqrt((double)(fX * fX + fY * fY + fZ * fZ));
-        radius_ = Max_(radius_, fDist);
+        radius_ = Max_(radius_, length(center_ - top));
 
-        Vector3<float> bot = Convert_(Vector3<float>(pPts[i].x, pPts[i].y, rPoly.min_),
+        Vector3<float> bot = Convert_(Vector3<float>(rPt.x, rPt.y, rPoly.min_),
                                       rPoly.xaxis_, rPoly.yaxis_, rPoly.zaxis_);
-        fX = center_.x - bot.x;
-        fY = center_.y - bot.y;
-        fZ = center_.z - bot.z;
-        fDist = (float)sqrt((double)(fX * fX + fY * fY + fZ * fZ));
-        radius_ = Max_(radius_, fDist);
+        radius_ = Max_(radius_, length(center_ - bot));
     }
 }
 
@@ -102,9 +87,8 @@ Plane::Plane(const BasePoly3D& rPoly)
 {
     if (rPoly.numPoints_ >= 3)
     {
-        const Vector3<float>* pPts = rPoly.points_;
-        dir_ = normalize(cross(pPts[0] - pPts[1], pPts[2] - pPts[1]));
-        dist_ = -dot(dir_, pPts[0]);
+        dir_ = normalize(cross(rPoly.points_[0] - rPoly.points_[1], rPoly.points_[2] - rPoly.points_[1]));
+        dist_ = -dot(rPoly.points_[0], dir_);
     }
 }
 

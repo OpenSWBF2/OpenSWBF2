@@ -18,13 +18,14 @@ void MessageDisplay::AddMessage(const unsigned short* pText, RedColor color)
     unsigned int uViewport;
     DISPLAY_TYPE eType;
     GetInfo(uViewport, eType);
-    if (eType == DISPLAY_SYSTEM_MSG)
+    switch (eType)
     {
+    case DISPLAY_SYSTEM_MSG:
         HUD::GameEvents::DisplayMessage(uViewport, pText, &color);
-    }
-    else if (eType == DISPLAY_PLAYER_CHAT)
-    {
+        break;
+    case DISPLAY_PLAYER_CHAT:
         HUD::GameEvents::DisplayTextChatMessage(uViewport, pText, &color);
+        break;
     }
 }
 
@@ -68,7 +69,7 @@ void MessageDisplay::AddKillMessage(const Character* pVictim, const Character* p
             FLInputManager::s_instance.ProcessChatMessageInput(message);
         }
     }
-    AddMessage(message, pTeam->mColor[iTeam]);
+    AddMessage(message, pTeam->GetColor(iTeam));
 }
 
 // FUNCTION: SWBF2 0x005a38e0
@@ -115,7 +116,7 @@ void MessageDisplay::GetInfo(unsigned int& uViewport, DISPLAY_TYPE& eType) const
     {
         for (unsigned int j = 0; j < DISPLAY_END; ++j)
         {
-            if (sInstance[i][j] == this)
+            if (this == sInstance[i][j])
             {
                 uViewport = i;
                 eType = (DISPLAY_TYPE)j;

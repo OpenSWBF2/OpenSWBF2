@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "UnitAgent.h"
@@ -14,7 +16,10 @@
 class CommandPost;
 class GameObject;
 class UnitController;
-namespace AI { class EventInfo; }
+namespace AI
+{
+class EventInfo;
+}
 
 // VTABLE: SWBF2 0x007afd40
 class UnitTrooperAgent : public UnitAgent
@@ -65,7 +70,7 @@ public:
     PblHandle<GameObject> mConvoyParent;
 
     static PblHash rttiHashUnitTrooperAgent;
-    static char rttiNameUnitTrooperAgent[];
+    static const char rttiNameUnitTrooperAgent[];
 };
 
  
@@ -75,3 +80,25 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x0066a3f0
+inline bool UnitTrooperAgent::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashUnitTrooperAgent == uRtti)
+    {
+        return true;
+    }
+    return UnitAgent::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x0066a420
+inline unsigned int UnitTrooperAgent::GetDerivedRtti() const
+{
+    return rttiHashUnitTrooperAgent;
+}
+
+// FUNCTION: SWBF2 0x0066a430
+inline const char* UnitTrooperAgent::GetDerivedRttiName() const
+{
+    return rttiNameUnitTrooperAgent;
+}

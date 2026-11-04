@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include <float.h>
 #include <string.h>
 
@@ -14,9 +15,9 @@
 #include "UnitController.h"
 #include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblMatrix.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 extern PblVector3 gVectorZero;
+
 
 class EntitySoldier
 {
@@ -44,12 +45,9 @@ public:
 
 namespace
 {
-    const PblVector3& GetPos(const PblMatrix& m)
-    {
-        return *(const PblVector3*)&m.m[3][0];
-    }
 
-    const PblMatrix& GameObjectGetMatrix(const GameObject* pObj)
+
+    inline const PblMatrix& GameObjectGetMatrix(const GameObject* pObj)
     {
         return static_cast<const CollisionObject&>(*pObj).GetMatrix();
     }
@@ -72,29 +70,22 @@ int gUnchangedVehicleSlideCount = 1;
 
 int gClearVehicleSlideCount = 1;
 
-// GLOBAL: SWBF2 0x01ecb258
 // SYNTHETIC: SWBF2 0x004043f0
 // `dynamic initializer for 'NavigatorSlide::rttiHashNavigatorSlide''
+// NavigatorSlide::rttiHashNavigatorSlide
+
+// GLOBAL: SWBF2 0x01ecb258
+// NavigatorSlide::rttiHashNavigatorSlide
 PblHash NavigatorSlide::rttiHashNavigatorSlide("NavigatorSlide");
-char NavigatorSlide::rttiNameNavigatorSlide[] = "NavigatorSlide";
+// GLOBAL: SWBF2 0x0078a678
+// NavigatorSlide::rttiNameNavigatorSlide
+const char NavigatorSlide::rttiNameNavigatorSlide[] = "NavigatorSlide";
 
-// FUNCTION: SWBF2 0x005addf0
-bool NavigatorSlide::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashNavigatorSlide || Navigator::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x005ade20
-unsigned int NavigatorSlide::GetDerivedRtti() const
-{
-    return rttiHashNavigatorSlide;
-}
 
-// FUNCTION: SWBF2 0x005ade30
-const char* NavigatorSlide::GetDerivedRttiName() const
-{
-    return rttiNameNavigatorSlide;
-}
+
+
+
 
 // SYNTHETIC: SWBF2 0x005ade40
 // NavigatorSlide::`scalar deleting destructor'
@@ -112,11 +103,8 @@ NavigatorSlide* NavigatorSlidePtr(Navigator* pNavigator)
 // FUNCTION: SWBF2 0x005ade90
 NavigatorSlide::NavigatorSlide(AILowLevel* pOwner, const PblVector3& globalDest,
                                const Obstacle** ppIgnore, int iIgnoreCnt)
-    : Navigator(pOwner)
+    : Navigator(pOwner), mGlobalDest(globalDest)
 {
-    mGlobalDest = globalDest;
-    mSlideObj.mObject = 0;
-    mSlideObj.mSavedHandleId = 0;
     mUseAttackHelper = false;
     mOffset = 0.0f;
     mCurState = STATE_START;
@@ -139,12 +127,8 @@ NavigatorSlide::NavigatorSlide(AILowLevel* pOwner, const PblVector3& globalDest,
 // FUNCTION: SWBF2 0x005adfa0
 NavigatorSlide::NavigatorSlide(AILowLevel* pOwner, const GameObject* pSlideObj, float fOffset,
                                bool bUseAttackHelper, const Obstacle** ppIgnore, int iIgnoreCnt)
-    : Navigator(pOwner)
+    : Navigator(pOwner), mGlobalDest(0.0f, 0.0f, 0.0f), mSlideObj(pSlideObj)
 {
-    mGlobalDest = PblVector3(0, 0, 0);
-    mSlideObj.mObject = pSlideObj;
-    mSlideObj.mSavedHandleId =
-        pSlideObj ? pSlideObj->mHandleId : 0;
     mUseAttackHelper = bUseAttackHelper;
     mOffset = fOffset;
     mCurState = STATE_START;
@@ -284,7 +268,7 @@ PblVector3 NavigatorSlide::GetBouncePosition() const
 // FUNCTION: SWBF2 0x005ae430
 void NavigatorSlide::NextInfantrySlidePos(const PblVector3& dest)
 {
-    PblVector3 pos = GetPos(GetMatrix());
+    PblVector3 pos = GetMatrix().GetTranslation();
     PblVector3 slideDest = dest;
 
     const GameObject* pObj = mOwner->mOwner->mOwner->GetGameObject();
@@ -300,7 +284,7 @@ void NavigatorSlide::NextInfantrySlidePos(const PblVector3& dest)
         if (delta.x * delta.x + delta.y * delta.y + delta.z * delta.z > 0.1f)
         {
             PblVector3 dir;
-            D3DXVec3Normalize(&dir, &delta);
+            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&dir), reinterpret_cast<const D3DXVECTOR3*>(&delta));
             if (delta.x * delta.x + delta.y * delta.y + delta.z * delta.z > 1.0f)
             {
                 slideDest = PblVector3(slideDest.x - dir.x, slideDest.y - dir.y, slideDest.z - dir.z);
@@ -337,7 +321,7 @@ void NavigatorSlide::UpdateInfantrySlideObject()
         return;
     }
 
-    PblVector3 pos = GetPos(GetMatrix());
+    PblVector3 pos = GetMatrix().GetTranslation();
     float dx = slidePos.x - mGlobalDest.x;
     float dz = slidePos.z - mGlobalDest.z;
     if (dz * dz + dx * dx > 1.0f)
@@ -386,8 +370,8 @@ bool NavigatorSlide::GetObjectSlideToPosition(PblVector3* pPos) const
         return true;
     }
 
-    *pPos = GetPos(GameObjectGetMatrix(pObj));
-    const PblVector3& myPos = GetPos(GetMatrix());
+    *pPos = (GameObjectGetMatrix(pObj)).GetTranslation();
+    const PblVector3& myPos = GetMatrix().GetTranslation();
     PblVector3 dir(myPos.x - pPos->x, myPos.y - pPos->y, myPos.z - pPos->z);
     PblVector3 normal = AIUtil::GetSafeNormalXZ(dir);
     pPos->x += normal.x * mOffset;
@@ -399,7 +383,7 @@ bool NavigatorSlide::GetObjectSlideToPosition(PblVector3* pPos) const
 // FUNCTION: SWBF2 0x005ae900
 void NavigatorSlide::NextVehicleSlidePos()
 {
-    PblVector3 pos = GetPos(GetMatrix());
+    PblVector3 pos = GetMatrix().GetTranslation();
     const float fRadius = GetMyRadius() * 2.0f;
     const int eProhibit = GetMyProhibit();
     PathFinder::GetClosestValidPoint(pos, pos, fRadius, eProhibit, (const Obstacle**)mIgnore, mIgnoreCnt);

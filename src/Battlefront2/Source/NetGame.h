@@ -12,6 +12,8 @@ extern int netHostIndex;
 extern bool netIsDedicated;
 extern bool netIsOneWorld;
 extern bool netClientActive;
+extern bool netIsLocalTurn;
+extern bool netIsLateTurn;
 
 class Character;
 class ChunkCluster;
@@ -19,6 +21,7 @@ class EntityGeometryClass;
 class CommandPost;
 class EntityClass;
 class Team;
+enum CollisionObjectType;
 class WeaponClass;
 class GameObject;
 class NetPktGroup;
@@ -28,16 +31,25 @@ class PblMatrix;
 class ProcessedInputs;
 struct OrdnanceDesc;
 class Weapon;
-namespace HUD { class Objective; }
+namespace HUD
+{
+class Objective;
+}
 
 struct NetEventVector
 {
+    void Set(const PblVector3& value);
+    PblVector3 Get();
+
     float x, y, z;
 };
 struct NetGameObjectHandle
 {
-    GameObject* ptr;
+    const GameObject* ptr;
     unsigned int id;
+
+    void Set(const GameObject* object);
+    void Get(const GameObject*& object);
 };
 struct NetEvent
 {
@@ -170,10 +182,30 @@ public:
     // FUNCTION: SWBF2 0x004292d0
     static bool IsOneWorld() { return netIsOneWorld; }
 
-    // FUNCTION: SWBF2 0x004292b0
-
     static bool IsNearLocalPlayer(const PblVector3& vPos);
-    static bool IsClient() { return netEnabledNext ? netClientActive : false; }
+
+    // FUNCTION: SWBF2 0x004292b0
+    static bool IsClient() { return netEnabledNext && netClientActive; }
+
+    static bool OnClient() { return netEnabledNext && netClientActive; }
+
+    // FUNCTION: SWBF2 0x004ddf50
+    static bool IsOnceClientTurn()
+    {
+        if (!IsEnabled())
+        {
+            return true;
+        }
+        if (IsDedicated())
+        {
+            return false;
+        }
+        if (IsClient())
+        {
+            return netIsLocalTurn;
+        }
+        return IsOneWorld() && !netIsLateTurn;
+    }
 
     enum MessageType
     {
@@ -285,7 +317,7 @@ public:
     static bool Predict();
     static CommandPost* ConvertCP(CommandPost* pPost);
     static void CreateEvent_ChangeCommandPostTeams(unsigned __int64 sendMask);
-    static void CreateEvent_UpdateObjective(HUD::Objective* objective, int maskLow, int maskHigh);
+    static void CreateEvent_UpdateObjective(HUD::Objective* objective, unsigned __int64 sendMask);
 
     static void CreateEvent_AddObjective(HUD::Objective* objective);
     static void EnableJournal();
@@ -296,7 +328,7 @@ public:
     static int FindPlayerByGSID(int low, int high);
     static void ClearPlayerCDKey(int);
     static void ClearAllCDKeyInfo();
-    static int GetGuestOf(unsigned int iPlayer);
+    static int GetGuestOf(int iPlayer);
     static int FindSpectateTarget(int player);
     static int FindSpectateTarget(int player, int team);
     static bool ChangeSpectateTrack(int player, int spectator);
@@ -319,15 +351,15 @@ public:
     static void HeroSpawned(int team);
     static void HeroKilled(int iTeam);
     static void ClearLastHero(int team);
-    static int GetObjectsInRange(const PblVector3& position, float radius, GameObject** const found, int capacity, const Team* excluded, int team);
+    static int GetObjectsInRange(const PblVector3& position, float radius, GameObject** const found, int capacity, GameObject* excluded, CollisionObjectType type);
     static void SelectSpawn(int player, int team, int classIndex, CommandPost* post);
     static void CancelSpawn(int player);
     static void SpectateSpawn(int player, bool spectate);
-    static void AutoAssignSpawn(int player, int autoassign);
+    static void AutoAssignSpawn(int player, bool autoassign);
     static void RequestSuicide(int index);
     static void ForceBootPlayer(int player);
     static void AddChatMessageToQue(bool local, int player, unsigned __int64 mask, int code, const unsigned short* text, int flag);
-    static void ReadChatMessageFromServer(NetPktGroup* group);
+    static void ReadChatMessageFromServer(NetPktGroup& group);
     static void GetScore(int* count1, int* count2, int* limit1, int* limit2, bool* limits, bool* points);
 };
 
@@ -418,11 +450,6 @@ enum SwitchResponse
 
 SwitchResponse ReadSwitchResponse(NetPktGroup& group, unsigned int turn, unsigned int otherTurn);
 
-class StickAxisConvert {};
-class MouseAxisConvert {};
-template <class Convert> void ReadFixed(Convert& convert, NetPktGroup& group, float& value);
-template <> void ReadFixed<StickAxisConvert>(StickAxisConvert& convert, NetPktGroup& group, float& value);
-template <> void ReadFixed<MouseAxisConvert>(MouseAxisConvert& convert, NetPktGroup& group, float& value);
 EntityClass* ReadEntityClass(NetPktGroup& group);
 WeaponClass* ReadWeaponClass(NetPktGroup& group);
 bool AcceptLocalPlayerMessage(const Character* character, int value);
@@ -443,7 +470,7 @@ public:
     unsigned int flag;
     unsigned __int64 mask;
     int code;
-    unsigned short msg[64];
+    unsigned short msg[128];
     PblList<NG_ChatMsg>::Node mNode;
 };
  
@@ -463,6 +490,20 @@ public:
 
     static NetObjStateMap* Alloc();
     void Free();
+
+    void Add(NetObjState* state, unsigned int uniqId)
+    {
+        stateMap[uniqId] = state;
+    }
+
+    NetObjState* Find(unsigned int uniqId)
+    {
+        if (uniqId == 63)
+        {
+            return 0;
+        }
+        return stateMap[uniqId];
+    }
 
     NetObjState* stateMap[64];
     NetObjStateMap* next;
@@ -637,6 +678,9 @@ class AtleastOnceSame : public AtleastOnce
 public:
     AtleastOnceSame() : deltaSends(true), changeTurn((unsigned int)-1) {}
     bool IsConfirmed();
+    bool IsConfirmed(int player);
+    bool CanChange();
+    void Change();
     bool Send(NetPktGroup& group);
 
     bool deltaSends;
@@ -657,7 +701,9 @@ public:
     }
 
     bool Send(NetPktGroup& group);
+    bool IsConfirmed();
     bool CanChange();
+    void Change();
 
     bool deltaSends;
     unsigned int changeTurn[64];
@@ -818,8 +864,8 @@ GameObject* ReadObjectPtr(NetPktGroup& group);
 void MarkWriteAlign(NetPktGroup& group);
 void CheckReadAlign(NetPktGroup& group);
 struct ReliableNetEvent;
-void WriteEvent_Message(NetPktGroup& group, const ReliableNetEvent& event);
-void WriteEvent_ChangeTeam(NetPktGroup& group, const ReliableNetEvent& event);
+void WriteEvent_Message(NetPktGroup& group, ReliableNetEvent& event);
+void WriteEvent_ChangeTeam(NetPktGroup& group, ReliableNetEvent& event);
 void WriteMoves(NetPktGroup& group, int iPlayer, unsigned int uTurn);
 int FrontCount(GameObject* const* ppObjects, int iCount,
                int iCurrent, const PblMatrix& camera);
@@ -829,9 +875,8 @@ void WriteObject(NetPktGroup& group, GameObject* pObject);
 void WriteSpawnDisplay(NetPktGroup& group);
 void WritePlayerMoves(NetPktGroup& group);
 void WriteSpawnCamera(NetPktGroup& group);
-void AddSendLate();
-int ComputeNetLOD(int iUnused, int iPlayer);
-unsigned int __fastcall sub_5D3720(const void* pThis);
+void AddSendLate(GameObject* object, GameObject* owner);
+int ComputeNetLOD(const PblVector3& position, int iPlayer);
 
 class AloBootVote
 {
@@ -845,28 +890,22 @@ class AloMapDisplayMarkers : public AtleastOnceSame
 {
 public:
     AloMapDisplayMarkers();
+    void Reset()
+    {
+        memset(markers, 0, sizeof(markers));
+        changeTurn = (unsigned int)-1;
+    }
     void Update(NetPktGroup& group);
     void Read(NetPktGroup& group);
-    void Set(int iMarker, const TargetManager::Marker* pMarker);
+    void Set(int i, const TargetManager::Marker* aMarker);
     void Write(NetPktGroup& group);
 
     TargetManager::Marker markers[32];
 };
  
 
-struct RecentObjectHandle
-{
-
-    // FUNCTION: SWBF2 0x0042e950
-    RecentObjectHandle() : mObject(0), mHandleId(0) {}
-    ~RecentObjectHandle() {}
-
-    void* mObject;
-    unsigned int mHandleId;
-};
-
 struct RecentGuestObjectRecord
 {
-    RecentObjectHandle mObjectHandle;
+    PblHandle<const GameObject> mObjectHandle;
     float mRecordedTime;
 };

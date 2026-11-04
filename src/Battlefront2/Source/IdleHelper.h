@@ -34,7 +34,6 @@ public:
 
     IdleHelper(UnitAgent* pOwner);
 
-    virtual ~IdleHelper() {}
 
     // SYNTHETIC: SWBF2 0x00569940
     // IdleHelper::`scalar deleting destructor'

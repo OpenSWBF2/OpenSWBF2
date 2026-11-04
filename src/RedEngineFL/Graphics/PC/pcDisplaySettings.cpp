@@ -434,7 +434,8 @@ bool SaveAdapter(unsigned int uiIndex, const char* pcName)
     }
 
     char acDiskAdapter[16];
-    char acDiskName[sizeof(kSave.acAdapterName) + 1];
+    const unsigned int kDiskNameChars = sizeof(kSave.acAdapterName) + 1;
+    char acDiskName[kDiskNameChars];
     GetPrivateProfileStringA("Display", "Adapter", "\x7f", acDiskAdapter, sizeof(acDiskAdapter),
                              acPath);
     GetPrivateProfileStringA("Display", "AdapterName", "\x7f", acDiskName, sizeof(acDiskName),

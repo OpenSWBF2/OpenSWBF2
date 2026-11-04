@@ -6,10 +6,6 @@ PblList<RedInputEventHandler> RedInputEventHandler::m_handlerList;
 // FUNCTION: SWBF2 0x006efde0
 RedInputEventHandler::RedInputEventHandler()
 {
-    m_node._pList = 0;
-    m_node._pNext = 0;
-    m_node._pPrev = 0;
-    m_node._pObject = 0;
 }
 
 // FUNCTION: SWBF2 0x006efe10

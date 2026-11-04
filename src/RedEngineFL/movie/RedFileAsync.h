@@ -23,8 +23,8 @@ public:
     static void __cdecl FileOpComplete(Snd::File* pFile, void* pData, bool bResult);
 
     Snd::File mFile;
-    bool mFileOpComplete;
-    bool mOpenRetVal;
+    volatile bool mFileOpComplete;
+    volatile bool mOpenRetVal;
 };
 
  

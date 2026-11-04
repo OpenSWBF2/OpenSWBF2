@@ -22,12 +22,30 @@ public:
     class Segment;
     class Info;
 
+    class InfoItor : protected ObjectList::Itor
+    {
+    public:
+        ~InfoItor() {}
+        Info* GetInfo() { return static_cast<Info*>(GetObjectA(mList)); }
+        InfoItor& operator++()
+        {
+            ObjectList::Itor::operator++();
+            return *this;
+        }
+    protected:
+        InfoItor(const ObjectList& rList) : ObjectList::Itor(rList), mList(&rList) {}
+        friend class StreamBase;
+    private:
+        const ObjectList* mList;
+    };
+
+
     StreamBase();
 
     ~StreamBase();
 
     // FUNCTION: SWBF2 0x0059b4c0
-    PblListSingle::Itor GetInfoItor() const { return PblListSingle::Itor(mInfoList); }
+    InfoItor GetInfoItor() const { return InfoItor(mInfoList); }
 
     bool IsOpen() const { return !mInfoList.IsEmpty(); }
     void Play(bool bRestart);
@@ -100,7 +118,7 @@ public:
         for (PblListSingle::Node* pLink = smInfoList.mHead.mNext; pLink != &smInfoList.mHead;
              pLink = pLink->mNext)
         {
-            Info* pInfo = (Info*)((char*)pLink - offsetof(Info, mNode));
+            Info* pInfo = (Info*)pLink->GetObjectA(&smInfoList, offsetof(Info, mNode));
             if (pInfo->mHashID == uiHashID)
             {
                 return pInfo;
@@ -126,7 +144,7 @@ protected:
         for (PblListSingle::Node* pLink = smInfoList.mHead.mNext; pLink != &smInfoList.mHead;
              pLink = pLink->mNext)
         {
-            Info* pInfo = (Info*)((char*)pLink - offsetof(Info, mNode));
+            Info* pInfo = (Info*)pLink->GetObjectA(&smInfoList, offsetof(Info, mNode));
             if (!pInfo->mOverrideManager)
             {
                 pInfo->mStreamManager.Update(fDeltaTime);

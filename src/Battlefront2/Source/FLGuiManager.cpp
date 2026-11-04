@@ -20,7 +20,10 @@ namespace FLRenderer
 void EnableCursor(bool bEnable);
 }
 
-namespace GameLoop { extern bool sShowStats; }
+namespace GameLoop
+{
+    extern bool sShowStats;
+}
 
 static const float kINITIAL_REPEAT_DELAY = 0.65f;
 static const float kEXTRA_REPEAT_DELAY = 0.15f;
@@ -30,18 +33,22 @@ static char* ERROR_POPUP_NAME = "Popup_Error";
 // GLOBAL: SWBF2 0x007e651e
 bool g_InputRepeatEnable = true;
 
-// GLOBAL: SWBF2 0x01ebd9b0
 // SYNTHETIC: SWBF2 0x00403950
 // `dynamic initializer for 'GuiManager::Event::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00768760
 // `dynamic atexit destructor for 'GuiManager::Event::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ebd9b0
+// GuiManager::Event::sMemoryPool
 MemoryPool GuiManager::Event::sMemoryPool("GuiManager::Event", 0x4c);
 
-// GLOBAL: SWBF2 0x01ebda00
 // SYNTHETIC: SWBF2 0x00403970
 // `dynamic initializer for 'sInstances''
 // SYNTHETIC: SWBF2 0x00768770
 // `dynamic atexit destructor for 'sInstances''
+
+// GLOBAL: SWBF2 0x01ebda00
+// sInstances
 GuiManager sInstances[1];
 
 // GLOBAL: SWBF2 0x007e6664
@@ -105,11 +112,13 @@ int GuiManager::sStartupDelay;
 // GLOBAL: SWBF2 0x01e55f50
 bool GuiManager::m_InputTriggered[1][26];
 
-// GLOBAL: SWBF2 0x01ebd944
 // SYNTHETIC: SWBF2 0x004039a0
 // `dynamic initializer for 'sKeygrabber''
 // SYNTHETIC: SWBF2 0x00768790
 // `dynamic atexit destructor for 'sKeygrabber''
+
+// GLOBAL: SWBF2 0x01ebd944
+// sKeygrabber
 KeyGrabber sKeygrabber;
 
 // FUNCTION: SWBF2 0x00527fd0
@@ -121,20 +130,7 @@ void KeyGrabber::KeyboardEvent(RedInputEventType, RedKeyboard*, unsigned char uc
     mStroke.flags = usFlags;
 }
 
-GuiManager::Event::Event(eEventType eType, unsigned int uiVal, const char* pcName, int iController)
-{
-    type = eType;
-    val.i32 = uiVal;
-    if (pcName)
-    {
-        strlcpy(pName, pcName, sizeof(pName));
-    }
-    else
-    {
-        pName[0] = 0;
-    }
-    mController = iController;
-}
+
 
 // FUNCTION: SWBF2 0x00528020
 GuiManager::GuiManager() : mEventQueue(64)
@@ -222,7 +218,7 @@ void GuiManager::UpdateAll(float fElapsed)
             GUIInputs* pInputs = 0;
             if (bSplitScreen)
             {
-                if (playerJoystickNumbers[0] == iPrimary)
+                if (PlayerPrefs::mAllUserPrefs[0].mJoystick == iPrimary)
                 {
                     iController = 0;
                 }

@@ -7,6 +7,7 @@
 #include "Controllable.h"
 #include "GameObject.h"
 #include "Restrictor.h"
+#include <new>
 #include "PebbleFL/Common/PblList.h"
 
 // FUNCTION: SWBF2 0x00443fc0
@@ -34,12 +35,7 @@ bool CollisionObject::sCollideTrisWithAllPrimitives;
 
 extern PblVector3 gVectorZero;
 
-// FUNCTION: SWBF2 0x0043ec10
-CollisionObjectType CollisionObject::GetCollisionType() const
-{
-    const CollisionObject* pObject = (const CollisionObject*)this;
-    return (CollisionObjectType)pObject->GetObjectData(0);
-}
+
 
 // FUNCTION: SWBF2 0x00463ac0
 CollisionObject::CollisionObject(CollisionObjectType eType, const CollisionModel* pModel,

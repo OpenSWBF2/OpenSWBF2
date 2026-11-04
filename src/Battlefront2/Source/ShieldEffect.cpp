@@ -3,11 +3,13 @@
 #include "PebbleFL/Common/PblHashTable.h"
 #include "Battlefront2Lod.h"
 
-// GLOBAL: SWBF2 0x01f6dda8
 // SYNTHETIC: SWBF2 0x00406370
 // `dynamic initializer for 'ShieldEffect::sMemoryPool''
 // SYNTHETIC: SWBF2 0x007694a0
 // `dynamic atexit destructor for 'ShieldEffect::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01f6dda8
+// ShieldEffect::sMemoryPool
 MemoryPool ShieldEffect::sMemoryPool("ShieldEffect", 0xF0);
 
 // GLOBAL: SWBF2 0x01eaf060
@@ -77,7 +79,8 @@ FLEffectClass* ShieldEffectManager::BuildClass(PblConfig& config) const
     return pClass;
 }
 
-namespace {
+namespace
+{
 
 inline unsigned char ClampColorComponent(float f)
 {
@@ -211,9 +214,9 @@ ShieldEffect::ShieldEffect(const ShieldEffectClass* pClass)
 }
 
 // SYNTHETIC: SWBF2 0x006371ab
-// [thunk]:ShieldEffect::`scalar deleting destructor' adjustor{24}
+// ??_EShieldEffect@@WBI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x006371b3
-// [thunk]:ShieldEffect::`scalar deleting destructor' adjustor{128}
+// ??_EShieldEffect@@WIA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00636d80
 // ShieldEffect::`scalar deleting destructor'
 
@@ -246,7 +249,7 @@ void ShieldEffect::ActivateEffect()
 {
     if (!_bActive)
     {
-        SetRenderPos(*(const PblVector3*)&m_mWorldMatrix.m[3][0]);
+        SetRenderPos(m_mWorldMatrix.GetTranslation());
         SetRenderRadius(m_pClass->m_fRadius);
         Activate();
         FLEffectObject::ActivateEffect();
@@ -361,5 +364,5 @@ bool ShieldEffect::Update(float fDeltaTime)
 // FUNCTION: SWBF2 0x00637170
 void ShieldEffect::UpdatedWorldMatrix()
 {
-    SetRenderPos(*(const PblVector3*)&m_mWorldMatrix.m[3][0]);
+    SetRenderPos(m_mWorldMatrix.GetTranslation());
 }

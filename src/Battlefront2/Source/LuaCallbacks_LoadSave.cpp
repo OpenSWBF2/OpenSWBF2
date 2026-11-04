@@ -1,4 +1,5 @@
 #include "LuaCallbacks_LoadSave.h"
+#include "FLInputManager.h"
 #include "LuaHelper.h"
 #include "NetSetup.h"
 
@@ -62,27 +63,31 @@ unsigned int __cdecl ustrlcpy(unsigned short* pusDest, unsigned short const* pus
                               unsigned int uiSize);
 }
 
-namespace LuaHelper
+namespace PblBuildType
 {
-
-bool CallGlobalProc(char const* pcFunc, bool bArg);
+extern unsigned char gCreateMemoryProfile;
 }
-
-namespace PblBuildType { extern unsigned char gCreateMemoryProfile; }
-extern int gActiveViewport;
 extern bool gInTrainingMission;
 
-namespace RedLocalizeDB { const unsigned short* Find(unsigned int uiHash, bool bNullIfMissing); }
+namespace RedLocalizeDB
+{
+const unsigned short* Find(unsigned int uiHash, bool bNullIfMissing);
+}
 
-namespace Lua_Callbacks { extern unsigned short sTempReturnString16[256]; }
+namespace Lua_Callbacks
+{
+extern unsigned short sTempReturnString16[256];
+}
 
 // GLOBAL: SWBF2 0x007e7370
 int s_doInitialMemcardCheck = 1;
 // GLOBAL: SWBF2 0x01e57721
 unsigned char gProfilesLoaded;
-// GLOBAL: SWBF2 0x01ec80d0
 // SYNTHETIC: SWBF2 0x004041e0
 // `dynamic initializer for 'sSavedPlayerOne''
+
+// GLOBAL: SWBF2 0x01ec80d0
+// sSavedPlayerOne
 PlayerProfile::tProfile sSavedPlayerOne;
 // GLOBAL: SWBF2 0x01f9c7c0
 int savedWhich;
@@ -105,8 +110,14 @@ unsigned char sCampaignBuffer[256];
 // GLOBAL: SWBF2 0x01f9ccd0
 unsigned char sMissionBuffer[256];
 
-namespace Lua_Callbacks { static unsigned int SaveLuaItems(lua_State* L, unsigned char* pBuffer, unsigned int iCapacity); }
-namespace Lua_Callbacks { static int LoadLuaItems(lua_State* L, unsigned char* pBuffer, unsigned int iSize); }
+namespace Lua_Callbacks
+{
+static unsigned int SaveLuaItems(lua_State* L, unsigned char* pBuffer, unsigned int iCapacity);
+}
+namespace Lua_Callbacks
+{
+static int LoadLuaItems(lua_State* L, unsigned char* pBuffer, unsigned int iSize);
+}
 
 struct OneSavegame
 {
@@ -169,7 +180,7 @@ int ScriptCB_GetLoginList(lua_State* L)
             iCount = 1;
         }
 
-        if (iInList + iNumFiles < 1 && gActiveViewport)
+        if (iInList + iNumFiles < 1 && FLInputManager::Instance()->GetPrimaryPort())
         {
             if (pCur)
             {
@@ -259,11 +270,11 @@ int ScriptCB_IsProfileDirty(lua_State* L)
 // FUNCTION: SWBF2 0x00588770
 int ScriptCB_SetProfileNotDirty(lua_State* L)
 {
-    lua_gettop(LuaHelper::mState);
-    unsigned int uiIndex = (int)luaL_checknumber(LuaHelper::mState, 1) - 1;
-    if (uiIndex < 1)
+    LuaHelper::GetTop();
+    int iIndex = LuaHelper::GetInt(1) - 1;
+    if (iIndex >= 0 && iIndex < 1)
     {
-        PlayerProfile::tProfile* pProfile = PlayerProfile::GetProfile(uiIndex - 1);
+        PlayerProfile::tProfile* pProfile = PlayerProfile::GetProfile(iIndex - 1);
         if (pProfile)
         {
             pProfile->UpdateProfCRC();
@@ -386,19 +397,23 @@ int ScriptCB_GetCurrentProfileName(lua_State* L)
 // FUNCTION: SWBF2 0x00588a40
 int ScriptCB_GetProfileName(lua_State* L)
 {
-    lua_gettop(LuaHelper::mState);
-    unsigned int uiIndex = (int)luaL_checknumber(LuaHelper::mState, 1) - 1;
-    if (uiIndex >= 1)
+    LuaHelper::GetTop();
+    int iIndex = LuaHelper::GetInt(1) - 1;
+    if (iIndex < 0 || iIndex >= 1)
     {
         return 0;
     }
-    PlayerProfile::tProfile* pProfile = PlayerProfile::GetProfile(uiIndex);
-    if (pProfile && pProfile->mName[0])
+    PlayerProfile::tProfile* pProfile = PlayerProfile::GetProfile(iIndex);
+    if (pProfile)
     {
-        LuaHelper::PushString(pProfile->mName);
-        return 1;
+        const unsigned short* pName = pProfile->GetTrueProfileName();
+        if (pName[0])
+        {
+            LuaHelper::PushString(pName);
+            return 1;
+        }
     }
-    lua_pushnil(LuaHelper::mState);
+    LuaHelper::PushNil();
     return 1;
 }
 
@@ -447,7 +462,7 @@ int ScriptCB_AddProfile(lua_State* L)
         PlayerProfile::SetNumMemoryProfiles(iNum + 1);
     }
 
-    int iViewport = gActiveViewport;
+    int iViewport = FLInputManager::Instance()->GetPrimaryPort();
     PlayerProfile::SetCurProfile(iViewport);
     PlayerProfile::tProfile* pProfile = PlayerProfile::GetCurProfile();
     pProfile->ResetProfile();
@@ -497,14 +512,14 @@ static void LoadProfileDoneCallback()
     else
     {
         unsigned int uiCur = PlayerProfile::GetCurProfileIndex();
-        int iViewport = gActiveViewport;
+        int iViewport = FLInputManager::Instance()->GetPrimaryPort();
         PlayerProfile::ResetAllProfiles();
         PlayerProfile::DuplicateDefaultProfile(iViewport, PlayerProfile::GetDefaultProfileName());
         PlayerProfile::SetCurProfile(uiCur);
         gProfilesLoaded = 0;
     }
 
-    int iViewport = gActiveViewport;
+    int iViewport = FLInputManager::Instance()->GetPrimaryPort();
     if (gProfilesLoaded & 1)
     {
         PlayerProfile::SetCurProfile(0);
@@ -575,7 +590,7 @@ int ScriptCB_StartLoadProfile(lua_State* L)
     {
         char acName[130];
         PblUnicode::ustrncnv(acName, pusName, sizeof(acName) / sizeof(acName[0]));
-        NetSetup::SetLoginName(gActiveViewport, acName);
+        NetSetup::SetLoginName(FLInputManager::Instance()->GetPrimaryPort(), acName);
     }
     return 0;
 }
@@ -597,7 +612,7 @@ static void Make1FakeProfile(int iIndex, unsigned short const* pusName)
     PlayerPrefs::mAllUserPrefs[iIndex].pProfile = PlayerProfile::GetCurProfile();
     PlayerProfile::SetCurProfile(iIndex);
 
-    if (iIndex != gActiveViewport)
+    if (iIndex != FLInputManager::Instance()->GetPrimaryPort())
     {
         PlayerProfile::tProfile* pProfile = PlayerProfile::GetProfile(iIndex);
         pProfile->mAccumPoints.ResetToDefault();
@@ -619,7 +634,7 @@ namespace Lua_Callbacks
 // FUNCTION: SWBF2 0x00588fd0
 int ScriptCB_MakeFakeProfiles(lua_State* L)
 {
-    int iViewport = gActiveViewport;
+    int iViewport = FLInputManager::Instance()->GetPrimaryPort();
     if (lua_isstring(LuaHelper::mState, 1))
     {
         Make1FakeProfile(0, LuaWideString::Check(LuaHelper::mState, 1));
@@ -642,7 +657,7 @@ int ScriptCB_SetProfileAsDefault(lua_State* L)
 // FUNCTION: SWBF2 0x00589050
 int ScriptCB_RestoreDefaultProfile(lua_State* L)
 {
-    int iViewport = gActiveViewport;
+    int iViewport = FLInputManager::Instance()->GetPrimaryPort();
     PlayerProfile::DuplicateDefaultProfile(iViewport, 0);
     PlayerProfile::SetCurProfile(iViewport);
     PlayerPrefs::mAllUserPrefs[0].pProfile = PlayerProfile::GetCurProfile();
@@ -660,7 +675,7 @@ int ScriptCB_MarkCurrentProfile(lua_State* L)
 // FUNCTION: SWBF2 0x005890a0
 int ScriptCB_ReloadMarkedProfile(lua_State* L)
 {
-    int iViewport = gActiveViewport;
+    int iViewport = FLInputManager::Instance()->GetPrimaryPort();
     memcpy(PlayerProfile::GetProfile(iViewport), &sSavedPlayerOne, sizeof(PlayerProfile::tProfile));
     PlayerProfile::SetCurProfile(iViewport);
     PlayerPrefs::mAllUserPrefs[0].pProfile = PlayerProfile::GetCurProfile();
@@ -740,20 +755,21 @@ namespace Lua_Callbacks
 // FUNCTION: SWBF2 0x00589240
 int ScriptCB_StartSaveProfile(lua_State* L)
 {
-    if (lua_gettop(LuaHelper::mState) != 1)
+    int iNumArgs = LuaHelper::GetTop();
+    if (iNumArgs != 1)
     {
-        lua_pushnil(LuaHelper::mState);
+        LuaHelper::PushNil();
         return 1;
     }
-    unsigned int uiIndex = (int)luaL_checknumber(LuaHelper::mState, 1) - 1;
-    if (uiIndex < 1)
+    int iIndex = LuaHelper::GetInt(1) - 1;
+    if (iIndex >= 0 && iIndex < 1)
     {
-        savedWhich = uiIndex;
-        PlayerProfile::tProfile* pProfile = PlayerProfile::GetProfile(uiIndex);
+        savedWhich = iIndex;
+        PlayerProfile::tProfile* pProfile = PlayerProfile::GetProfile(iIndex);
         if (pProfile->mIsDirty)
         {
             SaveGameManager::StartQueue();
-            SaveGameManager::QueueSave(pProfile->mName, 1, pProfile, sizeof(PlayerProfile::tProfile));
+            SaveGameManager::QueueSave(pProfile->GetTrueProfileName(), 1, pProfile, sizeof(PlayerProfile::tProfile));
             SaveGameManager::FinishQueue(SaveProfileDoneCallback);
         }
     }
@@ -796,7 +812,7 @@ int ScriptCB_StartSaveMetagame(lua_State* L)
     const unsigned short* pusOld = LuaWideString::Opt(LuaHelper::mState, 1);
     const unsigned short* pusName = LuaWideString::Opt(LuaHelper::mState, 2);
     unsigned short ausFilename[128];
-    PblUnicode::ustrlcpy(ausFilename, pusName ? pusName : PlayerProfile::GetProfile(gActiveViewport)->mName, 128);
+    PblUnicode::ustrlcpy(ausFilename, pusName ? pusName : PlayerProfile::GetProfile(FLInputManager::Instance()->GetPrimaryPort())->mName, 128);
     SaveFile::MakeMetagameFilename(ausFilename, ausFilename);
     SaveGameManager::StartQueue();
     SaveGameManager::QueueSave(ausFilename, 2, sMetagameBuffer, sizeof(sMetagameBuffer));
@@ -872,7 +888,7 @@ int ScriptCB_StartSaveCampaign(lua_State* L)
     const unsigned short* pusOld = LuaWideString::Opt(LuaHelper::mState, 1);
     const unsigned short* pusName = LuaWideString::Opt(LuaHelper::mState, 2);
     unsigned short ausFilename[128];
-    PblUnicode::ustrlcpy(ausFilename, pusName ? pusName : PlayerProfile::GetProfile(gActiveViewport)->mName, 128);
+    PblUnicode::ustrlcpy(ausFilename, pusName ? pusName : PlayerProfile::GetProfile(FLInputManager::Instance()->GetPrimaryPort())->mName, 128);
     SaveFile::MakeMetagameFilename(ausFilename, ausFilename);
     SaveGameManager::StartQueue();
     SaveGameManager::QueueSave(ausFilename, 3, sCampaignBuffer, sizeof(sCampaignBuffer));
@@ -1042,18 +1058,18 @@ int ScriptCB_IsMemoryCardInsertted(lua_State* L)
 // FUNCTION: SWBF2 0x005899b0
 int ScriptCB_DoesProfileExistOnCard(lua_State* L)
 {
-    unsigned int uiIndex = (int)luaL_checknumber(LuaHelper::mState, 1) - 1;
-    if (uiIndex >= 1)
+    int iIndex = LuaHelper::GetInt(1) - 1;
+    if (iIndex < 0 || iIndex >= 1)
     {
         return 0;
     }
     bool bExists = false;
-    PlayerProfile::tProfile* pProfile = PlayerProfile::GetProfile(uiIndex);
+    PlayerProfile::tProfile* pProfile = PlayerProfile::GetProfile(iIndex);
     if (pProfile)
     {
         bExists = !SaveGameManager::IsUniqueFilename(pProfile->mName, 1);
     }
-    lua_pushboolean(LuaHelper::mState, bExists);
+    LuaHelper::PushBool(bExists);
     return 1;
 }
 
@@ -1101,6 +1117,9 @@ static void SortSavegames(OneSavegame* pSavegames, int iCount)
 {
     qsort(pSavegames, iCount, sizeof(OneSavegame), SavegameSortCallback);
 }
+
+// GLOBAL: SWBF2 0x007e7170
+// sLoadSaveCallbacks
 
 namespace Lua_Callbacks
 {
@@ -1413,7 +1432,6 @@ int ScriptCB_ClearMissionSetup(lua_State*)
     return 0;
 }
 
-// GLOBAL: SWBF2 0x007e7170
 static const CallbackEntryT sLoadSaveCallbacks[64] =
 {
     { "ScriptCB_IsCurProfileDirty", ScriptCB_IsCurProfileDirty },
@@ -1485,7 +1503,7 @@ static const CallbackEntryT sLoadSaveCallbacks[64] =
 // FUNCTION: SWBF2 0x0058aa30
 void InitLoadSave()
 {
-    for (int i = 0; i < 64; ++i)
+    for (unsigned int i = 0; i < 64; ++i)
     {
         LuaHelper::Register(sLoadSaveCallbacks[i].pcName, sLoadSaveCallbacks[i].pfnCallback, 0);
     }
@@ -1540,17 +1558,20 @@ static void __cdecl _zlibFree(void*, void* pBlock)
 static unsigned int _zlibcompress(unsigned char* pDest, int iCapacity, unsigned char* pSource, int iSize)
 {
     z_stream stream;
-    memset(&stream, 0, sizeof(stream));
     stream.zalloc = _zlibAlloc;
     stream.zfree = _zlibFree;
-    if (deflateInit(&stream, 9))
+    stream.opaque = 0;
+    int ret = deflateInit(&stream, 9);
+    if (ret != Z_OK)
     {
         return 0;
     }
     stream.next_in = pSource;
     stream.avail_in = iSize;
+    stream.total_in = 0;
     stream.next_out = pDest;
     stream.avail_out = iCapacity;
+    stream.total_out = 0;
     deflate(&stream, Z_FINISH);
     deflateEnd(&stream);
     return stream.total_out;
@@ -1560,23 +1581,27 @@ static unsigned int _zlibcompress(unsigned char* pDest, int iCapacity, unsigned 
 static unsigned int _zlibuncompress(unsigned char* pDest, int iCapacity, unsigned char* pSource, int iSize)
 {
     z_stream stream;
-    memset(&stream, 0, sizeof(stream));
     stream.zalloc = _zlibAlloc;
     stream.zfree = _zlibFree;
-    if (inflateInit_(&stream, ZLIB_VERSION, sizeof(stream)))
+    stream.opaque = 0;
+    int ret = inflateInit_(&stream, ZLIB_VERSION, sizeof(stream));
+    if (ret != Z_OK)
     {
         return 0;
     }
     stream.next_in = pSource;
     stream.avail_in = iSize;
+    stream.total_in = 0;
     stream.next_out = pDest;
     stream.avail_out = iCapacity;
+    stream.total_out = 0;
     inflate(&stream, Z_FINISH);
     inflateEnd(&stream);
     return stream.total_out;
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 
 // FUNCTION: SWBF2 0x0058a8e0
 static unsigned int SaveLuaItems(lua_State* L, unsigned char* pBuffer, unsigned int iCapacity)
@@ -1592,7 +1617,8 @@ static unsigned int SaveLuaItems(lua_State* L, unsigned char* pBuffer, unsigned 
 }
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 
 // FUNCTION: SWBF2 0x0058a960
 static int LoadLuaItems(lua_State* L, unsigned char* pBuffer, unsigned int iSize)
@@ -1602,16 +1628,17 @@ static int LoadLuaItems(lua_State* L, unsigned char* pBuffer, unsigned int iSize
     {
         return 0;
     }
-    unsigned char aSerialized[0x10000];
+    unsigned char aSerialized[65536];
     const unsigned int uSize = _zlibuncompress(aSerialized, sizeof(aSerialized), pBuffer, iSize);
     return LuaSaveItems::Read(LuaHelper::mState, aSerialized, uSize);
 }
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 
 // FUNCTION: SWBF2 0x0058a9d0
-void __fastcall GetMissionWorld(char* pcWorld)
+void __fastcall GetMissionWorld(char* pcWorld, int)
 {
     Lua_Callbacks::ScriptCB_LoadMissionSetup(LuaHelper::mState);
     *pcWorld = 0;
@@ -1620,7 +1647,8 @@ void __fastcall GetMissionWorld(char* pcWorld)
 }
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 
 // FUNCTION: SWBF2 0x0058aa10
 bool IsMetaGameStateSaved()
@@ -1632,7 +1660,8 @@ bool IsMetaGameStateSaved()
 // GLOBAL: SWBF2 0x01e57720
 bool gInTrainingMission;
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 
 // FUNCTION: SWBF2 0x0058aa20
 bool IsTrainingMission()

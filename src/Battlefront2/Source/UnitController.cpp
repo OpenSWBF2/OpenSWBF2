@@ -1,3 +1,4 @@
+#include "AmmoCounter.h"
 #include "UnitController.h"
 #include "PebbleFL/Common/PblVector.h"
 
@@ -39,7 +40,9 @@
 #include "EntityBuildingArmed.h"
 #include "OrdnanceEmitter.h"
 #include "WeaponDispenser.h"
-#include "TeamManager.h"
+
+// GLOBAL: SWBF2 0x007b28b0
+// __xmm@3f800000400000004040000040800000
 
 class EntitySoldier { public: static PblHash rttiHashEntitySoldier; };
 
@@ -48,19 +51,9 @@ class EntityHover { public: static PblHash rttiHashEntityHover; };
 class EntityFlyer { public: static PblHash rttiHashEntityFlyer; };
 class WeaponInvisibility { public: static PblHash rttiHashWeaponInvisibility; };
 
-namespace AI
-{
 
-class UnitThreatManager
-{
-public:
+ 
 
-    UnitThreatManager();
-    const GameObject* GetVisibleObject() const;
-
-    void Update(float dt, UnitController* pCtrl);
-};
-}
 
 namespace AudibleManager
 {
@@ -72,6 +65,18 @@ void RemoveRequests(UnitController* pCtrl);
 void UpdatePotentiallyVisible(UnitController* pCtrl);
 }
 
+namespace AI
+{
+enum AIAffil
+{
+    AFFIL_ENEMY = 1,
+    AFFIL_NEUTRAL = 2,
+    AFFIL_ALLY = 4,
+    AFFIL_ALLYNEUTRAL = 6,
+    AFFIL_ALL = 7
+};
+}
+
 namespace ControllerManager
 {
 
@@ -79,11 +84,20 @@ int GetUnitsInRange(const PblVector3& vPos, float fRadius, GameObject** const pp
                     int iMax, const Team* pTeam, AI::AIAffil eAffil);
 }
 
-namespace AIUtil { bool __fastcall ShouldStayInVehicle(Controllable* pMe); }
+namespace AIUtil
+{
+bool __fastcall ShouldStayInVehicle(Controllable* pMe);
+}
 
-namespace AIUtil { bool __fastcall CanPotentiallySee(Controllable* pMe, const GameObject* pObject, float* pOut); }
+namespace AIUtil
+{
+bool __cdecl CanPotentiallySee(Controllable* pMe, const GameObject* pObject, float* pOut);
+}
 
-namespace AIDebug { bool SkipCameraForLODs(); }
+namespace AIDebug
+{
+bool SkipCameraForLODs();
+}
 
 // FUNCTION: SWBF2 0x004386a0
 bool AIDebug::SkipCameraForLODs()
@@ -97,28 +111,15 @@ void UnitController::ResetFriendlyList()
     mFriendlyCount = 0;
 }
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
+
 
 namespace
 {
-    const PblVector3& GetTrans(const PblMatrix& m)
-    {
-        return *reinterpret_cast<const PblVector3*>(&m.m[3][0]);
-    }
 
-    PblHandle<const GameObject> MakeHandle(const GameObject* pObject)
-    {
-        PblHandle<const GameObject> h;
-        h.mObject = pObject;
-    h.mSavedHandleId = pObject ? pObject->mHandleId : 0;
-        return h;
-    }
 
-    const PblVector3& GetPosition(const GameObject* pObject)
+
+
+    inline const PblVector3& GetPosition(const GameObject* pObject)
     {
     return static_cast<const CollisionObject*>(pObject)->GetPosition();
     }
@@ -138,42 +139,34 @@ namespace
         return 0;
     }
 
-    AttackHelper* GetAttackHelper(UnitAgent* pAgent)
-    {
-        return reinterpret_cast<AttackHelper*>(pAgent->mAttackHelper);
-    }
+
 }
 
-// GLOBAL: SWBF2 0x01f99384
 // SYNTHETIC: SWBF2 0x00406c50
 // `dynamic initializer for 'UnitController::rttiHashUnitController''
-PblHash UnitController::rttiHashUnitController("UnitController");
-char UnitController::rttiNameUnitController[] = "UnitController";
+// UnitController::rttiHashUnitController
 
-// GLOBAL: SWBF2 0x01f9a1f8
+// GLOBAL: SWBF2 0x01f99384
+// UnitController::rttiHashUnitController
+PblHash UnitController::rttiHashUnitController("UnitController");
+// GLOBAL: SWBF2 0x0078b7a8
+// UnitController::rttiNameUnitController
+const char UnitController::rttiNameUnitController[] = "UnitController";
+
 // SYNTHETIC: SWBF2 0x00406c60
 // `dynamic initializer for 'UnitController::sMemoryPool''
 // SYNTHETIC: SWBF2 0x007696c0
 // `dynamic atexit destructor for 'UnitController::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01f9a1f8
+// UnitController::sMemoryPool
 MemoryPool UnitController::sMemoryPool("UnitController", sizeof(UnitController));
 
-// FUNCTION: SWBF2 0x00663050
-bool UnitController::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashUnitController || Controller::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00663080
-unsigned int UnitController::GetDerivedRtti() const
-{
-    return rttiHashUnitController;
-}
 
-// FUNCTION: SWBF2 0x00663090
-const char* UnitController::GetDerivedRttiName() const
-{
-    return rttiNameUnitController;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x006630a0
 static int GetLODDistHigh()
@@ -231,17 +224,8 @@ const UnitController* UnitControllerPtr(const Controllable* pControllable)
 
 // FUNCTION: SWBF2 0x00663180
 UnitController::UnitController(Controllable* pOwner)
-    : Controller(pOwner)
+    : Controller(pOwner), mLowLevel(this)
 {
-    new (mManagerNode) PblOrderedList<UnitController, float>::Node();
-    new (mThreatManager) AI::UnitThreatManager();
-    new (mLowLevel) AILowLevel(this);
-    new (mLastSquadCommand) SquadCommands::SquadCommandOrder();
-
-    for (int i = 0; i < 8; i++)
-    {
-        new (mFriendly + i * sizeof(PblHandle<const GameObject>)) PblHandle<const GameObject>();
-    }
 
     mOwner = pOwner;
     mAgent = 0;
@@ -254,7 +238,7 @@ UnitController::UnitController(Controllable* pOwner)
     mLookAheadOnly = false;
     SetRandomSeed(AIUtil::GetRandomInt(0, 100));
     const PblMatrix& rOwnerMatrix = mOwner->GetMatrix();
-    mOriginalAheadDir = *reinterpret_cast<const PblVector3*>(&rOwnerMatrix.m[2][0]);
+    mOriginalAheadDir = rOwnerMatrix.GetZAxis();
     mSkip = false;
     mFriendlyCount = 0;
     mUpdateRate = 0.5f;
@@ -270,22 +254,16 @@ UnitController::UnitController(Controllable* pOwner)
 UnitController::~UnitController()
 {
     DeleteAgent();
-    for (int i = 7; i >= 0; --i)
-    {
-        reinterpret_cast<PblHandle<const GameObject>*>(mFriendly)[i].~PblHandle();
-    }
-    GetLowLevel().~AILowLevel();
-    reinterpret_cast<AI::UnitThreatManager*>(mThreatManager)->~UnitThreatManager();
 }
 
 // SYNTHETIC: SWBF2 0x006633a0
 // UnitController::`scalar deleting destructor'
 
 // SYNTHETIC: SWBF2 0x006645cb
-// [thunk]:UnitController::`scalar deleting destructor' adjustor{120}
+// ??_EUnitController@@OHI@AEPAXI@Z
 
 // SYNTHETIC: SWBF2 0x006645d3
-// [thunk]:UnitController::`scalar deleting destructor' adjustor{452}
+// ??_EUnitController@@OBME@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x006634a0
 void UnitController::KillController()
@@ -400,7 +378,7 @@ void UnitController::EnterState()
     {
         const UnitFollowInfo* pInfo = static_cast<const UnitFollowInfo*>(GetCurCmd());
         PblHandle<GameObject> who = pInfo->GetWho();
-        mAgent = new UnitFollowAgent(this, MakeHandle(Resolve(who)), pInfo->GetParam() != 0);
+        mAgent = new UnitFollowAgent(this, PblHandle<const GameObject>(Resolve(who)), pInfo->GetParam() != 0);
         break;
     }
     case STATE_SC_HOLD:
@@ -464,7 +442,7 @@ void UnitController::UpdateHighLevel()
         pCharacter->mAdrenaline.Update(dt, static_cast<Trackable*>(mOwner)->GetGameObject());
     }
 
-    reinterpret_cast<AI::UnitThreatManager*>(mThreatManager)->Update(dt, this);
+    mThreatManager.Update(dt, this);
     CommandFsm::FSMUpdate(dt, false);
     UpdateInvisibility();
     UseBuffs();
@@ -474,7 +452,7 @@ void UnitController::UpdateHighLevel()
     if (static_cast<Trackable*>(mOwner)->GetGameObject() && AIUtil::IsEndGame(0) &&
         !AIUtil::ShouldStayInVehicle(mOwner))
     {
-        reinterpret_cast<AILowLevel*>(mLowLevel)->SetExitVehicle(0);
+        mLowLevel.SetExitVehicle(0);
     }
 
     VisionManager::RemoveRequests(this);
@@ -485,7 +463,7 @@ void UnitController::UpdateHighLevel()
 // FUNCTION: SWBF2 0x00663af0
 void UnitController::UpdateLowLevel(float dt)
 {
-    AILowLevel* pLowLevel = reinterpret_cast<AILowLevel*>(mLowLevel);
+    AILowLevel* pLowLevel = &mLowLevel;
     mLowLevelUpdateSkipDt += dt;
     if (--mLowLevelUpdateSkips >= 0)
     {
@@ -546,7 +524,7 @@ const UnitCmdInfo* UnitController::GetCurCmd() const
 // FUNCTION: SWBF2 0x00663c10
 const SquadCommands::SquadCommandOrder& UnitController::GetLastSquadCommand()
 {
-    return *reinterpret_cast<const SquadCommands::SquadCommandOrder*>(mLastSquadCommand);
+    return mLastSquadCommand;
 }
 
 // FUNCTION: SWBF2 0x00663c20
@@ -556,7 +534,8 @@ const GameObject* UnitController::GetAttackHelperTarget() const
     {
         return 0;
     }
-    return AIUtil::GetAlivePtr(MakeHandle(GetAttackHelper(mAgent)->GetTarget()), false);
+    const GameObject* obj = mAgent->mAttackHelper.GetTarget();
+    return AIUtil::GetAlivePtr(obj, false);
 }
 
 // FUNCTION: SWBF2 0x00663c70
@@ -566,7 +545,8 @@ const GameObject* UnitController::GetAttackHelperVisibleTarget() const
     {
         return 0;
     }
-    return AIUtil::GetAlivePtr(MakeHandle(GetAttackHelper(mAgent)->GetVisibleTarget()), false);
+    const GameObject* obj = mAgent->mAttackHelper.GetVisibleTarget();
+    return AIUtil::GetAlivePtr(obj, false);
 }
 
 // FUNCTION: SWBF2 0x00663cc0
@@ -574,9 +554,9 @@ const PblVector3& UnitController::GetAttackHelperTargetLastSeenPosition() const
 {
     if (mAgent)
     {
-        return GetAttackHelper(mAgent)->GetLastSeenTargetPos();
+        return mAgent->mAttackHelper.GetLastSeenTargetPos();
     }
-    return GetTrans(_IdentityMatrix);
+    return gMatrixIdentity.GetTranslation();
 }
 
 // FUNCTION: SWBF2 0x00663ce0
@@ -584,7 +564,7 @@ void UnitController::ForceSetAttackHelperTarget(const GameObject* pTarget)
 {
     if (mAgent)
     {
-        GetAttackHelper(mAgent)->SetVisibleTarget(pTarget);
+        mAgent->mAttackHelper.SetVisibleTarget(pTarget);
     }
 }
 
@@ -598,7 +578,7 @@ void UnitController::UpdateLodState()
     mLodStateUpdateTime = GameLoop::GetMissionTime();
 
     int iLod = 0;
-    const PblVector3& vMyPos = GetTrans(mOwner->GetMatrix());
+    const PblVector3& vMyPos = mOwner->GetMatrix().GetTranslation();
     float fClosestDistSq = FLT_MAX;
     mLodHumanPlayer = 0;
 
@@ -611,7 +591,7 @@ void UnitController::UpdateLodState()
         }
 
         int iCharLod = 3;
-        const PblVector3& vPos = GetTrans(pCharacter->GetControllable()->GetMatrix());
+        const PblVector3& vPos = pCharacter->GetControllable()->GetMatrix().GetTranslation();
         float dx = vPos.x - vMyPos.x;
         float dy = vPos.y - vMyPos.y;
         float dz = vPos.z - vMyPos.z;
@@ -729,7 +709,7 @@ int UnitController::SendEvent(AI::EventInfo* pInfo) const
 void UnitController::SetLastShotDist(float fDistSq)
 {
     mLastShotDistSq = fDistSq;
-    mLastShotDistPos = mOwner ? GetTrans(mOwner->GetMatrix()) : GetTrans(_IdentityMatrix);
+    mLastShotDistPos = mOwner ? mOwner->GetMatrix().GetTranslation() : gMatrixIdentity.GetTranslation();
     mLastShotDistTime = GameLoop::GetMissionTime();
 }
 
@@ -747,7 +727,7 @@ bool UnitController::IsTargetLOSPossiblyBlocked()
         return false;
     }
 
-    const PblVector3& vMyPos = GetTrans(mOwner->GetMatrix());
+    const PblVector3& vMyPos = mOwner->GetMatrix().GetTranslation();
     float dx = vMyPos.x - mLastShotDistPos.x;
     float dy = vMyPos.y - mLastShotDistPos.y;
     float dz = vMyPos.z - mLastShotDistPos.z;
@@ -775,12 +755,12 @@ void UnitController::UpdateInvisibility()
     {
         return;
     }
-    if (reinterpret_cast<AI::UnitThreatManager*>(mThreatManager)->GetVisibleObject())
+    if (mThreatManager.GetVisibleObject())
     {
         return;
     }
 
-    AILowLevel* pLowLevel = reinterpret_cast<AILowLevel*>(mLowLevel);
+    AILowLevel* pLowLevel = &mLowLevel;
     for (int i = 0; i < mOwner->GetWeaponCount(); ++i)
     {
         if (mOwner->GetWeaponPtr(i)->IsRtti(WeaponInvisibility::rttiHashWeaponInvisibility))
@@ -798,7 +778,7 @@ void UnitController::UseBuffs()
     {
         return;
     }
-    if (!reinterpret_cast<AI::UnitThreatManager*>(mThreatManager)->GetVisibleObject())
+    if (!mThreatManager.GetVisibleObject())
     {
         return;
     }
@@ -817,12 +797,12 @@ void UnitController::UseBuffs()
         {
             GameObject* apUnits[3];
             const Team* pTeam = Team::GetPtr(static_cast<Trackable*>(mOwner)->GetGameObject()->GetTeam());
-            if (ControllerManager::GetUnitsInRange(GetTrans(mOwner->GetMatrix()), pClass->mMaxRange, apUnits, 3,
+            if (ControllerManager::GetUnitsInRange(mOwner->GetMatrix().GetTranslation(), pClass->mMaxRange, apUnits, 3,
                                                    pTeam, AI::AFFIL_ALLYNEUTRAL) < 3)
             {
                 return;
             }
-            AILowLevel* pLowLevel = reinterpret_cast<AILowLevel*>(mLowLevel);
+            AILowLevel* pLowLevel = &mLowLevel;
             pLowLevel->SetNextWeapon(i);
             pLowLevel->SetFireRequest(true, false);
         }
@@ -837,7 +817,7 @@ void UnitController::UseAutoTurrets()
         return;
     }
 
-    const GameObject* pTarget = reinterpret_cast<AI::UnitThreatManager*>(mThreatManager)->GetVisibleObject();
+    const GameObject* pTarget = mThreatManager.GetVisibleObject();
     const Controllable* pTargetCtl = pTarget ? pTarget->GetControllable() : 0;
     Controller* pTargetCtrl = pTargetCtl ? pTargetCtl->mCtrl : 0;
     if (!pTargetCtrl || !pTargetCtrl->IsInCrowd())
@@ -852,7 +832,7 @@ void UnitController::UseAutoTurrets()
     for (int i = 0; i < mOwner->GetWeaponCount(); ++i)
     {
         Weapon* pWeapon = mOwner->GetWeaponPtr(i);
-        WeaponClass* pClass = pWeapon->mClass;
+        const WeaponClass* pClass = pWeapon->mClass;
         if (!pClass || pWeapon->CheckOverheat())
         {
             continue;
@@ -865,11 +845,11 @@ void UnitController::UseAutoTurrets()
         }
         if (pClass->IsRtti(WeaponDispenserClass::rttiHashWeaponDispenserClass))
         {
-            EntityClass* pDispense = static_cast<WeaponDispenserClass*>(pClass)->mDispenseClass;
+            EntityClass* pDispense = static_cast<const WeaponDispenserClass*>(pClass)->mDispenseClass;
             if (pDispense && pDispense->IsRtti(EntityBuildingArmedClass::rttiHashEntityBuildingArmedClass) &&
                 (pClass->mAITargetTypes & 1))
             {
-                AILowLevel* pLowLevel = reinterpret_cast<AILowLevel*>(mLowLevel);
+                AILowLevel* pLowLevel = &mLowLevel;
                 pLowLevel->SetNextWeapon(i);
                 pLowLevel->SetFireRequest(true, false);
             }
@@ -888,7 +868,7 @@ void UnitController::AddFriendlyFire(const GameObject* pObject)
 {
     if (mFriendlyCount < 8)
     {
-        ((PblHandle<const GameObject>*)mFriendly)[mFriendlyCount++] = pObject;
+        mFriendly[mFriendlyCount++] = pObject;
     }
 }
 
@@ -899,7 +879,7 @@ const GameObject* UnitController::GetFriendlyFire(int iIndex)
     {
         return 0;
     }
-    return ((PblHandle<const GameObject>*)mFriendly)[iIndex];
+    return mFriendly[iIndex];
 }
 
 // FUNCTION: SWBF2 0x00664090

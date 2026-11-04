@@ -6,5 +6,5 @@ class UnitCaptureCPAgent : public UnitAgent
 {
 public:
     static PblHash rttiHashUnitCaptureCPAgent;
-    static char rttiNameUnitCaptureCPAgent[];
+    static const char rttiNameUnitCaptureCPAgent[];
 };

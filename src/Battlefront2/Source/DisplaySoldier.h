@@ -15,6 +15,7 @@ class TentacleSimulator;
 class WeaponClass;
 class ZephyrSkeletonShared;
 
+// VTABLE: SWBF2 0x00799064
 class SoldierElement : public EntityElement
 {
 public:

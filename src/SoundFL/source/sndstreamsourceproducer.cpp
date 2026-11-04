@@ -1,4 +1,3 @@
-#include <new>
 
 #include "sndstreamsourceproducer.h"
 
@@ -17,14 +16,11 @@ StreamSourceProducer::StreamSourceProducer()
     mPackets = 0;
     mNumPackets = 0;
     mPacketSize = 0;
-    mWriteIndex = 0;
-    mReadIndex = 0;
+    mReadPacketIndex = 0;
+    mLockPacketIndex = 0;
 }
 
-// FUNCTION: SWBF2 0x0073c790
-StreamNodeSource::~StreamNodeSource()
-{
-}
+
 
 // FUNCTION: SWBF2 0x0073c7a0
 StreamSourceNProducer::~StreamSourceNProducer()
@@ -39,9 +35,9 @@ StreamSourceProducer::~StreamSourceProducer()
 }
 
 // FUNCTION: SWBF2 0x0073cb10
-void Snd::StreamSourceProducer::SetPackets(unsigned int uiPacketSize, StreamPacket* pPackets, unsigned int uiNumPackets, int iUnread)
+void Snd::StreamSourceProducer::SetPackets(unsigned int uiPacketSize, StreamPacket* pPackets, unsigned int uiNumPackets, const bool bCheckPacketBuffers)
 {
-    (void)iUnread;
+    (void)bCheckPacketBuffers;
 
     if (uiPacketSize == 0 || uiNumPackets == 0 || pPackets == 0)
     {
@@ -57,7 +53,7 @@ void Snd::StreamSourceProducer::SetPackets(unsigned int uiPacketSize, StreamPack
 
     for (unsigned int i = 0; i < mNumPackets; ++i)
     {
-        pPackets[i].mBufferUsed = 0;
+        mPackets[i].SetUsed(0);
     }
 }
 
@@ -66,7 +62,7 @@ void StreamSourceProducer::SetPackets(unsigned int uiPacketSize,
                                       StreamPacket* pPackets,
                                       unsigned int uiNumPackets)
 {
-    SetPackets(uiPacketSize, pPackets, uiNumPackets, 1);
+    SetPackets(uiPacketSize, pPackets, uiNumPackets, true);
 }
 
 // FUNCTION: SWBF2 0x0073cba0
@@ -105,54 +101,46 @@ void StreamSourceProducer::Flush()
 StreamPacket* StreamSourceProducer::GetPacket(unsigned int uiOutput)
 {
     (void)uiOutput;
-
-    StreamPacket* const pPackets = mPackets;
-    if (pPackets == 0)
+    if (mPackets)
     {
-        return 0;
+        StreamPacket* const pPacket = &mPackets[mLockPacketIndex];
+        if (!pPacket->IsLocked() && pPacket->GetUsed())
+        {
+            pPacket->Lock();
+            if (++mLockPacketIndex == mNumPackets)
+            {
+                mLockPacketIndex = 0;
+            }
+            return pPacket;
+        }
     }
-
-    unsigned int& uiRead = mReadIndex;
-    StreamPacket* const pPacket = &pPackets[uiRead];
-
-    if (pPacket->mRefCount != 0)
-    {
-        return 0;
-    }
-    if (pPacket->mBufferUsed == 0)
-    {
-        return 0;
-    }
-
-    ++pPacket->mRefCount;
-
-    ++uiRead;
-    if (uiRead == mNumPackets)
-    {
-        uiRead = 0;
-    }
-
-    return pPacket;
+    return 0;
 }
+
+
+
 
 // FUNCTION: SWBF2 0x0073c930
 unsigned int StreamSourceProducer::GetNumQueuedPackets() const
 {
-    const StreamPacket* const pPackets = mPackets;
-    const unsigned int uiNumPackets = mNumPackets;
-    unsigned int uiIndex = mWriteIndex;
+    unsigned int uiIndex = mReadPacketIndex;
     unsigned int uiQueued = 0;
+    const unsigned int uiNumPackets = mNumPackets;
 
-    for (unsigned int i = uiNumPackets; i != 0; --i)
+    if (uiNumPackets != 0)
     {
-        const StreamPacket& packet = pPackets[uiIndex++];
-        if (packet.mRefCount != 0 || packet.mBufferUsed != 0)
+        const StreamPacket* const pPackets = mPackets;
+        for (unsigned int i = uiNumPackets; i != 0; --i)
         {
-            ++uiQueued;
-        }
-        if (uiIndex == uiNumPackets)
-        {
-            uiIndex = 0;
+            const StreamPacket& packet = pPackets[uiIndex++];
+            if (packet.mRefCount > 0 || packet.mBufferUsed != 0)
+            {
+                ++uiQueued;
+            }
+            if (uiIndex == uiNumPackets)
+            {
+                uiIndex = 0;
+            }
         }
     }
     return uiQueued;
@@ -175,19 +163,11 @@ StreamPacket* StreamSourceNProducer::GetPacket(unsigned int uiOutput)
 // FUNCTION: SWBF2 0x0073ca10
 StreamPacket* StreamSourceProducer::GetReadPacket()
 {
-
-    StreamPacket* const pPackets = mPackets;
-    StreamPacket* const pPacket = &pPackets[mWriteIndex];
-
-    if (pPacket->mBufferUsed != 0)
+    StreamPacket* const pPacket = &mPackets[mReadPacketIndex];
+    if (pPacket->GetUsed() || pPacket->IsLocked())
     {
         return 0;
     }
-    if (pPacket->mRefCount != 0)
-    {
-        return 0;
-    }
-
     return pPacket;
 }
 
@@ -200,8 +180,8 @@ void StreamSourceProducer::PacketComplete(StreamPacket* const pPacket,
 {
     (void)uiUnused;
 
-    pPacket->mBufferUsed = uiBufferUsed;
-    pPacket->mPos = uiPos;
+    pPacket->SetUsed(uiBufferUsed);
+    pPacket->SetPosition(uiPos);
 
     if (bFlagBit0)
     {
@@ -221,10 +201,10 @@ void StreamSourceProducer::PacketComplete(StreamPacket* const pPacket,
         pPacket->mFlags &= 0xFFFD;
     }
 
-    ++mWriteIndex;
-    if (mWriteIndex == mNumPackets)
+    ++mReadPacketIndex;
+    if (mReadPacketIndex == mNumPackets)
     {
-        mWriteIndex = 0;
+        mReadPacketIndex = 0;
     }
 }
 
@@ -243,50 +223,26 @@ void StreamPacket::SetDiscontinuity(bool bDiscontinuity)
 
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x0073c9e0
-StreamPacket* StreamSourceNProducer::GetWritablePacket(unsigned int uiOutput)
+StreamPacket* StreamSourceNProducer::GetReadPacket(const unsigned int uiOutput) const
 {
-    const StreamSourceProducer& producer = mProducers[uiOutput];
-    StreamPacket* pPacket = producer.mPackets + producer.mWriteIndex;
-    return pPacket->mBufferUsed == 0 && pPacket->mRefCount == 0 ? pPacket : 0;
+    return GetProducer(uiOutput)->GetReadPacket();
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x0073ca30
-unsigned int StreamSourceNProducer::CompleteWrittenPacket(StreamPacket* pPacket,
+void StreamSourceNProducer::PacketComplete(StreamPacket* const pPacket,
                                    unsigned int uiBufferUsed, unsigned int uiUnused,
                                    bool bFlagBit0, bool bFlagBit1, unsigned int uiPos,
                                    unsigned int uiOutput)
 {
-    StreamSourceProducer& producer = mProducers[uiOutput];
-    pPacket->mBufferUsed = uiBufferUsed;
-    pPacket->mPos = uiPos;
-    if (bFlagBit0)
-    {
-        pPacket->mFlags |= 1;
-    }
-    else
-    {
-        pPacket->mFlags &= ~1u;
-    }
-    if (bFlagBit1)
-    {
-        pPacket->mFlags |= 2;
-    }
-    else
-    {
-        pPacket->mFlags &= ~2u;
-    }
-    unsigned int& rIndex = producer.mWriteIndex;
-    unsigned int result = ++rIndex;
-    if (result == producer.mNumPackets)
-    {
-        rIndex = 0;
-    }
-    return result;
+    GetProducer(uiOutput)->PacketComplete(pPacket, uiBufferUsed, uiUnused,
+                                         bFlagBit0, bFlagBit1, uiPos);
 }
 }

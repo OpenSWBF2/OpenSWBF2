@@ -31,6 +31,7 @@ class CntStat
 public:
     CntStat() : _val(0) {}
     void Inc(T val) { _val += val; }
+    T Get(int team) const { return _val; }
     void Set(T val) { _val = val; }
 
     T _val;

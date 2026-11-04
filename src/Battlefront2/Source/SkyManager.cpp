@@ -205,7 +205,8 @@ void SkyManager::Read(PblFileChunk& chunk)
     }
 }
 
-namespace SkyManager {
+namespace SkyManager
+{
 
 // FUNCTION: SWBF2 0x00638740
 void Reset()

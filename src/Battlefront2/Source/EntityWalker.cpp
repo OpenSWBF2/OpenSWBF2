@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "RedEngineFL/Util/RedCommandConsole.h"
 
 #include <float.h>
@@ -62,25 +63,6 @@
 #include "UnitController.h"
 #include "PebbleFL/Common/PblQuaternion.h"
 #include "RedEngineFL/Application/pc/pcFLRender.h"
-#include "PebbleFL/pc/PblD3DX.h"
-
-// FUNCTION: SWBF2 0x0047f9b0
-void EntityWalker::SetVelocity(const PblVector3& vVelocity)
-{
-    mVelocity = vVelocity;
-}
-
-// FUNCTION: SWBF2 0x0047fb30
-Trackable* EntityWalker::GetTrackable()
-{
-    return static_cast<Trackable*>(this);
-}
-
-// FUNCTION: SWBF2 0x0047fc70
-bool EntityWalker::IsForcedThirdPerson() const
-{
-    return true;
-}
 
 // FUNCTION: SWBF2 0x00501a80
 float EntityWalker::GetAimTurnRate() const
@@ -182,9 +164,6 @@ EntityWalkerClass::EntityWalkerClass(unsigned int uHash)
     mOrientRoll = false;
     mWidth = 1.0f;
 
-    mEnergyBarClass.m_fEnergyMax = 0.0f;
-    mEnergyBarClass.m_fEnergyMin = 0.0f;
-    mEnergyBarClass.m_fEnergyOverheat = 0.0f;
     mEnergyBarClass.Init(100.0f, 20.0f);
 
     mEnergyAutoRestore = 0.0f;
@@ -231,10 +210,7 @@ EntityWalkerClass::EntityWalkerClass(unsigned int uHash)
     mPassengerSlotClass = 0;
     mNumPassengerSlots = 0;
 
-    for (int i = 0; i < 8; ++i)
-    {
-        mTurretClass[i] = 0;
-    }
+    memset(mTurretClass, 0, sizeof(mTurretClass));
 
     mExplosion = 0;
     mExplosionOffset.x = 0.0f;
@@ -306,30 +282,38 @@ EntityWalkerClass::EntityWalkerClass(unsigned int uHash)
     mTimeTilReboard = 10.0f;
 }
 
-// GLOBAL: SWBF2 0x01ebc25c
+
 // SYNTHETIC: SWBF2 0x00402ef0
 // `dynamic initializer for 'EntityWalkerClass::rttiHashEntityWalkerClass''
-PblHash EntityWalkerClass::rttiHashEntityWalkerClass("EntityWalkerClass");
-char EntityWalkerClass::rttiNameEntityWalkerClass[] = "EntityWalkerClass";
+// EntityWalkerClass::rttiHashEntityWalkerClass
 
-// GLOBAL: SWBF2 0x01ebc2b0
+// GLOBAL: SWBF2 0x01ebc25c
+// EntityWalkerClass::rttiHashEntityWalkerClass
+PblHash EntityWalkerClass::rttiHashEntityWalkerClass("EntityWalkerClass");
+// GLOBAL: SWBF2 0x007896cc
+// EntityWalkerClass::rttiNameEntityWalkerClass
+const char EntityWalkerClass::rttiNameEntityWalkerClass[] = "EntityWalkerClass";
+
 // SYNTHETIC: SWBF2 0x00402ee0
 // `dynamic initializer for 'EntityWalker::rttiHashEntityWalker''
-PblHash EntityWalker::rttiHashEntityWalker("EntityWalker");
-char EntityWalker::rttiNameEntityWalker[] = "EntityWalker";
+// EntityWalker::rttiHashEntityWalker
 
-// GLOBAL: SWBF2 0x01ebc260
+// GLOBAL: SWBF2 0x01ebc2b0
+// EntityWalker::rttiHashEntityWalker
+PblHash EntityWalker::rttiHashEntityWalker("EntityWalker");
+// GLOBAL: SWBF2 0x007896ac
+// EntityWalker::rttiNameEntityWalker
+const char EntityWalker::rttiNameEntityWalker[] = "EntityWalker";
+
 // SYNTHETIC: SWBF2 0x00402ec0
 // `dynamic initializer for 'EntityWalker::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00767010
 // `dynamic atexit destructor for 'EntityWalker::sMemoryPool''
-MemoryPool EntityWalker::sMemoryPool("EntityWalker", 0x2100);
 
-// FUNCTION: SWBF2 0x0047fb20
-float EntityWalker::GetMaxStrafe() const
-{
-    return 0.0f;
-}
+// GLOBAL: SWBF2 0x01ebc260
+// EntityWalker::sMemoryPool
+// STRING: SWBF2 0x0079d7d4
+MemoryPool EntityWalker::sMemoryPool("EntityWalker", 0x2100);
 
 // FUNCTION: SWBF2 0x0047fb50
 const Controllable* EntityWalker::GetControllable() const
@@ -343,101 +327,11 @@ Controllable* EntityWalker::GetControllable()
     return this;
 }
 
-// FUNCTION: SWBF2 0x0047fbd0
-GameObjectType EntityWalker::GetGameObjectType()
-{
-    return (GameObjectType)(GO_VEHICLE | GO_WALKER);
-}
 
-// FUNCTION: SWBF2 0x0047fbe0
-void EntityWalker::ReserveForPlayer(float fTime)
-{
-    mReserveForPlayer = GameLoop::GetMissionTime() + fTime;
-}
 
-// FUNCTION: SWBF2 0x0047fc00
-bool EntityWalker::IsReservedForPlayer() const
-{
-    return mReserveForPlayer > GameLoop::GetMissionTime();
-}
 
-// FUNCTION: SWBF2 0x0047fc20
-void EntityWalker::SetEjectTimer(float fTime)
-{
-    mEjectTimer = fTime;
-}
 
-// FUNCTION: SWBF2 0x0047fc40
-float EntityWalker::GetEjectTimer() const
-{
-    return mEjectTimer;
-}
 
-// FUNCTION: SWBF2 0x0047fc50
-void EntityWalker::ResetTimeSinceLastHack()
-{
-    mTimeSinceLastHack = 0.0f;
-}
-
-// FUNCTION: SWBF2 0x0047fc80
-bool EntityWalkerClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashEntityWalkerClass || GameObjectClass::IsRtti(uRtti);
-}
-
-// FUNCTION: SWBF2 0x0047fcc0
-int EntityWalkerClass::GetVehicleType()
-{
-    return mVehicleType;
-}
-
-// FUNCTION: SWBF2 0x0047fcd0
-int EntityWalkerClass::GetWeaponCount()
-{
-    return mWeaponCount;
-}
-
-// FUNCTION: SWBF2 0x0047fce0
-const WeaponClass* EntityWalkerClass::GetWeaponClass(int iIndex)
-{
-    return mWeaponClass[iIndex];
-}
-
-// FUNCTION: SWBF2 0x0047fd00
-float EntityWalkerClass::GetCollisionInflict()
-{
-    return mCollisionInflict;
-}
-
-// FUNCTION: SWBF2 0x0047fd10
-float EntityWalkerClass::GetTimeRequiredToEject()
-{
-    return mTimeRequiredToEject;
-}
-
-// FUNCTION: SWBF2 0x0047fd20
-float EntityWalkerClass::GetReboardTime()
-{
-    return mTimeTilReboard;
-}
-
-// FUNCTION: SWBF2 0x0047fd30
-const void* EntityWalkerClass::GetControllableClass()
-{
-    return static_cast<const ControllableClass*>(this);
-}
-
-// FUNCTION: SWBF2 0x004ff4e0
-unsigned int EntityWalker::GetDerivedRtti() const
-{
-    return rttiHashEntityWalker;
-}
-
-// FUNCTION: SWBF2 0x004ff4f0
-const char* EntityWalker::GetDerivedRttiName() const
-{
-    return rttiNameEntityWalker;
-}
 
 // FUNCTION: SWBF2 0x004ff510
 void EntityWalker::RotateY(const PblAngle& rAngle)
@@ -464,7 +358,7 @@ void EntityWalker::RotateY(const PblAngle& rAngle)
     kRot.m[3][3] = 1.0f;
 
     PblMatrix kOut;
-    D3DXMatrixMultiply(&kOut, &kRot, &mMatrix);
+    D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&kOut), reinterpret_cast<const D3DXMATRIX*>(&kRot), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
     mMatrix = kOut;
 }
 
@@ -474,22 +368,11 @@ EntityType EntityWalker::GetEntityType() const
     return ENT_WALKER;
 }
 
-// FUNCTION: SWBF2 0x004ff660
-unsigned int EntityWalkerClass::GetDerivedRtti()
-{
-    return rttiHashEntityWalkerClass;
-}
 
-// FUNCTION: SWBF2 0x004ff670
-const char* EntityWalkerClass::GetDerivedRttiName()
-{
-    return rttiNameEntityWalkerClass;
-}
 
-// FUNCTION: SWBF2 0x004ff690
-WalkerAnimationIdle::~WalkerAnimationIdle()
-{
-}
+
+
+
 
 // FUNCTION: SWBF2 0x004ff6d0
 WalkerLegPairInfo::WalkerLegPairInfo()
@@ -504,8 +387,10 @@ WalkerLegPairInfo::WalkerLegPairInfo()
     }
 }
 
-// SYNTHETIC: SWBF2 0x005085f0
-// EntityWalkerClass::~EntityWalkerClass
+// FUNCTION: SWBF2 0x005085f0
+EntityWalkerClass::~EntityWalkerClass()
+{
+}
 
 // SYNTHETIC: SWBF2 0x00507d30
 // EntityWalkerClass::`scalar deleting destructor'
@@ -517,9 +402,6 @@ EntityWalkerClass::EntityWalkerClass(EntityWalkerClass* pBase, unsigned int uHas
       VehicleMusicClass(pBase),
       VehicleEngineClass(pBase)
 {
-    mEnergyBarClass.m_fEnergyMax = 0.0f;
-    mEnergyBarClass.m_fEnergyMin = 0.0f;
-    mEnergyBarClass.m_fEnergyOverheat = 0.0f;
 
     m_bDynamicLighting = true;
     mHealthType = HEALTH_TYPE_VEHICLE;
@@ -715,7 +597,7 @@ Entity* EntityWalkerClass::Build(const EntityDesc& desc)
     if (pWalker)
     {
         NetGame::Created(pWalker);
-        CollisionManager::AddRigidBody(pWalker);
+        pWalker->AddRigidToCollisionManager();
         pWalker->ActivatePhysics();
         pWalker->BuildEffects();
     }
@@ -1364,7 +1246,7 @@ void EntityWalkerClass::SetProperty(unsigned int uProperty, const char* pszValue
                     if (pSkeleton->GetBoneNameHash(i) == mAttachHash)
                     {
                         const PblMatrix& mBone = pSkeleton->GetDefaultPoseMatrix(i);
-                        mAttachOffset = *(const PblVector3*)&mBone.m[3][0];
+                        mAttachOffset = mBone.GetTranslation();
                         break;
                     }
                 }
@@ -1493,12 +1375,8 @@ void EntityWalkerClass::PostReadSetup()
 {
     if (mSkeletonRootScale != 1.0f)
     {
-        mExplosionOffset.x *= mSkeletonRootScale;
-        mExplosionOffset.y *= mSkeletonRootScale;
-        mExplosionOffset.z *= mSkeletonRootScale;
-        mFinalExplosionOffset.x *= mSkeletonRootScale;
-        mFinalExplosionOffset.y *= mSkeletonRootScale;
-        mFinalExplosionOffset.z *= mSkeletonRootScale;
+        mExplosionOffset *= mSkeletonRootScale;
+        mFinalExplosionOffset *= mSkeletonRootScale;
         mHydraulicSoundHeight *= mSkeletonRootScale;
         mHydrualicLowerHeight *= mSkeletonRootScale;
         mLegRayHitLength *= mSkeletonRootScale;
@@ -1507,9 +1385,7 @@ void EntityWalkerClass::PostReadSetup()
         for (unsigned int i = 0; i < m_uiNumAttackAnims; ++i)
         {
             m_aAttackAnims[i].fRadius *= mSkeletonRootScale;
-            m_aAttackAnims[i].vPosition.x *= mSkeletonRootScale;
-            m_aAttackAnims[i].vPosition.y *= mSkeletonRootScale;
-            m_aAttackAnims[i].vPosition.z *= mSkeletonRootScale;
+            m_aAttackAnims[i].vPosition *= mSkeletonRootScale;
         }
     }
 
@@ -1605,24 +1481,23 @@ PblBitVector<64> EntityWalkerClass::HierarchyJointMask(const ZephyrSkeletonShare
     return mask;
 }
 
+
 extern bool netFrameLock;
 extern bool netIsLocalTurn;
 
 // GLOBAL: SWBF2 0x01e51e24
 static bool sBipedHack;
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
 
-void* WalkerLegPair::operator new(size_t uSize)
+
+inline void* WalkerLegPair::operator new(unsigned int uSize)
 {
     return sMemoryPool.Allocate(uSize);
 }
 
-void WalkerLegPair::operator delete(void* pBlock)
+// SYNTHETIC: SWBF2 0x004ff6c0
+// WalkerLegPair::operator delete
+inline void WalkerLegPair::operator delete(void* pBlock)
 {
     sMemoryPool.Free(pBlock);
 }
@@ -1635,10 +1510,10 @@ void WalkerLegPair::SetInterpolate(bool bInterpolate)
 namespace
 {
 
-void UpdateCollisionSphere(EntityWalker* pWalker)
+inline void UpdateCollisionSphere(EntityWalker* pWalker)
 {
     PblVector3 center;
-    D3DXVec3TransformCoord(&center, &pWalker->mModel->_mModel->_BoundingSphere.GetCenter(), &pWalker->mMatrix);
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&center), reinterpret_cast<const D3DXVECTOR3*>(&pWalker->mModel->_mModel->_BoundingSphere.GetCenter()), reinterpret_cast<const D3DXMATRIX*>(&pWalker->mMatrix));
     pWalker->SetCollisionCenter(center);
     pWalker->RecalculateAABB();
 }
@@ -1658,17 +1533,7 @@ void SmashParkedFlyer(EntityWalker* pWalker, CollisionObject* pOther, Entity* pE
 }
 }
 
-// FUNCTION: SWBF2 0x0047f900
-bool EntityWalker::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashEntityWalker || GameObject::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x0047f940
-const RedPose* EntityWalker::GetPose() const
-{
-    return &mPose;
-}
 
 // FUNCTION: SWBF2 0x0047f950
 GameObject* EntityWalker::GetGameObject()
@@ -1694,25 +1559,10 @@ const Entity* EntityWalker::GetEntity() const
     return this;
 }
 
-// FUNCTION: SWBF2 0x0047f990
-const PblMatrix& EntityWalker::GetMatrix() const
-{
-    return mMatrix;
-}
-
-// FUNCTION: SWBF2 0x0047f9a0
-const PblVector3& EntityWalker::GetVelocity() const
-{
-    return mVelocity;
-}
-
 // FUNCTION: SWBF2 0x0047f9d0
 void EntityWalker::SetPosition(const PblVector3& vPosition)
 {
-    mMatrix.m[3][0] = vPosition.x;
-    mMatrix.m[3][1] = vPosition.y;
-    mMatrix.m[3][2] = vPosition.z;
-    mMatrix.m[3][3] = 1.0f;
+    mMatrix.SetTranslation(vPosition);
     UpdateCollisionSphere(this);
 }
 
@@ -1787,9 +1637,14 @@ void EntityWalker::SetupCameraFOV(float& rFOV)
         rFOV = GetDefaultFOV();
         return;
     }
-    const ControllableClass* pSettings = GetControllableClass();
-    rFOV = mTargetInfo.mIsAiming || (mTracker && mTracker->IsFirstPersonView())
-        ? pSettings->mFirstPersonFOV : pSettings->mThirdPersonFOV;
+    if (mTargetInfo.mIsAiming || (mTracker && mTracker->IsFirstPersonView()))
+    {
+        rFOV = GetControllableClass()->mFirstPersonFOV;
+    }
+    else
+    {
+        rFOV = GetControllableClass()->mThirdPersonFOV;
+    }
 }
 
 // FUNCTION: SWBF2 0x00507340
@@ -1820,7 +1675,7 @@ bool EntityWalker::Jump()
                           mVelocity.y * mMatrix.m[2][1] +
                           mVelocity.z * mMatrix.m[2][2];
     if (fForwardSpeed < mClass->mJumpMinSpeed ||
-        !((EnergyBar*)mEnergyBar)->SpendEnergy(mClass->mEnergyCostJump))
+        !mEnergyBar.SpendEnergy(mClass->mEnergyCostJump))
     {
         return false;
     }
@@ -1839,56 +1694,32 @@ bool EntityWalker::Jump()
     return true;
 }
 
-// FUNCTION: SWBF2 0x0047fb70
-int EntityWalker::GetWeaponIndex(int iChannel) const
-{
-    return mWeaponIndex[iChannel];
-}
-
-// FUNCTION: SWBF2 0x0047fb90
-Weapon* EntityWalker::GetWeaponPtr(int iIndex) const
-{
-    return mWeapon[iIndex];
-}
-
-// FUNCTION: SWBF2 0x0047fbb0
-const Aimer* EntityWalker::GetAimer(int iIndex) const
-{
-    return mAimer[iIndex];
-}
-
-// FUNCTION: SWBF2 0x0047fc60
-EnergyBar* EntityWalker::GetEnergyBar()
-{
-    return (EnergyBar*)mEnergyBar;
-}
-
 // SYNTHETIC: SWBF2 0x004803a5
-// [thunk]:EntityWalker::GetGameObject`adjustor{600}'
+// ?GetGameObject@EntityWalker@@WCFI@AEPAVGameObject@@XZ
 
 // SYNTHETIC: SWBF2 0x004803b0
-// [thunk]:EntityWalker::GetGameObject`adjustor{600}'
+// ?GetGameObject@EntityWalker@@WCFI@BEPBVGameObject@@XZ
 
 // SYNTHETIC: SWBF2 0x004803c6
-// [thunk]:EntityWalker::GetGameObject`adjustor{12}'
+// ?GetGameObject@EntityWalker@@WM@AEPAVGameObject@@XZ
 
 // SYNTHETIC: SWBF2 0x004803d6
-// [thunk]:EntityWalker::GetEntity`adjustor{576}'
+// ?GetEntity@EntityWalker@@WCEA@AEPAVEntity@@XZ
 
 // SYNTHETIC: SWBF2 0x004803e1
-// [thunk]:EntityWalker::GetEntity`adjustor{576}'
+// ?GetEntity@EntityWalker@@WCEA@BEPBVEntity@@XZ
 
 // SYNTHETIC: SWBF2 0x0048040d
-// [thunk]:EntityWalker::GetMatrix`adjustor{564}'
+// ?GetMatrix@EntityWalker@@WCDE@BEABVPblMatrix@@XZ
 
 // SYNTHETIC: SWBF2 0x0048044c
-// [thunk]:EntityWalker::GetEntity`adjustor{12}'
+// ?GetEntity@EntityWalker@@WM@AEPAVEntity@@XZ
 
 // SYNTHETIC: SWBF2 0x00480467
-// [thunk]:EntityWalker::GetGameObject`adjustor{320}'
+// ?GetGameObject@EntityWalker@@WBEA@AEPAVGameObject@@XZ
 
 // SYNTHETIC: SWBF2 0x0050b00e
-// [thunk]:EntityWalker::`scalar deleting destructor'`adjustor{576}'
+// ??_EEntityWalker@@WCEA@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x004ff600
 bool EntityWalker::PostCollision::Update(float fDeltaTime)
@@ -1899,10 +1730,7 @@ bool EntityWalker::PostCollision::Update(float fDeltaTime)
 // SYNTHETIC: SWBF2 0x004ff620
 // EntityWalker::PostCollision::`scalar deleting destructor'
 
-// FUNCTION: SWBF2 0x004ff650
-EntityWalker::PostCollision::~PostCollision()
-{
-}
+
 
 // SYNTHETIC: SWBF2 0x004ff720
 // EntityWalker::`scalar deleting destructor'
@@ -1921,13 +1749,13 @@ EntityWalker::EntityWalker(EntityWalkerClass* pClass, const EntityDesc& desc)
     , mFootWaterState(0)
     , mState(Idle)
     , mDirection(None)
+    , mEnergyBar(&pClass->mEnergyBarClass)
     , mPostCollision(this)
 {
     mMainMask.SetAll();
     mPivotOffset.x = 0.0f;
     mPivotOffset.y = 0.0f;
     mPivotOffset.z = 0.0f;
-    new (mEnergyBar) EnergyBar(&pClass->mEnergyBarClass);
     mBoost = false;
     mSpeedPrev = 0.0f;
     mEjectTimer = 0.0f;
@@ -1970,14 +1798,8 @@ EntityWalker::EntityWalker(EntityWalkerClass* pClass, const EntityDesc& desc)
     mVelocityNoGrav.x = 0.0f;
     mVelocityNoGrav.y = 0.0f;
     mVelocityNoGrav.z = 0.0f;
-    for (int i = 0; i < 4; ++i)
-    {
-        mAimer[i] = 0;
-    }
-    for (int i = 0; i < 4; ++i)
-    {
-        mWeapon[i] = 0;
-    }
+    memset(mAimer, 0, sizeof(mAimer));
+    memset(mWeapon, 0, sizeof(mWeapon));
     for (int i = 0; i < 3; ++i)
     {
         mLegPairs[i] = 0;
@@ -2055,7 +1877,7 @@ EntityWalker::EntityWalker(EntityWalkerClass* pClass, const EntityDesc& desc)
     }
 
     mZephyrPoseStatic.SetBasePose();
-    mZephyrSkeleton.BuildWorldMatrices(_IdentityMatrix);
+    mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity);
     mPose.ConvertFromZephyrPose(mZephyrSkeleton);
     mModel->GetRedModel(0)->SetupPose(mPose);
 
@@ -2120,7 +1942,6 @@ EntityWalker::~EntityWalker()
     }
     TargetManager::RemoveTarget(this);
     VehicleManager::Remove(this);
-    reinterpret_cast<EnergyBar*>(mEnergyBar)->~EnergyBar();
 }
 
 // FUNCTION: SWBF2 0x00500410
@@ -2315,10 +2136,7 @@ void EntityWalker::DoFootImpactEffects()
         {
 
             GetControllableList();
-            mFoot.m[3][0] = vSplash.x;
-            mFoot.m[3][1] = vSplash.y;
-            mFoot.m[3][2] = vSplash.z;
-            mFoot.m[3][3] = 1.0f;
+            mFoot.SetTranslation(vSplash);
             float fSplashWater;
             if (RedWater::GetWaterHeight(vSplash, fSplashWater) && fSplashWater >= vSplash.y)
             {
@@ -2549,11 +2367,11 @@ void EntityWalker::Render(unsigned char ucViewport, float fDist, unsigned int ui
     {
         bool bWrapped;
         float fDir = mDirection == Backward ? -1.0f : 1.0f;
-        float fBlendState = gameObjectInterpolator.GetLoopingFloat(mNetUniqueId, 0, mBlend->GetStateLimit(), fDir,
+        float fBlendState = gameObjectInterpolator.GetLoopingFloat(mNetUniqueId, 0, fDir, mBlend->GetStateLimit(),
                                                                     bWrapped);
-        float fLegState = gameObjectInterpolator.GetLoopingFloat(
-            mNetUniqueId, 1, mLegPairCount > 0 ? mLegPairs[0]->GetStateLimit() : 0.0f,
-            mDirection == Backward ? -1.0f : 1.0f, bWrapped);
+        float fLegState = gameObjectInterpolator.GetLoopingFloat(mNetUniqueId, 1,
+                                                                  mDirection == Backward ? -1.0f : 1.0f,
+                                                                  mLegPairCount > 0 ? mLegPairs[0]->GetStateLimit() : 0.0f, bWrapped);
         mBlend->SetFrameState(fBlendState);
         if (mLegPairCount > 0)
         {
@@ -2567,7 +2385,7 @@ void EntityWalker::Render(unsigned char ucViewport, float fDist, unsigned int ui
                 fDir = 1.0f;
             }
             mLegPairs[1]->SetFrameState(gameObjectInterpolator.GetLoopingFloat(
-                mNetUniqueId, 2, mLegPairs[1]->GetStateLimit(), fDir, bWrapped));
+                mNetUniqueId, 2, fDir, mLegPairs[1]->GetStateLimit(), bWrapped));
         }
         BuildWorldMatrices();
     }
@@ -2618,7 +2436,7 @@ void EntityWalker::Render(unsigned char ucViewport, float fDist, unsigned int ui
 
                         if (pBone)
                         {
-                            pEffect->AttachEffectToObject(this, pBone, false);
+                            pEffect->AttachEffectToObject(this, pBone, true);
                         }
                         else
                         {
@@ -2643,13 +2461,10 @@ void EntityWalker::Render(unsigned char ucViewport, float fDist, unsigned int ui
                 FLEffectObject* pEffect = mClass->mDeathDustEffect->BuildEffect();
                 if (pEffect)
                 {
-                    PblMatrix mDust = _IdentityMatrix;
-                    mDust.m[3][0] = mClass->mDeathDustOffset.x;
-                    mDust.m[3][1] = mClass->mDeathDustOffset.y;
-                    mDust.m[3][2] = mClass->mDeathDustOffset.z;
-                    mDust.m[3][3] = 1.0f;
+                    PblMatrix mDust = gMatrixIdentity;
+                    mDust.SetTranslation(mClass->mDeathDustOffset);
                     PblMatrix mTemp;
-                    D3DXMatrixMultiply(&mTemp, &mDust, &mWorld);
+                    mTemp = mDust * mWorld;
                     mDust = mTemp;
                     pEffect->AttachEffectToMatrix(&mDust, false);
                 }
@@ -2939,7 +2754,7 @@ bool EntityWalker::CollisionCallback(const CollisionResult* pResult, CollisionOb
             float fDist = fOverlap * fOverlap / fHorizontal;
             PblVector3 vFlat(vSeparation.x, 0.0f, vSeparation.z);
             PblVector3 vDir;
-            D3DXVec3Normalize(&vDir, &vFlat);
+            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vFlat));
             float fMax = fHorizontal * 2.0f;
             if (!(fMax > fDist))
             {
@@ -2989,8 +2804,7 @@ void EntityWalker::Die()
     {
         mExplodedDeath = true;
         DamageOwner owner(mDamageOwner.mCharacter, mDamageOwner.mGameObject, mDamageOwner.mTeam, mClass, 0, 1.0f);
-        PblVector3 vPos;
-        D3DXVec3TransformCoord(&vPos, &mClass->mExplosionOffset, &mMatrix);
+        PblVector3 vPos = mMatrix.ApplyTransform(mClass->mExplosionOffset);
         mClass->mExplosion->CreateExplosion(vPos, owner, false, COLL_UNKNOWN);
     }
 }
@@ -3013,11 +2827,11 @@ void EntityWalker::UpdatePilot()
     }
     if (mControlUse.IsPressed() || IsDisabled())
     {
-        if (mPilotType == PILOT_REMOTE)
+        if (IsRemoteVehicle())
         {
             pPilot->ExitRemote();
         }
-        else if (mPilotType == PILOT_VEHICLE || mPilotType == PILOT_VEHICLESELF)
+        else if (IsPilotable())
         {
             if (pPilot->mCharacter && pPilot->mCharacter->mRemote)
             {
@@ -3094,11 +2908,11 @@ void EntityWalker::MoveForward(float fDistance)
         float fTurnSin = mTurnOffset.mCos * 2.0f * mTurnOffset.mSin;
 
         PblMatrix mTurn(
-            PblVector4{ fTurnCos, 0.0f, -fTurnSin, 0.0f },
-            PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-            PblVector4{ fTurnSin, 0.0f, fTurnCos, 0.0f },
-            PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
-        D3DXMatrixMultiply(&mTurn, &mTurn, &mMatrix);
+            PblVector3(fTurnCos, 0.0f, -fTurnSin),
+            PblVector3(0.0f, 1.0f, 0.0f),
+            PblVector3(fTurnSin, 0.0f, fTurnCos),
+            PblVector3(0.0f, 0.0f, 0.0f));
+        mTurn *= mMatrix;
         vPos.x = (mTurn.m[2][0] * fCos - mTurn.m[1][0] * fSin) * fDistance + vPos.x;
         vPos.y = vPos.y + (mTurn.m[2][1] * fCos - mTurn.m[1][1] * fSin) * fDistance;
         vPos.z = vPos.z + (mTurn.m[2][2] * fCos - mTurn.m[1][2] * fSin) * fDistance;
@@ -3267,14 +3081,17 @@ void EntityWalker::ActivatePhysics()
     }
 }
 
+
 extern bool netIsLateTurn;
 extern PblVector3 gVectorZero;
 
 PblMatrix DirectionMatrix(const PblVector3& vDir, const PblVector3& vUp, const PblVector3& vPos);
 
-Controllable* GetControllablePilot(Controllable* pControllable);
 
-namespace SquadCommands { void VehicleCommand(GameObject* pObject, Character* pCharacter); }
+namespace SquadCommands
+{
+void VehicleCommand(GameObject* pObject, Character* pCharacter);
+}
 
 static const float ATTACK_CONTROL_DELAY = 0.1f;
 static const float ATTACK_REPEAT_DELAY = 0.3f;
@@ -3298,7 +3115,7 @@ EntityWalker::StateTableEntry EntityWalker::sStateTable[StateCount] = {
 void EntityWalker::ApplyAttackDamage(const PblVector3& vPosition, float fRadius, float fDamage, float fPush) const
 {
     PblVector3 vAttack;
-    D3DXVec3TransformCoord(&vAttack, &vPosition, &mMatrix);
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vAttack), reinterpret_cast<const D3DXVECTOR3*>(&vPosition), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
     GameObject* pObjects[10];
     const int iCount = CollisionManager::GetObjectsInRange(vAttack, fRadius, pObjects, 10, this, 0x3a);
     if (!iCount)
@@ -3309,8 +3126,8 @@ void EntityWalker::ApplyAttackDamage(const PblVector3& vPosition, float fRadius,
     DamageDesc damage(mDamageOwner, fDamage);
     PblVector3 vDir;
     PblVector3 vNormal;
-    D3DXVec3TransformNormal(&vNormal, &vPosition, &mMatrix);
-    D3DXVec3Normalize(&vDir, &vNormal);
+    D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vNormal), reinterpret_cast<const D3DXVECTOR3*>(&vPosition), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vNormal));
     for (int i = 0; i < iCount; ++i)
     {
         const PblVector3& vCenter = pObjects[i]->GetCollisionCenter();
@@ -3318,7 +3135,7 @@ void EntityWalker::ApplyAttackDamage(const PblVector3& vPosition, float fRadius,
         vDelta.x = vCenter.x - (vAttack.x - vDir.x * fRadius * 1.5f);
         vDelta.y = vCenter.y - (vAttack.y - vDir.y * fRadius * 1.5f);
         vDelta.z = vCenter.z - (vAttack.z - vDir.z * fRadius * 1.5f);
-        D3DXVec3Normalize(&vNormal, &vDelta);
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNormal), reinterpret_cast<const D3DXVECTOR3*>(&vDelta));
         if (fDamage > 0.0f)
         {
             static_cast<Damageable*>(pObjects[i])->ApplyDamage(damage, vNormal, pObjects[i]->GetCollisionCenter(),
@@ -3458,7 +3275,7 @@ void EntityWalker::CorrectJoints()
     }
 
     ZephyrTransform* pJoints = mZephyrPoseStatic.m_pJoints;
-    pJoints[0].kQuat = pJoints[0].kQuat * PblQuaternion(0.0f, mTurnOffset.mSin, 0.0f, mTurnOffset.mCos);
+    pJoints[0].kQuat = pJoints[0].kQuat * PblQuaternion(mTurnOffset.mCos, 0.0f, mTurnOffset.mSin, 0.0f);
 
     unsigned short uiRoot = (unsigned short)mZephyrSkeleton.m_pShared->GetJointIdxByCrc(0x16e27226);
     ZephyrTransform* pRoot = &pJoints[uiRoot];
@@ -3468,11 +3285,11 @@ void EntityWalker::CorrectJoints()
     }
     if (mBodyPitch != 0.0f && pRoot)
     {
-        pRoot->kQuat = pRoot->kQuat * PblQuaternion(mPitchOffset.mSin, 0.0f, 0.0f, mPitchOffset.mCos);
+        pRoot->kQuat = pRoot->kQuat * PblQuaternion(mPitchOffset.mCos, mPitchOffset.mSin, 0.0f, 0.0f);
     }
     if (mRollOffset.mCos < 1.0f && pRoot)
     {
-        pRoot->kQuat = pRoot->kQuat * PblQuaternion(0.0f, 0.0f, mRollOffset.mSin, mRollOffset.mCos);
+        pRoot->kQuat = pRoot->kQuat * PblQuaternion(mRollOffset.mCos, 0.0f, 0.0f, mRollOffset.mSin);
     }
 }
 
@@ -3488,14 +3305,14 @@ void EntityWalker::RestoreJoints()
     }
     if (mRollOffset.mCos < 1.0f && pRoot)
     {
-        pRoot->kQuat = pRoot->kQuat * PblQuaternion(0.0f, 0.0f, -mRollOffset.mSin, mRollOffset.mCos);
+        pRoot->kQuat = pRoot->kQuat * PblQuaternion(mRollOffset.mCos, 0.0f, 0.0f, -mRollOffset.mSin);
     }
     if (mBodyPitch != 0.0f && pRoot)
     {
-        pRoot->kQuat = pRoot->kQuat * PblQuaternion(-mPitchOffset.mSin, 0.0f, 0.0f, mPitchOffset.mCos);
+        pRoot->kQuat = pRoot->kQuat * PblQuaternion(mPitchOffset.mCos, -mPitchOffset.mSin, 0.0f, 0.0f);
     }
     pJoints[0].kQuat =
-        pJoints[0].kQuat * PblQuaternion(0.0f, mTurnOffset.mSin, 0.0f, mTurnOffset.mCos).Inverse();
+        pJoints[0].kQuat * PblQuaternion(mTurnOffset.mCos, 0.0f, mTurnOffset.mSin, 0.0f).Inverse();
 
     if (mBodyPitch != 0.0f)
     {
@@ -3520,7 +3337,7 @@ void EntityWalker::BuildWorldMatrices()
 {
     ApplyBlend();
     CorrectJoints();
-    mZephyrSkeleton.BuildWorldMatrices(_IdentityMatrix);
+    mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity);
     RestoreJoints();
 }
 
@@ -3568,7 +3385,7 @@ void EntityWalker::UpdateState(float fDeltaTime, float fMove, float fStrafe, flo
         Jump();
     }
 
-    EnergyBar* pEnergyBar = reinterpret_cast<EnergyBar*>(mEnergyBar);
+    EnergyBar* pEnergyBar = &mEnergyBar;
     if (m_bIsJumping)
     {
         mAttackControlTimer = 0.0f;
@@ -4203,7 +4020,7 @@ bool EntityWalker::Update(float fDeltaTime)
         if (!(NetGame::IsEnabled() && NetGame::IsClient()) && mDamageOwner.mCharacter)
         {
             AwardVehicleKillPoints(mClass->GetVehicleType(),
-                                   GetControllablePilot(this) == 0 && !IsRtti(CommandWalker::rttiHashCommandWalker));
+                                   this->GetPilot() == 0 && !IsRtti(CommandWalker::rttiHashCommandWalker));
         }
         ExplosionClass* pExplosion = mClass->mFinalExplosion;
         if (!pExplosion)
@@ -4215,7 +4032,7 @@ bool EntityWalker::Update(float fDeltaTime)
             mExplodedFinal = true;
             DamageOwner owner(mDamageOwner.mCharacter, mDamageOwner.mGameObject, mDamageOwner.mTeam, mClass, 0, 1.0f);
             PblVector3 vPos;
-            D3DXVec3TransformCoord(&vPos, &mClass->mFinalExplosionOffset, &mMatrix);
+            D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vPos), reinterpret_cast<const D3DXVECTOR3*>(&mClass->mFinalExplosionOffset), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
             pExplosion->CreateExplosion(vPos, owner, false, COLL_UNKNOWN);
         }
         if (!(NetGame::IsEnabled() && NetGame::IsClient()))
@@ -4350,7 +4167,7 @@ bool EntityWalker::PostCollisionUpdate(float fDeltaTime)
         PblVector3 vStart(mMatrix.m[3][0] + 0.0f, mMatrix.m[3][1] + fHeight, mMatrix.m[3][2] + 0.0f);
         PblVector3 vFlat(mMatrix.m[2][0], 0.0f, mMatrix.m[2][2]);
         PblVector3 vFront;
-        D3DXVec3Normalize(&vFront, &vFlat);
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vFront), reinterpret_cast<const D3DXVECTOR3*>(&vFlat));
         PblVector3 vSide(-vFront.z, 0.0f, vFront.x);
         float fLength = fHeight;
         if (mLegPairCount > 1)
@@ -4400,7 +4217,7 @@ bool EntityWalker::PostCollisionUpdate(float fDeltaTime)
     }
     UpdateDone();
     CorrectJoints();
-    mZephyrSkeleton.BuildWorldMatrices(_IdentityMatrix);
+    mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity);
     RestoreJoints();
 
     float fSinPitch;
@@ -4411,7 +4228,7 @@ bool EntityWalker::PostCollisionUpdate(float fDeltaTime)
     PblMath::SinCos(&fSinYaw, &fCosYaw, mYawValue);
     PblVector3 vLocal(fSinYaw * fCosPitch, fSinPitch, fCosYaw * fCosPitch);
     PblVector3 vEyeDir;
-    D3DXVec3TransformNormal(&vEyeDir, &vLocal, &mMatrix);
+    D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vEyeDir), reinterpret_cast<const D3DXVECTOR3*>(&vLocal), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
     mEyeDir = vEyeDir;
     mEyePoint = mClass->mCameraSettings.CalcEyePoint(mMatrix);
 
@@ -4437,13 +4254,7 @@ bool EntityWalker::PostCollisionUpdate(float fDeltaTime)
             qTilt._fS = fCos;
             PblQuaternion qCamera = qLook * qTilt;
 
-            PblQuaternion qUnit;
-            PblMatrix mCamera;
-            D3DXMatrixRotationQuaternion(&mCamera, D3DXQuaternionNormalize(&qUnit, &qCamera));
-            mCamera.m[3][0] = gVectorZero.x;
-            mCamera.m[3][1] = gVectorZero.y;
-            mCamera.m[3][2] = gVectorZero.z;
-            mCamera.m[3][3] = 1.0f;
+            PblMatrix mCamera(qCamera, gVectorZero);
 
             mTargetInfo.mAimStart = mClass->mCameraSettings.CalcCameraPoint(mMatrix, mCamera);
             float fAlong = mEyeDir.y * (mEyePoint.y - mTargetInfo.mAimStart.y) +
@@ -4557,11 +4368,11 @@ bool EntityWalker::PostCollisionUpdate(float fDeltaTime)
         GameObject* pSoldier = mPilot->GetGameObject();
         PblMatrix mInverse = GetMatrix().GetInverseFast();
         PblMatrix mSeat;
-        D3DXMatrixMultiply(&mSeat, &pSoldier->GetMatrix(), &mInverse);
+        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mSeat), reinterpret_cast<const D3DXMATRIX*>(&pSoldier->GetMatrix()), reinterpret_cast<const D3DXMATRIX*>(&mInverse));
         PblMatrix mLocal = mSeat;
         PblMatrix mSmoothed = GetSmoothedMatrix();
         PblMatrix mRender;
-        D3DXMatrixMultiply(&mRender, &mLocal, &mSmoothed);
+        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mRender), reinterpret_cast<const D3DXMATRIX*>(&mLocal), reinterpret_cast<const D3DXMATRIX*>(&mSmoothed));
         pSoldier->SetRenderPos(mRender.GetTranslation());
     }
     return true;
@@ -4582,7 +4393,7 @@ bool EntityWalker::ApplyDamage(const DamageDesc& damage, const PblVector3& vDir,
         {
             PblMatrix mInverse = mMatrix.GetInverseFast();
             PblVector3 vLocal;
-            D3DXVec3TransformNormal(&vLocal, &vDir, &mInverse);
+            D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vLocal), reinterpret_cast<const D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXMATRIX*>(&mInverse));
             StatusDisplay::Instance(iJoystick)->SetDamageDirection(vLocal);
         }
     }
@@ -4629,7 +4440,7 @@ bool EntityWalker::UpdateIndirect(float fDeltaTime)
         PblVector3 vToDest(dest.mPos.x - GetMatrix().m[3][0], dest.mPos.y - GetMatrix().m[3][1],
                            dest.mPos.z - GetMatrix().m[3][2]);
         PblVector3 vDir;
-        D3DXVec3Normalize(&vDir, &vToDest);
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vToDest));
         if (mMe.m[2][1] * vDir.y + vDir.x * mMe.m[2][0] + mMe.m[2][2] * vDir.z > 0.8660254f)
         {
             float fStrafe = mControlStrafe;
@@ -4818,7 +4629,7 @@ void EntityWalker::SetupCameraTrackMatrix(PblMatrix& rMatrix, float fDeltaTime)
     PblMath::SinCos(&fSinYaw, &fCosYaw, mYawValue);
     PblVector3 vLocal(fSinYaw * fCosPitch, fSinPitch, fCosYaw * fCosPitch);
     PblVector3 vAim;
-    D3DXVec3TransformNormal(&vAim, &vLocal, &matrix);
+    D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vAim), reinterpret_cast<const D3DXVECTOR3*>(&vLocal), reinterpret_cast<const D3DXMATRIX*>(&matrix));
     PblVector3 vEye = mClass->mCameraSettings.CalcEyePoint(matrix);
 
     const PblMatrix* pJoint = mPose.Find(mClass->mFPPoseHash);
@@ -4844,43 +4655,44 @@ void EntityWalker::SetupCameraTrackMatrix(PblMatrix& rMatrix, float fDeltaTime)
 }
 
 // SYNTHETIC: SWBF2 0x004803ce
-// [thunk]:EntityWalker::GetGameObject`adjustor{12}'
+// ?GetGameObject@EntityWalker@@WM@BEPBVGameObject@@XZ
 // SYNTHETIC: SWBF2 0x004803ec
-// [thunk]:EntityWalker::GetControllable`adjustor{600}'
+// ?GetControllable@EntityWalker@@WCFI@AEPAVControllable@@XZ
 // SYNTHETIC: SWBF2 0x004803f7
-// [thunk]:EntityWalker::GetControllable`adjustor{600}'
+// ?GetControllable@EntityWalker@@WCFI@BEPBVControllable@@XZ
 // SYNTHETIC: SWBF2 0x00480402
-// [thunk]:CommandWalker::`scalar deleting destructor'`adjustor{148}'
+// ??_ECommandWalker@@WJE@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00480418
-// [thunk]:CommandWalker::Kill`adjustor{256}'
+// ?Kill@CommandWalker@@WBAA@AEXXZ
 // SYNTHETIC: SWBF2 0x00480423
-// [thunk]:CommandWalkerClass::`scalar deleting destructor'`adjustor{3536}'
+// ??_ECommandWalkerClass@@WNNA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x0048042e
-// [thunk]:CommandWalker::`scalar deleting destructor'`adjustor{320}'
+// ??_ECommandWalker@@WBEA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00480439
-// [thunk]:CommandWalker::`scalar deleting destructor'`adjustor{600}'
+// ??_ECommandWalker@@WCFI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00480444
-// [thunk]:CommandWalker::`scalar deleting destructor'`adjustor{12}'
+// ??_ECommandWalker@@WM@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00480454
-// [thunk]:EntityWalker::GetEntity`adjustor{12}'
+// ?GetEntity@EntityWalker@@WM@BEPBVEntity@@XZ
 // SYNTHETIC: SWBF2 0x0048045c
-// [thunk]:CommandWalker::`scalar deleting destructor'`adjustor{512}'
+// ??_ECommandWalker@@WCAA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00480472
-// [thunk]:EntityWalker::GetGameObject`adjustor{320}'
+// ?GetGameObject@EntityWalker@@WBEA@BEPBVGameObject@@XZ
 // SYNTHETIC: SWBF2 0x0050afda
-// [thunk]:EntityWalker::Kill`adjustor{256}'
+// ?Kill@EntityWalker@@WBAA@AEXXZ
 // SYNTHETIC: SWBF2 0x0050afe5
-// [thunk]:EntityWalker::`scalar deleting destructor'`adjustor{320}'
+// ??_EEntityWalker@@WBEA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x0050aff0
-// [thunk]:EntityWalker::`scalar deleting destructor'`adjustor{600}'
+// ??_EEntityWalker@@WCFI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x0050affb
-// [thunk]:EntityWalker::`scalar deleting destructor'`adjustor{12}'
+// ??_EEntityWalker@@WM@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x0050b003
-// [thunk]:EntityWalker::`scalar deleting destructor'`adjustor{512}'
+// ??_EEntityWalker@@WCAA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x0050b019
-// [thunk]:EntityWalker::`scalar deleting destructor'`adjustor{148}'
+// ??_EEntityWalker@@WJE@AEPAXI@Z
 
 // GLOBAL: SWBF2 0x01e51e13
+// g_bWalkerShowDamage
 bool g_bWalkerShowDamage;
 
 // SYNTHETIC: SWBF2 0x00402f00

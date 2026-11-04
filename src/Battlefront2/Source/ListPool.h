@@ -1,5 +1,5 @@
 #pragma once
-
+#include <new>
 template <class TYPE, class INDEX>
 class ListPool
 {

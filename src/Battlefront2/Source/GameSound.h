@@ -50,7 +50,9 @@ public:
     static GameSound** sDeferredSounds;
     static unsigned int sNumDeferredSounds;
 
-    char* mSoundDescription;
+private:
+
+    const void* mProps;
     unsigned char mType;
 };
  

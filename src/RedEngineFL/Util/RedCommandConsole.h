@@ -64,7 +64,7 @@ public:
         __int64* m_pVar_INT64;
         float* m_pVar_FLOAT32;
 
-        float* m_pVar_FLOAT64;
+        double* m_pVar_FLOAT64;
 
         int (__cdecl* m_pVar_CONSOLE_FUNCTION)(RedConsole*, unsigned int, char const*);
     };

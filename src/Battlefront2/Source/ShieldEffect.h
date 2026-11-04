@@ -11,6 +11,7 @@ class pcRedPrimitive;
 class pcShieldShader;
 class PblBox;
 
+// VTABLE: SWBF2 0x007ae588
 class ShieldEffectClass : public FLEffectClass
 {
     friend class ShieldEffectManager;
@@ -59,8 +60,9 @@ private:
  
  
 
-// VTABLE: SWBF2 0x007ae594
+// VTABLE: SWBF2 0x007ae594 Thread
 // VTABLE: SWBF2 0x007ae520
+// VTABLE: SWBF2 0x007ae5f8 PblHandled
 class ShieldEffect : public FLEffectObject, public RedSceneObject
 {
      
@@ -71,7 +73,9 @@ public:
     ShieldEffect(const ShieldEffectClass* pClass);
     virtual ~ShieldEffect();
 
-    static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
+    static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }
+    // SYNTHETIC: SWBF2 0x00636540
+    // ShieldEffect::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
     virtual bool IsEffectActive() const;

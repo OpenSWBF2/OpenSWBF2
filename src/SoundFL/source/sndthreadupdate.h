@@ -2,6 +2,7 @@
 
 #include "win/sndsemaphore.h"
 #include "win/sndthread.h"
+#include "PebbleFL/Common/PblListSingle.h"
 
 namespace Snd
 {
@@ -10,11 +11,7 @@ class ThreadUpdate
 {
 public:
 
-    struct Node
-    {
-        Node* mNext;
-    };
-
+    // VTABLE: SWBF2 0x007867b4
     class Object
     {
     public:
@@ -25,7 +22,7 @@ public:
 
         ThreadUpdate* GetThreadUpdate() const;
 
-        Node mNode;
+        PblListSingle::Node mNode;
         ThreadUpdate* mUpdate;
         unsigned char mDestructing;
     };
@@ -48,12 +45,12 @@ private:
 
 public:
     Thread mThread;
-    Node mUpdateList;
+    PblListSingle mUpdateList;
     Semaphore mAccess;
     unsigned int mSleepTime;
     bool mUpdating;
-    bool mStopUpdating;
-    bool mPausing;
+    volatile bool mStopUpdating;
+    volatile bool mPausing;
     void(__cdecl* mCompleteCallback)(ThreadUpdate*, void*);
     void* mCompleteCallbackData;
 };

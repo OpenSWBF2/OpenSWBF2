@@ -1,4 +1,5 @@
 #pragma once
+#include "NetGame.h"
 
 #include "PebbleFL/Common/PblIndex.h"
 
@@ -7,7 +8,22 @@ namespace GameLoop
 
     void Update(float fDeltaTime, float fSystemDeltaTime);
 
-    bool IsQuitRequested();
+    extern bool sQuitRequested;
+    extern unsigned int sQuitTurn;
+
+    // FUNCTION: SWBF2 0x005aecc0
+    inline bool IsQuitRequested()
+    {
+        if (!GameLoop::sQuitRequested)
+        {
+            return false;
+        }
+        if (NetGame::GetTurnNumber() == 0)
+        {
+            return true;
+        }
+        return NetGame::GetTurnNumber() >= GameLoop::sQuitTurn;
+    }
 
 extern char mMissionScript[64];
 
@@ -90,7 +106,10 @@ inline void SetShowTeamPoints(int iTeam, bool bShow)
 
 }
 
-namespace GameLoop { extern float sDeltaTime; }
+namespace GameLoop
+{
+extern float sDeltaTime;
+}
 
 namespace GameLoop
 {
@@ -99,4 +118,7 @@ namespace GameLoop
 inline float GetDeltaTime() { return GameLoop::sDeltaTime; }
 }
 
-namespace GameLoop { void SetCanSwitchSides(bool bFlag); }
+namespace GameLoop
+{
+void SetCanSwitchSides(bool bFlag);
+}

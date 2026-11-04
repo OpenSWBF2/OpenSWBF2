@@ -18,13 +18,9 @@ public:
 
     ~ObjectWeight()
     {
-        if (mNode.mNext)
-        {
-            mNode.Remove();
-        }
     }
 
-    static void* operator new(size_t)
+    static void* operator new(unsigned int)
     {
         return smFreeList.Alloc();
     }

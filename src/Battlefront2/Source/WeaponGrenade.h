@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "Weapon.h"
@@ -18,9 +20,9 @@ public:
 
     virtual WeaponClass* Derive(unsigned int uHash);
     virtual Weapon* Build(const WeaponDesc& desc);
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
     virtual bool PostLoadInit();
 
@@ -33,7 +35,7 @@ public:
     PblVector3 m_avFireOffset[3];
 
     static PblHash rttiHashWeaponGrenadeClass;
-    static char rttiNameWeaponGrenadeClass[];
+    static const char rttiNameWeaponGrenadeClass[];
 };
   
  
@@ -77,7 +79,7 @@ protected:
 public:
 
     static PblHash rttiHashWeaponGrenade;
-    static char rttiNameWeaponGrenade[];
+    static const char rttiNameWeaponGrenade[];
 
     bool mNetFiredFlag;
     bool mFired;
@@ -96,3 +98,47 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x00684f90
+inline bool WeaponGrenadeClass::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashWeaponGrenadeClass == uRtti)
+    {
+        return true;
+    }
+    return WeaponClass::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x00684fc0
+inline unsigned int WeaponGrenadeClass::GetDerivedRtti() const
+{
+    return rttiHashWeaponGrenadeClass;
+}
+
+// FUNCTION: SWBF2 0x00684fd0
+inline const char* WeaponGrenadeClass::GetDerivedRttiName() const
+{
+    return rttiNameWeaponGrenadeClass;
+}
+
+// FUNCTION: SWBF2 0x00684f40
+inline bool WeaponGrenade::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashWeaponGrenade == uRtti)
+    {
+        return true;
+    }
+    return reinterpret_cast<const Weapon*>(this)->Weapon::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x00684f70
+inline unsigned int WeaponGrenade::GetDerivedRtti() const
+{
+    return rttiHashWeaponGrenade;
+}
+
+// FUNCTION: SWBF2 0x00684f80
+inline const char* WeaponGrenade::GetDerivedRttiName() const
+{
+    return rttiNameWeaponGrenade;
+}

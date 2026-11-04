@@ -7,6 +7,7 @@
 namespace util
 {
 
+// VTABLE: SWBF2 0x00783958
 class DummyNonAllocator : public IAllocator
 {
 public:
@@ -14,6 +15,7 @@ public:
     virtual void Deallocate(Buffer& rBuf);
 };
 
+// VTABLE: SWBF2 0x00783978
 class ListAllocator : public IAllocator
 {
 public:
@@ -29,40 +31,7 @@ protected:
     ListAllocator() {}
 };
 
-class ListAllocatorImpl : public ListAllocator
-{
-public:
-    ListAllocatorImpl(unsigned int uBaseMem, unsigned int uMaxMem);
-    virtual ~ListAllocatorImpl();
 
-    PBL_ASAN_NO_SANITIZE virtual void Allocate(Buffer& rBuf);
-    PBL_ASAN_NO_SANITIZE virtual void Deallocate(Buffer& rBuf);
-    virtual void SetMaxMem(int iMax);
-    virtual void UnitTest_();
-
-    PBL_ASAN_NO_SANITIZE DLNode<Buffer>* Convert_(Buffer& rBuf)
-    {
-        DLNode<Buffer>* pNode = (DLNode<Buffer>*)rBuf.data_ - 1;
-        rBuf = pNode->elem_;
-        return pNode;
-    }
-
-    DLNode<Buffer>* ExternalAlloc_(unsigned int uSize);
-    PBL_ASAN_NO_SANITIZE DLNode<Buffer>* FindFreeBlock(const Buffer& rBuf);
-    PBL_ASAN_NO_SANITIZE bool MergeBlocks_(DLNode<Buffer>* pFirst, DLNode<Buffer>* pSecond);
-
-    VNewAllocator valloc_;
-    DummyNonAllocator dalloc_;
-    IAllocator* baseAlloc_;
-    int pageSize_;
-    int roundsize_;
-    unsigned int basemem_;
-    unsigned int usedmem_;
-    unsigned int maxmem_;
-    int freemem_;
-    List<Buffer, DLNode<Buffer> > freelist_;
-    Vector<Buffer> pages_;
-};
 
  
  

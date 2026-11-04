@@ -85,63 +85,87 @@ void Cleanup();
 }
 }
 
-namespace EventManager {
-namespace CommandPostEvent {
+namespace EventManager
+{
+namespace CommandPostEvent
+{
 extern Event<CommandPost, DamageOwner> mKill;
 }
 }
-namespace EventManager {
-namespace CommandPostEvent {
+namespace EventManager
+{
+namespace CommandPostEvent
+{
 extern Event<CommandPost, char> mRespawn;
 }
 }
-namespace EventManager {
-namespace ControllableEvent {
+namespace EventManager
+{
+namespace ControllableEvent
+{
 extern Event<Controllable, int> mTeamChange;
 }
 }
-namespace EventManager {
-namespace ObjectEvent {
+namespace EventManager
+{
+namespace ObjectEvent
+{
 extern Event<GameObject, char> mCreate;
 }
 }
-namespace EventManager {
-namespace ObjectEvent {
+namespace EventManager
+{
+namespace ObjectEvent
+{
 extern Event<GameObject, char> mInit;
 }
 }
-namespace EventManager {
-namespace ObjectEvent {
+namespace EventManager
+{
+namespace ObjectEvent
+{
 extern Event<GameObject, DamageOwner> mDamage;
 }
 }
-namespace EventManager {
-namespace ObjectEvent {
+namespace EventManager
+{
+namespace ObjectEvent
+{
 extern Event<GameObject, DamageOwner> mRepair;
 }
 }
-namespace EventManager {
-namespace ObjectEvent {
+namespace EventManager
+{
+namespace ObjectEvent
+{
 extern Event<GameObject, DamageOwner> mHack;
 }
 }
-namespace EventManager {
-namespace ObjectEvent {
+namespace EventManager
+{
+namespace ObjectEvent
+{
 extern Event<GameObject, DamageOwner> mHeadshot;
 }
 }
-namespace EventManager {
-namespace ObjectEvent {
+namespace EventManager
+{
+namespace ObjectEvent
+{
 extern Event<GameObject, char> mDelete;
 }
 }
-namespace EventManager {
-namespace ObjectEvent {
+namespace EventManager
+{
+namespace ObjectEvent
+{
 extern Event<GameObject, float> mHealthChange;
 }
 }
-namespace EventManager {
-namespace ObjectEvent {
+namespace EventManager
+{
+namespace ObjectEvent
+{
 extern Event<GameObject, float> mShieldChange;
 }
 }
@@ -172,29 +196,9 @@ bool LuaPushItem<DamageOwner>(DamageOwner& owner)
     return true;
 }
 
-template <class PARAM>
-const char* ObjectMatches<PARAM>::GetName()
-{
-    return "Match";
-}
 
-template <class PARAM>
-const char* ObjectMatchesName<PARAM>::GetName()
-{
-    return "Name";
-}
 
-template <class PARAM>
-const char* ObjectMatchesTeam<PARAM>::GetName()
-{
-    return "Team";
-}
 
-template <class PARAM>
-const char* ObjectMatchesClass<PARAM>::GetName()
-{
-    return "Class";
-}
 
 template <class ITEM, class PARAM>
 LuaCallback<ITEM, PARAM>::LuaCallback(int iRef)
@@ -206,14 +210,7 @@ LuaCallback<ITEM, PARAM>::LuaCallback(int iRef)
     }
 }
 
-template <class ITEM, class PARAM>
-LuaCallback<ITEM, PARAM>::~LuaCallback()
-{
-    if (mFunction != -1)
-    {
-        lua_unref(LuaHelper::mState, mFunction);
-    }
-}
+
 
 template <class ITEM, class PARAM>
 bool LuaCallback<ITEM, PARAM>::operator()(ITEM& item, PARAM& param)
@@ -236,26 +233,6 @@ bool LuaCallback<ITEM, PARAM>::operator()(ITEM& item, PARAM& param)
     }
 
     LuaHelper::CallProc(0);
-    return true;
-}
-
-template <class ITEM, class PARAM>
-template <class PREDICATE>
-const char* Event<ITEM, PARAM>::Filter<PREDICATE>::GetName()
-{
-    return PREDICATE::GetName();
-}
-
-template <class ITEM, class PARAM>
-template <class PREDICATE>
-bool Event<ITEM, PARAM>::Filter<PREDICATE>::operator()(ITEM& item, PARAM& param)
-{
-    return mPredicate(item, param);
-}
-
-template <class ITEM, class PARAM>
-bool Event<ITEM, PARAM>::Callback::operator()(ITEM&, PARAM&)
-{
     return true;
 }
 
@@ -463,7 +440,8 @@ template class Event<GameObject, float>::Filter<ObjectMatchesClass<float> >;
 
 }
 
-namespace EventManager {
+namespace EventManager
+{
 
 // FUNCTION: SWBF2 0x00514ec0
 void ObjectEvent::Cleanup()
@@ -483,21 +461,27 @@ void ObjectEvent::Cleanup()
 }
 }
 
-namespace EventManager {
+namespace EventManager
+{
 
-// FUNCTION: SWBF2 0x00514fb0
+// TEMPLATE: SWBF2 0x00514fb0
+// EventManager::Event<GameObject,DamageOwner>::Callback::~Callback
 template Event<GameObject, DamageOwner>::Callback::~Callback();
 }
 
-namespace EventManager {
+namespace EventManager
+{
 
-// FUNCTION: SWBF2 0x00515020
+// TEMPLATE: SWBF2 0x00515020
+// EventManager::Event<GameObject,int>::Callback::~Callback
 template Event<GameObject, int>::Callback::~Callback();
 }
 
-namespace EventManager {
+namespace EventManager
+{
 
-// FUNCTION: SWBF2 0x00515090
+// TEMPLATE: SWBF2 0x00515090
+// EventManager::Event<GameObject,float>::Callback::~Callback
 template Event<GameObject, float>::Callback::~Callback();
 }
 
@@ -505,7 +489,10 @@ namespace EventManager
 {
 
 int DummyLuaCallback(lua_State* L);
-namespace ObjectEvent { void Init(); }
+namespace ObjectEvent
+{
+void Init();
+}
 namespace ObjectEvent
 {
 extern Event<GameObject, DamageOwner> mRepair;
@@ -515,184 +502,140 @@ extern Event<GameObject, char> mDelete;
 extern Event<GameObject, int> mTeamChange;
 }
 
-template <class PARAM>
-static ObjectMatches<PARAM>* ReadObject(ObjectMatches<PARAM>* pMatch)
-{
-    if (lua_type(LuaHelper::mState, 2) == LUA_TLIGHTUSERDATA)
-    {
-        pMatch->mObject = (EntityEx*)lua_topointer(LuaHelper::mState, 2);
-    }
-    else
-    {
-        pMatch->mObject = EntityEx::mIdMap.Find(PblHash(luaL_checklstring(LuaHelper::mState, 2, 0)));
-    }
-    return pMatch;
-}
 
-template <class PARAM>
-static ObjectMatchesName<PARAM>* ReadObjectName(ObjectMatchesName<PARAM>* pMatch)
-{
-    pMatch->mName = PblHash(luaL_checklstring(LuaHelper::mState, 2, 0));
-    return pMatch;
-}
 
-template <class PARAM>
-static ObjectMatchesClass<PARAM>* ReadObjectClass(ObjectMatchesClass<PARAM>* pMatch)
-{
-    unsigned int uiHash = PblHash(luaL_checklstring(LuaHelper::mState, 2, 0));
-    pMatch->mClass = Factory<Entity, EntityClass, EntityDesc>::Find(uiHash);
-    return pMatch;
-}
 
-template <class MATCH>
-static MATCH* ReadNumber(MATCH* pMatch)
-{
-    pMatch->mTeam = (unsigned int)luaL_checknumber(LuaHelper::mState, 2);
-    return pMatch;
-}
+
+
+
+
 
 // FUNCTION: SWBF2 0x00514780
 template <>
 ObjectMatches<char> LuaGetItem<ObjectMatches<char> >(int)
 {
-    ObjectMatches<char> match;
-    ReadObject(&match);
-    return match;
+    if (lua_type(LuaHelper::mState, 2) == LUA_TLIGHTUSERDATA)
+    {
+        return ObjectMatches<char>((GameObject*)lua_topointer(LuaHelper::mState, 2));
+    }
+    return ObjectMatches<char>(luaL_checklstring(LuaHelper::mState, 2, 0));
 }
 
 // FUNCTION: SWBF2 0x005147f0
 template <>
 ObjectMatches<DamageOwner> LuaGetItem<ObjectMatches<DamageOwner> >(int)
 {
-    ObjectMatches<DamageOwner> match;
-    ReadObject(&match);
-    return match;
+    if (lua_type(LuaHelper::mState, 2) == LUA_TLIGHTUSERDATA)
+    {
+        return ObjectMatches<DamageOwner>((GameObject*)lua_topointer(LuaHelper::mState, 2));
+    }
+    return ObjectMatches<DamageOwner>(luaL_checklstring(LuaHelper::mState, 2, 0));
 }
 
 // FUNCTION: SWBF2 0x00514860
 template <>
 ObjectMatches<int> LuaGetItem<ObjectMatches<int> >(int)
 {
-    ObjectMatches<int> match;
-    ReadObject(&match);
-    return match;
+    if (lua_type(LuaHelper::mState, 2) == LUA_TLIGHTUSERDATA)
+    {
+        return ObjectMatches<int>((GameObject*)lua_topointer(LuaHelper::mState, 2));
+    }
+    return ObjectMatches<int>(luaL_checklstring(LuaHelper::mState, 2, 0));
 }
 
 // FUNCTION: SWBF2 0x005148d0
 template <>
 ObjectMatches<float> LuaGetItem<ObjectMatches<float> >(int)
 {
-    ObjectMatches<float> match;
-    ReadObject(&match);
-    return match;
+    if (lua_type(LuaHelper::mState, 2) == LUA_TLIGHTUSERDATA)
+    {
+        return ObjectMatches<float>((GameObject*)lua_topointer(LuaHelper::mState, 2));
+    }
+    return ObjectMatches<float>(luaL_checklstring(LuaHelper::mState, 2, 0));
 }
 
 // FUNCTION: SWBF2 0x00514940
 template <>
 ObjectMatchesName<char> LuaGetItem<ObjectMatchesName<char> >(int)
 {
-    ObjectMatchesName<char> match;
-    ReadObjectName(&match);
-    return match;
+    return ObjectMatchesName<char>(luaL_checklstring(LuaHelper::mState, 2, 0));
 }
 
 // FUNCTION: SWBF2 0x00514970
 template <>
 ObjectMatchesName<DamageOwner> LuaGetItem<ObjectMatchesName<DamageOwner> >(int)
 {
-    ObjectMatchesName<DamageOwner> match;
-    ReadObjectName(&match);
-    return match;
+    return ObjectMatchesName<DamageOwner>(luaL_checklstring(LuaHelper::mState, 2, 0));
 }
 
 // FUNCTION: SWBF2 0x005149a0
 template <>
 ObjectMatchesName<int> LuaGetItem<ObjectMatchesName<int> >(int)
 {
-    ObjectMatchesName<int> match;
-    ReadObjectName(&match);
-    return match;
+    return ObjectMatchesName<int>(luaL_checklstring(LuaHelper::mState, 2, 0));
 }
 
 // FUNCTION: SWBF2 0x005149d0
 template <>
 ObjectMatchesName<float> LuaGetItem<ObjectMatchesName<float> >(int)
 {
-    ObjectMatchesName<float> match;
-    ReadObjectName(&match);
-    return match;
+    return ObjectMatchesName<float>(luaL_checklstring(LuaHelper::mState, 2, 0));
 }
 
 // FUNCTION: SWBF2 0x00514a00
 template <>
 ObjectMatchesTeam<char> LuaGetItem<ObjectMatchesTeam<char> >(int)
 {
-    ObjectMatchesTeam<char> match(0);
-    ReadNumber(&match);
-    return match;
+    return ObjectMatchesTeam<char>((int)luaL_checknumber(LuaHelper::mState, 2));
 }
 
 // FUNCTION: SWBF2 0x00514a20
 template <>
 ObjectMatchesTeam<DamageOwner> LuaGetItem<ObjectMatchesTeam<DamageOwner> >(int)
 {
-    ObjectMatchesTeam<DamageOwner> match(0);
-    ReadNumber(&match);
-    return match;
+    return ObjectMatchesTeam<DamageOwner>((int)luaL_checknumber(LuaHelper::mState, 2));
 }
 
 // FUNCTION: SWBF2 0x00514a40
 template <>
 ObjectMatchesTeam<int> LuaGetItem<ObjectMatchesTeam<int> >(int)
 {
-    ObjectMatchesTeam<int> match(0);
-    ReadNumber(&match);
-    return match;
+    return ObjectMatchesTeam<int>((int)luaL_checknumber(LuaHelper::mState, 2));
 }
 
 // FUNCTION: SWBF2 0x00514a60
 template <>
 ObjectMatchesTeam<float> LuaGetItem<ObjectMatchesTeam<float> >(int)
 {
-    ObjectMatchesTeam<float> match(0);
-    ReadNumber(&match);
-    return match;
+    return ObjectMatchesTeam<float>((int)luaL_checknumber(LuaHelper::mState, 2));
 }
 
 // FUNCTION: SWBF2 0x00514a80
 template <>
 ObjectMatchesClass<char> LuaGetItem<ObjectMatchesClass<char> >(int)
 {
-    ObjectMatchesClass<char> match;
-    ReadObjectClass(&match);
-    return match;
+    return ObjectMatchesClass<char>(luaL_checklstring(LuaHelper::mState, 2, 0));
 }
 
 // FUNCTION: SWBF2 0x00514ae0
 template <>
 ObjectMatchesClass<DamageOwner> LuaGetItem<ObjectMatchesClass<DamageOwner> >(int)
 {
-    ObjectMatchesClass<DamageOwner> match;
-    ReadObjectClass(&match);
-    return match;
+    return ObjectMatchesClass<DamageOwner>(luaL_checklstring(LuaHelper::mState, 2, 0));
 }
 
 // FUNCTION: SWBF2 0x00514b40
 template <>
 ObjectMatchesClass<int> LuaGetItem<ObjectMatchesClass<int> >(int)
 {
-    ObjectMatchesClass<int> match;
-    ReadObjectClass(&match);
-    return match;
+    return ObjectMatchesClass<int>(luaL_checklstring(LuaHelper::mState, 2, 0));
 }
 
 // FUNCTION: SWBF2 0x00514ba0
 template <>
 ObjectMatchesClass<float> LuaGetItem<ObjectMatchesClass<float> >(int)
 {
-    ObjectMatchesClass<float> match;
-    ReadObjectClass(&match);
-    return match;
+    return ObjectMatchesClass<float>(luaL_checklstring(LuaHelper::mState, 2, 0));
 }
 
 template <class ITEM, class PARAM>
@@ -756,48 +699,8 @@ int RegisterLuaCallback(lua_State*)
     return 1;
 }
 
-template <class ITEM, class PARAM>
-void Event<ITEM, PARAM>::Unregister(Callback& callback)
-{
-    Node* pParent = callback.mParent;
-    callback.DetachFromParent();
-    while (pParent && pParent->mParent && !pParent->mChild)
-    {
-        Node* pNext = pParent->mParent;
-        pParent->DetachFromParent();
-        pParent = pNext;
-    }
-}
 
-template <class ITEM, class PARAM>
-template <class PREDICATE>
-Event<ITEM, PARAM>::Filter<PREDICATE>::Filter(PREDICATE& predicate)
-    : mPredicate(predicate)
-{
-}
 
-template <class ITEM, class PARAM>
-template <class PREDICATE>
-auto Event<ITEM, PARAM>::GetFilter(PREDICATE& predicate, Callback* pParent)
-    -> Filter<PREDICATE>*
-{
-    if (!pParent)
-    {
-        pParent = &mRoot;
-    }
-    for (Node* pNode = pParent->mChild; pNode; pNode = pNode->mSibling)
-    {
-        if (pNode->GetName() == PREDICATE::GetName() &&
-            ((Filter<PREDICATE>*)pNode)->mPredicate == predicate)
-        {
-            pNode->AddRef();
-            return (Filter<PREDICATE>*)pNode;
-        }
-    }
-    Filter<PREDICATE>* pFilter = new Filter<PREDICATE>(predicate);
-    pFilter->AttachToParent(pParent);
-    return pFilter;
-}
 
 template <class ITEM, class PARAM>
 void RegisterUnregisterLuaCallback(Event<ITEM, PARAM>& event, lua_CFunction pfnClient)
@@ -1072,43 +975,43 @@ Event<GameObject, float>::GetFilter(ObjectMatchesClass<float>&, Callback*);
 // EventManager::RegisterRegisterLuaCallback<GameObject,float,EventManager::ObjectMatchesClass<float> >
 
 // TEMPLATE: SWBF2 0x005152c0
-// EventManager::UnregisterLuaCallback<classGameObject,char>
+// EventManager::UnregisterLuaCallback<GameObject,char>
 
 // TEMPLATE: SWBF2 0x00516860
-// EventManager::UnregisterLuaCallback<classGameObject,int>
+// EventManager::UnregisterLuaCallback<GameObject,int>
 
 // TEMPLATE: SWBF2 0x005169d0
-// EventManager::RegisterLuaCallback<classGameObject,int>
+// EventManager::RegisterLuaCallback<GameObject,int>
 
 // TEMPLATE: SWBF2 0x00516b80
-// EventManager::RegisterLuaCallback<classGameObject,int,classEventManager::ObjectMatches<int>>
+// EventManager::RegisterLuaCallback<GameObject,int,EventManager::ObjectMatches<int> >
 
 // TEMPLATE: SWBF2 0x00516d90
-// EventManager::RegisterLuaCallback<classGameObject,int,classEventManager::ObjectMatchesName<int>>
+// EventManager::RegisterLuaCallback<GameObject,int,EventManager::ObjectMatchesName<int> >
 
 // TEMPLATE: SWBF2 0x00516fc0
-// EventManager::RegisterLuaCallback<classGameObject,int,classEventManager::ObjectMatchesTeam<int>>
+// EventManager::RegisterLuaCallback<GameObject,int,EventManager::ObjectMatchesTeam<int> >
 
 // TEMPLATE: SWBF2 0x005171d0
-// EventManager::RegisterLuaCallback<classGameObject,int,classEventManager::ObjectMatchesClass<int>>
+// EventManager::RegisterLuaCallback<GameObject,int,EventManager::ObjectMatchesClass<int> >
 
 // TEMPLATE: SWBF2 0x00517350
-// EventManager::UnregisterLuaCallback<classGameObject,float>
+// EventManager::UnregisterLuaCallback<GameObject,float>
 
 // TEMPLATE: SWBF2 0x005174c0
-// EventManager::RegisterLuaCallback<classGameObject,float>
+// EventManager::RegisterLuaCallback<GameObject,float>
 
 // TEMPLATE: SWBF2 0x00517670
-// EventManager::RegisterLuaCallback<classGameObject,float,classEventManager::ObjectMatches<float>>
+// EventManager::RegisterLuaCallback<GameObject,float,EventManager::ObjectMatches<float> >
 
 // TEMPLATE: SWBF2 0x00517880
-// EventManager::RegisterLuaCallback<classGameObject,float,classEventManager::ObjectMatchesName<float>>
+// EventManager::RegisterLuaCallback<GameObject,float,EventManager::ObjectMatchesName<float> >
 
 // TEMPLATE: SWBF2 0x00517a90
-// EventManager::RegisterLuaCallback<classGameObject,float,classEventManager::ObjectMatchesTeam<float>>
+// EventManager::RegisterLuaCallback<GameObject,float,EventManager::ObjectMatchesTeam<float> >
 
 // TEMPLATE: SWBF2 0x00517ca0
-// EventManager::RegisterLuaCallback<classGameObject,float,classEventManager::ObjectMatchesClass<float>>
+// EventManager::RegisterLuaCallback<GameObject,float,EventManager::ObjectMatchesClass<float> >
 
 // TEMPLATE: SWBF2 0x00517e20
 // EventManager::Event<GameObject,char>::Unregister
@@ -1162,16 +1065,16 @@ Event<GameObject, float>::GetFilter(ObjectMatchesClass<float>&, Callback*);
 // EventManager::RegisterLuaCallback<GameObject,char>
 
 // TEMPLATE: SWBF2 0x005155e0
-// EventManager::RegisterLuaCallback<GameObject,char,ObjectMatches<char> >
+// EventManager::RegisterLuaCallback<GameObject,char,EventManager::ObjectMatches<char> >
 
 // TEMPLATE: SWBF2 0x005157f0
-// EventManager::RegisterLuaCallback<GameObject,char,ObjectMatchesName<char> >
+// EventManager::RegisterLuaCallback<GameObject,char,EventManager::ObjectMatchesName<char> >
 
 // TEMPLATE: SWBF2 0x00515a00
-// EventManager::RegisterLuaCallback<GameObject,char,ObjectMatchesTeam<char> >
+// EventManager::RegisterLuaCallback<GameObject,char,EventManager::ObjectMatchesTeam<char> >
 
 // TEMPLATE: SWBF2 0x00515c10
-// EventManager::RegisterLuaCallback<GameObject,char,ObjectMatchesClass<char> >
+// EventManager::RegisterLuaCallback<GameObject,char,EventManager::ObjectMatchesClass<char> >
 
 }
 
@@ -1244,88 +1147,112 @@ namespace EventManager
 namespace ObjectEvent
 {
 
-// GLOBAL: SWBF2 0x007ebfa0
 // SYNTHETIC: SWBF2 0x00403470
-// `dynamic initializer for 'EventManager::ObjectEvent::mCreate''
+// EventManager::ObjectEvent::`dynamic initializer for 'mCreate''
 // SYNTHETIC: SWBF2 0x00767e20
-// `dynamic atexit destructor for 'EventManager::ObjectEvent::mCreate''
+// EventManager::ObjectEvent::`dynamic atexit destructor for 'mCreate''
+
+// GLOBAL: SWBF2 0x007ebfa0
+// mCreate
 Event<GameObject, char> mCreate("ObjectCreate");
 
-// GLOBAL: SWBF2 0x007ebf00
 // SYNTHETIC: SWBF2 0x004034a0
-// `dynamic initializer for 'EventManager::ObjectEvent::mInit''
+// EventManager::ObjectEvent::`dynamic initializer for 'mInit''
 // SYNTHETIC: SWBF2 0x00767ea0
-// `dynamic atexit destructor for 'EventManager::ObjectEvent::mInit''
+// EventManager::ObjectEvent::`dynamic atexit destructor for 'mInit''
+
+// GLOBAL: SWBF2 0x007ebf00
+// mInit
 Event<GameObject, char> mInit("ObjectInit");
 
-// GLOBAL: SWBF2 0x007ec060
 // SYNTHETIC: SWBF2 0x004034d0
-// `dynamic initializer for 'EventManager::ObjectEvent::mDamage''
+// EventManager::ObjectEvent::`dynamic initializer for 'mDamage''
 // SYNTHETIC: SWBF2 0x00767f20
-// `dynamic atexit destructor for 'EventManager::ObjectEvent::mDamage''
+// EventManager::ObjectEvent::`dynamic atexit destructor for 'mDamage''
+
+// GLOBAL: SWBF2 0x007ec060
+// mDamage
 Event<GameObject, DamageOwner> mDamage("ObjectDamage");
 
-// GLOBAL: SWBF2 0x007ebf60
 // SYNTHETIC: SWBF2 0x00403500
-// `dynamic initializer for 'EventManager::ObjectEvent::mRepair''
+// EventManager::ObjectEvent::`dynamic initializer for 'mRepair''
 // SYNTHETIC: SWBF2 0x00767fa0
-// `dynamic atexit destructor for 'EventManager::ObjectEvent::mRepair''
+// EventManager::ObjectEvent::`dynamic atexit destructor for 'mRepair''
+
+// GLOBAL: SWBF2 0x007ebf60
+// mRepair
 Event<GameObject, DamageOwner> mRepair("ObjectRepair");
 
-// GLOBAL: SWBF2 0x007ebfe0
 // SYNTHETIC: SWBF2 0x00403530
-// `dynamic initializer for 'EventManager::ObjectEvent::mHack''
+// EventManager::ObjectEvent::`dynamic initializer for 'mHack''
 // SYNTHETIC: SWBF2 0x00768020
-// `dynamic atexit destructor for 'EventManager::ObjectEvent::mHack''
+// EventManager::ObjectEvent::`dynamic atexit destructor for 'mHack''
+
+// GLOBAL: SWBF2 0x007ebfe0
+// mHack
 Event<GameObject, DamageOwner> mHack("ObjectHack");
 
-// GLOBAL: SWBF2 0x007ebf80
 // SYNTHETIC: SWBF2 0x00403560
-// `dynamic initializer for 'EventManager::ObjectEvent::mKill''
+// EventManager::ObjectEvent::`dynamic initializer for 'mKill''
 // SYNTHETIC: SWBF2 0x007680a0
-// `dynamic atexit destructor for 'EventManager::ObjectEvent::mKill''
+// EventManager::ObjectEvent::`dynamic atexit destructor for 'mKill''
+
+// GLOBAL: SWBF2 0x007ebf80
+// mKill
 Event<GameObject, DamageOwner> mKill("ObjectKill");
 
-// GLOBAL: SWBF2 0x007ec000
 // SYNTHETIC: SWBF2 0x00403590
-// `dynamic initializer for 'EventManager::ObjectEvent::mHeadshot''
+// EventManager::ObjectEvent::`dynamic initializer for 'mHeadshot''
 // SYNTHETIC: SWBF2 0x00768120
-// `dynamic atexit destructor for 'EventManager::ObjectEvent::mHeadshot''
+// EventManager::ObjectEvent::`dynamic atexit destructor for 'mHeadshot''
+
+// GLOBAL: SWBF2 0x007ec000
+// mHeadshot
 Event<GameObject, DamageOwner> mHeadshot("ObjectHeadshot");
 
-// GLOBAL: SWBF2 0x007ebf20
 // SYNTHETIC: SWBF2 0x004035c0
-// `dynamic initializer for 'EventManager::ObjectEvent::mRespawn''
+// EventManager::ObjectEvent::`dynamic initializer for 'mRespawn''
 // SYNTHETIC: SWBF2 0x007681a0
-// `dynamic atexit destructor for 'EventManager::ObjectEvent::mRespawn''
+// EventManager::ObjectEvent::`dynamic atexit destructor for 'mRespawn''
+
+// GLOBAL: SWBF2 0x007ebf20
+// mRespawn
 Event<GameObject, char> mRespawn("ObjectRespawn");
 
-// GLOBAL: SWBF2 0x007ebfc0
 // SYNTHETIC: SWBF2 0x004035f0
-// `dynamic initializer for 'EventManager::ObjectEvent::mDelete''
+// EventManager::ObjectEvent::`dynamic initializer for 'mDelete''
 // SYNTHETIC: SWBF2 0x00768220
-// `dynamic atexit destructor for 'EventManager::ObjectEvent::mDelete''
+// EventManager::ObjectEvent::`dynamic atexit destructor for 'mDelete''
+
+// GLOBAL: SWBF2 0x007ebfc0
+// mDelete
 Event<GameObject, char> mDelete("ObjectDelete");
 
-// GLOBAL: SWBF2 0x007ebf40
 // SYNTHETIC: SWBF2 0x00403620
-// `dynamic initializer for 'EventManager::ObjectEvent::mTeamChange''
+// EventManager::ObjectEvent::`dynamic initializer for 'mTeamChange''
 // SYNTHETIC: SWBF2 0x007682a0
-// `dynamic atexit destructor for 'EventManager::ObjectEvent::mTeamChange''
+// EventManager::ObjectEvent::`dynamic atexit destructor for 'mTeamChange''
+
+// GLOBAL: SWBF2 0x007ebf40
+// mTeamChange
 Event<GameObject, int> mTeamChange("TeamChange");
 
-// GLOBAL: SWBF2 0x007ec020
 // SYNTHETIC: SWBF2 0x00403650
-// `dynamic initializer for 'EventManager::ObjectEvent::mHealthChange''
+// EventManager::ObjectEvent::`dynamic initializer for 'mHealthChange''
 // SYNTHETIC: SWBF2 0x00768320
-// `dynamic atexit destructor for 'EventManager::ObjectEvent::mHealthChange''
+// EventManager::ObjectEvent::`dynamic atexit destructor for 'mHealthChange''
+
+// GLOBAL: SWBF2 0x007ec020
+// mHealthChange
 Event<GameObject, float> mHealthChange("HealthChange");
 
-// GLOBAL: SWBF2 0x007ec040
 // SYNTHETIC: SWBF2 0x00403680
-// `dynamic initializer for 'EventManager::ObjectEvent::mShieldChange''
+// EventManager::ObjectEvent::`dynamic initializer for 'mShieldChange''
 // SYNTHETIC: SWBF2 0x007683a0
-// `dynamic atexit destructor for 'EventManager::ObjectEvent::mShieldChange''
+// EventManager::ObjectEvent::`dynamic atexit destructor for 'mShieldChange''
+
+// GLOBAL: SWBF2 0x007ec040
+// mShieldChange
 Event<GameObject, float> mShieldChange("ShieldChange");
 
 }

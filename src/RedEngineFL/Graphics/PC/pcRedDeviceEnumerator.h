@@ -184,6 +184,7 @@ extern bool AppRequiresWindowed;
 // GLOBAL: SWBF2 0x009cab02
 extern bool AppRequiresFullscreen;
 // GLOBAL: SWBF2 0x009cab04
+// ConfirmDeviceCallback
 extern bool (*ConfirmDeviceCallback)(D3DCAPS9* pCaps, VertexProcessingType vpType,
                                      D3DFORMAT backBufferFormat);
 

@@ -8,28 +8,12 @@ class GameObject;
 template <int N> class ZephyrSkeleton;
 template <int N> class ZephyrPoseStatic;
 
-class RedPose
+class RedPose : public PblHashTable<const PblMatrix, 128>
 {
 public:
 
     // FUNCTION: SWBF2 0x00443940
-    RedPose() { _Table.Clear(); _iNumEntries = 0; m_pSkeleton = 0; }
-
-    const PblMatrix* Find(unsigned int uHash) const { return _Table.Find(uHash); }
-    void Store(unsigned int uHash, const PblMatrix* pMatrix)
-    {
-        if (_Table.Store(uHash, pMatrix))
-        {
-            ++_iNumEntries;
-        }
-    }
-    void Remove(unsigned int uHash)
-    {
-        if (_Table.Remove(uHash))
-        {
-            --_iNumEntries;
-        }
-    }
+    RedPose() : m_pSkeleton(0) {}
 
     template <int N> unsigned int ConvertFromZephyrPose(const ZephyrSkeleton<N>& kSkel);
 
@@ -48,11 +32,7 @@ private:
     friend void RemoveChildren(const GameObject*, RedPose&, int);
     PblMatrix const& _GetBoneMatrix(int iBone) const;
 
-public:
-    int _iNumEntries;
-    PblHashTable<const PblMatrix, 128> _Table;
-
-    mutable RedSkeleton* m_pSkeleton;
+    mutable const RedSkeleton* m_pSkeleton;
 };
 
  

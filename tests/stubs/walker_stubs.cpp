@@ -8,10 +8,6 @@
 #include "Zephyr/Source/ZephyrPoseDyn.h"
 #include "Zephyr/Source/ZephyrPoseStatic.h"
 
-WalkerAnimationIdle::~WalkerAnimationIdle()
-{
-}
-
 const ZephyrAnim* ZephyrAnimBank::Find(unsigned int uiCrc) const
 {
     return 0;

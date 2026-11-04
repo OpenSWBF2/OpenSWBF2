@@ -8,11 +8,18 @@
 
 class PblMatrix;
 
-namespace HUD { class ElementGroupBase; }
-namespace HUD { class EventClass; }
+namespace HUD
+{
+class ElementGroupBase;
+}
+namespace HUD
+{
+class EventClass;
+}
 class RedInterfaceElement;
 
-namespace HUD {
+namespace HUD
+{
 
 extern char* gRelativeModeStrings[4];
 
@@ -63,6 +70,7 @@ public:
     PblVector3 mRotation;
 };
 
+// VTABLE: SWBF2 0x007a0738
 class Element : public HUD::Item
 {
 public:
@@ -148,6 +156,9 @@ public:
     float GetContainerFrameHeight() const;
     float GetContainerViewWidth() const;
     float GetContainerViewHeight() const;
+
+    void SetAlpha(const float alpha) { mAlpha = alpha; }
+    void SetColorDefault(const RedColor& color) { mColorDefault = color; }
 
     void Enable(bool bEnable);
 

@@ -1,3 +1,7 @@
+#include <d3dx9math.h>
+
+#include "EntityHover.h"
+#include "EntityWalker.h"
 #include <math.h>
 #include <string.h>
 
@@ -19,24 +23,36 @@
 #include "PebbleFL/Common/PblHashTable.h"
 #include "PebbleFL/Common/PblHeap.h"
 #include "PebbleFL/Common/PblMatrix.h"
-#include "PebbleFL/pc/PblD3DX.h"
-#include "VOHelper.h"
 
-// GLOBAL: SWBF2 0x01ef7da8
+
+namespace AI
+{
+enum VOType
+{
+    VOT_PathFollowWait = 6,
+    VOT_DefendIdleLookAround = 20
+};
+
+namespace VOHelper
+{
+
+int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,
+         const GameObject* pOther, float fDelay);
+}
+}
+
 // SYNTHETIC: SWBF2 0x00405e10
 // `dynamic initializer for 'PathFollower::sMemoryPool''
 // SYNTHETIC: SWBF2 0x007692c0
 // `dynamic atexit destructor for 'PathFollower::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ef7da8
+// PathFollower::sMemoryPool
 MemoryPool PathFollower::sMemoryPool("PathFollower", sizeof(PathFollower));
 
 namespace
 {
 
-    const PblHash kRttiHashEntityFlyer("EntityFlyer");
-    const PblHash kRttiHashEntityHover("EntityHover");
-    const PblHash kRttiHashEntityWalker("EntityWalker");
-    const PblHash kRttiHashEntityDroideka("EntityDroideka");
-    const PblHash kRttiHashEntitySoldier("EntitySoldier");
 
     const int kMaxPathNodes = 32;
 
@@ -72,17 +88,16 @@ namespace
         static_cast<EntityDroideka*>(p)->mAILastCollisionDirection = cDir;
     }
 
-    bool GameObjectIsRtti(GameObject* pObj, unsigned int uRtti)
+    inline bool GameObjectIsRtti(GameObject* pObj, unsigned int uRtti)
     {
         return pObj->IsRtti(uRtti);
     }
 
-    AILowLevel& LowLevel(UnitController* pCtrl)
+    inline AILowLevel& LowLevel(UnitController* pCtrl)
     {
-        return *reinterpret_cast<AILowLevel*>(pCtrl->mLowLevel);
+        return pCtrl->mLowLevel;
     }
 
-    const PblVector3& Trans(const PblMatrix& m) { return *(const PblVector3*)&m.m[3][0]; }
 }
 
 extern int WORLD_EXTENTS;
@@ -96,7 +111,10 @@ unsigned int _FindBarrierNameHash;
 Obstacle* _FindBarrierRet;
 }
 
-namespace PathFinder { bool FindBarrierCallback(const TreeGridObject* pObject, TreeGridCallbackData*, float&); }
+namespace PathFinder
+{
+bool FindBarrierCallback(const TreeGridObject* pObject, TreeGridCallbackData*, float&);
+}
 
 // FUNCTION: SWBF2 0x00612510
 bool PathFinder::FindBarrierCallback(const TreeGridObject* pObject, TreeGridCallbackData*, float&)
@@ -110,7 +128,10 @@ bool PathFinder::FindBarrierCallback(const TreeGridObject* pObject, TreeGridCall
     return true;
 }
 
-namespace PathFinder { Obstacle* FindBarrierByName(unsigned int uName); }
+namespace PathFinder
+{
+Obstacle* FindBarrierByName(unsigned int uName);
+}
 
 // FUNCTION: SWBF2 0x00612530
 Obstacle* PathFinder::FindBarrierByName(unsigned int uName)
@@ -137,10 +158,8 @@ template void PblHeap<PathFinder::PathNode*, float>::Pop();
 // FUNCTION: SWBF2 0x00612710
 PathFollower::PathFollower(UnitController* pCtrl, AIPath* pPath, const Obstacle** ppIgnore,
                            int iIgnoreCnt, bool bDoCallbacksOnPts)
+    : mPath(pPath), mCtrl(pCtrl), mItor(pPath->GetNodeList())
 {
-    mPath = pPath;
-    mCtrl = pCtrl;
-    mItor = PblList<AIPathNode>::Itor(pPath->GetNodeList());
     mDoCallbacksOnPts = bDoCallbacksOnPts;
     mIgnoreCnt = iIgnoreCnt;
     mDone = false;
@@ -194,14 +213,14 @@ void PathFollower::ConstructorCommon()
     float dy = mMe.m[3][1] - vFirst.y;
     float dz = mMe.m[3][2] - vFirst.z;
     if (dx * dx + dy * dy + dz * dz < 100.0f &&
-        (mCtrl->mOwner->GetEntity()->IsRtti(kRttiHashEntityHover) ||
-         mCtrl->mOwner->GetEntity()->IsRtti(kRttiHashEntityFlyer)))
+        (mCtrl->mOwner->GetEntity()->IsRtti(EntityHover::rttiHashEntityHover) ||
+         mCtrl->mOwner->GetEntity()->IsRtti(EntityFlyer::rttiHashEntityFlyer)))
     {
         SetLocalPoints(mItor->mPos, mItor);
     }
     else
     {
-        SetLocalPoints(Trans(mCtrl->mOwner->GetMatrix()), mItor);
+        SetLocalPoints(mCtrl->mOwner->GetMatrix().GetTranslation(), mItor);
     }
 }
 
@@ -242,7 +261,7 @@ void PathFollower::AppendPath(const AIPath* pPath, bool b)
     if (mCtrl->mLodState >= 3)
     {
         float fRadius = AIUtil::GetCollisionRadius(mCtrl->mOwner->GetGameObject());
-        if (!GameObjectIsRtti(mCtrl->mOwner->GetGameObject(), kRttiHashEntityWalker) || fRadius > 3.0f)
+        if (!GameObjectIsRtti(mCtrl->mOwner->GetGameObject(), EntityWalker::rttiHashEntityWalker) || fRadius > 3.0f)
         {
             int eType = AIUtil::GetAIType(mCtrl->mOwner->GetGameObject());
             mPath->SmoothCorners(fRadius * 10.0f, fRadius, eType);
@@ -264,7 +283,7 @@ bool PathFollower::PrependPath(const AIPath* pPath)
 
     mPath->PrependPath(pPath);
     mItor = PblList<AIPathNode>::Itor(mPath->GetNodeList());
-    SetLocalPoints(Trans(mCtrl->mOwner->GetMatrix()), mItor);
+    SetLocalPoints(mCtrl->mOwner->GetMatrix().GetTranslation(), mItor);
     return true;
 }
 
@@ -281,12 +300,12 @@ void PathFollower::SetLocalPoints(const PblVector3& vPrev, const PblList<AIPathN
     {
         mNextPoint = pNext->mPos;
         const PblMatrix& mMe = mCtrl->mOwner->GetMatrix();
-        if (!(Trans(mMe) != vPrev))
+        if (!(mMe.GetTranslation() != vPrev))
         {
             PblVector3 vDelta(mNextPoint.x - mGotoPoint.x, mNextPoint.y - mGotoPoint.y,
                               mNextPoint.z - mGotoPoint.z);
             PblVector3 vDir;
-            D3DXVec3Normalize(&vDir, &vDelta);
+            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vDelta));
             mSafeHeight = SH_TAPER;
             mDir = vDir;
             mDestSide = DS_EITHER;
@@ -296,7 +315,7 @@ void PathFollower::SetLocalPoints(const PblVector3& vPrev, const PblList<AIPathN
             PblVector3 vDelta(mNextPoint.x - mGotoPoint.x, mNextPoint.y - mGotoPoint.y,
                               mNextPoint.z - mGotoPoint.z);
             PblVector3 vDir;
-            D3DXVec3Normalize(&vDir, &vDelta);
+            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vDelta));
             mDir = vDir;
             mSafeHeight = SH_NONE;
             float fSide = (mNextPoint.x - mGotoPoint.x) * mDir.z +
@@ -313,7 +332,7 @@ void PathFollower::SetLocalPoints(const PblVector3& vPrev, const PblList<AIPathN
             PblVector3 vDelta(mGotoPoint.x - mPrevPoint.x, mGotoPoint.y - mPrevPoint.y,
                               mGotoPoint.z - mPrevPoint.z);
             PblVector3 vDir;
-            D3DXVec3Normalize(&vDir, &vDelta);
+            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vDelta));
             mSafeHeight = SH_NONE;
             mDir = vDir;
             mDestSide = DS_EITHER;
@@ -358,7 +377,7 @@ bool PathFollower::CloseToDest() const
                           mGotoPoint.z - mNow.m[3][2]);
         vDelta.y = 0.0f;
         PblVector3 vRoll;
-        D3DXVec3Normalize(&vRoll, &vDelta);
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vRoll), reinterpret_cast<const D3DXVECTOR3*>(&vDelta));
         LowLevel(mCtrl).SetRoll(vRoll);
         mItor->mFlags &= ~AIPathNode::AIPN_ROLLIN;
     }
@@ -448,7 +467,7 @@ bool PathFollower::TestBarriersAhead() const
     PblVector3 vTo(mMe.m[3][0] + vAhead.x, mMe.m[3][1] + vAhead.y, mMe.m[3][2] + vAhead.z);
     float fRadius = AIUtil::GetCollisionRadius(mCtrl->mOwner->GetGameObject());
     int eType = AIUtil::GetAIType(mCtrl->mOwner->GetGameObject());
-    return PathFinder::TestTrivialStraightLineHit(Trans(mMe), vTo, fRadius, eType,
+    return PathFinder::TestTrivialStraightLineHit(mMe.GetTranslation(), vTo, fRadius, eType,
                                                   mIgnore, mIgnoreCnt, true);
 }
 
@@ -484,7 +503,7 @@ void PathFollower::Update(float dt)
         return;
     }
 
-    bool bFlyer = mCtrl->mOwner->GetEntity()->IsRtti(kRttiHashEntityFlyer);
+    bool bFlyer = mCtrl->mOwner->GetEntity()->IsRtti(EntityFlyer::rttiHashEntityFlyer);
     if (!mDone && !bFlyer)
     {
         CheckStuck(dt);
@@ -554,7 +573,7 @@ void PathFollower::Update(float dt)
                     const PblMatrix& mMe = mCtrl->mOwner->GetMatrix();
                     vJump = PblVector3(pNext->mPos.x - mMe.m[3][0], 0.0f, pNext->mPos.z - mMe.m[3][2]);
                     PblVector3 vDir;
-                    D3DXVec3Normalize(&vDir, &vJump);
+                    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vJump));
                     vJump = PblVector3(vDir.x * 0.70710677f, 0.70710677f, vDir.z * 0.70710677f);
                 }
 
@@ -581,7 +600,7 @@ void PathFollower::Update(float dt)
                 {
                     const PblMatrix& mMe = mCtrl->mOwner->GetMatrix();
                     PblVector3 vDelta(pNext->mPos.x - mMe.m[3][0], 0.0f, pNext->mPos.z - mMe.m[3][2]);
-                    D3DXVec3Normalize(&vRoll, &vDelta);
+                    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vRoll), reinterpret_cast<const D3DXVECTOR3*>(&vDelta));
                 }
                 LowLevel(mCtrl).SetRoll(vRoll);
             }
@@ -622,7 +641,7 @@ void PathFollower::UpdateControllableMoving()
 {
     PblVector3 vSteer = mGotoPoint;
 
-    if (mCtrl->mOwner->GetEntity()->IsRtti(kRttiHashEntityFlyer))
+    if (mCtrl->mOwner->GetEntity()->IsRtti(EntityFlyer::rttiHashEntityFlyer))
     {
         Entity* pFlyer = mCtrl->mOwner->GetEntity();
         const EntityFlyerClass* pClass = static_cast<const EntityFlyerClass*>(pFlyer->GetEntityClass());
@@ -635,28 +654,28 @@ void PathFollower::UpdateControllableMoving()
         const PblMatrix& mFlyer = EntityGetMatrix(pFlyer);
         PblVector3 vForward(mFlyer.m[2][0] + 0.0001f, 0.0f, mFlyer.m[2][2]);
         PblVector3 vDir;
-        D3DXVec3Normalize(&vDir, &vForward);
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vForward));
         vForward = vDir;
-        AIUtil::CalculateFlyerSteerPoint(mGotoPoint, mDir, Trans(EntityGetMatrix(pFlyer)), vForward,
+        AIUtil::CalculateFlyerSteerPoint(mGotoPoint, mDir, (EntityGetMatrix(pFlyer)).GetTranslation(), vForward,
                                          fTurn, vSteer, mDestSide);
     }
 
-    if (mCtrl->mOwner->GetEntity()->IsRtti(kRttiHashEntityHover))
+    if (mCtrl->mOwner->GetEntity()->IsRtti(EntityHover::rttiHashEntityHover))
     {
-        PblVector3 vPos = Trans(mCtrl->mOwner->GetMatrix());
+        PblVector3 vPos = mCtrl->mOwner->GetMatrix().GetTranslation();
         const PblVector3& vVel = EntityGetVelocity(mCtrl->mOwner->GetEntity());
         float fSpeed = sqrtf(vVel.y * vVel.y + vVel.x * vVel.x + vVel.z * vVel.z);
         AIUtil::CalculateSoldierSteerPoint(mPrevPoint, mGotoPoint, vPos, fSpeed, vSteer);
     }
 
-    if (mCtrl->mOwner->GetEntity()->IsRtti(kRttiHashEntityWalker))
+    if (mCtrl->mOwner->GetEntity()->IsRtti(EntityWalker::rttiHashEntityWalker))
     {
-        PblVector3 vPos = Trans(mCtrl->mOwner->GetMatrix());
+        PblVector3 vPos = mCtrl->mOwner->GetMatrix().GetTranslation();
         AIUtil::CalculateSoldierSteerPoint(mPrevPoint, mGotoPoint, vPos, 20.0f, vSteer);
     }
 
-    bool bDroideka = mCtrl->mOwner->GetEntity()->IsRtti(kRttiHashEntityDroideka);
-    bool bSoldier = mCtrl->mOwner->GetEntity()->IsRtti(kRttiHashEntitySoldier);
+    bool bDroideka = mCtrl->mOwner->GetEntity()->IsRtti(EntityDroideka::rttiHashEntityDroideka);
+    bool bSoldier = mCtrl->mOwner->GetEntity()->IsRtti(EntitySoldier::rttiHashEntitySoldier);
     if (bSoldier || bDroideka)
     {
         PblVector3 vNormal;
@@ -677,15 +696,15 @@ void PathFollower::UpdateControllableMoving()
         if (vNormal.x * vNormal.x + vNormal.y * vNormal.y + vNormal.z * vNormal.z > 0.0f)
         {
             PblVector3 vN;
-            D3DXVec3Normalize(&vN, &vNormal);
+            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vN), reinterpret_cast<const D3DXVECTOR3*>(&vNormal));
             PblVector3 vAlong(vN.z, 0.0f, -vN.x);
-            PblVector3 vPos = Trans(mCtrl->mOwner->GetMatrix());
+            PblVector3 vPos = mCtrl->mOwner->GetMatrix().GetTranslation();
 
             if (cDir == 0)
             {
                 PblVector3 vAway(vPos.x - mGotoPoint.x, vPos.y - mGotoPoint.y, vPos.z - mGotoPoint.z);
                 PblVector3 vAwayN;
-                D3DXVec3Normalize(&vAwayN, &vAway);
+                D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vAwayN), reinterpret_cast<const D3DXVECTOR3*>(&vAway));
                 float fDot = vAwayN.x * vAlong.x + vAwayN.y * 0.0f + vAwayN.z * vAlong.z;
                 cDir = fDot <= 0.0f ? 1 : -1;
             }
@@ -718,7 +737,7 @@ void PathFollower::UpdateControllableMoving()
                 EntityDroidekaAiSetLastCollisionDirection(mCtrl->mOwner->GetEntity(), 0);
             }
 
-            PblVector3 vPos = Trans(mCtrl->mOwner->GetMatrix());
+            PblVector3 vPos = mCtrl->mOwner->GetMatrix().GetTranslation();
             const PblVector3& vVel = EntityGetVelocity(mCtrl->mOwner->GetEntity());
             float fSpeed = sqrtf(vVel.x * vVel.x + vVel.y * vVel.y + vVel.z * vVel.z);
             AIUtil::CalculateSoldierSteerPoint(mPrevPoint, mGotoPoint, vPos, fSpeed, vSteer);
@@ -754,7 +773,7 @@ void PathFollower::CheckStuck(float dt)
     PathFollower::GetStuckParams(mCtrl, fStuckDist, fStuckTime, fMinDistTime);
     mIsStuck = 0;
 
-    PblVector3 vPos = Trans(mCtrl->mOwner->GetMatrix());
+    PblVector3 vPos = mCtrl->mOwner->GetMatrix().GetTranslation();
     float fGoalDX = vPos.x - mGotoPoint.x;
     float fGoalDZ = vPos.z - mGotoPoint.z;
     if (fGoalDZ * fGoalDZ + fGoalDX * fGoalDX < 0.04f)

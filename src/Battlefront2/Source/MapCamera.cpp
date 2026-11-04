@@ -10,7 +10,7 @@ extern PblMatrix gMatrixIdentity;
 
 PblMatrix DirectionMatrix(const PblVector3& vDir, const PblVector3& vUp, const PblVector3& vPos);
 
-static inline PblVector3& Row(PblMatrix& m, int i) { return *(PblVector3*)m.m[i]; }
+
 
 static PblVector3 HermiteSpline(float t, const PblVector3& p0, const PblVector3& m0,
                                 const PblVector3& p1, const PblVector3& m1)
@@ -46,22 +46,13 @@ PblVector3 MapCamera::GetVelocity()
 
 // FUNCTION: SWBF2 0x005a1c90
 MapCamera::MapCamera(CameraManager* pManager, int iView)
-    : GameCamera(pManager, iView)
+    : GameCamera(pManager, iView),
+      mMatrix(gMatrixIdentity), mTarget(gMatrixIdentity), mVelocity(gVectorZero),
+      mMoveRatio(1.0f), mMoveCurPos(gVectorZero), mMoveOldPos(gVectorZero),
+      mZoomDir(0), mZoomLevel(ZOOM_NORMAL), mZoomRatio(1.0f),
+      mZoomOldDir(gVectorZero), mZoomOldPos(gVectorZero),
+      mZoomNewDir(gVectorZero), mZoomNewPos(gVectorZero), mZoomDist(0.0f)
 {
-    mMatrix = gMatrixIdentity;
-    mTarget = gMatrixIdentity;
-    mVelocity = gVectorZero;
-    mMoveRatio = 1.0f;
-    mMoveCurPos = gVectorZero;
-    mMoveOldPos = gVectorZero;
-    mZoomDir = 0;
-    mZoomLevel = ZOOM_NORMAL;
-    mZoomRatio = 1.0f;
-    mZoomOldDir = gVectorZero;
-    mZoomOldPos = gVectorZero;
-    mZoomNewDir = gVectorZero;
-    mZoomNewPos = gVectorZero;
-    mZoomDist = 0.0f;
 }
 
 // SYNTHETIC: SWBF2 0x005a1e10
@@ -91,41 +82,41 @@ void MapCamera::SetZoomLevel(ZoomLevel eLevel)
     else
     {
         mZoomRatio = 0.0f;
-        mZoomOldDir = Row(mMatrix, 2);
-        mZoomOldPos = Row(mMatrix, 3);
+        mZoomOldDir = mMatrix[2];
+        mZoomOldPos = mMatrix[3];
     }
 }
 
 // FUNCTION: SWBF2 0x005a1f60
 void MapCamera::Update(float fDeltaTime)
 {
-    PblVector3 vOldPos = Row(mMatrix, 3);
+    PblVector3 vOldPos = mMatrix[3];
 
     mMoveRatio += fDeltaTime * 2.0f;
     if (mMoveRatio < 1.0f)
     {
         float fT = 0.5f - PblMath::Cos(mMoveRatio * PblMath::fPi) * 0.5f;
-        mMoveCurPos = Interpolate(mMoveOldPos, Row(mTarget, 3), fT);
+        mMoveCurPos = Interpolate(mMoveOldPos, mTarget[3], fT);
     }
     else
     {
-        mMoveCurPos = Row(mTarget, 3);
+        mMoveCurPos = mTarget[3];
     }
 
     switch (mZoomLevel)
     {
     case ZOOM_OUT:
-        D3DXVec3Normalize((D3DXVECTOR3*)&mZoomNewDir, (const D3DXVECTOR3*)&sOffset[ZOOM_OUT]);
+        mZoomNewDir = Normalize(sOffset[ZOOM_OUT]);
         mZoomNewPos = sOffset[mZoomLevel];
         break;
     case ZOOM_NORMAL:
-        D3DXVec3Normalize((D3DXVECTOR3*)&mZoomNewDir, (const D3DXVECTOR3*)&sOffset[ZOOM_NORMAL]);
+        mZoomNewDir = Normalize(sOffset[ZOOM_NORMAL]);
         mZoomNewPos = PblVector3(mMoveCurPos.x + sOffset[mZoomLevel].x,
                                  mMoveCurPos.y + sOffset[mZoomLevel].y,
                                  mMoveCurPos.z + sOffset[mZoomLevel].z);
         break;
     default:
-        mZoomNewDir = Row(mTarget, 2);
+        mZoomNewDir = mTarget[2];
         mZoomNewPos = mMoveCurPos;
         break;
     }
@@ -171,7 +162,7 @@ void MapCamera::Update(float fDeltaTime)
     if (fDeltaTime > 0.0f)
     {
         float fInv = 1.0f / fDeltaTime;
-        const PblVector3& vPos = Row(mMatrix, 3);
+        const PblVector3& vPos = mMatrix[3];
         mVelocity = PblVector3((vPos.x - vOldPos.x) * fInv,
                                (vPos.y - vOldPos.y) * fInv,
                                (vPos.z - vOldPos.z) * fInv);

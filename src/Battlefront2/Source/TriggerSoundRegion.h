@@ -42,7 +42,7 @@ public:
 
         static void Load(PblFileChunk& chunk);
 
-        static void* operator new(size_t)
+        static void* operator new(unsigned int)
         {
             if (!sMemoryPool.mCount)
             {
@@ -80,7 +80,7 @@ public:
 
         static Group* FindByID(unsigned int uID);
 
-        static void* operator new(size_t)
+        static void* operator new(unsigned int)
         {
             if (!sMemoryPool.mCount)
             {
@@ -92,6 +92,8 @@ public:
         const GameSound* GetSound(Team::Side eSide) const;
 
         float GetReinforcementCount() const;
+
+        void Enable(const bool enabled) { mEnabled = enabled; }
 
         bool IsEnabled() const { return mEnabled; }
 
@@ -109,6 +111,8 @@ public:
 
         ~Group();
 
+        // SYNTHETIC: SWBF2 0x0065d3f0
+        // TriggerSoundRegion::Group::operator delete
         static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
     };
 
@@ -118,17 +122,13 @@ public:
 
     ~TriggerSoundRegion()
     {
-        if (mNode.mNext != 0)
-        {
-            mNode.Remove();
-        }
     }
 
     static PblListSingle sList;
 
     TriggerSoundRegion(RedRegionDesc& desc, const Properties* const pProperties);
 
-    static void* operator new(size_t)
+    static void* operator new(unsigned int)
     {
         if (!sMemoryPool.mCount)
         {
@@ -137,6 +137,8 @@ public:
         return sMemoryPool.Allocate(sizeof(TriggerSoundRegion));
     }
 
+    // SYNTHETIC: SWBF2 0x0065d3e0
+    // TriggerSoundRegion::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
     static MemoryPool sMemoryPool;

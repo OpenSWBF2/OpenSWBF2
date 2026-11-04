@@ -30,17 +30,24 @@
  
  
 
+// GLOBAL: SWBF2 0x00784440
+// __xmm@000000003f0000000000000000000000
+
 // GLOBAL: SWBF2 0x009c893c
 pcShadowQuadRenderable* pcShadowQuadRenderable::s_pInstance;
 
-// GLOBAL: SWBF2 0x009c8944
 // SYNTHETIC: SWBF2 0x004094a0
 // `dynamic initializer for 'kuiClearShader''
+
+// GLOBAL: SWBF2 0x009c8944
+// kuiClearShader
 static const unsigned int kuiClearShader = PblHash("Clear");
 
-// GLOBAL: SWBF2 0x009c8948
 // SYNTHETIC: SWBF2 0x004094c0
 // `dynamic initializer for 'kuiFilterShader''
+
+// GLOBAL: SWBF2 0x009c8948
+// kuiFilterShader
 static const unsigned int kuiFilterShader = PblHash("FilterCopy");
 
 static void __cdecl ShadowQuadReset(ResetFlagsT eFlags)
@@ -274,15 +281,9 @@ void pcShadowQuadRenderable::Render(int value)
                          0.5f / (float)target->m_uiHeight,
                      0.0f, 1.0f });
 
-    PblMatrix projection;
-    PblMatrix view;
     const RedCamera* camera = RedRenderer::GetCamera();
-    D3DXMatrixMultiply((D3DXMATRIX*)&view, (const D3DXMATRIX*)&camera->_MatrixInverse,
-                       (const D3DXMATRIX*)&RedRenderer::GetProjectionMatrix());
-    D3DXMatrixMultiply((D3DXMATRIX*)&projection, (const D3DXMATRIX*)&view,
-                       (const D3DXMATRIX*)&scaleOffset);
-    RedShadowMap::SetScreenSpaceShadowMap((RedTexture*)target,
-                                         *(const PblMatrix*)&projection);
+    PblMatrix shadowMatrix = camera->_MatrixInverse * RedRenderer::GetProjectionMatrix() * scaleOffset;
+    RedShadowMap::SetScreenSpaceShadowMap((RedTexture*)target, shadowMatrix);
 
     RedShadowMap::_uiShadowMapWrapMode = 3;
 

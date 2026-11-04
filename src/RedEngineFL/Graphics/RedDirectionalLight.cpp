@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include <math.h>
 #include <string.h>
 
@@ -6,23 +7,18 @@
 #include "RedEngineFL/Util/RedRegion.h"
 
 #include "RedEngineFL/Application/pc/pcRenderHelpers.h"
-#include "PebbleFL/pc/PblD3DX.h"
+
 
 static const float EPSILON = 0.0001f;
 
 // FUNCTION: SWBF2 0x006d8c00
 RedDirectionalLight::RedDirectionalLight(const PblVector3& vDirection,
                                          const RedColorValue& color)
-    : RedLight(TYPE_DIRECTIONAL)
+    : RedLight(TYPE_DIRECTIONAL),
+      m_uiRegionName(0), m_boundingRegion(0), m_mProjection(gMatrixIdentity),
+      m_bProjectionDirty(true), m_fProjTexOffsetU(1.0f), m_fProjTexOffsetV(1.0f),
+      m_fProjTexTileU(1.0f), m_fProjTexTileV(1.0f)
 {
-    m_uiRegionName = 0;
-    m_boundingRegion = 0;
-    memcpy(&m_mProjection, &gMatrixIdentity, sizeof(m_mProjection));
-    m_bProjectionDirty = true;
-    m_fProjTexOffsetU = 1.0f;
-    m_fProjTexOffsetV = 1.0f;
-    m_fProjTexTileU = 1.0f;
-    m_fProjTexTileV = 1.0f;
     memset(&m_d3dLight, 0, sizeof(m_d3dLight));
     m_d3dLight.Type = D3DLIGHT_DIRECTIONAL;
 
@@ -31,11 +27,13 @@ RedDirectionalLight::RedDirectionalLight(const PblVector3& vDirection,
     _RecalculateProjectionMatrix();
 }
 
-// GLOBAL: SWBF2 0x00998300
 // SYNTHETIC: SWBF2 0x004083a0
 // `dynamic initializer for 'RedDirectionalLight::BLACK''
 // SYNTHETIC: SWBF2 0x00769990
 // `dynamic atexit destructor for 'RedDirectionalLight::BLACK''
+
+// GLOBAL: SWBF2 0x00998300
+// RedDirectionalLight::BLACK
 RedDirectionalLight RedDirectionalLight::BLACK(PblVector3(0.0f, 0.0f, 0.0f), RedColorValue::BLACK);
 
 // FUNCTION: SWBF2 0x006d8cd0
@@ -104,24 +102,21 @@ bool RedDirectionalLight::IsVisible(const RedCamera* pCamera) const
 void RedDirectionalLight::SetColor(const RedColorValue& color)
 {
     m_color = color;
-    m_d3dLight.Diffuse = m_d3dLight.Specular = *(const D3DCOLORVALUE*)&color;
+    m_d3dLight.Diffuse = m_d3dLight.Specular = color;
 }
 
 // FUNCTION: SWBF2 0x006d8fe0
 void RedDirectionalLight::SetDirection(const PblVector3& vDirection)
 {
-    float fLengthSq = vDirection.x * vDirection.x + vDirection.y * vDirection.y
-                    + vDirection.z * vDirection.z;
+    float fLengthSq = SquaredLength(vDirection);
 
-    if (EPSILON >= fabs(fLengthSq - 1.0f))
+    if (EPSILON >= fabsf(fLengthSq - 1.0f))
     {
         m_vDirection = vDirection;
     }
     else
     {
-        PblVector3 vNormal;
-        D3DXVec3Normalize(&vNormal, &vDirection);
-        m_vDirection = vNormal;
+        m_vDirection = Normalize(vDirection);
     }
 
     m_d3dLight.Direction = *(const D3DVECTOR*)&m_vDirection;
@@ -131,33 +126,14 @@ void RedDirectionalLight::SetDirection(const PblVector3& vDirection)
 // FUNCTION: SWBF2 0x006d9090
 void RedDirectionalLight::_RecalculateProjectionMatrix() const
 {
-    const float fInvTileU = 1.0f / m_fProjTexTileU;
-    const float fInvTileV = 1.0f / m_fProjTexTileV;
+    PblVector3 vU = (gVectorUnitX - m_vDirection * m_vDirection.x) / m_fProjTexTileU;
+    PblVector3 vV = (gVectorUnitZ - m_vDirection * m_vDirection.z) / m_fProjTexTileV;
 
-    const float ux = (gVectorUnitX.x - m_vDirection.x * m_vDirection.x) * fInvTileU;
-    const float uy = (gVectorUnitX.y - m_vDirection.y * m_vDirection.x) * fInvTileU;
-    const float uz = (gVectorUnitX.z - m_vDirection.z * m_vDirection.x) * fInvTileU;
-
-    const float vx = (gVectorUnitZ.x - m_vDirection.x * m_vDirection.z) * fInvTileV;
-    const float vy = (gVectorUnitZ.y - m_vDirection.y * m_vDirection.z) * fInvTileV;
-    const float vz = (gVectorUnitZ.z - m_vDirection.z * m_vDirection.z) * fInvTileV;
-
-    m_mProjection.m[0][0] = ux;
-    m_mProjection.m[0][2] = 0.0f;
-    m_mProjection.m[0][3] = 0.0f;
-    m_mProjection.m[0][1] = vx;
-    m_mProjection.m[1][0] = uy;
-    m_mProjection.m[1][1] = vy;
-    m_mProjection.m[1][2] = 0.0f;
-    m_mProjection.m[1][3] = 0.0f;
-    m_mProjection.m[2][0] = uz;
-    m_mProjection.m[2][2] = 1.0f;
-    m_mProjection.m[2][3] = 0.0f;
-    m_mProjection.m[2][1] = vz;
-    m_mProjection.m[3][2] = 0.0f;
-    m_mProjection.m[3][3] = 1.0f;
-    m_mProjection.m[3][1] = m_fProjTexOffsetV / m_fProjTexTileV;
-    m_mProjection.m[3][0] = m_fProjTexOffsetU / m_fProjTexTileU;
+    m_mProjection.SetXAxis(vU.x, vV.x, 0.0f, 0.0f);
+    m_mProjection.SetYAxis(vU.y, vV.y, 0.0f, 0.0f);
+    m_mProjection.SetZAxis(vU.z, vV.z, 1.0f, 0.0f);
+    m_mProjection.SetTranslation(m_fProjTexOffsetU / m_fProjTexTileU,
+                                 m_fProjTexOffsetV / m_fProjTexTileV, 0.0f, 1.0f);
 
     m_bProjectionDirty = false;
 }

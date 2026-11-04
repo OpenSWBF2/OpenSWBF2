@@ -1,20 +1,65 @@
 #include <stdlib.h>
+#include "PebbleFL/Common/PblMath.h"
 #include <string.h>
-#include <stddef.h>
 
 #include "RedMemory.h"
 #include "RedEngineFL/Memory/engineAlloc.h"
 #include "PebbleFL/Common/PblAsan.h"
 
+struct Tag
+{
+    Tag* prev_;
+    Tag* next_;
+    unsigned int size;
+
+    void New() { prev_ = next_ = 0; }
+};
+
+
+struct TagList
+{
+    Tag* first;
+    Tag* last;
+};
+
+
+struct HeapObj
+{
+    void* start;
+    TagList free;
+    TagList used;
+    unsigned int size;
+    const char* name;
+    unsigned int align;
+    bool frozen;
+    bool permanent;
+};
+
+
 extern "C"
 {
+    // GLOBAL: SWBF2 0x0093eba1
+    // isHeapObjInitialized
     bool isHeapObjInitialized;
+    // GLOBAL: SWBF2 0x0093eba4
+    // heapobj
     HeapObj* heapobj;
+    // GLOBAL: SWBF2 0x0093eba8
+    // maxheaps
     int maxheaps;
+    // GLOBAL: SWBF2 0x0093ebac
+    // __RedCurrHeap
     int __RedCurrHeap;
+    // GLOBAL: SWBF2 0x007dee30
+    // __RedDebugHeap
     int __RedDebugHeap = -1;
+    // GLOBAL: SWBF2 0x007dee34
+    // __RedTempHeap
     int __RedTempHeap = -1;
+    // GLOBAL: SWBF2 0x0093eb94
+    // OnFailure
     void (*OnFailure)(int heap, unsigned int size);
+    // GLOBAL: SWBF2 0x0093ebb0
     int sRecursionDepth;
 }
 
@@ -40,26 +85,22 @@ extern "C" char const* RedGetHeapName(int heap)
 
 namespace RedMemory
 {
+    // GLOBAL: SWBF2 0x0093eb98
     int failHeap;
+    // GLOBAL: SWBF2 0x0093eb9c
     unsigned int failSize;
 }
 
-extern "C" void Startup_RedInitHeap();
+extern "C" void Startup_RedInitHeap(int, int);
 
 PBL_ASAN_NO_SANITIZE void TagAddList(TagList* list, Tag* tag);
 PBL_ASAN_NO_SANITIZE void TagMergeIntoList(TagList* list, Tag* tag);
 PBL_ASAN_NO_SANITIZE void TagRemoveList(TagList* list, Tag* tag);
 
 // FUNCTION: SWBF2 0x006c3540
-void* __cdecl operator new(size_t size)
+void* __cdecl operator new(unsigned int size)
 {
-#ifdef _WIN64
-    if (size > 0xFFFFFFFFu)
-    {
-        return 0;
-    }
-#endif
-    return RedAllocFromHeap(__RedCurrHeap, (unsigned int)size, 0);
+    return RedAllocFromHeap(__RedCurrHeap, size, 0);
 }
 
 // FUNCTION: SWBF2 0x006c3560
@@ -72,15 +113,9 @@ void __cdecl operator delete(void* block)
 }
 
 // FUNCTION: SWBF2 0x006c3580
-void* __cdecl operator new[](size_t size)
+void* __cdecl operator new[](unsigned int size)
 {
-#ifdef _WIN64
-    if (size > 0xFFFFFFFFu)
-    {
-        return 0;
-    }
-#endif
-    return RedAllocFromHeap(__RedCurrHeap, (unsigned int)size, 0);
+    return RedAllocFromHeap(__RedCurrHeap, size, 0);
 }
 
 // FUNCTION: SWBF2 0x006c35a0
@@ -109,11 +144,11 @@ void __cdecl operator delete[](void* block, size_t)
 }
 
 // FUNCTION: SWBF2 0x006c35c0
-PBL_ASAN_NO_SANITIZE void* RedAllocFromHeapInternal(int heap, unsigned int size, int bTop)
+PBL_ASAN_NO_SANITIZE void* RedAllocFromHeapInternal(int heap, unsigned int size, bool bTop)
 {
     if (!isHeapObjInitialized)
     {
-        Startup_RedInitHeap();
+        Startup_RedInitHeap(0x80, 0x80);
     }
     if (heap < 0 || heap >= maxheaps)
     {
@@ -121,9 +156,14 @@ PBL_ASAN_NO_SANITIZE void* RedAllocFromHeapInternal(int heap, unsigned int size,
     }
 
     HeapObj& h = heapobj[heap];
-    unsigned int mask = ~(h.align - 1);
-    unsigned int hdr = (h.align + sizeof(Tag) - 1) & mask;
-    unsigned int need = ((size ? size : 1) + h.align - 1 + hdr) & mask;
+    unsigned int align = h.align;
+    unsigned int mask = ~(align - 1);
+    unsigned int hdr = (align + sizeof(Tag) - 1) & mask;
+    if (size == 0)
+    {
+        size = 1;
+    }
+    unsigned int need = (size + align - 1 + hdr) & mask;
 
     Tag* tag;
     if (bTop)
@@ -287,8 +327,8 @@ PBL_ASAN_NO_SANITIZE void TagMergeIntoList(TagList* list, Tag* tag)
         prev->next_ = tag;
         if ((char*)prev + prev->size == (char*)tag)
         {
-            prev->next_ = next;
             prev->size += tag->size;
+            prev->next_ = next;
             if (next)
             {
                 next->prev_ = prev;
@@ -324,12 +364,12 @@ PBL_ASAN_NO_SANITIZE void TagRemoveList(TagList* list, Tag* tag)
     {
         list->first = tag->next_;
     }
-    tag->next_ = 0;
     tag->prev_ = 0;
+    tag->next_ = 0;
 }
 
 // FUNCTION: SWBF2 0x006c38d0
-void* RedAllocFromHeap(int heap, unsigned int size, int bTop)
+void* RedAllocFromHeap(int heap, unsigned int size, bool bTop)
 {
     void* p = RedAllocFromHeapInternal(heap, size, bTop);
     if (!p)
@@ -344,12 +384,12 @@ void* RedAllocFromHeap(int heap, unsigned int size, int bTop)
 }
 
 // FUNCTION: SWBF2 0x006c3900
-int RedCreateHeap(void* start, void* end, int align, char const* name)
+int RedCreateHeap(void* start, void* end, unsigned int align, char const* name)
 {
-    uintptr_t mask = ~(uintptr_t)(align - 1);
-    char* s = (char*)(((uintptr_t)start + align - 1) & mask);
-    char* e = (char*)((uintptr_t)end & mask);
-    size_t size = (size_t)(e - s);
+    unsigned int mask = ~(align - 1);
+    char* s = (char*)(((unsigned int)start + align - 1) & mask);
+    char* e = (char*)((unsigned int)end & mask);
+    unsigned int size = e - s;
     PblAsanUnpoison(s, size);
     if (size)
     {
@@ -371,21 +411,20 @@ int RedCreateHeap(void* start, void* end, int align, char const* name)
     }
 
     Tag* tag = (Tag*)s;
-    tag->size = (unsigned int)size;
-    tag->next_ = 0;
-    tag->prev_ = 0;
+    tag->size = size;
+    tag->New();
 
     HeapObj& heap = heapobj[i];
     heap.start = s;
     heap.free.first = tag;
     heap.free.last = tag;
-    heap.size = (unsigned int)size;
+    heap.size = size;
     heap.used.first = 0;
     heap.used.last = 0;
     heap.align = align;
-    heap.name = (char*)name;
-    heap.frozen = false;
+    heap.name = name;
     PblAsanPoison(s, size);
+    heap.frozen = false;
     return i;
 }
 
@@ -408,13 +447,14 @@ void RedDestroyHeap(int heap)
 }
 
 // FUNCTION: SWBF2 0x006c3a00
-void RedFreeToHeap(int heap, void* block, int flags)
+void RedFreeToHeap(int heap, void* block, unsigned int flags)
 {
     if (RedFreeToHeapInternal(heap, block, flags))
     {
         return;
     }
-    for (int i = 0; i < maxheaps; ++i)
+    int numHeaps = maxheaps;
+    for (int i = 0; i < numHeaps; ++i)
     {
         if (RedFreeToHeapInternal(i, block, flags))
         {
@@ -425,15 +465,16 @@ void RedFreeToHeap(int heap, void* block, int flags)
 }
 
 // FUNCTION: SWBF2 0x006c3aa0
-char* RedInitHeap(void* start, void* end, int maxheaps)
+void* RedInitHeap(void* start, void* end, int maxheaps)
 {
     (void)end;
     ::maxheaps = maxheaps;
-    heapobj = (HeapObj*)(((uintptr_t)start + 3) & ~(uintptr_t)3);
-    char* pNext = (char*)(((uintptr_t)heapobj + maxheaps * sizeof(HeapObj) + 3) & ~(uintptr_t)3);
+    HeapObj* heaps = (HeapObj*)(((unsigned int)start + 3) & ~3);
+    heapobj = heaps;
+    char* pNext = (char*)(((unsigned int)heaps + maxheaps * sizeof(HeapObj) + 3) & ~3);
     for (int i = 0; i < maxheaps; ++i)
     {
-        HeapObj& h = heapobj[i];
+        HeapObj& h = heaps[i];
         h.start = 0;
         h.free.first = 0;
         h.free.last = 0;
@@ -482,4 +523,32 @@ void RedSetTempHeap(int heap)
 unsigned int RedGetHeapSize(int heap)
 {
     return heapobj[heap].size;
+}
+
+// FUNCTION: SWBF2 0x006c3b40
+bool RedMoveHeapEnd(int iHeap, int iDelta)
+{
+    int iSource = iHeap;
+    int iTarget = iHeap + 1;
+    unsigned int uAmount = iDelta;
+    if (iDelta < 0)
+    {
+        iSource = iHeap + 1;
+        iTarget = iHeap;
+        uAmount = -iDelta;
+    }
+    int sourceAlign = heapobj[iSource].align;
+    int targetAlign = heapobj[iTarget].align;
+    unsigned int uTagSize = (targetAlign + sizeof(Tag) - 1) & ~(targetAlign - 1);
+    int align = Max(sourceAlign, targetAlign);
+    unsigned int uAllocation = (uAmount & ~(align - 1)) - uTagSize;
+    void* pBlock = RedAllocFromHeapInternal(iTarget, uAllocation, iDelta < 0);
+    HeapObj* heaps = heapobj;
+    Tag* pTag = (Tag*)((char*)pBlock - uTagSize);
+    heaps[iHeap].size += iDelta;
+    heaps[iHeap + 1].start = (char*)heaps[iHeap + 1].start + iDelta;
+    heaps[iHeap + 1].size -= iDelta;
+    TagRemoveList(&heaps[iTarget].used, pTag);
+    TagAddList(&heaps[iSource].used, pTag);
+    return RedFreeToHeapInternal(iSource, pBlock, 0);
 }

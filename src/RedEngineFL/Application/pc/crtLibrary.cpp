@@ -202,6 +202,15 @@
 // LIBRARY: SWBF2 0x00753070
 // _ftol2_sse
 
+// LIBRARY: SWBF2 0x00753079
+// _ftol2_pentium4
+
+// LIBRARY: SWBF2 0x0075308c
+// _ftol2_sse_excpt
+
+// LIBRARY: SWBF2 0x007530a6
+// _ftol2
+
 // LIBRARY: SWBF2 0x0075311c
 // frexp
 
@@ -314,10 +323,10 @@
 // _aulldiv
 
 // LIBRARY: SWBF2 0x007536e0
-// sub_007536e0
+// ___vdecl_cos2
 
 // LIBRARY: SWBF2 0x007536f0
-// sub_007536f0
+// ___vdecl_sin2
 
 // LIBRARY: SWBF2 0x007536f6
 // exit
@@ -341,10 +350,10 @@
 // __dllonexit
 
 // LIBRARY: SWBF2 0x00753740
-// _SEH_prolog4
+// __SEH_prolog4
 
 // LIBRARY: SWBF2 0x00753785
-// _SEH_epilog4
+// __SEH_epilog4
 
 // LIBRARY: SWBF2 0x00753799
 // _except_handler4
@@ -413,19 +422,10 @@
 // _except1
 
 // LIBRARY: SWBF2 0x00753c20
-// __sse2_cos2
-
-// LIBRARY: SWBF2 0x00753d4f
-// sub_00753d4f
+// ___sse2_cos2
 
 // LIBRARY: SWBF2 0x00753dc0
-// __sse2_sin2
-
-// LIBRARY: SWBF2 0x00753ef2
-// sub_00753ef2
-
-// LIBRARY: SWBF2 0x00753f7b
-// sub_00753f7b
+// ___sse2_sin2
 
 // LIBRARY: SWBF2 0x00753f80
 // _except_handler4_common
@@ -440,22 +440,19 @@
 // _controlfp_s
 
 // LIBRARY: SWBF2 0x00753fa0
-// __common_sin_reduction_LA
+// ___common_sin_reduction_LA
 
 // LIBRARY: SWBF2 0x00754290
-// __common_srl
+// ___common_srl
 
 // LIBRARY: SWBF2 0x007542c0
-// __common_sll
-
-// LIBRARY: SWBF2 0x007542eb
-// sub_007542eb
+// ___common_sll
 
 // LIBRARY: SWBF2 0x007542f0
-// __common_cos_reduction_LA
+// ___common_cos_reduction_LA
 
 // LIBRARY: SWBF2 0x007545e0
-// __common_pi04_reduction_LA
+// ___common_pi04_reduction_LA
 
 // LIBRARY: SWBF2 0x007548f0
 // D3DXVec4Transform
@@ -491,10 +488,19 @@
 // `dynamic atexit destructor for 'std::_Error_objects<int>::_Generic_object''
 
 // SYNTHETIC: SWBF2 0x005d46d0
+// std::error_category::`scalar deleting destructor'
 
 // SYNTHETIC: SWBF2 0x005d4810
+// std::_Generic_error_category::`scalar deleting destructor'
 
 // SYNTHETIC: SWBF2 0x005d48a0
+// std::_Iostream_error_category::`scalar deleting destructor'
 
 // SYNTHETIC: SWBF2 0x005d49a0
 // std::_System_error_category::`scalar deleting destructor'
+
+// GLOBAL: SWBF2 0x007e3cb8
+// __security_cookie
+
+// GLOBAL: SWBF2 0x007e3cbc
+// __security_cookie_complement

@@ -7,6 +7,10 @@
 #include "RedEngineFL/Graphics/RedColor.h"
 #include "RedEngineFL/Graphics/RedMaterial.h"
 
+#ifdef PlaySound
+#undef PlaySound
+#endif
+
 // VTABLE: SWBF2 0x007a3ce4
 class LightningEffect : public FLEffect
 {

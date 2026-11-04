@@ -1,4 +1,5 @@
 #include "RedLodManager.h"
+#include "PebbleFL/Common/PblMath.h"
 #include "Battlefront2/Source/Battlefront2Lod.h"
 #include "RedSceneManager.h"
 #include "RedSceneObject.h"
@@ -243,7 +244,7 @@ void SetClassMaxCost(int iClass, int iHeapSize, int iCost0, int iCost1,
     mClass[iClass].mData[2].mMaxCost = iCost2;
     mClass[iClass].mData[3].mMaxCost = iCost3;
     mClass[iClass].mHeap = new PblHeap<RedSceneObject*, float>(
-        iHeapSize > 256 ? iHeapSize : 256, 1000000.0f, 0);
+        Max(iHeapSize, 256), 1000000.0f, 0);
 }
 
 // FUNCTION: SWBF2 0x00717960

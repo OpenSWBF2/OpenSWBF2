@@ -9,10 +9,6 @@ pcRedIndexBuffer::pcRedIndexBuffer(unsigned int uiNumIndices, bool bStatic,
                                    bool bShared)
 {
 
-    m_listNode._pList = 0;
-    m_listNode._pNext = 0;
-    m_listNode._pPrev = 0;
-    m_listNode._pObject = 0;
 
     memset(&m_desc, 0, sizeof(m_desc));
     m_desc.Format = D3DFMT_INDEX16;

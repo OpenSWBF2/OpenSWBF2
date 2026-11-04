@@ -28,29 +28,22 @@ PowerupItemClass::PowerupItemClass(unsigned int uHash)
     mDebuffDamageRate = 0.0f;
 }
 
-// GLOBAL: SWBF2 0x01efa1d0
 // SYNTHETIC: SWBF2 0x00405f90
 // `dynamic initializer for 'PowerupItemClass::rttiHashPowerupItemClass''
+// PowerupItemClass::rttiHashPowerupItemClass
+
+// GLOBAL: SWBF2 0x01efa1d0
+// PowerupItemClass::rttiHashPowerupItemClass
 PblHash PowerupItemClass::rttiHashPowerupItemClass("PowerupItemClass");
-char PowerupItemClass::rttiNamePowerupItemClass[] = "PowerupItemClass";
+// GLOBAL: SWBF2 0x0078abe0
+// PowerupItemClass::rttiNamePowerupItemClass
+const char PowerupItemClass::rttiNamePowerupItemClass[] = "PowerupItemClass";
 
-// FUNCTION: SWBF2 0x00623890
-bool PowerupItemClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashPowerupItemClass || EntityItemClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x006238d0
-unsigned int PowerupItemClass::GetDerivedRtti()
-{
-    return rttiHashPowerupItemClass;
-}
 
-// FUNCTION: SWBF2 0x006238e0
-const char* PowerupItemClass::GetDerivedRttiName()
-{
-    return rttiNamePowerupItemClass;
-}
+
+
+
 
 // SYNTHETIC: SWBF2 0x00623d80
 // PowerupItemClass::`scalar deleting destructor'
@@ -193,29 +186,36 @@ EntityClass* PowerupItemClass::Derive(unsigned int uHash)
 // SYNTHETIC: SWBF2 0x00623990
 // PowerupItem::`scalar deleting destructor'
 // SYNTHETIC: SWBF2 0x006244ba
-// [thunk]:PowerupItem::`scalar deleting destructor' adjustor{320}
+// ??_EPowerupItem@@WBEA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x006244c5
-// [thunk]:PowerupItem::`scalar deleting destructor' adjustor{12}
+// ??_EPowerupItem@@WM@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x006244cd
-// [thunk]:PowerupItem::`scalar deleting destructor' adjustor{512}
+// ??_EPowerupItem@@WCAA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x006244e3
-// [thunk]:PowerupItem::`scalar deleting destructor' adjustor{148}
+// ??_EPowerupItem@@WJE@AEPAXI@Z
 
 // SYNTHETIC: SWBF2 0x006244d8
-// [thunk]:PowerupItem::`scalar deleting destructor'`adjustor{576}'
+// ??_EPowerupItem@@WCEA@AEPAXI@Z
 
-// GLOBAL: SWBF2 0x01efa1d8
 // SYNTHETIC: SWBF2 0x00405f60
 // `dynamic initializer for 'PowerupItem::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00769340
 // `dynamic atexit destructor for 'PowerupItem::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01efa1d8
+// PowerupItem::sMemoryPool
 MemoryPool PowerupItem::sMemoryPool("PowerupItem", 0x290);
 
-// GLOBAL: SWBF2 0x01efa1d4
 // SYNTHETIC: SWBF2 0x00405f80
 // `dynamic initializer for 'PowerupItem::rttiHashPowerupItem''
+// PowerupItem::rttiHashPowerupItem
+
+// GLOBAL: SWBF2 0x01efa1d4
+// PowerupItem::rttiHashPowerupItem
 PblHash PowerupItem::rttiHashPowerupItem("PowerupItem");
-char PowerupItem::rttiNamePowerupItem[] = "PowerupItem";
+// GLOBAL: SWBF2 0x0078ac00
+// PowerupItem::rttiNamePowerupItem
+const char PowerupItem::rttiNamePowerupItem[] = "PowerupItem";
 
 class CollisionManager
 {
@@ -238,7 +238,7 @@ Entity* PowerupItemClass::Build(const EntityDesc& desc)
     PowerupItem* pItem = new PowerupItem(this, desc);
     if (pItem)
     {
-        CollisionManager::AddItemBody(pItem);
+        pItem->AddItemToCollisionManager();
         pItem->ActivatePhysics();
         pItem->BuildEffects();
     }
@@ -258,23 +258,11 @@ EntityType PowerupItem::GetEntityType() const
     return ENT_POWERUP;
 }
 
-// FUNCTION: SWBF2 0x006237f0
-bool PowerupItem::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashPowerupItem || uRtti == EntityItem::rttiHashEntityItem || GameObject::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00623840
-unsigned int PowerupItem::GetDerivedRtti() const
-{
-    return rttiHashPowerupItem;
-}
 
-// FUNCTION: SWBF2 0x00623850
-const char* PowerupItem::GetDerivedRttiName() const
-{
-    return rttiNamePowerupItem;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00623880
 bool PowerupItem::AddToTeamManager() const

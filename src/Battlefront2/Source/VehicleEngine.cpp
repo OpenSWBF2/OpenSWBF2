@@ -16,26 +16,32 @@ const unsigned int VehicleEngine::sParamIDs[12] = {
     0x08aab3aa, 0xc8a9e3c6, 0xc7ab9270, 0x43f6a333, 0xeecf1cca, 0xbb0169a2,
 };
 
-// GLOBAL: SWBF2 0x007ebe9c
 // SYNTHETIC: SWBF2 0x00406d70
 // `dynamic initializer for 'VehicleEngine::sEngineList''
 // SYNTHETIC: SWBF2 0x007696d0
 // `dynamic atexit destructor for 'VehicleEngine::sEngineList''
+
+// GLOBAL: SWBF2 0x007ebe9c
+// VehicleEngine::sEngineList
 PblListSingle VehicleEngine::sEngineList;
 
-// GLOBAL: SWBF2 0x007ebeb8
 // SYNTHETIC: SWBF2 0x00406da0
 // `dynamic initializer for 'VehicleEngineClass::Boost::sGlobalList''
 // SYNTHETIC: SWBF2 0x007696f0
 // `dynamic atexit destructor for 'VehicleEngineClass::Boost::sGlobalList''
+
+// GLOBAL: SWBF2 0x007ebeb8
+// VehicleEngineClass::Boost::sGlobalList
 PblListSingle VehicleEngineClass::Boost::sGlobalList;
 
-// GLOBAL: SWBF2 0x007ec3b0
 // SYNTHETIC: SWBF2 0x00406d80
 // `dynamic initializer for 'VehicleEngineClass::Boost::smFreeList''
 // SYNTHETIC: SWBF2 0x007696e0
 // `dynamic atexit destructor for 'VehicleEngineClass::Boost::smFreeList''
-Snd::FreeList VehicleEngineClass::Boost::smFreeList((sizeof(Boost) + 15) & ~15u, 16, 8, 1);
+
+// GLOBAL: SWBF2 0x007ec3b0
+// VehicleEngineClass::Boost::smFreeList
+Snd::FreeList VehicleEngineClass::Boost::smFreeList((sizeof(Boost) + 15) & ~15u, 16, true, 8);
 
 // FUNCTION: SWBF2 0x0066cac0
 void VehicleEngineClass::Boost::operator delete(void* p)
@@ -43,7 +49,7 @@ void VehicleEngineClass::Boost::operator delete(void* p)
     smFreeList.Free(p);
 }
 
-void* VehicleEngineClass::Boost::operator new(size_t)
+void* VehicleEngineClass::Boost::operator new(unsigned int)
 {
     return smFreeList.Alloc();
 }
@@ -59,7 +65,7 @@ bool VehicleEngine::UpdateEnabled()
     {
         return false;
     }
-    if (NetGame::IsClient() || NetGame::IsOneWorld())
+    if (NetGame::OnClient() || NetGame::IsOneWorld())
     {
         return netIsLocalTurn;
     }
@@ -94,10 +100,6 @@ VehicleEngine::VehicleEngine(VehicleEngineClass* pClass)
 VehicleEngine::~VehicleEngine()
 {
     DeactivateEngine();
-    if (mNode.mNext)
-    {
-        mNode.Remove();
-    }
 }
 
 // FUNCTION: SWBF2 0x0066ccb0
@@ -444,7 +446,8 @@ void VehicleEngine::DeactivateAll()
 {
     while (!sEngineList.IsEmpty())
     {
-        VehicleEngine* pEngine = (VehicleEngine*)sEngineList.mHead.mNext;
+        VehicleEngine* pEngine = (VehicleEngine*)sEngineList.GetFirst()->GetObjectA(
+            &sEngineList, offsetof(VehicleEngine, mNode));
         pEngine->DeactivateEngine();
         pEngine->mNode.Remove();
     }
@@ -522,7 +525,7 @@ void VehicleEngineClass::Boost::DestroyAll()
 {
     while (!sGlobalList.IsEmpty())
     {
-        delete (Boost*)((char*)sGlobalList.mHead.mNext - offsetof(Boost, mGlobalLink));
+        delete (Boost*)sGlobalList.GetFirst()->GetObjectA(&sGlobalList, offsetof(Boost, mGlobalLink));
     }
 }
 

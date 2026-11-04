@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "pcRedParticle.h"
 
 #include <float.h>
@@ -12,17 +13,9 @@
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "RedEngineFL/Graphics/PC/pcRedShader.h"
 #include "RedEngineFL/Graphics/PC/Shaders/pcParticleShader.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
-namespace
-{
 
-struct PosXYZ
-{
-    float x;
-    float y;
-    float z;
-};
+
 
 struct NormalXYZ
 {
@@ -31,11 +24,7 @@ struct NormalXYZ
     float z;
 };
 
-struct TexCoord
-{
-    float u;
-    float v;
-};
+
 
 struct BlurParticleVertexT
 {
@@ -54,7 +43,6 @@ struct ParticleVertexT
     float tu;
     float tv;
 };
-}
 
  
  
@@ -67,27 +55,35 @@ int RedParticleRenderer::s_cacheIndex;
 // SYNTHETIC: SWBF2 0x006d0bf0
 // RedParticleRenderer::RedParticleRenderer
 
-// GLOBAL: SWBF2 0x009661e0
 // SYNTHETIC: SWBF2 0x00408110
 // `dynamic initializer for 'RedParticleRenderer::s_caches''
+
+// GLOBAL: SWBF2 0x009661e0
+// RedParticleRenderer::s_caches
 RedParticleRenderer RedParticleRenderer::s_caches[15];
 
-// GLOBAL: SWBF2 0x009661dc
 // SYNTHETIC: SWBF2 0x00408180
 // `dynamic initializer for 'kuiParticleShader''
+
+// GLOBAL: SWBF2 0x009661dc
+// kuiParticleShader
 unsigned int kuiParticleShader = PblHash("particle");
 
-// GLOBAL: SWBF2 0x00998210
 // SYNTHETIC: SWBF2 0x004080f0
 // `dynamic initializer for 'RedParticleRenderer::_Instance''
 // SYNTHETIC: SWBF2 0x00769970
 // `dynamic atexit destructor for 'RedParticleRenderer::_Instance''
+
+// GLOBAL: SWBF2 0x00998210
+// RedParticleRenderer::_Instance
 RedParticleRenderer::Renderable RedParticleRenderer::_Instance;
-// GLOBAL: SWBF2 0x009661c0
 // SYNTHETIC: SWBF2 0x004080d0
 // `dynamic initializer for 'RedParticleRenderer::_FarInstance''
 // SYNTHETIC: SWBF2 0x00769960
 // `dynamic atexit destructor for 'RedParticleRenderer::_FarInstance''
+
+// GLOBAL: SWBF2 0x009661c0
+// RedParticleRenderer::_FarInstance
 RedParticleRenderer::Renderable RedParticleRenderer::_FarInstance;
 
 // FUNCTION: SWBF2 0x006d0c00
@@ -103,15 +99,9 @@ RedParticleRenderer::Renderable::~Renderable()
 // SYNTHETIC: SWBF2 0x006d0c30
 // RedParticleRenderer::Renderable::`scalar deleting destructor'
 
-static inline const PblVector3 operator-(const PblVector3& a, const PblVector3& b)
-{
-    return PblVector3(a.x - b.x, a.y - b.y, a.z - b.z);
-}
 
-static inline const PblVector3 operator-(const PblVector3& a)
-{
-    return PblVector3(-a.x, -a.y, -a.z);
-}
+
+
 
 static inline float Dot(const PblVector3& a, const PblVector3& b)
 {
@@ -389,7 +379,7 @@ void RedParticleRenderer::AddParticleToBuffers(void* pVertices, unsigned short* 
             else
             {
                 PblVector3 vTemp;
-                D3DXVec3Normalize(&vTemp, &vNormal);
+                D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vTemp), reinterpret_cast<const D3DXVECTOR3*>(&vNormal));
                 vNormal = vTemp;
             }
 
@@ -397,7 +387,7 @@ void RedParticleRenderer::AddParticleToBuffers(void* pVertices, unsigned short* 
             PblVector3 vSide;
             Cross(&vSide, vToStart, vWidth);
             PblVector3 vSideNorm;
-            D3DXVec3Normalize(&vSideNorm, &vSide);
+            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vSideNorm), reinterpret_cast<const D3DXVECTOR3*>(&vSide));
             PblVector3 vDepth = vSideNorm * fStartWidth;
 
             if (m_blendMode == BLEND_BLUR)
@@ -422,7 +412,7 @@ void RedParticleRenderer::AddParticleToBuffers(void* pVertices, unsigned short* 
                 PblVector3 vEndSide;
                 Cross(&vEndSide, vToEndCam, vEndWidth);
                 PblVector3 vEndSideNorm;
-                D3DXVec3Normalize(&vEndSideNorm, &vEndSide);
+                D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vEndSideNorm), reinterpret_cast<const D3DXVECTOR3*>(&vEndSide));
 
                 const PblVector3 vZero(0.0f, 0.0f, 0.0f);
                 SetUV(pBlurVerts[4], info.mColor, 0.25f, 0.5f);
@@ -454,7 +444,7 @@ void RedParticleRenderer::AddParticleToBuffers(void* pVertices, unsigned short* 
             if (Dot(vDir, vDir) > 0.0f)
             {
                 PblVector3 vDirNorm;
-                D3DXVec3Normalize(&vDirNorm, &vDir);
+                D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDirNorm), reinterpret_cast<const D3DXVECTOR3*>(&vDir));
                 const PblVector3 vStartToCam = vCamPos - vStart;
                 const PblVector3 vOffLine = vStartToCam - vDirNorm * Dot(vStartToCam, vDirNorm);
                 if (fStartWidth * fStartWidth > Dot(vOffLine, vOffLine))
@@ -598,7 +588,7 @@ const PblVector3 CalcStreakSplitVector(const PblVector3& vPrev, const PblVector3
     }
 
     PblVector3 vNorm;
-    D3DXVec3Normalize(&vNorm, &vSplit);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNorm), reinterpret_cast<const D3DXVECTOR3*>(&vSplit));
     return vNorm * fWidth;
 }
 

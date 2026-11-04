@@ -36,6 +36,28 @@ class Vector : public IterArray<TYPE, ARRAY, AssertBounds_>
 public:
     Vector() {}
 
+    // TEMPLATE: SWBF2 0x0052b020
+    // util::Vector<unsigned short,util::BaseArray<unsigned short,util::TypedArrayAllocator<unsigned short,util::NewAllocator> > >::~Vector<unsigned short,util::BaseArray<unsigned short,util::TypedArrayAllocator<unsigned short,util::NewAllocator> > >
+
+    // TEMPLATE: SWBF2 0x0052b050
+    // util::Vector<unsigned int,util::BaseArray<unsigned int,util::TypedArrayAllocator<unsigned int,util::NewAllocator> > >::~Vector<unsigned int,util::BaseArray<unsigned int,util::TypedArrayAllocator<unsigned int,util::NewAllocator> > >
+
+    // TEMPLATE: SWBF2 0x006ded90
+    // util::Vector<pvs::Sector *,util::BaseArray<pvs::Sector *,util::TNewArrayAlloc<pvs::Sector *> > >::~Vector<pvs::Sector *,util::BaseArray<pvs::Sector *,util::TNewArrayAlloc<pvs::Sector *> > >
+
+    // TEMPLATE: SWBF2 0x006ded60
+    // util::Vector<pvs::Portal *,util::BaseArray<pvs::Portal *,util::TNewArrayAlloc<pvs::Portal *> > >::~Vector<pvs::Portal *,util::BaseArray<pvs::Portal *,util::TNewArrayAlloc<pvs::Portal *> > >
+
+    // TEMPLATE: SWBF2 0x006ded30
+    // util::Vector<pvs::IDisplayable *,util::BaseArray<pvs::IDisplayable *,util::TNewArrayAlloc<pvs::IDisplayable *> > >::~Vector<pvs::IDisplayable *,util::BaseArray<pvs::IDisplayable *,util::TNewArrayAlloc<pvs::IDisplayable *> > >
+
+    // TEMPLATE: SWBF2 0x006dedc0
+    // util::Vector<void *,util::BaseArray<void *,util::TNewArrayAlloc<void *> > >::~Vector<void *,util::BaseArray<void *,util::TNewArrayAlloc<void *> > >
+
+    // TEMPLATE: SWBF2 0x00715c60
+    // util::Vector<dx::NVStateID,util::BaseArray<dx::NVStateID,util::TNewArrayAlloc<dx::NVStateID> > >::~Vector<dx::NVStateID,util::BaseArray<dx::NVStateID,util::TNewArrayAlloc<dx::NVStateID> > >
+
+
     Vector(Vector const& rOther)
     {
         this->_elements = 0;
@@ -56,7 +78,7 @@ public:
     {
         for (int i = 0; i < this->_numElements; i++)
         {
-            if (this->_elements[i] == rElem)
+            if (rElem == this->_elements[i])
             {
                 return &this->_elements[i];
             }
@@ -89,24 +111,18 @@ public:
 
     bool Add(TYPE const& rElem)
     {
-        if (this->_numElements >= this->_size)
+        if (this->_numElements >= this->_size && !GrowArray(8))
         {
-            int iGrown = this->_size * 2;
-            int iFloor = 8;
-            if (!this->Reserve_(Max_(iGrown, iFloor), true))
-            {
-                return false;
-            }
+            return false;
         }
 
-        new (this->_elements + this->_numElements) TYPE(rElem);
-        this->_numElements++;
+        (*this)[this->_numElements++] = rElem;
         return true;
     }
 
     bool SetNumElements(int iNum)
     {
-        if (iNum > this->_size && !this->Reserve_(Max_(this->_size * 2, iNum), true))
+        if (iNum > this->_size && !GrowArray(iNum))
         {
             return false;
         }
@@ -118,7 +134,7 @@ public:
 
     bool SetSizeGrow(int iSize) { return SetSize_(iSize, false); }
 
-    void SetAll(TYPE value)
+    void SetAll(const TYPE& value)
     {
         for (int i = 0; i < this->_numElements; i++)
         {
@@ -126,7 +142,8 @@ public:
         }
     }
 
-    // FUNCTION: SWBF2 0x0052b0d0
+    // TEMPLATE: SWBF2 0x0052b0d0
+    // util::Vector<unsigned short,util::BaseArray<unsigned short,util::TypedArrayAllocator<unsigned short,util::NewAllocator> > >::SetSize_
     bool SetSize_(int iSize, bool bForce)
     {
         if (iSize == 0 || this->_size == 0)
@@ -136,25 +153,22 @@ public:
                 return false;
             }
         }
-        else if (bForce && this->_size / 2 - 1 > iSize)
+        else if (bForce && iSize < this->_size / 2 - 1)
         {
             if (!this->Reserve_(1 << Int_::ilog(iSize), bForce))
             {
                 return false;
             }
         }
-        else if (this->_size < iSize)
+        else if (iSize > this->_size)
         {
-            int iMinGranule = 4;
-
-            const int iLog = Int_::ilog(iSize);
-            int iGranule = iLog >= 2 ? 1 << (iLog - 2) : 0;
-            const int& riGranule = Max_(iGranule, iMinGranule);
+            const int iMinGranule = 4;
+            int iGranule = Max_(1 << (Int_::ilog(iSize) - 2), iMinGranule);
 
             int iRounded = iSize;
-            if (iSize % riGranule != 0)
+            if (iSize % iGranule != 0)
             {
-                iRounded = (iSize / riGranule + 1) * riGranule;
+                iRounded = (iSize / iGranule + 1) * iGranule;
             }
 
             if (!this->Reserve_(iRounded, bForce))
@@ -165,6 +179,13 @@ public:
 
         this->_numElements = iSize;
         return true;
+    }
+
+private:
+    bool GrowArray(int iSize)
+    {
+        const int iNewSize = Max_(this->_size * 2, iSize);
+        return this->Reserve_(iNewSize, true);
     }
 
 };

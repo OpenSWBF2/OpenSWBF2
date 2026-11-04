@@ -36,7 +36,8 @@ public:
     class BusMixerInfo
     {
     public:
-        BusMixerInfo();
+        // SYNTHETIC: SWBF2 0x00746720
+        // Snd::SoftOutput::BusMixerInfo::BusMixerInfo
         ~BusMixerInfo();
 
         StreamPacket mMixersPackets[2];
@@ -66,22 +67,25 @@ public:
         unsigned short mRemaining[2];
     };
 
+    // SYNTHETIC: SWBF2 0x00746bb0
+    // Snd::SoftOutput::PostOutputMixFlusher::`scalar deleting destructor'
+
     // VTABLE: SWBF2 0x00786b50
-    class PostOutputMixFlusher : public StreamNodeSource
+    class PostOutputMixFlusher : public StreamNodeSink, public StreamNodeSource
     {
     public:
         PostOutputMixFlusher()
         {
 
-            mSink.Connect(0, 0);
             mSoftOutput = 0;
         }
+
+        virtual ~PostOutputMixFlusher();
 
         void SetOutput(SoftOutput* const pOutput) { mSoftOutput = pOutput; }
 
         virtual StreamPacket* GetPacket(unsigned int uiOutput);
 
-        StreamNodeSink mSink;
         SoftOutput* mSoftOutput;
     };
 

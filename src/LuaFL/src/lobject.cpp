@@ -18,6 +18,8 @@
 #define lua_str2number(s,p)     strtod((s), (p))
 #endif
 
+// GLOBAL: SWBF2 0x00771120
+// luaO_nilobject
 const TObject luaO_nilobject = {LUA_TNIL, {NULL}};
 
 // FUNCTION: SWBF2 0x006a2600
@@ -33,6 +35,8 @@ int luaO_int2fb (unsigned int x) {
 // LIBRARY: SWBF2 0x006a2620
 // luaO_log2
 int luaO_log2 (unsigned int x) {
+  // GLOBAL: SWBF2 0x00771128
+  // log_8
   static const lu_byte log_8[255] = {
     0,
     1,1,

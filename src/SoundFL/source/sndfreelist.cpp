@@ -4,20 +4,25 @@
 
 #include "PebbleFL/Common/PblAsan.h"
 
-#include <stddef.h>
-
 namespace Snd
 {
+
+static void* UnpoisonEntry(void* pEntry, unsigned int uiEntrySize)
+{
+#if defined(__SANITIZE_ADDRESS__)
+    if (pEntry)
+    {
+        PblAsanUnpoison(pEntry, uiEntrySize);
+    }
+#endif
+    return pEntry;
+}
 
 // FUNCTION: SWBF2 0x00738610
 bool FreeList::AllocBlocks(unsigned int uiNumBlocks, Block** ppFirstBlock)
 {
 
-    if (mAllocFunc == 0 || mFreeFunc == 0)
-    {
-        mAllocFunc = Globals::smAlloc;
-        mFreeFunc = Globals::smFree;
-    }
+    CheckAllocator();
 
     while (uiNumBlocks != 0)
     {
@@ -35,7 +40,7 @@ bool FreeList::AllocBlocks(unsigned int uiNumBlocks, Block** ppFirstBlock)
         }
 
         char* const pEntries =
-            (char*)((((uintptr_t)pAllocAddress + mAlignment - 1) / mAlignment)
+            (char*)((((unsigned int)pAllocAddress + mAlignment - 1) / mAlignment)
                     * mAlignment);
         Block* const pBlock = (Block*)(pEntries + uiBlockBytes);
 
@@ -58,91 +63,52 @@ bool FreeList::AllocBlocks(unsigned int uiNumBlocks, Block** ppFirstBlock)
     return true;
 }
 
-// FUNCTION: SWBF2 0x00738720
-void* FreeList::Block::AllocEntry(unsigned int uiEntrySize, unsigned int uiEntriesPerBlock)
-{
-    AllocBitmap::Handle handle;
-    handle.mStartEntry = 0;
-    handle.mNumEntries = 0;
-    if (!mBitmap.Alloc(1, handle))
-    {
-        return 0;
-    }
-#if defined(__SANITIZE_ADDRESS__)
-    char* const pEntry = (char*)this - (uiEntriesPerBlock - handle.mStartEntry) * uiEntrySize;
-    PblAsanUnpoison(pEntry, uiEntrySize);
-    return pEntry;
-#else
-    return (char*)this - (uiEntriesPerBlock - handle.mStartEntry) * uiEntrySize;
-#endif
-}
-
 // FUNCTION: SWBF2 0x00738560
 void* FreeList::Alloc()
 {
-    for (PblListSingle::Node* pNode = mBlockList.mHead.mNext;
-         pNode != &mBlockList.mHead;
-         pNode = pNode->mNext)
+    for (PblListSingle::Itor itor(mBlockList);
+         itor.GetNode() != mBlockList.GetTerminator(); ++itor)
     {
-        Block* const pBlock = reinterpret_cast<Block*>(reinterpret_cast<char*>(pNode) - offsetof(Block, mNode));
-        void* const pEntry = pBlock->AllocEntry(mEntrySize, mEntriesPerBlock);
+        Block* const pBlock = static_cast<Block*>(itor.GetNode()->GetObjectA(&mBlockList, offsetof(Block, mNode)));
+        void* const pEntry = UnpoisonEntry(pBlock->AllocEntry(mEntrySize, mEntriesPerBlock), mEntrySize);
         if (pEntry)
         {
             return pEntry;
         }
     }
 
-    if (mFlags & flags_locked)
+    if (!(mFlags & flags_locked))
     {
-        return 0;
+        Block* pBlock = 0;
+        if (AllocBlocks(1, &pBlock))
+        {
+            return UnpoisonEntry(pBlock->AllocEntry(mEntrySize, mEntriesPerBlock), mEntrySize);
+        }
     }
-
-    Block* pBlock = 0;
-    if (!AllocBlocks(1, &pBlock))
-    {
-        return 0;
-    }
-    return pBlock->AllocEntry(mEntrySize, mEntriesPerBlock);
+    return 0;
 }
 
 // FUNCTION: SWBF2 0x00738770
 void FreeList::Free(void* p)
 {
+    PblListSingle::Itor itor(mBlockList);
     if (!mBlockList.IsEmpty())
     {
-        const unsigned int uiEntrySize = mEntrySize;
-        const unsigned int uiBlockBytes =
-            mEntriesPerBlock * uiEntrySize;
-
-        for (PblListSingle::Node* pNode = mBlockList.mHead.mNext;
-             pNode != &mBlockList.mHead;
-             pNode = pNode->mNext)
+        for (; itor.GetNode() != mBlockList.GetTerminator(); ++itor)
         {
-
-            Block* const pBlock = reinterpret_cast<Block*>(reinterpret_cast<char*>(pNode) - offsetof(Block, mNode));
-            char* const pEntries = (char*)pBlock - uiBlockBytes;
-
-            if ((char*)p < pEntries)
+            Block* const pBlock = static_cast<Block*>(itor.GetNode()->GetObjectA(&mBlockList, offsetof(Block, mNode)));
+            if (pBlock->IsValid(p, mEntrySize, mEntriesPerBlock))
             {
-                continue;
-            }
-            if ((char*)p >= (char*)pBlock)
-            {
-                continue;
-            }
-
-            const unsigned int uiIndex =
-                (unsigned int)((char*)p - pEntries) / uiEntrySize;
-            pBlock->mBitmap.Reserve(uiIndex, 1, false);
+                pBlock->FreeEntry(p, mEntrySize, mEntriesPerBlock);
 #if defined(__SANITIZE_ADDRESS__)
-            PblAsanPoison(p, uiEntrySize);
+                PblAsanPoison(p, mEntrySize);
 #endif
-            break;
+                break;
+            }
         }
     }
 
-    const unsigned char ucFlags = mFlags;
-    if ((ucFlags & 1) != 0 && (ucFlags & 2) == 0)
+    if ((mFlags & flags_purgeOnFree) != 0 && (mFlags & flags_locked) == 0)
     {
         PurgeBlocks();
     }
@@ -151,45 +117,24 @@ void FreeList::Free(void* p)
 // FUNCTION: SWBF2 0x00738800
 void FreeList::PurgeBlocks()
 {
+    PblListSingle::Itor itor(mBlockList);
+    CheckAllocator();
 
-    if (mAllocFunc == 0 || mFreeFunc == 0)
+    while (itor.GetNode() != mBlockList.GetTerminator())
     {
-        mAllocFunc = Globals::smAlloc;
-        mFreeFunc = Globals::smFree;
-    }
+        Block* const pBlock = static_cast<Block*>(itor.GetNode()->GetObjectA(&mBlockList, offsetof(Block, mNode)));
+        ++itor;
 
-    PblListSingle::Node* pNode = mBlockList.mHead.mNext;
-    while (pNode != &mBlockList.mHead)
-    {
-        Block* const pBlock = reinterpret_cast<Block*>(reinterpret_cast<char*>(pNode) - offsetof(Block, mNode));
-        pNode = pNode->mNext;
-
-        if (pBlock->mBitmap.GetFreeEntries() != mEntriesPerBlock)
+        if (pBlock->GetAllocator().GetFreeEntries() == mEntriesPerBlock)
         {
-            continue;
-        }
-
-        void* const pAllocAddress = pBlock->mAllocAddress;
-
-        if (pBlock->mNode.mNext != 0)
-        {
-            pBlock->mNode.Remove();
-        }
-
-        if (pBlock->mAllocType == Block::allocType_heap)
-        {
-            Snd::Free(pBlock);
-        }
-        else if (pBlock->mAllocType == Block::allocType_tempHeap)
-        {
-            Snd::FreeTemp(pBlock);
-        }
-
+            void* const pAllocAddress = pBlock->GetAllocationAddress();
 #if defined(__SANITIZE_ADDRESS__)
-        PblAsanUnpoison((char*)pBlock - mEntriesPerBlock * mEntrySize,
-                        mEntriesPerBlock * mEntrySize);
+            PblAsanUnpoison((char*)pBlock - mEntriesPerBlock * mEntrySize,
+                            mEntriesPerBlock * mEntrySize);
 #endif
-        mFreeFunc(pAllocAddress);
+            delete pBlock;
+            mFreeFunc(pAllocAddress);
+        }
     }
 }
 

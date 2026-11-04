@@ -22,6 +22,8 @@ class RedSegment
 {
 public:
 
+    // SYNTHETIC: SWBF2 0x007179e0
+    // RedSegment::~RedSegment
     virtual ~RedSegment()
     {
         if (m_puiBoneIndexMap)

@@ -22,6 +22,8 @@ extern bool g_bNoRender;
 namespace RedAutoSettings
 {
 
+// GLOBAL: SWBF2 0x007e1050
+// _RenderSettings
 RenderOptionsT _RenderSettings;
 
 // GLOBAL: SWBF2 0x007e1098
@@ -149,10 +151,11 @@ int axtoi(char const* pszHex, int iMaxDigits)
     return iValue;
 }
 
+// GLOBAL: SWBF2 0x007e1170
 PblList<VidConfig> VidConfig::sConfigs;
 
 // FUNCTION: SWBF2 0x006e9a80
-VidConfig::VidConfig(unsigned long ulVendorId, unsigned long ulDeviceId, unsigned long ulHint)
+inline VidConfig::VidConfig(unsigned long ulVendorId, unsigned long ulDeviceId, unsigned long ulHint)
 {
     mVendorId = ulVendorId;
     mDeviceId = ulDeviceId;
@@ -162,7 +165,7 @@ VidConfig::VidConfig(unsigned long ulVendorId, unsigned long ulDeviceId, unsigne
 }
 
 // FUNCTION: SWBF2 0x006e9b00
-void VidConfig::AddVidMode(int iWidth, int iHeight, D3DMULTISAMPLE_TYPE eMultiSampleType,
+inline void VidConfig::AddVidMode(int iWidth, int iHeight, D3DMULTISAMPLE_TYPE eMultiSampleType,
                            unsigned long ulMultiSampleQuality, bool bSupported)
 {
     VidMode* pVidMode = new VidMode;
@@ -514,18 +517,15 @@ void DoAutoDetection()
 }
 
 // FUNCTION: SWBF2 0x006ea1c0
-VidConfig* VidConfig::GetConfig(unsigned long ulVendorId, unsigned long ulDeviceId,
+inline VidConfig* VidConfig::GetConfig(unsigned long ulVendorId, unsigned long ulDeviceId,
                                 unsigned long ulHint)
 {
-    for (PblList<VidConfig>::Node* pNode = sConfigs.GetFirst(); pNode->_pObject;
-         pNode = pNode->_pNext)
+    for (PblList<VidConfig>::Itor config(sConfigs); config; ++config)
     {
-        VidConfig* pConfig = pNode->_pObject;
-
-        if (pConfig->mVendorId == ulVendorId && pConfig->mDeviceId == ulDeviceId
-            && pConfig->mHint == ulHint)
+        if (config->mVendorId == ulVendorId && config->mDeviceId == ulDeviceId
+            && config->mHint == ulHint)
         {
-            return pConfig;
+            return config;
         }
     }
 
@@ -564,14 +564,11 @@ unsigned long GetCpuSpeed()
 bool VidConfig::VidModeTested(int iWidth, int iHeight, D3DMULTISAMPLE_TYPE eMultiSampleType,
                               unsigned long ulMultiSampleQuality)
 {
-    for (PblList<VidMode>::Node* pNode = VidModeList.GetFirst(); pNode->_pObject;
-         pNode = pNode->_pNext)
+    for (PblList<VidMode>::Itor mode(VidModeList); mode; ++mode)
     {
-        VidMode* pVidMode = pNode->_pObject;
-
-        if (pVidMode->Width == iWidth && pVidMode->Height == iHeight
-            && pVidMode->MultiSampleType == eMultiSampleType
-            && pVidMode->MultiSampleQuality == ulMultiSampleQuality)
+        if (mode->Width == iWidth && mode->Height == iHeight
+            && mode->MultiSampleType == eMultiSampleType
+            && mode->MultiSampleQuality == ulMultiSampleQuality)
         {
             return true;
         }
@@ -584,16 +581,13 @@ bool VidConfig::VidModeTested(int iWidth, int iHeight, D3DMULTISAMPLE_TYPE eMult
 bool VidConfig::VidModeAvailable(int iWidth, int iHeight, D3DMULTISAMPLE_TYPE eMultiSampleType,
                                  unsigned long ulMultiSampleQuality)
 {
-    for (PblList<VidMode>::Node* pNode = VidModeList.GetFirst(); pNode->_pObject;
-         pNode = pNode->_pNext)
+    for (PblList<VidMode>::Itor mode(VidModeList); mode; ++mode)
     {
-        VidMode* pVidMode = pNode->_pObject;
-
-        if (pVidMode->Width == iWidth && pVidMode->Height == iHeight
-            && pVidMode->MultiSampleType == eMultiSampleType
-            && pVidMode->MultiSampleQuality == ulMultiSampleQuality)
+        if (mode->Width == iWidth && mode->Height == iHeight
+            && mode->MultiSampleType == eMultiSampleType
+            && mode->MultiSampleQuality == ulMultiSampleQuality)
         {
-            return pVidMode->bSupported;
+            return mode->bSupported;
         }
     }
 
@@ -609,18 +603,15 @@ bool VidConfig::GetMaxMultisamplingModeForScreenSize(int iWidth, int iHeight,
     rMultiSampleType = D3DMULTISAMPLE_NONE;
     rMultiSampleQuality = 0;
 
-    for (PblList<VidMode>::Node* pNode = VidModeList.GetFirst(); pNode->_pObject;
-         pNode = pNode->_pNext)
+    for (PblList<VidMode>::Itor mode(VidModeList); mode; ++mode)
     {
-        VidMode* pVidMode = pNode->_pObject;
-
-        if (pVidMode->Width == iWidth && pVidMode->Height == iHeight && pVidMode->bSupported
-            && ((unsigned long)rMultiSampleType < (unsigned long)pVidMode->MultiSampleType
-                || (rMultiSampleType == pVidMode->MultiSampleType
-                    && rMultiSampleQuality < pVidMode->MultiSampleQuality)))
+        if (mode->Width == iWidth && mode->Height == iHeight && mode->bSupported
+            && ((unsigned long)rMultiSampleType < (unsigned long)mode->MultiSampleType
+                || (rMultiSampleType == mode->MultiSampleType
+                    && rMultiSampleQuality < mode->MultiSampleQuality)))
         {
-            rMultiSampleType = pVidMode->MultiSampleType;
-            rMultiSampleQuality = pVidMode->MultiSampleQuality;
+            rMultiSampleType = mode->MultiSampleType;
+            rMultiSampleQuality = mode->MultiSampleQuality;
             bFound = true;
         }
     }
@@ -636,18 +627,15 @@ bool VidConfig::GetMaxScreenSizeForMultisamplingMode(D3DMULTISAMPLE_TYPE eMultiS
     rHeight = 0;
     rWidth = 0;
 
-    for (PblList<VidMode>::Node* pNode = VidModeList.GetFirst(); pNode->_pObject;
-         pNode = pNode->_pNext)
+    for (PblList<VidMode>::Itor mode(VidModeList); mode; ++mode)
     {
-        VidMode* pVidMode = pNode->_pObject;
-
-        if (pVidMode->MultiSampleType == eMultiSampleType
-            && pVidMode->MultiSampleQuality == ulMultiSampleQuality && pVidMode->bSupported
-            && (rWidth < pVidMode->Width
-                || (rWidth == pVidMode->Width && rHeight < pVidMode->Height)))
+        if (mode->MultiSampleType == eMultiSampleType
+            && mode->MultiSampleQuality == ulMultiSampleQuality && mode->bSupported
+            && (rWidth < mode->Width
+                || (rWidth == mode->Width && rHeight < mode->Height)))
         {
-            rWidth = pVidMode->Width;
-            rHeight = pVidMode->Height;
+            rWidth = mode->Width;
+            rHeight = mode->Height;
         }
     }
 
@@ -655,7 +643,7 @@ bool VidConfig::GetMaxScreenSizeForMultisamplingMode(D3DMULTISAMPLE_TYPE eMultiS
 }
 
 // FUNCTION: SWBF2 0x006ea440
-void VidConfig::LoadConfigFile()
+inline void VidConfig::LoadConfigFile()
 {
     PblFile file;
     int iLen = 0;
@@ -684,8 +672,10 @@ void VidConfig::LoadConfigFile()
                             char const* pcDevice = strstr(pcVendor, "0x") + 2;
                             char const* pcHint = strstr(pcDevice, "0x");
 
-                            pConfig = new VidConfig(axtoi(pcVendor, 4), axtoi(pcDevice, 4),
-                                                    axtoi(pcHint + 2, 8));
+                            const unsigned long vendorId = axtoi(pcVendor, 4);
+                            const unsigned long deviceId = axtoi(pcDevice, 4);
+                            const unsigned long hint = axtoi(pcHint + 2, 8);
+                            pConfig = new VidConfig(vendorId, deviceId, hint);
                         }
                         else
                         {
@@ -728,23 +718,17 @@ void VidConfig::SaveConfigFile()
     if (file.OpenCreate("Data\\_LVL_PC\\vidmode.ini", false, true, false)
         || file.OpenCreate("vidmode.ini", false, true, false))
     {
-        for (PblList<VidConfig>::Node* pNode = sConfigs.GetFirst(); pNode->_pObject;
-             pNode = pNode->_pNext)
+        for (PblList<VidConfig>::Itor config(sConfigs); config; ++config)
         {
-            VidConfig* pConfig = pNode->_pObject;
-
             sprintf(acBuffer, "[Vendor 0x%04X Device 0x%04X Hint 0x%08X]\r\n",
-                    pConfig->mVendorId, pConfig->mDeviceId, pConfig->mHint);
+                    config->mVendorId, config->mDeviceId, config->mHint);
             file.WriteString(acBuffer);
 
-            for (PblList<VidMode>::Node* pModeNode = pConfig->VidModeList.GetFirst();
-                 pModeNode->_pObject; pModeNode = pModeNode->_pNext)
+            for (PblList<VidMode>::Itor mode(config->VidModeList); mode; ++mode)
             {
-                VidMode* pVidMode = pModeNode->_pObject;
-
-                sprintf(acBuffer, "%d %d %d %d %d\r\n", pVidMode->Width, pVidMode->Height,
-                        pVidMode->MultiSampleType, pVidMode->MultiSampleQuality,
-                        pVidMode->bSupported);
+                sprintf(acBuffer, "%d %d %d %d %d\r\n", mode->Width, mode->Height,
+                        mode->MultiSampleType, mode->MultiSampleQuality,
+                        mode->bSupported);
                 file.WriteString(acBuffer);
             }
 
@@ -758,8 +742,12 @@ void VidConfig::SaveConfigFile()
 namespace RedVideoConfig
 {
 
+// GLOBAL: SWBF2 0x009aba44
 IDirect3D9* m_pD3D;
+// GLOBAL: SWBF2 0x009aba48
+// m_MultiSampleDriverControlled
 bool m_MultiSampleDriverControlled;
+// GLOBAL: SWBF2 0x009aba4c
 unsigned int m_MemoryHint;
 
 // FUNCTION: SWBF2 0x006ea7f0
@@ -1905,8 +1893,9 @@ void SetMasterQuality(RenderOptionsT* pOptions, int iLevel)
     pOptions->mGraphicsTier = iLevel;
     pOptions->textureQuality = TEXTURE_QUALITY_COMPRESSED;
 
-    if (iLevel == 0)
+    switch (iLevel)
     {
+    case 0:
         pOptions->textureDetail = QUALITY_LOW;
         pOptions->terrainQuality = QUALITY_LOW;
         pOptions->waterQuality = QUALITY_LOW;
@@ -1919,75 +1908,75 @@ void SetMasterQuality(RenderOptionsT* pOptions, int iLevel)
         pOptions->mEnableHDR = false;
         pOptions->mNearSceneFadeFactor = 0.2f;
         pOptions->mFarSceneRangeFactor = 0.2f;
-    }
-    else
-    {
+        break;
+
+    case 1:
         pOptions->specularQuality = QUALITY2_HIGH;
         pOptions->motionBlur = true;
         pOptions->distortion = true;
+        pOptions->textureDetail = QUALITY_MEDIUM;
+        pOptions->terrainQuality = QUALITY_MEDIUM;
+        pOptions->waterQuality = QUALITY_MEDIUM;
+        pOptions->particleQuality = QUALITY_MEDIUM;
+        pOptions->shadowQuality = QUALITY2_LOW;
+        pOptions->bumpMapping = false;
+        pOptions->mEnableHDR = false;
+        pOptions->mNearSceneFadeFactor = 0.5f;
+        pOptions->mFarSceneRangeFactor = 0.5f;
 
-        if (iLevel == 1)
+        if (pOptions == &_RenderSettings)
         {
-            pOptions->textureDetail = QUALITY_MEDIUM;
-            pOptions->terrainQuality = QUALITY_MEDIUM;
-            pOptions->waterQuality = QUALITY_MEDIUM;
-            pOptions->particleQuality = QUALITY_MEDIUM;
-            pOptions->shadowQuality = QUALITY2_LOW;
-            pOptions->bumpMapping = false;
-            pOptions->mEnableHDR = false;
-            pOptions->mNearSceneFadeFactor = 0.5f;
-            pOptions->mFarSceneRangeFactor = 0.5f;
-
-            if (pOptions == &_RenderSettings)
-            {
-                SetDesktopDefault(pOptions);
-                _SetGeneration(pOptions);
-                return;
-            }
-
-            if (RedVideoConfig::VidMode_Usable(1024, 768, D3DMULTISAMPLE_NONE, 0))
-            {
-                pOptions->defaultWidth = 1024;
-                pOptions->defaultHeight = 768;
-                _SetGeneration(pOptions);
-                return;
-            }
+            SetDesktopDefault(pOptions);
+            _SetGeneration(pOptions);
+            return;
         }
-        else
+
+        if (RedVideoConfig::VidMode_Usable(1024, 768, D3DMULTISAMPLE_NONE, 0))
         {
-            pOptions->textureDetail = QUALITY_HIGH;
-            pOptions->terrainQuality = QUALITY_HIGH;
-            pOptions->waterQuality = QUALITY_HIGH;
-            pOptions->particleQuality = QUALITY_HIGH;
-            pOptions->shadowQuality = QUALITY2_HIGH;
-            pOptions->bumpMapping = true;
-            pOptions->mEnableHDR = true;
-            pOptions->mNearSceneFadeFactor = 0.7f;
-            pOptions->mFarSceneRangeFactor = 0.7f;
-
-            if (pOptions == &_RenderSettings)
-            {
-                SetDesktopDefault(pOptions);
-                _SetGeneration(pOptions);
-                return;
-            }
-
-            if (RedVideoConfig::VidMode_Usable(1280, 960, D3DMULTISAMPLE_NONE, 0))
-            {
-                pOptions->defaultWidth = 1280;
-                pOptions->defaultHeight = 960;
-                _SetGeneration(pOptions);
-                return;
-            }
-
-            if (RedVideoConfig::VidMode_Usable(1024, 768, D3DMULTISAMPLE_NONE, 0))
-            {
-                pOptions->defaultWidth = 1024;
-                pOptions->defaultHeight = 768;
-                _SetGeneration(pOptions);
-                return;
-            }
+            pOptions->defaultWidth = 1024;
+            pOptions->defaultHeight = 768;
+            _SetGeneration(pOptions);
+            return;
         }
+        break;
+
+    default:
+        pOptions->specularQuality = QUALITY2_HIGH;
+        pOptions->motionBlur = true;
+        pOptions->distortion = true;
+        pOptions->textureDetail = QUALITY_HIGH;
+        pOptions->terrainQuality = QUALITY_HIGH;
+        pOptions->waterQuality = QUALITY_HIGH;
+        pOptions->particleQuality = QUALITY_HIGH;
+        pOptions->shadowQuality = QUALITY2_HIGH;
+        pOptions->bumpMapping = true;
+        pOptions->mEnableHDR = true;
+        pOptions->mNearSceneFadeFactor = 0.7f;
+        pOptions->mFarSceneRangeFactor = 0.7f;
+
+        if (pOptions == &_RenderSettings)
+        {
+            SetDesktopDefault(pOptions);
+            _SetGeneration(pOptions);
+            return;
+        }
+
+        if (RedVideoConfig::VidMode_Usable(1280, 960, D3DMULTISAMPLE_NONE, 0))
+        {
+            pOptions->defaultWidth = 1280;
+            pOptions->defaultHeight = 960;
+            _SetGeneration(pOptions);
+            return;
+        }
+
+        if (RedVideoConfig::VidMode_Usable(1024, 768, D3DMULTISAMPLE_NONE, 0))
+        {
+            pOptions->defaultWidth = 1024;
+            pOptions->defaultHeight = 768;
+            _SetGeneration(pOptions);
+            return;
+        }
+        break;
     }
 
     if (pOptions == &_RenderSettings)
@@ -2218,7 +2207,7 @@ int fskip(PblFile& rFile, char const* pcToken)
 }
 
 // SYNTHETIC: SWBF2 0x00408b60
-// `dynamic initializer for 'PblMath::fOneOverHalfPi''
+// PblMath::`dynamic initializer for 'fOneOverHalfPi''
 
 // SYNTHETIC: SWBF2 0x00408b80
-// `dynamic initializer for 'PblMath::fOneOverTwoPi''
+// PblMath::`dynamic initializer for 'fOneOverTwoPi''

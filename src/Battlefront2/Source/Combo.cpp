@@ -23,8 +23,6 @@
 #include <float.h>
 #include <d3dx9math.h>
 
-bool __fastcall StateHasBothResolveFlags(const void* pState);
-
 // FUNCTION: SWBF2 0x00475640
 const Combo* Combo::ResolveForWeapon(const WeaponMelee* pWeapon,
                                      const ZephyrSkeletonShared* pSkeleton) const
@@ -35,60 +33,54 @@ const Combo* Combo::ResolveForWeapon(const WeaponMelee* pWeapon,
         return 0;
     }
     const unsigned int uiNameHash = Combo::GetNameHashForMap(m_uiNameHash, (SoldierAnimationBank::MAP)eMap);
-    const Combo* pFound = s_ComboTable.Find(uiNameHash);
+    const Combo* pFound = Find(uiNameHash);
     if (pFound)
     {
         return pFound;
     }
-    if (sMemoryPool.mUsed >= sMemoryPool.mCount)
+    if (sMemoryPool.IsFull())
     {
         return 0;
     }
-    Combo* pResolved = static_cast<Combo*>(sMemoryPool.Allocate(0x24));
-    if (pResolved)
-    {
-        pResolved->CopyConstructor(*this);
-    }
+    Combo* pResolved = new Combo(*this);
     pResolved->m_uiNameHash = uiNameHash;
-    pResolved->m_pSkeleton = const_cast<ZephyrSkeletonShared*>(pSkeleton);
+    pResolved->m_pSkeleton = pSkeleton;
     pResolved->m_eMap = eMap;
     if (pResolved->m_aState != m_aState)
     {
-        for (unsigned int i = 0; i < pResolved->m_uiNumStates; ++i)
+        for (unsigned int i = 0; i < pResolved->GetNumStates(); ++i)
         {
-            State& state = pResolved->m_aState[i];
+            State& state = *pResolved->GetState(i);
             float fDuration = 0.0f;
             float fVelocityZ = 0.0f;
             float fVelocityX = 0.0f;
-            if (state.m_uiDuration != State::DURATION_INVALID &&
-                (!state.m_bAnimatedMove || !state.m_bVelocityZFromAnim) &&
-                !StateHasBothResolveFlags(&state))
+            if (state.IsDuration() && !state.IsVelocityZFromAnim() && !state.IsVelocityXFromAnim())
             {
                 goto resolve_damage;
             }
-            if (state.m_uiAnimIndex < 0xa4)
+            if (state.GetAnimIndex() < 0xa4)
             {
                 SoldierAnimatorClass* pAnimator = SoldierAnimatorClass::Instance();
                 const SoldierAnimation* pAnim = pAnimator->GetUpperBodyAnimation(
-                    (SoldierAnimationBank::MAP)eMap, (unsigned char)state.m_uiAnimIndex);
+                    (SoldierAnimationBank::MAP)eMap, (unsigned char)state.GetAnimIndex());
                 if (pAnim)
                 {
-                    fDuration = (pAnim->m_pZephyrAnim->GetNumFrames() - 1) * 0.033333335f;
-                    fVelocityZ = pAnim->m_iVelocityZ * 0.01f;
-                    fVelocityX = pAnim->m_iVelocityX * 0.01f;
+                    fDuration = pAnim->GetAnimationLength();
+                    fVelocityZ = pAnim->GetVelocityZ();
+                    fVelocityX = pAnim->GetVelocityX();
                 }
             }
-            if (state.m_uiDuration == State::DURATION_INVALID)
+            if (!state.IsDuration())
             {
                 state.SetDuration(fDuration);
             }
-            if (state.m_bVelocityZFromAnim && state.m_bAnimatedMove)
+            if (state.IsVelocityZFromAnim())
             {
-                state.SetVelocityZ(state.m_iVelocityZ * 0.02f * fVelocityZ, false);
+                state.SetVelocityZ(state.GetVelocityZ() * fVelocityZ, false);
             }
-            if (state.m_bVelocityXFromAnim && state.m_bAnimatedMove)
+            if (state.IsVelocityXFromAnim())
             {
-                state.SetVelocityX(state.m_iVelocityX * 0.02f * fVelocityX, false);
+                state.SetVelocityX(state.GetVelocityX() * fVelocityX, false);
             }
 resolve_damage:
             const WeaponMeleeClass* pClass = static_cast<const WeaponMeleeClass*>(pWeapon->mClass);
@@ -97,119 +89,135 @@ resolve_damage:
             {
                 continue;
             }
-            for (unsigned int j = 0; j < state.m_uiNumAttacks; ++j)
+            for (unsigned int j = 0; j < state.GetNumAttacks(); ++j)
             {
-                Attack& attack = state.m_aAttack[j];
-                if (attack.m_uiDamageEdge >= nEdges)
+                Attack& attack = *state.GetAttack(j);
+                if (attack.GetDamageEdge() >= nEdges)
                 {
                     continue;
                 }
                 unsigned int uiAttach;
                 PblVector3 vBegin, vEnd;
-                pClass->GetDamageEdgeRay(attack.m_uiDamageEdge, uiAttach, vBegin, vEnd);
+                pClass->GetDamageEdgeRay(attack.GetDamageEdge(), uiAttach, vBegin, vEnd);
                 attack._ResolveDamageData(pResolved, &state, uiAttach,
                     vBegin, vEnd);
             }
         }
     }
-    if (s_ComboTable.Store(uiNameHash, pResolved))
-    {
-        ++s_ComboTableNumEntries;
-    }
+    s_ComboTable.Store(uiNameHash, pResolved);
     return pResolved;
 }
 
 // FUNCTION: SWBF2 0x00473840
-bool Combo::Deflect::TestDeflect(const float* pMatrix, const float* pRight, const float* pAttack, int iUnused, unsigned char uiFallback, unsigned char* pResult) const
+bool Combo::Deflect::TestDeflect(const PblMatrix& mSoldier, const PblVector3& vFacingDir,
+                               const PblVector3& vDir, const PblVector3& vCollisionPoint,
+                               unsigned char uiAnimIndexPrev, unsigned char& o_uiAnimIndex) const
 {
-    const Combo::Deflect* pDeflect = (const Combo::Deflect*)this;
-    const int iMin = (static_cast<int>(pDeflect->m_auiPackedData[0] << 19)) >> 23;
-    const int iMax = (static_cast<int>(pDeflect->m_auiPackedData[0] << 10)) >> 23;
+    const int iMin = m_iDeflectAngleMin;
+    const int iMax = m_iDeflectAngleMax;
     if (iMin != iMax)
     {
-        const float fAngle = static_cast<float>(atan2(
-            -(pMatrix[1] * pAttack[1] + pMatrix[0] * pAttack[0] + pMatrix[2] * pAttack[2]),
-            -(pMatrix[9] * pAttack[1] + pMatrix[8] * pAttack[0] + pMatrix[10] * pAttack[2])));
+        const float fAngle = atan2f(-DotProduct(mSoldier.GetXAxis(), vDir),
+                                   -DotProduct(mSoldier.GetZAxis(), vDir));
         const float fMin = iMin * 0.017453292f;
         const float fMax = iMax * 0.017453292f;
-        if (iMin >= iMax ? (fAngle <= fMin && fAngle >= fMax)
-                         : (fAngle < fMin || fAngle > fMax))
+        if (iMin < iMax)
+        {
+            if (fAngle < fMin || fAngle > fMax)
+            {
+                return false;
+            }
+        }
+        else if (fAngle <= fMin && fAngle >= fMax)
         {
             return false;
         }
     }
-    const float fSide = pAttack[2] * pRight[0] - pRight[2] * pAttack[0];
-    const float fAhead = -(pRight[0] * pAttack[0] + pRight[1] * pAttack[1] + pRight[2] * pAttack[2]);
-    const unsigned int n = pDeflect->m_uiNumDeflectAnimations;
+    const float fCosAngle = -DotProduct(vFacingDir, vDir);
+    const bool bRight = vDir.z * vFacingDir.x - vFacingDir.z * vDir.x < 0.0f;
+    const unsigned int n = m_uiNumDeflectAnimations;
     unsigned char all = 0;
     for (unsigned int i = 0; i < n; ++i)
     {
-        all |= pDeflect->m_aDeflectAnim[i].uiDirections;
+        all |= m_aDeflectAnim[i].uiDirections;
     }
     if (!all)
     {
-        *pResult = uiFallback;
+        o_uiAnimIndex = uiAnimIndexPrev;
         return true;
     }
-    const bool bLeft = fSide < 0.0f;
     unsigned char mask;
-    if (fAhead > 0.92387998f)
+    if (fCosAngle > 0.92387998f)
     {
-        mask = 1;
+        mask = DEFLECT_FORWARD;
         if (!(mask & all))
         {
-            mask |= bLeft ? 2 : 8;
-        }
-        if (!(mask & all))
-        {
-            mask |= bLeft ? 12 : 18;
+            mask |= bRight ? DEFLECT_RIGHT : DEFLECT_LEFT;
+            if (!(mask & all))
+            {
+                mask |= bRight ? DEFLECT_BACK_RIGHT | DEFLECT_LEFT
+                               : DEFLECT_BACK_LEFT | DEFLECT_RIGHT;
+                if (!(mask & all))
+                {
+                    mask = DEFLECT_ALL;
+                }
+            }
         }
     }
-    else if (fAhead > 0.38268f)
+    else if (fCosAngle > 0.38268f)
     {
-        mask = bLeft ? 2 : 8;
+        mask = bRight ? DEFLECT_RIGHT : DEFLECT_LEFT;
         if (!(mask & all))
         {
-            mask |= bLeft ? 4 : 16;
-        }
-        if (!(mask & all))
-        {
-            mask |= 1;
+            mask |= bRight ? DEFLECT_BACK_RIGHT : DEFLECT_BACK_LEFT;
+            if (!(mask & all))
+            {
+                mask |= DEFLECT_FORWARD;
+                if (!(mask & all))
+                {
+                    mask = DEFLECT_ALL;
+                }
+            }
         }
     }
-    else if (fAhead > -0.70710999f)
+    else if (fCosAngle > -0.70710999f)
     {
-        mask = bLeft ? 4 : 16;
+        mask = bRight ? DEFLECT_BACK_RIGHT : DEFLECT_BACK_LEFT;
         if (!(mask & all))
         {
-            mask |= bLeft ? 2 : 8;
-        }
-        if (!(mask & all))
-        {
-            mask |= 32;
+            mask |= bRight ? DEFLECT_RIGHT : DEFLECT_LEFT;
+            if (!(mask & all))
+            {
+                mask |= DEFLECT_BACK;
+                if (!(mask & all))
+                {
+                    mask = DEFLECT_ALL;
+                }
+            }
         }
     }
     else
     {
-        mask = 32;
+        mask = DEFLECT_BACK;
         if (!(mask & all))
         {
-            mask |= bLeft ? 4 : 16;
+            mask |= bRight ? DEFLECT_BACK_RIGHT : DEFLECT_BACK_LEFT;
+            if (!(mask & all))
+            {
+                mask |= bRight ? DEFLECT_BACK_LEFT | DEFLECT_RIGHT
+                               : DEFLECT_BACK_RIGHT | DEFLECT_LEFT;
+                if (!(mask & all))
+                {
+                    mask = DEFLECT_ALL;
+                }
+            }
         }
-        if (!(mask & all))
-        {
-            mask |= bLeft ? 18 : 12;
-        }
-    }
-    if (!(mask & all))
-    {
-        mask = 63;
     }
     unsigned int matches = 0;
     unsigned int chosen = 0;
     for (unsigned int i = 0; i < n; ++i)
     {
-        if (pDeflect->m_aDeflectAnim[i].uiDirections & mask)
+        if (m_aDeflectAnim[i].uiDirections & mask)
         {
             ++matches;
             chosen = i;
@@ -217,72 +225,61 @@ bool Combo::Deflect::TestDeflect(const float* pMatrix, const float* pRight, cons
     }
     if (!matches)
     {
-        *pResult = uiFallback;
+        o_uiAnimIndex = uiAnimIndexPrev;
     }
     else if (matches == 1)
     {
-        *pResult = pDeflect->m_aDeflectAnim[chosen].uiAnimIndex;
+        o_uiAnimIndex = m_aDeflectAnim[chosen].uiAnimIndex;
     }
     else
     {
         unsigned int pick = static_cast<unsigned int>(PblRandom::GetGlobalFloat() * matches);
-        for (unsigned int i = 0; i < n; ++i)
+        const unsigned int uiNumAnimations = m_uiNumDeflectAnimations;
+        for (unsigned int i = 0; i < uiNumAnimations; ++i)
         {
-            if ((pDeflect->m_aDeflectAnim[i].uiDirections & mask) && pick-- == 0)
+            if (m_aDeflectAnim[i].uiDirections & mask)
             {
-                *pResult = pDeflect->m_aDeflectAnim[i].uiAnimIndex;
-                break;
+                o_uiAnimIndex = m_aDeflectAnim[i].uiAnimIndex;
+                if (pick-- == 0)
+                {
+                    break;
+                }
             }
         }
     }
     return true;
 }
 
-// FUNCTION: SWBF2 0x00470ea0
-bool __fastcall StateHasBothResolveFlags(const void* pState)
-{
-    unsigned int value = static_cast<const Combo::State*>(pState)->m_auiPackedData[3];
-    return (value & 0x00880000u) == 0x00880000u;
-}
-
 // FUNCTION: SWBF2 0x00475d60
-void* Combo::_AllocDamageSample()
+Combo::DamageSample* Combo::_AllocDamageSample()
 {
-    MemoryPool& pool = Combo::DamageSample::sMemoryPool;
-    if (pool.mUsed >= pool.mCount)
+    if (DamageSample::sMemoryPool.IsFull())
     {
         return 0;
     }
-    return pool.Allocate(0x1c);
+    return new DamageSample;
 }
 
 // FUNCTION: SWBF2 0x00473280
 void Combo::Attack::AddDamageSample(float fTime, const PblVector3& vBegin, const PblVector3& vEnd)
 {
-    Combo::Attack* pAttack = (Combo::Attack*)this;
-    char* pSample = static_cast<char*>(Combo::_AllocDamageSample());
+    DamageSample* pSample = Combo::_AllocDamageSample();
     if (!pSample)
     {
         return;
     }
-    if (pAttack->m_uiNumDamageSamples == 0)
+    if (m_uiNumDamageSamples == 0)
     {
-        pAttack->m_aDamageSample = reinterpret_cast<Combo::DamageSample*>(pSample);
+        m_aDamageSample = pSample;
     }
-    if (pAttack->m_uiNumDamageSamples < 255)
+    if (m_uiNumDamageSamples < 255)
     {
-        ++pAttack->m_uiNumDamageSamples;
-        *reinterpret_cast<float*>(pSample) = fTime;
-        memcpy(pSample + 4, &vBegin, sizeof(PblVector3));
-        memcpy(pSample + 16, &vEnd, sizeof(PblVector3));
+        ++m_uiNumDamageSamples;
+        pSample->fTime = fTime;
+        pSample->vPos = vBegin;
+        pSample->vDir = vEnd;
     }
 }
-
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
 
 // FUNCTION: SWBF2 0x004727a0
 bool Combo::Attack::_ResolveDamageData(const Combo* pCombo, const State* pState,
@@ -320,7 +317,7 @@ bool Combo::Attack::_ResolveDamageData(const Combo* pCombo, const State* pState,
     const SoldierAnimation* pUpperAnim =
         SoldierAnimatorClass::Instance()->GetUpperBodyAnimation(eMap, uiAnimIndex);
     const SoldierAnimation* pLowerAnim;
-    if (pState->m_bAnimatedMove)
+    if (pState->IsAnimatedMove())
     {
         pLowerAnim = SoldierAnimatorClass::Instance()->GetLowerBodyAnimation(eMap, uiAnimIndex);
         if (!pLowerAnim)
@@ -341,12 +338,12 @@ bool Combo::Attack::_ResolveDamageData(const Combo* pCombo, const State* pState,
         bLowerAnim = false;
     }
 
-    float fTimeStart = m_uiDamageTimeStart * 0.01f;
-    float fTimeEnd = m_uiDamageTimeEnd * 0.01f;
-    float fDuration = pState->m_uiDuration * 0.01f;
+    float fTimeStart = GetDamageTimeStart();
+    float fTimeEnd = GetDamageTimeEnd();
+    float fDuration = pState->GetDuration();
     if (fDuration > 0.0f)
     {
-        if (m_bDamageTimeStartFromAnim)
+        if (IsDamageTimeEndFromAnim())
         {
             fTimeEnd = fDuration * fTimeEnd;
         }
@@ -358,8 +355,8 @@ bool Combo::Attack::_ResolveDamageData(const Combo* pCombo, const State* pState,
     }
     else
     {
-        fDuration = (pUpperAnim->m_pZephyrAnim->GetNumFrames() - 1) * 0.033333335f;
-        if (m_bDamageTimeStartFromAnim)
+        fDuration = pUpperAnim->GetAnimationLength();
+        if (IsDamageTimeEndFromAnim())
         {
             fTimeEnd = FLT_MAX;
             SetDamageTimeEnd(1.0f, true);
@@ -373,7 +370,7 @@ bool Combo::Attack::_ResolveDamageData(const Combo* pCombo, const State* pState,
             SetDamageTimeEnd(fTimeEnd, false);
         }
     }
-    if (m_bDamageTimeStartFromAnim)
+    if (IsDamageTimeStartFromAnim())
     {
         fTimeStart = fDuration * fTimeStart;
     }
@@ -383,13 +380,13 @@ bool Combo::Attack::_ResolveDamageData(const Combo* pCombo, const State* pState,
     }
     SetDamageTimeStart(fTimeStart, false);
 
-    if (fTimeStart > (pUpperAnim->m_pZephyrAnim->GetNumFrames() - 1) * 0.033333335f)
+    if (fTimeStart > pUpperAnim->GetAnimationLength())
     {
-        fTimeStart = (pUpperAnim->m_pZephyrAnim->GetNumFrames() - 1) * 0.033333335f;
+        fTimeStart = pUpperAnim->GetAnimationLength();
     }
-    if (fTimeEnd > (pUpperAnim->m_pZephyrAnim->GetNumFrames() - 1) * 0.033333335f)
+    if (fTimeEnd > pUpperAnim->GetAnimationLength())
     {
-        fTimeEnd = (pUpperAnim->m_pZephyrAnim->GetNumFrames() - 1) * 0.033333335f;
+        fTimeEnd = pUpperAnim->GetAnimationLength();
     }
 
     kUpperPose.SetAnimation(pUpperAnim->m_pZephyrAnim, 30.0f);
@@ -408,11 +405,11 @@ bool Combo::Attack::_ResolveDamageData(const Combo* pCombo, const State* pState,
 
     kPose.Set(kUpperPose, kUpperMask, true);
     kPose.Set(kLowerPose, kLowerMask, true);
-    kSkel.BuildWorldMatrices(_IdentityMatrix, iJoint);
-    const PblMatrix& mJoint = kSkel.m_pWorldMatrices[iJoint];
+    kSkel.BuildWorldMatrices(gMatrixIdentity, iJoint);
+    const PblMatrix* pJointMatrix = kSkel.GetWorldMatrix(iJoint);
     PblVector3 vPos, vDir;
-    D3DXVec3TransformCoord((D3DXVECTOR3*)&vPos, (const D3DXVECTOR3*)&vBegin, (const D3DXMATRIX*)&mJoint);
-    D3DXVec3TransformNormal((D3DXVECTOR3*)&vDir, (const D3DXVECTOR3*)&vEnd, (const D3DXMATRIX*)&mJoint);
+    vPos = pJointMatrix->ApplyTransform(vBegin);
+    vDir = pJointMatrix->ApplyRotation(vEnd);
     AddDamageSample(fTimeStart, vPos, vDir);
 
     while (fTimeEnd > fTimeStart)
@@ -429,26 +426,20 @@ bool Combo::Attack::_ResolveDamageData(const Combo* pCombo, const State* pState,
         }
         kPose.Set(kUpperPose, kUpperMask, true);
         kPose.Set(kLowerPose, kLowerMask, true);
-        kSkel.BuildWorldMatrices(_IdentityMatrix, iJoint);
+        kSkel.BuildWorldMatrices(gMatrixIdentity, iJoint);
         PblVector3 vNewPos, vNewDir;
-        D3DXVec3TransformCoord((D3DXVECTOR3*)&vNewPos, (const D3DXVECTOR3*)&vBegin, (const D3DXMATRIX*)&mJoint);
-        D3DXVec3TransformNormal((D3DXVECTOR3*)&vNewDir, (const D3DXVECTOR3*)&vEnd, (const D3DXMATRIX*)&mJoint);
+        vNewPos = pJointMatrix->ApplyTransform(vBegin);
+        vNewDir = pJointMatrix->ApplyRotation(vEnd);
 
         for (;;)
         {
-            const float dx = vNewPos.x - vPos.x;
-            const float dy = vNewPos.y - vPos.y;
-            const float dz = vNewPos.z - vPos.z;
-            const float fBaseMoveSq = dx * dx + dy * dy + dz * dz;
-            const float tx = (vNewDir.x + vNewPos.x) - vPos.x - vDir.x;
-            const float ty = (vNewDir.y + vNewPos.y) - vPos.y - vDir.y;
-            const float tz = (vNewDir.z + vNewPos.z) - vPos.z - vDir.z;
-            const float fTipMoveSq = tx * tx + ty * ty + tz * tz;
+            const float fBaseMoveSq = SquaredLength(vNewPos - vPos);
+            const float fTipMoveSq = SquaredLength((vNewDir + vNewPos) - (vPos + vDir));
             if (fBaseMoveSq <= fMaxMoveSq && fTipMoveSq <= fMaxMoveSq)
             {
                 break;
             }
-            const float fMove = (float)sqrt((double)(fBaseMoveSq > fTipMoveSq ? fBaseMoveSq : fTipMoveSq));
+            const float fMove = sqrtf(fBaseMoveSq > fTipMoveSq ? fBaseMoveSq : fTipMoveSq);
             const float fNewStep = fStep * 0.5f * 0.9f / fMove;
             if (fMinTimeStep > fNewStep)
             {
@@ -464,9 +455,9 @@ bool Combo::Attack::_ResolveDamageData(const Combo* pCombo, const State* pState,
             }
             kPose.Set(kUpperPose, kUpperMask, true);
             kPose.Set(kLowerPose, kLowerMask, true);
-            kSkel.BuildWorldMatrices(_IdentityMatrix, iJoint);
-            D3DXVec3TransformCoord((D3DXVECTOR3*)&vNewPos, (const D3DXVECTOR3*)&vBegin, (const D3DXMATRIX*)&mJoint);
-            D3DXVec3TransformNormal((D3DXVECTOR3*)&vNewDir, (const D3DXVECTOR3*)&vEnd, (const D3DXMATRIX*)&mJoint);
+            kSkel.BuildWorldMatrices(gMatrixIdentity, iJoint);
+            vNewPos = pJointMatrix->ApplyTransform(vBegin);
+            vNewDir = pJointMatrix->ApplyRotation(vEnd);
         }
 
         fTimeStart = fStep + fTimeStart;
@@ -496,13 +487,13 @@ const Combo::State& Combo::State::operator=(const State& other)
         {
             break;
         }
-        memcpy(pAttack, other.m_aAttack + i, sizeof(Attack));
+        *pAttack = *other.GetAttack(i);
     }
     return *this;
 }
 
 // FUNCTION: SWBF2 0x00474fd0
-Combo* Combo::CopyConstructor(const Combo& other)
+const Combo& Combo::operator=(const Combo& other)
 {
     m_uiNameHash = other.m_uiNameHash;
     m_eCombo = other.m_eCombo;
@@ -513,18 +504,13 @@ Combo* Combo::CopyConstructor(const Combo& other)
     m_uiDeflectButton = other.m_uiDeflectButton;
 
     bool bDeepCopy = false;
-    for (unsigned int i = 0; i < other.m_uiNumStates; ++i)
+    for (unsigned int i = 0; i < other.GetNumStates() && !bDeepCopy; ++i)
     {
-        const State& state = other.m_aState[i];
-        const unsigned int* pWords = reinterpret_cast<const unsigned int*>(&state);
-        const unsigned int flags = pWords[10];
-        if (state.m_uiDuration == 1023 ||
-            ((flags & 0x00400000u) && (flags & 0x00080000u)) ||
-            ((flags & 0x00800000u) && (flags & 0x00080000u)) ||
-            state.m_uiNumAttacks)
+        const State* pState = other.GetState(i);
+        bDeepCopy = !pState->IsDuration() || pState->IsVelocityZFromAnim() || pState->IsVelocityXFromAnim();
+        if (pState->GetNumAttacks())
         {
             bDeepCopy = true;
-            break;
         }
     }
     if (!bDeepCopy)
@@ -533,107 +519,126 @@ Combo* Combo::CopyConstructor(const Combo& other)
         m_pCatchState = other.m_pCatchState;
         m_pTakeKneeState = other.m_pTakeKneeState;
         m_uiNumStates = other.m_uiNumStates;
-        return this;
+        return *this;
     }
     m_uiNumStates = 0;
     m_aState = 0;
-    for (unsigned int i = 0; i < other.m_uiNumStates; ++i)
+    for (unsigned int i = 0; i < other.GetNumStates(); ++i)
     {
-        State* pState = AddState(other.m_aState[i].m_uiNameHash);
+        State* pState = AddState(other.GetState(i)->m_uiNameHash);
         if (!pState)
         {
             break;
         }
-        *pState = other.m_aState[i];
+        *pState = *other.GetState(i);
     }
-    return this;
+    return *this;
 }
 
 // FUNCTION: SWBF2 0x00475b20
 unsigned int __fastcall Combo::GetNameHashForMap(unsigned int uComboHash, SoldierAnimationBank::MAP eMap)
 {
-    const char* pBankName = SoldierAnimationBank::GetBankName(SoldierAnimationBank::GetMapBank(eMap));
-    const char* pWeaponName = SoldierAnimationBank::GetWeaponName(SoldierAnimationBank::GetMapWeapon(eMap));
-    PblHash first(uComboHash, "_");
-    PblHash second(first, pBankName);
-    PblHash third(second, "_");
-    return PblHash(third, pWeaponName);
+    uComboHash = PblHash(uComboHash, "_");
+    uComboHash = PblHash(uComboHash, SoldierAnimationBank::GetBankName(SoldierAnimationBank::GetMapBank(eMap)));
+    uComboHash = PblHash(uComboHash, "_");
+    return PblHash(uComboHash, SoldierAnimationBank::GetWeaponName(SoldierAnimationBank::GetMapWeapon(eMap)));
 }
 
 // FUNCTION: SWBF2 0x00475a10
 unsigned char Combo::GetOffhandAnimIndex(int eState) const
 {
-    if (eState >= 1 && eState <= 4)
+    switch (eState)
     {
-        return m_auiOffhandAnimIndex[eState - 1];
+    case 1: return m_auiOffhandAnimIndex[0];
+    case 2: return m_auiOffhandAnimIndex[1];
+    case 3: return m_auiOffhandAnimIndex[2];
+    case 4: return m_auiOffhandAnimIndex[3];
+    default: return (unsigned char)-1;
     }
-    return (unsigned char)-1;
 }
 
-// GLOBAL: SWBF2 0x01eb9310
 // SYNTHETIC: SWBF2 0x00402540
 // `dynamic initializer for 'Combo::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00766e10
 // `dynamic atexit destructor for 'Combo::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01eb9310
+// Combo::sMemoryPool
 MemoryPool Combo::sMemoryPool("Combo", 0x24);
-// GLOBAL: SWBF2 0x01eb9360
 // SYNTHETIC: SWBF2 0x00402600
 // `dynamic initializer for 'Combo::Deflect::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00766e70
 // `dynamic atexit destructor for 'Combo::Deflect::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01eb9360
+// Combo::Deflect::sMemoryPool
 MemoryPool Combo::Deflect::sMemoryPool("Combo::Deflect", 0x24);
-// GLOBAL: SWBF2 0x01eb93b0
 // SYNTHETIC: SWBF2 0x00402580
 // `dynamic initializer for 'Combo::Transition::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00766e30
 // `dynamic atexit destructor for 'Combo::Transition::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01eb93b0
+// Combo::Transition::sMemoryPool
 MemoryPool Combo::Transition::sMemoryPool("Combo::Transition", 0x0c);
-// GLOBAL: SWBF2 0x01eb9400
 // SYNTHETIC: SWBF2 0x004025a0
 // `dynamic initializer for 'Combo::Condition::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00766e40
 // `dynamic atexit destructor for 'Combo::Condition::sMemoryPool''
-MemoryPool Combo::Condition::sMemoryPool("Combo::Condition", 0x14);
 
-int Combo::s_ComboTableNumEntries;
-// GLOBAL: SWBF2 0x01eb9454
+// GLOBAL: SWBF2 0x01eb9400
+// Combo::Condition::sMemoryPool
+MemoryPool Combo::Condition::sMemoryPool("Combo::Condition", 0x14);
 // SYNTHETIC: SWBF2 0x00402520
 // `dynamic initializer for 'Combo::s_ComboTable''
 
+// GLOBAL: SWBF2 0x01eb9450
 PblHashTable<const Combo, 32> Combo::s_ComboTable;
 
-// GLOBAL: SWBF2 0x01eb9558
 // SYNTHETIC: SWBF2 0x004025e0
 // `dynamic initializer for 'Combo::DamageSample::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00766e60
 // `dynamic atexit destructor for 'Combo::DamageSample::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01eb9558
+// Combo::DamageSample::sMemoryPool
 MemoryPool Combo::DamageSample::sMemoryPool("Combo::DamageSample", 0x1c);
-// GLOBAL: SWBF2 0x01eb95a8
 // SYNTHETIC: SWBF2 0x004025c0
 // `dynamic initializer for 'Combo::Attack::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00766e50
 // `dynamic atexit destructor for 'Combo::Attack::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01eb95a8
+// Combo::Attack::sMemoryPool
 MemoryPool Combo::Attack::sMemoryPool("Combo::Attack", 0x10);
-// GLOBAL: SWBF2 0x01eb95f8
 // SYNTHETIC: SWBF2 0x00402560
 // `dynamic initializer for 'Combo::State::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00766e20
 // `dynamic atexit destructor for 'Combo::State::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01eb95f8
+// Combo::State::sMemoryPool
 MemoryPool Combo::State::sMemoryPool("Combo::State", 0x34);
 
 const float Combo::Condition::TIME_SCALE_INV = 100.0f;
+// GLOBAL: SWBF2 0x0078e014
 const float Combo::Condition::TIME_SCALE = 1.0f / Combo::Condition::TIME_SCALE_INV;
 const float Combo::Condition::ENERGY_SCALE_INV = 10.0f;
+// GLOBAL: SWBF2 0x0078e008
 const float Combo::Condition::ENERGY_SCALE = 1.0f / Combo::Condition::ENERGY_SCALE_INV;
 const float Combo::Condition::INPUT_MAG_SCALE_INV = 100.0f;
+// GLOBAL: SWBF2 0x0078e004
 const float Combo::Condition::INPUT_MAG_SCALE = 1.0f / Combo::Condition::INPUT_MAG_SCALE_INV;
 const float Combo::Condition::INPUT_DIR_SCALE_RAD = 0.017453292f;
 const float Combo::Condition::VELOCITYY_MAG_SCALE_INV = 4.0f;
+// GLOBAL: SWBF2 0x0078e080
 const float Combo::Condition::VELOCITYY_MAG_SCALE = 1.0f / Combo::Condition::VELOCITYY_MAG_SCALE_INV;
 const float Combo::Condition::VELOCITYY_VAL_SCALE_INV = 2.0f;
+// GLOBAL: SWBF2 0x0078e0a4
 const float Combo::Condition::VELOCITYY_VAL_SCALE = 1.0f / Combo::Condition::VELOCITYY_VAL_SCALE_INV;
-const float Combo::Condition::VELOCITYY_VAL_OFFSET = 16.0f;
+const float Combo::Condition::VELOCITYY_VAL_OFFSET = -16.0f;
 const float Combo::Condition::VELOCITYXZ_MAG_SCALE_INV = 100.0f;
+// GLOBAL: SWBF2 0x0078e00c
 const float Combo::Condition::VELOCITYXZ_MAG_SCALE = 1.0f / Combo::Condition::VELOCITYXZ_MAG_SCALE_INV;
 const float Combo::Condition::VELOCITYXZ_DIR_SCALE_RAD = 0.017453292f;
 
@@ -766,23 +771,6 @@ void Combo::Condition::SetInputDir(float fMin, float fMax)
     m_iInputDirMax = (((int)fMax + 179) % 360 + 360) % 360 - 179;
 }
 
-// FUNCTION: SWBF2 0x00470bd0
-void Combo::Condition::SetVelocityY(float fVelocity, bool bSigned, bool bLess)
-{
-    int iVelocity = (int)(bSigned ? (fVelocity + VELOCITYY_VAL_OFFSET) * VELOCITYY_VAL_SCALE_INV
-                                  : fVelocity * VELOCITYY_MAG_SCALE_INV);
-    if (iVelocity < 0)
-    {
-        iVelocity = 0;
-    }
-    else if (iVelocity > 63)
-    {
-        iVelocity = 63;
-    }
-    m_uiVelocityYRef = iVelocity;
-    m_bVelocityYSigned = bSigned;
-    m_bVelocityYLess = bLess;
-}
 
 // FUNCTION: SWBF2 0x00470c50
 void Combo::Condition::SetVelocityXZMag(float fMag, bool bLess)
@@ -807,53 +795,8 @@ void Combo::Condition::SetVelocityXZDir(float fMin, float fMax)
     m_iVelocityXZDirMax = (((int)fMax + 179) % 360 + 360) % 360 - 179;
 }
 
-// FUNCTION: SWBF2 0x00470d10
-void Combo::Attack::SetDamageTimeStart(float fTime, bool bFromAnim)
-{
-    int iTime = (int)(fTime * TIME_SCALE_INV);
-    if (iTime < 0)
-    {
-        iTime = 0;
-    }
-    else if (iTime > 1023)
-    {
-        iTime = 1023;
-    }
-    m_uiDamageTimeStart = iTime;
-    m_bDamageTimeStartFromAnim = bFromAnim;
-}
 
-// FUNCTION: SWBF2 0x00470d60
-void Combo::Attack::SetDamageTimeEnd(float fTime, bool bFromAnim)
-{
-    int iTime = (int)(fTime * TIME_SCALE_INV);
-    if (iTime < 0)
-    {
-        iTime = 0;
-    }
-    else if (iTime > 1023)
-    {
-        iTime = 1023;
-    }
-    m_uiDamageTimeEnd = iTime;
-    m_bDamageTimeEndFromAnim = bFromAnim;
-}
 
-// FUNCTION: SWBF2 0x00470db0
-void Combo::Attack::SetDamageLength(float fLength, bool bFromEdge)
-{
-    int iLength = (int)(fLength * LENGTH_SCALE_INV);
-    if (iLength < 0)
-    {
-        iLength = 0;
-    }
-    else if (iLength > 1023)
-    {
-        iLength = 1023;
-    }
-    m_uiDamageLength = iLength;
-    m_bDamageLengthFromEdge = bFromEdge;
-}
 
 // FUNCTION: SWBF2 0x00470e00
 void Combo::Attack::SetDamage(float fDamage)
@@ -877,25 +820,6 @@ void Combo::Deflect::SetDeflectAngle(float fMin, float fMax)
     m_iDeflectAngleMax = (((int)fMax + 179) % 360 + 360) % 360 - 179;
 }
 
-// FUNCTION: SWBF2 0x00470ec0
-void Combo::State::SetDuration(float fDuration)
-{
-    if (fDuration < 0.0f)
-    {
-        m_uiDuration = DURATION_INVALID;
-        return;
-    }
-    int iDuration = (int)(fDuration * TIME_SCALE_INV);
-    if (iDuration < 0)
-    {
-        iDuration = 0;
-    }
-    else if (iDuration > DURATION_MAX)
-    {
-        iDuration = DURATION_MAX;
-    }
-    m_uiDuration = iDuration;
-}
 
 // FUNCTION: SWBF2 0x00470f10
 void Combo::State::SetSound(const char* pName, float fTime)
@@ -911,38 +835,6 @@ void Combo::State::SetSound(const char* pName, float fTime)
         iTime = SOUND_TIME_MAX;
     }
     m_uiSoundTime = iTime;
-}
-
-// FUNCTION: SWBF2 0x00470f70
-void Combo::State::SetVelocityZ(float fVelocity, bool bFromAnim)
-{
-    int iVelocity = (int)(fVelocity * VELOCITY_SCALE_INV);
-    if (iVelocity < VELOCITY_MIN)
-    {
-        iVelocity = VELOCITY_MIN;
-    }
-    else if (iVelocity > VELOCITY_MAX)
-    {
-        iVelocity = VELOCITY_MAX;
-    }
-    m_iVelocityZ = iVelocity;
-    m_bVelocityZFromAnim = bFromAnim;
-}
-
-// FUNCTION: SWBF2 0x00470fc0
-void Combo::State::SetVelocityX(float fVelocity, bool bFromAnim)
-{
-    int iVelocity = (int)(fVelocity * VELOCITY_SCALE_INV);
-    if (iVelocity < VELOCITY_MIN)
-    {
-        iVelocity = VELOCITY_MIN;
-    }
-    else if (iVelocity > VELOCITY_MAX)
-    {
-        iVelocity = VELOCITY_MAX;
-    }
-    m_iVelocityX = iVelocity;
-    m_bVelocityXFromAnim = bFromAnim;
 }
 
 // FUNCTION: SWBF2 0x00471010
@@ -977,50 +869,8 @@ void Combo::State::SetEnergyRestoreRate(float fRate, bool b)
     m_bEnergyRestoreRateOverride = !b;
 }
 
-// FUNCTION: SWBF2 0x004710c0
-void Combo::State::SetThrustFactor(float fFactor)
-{
-    int iFactor = (int)(fFactor * INPUT_SCALE_INV);
-    if (iFactor < 0)
-    {
-        iFactor = 0;
-    }
-    else if (iFactor > INPUT_MAX)
-    {
-        iFactor = INPUT_MAX;
-    }
-    m_uiThrustFactor = iFactor;
-}
 
-// FUNCTION: SWBF2 0x004710f0
-void Combo::State::SetStrafeFactor(float fFactor)
-{
-    int iFactor = (int)(fFactor * INPUT_SCALE_INV);
-    if (iFactor < 0)
-    {
-        iFactor = 0;
-    }
-    else if (iFactor > INPUT_MAX)
-    {
-        iFactor = INPUT_MAX;
-    }
-    m_uiStrafeFactor = iFactor;
-}
 
-// FUNCTION: SWBF2 0x00471120
-void Combo::State::SetPitchFactor(float fFactor)
-{
-    int iFactor = (int)(fFactor * INPUT_SCALE_INV);
-    if (iFactor < 0)
-    {
-        iFactor = 0;
-    }
-    else if (iFactor > INPUT_MAX)
-    {
-        iFactor = INPUT_MAX;
-    }
-    m_uiPitchFactor = iFactor;
-}
 
 // FUNCTION: SWBF2 0x00471150
 void Combo::State::SetGravity(float fGravity)
@@ -1037,28 +887,7 @@ void Combo::State::SetGravity(float fGravity)
     m_iGravity = iGravity;
 }
 
-// FUNCTION: SWBF2 0x00471180
-void Combo::State::SetGravityVelocityYTarget(float fVelocity, bool bZeroAtTarget)
-{
-    int iVelocity = (int)(fVelocity * VELOCITYY_SCALE_INV);
-    if (iVelocity < VELOCITYY_MIN)
-    {
-        iVelocity = VELOCITYY_MIN;
-    }
-    else if (iVelocity > VELOCITYY_MAX)
-    {
-        iVelocity = VELOCITYY_MAX;
-    }
-    m_iGravityVelocityYTarget = iVelocity;
-    m_bGravityZeroAtTarget = bZeroAtTarget;
-}
 
-// FUNCTION: SWBF2 0x004711e0
-void Combo::State::SetVelocityYImpulse(float fVelocity, bool bZeroAtTarget)
-{
-    m_iGravity = GRAVITY_IMPULSE;
-    SetGravityVelocityYTarget(fVelocity, bZeroAtTarget);
-}
 
 // FUNCTION: SWBF2 0x00471240
 bool Combo::Condition::TestSoldierState(int iState, float fTime) const
@@ -1112,7 +941,7 @@ bool Combo::Condition::TestInputThrust(float fThrust, float fStrafe) const
     if (m_uiInputMagCnd)
     {
         float fMagSq = fThrust * fThrust + fStrafe * fStrafe;
-        float fRef = m_uiInputMagRef * INPUT_MAG_SCALE;
+        float fRef = GetInputMagRef();
         fRef *= fRef;
         if (m_bInputMagLess)
         {
@@ -1130,20 +959,19 @@ bool Combo::Condition::TestInputThrust(float fThrust, float fStrafe) const
     int iDirMax = m_iInputDirMax;
     if (iDirMin != iDirMax)
     {
-        float fDir = (float)atan2(fStrafe, fThrust);
-        float fDirMin = iDirMin * INPUT_DIR_SCALE_RAD;
+        float fDir = atan2f(fStrafe, fThrust);
         if (iDirMin < iDirMax)
         {
-            if (fDirMin > fDir)
+            if (fDir < GetInputDirMinRad())
             {
                 return false;
             }
-            if (fDir > iDirMax * INPUT_DIR_SCALE_RAD)
+            if (fDir > GetInputDirMaxRad())
             {
                 return false;
             }
         }
-        else if (fDirMin >= fDir && fDir >= iDirMax * INPUT_DIR_SCALE_RAD)
+        else if (fDir <= GetInputDirMinRad() && fDir >= GetInputDirMaxRad())
         {
             return false;
         }
@@ -1156,15 +984,10 @@ bool Combo::Condition::TestVelocity(float fX, float fY, float fZ) const
 {
     if (m_uiVelocityYCnd)
     {
-        float fRef = (float)m_uiVelocityYRef;
-        if (m_bVelocityYSigned)
-        {
-            fRef = fRef * VELOCITYY_VAL_SCALE - VELOCITYY_VAL_OFFSET;
-        }
-        else
+        float fRef = GetVelocityYRef();
+        if (!m_bVelocityYSigned)
         {
             fY *= fY;
-            fRef *= VELOCITYY_MAG_SCALE;
             fRef *= fRef;
         }
         if (m_bVelocityYLess)
@@ -1200,20 +1023,19 @@ bool Combo::Condition::TestVelocity(float fX, float fY, float fZ) const
     int iDirMax = m_iVelocityXZDirMax;
     if (iDirMin != iDirMax)
     {
-        float fDir = (float)atan2(fX, fZ);
-        float fDirMin = iDirMin * VELOCITYXZ_DIR_SCALE_RAD;
+        float fDir = atan2f(fX, fZ);
         if (iDirMin < iDirMax)
         {
-            if (fDirMin > fDir)
+            if (fDir < GetVelocityXZDirMinRad())
             {
                 return false;
             }
-            if (fDir > iDirMax * VELOCITYXZ_DIR_SCALE_RAD)
+            if (fDir > GetVelocityXZDirMaxRad())
             {
                 return false;
             }
         }
-        else if (fDirMin >= fDir && fDir >= iDirMax * VELOCITYXZ_DIR_SCALE_RAD)
+        else if (fDir <= GetVelocityXZDirMinRad() && fDir >= GetVelocityXZDirMaxRad())
         {
             return false;
         }
@@ -1267,18 +1089,7 @@ void Combo::Condition::_ReadConfig(PblConfig& config, const char* pszComboName, 
         case 0x2be29e1f:
             if (data.GetNumArgs() >= 2 && data.IsStringArg(0) && data.IsFloatArg(1))
             {
-                int iRef = (int)(data.GetFloatArg(1) * VELOCITYY_MAG_SCALE_INV);
-                if (iRef < 0)
-                {
-                    iRef = 0;
-                }
-                else if (iRef > 63)
-                {
-                    iRef = 63;
-                }
-                m_uiVelocityYRef = iRef;
-                m_bVelocityYLess = data.GetStringArg(0)[0] == '<';
-                m_bVelocityYSigned = false;
+                SetVelocityY(data.GetFloatArg(1), false, data.GetStringArg(0)[0] == '<');
             }
             break;
 
@@ -1541,21 +1352,14 @@ Combo::Condition* Combo::Transition::AddCondition()
 // FUNCTION: SWBF2 0x004721c0
 void Combo::Attack::_Init()
 {
-    m_auiPackedData[0] = 0;
-    m_auiPackedData[1] = 0;
-    m_auiPackedData[2] = 0;
+    memset(m_auiPackedData, 0, sizeof(m_auiPackedData));
+    SetDamage();
+    SetDamageTimeStart(0.0f, false);
+    SetDamageTimeEnd(0.16f, false);
     m_aDamageSample = 0;
-    m_uiDamage = 0xfff;
     m_uiNumDamageSamples = 0;
-    m_bDamageTimeStartFromAnim = 0;
-    m_bDamageTimeEndFromAnim = 0;
-    m_uiDamageTimeStart = 0;
-    m_uiDamageTimeEnd = 16;
-    m_uiDamageEdge = 0;
-    m_bDamageLengthFromEdge = 1;
-    m_bDamageWidthFromEdge = 1;
-    m_uiDamageLength = 100;
-    m_uiDamageWidth = 100;
+    SetDamageLength(1.0f, true);
+    SetDamageWidth(1.0f, true);
 }
 
 // FUNCTION: SWBF2 0x00472210
@@ -1915,14 +1719,17 @@ unsigned int Combo::Deflect::AddDeflectAnimation(unsigned char uiAnimIndex, unsi
                                                  unsigned char uiWeapon)
 {
 
-    if (uiAnimIndex >= 164 || m_uiNumDeflectAnimations >= 15)
+    if (uiAnimIndex >= 164)
     {
         return 0;
     }
-    DEFLECT_ANIM& anim = m_aDeflectAnim[m_uiNumDeflectAnimations];
-    anim.uiAnimIndex = uiAnimIndex;
-    anim.uiDirections = uiDirections;
-    anim.uiWeapon = uiWeapon;
+    if (m_uiNumDeflectAnimations >= 15)
+    {
+        return 0;
+    }
+    m_aDeflectAnim[m_uiNumDeflectAnimations].uiAnimIndex = uiAnimIndex;
+    m_aDeflectAnim[m_uiNumDeflectAnimations].uiDirections = uiDirections;
+    m_aDeflectAnim[m_uiNumDeflectAnimations].uiWeapon = uiWeapon;
     return m_uiNumDeflectAnimations++;
 }
 
@@ -2458,20 +2265,17 @@ void Combo::State::_Init(unsigned int uiNameHash)
     m_aAttack = 0;
     m_pDeflect = 0;
     m_aAnimatedMoveCondition = 0;
-    for (int i = 0; i < 6; ++i)
-    {
-        m_auiPackedData[i] = 0;
-    }
+    memset(m_auiPackedData, 0, sizeof(m_auiPackedData));
     m_iGravity = 10;
+    SetAnimIndex(ANIMATION_INVALID);
+    SetThrustFactor(1.0f);
+    SetStrafeFactor(1.0f);
+    SetTurnFactor(1.0f);
+    SetPitchFactor(1.0f);
     m_iGravityVelocityYTarget = -2048;
     m_bRestartAnimation = 0;
     m_bPlayExplosion = 0;
-    m_uiAnimIndex = 0xff;
-    m_uiThrustFactor = 20;
-    m_uiStrafeFactor = 20;
-    m_uiTurnFactor = 20;
-    m_uiPitchFactor = 20;
-    m_uiDuration = DURATION_INVALID;
+    SetDuration(-1.0f);
     m_bMustShowOneFrame = 0;
 }
 
@@ -2767,10 +2571,7 @@ void Combo::ReadConfig(PblConfig& config)
         }
     }
 
-    if (s_ComboTable.Store(m_uiNameHash, this))
-    {
-        ++s_ComboTableNumEntries;
-    }
+    s_ComboTable.Store(m_uiNameHash, this);
 }
 
 // FUNCTION: SWBF2 0x00475980
@@ -2795,25 +2596,25 @@ unsigned int Combo::_GetDeflectButton() const
         return 0;
     }
 
-    const State& idle = m_aState[0];
-    if (!idle.m_uiNumTransitions)
-    {
-        return 0;
-    }
+    const State* pIdleState = &m_aState[0];
     const Transition* pTransition = 0;
-    for (unsigned int i = 0; i < idle.m_uiNumTransitions; ++i)
+    for (unsigned int i = 0; i < pIdleState->GetNumTransitions(); ++i)
     {
-        pTransition = &idle.m_aTransition[i];
+        pTransition = pIdleState->GetTransition(i);
         if (pTransition->m_uiTargetState == uiState)
         {
             break;
         }
     }
-    for (unsigned int i = 0; i < pTransition->m_uiNumConditions; ++i)
+    if (pTransition)
     {
-        if (pTransition->m_aCondition[i].m_uiButton)
+        for (unsigned int i = 0; i < pTransition->GetNumConditions(); ++i)
         {
-            return pTransition->m_aCondition[i].m_uiButton;
+            Condition::BUTTON eButton = pTransition->GetCondition(i)->GetButton();
+            if (eButton != Condition::BUTTON_NONE)
+            {
+                return eButton;
+            }
         }
     }
     return 0;
@@ -2872,7 +2673,6 @@ Combo::State* Combo::AddState(unsigned int uiNameHash)
 void Combo::Init()
 {
     s_ComboTable.Clear();
-    s_ComboTableNumEntries = 0;
 
     sMemoryPool.Setup(0x20, sMemoryPool.mSize, sMemoryPool.mGrow);
     State::sMemoryPool.Setup(0x64, State::sMemoryPool.mSize, State::sMemoryPool.mGrow);

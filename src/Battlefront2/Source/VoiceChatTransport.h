@@ -36,16 +36,13 @@ public:
 
         Method(Type type, unsigned char numRelayNodes);
 
-        // FUNCTION: SWBF2 0x006745e0
-        void SetType(Type type) { mType = type; }
-        // FUNCTION: SWBF2 0x00674600
-        void SetNumRelayNodes(unsigned char numRelayNodes) { mNumRelayNodes = numRelayNodes; }
+        void SetType(Type type);
+        void SetNumRelayNodes(unsigned char numRelayNodes);
         unsigned char GetNumRelayNodes() const;
 
-        // FUNCTION: SWBF2 0x006745f0
-        Type GetType() const { return mType; }
+        Type GetType() const;
 
-        unsigned char CalculateOptimalRelayNodes(int iNumNodes) const;
+        unsigned char CalculateOptimalRelayNodes(unsigned char iNumNodes) const;
 
         Type mType;
         unsigned char mNumRelayNodes;
@@ -54,12 +51,11 @@ public:
     Transport();
     ~Transport();
 
-    bool Open();
+    bool Open(unsigned char numNodes, unsigned char numLocalNodes);
     void Close();
-    void SetMethod(void* pSrc, int bBoth);
+    void SetMethod(const Method& method, bool bBoth);
 
-    // FUNCTION: SWBF2 0x00674f40
-    const Method& GetMethod() const { return mMethodIncoming; }
+    const Method& GetMethod() const;
 
     void SetLocalNode(unsigned char node, bool local, bool receive, bool send);
     bool IsConnectedSend(unsigned char node) const;

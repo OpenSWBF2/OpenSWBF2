@@ -44,19 +44,19 @@ struct BINKIO
     void(__stdcall* Close)(BINKIO*);
     void* slot18;
     BINK* bink;
-    unsigned long ReadError;
-    unsigned long DoingARead;
-    unsigned long BytesRead;
-    unsigned long Working;
-    unsigned long TotalTime;
-    unsigned long ForegroundTime;
-    unsigned long IdleTime;
-    unsigned long ThreadTime;
-    unsigned long BufSize;
-    unsigned long BufHighUsed;
-    unsigned long CurBufSize;
-    unsigned long CurBufUsed;
-    unsigned long field50;
+    volatile unsigned long ReadError;
+    volatile unsigned long DoingARead;
+    volatile unsigned long BytesRead;
+    volatile unsigned long Working;
+    volatile unsigned long TotalTime;
+    volatile unsigned long ForegroundTime;
+    volatile unsigned long IdleTime;
+    volatile unsigned long ThreadTime;
+    volatile unsigned long BufSize;
+    volatile unsigned long BufHighUsed;
+    volatile unsigned long CurBufSize;
+    volatile unsigned long CurBufUsed;
+    volatile unsigned long field50;
     unsigned char iodata[160];
     void(__stdcall* suspend_callback)(BINKIO*);
     long(__stdcall* try_suspend_callback)(BINKIO*);
@@ -68,6 +68,7 @@ struct BINKIO
  
 class RedBitmapElement;
 
+// VTABLE: SWBF2 0x00783ff0
 class RedMoviePlayer : public RedMoviePlayerBase, public RedMoviePlayerRenderer
 {
 public:

@@ -19,7 +19,7 @@ Differences from `tests/baseline/vs2013/` and their causes are in [CAUSES.md](CA
 
 | File | SHA-256 | Produced by |
 |------|---------|-------------|
-| `CAUSES.md` | 012401A6E72A970B8194226E67F578910CEB03C251AE6CA5B6D44287342945C1 | written by hand from the comparison against `tests/baseline/vs2013/` |
+| `CAUSES.md` | C8E076193B826F2DF7DF7BEDD0CE5A9F315EF6884240D4DFB8F369ACA6C863BF | written by hand from the comparison against `tests/baseline/vs2013/` |
 | `smoke-all.txt` | 0C44E698C621B0852ADC8E089744C27DDBCBF1BDFF71B2C2BC6C6D8C0BC26352 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
 | `smoke-all-digests.txt` | 745F41BA50A0A720C6D172B6A69AFBF05BAE007A8EABEAA420C784FBA9B63393 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
 | `hardening.txt` | 79E6FB275A17F199CFE178DC989447A1CB3A97870486BE10F5A1B5B31C7EDC7F | `capture-vs2013.ps1 -Tables` from `run.ps1 -Hardening` |

@@ -12,29 +12,22 @@
 #include "PebbleFL/Common/PblMatrix.h"
 #include "PebbleFL/Common/PblRandom.h"
 
-// GLOBAL: SWBF2 0x01f993ec
 // SYNTHETIC: SWBF2 0x00406cf0
 // `dynamic initializer for 'UnitHoldAgent::rttiHashUnitHoldAgent''
+// UnitHoldAgent::rttiHashUnitHoldAgent
+
+// GLOBAL: SWBF2 0x01f993ec
+// UnitHoldAgent::rttiHashUnitHoldAgent
 PblHash UnitHoldAgent::rttiHashUnitHoldAgent("UnitHoldAgent");
-char UnitHoldAgent::rttiNameUnitHoldAgent[] = "UnitHoldAgent";
+// GLOBAL: SWBF2 0x0078b8c8
+// UnitHoldAgent::rttiNameUnitHoldAgent
+const char UnitHoldAgent::rttiNameUnitHoldAgent[] = "UnitHoldAgent";
 
-// FUNCTION: SWBF2 0x00668d50
-bool UnitHoldAgent::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashUnitHoldAgent || UnitAgent::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00668d80
-unsigned int UnitHoldAgent::GetDerivedRtti() const
-{
-    return rttiHashUnitHoldAgent;
-}
 
-// FUNCTION: SWBF2 0x00668d90
-const char* UnitHoldAgent::GetDerivedRttiName() const
-{
-    return rttiNameUnitHoldAgent;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00668dd0
 UnitHoldAgent::UnitHoldAgent(UnitController* pCtrl)
@@ -93,7 +86,7 @@ void UnitHoldAgent::UpdateStatePostVision(float dt)
         return;
     }
 
-    reinterpret_cast<AttackHelper*>(mAttackHelper)->Update();
+    mAttackHelper.Update();
 
     const Character* pLeader = mCtrl->GetLastSquadCommand().mWhoGaveIt;
     if (!pLeader || !pLeader->GetControllable())

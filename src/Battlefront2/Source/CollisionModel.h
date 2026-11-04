@@ -13,14 +13,14 @@ class Restrictor;
 class CollisionMask
 {
 public:
-    CollisionMask()
-    {
-        mMask[0] = 0xFFFFFFFFu;
-        mMask[1] = 0xFFFFFFFFu;
-    }
+
+
+
+
+
 
     // FUNCTION: SWBF2 0x004440a0
-    CollisionMask(unsigned int uMask)
+    CollisionMask(unsigned int uMask = 0xFFFFFFFFu)
     {
         if (uMask == 0xFFFFFFFFu || uMask == 0)
         {
@@ -71,6 +71,8 @@ public:
     }
 
     bool IsEmpty() const { return mMask[0] == 0 && mMask[1] == 0; }
+
+    void ClearAll() { mMask[0] = mMask[1] = 0; }
 
     unsigned int mMask[2];
 };

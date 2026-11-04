@@ -1,5 +1,3 @@
-#include <stddef.h>
-
 #include "GameMemory.h"
 
 #include "LuaMemory.h"
@@ -8,26 +6,45 @@
 
 namespace GameMemory
 {
+// GLOBAL: SWBF2 0x01e5614c
 int ApplicationHeap;
+// GLOBAL: SWBF2 0x01e56168
+// GamespyHeap
 int GamespyHeap;
+// GLOBAL: SWBF2 0x01e56160
+// RunTimeHeap
 int RunTimeHeap;
+// GLOBAL: SWBF2 0x01e56164
+// TempLoadHeap
 int TempLoadHeap;
 
+// GLOBAL: SWBF2 0x01e56144
 int LuaHeap;
+// GLOBAL: SWBF2 0x01e5613c
 int ArtistHeap;
 
+// GLOBAL: SWBF2 0x01e56138
 int TEMP_GamespyHeap;
 }
 
+// GLOBAL: SWBF2 0x01e56154
 char* gArenaStart;
+// GLOBAL: SWBF2 0x01e56140
 char* gArenaEnd;
+// GLOBAL: SWBF2 0x01f9c2b0
 char* GamespyHeapstart;
+// GLOBAL: SWBF2 0x01f9c2b4
 char* GamespyHeapend;
+// GLOBAL: SWBF2 0x01e56148
 char* g_Heap3Start;
+// GLOBAL: SWBF2 0x01e56150
 void* gTempHeapBlock;
+namespace GameMemory
+{
 
 // GLOBAL: SWBF2 0x01e56158
-namespace GameMemory { int gTempGamespyBlock; }
+int gTempGamespyBlock;
+}
 // GLOBAL: SWBF2 0x01e5615c
 
 char* gArtistHeapStart;
@@ -37,7 +54,7 @@ void GameMemory::InitApplicationMemory(char* pStart, char* pEnd)
 {
     gArenaStart = pStart;
     gArenaEnd = pEnd;
-    gArenaStart = RedInitHeap(pStart, pEnd, 9);
+    gArenaStart = (char*)RedInitHeap(pStart, pEnd, 9);
 
     if (ApplicationHeap)
     {
@@ -94,16 +111,16 @@ void GameMemory::BuildHeaps(bool bMission)
         ArtistHeap = 0;
     }
 
-    char* pLuaStart = (char*)(((uintptr_t)g_Heap3Start + 0x3F) & ~(uintptr_t)0x3F);
+    char* pLuaStart = (char*)(((unsigned int)g_Heap3Start + 0x3F) & 0xFFFFFFC0);
     char* pLuaEnd = pLuaStart + 0x1000000;
     LuaHeap = RedCreateHeap(pLuaStart, pLuaEnd, 4, "Lua");
 
-    char* pArtistStart = (char*)(((uintptr_t)pLuaEnd + 0x3F) & ~(uintptr_t)0x3F);
+    char* pArtistStart = (char*)(((unsigned int)pLuaEnd + 0x3F) & 0xFFFFFFC0);
     gArtistHeapStart = pArtistStart;
     char* pArtistEnd = pArtistStart + 0x2000;
     ArtistHeap = RedCreateHeap(pArtistStart, pArtistEnd, 0x10, "Artist");
 
-    char* pRunTimeStart = (char*)(((uintptr_t)pArtistEnd + 0x3F) & ~(uintptr_t)0x3F);
+    char* pRunTimeStart = (char*)(((unsigned int)pArtistEnd + 0x3F) & 0xFFFFFFC0);
     RunTimeHeap = RedCreateHeap(pRunTimeStart, gArenaEnd, 0x10, "Runtime");
     RedSetCurrentHeap(RunTimeHeap);
 

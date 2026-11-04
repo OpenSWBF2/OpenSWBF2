@@ -86,6 +86,7 @@ public:
  
  
 
+// VTABLE: SWBF2 0x00796f18
 class BirdParticleManager : public Thread
 {
 public:

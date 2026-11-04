@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,42 +17,33 @@
 #include "PebbleFL/Common/PblMath.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 #include <new>
-#include "PebbleFL/pc/PblD3DX.h"
 
 extern bool netIsLocalTurn;
 extern int gDebugCount;
 
+
 namespace
 {
-    EntityClass* GetEntityClass(GameObject* pObject)
+    inline EntityClass* GetEntityClass(GameObject* pObject)
     {
         typedef EntityClass* (__thiscall *Fn)(GameObject*);
         return pObject->GetEntityClass();
     }
 }
 
-// GLOBAL: SWBF2 0x01f9a884
 // SYNTHETIC: SWBF2 0x00407060
 // `dynamic initializer for 'WeaponAreaEffect::rttiHashWeaponAreaEffect''
+// WeaponAreaEffect::rttiHashWeaponAreaEffect
+
+// GLOBAL: SWBF2 0x01f9a884
+// WeaponAreaEffect::rttiHashWeaponAreaEffect
 PblHash WeaponAreaEffect::rttiHashWeaponAreaEffect("WeaponAreaEffect");
 
-// FUNCTION: SWBF2 0x0067c170
-bool WeaponAreaEffect::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashWeaponAreaEffect || Weapon::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x0067c1a0
-unsigned int WeaponAreaEffect::GetDerivedRtti() const
-{
-    return rttiHashWeaponAreaEffect;
-}
 
-// FUNCTION: SWBF2 0x0067c1b0
-const char* WeaponAreaEffect::GetDerivedRttiName() const
-{
-    return "WeaponAreaEffect";
-}
+
+
+
 
 // FUNCTION: SWBF2 0x0067c1c0
 void WeaponAreaEffect::SetOrdnance(Ordnance*)
@@ -414,7 +406,9 @@ int WeaponAreaEffect::UpdateTargets()
 int WeaponAreaEffect::UpdateTargets(GameObject** ppTargets, int iNumTargets)
 {
     static const float fInner = 0.5625f;
+    // GLOBAL: SWBF2 0x01fac388
     static const float fScale = 1.0f / (1.0f - fInner);
+    // GLOBAL: SWBF2 0x01fac390
     static const float fOffset = -(fInner / (1.0f - fInner));
 
     m_iNumTargets = 0;
@@ -708,7 +702,7 @@ void WeaponAreaEffect::ApplyEffectsToTargets(float fDeltaTime)
         vDelta.y = mTargetMatrix.m[3][1] - mOwnerMatrix.m[3][1];
         vDelta.z = mTargetMatrix.m[3][2] - mOwnerMatrix.m[3][2];
         PblVector3 vDir;
-        D3DXVec3Normalize(&vDir, &vDelta);
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vDelta));
         ApplyEffectsToTarget(m_apTarget[i], vDir, fEffect);
     }
 }
@@ -722,7 +716,7 @@ void WeaponAreaEffect::ApplyEffectsToTarget(GameObject* pTarget, const PblVector
         const float fDamage = pClass->m_fDamage * fStrength;
         GameObject* pOwnerObject = mOwner->GetGameObject();
         const int iTeam = mOwner->GetGameObject()->GetTeam();
-        DamageDesc damage(DamageOwner(mOwner->mCharacter, mOwner->GetGameObject(), iTeam,
+        DamageDesc damage(DamageOwner(mOwner->GetCharacter(), mOwner->GetGameObject(), iTeam,
                                       GetEntityClass(pOwnerObject), mClass, 1.0f),
                           fDamage);
         pTarget->ApplyDamage(damage, vDir, pTarget->GetCollisionCenter(), -1, (unsigned int)-1);
@@ -766,11 +760,16 @@ void WeaponAreaEffect::Fire()
     }
 }
 
-// GLOBAL: SWBF2 0x01f9a888
 // SYNTHETIC: SWBF2 0x00407070
 // `dynamic initializer for 'WeaponAreaEffectClass::rttiHashWeaponAreaEffectClass''
+// WeaponAreaEffectClass::rttiHashWeaponAreaEffectClass
+
+// GLOBAL: SWBF2 0x01f9a888
+// WeaponAreaEffectClass::rttiHashWeaponAreaEffectClass
 PblHash WeaponAreaEffectClass::rttiHashWeaponAreaEffectClass("WeaponAreaEffectClass");
-char WeaponAreaEffectClass::rttiNameWeaponAreaEffectClass[] = "WeaponAreaEffectClass";
+// GLOBAL: SWBF2 0x0078be18
+// WeaponAreaEffectClass::rttiNameWeaponAreaEffectClass
+const char WeaponAreaEffectClass::rttiNameWeaponAreaEffectClass[] = "WeaponAreaEffectClass";
 
 // FUNCTION: SWBF2 0x0067db70
 WeaponAreaEffectClass::WeaponAreaEffectClass(unsigned int uHash)
@@ -826,23 +825,11 @@ WeaponAreaEffectClass::~WeaponAreaEffectClass()
 // SYNTHETIC: SWBF2 0x0067dc40
 // WeaponAreaEffectClass::`scalar deleting destructor'
 
-// FUNCTION: SWBF2 0x0067c210
-bool WeaponAreaEffectClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashWeaponAreaEffectClass || WeaponClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x0067c240
-unsigned int WeaponAreaEffectClass::GetDerivedRtti()
-{
-    return rttiHashWeaponAreaEffectClass;
-}
 
-// FUNCTION: SWBF2 0x0067c250
-const char* WeaponAreaEffectClass::GetDerivedRttiName()
-{
-    return rttiNameWeaponAreaEffectClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x0067dd70
 void WeaponAreaEffectClass::SetProperty(unsigned int uProperty, const char* pszValue)

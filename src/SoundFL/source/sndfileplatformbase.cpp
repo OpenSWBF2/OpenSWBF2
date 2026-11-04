@@ -27,7 +27,7 @@ FilePlatformBase& FilePlatformBase::operator=(FilePlatformBase& rOther)
 {
     memcpy(this, &rOther, sizeof(FilePlatformBase));
     rOther.mBufferAlloc = 0;
-    rOther.mBuffer = Buffer();
+    rOther.mBuffer.Init(0, 0);
     rOther.Close();
     return *this;
 }
@@ -131,10 +131,10 @@ void FilePlatformBase::Close()
     {
         Free(mBufferAlloc);
         mBufferAlloc = 0;
-        mBuffer = Buffer();
+        mBuffer.Init(0, 0);
     }
-    mPos = 0;
     mSectorSize = 0;
+    mPos = 0;
 }
 
 // FUNCTION: SWBF2 0x00730290
@@ -153,8 +153,10 @@ void FilePlatformBase::Flush()
             }
         }
 
+        const unsigned int uiSize = mBuffer.GetSize();
+        void* const pBuffer = mBuffer.GetBuffer();
         CommitSeek(true);
-        RealWrite(mBuffer.GetBuffer(), mBuffer.GetSize());
+        RealWrite(pBuffer, uiSize);
 
         mFlags &= ~4;
         Seek(mPos + mBuffer.GetUsed(), false);
@@ -170,9 +172,11 @@ unsigned int FilePlatformBase::GetPos() const
 {
     if (mFlags & 4)
     {
-        return mPos + mBuffer.GetUsed();
+        const unsigned int uiUsed = mBuffer.GetUsed();
+        return mPos + uiUsed;
     }
-    return mPos + mBuffer.GetReadOffset();
+    const unsigned int uiReadOffset = mBuffer.GetReadOffset();
+    return mPos + uiReadOffset;
 }
 
 // FUNCTION: SWBF2 0x00730380

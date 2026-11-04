@@ -20,7 +20,7 @@ public:
         smParameterGraphs.AddLast(&mNode);
     }
 
-    static void* operator new(size_t) { return smFreeList.Alloc(); }
+    static void* operator new(unsigned int) { return smFreeList.Alloc(); }
 
     static void operator delete(void* p) { smFreeList.Free(p); }
 
@@ -44,15 +44,11 @@ public:
             rList.Add(&mNode);
         }
 
-        static void* operator new(size_t) { return smFreeList.Alloc(); }
+        static void* operator new(unsigned int) { return smFreeList.Alloc(); }
 
         static void operator delete(void* p) { smFreeList.Free(p); }
         ~ControlPoint()
         {
-            if (mNode.mNode.mNext)
-            {
-                mNode.mNode.Remove();
-            }
         }
 
         PblListSingleSorted::Node mNode;

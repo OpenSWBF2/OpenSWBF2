@@ -10,10 +10,15 @@
 #include "StringDB.h"
 #include <new>
 
-// FUNCTION: SWBF2 0x00437f20
+// GLOBAL: SWBF2 0x007b2990
+// __xmm@ffffffffffffffffffffffffffffffff
+
+// TEMPLATE: SWBF2 0x00437f20
+// PblBitVector<600>::InvertAll
 template void PblBitVector<600>::InvertAll();
 
-// FUNCTION: SWBF2 0x00437f80
+// TEMPLATE: SWBF2 0x00437f80
+// PblBitVector<600>::And
 template void PblBitVector<600>::And(const PblBitVector<600>&);
 
 namespace EventManager
@@ -29,8 +34,13 @@ void Event<RedRegion, Character>::Callback::Trigger(RedRegion& item, Character& 
         if (pChild)
         {
             pChild->AddRef();
-            while (pChild->IsAlive())
+            while (pChild)
             {
+                if (!pChild->IsAlive())
+                {
+                    pChild->Release();
+                    break;
+                }
                 Callback* pNext = (Callback*)pChild->mSibling;
                 if (pNext)
                 {
@@ -39,14 +49,6 @@ void Event<RedRegion, Character>::Callback::Trigger(RedRegion& item, Character& 
                 pChild->Trigger(item, param);
                 pChild->Release();
                 pChild = pNext;
-                if (!pChild)
-                {
-                    break;
-                }
-            }
-            if (pChild)
-            {
-                pChild->Release();
             }
         }
     }
@@ -59,10 +61,6 @@ static bool GameObject_IsAlive(const GameObject* pObject)
     return pObject->mIsAlive;
 }
 
-static const PblList<Controllable>& GameObject_GetControllableList(const GameObject* pObject)
-{
-    return pObject->mControllableList;
-}
 
 namespace ActiveRegions
 {
@@ -71,10 +69,7 @@ namespace ActiveRegions
 ActiveRegion::ActiveRegion(RedRegion& region) : mRegion(region)
 {
     mPlayers = GetPlayersInRegion();
-    if (sMap.Store(region.mId, this))
-    {
-        ++sMapNumEntries;
-    }
+    sMap.Store(region.mId, this);
     ActivateThread(-100, PER_FRAME);
 }
 
@@ -187,29 +182,26 @@ int IsInside(lua_State*)
     }
     return 1;
 }
+// SYNTHETIC: SWBF2 0x00402150
+// ActiveRegions::`dynamic initializer for 'sMap''
 
 // GLOBAL: SWBF2 0x01eafff0
-int sMapNumEntries;
-// GLOBAL: SWBF2 0x01eafff4
-// SYNTHETIC: SWBF2 0x00402150
-// `dynamic initializer for 'ActiveRegions::sMap''
-
 PblHashTable<ActiveRegion, 64> sMap;
 
-// GLOBAL: SWBF2 0x01eb01f8
 // SYNTHETIC: SWBF2 0x00402170
 // `dynamic initializer for 'ActiveRegions::ActiveRegion::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00766d20
 // `dynamic atexit destructor for 'ActiveRegions::ActiveRegion::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01eb01f8
+// ActiveRegion::sMemoryPool
+// STRING: SWBF2 0x00796adc
 MemoryPool ActiveRegion::sMemoryPool("ActiveRegion", 0x68);
 
 ActiveRegion::~ActiveRegion()
 {
     DeactivateThread();
-    if (sMap.Remove(mRegion.mId))
-    {
-        --sMapNumEntries;
-    }
+    sMap.Remove(mRegion.mId);
 }
 
 // FUNCTION: SWBF2 0x00437660
@@ -259,7 +251,7 @@ PblBitVector<600> ActiveRegion::GetPlayersInRegion()
         {
             continue;
         }
-        for (PblList<Controllable>::Itor itor(GameObject_GetControllableList(pObjects[i])); itor; ++itor)
+        for (PblList<Controllable>::Itor itor(pObjects[i]->GetControllableList()); itor; ++itor)
         {
             Character* pChr = itor->mCharacter;
             if (pChr)
@@ -278,7 +270,6 @@ PblBitVector<600> ActiveRegion::GetPlayersInRegion()
 void Cleanup()
 {
     sMap.Clear();
-    sMapNumEntries = 0;
 }
 
 // FUNCTION: SWBF2 0x00437ab0
@@ -294,21 +285,12 @@ void Init()
 
 }
 
-// FUNCTION: SWBF2 0x00437dd0
-Controllable* __fastcall sub_437DD0(PblList<Controllable>::Itor* pCurrent)
+// FUNCTION: SWBF2 0x00437db0
+void* __fastcall InitRawListIterator(void** pCurrent, void*, const void* pSource)
 {
-    return pCurrent->operator->();
-}
-
-// FUNCTION: SWBF2 0x00437de0
-Controllable* __fastcall sub_437DE0(PblList<Controllable>::Itor* pCurrent)
-{
-    return static_cast<Controllable*>(*pCurrent);
-}
-
-// FUNCTION: SWBF2 0x00437df0
-PblList<Controllable>::Itor* __fastcall AdvanceRawListIterator(PblList<Controllable>::Itor* pCurrent)
-{
-    ++*pCurrent;
+    *pCurrent = ((void* const*)pSource)[1];
     return pCurrent;
 }
+
+
+

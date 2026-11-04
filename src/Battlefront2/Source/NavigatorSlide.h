@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include "Navigator.h"
 #include "PebbleFL/Common/PblHandle.h"
 #include "PebbleFL/Common/PblVector.h"
@@ -27,7 +29,7 @@ public:
     };
 
     static PblHash rttiHashNavigatorSlide;
-    static char rttiNameNavigatorSlide[];
+    static const char rttiNameNavigatorSlide[];
 
     NavigatorSlide(AILowLevel* pOwner, const PblVector3& globalDest,
                    const Obstacle** ppIgnore, int iIgnoreCnt);
@@ -76,3 +78,25 @@ public:
  
 
 NavigatorSlide* NavigatorSlidePtr(Navigator* pNavigator);
+
+// FUNCTION: SWBF2 0x005addf0
+inline bool NavigatorSlide::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashNavigatorSlide == uRtti)
+    {
+        return true;
+    }
+    return Navigator::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x005ade20
+inline unsigned int NavigatorSlide::GetDerivedRtti() const
+{
+    return rttiHashNavigatorSlide;
+}
+
+// FUNCTION: SWBF2 0x005ade30
+inline const char* NavigatorSlide::GetDerivedRttiName() const
+{
+    return rttiNameNavigatorSlide;
+}

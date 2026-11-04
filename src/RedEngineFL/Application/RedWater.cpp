@@ -12,6 +12,11 @@
 #include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblRandom.h"
 
+// GLOBAL: SWBF2 0x00772ff0
+// __xmm@00000000bf8000003f80000000000000
+// GLOBAL: SWBF2 0x00773000
+// __xmm@bf80000000000000bf800000bf800000
+
 // FUNCTION: SWBF2 0x006d0ac0
 void RedWater::UpdateEventCache()
 {
@@ -161,43 +166,52 @@ bool RedWater::m_bSetSpecularDirection;
 // GLOBAL: SWBF2 0x00966178
 unsigned int s_numReads;
 
-// GLOBAL: SWBF2 0x00965160
 // SYNTHETIC: SWBF2 0x00408080
 // `dynamic initializer for 'RedWater::m_worldMin''
 
+// GLOBAL: SWBF2 0x00965160
+// RedWater::m_worldMin
 PblVector3 RedWater::m_worldMin;
-// GLOBAL: SWBF2 0x00966150
 // SYNTHETIC: SWBF2 0x00408070
 // `dynamic initializer for 'RedWater::m_worldMax''
 
+// GLOBAL: SWBF2 0x00966150
+// RedWater::m_worldMax
 PblVector3 RedWater::m_worldMax;
 
-// GLOBAL: SWBF2 0x0096516c
 // SYNTHETIC: SWBF2 0x00407fe0
 // `dynamic initializer for 'RedWater::_UnderWaterRenderable''
 // SYNTHETIC: SWBF2 0x00769920
 // `dynamic atexit destructor for 'RedWater::_UnderWaterRenderable''
+
+// GLOBAL: SWBF2 0x0096516c
+// RedWater::_UnderWaterRenderable
 UnderWaterRenderable RedWater::_UnderWaterRenderable;
 
-// GLOBAL: SWBF2 0x00965188
 // SYNTHETIC: SWBF2 0x00408060
 // `dynamic initializer for 'RedWater::m_vSpecularDirection''
 
+// GLOBAL: SWBF2 0x00965188
+// RedWater::m_vSpecularDirection
 PblVector3 RedWater::m_vSpecularDirection;
 
 // GLOBAL: SWBF2 0x00965198
 PblTimeBase::Stamp RedWater::m_waterTimeStamp;
 
-// GLOBAL: SWBF2 0x009651b0
 // SYNTHETIC: SWBF2 0x00408040
 // `dynamic initializer for 'RedWater::m_eventCache''
+
+// GLOBAL: SWBF2 0x009651b0
+// RedWater::m_eventCache
 RedWater::WaterEvent RedWater::m_eventCache[100];
 
-// GLOBAL: SWBF2 0x0096615c
 // SYNTHETIC: SWBF2 0x00408010
 // `dynamic initializer for 'RedWater::_WaterRenderable''
 // SYNTHETIC: SWBF2 0x00769940
 // `dynamic atexit destructor for 'RedWater::_WaterRenderable''
+
+// GLOBAL: SWBF2 0x0096615c
+// RedWater::_WaterRenderable
 WaterRenderable RedWater::_WaterRenderable;
 
 // FUNCTION: SWBF2 0x006ce0a0
@@ -441,7 +455,8 @@ void RedWater::Cleanup()
     m_CustomPatches.RemoveAll();
 }
 
-// FUNCTION: SWBF2 0x006ce840
+// TEMPLATE: SWBF2 0x006ce840
+// PblList<RedWater::WaterCustomPatch>::RemoveAll
 template void PblList<RedWater::WaterCustomPatch>::RemoveAll();
 
 // FUNCTION: SWBF2 0x006ce880
@@ -799,11 +814,11 @@ float RedWater::OceanPhillipsSpectrum(float kx, float kz)
     {
         return 0.0f;
     }
-    float fK = (float)sqrt(fK2);
-    float fKDotW = (float)fabs(kz / fK * m_windDirectionZ + kx / fK * m_windDirectionX);
+    float fK = sqrtf(fK2);
+    float fKDotW = fabsf(kz / fK * m_windDirectionZ + kx / fK * m_windDirectionX);
     float fl = fL / 75.0f;
     float fP = (float)exp(-1.0f / (fL * fL * fK2)) * m_phillipsConstant * fKDotW * fKDotW / (fK2 * fK2);
-    return fP * (float)exp(-(fl * fK2 * fl));
+    return fP * expf(-(fl * fK2 * fl));
 }
 
 // FUNCTION: SWBF2 0x006cf8f0
@@ -1162,6 +1177,7 @@ void RedWater::RenderUnderWaterView(unsigned int uiView)
         mCamera.m[3][3] = 1.0f;
     }
 
+    // GLOBAL: SWBF2 0x0096617c
     static const PblVector3 s_screenCorners[4] = {
         PblVector3(-1.0f, -1.0f, 0.0f), PblVector3(-1.0f, 1.0f, 0.0f),
         PblVector3(1.0f, 1.0f, 0.0f), PblVector3(1.0f, -1.0f, 0.0f)};

@@ -4,7 +4,11 @@
 
 #include "HUDElementBarBitmap.h"
 
-namespace HUD {
+namespace HUD
+{
+// VTABLE: SWBF2 0x007a3464
+// VTABLE: SWBF2 0x007a3488 HUD::ElementBitmapBase
+// VTABLE: SWBF2 0x007a34c4 RedBitmapElement
 class ProceduralBarBitmap : public HUD::ElementBarBitmap
 {
 public:

@@ -223,6 +223,7 @@ static int luaB_sort (lua_State *L) {
   return 0;
 }
 
+// GLOBAL: SWBF2 0x770f38
 static const luaL_reg tab_funcs[] = {
   {"concat", str_concat},
   {"foreach", luaB_foreach},

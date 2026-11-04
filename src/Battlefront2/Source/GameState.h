@@ -62,6 +62,7 @@ public:
         virtual void Exit();
     };
 
+    // VTABLE: SWBF2 0x0079fb6c
     class PlayState : public State
     {
     public:
@@ -77,6 +78,7 @@ public:
             virtual void Exit();
         };
 
+        // VTABLE: SWBF2 0x0079fb34
         class NormalState : public State
         {
         public:
@@ -87,6 +89,7 @@ public:
             virtual void Update(float, float);
             virtual void Exit();
         };
+        // VTABLE: SWBF2 0x0079fb58
         class PausedState : public State
         {
         public:
@@ -175,4 +178,3 @@ inline PblTimeBase* GetSystemTimeBase() { return &_SystemTimeBase; }
 }
 
 extern bool gMemoryPoolErrors;
-extern unsigned char sStatsMatchData[0x40];

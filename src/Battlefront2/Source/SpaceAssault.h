@@ -10,7 +10,10 @@ class Character;
 class GameObject;
 class RedColor;
 class Team;
-namespace HUD { class ElementGroup; }
+namespace HUD
+{
+class ElementGroup;
+}
 
 // VTABLE: SWBF2 0x007af260
 class SpaceAssault : public Thread
@@ -38,7 +41,8 @@ public:
     {
     public:
         ViewportData();
-        ~ViewportData();
+        // SYNTHETIC: SWBF2 0x0064ba80
+        // SpaceAssault::ViewportData::~ViewportData
 
         static void SetupMemoryPool(unsigned int uCount, unsigned int uSize, unsigned int uGrow)
         {

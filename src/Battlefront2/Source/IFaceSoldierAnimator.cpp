@@ -5,35 +5,24 @@
 #include "RedEngineFL/Util/RedAnimation.h"
 #include "Zephyr/Source/ZephyrAnimBank.h"
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
 
-// GLOBAL: SWBF2 0x01ec601c
+
 // SYNTHETIC: SWBF2 0x004040d0
 // `dynamic initializer for 'IFaceSoldierAnimator::rttiHashIFaceSoldierAnimator''
+// IFaceSoldierAnimator::rttiHashIFaceSoldierAnimator
+
+// GLOBAL: SWBF2 0x01ec601c
+// IFaceSoldierAnimator::rttiHashIFaceSoldierAnimator
 PblHash IFaceSoldierAnimator::rttiHashIFaceSoldierAnimator("IFaceSoldierAnimator");
-char IFaceSoldierAnimator::rttiNameIFaceSoldierAnimator[] = "IFaceSoldierAnimator";
+// GLOBAL: SWBF2 0x00789c74
+// IFaceSoldierAnimator::rttiNameIFaceSoldierAnimator
+const char IFaceSoldierAnimator::rttiNameIFaceSoldierAnimator[] = "IFaceSoldierAnimator";
 
-// FUNCTION: SWBF2 0x0056a130
-bool IFaceSoldierAnimator::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashIFaceSoldierAnimator || Red3DModelAnimator::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x0056a160
-unsigned int IFaceSoldierAnimator::GetDerivedRtti() const
-{
-    return rttiHashIFaceSoldierAnimator;
-}
 
-// FUNCTION: SWBF2 0x0056a170
-const char* IFaceSoldierAnimator::GetDerivedRttiName() const
-{
-    return rttiNameIFaceSoldierAnimator;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x0056a180
 void IFaceSoldierAnimator::SetUpperLowerAnimations(unsigned int uUpperAnimHash, unsigned int uLowerAnimHash,
@@ -49,9 +38,6 @@ void IFaceSoldierAnimator::SetUpperLowerAnimations(unsigned int uUpperAnimHash, 
     Open();
 }
 
-IFaceSoldierAnimator::~IFaceSoldierAnimator()
-{
-}
 
 // FUNCTION: SWBF2 0x0056a240
 IFaceSoldierAnimator::IFaceSoldierAnimator(const Red3DModelAnimator* pAnimator)
@@ -157,6 +143,6 @@ RedPose* IFaceSoldierAnimator::UpdatePose()
         mZephyrPoseStatic.Set(mZephyrPoseDyn, mUpperBodyAnimMask, true);
         mZephyrPoseStatic.Set(mZephyrPoseDynLower, mLowerBodyAnimMask, true);
     }
-    mZephyrSkeleton.BuildWorldMatrices(_IdentityMatrix);
+    mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity);
     return &mPose;
 }

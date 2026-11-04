@@ -18,7 +18,6 @@ struct UiBindKeys;
 class RedKeyboard;
 class RedLogitechLCD;
 
-#pragma pack(push, 4)
 // VTABLE: SWBF2 0x00796504
 class RawControllerInputs
 {
@@ -55,11 +54,17 @@ public:
 
     bool IsDefaultBindings(int iMode);
 
+    ActionKey GetCurKeyBinding(unsigned int uiMode, ePROCESSEDINPUT_TYPE uiAction)
+    {
+        return mCurKeyboardBindings[uiMode][uiAction];
+    }
+
     unsigned int GetInputMode() const { return mMode; }
     void SetInputMode(unsigned int uiMode) { mMode = uiMode; }
 
     bool GetFlip() { return mFlip[GetInputMode()] != 0; }
-    bool GetMouseAssist() const { return mMouseAssist[GetInputMode()] != 0; }
+    bool GetMouseAssist() const { return mMouseAssist[GetInputMode()]; }
+    void SetMouseAssist(bool assist, int mode) { mMouseAssist[mode] = assist; }
 
     void SetFlip(bool bFlip) { mFlip[GetInputMode()] = bFlip; }
     bool GetFlipForMode(int iMode) const { return mFlip[iMode]; }
@@ -78,6 +83,11 @@ public:
 
     static UiBindKeys sKeyboardGuiBindings[144];
     static UiBindKeys s_defUIBindings[76];
+
+    union {
+
+    unsigned char mRawInputStorage[0x28a0 - 4];
+    struct {
 
     unsigned char mReservedBeforeMode[4];
     unsigned int mMode;
@@ -106,7 +116,7 @@ public:
     RedMouse* _redMouse;
     RedKeyboard* _redKeyboard;
     unsigned char mReservedBeforeSensitivity[4];
-    double mMouseSensitivity[5];
+    unsigned char mMouseSensitivity[5][8];
     unsigned char mJoystickSensitivityX[5];
     unsigned char mJoystickSensitivityY[5];
     bool mMouseAssist[5];
@@ -124,8 +134,9 @@ public:
 
     int mLastMouseDeltaX;
     int mLastMouseDeltaY;
+    };
+    };
 };
-#pragma pack(pop)
  
  
  
@@ -206,7 +217,7 @@ public:
     GUIInputs* GetPlayerGuiInputs(int iPlayer);
     ProcessedInputs* GetPlayerInputs(int iPlayer);
 
-    int GetHWPort(int iViewport);
+    int GetHWPort(int iViewport) const;
     void SetHotController(int iJoystick);
 
     static void Reset();
@@ -289,6 +300,6 @@ public:
 
 void InitMagicCharMap(void);
 
-unsigned short GetRawFromProcessed_(unsigned int uiAction);
+wchar_t GetRawFromProcessed_(ePROCESSEDINPUT_TYPE uiAction);
 
 bool CanProcessChatMessage(void);

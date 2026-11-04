@@ -9,11 +9,10 @@
 #include "PebbleFL/Common/PblMatrix.h"
 #include "PebbleFL/Common/PblPtrSet.h"
 
-// VTABLE: SWBF2 0x00772970
-
 class RedGroupElement;
 class PblVector3;
 
+// VTABLE: SWBF2 0x00772970
 class RedInterfaceElement
 {
 public:
@@ -179,7 +178,6 @@ public:
     PblMatrix m_mLocal;
 
     static PblHashTable<RedInterfaceElement, 32768> sAllObjectsList;
-    static int sAllObjectsListNumEntries;
     static PblPtrSet<65536> sLuaHandles;
     static void Reset();
 

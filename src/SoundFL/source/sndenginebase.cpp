@@ -19,56 +19,53 @@
 namespace Snd
 {
 
+// GLOBAL: SWBF2 0x009d8410
+// EngineBase::smStreams
 Stream* EngineBase::smStreams;
+// GLOBAL: SWBF2 0x009d8414
 Voice* EngineBase::smVoices;
+// GLOBAL: SWBF2 0x009d8418
 bool EngineBase::smOpened;
 
+// GLOBAL: SWBF2 0x009d8420
 unsigned char EngineBase::smVoiceStorage[0xA800];
 
+// GLOBAL: SWBF2 0x009e2c20
 unsigned char EngineBase::smStreamStorage[0x1446A68];
 
+// GLOBAL: SWBF2 0x01e29688
+// EngineBase::smTimeElapsed
 float EngineBase::smTimeElapsed;
 
+// GLOBAL: SWBF2 0x007e3440
+// EngineBase::smSpeakerConfig
 EngineBase::SpeakerConfig EngineBase::smSpeakerConfig = speakerConfig_Stereo;
 
-// GLOBAL: SWBF2 0x007e3450
 // SYNTHETIC: SWBF2 0x0040b760
 // `dynamic initializer for 'Snd::EngineBase::smVoiceVirtualManager''
 // SYNTHETIC: SWBF2 0x0076a210
 // `dynamic atexit destructor for 'Snd::EngineBase::smVoiceVirtualManager''
+
+// GLOBAL: SWBF2 0x007e3450
+// EngineBase::smVoiceVirtualManager
 VoiceVirtualManager EngineBase::smVoiceVirtualManager;
 
-// GLOBAL: SWBF2 0x01e2968c
 // SYNTHETIC: SWBF2 0x0040b750
 // `dynamic initializer for 'Snd::EngineBase::smSoundRAMAllocator''
+
+// GLOBAL: SWBF2 0x01e2968c
+// EngineBase::smSoundRAMAllocator
 MemoryBitmap EngineBase::smSoundRAMAllocator;
 
-// FUNCTION: SWBF2 0x00731440
-ListenerBase::ListenerBase()
-{
-    mFlags = flags_reverbUpdate;
-    mPos = &Globals::smNullVector;
-    mSpacePos = &Globals::smNullVector;
-    mFront = &Globals::smFrontVector;
-    mUp = &Globals::smUpVector;
-    mVel = &Globals::smNullVector;
-    mDopplerFactor = 1.0f;
-    mRollOffFactor = 10.0f;
-    mDistanceFactor = 1.0f;
-    mSpace = &Space::smDefaultSpace;
-    mReverb = 0;
-}
 
-// FUNCTION: SWBF2 0x00733e80
-Listener::Listener()
-{
-}
 
-// GLOBAL: SWBF2 0x01e296a8
 // SYNTHETIC: SWBF2 0x0040b720
 // `dynamic initializer for 'Snd::EngineBase::smListeners''
 // SYNTHETIC: SWBF2 0x0076a1f0
 // `dynamic atexit destructor for 'Snd::EngineBase::smListeners''
+
+// GLOBAL: SWBF2 0x01e296a8
+// EngineBase::smListeners
 Listener EngineBase::smListeners[4];
 
 // FUNCTION: SWBF2 0x00733ea0
@@ -98,7 +95,7 @@ void Allocator<VoiceBase>::operator delete(void* p, void* pMemory, bool bTemp)
 }
 
 template <>
-void Allocator<VoiceBase>::operator delete(void* p, size_t uiSize)
+void Allocator<VoiceBase>::operator delete(void* p, unsigned int uiSize)
 {
     (void)uiSize;
     switch (((VoiceBase*)p)->GetAllocType())
@@ -131,24 +128,18 @@ Listener* EngineBase::GetFreeListener()
 Stream* EngineBase::GetOpenStream(unsigned int uiHashID)
 {
     Stream* pResult = 0;
-    for (unsigned int uiOffset = 0; uiOffset < 0x1446A68; uiOffset += sizeof(Stream))
+    for (unsigned int i = 0; i < sizeof(smStreamStorage) / sizeof(Stream); ++i)
     {
-        Stream* pStream = (Stream*)((unsigned char*)smStreams + uiOffset);
+        Stream* const pStream = &smStreams[i];
         if (pStream->mInfoList.IsEmpty())
         {
             continue;
         }
-        for (PblListSingle::Itor it = pStream->GetInfoItor(); !it.IsDone(); ++it)
+        for (StreamBase::InfoItor it = pStream->GetInfoItor(); const StreamBase::Info* pInfo = it.GetInfo(); ++it)
         {
-            const StreamBase::Info* pInfo =
-                (const StreamBase::Info*)((ObjectList::Node*)it.GetNode())->mObject;
-            if (!pInfo)
-            {
-                break;
-            }
             if (pInfo->mHashID == uiHashID)
             {
-                pResult = (Stream*)((unsigned char*)smStreams + uiOffset);
+                pResult = &smStreams[i];
                 if (pResult->GetPlayState() == SourceTransport::playState_stopped)
                 {
                     return pResult;
@@ -228,14 +219,14 @@ void EngineBase::Update(float fDeltaTime, bool b)
                 }
             }
 
-            for (unsigned int uiOffset = 0; uiOffset < 0xA800; uiOffset += sizeof(Voice))
+            for (unsigned int i = 0; i < sizeof(smVoiceStorage) / sizeof(Voice); ++i)
             {
-                ((Voice*)((unsigned char*)smVoices + uiOffset))->Update();
+                smVoices[i].Update();
             }
 
-            for (unsigned int uiOffset = 0; uiOffset < 0x1446A68; uiOffset += sizeof(Stream))
+            for (unsigned int i = 0; i < sizeof(smStreamStorage) / sizeof(Stream); ++i)
             {
-                ((Stream*)((unsigned char*)smStreams + uiOffset))->Update(fDeltaTime);
+                smStreams[i].Update(fDeltaTime);
             }
 
             StreamBase::Info::UpdateAll(fDeltaTime);
@@ -254,32 +245,8 @@ void EngineBase::Update(float fDeltaTime, bool b)
 namespace Snd
 {
 
-// FUNCTION: SWBF2 0x00731490
-ListenerBase::~ListenerBase()
-{
-    if (mSpace)
-    {
-        mSpace = &Space::smDefaultSpace;
-        I3DL2ReverbPreset* pReverb = (I3DL2ReverbPreset*)Space::smDefaultSpace.mReverbPreset;
-        if (pReverb != mReverb)
-        {
-            if (pReverb)
-            {
-                mFlags |= flags_reverbChanged;
-            }
-            mReverb = pReverb;
-        }
-    }
-    if (mReverb)
-    {
-        mReverb = 0;
-    }
-}
 
-// FUNCTION: SWBF2 0x00733e90
-Listener::~Listener()
-{
-}
+
 }
 
 void __cdecl PblTraceP(const char* Format, ...);
@@ -415,9 +382,9 @@ void EngineBase::DestroyAll()
     I3DL2ReverbPreset::DestroyAll();
     SampleBankBase::DestroyAllBanks();
 
-    for (unsigned int uiOffset = 0; uiOffset < 0x1446A68; uiOffset += sizeof(Stream))
+    for (unsigned int i = 0; i < sizeof(smStreamStorage) / sizeof(Stream); ++i)
     {
-        ((Stream*)((unsigned char*)smStreams + uiOffset))->SourceBus::SetBus(&Bus::smRootBus);
+        smStreams[i].SourceBus::SetBus(&Bus::smRootBus);
     }
 
     Bus::smRootBus.DestroySubBuses();
@@ -432,20 +399,19 @@ void EngineBase::Close()
     SoundStream::Init();
     Sound::Close();
 
-    for (unsigned int uiOffset = 0; uiOffset < 0xA800; uiOffset += sizeof(Voice))
+    for (unsigned int i = 0; i < sizeof(smVoiceStorage) / sizeof(Voice); ++i)
     {
-        Voice* const pVoice = (Voice*)((unsigned char*)smVoices + uiOffset);
-        if (pVoice->mNode.mNext)
+        if (smVoices[i].mNode.mNext)
         {
-            pVoice->RemoveFromManager();
+            smVoices[i].RemoveFromManager();
         }
-        delete pVoice;
+        delete &smVoices[i];
     }
     smVoices = 0;
 
-    for (unsigned int uiOffset = 0; uiOffset < 0x1446A68; uiOffset += sizeof(Stream))
+    for (unsigned int i = 0; i < sizeof(smStreamStorage) / sizeof(Stream); ++i)
     {
-        delete (Stream*)((unsigned char*)smStreams + uiOffset);
+        delete &smStreams[i];
     }
     smStreams = 0;
     smOpened = false;
@@ -473,7 +439,8 @@ Stream::~Stream()
 
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x00734080
 Stream* EngineBase::GetFreeStream()
@@ -489,7 +456,8 @@ Stream* EngineBase::GetFreeStream()
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x00734150
 float EngineBase::GetTimeElapsed()

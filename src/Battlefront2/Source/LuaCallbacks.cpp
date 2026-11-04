@@ -51,17 +51,16 @@
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "RedEngineFL/Application/pc/pcRedTerrain.h"
 #include "NetGame.h"
+#include "PebbleFL/Common/PblMath.h"
 
-// FUNCTION: SWBF2 0x0042ced0
-const int Max(int iA, int iB)
+
+
+namespace Lua_Callbacks
 {
-    return iA > iB ? iA : iB;
-}
-
-namespace Lua_Callbacks {
 void CleanupOptions();
 }
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 void CleanupSound();
 }
 
@@ -70,7 +69,10 @@ void __cdecl printf_wrapper(const char*, ...)
 {
 }
 
-namespace PblUnicode { unsigned int ustrncnv(unsigned short* pDest, const unsigned char* pSrc, unsigned int uiCount); }
+namespace PblUnicode
+{
+    unsigned int ustrncnv(unsigned short* pDest, const unsigned char* pSrc, unsigned int uiCount);
+}
 unsigned int __cdecl ConvertUnicodeSkippingWide(char* pDest, const unsigned short* pSrc, unsigned int uiCount);
 
 // FUNCTION: SWBF2 0x0052a9b0
@@ -87,13 +89,9 @@ int FLInputManager::CountControllers() const
     return iConnected ? iConnected : 1;
 }
 
-// FUNCTION: SWBF2 0x005c5080
-void NetGame::Reboot()
-{
-}
 
 // FUNCTION: SWBF2 0x005805e0
-int __fastcall GetScreenTransitionType(const char* pcName)
+int __fastcall GetScreenTransitionType(const char* pcName, void*)
 {
     if (!pcName)
     {
@@ -113,8 +111,10 @@ int __fastcall GetScreenTransitionType(const char* pcName)
 extern bool gDemoMode;
 extern bool gAttractMode;
 
-namespace GameLoop { extern bool sShowStats; }
-extern int gActiveViewport;
+namespace GameLoop
+{
+    extern bool sShowStats;
+}
 extern bool gDrawFlyerShadows;
 extern HWND hGlobalWnd;
 
@@ -136,6 +136,9 @@ class NetSetupP
 public:
     static void UpdateScreen();
 };
+
+// GLOBAL: SWBF2 0x007e69e0
+// sCallbacks
 
 namespace Lua_Callbacks
 {
@@ -197,8 +200,8 @@ int BeginScreenTransition(lua_State*)
         const float fInTime = LuaHelper::GetFloat(2);
         const float fHoldTime = LuaHelper::GetFloat(3);
         const float fOutTime = LuaHelper::GetFloat(4);
-        const int iInType = GetScreenTransitionType(LuaHelper::GetString(5));
-        const int iOutType = GetScreenTransitionType(LuaHelper::GetString(6));
+        const int iInType = GetScreenTransitionType(LuaHelper::GetString(5), 0);
+        const int iOutType = GetScreenTransitionType(LuaHelper::GetString(6), 0);
         ScreenTransition::sInstance->BeginTransition(
             uScreen, fInTime, fHoldTime, fOutTime,
             (ScreenTransition::TransitionType)iInType, (ScreenTransition::TransitionType)iOutType, 0, 0);
@@ -206,7 +209,6 @@ int BeginScreenTransition(lua_State*)
     return 0;
 }
 
-// GLOBAL: SWBF2 0x007e69e0
 static const CallbackEntryT sCallbacks[91] =
 {
     { "ScriptCB_DoFile", ScriptCB_DoFile },
@@ -368,6 +370,7 @@ namespace Lua_Callbacks
 // FUNCTION: SWBF2 0x0057dc80
 void DoPeriodicLuaGC(bool bForce)
 {
+    // GLOBAL: SWBF2 0x01faa690
     static unsigned int uCount;
 
     if (bForce || (uCount & 0x3f) == 0)
@@ -468,7 +471,7 @@ int ScriptCB_IsLegalGamespyString(lua_State*)
     apcStrings[1] = luaL_checklstring(LuaHelper::mState, 2, 0);
     apcStrings[2] = luaL_checklstring(LuaHelper::mState, 3, 0);
 
-    for (int i = 0; i < 3; ++i)
+    for (unsigned int i = 0; i < 3; ++i)
     {
         unsigned int uLen = strlen(apcStrings[i]);
         if (uLen < 1 || (i == 0 && uLen < 3))
@@ -528,7 +531,7 @@ int ScriptCB_IsLegalGamespyString(lua_State*)
             goto done;
         }
     }
-    for (int i = 0; i < 3; ++i)
+    for (unsigned int i = 0; i < 3; ++i)
     {
         for (unsigned int c = 0; c < sizeof(sBadFirstChars) - 1; ++c)
         {
@@ -1030,8 +1033,9 @@ int ScriptCB_ReadLeftstick(lua_State*)
     }
 
     RawControllerInputs* pJoystick = FLInputManager::Instance()->GetPlayerJoystick(iJoystick);
-    lua_pushnumber(LuaHelper::mState, pJoystick->mRawInputFloat[iJoystick][48]);
-    lua_pushnumber(LuaHelper::mState, pJoystick->mRawInputFloat[iJoystick][50]);
+    const float* pfRaw = (const float*)&pJoystick->mRawInputStorage[0x10 - 4] + iJoystick * 76;
+    lua_pushnumber(LuaHelper::mState, pfRaw[49]);
+    lua_pushnumber(LuaHelper::mState, pfRaw[51]);
     return 2;
 }
 
@@ -1059,7 +1063,7 @@ int ScriptCB_GetMaxMissionQueue(lua_State*)
 // FUNCTION: SWBF2 0x0057ee20
 int ScriptCB_SetMissionNames(lua_State*)
 {
-    if (lua_gettop(LuaHelper::mState) != 2)
+    if (LuaHelper::GetTop() != 2)
     {
         return 0;
     }
@@ -1075,19 +1079,19 @@ int ScriptCB_SetMissionNames(lua_State*)
     {
         lua_gettop(LuaHelper::mState);
         MissionPlayList::ClearEntries();
-        int iCount = luaL_getn(LuaHelper::mState, 1);
+        int iCount = LuaHelper::TableGetN(1);
         for (int i = 1; i <= iCount; ++i)
         {
             char acMap[64];
             char acTeam1[64];
             char acTeam2[64];
             int iSide;
-            lua_rawgeti(LuaHelper::mState, 1, i);
+            LuaHelper::TableGetByPosition(1, i);
             LuaHelper::TableReadVal("Map", acMap, sizeof(acMap), false);
             LuaHelper::TableReadVal("Side", iSide, false);
             LuaHelper::TableReadVal("Team1", acTeam1, sizeof(acTeam1), true);
             LuaHelper::TableReadVal("Team2", acTeam2, sizeof(acTeam2), true);
-            lua_settop(LuaHelper::mState, -2);
+            LuaHelper::Pop(1);
             if (!MissionPlayList::AddEntry(acMap, (unsigned char)iSide, acTeam1, acTeam2, 0, 0))
             {
                 break;
@@ -1452,7 +1456,7 @@ int ScriptCB_Unpause(lua_State*)
         return 0;
     }
     if (uiState == MISSION_STATE && GameLoop::sShowStats && GameLoop::mNumCameras > 1 &&
-        playerJoystickNumbers[0] == gActiveViewport)
+        PlayerPrefs::mAllUserPrefs[0].mJoystick == FLInputManager::Instance()->GetPrimaryPort())
     {
         iViewport = 0;
     }
@@ -1677,7 +1681,7 @@ int ScriptCB_MetagameSetBonus(lua_State*)
 int ScriptCB_MetagameSetSide(lua_State*)
 {
     const char* pcSide = LuaHelper::GetString(2);
-    unsigned int uiIndex = (unsigned int)luaL_checknumber(LuaHelper::mState, 1);
+    unsigned int uiIndex = LuaHelper::GetInt(1);
     GameLoop::SetMetagameSide(uiIndex, Team::TranslateTeamName(pcSide));
     return 0;
 }
@@ -1876,7 +1880,7 @@ namespace Lua_Callbacks
 // FUNCTION: SWBF2 0x00580740
 void Init()
 {
-    for (int i = 0; i < 91; ++i)
+    for (unsigned int i = 0; i < 91; ++i)
     {
         LuaHelper::Register(sCallbacks[i].pcName, sCallbacks[i].pfnCallback, 0);
     }
@@ -1893,7 +1897,8 @@ void Init()
 
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 
 // FUNCTION: SWBF2 0x005807a0
 void Cleanup()

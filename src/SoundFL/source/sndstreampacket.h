@@ -22,6 +22,14 @@ struct StreamPacket
     ~StreamPacket() {}
 
     void Lock() { ++mRefCount; }
+    bool IsLocked() const { return mRefCount > 0; }
+
+    void SetUsed(unsigned int uiUsed) { mBufferUsed = uiUsed; }
+    unsigned int GetUsed() const { return mBufferUsed; }
+    void SetPosition(unsigned int uiPosition) { mPos = uiPosition; }
+    unsigned int GetPosition() const { return mPos; }
+    void SetBuffer(void* pBuffer) { mBuffer = pBuffer; }
+    void* GetBuffer() const { return mBuffer; }
 
     // FUNCTION: SWBF2 0x0053d330
     void Unlock()
@@ -31,7 +39,7 @@ struct StreamPacket
             --mRefCount;
         }
 
-        if (mRefCount == 0)
+        if (0 == mRefCount)
         {
             if (mCallback != 0)
             {
@@ -46,6 +54,18 @@ struct StreamPacket
     bool GetLast() const { return (mFlags & 1) != 0; }
 
     bool GetDiscontinuity() const { return ((mFlags >> 1) & 1) != 0; }
+
+    void SetLast(bool bLast)
+    {
+        if (bLast)
+        {
+            mFlags |= 1;
+        }
+        else
+        {
+            mFlags &= 0xFFFE;
+        }
+    }
 
     void SetDiscontinuity(bool bDiscontinuity);
 

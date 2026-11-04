@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include <float.h>
 #include <string.h>
 
@@ -13,7 +14,10 @@
 #include "PlayerController.h"
 #include "UnitController.h"
 #include "VisionManager.h"
-#include "PebbleFL/pc/PblD3DX.h"
+
+
+// GLOBAL: SWBF2 0x007b28c0
+// __xmm@3f800000400000004080000040800000
 
 class EntityFlyer
 {
@@ -67,7 +71,7 @@ unsigned char Threat::GetPriority(float fTime, Controllable* pMe) const
     PblVector3 vToMe(mMe.GetTranslation().x - vHim.x, mMe.GetTranslation().y - vHim.y,
                      mMe.GetTranslation().z - vHim.z);
     PblVector3 vDir;
-    D3DXVec3Normalize(&vDir, &vToMe);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vToMe));
 
     if (pMe->GetEntity()->IsRtti(EntityFlyer::rttiHashEntityFlyer))
     {
@@ -209,6 +213,7 @@ const GameObject* UnitThreatManager::GetVisibleObject() const
 // FUNCTION: SWBF2 0x0066a1e0
 const PblVector3& UnitThreatManager::GetVisibleObjectPos() const
 {
+    // GLOBAL: SWBF2 0x01fac37c
     static PblVector3 sZero(0.0f, 0.0f, 0.0f);
     if (mVisibleObjectIndex < 0)
     {
@@ -362,13 +367,13 @@ float UnitThreatManager::TimeSinceLastRaytest(const GameObject* pObj) const
 bool UnitThreatManager::ShouldRaytestUnit(const GameObject* pObj) const
 {
     bool bPlayer = false;
-    Controllable* pHim = pObj->mControllableList.GetFirst()->_pObject;
+    Controllable* pHim = pObj->GetFirstControllable();
     if (pHim && pHim->mCtrl)
     {
         bPlayer = PlayerControllerPtr(pHim->mCtrl) != 0;
     }
 
-    float fRaytestInterval[5] = { 4.0f, 4.0f, 2.0f, 1.0f, 1.0f };
+    const float fRaytestInterval[5] = { 4.0f, 4.0f, 2.0f, 1.0f, 1.0f };
     if (!bPlayer)
     {
         const GameObject* pVisible = GetVisibleObject();
@@ -376,7 +381,7 @@ bool UnitThreatManager::ShouldRaytestUnit(const GameObject* pObj) const
         {
             return true;
         }
-        Controllable* pVisCtl = pVisible->mControllableList.GetFirst()->_pObject;
+        Controllable* pVisCtl = pVisible->GetFirstControllable();
         if (pVisCtl && pVisCtl->mCtrl && PlayerControllerPtr(pVisCtl->mCtrl))
         {
             return false;

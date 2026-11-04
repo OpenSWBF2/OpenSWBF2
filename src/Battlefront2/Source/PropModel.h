@@ -9,6 +9,7 @@ class PblMatrix;
 class PblFileChunk;
 class RedCamera;
 
+// VTABLE: SWBF2 0x007adea8
 class PropObject
 {
 public:
@@ -31,6 +32,7 @@ public:
  
  
 
+// VTABLE: SWBF2 0x007adec4
 class PropModel
 {
 public:

@@ -174,19 +174,47 @@ namespace AIUtil
                                  PblVector3& vTangent, PblVector3& vDir, bool bClockwise);
 }
 
-namespace AIUtil {
+namespace AIUtil
+{
 void UpdatePhysics(const Controllable* pMe, float fScale, const ControllableDestination& rDest,
                 const ControllableHeading& rHeading, float fThrustRate, float fStrafeRate,
                 float fTurnRate, float fPitchRate, float* pfThrust, float* pfStrafe,
                 float* pfTurn, float* pfPitch);
 }
-namespace AIUtil { bool __fastcall CanPotentiallySee(Controllable* pMe, const GameObject* pObject, float* pOut); }
-namespace AIUtil { void __fastcall AddSpied(Character* pWatcher, Character* pTarget); }
-namespace AIUtil { bool __fastcall IsSpied(const Character* pWatcher, const Character* pTarget); }
-namespace AIUtil { bool __fastcall ShouldStayInVehicle(Controllable* pMe); }
-namespace AIUtil { bool ShouldSoldierDodgeThisType(int eType); }
-namespace AIUtil { bool IsImportant(const GameObject* pObj); }
-namespace AIUtil { float GetThreatSwitchTime(const UnitController* pCtrl); }
+namespace AIUtil
+{
+bool __cdecl CanPotentiallySee(Controllable* pMe, const GameObject* pObject, float* pOut);
+}
+namespace AIUtil
+{
+void __fastcall AddSpied(Character* pWatcher, Character* pTarget);
+}
+namespace AIUtil
+{
+bool __fastcall IsSpied(Character* pWatcher, Character* pTarget);
+}
+namespace AIUtil
+{
+bool __fastcall ShouldStayInVehicle(Controllable* pMe);
+}
+namespace AIUtil
+{
+bool ShouldSoldierDodgeThisType(int eType);
+}
+namespace AIUtil
+{
+bool IsImportant(const GameObject* pObj);
+}
+namespace AIUtil
+{
+float GetThreatSwitchTime(const UnitController* pCtrl);
+}
 
-namespace AIUtil { float GetTargetSpeedForRealSpeed(float fNum, float fDenom); }
-namespace AIUtil { float GetThrustForTargetSpeed(float fT, float fA, float fB, float fC); }
+namespace AIUtil
+{
+float GetTargetSpeedForRealSpeed(float aSpd, float aMinSpd, float aMidSpd, float aMaxSpd);
+}
+namespace AIUtil
+{
+float GetThrustForTargetSpeed(float fT, float fA, float fB, float fC);
+}

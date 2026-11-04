@@ -58,6 +58,7 @@ public:
         PblRandom rand;
     };
 
+    // VTABLE: SWBF2 0x007a3e0c
     class ProgressIndicator : public RedGroupElement
     {
     public:

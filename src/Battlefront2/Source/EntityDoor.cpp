@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "EntityDoor.h"
 #include "PebbleFL/Common/PblVector.h"
 
@@ -13,15 +14,9 @@
 #include "RedEngineFL/Graphics/RedModel.h"
 #include "RedEngineFL/Portals/Portal.h"
 #include "RedEngineFL/Application/pc/pcFLRender.h"
-#include "PebbleFL/pc/PblD3DX.h"
-#include "TeamManager.h"
 
 extern bool netFrameLock;
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
+
 
 // FUNCTION: SWBF2 0x00498460
 void EntityDoor::Render(unsigned char ucViewport, float fDist, unsigned int uiFlags)
@@ -57,7 +52,7 @@ void EntityDoor::Render(unsigned char ucViewport, float fDist, unsigned int uiFl
         mZephyrSkeleton.Open(*mZephyrSkeleton.m_pShared, kPose);
         kPose.Open(mZephyrSkeleton);
         kPose.Set(mZephyrPoseDyn, true);
-        mZephyrSkeleton.BuildWorldMatrices(_IdentityMatrix);
+        mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity);
         mPose.ConvertFromZephyrPose(mZephyrSkeleton);
     }
 
@@ -70,7 +65,7 @@ void EntityDoor::Render(unsigned char ucViewport, float fDist, unsigned int uiFl
         if (FLRenderer::IsReflected(GetCollisionCenter(), GetCollisionRadius(), reflection, false))
         {
             PblMatrix reflected;
-            D3DXMatrixMultiply(&reflected, &mMatrix, &reflection);
+            reflected = mMatrix * reflection;
             pModel->Render(ucViewport, fDist, &reflected, &mPose, RedColor::WHITE,
                            (uiFlags & 0xeffefeffu) | 0x10000100u, 0);
         }
@@ -84,7 +79,7 @@ void EntityDoor::Render(unsigned char ucViewport, float fDist, unsigned int uiFl
         mZephyrSkeleton.Open(*mZephyrSkeleton.m_pShared, kPose);
         kPose.Open(mZephyrSkeleton);
         kPose.Set(mZephyrPoseDyn, true);
-        mZephyrSkeleton.BuildWorldMatrices(_IdentityMatrix);
+        mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity);
         mPose.ConvertFromZephyrPose(mZephyrSkeleton);
     }
     mJustRendered = true;
@@ -98,11 +93,25 @@ EntityDoor::~EntityDoor()
 // SYNTHETIC: SWBF2 0x00497fc0
 // EntityDoor::`scalar deleting destructor'
 // SYNTHETIC: SWBF2 0x004992b4
-// [thunk]:EntityDoor::`scalar deleting destructor'`adjustor{148}'
+// ??_EEntityDoor@@WJE@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004992bf
-// [thunk]:EntityDoor::`scalar deleting destructor'`adjustor{384}'
+// ??_EEntityDoor@@WBIA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004992ca
-// [thunk]:EntityDoor::`scalar deleting destructor'`adjustor{12}'
+// ??_EEntityDoor@@WM@AEPAXI@Z
+
+
+namespace AI
+{
+
+enum AIAffil
+{
+    AFFIL_ENEMY = 1,
+    AFFIL_NEUTRAL = 2,
+    AFFIL_ALLY = 4,
+    AFFIL_ALLYNEUTRAL = 6,
+    AFFIL_ALL = 7
+};
+}
 
 class Team;
 
@@ -113,29 +122,36 @@ int GetUnitsInRange(const PblVector3& vPos, float fRadius, GameObject** const pp
                     int iMax, const Team* pTeam, AI::AIAffil eAffil);
 }
 
-// GLOBAL: SWBF2 0x01ebb998
 // SYNTHETIC: SWBF2 0x004029c0
 // `dynamic initializer for 'EntityDoor::rttiHashEntityDoor''
-PblHash EntityDoor::rttiHashEntityDoor("EntityDoor");
-char EntityDoor::rttiNameEntityDoor[] = "EntityDoor";
+// EntityDoor::rttiHashEntityDoor
 
-// GLOBAL: SWBF2 0x01ebb99c
+// GLOBAL: SWBF2 0x01ebb998
+// EntityDoor::rttiHashEntityDoor
+PblHash EntityDoor::rttiHashEntityDoor("EntityDoor");
+// GLOBAL: SWBF2 0x00789130
+// EntityDoor::rttiNameEntityDoor
+const char EntityDoor::rttiNameEntityDoor[] = "EntityDoor";
+
 // SYNTHETIC: SWBF2 0x004029d0
 // `dynamic initializer for 'EntityDoorClass::rttiHashEntityDoorClass''
-PblHash EntityDoorClass::rttiHashEntityDoorClass("EntityDoorClass");
-char EntityDoorClass::rttiNameEntityDoorClass[] = "EntityDoorClass";
+// EntityDoorClass::rttiHashEntityDoorClass
 
-int EntityDoor::msHostDoorsNumEntries;
-// GLOBAL: SWBF2 0x01ebb9a4
+// GLOBAL: SWBF2 0x01ebb99c
+// EntityDoorClass::rttiHashEntityDoorClass
+PblHash EntityDoorClass::rttiHashEntityDoorClass("EntityDoorClass");
+// GLOBAL: SWBF2 0x00789118
+// EntityDoorClass::rttiNameEntityDoorClass
+const char EntityDoorClass::rttiNameEntityDoorClass[] = "EntityDoorClass";
 // SYNTHETIC: SWBF2 0x004029e0
 // `dynamic initializer for 'EntityDoor::msHostDoors''
 
+// GLOBAL: SWBF2 0x01ebb9a0
 PblHashTable<EntityDoor, 32> EntityDoor::msHostDoors;
-int EntityDoor::msClientDoorsNumEntries;
-// GLOBAL: SWBF2 0x01ebbaac
 // SYNTHETIC: SWBF2 0x00402a00
 // `dynamic initializer for 'EntityDoor::msClientDoors''
 
+// GLOBAL: SWBF2 0x01ebbaa8
 PblHashTable<EntityDoor, 32> EntityDoor::msClientDoors;
 
 // GLOBAL: SWBF2 0x007e6338
@@ -149,9 +165,7 @@ void EntityDoor::ResetDoorList()
 {
     mspDoors = &msHostDoors;
     msHostDoors.Clear();
-    msHostDoorsNumEntries = 0;
     msClientDoors.Clear();
-    msClientDoorsNumEntries = 0;
 }
 
 // FUNCTION: SWBF2 0x00498f00
@@ -173,17 +187,9 @@ unsigned int EntityDoor::GetRtti()
     return rttiHashEntityDoor;
 }
 
-// FUNCTION: SWBF2 0x00497f70
-unsigned int EntityDoor::GetDerivedRtti() const
-{
-    return rttiHashEntityDoor;
-}
 
-// FUNCTION: SWBF2 0x00497f80
-const char* EntityDoor::GetDerivedRttiName() const
-{
-    return rttiNameEntityDoor;
-}
+
+
 
 // FUNCTION: SWBF2 0x00497f90
 EntityClass* EntityDoor::GetEntityClass()
@@ -203,12 +209,7 @@ const RedPose* EntityDoor::GetPose() const
     return &mPose;
 }
 
-// FUNCTION: SWBF2 0x00497f20
-bool EntityDoor::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashEntityDoor ||
-           reinterpret_cast<const EntityProp*>(this)->EntityProp::IsRtti(uRtti);
-}
+
 
 // FUNCTION: SWBF2 0x00498040
 EntityDoor::EntityDoor(EntityDoorClass* pClass, const EntityDesc& desc)
@@ -239,12 +240,12 @@ EntityDoor::EntityDoor(EntityDoorClass* pClass, const EntityDesc& desc)
     mZephyrPoseDyn.SetCurTime(0.0f);
     mZephyrPoseDyn.Update(0.0f);
     kPose.Set(mZephyrPoseDyn, true);
-    mZephyrSkeleton.BuildWorldMatrices(_IdentityMatrix);
+    mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity);
     mPose.ConvertFromZephyrPose(mZephyrSkeleton);
 
-    if (mId && !mspDoors->Find(mId) && mspDoors->Store(mId, this))
+    if (mId && !mspDoors->Find(mId))
     {
-        ++(mspDoors == &msClientDoors ? msClientDoorsNumEntries : msHostDoorsNumEntries);
+        mspDoors->Store(mId, this);
     }
 }
 
@@ -315,14 +316,14 @@ bool EntityDoor::Update(float fDeltaTime)
                 continue;
             }
             PblMatrix mWorld;
-            D3DXMatrixMultiply(&mWorld, &mBone, &mMatrix);
+            mWorld = mBone * mMatrix;
 
             GameObject* apUnits[20];
             int iCount;
             if (NetGame::IsEnabled() && netEnabledNext && netClientActive)
             {
                 iCount = NetGame::GetObjectsInRange(mWorld.GetTranslation(), rTrigger.mTriggerRadius, apUnits, 20, 0,
-                                    AI::AFFIL_NEUTRAL);
+                                    COLL_SOFT);
             }
             else
             {
@@ -406,7 +407,7 @@ bool EntityDoor::Update(float fDeltaTime)
         mZephyrSkeleton.Open(*mZephyrSkeleton.m_pShared, kPose);
         kPose.Open(mZephyrSkeleton);
         kPose.Set(mZephyrPoseDyn, true);
-        mZephyrSkeleton.BuildWorldMatrices(_IdentityMatrix);
+        mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity);
         mPose.ConvertFromZephyrPose(mZephyrSkeleton);
     }
 
@@ -417,23 +418,11 @@ bool EntityDoor::Update(float fDeltaTime)
     return true;
 }
 
-// FUNCTION: SWBF2 0x00497ff0
-bool EntityDoorClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashEntityDoorClass || EntityPropClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00498020
-unsigned int EntityDoorClass::GetDerivedRtti()
-{
-    return rttiHashEntityDoorClass;
-}
 
-// FUNCTION: SWBF2 0x00498030
-const char* EntityDoorClass::GetDerivedRttiName()
-{
-    return rttiNameEntityDoorClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00498e10
 void EntityDoor::EnterClient()
@@ -546,7 +535,7 @@ void EntityDoorClass::SetProperty(unsigned int uProperty, const char* pszValue)
     case 0xe145ee5d:
         if (mAnimObj)
         {
-            mAnimation = (ZephyrAnim*)mAnimObj->FindAnimation(pszValue);
+            mAnimation = mAnimObj->FindAnimation(pszValue);
         }
         break;
 

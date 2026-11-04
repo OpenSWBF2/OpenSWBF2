@@ -17,7 +17,10 @@ class Team;
 class PlayerStats;
 class NetPktGroup;
 class PblMatrix;
-namespace PlayerProfile { struct tProfile; }
+namespace PlayerProfile
+{
+struct tProfile;
+}
 
 // VTABLE: SWBF2 0x00797134
 class Character : public Thread
@@ -88,6 +91,11 @@ public:
             }
         }
         return 0;
+    }
+
+    static int GetIndex(Character* aChar)
+    {
+        return aChar - sCharacters;
     }
 
     // FUNCTION: SWBF2 0x00437510
@@ -219,6 +227,7 @@ public:
     static void CreateAll(int iCount);
 
     static void InitAll();
+    void Validate();
     static void AddPlayer(int iPlayerId);
     static void RemovePlayer(int iPlayerId);
     void MakeAI();

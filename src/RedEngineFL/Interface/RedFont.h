@@ -56,8 +56,6 @@ public:
 
     static void PostCommonInit();
     static void Cleanup();
-
-    static int s_fontHashTableNumEntries;
     static PblHashTable<RedFont, 16> s_fontHashTable;
 
     static bool sJapaneseOnly;
@@ -136,7 +134,8 @@ public:
                       unsigned char uiCharWidth, unsigned char uiCharHeight,
                       char iAscent, unsigned int uiMaxGlyphs);
 
-    virtual ~RedFixedWidthFont();
+    // SYNTHETIC: SWBF2 0x006d9520
+    // RedFixedWidthFont::`scalar deleting destructor'
 
     virtual unsigned char GetNumTextures() const;
     virtual unsigned char GetBaseNumTextures() const;
@@ -155,7 +154,8 @@ public:
 
     RedVariableWidthFont();
 
-    virtual ~RedVariableWidthFont();
+    // SYNTHETIC: SWBF2 0x006d9580
+    // RedVariableWidthFont::`scalar deleting destructor'
 
     virtual unsigned char GetNumTextures() const;
     virtual unsigned char GetBaseNumTextures() const;

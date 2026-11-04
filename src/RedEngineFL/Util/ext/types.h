@@ -3,7 +3,8 @@
 namespace util
 {
 
-// FUNCTION: SWBF2 0x0045cb20
+// TEMPLATE: SWBF2 0x0045cb20
+// util::Max_<int>
 template <class TYPE>
 const TYPE& Max_(const TYPE& a, const TYPE& b)
 {

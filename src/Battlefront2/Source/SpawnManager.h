@@ -47,8 +47,7 @@ public:
     float GetCycleDelay(int iTeam) const { return mCycleDelay[iTeam]; }
     float GetCycleTimer(int iTeam) const { return mCycleTimer[iTeam]; }
 
-    // FUNCTION: SWBF2 0x0064ee40
-    int GetUnitCount(int iTeam) const { return mMaxUnitCount[iTeam]; }
+    int GetUnitCount(int iTeam) const;
 
     void SetUnitCount(int iTeam, int iCount) { mMaxUnitCount[iTeam] = iCount; }
     void SetHistorical(bool bHistorical) { mHistorical = bHistorical; }

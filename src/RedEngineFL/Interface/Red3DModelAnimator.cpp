@@ -1,3 +1,4 @@
+#include <string.h>
 #include "Red3DModelAnimator.h"
 #include "PebbleFL/Common/PblVector.h"
 
@@ -5,40 +6,29 @@
 #include "RedEngineFL/Util/RedAnimation.h"
 #include "Zephyr/Source/ZephyrAnimBank.h"
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
 
-// GLOBAL: SWBF2 0x009c8500
+
 // SYNTHETIC: SWBF2 0x004092a0
 // `dynamic initializer for 'Red3DModelAnimator::rttiHashRed3DModelAnimator''
+// Red3DModelAnimator::rttiHashRed3DModelAnimator
+
+// GLOBAL: SWBF2 0x009c8500
+// Red3DModelAnimator::rttiHashRed3DModelAnimator
 PblHash Red3DModelAnimator::rttiHashRed3DModelAnimator("Red3DModelAnimator");
-char Red3DModelAnimator::rttiNameRed3DModelAnimator[] = "Red3DModelAnimator";
+// GLOBAL: SWBF2 0x00784258
+// Red3DModelAnimator::rttiNameRed3DModelAnimator
+const char Red3DModelAnimator::rttiNameRed3DModelAnimator[] = "Red3DModelAnimator";
 
 // FUNCTION: SWBF2 0x006f8190
 Red3DModelAnimator::Red3DModelAnimator()
+    : mAnimHash(0), mQueuedAnim(0), mAnimTransitionTime(0.0f), mAnimTransitionTimeTotal(0.0f),
+      mAnimationTime(-1.0f), mAnimationTimeTotal(0.0f), mLooping(true)
 {
-    mAnimHash = 0;
-    mQueuedAnim = 0;
-    mAnimTransitionTime = 0.0f;
-    mAnimTransitionTimeTotal = 0.0f;
-    mAnimationTime = -1.0f;
-    mAnimationTimeTotal = 0.0f;
-    mLooping = true;
-    for (int i = 0; i < 5; ++i)
-    {
-        mAnimBankHash[i] = 0;
-    }
+    memset(mAnimBankHash, 0, sizeof(mAnimBankHash));
     Open();
 }
 
-// FUNCTION: SWBF2 0x0056a110
-bool Red3DModelAnimator::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashRed3DModelAnimator;
-}
+
 
 // FUNCTION: SWBF2 0x006f8270
 Red3DModelAnimator::~Red3DModelAnimator()
@@ -76,17 +66,9 @@ const ZephyrAnim* Red3DModelAnimator::FindAnimation(unsigned int uAnimHash)
     return 0;
 }
 
-// FUNCTION: SWBF2 0x006f83a0
-unsigned int Red3DModelAnimator::GetDerivedRtti() const
-{
-    return rttiHashRed3DModelAnimator;
-}
 
-// FUNCTION: SWBF2 0x006f83b0
-const char* Red3DModelAnimator::GetDerivedRttiName() const
-{
-    return rttiNameRed3DModelAnimator;
-}
+
+
 
 // FUNCTION: SWBF2 0x006f83c0
 void Red3DModelAnimator::Open()
@@ -150,18 +132,22 @@ RedPose* Red3DModelAnimator::UpdatePose()
         mZephyrPoseDyn.SetFrameNum(RedRenderer::GetFrameNumber() % iNumFrames);
         mZephyrPoseDyn.Update(0.0f);
     }
-    if (mAnimTransitionTimeTotal > 0.0f && mAnimTransitionTime < mAnimTransitionTimeTotal)
+    if (mAnimTransitionTimeTotal > 0.0f)
     {
-        mZephyrPoseStatic.Blend(mZephyrPoseDyn, mAnimTransitionTime / mAnimTransitionTimeTotal);
+        if (mAnimTransitionTime >= mAnimTransitionTimeTotal)
+        {
+            mAnimTransitionTimeTotal = 0.0f;
+            mZephyrPoseStatic.Set(mZephyrPoseDyn, true);
+        }
+        else
+        {
+            mZephyrPoseStatic.Blend(mZephyrPoseDyn, mAnimTransitionTime / mAnimTransitionTimeTotal);
+        }
     }
     else
     {
-        if (mAnimTransitionTimeTotal > 0.0f)
-        {
-            mAnimTransitionTimeTotal = 0.0f;
-        }
         mZephyrPoseStatic.Set(mZephyrPoseDyn, true);
     }
-    mZephyrSkeleton.BuildWorldMatrices(_IdentityMatrix);
+    mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity);
     return &mPose;
 }

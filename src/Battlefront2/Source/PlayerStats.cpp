@@ -17,7 +17,7 @@
 #include "EntityDroideka.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 #include "PebbleFL/Common/PblList.h"
-#include "VOHelper.h"
+#include "PebbleFL/Common/PblMath.h"
 #include <float.h>
 
 // FUNCTION: SWBF2 0x0061f490
@@ -232,9 +232,13 @@ char PlayerStatsPoints[35];
 void PlayerStats::PointsProcessTeam(int iTeam, unsigned char ucType)
 {
     SpaceAssault* pSpaceAssault = SpaceAssault::mInstance;
-    if (pSpaceAssault && pSpaceAssault->mbEnabled && PlayerStatsPoints[ucType] > 0)
+    if (pSpaceAssault && pSpaceAssault->mbEnabled)
     {
-        Team::GetPtr(iTeam)->AddPoints(PlayerStatsPoints[ucType]);
+        short pointVal = PlayerStatsPoints[ucType];
+        if (pointVal > 0)
+        {
+            Team::GetPtr(iTeam)->AddPoints(pointVal);
+        }
     }
 }
 
@@ -286,8 +290,9 @@ int PlayerStats::PointsProcess(unsigned char ucType, unsigned int uParam)
 // FUNCTION: SWBF2 0x0061da70
 int PlayerStats::GetPoints() const
 {
-    Character* pCharacter = Character::GetPtr(mStatId);
-    return GetPoints(!pCharacter->IsHero() || !pCharacter->mUnit);
+    Character* pChar = Character::GetPtr(mStatId);
+    bool is_player = !pChar->IsHero() || !pChar->mUnit;
+    return GetPoints(is_player);
 }
 
 // FUNCTION: SWBF2 0x0061dad0
@@ -303,8 +308,9 @@ int PlayerStats::GetPoints(bool bPlayer) const
 // FUNCTION: SWBF2 0x0061daf0
 void PlayerStats::SetPoints(short sPoints)
 {
-    Character* pCharacter = Character::GetPtr(mStatId);
-    SetPoints(!pCharacter->IsHero() || !pCharacter->mUnit, sPoints);
+    Character* pChar = Character::GetPtr(mStatId);
+    bool is_player = !pChar->IsHero() || !pChar->mUnit;
+    SetPoints(is_player, sPoints);
 }
 
 // FUNCTION: SWBF2 0x0061db60
@@ -438,7 +444,22 @@ void PlayerStats::Reset()
     ResetStats();
 }
 
-Controllable* GetControllablePilot(Controllable* pControllable);
+
+namespace AI
+{
+enum VOType
+{
+    VOT_KillingSpree4 = 12,
+    VOT_KillingSpree8 = 13,
+    VOT_KillingSpree12 = 14,
+    VOT_KillingSpree16 = 15
+};
+namespace VOHelper
+{
+int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,
+         const GameObject* pOther, float fDelay);
+}
+}
 
 // FUNCTION: SWBF2 0x0061e070
 void PlayerStats::AddKill(Character* pVictim, GameObject* pObject)
@@ -454,7 +475,7 @@ void PlayerStats::AddKill(Character* pVictim, GameObject* pObject)
     {
         Character* pCharacter = Character::GetPtr(mStatId);
         if (pCharacter && pCharacter->mUnit &&
-            (!pCharacter->GetControllable() || !GetControllablePilot(pCharacter->GetControllable())))
+            (!pCharacter->GetControllable() || !pCharacter->GetControllable()->GetPilot()))
         {
             GameObject* pUnitObject = pCharacter->mUnit->GetGameObject();
             float fHealth;
@@ -544,7 +565,7 @@ void PlayerStats::AddKill(Character* pVictim, GameObject* pObject)
     }
 
     mKills[iTeam][iHero].Inc(1);
-    mKillsByPlayer[iTeam][iHero][pVictim->GetPlayerStats().mStatId].Inc(1);
+    mKillsByPlayer[iTeam][iHero][Character::GetPlayerStats(pVictim).mStatId].Inc(1);
     if (mLastHealth < 64)
     {
         mKillsUnder25Health[iTeam][iHero].Inc(1);
@@ -615,7 +636,7 @@ void PlayerStats::AddAllyKill(Character* pVictim, GameObject*)
     int iHero = Character::GetPtr(mStatId)->IsHero();
     mKills[iTeam][iHero].Inc(1);
     mSameTeamKills[iTeam][iHero].Inc(1);
-    mKillsByPlayer[iTeam][iHero][pVictim->GetPlayerStats().mStatId].Inc(1);
+    mKillsByPlayer[iTeam][iHero][Character::GetPlayerStats(pVictim).mStatId].Inc(1);
 
     if (Character::GetPtr(mStatId) == pVictim)
     {
@@ -899,11 +920,8 @@ void PlayerStats::AddCampingTime(PblVector3 vPos, float fTime)
         return;
     }
 
-    int iTeam = _GetTeamNumber();
-    float fX = vPos.x - mCampingPos.x;
-    float fY = vPos.y - mCampingPos.y;
-    float fZ = vPos.z - mCampingPos.z;
-    if (fX * fX + fY * fY + fZ * fZ > CAMPING_DIST_SQ)
+    const int iTeam = _GetTeamNumber();
+    if (SquaredLength(vPos - mCampingPos) > CAMPING_DIST_SQ)
     {
         mCampingPos = vPos;
         mCampingTime[iTeam].ResetCurrent();
@@ -952,19 +970,7 @@ void PlayerStats::UpdateStatHealth(float fHealth)
     }
 
     int iTeam = _GetTeamNumber();
-    float fClamped;
-    if (fHealth < 0.0f)
-    {
-        fClamped = 0.0f;
-    }
-    else if (fHealth > 1.0f)
-    {
-        fClamped = 1.0f;
-    }
-    else
-    {
-        fClamped = fHealth;
-    }
+    const float fClamped = Clamp(fHealth, 0.0f, 1.0f);
     mLastHealth = (unsigned char)(int)(fClamped * 255.0f);
 
     if (mNarrowEscapeFlag)
@@ -995,78 +1001,96 @@ void PlayerStats::SetClientMiniStats(unsigned short usKills, unsigned char ucTea
 // FUNCTION: SWBF2 0x0061f130
 int PlayerStats::GetKills(int iTeam, int iHero) const
 {
-    if (iHero == -1)
+    const int type = iHero == -1 ? Character::GetPtr(mStatId)->IsHero() : iHero;
+    int kills;
+    if (iTeam >= 0)
     {
-        iHero = Character::GetPtr(mStatId)->IsHero();
+        kills = mKills[iTeam][type].Get(iTeam) - 2 * mSameTeamKills[iTeam][type].Get(iTeam);
     }
-    if (iTeam < 0)
+    else
     {
-        return mKills[0][iHero]._val + mKills[1][iHero]._val -
-               2 * (mSameTeamKills[0][iHero]._val + mSameTeamKills[1][iHero]._val);
+        kills = mKills[0][type].Get(0) + mKills[1][type].Get(1) -
+                2 * (mSameTeamKills[0][type].Get(0) + mSameTeamKills[1][type].Get(1));
     }
-    return mKills[iTeam][iHero]._val - 2 * mSameTeamKills[iTeam][iHero]._val;
+    return kills;
 }
 
 // FUNCTION: SWBF2 0x0061f1b0
 int PlayerStats::GetTeamKills(int iTeam, int iHero) const
 {
-    if (iHero == -1)
+    const int type = iHero == -1 ? Character::GetPtr(mStatId)->IsHero() : iHero;
+    int kills;
+    if (iTeam >= 0)
     {
-        iHero = Character::GetPtr(mStatId)->IsHero();
+        kills = mSameTeamKills[iTeam][type].Get(iTeam);
     }
-    if (iTeam < 0)
+    else
     {
-        return mSameTeamKills[0][iHero]._val + mSameTeamKills[1][iHero]._val;
+        kills = mSameTeamKills[0][type].Get(0) + mSameTeamKills[1][type].Get(1);
     }
-    return mSameTeamKills[iTeam][iHero]._val;
+    return kills;
 }
 
 // FUNCTION: SWBF2 0x0061f220
 int PlayerStats::GetEnemyKills(int iTeam, int iHero) const
 {
-    if (iHero == -1)
+    const int type = iHero == -1 ? Character::GetPtr(mStatId)->IsHero() : iHero;
+    int kills;
+    if (iTeam >= 0)
     {
-        iHero = Character::GetPtr(mStatId)->IsHero();
+        kills = mKills[iTeam][type].Get(iTeam);
     }
-    if (iTeam < 0)
+    else
     {
-        return mKills[0][iHero]._val + mKills[1][iHero]._val;
+        kills = mKills[0][type].Get(0) + mKills[1][type].Get(1);
     }
-    return mKills[iTeam][iHero]._val;
+    return kills;
 }
 
 // FUNCTION: SWBF2 0x0061f290
 int PlayerStats::GetFlagCaptures(int iTeam, int iHero) const
 {
-    if (iTeam < 0)
+    int caps;
+    if (iTeam >= 0)
     {
-        return mFlagCaps[0][iHero]._val + mFlagCaps[1][iHero]._val;
+        caps = mFlagCaps[iTeam][iHero].Get(iTeam);
     }
-    return mFlagCaps[iTeam][iHero]._val;
+    else
+    {
+        caps = mFlagCaps[0][iHero].Get(0) + mFlagCaps[1][iHero].Get(1);
+    }
+    return caps;
 }
 
 // FUNCTION: SWBF2 0x0061f2c0
 int PlayerStats::GetDeaths(int iTeam, int iHero) const
 {
-    if (iHero == -1)
+    const int type = iHero == -1 ? Character::GetPtr(mStatId)->IsHero() : iHero;
+    int deaths;
+    if (iTeam >= 0)
     {
-        iHero = Character::GetPtr(mStatId)->IsHero();
+        deaths = mDeaths[iTeam][type].Get(iTeam);
     }
-    if (iTeam < 0)
+    else
     {
-        return mDeaths[0][iHero]._val + mDeaths[1][iHero]._val;
+        deaths = mDeaths[0][type].Get(0) + mDeaths[1][type].Get(1);
     }
-    return mDeaths[iTeam][iHero]._val;
+    return deaths;
 }
 
 // FUNCTION: SWBF2 0x0061f330
 int PlayerStats::GetCommandPostPoints(int iTeam, int) const
 {
-    if (iTeam < 0)
+    int points;
+    if (iTeam >= 0)
     {
-        return mCommandPostPoints[0]._val + mCommandPostPoints[1]._val;
+        points = mCommandPostPoints[iTeam].Get(iTeam);
     }
-    return mCommandPostPoints[iTeam]._val;
+    else
+    {
+        points = mCommandPostPoints[0].Get(0) + mCommandPostPoints[1].Get(1);
+    }
+    return points;
 }
 
 // FUNCTION: SWBF2 0x0061f360
@@ -1110,7 +1134,7 @@ void PlayerStats::_GetPlayerAwardMax(AwardStatT eAward, int& iValue,
         for (int character = 0; character < Character::sCharacterLimit; ++character)
         {
             Character* pCharacter = Character::GetPtr(character);
-            PlayerStats& stats = pCharacter->GetPlayerStats();
+            PlayerStats& stats = Character::GetPlayerStats(pCharacter);
             int value = stats._GetPlayerAwardVal(eAward, team, character);
             if (value > iValue)
             {
@@ -1141,12 +1165,12 @@ Character* PlayerStats::GetAwardChr(AwardStatT eAward)
 // FUNCTION: SWBF2 0x0061fd30
 int PlayerStats::_GetTeamNumber() const
 {
-    int iTeam = Character::GetPtr(mStatId)->mTeamNumber - 1;
-    if (iTeam < 0 || iTeam > 1)
+    int team = Character::GetPtr(mStatId)->GetTeamNumber();
+    if (team >= 1 && team <= 2)
     {
-        return 0;
+        return team - 1;
     }
-    return iTeam;
+    return 0;
 }
 
 // FUNCTION: SWBF2 0x00620a10
@@ -1205,7 +1229,10 @@ bool PlayerStats::IsClassSelectable(int iClassIndex, UnselectableReason* pReason
     return false;
 }
 
-namespace PopupText { extern bool gPopupShownLatch; }
+namespace PopupText
+{
+extern bool gPopupShownLatch;
+}
 
 // FUNCTION: SWBF2 0x006210f0
 void ClearFireTriggerBlock()
@@ -1233,7 +1260,7 @@ void PlayerStats::AddGameStatsToProfile()
             {
                 continue;
             }
-            PlayerStats& stats = character->GetPlayerStats();
+            PlayerStats& stats = Character::GetPlayerStats(character);
             PlayerProfile::tProfile* profile = character->GetProfile();
             profile->mAccumPoints.mTotalDeaths += stats.GetDeaths(side, 1) + stats.GetDeaths(side, 0);
             profile->mAccumPoints.mTotalKills += stats.GetKills(side, 1) + stats.GetKills(side, 0);

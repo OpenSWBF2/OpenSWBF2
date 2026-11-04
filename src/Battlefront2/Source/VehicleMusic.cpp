@@ -23,7 +23,7 @@ VehicleMusic::VehicleMusic(const VehicleMusicClass* pClass)
 // FUNCTION: SWBF2 0x0066e570
 VehicleMusic::~VehicleMusic()
 {
-    for (int i = 0; i < 8; ++i)
+    for (unsigned int i = 0; i < 8; ++i)
     {
         mMusic[i].Stop();
     }
@@ -65,7 +65,7 @@ bool VehicleMusicClass::SetProperty(unsigned int uProperty, const char* pszValue
     switch (uProperty)
     {
     case 0x9f9c4fd4:
-        for (int i = 0; i < 8; ++i)
+        for (unsigned int i = 0; i < 8; ++i)
         {
             mMusic[i].SetID(pszValue);
         }

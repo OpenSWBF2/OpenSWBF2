@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "Controller.h"
@@ -26,13 +28,15 @@ public:
 
     void SetMouseBuildup(float fBuildup) { mMouseTurnBuildup = fBuildup; }
 
+    // SYNTHETIC: SWBF2 0x00499320
+    // PlayerController::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
-    static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
+    static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }
     static MemoryPool sMemoryPool;
 
     static PblHash rttiHashPlayerController;
-    static char rttiNamePlayerController[];
+    static const char rttiNamePlayerController[];
 
 protected:
     void DeployCargo();
@@ -41,6 +45,9 @@ protected:
     void CheckForVisibleCriticalPts();
 
 public:
+    PblList<PlayerController>::Node* GetManagerNode() { return &mManagerNode; }
+    const PblList<PlayerController>::Node* GetManagerNode() const { return &mManagerNode; }
+
     PblList<PlayerController>::Node mManagerNode;
     ProcessedInputs* mJoystick;
     float mMouseTurnBuildup;
@@ -68,3 +75,27 @@ const PlayerController* PlayerControllerPtr(const Controllable* pControllable);
  
  
  
+
+// FUNCTION: SWBF2 0x0061a060
+inline bool PlayerController::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashPlayerController == uRtti)
+    {
+        return true;
+    }
+    return Controller::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x0061a090
+inline unsigned int PlayerController::GetDerivedRtti() const
+{
+    return rttiHashPlayerController;
+}
+
+// FUNCTION: SWBF2 0x0061a0a0
+inline const char* PlayerController::GetDerivedRttiName() const
+{
+    return rttiNamePlayerController;
+}
+
+

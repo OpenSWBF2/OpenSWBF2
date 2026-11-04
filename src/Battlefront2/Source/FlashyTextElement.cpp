@@ -12,15 +12,14 @@ FlashyTextManager::FlashyTextManager()
 {
 }
 
-FlashyTextManager::~FlashyTextManager()
-{
-}
 
-// GLOBAL: SWBF2 0x01ebcff0
 // SYNTHETIC: SWBF2 0x00403870
 // `dynamic initializer for 'sFlashyTextManagerInstance''
 // SYNTHETIC: SWBF2 0x00768730
 // `dynamic atexit destructor for 'sFlashyTextManagerInstance''
+
+// GLOBAL: SWBF2 0x01ebcff0
+// sFlashyTextManagerInstance
 FlashyTextManager sFlashyTextManagerInstance;
 
 // FUNCTION: SWBF2 0x005269b0

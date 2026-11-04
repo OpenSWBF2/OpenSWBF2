@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -16,7 +17,7 @@
 #include "RedEngineFL/Graphics/RedOmniLight.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
-#include "PebbleFL/pc/PblD3DX.h"
+
 
 extern NoLodData noloddata;
 
@@ -27,6 +28,7 @@ bool IsReflected(const PblVector3& vPos, float fRadius, PblMatrix& mReflection, 
 unsigned int GetCurrentViewport();
 }
 
+
 static const float kfHoloBeamWidthCone = 0.8f;
 static const float kfHoloBeamFadeFactor = 0.25f;
 static const float kfHoloBeamFadeLength = 1.0f;
@@ -36,14 +38,12 @@ static const float kfHoloPopRotateProbability = 0.7f;
 static const float kfHoloMaxTilt = 30.0f;
 
 static const float kfFadeDrawDistance = 0.9f;
+// GLOBAL: SWBF2 0x0078f430
 static const float kfFadeDrawDistanceSquared = kfFadeDrawDistance * kfFadeDrawDistance;
+// GLOBAL: SWBF2 0x0078f42c
 static const float kfFadeDrawDistanceFactor = 1.0f / (1.0f - kfFadeDrawDistanceSquared);
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
+
 
 // FUNCTION: SWBF2 0x004bd820
 const RedColor Interpolate(const RedColor& a, const RedColor& b, float t)
@@ -99,17 +99,27 @@ inline RedColorValue ToColorValue(const RedColor& c)
 }
 }
 
-// GLOBAL: SWBF2 0x01ebbcc4
 // SYNTHETIC: SWBF2 0x00402b40
 // `dynamic initializer for 'EntityHologram::rttiHashEntityHologram''
-PblHash EntityHologram::rttiHashEntityHologram("EntityHologram");
-char EntityHologram::rttiNameEntityHologram[] = "EntityHologram";
+// EntityHologram::rttiHashEntityHologram
 
-// GLOBAL: SWBF2 0x01ebbdcc
+// GLOBAL: SWBF2 0x01ebbcc4
+// EntityHologram::rttiHashEntityHologram
+PblHash EntityHologram::rttiHashEntityHologram("EntityHologram");
+// GLOBAL: SWBF2 0x00789280
+// EntityHologram::rttiNameEntityHologram
+const char EntityHologram::rttiNameEntityHologram[] = "EntityHologram";
+
 // SYNTHETIC: SWBF2 0x00402b50
 // `dynamic initializer for 'EntityHologramClass::rttiHashEntityHologramClass''
+// EntityHologramClass::rttiHashEntityHologramClass
+
+// GLOBAL: SWBF2 0x01ebbdcc
+// EntityHologramClass::rttiHashEntityHologramClass
 PblHash EntityHologramClass::rttiHashEntityHologramClass("EntityHologramClass");
-char EntityHologramClass::rttiNameEntityHologramClass[] = "EntityHologramClass";
+// GLOBAL: SWBF2 0x00789264
+// EntityHologramClass::rttiNameEntityHologramClass
+const char EntityHologramClass::rttiNameEntityHologramClass[] = "EntityHologramClass";
 
 // SYNTHETIC: SWBF2 0x0042cf30
 // PblHandled::`scalar deleting destructor'
@@ -132,54 +142,15 @@ void FLEffectObject::UpdatedWorldMatrix()
 // SYNTHETIC: SWBF2 0x0042cf90
 // FLEffectObject::`scalar deleting destructor'
 
-// FUNCTION: SWBF2 0x004bde50
-void LightBeam::SetHeadPosition(const PblVector3& vPos)
-{
-    _vHeadPosition = vPos;
-    PblVector3 vWorld;
-    D3DXVec3TransformCoord(&vWorld, &_vHeadPosition, &m_mWorldMatrix);
-    _Flare.SetPosition(vWorld);
-}
 
-// FUNCTION: SWBF2 0x004bdea0
-void LightBeam::SetDirection(const PblVector3& vDir)
-{
-    _vDirection = vDir;
-}
 
-// FUNCTION: SWBF2 0x004bdec0
-void LightBeam::SetHeadTailPosition(const PblVector3& vHead, const PblVector3& vTail)
-{
-    PblVector3 vDelta(vTail.x - vHead.x, vTail.y - vHead.y, vTail.z - vHead.z);
-    SetHeadPosition(vHead);
-    SetLength(sqrtf(vDelta.x * vDelta.x + vDelta.y * vDelta.y + vDelta.z * vDelta.z));
-    if (_fLength > 0.0f)
-    {
-        float fInv = 1.0f / _fLength;
-        SetDirection(PblVector3(vDelta.x * fInv, vDelta.y * fInv, vDelta.z * fInv));
-    }
-    else
-    {
-        SetDirection(PblVector3(0.0f, 0.0f, 1.0f));
-    }
-}
 
-// FUNCTION: SWBF2 0x004bdfc0
-void LightBeam::SetPositionOmni(const PblVector3& vPos)
-{
-    SetPosition(vPos);
-    SetLength(0.0f);
-    SetDirection(PblVector3(0.0f, 1.0f, 0.0f));
-}
 
-// FUNCTION: SWBF2 0x004be010
-void LightBeam::SetColor(const RedColor& color)
-{
-    _color = color;
-    RedColor flareColor = _color;
-    flareColor.a = (unsigned char)(int)(_color.a * _fFlareIntensity);
-    _Flare.SetColor(flareColor);
-}
+
+
+
+
+
 
 // FUNCTION: SWBF2 0x004be070
 void LightBeam::SetInitialWidth(float fWidth)
@@ -196,36 +167,13 @@ void LightBeam::SetInitialWidth(float fWidthX, float fWidthZ)
     _Flare._fSize = _fHeadSizeX + _fHeadSizeZ;
 }
 
-// FUNCTION: SWBF2 0x004be0e0
-void LightBeam::SetFadeLength(float fLength)
-{
-    _fFadeLength = fLength;
-}
 
-// FUNCTION: SWBF2 0x004be100
-void LightBeam::Unhide()
-{
-    _Flare._uiHideInView = 0;
-}
 
-// FUNCTION: SWBF2 0x004be110
-void LightBeam::HideInView(unsigned int uiView, bool bHide)
-{
-    if (bHide)
-    {
-        _Flare._uiHideInView |= 1 << uiView;
-    }
-    else
-    {
-        _Flare._uiHideInView &= ~(1 << uiView);
-    }
-}
 
-// FUNCTION: SWBF2 0x004be140
-bool LightBeam::IsHiddenInView(unsigned int uiView)
-{
-    return (_Flare._uiHideInView & (1 << uiView)) != 0;
-}
+
+
+
+
 
 // FUNCTION: SWBF2 0x004be160
 void LightBeam::AddToRenderList()
@@ -237,36 +185,19 @@ void LightBeam::RemoveFromRenderList()
 {
 }
 
-// FUNCTION: SWBF2 0x004bdd90
-LightBeam::~LightBeam()
-{
-    DeactivateEffect();
-}
 
 // SYNTHETIC: SWBF2 0x004c08ea
-// [thunk]:LightBeam::`scalar deleting destructor' adjustor{40}
+// ??_ELightBeam@@WCI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004c08fa
-// [thunk]:LightBeam::`scalar deleting destructor' adjustor{16}
+// ??_ELightBeam@@WBA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004be180
 // LightBeam::`scalar deleting destructor'
 
-// FUNCTION: SWBF2 0x004be1b0
-bool EntityHologram::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashEntityHologram || EntityEx::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x004be1e0
-unsigned int EntityHologram::GetDerivedRtti() const
-{
-    return rttiHashEntityHologram;
-}
 
-// FUNCTION: SWBF2 0x004be1f0
-const char* EntityHologram::GetDerivedRttiName() const
-{
-    return rttiNameEntityHologram;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x004be200
 bool EntityHologram::MyThread::Update(float fDeltaTime)
@@ -275,33 +206,15 @@ bool EntityHologram::MyThread::Update(float fDeltaTime)
     return true;
 }
 
-// FUNCTION: SWBF2 0x004be220
-bool EntityHologramClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashEntityHologramClass || EntityClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x004be250
-unsigned int EntityHologramClass::GetDerivedRtti()
-{
-    return rttiHashEntityHologramClass;
-}
 
-// FUNCTION: SWBF2 0x004be260
-const char* EntityHologramClass::GetDerivedRttiName()
-{
-    return rttiNameEntityHologramClass;
-}
 
 // SYNTHETIC: SWBF2 0x004c08f2
-// [thunk]:EntityHologram::`scalar deleting destructor' adjustor{12}
+// ??_EEntityHologram@@WM@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004be270
 // EntityHologram::`scalar deleting destructor'
 
-// FUNCTION: SWBF2 0x004be2a0
-EntityHologram::MyThread::~MyThread()
-{
-}
+
 
 // SYNTHETIC: SWBF2 0x004be2b0
 // EntityHologram::MyThread::`scalar deleting destructor'
@@ -375,13 +288,13 @@ EntityHologram::EntityHologram(EntityHologramClass* pClass, const EntityDesc& de
     float fRadius = pClass->m_fSize * 0.5f + pClass->m_fHeight * 0.5f;
     PblVector3 vOffset(0.0f, fRadius, 0.0f);
     PblVector3 vCenter;
-    D3DXVec3TransformCoord(&vCenter, &vOffset, &m_WorldMatrix);
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vCenter), reinterpret_cast<const D3DXVECTOR3*>(&vOffset), reinterpret_cast<const D3DXMATRIX*>(&m_WorldMatrix));
 
     PblMatrix mReflection;
     if (FLRenderer::IsReflected(vCenter, fRadius, mReflection, true))
     {
         PblVector3 vReflected;
-        D3DXVec3TransformCoord(&vReflected, &vCenter, &mReflection);
+        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vReflected), reinterpret_cast<const D3DXVECTOR3*>(&vCenter), reinterpret_cast<const D3DXMATRIX*>(&mReflection));
         float fDX = vCenter.x - vReflected.x;
         float fDY = vCenter.y - vReflected.y;
         float fDZ = vCenter.z - vReflected.z;
@@ -550,7 +463,7 @@ bool EntityHologram::Update(float fDeltaTime)
             Character* pCharacter = Character::FindPlayer(iPlayer);
             Team* pTeam = pCharacter ? pCharacter->mTeamPtr : Team::sTeams[1];
 
-            lightColor = pTeam->mColor[m_iTeam];
+            lightColor = pTeam->GetColor(m_iTeam);
         }
     }
 
@@ -735,7 +648,7 @@ void EntityHologram::Render(unsigned char ucViewport, float fDist, unsigned int 
         }
         Character* pCharacter = Character::FindPlayer(iPlayer);
         Team* pTeam = pCharacter ? pCharacter->mTeamPtr : Team::sTeams[1];
-        color = pTeam->mColor[m_iTeam];
+        color = pTeam->GetColor(m_iTeam);
     }
     else
     {
@@ -751,7 +664,7 @@ void EntityHologram::Render(unsigned char ucViewport, float fDist, unsigned int 
         if (bReflected)
         {
             PblMatrix mSaved(m_WorldMatrix);
-            D3DXMatrixMultiply(&m_WorldMatrix, &m_WorldMatrix, &mReflection);
+            m_WorldMatrix *= mReflection;
             m_pLightBeam->AttachEffectToMatrix(&m_WorldMatrix, false);
             m_pLightBeam->Render(uiFlags | 0x10000100);
             m_WorldMatrix = mSaved;
@@ -784,10 +697,10 @@ void EntityHologram::Render(unsigned char ucViewport, float fDist, unsigned int 
     float fInvAspect = 1.0f / m_fAspect;
     float fSize = m_fCurrentFadeInFactor * pClass->m_fSize;
 
-    PblMatrix mModel(_IdentityMatrix);
+    PblMatrix mModel(gMatrixIdentity);
     PblMatrix mTemp;
-    D3DXMatrixMultiply(&mModel, &mModel, D3DXMatrixRotationX(&mTemp, m_fTilt));
-    D3DXMatrixMultiply(&mModel, &mModel, D3DXMatrixRotationY(&mTemp, pClass->m_fRotateRate * m_fRotateTimer));
+    mModel.RotateX(m_fTilt);
+    mModel.RotateY(pClass->m_fRotateRate * m_fRotateTimer);
 
     float fScaleXZ = m_fAspect * fSize;
     float fScaleY = fSize * fInvAspect;
@@ -802,7 +715,7 @@ void EntityHologram::Render(unsigned char ucViewport, float fDist, unsigned int 
     mModel.m[3][0] += 0.0f;
     mModel.m[3][1] += pClass->m_fHeight;
     mModel.m[3][2] += 0.0f;
-    D3DXMatrixMultiply(&mModel, &mModel, &m_WorldMatrix);
+    mModel *= m_WorldMatrix;
 
     float fNear, fUnused;
     RedRenderer::GetCamera()->GetFrustum(fNear, fUnused, fUnused, fUnused);
@@ -824,7 +737,7 @@ void EntityHologram::Render(unsigned char ucViewport, float fDist, unsigned int 
     m_pHoloModel->Render(&mModel, 0, color, uiFlags | 0x10, 0);
     if (bReflected)
     {
-        D3DXMatrixMultiply(&mTemp, &mModel, &mReflection);
+        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mTemp), reinterpret_cast<const D3DXMATRIX*>(&mModel), reinterpret_cast<const D3DXMATRIX*>(&mReflection));
         mReflection = mTemp;
         m_pHoloModel->Render(&mReflection, 0, color, (uiFlags & ~0x10000u) | 0x10000110, 0);
     }
@@ -875,13 +788,13 @@ void EntityHologram::SetStoredMatrix(const PblMatrix& mMatrix)
     float fRadius = pClass->m_fSize * 0.5f + pClass->m_fHeight * 0.5f;
     PblVector3 vOffset(0.0f, fRadius, 0.0f);
     PblVector3 vCenter;
-    D3DXVec3TransformCoord(&vCenter, &vOffset, &m_WorldMatrix);
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vCenter), reinterpret_cast<const D3DXVECTOR3*>(&vOffset), reinterpret_cast<const D3DXMATRIX*>(&m_WorldMatrix));
 
     PblMatrix mReflection;
     if (FLRenderer::IsReflected(vCenter, fRadius, mReflection, true))
     {
         PblVector3 vReflected;
-        D3DXVec3TransformCoord(&vReflected, &vCenter, &mReflection);
+        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vReflected), reinterpret_cast<const D3DXVECTOR3*>(&vCenter), reinterpret_cast<const D3DXMATRIX*>(&mReflection));
         float fDX = vCenter.x - vReflected.x;
         float fDY = vCenter.y - vReflected.y;
         float fDZ = vCenter.z - vReflected.z;
@@ -971,10 +884,7 @@ EntityHologramClass::EntityHologramClass(EntityHologramClass* pParent, unsigned 
     m_fTurnOnDistance = pParent->m_fTurnOnDistance;
     m_eType = pParent->m_eType;
 
-    if (sHologramClassTable.Store(uHash, this))
-    {
-        ++sHologramClassTableNumEntries;
-    }
+    sHologramClassTable.Store(uHash, this);
 }
 
 // FUNCTION: SWBF2 0x004c0500
@@ -1091,14 +1001,10 @@ EntityClass* EntityHologramClass::Derive(unsigned int uHash)
 void EntityHologramClass::Reset()
 {
     sHologramClassTable.Clear();
-    sHologramClassTableNumEntries = 0;
 }
 
-// GLOBAL: SWBF2 0x01ebbcc8
-int EntityHologramClass::sHologramClassTableNumEntries;
-
-// GLOBAL: SWBF2 0x01ebbccc
 // SYNTHETIC: SWBF2 0x00402b60
 // `dynamic initializer for 'EntityHologramClass::sHologramClassTable''
 
+// GLOBAL: SWBF2 0x01ebbcc8
 PblHashTable<EntityHologramClass, 32> EntityHologramClass::sHologramClassTable;

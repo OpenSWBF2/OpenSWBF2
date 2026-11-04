@@ -8,10 +8,17 @@ namespace Snd
 
 struct StreamPacket;
 
+// SYNTHETIC: SWBF2 0x0073c810
+// Snd::StreamNodeSource::`scalar deleting destructor'
+
+// VTABLE: SWBF2 0x0078686c
 class StreamNodeSource
 {
 public:
-    virtual ~StreamNodeSource();
+    // FUNCTION: SWBF2 0x0073c790
+    virtual ~StreamNodeSource()
+    {
+    }
     virtual StreamPacket* GetPacket(unsigned int uiOutput);
 };
 
@@ -26,6 +33,23 @@ struct StreamNodeConnection
     // FUNCTION: SWBF2 0x0053c650
     ~StreamNodeConnection() {}
 
+    void Initialize(StreamNodeSource* const pNode, unsigned int uiOutput)
+    {
+        mInputNode = pNode;
+        mInputNodeOutputIndex = uiOutput;
+    }
+
+    StreamNodeSource* GetInputNode() const { return mInputNode; }
+
+    StreamPacket* GetPacket() const
+    {
+        if (mInputNode)
+        {
+            return mInputNode->GetPacket(mInputNodeOutputIndex);
+        }
+        return 0;
+    }
+
     StreamNodeSource* mInputNode;
     unsigned int mInputNodeOutputIndex;
 };
@@ -37,6 +61,11 @@ public:
     {
         mConnection.mInputNode = pSource;
         mConnection.mInputNodeOutputIndex = uiOutput;
+    }
+
+    StreamNodeSource* ConnectionGetNode() const
+    {
+        return mConnection.GetInputNode();
     }
 
     StreamPacket* ConnectionGetPacket() const
@@ -78,11 +107,7 @@ public:
 class StreamNode : public SourceTransport
 {
 public:
-    StreamNode() : mFlags(0)
-    {
-        SourceTransport::mPlaybackPosition = 0;
-        SourceTransport::mFlags = (unsigned short)SourceTransport::flags_stopped;
-    }
+    StreamNode() : mFlags(0) {}
 
     bool IsStarving() const;
 

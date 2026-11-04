@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include <math.h>
 
 #include "SpaceDustEffect.h"
@@ -10,7 +11,7 @@
 #include "RedEngineFL/Graphics/RedCamera.h"
 #include "RedEngineFL/Graphics/RedColor.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
-#include "PebbleFL/pc/PblD3DX.h"
+
 
 typedef SpaceDustEffect::DustEmitterData DustEmitterData;
 
@@ -33,11 +34,13 @@ SpaceDustEffect::DustEmitterData::~DustEmitterData()
     }
 }
 
-// GLOBAL: SWBF2 0x01f6dea0
 // SYNTHETIC: SWBF2 0x004063d0
 // `dynamic initializer for 'SpaceDustEffect::m_emitter''
 // SYNTHETIC: SWBF2 0x007694d0
 // `dynamic atexit destructor for 'SpaceDustEffect::m_emitter''
+
+// GLOBAL: SWBF2 0x01f6dea0
+// SpaceDustEffect::m_emitter
 SpaceDustEffect::DustEmitterData SpaceDustEffect::m_emitter[1];
 
 // GLOBAL: SWBF2 0x01eafb30
@@ -308,7 +311,7 @@ void SpaceDustEffect::Update(float fDeltaTime)
         else
         {
             fSpeed = sqrtf(fLengthSq);
-            D3DXVec3Normalize(&vDir, &vVelocity);
+            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vVelocity));
         }
     }
     else
@@ -349,13 +352,13 @@ void SpaceDustEffect::Update(float fDeltaTime)
         }
         else
         {
-            D3DXVec3Normalize(&vRight, &vSide);
+            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vRight), reinterpret_cast<const D3DXVECTOR3*>(&vSide));
         }
 
         PblVector3 vUp(vDir.z * vRight.y - vDir.y * vRight.z, vDir.x * vRight.z - vDir.z * vRight.x,
                        vDir.y * vRight.x - vDir.x * vRight.y);
         PblVector3 vUpNorm;
-        D3DXVec3Normalize(&vUpNorm, &vUp);
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vUpNorm), reinterpret_cast<const D3DXVECTOR3*>(&vUp));
         PblMatrix mSpawn;
         mSpawn.m[0][0] = vUpNorm.x;
         mSpawn.m[0][1] = vUpNorm.y;
@@ -403,7 +406,7 @@ void SpaceDustEffect::Update(float fDeltaTime)
                     vOffset.y += mCenterDeadZoneRadius;
                 }
             }
-            D3DXVec3TransformCoord(&particle.mCoord, &vOffset, &mSpawn);
+            D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&particle.mCoord), reinterpret_cast<const D3DXVECTOR3*>(&vOffset), reinterpret_cast<const D3DXMATRIX*>(&mSpawn));
 
             const float fScale = PblRandom::GetGlobalFloat();
             particle.mScale = (1.0f - fScale) * mMinParticleScale + fScale * mMaxParticleScale;
@@ -472,7 +475,7 @@ void SpaceDustEffect::Render(int value)
     texCoords.v0 = 0;
     texCoords.u1 = 0xff;
     texCoords.v1 = 0xff;
-    for (int i = 0; i < 80; i++)
+    for (unsigned int i = 0; i < 80; i++)
     {
         const ParticleData& particle = emitter.mParticle[i];
         if (particle.mLifeLeft < 0.0f)

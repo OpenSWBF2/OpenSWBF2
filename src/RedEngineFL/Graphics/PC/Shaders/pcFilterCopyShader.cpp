@@ -23,28 +23,22 @@ pcRedShader::BeginFuncT pcFilterCopyShader::BeginFuncArray[MAX_PIPELINES];
 pcRedShader::EndFuncT pcFilterCopyShader::EndFuncArray[MAX_PIPELINES];
 pcRedShader::RenderFuncT pcFilterCopyShader::RenderFuncArray[MAX_PIPELINES];
 
-// GLOBAL: SWBF2 0x009ca720
 // SYNTHETIC: SWBF2 0x0040a490
 // `dynamic initializer for 'pcFilterCopyShader::s_shaderDef''
 // SYNTHETIC: SWBF2 0x00769fb0
 // `dynamic atexit destructor for 'pcFilterCopyShader::s_shaderDef''
+
+// GLOBAL: SWBF2 0x009ca720
+// pcFilterCopyShader::s_shaderDef
 pcRedShaderDef pcFilterCopyShader::s_shaderDef("filtercopy_shader.xml");
 
 // FUNCTION: SWBF2 0x0070f810
 pcFilterCopyShader::pcFilterCopyShader()
 {
-    GetStateFuncArray[PIPELINE_FIXED] = 0;
-    GetStateFuncArray[PIPELINE_PROG1] = 0;
-    GetStateFuncArray[PIPELINE_PROG2] = 0;
-    BeginFuncArray[PIPELINE_FIXED] = 0;
-    BeginFuncArray[PIPELINE_PROG1] = 0;
-    BeginFuncArray[PIPELINE_PROG2] = 0;
-    EndFuncArray[PIPELINE_FIXED] = 0;
-    EndFuncArray[PIPELINE_PROG1] = 0;
-    EndFuncArray[PIPELINE_PROG2] = 0;
-    RenderFuncArray[PIPELINE_FIXED] = 0;
-    RenderFuncArray[PIPELINE_PROG1] = 0;
-    RenderFuncArray[PIPELINE_PROG2] = 0;
+    memset(GetStateFuncArray, 0, sizeof(GetStateFuncArray));
+    memset(BeginFuncArray, 0, sizeof(BeginFuncArray));
+    memset(EndFuncArray, 0, sizeof(EndFuncArray));
+    memset(RenderFuncArray, 0, sizeof(RenderFuncArray));
 
     s_uiID = _Register(s_uiRenderTypeHash, this);
 
@@ -208,16 +202,16 @@ unsigned int pcFilterCopyShader::GetState_Prog1(const RenderItem*) const
     return m_numSamples % 4;
 }
 
-// GLOBAL: SWBF2 0x00785408
-static const pcRedShaderDef::FixedFunctionStateT kFixedFunctionStates[1] =
-{
-    { 1, { 0x11, 0x00, 0x00, 0x00 } },
-};
-
 // FUNCTION: SWBF2 0x0070fdc0
 void pcFilterCopyShader::InitFixedFunctionShaderDef() const
 {
-    GetShaderDef()->InitFixedFunction(0x10, 1, kFixedFunctionStates);
+    // GLOBAL: SWBF2 0x00785408
+    static const pcRedShaderDef::FixedFunctionStateT aFFStates[1] =
+    {
+        { 1, { 0x11, 0x00, 0x00, 0x00 } },
+    };
+
+    GetShaderDef()->InitFixedFunction(0x10, 1, aFFStates);
 }
 
 // FUNCTION: SWBF2 0x0070fde0
@@ -440,22 +434,26 @@ void pcFilterCopyShader::_StaticInit() const
     }
 }
 
-// GLOBAL: SWBF2 0x009ca71c
 // SYNTHETIC: SWBF2 0x0040a4b0
 // `dynamic initializer for 'pcFilterCopyShader::s_uiRenderTypeHash''
+
+// GLOBAL: SWBF2 0x009ca71c
+// pcFilterCopyShader::s_uiRenderTypeHash
 unsigned int pcFilterCopyShader::s_uiRenderTypeHash = PblHash("FilterCopy");
 
 // SYNTHETIC: SWBF2 0x0040a4d0
-// `dynamic initializer for 'PblMath::fOneOverHalfPi''
+// PblMath::`dynamic initializer for 'fOneOverHalfPi''
 
 // SYNTHETIC: SWBF2 0x0040a4f0
-// `dynamic initializer for 'PblMath::fOneOverTwoPi''
+// PblMath::`dynamic initializer for 'fOneOverTwoPi''
 
-// GLOBAL: SWBF2 0x009ca750
 // SYNTHETIC: SWBF2 0x0040a470
 // `dynamic initializer for 'pcFilterCopyShader::s_Factory''
 // SYNTHETIC: SWBF2 0x00769f90
 // `dynamic atexit destructor for 'pcFilterCopyShader::s_Factory''
+
+// GLOBAL: SWBF2 0x009ca750
+// pcFilterCopyShader::s_Factory
 pcFilterCopyShader pcFilterCopyShader::s_Factory;
 
 // GLOBAL: SWBF2 0x009ca710

@@ -44,5 +44,11 @@ void ProcessHint(PblFileChunk& chunk);
 void ProcessBarrier(PblFileChunk& chunk);
 }
 
-namespace LoadUtil { BaseHint* ProcessHintInfo(PblFileChunk& chunk); }
-namespace LoadUtil { void ProcessBarrierInfo(PblFileChunk& chunk); }
+namespace LoadUtil
+{
+BaseHint* ProcessHintInfo(PblFileChunk& chunk);
+}
+namespace LoadUtil
+{
+void ProcessBarrierInfo(PblFileChunk& chunk);
+}

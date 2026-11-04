@@ -6,23 +6,33 @@
 #include "NetGame.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 
-// GLOBAL: SWBF2 0x01eb9700
 // SYNTHETIC: SWBF2 0x00402700
 // `dynamic initializer for 'CommandWalker::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00766ea0
 // `dynamic atexit destructor for 'CommandWalker::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01eb9700
+// CommandWalker::sMemoryPool
 MemoryPool CommandWalker::sMemoryPool("CommandWalker", 0x2110);
 
-// GLOBAL: SWBF2 0x01eb96f8
 // SYNTHETIC: SWBF2 0x00402720
 // `dynamic initializer for 'CommandWalker::rttiHashCommandWalker''
+// CommandWalker::rttiHashCommandWalker
+
+// GLOBAL: SWBF2 0x01eb96f8
+// CommandWalker::rttiHashCommandWalker
 PblHash CommandWalker::rttiHashCommandWalker("CommandWalker");
 
-// GLOBAL: SWBF2 0x01eb96fc
 // SYNTHETIC: SWBF2 0x00402730
 // `dynamic initializer for 'CommandWalkerClass::rttiHashCommandWalkerClass''
+// CommandWalkerClass::rttiHashCommandWalkerClass
+
+// GLOBAL: SWBF2 0x01eb96fc
+// CommandWalkerClass::rttiHashCommandWalkerClass
 PblHash CommandWalkerClass::rttiHashCommandWalkerClass("CommandWalkerClass");
-char CommandWalkerClass::rttiNameCommandWalkerClass[] = "CommandWalkerClass";
+// GLOBAL: SWBF2 0x00788cfc
+// CommandWalkerClass::rttiNameCommandWalkerClass
+const char CommandWalkerClass::rttiNameCommandWalkerClass[] = "CommandWalkerClass";
 
 // FUNCTION: SWBF2 0x00480080
 CommandWalkerClass::CommandWalkerClass(unsigned int uHash)
@@ -33,23 +43,11 @@ CommandWalkerClass::CommandWalkerClass(unsigned int uHash)
     mEjectResist = 10.0f;
 }
 
-// FUNCTION: SWBF2 0x0047fe00
-bool CommandWalkerClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashCommandWalkerClass || EntityWalkerClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x0047fe50
-unsigned int CommandWalkerClass::GetDerivedRtti()
-{
-    return rttiHashCommandWalkerClass;
-}
 
-// FUNCTION: SWBF2 0x0047fe60
-const char* CommandWalkerClass::GetDerivedRttiName()
-{
-    return rttiNameCommandWalkerClass;
-}
+
+
+
 
 // SYNTHETIC: SWBF2 0x00480100
 // CommandWalkerClass::`scalar deleting destructor'
@@ -90,7 +88,7 @@ Entity* CommandWalkerClass::Build(const EntityDesc& desc)
     if (pWalker)
     {
         NetGame::Created(pWalker);
-        CollisionManager::AddRigidBody(pWalker);
+        pWalker->AddRigidToCollisionManager();
         pWalker->ActivatePhysics();
         if (!NetGame::IsEnabled() || !NetGame::IsClient())
         {
@@ -100,17 +98,9 @@ Entity* CommandWalkerClass::Build(const EntityDesc& desc)
     return pWalker;
 }
 
-// FUNCTION: SWBF2 0x0047fd40
-bool CommandWalker::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashCommandWalker || EntityWalker::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x0047fd90
-unsigned int CommandWalker::GetDerivedRtti() const
-{
-    return rttiHashCommandWalker;
-}
+
+
 
 // FUNCTION: SWBF2 0x0047fdc0
 EntityType CommandWalker::GetEntityType() const
@@ -122,7 +112,7 @@ EntityType CommandWalker::GetEntityType() const
 // CommandWalker::`scalar deleting destructor'
 
 // SYNTHETIC: SWBF2 0x004803bb
-// [thunk]:CommandWalker::`scalar deleting destructor'`adjustor{576}'
+// ??_ECommandWalker@@WCEA@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x0047fe70
 CommandWalker::CommandWalker(CommandWalkerClass* pClass, const EntityDesc& desc)
@@ -172,11 +162,7 @@ void CommandWalker::SetTeam(int iTeam)
     }
 }
 
-// FUNCTION: SWBF2 0x0047fda0
-const char* CommandWalker::GetDerivedRttiName() const
-{
-    return "CommandWalker";
-}
+
 
 // FUNCTION: SWBF2 0x00480000
 void CommandWalker::Respawn()
@@ -199,7 +185,7 @@ void CommandWalker::SetProperty(unsigned int uProperty, const char* pszValue)
 }
 
 // FUNCTION: SWBF2 0x0047fe40
-unsigned int GetWalkerClassRtti()
+unsigned int CommandWalkerClass::GetRtti()
 {
     return CommandWalkerClass::rttiHashCommandWalkerClass;
 }

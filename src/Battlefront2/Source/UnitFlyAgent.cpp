@@ -22,13 +22,21 @@
 
 #include "UnitThreatManager.h"
 
-// GLOBAL: SWBF2 0x01f993bc
 // SYNTHETIC: SWBF2 0x00406cc0
 // `dynamic initializer for 'UnitFlyAgent::rttiHashUnitFlyAgent''
-PblHash UnitFlyAgent::rttiHashUnitFlyAgent("UnitFlyAgent");
-char UnitFlyAgent::rttiNameUnitFlyAgent[] = "UnitFlyAgent";
+// UnitFlyAgent::rttiHashUnitFlyAgent
 
-namespace VehicleManager { int RequestVehiclesInRange(const PblVector3& vPos, GameObject** ppOut, float fRadius, int iMax); }
+// GLOBAL: SWBF2 0x01f993bc
+// UnitFlyAgent::rttiHashUnitFlyAgent
+PblHash UnitFlyAgent::rttiHashUnitFlyAgent("UnitFlyAgent");
+// GLOBAL: SWBF2 0x0078b844
+// UnitFlyAgent::rttiNameUnitFlyAgent
+const char UnitFlyAgent::rttiNameUnitFlyAgent[] = "UnitFlyAgent";
+
+namespace VehicleManager
+{
+int RequestVehiclesInRange(const PblVector3& vPos, GameObject** ppOut, float fRadius, int iMax);
+}
 
 // FUNCTION: SWBF2 0x00666790
 UnitFlyAgent::UnitFlyAgent(UnitController* pCtrl)
@@ -43,23 +51,11 @@ UnitFlyAgent::UnitFlyAgent(UnitController* pCtrl)
 // SYNTHETIC: SWBF2 0x00666740
 // UnitFlyAgent::`scalar deleting destructor'
 
-// FUNCTION: SWBF2 0x006666f0
-bool UnitFlyAgent::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashUnitFlyAgent || UnitAgent::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00666720
-unsigned int UnitFlyAgent::GetDerivedRtti() const
-{
-    return rttiHashUnitFlyAgent;
-}
 
-// FUNCTION: SWBF2 0x00666730
-const char* UnitFlyAgent::GetDerivedRttiName() const
-{
-    return rttiNameUnitFlyAgent;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x006667d0
 void UnitFlyAgent::EnterState()
@@ -192,7 +188,7 @@ void UnitFlyAgent::EnterState()
             {
                 mHint->SetReserveDelay(static_cast<Trackable*>(mCtrl->mOwner)->GetGameObject(), 20.0f);
                 mCtrl->mOwner->SetExitVehicle(mHint->GetCommandPost());
-                mCtrl->mOwner->mCharacter->SetVehicleBlockTime(GameLoop::GetMissionTime() + 15.0f);
+                mCtrl->mOwner->GetCharacter()->SetVehicleBlockTime(GameLoop::GetMissionTime() + 15.0f);
                 return;
             }
         }
@@ -287,7 +283,7 @@ void UnitFlyAgent::UpdateStatePostVision(float dt)
             ->InstantDeath(DamageOwner(0, 0, 0, 0, 0, 1.0f), true);
     }
 
-    reinterpret_cast<AttackHelper*>(mAttackHelper)->Update();
+    mAttackHelper.Update();
 
     switch (mCurState)
     {
@@ -425,7 +421,7 @@ bool UnitFlyAgent::IsNearATAT()
                     UnitController* pGunner = UnitControllerPtr(it->mCtrl);
                     if (pGunner)
                     {
-                        reinterpret_cast<AI::UnitThreatManager*>(pGunner->mThreatManager)->AddThreat(static_cast<Trackable*>(pATAT)->GetGameObject());
+                        pGunner->mThreatManager.AddThreat(static_cast<Trackable*>(pATAT)->GetGameObject());
                         pGunner->ForceSetAttackHelperTarget(static_cast<Trackable*>(pATAT)->GetGameObject());
                     }
                 }
@@ -444,7 +440,7 @@ bool UnitFlyAgent::IsNearATAT()
 // FUNCTION: SWBF2 0x006673b0
 bool UnitFlyAgent::IsRoofOverhead() const
 {
-    const PblVector3 vStart = *(const PblVector3*)&mCtrl->mOwner->GetMatrix().m[3][0];
+    const PblVector3 vStart = mCtrl->mOwner->GetMatrix().GetTranslation();
     const PblVector3 vEnd(vStart.x + 0.0f, vStart.y + 100.0f, vStart.z + 0.0f);
     const GameObject* pIgnore = static_cast<const Trackable*>(mCtrl->mOwner)->GetGameObject();
     return CollisionManager::RayTest(vStart, vEnd, &pIgnore, 1, 0x9a);

@@ -31,8 +31,8 @@ public:
   
  
 
-// VTABLE: SWBF2 0x007b0060 (the Entity subobject's 13 slots)
-// VTABLE: SWBF2 0x007b0048 (the Thread subobject's 5 slots, base offset +4)
+// VTABLE: SWBF2 0x007b0060 Entity
+// VTABLE: SWBF2 0x007b0048 Thread
 class VehicleSpawn : public Entity, public Thread
 {
 public:
@@ -55,7 +55,7 @@ public:
     {
     public:
 
-        static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
+        static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }
         static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
         static void AddMemoryPoolCount(unsigned int uCount) { sMemoryPool.SetCount(sMemoryPool.GetCount() + uCount); }

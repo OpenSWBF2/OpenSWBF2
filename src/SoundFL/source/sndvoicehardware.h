@@ -15,6 +15,8 @@ public:
     VoiceHardware() {}
 
 protected:
+    // FUNCTION: SWBF2 0x00745a80
+    ~VoiceHardware() {}
 
     void Update(Voice* pVoice);
 public:

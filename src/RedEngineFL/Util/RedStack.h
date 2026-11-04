@@ -12,6 +12,8 @@ public:
 #endif
     }
 
+    // SYNTHETIC: SWBF2 0x0045db20
+    // RedStack::~RedStack
     ~RedStack()
     {
 #if defined(__SANITIZE_ADDRESS__)

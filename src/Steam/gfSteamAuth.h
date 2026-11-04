@@ -4,7 +4,7 @@
 namespace gf
 {
 
-class SteamAuthProvider
+class __declspec(dllexport) SteamAuthProvider
 {
 public:
     // FUNCTION: SWBF2 0x00411c70
@@ -26,7 +26,7 @@ private:
     bool m_bInitialized;
 };
 
-SteamAuthProvider* _sap();
+__declspec(dllexport) SteamAuthProvider* _sap();
 
 }
 

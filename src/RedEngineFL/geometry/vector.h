@@ -12,6 +12,10 @@ template <class T>
 class Vector2
 {
 public:
+    Vector2() : x(0), y(0) {}
+
+    Vector2(T ux, T uy) : x(ux), y(uy) {}
+
     T x;
     T y;
 };
@@ -31,43 +35,55 @@ public:
 };
 
 template <class T>
-const Vector3<T> operator+(const Vector3<T>& a, const Vector3<T>& b)
+inline const Vector2<T> operator-(const Vector2<T>& a, const Vector2<T>& b)
+{
+    return Vector2<T>(a.x - b.x, a.y - b.y);
+}
+
+template <class T>
+inline T cross(const Vector2<T>& a, const Vector2<T>& b)
+{
+    return a.x * b.y - a.y * b.x;
+}
+
+template <class T>
+inline const Vector3<T> operator+(const Vector3<T>& a, const Vector3<T>& b)
 {
     return Vector3<T>(a.x + b.x, a.y + b.y, a.z + b.z);
 }
 
 template <class T>
-const Vector3<T> operator-(const Vector3<T>& a, const Vector3<T>& b)
+inline const Vector3<T> operator-(const Vector3<T>& a, const Vector3<T>& b)
 {
     return Vector3<T>(a.x - b.x, a.y - b.y, a.z - b.z);
 }
 
 template <class T>
-const Vector3<T> operator*(const Vector3<T>& v, T f)
+inline const Vector3<T> operator*(const Vector3<T>& v, T f)
 {
     return Vector3<T>(v.x * f, v.y * f, v.z * f);
 }
 
 template <class T>
-T dot(const Vector3<T>& a, const Vector3<T>& b)
+inline T dot(const Vector3<T>& a, const Vector3<T>& b)
 {
     return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
 template <class T>
-Vector3<T> cross(const Vector3<T>& a, const Vector3<T>& b)
+inline Vector3<T> cross(const Vector3<T>& a, const Vector3<T>& b)
 {
     return Vector3<T>(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
 }
 
 template <class T>
-T length(const Vector3<T>& v)
+inline T length(const Vector3<T>& v)
 {
     return (T)sqrt((double)dot(v, v));
 }
 
 template <class T>
-Vector3<T> normalize(const Vector3<T>& v)
+inline Vector3<T> normalize(const Vector3<T>& v)
 {
     return v * ((T)1 / length(v));
 }

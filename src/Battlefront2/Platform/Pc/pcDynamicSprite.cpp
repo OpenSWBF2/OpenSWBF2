@@ -20,7 +20,7 @@ void pcDynamicSprite::Init()
         s_Instance.Activate(0);
     }
 }
-
+// FUNCTION: SWBF2 0x004119e0
 pcDynamicSprite::pcDynamicSprite()
     : Renderable(2), m_ClearViewportsCallback(this)
 {
@@ -74,12 +74,14 @@ void pcDynamicSprite::ClearViewports()
     m_bViewportsLocked = true;
 }
 
-// GLOBAL: SWBF2 0x01eafda8
 // SYNTHETIC: SWBF2 0x004014b0
 // `dynamic initializer for 'pcDynamicSprite::s_Instance''
 // SYNTHETIC: SWBF2 0x00766ce0
 // `dynamic atexit destructor for 'pcDynamicSprite::s_Instance''
+
+// GLOBAL: SWBF2 0x01eafda8
+// pcDynamicSprite::s_Instance
 pcDynamicSprite pcDynamicSprite::s_Instance;
 
-// SYNTHETIC: SWBF2 0x004119e0
-// `dynamic initializer for 'pcDynamicSprite::s_Instance''
+
+

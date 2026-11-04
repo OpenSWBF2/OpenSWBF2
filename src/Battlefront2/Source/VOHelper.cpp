@@ -35,13 +35,17 @@ static const unsigned int VOTypeNames[48] =
     0x1d2f03ea, 0x03a34694, 0x7208dd19, 0x335a8bad,
 };
 
-namespace AI {
-namespace VOHelper {
+namespace AI
+{
+namespace VOHelper
+{
 extern VOSound* sLoadingBatch;
 }
 }
-namespace AI {
-namespace VOHelper {
+namespace AI
+{
+namespace VOHelper
+{
 extern int sLoadingBatchIndex;
 }
 }
@@ -342,9 +346,25 @@ int VOSoundCompareCallback(const void* pA, const void* pB)
 
 }
 
+
 namespace VOHelper
 {
 
+struct QueuedSound
+{
+    VOType mType;
+    PblHandle<const GameObject> mSpeaker;
+    PblHandle<const GameObject> mPlayer;
+    PblHandle<const GameObject> mTarget;
+    PblVector3 mPos;
+    bool mUseTarget;
+    float mTime;
+    int mHandle;
+
+    // SYNTHETIC: SWBF2 0x006715f0
+    // AI::VOHelper::QueuedSound::~QueuedSound
+};
+extern QueuedSound mSndQueue[20];
 extern int mNextQueueHandle;
 
 int Queue(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,
@@ -432,7 +452,7 @@ void _Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,
     }
 
     const GameObject* pVoice = pSpeaker;
-    Controllable* pSpeakerCtrl = const_cast<Controllable*>(pSpeaker->GetControllable());
+    const Controllable* pSpeakerCtrl = pSpeaker->GetControllable();
     if (pSpeakerCtrl && pSpeakerCtrl->GetPilot())
     {
         pVoice = pSpeakerCtrl->GetPilot()->GetGameObject();
@@ -585,17 +605,17 @@ void CancelQueuedSound(int iHandle)
  
 
 // FUNCTION: SWBF2 0x00671940
-int AI::VOHelper::TypeStrToEnum(const char* pszType)
+AI::VOType AI::VOHelper::TypeStrToEnum(const char* pszType)
 {
-    PblHash hash(pszType);
-    for (int i = 0; i < 48; ++i)
+    unsigned int hash = PblHash(pszType);
+    for (int i = 0; i < VOT_Count; ++i)
     {
         if (hash == VOTypeNames[i])
         {
-            return i;
+            return static_cast<VOType>(i);
         }
     }
-    return 0;
+    return VOT_NONE;
 }
 
 // FUNCTION: SWBF2 0x00671970
@@ -628,10 +648,6 @@ AI::VOSound::VOSound()
 {
 }
 
-// FUNCTION: SWBF2 0x006715f0
-AI::VOHelper::QueuedSound::~QueuedSound()
-{
-}
 
 namespace AI
 {
@@ -642,11 +658,13 @@ namespace VOHelper
 // SYNTHETIC: SWBF2 0x006715c0
 // AI::VOHelper::QueuedSound::QueuedSound
 
-// GLOBAL: SWBF2 0x01f9a320
 // SYNTHETIC: SWBF2 0x00406f50
-// `dynamic initializer for 'AI::VOHelper::mSndQueue''
+// AI::VOHelper::`dynamic initializer for 'mSndQueue''
 // SYNTHETIC: SWBF2 0x00769780
-// `dynamic atexit destructor for 'AI::VOHelper::mSndQueue''
+// AI::VOHelper::`dynamic atexit destructor for 'mSndQueue''
+
+// GLOBAL: SWBF2 0x01f9a320
+// mSndQueue
 QueuedSound mSndQueue[20];
 
 // GLOBAL: SWBF2 0x01eafd30

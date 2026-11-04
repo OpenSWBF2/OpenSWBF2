@@ -7,34 +7,33 @@
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "RedInterfaceScreen.h"
 
-// GLOBAL: SWBF2 0x009982b0
 // SYNTHETIC: SWBF2 0x00408270
 // `dynamic initializer for 'SQRT3''
+
+// GLOBAL: SWBF2 0x009982b0
+// SQRT3
 float SQRT3 = (float)sqrt(3.0);
-// GLOBAL: SWBF2 0x009982b4
 // SYNTHETIC: SWBF2 0x00408230
 // `dynamic initializer for 'RedHotSpot::s_fCotHalfFOVx''
+
+// GLOBAL: SWBF2 0x009982b4
+// RedHotSpot::s_fCotHalfFOVx
 float RedHotSpot::s_fCotHalfFOVx = SQRT3;
-// GLOBAL: SWBF2 0x009982c0
 // SYNTHETIC: SWBF2 0x00408250
 // `dynamic initializer for 'RedHotSpot::s_fCotHalfFOVy''
+
+// GLOBAL: SWBF2 0x009982c0
+// RedHotSpot::s_fCotHalfFOVy
 float RedHotSpot::s_fCotHalfFOVy = SQRT3 * 1.3333333f;
 
 // FUNCTION: SWBF2 0x006d64e0
 RedHotSpot::RedHotSpot()
 {
-    m_fLeft = 0.0f;
+    m_fBottom = 0.0f;
     m_fRight = 0.0f;
     m_fTop = 0.0f;
-    m_fBottom = 0.0f;
-
-    for (int i = 0; i < 3; i++)
-    {
-        for (int j = 0; j < 3; j++)
-        {
-            m_mWorld[i][j] = 0.0f;
-        }
-    }
+    m_fLeft = 0.0f;
+    memset(m_mWorld, 0, sizeof(m_mWorld));
 }
 
 // FUNCTION: SWBF2 0x006d6520
@@ -102,9 +101,9 @@ bool RedHotSpot::GetLocalCoordinates(float fX, float fY, float& rfLocalX, float&
         return false;
     }
 
-    const float fInvDet = 1.0f / fDet;
     const float fCx = m_mWorld[2][2] * fNX + m_mWorld[2][0];
     const float fCy = m_mWorld[2][2] * fNY + m_mWorld[2][1];
+    const float fInvDet = 1.0f / fDet;
     rfLocalX = (fCy * fBx - fCx * fBy) * fInvDet;
     rfLocalY = (fCx * fAy - fCy * fAx) * fInvDet;
     return rfLocalX >= m_fLeft && m_fRight >= rfLocalX && rfLocalY >= m_fTop && m_fBottom >= rfLocalY;

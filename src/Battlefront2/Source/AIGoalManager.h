@@ -8,7 +8,8 @@
 class Character;
 class CommandPost;
 
-namespace AI {
+namespace AI
+{
 
 // VTABLE: SWBF2 0x00796b90
 class AIGoalManager : public Thread

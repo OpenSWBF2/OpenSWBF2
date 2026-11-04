@@ -130,20 +130,15 @@ static unsigned int AddWorldObjects(unsigned int uHash)
 {
     const PblHashTable<EntityEx, 1024>& kMap = EntityEx::GetEntityMap();
     int iVisited = 0;
-    for (int i = 0; i < 1024; ++i)
+    for (PblHashTable<EntityEx, 1024>::Itor it = kMap.Begin(); it != kMap.End(); ++it)
     {
-        unsigned int uKey = kMap._table[i];
-        if (!uKey)
-        {
-            continue;
-        }
-        const EntityEx* pEntity = (const EntityEx*)kMap._table[1024 + i];
+        const EntityEx* pEntity = it;
         if (!pEntity || !pEntity->IsRtti(GameObject::GetRtti()))
         {
             continue;
         }
         ++iVisited;
-        uHash = SimDigestCore::AddU32(uHash, uKey);
+        uHash = SimDigestCore::AddU32(uHash, it.GetKey());
         uHash = AddObject(uHash, static_cast<const GameObject*>(pEntity));
     }
     return SimDigestCore::AddInt(uHash, iVisited);
@@ -178,7 +173,7 @@ static void LogFactoryList(const char* pcTag)
     {
         const Factory<TYPE, CLASS, DESC>* pFactory = it;
         unsigned int uParent = pFactory->mParent ? pFactory->mParent->mId : 0;
-        LOG(LogSim, Inform, "OPENSWBF2 FACTORY %s idx=%d id=0x%08X parent=0x%08X", pcTag, pFactory->mNetIndex,
+        LOG(LogSim, Inform, "OPENSWBF2 FACTORY %s idx=%d id=0x%08X parent=0x%08X", pcTag, (int)pFactory->GetNetIndex(),
             pFactory->mId, uParent);
     }
 }

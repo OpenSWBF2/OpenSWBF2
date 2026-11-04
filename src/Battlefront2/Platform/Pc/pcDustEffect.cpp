@@ -9,36 +9,20 @@
 #include "pcSunFlare.h"
 
 // GLOBAL: SWBF2 0x007eafe8
+// sBox
 static PblBox sBox(-400.0f, -400.0f, -400.0f, 400.0f, 400.0f, 400.0f);
 
-static void CompressedPosXY_SetBoundingBox(const PblBox& box)
-{
-    PblVector3 vMin = { box._vMin.x, box._vMin.y, box._vMin.z };
-    PblVector3 vExtent = { box._vMax.x - box._vMin.x, box._vMax.y - box._vMin.y,
-                                box._vMax.z - box._vMin.z };
-    CompressedPos::s_vMin = vMin;
-    CompressedPos::s_vScale = vExtent * (1.0f / 65535.0f);
-    CompressedPos::s_vScaleInv.x = 1.0f / CompressedPos::s_vScale.x;
-    CompressedPos::s_vScaleInv.y = 1.0f / CompressedPos::s_vScale.y;
-    CompressedPos::s_vScaleInv.z = 1.0f / CompressedPos::s_vScale.z;
-}
 
-static void CompressedPos_Set(short* p, float x, float y, float z)
-{
-    p[0] = (short)((x - CompressedPos::s_vMin.x) * CompressedPos::s_vScaleInv.x - 32767.5f);
-    p[1] = (short)((y - CompressedPos::s_vMin.y) * CompressedPos::s_vScaleInv.y - 32767.5f);
-    p[2] = (short)((z - CompressedPos::s_vMin.z) * CompressedPos::s_vScaleInv.z - 32767.5f);
-}
 
 struct DustVertexCompressed
 {
-    short pos[4];
+    CompressedPos pos;
     RedColor color;
-    short u, v;
+    CompressedTexCoord uv;
 };
 struct DustVertex
 {
-    float x, y, z;
+    PblVector3 pos;
     RedColor color;
     float u, v;
 };
@@ -136,7 +120,7 @@ void DustEffectRenderData::Begin() const
     {
         m_pPrimitive = pcRedPrimitive::Create(D3DPT_TRIANGLELIST, 0x9282, 16,
                                               uiNumParticles * 4, uiNumParticles * 6, false);
-        CompressedPosXY_SetBoundingBox(sBox);
+        CompressedPos::SetBoundingBox(sBox);
     }
     else
     {
@@ -156,81 +140,61 @@ void DustEffectRenderData::Begin() const
 void DustEffectRenderData::AddParticle(const PblVector3& vPos, float fSize, const RedColor& color,
                                        float fOffset) const
 {
-    float upX = m_vUp.x * fSize;
-    float upY = m_vUp.y * fSize;
-    float upZ = m_vUp.z * fSize;
-    float rightX = m_vRight.x * fSize;
-    float rightY = m_vRight.y * fSize;
-    float rightZ = m_vRight.z * fSize;
-    float fShift = fOffset - 0.5f;
-
-    float x = (vPos.x - upX * 0.5f) + rightX * fShift;
-    float y = (vPos.y - upY * 0.5f) + rightY * fShift;
-    float z = (vPos.z - upZ * 0.5f) + rightZ * fShift;
+    PblVector3 up = m_vUp * fSize;
+    PblVector3 right = m_vRight * fSize;
+    PblVector3 pos = (vPos - up * 0.5f) + right * (fOffset - 0.5f);
 
     if (RedRenderer::pcGetGeometryMode())
     {
         DustVertexCompressed* v = (DustVertexCompressed*)m_pVertices;
-        CompressedPos_Set(v->pos, x, y, z);
+        v->pos.SetPos(pos);
         v->color = color;
-        v->u = 0x800;
-        v->v = 0;
+        v->uv.SetUV(1.0f, 0.0f);
         m_pVertices = v + 1;
 
         v = (DustVertexCompressed*)m_pVertices;
-        CompressedPos_Set(v->pos, x + rightX, y + rightY, z + rightZ);
+        v->pos.SetPos(pos + right);
         v->color = color;
-        v->u = 0x800;
-        v->v = 0x800;
+        v->uv.SetUV(1.0f, 1.0f);
         m_pVertices = v + 1;
 
         v = (DustVertexCompressed*)m_pVertices;
-        CompressedPos_Set(v->pos, (x + upX) + rightX, (y + upY) + rightY, (z + upZ) + rightZ);
+        v->pos.SetPos((pos + up) + right);
         v->color = color;
-        v->u = 0;
-        v->v = 0x800;
+        v->uv.SetUV(0.0f, 1.0f);
         m_pVertices = v + 1;
 
         v = (DustVertexCompressed*)m_pVertices;
-        CompressedPos_Set(v->pos, x + upX, y + upY, z + upZ);
+        v->pos.SetPos(pos + up);
         v->color = color;
-        v->u = 0;
-        v->v = 0;
+        v->uv.SetUV(0.0f, 0.0f);
         m_pVertices = v + 1;
     }
     else
     {
         DustVertex* v = (DustVertex*)m_pVertices;
-        v->x = x;
-        v->y = y;
-        v->z = z;
+        v->pos = pos;
         v->color = color;
         v->u = 1.0f;
         v->v = 0.0f;
         m_pVertices = v + 1;
 
         v = (DustVertex*)m_pVertices;
-        v->x = x + rightX;
-        v->y = y + rightY;
-        v->z = z + rightZ;
+        v->pos = pos + right;
         v->color = color;
         v->u = 1.0f;
         v->v = 1.0f;
         m_pVertices = v + 1;
 
         v = (DustVertex*)m_pVertices;
-        v->x = (x + upX) + rightX;
-        v->y = (y + upY) + rightY;
-        v->z = (z + upZ) + rightZ;
+        v->pos = (pos + up) + right;
         v->color = color;
         v->u = 0.0f;
         v->v = 1.0f;
         m_pVertices = v + 1;
 
         v = (DustVertex*)m_pVertices;
-        v->x = x + upX;
-        v->y = y + upY;
-        v->z = z + upZ;
+        v->pos = pos + up;
         v->color = color;
         v->u = 0.0f;
         v->v = 0.0f;
@@ -291,17 +255,23 @@ void DustEffectClass::DestroyRenderData()
     }
 }
 
-// FUNCTION: SWBF2 0x00411860
+// TEMPLATE: SWBF2 0x00411860
+// PblHeap<int,float>::Pop
 template void PblHeap<int, float>::Pop();
 
-// FUNCTION: SWBF2 0x00411760
+// TEMPLATE: SWBF2 0x00411760
+// PblHeap<int,float>::PblHeap<int,float>
 template PblHeap<int, float>::PblHeap(int, float, void*);
-// FUNCTION: SWBF2 0x004117c0
+// TEMPLATE: SWBF2 0x004117c0
+// PblHeap<int,float>::~PblHeap<int,float>
 template PblHeap<int, float>::~PblHeap();
-// FUNCTION: SWBF2 0x00411800
+// TEMPLATE: SWBF2 0x00411800
+// PblHeap<int,float>::Push
 template void PblHeap<int, float>::Push(int&, float);
 
-// FUNCTION: SWBF2 0x004117d0
+// TEMPLATE: SWBF2 0x004117d0
+// PblHeap<int,float>::IsEmpty
 template bool PblHeap<int, float>::IsEmpty();
-// FUNCTION: SWBF2 0x004117e0
+// TEMPLATE: SWBF2 0x004117e0
+// PblHeap<int,float>::Get
 template int PblHeap<int, float>::Get(int);

@@ -2,6 +2,7 @@
 #define luser_number_h
 
 #define LUA_NUMBER	float
+#define LUA_UACNUMBER	float
 
 #define LUA_MINBUFFER	8
 

@@ -14,14 +14,11 @@ void EntityElement::SetSelected(bool bSelected)
 
 // FUNCTION: SWBF2 0x0048d650
 EntityElement::EntityElement()
-    : mScale(1.0f)
-    , mTranslation(0.0f, 0.0f, 0.0f)
-    , mModel(0)
 {
-    mRotation._fX = 0.0f;
-    mRotation._fY = 0.0f;
-    mRotation._fZ = 0.0f;
-    mRotation._fS = 1.0f;
+    mScale = 1.0f;
+    mRotation = PblQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
+    mTranslation = PblVector3(0.0f, 0.0f, 0.0f);
+    mModel = 0;
 }
 
 // SYNTHETIC: SWBF2 0x0048d6f0

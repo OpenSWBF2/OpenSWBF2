@@ -4,35 +4,55 @@
 
 #include "FLInputManager.h"
 
-namespace SaveGameManager { extern unsigned int mReqSaveFile2Data; }
-namespace SaveGameManager { extern unsigned int mReqSaveFile2Size; }
-namespace SaveGameManager { extern unsigned int mReqSaveFile1Data; }
-namespace SaveGameManager { extern unsigned int mReqSaveFile1Size; }
+namespace SaveGameManager
+{
+    extern unsigned int mReqSaveFile2Data;
+}
+namespace SaveGameManager
+{
+    extern unsigned int mReqSaveFile2Size;
+}
+namespace SaveGameManager
+{
+    extern unsigned int mReqSaveFile1Data;
+}
+namespace SaveGameManager
+{
+    extern unsigned int mReqSaveFile1Size;
+}
+
+// GLOBAL: SWBF2 0x01faa220
+// sNextFileName
 
 namespace SaveGameManager
 {
 
 static const float EPSILON = 0.0001f;
 
-// GLOBAL: SWBF2 0x01faa220
 static unsigned short sNextFileName[260];
 
 }
 
-namespace SaveGameManager {
+namespace SaveGameManager
+{
 void ResetFileList();
 }
 
-namespace SaveGameManager { extern unsigned char mForceNoSaveDevice; }
+namespace SaveGameManager
+{
+    extern unsigned char mForceNoSaveDevice;
+}
 
 namespace SaveGameManager
 {
 
-// GLOBAL: SWBF2 0x01f3a1b0
 // SYNTHETIC: SWBF2 0x00406350
-// `dynamic initializer for 'SaveGameManager::mSaveFsm''
+// SaveGameManager::`dynamic initializer for 'mSaveFsm''
 // SYNTHETIC: SWBF2 0x00769490
-// `dynamic atexit destructor for 'SaveGameManager::mSaveFsm''
+// SaveGameManager::`dynamic atexit destructor for 'mSaveFsm''
+
+// GLOBAL: SWBF2 0x01f3a1b0
+// mSaveFsm
 SaveFsm mSaveFsm;
 
 // FUNCTION: SWBF2 0x00633050
@@ -99,6 +119,7 @@ void QueueDelete(unsigned short const* pusFilename, unsigned int uiType, bool bS
 }
 
 // GLOBAL: SWBF2 0x01eaf004
+// mOnDone
 void (*mOnDone)();
 
 // FUNCTION: SWBF2 0x00632fa0
@@ -141,7 +162,8 @@ bool CanCreateNewFile(int  )
 
 }
 
-namespace SaveGameManager {
+namespace SaveGameManager
+{
 
 // FUNCTION: SWBF2 0x00632f50
 void Update(float fDeltaTime)
@@ -161,7 +183,8 @@ void Update(float fDeltaTime)
 }
 }
 
-namespace SaveGameManager {
+namespace SaveGameManager
+{
 
 // FUNCTION: SWBF2 0x00632fc0
 void StartPreOp(void (*pfnDone)(), bool bAllowFormat, unsigned int uiCheckFreeBytes,
@@ -179,7 +202,8 @@ void StartPreOp(void (*pfnDone)(), bool bAllowFormat, unsigned int uiCheckFreeBy
 }
 }
 
-namespace SaveGameManager {
+namespace SaveGameManager
+{
 
 // FUNCTION: SWBF2 0x00633000
 bool GetSuccess()
@@ -192,7 +216,8 @@ bool GetSuccess()
 }
 }
 
-namespace SaveGameManager {
+namespace SaveGameManager
+{
 
 // FUNCTION: SWBF2 0x00633020
 bool InMemoryMode()
@@ -205,7 +230,8 @@ bool InMemoryMode()
 }
 }
 
-namespace SaveGameManager {
+namespace SaveGameManager
+{
 
 // FUNCTION: SWBF2 0x00633130
 bool IsUniqueFilename(unsigned short const* pusFilename, int iType)
@@ -218,7 +244,7 @@ bool IsUniqueFilename(unsigned short const* pusFilename, int iType)
     ResetFileList();
     for (SaveFile* pFile = mSaveFsm.GetNextFile(); pFile; pFile = mSaveFsm.GetNextFile())
     {
-        if (pFile->GetType() == iType &&
+        if (iType == pFile->GetType() &&
             !_wcsicmp((wchar_t const*)pFile->GetGameName(), (wchar_t const*)pusFilename))
         {
             return false;
@@ -233,7 +259,8 @@ bool IsUniqueFilename(unsigned short const* pusFilename, int iType)
 }
 }
 
-namespace SaveGameManager {
+namespace SaveGameManager
+{
 
 // FUNCTION: SWBF2 0x006331a0
 int GetUniqueFilename(unsigned short* pusFilename, int iStart, int iArg3, unsigned int uiArg4)
@@ -252,7 +279,8 @@ int GetUniqueFilename(unsigned short* pusFilename, int iStart, int iArg3, unsign
 }
 }
 
-namespace SaveGameManager {
+namespace SaveGameManager
+{
 
 // FUNCTION: SWBF2 0x00633210
 void ResetFileList()
@@ -261,7 +289,8 @@ void ResetFileList()
 }
 }
 
-namespace SaveGameManager {
+namespace SaveGameManager
+{
 
 // FUNCTION: SWBF2 0x00633220
 unsigned short const* GetNextFileName(int iType, int* piArg)
@@ -285,7 +314,8 @@ unsigned short const* GetNextFileName(int iType, int* piArg)
 }
 }
 
-namespace SaveGameManager {
+namespace SaveGameManager
+{
 
 // FUNCTION: SWBF2 0x00632f20
 void Cleanup()
@@ -298,7 +328,8 @@ void Cleanup()
 
 }
 
-namespace SaveGameManager {
+namespace SaveGameManager
+{
 
 // GLOBAL: SWBF2 0x01eaf00c
 bool mMemoryMode;

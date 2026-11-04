@@ -20,7 +20,7 @@ extern "C" void Startup_RedInitHeap()
     }
     char* pEnd = sT1Arena + uiArenaSize;
     char* pLuaStart = pEnd - uiLuaSize;
-    char* pStart = RedInitHeap(sT1Arena, pEnd, 9);
+    char* pStart = (char*)RedInitHeap(sT1Arena, pEnd, 9);
     RedCreateHeap(pStart, pLuaStart, 0x10, "T1");
     GameMemory::LuaHeap = RedCreateHeap(pLuaStart, pEnd, 4, "Lua");
     RedSetCurrentHeap(0);

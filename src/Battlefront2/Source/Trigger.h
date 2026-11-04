@@ -98,6 +98,59 @@ public:
             unsigned int zz_uiSpace0 : 30;
         };
     };
+
+protected:
+    // FUNCTION: SWBF2 0x005e7e40
+    static unsigned int _ActionStateToNetworkState(unsigned int uiActionState)
+    {
+        switch (uiActionState)
+        {
+        case 0: return 0;
+        case 3: return 1;
+        case 1: return 2;
+        case 6: return 3;
+        case 4: return 4;
+        case 9: return 5;
+        case 10: return 6;
+        case 8: return 7;
+        case 19: return 8;
+        case 17: return 9;
+        case 22: return 10;
+        case 20: return 11;
+        case 25: return 12;
+        case 26: return 13;
+        case 24: return 14;
+        case 12:
+        case 28: return 15;
+        default: return 0;
+        }
+    }
+
+    // FUNCTION: SWBF2 0x005e7f20
+    static unsigned int _NetworkStateToActionState(unsigned int uiNetworkState)
+    {
+        switch (uiNetworkState)
+        {
+        case 0: return 0;
+        case 1: return 3;
+        case 2: return 1;
+        case 3: return 6;
+        case 4: return 4;
+        case 5: return 9;
+        case 6: return 10;
+        case 7: return 8;
+        case 8: return 19;
+        case 9: return 17;
+        case 10: return 22;
+        case 11: return 20;
+        case 12: return 25;
+        case 13: return 26;
+        case 14: return 24;
+        case 15: return 12;
+        default: return 0;
+        }
+    }
+
 };
  
 

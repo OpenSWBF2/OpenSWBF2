@@ -25,27 +25,13 @@ RedMovie::Properties::Properties()
 
 // FUNCTION: SWBF2 0x006f4cd0
 RedMovie::RedMovie()
+    : mPlayTime(0.0f), mNumLoops(0), mPropertiesCur(0), mSegmentCur(0), mPropertiesPrev(0),
+      mPropertiesNext(0), mSegmentNext(0), mPosX(0), mPosY(0), mWidth(0), mHeight(0),
+      mAudioBus(0), mChangedSegmentTime(0.0f), mCurSubtitles(0), mDisplaySubtitle(0), mFlags(0)
 {
-    mPlayTime = 0.0f;
-    mNumLoops = 0;
-
-    mPropertiesCur = 0;
-    mSegmentCur = 0;
-    mPropertiesPrev = 0;
-    mPropertiesNext = 0;
-    mSegmentNext = 0;
-    mPosX = 0;
-    mPosY = 0;
-    mWidth = 0;
-    mHeight = 0;
-    mAudioBus = 0;
-    mChangedSegmentTime = 0.0f;
-
-    mCurSubtitles = 0;
-    mDisplaySubtitle = 0;
-    mFlags = 0;
-
     SetNotifyCallback(MovieNotification, this);
+    mTextures.Clear();
+    mFadeTextures.Clear();
 
     FLRenderer::AddInterfaceElement(&mSubtitleGroup, RedInterfaceScreen::LEFT,
                                     RedInterfaceScreen::TOP, false);
@@ -54,7 +40,7 @@ RedMovie::RedMovie()
 
     if (0.75f > RedRenderer::GetScreenAspectRatio())
     {
-        mSubtitleGroup.m_bUsePerspectiveHack = true;
+        mSubtitleGroup.SetUsePerspectiveHack(true);
     }
 
     mSubtitles.Enable(true);
@@ -90,18 +76,21 @@ PblList<RedMovie::SegmentSubtitles> RedMovie::SegmentSubtitles::sList;
 // GLOBAL: SWBF2 0x007e15a4
 PblList<RedMovie::Properties> RedMovie::Properties::sPropertyList;
 
-// GLOBAL: SWBF2 0x009c8444
 // SYNTHETIC: SWBF2 0x00409160
 // `dynamic initializer for 'RedMovie::Properties::sRandom''
+
+// GLOBAL: SWBF2 0x009c8444
+// RedMovie::Properties::sRandom
 PblRandom RedMovie::Properties::sRandom;
 
 // SYNTHETIC: SWBF2 0x004091a0
-// `dynamic initializer for 'PblMath::fOneOverHalfPi''
+// PblMath::`dynamic initializer for 'fOneOverHalfPi''
 
 // SYNTHETIC: SWBF2 0x004091c0
-// `dynamic initializer for 'PblMath::fOneOverTwoPi''
+// PblMath::`dynamic initializer for 'fOneOverTwoPi''
 
 // GLOBAL: SWBF2 0x009c8434
+// RedMovie::sSubtitlesEnabled
 bool RedMovie::sSubtitlesEnabled;
 
 // SYNTHETIC: SWBF2 0x006f5110
@@ -132,11 +121,11 @@ int RedMovie::Subtitle::CompareSearch(const void* pKey, const void* pElement)
     const float fTime = *(const float*)pKey;
     const Subtitle* pSubtitle = (const Subtitle*)pElement;
 
-    if (fTime < pSubtitle->mEnableTime || pSubtitle->mDisableTime < fTime)
+    if (fTime >= pSubtitle->mEnableTime && fTime <= pSubtitle->mDisableTime)
     {
-        return (int)((fTime - pSubtitle->mEnableTime) * 100.0f);
+        return 0;
     }
-    return 0;
+    return (int)((fTime - pSubtitle->mEnableTime) * 100.0f);
 }
 
 // FUNCTION: SWBF2 0x006f5280
@@ -215,9 +204,10 @@ const RedMovie::SegmentSubtitles* RedMovie::SegmentSubtitles::FindBySegmentID(
 {
     for (PblList<SegmentSubtitles>::Itor it(sList); it; ++it)
     {
-        if (uiSegmentID == it->GetSegmentID())
+        const SegmentSubtitles* pSubtitles = it;
+        if (uiSegmentID == pSubtitles->GetSegmentID())
         {
-            return it;
+            return pSubtitles;
         }
     }
     return 0;
@@ -226,8 +216,8 @@ const RedMovie::SegmentSubtitles* RedMovie::SegmentSubtitles::FindBySegmentID(
 // FUNCTION: SWBF2 0x006f5400
 void RedMovie::Flush(bool bFlushPlayer)
 {
-    const RedTexture* pTexture = 0;
     const RedTexture* pLocked = 0;
+    const RedTexture* pTexture = 0;
     do
     {
         UnlockTexture(pTexture);
@@ -365,24 +355,26 @@ const RedMovie::SegmentInfo* RedMovie::Properties::GetSegmentInfo() const
 {
     if (mPrevSegmentInfo && (mFlags & 1))
     {
-        PblList<SegmentInfo>::Node* pNode = mPrevSegmentInfo->_pNext;
-        if (pNode->_pObject == mSelList->_head._pObject)
+        PblList<SegmentInfo>::Itor itNext(mPrevSegmentInfo);
+        ++itNext;
+        if (itNext == mSelList->End())
         {
-            pNode = mSelList->_head._pNext;
+            itNext = mSelList->Begin();
         }
-        mPrevSegmentInfo = pNode->_pObject;
+        mPrevSegmentInfo = itNext;
         if (mPrevSegmentInfo)
         {
             return mPrevSegmentInfo;
         }
     }
 
+    PblList<SegmentInfo>::Itor it(*mSelList);
+    SegmentInfo* pSegmentInfo = it;
     const float fRandom = sRandom.GetFloat();
-    SegmentInfo* pSegmentInfo = mSelList->GetFirst()->_pObject;
-    for (PblList<SegmentInfo>::Itor it(*mSelList); it != mSelList->End(); ++it)
+    for (; it != mSelList->End(); ++it)
     {
         pSegmentInfo = it;
-        if (fRandom >= pSegmentInfo->GetPlayProbability())
+        if (fRandom >= it->GetPlayProbability())
         {
             break;
         }
@@ -472,15 +464,13 @@ void RedMovie::MovieNotification(RedMoviePlayerBase* pPlayer, NotifyType eType, 
     case notifyType_BufferingComplete:
         if (!bEmpty)
         {
-            pSegmentInfo = *pMovie->mSegmentInfoQueue.Peek(0);
-            if (pSegmentInfo->GetHashID() != pPlayer->GetCurrentSegment()->GetHashID())
+            if ((*pMovie->mSegmentInfoQueue.Peek(0))->GetHashID() !=
+                pPlayer->GetCurrentSegment()->GetHashID())
             {
                 return;
             }
 
-            const Properties* pProperties;
-            pMovie->mPropertyQueue.Get(pProperties);
-            pMovie->mPropertiesPrev = (Properties*)pProperties;
+            pMovie->mPropertyQueue.Get(pMovie->mPropertiesPrev);
             pMovie->mSegmentInfoQueue.Get(pSegmentInfo);
         }
         if (pMovie->mPropertyQueue.GetNumItems() == 0)
@@ -533,32 +523,33 @@ void RedMovie::Play(const Properties* const pProperties, const SegmentInfo* cons
                     bool bResetLoops, bool bPlayAtEnd)
 {
     const Segment* pSegment = GetInfo()->FindSegmentByHashID(pSegmentInfo->GetHashID());
-    if (!pSegment)
+    if (pSegment)
     {
-        RedMoviePlayerBase::Stop();
-        return;
-    }
+        if (bResetLoops)
+        {
+            mNumLoops = 0;
+        }
 
-    if (bResetLoops)
-    {
-        mNumLoops = 0;
-    }
+        mPropertyQueue.Add(pProperties);
+        mSegmentInfoQueue.Add(pSegmentInfo);
+        UpdateCurrent();
+        SeekSegment(pSegment, bPlayAtEnd);
 
-    mPropertyQueue.Add(pProperties);
-    mSegmentInfoQueue.Add(pSegmentInfo);
-    UpdateCurrent();
-    SeekSegment(pSegment, bPlayAtEnd);
+        if (GetPlayState() == playState_stopped)
+        {
+            Pause();
+        }
+        else
+        {
+            RedMoviePlayerBase::Play();
+        }
 
-    if (GetPlayState() == playState_stopped)
-    {
-        Pause();
+        mFlags |= flags_Playing;
     }
     else
     {
-        RedMoviePlayerBase::Play();
+        RedMoviePlayerBase::Stop();
     }
-
-    mFlags |= flags_Playing;
 }
 
 // FUNCTION: SWBF2 0x006f5ba0
@@ -678,7 +669,8 @@ void RedMovie::Properties::ReadSegments(PblFileChunk& chunk)
     {
         for (PblList<SegmentInfo>::Itor it(mList); it != mList.End(); ++it)
         {
-            it->mPlayProbability = 1.0f - it->mPlayProbability / fTotalProbability;
+            SegmentInfo& info = *it;
+            info.mPlayProbability = 1.0f - info.mPlayProbability / fTotalProbability;
         }
     }
 }
@@ -686,8 +678,8 @@ void RedMovie::Properties::ReadSegments(PblFileChunk& chunk)
 // FUNCTION: SWBF2 0x006f6010
 void RedMovie::SegmentSubtitles::ReadSubtitles(PblFileChunk& chunk)
 {
-    Subtitle subtitles[256];
     unsigned int uiNumSubtitles = 0;
+    Subtitle subtitles[256];
 
     FreeSubtitles();
 
@@ -716,7 +708,8 @@ void RedMovie::SegmentSubtitles::ReadSubtitles(PblFileChunk& chunk)
         {
             for (unsigned int i = 0; i < uiNumSubtitles; ++i)
             {
-                mSubtitles[i] = subtitles[i];
+                const Subtitle& rSource = subtitles[i];
+                mSubtitles[i].Init(rSource.mStringID, rSource.mEnableTime, rSource.mDisableTime);
             }
             mSelSubtitles = mSubtitles;
             mNumSubtitles = uiNumSubtitles;
@@ -753,17 +746,10 @@ void RedMovie::Render()
             const float fFade = 1.0f - mPlayTime / mPropertiesPrev->GetFadeOutTime();
             mFadeTextures.Flow(pFadeTexture);
 
-            float fAlpha = fFade * 255.0f;
-            if (0.0f > fAlpha)
-            {
-                fAlpha = 0.0f;
-            }
-            else if (fAlpha > 255.0f)
-            {
-                fAlpha = 255.0f;
-            }
+            const float fAlpha = fFade * 255.0f;
+            const float fClamped = 0.0f > fAlpha ? 0.0f : (fAlpha > 255.0f ? 255.0f : fAlpha);
             RedMoviePlayer::Render(pFadeTexture, mPosX, mPosY, mWidth, mHeight,
-                                   (unsigned char)fAlpha);
+                                   (unsigned char)fClamped);
         }
         else
         {
@@ -776,25 +762,18 @@ void RedMovie::Render()
     unsigned char ucAlpha = 0xff;
     if (pProperties->GetFadeInTime() > mPlayTime)
     {
-        float fAlpha = mPlayTime / pProperties->GetFadeInTime() * 255.0f;
-        if (0.0f > fAlpha)
-        {
-            fAlpha = 0.0f;
-        }
-        else if (fAlpha > 255.0f)
-        {
-            fAlpha = 255.0f;
-        }
-        ucAlpha = (unsigned char)fAlpha;
+        const float fAlpha = mPlayTime / pProperties->GetFadeInTime() * 255.0f;
+        const float fClamped = 0.0f > fAlpha ? 0.0f : (fAlpha > 255.0f ? 255.0f : fAlpha);
+        ucAlpha = (unsigned char)fClamped;
     }
 
-    if (pTexture)
+    if (!pTexture)
     {
-        mFlags |= flags_Rendering;
+        pTexture = mTextures.GetRecent();
     }
     else
     {
-        pTexture = mTextures.GetRecent();
+        mFlags |= flags_Rendering;
     }
 
     if (pTexture)
@@ -852,9 +831,8 @@ void RedMovie::SetDimensions(int iX, int iY, unsigned int uiWidth, unsigned int 
     float fWidth = fRight - fLeft;
     float fHeight = fBottom - fTop;
 
-    const float fPosY = (float)mPosY;
-    const float fPosX = (float)mPosX;
-    mSubtitles.SetPosition(fLeft > fPosX ? fLeft : fPosX, fTop > fPosY ? fTop : fPosY);
+    mSubtitles.SetPosition(fLeft > (float)mPosX ? fLeft : (float)mPosX,
+                           fTop > (float)mPosY ? fTop : (float)mPosY);
     mSubtitles.SetTextAlign(RedTextElement::TEXT_HALIGN_CENTER,
                             RedTextElement::TEXT_VALIGN_BOTTOM);
 
@@ -948,59 +926,56 @@ void RedMovie::Update(float fDeltaTime)
     RedMoviePlayer::Update();
     mChangedSegmentTime = 0.0f;
 
-    if (!IsPlaying())
+    if (IsPlaying())
     {
-        mSubtitleGroup.Enable(false);
-        return;
-    }
-
-    if (mAudioBus)
-    {
-        SetGain(mAudioBus->mFinalGain);
-    }
-
-    if (mCurSubtitles)
-    {
-        const Subtitle* pSubtitle = mCurSubtitles->GetSubtitle(GetPlaybackTime());
-        if (mDisplaySubtitle != pSubtitle)
+        if (mAudioBus)
         {
-            bool bEnable = false;
-            if (pSubtitle)
+            SetGain(mAudioBus->mFinalGain);
+        }
+
+        if (mCurSubtitles)
+        {
+            const Subtitle* pSubtitle = mCurSubtitles->GetSubtitle(GetPlaybackTime());
+            if (mDisplaySubtitle != pSubtitle)
             {
-                const unsigned short* pText = RedLocalizeDB::Find(pSubtitle->mStringID, false);
+                const unsigned short* pText = 0;
+                if (pSubtitle)
+                {
+                    pText = RedLocalizeDB::Find(pSubtitle->mStringID, false);
+                }
                 if (pText)
                 {
                     mSubtitles.SetText(pText, true);
-                    if (sSubtitlesEnabled)
-                    {
-                        bEnable = true;
-                    }
                 }
+                mSubtitleGroup.Enable(pText && sSubtitlesEnabled);
+                mDisplaySubtitle = (Subtitle*)pSubtitle;
             }
-            mSubtitleGroup.Enable(bEnable);
-            mDisplaySubtitle = (Subtitle*)pSubtitle;
+        }
+        else
+        {
+            mSubtitleGroup.Enable(false);
+        }
+
+        switch (GetPlayState())
+        {
+        case playState_stopped:
+            mSubtitleGroup.Enable(false);
+            mSubtitles.SetText((const unsigned short*)0, true);
+            break;
+        case playState_paused:
+            RedMoviePlayerBase::Play();
+            break;
+        case playState_playing:
+            if (mFlags & flags_Rendering)
+            {
+                mPlayTime = fDeltaTime + mPlayTime;
+            }
+            break;
         }
     }
     else
     {
         mSubtitleGroup.Enable(false);
-    }
-
-    switch (GetPlayState())
-    {
-    case playState_stopped:
-        mSubtitleGroup.Enable(false);
-        mSubtitles.SetText((const unsigned short*)0, true);
-        break;
-    case playState_paused:
-        RedMoviePlayerBase::Play();
-        break;
-    case playState_playing:
-        if (mFlags & flags_Rendering)
-        {
-            mPlayTime += fDeltaTime;
-        }
-        break;
     }
 }
 
@@ -1026,14 +1001,6 @@ void RedMovie::UpdateCurrent()
     }
 }
 
-// FUNCTION: SWBF2 0x006f4f90
-void __fastcall DestroyMovieQueueOnCtorUnwind(void* pThis)
-{
-    ((Snd::Queue<const RedMovie::Properties*, 11>*)pThis)->~Queue();
-}
 
-// FUNCTION: SWBF2 0x006f4fa0
-void __fastcall DestroyMovieQueueOnTeardown(void* pThis)
-{
-    ((Snd::Queue<const RedMovie::SegmentInfo*, 11>*)pThis)->~Queue();
-}
+
+

@@ -7,45 +7,65 @@ namespace Snd
 SourceTransport::PlayState SourceTransport::GetCurrentPlayState() const
 {
 
-    if (mFlags & flags_playing)
+    const unsigned int uiFlags = mFlags;
+
+    if (uiFlags & flags_playing)
     {
         return playState_playing;
     }
 
-    if (mFlags & flags_paused)
+    if (uiFlags & flags_paused)
     {
         return playState_paused;
     }
 
-    if (mFlags & flags_pausing)
+    if (uiFlags & flags_pausing)
     {
         return playState_pausing;
     }
 
-    return (PlayState)((mFlags & flags_stopped) >> 4);
+    return (PlayState)(((unsigned char)uiFlags & flags_stopped) >> 4);
 }
 
 // FUNCTION: SWBF2 0x00736560
 SourceTransport::PlayState SourceTransport::GetPlayState() const
 {
 
-    PlayState eState = GetCurrentPlayState();
+    const unsigned int uiFlags = mFlags;
+
+    PlayState eState;
+    if (uiFlags & flags_playing)
+    {
+        eState = playState_playing;
+    }
+    else if (uiFlags & flags_paused)
+    {
+        eState = playState_paused;
+    }
+    else if (uiFlags & flags_pausing)
+    {
+        eState = playState_pausing;
+    }
+    else
+    {
+        eState = (PlayState)(((unsigned char)uiFlags & flags_stopped) >> 4);
+    }
 
     PlayState eDesired;
-    if (mFlags & flags_updatePlay)
+    if (uiFlags & flags_updatePlay)
     {
         eDesired = playState_playing;
     }
-    else if (mFlags & flags_updatePause)
+    else if (uiFlags & flags_updatePause)
     {
         eDesired = playState_paused;
     }
     else
     {
-        eDesired = (PlayState)((mFlags & flags_updateStop) * 2);
+        eDesired = (PlayState)(((unsigned char)uiFlags & flags_updateStop) * 2);
     }
 
-    if (mFlags & flags_returnCurrentPlayState)
+    if (uiFlags & flags_returnCurrentPlayState)
     {
         return eState;
     }
@@ -62,17 +82,19 @@ SourceTransport::PlayState SourceTransport::GetPlayState() const
 SourceTransport::PlayState SourceTransport::QueryDesiredPlayState() const
 {
 
-    if (mFlags & flags_updatePlay)
+    const unsigned int uiFlags = mFlags;
+
+    if (uiFlags & flags_updatePlay)
     {
         return playState_playing;
     }
 
-    if (mFlags & flags_updatePause)
+    if (uiFlags & flags_updatePause)
     {
         return playState_paused;
     }
 
-    return (PlayState)((mFlags & flags_updateStop) * 2);
+    return (PlayState)(((unsigned char)uiFlags & flags_updateStop) * 2);
 }
 
 // FUNCTION: SWBF2 0x007365f0
@@ -114,12 +136,12 @@ void SourceTransport::SetPlayState(PlayState ePlayState)
         mFlags = (unsigned short)(mFlags | (unsigned int)flags_playing);
         break;
 
-    case playState_pausing:
-        mFlags = (unsigned short)(mFlags | (unsigned int)flags_pausing);
-        break;
-
     case playState_paused:
         mFlags = (unsigned short)(mFlags | (unsigned int)flags_paused);
+        break;
+
+    case playState_pausing:
+        mFlags = (unsigned short)(mFlags | (unsigned int)flags_pausing);
         break;
 
     case playState_stopped:

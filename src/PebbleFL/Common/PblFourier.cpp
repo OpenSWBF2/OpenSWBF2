@@ -1,5 +1,6 @@
 #include "PblFourier.h"
 #include "PblMath.h"
+#include "RedEngineFL/Memory/engineAlloc.h"
 
 namespace PblFourier
 {
@@ -10,8 +11,12 @@ static int FastFourier2D(PblComplex* pData, int iSizeX, int iSizeZ, int iSign);
 // FUNCTION: SWBF2 0x0072b3d0
 int PblFourier::FastFourier1D(PblComplex* pData, int iSize, int iSign)
 {
+    int iLast = iSize - 1;
+    int iHalf = iSize >> 1;
+    int i;
     int j = 0;
-    for (int i = 0; i < iSize - 1; ++i)
+    int m;
+    for (i = 0; i < iLast; ++i)
     {
         if (i < j)
         {
@@ -19,8 +24,7 @@ int PblFourier::FastFourier1D(PblComplex* pData, int iSize, int iSign)
             pData[j] = pData[i];
             pData[i] = temp;
         }
-        int m = iSize >> 1;
-        for (; m <= j; m >>= 1)
+        for (m = iHalf; m <= j; m >>= 1)
         {
             j -= m;
         }
@@ -36,9 +40,9 @@ int PblFourier::FastFourier1D(PblComplex* pData, int iSize, int iSign)
         float fWpi = PblMath::Sin(fTheta);
         float fWr = 1.0f;
         float fWi = 0.0f;
-        for (int m = 0; m < mmax; ++m)
+        for (m = 0; m < mmax; ++m)
         {
-            for (int i = m; i < iSize; i += istep)
+            for (i = m; i < iSize; i += istep)
             {
                 PblComplex& a = pData[i];
                 PblComplex& b = pData[i + mmax];
@@ -49,9 +53,9 @@ int PblFourier::FastFourier1D(PblComplex* pData, int iSize, int iSign)
                 a.real += fTr;
                 a.imag += fTi;
             }
-            float fOldWr = fWr;
+            fTemp = fWr;
             fWr += fWr * fWpr - fWi * fWpi;
-            fWi += fWi * fWpr + fOldWr * fWpi;
+            fWi += fWi * fWpr + fTemp * fWpi;
         }
         mmax = istep;
     }
@@ -79,7 +83,7 @@ int PblFourier::FastFourier2D(PblComplex* pData, int iSizeX, int iSizeZ, int iSi
             pData[z + x * iSizeZ] = pColumn[x];
         }
     }
-    delete[] pColumn;
+    delete pColumn; // the game frees this array with scalar delete (same allocator; PblComplex has no destructor)
     return 0;
 }
 
@@ -92,10 +96,11 @@ int PblFourier::InvFFT2D(PblComplex* pData, int iSizeX, int iSizeZ, bool bScale)
         int iCount = iSizeX * iSizeZ;
         for (int x = 0; x < iSizeX; ++x)
         {
+            int iRow = x * iSizeZ;
             for (int z = 0; z < iSizeZ; ++z)
             {
-                pData[x * iSizeZ + z].real /= (float)iCount;
-                pData[x * iSizeZ + z].imag /= (float)iCount;
+                pData[iRow + z].real /= (float)iCount;
+                pData[iRow + z].imag /= (float)iCount;
             }
         }
     }

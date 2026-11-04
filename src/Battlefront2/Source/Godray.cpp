@@ -24,18 +24,10 @@ bool GodrayEffectObject::IsEffectActive() const
 // FUNCTION: SWBF2 0x0053e490
 void GodrayEffectObject::UpdatedWorldMatrix()
 {
-    GodrayManager::s_pInstance->UpdateGodrayPosition(m_hGodray, *(const PblVector3*)&m_mWorldMatrix.m[3][0]);
+    GodrayManager::s_pInstance->UpdateGodrayPosition(m_hGodray, m_mWorldMatrix.GetTranslation());
 }
 
-// SYNTHETIC: SWBF2 0x0053e4b0
-// GodrayEffectObject::`scalar deleting destructor'
-// SYNTHETIC: SWBF2 0x005409d7
-// [thunk]:GodrayEffectObject::`scalar deleting destructor' adjustor{24}
 
-GodrayEffectObject::~GodrayEffectObject()
-{
-    GodrayManager::s_pInstance->RemoveGodray(m_hGodray);
-}
 
 // FUNCTION: SWBF2 0x0053e500
 void GodrayManager::Create()
@@ -812,7 +804,7 @@ GodrayClass::GodrayClass(unsigned int uHash)
 // GodrayClass::`scalar deleting destructor'
 
 // SYNTHETIC: SWBF2 0x005409cf
-// [thunk]:GodrayClass::`scalar deleting destructor' adjustor{96}
+// ??_EGodrayClass@@WGA@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x00540330
 GodrayClass::GodrayClass(PblConfig& config)
@@ -853,7 +845,7 @@ FLEffectObject* GodrayClass::BuildEffect()
 // FUNCTION: SWBF2 0x00540550
 Entity* GodrayClass::Build(const EntityDesc& desc)
 {
-    const PblVector3& vPos = *(const PblVector3*)&desc.mMatrix.m[3][0];
+    const PblVector3& vPos = desc.mMatrix.GetTranslation();
     for (int i = 0; i < mNumGodRays; ++i)
     {
         GodrayDesc godrayDesc;

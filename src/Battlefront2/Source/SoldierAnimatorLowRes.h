@@ -206,7 +206,9 @@ class SoldierAnimatorLowRes_UnsharedPool : public SoldierAnimatorLowRes_Pool
 {
 public:
     SoldierAnimatorLowRes_UnsharedPool();
-    virtual ~SoldierAnimatorLowRes_UnsharedPool();
+    // FUNCTION: SWBF2 0x00647cb0
+    // SoldierAnimatorLowRes_UnsharedPool::~SoldierAnimatorLowRes_UnsharedPool
+    virtual ~SoldierAnimatorLowRes_UnsharedPool() {}
     virtual bool GetRootMatrixAnimation(const EntitySoldier& soldier, PblMatrix& kMatrix) const;
     virtual int GetFramesSinceUsed() const;
 
@@ -235,7 +237,9 @@ class SoldierAnimatorLowRes_HighResPool : public SoldierAnimatorLowRes_UnsharedP
 public:
 
     SoldierAnimatorLowRes_HighResPool();
-    virtual ~SoldierAnimatorLowRes_HighResPool();
+    // FUNCTION: SWBF2 0x00647cd0
+    // SoldierAnimatorLowRes_HighResPool::~SoldierAnimatorLowRes_HighResPool
+    virtual ~SoldierAnimatorLowRes_HighResPool() {}
 
     void Initialize(const ZephyrSkeletonShared* pSkeleton, const PblBitVector<32>& kMask);
 

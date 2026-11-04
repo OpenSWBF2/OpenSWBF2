@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "OrdnanceEmitter.h"
 #include "Explosion.h"
 #include "FLEffect.h"
@@ -18,22 +19,20 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "PebbleFL/pc/PblD3DX.h"
+
 
 extern PblVector3 gVectorZero;
 
-static inline const PblMatrix operator*(const PblMatrix& a, const PblMatrix& b)
-{
-    PblMatrix result;
-    D3DXMatrixMultiply(&result, &a, &b);
-    return result;
-}
-
-// GLOBAL: SWBF2 0x01ef2624
 // SYNTHETIC: SWBF2 0x00405a70
 // `dynamic initializer for 'OrdnanceEmitterClass::rttiHashOrdnanceEmitterClass''
+// OrdnanceEmitterClass::rttiHashOrdnanceEmitterClass
+
+// GLOBAL: SWBF2 0x01ef2624
+// OrdnanceEmitterClass::rttiHashOrdnanceEmitterClass
 PblHash OrdnanceEmitterClass::rttiHashOrdnanceEmitterClass("OrdnanceEmitterClass");
-char OrdnanceEmitterClass::rttiNameOrdnanceEmitterClass[] = "OrdnanceEmitterClass";
+// GLOBAL: SWBF2 0x0078a810
+// OrdnanceEmitterClass::rttiNameOrdnanceEmitterClass
+const char OrdnanceEmitterClass::rttiNameOrdnanceEmitterClass[] = "OrdnanceEmitterClass";
 
 // FUNCTION: SWBF2 0x005fc410
 OrdnanceEmitterClass::OrdnanceEmitterClass(unsigned int uHash)
@@ -129,23 +128,11 @@ OrdnanceEmitterClass::OrdnanceEmitterClass(OrdnanceEmitterClass* pBase, unsigned
     mExplosion = pBase->mExplosion;
 }
 
-// FUNCTION: SWBF2 0x005fc3b0
-bool OrdnanceEmitterClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashOrdnanceEmitterClass || OrdnanceClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x005fc3e0
-unsigned int OrdnanceEmitterClass::GetDerivedRtti()
-{
-    return rttiHashOrdnanceEmitterClass;
-}
 
-// FUNCTION: SWBF2 0x005fc3f0
-const char* OrdnanceEmitterClass::GetDerivedRttiName()
-{
-    return rttiNameOrdnanceEmitterClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x005fc400
 float OrdnanceEmitterClass::GetRange()
@@ -156,133 +143,166 @@ float OrdnanceEmitterClass::GetRange()
 // FUNCTION: SWBF2 0x005fc8a0
 void OrdnanceEmitterClass::SetProperty(unsigned int uProperty, const char* pszValue)
 {
-    if (uProperty == 0x6E6E8D54)
+    switch (uProperty)
+    {
+    case 0x6E6E8D54:
     {
         mFireEffect = FLEffect::s_EffectClasses.Find(PblHash(pszValue));
+            break;
     }
-    else if (uProperty == 0x6DD5A894)
+    case 0x6DD5A894:
     {
         mLightningEffectClass = FLEffect::s_EffectClasses.Find(PblHash(pszValue));
+            break;
     }
-    else if (uProperty == 0x38FFE98E)
+    case 0x38FFE98E:
     {
         sscanf(pszValue, "%f", &mLightningEffectScale);
+            break;
     }
-    else if (uProperty == 0x63384B21)
+    case 0x63384B21:
     {
         sscanf(pszValue, "%i", &mNoTargetLightningEffectCount);
+            break;
     }
-    else if (uProperty == 0xDD09F94E)
+    case 0xDD09F94E:
     {
         sscanf(pszValue, "%f", &mNoTargetLightningEffectRandomSpread);
+            break;
     }
-    else if (uProperty == 0x6F2732A9)
+    case 0x6F2732A9:
     {
         mStunAnimation = PblTEMPHash(pszValue);
+            break;
     }
-    else if (uProperty == 0x8DF1E8C9)
+    case 0x8DF1E8C9:
     {
         sscanf(pszValue, "%f", &mStunTime);
+            break;
     }
-    else if (uProperty == 0x59E94C40)
+    case 0x59E94C40:
     {
         sscanf(pszValue, "%f", &mMinDamage);
+            break;
     }
-    else if (uProperty == 0x47D0E794)
+    case 0x47D0E794:
     {
         sscanf(pszValue, "%f", &mMaxDamage);
         mDamage.mBaseValue = mMaxDamage;
+            break;
     }
-    else if (uProperty == 0xCCA74473)
+    case 0xCCA74473:
     {
         sscanf(pszValue, "%f", &mDamageThreshold);
+            break;
     }
-    else if (uProperty == 0xAD37744E)
+    case 0xAD37744E:
     {
         sscanf(pszValue, "%f", &mMaxJumpDistance);
+            break;
     }
-    else if (uProperty == 0xFC0D5E74)
+    case 0xFC0D5E74:
     {
         sscanf(pszValue, "%f", &mJumpDeduction);
+            break;
     }
-    else if (uProperty == 0x876FFFDD)
+    case 0x876FFFDD:
     {
         sscanf(pszValue, "%f", &mPush);
+            break;
     }
-    else if (uProperty == 0x9342844E)
+    case 0x9342844E:
     {
         sscanf(pszValue, "%f", &mConeLength);
+            break;
     }
-    else if (uProperty == 0xA3F03B49)
+    case 0xA3F03B49:
     {
         sscanf(pszValue, "%f", &mConeWidth);
         mConeWidth = (float)cos(mConeWidth * 0.5f * 0.017453292f);
+            break;
     }
-    else if (uProperty == 0x9CC82B1F)
+    case 0x9CC82B1F:
     {
         sscanf(pszValue, "%f", &mFirstRadius);
+            break;
     }
-    else if (uProperty == 0xA00A48CD)
+    case 0xA00A48CD:
     {
         sscanf(pszValue, "%i", &mMaxTargets);
+            break;
     }
-    else if (uProperty == 0x4C387CA1)
+    case 0x4C387CA1:
     {
         mNoChaining = atoi(pszValue) != 0;
+            break;
     }
-    else if (uProperty == 0x0DBA4CB3)
+    case 0x0DBA4CB3:
     {
         sscanf(pszValue, "%f", &mRadius);
+            break;
     }
-    else if (uProperty == 0x70B204AF)
+    case 0x70B204AF:
     {
         sscanf(pszValue, "%f", &mBuffOffenseTimer);
+            break;
     }
-    else if (uProperty == 0xCE532E64)
+    case 0xCE532E64:
     {
         sscanf(pszValue, "%f", &mBuffOffenseMult);
+            break;
     }
-    else if (uProperty == 0x7705FCC1)
+    case 0x7705FCC1:
     {
         sscanf(pszValue, "%f", &mBuffDefenseTimer);
+            break;
     }
-    else if (uProperty == 0xB25FB62E)
+    case 0xB25FB62E:
     {
         sscanf(pszValue, "%f", &mBuffDefenseMult);
+            break;
     }
-    else if (uProperty == 0x460B143B)
+    case 0x460B143B:
     {
         sscanf(pszValue, "%f", &mBuffHealthTimer);
+            break;
     }
-    else if (uProperty == 0xB6639618)
+    case 0xB6639618:
     {
         sscanf(pszValue, "%f", &mBuffHealthRate);
+            break;
     }
-    else if (uProperty == 0x805B51E7)
+    case 0x805B51E7:
     {
         sscanf(pszValue, "%f", &mDebuffDamageTimer);
+            break;
     }
-    else if (uProperty == 0x9834A7B4)
+    case 0x9834A7B4:
     {
         sscanf(pszValue, "%f", &mDebuffDamageRate);
+            break;
     }
-    else if (uProperty == 0x76F3BEEA)
+    case 0x76F3BEEA:
     {
         mPlayEffectOnOwner = PblHash(pszValue);
+            break;
     }
-    else if (uProperty == 0xC0E20834)
+    case 0xC0E20834:
     {
         mPlayEffectOnOwnerAimer = PblHash(pszValue);
+            break;
     }
-    else if (uProperty == 0x6824F471)
+    case 0x6824F471:
     {
         sscanf(pszValue, "%f", &mSmolderEffectTimer);
+            break;
     }
-    else if (uProperty == 0x348506DC)
+    case 0x348506DC:
     {
         mSmolderVanishDeath = atoi(pszValue) != 0;
+            break;
     }
-    else if (uProperty == 0x6CF895FB)
+    case 0x6CF895FB:
     {
         int i;
         for (i = 0; i < 5; ++i)
@@ -293,8 +313,9 @@ void OrdnanceEmitterClass::SetProperty(unsigned int uProperty, const char* pszVa
             }
         }
         mSmolderEffectBone[i] = PblTEMPHash(pszValue);
+            break;
     }
-    else if (uProperty == 0x592FB160)
+    case 0x592FB160:
     {
         int i;
         for (i = 0; i < 5; ++i)
@@ -305,31 +326,39 @@ void OrdnanceEmitterClass::SetProperty(unsigned int uProperty, const char* pszVa
             }
         }
         mSmolderEffect[i] = PblHash(pszValue);
+            break;
     }
-    else if (uProperty == 0x1076DFD6)
+    case 0x1076DFD6:
     {
         sscanf(pszValue, "%f", &mSmolderDamageRate);
+            break;
     }
-    else if (uProperty == 0xAB1376D9)
+    case 0xAB1376D9:
     {
         mAffectFriends = atoi(pszValue) != 0;
+            break;
     }
-    else if (uProperty == 0xD41EC7E0)
+    case 0xD41EC7E0:
     {
         mAffectEnemies = atoi(pszValue) != 0;
+            break;
     }
-    else if (uProperty == 0x39B3648C)
+    case 0x39B3648C:
     {
         mApplyOnOwnerIfOnOthers = atoi(pszValue) != 0;
         OrdnanceClass::SetProperty(uProperty, pszValue);
+            break;
     }
-    else if (uProperty == 0x02BB1FE0)
+    case 0x02BB1FE0:
     {
         mExplosion = ExplosionClass::Find(PblHash(pszValue));
+            break;
     }
-    else
+    default:
     {
         OrdnanceClass::SetProperty(uProperty, pszValue);
+            break;
+    }
     }
 }
 
@@ -445,7 +474,7 @@ Ordnance* OrdnanceEmitterClass::Build(const OrdnanceDesc& desc)
             if (fConeLengthSq > fDistSq)
             {
                 PblVector3 vToTarget;
-                D3DXVec3Normalize(&vToTarget, &vDelta);
+                D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vToTarget), reinterpret_cast<const D3DXVECTOR3*>(&vDelta));
                 float fWidth = fDistSq < 6.25f ? fNearConeWidth : mConeWidth;
                 if (vDir.x * vToTarget.x + vToTarget.y * vDir.y + vToTarget.z * vDir.z > fWidth)
                 {
@@ -496,7 +525,7 @@ Ordnance* OrdnanceEmitterClass::Build(const OrdnanceDesc& desc)
 
             PblVector3 vDelta(vTarget.x - vSource.x, vTarget.y - vSource.y, vTarget.z - vSource.z);
             PblVector3 vJumpDir;
-            D3DXVec3Normalize(&vJumpDir, &vDelta);
+            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vJumpDir), reinterpret_cast<const D3DXVECTOR3*>(&vDelta));
 
             if (pTarget->Deflect(0, vTarget, vJumpDir))
             {
@@ -879,35 +908,20 @@ PblMatrix Aimer::GetFireMatrix() const
 {
     PblVector3 vSide(mDirection.z, 0.0f, -mDirection.x);
     PblVector3 vRight;
-    D3DXVec3Normalize(&vRight, &vSide);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vRight), reinterpret_cast<const D3DXVECTOR3*>(&vSide));
     PblVector3 vUp(mDirection.y * vRight.z - mDirection.z * vRight.y,
                    mDirection.z * vRight.x - mDirection.x * vRight.z,
                    mDirection.x * vRight.y - mDirection.y * vRight.x);
 
-    PblMatrix m;
-    m.m[0][0] = vRight.x;
-    m.m[0][1] = vRight.y;
-    m.m[0][2] = vRight.z;
-    m.m[0][3] = 0.0f;
-    m.m[1][0] = vUp.x;
-    m.m[1][1] = vUp.y;
-    m.m[1][2] = vUp.z;
-    m.m[1][3] = 0.0f;
-    m.m[2][0] = mDirection.x;
-    m.m[2][1] = mDirection.y;
-    m.m[2][2] = mDirection.z;
-    m.m[2][3] = 0.0f;
-    m.m[3][0] = mFirePos.x;
-    m.m[3][1] = mFirePos.y;
-    m.m[3][2] = mFirePos.z;
-    m.m[3][3] = 1.0f;
-    return m;
+    return PblMatrix(vRight, vUp, mDirection, mFirePos);
 }
 
-// FUNCTION: SWBF2 0x005fe640
+// TEMPLATE: SWBF2 0x005fe640
+// PblHeap<GameObject *,float>::Push
 template void PblHeap<GameObject*, float>::Push(GameObject*& obj, float key);
 
-// FUNCTION: SWBF2 0x005fe6a0
+// TEMPLATE: SWBF2 0x005fe6a0
+// PblHeap<GameObject *,float>::Pop
 template void PblHeap<GameObject*, float>::Pop();
 
 // SYNTHETIC: SWBF2 0x005fc5f0

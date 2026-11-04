@@ -6,9 +6,11 @@ unsigned int RedVectorElement::s_uiNumPoints;
 // GLOBAL: SWBF2 0x008fa474
 bool RedVectorElement::s_bPointsInUse;
 
-// GLOBAL: SWBF2 0x008fa478
 // SYNTHETIC: SWBF2 0x00407970
 // `dynamic initializer for 'RedVectorElement::s_aPoints''
+
+// GLOBAL: SWBF2 0x008fa478
+// RedVectorElement::s_aPoints
 RedVectorElement::Point RedVectorElement::s_aPoints[1024];
 
 // FUNCTION: SWBF2 0x006bfa30

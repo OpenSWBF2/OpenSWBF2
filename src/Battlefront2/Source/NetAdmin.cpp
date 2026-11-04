@@ -8,7 +8,6 @@
 #include "CommandLine.h"
 #include "Controllable.h"
 #include "GameLoop.h"
-#include "GameObject.h"
 #include "LuaCallbacks_Options.h"
 #include "MissionPlayList.h"
 #include "pcNetSocket.h"
@@ -57,7 +56,7 @@ static unsigned __int64 GetAdminPeer(const NetSocketPeerRecord& kPeer)
 {
     if (!NetComm::IsLAN())
     {
-        return kPeer.mGalaxyId;
+        return kPeer.mGalaxyId.value;
     }
     int iIP;
     int iPort;
@@ -85,7 +84,7 @@ void __fastcall HeartBeat(const unsigned __int64* pPeer)
     }
     for (int i = 0; i < 3; ++i)
     {
-        if (adminDests[i].GetPeer() == *pPeer)
+        if (*(const unsigned __int64*)&adminDests[i].addr == *pPeer)
         {
             adminDests[i].lastRecvTime = fNow;
             return;
@@ -122,7 +121,7 @@ int __fastcall FindAdminSource(int iDest)
     }
     for (int i = 0; i < 3; ++i)
     {
-        if (adminDests[i].GetPeer() == peer)
+        if (*(const unsigned __int64*)&adminDests[i].addr == peer)
         {
             return i;
         }
@@ -130,57 +129,16 @@ int __fastcall FindAdminSource(int iDest)
     return -1;
 }
 
-extern NetJoinSlot joinSlots[64];
 extern bool isLAN;
 
 static int FindAdminDest(unsigned __int64 uPeer)
 {
     for (int i = 0; i < 64; ++i)
     {
-        NetJoinSlot& kSlot = joinSlots[i];
-        if (GetAdminPeer(kSlot.mPeer) == uPeer)
+        const NetSocketPeerRecord* pPeer = NetCommP::GetPeer(i + 69);
+        if (pPeer && GetAdminPeer(*pPeer) == uPeer)
         {
-            kSlot.mLastTime = NetComm::GetTime();
-            return i + 69;
-        }
-    }
-    return -1;
-}
-
-// FUNCTION: SWBF2 0x005b3800
-int __fastcall NetCommP::FindJoinSource(const NetSocketPeerRecord* pAddress)
-{
-    const float fNow = NetComm::GetTime();
-    for (int i = 0; i < 64; ++i)
-    {
-        NetJoinSlot* pEntry = &joinSlots[i];
-        bool bSame;
-        if (isLAN)
-        {
-            int ip1, port1, ip2, port2;
-            NetSocket::GetAddr(pAddress, ip1, port1);
-            NetSocket::GetAddr(&pEntry->mPeer, ip2, port2);
-            bSame = ip1 == ip2 && port1 == port2;
-        }
-        else
-        {
-            bSame = pAddress->mGalaxyId == pEntry->mPeer.mGalaxyId;
-        }
-        if (bSame)
-        {
-            pEntry->mLastTime = fNow;
-            return i + 69;
-        }
-    }
-    for (int i = 0; i < 64; ++i)
-    {
-        NetJoinSlot* pEntry = &joinSlots[i];
-        const float fLast = pEntry->mLastTime;
-        if (fNow - fLast > 1.0f || fLast == 0.0f)
-        {
-            pEntry->mPeer = *pAddress;
-            pEntry->mLastTime = fNow;
-            return i + 69;
+            return NetCommP::FindJoinSource((const int*)pPeer);
         }
     }
     return -1;
@@ -208,7 +166,7 @@ extern int netCurMaxPlayers;
 extern char remoteResponse[0x1800];
 extern bool remoteLoggedIn;
 extern int adminBandwidth;
-void WriteString(NetPktGroup* pGroup, const char* pText, unsigned int uCapacity);
+void WriteString(NetPktGroup& pGroup, const char* pText, unsigned int uCapacity);
 
 // FUNCTION: SWBF2 0x005b1920
 void __fastcall SendAdminMessage(char* pcMessage)
@@ -234,7 +192,7 @@ void __fastcall SendAdminMessage(char* pcMessage)
             group.BeginWrite();
             group.WriteBits((char)adminKey[adminKeyCount & 1], 8);
             group.WriteBits(1, 8);
-            WriteString(&group, pcMessage, 128);
+            WriteString(group, pcMessage, 128);
             group.WriteBits(0, 8);
             group.EndWrite();
             NetComm::Send(iDest, PKT_CONSOLE_ACK, &group);
@@ -395,7 +353,7 @@ extern FILE* Stream;
 extern bool adminStatusRequested;
 
 // GLOBAL: SWBF2 0x01fa24d0
-bool admins[64];
+static bool admins[64];
 
 extern char Destination[16];
 
@@ -508,17 +466,17 @@ bool GetCommand(char* pcToken, AdminCommand& cmd, bool& bNo)
         return false;
     }
 
-    char* pcName = pcToken + 1;
+    ++pcToken;
     bNo = false;
-    if ((pcName[0] == 'n' || pcName[0] == 'N') && (pcName[1] == 'o' || pcName[1] == 'O'))
+    if ((pcToken[0] == 'n' || pcToken[0] == 'N') && (pcToken[1] == 'o' || pcToken[1] == 'O'))
     {
         bNo = true;
-        pcName += 2;
+        pcToken += 2;
     }
 
     for (int i = 0; i < 94; ++i)
     {
-        if (!_stricmp(adminCommands[i].token, pcName))
+        if (!_stricmp(adminCommands[i].token, pcToken))
         {
             cmd = adminCommands[i].cmd;
             return true;
@@ -528,8 +486,14 @@ bool GetCommand(char* pcToken, AdminCommand& cmd, bool& bNo)
 }
 
 void __fastcall SendAdminMessage(char* pcMessage);
-namespace GameLoop { extern bool sQuitRequested; }
-namespace GameLoop { extern unsigned int sQuitTurn; }
+namespace GameLoop
+{
+extern bool sQuitRequested;
+}
+namespace GameLoop
+{
+extern unsigned int sQuitTurn;
+}
 
 // FUNCTION: SWBF2 0x005aedb0
 void NetAdmin::RemovePlayer(int iPlayer)
@@ -583,7 +547,7 @@ const char* __fastcall GetMissionModeCode(const char* pcMission)
 extern int netCurMaxPlayers;
 
 // FUNCTION: SWBF2 0x005aef60
-void __fastcall CountConnectedTeams(int* piTeam1, int* piTeam2, int* piWaiting)
+void __cdecl CountConnectedTeams(int* piTeam1, int* piTeam2, int* piWaiting)
 {
     *piWaiting = 0;
     *piTeam2 = 0;
@@ -746,6 +710,7 @@ void NetWaitLate(bool bWait);
 void __fastcall FormatRefusedAdminLine(int iPlayer, unsigned short* pusLine);
 void FormatPlayerStatusLine(char* pcOut, int iNumber, const char* pcName, int iTeam, int iPoints,
                 int iKills, int iDeaths, int iPing, const char* pcId, const char* pcKey);
+void MD5Digest(const char* pcText, unsigned int uLength, char* pcHex);
 void MissionPlayListStepBack();
 void NetDisplayClientMessage();
 bool GetNetAwardsEnabled();
@@ -760,6 +725,7 @@ public:
     int GetDeaths(int iTeam, int iStat) const;
 };
 
+// FUNCTION: SWBF2 0x005b12a0
 static bool IsMatch(char* pcMatch, unsigned short* pusLine)
 {
     while (*pusLine == ' ')
@@ -772,17 +738,18 @@ static bool IsMatch(char* pcMatch, unsigned short* pusLine)
     }
     ++pusLine;
 
-    int c = *pcMatch;
-    while (c)
+    int c1 = *pcMatch;
+    int c2 = *pusLine;
+    while (c1)
     {
-        if (c != *pusLine && c + 32 != *pusLine)
+        if (c1 != c2 && c1 + 32 != c2)
         {
             return false;
         }
-        c = *++pcMatch;
-        ++pusLine;
+        c1 = *++pcMatch;
+        c2 = *++pusLine;
     }
-    return c == ' ' || c == 0;
+    return c1 == ' ' || c1 == 0;
 }
 
 // FUNCTION: SWBF2 0x005b1300
@@ -818,18 +785,26 @@ static bool GetNextArg(unsigned short*& pusLine, char* pcArg, int iMax)
     for (;;)
     {
         --iMax;
-        unsigned short c = *pusLine++;
+        int c = *pusLine++;
         if (bQuoted && c == '"')
         {
             --pusLine;
             break;
         }
         *pcArg++ = (char)c;
-        if (bQuoted ? *pusLine == '"' : *pusLine == ' ')
+        c = *pusLine;
+        if (bQuoted)
+        {
+            if (c == '"')
+            {
+                break;
+            }
+        }
+        else if (c == ' ')
         {
             break;
         }
-        if (*pusLine == 0 || iMax <= 0)
+        if (c == 0 || iMax <= 0)
         {
             break;
         }
@@ -877,12 +852,18 @@ static void PutMsg(char* pcMsg)
 // FUNCTION: SWBF2 0x005b1480
 bool IsNum(unsigned short c)
 {
-    return c >= '0' && c <= '9';
+    if (c < '0')
+    {
+        return false;
+    }
+    return c <= '9';
 }
 
 // FUNCTION: SWBF2 0x005b14a0
 static bool IsNextArgInt(unsigned short* pusLine)
 {
+    char token[8];
+    char* p = token;
     while (*pusLine == ' ')
     {
         ++pusLine;
@@ -892,7 +873,7 @@ static bool IsNextArgInt(unsigned short* pusLine)
         return false;
     }
 
-    for (int i = 0; i < 8; ++i)
+    do
     {
         unsigned short c = *++pusLine;
         if (c == ' ' || c == 0)
@@ -903,7 +884,7 @@ static bool IsNextArgInt(unsigned short* pusLine)
         {
             return false;
         }
-    }
+    } while (++p != token + sizeof(token));
     return false;
 }
 
@@ -914,7 +895,11 @@ static bool IsNextArgString(unsigned short* pusLine)
     {
         ++pusLine;
     }
-    return *pusLine != '/' && *pusLine != 0;
+    if (*pusLine == '/')
+    {
+        return false;
+    }
+    return *pusLine != 0;
 }
 
 // FUNCTION: SWBF2 0x005aecf0
@@ -1093,7 +1078,7 @@ bool NetAdmin::ParseLineRemote(int iPlayer, unsigned short* pusLine, bool bConso
                     int iDeaths;
                     if (pCharacter)
                     {
-                        PlayerStats& stats = pCharacter->GetPlayerStats();
+                        PlayerStats& stats = Character::GetPlayerStats(pCharacter);
                         iPoints = stats.GetPoints();
                         iKills = stats.GetKills(-1, -1);
                         iDeaths = stats.GetDeaths(-1, -1);
@@ -2164,9 +2149,9 @@ bool NetAdmin::ParseLineRemote(int iPlayer, unsigned short* pusLine, bool bConso
                 }
 
                 Trackable* pTrackable = pCharacter->mUnit;
-                GameObject* pObject = pTrackable->GetGameObject();
-                pObject->mIsAlive = false;
-                pObject->mVanishing = true;
+                unsigned int* puFlags =
+                    (unsigned int*)((char*)pTrackable->GetGameObject() + 0x1fc);
+                *puFlags = (*puFlags & ~8u) | 0x10;
             }
             break;
         }
@@ -2374,13 +2359,15 @@ void NetAdmin::ReceiveConsole()
     for (NetPacket* pPacket = NetComm::Recv(PKT_CONSOLE, PKT_NONE);
          pPacket; pPacket = NetComm::Recv(PKT_CONSOLE, PKT_NONE))
     {
-        int iDest = NetComm::Header(pPacket).src;
+        int iDest = GetSrc(pPacket);
         pPacket->BeginRead();
         unsigned char uCommand, uKey;
         pPacket->Read(uCommand);
         pPacket->Read(uKey);
 
-        if (uCommand == 0x29)
+        switch (uCommand)
+        {
+        case 0x29:
         {
             const unsigned __int64 uPeer = GetAdminPeer(iDest);
             if (uPeer)
@@ -2397,20 +2384,22 @@ void NetAdmin::ReceiveConsole()
             reply.WriteBits(0, 8);
             reply.EndWrite();
             NetComm::Send(iDest, PKT_CONSOLE_ACK, &reply);
+            break;
         }
-        else if (uCommand == 's')
+        case 's':
         {
             pPacket->Free();
             NetPktGroup reply;
             reply.BeginWrite();
             reply.WriteBits((char)adminKey[adminKeyCount & 1], 8);
             reply.WriteBits(1, 8);
-            WriteString(&reply, "hello", 128);
+            WriteString(reply, "hello", 128);
             reply.WriteBits(0, 8);
             reply.EndWrite();
             NetComm::Send(iDest, PKT_CONSOLE_ACK, &reply);
+            break;
         }
-        else if (uCommand == 'J')
+        case 'J':
         {
             unsigned char uUnused = 0, uLength = 0;
             unsigned short ausLine[64];
@@ -2446,16 +2435,17 @@ void NetAdmin::ReceiveConsole()
                 }
                 *pcEnd = 0;
                 reply.WriteBits(1, 8);
-                WriteString(&reply, pcLine, 128);
+                WriteString(reply, pcLine, 128);
                 pcLine = pcEnd + 1;
             }
             reply.WriteBits(0, 8);
             reply.EndWrite();
             NetComm::Send(iDest, PKT_CONSOLE_ACK, &reply);
+            break;
         }
-        else
-        {
+        default:
             pPacket->Free();
+            break;
         }
     }
     SendStateTransitions();

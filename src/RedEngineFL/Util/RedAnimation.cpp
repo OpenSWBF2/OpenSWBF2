@@ -6,19 +6,15 @@
 #include <string.h>
 #include "Zephyr/Source/ZephyrSkinShared.h"
 
-// GLOBAL: SWBF2 0x0099e80c
 // SYNTHETIC: SWBF2 0x004086d0
 // `dynamic initializer for 'RedAnimation::_HashTable''
 
-PblHashTable<RedAnimation, 1024> RedAnimation::_HashTable;
-
 // GLOBAL: SWBF2 0x0099e808
-int RedAnimation_HashTableNumEntries;
+PblHashTable<RedAnimation, 1024> RedAnimation::_HashTable;
 
 void RedAnimation::ClearAll()
 {
     _HashTable.Clear();
-    RedAnimation_HashTableNumEntries = 0;
 }
 
 // FUNCTION: SWBF2 0x006dd620
@@ -49,8 +45,6 @@ const ZephyrAnim* RedAnimation::FindAnimation(const char* pszName) const
 // FUNCTION: SWBF2 0x006dd660
 ZephyrEventBank::ZephyrEventBank()
 {
-    _HashTable.Clear();
-    _HashTableNumEntries = 0;
     _Lists = 0;
     _iNumLists = 0;
 }
@@ -95,33 +89,6 @@ void RedAnimation::_ReadEvents(PblMemChunk& chunk)
     }
 }
 
-// FUNCTION: SWBF2 0x0072ee50
-void ZephyrEventList::AddEvent(float fTime, unsigned int uiMessage)
-{
-    for (int i = 0; i < _iNumEvents; ++i)
-    {
-        if (_pEventMessages[i] == 0)
-        {
-            _pEventTimes[i] = fTime;
-            _pEventMessages[i] = uiMessage;
-            return;
-        }
-    }
-}
-
-// FUNCTION: SWBF2 0x0072ef00
-void ZephyrEventList::Init(short iNumEvents)
-{
-    _iNumEvents = iNumEvents;
-    if (_iNumEvents > 0)
-    {
-        _pEventTimes = static_cast<float*>(::operator new(4u * _iNumEvents));
-        _pEventMessages = static_cast<unsigned int*>(::operator new(4u * _iNumEvents));
-        memset(_pEventTimes, 0, 4u * _iNumEvents);
-        memset(_pEventMessages, 0, 4u * _iNumEvents);
-    }
-}
-
 // FUNCTION: SWBF2 0x006ddab0
 void RedAnimation::_ReadZaa(PblMemChunk& kChunk)
 {
@@ -161,10 +128,7 @@ void RedAnimation::ReadZaa(PblMemChunk& kChunk)
             {
                 pAnim = new RedAnimation;
                 pAnim->_uiNameHash = uiHash;
-                if (RedAnimation::_HashTable.Store(uiHash, pAnim))
-                {
-                    ++RedAnimation_HashTableNumEntries;
-                }
+                RedAnimation::_HashTable.Store(uiHash, pAnim);
             }
             break;
         }
@@ -197,10 +161,7 @@ void RedAnimation::ReadZaf(PblMemChunk& kChunk)
             {
                 pAnim = new RedAnimation;
                 pAnim->_uiNameHash = uiHash;
-                if (RedAnimation::_HashTable.Store(uiHash, pAnim))
-                {
-                    ++RedAnimation_HashTableNumEntries;
-                }
+                RedAnimation::_HashTable.Store(uiHash, pAnim);
             }
             break;
         }

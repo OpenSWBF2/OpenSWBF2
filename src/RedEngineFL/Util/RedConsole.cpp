@@ -1,5 +1,7 @@
 #include "RedConsole.h"
 
+// GLOBAL: SWBF2 0x009acacc
+// RedConsole::sInstance
 RedConsole* RedConsole::sInstance;
 
 // FUNCTION: SWBF2 0x006ed360

@@ -1,8 +1,11 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include "AIGoal.h"
 
-namespace AI {
+namespace AI
+{
 
 // VTABLE: SWBF2 0x00798f88
 class DestroyGoal : public AIGoal
@@ -22,7 +25,7 @@ protected:
 
 public:
     static PblHash rttiHashDestroyGoal;
-    static char rttiNameDestroyGoal[];
+    static const char rttiNameDestroyGoal[];
 
     GoalTarget mTarget;
 };
@@ -31,3 +34,25 @@ public:
 
  
  
+
+// FUNCTION: SWBF2 0x0048c6b0
+inline bool AI::DestroyGoal::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashDestroyGoal == uRtti)
+    {
+        return true;
+    }
+    return AIGoal::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x0048c6e0
+inline unsigned int AI::DestroyGoal::GetDerivedRtti() const
+{
+    return rttiHashDestroyGoal;
+}
+
+// FUNCTION: SWBF2 0x0048c6f0
+inline const char* AI::DestroyGoal::GetDerivedRttiName() const
+{
+    return rttiNameDestroyGoal;
+}

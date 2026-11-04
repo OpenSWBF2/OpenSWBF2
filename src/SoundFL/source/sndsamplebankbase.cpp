@@ -12,11 +12,13 @@
 namespace Snd
 {
 
-// GLOBAL: SWBF2 0x007e3850
 // SYNTHETIC: SWBF2 0x0040c060
 // `dynamic initializer for 'Snd::SampleBankBase::smSampleBankList''
 // SYNTHETIC: SWBF2 0x0076a470
 // `dynamic atexit destructor for 'Snd::SampleBankBase::smSampleBankList''
+
+// GLOBAL: SWBF2 0x007e3850
+// SampleBankBase::smSampleBankList
 PblListSingle SampleBankBase::smSampleBankList;
 
 // FUNCTION: SWBF2 0x00742510
@@ -66,7 +68,7 @@ void Allocator<SampleBase>::operator delete(void* p, void* pMemory, bool bTemp)
 }
 
 template <>
-void Allocator<SampleBankBase>::operator delete(void* p, size_t uiSize)
+void Allocator<SampleBankBase>::operator delete(void* p, unsigned int uiSize)
 {
     (void)uiSize;
     switch (((SampleBankBase*)p)->GetAllocType())
@@ -83,7 +85,7 @@ void Allocator<SampleBankBase>::operator delete(void* p, size_t uiSize)
 }
 
 template <>
-void Allocator<SampleBase>::operator delete(void* p, size_t uiSize)
+void Allocator<SampleBase>::operator delete(void* p, unsigned int uiSize)
 {
     (void)uiSize;
     switch (((SampleBase*)p)->GetAllocType())
@@ -109,7 +111,7 @@ SampleBankBase::SampleBankBase(unsigned int uiHashID, unsigned int uiSize,
       mFormat(eFormat),
       mHandle(),
       mNode(),
-      mTemplate(bTemplate)
+      mTemplate(bTemplate != false)
 {
     if (uiSize && bAllocate && !EngineBase::smSoundRAMAllocator.Alloc(uiSize, mHandle))
     {
@@ -136,11 +138,11 @@ Sample const* SampleBankBase::FindSampleByHashID(unsigned int uiHashID) const
 Sample const* __cdecl SampleBankBase::AllBanksFindSampleByHashID(unsigned int uiHashID,
                                                                  bool bIncludeTemplates)
 {
-    for (PblListSingle::Node* pNode = smSampleBankList.mHead.mNext;
-         pNode != &smSampleBankList.mHead; pNode = pNode->mNext)
+    for (PblListSingle::Itor itor(smSampleBankList);
+         itor.GetNode() != smSampleBankList.GetTerminator(); ++itor)
     {
-        SampleBankBase* const pBank =
-            (SampleBankBase*)((char*)pNode - offsetof(SampleBankBase, mNode));
+        SampleBankBase* const pBank = (SampleBankBase*)itor.GetNode()->GetObjectA(
+            &smSampleBankList, offsetof(SampleBankBase, mNode));
         if (pBank->mTemplate == 1 && !bIncludeTemplates)
         {
             continue;
@@ -437,11 +439,11 @@ SampleBankBase* __cdecl SampleBankBase::LoadBank(PblFileChunk& chunk, char const
 // FUNCTION: SWBF2 0x00742640
 SampleBankBase* __cdecl SampleBankBase::FindByHashID(unsigned int uiHashID)
 {
-    for (PblListSingle::Itor it(smSampleBankList); !it.IsDone(); ++it)
+    for (PblListSingle::Itor it(smSampleBankList); it.GetNode() != smSampleBankList.GetTerminator(); ++it)
     {
         SampleBankBase* pBank =
-            (SampleBankBase*)((char*)it.GetNode() - offsetof(SampleBankBase, mNode));
-        if (pBank->mHashID == uiHashID)
+            (SampleBankBase*)it.GetNode()->GetObjectA(&smSampleBankList, offsetof(SampleBankBase, mNode));
+        if (uiHashID == pBank->mHashID)
         {
             return pBank;
         }
@@ -462,15 +464,12 @@ SampleBankBase::~SampleBankBase()
         delete &mSamples[i];
     }
 
-    if (mNode.mNext)
-    {
-        mNode.Remove();
-    }
 }
 
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x007425e0
 void __cdecl SampleBankBase::DestroyAllBanks()
@@ -478,7 +477,7 @@ void __cdecl SampleBankBase::DestroyAllBanks()
     while (!smSampleBankList.IsEmpty())
     {
         SampleBankBase* const pBank =
-            (SampleBankBase*)((char*)smSampleBankList.mHead.mNext - offsetof(SampleBankBase, mNode));
+            (SampleBankBase*)smSampleBankList.GetFirst()->GetObjectA(&smSampleBankList, offsetof(SampleBankBase, mNode));
         const AllocType eType = pBank->GetAllocType();
         delete pBank;
         if (eType == allocType_custom)

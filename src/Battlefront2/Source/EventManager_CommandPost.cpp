@@ -82,43 +82,59 @@ void Cleanup();
 }
 }
 
-namespace EventManager {
-namespace CommandPostEvent {
+namespace EventManager
+{
+namespace CommandPostEvent
+{
 extern Event<CommandPost, unsigned __int64> mBeginNeutralize;
 }
 }
-namespace EventManager {
-namespace CommandPostEvent {
+namespace EventManager
+{
+namespace CommandPostEvent
+{
 extern Event<CommandPost, unsigned __int64> mAbortNeutralize;
 }
 }
-namespace EventManager {
-namespace CommandPostEvent {
+namespace EventManager
+{
+namespace CommandPostEvent
+{
 extern Event<CommandPost, unsigned __int64> mFinishNeutralize;
 }
 }
-namespace EventManager {
-namespace CommandPostEvent {
+namespace EventManager
+{
+namespace CommandPostEvent
+{
 extern Event<CommandPost, unsigned __int64> mBeginCapture;
 }
 }
-namespace EventManager {
-namespace CommandPostEvent {
+namespace EventManager
+{
+namespace CommandPostEvent
+{
 extern Event<CommandPost, unsigned __int64> mAbortCapture;
 }
 }
-namespace EventManager {
-namespace CommandPostEvent {
+namespace EventManager
+{
+namespace CommandPostEvent
+{
 extern Event<CommandPost, unsigned __int64> mFinishCapture;
 }
 }
-namespace EventManager {
-namespace CommandPostEvent {
+namespace EventManager
+{
+namespace CommandPostEvent
+{
 extern Event<CommandPost, DamageOwner> mKill;
 }
 }
-namespace EventManager {
-namespace CommandPostEvent {
+namespace EventManager
+{
+namespace CommandPostEvent
+{
 extern Event<CommandPost, char> mRespawn;
 }
 }
@@ -156,19 +172,10 @@ bool LuaPushItem<unsigned __int64>(unsigned __int64& mask)
     return true;
 }
 
-template <class PARAM>
-const char* PostMatchesName<PARAM>::GetName()
-{
-    return "Name";
-}
 
-template <class PARAM>
-const char* PostMatchesTeam<PARAM>::GetName()
-{
-    return "Team";
-}
 
-// FUNCTION: SWBF2 0x005115c0
+// TEMPLATE: SWBF2 0x005115c0
+// EventManager::LuaCallback<CommandPost,DamageOwner>::LuaCallback<CommandPost,DamageOwner>
 template <class ITEM, class PARAM>
 LuaCallback<ITEM, PARAM>::LuaCallback(int iRef)
 {
@@ -185,7 +192,8 @@ LuaCallback<ITEM, PARAM>::LuaCallback(int iRef)
 // TEMPLATE: SWBF2 0x00511410
 // EventManager::LuaCallback<CommandPost,unsigned __int64>::LuaCallback<CommandPost,unsigned __int64>
 
-// FUNCTION: SWBF2 0x005100a0
+// TEMPLATE: SWBF2 0x005100a0
+// EventManager::RegisterLuaCallback<CommandPost,unsigned __int64>
 template <class ITEM, class PARAM>
 int RegisterLuaCallback(lua_State*)
 {
@@ -212,14 +220,7 @@ int RegisterLuaCallback(lua_State*)
 // TEMPLATE: SWBF2 0x00510e00
 // EventManager::RegisterLuaCallback<CommandPost,char>
 
-template <class ITEM, class PARAM>
-LuaCallback<ITEM, PARAM>::~LuaCallback()
-{
-    if (mFunction != -1)
-    {
-        lua_unref(LuaHelper::mState, mFunction);
-    }
-}
+
 
 template <class ITEM, class PARAM>
 bool LuaCallback<ITEM, PARAM>::operator()(ITEM& item, PARAM& param)
@@ -242,26 +243,6 @@ bool LuaCallback<ITEM, PARAM>::operator()(ITEM& item, PARAM& param)
     }
 
     LuaHelper::CallProc(0);
-    return true;
-}
-
-template <class ITEM, class PARAM>
-template <class PREDICATE>
-const char* Event<ITEM, PARAM>::Filter<PREDICATE>::GetName()
-{
-    return PREDICATE::GetName();
-}
-
-template <class ITEM, class PARAM>
-template <class PREDICATE>
-bool Event<ITEM, PARAM>::Filter<PREDICATE>::operator()(ITEM& item, PARAM& param)
-{
-    return mPredicate(item, param);
-}
-
-template <class ITEM, class PARAM>
-bool Event<ITEM, PARAM>::Callback::operator()(ITEM&, PARAM&)
-{
     return true;
 }
 
@@ -371,7 +352,8 @@ bool LuaPushItem<char>(char&)
 }
 }
 
-namespace EventManager {
+namespace EventManager
+{
 
 // FUNCTION: SWBF2 0x0050fc40
 void CommandPostEvent::Cleanup()
@@ -387,21 +369,27 @@ void CommandPostEvent::Cleanup()
 }
 }
 
-namespace EventManager {
+namespace EventManager
+{
 
-// FUNCTION: SWBF2 0x0050fc90
+// TEMPLATE: SWBF2 0x0050fc90
+// EventManager::Event<CommandPost,unsigned __int64>::Callback::~Callback
 template Event<CommandPost, unsigned __int64>::Callback::~Callback();
 }
 
-namespace EventManager {
+namespace EventManager
+{
 
-// FUNCTION: SWBF2 0x0050fd00
+// TEMPLATE: SWBF2 0x0050fd00
+// EventManager::Event<CommandPost,DamageOwner>::Callback::~Callback
 template Event<CommandPost, DamageOwner>::Callback::~Callback();
 }
 
-namespace EventManager {
+namespace EventManager
+{
 
-// FUNCTION: SWBF2 0x0050fd70
+// TEMPLATE: SWBF2 0x0050fd70
+// EventManager::Event<CommandPost,char>::Callback::~Callback
 template Event<CommandPost, char>::Callback::~Callback();
 }
 
@@ -409,83 +397,59 @@ namespace EventManager
 {
 
 int DummyLuaCallback(lua_State* L);
-namespace CommandPostEvent { void Init(); }
-
-template <class PARAM>
-static PostMatchesName<PARAM>* ReadPostName(PostMatchesName<PARAM>* pMatch)
+namespace CommandPostEvent
 {
-    const char* pcName = luaL_checklstring(LuaHelper::mState, 2, 0);
-    pMatch->mIndex = -1;
-    CommandPost* pPost = CommandPost::FindPostByName(pcName);
-    if (pPost)
-    {
-        pMatch->mIndex = pPost->GetIndex();
-    }
-    return pMatch;
+void Init();
 }
 
-template <class MATCH>
-static MATCH* ReadNumber(MATCH* pMatch)
-{
-    pMatch->mTeam = (unsigned int)luaL_checknumber(LuaHelper::mState, 2);
-    return pMatch;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x0050fa30
 template <>
 PostMatchesName<unsigned __int64> LuaGetItem<PostMatchesName<unsigned __int64> >(int)
 {
-    PostMatchesName<unsigned __int64> match;
-    ReadPostName(&match);
-    return match;
+    return PostMatchesName<unsigned __int64>(luaL_checklstring(LuaHelper::mState, 2, 0));
 }
 
 // FUNCTION: SWBF2 0x0050fa60
 template <>
 PostMatchesName<DamageOwner> LuaGetItem<PostMatchesName<DamageOwner> >(int)
 {
-    PostMatchesName<DamageOwner> match;
-    ReadPostName(&match);
-    return match;
+    return PostMatchesName<DamageOwner>(luaL_checklstring(LuaHelper::mState, 2, 0));
 }
 
 // FUNCTION: SWBF2 0x0050fa90
 template <>
 PostMatchesName<char> LuaGetItem<PostMatchesName<char> >(int)
 {
-    PostMatchesName<char> match;
-    ReadPostName(&match);
-    return match;
+    return PostMatchesName<char>(luaL_checklstring(LuaHelper::mState, 2, 0));
 }
 
 // FUNCTION: SWBF2 0x0050fac0
 template <>
 PostMatchesTeam<unsigned __int64> LuaGetItem<PostMatchesTeam<unsigned __int64> >(int)
 {
-    PostMatchesTeam<unsigned __int64> match(0);
-    ReadNumber(&match);
-    return match;
+    return PostMatchesTeam<unsigned __int64>((int)luaL_checknumber(LuaHelper::mState, 2));
 }
 
 // FUNCTION: SWBF2 0x0050fae0
 template <>
 PostMatchesTeam<DamageOwner> LuaGetItem<PostMatchesTeam<DamageOwner> >(int)
 {
-    PostMatchesTeam<DamageOwner> match(0);
-    ReadNumber(&match);
-    return match;
+    return PostMatchesTeam<DamageOwner>((int)luaL_checknumber(LuaHelper::mState, 2));
 }
 
 // FUNCTION: SWBF2 0x0050fb00
 template <>
 PostMatchesTeam<char> LuaGetItem<PostMatchesTeam<char> >(int)
 {
-    PostMatchesTeam<char> match(0);
-    ReadNumber(&match);
-    return match;
+    return PostMatchesTeam<char>((int)luaL_checknumber(LuaHelper::mState, 2));
 }
 
-// FUNCTION: SWBF2 0x0050ff30
+// TEMPLATE: SWBF2 0x0050ff30
+// EventManager::UnregisterLuaCallback<CommandPost,unsigned __int64>
 template <class ITEM, class PARAM>
 int UnregisterLuaCallback(lua_State*)
 {
@@ -503,7 +467,8 @@ int UnregisterLuaCallback(lua_State*)
     return 0;
 }
 
-// FUNCTION: SWBF2 0x00510250
+// TEMPLATE: SWBF2 0x00510250
+// EventManager::RegisterLuaCallback<CommandPost,unsigned __int64,EventManager::PostMatchesName<unsigned __int64> >
 template <class ITEM, class PARAM, class PREDICATE>
 int RegisterLuaCallback(lua_State*)
 {
@@ -528,50 +493,10 @@ int RegisterLuaCallback(lua_State*)
     return 1;
 }
 
-// FUNCTION: SWBF2 0x00511350
-template <class ITEM, class PARAM>
-void Event<ITEM, PARAM>::Unregister(Callback& callback)
-{
-    Node* pParent = callback.mParent;
-    callback.DetachFromParent();
-    while (pParent && pParent->mParent && !pParent->mChild)
-    {
-        Node* pNext = pParent->mParent;
-        pParent->DetachFromParent();
-        pParent = pNext;
-    }
-}
 
-template <class ITEM, class PARAM>
-template <class PREDICATE>
-Event<ITEM, PARAM>::Filter<PREDICATE>::Filter(PREDICATE& predicate)
-    : mPredicate(predicate)
-{
-}
 
-// FUNCTION: SWBF2 0x00511d90
-template <class ITEM, class PARAM>
-template <class PREDICATE>
-auto Event<ITEM, PARAM>::GetFilter(PREDICATE& predicate, Callback* pParent)
-    -> Filter<PREDICATE>*
-{
-    if (!pParent)
-    {
-        pParent = &mRoot;
-    }
-    for (Node* pNode = pParent->mChild; pNode; pNode = pNode->mSibling)
-    {
-        if (pNode->GetName() == PREDICATE::GetName() &&
-            ((Filter<PREDICATE>*)pNode)->mPredicate == predicate)
-        {
-            pNode->AddRef();
-            return (Filter<PREDICATE>*)pNode;
-        }
-    }
-    Filter<PREDICATE>* pFilter = new Filter<PREDICATE>(predicate);
-    pFilter->AttachToParent(pParent);
-    return pFilter;
-}
+// TEMPLATE: SWBF2 0x00511d90
+// EventManager::Event<CommandPost,unsigned __int64>::GetFilter<EventManager::PostMatchesName<unsigned __int64> >
 
 template <class ITEM, class PARAM>
 void RegisterUnregisterLuaCallback(Event<ITEM, PARAM>& event, lua_CFunction pfnClient)
@@ -730,16 +655,16 @@ Event<CommandPost, char>::GetFilter(PostMatchesTeam<char>&, Callback*);
 // EventManager::RegisterRegisterLuaCallback<CommandPost,char,EventManager::PostMatchesTeam<char> >
 
 // TEMPLATE: SWBF2 0x00510460
-// EventManager::RegisterLuaCallback<classCommandPost,unsigned__int64,classEventManager::PostMatchesTeam<unsigned__int64>>
+// EventManager::RegisterLuaCallback<CommandPost,unsigned __int64,EventManager::PostMatchesTeam<unsigned __int64> >
 
 // TEMPLATE: SWBF2 0x00510c90
-// EventManager::UnregisterLuaCallback<classCommandPost,char>
+// EventManager::UnregisterLuaCallback<CommandPost,char>
 
 // TEMPLATE: SWBF2 0x00510fc0
-// EventManager::RegisterLuaCallback<classCommandPost,char,classEventManager::PostMatchesName<char>>
+// EventManager::RegisterLuaCallback<CommandPost,char,EventManager::PostMatchesName<char> >
 
 // TEMPLATE: SWBF2 0x005111d0
-// EventManager::RegisterLuaCallback<classCommandPost,char,classEventManager::PostMatchesTeam<char>>
+// EventManager::RegisterLuaCallback<CommandPost,char,EventManager::PostMatchesTeam<char> >
 
 // TEMPLATE: SWBF2 0x005113d0
 // EventManager::Event<CommandPost,char>::Unregister
@@ -798,60 +723,76 @@ namespace EventManager
 namespace CommandPostEvent
 {
 
-// GLOBAL: SWBF2 0x007ebb90
 // SYNTHETIC: SWBF2 0x00403140
-// `dynamic initializer for 'EventManager::CommandPostEvent::mBeginNeutralize''
+// EventManager::CommandPostEvent::`dynamic initializer for 'mBeginNeutralize''
 // SYNTHETIC: SWBF2 0x007675a0
-// `dynamic atexit destructor for 'EventManager::CommandPostEvent::mBeginNeutralize''
+// EventManager::CommandPostEvent::`dynamic atexit destructor for 'mBeginNeutralize''
+
+// GLOBAL: SWBF2 0x007ebb90
+// mBeginNeutralize
 Event<CommandPost, unsigned __int64> mBeginNeutralize("BeginNeutralize");
 
-// GLOBAL: SWBF2 0x007eba60
 // SYNTHETIC: SWBF2 0x00403170
-// `dynamic initializer for 'EventManager::CommandPostEvent::mAbortNeutralize''
+// EventManager::CommandPostEvent::`dynamic initializer for 'mAbortNeutralize''
 // SYNTHETIC: SWBF2 0x00767620
-// `dynamic atexit destructor for 'EventManager::CommandPostEvent::mAbortNeutralize''
+// EventManager::CommandPostEvent::`dynamic atexit destructor for 'mAbortNeutralize''
+
+// GLOBAL: SWBF2 0x007eba60
+// mAbortNeutralize
 Event<CommandPost, unsigned __int64> mAbortNeutralize("AbortNeutralize");
 
-// GLOBAL: SWBF2 0x007ebb50
 // SYNTHETIC: SWBF2 0x004031a0
-// `dynamic initializer for 'EventManager::CommandPostEvent::mFinishNeutralize''
+// EventManager::CommandPostEvent::`dynamic initializer for 'mFinishNeutralize''
 // SYNTHETIC: SWBF2 0x007676a0
-// `dynamic atexit destructor for 'EventManager::CommandPostEvent::mFinishNeutralize''
+// EventManager::CommandPostEvent::`dynamic atexit destructor for 'mFinishNeutralize''
+
+// GLOBAL: SWBF2 0x007ebb50
+// mFinishNeutralize
 Event<CommandPost, unsigned __int64> mFinishNeutralize("FinishNeutralize");
 
-// GLOBAL: SWBF2 0x007ebb20
 // SYNTHETIC: SWBF2 0x004031d0
-// `dynamic initializer for 'EventManager::CommandPostEvent::mBeginCapture''
+// EventManager::CommandPostEvent::`dynamic initializer for 'mBeginCapture''
 // SYNTHETIC: SWBF2 0x00767720
-// `dynamic atexit destructor for 'EventManager::CommandPostEvent::mBeginCapture''
+// EventManager::CommandPostEvent::`dynamic atexit destructor for 'mBeginCapture''
+
+// GLOBAL: SWBF2 0x007ebb20
+// mBeginCapture
 Event<CommandPost, unsigned __int64> mBeginCapture("BeginCapture");
 
-// GLOBAL: SWBF2 0x007ebaa0
 // SYNTHETIC: SWBF2 0x00403200
-// `dynamic initializer for 'EventManager::CommandPostEvent::mAbortCapture''
+// EventManager::CommandPostEvent::`dynamic initializer for 'mAbortCapture''
 // SYNTHETIC: SWBF2 0x007677a0
-// `dynamic atexit destructor for 'EventManager::CommandPostEvent::mAbortCapture''
+// EventManager::CommandPostEvent::`dynamic atexit destructor for 'mAbortCapture''
+
+// GLOBAL: SWBF2 0x007ebaa0
+// mAbortCapture
 Event<CommandPost, unsigned __int64> mAbortCapture("AbortCapture");
 
-// GLOBAL: SWBF2 0x007ebac0
 // SYNTHETIC: SWBF2 0x00403230
-// `dynamic initializer for 'EventManager::CommandPostEvent::mFinishCapture''
+// EventManager::CommandPostEvent::`dynamic initializer for 'mFinishCapture''
 // SYNTHETIC: SWBF2 0x00767820
-// `dynamic atexit destructor for 'EventManager::CommandPostEvent::mFinishCapture''
+// EventManager::CommandPostEvent::`dynamic atexit destructor for 'mFinishCapture''
+
+// GLOBAL: SWBF2 0x007ebac0
+// mFinishCapture
 Event<CommandPost, unsigned __int64> mFinishCapture("FinishCapture");
 
-// GLOBAL: SWBF2 0x007eba80
 // SYNTHETIC: SWBF2 0x00403260
-// `dynamic initializer for 'EventManager::CommandPostEvent::mKill''
+// EventManager::CommandPostEvent::`dynamic initializer for 'mKill''
 // SYNTHETIC: SWBF2 0x007678a0
-// `dynamic atexit destructor for 'EventManager::CommandPostEvent::mKill''
+// EventManager::CommandPostEvent::`dynamic atexit destructor for 'mKill''
+
+// GLOBAL: SWBF2 0x007eba80
+// mKill
 Event<CommandPost, DamageOwner> mKill("CommandPostKill");
 
-// GLOBAL: SWBF2 0x007ebb00
 // SYNTHETIC: SWBF2 0x00403290
-// `dynamic initializer for 'EventManager::CommandPostEvent::mRespawn''
+// EventManager::CommandPostEvent::`dynamic initializer for 'mRespawn''
 // SYNTHETIC: SWBF2 0x00767920
-// `dynamic atexit destructor for 'EventManager::CommandPostEvent::mRespawn''
+// EventManager::CommandPostEvent::`dynamic atexit destructor for 'mRespawn''
+
+// GLOBAL: SWBF2 0x007ebb00
+// mRespawn
 Event<CommandPost, char> mRespawn("CommandPostRespawn");
 
 }

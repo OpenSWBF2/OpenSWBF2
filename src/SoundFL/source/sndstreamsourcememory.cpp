@@ -5,39 +5,34 @@ namespace Snd
 
 // FUNCTION: SWBF2 0x0074c770
 StreamSourceMemory::StreamSourceMemory()
+    : mData(0),
+      mDataSize(0),
+      mAudioFrameSize(1),
+      mLooping(0)
 {
-
-    mSegment.mOffset = 0;
-    mSegment.mLength = 0;
-    mNextSegment.mOffset = 0;
-    mNextSegment.mLength = 0;
-    mData = 0;
-    mDataSize = 0;
-    mAudioFrameSize = 1;
-
-    mLooping = 0;
 }
+
 
 // FUNCTION: SWBF2 0x0074c850
 StreamPacket* StreamSourceMemory::GetPacket(unsigned int uiOutput, bool bUpdate)
 {
     StreamPacket* const pPacket = StreamSourceProducer::GetPacket(uiOutput);
-    if (pPacket == 0)
+    if (pPacket != 0)
     {
-        if (!bUpdate)
+        if (pPacket->mFlags & 1)
         {
-            return 0;
+            Stop();
         }
-        Update();
-        return GetPacket(uiOutput, false);
+
+        return pPacket;
     }
 
-    if (pPacket->mFlags & 1)
+    if (!bUpdate)
     {
-        Stop();
+        return 0;
     }
-
-    return pPacket;
+    Update();
+    return GetPacket(uiOutput, false);
 }
 
 // FUNCTION: SWBF2 0x0074c8c0
@@ -54,7 +49,7 @@ void StreamSourceMemory::Update()
         return;
     }
 
-    const unsigned int uiPacketSize = mPacketSize;
+    const unsigned int uiPacketSize = GetPacketSize();
     if (mDataSize == 0 || uiPacketSize == 0)
     {
         Stop();
@@ -139,16 +134,18 @@ void StreamSourceMemory::Update()
 
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x0074c910
-void StreamSourceMemory::SetLooping(bool bLooping)
+void StreamSourceMemory::SetLooping(unsigned char bLooping)
 {
     mLooping = bLooping;
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x0074c930
 void StreamSourceMemory::Setup(const StreamFormat& rFormat, void* const pData,
@@ -166,9 +163,10 @@ void StreamSourceMemory::Setup(const StreamFormat& rFormat, void* const pData,
 
     if (mData)
     {
-        const unsigned int uiFrameSize = SampleInfo::GetFrameSize(mFormat.GetFormat());
+        unsigned int uiFrameSize = SampleInfo::GetFrameSize(mFormat.GetFormat());
+        uiFrameSize *= mFormat.GetNumChannels();
         mSegment.mLength = mDataSize;
-        mAudioFrameSize = uiFrameSize * mFormat.GetNumChannels();
+        mAudioFrameSize = uiFrameSize;
     }
     else
     {
@@ -180,7 +178,8 @@ void StreamSourceMemory::Setup(const StreamFormat& rFormat, void* const pData,
 }
 }
 
-namespace Snd {
+namespace Snd
+{
 
 // FUNCTION: SWBF2 0x0074c810
 StreamSourceMemory::~StreamSourceMemory()

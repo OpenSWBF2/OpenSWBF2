@@ -15,7 +15,6 @@
 #include "UnitAgent.h"
 #include "UnitController.h"
 #include "PebbleFL/Common/PblMath.h"
-#include "VOHelper.h"
 
 class EntitySoldier
 {
@@ -23,12 +22,29 @@ public:
     static PblHash rttiHashEntitySoldier;
 };
 
+namespace AI
+{
+enum VOType
+{
+    VOT_DefendIdleLookWeapon = 19,
+    VOT_DefendIdleLookAround = 20,
+    VOT_DefendIdleLookPlayer = 21
+};
+
+namespace VOHelper
+{
+
+int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,
+         const GameObject* pOther, float fDelay);
+}
+}
+
 namespace
 {
 
-    AILowLevel& LowLevel(UnitController* pCtrl)
+    inline AILowLevel& LowLevel(UnitController* pCtrl)
     {
-        return *reinterpret_cast<AILowLevel*>(pCtrl->mLowLevel);
+        return pCtrl->mLowLevel;
     }
 }
 
@@ -167,7 +183,7 @@ void IdleHelper::StartStationaryIdle(UnitController* pCtrl, float& fIdleTime, fl
     {
         Controllable* pMe = pCtrl->mOwner;
         float fBestDistSq = FLT_MAX;
-        PblVector3 vMyPos = *(const PblVector3*)&pMe->GetMatrix().m[3][0];
+        PblVector3 vMyPos = pMe->GetMatrix().GetTranslation();
         const Character* pBest = NULL;
         for (int i = 0; i < Character::sCharacterLimit; ++i)
         {

@@ -7,8 +7,11 @@
 
 unsigned int Hash16(unsigned short const* pusString);
 
-// GLOBAL: SWBF2 0x01e2fd5c
-namespace AIDebugR { bool mBulletTimeEnabled; }
+namespace AIDebugR
+{
+    // GLOBAL: SWBF2 0x01e2fd5c
+    bool mBulletTimeEnabled;
+}
 // GLOBAL: SWBF2 0x01e2fd5d
 
 bool gTestSpawnTakeoverPending;
@@ -26,16 +29,32 @@ bool gTestSpawnOptionEnabled = true;
 
 extern bool gNoAIRespawn;
 
-// GLOBAL: SWBF2 0x01e2fd60
-namespace AIDebugR { float mBulletTimeScale; }
-// GLOBAL: SWBF2 0x01e2fd64
-namespace AIDebugR { float mBulletTimeStart; }
-// GLOBAL: SWBF2 0x01e2fd68
-namespace AIDebugR { float mBulletTimeUntil; }
+namespace AIDebugR
+{
+    // GLOBAL: SWBF2 0x01e2fd60
+    float mBulletTimeScale;
+}
+namespace AIDebugR
+{
+    // GLOBAL: SWBF2 0x01e2fd64
+    float mBulletTimeStart;
+}
+namespace AIDebugR
+{
+    // GLOBAL: SWBF2 0x01e2fd68
+    float mBulletTimeUntil;
+}
 
-namespace AIDebug { namespace TestSpawn { void Create(); } }
+namespace AIDebug
+{
+    namespace TestSpawn
+    {
+        void Create();
+    }
+}
 
-namespace AIDebug {
+namespace AIDebug
+{
 
 // FUNCTION: SWBF2 0x00438a00
 bool GetTestSpawnMode()
@@ -45,7 +64,8 @@ bool GetTestSpawnMode()
 
 }
 
-namespace AIDebugR {
+namespace AIDebugR
+{
 
 // FUNCTION: SWBF2 0x004385d0
 void Create()
@@ -70,7 +90,8 @@ void StartBulletTime(float fFirst, float fSecond, float fThird)
 
 }
 
-namespace AIDebug {
+namespace AIDebug
+{
 
 // FUNCTION: SWBF2 0x00438660
 void Create()
@@ -122,7 +143,8 @@ bool __cdecl IsCoverHintFilteringEnabled()
     return false;
 }
 
-namespace AIDebug {
+namespace AIDebug
+{
 
 // FUNCTION: SWBF2 0x00438680
 bool OnlyOneAI()
@@ -139,16 +161,20 @@ namespace AIDebug
 namespace TestSpawn
 {
 
-// GLOBAL: SWBF2 0x01eb0250
 // SYNTHETIC: SWBF2 0x004021a0
-// `dynamic initializer for 'AIDebug::TestSpawn::mCamera''
+// AIDebug::TestSpawn::`dynamic initializer for 'mCamera''
 // SYNTHETIC: SWBF2 0x00766d30
-// `dynamic atexit destructor for 'AIDebug::TestSpawn::mCamera''
+// AIDebug::TestSpawn::`dynamic atexit destructor for 'mCamera''
+
+// GLOBAL: SWBF2 0x01eb0250
+// mCamera
 RedCamera mCamera;
 
-// GLOBAL: SWBF2 0x01eaffe4
 // SYNTHETIC: SWBF2 0x004021c0
-// `dynamic initializer for 'AIDebug::TestSpawn::camDir''
+// AIDebug::TestSpawn::`dynamic initializer for 'camDir''
+
+// GLOBAL: SWBF2 0x01eaffe4
+// camDir
 PblVector3 camDir = CYL_CENTER;
 
 }

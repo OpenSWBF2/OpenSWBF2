@@ -1,14 +1,20 @@
 #include <math.h>
 
 #include "MuzzleFlash.h"
-
-#include "Aimer.h"
 #include "RedEngineFL/Application/pc/pcRedParticle.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 
 // GLOBAL: SWBF2 0x01e579f0
 MuzzleFlashRenderer* sMuzzleFlashRenderer;
+
+class Aimer
+{
+public:
+
+    char mUnmodeledPrefix[0x88];
+    PblVector3 mFirePos;
+};
 
 // FUNCTION: SWBF2 0x005a9f70
 MuzzleFlashRenderer::MuzzleFlashRenderer()
@@ -138,7 +144,8 @@ bool MuzzleFlash::Destroy()
     return true;
 }
 
-namespace MuzzleFlash {
+namespace MuzzleFlash
+{
 
 // FUNCTION: SWBF2 0x005aa6e0
 bool Init()

@@ -1,3 +1,4 @@
+#include "AmmoCounter.h"
 #include "MineHelper.h"
 
 #include "AILowLevel.h"
@@ -10,7 +11,22 @@
 #include "WeaponDispenser.h"
 #include "GameObject.h"
 #include "RedEngineFL/Application/RedTerrain.h"
-#include "TeamManager.h"
+
+namespace AI
+{
+enum AIAffil
+{
+AFFIL_ENEMY = 1, AFFIL_NEUTRAL = 2, AFFIL_ALLY = 4
+}
+;
+}
+namespace TeamManager
+{
+int GetObjectsInRange(const PblVector3&, float, GameObject** const, int,
+                      const GameObject*, AI::AIAffil);
+}
+
+
 
 // FUNCTION: SWBF2 0x005a3c60
 MineHelper::MineHelper(UnitAgent* pAgent)
@@ -56,13 +72,13 @@ void MineHelper::EnterState()
         {
             mFacePos.y = RedTerrain::GetInterpolatedHeight(mFacePos.x, mFacePos.z) + 1.5f;
         }
-        reinterpret_cast<AILowLevel*>(UnitControllerPtr(GetMe()->mCtrl)->mLowLevel)
-            ->SetNavigator_Goto(mMinePos, NULL, false, false);
+        UnitControllerPtr(GetMe()->mCtrl)->mLowLevel
+            .SetNavigator_Goto(mMinePos, NULL, false, false);
         break;
 
     case STATE_LAYMINE:
-        reinterpret_cast<AILowLevel*>(UnitControllerPtr(GetMe()->mCtrl)->mLowLevel)
-            ->SetNavigator_Stationary();
+        UnitControllerPtr(GetMe()->mCtrl)->mLowLevel
+            .SetNavigator_Stationary();
         mMineTimer = -1.0f;
         mLaidMine = false;
         break;
@@ -81,7 +97,7 @@ void MineHelper::UpdateState(float)
     {
     case STATE_GOTO:
         mHint->Reserve(GetMe()->GetGameObject());
-        if (reinterpret_cast<AILowLevel*>(UnitControllerPtr(GetMe()->mCtrl)->mLowLevel)->IsAtDest())
+        if (UnitControllerPtr(GetMe()->mCtrl)->mLowLevel.IsAtDest())
         {
             SetNextState(STATE_LAYMINE);
         }
@@ -99,8 +115,8 @@ void MineHelper::UpdateState(float)
         {
             if (!mLaidMine)
             {
-                reinterpret_cast<AILowLevel*>(UnitControllerPtr(GetMe()->mCtrl)->mLowLevel)
-                    ->SetFireRequest(true, false);
+                UnitControllerPtr(GetMe()->mCtrl)->mLowLevel
+                    .SetFireRequest(true, false);
                 mMineTimer = GameLoop::GetMissionTime();
                 mLaidMine = true;
             }
@@ -312,7 +328,7 @@ bool MineHelper::SetMineWpn(bool* pbSwitching)
         Weapon* pWeapon = GetMe()->GetWeaponPtr(iWeapon);
         if (pWeapon->IsRtti(WeaponDispenser::rttiHashWeaponDispenser))
         {
-            EntityClass* pDispenseClass = static_cast<WeaponDispenserClass*>(pWeapon->mClass)->mDispenseClass;
+            EntityClass* pDispenseClass = static_cast<const WeaponDispenserClass*>(pWeapon->mClass)->mDispenseClass;
             if (pDispenseClass->IsRtti(EntityMineClass::rttiHashEntityMineClass) &&
                 sHasMines(static_cast<WeaponDispenser*>(pWeapon)))
             {
@@ -326,7 +342,7 @@ bool MineHelper::SetMineWpn(bool* pbSwitching)
     }
     if (pCurrentWeapon != GetMe()->GetWeaponPtr(iWeapon))
     {
-        reinterpret_cast<AILowLevel*>(UnitControllerPtr(GetMe()->mCtrl)->mLowLevel)->SetNextWeapon(iWeapon);
+        UnitControllerPtr(GetMe()->mCtrl)->mLowLevel.SetNextWeapon(iWeapon);
         *pbSwitching = true;
     }
     return true;

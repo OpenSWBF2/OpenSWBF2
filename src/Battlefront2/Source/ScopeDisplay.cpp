@@ -12,6 +12,16 @@
 #include "RedEngineFL/Graphics/RedCamera.h"
 #include "RedEngineFL/Graphics/PC/pcRedTexture.h"
 
+class Weapon : public Thread
+{
+public:
+    bool ZoomFirstPerson() const;
+
+    char mWeaponState[0x64 - sizeof(Thread)];
+    WeaponClass* mClass;
+};
+ 
+
 namespace FLRenderer
 {
 
@@ -85,10 +95,6 @@ void ScopeDisplay::BinocularSound::SetAmbientID(const char* pName)
     mAmbientProps.SetID(pName, false, false);
 }
 
-// FUNCTION: SWBF2 0x00633970
-ScopeDisplay::BinocularSound::~BinocularSound()
-{
-}
 
 // FUNCTION: SWBF2 0x00633630
 void ScopeDisplay::BinocularSound::SetZoomInID(const char* pName)

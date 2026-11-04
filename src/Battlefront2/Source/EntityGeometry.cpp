@@ -29,29 +29,31 @@
 #include "NetGame.h"
 #include "PebbleFL/Common/PblRandom.h"
 
-// GLOBAL: SWBF2 0x01ebbcbc
 // SYNTHETIC: SWBF2 0x00402b30
 // `dynamic initializer for 'EntityGeometryClass::rttiHashEntityGeometryClass''
-PblHash EntityGeometryClass::rttiHashEntityGeometryClass("EntityGeometryClass");
-char EntityGeometryClass::rttiNameEntityGeometryClass[] = "EntityGeometryClass";
+// EntityGeometryClass::rttiHashEntityGeometryClass
 
-// GLOBAL: SWBF2 0x01ebbcc0
+// GLOBAL: SWBF2 0x01ebbcbc
+// EntityGeometryClass::rttiHashEntityGeometryClass
+PblHash EntityGeometryClass::rttiHashEntityGeometryClass("EntityGeometryClass");
+// GLOBAL: SWBF2 0x0078924c
+// EntityGeometryClass::rttiNameEntityGeometryClass
+const char EntityGeometryClass::rttiNameEntityGeometryClass[] = "EntityGeometryClass";
+
 // SYNTHETIC: SWBF2 0x00402b20
 // `dynamic initializer for 'EntityGeometry::rttiHashEntityGeometry''
+// EntityGeometry::rttiHashEntityGeometry
+
+// GLOBAL: SWBF2 0x01ebbcc0
+// EntityGeometry::rttiHashEntityGeometry
 PblHash EntityGeometry::rttiHashEntityGeometry("EntityGeometry");
-char EntityGeometry::rttiNameEntityGeometry[] = "EntityGeometry";
+// GLOBAL: SWBF2 0x0078923c
+// EntityGeometry::rttiNameEntityGeometry
+const char EntityGeometry::rttiNameEntityGeometry[] = "EntityGeometry";
 
-// FUNCTION: SWBF2 0x004440d0
-bool EntityGeometry::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashEntityGeometry || EntityEx::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x004441b0
-bool EntityGeometryClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashEntityGeometryClass || EntityClass::IsRtti(uRtti);
-}
+
+
 
 // FUNCTION: SWBF2 0x00444190
 void EntityGeometry::SetupPose(RedPose& pose) const
@@ -59,36 +61,18 @@ void EntityGeometry::SetupPose(RedPose& pose) const
     mModel->GetRedModel(0)->SetupPose(pose);
 }
 
-// FUNCTION: SWBF2 0x004ba080
-unsigned int EntityGeometry::GetDerivedRtti() const
-{
-    return rttiHashEntityGeometry;
-}
 
-// FUNCTION: SWBF2 0x004ba090
-const char* EntityGeometry::GetDerivedRttiName() const
-{
-    return rttiNameEntityGeometry;
-}
 
 // SYNTHETIC: SWBF2 0x004bd7fe
-// [thunk]:EntityGeometry::`scalar deleting destructor' adjustor{12}
+// ??_EEntityGeometry@@WM@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004bd806
-// [thunk]:EntityGeometry::`scalar deleting destructor' adjustor{148}
+// ??_EEntityGeometry@@WJE@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004ba0a0
 // EntityGeometry::`scalar deleting destructor'
 
-// FUNCTION: SWBF2 0x004ba0d0
-unsigned int EntityGeometryClass::GetDerivedRtti()
-{
-    return rttiHashEntityGeometryClass;
-}
 
-// FUNCTION: SWBF2 0x004ba0e0
-const char* EntityGeometryClass::GetDerivedRttiName()
-{
-    return rttiNameEntityGeometryClass;
-}
+
+
 
 // FUNCTION: SWBF2 0x004ba0f0
 EntityGeometry::EntityGeometry(EntityGeometryClass* pClass, const EntityDesc& desc,
@@ -121,7 +105,6 @@ EntityGeometry::EntityGeometry(EntityGeometryClass* pClass, const EntityDesc& de
         fRadius = pClass->mPotentialCollisionRadius;
     }
     SetCollisionRadius(fRadius);
-    Set2DCollisionRadius(fRadius);
     RecalculateAABB();
 
     const PblBox& box = mModel->_mModel->_TotalBoundingBox;
@@ -167,7 +150,6 @@ void EntityGeometry::SetProperty(unsigned int uProperty, const char* pszValue)
                 fRadius = pClass->mPotentialCollisionRadius;
             }
             SetCollisionRadius(fRadius);
-            Set2DCollisionRadius(fRadius);
             RecalculateAABB();
             SetRenderPos(GetCollisionCenter());
             SetRenderRadius(GetCollisionRadius());
@@ -198,9 +180,9 @@ void EntityGeometry::SetProperty(unsigned int uProperty, const char* pszValue)
                 switch (GetCollisionType())
                 {
                 case COLL_ITEM:     AddItemToCollisionManager(); break;
-                case COLL_SOFT:     CollisionManager::AddSoftBody(this); break;
+                case COLL_SOFT:     this->AddSoftToCollisionManager(); break;
                 case COLL_ASTEROID: AddAsteroidToCollisionManager(); break;
-                case COLL_RIGID:    CollisionManager::AddRigidBody(this); break;
+                case COLL_RIGID:    this->AddRigidToCollisionManager(); break;
                 case COLL_STATIC:   AddStaticToCollisionManager(); break;
                 case COLL_ATTACHED: AddAttachedToCollisionManager(); break;
                 case COLL_SHIELD:   AddShieldToCollisionManager(); break;
@@ -451,10 +433,13 @@ void ChunkDescriptor::Init()
     mAngularDamping = 0.0f;
 }
 
-// SYNTHETIC: SWBF2 0x004bb0b0
-// ChunkDescriptor::ChunkDescriptor
+// ChunkDescriptor::ChunkDescriptor(const ChunkDescriptor&)
+// SYNTHETIC: SWBF2 0x004bb0b0 SYMBOL
+// ??0ChunkDescriptor@@QAE@ABV0@@Z
+
 
 // GLOBAL: SWBF2 0x007e650c
+// sCurrentChunk
 static int sCurrentChunk = -1;
 // GLOBAL: SWBF2 0x007e6510
 static int sCurrentTrail = -1;
@@ -474,11 +459,7 @@ static unsigned int sSoftCollisionMask;
 // GLOBAL: SWBF2 0x01e51dc4
 static unsigned int sRigidCollisionMask;
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
+
 
 // FUNCTION: SWBF2 0x004bb9e0
 EntityGeometryClass::EntityGeometryClass(EntityGeometryClass* pBase, unsigned int uHash)
@@ -704,7 +685,7 @@ void EntityGeometryClass::SetProperty(unsigned int uProperty, const char* pszVal
         float x, y, z, a, b, c;
         sscanf(pszValue, "%s %s %s %f %f %f %f %f %f", acName, acType, acParent, &x, &y, &z, &a, &b, &c);
 
-        PblMatrix matrix = _IdentityMatrix;
+        PblMatrix matrix = gMatrixIdentity;
         matrix.m[3][0] = x;
         matrix.m[3][1] = y;
         matrix.m[3][2] = z;
@@ -808,7 +789,7 @@ void EntityGeometryClass::SetProperty(unsigned int uProperty, const char* pszVal
         {
             const CollisionMesh* pMesh = CollisionMesh::Find(PblHash(pszValue));
             mFullChunkCollisions[sCurrentChunk]->AddBody(
-                new CollisionBodyMesh(pMesh, pszValue, _IdentityMatrix, 0));
+                new CollisionBodyMesh(pMesh, pszValue, gMatrixIdentity, 0));
         }
 
         _snprintf(acName, 127, "%s0", pszValue);
@@ -824,7 +805,7 @@ void EntityGeometryClass::SetProperty(unsigned int uProperty, const char* pszVal
             float fCenterZ = (box._vMin.z + box._vMax.z) * 0.5f;
 
             CollisionPrimitive primitive;
-            PblMatrix matrix = _IdentityMatrix;
+            PblMatrix matrix = gMatrixIdentity;
             float fHalfX = (float)fabs(box._vMax.x - box._vMin.x) * 0.5f;
             float fHalfY = (float)fabs(box._vMax.y - box._vMin.y) * 0.5f;
             float fHalfZ = (float)fabs(box._vMax.z - box._vMin.z) * 0.5f;
@@ -1146,7 +1127,7 @@ bool EntityGeometryClass::AddTargetableCollision(const char* pszValue)
 // FUNCTION: SWBF2 0x004920e0
 void EntityGeometry::SetPosition(const PblVector3& vPos)
 {
-    *(PblVector3*)&mMatrix.m[3][0] = vPos;
+    mMatrix[3] = vPos;
     mMatrix.m[3][3] = 1.0f;
 
     PblVector3 vCenter;
@@ -1211,7 +1192,7 @@ void EntityGeometry::CreateChunkCluster(float fScale)
             if (const PblMatrix* pAttach = pPose->Find(pClass->mChunkAttachPoints[i]))
             {
                 PblMatrix mAttached;
-                D3DXMatrixMultiply((D3DXMATRIX*)&mAttached, (const D3DXMATRIX*)pAttach, (const D3DXMATRIX*)&mMatrix);
+                mAttached = *pAttach * mMatrix;
                 pDesc->mMatrix = mAttached;
             }
         }
@@ -1258,7 +1239,7 @@ void EntityGeometry::CreateChunkCluster(float fScale)
             if (const PblMatrix* pAttach = pPose->Find(pClass->mChunkAttachPoints[i]))
             {
                 PblMatrix mAttached;
-                D3DXMatrixMultiply((D3DXMATRIX*)&mAttached, (const D3DXMATRIX*)pAttach, (const D3DXMATRIX*)&mMatrix);
+                mAttached = *pAttach * mMatrix;
                 pDesc->mMatrix = mAttached;
             }
         }
@@ -1310,9 +1291,7 @@ void EntityGeometry::CreateChunkCluster(float fScale)
             pDesc->mVelocity.y += vDir.y * fSpeed;
             pDesc->mVelocity.z += vDir.z * fSpeed;
         }
-        pDesc->mVelocity.x *= fScale;
-        pDesc->mVelocity.y *= fScale;
-        pDesc->mVelocity.z *= fScale;
+        pDesc->mVelocity *= fScale;
 
         ChunkDescriptor kChunk(*pDesc);
         pCluster->AddChunk(kChunk);
@@ -1332,13 +1311,12 @@ void EntityGeometry::CreateChunkCluster(float fScale)
 }
 
 // SYNTHETIC: SWBF2 0x00446e24
-// [thunk]:EntityGeometry::GetEntity`adjustor{12}'
+// ?GetEntity@EntityGeometry@@WM@AEPAVEntity@@XZ
 
-// FUNCTION: SWBF2 0x004bd360
-void* __fastcall ReturnObjectPointer(void* pObject)
-{
-    return pObject;
-}
+// ChunkDescriptor::ChunkDescriptor()
+// SYNTHETIC: SWBF2 0x004bd360 SYMBOL
+// ??0ChunkDescriptor@@QAE@XZ
+
 
 // SYNTHETIC: SWBF2 0x004992d2
-// [thunk]:EntityGeometry::GetGameObject`adjustor{12}'
+// ?GetGameObject@EntityGeometry@@WM@AEPAVGameObject@@XZ

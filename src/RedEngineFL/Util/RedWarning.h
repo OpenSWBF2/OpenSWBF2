@@ -58,6 +58,9 @@ unsigned int __cdecl Format(char* pcBuffer, unsigned int uiSize, char* pcMessage
 void __cdecl LogMessage(char const* pcFormat, ...);
 
 void __cdecl DialogBoxMessage(char const* pcFormat, ...);
+#ifdef _WINDEF_
+INT_PTR CALLBACK DlgProc(HWND hDlg, UINT uiMessage, WPARAM uiWParam, LPARAM lParam);
+#endif
 
 void __cdecl Cleanup(void);
 unsigned int __cdecl GetFormatToDestination(RED_LOG_DESTINATION_INDEX eIndex);

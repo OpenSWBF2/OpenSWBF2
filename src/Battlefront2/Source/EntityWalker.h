@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 #include "WalkerAnimation.h"
 
@@ -7,6 +9,7 @@
 #include "Controllable.h"
 #include "EnergyBar.h"
 #include "GameObject.h"
+#include "GameLoop.h"
 #include "GameSound.h"
 #include "Trackable.h"
 #include "VehicleEngine.h"
@@ -44,12 +47,12 @@ class DamageDesc;
 class EntityWalkerClass;
 class PblAngle;
 
-// VTABLE: SWBF2 0x0079db50
+// VTABLE: SWBF2 0x0079db50 EntityEx
 // VTABLE: SWBF2 0x0079ddf4 CollisionObject
 // VTABLE: SWBF2 0x0079dae8 RedSceneObject
 // VTABLE: SWBF2 0x0079dce4 Damageable
 // VTABLE: SWBF2 0x0079dd1c PblHandled
-// VTABLE: SWBF2 0x0079dd24 Controllable
+// VTABLE: SWBF2 0x0079dd24 Thread
 // VTABLE: SWBF2 0x0079daa0 Trackable
 class EntityWalker : public GameObject,
                      public Controllable,
@@ -104,7 +107,8 @@ public:
     public:
 
         PostCollision(EntityWalker* pOwner) : mOwner(pOwner) {}
-        virtual ~PostCollision();
+        // SYNTHETIC: SWBF2 0x004ff650
+        // EntityWalker::PostCollision::~PostCollision
         virtual bool Update(float fDeltaTime);
 
         EntityWalker* mOwner;
@@ -113,7 +117,9 @@ public:
     EntityWalker(EntityWalkerClass* pClass, const EntityDesc& desc);
     virtual ~EntityWalker();
 
-    static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
+    static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }
+    // SYNTHETIC: SWBF2 0x004ff500
+    // EntityWalker::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
     virtual bool IsRtti(unsigned int uRtti) const;
@@ -124,10 +130,22 @@ public:
     virtual Entity* GetEntity();
     virtual const GameObject* GetGameObject() const;
     virtual GameObject* GetGameObject();
-    virtual const PblVector3& GetVelocity() const;
-    virtual void SetVelocity(const PblVector3& vVelocity);
+    // FUNCTION: SWBF2 0x0047f9a0
+    virtual const PblVector3& GetVelocity() const
+    {
+        return mVelocity;
+    }
+    // FUNCTION: SWBF2 0x0047f9b0
+    virtual void SetVelocity(const PblVector3& vVelocity)
+    {
+        mVelocity = vVelocity;
+    }
     virtual float GetMaxSpeed() const;
-    virtual float GetMaxStrafe() const;
+    // FUNCTION: SWBF2 0x0047fb20
+    virtual float GetMaxStrafe() const
+    {
+        return 0.0f;
+    }
     virtual const Controllable* GetControllable() const;
     virtual Controllable* GetControllable();
     virtual bool ShouldShowReticule() const;
@@ -135,14 +153,38 @@ public:
     virtual const PblVector3& GetAttachOffset() const;
     virtual void ActivatePhysics();
     virtual void DeactivatePhysics();
-    virtual GameObjectType GetGameObjectType();
-    virtual void ReserveForPlayer(float fTime);
-    virtual bool IsReservedForPlayer() const;
+    // FUNCTION: SWBF2 0x0047fbd0
+    virtual GameObjectType GetGameObjectType()
+    {
+        return (GameObjectType)(GO_VEHICLE | GO_WALKER);
+    }
+    // FUNCTION: SWBF2 0x0047fbe0
+    virtual void ReserveForPlayer(float fTime)
+    {
+        mReserveForPlayer = GameLoop::GetMissionTime() + fTime;
+    }
+    // FUNCTION: SWBF2 0x0047fc00
+    virtual bool IsReservedForPlayer() const
+    {
+        return mReserveForPlayer > GameLoop::GetMissionTime();
+    }
     virtual EntityType GetEntityType() const;
     virtual ExplosionClass* GetExplosionClass();
-    virtual float GetEjectTimer() const;
-    virtual void SetEjectTimer(float fTime);
-    virtual void ResetTimeSinceLastHack();
+    // FUNCTION: SWBF2 0x0047fc40
+    virtual float GetEjectTimer() const
+    {
+        return mEjectTimer;
+    }
+    // FUNCTION: SWBF2 0x0047fc20
+    virtual void SetEjectTimer(float fTime)
+    {
+        mEjectTimer = fTime;
+    }
+    // FUNCTION: SWBF2 0x0047fc50
+    virtual void ResetTimeSinceLastHack()
+    {
+        mTimeSinceLastHack = 0.0f;
+    }
     virtual void WriteObject(NetPktGroup& group, NetObjState* pState);
     virtual void ReadObject(NetPktGroup& group, NetObjState* pState);
     virtual void AddSends(void (*pfnSend)(GameObject*, int), int iArg);
@@ -170,8 +212,16 @@ public:
                                    Restrictor* pRestrictor);
     virtual void SetTerrainHeight(int iIndex, float fHeight);
 
-    virtual const PblMatrix& GetMatrix() const;
-    virtual const RedPose* GetPose() const;
+    // FUNCTION: SWBF2 0x0047f990
+    virtual const PblMatrix& GetMatrix() const
+    {
+        return mMatrix;
+    }
+    // FUNCTION: SWBF2 0x0047f940
+    virtual const RedPose* GetPose() const
+    {
+        return &mPose;
+    }
 
     virtual void Render(unsigned char ucViewport, float fDist, unsigned int uiFlags);
 
@@ -181,15 +231,35 @@ public:
                              unsigned int uFlags);
 
     virtual bool Update(float fDeltaTime);
-    virtual Trackable* GetTrackable();
+    // FUNCTION: SWBF2 0x0047fb30
+    virtual Trackable* GetTrackable()
+    {
+        return static_cast<Trackable*>(this);
+    }
     virtual float GetSoundRadius() const;
     virtual float GetAimTurnRate() const;
     virtual int GetWeaponCount() const;
-    virtual int GetWeaponIndex(int iChannel) const;
-    virtual Weapon* GetWeaponPtr(int iIndex) const;
-    virtual EnergyBar* GetEnergyBar();
+    // FUNCTION: SWBF2 0x0047fb70
+    virtual int GetWeaponIndex(int iChannel) const
+    {
+        return mWeaponIndex[iChannel];
+    }
+    // FUNCTION: SWBF2 0x0047fb90
+    virtual Weapon* GetWeaponPtr(int iIndex) const
+    {
+        return mWeapon[iIndex];
+    }
+    // FUNCTION: SWBF2 0x0047fc60
+    virtual EnergyBar* GetEnergyBar()
+    {
+        return &mEnergyBar;
+    }
     virtual void SetWeaponIndex(int iChannel, int iIndex);
-    virtual const Aimer* GetAimer(int iIndex) const;
+    // FUNCTION: SWBF2 0x0047fbb0
+    virtual const Aimer* GetAimer(int iIndex) const
+    {
+        return mAimer[iIndex];
+    }
     virtual ControllableClass* GetControllableClass();
     virtual const ControllableClass* GetControllableClass() const;
     virtual void SetupController();
@@ -209,7 +279,11 @@ public:
     virtual bool RenderTrackable(unsigned int uView) const;
 
 protected:
-    virtual bool IsForcedThirdPerson() const;
+    // FUNCTION: SWBF2 0x0047fc70
+    virtual bool IsForcedThirdPerson() const
+    {
+        return true;
+    }
 
 public:
 
@@ -246,7 +320,7 @@ public:
 public:
     static PblHash rttiHashEntityWalker;
     static MemoryPool sMemoryPool;
-    static char rttiNameEntityWalker[];
+    static const char rttiNameEntityWalker[];
     static StateTableEntry sStateTable[];
 
     EntityWalkerClass* mClass;
@@ -295,7 +369,7 @@ public:
     int mState;
     PblVector3 mPrevAimerPos;
     eDirection mDirection;
-    char mEnergyBar[12];
+    EnergyBar mEnergyBar;
     PblAngle mTurnOffset;
     PblAngle mPitchOffset;
     PblAngle mRollOffset;
@@ -362,6 +436,8 @@ class EntityWalkerClass : public GameObjectClass,
                           public VehicleEngineClass
 {
 public:
+    virtual ~EntityWalkerClass();
+
 
     struct WalkerAttackAnim
     {
@@ -380,18 +456,48 @@ public:
 
     virtual EntityClass* Derive(unsigned int uHash);
     virtual Entity* Build(const EntityDesc& desc);
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
     virtual void PostReadSetup();
-    virtual int GetVehicleType();
-    virtual const void* GetControllableClass();
-    virtual int GetWeaponCount();
-    virtual const WeaponClass* GetWeaponClass(int iIndex);
-    virtual float GetCollisionInflict();
-    virtual float GetTimeRequiredToEject();
-    virtual float GetReboardTime();
+    // FUNCTION: SWBF2 0x0047fcc0
+    virtual int GetVehicleType() const
+    {
+        return mVehicleType;
+    }
+    // FUNCTION: SWBF2 0x0047fd30
+    virtual const ControllableClass* GetControllableClass() const
+    {
+        return static_cast<const ControllableClass*>(this);
+    }
+    // FUNCTION: SWBF2 0x0047fcd0
+    virtual int GetWeaponCount() const
+    {
+        return mWeaponCount;
+    }
+    // FUNCTION: SWBF2 0x0047fce0
+    virtual const WeaponClass* GetWeaponClass(int iIndex) const
+    {
+        return mWeaponClass[iIndex];
+    }
+    // FUNCTION: SWBF2 0x0047fd00
+    virtual float GetCollisionInflict() const
+    {
+        return mCollisionInflict;
+    }
+    // FUNCTION: SWBF2 0x0047fd10
+    virtual float GetTimeRequiredToEject() const
+    {
+        return mTimeRequiredToEject;
+    }
+    // FUNCTION: SWBF2 0x0047fd20
+    virtual float GetReboardTime() const
+    {
+        return mTimeTilReboard;
+    }
+    WalkerAnimation* GetAnimation(int i) { return mAnimations[i]; }
+
     virtual bool InitAnimations(const char* pszName);
 
     PblBitVector<64> HierarchyJointMask(const ZephyrSkeletonShared* pSkeleton, int iJoint);
@@ -407,7 +513,7 @@ protected:
 public:
 
     static PblHash rttiHashEntityWalkerClass;
-    static char rttiNameEntityWalkerClass[];
+    static const char rttiNameEntityWalkerClass[];
 
     RedAnimation* mAnimObj[3];
     int mNumAnimObjs;
@@ -598,3 +704,49 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x0047fc80
+inline bool EntityWalkerClass::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashEntityWalkerClass == uRtti)
+    {
+        return true;
+    }
+    return GameObjectClass::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x004ff4e0
+inline unsigned int EntityWalker::GetDerivedRtti() const
+{
+    return rttiHashEntityWalker;
+}
+
+// FUNCTION: SWBF2 0x004ff4f0
+inline const char* EntityWalker::GetDerivedRttiName() const
+{
+    return rttiNameEntityWalker;
+}
+
+// FUNCTION: SWBF2 0x004ff660
+inline unsigned int EntityWalkerClass::GetDerivedRtti() const
+{
+    return rttiHashEntityWalkerClass;
+}
+
+// FUNCTION: SWBF2 0x004ff670
+inline const char* EntityWalkerClass::GetDerivedRttiName() const
+{
+    return rttiNameEntityWalkerClass;
+}
+
+// FUNCTION: SWBF2 0x0047f900
+inline bool EntityWalker::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashEntityWalker == uRtti)
+    {
+        return true;
+    }
+    return GameObject::IsRtti(uRtti);
+}
+
+

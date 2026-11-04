@@ -55,14 +55,13 @@ static void seterrorobj (lua_State *L, int errcode, StkId oldtop) {
 // LIBRARY: SWBF2 0x006a33f0
 // luaD_throw
 void luaD_throw (lua_State *L, int errcode) {
-  if (L->errorJmp) {
+  if (L->errorJmp == NULL) {
+    G(L)->panic(L);
+  }
+  else {
     L->errorJmp->status = errcode;
     PblAsanNoReturn();
     longjmp(L->errorJmp->b, 1);
-  }
-  else {
-
-    G(L)->panic(L);
   }
 }
 

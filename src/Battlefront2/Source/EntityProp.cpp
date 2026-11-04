@@ -24,11 +24,7 @@
 #include "RedEngineFL/Application/pc/pcRedShadowProxy.h"
 #include "RedEngineFL/Graphics/RedModel.h"
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
+
 
 // GLOBAL: SWBF2 0x01e51de4
 static unsigned int sTerrainCollisionMask;
@@ -46,24 +42,29 @@ static unsigned int sStaticCollisionMask;
 // GLOBAL: SWBF2 0x01faa45c
 static EntityClass* sPendingAttachedOdfClass;
 
-// GLOBAL: SWBF2 0x01ebbfec
 // SYNTHETIC: SWBF2 0x00402cc0
 // `dynamic initializer for 'EntityProp::rttiHashEntityProp''
-PblHash EntityProp::rttiHashEntityProp("EntityProp");
-char EntityProp::rttiNameEntityProp[] = "EntityProp";
+// EntityProp::rttiHashEntityProp
 
-// GLOBAL: SWBF2 0x01ebc040
+// GLOBAL: SWBF2 0x01ebbfec
+// EntityProp::rttiHashEntityProp
+PblHash EntityProp::rttiHashEntityProp("EntityProp");
+// GLOBAL: SWBF2 0x00789484
+// EntityProp::rttiNameEntityProp
+const char EntityProp::rttiNameEntityProp[] = "EntityProp";
+
 // SYNTHETIC: SWBF2 0x00402cd0
 // `dynamic initializer for 'EntityPropClass::rttiHashEntityPropClass''
-PblHash EntityPropClass::rttiHashEntityPropClass("EntityPropClass");
-char EntityPropClass::rttiNameEntityPropClass[] = "EntityPropClass";
+// EntityPropClass::rttiHashEntityPropClass
 
-// FUNCTION: SWBF2 0x00497e50
-bool EntityProp::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashEntityProp ||
-           reinterpret_cast<const EntityGeometry*>(this)->EntityGeometry::IsRtti(uRtti);
-}
+// GLOBAL: SWBF2 0x01ebc040
+// EntityPropClass::rttiHashEntityPropClass
+PblHash EntityPropClass::rttiHashEntityPropClass("EntityPropClass");
+// GLOBAL: SWBF2 0x00789490
+// EntityPropClass::rttiNameEntityPropClass
+const char EntityPropClass::rttiNameEntityPropClass[] = "EntityPropClass";
+
+
 
 // FUNCTION: SWBF2 0x00497ec0
 const PblMatrix& EntityProp::GetBBoxMatrix() const
@@ -77,35 +78,15 @@ const PblBox& EntityProp::GetBBox() const
     return GetModel()->_mModel->_TotalBoundingBox;
 }
 
-// FUNCTION: SWBF2 0x00497ef0
-bool EntityPropClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashEntityPropClass || EntityClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x004d8d50
-unsigned int EntityProp::GetDerivedRtti() const
-{
-    return rttiHashEntityProp;
-}
 
-// FUNCTION: SWBF2 0x004d8d60
-const char* EntityProp::GetDerivedRttiName() const
-{
-    return rttiNameEntityProp;
-}
 
-// FUNCTION: SWBF2 0x004d8da0
-unsigned int EntityPropClass::GetDerivedRtti()
-{
-    return rttiHashEntityPropClass;
-}
 
-// FUNCTION: SWBF2 0x004d8db0
-const char* EntityPropClass::GetDerivedRttiName()
-{
-    return rttiNameEntityPropClass;
-}
+
+
+
+
+
 
 // FUNCTION: SWBF2 0x004d8dc0
 void ConvertHSVtoRGB(float* pR, float* pG, float* pB, float fH, float fS, float fV)
@@ -265,9 +246,9 @@ void EntityProp::Kill()
 // SYNTHETIC: SWBF2 0x004d8d70
 // EntityProp::`scalar deleting destructor'
 // SYNTHETIC: SWBF2 0x004db282
-// [thunk]: EntityProp::`scalar deleting destructor' adjustor{12}
+// ??_EEntityProp@@WM@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004db28a
-// [thunk]: EntityProp::`scalar deleting destructor' adjustor{148}
+// ??_EEntityProp@@WJE@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x004d9660
 EntityProp::~EntityProp()
@@ -338,8 +319,7 @@ void EntityProp::Render(unsigned char ucViewport, float fDist, unsigned int uiFl
         if (FLRenderer::IsReflected(*(const PblVector3*)&_Sphere, _Sphere.w, mReflection, false))
         {
             PblMatrix mWorld;
-            D3DXMatrixMultiply((D3DXMATRIX*)&mWorld, (const D3DXMATRIX*)&mMatrix,
-                               (const D3DXMATRIX*)&mReflection);
+            mWorld = mMatrix * mReflection;
             mReflection = mWorld;
             mModel->Render(ucViewport, fDist, &mReflection, NULL, mGeometryColor,
                            (uiFlags & ~0x10000) | 0x10000100, NULL);
@@ -598,7 +578,7 @@ void EntityPropClass::SetProperty(unsigned int uProperty, const char* pszValue)
         const CollisionMesh* pMesh = CollisionMesh::Find(PblHash(pszValue));
         if (pMesh)
         {
-            mCollisionModel.AddBody(new CollisionBodyMesh(pMesh, "CollisionMesh", _IdentityMatrix, 0));
+            mCollisionModel.AddBody(new CollisionBodyMesh(pMesh, "CollisionMesh", gMatrixIdentity, 0));
         }
 
         sTerrainCollisionMask = 0;
@@ -825,7 +805,7 @@ void EntityPropClass::SetProperty(unsigned int uProperty, const char* pszValue)
         float x, y, z, a, b, c;
         sscanf(pszValue, "%s %s %s %f %f %f %f %f %f", acName, acType, acParent, &x, &y, &z, &a, &b, &c);
 
-        PblMatrix matrix = _IdentityMatrix;
+        PblMatrix matrix = gMatrixIdentity;
         matrix.m[3][0] = x;
         matrix.m[3][1] = y;
         matrix.m[3][2] = z;
@@ -909,10 +889,9 @@ Entity* EntityPropClass::Build(const EntityDesc& desc)
             for (int i = 0; i < mNumAttachedOdfs; ++i)
             {
                 EntityDesc attachDesc;
-                attachDesc.mMatrix = _IdentityMatrix;
+                attachDesc.mMatrix = gMatrixIdentity;
                 PblMatrix matrix;
-                D3DXMatrixMultiply((D3DXMATRIX*)&matrix, (const D3DXMATRIX*)&mAttachedOdfs[i].mMatrix,
-                                   (const D3DXMATRIX*)&desc.mMatrix);
+                matrix = mAttachedOdfs[i].mMatrix * desc.mMatrix;
                 attachDesc.mMatrix = matrix;
                 Entity* pEntity = mAttachedOdfs[i].mClass->Build(attachDesc);
                 if (pEntity && mAttachedOdfs[i].mDistance > -0.0001f)

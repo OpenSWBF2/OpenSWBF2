@@ -12,7 +12,6 @@ EntityTerrain::EntityTerrain()
 {
     SetCollisionCenter(gVectorZero);
     SetCollisionRadius(10000.0f);
-    Set2DCollisionRadius(10000.0f);
     CollisionManager::SetTerrain(this);
 }
 
@@ -57,8 +56,7 @@ float EntityTerrain::RayHit(const PblVector3& vStart, const PblVector3& vDir, fl
     {
         return 1.0f;
     }
-    PblVector3 vEnd(vStart.x + vDir.x * fLength, vStart.y + vDir.y * fLength,
-                    vStart.z + vDir.z * fLength);
+    PblVector3 vEnd = vStart + vDir * fLength;
     float fHit = RedTerrain::RayHit(vStart, vEnd, 0.1f, 3.0f);
     if (fHit < 1.0f && pNormal)
     {

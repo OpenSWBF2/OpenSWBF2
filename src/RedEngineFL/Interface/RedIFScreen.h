@@ -8,6 +8,7 @@
 class RedScreenGroupElement;
 class RedInterfaceElement;
 
+// VTABLE: SWBF2 0x00783e18
 class IFScreen
 {
 public:

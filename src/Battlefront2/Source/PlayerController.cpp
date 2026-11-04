@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "PlayerController.h"
 #include "AIUtil.h"
 #include "Character.h"
@@ -29,9 +30,6 @@
 
 #include <float.h>
 #include <math.h>
-#include "PebbleFL/pc/PblD3DX.h"
-#include "VOHelper.h"
-#include "TeamManager.h"
 
  
  
@@ -65,7 +63,10 @@ namespace PopupText
 
 void ClearFireTriggerBlock();
 bool IsFireTriggerBlocked();
-namespace ObjectiveManager { int GetCurrentPopupText(); }
+namespace ObjectiveManager
+{
+unsigned int GetCurrentPopupText();
+}
 void RecordRecentPlayerObject(int iPlayer, const GameObject* pObject);
 
 extern int gSpawnInvicibility;
@@ -75,6 +76,7 @@ extern bool netHeroUnlocked[3];
 extern int netHeroNextPlayerID[3];
 extern int netHeroPlayerID[3];
 extern bool netIsLocalTurn;
+
 
 static const PblMatrix& GetObjectMatrix(const GameObject* pObject)
 {
@@ -86,36 +88,31 @@ static float GetInvisibility(const GameObject* pObject)
     return (float)static_cast<const EntitySoldier*>(pObject)->GetInvisibilityAlpha() * (1.0f / 255.0f);
 }
 
-// GLOBAL: SWBF2 0x01ef7f4c
 // SYNTHETIC: SWBF2 0x00405f00
 // `dynamic initializer for 'PlayerController::rttiHashPlayerController''
-PblHash PlayerController::rttiHashPlayerController("PlayerController");
-char PlayerController::rttiNamePlayerController[] = "PlayerController";
+// PlayerController::rttiHashPlayerController
 
-// GLOBAL: SWBF2 0x01ef7f50
+// GLOBAL: SWBF2 0x01ef7f4c
+// PlayerController::rttiHashPlayerController
+PblHash PlayerController::rttiHashPlayerController("PlayerController");
+// GLOBAL: SWBF2 0x0078ab84
+// PlayerController::rttiNamePlayerController
+const char PlayerController::rttiNamePlayerController[] = "PlayerController";
+
 // SYNTHETIC: SWBF2 0x00405f10
 // `dynamic initializer for 'PlayerController::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00769330
 // `dynamic atexit destructor for 'PlayerController::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ef7f50
+// PlayerController::sMemoryPool
 MemoryPool PlayerController::sMemoryPool("PlayerController", sizeof(PlayerController));
 
-// FUNCTION: SWBF2 0x0061a060
-bool PlayerController::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashPlayerController || Controller::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x0061a090
-unsigned int PlayerController::GetDerivedRtti() const
-{
-    return rttiHashPlayerController;
-}
 
-// FUNCTION: SWBF2 0x0061a0a0
-const char* PlayerController::GetDerivedRttiName() const
-{
-    return rttiNamePlayerController;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x0061a0b0
 PlayerController* PlayerControllerPtr(Controller* pCtrl)
@@ -552,7 +549,7 @@ void PlayerController::Update(float dt)
                 continue;
             }
 
-            WeaponClass* pClass = pWeapon->mClass;
+            const WeaponClass* pClass = pWeapon->mClass;
             const GameObject* pTarget = pWeapon->mTarget;
             const GameObject* pAITarget = pWeapon->mTarget;
             int iBodyID = pWeapon->mTargetBodyID;
@@ -613,7 +610,7 @@ void PlayerController::Update(float dt)
                     const PblBox& box = pTarget->GetModel()->_mModel->_TotalBoundingBox;
                     PblVector3 vMid((box._vMax.x + box._vMin.x) * 0.5f, (box._vMax.y + box._vMin.y) * 0.5f,
                                     (box._vMax.z + box._vMin.z) * 0.5f);
-                    D3DXVec3TransformCoord(&vCenter, &vMid, &GetObjectMatrix(pTarget));
+                    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vCenter), reinterpret_cast<const D3DXVECTOR3*>(&vMid), reinterpret_cast<const D3DXMATRIX*>(&GetObjectMatrix(pTarget)));
                     float dx = box._vMax.x - box._vMin.x;
                     float dy = box._vMax.y - box._vMin.y;
                     float dz = box._vMax.z - box._vMin.z;
@@ -635,7 +632,7 @@ void PlayerController::Update(float dt)
                     PblVector3 vPoint = pTarget->GetTargetPoint(vStart, vDir, iBodyID);
                     PblVector3 vBack(vStart.x - vPoint.x, vStart.y - vPoint.y, vStart.z - vPoint.z);
                     PblVector3 vBackDir;
-                    D3DXVec3Normalize(&vBackDir, &vBack);
+                    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vBackDir), reinterpret_cast<const D3DXVECTOR3*>(&vBack));
                     vPoint.x += fRadius * vBackDir.x;
                     vPoint.y += vBackDir.y * fRadius;
                     vPoint.z += vBackDir.z * fRadius;
@@ -672,8 +669,7 @@ void PlayerController::Update(float dt)
             {
                 PblVector3 vSearch(vDir.x * fRange * 0.5f + vStart.x, vDir.y * fRange * 0.5f + vStart.y,
                                    vDir.z * fRange * 0.5f + vStart.z);
-                PblMatrix mInverse;
-                D3DXMatrixInverse(&mInverse, 0, &GetObjectMatrix(pMe));
+                PblMatrix mInverse = GetObjectMatrix(pMe).GetInverse();
                 GameObject* apObjects[300];
                 int iCount = CollisionManager::GetObjectsInRange(vSearch, fRange, apObjects, 300, pMe, 0x3b);
                 for (int i = 0; i < iCount; ++i)
@@ -721,7 +717,7 @@ void PlayerController::Update(float dt)
                         const PblBox& box = pObject->GetModel()->_mModel->_TotalBoundingBox;
                         PblVector3 vMid((box._vMin.x + box._vMax.x) * 0.5f, (box._vMin.y + box._vMax.y) * 0.5f,
                                         (box._vMin.z + box._vMax.z) * 0.5f);
-                        D3DXVec3TransformCoord(&vCenter, &vMid, &GetObjectMatrix(pObject));
+                        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vCenter), reinterpret_cast<const D3DXVECTOR3*>(&vMid), reinterpret_cast<const D3DXMATRIX*>(&GetObjectMatrix(pObject)));
                         float dx = box._vMax.x - box._vMin.x;
                         float dy = box._vMax.y - box._vMin.y;
                         float dz = box._vMax.z - box._vMin.z;
@@ -759,7 +755,7 @@ void PlayerController::Update(float dt)
                     PblVector3 vPoint = pObject->GetTargetPoint(vStart, vDir, iObjectBodyID);
                     PblVector3 vBack(vStart.x - vPoint.x, vStart.y - vPoint.y, vStart.z - vPoint.z);
                     PblVector3 vBackDir;
-                    D3DXVec3Normalize(&vBackDir, &vBack);
+                    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vBackDir), reinterpret_cast<const D3DXVECTOR3*>(&vBack));
                     vPoint.x += fRadius * vBackDir.x;
                     vPoint.y += vBackDir.y * fRadius;
                     vPoint.z += vBackDir.z * fRadius;
@@ -839,6 +835,27 @@ void PlayerController::DeployCargo()
 namespace ReserveManager
 {
 int GetReservationCountForObject(const GameObject* pObj, int iTeam, ReserveType eType);
+}
+
+namespace TeamManager
+{
+int GetObjectsInRange(const PblVector3& vPos, float fRange, GameObject** const ppObjects, int iMax,
+               const Team* pTeam, int iAffilMask); }
+
+namespace AI
+{
+enum VOType
+{
+    VOT_NotShootingCriticalHit = 33,
+    VOT_NearbyFriendlySlaughter = 35,
+    VOT_NearbyEnemySlaughter = 36,
+    VOT_NearbyTeamKillSlaughter = 37
+};
+namespace VOHelper
+{
+int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,
+         const GameObject* pOther, float fDelay);
+}
 }
 
 // FUNCTION: SWBF2 0x0061c050
@@ -940,7 +957,7 @@ void PlayerController::CheckForVisibleCriticalPts()
         return;
     }
     PblMatrix mFire = pOwner->GetAimer(0)->GetFireMatrix();
-    const PblVector3& vForward = *(const PblVector3*)mFire.m[2];
+    const PblVector3& vForward = mFire.GetZAxis();
     const PblVector3& vFirePos = pOwner->GetAimer(0)->mFirePos;
     CollisionModel* pModel = pTarget->mCollisionModel;
     if (!pModel)
@@ -1003,11 +1020,11 @@ void PlayerController::CheckForAutoFollow(float dt)
     }
 
     const PblVector3& vVelocity = mOwner->GetGameObject()->GetVelocity();
-    float fSpeedSq = vVelocity.x * vVelocity.x + vVelocity.y * vVelocity.y + vVelocity.z * vVelocity.z;
+    float fSpeedSq = SquaredLength(vVelocity);
     if (pSoldier->GetMaxSpeed() * pSoldier->GetMaxSpeed() * 0.9f * 0.9f > fSpeedSq)
     {
         float fTime = mAutoFollowTime - dt * 4.0f;
-        mAutoFollowTime = 0.0f > fTime ? 0.0f : fTime;
+        mAutoFollowTime = Max(0.0f, fTime);
         return;
     }
 
@@ -1018,13 +1035,11 @@ void PlayerController::CheckForAutoFollow(float dt)
         return;
     }
     float fTime = mAutoFollowTime - 1.0f;
-    mAutoFollowTime = 0.0f > fTime ? 0.0f : fTime;
+    mAutoFollowTime = Max(0.0f, fTime);
 
     const Team* pTeam = Team::GetPtr(pSoldier->GetTeam());
-    PblVector3 vBehind(mMatrix.m[2][0] * vVelocity.x * 10.0f * 0.5f, mMatrix.m[2][1] * vVelocity.y * 10.0f * 0.5f,
-                       mMatrix.m[2][2] * vVelocity.z * 10.0f * 0.5f);
-    const PblVector3& vPos = pSoldier->GetPosition();
-    PblVector3 vCenter(vPos.x - vBehind.x, vPos.y - vBehind.y, vPos.z - vBehind.z);
+    PblVector3 vBehind = (mMatrix.GetZAxis() * vVelocity) * 10.0f / 2.0f;
+    PblVector3 vCenter = pSoldier->GetPosition() - vBehind;
     GameObject* apObjects[15];
     int iCount = TeamManager::GetObjectsInRange(vCenter, 10.0f, apObjects, 15, pTeam, 4);
     for (int i = 0; i < iCount; ++i)

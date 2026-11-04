@@ -3,7 +3,8 @@
 #include "HUDEvent.h"
 #include "Thread.h"
 
-namespace HUD {
+namespace HUD
+{
 
 struct DelayedEvent
 {
@@ -15,6 +16,7 @@ extern DelayedEvent gEventList[32];
 
 void RemoveAllEvents();
 
+// VTABLE: SWBF2 0x007a1d48
 class EventQueue : public Thread
 {
 public:

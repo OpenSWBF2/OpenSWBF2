@@ -76,11 +76,10 @@ bool FilePlatform::Open(char const* pcFileName, unsigned int uiAccessFlags, unsi
 
     if (FilePlatformBase::Open(pcFileName, uiAccessFlags, uiBufferSize, uiSectorSize, uiAlignment))
     {
-        DWORD dwShare;
+        DWORD dwShare = 0;
         DWORD dwAttributes;
         if (uiAccessFlags & 6)
         {
-            dwShare = 0;
             dwAttributes = FILE_FLAG_RANDOM_ACCESS | FILE_ATTRIBUTE_NORMAL;
         }
         else

@@ -7,9 +7,69 @@
 #include "PebbleFL/Common/PblRef.h"
 #include "PebbleFL/Common/PblVector.h"
 
+#pragma pack(push, 1)
+struct CompressedPos
+{
+    short x;
+    short y;
+    short z;
+    short w;
+
+    // FUNCTION: SWBF2 0x0040cbe0
+    static void SetBoundingBox(const PblBox& box)
+    {
+        s_vMin = box.GetMin();
+        s_vScale = (box.GetMax() - box.GetMin()) / 65535.0f;
+        s_vScaleInv = PblVector3(1.0f / s_vScale.x, 1.0f / s_vScale.y, 1.0f / s_vScale.z);
+    }
+
+    // FUNCTION: SWBF2 0x0040cc80
+    void SetPos(float fX, float fY, float fZ)
+    {
+        x = (short)((fX - s_vMin.x) * s_vScaleInv.x - 32767.5f);
+        y = (short)((fY - s_vMin.y) * s_vScaleInv.y - 32767.5f);
+        z = (short)((fZ - s_vMin.z) * s_vScaleInv.z - 32767.5f);
+    }
+
+    void SetPos(const PblVector3& v) { SetPos(v.x, v.y, v.z); }
+
+    static PblVector3 s_vMin;
+    static PblVector3 s_vScale;
+    static PblVector3 s_vScaleInv;
+};
+#pragma pack(pop)
+
 class pcRedIndexBuffer;
 class pcRedVertexBuffer;
 class pcRedVertexFormat;
+
+#pragma pack(push, 1)
+struct PosXYZ
+{
+    void SetPos(float fX, float fY, float fZ) { x = fX; y = fY; z = fZ; }
+    void SetPos(const PblVector3& v) { x = v.x; y = v.y; z = v.z; }
+    void GetPos(PblVector3& v) const;
+
+    float x, y, z;
+};
+
+struct TexCoord
+{
+    void SetUV(float fU, float fV) { u = fU; v = fV; }
+    void GetUV(float& fU, float& fV) const;
+
+    float u, v;
+};
+
+struct CompressedTexCoord
+{
+    void SetUV(float fU, float fV) { u = (short)(fU * 2048.0f); v = (short)(fV * 2048.0f); }
+    void GetUV(float& fU, float& fV) const;
+    void SetUVHex(short sU, short sV) { u = sU; v = sV; }
+
+    short u, v;
+};
+#pragma pack(pop)
 
 // VTABLE: SWBF2 0x00771c94
 class pcRedPrimitive : public PblRef

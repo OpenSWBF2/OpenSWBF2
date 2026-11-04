@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "LoadDisplay.h"
 
 #include <float.h>
@@ -35,16 +36,36 @@
 #include "RedEngineFL/Memory/RedMemory.h"
 #include "RedEngineFL/Util/RedLocalizeDB.h"
 #include "RedEngineFL/Application/pc/pcRenderHelpers.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
-namespace Lua_Callbacks { bool IsTrainingMission(); }
-namespace Lua_Callbacks { bool IsMetaGameStateSaved(); }
-namespace Lua_Callbacks { void __fastcall GetMissionWorld(char* pcWorld); }
+// GLOBAL: SWBF2 0x007b2980
+// __xmm@80000000800000008000000080000000
+namespace Lua_Callbacks
+{
+bool IsTrainingMission();
+}
+namespace Lua_Callbacks
+{
+bool IsMetaGameStateSaved();
+}
+namespace Lua_Callbacks
+{
+void __fastcall GetMissionWorld(char* pcWorld, int);
+}
 
-namespace PblProfile { bool IsPaused(); }
-namespace PblProfile { void SetPaused(bool bValue); }
+namespace PblProfile
+{
+bool IsPaused();
+}
+namespace PblProfile
+{
+void SetPaused(bool bValue);
+}
 
-namespace GameLoop { extern bool mbHistoricalRules; }
+namespace GameLoop
+{
+extern bool mbHistoricalRules;
+}
+
 
 const RedColor Interpolate(const RedColor& a, const RedColor& b, float t);
 
@@ -107,9 +128,11 @@ static RedColor MODE_NAME_COLOR = { 0xc8, 0xc8, 0xc8, 0xff };
 // GLOBAL: SWBF2 0x007ebb18
 static RedColor DEFAULT_LEVELTIPS_TEXT_COLOR = { 0xc8, 0xc8, 0xff, 0xff };
 
-// GLOBAL: SWBF2 0x01ec6108
 // SYNTHETIC: SWBF2 0x00404120
 // `dynamic initializer for 'DEFAULT_LED_TEXTURE_HASH''
+
+// GLOBAL: SWBF2 0x01ec6108
+// DEFAULT_LED_TEXTURE_HASH
 static unsigned int DEFAULT_LED_TEXTURE_HASH = PblHash("white");
 
 // GLOBAL: SWBF2 0x007e69d8
@@ -127,19 +150,24 @@ int LoadDisplay::m_ShowCount;
 // GLOBAL: SWBF2 0x01faaa70
 static unsigned __int64 load_update_qpc_stamp;
 
+// GLOBAL: SWBF2 0x01e573f4
 LoadDisplay* LoadDisplay::sInstance;
 
-// GLOBAL: SWBF2 0x01ec6410
 // SYNTHETIC: SWBF2 0x00404140
 // `dynamic initializer for 'LoadDisplay::sTipsDatabase''
 // SYNTHETIC: SWBF2 0x00768c60
 // `dynamic atexit destructor for 'LoadDisplay::sTipsDatabase''
+
+// GLOBAL: SWBF2 0x01ec6410
+// LoadDisplay::sTipsDatabase
 LoadDisplay::IDDatabase LoadDisplay::sTipsDatabase;
-// GLOBAL: SWBF2 0x01ec70a0
 // SYNTHETIC: SWBF2 0x00404160
 // `dynamic initializer for 'LoadDisplay::sLVLDatabase''
 // SYNTHETIC: SWBF2 0x00768c70
 // `dynamic atexit destructor for 'LoadDisplay::sLVLDatabase''
+
+// GLOBAL: SWBF2 0x01ec70a0
+// LoadDisplay::sLVLDatabase
 LoadDisplay::IDDatabase LoadDisplay::sLVLDatabase;
 
 bool IsJournaling()
@@ -486,7 +514,7 @@ void LoadDisplay::SetLoadState()
     if (GameLoop::AreMetagameRulesOn() && !_strnicmp(m_missionFileName, "spa", 3))
     {
         char acWorld[4];
-        Lua_Callbacks::GetMissionWorld(acWorld);
+        Lua_Callbacks::GetMissionWorld(acWorld, 0);
         sprintf(acBuffer, "mapname.name.spa_%s", acWorld);
     }
     else
@@ -1029,7 +1057,7 @@ void LoadDisplay::LoadConfig(PblFileChunk& chunk)
                     m_sunDirection.y = item.GetFloatArg(1);
                     m_sunDirection.z = item.GetFloatArg(2);
                     PblVector3 vNormal;
-                    D3DXVec3Normalize(&vNormal, &m_sunDirection);
+                    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNormal), reinterpret_cast<const D3DXVECTOR3*>(&m_sunDirection));
                     m_sunDirection = vNormal;
                     break;
                 }
@@ -1163,25 +1191,17 @@ void LoadDisplay::ProgressIndicator::Init(int iNumLEDs, float fSpacing,
     RedSetCurrentHeap(iHeap);
 }
 
-static void SetLEDColor(LoadDisplay::ProgressIndicator& bar, int i)
-{
-    const float fIntensity = bar.m_pIntensity[i];
-    const RedColor& base = bar.m_pColor[i];
-    RedColor color;
-    color.b = (unsigned char)(int)(base.b * fIntensity);
-    color.g = (unsigned char)(int)(base.g * fIntensity);
-    color.r = (unsigned char)(int)(base.r * fIntensity);
-    color.a = base.a;
-    bar.m_pLED[i].SetColor(color);
-}
-
 // FUNCTION: SWBF2 0x00578c00
 void LoadDisplay::ProgressIndicator::SetAllOn()
 {
     for (int i = 0; i < m_numLEDs; ++i)
     {
         m_pIntensity[i] = 1.0f;
-        SetLEDColor(*this, i);
+        m_pLED[i].SetColor(RedColor(
+            (unsigned char)(m_pColor[i].r * m_pIntensity[i]),
+            (unsigned char)(m_pColor[i].g * m_pIntensity[i]),
+            (unsigned char)(m_pColor[i].b * m_pIntensity[i]),
+            m_pColor[i].a));
     }
 }
 
@@ -1209,7 +1229,11 @@ void LoadDisplay::ProgressIndicator::Update(float fDelta, GameSound* const pSoun
             break;
         case LED_MODE_TIMER:
             m_pIntensity[m_curOnLED] = 1.0f;
-            SetLEDColor(*this, m_curOnLED);
+            m_pLED[m_curOnLED].SetColor(RedColor(
+            (unsigned char)(m_pColor[m_curOnLED].r * m_pIntensity[m_curOnLED]),
+            (unsigned char)(m_pColor[m_curOnLED].g * m_pIntensity[m_curOnLED]),
+            (unsigned char)(m_pColor[m_curOnLED].b * m_pIntensity[m_curOnLED]),
+            m_pColor[m_curOnLED].a));
             ++m_curOnLED;
             iNumLEDs = m_numLEDs;
             if (m_curOnLED >= iNumLEDs)
@@ -1240,7 +1264,11 @@ void LoadDisplay::ProgressIndicator::Update(float fDelta, GameSound* const pSoun
         for (int i = 0; i < m_numLEDs; ++i)
         {
             m_pIntensity[i] = (m_pIntensity[i] - fOff) * 0.95f + fOff;
-            SetLEDColor(*this, i);
+            m_pLED[i].SetColor(RedColor(
+            (unsigned char)(m_pColor[i].r * m_pIntensity[i]),
+            (unsigned char)(m_pColor[i].g * m_pIntensity[i]),
+            (unsigned char)(m_pColor[i].b * m_pIntensity[i]),
+            m_pColor[i].a));
         }
         m_pIntensity[m_curOnLED] = (1.0f - fOff) * m_OnLEDFraction + fOff;
     }
@@ -1252,7 +1280,11 @@ void LoadDisplay::ProgressIndicator::Update(float fDelta, GameSound* const pSoun
         }
         m_pIntensity[m_curOnLED] = (1.0f - LED_OFF_INTENSITY) * m_OnLEDFraction + LED_OFF_INTENSITY;
     }
-    SetLEDColor(*this, m_curOnLED);
+    m_pLED[m_curOnLED].SetColor(RedColor(
+            (unsigned char)(m_pColor[m_curOnLED].r * m_pIntensity[m_curOnLED]),
+            (unsigned char)(m_pColor[m_curOnLED].g * m_pIntensity[m_curOnLED]),
+            (unsigned char)(m_pColor[m_curOnLED].b * m_pIntensity[m_curOnLED]),
+            m_pColor[m_curOnLED].a));
 }
 
 // FUNCTION: SWBF2 0x00578d50

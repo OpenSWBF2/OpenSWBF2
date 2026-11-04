@@ -279,6 +279,7 @@ inline void __cdecl SteamInternal_OnContextInit(void* p)
 inline CSteamAPIContext& SteamInternal_ModuleContext()
 {
 
+    // GLOBAL: SWBF2 0x007ec468
     static void* volatile s_CallbackCounterAndContext[2 + sizeof(CSteamAPIContext) / sizeof(void*)] =
         { (void*)&SteamInternal_OnContextInit, 0 };
     return *(CSteamAPIContext*)SteamInternal_ContextInit((void*)s_CallbackCounterAndContext);
@@ -345,12 +346,14 @@ public:
     ~CCallResult() { Cancel(); }
 
 private:
+    // FUNCTION: SWBF2 0x0052ff70
     virtual void Run(void* pvParam)
     {
         m_hAPICall = 0;
         (m_pObj->*m_Func)((P*)pvParam, false);
     }
 
+    // FUNCTION: SWBF2 0x0052ff30
     virtual void Run(void* pvParam, bool bIOFailure, SteamAPICall_t hSteamAPICall)
     {
         if (hSteamAPICall == m_hAPICall)
@@ -360,6 +363,7 @@ private:
         }
     }
 
+    // FUNCTION: SWBF2 0x0052f440
     virtual int GetCallbackSizeBytes() { return sizeof(P); }
 
     SteamAPICall_t m_hAPICall;

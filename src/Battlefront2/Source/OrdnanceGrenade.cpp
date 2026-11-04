@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "OrdnanceGrenade.h"
 
 #include <float.h>
@@ -14,7 +15,7 @@
 #include "WaterEffect.h"
 #include "RedEngineFL/Application/RedWater.h"
 #include "RedEngineFL/Graphics/RedModel.h"
-#include "PebbleFL/pc/PblD3DX.h"
+
 
 extern bool netIsLateTurn;
 extern bool netFrameLock;
@@ -39,17 +40,27 @@ namespace
     }
 }
 
-// GLOBAL: SWBF2 0x01ef263c
 // SYNTHETIC: SWBF2 0x00405ac0
 // `dynamic initializer for 'OrdnanceGrenade::rttiHashOrdnanceGrenade''
-PblHash OrdnanceGrenade::rttiHashOrdnanceGrenade("OrdnanceGrenade");
-char OrdnanceGrenade::rttiNameOrdnanceGrenade[] = "OrdnanceGrenade";
+// OrdnanceGrenade::rttiHashOrdnanceGrenade
 
-// GLOBAL: SWBF2 0x01ef2638
+// GLOBAL: SWBF2 0x01ef263c
+// OrdnanceGrenade::rttiHashOrdnanceGrenade
+PblHash OrdnanceGrenade::rttiHashOrdnanceGrenade("OrdnanceGrenade");
+// GLOBAL: SWBF2 0x0078a8d4
+// OrdnanceGrenade::rttiNameOrdnanceGrenade
+const char OrdnanceGrenade::rttiNameOrdnanceGrenade[] = "OrdnanceGrenade";
+
 // SYNTHETIC: SWBF2 0x00405ad0
 // `dynamic initializer for 'OrdnanceGrenadeClass::rttiHashOrdnanceGrenadeClass''
+// OrdnanceGrenadeClass::rttiHashOrdnanceGrenadeClass
+
+// GLOBAL: SWBF2 0x01ef2638
+// OrdnanceGrenadeClass::rttiHashOrdnanceGrenadeClass
 PblHash OrdnanceGrenadeClass::rttiHashOrdnanceGrenadeClass("OrdnanceGrenadeClass");
-char OrdnanceGrenadeClass::rttiNameOrdnanceGrenadeClass[] = "OrdnanceGrenadeClass";
+// GLOBAL: SWBF2 0x0078a8b0
+// OrdnanceGrenadeClass::rttiNameOrdnanceGrenadeClass
+const char OrdnanceGrenadeClass::rttiNameOrdnanceGrenadeClass[] = "OrdnanceGrenadeClass";
 
 // FUNCTION: SWBF2 0x006009c0
 OrdnanceGrenadeClass::OrdnanceGrenadeClass(unsigned int uHash)
@@ -76,58 +87,57 @@ OrdnanceGrenadeClass::OrdnanceGrenadeClass(OrdnanceGrenadeClass* pBase, unsigned
     mImpactEffectWater = pBase->mImpactEffectWater;
 }
 
-// FUNCTION: SWBF2 0x006000c0
-bool OrdnanceGrenadeClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashOrdnanceGrenadeClass || OrdnanceShellClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00600100
-unsigned int OrdnanceGrenadeClass::GetDerivedRtti()
-{
-    return rttiHashOrdnanceGrenadeClass;
-}
 
-// FUNCTION: SWBF2 0x00600110
-const char* OrdnanceGrenadeClass::GetDerivedRttiName()
-{
-    return rttiNameOrdnanceGrenadeClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00600b40
 void OrdnanceGrenadeClass::SetProperty(unsigned int uProperty, const char* pszValue)
 {
-    if (uProperty == 0x678DE338)
+    switch (uProperty)
+    {
+    case 0x678DE338:
     {
         sscanf(pszValue, "%f", &mRebound);
+            break;
     }
-    else if (uProperty == 0xA51BE2BB)
+    case 0xA51BE2BB:
     {
         sscanf(pszValue, "%f", &mFriction);
+            break;
     }
-    else if (uProperty == 0xB8C524F1)
+    case 0xB8C524F1:
     {
         mSoundCollisionLeaf.SetID(pszValue, false, false);
+            break;
     }
-    else if (uProperty == 0xEDC6251A)
+    case 0xEDC6251A:
     {
         mSoundCollisionOther.SetID(pszValue, false, false);
+            break;
     }
-    else if (uProperty == 0xECAAA59D)
+    case 0xECAAA59D:
     {
         mImpactEffectWater = PblHash(pszValue);
+            break;
     }
-    else if (uProperty == 0x0D0CDE2B)
+    case 0x0D0CDE2B:
     {
         mStartTimerOnContact = atoi(pszValue) != 0;
+            break;
     }
-    else if (uProperty == 0xDB873344)
+    case 0xDB873344:
     {
         mAlignVertical = atoi(pszValue) != 0;
+            break;
     }
-    else
+    default:
     {
         OrdnanceShellClass::SetProperty(uProperty, pszValue);
+            break;
+    }
     }
 }
 
@@ -154,8 +164,10 @@ Ordnance* OrdnanceGrenadeClass::Build(const OrdnanceDesc& desc)
 // SYNTHETIC: SWBF2 0x00600a20
 // OrdnanceGrenadeClass::`scalar deleting destructor'
 
-// SYNTHETIC: SWBF2 0x00600b30
-// OrdnanceGrenadeClass::~OrdnanceGrenadeClass
+// FUNCTION: SWBF2 0x00600b30
+OrdnanceGrenadeClass::~OrdnanceGrenadeClass()
+{
+}
 
 // FUNCTION: SWBF2 0x00600120
 OrdnanceGrenade::OrdnanceGrenade(OrdnanceGrenadeClass* pClass, const OrdnanceDesc& desc)
@@ -173,29 +185,17 @@ OrdnanceGrenade::~OrdnanceGrenade()
 }
 
 // SYNTHETIC: SWBF2 0x00600d36
-// [thunk]:OrdnanceGrenade::`scalar deleting destructor' adjustor{24}
+// ??_EOrdnanceGrenade@@WBI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00600d3e
-// [thunk]:OrdnanceGrenade::`scalar deleting destructor' adjustor{152}
+// ??_EOrdnanceGrenade@@WJI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00600090
 // OrdnanceGrenade::`scalar deleting destructor'
 
-// FUNCTION: SWBF2 0x00600030
-bool OrdnanceGrenade::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashOrdnanceGrenade || OrdnanceShell::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00600070
-unsigned int OrdnanceGrenade::GetDerivedRtti() const
-{
-    return rttiHashOrdnanceGrenade;
-}
 
-// FUNCTION: SWBF2 0x00600080
-const char* OrdnanceGrenade::GetDerivedRttiName() const
-{
-    return rttiNameOrdnanceGrenade;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x006001a0
 void OrdnanceGrenade::Render(unsigned char ucViewport, float fDist, unsigned int uiFlags)
@@ -219,10 +219,7 @@ void OrdnanceGrenade::Render(unsigned char ucViewport, float fDist, unsigned int
     }
 
     PblMatrix mat = _IdentityMatrix;
-    mat.m[3][0] = vPos.x;
-    mat.m[3][1] = vPos.y;
-    mat.m[3][2] = vPos.z;
-    mat.m[3][3] = 1.0f;
+    mat.SetTranslation(vPos);
     ((OrdnanceGrenadeClass*)mClass)->mModel->Render(&mat, 0, RedColor::WHITE, uiFlags, 0);
 }
 
@@ -250,16 +247,12 @@ bool OrdnanceGrenade::CheckCollision()
     if (fDist > 0.0f)
     {
         const float fInv = 1.0f / fDist;
-        vDir.x *= fInv;
-        vDir.y *= fInv;
-        vDir.z *= fInv;
+        vDir *= fInv;
 
         CollisionObject* pHitObject = 0;
         const GameObject* pIgnore = GetOwner();
         const float fLength = fDist + 0.2f;
-        vStart.x -= vDir.x * 0.1f;
-        vStart.y -= vDir.y * 0.1f;
-        vStart.z -= vDir.z * 0.1f;
+        vStart -= vDir * 0.1f;
         PblVector3 vNormal;
         const float fHit = CollisionManager::RayHit(vStart, vDir, fLength, pHitObject, &vNormal, &pIgnore, 1,
                                                     mCheckStaticCollision ? 0x13BA : 0x132A, true);
@@ -310,7 +303,7 @@ bool OrdnanceGrenade::Collide(CollisionObject* pObject, const PblVector3& vPos,
             if (pVictim)
             {
                 PblVector3 vDir;
-                D3DXVec3Normalize(&vDir, &mVelocity);
+                D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&mVelocity));
                 AsDamageable(pVictim)->ApplyDamage(GetDamage(), vDir, vPos, iBodyId, 0xFFFFFFFF);
             }
         }
@@ -323,9 +316,7 @@ bool OrdnanceGrenade::Collide(CollisionObject* pObject, const PblVector3& vPos,
             mPosition = PblVector3(vPos.x + vNormal.x * 0.01f, vPos.y + vNormal.y * 0.01f,
                                    vPos.z + vNormal.z * 0.01f);
 
-            mVelocity.x -= vNormal.x * fDot;
-            mVelocity.y -= vNormal.y * fDot;
-            mVelocity.z -= vNormal.z * fDot;
+            mVelocity -= vNormal * fDot;
             float fSlow = -(fFriction * fDot * (fRebound + 1.0f) /
                             sqrtf(mVelocity.x * mVelocity.x + mVelocity.y * mVelocity.y +
                                   mVelocity.z * mVelocity.z));
@@ -335,9 +326,7 @@ bool OrdnanceGrenade::Collide(CollisionObject* pObject, const PblVector3& vPos,
             mVelocity.z -= mVelocity.z * fSlow;
 
             const float fBounce = fRebound * fDot;
-            mVelocity.x -= vNormal.x * fBounce;
-            mVelocity.y -= vNormal.y * fBounce;
-            mVelocity.z -= vNormal.z * fBounce;
+            mVelocity -= vNormal * fBounce;
             if (mVelocity.x * mVelocity.x + mVelocity.y * mVelocity.y + mVelocity.z * mVelocity.z < 1.0f)
             {
                 ++mNumBounces;

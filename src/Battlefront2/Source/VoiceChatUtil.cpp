@@ -1,17 +1,13 @@
 #include "VoiceChatUtil.h"
 
 // FUNCTION: SWBF2 0x006751e0
-int VoiceChat::GetMSBIndex()
+unsigned int VoiceChat::GetMSBIndex(unsigned int uiValue)
 {
-    unsigned int uiValue = 0x19;
-    int iBits = 0;
-
-    do
+    unsigned int iBits = 0;
+    while (uiValue >>= 1)
     {
         ++iBits;
-        uiValue >>= 1;
-    } while (uiValue);
-
+    }
     return iBits;
 }
 

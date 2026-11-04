@@ -99,7 +99,9 @@ void ChatMessageDisplay::Show(bool bShow)
 {
     if (!bShow)
     {
-        mTextElement.SetTextFormatted("%s", "");
+        mTextElement.SetTextFormatted("%s",
+                                     // STRING: SWBF2 0x00796657
+                                     "");
     }
     mMessageGroup.Enable(bShow);
     mTextElement.Enable(bShow);

@@ -14,9 +14,9 @@
 class DustEffect;
 class DustEffectRenderData;
 
-// VTABLE: SWBF2 0x00799110
-// VTABLE: SWBF2 0x0079923c
-// VTABLE: SWBF2 0x0079914c
+// VTABLE: SWBF2 0x00799110 Thread
+// VTABLE: SWBF2 0x0079923c EntityClass
+// VTABLE: SWBF2 0x0079914c Renderable
 class DustEffectClass : public Thread, public EntityClass, public Renderable
 {
 public:
@@ -115,8 +115,8 @@ struct DustEffectClass::DustParticle
  
  
 
-// VTABLE: SWBF2 0x0079916c
-// VTABLE: SWBF2 0x00799208
+// VTABLE: SWBF2 0x0079916c RedSceneObject
+// VTABLE: SWBF2 0x00799208 Entity
 class DustEffect : public RedSceneObject, public Entity
 {
 public:
@@ -161,6 +161,8 @@ public:
  
  
 
+// VTABLE: SWBF2 0x007991d4 Entity
+// VTABLE: SWBF2 0x00799260 RedSceneObject
 class CloudClusterObject : public RedSceneObject, public Entity
 {
 public:

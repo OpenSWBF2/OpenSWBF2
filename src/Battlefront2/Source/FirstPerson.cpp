@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include <math.h>
 #include "PebbleFL/Common/PblVector.h"
 #include <string.h>
@@ -27,11 +28,14 @@
 #include "RedEngineFL/Util/RedAnimation.h"
 #include "Zephyr/Source/ZephyrAnimBank.h"
 #include "PebbleFL/Common/PblHermite.h"
-#include "PebbleFL/pc/PblD3DX.h"
+
+// GLOBAL: SWBF2 0x007b27a0
+// __xmm@3e4ccccd3e4ccccd3e4ccccd3e4ccccd
 
 extern bool netFrameLock;
 
-namespace FirstPerson {
+namespace FirstPerson
+{
 
 // GLOBAL: SWBF2 0x01e55f00
 FirstPersonRenderable* s_pRenderable[1];
@@ -49,14 +53,24 @@ RedAnimation* s_apAnimBank[4];
 char sModelName[64][256];
 }
 
-// GLOBAL: SWBF2 0x01e51e28
-namespace FirstPerson { int sModelCount; }
-// GLOBAL: SWBF2 0x01e55f04
-namespace FirstPerson { int sModel; }
-// GLOBAL: SWBF2 0x01e55f08
-namespace FirstPerson { int sModelId; }
+namespace FirstPerson
+{
+    // GLOBAL: SWBF2 0x01e51e28
+    int sModelCount;
+}
+namespace FirstPerson
+{
+    // GLOBAL: SWBF2 0x01e55f04
+    const RedModel* sModel[1];
+}
+namespace FirstPerson
+{
+    // GLOBAL: SWBF2 0x01e55f08
+    int sModelId[1];
+}
 
 PblQuaternion Interpolate(const PblQuaternion& q0, const PblQuaternion& q1, float fT);
+
 
 namespace FLRenderer
 {
@@ -64,14 +78,16 @@ unsigned int GetViewportCount();
 unsigned int GetCurrentViewport();
 }
 
-namespace GameLoop { extern float sDeltaTime; }
-namespace GameLoop { extern float sClientDeltaTime; }
+namespace GameLoop
+{
+    extern float sDeltaTime;
+}
+namespace GameLoop
+{
+    extern float sClientDeltaTime;
+}
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
+
 
 static const float ANIM_FRAME_SPEED = 30.0f;
 static const float FIRST_PERSON_BLEND_SPEED = 3.0f;
@@ -81,13 +97,15 @@ float sFirstPersonOffsetX;
 float sFirstPersonOffsetY = 0.35f;
 float sFirstPersonOffsetZ = 0.05f;
 
+// GLOBAL: SWBF2 0x00789760
+// FirstPersonAnimName
+
 namespace FirstPerson
 {
 
 // GLOBAL: SWBF2 0x01e55e30
 ZephyrAnim* mAnim[48];
 
-// GLOBAL: SWBF2 0x00789760
 static const char* const FirstPersonAnimName[48] = {
     "humanfp_rifle_idle", "humanfp_rifle_run", "humanfp_rifle_shoot", 0, 0,
     "humanfp_rifle_reload", 0, "humanfp_rifle_jump", "humanfp_rifle_flail",
@@ -124,17 +142,21 @@ CamPaths::CamPaths()
 {
 }
 
-// GLOBAL: SWBF2 0x01ebc300
 // SYNTHETIC: SWBF2 0x00403820
-// `dynamic initializer for 'FirstPerson::mCameraPaths''
+// FirstPerson::`dynamic initializer for 'mCameraPaths''
+
+// GLOBAL: SWBF2 0x01ebc300
+// mCameraPaths
 CamPaths mCameraPaths;
 
 // SYNTHETIC: SWBF2 0x00444810
 // PblHermiteVector3::PblHermiteVector3
 
-// GLOBAL: SWBF2 0x01ebcce0
 // SYNTHETIC: SWBF2 0x004037d0
-// `dynamic initializer for 'FirstPerson::mFPCamera''
+// FirstPerson::`dynamic initializer for 'mFPCamera''
+
+// GLOBAL: SWBF2 0x01ebcce0
+// mFPCamera
 FirstPersonCameraManager mFPCamera[1];
 
 // FUNCTION: SWBF2 0x0051ed00
@@ -250,15 +272,15 @@ void FirstPersonRenderable::UpdateSoldierAimer(const PblMatrix& mMatrix)
         mZephyrPoseStatic.Set(mZephyrPoseDynamic, true);
     }
 
-    mZephyrSkeleton.BuildWorldMatrices(_IdentityMatrix);
+    mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity);
     RedPose kPose;
     kPose.ConvertFromZephyrPose(mZephyrPoseStatic);
-    const PblMatrix* pBone = kPose._Table.Find(0x8629b159);
+    const PblMatrix* pBone = kPose.Find(0x8629b159);
 
-    PblMatrix mOffset = _IdentityMatrix;
+    PblMatrix mOffset = gMatrixIdentity;
     PblMatrix mTemp;
-    D3DXMatrixMultiply(&mOffset, &mOffset, D3DXMatrixRotationY(&mTemp, 3.0f));
-    D3DXMatrixMultiply(&mOffset, &mOffset, D3DXMatrixRotationZ(&mTemp, 0.05f));
+    mOffset.RotateY(3.0f);
+    mOffset.RotateZ(0.05f);
     mOffset.m[3][0] = sFirstPersonOffsetX;
     mOffset.m[3][1] = sFirstPersonOffsetY;
     mOffset.m[3][2] = sFirstPersonOffsetZ;
@@ -276,15 +298,15 @@ void FirstPersonRenderable::UpdateSoldierAimer(const PblMatrix& mMatrix)
 
     PblQuaternion qRotation;
     PblMatrix mRotation;
-    D3DXMatrixRotationQuaternion(&mRotation, D3DXQuaternionNormalize(&qRotation, &mCockpitRotation));
+    D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mRotation), D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&qRotation), reinterpret_cast<const D3DXQUATERNION*>(&mCockpitRotation)));
     mRotation.m[3][0] = mMatrix.m[3][0];
     mRotation.m[3][1] = mMatrix.m[3][1];
     mRotation.m[3][2] = mMatrix.m[3][2];
     mRotation.m[3][3] = 1.0f;
 
     PblMatrix mBone = *pBone;
-    D3DXMatrixMultiply(&mTemp, &mOffset, &mBone);
-    D3DXMatrixMultiply(&mModelMatrix, &mTemp, &mRotation);
+    D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mTemp), reinterpret_cast<const D3DXMATRIX*>(&mOffset), reinterpret_cast<const D3DXMATRIX*>(&mBone));
+    D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mModelMatrix), reinterpret_cast<const D3DXMATRIX*>(&mTemp), reinterpret_cast<const D3DXMATRIX*>(&mRotation));
 
     mModelMatrix.m[0][3] = 0.0f;
     mModelMatrix.m[1][3] = 0.0f;
@@ -318,14 +340,14 @@ void FirstPersonRenderable::UpdateDroidekaAimer(const PblMatrix& mMatrix)
         mZephyrPoseStatic.Set(mZephyrPoseDynamic, true);
     }
 
-    mZephyrSkeleton.BuildWorldMatrices(_IdentityMatrix);
+    mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity);
     RedPose kPose;
     kPose.ConvertFromZephyrPose(mZephyrPoseStatic);
-    const PblMatrix* pBone = kPose._Table.Find(0x8629b159);
+    const PblMatrix* pBone = kPose.Find(0x8629b159);
 
-    PblMatrix mOffset = _IdentityMatrix;
+    PblMatrix mOffset = gMatrixIdentity;
     PblMatrix mTemp;
-    D3DXMatrixMultiply(&mOffset, &mOffset, D3DXMatrixRotationY(&mTemp, 3.2f));
+    mOffset.RotateY(3.2f);
     mOffset.m[3][0] = 0.01f;
     mOffset.m[3][1] = 0.35f;
     mOffset.m[3][2] = -0.0f;
@@ -343,21 +365,21 @@ void FirstPersonRenderable::UpdateDroidekaAimer(const PblMatrix& mMatrix)
 
     PblQuaternion qRotation;
     PblMatrix mRotation;
-    D3DXMatrixRotationQuaternion(&mRotation, D3DXQuaternionNormalize(&qRotation, &mCockpitRotation));
+    D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mRotation), D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&qRotation), reinterpret_cast<const D3DXQUATERNION*>(&mCockpitRotation)));
     mRotation.m[3][0] = mMatrix.m[3][0];
     mRotation.m[3][1] = mMatrix.m[3][1];
     mRotation.m[3][2] = mMatrix.m[3][2];
     mRotation.m[3][3] = 1.0f;
 
     PblMatrix mBone = *pBone;
-    D3DXMatrixMultiply(&mTemp, &mOffset, &mBone);
-    D3DXMatrixMultiply(&mModelMatrix, &mTemp, &mRotation);
+    D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mTemp), reinterpret_cast<const D3DXMATRIX*>(&mOffset), reinterpret_cast<const D3DXMATRIX*>(&mBone));
+    D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mModelMatrix), reinterpret_cast<const D3DXMATRIX*>(&mTemp), reinterpret_cast<const D3DXMATRIX*>(&mRotation));
 
-    const PblMatrix* pWeaponBone = kPose._Table.Find(0x2b960099);
+    const PblMatrix* pWeaponBone = kPose.Find(0x2b960099);
     Weapon* pWeapon = mOwner->GetWeaponPtr(mOwner->GetActiveWeaponChannel());
     if (pWeaponBone && pWeapon)
     {
-        D3DXMatrixMultiply(&mWeaponMatrix, pWeaponBone, &mModelMatrix);
+        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mWeaponMatrix), reinterpret_cast<const D3DXMATRIX*>(pWeaponBone), reinterpret_cast<const D3DXMATRIX*>(&mModelMatrix));
     }
 }
 
@@ -410,11 +432,8 @@ void FirstPersonRenderable::UpdateCockpitAimer(const PblMatrix& mMatrix)
         vOffset.z = -1.5f;
     }
 
-    PblMatrix mOffset = _IdentityMatrix;
-    mOffset.m[3][0] = vOffset.x;
-    mOffset.m[3][1] = vOffset.y;
-    mOffset.m[3][2] = vOffset.z;
-    mOffset.m[3][3] = 1.0f;
+    PblMatrix mOffset = gMatrixIdentity;
+    mOffset.SetTranslation(vOffset);
 
     if (mOwner->GetControllableClass()->mCockpitTension > 0.0f)
     {
@@ -446,22 +465,15 @@ void FirstPersonRenderable::UpdateCockpitAimer(const PblMatrix& mMatrix)
 
     PblQuaternion qRotation;
     PblMatrix mRotation;
-    D3DXMatrixRotationQuaternion(&mRotation, D3DXQuaternionNormalize(&qRotation, &mCockpitRotation));
-    mRotation.m[3][0] = vPos.x;
-    mRotation.m[3][1] = vPos.y;
-    mRotation.m[3][2] = vPos.z;
-    mRotation.m[3][3] = 1.0f;
-    D3DXMatrixMultiply(&mModelMatrix, &mOffset, &mRotation);
+    D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mRotation), D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&qRotation), reinterpret_cast<const D3DXQUATERNION*>(&mCockpitRotation)));
+    mRotation.SetTranslation(vPos);
+    mModelMatrix = mOffset * mRotation;
 }
 
 // FUNCTION: SWBF2 0x0051f750
 FirstPersonRenderable::FirstPersonRenderable(unsigned int uCameraId, const ZephyrSkeletonShared* pShared)
     : Renderable(8)
 {
-    mCockpitRotation._fX = 0.0f;
-    mCockpitRotation._fY = 0.0f;
-    mCockpitRotation._fZ = 0.0f;
-    mCockpitRotation._fS = 1.0f;
     mObjectType = TYPE_NONE;
     mObjectModel = 0;
     mOwner = 0;
@@ -867,7 +879,7 @@ bool HideFirstPersonHands(int iPlayer)
         return false;
     }
 
-    Trackable* pTrackable = Tracker::GetTracker(iLocal)->mTrackable;
+    Trackable* pTrackable = Tracker::GetTracker(iLocal)->GetTrackable();
     if (!pTrackable)
     {
         return false;
@@ -955,8 +967,6 @@ void FirstPersonRenderable::RenderSoldier(unsigned int uFlags) const
     {
 
         RedShadingPose shadingPose;
-        shadingPose.m_pFirstEntry = 0;
-        shadingPose.m_pModel = 0;
         RedShadingPose* pShadingPose = 0;
         if (mOwner)
         {
@@ -988,12 +998,11 @@ void FirstPersonRenderable::RenderSoldier(unsigned int uFlags) const
             }
         }
         mObjectModel->Render(&mModelMatrix, &pose, RedColor::WHITE, uFlags, pShadingPose);
-        shadingPose.Reset();
     }
 
     if (mCurrentWeapon)
     {
-        mCurrentWeapon->Render(PblMatrix(mWeaponMatrix), &pose, RedColor::WHITE, uFlags, true);
+        mCurrentWeapon->Render(PblMatrix(reinterpret_cast<const _D3DXMATRIXA16*>(&mWeaponMatrix)), &pose, RedColor::WHITE, uFlags, true);
     }
 
     if (bShadow)
@@ -1030,9 +1039,9 @@ void FirstPersonRenderable::Render(int value)
 void FirstPerson::PreInit()
 {
     FirstPerson::sModelCount = 0;
-    FirstPerson::sModel = 0;
-    FirstPerson::sModelId = 0;
-    FirstPerson::sModelId = -2;
+    FirstPerson::sModel[0] = 0;
+    FirstPerson::sModelId[0] = 0;
+    FirstPerson::sModelId[0] = -2;
     s_pZephyrSkeletonShared = (ZephyrSkeletonShared*)-2;
     s_pRenderable[0] = 0;
 }
@@ -1220,19 +1229,7 @@ int FirstPerson::AddGeometry(const char* pszName)
     return FirstPerson::sModelCount++;
 }
 
-namespace
-{
 
-PblVector3 HermiteValue(const char* pHermite, float fT)
-{
-    const float* p = (const float*)pHermite;
-    PblVector3 v;
-    v.x = ((p[0] * fT + p[3]) * fT + p[6]) * fT + p[9];
-    v.y = ((p[1] * fT + p[4]) * fT + p[7]) * fT + p[10];
-    v.z = ((p[2] * fT + p[5]) * fT + p[8]) * fT + p[11];
-    return v;
-}
-}
 
 namespace FirstPerson
 {
@@ -1260,7 +1257,7 @@ void FirstPersonCameraManager::Update(PblMatrix& rMatrix)
         {
             PblVector3 vLin(mLinVec.x * (1.0f - fT), mLinVec.y * (1.0f - fT), mLinVec.z * (1.0f - fT));
             PblVector3 vOffset;
-            D3DXVec3TransformNormal(&vOffset, &vLin, &rMatrix);
+            D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vOffset), reinterpret_cast<const D3DXVECTOR3*>(&vLin), reinterpret_cast<const D3DXMATRIX*>(&rMatrix));
             rMatrix.m[3][0] += vOffset.x;
             rMatrix.m[3][1] += vOffset.y;
             rMatrix.m[3][2] += vOffset.z;
@@ -1268,22 +1265,22 @@ void FirstPersonCameraManager::Update(PblMatrix& rMatrix)
         }
         else
         {
-            PblVector3 vPos = HermiteValue(mHermPos + mCurrCamPt * 52, fT);
+            PblVector3 vPos = mHermPos[mCurrCamPt].getValue(fT);
             PblVector3 vOffset;
-            D3DXVec3TransformNormal(&vOffset, &vPos, &rMatrix);
+            D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vOffset), reinterpret_cast<const D3DXVECTOR3*>(&vPos), reinterpret_cast<const D3DXMATRIX*>(&rMatrix));
             rMatrix.m[3][0] += vOffset.x;
             rMatrix.m[3][1] += vOffset.y;
             rMatrix.m[3][2] += vOffset.z;
             rMatrix.m[3][3] = 1.0f;
-            mCurRotVec = HermiteValue(mHermRot + mCurrCamPt * 52, fT);
-            mCameraPos = *(const PblVector3*)rMatrix.m[3];
+            mCurRotVec = mHermRot[mCurrCamPt].getValue(fT);
+            mCameraPos = rMatrix.GetTranslation();
 
-            PblMatrix mRotation = _IdentityMatrix;
+            PblMatrix mRotation = gMatrixIdentity;
             PblMatrix mTemp;
-            D3DXMatrixMultiply(&mRotation, &mRotation, D3DXMatrixRotationX(&mTemp, mCurRotVec.x));
-            D3DXMatrixMultiply(&mRotation, &mRotation, D3DXMatrixRotationY(&mTemp, mCurRotVec.y));
-            D3DXMatrixMultiply(&mRotation, &mRotation, D3DXMatrixRotationZ(&mTemp, mCurRotVec.z));
-            D3DXMatrixMultiply(&mTemp, &mRotation, &rMatrix);
+            mRotation.RotateX(mCurRotVec.x);
+            mRotation.RotateY(mCurRotVec.y);
+            mRotation.RotateZ(mCurRotVec.z);
+            D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mTemp), reinterpret_cast<const D3DXMATRIX*>(&mRotation), reinterpret_cast<const D3DXMATRIX*>(&rMatrix));
             rMatrix = mTemp;
         }
         if (fT == 1.0f)
@@ -1301,7 +1298,7 @@ void FirstPersonCameraManager::Update(PblMatrix& rMatrix)
             }
         }
     }
-    mCameraPos = *(const PblVector3*)rMatrix.m[3];
+    mCameraPos = rMatrix.GetTranslation();
 }
 
 // FUNCTION: SWBF2 0x00521450
@@ -1330,23 +1327,23 @@ void FirstPerson::Update(unsigned int uPlayer, eViewObjectType eType, int iArg,
     {
         return;
     }
-    if (iArg != (&FirstPerson::sModelId)[uPlayer] && GameLoop::mNumCameras == 1)
+    if (iArg != FirstPerson::sModelId[uPlayer] && GameLoop::mNumCameras == 1)
     {
         if (iArg == -1 || iArg == -2)
         {
-            (&FirstPerson::sModel)[uPlayer] = 0;
+            FirstPerson::sModel[uPlayer] = 0;
             pRenderable->bReadyToRender = false;
             pRenderable->bStreamingModel = false;
-            (&FirstPerson::sModelId)[uPlayer] = iArg;
+            FirstPerson::sModelId[uPlayer] = iArg;
         }
         else
         {
             const RedModel* pModel = LoadDynamicModel(sModelName[iArg], true);
-            (&FirstPerson::sModel)[uPlayer] = (int)pModel;
+            FirstPerson::sModel[uPlayer] = pModel;
             if (pModel)
             {
                 pRenderable->bStreamingModel = false;
-                (&FirstPerson::sModelId)[uPlayer] = iArg;
+                FirstPerson::sModelId[uPlayer] = iArg;
             }
             else
             {
@@ -1355,7 +1352,7 @@ void FirstPerson::Update(unsigned int uPlayer, eViewObjectType eType, int iArg,
             }
         }
     }
-    const RedModel* pModel = (const RedModel*)(&FirstPerson::sModel)[uPlayer];
+    const RedModel* pModel = FirstPerson::sModel[uPlayer];
     switch (eType)
     {
     case TYPE_SOLDIER:
@@ -1400,22 +1397,22 @@ void FirstPerson::UpdateAimer(unsigned int uPlayer, const PblMatrix& rMatrix)
 }
 
 // FUNCTION: SWBF2 0x00520e60
-void FirstPersonRenderable::SetAnimAndTransition(float fTime)
+void FirstPersonRenderable::SetAnimAndTransition(SOLDIERANIMATION aAnim,
+                                                SOLDIERANIMATION aTrans, float aTime)
 {
-    FirstPersonRenderable* pRenderable = (FirstPersonRenderable*)this;
-    if (!FirstPerson::IsActive(pRenderable->mCameraId))
+    if (!FirstPerson::IsActive(mCameraId))
     {
         return;
     }
-    int iWeaponClass = pRenderable->mWeaponClass;
+    int iWeaponClass = mWeaponClass;
     if (iWeaponClass == WEAPONCLASS_NONE)
     {
         iWeaponClass = RIFLE;
     }
-    pRenderable->fTransitionTimer = 0.0f;
-    pRenderable->fTransitionTimerMax = fTime;
-    pRenderable->mTransitionAnim = JUMP_LAND;
-    pRenderable->SetAnimation(FirstPerson::mAnim[iWeaponClass * NUM_SOLDIERANIMATIONS + HANDSDOWN], false);
+    fTransitionTimer = 0.0f;
+    fTransitionTimerMax = aTime;
+    mTransitionAnim = aTrans;
+    SetAnimation(FirstPerson::mAnim[iWeaponClass * NUM_SOLDIERANIMATIONS + aAnim], false);
 }
 
 // FUNCTION: SWBF2 0x0051fb50
@@ -1441,7 +1438,7 @@ void FirstPerson::RollLeft(unsigned int uPlayer)
 {
     if (IsActive(uPlayer))
     {
-        ((FirstPersonRenderable*)s_pRenderable[uPlayer])->SetAnimAndTransition(mFPCamera[uPlayer].RollLeft());
+        s_pRenderable[uPlayer]->SetAnimAndTransition(HANDSDOWN, JUMP_LAND, mFPCamera[uPlayer].RollLeft());
     }
 }
 
@@ -1450,7 +1447,7 @@ void FirstPerson::RollRight(unsigned int uPlayer)
 {
     if (IsActive(uPlayer))
     {
-        ((FirstPersonRenderable*)s_pRenderable[uPlayer])->SetAnimAndTransition(mFPCamera[uPlayer].RollRight());
+        s_pRenderable[uPlayer]->SetAnimAndTransition(HANDSDOWN, JUMP_LAND, mFPCamera[uPlayer].RollRight());
     }
 }
 
@@ -1459,7 +1456,7 @@ void FirstPerson::ProneToStand(unsigned int uPlayer)
 {
     if (IsActive(uPlayer))
     {
-        ((FirstPersonRenderable*)s_pRenderable[uPlayer])->SetAnimAndTransition(mFPCamera[uPlayer].ProneToStand());
+        s_pRenderable[uPlayer]->SetAnimAndTransition(HANDSDOWN, JUMP_LAND, mFPCamera[uPlayer].ProneToStand());
     }
 }
 
@@ -1547,7 +1544,7 @@ void FirstPersonRenderable::RenderDroideka(unsigned int uFlags) const
     Weapon* pWeapon = mOwner->GetWeaponPtr(mOwner->GetActiveWeaponChannel());
     if (pWeapon)
     {
-        pWeapon->Render(PblMatrix(mWeaponMatrix), &pose, RedColor::WHITE, uFlags, true);
+        pWeapon->Render(PblMatrix(reinterpret_cast<const _D3DXMATRIXA16*>(&mWeaponMatrix)), &pose, RedColor::WHITE, uFlags, true);
     }
 
     if (bShadow)
@@ -1563,8 +1560,8 @@ float FirstPersonCameraManager::SetCameraPath(PblVector3* pPos, PblVector3* pPos
 {
     FirstPerson::IsActive(0);
     mNumPoints = uPoints;
-    PblHermiteVector3* pPosHermite = (PblHermiteVector3*)mHermPos;
-    PblHermiteVector3* pRotHermite = (PblHermiteVector3*)mHermRot;
+    PblHermiteVector3* pPosHermite = mHermPos;
+    PblHermiteVector3* pRotHermite = mHermRot;
     float fTotalTime = 0.0f;
     for (unsigned int i = 0; i < uPoints; ++i)
     {
@@ -1670,7 +1667,7 @@ void FirstPersonCameraManager::ReturnToCenter()
     }
 
     const float fT = 1.0f - mCurrCamTime / mCamTime[mCurrCamPt];
-    mLinVec = HermiteValue(mHermPos + mCurrCamPt * sizeof(PblHermiteVector3), fT);
+    mLinVec = mHermPos[mCurrCamPt].getValue(fT);
     mCurrCamTime = 0.0f;
     mCurrCamPt = 0;
     mCamTime[0] = 0.3f;

@@ -5,13 +5,20 @@
 #include "PebbleFL/Common/PblListDouble.h"
 #include "PebbleFL/Common/PblListSingle.h"
 
-namespace HUD { class File; }
-namespace HUD { class EventHandler; }
+namespace HUD
+{
+class File;
+}
+namespace HUD
+{
+class EventHandler;
+}
 #include "PebbleFL/Common/PblConfig.h"
 #include "HUDEvent.h"
 #include "PebbleFL/Common/PblFile.h"
 
-namespace HUD {
+namespace HUD
+{
 
 class File : public PblFile
 {
@@ -43,7 +50,8 @@ public:
 };
 }
 
-namespace HUD {
+namespace HUD
+{
 // VTABLE: SWBF2 0x007a31c4
 class Item
 {
@@ -142,7 +150,7 @@ public:
             void Init(char* pName, PblListSingle& list, Type eType);
 
             // FUNCTION: SWBF2 0x00563f80
-            void InitVectorRange(Axis eAxis, float fMin, float fMax, float fStep);
+            void InitVectorRange(Axis eAxis, const float fMin, const float fMax, const float fStep);
 
             const char* GetName() const;
             unsigned int GetHashID() const;
@@ -265,7 +273,7 @@ void FreeName(char** ppName);
 unsigned int TranslateString(const char* const* ppStrings, unsigned int uCount, const char* const pString);
 
 // FUNCTION: SWBF2 0x00564890
-unsigned int CopyName(char** ppDest, const char* const pSource, bool bUseUnnamed);
+void CopyName(char** ppDest, const char* const pSource, bool bUseUnnamed);
 }
 
  

@@ -33,7 +33,7 @@ Tracker* Tracker::GetTracker(int iIndex)
 // FUNCTION: SWBF2 0x0065acc0
 void Tracker::RemoveTrackable(Trackable* pTrackable)
 {
-    int iCount = NetGame::IsEnabled() ? netCurMaxPlayers : (int)GameLoop::GetNumCameras();
+    int iCount = NetGame::IsEnabled() ? netCurMaxPlayers : (int)NetGame::GetNumLocalPlayers();
     for (int i = 0; i < iCount; ++i)
     {
         if ((*sInstances)[i].mTrackable == pTrackable)
@@ -47,20 +47,25 @@ void Tracker::RemoveTrackable(Trackable* pTrackable)
 // GLOBAL: SWBF2 0x007ebc9c
 PblList<Tracker> Tracker::sAllInstances;
 
-// GLOBAL: SWBF2 0x01f99a68
 // SYNTHETIC: SWBF2 0x00406ae0
 // `dynamic initializer for 'sHostInstances''
 // SYNTHETIC: SWBF2 0x00769600
 // `dynamic atexit destructor for 'sHostInstances''
+
+// GLOBAL: SWBF2 0x01f99a68
+// sHostInstances
 Tracker sHostInstances[64];
-// GLOBAL: SWBF2 0x01f99468
 // SYNTHETIC: SWBF2 0x00406b10
 // `dynamic initializer for 'sClientInstances''
 // SYNTHETIC: SWBF2 0x00769620
 // `dynamic atexit destructor for 'sClientInstances''
+
+// GLOBAL: SWBF2 0x01f99468
+// sClientInstances
 Tracker sClientInstances[64];
 
 // GLOBAL: SWBF2 0x007e9ee0
+// sInstances
 Tracker (*sInstances)[64] = &sHostInstances;
 
 extern bool netIsOneWorld;

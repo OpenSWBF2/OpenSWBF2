@@ -11,48 +11,64 @@
 #include "RedEngineFL/Graphics/RedLight.h"
 #include "RedEngineFL/Graphics/RedDirectionalLight.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
+#include "PebbleFL/Common/PblMath.h"
+
+// GLOBAL: SWBF2 0x00772a70
+// __xmm@000000003f8000000000000000000000
 
 class PblMatrix;
 extern PblMatrix gMatrixIdentity;
 
-// GLOBAL: SWBF2 0x0093e4d4
 // SYNTHETIC: SWBF2 0x00407a70
 // `dynamic initializer for 'RedInterfaceScreen::sSQRT3''
+
+// GLOBAL: SWBF2 0x0093e4d4
+// RedInterfaceScreen::sSQRT3
 float RedInterfaceScreen::sSQRT3 = (float)sqrt(3.0);
 
-// GLOBAL: SWBF2 0x0093e4f0
 // SYNTHETIC: SWBF2 0x00407aa0
 // `dynamic initializer for 'RedInterfaceScreen::s_directionalLight''
 // SYNTHETIC: SWBF2 0x00769890
 // `dynamic atexit destructor for 'RedInterfaceScreen::s_directionalLight''
+
+// GLOBAL: SWBF2 0x0093e4f0
+// RedInterfaceScreen::s_directionalLight
 RedDirectionalLight RedInterfaceScreen::s_directionalLight[2];
 
 // SYNTHETIC: SWBF2 0x006c0a90
 // RedDirectionalLight::`default constructor closure'
 
-// GLOBAL: SWBF2 0x007decb8
 // SYNTHETIC: SWBF2 0x00407ad0
 // `dynamic initializer for 'RedInterfaceScreen::s_lightingState''
 // SYNTHETIC: SWBF2 0x007698b0
 // `dynamic atexit destructor for 'RedInterfaceScreen::s_lightingState''
+
+// GLOBAL: SWBF2 0x007decb8
+// RedInterfaceScreen::s_lightingState
 RedLightingState RedInterfaceScreen::s_lightingState;
 
-// GLOBAL: SWBF2 0x0093e4a4
 // SYNTHETIC: SWBF2 0x00407b60
 // `dynamic initializer for 'RedInterfaceScreen::s_screenFull''
 // SYNTHETIC: SWBF2 0x007698d0
 // `dynamic atexit destructor for 'RedInterfaceScreen::s_screenFull''
+
+// GLOBAL: SWBF2 0x0093e4a4
+// RedInterfaceScreen::s_screenFull
 RedInterfaceScreen RedInterfaceScreen::s_screenFull;
 
 const float RedInterfaceScreen::sfNear = 1.0f;
 const float RedInterfaceScreen::sfFar = 10000.0f;
-// GLOBAL: SWBF2 0x0093e4d0
 // SYNTHETIC: SWBF2 0x00407b80
 // `dynamic initializer for 'RedInterfaceScreen::sfHeight''
+
+// GLOBAL: SWBF2 0x0093e4d0
+// RedInterfaceScreen::sfHeight
 float RedInterfaceScreen::sfHeight = RedInterfaceScreen::sSQRT3 * 0.5f;
-// GLOBAL: SWBF2 0x0093e4e0
 // SYNTHETIC: SWBF2 0x00407ba0
 // `dynamic initializer for 'RedInterfaceScreen::sfWidth''
+
+// GLOBAL: SWBF2 0x0093e4e0
+// RedInterfaceScreen::sfWidth
 float RedInterfaceScreen::sfWidth = RedInterfaceScreen::sSQRT3 * (2.0f / 3.0f);
 
 // GLOBAL: SWBF2 0x007dec90
@@ -122,14 +138,7 @@ void RedInterfaceScreen::SetDimensions(unsigned int uiWidth, unsigned int uiHeig
 // FUNCTION: SWBF2 0x006c14e0
 void RedInterfaceScreen::SetSafeZone(float fPercent)
 {
-    if (0.0f > fPercent)
-    {
-        fPercent = 0.0f;
-    }
-    else if (fPercent > 1.0f)
-    {
-        fPercent = 1.0f;
-    }
+    fPercent = Clamp(fPercent, 0.0f, 1.0f);
 
     m_fSafeZoneHeight = fPercent;
     m_fSafeZoneWidth = fPercent;
@@ -142,51 +151,14 @@ void RedInterfaceScreen::SetSafeZone(float fPercent)
 // FUNCTION: SWBF2 0x006c1530
 void RedInterfaceScreen::SetSafeZone(float fWidth, float fHeight, float fOffsetX, float fOffsetY)
 {
-    float fRight = fWidth + fOffsetX;
-    if (0.0f > fRight)
-    {
-        fRight = 0.0f;
-    }
-    else if (fRight > 1.0f)
-    {
-        fRight = 1.0f;
-    }
+    float fRight = Clamp(fWidth + fOffsetX, 0.0f, 1.0f);
+    float fBottom = Clamp(fHeight + fOffsetY, 0.0f, 1.0f);
 
-    float fBottom = fHeight + fOffsetY;
-    if (0.0f > fBottom)
-    {
-        fBottom = 0.0f;
-    }
-    else if (fBottom > 1.0f)
-    {
-        fBottom = 1.0f;
-    }
+    m_fSafeZoneOffsetX = Clamp(fOffsetX, 0.0f, 1.0f);
+    m_fSafeZoneOffsetY = Clamp(fOffsetY, 0.0f, 1.0f);
 
-    if (0.0f > fOffsetX)
-    {
-        fOffsetX = 0.0f;
-    }
-    else if (fOffsetX > 1.0f)
-    {
-        fOffsetX = 1.0f;
-    }
-    m_fSafeZoneOffsetX = fOffsetX;
-
-    if (0.0f > fOffsetY)
-    {
-        fOffsetY = 0.0f;
-    }
-    else if (fOffsetY > 1.0f)
-    {
-        fOffsetY = 1.0f;
-    }
-    m_fSafeZoneOffsetY = fOffsetY;
-
-    float fW = fRight - fOffsetX;
-    m_fSafeZoneWidth = (fW > 0.0f) ? fW : 0.0f;
-
-    float fH = fBottom - fOffsetY;
-    m_fSafeZoneHeight = (fH > 0.0f) ? fH : 0.0f;
+    m_fSafeZoneWidth = Max(fRight - m_fSafeZoneOffsetX, 0.0f);
+    m_fSafeZoneHeight = Max(fBottom - m_fSafeZoneOffsetY, 0.0f);
 }
 
 static const float kInv255 = 1.0f / 255.0f;
@@ -221,21 +193,26 @@ void RedScreenGroupElement::AddToRedScreen()
 // FUNCTION: SWBF2 0x006c0b20
 bool RedInterfaceScreen::AddElement(RedScreenGroupElement* pElement)
 {
-    if (pElement->m_groupNode._pList)
+    PblList<RedScreenGroupElement>::Node* pNode =
+        (PblList<RedScreenGroupElement>::Node*)&pElement->m_groupNode;
+    if (pNode->_pList)
     {
         return false;
     }
 
-    PblList<RedScreenGroupElement>::Node* pAt = m_children.GetFirst();
-    while (pAt->_pObject != m_children._head._pObject &&
-           pElement->m_zorder <= pAt->_pObject->m_zorder)
+    const unsigned char uOrder = pElement->m_zorder;
+    PblList<RedScreenGroupElement>::Itor it = m_children.Begin();
+    while (it != m_children.End())
     {
-        pAt = pAt->_pNext;
+        unsigned char uOther = it->m_zorder;
+        if (uOrder > uOther)
+        {
+            break;
+        }
+        ++it;
     }
 
-    m_children.AddBefore(pAt,
-                         (PblList<RedScreenGroupElement>::Node*)&pElement->m_groupNode,
-                         pElement);
+    m_children.AddBefore(it.GetNode(), pNode, pElement);
     return true;
 }
 
@@ -252,8 +229,8 @@ void RedInterfaceElement::Render(const PblMatrix& mParent, const RedColor& color
                        (const D3DXMATRIX*)&m_mLocal,
                        (const D3DXMATRIX*)&mParent);
 
-    mContext.m[3][0] = (float)floor(mContext.m[3][0] + 0.5f);
-    mContext.m[3][1] = (float)floor(mContext.m[3][1] + 0.5f);
+    mContext.m[3][0] = floorf(mContext.m[3][0] + 0.5f);
+    mContext.m[3][1] = floorf(mContext.m[3][1] + 0.5f);
 
     RedColor modulated;
     modulated.r = (unsigned char)((float)m_color.r * kInv255 * (float)color.r + 0.5f);
@@ -283,6 +260,7 @@ void RedInterfaceScreen::Render() const
     RedRenderer::SetFogEnable(false);
     const RedCamera* pOldCamera = RedRenderer::GetCamera();
 
+    // GLOBAL: SWBF2 0x0093e750
     static RedCamera camera;
     camera.SetMatrix(gMatrixIdentity);
     camera.SetFrustum(sfNear, sfFar, sfWidth,
@@ -297,7 +275,7 @@ void RedInterfaceScreen::Render() const
     RedRenderer::BeginScene();
     RedHotSpot::UpdateCamera();
 
-    gRedInterfaceTranslateZ = gRedInterfaceScaleX = 640.0f / (float)GetScreenWidth();
+    gRedInterfaceScaleX = gRedInterfaceTranslateZ = 640.0f / (float)GetScreenWidth();
     gRedInterfaceScaleY = 480.0f / (float)GetScreenHeight();
     const float fDepth = (float)m_uiWidthInPixels / sfWidth;
 
@@ -305,6 +283,25 @@ void RedInterfaceScreen::Render() const
     GetScale(fScaleX, fScaleY, fUnitX, fUnitY);
 
     PblMatrix mScreen;
+    PblMatrix mPerspective;
+
+    mPerspective.m[0][0] = gRedInterfaceScaleX * fUnitX;
+    mPerspective.m[0][1] = 0.0f;
+    mPerspective.m[0][2] = 0.0f;
+    mPerspective.m[0][3] = 0.0f;
+    mPerspective.m[1][0] = 0.0f;
+    mPerspective.m[1][1] = gRedInterfaceScaleY * fUnitY;
+    mPerspective.m[1][2] = 0.0f;
+    mPerspective.m[1][3] = 0.0f;
+    mPerspective.m[2][0] = 0.0f;
+    mPerspective.m[2][1] = 0.0f;
+    mPerspective.m[2][2] = 1.0f;
+    mPerspective.m[2][3] = 0.0f;
+    mPerspective.m[3][0] = 0.0f;
+    mPerspective.m[3][1] = 0.0f;
+    mPerspective.m[3][2] = 0.0f;
+    mPerspective.m[3][3] = 1.0f;
+
     mScreen.m[0][0] = fUnitX;
     mScreen.m[0][1] = 0.0f;
     mScreen.m[0][2] = 0.0f;
@@ -321,10 +318,6 @@ void RedInterfaceScreen::Render() const
     mScreen.m[3][1] = 0.0f;
     mScreen.m[3][2] = 0.0f;
     mScreen.m[3][3] = 1.0f;
-
-    PblMatrix mPerspective = mScreen;
-    mPerspective.m[0][0] = gRedInterfaceScaleX * fUnitX;
-    mPerspective.m[1][1] = gRedInterfaceScaleY * fUnitY;
 
     for (PblList<RedScreenGroupElement>::Itor it = m_children.Begin(); it != m_children.End(); ++it)
     {
@@ -345,16 +338,15 @@ void RedInterfaceScreen::Render() const
         Red3DModelElementLite::SetPerspectiveHack(bPerspective);
         if (bPerspective)
         {
-            mPerspective.m[3][0] = gRedInterfaceScaleX * fScaleX * (fX - 0.5f) * gRedInterfaceTranslateX;
-            mPerspective.m[3][1] = gRedInterfaceScaleY * fScaleY * (fY - 0.5f) * gRedInterfaceTranslateY;
-            mPerspective.m[3][2] = -(gRedInterfaceTranslateZ * fDepth);
+            mPerspective[3] = PblVector3(
+                gRedInterfaceScaleX * fScaleX * (fX - 0.5f) * gRedInterfaceTranslateX,
+                gRedInterfaceScaleY * fScaleY * (fY - 0.5f) * gRedInterfaceTranslateY,
+                -(gRedInterfaceTranslateZ * fDepth));
             mPerspective.m[3][3] = 1.0f;
         }
         else
         {
-            mScreen.m[3][0] = (fX - 0.5f) * fScaleX;
-            mScreen.m[3][1] = (fY - 0.5f) * fScaleY;
-            mScreen.m[3][2] = -fDepth;
+            mScreen[3] = PblVector3((fX - 0.5f) * fScaleX, (fY - 0.5f) * fScaleY, -fDepth);
             mScreen.m[3][3] = 1.0f;
         }
         it->Render(it->m_bUsePerspectiveHack ? mPerspective : mScreen, RedColor::WHITE);
@@ -372,7 +364,7 @@ void RedInterfaceScreen::Render() const
 }
 
 // SYNTHETIC: SWBF2 0x007698e0
-// RedInterfaceScreen::Render's `dynamic atexit destructor for 'camera'' (the
+// `RedInterfaceScreen::Render'::`5'::`dynamic atexit destructor for 'camera''
 
 // SYNTHETIC: SWBF2 0x006c0ae0
 // RedDirectionalLight::`scalar deleting destructor'

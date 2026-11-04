@@ -28,20 +28,21 @@ public:
     };
 
     Transport() {}
-    ~Transport();
+    // SYNTHETIC: SWBF2 0x0053c030
+    // GameVoiceChat::Transport::~Transport
 
     void SetSendEnableUsingMask(unsigned char node, Mask mask, bool bEnable, bool bKeepCurrent);
     void SetReceiveEnableUsingMask(unsigned char node, Mask mask, bool bEnable, bool bKeepCurrent);
 
 protected:
 
-    void SetSendReceiveEnableUsingMask(unsigned char node, Mask mask, bool bEnable, bool bSend,
-                                       bool bKeepCurrent);
+    void SetSendReceiveEnableUsingMask(const unsigned char nodeID, const Mask mask, bool enable,
+                                       const bool send, const bool maskExisting);
 
 private:
 
-    unsigned int BuildPlayerTeamInfo(NetPlayerTeamInfo* pInfo, unsigned int uMax, int iNode,
-                                     int* pTeam) const;
+    unsigned int BuildPlayerTeamInfo(NetPlayerTeamInfo* teamInfo, unsigned int teamInfoSize,
+                                     const int queryNode, int* queryTeam) const;
 };
 
 extern Transport gTransport;

@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include <math.h>
 
 #include "ChaseCamera.h"
@@ -16,7 +17,6 @@
 #include "RedEngineFL/Graphics/RedCamera.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "RedEngineFL/Interface/RedInterfaceScreen.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 class PblMatrix;
 extern PblMatrix gMatrixIdentity;
@@ -38,7 +38,9 @@ unsigned int GetViewHeight(unsigned int uView);
 float GetDefaultFOV();
 float GetWidescreenFOVAdjustment(float fFOV);
 
-namespace AIUtil {
+
+namespace AIUtil
+{
 
 // FUNCTION: SWBF2 0x0043ef40
 bool IsDebugOutputVisible()
@@ -66,15 +68,14 @@ int sMemberIndex;
 
 int sTeamIndex = 1;
 
-static CollisionObject* GetCollisionObject(GameObject* pObject)
+static inline CollisionObject* GetCollisionObject(GameObject* pObject)
 {
     return static_cast<CollisionObject*>(pObject);
 }
 
-static bool IsAlive(GameObject* pObject)
-{
-    return pObject->mIsAlive;
-}
+
+
+typedef const PblVector3& (__fastcall *GetVelocityFn)(GameObject* pThis, void*);
 
 // FUNCTION: SWBF2 0x00453730
 ChaseCamera::ChaseCamera(CameraManager* pManager, int iView)
@@ -246,7 +247,7 @@ void ChaseCamera::Update(float fDeltaTime)
         }
     }
 
-    if (pTrackable && pTrackable->GetGameObject() && IsAlive(pTrackable->GetGameObject()))
+    if (pTrackable && pTrackable->GetGameObject() && pTrackable->GetGameObject()->IsAlive())
     {
         SetOwner(pTrackable);
     }
@@ -332,25 +333,14 @@ void ChaseCamera::SetupCamera(RedCamera* pCamera, float fDeltaTime)
             PblQuaternion qNew = PblQuaternion(mMatrix);
 
             PblQuaternion qRot = Interpolate(qOld, qNew, fRotBlend);
-            PblQuaternion qUnit;
-            PblMatrix mNew;
-            D3DXMatrixRotationQuaternion(&mNew, D3DXQuaternionNormalize(&qUnit, &qRot));
-            mNew.m[3][0] = vPos.x;
-            mNew.m[3][1] = vPos.y;
-            mNew.m[3][2] = vPos.z;
-            mNew.m[3][3] = 1.0f;
+            PblMatrix mNew(qRot, vPos);
             mMatrix = mNew;
 
             vPos.x = (vOldPos.x + vPos.x) * 0.5f;
             vPos.y = (vOldPos.y + vPos.y) * 0.5f;
             vPos.z = (vOldPos.z + vPos.z) * 0.5f;
             PblQuaternion qMid = Interpolate(qOld, qNew, 0.5f);
-            PblMatrix mMid;
-            D3DXMatrixRotationQuaternion(&mMid, D3DXQuaternionNormalize(&qUnit, &qMid));
-            mMid.m[3][0] = vPos.x;
-            mMid.m[3][1] = vPos.y;
-            mMid.m[3][2] = vPos.z;
-            mMid.m[3][3] = 1.0f;
+            PblMatrix mMid(qMid, vPos);
 
             float fSwing = sqrtf(vDelta.x * vDelta.x + vDelta.y * vDelta.y + vDelta.z * vDelta.z) * 0.5f
                            * (1.0f - fBlend);
@@ -405,11 +395,11 @@ void ChaseCamera::SetupCamera(RedCamera* pCamera, float fDeltaTime)
     {
         PblMatrix mShakeRot = gMatrixIdentity;
         PblMatrix mAxis;
-        D3DXMatrixMultiply(&mShakeRot, &mShakeRot, D3DXMatrixRotationX(&mAxis, BiasedRandom() * mShake * 0.1f));
-        D3DXMatrixMultiply(&mShakeRot, &mShakeRot, D3DXMatrixRotationY(&mAxis, BiasedRandom() * mShake * 0.1f));
-        D3DXMatrixMultiply(&mShakeRot, &mShakeRot, D3DXMatrixRotationZ(&mAxis, BiasedRandom() * mShake * 0.1f));
+        mShakeRot.RotateX(BiasedRandom() * mShake * 0.1f);
+        mShakeRot.RotateY(BiasedRandom() * mShake * 0.1f);
+        mShakeRot.RotateZ(BiasedRandom() * mShake * 0.1f);
         mPreShakeMatrix = mMatrix;
-        D3DXMatrixMultiply(&mAxis, &mShakeRot, &mMatrix);
+        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mAxis), reinterpret_cast<const D3DXMATRIX*>(&mShakeRot), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
         mMatrix = mAxis;
     }
     else if (mDoSwingFlag)

@@ -20,7 +20,8 @@ Accumulator<T>::Accumulator()
     RedSetCurrentHeap(iHeap);
 }
 
-namespace RedScreenShot {
+namespace RedScreenShot
+{
 
 // FUNCTION: SWBF2 0x006f3ad0
 bool StitchImage(Accumulator<RedScreenShot::Pixel>* pAccumulators, int iTilesX, int iTilesY,
@@ -290,7 +291,8 @@ void AccumulateFrameBuffer(Accumulator<Pixel>& accum)
 
 }
 
-namespace RedScreenShot {
+namespace RedScreenShot
+{
 
 // FUNCTION: SWBF2 0x006f3d40
 void TakeScreenShot()

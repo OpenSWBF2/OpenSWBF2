@@ -65,7 +65,6 @@ namespace PropGenerator
     class PropGeneratorThread : public Thread
     {
     public:
-        virtual ~PropGeneratorThread() {}
         virtual bool Update(float fDeltaTime);
     };
 

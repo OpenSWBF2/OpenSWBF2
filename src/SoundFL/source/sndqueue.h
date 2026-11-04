@@ -6,8 +6,10 @@ namespace Snd
 class QueueBase
 {
 public:
+    QueueBase();
+    ~QueueBase();
 
-    void* Get(unsigned int uStride, char* pData, unsigned int uCapacity);
+    void* Get(unsigned int uiElementSize, void* const pElements, unsigned int uiCapacity);
 
     bool IsFull() const;
 
@@ -34,20 +36,17 @@ class Queue : public QueueBase
 {
 public:
 
-    // FUNCTION: SWBF2 0x00738930
     Queue()
     {
-        mFull = false;
-        mHead = 0;
-        mTail = 0;
     }
 
-    // FUNCTION: SWBF2 0x0073d940
+    // TEMPLATE: SWBF2 0x0073d940
+    // Snd::Queue<Snd::StreamPacket *,4>::~Queue<Snd::StreamPacket *,4>
     ~Queue()
     {
     }
-
-    // FUNCTION: SWBF2 0x0073da80
+    // TEMPLATE: SWBF2 0x0073da80
+    // Snd::Queue<Snd::StreamPacket *,4>::Add
     bool Add(const T& rElement)
     {
         if (IsFull())
@@ -100,8 +99,7 @@ class QueueLockBase
 {
 public:
 
-    // FUNCTION: SWBF2 0x00745030
-    QueueLockBase() { mLock = 0; }
+    QueueLockBase();
 
     ~QueueLockBase();
 
@@ -109,7 +107,7 @@ public:
                unsigned short usCapacity, bool(__cdecl* const pfnCallback)(void*, void*),
                void* const pData);
     void* Get(QueueBase* const pQueue, unsigned int uiElementSize,
-              void* const pElements, unsigned int uiCapacity);
+              void* const pElements, unsigned short usCapacity);
     void Unlock(QueueBase* const pQueue, const void* const pElement,
                 unsigned int uiElementSize, void* const pElements,
                 unsigned short usCapacity);
@@ -129,18 +127,29 @@ public:
                              pfnCallback, pData);
     }
 
-    T* Lock()
-    {
-        return (T*)QueueLockBase::Get(this, (unsigned int)sizeof(T), this->mElements, N);
-    }
+    T* Lock();
 
-    void Unlock(const T* const pElement)
-    {
-        QueueLockBase::Unlock(this, pElement, (unsigned int)sizeof(T), this->mElements,
-                              (unsigned short)N);
-    }
+    void Unlock(const T* const pElement);
 };
 
+template <class T, int N>
+T* QueueLock<T, N>::Lock()
+{
+    return (T*)QueueLockBase::Get(this, (unsigned int)sizeof(T), this->mElements,
+                                  (unsigned short)N);
+}
+
+template <class T, int N>
+void QueueLock<T, N>::Unlock(const T* const pElement)
+{
+    QueueLockBase::Unlock(this, pElement, (unsigned int)sizeof(T), this->mElements,
+                          (unsigned short)N);
+}
+
+// TEMPLATE: SWBF2 0x006f4f90
+// Snd::QueueCircular<RedMovie::Properties const *,11>::~QueueCircular<RedMovie::Properties const *,11>
+// TEMPLATE: SWBF2 0x006f4fa0
+// Snd::QueueCircular<RedMovie::SegmentInfo const *,11>::~QueueCircular<RedMovie::SegmentInfo const *,11>
 template <class T, int N>
 class QueueCircular : public Queue<T, N>
 {
@@ -148,16 +157,9 @@ public:
 
     bool Add(const T& rElement)
     {
-        if (this->IsFull())
+        if (Queue<T, N>::Add(rElement))
         {
-            this->mElements[this->mHead] = rElement;
-            ++this->mHead;
-            if (this->mHead == N)
-            {
-                this->mHead = 0;
-            }
-            this->mTail = this->mHead;
-            return true;
+            return false;
         }
 
         this->mElements[this->mHead] = rElement;
@@ -166,8 +168,8 @@ public:
         {
             this->mHead = 0;
         }
-        this->mFull = (this->mHead == this->mTail);
-        return false;
+        this->mTail = this->mHead;
+        return true;
     }
 };
 

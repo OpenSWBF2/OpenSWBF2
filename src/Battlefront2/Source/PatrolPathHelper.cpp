@@ -16,15 +16,11 @@
 namespace
 {
 
-    AILowLevel& LowLevel(UnitController* pCtrl)
+    inline AILowLevel& LowLevel(UnitController* pCtrl)
     {
-        return *reinterpret_cast<AILowLevel*>(pCtrl->mLowLevel);
+        return pCtrl->mLowLevel;
     }
 
-    const PblVector3& Position(const PblMatrix& mat)
-    {
-        return *reinterpret_cast<const PblVector3*>(mat.m[3]);
-    }
 }
 
 // FUNCTION: SWBF2 0x00615e90
@@ -50,8 +46,8 @@ UnitController* PatrolPathHelper::GetCtrl()
 bool PatrolPathHelper::CheckForPatrolPathsAndInit()
 {
     AI::PatrolPath* paths[10];
-    const PblVector3& vPos = Position(GetMe()->GetMatrix());
-    int iCount = AI::PatrolPath::RequestPatrolPaths(Position(GetMe()->GetMatrix()), 50.0f, 10, paths);
+    const PblVector3& vPos = GetMe()->GetMatrix().GetTranslation();
+    int iCount = AI::PatrolPath::RequestPatrolPaths(GetMe()->GetMatrix().GetTranslation(), 50.0f, 10, paths);
 
     float fBestDistSq = FLT_MAX;
     for (int i = 0; i < iCount; ++i)
@@ -139,7 +135,7 @@ void PatrolPathHelper::UpdateState(float dt)
         LowLevel(GetCtrl()).SetHeight(HEIGHT_WALK);
         if (!LowLevel(GetCtrl()).IsNavigatorInProgress())
         {
-            const PblVector3& vPos = Position(GetMe()->GetMatrix());
+            const PblVector3& vPos = GetMe()->GetMatrix().GetTranslation();
             const PblVector3* pStart = mPatrolPath->GetPointPosition(0);
             float dx = vPos.x - pStart->x;
             float dy = vPos.y - pStart->y;

@@ -23,7 +23,7 @@ void HUD::ObjectiveList::SetState(unsigned int uiTextHashID, Objective::Objectiv
     SetupText();
     if (NetGame::IsEnabled() && !NetGame::IsClient())
     {
-        NetGame::CreateEvent_UpdateObjective(pObjective, -1, -1);
+        NetGame::CreateEvent_UpdateObjective(pObjective, ~0ui64);
     }
 }
 
@@ -87,9 +87,9 @@ float HUD::ProceduralBarBitmap::SetValue(const float fValue)
 // HUD::ProceduralBarBitmap::`scalar deleting destructor'
 
 // SYNTHETIC: SWBF2 0x00566f1f
-// [thunk]:HUD::ProceduralBarBitmap::`scalar deleting destructor' adjustor{288}
+// ??_EProceduralBarBitmap@HUD@@WBCA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00566f35
-// [thunk]:HUD::ProceduralBarBitmap::`scalar deleting destructor' adjustor{544}
+// ??_EProceduralBarBitmap@HUD@@WCCA@AEPAXI@Z
 // FUNCTION: SWBF2 0x005669a0
 HUD::ProceduralBarBitmap::ProceduralBarBitmap(const char* const pName, Factory::ItemCallback pCallback,
                                               void* const pUserData)
@@ -109,7 +109,7 @@ HUD::ProceduralBarBitmap::ProceduralBarBitmap(const char* const pName, Factory::
 }
 
 // SYNTHETIC: SWBF2 0x00566f14
-// [thunk]:HUD::ProceduralBarBitmap::PostReadSetup adjustor{544}
+// ?PostReadSetup@ProceduralBarBitmap@HUD@@OCCA@AEXXZ
 // FUNCTION: SWBF2 0x00566bc0
 void HUD::ProceduralBarBitmap::PostReadSetup()
 {
@@ -118,7 +118,7 @@ void HUD::ProceduralBarBitmap::PostReadSetup()
 }
 
 // SYNTHETIC: SWBF2 0x00566f2a
-// [thunk]:HUD::ProceduralBarBitmap::ReadData adjustor{544}
+// ?ReadData@ProceduralBarBitmap@HUD@@OCCA@AE_NAAVPblConfig@@AAVData@3@@Z
 // FUNCTION: SWBF2 0x00566e70
 bool HUD::ProceduralBarBitmap::ReadData(PblConfig& config, PblConfig::Data& data)
 {
@@ -144,7 +144,7 @@ bool HUD::ProceduralBarBitmap::ReadData(PblConfig& config, PblConfig::Data& data
 }
 
 // SYNTHETIC: SWBF2 0x00566f40
-// [thunk]:HUD::ProceduralBarBitmap::SetProperty adjustor{544}
+// ?SetProperty@ProceduralBarBitmap@HUD@@WCCA@AE_NIQBX@Z
 // FUNCTION: SWBF2 0x00566a80
 bool HUD::ProceduralBarBitmap::SetProperty(const unsigned int uHashID, const void* const pValue)
 {
@@ -166,7 +166,7 @@ bool HUD::ProceduralBarBitmap::SetProperty(const unsigned int uHashID, const voi
 }
 
 // SYNTHETIC: SWBF2 0x00566f09
-// [thunk]:HUD::ProceduralBarBitmap::GetProperty adjustor{544}
+// ?GetProperty@ProceduralBarBitmap@HUD@@WCCA@AE_NIQAX@Z
 // FUNCTION: SWBF2 0x00566b30
 bool HUD::ProceduralBarBitmap::GetProperty(const unsigned int uHashID, void* const pValue)
 {
@@ -193,7 +193,7 @@ void HUD::ProceduralBarBitmap::OnRender()
 }
 
 // SYNTHETIC: SWBF2 0x00566f4b
-// [thunk]:HUD::ProceduralBarBitmap::WriteData adjustor{544}
+// ?WriteData@ProceduralBarBitmap@HUD@@OCCA@AEXAAVFile@2@I@Z
 // FUNCTION: SWBF2 0x00566f00
 void HUD::ProceduralBarBitmap::WriteData(HUD::File& file, unsigned int uTabs)
 {

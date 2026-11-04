@@ -84,7 +84,6 @@ class PropObjectMesh : public PropObject
 {
 public:
     PropObjectMesh();
-    virtual ~PropObjectMesh();
 
     virtual void Render(const RedCamera* pCamera, float fDist, unsigned int uiFlags);
     virtual float GetDist();

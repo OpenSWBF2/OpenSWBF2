@@ -15,6 +15,7 @@
 #include "PebbleFL/Common/PblChunk.h"
 #include "PebbleFL/Common/PblFile.h"
 #include "RedEngineFL/Interface/RedInterfaceScreen.h"
+#include "PebbleFL/Common/PblMath.h"
 
 namespace FLRenderer
 {
@@ -24,10 +25,10 @@ float GetFarSceneRange();
 void __cdecl PblTraceP(const char* Format, ...);
 extern bool sLoadNestedLevels;
 
-// GLOBAL: SWBF2 0x0093ebdc
 // SYNTHETIC: SWBF2 0x00407cc0
 // `dynamic initializer for 'RedModel::_HashTable''
 
+// GLOBAL: SWBF2 0x0093ebd8
 PblHashTable<RedModel, 1024> RedModel::_HashTable;
 
 // GLOBAL: SWBF2 0x007deee0
@@ -36,17 +37,10 @@ bool RedModel::pc_shareBuffers = true;
 // GLOBAL: SWBF2 0x007deee8
 static float sfShadowDistance = 30.0f;
 
-// GLOBAL: SWBF2 0x0093ebd8
-int RedModel_HashTableNumEntries;
-
 void RedModel::ClearAll()
 {
     _HashTable.Clear();
-    RedModel_HashTableNumEntries = 0;
 }
-
-// GLOBAL: SWBF2 0x009a0a28
-int RedSkeleton_HashTableNumEntries;
 
 // FUNCTION: SWBF2 0x006c3d60
 RedModel::RedModel()
@@ -94,9 +88,9 @@ RedModel::~RedModel()
 // FUNCTION: SWBF2 0x006c3e40
 RedSkeleton::~RedSkeleton()
 {
-    if (m_uiNameHash && _HashTable.Remove(m_uiNameHash))
+    if (m_uiNameHash)
     {
-        --RedSkeleton_HashTableNumEntries;
+        _HashTable.Remove(m_uiNameHash);
     }
     if (m_amDefaultPose)
     {
@@ -144,7 +138,7 @@ unsigned int RedModel::GetBoneIndex(unsigned int uiName) const
     {
         for (unsigned int i = 0; i < pSkeleton->m_uiNumBones; ++i)
         {
-            if (pSkeleton->m_auiNameHash[i] == uiName)
+            if (uiName == pSkeleton->m_auiNameHash[i])
             {
                 return i;
             }
@@ -196,9 +190,7 @@ bool RedModel::GetHierarchicalBoneMatrix(unsigned int uiBone, PblMatrix& mat) co
                 else
                 {
                     PblMatrix inv = pSkeleton->m_amDefaultPose[iParent].GetInverseFast();
-                    PblMatrix result;
-                    D3DXMatrixMultiply((D3DXMATRIX*)&result, (const D3DXMATRIX*)&bone,
-                                       (const D3DXMATRIX*)&inv);
+                    PblMatrix result = bone * inv;
                     mat = result;
                 }
                 return true;
@@ -274,10 +266,7 @@ unsigned int RedModel::GetParentBoneAndOffsetMatrix(unsigned int uiBone, PblMatr
                     return 0;
                 }
                 PblMatrix inv = pSkeleton->m_amDefaultPose[iParent].GetInverseFast();
-                PblMatrix result;
-                D3DXMatrixMultiply((D3DXMATRIX*)&result,
-                                   (const D3DXMATRIX*)&pSkeleton->m_amDefaultPose[i],
-                                   (const D3DXMATRIX*)&inv);
+                PblMatrix result = pSkeleton->m_amDefaultPose[i] * inv;
                 mat = result;
                 return _pSkeleton->m_auiNameHash[iParent];
             }
@@ -374,10 +363,7 @@ void RedModel::Render(const PblMatrix* pMatrix, const RedPose* pPose, const RedC
     float fDistance = -((pMatrix->m[3][1] - camMatrix.m[3][1]) * camMatrix.m[2][1] +
                         (pMatrix->m[3][0] - camMatrix.m[3][0]) * camMatrix.m[2][0] +
                         (pMatrix->m[3][2] - camMatrix.m[3][2]) * camMatrix.m[2][2]);
-    if (fDistance <= 0.0f)
-    {
-        fDistance = 0.0f;
-    }
+    fDistance = Max(fDistance, 0.0f);
     fDistance -= RedRenderer::GetCamera()->GetNearPlane();
     float fRadius = _BoundingSphere.w;
 
@@ -457,10 +443,7 @@ void RedModel::Render(const PblMatrix* pMatrix, const RedPose* pPose, const RedC
                 unsigned int uiBone = pSegment->m_uiBoneIndex;
                 if (!apBoneMatrices[uiBone])
                 {
-                    PblMatrix mBone;
-                    D3DXMatrixMultiply((D3DXMATRIX*)&mBone,
-                                       (const D3DXMATRIX*)&pPose->_GetBoneMatrix(uiBone),
-                                       (const D3DXMATRIX*)pMatrix);
+                    PblMatrix mBone = pPose->_GetBoneMatrix(uiBone) * *pMatrix;
                     apBoneMatrices[uiBone] = RedRenderer::AllocMatrixInCache(mBone);
                 }
                 const RedColor* pColor = &color;
@@ -523,10 +506,7 @@ RedModel* RedModel::Read(PblFileChunk& chunk)
         }
         return _HashTable.Find(pModel->_uiNameHash);
     }
-    if (_HashTable.Store(pModel->_uiNameHash, pModel))
-    {
-        ++RedModel_HashTableNumEntries;
-    }
+    _HashTable.Store(pModel->_uiNameHash, pModel);
     return pModel;
 }
 
@@ -570,14 +550,7 @@ void RedModel::_Read(PblFileChunk& chunk)
             vOrigin.y = child._pFile->ReadFloat();
             vOrigin.z = child._pFile->ReadFloat();
 
-            const PblVector3* apRows[4] = { &vRight, &vUp, &vFront, &vOrigin };
-            for (int r = 0; r < 4; ++r)
-            {
-                _Matrix.m[r][0] = apRows[r]->x;
-                _Matrix.m[r][1] = apRows[r]->y;
-                _Matrix.m[r][2] = apRows[r]->z;
-                _Matrix.m[r][3] = r == 3 ? 1.0f : 0.0f;
-            }
+            _Matrix = PblMatrix(vRight, vUp, vFront, vOrigin);
             _bHasTransform = true;
             break;
         }

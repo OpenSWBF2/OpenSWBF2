@@ -1,4 +1,6 @@
 #include "UnitFollowAgent.h"
+
+#include "EntityDroideka.h"
 #include "GameObject.h"
 
 #include "EventInfo.h"
@@ -18,7 +20,6 @@
 #include "PebbleFL/Common/PblRandom.h"
 
 #include "UnitThreatManager.h"
-#include "VOHelper.h"
 
 enum FormationType
 {
@@ -46,6 +47,20 @@ namespace SquadCommands
 bool IsSquadCommand(int iCmd);
 }
 
+namespace AI
+{
+enum VOType
+{
+    VOT_SC_StopFollowResponse = 25
+};
+
+namespace VOHelper
+{
+
+int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget, const GameObject* pOther, float fDelay);
+}
+}
+
 namespace
 {
 
@@ -56,9 +71,9 @@ namespace
     }
 
     template <typename TYPE>
-    TYPE* ResolveHandle(PblHandle<TYPE>& handle)
+    inline TYPE* ResolveHandle(PblHandle<TYPE>& handle)
     {
-        return handle.GetValidObject();
+        return static_cast<TYPE*>(handle);
     }
 
     GameObject* ResolveHandleAt(void* pHandleAddr)
@@ -74,43 +89,34 @@ namespace
         return h;
     }
 
-    const PblHash kRttiHashEntitySoldier("EntitySoldier");
-    const PblHash kRttiHashEntityDroideka("EntityDroideka");
 
-    Controllable* SeatOf(const GameObject* pTarget)
+    inline Controllable* SeatOf(const GameObject* pTarget)
     {
         return pTarget->mControllableList.GetFirst()->_pObject;
     }
 
-    const PblVector3* GetTargetPosition(const GameObject* pTarget)
+    inline const PblVector3* GetTargetPosition(const GameObject* pTarget)
     {
         return &static_cast<const CollisionObject*>(pTarget)->GetPosition();
     }
 }
 
-// GLOBAL: SWBF2 0x01f993e8
 // SYNTHETIC: SWBF2 0x00406ce0
 // `dynamic initializer for 'UnitFollowAgent::rttiHashUnitFollowAgent''
+// UnitFollowAgent::rttiHashUnitFollowAgent
+
+// GLOBAL: SWBF2 0x01f993e8
+// UnitFollowAgent::rttiHashUnitFollowAgent
 PblHash UnitFollowAgent::rttiHashUnitFollowAgent("UnitFollowAgent");
-char UnitFollowAgent::rttiNameUnitFollowAgent[] = "UnitFollowAgent";
+// GLOBAL: SWBF2 0x0078b8a0
+// UnitFollowAgent::rttiNameUnitFollowAgent
+const char UnitFollowAgent::rttiNameUnitFollowAgent[] = "UnitFollowAgent";
 
-// FUNCTION: SWBF2 0x00667f00
-bool UnitFollowAgent::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashUnitFollowAgent || UnitAgent::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00667f30
-unsigned int UnitFollowAgent::GetDerivedRtti() const
-{
-    return rttiHashUnitFollowAgent;
-}
 
-// FUNCTION: SWBF2 0x00667f40
-const char* UnitFollowAgent::GetDerivedRttiName() const
-{
-    return rttiNameUnitFollowAgent;
-}
+
+
+
 
 // SYNTHETIC: SWBF2 0x00667f50
 // UnitFollowAgent::`scalar deleting destructor'
@@ -207,7 +213,7 @@ void UnitFollowAgent::EnterState()
 
         if (PathFinder::IsPointValid(vDest, 0, mCtrl->mOwner->GetGameObject()) && uTry < 20)
         {
-            reinterpret_cast<AILowLevel*>(mCtrl->mLowLevel)->SetNavigator_Goto(vDest, 0, false, false);
+            mCtrl->mLowLevel.SetNavigator_Goto(vDest, 0, false, false);
             return;
         }
     }
@@ -253,7 +259,7 @@ void UnitFollowAgent::UpdateStatePostVision(float dt)
         return;
     }
 
-    reinterpret_cast<AttackHelper*>(mAttackHelper)->Update();
+    mAttackHelper.Update();
 
     const GameObject* pTarget = ResolveHandle(mTarget);
     if (!pTarget)
@@ -271,7 +277,7 @@ void UnitFollowAgent::UpdateStatePostVision(float dt)
             if (pDeep)
             {
                 Entity* pOwnerEntity = mCtrl->mOwner->GetEntity();
-                if (!pOwnerEntity->IsRtti(kRttiHashEntityDroideka))
+                if (!pOwnerEntity->IsRtti(EntityDroideka::rttiHashEntityDroideka))
                 {
 
                     GameObject* pDeepGameObject =
@@ -294,7 +300,7 @@ void UnitFollowAgent::UpdateStatePostVision(float dt)
         {
             bool bIsSeatedSoldier = false;
             GameObject* pSelfObj = mCtrl->mOwner->GetGameObject();
-            if (pSelfObj->IsRtti(kRttiHashEntitySoldier) &&
+            if (pSelfObj->IsRtti(EntitySoldier::rttiHashEntitySoldier) &&
                 static_cast<EntitySoldier*>(mCtrl->mOwner->GetGameObject())->mState == SoldierState::JET_HOVER)
             {
                 bIsSeatedSoldier = true;
@@ -334,9 +340,9 @@ void UnitFollowAgent::UpdateStatePostVision(float dt)
             vOffset.y *= fScale;
             vOffset.z *= fScale;
             pTargetNow = ResolveHandle(mTarget);
-            reinterpret_cast<AILowLevel*>(mCtrl->mLowLevel)->SetNavigator_FollowTarget(pTargetNow, vOffset);
+            mCtrl->mLowLevel.SetNavigator_FollowTarget(pTargetNow, vOffset);
 
-            if (!reinterpret_cast<AttackHelper*>(mAttackHelper)->HasTarget())
+            if (!mAttackHelper.HasTarget())
             {
 
                 if (SeatOf(ResolveHandle(mTarget)))
@@ -353,7 +359,7 @@ void UnitFollowAgent::UpdateStatePostVision(float dt)
                             GameObject* pOccupant2 =
                                 const_cast<GameObject*>(ResolveHandle(const_cast<PblHandle<const GameObject>&>(
                                     ResolveHandle(mTarget)->GetControllable()->mReticuleTarget[0])));
-                            reinterpret_cast<AI::UnitThreatManager*>(mCtrl->mThreatManager)->AddThreat(pOccupant2);
+                            mCtrl->mThreatManager.AddThreat(pOccupant2);
                         }
                     }
                 }
@@ -380,7 +386,7 @@ void UnitFollowAgent::UpdateStatePostVision(float dt)
         }
         else
         {
-            reinterpret_cast<AILowLevel*>(mCtrl->mLowLevel)->SetNavigator_Stationary();
+            mCtrl->mLowLevel.SetNavigator_Stationary();
         }
         break;
     case 4:
@@ -394,7 +400,7 @@ void UnitFollowAgent::UpdateStatePostVision(float dt)
         }
         break;
     case 5:
-        if (reinterpret_cast<AILowLevel*>(mCtrl->mLowLevel)->IsNavigatorInProgress())
+        if (mCtrl->mLowLevel.IsNavigatorInProgress())
         {
             if (CheckForForwardHintNodes())
             {

@@ -23,14 +23,11 @@
 
 namespace
 {
-    const PblVector3& GetPos(const PblMatrix& m)
-    {
-        return *(const PblVector3*)&m.m[3][0];
-    }
 
-    AttackHelper* GetAttackHelper(UnitAgent* pOwner)
+
+    inline AttackHelper* GetAttackHelper(UnitAgent* pOwner)
     {
-        return reinterpret_cast<AttackHelper*>(pOwner->mAttackHelper);
+        return &pOwner->mAttackHelper;
     }
 }
 
@@ -45,8 +42,6 @@ CoverHelper::CoverHelper(UnitAgent* pOwner)
     : HelperFsm(STATE_START, STATE_START)
     , mOwner(pOwner)
 {
-    mCoverTarget.mObject = NULL;
-    mCoverTarget.mSavedHandleId = 0;
     mHint = NULL;
 }
 
@@ -62,7 +57,7 @@ void CoverHelper::HELPERClean()
 // FUNCTION: SWBF2 0x00486fb0
 void CoverHelper::ExitState()
 {
-    AttackHelper* pAttack = reinterpret_cast<AttackHelper*>(mOwner->mAttackHelper);
+    AttackHelper* pAttack = &mOwner->mAttackHelper;
     mStance = HEIGHT_STAND;
     switch (mCurState)
     {
@@ -257,7 +252,7 @@ void CoverHelper::UpdateState(float dt)
 
         if (mCoverType == COVERTYPE_ForwardCover)
         {
-            const PblVector3& vMe = GetPos(GetMe()->GetMatrix());
+            const PblVector3& vMe = GetMe()->GetMatrix().GetTranslation();
             const PblVector3& vHint = mHint->GetCollisionCenter();
             float dx = vMe.x - vHint.x;
             float dy = vMe.y - vHint.y;
@@ -336,7 +331,7 @@ void CoverHelper::UpdateState(float dt)
             Controllable* pMe = GetMe();
             const PblVector3& vZ = mHint->GetZAxis();
             PblVector3 vAhead(vZ.x * 30.0f, vZ.y * 30.0f, vZ.z * 30.0f);
-            const PblVector3& vPos = GetPos(pMe->GetMatrix());
+            const PblVector3& vPos = pMe->GetMatrix().GetTranslation();
             PblVector3 vLook(vPos.x + vAhead.x, vPos.y + vAhead.y, vPos.z + vAhead.z);
             mOwner->GetLowLevel().SetHeading(vLook, 0.0f);
         }
@@ -367,7 +362,7 @@ bool CoverHelper::HELPERFaceTarget() const
         return true;
     }
 
-    PblVector3 vMe = GetPos(GetMe()->GetMatrix());
+    PblVector3 vMe = GetMe()->GetMatrix().GetTranslation();
     PblVector3 vHint = mHint->GetCollisionCenter();
     float dx = vHint.x - vMe.x;
     float dz = vHint.z - vMe.z;
@@ -390,7 +385,7 @@ const CoverHint* CoverHelper::FindHint() const
 {
     float fMaxDist = GetMaxHintDist();
     const BaseHint* pHints[30];
-    int iCount = HintManager::RequestCoverHints(GetCtrl(), GetPos(GetMe()->GetMatrix()), (int)fMaxDist, 30, pHints);
+    int iCount = HintManager::RequestCoverHints(GetCtrl(), GetMe()->GetMatrix().GetTranslation(), (int)fMaxDist, 30, pHints);
     return SelectHint(iCount, pHints);
 }
 
@@ -422,8 +417,8 @@ const CoverHint* CoverHelper::SelectHint(int iCount, const BaseHint** ppHints) c
 // FUNCTION: SWBF2 0x004876f0
 float CoverHelper::IsHintSuitable_Combat(const BaseHint* pHint) const
 {
-    PblVector3 vMe = GetPos(GetMe()->GetMatrix());
-    PblVector3 vTarget = reinterpret_cast<const AttackHelper*>(mOwner->mAttackHelper)->GetLastSeenTargetPos();
+    PblVector3 vMe = GetMe()->GetMatrix().GetTranslation();
+    PblVector3 vTarget = mOwner->mAttackHelper.GetLastSeenTargetPos();
     PblVector3 vMeToTarget(vTarget.x - vMe.x, 0.0f, vTarget.z - vMe.z);
     PblVector3 vHint = pHint->GetCollisionCenter();
     float fCosMax = PblMath::Cos(1.0471976f);
@@ -486,7 +481,7 @@ float CoverHelper::IsHintSuitable_ForwardCover(const BaseHint* pHint) const
         pMutable->mCoverTarget.mSavedHandleId = 0;
         pTarget = NULL;
     }
-    const PblVector3& vTarget = GetPos(pTarget->GetMatrix());
+    const PblVector3& vTarget = pTarget->GetMatrix().GetTranslation();
     float dx = vHint.x - vTarget.x;
     float dy = vHint.y - vTarget.y;
     float dz = vHint.z - vTarget.z;
@@ -497,10 +492,10 @@ float CoverHelper::IsHintSuitable_ForwardCover(const BaseHint* pHint) const
     }
 
     const PblMatrix& mTarget = pTarget->GetMatrix();
-    const PblVector3& vMe = GetPos(GetMe()->GetMatrix());
+    const PblVector3& vMe = GetMe()->GetMatrix().GetTranslation();
     PblVector3 vTargetToMe(vTarget.x - vMe.x, vTarget.y - vMe.y, vTarget.z - vMe.z);
     PblVector3 vTargetToHint(vTarget.x - vHint.x, vTarget.y - vHint.y, vTarget.z - vHint.z);
-    const PblVector3& vForward = *(const PblVector3*)&mTarget.m[0][0];
+    const PblVector3& vForward = mTarget.GetXAxis();
     float fMeSide = vForward.x * vTargetToMe.x + vForward.y * vTargetToMe.y + vForward.z * vTargetToMe.z;
     float fHintSide = vForward.x * vTargetToHint.x + vForward.y * vTargetToHint.y + vForward.z * vTargetToHint.z;
     if ((fMeSide < 0.0f) != (fHintSide < 0.0f))
@@ -511,7 +506,7 @@ float CoverHelper::IsHintSuitable_ForwardCover(const BaseHint* pHint) const
     PblVector3 vNormal;
     PblVector3 vHintFromTarget(vHint.x - vTarget.x, vHint.y - vTarget.y, vHint.z - vTarget.z);
     D3DXVec3Normalize((D3DXVECTOR3*)&vNormal, (const D3DXVECTOR3*)&vHintFromTarget);
-    const PblVector3& vSide = *(const PblVector3*)&mTarget.m[2][0];
+    const PblVector3& vSide = mTarget.GetZAxis();
     float fDot = vSide.x * vNormal.x + vSide.y * vNormal.y + vSide.z * vNormal.z;
     if (fDot > 0.99619401f || fDot < 0.93969202f)
     {
@@ -529,7 +524,7 @@ float CoverHelper::IsHintSuitable_ForwardCover(const BaseHint* pHint) const
 float CoverHelper::IsHintSuitable_Idle(const BaseHint* pHint) const
 {
     const PblVector3& vHint = pHint->GetCollisionCenter();
-    const PblVector3& vMe = GetPos(GetMe()->GetMatrix());
+    const PblVector3& vMe = GetMe()->GetMatrix().GetTranslation();
     float dx = vHint.x - vMe.x;
     float dy = vHint.y - vMe.y;
     float dz = vHint.z - vMe.z;

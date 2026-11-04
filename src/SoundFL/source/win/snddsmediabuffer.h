@@ -6,6 +6,10 @@
 namespace Snd
 {
 
+// SYNTHETIC: SWBF2 0x00750e40
+// Snd::DSMediaBuffer::`scalar deleting destructor'
+
+// VTABLE: SWBF2 0x007871f8
 class DSMediaBuffer : public IMediaBuffer
 {
 public:

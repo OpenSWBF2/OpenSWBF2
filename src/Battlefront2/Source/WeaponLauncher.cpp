@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -5,7 +6,7 @@
 #include "Controllable.h"
 #include "GameObject.h"
 #include "OrdnanceMissile.h"
-#include "PebbleFL/pc/PblD3DX.h"
+
 
 namespace AIUtil
 {
@@ -15,11 +16,16 @@ namespace AIUtil
     float GetRandomFloat(float fMin, float fMax);
 }
 
-// GLOBAL: SWBF2 0x01f9a8e8
 // SYNTHETIC: SWBF2 0x004071f0
 // `dynamic initializer for 'WeaponLauncherClass::rttiHashWeaponLauncherClass''
+// WeaponLauncherClass::rttiHashWeaponLauncherClass
+
+// GLOBAL: SWBF2 0x01f9a8e8
+// WeaponLauncherClass::rttiHashWeaponLauncherClass
 PblHash WeaponLauncherClass::rttiHashWeaponLauncherClass("WeaponLauncherClass");
-char WeaponLauncherClass::rttiNameWeaponLauncherClass[] = "WeaponLauncherClass";
+// GLOBAL: SWBF2 0x0078c0a4
+// WeaponLauncherClass::rttiNameWeaponLauncherClass
+const char WeaponLauncherClass::rttiNameWeaponLauncherClass[] = "WeaponLauncherClass";
 
 // FUNCTION: SWBF2 0x00687990
 WeaponLauncherClass::WeaponLauncherClass(unsigned int uHash)
@@ -33,23 +39,11 @@ WeaponLauncherClass::WeaponLauncherClass(unsigned int uHash)
     mHasTrackingAmmo = false;
 }
 
-// FUNCTION: SWBF2 0x00687340
-bool WeaponLauncherClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashWeaponLauncherClass || WeaponCannonClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00687370
-unsigned int WeaponLauncherClass::GetDerivedRtti()
-{
-    return rttiHashWeaponLauncherClass;
-}
 
-// FUNCTION: SWBF2 0x00687380
-const char* WeaponLauncherClass::GetDerivedRttiName()
-{
-    return rttiNameWeaponLauncherClass;
-}
+
+
+
 
 // SYNTHETIC: SWBF2 0x006879d0
 // WeaponLauncherClass::`scalar deleting destructor'
@@ -106,11 +100,16 @@ WeaponLauncher* WeaponLauncherClass::Build(const WeaponDesc& desc)
     return new WeaponLauncher(this, desc);
 }
 
-// GLOBAL: SWBF2 0x01f9a8e4
 // SYNTHETIC: SWBF2 0x004071e0
 // `dynamic initializer for 'WeaponLauncher::rttiHashWeaponLauncher''
+// WeaponLauncher::rttiHashWeaponLauncher
+
+// GLOBAL: SWBF2 0x01f9a8e4
+// WeaponLauncher::rttiHashWeaponLauncher
 PblHash WeaponLauncher::rttiHashWeaponLauncher("WeaponLauncher");
-char WeaponLauncher::rttiNameWeaponLauncher[] = "WeaponLauncher";
+// GLOBAL: SWBF2 0x0078c094
+// WeaponLauncher::rttiNameWeaponLauncher
+const char WeaponLauncher::rttiNameWeaponLauncher[] = "WeaponLauncher";
 
 // FUNCTION: SWBF2 0x00687390
 WeaponLauncher::WeaponLauncher(const WeaponLauncherClass* pClass, const WeaponDesc& desc)
@@ -121,23 +120,11 @@ WeaponLauncher::WeaponLauncher(const WeaponLauncherClass* pClass, const WeaponDe
     mLocked = !static_cast<const WeaponLauncherClass*>(mClass)->mHasTrackingAmmo;
 }
 
-// FUNCTION: SWBF2 0x006872a0
-bool WeaponLauncher::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashWeaponLauncher || reinterpret_cast<const Weapon*>(this)->Weapon::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x006872d0
-unsigned int WeaponLauncher::GetDerivedRtti() const
-{
-    return rttiHashWeaponLauncher;
-}
 
-// FUNCTION: SWBF2 0x006872e0
-const char* WeaponLauncher::GetDerivedRttiName() const
-{
-    return rttiNameWeaponLauncher;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x006872f0
 bool WeaponLauncher::IsLocked() const
@@ -186,7 +173,7 @@ void WeaponLauncher::SetupTarget(const GameObject** ppTarget, int* pBodyId) cons
                     vDelta.y = vPos.y - mOwner->mEyePoint.y;
                     vDelta.z = vPos.z - mOwner->mEyePoint.z;
                     PblVector3 vDir;
-                    D3DXVec3Normalize(&vDir, &vDelta);
+                    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vDelta));
                     float fDot = mOwner->mEyeDir.x * vDir.x + mOwner->mEyeDir.y * vDir.y +
                                  mOwner->mEyeDir.z * vDir.z;
                     if (fDot < 0.9f ||

@@ -1,8 +1,7 @@
-#include <new>
-#include <stdexcept>
 #include <vector>
 
 #include <windows.h>
+#include "PerformanceTimer.h"
 #include "CommandPost.h"
 
 #include <process.h>
@@ -218,8 +217,15 @@
 #include "RedEngineFL/Graphics/RedModel.h"
 
 #include "SoundDebugDisplay.h"
+#include "GameVoiceChat.h"
 #include "GameVoiceChatNode.h"
 #include "PebbleFL/Common/PblJournal.h"
+
+namespace std
+{
+__declspec(noreturn) void __cdecl _Xbad_alloc();
+__declspec(noreturn) void __cdecl _Xlength_error(const char*);
+}
 
 namespace DownloadableContent
 {
@@ -239,19 +245,40 @@ void InitMission();
 }
 
 class PauseMenu { public: static void Init(); static void Reset(); };
-namespace PropGenerator { void Init(); }
+namespace PropGenerator
+{
+    void Init();
+}
 
-namespace SkyManager { void Init(); }
+namespace SkyManager
+{
+    void Init();
+}
 
-namespace FLRenderer { void Init(bool bUberMode); }
+namespace FLRenderer
+{
+    void Init(bool bUberMode);
+}
 
-namespace RedInputManager { void Init(); }
+namespace RedInputManager
+{
+    void Init();
+}
 
-namespace RedInputManager { void Cleanup(); }
+namespace RedInputManager
+{
+    void Cleanup();
+}
 
-namespace SaveGameManager { void Init(); }
+namespace SaveGameManager
+{
+    void Init();
+}
 
-namespace StatsManager { void Init(); }
+namespace StatsManager
+{
+    void Init();
+}
 
 class CustomContent
 {
@@ -259,19 +286,19 @@ public:
     static void Create(bool bMission);
 };
 
-namespace MuzzleFlash { bool Init(); }
-extern int mSkipCount;
-namespace RedLocalizeDB {
-
-// FUNCTION: SWBF2 0x006c6010
-void SetSkipCount(int count)
+namespace MuzzleFlash
 {
-    mSkipCount = count;
-}
+    bool Init();
 }
 
-namespace RedMissionLog { void Init(); }
-namespace RedProfile { void Init(); }
+namespace RedMissionLog
+{
+    void Init();
+}
+namespace RedProfile
+{
+    void Init();
+}
 
 class RedVertexCache
 {
@@ -299,89 +326,161 @@ bool EntitySoldier::sEnableAnnouncementVO = true;
 // GLOBAL: SWBF2 0x007e651d
 bool EntitySoldier::sEnableMusic = true;
 
-namespace FrameUpdate { void Update(); }
+namespace FrameUpdate
+{
+    void Update();
+}
 
-namespace PblProfile { void EndFrame(); }
-namespace PblProfile { void StartFrame(); }
-namespace RedProfile { void DisplayCountersByGroup(); }
+namespace PblProfile
+{
+    void EndFrame();
+}
+namespace PblProfile
+{
+    void StartFrame();
+}
+namespace RedProfile
+{
+    void DisplayCountersByGroup();
+}
 
-namespace QOSDisplay { void Reset(); }
+namespace QOSDisplay
+{
+    void Reset();
+}
 
 class SoldierAnimatorClass { public: static void Destroy(); };
 
-namespace RedMissionLog { void Reset(); } namespace RedProfile { void Cleanup(); }
-namespace StatsManager { void Cleanup(); }
-namespace ReserveManager { void Reset(); }
-namespace SkyManager { void Reset(); }
+namespace RedMissionLog
+{
+    void Reset();
+}
+namespace RedProfile
+{
+    void Cleanup();
+}
+namespace StatsManager
+{
+    void Cleanup();
+}
+namespace ReserveManager
+{
+    void Reset();
+}
+namespace SkyManager
+{
+    void Reset();
+}
 
-namespace SaveGameManager { void Cleanup(); }
-namespace GameVoiceChat { unsigned int GetNumNodes(); }
-namespace GameVoiceChat { void* GetNode(); }
+namespace SaveGameManager
+{
+    void Cleanup();
+}
+namespace GameVoiceChat
+{
+    unsigned int GetNumNodes();
+}
 
 extern int gNetSetup_errState;
 
+// GLOBAL: SWBF2 0x1e563ac
 GameState::State* _pNextState;
+// GLOBAL: SWBF2 0x01e563b0
 bool _bDoChangeState;
+// GLOBAL: SWBF2 0x1e563b4
 unsigned int mNextStateHash;
+// GLOBAL: SWBF2 0x01e563b8
+// mCurrentStateHash
 unsigned int mCurrentStateHash;
-// GLOBAL: SWBF2 0x007eb97c
 // SYNTHETIC: SWBF2 0x00403e60
 // `dynamic initializer for '_MissionState''
 // SYNTHETIC: SWBF2 0x00768aa0
 // `dynamic atexit destructor for '_MissionState''
+
+// GLOBAL: SWBF2 0x007eb97c
+// _MissionState
 GameState::MissionState _MissionState;
-// GLOBAL: SWBF2 0x007eb998
 // SYNTHETIC: SWBF2 0x00403e50
 // `dynamic initializer for '_ShellState''
 // SYNTHETIC: SWBF2 0x00768a90
 // `dynamic atexit destructor for '_ShellState''
+
+// GLOBAL: SWBF2 0x007eb998
+// _ShellState
 GameState::ShellState _ShellState;
 
+// GLOBAL: SWBF2 0x01f9c2c0
+// _pCurrentState
 GameState::State* _pCurrentState;
 
+// GLOBAL: SWBF2 0x01e563a8
+// GameState::MissionState::_pCurrentState
 GameState::MissionState::State* GameState::MissionState::_pCurrentState;
 
+// GLOBAL: SWBF2 0x1e563b2
 bool gDisableNetworkOnCleanup;
 
+// GLOBAL: SWBF2 0x01e563b1
+// sKioskMode
 bool sKioskMode;
 
+// GLOBAL: SWBF2 0x1e5639e
 bool sbDidOneTimeInit;
 
-// GLOBAL: SWBF2 0x009cef88
-double secondsPerPerformanceTick;
 
 namespace GameState
 {
-// GLOBAL: SWBF2 0x01ec5f40
 // SYNTHETIC: SWBF2 0x00403e20
-// `dynamic initializer for 'GameState::_TimeBase''
+// GameState::`dynamic initializer for '_TimeBase''
+
+// GLOBAL: SWBF2 0x01ec5f40
+// _TimeBase
 PblTimeBase _TimeBase;
-// GLOBAL: SWBF2 0x01ec5f58
 // SYNTHETIC: SWBF2 0x00403e40
-// `dynamic initializer for 'GameState::_TotalTimeBase''
+// GameState::`dynamic initializer for '_TotalTimeBase''
+
+// GLOBAL: SWBF2 0x01ec5f58
+// _TotalTimeBase
 PblTimeBase _TotalTimeBase;
-// GLOBAL: SWBF2 0x01ec5f90
 // SYNTHETIC: SWBF2 0x00403e30
-// `dynamic initializer for 'GameState::_SystemTimeBase''
+// GameState::`dynamic initializer for '_SystemTimeBase''
+
+// GLOBAL: SWBF2 0x01ec5f90
+// _SystemTimeBase
 PblTimeBase _SystemTimeBase;
 }
 
+// GLOBAL: SWBF2 0x1ec5f70
 PblTimeBase::Stamp SystemTimeStamp;
+// GLOBAL: SWBF2 0x1ec5f80
 PblTimeBase::Stamp AppTimeStamp;
+// GLOBAL: SWBF2 0x1ec5fa8
 PblTimeBase::Stamp TotalTimeStamp;
+// GLOBAL: SWBF2 0x01f9c2c8
 float sDeltaTime;
+// GLOBAL: SWBF2 0x01f9c2cc
 float sSystemDeltaTime;
 LARGE_INTEGER perfCount;
 LARGE_INTEGER oldPerfCount;
+// GLOBAL: SWBF2 0x1e563a0
 __int64 maxAdvanceTicks;
+// GLOBAL: SWBF2 0x1e563c0
 __int64 normalAdvanceTicks;
+// GLOBAL: SWBF2 0x01e563c8
 float g_fFrameRateScale;
+// GLOBAL: SWBF2 0x01e5639f
+// sIgnoreNextTime
 bool sIgnoreNextTime;
+// GLOBAL: SWBF2 0x01e563b3
 bool gMemoryPoolErrors;
 
-// GLOBAL: SWBF2 0x01f9c2c4
-namespace GameState { int sNumFontsLoaded; }
+namespace GameState
+{
+    // GLOBAL: SWBF2 0x01f9c2c4
+    int sNumFontsLoaded;
+}
 
+// GLOBAL: SWBF2 0x1f9c2d8
 LARGE_INTEGER Frequency;
 
 // GLOBAL: SWBF2 0x01f9c2a0
@@ -404,7 +503,7 @@ void TTYInit()
     sTTYInvalidIndex = -1;
     sTTYGrid = (char*)RedAllocFromHeap(__RedCurrHeap, 0xC800, 0);
 
-    for (int i = 0; i < 0x50; ++i)
+    for (unsigned int i = 0; i < 0x50; ++i)
     {
         sTTYGrid[i * 0x280] = 0x0A;
     }
@@ -426,9 +525,7 @@ void GameState::OneTimeInit()
     RedInputManager::Init();
     RedRenderer::InitStatic();
 
-    LARGE_INTEGER counterFrequency;
-    QueryPerformanceFrequency(&counterFrequency);
-    secondsPerPerformanceTick = 1.0 / (double)counterFrequency.QuadPart;
+    PblPerformanceTimer::Init();
 
     RedRenderer::OpenDynamic();
     RedRenderer::SetTimeBase(&_TimeBase);
@@ -568,27 +665,24 @@ void GameState::UpdateTime()
 // FUNCTION: SWBF2 0x0053ae10
 void GameState::SetState(unsigned int uiState)
 {
-
     _bDoChangeState = true;
-
-    if (uiState == 0x8FF60339)
+    switch (uiState)
     {
+    case 0x8FF60339:
         _pNextState = &_MissionState;
         mNextStateHash = 0x8FF60339;
-    }
-    else if (uiState == 0x11E1FC01)
-    {
+        break;
+    case 0x11E1FC01:
         _pNextState = &_ShellState;
         mNextStateHash = 0x11E1FC01;
-    }
-    else if (uiState == 0)
-    {
+        break;
+    case 0:
         _pNextState = 0;
         mNextStateHash = 0;
-    }
-    else
-    {
+        break;
+    default:
         _bDoChangeState = false;
+        break;
     }
 }
 
@@ -644,7 +738,8 @@ void GameState::_SetState(State* pState)
     }
 }
 
-namespace RedMissionLog {
+namespace RedMissionLog
+{
 
 // FUNCTION: SWBF2 0x006cccc0
 void Init()
@@ -652,7 +747,8 @@ void Init()
 }
 }
 
-namespace RedProfile {
+namespace RedProfile
+{
 
 // FUNCTION: SWBF2 0x006f7450
 void Init()
@@ -675,30 +771,52 @@ void RedFootprintManager::Init()
 {
 }
 
-// GLOBAL: SWBF2 0x01eaf000
-namespace SaveGameManager { unsigned int mReqSaveFile2Data; }
+namespace SaveGameManager
+{
+    // GLOBAL: SWBF2 0x01eaf000
+    unsigned int mReqSaveFile2Data;
+}
 
-namespace SaveGameManager { extern void (*mOnDone)(); }
-// GLOBAL: SWBF2 0x01eaf008
-namespace SaveGameManager { unsigned int mReqSaveFile2Size; }
-// GLOBAL: SWBF2 0x01eaf010
-namespace SaveGameManager { unsigned int mReqSaveFile1Data; }
-// GLOBAL: SWBF2 0x01eaf014
-namespace SaveGameManager { unsigned int mReqSaveFile1Size; }
-// GLOBAL: SWBF2 0x01eaeff7
-namespace SaveGameManager { unsigned char mForceNoSaveDevice; }
-// GLOBAL: SWBF2 0x009cef72
-namespace PblBuildType { unsigned char gCreateMemoryProfile; }
+namespace SaveGameManager
+{
+    extern void (*mOnDone)();
+}
+namespace SaveGameManager
+{
+    // GLOBAL: SWBF2 0x01eaf008
+    unsigned int mReqSaveFile2Size;
+}
+namespace SaveGameManager
+{
+    // GLOBAL: SWBF2 0x01eaf010
+    unsigned int mReqSaveFile1Data;
+}
+namespace SaveGameManager
+{
+    // GLOBAL: SWBF2 0x01eaf014
+    unsigned int mReqSaveFile1Size;
+}
+namespace SaveGameManager
+{
+    // GLOBAL: SWBF2 0x01eaeff7
+    unsigned char mForceNoSaveDevice;
+}
+namespace PblBuildType
+{
+    // GLOBAL: SWBF2 0x009cef72
+    unsigned char gCreateMemoryProfile;
+}
 
-namespace SaveGameManager {
+namespace SaveGameManager
+{
 
 // FUNCTION: SWBF2 0x00632ee0
 void Init()
 {
-    SaveGameManager::mReqSaveFile2Data = 0;
     SaveGameManager::mOnDone = 0;
-    SaveGameManager::mReqSaveFile2Size = 0;
+    SaveGameManager::mReqSaveFile2Data = 0;
     SaveGameManager::mReqSaveFile1Data = 0;
+    SaveGameManager::mReqSaveFile2Size = 0;
     SaveGameManager::mReqSaveFile1Size = 0;
     SaveGameManager::mForceNoSaveDevice = PblBuildType::gCreateMemoryProfile;
 }
@@ -897,7 +1015,7 @@ void GameState::PreStateInit(bool bMission)
 
     if (!bMission)
     {
-        GameMovie::Create();
+        GameMovie::Create(GameMemory::RunTimeHeap);
     }
 
     SaveGameManager::Init();
@@ -1111,16 +1229,18 @@ void GameState::MissionState::PlayState::State::Exit()
 // FUNCTION: SWBF2 0x0053ba90
 void GameState::MissionState::SetState(unsigned int uiState)
 {
-    if (uiState == 0)
+    switch (uiState)
     {
+    case 0:
         _SetState(0);
-    }
-    else if (uiState == 0xc2cbd863)
-    {
+        break;
+    case 0xc2cbd863:
         _SetState(&_PlayState);
+        break;
     }
 }
 
+// FUNCTION: SWBF2 0x0053bab0
 void GameState::MissionState::_SetState(State* pState)
 {
     if (pState == _pCurrentState)
@@ -1252,7 +1372,7 @@ void GameState::MissionState::Enter()
     GameLoop::Init();
     GameLoop::PostLoad();
 
-    unsigned int uiCount = CameraManager::sInstance->GetNumCameras();
+    unsigned int uiCount = *(unsigned int*)((char*)CameraManager::sInstance + 0x1c);
     for (unsigned int i = 0; i < uiCount; ++i)
     {
         int iIndex = FLInputManager::s_instance.GetHWPort(i);
@@ -1494,10 +1614,10 @@ void GameState::PostStateCleanup(bool bMission)
     {
         for (int i = GameVoiceChat::GetNumNodes(); i != 0; --i)
         {
-            void* pObject = GameVoiceChat::GetNode();
+            GameVoiceChat::Node* pObject = GameVoiceChat::GetNode(i - 1);
             if (pObject)
             {
-                ((GameVoiceChat::Node*)pObject)->SetID(0xff);
+                pObject->SetID(0xff);
             }
         }
     }
@@ -1506,480 +1626,40 @@ void GameState::PostStateCleanup(bool bMission)
     MemoryPool::DestroyAll();
 }
 
-struct StatsLeaderboardNode
-{
-    StatsLeaderboardNode* _Next;
-    StatsLeaderboardNode* _Prev;
-    void* mPayloadFirst;
-    void* mPayloadSecond;
-};
-
-struct StatsLeaderboardBucketVector
-{
-    void** mFirst;
-    void** mLast;
-    void** mEnd;
-};
-
-struct StatsLeaderboardContainer
-{
-
-    StatsLeaderboardContainer();
-    ~StatsLeaderboardContainer();
-
-    StatsLeaderboardNode* mListHead;
-    unsigned int mListSize;
-    StatsLeaderboardBucketVector mBuckets;
-    unsigned int mBucketMask;
-    unsigned int mBucketCount;
-    float mMaxLoadFactor;
-};
- 
-
-// GLOBAL: SWBF2 0x01ec0c20
-// SYNTHETIC: SWBF2 0x00403c20
-// `dynamic initializer for 'sStatsLeaderboard''
-// SYNTHETIC: SWBF2 0x00768910
-// `dynamic atexit destructor for 'sStatsLeaderboard''
-StatsLeaderboardContainer sStatsLeaderboard;
-
-void ClearStatsLeaderboardList();
-StatsLeaderboardContainer::~StatsLeaderboardContainer()
-{
-    if (mBuckets.mFirst)
-    {
-        ::operator delete(mBuckets.mFirst);
-        mBuckets.mFirst = 0;
-        mBuckets.mLast = 0;
-        mBuckets.mEnd = 0;
-    }
-    ClearStatsLeaderboardList();
-    ::operator delete(mListHead);
-}
-
-// GLOBAL: SWBF2 0x007e6668
-namespace StatsManager { int m_state = 1; }
-
-// GLOBAL: SWBF2 0x01e56008
-bool sStatsRequestBusy;
-
-// GLOBAL: SWBF2 0x01e55fc0
-unsigned char sStatsMatchData[0x40];
-
-// FUNCTION: SWBF2 0x00530cc0
-StatsLeaderboardNode* AllocateStatsLeaderboardHead()
-{
-    StatsLeaderboardNode* pNode = (StatsLeaderboardNode*)
-        ::operator new(sizeof(StatsLeaderboardNode));
-    if (!pNode)
-    {
-        throw std::bad_alloc();
-    }
-
-    pNode->_Next = pNode;
-    StatsLeaderboardNode** ppPrev = &pNode->_Prev;
-    if (ppPrev)
-    {
-        *ppPrev = pNode;
-    }
-
-    return pNode;
-}
-
-// FUNCTION: SWBF2 0x00530c80
-unsigned int GrowStatsBucketCapacity(const StatsLeaderboardBucketVector* pThis, unsigned int uiCount)
-{
-    unsigned int uiCapacity =
-        (unsigned int)(pThis->mEnd - pThis->mFirst);
-
-    if (0x3FFFFFFFu - uiCapacity / 2 < uiCapacity)
-    {
-        uiCapacity = 0;
-    }
-    else
-    {
-        uiCapacity += uiCapacity / 2;
-    }
-
-    if (uiCapacity < uiCount)
-    {
-        uiCapacity = uiCount;
-    }
-
-    return uiCapacity;
-}
-
-// FUNCTION: SWBF2 0x00530d00
-void FillStatsBucketRange(void** ppFirst, void** ppLast, void* const* ppVal)
-{
-    unsigned int uiCount = (unsigned int)(ppLast - ppFirst);
-    if (ppFirst > ppLast)
-    {
-        uiCount = 0;
-    }
-
-    for (unsigned int i = 0; i < uiCount; i++)
-    {
-        *ppFirst++ = *ppVal;
-    }
-}
-
-// FUNCTION: SWBF2 0x00530d40
-void FillStatsBucketCount(void** ppDest, unsigned int uiCount, void* const* ppVal)
-{
-    for (; uiCount != 0; uiCount--)
-    {
-        if (ppDest)
-        {
-            *ppDest = *ppVal;
-        }
-        ppDest++;
-    }
-}
-
-// FUNCTION: SWBF2 0x00530d70
-void** CopyStatsBucketRange(void** ppFirst, void** ppLast, void** ppDest)
-{
-    unsigned int uiCount = (unsigned int)(ppLast - ppFirst);
-    if (ppFirst > ppLast)
-    {
-        uiCount = 0;
-    }
-
-    for (unsigned int i = 0; i < uiCount; i++)
-    {
-        if (ppDest)
-        {
-            *ppDest = ppFirst[i];
-        }
-        ppDest++;
-    }
-
-    return ppDest;
-}
-
-// FUNCTION: SWBF2 0x00530ab0
-void InsertStatsLeaderboardBuckets(StatsLeaderboardBucketVector* pThis, void*** pppResult,
-                       void** ppWhere, void**  , void* const* ppVal)
-{
-    const unsigned int uiOff = (unsigned int)(ppWhere - pThis->mFirst);
-
-    if ((unsigned int)(pThis->mEnd - pThis->mLast) < 0x10u)
-    {
-
-        const unsigned int uiSize =
-            (unsigned int)(pThis->mLast - pThis->mFirst);
-        if (0x3FFFFFFFu - uiSize < 0x10u)
-        {
-            throw std::length_error("vector<T> too long");
-        }
-
-        const unsigned int uiCapacity = GrowStatsBucketCapacity(pThis, uiSize + 0x10);
-
-        void** ppNew = 0;
-        if (uiCapacity != 0)
-        {
-            if (uiCapacity > 0x3FFFFFFFu)
-            {
-                throw std::bad_alloc();
-            }
-            ppNew = (void**)::operator new(uiCapacity * 4);
-            if (!ppNew)
-            {
-                throw std::bad_alloc();
-            }
-        }
-
-        FillStatsBucketCount(ppNew + uiOff, 0x10, ppVal);
-        CopyStatsBucketRange(pThis->mFirst, ppWhere, ppNew);
-        CopyStatsBucketRange(ppWhere, pThis->mLast, ppNew + uiOff + 0x10);
-
-        const unsigned int uiNewSize = uiSize + 0x10;
-        if (pThis->mFirst)
-        {
-            ::operator delete(pThis->mFirst);
-        }
-
-        pThis->mFirst = ppNew;
-        pThis->mEnd = ppNew + uiCapacity;
-        pThis->mLast = ppNew + uiNewSize;
-    }
-    else
-    {
-        void** ppOldEnd = pThis->mLast;
-
-        void* pVal = *ppVal;
-
-        if ((unsigned int)(ppOldEnd - ppWhere) < 0x10u)
-        {
-
-            CopyStatsBucketRange(ppWhere, ppOldEnd, ppWhere + 0x10);
-            FillStatsBucketCount(ppOldEnd, 0x10 - (unsigned int)(ppOldEnd - ppWhere), &pVal);
-            pThis->mLast += 0x10;
-            FillStatsBucketRange(ppWhere, pThis->mLast - 0x10, &pVal);
-        }
-        else
-        {
-
-            pThis->mLast =
-                CopyStatsBucketRange(ppOldEnd - 0x10, ppOldEnd, ppOldEnd);
-
-            void** ppSrc = ppOldEnd - 0x10;
-            while (ppWhere != ppSrc)
-            {
-                ppSrc--;
-                ppSrc[0x10] = ppSrc[0];
-            }
-
-            FillStatsBucketRange(ppWhere, ppWhere + 0x10, &pVal);
-        }
-    }
-
-    *pppResult = pThis->mFirst + uiOff;
-}
-
-// FUNCTION: SWBF2 0x00530a00
-void ClearStatsLeaderboardList()
-{
-    StatsLeaderboardNode* pHead = sStatsLeaderboard.mListHead;
-    StatsLeaderboardNode* pNode = pHead->_Next;
-
-    pHead->_Next = pHead;
-    sStatsLeaderboard.mListHead->_Prev = sStatsLeaderboard.mListHead;
-    sStatsLeaderboard.mListSize = 0;
-
-    while (pNode != sStatsLeaderboard.mListHead)
-    {
-        StatsLeaderboardNode* pNext = pNode->_Next;
-        ::operator delete(pNode);
-        pNode = pNext;
-    }
-}
-
-// FUNCTION: SWBF2 0x00530920
-StatsLeaderboardContainer::StatsLeaderboardContainer()
-{
-    mListHead = 0;
-    mListSize = 0;
-    mListHead = AllocateStatsLeaderboardHead();
-
-    mBuckets.mFirst = 0;
-    mBuckets.mEnd = 0;
-    mBuckets.mLast = 0;
-    mMaxLoadFactor = 1.0f;
-
-    void* pHead = mListHead;
-    void** ppResult;
-    InsertStatsLeaderboardBuckets(&mBuckets, &ppResult, 0, 0, &pHead);
-
-    mBucketMask = 7;
-    mBucketCount = 8;
-}
-
-namespace StatsManager {
-
-// FUNCTION: SWBF2 0x00530640
-void Init()
-{
-    StatsManager::m_state = 1;
-    sStatsRequestBusy = false;
-
-    ClearStatsLeaderboardList();
-
-    void* pHead = sStatsLeaderboard.mListHead;
-    sStatsLeaderboard.mBuckets.mLast = sStatsLeaderboard.mBuckets.mFirst;
-
-    void** ppResult;
-    InsertStatsLeaderboardBuckets(&sStatsLeaderboard.mBuckets, &ppResult,
-               sStatsLeaderboard.mBuckets.mFirst, &pHead, &pHead);
-
-    memset(sStatsMatchData, 0, 0x40);
-    sStatsLeaderboard.mBucketMask = 7;
-    sStatsLeaderboard.mBucketCount = 8;
-}
-}
-
-void StatsManagerSetStoppedState();
-
-namespace StatsManager {
-
-// FUNCTION: SWBF2 0x005307d0
-void Stop()
-{
-    if (StatsManager::m_state == 7 || StatsManager::m_state == 3)
-    {
-        StatsManagerSetStoppedState();
-    }
-    else if (StatsManager::m_state == 0)
-    {
-        StatsManager::m_state = 1;
-    }
-    sStatsRequestBusy = false;
-
-    ClearStatsLeaderboardList();
-
-    void* pHead = sStatsLeaderboard.mListHead;
-    sStatsLeaderboard.mBuckets.mLast = sStatsLeaderboard.mBuckets.mFirst;
-
-    void** ppResult;
-    InsertStatsLeaderboardBuckets(&sStatsLeaderboard.mBuckets, &ppResult,
-               sStatsLeaderboard.mBuckets.mFirst, &pHead, &pHead);
-
-    sStatsLeaderboard.mBucketMask = 7;
-    sStatsLeaderboard.mBucketCount = 8;
-    if (StatsManager::m_state == 1)
-    {
-        StatsManager::Init();
-    }
-}
-}
-
-// GLOBAL: SWBF2 0x01e55fb7
-bool sStatsHeapAllocated;
-
-// GLOBAL: SWBF2 0x01e55fbc
-void* sStatsHeapBlockA;
-
-// GLOBAL: SWBF2 0x01e56000
-void* sStatsHeapBlockB;
-
-// GLOBAL: SWBF2 0x01e56004
-void* sStatsHeapBlockC;
-
-// GLOBAL: SWBF2 0x01e5600c
-void* sStatsHeapBlockD;
-
-// GLOBAL: SWBF2 0x01e56010
-void* sStatsHeapBlockE;
-
-// FUNCTION: SWBF2 0x00530620
-void __fastcall FreeGamespyBlock(void* pBlock)
-{
-    RedFreeToHeap(GameMemory::GamespyHeap, pBlock, 0);
-}
-
-namespace StatsManager {
-
-// FUNCTION: SWBF2 0x005306b0
-void Cleanup()
-{
-    StatsManager::m_state = 1;
-    sStatsRequestBusy = false;
-
-    ClearStatsLeaderboardList();
-
-    void* pHead = sStatsLeaderboard.mListHead;
-    sStatsLeaderboard.mBuckets.mLast = sStatsLeaderboard.mBuckets.mFirst;
-
-    void** ppResult;
-    InsertStatsLeaderboardBuckets(&sStatsLeaderboard.mBuckets, &ppResult,
-               sStatsLeaderboard.mBuckets.mFirst, &pHead, &pHead);
-
-    sStatsLeaderboard.mBucketMask = 7;
-    sStatsLeaderboard.mBucketCount = 8;
-
-    if (sStatsHeapAllocated)
-    {
-        sStatsHeapAllocated = false;
-        if (sStatsHeapBlockB)
-        {
-            FreeGamespyBlock(sStatsHeapBlockB);
-            sStatsHeapBlockB = 0;
-        }
-        if (sStatsHeapBlockE)
-        {
-            FreeGamespyBlock(sStatsHeapBlockE);
-            sStatsHeapBlockE = 0;
-        }
-        if (sStatsHeapBlockD)
-        {
-            FreeGamespyBlock(sStatsHeapBlockD);
-            sStatsHeapBlockD = 0;
-        }
-        if (sStatsHeapBlockC)
-        {
-            FreeGamespyBlock(sStatsHeapBlockC);
-            sStatsHeapBlockC = 0;
-        }
-        if (sStatsHeapBlockA)
-        {
-            FreeGamespyBlock(sStatsHeapBlockA);
-            sStatsHeapBlockA = 0;
-        }
-    }
-}
-}
-namespace StatsManager {
-
-// FUNCTION: SWBF2 0x00530890
-void ReadStatsChallenge()
-{
-}
-}
-
-namespace StatsManager {
-
-// FUNCTION: SWBF2 0x005308b0
-void ReadStatsResponse()
-{
-}
-}
-
-// FUNCTION: SWBF2 0x00530a90
-void __stdcall IgnoreStatsBucketArguments(int, int) {}
-
-// FUNCTION: SWBF2 0x00530aa0
-void* __fastcall ReturnStatsBucketPointer(void* pThis) { return pThis; }
-
-// FUNCTION: SWBF2 0x00530c70
-void* __fastcall ReturnStatsVectorPointer(void* pThis) { return pThis; }
-
-// FUNCTION: SWBF2 0x00530cf0
-void __stdcall IgnoreStatsVectorArgument(int) {}
-
-// FUNCTION: SWBF2 0x0053c000
+// TEMPLATE: SWBF2 0x0053c000
+// PblJournal::Record<unsigned int>
 template void PblJournal::Record<unsigned int>(unsigned int& value, PblJournalType type);
 
-// FUNCTION: SWBF2 0x00530a70
-void __stdcall IgnoreStatsListArguments(int, int)
+// FUNCTION: SWBF2 0x0053bff0
+unsigned int __fastcall GetFactorySecondWord(const unsigned int* pThis)
 {
+    return pThis[1];
 }
 
-// FUNCTION: SWBF2 0x00530a80
-void* __fastcall ReturnStatsListPointer(void* pThis)
-{
-    return pThis;
-}
-
-// TEMPLATE: SWBF2 0x0053bff0
-// PblList<Factory<Ordnance,OrdnanceClass,OrdnanceDesc> >::GetFirst
-template PblList<Factory<Ordnance, OrdnanceClass, OrdnanceDesc> >::Node*
-PblList<Factory<Ordnance, OrdnanceClass, OrdnanceDesc> >::GetFirst() const;
-
-// GLOBAL: SWBF2 0x007eb99c
 // SYNTHETIC: SWBF2 0x00403e70
 // `dynamic initializer for 'GameState::MissionState::_PlayState''
 // SYNTHETIC: SWBF2 0x00768ab0
 // `dynamic atexit destructor for 'GameState::MissionState::_PlayState''
+
+// GLOBAL: SWBF2 0x007eb99c
+// GameState::MissionState::_PlayState
 GameState::MissionState::PlayState GameState::MissionState::_PlayState;
 
-// GLOBAL: SWBF2 0x007eb9b8
 // SYNTHETIC: SWBF2 0x00403e80
 // `dynamic initializer for 'GameState::MissionState::PlayState::_NormalState''
 // SYNTHETIC: SWBF2 0x00768ac0
 // `dynamic atexit destructor for 'GameState::MissionState::PlayState::_NormalState''
+
+// GLOBAL: SWBF2 0x007eb9b8
+// GameState::MissionState::PlayState::_NormalState
 GameState::MissionState::PlayState::NormalState GameState::MissionState::PlayState::_NormalState;
 
-// GLOBAL: SWBF2 0x007eb978
 // SYNTHETIC: SWBF2 0x00403e90
 // `dynamic initializer for 'GameState::MissionState::PlayState::_PausedState''
 // SYNTHETIC: SWBF2 0x00768ad0
 // `dynamic atexit destructor for 'GameState::MissionState::PlayState::_PausedState''
+
+// GLOBAL: SWBF2 0x007eb978
+// GameState::MissionState::PlayState::_PausedState
 GameState::MissionState::PlayState::PausedState GameState::MissionState::PlayState::_PausedState;
 
-// GLOBAL: SWBF2 0x01ec0c14
-// SYNTHETIC: SWBF2 0x00403c50
-// `dynamic initializer for 'sStatsScratchBytes''
-// SYNTHETIC: SWBF2 0x007689a0
-// `dynamic atexit destructor for 'sStatsScratchBytes''
-std::vector<unsigned char> sStatsScratchBytes;

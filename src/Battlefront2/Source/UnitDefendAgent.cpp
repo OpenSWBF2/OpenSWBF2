@@ -5,37 +5,24 @@
 #include "AILowLevel.h"
 #include "AttackHelper.h"
 
-// GLOBAL: SWBF2 0x01f993b4
 // SYNTHETIC: SWBF2 0x00406ca0
 // `dynamic initializer for 'UnitDefendAgent::rttiHashUnitDefendAgent''
+// UnitDefendAgent::rttiHashUnitDefendAgent
+
+// GLOBAL: SWBF2 0x01f993b4
+// UnitDefendAgent::rttiHashUnitDefendAgent
 PblHash UnitDefendAgent::rttiHashUnitDefendAgent("UnitDefendAgent");
-char UnitDefendAgent::rttiNameUnitDefendAgent[] = "UnitDefendAgent";
+// GLOBAL: SWBF2 0x0078b800
+// UnitDefendAgent::rttiNameUnitDefendAgent
+const char UnitDefendAgent::rttiNameUnitDefendAgent[] = "UnitDefendAgent";
 
-// FUNCTION: SWBF2 0x00665b60
-bool UnitDefendAgent::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashUnitDefendAgent || UnitAgent::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00665b90
-unsigned int UnitDefendAgent::GetDerivedRtti() const
-{
-    return rttiHashUnitDefendAgent;
-}
 
-// FUNCTION: SWBF2 0x00665ba0
-const char* UnitDefendAgent::GetDerivedRttiName() const
-{
-    return rttiNameUnitDefendAgent;
-}
 
-// SYNTHETIC: SWBF2 0x00665bb0
-// UnitDefendAgent::`scalar deleting destructor'
 
-// FUNCTION: SWBF2 0x00665be0
-UnitDefendAgent::~UnitDefendAgent()
-{
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00665c70
 UnitDefendAgent::UnitDefendAgent(UnitController* pCtrl, const AI::GoalTarget& target)
@@ -108,9 +95,9 @@ void UnitDefendAgent::UpdateStatePostVision(float dt)
 {
     if (mCurState != 3)
     {
-        reinterpret_cast<AttackHelper*>(mAttackHelper)->Update();
+        mAttackHelper.Update();
     }
-    reinterpret_cast<AILowLevel*>(mCtrl->mLowLevel)->SetHeight(HEIGHT_STAND);
+    mCtrl->mLowLevel.SetHeight(HEIGHT_STAND);
 
     switch (mCurState)
     {

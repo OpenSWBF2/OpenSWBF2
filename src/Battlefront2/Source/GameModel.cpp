@@ -13,19 +13,15 @@
 
 extern bool sLoadLowDetailModels;
 
-// GLOBAL: SWBF2 0x01ec1234
 // SYNTHETIC: SWBF2 0x00403d80
 // `dynamic initializer for 'GameModel::_HashTable''
 
-PblHashTable<GameModel, 1024> GameModel::_HashTable;
-
 // GLOBAL: SWBF2 0x01ec1230
-int GameModel_HashTableNumEntries;
+PblHashTable<GameModel, 1024> GameModel::_HashTable;
 
 void GameModel::Reset()
 {
     _HashTable.Clear();
-    GameModel_HashTableNumEntries = 0;
 }
 
 // FUNCTION: SWBF2 0x00533da0
@@ -171,10 +167,7 @@ bool GameModel::_Read(PblFileChunk& chunk)
             {
                 return false;
             }
-            if (_HashTable.Store(_uiNameHash, this))
-            {
-                ++GameModel_HashTableNumEntries;
-            }
+            _HashTable.Store(_uiNameHash, this);
             break;
 
         case 0x4f464e49:

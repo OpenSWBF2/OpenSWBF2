@@ -14,7 +14,6 @@
 #include "PebbleFL/Common/PblHeap.h"
 #include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblMatrix.h"
-#include "TeamManager.h"
 
 // FUNCTION: SWBF2 0x0063c0c0
 bool SnipeHelper::HELPERGrenadeEventInterrupt() const
@@ -22,21 +21,42 @@ bool SnipeHelper::HELPERGrenadeEventInterrupt() const
     return true;
 }
 
+namespace AI
+{
+
+enum AIAffil
+{
+    AFFIL_ENEMY = 1,
+    AFFIL_NEUTRAL = 2,
+    AFFIL_ALLY = 4,
+    AFFIL_ALLYNEUTRAL = 6,
+    AFFIL_ALL = 7
+};
+}
+
+namespace TeamManager
+{
+
+    int GetObjectsInRange(const PblVector3& vPos, float fRadius, GameObject** const ppObjects,
+                          int iMax, const GameObject* pIgnore, AI::AIAffil eAffil);
+
+    int GetApproxObjectsAlongLine(const PblVector3& vStart, const PblVector3& vEnd, float fRadius,
+                                  GameObject** const ppObjects, int iMax, const GameObject* pIgnore,
+                                  AI::AIAffil eAffil);
+}
+
 static const float FOV_ANGLE = 2.70526028f;
 
 namespace
 {
-    const PblVector3& GetMatrixPos(const PblMatrix& m)
-    {
-        return *(const PblVector3*)&m.m[3][0];
-    }
 
-    const CollisionObject* GetCollisionObject(const GameObject* pObj)
+
+    inline const CollisionObject* GetCollisionObject(const GameObject* pObj)
     {
         return static_cast<const CollisionObject*>(pObj);
     }
 
-    float DistSq(const PblVector3& a, const PblVector3& b)
+    inline float DistSq(const PblVector3& a, const PblVector3& b)
     {
         float fX = a.x - b.x;
         float fY = a.y - b.y;
@@ -56,25 +76,13 @@ SnipeHelper::SnipeHelper(UnitAgent* pOwner)
 // SYNTHETIC: SWBF2 0x0063b680
 // SnipeHelper::`scalar deleting destructor'
 
-const Controllable* SnipeHelper::GetMe() const
-{
-    return mOwner->GetMe();
-}
 
-Controllable* SnipeHelper::GetMe()
-{
-    return mOwner->GetMe();
-}
 
-UnitController* SnipeHelper::GetCtrl()
-{
-    return mOwner->mCtrl;
-}
 
-const AttackHelper* SnipeHelper::GetAttackHelper() const
-{
-    return reinterpret_cast<const AttackHelper*>(mOwner->mAttackHelper);
-}
+
+
+
+
 
 // FUNCTION: SWBF2 0x0063b6e0
 bool SnipeHelper::LookForSnipeHintAndInit()
@@ -145,7 +153,7 @@ void SnipeHelper::UpdateState(float dt)
         {
             break;
         }
-        if (DistSq(GetMatrixPos(GetMe()->GetMatrix()), mHint->GetCollisionCenter()) < 4.0f)
+        if (DistSq(GetMe()->GetMatrix().GetTranslation(), mHint->GetCollisionCenter()) < 4.0f)
         {
             SetNextState(STATE_SNIPE);
         }
@@ -184,7 +192,7 @@ void SnipeHelper::UpdateState(float dt)
 
         mHint->Reserve(GetMe()->GetGameObject());
         PblVector3 vZ = AIUtil::GetSafeNormal(mHint->GetZAxis());
-        PblVector3 vMyPos = GetMatrixPos(GetMe()->GetMatrix());
+        PblVector3 vMyPos = GetMe()->GetMatrix().GetTranslation();
 
         PblVector3 vFace(vZ.x * 10.0f + vMyPos.x, vZ.y * 10.0f + vMyPos.y, vZ.z * 10.0f + vMyPos.z);
 
@@ -192,7 +200,7 @@ void SnipeHelper::UpdateState(float dt)
         const AttackHelper* pAttack = GetAttackHelper();
         if (pAttack->GetVisibleTarget())
         {
-            vTarget = GetMatrixPos(GetCollisionObject(pAttack->GetVisibleTarget())->GetMatrix());
+            vTarget = (GetCollisionObject(pAttack->GetVisibleTarget())->GetMatrix()).GetTranslation();
         }
         else if (pAttack->HasTarget())
         {
@@ -238,7 +246,7 @@ void SnipeHelper::UpdateState(float dt)
 bool SnipeHelper::IsWithinSnipeFOV(const PblVector3& vPos) const
 {
     PblVector3 vZ = AIUtil::GetSafeNormal(mHint->GetZAxis());
-    PblVector3 vMyPos = GetMatrixPos(GetMe()->GetMatrix());
+    PblVector3 vMyPos = GetMe()->GetMatrix().GetTranslation();
     PblVector3 vDir = AIUtil::GetSafeNormal(PblVector3(vPos.x - vMyPos.x, vPos.y - vMyPos.y, vPos.z - vMyPos.z));
     return vZ.x * vDir.x + vZ.y * vDir.y + vZ.z * vDir.z > PblMath::Cos(FOV_ANGLE * 0.5f);
 }
@@ -256,7 +264,7 @@ bool SnipeHelper::IsHintSuitable(const SnipeHint* pHint, const Team* pTeam) cons
     const GameObject* pMe = GetMe()->GetGameObject();
     PblVector3 vHintPos = pHint->GetCollisionCenter();
     const PblVector3& vZ = pHint->GetZAxis();
-    PblVector3 vPos(vZ.x * fDist + vHintPos.x, vZ.y * fDist + vHintPos.y, vZ.z * fDist + vHintPos.z);
+    PblVector3 vPos = vZ * fDist + vHintPos;
 
     GameObject* apObjects[1200];
     int iCount = TeamManager::GetObjectsInRange(vPos, fDist, apObjects, 1200, pMe, AI::AFFIL_ENEMY);
@@ -274,7 +282,7 @@ bool SnipeHelper::IsHintSuitable(const SnipeHint* pHint, const Team* pTeam) cons
 const SnipeHint* SnipeHelper::FindSnipeHint() const
 {
     const GameObject* pMe = GetMe()->GetGameObject();
-    PblVector3 vMyPos = GetMatrixPos(GetMe()->GetMatrix());
+    PblVector3 vMyPos = GetMe()->GetMatrix().GetTranslation();
 
     PblHeap<const BaseHint*, float>::RECORD aPool[21];
     PblHeap<const BaseHint*, float> heap(20, 0.0f, aPool);
@@ -381,11 +389,11 @@ bool SnipeHelper::HELPERSeeEnemyInterrupt(const GameObject* pEnemy) const
         return true;
     }
     const PblMatrix& rEnemy = GetCollisionObject(pEnemy)->GetMatrix();
-    if (IsWithinSnipeFOV(GetMatrixPos(rEnemy)))
+    if (IsWithinSnipeFOV(rEnemy.GetTranslation()))
     {
         return false;
     }
-    return DistSq(GetMatrixPos(GetCollisionObject(pEnemy)->GetMatrix()), GetMatrixPos(GetMe()->GetMatrix())) < 1600.0f;
+    return DistSq((GetCollisionObject(pEnemy)->GetMatrix()).GetTranslation(), GetMe()->GetMatrix().GetTranslation()) < 1600.0f;
 }
 
 // FUNCTION: SWBF2 0x0063c1a0
@@ -393,7 +401,7 @@ bool SnipeHelper::HELPERHearEnemyInterrupt(const GameObject* pEnemy) const
 {
     if (mCurState == STATE_SNIPE)
     {
-        return !IsWithinSnipeFOV(GetMatrixPos(GetCollisionObject(pEnemy)->GetMatrix()));
+        return !IsWithinSnipeFOV((GetCollisionObject(pEnemy)->GetMatrix()).GetTranslation());
     }
     return true;
 }
@@ -404,7 +412,8 @@ bool SnipeHelper::HELPERVehicleNearbyInterrupt(const GameObject* pVehicle) const
     return false;
 }
 
-// FUNCTION: SWBF2 0x0063c200
+// TEMPLATE: SWBF2 0x0063c200
+// PblHeap<BaseHint const *,float>::Pop
 template void PblHeap<const BaseHint*, float>::Pop();
 
 // FUNCTION: SWBF2 0x0063c0a0

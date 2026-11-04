@@ -73,6 +73,8 @@ public:
         return sMemoryPool.Allocate((unsigned int)size);
     }
 
+    // SYNTHETIC: SWBF2 0x00609cf0
+    // ParticleEmitter::operator delete
     static void operator delete(void* p)
     {
         sMemoryPool.Free(p);

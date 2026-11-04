@@ -6,6 +6,7 @@
 int mLastPrintTime;
 // GLOBAL: SWBF2 0x01f9d024
 unsigned int mNumFrames;
+// GLOBAL: SWBF2 0x01f9d028
 float mFrameTimes[16];
 
 namespace MissionLog

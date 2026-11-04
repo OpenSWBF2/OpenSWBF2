@@ -11,7 +11,7 @@ const unsigned char* GetBitmapElementAndMask(const unsigned char* const bitmap, 
                                              unsigned char& mask);
 bool GetBit(const unsigned char* const bitmap, unsigned int bit);
 
-int GetMSBIndex();
+unsigned int GetMSBIndex(unsigned int uiValue);
 
 void SetBits(unsigned char* const bitmap, unsigned int bit, unsigned int value, unsigned int count);
 unsigned int GetBits(const unsigned char* const bitmap, unsigned int bit, unsigned int count);

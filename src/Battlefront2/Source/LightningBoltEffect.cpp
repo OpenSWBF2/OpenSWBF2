@@ -11,6 +11,7 @@
 #include "PebbleFL/Common/PblHashTable.h"
 #include "PebbleFL/Common/PblRandom.h"
 #include "RedEngineFL/Application/pc/pcRedParticle.h"
+#include "PebbleFL/Common/PblMath.h"
 
 // GLOBAL: SWBF2 0x01e573e0
 LightningBoltEffect* LightningBoltEffect::sInstance;
@@ -25,11 +26,13 @@ void LightningBoltEffect::Create()
     }
 }
 
-// GLOBAL: SWBF2 0x01ec63c0
 // SYNTHETIC: SWBF2 0x00404100
 // `dynamic initializer for 'LightningBoltEffectObject::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00768c50
 // `dynamic atexit destructor for 'LightningBoltEffectObject::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ec63c0
+// LightningBoltEffectObject::sMemoryPool
 MemoryPool LightningBoltEffectObject::sMemoryPool("LightningBoltEffectObject", 0x120);
 
 namespace
@@ -224,7 +227,7 @@ LightningBoltEffectClass::~LightningBoltEffectClass()
 }
 
 // SYNTHETIC: SWBF2 0x00572827
-// [thunk]:LightningBoltEffectClass::`scalar deleting destructor' adjustor{12}
+// ??_ELightningBoltEffectClass@@WM@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x005715d0
 FLEffectObject* LightningBoltEffectClass::BuildEffect()
@@ -282,9 +285,9 @@ LightningBoltEffectObject::LightningBoltEffectObject(const LightningBoltEffectCl
 }
 
 // SYNTHETIC: SWBF2 0x00572814
-// [thunk]:LightningBoltEffectObject::`scalar deleting destructor' adjustor{24}
+// ??_ELightningBoltEffectObject@@WBI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x0057281c
-// [thunk]:LightningBoltEffectObject::`scalar deleting destructor' adjustor{128}
+// ??_ELightningBoltEffectObject@@WIA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00571880
 // LightningBoltEffectObject::`scalar deleting destructor'
 
@@ -319,7 +322,7 @@ bool LightningBoltEffectObject::UpdateBolt(float fDeltaTime)
 
     if (!_bActive)
     {
-        const PblVector3& vStart = *(const PblVector3*)&m_mWorldMatrix.m[3][0];
+        const PblVector3& vStart = m_mWorldMatrix.GetTranslation();
         PblVector3 vDelta(vStart.x - mTargetPos.x, vStart.y - mTargetPos.y, vStart.z - mTargetPos.z);
         PblVector3 vCenter(mTargetPos.x + vDelta.x * 0.5f, mTargetPos.y + vDelta.y * 0.5f,
                            mTargetPos.z + vDelta.z * 0.5f);
@@ -347,7 +350,7 @@ bool LightningBoltEffectObject::SetOrdnanceOwner(GameObject* pObject)
 // FUNCTION: SWBF2 0x00571c60
 void LightningBoltEffectObject::Render(unsigned char, float, unsigned int)
 {
-    PblVector3 vStart = *(const PblVector3*)&m_mWorldMatrix.m[3][0];
+    PblVector3 vStart = m_mWorldMatrix.GetTranslation();
     PblVector3 vMin((mTargetPos.x > vStart.x ? vStart.x : mTargetPos.x) - 128.0f,
                     (mTargetPos.y > vStart.y ? vStart.y : mTargetPos.y) - 128.0f,
                     (mTargetPos.z > vStart.z ? vStart.z : mTargetPos.z) - 128.0f);
@@ -358,10 +361,7 @@ void LightningBoltEffectObject::Render(unsigned char, float, unsigned int)
     RedParticleRenderer::SubmitTexture(mClass->mTexture, BLEND_ADDITIVE, 0);
 
     float fFade = mLifeTime * 2.0f / mClass->mFadeTime;
-    if (fFade >= 1.0f)
-    {
-        fFade = 1.0f;
-    }
+    fFade = Min(fFade, 1.0f);
     float fAlpha = (mStrength * 0.5f + 0.5f) * fFade;
     float fWidthScale = mStrength * 0.7f + 0.3f;
 
@@ -425,9 +425,7 @@ void LightningBoltEffectObject::Render(const PblVector3& vStart, const PblVector
     }
 
     float fInvLength = 1.0f / fLength;
-    vDir.x *= fInvLength;
-    vDir.y *= fInvLength;
-    vDir.z *= fInvLength;
+    vDir *= fInvLength;
 
     int iSegments = (int)(fLength / fBreakDistance);
     if (iSegments < 3)
@@ -521,5 +519,6 @@ void LightningBoltEffectObject::SetStrength(float fStrength)
     mStrength = fStrength;
 }
 
-// FUNCTION: SWBF2 0x005727e0
+// TEMPLATE: SWBF2 0x005727e0
+// PblList<LightningBoltEffectObject>::RemoveAll
 template void PblList<LightningBoltEffectObject>::RemoveAll();

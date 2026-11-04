@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "Battlefront2/Source/SkyDome.h"
 #include "PebbleFL/Common/PblVector.h"
 
@@ -21,13 +22,14 @@
 #include "RedEngineFL/Graphics/RedModel.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "pcSunFlare.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
-// GLOBAL: SWBF2 0x01eafd84
 // SYNTHETIC: SWBF2 0x004020e0
 // `dynamic initializer for 's_SkyFogPlane''
 // SYNTHETIC: SWBF2 0x00766cf0
 // `dynamic atexit destructor for 's_SkyFogPlane''
+
+// GLOBAL: SWBF2 0x01eafd84
+// s_SkyFogPlane
 SkyFogRenderable s_SkyFogPlane;
 
 // FUNCTION: SWBF2 0x004285e0
@@ -96,11 +98,8 @@ void SkyFogRenderable::Render(int)
                                    RedColor::WHITE, 0x200, 0, 0, 0);
 }
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
+
+
 
 // FUNCTION: SWBF2 0x00428970
 void SkyDome::Render(int value)
@@ -116,7 +115,7 @@ void SkyDome::Render(int value)
 
     if (mNumDomeModels > 0)
     {
-        PblMatrix mat = _IdentityMatrix;
+        PblMatrix mat = gMatrixIdentity;
         bool bNearClip = RedRenderer::pcGetUserNearClipPlaneEnable();
         RedRenderer::pcSetUserNearClipPlaneEnable(false);
 
@@ -128,8 +127,8 @@ void SkyDome::Render(int value)
                 continue;
             }
 
-            mat = _IdentityMatrix;
-            D3DXMatrixRotationAxis(&mat, &rDome.mRotationAxis,
+            mat = gMatrixIdentity;
+            D3DXMatrixRotationAxis(reinterpret_cast<D3DXMATRIX*>(&mat), reinterpret_cast<const D3DXVECTOR3*>(&rDome.mRotationAxis),
                                    RedRenderer::GetTimeBase()->GetTime() * rDome.mRotationSpeed *
                                        PblMath::fTwoPi);
 
@@ -140,10 +139,7 @@ void SkyDome::Render(int value)
                 float fHeight = rDome.mOffset + mDomeHeight;
                 pos.y = fHeight - (fHeight - pos.y) * rDome.mMovementScale;
             }
-            mat.m[3][0] = pos.x;
-            mat.m[3][1] = pos.y;
-            mat.m[3][2] = pos.z;
-            mat.m[3][3] = 1.0f;
+            mat.SetTranslation(pos);
 
             for (int j = 0; j < rDome.mNumEffectData; ++j)
             {
@@ -155,8 +151,7 @@ void SkyDome::Render(int value)
 
                 PblMatrix boneMat;
                 rDome.mModel->GetBoneMatrix(rData.hardPoint, boneMat);
-                PblMatrix product;
-                D3DXMatrixMultiply(&product, &boneMat, &mat);
+                PblMatrix product = boneMat * mat;
                 boneMat = product;
                 rData.pos = boneMat.GetTranslation();
 

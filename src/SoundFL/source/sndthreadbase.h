@@ -15,6 +15,11 @@ public:
         mStackSize = 0;
     }
 
+    ThreadBase(void(__cdecl* pfnThreadFunc)(void*), unsigned int uiPriority, unsigned int uiStackSize)
+        : mThreadFunc(pfnThreadFunc), mArgs(0), mPriority(uiPriority), mStackSize(uiStackSize)
+    {
+    }
+
     void Init(void(__cdecl* pfnThreadFunc)(void*), unsigned int uiPriority, unsigned int uiStackSize)
     {
         mThreadFunc = pfnThreadFunc;

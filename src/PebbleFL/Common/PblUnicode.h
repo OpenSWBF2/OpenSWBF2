@@ -11,7 +11,7 @@ unsigned int __cdecl ustrlen(unsigned short const* pusString);
 unsigned int __cdecl ustrlcpy(unsigned short* pusDest, unsigned short const* pusSource,
                               unsigned int uiSize);
 int __cdecl ustrcmp(unsigned short const* pus1, unsigned short const* pus2);
-unsigned short* __cdecl ustrchr(unsigned short* pusString, unsigned short usChar);
+unsigned short* __cdecl ustrrchr(unsigned short* pusString, unsigned short usChar);
 
 unsigned int __cdecl ustrlcat(unsigned short* pusDest, unsigned short const* pusSource,
                               unsigned int uiSize);

@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "ParticleGeometry.h"
 
 #include "RedEngineFL/Graphics/RedModel.h"
@@ -6,14 +7,31 @@
 #include "ParticleSystem.h"
 #include "PebbleFL/Common/PblMath.h"
 #include <math.h>
-#include "PebbleFL/pc/PblD3DX.h"
 
-namespace ParticleSystem { PblBox& GetBoundingBox(); }
-namespace ParticleSystem { float GetSizeMultiplier(); }
-namespace ParticleSystem { float GetMinParticleSize(); }
-namespace ParticleSystem { float GetLodAlpha(int iLod); }
-namespace ParticleSystem { void SetupParticleCache(unsigned int uTexture, RedBlendMode eBlend, float fBlurValue, int iBlurParam); }
-namespace ParticleSystem { void CacheParticle(const PblVector3& vPos, const RedColorValue& color, float fSize, float fRotation); }
+namespace ParticleSystem
+{
+PblBox& GetBoundingBox();
+}
+namespace ParticleSystem
+{
+float GetSizeMultiplier();
+}
+namespace ParticleSystem
+{
+float GetMinParticleSize();
+}
+namespace ParticleSystem
+{
+float GetLodAlpha(int iLod);
+}
+namespace ParticleSystem
+{
+void SetupParticleCache(unsigned int uTexture, RedBlendMode eBlend, float fBlurValue, int iBlurParam);
+}
+namespace ParticleSystem
+{
+void CacheParticle(const PblVector3& vPos, const RedColorValue& color, float fSize, float fRotation);
+}
 
 // GLOBAL: SWBF2 0x01eaed64
 int ParticleGeometry::mParticleCount;
@@ -260,7 +278,7 @@ void ParticleGeometry::Render(Particle& particle, bool bLast) const
         mLocal.m[3][2] = 0.0f;
         mLocal.m[3][3] = 1.0f;
         PblMatrix mWorld;
-        D3DXMatrixMultiply(&mWorld, &mLocal, &particle.mInfoData->mMatrix);
+        mWorld = mLocal * particle.mInfoData->mMatrix;
         mWorld.m[3][0] = vPos.x;
         mWorld.m[3][1] = vPos.y;
         mWorld.m[3][2] = vPos.z;
@@ -360,9 +378,9 @@ void ParticleGeometry::Render(Particle& particle, bool bLast) const
         if (particle.mNoRegisterStep)
         {
             PblVector3 v;
-            D3DXVec3TransformNormal(&v, &vRight, &particle.mInfoData->mMatrix);
+            D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&v), reinterpret_cast<const D3DXVECTOR3*>(&vRight), reinterpret_cast<const D3DXMATRIX*>(&particle.mInfoData->mMatrix));
             vRight = v;
-            D3DXVec3TransformNormal(&v, &vUp, &particle.mInfoData->mMatrix);
+            D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&v), reinterpret_cast<const D3DXVECTOR3*>(&vUp), reinterpret_cast<const D3DXMATRIX*>(&particle.mInfoData->mMatrix));
             vUp = v;
         }
         redColor.b = (unsigned char)(int)(color.b * 255.0f);

@@ -5,6 +5,8 @@ class RedPipe
 {
 public:
 
+    RedPipe() : mReadPos(0) {}
+
     T Peek(unsigned int uiIndex) const
     {
         unsigned int uiPos = mReadPos + uiIndex;
@@ -38,6 +40,14 @@ public:
         return false;
     }
 
+    void Clear()
+    {
+        for (unsigned int i = 0; i < N; ++i)
+        {
+            mElements[i] = 0;
+        }
+    }
+
     T mElements[N];
     unsigned short mReadPos;
 };
@@ -46,17 +56,10 @@ template <class T, int N>
 class RedPipePointer : public RedPipe<T, N>
 {
 public:
-    RedPipePointer()
-    {
-        RedPipe<T, N>::mElements[0] = 0;
-        RedPipe<T, N>::mReadPos = 0;
-        mPipe.mReadPos = 0;
-    }
-
     T GetRecent() const
     {
         T recent = 0;
-        for (int i = N - 1; !recent && i >= 0; --i)
+        for (unsigned int i = N; i-- > 0 && !recent;)
         {
             recent = RedPipe<T, N>::Peek(i);
         }

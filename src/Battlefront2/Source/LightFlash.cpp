@@ -2,11 +2,13 @@
 
 #include "PebbleFL/Common/PblVector.h"
 
-// GLOBAL: SWBF2 0x01ec6370
 // SYNTHETIC: SWBF2 0x004040e0
 // `dynamic initializer for 'LightFlash::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00768c40
 // `dynamic atexit destructor for 'LightFlash::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ec6370
+// LightFlash::sMemoryPool
 MemoryPool LightFlash::sMemoryPool("LightFlash", 0x150);
 
 static inline RedColorValue ToColorValue(const RedColor& c)
@@ -41,7 +43,7 @@ LightFlash::~LightFlash()
 }
 
 // SYNTHETIC: SWBF2 0x00570df7
-// [thunk]:LightFlash::`scalar deleting destructor' adjustor{32}
+// ??_ELightFlash@@WCA@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x00570c00
 bool LightFlash::Update(float fDeltaTime)

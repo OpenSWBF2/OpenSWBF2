@@ -28,8 +28,11 @@
 class PblMatrix;
 extern PblMatrix gMatrixIdentity;
 
-// GLOBAL: SWBF2 0x01e56054
-namespace GameLoop { extern float sDeltaTime; }
+namespace GameLoop
+{
+    // GLOBAL: SWBF2 0x01e56054
+    extern float sDeltaTime;
+}
 
 namespace FLRenderer
 {
@@ -38,7 +41,10 @@ float GetNearSceneFadeEnd();
 
 extern bool flushClusterObjs_;
 
-namespace PropGenerator { void FlushClusterObjects(); }
+namespace PropGenerator
+{
+    void FlushClusterObjects();
+}
 
 // FUNCTION: SWBF2 0x0062b100
 void PropGenerator::FlushClusterObjects()
@@ -46,7 +52,10 @@ void PropGenerator::FlushClusterObjects()
     flushClusterObjs_ = true;
 }
 
-namespace PropGenerator { void GetTerrainYAndNormal(float x, float z, float& y, PblVector3& vNormal); }
+namespace PropGenerator
+{
+    void GetTerrainYAndNormal(float x, float z, float& y, PblVector3& vNormal);
+}
 
 PblMatrix NormalMatrix(const PblVector3& vDir, const PblVector3& vNormal, const PblVector3& vPos);
 
@@ -65,17 +74,19 @@ static short sNumFreeObjects = -1;
 // GLOBAL: SWBF2 0x01fa9270
 static short sFreeObjectList[2000];
 
-// GLOBAL: SWBF2 0x01f03290
 // SYNTHETIC: SWBF2 0x004060d0
 // `dynamic initializer for 'sObjectCache''
 // SYNTHETIC: SWBF2 0x007693d0
 // `dynamic atexit destructor for 'sObjectCache''
+
+// GLOBAL: SWBF2 0x01f03290
+// sObjectCache
 PropObjectMesh sObjectCache[2000];
 
 // FUNCTION: SWBF2 0x0062c1b0
 PblVector3 PropObjectMesh::GetPos()
 {
-    return *(const PblVector3*)&mMatrix.m[3][0];
+    return mMatrix.GetTranslation();
 }
 
 // FUNCTION: SWBF2 0x0062c1d0
@@ -84,10 +95,8 @@ const PblMatrix& PropObjectMesh::GetMatrix()
     return mMatrix;
 }
 
-// FUNCTION: SWBF2 0x0062c1e0
-PropObjectMesh::~PropObjectMesh()
-{
-}
+// SYNTHETIC: SWBF2 0x0062c1e0
+// PropObjectMesh::~PropObjectMesh
 
 // FUNCTION: SWBF2 0x0062c230
 float PropModelMesh::GetDensity()
@@ -137,7 +146,6 @@ PropCollisionObject::PropCollisionObject(PblMatrix& matrix, PropModelMesh* pMode
 
     const float fRadius = pModel->mRenderObj.mGeometry->_BoundingSphere.GetRadius();
     SetCollisionRadius(fRadius);
-    Set2DCollisionRadius(fRadius);
 
     RecalculateAABB(mMatrix, pModel->mRenderObj.mGeometry->_TotalBoundingBox);
     AddStaticToCollisionManager();
@@ -151,7 +159,7 @@ void PropCollisionObject::RecalculateAABB(PblMatrix& matrix, const PblBox& box)
 // FUNCTION: SWBF2 0x0062c3b0
 const PblVector3& PropCollisionObject::GetPosition() const
 {
-    return *(const PblVector3*)&mMatrix.m[3][0];
+    return mMatrix.GetTranslation();
 }
 
 // FUNCTION: SWBF2 0x0062c3c0
@@ -219,10 +227,7 @@ void PropObjectMesh::Init(PropModelMesh* pModel, float x, float z, float rotatio
     mModel = pModel;
     mRotation = rotation;
     mMatrix = gMatrixIdentity;
-    mMatrix.m[3][0] = x;
-    mMatrix.m[3][1] = 0.0f;
-    mMatrix.m[3][2] = -z;
-    mMatrix.m[3][3] = 1.0f;
+    mMatrix.SetTranslation(x, 0.0f, -z, 1.0f);
     mSetupFlag = 0;
     mSound.Stop(true);
     mElapsedTime = 0.0f;
@@ -378,7 +383,7 @@ void PropObjectMesh::Render(const RedCamera* pCamera, float fDist, unsigned int 
                 color.g = mColor.g * kInv255;
                 color.b = mColor.b * kInv255;
                 color.a = mColor.a * kInv255;
-                PblMatrix matrix(mMatrix);
+                PblMatrix matrix(reinterpret_cast<const _D3DXMATRIXA16*>(&mMatrix));
 
                 mModel->mRenderObj.mGrassClass->RenderMaxDist(
                     matrix, GetPropDistanceScale(mModel->mType) * mModel->mGeometryMaxDist, color,
@@ -421,7 +426,7 @@ void PropObjectMesh::Render(const RedCamera* pCamera, float fDist, unsigned int 
                 color.g = mColor.g * kInv255;
                 color.b = mColor.b * kInv255;
                 color.a = mColor.a * kInv255;
-                PblMatrix matrix(mMatrix);
+                PblMatrix matrix(reinterpret_cast<const _D3DXMATRIXA16*>(&mMatrix));
 
                 mModel->mRenderObj.mLeafClass->RenderMaxDist(
                     matrix, fCamDist, uiRenderFlags,
@@ -792,8 +797,7 @@ void PropModelMesh::SetupMatrix(PblMatrix& matrix, float rotation)
 
         const PblMatrix frame = NormalMatrix(vDir, vNormal, vPos);
         PblMatrix result;
-        D3DXMatrixMultiply((D3DXMATRIX*)&result, (const D3DXMATRIX*)&scale,
-                           (const D3DXMATRIX*)&frame);
+        result = scale * frame;
         matrix = result;
         return;
     }

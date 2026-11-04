@@ -42,11 +42,13 @@ void MissionTimer::Set(Timer* pTimer, Show eShow, int iTeam)
     mShow = eShow;
     mTeam = iTeam;
     mTimer = pTimer;
-    if ((!NetGame::IsEnabled() || NetGame::IsClient() || (NetGame::IsHost() && NetGame::IsOneWorld())) &&
+    if ((!NetGame::IsEnabled() || NetGame::OnClient() || (NetGame::IsHost() && NetGame::IsOneWorld())) &&
         !pTimer)
     {
-        HUD::Event(HUD::GameEvents::gObjectiveEvents.defeatTimerDisable, true).Send();
-        HUD::Event(HUD::GameEvents::gObjectiveEvents.victoryTimerDisable, true).Send();
+        HUD::Event eventDefeatTimerDisable(HUD::GameEvents::gObjectiveEvents.defeatTimerDisable, true);
+        eventDefeatTimerDisable.Send();
+        HUD::Event eventVictoryTimerDisable(HUD::GameEvents::gObjectiveEvents.victoryTimerDisable, true);
+        eventVictoryTimerDisable.Send();
     }
 }
 
@@ -71,11 +73,12 @@ int MissionTimer::GetTeam()
 // FUNCTION: SWBF2 0x005a4de0
 MissionTimer::Show MissionTimer::GetTeamShow(int iTeam)
 {
-    if (mTeam <= 0)
+    int show = mShow;
+    if (mTeam > 0)
     {
-        return mShow;
+        show *= Team::sTeams[iTeam]->GetAffiliation(mTeam);
     }
-    return (Show)(mShow * Team::sTeams[iTeam]->mAffiliation[mTeam]);
+    return (Show)show;
 }
 
 // FUNCTION: SWBF2 0x005a4e10

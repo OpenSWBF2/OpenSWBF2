@@ -12,8 +12,10 @@ class WeaponClass;
 class Timer;
 class Controllable;
 
-namespace HUD {
-namespace GameEvents {
+namespace HUD
+{
+namespace GameEvents
+{
 
 struct WeaponEvents
 {
@@ -206,9 +208,10 @@ struct PlayerEvents
 
 struct WeaponData
 {
-    ~WeaponData();
+    // SYNTHETIC: SWBF2 0x0055e390
+    // HUD::GameEvents::WeaponData::~WeaponData
     Weapon* weapon;
-    WeaponClass* weaponClass;
+    const WeaponClass* weaponClass;
     unsigned int weaponHash;
     float ammoTotalFraction;
     float clipTotalFraction;
@@ -229,7 +232,8 @@ struct TeamData
 
 struct PlayerData
 {
-    ~PlayerData();
+    // SYNTHETIC: SWBF2 0x0055e360
+    // HUD::GameEvents::PlayerData::~PlayerData
     WeaponData weaponData[2];
     TeamData teamData[2];
     HUD::ElementMap::Mode mapMode;
@@ -269,7 +273,7 @@ extern PlayerEvents gPlayerEvents[1];
 extern ObjectiveEvents gObjectiveEvents;
 extern PlayerData gPlayerData[1];
 extern EventClass* gTargetResetCommon;
-extern Timer* gObjectiveTimer;
+extern const Timer* gObjectiveTimer;
 
 // FUNCTION: SWBF2 0x0055e3a0
 void Open();

@@ -27,55 +27,14 @@ bool LuaPushItem<Character>(Character& character)
     return true;
 }
 
-RegionMatches::RegionMatches(const char* pcName)
-    : mRegion(RedRegion::Find(PblHash(pcName)))
-{
-}
 
-const char* RegionMatches::GetName()
-{
-    return "";
-}
 
-CharacterMatchesName::CharacterMatchesName(const char* pcName)
-    : mId(PblHash(pcName))
-{
-}
 
-CharacterMatchesClass::CharacterMatchesClass(const char* pcName)
-    : mClass(EntityClass::Find(PblHash(pcName)))
-{
-}
 
-bool CharacterMatchesName::operator()(const RedRegion&, const Character& character)
-{
-    const Controllable* pControllable = character.GetControllable();
-    if (!pControllable)
-    {
-        return false;
-    }
-    const EntityEx* pEntity = (const EntityEx*)pControllable->GetEntity();
-    if (!pEntity)
-    {
-        return false;
-    }
-    return pEntity->mId == mId;
-}
 
-bool CharacterMatchesClass::operator()(const RedRegion&, const Character& character)
-{
-    const Controllable* pControllable = character.GetControllable();
-    if (!pControllable)
-    {
-        return false;
-    }
-    const Entity* pEntity = pControllable->GetEntity();
-    if (!pEntity)
-    {
-        return false;
-    }
-    return pEntity->GetEntityClass() == mClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00519af0
 template <>
@@ -99,7 +58,7 @@ CharacterMatchesName LuaGetItem<CharacterMatchesName>(int iIndex)
 template <>
 CharacterMatchesTeam LuaGetItem<CharacterMatchesTeam>(int iIndex)
 {
-    return CharacterMatchesTeam((unsigned int)luaL_checknumber(LuaHelper::mState, iIndex));
+    return CharacterMatchesTeam((int)luaL_checknumber(LuaHelper::mState, iIndex));
 }
 
 // FUNCTION: SWBF2 0x00519bb0
@@ -109,60 +68,11 @@ CharacterMatchesClass LuaGetItem<CharacterMatchesClass>(int iIndex)
     return CharacterMatchesClass(luaL_checkstring(LuaHelper::mState, iIndex));
 }
 
-// TEMPLATE: SWBF2 0x00519d00
-template <class ITEM, class PARAM>
-bool Event<ITEM, PARAM>::Callback::operator()(ITEM&, PARAM&)
-{
-    return true;
-}
 
-template <class ITEM, class PARAM>
-void Event<ITEM, PARAM>::Unregister(Callback& callback)
-{
-    Node* pParent = callback.mParent;
-    callback.DetachFromParent();
-    while (pParent && pParent->mParent && !pParent->mChild)
-    {
-        Node* pNext = pParent->mParent;
-        pParent->DetachFromParent();
-        pParent = pNext;
-    }
-}
 
-template <class ITEM, class PARAM>
-template <class PREDICATE>
-Event<ITEM, PARAM>::Filter<PREDICATE>::Filter(PREDICATE& predicate)
-    : mPredicate(predicate)
-{
-}
 
 // TEMPLATE: SWBF2 0x0051ac50
 // EventManager::Event<RedRegion,Character>::GetFilter<EventManager::RegionMatches>
-
-template <class ITEM, class PARAM>
-template <class PREDICATE>
-auto Event<ITEM, PARAM>::GetFilter(PREDICATE& predicate, Callback* pParent)
-    -> Filter<PREDICATE>*
-{
-    if (!pParent)
-    {
-        pParent = &mRoot;
-    }
-
-    for (Node* pNode = pParent->mChild; pNode; pNode = pNode->mSibling)
-    {
-        if (pNode->GetName() == PREDICATE::GetName() &&
-            ((Filter<PREDICATE>*)pNode)->mPredicate == predicate)
-        {
-            pNode->AddRef();
-            return (Filter<PREDICATE>*)pNode;
-        }
-    }
-
-    Filter<PREDICATE>* pFilter = new Filter<PREDICATE>(predicate);
-    pFilter->AttachToParent(pParent);
-    return pFilter;
-}
 
 // TEMPLATE: SWBF2 0x0051ad00
 // EventManager::Event<RedRegion,Character>::GetFilter<EventManager::CharacterMatchesName>
@@ -181,14 +91,7 @@ LuaCallback<ITEM, PARAM>::LuaCallback(int iRef)
     }
 }
 
-template <class ITEM, class PARAM>
-LuaCallback<ITEM, PARAM>::~LuaCallback()
-{
-    if (mFunction != -1)
-    {
-        lua_unref(LuaHelper::mState, mFunction);
-    }
-}
+
 
 template <class ITEM, class PARAM>
 bool LuaCallback<ITEM, PARAM>::operator()(ITEM& item, PARAM& param)
@@ -212,20 +115,6 @@ bool LuaCallback<ITEM, PARAM>::operator()(ITEM& item, PARAM& param)
 
     LuaHelper::CallProc(0);
     return true;
-}
-
-template <class ITEM, class PARAM>
-template <class PREDICATE>
-const char* Event<ITEM, PARAM>::Filter<PREDICATE>::GetName()
-{
-    return PREDICATE::GetName();
-}
-
-template <class ITEM, class PARAM>
-template <class PREDICATE>
-bool Event<ITEM, PARAM>::Filter<PREDICATE>::operator()(ITEM& item, PARAM& param)
-{
-    return mPredicate(item, param);
 }
 
 template <class ITEM, class PARAM>
@@ -486,18 +375,22 @@ namespace EventManager
 namespace RegionEvent
 {
 
-// GLOBAL: SWBF2 0x007ec080
 // SYNTHETIC: SWBF2 0x004036b0
-// `dynamic initializer for 'EventManager::RegionEvent::mEnterRegion''
+// EventManager::RegionEvent::`dynamic initializer for 'mEnterRegion''
 // SYNTHETIC: SWBF2 0x00768420
-// `dynamic atexit destructor for 'EventManager::RegionEvent::mEnterRegion''
+// EventManager::RegionEvent::`dynamic atexit destructor for 'mEnterRegion''
+
+// GLOBAL: SWBF2 0x007ec080
+// mEnterRegion
 Event<RedRegion, Character> mEnterRegion("EnterRegion");
 
-// GLOBAL: SWBF2 0x007ec0a0
 // SYNTHETIC: SWBF2 0x004036e0
-// `dynamic initializer for 'EventManager::RegionEvent::mLeaveRegion''
+// EventManager::RegionEvent::`dynamic initializer for 'mLeaveRegion''
 // SYNTHETIC: SWBF2 0x007684a0
-// `dynamic atexit destructor for 'EventManager::RegionEvent::mLeaveRegion''
+// EventManager::RegionEvent::`dynamic atexit destructor for 'mLeaveRegion''
+
+// GLOBAL: SWBF2 0x007ec0a0
+// mLeaveRegion
 Event<RedRegion, Character> mLeaveRegion("LeaveRegion");
 
 }

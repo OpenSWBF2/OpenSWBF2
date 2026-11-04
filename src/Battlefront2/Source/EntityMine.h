@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "EntityItem.h"
@@ -23,9 +25,9 @@ public:
 
     virtual EntityClass* Derive(unsigned int uHash);
     virtual Entity* Build(const EntityDesc& desc);
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
 
     GameSound mTick;
@@ -38,7 +40,7 @@ public:
     float mSuppressRadius;
 
     static PblHash rttiHashEntityMineClass;
-    static char rttiNameEntityMineClass[];
+    static const char rttiNameEntityMineClass[];
 };
   
  
@@ -50,7 +52,12 @@ public:
  
  
 
-// VTABLE: SWBF2 0x0079c274
+// VTABLE: SWBF2 0x0079c274 EntityEx
+// VTABLE: SWBF2 0x0079c1b8 CollisionObject
+// VTABLE: SWBF2 0x0079c20c RedSceneObject
+// VTABLE: SWBF2 0x0079c3e0 Damageable
+// VTABLE: SWBF2 0x0079c40c PblHandled
+// VTABLE: SWBF2 0x0079c414
 class EntityMine : public EntityItem
 {
 public:
@@ -69,11 +76,13 @@ public:
     virtual void WriteObject(NetPktGroup& group, NetObjState* pState);
     virtual void ReadObject(NetPktGroup& group, NetObjState* pState);
 
-    static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
+    static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }
+    // SYNTHETIC: SWBF2 0x004cf530
+    // EntityMine::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
     static PblHash rttiHashEntityMine;
-    static char rttiNameEntityMine[];
+    static const char rttiNameEntityMine[];
     static MemoryPool sMemoryPool;
 
     bool mNetDead;
@@ -91,3 +100,49 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x004cf580
+inline bool EntityMineClass::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashEntityMineClass == uRtti)
+    {
+        return true;
+    }
+    return EntityItemClass::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x004cf5c0
+inline unsigned int EntityMineClass::GetDerivedRtti() const
+{
+    return rttiHashEntityMineClass;
+}
+
+// FUNCTION: SWBF2 0x004cf5d0
+inline const char* EntityMineClass::GetDerivedRttiName() const
+{
+    return rttiNameEntityMineClass;
+}
+
+// FUNCTION: SWBF2 0x004cf4c0
+inline bool EntityMine::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashEntityMine == uRtti)
+    {
+        return true;
+    }
+    return EntityItem::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x004cf510
+inline unsigned int EntityMine::GetDerivedRtti() const
+{
+    return rttiHashEntityMine;
+}
+
+// FUNCTION: SWBF2 0x004cf520
+inline const char* EntityMine::GetDerivedRttiName() const
+{
+    return rttiNameEntityMine;
+}
+
+

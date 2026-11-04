@@ -17,7 +17,10 @@ public:
     {
     }
 
-    virtual ~pcShaderSegment();
+    virtual ~pcShaderSegment()
+    {
+        Free();
+    }
 
     // SYNTHETIC: SWBF2 0x00717a40
     // pcShaderSegment::`scalar deleting destructor'
@@ -61,7 +64,10 @@ public:
 
     pcSoftwareSkinnedShaderSegment();
 
-    virtual ~pcSoftwareSkinnedShaderSegment();
+    virtual ~pcSoftwareSkinnedShaderSegment()
+    {
+        Free();
+    }
 
     // SYNTHETIC: SWBF2 0x00717ac0
     // pcSoftwareSkinnedShaderSegment::`scalar deleting destructor'
@@ -104,4 +110,15 @@ public:
  
  
 
- #endif
+ 
+
+// FUNCTION: SWBF2 0x00717980
+inline pcSoftwareSkinnedShaderSegment::pcSoftwareSkinnedShaderSegment()
+    : m_pVertexData(0), m_puiSkinData(0), m_uiSkinNumBones(0),
+      m_pIndexBuffer(0), m_PrimType(5), m_uiStartIndex(0),
+      m_uiPrimCount(0), m_uiNumVertices(0), m_uiNumIndices(0),
+      m_pShader(0), m_uiSegmentRenderFlags(0)
+{
+}
+
+#endif

@@ -10,11 +10,13 @@ LuaEvent::List LuaEventManager::_InactiveEventList;
 // GLOBAL: SWBF2 0x01e57994
 lua_State* LuaEventManager::_pLuaState;
 
-// GLOBAL: SWBF2 0x01ec9208
 // SYNTHETIC: SWBF2 0x00404260
 // `dynamic initializer for 'LuaEventManager::_EventInstances''
 // SYNTHETIC: SWBF2 0x00768cf0
 // `dynamic atexit destructor for 'LuaEventManager::_EventInstances''
+
+// GLOBAL: SWBF2 0x01ec9208
+// LuaEventManager::_EventInstances
 LuaEvent LuaEventManager::_EventInstances[100];
 
 // FUNCTION: SWBF2 0x005a0c20
@@ -27,11 +29,13 @@ LuaEventManager::LuaEventManager()
     _pLuaState = 0;
 }
 
-// GLOBAL: SWBF2 0x01ec0c13
 // SYNTHETIC: SWBF2 0x00404290
 // `dynamic initializer for 'LuaEventManager::_Instance''
 // SYNTHETIC: SWBF2 0x00768d10
 // `dynamic atexit destructor for 'LuaEventManager::_Instance''
+
+// GLOBAL: SWBF2 0x01ec0c13
+// LuaEventManager::_Instance
 LuaEventManager LuaEventManager::_Instance;
 
 // FUNCTION: SWBF2 0x005a0ae0
@@ -40,13 +44,7 @@ LuaEvent::LuaEvent()
     Reset();
 }
 
-// FUNCTION: SWBF2 0x005a0aa0
-LuaEvent::~LuaEvent()
-{
-}
 
-// SYNTHETIC: SWBF2 0x005a0ab0
-// LuaEvent::`scalar deleting destructor'
 
 // FUNCTION: SWBF2 0x005a0b20
 void LuaEvent::Reset()

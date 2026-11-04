@@ -3,14 +3,29 @@
 #include "Fsm.h"
 #include "CmdInfo.h"
 
-namespace AI { class CTFGoal; }
-namespace ControllerManager { void UpdatePilotSelf(); }
+namespace AI
+{
+class CTFGoal;
+}
+namespace ControllerManager
+{
+void UpdatePilotSelf();
+}
 class Controller;
-namespace AudibleManager { void UpdateAudience(Controller* pController); }
+namespace AudibleManager
+{
+void UpdateAudience(Controller* pController);
+}
 class GameObject;
-namespace AIUtil { void TellAIToExit(GameObject* pObject); }
+namespace AIUtil
+{
+void TellAIToExit(GameObject* pObject);
+}
 class UnitController;
-namespace VisionManager { bool VisionTest(UnitController* pController, GameObject* pTarget); }
+namespace VisionManager
+{
+bool VisionTest(UnitController* pController, GameObject* pTarget);
+}
 
 // VTABLE: SWBF2 0x007981b0
 class CommandFsm : public Fsm
@@ -23,7 +38,8 @@ public:
     int GetCurCmdType() { return mCurCmd.mWhat; }
 
 protected:
-    virtual ~CommandFsm();
+    // FUNCTION: SWBF2 0x00478630
+    virtual ~CommandFsm() {}
 
     virtual void ApplyNextCommand();
     virtual void ApplyNextState() = 0;

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "Controllable.h"
@@ -41,7 +43,7 @@ class RedPose;
 
 // VTABLE: SWBF2 0x007ad448
 // VTABLE: SWBF2 0x007ad47c Trackable
-// VTABLE: SWBF2 0x007ad4c4 Controllable
+// VTABLE: SWBF2 0x007ad4c4 Thread
 class PassengerSlot : public EntityEx, public Controllable
 {
 public:
@@ -67,6 +69,8 @@ public:
     virtual const ControllableClass* GetControllableClass() const;
 
     static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
+    // SYNTHETIC: SWBF2 0x004a9cc0
+    // PassengerSlot::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
     void ActivatePhysics();
@@ -88,9 +92,22 @@ public:
     PassengerSlotClass* mClass;
 
     static PblHash rttiHashPassengerSlot;
-    static char rttiNamePassengerSlot[];
+    static const char rttiNamePassengerSlot[];
 };
  
  
  
  
+
+// FUNCTION: SWBF2 0x0060f460
+inline bool PassengerSlot::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashPassengerSlot == uRtti)
+    {
+        return true;
+    }
+    return EntityEx::rttiHashEntityEx == uRtti ||
+           Entity::rttiHashEntity == uRtti;
+}
+
+

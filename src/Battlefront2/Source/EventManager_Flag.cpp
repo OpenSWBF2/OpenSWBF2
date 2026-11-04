@@ -20,28 +20,38 @@ void Cleanup();
 }
 }
 
-namespace EventManager {
-namespace FlagEvent {
+namespace EventManager
+{
+namespace FlagEvent
+{
 extern Event<FlagItem, Character> mPickUp;
 }
 }
-namespace EventManager {
-namespace FlagEvent {
+namespace EventManager
+{
+namespace FlagEvent
+{
 extern Event<FlagItem, Character> mDrop;
 }
 }
-namespace EventManager {
-namespace FlagEvent {
+namespace EventManager
+{
+namespace FlagEvent
+{
 extern Event<FlagItem, Character> mReturn;
 }
 }
-namespace EventManager {
-namespace FlagEvent {
+namespace EventManager
+{
+namespace FlagEvent
+{
 extern Event<FlagItem, Character> mCapture;
 }
 }
-namespace EventManager {
-namespace FlagEvent {
+namespace EventManager
+{
+namespace FlagEvent
+{
 extern Event<FlagItem, char> mReset;
 }
 }
@@ -57,52 +67,13 @@ bool LuaPushItem<FlagItem>(FlagItem& flag)
     return true;
 }
 
-const char* CharacterMatchesName::GetName()
-{
-    return "Name";
-}
 
-const char* CharacterMatchesTeam::GetName()
-{
-    return "Team";
-}
 
-const char* CharacterMatchesClass::GetName()
-{
-    return "Class";
-}
 
-bool CharacterMatchesName::operator()(const FlagItem&, const Character& character)
-{
-    const Controllable* pControllable = character.GetControllable();
-    if (!pControllable)
-    {
-        return false;
-    }
-    const EntityEx* pEntity = (const EntityEx*)pControllable->GetEntity();
-    if (!pEntity)
-    {
-        return false;
-    }
-    return pEntity->mId == mId;
-}
 
-bool CharacterMatchesClass::operator()(const FlagItem&, const Character& character)
-{
-    const Controllable* pControllable = character.GetControllable();
-    if (!pControllable)
-    {
-        return false;
-    }
-    const Entity* pEntity = pControllable->GetEntity();
-    if (!pEntity)
-    {
-        return false;
-    }
-    return pEntity->GetEntityClass() == mClass;
-}
 
-// FUNCTION: SWBF2 0x005133b0
+// TEMPLATE: SWBF2 0x005133b0
+// EventManager::LuaCallback<FlagItem,char>::LuaCallback<FlagItem,char>
 template <class ITEM, class PARAM>
 LuaCallback<ITEM, PARAM>::LuaCallback(int iRef)
 {
@@ -113,14 +84,7 @@ LuaCallback<ITEM, PARAM>::LuaCallback(int iRef)
     }
 }
 
-template <class ITEM, class PARAM>
-LuaCallback<ITEM, PARAM>::~LuaCallback()
-{
-    if (mFunction != -1)
-    {
-        lua_unref(LuaHelper::mState, mFunction);
-    }
-}
+
 
 template <class ITEM, class PARAM>
 bool LuaCallback<ITEM, PARAM>::operator()(ITEM& item, PARAM& param)
@@ -144,20 +108,6 @@ bool LuaCallback<ITEM, PARAM>::operator()(ITEM& item, PARAM& param)
 
     LuaHelper::CallProc(0);
     return true;
-}
-
-template <class ITEM, class PARAM>
-template <class PREDICATE>
-const char* Event<ITEM, PARAM>::Filter<PREDICATE>::GetName()
-{
-    return PREDICATE::GetName();
-}
-
-template <class ITEM, class PARAM>
-template <class PREDICATE>
-bool Event<ITEM, PARAM>::Filter<PREDICATE>::operator()(ITEM& item, PARAM& param)
-{
-    return mPredicate(item, param);
 }
 
 // TEMPLATE: SWBF2 0x00513250
@@ -199,12 +149,6 @@ bool Event<ITEM, PARAM>::Filter<PREDICATE>::operator()(ITEM& item, PARAM& param)
 // SYNTHETIC: SWBF2 0x00513620
 // EventManager::Event<FlagItem,Character>::Filter<EventManager::CharacterMatchesClass>::`scalar deleting destructor'
 
-template <class ITEM, class PARAM>
-bool Event<ITEM, PARAM>::Callback::operator()(ITEM&, PARAM&)
-{
-    return true;
-}
-
 // TEMPLATE: SWBF2 0x00512490
 // EventManager::Event<FlagItem,Character>::Callback::operator()
 
@@ -221,7 +165,8 @@ template class Event<FlagItem, Character>::Filter<CharacterMatchesClass>;
 
 }
 
-namespace EventManager {
+namespace EventManager
+{
 
 // FUNCTION: SWBF2 0x005123f0
 void FlagEvent::Cleanup()
@@ -234,9 +179,11 @@ void FlagEvent::Cleanup()
 }
 }
 
-namespace EventManager {
+namespace EventManager
+{
 
-// FUNCTION: SWBF2 0x005124a0
+// TEMPLATE: SWBF2 0x005124a0
+// EventManager::Event<FlagItem,char>::Callback::~Callback
 template Event<FlagItem, char>::Callback::~Callback();
 }
 
@@ -244,7 +191,10 @@ namespace EventManager
 {
 
 int DummyLuaCallback(lua_State* L);
-namespace FlagEvent { void Init(); }
+namespace FlagEvent
+{
+void Init();
+}
 
 template <class ITEM, class PARAM>
 int UnregisterLuaCallback(lua_State*)
@@ -263,7 +213,8 @@ int UnregisterLuaCallback(lua_State*)
     return 0;
 }
 
-// FUNCTION: SWBF2 0x00513020
+// TEMPLATE: SWBF2 0x00513020
+// EventManager::RegisterLuaCallback<FlagItem,char>
 template <class ITEM, class PARAM>
 int RegisterLuaCallback(lua_State*)
 {
@@ -308,48 +259,8 @@ int RegisterLuaCallback(lua_State*)
     return 1;
 }
 
-template <class ITEM, class PARAM>
-void Event<ITEM, PARAM>::Unregister(Callback& callback)
-{
-    Node* pParent = callback.mParent;
-    callback.DetachFromParent();
-    while (pParent && pParent->mParent && !pParent->mChild)
-    {
-        Node* pNext = pParent->mParent;
-        pParent->DetachFromParent();
-        pParent = pNext;
-    }
-}
 
-template <class ITEM, class PARAM>
-template <class PREDICATE>
-Event<ITEM, PARAM>::Filter<PREDICATE>::Filter(PREDICATE& predicate)
-    : mPredicate(predicate)
-{
-}
 
-template <class ITEM, class PARAM>
-template <class PREDICATE>
-auto Event<ITEM, PARAM>::GetFilter(PREDICATE& predicate, Callback* pParent)
-    -> Filter<PREDICATE>*
-{
-    if (!pParent)
-    {
-        pParent = &mRoot;
-    }
-    for (Node* pNode = pParent->mChild; pNode; pNode = pNode->mSibling)
-    {
-        if (pNode->GetName() == PREDICATE::GetName() &&
-            ((Filter<PREDICATE>*)pNode)->mPredicate == predicate)
-        {
-            pNode->AddRef();
-            return (Filter<PREDICATE>*)pNode;
-        }
-    }
-    Filter<PREDICATE>* pFilter = new Filter<PREDICATE>(predicate);
-    pFilter->AttachToParent(pParent);
-    return pFilter;
-}
 
 template <class ITEM, class PARAM>
 void RegisterUnregisterLuaCallback(Event<ITEM, PARAM>& event, lua_CFunction pfnClient)
@@ -479,10 +390,10 @@ Event<FlagItem, Character>::GetFilter(CharacterMatchesClass&, Callback*);
 // EventManager::RegisterRegisterLuaCallback<FlagItem,char>
 
 // TEMPLATE: SWBF2 0x005125f0
-// EventManager::UnregisterLuaCallback<classFlagItem,classCharacter>
+// EventManager::UnregisterLuaCallback<FlagItem,Character>
 
 // TEMPLATE: SWBF2 0x00512eb0
-// EventManager::UnregisterLuaCallback<classFlagItem,char>
+// EventManager::UnregisterLuaCallback<FlagItem,char>
 
 // TEMPLATE: SWBF2 0x00513140
 // EventManager::Event<FlagItem,Character>::Unregister
@@ -506,13 +417,13 @@ Event<FlagItem, Character>::GetFilter(CharacterMatchesClass&, Callback*);
 // EventManager::RegisterLuaCallback<FlagItem,Character>
 
 // TEMPLATE: SWBF2 0x00512910
-// EventManager::RegisterLuaCallback<FlagItem,Character,CharacterMatchesName>
+// EventManager::RegisterLuaCallback<FlagItem,Character,EventManager::CharacterMatchesName>
 
 // TEMPLATE: SWBF2 0x00512b20
-// EventManager::RegisterLuaCallback<FlagItem,Character,CharacterMatchesTeam>
+// EventManager::RegisterLuaCallback<FlagItem,Character,EventManager::CharacterMatchesTeam>
 
 // TEMPLATE: SWBF2 0x00512d30
-// EventManager::RegisterLuaCallback<FlagItem,Character,CharacterMatchesClass>
+// EventManager::RegisterLuaCallback<FlagItem,Character,EventManager::CharacterMatchesClass>
 
 }
 
@@ -521,39 +432,49 @@ namespace EventManager
 namespace FlagEvent
 {
 
-// GLOBAL: SWBF2 0x007ebed0
 // SYNTHETIC: SWBF2 0x00403380
-// `dynamic initializer for 'EventManager::FlagEvent::mPickUp''
+// EventManager::FlagEvent::`dynamic initializer for 'mPickUp''
 // SYNTHETIC: SWBF2 0x00767ba0
-// `dynamic atexit destructor for 'EventManager::FlagEvent::mPickUp''
+// EventManager::FlagEvent::`dynamic atexit destructor for 'mPickUp''
+
+// GLOBAL: SWBF2 0x007ebed0
+// mPickUp
 Event<FlagItem, Character> mPickUp("FlagPickUp");
 
-// GLOBAL: SWBF2 0x007ebcb0
 // SYNTHETIC: SWBF2 0x004033b0
-// `dynamic initializer for 'EventManager::FlagEvent::mDrop''
+// EventManager::FlagEvent::`dynamic initializer for 'mDrop''
 // SYNTHETIC: SWBF2 0x00767c20
-// `dynamic atexit destructor for 'EventManager::FlagEvent::mDrop''
+// EventManager::FlagEvent::`dynamic atexit destructor for 'mDrop''
+
+// GLOBAL: SWBF2 0x007ebcb0
+// mDrop
 Event<FlagItem, Character> mDrop("FlagDrop");
 
-// GLOBAL: SWBF2 0x007ebea0
 // SYNTHETIC: SWBF2 0x004033e0
-// `dynamic initializer for 'EventManager::FlagEvent::mReturn''
+// EventManager::FlagEvent::`dynamic initializer for 'mReturn''
 // SYNTHETIC: SWBF2 0x00767ca0
-// `dynamic atexit destructor for 'EventManager::FlagEvent::mReturn''
+// EventManager::FlagEvent::`dynamic atexit destructor for 'mReturn''
+
+// GLOBAL: SWBF2 0x007ebea0
+// mReturn
 Event<FlagItem, Character> mReturn("FlagReturn");
 
-// GLOBAL: SWBF2 0x007ebe60
 // SYNTHETIC: SWBF2 0x00403410
-// `dynamic initializer for 'EventManager::FlagEvent::mCapture''
+// EventManager::FlagEvent::`dynamic initializer for 'mCapture''
 // SYNTHETIC: SWBF2 0x00767d20
-// `dynamic atexit destructor for 'EventManager::FlagEvent::mCapture''
+// EventManager::FlagEvent::`dynamic atexit destructor for 'mCapture''
+
+// GLOBAL: SWBF2 0x007ebe60
+// mCapture
 Event<FlagItem, Character> mCapture("FlagCapture");
 
-// GLOBAL: SWBF2 0x007ebe80
 // SYNTHETIC: SWBF2 0x00403440
-// `dynamic initializer for 'EventManager::FlagEvent::mReset''
+// EventManager::FlagEvent::`dynamic initializer for 'mReset''
 // SYNTHETIC: SWBF2 0x00767da0
-// `dynamic atexit destructor for 'EventManager::FlagEvent::mReset''
+// EventManager::FlagEvent::`dynamic atexit destructor for 'mReset''
+
+// GLOBAL: SWBF2 0x007ebe80
+// mReset
 Event<FlagItem, char> mReset("FlagReset");
 
 }

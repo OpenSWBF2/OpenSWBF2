@@ -1,3 +1,5 @@
+#include "AmmoCounter.h"
+#include <d3dx9math.h>
 #include <float.h>
 #include <math.h>
 #include <stddef.h>
@@ -34,15 +36,16 @@
 #include "WeaponRepair.h"
 #include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblQuaternion.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 namespace
 {
-    unsigned int GameObjectHandleId(const GameObject* pObject)
+    inline unsigned int GameObjectHandleId(const GameObject* pObject)
     {
         return PBL_HANDLE_ID(pObject);
     }
 }
+
+
 
 inline float Weapon::GetHeat() const
 {
@@ -87,23 +90,23 @@ namespace
         pMelee->m_bAI_Deflect = bDeflect;
     }
 
-    int GetTeam(const GameObject* pObject)
+    inline int GetTeam(const GameObject* pObject)
     {
         return pObject->GetTeam();
     }
 
-    unsigned int GetHealthType(const GameObject* pObject)
+    inline unsigned int GetHealthType(const GameObject* pObject)
     {
         return pObject->mHealthType;
     }
 
-    const CollisionObject* GetCollisionObject(const GameObject* pObject)
+    inline const CollisionObject* GetCollisionObject(const GameObject* pObject)
     {
         return pObject->GetCollisionObject();
     }
 }
 
-void* Navigator::operator new(size_t uiSize)
+inline void* Navigator::operator new(unsigned int uiSize)
 {
     return sMemoryPool.Allocate(uiSize);
 }
@@ -256,9 +259,9 @@ void AILowLevel::SetDest(const PblVector3& pos, const PblVector3& originalPos,
 // FUNCTION: SWBF2 0x0043ae90
 void AILowLevel::SetDestCurrent()
 {
-    SetDest(*(const PblVector3*)&GetMatrix().m[3][0],
-            *(const PblVector3*)&GetMatrix().m[3][0],
-            *(const PblVector3*)&GetMatrix().m[2][0],
+    SetDest(GetMatrix().GetTranslation(),
+            GetMatrix().GetTranslation(),
+            GetMatrix().GetZAxis(),
             SH_FULL, -1.0f, 1.0f);
     mAllowHoverStrafe = true;
 }
@@ -742,10 +745,8 @@ bool AILowLevel::IsSafeToRoll(const PblVector3& dir)
     }
 
     PblVector3 dirXZ = AIUtil::GetSafeNormalXZ(dir);
-    const PblVector3& pos = *(const PblVector3*)&GetMatrix().m[3][0];
-    PblVector3 dest(pos.x + dirXZ.x * 4.0f,
-                    pos.y + dirXZ.y * 4.0f,
-                    pos.z + dirXZ.z * 4.0f);
+    const PblVector3& pos = GetMatrix().GetTranslation();
+    PblVector3 dest = pos + dirXZ * 4.0f;
     return !PathFinder::TestTrivialStraightLineHit(pos, dest,
                                                    mOwner->mOwner->GetGameObject());
 }
@@ -894,7 +895,7 @@ void AILowLevel::SetNavigator_GotoDirect(const PblVector3& dest,
     AIPath* pPath = new AIPath();
     if (pPath)
     {
-        pPath->Append(*(const PblVector3*)&GetMatrix().m[3][0], 0);
+        pPath->Append(GetMatrix().GetTranslation(), 0);
         pPath->Append(dest, 0);
         SetNavigator_FollowPath(pPath, false, bFlyerIgnoreBarriers, false);
         pPath->Release();
@@ -907,7 +908,7 @@ void AILowLevel::SetNavigator_Goto(const PblVector3& dest, const Obstacle* pIgno
 {
     DeleteNavigator();
     const GameObject* pObj = mOwner->mOwner->GetGameObject();
-    const PblVector3& pos = *(const PblVector3*)&GetMatrix().m[3][0];
+    const PblVector3& pos = GetMatrix().GetTranslation();
     PblVector3 vDest = dest;
 
     const Obstacle* ignore[2];
@@ -916,13 +917,13 @@ void AILowLevel::SetNavigator_Goto(const PblVector3& dest, const Obstacle* pIgno
     PathFinder::GetClosestValidPoint(vDest, vDest, AIUtil::GetCollisionRadius(pObj),
                                      AIUtil::GetAIType(pObj), ignore, 2);
 
-    bool bFar = true;
+    unsigned char priority = 1;
     if (!bFlyerIgnoreBarriers)
     {
-        bFar = PathManager::GetPathPriority(&pos, &vDest);
+        priority = PathManager::GetPathPriority(pos, vDest);
     }
 
-    if (!mOwner->mOwner->GetEntity()->IsRtti(EntityFlyer::rttiHashEntityFlyer) && bFar)
+    if (!mOwner->mOwner->GetEntity()->IsRtti(EntityFlyer::rttiHashEntityFlyer) && priority)
     {
         if (ConnectivityGraphManager::GetWorldGraph((ConnectivityGraph::ProhibitFlag)-1)
             && (ConnectivityGraphManager::GetWorldGraph((ConnectivityGraph::ProhibitFlag)-1)->mAllowTypes
@@ -1049,7 +1050,7 @@ PblVector3 AILowLevel::GetLocalDest()
     {
         return mDest.mPos;
     }
-    return *(const PblVector3*)&GetMatrix().m[3][0];
+    return GetMatrix().GetTranslation();
 }
 
 // FUNCTION: SWBF2 0x0043c550
@@ -1089,6 +1090,7 @@ void AILowLevel::UpdateHeadLook(float dt)
     }
 }
 
+
 // FUNCTION: SWBF2 0x0043c610
 bool AILowLevel::CalcHeadLookMatrix(const PblMatrix* pHead, PblMatrix* pOut)
 {
@@ -1117,13 +1119,13 @@ bool AILowLevel::CalcHeadLookMatrix(const PblMatrix* pHead, PblMatrix* pOut)
         }
 
         PblMatrix mHead;
-        D3DXMatrixMultiply(&mHead, pHead, &GetMatrix());
+        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mHead), reinterpret_cast<const D3DXMATRIX*>(pHead), reinterpret_cast<const D3DXMATRIX*>(&GetMatrix()));
         PblVector3 vFwd;
-        D3DXVec3Normalize(&vFwd, (const PblVector3*)&mHead.m[1][0]);
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vFwd), reinterpret_cast<const D3DXVECTOR3*>((const PblVector3*)&mHead.m[1][0]));
         const PblVector3& vEye = pObj->GetControllable()->mEyePoint;
         PblVector3 vTo(vEye.x - mHead.m[3][0], vEye.y - mHead.m[3][1], vEye.z - mHead.m[3][2]);
         PblVector3 vDir;
-        D3DXVec3Normalize(&vDir, &vTo);
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vTo));
 
         const float fDot = vFwd.y * vDir.y + vDir.x * vFwd.x + vFwd.z * vDir.z;
         if (fDot < -0.7f)
@@ -1140,7 +1142,7 @@ bool AILowLevel::CalcHeadLookMatrix(const PblMatrix* pHead, PblMatrix* pOut)
                           vFwd.z * vDir.x - vDir.z * vFwd.x,
                           vDir.y * vFwd.x - vFwd.y * vDir.x);
         PblVector3 vAxis;
-        D3DXVec3Normalize(&vAxis, &vCross);
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vAxis), reinterpret_cast<const D3DXVECTOR3*>(&vCross));
         PblMath::SinCos(&fSin, &fCos, fTurn * 0.5f);
         q._fS = fCos;
         q._fX = vAxis.x * fSin;
@@ -1149,27 +1151,20 @@ bool AILowLevel::CalcHeadLookMatrix(const PblMatrix* pHead, PblMatrix* pOut)
 
         PblVector3 vRotated = q.RotateVector(vFwd);
         PblVector3 vY;
-        D3DXVec3Normalize(&vY, &vRotated);
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vY), reinterpret_cast<const D3DXVECTOR3*>(&vRotated));
         const PblVector3& vUp = gVectorUnitY;
         PblVector3 vSide(vY.z * vUp.y - vY.y * vUp.z,
                          vY.x * vUp.z - vY.z * vUp.x,
                          vY.y * vUp.x - vY.x * vUp.y);
         PblVector3 vZ;
-        D3DXVec3Normalize(&vZ, &vSide);
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vZ), reinterpret_cast<const D3DXVECTOR3*>(&vSide));
         const PblVector3 vX(vZ.z * vY.y - vZ.y * vY.z,
                             vZ.x * vY.z - vZ.z * vY.x,
                             vZ.y * vY.x - vY.y * vZ.x);
 
-        const PblVector3* pRows[4] = { &vX, &vY, &vZ, (const PblVector3*)&mHead.m[3][0] };
-        for (int r = 0; r < 4; ++r)
-        {
-            pOut->m[r][0] = pRows[r]->x;
-            pOut->m[r][1] = pRows[r]->y;
-            pOut->m[r][2] = pRows[r]->z;
-            pOut->m[r][3] = r == 3 ? 1.0f : 0.0f;
-        }
+        *pOut = PblMatrix(vX, vY, vZ, mHead.GetTranslation());
         const PblMatrix mInv = GetMatrix().GetInverseFast();
-        D3DXMatrixMultiply(pOut, pOut, &mInv);
+        *pOut *= mInv;
         return true;
     }
 
@@ -1187,13 +1182,13 @@ bool AILowLevel::CalcHeadLookMatrix(const PblMatrix* pHead, PblMatrix* pOut)
     q._fY = fSin * 0.0f;
     q._fZ = fSin * 0.0f;
     PblQuaternion qUnit;
-    D3DXMatrixRotationQuaternion(pOut, D3DXQuaternionNormalize(&qUnit, &q));
+    D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(pOut), D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&qUnit), reinterpret_cast<const D3DXQUATERNION*>(&q)));
     pOut->m[3][0] = 0.0f;
     pOut->m[3][1] = 0.0f;
     pOut->m[3][2] = 0.0f;
     pOut->m[3][3] = 1.0f;
     const PblMatrix mHeadCopy = *pHead;
-    D3DXMatrixMultiply(pOut, pOut, &mHeadCopy);
+    *pOut *= mHeadCopy;
     return true;
 }
 

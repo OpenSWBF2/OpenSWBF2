@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "PassengerSlot.h"
 #include "PebbleFL/Common/PblVector.h"
 
@@ -14,26 +15,29 @@
 #include "PebbleFL/Common/PblHashTable.h"
 #include "RedEngineFL/Graphics/RedModel.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
-// GLOBAL: SWBF2 0x01ef7ca0
+
 // SYNTHETIC: SWBF2 0x00405da0
 // `dynamic initializer for 'PassengerSlot::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00769290
 // `dynamic atexit destructor for 'PassengerSlot::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ef7ca0
+// PassengerSlot::sMemoryPool
 MemoryPool PassengerSlot::sMemoryPool("PassengerSlot", 0x1f0);
 
-// GLOBAL: SWBF2 0x01ef7c90
 // SYNTHETIC: SWBF2 0x00405dc0
 // `dynamic initializer for 'PassengerSlot::rttiHashPassengerSlot''
-PblHash PassengerSlot::rttiHashPassengerSlot("PassengerSlot");
-char PassengerSlot::rttiNamePassengerSlot[] = "PassengerSlot";
+// PassengerSlot::rttiHashPassengerSlot
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
+// GLOBAL: SWBF2 0x01ef7c90
+// PassengerSlot::rttiHashPassengerSlot
+PblHash PassengerSlot::rttiHashPassengerSlot("PassengerSlot");
+// GLOBAL: SWBF2 0x0078aabc
+// PassengerSlot::rttiNamePassengerSlot
+const char PassengerSlot::rttiNamePassengerSlot[] = "PassengerSlot";
+
+
 
 // FUNCTION: SWBF2 0x0060fd00
 PassengerSlotClass::PassengerSlotClass(unsigned int uHash)
@@ -49,7 +53,7 @@ PassengerSlotClass::PassengerSlotClass(unsigned int uHash)
     mAddHealth = 15.0f;
     mAddAmmo = 1.0f;
     mPowerupDelay = 1.0f;
-    mMountMatrix = _IdentityMatrix;
+    mMountMatrix = gMatrixIdentity;
 }
 
 // SYNTHETIC: SWBF2 0x0060fde0
@@ -107,7 +111,7 @@ void PassengerSlot::DeactivatePhysics()
 // FUNCTION: SWBF2 0x0060fad0
 bool PassengerSlot::UpdateIndirect(float fDeltaTime)
 {
-    reinterpret_cast<AILowLevel*>(UnitControllerPtr(mCtrl)->mLowLevel)->UpdateIndirect(fDeltaTime);
+    UnitControllerPtr(mCtrl)->mLowLevel.UpdateIndirect(fDeltaTime);
     return true;
 }
 
@@ -141,7 +145,7 @@ CameraTrackSetting* PassengerSlot::GetCameraTrackSettings()
 void PassengerSlot::SetupCameraTrackMatrix(PblMatrix& rMatrix, float fDeltaTime)
 {
     PblVector3 vDir(-mEyeDir.x, -mEyeDir.y, -mEyeDir.z);
-    rMatrix = DirectionMatrix(vDir, *(const PblVector3*)mAimMatrix.m[1], mEyePoint);
+    rMatrix = DirectionMatrix(vDir, mAimMatrix.GetYAxis(), mEyePoint);
 }
 
 // FUNCTION: SWBF2 0x0060fcd0
@@ -161,28 +165,23 @@ PassengerSlot::PassengerSlot(GameObject* pParent, PassengerSlotClass* pClass, Re
     : EntityEx(0, pClass), Controllable(pClass ? static_cast<ControllableClass*>(pClass) : 0, -1),
       mPowerupTimer(0.0f), mParent(pParent), mClass(pClass)
 {
-    D3DXMatrixMultiply(&mAimMatrix, &mClass->mMountMatrix, &mParent->GetMatrix());
+    mAimMatrix = mClass->mMountMatrix * mParent->GetMatrix();
     mEyePoint = mClass->mCameraSettings.CalcEyePoint(mAimMatrix);
-    mEyeDir = *reinterpret_cast<const PblVector3*>(mAimMatrix.m[2]);
+    mEyeDir = mAimMatrix.GetZAxis();
 }
 
 // SYNTHETIC: SWBF2 0x0060f530
 // PassengerSlot::`scalar deleting destructor'
 // SYNTHETIC: SWBF2 0x0060ff08
-// [thunk]:PassengerSlot::`scalar deleting destructor' adjustor{36}
+// ??_EPassengerSlot@@WCE@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x0060ff10
-// [thunk]:PassengerSlot::`scalar deleting destructor' adjustor{12}
+// ??_EPassengerSlot@@WM@AEPAXI@Z
 // FUNCTION: SWBF2 0x0060f6a0
 PassengerSlot::~PassengerSlot()
 {
 }
 
-// FUNCTION: SWBF2 0x0060f460
-bool PassengerSlot::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashPassengerSlot || uRtti == EntityEx::rttiHashEntityEx ||
-           uRtti == Entity::rttiHashEntity;
-}
+
 
 // FUNCTION: SWBF2 0x0060f490
 unsigned int PassengerSlot::GetDerivedRtti() const { return rttiHashPassengerSlot; }
@@ -191,22 +190,22 @@ unsigned int PassengerSlot::GetDerivedRtti() const { return rttiHashPassengerSlo
 const char* PassengerSlot::GetDerivedRttiName() const { return rttiNamePassengerSlot; }
 
 // SYNTHETIC: SWBF2 0x0060fef8
-// [thunk]:PassengerSlot::GetEntity adjustor{12}
+// ?GetEntity@PassengerSlot@@WM@AEPAVEntity@@XZ
 // FUNCTION: SWBF2 0x0060f4b0
 Entity* PassengerSlot::GetEntity() { return this; }
 
 // SYNTHETIC: SWBF2 0x0060ff00
-// [thunk]:PassengerSlot::GetEntity const adjustor{12}
+// ?GetEntity@PassengerSlot@@WM@BEPBVEntity@@XZ
 // FUNCTION: SWBF2 0x0060f4c0
 const Entity* PassengerSlot::GetEntity() const { return this; }
 
 // SYNTHETIC: SWBF2 0x0060fee8
-// [thunk]:PassengerSlot::GetGameObject adjustor{36}
+// ?GetGameObject@PassengerSlot@@WCE@AEPAVGameObject@@XZ
 // FUNCTION: SWBF2 0x0060f4d0
 GameObject* PassengerSlot::GetGameObject() { return mParent; }
 
 // SYNTHETIC: SWBF2 0x0060fef0
-// [thunk]:PassengerSlot::GetGameObject const adjustor{36}
+// ?GetGameObject@PassengerSlot@@WCE@BEPBVGameObject@@XZ
 // FUNCTION: SWBF2 0x0060f4e0
 const GameObject* PassengerSlot::GetGameObject() const { return mParent; }
 
@@ -275,11 +274,11 @@ bool PassengerSlot::Update(float fDeltaTime)
         {
             if (mControlUse.IsPressed() || mParent->mDisableTime > 0.0f)
             {
-                if (mPilotType == PILOT_REMOTE)
+                if (IsRemoteVehicle())
                 {
                     pPilot->ExitRemote();
                 }
-                else if (mPilotType == PILOT_VEHICLE || mPilotType == PILOT_VEHICLESELF)
+                else if (IsPilotable())
                 {
                     if (pPilot->mCharacter && pPilot->mCharacter->mRemote)
                     {
@@ -295,9 +294,9 @@ bool PassengerSlot::Update(float fDeltaTime)
         }
     }
 
-    D3DXMatrixMultiply(&mAimMatrix, &mClass->mMountMatrix, &mParent->GetMatrix());
+    mAimMatrix = mClass->mMountMatrix * mParent->GetMatrix();
     mEyePoint = mClass->mCameraSettings.CalcEyePoint(mAimMatrix);
-    mEyeDir = *reinterpret_cast<const PblVector3*>(mAimMatrix.m[2]);
+    mEyeDir = mAimMatrix.GetZAxis();
     mPowerupTimer += fDeltaTime;
     if (mPowerupTimer >= mClass->mPowerupDelay)
     {

@@ -4,12 +4,13 @@
 
 #include "PebbleFL/Common/PblHashTable.h"
 #include "PebbleFL/Common/PblMatrix.h"
+#include "ZephyrCommon.h"
 
 class ZephyrJointShared
 {
 public:
     PblMatrix m_kBaseInverse;
-    char m_kBaseTransform[28];
+    ZephyrTransform m_kBaseTransform;
     unsigned int m_kCrc;
     char m_iParent;
     char m_iChild;
@@ -66,8 +67,6 @@ private:
 public:
     ZephyrJointShared* m_pJoints;
     unsigned int m_uNumJoints;
-
-    int m_kHashCRC2JointNumEntries;
     PblHashTable<unsigned int, 64> m_kHashCRC2Joint;
 };
  

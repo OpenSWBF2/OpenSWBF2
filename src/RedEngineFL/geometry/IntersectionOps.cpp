@@ -4,19 +4,21 @@
 #include "basics.h"
 #include "polygons.h"
 
-namespace geo { bool __cdecl Overlap_(const geo::Frustum& rFrustum, const geo::Ray<geo::Vector3<float> >* pEdges, int iNumEdges); }
+namespace geo
+{
+bool __cdecl Overlap_(const geo::Frustum& rFrustum, const geo::Ray<geo::Vector3<float> >* pEdges, int iNumEdges);
+}
 
 // FUNCTION: SWBF2 0x00724c60
 bool geo::Overlap3D::Op(const geo::Frustum& rFrustum, const geo::Sphere& rSphere)
 {
     const geo::Plane* pPlanes = rFrustum.GetPlanes();
+    const float fRadius = rSphere.radius_;
     for (int i = 0; i < 6; ++i)
     {
-        const float fDist = pPlanes[i].dir_.x * rSphere.center_.x
-                          + pPlanes[i].dir_.y * rSphere.center_.y
-                          + pPlanes[i].dir_.z * rSphere.center_.z
-                          + rSphere.radius_;
-        if (!(fDist > -pPlanes[i].dist_))
+        const geo::Plane& rPlane = pPlanes[i];
+        const float fDist = geo::dot(rPlane.dir_, rSphere.center_) + fRadius;
+        if (!(fDist > -rPlane.dist_))
         {
             return false;
         }
@@ -24,7 +26,8 @@ bool geo::Overlap3D::Op(const geo::Frustum& rFrustum, const geo::Sphere& rSphere
     return true;
 }
 
-namespace geo {
+namespace geo
+{
 
 // FUNCTION: SWBF2 0x00724db0
 bool __cdecl Overlap_(const geo::Frustum& rFrustum, const geo::Ray<geo::Vector3<float> >* pEdges, int iNumEdges)
@@ -67,37 +70,32 @@ bool geo::Overlap2D::LineSegLineSeg(const geo::Vector2<float>& rA0, const geo::V
 // FUNCTION: SWBF2 0x007242c0
 bool geo::Overlap2D::Op(const geo::Ray<geo::Vector2<float> >& rA, const geo::Ray<geo::Vector2<float> >& rB)
 {
-    float fDy = rA.orig_.y - rB.orig_.y;
-    float fDx = rA.orig_.x - rB.orig_.x;
-    float fDenom = rB.dir_.y * rA.dir_.x - rB.dir_.x * rA.dir_.y;
-    float fTA = (fDy * rB.dir_.x - fDx * rB.dir_.y) / fDenom;
-    float fTB = (fDy * rA.dir_.x - fDx * rA.dir_.y) / fDenom;
+    Vector2<float> d = rA.orig_ - rB.orig_;
+    float fDenom = cross(rA.dir_, rB.dir_);
+    float fTA = cross(rB.dir_, d) / fDenom;
+    float fTB = cross(rA.dir_, d) / fDenom;
     return fTA >= 0.0f && fTA < 1.0f && fTB >= 0.0f && fTB < 1.0f;
 }
 
 // FUNCTION: SWBF2 0x00724970
 bool __cdecl geo::Overlap3D::Op(const geo::Sphere& rSphere, const geo::Ray<geo::Vector3<float> >& rRay)
 {
-    float fDx = rRay.orig_.x - rSphere.center_.x;
-    float fDy = rRay.orig_.y - rSphere.center_.y;
-    float fDz = rRay.orig_.z - rSphere.center_.z;
+    Vector3<float> d = rRay.orig_ - rSphere.center_;
     float fR2 = rSphere.radius_ * rSphere.radius_;
-    float fC = fDy * fDy + fDx * fDx + fDz * fDz - fR2;
+    float fC = dot(d, d) - fR2;
     if (fC < 0.0f)
     {
         return true;
     }
 
-    float fEx = rRay.dir_.x + rRay.orig_.x - rSphere.center_.x;
-    float fEy = rRay.dir_.y + rRay.orig_.y - rSphere.center_.y;
-    float fEz = rRay.dir_.z + rRay.orig_.z - rSphere.center_.z;
-    if (fEy * fEy + fEx * fEx + fEz * fEz - fR2 < 0.0f)
+    Vector3<float> e = rRay.dir_ + rRay.orig_ - rSphere.center_;
+    if (dot(e, e) - fR2 < 0.0f)
     {
         return true;
     }
 
-    float fA = rRay.dir_.y * rRay.dir_.y + rRay.dir_.x * rRay.dir_.x + rRay.dir_.z * rRay.dir_.z;
-    float fB = rRay.dir_.y * fDy * 2.0f + rRay.dir_.x * fDx * 2.0f + rRay.dir_.z * fDz * 2.0f;
+    float fA = dot(rRay.dir_, rRay.dir_);
+    float fB = rRay.dir_.y * d.y * 2.0f + rRay.dir_.x * d.x * 2.0f + rRay.dir_.z * d.z * 2.0f;
     float fDisc = fB * fB - fA * 4.0f * fC;
     if (fDisc < 0.0f)
     {
@@ -122,9 +120,9 @@ bool __cdecl geo::Overlap3D::Op(const geo::Sphere& rSphere, const geo::Ray<geo::
 // FUNCTION: SWBF2 0x00724230
 bool geo::Overlap2D::Op(const geo::Circle& rCircle, const geo::Ray<geo::Vector2<float> >& rRay)
 {
-    geo::Sphere sphere(geo::Vector3<float>(rCircle.center_.x, rCircle.center_.y, 0.0f), rCircle.radius_);
     geo::Ray<geo::Vector3<float> > ray(geo::Vector3<float>(rRay.orig_.x, rRay.orig_.y, 0.0f),
                                        geo::Vector3<float>(rRay.dir_.x, rRay.dir_.y, 0.0f));
+    geo::Sphere sphere(geo::Vector3<float>(rCircle.center_.x, rCircle.center_.y, 0.0f), rCircle.radius_);
     return geo::Overlap3D::Op(sphere, ray);
 }
 
@@ -136,54 +134,43 @@ void BasePoly3D::GetEdges(Ray<Vector3<float> >* pEdges) const
 {
     for (int i = 0; i < numPoints_; ++i)
     {
-        const Vector3<float>& rPoint = points_[i];
-        const Vector3<float>& rNext = points_[(i + 1) % numPoints_];
-        pEdges[i].orig_ = rPoint;
-        pEdges[i].dir_.x = rNext.x - rPoint.x;
-        pEdges[i].dir_.y = rNext.y - rPoint.y;
-        pEdges[i].dir_.z = rNext.z - rPoint.z;
+        pEdges[i].orig_ = points_[i];
+        pEdges[i].dir_ = points_[(i + 1) % numPoints_] - points_[i];
     }
 }
 
 // FUNCTION: SWBF2 0x00722eb0
 void Frustum::GetBaseEdges(Ray<Vector3<float> >* pEdges) const
 {
-    Vector3<float> right(up_.y * fwd_.z - up_.z * fwd_.y,
-                         up_.z * fwd_.x - up_.x * fwd_.z,
-                         up_.x * fwd_.y - up_.y * fwd_.x);
-    const float fInvLength = 1.0f / (float)sqrt((double)(right.x * right.x + right.y * right.y + right.z * right.z));
-    right.x *= fInvLength;
-    right.y *= fInvLength;
-    right.z *= fInvLength;
-    for (int i = 0; i < 4; ++i)
-    {
-        const float fUp = (i == 0 || i == 3) ? height_ : -height_;
-        const float fRight = (i == 0 || i == 1) ? width_ : -width_;
-        pEdges[i].orig_ = center_;
-        pEdges[i].dir_.x = (fwd_.x * far_ + up_.x * fUp) + right.x * fRight;
-        pEdges[i].dir_.y = (fwd_.y * far_ + up_.y * fUp) + right.y * fRight;
-        pEdges[i].dir_.z = (fwd_.z * far_ + up_.z * fUp) + right.z * fRight;
-    }
+    Vector3<float> right = normalize(cross(up_, fwd_));
+    pEdges[0].dir_ = fwd_ * far_ + up_ * height_ + right * width_;
+    pEdges[0].orig_ = center_;
+    pEdges[1].dir_ = fwd_ * far_ - up_ * height_ + right * width_;
+    pEdges[1].orig_ = center_;
+    pEdges[2].dir_ = fwd_ * far_ - up_ * height_ - right * width_;
+    pEdges[2].orig_ = center_;
+    pEdges[3].dir_ = fwd_ * far_ + up_ * height_ - right * width_;
+    pEdges[3].orig_ = center_;
 }
 
 // FUNCTION: SWBF2 0x007248a0
 bool Overlap3D::Op(const ExtrudedPoly3D& rPoly, const Vector3<float>& rPoint)
 {
-    float fH = rPoly.zaxis_.x * rPoint.x + rPoly.zaxis_.y * rPoint.y + rPoly.zaxis_.z * rPoint.z;
+    float fH = dot(rPoly.zaxis_, rPoint);
     if (fH < rPoly.min_ || fH > rPoly.max_)
     {
         return false;
     }
 
-    BasePoly2D poly(rPoly);
-    if (poly.numPoints_ < 1)
+    if (rPoly.points_._numElements < 1)
     {
         return false;
     }
+    BasePoly2D poly(rPoly);
 
     Vector2<float> pt;
-    pt.x = rPoly.xaxis_.x * rPoint.x + rPoly.xaxis_.y * rPoint.y + rPoly.xaxis_.z * rPoint.z;
-    pt.y = rPoly.yaxis_.x * rPoint.x + rPoly.yaxis_.y * rPoint.y + rPoly.yaxis_.z * rPoint.z;
+    pt.x = dot(rPoint, rPoly.xaxis_);
+    pt.y = dot(rPoint, rPoly.yaxis_);
     return PolyPoly2D::PointInPolyCN(pt, poly);
 }
 
@@ -192,9 +179,9 @@ void BasePoly2D::GetEdges(Ray<Vector2<float> >* pEdges) const
 {
     for (int i = 0; i < numPoints_; ++i)
     {
+        pEdges[i].orig_ = points_[i];
         const Vector2<float>& rCur = points_[i];
         const Vector2<float>& rNext = points_[(i + 1) % numPoints_];
-        pEdges[i].orig_ = rCur;
         Vector2<float> dir;
         dir.x = rNext.x - rCur.x;
         dir.y = rNext.y - rCur.y;
@@ -206,19 +193,19 @@ void BasePoly2D::GetEdges(Ray<Vector2<float> >* pEdges) const
 bool Overlap3D::Op(const ExtrudedPoly3D& rPoly, const Sphere& rSphere)
 {
     const Vector3<float>& c = rSphere.center_;
-    float fH = rPoly.zaxis_.x * c.x + rPoly.zaxis_.y * c.y + rPoly.zaxis_.z * c.z;
+    float fH = dot(c, rPoly.zaxis_);
     if (rPoly.min_ > fH + rSphere.radius_ || fH - rSphere.radius_ > rPoly.max_)
     {
         return false;
     }
 
-    BasePoly2D poly(rPoly);
-    if (poly.numPoints_ < 1)
+    if (rPoly.points_._numElements < 1)
     {
         return false;
     }
+    BasePoly2D poly(rPoly);
 
-    if (Op(rPoly, c))
+    if (Op(rPoly, c) == true)
     {
         return true;
     }
@@ -227,13 +214,13 @@ bool Overlap3D::Op(const ExtrudedPoly3D& rPoly, const Sphere& rSphere)
     poly.GetEdges(edges);
 
     Vector2<float> center;
-    center.x = rPoly.xaxis_.x * c.x + rPoly.xaxis_.y * c.y + rPoly.xaxis_.z * c.z;
-    center.y = rPoly.yaxis_.x * c.x + rPoly.yaxis_.y * c.y + rPoly.yaxis_.z * c.z;
+    center.x = dot(rPoly.xaxis_, c);
+    center.y = dot(rPoly.yaxis_, c);
     Circle circle(center, rSphere.radius_);
 
     for (int i = 0; i < poly.numPoints_; ++i)
     {
-        if (Overlap2D::Op(circle, edges[i]))
+        if (Overlap2D::Op(circle, edges[i]) == true)
         {
             return true;
         }
@@ -244,10 +231,9 @@ bool Overlap3D::Op(const ExtrudedPoly3D& rPoly, const Sphere& rSphere)
 // FUNCTION: SWBF2 0x00722e20
 float Box::Volume()
 {
-    float fDx = max_.x - min_.x;
-    float fDy = max_.y - min_.y;
-    float fDz = max_.z - min_.z;
-    return Max_(fDy, 0.0f) * Max_(fDx, 0.0f) * Max_(fDz, 0.0f);
+    Vector3<float> size = max_ - min_;
+    float fArea = Max_(size.x, 0.0f) * Max_(size.y, 0.0f);
+    return fArea * Max_(size.z, 0.0f);
 }
 
 // FUNCTION: SWBF2 0x00723f20
@@ -270,16 +256,18 @@ void Frustum::GetLeftPlane(Plane& rPlane) const
     Vector3<float> side = normalize(cross(up_, fwd_)) * width_;
     Vector3<float> edge = normalize(fwd_ * far_ - side);
     rPlane.dir_ = normalize(cross(up_, edge));
-    rPlane.dist_ = dot(rPlane.dir_, center_) * -1.0f;
+    const float fDot = dot(rPlane.dir_, center_);
+    rPlane.dist_ = fDot * -1.0f;
 }
 
 // FUNCTION: SWBF2 0x00723900
 void Frustum::GetRightPlane(Plane& rPlane) const
 {
-    Vector3<float> side = normalize(cross(up_, fwd_)) * width_;
-    Vector3<float> edge = normalize(side + fwd_ * far_);
+    Vector3<float> side = normalize(cross(up_, fwd_));
+    Vector3<float> edge = normalize(fwd_ * far_ + side * width_);
     rPlane.dir_ = normalize(cross(edge, up_));
-    rPlane.dist_ = dot(rPlane.dir_, center_) * -1.0f;
+    const float fDot = dot(rPlane.dir_, center_);
+    rPlane.dist_ = fDot * -1.0f;
 }
 
 // FUNCTION: SWBF2 0x00723240
@@ -288,7 +276,8 @@ void Frustum::GetBottomPlane(Plane& rPlane) const
     Vector3<float> side = normalize(cross(up_, fwd_));
     Vector3<float> edge = normalize(fwd_ * far_ - up_ * height_);
     rPlane.dir_ = normalize(cross(edge, side));
-    rPlane.dist_ = dot(rPlane.dir_, center_) * -1.0f;
+    const float fDot = dot(rPlane.dir_, center_);
+    rPlane.dist_ = fDot * -1.0f;
 }
 
 // FUNCTION: SWBF2 0x00723b50
@@ -297,7 +286,8 @@ void Frustum::GetTopPlane(Plane& rPlane) const
     Vector3<float> side = normalize(cross(up_, fwd_));
     Vector3<float> edge = normalize(fwd_ * far_ + up_ * height_);
     rPlane.dir_ = normalize(cross(side, edge));
-    rPlane.dist_ = dot(rPlane.dir_, center_) * -1.0f;
+    const float fDot = dot(rPlane.dir_, center_);
+    rPlane.dist_ = fDot * -1.0f;
 }
 
 // FUNCTION: SWBF2 0x00723810
@@ -305,8 +295,9 @@ void Frustum::GetPlanes_(Plane* pPlanes) const
 {
     pPlanes[0].dir_ = fwd_;
     pPlanes[0].dist_ = (dot(pPlanes[0].dir_, center_) + near_) * -1.0f;
-    pPlanes[1].dir_ = fwd_ * -1.0f;
-    pPlanes[1].dist_ = (dot(pPlanes[1].dir_, center_) - far_) * -1.0f;
+    Plane& rBack = pPlanes[1];
+    rBack.dir_ = fwd_ * -1.0f;
+    rBack.dist_ = (dot(rBack.dir_, center_) - far_) * -1.0f;
     GetLeftPlane(pPlanes[2]);
     GetRightPlane(pPlanes[3]);
     GetBottomPlane(pPlanes[4]);
@@ -337,14 +328,16 @@ unsigned int geo::Classify3D::Op(const geo::Frustum& rFrustum, const geo::Sphere
     return uResult;
 }
 
-namespace geo {
+namespace geo
+{
 
 // FUNCTION: SWBF2 0x00724e80
 bool __cdecl Overlap_(const geo::Plane* pPlanes, const geo::Vector3<float>& rPoint)
 {
     for (int i = 0; i < 6; ++i)
     {
-        if (!(geo::dot(pPlanes[i].dir_, rPoint) > -pPlanes[i].dist_))
+        const float fDist = geo::dot(pPlanes[i].dir_, rPoint);
+        if (!(fDist > -pPlanes[i].dist_))
         {
             return false;
         }
@@ -357,24 +350,20 @@ bool __cdecl Overlap_(const geo::Plane* pPlanes, const geo::Vector3<float>& rPoi
 bool __cdecl geo::Intersect3D::Op(const geo::Plane& rPlane, const geo::Ray<geo::Vector3<float> >& rRay, geo::Vector3<float>& rHit)
 {
     float fDenom = geo::dot(rPlane.dir_, rRay.dir_);
-    if (geo::Max_(geo::Max_((float)fabs(fDenom), (float)fabs(0.0f)), 1.0f) * 1.52587890625e-05f
-        >= (float)fabs(fDenom - 0.0f))
+    if (!((float)fabs(fDenom - 0.0f)
+          <= geo::Max_(geo::Max_((float)fabs(fDenom), (float)fabs(0.0f)), 1.0f) * 1.52587890625e-05f))
     {
-        return false;
+        float fT = (-rPlane.dist_ - geo::dot(rPlane.dir_, rRay.orig_)) / fDenom;
+        if (fT >= 0.0f - geo::Max_(geo::Max_((float)fabs(fT), (float)fabs(0.0f)), 1.0f) * 6.103515625e-05f)
+        {
+            if (geo::Max_(geo::Max_((float)fabs(fT), (float)fabs(1.0f)), 1.0f) * 6.103515625e-05f + 1.0f >= fT)
+            {
+                rHit = rRay.orig_ + rRay.dir_ * fT;
+                return true;
+            }
+        }
     }
-
-    float fT = (-rPlane.dist_ - geo::dot(rPlane.dir_, rRay.orig_)) / fDenom;
-    if (!(fT >= 0.0f - geo::Max_(geo::Max_((float)fabs(fT), (float)fabs(0.0f)), 1.0f) * 6.103515625e-05f))
-    {
-        return false;
-    }
-    if (!(geo::Max_(geo::Max_((float)fabs(fT), (float)fabs(1.0f)), 1.0f) * 6.103515625e-05f + 1.0f >= fT))
-    {
-        return false;
-    }
-
-    rHit = rRay.orig_ + rRay.dir_ * fT;
-    return true;
+    return false;
 }
 
 // FUNCTION: SWBF2 0x00724b20
@@ -441,17 +430,12 @@ bool Overlap3D::Op(const BasePoly3D& rPoly, const Ray<Vector3<float> >& rRay)
         return false;
     }
 
-    Vector3<float> skew = normalize(Vector3<float>(0.353234f, 1.2242f, 0.98245f));
-    Vector3<float> axis1 = normalize(cross(plane.dir_, skew));
+    Vector3<float> skew(0.353234f, 1.2242f, 0.98245f);
+    Vector3<float> axis1 = normalize(cross(plane.dir_, normalize(skew)));
     Vector3<float> yaxis = normalize(cross(plane.dir_, axis1));
     Vector3<float> xaxis = normalize(cross(plane.dir_, yaxis));
 
     Vector2<float> points[256];
-    for (int i = 0; i < 256; ++i)
-    {
-        points[i].x = 0.0f;
-        points[i].y = 0.0f;
-    }
     BasePoly2D poly2(points, rPoly.numPoints_);
     geo::Transform::Op(rPoly, poly2, xaxis, yaxis);
 

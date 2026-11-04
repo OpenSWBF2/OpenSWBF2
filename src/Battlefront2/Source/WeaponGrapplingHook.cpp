@@ -1,16 +1,26 @@
 #include "WeaponGrapplingHook.h"
 
-// GLOBAL: SWBF2 0x01f9a8c4
 // SYNTHETIC: SWBF2 0x00407170
 // `dynamic initializer for 'WeaponGrapplingHookClass::rttiHashWeaponGrapplingHookClass''
-PblHash WeaponGrapplingHookClass::rttiHashWeaponGrapplingHookClass("WeaponGrapplingHookClass");
-char WeaponGrapplingHookClass::rttiNameWeaponGrapplingHookClass[] = "WeaponGrapplingHookClass";
+// WeaponGrapplingHookClass::rttiHashWeaponGrapplingHookClass
 
-// GLOBAL: SWBF2 0x01f9a8c8
+// GLOBAL: SWBF2 0x01f9a8c4
+// WeaponGrapplingHookClass::rttiHashWeaponGrapplingHookClass
+PblHash WeaponGrapplingHookClass::rttiHashWeaponGrapplingHookClass("WeaponGrapplingHookClass");
+// GLOBAL: SWBF2 0x0078bfc0
+// WeaponGrapplingHookClass::rttiNameWeaponGrapplingHookClass
+const char WeaponGrapplingHookClass::rttiNameWeaponGrapplingHookClass[] = "WeaponGrapplingHookClass";
+
 // SYNTHETIC: SWBF2 0x00407160
 // `dynamic initializer for 'WeaponGrapplingHook::rttiHashWeaponGrapplingHook''
+// WeaponGrapplingHook::rttiHashWeaponGrapplingHook
+
+// GLOBAL: SWBF2 0x01f9a8c8
+// WeaponGrapplingHook::rttiHashWeaponGrapplingHook
 PblHash WeaponGrapplingHook::rttiHashWeaponGrapplingHook("WeaponGrapplingHook");
-char WeaponGrapplingHook::rttiNameWeaponGrapplingHook[] = "WeaponGrapplingHook";
+// GLOBAL: SWBF2 0x0078bfdc
+// WeaponGrapplingHook::rttiNameWeaponGrapplingHook
+const char WeaponGrapplingHook::rttiNameWeaponGrapplingHook[] = "WeaponGrapplingHook";
 
 // FUNCTION: SWBF2 0x00684de0
 WeaponGrapplingHookClass::WeaponGrapplingHookClass(unsigned int uHash)
@@ -33,23 +43,11 @@ WeaponGrapplingHookClass::~WeaponGrapplingHookClass()
 // SYNTHETIC: SWBF2 0x00684e00
 // WeaponGrapplingHookClass::`scalar deleting destructor'
 
-// FUNCTION: SWBF2 0x00684d10
-bool WeaponGrapplingHookClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashWeaponGrapplingHookClass || WeaponCannonClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00684d40
-unsigned int WeaponGrapplingHookClass::GetDerivedRtti()
-{
-    return rttiHashWeaponGrapplingHookClass;
-}
 
-// FUNCTION: SWBF2 0x00684d50
-const char* WeaponGrapplingHookClass::GetDerivedRttiName()
-{
-    return rttiNameWeaponGrapplingHookClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00684e60
 WeaponClass* WeaponGrapplingHookClass::Derive(unsigned int uHash)
@@ -78,23 +76,11 @@ WeaponGrapplingHook::~WeaponGrapplingHook()
 // SYNTHETIC: SWBF2 0x00684ce0
 // WeaponGrapplingHook::`scalar deleting destructor'
 
-// FUNCTION: SWBF2 0x00684c90
-bool WeaponGrapplingHook::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashWeaponGrapplingHook || WeaponCannon::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00684cc0
-unsigned int WeaponGrapplingHook::GetDerivedRtti() const
-{
-    return rttiHashWeaponGrapplingHook;
-}
 
-// FUNCTION: SWBF2 0x00684cd0
-const char* WeaponGrapplingHook::GetDerivedRttiName() const
-{
-    return rttiNameWeaponGrapplingHook;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00684dc0
 bool WeaponGrapplingHook::CheckFire() const

@@ -6,8 +6,10 @@
 #include "HUDEvent.h"
 #include "RedEngineFL/Interface/RedGroupElement.h"
 
-namespace HUD {
+namespace HUD
+{
 
+// VTABLE: SWBF2 0x007a0dfc
 class ElementGroupBase : public HUD::Element
 {
 public:
@@ -105,6 +107,8 @@ public:
     bool mShowChildren : 1;
 };
 
+// VTABLE: SWBF2 0x007a0394 RedGroupElement
+// VTABLE: SWBF2 0x007a0474 HUD::ElementGroupBase
 class ElementGroup : public HUD::ElementGroupBase, public RedGroupElement
 {
 public:
@@ -125,7 +129,11 @@ public:
 
     ElementGroup(const char* const pName, Factory::ItemCallback pCallback,
                  void* const pUserData);
-    virtual ~ElementGroup();
+    // FUNCTION: SWBF2 0x00543fd0
+    virtual ~ElementGroup()
+    {
+        ElementGroupBase::RemoveAllElements();
+    }
     virtual void* GetParent();
 };
 }
@@ -139,3 +147,17 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x00543f40
+inline HUD::ElementGroup::ElementGroup(const char* const pName, Factory::ItemCallback pCallback,
+                                void* const pUserData)
+    : HUD::ElementGroupBase(*static_cast<RedGroupElement*>(this), pName, pCallback, pUserData)
+{
+    RedGroupElement::Enable(false);
+}
+
+inline HUD::ElementGroup::Factory::Factory()
+    : HUD::ElementGroupBase::Factory(0x5FB91E8Cu)
+{
+    mName = "Group";
+}

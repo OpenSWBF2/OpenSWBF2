@@ -5,11 +5,9 @@
 #include "Thread.h"
 #include "PebbleFL/Common/PblBitVector.h"
 #include "PebbleFL/Common/PblHashTable.h"
-#include "PebbleFL/Common/PblList.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 #include "RedEngineFL/Util/RedRegion.h"
 
-class Controllable;
 struct lua_State;
 
 namespace ActiveRegions
@@ -28,8 +26,10 @@ public:
 
     PblBitVector<600> GetPlayersInRegion();
 
-    static void* operator new(size_t uSize);
+    static void* operator new(unsigned int uSize);
 
+    // SYNTHETIC: SWBF2 0x004375c0
+    // ActiveRegions::ActiveRegion::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
     RedRegion& mRegion;
@@ -37,12 +37,6 @@ public:
 
     static MemoryPool sMemoryPool;
 };
-
- 
- 
- 
-
-extern int sMapNumEntries;
 extern PblHashTable<ActiveRegion, 64> sMap;
 
 void Cleanup();
@@ -60,6 +54,4 @@ RedRegion* __fastcall Find(lua_State* L, int iIndex);
 
 }
 
-Controllable* __fastcall sub_437DD0(PblList<Controllable>::Itor* pCurrent);
-Controllable* __fastcall sub_437DE0(PblList<Controllable>::Itor* pCurrent);
-PblList<Controllable>::Itor* __fastcall AdvanceRawListIterator(PblList<Controllable>::Itor* pCurrent);
+void* __fastcall InitRawListIterator(void** pCurrent, void* pEdx, const void* pSource);

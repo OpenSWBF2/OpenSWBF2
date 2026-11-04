@@ -3,6 +3,7 @@
 #include "RedEngineFL/Memory/engineAlloc.h"
 #include "RedEngineFL/Application/pc/pcRenderHelpers.h"
 #include "PebbleFL/Common/PblMatrix.h"
+#include "PebbleFL/Common/PblPlane.h"
 #include <d3dx9math.h>
 #include "pcRedDeviceEnumerator.h"
 #include "pcRedShader.h"
@@ -53,6 +54,49 @@ unsigned int gAdapter = 0;
 #include "RedEngineFL/Graphics/RedSpotLight.h"
 #include "pcRedPixelShader.h"
 #include "pcRedVertexShader.h"
+
+// GLOBAL: SWBF2 0x00772760
+// __xmm@000000003f8000003f8000003f800000
+// GLOBAL: SWBF2 0x007727a0
+// __xmm@3f0000003f0000003f0000003f000000
+
+class pcRedVertexShaderConstants
+{
+public:
+
+    pcRedVertexShaderConstantRegister* GetRegisters(int creg0, int numregs)
+    {
+        int iLast = creg0 + numregs - 1;
+        if (m_iMinConstantSet > creg0)
+        {
+            m_iMinConstantSet = creg0;
+        }
+        if (m_iMaxConstantSet < iLast)
+        {
+            m_iMaxConstantSet = iLast;
+        }
+        return m_Registers;
+    }
+
+    pcRedVertexShaderConstantRegister* GetRegisterArray(int iFirst, int iCount)
+    {
+        if (m_iMinConstantSet > iFirst)
+        {
+            m_iMinConstantSet = iFirst;
+        }
+        if (m_iMaxConstantSet < iFirst + iCount - 1)
+        {
+            m_iMaxConstantSet = iFirst + iCount - 1;
+        }
+        return m_Registers;
+    }
+
+    void Update();
+
+    pcRedVertexShaderConstantRegister m_Registers[96];
+    int m_iMinConstantSet;
+    int m_iMaxConstantSet;
+};
 
 enum ResetKind
 {
@@ -2653,6 +2697,7 @@ STDMETHODIMP FakeD3DVolumeTexture::UnlockBox(UINT)
     return 0;
 }
 
+// GLOBAL: SWBF2 0x007f58e8
 RedViewport RedRenderer::m_normalizedViewport;
 
 // FUNCTION: SWBF2 0x006b8480
@@ -2723,6 +2768,48 @@ RedTexture* RedRenderer::pcGetRenderTarget()
 
  
 
+static unsigned int CollectAdapterModes(unsigned int uiAdapter, unsigned int uiMinWidth,
+                                        unsigned int uiMinHeight,
+                                        DisplayLogic::DisplayModeRec* pRaw)
+{
+    PblList<D3DAdapterInfo>& adapterList = pcRedDeviceEnumerator::GetDeviceList();
+
+    unsigned int uiFilled = 0;
+    for (PblList<D3DAdapterInfo>::Node* pAdapterNode = adapterList.GetFirst();
+         pAdapterNode->_pObject != adapterList._head._pObject;
+         pAdapterNode = pAdapterNode->_pNext)
+    {
+        if (pAdapterNode->_pObject->AdapterOrdinal != (int)uiAdapter)
+        {
+            continue;
+        }
+
+        PblList<D3DDisplayMode>& modeList = pAdapterNode->_pObject->DisplayModeList;
+
+        for (PblList<D3DDisplayMode>::Node* pModeNode = modeList.GetFirst();
+             pModeNode->_pObject != modeList._head._pObject;
+             pModeNode = pModeNode->_pNext)
+        {
+            const D3DDISPLAYMODE& mode = pModeNode->_pObject->displayMode;
+
+            if (mode.Width < uiMinWidth || mode.Height < uiMinHeight)
+            {
+                continue;
+            }
+
+            if (pRaw)
+            {
+                pRaw[uiFilled].w = mode.Width;
+                pRaw[uiFilled].h = mode.Height;
+                pRaw[uiFilled].refresh = mode.RefreshRate;
+                pRaw[uiFilled].adapter = uiAdapter;
+            }
+            ++uiFilled;
+        }
+    }
+    return uiFilled;
+}
+
 // FUNCTION: SWBF2 0x006b85a0
 unsigned int RedRenderer::pcGetValidDisplayModes(unsigned int uiAdapter,
                                                  DisplayLogic::DisplayModeRec* pModes,
@@ -2735,69 +2822,17 @@ unsigned int RedRenderer::pcGetValidDisplayModes(unsigned int uiAdapter,
         return 0;
     }
 
-    PblList<D3DAdapterInfo>& adapterList = pcRedDeviceEnumerator::GetDeviceList();
-
-    unsigned int uiRaw = 0;
-    for (int iPass = 0; iPass < 2; ++iPass)
+    unsigned int uiRaw = CollectAdapterModes(uiAdapter, uiMinWidth, uiMinHeight, 0);
+    if (uiRaw == 0)
     {
-        DisplayLogic::DisplayModeRec* pRaw = 0;
-        if (iPass == 1)
-        {
-            if (uiRaw == 0)
-            {
-                return 0;
-            }
-            pRaw = new DisplayLogic::DisplayModeRec[uiRaw];
-        }
-
-        unsigned int uiFilled = 0;
-        for (PblList<D3DAdapterInfo>::Node* pAdapterNode = adapterList.GetFirst();
-             pAdapterNode->_pObject != adapterList._head._pObject;
-             pAdapterNode = pAdapterNode->_pNext)
-        {
-            if (pAdapterNode->_pObject->AdapterOrdinal != (int)uiAdapter)
-            {
-                continue;
-            }
-
-            PblList<D3DDisplayMode>& modeList = pAdapterNode->_pObject->DisplayModeList;
-
-            for (PblList<D3DDisplayMode>::Node* pModeNode = modeList.GetFirst();
-                 pModeNode->_pObject != modeList._head._pObject;
-                 pModeNode = pModeNode->_pNext)
-            {
-                const D3DDISPLAYMODE& mode = pModeNode->_pObject->displayMode;
-
-                if (mode.Width < uiMinWidth || mode.Height < uiMinHeight)
-                {
-                    continue;
-                }
-
-                if (pRaw)
-                {
-                    pRaw[uiFilled].w = mode.Width;
-                    pRaw[uiFilled].h = mode.Height;
-                    pRaw[uiFilled].refresh = mode.RefreshRate;
-                    pRaw[uiFilled].adapter = uiAdapter;
-                }
-                ++uiFilled;
-            }
-        }
-
-        if (iPass == 0)
-        {
-            uiRaw = uiFilled;
-        }
-        else
-        {
-            unsigned int uiCount =
-                DisplayLogic::BuildModeList(pRaw, uiRaw, uiAdapter, pModes, uiMaxModes);
-            delete[] pRaw;
-            return uiCount;
-        }
+        return 0;
     }
 
-    return 0;
+    DisplayLogic::DisplayModeRec* pRaw = new DisplayLogic::DisplayModeRec[uiRaw];
+    CollectAdapterModes(uiAdapter, uiMinWidth, uiMinHeight, pRaw);
+    unsigned int uiCount = DisplayLogic::BuildModeList(pRaw, uiRaw, uiAdapter, pModes, uiMaxModes);
+    delete[] pRaw;
+    return uiCount;
 }
 
 static DisplayLogic::PresentWatch sPresentWatch = {0, 0.0, false, false};
@@ -3096,36 +3131,67 @@ void RedRenderer::pcUnregisterResetFunction(void(__cdecl* pFunction)(ResetFlagsT
     }
 }
 
+// GLOBAL: SWBF2 0x007de2a0
+// RedRenderer::sLightingEnable
 bool RedRenderer::sLightingEnable = true;
+// GLOBAL: SWBF2 0x007fa025
+// RedRenderer::m_bStencilShadowZFail
 bool RedRenderer::m_bStencilShadowZFail;
+// GLOBAL: SWBF2 0x007fa026
+// RedRenderer::m_bScreenSpaceShadows
 bool RedRenderer::m_bScreenSpaceShadows;
+// GLOBAL: SWBF2 0x007fa028
+// RedRenderer::m_fStencilShadowLength
 float RedRenderer::m_fStencilShadowLength;
+// GLOBAL: SWBF2 0x007fa048
+// RedRenderer::m_iImmediateMode
 int RedRenderer::m_iImmediateMode;
-int RedRenderer::m_uiCurMatrixPoolOffset;
+// GLOBAL: SWBF2 0x007fa04c
+// RedRenderer::m_uiCurMatrixPoolOffset
+unsigned int RedRenderer::m_uiCurMatrixPoolOffset;
+// GLOBAL: SWBF2 0x007fa050
+// RedRenderer::m_curRenderItemOffset
 unsigned int RedRenderer::m_curRenderItemOffset;
+// GLOBAL: SWBF2 0x007f58e0
+// RedRenderer::m_camera
 RedCamera* RedRenderer::m_camera;
+// GLOBAL: SWBF2 0x007fbe74
+// RedRenderer::m_pLightingState
 RedLightingState* RedRenderer::m_pLightingState;
-intptr_t RedRenderer::m_pmObjWorldPrev;
-intptr_t RedRenderer::m_pmBoneMatricesPrev;
-intptr_t RedRenderer::m_pPrimPrev;
-intptr_t RedRenderer::m_pLightingStatePrev;
+// GLOBAL: SWBF2 0x007fbeac
+// RedRenderer::m_pmObjWorldPrev
+const PblMatrix* RedRenderer::m_pmObjWorldPrev;
+// GLOBAL: SWBF2 0x007fbeb0
+// RedRenderer::m_pmBoneMatricesPrev
+const PblMatrix* RedRenderer::m_pmBoneMatricesPrev;
+// GLOBAL: SWBF2 0x007fbeb4
+// RedRenderer::m_pPrimPrev
+const pcRedPrimitive* RedRenderer::m_pPrimPrev;
+// GLOBAL: SWBF2 0x007fbeb8
+// RedRenderer::m_pLightingStatePrev
+const RedLightingState* RedRenderer::m_pLightingStatePrev;
 
-// GLOBAL: SWBF2 0x008bef50
 // SYNTHETIC: SWBF2 0x00407590
 // `dynamic initializer for 'RedRenderer::m_amMatrixPool''
 
+// GLOBAL: SWBF2 0x008bef50
+// RedRenderer::m_amMatrixPool
 PblMatrix RedRenderer::m_amMatrixPool[3062];
 
 // SYNTHETIC: SWBF2 0x00407610
 // `dynamic initializer for 'RedRenderer::m_mView''
 
+// GLOBAL: SWBF2 0x008eecd0
+// RedRenderer::m_mView
 __declspec(align(16)) PblMatrix RedRenderer::m_mView;
 
-// GLOBAL: SWBF2 0x008174f0
 // SYNTHETIC: SWBF2 0x004076e0
 // `dynamic initializer for 'RedRenderer::m_renderItemPool''
 // SYNTHETIC: SWBF2 0x00769840
 // `dynamic atexit destructor for 'RedRenderer::m_renderItemPool''
+
+// GLOBAL: SWBF2 0x008174f0
+// RedRenderer::m_renderItemPool
 RenderItem RedRenderer::m_renderItemPool[4748];
 
 int GetPhasePass_(RenderPhaseT ePhase);
@@ -3523,7 +3589,7 @@ void RedRenderer::pcRenderPrimitive(pcRedPrimitive* pPrim, pcRedShader* pShader,
 }
 
 template <class ITEM, class KEY>
-TransparentHeap<ITEM, KEY>::TransparentHeap(unsigned int uiMaxSize)
+inline TransparentHeap<ITEM, KEY>::TransparentHeap(unsigned int uiMaxSize)
 {
     InitNodePool(uiMaxSize);
     globalPass_ = 0;
@@ -3552,23 +3618,29 @@ void TransparentHeap<ITEM, KEY>::InitNodePool(unsigned int uiMaxSize)
     m_aNodePool[m_iMaxSize - 1].pNext = 0;
 }
 
-// GLOBAL: SWBF2 0x007fbec8
 // SYNTHETIC: SWBF2 0x004076b0
 // `dynamic initializer for 'RedRenderer::m_preShadowTransparentItems''
 // SYNTHETIC: SWBF2 0x00769830
 // `dynamic atexit destructor for 'RedRenderer::m_preShadowTransparentItems''
+
+// GLOBAL: SWBF2 0x007fbec8
+// RedRenderer::m_preShadowTransparentItems
 TransparentHeap<RenderItem*, unsigned int> RedRenderer::m_preShadowTransparentItems(100);
-// GLOBAL: SWBF2 0x0086ac50
 // SYNTHETIC: SWBF2 0x00407710
 // `dynamic initializer for 'RedRenderer::m_transparentItems''
 // SYNTHETIC: SWBF2 0x00769860
 // `dynamic atexit destructor for 'RedRenderer::m_transparentItems''
+
+// GLOBAL: SWBF2 0x0086ac50
+// RedRenderer::m_transparentItems
 TransparentHeap<RenderItem*, unsigned int> RedRenderer::m_transparentItems(800);
-// GLOBAL: SWBF2 0x0086ac74
 // SYNTHETIC: SWBF2 0x00407680
 // `dynamic initializer for 'RedRenderer::m_posttransparentItems''
 // SYNTHETIC: SWBF2 0x00769820
 // `dynamic atexit destructor for 'RedRenderer::m_posttransparentItems''
+
+// GLOBAL: SWBF2 0x0086ac74
+// RedRenderer::m_posttransparentItems
 TransparentHeap<RenderItem*, unsigned int> RedRenderer::m_posttransparentItems(512);
 
 extern bool g_bNoRender;
@@ -3623,6 +3695,7 @@ static unsigned int sDisplayGeneration;
 static unsigned int sDisplayGenW;
 static unsigned int sDisplayGenH;
 // GLOBAL: SWBF2 0x007f5f28
+// RedRenderer::m_resetFunctions
 void(__cdecl* RedRenderer::m_resetFunctions[100])(ResetFlagsT);
 // GLOBAL: SWBF2 0x007f60b8
 unsigned int RedRenderer::m_numResetFunctions;
@@ -3656,20 +3729,22 @@ int RedRenderer::m_frameNumber;
 // GLOBAL: SWBF2 0x007f58e7
 bool RedRenderer::m_bFogEnable;
 // GLOBAL: SWBF2 0x007fa054
-int RedRenderer::m_uiCurLightingStatePoolOffset;
+unsigned int RedRenderer::m_uiCurLightingStatePoolOffset;
 
-// GLOBAL: SWBF2 0x007fbec4
 // SYNTHETIC: SWBF2 0x004075b0
 // `dynamic initializer for 'RedRenderer::m_colorFog''
+
+// GLOBAL: SWBF2 0x007fbec4
+// RedRenderer::m_colorFog
 RedColor RedRenderer::m_colorFog = RedColor::BLACK;
 // GLOBAL: SWBF2 0x0086ac70
 RedColor RedRenderer::m_lightingScaleColor;
 
 // SYNTHETIC: SWBF2 0x00408c60
-// `dynamic initializer for 'PblMath::fOneOverHalfPi''
+// PblMath::`dynamic initializer for 'fOneOverHalfPi''
 
 // SYNTHETIC: SWBF2 0x00408c80
-// `dynamic initializer for 'PblMath::fOneOverTwoPi''
+// PblMath::`dynamic initializer for 'fOneOverTwoPi''
 
 static void ApplyCurrentMode(bool bMinimized)
 {
@@ -3902,11 +3977,15 @@ void RedRenderer::Init()
     RedRenderer::m_uiCurMatrixPoolOffset = 0;
     RedRenderer::m_uiCurLightingStatePoolOffset = 0;
 
-    RedRenderer::m_aLightingStatePool[2048].ambientLight = RedAmbientLight::BLACK;
-    RedRenderer::m_aLightingStatePool[2048].pDirectionalLights[0] = &RedDirectionalLight::BLACK;
+    memcpy((unsigned char*)&RedRenderer::m_aLightingStatePool[2048] + 4,
+           (const unsigned char*)&RedAmbientLight::BLACK + 4, 0x6C);
+    *(void**)((unsigned char*)&RedRenderer::m_aLightingStatePool[2048] + 0x70) =
+        &RedDirectionalLight::BLACK;
 
-    RedRenderer::m_aLightingStatePool[2049].ambientLight = RedAmbientLight::WHITE;
-    RedRenderer::m_aLightingStatePool[2049].pDirectionalLights[0] = &RedDirectionalLight::BLACK;
+    memcpy((unsigned char*)&RedRenderer::m_aLightingStatePool[2049] + 4,
+           (const unsigned char*)&RedAmbientLight::WHITE + 4, 0x6C);
+    *(void**)((unsigned char*)&RedRenderer::m_aLightingStatePool[2049] + 0x70) =
+        &RedDirectionalLight::BLACK;
 
     RedRenderer::m_pLightingState = &RedRenderer::m_aLightingStatePool[2048];
 
@@ -4112,6 +4191,7 @@ void RedRenderer::SetCursorImage(RedTexture const* pTexture, unsigned int uiX,
 extern bool pcForceFixedFunction;
 
 // GLOBAL: SWBF2 0x007fbea8
+// RedRenderer::internalRenderFunc
 void(__cdecl* RedRenderer::internalRenderFunc)(RenderItem*, unsigned int, unsigned int);
 
 // FUNCTION: SWBF2 0x006b6f70
@@ -4317,11 +4397,13 @@ const pcRedPixelShader* RedRenderer::m_curPixelShader;
 // GLOBAL: SWBF2 0x007fbe98
 const pcRedVertexFormat* RedRenderer::m_curFormat;
 
-// GLOBAL: SWBF2 0x008174e0
 // SYNTHETIC: SWBF2 0x00407670
 // `dynamic initializer for 'RedRenderer::m_opaqueQueues''
 // SYNTHETIC: SWBF2 0x00769810
 // `dynamic atexit destructor for 'RedRenderer::m_opaqueQueues''
+
+// GLOBAL: SWBF2 0x008174e0
+// RedRenderer::m_opaqueQueues
 util::Vector<RedRenderer::SortHeap> RedRenderer::m_opaqueQueues;
 // GLOBAL: SWBF2 0x007de348 -- .data, and the image's 1,544 bytes there are zero
 
@@ -4379,21 +4461,28 @@ D3DCULL RedRenderer::m_backCull;
 // GLOBAL: SWBF2 0x0086ac6c
 RedColor RedRenderer::m_clearColor;
 
-// FUNCTION: SWBF2 0x006ad760
+// TEMPLATE: SWBF2 0x006ad760
+// util::TypedArrayAllocator<dx::NVStateID,util::NewAllocator>::Allocate_
 template dx::NVStateID* util::TypedArrayAllocator<dx::NVStateID>::Allocate_(int&);
-// FUNCTION: SWBF2 0x006af030
+// TEMPLATE: SWBF2 0x006af030
+// util::BaseArray<dx::NVStateID,util::TNewArrayAlloc<dx::NVStateID> >::Reserve_
 template bool util::BaseArray<dx::NVStateID>::Reserve_(int, bool);
-// FUNCTION: SWBF2 0x006b0140
+// TEMPLATE: SWBF2 0x006b0140
+// util::Vector<dx::NVStateID,util::BaseArray<dx::NVStateID,util::TNewArrayAlloc<dx::NVStateID> > >::Add
 template bool util::Vector<dx::NVStateID>::Add(dx::NVStateID const&);
-// FUNCTION: SWBF2 0x006b0340
+// TEMPLATE: SWBF2 0x006b0340
+// util::TypedArrayAllocator<util::TKeyPair_<RenderItem *,unsigned int>,util::NewAllocator>::Allocate_
 template util::TKeyPair_<RenderItem*, unsigned int>* util::TypedArrayAllocator<util::TKeyPair_<RenderItem*, unsigned int> >::Allocate_(int&);
-// FUNCTION: SWBF2 0x006b0390
+// TEMPLATE: SWBF2 0x006b0390
+// util::TypedArrayAllocator<RedRenderer::SortHeap,util::NewAllocator>::Allocate_
 template RedRenderer::SortHeap* util::TypedArrayAllocator<RedRenderer::SortHeap>::Allocate_(int&);
 // FUNCTION: SWBF2 0x006afbe0
 template util::Vector<util::TKeyPair_<RenderItem*, unsigned int> >::Vector(util::Vector<util::TKeyPair_<RenderItem*, unsigned int> > const&);
-// FUNCTION: SWBF2 0x006b2e30
+// TEMPLATE: SWBF2 0x006b2e30
+// util::BaseArray<util::TKeyPair_<RenderItem *,unsigned int>,util::TNewArrayAlloc<util::TKeyPair_<RenderItem *,unsigned int> > >::Reserve_
 template bool util::BaseArray<util::TKeyPair_<RenderItem*, unsigned int> >::Reserve_(int, bool);
-// FUNCTION: SWBF2 0x006b2f20
+// TEMPLATE: SWBF2 0x006b2f20
+// util::BaseArray<RedRenderer::SortHeap,util::TNewArrayAlloc<RedRenderer::SortHeap> >::Reserve_
 template bool util::BaseArray<RedRenderer::SortHeap>::Reserve_(int, bool);
 
 // TEMPLATE: SWBF2 0x006afe10
@@ -5269,7 +5358,7 @@ void RedRenderer::internalStateStackInit()
 pcRedVertexShaderConstantRegister* RedRenderer::pcLockVertexShaderConstants(int iFirst,
                                                                             int iCount)
 {
-    return m_VSConstants.GetRegisterArray(iFirst, iCount);
+    return m_VSConstants.GetRegisters(iFirst, iCount);
 }
 
 // FUNCTION: SWBF2 0x006b9800
@@ -5352,10 +5441,7 @@ void RedRenderer::SetLightingScale(float fScale)
 {
     m_lightingScale = fScale;
     unsigned char uc = (unsigned char)(int)(fScale * 255.0f);
-    m_lightingScaleColor.b = uc;
-    m_lightingScaleColor.g = uc;
-    m_lightingScaleColor.r = uc;
-    m_lightingScaleColor.a = 0xFF;
+    m_lightingScaleColor = RedColor(uc, uc, uc, 0xFF);
 }
 
 // FUNCTION: SWBF2 0x006b9590
@@ -5423,7 +5509,7 @@ void RedRenderer::pcUnlockVertexShaderConstants(pcRedVertexShaderConstantRegiste
     m_VSConstants.Update();
 }
 
-void pcRedVertexShaderConstants::Update()
+inline void pcRedVertexShaderConstants::Update()
 {
     if (m_iMaxConstantSet >= m_iMinConstantSet)
     {
@@ -5492,38 +5578,33 @@ RedColor RedRenderer::pcGetClearColor()
     return m_clearColor;
 }
 
-// FUNCTION: SWBF2 0x006afd00
-RedLight::RedLight(TypeT eType)
-{
-    m_uiHideInView = 0;
-    m_uiFlags = 0;
-    m_eType = eType;
-    m_uiProjTexHash = 0;
-    m_uiProjTexWrapMode = 3;
-    m_uiProjTexBlendMode = 0;
-}
 
-// GLOBAL: SWBF2 0x0086ac90
+
 // SYNTHETIC: SWBF2 0x004075e0
 // `dynamic initializer for 'RedRenderer::m_mProjection''
 
+// GLOBAL: SWBF2 0x0086ac90
+// RedRenderer::m_mProjection
 PblMatrix RedRenderer::m_mProjection;
-// GLOBAL: SWBF2 0x008eed20
 // SYNTHETIC: SWBF2 0x00407620
 // `dynamic initializer for 'RedRenderer::m_mViewProjection''
 
+// GLOBAL: SWBF2 0x008eed20
+// RedRenderer::m_mViewProjection
 PblMatrix RedRenderer::m_mViewProjection;
-// GLOBAL: SWBF2 0x008bef10
 // SYNTHETIC: SWBF2 0x00407640
 // `dynamic initializer for 'RedRenderer::m_nearSceneFadeTexTransform''
 
+// GLOBAL: SWBF2 0x008bef10
+// RedRenderer::m_nearSceneFadeTexTransform
 PblMatrix RedRenderer::m_nearSceneFadeTexTransform;
 
-// GLOBAL: SWBF2 0x008eed10
 // SYNTHETIC: SWBF2 0x00407740
 // `dynamic initializer for 'RedRenderer::m_userNearClipPlane''
 
-PblVector4 RedRenderer::m_userNearClipPlane;
+// GLOBAL: SWBF2 0x008eed10
+// RedRenderer::m_userNearClipPlane
+PblPlane RedRenderer::m_userNearClipPlane;
 
 // FUNCTION: SWBF2 0x006b81a0
 void RedRenderer::pcFFSetTextureTransform(unsigned int uiStage, const PblMatrix& rMatrix)
@@ -5598,7 +5679,7 @@ void RedRenderer::pcSetTransform(D3DTRANSFORMSTATETYPE eState, const PblMatrix& 
 // FUNCTION: SWBF2 0x006b9db0
 void RedRenderer::pcSetUserNearClipPlane(const PblPlane& plane)
 {
-    RedRenderer::m_userNearClipPlane = *(const PblVector4*)&plane;
+    RedRenderer::m_userNearClipPlane = plane;
     if (RedRenderer::m_userNearClipPlaneEnable)
     {
         internalUpdateSceneConstants();
@@ -5645,15 +5726,7 @@ void pcRedVertexShaderConstantRegister::SetMatrix4x4(const PblMatrix& rMatrix)
     }
 }
 
-// FUNCTION: SWBF2 0x006b3ec0
-void dx::StateManager_DX::SetTransform(D3DTRANSFORMSTATETYPE State, const D3DMATRIX* pMatrix)
-{
-    if (pMatrix)
-    {
-        m_DirtyStates.Add(NVStateID(9, State, 0));
-        memcpy(m_CurrentState.m_Matrices[State], pMatrix, sizeof(D3DMATRIX));
-    }
-}
+
 
 // FUNCTION: SWBF2 0x006b4430
 void RedRenderer::internalBeginConstants()
@@ -5835,13 +5908,16 @@ void RedRenderer::internalUpdateSceneConstants()
 
     if (RedRenderer::m_userNearClipPlaneEnable)
     {
-        PblMatrix mViewProj, mClip;
+        PblMatrix mViewProj;
         D3DXMatrixMultiply((D3DXMATRIX*)&mViewProj, (const D3DXMATRIX*)&rView,
                            (const D3DXMATRIX*)&rProj);
-        D3DXMatrixInverse((D3DXMATRIX*)&mClip, 0, (const D3DXMATRIX*)&mViewProj);
+        PblMatrix mClip = mViewProj.GetInverse();
         mClip.Transpose4x4();
 
-        PblVector4 vPlane = RedRenderer::m_userNearClipPlane;
+        PblVector4 vPlane(RedRenderer::m_userNearClipPlane.GetA(),
+                         RedRenderer::m_userNearClipPlane.GetB(),
+                         RedRenderer::m_userNearClipPlane.GetC(),
+                         RedRenderer::m_userNearClipPlane.GetD());
         D3DXVECTOR4 vIn(vPlane.x, vPlane.y, vPlane.z, vPlane.w);
         D3DXVECTOR4 vClip;
         D3DXVec4Transform(&vClip, &vIn, (const D3DXMATRIX*)&mClip);
@@ -5859,16 +5935,14 @@ void RedRenderer::internalUpdateSceneConstants()
             mOblique.m[1][2] = vClip.y;
             mOblique.m[2][2] = vClip.z;
             mOblique.m[3][2] = vClip.w;
-            D3DXMatrixMultiply((D3DXMATRIX*)&rProj, (const D3DXMATRIX*)&rProj,
-                               (const D3DXMATRIX*)&mOblique);
+            rProj *= mOblique;
         }
     }
 
     PblMatrix mOffset = rIdentity;
     mOffset.m[3][0] = 2.0f / (float)m_d3dpp.BackBufferWidth * RedRenderer::m_screenOffsetX;
     mOffset.m[3][1] = -(2.0f / (float)m_d3dpp.BackBufferHeight * RedRenderer::m_screenOffsetY);
-    D3DXMatrixMultiply((D3DXMATRIX*)&rProj, (const D3DXMATRIX*)&rProj,
-                       (const D3DXMATRIX*)&mOffset);
+    rProj *= mOffset;
 
     if (stateManagerEnabled_)
     {
@@ -6006,39 +6080,23 @@ const PblMatrix& RedLight::GetProjectionMatrix() const
     return gMatrixIdentity;
 }
 
-// FUNCTION: SWBF2 0x006b00d0
+// TEMPLATE: SWBF2 0x006b00d0
+// util::Vector<util::TKeyPair_<RenderItem *,unsigned int>,util::BaseArray<util::TKeyPair_<RenderItem *,unsigned int>,util::TNewArrayAlloc<util::TKeyPair_<RenderItem *,unsigned int> > > >::Add
 template bool util::Vector<util::TKeyPair_<RenderItem*, unsigned int> >::Add(util::TKeyPair_<RenderItem*, unsigned int> const&);
 
-template <class TABLE>
-static void ZeroAllVariables_(TABLE& rTable)
-{
-    for (int i = 0; i < rTable.hashes_.GetSize(); ++i)
-    {
-        if (rTable.hashes_[i] != 0)
-        {
-            *rTable.elements_[i] = 0;
-        }
-    }
-}
-
-template <class ALLOC>
-void util::VariableSet<ALLOC>::ResetAll()
-{
-    ZeroAllVariables_(int32Map_);
-    ZeroAllVariables_(floatMap_);
-    ZeroAllVariables_(boolMap_);
-}
-
-// FUNCTION: SWBF2 0x006b3110
+// TEMPLATE: SWBF2 0x006b3110
+// util::VariableSet<util::SingletonAllocator<util::DefaultStaticAllocator> >::ResetAll
 template void util::VariableSet<util::SingletonAllocator<util::DefaultStaticAllocator> >::ResetAll();
 
-// GLOBAL: SWBF2 0x0086ad10
 // SYNTHETIC: SWBF2 0x00407560
 // `dynamic initializer for 'RedRenderer::m_aLightingStatePool''
 // SYNTHETIC: SWBF2 0x007697f0
 // `dynamic atexit destructor for 'RedRenderer::m_aLightingStatePool''
 // SYNTHETIC: SWBF2 0x006afd70
 // RedLightingState::RedLightingState
+
+// GLOBAL: SWBF2 0x0086ad10
+// RedRenderer::m_aLightingStatePool
 RedLightingState RedRenderer::m_aLightingStatePool[2051];
 
 // FUNCTION: SWBF2 0x006b0270
@@ -6051,7 +6109,7 @@ PblMatrix* RedRenderer::AllocBoneMatricesInCache(unsigned int uiCount)
     {
         return 0;
     }
-    RedRenderer::m_uiCurMatrixPoolOffset = (int)uiOffset;
+    RedRenderer::m_uiCurMatrixPoolOffset = uiOffset;
     return &RedRenderer::m_amMatrixPool[uiStart];
 }
 
@@ -6059,7 +6117,7 @@ PblMatrix* RedRenderer::AllocBoneMatricesInCache(unsigned int uiCount)
 RedLightingState* RedRenderer::AllocLightingStateInCache()
 {
     RedLightingState* pState = &m_aLightingStatePool[RedRenderer::m_uiCurLightingStatePoolOffset];
-    RedRenderer::m_uiCurLightingStatePoolOffset = (unsigned int)(RedRenderer::m_uiCurLightingStatePoolOffset + 1) < 2048 ? RedRenderer::m_uiCurLightingStatePoolOffset + 1 : 1;
+    RedRenderer::m_uiCurLightingStatePoolOffset = RedRenderer::m_uiCurLightingStatePoolOffset + 1 < 2048 ? RedRenderer::m_uiCurLightingStatePoolOffset + 1 : 1;
     memset(pState, 0, sizeof(RedLightingState));
     return pState;
 }
@@ -6068,7 +6126,7 @@ RedLightingState* RedRenderer::AllocLightingStateInCache()
 const PblMatrix* RedRenderer::AllocMatrixInCache(const PblMatrix& mat)
 {
     PblMatrix* pMatrix = &RedRenderer::m_amMatrixPool[RedRenderer::m_uiCurMatrixPoolOffset];
-    if ((unsigned int)(RedRenderer::m_uiCurMatrixPoolOffset + 1) >= 3062)
+    if (RedRenderer::m_uiCurMatrixPoolOffset + 1 >= 3062)
     {
         RedRenderer::m_uiCurMatrixPoolOffset = 0;
     }
@@ -6155,6 +6213,7 @@ bool RedRenderer::BeginFrame()
     RedRenderer::m_curVisibilityIndex = (RedRenderer::m_frameNumber & 1) ? 0x7E8 : 0;
     sOcclusionQuerySubmitIndex = (RedRenderer::m_frameNumber & 1) ? 700 : 0;
 
+    // GLOBAL: SWBF2 0x008eed60
     static util::VariableSet<util::SingletonAllocator<util::DefaultStaticAllocator> >& s_perFrame =
         util::Globals::GetInstance().GetSet("perFrame");
     s_perFrame.ResetAll();
@@ -6555,10 +6614,11 @@ struct OcclusionQueryT
 
 // SYNTHETIC: SWBF2 0x006afc80
 // OcclusionQueryT::OcclusionQueryT
-// GLOBAL: SWBF2 0x007fbf60
 // SYNTHETIC: SWBF2 0x00407650
 // `dynamic initializer for 'RedRenderer::m_occlusionQueries''
 
+// GLOBAL: SWBF2 0x007fbf60
+// RedRenderer::m_occlusionQueries
 OcclusionQueryT RedRenderer::m_occlusionQueries[1400];
 
 // FUNCTION: SWBF2 0x006b0d70
@@ -6722,10 +6782,11 @@ int GetPhasePass_(RenderPhaseT ePhase)
     return ePhase == RENDERPHASE_TRANSPARENT ? 20 : 0;
 }
 
-// GLOBAL: SWBF2 0x0086acd0
 // SYNTHETIC: SWBF2 0x004075f0
 // `dynamic initializer for 'RedRenderer::m_mProjectionTemp''
 
+// GLOBAL: SWBF2 0x0086acd0
+// RedRenderer::m_mProjectionTemp
 PblMatrix RedRenderer::m_mProjectionTemp;
 
 // FUNCTION: SWBF2 0x006b16f0
@@ -6808,7 +6869,8 @@ void TransparentHeap<ITEM, KEY>::Push(ITEM& rItem, KEY idSort)
     }
 }
 
-// FUNCTION: SWBF2 0x006b2820
+// TEMPLATE: SWBF2 0x006b2820
+// TransparentHeap<RenderItem *,unsigned int>::Push
 template void TransparentHeap<RenderItem*, unsigned int>::Push(RenderItem*&, unsigned int);
 
 // FUNCTION: SWBF2 0x006b33c0
@@ -7365,9 +7427,9 @@ void __cdecl RedRenderer::internalRenderProg1(RenderItem* pItem, unsigned int ui
     internalShaderBeginEnd(pItem, uiShaderID, uiPass);
 
     pcRedVertexShaderConstantRegister* pRegs;
-    if (pItem->pBoneMatrices && (intptr_t)pItem->pBoneMatrices != RedRenderer::m_pmBoneMatricesPrev)
+    if (pItem->pBoneMatrices && pItem->pBoneMatrices != RedRenderer::m_pmBoneMatricesPrev)
     {
-        RedRenderer::m_pmBoneMatricesPrev = (intptr_t)pItem->pBoneMatrices;
+        RedRenderer::m_pmBoneMatricesPrev = pItem->pBoneMatrices;
         pRegs = m_VSConstants.GetRegisterArray(51, 3 * pItem->numBoneMatrices);
         for (unsigned short i = 0; i < pItem->numBoneMatrices; ++i)
         {
@@ -7378,9 +7440,9 @@ void __cdecl RedRenderer::internalRenderProg1(RenderItem* pItem, unsigned int ui
 
     float fSpotW = 2.0f;
     float fSpotProjected = 0.0f;
-    if ((intptr_t)pItem->pPrim != RedRenderer::m_pPrimPrev)
+    if (pItem->pPrim != RedRenderer::m_pPrimPrev)
     {
-        RedRenderer::m_pPrimPrev = (intptr_t)pItem->pPrim;
+        RedRenderer::m_pPrimPrev = pItem->pPrim;
         pRegs = m_VSConstants.GetRegisterArray(12, 4);
         if (uiRVF & 0x4000)
         {
@@ -7434,9 +7496,9 @@ void __cdecl RedRenderer::internalRenderProg1(RenderItem* pItem, unsigned int ui
         pRegs[15].component[3] = 1.0f;
     }
 
-    if ((intptr_t)pItem->pmObjWorld != RedRenderer::m_pmObjWorldPrev)
+    if (pItem->pmObjWorld != RedRenderer::m_pmObjWorldPrev)
     {
-        RedRenderer::m_pmObjWorldPrev = (intptr_t)pItem->pmObjWorld;
+        RedRenderer::m_pmObjWorldPrev = pItem->pmObjWorld;
         pRegs = m_VSConstants.GetRegisterArray(16, 3);
         PblMatrix mWorld = *pItem->pmObjWorld;
         pRegs[16].SetMatrix4x3(mWorld);
@@ -7449,7 +7511,7 @@ void __cdecl RedRenderer::internalRenderProg1(RenderItem* pItem, unsigned int ui
         const RedLightingState* pLS = pItem->pLightingState;
         sAccumulatedLightingBits |= uiLights;
         pRegs = m_VSConstants.GetRegisterArray(19, 6);
-        RedRenderer::m_pLightingStatePrev = (intptr_t)pLS;
+        RedRenderer::m_pLightingStatePrev = pLS;
         sCurrentFormatHasNormals = bNormals;
         float fDirProjected = 0.0f;
         float fOmniProjected = 0.0f;
@@ -7633,9 +7695,9 @@ void __cdecl RedRenderer::internalRenderProg1(RenderItem* pItem, unsigned int ui
         const RedLightingState* pDefault =
             bNormals ? &RedRenderer::m_aLightingStatePool[2048]
                      : &RedRenderer::m_aLightingStatePool[2049];
-        if ((intptr_t)pDefault != RedRenderer::m_pLightingStatePrev)
+        if (pDefault != RedRenderer::m_pLightingStatePrev)
         {
-            RedRenderer::m_pLightingStatePrev = (intptr_t)pDefault;
+            RedRenderer::m_pLightingStatePrev = pDefault;
             pRegs = m_VSConstants.GetRegisterArray(19, 2);
             const RedAmbientLight& rAmbient = pDefault->ambientLight;
             SetColor_(pRegs[19], rAmbient.m_topColor);
@@ -7688,9 +7750,9 @@ void RedRenderer::internalRenderZPrepassProg1(RenderItem* pItem, unsigned int ui
 
     pcRedVertexShaderConstantRegister* pRegs;
     if (pItem->pBoneMatrices &&
-        (intptr_t)pItem->pBoneMatrices != RedRenderer::m_pmBoneMatricesPrev)
+        pItem->pBoneMatrices != RedRenderer::m_pmBoneMatricesPrev)
     {
-        RedRenderer::m_pmBoneMatricesPrev = (intptr_t)pItem->pBoneMatrices;
+        RedRenderer::m_pmBoneMatricesPrev = pItem->pBoneMatrices;
         pRegs = m_VSConstants.GetRegisterArray(51, 3 * pItem->numBoneMatrices);
         for (unsigned short i = 0; i < pItem->numBoneMatrices; ++i)
         {
@@ -7699,9 +7761,9 @@ void RedRenderer::internalRenderZPrepassProg1(RenderItem* pItem, unsigned int ui
         m_VSConstants.Update();
     }
 
-    if ((intptr_t)pItem->pPrim != RedRenderer::m_pPrimPrev)
+    if (pItem->pPrim != RedRenderer::m_pPrimPrev)
     {
-        RedRenderer::m_pPrimPrev = (intptr_t)pItem->pPrim;
+        RedRenderer::m_pPrimPrev = pItem->pPrim;
         pRegs = m_VSConstants.GetRegisterArray(12, 4);
         pRegs[12].component[0] = (uiRVF & 0x4000) ? 2.0f : 1.0f;
         pRegs[12].component[1] = (uiRVF & 0x4000) ? -1.0f : 0.0f;
@@ -7738,9 +7800,9 @@ void RedRenderer::internalRenderZPrepassProg1(RenderItem* pItem, unsigned int ui
         pRegs[15].component[3] = 1.0f;
     }
 
-    if ((intptr_t)pItem->pmObjWorld != RedRenderer::m_pmObjWorldPrev)
+    if (pItem->pmObjWorld != RedRenderer::m_pmObjWorldPrev)
     {
-        RedRenderer::m_pmObjWorldPrev = (intptr_t)pItem->pmObjWorld;
+        RedRenderer::m_pmObjWorldPrev = pItem->pmObjWorld;
         pRegs = m_VSConstants.GetRegisterArray(16, 3);
         PblMatrix world = *pItem->pmObjWorld;
         pRegs[16].SetMatrix4x3(world);
@@ -7962,8 +8024,10 @@ void RedRenderer::pcSetTexture(unsigned int uiStage, const RedTexture* pTexture)
     if (pTexture && pTexture->m_uiLastFrameUsed < (unsigned int)RedRenderer::m_frameNumber)
     {
         const_cast<RedTexture*>(pTexture)->m_uiLastFrameUsed = RedRenderer::m_frameNumber;
+        // GLOBAL: SWBF2 0x008eed68
         static util::VariableSet<util::SingletonAllocator<util::DefaultStaticAllocator> >& s_perFrame =
             util::Globals::GetInstance().GetSet("perFrame");
+        // GLOBAL: SWBF2 0x008eed70
         static int& s_numTexUsed = s_perFrame.GetInt("numTexUsed");
         ++s_numTexUsed;
     }
@@ -8167,15 +8231,17 @@ void dx::StateManager_DX::FlushStateEx_()
     }
 }
 
-// GLOBAL: SWBF2 0x007fbee0
 // SYNTHETIC: SWBF2 0x00407630
 // `dynamic initializer for 'RedRenderer::m_mViewUndo''
 
+// GLOBAL: SWBF2 0x007fbee0
+// RedRenderer::m_mViewUndo
 PblMatrix RedRenderer::m_mViewUndo;
-// GLOBAL: SWBF2 0x007fbf20
 // SYNTHETIC: SWBF2 0x00407600
 // `dynamic initializer for 'RedRenderer::m_mProjectionUndo''
 
+// GLOBAL: SWBF2 0x007fbf20
+// RedRenderer::m_mProjectionUndo
 PblMatrix RedRenderer::m_mProjectionUndo;
 // GLOBAL: SWBF2 0x007fb07b
 bool bSetNullTexture;
@@ -8253,12 +8319,12 @@ void RedRenderer::internalStateStackPop()
         }
     }
 
-    PblMatrix mViewProj;
-    D3DXMatrixMultiply((D3DXMATRIX*)&mViewProj, (const D3DXMATRIX*)&rView, (const D3DXMATRIX*)&rProj);
+    PblMatrix mViewProj = rView * rProj;
     RedRenderer::m_mViewProjection = mViewProj;
 }
 
-// FUNCTION: SWBF2 0x006af340
+// TEMPLATE: SWBF2 0x006af340
+// util::HeapInsert_<util::TKeyPair_<RenderItem *,unsigned int>,util::Vector<util::TKeyPair_<RenderItem *,unsigned int>,util::BaseArray<util::TKeyPair_<RenderItem *,unsigned int>,util::TNewArrayAlloc<util::TKeyPair_<RenderItem *,unsigned int> > > >,util::GreaterEqOp<util::TKeyPair_<RenderItem *,unsigned int> > >
 template void util::HeapInsert_<util::TKeyPair_<RenderItem*, unsigned int>, util::Vector<util::TKeyPair_<RenderItem*, unsigned int> >,
                                 util::GreaterEqOp<util::TKeyPair_<RenderItem*, unsigned int> > >(
     util::Vector<util::TKeyPair_<RenderItem*, unsigned int> >&, int, util::TKeyPair_<RenderItem*, unsigned int> const&);
@@ -8375,10 +8441,12 @@ void RedRenderer::internalRenderFromHeap(HEAP& heap)
     pItem->Free();
 }
 
-// FUNCTION: SWBF2 0x006af430
+// TEMPLATE: SWBF2 0x006af430
+// RedRenderer::internalRenderFromHeap<TransparentHeap<RenderItem *,unsigned int> >
 template void RedRenderer::internalRenderFromHeap<TransparentHeap<RenderItem*, unsigned int> >(
     TransparentHeap<RenderItem*, unsigned int>&);
-// FUNCTION: SWBF2 0x006af820
+// TEMPLATE: SWBF2 0x006af820
+// RedRenderer::internalRenderFromHeap<RedRenderer::SortHeap>
 template void RedRenderer::internalRenderFromHeap<RedRenderer::SortHeap>(RedRenderer::SortHeap&);
 
 // FUNCTION: SWBF2 0x006aff80
@@ -8406,7 +8474,7 @@ RedLightingState& RedLightingState::operator=(const RedLightingState& rOther)
 }
 
 // FUNCTION: SWBF2 0x006b28a0
-void RedRenderer::SortHeap::Push(RenderItem* pItem, unsigned int uiKey)
+inline void RedRenderer::SortHeap::Push(RenderItem* pItem, unsigned int uiKey)
 {
     util::TKeyPair_<RenderItem*, unsigned int> pair(pItem, uiKey);
     int iIndex = GetSize();
@@ -8512,6 +8580,7 @@ void RedRenderer::pcSetImmediateMode(int iValue)
 // FUNCTION: SWBF2 0x006b9650
 void RedRenderer::pcSetRenderTarget(RedTexture* pTarget, IDirect3DSurface9* pDepth)
 {
+    // GLOBAL: SWBF2 0x00772314
     static const RedViewport s_fullViewport = { 0.0f, 0.0f, 1.0f, 1.0f };
 
     if (!pTarget && !m_pBackBufferSurface)

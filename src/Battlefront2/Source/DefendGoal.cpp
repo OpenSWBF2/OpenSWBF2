@@ -4,29 +4,21 @@
 #include "UnitCmdInfo.h"
 #include "UnitController.h"
 
-// GLOBAL: SWBF2 0x01eb9808
 // SYNTHETIC: SWBF2 0x004027f0
 // `dynamic initializer for 'AI::DefendGoal::rttiHashDefendGoal''
+
+// GLOBAL: SWBF2 0x01eb9808
+// AI::DefendGoal::rttiHashDefendGoal
 PblHash AI::DefendGoal::rttiHashDefendGoal("DefendGoal");
-char AI::DefendGoal::rttiNameDefendGoal[] = "DefendGoal";
+// GLOBAL: SWBF2 0x00788e78
+// AI::DefendGoal::rttiNameDefendGoal
+const char AI::DefendGoal::rttiNameDefendGoal[] = "DefendGoal";
 
-// FUNCTION: SWBF2 0x0048b4f0
-bool AI::DefendGoal::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashDefendGoal || AIGoal::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x0048b520
-unsigned int AI::DefendGoal::GetDerivedRtti() const
-{
-    return rttiHashDefendGoal;
-}
 
-// FUNCTION: SWBF2 0x0048b530
-const char* AI::DefendGoal::GetDerivedRttiName() const
-{
-    return rttiNameDefendGoal;
-}
+
+
+
 
 // SYNTHETIC: SWBF2 0x0048b540
 // AI::DefendGoal::`scalar deleting destructor'

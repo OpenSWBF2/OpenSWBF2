@@ -112,10 +112,10 @@ void RedMaskedBitmapElement::SetMaskTexCoords(float fU0, float fU1, float fV0, f
     m_vertices[0].v1 = fV0;
     m_vertices[1].u1 = fU0;
     m_vertices[1].v1 = fV1;
-    m_vertices[2].u1 = fU1;
-    m_vertices[2].v1 = fV0;
     m_vertices[3].u1 = fU1;
     m_vertices[3].v1 = fV1;
+    m_vertices[2].u1 = fU1;
+    m_vertices[2].v1 = fV0;
 }
 
 // FUNCTION: SWBF2 0x006f8130

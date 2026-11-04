@@ -1,3 +1,4 @@
+#include "AmmoCounter.h"
 #include <float.h>
 #include "PebbleFL/Common/PblVector.h"
 #include <stdio.h>
@@ -16,24 +17,33 @@
 #include "Trigger.h"
 #include "SoundFL/source/sndvoicevirtual.h"
 
-namespace GameLoop { extern float sClientDeltaTime; }
+namespace GameLoop
+{
+extern float sClientDeltaTime;
+}
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
 
-// GLOBAL: SWBF2 0x01f9a914
+
+
+
 // SYNTHETIC: SWBF2 0x004072a0
 // `dynamic initializer for 'WeaponShield::rttiHashWeaponShield''
+// WeaponShield::rttiHashWeaponShield
+
+// GLOBAL: SWBF2 0x01f9a914
+// WeaponShield::rttiHashWeaponShield
 PblHash WeaponShield::rttiHashWeaponShield("WeaponShield");
 
-// GLOBAL: SWBF2 0x01f9a918
 // SYNTHETIC: SWBF2 0x004072b0
 // `dynamic initializer for 'WeaponShieldClass::rttiHashWeaponShieldClass''
+// WeaponShieldClass::rttiHashWeaponShieldClass
+
+// GLOBAL: SWBF2 0x01f9a918
+// WeaponShieldClass::rttiHashWeaponShieldClass
 PblHash WeaponShieldClass::rttiHashWeaponShieldClass("WeaponShieldClass");
-char WeaponShieldClass::rttiNameWeaponShieldClass[] = "WeaponShieldClass";
+// GLOBAL: SWBF2 0x0078c280
+// WeaponShieldClass::rttiNameWeaponShieldClass
+const char WeaponShieldClass::rttiNameWeaponShieldClass[] = "WeaponShieldClass";
 
 // GLOBAL: SWBF2 0x009cef54
 PblVector3 gVectorZero;
@@ -80,23 +90,11 @@ WeaponShieldClass::~WeaponShieldClass()
 // SYNTHETIC: SWBF2 0x00692190
 // WeaponShieldClass::`scalar deleting destructor'
 
-// FUNCTION: SWBF2 0x00691770
-bool WeaponShieldClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashWeaponShieldClass || WeaponClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x006917a0
-unsigned int WeaponShieldClass::GetDerivedRtti()
-{
-    return rttiHashWeaponShieldClass;
-}
 
-// FUNCTION: SWBF2 0x006917b0
-const char* WeaponShieldClass::GetDerivedRttiName()
-{
-    return rttiNameWeaponShieldClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00692350
 void WeaponShieldClass::SetProperty(unsigned int uProperty, const char* pszValue)
@@ -158,11 +156,8 @@ void WeaponShieldClass::PostReadInit()
 {
     CollisionPrimitive primitive;
     primitive.SetBubble(m_vShieldSize);
-    PblMatrix matrix = _IdentityMatrix;
-    matrix.m[3][0] = m_vShieldOffset.x;
-    matrix.m[3][1] = m_vShieldOffset.y;
-    matrix.m[3][2] = m_vShieldOffset.z;
-    matrix.m[3][3] = 1.0f;
+    PblMatrix matrix = gMatrixIdentity;
+    matrix.SetTranslation(m_vShieldOffset);
     mCollisionBody = new CollisionBodyPrimitive(primitive, "shield", matrix, 0);
     mCollisionModel.AddBody(mCollisionBody);
 }
@@ -195,7 +190,6 @@ WeaponShield::WeaponShield(const WeaponShieldClass* pClass, const WeaponDesc& de
             fRadius = pClass->m_vShieldSize.z;
         }
         SetCollisionRadius(fRadius);
-        Set2DCollisionRadius(fRadius);
     }
 
     mParent = mOwner->GetGameObject()->GetCollisionObject();
@@ -213,7 +207,7 @@ WeaponShield::WeaponShield(const WeaponShieldClass* pClass, const WeaponDesc& de
 // SYNTHETIC: SWBF2 0x00691990
 // WeaponShield::`scalar deleting destructor'
 // SYNTHETIC: SWBF2 0x0069271d
-// [thunk]:WeaponShield::`scalar deleting destructor' adjustor{272}
+// ??_EWeaponShield@@WBBA@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x006919c0
 WeaponShield::~WeaponShield()
@@ -225,23 +219,11 @@ WeaponShield::~WeaponShield()
     }
 }
 
-// FUNCTION: SWBF2 0x00691700
-bool WeaponShield::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashWeaponShield || Weapon::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00691730
-unsigned int WeaponShield::GetDerivedRtti() const
-{
-    return rttiHashWeaponShield;
-}
 
-// FUNCTION: SWBF2 0x00691740
-const char* WeaponShield::GetDerivedRttiName() const
-{
-    return "WeaponShield";
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00691750
 const CollisionObject* WeaponShield::GetCollisionObject() const

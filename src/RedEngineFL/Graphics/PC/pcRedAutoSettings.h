@@ -249,12 +249,10 @@ public:
     bool MultisamplingModeAvailable(D3DMULTISAMPLE_TYPE eMultiSampleType,
                                     unsigned long ulMultiSampleQuality)
     {
-        for (PblList<VidMode>::Node* pNode = VidModeList.GetFirst(); pNode->_pObject;
-             pNode = pNode->_pNext)
+        for (PblList<VidMode>::Itor mode(VidModeList); mode; ++mode)
         {
-            VidMode* pVidMode = pNode->_pObject;
-            if (pVidMode->MultiSampleType == eMultiSampleType
-                && pVidMode->MultiSampleQuality == ulMultiSampleQuality && pVidMode->bSupported)
+            if (mode->MultiSampleType == eMultiSampleType
+                && mode->MultiSampleQuality == ulMultiSampleQuality && mode->bSupported)
             {
                 return true;
             }

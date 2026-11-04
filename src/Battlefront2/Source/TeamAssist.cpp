@@ -3,11 +3,25 @@
 #include "Character.h"
 #include "Controllable.h"
 #include "GameObject.h"
-#include "VOHelper.h"
+
+namespace AI
+{
+
+enum VOType
+{
+    VOT_TA_First = 40
+};
+namespace VOHelper
+{
+int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,
+         const PblVector3& vPos, float fDelay);
+}
+}
 
 // GLOBAL: SWBF2 0x01eafcc4
 unsigned int TeamAssist::sColorHash;
 
+// GLOBAL: SWBF2 0x0078b5d0
 static const unsigned int sMarkerTexture[TeamAssistManager::Max] = {
     0x1e9ab20a,
     0x16d1df7b,
@@ -24,11 +38,13 @@ TeamAssistManager* TeamAssistManager::sInstance;
 
 float TeamAssistManager::sDuration = 5.0f;
 
-// GLOBAL: SWBF2 0x01f7ce88
 // SYNTHETIC: SWBF2 0x00406920
 // `dynamic initializer for 'TeamAssist::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00769560
 // `dynamic atexit destructor for 'TeamAssist::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01f7ce88
+// TeamAssist::sMemoryPool
 MemoryPool TeamAssist::sMemoryPool("TeamAssist", sizeof(TeamAssist));
 
 // FUNCTION: SWBF2 0x00654bd0

@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "LuaCallbacks_IFace.h"
 #include "LuaHelper.h"
 #include "LuaWideString.h"
@@ -65,13 +66,15 @@
 #include <math.h>
 #include <stdio.h>
 #include <time.h>
+// GLOBAL: SWBF2 0x007b28d0
+// __xmm@3f800000437f0000437f0000437f0000
+
 #ifndef DIRECTINPUT_VERSION
 #define DIRECTINPUT_VERSION 0x0800
 #endif
 #include <dinput.h>
 
 #include "Steam/gfGalaxy.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 extern int g_InGameMoviePlayerState;
 extern Snd::Queue<unsigned int, 12> g_InGameMovieQueue;
@@ -117,129 +120,80 @@ void IFaceSoldierAnimator::QueueUpperLowerAnimations(unsigned int uUpperAnimHash
     }
 }
 
-namespace PblUnicode { unsigned int ustrncnv(unsigned short* pDest, const unsigned char* pSrc, unsigned int uiCount); }
-namespace StatsManager { void Stop(); }
+
+namespace PblUnicode
+{
+unsigned int ustrncnv(unsigned short* pDest, const unsigned char* pSrc, unsigned int uiCount);
+}
+namespace StatsManager
+{
+void Stop();
+}
 extern int netCurMaxPlayers;
 extern bool netIsDedicated;
 
 static const float DEG_TO_RAD = 0.017453292f;
 
-namespace StatsManager { extern int m_state; }
-
-namespace StatsManager {
-
-// FUNCTION: SWBF2 0x005307b0
-int GetState()
+namespace StatsManager
 {
-    return StatsManager::m_state;
-}
+extern int m_state;
 }
 
-// FUNCTION: SWBF2 0x005307c0
-void StatsManagerSetStoppedState()
+namespace Lua_Callbacks
 {
-    StatsManager::m_state = 2;
-}
-
-namespace StatsManager {
-
-// FUNCTION: SWBF2 0x005308c0
-bool __fastcall ReadStatsGetResults(void* pData)
-{
-    memset(pData, 0, 0x460);
-    int* pWords = static_cast<int*>(pData);
-    pWords[131] = 10;
-    pWords[132] = 10;
-    return true;
-}
-}
-
-namespace StatsManager {
-
-// FUNCTION: SWBF2 0x005308f0
-bool FindServicePlayerID()
-{
-    return false;
-}
-}
-
-namespace StatsManager {
-
-// FUNCTION: SWBF2 0x00530900
-int GetLeaderBoardId()
-{
-    return 1;
-}
-}
-
-namespace StatsManager {
-
-// FUNCTION: SWBF2 0x00530910
-bool ResetPlayer()
-{
-    return false;
-}
-}
-
-namespace Lua_Callbacks {
 
 // FUNCTION: SWBF2 0x00587ea0
-void __fastcall TableReadValWithDefault(const char* pcKey, float* pfValue)
+void TableReadValWithDefault(const char* pcKey, float& fValue)
 {
-    lua_pushstring(LuaHelper::mState, pcKey);
-    lua_rawget(LuaHelper::mState, -2);
+    LuaHelper::PushString(pcKey);
+    LuaHelper::RawGetFromTable(-2);
     if (lua_type(LuaHelper::mState, -1) != LUA_TNIL)
     {
-        *pfValue = (float)luaL_checknumber(LuaHelper::mState, -1);
+        fValue = LuaHelper::GetFloat(-1);
     }
-    lua_settop(LuaHelper::mState, -2);
+    LuaHelper::Pop(1);
 }
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 
 // FUNCTION: SWBF2 0x00587f00
-void __fastcall TableReadColor(const char* pcKey, float* pfColor)
+void TableReadColor(const char* pcKey, RedColorValue& color)
 {
-    lua_pushstring(LuaHelper::mState, pcKey);
-    lua_rawget(LuaHelper::mState, -2);
-    Lua_Callbacks::TableReadValWithDefault("red", pfColor);
-    Lua_Callbacks::TableReadValWithDefault("green", pfColor + 1);
-    Lua_Callbacks::TableReadValWithDefault("blue", pfColor + 2);
-    lua_settop(LuaHelper::mState, -2);
+    LuaHelper::PushString(pcKey);
+    LuaHelper::RawGetFromTable(-2);
+    Lua_Callbacks::TableReadValWithDefault("red", color.r);
+    Lua_Callbacks::TableReadValWithDefault("green", color.g);
+    Lua_Callbacks::TableReadValWithDefault("blue", color.b);
+    LuaHelper::Pop(1);
 }
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 
 // FUNCTION: SWBF2 0x00587f60
-void __fastcall TableReadDirection(float* pfDirection)
+void TableReadDirection(const char* pcKey, PblVector3& direction)
 {
-    lua_pushstring(LuaHelper::mState, "direction");
-    lua_rawget(LuaHelper::mState, -2);
-    Lua_Callbacks::TableReadValWithDefault("x", pfDirection);
-    Lua_Callbacks::TableReadValWithDefault("y", pfDirection + 1);
-    Lua_Callbacks::TableReadValWithDefault("z", pfDirection + 2);
-    lua_settop(LuaHelper::mState, -2);
+    float x = direction.x;
+    float y = direction.y;
+    float z = direction.z;
+    LuaHelper::PushString(pcKey);
+    LuaHelper::RawGetFromTable(-2);
+    Lua_Callbacks::TableReadValWithDefault("x", x);
+    Lua_Callbacks::TableReadValWithDefault("y", y);
+    Lua_Callbacks::TableReadValWithDefault("z", z);
+    direction = PblVector3(x, y, z);
+    LuaHelper::Pop(1);
 }
 }
 
 extern char netGameName[64];
 
-// FUNCTION: SWBF2 0x005e7180
-const char* NetSetup::GetHostName()
-{
-    return netGameName;
-}
 
 // GLOBAL: SWBF2 0x01fa88e0
 unsigned __int64 netLocalGSID;
-
-// FUNCTION: SWBF2 0x005d65b0
-unsigned __int64 NetMatch::GetLocalGSID()
-{
-    return netLocalGSID;
-}
 
 // FUNCTION: SWBF2 0x00414990
 int __fastcall RawControllerInputs::IndexToRedKey(int iIndex)
@@ -264,7 +218,8 @@ bool ToggleInvincibilityCheat()
     return GameLoop::gInvincible;
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 
 // FUNCTION: SWBF2 0x00586a00
 bool GetServicePlayerID(const char* pcName, unsigned __int64* puId)
@@ -298,7 +253,10 @@ bool GetServicePlayerID(const char* pcName, unsigned __int64* puId)
 }
 }
 
-namespace GameLoop { extern bool gUnlimitedAmmo; }
+namespace GameLoop
+{
+extern bool gUnlimitedAmmo;
+}
 extern bool gLowResModelsEnabled;
 
 // FUNCTION: SWBF2 0x00617070
@@ -414,150 +372,6 @@ void RedInterfaceScreen::GetDirectionalLight(int iIndex, PblVector3& vDirection,
     color = s_directionalLight[iIndex].m_color;
 }
 
-// FUNCTION: SWBF2 0x006eca70
-RedCommandConsole::Command* RedCommandConsole::Group::FindCommand(unsigned int uiID)
-{
-    for (PblList<Command>::Node* pNode = mCommandList._head._pNext; pNode->_pObject; pNode = pNode->_pNext)
-    {
-        if (pNode->_pObject->mID == uiID)
-        {
-            return pNode->_pObject;
-        }
-    }
-    return 0;
-}
-
-// FUNCTION: SWBF2 0x006ecaa0
-RedCommandConsole::Command* RedCommandConsole::Group::FindCommand(char const* pcName)
-{
-    return FindCommand(PblHash(pcName));
-}
-
-// FUNCTION: SWBF2 0x006ecb30
-void RedCommandConsole::Command::Run(RedConsole* pConsole, char const* pcArgs)
-{
-    mVar.Run(pConsole, mName, mID, pcArgs);
-}
-
-// FUNCTION: SWBF2 0x006ecac0
-int RedCommandConsole::Process(RedConsole* pConsole, char const* pcLine)
-{
-    Command* pCommand = _FindCommand(pcLine);
-    if (!pCommand)
-    {
-        return 0;
-    }
-
-    const char* pcArgs = pcLine;
-    while (*pcArgs && !isspace(*pcArgs))
-    {
-        ++pcArgs;
-    }
-    while (isspace(*pcArgs))
-    {
-        ++pcArgs;
-    }
-    pCommand->Run(pConsole, pcArgs);
-    return 1;
-}
-
-// FUNCTION: SWBF2 0x006ed150
-RedCommandConsole::Command* RedCommandConsole::_FindCommand(char const* pcPath)
-{
-    if (!pcPath || !*pcPath)
-    {
-        return 0;
-    }
-    Group* pGroup = _FindGroup(pcPath, true);
-    if (!pGroup)
-    {
-        return 0;
-    }
-
-    const char* pcLastDot = 0;
-    const char* pcEnd = pcPath;
-    while (*pcEnd && !isspace(*pcEnd))
-    {
-        if (*pcEnd == '.')
-        {
-            pcLastDot = pcEnd;
-        }
-        ++pcEnd;
-    }
-    const char* pcName = pcLastDot ? pcLastDot + 1 : pcPath;
-    if (!*pcName || isspace(*pcName))
-    {
-        return 0;
-    }
-    int iLen = pcEnd - pcName;
-    if (iLen > 31)
-    {
-        return 0;
-    }
-
-    char acName[32];
-    if (*pcEnd)
-    {
-        strlcpy(acName, pcName, iLen + 1 < 32 ? iLen + 1 : 32);
-        pcName = acName;
-    }
-    return pGroup->FindCommand(pcName);
-}
-
-// FUNCTION: SWBF2 0x006ed240
-RedCommandConsole::Group* RedCommandConsole::_FindGroup(char const* pcPath, bool bLeafIsCommand)
-{
-    if (!sRootNode)
-    {
-        return 0;
-    }
-    if (!*pcPath || isspace(*pcPath))
-    {
-        return bLeafIsCommand ? 0 : sRootNode;
-    }
-
-    Group* pGroup = sRootNode;
-    char acName[32];
-    char* pcOut = acName;
-    while (*pcPath == '.')
-    {
-        ++pcPath;
-    }
-    while (*pcPath && !isspace(*pcPath))
-    {
-        if (*pcPath == '.')
-        {
-            *pcOut = 0;
-            pGroup = pGroup->mChildList.Find(acName);
-            if (!pGroup)
-            {
-                return 0;
-            }
-            pcOut = acName;
-            acName[0] = 0;
-            do
-                ++pcPath;
-            while (*pcPath == '.');
-            continue;
-        }
-        if (pcOut == &acName[31])
-        {
-            return 0;
-        }
-        *pcOut++ = *pcPath++;
-    }
-    if (!bLeafIsCommand && acName[0])
-    {
-        *pcOut = 0;
-        pGroup = pGroup->mChildList.Find(acName);
-        if (!pGroup)
-        {
-            return 0;
-        }
-    }
-    return pGroup;
-}
-
 // FUNCTION: SWBF2 0x00583b60
 static Red3DModelAnimator* GetNormalAnimator(Red3DModelElement* pModel)
 {
@@ -593,11 +407,7 @@ static IFaceSoldierAnimator* GetIFaceSoldierAnimator(Red3DModelElement* pModel)
 
 static unsigned int sAnimationBankHashes[5];
 
-// FUNCTION: SWBF2 0x00527fa0
-void LuaHelper::SetGlobal(char const* pcName)
-{
-    lua_setglobal(mState, pcName);
-}
+
 
 // FUNCTION: SWBF2 0x0048c9e0
 void RedInterfaceElement::CreateHotSpot(float fLeft, float fTop, float fRight, float fBottom)
@@ -609,10 +419,18 @@ void RedInterfaceElement::CreateHotSpot(float fLeft, float fTop, float fRight, f
     m_pHotSpot->SetRect(fLeft, fTop, fRight, fBottom);
 }
 
+// GLOBAL: SWBF2 0x007e6cc0
+// sIFaceCallbacks
+// GLOBAL: SWBF2 0x00789de0
+// sKeyboardCmdsPerMode
+// GLOBAL: SWBF2 0x0078a148
+// sIndexToButtonName
+// GLOBAL: SWBF2 0x01faa694
+// sMoviePlayingLastFrame
+
 namespace Lua_Callbacks
 {
 
-// GLOBAL: SWBF2 0x007e6cc0
 static const CallbackEntryT sIFaceCallbacks[150] =
 {
     { "ScriptCB_AddIFText", ScriptCB_AddIFText },
@@ -1028,10 +846,10 @@ int ScriptCB_IFObj_SetRotation(lua_State* L)
 
     PblMatrix mRot;
     PblMatrix mTemp;
-    D3DXMatrixRotationY(&mRot, fY * DEG_TO_RAD);
-    D3DXMatrixMultiply(&mRot, &mRot, D3DXMatrixRotationX(&mTemp, fX * DEG_TO_RAD));
-    D3DXMatrixMultiply(&mRot, &mRot, D3DXMatrixRotationZ(&mTemp, fZ * DEG_TO_RAD));
-    D3DXMatrixMultiply(&mTemp, &mRot, &pElement->m_mLocal);
+    D3DXMatrixRotationY(reinterpret_cast<D3DXMATRIX*>(&mRot), fY * DEG_TO_RAD);
+    D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mRot), reinterpret_cast<const D3DXMATRIX*>(&mRot), D3DXMatrixRotationX(reinterpret_cast<D3DXMATRIX*>(&mTemp), fX * DEG_TO_RAD));
+    D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mRot), reinterpret_cast<const D3DXMATRIX*>(&mRot), D3DXMatrixRotationZ(reinterpret_cast<D3DXMATRIX*>(&mTemp), fZ * DEG_TO_RAD));
+    D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mTemp), reinterpret_cast<const D3DXMATRIX*>(&mRot), reinterpret_cast<const D3DXMATRIX*>(&pElement->m_mLocal));
     pElement->SetMatrix(mTemp);
     return 0;
 }
@@ -2030,12 +1848,11 @@ int ScriptCB_IFModel_SetRotation(lua_State* L)
         && lua_isnumber(LuaHelper::mState, iArg) && lua_isnumber(LuaHelper::mState, iArg + 1)
         && lua_isnumber(LuaHelper::mState, iArg + 2) && LuaHelper::IsNumber(iArg + 3))
     {
-        PblQuaternion q;
-        q._fS = LuaHelper::GetFloat(iArg);
-        q._fX = LuaHelper::GetFloat(iArg + 1);
-        q._fY = LuaHelper::GetFloat(iArg + 2);
-        q._fZ = LuaHelper::GetFloat(iArg + 3);
-        ((Red3DModelElement*)pElement)->m_rotation = q;
+        const float fS = LuaHelper::GetFloat(iArg);
+        const float fX = LuaHelper::GetFloat(iArg + 1);
+        const float fY = LuaHelper::GetFloat(iArg + 2);
+        const float fZ = LuaHelper::GetFloat(iArg + 3);
+        ((Red3DModelElement*)pElement)->m_rotation = PblQuaternion(fS, fX, fY, fZ);
     }
     return 0;
 }
@@ -2119,7 +1936,7 @@ int ScriptCB_SetIFScreenViewport(lua_State* L)
         IFScreen* pScreen = IFScreen::GetCurScreen(GuiManager::mCurViewport);
         unsigned int uiName = pcName ? (unsigned int)PblHash(pcName) : 0;
         (void)uiName;
-        pScreen->SetViewport((unsigned int)luaL_checknumber(LuaHelper::mState, 2));
+        pScreen->SetViewport(LuaHelper::GetInt(2));
     }
     return 0;
 }
@@ -2364,15 +2181,13 @@ int ScriptCB_PlayMovie(lua_State* L)
                               ? luaL_checklstring(LuaHelper::mState, 3, 0)
                               : 0;
     GameMovie::Play(luaL_checklstring(LuaHelper::mState, 1, 0), pcAtEnd,
-                    (unsigned int)luaL_checknumber(LuaHelper::mState, 4),
-                    (unsigned int)luaL_checknumber(LuaHelper::mState, 5),
-                    (unsigned int)luaL_checknumber(LuaHelper::mState, 6),
-                    (unsigned int)luaL_checknumber(LuaHelper::mState, 7),
+                    LuaHelper::GetInt(4),
+                    LuaHelper::GetInt(5),
+                    LuaHelper::GetInt(6),
+                    LuaHelper::GetInt(7),
                     (int)(float)luaL_checknumber(LuaHelper::mState, 2) > 0);
     return 0;
 }
-
-// GLOBAL: SWBF2 0x01faa694
 
 static bool sMoviePlayingLastFrame;
 
@@ -2409,22 +2224,22 @@ int ScriptCB_SetMovieAudioBus(lua_State* L)
 // FUNCTION: SWBF2 0x00585860
 int ScriptCB_GetScreenInfo(lua_State* L)
 {
-    lua_gettop(LuaHelper::mState);
-    lua_pushnumber(LuaHelper::mState, (float)RedInterfaceScreen::GetScreenWidth());
-    lua_pushnumber(LuaHelper::mState, (float)RedInterfaceScreen::GetScreenHeight());
-    lua_pushnumber(LuaHelper::mState, RedInterfaceScreen::GetScreenBottomV());
-    lua_pushnumber(LuaHelper::mState, 0.75f / RedRenderer::GetScreenAspectRatio());
+    LuaHelper::GetTop();
+    LuaHelper::PushFloat((float)RedInterfaceScreen::GetScreenWidth());
+    LuaHelper::PushFloat((float)RedInterfaceScreen::GetScreenHeight());
+    LuaHelper::PushFloat(RedInterfaceScreen::GetScreenBottomV());
+    LuaHelper::PushFloat(0.75f / RedRenderer::GetScreenAspectRatio());
     return 4;
 }
 
 // FUNCTION: SWBF2 0x00585920
 int ScriptCB_GetSafeScreenInfo(lua_State* L)
 {
-    lua_gettop(LuaHelper::mState);
+    LuaHelper::GetTop();
     float fSafeZone = RedInterfaceScreen::GetScreenSafeZone();
-    lua_pushnumber(LuaHelper::mState, (float)RedInterfaceScreen::GetScreenWidth() * fSafeZone);
-    lua_pushnumber(LuaHelper::mState, (float)RedInterfaceScreen::GetScreenHeight() * fSafeZone);
-    lua_pushnumber(LuaHelper::mState, 1.0f);
+    LuaHelper::PushFloat((float)RedInterfaceScreen::GetScreenWidth() * fSafeZone);
+    LuaHelper::PushFloat((float)RedInterfaceScreen::GetScreenHeight() * fSafeZone);
+    LuaHelper::PushFloat(1.0f);
     return 3;
 }
 
@@ -2435,7 +2250,6 @@ int ScriptCB_IsErrorBoxOpen(lua_State* L)
     return 1;
 }
 
-// GLOBAL: SWBF2 0x00789de0
 static ePROCESSEDINPUT_TYPE sKeyboardCmdsPerMode[5][43] =
 {
     {
@@ -2665,7 +2479,6 @@ static ePROCESSEDINPUT_TYPE sKeyboardCmdsPerMode[5][43] =
     },
 };
 
-// GLOBAL: SWBF2 0x0078a148
 static unsigned int sIndexToButtonName[76] =
 {
     0xe7f720c1u, 0xe6f71f2eu, 0xe5f71d9bu, 0xe4f71c08u,
@@ -2959,7 +2772,7 @@ int ScriptCB_RemoveTexture(lua_State* L)
 // FUNCTION: SWBF2 0x00588280
 void InitIFace()
 {
-    for (int i = 0; i < 150; ++i)
+    for (unsigned int i = 0; i < 150; ++i)
     {
         LuaHelper::Register(sIFaceCallbacks[i].pcName, sIFaceCallbacks[i].pfnCallback, 0);
     }
@@ -3050,7 +2863,7 @@ int ScriptCB_IFText_SetLeading(lua_State* L)
         && lua_isnumber(LuaHelper::mState, iArg))
     {
         static_cast<RedTextElement*>(pElement)->m_leading =
-            (short)(unsigned int)luaL_checknumber(LuaHelper::mState, iArg);
+            (short)LuaHelper::GetInt(iArg);
     }
     return 0;
 }
@@ -3183,7 +2996,7 @@ int ScriptCB_IFModel_GetRotation(lua_State* L)
     {
         return 0;
     }
-    const PblQuaternion& rRotation = static_cast<Red3DModelElement*>(pElement)->m_rotation;
+    const PblQuaternion rRotation = static_cast<Red3DModelElement*>(pElement)->m_rotation;
     lua_pushnumber(LuaHelper::mState, rRotation._fS);
     lua_pushnumber(LuaHelper::mState, rRotation._fX);
     lua_pushnumber(LuaHelper::mState, rRotation._fY);
@@ -3200,7 +3013,7 @@ int ScriptCB_IFModel_GetTranslation(lua_State* L)
     {
         return 0;
     }
-    const PblVector3& rTranslation = static_cast<Red3DModelElement*>(pElement)->m_translation;
+    const PblVector3 rTranslation = static_cast<Red3DModelElement*>(pElement)->m_translation;
     lua_pushnumber(LuaHelper::mState, rTranslation.x);
     lua_pushnumber(LuaHelper::mState, rTranslation.y);
     lua_pushnumber(LuaHelper::mState, rTranslation.z);
@@ -3794,7 +3607,7 @@ int ScriptCB_GetLeaderBoardPlayerData(lua_State* L)
 {
     DoPeriodicLuaGC(true);
     LeaderBoardPlayerStatsT stats;
-    StatsManager::ReadStatsGetResults(&stats);
+    StatsManager::ReadStatsGetResults(0, &stats);
     lua_gettop(LuaHelper::mState);
     lua_pushnil(LuaHelper::mState);
     LuaHelper::SetGlobal("leaderboarddetails_data");
@@ -4054,16 +3867,17 @@ int ScriptCB_SetBinding(lua_State* L)
         }
     }
 
+    unsigned char* const pRaw = (unsigned char*)pJoystick;
     for (unsigned char ucDevice = 0; ucDevice < 10; ++ucDevice)
     {
-        RedJoystick* const* ppDevices = pJoystick->_redJoystick;
+        void* const* ppDevices = (void* const*)(pRaw + 0x25d4);
         if (ucDevice && !ppDevices[ucDevice])
         {
             continue;
         }
         const int iEnd = ucDevice ? 64 : 76;
-        const float* pfValue = pJoystick->mRawInputFloat[ucDevice];
-        const float* pfLast = pJoystick->mLastRawInputFloat[ucDevice];
+        const float* pfValue = (const float*)(pRaw + 0x14) + ucDevice * 76;
+        const float* pfLast = (const float*)(pRaw + 0xbf4) + ucDevice * 76;
 
         for (int iInput = ppDevices[ucDevice] ? 0 : 64; iInput < iEnd; ++iInput)
         {
@@ -4320,8 +4134,8 @@ int ScriptCB_SetIFaceLighting(lua_State* L)
         RedAmbientLight& rAmbient = RedInterfaceScreen::s_lightingState.ambientLight;
         RedColorValue top = rAmbient.GetTopColor();
         RedColorValue bottom = rAmbient.GetBottomColor();
-        Lua_Callbacks::TableReadColor("top", &top.r);
-        Lua_Callbacks::TableReadColor("bottom", &bottom.r);
+        Lua_Callbacks::TableReadColor("top", top);
+        Lua_Callbacks::TableReadColor("bottom", bottom);
         rAmbient.SetTopColor(top);
         rAmbient.SetBottomColor(bottom);
         RedColorValue mean;
@@ -4345,8 +4159,8 @@ int ScriptCB_SetIFaceLighting(lua_State* L)
                 PblVector3 direction;
                 RedColorValue color;
                 RedInterfaceScreen::GetDirectionalLight(i, direction, color);
-                Lua_Callbacks::TableReadDirection(&direction.x);
-                Lua_Callbacks::TableReadColor("color", &color.r);
+                Lua_Callbacks::TableReadDirection("direction", direction);
+                Lua_Callbacks::TableReadColor("color", color);
                 RedInterfaceScreen::s_directionalLight[i].SetDirection(direction);
                 RedInterfaceScreen::s_directionalLight[i].SetColor(color);
             }
@@ -4362,7 +4176,9 @@ int ScriptCB_SetIFaceLighting(lua_State* L)
 
 }
 
-// GLOBAL: SWBF2 0x01ec610c
 // SYNTHETIC: SWBF2 0x004041d0
 // `dynamic initializer for 'sDefaultFont''
+
+// GLOBAL: SWBF2 0x01ec610c
+// sDefaultFont
 unsigned int sDefaultFont = RedFont::GAMEFONT_SMALL;

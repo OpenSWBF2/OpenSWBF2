@@ -6,6 +6,7 @@
 
 struct lua_State;
 
+// VTABLE: SWBF2 0x007aa3d4
 class LuaEvent : public Thread
 {
 public:
@@ -24,7 +25,11 @@ public:
     };
 
     LuaEvent();
-    virtual ~LuaEvent();
+    // SYNTHETIC: SWBF2 0x005a0ab0
+    // LuaEvent::`scalar deleting destructor'
+    // FUNCTION: SWBF2 0x005a0aa0
+    // LuaEvent::~LuaEvent
+    virtual ~LuaEvent() {}
     virtual bool Update(float fDeltaTime);
 
     void Deinit();

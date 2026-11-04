@@ -11,31 +11,32 @@
 #include "Trigger.h"
 #include "PebbleFL/Common/PblVector.h"
 
-bool IsPilotControlState(const void* pControllable);
 
-// GLOBAL: SWBF2 0x01f9a8ac
 // SYNTHETIC: SWBF2 0x00407110
 // `dynamic initializer for 'WeaponDetonatorClass::rttiHashWeaponDetonatorClass''
-PblHash WeaponDetonatorClass::rttiHashWeaponDetonatorClass("WeaponDetonatorClass");
-char WeaponDetonatorClass::rttiNameWeaponDetonatorClass[] = "WeaponDetonatorClass";
+// WeaponDetonatorClass::rttiHashWeaponDetonatorClass
 
-// GLOBAL: SWBF2 0x01f9a8b0
+// GLOBAL: SWBF2 0x01f9a8ac
+// WeaponDetonatorClass::rttiHashWeaponDetonatorClass
+PblHash WeaponDetonatorClass::rttiHashWeaponDetonatorClass("WeaponDetonatorClass");
+// GLOBAL: SWBF2 0x0078bf14
+// WeaponDetonatorClass::rttiNameWeaponDetonatorClass
+const char WeaponDetonatorClass::rttiNameWeaponDetonatorClass[] = "WeaponDetonatorClass";
+
 // SYNTHETIC: SWBF2 0x00407100
 // `dynamic initializer for 'WeaponDetonator::rttiHashWeaponDetonator''
+// WeaponDetonator::rttiHashWeaponDetonator
+
+// GLOBAL: SWBF2 0x01f9a8b0
+// WeaponDetonator::rttiHashWeaponDetonator
 PblHash WeaponDetonator::rttiHashWeaponDetonator("WeaponDetonator");
-char WeaponDetonator::rttiNameWeaponDetonator[] = "WeaponDetonator";
+// GLOBAL: SWBF2 0x0078bf30
+// WeaponDetonator::rttiNameWeaponDetonator
+const char WeaponDetonator::rttiNameWeaponDetonator[] = "WeaponDetonator";
 
-// FUNCTION: SWBF2 0x00682490
-unsigned int WeaponDetonator::GetDerivedRtti() const
-{
-    return rttiHashWeaponDetonator;
-}
 
-// FUNCTION: SWBF2 0x006824a0
-const char* WeaponDetonator::GetDerivedRttiName() const
-{
-    return rttiNameWeaponDetonator;
-}
+
+
 
 // FUNCTION: SWBF2 0x00682600
 unsigned int WeaponDetonator::GetNameHash() const
@@ -48,11 +49,6 @@ unsigned int WeaponDetonator::GetNameHash() const
     return Weapon::GetNameHash();
 }
 
-// FUNCTION: SWBF2 0x005b4250
-unsigned int GetWeaponDetonatorRttiHash()
-{
-    return (unsigned int)WeaponDetonator::rttiHashWeaponDetonator;
-}
 
 // FUNCTION: SWBF2 0x00682aa0
 WeaponDetonatorClass::WeaponDetonatorClass(unsigned int uHash)
@@ -72,23 +68,11 @@ WeaponDetonatorClass::WeaponDetonatorClass(WeaponDetonatorClass* pBase, unsigned
     mPlantedHash = pBase->mPlantedHash;
 }
 
-// FUNCTION: SWBF2 0x006824b0
-bool WeaponDetonatorClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashWeaponDetonatorClass || WeaponDispenserClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x006824e0
-unsigned int WeaponDetonatorClass::GetDerivedRtti()
-{
-    return rttiHashWeaponDetonatorClass;
-}
 
-// FUNCTION: SWBF2 0x006824f0
-const char* WeaponDetonatorClass::GetDerivedRttiName()
-{
-    return rttiNameWeaponDetonatorClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00682b40
 void WeaponDetonatorClass::SetProperty(unsigned int uProperty, const char* pszValue)
@@ -116,14 +100,12 @@ WeaponDispenser* WeaponDetonatorClass::Build(const WeaponDesc& desc)
     return new WeaponDetonator(this, desc);
 }
 
-// SYNTHETIC: SWBF2 0x00682b30
-// WeaponDetonatorClass::~WeaponDetonatorClass
-
-// FUNCTION: SWBF2 0x00682460
-bool WeaponDetonator::IsRtti(unsigned int uRtti) const
+// FUNCTION: SWBF2 0x00682b30
+WeaponDetonatorClass::~WeaponDetonatorClass()
 {
-    return uRtti == GetWeaponDetonatorRttiHash() || WeaponDispenser::IsRtti(uRtti);
 }
+
+
 
 // FUNCTION: SWBF2 0x00682500
 WeaponDetonator::WeaponDetonator(const WeaponDetonatorClass* pClass, const WeaponDesc& desc)
@@ -178,7 +160,7 @@ void WeaponDetonator::NetAttachItem(Entity* pAttach)
     {
         EventManager::CharacterEvent::mDispenseControllable.Trigger(*pCharacter, *pObject);
         Controllable* pControllable = pObject->GetControllable();
-        if (pControllable && IsPilotControlState(pControllable) && !pControllable->GetPilot())
+        if (pControllable && pControllable->IsSelfPilotable() && !pControllable->GetPilot())
         {
             Controller* pController = pControllable->mCtrl;
             if (pController && pController->IsRtti(UnitController::rttiHashUnitController) &&
@@ -205,8 +187,10 @@ void WeaponDetonator::NetAttachItem(Entity* pAttach)
     }
 }
 
-// SYNTHETIC: SWBF2 0x00682550
-// WeaponDetonator::~WeaponDetonator
+// FUNCTION: SWBF2 0x00682550
+WeaponDetonator::~WeaponDetonator()
+{
+}
 
 // SYNTHETIC: SWBF2 0x00682520
 // WeaponDetonator::`scalar deleting destructor'

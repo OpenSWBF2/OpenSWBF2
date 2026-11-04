@@ -951,29 +951,7 @@ struct pcRedVertexShaderConstantRegister
 };
  
 
-class pcRedVertexShaderConstants
-{
-public:
-
-    pcRedVertexShaderConstantRegister* GetRegisterArray(int iFirst, int iCount)
-    {
-        if (m_iMinConstantSet > iFirst)
-        {
-            m_iMinConstantSet = iFirst;
-        }
-        if (m_iMaxConstantSet < iFirst + iCount - 1)
-        {
-            m_iMaxConstantSet = iFirst + iCount - 1;
-        }
-        return m_Registers;
-    }
-
-    void Update();
-
-    pcRedVertexShaderConstantRegister m_Registers[96];
-    int m_iMinConstantSet;
-    int m_iMaxConstantSet;
-};
+class pcRedVertexShaderConstants;
  
  
 
@@ -1270,6 +1248,7 @@ public:
                                             unsigned int uiPass);
 
     // GLOBAL: SWBF2 0x007fbea8
+    // internalRenderFunc
     static void(__cdecl* internalRenderFunc)(RenderItem*, unsigned int, unsigned int);
 
     static TransparentHeap<RenderItem*, unsigned int> m_preShadowTransparentItems;
@@ -1537,9 +1516,9 @@ public:
     static bool m_bScreenSpaceShadows;
     static float m_fStencilShadowLength;
     static int m_iImmediateMode;
-    static int m_uiCurMatrixPoolOffset;
+    static unsigned int m_uiCurMatrixPoolOffset;
     static unsigned int m_curRenderItemOffset;
-    static int m_uiCurLightingStatePoolOffset;
+    static unsigned int m_uiCurLightingStatePoolOffset;
     static int m_bIsSetTransformViewUndo;
     static int m_bIsSetTransformProjectionUndo;
     static RedLightingState* m_pLightingState;
@@ -1549,17 +1528,17 @@ public:
     static int m_PrevSortID;
     static pcRedShader* m_pPrevShader;
     static int m_uiPrevShaderState;
-    static intptr_t m_pmObjWorldPrev;
-    static intptr_t m_pmBoneMatricesPrev;
-    static intptr_t m_pPrimPrev;
-    static intptr_t m_pLightingStatePrev;
+    static const PblMatrix* m_pmObjWorldPrev;
+    static const PblMatrix* m_pmBoneMatricesPrev;
+    static const pcRedPrimitive* m_pPrimPrev;
+    static const RedLightingState* m_pLightingStatePrev;
     static RedColor m_colorFog;
     static PblMatrix m_mViewUndo;
     static PblMatrix m_mProjectionUndo;
     static PblMatrix m_mProjection;
     static PblMatrix m_mProjectionTemp;
     static PblMatrix m_nearSceneFadeTexTransform;
-    static PblVector4 m_userNearClipPlane;
+    static PblPlane m_userNearClipPlane;
     static PblMatrix m_mViewProjection;
     __declspec(align(16)) static PblMatrix m_mView;
 };

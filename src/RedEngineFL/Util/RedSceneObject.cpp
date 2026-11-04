@@ -22,9 +22,11 @@ RedNoLodData::RedNoLodData()
     _LodClass = -1;
 }
 
-// GLOBAL: SWBF2 0x009a0854
 // SYNTHETIC: SWBF2 0x00408980
 // `dynamic initializer for 'rednoloddata''
+
+// GLOBAL: SWBF2 0x009a0854
+// rednoloddata
 RedNoLodData rednoloddata;
 
 namespace FLRenderer
@@ -37,15 +39,15 @@ unsigned int GetCurrentViewport();
 bool BoxClipsNearPlane(const RedCamera* pCamera, const PblVector3& vCenter,
                        const PblVector3& vExtents)
 {
-    const PblMatrix& mView = pCamera->_MatrixInverse;
+    const PblMatrix& mView = pCamera->GetMatrixInverse();
     D3DXVECTOR3 vViewCenter;
     D3DXVec3TransformCoord(&vViewCenter, (const D3DXVECTOR3*)&vCenter, (const D3DXMATRIX*)&mView);
 
-    const float fRadius = (float)fabs(mView.m[0][2]) * vExtents.x
-                        + (float)fabs(mView.m[1][2]) * vExtents.y
-                        + (float)fabs(mView.m[2][2]) * vExtents.z;
+    const float fRadius = fabsf(mView.m[0][2]) * vExtents.x
+                        + fabsf(mView.m[1][2]) * vExtents.y
+                        + fabsf(mView.m[2][2]) * vExtents.z;
 
-    return pCamera->_fNear + vViewCenter.z > -fRadius;
+    return pCamera->GetNearPlane() + vViewCenter.z > -fRadius;
 }
 
 // FUNCTION: SWBF2 0x006e1ee0
@@ -172,10 +174,7 @@ void RedSceneObject::UpdateOcclusionQuery(unsigned int uiViewport)
     }
     _iFrameNum[FLRenderer::GetCurrentViewport()] = RedRenderer::GetFrameNumber();
     PblMatrix mWorld = gMatrixIdentity;
-    mWorld.m[3][0] = vCenter.x;
-    mWorld.m[3][1] = vCenter.y;
-    mWorld.m[3][2] = vCenter.z;
-    mWorld.m[3][3] = 1.0f;
+    mWorld.SetTranslation(vCenter);
     _uiOcclusionIndex[FLRenderer::GetCurrentViewport()] =
         RedRenderer::SubmitOcclusionQuery(mWorld, OCCLUSION_QUERY_BOX, vExtents, false);
 }

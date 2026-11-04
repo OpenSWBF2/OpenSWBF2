@@ -59,10 +59,7 @@ GameObjectClass::GameObjectClass(unsigned int uHash)
     mAIType = 1;
     mSwitchClassRadius = -1.0f;
 
-    for (int i = 0; i < 10; ++i)
-    {
-        mDamageEffectClass[i] = 0;
-    }
+    memset(mDamageEffectClass, 0, sizeof(mDamageEffectClass));
 
     mVOSoundList = 0;
     mVOUnitType = 0;
@@ -82,53 +79,39 @@ GameObjectClass::~GameObjectClass()
 // SYNTHETIC: SWBF2 0x00536270
 // GameObjectClass::`scalar deleting destructor'
 
-// GLOBAL: SWBF2 0x01ec3234
 // SYNTHETIC: SWBF2 0x00403dd0
 // `dynamic initializer for 'GameObjectClass::rttiHashGameObjectClass''
+// GameObjectClass::rttiHashGameObjectClass
+
+// GLOBAL: SWBF2 0x01ec3234
+// GameObjectClass::rttiHashGameObjectClass
 PblHash GameObjectClass::rttiHashGameObjectClass("GameObjectClass");
-char GameObjectClass::rttiNameGameObjectClass[] = "GameObjectClass";
+// GLOBAL: SWBF2 0x00789998
+// GameObjectClass::rttiNameGameObjectClass
+const char GameObjectClass::rttiNameGameObjectClass[] = "GameObjectClass";
 
-// FUNCTION: SWBF2 0x00444400
-bool GameObjectClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashGameObjectClass || EntityGeometryClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00535080
-unsigned int GameObjectClass::GetDerivedRtti()
-{
-    return rttiHashGameObjectClass;
-}
 
-// FUNCTION: SWBF2 0x00535090
-const char* GameObjectClass::GetDerivedRttiName()
-{
-    return rttiNameGameObjectClass;
-}
 
-// GLOBAL: SWBF2 0x01ec0c7c
+
+
+
 // SYNTHETIC: SWBF2 0x00403dc0
 // `dynamic initializer for 'GameObject::rttiHashGameObject''
+// GameObject::rttiHashGameObject
+
+// GLOBAL: SWBF2 0x01ec0c7c
+// GameObject::rttiHashGameObject
 PblHash GameObject::rttiHashGameObject("GameObject");
-char GameObject::rttiNameGameObject[] = "GameObject";
+// GLOBAL: SWBF2 0x007899ac
+// GameObject::rttiNameGameObject
+const char GameObject::rttiNameGameObject[] = "GameObject";
 
-// FUNCTION: SWBF2 0x00535060
-unsigned int GameObject::GetDerivedRtti() const
-{
-    return rttiHashGameObject;
-}
 
-// FUNCTION: SWBF2 0x00535070
-const char* GameObject::GetDerivedRttiName() const
-{
-    return rttiNameGameObject;
-}
 
-// FUNCTION: SWBF2 0x004441f0
-bool GameObject::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashGameObject || EntityGeometry::IsRtti(uRtti);
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00444250
 const Controllable* GameObject::GetControllable() const
@@ -159,17 +142,16 @@ bool GameObject::Deflect(const Ordnance* pOrdnance, const PblVector3& vPos, cons
     return false;
 }
 
-namespace AIUtil { bool __fastcall IsSpied(const Character* pCharacter, const Character* pOther); }
+namespace AIUtil
+{
+bool __fastcall IsSpied(Character* pCharacter, Character* pOther);
+}
 
-static char sEventParam;
 
 // FUNCTION: SWBF2 0x00535480
 void GameObject::Init()
 {
-    if (!NetGame::IsEnabled() || !NetGame::IsClient())
-    {
-        EventManager::ObjectEvent::mInit.Trigger(*this, sEventParam);
-    }
+    EventManager::ObjectEvent::mInit.Trigger(*this, EventManager::noContext);
 }
 
 // FUNCTION: SWBF2 0x005354c0
@@ -181,10 +163,7 @@ void GameObject::ClientKill()
 // FUNCTION: SWBF2 0x005354d0
 void GameObject::Kill()
 {
-    if (!NetGame::IsEnabled() || !NetGame::IsClient())
-    {
-        EventManager::ObjectEvent::mKill.Trigger(*this, mDamageOwner);
-    }
+    EventManager::ObjectEvent::mKill.Trigger(*this, mDamageOwner);
     TargetManager::RemoveMarker(this, 0, (unsigned int)-1);
     SetPortalActive(false);
 }
@@ -192,10 +171,7 @@ void GameObject::Kill()
 // FUNCTION: SWBF2 0x00535540
 void GameObject::Respawn()
 {
-    if (!NetGame::IsEnabled() || !NetGame::IsClient())
-    {
-        EventManager::ObjectEvent::mRespawn.Trigger(*this, sEventParam);
-    }
+    EventManager::ObjectEvent::mRespawn.Trigger(*this, EventManager::noContext);
 }
 
 // FUNCTION: SWBF2 0x00535590
@@ -359,8 +335,8 @@ int GameObject::GetAffiliationToMe(const GameObject* pObject) const
     }
     if (iReal < iPerceived)
     {
-        const Character* pMine = GetControllable() ? GetControllable()->mCharacter : 0;
-        const Character* pTheirs =
+        Character* pMine = GetControllable() ? GetControllable()->mCharacter : 0;
+        Character* pTheirs =
             pObject->GetControllable() ? pObject->GetControllable()->mCharacter : 0;
         if (pMine && pTheirs && AIUtil::IsSpied(pMine, pTheirs))
         {
@@ -441,32 +417,22 @@ void GameObject::PlayDamageRegionSound(unsigned int uRegionId)
     mGameObjectAttachedSound.Play(&pSound->mSound, &matrix.GetTranslation(), &GetVelocity(), true);
 }
 
-static FlagItem* GetPilotFlag(const Controllable* pControllable)
-{
-    PilotType eType = pControllable->mPilotType;
-    if ((eType == PILOT_VEHICLE || eType == PILOT_VEHICLESELF || eType == PILOT_SELF) &&
-        pControllable->mCharacter && pControllable->mCharacter->mCarriedFlagPtr)
-    {
-        return pControllable->mCharacter->mCarriedFlagPtr;
-    }
-    return 0;
-}
-
 // FUNCTION: SWBF2 0x00535cc0
 FlagItem* GameObject::GetCarriedFlagItem() const
 {
-    if (GetControllable())
+    if (GetControllable() &&
+        (GetControllable()->IsPilotable() || GetControllable()->GetPilotType() == PILOT_SELF) &&
+        GetControllable()->GetCharacter() && GetControllable()->GetCharacter()->mCarriedFlagPtr)
     {
-        if (FlagItem* pFlag = GetPilotFlag(GetControllable()))
-        {
-            return pFlag;
-        }
+        return GetControllable()->GetCharacter()->mCarriedFlagPtr;
     }
     for (PblList<Controllable>::Itor it(GetControllableList()); (Controllable*)it; ++it)
     {
-        if (FlagItem* pFlag = GetPilotFlag(it))
+        Controllable* pControllable = it;
+        if ((pControllable->IsPilotable() || pControllable->GetPilotType() == PILOT_SELF) &&
+            pControllable->GetCharacter() && pControllable->GetCharacter()->mCarriedFlagPtr)
         {
-            return pFlag;
+            return pControllable->GetCharacter()->mCarriedFlagPtr;
         }
     }
     return 0;
@@ -537,11 +503,11 @@ void GameObject::AwardVehicleKillPoints(int iVehicleType, bool bEmpty)
         }
         if (bEmpty)
         {
-            pCharacter->GetPlayerStats().PointsProcess(13, 0);
+            Character::GetPlayerStats(pCharacter).PointsProcess(13, 0);
         }
         else
         {
-            pCharacter->GetPlayerStats().AddVehicleKill(iVehicleType);
+            Character::GetPlayerStats(pCharacter).AddVehicleKill(iVehicleType);
         }
         return;
     }
@@ -581,7 +547,7 @@ void GameObject::AwardVehicleKillPoints(int iVehicleType, bool bEmpty)
 // FUNCTION: SWBF2 0x00536020
 void GameObject::TriggerDisabledEffect()
 {
-    if (mDisableTime > 0.0f && mIsAlive)
+    if (mDisableTime > 0.0f && IsAlive())
     {
         if (mDisabledEffectHandle)
         {
@@ -612,14 +578,12 @@ void GameObject::TriggerDisabledEffect()
     }
 }
 
-// FUNCTION: SWBF2 0x005373f0
-GameObjectInterpolator::GameObjectInterpolator()
-{
-}
 
-// GLOBAL: SWBF2 0x01ec3240
 // SYNTHETIC: SWBF2 0x00403de0
 // `dynamic initializer for 'gameObjectInterpolator''
+
+// GLOBAL: SWBF2 0x01ec3240
+// gameObjectInterpolator
 GameObjectInterpolator gameObjectInterpolator;
 
 // FUNCTION: SWBF2 0x00537460
@@ -629,28 +593,24 @@ void GameObjectInterpolator::GetMatrix(int iNetUniqueId, PblMatrix& mMatrix)
     {
         return;
     }
-    const GameObjectInterpolator& rInterp = *this;
-    int iCount = rInterp.count[iNetUniqueId];
+    const int iCount = count[iNetUniqueId];
     if (iCount < 1)
     {
         return;
     }
-    const PblMatrix* pSamples = rInterp.mat[iNetUniqueId];
     if (iCount < 2)
     {
-        mMatrix = pSamples[(iCount - 1) & 1];
+        mMatrix = mat[iNetUniqueId][(iCount - 1) & 1];
         return;
     }
-    const PblMatrix& rOld = pSamples[iCount & 1];
-    const PblMatrix& rNew = pSamples[(iCount - 1) & 1];
-    float fRatio = NetGame::GetTurnRatio();
-    PblQuaternion qOld(rOld), qNew(rNew);
-    PblQuaternion qBlend = Interpolate(qOld, qNew, fRatio);
-    const PblVector3& vOld = rOld.GetTranslation();
-    const PblVector3& vNew = rNew.GetTranslation();
-    PblVector3 vBlend(vOld.x + (vNew.x - vOld.x) * fRatio,
-                      vOld.y + (vNew.y - vOld.y) * fRatio,
-                      vOld.z + (vNew.z - vOld.z) * fRatio);
+
+    const float fRatio = NetGame::GetTurnRatio();
+    const int iSampleCount = count[iNetUniqueId];
+    const PblMatrix m0 = mat[iNetUniqueId][iSampleCount & 1];
+    const PblMatrix m1 = mat[iNetUniqueId][(iSampleCount - 1) & 1];
+    PblQuaternion q0(m0), q1(m1);
+    const PblVector3 vBlend = Interpolate(m0.GetTranslation(), m1.GetTranslation(), fRatio);
+    const PblQuaternion qBlend = Interpolate(q0, q1, fRatio);
     mMatrix = PblMatrix(qBlend, vBlend);
 }
 
@@ -684,7 +644,11 @@ void GameObjectInterpolator::SetNextFloat(int iNetUniqueId, int iIndex, float fV
 // FUNCTION: SWBF2 0x005376f0
 float GameObjectInterpolator::GetCurFloat(int iNetUniqueId, int iIndex)
 {
-    if (!PblInBounds(count, iNetUniqueId) || count[iNetUniqueId] < 1)
+    if (!PblInBounds(count, iNetUniqueId))
+    {
+        return 0.0f;
+    }
+    if (count[iNetUniqueId] < 1)
     {
         return 0.0f;
     }
@@ -694,12 +658,19 @@ float GameObjectInterpolator::GetCurFloat(int iNetUniqueId, int iIndex)
 // FUNCTION: SWBF2 0x00537730
 float GameObjectInterpolator::GetPrevFloat(int iNetUniqueId, int iIndex)
 {
-    if (!PblInBounds(count, iNetUniqueId) || count[iNetUniqueId] < 1)
+    if (!PblInBounds(count, iNetUniqueId))
     {
         return 0.0f;
     }
-    int iSample = count[iNetUniqueId] < 2 ? (count[iNetUniqueId] - 1) & 1 : count[iNetUniqueId] & 1;
-    return mFloats[iNetUniqueId][iIndex][iSample];
+    if (count[iNetUniqueId] < 1)
+    {
+        return 0.0f;
+    }
+    if (count[iNetUniqueId] < 2)
+    {
+        return mFloats[iNetUniqueId][iIndex][(count[iNetUniqueId] - 1) & 1];
+    }
+    return mFloats[iNetUniqueId][iIndex][count[iNetUniqueId] & 1];
 }
 
 // FUNCTION: SWBF2 0x005378b0
@@ -718,76 +689,78 @@ void GameObjectInterpolator::GetVector(int iNetUniqueId, PblVector3& vVector)
     {
         return;
     }
-    const PblVector3& vOld = vec[iNetUniqueId][count[iNetUniqueId] & 1];
-    const PblVector3& vNew = vec[iNetUniqueId][(count[iNetUniqueId] - 1) & 1];
-    float fRatio = NetGame::GetTurnRatio();
-    vVector.x = vOld.x + (vNew.x - vOld.x) * fRatio;
-    vVector.y = vOld.y + (vNew.y - vOld.y) * fRatio;
-    vVector.z = vOld.z + (vNew.z - vOld.z) * fRatio;
+    const float fRatio = NetGame::GetTurnRatio();
+    const int iSampleCount = count[iNetUniqueId];
+    const PblVector3 v0 = vec[iNetUniqueId][iSampleCount & 1];
+    const PblVector3 v1 = vec[iNetUniqueId][(iSampleCount - 1) & 1];
+    vVector = Interpolate(v0, v1, fRatio);
 }
 
 // FUNCTION: SWBF2 0x00537660
 float GameObjectInterpolator::GetFloat(int iNetUniqueId, int iIndex)
 {
-    if (!PblInBounds(count, iNetUniqueId) || count[iNetUniqueId] < 1)
+    if (!PblInBounds(count, iNetUniqueId))
+    {
+        return 0.0f;
+    }
+    if (count[iNetUniqueId] < 1)
     {
         return 0.0f;
     }
 
-    const float* pFloat = mFloats[iNetUniqueId][iIndex];
-    const int iCount = count[iNetUniqueId];
-    const float fPrevious = pFloat[(iCount - 1) & 1];
-    if (iCount < 2)
+    const float fPrevious = mFloats[iNetUniqueId][iIndex][(count[iNetUniqueId] - 1) & 1];
+    if (count[iNetUniqueId] < 2)
     {
         return fPrevious;
     }
-    const float fCurrent = pFloat[iCount & 1];
-    return fCurrent + (fPrevious - fCurrent) * NetGame::GetTurnRatio();
+    const float fRatio = NetGame::GetTurnRatio();
+    return Interpolate(mFloats[iNetUniqueId][iIndex][count[iNetUniqueId] & 1], fPrevious, fRatio);
 }
 
 // FUNCTION: SWBF2 0x005377a0
-float GameObjectInterpolator::GetLoopingFloat(int iNetUniqueId, int iIndex, float fMax,
-                                               float fDirection, bool& bWrapped)
+float GameObjectInterpolator::GetLoopingFloat(int iNetUniqueId, int iIndex, float fDirection,
+                                               float fMax, bool& bWrapped)
 {
     bWrapped = false;
-    if (!PblInBounds(count, iNetUniqueId) || count[iNetUniqueId] < 1)
+    if (!PblInBounds(count, iNetUniqueId))
+    {
+        return 0.0f;
+    }
+    if (count[iNetUniqueId] < 1)
     {
         return 0.0f;
     }
 
-    const float* pFloat = mFloats[iNetUniqueId][iIndex];
-    const int iCount = count[iNetUniqueId];
-    const float fPrevious = pFloat[(iCount - 1) & 1];
-    if (iCount < 2)
+    const float fPrevious = mFloats[iNetUniqueId][iIndex][(count[iNetUniqueId] - 1) & 1];
+    if (count[iNetUniqueId] < 2)
     {
         return fPrevious;
     }
 
-    const float fCurrent = pFloat[iCount & 1];
     const float fRatio = NetGame::GetTurnRatio();
-    const float fDelta = fPrevious - fCurrent;
-    if (fDelta * fDirection < 0.0f)
+    float fCurrent = mFloats[iNetUniqueId][iIndex][count[iNetUniqueId] & 1];
+    if ((fPrevious - fCurrent) * fDirection < 0.0f)
     {
-        if (fDirection <= 0.0f)
+        if (fDirection > 0.0f)
         {
-            const float fBase = fCurrent + fMax;
-            float fValue = (fPrevious - fBase) * fRatio + fBase;
+            float fValue = Interpolate(fCurrent, fPrevious + fMax, fRatio);
             if (fValue <= fMax)
             {
+                bWrapped = true;
                 return fValue;
             }
-            bWrapped = true;
             return fValue - fMax;
         }
-        float fValue = fCurrent + (fPrevious + fMax - fCurrent) * fRatio;
-        if (fValue <= fMax)
+        fCurrent += fMax;
+        float fValue = Interpolate(fCurrent, fPrevious, fRatio);
+        if (fValue > fMax)
         {
             bWrapped = true;
-            return fValue;
+            fValue -= fMax;
         }
-        return fValue - fMax;
+        return fValue;
     }
-    return fCurrent + fDelta * fRatio;
+    return Interpolate(fCurrent, fPrevious, fRatio);
 }
 
 extern bool netHeroesEnabled;
@@ -820,10 +793,7 @@ GameObject::GameObject(GameObjectClass* pClass, const EntityDesc& desc, Collisio
     mHealthType = pClass->mHealthType;
     mHealthTypeForLockOn = pClass->mHealthTypeForLockOn;
 
-    if (!NetGame::IsEnabled() || !NetGame::IsClient())
-    {
-        EventManager::ObjectEvent::mCreate.Trigger(*this, sEventParam);
-    }
+    EventManager::ObjectEvent::mCreate.Trigger(*this, EventManager::noContext);
 }
 
 // FUNCTION: SWBF2 0x005352e0
@@ -837,10 +807,7 @@ GameObject::~GameObject()
         }
     }
     TargetManager::RemoveMarker(this, 0, (unsigned int)-1);
-    if (!NetGame::IsEnabled() || !NetGame::IsClient())
-    {
-        EventManager::ObjectEvent::mDelete.Trigger(*this, sEventParam);
-    }
+    EventManager::ObjectEvent::mDelete.Trigger(*this, EventManager::noContext);
     SetPortalActive(false);
     pvs::IManager::GetInstance().UnregisterDynamic(*this);
     TeamManager::RemoveObject(this);
@@ -853,13 +820,13 @@ GameObject::~GameObject()
 // SYNTHETIC: SWBF2 0x005350a0
 // GameObject::`scalar deleting destructor'
 // SYNTHETIC: SWBF2 0x00537ae7
-// [thunk]:GameObject::`scalar deleting destructor' adjustor{320}
+// ??_EGameObject@@WBEA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00537af2
-// [thunk]:GameObject::`scalar deleting destructor' adjustor{12}
+// ??_EGameObject@@WM@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00537afa
-// [thunk]:GameObject::`scalar deleting destructor' adjustor{512}
+// ??_EGameObject@@WCAA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00537b05
-// [thunk]:GameObject::`scalar deleting destructor' adjustor{148}
+// ??_EGameObject@@WJE@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x005362a0
 GameObjectClass::GameObjectClass(GameObjectClass* pBase, unsigned int uHash)
@@ -879,7 +846,7 @@ GameObjectClass::GameObjectClass(GameObjectClass* pBase, unsigned int uHash)
     mSoundHurtFall = pBase->mSoundHurtFall;
     mSoundDeath = pBase->mSoundDeath;
 
-    for (PblListSingle::Itor it(pBase->mSoundDamageRegionList); !it.IsDone(); ++it)
+    for (PblListSingle::Itor it(pBase->mSoundDamageRegionList); it.GetNode() != pBase->mSoundDamageRegionList.GetTerminator(); ++it)
     {
         const DamageRegionSound* pSound =
             (const DamageRegionSound*)((char*)it.GetNode() - offsetof(DamageRegionSound, mNode));
@@ -1239,8 +1206,13 @@ void Event<GameObject, char>::Callback::Trigger(GameObject& item, char& param)
         if (pChild)
         {
             pChild->AddRef();
-            while (pChild->IsAlive())
+            while (pChild)
             {
+                if (!pChild->IsAlive())
+                {
+                    pChild->Release();
+                    break;
+                }
                 Callback* pNext = (Callback*)pChild->mSibling;
                 if (pNext)
                 {
@@ -1249,14 +1221,6 @@ void Event<GameObject, char>::Callback::Trigger(GameObject& item, char& param)
                 pChild->Trigger(item, param);
                 pChild->Release();
                 pChild = pNext;
-                if (!pChild)
-                {
-                    break;
-                }
-            }
-            if (pChild)
-            {
-                pChild->Release();
             }
         }
     }
@@ -1265,7 +1229,7 @@ void Event<GameObject, char>::Callback::Trigger(GameObject& item, char& param)
 }
 
 // SYNTHETIC: SWBF2 0x00446dfe
-// [thunk]:GameObject::GetGameObject`adjustor{320}'
+// ?GetGameObject@GameObject@@WBEA@AEPAV1@XZ
 
 // SYNTHETIC: SWBF2 0x00446e14
-// [thunk]:GameObject::GetGameObject`adjustor{12}'
+// ?GetGameObject@GameObject@@WM@AEPAV1@XZ

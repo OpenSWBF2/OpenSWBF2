@@ -1,11 +1,9 @@
-#include <new>
 #include <assert.h>
 #include <string.h>
 
 #include "sndstreamgsmdecoder.h"
 #include "sndstreamsourceproducer.h"
 
-extern int __cdecl gsm_decode(Snd::GSM* state, unsigned char* frame, short* samples);
 
 namespace Snd
 {
@@ -22,43 +20,8 @@ StreamGSMDecoder::StreamGSMDecoder()
     mState.Init();
 }
 
-// FUNCTION: SWBF2 0x0073d250
-StreamPacket* StreamGSMDecoder::GetPacket(unsigned int uiOutput)
-{
-    StreamNode* const pNode = this;
 
-    if (pNode->GetCurrentPlayState() == SourceTransport::playState_playing)
-    {
-        StreamPacket* const pPacket = StreamSourceProducer::GetPacket(uiOutput);
-        if (pPacket != 0)
-        {
-            if (pPacket->GetLast())
-            {
-                pNode->Stop();
-            }
-            return pPacket;
-        }
-    }
 
-    Update();
-
-    if (pNode->GetCurrentPlayState() != SourceTransport::playState_playing)
-    {
-        return 0;
-    }
-
-    StreamPacket* const pPacket = StreamSourceProducer::GetPacket(uiOutput);
-    if (pPacket == 0)
-    {
-        return 0;
-    }
-
-    if (pPacket->GetLast())
-    {
-        pNode->Stop();
-    }
-    return pPacket;
-}
 
 // FUNCTION: SWBF2 0x0073d170
 void StreamGSMDecoder::Flush()
@@ -157,7 +120,7 @@ void StreamGSMDecoder::Update()
             {
                 bLast = mInputPacket->GetLast();
                 bDiscontinuity = mInputPacket->GetDiscontinuity();
-                bEnd = bLast || bDiscontinuity;
+                bEnd = bLast | bDiscontinuity;
                 if (bEnd)
                 {
                     mState.Init();
@@ -170,7 +133,7 @@ void StreamGSMDecoder::Update()
             }
 
             const unsigned int uiSamples = mOutputPacketOffset;
-            if (uiSamples == mPacketSize >> 1 || bEnd)
+            if (uiSamples == GetPacketSize() >> 1 || bEnd)
             {
                 const unsigned int uiPos = mPlaybackPosition;
                 PacketComplete(pOutput, uiSamples * 2, uiSamples, bLast,
@@ -193,275 +156,4 @@ void Snd::StreamGSMDecoder::SetPackets(unsigned int uiPacketSize, StreamPacket* 
                                                   uiNumPackets);
 }
 
-}
-
-extern unsigned short* __cdecl APCM_quantization_xmaxc_to_exp_mant(short value, short* exponent,
-                                           unsigned short* mantissa);
-extern int __cdecl APCM_inverse_quantization(const short* coded, unsigned short mantissa,
-                               short exponent, short* output);
-extern void __cdecl RPE_grid_positioning(unsigned short grid, const short* input,
-                                short* output);
-extern void __cdecl Decoding_of_the_coded_Log_Area_Ratios(const short* coded, short* decoded);
-extern int __cdecl Coefficients_0_12(const short* previous, const short* current, short* output);
-extern int __cdecl Coefficients_13_26(const short* previous, const short* current, short* output);
-extern int __cdecl Coefficients_27_39(const short* previous, const short* current, short* output);
-extern int __cdecl LARp_to_rp(short* ratios);
-
-static short gsmDecoderSaturate(int value)
-{
-    if (value > 32767)
-    {
-        return 32767;
-    }
-    if (value < -32768)
-    {
-        return -32768;
-    }
-    return (short)value;
-}
-
-static short gsmDecoderMultiply(short a, short b)
-{
-    if (a == (short)0x8000 && b == (short)0x8000)
-    {
-        return 32767;
-    }
-    return (short)(((int)a * b + 16384) >> 15);
-}
-
-// FUNCTION: SWBF2 0x0074eea0
-int __cdecl Gsm_RPE_Decoding(Snd::GSM* state, short maximum, short grid,
-                       short* coded, short* output)
-{
-    (void)state;
-    short exponent;
-    unsigned short mantissa;
-    short reconstructed[13];
-    APCM_quantization_xmaxc_to_exp_mant(maximum, &exponent, &mantissa);
-    APCM_inverse_quantization(coded, mantissa, exponent, reconstructed);
-
-    typedef int (__cdecl* GridFn)(unsigned short, const short*, short*);
-    return ((GridFn)RPE_grid_positioning)((unsigned short)grid, reconstructed, output);
-}
-
-// FUNCTION: SWBF2 0x007518b0
-int __cdecl Gsm_Long_Term_Synthesis_Filtering(Snd::GSM* state, short lag, short gain, const short* residual, short* history)
-{
-    if ((unsigned short)(lag - 40) > 80)
-    {
-        lag = state->nrp;
-    }
-    state->nrp = lag;
-    if (lag < 40 || lag > 120)
-    {
-        _wassert(L"Nr >= 40 && Nr <= 120", L"source\\gsm-1.0.10\\long_term.c", 0x3a0);
-    }
-    static const short kGain[4] = { 3277, 11469, 21299, 32767 };
-    const short factor = kGain[gain];
-    if (factor == (short)0x8000)
-    {
-        _wassert(L"brp != MIN_WORD", L"source\\gsm-1.0.10\\long_term.c", 0x3a9);
-    }
-    int result = 0;
-    for (int i = 0; i < 40; ++i)
-    {
-        result = gsmDecoderSaturate((int)gsmDecoderMultiply(factor, history[i - lag]) +
-                                    residual[i]);
-        history[i] = (short)result;
-    }
-    memmove(history - 120, history - 80, 120 * sizeof(short));
-    return result;
-}
-
-int __cdecl Gsm_Short_Term_Synthesis_Filter(Snd::GSM* state, short* coded, short* input, short* output);
-
-// FUNCTION: SWBF2 0x007526f0
-int __cdecl Short_term_synthesis_filtering(Snd::GSM* state, const short* ratios, int count, short* input, short* output)
-{
-    short* memory = state->v;
-    int result = count;
-    for (int i = 0; i < count; ++i)
-    {
-        short sample = input[i];
-        const short* coeff = ratios;
-        for (int j = 7; j >= 0; --j)
-        {
-            sample = gsmDecoderSaturate((int)sample - gsmDecoderMultiply(coeff[j], memory[j]));
-            memory[j + 1] = gsmDecoderSaturate((int)memory[j] + gsmDecoderMultiply(sample, coeff[j]));
-        }
-        memory[0] = sample;
-        output[i] = sample;
-        result = count - i - 1;
-    }
-    return result;
-}
-
-// FUNCTION: SWBF2 0x007523c0
-int __cdecl Gsm_Short_Term_Synthesis_Filter(Snd::GSM* state, short* coded, short* input, short* output)
-{
-    short* const previous = state->LARpp[state->j];
-    state->j ^= 1;
-    short* const current = state->LARpp[state->j];
-    short ratios[8];
-    Decoding_of_the_coded_Log_Area_Ratios(coded, previous);
-    Coefficients_0_12(current, previous, ratios);
-    LARp_to_rp(ratios);
-    Short_term_synthesis_filtering(state, ratios, 13, input, output);
-    Coefficients_13_26(current, previous, ratios);
-    LARp_to_rp(ratios);
-    Short_term_synthesis_filtering(state, ratios, 14, input + 13, output + 13);
-    Coefficients_27_39(current, previous, ratios);
-    LARp_to_rp(ratios);
-    Short_term_synthesis_filtering(state, ratios, 13, input + 27, output + 27);
-    memcpy(ratios, previous, sizeof(ratios));
-    LARp_to_rp(ratios);
-    return Short_term_synthesis_filtering(state, ratios, 120, input + 40, output + 40);
-}
-
-// FUNCTION: SWBF2 0x00750630
-unsigned int __cdecl Gsm_Decoder(Snd::GSM* state, short* codedLar,
-                                 short* lag, short* gain, short* grid,
-                                 short* maximum, short* coded, short* output)
-{
-    short samples[160];
-    short residual[40];
-    short* const history = state->dp0 + 120;
-    for (int block = 0; block < 4; ++block)
-    {
-        Gsm_RPE_Decoding(state, maximum[block], grid[block],
-                    coded + 13 * block, residual);
-        Gsm_Long_Term_Synthesis_Filtering(state, lag[block], gain[block],
-                    residual, history);
-        memcpy(samples + 40 * block, history, 40 * sizeof(short));
-    }
-    Gsm_Short_Term_Synthesis_Filter(state, codedLar, samples, output);
-    short previous = state->msr;
-    unsigned int result = 0;
-    for (int i = 0; i < 160; ++i)
-    {
-        previous = gsmDecoderSaturate((int)output[i] +
-            (short)(((int)previous * 28180 + 16384) >> 15));
-        result = (unsigned short)(gsmDecoderSaturate(2 * (int)previous) & ~7);
-        output[i] = (short)result;
-    }
-    state->msr = previous;
-    return result;
-}
-
-// FUNCTION: SWBF2 0x00750820
-int __cdecl gsm_decode(Snd::GSM* s, unsigned char* c, short* target)
-{
-    short LARc[8], Nc[4], Mc[4], bc[4], xmaxc[4], xmc[13 * 4];
-
-    if (((*c >> 4) & 0x0F) != 0xD)
-    {
-        return -1;
-    }
-
-    LARc[0]  = (short)((*c++ & 0xF) << 2);
-    LARc[0] |= (*c >> 6) & 0x3;
-    LARc[1]  = *c++ & 0x3F;
-    LARc[2]  = (*c >> 3) & 0x1F;
-    LARc[3]  = (short)((*c++ & 0x7) << 2);
-    LARc[3] |= (*c >> 6) & 0x3;
-    LARc[4]  = (*c >> 2) & 0xF;
-    LARc[5]  = (short)((*c++ & 0x3) << 2);
-    LARc[5] |= (*c >> 6) & 0x3;
-    LARc[6]  = (*c >> 3) & 0x7;
-    LARc[7]  = *c++ & 0x7;
-
-    Nc[0]  = (*c >> 1) & 0x7F;
-    bc[0]  = (short)((*c++ & 0x1) << 1);
-    bc[0] |= (*c >> 7) & 0x1;
-    Mc[0]  = (*c >> 5) & 0x3;
-    xmaxc[0]  = (short)((*c++ & 0x1F) << 1);
-    xmaxc[0] |= (*c >> 7) & 0x1;
-    xmc[0]  = (*c >> 4) & 0x7;
-    xmc[1]  = (*c >> 1) & 0x7;
-    xmc[2]  = (short)((*c++ & 0x1) << 2);
-    xmc[2] |= (*c >> 6) & 0x3;
-    xmc[3]  = (*c >> 3) & 0x7;
-    xmc[4]  = *c++ & 0x7;
-    xmc[5]  = (*c >> 5) & 0x7;
-    xmc[6]  = (*c >> 2) & 0x7;
-    xmc[7]  = (short)((*c++ & 0x3) << 1);
-    xmc[7] |= (*c >> 7) & 0x1;
-    xmc[8]  = (*c >> 4) & 0x7;
-    xmc[9]  = (*c >> 1) & 0x7;
-    xmc[10]  = (short)((*c++ & 0x1) << 2);
-    xmc[10] |= (*c >> 6) & 0x3;
-    xmc[11]  = (*c >> 3) & 0x7;
-    xmc[12]  = *c++ & 0x7;
-
-    Nc[1]  = (*c >> 1) & 0x7F;
-    bc[1]  = (short)((*c++ & 0x1) << 1);
-    bc[1] |= (*c >> 7) & 0x1;
-    Mc[1]  = (*c >> 5) & 0x3;
-    xmaxc[1]  = (short)((*c++ & 0x1F) << 1);
-    xmaxc[1] |= (*c >> 7) & 0x1;
-    xmc[13]  = (*c >> 4) & 0x7;
-    xmc[14]  = (*c >> 1) & 0x7;
-    xmc[15]  = (short)((*c++ & 0x1) << 2);
-    xmc[15] |= (*c >> 6) & 0x3;
-    xmc[16]  = (*c >> 3) & 0x7;
-    xmc[17]  = *c++ & 0x7;
-    xmc[18]  = (*c >> 5) & 0x7;
-    xmc[19]  = (*c >> 2) & 0x7;
-    xmc[20]  = (short)((*c++ & 0x3) << 1);
-    xmc[20] |= (*c >> 7) & 0x1;
-    xmc[21]  = (*c >> 4) & 0x7;
-    xmc[22]  = (*c >> 1) & 0x7;
-    xmc[23]  = (short)((*c++ & 0x1) << 2);
-    xmc[23] |= (*c >> 6) & 0x3;
-    xmc[24]  = (*c >> 3) & 0x7;
-    xmc[25]  = *c++ & 0x7;
-
-    Nc[2]  = (*c >> 1) & 0x7F;
-    bc[2]  = (short)((*c++ & 0x1) << 1);
-    bc[2] |= (*c >> 7) & 0x1;
-    Mc[2]  = (*c >> 5) & 0x3;
-    xmaxc[2]  = (short)((*c++ & 0x1F) << 1);
-    xmaxc[2] |= (*c >> 7) & 0x1;
-    xmc[26]  = (*c >> 4) & 0x7;
-    xmc[27]  = (*c >> 1) & 0x7;
-    xmc[28]  = (short)((*c++ & 0x1) << 2);
-    xmc[28] |= (*c >> 6) & 0x3;
-    xmc[29]  = (*c >> 3) & 0x7;
-    xmc[30]  = *c++ & 0x7;
-    xmc[31]  = (*c >> 5) & 0x7;
-    xmc[32]  = (*c >> 2) & 0x7;
-    xmc[33]  = (short)((*c++ & 0x3) << 1);
-    xmc[33] |= (*c >> 7) & 0x1;
-    xmc[34]  = (*c >> 4) & 0x7;
-    xmc[35]  = (*c >> 1) & 0x7;
-    xmc[36]  = (short)((*c++ & 0x1) << 2);
-    xmc[36] |= (*c >> 6) & 0x3;
-    xmc[37]  = (*c >> 3) & 0x7;
-    xmc[38]  = *c++ & 0x7;
-
-    Nc[3]  = (*c >> 1) & 0x7F;
-    bc[3]  = (short)((*c++ & 0x1) << 1);
-    bc[3] |= (*c >> 7) & 0x1;
-    Mc[3]  = (*c >> 5) & 0x3;
-    xmaxc[3]  = (short)((*c++ & 0x1F) << 1);
-    xmaxc[3] |= (*c >> 7) & 0x1;
-    xmc[39]  = (*c >> 4) & 0x7;
-    xmc[40]  = (*c >> 1) & 0x7;
-    xmc[41]  = (short)((*c++ & 0x1) << 2);
-    xmc[41] |= (*c >> 6) & 0x3;
-    xmc[42]  = (*c >> 3) & 0x7;
-    xmc[43]  = *c++ & 0x7;
-    xmc[44]  = (*c >> 5) & 0x7;
-    xmc[45]  = (*c >> 2) & 0x7;
-    xmc[46]  = (short)((*c++ & 0x3) << 1);
-    xmc[46] |= (*c >> 7) & 0x1;
-    xmc[47]  = (*c >> 4) & 0x7;
-    xmc[48]  = (*c >> 1) & 0x7;
-    xmc[49]  = (short)((*c++ & 0x1) << 2);
-    xmc[49] |= (*c >> 6) & 0x3;
-    xmc[50]  = (*c >> 3) & 0x7;
-    xmc[51]  = *c++ & 0x7;
-
-    Gsm_Decoder(s, LARc, Nc, bc, Mc, xmaxc, xmc, target);
-    return 0;
 }

@@ -5,7 +5,10 @@
 #include "GameSoundStream.h"
 #include "PebbleFL/Common/PblListDoubleSorted.h"
 
-namespace Snd { class Stream; }
+namespace Snd
+{
+class Stream;
+}
 class MemoryPool;
 class PblFileChunk;
 
@@ -32,7 +35,7 @@ public:
     Music();
     ~Music();
 
-    static void* operator new(size_t uSize);
+    static void* operator new(unsigned int uSize);
 
     void Play();
     void Stop();

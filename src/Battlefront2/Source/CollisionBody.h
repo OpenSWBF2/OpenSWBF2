@@ -61,7 +61,8 @@ class CollisionBodyMesh : public CollisionBody
 public:
     CollisionBodyMesh(const CollisionMesh* pMesh, const char* pcName, const PblMatrix& matrix,
                       unsigned int uiParentHashName);
-    virtual ~CollisionBodyMesh();
+    // SYNTHETIC: SWBF2 0x0045d870
+    // CollisionBodyMesh::`scalar deleting destructor'
 
     virtual bool ReceiveCollision(const PblMatrix &, const CollisionPrimitive &, CollisionObject *, const PblMatrix &, CollisionObject *, Restrictor *) const;
     virtual bool RayTest(const RedPose *, const PblVector3 &, const PblVector3 &, float);
@@ -84,7 +85,8 @@ public:
     CollisionBodyPrimitive();
     CollisionBodyPrimitive(CollisionPrimitive primitive, const char* pcName, const PblMatrix& matrix,
                            unsigned int uiParentHashName);
-    virtual ~CollisionBodyPrimitive();
+    // SYNTHETIC: SWBF2 0x004550b0
+    // CollisionBodyPrimitive::~CollisionBodyPrimitive
 
     void Init(CollisionPrimitive primitive, const char* pcName, const PblMatrix& matrix,
               unsigned int uiParentHashName);
@@ -102,11 +104,13 @@ public:
 
     static void ClearAll();
 
-    static CollisionBodyPrimitive* Find(unsigned int uHash);
+    // FUNCTION: SWBF2 0x004920c0
+    static CollisionBodyPrimitive* Find(unsigned int uHash)
+    {
+        return _HashTable.Find(uHash);
+    }
 
     CollisionPrimitive mPrimitive;
-
-    static int _HashTableNumEntries;
     static PblHashTable<CollisionBodyPrimitive, 1024> _HashTable;
 };
  

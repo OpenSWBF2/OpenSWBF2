@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "Battlefront2/Source/SunFlare.h"
 #include "pcSunFlare.h"
 #include "PebbleFL/Common/PblHashTable.h"
@@ -16,7 +17,11 @@
 #include "PebbleFL/Common/PblMath.h"
 #include "RedEngineFL/Application/RedWater.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
-#include "PebbleFL/pc/PblD3DX.h"
+
+// GLOBAL: SWBF2 0x007b2750
+// __xmm@00000010000000100000000000000000
+// GLOBAL: SWBF2 0x007b2910
+// __xmm@41700000000000000000000000000000
 
 namespace FLRenderer
 {
@@ -29,11 +34,6 @@ RedColor ReadColor(const PblConfig::Data& data);
 // GLOBAL: SWBF2 0x01e2fd4c
 SunFlareEffect* SunFlareEffect::s_pInstance;
 
-// SYNTHETIC: SWBF2 0x0042d0d0
-// SunFlareEffect::`scalar deleting destructor'
-SunFlareEffect::~SunFlareEffect()
-{
-}
 
 // FUNCTION: SWBF2 0x0042d140
 void SunFlareEffect::Create()
@@ -44,11 +44,13 @@ void SunFlareEffect::Create()
     }
 }
 
-// GLOBAL: SWBF2 0x01eaffc8
 // SYNTHETIC: SWBF2 0x00402120
 // `dynamic initializer for 's_SunSkyRenderable''
 // SYNTHETIC: SWBF2 0x00766d00
 // `dynamic atexit destructor for 's_SunSkyRenderable''
+
+// GLOBAL: SWBF2 0x01eaffc8
+// s_SunSkyRenderable
 SunSkyRenderable s_SunSkyRenderable;
 
 // GLOBAL: SWBF2 0x01e2fd54
@@ -69,8 +71,37 @@ static pcFlareShader* s_pRingShader;
 // GLOBAL: SWBF2 0x01f9af3c
 static pcFlareShader* s_pSunAndHaloShader;
 
+
 // GLOBAL: SWBF2 0x007eb748
+// s_boundingBox
 static PblBox s_boundingBox(-3000.0f, -3000.0f, -3000.0f, 3000.0f, 3000.0f, 3000.0f);
+
+
+
+
+
+struct FlareVertex
+{
+    PosXYZ pos;
+    RedColor color;
+    TexCoord uv;
+};
+ 
+
+
+struct FlareCompressedVertex
+{
+    CompressedPos pos;
+    RedColor color;
+    CompressedTexCoord uv;
+};
+
+struct SampleVertex
+{
+    PblVector4 pos;
+    TexCoord uv;
+};
+ 
 
 template <class VERTEX, int RVF>
 bool CreateTextures(RedTexture* pTexture, const PblVector3& vPosition, float fSize,
@@ -83,58 +114,15 @@ template <class VERTEX>
 void EmitRing(VERTEX*& pVertices, const PblVector3& vPosition, float, float, float, float,
               const RedColor&, const RedColor&, const RedColor&, int, float, float);
 
-static void EmitSunRings(const SunFlare& flare, FlareVertex*& pVertices,
-                         const PblVector3& vPosition, float fTexU, float fTexV);
-static void EmitSunRings(const SunFlare& flare, FlareCompressedVertex*& pVertices,
-                         const PblVector3& vPosition, float fTexU, float fTexV);
 
-// GLOBAL: SWBF2 0x01faa7bc
-float sFirstRingRadiusCompressed;
-// GLOBAL: SWBF2 0x01faa7c0
-unsigned int sFirstRingFlagsCompressed;
-// GLOBAL: SWBF2 0x01faa7c4
-float sFirstRingRadiusUncompressed;
-// GLOBAL: SWBF2 0x01faa7c8
-unsigned int sFirstRingFlagsUncompressed;
-// GLOBAL: SWBF2 0x01faa450
-unsigned char sFirstRingAlphaUncompressed;
-// GLOBAL: SWBF2 0x01faa451
-unsigned char sFirstRingAlphaCompressed;
 
-static void CompressedPos_SetBoundingBox(const PblBox& box)
-{
-    PblVector3 vMin = { box._vMin.x, box._vMin.y, box._vMin.z };
-    PblVector3 vExtent = { box._vMax.x - box._vMin.x, box._vMax.y - box._vMin.y,
-                                box._vMax.z - box._vMin.z };
-    CompressedPos::s_vMin = vMin;
-    CompressedPos::s_vScale = vExtent * (1.0f / 65535.0f);
-    CompressedPos::s_vScaleInv.x = 1.0f / CompressedPos::s_vScale.x;
-    CompressedPos::s_vScaleInv.y = 1.0f / CompressedPos::s_vScale.y;
-    CompressedPos::s_vScaleInv.z = 1.0f / CompressedPos::s_vScale.z;
-}
-
-static short CompressedPos_Encode(float f, float fMin, float fScaleInv)
-{
-    return (short)((f - fMin) * fScaleInv - 32767.5f);
-}
-
-// FUNCTION: SWBF2 0x0040cc80
-void CompressedPos::SetPos(float fX, float fY, float fZ)
-{
-    x = CompressedPos_Encode(fX, CompressedPos::s_vMin.x,
-                            CompressedPos::s_vScaleInv.x);
-    y = CompressedPos_Encode(fY, CompressedPos::s_vMin.y,
-                            CompressedPos::s_vScaleInv.y);
-    z = CompressedPos_Encode(fZ, CompressedPos::s_vMin.z,
-                            CompressedPos::s_vScaleInv.z);
-}
 
 static void SetSunFlareVertex(FlareVertex& v, float x, float y, float z,
                               const RedColor& color, float u, float texV)
 {
-    v.pos.x = x; v.pos.y = y; v.pos.z = z;
+    v.pos.SetPos(x, y, z);
     v.color = color;
-    v.uv.u = u; v.uv.v = texV;
+    v.uv.SetUV(u, texV);
 }
 
 static void SetSunFlareVertex(FlareCompressedVertex& v, float x, float y, float z,
@@ -142,13 +130,12 @@ static void SetSunFlareVertex(FlareCompressedVertex& v, float x, float y, float 
 {
     v.pos.SetPos(x, y, z);
     v.color = color;
-    v.uv.u = (short)(u * 2048.0f);
-    v.uv.v = (short)(texV * 2048.0f);
+    v.uv.SetUV(u, texV);
 }
 
 static void SetSunFlareDiscVertex(FlareVertex& v, float x, float y, float z)
 {
-    v.pos.x = x; v.pos.y = y; v.pos.z = z;
+    v.pos.SetPos(x, y, z);
     v.color = RedColor::WHITE;
 }
 
@@ -189,25 +176,25 @@ void SunFlareEffect::Init()
         s_samplePoints->EndVertexData();
 
         s_pFlareOutShader = (pcFlareShader*)pcRedShader::Create(
-            PblHash("flare"), 0x282, 0, 0, 0x30000, RedColor::WHITE, RedColor::BLACK, 32.0f);
+            kuiFlareShader, 0x282, 0, 0, 0x30000, RedColor::WHITE, RedColor::BLACK, 32.0f);
         s_pSampleShader = (pcSampleShader*)pcRedShader::Create(
-            PblHash("sample"), 2, 0, 0, 0, RedColor::WHITE, RedColor::BLACK, 32.0f);
+            kuiSampleShader, 2, 0, 0, 0, RedColor::WHITE, RedColor::BLACK, 32.0f);
         s_pSampleShader->SetInputTexture(s_sampleTex);
         s_pSampleShader->SetScale(1.0f / 120.0f);
         s_pSampleShader->SetOutputPosition(0.0f, 0.0f);
         s_pRingShader = (pcFlareShader*)pcRedShader::Create(
-            PblHash("flare"), 0x282, 0, 0, 0x130040, RedColor::WHITE, RedColor::BLACK, 32.0f);
+            kuiFlareShader, 0x282, 0, 0, 0x130040, RedColor::WHITE, RedColor::BLACK, 32.0f);
         s_pRingShader->SetTexture(s_intensityTex);
         s_pSunAndHaloShader = (pcFlareShader*)pcRedShader::Create(
-            PblHash("flare"), 0x82, 0, 0, 0x10040, RedColor::WHITE, RedColor::BLACK, 32.0f);
+            kuiFlareShader, 0x82, 0, 0, 0x10040, RedColor::WHITE, RedColor::BLACK, 32.0f);
     }
     else
     {
         s_samplePoints = pcRedPrimitive::Create(D3DPT_POINTLIST, 0x9282, 8, 256, 0, true);
         const PblBox box(0.0f, 0.0f, 0.0f, 15.0f, 15.0f, 0.0f);
         s_samplePoints->m_bbox = box;
-        CompressedPos_SetBoundingBox(box);
-        short* v = (short*)s_samplePoints->BeginVertexData();
+        CompressedPos::SetBoundingBox(box);
+        CompressedPos* v = (CompressedPos*)s_samplePoints->BeginVertexData();
         if (!v)
         {
             return;
@@ -216,29 +203,24 @@ void SunFlareEffect::Init()
         {
             for (int j = 0; j < 16; j++)
             {
-                v[0] = CompressedPos_Encode((float)i, CompressedPos::s_vMin.x,
-                                            CompressedPos::s_vScaleInv.x);
-                v[1] = CompressedPos_Encode((float)j, CompressedPos::s_vMin.y,
-                                            CompressedPos::s_vScaleInv.y);
-                v[2] = CompressedPos_Encode(0.0f, CompressedPos::s_vMin.z,
-                                            CompressedPos::s_vScaleInv.z);
-                v += 4;
+                v->SetPos((float)i, (float)j, 0.0f);
+                ++v;
             }
         }
         s_samplePoints->EndVertexData();
 
         s_pFlareOutShader = (pcFlareShader*)pcRedShader::Create(
-            PblHash("flare"), 0x9282, 0, 0, 0x30000, RedColor::WHITE, RedColor::BLACK, 32.0f);
+            kuiFlareShader, 0x9282, 0, 0, 0x30000, RedColor::WHITE, RedColor::BLACK, 32.0f);
         s_pSampleShader = (pcSampleShader*)pcRedShader::Create(
-            PblHash("sample"), 0x1002, 0, 0, 0, RedColor::WHITE, RedColor::BLACK, 32.0f);
+            kuiSampleShader, 0x1002, 0, 0, 0, RedColor::WHITE, RedColor::BLACK, 32.0f);
         s_pSampleShader->SetInputTexture(s_sampleTex);
         s_pSampleShader->SetScale(1.0f / 120.0f);
         s_pSampleShader->SetOutputPosition(0.0f, 0.0f);
         s_pRingShader = (pcFlareShader*)pcRedShader::Create(
-            PblHash("flare"), 0x9282, 0, 0, 0x130040, RedColor::WHITE, RedColor::BLACK, 32.0f);
+            kuiFlareShader, 0x9282, 0, 0, 0x130040, RedColor::WHITE, RedColor::BLACK, 32.0f);
         s_pRingShader->SetTexture(s_intensityTex);
         s_pSunAndHaloShader = (pcFlareShader*)pcRedShader::Create(
-            PblHash("flare"), 0x1082, 0, 0, 0x10040, RedColor::WHITE, RedColor::BLACK, 32.0f);
+            kuiFlareShader, 0x1082, 0, 0, 0x10040, RedColor::WHITE, RedColor::BLACK, 32.0f);
     }
 
     s_SunSkyRenderable.Activate(0);
@@ -475,27 +457,17 @@ void SunFlare::DeactivateEffect()
     }
 }
 
-static RedColor MakeColor(unsigned char r, unsigned char g, unsigned char b, unsigned char a)
-{
-    RedColor color;
-    color.r = r;
-    color.g = g;
-    color.b = b;
-    color.a = a;
-    return color;
-}
-
 // FUNCTION: SWBF2 0x0042e150
 SunFlare::SunFlare()
     : _fSize(1.0f)
     , _color(RedColor::WHITE)
     , _initialFlareOutAlpha(70)
-    , _spikeColor(MakeColor(255, 255, 0, 128))
+    , _spikeColor(RedColor(255, 255, 0, 128))
     , _flareEnable(true)
 {
-    _sunHaloColor[0] = MakeColor(255, 255, 0, 255);
-    _sunHaloColor[1] = MakeColor(255, 255, 0, 128);
-    _sunHaloColor[2] = MakeColor(255, 255, 0, 0);
+    _sunHaloColor[0] = RedColor(255, 255, 0, 255);
+    _sunHaloColor[1] = RedColor(255, 255, 0, 128);
+    _sunHaloColor[2] = RedColor(255, 255, 0, 0);
     _sunHaloSize[0] = 0.0f;
     _sunHaloSize[1] = 5.0f;
     _sunHaloSize[2] = 40.0f;
@@ -521,9 +493,9 @@ SunFlare::SunFlare(const SunFlare& that)
 }
 
 // SYNTHETIC: SWBF2 0x00433dd8
-// [thunk]:SunFlare::`scalar deleting destructor' adjustor{40}
+// ??_ESunFlare@@WCI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00433de0
-// [thunk]:SunFlare::`scalar deleting destructor' adjustor{16}
+// ??_ESunFlare@@WBA@AEPAXI@Z
 // FUNCTION: SWBF2 0x0042e4d0
 SunFlare::~SunFlare()
 {
@@ -607,7 +579,7 @@ void SunFlare::_Render() const
     const PblVector3& vCamera = RedRenderer::GetCamera()->GetMatrix().GetTranslation();
     PblVector3 vPosition(vCamera.x + vOffset.x, vCamera.y + vOffset.y, vCamera.z + vOffset.z);
     PblVector3 vView;
-    D3DXVec3TransformCoord(&vView, &vPosition, &RedRenderer::GetCamera()->GetMatrixInverse());
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vView), reinterpret_cast<const D3DXVECTOR3*>(&vPosition), reinterpret_cast<const D3DXMATRIX*>(&RedRenderer::GetCamera()->GetMatrixInverse()));
     vPosition = vView;
 
     float fSize = _fSize * fDistance * 0.00833f / RedRenderer::GetCamera()->GetZoom();
@@ -638,7 +610,8 @@ void SunFlare::_Render() const
 
 // TEMPLATE: SWBF2 0x0042e970
 // SunFlare::RenderSunAndHalo<FlareVertex,642>
-// FUNCTION: SWBF2 0x0042ed30
+// TEMPLATE: SWBF2 0x0042ed30
+// SunFlare::RenderSunAndHalo<FlareCompressedVertex,37506>
 template <class VERTEX, int RVF>
 void SunFlare::RenderSunAndHalo(unsigned int uiPass) const
 {
@@ -654,7 +627,7 @@ void SunFlare::RenderSunAndHalo(unsigned int uiPass) const
     const PblVector3& vCamera = RedRenderer::GetCamera()->GetMatrix().GetTranslation();
     PblVector3 vPosition(vCamera.x + vOffset.x, vCamera.y + vOffset.y, vCamera.z + vOffset.z);
     PblVector3 vView;
-    D3DXVec3TransformCoord(&vView, &vPosition, &RedRenderer::GetCamera()->GetMatrixInverse());
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vView), reinterpret_cast<const D3DXVECTOR3*>(&vPosition), reinterpret_cast<const D3DXMATRIX*>(&RedRenderer::GetCamera()->GetMatrixInverse()));
     vPosition = vView;
 
     const float fScale = fDistance * 0.00833f;
@@ -666,7 +639,7 @@ void SunFlare::RenderSunAndHalo(unsigned int uiPass) const
     }
 
     pcRedVertexBuffer* pBuffer = pcRedVertexBuffer::Create(300, sizeof(VERTEX), false, true);
-    CompressedPos_SetBoundingBox(s_boundingBox);
+    CompressedPos::SetBoundingBox(s_boundingBox);
     unsigned int uiStart;
     VERTEX* pBase = (VERTEX*)pBuffer->Lock(300, uiStart);
     VERTEX* pVertices = pBase;
@@ -690,7 +663,8 @@ void SunFlare::RenderSunAndHalo(unsigned int uiPass) const
     pPrimitive->Release();
 }
 
-// FUNCTION: SWBF2 0x0042f0e0
+// TEMPLATE: SWBF2 0x0042f0e0
+// CreateTextures<FlareVertex,642>
 template <class VERTEX, int RVF>
 bool CreateTextures(RedTexture* pTexture, const PblVector3& vPosition, float fSize,
                     SunFlare::Rect& rect, bool bSunAndHalo)
@@ -769,22 +743,18 @@ bool CreateTextures(RedTexture* pTexture, const PblVector3& vPosition, float fSi
     rect.maxX = sourceWidth * scaleX / (float)pTexture->GetWidth();
     rect.maxY = sourceHeight * scaleY / (float)pTexture->GetHeight();
 
-    pcRedPrimitive* pClear = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, 515, 24, 4, 0, false);
-    float* pClearV = (float*)pClear->BeginVertexData();
+    pcRedPrimitive* pClear = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, 515, sizeof(SampleVertex), 4, 0, false);
+    SampleVertex* pClearV = (SampleVertex*)pClear->BeginVertexData();
     if (!pClearV)
     {
         return false;
     }
     const float x0 = minX - 2.0f, x1 = maxX + 2.0f;
     const float y0 = minY - 2.0f, y1 = maxY + 2.0f;
-    const float clearXY[8] = { x0, y0, x0, y1, x1, y0, x1, y1 };
-    for (int i = 0; i < 4; ++i)
-    {
-        pClearV[i * 6] = clearXY[2 * i];
-        pClearV[i * 6 + 1] = clearXY[2 * i + 1];
-        pClearV[i * 6 + 2] = 0.0f;
-        pClearV[i * 6 + 3] = 1.0f;
-    }
+    pClearV[0].pos.Set(x0, y0, 0.0f, 1.0f);
+    pClearV[1].pos.Set(x0, y1, 0.0f, 1.0f);
+    pClearV[2].pos.Set(x1, y0, 0.0f, 1.0f);
+    pClearV[3].pos.Set(x1, y1, 0.0f, 1.0f);
     pClear->EndVertexData();
     RedColor transparent = { 0, 0, 0, 0 };
     RedRenderer::pcRenderPrimitive(pClear, s_pClearShader,
@@ -794,7 +764,7 @@ bool CreateTextures(RedTexture* pTexture, const PblVector3& vPosition, float fSi
     pcRedPrimitive* pDisc = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, RVF,
                                                    sizeof(VERTEX), 42, 0, false);
     pDisc->m_bbox = s_boundingBox;
-    CompressedPos_SetBoundingBox(s_boundingBox);
+    CompressedPos::SetBoundingBox(s_boundingBox);
     VERTEX* pDiscV = (VERTEX*)pDisc->BeginVertexData();
     if (!pDiscV)
     {
@@ -815,22 +785,20 @@ bool CreateTextures(RedTexture* pTexture, const PblVector3& vPosition, float fSi
 
     if (!bSunAndHalo && FLRenderer::GetFarSceneRange() > FLRenderer::GetNearSceneFadeStart())
     {
-        pcRedPrimitive* pFade = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, 515, 24, 4, 0, false);
-        float* pFadeV = (float*)pFade->BeginVertexData();
+        pcRedPrimitive* pFade = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, 515, sizeof(SampleVertex), 4, 0, false);
+        SampleVertex* pFadeV = (SampleVertex*)pFade->BeginVertexData();
         if (!pFadeV)
         {
             return false;
         }
-        const float xy[8] = { vMin.x, vMax.y, vMin.x, vMin.y,
-                              vMax.x, vMax.y, vMax.x, vMin.y };
-        const float uv[8] = { rect.minX, rect.minY, rect.minX, rect.maxY,
-                              rect.maxX, rect.minY, rect.maxX, rect.maxY };
-        for (int i = 0; i < 4; ++i)
-        {
-            pFadeV[i * 6] = xy[2 * i]; pFadeV[i * 6 + 1] = xy[2 * i + 1];
-            pFadeV[i * 6 + 2] = 0.0f; pFadeV[i * 6 + 3] = 1.0f;
-            pFadeV[i * 6 + 4] = uv[2 * i]; pFadeV[i * 6 + 5] = uv[2 * i + 1];
-        }
+        pFadeV[0].pos.Set(vMin.x, vMax.y, 0.0f, 1.0f);
+        pFadeV[0].uv.SetUV(rect.minX, rect.minY);
+        pFadeV[1].pos.Set(vMin.x, vMin.y, 0.0f, 1.0f);
+        pFadeV[1].uv.SetUV(rect.minX, rect.maxY);
+        pFadeV[2].pos.Set(vMax.x, vMax.y, 0.0f, 1.0f);
+        pFadeV[2].uv.SetUV(rect.maxX, rect.minY);
+        pFadeV[3].pos.Set(vMax.x, vMin.y, 0.0f, 1.0f);
+        pFadeV[3].uv.SetUV(rect.maxX, rect.maxY);
         pFade->EndVertexData();
         s_pClearShader->SetBlendMode(pcClearShader::BLENDMODE_MODULATE);
         s_pClearShader->m_pTex = pTexture;
@@ -848,8 +816,7 @@ bool CreateTextures(RedTexture* pTexture, const PblVector3& vPosition, float fSi
         RedViewport viewport;
         RedRenderer::pcGetViewport(viewport);
         RedRenderer::pcSetRenderTarget(pTexture, pDepth);
-        RedColor clearColor = RedColor::BLACK;
-        clearColor.a = 0;
+        RedColor clearColor(RedColor::BLACK, 0);
         RedRenderer::pcClear(1, clearColor, 1.0f, 0);
         RedRenderer::pcSetRenderTarget(pOld, pDepth);
         RedRenderer::pcSetViewport(viewport);
@@ -876,8 +843,7 @@ bool CreateTextures(RedTexture* pTexture, const PblVector3& vPosition, float fSi
         RedViewport viewport;
         RedRenderer::pcGetViewport(viewport);
         RedRenderer::pcSetRenderTarget(s_intensityTex, 0);
-        RedColor clearColor = RedColor::BLACK;
-        clearColor.a = 0;
+        RedColor clearColor(RedColor::BLACK, 0);
         RedRenderer::pcClear(1, clearColor, 1.0f, 0);
         RedRenderer::pcRenderPrimitive(s_samplePoints, s_pSampleShader,
                                        gMatrixIdentity, RedColor::WHITE, 0x200, 0, 0, 0);
@@ -894,7 +860,8 @@ template bool CreateTextures<FlareVertex, 642>(RedTexture*, const PblVector3&, f
 template bool CreateTextures<FlareCompressedVertex, 37506>(RedTexture*, const PblVector3&,
                                                              float, SunFlare::Rect&, bool);
 
-// FUNCTION: SWBF2 0x0042fb20
+// TEMPLATE: SWBF2 0x0042fb20
+// RenderFlareOuts<FlareVertex,642>
 template <class VERTEX, int RVF>
 void RenderFlareOuts(RedTexture* pTexture, const PblVector3& vPosition, float fSize,
                      const SunFlare::Rect& rect, float fFlareOutSize, int iNumFlareOuts,
@@ -902,7 +869,7 @@ void RenderFlareOuts(RedTexture* pTexture, const PblVector3& vPosition, float fS
 {
     pcRedVertexBuffer* pBuffer = pcRedVertexBuffer::Create(6 * iNumFlareOuts,
                                                             sizeof(VERTEX), false, true);
-    CompressedPos_SetBoundingBox(s_boundingBox);
+    CompressedPos::SetBoundingBox(s_boundingBox);
     unsigned int startVertex;
     VERTEX* pBase = (VERTEX*)pBuffer->Lock(6 * iNumFlareOuts, startVertex);
     VERTEX* pVertex = pBase;
@@ -912,8 +879,7 @@ void RenderFlareOuts(RedTexture* pTexture, const PblVector3& vPosition, float fS
     {
         size += step;
         float fade = 1.0f - (float)i / (float)iNumFlareOuts;
-        RedColor color = RedColor::WHITE;
-        color.a = (unsigned char)(int)((float)initialAlpha * fade * fade * fade);
+        RedColor color(RedColor::WHITE, (unsigned char)(int)((float)initialAlpha * fade * fade * fade));
         if (color.a < 3)
         {
             break;
@@ -949,17 +915,18 @@ template void RenderFlareOuts<FlareCompressedVertex, 37506>(RedTexture*, const P
                                                              float, const SunFlare::Rect&, float,
                                                              int, unsigned char);
 
-// FUNCTION: SWBF2 0x0042ff10
+// TEMPLATE: SWBF2 0x0042ff10
+// SunFlare::RenderSunRings<FlareVertex,642>
 template <class VERTEX, int RVF>
 void SunFlare::RenderSunRings(const PblVector3& vPosition, float fSize, float fTexU,
                              float fTexV) const
 {
     pcRedVertexBuffer* pBuffer = pcRedVertexBuffer::Create(700, sizeof(VERTEX), false, true);
-    CompressedPos_SetBoundingBox(s_boundingBox);
+    CompressedPos::SetBoundingBox(s_boundingBox);
     unsigned int uiStart;
     VERTEX* pBase = (VERTEX*)pBuffer->Lock(700, uiStart);
     VERTEX* pVertices = pBase;
-    ::EmitSunRings(*this, pVertices, vPosition, fTexU, fTexV);
+    EmitSunRings(pVertices, vPosition, fSize, fTexU, fTexV);
     const int iNumVertices = pVertices - pBase;
     pBuffer->Unlock();
     pcRedPrimitive* pPrimitive = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP,
@@ -976,22 +943,6 @@ void SunFlare::RenderSunRings(const PblVector3& vPosition, float fSize, float fT
 template void SunFlare::RenderSunRings<FlareVertex, 642>(const PblVector3&, float, float, float) const;
 template void SunFlare::RenderSunRings<FlareCompressedVertex, 37506>(const PblVector3&, float, float, float) const;
 
-static void SetRingPosition(FlareVertex& v, const PblVector3& center, float cosine,
-                            float sine, float radius)
-{
-    v.pos.x = center.x + cosine * radius;
-    v.pos.y = center.y + sine * radius;
-    v.pos.z = center.z;
-}
-
-static void SetRingPosition(FlareCompressedVertex& v, const PblVector3& center,
-                            float cosine, float sine, float radius)
-{
-    v.pos.SetPos(center.x + cosine * radius,
-                       center.y + sine * radius, center.z);
-}
-
-// FUNCTION: SWBF2 0x00431330
 template <class VERTEX>
 void EmitRing(VERTEX*& pVertices, const PblVector3& vPosition, float fAngle,
               float fInnerRadius, float fMiddleRadius, float fOuterRadius,
@@ -1000,79 +951,63 @@ void EmitRing(VERTEX*& pVertices, const PblVector3& vPosition, float fAngle,
 {
     float fSin, fCos;
     PblMath::SinCos(&fSin, &fCos, fAngle);
-    SetRingPosition(*pVertices++, vPosition, fCos, fSin, fInnerRadius);
+    PblVector3 tempPos = vPosition + PblVector3(fCos * fInnerRadius, fSin * fInnerRadius, 0.0f);
+    pVertices->pos.SetPos(tempPos);
+    ++pVertices;
     for (int i = 0; i <= iSegments; ++i)
     {
         PblMath::SinCos(&fSin, &fCos, (float)i * 6.2831855f / (float)iSegments + fAngle);
-        VERTEX* pPair = pVertices;
-        SetSunFlareVertex(pPair[0], vPosition.x + fCos * fInnerRadius,
-                          vPosition.y + fSin * fInnerRadius, vPosition.z,
-                          innerColor, fU, fV);
-        SetSunFlareVertex(pPair[1], vPosition.x + fCos * fMiddleRadius,
-                          vPosition.y + fSin * fMiddleRadius, vPosition.z,
-                          middleColor, fU, fV);
+        PblVector3 vSegPos[3] = {
+            vPosition + PblVector3(fCos * fInnerRadius, fSin * fInnerRadius, 0.0f),
+            vPosition + PblVector3(fCos * fMiddleRadius, fSin * fMiddleRadius, 0.0f),
+            vPosition + PblVector3(fCos * fOuterRadius, fSin * fOuterRadius, 0.0f)
+        };
+        pVertices[0].pos.SetPos(vSegPos[0]);
+        pVertices[0].color = innerColor;
+        pVertices[0].uv.SetUV(fU, fV);
+        pVertices[1].pos.SetPos(vSegPos[1]);
+        pVertices[1].color = middleColor;
+        pVertices[1].uv.SetUV(fU, fV);
         if (i == 0)
         {
-            pPair[2 * iSegments + 2] = pPair[1];
+            pVertices[2 * iSegments + 2].pos.SetPos(vSegPos[1]);
+            pVertices[2 * iSegments + 2].color = middleColor;
+            pVertices[2 * iSegments + 2].uv.SetUV(fU, fV);
         }
-        pPair[2 * iSegments + 3] = pPair[1];
-        SetSunFlareVertex(pPair[2 * iSegments + 4],
-                          vPosition.x + fCos * fOuterRadius,
-                          vPosition.y + fSin * fOuterRadius, vPosition.z,
-                          outerColor, fU, fV);
+        pVertices[2 * iSegments + 3].pos.SetPos(vSegPos[1]);
+        pVertices[2 * iSegments + 3].color = middleColor;
+        pVertices[2 * iSegments + 3].uv.SetUV(fU, fV);
+        pVertices[2 * iSegments + 4].pos.SetPos(vSegPos[2]);
+        pVertices[2 * iSegments + 4].color = outerColor;
+        pVertices[2 * iSegments + 4].uv.SetUV(fU, fV);
         pVertices += 2;
     }
     pVertices += 2 * iSegments + 3;
     PblMath::SinCos(&fSin, &fCos, fAngle);
-    SetRingPosition(*pVertices++, vPosition, fCos, fSin, fOuterRadius);
+    tempPos = vPosition + PblVector3(fCos * fOuterRadius, fSin * fOuterRadius, 0.0f);
+    pVertices->pos.SetPos(tempPos);
+    ++pVertices;
 }
+
+// TEMPLATE: SWBF2 0x00431330
+// EmitRing<FlareVertex>
+template void EmitRing<FlareVertex>(FlareVertex*&, const PblVector3&, float,
+                        float, float, float, const RedColor&, const RedColor&,
+                        const RedColor&, int, float, float);
 
 // TEMPLATE: SWBF2 0x004315f0
 // EmitRing<FlareCompressedVertex>
-template void EmitRing<FlareVertex>(FlareVertex*&, const PblVector3&, float, float, float,
-                                    float, const RedColor&, const RedColor&, const RedColor&,
-                                    int, float, float);
-template void EmitRing<FlareCompressedVertex>(FlareCompressedVertex*&, const PblVector3&,
-                                              float, float, float, float, const RedColor&,
-                                              const RedColor&, const RedColor&, int, float, float);
-
-static RedColor SunRingColor(unsigned int rgb, unsigned char alpha)
-{
-    RedColor color;
-    color.b = (unsigned char)rgb;
-    color.g = (unsigned char)(rgb >> 8);
-    color.r = (unsigned char)(rgb >> 16);
-    color.a = alpha;
-    return color;
-}
-
-static float& SunRingRadius(FlareVertex*) { return sFirstRingRadiusUncompressed; }
-static float& SunRingRadius(FlareCompressedVertex*) { return sFirstRingRadiusCompressed; }
-static unsigned int& SunRingFlags(FlareVertex*) { return sFirstRingFlagsUncompressed; }
-static unsigned int& SunRingFlags(FlareCompressedVertex*) { return sFirstRingFlagsCompressed; }
-static unsigned char SunRingAlpha(FlareVertex*) { return sFirstRingAlphaUncompressed; }
-static unsigned char SunRingAlpha(FlareCompressedVertex*) { return sFirstRingAlphaCompressed; }
-
-struct SunRingSpec
-{
-    float offset;
-    float innerRadius;
-    float middleRadius;
-    float outerRadius;
-    unsigned int innerRGB;
-    unsigned int middleRGB;
-    unsigned int outerRGB;
-    int segments;
-    bool outerUsesAlpha;
-};
+template void EmitRing<FlareCompressedVertex>(FlareCompressedVertex*&, const PblVector3&, float,
+                        float, float, float, const RedColor&, const RedColor&,
+                        const RedColor&, int, float, float);
 
 template <class VERTEX>
-static void EmitSunRingsBody(const SunFlare& flare, VERTEX*& pVertices,
-                             const PblVector3& vPosition, float fDistance,
-                             float fTexU, float fTexV)
+void SunFlare::EmitSunRings(VERTEX*& pVertices, const PblVector3& vPosition,
+                             float radius, float fTexU, float fTexV) const
 {
     const PblMatrix& projection = RedRenderer::GetProjectionMatrix();
-    const float fScale = fDistance * 0.0037f;
+    radius = GetDistance();
+    const float fScale = radius * 0.0037f;
     const float fDepthInv = 1.0f / vPosition.z;
     const float fProjX = projection.m[0][0] * vPosition.x * fDepthInv;
     const float fProjY = projection.m[1][1] * vPosition.y * fDepthInv;
@@ -1082,55 +1017,80 @@ static void EmitSunRingsBody(const SunFlare& flare, VERTEX*& pVertices,
         fForeshorten = 0.0f;
     }
 
-    unsigned char maxColor = flare._color.b;
-    if (flare._color.g > maxColor)
+    unsigned char maxColor = _color.b;
+    if (_color.g > maxColor)
     {
-        maxColor = flare._color.g;
+        maxColor = _color.g;
     }
-    if (flare._color.r > maxColor)
+    if (_color.r > maxColor)
     {
-        maxColor = flare._color.r;
+        maxColor = _color.r;
     }
-    const unsigned char alpha = (unsigned char)(int)((float)maxColor * fForeshorten + 0.5f);
-    const float fSpikeScale = flare._spikeSize * fScale;
+    const unsigned char alpha = (unsigned char)PblMath::Floor((float)maxColor * fForeshorten + 0.5f);
+    const float fSpikeScale = _spikeSize * fScale;
     const float fAngle = (vPosition.y * 6.2831855f + vPosition.x * 3.1415927f)
                          / vPosition.z + fSpikeScale * 3.1415927f * 0.33333001f;
-    float s1, c1, s2, c2;
-    PblMath::SinCos(&s1, &c1, fAngle);
-    PblMath::SinCos(&s2, &c2, 1.0471871f - fAngle);
+    float fSin[2], fCos[2];
+    PblMath::SinCos(&fSin[0], &fCos[0], fAngle);
+    PblMath::SinCos(&fSin[1], &fCos[1], 1.0471871f - fAngle);
     const float r = ((fForeshorten + 1.0f) * (float)maxColor * 0.5f * 0.05f * 0.1f)
                     * fSpikeScale;
     const float x = vPosition.x, y = vPosition.y, z = vPosition.z;
-    const RedColor clear = SunRingColor(0, 0);
-    const RedColor& spike = flare._spikeColor;
-    const float px[13] = {
-        x + c1 * r, x + (c1 * -0.5f - s1 * 0.866f) * r, x,
-        x + (c1 * -0.5f + s1 * 0.866f) * r, x + c1 * r, x + c1 * r,
-        x + c2 * (r * 2.5f), x + c2 * (r * 2.5f),
-        x + (c2 * -0.5f - s2 * 0.866f) * (r * 2.5f), x,
-        x + (c2 * -0.5f + s2 * 0.866f) * (r * 2.5f),
-        x + c2 * (r * 2.5f), x + c2 * (r * 2.5f)
-    };
-    const float py[13] = {
-        y + s1 * (r * 2.0f), y + (c1 * 0.866f - s1 * 0.5f) * (r * 2.0f), y,
-        y + (s1 * -0.5f - c1 * 0.866f) * (r * 2.0f), y + s1 * (r * 2.0f),
-        y + s1 * (r * 2.0f), y + s2 * r, y + s2 * r,
-        y + (c2 * 0.866f - s2 * 0.5f) * r, y,
-        y + (s2 * -0.5f - c2 * 0.866f) * r, y + s2 * r, y + s2 * r
-    };
-    for (int i = 0; i < 13; ++i)
-    {
-        SetSunFlareVertex(pVertices[i], px[i], py[i], z,
-                          i == 2 || i == 9 ? spike : clear, fTexU, fTexV);
-    }
+    PblVector3 vVert[6];
+    vVert[0] = vPosition + PblVector3(fCos[0] * r, fSin[0] * (r * 2.0f), 0.0f);
+    vVert[1] = vPosition + PblVector3((fCos[0] * -0.5f - fSin[0] * 0.866f) * r,
+                                     (fCos[0] * 0.866f - fSin[0] * 0.5f) * (r * 2.0f), 0.0f);
+    vVert[2] = vPosition + PblVector3((fCos[0] * -0.5f - fSin[0] * -0.866f) * r,
+                                     (fSin[0] * -0.5f - fCos[0] * 0.866f) * (r * 2.0f), 0.0f);
+    vVert[3] = vPosition + PblVector3(fCos[1] * (r * 2.5f), fSin[1] * r, 0.0f);
+    vVert[4] = vPosition + PblVector3((fCos[1] * -0.5f - fSin[1] * 0.866f) * (r * 2.5f),
+                                     (fCos[1] * 0.866f - fSin[1] * 0.5f) * r, 0.0f);
+    vVert[5] = vPosition + PblVector3((fCos[1] * -0.5f - fSin[1] * -0.866f) * (r * 2.5f),
+                                     (fSin[1] * -0.5f - fCos[1] * 0.866f) * r, 0.0f);
+
+    const RedColor clear(0, 0, 0, 0);
+    const RedColor& spike = _spikeColor;
+    pVertices[0].pos.SetPos(vVert[0].x, vVert[0].y, vVert[0].z);
+    pVertices[0].uv.SetUV(fTexU, fTexV);
+    pVertices[0].color = clear;
+    pVertices[1].pos.SetPos(vVert[1].x, vVert[1].y, vVert[1].z);
+    pVertices[1].uv.SetUV(fTexU, fTexV);
+    pVertices[1].color = clear;
+    pVertices[2].pos.SetPos(vPosition.x, vPosition.y, vPosition.z);
+    pVertices[2].uv.SetUV(fTexU, fTexV);
+    pVertices[2].color = spike;
+    pVertices[3].pos.SetPos(vVert[2].x, vVert[2].y, vVert[2].z);
+    pVertices[3].uv.SetUV(fTexU, fTexV);
+    pVertices[3].color = clear;
+    pVertices[4].pos.SetPos(vVert[0].x, vVert[0].y, vVert[0].z);
+    pVertices[4].uv.SetUV(fTexU, fTexV);
+    pVertices[4].color = clear;
+    pVertices[5] = pVertices[4];
+    pVertices[6].pos.SetPos(vVert[3].x, vVert[3].y, vVert[3].z);
+    pVertices[6].uv.SetUV(fTexU, fTexV);
+    pVertices[6].color = clear;
+    pVertices[7] = pVertices[6];
+    pVertices[8].pos.SetPos(vVert[4].x, vVert[4].y, vVert[4].z);
+    pVertices[8].uv.SetUV(fTexU, fTexV);
+    pVertices[8].color = clear;
+    pVertices[9].pos.SetPos(vPosition.x, vPosition.y, vPosition.z);
+    pVertices[9].uv.SetUV(fTexU, fTexV);
+    pVertices[9].color = spike;
+    pVertices[10].pos.SetPos(vVert[5].x, vVert[5].y, vVert[5].z);
+    pVertices[10].uv.SetUV(fTexU, fTexV);
+    pVertices[10].color = clear;
+    pVertices[11].pos.SetPos(vVert[3].x, vVert[3].y, vVert[3].z);
+    pVertices[11].uv.SetUV(fTexU, fTexV);
+    pVertices[11].color = clear;
+    pVertices[12] = pVertices[11];
     pVertices += 13;
 
     const RedCamera* pCamera = RedRenderer::GetCamera();
     const float fThreshold = PblMath::Cos(pCamera->GetFOV() * 0.5f);
     const PblVector3& cameraAxis = pCamera->GetMatrix().GetZAxis();
-    float facing = -(cameraAxis.x * flare._vDirection.x +
-                     cameraAxis.y * flare._vDirection.y +
-                     cameraAxis.z * flare._vDirection.z);
+    float facing = -(cameraAxis.x * _vDirection.x +
+                     cameraAxis.y * _vDirection.y +
+                     cameraAxis.z * _vDirection.z);
     if (facing < 0.0f)
     {
         facing = fThreshold;
@@ -1141,77 +1101,155 @@ static void EmitSunRingsBody(const SunFlare& flare, VERTEX*& pVertices,
         fade = 0.0f;
     }
 
-    float& firstRadius = SunRingRadius((VERTEX*)0);
-    unsigned int& flags = SunRingFlags((VERTEX*)0);
-    if (!(flags & 1))
-    {
-        firstRadius = fScale * 35.0f;
-        flags |= 1;
-    }
-    const RedColor whiteInner = SunRingColor(0xffffff,
-        (unsigned char)(int)((float)SunRingAlpha((VERTEX*)0) * fade));
-    const RedColor whiteMiddle = SunRingColor(0xffffff,
+    static float factor = fScale * 35.0f;
+    static unsigned char a1;
+    const RedColor whiteInner = RedColor(255, 255, 255,
+        (unsigned char)(int)((float)a1 * fade));
+    const RedColor whiteMiddle = RedColor(255, 255, 255,
         (unsigned char)(int)(fade * 72.0f));
-    const RedColor whiteOuter = SunRingColor(0xffffff, 0);
-    EmitRing(pVertices, vPosition, 0.0f, 0.0f, fade * firstRadius,
-             fade * 3.0f * firstRadius, whiteInner, whiteMiddle, whiteOuter,
+    const RedColor whiteOuter = RedColor(255, 255, 255, 0);
+    EmitRing(pVertices, vPosition, 0.0f, 0.0f, fade * factor,
+             fade * 3.0f * factor, whiteInner, whiteMiddle, whiteOuter,
              30, fTexU, fTexV);
 
-    const SunRingSpec rings[] = {
-        { -0.30000001f, 0, 0.015f, 0.02f, 0x1b360d, 0x0d1b0d, 0x0d1b1b, 6, false },
-        { -0.34f, 0, 0.0049999999f, 0.0099999998f, 0x6c3636, 0x363636, 0x36366c, 5, false },
-        { -0.5f, fForeshorten * 0.059999999f, (fForeshorten + 1.0f) * 0.082500003f,
-          (fForeshorten + 1.0f) * 0.1f, 0x1b0d36, 0x141b0a, 0x360d00, 20, false },
-        { -0.77499998f, 0, 0.0099999998f, 0.02f, 0x0d140d, 0x0d140d, 0x0d140d, 6, false },
-        { -0.82499999f, 0, 0.02f, 0.039999999f, 0x142214, 0x142214, 0x142214, 8, false },
-        { -0.89499998f, 0, 0.01825f, 0.037500001f, 0x142214, 0x142214, 0x1b281b, 8, false },
-        { -0.94999999f, 0, 0.015f, 0.029999999f, 0x0d140d, 0x0d140d, 0x0d140d, 7, false },
-        { 0.30000001f, 0, 0.0040000002f, 0.0080000004f, 0x88441b, 0x6c440d, 0, 5, true },
-        { 0.2f, 0, 0.025f, 0.039999999f, 0x440000, 0x360d00, 0, 6, true },
-        { 0.125f, 0, 0.015f, 0.025f, 0x3d3600, 0x1b3600, 0, 6, true },
-        { 1.7f, 0, 0.015f, 0.02f, 0x000d51, 0x000044, 0x000044, 6, false },
-        { 1.53f, 0, 0.0145f, 0.0175f, 0x220051, 0x000044, 0x000044, 5, false },
-        { 1.62f, 0, 0.02f, 0.022500001f, 0x141b44, 0x0d1436, 0, 7, false }
-    };
-    for (unsigned int i = 0; i < sizeof(rings) / sizeof(rings[0]); ++i)
-    {
-        const SunRingSpec& ring = rings[i];
-        PblVector3 center(x * ring.offset, y * ring.offset, z);
-        const RedColor inner = SunRingColor(ring.innerRGB, i == 2 ? 0 : alpha);
-        const RedColor middle = SunRingColor(ring.middleRGB, alpha);
-        const RedColor outer = SunRingColor(ring.outerRGB,
-                                            ring.outerUsesAlpha ? alpha : 0);
-        EmitRing(pVertices, center, 0.0f, z * ring.innerRadius,
-                 z * ring.middleRadius, z * ring.outerRadius,
-                 inner, middle, outer, ring.segments, fTexU, fTexV);
-    }
+    vVert[0].x = x * -0.30000001f;
+    vVert[0].y = y * -0.30000001f;
+    vVert[0].z = z;
+    EmitRing(pVertices, vVert[0], 0.0f, z * 0,
+             z * 0.015f, z * 0.02f,
+             RedColor(27, 54, 13, alpha),
+             RedColor(13, 27, 13, alpha),
+             RedColor(13, 27, 27, 0),
+             6, fTexU, fTexV);
+
+    vVert[0].x = x * -0.34f;
+    vVert[0].y = y * -0.34f;
+    vVert[0].z = z;
+    EmitRing(pVertices, vVert[0], 0.0f, z * 0,
+             z * 0.0049999999f, z * 0.0099999998f,
+             RedColor(108, 54, 54, alpha),
+             RedColor(54, 54, 54, alpha),
+             RedColor(54, 54, 108, 0),
+             5, fTexU, fTexV);
+
+    vVert[0].x = x * -0.5f;
+    vVert[0].y = y * -0.5f;
+    vVert[0].z = z;
+    EmitRing(pVertices, vVert[0], 0.0f, z * fForeshorten * 0.059999999f,
+             z * (fForeshorten + 1.0f) * 0.082500003f, z * (fForeshorten + 1.0f) * 0.1f,
+             RedColor(27, 13, 54, 0),
+             RedColor(20, 27, 10, alpha),
+             RedColor(54, 13, 0, 0),
+             20, fTexU, fTexV);
+
+    vVert[0].x = x * -0.77499998f;
+    vVert[0].y = y * -0.77499998f;
+    vVert[0].z = z;
+    EmitRing(pVertices, vVert[0], 0.0f, z * 0,
+             z * 0.0099999998f, z * 0.02f,
+             RedColor(13, 20, 13, alpha),
+             RedColor(13, 20, 13, alpha),
+             RedColor(13, 20, 13, 0),
+             6, fTexU, fTexV);
+
+    vVert[0].x = x * -0.82499999f;
+    vVert[0].y = y * -0.82499999f;
+    vVert[0].z = z;
+    EmitRing(pVertices, vVert[0], 0.0f, z * 0,
+             z * 0.02f, z * 0.039999999f,
+             RedColor(20, 34, 20, alpha),
+             RedColor(20, 34, 20, alpha),
+             RedColor(20, 34, 20, 0),
+             8, fTexU, fTexV);
+
+    vVert[0].x = x * -0.89499998f;
+    vVert[0].y = y * -0.89499998f;
+    vVert[0].z = z;
+    EmitRing(pVertices, vVert[0], 0.0f, z * 0,
+             z * 0.01825f, z * 0.037500001f,
+             RedColor(20, 34, 20, alpha),
+             RedColor(20, 34, 20, alpha),
+             RedColor(27, 40, 27, 0),
+             8, fTexU, fTexV);
+
+    vVert[0].x = x * -0.94999999f;
+    vVert[0].y = y * -0.94999999f;
+    vVert[0].z = z;
+    EmitRing(pVertices, vVert[0], 0.0f, z * 0,
+             z * 0.015f, z * 0.029999999f,
+             RedColor(13, 20, 13, alpha),
+             RedColor(13, 20, 13, alpha),
+             RedColor(13, 20, 13, 0),
+             7, fTexU, fTexV);
+
+    vVert[0].x = x * 0.30000001f;
+    vVert[0].y = y * 0.30000001f;
+    vVert[0].z = z;
+    EmitRing(pVertices, vVert[0], 0.0f, z * 0,
+             z * 0.0040000002f, z * 0.0080000004f,
+             RedColor(136, 68, 27, alpha),
+             RedColor(108, 68, 13, alpha),
+             RedColor(0, 0, 0, alpha),
+             5, fTexU, fTexV);
+
+    vVert[0].x = x * 0.2f;
+    vVert[0].y = y * 0.2f;
+    vVert[0].z = z;
+    EmitRing(pVertices, vVert[0], 0.0f, z * 0,
+             z * 0.025f, z * 0.039999999f,
+             RedColor(68, 0, 0, alpha),
+             RedColor(54, 13, 0, alpha),
+             RedColor(0, 0, 0, alpha),
+             6, fTexU, fTexV);
+
+    vVert[0].x = x * 0.125f;
+    vVert[0].y = y * 0.125f;
+    vVert[0].z = z;
+    EmitRing(pVertices, vVert[0], 0.0f, z * 0,
+             z * 0.015f, z * 0.025f,
+             RedColor(61, 54, 0, alpha),
+             RedColor(27, 54, 0, alpha),
+             RedColor(0, 0, 0, alpha),
+             6, fTexU, fTexV);
+
+    vVert[0].x = x * 1.7f;
+    vVert[0].y = y * 1.7f;
+    vVert[0].z = z;
+    EmitRing(pVertices, vVert[0], 0.0f, z * 0,
+             z * 0.015f, z * 0.02f,
+             RedColor(0, 13, 81, alpha),
+             RedColor(0, 0, 68, alpha),
+             RedColor(0, 0, 68, 0),
+             6, fTexU, fTexV);
+
+    vVert[0].x = x * 1.53f;
+    vVert[0].y = y * 1.53f;
+    vVert[0].z = z;
+    EmitRing(pVertices, vVert[0], 0.0f, z * 0,
+             z * 0.0145f, z * 0.0175f,
+             RedColor(34, 0, 81, alpha),
+             RedColor(0, 0, 68, alpha),
+             RedColor(0, 0, 68, 0),
+             5, fTexU, fTexV);
+
+    vVert[0].x = x * 1.62f;
+    vVert[0].y = y * 1.62f;
+    vVert[0].z = z;
+    EmitRing(pVertices, vVert[0], 0.0f, z * 0,
+             z * 0.02f, z * 0.022500001f,
+             RedColor(20, 27, 68, alpha),
+             RedColor(13, 20, 54, alpha),
+             RedColor(0, 0, 0, 0),
+             7, fTexU, fTexV);
 }
 
-// FUNCTION: SWBF2 0x00431ad0
-template <>
-void SunFlare::EmitSunRings<FlareVertex>(FlareVertex*& pVertices, const PblVector3& vPosition,
-                                         float fTexU, float fTexV) const
-{
-    EmitSunRingsBody(*this, pVertices, vPosition, GetDistance(), fTexU, fTexV);
-}
+// TEMPLATE: SWBF2 0x00431ad0
+// SunFlare::EmitSunRings<FlareVertex>
+template void SunFlare::EmitSunRings<FlareVertex>(FlareVertex*&, const PblVector3&,
+                                                     float, float, float) const;
 
-// FUNCTION: SWBF2 0x00432b00
-template <>
-void SunFlare::EmitSunRings<FlareCompressedVertex>(FlareCompressedVertex*& pVertices,
-                                                   const PblVector3& vPosition, float fTexU,
-                                                   float fTexV) const
-{
-    EmitSunRingsBody(*this, pVertices, vPosition, GetDistance(), fTexU, fTexV);
-}
-
-static void EmitSunRings(const SunFlare& flare, FlareVertex*& pVertices,
-                         const PblVector3& vPosition, float fTexU, float fTexV)
-{
-    flare.EmitSunRings(pVertices, vPosition, fTexU, fTexV);
-}
-
-static void EmitSunRings(const SunFlare& flare, FlareCompressedVertex*& pVertices,
-                         const PblVector3& vPosition, float fTexU, float fTexV)
-{
-    flare.EmitSunRings(pVertices, vPosition, fTexU, fTexV);
-}
+// TEMPLATE: SWBF2 0x00432b00
+// SunFlare::EmitSunRings<FlareCompressedVertex>
+template void SunFlare::EmitSunRings<FlareCompressedVertex>(FlareCompressedVertex*&,
+                                                               const PblVector3&, float,
+                                                               float, float) const;

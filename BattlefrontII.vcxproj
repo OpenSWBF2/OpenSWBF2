@@ -819,6 +819,7 @@
     <ClCompile Include="src\RedEngineFL\input\pc\pcRedInputManager.cpp" />
     <ClCompile Include="src\RedEngineFL\input\pc\pcRedJoystick.cpp" />
     <ClCompile Include="src\RedEngineFL\input\pc\pcRedKeyboard.cpp" />
+    <ClCompile Include="src\RedEngineFL\input\pc\pcRedLogitechLCD.cpp" />
     <ClCompile Include="src\RedEngineFL\input\pc\pcRedMouse.cpp" />
     <ClCompile Include="src\RedEngineFL\movie\RedCircularBuffer.cpp" />
     <ClCompile Include="src\RedEngineFL\movie\RedFileAsync.cpp" />
@@ -876,6 +877,11 @@
     <ClCompile Include="src\SoundFL\source\sndstreamformat.cpp" />
     <ClCompile Include="src\SoundFL\source\sndstreamgsmdecoder.cpp" />
     <ClCompile Include="src\SoundFL\source\sndstreamgsmencoder.cpp" />
+    <ClCompile Include="src\SoundFL\source\gsm-1.0.10\gsm_decode.c" />
+    <ClCompile Include="src\SoundFL\source\gsm-1.0.10\gsm_encode.c" />
+    <ClCompile Include="src\SoundFL\source\gsm-1.0.10\gsm_option.c" />
+    <ClCompile Include="src\SoundFL\source\gsm-1.0.10\long_term.c" />
+    <ClCompile Include="src\SoundFL\source\gsm-1.0.10\short_term.c" />
     <ClCompile Include="src\SoundFL\source\sndstreamhighlowpass.cpp" />
     <ClCompile Include="src\SoundFL\source\sndstreamimaadpcmdecoder.cpp" />
     <ClCompile Include="src\SoundFL\source\sndstreammixer.cpp" />
@@ -920,6 +926,7 @@
     <ClCompile Include="src\Zephyr\Source\ZephyrAnimInst.cpp" />
     <ClCompile Include="src\Zephyr\Source\ZephyrAnimJoint.cpp" />
     <ClCompile Include="src\Zephyr\Source\ZephyrEvent.cpp" />
+    <ClCompile Include="src\Zephyr\Source\ZephyrFile.cpp" />
     <ClCompile Include="src\Zephyr\Source\ZephyrPoseDyn.cpp" />
     <ClCompile Include="src\Zephyr\Source\ZephyrPoseStatic.cpp" />
     <ClCompile Include="src\Zephyr\Source\ZephyrSkeleton.cpp" />
@@ -1077,6 +1084,7 @@
     <ClInclude Include="src\Battlefront2\Source\EventManager_Region.h" />
     <ClInclude Include="src\Battlefront2\Source\EventManager_Team.h" />
     <ClInclude Include="src\Battlefront2\Source\EventManager_Timer.h" />
+    <ClInclude Include="src\Battlefront2\Source\EventManagerVtables.h" />
     <ClInclude Include="src\Battlefront2\Source\Explosion.h" />
     <ClInclude Include="src\Battlefront2\Source\FLEffect.h" />
     <ClInclude Include="src\Battlefront2\Source\FLGuiManager.h" />
@@ -1451,7 +1459,9 @@
     <ClInclude Include="src\PebbleFL\Common\PblUnicode.h" />
     <ClInclude Include="src\PebbleFL\Common\PblValues.h" />
     <ClInclude Include="src\PebbleFL\Common\PblVector.h" />
-    <ClInclude Include="src\PebbleFL\pc\PblD3DX.h" />
+    <ClInclude Include="src\PebbleFL\pc\pcPblMath.h" />
+    <ClInclude Include="src\PebbleFL\pc\pcPblMatrix.h" />
+    <ClInclude Include="src\PebbleFL\pc\pcPblVector.h" />
     <ClInclude Include="src\RedEngineFL\Application\RedPath.h" />
     <ClInclude Include="src\RedEngineFL\Application\RedTerrain.h" />
     <ClInclude Include="src\RedEngineFL\Application\RedWater.h" />
@@ -1632,6 +1642,7 @@
     <ClInclude Include="src\SoundFL\source\sndstreamformat.h" />
     <ClInclude Include="src\SoundFL\source\sndstreamgsmdecoder.h" />
     <ClInclude Include="src\SoundFL\source\sndstreamgsmencoder.h" />
+    <ClInclude Include="src\SoundFL\source\gsm-1.0.10\private.h" />
     <ClInclude Include="src\SoundFL\source\sndstreamhighlowpass.h" />
     <ClInclude Include="src\SoundFL\source\sndstreamimaadpcmdecoder.h" />
     <ClInclude Include="src\SoundFL\source\sndstreammixer.h" />

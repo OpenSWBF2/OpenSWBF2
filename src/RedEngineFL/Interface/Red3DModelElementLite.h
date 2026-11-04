@@ -5,6 +5,7 @@
 
 class RedModel;
 
+// VTABLE: SWBF2 0x00773148
 class Red3DModelElementLite : public RedInterfaceElement
 {
 public:
@@ -13,7 +14,8 @@ public:
 
     Red3DModelElementLite(const char* const pcName);
 
-    virtual ~Red3DModelElementLite();
+    // SYNTHETIC: SWBF2 0x00556290
+    // Red3DModelElementLite::~Red3DModelElementLite
 
     void SetModel(unsigned int uiModelHash);
     void SetModel(const char* const pcModelName);
@@ -52,7 +54,7 @@ protected:
 public:
     float m_fDepth;
     unsigned int m_uiModelHash;
-    RedModel* m_Model;
+    const RedModel* m_Model;
     unsigned int m_boneHash;
     bool m_bLightingEnabled : 1;
     bool m_searchForModel : 1;

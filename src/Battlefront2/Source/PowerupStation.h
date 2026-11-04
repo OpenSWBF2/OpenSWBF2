@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "EntityBuilding.h"
@@ -18,13 +20,13 @@ public:
 
     virtual EntityClass* Derive(unsigned int uHash);
     virtual Entity* Build(const EntityDesc& desc);
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
 
     static PblHash rttiHashPowerupStationClass;
-    static char rttiNamePowerupStationClass[];
+    static const char rttiNamePowerupStationClass[];
 
     float mPowerupDelay;
     float mAddHealth[8];
@@ -77,6 +79,12 @@ public:
 
 class RedRegion;
 
+// VTABLE: SWBF2 0x007adbb8 CollisionObject
+// VTABLE: SWBF2 0x007adc0c EntityEx
+// VTABLE: SWBF2 0x007add34 RedSceneObject
+// VTABLE: SWBF2 0x007add9c
+// VTABLE: SWBF2 0x007addb4 PblHandled
+// VTABLE: SWBF2 0x007addbc Damageable
 class PowerupStation : public EntityBuilding, public Thread
 {
 public:
@@ -108,7 +116,7 @@ public:
     bool IsInsideRegion(RedRegion* pRegion, const GameObject* pObject) const;
 
     static PblHash rttiHashPowerupStation;
-    static char rttiNamePowerupStation[];
+    static const char rttiNamePowerupStation[];
 
     PowerupStationClass* mClass;
     RedRegion* mEffectRegion;
@@ -130,3 +138,47 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x006245a0
+inline bool PowerupStationClass::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashPowerupStationClass == uRtti)
+    {
+        return true;
+    }
+    return EntityBuildingClass::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x006245e0
+inline unsigned int PowerupStationClass::GetDerivedRtti() const
+{
+    return rttiHashPowerupStationClass;
+}
+
+// FUNCTION: SWBF2 0x006245f0
+inline const char* PowerupStationClass::GetDerivedRttiName() const
+{
+    return rttiNamePowerupStationClass;
+}
+
+// FUNCTION: SWBF2 0x006244f0
+inline bool PowerupStation::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashPowerupStation == uRtti)
+    {
+        return true;
+    }
+    return EntityBuilding::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x00624540
+inline unsigned int PowerupStation::GetDerivedRtti() const
+{
+    return rttiHashPowerupStation;
+}
+
+// FUNCTION: SWBF2 0x00624550
+inline const char* PowerupStation::GetDerivedRttiName() const
+{
+    return rttiNamePowerupStation;
+}

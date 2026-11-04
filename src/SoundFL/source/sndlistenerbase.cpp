@@ -9,6 +9,46 @@
 namespace Snd
 {
 
+// FUNCTION: SWBF2 0x00731440
+ListenerBase::ListenerBase()
+{
+    mFlags = flags_reverbUpdate;
+    mPos = &Globals::smNullVector;
+    mSpacePos = &Globals::smNullVector;
+    mFront = &Globals::smFrontVector;
+    mUp = &Globals::smUpVector;
+    mVel = &Globals::smNullVector;
+    mDopplerFactor = 1.0f;
+    mRollOffFactor = 10.0f;
+    mDistanceFactor = 1.0f;
+    mSpace = &Space::smDefaultSpace;
+    mReverb = 0;
+}
+
+// FUNCTION: SWBF2 0x00731490
+ListenerBase::~ListenerBase()
+{
+    if (mSpace)
+    {
+        mSpace = &Space::smDefaultSpace;
+        I3DL2ReverbPreset* pReverb = (I3DL2ReverbPreset*)Space::smDefaultSpace.mReverbPreset;
+        if (pReverb != mReverb)
+        {
+            if (pReverb)
+            {
+                mFlags |= flags_reverbChanged;
+            }
+            mReverb = pReverb;
+        }
+    }
+    if (mReverb)
+    {
+        mReverb = 0;
+    }
+}
+
+
+// GLOBAL: SWBF2 0x009cf4a0
 unsigned int ListenerBase::smActiveListeners;
 
 // FUNCTION: SWBF2 0x007314c0

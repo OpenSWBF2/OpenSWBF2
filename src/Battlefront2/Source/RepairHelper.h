@@ -1,6 +1,8 @@
 #pragma once
 
 #include <stddef.h>
+#include "UnitAgent.h"
+#include "UnitController.h"
 
 #include "GameObject.h"
 #include "PebbleFL/Common/PblHandle.h"
@@ -62,3 +64,13 @@ public:
  
  
  
+
+inline Controllable* RepairHelper::GetMe()
+{
+    return mAgent->mCtrl->mOwner;
+}
+
+inline UnitController* RepairHelper::GetCtrl()
+{
+    return mAgent->mCtrl;
+}

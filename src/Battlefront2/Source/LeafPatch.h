@@ -16,8 +16,8 @@ class LeafPatch;
 class LeafPatchRenderable;
 class PblRandom;
 
-// VTABLE: SWBF2 0x007a3ac4
-// VTABLE: SWBF2 0x007a3aa0
+// VTABLE: SWBF2 0x007a3ac4 Thread
+// VTABLE: SWBF2 0x007a3aa0 EntityClass
 class LeafPatchClass : public Thread, public EntityClass
 {
 public:
@@ -137,6 +137,10 @@ struct LeafPatchClass::LeafParticle
  
  
 
+// VTABLE: SWBF2 0x007a39d8 CollisionObject
+// VTABLE: SWBF2 0x007a3a34 RedSceneObject
+// VTABLE: SWBF2 0x007a3adc LeafSpawner
+// VTABLE: SWBF2 0x007a3ae4 Entity
 class LeafPatch : public RedSceneObject, public Entity, public LeafSpawner, public CollisionObject
 {
 public:

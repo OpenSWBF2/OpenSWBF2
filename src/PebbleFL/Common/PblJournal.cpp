@@ -4,11 +4,15 @@
 
 // GLOBAL: SWBF2 0x009cefd0
 PblJournal sJournalInstance;
+namespace PblProfile
+{
 
 // GLOBAL: SWBF2 0x009cefc0
-namespace PblProfile { bool mPausedFlag; }
+bool mPausedFlag;
+}
 
-namespace PblProfile {
+namespace PblProfile
+{
 
 // FUNCTION: SWBF2 0x0072b310
 bool IsPaused()
@@ -17,7 +21,8 @@ bool IsPaused()
 }
 }
 
-namespace PblProfile {
+namespace PblProfile
+{
 
 // FUNCTION: SWBF2 0x0072b320
 void SetPaused(bool bValue)
@@ -32,10 +37,6 @@ PblJournal* PblJournal::Get(PblJournalType  )
     return &sJournalInstance;
 }
 
-// FUNCTION: SWBF2 0x005b4230
-void PblJournal::RecordLow(void*  , int  )
-{
-}
 
 // FUNCTION: SWBF2 0x0072b360
 void JournalString(char* pcString, int iMax)
@@ -46,11 +47,6 @@ void JournalString(char* pcString, int iMax)
         iLength = iMax;
     }
     pcString[iLength] = '\0';
-}
-
-// FUNCTION: SWBF2 0x00453680
-void JournalRecordStub()
-{
 }
 
 // FUNCTION: SWBF2 0x0072b350

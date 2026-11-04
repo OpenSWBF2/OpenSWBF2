@@ -7,7 +7,8 @@
 namespace Snd
 {
 
-class StreamLowHighPass : public StreamSourceProducer
+// VTABLE: SWBF2 0x00786b94
+class StreamLowHighPass : public StreamNode, public StreamNodeSink, public StreamSourceProducer, public DSP::HighLowPassFilter
 {
 public:
     StreamLowHighPass();
@@ -22,9 +23,6 @@ protected:
     virtual StreamPacket* GetPacket(unsigned int uiOutput);
 
 public:
-    StreamNode mNode;
-    StreamNodeSink mSink;
-    DSP::HighLowPassFilter mFilter;
     unsigned int mBufferSize;
     StreamPacket mOutputPacket;
     StreamPacketIO mInputPacket;

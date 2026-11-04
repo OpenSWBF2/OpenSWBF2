@@ -1,8 +1,10 @@
+#include "AmmoCounter.h"
 #include <float.h>
 #include <math.h>
 #include <string.h>
 
 #include "Character.h"
+#include "PebbleFL/Common/PblValues.h"
 #include "AIGoalManager.h"
 #include "AIUtil.h"
 #include "BonusManager.h"
@@ -55,7 +57,6 @@
 #include "ShellLoop.h"
 #include "TeamAssist.h"
 #include "PebbleFL/Common/PblIndex.h"
-#include "VOHelper.h"
 
 // GLOBAL: SWBF2 0x01e30330
 int Character::sCharacterLimit;
@@ -80,18 +81,26 @@ int sHostCharacterCount;
 extern int netCurMaxPlayers;
 extern NetPlayer netPlayers[64];
 
-namespace AIDebug { namespace TestSpawn {
+namespace AIDebug
+{
+namespace TestSpawn
+{
 // GLOBAL: SWBF2 0x01e2fd6c
 Character* aic[4];
-} }
+}
+}
 
-namespace AIDebug { namespace TestSpawn {
+namespace AIDebug
+{
+namespace TestSpawn
+{
 
 // FUNCTION: SWBF2 0x00438750
-PblMatrix* __fastcall GetTestSpawnMatrix(PblMatrix* pResult, Character* pCharacter)
+PblMatrix GetTestSpawnMatrix(Character* pCharacter)
 {
-    pResult->Reset();
-    float* p = reinterpret_cast<float*>(pResult);
+    PblMatrix result;
+    result.Reset();
+    float* p = reinterpret_cast<float*>(&result);
     if (pCharacter->mPlayerId < 0 &&
         pCharacter != AIDebug::TestSpawn::aic[0] &&
         pCharacter != AIDebug::TestSpawn::aic[1] &&
@@ -100,7 +109,7 @@ PblMatrix* __fastcall GetTestSpawnMatrix(PblMatrix* pResult, Character* pCharact
     {
         p[12] = (float)(pCharacter - Character::sCharacters) * 3.0f;
         p[13] = 100.0f;
-        return pResult;
+        return result;
     }
 
     const float fAngle = PblRandom::_Global.GetFloat() * 6.2831855f;
@@ -117,18 +126,18 @@ PblMatrix* __fastcall GetTestSpawnMatrix(PblMatrix* pResult, Character* pCharact
     p[8] = -fSin; p[9] = 0.0f; p[10] = -fCos; p[11] = 0.0f;
     p[12] = vStart.x; p[13] = vStart.y - fHit * 50.0f;
     p[14] = vStart.z; p[15] = 1.0f;
-    return pResult;
+    return result;
 }
-} }
+}
+}
 
-namespace AIDebug {
+namespace AIDebug
+{
 
 // FUNCTION: SWBF2 0x00438a10
 PblMatrix GetTestSpawnMatrix(Character* pCharacter)
 {
-    PblMatrix result;
-    AIDebug::TestSpawn::GetTestSpawnMatrix(&result, pCharacter);
-    return result;
+    return AIDebug::TestSpawn::GetTestSpawnMatrix(pCharacter);
 }
 }
 
@@ -208,15 +217,6 @@ Controllable* CommandFlyer::GetPassengerSlot(int)
     return pLast;
 }
 
-// FUNCTION: SWBF2 0x005c4440
-int NetGame::GetSpawnOrder(int iPlayer)
-{
-    if (iPlayer >= 0 && iPlayer < netCurMaxPlayers && NetGame::IsPlaying(iPlayer, false))
-    {
-        return netPlayers[iPlayer].mSpawnOrder;
-    }
-    return -1;
-}
 
 namespace EventManager
 {
@@ -227,7 +227,20 @@ template <>
 void Event<Character, DamageOwner>::Callback::Trigger(Character& item, DamageOwner& param);
 }
 
-extern int netHeroKillerID[3];
+namespace AI
+{
+enum VOType
+{
+    VOT_Kill = 8
+};
+namespace VOHelper
+{
+int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,
+         const GameObject* pOther, float fDelay);
+}
+}
+
+extern int netHeroKillerID[4];
 extern bool netHeroUnlocked[3];
 
 static char sEventParam;
@@ -236,7 +249,10 @@ extern bool netHeroesEnabled;
 extern int netHeroLastPlayerID[3];
 extern bool gDoTakeoverSpawns;
 extern bool gNoAIRespawn;
-namespace GameLoop { extern bool mbHistoricalRules; }
+namespace GameLoop
+{
+extern bool mbHistoricalRules;
+}
 extern int netNumBots;
 
 // GLOBAL: SWBF2 0x01e2fde6
@@ -245,8 +261,16 @@ extern int netHeroPlayerID[3];
 extern int netHeroAIID[3];
 extern int gDebugCount;
 
-namespace AIDebug { bool GetTestSpawnMode(); }
-namespace AIDebug { PblMatrix GetTestSpawnMatrix(Character* pCharacter); }
+namespace AIDebug
+{
+bool GetTestSpawnMode();
+}
+namespace AIDebug
+{
+PblMatrix GetTestSpawnMatrix(Character* pCharacter);
+}
+
+
 
 namespace
 {
@@ -264,7 +288,7 @@ GameObject* GetPostObject(CommandPost* pPost)
     return handle.mObject;
 }
 
-Damageable* GetDamageable(GameObject* pObject)
+inline Damageable* GetDamageable(GameObject* pObject)
 {
     return static_cast<Damageable*>(pObject);
 }
@@ -274,12 +298,12 @@ const GameObjectClass* GetGameObjectClass(GameObject* pObject)
     return pObject->GetGameObjectClass();
 }
 
-const PblVector3& GetPosition(GameObject* pObject)
+inline const PblVector3& GetPosition(GameObject* pObject)
 {
     return static_cast<CollisionObject*>(pObject)->GetPosition();
 }
 
-int GetTeam(const GameObject* pObject)
+inline int GetTeam(const GameObject* pObject)
 {
     return pObject->GetTeam();
 }
@@ -299,12 +323,12 @@ const EntityFlyerClass* GetFlyerClass(const EntityFlyer* pFlyer)
     return pFlyer->mClass;
 }
 
-Controllable* GetSoldierControllable(Entity* pSoldier)
+inline Controllable* GetSoldierControllable(Entity* pSoldier)
 {
     return static_cast<Controllable*>(static_cast<EntitySoldier*>(pSoldier));
 }
 
-const GameObjectClass* GetSoldierClass(Entity* pSoldier)
+inline const GameObjectClass* GetSoldierClass(Entity* pSoldier)
 {
     return static_cast<EntitySoldier*>(pSoldier)->mClass;
 }
@@ -319,7 +343,7 @@ bool EnterControllable(Entity* pSoldier, Controllable* pControllable)
     return static_cast<EntitySoldier*>(pSoldier)->EnterControllable(pControllable);
 }
 
-const WeaponClass* GetWeaponClass(Weapon* pWeapon)
+inline const WeaponClass* GetWeaponClass(Weapon* pWeapon)
 {
     return pWeapon->mClass;
 }
@@ -913,9 +937,9 @@ void Character::ChangeClass(int iClassIndex)
 PlayerProfile::tProfile* Character::GetProfile() const
 {
     int iLocal = NetGame::GetJoystickIndex(mPlayerId);
-    if (iLocal >= 0 && iLocal < 1 && playerJoystickNumbers[iLocal * 11] >= 0)
+    if (iLocal >= 0 && iLocal < 1 && PlayerPrefs::mAllUserPrefs[iLocal].mJoystick >= 0)
     {
-        return PlayerProfile::GetProfile(playerJoystickNumbers[iLocal * 11]);
+        return PlayerProfile::GetProfile(PlayerPrefs::mAllUserPrefs[iLocal].mJoystick);
     }
     return 0;
 }
@@ -961,9 +985,7 @@ void Character::Spawn(const PblMatrix& mMatrix)
         int iJoystick = NetGame::GetJoystickIndex(mPlayerId);
         if (iJoystick >= 0)
         {
-            HUD::Event event;
-            event.mClass = HUD::GameEvents::gPlayerEvents[iJoystick].spawn;
-            event.mData.boolValue = true;
+            HUD::Event event(HUD::GameEvents::gPlayerEvents[iJoystick].spawn, true);
             event.Send();
             if (!PauseMenu::GetPaused(iJoystick))
             {
@@ -1068,8 +1090,8 @@ void Character::Spawn(const PblMatrix& mMatrix)
     }
 
     if (mPlayerId >= 0 &&
-        ((GameLoop::GetNumCameras() == 1 && mPlayerId == NetGame::GetLocalIndex(0)) ||
-         GameLoop::GetNumCameras() > 1))
+        ((NetGame::GetNumLocalPlayers() == 1 && mPlayerId == NetGame::GetLocalIndex(0)) ||
+         NetGame::GetNumLocalPlayers() > 1))
     {
         VoiceOverManager::sInstance->Enable(true);
     }
@@ -1152,17 +1174,8 @@ void Character::SelectTeam(int iTeam)
     }
     if (mPlayerId >= 0)
     {
-        int iClass = mClassIndex;
-        int iLast = mTeamPtr->GetClassCount() - 1;
-        if (iClass < 0)
-        {
-            iClass = 0;
-        }
-        else if (iClass > iLast)
-        {
-            iClass = iLast;
-        }
-        SelectClass(iClass);
+        const int iLast = mTeamPtr->GetClassCount() - 1;
+        SelectClass(Clamp(mClassIndex, 0, iLast));
     }
     else
     {
@@ -1206,20 +1219,21 @@ void Character::SelectClass(int iClassIndex)
 // FUNCTION: SWBF2 0x004524f0
 void Character::SelectPost(CommandPost* pPost)
 {
-    if (mPost == pPost)
+    PblValues::Record(pPost ? pPost->GetIndex() : 0, PVT_MOVES_HIGH);
+    if (mPost != pPost)
     {
-        return;
+        if (mPost)
+        {
+            mPost->PopSpawnQueue(mPlayerId >= 0, mTeamNumber == GetTeam(mPost->GetGameObject()));
+        }
+        mPost = pPost;
+        mSpawnSlot = -1;
+        if (mPost)
+        {
+            mSpawnSlot = mPost->PushSpawnQueue(mPlayerId >= 0, mTeamNumber == GetTeam(mPost->GetGameObject()));
+        }
     }
-    if (mPost)
-    {
-        mPost->PopSpawnQueue(mPlayerId >= 0, mTeamNumber == GetTeam(mPost->GetGameObject()));
-    }
-    mPost = pPost;
-    mSpawnSlot = -1;
-    if (mPost)
-    {
-        mSpawnSlot = mPost->PushSpawnQueue(mPlayerId >= 0, mTeamNumber == GetTeam(mPost->GetGameObject()));
-    }
+    PblValues::Record(mSpawnSlot, PVT_MOVES_HIGH);
 }
 
 // FUNCTION: SWBF2 0x00452700
@@ -1314,10 +1328,7 @@ void Character::Died()
         return;
     }
 
-    if (!NetGame::IsEnabled() || !NetGame::IsClient())
-    {
-        EventManager::CharacterEvent::mDeath.Trigger(*this, rOwner);
-    }
+    EventManager::CharacterEvent::mDeath.Trigger(*this, rOwner);
     GetPlayerStats(this).AddDeath(rOwner.mCharacter);
 
     Team* pEnemyTeam = Team::GetPtr(3 - mTeamNumber);
@@ -1358,7 +1369,7 @@ void Character::Died()
         }
         if (bMessage)
         {
-            NetGame::CreateEvent_Message(eType, this, pKiller, rOwner.mClass, rOwner.mWeapon, pEnemyTeam, 0);
+            NetGame::CreateEvent_Message(eType, this, pKiller, const_cast<EntityClass*>(rOwner.mClass), const_cast<WeaponClass*>(rOwner.mWeapon), pEnemyTeam, 0);
         }
         return;
     }
@@ -1386,7 +1397,7 @@ void Character::Died()
     }
     if (bPlayer)
     {
-        NetGame::CreateEvent_Message(NetGame::MSG_DIED, this, 0, rOwner.mClass, rOwner.mWeapon, pEnemyTeam, 0);
+        NetGame::CreateEvent_Message(NetGame::MSG_DIED, this, 0, const_cast<EntityClass*>(rOwner.mClass), const_cast<WeaponClass*>(rOwner.mWeapon), pEnemyTeam, 0);
     }
 }
 
@@ -1407,10 +1418,7 @@ void Character::Respawn()
     SetSpawnReady(iClassIndex >= 0);
     SelectPost(SpawnManager::Instance()->RequestSpawnPoint(mPost, this));
 
-    if (mPost)
-    {
-        mPost->GetGameObject();
-    }
+    PblValues::Record(mPost ? mPost->GetIndex() : 0, PVT_MOVES_HIGH);
     mSpawnCycle = SpawnManager::Instance()->GetCycleIndex(mTeamNumber) + 1;
 }
 
@@ -1516,8 +1524,13 @@ void Event<Character, DamageOwner>::Callback::Trigger(Character& item, DamageOwn
         if (pChild)
         {
             pChild->AddRef();
-            while (pChild->IsAlive())
+            while (pChild)
             {
+                if (!pChild->IsAlive())
+                {
+                    pChild->Release();
+                    break;
+                }
                 Callback* pNext = (Callback*)pChild->mSibling;
                 if (pNext)
                 {
@@ -1526,14 +1539,6 @@ void Event<Character, DamageOwner>::Callback::Trigger(Character& item, DamageOwn
                 pChild->Trigger(item, param);
                 pChild->Release();
                 pChild = pNext;
-                if (!pChild)
-                {
-                    break;
-                }
-            }
-            if (pChild)
-            {
-                pChild->Release();
             }
         }
     }
@@ -1544,15 +1549,7 @@ void Event<Character, DamageOwner>::Callback::Trigger(Character& item, DamageOwn
 namespace EventManager
 {
 
-// FUNCTION: SWBF2 0x0042cd60
-template <>
-void Event<Character, char>::Trigger(Character& item, char& param)
-{
-    if (!NetGame::IsEnabled() || !NetGame::IsClient())
-    {
-        mRoot.Trigger(item, param);
-    }
-}
+
 
 // FUNCTION: SWBF2 0x0042cdb0
 template <>
@@ -1565,8 +1562,13 @@ void Event<Character, char>::Callback::Trigger(Character& item, char& param)
         if (pChild)
         {
             pChild->AddRef();
-            while (pChild->IsAlive())
+            while (pChild)
             {
+                if (!pChild->IsAlive())
+                {
+                    pChild->Release();
+                    break;
+                }
                 Callback* pNext = (Callback*)pChild->mSibling;
                 if (pNext)
                 {
@@ -1575,14 +1577,6 @@ void Event<Character, char>::Callback::Trigger(Character& item, char& param)
                 pChild->Trigger(item, param);
                 pChild->Release();
                 pChild = pNext;
-                if (!pChild)
-                {
-                    break;
-                }
-            }
-            if (pChild)
-            {
-                pChild->Release();
             }
         }
     }
@@ -1640,7 +1634,7 @@ void Character::SetUnit(Controllable* pUnit)
 }
 
 // FUNCTION: SWBF2 0x00453080
-void Character::InitAll()
+void Character::Validate()
 {
     return;
 }
@@ -1783,6 +1777,7 @@ void Character::RegisterHit(int iTeam, float fMultiplier)
 // GLOBAL: SWBF2 0x01e3033c
 int Character::sCharacterCount;
 
+// FUNCTION: SWBF2 0x00450630
 void Character::DestroyAll()
 {
     sCharacterCount = 0;

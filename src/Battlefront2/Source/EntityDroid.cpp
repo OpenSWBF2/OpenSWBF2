@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include <float.h>
 #include "PebbleFL/Common/PblVector.h"
 #include <math.h>
@@ -38,7 +39,6 @@
 #include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblQuaternion.h"
 #include "RedEngineFL/Application/pc/pcFLRender.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 // SYNTHETIC: SWBF2 0x0049d340
 // EntityDroidClass::`scalar deleting destructor'
@@ -47,31 +47,6 @@
 EntityDroidClass::~EntityDroidClass()
 {
 }
-
-// TEMPLATE: SWBF2 0x0049e1b0
-// PblList<Factory<Weapon,WeaponClass,WeaponDesc> >::GetFirst
-template PblList<Factory<Weapon, WeaponClass, WeaponDesc> >::Node*
-PblList<Factory<Weapon, WeaponClass, WeaponDesc> >::GetFirst() const;
-
-// TEMPLATE: SWBF2 0x0049e1c0
-// PblList<Factory<Weapon,WeaponClass,WeaponDesc> >::Itor::Itor
-template PblList<Factory<Weapon, WeaponClass, WeaponDesc> >::Itor::Itor(
-    PblList<Factory<Weapon, WeaponClass, WeaponDesc> >::Node*);
-
-// TEMPLATE: SWBF2 0x0049e1d0
-// PblList<Factory<Weapon,WeaponClass,WeaponDesc> >::Itor::operator->
-template Factory<Weapon, WeaponClass, WeaponDesc>*
-PblList<Factory<Weapon, WeaponClass, WeaponDesc> >::Itor::operator->() const;
-
-// TEMPLATE: SWBF2 0x0049e1e0
-// PblList<Factory<Weapon,WeaponClass,WeaponDesc> >::Itor::operator*
-template Factory<Weapon, WeaponClass, WeaponDesc>&
-PblList<Factory<Weapon, WeaponClass, WeaponDesc> >::Itor::operator*() const;
-
-// TEMPLATE: SWBF2 0x0049e1f0
-// PblList<Factory<Weapon,WeaponClass,WeaponDesc> >::Itor::operator Factory<Weapon,WeaponClass,WeaponDesc> *
-template PblList<Factory<Weapon, WeaponClass, WeaponDesc> >::Itor::
-    operator Factory<Weapon, WeaponClass, WeaponDesc>*() const;
 
 // TEMPLATE: SWBF2 0x0049e200
 // PblList<Factory<Weapon,WeaponClass,WeaponDesc> >::Itor::operator++
@@ -87,7 +62,6 @@ PblMatrix NormalMatrix(const PblVector3& vDir, const PblVector3& vNormal, const 
 
 PblMatrix DirectionMatrix(const PblVector3& vDir, const PblVector3& vUp, const PblVector3& vPos);
 
-Controllable* GetControllablePilot(Controllable* pControllable);
 
 // GLOBAL: SWBF2 0x01e51d94
 static int sWeaponSection;
@@ -158,9 +132,6 @@ EntityDroidClass::EntityDroidClass(unsigned int uHash)
 
     mExplosion = 0;
 
-    mEnergyBarClass.m_fEnergyMax = 0.0f;
-    mEnergyBarClass.m_fEnergyMin = 0.0f;
-    mEnergyBarClass.m_fEnergyOverheat = 0.0f;
     mEnergyBarClass.Init(100.0f, 20.0f);
 
     mEnergyAutoRestore = 0.0f;
@@ -171,20 +142,13 @@ EntityDroidClass::EntityDroidClass(unsigned int uHash)
     mDestructChargeEffect = 0x23081C56u;
 }
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
+
 
 // FUNCTION: SWBF2 0x0049d370
 EntityDroidClass::EntityDroidClass(EntityDroidClass* pBase, unsigned int uHash)
     : GameObjectClass(pBase, uHash),
       ControllableClass(pBase)
 {
-    mEnergyBarClass.m_fEnergyMax = 0.0f;
-    mEnergyBarClass.m_fEnergyMin = 0.0f;
-    mEnergyBarClass.m_fEnergyOverheat = 0.0f;
 
     sWeaponSection = 0;
 
@@ -393,11 +357,8 @@ void EntityDroidClass::SetProperty(unsigned int uProperty, const char* pszValue)
             const PblSphere& sphere = mModel->_mModel->_BoundingSphere;
             CollisionPrimitive primitive;
             primitive.SetSphere(sphere.GetRadius());
-            PblMatrix matrix = _IdentityMatrix;
-            matrix.m[3][0] = sphere.x;
-            matrix.m[3][1] = sphere.y;
-            matrix.m[3][2] = sphere.z;
-            matrix.m[3][3] = 1.0f;
+            PblMatrix matrix = gMatrixIdentity;
+            matrix.SetTranslation(sphere);
             mCollisionModel.AddBody(new CollisionBodyPrimitive(primitive, "main_body", matrix, 0));
         }
         break;
@@ -435,12 +396,6 @@ const GameObject* Controllable::GetGameObject() const
     return 0;
 }
 
-// FUNCTION: SWBF2 0x004833a0
-Trackable* Controllable::GetTrackable()
-{
-    return 0;
-}
-
 // FUNCTION: SWBF2 0x00483360
 Entity* Controllable::GetEntity()
 {
@@ -465,25 +420,6 @@ ControllableClass* Controllable::GetControllableClass()
     return 0;
 }
 
-// FUNCTION: SWBF2 0x00483440
-void Controllable::SetupController()
-{
-}
-
-// FUNCTION: SWBF2 0x00483460
-bool Controllable::AIThread::Update(float fDeltaTime)
-{
-    mOwner->UpdateIndirect(fDeltaTime);
-    return true;
-}
-
-// FUNCTION: SWBF2 0x00483480
-void Controllable::AIThread::DeactivateThread()
-{
-    mOwner->DeactivateIndirect();
-    Thread::DeactivateThread();
-}
-
 // SYNTHETIC: SWBF2 0x004834a0
 // Controllable::`scalar deleting destructor'
 
@@ -493,11 +429,16 @@ void Controllable::AIThread::DeactivateThread()
 // SYNTHETIC: SWBF2 0x004834e0
 // Controllable::AIThread::`scalar deleting destructor'
 
-// GLOBAL: SWBF2 0x01ebbbb4
 // SYNTHETIC: SWBF2 0x00402a40
 // `dynamic initializer for 'EntityDroid::rttiHashEntityDroid''
+// EntityDroid::rttiHashEntityDroid
+
+// GLOBAL: SWBF2 0x01ebbbb4
+// EntityDroid::rttiHashEntityDroid
 PblHash EntityDroid::rttiHashEntityDroid("EntityDroid");
-char EntityDroid::rttiNameEntityDroid[] = "EntityDroid";
+// GLOBAL: SWBF2 0x00789144
+// EntityDroid::rttiNameEntityDroid
+const char EntityDroid::rttiNameEntityDroid[] = "EntityDroid";
 
 // FUNCTION: SWBF2 0x00499300
 void GameObject::SetNetUniqueId(int iNetUniqueId)
@@ -506,24 +447,18 @@ void GameObject::SetNetUniqueId(int iNetUniqueId)
     mNetUniqueId = iNetUniqueId;
 }
 
-// GLOBAL: SWBF2 0x01ebbbb8
 // SYNTHETIC: SWBF2 0x00402a20
 // `dynamic initializer for 'EntityDroid::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00766f30
 // `dynamic atexit destructor for 'EntityDroid::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ebbbb8
+// EntityDroid::sMemoryPool
 MemoryPool EntityDroid::sMemoryPool("EntityDroid", 0x460);
 
-// FUNCTION: SWBF2 0x00499370
-unsigned int EntityDroid::GetDerivedRtti() const
-{
-    return rttiHashEntityDroid;
-}
 
-// FUNCTION: SWBF2 0x00499380
-const char* EntityDroid::GetDerivedRttiName() const
-{
-    return rttiNameEntityDroid;
-}
+
+
 
 // FUNCTION: SWBF2 0x004993a0
 GameObject* EntityDroid::GetGameObject()
@@ -612,7 +547,7 @@ const Aimer* EntityDroid::GetAimer(int iIndex) const
 // FUNCTION: SWBF2 0x004994d0
 EnergyBar* EntityDroid::GetEnergyBar()
 {
-    return reinterpret_cast<EnergyBar*>(mEnergyBar);
+    return &mEnergyBar;
 }
 
 // FUNCTION: SWBF2 0x004994e0
@@ -639,46 +574,39 @@ bool EntityDroid::PostCollision::Update(float fDeltaTime)
 // SYNTHETIC: SWBF2 0x00499550
 // EntityDroid::PostCollision::~PostCollision
 
-// GLOBAL: SWBF2 0x01ebbaa4
 // SYNTHETIC: SWBF2 0x00402a50
 // `dynamic initializer for 'EntityDroidClass::rttiHashEntityDroidClass''
+// EntityDroidClass::rttiHashEntityDroidClass
+
+// GLOBAL: SWBF2 0x01ebbaa4
+// EntityDroidClass::rttiHashEntityDroidClass
 PblHash EntityDroidClass::rttiHashEntityDroidClass("EntityDroidClass");
-char EntityDroidClass::rttiNameEntityDroidClass[] = "EntityDroidClass";
+// GLOBAL: SWBF2 0x00789164
+// EntityDroidClass::rttiNameEntityDroidClass
+const char EntityDroidClass::rttiNameEntityDroidClass[] = "EntityDroidClass";
 
-// FUNCTION: SWBF2 0x00499560
-bool EntityDroidClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashEntityDroidClass || GameObjectClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x004995a0
-unsigned int EntityDroidClass::GetDerivedRtti()
-{
-    return rttiHashEntityDroidClass;
-}
 
-// FUNCTION: SWBF2 0x004995b0
-const char* EntityDroidClass::GetDerivedRttiName()
-{
-    return rttiNameEntityDroidClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x004995c0
-int EntityDroidClass::GetWeaponCount()
+int EntityDroidClass::GetWeaponCount() const
 {
     return mWeaponCount;
 }
 
 // FUNCTION: SWBF2 0x004995d0
-const WeaponClass* EntityDroidClass::GetWeaponClass(int iIndex)
+const WeaponClass* EntityDroidClass::GetWeaponClass(int iIndex) const
 {
     return mWeaponClass[iIndex];
 }
 
 // FUNCTION: SWBF2 0x004995f0
-const void* EntityDroidClass::GetControllableClass()
+const ControllableClass* EntityDroidClass::GetControllableClass() const
 {
-    return static_cast<ControllableClass*>(this);
+    return static_cast<const ControllableClass*>(this);
 }
 
 // SYNTHETIC: SWBF2 0x00499610
@@ -725,7 +653,7 @@ int EntityDroid::GetFirstPersonIndex()
 // FUNCTION: SWBF2 0x0049a470
 int EntityDroid::GetJoystickIndex()
 {
-    if (mPlayerId < 0)
+    if (!IsPlayer())
     {
         return -1;
     }
@@ -787,24 +715,19 @@ void EntityDroid::FreezeMovement()
     }
 }
 
-// FUNCTION: SWBF2 0x0049e180
+// TEMPLATE: SWBF2 0x0049e180
+// Factory<Weapon,WeaponClass,WeaponDesc>::Find
 template WeaponClass* Factory<Weapon, WeaponClass, WeaponDesc>::Find(unsigned int);
 
-// FUNCTION: SWBF2 0x00499330
-bool EntityDroid::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashEntityDroid || GameObject::IsRtti(uRtti);
-}
+
 
 // FUNCTION: SWBF2 0x00499640
 EntityDroid::EntityDroid(EntityDroidClass* pClass, const EntityDesc& desc)
     : GameObject(pClass, desc, COLL_SOFT, &pClass->mModel->_mLodData)
     , Controllable(pClass, desc.mPlayerId)
+    , mEnergyBar(&pClass->mEnergyBarClass)
     , mPostCollision(this)
 {
-    new (mEnergyBar) EnergyBar(&pClass->mEnergyBarClass);
-    mDestructChargeEffectHandle = NULL;
-
     mControllableList.AddLast(&this->Controllable::mNode, this);
     mMatrix = NormalMatrix(desc.mMatrix.GetZAxis(), PblVector3(0.0f, 1.0f, 0.0f), desc.mMatrix.GetTranslation());
     mClass = pClass;
@@ -901,7 +824,6 @@ EntityDroid::~EntityDroid()
     }
     mAmbientSound.Stop(true);
     mAmbient2Sound.Stop(true);
-    reinterpret_cast<EnergyBar*>(mEnergyBar)->~EnergyBar();
 }
 
 // FUNCTION: SWBF2 0x00499ce0
@@ -976,7 +898,7 @@ void EntityDroid::ApplyRadiusPush(const PblVector3& vPos, float fInnerRadius, fl
         if (fEffect > 0.0f)
         {
             PblVector3 vDir;
-            D3DXVec3Normalize(&vDir, &vDiff);
+            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vDiff));
             mVelocity.x = vDir.x * fPush * fEffect + mVelocity.x;
             mVelocity.y = vDir.y * fPush * fEffect + mVelocity.y;
             mVelocity.z = vDir.z * fPush * fEffect + mVelocity.z;
@@ -1014,10 +936,12 @@ void EntityDroid::Render(unsigned char ucViewport, float fDist, unsigned int uiF
     if (bReflected)
     {
         PblMatrix mTemp;
-        D3DXMatrixMultiply(&mTemp, &mWorld, &mReflection);
+        mTemp = mWorld * mReflection;
         mReflection = mTemp;
     }
 
+    // GLOBAL: SWBF2 0x01faa918
+    // sPlayerShadow
     static PblHash sPlayerShadow("player_shadow");
     unsigned int uShadow = sPlayerShadow;
     if (GetControllable() && GetControllable()->mPilotType == PILOT_REMOTE)
@@ -1260,17 +1184,17 @@ bool EntityDroid::Update(float fDeltaTime)
 
     if (!(NetGame::IsEnabled() && NetGame::IsClient()))
     {
-        Controllable* pPilot = GetControllablePilot(this);
+        Controllable* pPilot = this->GetPilot();
         if (pPilot && mState == NORMAL)
         {
             if (mControlUse.IsPressed() || IsDisabled())
             {
-                if (mPilotType == PILOT_REMOTE)
+                if (IsRemoteVehicle())
                 {
                     pPilot->ExitRemote();
                 }
 
-                else if (mPilotType == PILOT_VEHICLE || mPilotType == PILOT_VEHICLESELF)
+                else if (IsPilotable())
                 {
                     if (pPilot->mCharacter && pPilot->mCharacter->mRemote)
                     {
@@ -1279,7 +1203,7 @@ bool EntityDroid::Update(float fDeltaTime)
                     pPilot->ExitVehicle(true, true);
                 }
             }
-            if ((mControlSwitch[0] > 0.0f || mControlSwitch[1] > 0.0f) && mPilotType == PILOT_REMOTE)
+            if ((mControlSwitch[0] > 0.0f || mControlSwitch[1] > 0.0f) && IsRemoteVehicle())
             {
                 pPilot->ExitRemote();
             }
@@ -1402,7 +1326,7 @@ bool EntityDroid::Update(float fDeltaTime)
     vLocal.y = fSin;
     vLocal.z = fCos;
     PblVector3 vEyeDir;
-    D3DXVec3TransformNormal(&vEyeDir, &vLocal, &mMatrix);
+    D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vEyeDir), reinterpret_cast<const D3DXVECTOR3*>(&vLocal), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
     mEyeDir = vEyeDir;
 
     if (mPlayerId >= 0 && mTracker)
@@ -1427,13 +1351,7 @@ bool EntityDroid::Update(float fDeltaTime)
             qTilt._fS = fTiltCos;
             PblQuaternion qCamera = qLook * qTilt;
 
-            PblQuaternion qUnit;
-            PblMatrix mCamera;
-            D3DXMatrixRotationQuaternion(&mCamera, D3DXQuaternionNormalize(&qUnit, &qCamera));
-            mCamera.m[3][0] = gVectorZero.x;
-            mCamera.m[3][1] = gVectorZero.y;
-            mCamera.m[3][2] = gVectorZero.z;
-            mCamera.m[3][3] = 1.0f;
+            PblMatrix mCamera(qCamera, gVectorZero);
 
             mTargetInfo.mAimStart = mClass->mCameraSettings.CalcCameraPoint(mMatrix, mCamera);
             float fAlong = mEyeDir.y * (mEyePoint.y - mTargetInfo.mAimStart.y) +
@@ -1553,7 +1471,7 @@ void EntityDroid::Move(float fDeltaTime, float fMove, float fStrafe, float fTurn
                                       (vNormal.y - mGroundNormal.y) * fBlend + mGroundNormal.y,
                                       (vNormal.z - mGroundNormal.z) * fBlend + mGroundNormal.z);
                     PblVector3 vGround;
-                    D3DXVec3Normalize(&vGround, &vBlend);
+                    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vGround), reinterpret_cast<const D3DXVECTOR3*>(&vBlend));
                     mGroundNormal = vGround;
                 }
             }
@@ -1571,7 +1489,7 @@ void EntityDroid::Move(float fDeltaTime, float fMove, float fStrafe, float fTurn
         mGroundRatio = fRatio;
         float fLift = mClass->mSetAltitude > 0.0f ? 0.1f : 0.0f;
         PblVector3 vTilt(mGroundNormal.x * fRatio, mGroundNormal.y + fLift, mGroundNormal.z * fRatio);
-        D3DXVec3Normalize(&vUp, &vTilt);
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vUp), reinterpret_cast<const D3DXVECTOR3*>(&vTilt));
     }
     else if (mGroundRatio == 1.0f)
     {
@@ -1688,7 +1606,7 @@ void EntityDroid::Move(float fDeltaTime, float fMove, float fStrafe, float fTurn
                        vPos.z + mVelocity.z * fDeltaTime);
     PblQuaternion qUnit;
     PblMatrix mNew;
-    D3DXMatrixRotationQuaternion(&mNew, D3DXQuaternionNormalize(&qUnit, &qOrient));
+    D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mNew), D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&qUnit), reinterpret_cast<const D3DXQUATERNION*>(&qOrient)));
     mNew.m[3][0] = vNewPos.x;
     mNew.m[3][1] = vNewPos.y;
     mNew.m[3][2] = vNewPos.z;
@@ -1704,7 +1622,6 @@ void EntityDroid::Move(float fDeltaTime, float fMove, float fStrafe, float fTurn
 void EntityDroid::RecalculateAABB()
 {
     SetCollisionRadius(1.5f);
-    Set2DCollisionRadius(1.5f);
     const PblVector3& vCenter = GetCollisionCenter();
     mAABB = PblBox(vCenter.x - 2.5f, vCenter.y - 2.5f, vCenter.z - 2.5f, vCenter.x + 2.5f, vCenter.y + 2.5f,
                    vCenter.z + 2.5f);
@@ -1841,54 +1758,54 @@ Entity* EntityDroidClass::Build(const EntityDesc& desc)
 }
 
 // SYNTHETIC: SWBF2 0x0049e20a
-// [thunk]:EntityDroid::GetMatrix`adjustor{564}'
+// ?GetMatrix@EntityDroid@@WCDE@BEABVPblMatrix@@XZ
 
 // SYNTHETIC: SWBF2 0x0049e220
-// [thunk]:EntityDroid::GetEntity`adjustor{12}'
+// ?GetEntity@EntityDroid@@WM@AEPAVEntity@@XZ
 
 // SYNTHETIC: SWBF2 0x0049e230
-// [thunk]:EntityDroid::GetGameObject`adjustor{320}'
+// ?GetGameObject@EntityDroid@@WBEA@AEPAVGameObject@@XZ
 
 // SYNTHETIC: SWBF2 0x0049e246
-// [thunk]:EntityDroid::GetGameObject`adjustor{600}'
+// ?GetGameObject@EntityDroid@@WCFI@AEPAVGameObject@@XZ
 
 // SYNTHETIC: SWBF2 0x0049e251
-// [thunk]:EntityDroid::GetGameObject`adjustor{600}'
+// ?GetGameObject@EntityDroid@@WCFI@BEPBVGameObject@@XZ
 
 // SYNTHETIC: SWBF2 0x0049e25c
-// [thunk]:EntityDroid::GetGameObject`adjustor{12}'
+// ?GetGameObject@EntityDroid@@WM@AEPAVGameObject@@XZ
 
 // SYNTHETIC: SWBF2 0x0049e26c
-// [thunk]:EntityDroid::GetEntity`adjustor{576}'
+// ?GetEntity@EntityDroid@@WCEA@AEPAVEntity@@XZ
 
 // SYNTHETIC: SWBF2 0x0049e277
-// [thunk]:EntityDroid::GetEntity`adjustor{576}'
+// ?GetEntity@EntityDroid@@WCEA@BEPBVEntity@@XZ
 
 // SYNTHETIC: SWBF2 0x0049e2cc
-// [thunk]:EntityDroid::`scalar deleting destructor'`adjustor{576}'
+// ??_EEntityDroid@@WCEA@AEPAXI@Z
 
 // SYNTHETIC: SWBF2 0x0049e215
-// [thunk]:EntityDroid::`scalar deleting destructor' adjustor{148}
+// ??_EEntityDroid@@WJE@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x0049e228
-// [thunk]:EntityDroid::GetEntity adjustor{12}
+// ?GetEntity@EntityDroid@@WM@BEPBVEntity@@XZ
 // SYNTHETIC: SWBF2 0x0049e23b
-// [thunk]:EntityDroid::GetGameObject adjustor{320}
+// ?GetGameObject@EntityDroid@@WBEA@BEPBVGameObject@@XZ
 // SYNTHETIC: SWBF2 0x0049e264
-// [thunk]:EntityDroid::GetGameObject adjustor{12}
+// ?GetGameObject@EntityDroid@@WM@BEPBVGameObject@@XZ
 // SYNTHETIC: SWBF2 0x0049e282
-// [thunk]:EntityDroid::GetControllable adjustor{600}
+// ?GetControllable@EntityDroid@@WCFI@AEPAVControllable@@XZ
 // SYNTHETIC: SWBF2 0x0049e28d
-// [thunk]:EntityDroid::GetControllable adjustor{600}
+// ?GetControllable@EntityDroid@@WCFI@BEPBVControllable@@XZ
 // SYNTHETIC: SWBF2 0x0049e298
-// [thunk]:EntityDroid::Kill adjustor{256}
+// ?Kill@EntityDroid@@WBAA@AEXXZ
 // SYNTHETIC: SWBF2 0x0049e2a3
-// [thunk]:EntityDroid::`scalar deleting destructor' adjustor{320}
+// ??_EEntityDroid@@WBEA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x0049e2ae
-// [thunk]:EntityDroid::`scalar deleting destructor' adjustor{600}
+// ??_EEntityDroid@@WCFI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x0049e2b9
-// [thunk]:EntityDroid::`scalar deleting destructor' adjustor{12}
+// ??_EEntityDroid@@WM@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x0049e2c1
-// [thunk]:EntityDroid::`scalar deleting destructor' adjustor{512}
+// ??_EEntityDroid@@WCAA@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x005eedf0
 const PblMatrix& EntityDroid::GetSmoothedMatrix() const
@@ -1903,7 +1820,11 @@ const PblMatrix& EntityDroid::GetSmoothedMatrix() const
 // FUNCTION: SWBF2 0x0049ca60
 bool EntityDroid::ShouldShowReticule() const
 {
-    return mState == NORMAL && mIsAlive;
+    if (mState != NORMAL)
+    {
+        return false;
+    }
+    return IsAlive();
 }
 
 // FUNCTION: SWBF2 0x0049ce70
@@ -1998,14 +1919,13 @@ void EntityDroid::SetupCameraFOV(float& rFOV)
         rFOV = GetDefaultFOV();
         return;
     }
-    const ControllableClass* pClass = GetControllableClass();
     if (mTargetInfo.mIsAiming || (mTracker && mTracker->IsFirstPersonView()))
     {
-        rFOV = pClass->mFirstPersonFOV;
+        rFOV = GetControllableClass()->mFirstPersonFOV;
     }
     else
     {
-        rFOV = pClass->mThirdPersonFOV;
+        rFOV = GetControllableClass()->mThirdPersonFOV;
     }
 }
 
@@ -2013,6 +1933,7 @@ void EntityDroid::SetupCameraFOV(float& rFOV)
 void EntityDroid::SetupCameraTrackMatrix(PblMatrix& rMatrix, float fDeltaTime)
 {
 
+    // GLOBAL: SWBF2 0x01faa90c
     static PblVector3 vCameraOffset(0.0f, 0.0f, 8.5f);
     (void)&vCameraOffset;
     CameraTrackSetting settings = mClass->mCameraSettings;

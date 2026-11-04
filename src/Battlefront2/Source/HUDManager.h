@@ -10,11 +10,13 @@ class RedScreenGroupElement;
 
 class PblFileChunk;
 
-namespace HUD {
+namespace HUD
+{
 
 class Editor;
 
-namespace Manager {
+namespace Manager
+{
 
 // VTABLE: SWBF2 0x007a329c
 class ConfigFile : public HUD::Item

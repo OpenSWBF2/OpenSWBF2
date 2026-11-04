@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "EntityPropAnimated.h"
 #include "PebbleFL/Common/PblVector.h"
 
@@ -20,7 +21,7 @@
 #include "GameModel.h"
 #include "Team.h"
 #include "RedEngineFL/Graphics/RedModel.h"
-#include "PebbleFL/pc/PblD3DX.h"
+
 
 // TEMPLATE: SWBF2 0x004dc8e0
 // PblHandle<GameObject>::operator()
@@ -30,10 +31,7 @@ EntityPropAnimatedClass::EntityPropAnimatedClass(unsigned int uHash)
     : EntityPropClass(uHash)
 {
     mAnimObj = 0;
-    for (int i = 0; i < 5; i++)
-    {
-        mAnimations[i] = 0;
-    }
+    memset(mAnimations, 0, sizeof(mAnimations));
     for (int i = 0; i < 3; i++)
     {
         mAnimationTriggers[i].mTriggerPoint = 0;
@@ -50,23 +48,29 @@ EntityPropAnimatedClass::EntityPropAnimatedClass(unsigned int uHash)
     mIdleDelay = 0.0f;
 }
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
 
-// GLOBAL: SWBF2 0x01ebc044
+
 // SYNTHETIC: SWBF2 0x00402cf0
 // `dynamic initializer for 'EntityPropAnimatedClass::rttiHashEntityPropAnimatedClass''
-PblHash EntityPropAnimatedClass::rttiHashEntityPropAnimatedClass("EntityPropAnimatedClass");
-char EntityPropAnimatedClass::rttiNameEntityPropAnimatedClass[] = "EntityPropAnimatedClass";
+// EntityPropAnimatedClass::rttiHashEntityPropAnimatedClass
 
-// GLOBAL: SWBF2 0x01ebc048
+// GLOBAL: SWBF2 0x01ebc044
+// EntityPropAnimatedClass::rttiHashEntityPropAnimatedClass
+PblHash EntityPropAnimatedClass::rttiHashEntityPropAnimatedClass("EntityPropAnimatedClass");
+// GLOBAL: SWBF2 0x007894b0
+// EntityPropAnimatedClass::rttiNameEntityPropAnimatedClass
+const char EntityPropAnimatedClass::rttiNameEntityPropAnimatedClass[] = "EntityPropAnimatedClass";
+
 // SYNTHETIC: SWBF2 0x00402ce0
 // `dynamic initializer for 'EntityPropAnimated::rttiHashEntityPropAnimated''
+// EntityPropAnimated::rttiHashEntityPropAnimated
+
+// GLOBAL: SWBF2 0x01ebc048
+// EntityPropAnimated::rttiHashEntityPropAnimated
 PblHash EntityPropAnimated::rttiHashEntityPropAnimated("EntityPropAnimated");
-char EntityPropAnimated::rttiNameEntityPropAnimated[] = "EntityPropAnimated";
+// GLOBAL: SWBF2 0x007894c8
+// EntityPropAnimated::rttiNameEntityPropAnimated
+const char EntityPropAnimated::rttiNameEntityPropAnimated[] = "EntityPropAnimated";
 
 // FUNCTION: SWBF2 0x004db3c0
 EntityPropAnimated::EntityPropAnimated(EntityPropAnimatedClass* pClass, const EntityDesc& desc)
@@ -89,7 +93,7 @@ EntityPropAnimated::EntityPropAnimated(EntityPropAnimatedClass* pClass, const En
     {
         mShadowProxy->Deactivate();
     }
-    mZephyrSkeleton.Open(*mAnimObj->GetZephyrSkeletonShared());
+    mZephyrSkeleton.Open(*mAnimObj->GetZephyrSkeletonShared(), mZephyrPoseStatic);
     mZephyrPoseStatic.Open(mZephyrSkeleton);
     mZephyrPoseDyn.Open(mZephyrSkeleton);
     mAttachedSoldier.mObject = 0;
@@ -116,6 +120,8 @@ void EntityPropAnimated::Render(unsigned char ucLod, float fAlpha, unsigned int 
         uFlags |= 0x80u;
     }
 
+    // GLOBAL: SWBF2 0x01faa92c
+    // sPlayerShadow
     static PblHash sPlayerShadow("player_shadow");
     SetupShadow(0, mModel, ucLod, uFlags, sPlayerShadow);
     const GameModel* pModel = GetModel();
@@ -127,38 +133,21 @@ void EntityPropAnimated::Render(unsigned char ucLod, float fAlpha, unsigned int 
 // SYNTHETIC: SWBF2 0x004db340
 // EntityPropAnimated::`scalar deleting destructor'
 // SYNTHETIC: SWBF2 0x004992da
-// [thunk]:EntityGeometry::GetGameObject`adjustor{12}'
+// ?GetGameObject@EntityGeometry@@WM@BEPBVGameObject@@XZ
 // SYNTHETIC: SWBF2 0x004dc901
-// [thunk]:EntityPropAnimated::`vector deleting destructor'`adjustor{384}'
+// ??_EEntityPropAnimated@@WBIA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004dc90c
-// [thunk]:EntityPropAnimated::`vector deleting destructor'`adjustor{12}'
+// ??_EEntityPropAnimated@@WM@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004dc914
-// [thunk]:EntityPropAnimated::`vector deleting destructor'`adjustor{148}'
+// ??_EEntityPropAnimated@@WJE@AEPAXI@Z
 
-// FUNCTION: SWBF2 0x004db370
-bool EntityPropAnimatedClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashEntityPropAnimatedClass || EntityPropClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x004db2a0
-bool EntityPropAnimated::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashEntityPropAnimated ||
-           EntityProp::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x004db3a0
-unsigned int EntityPropAnimatedClass::GetDerivedRtti()
-{
-    return rttiHashEntityPropAnimatedClass;
-}
 
-// FUNCTION: SWBF2 0x004db3b0
-const char* EntityPropAnimatedClass::GetDerivedRttiName()
-{
-    return rttiNameEntityPropAnimatedClass;
-}
+
+
+
+
 
 // SYNTHETIC: SWBF2 0x004dc150
 // EntityPropAnimatedClass::`scalar deleting destructor'
@@ -372,17 +361,9 @@ unsigned int EntityPropAnimated::GetRtti()
     return rttiHashEntityPropAnimated;
 }
 
-// FUNCTION: SWBF2 0x004db2f0
-unsigned int EntityPropAnimated::GetDerivedRtti() const
-{
-    return rttiHashEntityPropAnimated;
-}
 
-// FUNCTION: SWBF2 0x004db300
-const char* EntityPropAnimated::GetDerivedRttiName() const
-{
-    return rttiNameEntityPropAnimated;
-}
+
+
 
 // FUNCTION: SWBF2 0x004db310
 EntityClass* EntityPropAnimated::GetEntityClass()
@@ -420,7 +401,7 @@ void EntityPropAnimated::SetAnimation(unsigned int uAnimationId, bool bLoop)
     {
         mZephyrPoseStatic.Blend(mZephyrPoseDyn, mBlendFactor);
     }
-    mZephyrSkeleton.BuildWorldMatrices(_IdentityMatrix);
+    mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity);
     mPose.ConvertFromZephyrPose(mZephyrPoseStatic);
     mAnimationId = uAnimationId;
 }
@@ -433,7 +414,7 @@ bool EntityPropAnimated::Update(float fDeltaTime)
         SetAnimation(0, true);
         mZephyrPoseDyn.Update(0.0f);
         mZephyrPoseStatic.Set(mZephyrPoseDyn, true);
-        mZephyrSkeleton.BuildWorldMatrices(_IdentityMatrix);
+        mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity);
         mPose.ConvertFromZephyrPose(mZephyrPoseStatic);
     }
 
@@ -455,7 +436,7 @@ bool EntityPropAnimated::Update(float fDeltaTime)
             mBlendFactor = 0.0f;
             if (mAttachedSoldier)
             {
-                GameObject* pSoldier = mAttachedSoldier();
+                GameObject* pSoldier = &mAttachedSoldier();
                 pSoldier->InstantDeath(DamageOwner(0, 0, 0, 0, 0, 1.0f), true);
                 mAnimatedClass->mKillSoldierSound.Play((const PblVector3*)GetMatrix().m[3], 0, false, true);
             }
@@ -489,9 +470,9 @@ bool EntityPropAnimated::Update(float fDeltaTime)
             continue;
         }
         PblMatrix mWorld;
-        D3DXMatrixMultiply(&mWorld, &mBone, &mMatrix);
+        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mWorld), reinterpret_cast<const D3DXMATRIX*>(&mBone), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
         GameObject* pFound;
-        if (CollisionManager::GetObjectsInRange(*(const PblVector3*)mWorld.m[3], trigger.mTriggerRadius,
+        if (CollisionManager::GetObjectsInRange(mWorld.GetTranslation(), trigger.mTriggerRadius,
                                                 &pFound, 1, 0, 2) > 0)
         {
             mAnimationTime = 0.0f;
@@ -517,9 +498,9 @@ bool EntityPropAnimated::Update(float fDeltaTime)
                 continue;
             }
             PblMatrix mWorld;
-            D3DXMatrixMultiply(&mWorld, mAttachMatrix, &mMatrix);
+            D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mWorld), reinterpret_cast<const D3DXMATRIX*>(mAttachMatrix), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
             GameObject* pFound;
-            if (CollisionManager::GetObjectsInRange(*(const PblVector3*)mWorld.m[3], attach.mAttachRadius,
+            if (CollisionManager::GetObjectsInRange(mWorld.GetTranslation(), attach.mAttachRadius,
                                                     &pFound, 1, 0, 2) <= 0)
             {
                 continue;
@@ -586,13 +567,13 @@ bool EntityPropAnimated::Update(float fDeltaTime)
         mZephyrPoseStatic.Blend(mZephyrPoseDyn, mBlendFactor);
     }
     mBlendFactor += mAnimationId == 0 ? fStep * 0.2f : fStep;
-    mZephyrSkeleton.BuildWorldMatrices(_IdentityMatrix);
+    mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity);
     mPose.ConvertFromZephyrPose(mZephyrPoseStatic);
 
     if (mAttachedSoldier && mAttachMatrix)
     {
         PblMatrix mWorld;
-        D3DXMatrixMultiply(&mWorld, mAttachMatrix, &mMatrix);
+        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mWorld), reinterpret_cast<const D3DXMATRIX*>(mAttachMatrix), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
         RedPose kPose;
         mAttachedSoldier->SetupPose(kPose);
         const PblMatrix* pRoot = kPose.Find(0x16E27226u);
@@ -600,7 +581,7 @@ bool EntityPropAnimated::Update(float fDeltaTime)
         {
             const PblMatrix mInverse = pRoot->GetInverseFast();
             PblMatrix mLocal;
-            D3DXMatrixMultiply(&mLocal, &mInverse, &mWorld);
+            D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mLocal), reinterpret_cast<const D3DXMATRIX*>(&mInverse), reinterpret_cast<const D3DXMATRIX*>(&mWorld));
             mWorld = mLocal;
         }
         static_cast<EntitySoldier*>((GameObject*)mAttachedSoldier)

@@ -23,8 +23,6 @@
 #include "PebbleFL/Common/PblRandom.h"
 
 #include "UnitThreatManager.h"
-#include "VOHelper.h"
-#include "TeamManager.h"
 
 class EntityFlyer
 {
@@ -37,6 +35,32 @@ class EntityDroideka
 public:
     static PblHash rttiHashEntityDroideka;
 };
+
+namespace AI
+{
+
+enum AIAffil
+{
+    AFFIL_ENEMY = 1,
+    AFFIL_NEUTRAL = 2,
+    AFFIL_ALLY = 4,
+    AFFIL_ALLYNEUTRAL = 6,
+    AFFIL_ALL = 7
+};
+
+enum VOType
+{
+    VOT_FriendlyFire = 2,
+    VOT_SC_FollowResponse = 23,
+    VOT_SC_GetInResponse = 29
+};
+
+namespace VOHelper
+{
+
+int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget, const GameObject* pOther, float fDelay);
+}
+}
 
 namespace AIUtil
 {
@@ -55,7 +79,21 @@ namespace CombatUtil
     bool CanFaceDisturbance(const GameObject* pObj, const PblVector3& vPos);
 }
 
-namespace CombatUtil { float GetCombatRange(const Controllable* pMe); }
+namespace CombatUtil
+{
+float GetCombatRange(const Controllable* pMe);
+}
+
+namespace TeamManager
+{
+
+    int GetObjectsInRange(const PblVector3& vPos, float fRadius, GameObject** const ppObjects,
+                          int iMax, const GameObject* pIgnore, AI::AIAffil eAffil);
+
+    int GetApproxObjectsAlongLine(const PblVector3& vStart, const PblVector3& vEnd, float fRadius,
+                                  GameObject** const ppObjects, int iMax, const GameObject* pIgnore,
+                                  AI::AIAffil eAffil);
+}
 
 namespace ReserveManager
 {
@@ -92,65 +130,35 @@ namespace
         SOLDIER_PILOT = 3
     };
 
-    const PblVector3& GetTrans(const PblMatrix& m)
-    {
-        return *reinterpret_cast<const PblVector3*>(&m.m[3][0]);
-    }
 
-    int GetTeam(const GameObject* pObj)
+    inline int GetTeam(const GameObject* pObj)
     {
     return pObj->GetTeam();
     }
 
-    unsigned int GetHandleId(const GameObject* pObj)
-    {
-        return PBL_HANDLE_ID(pObj);
-    }
 
-    GameObject* ResolveHandle(PblHandle<GameObject>& handle)
-    {
-        GameObject* pObj = handle.mObject;
-        if (pObj)
-        {
-            if (GetHandleId(pObj) == handle.mSavedHandleId)
-            {
-                return pObj;
-            }
-            handle.mObject = 0;
-            handle.mSavedHandleId = 0;
-        }
-        return 0;
-    }
 
-    PblHandle<const GameObject> MakeHandle(const GameObject* pObj)
-    {
-        PblHandle<const GameObject> handle;
-        handle.mObject = pObj;
-        handle.mSavedHandleId = pObj ? GetHandleId(pObj) : 0;
-        return handle;
-    }
-
-    const Entity* AsEntity(const GameObject* pObj)
+    inline const Entity* AsEntity(const GameObject* pObj)
     {
         return reinterpret_cast<const Entity*>(pObj);
     }
 
-    Entity* AsEntity(GameObject* pObj)
+    inline Entity* AsEntity(GameObject* pObj)
     {
         return reinterpret_cast<Entity*>(pObj);
     }
 
-    const CollisionObject* GetCollisionObject(const GameObject* pObj)
+    inline const CollisionObject* GetCollisionObject(const GameObject* pObj)
     {
         return static_cast<const CollisionObject*>(pObj);
     }
 
-    float GetMaxSpeed(const GameObject* pObj)
+    inline float GetMaxSpeed(const GameObject* pObj)
     {
         return pObj->GetMaxSpeed();
     }
 
-    const Controllable* GetControllable(const GameObject* pObj)
+    inline const Controllable* GetControllable(const GameObject* pObj)
     {
         return pObj->GetControllable();
     }
@@ -192,57 +200,43 @@ namespace
         return static_cast<const EntitySoldier*>(pEntity)->mAcklayData;
     }
 
-    const AttackHelper& GetAttackHelper(const UnitAgent* pAgent)
+    inline const AttackHelper& GetAttackHelper(const UnitAgent* pAgent)
     {
-        return *reinterpret_cast<const AttackHelper*>(pAgent->mAttackHelper);
+        return pAgent->mAttackHelper;
     }
 }
 
-// GLOBAL: SWBF2 0x01f7d0dc
 // SYNTHETIC: SWBF2 0x00406bf0
 // `dynamic initializer for 'UnitAgent::rttiHashUnitAgent''
-PblHash UnitAgent::rttiHashUnitAgent("UnitAgent");
-char UnitAgent::rttiNameUnitAgent[] = "UnitAgent";
+// UnitAgent::rttiHashUnitAgent
 
-// GLOBAL: SWBF2 0x01f9a1a8
+// GLOBAL: SWBF2 0x01f7d0dc
+// UnitAgent::rttiHashUnitAgent
+PblHash UnitAgent::rttiHashUnitAgent("UnitAgent");
+// GLOBAL: SWBF2 0x0078b6e8
+// UnitAgent::rttiNameUnitAgent
+const char UnitAgent::rttiNameUnitAgent[] = "UnitAgent";
+
 // SYNTHETIC: SWBF2 0x00406c00
 // `dynamic initializer for 'UnitAgent::sMemoryPool''
 // SYNTHETIC: SWBF2 0x007696b0
 // `dynamic atexit destructor for 'UnitAgent::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01f9a1a8
+// UnitAgent::sMemoryPool
 MemoryPool UnitAgent::sMemoryPool("UnitAgent", sizeof(UnitAgent));
 
-bool Agent::IsRtti(unsigned int hash) const
-{
-    return hash == rttiHashAgent;
-}
 
-unsigned int Agent::GetDerivedRtti() const
-{
-    return rttiHashAgent;
-}
 
-const char* Agent::GetDerivedRttiName() const
-{
-    return rttiNameAgent;
-}
 
-// FUNCTION: SWBF2 0x0065dce0
-bool UnitAgent::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashUnitAgent || Agent::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x0065dd10
-unsigned int UnitAgent::GetDerivedRtti() const
-{
-    return rttiHashUnitAgent;
-}
 
-// FUNCTION: SWBF2 0x0065dd20
-const char* UnitAgent::GetDerivedRttiName() const
-{
-    return rttiNameUnitAgent;
-}
+
+
+
+
+
+
 
 // FUNCTION: SWBF2 0x0065dd40
 bool UnitAgent::ShouldQueueCurCmd(const UnitCmdInfo& cmd) const
@@ -255,10 +249,9 @@ bool UnitAgent::ShouldQueueCurCmd(const UnitCmdInfo& cmd) const
 
 // FUNCTION: SWBF2 0x0065dd80
 UnitAgent::UnitAgent(UnitController* pCtrl)
-    : mCtrl(pCtrl),
+    : mCtrl(pCtrl), mAttackHelper(this),
       mCheckNearbyUnitsTime(-1.0f)
 {
-    new (mAttackHelper) AttackHelper(this);
 }
 
 // FUNCTION: SWBF2 0x0065ddb0
@@ -282,21 +275,6 @@ float UnitAgent::GetUpdateRate() const
 void UnitAgent::UpdateState(float dt)
 {
     UpdateStatePostVision(dt);
-}
-
-const Controllable* UnitAgent::GetMe() const
-{
-    return mCtrl->mOwner;
-}
-
-Controllable* UnitAgent::GetMe()
-{
-    return mCtrl->mOwner;
-}
-
-AILowLevel& UnitAgent::GetLowLevel()
-{
-    return *reinterpret_cast<AILowLevel*>(mCtrl->mLowLevel);
 }
 
 // FUNCTION: SWBF2 0x0065de00
@@ -348,10 +326,10 @@ void UnitAgent::FaceTarget(ControllableHeight eHeight, const PblVector3& vTarget
 // FUNCTION: SWBF2 0x0065df60
 bool UnitAgent::RunForVehicle(const GameObject* pVehicle) const
 {
-    PblVector3 vVehiclePos = GetTrans(GetCollisionObject(pVehicle)->GetMatrix());
+    PblVector3 vVehiclePos = (GetCollisionObject(pVehicle)->GetMatrix()).GetTranslation();
     const GameObject* pMe = GetMe()->GetGameObject();
     GameObject* pObjects[30];
-    int iCount = TeamManager::GetApproxObjectsAlongLine(GetTrans(GetMe()->GetMatrix()), vVehiclePos, 8.0f,
+    int iCount = TeamManager::GetApproxObjectsAlongLine(GetMe()->GetMatrix().GetTranslation(), vVehiclePos, 8.0f,
                                                         pObjects, 30, pMe, AI::AFFIL_ENEMY);
     for (int i = 0; i < iCount; ++i)
     {
@@ -375,7 +353,7 @@ bool UnitAgent::AreNearbyUnitsInCombat()
         if (AsEntity(pMe)->GetEntity()->IsRtti(EntitySoldier::rttiHashEntitySoldier))
         {
             GameObject* pObjects[30];
-            int iCount = TeamManager::GetObjectsInRange(GetTrans(GetMe()->GetMatrix()), 7.0f, pObjects, 30,
+            int iCount = TeamManager::GetObjectsInRange(GetMe()->GetMatrix().GetTranslation(), 7.0f, pObjects, 30,
                                                         pMe, AI::AFFIL_ALLY);
             int iInCombat = 0;
             for (int i = 0; i < iCount && iInCombat < 3; ++i)
@@ -469,8 +447,8 @@ int UnitAgent::DamagedEventPlayerCentricness(AI::EventInfo* pEvent)
 
     if (!pInfo->mIsPropagated && pInfo->mDamageOwner && pInfo->mDamageOwner->GetControllable())
     {
-        const PblVector3& vAttacker = GetTrans(pInfo->mDamageOwner->GetControllable()->GetMatrix());
-        const PblVector3& vMe = GetTrans(GetMe()->GetMatrix());
+        const PblVector3& vAttacker = pInfo->mDamageOwner->GetControllable()->GetMatrix().GetTranslation();
+        const PblVector3& vMe = GetMe()->GetMatrix().GetTranslation();
         float fDX = vAttacker.x - vMe.x;
         float fDY = vAttacker.y - vMe.y;
         float fDZ = vAttacker.z - vMe.z;
@@ -498,13 +476,13 @@ int UnitAgent::DamagedEventPlayerCentricness(AI::EventInfo* pEvent)
     }
 
     GameObject* pAttacker = pInfo->mDamageOwner->GetControllable()->GetGameObject();
-    reinterpret_cast<AI::UnitThreatManager*>(mCtrl->mThreatManager)->AddThreat(pAttacker);
+    mCtrl->mThreatManager.AddThreat(pAttacker);
     mCtrl->ForceSetAttackHelperTarget(pAttacker);
     return 1;
 }
 
 // SYNTHETIC: SWBF2 0x0065e4c0
-// AI::EventInfo_Damaged::EventInfo_Damaged(const AI::EventInfo_Damaged&)
+// ??0EventInfo_Damaged@AI@@QAE@ABV01@@Z
 
 // FUNCTION: SWBF2 0x0065e530
 int UnitAgent::HandleDamagedEvent(AI::EventInfo* pEvent)
@@ -528,7 +506,7 @@ int UnitAgent::HandleDamagedEvent(AI::EventInfo* pEvent)
 
     if (GetMe()->GetEntity()->IsRtti(EntityFlyer::rttiHashEntityFlyer))
     {
-        PblVector3 vPos = GetTrans(GetMe()->GetMatrix());
+        PblVector3 vPos = GetMe()->GetMatrix().GetTranslation();
         float fRadius = AIUtil::GetCollisionRadius(GetMe()->GetGameObject());
         if (FlyRegionManager::IsInside(vPos, 15.0f > fRadius ? 15.0f : fRadius))
         {
@@ -542,8 +520,8 @@ int UnitAgent::HandleDamagedEvent(AI::EventInfo* pEvent)
     }
 
     const GameObject* pAttacker = pOwner->GetControllable()->GetGameObject();
-    PblVector3 vMyPos = GetTrans(GetMe()->GetMatrix());
-    PblVector3 vAttackerPos = GetTrans(pOwner->GetControllable()->GetMatrix());
+    PblVector3 vMyPos = GetMe()->GetMatrix().GetTranslation();
+    PblVector3 vAttackerPos = pOwner->GetControllable()->GetMatrix().GetTranslation();
     float fRange = VisionManager::MaxVisibleDist(pAttacker, pMe);
     float fDX = vAttackerPos.x - vMyPos.x;
     float fDY = vAttackerPos.y - vMyPos.y;
@@ -561,7 +539,7 @@ int UnitAgent::HandleDamagedEvent(AI::EventInfo* pEvent)
                                               PblHandle<GameObject>());
             }
         }
-        reinterpret_cast<AI::UnitThreatManager*>(mCtrl->mThreatManager)->AddThreat(pInfo->mDamageOwner->GetControllable()->GetGameObject());
+        mCtrl->mThreatManager.AddThreat(pInfo->mDamageOwner->GetControllable()->GetGameObject());
         return 1;
     }
 
@@ -599,11 +577,11 @@ int UnitAgent::HandleSquadCommandEvent(AI::EventInfo* pInfo)
     if (pInfo->mType == AI::EVT_SC_GetIntoVehicle)
     {
         int iVOHandle = -1;
-        if (FirstControllable(ResolveHandle(pInfo->mGameObject)) &&
-            FirstControllable(ResolveHandle(pInfo->mGameObject))->mPlayerId >= 0)
+        if (FirstControllable(static_cast<GameObject*>(pInfo->mGameObject)) &&
+            FirstControllable(static_cast<GameObject*>(pInfo->mGameObject))->mPlayerId >= 0)
         {
             Controllable* pMe = GetMe();
-            GameObject* pVehicle = ResolveHandle(pInfo->mGameObject);
+            GameObject* pVehicle = static_cast<GameObject*>(pInfo->mGameObject);
             iVOHandle = AI::VOHelper::Play(AI::VOT_SC_GetInResponse, pMe->GetGameObject(), 0, pVehicle,
                                            AIUtil::GetRandomFloat(0.5f, 1.2f) + GameLoop::GetMissionTime());
         }
@@ -627,7 +605,7 @@ int UnitAgent::HandleSquadCommandEvent(AI::EventInfo* pInfo)
 // FUNCTION: SWBF2 0x0065eab0
 int UnitAgent::Handle_Vision_CanSeeEnemy(AI::EventInfo* pInfo)
 {
-    GameObject* pEnemy = ResolveHandle(pInfo->mGameObject);
+    GameObject* pEnemy = static_cast<GameObject*>(pInfo->mGameObject);
 
     if (GetMe()->GetControllableClass() &&
         !GetMe()->GetControllableClass()->DoesCombatInterrupt())
@@ -637,8 +615,8 @@ int UnitAgent::Handle_Vision_CanSeeEnemy(AI::EventInfo* pInfo)
 
     if (AIUtil::GetEntityType(GetMe()->GetEntity()) == AIUtil::ENTITY_DROIDEKA)
     {
-        const PblVector3& vMe = GetTrans(GetMe()->GetMatrix());
-        const PblVector3& vEnemy = GetTrans(GetCollisionObject(pEnemy)->GetMatrix());
+        const PblVector3& vMe = GetMe()->GetMatrix().GetTranslation();
+        const PblVector3& vEnemy = (GetCollisionObject(pEnemy)->GetMatrix()).GetTranslation();
         float fDX = vEnemy.x - vMe.x;
         float fDY = vEnemy.y - vMe.y;
         float fDZ = vEnemy.z - vMe.z;
@@ -653,7 +631,7 @@ int UnitAgent::Handle_Vision_CanSeeEnemy(AI::EventInfo* pInfo)
         return 0;
     }
 
-    pInfo->mNextCmd = UnitCombatInfo(UnitCombatInfo::ENGAGE, MakeHandle(pEnemy));
+    pInfo->mNextCmd = UnitCombatInfo(UnitCombatInfo::ENGAGE, PblHandle<const GameObject>(pEnemy));
     return 1;
 }
 
@@ -673,7 +651,7 @@ int UnitAgent::Handle_Audible_CanHearEnemy(AI::EventInfo* pInfo)
 
     if (GetMe()->GetEntity()->IsRtti(EntityFlyer::rttiHashEntityFlyer))
     {
-        PblVector3 vPos = GetTrans(GetMe()->GetMatrix());
+        PblVector3 vPos = GetMe()->GetMatrix().GetTranslation();
         float fRadius = AIUtil::GetCollisionRadius(GetMe()->GetGameObject());
         if (FlyRegionManager::IsInside(vPos, 15.0f > fRadius ? 15.0f : fRadius))
         {
@@ -686,15 +664,15 @@ int UnitAgent::Handle_Audible_CanHearEnemy(AI::EventInfo* pInfo)
         return AI::EVT_Ignored;
     }
 
-    if (CombatUtil::EngageInCombat(mCtrl, ResolveHandle(pInfo->mGameObject), false))
+    if (CombatUtil::EngageInCombat(mCtrl, static_cast<GameObject*>(pInfo->mGameObject), false))
     {
-        pInfo->mNextCmd = UnitCombatInfo(UnitCombatInfo::INVESTIGATE, MakeHandle(ResolveHandle(pInfo->mGameObject)));
+        pInfo->mNextCmd = UnitCombatInfo(UnitCombatInfo::INVESTIGATE, PblHandle<const GameObject>(static_cast<GameObject*>(pInfo->mGameObject)));
         HeardEnemy(GetMe()->GetGameObject());
         return 1;
     }
 
-    PblVector3 vMyPos = GetTrans(GetMe()->GetMatrix());
-    PblVector3 vEnemyPos = GetTrans(GetCollisionObject(ResolveHandle(pInfo->mGameObject))->GetMatrix());
+    PblVector3 vMyPos = GetMe()->GetMatrix().GetTranslation();
+    PblVector3 vEnemyPos = (pInfo->mGameObject->GetMatrix()).GetTranslation();
     PblVector3 vDiff(vEnemyPos.x - vMyPos.x, vEnemyPos.y - vMyPos.y, vEnemyPos.z - vMyPos.z);
     float fRange = CombatUtil::GetCombatRange(GetMe());
     if (AIUtil::GetEntityType(GetMe()->GetEntity()) == AIUtil::ENTITY_DROIDEKA)
@@ -719,12 +697,12 @@ int UnitAgent::EventHandler(AI::EventInfo* pInfo)
     switch (pInfo->mType)
     {
     case AI::EVT_EmptyVehicle:
-        if (!ShouldAgentGetInNearbyVehicle(ResolveHandle(pInfo->mGameObject)))
+        if (!ShouldAgentGetInNearbyVehicle(static_cast<GameObject*>(pInfo->mGameObject)))
         {
             return 0;
         }
         pInfo->mNextCmd = UnitBoardInfo(pInfo->mGameObject, -1);
-        ReserveManager::Reserve(ResolveHandle(pInfo->mGameObject), GetMe()->GetGameObject(), RT_BOARD);
+        ReserveManager::Reserve(static_cast<GameObject*>(pInfo->mGameObject), GetMe()->GetGameObject(), RT_BOARD);
         return 1;
 
     case AI::EVT_Grenade:
@@ -801,7 +779,7 @@ int UnitAgent::EventHandler(AI::EventInfo* pInfo)
 
     case AI::EVT_EndInvisibility:
         pInfo->mNextCmd = UnitCombatInfo(UnitCombatInfo::TURN,
-                                         GetCollisionObject(ResolveHandle(pInfo->mGameObject))->GetPosition(), true);
+                                         pInfo->mGameObject->GetPosition(), true);
         return 1;
     }
     return 0;

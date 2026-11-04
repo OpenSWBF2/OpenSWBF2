@@ -3,12 +3,6 @@
 #include "ZephyrFile.h"
 #include "ZephyrSkinShared.h"
 
-// FUNCTION: SWBF2 0x0072f610
-bool CheckChunkId(PblMemChunk& kChunk, const char* pcID)
-{
-    return kChunk.GetId() == ZEPHYR_HEADER_ID(pcID[0], pcID[1], pcID[2], pcID[3]);
-}
-
 // FUNCTION: SWBF2 0x0072f640
 ZephyrSkinShared::DataOffsets::DataOffsets()
 {
@@ -34,7 +28,11 @@ bool ZephyrSkinShared::ReadSizeChunk(PblMemChunk& kChunk, SizeHeader& kHeader)
     kHeader.iNumProxiesTotal = kChunk.Read32();
     kHeader.iNumProxiesHigh = kChunk.Read32();
     kHeader.iNumProxiesHighLow = kChunk.Read32();
-    return kHeader.iNumJoints > 0;
+    if (kHeader.iNumJoints <= 0)
+    {
+        return false;
+    }
+    return true;
 }
 
 // FUNCTION: SWBF2 0x0072f660
@@ -52,7 +50,7 @@ unsigned int ZephyrSkinShared::GetRequiredMemSize(PblMemChunk& kChunk, DataOffse
     }
     unsigned short u16Major = kVersion.Read16();
     unsigned short u16Minor = kVersion.Read16();
-    if (u16Major != ZEPHYR_FILE_MAJOR_VERSION || u16Minor > ZEPHYR_FILE_MINOR_VERSION)
+    if (ZEPHYR_FILE_MAJOR_VERSION != u16Major || ZEPHYR_FILE_MINOR_VERSION < u16Minor)
     {
         return 0;
     }
@@ -67,13 +65,14 @@ unsigned int ZephyrSkinShared::GetRequiredMemSize(PblMemChunk& kChunk, DataOffse
     kChunk.ReadNextChild();
     kChunk.ReadNextChild();
 
-    kOffsets.m_uSkeleton = ZEPHYR_ALIGN(sizeof(ZephyrSkinShared), 16);
+    const unsigned int uSkeletonOffset = ZEPHYR_ALIGN(sizeof(ZephyrSkinShared), 16);
+    kOffsets.m_uSkeleton = uSkeletonOffset;
     kOffsets.m_uSkeletonSize = ZephyrSkeletonShared::GetRequiredMemSize(kHeader.iNumJoints, kOffsets.m_kSkeletonOffsets);
     if (!kOffsets.m_uSkeletonSize)
     {
         return 0;
     }
-    kOffsets.m_uJointSets = ZEPHYR_ALIGN(kOffsets.m_uSkeleton + kOffsets.m_uSkeletonSize, 4);
+    kOffsets.m_uJointSets = ZEPHYR_ALIGN(uSkeletonOffset + kOffsets.m_uSkeletonSize, 4);
     unsigned int uSize = ZEPHYR_ALIGN(kOffsets.m_uJointSets + kHeader.iNumJointSets * sizeof(ZephyrJointSet), 4)
                          + kHeader.iNumSkinSets * 4;
 
@@ -104,7 +103,7 @@ bool ZephyrSkinShared::Open(PblMemChunk& kChunk, const DataOffsets& kOffsets, un
     }
     unsigned short u16Major = kVersion.Read16();
     unsigned short u16Minor = kVersion.Read16();
-    if (u16Major != ZEPHYR_FILE_MAJOR_VERSION || u16Minor > ZEPHYR_FILE_MINOR_VERSION)
+    if (ZEPHYR_FILE_MAJOR_VERSION != u16Major || ZEPHYR_FILE_MINOR_VERSION < u16Minor)
     {
         return false;
     }
@@ -155,7 +154,11 @@ bool ZephyrSkinShared::Open(PblMemChunk& kChunk, const DataOffsets& kOffsets, un
 
     m_pSkeleton = (ZephyrSkeletonShared*)((char*)this + kOffsets.m_uSkeleton);
     PblMemChunk kSkeleton = kChunk.ReadNextChild();
-    return m_pSkeleton->Open(kSkeleton, kHeader.iNumJoints, kOffsets.m_kSkeletonOffsets, kOffsets.m_uSkeletonSize);
+    if (!m_pSkeleton->Open(kSkeleton, kHeader.iNumJoints, kOffsets.m_kSkeletonOffsets, kOffsets.m_uSkeletonSize))
+    {
+        return false;
+    }
+    return true;
 }
 
 // FUNCTION: SWBF2 0x0072fa30

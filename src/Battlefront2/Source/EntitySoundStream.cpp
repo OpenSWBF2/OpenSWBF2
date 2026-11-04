@@ -3,11 +3,16 @@
 #include "GameLoop.h"
 #include "GameState.h"
 
-// GLOBAL: SWBF2 0x01ebc1fc
 // SYNTHETIC: SWBF2 0x00402e90
 // `dynamic initializer for 'EntitySoundStreamClass::rttiHashEntitySoundStreamClass''
+// EntitySoundStreamClass::rttiHashEntitySoundStreamClass
+
+// GLOBAL: SWBF2 0x01ebc1fc
+// EntitySoundStreamClass::rttiHashEntitySoundStreamClass
 PblHash EntitySoundStreamClass::rttiHashEntitySoundStreamClass("EntitySoundStreamClass");
-char EntitySoundStreamClass::rttiNameEntitySoundStreamClass[] = "EntitySoundStreamClass";
+// GLOBAL: SWBF2 0x00789638
+// EntitySoundStreamClass::rttiNameEntitySoundStreamClass
+const char EntitySoundStreamClass::rttiNameEntitySoundStreamClass[] = "EntitySoundStreamClass";
 
 // FUNCTION: SWBF2 0x004fbc80
 EntitySoundStreamClass::EntitySoundStreamClass(unsigned int uHash)
@@ -46,11 +51,7 @@ EntityClass* EntitySoundStreamClass::Derive(unsigned int uHash)
     return new EntitySoundStreamClass(this, uHash);
 }
 
-// FUNCTION: SWBF2 0x004fba10
-bool EntitySoundStreamClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashEntitySoundStreamClass || EntitySoundClass::IsRtti(uRtti);
-}
+
 
 // FUNCTION: SWBF2 0x004fbda0
 Entity* EntitySoundStreamClass::Build(const EntityDesc& desc)
@@ -58,68 +59,35 @@ Entity* EntitySoundStreamClass::Build(const EntityDesc& desc)
     return new EntitySoundStream(this, desc);
 }
 
-// FUNCTION: SWBF2 0x004fba40
-unsigned int EntitySoundStreamClass::GetDerivedRtti()
-{
-    return rttiHashEntitySoundStreamClass;
-}
 
-// FUNCTION: SWBF2 0x004fba50
-const char* EntitySoundStreamClass::GetDerivedRttiName()
-{
-    return rttiNameEntitySoundStreamClass;
-}
 
-// GLOBAL: SWBF2 0x01ebc250
+
+
 // SYNTHETIC: SWBF2 0x00402e80
 // `dynamic initializer for 'EntitySoundStream::rttiHashEntitySoundStream''
-PblHash EntitySoundStream::rttiHashEntitySoundStream("EntitySoundStream");
-char EntitySoundStream::rttiNameEntitySoundStream[] = "EntitySoundStream";
+// EntitySoundStream::rttiHashEntitySoundStream
 
-// GLOBAL: SWBF2 0x01ebc200
+// GLOBAL: SWBF2 0x01ebc250
+// EntitySoundStream::rttiHashEntitySoundStream
+PblHash EntitySoundStream::rttiHashEntitySoundStream("EntitySoundStream");
+// GLOBAL: SWBF2 0x00789650
+// EntitySoundStream::rttiNameEntitySoundStream
+const char EntitySoundStream::rttiNameEntitySoundStream[] = "EntitySoundStream";
+
 // SYNTHETIC: SWBF2 0x00402e60
 // `dynamic initializer for 'EntitySoundStream::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00767000
 // `dynamic atexit destructor for 'EntitySoundStream::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ebc200
+// EntitySoundStream::sMemoryPool
 MemoryPool EntitySoundStream::sMemoryPool("EntitySoundStream", 0x10c);
 
-// FUNCTION: SWBF2 0x004fb9b0
-bool EntitySoundStream::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashEntitySoundStream || Entity::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x004fb9e0
-unsigned int EntitySoundStream::GetDerivedRtti() const
-{
-    return rttiHashEntitySoundStream;
-}
 
-// FUNCTION: SWBF2 0x004fb9f0
-const char* EntitySoundStream::GetDerivedRttiName() const
-{
-    return rttiNameEntitySoundStream;
-}
 
-// FUNCTION: SWBF2 0x004fb890
-Snd::SoundStream::SoundStream()
-    : VoiceVirtualBus(0, 0, true),
-      mProperties(0),
-      mInfo(0)
-{
-    smList.AddLast(&mNode);
-}
 
-// FUNCTION: SWBF2 0x004fb920
-Snd::SoundStream::~SoundStream()
-{
-    mInfo = 0;
-    mProperties = 0;
-    if (mNode.mNext)
-    {
-        mNode.Remove();
-    }
-}
+
 
 // FUNCTION: SWBF2 0x004fba90
 EntitySoundStream::EntitySoundStream(EntitySoundStreamClass* pClass, const EntityDesc& desc)
@@ -135,7 +103,7 @@ EntitySoundStream::~EntitySoundStream()
 }
 
 // SYNTHETIC: SWBF2 0x004fbe08
-// [thunk]:EntitySoundStream::`scalar deleting destructor' adjustor{40}
+// ??_EEntitySoundStream@@WCI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004fba60
 // EntitySoundStream::`scalar deleting destructor'
 
@@ -179,7 +147,7 @@ void EntitySoundStream::Play()
 bool EntitySoundStream::Update(float fDeltaTime)
 {
     if (mSoundStream.GetPlayState() == Snd::SourceTransport::playState_stopped &&
-        mSoundStream.mProperties)
+        mSoundStream.GetProperties())
     {
         mSoundStream.Play(true);
     }

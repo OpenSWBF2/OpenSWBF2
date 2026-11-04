@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "Battlefront2/Source/ShieldEffect.h"
 #include "RedEngineFL/Graphics/PC/pcRedPrimitive.h"
 #include "RedEngineFL/Graphics/PC/Shaders/pcShieldShader.h"
@@ -10,19 +11,8 @@
 #include <math.h>
 #include "PebbleFL/Common/PblMath.h"
 #include "pcSunFlare.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
-static void CompressedPos_SetBoundingBox(const PblBox& box)
-{
-    PblVector3 vMin = { box._vMin.x, box._vMin.y, box._vMin.z };
-    PblVector3 vExtent = { box._vMax.x - box._vMin.x, box._vMax.y - box._vMin.y,
-                                box._vMax.z - box._vMin.z };
-    CompressedPos::s_vMin = vMin;
-    CompressedPos::s_vScale = vExtent * (1.0f / 65535.0f);
-    CompressedPos::s_vScaleInv.x = 1.0f / CompressedPos::s_vScale.x;
-    CompressedPos::s_vScaleInv.y = 1.0f / CompressedPos::s_vScale.y;
-    CompressedPos::s_vScaleInv.z = 1.0f / CompressedPos::s_vScale.z;
-}
+
 
 struct ShieldVertexC
 {
@@ -88,6 +78,7 @@ const PblBox& ShieldEffect::GetBBox() const
     return m_pClass->m_pPrim->m_bbox;
 }
 
+
 // FUNCTION: SWBF2 0x004281e0
 void ShieldEffectClass::PlatformCleanup()
 {
@@ -116,8 +107,7 @@ void ShieldEffect::PlatformRender(const PblMatrix& mMatrix, unsigned char ucView
         PblMatrix mBillboard = RedRenderer::GetCamera()->GetMatrix();
         const PblVector3& vX = mMatrix.GetXAxis();
         const float fScale = sqrtf(vX.x * vX.x + vX.y * vX.y + vX.z * vX.z);
-        PblMatrix mScale;
-        D3DXMatrixMultiply(&mBillboard, &mBillboard, D3DXMatrixScaling(&mScale, fScale, fScale, fScale));
+        mBillboard.Scale(fScale);
         mBillboard.m[3][0] = mMatrix.m[3][0];
         mBillboard.m[3][1] = mMatrix.m[3][1];
         mBillboard.m[3][2] = mMatrix.m[3][2];
@@ -202,7 +192,7 @@ void ShieldEffectClass::PlatformInit()
         {
             m_pPrim->m_bbox._vMin = PblVector3(-m_fRadius, -m_fRadius, -m_fHeight);
             m_pPrim->m_bbox._vMax = PblVector3(m_fRadius, m_fRadius, m_fHeight);
-            CompressedPos_SetBoundingBox(m_pPrim->m_bbox);
+            CompressedPos::SetBoundingBox(m_pPrim->m_bbox);
 
             DroidekaVertexU* pVertex = (DroidekaVertexU*)m_pPrim->BeginVertexData();
             if (!pVertex)
@@ -240,7 +230,7 @@ void ShieldEffectClass::PlatformInit()
         {
             m_pPrim->m_bbox._vMin = PblVector3(-m_fRadius, -m_fHeight, -m_fRadius);
             m_pPrim->m_bbox._vMax = PblVector3(m_fRadius, m_fHeight, m_fRadius);
-            CompressedPos_SetBoundingBox(m_pPrim->m_bbox);
+            CompressedPos::SetBoundingBox(m_pPrim->m_bbox);
 
             void* pVertices = m_pPrim->BeginVertexData();
             if (!pVertices)
@@ -354,7 +344,7 @@ void ShieldEffectClass::PlatformInit()
                                        PblMath::Sin(fStep * 3.0f) * m_fHeight * -1.01f,
                                        m_fRadius * -1.01f);
     m_pPrim->m_bbox._vMax = PblVector3(m_fRadius * 1.01f, m_fHeight * 1.01f, m_fRadius * 1.01f);
-    CompressedPos_SetBoundingBox(m_pPrim->m_bbox);
+    CompressedPos::SetBoundingBox(m_pPrim->m_bbox);
 
     void* pVertices = m_pPrim->BeginVertexData();
     if (!pVertices)

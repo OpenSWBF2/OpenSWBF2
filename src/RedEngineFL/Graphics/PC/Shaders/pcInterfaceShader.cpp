@@ -1,3 +1,4 @@
+#include <string.h>
 #include "pcInterfaceShader.h"
 
 #include "PebbleFL/Common/PblChunk.h"
@@ -26,18 +27,10 @@ pcRedVertexFormat* pcInterfaceShader::s_pVectorVertexFormat;
 // FUNCTION: SWBF2 0x00701780
 pcInterfaceShader::pcInterfaceShader()
 {
-    GetStateFuncArray[PIPELINE_FIXED] = 0;
-    GetStateFuncArray[PIPELINE_PROG1] = 0;
-    GetStateFuncArray[PIPELINE_PROG2] = 0;
-    BeginFuncArray[PIPELINE_FIXED] = 0;
-    BeginFuncArray[PIPELINE_PROG1] = 0;
-    BeginFuncArray[PIPELINE_PROG2] = 0;
-    EndFuncArray[PIPELINE_FIXED] = 0;
-    EndFuncArray[PIPELINE_PROG1] = 0;
-    EndFuncArray[PIPELINE_PROG2] = 0;
-    RenderFuncArray[PIPELINE_FIXED] = 0;
-    RenderFuncArray[PIPELINE_PROG1] = 0;
-    RenderFuncArray[PIPELINE_PROG2] = 0;
+    memset(GetStateFuncArray, 0, sizeof(GetStateFuncArray));
+    memset(BeginFuncArray, 0, sizeof(BeginFuncArray));
+    memset(EndFuncArray, 0, sizeof(EndFuncArray));
+    memset(RenderFuncArray, 0, sizeof(RenderFuncArray));
 
     s_uiID = _Register(s_uiRenderTypeHash, this);
 
@@ -158,19 +151,19 @@ unsigned int pcInterfaceShader::GetState_Prog1(const RenderItem*) const
     return m_mode;
 }
 
-// GLOBAL: SWBF2 0x00784760
-static const pcRedShaderDef::FixedFunctionStateT kFixedFunctionStates[4] =
-{
-    { 1, { 0x11, 0x00, 0x00, 0x00 } },
-    { 1, { 0x11, 0x00, 0x00, 0x00 } },
-    { 1, { 0x11, 0x00, 0x00, 0x00 } },
-    { 1, { 0x11, 0x00, 0x00, 0x00 } },
-};
-
 // FUNCTION: SWBF2 0x00701b30
 void pcInterfaceShader::InitFixedFunctionShaderDef() const
 {
-    GetShaderDef()->InitFixedFunction(0x28, 4, kFixedFunctionStates);
+    // GLOBAL: SWBF2 0x00784760
+    static const pcRedShaderDef::FixedFunctionStateT aFFStates[4] =
+    {
+        { 1, { 0x11, 0x00, 0x00, 0x00 } },
+        { 1, { 0x11, 0x00, 0x00, 0x00 } },
+        { 1, { 0x11, 0x00, 0x00, 0x00 } },
+        { 1, { 0x11, 0x00, 0x00, 0x00 } },
+    };
+
+    GetShaderDef()->InitFixedFunction(0x28, 4, aFFStates);
 }
 
 // FUNCTION: SWBF2 0x00701b50
@@ -435,10 +428,11 @@ pcInterfaceShader pcInterfaceShader::s_Factory;
 pcRedShaderDef pcInterfaceShader::s_shaderDef("interface_shader.xml");
 
 // SYNTHETIC: SWBF2 0x004098f0
-// `dynamic initializer for 'PblMath::fOneOverTwoPi''
+// PblMath::`dynamic initializer for 'fOneOverTwoPi''
 
 // SYNTHETIC: SWBF2 0x004098d0
-// `dynamic initializer for 'PblMath::fOneOverHalfPi''
+// PblMath::`dynamic initializer for 'fOneOverHalfPi''
 
 // GLOBAL: SWBF2 0x009c9538
+// g_pcInterfaceShader
 unsigned int g_pcInterfaceShader;

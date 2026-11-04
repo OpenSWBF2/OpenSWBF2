@@ -32,16 +32,28 @@ class PblHashTable : public PblHashTableCode
 {
 public:
 
-    void Clear() { _Clear(_table, SLOTS); }
-    TYPE* Find(unsigned int uiHash) const { return (TYPE*)_Find(_table, 2 * SLOTS, uiHash); }
+    PblHashTable() { Clear(); }
 
-    bool Store(unsigned int uiHash, TYPE* pValue)
+    void Clear() { _Clear(&_uiTable[0], SLOTS); _iNumEntries = 0; }
+    TYPE* Find(unsigned int uiHash) const { return (TYPE*)_Find(&_uiTable[0], 2 * SLOTS, uiHash); }
+
+    void Store(unsigned int uiHash, TYPE* pValue)
     {
-        return _Store(_table, 2 * SLOTS, uiHash, (void*)pValue);
+        if (_Store(&_uiTable[0], 2 * SLOTS, uiHash, (void*)pValue))
+        {
+            ++_iNumEntries;
+        }
     }
-    bool Remove(unsigned int uiHash) { return _Remove(_table, 2 * SLOTS, uiHash); }
+    void Remove(unsigned int uiHash)
+    {
+        if (_Remove(&_uiTable[0], 2 * SLOTS, uiHash))
+        {
+            --_iNumEntries;
+        }
+    }
 
-    static int GetSlotCount() { return SLOTS; }
+    int GetNumEntries() const { return _iNumEntries; }
+    int GetMaxEntries() const { return SLOTS; }
 
     bool HasValue(const TYPE* pValue) const
     {
@@ -51,7 +63,7 @@ public:
         }
         for (int i = 0; i < SLOTS; ++i)
         {
-            if (_table[i] && (const TYPE*)_table[SLOTS + i] == pValue)
+            if (_uiTable[i] && (const TYPE*)_uiTable[SLOTS + i] == pValue)
             {
                 return true;
             }
@@ -63,44 +75,45 @@ public:
     {
     public:
         Itor() : _table(0), _pos(0) {}
-        Itor(const PblHashTable* pTable) : _table(const_cast<PblHashTable*>(pTable)), _pos(0)
+        Itor(const PblHashTable* pTable) : _table(pTable), _pos(0)
         {
-            while (_pos < SLOTS && !_table->_table[_pos])
+            while (_pos < SLOTS && !_table->_uiTable[_pos])
             {
                 ++_pos;
             }
         }
 
-        operator TYPE*() const { return _pos < SLOTS ? (TYPE*)_table->_table[SLOTS + _pos] : 0; }
-        TYPE& operator*() const { return *(TYPE*)_table->_table[SLOTS + _pos]; }
+        operator TYPE*() const { return _pos < SLOTS ? (TYPE*)_table->_uiTable[SLOTS + _pos] : 0; }
+        TYPE& operator*() const { return *(TYPE*)_table->_uiTable[SLOTS + _pos]; }
         bool operator==(const Itor& rOther) const { return _pos == rOther._pos; }
         bool operator!=(const Itor& rOther) const { return _pos != rOther._pos; }
 
-        unsigned int GetKey() const { return _table->_table[_pos]; }
+        unsigned int GetKey() const { return _table->_uiTable[_pos]; }
 
         const Itor& operator++()
         {
             ++_pos;
-            while (_pos < SLOTS && !_table->_table[_pos])
+            while (_pos < SLOTS && !_table->_uiTable[_pos])
             {
                 ++_pos;
             }
             return *this;
         }
 
-    private:
-        friend class PblHashTable;
         Itor(const PblHashTable* pTable, unsigned int uiPos)
-            : _table(const_cast<PblHashTable*>(pTable)), _pos(uiPos) {}
+            : _table(pTable), _pos(uiPos) {}
 
-        PblHashTable* _table;
+    private:
+        const PblHashTable* _table;
         unsigned int _pos;
     };
 
     Itor Begin() const { return Itor(this); }
     Itor End() const { return Itor(this, SLOTS); }
 
-    unsigned int _table[2 * SLOTS];
+private:
+    int _iNumEntries;
+    unsigned int _uiTable[2 * SLOTS];
 };
 
 unsigned int __cdecl PblTEMPHash(const char* pcText);

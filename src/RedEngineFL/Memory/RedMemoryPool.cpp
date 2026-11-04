@@ -6,6 +6,7 @@
 // FUNCTION: SWBF2 0x006dc640
 PblList<MemoryPool>* GetMemoryPoolList()
 {
+    // GLOBAL: SWBF2 0x0099e7d0
     static PblList<MemoryPool> sPoolList;
     return &sPoolList;
 }
@@ -35,7 +36,7 @@ void MemoryPool::Create(unsigned int uiCount, unsigned int uiSize, unsigned int 
     uiSize = (uiSize + 3) & ~3u;
     mSize = uiSize;
     mCount = uiCount;
-    if (uiSize != 0 && uiGrow == 0)
+    if (uiSize > 0 && uiGrow == 0)
     {
         uiGrow = (uiSize + 63) / uiSize;
     }
@@ -48,7 +49,7 @@ void MemoryPool::Create(unsigned int uiCount, unsigned int uiSize, unsigned int 
     }
 
     mPoolOwner = true;
-    mPool = RedAllocFromHeap(__RedCurrHeap, uiSize * uiCount, 0);
+    mPool = RedAllocFromHeap(__RedCurrHeap, mCount * mSize, 0);
 
     unsigned int i;
     for (i = 0; i < mCount - 1; ++i)
@@ -60,6 +61,7 @@ void MemoryPool::Create(unsigned int uiCount, unsigned int uiSize, unsigned int 
     PblAsanPoison(mPool, mSize * mCount);
 }
 
+// GLOBAL: SWBF2 0x0099e7c8
 bool MemoryPool::sErrorOnExpansion;
 
 // FUNCTION: SWBF2 0x006dc370
@@ -127,14 +129,9 @@ PBL_ASAN_NO_SANITIZE void MemoryPool::Free(void* pBlock)
         return;
     }
 
-    while (*(char**)pcNode != 0)
+    while (*(char**)pcNode != 0 && pcBlock > *(char**)pcNode)
     {
-        char* pcNext = *(char**)pcNode;
-        if (pcBlock <= pcNext)
-        {
-            break;
-        }
-        pcNode = pcNext;
+        pcNode = *(char**)pcNode;
     }
     *(void**)pBlock = *(void**)pcNode;
     *(void**)pcNode = pBlock;
@@ -168,7 +165,11 @@ void MemoryPool::Setup(unsigned int uiCount, unsigned int uiSize,
 MemoryPool::~MemoryPool()
 {
     GetMemoryPoolList()->Remove(&mNode);
-    Destroy();
+    if (mPool != 0 && mPoolOwner)
+    {
+        RedFreeToHeap(__RedCurrHeap, mPool, 0);
+    }
+    Reset();
 }
 
 // FUNCTION: SWBF2 0x006dc4f0
@@ -203,8 +204,8 @@ void MemoryPool::DestroyAll()
             itor->Destroy();
         }
     }
-    sErrorOnExpansionPostLoad = false;
     sErrorOnExpansion = false;
+    sErrorOnExpansionPostLoad = false;
 }
 
 // FUNCTION: SWBF2 0x006dc5a0

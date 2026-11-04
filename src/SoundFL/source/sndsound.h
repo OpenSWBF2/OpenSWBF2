@@ -135,10 +135,6 @@ public:
         SourceBus::Stop(this);
         VoiceVirtual::Stop();
         mProperties = 0;
-        if (mNode.mNext)
-        {
-            mNode.Remove();
-        }
     }
 
     Properties* mProperties;
@@ -155,7 +151,7 @@ class Sound::Properties : public SoundProperties,
 public:
     Properties();
 
-    static void* operator new(size_t)
+    static void* operator new(unsigned int)
     {
         return smFreeList.Alloc();
     }

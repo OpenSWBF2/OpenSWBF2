@@ -1,9 +1,9 @@
+#include <d3dx9math.h>
 #include "RedEngineFL/Util/RedCommandConsole.h"
 
 #include <stdio.h>
 #include "PebbleFL/Common/PblVector.h"
 #include <stdlib.h>
-#include <stddef.h>
 
 #include "EntityFlyer.h"
 #include "CollisionBody.h"
@@ -65,7 +65,6 @@
 #include "EntityPortableTurret.h"
 #include "Restrictor.h"
 #include "UnitThreatManager.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x004b6320
 EnergyMode EntityFlyer::GetEnergyMode() const
@@ -144,10 +143,10 @@ PblVector3 EntityFlyer::GetTargetPointMissVector() const
     }
 
     PblMatrix unbanked, unpitched, matrix;
-    D3DXMatrixRotationZ(&unbanked, -mBankRollAngle);
-    D3DXMatrixMultiply(&unbanked, &unbanked,
-                       D3DXMatrixRotationX(&unpitched, -mBankPitchAngle));
-    D3DXMatrixMultiply(&matrix, &unbanked, &mMatrix);
+    D3DXMatrixRotationZ(reinterpret_cast<D3DXMATRIX*>(&unbanked), -mBankRollAngle);
+    D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&unbanked), reinterpret_cast<const D3DXMATRIX*>(&unbanked),
+                       D3DXMatrixRotationX(reinterpret_cast<D3DXMATRIX*>(&unpitched), -mBankPitchAngle));
+    D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&matrix), reinterpret_cast<const D3DXMATRIX*>(&unbanked), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
 
     if (mSideRoll.x == 0.0f && mSideRoll.y == 0.0f)
     {
@@ -187,7 +186,8 @@ float EntityFlyer::GetMaxStrafe() const
 // FUNCTION: SWBF2 0x004b65d0
 bool EntityFlyer::ShouldShowReticule() const
 {
-    return mIsAlive && !mInFlip && (!mClass->mGuidedMissile || mEnergyBar.m_fEnergy > 0.0f);
+    return GameObject::ShouldShowReticule() && !mInFlip &&
+           (!mClass->mGuidedMissile || mEnergyBar.m_fEnergy > 0.0f);
 }
 
 // FUNCTION: SWBF2 0x004b9720
@@ -219,11 +219,7 @@ static unsigned int sSoftCollisionMask;
 // GLOBAL: SWBF2 0x01e51da4
 static unsigned int sOrdnanceCollisionMask;
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
+
 
 // FUNCTION: SWBF2 0x004b6670
 EntityFlyerClass::EntityFlyerClass(unsigned int uHash)
@@ -313,9 +309,6 @@ EntityFlyerClass::EntityFlyerClass(unsigned int uHash)
     mFOVEFFectMaxCamOffset3rd.z = 0.0f;
     mFOVEffect1st = 0.0f;
 
-    mEnergyBarClass.m_fEnergyMax = 0.0f;
-    mEnergyBarClass.m_fEnergyMin = 0.0f;
-    mEnergyBarClass.m_fEnergyOverheat = 0.0f;
     mEnergyBarClass.Init(100.0f, 20.0f);
 
     mEnergyAutoRestore = 0.0f;
@@ -336,10 +329,7 @@ EntityFlyerClass::EntityFlyerClass(unsigned int uHash)
     mPassengerSlotClass = 0;
     mNumPassengerSlots = 0;
 
-    for (int i = 0; i < 8; ++i)
-    {
-        mTurretClass[i] = 0;
-    }
+    memset(mTurretClass, 0, sizeof(mTurretClass));
 
     mExplosionCritical = 0;
     mExplosionDestruct = 0;
@@ -398,42 +388,37 @@ EntityFlyerClass::EntityFlyerClass(unsigned int uHash)
     mGuidedMissileBoostExplosionSpeedThreshold = 0.8f;
 }
 
-// GLOBAL: SWBF2 0x01ebbcb8
 // SYNTHETIC: SWBF2 0x00402ae0
 // `dynamic initializer for 'EntityFlyerClass::rttiHashEntityFlyerClass''
-PblHash EntityFlyerClass::rttiHashEntityFlyerClass("EntityFlyerClass");
-char EntityFlyerClass::rttiNameEntityFlyerClass[] = "EntityFlyerClass";
+// EntityFlyerClass::rttiHashEntityFlyerClass
 
-// GLOBAL: SWBF2 0x01ebbc64
+// GLOBAL: SWBF2 0x01ebbcb8
+// EntityFlyerClass::rttiHashEntityFlyerClass
+PblHash EntityFlyerClass::rttiHashEntityFlyerClass("EntityFlyerClass");
+// GLOBAL: SWBF2 0x007891ec
+// EntityFlyerClass::rttiNameEntityFlyerClass
+const char EntityFlyerClass::rttiNameEntityFlyerClass[] = "EntityFlyerClass";
+
 // SYNTHETIC: SWBF2 0x00402ad0
 // `dynamic initializer for 'EntityFlyer::rttiHashEntityFlyer''
+// EntityFlyer::rttiHashEntityFlyer
+
+// GLOBAL: SWBF2 0x01ebbc64
+// EntityFlyer::rttiHashEntityFlyer
 PblHash EntityFlyer::rttiHashEntityFlyer("EntityFlyer");
 
-// FUNCTION: SWBF2 0x004a9cd0
-unsigned int EntityFlyer::GetDerivedRtti() const
-{
-    return rttiHashEntityFlyer;
-}
 
-// FUNCTION: SWBF2 0x004a9ce0
-const char* EntityFlyer::GetDerivedRttiName() const
-{
-    return "EntityFlyer";
-}
 
-// GLOBAL: SWBF2 0x01ebbc68
 // SYNTHETIC: SWBF2 0x00402ab0
 // `dynamic initializer for 'EntityFlyer::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00766f50
 // `dynamic atexit destructor for 'EntityFlyer::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ebbc68
+// EntityFlyer::sMemoryPool
 MemoryPool EntityFlyer::sMemoryPool("EntityFlyer", 0x1d90);
 
-// FUNCTION: SWBF2 0x00477680
-bool EntityFlyer::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashEntityFlyer ||
-           GameObject::IsRtti(uRtti);
-}
+
 
 // FUNCTION: SWBF2 0x004ab7c0
 const ControllableClass* EntityFlyer::GetControllableClass() const
@@ -475,9 +460,9 @@ void EntityFlyer::SetTowCableWalker(GameObject* pWalker)
 float EntityFlyer::GetFlyerMaxSpeed() const
 {
     float speed = mClass->mMaxFlyerSpeed;
-    if (mInLandingRegionFactor != 0.0f && speed >= 60.0f)
+    if (mInLandingRegionFactor != 0.0f)
     {
-        speed = 60.0f;
+        speed = Min(speed, 60.0f);
     }
     return speed;
 }
@@ -486,9 +471,9 @@ float EntityFlyer::GetFlyerMaxSpeed() const
 float EntityFlyer::GetFlyerMidSpeed() const
 {
     float speed = mClass->mMidFlyerSpeed;
-    if (mInLandingRegionFactor != 0.0f && speed >= 20.0f)
+    if (mInLandingRegionFactor != 0.0f)
     {
-        speed = 20.0f;
+        speed = Min(speed, 20.0f);
     }
     return speed;
 }
@@ -500,10 +485,7 @@ float EntityFlyer::GetFlyerMinSpeed() const
     if (mInLandingRegionFactor != 0.0f)
     {
         speed *= 0.2f;
-        if (speed >= 10.0f)
-        {
-            speed = 10.0f;
-        }
+        speed = Min(speed, 10.0f);
     }
     return speed;
 }
@@ -517,14 +499,10 @@ float EntityFlyer::GetMaxSpeed() const
 // FUNCTION: SWBF2 0x004b6310
 int EntityFlyer::GetReservableSlots(ReserveType) const
 {
-    return mControllableList._iCount;
+    return GetControllableList().GetCount();
 }
 
-// FUNCTION: SWBF2 0x00477ac0
-bool EntityFlyerClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashEntityFlyerClass || GameObjectClass::IsRtti(uRtti);
-}
+
 
 // FUNCTION: SWBF2 0x004a9d00
 bool EntityFlyer::PostCollision::Update(float fDeltaTime)
@@ -538,17 +516,9 @@ bool EntityFlyer::PostCollision::Update(float fDeltaTime)
 // SYNTHETIC: SWBF2 0x004a9d60
 // EntityFlyer::PostCollision::`scalar deleting destructor'
 
-// FUNCTION: SWBF2 0x004a9d90
-unsigned int EntityFlyerClass::GetDerivedRtti()
-{
-    return rttiHashEntityFlyerClass;
-}
 
-// FUNCTION: SWBF2 0x004a9da0
-const char* EntityFlyerClass::GetDerivedRttiName()
-{
-    return rttiNameEntityFlyerClass;
-}
+
+
 
 // FUNCTION: SWBF2 0x004a9db0
 Trackable* CameraManager::GetChaseCameraTarget(int iCam)
@@ -567,9 +537,6 @@ EntityFlyerClass::EntityFlyerClass(EntityFlyerClass* pSrc, unsigned int uHash)
       VehicleMusicClass(pSrc),
       VehicleEngineClass(pSrc)
 {
-    mEnergyBarClass.m_fEnergyMax = 0.0f;
-    mEnergyBarClass.m_fEnergyMin = 0.0f;
-    mEnergyBarClass.m_fEnergyOverheat = 0.0f;
 
     mFlyingCollisionInited = false;
     sCurrentSection = -1;
@@ -1276,14 +1243,14 @@ void EntityFlyerClass::SetProperty(unsigned int uProperty, const char* pszValue)
         const CollisionMesh* pMesh = CollisionMesh::Find(PblHash(pszValue));
         if (pMesh)
         {
-            mCollisionModel.AddBody(new CollisionBodyMesh(pMesh, "CollisionMesh", _IdentityMatrix, 0));
+            mCollisionModel.AddBody(new CollisionBodyMesh(pMesh, "CollisionMesh", gMatrixIdentity, 0));
             int iMaskId = mCollisionModel.GetMaskId(0x29173102);
             if (iMaskId >= 0)
             {
                 sSoftCollisionMask |= 1 << iMaskId;
                 sOrdnanceCollisionMask |= 1 << iMaskId;
             }
-            PblBox box = pMesh->GetWorldspaceAABB(_IdentityMatrix);
+            PblBox box = pMesh->GetWorldspaceAABB(gMatrixIdentity);
             mBarrierX = box._vMax.x - box._vMin.x;
             mBarrierZ = box._vMax.z - box._vMin.z;
             mBarrierOX = (box._vMin.x + box._vMax.x) * 0.5f;
@@ -1305,7 +1272,7 @@ void EntityFlyerClass::SetProperty(unsigned int uProperty, const char* pszValue)
             float fHalfY = (box._vMax.y - box._vMin.y) * 0.5f;
             float fHalfZ = (box._vMax.z - box._vMin.z) * 0.5f;
             CollisionPrimitive primitive;
-            PblMatrix matrix = _IdentityMatrix;
+            PblMatrix matrix = gMatrixIdentity;
             primitive.SetAACylinder((fHalfZ + fHalfX) * 0.5f, fHalfY * 2.0f);
             matrix.m[3][0] = fCenterX;
             matrix.m[3][1] = fCenterY;
@@ -1403,8 +1370,13 @@ void Event<Character, GameObject>::Callback::Trigger(Character& item, GameObject
         if (pChild)
         {
             pChild->AddRef();
-            while (pChild->IsAlive())
+            while (pChild)
             {
+                if (!pChild->IsAlive())
+                {
+                    pChild->Release();
+                    break;
+                }
                 Callback* pNext = (Callback*)pChild->mSibling;
                 if (pNext)
                 {
@@ -1413,14 +1385,6 @@ void Event<Character, GameObject>::Callback::Trigger(Character& item, GameObject
                 pChild->Trigger(item, param);
                 pChild->Release();
                 pChild = pNext;
-                if (!pChild)
-                {
-                    break;
-                }
-            }
-            if (pChild)
-            {
-                pChild->Release();
             }
         }
     }
@@ -1431,25 +1395,19 @@ void Event<Character, GameObject>::Callback::Trigger(Character& item, GameObject
 namespace EventManager
 {
 
-// FUNCTION: SWBF2 0x004b97e0
-template <>
-void Event<Character, GameObject>::Trigger(Character& item, GameObject& param)
-{
-    if (!NetGame::IsEnabled() || !NetGame::IsClient())
-    {
-        mRoot.Trigger(item, param);
-    }
-}
+
 }
 
 extern PblVector3 gVectorZero;
 
-void* EntityFlyer::operator new(size_t uSize)
+inline void* EntityFlyer::operator new(unsigned int uSize)
 {
     return sMemoryPool.Allocate(uSize);
 }
 
-void EntityFlyer::operator delete(void* pBlock)
+// SYNTHETIC: SWBF2 0x004a9cf0
+// EntityFlyer::operator delete
+inline void EntityFlyer::operator delete(void* pBlock)
 {
     sMemoryPool.Free(pBlock);
 }
@@ -1485,31 +1443,31 @@ const PblMatrix& EntityFlyer::GetMatrix() const
 }
 
 // SYNTHETIC: SWBF2 0x00478584
-// [thunk]:EntityFlyer::GetGameObject`adjustor{600}'
+// ?GetGameObject@EntityFlyer@@WCFI@AEPAVGameObject@@XZ
 
 // SYNTHETIC: SWBF2 0x004785a5
-// [thunk]:EntityFlyer::GetGameObject`adjustor{12}'
+// ?GetGameObject@EntityFlyer@@WM@AEPAVGameObject@@XZ
 
 // SYNTHETIC: SWBF2 0x00478524
-// [thunk]:EntityFlyer::GetMatrix`adjustor{564}'
+// ?GetMatrix@EntityFlyer@@WCDE@BEABVPblMatrix@@XZ
 
 // SYNTHETIC: SWBF2 0x0047856e
-// [thunk]:EntityFlyer::GetGameObject`adjustor{320}'
+// ?GetGameObject@EntityFlyer@@WBEA@AEPAVGameObject@@XZ
 
 // SYNTHETIC: SWBF2 0x0047858f
-// [thunk]:EntityFlyer::GetGameObject`adjustor{600}'
+// ?GetGameObject@EntityFlyer@@WCFI@BEPBVGameObject@@XZ
 
 // SYNTHETIC: SWBF2 0x004785b5
-// [thunk]:EntityFlyer::GetEntity`adjustor{12}'
+// ?GetEntity@EntityFlyer@@WM@AEPAVEntity@@XZ
 
 // SYNTHETIC: SWBF2 0x004785c5
-// [thunk]:EntityFlyer::GetEntity`adjustor{576}'
+// ?GetEntity@EntityFlyer@@WCEA@AEPAVEntity@@XZ
 
 // SYNTHETIC: SWBF2 0x004785d0
-// [thunk]:EntityFlyer::GetEntity`adjustor{576}'
+// ?GetEntity@EntityFlyer@@WCEA@BEPBVEntity@@XZ
 
 // SYNTHETIC: SWBF2 0x004b9942
-// [thunk]:EntityFlyer::`scalar deleting destructor'`adjustor{576}'
+// ??_EEntityFlyer@@WCEA@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x004ac0c0
 bool EntityFlyer::ResetSquadronTime()
@@ -1528,10 +1486,7 @@ void EntityFlyer::SendLandedEvent()
     if (mCharacter)
     {
         GameObject* pObject = GetGameObject();
-        if (!(NetGame::IsEnabled() && NetGame::IsClient()))
-        {
-            EventManager::CharacterEvent::mLandedFlyer.Trigger(*mCharacter, *pObject);
-        }
+        EventManager::CharacterEvent::mLandedFlyer.Trigger(*mCharacter, *pObject);
     }
 }
 
@@ -1657,14 +1612,8 @@ EntityFlyer::EntityFlyer(EntityFlyerClass* pClass, const EntityDesc& desc)
     mAmbientShiftSpeed.x = 0.0f;
     mAmbientShiftSpeed.y = 0.0f;
     mAmbientShiftSpeed.z = 0.0f;
-    for (int i = 0; i < 4; ++i)
-    {
-        mAimer[i] = 0;
-    }
-    for (int i = 0; i < 4; ++i)
-    {
-        mWeapon[i] = 0;
-    }
+    memset(mAimer, 0, sizeof(mAimer));
+    memset(mWeapon, 0, sizeof(mWeapon));
 
     for (int i = 0; i < mClass->mWeaponCount; ++i)
     {
@@ -1731,7 +1680,7 @@ EntityFlyer::EntityFlyer(EntityFlyerClass* pClass, const EntityDesc& desc)
             mZephyrPoseDyn.SetLoop(false);
             mZephyrPoseDyn.SetFrameNum(0);
             kPoseFinal.Set(mZephyrPoseDyn, true);
-            mZephyrSkeleton.BuildWorldMatrices(_IdentityMatrix);
+            mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity);
             mPose.ConvertFromZephyrPose(mZephyrSkeleton);
         }
     }
@@ -1901,12 +1850,13 @@ Entity* EntityFlyerClass::Build(const EntityDesc& desc)
     EntityFlyer* pFlyer = new EntityFlyer(this, desc);
     if (pFlyer)
     {
-        CollisionManager::AddSoftBody(pFlyer);
+        pFlyer->AddSoftToCollisionManager();
         pFlyer->ActivatePhysics();
         pFlyer->BuildEffects();
     }
     return pFlyer;
 }
+
 
 // FUNCTION: SWBF2 0x004b4eb0
 void EntityFlyer::SetupController()
@@ -1979,7 +1929,8 @@ bool EntityFlyer::UpdateIndirect(float fDeltaTime)
             {
                 fRatio = fMinRatio;
             }
-            float fFloor = AIUtil::GetTargetSpeedForRealSpeed(5.0f, GetFlyerMaxSpeed());
+            float fFloor = AIUtil::GetTargetSpeedForRealSpeed(5.0f, GetFlyerMinSpeed(),
+                                                           GetFlyerMidSpeed(), GetFlyerMaxSpeed());
             if (!(fRatio > fFloor))
             {
                 fRatio = fFloor;
@@ -2007,7 +1958,7 @@ bool EntityFlyer::UpdateIndirect(float fDeltaTime)
             if (!(1600.0f > fDistSq))
             {
                 PblVector3 vDir;
-                D3DXVec3Normalize(&vDir, &vDelta);
+                D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vDelta));
                 const PblVector3& vFront = mMine.GetZAxis();
                 if (!(0.965925f > vFront.y * vDir.y + vFront.x * vDir.x + vFront.z * vDir.z))
                 {
@@ -2049,6 +2000,7 @@ bool EntityFlyer::UpdateIndirect(float fDeltaTime)
 extern bool netFrameLock;
 
 extern bool bRenderContrails;
+
 
 // FUNCTION: SWBF2 0x004aae10
 void EntityFlyer::HealthChangeCallback(bool bArg, float fDelta)
@@ -2177,7 +2129,7 @@ void EntityFlyer::Render(unsigned char renderMode, float lod, unsigned int flags
             mZephyrSkeleton.Open(*mZephyrSkeleton.m_pShared, kPose);
             kPose.Open(mZephyrSkeleton);
             kPose.Set(mZephyrPoseDyn, true);
-            mZephyrSkeleton.BuildWorldMatrices(_IdentityMatrix);
+            mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity);
             mPose.ConvertFromZephyrPose(mZephyrSkeleton);
         }
         else if (mClass->mAnimFins)
@@ -2210,7 +2162,7 @@ void EntityFlyer::Render(unsigned char renderMode, float lod, unsigned int flags
             kPose.Set(mZephyrPoseDyn, true);
             mZephyrPoseDyn.SetFrameNumFloat(fBlend > 0.0f ? fTurn + 1.0f : fTurn + 7.0f);
             kPose.Blend(mZephyrPoseDyn, (float)fabs((double)fBlend));
-            mZephyrSkeleton.BuildWorldMatrices(_IdentityMatrix);
+            mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity);
             mPose.ConvertFromZephyrPose(mZephyrSkeleton);
         }
     }
@@ -2242,7 +2194,7 @@ void EntityFlyer::Render(unsigned char renderMode, float lod, unsigned int flags
     if (!(flags & 0x200000) && FLRenderer::IsReflected(GetRenderPos(), _Sphere.w, mReflection, false))
     {
         PblMatrix mat;
-        D3DXMatrixMultiply(&mat, &mWorld, &mReflection);
+        mat = mWorld * mReflection;
         mReflection = mat;
         mModel->Render(renderMode, lod, &mReflection, &mPose, RedColor::WHITE,
                        (flags & ~0x10000) | 0x10000100, 0);
@@ -2258,11 +2210,8 @@ void EntityFlyer::Render(unsigned char renderMode, float lod, unsigned int flags
     {
         const FlagItemClass* pFlagClass = static_cast<const FlagItemClass*>(pFlag->mClass);
         PblVector3 vPos;
-        D3DXVec3TransformCoord(&vPos, &pFlagClass->mCarriedOffset, &mWorld);
-        mWorld.m[3][0] = vPos.x;
-        mWorld.m[3][1] = vPos.y;
-        mWorld.m[3][2] = vPos.z;
-        mWorld.m[3][3] = 1.0f;
+        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vPos), reinterpret_cast<const D3DXVECTOR3*>(&pFlagClass->mCarriedOffset), reinterpret_cast<const D3DXMATRIX*>(&mWorld));
+        mWorld.SetTranslation(vPos);
         reinterpret_cast<GameObject*>(pFlag)->SetMatrix(mWorld);
         reinterpret_cast<GameObject*>(pFlag)->SetVelocity(GetVelocity());
         pFlag->RenderHelper(renderMode, lod, flags);
@@ -2324,7 +2273,7 @@ void EntityFlyer::TurnOnThrustEffects()
             continue;
         }
         mThrustEffect[i]->ScaleSet(mClass->mThrustEffectMinScale[i]);
-        PblMatrix mOffset = _IdentityMatrix;
+        PblMatrix mOffset = gMatrixIdentity;
         mOffset.m[3][0] = mClass->mThrustEffectAttachOffset[i].x;
         mOffset.m[3][1] = mClass->mThrustEffectAttachOffset[i].y;
         mOffset.m[3][2] = mClass->mThrustEffectAttachOffset[i].z;
@@ -2413,7 +2362,7 @@ bool EntityFlyer::TurnOnContrailEffect(int iIndex)
     }
 
     mContrailEffect[iIndex]->ScaleSet(mClass->mContrailEffectMinScale[iIndex]);
-    PblMatrix mOffset = _IdentityMatrix;
+    PblMatrix mOffset = gMatrixIdentity;
     mOffset.m[3][0] = mClass->mContrailEffectAttachOffset[iIndex].x;
     mOffset.m[3][1] = mClass->mContrailEffectAttachOffset[iIndex].y;
     mOffset.m[3][2] = mClass->mContrailEffectAttachOffset[iIndex].z;
@@ -2576,7 +2525,7 @@ void EntityFlyer::SideRollUpdate(float fDeltaTime)
         return;
     }
     if ((mSideRoll.x != 0.0f || mSideRoll.y != 0.0f) && mRoll == mRollTarget &&
-        0.8f > (float)fabs((double)mBankRollAngleDelta))
+        0.8f > fabsf(mBankRollAngleDelta))
     {
         mSideRoll.x = 0.0f;
         mSideRoll.y = 0.0f;
@@ -2693,6 +2642,7 @@ void EntityFlyer::RollStop()
     }
     mInRoll = false;
 }
+
 
 extern bool netIsLocalTurn;
 extern bool netIsLateTurn;
@@ -2927,7 +2877,7 @@ bool EntityFlyer::PostCollisionUpdate(float fDeltaTime)
                         if (mVelocity.x != 0.0f || mVelocity.y != 0.0f || mVelocity.z != 0.0f)
                         {
                             PblVector3 vHeading;
-                            D3DXVec3Normalize(&vHeading, &mVelocity);
+                            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vHeading), reinterpret_cast<const D3DXVECTOR3*>(&mVelocity));
                             vDir.x += vHeading.x * 0.3f;
                             vDir.y += vHeading.y * 0.3f;
                             vDir.z += vHeading.z * 0.3f;
@@ -2961,11 +2911,10 @@ bool EntityFlyer::PostCollisionUpdate(float fDeltaTime)
     }
 
     PblMatrix mUnbank;
-    PblMatrix mUnpitch;
-    D3DXMatrixRotationZ(&mUnbank, -mBankRollAngle);
-    D3DXMatrixMultiply(&mUnbank, &mUnbank, D3DXMatrixRotationX(&mUnpitch, -mBankPitchAngle));
+    mUnbank.SetRotateZ(-mBankRollAngle);
+    mUnbank.RotateX(-mBankPitchAngle);
     PblMatrix mBody;
-    D3DXMatrixMultiply(&mBody, &mUnbank, &mMatrix);
+    D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mBody), reinterpret_cast<const D3DXMATRIX*>(&mUnbank), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
     mEyeDir = mBody.GetZAxis();
     mEyePoint = mClass->mCameraSettings.CalcEyePoint(mMatrix);
 
@@ -2991,13 +2940,7 @@ bool EntityFlyer::PostCollisionUpdate(float fDeltaTime)
             qTilt._fS = fCos;
             PblQuaternion qCamera = qLook * qTilt;
 
-            PblQuaternion qUnit;
-            PblMatrix mCamera;
-            D3DXMatrixRotationQuaternion(&mCamera, D3DXQuaternionNormalize(&qUnit, &qCamera));
-            mCamera.m[3][0] = gVectorZero.x;
-            mCamera.m[3][1] = gVectorZero.y;
-            mCamera.m[3][2] = gVectorZero.z;
-            mCamera.m[3][3] = 1.0f;
+            PblMatrix mCamera(qCamera, gVectorZero);
 
             mTargetInfo.mAimStart = mClass->mCameraSettings.CalcCameraPoint(mMatrix, mCamera);
             float fAlong = mEyeDir.y * (mEyePoint.y - mTargetInfo.mAimStart.y) +
@@ -3081,11 +3024,11 @@ bool EntityFlyer::PostCollisionUpdate(float fDeltaTime)
         GameObject* pSoldier = mPilot->GetGameObject();
         PblMatrix mInverse = GetMatrix().GetInverseFast();
         PblMatrix mSeat;
-        D3DXMatrixMultiply(&mSeat, &pSoldier->GetMatrix(), &mInverse);
+        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mSeat), reinterpret_cast<const D3DXMATRIX*>(&pSoldier->GetMatrix()), reinterpret_cast<const D3DXMATRIX*>(&mInverse));
         PblMatrix mLocal = mSeat;
         PblMatrix mSmoothed = GetSmoothedMatrix();
         PblMatrix mRender;
-        D3DXMatrixMultiply(&mRender, &mLocal, &mSmoothed);
+        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mRender), reinterpret_cast<const D3DXMATRIX*>(&mLocal), reinterpret_cast<const D3DXMATRIX*>(&mSmoothed));
         pSoldier->SetRenderPos(mRender.GetTranslation());
     }
     return true;
@@ -3148,7 +3091,7 @@ void EntityFlyer::TakeOff()
             mAIEng.ai.mTrickTime = 0.0f;
         }
         CollisionManager::RemoveBody(this);
-        CollisionManager::AddSoftBody(this);
+        this->AddSoftToCollisionManager();
     }
     const PblVector3& vPosition = GetPosition();
     if (!IsWindingUp() || IsWindingDown())
@@ -3178,7 +3121,7 @@ EntityPathFollower::BranchParams EntityFlyer::GetBranchParams()
                              fHigh);
     float fBase = (mCharacter && mCharacter->mCarriedFlagPtr) ? (fHigh - fLow) * 0.5f + fLow : fLow;
 
-    float fTime = GameLoop::GetMissionTime() + (float)(((uintptr_t)this >> 2) & 0xf);
+    float fTime = GameLoop::GetMissionTime() + (float)(((unsigned int)this >> 2) & 0xf);
     float fWave = PblMath::Cos(fTime * 2.33f) * PblMath::Sin(fTime * 1.17f);
     float fBeat = PblMath::Sin(fTime * 0.43f) * fWave * 0.5f + 0.5f;
     float fSpeed = fBeat * fBeat * (fHigh - fBase) + fBase;
@@ -3187,32 +3130,14 @@ EntityPathFollower::BranchParams EntityFlyer::GetBranchParams()
                         FLT_MAX, 0, -1.0f, false, false);
 }
 
-namespace SquadCommands { void VehicleCommand(GameObject* pObject, Character* pCharacter); }
 
-const PblVector3 __cdecl Normalize(const PblVector3& rv);
-
-namespace PblMath
+namespace SquadCommands
 {
-    inline float Length2Est(float fA, float fB)
-    {
-        const float fLength2EstAlpha = 0.94805944f;
-        const float fLength2EstBeta = 0.39269909f;
-        fA = (float)fabs((double)fA);
-        fB = (float)fabs((double)fB);
-        return fA > fB ? fA * fLength2EstAlpha + fB * fLength2EstBeta
-                       : fA * fLength2EstBeta + fB * fLength2EstAlpha;
-    }
-
-    inline float Length3Est(float fX, float fY, float fZ)
-    {
-        return Length2Est(Length2Est(fX, fY), fZ);
-    }
+void VehicleCommand(GameObject* pObject, Character* pCharacter);
 }
 
-inline const float LengthEst(const PblVector3& rv)
-{
-    return PblMath::Length3Est(rv.x, rv.y, rv.z);
-}
+
+
 
 // FUNCTION: SWBF2 0x004ac460
 bool EntityFlyer::Update(float fDeltaTime)
@@ -3398,7 +3323,7 @@ bool EntityFlyer::Update(float fDeltaTime)
         AddSoftToCollisionManager();
     }
 
-    if (mState == TAKEOFF || mState == FLYING || (mState == CRASHING && mIsAlive))
+    if (mState == TAKEOFF || mState == FLYING || (mState == CRASHING && IsAlive()))
     {
         int iPilots = 0;
         int iPlayerPilots = 0;
@@ -3417,7 +3342,7 @@ bool EntityFlyer::Update(float fDeltaTime)
         bool bNeverCrash = mClass && mClass->mNeverCrashWhenUnpiloted;
         if (mState == CRASHING)
         {
-            if (mIsAlive && iPilots)
+            if (IsAlive() && iPilots)
             {
                 mState = TAKEOFF;
             }
@@ -3723,10 +3648,9 @@ bool EntityFlyer::Update(float fDeltaTime)
     {
         EntityPathFollower::Reset(mClass);
         PblMatrix mUnbank;
-        PblMatrix mUnpitch;
-        D3DXMatrixRotationZ(&mUnbank, -mBankRollAngle);
-        D3DXMatrixMultiply(&mUnbank, &mUnbank, D3DXMatrixRotationX(&mUnpitch, -mBankPitchAngle));
-        D3DXMatrixMultiply(&matrix, &mUnbank, &mMatrix);
+        mUnbank.SetRotateZ(-mBankRollAngle);
+        mUnbank.RotateX(-mBankPitchAngle);
+        matrix = mUnbank * mMatrix;
         RollUpdate(fDeltaTime);
         FlipUpdate(fDeltaTime, matrix);
         SideRollUpdate(fDeltaTime);
@@ -3777,7 +3701,7 @@ bool EntityFlyer::Update(float fDeltaTime)
                         }
                         mSideRoll.y = PblRandom::GetGlobalFloat() - 0.5f;
                         PblVector3 vSideRoll;
-                        D3DXVec3Normalize(&vSideRoll, &mSideRoll);
+                        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vSideRoll), reinterpret_cast<const D3DXVECTOR3*>(&mSideRoll));
                         mSideRoll = vSideRoll;
                     }
                     DoTrick(eTrick);
@@ -3787,7 +3711,7 @@ bool EntityFlyer::Update(float fDeltaTime)
         }
     }
 
-    if (!mIsAlive)
+    if (!IsAlive())
     {
         if (mState == CRASHED || mState == LANDED)
         {
@@ -3851,11 +3775,11 @@ bool EntityFlyer::Update(float fDeltaTime)
             if ((mState == LANDED || mClass->mGuidedMissile) && (mControlUse.IsPressed() || IsDisabled()))
             {
                 SpaceDustEffect::Stop(GetJoystickIndex());
-                if (mPilotType == PILOT_REMOTE || mClass->mGuidedMissile)
+                if (IsRemoteVehicle() || mClass->mGuidedMissile)
                 {
                     pPilot->ExitRemote();
                 }
-                else if (mPilotType == PILOT_VEHICLE || mPilotType == PILOT_VEHICLESELF)
+                else if (IsPilotable())
                 {
                     if (pPilot->mCharacter && pPilot->mCharacter->mRemote)
                     {
@@ -3876,7 +3800,7 @@ bool EntityFlyer::Update(float fDeltaTime)
         SquadCommands::VehicleCommand(this, mCharacter);
     }
 
-    if (mIsAlive && mPlayerId >= 0)
+    if (IsAlive() && mPlayerId >= 0)
     {
         if (mState == LANDED)
         {
@@ -4220,7 +4144,7 @@ bool EntityFlyer::Update(float fDeltaTime)
 
         PblMatrix mInverse = matrix.GetInverseFast();
         PblVector3 vLocal;
-        D3DXVec3TransformNormal(&vLocal, &mVelocity, &mInverse);
+        D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vLocal), reinterpret_cast<const D3DXVECTOR3*>(&mVelocity), reinterpret_cast<const D3DXMATRIX*>(&mInverse));
 
         float fBankScale = mState == TAKEOFF ? 1.0f / (mClass->mTurnRate * fTopSpeed) : 1.0f / fTopSpeed;
         float fPitchTarget = mClass->mThrustPitchAngle * fThrust * mFlightRatio +
@@ -4242,8 +4166,8 @@ bool EntityFlyer::Update(float fDeltaTime)
         {
             PblMatrix mRoll;
             PblMatrix mRolled;
-            D3DXMatrixRotationZ(&mRoll, mClass->mRollRate * mWorldRoll * fDeltaTime);
-            D3DXMatrixMultiply(&mRolled, &mRoll, &matrix);
+            mRoll.SetRotateZ(mClass->mRollRate * mWorldRoll * fDeltaTime);
+            mRolled = mRoll * matrix;
             matrix = mRolled;
             if (fRoll != 0.0f)
             {
@@ -4483,7 +4407,7 @@ bool EntityFlyer::Update(float fDeltaTime)
 
         PblMatrix mInverse = matrix.GetInverseFast();
         PblVector3 vLocal;
-        D3DXVec3TransformNormal(&vLocal, &mVelocity, &mInverse);
+        D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vLocal), reinterpret_cast<const D3DXVECTOR3*>(&mVelocity), reinterpret_cast<const D3DXMATRIX*>(&mInverse));
         float fBankScale = 1.0f / fTopSpeed;
         float fRollSlip = (vLocal.z * mOmega.y - mOmega.z * vLocal.y) * fBankScale;
         float fPitchTarget = mClass->mThrustPitchAngle * fThrust + mFlip +
@@ -4502,7 +4426,7 @@ bool EntityFlyer::Update(float fDeltaTime)
         if (mVelocity.x * mVelocity.x + mVelocity.z * mVelocity.z > 1.0f)
         {
             PblVector3 vDir;
-            D3DXVec3Normalize(&vDir, &mVelocity);
+            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&mVelocity));
             mOmega.x = mOmega.x - (vY.y * vDir.y + vY.x * vDir.x + vY.z * vDir.z) * mClass->mLevelFilter *
                                       (1.0f - mFlightRatio);
             float fPitchFilter = mClass->mPitchFilter * mFlightRatio * fDeltaTime;
@@ -4544,7 +4468,7 @@ bool EntityFlyer::Update(float fDeltaTime)
 
         PblMatrix mInverse = matrix.GetInverseFast();
         PblVector3 vLocal;
-        D3DXVec3TransformNormal(&vLocal, &mVelocity, &mInverse);
+        D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vLocal), reinterpret_cast<const D3DXVECTOR3*>(&mVelocity), reinterpret_cast<const D3DXMATRIX*>(&mInverse));
         float fBankScale = 1.0f / fTopSpeed;
         float fRollSlip = (vLocal.z * mOmega.y - mOmega.z * vLocal.y) * fBankScale;
         float fPitchTarget = mClass->mThrustPitchAngle * fThrust * mFlightRatio + mFlip +
@@ -4591,7 +4515,7 @@ bool EntityFlyer::Update(float fDeltaTime)
             float fSin;
             float fCos;
             PblMath::SinCos(&fSin, &fCos, fSpin * fDeltaTime * 0.5f);
-            qBody = qBody * PblQuaternion(fAxisX * fSin, fAxisY * fSin, fAxisZ * fSin, fCos);
+            qBody = qBody * PblQuaternion(fCos, fAxisX * fSin, fAxisY * fSin, fAxisZ * fSin);
         }
         vPos.x += mVelocity.x * fDeltaTime;
         vPos.y += mVelocity.y * fDeltaTime;
@@ -4609,17 +4533,13 @@ bool EntityFlyer::Update(float fDeltaTime)
 
         PblQuaternion qUnit;
         PblMatrix mFrame;
-        D3DXMatrixRotationQuaternion(&mFrame, D3DXQuaternionNormalize(&qUnit, &qBody));
-        mFrame.m[3][0] = vPos.x;
-        mFrame.m[3][1] = vPos.y;
-        mFrame.m[3][2] = vPos.z;
-        mFrame.m[3][3] = 1.0f;
+        D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mFrame), D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&qUnit), reinterpret_cast<const D3DXQUATERNION*>(&qBody)));
+        mFrame.SetTranslation(vPos);
         matrix = mFrame;
         PblMatrix mBank;
-        PblMatrix mBankRoll;
-        D3DXMatrixRotationX(&mBank, mBankPitchAngle);
-        D3DXMatrixMultiply(&mBank, &mBank, D3DXMatrixRotationZ(&mBankRoll, mBankRollAngle));
-        D3DXMatrixMultiply(&mFrame, &mBank, &matrix);
+        mBank.SetRotateX(mBankPitchAngle);
+        mBank.RotateZ(mBankRollAngle);
+        mFrame = mBank * matrix;
         SetMatrix(mFrame);
     }
 
@@ -4652,7 +4572,7 @@ bool EntityFlyer::Update(float fDeltaTime)
     }
 
     int iFirstPerson = GetFirstPersonIndex();
-    if (mIsAlive && iFirstPerson >= 0)
+    if (IsAlive() && iFirstPerson >= 0)
     {
         FirstPerson::Update(iFirstPerson, TYPE_COCKPIT, mClass->mCockpitModelHandle, this, 0);
     }
@@ -5096,7 +5016,7 @@ bool EntityFlyer::CollisionCallback(const CollisionResult* pResult, CollisionObj
                         if (mVelocity.x != 0.0f || mVelocity.y != 0.0f || mVelocity.z != 0.0f)
                         {
                             PblVector3 vHeading;
-                            D3DXVec3Normalize(&vHeading, &mVelocity);
+                            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vHeading), reinterpret_cast<const D3DXVECTOR3*>(&mVelocity));
                             vDir.x += vHeading.x * 0.3f;
                             vDir.y += vHeading.y * 0.3f;
                             vDir.z += vHeading.z * 0.3f;
@@ -5354,7 +5274,7 @@ void EntityFlyer::TargetReact(Controllable* pAttacker)
             mAttacker = pAttacker->mCharacter;
             if (UnitControllerPtr(mCtrl))
             {
-                reinterpret_cast<AI::UnitThreatManager*>(UnitControllerPtr(mCtrl)->mThreatManager)->AddThreat(
+                UnitControllerPtr(mCtrl)->mThreatManager.AddThreat(
                            static_cast<Trackable*>(pAttacker)->GetGameObject());
             }
             return;
@@ -5439,7 +5359,8 @@ void EntityFlyer::RaiseHeight(const PblVector3& vPos, bool bTaper, PblVector3* p
         {
             fHeight = fTop;
         }
-        *pfSpeedScale = AIUtil::GetTargetSpeedForRealSpeed(20.0f, GetFlyerMaxSpeed());
+        *pfSpeedScale = AIUtil::GetTargetSpeedForRealSpeed(20.0f, GetFlyerMinSpeed(),
+                                                        GetFlyerMidSpeed(), GetFlyerMaxSpeed());
     }
 
     float fGround = RedTerrain::_bEnable ? RedTerrain::GetInterpolatedHeight(vPos.x, vPos.z) : -FLT_MAX;
@@ -5562,7 +5483,7 @@ bool EntityFlyer::CalculateDest(float fDeltaTime, ControllableDestination* pDest
 
     PblVector3 vDelta(pPos->x - pPosition->x, pPos->y - pPosition->y, pPos->z - pPosition->z);
     PblVector3 vToDest;
-    D3DXVec3Normalize(&vToDest, &vDelta);
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vToDest), reinterpret_cast<const D3DXVECTOR3*>(&vDelta));
     float fScale = *pfSpeedScale;
     const PblVector3& vNose = GetMatrix().GetZAxis();
     float fAhead = vNose.x * vToDest.x + vNose.y * vToDest.y + vNose.z * vToDest.z;
@@ -5596,7 +5517,8 @@ bool EntityFlyer::CalculateDest(float fDeltaTime, ControllableDestination* pDest
     }
     float fSpeed = ((fAlign * 2.0f - 1.0f) * (1.0f - fNear) + fNear) * *pfSpeedScale;
     *pfSpeedScale = fSpeed;
-    float fFloor = AIUtil::GetTargetSpeedForRealSpeed(20.0f, GetFlyerMaxSpeed());
+    float fFloor = AIUtil::GetTargetSpeedForRealSpeed(20.0f, GetFlyerMinSpeed(),
+                                                        GetFlyerMidSpeed(), GetFlyerMaxSpeed());
     if (fScale > fSpeed)
     {
         *pfSpeedScale = fSpeed > fFloor ? fSpeed : fFloor;
@@ -5624,23 +5546,11 @@ void EntityFlyer::SetupInterpolatedCameraTrackMatrix(PblMatrix& rMatrix)
 {
     if (NetGame::IsEnabled())
     {
-        float fMaxSpeed = mClass->mMaxFlyerSpeed;
-        if (fMaxSpeed < mClass->mBoostFlyerSpeed)
+        float fMaxSpeed = Max(mClass->mMaxFlyerSpeed, mClass->mBoostFlyerSpeed);
+        if (IsPlayer() && mGetSpeedSpeed > mClass->mBlurStartV)
         {
-            fMaxSpeed = mClass->mBoostFlyerSpeed;
-        }
-        if (mPlayerId >= 0 && mGetSpeedSpeed > mClass->mBlurStartV)
-        {
-            float fRatio = (mGetSpeedSpeed - mClass->mBlurStartV) /
-                           (fMaxSpeed - mClass->mBlurStartV);
-            if (fRatio < 0.0f)
-            {
-                fRatio = 0.0f;
-            }
-            else if (fRatio > 1.0f)
-            {
-                fRatio = 1.0f;
-            }
+            float fRatio = Clamp((mGetSpeedSpeed - mClass->mBlurStartV) /
+                                 (fMaxSpeed - mClass->mBlurStartV), 0.0f, 1.0f);
             const float fBlur = mClass->mBlurEffect * fRatio;
             if (fBlur > 0.0f)
             {
@@ -5661,43 +5571,97 @@ void EntityFlyer::SetupInterpolatedCameraTrackMatrix(PblMatrix& rMatrix)
 #ifdef GetObject
 #undef GetObject
 #endif
-// FUNCTION: SWBF2 0x00428e40
-template ParticleEmitterObject* PblHandle<ParticleEmitterObject>::GetObject() const;
+template ParticleEmitterObject* PblHandle<ParticleEmitterObject>::GetObjectA() const;
 
-// SYNTHETIC: SWBF2 0x0047852f
 // [thunk]:CommandFlyer::`scalar deleting destructor'`adjustor{320}'
+// SYNTHETIC: SWBF2 0x0047852f
+// ??_ECommandFlyer@@WBEA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x0047853a
-// [thunk]:CommandFlyer::`scalar deleting destructor'`adjustor{972}'
+// ??_ECommandFlyer@@WDMM@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00478545
-// [thunk]:CommandFlyer::`scalar deleting destructor'`adjustor{600}'
+// ??_ECommandFlyer@@WCFI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00478550
-// [thunk]:CommandFlyer::`scalar deleting destructor'`adjustor{12}'
+// ??_ECommandFlyer@@WM@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00478558
-// [thunk]:CommandFlyer::`scalar deleting destructor'`adjustor{512}'
+// ??_ECommandFlyer@@WCAA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00478563
-// [thunk]:CommandFlyer::`scalar deleting destructor'`adjustor{576}'
+// ??_ECommandFlyer@@WCEA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x0047859a
-// [thunk]:CommandFlyer::`scalar deleting destructor'`adjustor{148}'
+// ??_ECommandFlyer@@WJE@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00478607
-// [thunk]:CommandFlyer::Kill`adjustor{256}'
+// ?Kill@CommandFlyer@@WBAA@AEXXZ
 // SYNTHETIC: SWBF2 0x004b9937
-// [thunk]:EntityFlyer::`scalar deleting destructor'`adjustor{512}'
+// ??_EEntityFlyer@@WCAA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004b994d
-// [thunk]:EntityFlyer::`scalar deleting destructor'`adjustor{148}'
+// ??_EEntityFlyer@@WJE@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004b9958
-// [thunk]:EntityFlyer::Kill`adjustor{256}'
+// ?Kill@EntityFlyer@@WBAA@AEXXZ
 // SYNTHETIC: SWBF2 0x004b9963
-// [thunk]:EntityFlyer::`scalar deleting destructor'`adjustor{320}'
+// ??_EEntityFlyer@@WBEA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004b996e
-// [thunk]:EntityFlyer::`scalar deleting destructor'`adjustor{972}'
+// ??_EEntityFlyer@@WDMM@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004b9979
-// [thunk]:EntityFlyer::`scalar deleting destructor'`adjustor{600}'
+// ??_EEntityFlyer@@WCFI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x004b9984
-// [thunk]:EntityFlyer::`scalar deleting destructor'`adjustor{12}'
+// ??_EEntityFlyer@@WM@AEPAXI@Z
 
 // GLOBAL: SWBF2 0x007e6323
+// bRenderContrails
 bool bRenderContrails = true;
 
 // SYNTHETIC: SWBF2 0x00402af0
 // `dynamic initializer for 'cvRenderContrails''
 RedCommandConsole cvRenderContrails("flyer.contrailsActive", MultiVar(&bRenderContrails));
+
+// FUNCTION: SWBF2 0x004b5c10
+void EntityFlyer::SetupCameraFOV(float& rFOV)
+{
+    if (!IsAlive())
+    {
+        rFOV = GetDefaultFOV();
+        return;
+    }
+    if (mTargetInfo.mIsAiming || (mTracker && mTracker->IsFirstPersonView()))
+    {
+        const float fSpeed = mGetSpeedSpeed;
+        const float fEffectFOV = mClass->mFOVEffect1st;
+        if (fSpeed > 0.0f && fEffectFOV != 0.0f)
+        {
+            const float fMinSpeed = 0.0f;
+            const float fMaxSpeed = Max(GetFlyerMaxSpeed(), mClass->mBoostFlyerSpeed);
+            const float fBlend = Clamp((fSpeed - fMinSpeed) / (fMaxSpeed - fMinSpeed), 0.0f, 1.0f);
+            rFOV = GetControllableClass()->mFirstPersonFOV * (1.0f - fBlend) + fEffectFOV * fBlend;
+        }
+        else
+        {
+            rFOV = GetControllableClass()->mFirstPersonFOV;
+        }
+    }
+    else
+    {
+        const float fSpeed = mGetSpeedSpeed;
+        const float fEffectFOV = mClass->mFOVEffect3rd;
+        if (fSpeed > 0.0f && fEffectFOV != 0.0f)
+        {
+            const float fMinSpeed = 0.0f;
+            const float fMaxSpeed = Max(GetFlyerMaxSpeed(), mClass->mBoostFlyerSpeed);
+            const float fBlend = Clamp((fSpeed - fMinSpeed) / (fMaxSpeed - fMinSpeed), 0.0f, 1.0f);
+            rFOV = GetControllableClass()->mThirdPersonFOV * (1.0f - fBlend) + fEffectFOV * fBlend;
+            const PblVector3 vOffset = mClass->mFOVEFFectMinCamOffset3rd * (1.0f - fBlend) +
+                                      mClass->mFOVEFFectMaxCamOffset3rd * fBlend;
+            if (vOffset != PblVector3(0.0f, 0.0f, 0.0f))
+            {
+                mClass->mCameraSettings.mCameraTrackOffset = vOffset;
+            }
+        }
+        else
+        {
+            rFOV = GetControllableClass()->mThirdPersonFOV;
+            const PblVector3 vOffset = mClass->mFOVEFFectMinCamOffset3rd;
+            if (vOffset != PblVector3(0.0f, 0.0f, 0.0f))
+            {
+                mClass->mCameraSettings.mCameraTrackOffset = vOffset;
+            }
+        }
+    }
+}

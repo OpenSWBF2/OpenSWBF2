@@ -13,7 +13,7 @@ static_assert(sizeof(sin(1.0f)) == 4, "float math overloads");
 
 #undef PI
 #define PI (3.14159265358979323846)
-#define RADIANS_PER_DEGREE (PI/180.0)
+#define RADIANS_PER_DEGREE ((lua_Number)(PI/180.0))
 
 #ifdef USE_DEGREES
 #define FROMRAD(a)	((a)/RADIANS_PER_DEGREE)
@@ -230,6 +230,7 @@ static int math_randomseed (lua_State *L) {
   return 0;
 }
 
+// GLOBAL: SWBF2 0x770550
 static const luaL_reg mathlib[] = {
   {"abs",   math_abs},
   {"sin",   math_sin},

@@ -1,5 +1,6 @@
 #pragma once
 
+// VTABLE: SWBF2 0x0079f348
 class Fsm
 {
 public:

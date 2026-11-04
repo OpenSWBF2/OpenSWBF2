@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "pcLeafPatch.h"
 #include "pcDynamicSprite.h"
 
@@ -11,7 +12,6 @@
 #include "RedEngineFL/Application/pc/pcRenderHelpers.h"
 #include <new>
 #include "Battlefront2/Source/BirdEffect.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x0041a740
 LeafPatchRenderable::LeafPatchRenderable(const LeafPatchClass* pClass)
@@ -139,7 +139,9 @@ bool LeafPatchClass::RenderMaxDist(const PblMatrix& matrix, float& fDist,
     return true;
 }
 
+
 // GLOBAL: SWBF2 0x007eb710
+// sBox
 static PblBox sBox(-50.0f, -50.0f, -50.0f, 50.0f, 50.0f, 50.0f);
 
 namespace
@@ -301,7 +303,7 @@ void LeafPatchRenderable::Begin()
         float f = (float)(i % 5) * (1.0f - (float)(i & 1) * 2.0f) * 0.3f;
         PblVector3 vDir(mat.m[0][0] + f * mat.m[2][0], mat.m[0][1] + f * mat.m[2][1],
                         mat.m[0][2] + f * mat.m[2][2]);
-        D3DXVec3Normalize(&vDir, &vDir);
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vDir));
         m_avRight[i] = PblVector3(vDir.x * fScale, vDir.y * fScale, vDir.z * fScale);
     }
 }
@@ -351,7 +353,7 @@ void LeafPatchRenderable::AddParticle(const PblVector3& vPos, float fSize, const
 
             PblVector3 vNormal(corners[i].x * fInvScale, corners[i].y * fInvScale,
                                corners[i].z * fInvScale);
-            D3DXVec3Normalize(&vNormal, &vNormal);
+            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNormal), reinterpret_cast<const D3DXVECTOR3*>(&vNormal));
             pv->normal[0] = (unsigned char)((vNormal.z + 1.0f) * 127.5f);
             pv->normal[1] = (unsigned char)((vNormal.y + 1.0f) * 127.5f);
             pv->normal[2] = (unsigned char)((vNormal.x + 1.0f) * 127.5f);
@@ -372,7 +374,7 @@ void LeafPatchRenderable::AddParticle(const PblVector3& vPos, float fSize, const
             pv->pos[2] = corners[i].z;
 
             PblVector3 vNormal = corners[i];
-            D3DXVec3Normalize(&vNormal, &vNormal);
+            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNormal), reinterpret_cast<const D3DXVECTOR3*>(&vNormal));
             pv->normal[0] = vNormal.x;
             pv->normal[1] = vNormal.y;
             pv->normal[2] = vNormal.z;

@@ -16,6 +16,9 @@
 #include "PebbleFL/Common/PblMath.h"
 #include <math.h>
 
+// GLOBAL: SWBF2 0x00784ff0
+// __xmm@3cf5c28f3cf5c28f3cf5c28f3cf5c28f
+
 void __cdecl PblTraceP(const char* Format, ...);
 
 // TEMPLATE: SWBF2 0x006fe970
@@ -30,11 +33,13 @@ pcRedShader::BeginFuncT pcWaterShader::BeginFuncArray[MAX_PIPELINES];
 pcRedShader::EndFuncT pcWaterShader::EndFuncArray[MAX_PIPELINES];
 pcRedShader::RenderFuncT pcWaterShader::RenderFuncArray[MAX_PIPELINES];
 
-// GLOBAL: SWBF2 0x009c9e60
 // SYNTHETIC: SWBF2 0x00409fc0
 // `dynamic initializer for 'pcWaterShader::s_shaderDef''
 // SYNTHETIC: SWBF2 0x00769e90
 // `dynamic atexit destructor for 'pcWaterShader::s_shaderDef''
+
+// GLOBAL: SWBF2 0x009c9e60
+// pcWaterShader::s_shaderDef
 pcRedShaderDef pcWaterShader::s_shaderDef("water_shader.xml");
 
 bool pcWaterShader::s_specularEnable = true;
@@ -43,20 +48,25 @@ RedColorValue pcWaterShader::s_refractionColor(1.0f, 1.0f, 1.0f, 1.0f);
 RedColorValue pcWaterShader::s_reflectionColor(1.0f, 1.0f, 1.0f, 1.0f);
 RedColorValue pcWaterShader::s_fresnelMinMax(0.0f, 0.0f, 0.0f, 1.0f);
 
-// GLOBAL: SWBF2 0x009ca094
 // SYNTHETIC: SWBF2 0x0040a040
 // `dynamic initializer for 'kuiCubeNormalizationMap''
+
+// GLOBAL: SWBF2 0x009ca094
+// kuiCubeNormalizationMap
 static unsigned int kuiCubeNormalizationMap = PblHash("cube_normalizationmap");
 
-// GLOBAL: SWBF2 0x009c9e8c
 // SYNTHETIC: SWBF2 0x0040a060
 // `dynamic initializer for 'kuiLinearRamp''
+
+// GLOBAL: SWBF2 0x009c9e8c
+// kuiLinearRamp
 static unsigned int kuiLinearRamp = PblHash("linear_ramp");
 
-// GLOBAL: SWBF2 0x009ca050
 // SYNTHETIC: SWBF2 0x0040a080
 // `dynamic initializer for '_IdentityMatrix''
 
+// GLOBAL: SWBF2 0x009ca050
+// _IdentityMatrix
 static D3DXMATRIXA16 _IdentityMatrix;
 
 // GLOBAL: SWBF2 0x009ca098
@@ -68,27 +78,11 @@ bool s_projectedBumpEnv;
 // FUNCTION: SWBF2 0x007085d0
 pcWaterShader::pcWaterShader()
 {
-    m_normalMapTransform1.m_bTransform = 0;
-    m_normalMapTransform2.m_bTransform = 0;
-    m_bumpMapTransform1.m_bTransform = 0;
-    m_bumpMapTransform2.m_bTransform = 0;
-    m_diffuseMapTransform1.m_bTransform = 0;
-    m_diffuseMapTransform2.m_bTransform = 0;
-    m_specularMaskTransform1.m_bTransform = 0;
-    m_specularMaskTransform2.m_bTransform = 0;
 
-    GetStateFuncArray[PIPELINE_FIXED] = 0;
-    GetStateFuncArray[PIPELINE_PROG1] = 0;
-    GetStateFuncArray[PIPELINE_PROG2] = 0;
-    BeginFuncArray[PIPELINE_FIXED] = 0;
-    BeginFuncArray[PIPELINE_PROG1] = 0;
-    BeginFuncArray[PIPELINE_PROG2] = 0;
-    EndFuncArray[PIPELINE_FIXED] = 0;
-    EndFuncArray[PIPELINE_PROG1] = 0;
-    EndFuncArray[PIPELINE_PROG2] = 0;
-    RenderFuncArray[PIPELINE_FIXED] = 0;
-    RenderFuncArray[PIPELINE_PROG1] = 0;
-    RenderFuncArray[PIPELINE_PROG2] = 0;
+    memset(GetStateFuncArray, 0, sizeof(GetStateFuncArray));
+    memset(BeginFuncArray, 0, sizeof(BeginFuncArray));
+    memset(EndFuncArray, 0, sizeof(EndFuncArray));
+    memset(RenderFuncArray, 0, sizeof(RenderFuncArray));
 
     s_uiID = _Register(s_uiRenderTypeHash, this);
 
@@ -104,14 +98,6 @@ pcWaterShader::pcWaterShader(unsigned int uiFlags,
                              const RedColor& color1,
                              float fArg7)
 {
-    m_normalMapTransform1.m_bTransform = 0;
-    m_normalMapTransform2.m_bTransform = 0;
-    m_bumpMapTransform1.m_bTransform = 0;
-    m_bumpMapTransform2.m_bTransform = 0;
-    m_diffuseMapTransform1.m_bTransform = 0;
-    m_diffuseMapTransform2.m_bTransform = 0;
-    m_specularMaskTransform1.m_bTransform = 0;
-    m_specularMaskTransform2.m_bTransform = 0;
     _BindPipeline(GetStateFuncArray, BeginFuncArray, EndFuncArray, RenderFuncArray);
     _Init(uiFlags, pParams, uiNumParams, uiMaterialFlags, color0, color1, fArg7);
 }
@@ -324,18 +310,18 @@ unsigned int pcWaterShader::GetState_Prog2(const RenderItem*) const
     return m_projectedNormalMap ? 3 : 5;
 }
 
-// GLOBAL: SWBF2 0x00784fac
-static const pcRedShaderDef::FixedFunctionStateT kFixedFunctionStates[3] =
-{
-    { 1, { 0x42, 0x00, 0x00, 0x00 } },
-    { 1, { 0x41, 0x41, 0x00, 0x00 } },
-    { 3, { 0x41, 0x41, 0x41, 0x00 } },
-};
-
 // FUNCTION: SWBF2 0x007097a0
 void pcWaterShader::InitFixedFunctionShaderDef() const
 {
-    GetShaderDef()->InitFixedFunction(0x10, 3, kFixedFunctionStates);
+    // GLOBAL: SWBF2 0x00784fac
+    static const pcRedShaderDef::FixedFunctionStateT aFFStates[3] =
+    {
+        { 1, { 0x42, 0x00, 0x00, 0x00 } },
+        { 1, { 0x41, 0x41, 0x00, 0x00 } },
+        { 3, { 0x41, 0x41, 0x41, 0x00 } },
+    };
+
+    GetShaderDef()->InitFixedFunction(0x10, 3, aFFStates);
 }
 
 // FUNCTION: SWBF2 0x00709e90
@@ -821,22 +807,26 @@ void pcWaterShader::_StaticInit() const
         !(RedRenderer::pcGetDeviceCaps().TextureCaps & D3DPTEXTURECAPS_NOPROJECTEDBUMPENV);
 }
 
-// GLOBAL: SWBF2 0x009ca090
 // SYNTHETIC: SWBF2 0x00409fe0
 // `dynamic initializer for 'pcWaterShader::s_uiRenderTypeHash''
+
+// GLOBAL: SWBF2 0x009ca090
+// pcWaterShader::s_uiRenderTypeHash
 unsigned int pcWaterShader::s_uiRenderTypeHash = PblHash("Water");
 
 // SYNTHETIC: SWBF2 0x0040a000
-// `dynamic initializer for 'PblMath::fOneOverHalfPi''
+// PblMath::`dynamic initializer for 'fOneOverHalfPi''
 
 // SYNTHETIC: SWBF2 0x0040a020
-// `dynamic initializer for 'PblMath::fOneOverTwoPi''
+// PblMath::`dynamic initializer for 'fOneOverTwoPi''
 
-// GLOBAL: SWBF2 0x009c9f10
 // SYNTHETIC: SWBF2 0x00409fa0
 // `dynamic initializer for 'pcWaterShader::s_Factory''
 // SYNTHETIC: SWBF2 0x00769e70
 // `dynamic atexit destructor for 'pcWaterShader::s_Factory''
+
+// GLOBAL: SWBF2 0x009c9f10
+// pcWaterShader::s_Factory
 pcWaterShader pcWaterShader::s_Factory;
 
 // FUNCTION: SWBF2 0x007092a0
@@ -885,12 +875,14 @@ void pcWaterShader::Begin_Prog2(unsigned int uiState, unsigned int uiPass) const
 
     const PblMatrix& mCamera = RedRenderer::GetCamera()->GetMatrix();
     const float fAngle = (float)atan2((double)mCamera.m[2][2], (double)mCamera.m[2][0]) - PblMath::fHalfPi;
-    D3DXMATRIXA16 mRotation, mFacing, mScale, mScaled;
-    D3DXMatrixIdentity(&mFacing);
-    D3DXMatrixIdentity(&mScaled);
-    D3DXMatrixMultiply(&mFacing, &mFacing, D3DXMatrixRotationZ(&mRotation, fAngle));
-    D3DXMatrixMultiply(&mScaled, &mScaled, D3DXMatrixScaling(&mScale, 0.03f, 0.03f, 0.03f));
-    D3DXMatrixMultiply(&_IdentityMatrix, &mScaled, &mFacing);
+    PblMatrix mFacing;
+    PblMatrix mScaled;
+    D3DXMatrixIdentity(reinterpret_cast<D3DXMATRIX*>(&mFacing));
+    D3DXMatrixIdentity(reinterpret_cast<D3DXMATRIX*>(&mScaled));
+    mFacing.RotateZ(fAngle);
+    mScaled.Scale(0.03f, 0.03f, 0.03f);
+    D3DXMatrixMultiply(&_IdentityMatrix, reinterpret_cast<const D3DXMATRIX*>(&mScaled),
+                       reinterpret_cast<const D3DXMATRIX*>(&mFacing));
 }
 
 // FUNCTION: SWBF2 0x00708c00

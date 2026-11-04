@@ -11,7 +11,6 @@ class SoundDebugDisplay;
 namespace VoiceChat
 {
 struct AudioPacket;
-class Transport;
 }
 
 namespace VoiceChat
@@ -26,7 +25,7 @@ public:
     void FreeAudioPacket(AudioPacket* packet);
     void Play();
 
-    bool Open();
+    bool Open(unsigned int captureDeviceIndex, float minBufferSizeMs, unsigned int minBuffers);
     void Close();
     void Stop();
     unsigned char IsEnabled();
@@ -48,7 +47,7 @@ public:
     bool Update();
     bool IsStarving(unsigned int input, bool force);
 
-    bool Open(float fPacketMs, int iSlots);
+    bool Open(unsigned int playbackDevice, float fPacketMs, unsigned int minBuffers, unsigned int iSlots);
     void Close();
     void Stop();
 
@@ -144,14 +143,14 @@ public:
 
     static Node* FindByID(unsigned char uNodeID);
 
-    bool Open();
+    bool Open(unsigned int captureDeviceIndex, unsigned int renderDeviceIndex, unsigned char numDecoderInputs);
     bool IsOpen() const;
     void Close();
     void SetID(unsigned char uChannel);
     unsigned int UpdateReceiveStreamLatency(unsigned char ucIndex);
-    static bool OpenStatic(float fSeconds, float fA, float fB);
+    static bool OpenStatic(Transport* transport, float fSeconds, float fA, float fB);
     static void CloseStatic();
-    static void SetSkipOutOfSequence(float fRate);
+    static void SetSkipOutOfSequence(bool skip, float fRate);
     void Close(bool, bool);
 
     struct ReceiveStream
@@ -171,7 +170,7 @@ public:
     const ReceiveStream& GetReceiveStream(unsigned char stream) const;
     unsigned int CalculateNumPackets(const ReceiveStream& stream) const;
 
-    static bool __fastcall ReceiveAudioPacketAllLocalNodes(unsigned char uID, const AudioPacket* pPacket,
+    static unsigned char __cdecl ReceiveAudioPacketAllLocalNodes(unsigned char uID, const AudioPacket* pPacket,
                                                           bool bDiscontinuity, unsigned short uDropped);
     friend class ::SoundDebugDisplay;
 
@@ -249,8 +248,8 @@ public:
     static unsigned short sRepeatMax;
     static SendMetrics* sSendMetrics;
     static ReceiveMetrics* sReceiveMetrics;
-    static int sTime;
-    static PblList<Node> sList;
+    static float sTime;
+    static void* sList[4];
     static unsigned short sSeqNumVariance;
     static float sReceiveBufferSize;
 };

@@ -69,10 +69,10 @@ public:
     class BranchParams
     {
     public:
-        BranchParams(const EntityPathFollowerClass* pPathClass, PblMatrix& matrix, float fDiameter,
-                     GameObject* const pGameObject, float fWorldSpeed, float fRange,
-                     unsigned int uBranchPaths, float fCosMaxAngle, bool bOverrideBranching,
-                     bool bFallbackToClosest);
+        BranchParams(const EntityPathFollowerClass* pPathClass, PblMatrix& matrix, const float fDiameter,
+                     GameObject* const pGameObject, const float fWorldSpeed, const float fRange,
+                     const unsigned int uBranchPaths, const float fCosMaxAngle, const bool bOverrideBranching,
+                     const bool bFallbackToClosest);
 
         const EntityPathFollowerClass* mPathClass;
         PblMatrix& mMatrix;
@@ -91,6 +91,7 @@ public:
     public:
 
         PathAttributes() {}
+        void SetVectorDistance(const PblVector3 vDistance) { mVectorDist = vDistance; }
         static void* operator new(size_t, void* pMemory) { return pMemory; }
         static void operator delete(void*, void*) {}
 
@@ -183,8 +184,8 @@ protected:
     bool SavePoints(const PblVector3* const pPosition, BranchParams* const pParams, bool b);
 
     float Roll(const EntityPathFollowerClass* const pClass, float fYaw, float fElapsed, float fTurnRate);
-    static bool CalculateDistance(const PblVector3& vPosition, const EntityPath* const pPath, unsigned int uIndex,
-                                  float fMinDist, PathAttributes& attrib, float& fBestSquareDist);
+    static bool CalculateDistance(const PblVector3& vPosition, const EntityPath* const pPath, const unsigned int uIndex,
+                                  const float fMinDist, PathAttributes& attrib, float& fBestSquareDist);
 
 public:
     PblListDouble::Node mNode;

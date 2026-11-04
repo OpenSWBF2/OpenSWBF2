@@ -35,7 +35,8 @@ static const D3DXMATRIXA16 _IdentityMatrix(1.0f, 0.0f, 0.0f, 0.0f,
 
 static const float kInv255 = 1.0f / 255.0f;
 
-bool RedStencilShadow::s_bShadowsEnabled;
+// GLOBAL: SWBF2 0x007dfa84
+bool RedStencilShadow::s_bShadowsEnabled = true;
 
 static const PblMatrix& _GetSkinMatrix(unsigned int uiNumBones, const unsigned char* puiWeights,
                                        const unsigned char* puiIndices, const PblMatrix* pMatrices);
@@ -46,22 +47,25 @@ unsigned int ShadowData::_iShadowMem;
 // GLOBAL: SWBF2 0x009a0948
 unsigned int ShadowData::_iShadowSilhouetteVertexCount;
 
-// GLOBAL: SWBF2 0x009a0958
 // SYNTHETIC: SWBF2 0x00408a60
 // `dynamic initializer for 'RedStencilShadow::s_aTestPlane''
 
+// GLOBAL: SWBF2 0x009a0958
+// RedStencilShadow::s_aTestPlane
 PblVector4 RedStencilShadow::s_aTestPlane[5];
 
-// GLOBAL: SWBF2 0x009a09ac
 // SYNTHETIC: SWBF2 0x00408a80
 // `dynamic initializer for 'RedStencilShadow::s_vNearPlaneCenter''
 
+// GLOBAL: SWBF2 0x009a09ac
+// RedStencilShadow::s_vNearPlaneCenter
 PblVector3 RedStencilShadow::s_vNearPlaneCenter;
 
-// GLOBAL: SWBF2 0x009a09b8
 // SYNTHETIC: SWBF2 0x00408a90
 // `dynamic initializer for 'RedStencilShadow::s_vProjection''
 
+// GLOBAL: SWBF2 0x009a09b8
+// RedStencilShadow::s_vProjection
 PblVector3 RedStencilShadow::s_vProjection;
 
 // GLOBAL: SWBF2 0x009a094c
@@ -305,20 +309,14 @@ void RedStencilShadow::Render(const PblMatrix* pMatrix,
                 {
                     if (!ppBoneMatrices[uBone])
                     {
-                        PblMatrix bone;
-                        D3DXMatrixMultiply((D3DXMATRIX*)&bone,
-                                           (const D3DXMATRIX*)&pPose->_GetBoneMatrix(uBone),
-                                           (const D3DXMATRIX*)pMatrix);
+                        PblMatrix bone = pPose->_GetBoneMatrix(uBone) * *pMatrix;
                         ppBoneMatrices[uBone] = RedRenderer::AllocMatrixInCache(bone);
                     }
                     pWorld = ppBoneMatrices[uBone];
                 }
                 else
                 {
-                    PblMatrix bone;
-                    D3DXMatrixMultiply((D3DXMATRIX*)&bone,
-                                       (const D3DXMATRIX*)&pPose->_GetBoneMatrix(uBone),
-                                       (const D3DXMATRIX*)pMatrix);
+                    PblMatrix bone = pPose->_GetBoneMatrix(uBone) * *pMatrix;
                     pWorld = RedRenderer::AllocMatrixInCache(bone);
                 }
             }
@@ -1263,7 +1261,7 @@ static const PblMatrix& _GetSkinMatrix(unsigned int uiNumBones, const unsigned c
 }
 
 // SYNTHETIC: SWBF2 0x00408aa0
-// `dynamic initializer for 'PblMath::fOneOverHalfPi''
+// PblMath::`dynamic initializer for 'fOneOverHalfPi''
 
 // SYNTHETIC: SWBF2 0x00408ac0
-// `dynamic initializer for 'PblMath::fOneOverTwoPi''
+// PblMath::`dynamic initializer for 'fOneOverTwoPi''

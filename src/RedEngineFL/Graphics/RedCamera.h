@@ -93,15 +93,19 @@ public:
     int _iNumXZPlanes;
 };
 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
+// FUNCTION: SWBF2 0x0056a6b0
+inline const PblVector3 RedCamera::TransformWorldPointToProjectionSpace(const PblVector3& rPoint) const
+{
+    PblVector3 vCameraPoint;
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vCameraPoint), reinterpret_cast<const D3DXVECTOR3*>(&rPoint), reinterpret_cast<const D3DXMATRIX*>(&_MatrixInverse));
+    return TransformCameraPointToProjectionSpace(vCameraPoint);
+}
+
+
+// FUNCTION: SWBF2 0x00433eb0
+inline RedCamera::VisibilityT RedCamera::ClassifyAABox(const PblVector3& vCenter, const PblVector3& vExtents) const
+{
+    PblVector3 v;
+    D3DXVec3TransformCoord((D3DXVECTOR3*)&v, (const D3DXVECTOR3*)&vCenter, (const D3DXMATRIX*)&_MatrixInverse);
+    return ClassifyBoxInternal(_MatrixInverse, v, vExtents);
+}

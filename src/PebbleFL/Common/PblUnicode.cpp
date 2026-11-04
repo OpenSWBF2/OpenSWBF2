@@ -12,12 +12,12 @@ unsigned int HandleString(unsigned short* pusDest, unsigned int uiCount, char co
 // FUNCTION: SWBF2 0x00726fb0
 unsigned int HandleChar(unsigned short* pusDest, unsigned int uiCount, unsigned short usChar)
 {
-    if (!uiCount)
+    if (uiCount > 0)
     {
-        return 0;
+        *pusDest = usChar;
+        return 1;
     }
-    *pusDest = usChar;
-    return 1;
+    return 0;
 }
 
 // FUNCTION: SWBF2 0x00726fd0
@@ -52,7 +52,7 @@ unsigned short* __cdecl PblUnicode::ustrlwr(unsigned short* pusString)
 }
 
 // FUNCTION: SWBF2 0x007274c0
-unsigned short* __cdecl PblUnicode::ustrchr(unsigned short* pusString, unsigned short usChar)
+unsigned short* __cdecl PblUnicode::ustrrchr(unsigned short* pusString, unsigned short usChar)
 {
     unsigned short* result = 0;
     for (unsigned short* p = pusString; *p; ++p)
@@ -86,34 +86,40 @@ unsigned int __cdecl strlcat(char* pcDest, char const* pcSource, unsigned int ui
 {
     unsigned int uiLen = 0;
 
-    if (uiSize)
+    if (uiLen < uiSize)
     {
-        while (pcDest[uiLen])
+        char* pcEnd = pcDest;
+        while (uiLen < uiSize && *pcEnd)
         {
-            if (++uiLen >= uiSize)
-            {
-                break;
-            }
+            ++uiLen;
+            ++pcEnd;
         }
 
         if (uiLen < uiSize)
         {
-
-            unsigned int uiStart = uiLen;
-            while (pcSource[uiLen - uiStart])
+            char const* pcSrc = pcSource;
+            while (uiLen < uiSize)
             {
-                pcDest[uiLen] = pcSource[uiLen - uiStart];
-                if (++uiLen >= uiSize)
+                char c = *pcSrc;
+                if (!c)
                 {
                     break;
                 }
+                *pcEnd = c;
+                ++pcSrc;
+                ++pcEnd;
+                ++uiLen;
             }
         }
-    }
 
-    if (uiSize)
-    {
-        pcDest[uiLen == uiSize ? uiLen - 1 : uiLen] = '\0';
+        if (uiSize)
+        {
+            if (uiLen == uiSize)
+            {
+                --pcEnd;
+            }
+            *pcEnd = '\0';
+        }
     }
 
     return uiLen;
@@ -124,21 +130,31 @@ unsigned int __cdecl strlcpy(char* pcDest, char const* pcSource, unsigned int ui
 {
     unsigned int uiLen = 0;
 
-    if (uiSize && pcSource)
+    if (uiLen < uiSize)
     {
-        while (pcSource[uiLen])
+        char* pcEnd = pcDest;
+        char const* pcSrc = pcSource;
+        while (pcSrc && uiLen < uiSize)
         {
-            pcDest[uiLen] = pcSource[uiLen];
-            if (++uiLen >= uiSize)
+            char c = *pcSrc;
+            if (!c)
             {
                 break;
             }
+            *pcEnd = c;
+            ++pcSrc;
+            ++pcEnd;
+            ++uiLen;
         }
-    }
 
-    if (uiSize)
-    {
-        pcDest[uiLen == uiSize ? uiLen - 1 : uiLen] = '\0';
+        if (uiSize)
+        {
+            if (uiLen == uiSize)
+            {
+                --pcEnd;
+            }
+            *pcEnd = '\0';
+        }
     }
 
     return uiLen;
@@ -147,12 +163,13 @@ unsigned int __cdecl strlcpy(char* pcDest, char const* pcSource, unsigned int ui
 // FUNCTION: SWBF2 0x007271a0
 int __cdecl PblUnicode::ustrcmp(unsigned short const* pus1, unsigned short const* pus2)
 {
-    unsigned short us1, us2;
-    do
+    unsigned short us1 = *pus1++;
+    unsigned short us2 = *pus2++;
+    while (us1 == us2 && us1)
     {
         us1 = *pus1++;
         us2 = *pus2++;
-    } while (us1 == us2 && us1);
+    }
     return (int)us1 - (int)us2;
 }
 
@@ -161,38 +178,37 @@ unsigned int __cdecl PblUnicode::ustrlcat(unsigned short* pusDest, unsigned shor
                                           unsigned int uiSize)
 {
     unsigned int uiLen = 0;
-    unsigned short* p = pusDest;
+    unsigned short* pusEnd = pusDest;
 
     if (uiSize)
     {
-        while (*p)
+        while (uiLen < uiSize && *pusEnd)
         {
             ++uiLen;
-            ++p;
-            if (uiLen >= uiSize)
-            {
-                goto done;
-            }
+            ++pusEnd;
         }
 
         if (uiLen < uiSize)
         {
-            unsigned short const* pSrc = pusSource;
-            while (*pSrc)
+            unsigned short const* pusSrc = pusSource;
+            while (uiLen < uiSize)
             {
-                *p++ = *pSrc++;
-                if (++uiLen >= uiSize)
+                unsigned short c = *pusSrc;
+                if (!c)
                 {
                     break;
                 }
+                *pusEnd = c;
+                ++pusSrc;
+                ++pusEnd;
+                ++uiLen;
             }
         }
     }
 
-done:
-    if (p < pusDest + uiSize)
+    if (pusEnd < pusDest + uiSize)
     {
-        *p = 0;
+        *pusEnd = 0;
     }
     if (uiSize)
     {
@@ -219,12 +235,13 @@ unsigned short* __cdecl PblUnicode::ustrncpy(unsigned short* pusDest, unsigned s
     unsigned short* p = pusDest;
     for (unsigned int i = 0; i < uiCount; ++i)
     {
-        unsigned short c = pusSource[i];
+        unsigned short c = *pusSource;
         if (!c)
         {
             break;
         }
         *p++ = c;
+        ++pusSource;
     }
     if (p < pusDest + uiCount)
     {
@@ -322,8 +339,8 @@ int __cdecl PblUnicode::uvsnprintf(unsigned short* pusDest, unsigned int uiCount
         {
             switch (pcFormat[1])
             {
-            case 'c':
-                n = HandleChar(pusDest, uiCount - uiLen, (unsigned short)va_arg(pArgs, char));
+            case 's':
+                n = HandleString(pusDest, uiCount - uiLen, va_arg(pArgs, char const*));
                 break;
             case 'd':
                 n = HandleInt(pusDest, uiCount - uiLen, va_arg(pArgs, int));
@@ -331,8 +348,8 @@ int __cdecl PblUnicode::uvsnprintf(unsigned short* pusDest, unsigned int uiCount
             case 'f':
                 n = HandleFloat(pusDest, uiCount - uiLen, va_arg(pArgs, float));
                 break;
-            case 's':
-                n = HandleString(pusDest, uiCount - uiLen, va_arg(pArgs, char const*));
+            case 'c':
+                n = HandleChar(pusDest, uiCount - uiLen, (unsigned short)va_arg(pArgs, char));
                 break;
             default:
                 if (uiLen >= uiCount && uiCount)
@@ -411,16 +428,8 @@ int __cdecl PblUnicode::uvsnprintf(unsigned short* pusDest, unsigned int uiCount
         {
             switch (pusFormat[1])
             {
-            case '%':
-                n = 0;
-                if (uiLen < uiCount)
-                {
-                    *pusDest = '%';
-                    n = 1;
-                }
-                break;
-            case 'c':
-                n = HandleChar(pusDest, uiCount - uiLen, (unsigned short)va_arg(pArgs, int));
+            case 's':
+                n = HandleString(pusDest, uiCount - uiLen, va_arg(pArgs, unsigned short const*));
                 break;
             case 'd':
                 n = HandleInt(pusDest, uiCount - uiLen, va_arg(pArgs, int));
@@ -428,8 +437,16 @@ int __cdecl PblUnicode::uvsnprintf(unsigned short* pusDest, unsigned int uiCount
             case 'f':
                 n = HandleFloat(pusDest, uiCount - uiLen, va_arg(pArgs, float));
                 break;
-            case 's':
-                n = HandleString(pusDest, uiCount - uiLen, va_arg(pArgs, unsigned short const*));
+            case 'c':
+                n = HandleChar(pusDest, uiCount - uiLen, (unsigned short)va_arg(pArgs, int));
+                break;
+            case '%':
+                n = 0;
+                if (uiLen < uiCount)
+                {
+                    *pusDest = '%';
+                    n = 1;
+                }
                 break;
             default:
                 if (uiLen >= uiCount && uiCount)
@@ -487,7 +504,8 @@ unsigned int __cdecl ConvertUnicodeSkippingWide(char* pDest, const unsigned shor
     return (unsigned int)(p - pDest);
 }
 
-namespace PblUnicode {
+namespace PblUnicode
+{
 
 // FUNCTION: SWBF2 0x00727420
 unsigned int __cdecl ustrncnv(unsigned short* pDest, const unsigned char* pSrc, unsigned int uiCount)
@@ -519,25 +537,34 @@ unsigned int __cdecl ustrncnv(unsigned short* pDest, const unsigned char* pSrc, 
 unsigned int __cdecl PblUnicode::ustrlcpy(unsigned short* pusDest, unsigned short const* pusSource,
                                           unsigned int uiSize)
 {
-    unsigned int uiCount = 0;
-    if (uiSize)
+    unsigned int uiLen = 0;
+
+    if (uiLen < uiSize)
     {
-        unsigned short* p = pusDest;
-        while (uiCount < uiSize)
+        unsigned short* pusEnd = pusDest;
+        unsigned short const* pusSrc = pusSource;
+        while (uiLen < uiSize)
         {
-            unsigned short c = pusSource[uiCount];
+            unsigned short c = *pusSrc;
             if (!c)
             {
                 break;
             }
-            *p++ = c;
-            ++uiCount;
+            *pusEnd = c;
+            ++pusSrc;
+            ++pusEnd;
+            ++uiLen;
         }
-        if (uiCount == uiSize)
+
+        if (uiSize)
         {
-            --p;
+            if (uiLen == uiSize)
+            {
+                --pusEnd;
+            }
+            *pusEnd = 0;
         }
-        *p = 0;
     }
-    return uiCount;
+
+    return uiLen;
 }

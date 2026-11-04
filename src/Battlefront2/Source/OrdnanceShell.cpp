@@ -4,17 +4,27 @@
 
 #include "RedEngineFL/Application/RedWater.h"
 
-// GLOBAL: SWBF2 0x01ef2660
 // SYNTHETIC: SWBF2 0x00405b60
 // `dynamic initializer for 'OrdnanceShell::rttiHashOrdnanceShell''
-PblHash OrdnanceShell::rttiHashOrdnanceShell("OrdnanceShell");
-char OrdnanceShell::rttiNameOrdnanceShell[] = "OrdnanceShell";
+// OrdnanceShell::rttiHashOrdnanceShell
 
-// GLOBAL: SWBF2 0x01ef2664
+// GLOBAL: SWBF2 0x01ef2660
+// OrdnanceShell::rttiHashOrdnanceShell
+PblHash OrdnanceShell::rttiHashOrdnanceShell("OrdnanceShell");
+// GLOBAL: SWBF2 0x0078a9c4
+// OrdnanceShell::rttiNameOrdnanceShell
+const char OrdnanceShell::rttiNameOrdnanceShell[] = "OrdnanceShell";
+
 // SYNTHETIC: SWBF2 0x00405b70
 // `dynamic initializer for 'OrdnanceShellClass::rttiHashOrdnanceShellClass''
+// OrdnanceShellClass::rttiHashOrdnanceShellClass
+
+// GLOBAL: SWBF2 0x01ef2664
+// OrdnanceShellClass::rttiHashOrdnanceShellClass
 PblHash OrdnanceShellClass::rttiHashOrdnanceShellClass("OrdnanceShellClass");
-char OrdnanceShellClass::rttiNameOrdnanceShellClass[] = "OrdnanceShellClass";
+// GLOBAL: SWBF2 0x0078a9e8
+// OrdnanceShellClass::rttiNameOrdnanceShellClass
+const char OrdnanceShellClass::rttiNameOrdnanceShellClass[] = "OrdnanceShellClass";
 
 // FUNCTION: SWBF2 0x00605d40
 OrdnanceShellClass::OrdnanceShellClass(unsigned int uHash)
@@ -54,23 +64,11 @@ Ordnance* OrdnanceShellClass::Build(const OrdnanceDesc& desc)
     return pShell;
 }
 
-// FUNCTION: SWBF2 0x005f8bb0
-bool OrdnanceShellClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashOrdnanceShellClass || OrdnanceBulletClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00605b90
-unsigned int OrdnanceShellClass::GetDerivedRtti()
-{
-    return rttiHashOrdnanceShellClass;
-}
 
-// FUNCTION: SWBF2 0x00605ba0
-const char* OrdnanceShellClass::GetDerivedRttiName()
-{
-    return rttiNameOrdnanceShellClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00605df0
 void OrdnanceShellClass::SetProperty(unsigned int uProperty, const char* pszValue)
@@ -104,9 +102,9 @@ OrdnanceShell::~OrdnanceShell()
 }
 
 // SYNTHETIC: SWBF2 0x00605f46
-// [thunk]:OrdnanceShell::`scalar deleting destructor' adjustor{24}
+// ??_EOrdnanceShell@@WBI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00605f4e
-// [thunk]:OrdnanceShell::`scalar deleting destructor' adjustor{152}
+// ??_EOrdnanceShell@@WJI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00605b60
 // OrdnanceShell::`scalar deleting destructor'
 
@@ -134,23 +132,13 @@ bool OrdnanceShell::Update(float fDeltaTime)
     return true;
 }
 
-// FUNCTION: SWBF2 0x005f8b80
-bool OrdnanceShell::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashOrdnanceShell || OrdnanceBullet::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00605b40
-unsigned int OrdnanceShell::GetDerivedRtti() const
-{
-    return rttiHashOrdnanceShell;
-}
 
-// FUNCTION: SWBF2 0x00605b50
-const char* OrdnanceShell::GetDerivedRttiName() const
-{
-    return rttiNameOrdnanceShell;
-}
 
-// SYNTHETIC: SWBF2 0x00605de0
-// OrdnanceShellClass::~OrdnanceShellClass
+
+
+
+// FUNCTION: SWBF2 0x00605de0
+OrdnanceShellClass::~OrdnanceShellClass()
+{
+}

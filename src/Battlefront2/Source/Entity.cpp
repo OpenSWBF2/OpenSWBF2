@@ -12,60 +12,46 @@
 #include "RedEngineFL/Util/RedLocalizeDB.h"
 #include "RedEngineFL/Util/RedLog.h"
 
-// GLOBAL: SWBF2 0x01eb9864
 // SYNTHETIC: SWBF2 0x00402830
 // `dynamic initializer for 'Entity::rttiHashEntity''
-PblHash Entity::rttiHashEntity("Entity");
-char Entity::rttiNameEntity[] = "Entity";
 
-// GLOBAL: SWBF2 0x01eb9868
+// GLOBAL: SWBF2 0x01eb9864
+// Entity::rttiHashEntity
+PblHash Entity::rttiHashEntity("Entity");
+// GLOBAL: SWBF2 0x00788f2c
+// Entity::rttiNameEntity
+const char Entity::rttiNameEntity[] = "Entity";
+
 // SYNTHETIC: SWBF2 0x00402840
 // `dynamic initializer for 'EntityEx::rttiHashEntityEx''
-PblHash EntityEx::rttiHashEntityEx("EntityEx");
-char EntityEx::rttiNameEntityEx[] = "EntityEx";
+// EntityEx::rttiHashEntityEx
 
-// GLOBAL: SWBF2 0x01eb9860
+// GLOBAL: SWBF2 0x01eb9868
+// EntityEx::rttiHashEntityEx
+PblHash EntityEx::rttiHashEntityEx("EntityEx");
+// GLOBAL: SWBF2 0x00788f44
+// EntityEx::rttiNameEntityEx
+const char EntityEx::rttiNameEntityEx[] = "EntityEx";
+
 // SYNTHETIC: SWBF2 0x00402850
 // `dynamic initializer for 'EntityClass::rttiHashEntityClass''
+// EntityClass::rttiHashEntityClass
+
+// GLOBAL: SWBF2 0x01eb9860
+// EntityClass::rttiHashEntityClass
 PblHash EntityClass::rttiHashEntityClass("EntityClass");
-char EntityClass::rttiNameEntityClass[] = "EntityClass";
-
-// FUNCTION: SWBF2 0x0048ec00
-unsigned int EntityClass::GetDerivedRtti()
-{
-    return rttiHashEntityClass;
-}
-
-// FUNCTION: SWBF2 0x0048ec10
-const char* EntityClass::GetDerivedRttiName()
-{
-    return rttiNameEntityClass;
-}
-
-// GLOBAL: SWBF2 0x01eb9870
-int EntityEx::mIdMapNumEntries;
-// GLOBAL: SWBF2 0x01eb9874
+// GLOBAL: SWBF2 0x00788f34
+// EntityClass::rttiNameEntityClass
+const char EntityClass::rttiNameEntityClass[] = "EntityClass";
 // SYNTHETIC: SWBF2 0x00402860
 // `dynamic initializer for 'EntityEx::mIdMap''
 
+// GLOBAL: SWBF2 0x01eb9870
 PblHashTable<EntityEx, 1024> EntityEx::mIdMap;
 
 PblPtrSet<32768> EntityEx::sLive;
 
-EntityClass::MapParams::MapParams()
-{
-    mScale = 1.0f;
-    mSpeedMin = 10.0f;
-    mSpeedMax = 100.0f;
-    mViewRangeMin = 125.0f;
-    mViewRangeMax = 250.0f;
-    mTexture = 0;
-    mTargetFadeTime = 32.0f;
-    mRangeOverall = 15.0f;
-    mRangeShooting = 1000.0f;
-    mRangeViewCone = 60.0f;
-    mViewConeCosine = PblMath::Cos(0.41887903f);
-}
+
 
 // FUNCTION: SWBF2 0x004918d0
 EntityClass::EntityClass(unsigned int uHash)
@@ -225,10 +211,7 @@ void EntityEx::Store(unsigned int uId, EntityEx* pEntity)
 {
     if (!(NetGame::IsEnabled() && NetGame::IsClient()))
     {
-        if (mIdMap.Store(uId, pEntity))
-        {
-            ++mIdMapNumEntries;
-        }
+        mIdMap.Store(uId, pEntity);
     }
 }
 
@@ -236,10 +219,7 @@ void EntityEx::Remove(unsigned int uId)
 {
     if (!(NetGame::IsEnabled() && NetGame::IsClient()))
     {
-        if (mIdMap.Remove(uId))
-        {
-            --mIdMapNumEntries;
-        }
+        mIdMap.Remove(uId);
     }
 }
 
@@ -268,23 +248,9 @@ EntityEx::~EntityEx()
 // SYNTHETIC: SWBF2 0x004917f0
 // EntityEx::`scalar deleting destructor'
 
-// FUNCTION: SWBF2 0x00443ec0
-bool EntityEx::IsRtti(unsigned int uRtti) const
-{
-    return rttiHashEntityEx == uRtti || Entity::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00491700
-unsigned int EntityEx::GetDerivedRtti() const
-{
-    return rttiHashEntityEx;
-}
 
-// FUNCTION: SWBF2 0x00491710
-const char* EntityEx::GetDerivedRttiName() const
-{
-    return rttiNameEntityEx;
-}
 
+// [thunk]:MountedTurret::GetEntity`adjustor{12}'
 // SYNTHETIC: SWBF2 0x005a93fc
-// [thunk]:Entity::GetGameObject`adjustor{12}'
+// ?GetEntity@MountedTurret@@WM@AEPAVEntity@@XZ

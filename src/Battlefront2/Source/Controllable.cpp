@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include <float.h>
 #include "PebbleFL/Common/PblVector.h"
 #include <stdio.h>
@@ -20,7 +21,6 @@
 #include "RedEngineFL/Graphics/RedPose.h"
 #include "Aimer.h"
 #include "EntitySoldier.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 class EntityFlyer
 {
@@ -28,11 +28,8 @@ public:
     static PblHash rttiHashEntityFlyer;
 };
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
+
+
 
 // FUNCTION: SWBF2 0x00484730
 ControllableClass::ControllableClass()
@@ -46,7 +43,7 @@ ControllableClass::ControllableClass()
     mForceMode = 0;
     mThirdPersonFOV = mFirstPersonFOV = GetDefaultFOV();
     mPilotParentNodeHash = 0;
-    mPilotOffsetMatrix = _IdentityMatrix;
+    mPilotOffsetMatrix = gMatrixIdentity;
     mPilotAnimation = SoldierAnimationBank::INVALID_ANIMATION;
     mAnimatedPilotNodeFlag = false;
     mPilotDeathType = PILOTDEATH_FALL;
@@ -82,33 +79,20 @@ float Controllable::GetSoundRadius() const
 // FUNCTION: SWBF2 0x00483510
 GameObject* LockOnManager::GetLockedTarget() const
 {
-    PblHandle<GameObject>& hLocked = const_cast<PblHandle<GameObject>&>(mLockedObj);
-    if (hLocked.mObject && GameObjectHandleId(hLocked.mObject) != hLocked.mSavedHandleId)
-    {
-        hLocked.mObject = 0;
-        hLocked.mSavedHandleId = 0;
-    }
-    return hLocked.mObject;
+    return mLockedObj;
 }
 
 // FUNCTION: SWBF2 0x00483540
 void LockOnManager::ForceNewTargetLock(GameObject* pObject)
 {
     mForceNewLock = 5;
-    mForceNewLockTarget.mObject = pObject;
-    mForceNewLockTarget.mSavedHandleId = pObject ? GameObjectHandleId(pObject) : 0;
+    mForceNewLockTarget = pObject;
 }
 
 // FUNCTION: SWBF2 0x00483580
 unsigned int LockOnManager::GetTargetLockedChangedTurn() const
 {
     return mLockedObjChangedTurn;
-}
-
-// FUNCTION: SWBF2 0x00483590
-LockOnManager* LockOnManager::GetByPlayerIndex(unsigned int uIndex)
-{
-    return sLockOnManagers[uIndex];
 }
 
 // FUNCTION: SWBF2 0x004835a0
@@ -130,17 +114,6 @@ Controllable::Controllable(ControllableClass* pClass, int iPlayerId)
       mEnemyLockedOnMeDistance(FLT_MAX),
       mPilotType(pClass->mPilotType)
 {
-    mCollisionObj.mObject = 0;
-    mCollisionObj.mSavedHandleId = 0;
-    mTargetLockedObj.mObject = 0;
-    mTargetLockedObj.mSavedHandleId = 0;
-    for (int i = 0; i < 2; ++i)
-    {
-        mReticuleTarget[i].mObject = 0;
-        mReticuleTarget[i].mSavedHandleId = 0;
-        mAIReticuleTarget[i].mObject = 0;
-        mAIReticuleTarget[i].mSavedHandleId = 0;
-    }
     ClearControllable();
     Initialize();
     NetGame::AddLateFence(mPlayerId);
@@ -204,7 +177,7 @@ void Controllable::ClearControllable()
 
     if (UnitControllerPtr(mCtrl))
     {
-        reinterpret_cast<AILowLevel*>(UnitControllerPtr(mCtrl)->mLowLevel)->ClearControllable();
+        UnitControllerPtr(mCtrl)->mLowLevel.ClearControllable();
     }
 }
 
@@ -251,7 +224,7 @@ void Controllable::ResetControls()
     mWpnDistFactor = 1.0f;
     if (UnitControllerPtr(mCtrl))
     {
-        reinterpret_cast<AILowLevel*>(UnitControllerPtr(mCtrl)->mLowLevel)->ResetControls();
+        UnitControllerPtr(mCtrl)->mLowLevel.ResetControls();
     }
 }
 
@@ -260,13 +233,13 @@ void Controllable::Initialize()
 {
     if (UnitControllerPtr(mCtrl))
     {
-        reinterpret_cast<AILowLevel*>(UnitControllerPtr(mCtrl)->mLowLevel)->Initialize();
+        UnitControllerPtr(mCtrl)->mLowLevel.Initialize();
     }
     mPlayAnim = false;
 }
 
 // SYNTHETIC: SWBF2 0x004850ef
-// [thunk]:Controllable::`scalar deleting destructor' adjustor{24}
+// ??_EControllable@@WBI@AEPAXI@Z
 // FUNCTION: SWBF2 0x00483af0
 Controllable::~Controllable()
 {
@@ -339,7 +312,7 @@ void Controllable::SetExitVehicle(const CommandPost* pPost)
     }
     if (UnitControllerPtr(mCtrl))
     {
-        reinterpret_cast<AILowLevel*>(UnitControllerPtr(mCtrl)->mLowLevel)->SetExitVehicle(pPost);
+        UnitControllerPtr(mCtrl)->mLowLevel.SetExitVehicle(pPost);
     }
 }
 
@@ -455,7 +428,7 @@ void Controllable::SetPilot(Controllable* pPilot)
     {
         GameObject* pPilotObject = mPilot->GetGameObject();
         if (pObject &&
-            (mPilotType == PILOT_VEHICLE || mPilotType == PILOT_VEHICLESELF || mPilotType == PILOT_REMOTE) &&
+            (IsPilotable() || IsRemoteVehicle()) &&
             pPilotObject)
         {
             pPilotObject->GetCollisionObject()->mParent = 0;
@@ -484,7 +457,7 @@ void Controllable::SetPilot(Controllable* pPilot)
         SetCharacter(mPilot->mCharacter);
         SetupController();
         if (pObject &&
-            (mPilotType == PILOT_VEHICLE || mPilotType == PILOT_VEHICLESELF || mPilotType == PILOT_REMOTE) &&
+            (IsPilotable() || IsRemoteVehicle()) &&
             pPilotObject)
         {
             pPilotObject->GetCollisionObject()->mParent = pObject->GetCollisionObject();
@@ -626,20 +599,13 @@ GameObject* Controllable::GetTargetLockedObj()
                 if (pManager)
                 {
                     GameObject* pLocked = pManager->GetLockedTarget();
-                    mTargetLockedObj.mObject = pLocked;
-                    mTargetLockedObj.mSavedHandleId = pLocked ? GameObjectHandleId(pLocked) : 0;
+                    mTargetLockedObj = pLocked;
                 }
             }
         }
     }
 
-    if (mTargetLockedObj.mObject &&
-        GameObjectHandleId(mTargetLockedObj.mObject) != mTargetLockedObj.mSavedHandleId)
-    {
-        mTargetLockedObj.mObject = 0;
-        mTargetLockedObj.mSavedHandleId = 0;
-    }
-    return mTargetLockedObj.mObject;
+    return mTargetLockedObj;
 }
 
 // FUNCTION: SWBF2 0x00484460
@@ -657,21 +623,13 @@ void Controllable::SetTargetLockedObj(GameObject* pObject)
 {
     if (mPlayerId < 0 || GetEnteredRemoteOrVehicleIfNotMe())
     {
-        mTargetLockedObj.mObject = pObject;
-        mTargetLockedObj.mSavedHandleId = pObject ? GameObjectHandleId(pObject) : 0;
+        mTargetLockedObj = pObject;
         return;
     }
 
-    if (mTargetLockedObj.mObject &&
-        GameObjectHandleId(mTargetLockedObj.mObject) != mTargetLockedObj.mSavedHandleId)
+    if (mTargetLockedObj != pObject)
     {
-        mTargetLockedObj.mObject = 0;
-        mTargetLockedObj.mSavedHandleId = 0;
-    }
-    if (mTargetLockedObj.mObject != pObject)
-    {
-        mTargetLockedObj.mObject = pObject;
-        mTargetLockedObj.mSavedHandleId = pObject ? GameObjectHandleId(pObject) : 0;
+        mTargetLockedObj = pObject;
     }
 
     if (!NetGame::IsEnabled() || NetGame::IsClient() ||
@@ -698,7 +656,7 @@ void Controllable::SetTargetLockedObj(GameObject* pObject)
             unsigned int uChangedTurn = pManager->mLockedObjChangedTurn;
             int iGrace = netTurnsPerSecond / 2;
             unsigned int uTurn = NetGame::GetClientAckedTurnNumber();
-            if (uChangedTurn + (iGrace > 5 ? iGrace : 5) >= uTurn)
+            if (uChangedTurn + Max(iGrace, 5) >= uTurn)
             {
                 mTargetLockedObj.mObject = pLocked;
                 mTargetLockedObj.mSavedHandleId = pLocked ? GameObjectHandleId(pLocked) : 0;
@@ -889,7 +847,7 @@ void ControllableClass::UpdatePilotAnimation(Controllable* pPilot, const RedPose
         if (mAnimatedPilotNodeFlag)
         {
             PblMatrix mPilot;
-            D3DXMatrixMultiply(&mPilot, pNode, &mMatrix);
+            D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mPilot), reinterpret_cast<const D3DXMATRIX*>(pNode), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
             pPilot->SetPilotInfo(mPilot, vOffset, mPilotAnimation, mIsPilotExposed,
                                  f1, f2, f3, fDeltaTime);
         }
@@ -899,12 +857,12 @@ void ControllableClass::UpdatePilotAnimation(Controllable* pPilot, const RedPose
             if (pNode)
             {
                 PblMatrix mSeat;
-                D3DXMatrixMultiply(&mSeat, &mPilotOffsetMatrix, pNode);
-                D3DXMatrixMultiply(&mPilot, &mSeat, &mMatrix);
+                D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mSeat), reinterpret_cast<const D3DXMATRIX*>(&mPilotOffsetMatrix), reinterpret_cast<const D3DXMATRIX*>(pNode));
+                D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mPilot), reinterpret_cast<const D3DXMATRIX*>(&mSeat), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
             }
             else
             {
-                D3DXMatrixMultiply(&mPilot, &mPilotOffsetMatrix, &mMatrix);
+                D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mPilot), reinterpret_cast<const D3DXMATRIX*>(&mPilotOffsetMatrix), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
             }
             pPilot->SetPilotInfo(mPilot, vOffset, mPilotAnimation, mIsPilotExposed,
                                  f1, f2, f3, fDeltaTime);
@@ -919,47 +877,6 @@ void ControllableClass::UpdatePilotAnimation(Controllable* pPilot, const RedPose
             pAimer->Update(fDeltaTime);
         }
     }
-}
-
-// FUNCTION: SWBF2 0x004774e0
-float Controllable::GetTargetBubbleStanceModifier() const
-{
-    return 1.0f;
-}
-
-// FUNCTION: SWBF2 0x004774f0
-SoldierAnimationBank::BANK Controllable::GetSoldierAnimationBank() const
-{
-    return SoldierAnimationBank::INVALID_BANK;
-}
-
-// FUNCTION: SWBF2 0x00477570
-void Controllable::SetPilotInfo(const PblMatrix& mMatrix, const PblVector3& vOffset,
-                                SoldierAnimationBank::ANIMATION eAnimation, bool bFlag,
-                                float f0, float f1, float f2, float f3)
-{
-}
-
-// FUNCTION: SWBF2 0x00477590
-void Controllable::ApplyWeaponKick(float fPitch, float fYaw)
-{
-}
-
-// FUNCTION: SWBF2 0x00477610
-bool Controllable::EndSprint()
-{
-    return false;
-}
-
-// FUNCTION: SWBF2 0x00477640
-float Controllable::GetOffenseMultiplier() const
-{
-    return 1.0f;
-}
-
-// FUNCTION: SWBF2 0x00477660
-void Controllable::DeactivateIndirect()
-{
 }
 
 // FUNCTION: SWBF2 0x00483400
@@ -988,131 +905,6 @@ GameObject* Controllable::GetVehicleIfAttached(GameObject* gameObject)
         }
     }
     return gameObject;
-}
-
-// FUNCTION: SWBF2 0x004774d0
-CollisionModel* Controllable::GetDefaultPilotCollision()
-{
-    return 0;
-
-}
-
-// FUNCTION: SWBF2 0x00477500
-bool Controllable::CanEnterRemote(const GameObject*) const
-{
-    return false;
-
-}
-
-// FUNCTION: SWBF2 0x00477510
-bool Controllable::CanEnterVehicle(const GameObject*) const
-{
-    return false;
-
-}
-
-// FUNCTION: SWBF2 0x00477520
-bool Controllable::EnterVehicle(GameObject*)
-{
-    return false;
-
-}
-
-// FUNCTION: SWBF2 0x00477530
-bool Controllable::CyclePosition(bool)
-{
-    return false;
-
-}
-
-// FUNCTION: SWBF2 0x00477540
-bool Controllable::ExitVehicle(bool, bool)
-{
-    return false;
-
-}
-
-// FUNCTION: SWBF2 0x00477580
-PilotDeathType Controllable::GetPilotDeathType()
-{
-    return PILOTDEATH_FALL;
-
-}
-
-// FUNCTION: SWBF2 0x004775a0
-void Controllable::GetPitchYawLimits(float&, float&, float&, float&) const
-{
-
-}
-
-// FUNCTION: SWBF2 0x004775b0
-bool Controllable::Stand()
-{
-    return false;
-
-}
-
-// FUNCTION: SWBF2 0x004775c0
-bool Controllable::Crouch()
-{
-    return false;
-
-}
-
-// FUNCTION: SWBF2 0x004775d0
-bool Controllable::Prone()
-{
-    return false;
-
-}
-
-// FUNCTION: SWBF2 0x004775e0
-bool Controllable::Jump()
-{
-    return false;
-
-}
-
-// FUNCTION: SWBF2 0x004775f0
-bool Controllable::Roll()
-{
-    return false;
-
-}
-
-// FUNCTION: SWBF2 0x00477600
-bool Controllable::Sprint()
-{
-    return false;
-
-}
-
-// FUNCTION: SWBF2 0x00477620
-bool Controllable::JetJump()
-{
-    return false;
-
-}
-
-// FUNCTION: SWBF2 0x00477630
-bool Controllable::EndJetJump()
-{
-    return false;
-
-}
-
-// FUNCTION: SWBF2 0x00477650
-int Controllable::GetActiveWeaponChannel()
-{
-    return mWpnChannel;
-
-}
-
-// FUNCTION: SWBF2 0x00478a40
-EnergyMode Controllable::GetEnergyMode() const
-{
-    return static_cast<EnergyMode>(0);
-
 }
 
 // FUNCTION: SWBF2 0x004833c0
@@ -1158,20 +950,10 @@ void Controllable::GetPilotMatrix(const PblMatrix& mIn, PblMatrix& mOut)
         const PblMatrix& mPilotMatrix = mPilot->GetMatrix();
         const PblMatrix mInverse = static_cast<EntitySoldier*>(mPilot)->mLastVehicleMatrix.GetInverseFast();
         PblMatrix mRelative;
-        D3DXMatrixMultiply(&mRelative, &mPilotMatrix, &mInverse);
+        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mRelative), reinterpret_cast<const D3DXMATRIX*>(&mPilotMatrix), reinterpret_cast<const D3DXMATRIX*>(&mInverse));
         PblMatrix mResult;
-        D3DXMatrixMultiply(&mResult, &mRelative, &mIn);
+        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mResult), reinterpret_cast<const D3DXMATRIX*>(&mRelative), reinterpret_cast<const D3DXMATRIX*>(&mIn));
         mOut = mResult;
     }
 }
 
-// FUNCTION: SWBF2 0x0043aad0
-Controllable* GetControllablePilot(Controllable* pControllable)
-{
-    if (pControllable->mPilotType == PILOT_SELF ||
-        (pControllable->mPilotType == PILOT_VEHICLESELF && pControllable->mPilot == pControllable))
-    {
-        return 0;
-    }
-    return pControllable->mPilot;
-}

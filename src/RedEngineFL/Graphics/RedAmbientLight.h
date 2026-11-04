@@ -12,10 +12,8 @@ public:
     RedAmbientLight(const RedColorValue& color = RedColorValue::WHITE,
                     const RedColorValue& topColor = RedColorValue::WHITE,
                     const RedColorValue& bottomColor = RedColorValue::WHITE)
-        : RedLight(TYPE_AMBIENT)
+        : RedLight(TYPE_AMBIENT), m_topColor(topColor), m_bottomColor(bottomColor)
     {
-        m_topColor = topColor;
-        m_bottomColor = bottomColor;
         m_color = color;
     }
 

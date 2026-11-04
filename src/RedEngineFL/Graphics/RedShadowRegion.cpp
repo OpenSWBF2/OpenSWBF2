@@ -126,7 +126,8 @@ bool RedShadowRegion::GetShadowValues(const PblVector3& vPos, float fRadius,
     return iCount > 0;
 }
 
-// FUNCTION: SWBF2 0x00719510
+// TEMPLATE: SWBF2 0x00719510
+// PblList<RedShadowRegion>::RemoveAll
 template void PblList<RedShadowRegion>::RemoveAll();
 
 // FUNCTION: SWBF2 0x00719950

@@ -20,7 +20,6 @@ public:
 
     // SYNTHETIC: SWBF2 0x0056a7b0
     // ItemTimerDisplay::DisplayThread::`scalar deleting destructor'
-    virtual ~DisplayThread();
 
     virtual bool Update(float fDeltaTime);
 

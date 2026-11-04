@@ -22,12 +22,8 @@ public:
     struct Target
     {
 
-        // FUNCTION: SWBF2 0x0057abd0
-        Target()
-        {
-            obj.mObject = 0;
-            obj.mSavedHandleId = 0;
-        }
+        // SYNTHETIC: SWBF2 0x0057abd0
+        // LockOnManager::Target::Target
 
         // FUNCTION: SWBF2 0x0057abe0
         ~Target() {}
@@ -53,13 +49,9 @@ public:
         TargetHistory()
         {
 
-            for (int i = 0; i < 64; i++)
-            {
-                mHistory[i].mObject = 0;
-                mHistory[i].mSavedHandleId = 0;
-            }
             Clear();
         }
+        // FUNCTION: SWBF2 0x0057ab40
         ~TargetHistory() { Clear(); }
 
         void Clear()
@@ -111,6 +103,7 @@ public:
         void SetFriendly(bool bFriendly) { mFriendly = bFriendly; }
         void SetFlagCarrier(bool bFlagCarrier) { mFlagCarrier = bFlagCarrier; }
         void ClearPositionValid() { mPositionValid = false; }
+        bool GetOnScreen() const { return mOnScreen; }
         bool GetVisible() const { return mVisible; }
         bool GetFlagCarrier() const { return mFlagCarrier; }
 
@@ -131,7 +124,8 @@ public:
     GameObject* GetLockedTarget() const;
     void ForceNewTargetLock(GameObject* pObject);
     unsigned int GetTargetLockedChangedTurn() const;
-    static LockOnManager* GetByPlayerIndex(unsigned int uIndex);
+    // FUNCTION: SWBF2 0x00483590
+    static LockOnManager* GetByPlayerIndex(unsigned int uIndex) { return sLockOnManagers[uIndex]; }
     void RemoveTargetLock();
 
     bool IsGameObjectTargeted(const GameObject* const pObject);
@@ -139,7 +133,7 @@ public:
 
 protected:
 
-    static Target* FindTargetByGameObject(Target* const pTargets, unsigned int uNumTargets,
+    static Target* FindTargetByGameObject(Target* const pTargets, const unsigned int uNumTargets,
                                           const GameObject* const pObject);
 
 public:
@@ -195,7 +189,7 @@ public:
 
     static void AddTargetCommon(GameObject* pActor, unsigned int uTeamMask);
 
-    static void RemoveTargetCommon(GameObject* pActor, unsigned int uTeamMask);
+    static void RemoveTargetCommon(GameObject* const pActor, unsigned int uTeamMask);
 protected:
     void SetLockedTarget(GameObject* const pObject, TargetInfo* const pInfo);
     void SetupNearestTargets(Controllable* const playerControllable, GameObject* const playerObject,

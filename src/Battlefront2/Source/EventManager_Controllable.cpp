@@ -13,35 +13,37 @@ void Cleanup();
 }
 }
 
-namespace EventManager {
-namespace ControllableEvent {
+namespace EventManager
+{
+namespace ControllableEvent
+{
 extern Event<Controllable, int> mWeaponChange;
 }
 }
-namespace EventManager {
-namespace ControllableEvent {
+namespace EventManager
+{
+namespace ControllableEvent
+{
 extern Event<Controllable, int> mTeamChange;
 }
 }
-namespace EventManager {
-namespace ControllableEvent {
+namespace EventManager
+{
+namespace ControllableEvent
+{
 extern Event<Controllable, int> mPlayerChange;
 }
 }
-namespace EventManager {
-namespace ControllableEvent {
+namespace EventManager
+{
+namespace ControllableEvent
+{
 extern Event<Controllable, TargetInfo> mTargetChange;
 }
 }
 
 namespace EventManager
 {
-
-template <class ITEM, class PARAM>
-bool Event<ITEM, PARAM>::Callback::operator()(ITEM&, PARAM&)
-{
-    return true;
-}
 
 // TEMPLATE: SWBF2 0x005121f0
 // EventManager::Event<Controllable,int>::Callback::operator()
@@ -54,7 +56,8 @@ template bool Event<Controllable, TargetInfo>::Callback::operator()(Controllable
 
 }
 
-namespace EventManager {
+namespace EventManager
+{
 
 // FUNCTION: SWBF2 0x005121c0
 void ControllableEvent::Cleanup()
@@ -71,32 +74,40 @@ namespace EventManager
 namespace ControllableEvent
 {
 
-// GLOBAL: SWBF2 0x007ebc80
 // SYNTHETIC: SWBF2 0x004032c0
-// `dynamic initializer for 'EventManager::ControllableEvent::mWeaponChange''
+// EventManager::ControllableEvent::`dynamic initializer for 'mWeaponChange''
 // SYNTHETIC: SWBF2 0x007679a0
-// `dynamic atexit destructor for 'EventManager::ControllableEvent::mWeaponChange''
+// EventManager::ControllableEvent::`dynamic atexit destructor for 'mWeaponChange''
+
+// GLOBAL: SWBF2 0x007ebc80
+// mWeaponChange
 Event<Controllable, int> mWeaponChange("WeaponChange");
 
-// GLOBAL: SWBF2 0x007ebbe0
 // SYNTHETIC: SWBF2 0x004032f0
-// `dynamic initializer for 'EventManager::ControllableEvent::mTeamChange''
+// EventManager::ControllableEvent::`dynamic initializer for 'mTeamChange''
 // SYNTHETIC: SWBF2 0x00767a20
-// `dynamic atexit destructor for 'EventManager::ControllableEvent::mTeamChange''
+// EventManager::ControllableEvent::`dynamic atexit destructor for 'mTeamChange''
+
+// GLOBAL: SWBF2 0x007ebbe0
+// mTeamChange
 Event<Controllable, int> mTeamChange("TeamChange");
 
-// GLOBAL: SWBF2 0x007ebc50
 // SYNTHETIC: SWBF2 0x00403320
-// `dynamic initializer for 'EventManager::ControllableEvent::mPlayerChange''
+// EventManager::ControllableEvent::`dynamic initializer for 'mPlayerChange''
 // SYNTHETIC: SWBF2 0x00767aa0
-// `dynamic atexit destructor for 'EventManager::ControllableEvent::mPlayerChange''
+// EventManager::ControllableEvent::`dynamic atexit destructor for 'mPlayerChange''
+
+// GLOBAL: SWBF2 0x007ebc50
+// mPlayerChange
 Event<Controllable, int> mPlayerChange("PlayerChange");
 
-// GLOBAL: SWBF2 0x007ebc20
 // SYNTHETIC: SWBF2 0x00403350
-// `dynamic initializer for 'EventManager::ControllableEvent::mTargetChange''
+// EventManager::ControllableEvent::`dynamic initializer for 'mTargetChange''
 // SYNTHETIC: SWBF2 0x00767b20
-// `dynamic atexit destructor for 'EventManager::ControllableEvent::mTargetChange''
+// EventManager::ControllableEvent::`dynamic atexit destructor for 'mTargetChange''
+
+// GLOBAL: SWBF2 0x007ebc20
+// mTargetChange
 Event<Controllable, TargetInfo> mTargetChange("TargetChange");
 
 }

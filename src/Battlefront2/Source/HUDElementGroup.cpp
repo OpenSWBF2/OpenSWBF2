@@ -35,11 +35,7 @@ HUD::ElementGroupBase::Factory::Factory(unsigned int uHashID)
     mEventRotation.Init("EventRotation", mProperties, Property::type_Event);
 }
 
-HUD::ElementGroup::Factory::Factory()
-    : HUD::ElementGroupBase::Factory(0x5FB91E8Cu)
-{
-    mName = "Group";
-}
+
 
 static const unsigned int kRect = 0xeae44d07;
 static const unsigned int kRelativeSize = 0x07c10754;
@@ -450,11 +446,7 @@ void HUD::ElementGroupBase::EventPosition(const HUD::Event& event, void* const p
     pGroup->SetAlignment((HAlign)pGroup->mHAlign, (VAlign)pGroup->mVAlign, false, false, true);
 }
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
+
 
 // FUNCTION: SWBF2 0x0054f240
 void HUD::ElementGroupBase::EventScale(const HUD::Event& event, void* const pData)
@@ -510,26 +502,16 @@ void HUD::ElementGroupBase::EventRotation(const HUD::Event& event, void* const p
     const PblVector3 vPosition = mCurrent.GetTranslation();
 
     const float fDegToRad = 0.017453292f;
-    PblMatrix mResult = _IdentityMatrix;
-    D3DXMATRIX mTemp;
-    D3DXMatrixRotationX((D3DXMATRIX*)&mResult, pRotation->x * fDegToRad);
-    D3DXMatrixMultiply((D3DXMATRIX*)&mResult, (D3DXMATRIX*)&mResult,
-                       D3DXMatrixRotationY(&mTemp, pRotation->y * fDegToRad));
-    D3DXMatrixMultiply((D3DXMATRIX*)&mResult, (D3DXMATRIX*)&mResult,
-                       D3DXMatrixRotationZ(&mTemp, pRotation->z * fDegToRad));
+    PblMatrix mResult = gMatrixIdentity;
+    mResult.SetRotateX(pRotation->x * fDegToRad);
+    mResult.RotateY(pRotation->y * fDegToRad);
+    mResult.RotateZ(pRotation->z * fDegToRad);
 
     const PblVector3& vX = mCurrent.GetXAxis();
     const PblVector3& vY = mCurrent.GetYAxis();
     const PblVector3& vZ = mCurrent.GetZAxis();
-    D3DXMatrixMultiply((D3DXMATRIX*)&mResult, (D3DXMATRIX*)&mResult,
-                       D3DXMatrixScaling(&mTemp,
-                                         sqrtf(vX.x * vX.x + vX.y * vX.y + vX.z * vX.z),
-                                         sqrtf(vY.x * vY.x + vY.y * vY.y + vY.z * vY.z),
-                                         sqrtf(vZ.x * vZ.x + vZ.y * vZ.y + vZ.z * vZ.z)));
+    mResult.Scale(Length(vX), Length(vY), Length(vZ));
 
-    mResult.m[3][0] = vPosition.x;
-    mResult.m[3][1] = vPosition.y;
-    mResult.m[3][2] = vPosition.z;
-    mResult.m[3][3] = 1.0f;
+    mResult.SetTranslation(vPosition);
     pGroup->mElement->SetMatrix(mResult);
 }

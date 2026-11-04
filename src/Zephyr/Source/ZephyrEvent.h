@@ -24,8 +24,6 @@ public:
     ZephyrEventBank();
     void Init(short iNumLists);
     ZephyrEventList* New(unsigned int uiHash);
-
-    int _HashTableNumEntries;
     PblHashTable<ZephyrEventList, 128> _HashTable;
     ZephyrEventList* _Lists;
     short _iNumLists;

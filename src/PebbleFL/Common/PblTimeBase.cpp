@@ -2,9 +2,17 @@
 
 #include <windows.h>
 
+// GLOBAL: SWBF2 0x007e2c60
+// PblTimeBase::TICK_SHIFT
 int PblTimeBase::TICK_SHIFT = 12;
+// GLOBAL: SWBF2 0x009caf20
+// PblTimeBase::_iTicksPerSecond
 unsigned __int64 PblTimeBase::_iTicksPerSecond;
+// GLOBAL: SWBF2 0x009caf28
+// PblTimeBase::_iTicksPerFrame
 unsigned __int64 PblTimeBase::_iTicksPerFrame;
+// GLOBAL: SWBF2 0x009caf30
+// PblTimeBase::_fSecondsPerTick
 float PblTimeBase::_fSecondsPerTick;
 
 // FUNCTION: SWBF2 0x007278d0

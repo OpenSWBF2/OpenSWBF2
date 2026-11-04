@@ -17,7 +17,10 @@ extern unsigned __int64 netEnteredLobbyId;
 extern unsigned __int64 netCreatedLobbyId;
 extern char gLoginName[256];
 
-namespace StatsManager { void Init(); }
+namespace StatsManager
+{
+void Init();
+}
 void RemoveFoundGameByAddress(const NetAddr* address);
 int __cdecl DecodeBase64(unsigned char* pOutput, unsigned int uiOutputCapacity, unsigned int* pOutputSize,
                        const unsigned char* pSource, unsigned int uiSourceSize);
@@ -223,9 +226,8 @@ void gf::GalaxyLobbyListListener::OnLobbyList(unsigned int lobbyCount, bool ioFa
         galaxy::api::IMatchmaking* pMatchmaking = GetGalaxyMatchmaking();
         galaxy::api::GalaxyID lobby = pMatchmaking->GetLobbyByIndex(i);
         NetAddr address;
-        address.pubAddr = (int)lobby.value;
-        address.pubPort = (int)(lobby.value >> 32);
-        NetSetupP::AddGame(&address);
+        address.mGalaxyId = lobby;
+        NetSetupP::AddGame(address);
         pMatchmaking = GetGalaxyMatchmaking();
         pMatchmaking->RequestLobbyData(lobby);
     }
@@ -245,8 +247,7 @@ void gf::GalaxyLobbyDataListener::OnLobbyDataUpdated(const galaxy::api::GalaxyID
     const unsigned int uCount = pMatchmaking->GetLobbyDataCount(lobbyID);
 
     NetAddr address;
-    address.pubAddr = (int)lobbyID.value;
-    address.pubPort = (int)(lobbyID.value >> 32);
+    address.mGalaxyId = lobbyID;
     FindGameData data;
     memset(&data, 0, sizeof(data));
     FindGameRules rules;
@@ -258,10 +259,8 @@ void gf::GalaxyLobbyDataListener::OnLobbyDataUpdated(const galaxy::api::GalaxyID
     bool bDrop = false;
     for (unsigned int i = 0; i < uCount; ++i)
     {
-        char acKey[512];
-        char acValue[512];
-        memset(acKey, 0, sizeof(acKey));
-        memset(acValue, 0, sizeof(acValue));
+        char acKey[512] = "";
+        char acValue[512] = "";
         pMatchmaking = GetGalaxyMatchmaking();
         if (!pMatchmaking->GetLobbyDataByIndex(
                 lobbyID, i, acKey, sizeof(acKey) - 1, acValue, sizeof(acValue) - 1))
@@ -402,7 +401,7 @@ void gf::GalaxyLobbyDataListener::OnLobbyDataUpdated(const galaxy::api::GalaxyID
         return;
     }
     data.mPingTime = 0.0f;
-    NetSetupP::UpdateGame(&address, &key, &session, NetSetup::GetGameVersion(), &data, &rules);
+    NetSetupP::UpdateGame(address, &key, &session, NetSetup::GetGameVersion(), data, &rules);
 }
 
 // FUNCTION: SWBF2 0x005d5a00

@@ -2,35 +2,22 @@
 #include "GameModel.h"
 #include "NetGame.h"
 
-// GLOBAL: SWBF2 0x01eb928c
 // SYNTHETIC: SWBF2 0x00402660
 // `dynamic initializer for 'CommandBuildingArmed::rttiHashCommandBuildingArmed''
+// CommandBuildingArmed::rttiHashCommandBuildingArmed
+
+// GLOBAL: SWBF2 0x01eb928c
+// CommandBuildingArmed::rttiHashCommandBuildingArmed
 PblHash CommandBuildingArmed::rttiHashCommandBuildingArmed("CommandBuildingArmed");
-char CommandBuildingArmed::rttiNameCommandBuildingArmed[] = "CommandBuildingArmed";
+// GLOBAL: SWBF2 0x00788c44
+// CommandBuildingArmed::rttiNameCommandBuildingArmed
+const char CommandBuildingArmed::rttiNameCommandBuildingArmed[] = "CommandBuildingArmed";
 
-// FUNCTION: SWBF2 0x00476ee0
-bool CommandBuildingArmed::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashCommandBuildingArmed ||
-           uRtti == EntityBuildingArmed::rttiHashEntityBuildingArmed ||
-           uRtti == EntityBuilding::rttiHashEntityBuilding ||
-           uRtti == GameObject::rttiHashGameObject ||
-           uRtti == EntityGeometry::rttiHashEntityGeometry ||
-           uRtti == EntityEx::rttiHashEntityEx ||
-           uRtti == Entity::rttiHashEntity;
-}
 
-// FUNCTION: SWBF2 0x00476f30
-unsigned int CommandBuildingArmed::GetDerivedRtti() const
-{
-    return rttiHashCommandBuildingArmed;
-}
 
-// FUNCTION: SWBF2 0x00476f40
-const char* CommandBuildingArmed::GetDerivedRttiName() const
-{
-    return rttiNameCommandBuildingArmed;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00476f50
 EntityType CommandBuildingArmed::GetEntityType() const
@@ -54,15 +41,15 @@ CommandBuildingArmed::~CommandBuildingArmed()
 // SYNTHETIC: SWBF2 0x00476f60
 // CommandBuildingArmed::`scalar deleting destructor'
 // SYNTHETIC: SWBF2 0x00477496
-// [thunk]:CommandBuildingArmed::`scalar deleting destructor' adjustor{12}
+// ??_ECommandBuildingArmed@@WM@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x0047746a
-// [thunk]:CommandBuildingArmed::`scalar deleting destructor' adjustor{512}
+// ??_ECommandBuildingArmed@@WCAA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00477475
-// [thunk]:CommandBuildingArmed::`scalar deleting destructor' adjustor{608}
+// ??_ECommandBuildingArmed@@WCGA@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00477480
-// [thunk]:CommandBuildingArmed::`scalar deleting destructor' adjustor{148}
+// ??_ECommandBuildingArmed@@WJE@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x0047748b
-// [thunk]:CommandBuildingArmed::`scalar deleting destructor' adjustor{320}
+// ??_ECommandBuildingArmed@@WBEA@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x004770e0
 void CommandBuildingArmed::Init()
@@ -138,31 +125,24 @@ CommandBuildingArmedClass::~CommandBuildingArmedClass()
 // SYNTHETIC: SWBF2 0x00477200
 // CommandBuildingArmedClass::`scalar deleting destructor'
 // SYNTHETIC: SWBF2 0x0047749e
-// [thunk]:CommandBuildingArmedClass::`scalar deleting destructor' adjustor{1656}
+// ??_ECommandBuildingArmedClass@@WGHI@AEPAXI@Z
 
-// GLOBAL: SWBF2 0x01eb9554
 // SYNTHETIC: SWBF2 0x00402670
 // `dynamic initializer for 'CommandBuildingArmedClass::rttiHashCommandBuildingArmedClass''
+// CommandBuildingArmedClass::rttiHashCommandBuildingArmedClass
+
+// GLOBAL: SWBF2 0x01eb9554
+// CommandBuildingArmedClass::rttiHashCommandBuildingArmedClass
 PblHash CommandBuildingArmedClass::rttiHashCommandBuildingArmedClass("CommandBuildingArmedClass");
-char CommandBuildingArmedClass::rttiNameCommandBuildingArmedClass[] = "CommandBuildingArmedClass";
+// GLOBAL: SWBF2 0x00788c20
+// CommandBuildingArmedClass::rttiNameCommandBuildingArmedClass
+const char CommandBuildingArmedClass::rttiNameCommandBuildingArmedClass[] = "CommandBuildingArmedClass";
 
-// FUNCTION: SWBF2 0x00476f90
-bool CommandBuildingArmedClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashCommandBuildingArmedClass || EntityBuildingArmedClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00476fe0
-unsigned int CommandBuildingArmedClass::GetDerivedRtti()
-{
-    return rttiHashCommandBuildingArmedClass;
-}
 
-// FUNCTION: SWBF2 0x00476ff0
-const char* CommandBuildingArmedClass::GetDerivedRttiName()
-{
-    return rttiNameCommandBuildingArmedClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00477310
 void CommandBuildingArmedClass::SetProperty(unsigned int uProperty, const char* pszValue)

@@ -3,63 +3,63 @@
 
 #include "NetAdminMd5.h"
 
-void __fastcall MD5Transform(unsigned int state[4], const unsigned char* pBlock);
-void __fastcall MD5EncodeWords(void* pDest, const void* pSource, unsigned int uLength);
-void __fastcall MD5DecodeWords(unsigned int* pWords, const unsigned char* pBlock);
-void* __fastcall MD5CopyBytes(void* pDest, const void* pSource, unsigned int uLength);
-void* __fastcall MD5ClearBytes(void* pDest, unsigned int uLength);
-void __fastcall MD5Update(MD5Context* ctx, const unsigned char* pData, unsigned int uLength);
-void __fastcall MD5Print(const unsigned char* pDigest, char* pcHex);
+void __cdecl MD5Transform(unsigned int* pState, const unsigned char* pBlock);
+void __cdecl MD5EncodeWords(unsigned char* pDest, const unsigned int* pSource, unsigned int uLength);
+void __cdecl MD5DecodeWords(unsigned int* pWords, const unsigned char* pBlock, unsigned int uLength);
+void* __cdecl MD5CopyBytes(void* pDest, const void* pSource, unsigned int uLength);
+void __cdecl MD5ClearBytes(void* pDest, int iValue, unsigned int uLength);
+void __cdecl MD5Update(MD5_CTX* pState, const unsigned char* pData, unsigned int uLength);
+void __cdecl MD5Print(const unsigned char* pDigest, char* pcHex);
 
 // GLOBAL: SWBF2 0x007e88d0
 unsigned char md5Padding[64] = { 0x80 };
 
 // FUNCTION: SWBF2 0x005a2730
-void __fastcall MD5Init(MD5Context* ctx)
+void __cdecl MD5Init(MD5_CTX* pState)
 {
-    ctx->count[0] = ctx->count[1] = 0;
-    ctx->state[0] = 0x67452301;
-    ctx->state[1] = 0xefcdab89;
-    ctx->state[2] = 0x98badcfe;
-    ctx->state[3] = 0x10325476;
+    pState->count[0] = pState->count[1] = 0;
+    pState->state[0] = 0x67452301;
+    pState->state[1] = 0xefcdab89;
+    pState->state[2] = 0x98badcfe;
+    pState->state[3] = 0x10325476;
 }
 
 // FUNCTION: SWBF2 0x005a2760
-void __fastcall MD5Update(MD5Context* ctx, const unsigned char* pData, unsigned int uLength)
+void __cdecl MD5Update(MD5_CTX* pState, const unsigned char* pData, unsigned int uLength)
 {
-    unsigned int uIndex = (ctx->count[0] >> 3) & 63;
+    unsigned int uIndex = (pState->count[0] >> 3) & 63;
     unsigned int uBits = uLength << 3;
-    ctx->count[0] += uBits;
-    if (ctx->count[0] < uBits)
+    pState->count[0] += uBits;
+    if (pState->count[0] < uBits)
     {
-        ++ctx->count[1];
+        ++pState->count[1];
     }
-    ctx->count[1] += uLength >> 29;
+    pState->count[1] += uLength >> 29;
     unsigned int uPart = 64 - uIndex;
     unsigned int i = 0;
     if (uLength >= uPart)
     {
-        MD5CopyBytes(ctx->buffer + uIndex, pData, uPart);
-        MD5Transform(ctx->state, ctx->buffer);
+        MD5CopyBytes(pState->buffer + uIndex, pData, uPart);
+        MD5Transform(pState->state, pState->buffer);
         for (i = uPart; i + 63 < uLength; i += 64)
         {
-            MD5Transform(ctx->state, pData + i);
+            MD5Transform(pState->state, pData + i);
         }
         uIndex = 0;
     }
-    MD5CopyBytes(ctx->buffer + uIndex, pData + i, uLength - i);
+    MD5CopyBytes(pState->buffer + uIndex, pData + i, uLength - i);
 }
 
 // FUNCTION: SWBF2 0x005a2810
-void __fastcall MD5Final(unsigned char* pDigest, MD5Context* ctx)
+void __cdecl MD5Final(unsigned char* pDigest, MD5_CTX* pState)
 {
     unsigned char aucBits[8];
-    MD5EncodeWords(aucBits, ctx->count, 8);
-    unsigned int uIndex = (ctx->count[0] >> 3) & 63;
-    MD5Update(ctx, md5Padding, (uIndex < 56 ? 56 : 120) - uIndex);
-    MD5Update(ctx, aucBits, 8);
-    MD5EncodeWords(pDigest, ctx->state, 16);
-    MD5ClearBytes(ctx, sizeof(MD5Context));
+    MD5EncodeWords(aucBits, pState->count, 8);
+    unsigned int uIndex = (pState->count[0] >> 3) & 63;
+    MD5Update(pState, md5Padding, (uIndex < 56 ? 56 : 120) - uIndex);
+    MD5Update(pState, aucBits, 8);
+    MD5EncodeWords(pDigest, pState->state, 16);
+    MD5ClearBytes(pState, 0, sizeof(*pState));
 }
 
 #define MD5_F(x, y, z) (((x) & (y)) | (~(x) & (z)))
@@ -70,11 +70,11 @@ void __fastcall MD5Final(unsigned char* pDigest, MD5Context* ctx)
 #define MD5_STEP(f, a, b, c, d, x, s, ac) { (a) += f((b), (c), (d)) + (x) + (unsigned int)(ac); (a) = MD5_ROL((a), (s)); (a) += (b); }
 
 // FUNCTION: SWBF2 0x005a2880
-void __fastcall MD5Transform(unsigned int state[4], const unsigned char* pBlock)
+void __cdecl MD5Transform(unsigned int* pState, const unsigned char* pBlock)
 {
-    unsigned int a = state[0], b = state[1], c = state[2], d = state[3];
+    unsigned int a = pState[0], b = pState[1], c = pState[2], d = pState[3];
     unsigned int x[16];
-    MD5DecodeWords(x, pBlock);
+    MD5DecodeWords(x, pBlock, 64);
 
     MD5_STEP(MD5_F, a, b, c, d, x[ 0],  7, 0xd76aa478); MD5_STEP(MD5_F, d, a, b, c, x[ 1], 12, 0xe8c7b756);
     MD5_STEP(MD5_F, c, d, a, b, x[ 2], 17, 0x242070db); MD5_STEP(MD5_F, b, c, d, a, x[ 3], 22, 0xc1bdceee);
@@ -112,16 +112,16 @@ void __fastcall MD5Transform(unsigned int state[4], const unsigned char* pBlock)
     MD5_STEP(MD5_I, a, b, c, d, x[ 4],  6, 0xf7537e82); MD5_STEP(MD5_I, d, a, b, c, x[11], 10, 0xbd3af235);
     MD5_STEP(MD5_I, c, d, a, b, x[ 2], 15, 0x2ad7d2bb); MD5_STEP(MD5_I, b, c, d, a, x[ 9], 21, 0xeb86d391);
 
-    state[0] += a;
-    state[1] += b;
-    state[2] += c;
-    state[3] += d;
+    pState[0] += a;
+    pState[1] += b;
+    pState[2] += c;
+    pState[3] += d;
 }
 
 // FUNCTION: SWBF2 0x005a2f40
-void __fastcall MD5EncodeWords(void* pDest, const void* pSource, unsigned int uLength)
+void __cdecl MD5EncodeWords(unsigned char* pDest, const unsigned int* pSource, unsigned int uLength)
 {
-    unsigned char* pOut = (unsigned char*)pDest;
+    unsigned char* pOut = pDest;
     const unsigned char* pIn = (const unsigned char*)pSource;
     for (unsigned int i = 0; i < uLength; i += 4)
     {
@@ -133,33 +133,33 @@ void __fastcall MD5EncodeWords(void* pDest, const void* pSource, unsigned int uL
 }
 
 // FUNCTION: SWBF2 0x005a2f90
-void __fastcall MD5DecodeWords(unsigned int* pWords, const unsigned char* pBlock)
+void __cdecl MD5DecodeWords(unsigned int* pWords, const unsigned char* pBlock, unsigned int uLength)
 {
-    for (int i = 0; i < 16; ++i)
+    for (unsigned int i = 0, j = 0; j < uLength; ++i, j += 4)
     {
-        pWords[i] = (unsigned int)pBlock[i * 4] |
-                    ((unsigned int)pBlock[i * 4 + 1] << 8) |
-                    ((unsigned int)pBlock[i * 4 + 2] << 16) |
-                    ((unsigned int)pBlock[i * 4 + 3] << 24);
+        pWords[i] = (unsigned int)pBlock[j] |
+                    ((unsigned int)pBlock[j + 1] << 8) |
+                    ((unsigned int)pBlock[j + 2] << 16) |
+                    ((unsigned int)pBlock[j + 3] << 24);
     }
 }
 
 // FUNCTION: SWBF2 0x005a2fd0
-void* __fastcall MD5CopyBytes(void* pDest, const void* pSource, unsigned int uLength)
+void* __cdecl MD5CopyBytes(void* pDest, const void* pSource, unsigned int uLength)
 {
     return memcpy(pDest, pSource, uLength);
 }
 
 // FUNCTION: SWBF2 0x005a2ff0
-void* __fastcall MD5ClearBytes(void* pDest, unsigned int uLength)
+void __cdecl MD5ClearBytes(void* pDest, int iValue, unsigned int uLength)
 {
-    return memset(pDest, 0, uLength);
+    memset(pDest, iValue, uLength);
 }
 
 // FUNCTION: SWBF2 0x005a3010
-void __fastcall MD5Print(const unsigned char* pDigest, char* pcHex)
+void __cdecl MD5Print(const unsigned char* pDigest, char* pcHex)
 {
-    for (int i = 0; i < 16; ++i)
+    for (unsigned int i = 0; i < 16; ++i)
     {
         sprintf(pcHex, "%02x", pDigest[i]);
         pcHex += 2;
@@ -169,10 +169,10 @@ void __fastcall MD5Print(const unsigned char* pDigest, char* pcHex)
 // FUNCTION: SWBF2 0x005a3050
 void MD5Digest(const char* pcText, unsigned int uLength, char* pcHex)
 {
-    MD5Context kContext;
-    unsigned char aucDigest[20];
-    MD5Init(&kContext);
-    MD5Update(&kContext, (const unsigned char*)pcText, uLength);
-    MD5Final(aucDigest, &kContext);
+    MD5_CTX context;
+    unsigned char aucDigest[16];
+    MD5Init(&context);
+    MD5Update(&context, (const unsigned char*)pcText, uLength);
+    MD5Final(aucDigest, &context);
     MD5Print(aucDigest, pcHex);
 }

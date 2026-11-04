@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "OrdnanceSticky.h"
 
 #include <float.h>
@@ -14,7 +15,7 @@
 #include "StickInfo.h"
 #include "RedEngineFL/Application/RedWater.h"
 #include "RedEngineFL/Graphics/RedModel.h"
-#include "PebbleFL/pc/PblD3DX.h"
+
 
 extern bool netIsLateTurn;
 extern bool netFrameLock;
@@ -37,23 +38,33 @@ namespace
         return static_cast<Damageable*>(pObject);
     }
 
-    unsigned int GameObjectHandleId(const GameObject* pObject)
+    inline unsigned int GameObjectHandleId(const GameObject* pObject)
     {
         return PBL_HANDLE_ID(pObject);
     }
 }
 
-// GLOBAL: SWBF2 0x01ef2668
 // SYNTHETIC: SWBF2 0x00405b80
 // `dynamic initializer for 'OrdnanceSticky::rttiHashOrdnanceSticky''
-PblHash OrdnanceSticky::rttiHashOrdnanceSticky("OrdnanceSticky");
-char OrdnanceSticky::rttiNameOrdnanceSticky[] = "OrdnanceSticky";
+// OrdnanceSticky::rttiHashOrdnanceSticky
 
-// GLOBAL: SWBF2 0x01ef266c
+// GLOBAL: SWBF2 0x01ef2668
+// OrdnanceSticky::rttiHashOrdnanceSticky
+PblHash OrdnanceSticky::rttiHashOrdnanceSticky("OrdnanceSticky");
+// GLOBAL: SWBF2 0x0078aa00
+// OrdnanceSticky::rttiNameOrdnanceSticky
+const char OrdnanceSticky::rttiNameOrdnanceSticky[] = "OrdnanceSticky";
+
 // SYNTHETIC: SWBF2 0x00405b90
 // `dynamic initializer for 'OrdnanceStickyClass::rttiHashOrdnanceStickyClass''
+// OrdnanceStickyClass::rttiHashOrdnanceStickyClass
+
+// GLOBAL: SWBF2 0x01ef266c
+// OrdnanceStickyClass::rttiHashOrdnanceStickyClass
 PblHash OrdnanceStickyClass::rttiHashOrdnanceStickyClass("OrdnanceStickyClass");
-char OrdnanceStickyClass::rttiNameOrdnanceStickyClass[] = "OrdnanceStickyClass";
+// GLOBAL: SWBF2 0x0078aa20
+// OrdnanceStickyClass::rttiNameOrdnanceStickyClass
+const char OrdnanceStickyClass::rttiNameOrdnanceStickyClass[] = "OrdnanceStickyClass";
 
 // FUNCTION: SWBF2 0x00606d80
 OrdnanceStickyClass::OrdnanceStickyClass(unsigned int uHash)
@@ -76,23 +87,11 @@ OrdnanceStickyClass::OrdnanceStickyClass(OrdnanceStickyClass* pBase, unsigned in
     mStickTypes = pBase->mStickTypes;
 }
 
-// FUNCTION: SWBF2 0x005f8c30
-bool OrdnanceStickyClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashOrdnanceStickyClass || OrdnanceShellClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00605fb0
-unsigned int OrdnanceStickyClass::GetDerivedRtti()
-{
-    return rttiHashOrdnanceStickyClass;
-}
 
-// FUNCTION: SWBF2 0x00605fc0
-const char* OrdnanceStickyClass::GetDerivedRttiName()
-{
-    return rttiNameOrdnanceStickyClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x00606f00
 void OrdnanceStickyClass::SetProperty(unsigned int uProperty, const char* pszValue)
@@ -247,29 +246,17 @@ OrdnanceSticky::~OrdnanceSticky()
 }
 
 // SYNTHETIC: SWBF2 0x00607286
-// [thunk]:OrdnanceSticky::`scalar deleting destructor' adjustor{24}
+// ??_EOrdnanceSticky@@WBI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x0060728e
-// [thunk]:OrdnanceSticky::`scalar deleting destructor' adjustor{152}
+// ??_EOrdnanceSticky@@WJI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x00605f80
 // OrdnanceSticky::`scalar deleting destructor'
 
-// FUNCTION: SWBF2 0x005f8bf0
-bool OrdnanceSticky::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashOrdnanceSticky || OrdnanceShell::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00605f60
-unsigned int OrdnanceSticky::GetDerivedRtti() const
-{
-    return rttiHashOrdnanceSticky;
-}
 
-// FUNCTION: SWBF2 0x00605f70
-const char* OrdnanceSticky::GetDerivedRttiName() const
-{
-    return rttiNameOrdnanceSticky;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x006060b0
 bool OrdnanceSticky::Update(float fDeltaTime)
@@ -315,7 +302,7 @@ bool OrdnanceSticky::Update(float fDeltaTime)
         PblMatrix mBody = pObject->mCollisionModel->GetWorldMatrix(mStickInfo->mCollBodyID,
                                                                    pObject->GetMatrix(), pObject->GetPose());
         PblVector3 vWorld;
-        D3DXVec3TransformCoord(&vWorld, &mPosition, &mBody);
+        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vWorld), reinterpret_cast<const D3DXVECTOR3*>(&mPosition), reinterpret_cast<const D3DXMATRIX*>(&mBody));
         mPosition = vWorld;
     }
     SetRenderPos(mPosition);
@@ -348,7 +335,7 @@ void OrdnanceSticky::Render(unsigned char ucViewport, float fDist, unsigned int 
 
         PblQuaternion qRot;
         PblMatrix mRot;
-        D3DXMatrixRotationQuaternion(&mRot, D3DXQuaternionNormalize(&qRot, &mStickInfo->mLocalRotation));
+        D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mRot), D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&qRot), reinterpret_cast<const D3DXQUATERNION*>(&mStickInfo->mLocalRotation)));
         for (int i = 0; i < 3; ++i)
         {
             for (int j = 0; j < 4; ++j)
@@ -356,17 +343,14 @@ void OrdnanceSticky::Render(unsigned char ucViewport, float fDist, unsigned int 
                 mat.m[i][j] = mRot.m[i][j];
             }
         }
-        mat.m[3][0] = mStickInfo->mLocalPosition.x;
-        mat.m[3][1] = mStickInfo->mLocalPosition.y;
-        mat.m[3][2] = mStickInfo->mLocalPosition.z;
-        mat.m[3][3] = 1.0f;
+        mat.SetTranslation(mStickInfo->mLocalPosition);
 
         CollisionObject* pObject = mStickInfo->mCollObject;
         if (pObject->mCollisionModel)
         {
             PblMatrix mBody = pObject->mCollisionModel->GetWorldMatrix(mStickInfo->mCollBodyID,
                                                                        pObject->GetMatrix(), pObject->GetPose());
-            D3DXMatrixMultiply(&mat, &mat, &mBody);
+            mat *= mBody;
         }
     }
     else if (pClass->mAlignVertical)
@@ -384,10 +368,7 @@ void OrdnanceSticky::Render(unsigned char ucViewport, float fDist, unsigned int 
                 mat.m[i][j] = i == j ? 1.0f : 0.0f;
             }
         }
-        mat.m[3][0] = vPos.x;
-        mat.m[3][1] = vPos.y;
-        mat.m[3][2] = vPos.z;
-        mat.m[3][3] = 1.0f;
+        mat.SetTranslation(vPos);
     }
     else
     {
@@ -407,16 +388,12 @@ bool OrdnanceSticky::CheckCollision()
     if (fDist > 0.0f)
     {
         const float fInv = 1.0f / fDist;
-        vDir.x *= fInv;
-        vDir.y *= fInv;
-        vDir.z *= fInv;
+        vDir *= fInv;
 
         CollisionObject* pHitObject = 0;
         const GameObject* pIgnore = GetOwner();
         const float fLength = fDist + 0.2f;
-        vStart.x -= vDir.x * 0.1f;
-        vStart.y -= vDir.y * 0.1f;
-        vStart.z -= vDir.z * 0.1f;
+        vStart -= vDir * 0.1f;
         PblVector3 vNormal;
         const float fHit = CollisionManager::RayHit(vStart, vDir, fLength, pHitObject, &vNormal, &pIgnore, 1,
                                                     mCheckStaticCollision ? 0x13BA : 0x132A, true);
@@ -467,7 +444,7 @@ bool OrdnanceSticky::Collide(CollisionObject* pObject, const PblVector3& vPos,
         {
             bStick = (pClass->mStickTypes & (1 << AsDamageable(pVictim)->mHealthType)) != 0;
             PblVector3 vDir;
-            D3DXVec3Normalize(&vDir, &mVelocity);
+            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&mVelocity));
             AsDamageable(pVictim)->ApplyDamage(GetDamage(), vDir, vPos, iBodyId, 0xFFFFFFFF);
         }
     }
@@ -493,7 +470,7 @@ bool OrdnanceSticky::Collide(CollisionObject* pObject, const PblVector3& vPos,
         {
             PblMatrix mBody = pModel->GetWorldMatrix(iBodyId, pObject->GetMatrix(), pObject->GetPose());
             const PblMatrix mInverse = mBody.GetInverseFast();
-            D3DXMatrixMultiply(&mStick, &mStick, &mInverse);
+            mStick *= mInverse;
             mStickInfo->mCollBodyID = iBodyId;
         }
         else
@@ -521,9 +498,7 @@ bool OrdnanceSticky::Collide(CollisionObject* pObject, const PblVector3& vPos,
             mPosition = PblVector3(vPos.x + vNormal.x * 0.1f, vPos.y + vNormal.y * 0.1f,
                                    vPos.z + vNormal.z * 0.1f);
 
-            mVelocity.x -= vNormal.x * fDot;
-            mVelocity.y -= vNormal.y * fDot;
-            mVelocity.z -= vNormal.z * fDot;
+            mVelocity -= vNormal * fDot;
             float fSlow = -fFriction * fDot * (fRebound + 1.0f) /
                           sqrtf(mVelocity.x * mVelocity.x + mVelocity.y * mVelocity.y +
                                 mVelocity.z * mVelocity.z);
@@ -533,9 +508,7 @@ bool OrdnanceSticky::Collide(CollisionObject* pObject, const PblVector3& vPos,
             mVelocity.z -= mVelocity.z * fSlow;
 
             const float fBounce = fDot * fRebound;
-            mVelocity.x -= vNormal.x * fBounce;
-            mVelocity.y -= vNormal.y * fBounce;
-            mVelocity.z -= vNormal.z * fBounce;
+            mVelocity -= vNormal * fBounce;
             if (mVelocity.x * mVelocity.x + mVelocity.y * mVelocity.y + mVelocity.z * mVelocity.z < 1.0f)
             {
                 ++mNumBounces;
@@ -565,5 +538,7 @@ void OrdnanceSticky::SoundEvent()
     AIUtil::GrenadeAlert(mPosition, GetOwner(), &mBeginTime, &mLastEventTime);
 }
 
-// SYNTHETIC: SWBF2 0x00606ef0
-// OrdnanceStickyClass::~OrdnanceStickyClass
+// FUNCTION: SWBF2 0x00606ef0
+OrdnanceStickyClass::~OrdnanceStickyClass()
+{
+}

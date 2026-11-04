@@ -14,8 +14,8 @@ class SkyObjectManager
 {
 public:
 
-    // VTABLE: SWBF2 0x007ae638
-    // VTABLE: SWBF2 0x007ae658
+    // VTABLE: SWBF2 0x007ae638 Renderable
+    // VTABLE: SWBF2 0x007ae658 Thread
     class SkyObjectClass : public Renderable, public Thread
     {
     public:

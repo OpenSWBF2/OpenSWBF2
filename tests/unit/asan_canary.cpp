@@ -207,7 +207,7 @@ TEST_CASE("asan canary list allocator use after free is reported" * doctest::tes
 
 TEST_CASE("asan canary snd free list overflow is reported" * doctest::test_suite("asan_canary"))
 {
-    Snd::FreeList list(16, 1, 8, 0);
+    Snd::FreeList list(16, 1, false, 8);
     volatile char* p = (volatile char*)list.Alloc();
     REQUIRE(p);
     p[16] = 1;
@@ -217,7 +217,7 @@ TEST_CASE("asan canary snd free list overflow is reported" * doctest::test_suite
 
 TEST_CASE("asan canary snd free list use after free is reported" * doctest::test_suite("asan_canary"))
 {
-    Snd::FreeList list(16, 1, 8, 0);
+    Snd::FreeList list(16, 1, false, 8);
     volatile char* p = (volatile char*)list.Alloc();
     REQUIRE(p);
     list.Free((void*)p);

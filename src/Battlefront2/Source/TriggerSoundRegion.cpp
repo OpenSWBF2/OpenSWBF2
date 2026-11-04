@@ -18,11 +18,13 @@ void TriggerSoundRegion::Group::DestroyAll()
     }
 }
 
-// GLOBAL: SWBF2 0x007ebe78
 // SYNTHETIC: SWBF2 0x00406be0
 // `dynamic initializer for 'TriggerSoundRegion::sList''
 // SYNTHETIC: SWBF2 0x007696a0
 // `dynamic atexit destructor for 'TriggerSoundRegion::sList''
+
+// GLOBAL: SWBF2 0x007ebe78
+// TriggerSoundRegion::sList
 PblListSingle TriggerSoundRegion::sList;
 
 // FUNCTION: SWBF2 0x0065d6d0
@@ -47,25 +49,31 @@ const TriggerSoundRegion::Properties* TriggerSoundRegion::Properties::FindByID(u
     return 0;
 }
 
-// GLOBAL: SWBF2 0x01f9a108
 // SYNTHETIC: SWBF2 0x00406b60
 // `dynamic initializer for 'TriggerSoundRegion::Group::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00769650
 // `dynamic atexit destructor for 'TriggerSoundRegion::Group::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01f9a108
+// TriggerSoundRegion::Group::sMemoryPool
 MemoryPool TriggerSoundRegion::Group::sMemoryPool("TriggerSoundRegion::Group", 0x50);
 
-// GLOBAL: SWBF2 0x01f9a0b8
 // SYNTHETIC: SWBF2 0x00406b90
 // `dynamic initializer for 'TriggerSoundRegion::Properties::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00769670
 // `dynamic atexit destructor for 'TriggerSoundRegion::Properties::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01f9a0b8
+// TriggerSoundRegion::Properties::sMemoryPool
 MemoryPool TriggerSoundRegion::Properties::sMemoryPool("TriggerSoundRegion::Properties", 0xc);
 
-// GLOBAL: SWBF2 0x01f9a158
 // SYNTHETIC: SWBF2 0x00406bc0
 // `dynamic initializer for 'TriggerSoundRegion::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00769690
 // `dynamic atexit destructor for 'TriggerSoundRegion::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01f9a158
+// TriggerSoundRegion::sMemoryPool
 MemoryPool TriggerSoundRegion::sMemoryPool("TriggerSoundRegion", 0x70);
 
 // FUNCTION: SWBF2 0x0065d400
@@ -78,10 +86,6 @@ TriggerSoundRegion::Group::Group()
 // FUNCTION: SWBF2 0x0065d460
 TriggerSoundRegion::Group::~Group()
 {
-    if (mNode.mNext != 0)
-    {
-        mNode.Remove();
-    }
 }
 
 // FUNCTION: SWBF2 0x0065d4a0
@@ -160,16 +164,12 @@ TriggerSoundRegion::Properties::Properties()
 // FUNCTION: SWBF2 0x0065d6a0
 TriggerSoundRegion::Properties::~Properties()
 {
-    if (mNode.mNext != 0)
-    {
-        mNode.Remove();
-    }
 }
 
 // FUNCTION: SWBF2 0x0065d6e0
 const GameSound* TriggerSoundRegion::Properties::GetSound(Team::Side eSide, float fRatio) const
 {
-    for (PblListSingle::Itor it(mList); !it.IsDone(); ++it)
+    for (PblListSingle::Itor it(mList); it.GetNode() != mList.GetTerminator(); ++it)
     {
         const Group* pGroup = (const Group*)((Snd::ObjectList::Node*)it.GetNode())->mObject;
         if (fRatio >= pGroup->GetReinforcementCount() && pGroup->IsEnabled())
@@ -197,7 +197,7 @@ void TriggerSoundRegion::Properties::Read(PblFileChunk& chunk)
                 continue;
             }
             PblListSingle::Itor it(mList);
-            for (; !it.IsDone(); ++it)
+            for (; it.GetNode() != mList.GetTerminator(); ++it)
             {
                 const Group* pOther = (const Group*)((Snd::ObjectList::Node*)it.GetNode())->mObject;
                 if (pGroup->GetReinforcementCount() > pOther->GetReinforcementCount())
@@ -205,7 +205,7 @@ void TriggerSoundRegion::Properties::Read(PblFileChunk& chunk)
                     break;
                 }
             }
-            if (it.IsDone())
+            if (it.GetNode() == mList.GetTerminator())
             {
                 mList.Add(pGroup);
             }
@@ -341,16 +341,20 @@ void TriggerSoundRegion::DestroyAll()
     Group::DestroyAll();
 }
 
-// GLOBAL: SWBF2 0x007ebe98
 // SYNTHETIC: SWBF2 0x00406b80
 // `dynamic initializer for 'TriggerSoundRegion::Group::sList''
 // SYNTHETIC: SWBF2 0x00769660
 // `dynamic atexit destructor for 'TriggerSoundRegion::Group::sList''
+
+// GLOBAL: SWBF2 0x007ebe98
+// TriggerSoundRegion::Group::sList
 PblListSingle TriggerSoundRegion::Group::sList;
 
-// GLOBAL: SWBF2 0x007ebe7c
 // SYNTHETIC: SWBF2 0x00406bb0
 // `dynamic initializer for 'TriggerSoundRegion::Properties::sList''
 // SYNTHETIC: SWBF2 0x00769680
 // `dynamic atexit destructor for 'TriggerSoundRegion::Properties::sList''
+
+// GLOBAL: SWBF2 0x007ebe7c
+// TriggerSoundRegion::Properties::sList
 PblListSingle TriggerSoundRegion::Properties::sList;

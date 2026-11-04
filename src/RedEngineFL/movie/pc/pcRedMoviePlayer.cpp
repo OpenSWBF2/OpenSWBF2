@@ -16,24 +16,24 @@ extern "C"
     typedef void*(__stdcall* BINKMEMALLOC)(unsigned int bytes);
     typedef void(__stdcall* BINKMEMFREE)(void* ptr);
 
-    int __stdcall BinkSetIOSize(unsigned int iosize);
-    BINKIOOPEN __stdcall BinkSetIO(BINKIOOPEN io);
-    void __stdcall BinkSetMemory(BINKMEMALLOC a, BINKMEMFREE f);
+    __declspec(dllimport) int __stdcall BinkSetIOSize(unsigned int iosize);
+    __declspec(dllimport) BINKIOOPEN __stdcall BinkSetIO(BINKIOOPEN io);
+    __declspec(dllimport) void __stdcall BinkSetMemory(BINKMEMALLOC a, BINKMEMFREE f);
 
     typedef void*(__stdcall* BINKSNDSYSOPEN)(unsigned long param);
-    void* __stdcall BinkOpenDirectSound(unsigned long param);
-    int __stdcall BinkSetSoundSystem(BINKSNDSYSOPEN open, unsigned long param);
-    BINK* __stdcall BinkOpen(const char* name, unsigned int flags);
-    void __stdcall BinkClose(BINK* bink);
-    char* __stdcall BinkGetError();
-    int __stdcall BinkWait(BINK* bink);
-    int __stdcall BinkDoFrame(BINK* bink);
-    void __stdcall BinkNextFrame(BINK* bink);
-    int __stdcall BinkCopyToBuffer(BINK* bink, void* dest, int destpitch,
+    __declspec(dllimport) void* __stdcall BinkOpenDirectSound(unsigned long param);
+    __declspec(dllimport) int __stdcall BinkSetSoundSystem(BINKSNDSYSOPEN open, unsigned long param);
+    __declspec(dllimport) BINK* __stdcall BinkOpen(const char* name, unsigned int flags);
+    __declspec(dllimport) void __stdcall BinkClose(BINK* bink);
+    __declspec(dllimport) char* __stdcall BinkGetError();
+    __declspec(dllimport) int __stdcall BinkWait(BINK* bink);
+    __declspec(dllimport) int __stdcall BinkDoFrame(BINK* bink);
+    __declspec(dllimport) void __stdcall BinkNextFrame(BINK* bink);
+    __declspec(dllimport) int __stdcall BinkCopyToBuffer(BINK* bink, void* dest, int destpitch,
                                    unsigned int destheight, unsigned int destx,
                                    unsigned int desty, unsigned int flags);
-    int __stdcall BinkDX9SurfaceType(IDirect3DSurface9* surface);
-    void __stdcall BinkSetVolume(BINK* bink, unsigned int trackid, int volume);
+    __declspec(dllimport) int __stdcall BinkDX9SurfaceType(IDirect3DSurface9* surface);
+    __declspec(dllimport) void __stdcall BinkSetVolume(BINK* bink, unsigned int trackid, int volume);
 }
 
 void* __stdcall local_alloc(unsigned int bytes);
@@ -198,8 +198,8 @@ void RedMoviePlayer::BinkFileSetInfo(BINKIO* bio, void* pBuffer, unsigned long u
     pFile->bufPos = (unsigned char*)pBuffer;
     pFile->bufBack = (unsigned char*)pBuffer;
     pFile->bufEnd = (unsigned char*)pBuffer;
-    pFile->fileSize = uiFileSize;
     pFile->bufEmpty = uiSize;
+    pFile->fileSize = uiFileSize;
     pFile->simulate = uiSimulate;
     bio->BufSize = uiSize;
     bio->CurBufUsed = 0;
@@ -236,7 +236,11 @@ void RedMoviePlayer::BinkIOSuspend(BINKIO* bio)
 // FUNCTION: SWBF2 0x006f4650
 bool RedMoviePlayer::BinkIOSuspendTry(BINKIO* bio)
 {
-    return bio->try_suspend_callback && bio->try_suspend_callback(bio) != 0;
+    if (bio->try_suspend_callback)
+    {
+        return bio->try_suspend_callback(bio) != 0;
+    }
+    return false;
 }
 
 // FUNCTION: SWBF2 0x006f4670
@@ -251,7 +255,11 @@ void RedMoviePlayer::Close()
 // FUNCTION: SWBF2 0x006f46c0
 bool RedMoviePlayer::CreateBinkDecoder()
 {
-    return CreateTextures(mBink->Width, mBink->Height, 0x20, 3);
+    if (!CreateTextures(mBink->Width, mBink->Height, 0x20, 3))
+    {
+        return false;
+    }
+    return true;
 }
 
 // FUNCTION: SWBF2 0x006f46e0
@@ -293,11 +301,11 @@ void RedMoviePlayer::FreeTexture(RedTexture* pTexture, const unsigned int uiInde
 // FUNCTION: SWBF2 0x006f47a0
 float RedMoviePlayer::GetPlaybackTime() const
 {
-    if (!mBink)
+    if (mBink)
     {
-        return 0.0f;
+        return (float)mBink->FrameRateDiv * (float)mBink->FrameNum / (float)mBink->FrameRate;
     }
-    return (float)mBink->FrameRateDiv * (float)mBink->FrameNum / (float)mBink->FrameRate;
+    return 0.0f;
 }
 
 // FUNCTION: SWBF2 0x006f4820
@@ -423,13 +431,13 @@ void RedMoviePlayer::Update()
                 }
                 pSurface->UnlockRect();
                 pSurface->Release();
-                if (mBink->FrameNum >= mBink->Frames)
+                if (mBink->FrameNum < mBink->Frames)
                 {
-                    mFlags |= IsDiscontinuity() ? 4 : 2;
+                    BinkNextFrame(mBink);
                 }
                 else
                 {
-                    BinkNextFrame(mBink);
+                    mFlags |= IsDiscontinuity() ? 4 : 2;
                 }
             }
         }
@@ -462,7 +470,7 @@ void RedMoviePlayer::Update()
 }
 
 // SYNTHETIC: SWBF2 0x00409120
-// `dynamic initializer for 'PblMath::fOneOverHalfPi''
+// PblMath::`dynamic initializer for 'fOneOverHalfPi''
 
 // SYNTHETIC: SWBF2 0x00409140
-// `dynamic initializer for 'PblMath::fOneOverTwoPi''
+// PblMath::`dynamic initializer for 'fOneOverTwoPi''

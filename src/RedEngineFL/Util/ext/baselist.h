@@ -14,7 +14,7 @@ public:
 
     SLNode(const T& rElem) : elem_(rElem), next_(0) {}
 
-    static void* operator new(size_t uiSize, IAllocator& rAlloc)
+    static void* operator new(unsigned int uiSize, IAllocator& rAlloc)
     {
         Buffer buf(0, uiSize);
         rAlloc.Allocate(buf);
@@ -37,7 +37,7 @@ class DLNode
 public:
     DLNode() : next_(0), prev_(0) {}
 
-    static void* operator new(size_t uiSize, IAllocator& rAlloc)
+    static void* operator new(unsigned int uiSize, IAllocator& rAlloc)
     {
         Buffer buf(0, uiSize);
         rAlloc.Allocate(buf);
@@ -71,12 +71,12 @@ public:
 
     bool InsertLast(const T& rElem)
     {
-        if (!alloc_)
+        if (alloc_)
         {
-            return false;
+            NODE* pNode = new (*alloc_) NODE(rElem);
+            return InsertLast_(pNode);
         }
-        NODE* pNode = new (*alloc_) NODE(rElem);
-        return InsertLast_(pNode);
+        return false;
     }
 
     bool InsertLast_(NODE* pNode)
@@ -107,13 +107,16 @@ public:
                 if (pPrev)
                 {
                     pPrev->next_ = pNext;
-                    if (!pNext)
+                    if (pNext)
+                    {
+                        if (pNode == last_)
+                        {
+                            last_ = pNext;
+                        }
+                    }
+                    else
                     {
                         last_ = pPrev;
-                    }
-                    else if (pNode == last_)
-                    {
-                        last_ = pNext;
                     }
                 }
                 else

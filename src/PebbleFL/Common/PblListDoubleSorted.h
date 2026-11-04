@@ -11,25 +11,65 @@ public:
     {
     public:
 
-        Node(float fSortValue = 0.0f)
+        Node(float fSortValue = 0.0f) : mSortValue(fSortValue)
         {
-            mSortValue = fSortValue;
         }
 
         // FUNCTION: SWBF2 0x004d26d0
         ~Node()
         {
-            if (mNode.IsAttached())
-            {
-                mNode.Remove();
-            }
         }
 
-        void* GetObjectA(PblListDoubleSorted const* pList, unsigned int uOffset) const;
+        // FUNCTION: SWBF2 0x004d2620
+        void* GetObjectA(PblListDoubleSorted const* pList, unsigned int uOffset) const
+        {
+            if ((void const*)this == (void const*)pList)
+            {
+                return 0;
+            }
+            return (char*)this - uOffset;
+        }
+
+        Node* GetNext(PblListDoubleSorted* const pList) const
+        {
+            PblListDouble::Node* pNext = mNode.mNext;
+            return pNext == &pList->mTerminator
+                ? (Node*)pList
+                : (Node*)((char*)pNext - offsetof(Node, mNode));
+        }
+
+        Node* GetPrevious(PblListDoubleSorted* const pList) const
+        {
+            PblListDouble::Node* pPrevious = mNode.mPrev;
+            return pPrevious == &pList->mTerminator
+                ? 0
+                : (Node*)((char*)pPrevious - offsetof(Node, mNode));
+        }
 
         float mSortValue;
         PblListDouble::Node mNode;
     };
+
+    class Itor : public PblListDouble::Itor
+    {
+    public:
+        Itor(Node* pNode) : PblListDouble::Itor(&pNode->mNode) {}
+        Itor(const Itor& itor) : PblListDouble::Itor(itor) {}
+        Itor(const PblListDoubleSorted* pList) : PblListDouble::Itor(pList) {}
+        Itor(const PblListDoubleSorted& list) : PblListDouble::Itor(list) {}
+        Itor() {}
+
+        Node* GetNode(const PblListDoubleSorted* pList)
+        {
+            PblListDouble::Node* pNode = PblListDouble::Itor::GetNode();
+            return pNode == &pList->mTerminator
+                ? (Node*)pList
+                : (Node*)((char*)pNode - offsetof(Node, mNode));
+        }
+    };
+
+    Itor Begin() const { return Itor(this); }
+    Itor End() { return Itor(GetLast()); }
 
     PblListDoubleSorted(bool bSortOnAdd = false)
     {
@@ -61,11 +101,18 @@ public:
     // FUNCTION: SWBF2 0x004fbe10
     Node* GetFirst() const
     {
-        if (mTerminator.mNext == &mTerminator)
-        {
-            return (Node*)GetTerminator();
-        }
-        return (Node*)((char*)mTerminator.mNext - offsetof(Node, mNode));
+        PblListDouble::Node* pNext = mTerminator.mNext;
+        return pNext == &mTerminator
+            ? (Node*)pNext
+            : (Node*)((char*)pNext - offsetof(Node, mNode));
+    }
+
+    Node* GetLast() const
+    {
+        PblListDouble::Node* pPrevious = mTerminator.mPrev;
+        return pPrevious == &mTerminator
+            ? (Node*)pPrevious
+            : (Node*)((char*)pPrevious - offsetof(Node, mNode));
     }
 
     // FUNCTION: SWBF2 0x004d2640
@@ -73,30 +120,60 @@ public:
     {
         if (mFlags & 1)
         {
-            for (PblListDouble::Node* pLink = mTerminator.mNext; pLink != &mTerminator;
-                 pLink = pLink->mNext)
+            Itor itor(this);
+            for (;;)
             {
-                Node* pCur = (Node*)((char*)pLink - offsetof(Node, mNode));
-                if (pCur == GetTerminator())
+                Node* const current = itor.GetNode(this);
+                if (current == GetTerminator())
                 {
                     break;
                 }
-
-                if (pNode->mSortValue > pCur->mSortValue)
+                if (pNode->mSortValue > current->mSortValue)
                 {
-                    pNode->mNode.mNext = pLink;
-                    pNode->mNode.mPrev = pLink->mPrev;
-                    pLink->mPrev->mNext = &pNode->mNode;
-                    pLink->mPrev = &pNode->mNode;
+                    AddBefore(&current->mNode, &pNode->mNode);
                     return;
                 }
+                ++itor;
             }
+            AddLast(&pNode->mNode);
         }
-
-        AddLast(&pNode->mNode);
+        else
+        {
+            AddLast(&pNode->mNode);
+        }
     }
 
-    void Sort();
+    // FUNCTION: SWBF2 0x005a9420
+    void Sort()
+    {
+        PblListDouble::Node* pLink = mTerminator.mNext;
+        Node* pPrev = (Node*)pLink->GetObjectA(this, offsetof(Node, mNode));
+
+        pLink = pLink->mNext;
+        Node* pNode = (Node*)pLink->GetObjectA(this, offsetof(Node, mNode));
+        while (pNode)
+        {
+            if (pNode->mSortValue > pPrev->mSortValue)
+            {
+                Node* pAfter;
+                PblListDouble::Node* pScan = &pNode->mNode;
+                do
+                {
+                    pScan = pScan->mPrev;
+                    pAfter = (Node*)pScan->GetObjectA(this, offsetof(Node, mNode));
+                } while (pAfter && pNode->mSortValue > pAfter->mSortValue);
+
+                pNode->mNode.Remove();
+
+                PblListDouble::Node* pAt = pAfter ? pAfter->mNode.mNext : mTerminator.mNext;
+                AddBefore(pAt, &pNode->mNode);
+            }
+
+            pPrev = pNode;
+            pLink = pNode->mNode.mNext;
+            pNode = (Node*)pLink->GetObjectA(this, offsetof(Node, mNode));
+        }
+    }
 
     unsigned char mFlags;
 };

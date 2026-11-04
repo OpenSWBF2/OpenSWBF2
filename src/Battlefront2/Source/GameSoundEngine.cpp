@@ -46,33 +46,64 @@ static float sAccumulatedSoundTime;
 
 double gSoundClockTime;
 
-namespace FrameUpdate {
+namespace FrameUpdate
+{
 extern float fOneOverTicksPerSecond;
 }
 
 extern float g_fFixedRate;
 extern int g_InGameMoviePlayerState;
-namespace Lua_Callbacks { extern bool sGameMusicRetrigger; }
-namespace Lua_Callbacks { extern unsigned int sGameMusicCurDelayTime; }
-namespace Lua_Callbacks { extern void* sGameMusic; }
-namespace Lua_Callbacks { extern unsigned int sGameMusicDelayTime; }
+namespace Lua_Callbacks
+{
+extern bool sGameMusicRetrigger;
+}
+namespace Lua_Callbacks
+{
+extern unsigned int sGameMusicCurDelayTime;
+}
+namespace Lua_Callbacks
+{
+extern void* sGameMusic;
+}
+namespace Lua_Callbacks
+{
+extern unsigned int sGameMusicDelayTime;
+}
 
 extern HWND hGlobalWnd;
+namespace GameSoundEngine
+{
 
 // GLOBAL: SWBF2 0x007e68e4
-namespace GameSoundEngine { int gSamplerate = 48000; }
+int gSamplerate = 48000;
+}
+namespace GameSoundEngine
+{
 // GLOBAL: SWBF2 0x007e68e8
-namespace GameSoundEngine { int gMaxVoices = 32; }
+int gMaxVoices = 32;
+}
+namespace GameSoundEngine
+{
 // GLOBAL: SWBF2 0x007e68ec
-namespace GameSoundEngine { float gSoftMixerBufferSizeMs = 100.0f; }
+float gSoftMixerBufferSizeMs = 100.0f;
+}
 
 // GLOBAL: SWBF2 0x007e68f0
 bool gCentreSpeakerEnhancement = true;
 
-namespace GameSoundEngine { extern bool sHwMixingSupported; }
-namespace GameSoundEngine { extern bool sHwEffectsSupported; }
+namespace GameSoundEngine
+{
+extern bool sHwMixingSupported;
+}
+namespace GameSoundEngine
+{
+extern bool sHwEffectsSupported;
+}
 
-namespace GameVoiceChat { bool Open(float fSeconds, bool bSoundWorking); }
+namespace GameVoiceChat
+{
+bool Open(float fSeconds, bool bSoundWorking);
+}
 
 // GLOBAL: SWBF2 0x01e56282
 bool gSoundEnabled;
@@ -80,14 +111,19 @@ bool gSoundEnabled;
 namespace GameSoundEngine
 {
 
-// GLOBAL: SWBF2 0x01ec3238
 // SYNTHETIC: SWBF2 0x00403df0
-// `dynamic initializer for 'GameSoundEngine::gSoundHeap''
+// GameSoundEngine::`dynamic initializer for 'gSoundHeap''
+
+// GLOBAL: SWBF2 0x01ec3238
+// gSoundHeap
 int gSoundHeap = GameMemory::RunTimeHeap;
 
+// GLOBAL: SWBF2 0x01e56283
 bool gSoundIsOpen;
+// GLOBAL: SWBF2 0x01e56398
 unsigned long gWindowsSpeakerConfig;
 
+// GLOBAL: SWBF2 0x01e56394
 Snd::EngineBase::SpeakerConfig gDefaultSpeakerConfig;
 
 // FUNCTION: SWBF2 0x005390e0
@@ -99,15 +135,9 @@ void SetHeap(int iHeap)
 }
 
 // FUNCTION: SWBF2 0x005387a0
-void* __cdecl SndAlloc(size_t uiSize)
+void* __cdecl SndAlloc(unsigned int uiSize)
 {
-#ifdef _WIN64
-    if (uiSize > 0xFFFFFFFFu)
-    {
-        return 0;
-    }
-#endif
-    return RedAllocFromHeap(GameSoundEngine::gSoundHeap, (unsigned int)uiSize, 0);
+    return RedAllocFromHeap(GameSoundEngine::gSoundHeap, uiSize, 0);
 }
 
 // FUNCTION: SWBF2 0x005387c0
@@ -134,7 +164,8 @@ void __cdecl PrintDebugString(char const* pcMessage)
     LOG(LogAudio, Warning, "%s", pcMessage);
 }
 
-namespace GameSoundEngine {
+namespace GameSoundEngine
+{
 
 // FUNCTION: SWBF2 0x00538830
 bool __cdecl UseKmixer()
@@ -235,12 +266,6 @@ bool Init(unsigned int uiFlags, bool bEnable)
 
 }
 
-// GLOBAL: SWBF2 0x007e3504
-// SYNTHETIC: SWBF2 0x0040b7f0
-// `dynamic initializer for 'Snd::SoundParameterized::Layer::smFreeList''
-// SYNTHETIC: SWBF2 0x0076a250
-// `dynamic atexit destructor for 'Snd::SoundParameterized::Layer::smFreeList''
-Snd::FreeList Snd::SoundParameterized::Layer::smFreeList(0x100, 1, 0xa0, 1);
 
 namespace GameSoundEngine
 {
@@ -258,38 +283,35 @@ void Create()
 
     Snd::SoundStream::Init();
 
-    unsigned int uiBlocks = 0;
-    for (const PblListSingle::Node* pNode = Snd::SoundParameterized::Layer::smFreeList.mBlockList.mHead.mNext;
-         pNode != &Snd::SoundParameterized::Layer::smFreeList.mBlockList.mHead;
-         pNode = pNode->mNext)
-    {
-        ++uiBlocks;
-    }
-
-    if (uiBlocks == 0)
-    {
-
-        Snd::SoundParameterized::Layer::smFreeList.AllocBlocks(1, 0);
-        Snd::SoundParameterized::Layer::smFreeList.mFlags |= 2;
-    }
+    Snd::SoundParameterized::Alloc();
 }
 
 }
 
 extern int sVoiceChatHeap;
-namespace GameVoiceChat { extern bool gPlayerChange; }
+namespace GameVoiceChat
+{
+extern bool gPlayerChange;
+}
 extern void* sVoiceChatEncoders[1];
-namespace GameVoiceChat { extern void* gNodes[1]; }
+namespace GameVoiceChat
+{
+extern void* gNodes[1];
+}
 extern void* sVoiceChatDecoders[1];
 extern void* sEncoderStorage;
 extern void* sDecoderStorage;
 extern void* sNodeStorage;
 
-namespace GameVoiceChat { unsigned int GetNumNodes(); }
+namespace GameVoiceChat
+{
+unsigned int GetNumNodes();
+}
 
 extern int netVoiceMode;
 
-namespace GameVoiceChat {
+namespace GameVoiceChat
+{
 
 // FUNCTION: SWBF2 0x0053c040
 bool Open(float fSeconds, bool bSoundWorking)
@@ -298,13 +320,13 @@ bool Open(float fSeconds, bool bSoundWorking)
     sVoiceChatHeap = GameMemory::ApplicationHeap;
     int iOldHeap = RedSetCurrentHeap(GameMemory::ApplicationHeap);
 
-    if (!GameVoiceChat::gTransport.Open())
+    if (!GameVoiceChat::gTransport.Open(0x32, 1))
     {
         RedSetCurrentHeap(iOldHeap);
         return false;
     }
 
-    if (!VoiceChat::Node::OpenStatic(fSeconds, 1000.0f, 1000.0f))
+    if (!VoiceChat::Node::OpenStatic(&GameVoiceChat::gTransport, fSeconds, 1000.0f, 1000.0f))
     {
         GameVoiceChat::gTransport.Close();
         RedSetCurrentHeap(iOldHeap);
@@ -328,7 +350,7 @@ bool Open(float fSeconds, bool bSoundWorking)
     VoiceChat::Transport::Method cMethod(
         (VoiceChat::Transport::Method::Type)(netVoiceMode ? netVoiceMode : 2), 0x32);
     cMethod.SetNumRelayNodes(cMethod.CalculateOptimalRelayNodes(0x32));
-    GameVoiceChat::gTransport.SetMethod(&cMethod, 1);
+    GameVoiceChat::gTransport.SetMethod(cMethod, true);
 
     if (bSoundWorking)
     {
@@ -336,7 +358,7 @@ bool Open(float fSeconds, bool bSoundWorking)
 
         for (i = 0; i < uiNodes && bAllOpen; ++i)
         {
-            bAllOpen = (bAllOpen && ((VoiceChat::Node*)GameVoiceChat::gNodes[i])->Open());
+            bAllOpen = (bAllOpen && ((VoiceChat::Node*)GameVoiceChat::gNodes[i])->Open(0xFF, 0xFF, 0x0C));
         }
 
         if (!bAllOpen)
@@ -369,8 +391,8 @@ bool Open(float fSeconds, bool bSoundWorking)
 
         for (i = 0; i < uiNodes; ++i)
         {
-            ((GameVoiceChat::Node*)GameVoiceChat::gNodes[i])->SetSendMask(1);
-            ((GameVoiceChat::Node*)GameVoiceChat::gNodes[i])->SetReceiveMask(4);
+            ((GameVoiceChat::Node*)GameVoiceChat::gNodes[i])->SetSendMask(GameVoiceChat::Transport::mask_TeamFriend, true, false);
+            ((GameVoiceChat::Node*)GameVoiceChat::gNodes[i])->SetReceiveMask(GameVoiceChat::Transport::mask_Everyone, true, false);
         }
     }
 
@@ -467,12 +489,12 @@ void Destroy()
     SoundSpaceRegion::DestroyAll();
     TriggerSoundRegion::DestroyAll();
 
-    for (int i = 0; i < 4; i++)
+    for (unsigned int i = 0; i < 4; i++)
     {
         Snd::EngineBase::smListeners[i].SetSpace(0);
     }
     Snd::Engine::Update(0.1f);
-    for (int i = 0; i < 4; i++)
+    for (unsigned int i = 0; i < 4; i++)
     {
         Snd::EngineBase::smListeners[i].Enable(false);
     }
@@ -737,14 +759,22 @@ void GameSoundEngine::Update(float fDeltaTime)
 
 float sDefaultSoundDamping = 0.95f;
 
-// GLOBAL: SWBF2 0x01ec323c
 
 // SYNTHETIC: SWBF2 0x00403e00
 // `dynamic initializer for 'sSoundDamping''
+
+// GLOBAL: SWBF2 0x01ec323c
+// sSoundDamping
 float sSoundDamping = sDefaultSoundDamping;
+namespace GameSoundEngine
+{
 
 // GLOBAL: SWBF2 0x007e666e
-namespace GameSoundEngine { bool sHwMixingSupported = true; }
+bool sHwMixingSupported = true;
+}
+namespace GameSoundEngine
+{
 
 // GLOBAL: SWBF2 0x007e666f
-namespace GameSoundEngine { bool sHwEffectsSupported = true; }
+bool sHwEffectsSupported = true;
+}

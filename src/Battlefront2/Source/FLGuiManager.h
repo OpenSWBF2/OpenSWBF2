@@ -2,6 +2,8 @@
 
 #include <stddef.h>
 
+#include "PebbleFL/Common/PblUnicode.h"
+
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 #include "RedEngineFL/input/RedInputEventHandler.h"
 #include "FLList.h"
@@ -16,13 +18,13 @@ struct KeyStroke
     unsigned short flags;
 };
 
+// VTABLE: SWBF2 0x0079f164
 class KeyGrabber : public RedInputEventHandler
 {
 public:
 
     KeyGrabber() : mInited(false) {}
 
-    virtual ~KeyGrabber() {}
 
     // SYNTHETIC: SWBF2 0x00527ff0
     // KeyGrabber::`scalar deleting destructor'
@@ -170,7 +172,9 @@ public:
 
         ~Event() {}
 
-        static void* operator new(size_t uiSize) { return sMemoryPool.Allocate(uiSize); }
+        static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }
+        // SYNTHETIC: SWBF2 0x00527f40
+        // GuiManager::Event::operator delete
         static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
         eEventType type;
@@ -285,3 +289,18 @@ public:
  
  
  
+
+inline GuiManager::Event::Event(eEventType eType, unsigned int uiVal, const char* pcName, int iController)
+{
+    type = eType;
+    val.i32 = uiVal;
+    if (pcName)
+    {
+        strlcpy(pName, pcName, sizeof(pName));
+    }
+    else
+    {
+        pName[0] = 0;
+    }
+    mController = iController;
+}

@@ -37,7 +37,7 @@ public:
         UpdateFinalGain();
     }
 
-    static void* operator new(size_t)
+    static void* operator new(unsigned int)
     {
         return smFreeList.Alloc();
     }
@@ -47,7 +47,19 @@ public:
         smFreeList.Free(p);
     }
 
-    ~Bus();
+    // FUNCTION: SWBF2 0x00730c00
+    ~Bus()
+    {
+        if (mFlags & flags_Solo)
+        {
+            smBusSolo = false;
+        }
+        DestroySubBuses();
+        if (mParentBus)
+        {
+            mNode.Remove();
+        }
+    }
 
     static Bus smRootBus;
 
@@ -62,6 +74,9 @@ public:
     Bus* FindSubBusByHashID(unsigned int uiHashID);
 
     void SetGain(float fGain, bool bStopFade);
+
+    float GetFinalGain() const { return mFinalGain; }
+    static Bus& GetRootBus() { return smRootBus; }
 
     static Bus* FindByHashID(unsigned int uiHashID);
 

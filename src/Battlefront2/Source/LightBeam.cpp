@@ -1,8 +1,8 @@
+#include <d3dx9math.h>
 #include "LightBeam.h"
 #include "Battlefront2Lod.h"
 #include "PebbleFL/Common/PblConfig.h"
 #include "PebbleFL/Common/PblMath.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 // GLOBAL: SWBF2 0x01e573dc
 LightBeamEffect* LightBeamEffect::s_pInstance;
@@ -27,10 +27,7 @@ void LightBeamEffect::Render(int)
 {
 }
 
-// FUNCTION: SWBF2 0x0056faa0
-LightBeamEffect::~LightBeamEffect()
-{
-}
+
 
 // FUNCTION: SWBF2 0x0056fd50
 void LightBeamEffect::Destroy()
@@ -49,6 +46,7 @@ void LightBeamEffect::Cleanup()
 void LightBeamEffect::ReadConfig(PblConfig&)
 {
 }
+
 
 namespace
 {
@@ -337,7 +335,7 @@ void LightBeam::SetFinalWidth(float fWidthX, float fWidthZ)
 void LightBeam::UpdatedWorldMatrix()
 {
     PblVector3 vPos;
-    D3DXVec3TransformCoord(&vPos, &_vHeadPosition, &m_mWorldMatrix);
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vPos), reinterpret_cast<const D3DXVECTOR3*>(&_vHeadPosition), reinterpret_cast<const D3DXMATRIX*>(&m_mWorldMatrix));
     _Flare.SetPosition(vPos);
 }
 

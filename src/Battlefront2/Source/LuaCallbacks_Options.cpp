@@ -32,7 +32,10 @@ int gNumBots[4] = { -1, -1, 16, 16 };
 
 }
 
-namespace GameLoop { extern bool mbHistoricalRules; }
+namespace GameLoop
+{
+    extern bool mbHistoricalRules;
+}
 
 extern bool netTeamDamage;
 extern bool netAutoAssignTeams;
@@ -41,7 +44,10 @@ extern bool netHeroesEnabled;
 extern int netHeroRuleUnlockVal;
 extern int netHeroRuleRespawn;
 extern int netHeroRuleRespawnVal;
-namespace PblBuildType { extern bool gDemoBuild; }
+namespace PblBuildType
+{
+    extern bool gDemoBuild;
+}
 extern int hostVoteThreshold;
 extern int netHostedPlayerLimit;
 extern int netDedicatedPlayerLimit;
@@ -49,14 +55,20 @@ extern int netPlayerLimit;
 extern int gGlobalNumBots;
 extern bool netAutoAim;
 extern bool netShowNames;
-namespace PblBuildType { extern bool gDemoAutoAssign; }
+namespace PblBuildType
+{
+    extern bool gDemoAutoAssign;
+}
 extern bool netAutoAssignTeamsOriginalSetting;
 extern int netMinPlayersToAutoLaunchDedicated;
 extern int netThrottle;
 extern int netHeroRuleUnlock;
 extern int netHeroRulePlayer;
 extern int netHeroRuleTeam;
-namespace Lua_Callbacks { extern int gTeamSetReinforcementMult; }
+namespace Lua_Callbacks
+{
+    extern int gTeamSetReinforcementMult;
+}
 extern int netRequestedCameraCount;
 extern bool g_SpectatorEnabled[1];
 
@@ -125,7 +137,8 @@ static const int sLuaFunctionToEnum[5][21] = {
 // FUNCTION: SWBF2 0x0052b500
 int RawControllerInputs::GetFunctionForAnalog(int, int) { return 0; }
 
-namespace GameLoop {
+namespace GameLoop
+{
 
 // FUNCTION: SWBF2 0x00533630
 void SetFunctionIdForButtonId(int iButton, int iFunction)
@@ -138,7 +151,8 @@ void SetFunctionIdForButtonId(int iButton, int iFunction)
 }
 }
 
-namespace GameLoop {
+namespace GameLoop
+{
 
 // FUNCTION: SWBF2 0x00533660
 int GetFunctionIdForButtonId(int iButton)
@@ -152,7 +166,8 @@ int GetFunctionIdForButtonId(int iButton)
 }
 }
 
-namespace GameLoop {
+namespace GameLoop
+{
 
 // FUNCTION: SWBF2 0x00533690
 int GetFunctionIdForAnalog()
@@ -191,6 +206,9 @@ int EnumToLuaFunctionIndex(int iEnum, int iMode)
     return 0;
 }
 
+// GLOBAL: SWBF2 0x007e8050
+// sOptionsCallbacks
+
 namespace Lua_Callbacks
 {
 
@@ -199,17 +217,12 @@ void _SetGameRules(eGAME_RULES eRules);
 // FUNCTION: SWBF2 0x00596b70
 int ScriptCB_SetSplitscreen(lua_State* L)
 {
-    if (lua_gettop(LuaHelper::mState) == 1 && lua_isnumber(LuaHelper::mState, 1))
+    int NumArgs = LuaHelper::GetTop();
+    if (NumArgs == 1 && LuaHelper::IsNumber(1))
     {
-        int iNumCameras = (int)luaL_checknumber(LuaHelper::mState, 1);
-        if (iNumCameras < 1)
-        {
-            iNumCameras = 1;
-        }
-        if (iNumCameras > 1)
-        {
-            iNumCameras = 1;
-        }
+        int iNumCameras = LuaHelper::GetInt(1);
+        iNumCameras = Max(iNumCameras, 1);
+        iNumCameras = Min(iNumCameras, 1);
         GameLoop::SetNumCameras(iNumCameras);
     }
     else
@@ -236,23 +249,22 @@ int ScriptCB_IsSplitscreen(lua_State* L)
 // FUNCTION: SWBF2 0x00596d10
 int ScriptCB_SetDifficulty(lua_State* L)
 {
-    int iArgs = lua_gettop(LuaHelper::mState);
-    if ((iArgs == 1 || iArgs == 2) && lua_isnumber(LuaHelper::mState, 1))
+    int NumArgs = LuaHelper::GetTop();
+    if ((NumArgs == 1 || NumArgs == 2) && LuaHelper::IsNumber(1))
     {
-        int iDifficulty = (int)luaL_checknumber(LuaHelper::mState, 1);
-        if (iDifficulty < eDIFFICULTY_EASY || iDifficulty > eDIFFICULTY_HARD)
+        int val = LuaHelper::GetInt(1);
+        if (val < eDIFFICULTY_EASY || val > eDIFFICULTY_HARD)
         {
-            iDifficulty = eDIFFICULTY_MEDIUM;
+            val = eDIFFICULTY_MEDIUM;
         }
-
+        eGAME_DIFFICULTY eDiff = (eGAME_DIFFICULTY)val;
         PlayerProfile::tProfile* pProfile = PlayerProfile::GetProfile(PauseMenu::GetPausingJoystick());
         if (pProfile)
         {
-            pProfile->mGameOptions.mCurDiffLevel = (eGAME_DIFFICULTY)iDifficulty;
-            if (iArgs == 2 && lua_type(LuaHelper::mState, 2) == LUA_TBOOLEAN &&
-                lua_toboolean(LuaHelper::mState, 2))
+            pProfile->mGameOptions.mCurDiffLevel = eDiff;
+            if (NumArgs == 2 && LuaHelper::IsBool(2) && LuaHelper::GetBool(2))
             {
-                bool bAssist = iDifficulty <= eDIFFICULTY_MEDIUM;
+                bool bAssist = eDiff <= eDIFFICULTY_MEDIUM;
                 pProfile->mGameOptions.mbAimAssist = bAssist;
                 pProfile->mGameOptions.mbStickyReticule = bAssist;
                 pProfile->mGameOptions.mbTargetAutoTracking = bAssist;
@@ -316,21 +328,25 @@ int ScriptCB_GetCONMaxTimeLimit(lua_State* L)
 // FUNCTION: SWBF2 0x00597010
 int ScriptCB_GetCONNumBots(lua_State* L)
 {
-    int iBots = (unsigned int)gCurRules <= eGAMERULES_METAGAME ? gCONNumBots[gCurRules] : netNumBots;
-    lua_pushnumber(LuaHelper::mState, (float)iBots);
+    int v = netNumBots;
+    if ((unsigned int)gCurRules <= eGAMERULES_METAGAME)
+    {
+        v = gCONNumBots[gCurRules];
+    }
+    LuaHelper::PushInt(v);
     return 1;
 }
 
 // FUNCTION: SWBF2 0x00597780
 int ScriptCB_GetGameRules(lua_State* L)
 {
-    if ((unsigned int)gCurRules > eGAMERULES_METAGAME)
+    if ((unsigned int)gCurRules <= eGAMERULES_METAGAME)
     {
-        lua_pushstring(LuaHelper::mState, "");
+        LuaHelper::PushString(gGameRulesNames[gCurRules]);
     }
     else
     {
-        lua_pushstring(LuaHelper::mState, gGameRulesNames[gCurRules]);
+        LuaHelper::PushString("");
     }
     return 1;
 }
@@ -338,7 +354,8 @@ int ScriptCB_GetGameRules(lua_State* L)
 // FUNCTION: SWBF2 0x005976d0
 int ScriptCB_SetGameRules(lua_State* L)
 {
-    if (lua_gettop(LuaHelper::mState) == 1 && lua_isstring(LuaHelper::mState, 1))
+    int NumArgs = LuaHelper::GetTop();
+    if (NumArgs == 1 && LuaHelper::IsString(1))
     {
         if (!gGameRulesNameHashes[0])
         {
@@ -348,11 +365,12 @@ int ScriptCB_SetGameRules(lua_State* L)
             }
         }
 
-        unsigned int uHash = PblHash(luaL_checkstring(LuaHelper::mState, 1));
+        const char* pInStr = LuaHelper::GetString(1);
+        unsigned int NewHash = PblHash(pInStr);
         int i;
         for (i = 0; i < eGAMERULES_MAX; ++i)
         {
-            if (uHash == gGameRulesNameHashes[i])
+            if (NewHash == gGameRulesNameHashes[i])
             {
                 break;
             }
@@ -375,9 +393,11 @@ int ScriptCB_GetYAxisFlip(lua_State* L)
 // FUNCTION: SWBF2 0x00597890
 int ScriptCB_SetYAxisFlip(lua_State* L)
 {
-    if (lua_gettop(LuaHelper::mState) == 1 && lua_isnumber(LuaHelper::mState, 1))
+    int NumArgs = LuaHelper::GetTop();
+    if (NumArgs == 1 && LuaHelper::IsNumber(1))
     {
-        GameLoop::SetJoystickYFlip((int)luaL_checknumber(LuaHelper::mState, 1));
+        int state = LuaHelper::GetInt(1);
+        GameLoop::SetJoystickYFlip(state);
         PlayerProfile::tProfile* pProfile = PlayerProfile::GetProfile(PauseMenu::GetPausingJoystick());
         if (pProfile)
         {
@@ -392,7 +412,7 @@ int ScriptCB_SetYAxisFlip(lua_State* L)
 int ScriptCB_GetMouseTurnAssist(lua_State* L)
 {
     RawControllerInputs* pJoystick = FLInputManager::s_instance.GetPlayerJoystick(PauseMenu::GetPausingViewport());
-    lua_pushnumber(LuaHelper::mState, (float)pJoystick->GetMouseAssist());
+    LuaHelper::PushInt(pJoystick->GetMouseAssist());
     return 1;
 }
 
@@ -601,7 +621,8 @@ int ScriptCB_GetHUDScale(lua_State* L)
 // FUNCTION: SWBF2 0x00598030
 int ScriptCB_NextToolTipState(lua_State* L)
 {
-    if (lua_gettop(LuaHelper::mState) == 0)
+    int NumArgs = LuaHelper::GetTop();
+    if (NumArgs == 0)
     {
         PlayerProfile::tProfile* pProfile = PlayerProfile::GetProfile(PauseMenu::GetPausingJoystick());
         if (pProfile)
@@ -643,7 +664,8 @@ int ScriptCB_NextToolTipState(lua_State* L)
 // FUNCTION: SWBF2 0x005980f0
 int ScriptCB_PrevToolTipState(lua_State* L)
 {
-    if (lua_gettop(LuaHelper::mState) == 0)
+    int NumArgs = LuaHelper::GetTop();
+    if (NumArgs == 0)
     {
         PlayerProfile::tProfile* pProfile = PlayerProfile::GetProfile(PauseMenu::GetPausingJoystick());
         if (pProfile)
@@ -784,10 +806,10 @@ int ScriptCB_GetSideSelectButtonSetting(lua_State* L)
         iFourth = 0;
     }
 
-    lua_pushnumber(LuaHelper::mState, (float)iFirst);
-    lua_pushnumber(LuaHelper::mState, (float)iSecond);
-    lua_pushnumber(LuaHelper::mState, 2.0f);
-    lua_pushnumber(LuaHelper::mState, (float)iFourth);
+    LuaHelper::PushInt(iFirst);
+    LuaHelper::PushInt(iSecond);
+    LuaHelper::PushInt(2);
+    LuaHelper::PushInt(iFourth);
     return 4;
 }
 
@@ -871,7 +893,7 @@ int ScriptCB_GetOnlineOpts(lua_State* L)
         iTurnsPerSecond = 20;
     }
 
-    lua_newtable(LuaHelper::mState);
+    LuaHelper::PushEmptyTable();
     LuaHelper::TableWriteVal("bAppearOffline", bAppearOffline);
     LuaHelper::TableWriteVal("bVoiceMask", bVoiceMask);
     LuaHelper::TableWriteVal("iTVVoiceVol", iTVVoiceVol);
@@ -1049,7 +1071,7 @@ int ScriptCB_SetNetGameDefaults(lua_State* L)
         void* pTransport = GameVoiceChat::GetTransport();
         VoiceChat::Transport::Method cMethod((VoiceChat::Transport::Method::Type)iValue,
             ((VoiceChat::Transport*)pTransport)->GetMethod().GetNumRelayNodes());
-        ((VoiceChat::Transport*)pTransport)->SetMethod(&cMethod, 1);
+        ((VoiceChat::Transport*)pTransport)->SetMethod(cMethod, true);
 
         NetGame::SetMaxPreGameTime(iWarmUp);
         hostVoteThreshold = iVote;
@@ -1139,7 +1161,7 @@ int ScriptCB_GetNetHeroDefaults(lua_State* L)
     int iHeroRespawn = netHeroRuleRespawn;
     int iHeroRespawnVal = netHeroRuleRespawnVal;
 
-    lua_newtable(LuaHelper::mState);
+    LuaHelper::PushEmptyTable();
     LuaHelper::TableWriteVal("iHeroUnlock", iHeroUnlock);
     LuaHelper::TableWriteVal("iHeroUnlockVal", iHeroUnlockVal);
     LuaHelper::TableWriteVal("iHeroPlayer", iHeroPlayer);
@@ -1175,13 +1197,14 @@ int ScriptCB_SetNetHeroDefaults(lua_State* L)
 // FUNCTION: SWBF2 0x00596c40
 int ScriptCB_WasSplitscreen(lua_State*)
 {
-    if (ShellLoop::mLastGameNumCameras >= 2)
+    int NumCameras = ShellLoop::mLastGameNumCameras;
+    if (NumCameras < 2)
     {
-        lua_pushnumber(LuaHelper::mState, (float)ShellLoop::mLastGameNumCameras);
+        LuaHelper::PushNil();
     }
     else
     {
-        lua_pushnil(LuaHelper::mState);
+        LuaHelper::PushInt(NumCameras);
     }
     return 1;
 }
@@ -1217,16 +1240,24 @@ int ScriptCB_GetAssaultScoreLimit(lua_State*)
 // FUNCTION: SWBF2 0x00597050
 int ScriptCB_GetCTFNumBots(lua_State*)
 {
-    int iBots = (unsigned int)gCurRules <= eGAMERULES_METAGAME ? gCTFNumBots[gCurRules] : netNumBots;
-    lua_pushnumber(LuaHelper::mState, (float)iBots);
+    int v = netNumBots;
+    if ((unsigned int)gCurRules <= eGAMERULES_METAGAME)
+    {
+        v = gCTFNumBots[gCurRules];
+    }
+    LuaHelper::PushInt(v);
     return 1;
 }
 
 // FUNCTION: SWBF2 0x00597090
 int ScriptCB_GetASSNumBots(lua_State*)
 {
-    int iBots = (unsigned int)gCurRules <= eGAMERULES_METAGAME ? gASSNumBots[gCurRules] : netNumBots;
-    lua_pushnumber(LuaHelper::mState, (float)iBots);
+    int v = netNumBots;
+    if ((unsigned int)gCurRules <= eGAMERULES_METAGAME)
+    {
+        v = gASSNumBots[gCurRules];
+    }
+    LuaHelper::PushInt(v);
     return 1;
 }
 
@@ -1249,14 +1280,22 @@ int ScriptCB_SetAIDifficulty(lua_State*)
 // FUNCTION: SWBF2 0x00597460
 int ScriptCB_SetSpectatorMode(lua_State*)
 {
-    int iLocal = (int)luaL_checknumber(LuaHelper::mState, 1);
-    bool bEnabled = lua_toboolean(LuaHelper::mState, 2) != 0;
-    if (!PblInBounds(g_SpectatorEnabled, iLocal))
+    int iGuest = LuaHelper::GetInt(1);
+    bool bEnabled = LuaHelper::GetBool(2);
+    if (!PblInBounds(g_SpectatorEnabled, iGuest))
     {
         return 0;
     }
-    g_SpectatorEnabled[iLocal] = bEnabled;
-    NetGame::SetSpectator(NetGame::GetLocalIndex(iLocal), bEnabled ? 0 : -1);
+    g_SpectatorEnabled[iGuest] = bEnabled;
+    int id = NetGame::GetLocalIndex(iGuest);
+    if (bEnabled)
+    {
+        NetGame::SetSpectator(id, 0);
+    }
+    else
+    {
+        NetGame::SetSpectator(id, -1);
+    }
     return 0;
 }
 
@@ -1278,16 +1317,10 @@ int ScriptCB_SetCanSwitchSides(lua_State*)
 // FUNCTION: SWBF2 0x005977d0
 int ScriptCB_IsMetaAllMapsOn(lua_State*)
 {
-    bool bEnabled = false;
-    if (lua_gettop(LuaHelper::mState) == 0)
-    {
-        PlayerProfile::tProfile* pProfile = PlayerProfile::GetCurProfile();
-        if (pProfile)
-        {
-            bEnabled = pProfile->mGameOptions.mbMetaAllMaps;
-        }
-    }
-    lua_pushboolean(LuaHelper::mState, bEnabled);
+    int NumArgs = LuaHelper::GetTop();
+    PlayerProfile::tProfile* pProfile;
+    LuaHelper::PushBool(NumArgs == 0 && (pProfile = PlayerProfile::GetCurProfile()) &&
+                        pProfile->mGameOptions.mbMetaAllMaps);
     return 1;
 }
 
@@ -1329,16 +1362,15 @@ int ScriptCB_GetFunctionIdForAnalogId(lua_State*)
 // FUNCTION: SWBF2 0x005971a0
 int ScriptCB_SetFunctionIdForAnalogId(lua_State*)
 {
-    if (lua_gettop(LuaHelper::mState) != 3 ||
-        !lua_isnumber(LuaHelper::mState, 1) ||
-        !lua_isnumber(LuaHelper::mState, 2) ||
-        !lua_isnumber(LuaHelper::mState, 3))
+    int NumArgs = LuaHelper::GetTop();
+    if (NumArgs != 3 || !LuaHelper::IsNumber(1) ||
+        !LuaHelper::IsNumber(2) || !LuaHelper::IsNumber(3))
     {
         return 0;
     }
-    luaL_checknumber(LuaHelper::mState, 1);
-    luaL_checknumber(LuaHelper::mState, 2);
-    luaL_checknumber(LuaHelper::mState, 3);
+    int analogStick = LuaHelper::GetInt(1);
+    int functionId = LuaHelper::GetInt(2);
+    int controlMode = LuaHelper::GetInt(3);
     PlayerProfile::tProfile* pProfile = PlayerProfile::GetProfile(PauseMenu::GetPausingJoystick());
     if (pProfile)
     {
@@ -1391,16 +1423,24 @@ int ScriptCB_SetFunctionIdForButtonId(lua_State*)
 // FUNCTION: SWBF2 0x00596c80
 int ScriptCB_SetPlayerSide(lua_State*)
 {
-    int iArgs = lua_gettop(LuaHelper::mState);
-    if ((unsigned)(iArgs - 1) <= 1 && lua_isnumber(LuaHelper::mState, 1))
+    int NumArgs = LuaHelper::GetTop();
+    if ((NumArgs == 1 || NumArgs == 2) && LuaHelper::IsNumber(1))
     {
-        int iSide = (int)luaL_checknumber(LuaHelper::mState, 1);
-        if ((unsigned)(iSide - 1) <= 1)
+        int TheirTeam = LuaHelper::GetInt(1);
+        if (TheirTeam >= 1 && TheirTeam <= 2)
         {
-            int iPlayer = 0;
-            if (iArgs != 2 || (LuaHelper::IsNumber(iArgs) && (iPlayer = LuaHelper::GetInt(iArgs)) == 0))
+            unsigned int Viewport = 0;
+            if (NumArgs == 2)
             {
-                playerTeamNumbers[11 * iPlayer] = iSide;
+                if (!LuaHelper::IsNumber(NumArgs))
+                {
+                    return 0;
+                }
+                Viewport = LuaHelper::GetInt(NumArgs);
+            }
+            if (Viewport < sizeof(PlayerPrefs::mAllUserPrefs) / sizeof(PlayerPrefs::mAllUserPrefs[0]))
+            {
+                PlayerPrefs::mAllUserPrefs[Viewport].mTeamNum = TheirTeam;
             }
         }
     }
@@ -1410,13 +1450,13 @@ int ScriptCB_SetPlayerSide(lua_State*)
 // FUNCTION: SWBF2 0x00597950
 int ScriptCB_SetMouseTurnAssist(lua_State*)
 {
-    if (lua_gettop(LuaHelper::mState) != 1 || !lua_isnumber(LuaHelper::mState, 1))
+    if (LuaHelper::GetTop() != 1 || !LuaHelper::IsNumber(1))
     {
         return 0;
     }
-    int iAssist = (int)luaL_checknumber(LuaHelper::mState, 1);
+    int bAssist = LuaHelper::GetInt(1);
     RawControllerInputs* pJoystick = FLInputManager::s_instance.GetPlayerJoystick(PauseMenu::GetPausingViewport());
-    pJoystick->mMouseAssist[pJoystick->GetInputMode()] = iAssist == 1;
+    pJoystick->SetMouseAssist(bAssist == 1, pJoystick->GetInputMode());
     PlayerProfile::tProfile* pProfile = PlayerProfile::GetProfile(PauseMenu::GetPausingJoystick());
     if (pProfile)
     {
@@ -1445,7 +1485,6 @@ int ScriptCB_GetControlScale(lua_State*)
     return 1;
 }
 
-// GLOBAL: SWBF2 0x007e8050
 static const CallbackEntryT sOptionsCallbacks[61] =
 {
     { "ScriptCB_SetSplitscreen", ScriptCB_SetSplitscreen },
@@ -1514,7 +1553,7 @@ static const CallbackEntryT sOptionsCallbacks[61] =
 // FUNCTION: SWBF2 0x00599090
 void InitOptions()
 {
-    for (int i = 0; i < 61; ++i)
+    for (unsigned int i = 0; i < 61; ++i)
     {
         LuaHelper::Register(sOptionsCallbacks[i].pcName, sOptionsCallbacks[i].pfnCallback, 0);
     }
@@ -1522,7 +1561,8 @@ void InitOptions()
 
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 
 // FUNCTION: SWBF2 0x00597540
 void _SetGameRules(eGAME_RULES eRules)
@@ -1601,42 +1641,50 @@ void _SetGameRules(eGAME_RULES eRules)
 }
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 // GLOBAL: SWBF2 0x007e737c
 bool gHeroesEnabled[4] = { true, true, true, false };
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 // GLOBAL: SWBF2 0x007e7fc0
 int gHeroRuleUnlock[4] = { 3, 3, 7, 1 };
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 // GLOBAL: SWBF2 0x007e7f60
 int gHeroRuleUnlockVal[4] = { 10, 10, 1, 1 };
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 // GLOBAL: SWBF2 0x007e7f70
 int gHeroRuleTeam[4] = { 3, 3, 3, 3 };
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 // GLOBAL: SWBF2 0x007e7fa0
 int gHeroRulePlayer[4] = { 1, 1, 1, 1 };
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 // GLOBAL: SWBF2 0x007e7f10
 int gHeroRuleRespawn[4] = { 2, 2, 1, 1 };
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 // GLOBAL: SWBF2 0x007e7f30
 int gHeroRuleRespawnVal[4] = { 90, 90, -1, -1 };
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 static_assert(sizeof(gNumBots) / sizeof(gNumBots[0]) == eGAMERULES_MAX, "gNumBots size");
 static_assert(sizeof(gHeroesEnabled) / sizeof(gHeroesEnabled[0]) == eGAMERULES_MAX, "gHeroesEnabled size");
 static_assert(sizeof(gHeroRuleUnlock) / sizeof(gHeroRuleUnlock[0]) == eGAMERULES_MAX, "gHeroRuleUnlock size");
@@ -1649,20 +1697,13 @@ static_assert(sizeof(gHeroRuleRespawnVal) / sizeof(gHeroRuleRespawnVal[0]) == eG
               "gHeroRuleRespawnVal size");
 }
 
-namespace Lua_Callbacks {
+namespace Lua_Callbacks
+{
 
 // GLOBAL: SWBF2 0x01e57944
 int gHuntShowScoreLimit;
 }
 
-// GLOBAL: SWBF2 0x007e8e7a
-bool netAwardsEnabled = true;
-
-// FUNCTION: SWBF2 0x005d3690
-bool GetNetAwardsEnabled()
-{
-    return netAwardsEnabled;
-}
 
 // GLOBAL: SWBF2 0x00788890
 static const unsigned char kBase64Alphabet[] =
@@ -1895,6 +1936,7 @@ void Sha512Hash(const unsigned char* input, unsigned int size, unsigned char* ou
 namespace Lua_Callbacks
 {
 
+// FUNCTION: SWBF2 0x005990d0
 void CleanupOptions()
 {
     _SetGameRules(gCurRules);
@@ -1903,7 +1945,9 @@ void CleanupOptions()
 }
 }
 
-// GLOBAL: SWBF2 0x01ec636c
 // SYNTHETIC: SWBF2 0x004041f0
 // `dynamic initializer for 'gGlobalNumBots''
+
+// GLOBAL: SWBF2 0x01ec636c
+// gGlobalNumBots
 int gGlobalNumBots = netNumBots;

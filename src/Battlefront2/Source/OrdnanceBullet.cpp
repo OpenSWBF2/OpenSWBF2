@@ -1,3 +1,4 @@
+#include <d3dx9math.h>
 #include "OrdnanceBullet.h"
 #include "PebbleFL/Common/PblVector.h"
 #include "RedEngineFL/Graphics/RedModel.h"
@@ -19,28 +20,26 @@
 #include "WaterEffect.h"
 #include "PebbleFL/Common/PblRandom.h"
 #include "RedEngineFL/Application/RedWater.h"
-#include "PebbleFL/pc/PblD3DX.h"
+
+// GLOBAL: SWBF2 0x007b2940
+// __xmm@459c4000c59c4000c59c4000c59c4000
 
 extern bool netIsLocalTurn;
 extern bool netFrameLock;
 extern bool netIsLateTurn;
 
+
 const RedColor Interpolate(const RedColor& a, const RedColor& b, float t);
 
-GameObject* ResolveGameObjectHandle(PblHandle<GameObject>& handle);
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
+
 
 PblMatrix DirectionMatrix(const PblVector3& vDir, const PblVector3& vUp, const PblVector3& vPos);
 
 namespace
 {
 
-    unsigned int GameObjectHandleId(const GameObject* pObject)
+    inline unsigned int GameObjectHandleId(const GameObject* pObject)
     {
         return pObject->mHandleId;
     }
@@ -50,22 +49,27 @@ namespace
         return pObject->GetTeam();
     }
 
-    EntityClass* GetEntityClass(GameObject* pObject)
+    inline EntityClass* GetEntityClass(GameObject* pObject)
     {
         return pObject->GetEntityClass();
     }
 
-    Controllable* GetControllable(GameObject* pObject)
+    inline Controllable* GetControllable(GameObject* pObject)
     {
         return pObject->GetControllable();
     }
 }
 
-// GLOBAL: SWBF2 0x01ef2620
 // SYNTHETIC: SWBF2 0x00405a60
 // `dynamic initializer for 'OrdnanceBulletClass::rttiHashOrdnanceBulletClass''
+// OrdnanceBulletClass::rttiHashOrdnanceBulletClass
+
+// GLOBAL: SWBF2 0x01ef2620
+// OrdnanceBulletClass::rttiHashOrdnanceBulletClass
 PblHash OrdnanceBulletClass::rttiHashOrdnanceBulletClass("OrdnanceBulletClass");
-char OrdnanceBulletClass::rttiNameOrdnanceBulletClass[] = "OrdnanceBulletClass";
+// GLOBAL: SWBF2 0x0078a7d4
+// OrdnanceBulletClass::rttiNameOrdnanceBulletClass
+const char OrdnanceBulletClass::rttiNameOrdnanceBulletClass[] = "OrdnanceBulletClass";
 
 static const RedColor kColorZero = { 0, 0, 0, 0 };
 
@@ -119,23 +123,11 @@ OrdnanceBulletClass::OrdnanceBulletClass(OrdnanceBulletClass* pBase, unsigned in
     m_fRadiusLight = pBase->m_fRadiusLight;
 }
 
-// FUNCTION: SWBF2 0x005f8b30
-bool OrdnanceBulletClass::IsRtti(unsigned int uRtti)
-{
-    return uRtti == rttiHashOrdnanceBulletClass || OrdnanceClass::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x005fa870
-unsigned int OrdnanceBulletClass::GetDerivedRtti()
-{
-    return rttiHashOrdnanceBulletClass;
-}
 
-// FUNCTION: SWBF2 0x005fa880
-const char* OrdnanceBulletClass::GetDerivedRttiName()
-{
-    return rttiNameOrdnanceBulletClass;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x005fbde0
 void OrdnanceBulletClass::SetProperty(unsigned int uProperty, const char* pszValue)
@@ -282,36 +274,29 @@ Ordnance* OrdnanceBulletClass::Build(const OrdnanceDesc& desc)
     return pBullet;
 }
 
-// GLOBAL: SWBF2 0x01ef261c
 // SYNTHETIC: SWBF2 0x00405a50
 // `dynamic initializer for 'OrdnanceBullet::rttiHashOrdnanceBullet''
+// OrdnanceBullet::rttiHashOrdnanceBullet
+
+// GLOBAL: SWBF2 0x01ef261c
+// OrdnanceBullet::rttiHashOrdnanceBullet
 PblHash OrdnanceBullet::rttiHashOrdnanceBullet("OrdnanceBullet");
-char OrdnanceBullet::rttiNameOrdnanceBullet[] = "OrdnanceBullet";
+// GLOBAL: SWBF2 0x0078a7f8
+// OrdnanceBullet::rttiNameOrdnanceBullet
+const char OrdnanceBullet::rttiNameOrdnanceBullet[] = "OrdnanceBullet";
 
 // SYNTHETIC: SWBF2 0x005fc2c6
-// [thunk]:OrdnanceBullet::`scalar deleting destructor' adjustor{152}
+// ??_EOrdnanceBullet@@WJI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x005fc2d1
-// [thunk]:OrdnanceBullet::`scalar deleting destructor' adjustor{24}
+// ??_EOrdnanceBullet@@WBI@AEPAXI@Z
 // SYNTHETIC: SWBF2 0x005fa840
 // OrdnanceBullet::`scalar deleting destructor'
 
-// FUNCTION: SWBF2 0x005f8ae0
-bool OrdnanceBullet::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashOrdnanceBullet || Ordnance::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x005fa820
-unsigned int OrdnanceBullet::GetDerivedRtti() const
-{
-    return rttiHashOrdnanceBullet;
-}
 
-// FUNCTION: SWBF2 0x005fa830
-const char* OrdnanceBullet::GetDerivedRttiName() const
-{
-    return rttiNameOrdnanceBullet;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x005fb900
 void OrdnanceBullet::CreateRicochet(const PblVector3& vPos, const PblVector3& vNormal,
@@ -379,16 +364,12 @@ void OrdnanceBullet::Render(unsigned char, float, unsigned int uiFlags)
 // FUNCTION: SWBF2 0x005fa890
 OrdnanceBullet::OrdnanceBullet(OrdnanceBulletClass* pClass, const OrdnanceDesc& desc)
     : Ordnance(pClass, desc),
-      RedSceneObject(&((OrdnanceBulletClass*)mClass)->mLodData)
+      RedSceneObject(&((OrdnanceBulletClass*)mClass)->mLodData),
+      mOldPosition(desc.mPosition),
+      mVelocity(desc.mDirection * Interpolate(
+          ((const OrdnanceBulletClass*)mClass)->mVelocity,
+          ((const OrdnanceBulletClass*)mClass->mNextCharge)->mVelocity, mRatio))
 {
-    mOldPosition = desc.mPosition;
-    OrdnanceBulletClass* pCharge = (OrdnanceBulletClass*)mClass;
-    const float fSpeed =
-        (((OrdnanceBulletClass*)pCharge->mNextCharge)->mVelocity - pCharge->mVelocity) * mRatio +
-        pCharge->mVelocity;
-    mVelocity.x = fSpeed * desc.mDirection.x;
-    mVelocity.y = desc.mDirection.y * fSpeed;
-    mVelocity.z = desc.mDirection.z * fSpeed;
     mFinalCollision = 0;
     mFinalCollisionOnNextUpdate = false;
     m_pLight = 0;
@@ -417,15 +398,12 @@ OrdnanceBullet::OrdnanceBullet(OrdnanceBulletClass* pClass, const OrdnanceDesc& 
             {
                 m_pLight->SetColor(pClass->m_colorLight);
             }
-            PblMatrix matrix = _IdentityMatrix;
-            matrix.m[3][0] = mPosition.x;
-            matrix.m[3][1] = mPosition.y;
-            matrix.m[3][2] = mPosition.z;
-            matrix.m[3][3] = 1.0f;
+            PblMatrix matrix = gMatrixIdentity;
+            matrix.SetTranslation(mPosition);
             if (m_pLight->_fBeamLength > 0.0f)
             {
                 const PblVector3& vDir = desc.mDirection;
-                *(PblVector3*)matrix.m[1] = vDir;
+                matrix[1] = vDir;
                 matrix.m[1][3] = 0.0f;
                 PblVector3 vFront(vDir.x * vDir.y - gVectorUnitY.x, vDir.y * vDir.y - gVectorUnitY.y,
                                   vDir.z * vDir.y - gVectorUnitY.z);
@@ -437,14 +415,12 @@ OrdnanceBullet::OrdnanceBullet(OrdnanceBulletClass* pClass, const OrdnanceDesc& 
                     fLength2 = vFront.x * vFront.x + vFront.y * vFront.y + vFront.z * vFront.z;
                 }
                 const float fInv = 1.0f / (float)sqrt((double)fLength2);
-                vFront.x *= fInv;
-                vFront.y *= fInv;
-                vFront.z *= fInv;
+                vFront *= fInv;
                 matrix.m[0][0] = vDir.y * vFront.z - vDir.z * vFront.y;
                 matrix.m[0][1] = vDir.z * vFront.x - vDir.x * vFront.z;
                 matrix.m[0][2] = vDir.x * vFront.y - vDir.y * vFront.x;
                 matrix.m[0][3] = 0.0f;
-                *(PblVector3*)matrix.m[2] = vFront;
+                matrix[2] = vFront;
                 matrix.m[2][3] = 0.0f;
             }
             m_pLight->SetMatrix(matrix);
@@ -457,11 +433,8 @@ OrdnanceBullet::OrdnanceBullet(OrdnanceBulletClass* pClass, const OrdnanceDesc& 
             m_pLight->SetOmniLightRadius(pClass->m_fRadiusLight);
             m_pLight->SetHaloRadius(0.0f);
             m_pLight->SetFlareIntensity(0.0f);
-            PblMatrix matrix = _IdentityMatrix;
-            matrix.m[3][0] = mPosition.x;
-            matrix.m[3][1] = mPosition.y;
-            matrix.m[3][2] = mPosition.z;
-            matrix.m[3][3] = 1.0f;
+            PblMatrix matrix = gMatrixIdentity;
+            matrix.SetTranslation(mPosition);
             m_pLight->SetMatrix(matrix);
             m_pLight->TurnOn();
         }
@@ -500,7 +473,7 @@ bool OrdnanceBullet::Update(float fDeltaTime)
                                    mVelocity.z * mVelocity.z);
         const float fInv = 1.0f / fSpeed;
         const PblVector3 vDir(mVelocity.x * fInv, mVelocity.y * fInv, mVelocity.z * fInv);
-        const GameObject* pOwner = ResolveGameObjectHandle(mOwner);
+        const GameObject* pOwner = static_cast<GameObject*>(mOwner);
         CollisionObject* pHitObject;
         const float fHit = CollisionManager::RayHit(mPosition, vDir, mLifeTime * fSpeed, pHitObject,
                                                     &mFinalCollisionNormal, pOwner ? &pOwner : 0,
@@ -559,6 +532,8 @@ bool OrdnanceBullet::Update(float fDeltaTime)
         }
     }
 
+    // GLOBAL: SWBF2 0x01faab98
+    // sWorldBox
     static const PblBox sWorldBox(-5000.0f, -5000.0f, -5000.0f, 5000.0f, 5000.0f, 5000.0f);
     const PblVector3& vRenderPos = GetRenderPos();
     if (vRenderPos.x < sWorldBox._vMin.x || sWorldBox._vMax.x < vRenderPos.x ||
@@ -608,7 +583,7 @@ bool OrdnanceBullet::Collide(CollisionObject* pObject, const PblVector3& vPos, c
     if (pVictim)
     {
         PblVector3 vDir;
-        D3DXVec3Normalize(&vDir, &mVelocity);
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&mVelocity));
         if (pVictim->Deflect(this, vPos, vDir))
         {
             return true;
@@ -659,7 +634,7 @@ bool OrdnanceBullet::Collide(CollisionObject* pObject, const PblVector3& vPos, c
             {
                 const PblVector3 vFlat(vNormal.x, 0.0f, vNormal.z);
                 PblVector3 vWind;
-                D3DXVec3Normalize(&vWind, &vFlat);
+                D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vWind), reinterpret_cast<const D3DXVECTOR3*>(&vFlat));
                 vWind = PblVector3(vWind.x * 2.0f, vWind.y * 2.0f, vWind.z * 2.0f);
                 for (int i = 3; i; --i)
                 {
@@ -699,19 +674,19 @@ bool OrdnanceBullet::Collide(CollisionObject* pObject, const PblVector3& vPos, c
             {
                 if (pVictim)
                 {
-                    PblMatrix mWorld = _IdentityMatrix;
+                    PblMatrix mWorld = gMatrixIdentity;
                     if (bShield)
                     {
                         mWorld = DirectionMatrix(vNormal, gVectorUnitY, vPos);
                     }
                     else
                     {
-                        *(PblVector3*)mWorld.m[3] = vPos;
+                        mWorld[3] = vPos;
                         mWorld.m[3][3] = 1.0f;
                     }
                     const PblMatrix mInverse = pVictim->GetMatrix().GetInverseFast();
                     PblMatrix mOffset;
-                    D3DXMatrixMultiply(&mOffset, &mWorld, &mInverse);
+                    mOffset = mWorld * mInverse;
                     pEffect->AttachEffectToObject(pVictim, mOffset, true);
                 }
                 else if (bShield)
@@ -731,5 +706,7 @@ bool OrdnanceBullet::Collide(CollisionObject* pObject, const PblVector3& vPos, c
 // SYNTHETIC: SWBF2 0x005fbc70
 // OrdnanceBulletClass::`scalar deleting destructor'
 
-// SYNTHETIC: SWBF2 0x005fbdd0
-// OrdnanceBulletClass::~OrdnanceBulletClass
+// FUNCTION: SWBF2 0x005fbdd0
+OrdnanceBulletClass::~OrdnanceBulletClass()
+{
+}

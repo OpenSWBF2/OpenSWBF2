@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 
 #include "Weapon.h"
@@ -16,17 +18,18 @@ class NetPktGroup;
 class WeaponDispenserClass : public WeaponClass
 {
 public:
+    virtual ~WeaponDispenserClass();
     WeaponDispenserClass(unsigned int uHash);
     WeaponDispenserClass(WeaponDispenserClass* pBase, unsigned int uHash);
 
     static PblHash rttiHashWeaponDispenserClass;
-    static char rttiNameWeaponDispenserClass[];
+    static const char rttiNameWeaponDispenserClass[];
 
     virtual WeaponClass* Derive(unsigned int uHash);
     virtual Weapon* Build(const WeaponDesc& desc);
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
     virtual void PostReadInit();
     virtual bool PostLoadInit();
@@ -64,6 +67,7 @@ public:
  
  
 
+// VTABLE: SWBF2 0x007b0c1c
 class WeaponDispenser : public Weapon
 {
 public:
@@ -102,7 +106,7 @@ protected:
 public:
 
     static PblHash rttiHashWeaponDispenser;
-    static char rttiNameWeaponDispenser[];
+    static const char rttiNameWeaponDispenser[];
 
     bool mNetFiredFlag;
     bool mFired;
@@ -121,3 +125,47 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x00682430
+inline bool WeaponDispenserClass::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashWeaponDispenserClass == uRtti)
+    {
+        return true;
+    }
+    return WeaponClass::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x006836d0
+inline unsigned int WeaponDispenserClass::GetDerivedRtti() const
+{
+    return rttiHashWeaponDispenserClass;
+}
+
+// FUNCTION: SWBF2 0x006836e0
+inline const char* WeaponDispenserClass::GetDerivedRttiName() const
+{
+    return rttiNameWeaponDispenserClass;
+}
+
+// FUNCTION: SWBF2 0x00682400
+inline bool WeaponDispenser::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashWeaponDispenser == uRtti)
+    {
+        return true;
+    }
+    return reinterpret_cast<const Weapon*>(this)->Weapon::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x006836b0
+inline unsigned int WeaponDispenser::GetDerivedRtti() const
+{
+    return rttiHashWeaponDispenser;
+}
+
+// FUNCTION: SWBF2 0x006836c0
+inline const char* WeaponDispenser::GetDerivedRttiName() const
+{
+    return rttiNameWeaponDispenser;
+}

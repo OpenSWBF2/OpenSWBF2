@@ -45,19 +45,18 @@ void HighLowPassFilter::Process16(const short* const pIn, unsigned int uiNumSamp
 unsigned int TurningPointsFrequency16(const short* pSamples, unsigned int uiCount,
                                        unsigned int uiSampleRate)
 {
-    short previous = 0;
-    short beforePrevious = 0;
     unsigned int turns = 0;
+    short prevData[2] = { 0, 0 };
     for (unsigned int i = 0; i < uiCount; ++i)
     {
-        short current = pSamples[i];
-        if ((beforePrevious <= previous && current < previous) ||
-            (beforePrevious >= previous && current > previous))
+        const short& sample = pSamples[i];
+        if ((prevData[1] <= prevData[0] && sample < prevData[0]) ||
+            (prevData[1] >= prevData[0] && sample > prevData[0]))
         {
             ++turns;
         }
-        beforePrevious = previous;
-        previous = current;
+        prevData[1] = prevData[0];
+        prevData[0] = sample;
     }
     return (turns >> 1) * uiSampleRate / uiCount;
 }
@@ -80,38 +79,31 @@ HighLowPassFilter::HighLowPassFilter()
 // FUNCTION: SWBF2 0x00747920
 void HighLowPassFilter::CalculateCoefficents()
 {
-
     for (unsigned int i = 0; i < mNumChannels; ++i)
     {
-        ChannelState& rState = mState[i];
-
-        float fC;
-        float fNumerator;
-
-        if (mMode == mode_LowPass)
+        switch (mMode)
         {
-            fC = 1.0f / (float)tan((double)(mCutOffFreq * kPi / mSampleRate));
-            rState.c = fC;
-            rState.a1 = 1.0f / (rState.r * fC + 1.0f + fC * fC);
-            rState.a2 = rState.a1 * 2.0f;
-            fNumerator = 1.0f - fC * fC;
+        case mode_LowPass:
+            mState[i].c = 1.0f / tanf(mCutOffFreq * kPi / mSampleRate);
+            mState[i].a1 = 1.0f / (mState[i].r * mState[i].c + 1.0f
+                                  + mState[i].c * mState[i].c);
+            mState[i].a2 = mState[i].a1 * 2.0f;
+            mState[i].a3 = mState[i].a1;
+            mState[i].b1 = (1.0f - mState[i].c * mState[i].c) * 2.0f * mState[i].a1;
+            mState[i].b2 = (1.0f - mState[i].c * mState[i].r
+                           + mState[i].c * mState[i].c) * mState[i].a1;
+            break;
+        case mode_HighPass:
+            mState[i].c = tanf(mCutOffFreq * kPi / mSampleRate);
+            mState[i].a1 = 1.0f / (mState[i].r * mState[i].c + 1.0f
+                                  + mState[i].c * mState[i].c);
+            mState[i].a2 = mState[i].a1 * -2.0f;
+            mState[i].a3 = mState[i].a1;
+            mState[i].b1 = (mState[i].c * mState[i].c - 1.0f) * 2.0f * mState[i].a1;
+            mState[i].b2 = (1.0f - mState[i].c * mState[i].r
+                           + mState[i].c * mState[i].c) * mState[i].a1;
+            break;
         }
-        else if (mMode == mode_HighPass)
-        {
-            fC = (float)tan((double)(mCutOffFreq * kPi / mSampleRate));
-            rState.c = fC;
-            rState.a1 = 1.0f / (rState.r * fC + 1.0f + fC * fC);
-            rState.a2 = rState.a1 * -2.0f;
-            fNumerator = fC * fC - 1.0f;
-        }
-        else
-        {
-            continue;
-        }
-
-        rState.a3 = rState.a1;
-        rState.b1 = fNumerator * 2.0f * rState.a1;
-        rState.b2 = (1.0f - fC * rState.r + fC * fC) * rState.a1;
     }
 }
 

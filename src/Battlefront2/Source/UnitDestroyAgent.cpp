@@ -16,18 +16,6 @@
 #include "WeaponCannonInstance.h"
 #include "PebbleFL/Common/PblRandom.h"
 
-namespace AI
-{
-
-class UnitThreatManager
-{
-public:
-    const GameObject* GetVisibleObject() const;
-    void LockThreat(GameObject* pObj);
-
-    void AddThreat(GameObject* pObj);
-};
-}
 
 namespace AIUtil
 {
@@ -44,16 +32,16 @@ float GetWeaponMinRange(const Controllable* pMe);
 namespace
 {
 
-    const CollisionObject* GetCollisionObject(const GameObject* pObject)
+    inline const CollisionObject* GetCollisionObject(const GameObject* pObject)
     {
         return static_cast<const CollisionObject*>(pObject);
     }
-    const Damageable* GetDamageable(const GameObject* pObject)
+    inline const Damageable* GetDamageable(const GameObject* pObject)
     {
         return static_cast<const Damageable*>(pObject);
     }
 
-    const GameObject* ResolveHandle(PblHandle<const GameObject>& handle)
+    inline const GameObject* ResolveHandle(PblHandle<const GameObject>& handle)
     {
         const GameObject* pObject = handle.mObject;
         if (pObject)
@@ -69,7 +57,7 @@ namespace
         return 0;
     }
 
-    const WeaponClass* GetWeaponClass(const Weapon* pWeapon)
+    inline const WeaponClass* GetWeaponClass(const Weapon* pWeapon)
     {
         return pWeapon->GetClass();
     }
@@ -78,9 +66,9 @@ namespace
         return pWeapon->IsMelee();
     }
 
-    AI::UnitThreatManager* GetThreatManager(UnitController* pCtrl)
+    inline AI::UnitThreatManager* GetThreatManager(UnitController* pCtrl)
     {
-        return reinterpret_cast<AI::UnitThreatManager*>(pCtrl->mThreatManager);
+        return &pCtrl->mThreatManager;
     }
 }
 
@@ -99,29 +87,22 @@ static float GetOptimalBuildingKillingRange(const Controllable* pMe)
     return fRange;
 }
 
-// GLOBAL: SWBF2 0x01f993b8
 // SYNTHETIC: SWBF2 0x00406cb0
 // `dynamic initializer for 'UnitDestroyAgent::rttiHashUnitDestroyAgent''
+// UnitDestroyAgent::rttiHashUnitDestroyAgent
+
+// GLOBAL: SWBF2 0x01f993b8
+// UnitDestroyAgent::rttiHashUnitDestroyAgent
 PblHash UnitDestroyAgent::rttiHashUnitDestroyAgent("UnitDestroyAgent");
-char UnitDestroyAgent::rttiNameUnitDestroyAgent[] = "UnitDestroyAgent";
+// GLOBAL: SWBF2 0x0078b82c
+// UnitDestroyAgent::rttiNameUnitDestroyAgent
+const char UnitDestroyAgent::rttiNameUnitDestroyAgent[] = "UnitDestroyAgent";
 
-// FUNCTION: SWBF2 0x00666000
-bool UnitDestroyAgent::IsRtti(unsigned int uRtti) const
-{
-    return uRtti == rttiHashUnitDestroyAgent || UnitAgent::IsRtti(uRtti);
-}
 
-// FUNCTION: SWBF2 0x00666030
-unsigned int UnitDestroyAgent::GetDerivedRtti() const
-{
-    return rttiHashUnitDestroyAgent;
-}
 
-// FUNCTION: SWBF2 0x00666040
-const char* UnitDestroyAgent::GetDerivedRttiName() const
-{
-    return rttiNameUnitDestroyAgent;
-}
+
+
+
 
 // SYNTHETIC: SWBF2 0x00666050
 // UnitDestroyAgent::`scalar deleting destructor'
@@ -204,7 +185,7 @@ void UnitDestroyAgent::CheckTargetPosition(const PblVector3& vPos)
 // FUNCTION: SWBF2 0x00666370
 void UnitDestroyAgent::UpdateStatePostVision(float dt)
 {
-    reinterpret_cast<AttackHelper*>(mAttackHelper)->Update();
+    mAttackHelper.Update();
 
     if (mCurState == STATE_Goto)
     {
@@ -252,7 +233,7 @@ void UnitDestroyAgent::UpdateStatePostVision(float dt)
                     {
                         GetLowLevel().SetNavigator_Stationary();
                         mCtrl->ForceSetAttackHelperTarget(mTarget.GetGameObject());
-                        reinterpret_cast<AI::UnitThreatManager*>(mCtrl->mThreatManager)->AddThreat(
+                        mCtrl->mThreatManager.AddThreat(
                                    const_cast<GameObject*>(mTarget.GetGameObject()));
                         bAttacking = true;
                     }

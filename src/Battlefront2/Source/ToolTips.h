@@ -107,7 +107,7 @@ public:
     FilteredInput mInput;
     FsmState mState;
     unsigned char mCameraIdx;
-    TipClass* mClass;
+    const TipClass* mClass;
     float mTimer;
     unsigned char mShowCnt;
 };

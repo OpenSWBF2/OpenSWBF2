@@ -270,13 +270,15 @@ void CaptureDisplay::UpdateCapture(int iTeam, int iOtherTeam, float fRatio)
         return;
     }
     mSplitRatio = 1.0f - fRatio;
-    int iTop = iOtherTeam;
-    if (!iOtherTeam || ((int)(GameLoop::GetMissionTime() * 2.0f) & 1))
+    if (iOtherTeam && !((int)(GameLoop::GetMissionTime() * 2.0f) & 1))
     {
-        iTop = 0;
+        mColorTop = mOwner->mTeamPtr->GetColor(iOtherTeam);
     }
-    mColorTop = mOwner->mTeamPtr->mColor[iTop];
-    mColorBottom = mOwner->mTeamPtr->mColor[iTeam];
+    else
+    {
+        mColorTop = mOwner->mTeamPtr->GetColor(0);
+    }
+    mColorBottom = mOwner->mTeamPtr->GetColor(iTeam);
     UpdateIcon();
 }
 
@@ -288,8 +290,8 @@ void CaptureDisplay::UpdateNeutralize(int iTeam, float fRatio)
         return;
     }
     mSplitRatio = fRatio;
-    mColorTop = mOwner->mTeamPtr->mColor[0];
-    mColorBottom = mOwner->mTeamPtr->mColor[iTeam];
+    mColorTop = mOwner->mTeamPtr->GetColor(0);
+    mColorBottom = mOwner->mTeamPtr->GetColor(iTeam);
     UpdateIcon();
 }
 

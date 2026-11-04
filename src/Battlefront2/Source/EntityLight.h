@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblHashTable.h"
+
 #include <stddef.h>
 #include "Entity.h"
 #include "FLEffect.h"
@@ -10,6 +12,9 @@
 class RedLight;
 class EntityLightClass;
 
+// VTABLE: SWBF2 0x0079bfe0 Thread
+// VTABLE: SWBF2 0x0079c154 PblHandled
+// VTABLE: SWBF2 0x0079c164
 class EntityLight : public Entity, public FLEffectObject
 {
 public:
@@ -25,7 +30,9 @@ public:
         NumLightFlickerTypes = 6,
     };
 
-    static void* operator new(size_t uiSize) { return sMemoryPool.Allocate(uiSize); }
+    static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }
+    // SYNTHETIC: SWBF2 0x004cac30
+    // EntityLight::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
     EntityLight();
@@ -79,7 +86,7 @@ public:
     EntityLightClass* _lightClass;
 
     static PblHash rttiHashEntityLight;
-    static char rttiNameEntityLight[];
+    static const char rttiNameEntityLight[];
     static MemoryPool sMemoryPool;
 };
  
@@ -101,7 +108,8 @@ public:
     {
     }
 
-    virtual ~EntityLightFXParser();
+    // SYNTHETIC: SWBF2 0x004ccb30
+    // EntityLightFXParser::`scalar deleting destructor'
     virtual void Render(int value);
     virtual void Init();
     virtual void Cleanup();
@@ -115,8 +123,8 @@ public:
     static EntityLightFXParser* s_pInstance;
 };
  
- // VTABLE: SWBF2 0x0079c088
-// VTABLE: SWBF2 0x0079c0ac
+ // VTABLE: SWBF2 0x0079c088 EntityClass
+// VTABLE: SWBF2 0x0079c0ac FLEffectClass
 class EntityLightClass : public EntityClass, public FLEffectClass
 {
 public:
@@ -141,17 +149,15 @@ public:
 
     virtual EntityClass* Derive(unsigned int uHash);
     virtual Entity* Build(const EntityDesc& desc);
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
     virtual FLEffectObject* BuildEffect();
 
     static unsigned int GetRtti() { return rttiHashEntityLightClass; }
     static PblHash rttiHashEntityLightClass;
-    static char rttiNameEntityLightClass[];
-
-    static int sLightClassTableNumEntries;
+    static const char rttiNameEntityLightClass[];
 
     static void Reset();
     static PblHashTable<EntityLightClass, 32> sLightClassTable;
@@ -206,3 +212,49 @@ public:
  
  
  
+
+// FUNCTION: SWBF2 0x004cca60
+inline bool EntityLight::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashEntityLight == uRtti)
+    {
+        return true;
+    }
+    return Entity::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x004cca90
+inline unsigned int EntityLight::GetDerivedRtti() const
+{
+    return rttiHashEntityLight;
+}
+
+// FUNCTION: SWBF2 0x004ccaa0
+inline const char* EntityLight::GetDerivedRttiName() const
+{
+    return rttiNameEntityLight;
+}
+
+// FUNCTION: SWBF2 0x004ccab0
+inline bool EntityLightClass::IsRtti(unsigned int uRtti) const
+{
+    if (rttiHashEntityLightClass == uRtti)
+    {
+        return true;
+    }
+    return EntityClass::IsRtti(uRtti);
+}
+
+// FUNCTION: SWBF2 0x004ccae0
+inline unsigned int EntityLightClass::GetDerivedRtti() const
+{
+    return rttiHashEntityLightClass;
+}
+
+// FUNCTION: SWBF2 0x004ccaf0
+inline const char* EntityLightClass::GetDerivedRttiName() const
+{
+    return rttiNameEntityLightClass;
+}
+
+

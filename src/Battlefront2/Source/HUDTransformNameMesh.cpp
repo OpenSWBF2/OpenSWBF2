@@ -1,19 +1,18 @@
+#include <new>
 #include <stdlib.h>
 
 #include "HUDTransformNameMesh.h"
 #include "RedEngineFL/Graphics/RedModel.h"
 
-HUD::TransformNameMesh::Factory::Factory()
-    : HUD::Item::Factory(0x67c3c715u)
-{
-    mName = "TransformNameMesh";
-}
 
-// GLOBAL: SWBF2 0x007ebabc
+
 // SYNTHETIC: SWBF2 0x004040c0
 // `dynamic initializer for 'HUD::TransformNameMesh::sTransformNameMeshList''
 // SYNTHETIC: SWBF2 0x00768c30
 // `dynamic atexit destructor for 'HUD::TransformNameMesh::sTransformNameMeshList''
+
+// GLOBAL: SWBF2 0x007ebabc
+// HUD::TransformNameMesh::sTransformNameMeshList
 PblListSingle HUD::TransformNameMesh::sTransformNameMeshList;
 
 static const unsigned int kNameMeshHash = 0x63cc538f;
@@ -170,10 +169,6 @@ HUD::TransformNameMesh::~TransformNameMesh()
     for (unsigned int i = 0; i < mNumInheritNames; ++i)
     {
         HUD::FreeName(&mInheritNames[i]);
-    }
-    if (mTransformNameMeshNode.mNext)
-    {
-        mTransformNameMeshNode.Remove();
     }
 }
 

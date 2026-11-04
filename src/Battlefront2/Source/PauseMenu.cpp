@@ -32,11 +32,17 @@
 #include "SoundFL/source/win/sndengine.h"
 #include "Trigger.h"
 #include "PlayerController.h"
+namespace GameLoop
+{
 
 // GLOBAL: SWBF2 0x01e5600b
-namespace GameLoop { bool sFreeMode; }
+bool sFreeMode;
+}
 
-namespace GameLoop { void SetFreeMode(bool bFreeCamera); }
+namespace GameLoop
+{
+void SetFreeMode(bool bFreeCamera);
+}
 
 // FUNCTION: SWBF2 0x00533600
 void GameLoop::SetFreeMode(bool bFreeCamera)
@@ -62,32 +68,37 @@ public:
     static void EnableViewport(unsigned int uiViewport, bool bEnable);
 };
 
-namespace GameLoop { void SetFreeMode(bool bFreeCamera); }
-namespace PopupText { void DisablePopup(); }
+namespace GameLoop
+{
+void SetFreeMode(bool bFreeCamera);
+}
+namespace PopupText
+{
+void DisablePopup();
+}
 
 extern bool gAttractMode;
 extern bool sPauseMenuSoundEnabled;
-extern int gActiveViewport;
 extern bool gPauseReverbEnabled;
 extern int gSkipToPlayerListState;
 extern float gSkipToPlayerListTime;
 
 // GLOBAL: SWBF2 0x007e8ef0
 int PauseMenu::sPausingViewport = -1;
-// GLOBAL: SWBF2 0x01ec0aac
 
-int gActiveViewport;
 
 // GLOBAL: SWBF2 0x01eaedbd
 bool PauseMenu::sSkipToPlayerList;
 // GLOBAL: SWBF2 0x01eaedd5
 bool PauseMenu::sPauseDedicated;
 
-// GLOBAL: SWBF2 0x01ef7ee8
 // SYNTHETIC: SWBF2 0x00405ed0
 // `dynamic initializer for '_sPauseMenuInstance''
 // SYNTHETIC: SWBF2 0x00769310
 // `dynamic atexit destructor for '_sPauseMenuInstance''
+
+// GLOBAL: SWBF2 0x01ef7ee8
+// _sPauseMenuInstance
 PauseMenu _sPauseMenuInstance[1];
 
 // GLOBAL: SWBF2 0x007e8eec
@@ -168,7 +179,7 @@ int PauseMenu::GetPausingViewport()
         return PauseMenu::sPausingViewport;
     }
 
-    return (gActiveViewport >= 0) ? gActiveViewport : 0;
+    return (FLInputManager::Instance()->GetPrimaryPort() >= 0) ? FLInputManager::Instance()->GetPrimaryPort() : 0;
 }
 
 // FUNCTION: SWBF2 0x00616450
@@ -180,7 +191,7 @@ int PauseMenu::GetPausingJoystick()
         int iJoystick = FLInputManager::s_instance.GetHWPort(iViewport);
         return (iJoystick >= 0) ? iJoystick : iViewport;
     }
-    return (gActiveViewport >= 0) ? gActiveViewport : 0;
+    return (FLInputManager::Instance()->GetPrimaryPort() >= 0) ? FLInputManager::Instance()->GetPrimaryPort() : 0;
 }
 
 // FUNCTION: SWBF2 0x00616480
@@ -249,7 +260,7 @@ void PauseMenu::_SetPauseAudio(bool bPause)
         GameSoundEngine::StopAll();
     }
 
-    if (NetGame::IsEnabled() && GameLoop::GetNumCameras() > 1)
+    if (NetGame::IsEnabled() && NetGame::GetNumLocalPlayers() > 1)
     {
         return;
     }
@@ -371,7 +382,7 @@ void PauseMenu::_SetPaused(bool bPaused)
     if (sPauseMenuSoundEnabled)
     {
         EnableDisplays(iViewport, !mVisible);
-        for (int i = 0; i < 5; ++i)
+        for (unsigned int i = 0; i < 5; ++i)
         {
             HUD::gScreenGroup[i].Enable(!mVisible);
             HUD::gScreenGroupEdit[i].Enable(HUD::gScreenGroupEditEnabled && !mVisible);
@@ -433,7 +444,7 @@ void PauseMenu::_SetStatsVisible()
     {
         pGui->PushScreen("ifs_teamstats", GetPausingJoystick(), 0);
     }
-    FLInputManager::s_instance.SetHotController(gActiveViewport);
+    FLInputManager::s_instance.SetHotController(FLInputManager::Instance()->GetPrimaryPort());
 }
 
 // FUNCTION: SWBF2 0x00616ae0
@@ -462,13 +473,13 @@ bool PauseMenu::Update(float fDeltaTime)
     bool bStart = pGuiInputs->IsStartPressed();
 
     SpawnDisplay* pSpawn = SpawnDisplay::Instance(iViewport);
-    if (pSpawn->mVisible || !NetGame::IsEnabled())
+    if (*((bool*)pSpawn + 0x1fea) || !NetGame::IsEnabled())
     {
         bPlayerList = false;
     }
 
     bool bGameOver = GameLoop::IsGameOver();
-    if (bStart && bGameOver && playerJoystickNumbers[11 * iViewport] != gActiveViewport)
+    if (bStart && bGameOver && PlayerPrefs::mAllUserPrefs[iViewport].mJoystick != FLInputManager::Instance()->GetPrimaryPort())
     {
         bStart = false;
         bPlayerList = false;
@@ -507,7 +518,7 @@ bool PauseMenu::Update(float fDeltaTime)
 
     if (GameLoop::IsGameOver())
     {
-        SpawnDisplay::EnableViewport(iViewport);
+        SpawnDisplay::EnableViewport(iViewport, false);
         EnableDisplays(iViewport, false);
         EnableScreenGroups(false);
     }
@@ -551,7 +562,8 @@ bool PauseMenu::AllStatsDone()
     return true;
 }
 
-namespace PopupText {
+namespace PopupText
+{
 enum PopupType { DISABLED = 0, HINT = 1, OBJECTIVE = 2, SELECTION = 3, MAX_POPUP_TYPES = 4 };
 extern PopupType gType;
 extern bool gMapEnabled[1];
@@ -561,7 +573,10 @@ extern Trigger gButtonTrigger;
 bool IsEnabled();
 }
 
-namespace ObjectiveManager { int GetCurrentPopupText(); }
+namespace ObjectiveManager
+{
+unsigned int GetCurrentPopupText();
+}
 
 // FUNCTION: SWBF2 0x00620d20
 void PopupText::DisablePopup()
