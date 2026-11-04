@@ -40,7 +40,7 @@ public:
 
     ~Space();
 
-    static void* operator new(size_t)
+    static void* operator new(unsigned int)
     {
         return smFreeList.Alloc();
     }

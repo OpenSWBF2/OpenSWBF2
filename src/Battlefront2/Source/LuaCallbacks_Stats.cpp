@@ -969,10 +969,16 @@ int ScriptCB_TeamStatsSetTitles(lua_State* L)
         Red3DModelElementLite* pIcon = (Red3DModelElementLite*)RedInterfaceElement::Find(0xb0fcda7cu);
         const bool bSlot = PblInBounds(pTeam1->mColor, (int)fSlot);
         pIcon->SetModel(GetSideIcon(pTeam1->GetSide()));
-        pIcon->SetColor(pTeam1->GetColor((int)fSlot));
+        if (bSlot)
+        {
+            pIcon->SetColor(pTeam1->GetColor((int)fSlot));
+        }
         pIcon = (Red3DModelElementLite*)RedInterfaceElement::Find(0x14bdc17du);
         pIcon->SetModel(GetSideIcon(pTeam2->GetSide()));
-        pIcon->SetColor(pTeam2->GetColor((int)fSlot));
+        if (bSlot)
+        {
+            pIcon->SetColor(pTeam2->GetColor((int)fSlot));
+        }
     }
     return 0;
 }
@@ -992,7 +998,10 @@ int ScriptCB_PersonalStatsSetTitles(lua_State* L)
         }
         Red3DModelElementLite* pIcon = (Red3DModelElementLite*)RedInterfaceElement::Find(0x262d6743u);
         pIcon->SetModel(GetSideIcon(pTeam->GetSide()));
-        pIcon->SetColor(pTeam->GetColor(iSlot));
+        if (PblInBounds(pTeam->mColor, iSlot))
+        {
+            pIcon->SetColor(pTeam->GetColor(iSlot));
+        }
     }
     return 0;
 }

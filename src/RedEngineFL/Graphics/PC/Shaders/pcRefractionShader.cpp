@@ -14,7 +14,6 @@
 #include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblVector.h"
 #include <math.h>
-#include "PebbleFL/pc/PblD3DX.h"
 
 void __cdecl PblTraceP(const char* Format, ...);
 

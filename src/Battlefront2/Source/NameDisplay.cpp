@@ -306,7 +306,7 @@ bool NameDisplayThread::Update(float)
         {
             text.m_color = pLocalCharacter->GetTeamPtr()->GetColor(pCharacter->GetTeamNumber());
             if (NetGame::IsEnabled() && pCharacter->GetTeamNumber() == pLocalCharacter->GetTeamNumber() &&
-                FriendBuddyList::IsFriendBuddy(i))
+                FriendBuddyList::IsFriendBuddy(NetGame::GetLocalIndex(mJoystickIndex), i))
             {
                 RedColor white(gHudHighlightColor);
                 text.m_color = white;

@@ -9,14 +9,6 @@ struct NetSocketPeerRecord
     galaxy::api::GalaxyID mGalaxyId;
     sockaddr_in mSocketAddress;
 };
-
-#pragma pack(push, 4)
-struct NetJoinSlot
-{
-    float mLastTime;
-    NetSocketPeerRecord mPeer;
-};
-#pragma pack(pop)
  
  
 

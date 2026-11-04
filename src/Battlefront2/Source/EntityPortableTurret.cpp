@@ -10,7 +10,6 @@
 #include "CollisionModel.h"
 #include "NetGame.h"
 #include "PebbleFL/Common/PblVector.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x004d89d0
 EntityPortableTurretClass::EntityPortableTurretClass(unsigned int uHash)

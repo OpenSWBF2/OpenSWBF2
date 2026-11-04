@@ -5,7 +5,6 @@
 #include <d3dx9math.h>
 
 #include "BirdEffect.h"
-#include "Entity.h"
 #include "CameraManager.h"
 #include "CollisionManager.h"
 #include "CollisionObject.h"
@@ -1118,14 +1117,16 @@ bool BirdParticleManager::Update(float fDeltaTime)
 
 
 
-// TEMPLATE: SWBF2 0x00446d90
-// PblList<Factory<Entity,EntityClass,EntityDesc> >::Itor::operator->
-template Factory<Entity, EntityClass, EntityDesc>*
-PblList<Factory<Entity, EntityClass, EntityDesc> >::Itor::operator->() const;
+// FUNCTION: SWBF2 0x00446d90
+unsigned int __fastcall sub_446D90(const unsigned int* pThis)
+{
+    return *(const unsigned int*)(*pThis + 12);
+}
 
-// TEMPLATE: SWBF2 0x00446da0
-// PblList<Factory<Entity,EntityClass,EntityDesc> >::Itor::operator*
-template Factory<Entity, EntityClass, EntityDesc>&
-PblList<Factory<Entity, EntityClass, EntityDesc> >::Itor::operator*() const;
+// FUNCTION: SWBF2 0x00446da0
+unsigned int __fastcall sub_446DA0(const unsigned int* pThis)
+{
+    return *(const unsigned int*)(*pThis + 12);
+}
 
 

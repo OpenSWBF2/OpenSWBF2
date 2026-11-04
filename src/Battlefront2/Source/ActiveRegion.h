@@ -5,11 +5,9 @@
 #include "Thread.h"
 #include "PebbleFL/Common/PblBitVector.h"
 #include "PebbleFL/Common/PblHashTable.h"
-#include "PebbleFL/Common/PblList.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 #include "RedEngineFL/Util/RedRegion.h"
 
-class Controllable;
 struct lua_State;
 
 namespace ActiveRegions
@@ -28,7 +26,7 @@ public:
 
     PblBitVector<600> GetPlayersInRegion();
 
-    static void* operator new(size_t uSize);
+    static void* operator new(unsigned int uSize);
 
     // SYNTHETIC: SWBF2 0x004375c0
     // ActiveRegions::ActiveRegion::operator delete

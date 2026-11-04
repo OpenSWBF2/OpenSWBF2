@@ -43,7 +43,7 @@ public:
     virtual void Play();
     virtual bool Update(float fDeltaTime);
 
-    static void* operator new(size_t uSize);
+    static void* operator new(unsigned int uSize);
 
     // SYNTHETIC: SWBF2 0x004fb470
     // EntitySoundStatic::operator delete

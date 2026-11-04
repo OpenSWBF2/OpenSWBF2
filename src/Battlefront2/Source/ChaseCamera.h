@@ -6,7 +6,6 @@
 #include "GameCamera.h"
 #include "PebbleFL/Common/PblMatrix.h"
 #include "PebbleFL/Common/PblQuaternion.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 class Trackable;
 

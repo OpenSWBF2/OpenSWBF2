@@ -3,7 +3,6 @@
 
 #include <stddef.h>
 #include "GamePath.h"
-#include "PebbleFL/Common/PblHandle.h"
 
 class AIPath;
 class GameObject;

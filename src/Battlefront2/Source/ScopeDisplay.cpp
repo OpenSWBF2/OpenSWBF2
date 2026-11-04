@@ -12,6 +12,16 @@
 #include "RedEngineFL/Graphics/RedCamera.h"
 #include "RedEngineFL/Graphics/PC/pcRedTexture.h"
 
+class Weapon : public Thread
+{
+public:
+    bool ZoomFirstPerson() const;
+
+    char mWeaponState[0x64 - sizeof(Thread)];
+    WeaponClass* mClass;
+};
+ 
+
 namespace FLRenderer
 {
 

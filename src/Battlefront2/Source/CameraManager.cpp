@@ -55,6 +55,8 @@ extern bool netIsLocalTurn;
 extern bool netIsLateTurn;
 extern bool gCentreSpeakerEnhancement;
 
+typedef const PblVector3& (__fastcall *ObjectVelocityFn)(GameObject* pThis, void*);
+typedef Controllable* (__fastcall *ObjectControllableFn)(GameObject* pThis, void*);
 static CollisionObject* GetObjectCollision(GameObject* pObject)
 {
     return static_cast<CollisionObject*>(pObject);
@@ -171,6 +173,20 @@ void CameraManager::SetNumCameras(unsigned int uiNumCameras)
         FLRenderer::SetSceneEnable(m_hView[1], false);
         break;
     }
+    }
+}
+
+void CameraManager::RefreshAspect()
+{
+    float fAspectRatio = RedRenderer::GetScreenAspectRatio();
+    if (m_iNumCam == 2)
+    {
+        fAspectRatio *= 0.5f;
+    }
+    unsigned int uiCount = sizeof(mRedCamera) / sizeof(mRedCamera[0]);
+    for (unsigned int i = 0; i < m_iNumCam && i < uiCount; i++)
+    {
+        mRedCamera[i]->SetPerspective(0.7f, 120.0f, 0.83775806f, fAspectRatio);
     }
 }
 

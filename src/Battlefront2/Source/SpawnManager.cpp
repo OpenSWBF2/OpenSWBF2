@@ -200,7 +200,7 @@ void SpawnManager::AddPlayerCharacter(int iTeam, int iPlayer)
                 pTeam->GetMemberPtr(i)->GetControllable()->GetGameObject())
             {
                 int iPlayerId = pTeam->GetMemberPtr(i)->mPlayerId;
-                if (FriendBuddyList::IsFriendBuddy(iPlayerId))
+                if (FriendBuddyList::IsFriendBuddy(NetGame::GetLocalIndex(iPlayer), iPlayerId))
                 {
                     ToolTipsDisplay::sInstance->ShowTip(TTT_FriendsListColor, 0);
                 }

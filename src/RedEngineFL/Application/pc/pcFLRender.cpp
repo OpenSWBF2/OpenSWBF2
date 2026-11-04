@@ -27,7 +27,6 @@
 #include "Battlefront2/Source/GameMovie.h"
 #include "RedEngineFL/Application/pc/pcRenderHelpers.h"
 #include <math.h>
-#include "PebbleFL/pc/PblD3DX.h"
 
 // GLOBAL: SWBF2 0x007de9c0
 bool enableReflection = true;

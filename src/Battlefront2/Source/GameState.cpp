@@ -1,5 +1,3 @@
-#include <new>
-#include <stdexcept>
 #include <vector>
 
 #include <windows.h>
@@ -222,6 +220,12 @@
 #include "GameVoiceChat.h"
 #include "GameVoiceChatNode.h"
 #include "PebbleFL/Common/PblJournal.h"
+
+namespace std
+{
+__declspec(noreturn) void __cdecl _Xbad_alloc();
+__declspec(noreturn) void __cdecl _Xlength_error(const char*);
+}
 
 namespace DownloadableContent
 {
@@ -1368,7 +1372,7 @@ void GameState::MissionState::Enter()
     GameLoop::Init();
     GameLoop::PostLoad();
 
-    unsigned int uiCount = CameraManager::sInstance->GetNumCameras();
+    unsigned int uiCount = *(unsigned int*)((char*)CameraManager::sInstance + 0x1c);
     for (unsigned int i = 0; i < uiCount; ++i)
     {
         int iIndex = FLInputManager::s_instance.GetHWPort(i);

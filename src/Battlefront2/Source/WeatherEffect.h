@@ -9,7 +9,7 @@
 #include "RedEngineFL/Util/RedRegion.h"
 
 class FLEffectClass;
-struct PrecipitationData;
+class PrecipitationData;
 class RedRegionDesc;
 class pcRedShader;
 

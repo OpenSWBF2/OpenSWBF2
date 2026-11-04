@@ -151,7 +151,7 @@ class Sound::Properties : public SoundProperties,
 public:
     Properties();
 
-    static void* operator new(size_t)
+    static void* operator new(unsigned int)
     {
         return smFreeList.Alloc();
     }

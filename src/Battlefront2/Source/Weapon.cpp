@@ -1256,12 +1256,12 @@ MemoryPool Weapon::sMemoryPool("Weapon", 0x110);
 
 // SYNTHETIC: SWBF2 0x00677650
 // Weapon::operator delete
-inline void Weapon::operator delete(void* p)
+void Weapon::operator delete(void* p)
 {
     sMemoryPool.Free(p);
 }
 
-inline void* Weapon::operator new(size_t uSize)
+void* Weapon::operator new(size_t uSize)
 {
     return sMemoryPool.Allocate(uSize);
 }

@@ -4,7 +4,6 @@
 #include "PebbleFL/Common/PblHashTable.h"
 #include "RedEngineFL/Graphics/RedModel.h"
 #include "RedEngineFL/Graphics/RedPose.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 extern float gRedInterfaceTranslateZ;
 

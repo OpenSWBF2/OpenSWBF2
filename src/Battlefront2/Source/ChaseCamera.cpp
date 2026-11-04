@@ -17,7 +17,6 @@
 #include "RedEngineFL/Graphics/RedCamera.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "RedEngineFL/Interface/RedInterfaceScreen.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 class PblMatrix;
 extern PblMatrix gMatrixIdentity;
@@ -75,6 +74,8 @@ static inline CollisionObject* GetCollisionObject(GameObject* pObject)
 }
 
 
+
+typedef const PblVector3& (__fastcall *GetVelocityFn)(GameObject* pThis, void*);
 
 // FUNCTION: SWBF2 0x00453730
 ChaseCamera::ChaseCamera(CameraManager* pManager, int iView)

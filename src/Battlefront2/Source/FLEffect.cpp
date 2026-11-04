@@ -5,7 +5,6 @@
 #include "CollisionObject.h"
 #include "Entity.h"
 #include "GameModel.h"
-#include "GameObject.h"
 #include "NetGame.h"
 #include "PebbleFL/Common/PblChunk.h"
 #include "PebbleFL/Common/PblConfig.h"
@@ -186,6 +185,7 @@ void FLEffect::CleanupAll()
     EntityLightFXParser::Destroy();
 
     s_EffectFactories.Clear();
+    FLEffectObject::sLuaHandles.Clear();
 }
 
 // FUNCTION: SWBF2 0x00526db0

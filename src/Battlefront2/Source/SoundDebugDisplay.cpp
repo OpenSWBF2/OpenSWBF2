@@ -5,7 +5,6 @@
 #include "SoundDebugDisplay.h"
 #include "GameVoiceChat.h"
 #include "GameVoiceChatDecoder.h"
-#include "GameVoiceChatEncoder.h"
 #include "GameVoiceChatNode.h"
 #include "GameVoiceChatTransport.h"
 #include "VoiceChatNode.h"
@@ -48,7 +47,7 @@ void SoundDebugDisplay::DisplayVoiceChatInfo()
     {
         GameVoiceChat::Node* pNode = GameVoiceChat::GetEnabledNode(uiEnabled);
         const unsigned char ucNodeID = pNode->mNodeID;
-        GameVoiceChat::Encoder* const pEncoder = static_cast<GameVoiceChat::Encoder*>(pNode->mEncoder);
+        char* const pEncoder = (char*)pNode->mEncoder;
         GameVoiceChat::Decoder* const pDecoder = pNode->mDecoder ?
             static_cast<GameVoiceChat::Decoder*>(pNode->mDecoder) : 0;
         Printf("Headset %d (player id=%d)\n", uiEnabled, ucNodeID);
@@ -97,15 +96,15 @@ void SoundDebugDisplay::DisplayVoiceChatInfo()
             Printf("No other players connected\n");
         }
 
-        const char* pcEncoder = GetPlayStateStringShort(static_cast<Snd::StreamNode&>(pEncoder->mEncoder).GetPlayState());
-        const char* pcVAD = GetPlayStateStringShort(static_cast<Snd::StreamNode&>(pEncoder->mVAD).GetPlayState());
-        const char* pcAGC = GetPlayStateStringShort(static_cast<Snd::StreamNode&>(pEncoder->mAGC).GetPlayState());
-        const char* pcSource = GetPlayStateStringShort(static_cast<Snd::StreamNode&>(pEncoder->mSource).GetPlayState());
+        const char* pcEncoder = GetPlayStateStringShort(((Snd::SourceTransport*)(pEncoder + 0x78))->GetPlayState());
+        const char* pcVAD = GetPlayStateStringShort(((Snd::SourceTransport*)(pEncoder + 0x478))->GetPlayState());
+        const char* pcAGC = GetPlayStateStringShort(((Snd::SourceTransport*)(pEncoder + 0x4b8))->GetPlayState());
+        const char* pcSource = GetPlayStateStringShort(((Snd::SourceTransport*)(pEncoder + 0x08))->GetPlayState());
         Printf("capture: src %s, agc %s, vad %s, enc %s", pcSource, pcAGC, pcVAD, pcEncoder);
 
         Snd::StreamNode* pRenderer = &static_cast<Snd::StreamNode&>(pDecoder->mAuxRenderer);
         const char* pcStarving = pRenderer->IsStarving() ? "stv" : "ok ";
-        const char* pcPlayState = GetPlayStateStringShort(pRenderer->GetPlayState());
+        const char* pcPlayState = GetPlayStateStringShort(((Snd::SourceTransport*)pRenderer)->GetPlayState());
         Snd::StreamMixer* pMixer = &pDecoder->mMixer;
         Printf("render : mix %s, aux %s %s %2d:%2d\n",
                pMixer->IsActive() ? "ply" : "stp", pcPlayState, pcStarving, 0, 0);

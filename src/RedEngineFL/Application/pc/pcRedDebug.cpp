@@ -13,8 +13,6 @@
 #include "RedEngineFL/Application/pc/pcRenderStateHelpers.h"
 #include "RedEngineFL/Graphics/PC/pcRedPrimitive.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
-#include "PebbleFL/pc/PblD3DX.h"
-#include "Battlefront2/Platform/Pc/pcSunFlare.h"
 
 namespace FLRenderer
 {

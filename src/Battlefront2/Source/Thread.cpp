@@ -1,4 +1,3 @@
-#include <stddef.h>
 #include "Thread.h"
 #include "NetGame.h"
 #include "PebbleFL/Common/PblPtrOrder.h"
@@ -128,7 +127,7 @@ void Thread::ActivateThread(int iOrder, ThreadType eThreadType)
     }
 
     ThreadGroup* pGroup = pList->FindCreate(-iOrder);
-    pGroup->mThreads.Add(&mThreadListNode, this, (int)this);
+    pGroup->mThreads.Add(&mThreadListNode, this, PblPtrOrderKey(this));
 }
 
 // FUNCTION: SWBF2 0x00657760

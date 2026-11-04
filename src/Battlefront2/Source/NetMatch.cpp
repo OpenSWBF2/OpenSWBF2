@@ -55,8 +55,8 @@ extern float netNextLanQueryTime;
 extern int netLanQueryCount;
 extern unsigned int netLanQuerySequence;
 extern unsigned __int64 netLocalGSID;
-extern SOCKET netBroadcastSendSocket;
-extern SOCKET netBroadcastRecvSocket;
+extern unsigned int netBroadcastSendSocket;
+extern unsigned int netBroadcastRecvSocket;
 extern bool netLobbyRequestPending;
 extern bool netLeavingLobby;
 extern bool netHandlingFindPacket;
@@ -119,7 +119,9 @@ void NetAddr::GetAddr(NetSocketPeerRecord& out, NetKey*) const
     {
         if (!hasPriv)
         {
-            __debugbreak();
+            NetSocket::SetAddr(out, 0, 0);
+            NetRejectCount(NET_REJECT_BAD_ADDR);
+            return;
         }
         NetSocket::SetAddr(out, privAddr, privPort);
     }
@@ -170,8 +172,8 @@ void NetMatch::StartRegisterGame(bool)
     }
 
     netMatchOperation = 1;
-    galaxy::api::IMatchmaking* matchmaking = GetGalaxyMatchmaking();
-    matchmaking->CreateLobby(2, NetSetup::GetMaxPlayers(), false, 2);
+    void* matchmaking = GetGalaxyMatchmaking();
+    ((galaxy::api::IMatchmaking*)matchmaking)->CreateLobby(2, NetSetup::GetMaxPlayers(), false, 2);
     if (!gf::checkError())
     {
         netLobbyState = 3;
@@ -215,9 +217,9 @@ void __fastcall NetMatch::EndFindGames(bool clearMatchmaking)
     if (NetComm::IsLAN())
     {
         closesocket((SOCKET)netBroadcastSendSocket);
-        netBroadcastSendSocket = 0;
+        netBroadcastSendSocket = INVALID_SOCKET;
         closesocket((SOCKET)netBroadcastRecvSocket);
-        netBroadcastRecvSocket = 0;
+        netBroadcastRecvSocket = INVALID_SOCKET;
         return;
     }
     netLobbyState = 0;
@@ -389,7 +391,7 @@ void __fastcall HandleFindPacket(NetPacket* packet)
         return;
     }
     netHandlingFindPacket = true;
-    if (NetComm::Header(packet).type != PKT_FIND)
+    if (packet->mData[2])
     {
         packet->Free();
         netHandlingFindPacket = false;
@@ -438,7 +440,7 @@ void __fastcall HandleFoundPacket(NetPacket* packet, const void* source)
     NetPktGroup group;
     group.Set(packet);
     group.BeginRead();
-    if (NetComm::Header(packet).type == PKT_FOUND)
+    if ((unsigned char)packet->mData[2] == 1)
     {
         unsigned int sequence;
         group.ReadBits(sequence, 32);
@@ -453,6 +455,7 @@ void __fastcall HandleFoundPacket(NetPacket* packet, const void* source)
                 ReadString(group, data.mName, 64);
                 ReadString(group, data.mMapType, 32);
                 NetAddr address;
+                bool addressOk = true;
                 NetKey key;
 
                 NetSessionId session;
@@ -475,8 +478,11 @@ void __fastcall HandleFoundPacket(NetPacket* packet, const void* source)
                 data.mNumPlayers = numPlayers;
                 data.mMaxPlayers = maxPlayers;
                 data.mMapName[0] = 0;
-                NetSetupP::AddGame(address);
-                NetSetupP::UpdateGame(address, &key, &session, NetSetup::GetGameVersion(), data, 0);
+                if (addressOk)
+                {
+                    NetSetupP::AddGame(address);
+                    NetSetupP::UpdateGame(address, &key, &session, NetSetup::GetGameVersion(), data, 0);
+                }
             }
         }
     }
@@ -523,7 +529,11 @@ void NetMatch::HostGetAddr(NetAddr& address, NetAddr& output, int destination)
         }
         else
         {
-            __debugbreak();
+            output.mGalaxyId = address.mGalaxyId;
+            output.hasPriv = false;
+            output.privAddr = 0;
+            output.privPort = 0;
+            NetRejectCount(NET_REJECT_BAD_ADDR);
         }
         NetSetupP::GetMyAddr() = address;
     }
@@ -573,8 +583,8 @@ char const* NetMatch::GetLoginOverrideName(int  )
         }
         if (!pcName)
         {
-            galaxy::api::IFriends* pFriends = GetGalaxyFriends();
-            pcName = pFriends->GetPersonaName();
+            void* pFriends = GetGalaxyFriends();
+            pcName = ((galaxy::api::IFriends*)pFriends)->GetPersonaName();
         }
         sName = pcName;
 
@@ -636,8 +646,8 @@ bool NetMatch::IsLoginSuccessful(int  , bool  )
     {
         return false;
     }
-    galaxy::api::IUser* pUser = GetGalaxyUser();
-    return pUser->SignedIn();
+    void* pUser = GetGalaxyUser();
+    return ((galaxy::api::IUser*)pUser)->SignedIn();
 }
 
 // FUNCTION: SWBF2 0x005d62f0
@@ -661,8 +671,8 @@ void NetMatch::CancelLogin(int  , bool  )
     netNoCableCount = 0;
     if (gf::isInitialized())
     {
-        galaxy::api::IFriends* pFriends = GetGalaxyFriends();
-        pFriends->DeleteRichPresence("connect");
+        void* pFriends = GetGalaxyFriends();
+        ((galaxy::api::IFriends*)pFriends)->DeleteRichPresence("connect");
     }
     netLobbyState = 0;
     netCreatedLobbyId = 0;
@@ -751,9 +761,12 @@ void NetMatch::ClientGetAddr(NetAddr&) {}
 NetAddr::NetAddr(int addr, int port, int overridePort)
 {
     mGalaxyId.value = 0;
+    hasPriv = false;
+    privAddr = 0;
+    privPort = 0;
     if (!IsPrivateIP((unsigned long)addr))
     {
-        __debugbreak();
+        NetRejectCount(NET_REJECT_BAD_ADDR);
         return;
     }
     privAddr = addr;
@@ -800,9 +813,9 @@ void EndRegisterLanGame()
 {
     NetMatch::SetRegisterArchFilter();
     closesocket(netBroadcastSendSocket);
-    netBroadcastSendSocket = 0;
+    netBroadcastSendSocket = INVALID_SOCKET;
     closesocket(netBroadcastRecvSocket);
-    netBroadcastRecvSocket = 0;
+    netBroadcastRecvSocket = INVALID_SOCKET;
 }
 
 // FUNCTION: SWBF2 0x005d6690

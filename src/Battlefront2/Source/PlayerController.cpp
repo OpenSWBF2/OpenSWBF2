@@ -30,9 +30,6 @@
 
 #include <float.h>
 #include <math.h>
-#include "PebbleFL/pc/PblD3DX.h"
-#include "VOHelper.h"
-#include "TeamManager.h"
 
  
  

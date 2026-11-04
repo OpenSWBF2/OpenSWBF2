@@ -22,7 +22,6 @@
 #include "Zephyr/Source/ZephyrAnim.h"
 #include "Zephyr/Source/ZephyrAnimBank.h"
 #include "Zephyr/Source/ZephyrSkeletonShared.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 static const char* const HUMAN_LOWRES_BANK = "humanlz";
 

@@ -18,7 +18,6 @@
 #include "PebbleFL/Common/PblVector.h"
 #include "RedEngineFL/Application/pc/pcFLRender.h"
 #include "RedEngineFL/Portals/Portal.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x004cbb10
 bool EntityItem::NoDisplayLifeTimer() const

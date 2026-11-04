@@ -12,7 +12,6 @@
 #include "PebbleFL/Common/PblRandom.h"
 
 #include <math.h>
-#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x00485a50
 void Controller::SetRegionVisFactor(float fCrouch, float fStand)

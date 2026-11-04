@@ -17,7 +17,6 @@
 #include "PebbleFL/Common/PblMath.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 #include <new>
-#include "PebbleFL/pc/PblD3DX.h"
 
 extern bool netIsLocalTurn;
 extern int gDebugCount;

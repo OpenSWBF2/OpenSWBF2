@@ -51,6 +51,7 @@ bool Thread::Start(void* pArgs)
     }
 
     SetThreadPriority(hThread, iNativePriority);
+    CloseHandle(hThread);
     return true;
 }
 

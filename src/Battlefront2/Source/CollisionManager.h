@@ -154,9 +154,3 @@ public:
     static CollisionManager* sHostInstance;
     static CollisionManager* sClientInstance;
 };
-
-// FUNCTION: SWBF2 0x004923c0
-inline TreeGrid* CollisionManager::GetTreeGrid()
-{
-    return sInstance ? sInstance->mTreeGrid : 0;
-}

@@ -8,7 +8,6 @@
 #include "FLEffect.h"
 #include "GameObject.h"
 #include "NetGame.h"
-#include "Weapon.h"
 #include "RedEngineFL/Application/pc/pcRedParticle.h"
 
 static const RedColor kRedBeamGlowColor   = { 0xff, 0x0a, 0x0a, 0x64 };

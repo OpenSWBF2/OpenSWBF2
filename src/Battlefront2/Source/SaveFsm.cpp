@@ -28,7 +28,7 @@ static int SafeLocalizeSPrintf(unsigned short* dst, unsigned int aDstLen, const 
 
     va_list args;
     va_start(args, fmt);
-    int nwritten = PblUnicode::uvsnprintf(dst, unsigned int(-1), lfmt, args);
+    int nwritten = PblUnicode::uvsnprintf(dst, aDstLen, lfmt, args);
     va_end(args);
     return nwritten;
 }

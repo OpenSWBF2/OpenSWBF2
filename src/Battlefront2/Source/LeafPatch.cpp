@@ -15,7 +15,6 @@
 #include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblRandom.h"
 #include "RedEngineFL/Graphics/RedDirectionalLight.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 // SYNTHETIC: SWBF2 0x0056dbd0
 // LeafPatchClass::`scalar deleting destructor'

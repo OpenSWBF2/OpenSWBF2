@@ -623,50 +623,7 @@ static unsigned short FindMagicCharByName_(const char* pcName)
 unsigned int FindReplaceMagicStrings_(const unsigned short* const pcSource,
                                       unsigned short* pcDest, unsigned int uiDestCount)
 {
-    unsigned short acMagic[256];
-    char acMagicA[256];
-    unsigned int uiCount = 0;
-    bool bInMagic = false;
-    unsigned short uiLen = 0;
-
-    for (const unsigned short* pc = pcSource; *pc; ++pc)
-    {
-        if (*pc == '{')
-        {
-            bInMagic = true;
-            uiLen = 0;
-        }
-        else if (bInMagic)
-        {
-            if (*pc == '}')
-            {
-                bInMagic = false;
-                acMagic[uiLen] = 0;
-                PblUnicode::ustrncnv(acMagicA, acMagic, 256);
-                const unsigned short c = FindMagicChar_(PblHash(acMagicA));
-                if (!c)
-                {
-                    *pcDest++ = ' ';
-                }
-                else
-                {
-                    ++uiCount;
-                    *pcDest++ = c;
-                }
-            }
-            else
-            {
-                acMagic[uiLen++] = *pc;
-            }
-        }
-        else
-        {
-            *pcDest++ = *pc;
-        }
-    }
-
-    *pcDest = 0;
-    return uiCount;
+    return ReplaceMagicStrings(pcSource, pcDest, uiDestCount, FindMagicCharByName_);
 }
 
 // FUNCTION: SWBF2 0x006d7e50

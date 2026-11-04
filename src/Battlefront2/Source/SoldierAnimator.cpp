@@ -17,7 +17,6 @@
 #include "NetGame.h"
 #include "SoldierAnimationData.h"
 #include "Tracker.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x00643550
 void SoldierAnimator::PlayIdleAnimation(SoldierAnimType::MovementAnimation eAnimation)

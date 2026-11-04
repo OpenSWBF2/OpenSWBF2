@@ -40,7 +40,6 @@
 #include "EntityBuildingArmed.h"
 #include "OrdnanceEmitter.h"
 #include "WeaponDispenser.h"
-#include "TeamManager.h"
 
 // GLOBAL: SWBF2 0x007b28b0
 // __xmm@3f800000400000004040000040800000
@@ -64,6 +63,18 @@ namespace VisionManager
 {
 void RemoveRequests(UnitController* pCtrl);
 void UpdatePotentiallyVisible(UnitController* pCtrl);
+}
+
+namespace AI
+{
+enum AIAffil
+{
+    AFFIL_ENEMY = 1,
+    AFFIL_NEUTRAL = 2,
+    AFFIL_ALLY = 4,
+    AFFIL_ALLYNEUTRAL = 6,
+    AFFIL_ALL = 7
+};
 }
 
 namespace ControllerManager

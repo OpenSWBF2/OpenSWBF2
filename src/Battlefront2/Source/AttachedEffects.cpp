@@ -13,13 +13,6 @@
 #include "PebbleFL/Common/PblHashTable.h"
 #include "PebbleFL/Common/PblRandom.h"
 
-class GameObject
-{
-public:
-
-    char mInheritedObjectStorage[0x204];
-    unsigned int mHandleId;
-};
 
 
 
@@ -242,7 +235,7 @@ bool AttachedEffects::Update(float fDeltaTime)
         {
             return false;
         }
-        pGeometry = static_cast<const EntityGeometry*>((const GameObject*)m_pGameObject);
+        pGeometry = reinterpret_cast<const EntityGeometry*>((const GameObject*)m_pGameObject);
     }
 
     for (unsigned int i = 0; i < m_pClass->m_uiNumAttached; ++i)

@@ -178,4 +178,3 @@ inline PblTimeBase* GetSystemTimeBase() { return &_SystemTimeBase; }
 }
 
 extern bool gMemoryPoolErrors;
-extern unsigned char sStatsMatchData[0x40];

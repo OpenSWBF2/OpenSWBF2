@@ -139,7 +139,7 @@ float ProcessedInputs::IsSecondarySwitchButtonPressed() const
 // FUNCTION: SWBF2 0x0052b5d0
 bool RawControllerInputs::IsDefaultBindings(int iMode)
 {
-    return memcmp(mCurBindings[iMode],
+    return memcmp(&mRawInputStorage[0x1acc - 4 + iMode * sizeof(sDefaultBindings[0])],
                   sDefaultBindings[iMode], sizeof(sDefaultBindings[0])) == 0;
 }
 

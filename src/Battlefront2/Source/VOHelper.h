@@ -3,10 +3,9 @@
 #include <stddef.h>
 
 #include "GameSound.h"
-#include "PebbleFL/Common/PblHandle.h"
-#include "PebbleFL/Common/PblVector.h"
 
 class GameObject;
+class PblVector3;
 
 namespace AI
 {
@@ -125,63 +124,8 @@ public:
  
  
 
-enum VOType
-{
-    VOT_NONE = 0,
-    VOT_AcquiredTarget = 1,
-    VOT_FriendlyFire = 2,
-    VOT_PathFollowWait = 6,
-    VOT_Kill = 8,
-    VOT_HeadshotKill = 9,
-    VOT_Grenade = 10,
-    VOT_RebelsShootDeadBody = 11,
-    VOT_KillingSpree4 = 12,
-    VOT_KillingSpree8 = 13,
-    VOT_KillingSpree12 = 14,
-    VOT_KillingSpree16 = 15,
-    VOT_RepairStart = 16,
-    VOT_RepairEnd = 17,
-    VOT_GivePowerup = 18,
-    VOT_DefendIdleLookWeapon = 19,
-    VOT_DefendIdleLookAround = 20,
-    VOT_DefendIdleLookPlayer = 21,
-    VOT_SC_Follow = 22,
-    VOT_SC_FollowResponse = 23,
-    VOT_SC_StopFollow = 24,
-    VOT_SC_StopFollowResponse = 25,
-    VOT_SC_VehicleWaitUp = 26,
-    VOT_SC_VehicleWaitUpResponse = 27,
-    VOT_SC_GetIn = 28,
-    VOT_SC_GetInResponse = 29,
-    VOT_SC_GetInResponseRepeat = 30,
-    VOT_SC_GetOut = 31,
-    VOT_SC_GetOutResponse = 32,
-    VOT_NotShootingCriticalHit = 33,
-    VOT_NearbyFriendlySlaughter = 35,
-    VOT_NearbyEnemySlaughter = 36,
-    VOT_NearbyTeamKillSlaughter = 37,
-    VOT_JustBoardedVehicle = 38,
-    VOT_VehicleWaitingImpatiently = 39,
-    VOT_TA_First = 40
-};
-
 namespace VOHelper
 {
-
-struct QueuedSound
-{
-    VOType mType;
-    PblHandle<const GameObject> mSpeaker;
-    PblHandle<const GameObject> mPlayer;
-    PblHandle<const GameObject> mTarget;
-    PblVector3 mPos;
-    bool mUseTarget;
-    float mTime;
-    int mHandle;
-
-    ~QueuedSound();
-};
-extern QueuedSound mSndQueue[20];
 
 void SetModifier(VOModifier& modifier, const char* pszWord, const char* pszDebug);
 
@@ -189,17 +133,7 @@ VOType TypeStrToEnum(const char* pszType);
 
 VOSound* GetNewVOSound(const char* pszSound, const char* pszType, const VOModifier& modifiers);
 
-int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,
-         const GameObject* pOther, float fDelay);
-
-int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,
-         const PblVector3& vPos, float fDelay);
-
 void CancelQueuedSound(int iHandle);
-
-void Update();
-
-void Reset();
 
 void GetModifiers(const GameObject* pTarget, const PblVector3& vPos, VOModifier& modifiers);
 VOModifier GetModifiers(const GameObject* pTarget, const GameObject* pOther);

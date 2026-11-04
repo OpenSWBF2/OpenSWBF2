@@ -9,7 +9,6 @@
 #include "RedEngineFL/Util/ext/BaseString.h"
 #include "PebbleFL/Common/PblQuaternion.h"
 #include <math.h>
-#include "PebbleFL/pc/PblD3DX.h"
 
 
 namespace pvs

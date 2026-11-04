@@ -2,7 +2,6 @@
 #include <math.h>
 
 #include "LightsaberTrailEffect.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 // GLOBAL: SWBF2 0x01e573ec
 LightsaberTrailEffect* LightsaberTrailEffect::s_pInstance;

@@ -7,13 +7,11 @@
 #include "ProceduralAnimation.h"
 #include "CollisionManager.h"
 #include "CollisionObject.h"
-#include "GameObject.h"
 #include "NetGame.h"
 #include "NetPacket.h"
 #include "TreeGrid.h"
 #include "PebbleFL/Common/PblChunk.h"
 #include "PebbleFL/Common/PblFile.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x00628c00
 bool* PAAnimationGroup::EnterClient()
@@ -904,7 +902,7 @@ void PAAnimationGroup::UpdateAnimations(float fDeltaTime)
         }
 
         if (mStopWhenControlled && (*data.mGeometry)->GetGameObject() &&
-            (*data.mGeometry)->GetGameObject()->mTeam)
+            ((PAGameObjectTeam*)(*data.mGeometry)->GetGameObject())->mTeam)
         {
             *data.mTimer = 0.0f;
             data.mInitialMatrix = (*data.mGeometry)->GetMatrix();

@@ -19,7 +19,7 @@ static void Drain(int iType)
 {
     NetPktGroup out;
     out.Reset();
-    while (NetComm::Recv(&out, iType))
+    while (NetComm::Recv(out, (PktType)iType))
     {
         out.Free();
         out.Reset();
@@ -44,7 +44,7 @@ TEST_CASE("recvgroup rejects classic gap" * doctest::test_suite("regression"))
     NetStampAndQueue(MakeOne(2), 5, PKT_GAME_MOVE, 1, 2, 2, 0);
     WatchdogArm("frag-classic-gap");
     NetPktGroup out;
-    CHECK(!NetComm::Recv(&out, PKT_GAME_MOVE));
+    CHECK(!NetComm::Recv(out, PKT_GAME_MOVE));
     CHECK(netRejectCounts[NET_REJECT_FRAG_IDX] == 1);
     CHECK(NetCountPackets(0) == 512);
 }
@@ -55,7 +55,7 @@ TEST_CASE("recvgroup rejects count zero" * doctest::test_suite("regression"))
     NetStampAndQueue(MakeOne(1), 5, PKT_GAME_MOVE, 1, 0, 0, 0);
     WatchdogArm("count-zero");
     NetPktGroup out;
-    CHECK(!NetComm::Recv(&out, PKT_GAME_MOVE));
+    CHECK(!NetComm::Recv(out, PKT_GAME_MOVE));
     CHECK(inPktGroups[0].pktCount == 0);
     CHECK(netRejectCounts[NET_REJECT_FRAG_COUNT_ZERO] == 1);
     CHECK(NetCountPackets(0) == 512);
@@ -91,7 +91,7 @@ TEST_CASE("recvgroup duplicate fragment keeps accounting" * doctest::test_suite(
     NetStampAndQueue(MakeOne(1), 5, PKT_GAME_MOVE, 1, 0, 2, 0);
     NetStampAndQueue(MakeOne(2), 5, PKT_GAME_MOVE, 1, 0, 2, 0);
     NetPktGroup out;
-    CHECK(!NetComm::Recv(&out, PKT_GAME_MOVE));
+    CHECK(!NetComm::Recv(out, PKT_GAME_MOVE));
     CHECK(inPktGroups[0].pktCount == 1);
     CHECK(NetCountPackets(0) == 512);
 }
@@ -106,7 +106,7 @@ TEST_CASE("recvgroup evicts oldest partial at per-source cap" * doctest::test_su
     NetStampAndQueue(MakeOne(100), 50, PKT_GAME_MOVE, 2, 0, 2, 0);
     WatchdogArm("partial-cap");
     NetPktGroup out;
-    CHECK(!NetComm::Recv(&out, PKT_GAME_MOVE));
+    CHECK(!NetComm::Recv(out, PKT_GAME_MOVE));
     int iFromOne = 0;
     int iFromTwo = 0;
     bool bOldestKept = false;
@@ -154,7 +154,7 @@ static void RoundTrip(int iFragments, bool bShuffle)
     WatchdogArm("roundtrip");
     NetPktGroup out;
     out.Reset();
-    CHECK(NetComm::Recv(&out, PKT_GAME_MOVE));
+    CHECK(NetComm::Recv(out, PKT_GAME_MOVE));
     CHECK(out.pktCount == iFragments);
     out.BeginRead();
     for (int i = 0; i < iFragments; ++i)
@@ -188,7 +188,7 @@ TEST_CASE("recvgroup single fragment passes" * doctest::test_suite("regression")
     NetStampAndQueue(MakeOne(77), 9, PKT_GAME_MOVE, 3, 0, 1, 0);
     NetPktGroup out;
     out.Reset();
-    CHECK(NetComm::Recv(&out, PKT_GAME_MOVE));
+    CHECK(NetComm::Recv(out, PKT_GAME_MOVE));
     out.Free();
     CHECK(NetCountPackets(0) == 512);
 }

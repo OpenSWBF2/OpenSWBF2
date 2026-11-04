@@ -28,7 +28,6 @@
 #include "RedEngineFL/Util/RedAnimation.h"
 #include "Zephyr/Source/ZephyrAnimBank.h"
 #include "PebbleFL/Common/PblHermite.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 // GLOBAL: SWBF2 0x007b27a0
 // __xmm@3e4ccccd3e4ccccd3e4ccccd3e4ccccd

@@ -88,6 +88,9 @@ RedGlyphMemoryManager::VertexBlock* RedGlyphMemoryManager::AllocBlock()
     {
         return 0;
     }
+#if defined(__SANITIZE_ADDRESS__)
+    PblAsanUnpoison(pBlock, sizeof(VertexBlock));
+#endif
     m_pFirstFree = pBlock->pNext;
     pBlock->uiNumVertices = 48;
     return pBlock;

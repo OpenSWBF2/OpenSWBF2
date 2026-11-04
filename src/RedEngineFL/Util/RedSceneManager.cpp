@@ -16,7 +16,6 @@
 #include "PebbleFL/Common/PblMath.h"
 
 #include "ext/Globals.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 namespace FLRenderer
 {

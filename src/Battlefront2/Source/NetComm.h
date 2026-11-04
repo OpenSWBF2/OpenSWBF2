@@ -179,7 +179,7 @@ public:
 
     static void SetArch(int iDest, NetArch arch);
 
-    static void __fastcall RecvPacket(NetPacket* pPacket, const NetSocketPeerRecord* pSource);
+    static void __fastcall RecvPacket(NetPacket* pPacket, const void* pSource);
     static NetPacket* MakeReceivedPacket(const unsigned char* pData, unsigned int size,
                                          unsigned int prefix, bool classifyByType);
 
@@ -194,7 +194,7 @@ public:
     static void __fastcall Connect(int iDest, const void* pAddress);
     static unsigned __int64* __fastcall GetAddr(int iDest);
     static const NetSocketPeerRecord* GetPeer(int iDest);
-    static int __fastcall FindJoinSource(const NetSocketPeerRecord* pAddress);
+    static int __fastcall FindJoinSource(const int* pAddress);
 };
 
 // FUNCTION: SWBF2 0x005aecb0

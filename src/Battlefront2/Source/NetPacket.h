@@ -120,14 +120,14 @@ class NetPktGroup
 public:
 
     // FUNCTION: SWBF2 0x005aeca0
-    NetPktGroup() : isSmall(false) {}
-    NetPktGroup(bool bSmall) : isSmall(bSmall) {}
+    NetPktGroup() : isSmall(false), bad(false) {}
+    NetPktGroup(bool bSmall) : isSmall(bSmall), bad(false) {}
 
     void Reset();
 
     int GetBytes();
 
-    void PushBack(NetPacket* pPkt);
+    PBL_ASAN_NO_SANITIZE void PushBack(NetPacket* pPkt);
     void InsertBefore(NetPacket* pBefore, NetPacket* pNew);
 
     PBL_ASAN_NO_SANITIZE NetPacket* PopFront();
@@ -190,6 +190,16 @@ public:
     int curBit;
     unsigned int pktBits;
 };
+
+static_assert(sizeof(NetPktGroup) == 28, "NetPktGroup layout");
+
+extern int netRejectCounts[NET_REJECT_COUNT];
+void NetRejectCount(int iReason);
+void NetRejectSetClock(float (*pfnClock)());
+void NetRejectReset();
+
+static const int kRecvReserveBig = 128;
+static const int kRecvReserveSmall = 32;
 
 template <class CONVERT>
 void WriteFixed(CONVERT& convert, NetPktGroup& group, float fValue)

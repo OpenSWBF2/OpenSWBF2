@@ -13,9 +13,24 @@
 #include "GameObject.h"
 
 #include "UnitThreatManager.h"
-#include "VOHelper.h"
 
 extern PblVector3 gVectorZero;
+
+namespace AI
+{
+
+enum VOType
+{
+    VOT_AcquiredTarget = 1
+};
+
+namespace VOHelper
+{
+
+int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget, const GameObject* pOther, float fDelay);
+}
+
+}
 
 namespace AIUtil
 {

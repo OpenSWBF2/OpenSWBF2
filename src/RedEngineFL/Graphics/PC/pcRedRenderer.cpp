@@ -98,6 +98,612 @@ public:
     int m_iMaxConstantSet;
 };
 
+enum ResetKind
+{
+    kResetKindNone = 0,
+    kResetKindRecover,
+    kResetKindFatal,
+    kResetKindInitLost,
+    kResetKindFlap,
+    kResetKindLaterInit,
+    kResetKindApplyMode,
+    kResetKindApplyModeSmall,
+    kResetKindApplyFail,
+    kResetKindApplyPresentFail,
+    kResetKindApplyAdapter,
+    kResetKindApplyTargetFail,
+    kResetKindGammaPass,
+    kResetKindGammaFallback,
+    kResetKindGammaDrawFail,
+    kResetKindGammaLost,
+    kResetKindShellStretch,
+    kResetKindMenuApplyFail
+};
+
+struct ResetScript
+{
+    bool bInit;
+    ResetKind eKind;
+    unsigned int uiFrames;
+    unsigned int uiLost;
+    unsigned int uiPolls;
+    unsigned int uiInits;
+    DWORD dwSkewMs;
+    bool bArmed;
+    bool bDone;
+    unsigned int uiBaseW;
+    unsigned int uiBaseH;
+    bool bBaseWindowed;
+    bool bApplyDone;
+    bool bPresentFailPending;
+    bool bPresentFailed;
+    bool bTargetsPending;
+    unsigned int uiGammaFrames;
+    bool bGammaLevelsSet;
+    unsigned int uiGammaLostPolls;
+};
+
+struct TrackedTarget
+{
+    FakeD3DTexture* pTexture;
+    unsigned int uiW;
+    unsigned int uiH;
+};
+
+static ResetScript gResetScript;
+static TrackedTarget gTrackedTargets[256];
+static FakeD3DSurface gTrackedBackStore;
+static FakeD3DSurface gTrackedDepthStore;
+static FakeD3DSurface* gTrackedBack;
+static FakeD3DSurface* gTrackedDepth;
+static TrackedTarget gGammaTargets[16];
+static unsigned int gGammaAlive;
+static unsigned int gGammaW;
+static unsigned int gGammaH;
+static unsigned int gGammaDraws;
+static unsigned int gGammaRampNonId;
+static unsigned int gGammaRampId;
+static bool gGammaPending;
+static bool gGammaDrawPending;
+
+static ResetScript& GetResetScript()
+{
+    if (!gResetScript.bInit)
+    {
+        gResetScript.bInit = true;
+        const char* pcKind = g_bNoRender ? pcCrash::GetCrashTest() : 0;
+        if (pcKind && strcmp(pcKind, "resetrecover") == 0)
+        {
+            gResetScript.eKind = kResetKindRecover;
+        }
+        else if (pcKind && strcmp(pcKind, "resetfatal") == 0)
+        {
+            gResetScript.eKind = kResetKindFatal;
+        }
+        else if (pcKind && strcmp(pcKind, "resetinitlost") == 0)
+        {
+            gResetScript.eKind = kResetKindInitLost;
+        }
+        else if (pcKind && strcmp(pcKind, "resetflap") == 0)
+        {
+            gResetScript.eKind = kResetKindFlap;
+        }
+        else if (pcKind && strcmp(pcKind, "resetlaterinit") == 0)
+        {
+            gResetScript.eKind = kResetKindLaterInit;
+        }
+        else if (pcKind && strcmp(pcKind, "applymode") == 0)
+        {
+            gResetScript.eKind = kResetKindApplyMode;
+        }
+        else if (pcKind && strcmp(pcKind, "applymodesmall") == 0)
+        {
+            gResetScript.eKind = kResetKindApplyModeSmall;
+        }
+        else if (pcKind && strcmp(pcKind, "applyfail") == 0)
+        {
+            gResetScript.eKind = kResetKindApplyFail;
+        }
+        else if (pcKind && strcmp(pcKind, "applypresentfail") == 0)
+        {
+            gResetScript.eKind = kResetKindApplyPresentFail;
+        }
+        else if (pcKind && strcmp(pcKind, "applyadapter") == 0)
+        {
+            gResetScript.eKind = kResetKindApplyAdapter;
+        }
+        else if (pcKind && strcmp(pcKind, "applytargetfail") == 0)
+        {
+            gResetScript.eKind = kResetKindApplyTargetFail;
+        }
+        else if (pcKind && strcmp(pcKind, "gammapass") == 0)
+        {
+            gResetScript.eKind = kResetKindGammaPass;
+        }
+        else if (pcKind && strcmp(pcKind, "gammafallback") == 0)
+        {
+            gResetScript.eKind = kResetKindGammaFallback;
+        }
+        else if (pcKind && strcmp(pcKind, "gammadrawfail") == 0)
+        {
+            gResetScript.eKind = kResetKindGammaDrawFail;
+        }
+        else if (pcKind && strcmp(pcKind, "gammalost") == 0)
+        {
+            gResetScript.eKind = kResetKindGammaLost;
+        }
+        else if (pcKind && strcmp(pcKind, "shellstretch") == 0)
+        {
+            gResetScript.eKind = kResetKindShellStretch;
+        }
+        else if (pcKind && strcmp(pcKind, "menuapplyfail") == 0)
+        {
+            gResetScript.eKind = kResetKindMenuApplyFail;
+        }
+    }
+    return gResetScript;
+}
+
+static bool IsApplyKind(ResetKind eKind)
+{
+    return eKind == kResetKindApplyMode || eKind == kResetKindApplyModeSmall ||
+           eKind == kResetKindApplyFail ||
+           eKind == kResetKindApplyPresentFail || eKind == kResetKindApplyAdapter ||
+           eKind == kResetKindApplyTargetFail || eKind == kResetKindGammaPass;
+}
+
+static bool IsGammaKind(ResetKind eKind)
+{
+    return eKind == kResetKindGammaPass || eKind == kResetKindGammaFallback ||
+           eKind == kResetKindGammaDrawFail || eKind == kResetKindGammaLost;
+}
+
+static bool IsTargetTrackKind(ResetKind eKind)
+{
+    return eKind == kResetKindApplyMode || eKind == kResetKindApplyModeSmall;
+}
+
+static bool gTrackedTargetsFull;
+
+static void TrackTarget(FakeD3DTexture* pTexture, unsigned int uiW, unsigned int uiH)
+{
+    for (unsigned int i = 0; i < sizeof(gTrackedTargets) / sizeof(gTrackedTargets[0]); ++i)
+    {
+        if (!gTrackedTargets[i].pTexture)
+        {
+            gTrackedTargets[i].pTexture = pTexture;
+            gTrackedTargets[i].uiW = uiW;
+            gTrackedTargets[i].uiH = uiH;
+            return;
+        }
+    }
+    if (!gTrackedTargetsFull)
+    {
+        gTrackedTargetsFull = true;
+        LOG(LogRender, Error, "OPENSWBF2 APPLY TARGETS tracking full at %u entries",
+            (unsigned int)(sizeof(gTrackedTargets) / sizeof(gTrackedTargets[0])));
+    }
+}
+
+static void UntrackTarget(FakeD3DTexture* pTexture)
+{
+    for (unsigned int i = 0; i < sizeof(gTrackedTargets) / sizeof(gTrackedTargets[0]); ++i)
+    {
+        if (gTrackedTargets[i].pTexture == pTexture)
+        {
+            gTrackedTargets[i].pTexture = 0;
+            return;
+        }
+    }
+}
+
+static TrackedTarget gFixedTargets[256];
+static unsigned int gFixedTargetCount;
+
+static bool IsBufferTexture(const FakeD3DTexture* pTexture)
+{
+    for (unsigned int b = 0; b < 3; ++b)
+    {
+        const RedTexture* pBuffer = RedRenderer::m_buffers[b];
+        if (pBuffer && pBuffer->m_pTexture &&
+            (const IDirect3DBaseTexture9*)pTexture == pBuffer->m_pTexture)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void SnapshotFixedTargets(const ResetScript& s)
+{
+    const DisplayLogic::BufferSet kBase = DisplayLogic::BufferSizes(
+        s.uiBaseW, s.uiBaseH, RedRenderer::m_deviceCaps.MaxTextureWidth,
+        RedRenderer::m_deviceCaps.MaxTextureHeight, RedRenderer::m_renderCaps.nonpow2textures != 0);
+    const DisplayLogic::BufferSize& rSky = kBase.akBuf[PC_BUFFER_SKY];
+    gFixedTargetCount = 0;
+    for (unsigned int i = 0; i < sizeof(gTrackedTargets) / sizeof(gTrackedTargets[0]); ++i)
+    {
+        const TrackedTarget& t = gTrackedTargets[i];
+        if (!t.pTexture || IsBufferTexture(t.pTexture) || (t.uiW == rSky.uiW && t.uiH == rSky.uiH))
+        {
+            continue;
+        }
+        gFixedTargets[gFixedTargetCount++] = t;
+    }
+}
+
+static unsigned int FixedTargetsAt(unsigned int uiW, unsigned int uiH)
+{
+    unsigned int uiCount = 0;
+    for (unsigned int i = 0; i < gFixedTargetCount; ++i)
+    {
+        if (gFixedTargets[i].uiW == uiW && gFixedTargets[i].uiH == uiH)
+        {
+            ++uiCount;
+        }
+    }
+    return uiCount;
+}
+
+static void LogApplyTargets(const ResetScript& s)
+{
+    const DisplayLogic::BufferSet kNew = DisplayLogic::BufferSizes(
+        RedRenderer::m_d3dpp.BackBufferWidth, RedRenderer::m_d3dpp.BackBufferHeight,
+        RedRenderer::m_deviceCaps.MaxTextureWidth, RedRenderer::m_deviceCaps.MaxTextureHeight,
+        RedRenderer::m_renderCaps.nonpow2textures != 0);
+    const DisplayLogic::BufferSet kBase = DisplayLogic::BufferSizes(
+        s.uiBaseW, s.uiBaseH, RedRenderer::m_deviceCaps.MaxTextureWidth,
+        RedRenderer::m_deviceCaps.MaxTextureHeight, RedRenderer::m_renderCaps.nonpow2textures != 0);
+    unsigned int uiMoved = 0;
+    unsigned int uiBuffers = 0;
+    unsigned int b;
+    for (b = 0; b < 3; ++b)
+    {
+        const DisplayLogic::BufferSize& rNew = kNew.akBuf[b];
+        const DisplayLogic::BufferSize& rOld = kBase.akBuf[b];
+        if (rNew.uiW != rOld.uiW || rNew.uiH != rOld.uiH)
+        {
+            ++uiMoved;
+        }
+        const RedTexture* pBuffer = RedRenderer::m_buffers[b];
+        if (!pBuffer || !pBuffer->m_pTexture)
+        {
+            continue;
+        }
+        for (unsigned int i = 0; i < sizeof(gTrackedTargets) / sizeof(gTrackedTargets[0]); ++i)
+        {
+            const TrackedTarget& t = gTrackedTargets[i];
+            if (t.pTexture && (IDirect3DBaseTexture9*)t.pTexture == pBuffer->m_pTexture &&
+                t.uiW == rNew.uiW && t.uiH == rNew.uiH)
+            {
+                ++uiBuffers;
+                break;
+            }
+        }
+    }
+    unsigned int uiAlive = 0;
+    unsigned int uiFresh = 0;
+    unsigned int uiStale = 0;
+    char acSizes[512];
+    unsigned int uiLen = 0;
+    acSizes[0] = '\0';
+    for (unsigned int i = 0; i < sizeof(gTrackedTargets) / sizeof(gTrackedTargets[0]); ++i)
+    {
+        const TrackedTarget& t = gTrackedTargets[i];
+        if (!t.pTexture)
+        {
+            continue;
+        }
+        ++uiAlive;
+        bool bInNew = false;
+        for (b = 0; b < 3; ++b)
+        {
+            bInNew = bInNew || (t.uiW == kNew.akBuf[b].uiW && t.uiH == kNew.akBuf[b].uiH);
+        }
+        if (bInNew)
+        {
+            ++uiFresh;
+        }
+        if (uiLen + 24 < sizeof(acSizes))
+        {
+            uiLen += sprintf(acSizes + uiLen, "%s%ux%u", uiLen ? "," : "", t.uiW, t.uiH);
+        }
+    }
+    for (b = 0; b < 3; ++b)
+    {
+        const DisplayLogic::BufferSize& rOld = kBase.akBuf[b];
+        bool bSeen = false;
+        bool bInNew = false;
+        for (unsigned int c = 0; c < b; ++c)
+        {
+            bSeen = bSeen || (kBase.akBuf[c].uiW == rOld.uiW && kBase.akBuf[c].uiH == rOld.uiH);
+        }
+        for (unsigned int c = 0; c < 3; ++c)
+        {
+            bInNew = bInNew || (kNew.akBuf[c].uiW == rOld.uiW && kNew.akBuf[c].uiH == rOld.uiH);
+        }
+        if (bSeen || bInNew)
+        {
+            continue;
+        }
+        unsigned int uiAt = 0;
+        for (unsigned int i = 0; i < sizeof(gTrackedTargets) / sizeof(gTrackedTargets[0]); ++i)
+        {
+            const TrackedTarget& t = gTrackedTargets[i];
+            if (t.pTexture && t.uiW == rOld.uiW && t.uiH == rOld.uiH)
+            {
+                ++uiAt;
+            }
+        }
+        const unsigned int uiFixed = FixedTargetsAt(rOld.uiW, rOld.uiH);
+        if (uiAt > uiFixed)
+        {
+            uiStale += uiAt - uiFixed;
+        }
+    }
+    LOG(LogRender, Inform,
+        "OPENSWBF2 APPLY TARGETS alive=%u fresh=%u stale=%u buffers=%u/3 moved=%u sizes=%s",
+        uiAlive, uiFresh, uiStale, uiBuffers, uiMoved, acSizes);
+}
+
+static void TrackGammaTarget(FakeD3DTexture* pTexture, unsigned int uiW, unsigned int uiH)
+{
+    gGammaW = uiW;
+    gGammaH = uiH;
+    gGammaDraws = 0;
+    gGammaPending = true;
+    gGammaDrawPending = true;
+    for (unsigned int i = 0; i < sizeof(gGammaTargets) / sizeof(gGammaTargets[0]); ++i)
+    {
+        if (!gGammaTargets[i].pTexture)
+        {
+            gGammaTargets[i].pTexture = pTexture;
+            gGammaTargets[i].uiW = uiW;
+            gGammaTargets[i].uiH = uiH;
+            ++gGammaAlive;
+            return;
+        }
+    }
+    check(!"gamma target slots full");
+}
+
+static void UntrackGammaTarget(FakeD3DTexture* pTexture)
+{
+    for (unsigned int i = 0; i < sizeof(gGammaTargets) / sizeof(gGammaTargets[0]); ++i)
+    {
+        if (gGammaTargets[i].pTexture == pTexture)
+        {
+            gGammaTargets[i].pTexture = 0;
+            --gGammaAlive;
+            gGammaPending = true;
+            return;
+        }
+    }
+}
+
+static void GammaScriptFrame(ResetScript& s)
+{
+    ++s.uiGammaFrames;
+    if (!s.bGammaLevelsSet && s.uiGammaFrames >= 10 && ColorControl::s_pInstance)
+    {
+        s.bGammaLevelsSet = true;
+        if (s.eKind == kResetKindGammaLost)
+        {
+            s.uiGammaLostPolls = 20;
+        }
+        ColorControl::s_pInstance->SetLevel(COLORCONTROL_GAMMA_CONTRAST, 0.8f);
+        ColorControl::s_pInstance->SetLevel(COLORCONTROL_GAMMA_BRIGHTNESS, 0.8f);
+        ColorControl::s_pInstance->Update(0.0f);
+    }
+    if (s.eKind == kResetKindGammaPass && s.uiGammaFrames >= 60 && s.bApplyDone && !s.bArmed)
+    {
+        s.bArmed = true;
+        SetFocus(0);
+    }
+}
+
+static void ResetScriptFrame()
+{
+    ResetScript& s = GetResetScript();
+    if (IsGammaKind(s.eKind))
+    {
+        GammaScriptFrame(s);
+    }
+    if (s.eKind == kResetKindShellStretch && !s.bArmed && ++s.uiFrames >= 60)
+    {
+        s.bArmed = true;
+        SetFocus(0);
+    }
+    if ((s.eKind == kResetKindRecover || s.eKind == kResetKindFatal || s.eKind == kResetKindFlap) &&
+        !s.bDone)
+    {
+        if (++s.uiFrames >= 30 && !s.bArmed)
+        {
+            s.bArmed = true;
+            SetFocus(0);
+            if (s.eKind == kResetKindFatal)
+            {
+                RedRenderer::m_d3dpp.BackBufferWidth += 16;
+            }
+        }
+    }
+    if (IsApplyKind(s.eKind) && !s.bApplyDone && ++s.uiFrames >= 30)
+    {
+        s.bApplyDone = true;
+        s.uiBaseW = RedRenderer::m_d3dpp.BackBufferWidth;
+        s.uiBaseH = RedRenderer::m_d3dpp.BackBufferHeight;
+        s.bBaseWindowed = RedRenderer::m_d3dpp.Windowed != FALSE;
+        SnapshotFixedTargets(s);
+        if (s.eKind == kResetKindApplyAdapter)
+        {
+            RedRenderer::pcRequestAdapter(1);
+            RedRenderer::pcRequestAdapter(0);
+            return;
+        }
+        unsigned int uiW = 1280;
+        unsigned int uiH = 720;
+        if (s.uiBaseW == uiW && s.uiBaseH == uiH)
+        {
+            uiW = 1024;
+            uiH = 768;
+        }
+        if (s.eKind == kResetKindApplyModeSmall)
+        {
+            uiW = DisplayLogic::kMinW;
+            uiH = DisplayLogic::kMinH;
+        }
+        const DisplayLogic::DisplayMode eMode =
+            s.bBaseWindowed ? DisplayLogic::kModeFullscreen : DisplayLogic::kModeWindowed;
+        RedRenderer::pcApplyDisplayMode(uiW, uiH, eMode, uiW, uiH, true, D3DMULTISAMPLE_NONE, 0);
+    }
+}
+
+static void ResetScriptInit()
+{
+    ResetScript& s = GetResetScript();
+    if (s.eKind == kResetKindLaterInit && ++s.uiInits == 2)
+    {
+        s.bArmed = true;
+    }
+}
+
+static DWORD ResetClock()
+{
+    return GetTickCount() + gResetScript.dwSkewMs;
+}
+
+static IDirect3DSurface9* AcquireTracked(FakeD3DSurface*& pSurface, FakeD3DSurface& store)
+{
+    if (!pSurface)
+    {
+        pSurface = &store;
+        pSurface->bTracked = true;
+    }
+    pSurface->AddRef();
+    return pSurface;
+}
+
+extern bool g_bNoWait;
+extern float g_fFixedRate;
+
+static void FakePresentWait()
+{
+    if (!g_bNoWait)
+    {
+        if (g_fFixedRate > 0.0f)
+        {
+            Sleep(static_cast<int>(1000.0f / g_fFixedRate));
+        }
+        else
+        {
+            Sleep(16);
+        }
+    }
+}
+
+static unsigned int gShellChainAlive;
+static D3DTEXTUREFILTERTYPE gShellLastFilter = D3DTEXF_NONE;
+
+static const char* FilterName(D3DTEXTUREFILTERTYPE eFilter)
+{
+    if (eFilter == D3DTEXF_LINEAR)
+    {
+        return "linear";
+    }
+    if (eFilter == D3DTEXF_NONE)
+    {
+        return "none";
+    }
+    return "other";
+}
+
+class FakeD3DSwapChain : public IDirect3DSwapChain9
+{
+public:
+    FakeD3DSwapChain(unsigned int uiW, unsigned int uiH)
+        : refCount(1), w(uiW), h(uiH), presents(0)
+    {
+        ++gShellChainAlive;
+    }
+
+    ~FakeD3DSwapChain()
+    {
+        --gShellChainAlive;
+    }
+
+    STDMETHOD(QueryInterface)(REFIID, void**)
+    {
+        return D3DERR_INVALIDCALL;
+    }
+
+    STDMETHOD_(ULONG, AddRef)()
+    {
+        return (ULONG)++refCount;
+    }
+
+    STDMETHOD_(ULONG, Release)()
+    {
+        const int iLeft = --refCount;
+        if (iLeft <= 0)
+        {
+            delete this;
+            return 0;
+        }
+        return (ULONG)iLeft;
+    }
+
+    STDMETHOD(Present)(CONST RECT*, CONST RECT*, HWND, CONST RGNDATA*, DWORD)
+    {
+        FakePresentWait();
+        if (++presents == 30)
+        {
+            LOG(LogRender, Inform, "OPENSWBF2 SHELLSTRETCH FAKE chain=%ux%u presents=%u filter=%s",
+                w, h, presents, FilterName(gShellLastFilter));
+        }
+        return D3D_OK;
+    }
+
+    STDMETHOD(GetFrontBufferData)(IDirect3DSurface9*)
+    {
+        return D3DERR_INVALIDCALL;
+    }
+
+    STDMETHOD(GetBackBuffer)(UINT, D3DBACKBUFFER_TYPE, IDirect3DSurface9** ppBackBuffer)
+    {
+        if (!ppBackBuffer)
+        {
+            return D3DERR_INVALIDCALL;
+        }
+        *ppBackBuffer = new FakeD3DSurface;
+        return D3D_OK;
+    }
+
+    STDMETHOD(GetRasterStatus)(D3DRASTER_STATUS*)
+    {
+        return D3DERR_INVALIDCALL;
+    }
+
+    STDMETHOD(GetDisplayMode)(D3DDISPLAYMODE*)
+    {
+        return D3DERR_INVALIDCALL;
+    }
+
+    STDMETHOD(GetDevice)(IDirect3DDevice9**)
+    {
+        return D3DERR_INVALIDCALL;
+    }
+
+    STDMETHOD(GetPresentParameters)(D3DPRESENT_PARAMETERS*)
+    {
+        return D3DERR_INVALIDCALL;
+    }
+
+    int refCount;
+    unsigned int w;
+    unsigned int h;
+    unsigned int presents;
+};
+
 // FUNCTION: SWBF2 0x006b01e0
 STDMETHODIMP_(ULONG) FakeD3D::AddRef()
 {
@@ -2162,6 +2768,48 @@ RedTexture* RedRenderer::pcGetRenderTarget()
 
  
 
+static unsigned int CollectAdapterModes(unsigned int uiAdapter, unsigned int uiMinWidth,
+                                        unsigned int uiMinHeight,
+                                        DisplayLogic::DisplayModeRec* pRaw)
+{
+    PblList<D3DAdapterInfo>& adapterList = pcRedDeviceEnumerator::GetDeviceList();
+
+    unsigned int uiFilled = 0;
+    for (PblList<D3DAdapterInfo>::Node* pAdapterNode = adapterList.GetFirst();
+         pAdapterNode->_pObject != adapterList._head._pObject;
+         pAdapterNode = pAdapterNode->_pNext)
+    {
+        if (pAdapterNode->_pObject->AdapterOrdinal != (int)uiAdapter)
+        {
+            continue;
+        }
+
+        PblList<D3DDisplayMode>& modeList = pAdapterNode->_pObject->DisplayModeList;
+
+        for (PblList<D3DDisplayMode>::Node* pModeNode = modeList.GetFirst();
+             pModeNode->_pObject != modeList._head._pObject;
+             pModeNode = pModeNode->_pNext)
+        {
+            const D3DDISPLAYMODE& mode = pModeNode->_pObject->displayMode;
+
+            if (mode.Width < uiMinWidth || mode.Height < uiMinHeight)
+            {
+                continue;
+            }
+
+            if (pRaw)
+            {
+                pRaw[uiFilled].w = mode.Width;
+                pRaw[uiFilled].h = mode.Height;
+                pRaw[uiFilled].refresh = mode.RefreshRate;
+                pRaw[uiFilled].adapter = uiAdapter;
+            }
+            ++uiFilled;
+        }
+    }
+    return uiFilled;
+}
+
 // FUNCTION: SWBF2 0x006b85a0
 unsigned int RedRenderer::pcGetValidDisplayModes(unsigned int uiAdapter,
                                                  DisplayLogic::DisplayModeRec* pModes,
@@ -2174,69 +2822,17 @@ unsigned int RedRenderer::pcGetValidDisplayModes(unsigned int uiAdapter,
         return 0;
     }
 
-    PblList<D3DAdapterInfo>& adapterList = pcRedDeviceEnumerator::GetDeviceList();
-
-    unsigned int uiRaw = 0;
-    for (int iPass = 0; iPass < 2; ++iPass)
+    unsigned int uiRaw = CollectAdapterModes(uiAdapter, uiMinWidth, uiMinHeight, 0);
+    if (uiRaw == 0)
     {
-        DisplayLogic::DisplayModeRec* pRaw = 0;
-        if (iPass == 1)
-        {
-            if (uiRaw == 0)
-            {
-                return 0;
-            }
-            pRaw = new DisplayLogic::DisplayModeRec[uiRaw];
-        }
-
-        unsigned int uiFilled = 0;
-        for (PblList<D3DAdapterInfo>::Node* pAdapterNode = adapterList.GetFirst();
-             pAdapterNode->_pObject != adapterList._head._pObject;
-             pAdapterNode = pAdapterNode->_pNext)
-        {
-            if (pAdapterNode->_pObject->AdapterOrdinal != (int)uiAdapter)
-            {
-                continue;
-            }
-
-            PblList<D3DDisplayMode>& modeList = pAdapterNode->_pObject->DisplayModeList;
-
-            for (PblList<D3DDisplayMode>::Node* pModeNode = modeList.GetFirst();
-                 pModeNode->_pObject != modeList._head._pObject;
-                 pModeNode = pModeNode->_pNext)
-            {
-                const D3DDISPLAYMODE& mode = pModeNode->_pObject->displayMode;
-
-                if (mode.Width < uiMinWidth || mode.Height < uiMinHeight)
-                {
-                    continue;
-                }
-
-                if (pRaw)
-                {
-                    pRaw[uiFilled].w = mode.Width;
-                    pRaw[uiFilled].h = mode.Height;
-                    pRaw[uiFilled].refresh = mode.RefreshRate;
-                    pRaw[uiFilled].adapter = uiAdapter;
-                }
-                ++uiFilled;
-            }
-        }
-
-        if (iPass == 0)
-        {
-            uiRaw = uiFilled;
-        }
-        else
-        {
-            unsigned int uiCount =
-                DisplayLogic::BuildModeList(pRaw, uiRaw, uiAdapter, pModes, uiMaxModes);
-            delete[] pRaw;
-            return uiCount;
-        }
+        return 0;
     }
 
-    return 0;
+    DisplayLogic::DisplayModeRec* pRaw = new DisplayLogic::DisplayModeRec[uiRaw];
+    CollectAdapterModes(uiAdapter, uiMinWidth, uiMinHeight, pRaw);
+    unsigned int uiCount = DisplayLogic::BuildModeList(pRaw, uiRaw, uiAdapter, pModes, uiMaxModes);
+    delete[] pRaw;
+    return uiCount;
 }
 
 static DisplayLogic::PresentWatch sPresentWatch = {0, 0.0, false, false};
@@ -3381,11 +3977,15 @@ void RedRenderer::Init()
     RedRenderer::m_uiCurMatrixPoolOffset = 0;
     RedRenderer::m_uiCurLightingStatePoolOffset = 0;
 
-    RedRenderer::m_aLightingStatePool[2048].ambientLight = RedAmbientLight::BLACK;
-    RedRenderer::m_aLightingStatePool[2048].pDirectionalLights[0] = &RedDirectionalLight::BLACK;
+    memcpy((unsigned char*)&RedRenderer::m_aLightingStatePool[2048] + 4,
+           (const unsigned char*)&RedAmbientLight::BLACK + 4, 0x6C);
+    *(void**)((unsigned char*)&RedRenderer::m_aLightingStatePool[2048] + 0x70) =
+        &RedDirectionalLight::BLACK;
 
-    RedRenderer::m_aLightingStatePool[2049].ambientLight = RedAmbientLight::WHITE;
-    RedRenderer::m_aLightingStatePool[2049].pDirectionalLights[0] = &RedDirectionalLight::BLACK;
+    memcpy((unsigned char*)&RedRenderer::m_aLightingStatePool[2049] + 4,
+           (const unsigned char*)&RedAmbientLight::WHITE + 4, 0x6C);
+    *(void**)((unsigned char*)&RedRenderer::m_aLightingStatePool[2049] + 0x70) =
+        &RedDirectionalLight::BLACK;
 
     RedRenderer::m_pLightingState = &RedRenderer::m_aLightingStatePool[2048];
 
@@ -5509,7 +6109,7 @@ PblMatrix* RedRenderer::AllocBoneMatricesInCache(unsigned int uiCount)
     {
         return 0;
     }
-    RedRenderer::m_uiCurMatrixPoolOffset = (int)uiOffset;
+    RedRenderer::m_uiCurMatrixPoolOffset = uiOffset;
     return &RedRenderer::m_amMatrixPool[uiStart];
 }
 

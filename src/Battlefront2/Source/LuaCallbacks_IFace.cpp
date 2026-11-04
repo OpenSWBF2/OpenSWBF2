@@ -75,7 +75,6 @@
 #include <dinput.h>
 
 #include "Steam/gfGalaxy.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 extern int g_InGameMoviePlayerState;
 extern Snd::Queue<unsigned int, 12> g_InGameMovieQueue;
@@ -3608,7 +3607,7 @@ int ScriptCB_GetLeaderBoardPlayerData(lua_State* L)
 {
     DoPeriodicLuaGC(true);
     LeaderBoardPlayerStatsT stats;
-    StatsManager::ReadStatsGetResults(&stats);
+    StatsManager::ReadStatsGetResults(0, &stats);
     lua_gettop(LuaHelper::mState);
     lua_pushnil(LuaHelper::mState);
     LuaHelper::SetGlobal("leaderboarddetails_data");
@@ -3868,16 +3867,17 @@ int ScriptCB_SetBinding(lua_State* L)
         }
     }
 
+    unsigned char* const pRaw = (unsigned char*)pJoystick;
     for (unsigned char ucDevice = 0; ucDevice < 10; ++ucDevice)
     {
-        RedJoystick* const* ppDevices = pJoystick->_redJoystick;
+        void* const* ppDevices = (void* const*)(pRaw + 0x25d4);
         if (ucDevice && !ppDevices[ucDevice])
         {
             continue;
         }
         const int iEnd = ucDevice ? 64 : 76;
-        const float* pfValue = pJoystick->mRawInputFloat[ucDevice];
-        const float* pfLast = pJoystick->mLastRawInputFloat[ucDevice];
+        const float* pfValue = (const float*)(pRaw + 0x14) + ucDevice * 76;
+        const float* pfLast = (const float*)(pRaw + 0xbf4) + ucDevice * 76;
 
         for (int iInput = ppDevices[ucDevice] ? 0 : 64; iInput < iEnd; ++iInput)
         {

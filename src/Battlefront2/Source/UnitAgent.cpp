@@ -23,8 +23,6 @@
 #include "PebbleFL/Common/PblRandom.h"
 
 #include "UnitThreatManager.h"
-#include "VOHelper.h"
-#include "TeamManager.h"
 
 class EntityFlyer
 {
@@ -37,6 +35,32 @@ class EntityDroideka
 public:
     static PblHash rttiHashEntityDroideka;
 };
+
+namespace AI
+{
+
+enum AIAffil
+{
+    AFFIL_ENEMY = 1,
+    AFFIL_NEUTRAL = 2,
+    AFFIL_ALLY = 4,
+    AFFIL_ALLYNEUTRAL = 6,
+    AFFIL_ALL = 7
+};
+
+enum VOType
+{
+    VOT_FriendlyFire = 2,
+    VOT_SC_FollowResponse = 23,
+    VOT_SC_GetInResponse = 29
+};
+
+namespace VOHelper
+{
+
+int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget, const GameObject* pOther, float fDelay);
+}
+}
 
 namespace AIUtil
 {
@@ -58,6 +82,17 @@ namespace CombatUtil
 namespace CombatUtil
 {
 float GetCombatRange(const Controllable* pMe);
+}
+
+namespace TeamManager
+{
+
+    int GetObjectsInRange(const PblVector3& vPos, float fRadius, GameObject** const ppObjects,
+                          int iMax, const GameObject* pIgnore, AI::AIAffil eAffil);
+
+    int GetApproxObjectsAlongLine(const PblVector3& vStart, const PblVector3& vEnd, float fRadius,
+                                  GameObject** const ppObjects, int iMax, const GameObject* pIgnore,
+                                  AI::AIAffil eAffil);
 }
 
 namespace ReserveManager

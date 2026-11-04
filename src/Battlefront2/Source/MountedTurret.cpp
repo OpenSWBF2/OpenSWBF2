@@ -12,7 +12,6 @@
 #include "CameraManager.h"
 #include "Character.h"
 #include "CollisionManager.h"
-#include "EntityFlyer.h"
 #include "FirstPerson.h"
 #include "GameModel.h"
 #include "GameObject.h"
@@ -37,7 +36,6 @@
 #include "RedEngineFL/Graphics/RedModel.h"
 #include "RedEngineFL/Graphics/RedSkeleton.h"
 #include "SoundFL/source/sndvoicevirtualbus.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 PblMatrix DirectionMatrix(const PblVector3& vDir, const PblVector3& vUp, const PblVector3& vPos);
 
@@ -763,7 +761,7 @@ bool MountedTurret::Update(float aDt)
                 {
 
                     if (!(GetGameObject() && GetGameObject()->IsRtti(EntityFlyer::rttiHashEntityFlyer) &&
-                          static_cast<EntityFlyer*>(GetGameObject())->mState != EntityFlyer::LANDED))
+                          ((EntityFlyer*)GetGameObject())->mState != EntityFlyer::LANDED))
                     {
                         if (pPilot->mCharacter && pPilot->mCharacter->mRemote)
                         {

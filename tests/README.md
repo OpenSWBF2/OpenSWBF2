@@ -105,11 +105,11 @@ The hardening step checks the exe's security flags (ASLR, DEP, LAA, SafeSEH, `/G
 
 | Check | Fails on |
 |-------|----------|
-| `new-size-t` | `operator new`/`delete` with a 32-bit size type |
+| `new-size-t` | `operator new`/`delete` with a 32-bit size type, not in `$script:NewSizeAllow` (`smoke.ps1`) |
 | `win32-callbacks` | casts to Win32 callback types, or window procs with the wrong signature |
 | `galaxy-vtable` | hand-written vtable math under `src\Steam` |
-| `fastcall-edx` | dummy EDX parameters on `__fastcall` functions |
-| `d3dx-decl` | D3DX declarations outside `src\PebbleFL\pc\PblD3DX.h` |
+| `fastcall-edx` | dummy EDX parameters on `__fastcall` functions, not in `$script:FastcallAllow` (`smoke.ps1`) |
+| `d3dx-decl` | hand-written D3DX declarations |
 | `char-spacer` | byte-array spacers not in `$script:SpacerAllow` (`smoke.ps1`) |
 | `offset-hack` | raw byte-offset object access not in `$script:OffsetAllow` (`smoke.ps1`) |
 | `gamma-get` | any `GetDeviceGammaRamp` call |

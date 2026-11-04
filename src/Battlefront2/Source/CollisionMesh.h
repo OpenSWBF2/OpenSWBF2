@@ -31,7 +31,7 @@ class CollisionTreeNode
 {
 public:
 
-    static void* operator new(size_t uSize)
+    static void* operator new(unsigned int uSize)
     {
         void* p = memblock + membytes;
         membytes += uSize;

@@ -118,7 +118,7 @@ namespace gf
 {
 bool isInitialized();
 }
-extern void* GetGalaxyNetworking();
+extern galaxy::api::INetworking* GetGalaxyNetworking();
 
 // FUNCTION: SWBF2 0x00617e50
 int NetSocket::SendSocket(int iDest, char* pData, int iLen)

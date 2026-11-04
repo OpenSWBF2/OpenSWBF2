@@ -22,7 +22,7 @@ bool LuaPushItem<float>(float& item);
 
 inline const EntityEx& ObjectEntity(GameObject& object)
 {
-    return object;
+    return *reinterpret_cast<const EntityEx*>(&object);
 }
 
 template <class PARAM>
@@ -83,7 +83,7 @@ public:
 
     bool operator()(GameObject& object, PARAM&) const
     {
-        return object.mTeam == mTeam;
+        return (*(const int*)((const char*)&object + 0x234) << 28 >> 28) == mTeam;
     }
 
     bool operator==(const ObjectMatchesTeam& other) const

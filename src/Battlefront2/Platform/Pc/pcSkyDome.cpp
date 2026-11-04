@@ -22,7 +22,6 @@
 #include "RedEngineFL/Graphics/RedModel.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "pcSunFlare.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 // SYNTHETIC: SWBF2 0x004020e0
 // `dynamic initializer for 's_SkyFogPlane''

@@ -445,6 +445,22 @@ void PlayerStats::Reset()
 }
 
 
+namespace AI
+{
+enum VOType
+{
+    VOT_KillingSpree4 = 12,
+    VOT_KillingSpree8 = 13,
+    VOT_KillingSpree12 = 14,
+    VOT_KillingSpree16 = 15
+};
+namespace VOHelper
+{
+int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,
+         const GameObject* pOther, float fDelay);
+}
+}
+
 // FUNCTION: SWBF2 0x0061e070
 void PlayerStats::AddKill(Character* pVictim, GameObject* pObject)
 {

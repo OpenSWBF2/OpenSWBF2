@@ -20,7 +20,6 @@
 #include "PebbleFL/Common/PblRandom.h"
 
 #include "UnitThreatManager.h"
-#include "VOHelper.h"
 
 enum FormationType
 {
@@ -46,6 +45,20 @@ namespace ReserveManager
 namespace SquadCommands
 {
 bool IsSquadCommand(int iCmd);
+}
+
+namespace AI
+{
+enum VOType
+{
+    VOT_SC_StopFollowResponse = 25
+};
+
+namespace VOHelper
+{
+
+int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget, const GameObject* pOther, float fDelay);
+}
 }
 
 namespace

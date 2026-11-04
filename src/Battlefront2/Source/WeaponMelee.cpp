@@ -46,7 +46,6 @@
 #include "CollisionObject.h"
 #include "Damageable.h"
 #include "Battlefront2/Platform/Pc/pcSunFlare.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 const RedColor Interpolate(const RedColor& a, const RedColor& b, float t);
 

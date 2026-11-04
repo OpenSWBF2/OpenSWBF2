@@ -1,4 +1,3 @@
-#include <stddef.h>
 #include "GameVoiceChat.h"
 #include "GameVoiceChatTransport.h"
 #include "GameVoiceChatNode.h"
@@ -9,16 +8,6 @@
 #include "NetGame.h"
 #include "SoundFL/source/sndthreadupdate.h"
 #include "Battlefront2/Platform/Pc/pcSpawnDisplay.h"
-
-#ifndef _WIN64
-static_assert(sizeof(GameVoiceChat::Decoder) == 0x288, "voice chat decoder size");
-static_assert(sizeof(GameVoiceChat::Node) == 0x50, "voice chat node size");
-static_assert(sizeof(GameVoiceChat::Encoder) == 0x50C, "voice chat encoder size");
-#else
-static_assert(alignof(GameVoiceChat::Decoder) <= sizeof(void*), "voice chat decoder align");
-static_assert(alignof(GameVoiceChat::Node) <= sizeof(void*), "voice chat node align");
-static_assert(alignof(GameVoiceChat::Encoder) <= sizeof(void*), "voice chat encoder align");
-#endif
 
 // GLOBAL: SWBF2 0x01e56bc8
 

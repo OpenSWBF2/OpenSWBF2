@@ -25,7 +25,6 @@
 
 #include "RedEngineFL/Graphics/RedSegment.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 // GLOBAL: SWBF2 0x007846d0
 // __xmm@3f8000003e4ccccd3e4ccccd3e4ccccd
@@ -323,7 +322,7 @@ bool s_bDetailTextureTransformPrev;
 class PblMatrix;
 extern PblMatrix gMatrixIdentity;
 
-inline void* RedShadingState::operator new(unsigned int uiSize)
+void* RedShadingState::operator new(size_t uiSize)
 {
     return sMemoryPool.Allocate(uiSize);
 }

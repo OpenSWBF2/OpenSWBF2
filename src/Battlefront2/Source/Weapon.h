@@ -10,10 +10,7 @@ class PblFileChunk;
 #include "EnergyBar.h"
 #include "Factory.h"
 #include "GameSound.h"
-#include "Thread.h"
-#include "PebbleFL/Common/PblHandle.h"
 #include "PebbleFL/Common/PblHashTable.h"
-#include "PebbleFL/Common/PblMatrix.h"
 #include "PebbleFL/Common/PblVector.h"
 #include "RedEngineFL/Graphics/RedColor.h"
 
@@ -29,18 +26,13 @@ struct WeaponAmmoDesc
     unsigned int bFlagShareHeat : 1;
     unsigned int bFlagShareAmmo : 1;
 };
+ 
 
 class Aimer;
+class AmmoCounter;
 class Controllable;
-class GameObject;
-class MemoryPool;
-class NetPktGroup;
-class Ordnance;
-class ParticleEmitterObject;
-class RedPose;
+class EnergyBar;
 class Trigger;
-
-struct OrdnanceDesc;
 
 struct WeaponDesc
 {
@@ -52,6 +44,8 @@ struct WeaponDesc
     AmmoCounter* m_pAmmoCounter;
     EnergyBar* m_pEnergyBar;
 };
+ 
+ 
 
 // VTABLE: SWBF2 0x007b0170
 class WeaponClass : public Factory<Weapon, WeaponClass, WeaponDesc>

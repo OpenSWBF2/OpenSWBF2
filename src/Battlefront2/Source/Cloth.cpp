@@ -73,7 +73,6 @@
 #include "ProceduralAnimation.h"
 #include "ShellLoop.h"
 #include "RedEngineFL/Interface/RedShadowBlob.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 // SYNTHETIC: SWBF2 0x004023e0
 // `dynamic initializer for 'EntityCloth::sMemoryPool''

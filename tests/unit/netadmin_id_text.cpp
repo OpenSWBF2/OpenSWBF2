@@ -66,7 +66,7 @@ TEST_CASE("net peer lookup covers dests and join slots only" * doctest::test_sui
         CHECK((pPeer != 0) == bValid);
         if (pPeer)
         {
-            CHECK(&pPeer->mGalaxyId == NetCommP::GetAddr(i));
+            CHECK(&pPeer->mGalaxyId.value == NetCommP::GetAddr(i));
         }
     }
 }

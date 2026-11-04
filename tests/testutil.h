@@ -76,3 +76,19 @@ void __cdecl TestLogObserver(int iSeverity, int iCategory, char const* pcLine);
 int TestStrictnessReport(const char* pcCase);
 
 bool ReadRepoText(const char* pcRelPath, std::string& sOut);
+
+template <class TABLE, class VALUE>
+bool HashStoreNew(TABLE& kTable, unsigned int uiHash, VALUE* pValue)
+{
+    const int iBefore = kTable.GetNumEntries();
+    kTable.Store(uiHash, pValue);
+    return kTable.GetNumEntries() == iBefore + 1;
+}
+
+template <class TABLE>
+bool HashRemoveOld(TABLE& kTable, unsigned int uiHash)
+{
+    const int iBefore = kTable.GetNumEntries();
+    kTable.Remove(uiHash);
+    return kTable.GetNumEntries() == iBefore - 1;
+}

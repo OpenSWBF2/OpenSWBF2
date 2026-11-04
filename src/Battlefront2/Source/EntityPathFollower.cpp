@@ -1,7 +1,6 @@
 #include <d3dx9math.h>
 #include <float.h>
 #include <stdio.h>
-#include <stddef.h>
 
 #include "EntityPathFollower.h"
 #include "PebbleFL/Common/PblHashTable.h"
@@ -27,7 +26,6 @@
 #include "AIUtil.h"
 #include "CollisionModel.h"
 #include "PebbleFL/Common/PblQuaternion.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x004d7900
 EntityPathFollowerClass::EntityPathFollowerClass()
@@ -59,21 +57,21 @@ const ODFPropertySet::ODFProperty EntityPathFollowerClass::sPropertySet[15] = {
     { 0x1a2fabca, ODFPropertySet::type_Float, offsetof(EntityPathFollowerClass, mTurnSpeed) },
     { 0xab9db3f4, ODFPropertySet::type_Float, offsetof(EntityPathFollowerClass, mAcceleration) },
     { 0x2d976c37, ODFPropertySet::type_Float,
-      offsetof(EntityPathFollowerClass, mPathRollValues.mRollAcceleration) },
+      offsetof(EntityPathFollowerClass, mPathRollValues) + 0x00 },
     { 0x732ff7d1, ODFPropertySet::type_Float,
-      offsetof(EntityPathFollowerClass, mPathRollValues.mRollLookAhead) },
+      offsetof(EntityPathFollowerClass, mPathRollValues) + 0x04 },
     { 0x93425352, ODFPropertySet::type_Float,
-      offsetof(EntityPathFollowerClass, mPathRollValues.mRollTolerance) },
+      offsetof(EntityPathFollowerClass, mPathRollValues) + 0x08 },
     { 0xb1354466, ODFPropertySet::type_Float,
-      offsetof(EntityPathFollowerClass, mPathRollValues.mRollSpeed) },
+      offsetof(EntityPathFollowerClass, mPathRollValues) + 0x0c },
     { 0x60900c05, ODFPropertySet::type_Float,
-      offsetof(EntityPathFollowerClass, mPathRollValues.mRollAccelResp) },
+      offsetof(EntityPathFollowerClass, mPathRollValues) + 0x10 },
     { 0xacf747f3, ODFPropertySet::type_Float,
-      offsetof(EntityPathFollowerClass, mPathRollValues.mRollTurnFactor) },
+      offsetof(EntityPathFollowerClass, mPathRollValues) + 0x14 },
     { 0xe217bc71, ODFPropertySet::type_Float,
-      offsetof(EntityPathFollowerClass, mPathRollValues.mRollSpeedFactor) },
+      offsetof(EntityPathFollowerClass, mPathRollValues) + 0x18 },
     { 0x4453dc0a, ODFPropertySet::type_Float,
-      offsetof(EntityPathFollowerClass, mPathRollValues.mRollDampening) },
+      offsetof(EntityPathFollowerClass, mPathRollValues) + 0x1c },
     { 0x9f528aec, ODFPropertySet::type_UInt32, offsetof(EntityPathFollowerClass, mBranchPaths) },
     { 0x9eececc5, ODFPropertySet::type_Float, offsetof(EntityPathFollowerClass, mBranchRange) },
     { 0x886f9fe5, ODFPropertySet::type_Float, offsetof(EntityPathFollowerClass, mCosMaxAngle) },
@@ -1736,7 +1734,7 @@ float EntityPathFollower::Roll(const EntityPathFollowerClass* const pClass, floa
     }
 
     float fWeave = 1.0f;
-    float fTime = GameLoop::GetMissionTime() + (float)(((uintptr_t)this >> 2) & 0xf);
+    float fTime = GameLoop::GetMissionTime() + (float)(((unsigned int)this >> 2) & 0xf);
     if (!AIUtil::gGroundFlyerMap)
     {
         fWeave = 2.0f;
@@ -2075,4 +2073,10 @@ bool EntityPathFollower::RayTestSpline(const PblVector3& p0, const PblVector3& p
         vLast = vPoint;
     }
     return true;
+}
+
+// FUNCTION: SWBF2 0x004fc6d0
+int __fastcall ReturnEdxValue(int, int value)
+{
+    return value;
 }

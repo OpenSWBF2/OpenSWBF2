@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include "PebbleFL/Common/PblMath.h"
 #include <string.h>
-#include <stddef.h>
 
 #include "RedMemory.h"
 #include "RedEngineFL/Memory/engineAlloc.h"
@@ -59,7 +58,7 @@ extern "C"
     int __RedTempHeap = -1;
     // GLOBAL: SWBF2 0x0093eb94
     // OnFailure
-    void (*OnFailure)();
+    void (*OnFailure)(int heap, unsigned int size);
     // GLOBAL: SWBF2 0x0093ebb0
     int sRecursionDepth;
 }
@@ -99,15 +98,9 @@ PBL_ASAN_NO_SANITIZE void TagMergeIntoList(TagList* list, Tag* tag);
 PBL_ASAN_NO_SANITIZE void TagRemoveList(TagList* list, Tag* tag);
 
 // FUNCTION: SWBF2 0x006c3540
-void* __cdecl operator new(size_t size)
+void* __cdecl operator new(unsigned int size)
 {
-#ifdef _WIN64
-    if (size > 0xFFFFFFFFu)
-    {
-        return 0;
-    }
-#endif
-    return RedAllocFromHeap(__RedCurrHeap, (unsigned int)size, 0);
+    return RedAllocFromHeap(__RedCurrHeap, size, 0);
 }
 
 // FUNCTION: SWBF2 0x006c3560
@@ -120,15 +113,9 @@ void __cdecl operator delete(void* block)
 }
 
 // FUNCTION: SWBF2 0x006c3580
-void* __cdecl operator new[](size_t size)
+void* __cdecl operator new[](unsigned int size)
 {
-#ifdef _WIN64
-    if (size > 0xFFFFFFFFu)
-    {
-        return 0;
-    }
-#endif
-    return RedAllocFromHeap(__RedCurrHeap, (unsigned int)size, 0);
+    return RedAllocFromHeap(__RedCurrHeap, size, 0);
 }
 
 // FUNCTION: SWBF2 0x006c35a0
@@ -157,7 +144,7 @@ void __cdecl operator delete[](void* block, size_t)
 }
 
 // FUNCTION: SWBF2 0x006c35c0
-void* RedAllocFromHeapInternal(int heap, unsigned int size, bool bTop)
+PBL_ASAN_NO_SANITIZE void* RedAllocFromHeapInternal(int heap, unsigned int size, bool bTop)
 {
     if (!isHeapObjInitialized)
     {
@@ -399,10 +386,10 @@ void* RedAllocFromHeap(int heap, unsigned int size, bool bTop)
 // FUNCTION: SWBF2 0x006c3900
 int RedCreateHeap(void* start, void* end, unsigned int align, char const* name)
 {
-    uintptr_t mask = ~(uintptr_t)(align - 1);
-    char* s = (char*)(((uintptr_t)start + align - 1) & mask);
-    char* e = (char*)((uintptr_t)end & mask);
-    size_t size = (size_t)(e - s);
+    unsigned int mask = ~(align - 1);
+    char* s = (char*)(((unsigned int)start + align - 1) & mask);
+    char* e = (char*)((unsigned int)end & mask);
+    unsigned int size = e - s;
     PblAsanUnpoison(s, size);
     if (size)
     {
@@ -431,13 +418,13 @@ int RedCreateHeap(void* start, void* end, unsigned int align, char const* name)
     heap.start = s;
     heap.free.first = tag;
     heap.free.last = tag;
-    heap.size = (unsigned int)size;
+    heap.size = size;
     heap.used.first = 0;
     heap.used.last = 0;
     heap.align = align;
     heap.name = name;
-    heap.frozen = false;
     PblAsanPoison(s, size);
+    heap.frozen = false;
     return i;
 }
 

@@ -37,7 +37,7 @@ re-measured on the fixed build.
 In 20-15 the Standard group gained `digest-dag1c_ctf` and `digest-kas2c_uber`, whose rows are the
 VS2013 turn-1500 digests of the C1 mission dag1c_ctf (first split 202) and the C2 mission
 kas2c_uber (first split 636); guard-revert rows SIMFIX-C1S and SIMFIX-C2S turn them RED when the
-C1 or C2 fix is reverted.
+C1 or C2 fix is reverted (SIMFIX-C2S no longer did on the Phase 28 merged tree and was removed, see C-D14-RECHECK).
 
 In 26-06 the `digest-spa3c_ass` row moved for cause C-SLOT-SOLDANIM, the only row changed since
 Phase 20. The `spa3c_ass` traces and digests in this directory are from before that fix.
@@ -142,7 +142,8 @@ traces, neutral builds, probes) is kept under `artifacts\gap20`, which is not tr
   smoke row) go RED when it is reverted. Because cl rejects `/fp:strict` together with
   `/fp:contract` (D8016), guard-revert row FLAG-FPCONTRACT now goes RED by build failure on the
   first `/fp:strict` TU. Fix check: every C2 mission equals VS2013 in every traced turn on the
-  fixed build, with the VS2013 final line.
+  fixed build, with the VS2013 final line. On the Phase 28 merged tree SIMFIX-C2S no longer went
+  RED and was removed (see C-D14-RECHECK).
 - Phase 20 effect: the first split of 16 missions (cor1g_con, kas2c_uber, myg1c_ctf, geo1c_con,
   geo1c_xl, kam1g_con, mus1c_con, nab2c_con, pol1c_con, pol1g_con, spa3c_ass, spa6c_ass,
   spa7c_ass, spa9g_ass, tat2g_eli, yav1c_con), and the later splits of dag1c_con (2862), dag1g_con
@@ -420,6 +421,408 @@ VS2013 at one turn, 19926 of 20226, in one field (char 119, team 2, `vel.x` `40D
 `40D74738`, 1 ulp). That residual is C3, and it is fixed. The fixed build equals VS2013 on every
 traced turn of the 30 proof traces (the 29 drift missions and hot1g_con, to game over or to turn
 1600 for the TimeOut missions and hot1g_con), geo1c_xl over all 20226 turns.
+
+## Phase 28: Gametoast d5596ee against 87d3f55
+
+Phase 28 merged Gametoast/swbf2decomp `d5596ee` and re-applied our changes on top of it. The
+reference is 87d3f55, the last commit before the merge, built Release v143 in the staged main
+tree. Every difference in SIM DIGEST, Factory order, layout pins, corpora and the network
+Write/Read order between 87d3f55 and the merged branch is listed here with its cause. Each one
+is either fixed in src or accepted with retail evidence (decision D-13; Factory order and wire
+format under D-16).
+
+Method: `-factorylog -digesttrace 1600` runs of the six digest missions on both builds, then
+per-turn probes (StateHash parts, per-object position, velocity and rotation, per-thread and
+per-function checkpoints, raw object words) built into an 87d3f55 worktree and the branch to find
+the first differing field, function and input. The probes were never committed.
+
+| Mission | 87d3f55 digest (turn 1500) | Branch digest | First split turn | Cause |
+|---------|----------------------------|---------------|------------------|-------|
+| geo1c_con | `state=0x16D65714` | same | 334 before the fix, then 0 | C-SOLDIER-SLOPE (fixed) |
+| nab2g_c | `state=0xA880CE00` | same | 1291 before the fix, then 0 | C-SOLDIER-SLOPE (fixed) |
+| dag1c_ctf | `state=0xD9F4B470` | same | 628 before the fix, then 0 | C-SOLDIER-SLOPE (fixed) |
+| kas2c_uber | `state=0x765A955F` | same | 14 before the fix, then 0 | C-SOLDIER-SLOPE (fixed) |
+| hot1g_con | `rand=2763759203/2960762048 state=0x1FE5B21F` | `rand=403802221/2528439372 state=0x2F003610` | 620 (`rand=` 739) | C-ADDR-FLYER (accepted) |
+| spa3c_ass | `rand=2329233471/2392100820 state=0x247DCD93` | `rand=529082281/2897934758 state=0x7385D175` | 555 (`rand=` 668) | C-ADDR-FLYER (accepted) |
+
+Only the `digest-hot1g_con`, `hot1g_con`, `trace-seed-1`, `digest-spa3c_ass` and `spa3c_ass` rows
+of `tests/smoke/digest-expected.txt` changed, all for C-ADDR-FLYER. The v143 trace and factory
+files in this directory are unchanged.
+
+### C-SOLDIER-SLOPE
+
+- Function: `EntitySoldier::Move(float fDeltaTime, float fForward, float fStrafe, float fTurn, float
+  fAcceleration)` in `src/Battlefront2/Source/EntitySoldier.cpp`, `// FUNCTION: SWBF2 0x004ee590`,
+  the grounded slope terms `fSlopeFront` and `fSlopeSide`.
+- Gametoast change: b217b519 ("More math and vector API fixes") and a70bfddb ("Mostly correct DX
+  vector calls") rewrote the function and wrote `-(vFront.y * fDeltaTime * GRAVITY_FORCE)`, which
+  is `(vFront.y * dt) * G`. 87d3f55 computed `fGravity = fDeltaTime * GRAVITY_FORCE` first, then
+  `-(vFront.y * fGravity)`.
+- Retail evidence: the retail exe at 0x004EE867-0x004EE882 does `movaps xmm0,xmm5` (dt),
+  `mulss xmm0,[007B22C4h]` (GRAVITY), then `mulss xmm7,xmm0` and `mulss xmm6,xmm0` for
+  `vFront.y` and `vSide.y`, so retail is `vFront.y * (dt * G)`, the 87d3f55 order.
+- Effect: kas2c_uber turn 14, character 419 (team 3): velocity x and y 1 ulp off (`3F9CCB06
+  BFD578A4` against `3F9CCB05 BFD578A3`) after `EntitySoldier::Move`, with position, thread order
+  and every input identical. It moved geo1c_con (a blip at 334-364), nab2g_c (1291), dag1c_ctf
+  (628) and kas2c_uber (14), and kas2c_uber's turn-1500 digest.
+- Status: fixed on Gametoast's line as `-(vFront.y * (fDeltaTime * GRAVITY_FORCE))` and the same for
+  `vSide` (ledger L-3336). After the fix the four missions equal 87d3f55 in every one of 1600
+  traced turns and at turn 1500. C2 still holds: kas2c_uber is the C2 guard mission and its row is
+  unchanged.
+
+### C-ADDR-FLYER
+
+- Functions: `EntityFlyer::GetBranchParams` (`// FUNCTION: SWBF2 0x004b6120`,
+  `src/Battlefront2/Source/EntityFlyer.cpp`) and `EntityPathFollower::Roll`
+  (`// FUNCTION: SWBF2 0x004d6a10`, `src/Battlefront2/Source/EntityPathFollower.cpp`). Both add
+  `(float)(((unsigned int)this >> 2) & 0xf)` to the mission time to give each path-following flyer
+  its own speed and roll wobble. The term reads the object's heap address.
+- The code is the same on both sides apart from the cast type (87d3f55 `uintptr_t`, Gametoast
+  `unsigned int`, the same value on x86). What changed is the flyer's address: the merged tree
+  allocates objects of Gametoast's sizes (retail-matching layouts, for example `PblHashTable`
+  gaining `_iNumEntries` in 7f59a099, `NG_ChatMsg::msg[128]`), so the heap moved.
+- Evidence: hot1g_con turn 619, character 44 (team 2, a flyer following a path): `params.mWorldSpeed`
+  is `4234E84A` on 87d3f55 and `4237F48F` on the branch with every other input of
+  `EntityPathFollower::Update` equal, and the address bits are 11 against 3. spa3c_ass turn 555:
+  address bits 15 against 7. With the term set to 0 in both functions on both builds (a
+  temporary experiment), the branch equals 87d3f55 in every one of 1600 traced turns and at turn
+  1500 on all six missions. So nothing else separates the two sims in this window.
+- Judgement: accepted. The functions are retail code and unchanged; the digest moved only because
+  object addresses moved, and the merged layouts are Gametoast's retail-matching ones. Retail has
+  different addresses again, so neither digest is a retail value. It is the same mechanism as
+  C-SLOT-SOLDANIM (26-06), where a layout change moved spa3c_ass at the same turn 555. Lockstep is
+  not affected: every peer runs the same exe and allocation sequence. A peer on a different build
+  already differed before this phase.
+- Re-baselined rows: `digest-hot1g_con`, `hot1g_con`, `trace-seed-1` to
+  `rand=403802221/2528439372 state=0x2F003610`, and `digest-spa3c_ass`, `spa3c_ass` to
+  `rand=529082281/2897934758 state=0x7385D175` (turns=1500 time=50.000 snd=49.923 on both).
+
+### C-2DRADIUS
+
+- Gametoast 9a5f4c4a ("Embedded AI objects and header contracts") made
+  `CollisionObject::SetCollisionRadius` (`// FUNCTION: SWBF2 0x00454da0`) also set `m2dRadius`, and
+  removed the separate `Set2DCollisionRadius` calls that followed it with the same value
+  (RedTerrain hole read, Chunk, EntityBuilding, EntityDroid, EntityGeometry). EntityProp keeps its
+  own smaller 2D radius after the call.
+- Retail evidence: retail 0x00454da0 stores the radius to `[ecx+14h]` (`mCollisionSphere.w`) and
+  `[ecx+18h]` (`m2dRadius`), as Gametoast does.
+- Effect: the removed calls set the same value, so they change nothing. The new behaviour is that
+  callers that never set the 2D radius (soldier stance changes, traps, water, terrain) now set it.
+  A build with the 87d3f55 semantics restored gives the same digests and traces as the branch on
+  hot1g_con and spa3c_ass, and the other four missions equal 87d3f55, so no row moves.
+- Judgement: accepted (closer to retail).
+
+### C-PTR03-SENTINEL
+
+- `PblOrderedList::Add` (`src/Battlefront2/Source/Thread.h`) sets the head sentinel to the int
+  maximum `0x7FFFFFFF` in Gametoast's code. 87d3f55 used the maximum of the key type (PTR-03,
+  removed with the other D-26 convention rows).
+- Effect: none in the game. The only instantiation is `PblOrderedList<Thread, int>` (retail
+  template 0x00657860), whose keys come from `PblPtrOrderKey` and fit in int on x86; the float
+  sentinel is `0x4F000000` either way. No list with a 64-bit key exists in src.
+- Status: accepted. T1 `ordered list sentinel is the key maximum` now expects `0x7FFFFFFF` for the
+  `long long` list.
+
+### C-PIN-28
+
+The layout pins that 28-06 and 28-07 changed or removed (ledger L-3296..L-3306, L-3310) follow
+Gametoast's declarations, not a layout change:
+
+| Type | Change | Gametoast commit |
+|------|--------|------------------|
+| GameObject | `mCreatedTime` protected, pinned through a derived struct at 0x230 | be630e9f |
+| RedBorderElement | members private; `sizeof` 0x260 kept | 85aff8b |
+| FlareVertex, FlareCompressedVertex | TU-local in pcLensFlare.cpp | 5fbe86b5 |
+| AI::VOHelper::QueuedSound | TU-local in VOHelper.cpp | 85aff8b |
+| NetDest | TU-local in NetComm.cpp; `tests/nettest.cpp` keeps a 0x60 copy | df0cadba |
+| CNetFindGame | direct-join spacers named, same offsets | b9000d5e |
+| NetJoinSlot | TU-local in NetComm.cpp | 3ce644dc |
+| NetAddr | `pubAddr`/`pubPort` replaced by an 8-byte `GalaxyID`, `sizeof` 0x14 | b9000d5e |
+| Snd::StreamMixer, Snd::StreamSplitter | base classes, same offsets | f79c6323, 85aff8b |
+| Snd::StreamSourceProducer | members private; `sizeof` 0x18 kept | a4016437 |
+| MD5_CTX | renamed from MD5Context, same offsets | 8c43b53c |
+
+None of our fixes reads these types through raw offsets, so no pin needed a friend or accessor
+(D-26/D-27). NetAddr's first 8 bytes go on the wire raw (see C-WIRE-ORDER), so its pins now also
+check `offsetof(NetAddr, mGalaxyId) == 0` and `sizeof(GalaxyID) == 8` (L-3337).
+
+### C-D14-RECHECK
+
+- C1 (`RedTerrain.cpp`, SSE line) and C3 (`WeaponCannon.cpp` under `/fp:strict`) keep their
+  neutralisations; their expressions were not rewritten.
+- C2: Gametoast 4a02a2b6 moved the auto-balance and space-assault functions into the `/fp:strict`
+  `AIDifficulty.cpp` TU, and 7efdb5b8 wrote `GetRangedSpeed` with `Clamp`/`Interpolate` (the same
+  formula). kas2c_uber, the C2 guard mission, and geo1c_con equal 87d3f55 in every traced turn, and
+  the `digest-kas2c_uber` row is unchanged.
+  Guard row SIMFIX-C2S (which removes `/fp:strict` from `AIDifficulty.cpp`) stays GREEN on the
+  merged tree: with the flag removed kas2c_uber still gives the same turn-1500 digest. The C2
+  source (`GetTargetBubbleShrinkRate`, `GetFloatSkill_RangedLinear`, `GetFloatSkill`) is the same
+  as 87d3f55, but in the enlarged TU cl 19.44 now inlines `GetFloatSkill` into it. Under
+  `/fp:precise` it computes `-0.1f - t` in SSE (`subss`), and under `/fp:strict` it computes
+  `(-1.1f - -0.1f) * t - 0.1f` (`subss; mulss; subss`). Both store the float to memory before the
+  `fld`, so the unrounded x87 return that caused C2 is gone, and both forms give the same float for
+  every skill level, because `-1.1f - -0.1f` rounds to exactly `-1.0f`. With the flag removed,
+  every digest smoke case is unchanged: `geo1c_con` (full game and final score), `digest-dag1c_ctf`,
+  `digest-kas2c_uber`, `pacing-realtime`, `digest-hot1g_con`, `digest-spa3c_ass`, both
+  `trace-seed` traces and the run-twice digests. The flag still changes codegen in about 30 other
+  functions of the TU, but no smoke case shows a value moving. The flag stays (D-10, D-14,
+  CLAUDE.md). T1 row SIMFIX-C2 pins it. No smoke anchor exists, so the SIMFIX-C2S row was removed
+  in Phase 28 (ledger L-3338).
+- WeaponCannon: Gametoast rewrote three comparisons in `UpdateFire`/`FireDone` so that they differ
+  only for NaN (`!(mSalvoDelay > 0.0f)` to `mSalvoDelay <= 0.0f` and two more). ODF values are
+  sanitised before they reach those fields, and no traced turn differs.
+- Lua limits (6c41a198, `LUA_MAXCALLS` 256, `LUA_MAXCSTACK` 1024) moved no smoke case.
+- Status: no change needed.
+
+### C-SHADER-INIT
+
+Not a baseline difference but the reason the first branch Release build could not run a mission:
+Gametoast 7f59a099 gave `PblHashTable` a constructor that calls `Clear()`, so
+`pcRedShader::s_ShaderFactoryByRenderType` (`// SYNTHETIC: SWBF2 0x004072e0`) has a real dynamic
+initializer. Under our project's link order it ran after the shader TUs had registered and wiped
+them, and `RedBitmapElement::Init` dereferenced a null interface shader (access violation at
+`BattlefrontII.exe+0x39A121` before the first frame). `#pragma init_seg(lib)` in
+`pcRedShader.cpp` runs it before the user-level registrations, as `RedColor.cpp` and
+`pcPblMatrix.cpp` already do (ledger L-3335, build).
+
+### Factory
+
+All six missions create the same classes in the same order with the same `mNetIndex` on both
+builds (`-factorylog`, D-16). The `-factorylog` line prints `idx=%d` again, so the logs are
+byte-identical to `factory-<m>.txt`.
+
+### C-WIRE-ORDER
+
+D-16 wire check: `wire-order.ps1` (phase tool) collects, per function keyed by its `// FUNCTION:`
+address, the ordered `Write*`/`Read*`/`SendP2PPacket`/`ReadP2PPacket`/`PeekP2PPacket`/`send`/
+`sendto`/`recv`/`recvfrom` lines of the Net*.cpp files, NetPacket.h, NetWire, the voice transports,
+pcNetSocket.cpp, the Galaxy P2P files and every file a matched function moved to, at 87d3f55 and on
+the branch. It printed 201 `DIFF` and 4 `MISSING` lines. Each was judged; none changes the bits on
+the wire, so none is fixed and 85aff8b's order is kept everywhere.
+
+- The bit width of every single-argument `Write(x)`/`Read(x)` was taken from the compiler, not the
+  source: the six `NetPktGroup` bool/int/float overloads were marked `[[deprecated]]` in a scratch
+  compile of every wire TU on both sides, and each C4996 location was mapped to its call. All
+  bool overloads write 1 bit like the `WriteBits(x, 1)` they replaced, and every 32-bit
+  `Write(int)`/`Read(int&)`/float site on the branch has a 32-bit counterpart on 87d3f55.
+- 145 lines are rename-only: the same calls in the same order with the same widths and literal
+  arguments; only argument expressions differ.
+- The other 60 have the class given below. "branch-swap" and "branch-restructure" mean an inverted
+  or restructured if/else whose paths write the same bits in the same order; "parser" means the
+  comparison tool split a multi-line or `->` argument wrongly and the widths are the same.
+- NetAddr: `WriteAddr`/`ReadAddr` (0x005d5aa0/0x005d5b00) send 8 raw bytes then the private-address
+  bits. Those 8 bytes are `pubAddr`/`pubPort` on 87d3f55 and the `GalaxyID` on the branch, the
+  same first 8 bytes of the struct. No other code copies a `NetAddr` into a packet.
+- `ReadShellUpdate` reads the 2 arch bits once on 87d3f55, in d5596ee and on the branch; the double
+  read existed only in the merge commit M and was removed in 28-11.
+
+Line list (the `DIFF` and `MISSING` lines exactly as `wire-order.ps1` prints them):
+
+- `DIFF src/Battlefront2/Source/LuaCallbacks_IFace.cpp 0x00586410 ScriptCB_GetLeaderBoardPlayerData`: not-wire: StatsManager::ReadStatsGetResults is a GameSpy stats query, not a packet read; Gametoast added the index argument
+- `DIFF src/Battlefront2/Source/NetAdmin.cpp 0x005b1920 SendAdminMessage`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetAdmin.cpp 0x005b16b0 NetAdmin::ReceiveConsole`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetComm.cpp 0x005b2eb0 PackHeader`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005ba110 NetGame::ApplyLateMoves`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c28e0 EntityItem::WriteCreate`: branch-restructure: the found branch writes bAttach, which is true there; every other path writes one false bit
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c2ad0 EntityItem::ReadCreate`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005b8920 NetGame::SendClient`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005bc1a0 WriteDamageOwner`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005bc270 ReadDamageOwner`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005bd340 ReadObjectPtr`: width-split: base ReadBits(uId, bSpecial ? 8 : 6) became an 8-bit read in the never-dies branch and a 6-bit read in the other
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005b9340 NetGame::ReceiveHost`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005b8f70 NetGame::ReceiveClient`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005d24b0 WriteDestMask`: parser: base (mask >> 32) hides the 32-bit width from the splitter; both write low then high 32 bits
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005d2430 ReadWaiting`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c23f0 ReadEvent_UpdateObjective`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c0990 ReadEvent_ChangeCommandPostTeams`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c7ee0 ReadTrackable`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c7450 AloBootVote::Read`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c22d0 ReadEvent_AddObjective`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005cb040 ReadMiniMove`: unrolled: the 4-axis loop is unrolled, same ReadFixed(-1, 1, 3) per axis
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005cbba0 SpawnDisplay::Read`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005d2fd0 ReadSpawnCamera`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c55f0 AloReinforcements::Read`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c6140 AloMapDisplayMarkers::Read`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005d0a60 ReadSuicideRequest`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005cb970 ReadCaptureDisplay`: constant: CAPTURE_RATIO_BITS is 6
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005cff00 ReadLockedTargets`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005bb570 GetUpdateTurn`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `MISSING 0x005d3cc0 <anon> src/Battlefront2/Source/NetGame.cpp`: template: the explicit specialisation became the generic ReadFixed with StickAxisConvert (-1, 1, 7)
+- `MISSING 0x005d3cf0 <anon> src/Battlefront2/Source/NetGame.cpp`: template: the explicit specialisation became the generic ReadFixed with MouseAxisConvert (-16, 16, 11)
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c10e0 ReadEvent_CorrectChunkCluster`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005d23a0 WriteWaiting`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005d2a80 ReadPlayerMoves`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005cae30 ReadMove`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c0d00 ReadEvent_CreateChunkCluster`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c99c0 ReadMoves`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c4da0 ReadUpload`: branch-restructure: the uploadState if/else became a switch with the cases swapped; reads within each state are in the same order
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005cc440 ReadSpawnDisplay`: unrolled: the 2-viewport loop is unrolled into viewport 0 plus a 1-iteration guest loop
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c1d90 ReadEvent_DestroyTowCable`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c1600 ReadEvent_ConnectTowCable`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005bb530 ReceiveUpdate`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005bef70 ReadNetEvent`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005d1900 NetGame::ReadChatMessageFromServer`: constant: 276 is the base buffer size (sizeof(message) was 276)
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c7ad0 AtleastOnce::ReadAll`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c96f0 ReceiveReplica`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005bf9b0 ReceiveReliableNetEvents`: callee-signature: ReadEvent_CreateChunkCluster takes the matrix argument; its own reads are compared under 0x005c0d00
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005bc530 ReadCreate`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005bcfc0 ReadObject`: branch-swap: the isFullState if/else is inverted
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005bb5b0 ReadUpdate`: callee-signature: StatsManager::ReadStatsChallenge is an empty stub on both sides (0x00530890)
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c9f50 ReceivePrimary`: callee-signature: StatsManager::ReadStatsResponse is an empty stub on both sides (0x005308b0)
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005caf90 WriteMiniMove`: unrolled: the 4-axis loop is unrolled, same WriteFixed(-1, 1, 3) per axis
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c39a0 NetGame::WriteSpectator`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005bc160 WriteNullObject`: branch-swap: the isFullState if/else is inverted
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c3fe0 NetGame::WritePreGame`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c6740 AloMiniStats::Write`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c0950 WriteEvent_ChangeCommandPostTeams`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c7760 AloMissionTimer::Write`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c24b0 WriteEvent_UpdateInvincibility`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005bafa0 WriteSpectatorInfo`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005d09c0 WriteSuicideRequest`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c72c0 AloBootVote::Update`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c1020 WriteEvent_CorrectChunkCluster`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c0b90 WriteEvent_CreateChunkCluster`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005cfd70 WriteLockedTargets`: branch-restructure: early continues became nested if/else; each path writes the same bits; NetNdObj::obj is the first member that base read through *(GameObject**)
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c1c30 WriteEvent_DestroyTowCable`: branch-restructure: early return became if/else; one false bit when there is no weapon or owner
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c1390 WriteEvent_ConnectTowCable`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005d2260 WriteTurnLowBits`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c3320 WriteSwitchResponse`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005d1180 WriteBootRequest`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c2280 WriteEvent_AddObjective`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c3440 WriteSwitchObjRequest`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c70d0 AloNextGameInfo::Write`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c5f50 AloMapDisplayMarkers::Write`: branch-restructure: has-actor and has-region flags are written per branch instead of as one bool expression
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005cad00 WriteMove`: parser: base (bits >> 30) hides the width; the CntBitFields members mBoolInputs:30 and mMouseMode:2 are the same low 30 and high 2 bits
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005d2bb0 WritePingData`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c7d10 WriteTrackable`: branch-restructure: early returns became nested if/else, same bits per path
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005d0080 WriteSpawnSelect`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005cb6d0 WriteCaptureDisplay`: branch-restructure: the team branches are reordered; CAPTURE_RATIO_MAX is 63 and CAPTURE_RATIO_BITS is 6
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c49e0 WriteUpload`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005bbd50 WriteCreate`: branch-swap: the initial-player if/else is inverted; ENT_SOLDIER=1, ENT_DROIDEKA=4, ENT_POST_* are 12..14 as in base
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005bbf80 WriteObject`: branch-swap: the isFullState if/else is inverted
+- `MISSING 0x005d3c60 <anon> src/Battlefront2/Source/NetGame.cpp`: template: the explicit specialisation became the generic WriteFixed with StickAxisConvert (-1, 1, 7)
+- `MISSING 0x005d3c90 <anon> src/Battlefront2/Source/NetGame.cpp`: template: the explicit specialisation became the generic WriteFixed with MouseAxisConvert (-16, 16, 11)
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c0570 WriteEvent_Message`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c9900 WriteMoves`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c9510 SendToReplicas`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005c6c00 AloTrackable::Write`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005cc1e0 WriteSpawnDisplay`: unrolled: the guest loop writes one false bit when there is no guest, as base did
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005d2740 WritePlayerMoves`: parser: the -> in the root argument hides the 4-bit width; both write the low 4 bits of mBoolInputs
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005d2ef0 WriteSpawnCamera`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005d1820 NetGame::SendChatMessageToServer`: branch-swap: the empty-queue and parsed-locally paths still write the 0xffff0000 marker
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005d19b0 NetGame::SendChatMessageToClient`: branch-swap: the empty-queue and parsed-locally paths still write the 0xffff0000 marker
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005bf580 SendReliableNetEvents`: branch-restructure: exactly one trailing false bit on each path
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005be9b0 WriteNetEvent`: branch-swap: the damage-multiplier if/else is inverted
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005cc720 WriteObjects`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetGame.cpp 0x005bb100 WriteUpdate`: branch-swap: the isFullState if/else is inverted; WriteSwitchObjRequest stays in the non-full-state branch
+- `DIFF src/Battlefront2/Source/NetMatch.cpp 0x005d5bc0 ReadSessionId`: same-bytes: an unsigned __int64 read instead of two words, 8 bytes
+- `DIFF src/Battlefront2/Source/NetMatch.cpp 0x005d72d0 HandleFindPacket`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetMatch.cpp 0x005d7450 HandleFoundPacket`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetPacket.cpp 0x005d9790 NetPktGroup::WriteFixed`: branch-split: doHiRes || iBits >= 32 split into two checks; the quantised value is the same expression
+- `DIFF src/Battlefront2/Source/NetPacket.cpp 0x005d9860 NetPktGroup::ReadFixed`: branch-split: doHiRes || iBits >= 32 split into two checks; (1 << iBits) - 2 equals base uMax - 1
+- `DIFF src/Battlefront2/Source/NetMatch.cpp 0x005d5b00 ReadAddr`: same-bytes: NetAddr's first 8 bytes are the GalaxyID (b9000d5e) where base had pubAddr/pubPort; 8 raw bytes either way
+- `DIFF src/Battlefront2/Source/NetSetup.cpp 0x005e3cd0 NetSetup::ReadGameUpdate`: sizeof-rename: name[32] and unsigned __int64 id have the base sizes
+- `DIFF src/Battlefront2/Source/NetMatch.cpp 0x005d5ba0 WriteSessionId`: same-bytes: an unsigned __int64 write instead of two words, 8 bytes
+- `DIFF src/Battlefront2/Source/NetMatch.cpp 0x005d5aa0 WriteAddr`: same-bytes: NetAddr's first 8 bytes are the GalaxyID (b9000d5e) where base had pubAddr/pubPort; 8 raw bytes either way
+- `DIFF src/Battlefront2/Source/NetSetup.cpp 0x005e7c30 ReadFilesAck`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetSetup.cpp 0x005e7000 WriteLoad`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetSetup.cpp 0x005e7a00 ReadFiles`: sizeof-rename: buffer[2048] has the base size
+- `DIFF src/Battlefront2/Source/NetSetup.cpp 0x005e7670 WriteFiles`: constant: 2048 is the base block size; ReadData is a file read, not a packet read
+- `DIFF src/Battlefront2/Source/NetSetup.cpp 0x005e3a90 NetSetup::WriteGameUpdate`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetSetup.cpp 0x005e5bb0 WriteShellMove`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetSetup.cpp 0x005e5d10 ReadShellMove`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetSetup.cpp 0x005e54b0 WriteJoin`: constant: _countof(converted) is 66
+- `DIFF src/Battlefront2/Source/NetSetup.cpp 0x005e0e10 WriteLaunch`: branch-swap: the hostIndex if/else is inverted; base had no third branch either
+- `DIFF src/Battlefront2/Source/NetSetup.cpp 0x005e1290 ReadLaunch`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetSetup.cpp 0x005e5700 ReadJoin`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetSetup.cpp 0x005e5fc0 WriteShellUpdate`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetSetup.cpp 0x005e6690 ReadShellUpdate`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetSetup.cpp 0x005dfc50 CNetJoinGame::Update`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetSetup.cpp 0x005dc4e0 CNetHostGame::Update`: branch-restructure: same reject precedence (full, then password, then version)
+- `DIFF src/Battlefront2/Source/NetSetup.cpp 0x005ddc90 CNetFindGame::Update`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetSetup.cpp 0x005e2640 CNetPostLoadHostGame::Update`: branch-restructure: same reject precedence (full, then password, then version)
+- `DIFF src/Battlefront2/Source/NetMatch.cpp 0x005d6880 HandleQueryPackets`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f61c0 WriteString`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f58c0 ReadNetLOD`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f60b0 NetTrigger::Write`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f5be0 WriteCosSin`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f6000 WriteWeapon`: branch-swap: the null-weapon if/else is inverted
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005ed430 WalkerLegPair::Write`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f0c40 AddSendPilots`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005eb4e0 Asteroid::WriteObject`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f1d00 CommandBuilding::WriteObject`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f0820 FlagItem::WriteCreate`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f08a0 FlagItem::ReadCreate`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f0970 FlagItem::WriteObject`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f0a40 FlagItem::ReadObject`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f14b0 EntityBuildingArmed::WriteObject`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f1650 EntityBuildingArmed::ReadObject`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f19a0 EntityBuildingAnimatedArmed::WriteObject`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005eb590 EntityFlyer::AddSends`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005ec860 EntityWalker::WriteObject`: netlod: WriteNetLOD is base SetNetPrecision (0x005f5880, same body); ComputeNetLOD returns only 0 or 1; target flag written per branch
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005ecca0 EntityWalker::ReadObject`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005ee8b0 EntityDroid::WriteObject`: netlod: WriteNetLOD is base SetNetPrecision (0x005f5880, same body); ComputeNetLOD returns only 0 or 1
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005eeaf0 EntityDroid::ReadObject`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005eef30 EntityHover::WriteObject`: netlod: WriteNetLOD is base SetNetPrecision (0x005f5880, same body); ComputeNetLOD returns only 0 or 1; target flag written per branch
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005ef2f0 EntityHover::ReadObject`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f51d0 EntityDroid::WriteLateState`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f52d0 EntityDroid::ReadLateState`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f3de0 EntityWalker::WriteLateState`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f3fb0 EntityWalker::ReadLateState`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f5410 MountedTurret::WriteLateState`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005ef7d0 MountedTurret::Write`: branch-restructure: the target flag is written per branch
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005efaf0 MountedTurret::Read`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f5580 MountedTurret::ReadLateState`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f4490 EntityHover::WriteLateState`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f45f0 EntityHover::ReadLateState`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f5950 ReadUnitVector`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f59e0 ReadPositionVector`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f5a40 WriteMatrix`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f5a70 ReadMatrix`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f5b70 ReadQuaternion`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f5c90 WriteVelocity`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f5da0 ReadVelocity`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f0220 PowerupItem::WriteObject`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f02a0 PowerupItem::ReadObject`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f07b0 EntityTrap::WriteObject`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f07e0 EntityTrap::ReadObject`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f11a0 EntityRemoteTerminal::WriteObject`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f11c0 EntityRemoteTerminal::ReadObject`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005efed0 EntityMine::WriteObject`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f0010 EntityMine::ReadObject`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005e8330 Weapon::Write`: parser: the -> in the argument hides the 1-bit width; Write(bool) is WriteBits(v, 1)
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005e86f0 WeaponCannon::Write`: parser: multi-line arguments; same WriteFixed widths and the same FIRE/FIRE2 condition
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005e8830 WeaponCannon::Read`: branch-restructure: the mState switch became an if chain; ReadFixed(mStateLimit, 6 bits) stays on FIRE/FIRE2
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005e8d30 WeaponDispenser::Write`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005e8d90 WeaponDispenser::Read`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005e8e20 WeaponGrenade::Write`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005e8e80 WeaponGrenade::Read`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005e8f80 WeaponInvisibility::Write`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005e8fc0 WeaponInvisibility::Read`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005e90b0 WeaponLauncher::Write`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005e90e0 WeaponLauncher::Read`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005e9190 WeaponRemote::Write`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005e9290 WeaponAreaEffect::Write`: parser: the -> in the argument hides the 1-bit width
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005e92f0 WeaponAreaEffect::Read`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005eb6d0 EntityPathFollower::WriteObject`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f28c0 GameObject::WriteLateState`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005e9550 EntitySoldier::AddSends`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005ed7b0 EntityDroideka::AddSends`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005eb920 EntityFlyer::WriteObject`: netlod: WriteNetLOD is base SetNetPrecision (0x005f5880, same body); ComputeNetLOD returns only 0 or 1
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005ebfe0 EntityFlyer::ReadObject`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f3500 EntityFlyer::WriteLateState`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f3910 EntityFlyer::ReadLateState`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005ede90 EntityDroideka::ReadObject`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f47c0 EntityDroideka::WriteLateState`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f4ba0 EntityDroideka::ReadLateState`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005ed850 EntityDroideka::WriteObject`: netlod: WriteNetLOD is base SetNetPrecision (0x005f5880, same body); the -> in one argument hides a 1-bit width
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005e9660 EntitySoldier::WriteObject`: netlod: WriteNetLOD is base SetNetPrecision (0x005f5880, same body); ComputeNetLOD returns only 0 or 1
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f2910 EntitySoldier::WriteLateState`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005ea140 EntitySoldier::ReadObject`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f2ec0 EntitySoldier::ReadLateState`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/NetState.cpp 0x005f27e0 EntityBuildingArmedDynamic::WriteObject`: rename-only: same calls, same widths, same order; only argument expressions differ
+- `DIFF src/Battlefront2/Source/pcNetSocket.cpp 0x00617e50 NetSocket::SendSocket`: branch-swap: the LAN and Galaxy branches are swapped; iDest > 64 && iDest == 68 equals iDest == 68
+- `DIFF src/Battlefront2/Source/pcNetSocket.cpp ReadGalaxy ReadGalaxy`: rename-only: same calls, same widths, same order; only argument expressions differ
 
 ## Policy
 

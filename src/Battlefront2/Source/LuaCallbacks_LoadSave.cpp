@@ -589,7 +589,7 @@ int ScriptCB_StartLoadProfile(lua_State* L)
     if (pusName)
     {
         char acName[130];
-        PblUnicode::ustrncnv(acName, (unsigned short const*)pcName, sizeof(acName));
+        PblUnicode::ustrncnv(acName, pusName, sizeof(acName) / sizeof(acName[0]));
         NetSetup::SetLoginName(FLInputManager::Instance()->GetPrimaryPort(), acName);
     }
     return 0;
@@ -1432,22 +1432,6 @@ int ScriptCB_ClearMissionSetup(lua_State*)
     return 0;
 }
 
-// FUNCTION: SWBF2 0x0058a390
-static int FindLuaGlobal(void const* pValue)
-{
-    lua_pushnil(LuaHelper::mState);
-    while (lua_next(LuaHelper::mState, LUA_GLOBALSINDEX))
-    {
-        if (lua_topointer(LuaHelper::mState, -1) == pValue)
-        {
-            lua_settop(LuaHelper::mState, -2);
-            return 1;
-        }
-        lua_settop(LuaHelper::mState, -2);
-    }
-    return 0;
-}
-
 static const CallbackEntryT sLoadSaveCallbacks[64] =
 {
     { "ScriptCB_IsCurProfileDirty", ScriptCB_IsCurProfileDirty },
@@ -1552,142 +1536,6 @@ void SaveFile::MakeMetagameFilename(unsigned short* pusDest, unsigned short cons
     PblUnicode::ustrlcat(pusDest, ausStamp, 128);
 }
 
-namespace Lua_Callbacks
-{
-
-// FUNCTION: SWBF2 0x0058a410
-static int WriteLuaItem(unsigned char* pOut, int iIndex, int iDepth, bool bArg)
-{
-    (void)bArg;
-    lua_pushvalue(LuaHelper::mState, iIndex);
-    const int iType = lua_type(LuaHelper::mState, -1);
-    *pOut = static_cast<unsigned char>(iType);
-    unsigned char* pWrite = pOut + 1;
-    switch (iType)
-    {
-    case LUA_TBOOLEAN:
-        *pWrite++ = lua_toboolean(LuaHelper::mState, -1) != 0;
-        break;
-    case LUA_TLIGHTUSERDATA:
-    {
-        void const* pValue = lua_topointer(LuaHelper::mState, -1);
-        memcpy(pWrite, &pValue, sizeof(pValue));
-        pWrite += sizeof(pValue);
-        break;
-    }
-    case LUA_TNUMBER:
-    {
-        float fValue = static_cast<float>(luaL_checknumber(LuaHelper::mState, -1));
-        memcpy(pWrite, &fValue, sizeof(fValue));
-        pWrite += sizeof(fValue);
-        break;
-    }
-    case LUA_TSTRING:
-    {
-        const char* pcValue = luaL_checklstring(LuaHelper::mState, -1, 0);
-        const unsigned int uLength = strlen(pcValue) + 1;
-        memcpy(pWrite, pcValue, uLength);
-        pWrite += uLength;
-        break;
-    }
-    case LUA_TTABLE:
-        lua_pushnil(LuaHelper::mState);
-        while (lua_next(LuaHelper::mState, -2))
-        {
-            pWrite += WriteLuaItem(pWrite, -2, iDepth + 1, false);
-            pWrite += WriteLuaItem(pWrite, -1, iDepth + 1, false);
-            lua_settop(LuaHelper::mState, -2);
-        }
-        *pWrite++ = 0;
-        break;
-    case LUA_TFUNCTION:
-    {
-        void const* pValue = lua_topointer(LuaHelper::mState, -1);
-        if (Lua_Callbacks::FindLuaGlobal(pValue))
-        {
-            const char* pcName = luaL_checklstring(LuaHelper::mState, -1, 0);
-            const unsigned int uLength = strlen(pcName) + 1;
-            memcpy(pWrite, pcName, uLength);
-            pWrite += uLength;
-            lua_settop(LuaHelper::mState, -2);
-        }
-        else
-        {
-            *pWrite++ = 0;
-        }
-        break;
-    }
-    default:
-        break;
-    }
-    lua_settop(LuaHelper::mState, -2);
-    return static_cast<int>(pWrite - pOut);
-}
-}
-
-namespace Lua_Callbacks
-{
-
-// FUNCTION: SWBF2 0x0058a5c0
-static int ReadLuaItem(unsigned char* pData, int iDepth, bool bArg)
-{
-    (void)bArg;
-    unsigned char* pRead = pData + 1;
-    switch (*pData)
-    {
-
-    case LUA_TBOOLEAN:
-        lua_pushboolean(LuaHelper::mState, *pRead++ != 0);
-        break;
-    case LUA_TLIGHTUSERDATA:
-    {
-        void* pValue;
-        memcpy(&pValue, pRead, sizeof(pValue));
-        pRead += sizeof(pValue);
-        lua_pushlightuserdata(LuaHelper::mState, pValue);
-        break;
-    }
-    case LUA_TNUMBER:
-    {
-        float fValue;
-        memcpy(&fValue, pRead, sizeof(fValue));
-        pRead += sizeof(fValue);
-        lua_pushnumber(LuaHelper::mState, fValue);
-        break;
-    }
-    case LUA_TSTRING:
-    {
-        const char* pcValue = reinterpret_cast<const char*>(pRead);
-        const unsigned int uLength = strlen(pcValue);
-        pRead += uLength + 1;
-        lua_pushlstring(LuaHelper::mState, pcValue, uLength);
-        break;
-    }
-    case LUA_TTABLE:
-        lua_newtable(LuaHelper::mState);
-        while (*pRead)
-        {
-            pRead += ReadLuaItem(pRead, iDepth + 1, false);
-            pRead += ReadLuaItem(pRead, iDepth + 1, false);
-            lua_rawset(LuaHelper::mState, -3);
-        }
-        ++pRead;
-        break;
-    case LUA_TFUNCTION:
-    {
-        const char* pcName = reinterpret_cast<const char*>(pRead);
-        pRead += strlen(pcName) + 1;
-        LuaHelper::GetGlobal(pcName);
-        break;
-    }
-    default:
-        lua_pushnil(LuaHelper::mState);
-        break;
-    }
-    return static_cast<int>(pRead - pData);
-}
-}
-
 // FUNCTION: SWBF2 0x0058a750
 static void* __cdecl _zlibAlloc(void*, unsigned int uCount, unsigned int uSize)
 {
@@ -1780,7 +1628,7 @@ static int LoadLuaItems(lua_State* L, unsigned char* pBuffer, unsigned int iSize
     {
         return 0;
     }
-    unsigned char aSerialized[0x10000];
+    unsigned char aSerialized[65536];
     const unsigned int uSize = _zlibuncompress(aSerialized, sizeof(aSerialized), pBuffer, iSize);
     return LuaSaveItems::Read(LuaHelper::mState, aSerialized, uSize);
 }
@@ -1790,7 +1638,7 @@ namespace Lua_Callbacks
 {
 
 // FUNCTION: SWBF2 0x0058a9d0
-void __fastcall GetMissionWorld(char* pcWorld)
+void __fastcall GetMissionWorld(char* pcWorld, int)
 {
     Lua_Callbacks::ScriptCB_LoadMissionSetup(LuaHelper::mState);
     *pcWorld = 0;

@@ -11,7 +11,6 @@
 #include "Ordnance.h"
 #include "GameObject.h"
 #include "NetGame.h"
-#include "Ordnance.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
 #include "RedEngineFL/Util/RedRegion.h"
 #include "RedEngineFL/Util/RedStack.h"
@@ -208,7 +207,7 @@ void PerformSafeRemove(CollisionObject* pObject)
 // FUNCTION: SWBF2 0x004605b0
 bool CollisionManager::I_AddBody(CollisionObject* pObject, PblList<CollisionObject>& list)
 {
-    PblList<CollisionObject>::Node* pNode = &pObject->mCollisionObjectNode;
+    PblList<CollisionObject>::Node* pNode = CollisionNode(pObject);
     if (pNode->IsInList())
     {
         return false;
@@ -256,7 +255,7 @@ bool CollisionManager::I_RemoveBody(CollisionObject* pObject)
 {
     PerformSafeRemove(pObject);
 
-    PblList<CollisionObject>::Node* pNode = &pObject->mCollisionObjectNode;
+    PblList<CollisionObject>::Node* pNode = CollisionNode(pObject);
     if (!pNode->IsInList())
     {
         if (pObject->GetCollisionType() == COLL_ITEM)
@@ -1540,6 +1539,12 @@ bool CollisionManager::Create(const PblVector3& vMin, const PblVector3& vMax)
     sMinPos = vMin;
     sMaxPos = vMax;
     return true;
+}
+
+// FUNCTION: SWBF2 0x004923c0
+TreeGrid* CollisionManager::GetTreeGrid()
+{
+    return sInstance ? sInstance->mTreeGrid : 0;
 }
 
 // GLOBAL: SWBF2 0x01eb135c

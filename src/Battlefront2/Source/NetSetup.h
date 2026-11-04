@@ -501,7 +501,6 @@ class NetGameDesc;
 
 #pragma pack(push, 4)
 // VTABLE: SWBF2 0x007ac340
-#pragma pack(push, 4)
 class CNetFindGame : public NetFindGame
 {
 public:

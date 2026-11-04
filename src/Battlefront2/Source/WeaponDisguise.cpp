@@ -9,7 +9,6 @@
 #include "PebbleFL/Common/PblHeap.h"
 #include "PebbleFL/Common/PblList.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
-#include "TeamManager.h"
 #include <new>
 
 namespace AI

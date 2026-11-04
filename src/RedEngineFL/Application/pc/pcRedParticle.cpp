@@ -13,7 +13,6 @@
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "RedEngineFL/Graphics/PC/pcRedShader.h"
 #include "RedEngineFL/Graphics/PC/Shaders/pcParticleShader.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 
 
@@ -44,7 +43,6 @@ struct ParticleVertexT
     float tu;
     float tv;
 };
-}
 
  
  

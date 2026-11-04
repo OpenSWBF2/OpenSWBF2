@@ -31,8 +31,6 @@
 #include "PebbleFL/Common/PblRandom.h"
 
 #include "UnitThreatManager.h"
-#include "PebbleFL/pc/PblD3DX.h"
-#include "VOHelper.h"
 
 class Weapon;
 

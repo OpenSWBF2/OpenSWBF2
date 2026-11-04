@@ -3,13 +3,17 @@
 namespace EventManager
 {
 
-Node::~Node()
-{
-}
-
 const char* Node::GetName()
 {
     return 0;
+}
+
+void Node::Clear()
+{
+}
+
+void Node::DetachFromParent()
+{
 }
 
 }

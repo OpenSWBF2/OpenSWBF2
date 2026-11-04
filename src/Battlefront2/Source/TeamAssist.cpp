@@ -3,7 +3,20 @@
 #include "Character.h"
 #include "Controllable.h"
 #include "GameObject.h"
-#include "VOHelper.h"
+
+namespace AI
+{
+
+enum VOType
+{
+    VOT_TA_First = 40
+};
+namespace VOHelper
+{
+int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,
+         const PblVector3& vPos, float fDelay);
+}
+}
 
 // GLOBAL: SWBF2 0x01eafcc4
 unsigned int TeamAssist::sColorHash;

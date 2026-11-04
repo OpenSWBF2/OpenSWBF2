@@ -16,7 +16,6 @@
 #include "RedWater.h"
 
 #include <float.h>
-#include "PebbleFL/pc/PblD3DX.h"
 
 bool PointInSphere(const PblVector3& vPoint, const PblVector3& vCenter, float fRadius);
 

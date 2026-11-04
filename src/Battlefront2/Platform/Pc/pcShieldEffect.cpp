@@ -11,7 +11,6 @@
 #include <math.h>
 #include "PebbleFL/Common/PblMath.h"
 #include "pcSunFlare.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 
 

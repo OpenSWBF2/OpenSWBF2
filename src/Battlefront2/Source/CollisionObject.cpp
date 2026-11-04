@@ -7,6 +7,7 @@
 #include "Controllable.h"
 #include "GameObject.h"
 #include "Restrictor.h"
+#include <new>
 #include "PebbleFL/Common/PblList.h"
 
 // FUNCTION: SWBF2 0x00443fc0

@@ -17,7 +17,6 @@
 #include "PebbleFL/Common/PblMatrix.h"
 #include "PebbleFL/Common/PblQuaternion.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x004832d0
 GameObject* Trackable::GetGameObject() { return 0; }

@@ -11,7 +11,6 @@ class SoundDebugDisplay;
 namespace VoiceChat
 {
 struct AudioPacket;
-class Transport;
 }
 
 namespace VoiceChat

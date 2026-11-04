@@ -57,7 +57,6 @@
 #include "ShellLoop.h"
 #include "TeamAssist.h"
 #include "PebbleFL/Common/PblIndex.h"
-#include "VOHelper.h"
 
 // GLOBAL: SWBF2 0x01e30330
 int Character::sCharacterLimit;

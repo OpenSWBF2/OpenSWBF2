@@ -12,7 +12,6 @@
 #include "RedEngineFL/Application/pc/pcRenderHelpers.h"
 #include <new>
 #include "Battlefront2/Source/BirdEffect.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x0041a740
 LeafPatchRenderable::LeafPatchRenderable(const LeafPatchClass* pClass)

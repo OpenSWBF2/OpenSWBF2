@@ -19,6 +19,89 @@ extern NetPktGroup lossQueue;
 extern NetPktGroup latencyQueue;
 extern NetPktGroup localQueue;
 
+int netRejectCounts[NET_REJECT_COUNT];
+
+static const char* const sRejectNames[] =
+{
+    "frag_count_zero",
+    "frag_idx",
+    "frag_count_mismatch",
+    "frag_too_many",
+    "pool_exhausted",
+    "short_datagram",
+    "negative_length",
+    "group_bad",
+    "partial_cap",
+    "oversize_datagram",
+    "chat_oversize",
+    "chat_fields",
+    "upload_length",
+    "upload_name",
+    "upload_underflow",
+    "upload_disabled",
+    "rcon_line",
+    "rcon_auth_short",
+    "rcon_login_rate",
+    "player_count",
+    "turn_rate",
+    "bad_addr",
+    "spawn_slot",
+    "object_ref",
+    "guest_count"
+};
+
+static_assert(sizeof(sRejectNames) / sizeof(sRejectNames[0]) == NET_REJECT_COUNT, "sRejectNames size");
+
+static float sRejectLastLog[NET_REJECT_COUNT];
+static int sRejectSuppressed[NET_REJECT_COUNT];
+static bool sRejectLogged[NET_REJECT_COUNT];
+static float (*sRejectClock)() = NetComm::GetTime;
+
+void NetRejectCount(int iReason)
+{
+    if (iReason < 0 || iReason >= NET_REJECT_COUNT)
+    {
+        return;
+    }
+    ++netRejectCounts[iReason];
+    const float fNow = sRejectClock();
+    if (!sRejectLogged[iReason] || fNow < sRejectLastLog[iReason] ||
+        fNow - sRejectLastLog[iReason] >= 1.0f)
+    {
+        const int iSuppressed = sRejectSuppressed[iReason];
+        sRejectLogged[iReason] = true;
+        sRejectSuppressed[iReason] = 0;
+        sRejectLastLog[iReason] = fNow;
+        LOG(LogNet, Warning, "net reject %s (%d suppressed)", sRejectNames[iReason], iSuppressed);
+    }
+    else
+    {
+        ++sRejectSuppressed[iReason];
+    }
+}
+
+void NetRejectSetClock(float (*pfnClock)())
+{
+    sRejectClock = pfnClock;
+}
+
+void NetRejectReset()
+{
+    memset(sRejectLastLog, 0, sizeof(sRejectLastLog));
+    memset(sRejectSuppressed, 0, sizeof(sRejectSuppressed));
+    memset(sRejectLogged, 0, sizeof(sRejectLogged));
+    sRejectClock = NetComm::GetTime;
+}
+
+void NetPktGroup::SetBad(int iReason)
+{
+    if (!bad)
+    {
+        bad = true;
+        NetRejectCount(iReason);
+    }
+}
+
 // FUNCTION: SWBF2 0x0053e0f0
 void NetPktGroup::Write(const float& fValue)
 {
@@ -84,15 +167,11 @@ NetPacket* NetPacket::Alloc(bool bSmall)
         pPacket = freePackets.PopFront();
         if (!pPacket)
         {
-            for (int i = 0; i < _countof(netBigPackets); ++i)
-            {
-                freeBigPackets.PushBack(&netBigPackets[i]);
-            }
-            for (int i = 0; i < _countof(netSmallPackets); ++i)
-            {
-                freeSmallPackets.PushBack(&netSmallPackets[i]);
-            }
-            pPacket = freePackets.PopFront();
+            NetRejectCount(NET_REJECT_POOL_EXHAUSTED);
+            LOG(LogNet, Fatal, "net packet pool exhausted (%s big=%d small=%d)",
+                bSmall ? "small" : "big", freeBigPackets.pktCount, freeSmallPackets.pktCount);
+            pcCrash::Exit(3);
+            return 0;
         }
     }
     PblAsanUnpoison(pPacket, bSmall ? sizeof(NetSmallPacket) : sizeof(NetBigPacket));
@@ -444,6 +523,11 @@ void NetPktGroup::WriteFixed(float f, float fMin, float fMax, int iBits)
 // FUNCTION: SWBF2 0x005d9860
 void NetPktGroup::ReadFixed(float& f, float fMin, float fMax, int iBits)
 {
+    if (bad)
+    {
+        f = 0.0f;
+        return;
+    }
     if (doHiRes)
     {
         ReadBits(*(unsigned int*)&f, 32);
@@ -456,6 +540,11 @@ void NetPktGroup::ReadFixed(float& f, float fMin, float fMax, int iBits)
     }
     unsigned int uValue;
     ReadBits(uValue, iBits);
+    if (bad)
+    {
+        f = 0.0f;
+        return;
+    }
     if (uValue == 0)
     {
         f = fMin;
@@ -584,6 +673,7 @@ void NetPacket::Free()
     mCurIndex = 0;
     NetPktGroup& freePackets = GetNumSmall(this) >= 0 ? freeSmallPackets : freeBigPackets;
     freePackets.PushFront(this);
+    PblAsanPoison(this, &freePackets == &freeSmallPackets ? sizeof(NetSmallPacket) : sizeof(NetBigPacket));
 }
 
 // FUNCTION: SWBF2 0x005d8f40
@@ -631,6 +721,7 @@ bool NetPacket::Write(unsigned short value)
 // FUNCTION: SWBF2 0x005d9200
 void NetPktGroup::Set(NetPacket* pPkt)
 {
+    bad = false;
     const int iFirst = pPkt->GetNum();
     pktCount = 1;
     firstPkt = iFirst;

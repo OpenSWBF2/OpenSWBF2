@@ -12,7 +12,6 @@
 #include "NetGame.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
 #include "RedEngineFL/Interface/RedFont.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 namespace FLRenderer
 {

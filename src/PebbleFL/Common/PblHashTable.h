@@ -55,8 +55,6 @@ public:
     int GetNumEntries() const { return _iNumEntries; }
     int GetMaxEntries() const { return SLOTS; }
 
-    static int GetSlotCount() { return SLOTS; }
-
     bool HasValue(const TYPE* pValue) const
     {
         if (!pValue)
@@ -65,7 +63,7 @@ public:
         }
         for (int i = 0; i < SLOTS; ++i)
         {
-            if (_table[i] && (const TYPE*)_table[SLOTS + i] == pValue)
+            if (_uiTable[i] && (const TYPE*)_uiTable[SLOTS + i] == pValue)
             {
                 return true;
             }
@@ -85,8 +83,10 @@ public:
             }
         }
 
-        operator TYPE*() const { return (TYPE*)_table->_uiTable[SLOTS + _pos]; }
+        operator TYPE*() const { return _pos < SLOTS ? (TYPE*)_table->_uiTable[SLOTS + _pos] : 0; }
         TYPE& operator*() const { return *(TYPE*)_table->_uiTable[SLOTS + _pos]; }
+        bool operator==(const Itor& rOther) const { return _pos == rOther._pos; }
+        bool operator!=(const Itor& rOther) const { return _pos != rOther._pos; }
 
         unsigned int GetKey() const { return _table->_uiTable[_pos]; }
 

@@ -10,7 +10,7 @@ namespace Snd
 {
 
 template <>
-void Allocator<SoundLayered::FireForgetLayer>::operator delete(void* p, size_t uiSize)
+void Allocator<SoundLayered::FireForgetLayer>::operator delete(void* p, unsigned int uiSize)
 {
     (void)uiSize;
     switch (((SoundLayered::FireForgetLayer*)p)->GetAllocType())

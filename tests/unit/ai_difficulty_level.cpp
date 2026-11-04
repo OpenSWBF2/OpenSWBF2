@@ -42,15 +42,15 @@ TEST_CASE("ai difficulty reads go through the clamp" * doctest::test_suite("regr
     CHECK(sDifficulty.find("#include \"AIDifficultyLevel.h\"") != std::string::npos);
     CHECK(sDifficulty.find("return ClampDifficultyLevel(mProfileDifficulty);") != std::string::npos);
     CHECK(sDifficulty.find("__declspec(noinline) int AIDifficulty::GetProfileDifficulty()") != std::string::npos);
-    CHECK(CountText(sDifficulty, "mProfileDifficulty") == 4);
+    CHECK(CountText(sDifficulty, "mProfileDifficulty") == 5);
     CHECK(sDifficulty.find("int mProfileDifficulty;") != std::string::npos);
     CHECK(sDifficulty.find("mProfileDifficulty = PlayerPrefs::mAllUserPrefs[0].mDifficulty;") != std::string::npos);
     CHECK(sDifficulty.find("mProfileDifficulty = PlayerProfile::GetProfile(0)->mGameOptions.mCurDiffLevel;") != std::string::npos);
+    CHECK(sDifficulty.find("AIDifficulty::mProfileDifficulty = iDifficulty;") != std::string::npos);
 
     std::string sController;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\ControllerManager.cpp", sController));
-    CHECK(CountText(sController, "mProfileDifficulty") == 1);
-    CHECK(sController.find("AIDifficulty::mProfileDifficulty = iDifficulty;") != std::string::npos);
+    CHECK(CountText(sController, "mProfileDifficulty") == 0);
 
     std::string sCombat;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\CombatUtil.cpp", sCombat));

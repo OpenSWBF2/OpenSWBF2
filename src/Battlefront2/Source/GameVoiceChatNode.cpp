@@ -34,7 +34,7 @@ void GameVoiceChat::Node::Update()
     {
         return;
     }
-    GameVoiceChat::Transport* transport = static_cast<GameVoiceChat::Transport*>(VoiceChat::Node::sTransport);
+    GameVoiceChat::Transport* transport = (GameVoiceChat::Transport*)VoiceChat::Node::sTransport;
     transport->SetSendEnableUsingMask(id, mSendMask.mMask, mSendMask.mEnable, mSendMask.mMaskExisting);
     transport->SetReceiveEnableUsingMask(id, mReceiveMask.mMask, mReceiveMask.mEnable,
                                          mReceiveMask.mMaskExisting);

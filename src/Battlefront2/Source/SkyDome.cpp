@@ -19,6 +19,8 @@
 
 extern PblVector3 gVectorZero;
 
+typedef void(__fastcall* SceneObjectFn)(void* pThis, void*);
+
 // GLOBAL: SWBF2 0x01eaf064
 SkyDome* SkyDome::sInstance;
 

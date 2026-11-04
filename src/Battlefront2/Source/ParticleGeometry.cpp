@@ -7,7 +7,6 @@
 #include "ParticleSystem.h"
 #include "PebbleFL/Common/PblMath.h"
 #include <math.h>
-#include "PebbleFL/pc/PblD3DX.h"
 
 namespace ParticleSystem
 {

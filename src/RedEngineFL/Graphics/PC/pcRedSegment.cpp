@@ -18,7 +18,6 @@
 #include "PebbleFL/Common/PblFile.h"
 #include "PebbleFL/Common/PblHashTable.h"
 #include "pcRedIndexBuffer.h"
-#include "Battlefront2/Platform/Pc/pcSunFlare.h"
 
 
 // FUNCTION: SWBF2 0x00717b50

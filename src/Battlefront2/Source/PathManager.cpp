@@ -9,7 +9,6 @@
 #include "EventInfo.h"
 #include "PathFinder.h"
 #include "UnitController.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 
 // FUNCTION: SWBF2 0x0050b400

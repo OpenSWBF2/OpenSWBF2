@@ -23,7 +23,6 @@
 #include "UnitController.h"
 #include "UnitStationaryController.h"
 #include "CollisionManager.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 namespace gf
 {

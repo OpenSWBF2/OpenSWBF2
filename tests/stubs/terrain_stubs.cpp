@@ -14,10 +14,16 @@ int RunTimeHeap;
 }
 
 alignas(TreeGrid) static unsigned char sTerrainStubGrid[sizeof(TreeGrid)];
+alignas(CollisionManager) static unsigned char sTerrainStubManager[sizeof(CollisionManager)];
+
+CollisionManager* CollisionManager::sInstance = reinterpret_cast<CollisionManager*>(sTerrainStubManager);
+
+static const bool sTerrainStubGridSet =
+    (CollisionManager::sInstance->mTreeGrid = reinterpret_cast<TreeGrid*>(sTerrainStubGrid)) != 0;
 
 TreeGrid* CollisionManager::GetTreeGrid()
 {
-    return reinterpret_cast<TreeGrid*>(sTerrainStubGrid);
+    return sInstance ? sInstance->mTreeGrid : 0;
 }
 
 void TreeGrid::CallbackOnSphere(const PblVector3& rCenter, float fRadius, TreeGridCallback pCallback,

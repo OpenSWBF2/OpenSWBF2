@@ -22,7 +22,6 @@
 #include "EnergyBar.h"
 #include "EntitySound.h"
 #include "EntityTerrain.h"
-#include "EntityWater.h"
 #include "FirstPerson.h"
 #include "FishEffect.h"
 #include "FlagItem.h"
@@ -112,7 +111,7 @@
 #include "PlayerStats.h"
 #include "RedEngineFL/Util/RedWarning.h"
 #include "RedEngineFL/Util/RedLog.h"
-#include "TeamManager.h"
+#include "SimDigest.h"
 
 class VideoEffect { public: static void Init(); };
 class LetterboxEffect { public: static void Init(); };
@@ -757,6 +756,7 @@ namespace GameLoop
 }
 
 extern int g_InGameMoviePlayerState;
+void StopInGameMoviePlay();
 extern PblPerformanceTimer frameTimer;
 extern FlashyTextManager sFlashyTextManagerInstance;
 

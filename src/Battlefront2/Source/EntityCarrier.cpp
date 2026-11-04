@@ -23,7 +23,6 @@
 #include "MotionBlurEffect.h"
 #include "Trackable.h"
 #include <float.h>
-#include "PebbleFL/pc/PblD3DX.h"
 float GetDefaultFOV();
 
 // FUNCTION: SWBF2 0x004b3dd0

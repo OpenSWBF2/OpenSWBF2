@@ -511,7 +511,7 @@ public:
     virtual void Kill();
     virtual bool Update(float fDeltaTime);
 
-    static void* operator new(size_t uSize);
+    static void* operator new(unsigned int uSize);
     // FUNCTION: SWBF2 0x00496e90
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 

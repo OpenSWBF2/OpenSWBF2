@@ -3,7 +3,6 @@
 #include "Battlefront2Lod.h"
 #include "PebbleFL/Common/PblConfig.h"
 #include "PebbleFL/Common/PblMath.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 // GLOBAL: SWBF2 0x01e573dc
 LightBeamEffect* LightBeamEffect::s_pInstance;

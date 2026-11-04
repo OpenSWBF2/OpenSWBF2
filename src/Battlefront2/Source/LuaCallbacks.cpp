@@ -91,7 +91,7 @@ int FLInputManager::CountControllers() const
 
 
 // FUNCTION: SWBF2 0x005805e0
-int __fastcall GetScreenTransitionType(const char* pcName)
+int __fastcall GetScreenTransitionType(const char* pcName, void*)
 {
     if (!pcName)
     {
@@ -200,8 +200,8 @@ int BeginScreenTransition(lua_State*)
         const float fInTime = LuaHelper::GetFloat(2);
         const float fHoldTime = LuaHelper::GetFloat(3);
         const float fOutTime = LuaHelper::GetFloat(4);
-        const int iInType = GetScreenTransitionType(LuaHelper::GetString(5));
-        const int iOutType = GetScreenTransitionType(LuaHelper::GetString(6));
+        const int iInType = GetScreenTransitionType(LuaHelper::GetString(5), 0);
+        const int iOutType = GetScreenTransitionType(LuaHelper::GetString(6), 0);
         ScreenTransition::sInstance->BeginTransition(
             uScreen, fInTime, fHoldTime, fOutTime,
             (ScreenTransition::TransitionType)iInType, (ScreenTransition::TransitionType)iOutType, 0, 0);
@@ -1033,8 +1033,9 @@ int ScriptCB_ReadLeftstick(lua_State*)
     }
 
     RawControllerInputs* pJoystick = FLInputManager::Instance()->GetPlayerJoystick(iJoystick);
-    lua_pushnumber(LuaHelper::mState, pJoystick->mRawInputFloat[iJoystick][48]);
-    lua_pushnumber(LuaHelper::mState, pJoystick->mRawInputFloat[iJoystick][50]);
+    const float* pfRaw = (const float*)&pJoystick->mRawInputStorage[0x10 - 4] + iJoystick * 76;
+    lua_pushnumber(LuaHelper::mState, pfRaw[49]);
+    lua_pushnumber(LuaHelper::mState, pfRaw[51]);
     return 2;
 }
 

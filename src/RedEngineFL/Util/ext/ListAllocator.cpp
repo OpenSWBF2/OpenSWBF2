@@ -28,14 +28,20 @@ public:
         {
             for (int i = 0; i < pages_.GetSize(); i++)
             {
+#if defined(__SANITIZE_ADDRESS__)
+                PblAsanUnpoison(pages_[i].data_, pages_[i].size_);
+#endif
                 baseAlloc_->Deallocate(pages_[i]);
             }
         }
     }
 
     // FUNCTION: SWBF2 0x006e94a0
-    virtual void Allocate(Buffer& rBuf)
+    PBL_ASAN_NO_SANITIZE virtual void Allocate(Buffer& rBuf)
     {
+#if defined(__SANITIZE_ADDRESS__)
+        unsigned int uiRequest = rBuf.size_;
+#endif
         if (rBuf.size_ % roundsize_)
         {
             rBuf.size_ = (rBuf.size_ / roundsize_ + 1) * roundsize_;
@@ -47,9 +53,16 @@ public:
             if (baseAlloc_)
             {
                 int iSize = rBuf.size_;
-                if (ExternalAlloc_(Max_(pageSize_, iSize)))
+                if (ExternalAlloc_(Max_(pageSize_, iSize + 2 * (int)sizeof(DLNode<Buffer>))))
                 {
                     Allocate(rBuf);
+#if defined(__SANITIZE_ADDRESS__)
+                    if (rBuf.data_)
+                    {
+                        PblAsanPoison(rBuf.data_, rBuf.size_);
+                        PblAsanUnpoison(rBuf.data_, uiRequest);
+                    }
+#endif
                 }
                 else
                 {
@@ -94,9 +107,13 @@ public:
             freelist_.Remove_(pNode);
             freemem_ -= rBuf.size_;
         }
+#if defined(__SANITIZE_ADDRESS__)
+        PblAsanPoison(pNode, sizeof(DLNode<Buffer>) + pNode->elem_.size_);
+        PblAsanUnpoison(rBuf.data_, uiRequest);
+#endif
     }
     // FUNCTION: SWBF2 0x006e9670
-    virtual void Deallocate(Buffer& rBuf)
+    PBL_ASAN_NO_SANITIZE virtual void Deallocate(Buffer& rBuf)
     {
         if (!rBuf.data_)
         {
@@ -158,6 +175,9 @@ public:
         }
         freelist_.size_++;
         freemem_ += rBuf.size_;
+#if defined(__SANITIZE_ADDRESS__)
+        PblAsanPoison(pNode, sizeof(DLNode<Buffer>) + rBuf.size_);
+#endif
 
         DLNode<Buffer>* pPrev = pNode->prev_;
         DLNode<Buffer>* pNext = pNode->next_;
@@ -180,7 +200,7 @@ public:
     {
     }
 
-    DLNode<Buffer>* Convert_(Buffer& rBuf)
+    PBL_ASAN_NO_SANITIZE DLNode<Buffer>* Convert_(Buffer& rBuf)
     {
         DLNode<Buffer>* pNode = (DLNode<Buffer>*)rBuf.data_ - 1;
         rBuf = pNode->elem_;
@@ -217,7 +237,7 @@ public:
         return pNode;
     }
     // FUNCTION: SWBF2 0x006e97f0
-    DLNode<Buffer>* FindFreeBlock(const Buffer& rBuf)
+    PBL_ASAN_NO_SANITIZE DLNode<Buffer>* FindFreeBlock(const Buffer& rBuf)
     {
         for (DLNode<Buffer>* p = freelist_.first_; p; p = p->next_)
         {
@@ -233,7 +253,7 @@ public:
         return 0;
     }
     // FUNCTION: SWBF2 0x006e98a0
-    bool MergeBlocks_(DLNode<Buffer>* pFirst, DLNode<Buffer>* pSecond)
+    PBL_ASAN_NO_SANITIZE bool MergeBlocks_(DLNode<Buffer>* pFirst, DLNode<Buffer>* pSecond)
     {
         if ((char*)pSecond->elem_.data_ - (char*)pFirst->elem_.data_ - pFirst->elem_.size_
             - sizeof(DLNode<Buffer>) != 0)

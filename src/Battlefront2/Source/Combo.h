@@ -126,7 +126,7 @@ public:
 
         static MemoryPool sMemoryPool;
 
-        static void* operator new(size_t uiSize) { return sMemoryPool.Allocate(uiSize); }
+        static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }
 
         static const float TIME_SCALE_INV;
         static const float TIME_SCALE;
@@ -390,7 +390,7 @@ public:
     public:
         static MemoryPool sMemoryPool;
 
-        static void* operator new(size_t uiSize) { return sMemoryPool.Allocate(uiSize); }
+        static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }
 
         static const float WIDTH_SCALE_INV;
         static const float PUSH_SCALE_INV;
@@ -666,7 +666,7 @@ public:
 
         static MemoryPool sMemoryPool;
 
-        static void* operator new(size_t uiSize) { return sMemoryPool.Allocate(uiSize); }
+        static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }
 
         static const float TIME_SCALE_INV;
         static const float ENERGY_RATE_SCALE_INV;
@@ -804,7 +804,7 @@ public:
     public:
         static MemoryPool sMemoryPool;
 
-        static void* operator new(size_t uiSize) { return sMemoryPool.Allocate(uiSize); }
+        static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }
 
         static const float ENERGY_SCALE_INV;
 

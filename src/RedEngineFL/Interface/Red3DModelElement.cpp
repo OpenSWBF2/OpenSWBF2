@@ -190,4 +190,16 @@ Red3DModelElement::~Red3DModelElement()
     delete mAnimator;
 }
 
+bool Red3DModelElement::AttachModel(Red3DModelElement* pAttached, unsigned int uiHardpointHash)
+{
+    if (!pAttached || !sAttachHosts.Insert(this))
+    {
+        return false;
+    }
+    m_AttachedObj = pAttached;
+    m_uiHardpointHash = uiHardpointHash;
+    pAttached->m_bAmAttached = true;
+    return true;
+}
+
 

@@ -60,6 +60,7 @@ void luaD_throw (lua_State *L, int errcode) {
   }
   else {
     L->errorJmp->status = errcode;
+    PblAsanNoReturn();
     longjmp(L->errorJmp->b, 1);
   }
 }

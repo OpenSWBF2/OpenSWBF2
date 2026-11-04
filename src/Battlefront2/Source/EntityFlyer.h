@@ -10,22 +10,14 @@
 #include "EnergyBar.h"
 #include "EntityPathFollower.h"
 #include "GameObject.h"
-#include "GameLoop.h"
 #include "GameSound.h"
 #include "Trackable.h"
 #include "VehicleEngine.h"
 #include "VehicleMusic.h"
 #include "Weapon.h"
-#include "RedEngineFL/Graphics/RedPose.h"
-#include "Zephyr/Source/ZephyrPoseDyn.h"
 
-class ControllableDestination;
 class ExplosionClass;
-class MountedTurret;
 class MountedTurretClass;
-class Obstacle;
-class ParticleEmitterObject;
-class PassengerSlot;
 class PassengerSlotClass;
 class RedAnimation;
 class ZephyrAnim;
@@ -187,6 +179,80 @@ public:
     GameSound mSoundTrick;
     GameSound mSoundFlip;
 };
+  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
 
  
  

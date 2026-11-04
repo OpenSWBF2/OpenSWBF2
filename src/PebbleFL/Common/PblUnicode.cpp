@@ -134,7 +134,7 @@ unsigned int __cdecl strlcpy(char* pcDest, char const* pcSource, unsigned int ui
     {
         char* pcEnd = pcDest;
         char const* pcSrc = pcSource;
-        while (uiLen < uiSize)
+        while (pcSrc && uiLen < uiSize)
         {
             char c = *pcSrc;
             if (!c)
@@ -206,7 +206,10 @@ unsigned int __cdecl PblUnicode::ustrlcat(unsigned short* pusDest, unsigned shor
         }
     }
 
-    *pusEnd = 0;
+    if (pusEnd < pusDest + uiSize)
+    {
+        *pusEnd = 0;
+    }
     if (uiSize)
     {
         pusDest[uiSize - 1] = 0;
@@ -438,8 +441,12 @@ int __cdecl PblUnicode::uvsnprintf(unsigned short* pusDest, unsigned int uiCount
                 n = HandleChar(pusDest, uiCount - uiLen, (unsigned short)va_arg(pArgs, int));
                 break;
             case '%':
-                *pusDest = '%';
-                n = 1;
+                n = 0;
+                if (uiLen < uiCount)
+                {
+                    *pusDest = '%';
+                    n = 1;
+                }
                 break;
             default:
                 if (uiLen >= uiCount && uiCount)

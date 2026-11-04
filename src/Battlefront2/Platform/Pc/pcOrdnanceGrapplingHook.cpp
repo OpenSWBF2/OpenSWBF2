@@ -13,7 +13,6 @@
 #include "RedEngineFL/Graphics/RedCamera.h"
 #include "RedEngineFL/Application/pc/pcRenderHelpers.h"
 #include "pcSunFlare.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 // GLOBAL: SWBF2 0x007b2810
 // __xmm@3f800000000000000000000000000000

@@ -1,12 +1,7 @@
 #pragma once
 
-#include <float.h>
 #include <stddef.h>
 #include <float.h>
-#include "RedEngineFL/Memory/RedMemoryPool.h"
-
-class NetPktGroup;
-
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 
 class NetPktGroup;

@@ -13,7 +13,6 @@
 #include "AIUtil.h"
 #include "ListPool.h"
 #include "Entity.h"
-#include "GameObject.h"
 #include "NetGame.h"
 #include "PathManager.h"
 #include "PebbleFL/Common/PblHeap.h"
@@ -425,6 +424,14 @@ void PathFinder::AddObstacle(const PblMatrix& rMatrix, const PblVector4& rSize, 
     pObstacle->SetCollisionRadius(rSize.w);
     sObstacles->Add(pObstacle, rPos, rSize.w * 2.0f);
 }
+
+class EntityGeometry : public EntityEx, public CollisionObject
+{
+};
+class GameObject : public EntityGeometry
+{
+};
+ 
 
 // FUNCTION: SWBF2 0x00610d20
 void PathFinder::CreateGameObjectBarrier(Obstacle*& rpObstacle, GameObject* pObject,

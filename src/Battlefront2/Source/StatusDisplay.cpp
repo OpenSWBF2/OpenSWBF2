@@ -507,7 +507,7 @@ void VoiceChatGroup::UpdateLines()
         if (pCharacter && pLocal)
         {
             line.mText.m_color = gVoiceChatTeamColors[pLocal->mTeamNumber != pCharacter->mTeamNumber];
-            if (FriendBuddyList::IsFriendBuddy(line.mId))
+            if (FriendBuddyList::IsFriendBuddy(0, line.mId))
             {
                 line.mText.m_color = gHudHighlightColor;
             }

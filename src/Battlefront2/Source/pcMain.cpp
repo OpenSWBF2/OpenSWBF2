@@ -43,6 +43,7 @@ void InitializeMainCameraState();
 
 void* DebugSystemAlloc(unsigned int uiSize);
 void DebugSystemFree(void* pBlock);
+LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam);
 
 void CloseJournal();
 
@@ -68,6 +69,8 @@ bool pcForceFixedFunction;
 // GLOBAL: SWBF2 0x01eaedd7
 // pcWindowed
 bool pcWindowed;
+
+static const UINT kWmDpiChanged = 0x02E0;
 // GLOBAL: SWBF2 0x01eaedd8
 // hGlobalWnd
 HWND hGlobalWnd;
@@ -92,9 +95,6 @@ int PCDebugHeap;
 int pcHeight;
 // GLOBAL: SWBF2 0x01eaede0
 int pcWidth;
-
-// GLOBAL: SWBF2 0x01fa8c58
-D3DGAMMARAMP s_originalGammaRamp;
 
 // FUNCTION: SWBF2 0x006170f0
 bool ToggleAltMeleeHitEffectsCheat()

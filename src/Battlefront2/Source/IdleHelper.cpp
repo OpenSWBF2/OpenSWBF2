@@ -15,13 +15,29 @@
 #include "UnitAgent.h"
 #include "UnitController.h"
 #include "PebbleFL/Common/PblMath.h"
-#include "VOHelper.h"
 
 class EntitySoldier
 {
 public:
     static PblHash rttiHashEntitySoldier;
 };
+
+namespace AI
+{
+enum VOType
+{
+    VOT_DefendIdleLookWeapon = 19,
+    VOT_DefendIdleLookAround = 20,
+    VOT_DefendIdleLookPlayer = 21
+};
+
+namespace VOHelper
+{
+
+int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,
+         const GameObject* pOther, float fDelay);
+}
+}
 
 namespace
 {

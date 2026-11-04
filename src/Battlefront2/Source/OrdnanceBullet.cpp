@@ -20,7 +20,6 @@
 #include "WaterEffect.h"
 #include "PebbleFL/Common/PblRandom.h"
 #include "RedEngineFL/Application/RedWater.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 // GLOBAL: SWBF2 0x007b2940
 // __xmm@459c4000c59c4000c59c4000c59c4000

@@ -1924,6 +1924,13 @@ void SetMasterQuality(RenderOptionsT* pOptions, int iLevel)
         pOptions->mNearSceneFadeFactor = 0.5f;
         pOptions->mFarSceneRangeFactor = 0.5f;
 
+        if (pOptions == &_RenderSettings)
+        {
+            SetDesktopDefault(pOptions);
+            _SetGeneration(pOptions);
+            return;
+        }
+
         if (RedVideoConfig::VidMode_Usable(1024, 768, D3DMULTISAMPLE_NONE, 0))
         {
             pOptions->defaultWidth = 1024;
@@ -1946,6 +1953,13 @@ void SetMasterQuality(RenderOptionsT* pOptions, int iLevel)
         pOptions->mEnableHDR = true;
         pOptions->mNearSceneFadeFactor = 0.7f;
         pOptions->mFarSceneRangeFactor = 0.7f;
+
+        if (pOptions == &_RenderSettings)
+        {
+            SetDesktopDefault(pOptions);
+            _SetGeneration(pOptions);
+            return;
+        }
 
         if (RedVideoConfig::VidMode_Usable(1280, 960, D3DMULTISAMPLE_NONE, 0))
         {

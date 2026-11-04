@@ -11,7 +11,6 @@
 #include "RedEngineFL/Graphics/PC/pcRedTexture.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
 #include "PebbleFL/Common/PblVector.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 // GLOBAL: SWBF2 0x007848f0
 // __xmm@0000000000000000000000003f000000

@@ -4,10 +4,19 @@
 
 #include "PebbleFL/Common/PblAsan.h"
 
-#include <stddef.h>
-
 namespace Snd
 {
+
+static void* UnpoisonEntry(void* pEntry, unsigned int uiEntrySize)
+{
+#if defined(__SANITIZE_ADDRESS__)
+    if (pEntry)
+    {
+        PblAsanUnpoison(pEntry, uiEntrySize);
+    }
+#endif
+    return pEntry;
+}
 
 // FUNCTION: SWBF2 0x00738610
 bool FreeList::AllocBlocks(unsigned int uiNumBlocks, Block** ppFirstBlock)
@@ -31,7 +40,7 @@ bool FreeList::AllocBlocks(unsigned int uiNumBlocks, Block** ppFirstBlock)
         }
 
         char* const pEntries =
-            (char*)((((uintptr_t)pAllocAddress + mAlignment - 1) / mAlignment)
+            (char*)((((unsigned int)pAllocAddress + mAlignment - 1) / mAlignment)
                     * mAlignment);
         Block* const pBlock = (Block*)(pEntries + uiBlockBytes);
 
@@ -61,7 +70,7 @@ void* FreeList::Alloc()
          itor.GetNode() != mBlockList.GetTerminator(); ++itor)
     {
         Block* const pBlock = static_cast<Block*>(itor.GetNode()->GetObjectA(&mBlockList, offsetof(Block, mNode)));
-        void* const pEntry = pBlock->AllocEntry(mEntrySize, mEntriesPerBlock);
+        void* const pEntry = UnpoisonEntry(pBlock->AllocEntry(mEntrySize, mEntriesPerBlock), mEntrySize);
         if (pEntry)
         {
             return pEntry;
@@ -73,7 +82,7 @@ void* FreeList::Alloc()
         Block* pBlock = 0;
         if (AllocBlocks(1, &pBlock))
         {
-            return pBlock->AllocEntry(mEntrySize, mEntriesPerBlock);
+            return UnpoisonEntry(pBlock->AllocEntry(mEntrySize, mEntriesPerBlock), mEntrySize);
         }
     }
     return 0;
@@ -91,6 +100,9 @@ void FreeList::Free(void* p)
             if (pBlock->IsValid(p, mEntrySize, mEntriesPerBlock))
             {
                 pBlock->FreeEntry(p, mEntrySize, mEntriesPerBlock);
+#if defined(__SANITIZE_ADDRESS__)
+                PblAsanPoison(p, mEntrySize);
+#endif
                 break;
             }
         }
@@ -116,6 +128,10 @@ void FreeList::PurgeBlocks()
         if (pBlock->GetAllocator().GetFreeEntries() == mEntriesPerBlock)
         {
             void* const pAllocAddress = pBlock->GetAllocationAddress();
+#if defined(__SANITIZE_ADDRESS__)
+            PblAsanUnpoison((char*)pBlock - mEntriesPerBlock * mEntrySize,
+                            mEntriesPerBlock * mEntrySize);
+#endif
             delete pBlock;
             mFreeFunc(pAllocAddress);
         }

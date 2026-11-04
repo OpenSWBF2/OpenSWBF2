@@ -59,7 +59,6 @@
 #include <math.h>
 #include <string.h>
 #include "EntityProp.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 PblMatrix DirectionMatrix(const PblVector3& direction, const PblVector3& up,
                           const PblVector3& position);
@@ -190,37 +189,13 @@ Team* ReadTeam(NetPktGroup& group)
 // FUNCTION: SWBF2 0x005f61c0
 void WriteString(NetPktGroup& group, const char* text, unsigned int capacity)
 {
-    unsigned int length = (unsigned int)strlen(text);
-    if (length >= capacity)
-    {
-        length = capacity - 1;
-    }
-    group.WriteBits(length, 8);
-    for (unsigned int i = 0; i < length; ++i)
-    {
-        group.WriteBits(text[i], 8);
-    }
+    NetWire::WriteString(group, text, capacity);
 }
 
 // FUNCTION: SWBF2 0x005f6220
 void ReadString(NetPktGroup& group, char* text, unsigned int capacity)
 {
-    unsigned int length;
-    group.ReadBits(length, 8);
-    for (unsigned int i = 0; i < length; ++i)
-    {
-        unsigned int value;
-        group.ReadBits(value, 8);
-        if (i < capacity)
-        {
-            text[i] = (char)value;
-        }
-    }
-    text[capacity - 1] = 0;
-    if (length < capacity - 1)
-    {
-        text[length] = 0;
-    }
+    NetWire::ReadString(group, text, capacity);
 }
 
 // FUNCTION: SWBF2 0x005f5850

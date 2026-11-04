@@ -13,7 +13,6 @@
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 
 #include "LightBeam.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 extern PblVector3 gVectorZero;
 

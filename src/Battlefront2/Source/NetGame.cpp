@@ -1,5 +1,4 @@
 #include "AmmoCounter.h"
-#define _CRT_SECURE_NO_WARNINGS
 
 #include "GameVoiceChat.h"
 #include "GameVoiceChatNode.h"
@@ -9,7 +8,6 @@
 #include <new>
 #include <math.h>
 #include <string.h>
-#include <stddef.h>
 #include <algorithm>
 #include <windows.h>
 #include <d3dx9math.h>
@@ -39,7 +37,6 @@
 #include "LocalLimits.h"
 #include "PebbleFL/Common/PblIndex.h"
 #include "RedEngineFL/Util/RedLog.h"
-#include "RedEngineFL/Util/RedWarning.h"
 #include "TreeGrid.h"
 #include "EntityItem.h"
 #include "PowerupItem.h"
@@ -65,7 +62,6 @@
 #include "GameLoop.h"
 #include "GameMemory.h"
 #include "GameObject.h"
-#include "CameraManager.h"
 #include "Factory.h"
 #include "CommandPost.h"
 #include "CommandPostManager.h"
@@ -919,7 +915,7 @@ class NetNdObjMap
 public:
     NetNdObjMap();
     void Clear();
-    void Add(NetNdObj* object, unsigned int hash);
+    bool Add(NetNdObj* object, unsigned int hash);
 
     NetNdObj* FindId(unsigned int uniqId)
     {
@@ -1499,10 +1495,6 @@ BblList<NetEntity, 512>::Itor& BblList<NetEntity, 512>::Itor::operator++()
 class NetEntityList : public BblList<NetEntity, 512>
 {
 };
-static_assert(offsetof(NetEntity, pos) == 0x8, "net entity pos");
-typedef BblList<NetEntity, 512>::T1 NetEntityNode;
-static_assert(sizeof(NetEntityNode) == 0x1c, "net entity node size");
-static_assert(offsetof(NetEntityNode, next) == 0x18, "net entity node next");
  
 
 namespace GameVoiceChat
@@ -5176,7 +5168,7 @@ void WriteObjectPtr(NetPktGroup& group, const GameObject* pObject)
     if (bSpecial)
     {
         NetNdObj* pEntry = clientNdObjMap.FindId(pObject->GetHandleId());
-        group.WriteBits(pEntry->index, 8);
+        group.WriteBits(pEntry ? pEntry->index : 0u, 8);
     }
     else
     {
@@ -5193,6 +5185,10 @@ GameObject* ReadObjectPtr(NetPktGroup& group)
     {
         unsigned int uniqId;
         group.ReadBits(uniqId, 8);
+        if (uniqId >= clientNdObjMap.count || !clientNdObjMap.FindIndex(uniqId))
+        {
+            return 0;
+        }
         NetNdObj* netNdObj = clientNdObjMap.FindIndex(uniqId);
         GameObject* obj = isFullState ? netNdObj->orig : netNdObj->obj;
         return obj;
@@ -6457,6 +6453,12 @@ void NetGame::ReceiveClient()
                 break;
             }
             group.BeginRead();
+            if (group.IsBad())
+            {
+                group.EndRead();
+                group.Free();
+                continue;
+            }
             ReadWaiting(group);
             group.EndRead();
             group.Free();
@@ -6511,6 +6513,12 @@ void NetGame::ReceiveClient()
             break;
         }
         group.BeginRead();
+        if (group.IsBad())
+        {
+            group.EndRead();
+            group.Free();
+            continue;
+        }
         bool active;
         group.Read(active);
         NetGame::ReadChatMessageFromServer(group);
@@ -7331,12 +7339,17 @@ int CreateUploadDirectory(const char* path)
     for (int i = 0; i < sizeof(uploadDir); ++i)
     {
         char c = uploadDir[i];
-        if (c > 32 && c < 122)
+        if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-')
         {
             continue;
         }
         uploadDir[i] = 0;
         break;
+    }
+    if (!NetWire::IsSafeUploadDir(uploadDir))
+    {
+        uploadDir[0] = 0;
+        return 0;
     }
     int ok = CreateDirectoryA(uploadDir, 0);
     return ok;
@@ -7346,16 +7359,13 @@ int CreateUploadDirectory(const char* path)
 void OpenUploadFile(const char* name)
 {
     char fileName[32];
-    strcpy(fileName, uploadDir);
-    strcat(fileName, "\\");
-    if (strlen(name) < 16)
+    uploadFileHandle = INVALID_HANDLE_VALUE;
+    if (!uploadDir[0] || !NetWire::IsSafeUploadName(name))
     {
-        strcat(fileName, name);
+        return;
     }
-    else
-    {
-        strcat(fileName, "toolong.dat");
-    }
+    _snprintf(fileName, sizeof(fileName), "%s\\%s", uploadDir, name);
+    fileName[sizeof(fileName) - 1] = 0;
     uploadFileHandle = CreateFileA(fileName, GENERIC_READ | GENERIC_WRITE,
                                     0, 0, CREATE_ALWAYS,
                                     FILE_FLAG_RANDOM_ACCESS | FILE_ATTRIBUTE_NORMAL, 0);
@@ -7390,6 +7400,10 @@ unsigned int ndSkippedMask[8];
 // FUNCTION: SWBF2 0x005b44d0
 void ClearSkippedND(GameObject* object)
 {
+    if (!LocalLimits::IsValidNdId(object->GetNetUniqueId()))
+    {
+        return;
+    }
     unsigned int netId = object->GetNetUniqueId() - 64;
     unsigned int word = netId >> 5;
     unsigned int bit = netId % 32;
@@ -7826,7 +7840,7 @@ void NetGame::AddChatMessageToQue(bool local, int player, unsigned __int64 mask,
     NG_ChatMsg* message = new NG_ChatMsg;
     message->player_id = player;
     message->mask = mask;
-    PblUnicode::ustrncpy(message->msg, text, 128);
+    PblUnicode::ustrlcpy(message->msg, text, 128);
     message->msg[127] = 0;
     message->flag = flag;
     message->code = code;
@@ -8479,8 +8493,9 @@ unsigned int GetUpdateTurn(NetPktGroup& group)
     BeginReadAlign(group);
     unsigned int turn;
     ReadTurnLowBits(group, turn);
+    bool bad = group.IsBad();
     group.EndRead();
-    return turn;
+    return bad ? 0 : turn;
 }
 
 // TEMPLATE: SWBF2 0x005d3cc0
@@ -8889,6 +8904,12 @@ void ReadEvent_CreateChunkCluster(NetPktGroup& group, ReliableNetEvent& event, P
     if (hasData)
     {
         group.ReadBits(data.mChunkClusterIndex, 4);
+        if (!PblInBounds(relChunkClusterData, (int)data.mChunkClusterIndex))
+        {
+            data.mEntClass = 0;
+            group.SetBad(NET_REJECT_OBJECT_REF);
+            return;
+        }
         data.mEntClass = static_cast<EntityGeometryClass*>(ReadEntityClass(group));
         if (data.mEntClass)
         {
@@ -8931,8 +8952,9 @@ unsigned int ReadMoves(NetPktGroup& group, int player, unsigned int turn)
     return turn - 1;
 }
 
-extern SOCKET netBroadcastSendSocket;
-extern SOCKET netBroadcastRecvSocket;
+extern unsigned int netBroadcastSendSocket;
+extern unsigned int netBroadcastRecvSocket;
+extern "C" int __stdcall closesocket(unsigned int s);
 
 // FUNCTION: SWBF2 0x005c7160
 void AloNextGameInfo::Read(NetPktGroup& group)
@@ -8986,42 +9008,21 @@ void ReadUpload(NetPktGroup& group)
     }
     group.Read(isHeader);
     src = GetSrc(group.pktPtr);
-    if (src != uploadSrc && uploadSrc >= 0)
-    {
-        group.ReadBits(clientSeqNo, 32);
-        group.Read(moreFiles);
-        if (moreFiles)
-        {
-            ReadString(group, fileName, sizeof(fileName));
-            group.ReadBits(fileSize, 32);
-        }
-    
-        return;
-    }
     group.ReadBits(clientSeqNo, 32);
-    if (clientSeqNo != uploadSeqNo + 1)
+    if ((src != uploadSrc && uploadSrc >= 0) || clientSeqNo != uploadSeqNo + 1)
     {
-        if (isHeader)
-        {
-            group.Read(moreFiles);
-            if (moreFiles)
-            {
-                ReadString(group, fileName, sizeof(fileName));
-                group.ReadBits(fileSize, 32);
-            }
-        }
-        else
-        {
-            group.ReadBits(fileSize, 10);
-            group.ReadBytes(buffer, fileSize);
-        }
+        NetWire::DiscardUpload(group, isHeader);
+        return;
     }
     else
     {
         if (uploadSrc != src)
         {
             uploadSrc = src;
-            CreateUploadDirectory(NetGame::GetPlayerName(src));
+            if (LocalLimits::UploadsAllowed(gAllowUploads))
+            {
+                CreateUploadDirectory(NetGame::GetPlayerName(src));
+            }
         }
         uploadSeqNo = clientSeqNo;
         moreFiles = true;
@@ -9039,16 +9040,27 @@ void ReadUpload(NetPktGroup& group)
             {
                 ReadString(group, fileName, sizeof(fileName));
                 group.ReadBits(fileSize, 32);
-                OpenUploadFile(fileName);
+                if (!LocalLimits::UploadsAllowed(gAllowUploads))
+                {
+                    NetRejectCount(NET_REJECT_UPLOAD_DISABLED);
+                }
+                else
+                {
+                    OpenUploadFile(fileName);
+                }
                 uploadState = 1;
                 uploadSizeLeft = fileSize;
             }
             break;
         case 1:
-            group.ReadBits(fileSize, 10);
-            group.ReadBytes(buffer, fileSize);
-            uploadSizeLeft -= fileSize;
+            if (!NetWire::ReadUploadChunk(group, buffer, sizeof(buffer), uploadSizeLeft, fileSize))
+            {
+                CloseUploadFile();
+                uploadState = 0;
+                break;
+            }
             WriteUploadFile(buffer, fileSize);
+            uploadSizeLeft -= fileSize;
             if (!uploadSizeLeft)
             {
                 CloseUploadFile();
@@ -9217,6 +9229,12 @@ void ReadUpdate(NetPktGroup& group);
 void ReceiveUpdate(NetPktGroup& group)
 {
     group.BeginRead();
+    if (group.IsBad())
+    {
+        group.EndRead();
+        group.Free();
+        return;
+    }
     BeginReadAlign(group);
     isFullState = false;
     ReadUpdate(group);
@@ -9393,7 +9411,7 @@ extern unsigned __int64 netEnteredLobbyId;
 extern int netLanRegisterState;
 extern bool netLeavingLobby;
 void EndRegisterLanGame();
-void* GetGalaxyMatchmaking();
+galaxy::api::IMatchmaking* GetGalaxyMatchmaking();
 namespace gf
 {
 bool isInitialized(); namespace utils
@@ -9474,10 +9492,18 @@ void NetGame::ReadChatMessageFromServer(NetPktGroup& group)
 {
     unsigned int length = 0;
     NG_ChatMsg message;
+    memset(&message, 0, sizeof(message));
     group.ReadBytes((char*)&length, sizeof(length));
     if ((length & 0xffff0000u) == 0xffff0000u && (length &= 0xffffu) > 0)
     {
-        group.ReadBytes((char*)&message, length);
+        if (!NetWire::ReadChatPayload(group, reinterpret_cast<unsigned char*>(&message), 276, length))
+        {
+            return;
+        }
+        if (!NetWire::IsValidChatFields((int)message.player_id, message.code, false))
+        {
+            return;
+        }
         if (!NetGame::IsHost())
         {
             LogChatMessage(message);
@@ -9806,6 +9832,12 @@ void ReceiveRelay()
         {
             ClearRelay();
             group.BeginRead();
+            if (group.IsBad())
+            {
+                group.EndRead();
+                group.Free();
+                return;
+            }
             BeginReadAlign(group);
             isFullState = true;
             curDst = -1;
@@ -9850,11 +9882,21 @@ void ReceiveReplica()
             return;
         }
         pktGroup.BeginRead();
+        if (pktGroup.IsBad())
+        {
+            pktGroup.EndRead();
+            pktGroup.Free();
+            continue;
+        }
         ReadDestMask(pktGroup, hostPlayingMask);
         UpdateCurMaxPlayers(hostPlayingMask, true);
         ReadTurnLowBits(pktGroup, updateTurn);
         for (j = 0; j < netCurMaxPlayers; ++j)
         {
+            if (pktGroup.IsBad())
+            {
+                break;
+            }
             NetPlayer& netPlayer = netPlayers[j];
             if (netPlayer.clientOfIndex != netHostIndex)
             {
@@ -9869,6 +9911,10 @@ void ReceiveReplica()
         }
         for (j = 0; j < netCurMaxPlayers; ++j)
         {
+            if (pktGroup.IsBad())
+            {
+                break;
+            }
             if (hostPlayingMask & (1ui64 << j))
             {
                 lastTurn = ReadMoves(pktGroup, j, updateTurn);
@@ -10091,7 +10137,6 @@ void ReadSpawnSelect(NetPktGroup& group, int player)
         {
             id = NetGame::GetMyGuest(player, i - 1);
         }
-        NetPlayer& np = netPlayers[id];
         bool hasSpawn;
         group.Read(hasSpawn);
         if (!LocalLimits::IsValidNetPlayer(id))
@@ -10296,6 +10341,7 @@ void NetGame::ReadChatMessageFromClient(NetPktGroup& group)
 {
     unsigned int size = 0;
     NG_ChatMsg message;
+    memset(&message, 0, sizeof(message));
     group.ReadBytes(reinterpret_cast<char*>(&size), 4);
     if ((size & 0xffff0000) != 0xffff0000)
     {
@@ -10306,14 +10352,25 @@ void NetGame::ReadChatMessageFromClient(NetPktGroup& group)
     {
         return;
     }
-    group.ReadBytes(reinterpret_cast<char*>(&message), size);
+    if (!NetWire::ReadChatPayload(group, reinterpret_cast<unsigned char*>(&message), 276, size))
+    {
+        return;
+    }
+    message.player_id = GetSrc(group.pktPtr);
+    if (!NetWire::IsValidChatFields((int)message.player_id, message.code, true))
+    {
+        return;
+    }
     LogChatMessage(message);
-    if (NetAdmin::ParseLineRemote(message.player_id, message.msg, false, true))
+    NetAdmin::SetLoginSource(0x80000000u | (unsigned int)GetSrc(group.pktPtr));
+    const bool parsed = NetAdmin::ParseLineRemote(message.player_id, message.msg, false, true);
+    NetAdmin::SetLoginSource(0);
+    if (parsed)
     {
         return;
     }
     bool accept = true;
-    if ((int)message.player_id < netCurMaxPlayers)
+    if ((int)message.player_id < netCurMaxPlayers && message.player_id < 64)
     {
         NetPlayer& np = netPlayers[message.player_id];
         if ((int)(NetGame::GetTurnNumber() - np.mLastStatusTurn) > netTurnsPerSecond * 3 / 2)
@@ -10412,7 +10469,6 @@ GameObject* CreateObject(unsigned int uniqId, EntityClass* entityClass, int init
         if (player && controllable)
         {
             player->Validate();
-            Controllable* controllable = object->GetControllable();
             switch (controllable->GetPilotType())
             {
             case PILOT_SELF:
@@ -10523,6 +10579,11 @@ GameObject* CreateObject(unsigned int uniqId, EntityClass* entityClass, int init
 GameObject* ReadCreate(NetPktGroup& group, unsigned int uniqId)
 {
     EntityClass* entityClass = ReadEntityClass(group);
+    if (!entityClass)
+    {
+        group.SetBad(NET_REJECT_OBJECT_REF);
+        return 0;
+    }
     int initialPlayerId = -1;
     int playerId = -1;
     bool hasPlayer;
@@ -10581,6 +10642,11 @@ GameObject* ReadCreate(NetPktGroup& group, unsigned int uniqId)
         }
     }
     GameObject* object = CreateObject(uniqId, entityClass, initialPlayerId, playerId, rotation, position, character, team);
+    if (!object)
+    {
+        group.SetBad(NET_REJECT_OBJECT_REF);
+        return 0;
+    }
     object->ReadCreate(group);
     return object;
 }
@@ -10630,8 +10696,13 @@ bool ReadObject(NetPktGroup& group)
     {
         unsigned int index;
         group.ReadBits(index, 8);
-        NetNdObj* ndObj = clientNdObjMap.FindIndex(index);
-        GameObject* object = isFullState ? ndObj->orig : ndObj->obj;
+        NetNdObj* ndObj = index < clientNdObjMap.count ? clientNdObjMap.FindIndex(index) : 0;
+        GameObject* object = ndObj ? (isFullState ? ndObj->orig : ndObj->obj) : 0;
+        const bool bNdObjectKnown = object != 0;
+        if (!ensure(bNdObjectKnown))
+        {
+            return false;
+        }
         object->ReadObject(group, 0);
         ClearSkippedND(object);
     }
@@ -10647,6 +10718,11 @@ bool ReadObject(NetPktGroup& group)
                 return false;
             }
             NetObj* netObj = clientObjMap.Find(index);
+            const bool bObjectKnown = netObj != 0;
+            if (!ensure(bObjectKnown))
+            {
+                return false;
+            }
             netObj->usedTurn = clientHostTurnNumber;
             object = netObj->obj;
         }
@@ -10785,6 +10861,10 @@ void ReadObjects(NetPktGroup& group)
                     ++gDebugCount;
                 }
                 ReadCreate(group, index);
+                if (group.IsBad())
+                {
+                    break;
+                }
                 ++readCount;
             }
         }
@@ -11212,7 +11292,10 @@ void ReceivePrimary()
             {
                 ProcessedInputs* inputs = &hostTurns[slot].moves[player];
                 ReadMiniMove(group, inputs);
-                hostRecv[slot] |= (unsigned __int64)1 << player;
+                if (!group.IsBad())
+                {
+                    hostRecv[slot] |= (unsigned __int64)1 << player;
+                }
             }
             group.EndRead();
             group.Free();
@@ -11340,6 +11423,10 @@ void ReceivePrimary()
             unsigned int moveTurn = turn;
             while (true)
             {
+                if (group.IsBad())
+                {
+                    break;
+                }
                 StatsManager::ReadStatsResponse(curDst, group);
                 group.Read(cockpitCams[curDst]);
                 turn = moveTurn;
@@ -11362,6 +11449,10 @@ void ReceivePrimary()
                     inputs = &oldMoves[turn & 1];
                 }
                 ReadMove(group, &noInputs, inputs);
+                if (group.IsBad())
+                {
+                    break;
+                }
                 if (turn + 3 >= (unsigned int)hostTurnNumber)
                 {
                     if (turn >= (unsigned int)hostTurnNumber)
@@ -11414,7 +11505,7 @@ void ReceivePrimary()
                     {
                         next = &oldMoves[turn & 1];
                     }
-                    if (!ReadMove(group, inputs, next))
+                    if (!ReadMove(group, inputs, next) || group.IsBad())
                     {
                         break;
                     }
@@ -11959,14 +12050,25 @@ RedTerrain::Hole::Hole(RedTerrain::Hole* pSource) : TreeGridObject(-1)
     }
 }
 
-// FUNCTION: SWBF2 0x005b45f0
-void NetNdObjMap::Add(NetNdObj* object, unsigned int hash)
+static bool CheckNdRoom(unsigned int uiCount)
 {
+    const bool bNdObjectLimitOk = LocalLimits::CanAddNdObject(uiCount);
+    return ensure(bNdObjectLimitOk);
+}
+
+// FUNCTION: SWBF2 0x005b45f0
+bool NetNdObjMap::Add(NetNdObj* object, unsigned int hash)
+{
+    if (!CheckNdRoom(count))
+    {
+        return false;
+    }
     object->uniqId = hash;
     object->index = count;
     objMap.Store(hash, object);
     array[count++] = object;
     object->obj->SetNetUniqueId(object->index + 0x40);
+    return true;
 }
 
 // GLOBAL: SWBF2 0x01e64ddc
@@ -12098,18 +12200,17 @@ int NetGame::GetObjectsInRange(const PblVector3& position, float radius, GameObj
 }
 
 // FUNCTION: SWBF2 0x005c9a70
-void AddHoleToClient(void* pSource)
+void AddHoleToClient(const int* source)
 {
-    RedTerrain::Hole* source = static_cast<RedTerrain::Hole*>(pSource);
-    RedTerrain::Hole* copy = static_cast<RedTerrain::Hole*>(::operator new(sizeof(RedTerrain::Hole)));
+    int* copy = (int*)::operator new(60);
     if (copy)
     {
-        new (copy) RedTerrain::Hole(source);
+        new (copy) RedTerrain::Hole((RedTerrain::Hole*)source);
     }
     CollisionManager::EnterClient();
-    const float radius = copy->GetCollisionRadius();
-    const PblVector3& position = copy->GetCollisionCenter();
-    CollisionManager::GetTreeGrid()->Add(copy, position, radius * 2.0f);
+    const float radius = ((const TreeGridObject*)copy)->GetCollisionRadius();
+    const PblVector3& position = ((const TreeGridObject*)copy)->GetCollisionCenter();
+    CollisionManager::GetTreeGrid()->Add((TreeGridObject*)copy, position, radius * 2.0f);
     CollisionManager::LeaveClient();
 }
 
@@ -12312,10 +12413,13 @@ void CreateClientCollision(bool bNetCollision)
                     }
                     else
                     {
-                        NetNdObj* pNdObj = new NetNdObj;
-                        pNdObj->obj = pObject->AddToClient();
-                        pNdObj->orig = pObject;
-                        clientNdObjMap.Add(pNdObj, pObject->GetHandleId());
+                        if (CheckNdRoom(clientNdObjMap.count))
+                        {
+                            NetNdObj* pNdObj = new NetNdObj;
+                            pNdObj->obj = pObject->AddToClient();
+                            pNdObj->orig = pObject;
+                            clientNdObjMap.Add(pNdObj, pObject->GetHandleId());
+                        }
                     }
                     ++iCount;
                     break;
@@ -12379,7 +12483,7 @@ void CreateClientCollision(bool bNetCollision)
         NetGame::LeaveClient();
         if (!NetGame::IsOneWorld())
         {
-            RedTerrain::ProcessHoles(AddHoleToClient);
+            RedTerrain::ProcessHoles((void (__cdecl*)(void*))AddHoleToClient);
         }
     }
 }
@@ -12459,6 +12563,15 @@ void NetGameP::SetPlayerCanHost(int iPlayer, char bReplica, char bRelay)
 // FUNCTION: SWBF2 0x005b8790
 void NetGameP::SetTurnRate(int iDuration, int iTurns)
 {
+    if (!NetWire::IsValidTurnRate(iDuration, iTurns))
+    {
+        if (netTurnsPerSecond > 0)
+        {
+            return;
+        }
+        iDuration = 20;
+        iTurns = 1;
+    }
     if (iTurns)
     {
         netTurnsPerSecond = iDuration / iTurns;
@@ -12604,6 +12717,10 @@ bool ReadNetIsLocalTurn() { return netIsLocalTurn; }
 // FUNCTION: SWBF2 0x005b4470
 bool IsSkippedND(const GameObject* pObject)
 {
+    if (!LocalLimits::IsValidNdId(pObject->GetNetUniqueId()))
+    {
+        return false;
+    }
     unsigned int netId = pObject->GetNetUniqueId() - 64;
     unsigned int word = netId >> 5;
     unsigned int bit = netId % 32;
@@ -12989,6 +13106,10 @@ GameObject** sendObjList;
 // FUNCTION: SWBF2 0x005be2f0
 void AddSendFull(GameObject* pObject)
 {
+    if (IsNeverDies(pObject->GetEntityType()) && !clientNdObjMap.FindId(pObject->GetHandleId()))
+    {
+        return;
+    }
     EntityType entType = pObject->GetEntityType();
     switch (entType)
     {
@@ -13388,6 +13509,11 @@ void AdjustClock()
 void GetLastObjState(GameObject* pObject, NetObjState*& pState, unsigned int& uId)
 {
     HandleToIndex* pEntry = handleToIndexMapPtr->Find(pObject->GetHandleId());
+    if (!pEntry || (unsigned int)pEntry->index >= 63)
+    {
+        uId = 63;
+        return;
+    }
     uId = pEntry->index;
     if (!pEntry->isNew)
     {
@@ -14401,17 +14527,17 @@ void WriteTrackable(NetPktGroup& group, Trackable* pTrackable)
     {
         bool bDontSendData = false;
         GameObject* pObject = pTrackable->GetGameObject();
-        if (bDontSendData)
+        NetNdObj* pNdObj = pObject->GetEntityType() == ENT_ARMED ? clientNdObjMap.FindId(pObject->GetHandleId()) : 0;
+        if (bDontSendData || (pObject->GetEntityType() == ENT_ARMED && !pNdObj))
         {
             group.Write(false);
         }
         else
         {
             group.Write(true);
-            if (pObject->GetEntityType() == ENT_ARMED)
+            if (pNdObj)
             {
                 group.Write(true);
-                NetNdObj* pNdObj = clientNdObjMap.FindId(pObject->GetHandleId());
                 group.WriteBits(pNdObj->index, 8);
             }
             else
@@ -14740,14 +14866,8 @@ void WriteUpload(NetPktGroup& group)
                 }
                 DisableWriteUpload();
             }
-            group.Write(true);
-            group.WriteBits(clientUploadSeqNo, 32);
-            group.Write(clientMoreFiles);
-            if (clientMoreFiles)
-            {
-                WriteString(group, clientFileName, 16);
-                group.WriteBits(clientUploadSizeLeft, 32);
-            }
+            NetWire::WriteUploadHeader(group, clientUploadSeqNo, clientMoreFiles, clientFileName,
+                                       clientUploadSizeLeft);
             ++clientUploadTryCount;
             sent = true;
             break;
@@ -14784,11 +14904,8 @@ void WriteUpload(NetPktGroup& group)
             }
             else
             {
-                group.Write(false);
-                group.WriteBits(clientUploadSeqNo, 32);
                 const int chunkSize = clientUploadSizeLeft < 1012 ? clientUploadSizeLeft : 1012;
-                group.WriteBits(chunkSize, 10);
-                group.WriteBytes(clientUploadPkt->mData, chunkSize);
+                NetWire::WriteUploadChunk(group, clientUploadSeqNo, clientUploadPkt->mData, chunkSize);
                 ++clientUploadTryCount;
                 sent = true;
             }
@@ -14862,7 +14979,7 @@ void WriteObject(NetPktGroup& group, GameObject* pObject)
     if (neverDies)
     {
         NetNdObj* pNdObj = clientNdObjMap.FindId(pObject->GetHandleId());
-        group.WriteBits(pNdObj->index, 8);
+        group.WriteBits(pNdObj ? pNdObj->index : 0u, 8);
         pObject->WriteObject(group, 0);
     }
     else
@@ -14883,10 +15000,13 @@ void WriteObject(NetPktGroup& group, GameObject* pObject)
         if (saveObjState)
         {
             NetObjState* state = netPlayers[curDst].nextObjState->Find(uniqId);
-            state->rotation = PblQuaternion(pObject->GetMatrix());
-            state->position = pObject->GetMatrix().GetTranslation();
-            state->team = (unsigned char)pObject->GetTeam();
-            state->perceivedTeam = (unsigned char)pObject->GetPerceivedTeam();
+            if (state)
+            {
+                state->rotation = PblQuaternion(pObject->GetMatrix());
+                state->position = pObject->GetMatrix().GetTranslation();
+                state->team = (unsigned char)pObject->GetTeam();
+                state->perceivedTeam = (unsigned char)pObject->GetPerceivedTeam();
+            }
         }
     }
 }
@@ -15463,12 +15583,7 @@ void NetGame::SendChatMessageToServer(NetPktGroup& group)
         if (!NetAdmin::ParseLineLocal(pMessage->msg, false))
         {
             unsigned int length = 2 * PblUnicode::ustrlen(pMessage->msg) + 22;
-            unsigned int lengthMask = length | 0xffff0000;
-            group.WriteBytes((const char*)&lengthMask, sizeof(lengthMask));
-            if (length > 0)
-            {
-                group.WriteBytes((const char*)pMessage, length);
-            }
+            NetWire::WriteChatPayload(group, pMessage, length);
         }
         else
         {
@@ -15496,12 +15611,7 @@ void NetGame::SendChatMessageToClient(NetPktGroup& group)
         if (!(pMessage->mask & (1ui64 << curDst)))
         {
             unsigned int length = 2 * PblUnicode::ustrlen(pMessage->msg) + 22;
-            unsigned int lengthMask = length | 0xffff0000;
-            group.WriteBytes((const char*)&lengthMask, sizeof(lengthMask));
-            if (length > 0)
-            {
-                group.WriteBytes((const char*)pMessage, length);
-            }
+            NetWire::WriteChatPayload(group, pMessage, length);
             if (NetGame::IsEnabled() &&
                 NetGame::GetLocalIndex(0) == curDst &&
                 NetGame::IsOneWorld() && NetGame::IsHost() && !NetGame::IsDedicated())
@@ -15706,7 +15816,7 @@ void WriteNetEvent(NetEvent& event, NetPktGroup& group)
 // FUNCTION: SWBF2 0x005bdd50
 void AddSend(GameObject* pObject)
 {
-    if (IsNeverDies(pObject->GetEntityType()) && !clientNdObjMap.objMap.Find(pObject->GetHandleId()))
+    if (IsNeverDies(pObject->GetEntityType()) && !clientNdObjMap.FindId(pObject->GetHandleId()))
     {
         return;
     }
@@ -15890,7 +16000,7 @@ void FinishSend(GameObject** ppSends, GameObject* (*ppScopes)[64], int*)
             for (j = 0; j < 2; ++j)
             {
                 GameObject* pObject = ppScopes[j][i];
-                if (pObject && count < 64 && !added.Find((unsigned int)(uintptr_t)pObject))
+                if (pObject && count < 64 && !added.Find((unsigned int)pObject))
                 {
                     ppSends[count++] = pObject;
                     added.Store((unsigned int)pObject, pObject);

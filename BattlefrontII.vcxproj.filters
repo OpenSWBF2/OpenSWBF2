@@ -115,6 +115,9 @@
     <Filter Include="src\lglcd">
       <UniqueIdentifier>{F6B30327-4C66-5C18-A460-E8D6E4033F3F}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\SoundFL\source\gsm-1.0.10">
+      <UniqueIdentifier>{85D1C48C-5C02-5742-8676-EE154220E294}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcBirdEffect.cpp">
@@ -2046,6 +2049,9 @@
     <ClCompile Include="src\RedEngineFL\input\pc\pcRedKeyboard.cpp">
       <Filter>src\RedEngineFL\input\pc</Filter>
     </ClCompile>
+    <ClCompile Include="src\RedEngineFL\input\pc\pcRedLogitechLCD.cpp">
+      <Filter>src\RedEngineFL\input\pc</Filter>
+    </ClCompile>
     <ClCompile Include="src\RedEngineFL\input\pc\pcRedMouse.cpp">
       <Filter>src\RedEngineFL\input\pc</Filter>
     </ClCompile>
@@ -2199,6 +2205,21 @@
     <ClCompile Include="src\SoundFL\source\sndstreamgsmencoder.cpp">
       <Filter>src\SoundFL\source</Filter>
     </ClCompile>
+    <ClCompile Include="src\SoundFL\source\gsm-1.0.10\gsm_decode.c">
+      <Filter>src\SoundFL\source\gsm-1.0.10</Filter>
+    </ClCompile>
+    <ClCompile Include="src\SoundFL\source\gsm-1.0.10\gsm_encode.c">
+      <Filter>src\SoundFL\source\gsm-1.0.10</Filter>
+    </ClCompile>
+    <ClCompile Include="src\SoundFL\source\gsm-1.0.10\gsm_option.c">
+      <Filter>src\SoundFL\source\gsm-1.0.10</Filter>
+    </ClCompile>
+    <ClCompile Include="src\SoundFL\source\gsm-1.0.10\long_term.c">
+      <Filter>src\SoundFL\source\gsm-1.0.10</Filter>
+    </ClCompile>
+    <ClCompile Include="src\SoundFL\source\gsm-1.0.10\short_term.c">
+      <Filter>src\SoundFL\source\gsm-1.0.10</Filter>
+    </ClCompile>
     <ClCompile Include="src\SoundFL\source\sndstreamhighlowpass.cpp">
       <Filter>src\SoundFL\source</Filter>
     </ClCompile>
@@ -2329,6 +2350,9 @@
       <Filter>src\Zephyr\Source</Filter>
     </ClCompile>
     <ClCompile Include="src\Zephyr\Source\ZephyrEvent.cpp">
+      <Filter>src\Zephyr\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Zephyr\Source\ZephyrFile.cpp">
       <Filter>src\Zephyr\Source</Filter>
     </ClCompile>
     <ClCompile Include="src\Zephyr\Source\ZephyrPoseDyn.cpp">
@@ -2787,6 +2811,9 @@
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\EventManager_Timer.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\EventManagerVtables.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\Explosion.h">
@@ -3911,7 +3938,13 @@
     <ClInclude Include="src\PebbleFL\Common\PblVector.h">
       <Filter>src\PebbleFL\Common</Filter>
     </ClInclude>
-    <ClInclude Include="src\PebbleFL\pc\PblD3DX.h">
+    <ClInclude Include="src\PebbleFL\pc\pcPblMath.h">
+      <Filter>src\PebbleFL\pc</Filter>
+    </ClInclude>
+    <ClInclude Include="src\PebbleFL\pc\pcPblMatrix.h">
+      <Filter>src\PebbleFL\pc</Filter>
+    </ClInclude>
+    <ClInclude Include="src\PebbleFL\pc\pcPblVector.h">
       <Filter>src\PebbleFL\pc</Filter>
     </ClInclude>
     <ClInclude Include="src\RedEngineFL\Application\RedPath.h">
@@ -4453,6 +4486,9 @@
     </ClInclude>
     <ClInclude Include="src\SoundFL\source\sndstreamgsmencoder.h">
       <Filter>src\SoundFL\source</Filter>
+    </ClInclude>
+    <ClInclude Include="src\SoundFL\source\gsm-1.0.10\private.h">
+      <Filter>src\SoundFL\source\gsm-1.0.10</Filter>
     </ClInclude>
     <ClInclude Include="src\SoundFL\source\sndstreamhighlowpass.h">
       <Filter>src\SoundFL\source</Filter>

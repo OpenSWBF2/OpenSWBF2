@@ -48,7 +48,7 @@ TEST_CASE("hash table end converts to null" * doctest::test_suite("regression"))
     CHECK((int*)kHolder.mTable.End() == (int*)0);
 
     int iValue = 9;
-    REQUIRE(kHolder.mTable.Store(PblHash("one"), &iValue));
+    REQUIRE(HashStoreNew(kHolder.mTable, PblHash("one"), &iValue));
     int iCount = 0;
     for (PblHashTable<int, 4>::Itor it = kHolder.mTable.Begin(); it != kHolder.mTable.End(); ++it)
     {
@@ -67,8 +67,8 @@ TEST_CASE("hash table iteration visits null valued entries" * doctest::test_suit
     PblHashTable<int, 4> kTable;
     kTable.Clear();
     int iValue = 9;
-    REQUIRE(kTable.Store(1, 0));
-    REQUIRE(kTable.Store(2, &iValue));
+    REQUIRE(HashStoreNew(kTable, 1, (int*)0));
+    REQUIRE(HashStoreNew(kTable, 2, &iValue));
     int iCount = 0;
     int iFound = 0;
     for (PblHashTable<int, 4>::Itor it = kTable.Begin(); it != kTable.End(); ++it)
@@ -492,7 +492,7 @@ TEST_CASE("handle to a freed pool object resolves to null" * doctest::test_suite
     REQUIRE(uiId != 0);
     PblHandle<HandleProbe> h(pProbe);
     PblHandle<HandleProbe> hStale(pProbe);
-    CHECK(h() == pProbe);
+    CHECK((HandleProbe*)h == pProbe);
     CHECK(h.GetHandleId() == uiId);
 
     delete pProbe;
@@ -500,13 +500,13 @@ TEST_CASE("handle to a freed pool object resolves to null" * doctest::test_suite
     CHECK(__asan_address_is_poisoned(&pProbe->mHandleId));
 #endif
     CHECK(pProbe->PblHandled::GetHandleId() == 0);
-    CHECK(!h());
+    CHECK(!(HandleProbe*)h);
     CHECK(h.GetHandleId() == 0);
 
     HandleProbe* pReuse = new HandleProbe;
     CHECK(pReuse == pProbe);
     CHECK(pReuse->GetHandleId() != uiId);
-    CHECK(!hStale());
+    CHECK(!(HandleProbe*)hStale);
     CHECK(hStale.GetHandleId() == 0);
 
     delete pReuse;
@@ -699,7 +699,7 @@ TEST_CASE("walker without leg pairs never reads a leg pair" * doctest::test_suit
                        "        mLegPairs[i] = 0;\n"
                        "    }\n")
           != std::string::npos);
-    CHECK(sWalker.find("mNetUniqueId, 1, mLegPairCount > 0 ? mLegPairs[0]->GetStateLimit() : 0.0f,\n")
+    CHECK(sWalker.find("mLegPairCount > 0 ? mLegPairs[0]->GetStateLimit() : 0.0f, bWrapped);\n")
           != std::string::npos);
     CHECK(sWalker.find("        if (mLegPairCount > 0)\n"
                        "        {\n"

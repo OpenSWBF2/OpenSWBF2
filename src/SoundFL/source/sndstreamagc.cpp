@@ -69,7 +69,7 @@ StreamPacket* StreamAGC::GetPacket(unsigned int uiOutput)
             {
                 uValue = 0x7FFF;
             }
-            pSamples[i] = (short)(pSamples[i] < 0 ? -uValue : uValue);
+            pSamples[i] = (short)(pSamples[i] < 0 ? 0 - uValue : uValue);
 
             if (mGainDest < mGain)
             {

@@ -1,5 +1,4 @@
 #include <string.h>
-#include <stddef.h>
 
 #include "sndallocbitmap.h"
 
@@ -95,7 +94,7 @@ bool MemoryBitmap::Alloc(unsigned int uiSize, MemoryHandle& handle)
 }
 
 // FUNCTION: SWBF2 0x00745450
-inline void AllocBitmap::Free(Handle& handle)
+void AllocBitmap::Free(Handle& handle)
 {
     Reserve(handle.mStartEntry, handle.mNumEntries, false);
 
@@ -143,7 +142,7 @@ unsigned int AllocBitmap::GetFreeEntries() const
 }
 
 // FUNCTION: SWBF2 0x00745520
-uintptr_t MemoryBitmap::GetStartAddress() const
+unsigned int MemoryBitmap::GetStartAddress() const
 {
     return mStartAddress;
 }
@@ -167,7 +166,7 @@ void AllocBitmap::Initialize(unsigned char* pBitmap, unsigned int uiNumEntries)
 }
 
 // FUNCTION: SWBF2 0x00745590
-void MemoryBitmap::Initialize(uintptr_t uiStartAddress, unsigned int uiMemorySize,
+void MemoryBitmap::Initialize(unsigned int uiStartAddress, unsigned int uiMemorySize,
                               unsigned int uiEntrySize, unsigned char* pBitmap)
 {
     mStartAddress = uiStartAddress;

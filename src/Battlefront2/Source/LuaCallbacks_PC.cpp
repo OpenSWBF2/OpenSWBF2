@@ -455,7 +455,7 @@ static int ScriptCB_MarkDisplayOptions(lua_State* L);
 static int ScriptCB_RestoreDisplayOptions(lua_State* L);
 static int ScriptCB_SaveDisplayOptions(lua_State* L);
 
-static const CallbackEntryT sPCCallbacks[36] =
+static const CallbackEntryT sPCCallbacks[44] =
 {
     { "ScriptCB_GetMouseSensitivity", ScriptCB_GetMouseSensitivity },
     { "ScriptCB_GetJoySensitivity", ScriptCB_GetJoySensitivity },
@@ -992,7 +992,7 @@ int ScriptCB_IsPCVideoFixedFunction(lua_State* L)
 // FUNCTION: SWBF2 0x0059b170
 void InitPC()
 {
-    for (unsigned int i = 0; i < 36; ++i)
+    for (unsigned int i = 0; i < 44; ++i)
     {
         LuaHelper::Register(sPCCallbacks[i].pcName, sPCCallbacks[i].pfnCallback, 0);
     }

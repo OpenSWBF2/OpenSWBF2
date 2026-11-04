@@ -2,7 +2,10 @@
 
 #include "PebbleFL/Common/PblHashTable.h"
 
+#include <stddef.h>
+
 #include "GameSound.h"
+#include "Thread.h"
 #include "WeaponCannon.h"
 #include "PebbleFL/Common/PblHandle.h"
 #include "PebbleFL/Common/PblMatrix.h"

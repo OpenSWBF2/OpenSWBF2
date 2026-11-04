@@ -15,6 +15,7 @@ public:
     static void Send(NetPacket* pPacket, int iDest);
     static void Update();
     static NetPacket* ReceiveLocal();
+    static void FreePackets();
 };
 
 bool netEnabled;
@@ -35,6 +36,16 @@ NetPktGroup localQueue;
 void NetDrag::Send(NetPacket*, int) {}
 void NetDrag::Update() {}
 NetPacket* NetDrag::ReceiveLocal() { return 0; }
+void NetDrag::FreePackets()
+{
+    for (int i = 0; i < 3; ++i)
+    {
+        bandwidthQueue[i].Free();
+    }
+    latencyQueue.Free();
+    lossQueue.Free();
+    localQueue.Free();
+}
 void NetGameP::FreePackets() {}
 int NetGame::GetMyGuest(int, int) { return -1; }
 unsigned int NetGame::GetKey(int) { return 0; }
@@ -44,7 +55,6 @@ void NetSocket::StartSockets() {}
 void NetSocket::RecvSockets() {}
 void NetSocket::RecvGalaxySockets() {}
 void NetSocket::GetAddr(const void*, int& iIP, int& iPort) { iIP = 0; iPort = 0; }
-int __fastcall NetCommP::FindJoinSource(const NetSocketPeerRecord*) { return -1; }
 bool __fastcall IsAdminPacketAuthorized(const unsigned char*) { return false; }
 namespace gf { bool checkError() { return false; } }
 namespace galaxy { namespace api { IGalaxy* GalaxyFactory::GetInstance() { return 0; } } }

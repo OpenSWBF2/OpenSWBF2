@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include "PebbleFL/Common/PblVector.h"
 #include <stdlib.h>
-#include <stddef.h>
 
 #include "EntityFlyer.h"
 #include "CollisionBody.h"
@@ -3122,7 +3121,7 @@ EntityPathFollower::BranchParams EntityFlyer::GetBranchParams()
                              fHigh);
     float fBase = (mCharacter && mCharacter->mCarriedFlagPtr) ? (fHigh - fLow) * 0.5f + fLow : fLow;
 
-    float fTime = GameLoop::GetMissionTime() + (float)(((uintptr_t)this >> 2) & 0xf);
+    float fTime = GameLoop::GetMissionTime() + (float)(((unsigned int)this >> 2) & 0xf);
     float fWave = PblMath::Cos(fTime * 2.33f) * PblMath::Sin(fTime * 1.17f);
     float fBeat = PblMath::Sin(fTime * 0.43f) * fWave * 0.5f + 0.5f;
     float fSpeed = fBeat * fBeat * (fHigh - fBase) + fBase;

@@ -21,7 +21,6 @@
 #include "RedEngineFL/Graphics/RedPose.h"
 #include "Aimer.h"
 #include "EntitySoldier.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 class EntityFlyer
 {

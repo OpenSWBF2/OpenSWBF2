@@ -56,9 +56,13 @@ static HCURSOR MakeCursorFromCache(unsigned int uiW, unsigned int uiH)
     void* pvColor = 0;
     HBITMAP hColor = CreateDIBSection(0, (BITMAPINFO*)&kV5, DIB_RGB_COLORS, &pvColor, 0, 0);
 
-    unsigned char aucInfo[sizeof(BITMAPINFOHEADER) + 2 * sizeof(RGBQUAD)];
-    memset(aucInfo, 0, sizeof(aucInfo));
-    BITMAPINFO* pInfo = (BITMAPINFO*)aucInfo;
+    struct
+    {
+        BITMAPINFOHEADER bmiHeader;
+        RGBQUAD bmiColors[2];
+    } kInfo;
+    memset(&kInfo, 0, sizeof(kInfo));
+    BITMAPINFO* pInfo = (BITMAPINFO*)&kInfo;
     pInfo->bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
     pInfo->bmiHeader.biWidth = (LONG)uiW;
     pInfo->bmiHeader.biHeight = -(LONG)uiH;
@@ -414,7 +418,8 @@ void RedMouse::SetCursorPos(int iX, int iY)
         int iCx = 0;
         int iCy = 0;
         GetClientRect(hGlobalWnd, &rc);
-        DisplayLogic::MapBackBufferToClient(m_X, m_Y, (unsigned int)iWidth, (unsigned int)iHeight,
+        DisplayLogic::MapBackBufferToClient(m_X, m_Y, RedInterfaceScreen::GetScreenWidth(),
+                                            RedInterfaceScreen::GetScreenHeight(),
                                             (unsigned int)rc.right, (unsigned int)rc.bottom, iCx,
                                             iCy);
         POINT pt = { iCx, iCy };
@@ -593,6 +598,8 @@ void RedMouse::Update(float fDeltaTime)
             uiRaw |= 1 << i;
         }
     }
+    m_uiDownButtons = DisplayLogic::CursorButtonLatch(uiRaw, suiRawPrevDown, bBlockNew, suiLatched);
+    suiRawPrevDown = uiRaw;
     m_uiPressedButtons = m_uiDownButtons & (m_uiDownButtons ^ uiPrevDown);
     m_uiReleasedButtons = uiPrevDown & (m_uiDownButtons ^ uiPrevDown);
 }

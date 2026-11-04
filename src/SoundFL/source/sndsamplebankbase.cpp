@@ -68,7 +68,7 @@ void Allocator<SampleBase>::operator delete(void* p, void* pMemory, bool bTemp)
 }
 
 template <>
-void Allocator<SampleBankBase>::operator delete(void* p, size_t uiSize)
+void Allocator<SampleBankBase>::operator delete(void* p, unsigned int uiSize)
 {
     (void)uiSize;
     switch (((SampleBankBase*)p)->GetAllocType())
@@ -85,7 +85,7 @@ void Allocator<SampleBankBase>::operator delete(void* p, size_t uiSize)
 }
 
 template <>
-void Allocator<SampleBase>::operator delete(void* p, size_t uiSize)
+void Allocator<SampleBase>::operator delete(void* p, unsigned int uiSize)
 {
     (void)uiSize;
     switch (((SampleBase*)p)->GetAllocType())

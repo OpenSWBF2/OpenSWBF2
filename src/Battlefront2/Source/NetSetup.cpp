@@ -1836,6 +1836,8 @@ hostent* getlocalhost()
     return gethostbyname(name);
 }
 
+extern unsigned int netDirectSocket;
+
 // FUNCTION: SWBF2 0x005e7630
 void SendStateDst::Cancel()
 {
@@ -1981,7 +1983,7 @@ void ReadLoad(NetPktGroup& group, bool& bReady)
 {
     unsigned int maxPlayers;
     group.ReadBits(maxPlayers, 7);
-    netCurMaxPlayers = maxPlayers;
+    netCurMaxPlayers = NetWire::ClampPlayerCount(maxPlayers);
     unsigned __int64 firstMask, secondMask;
     ReadDestMask(group, firstMask);
     ReadDestMask(group, secondMask);
@@ -2592,10 +2594,11 @@ void WriteFiles(NetPktGroup& group, SendStateSrc& state)
 
 
 // FUNCTION: SWBF2 0x005b1a30
-unsigned __int64* __fastcall ClearGalaxyIdWords(unsigned __int64* pId)
+unsigned int* __fastcall ClearGalaxyIdWords(unsigned int* pWords)
 {
-    *pId = 0;
-    return pId;
+    pWords[0] = 0;
+    pWords[1] = 0;
+    return pWords;
 }
 
 // FUNCTION: SWBF2 0x005df5a0
@@ -2729,6 +2732,8 @@ int netMatchOperation;
 
 extern int netLanRegisterState;
 extern bool isLAN;
+extern unsigned int netBroadcastSendSocket;
+extern unsigned int netBroadcastRecvSocket;
 
 extern bool netLobbyRequestPending;
 extern bool netLeavingLobby;
@@ -3355,6 +3360,11 @@ CNetPostLoadJoinGame::~CNetPostLoadJoinGame()
                 break;
             }
             incoming.BeginRead();
+            if (incoming.IsBad())
+            {
+                incoming.Free();
+                continue;
+            }
             bool accepted;
             incoming.Read(accepted);
             if (accepted)
@@ -3482,7 +3492,7 @@ static const char* GetLoginNameRow(int iViewport)
 void WriteShellMove(NetPktGroup& group, ShellUpdate& update, ShellMove& move)
 {
     int viewport = FLInputManager::Instance()->GetPrimaryPort();
-    WriteString(group, (const char*)netLoginNames + 32 * viewport, 32);
+    WriteString(group, GetLoginNameRow(viewport), 32);
     if (move.launchGuestHost)
     {
         ++gDebugCount;
@@ -3626,7 +3636,7 @@ void WriteJoin(NetPktGroup& group, unsigned int guestCount)
         playerIndexes[viewport] = -1;
     }
     int joystick = playerIndexes[0];
-    WriteString(group, (const char*)netLoginNames + 32 * joystick, 32);
+    WriteString(group, GetLoginNameRow(joystick), 32);
 
     unsigned __int64 id = NetMatch::GetLocalGSID();
     group.WriteBytes((const char*)&id, sizeof(id));
@@ -3999,6 +4009,10 @@ void ReadLaunch(NetPktGroup& group, bool& bAcked)
                         NetAddr peer;
                         ReadAddr(group, peer);
                         peer.GetAddr(address, 0);
+                        if (NetComm::IsLAN() && !peer.hasPriv)
+                        {
+                            continue;
+                        }
                     }
                     NetCommP::Connect(i, &address);
                 }
@@ -4025,6 +4039,10 @@ void ReadLaunch(NetPktGroup& group, bool& bAcked)
                         NetAddr peer;
                         ReadAddr(group, peer);
                         peer.GetAddr(address, 0);
+                        if (NetComm::IsLAN() && !peer.hasPriv)
+                        {
+                            continue;
+                        }
                     }
                     else
                     {
@@ -4052,7 +4070,10 @@ void ReadLaunch(NetPktGroup& group, bool& bAcked)
                 ReadAddr(group, host);
                 NetSocketPeerRecord hostAddress;
                 host.GetAddr(hostAddress, 0);
-                NetCommP::Connect(clientOf + 64, &hostAddress);
+                if (!NetComm::IsLAN() || host.hasPriv)
+                {
+                    NetCommP::Connect(clientOf + 64, &hostAddress);
+                }
             }
         }
     }
@@ -4603,6 +4624,7 @@ bool ReadShellUpdate(NetPktGroup& group, ShellUpdate& update, ShellMove& move)
     }
     bool flag;
     group.Read(flag);
+    unsigned int value;
     group.ReadBits(value, 2);
     if (group.IsBad())
     {
@@ -4612,8 +4634,6 @@ bool ReadShellUpdate(NetPktGroup& group, ShellUpdate& update, ShellMove& move)
     {
         netIsHostDedicated = flag;
     }
-    unsigned int value;
-    group.ReadBits(value, 2);
     if (!isLocal)
     {
         NetCommP::SetArch(64, (NetArch)value);
@@ -5008,6 +5028,12 @@ void CNetJoinGame::Update()
             }
             int oldLocal = NetComm::GetLocalIndex(0);
             group.BeginRead();
+            if (group.IsBad())
+            {
+                group.EndRead();
+                group.Free();
+                continue;
+            }
             bool changed = ReadShellUpdate(group, shellUpdate, shellMove);
             if (changed)
             {
@@ -5151,7 +5177,7 @@ void CNetJoinGame::Update()
 // GLOBAL: SWBF2 0x007e8ee4
 char* netGameVersion = "1.1";
 
-void* GetGalaxyNetworkingInterface();
+galaxy::api::INetworking* GetGalaxyNetworkingInterface();
 
 
 // GLOBAL: SWBF2 0x01faa724

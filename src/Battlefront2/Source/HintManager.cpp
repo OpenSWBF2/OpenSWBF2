@@ -21,7 +21,6 @@
 #include "PebbleFL/Common/PblHeap.h"
 #include "NetGame.h"
 #include "TeamManager.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 // SYNTHETIC: SWBF2 0x00403f20
 // `dynamic initializer for 'BaseHint::sMemoryPool''

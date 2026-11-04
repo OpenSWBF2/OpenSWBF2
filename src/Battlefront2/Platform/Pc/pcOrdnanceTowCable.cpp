@@ -44,7 +44,6 @@ struct CableVertex
     RedColor color;
     TexCoord uv;
 };
-}
 
 // FUNCTION: SWBF2 0x00424d70
 pcRedPrimitive* sCreateCableCompressedGeometry(const PblBox& box, const PblVector3* pPoints,

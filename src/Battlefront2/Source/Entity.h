@@ -10,6 +10,7 @@ class PblFileChunk;
 #include "PebbleFL/Common/PblHashTable.h"
 #include "PebbleFL/Common/PblMatrix.h"
 #include "PebbleFL/Common/PblMath.h"
+#include "PebbleFL/Common/PblPtrSet.h"
 
 class Entity;
 class EntityClass;

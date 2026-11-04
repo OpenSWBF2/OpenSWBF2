@@ -28,7 +28,6 @@
 #include "RedEngineFL/Application/pc/pcFLRender.h"
 #include "RedEngineFL/Application/pc/pcRedShadowProxy.h"
 #include "RedEngineFL/Graphics/RedModel.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x00475ec0
 const PblMatrix& EntityBuilding::GetBBoxMatrix() const

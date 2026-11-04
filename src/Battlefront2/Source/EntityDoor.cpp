@@ -14,8 +14,6 @@
 #include "RedEngineFL/Graphics/RedModel.h"
 #include "RedEngineFL/Portals/Portal.h"
 #include "RedEngineFL/Application/pc/pcFLRender.h"
-#include "PebbleFL/pc/PblD3DX.h"
-#include "TeamManager.h"
 
 extern bool netFrameLock;
 

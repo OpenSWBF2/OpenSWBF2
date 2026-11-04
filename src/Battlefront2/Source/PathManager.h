@@ -52,7 +52,7 @@ public:
 
     const PblList<AIPathNode>& GetNodeList() const;
 
-    static void* operator new(size_t uiSize);
+    static void* operator new(unsigned int uiSize);
 
     AIPath();
 

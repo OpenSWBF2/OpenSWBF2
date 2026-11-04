@@ -111,7 +111,7 @@ void ThreadUpdate::RemoveObject(Object* pObject)
         if (!done.Create(0, 1))
         {
             PrintDebugMessage("Unable to create semaphore out of system resources!");
-            exit(0);
+            pcCrash::Exit(1);
         }
 
         mCompleteCallbackData = &done;

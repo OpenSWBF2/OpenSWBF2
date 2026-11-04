@@ -37,7 +37,6 @@
 #include "VoiceOverManager.h"
 #include "SoundFL/source/sndsoundstream.h"
 #include "SoundFL/source/sndvoicevirtual.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 namespace EventManager
 {

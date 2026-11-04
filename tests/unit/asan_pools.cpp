@@ -344,7 +344,7 @@ TEST_CASE("list allocator in bounds cycle is clean" * doctest::test_suite("regre
 TEST_CASE("snd free list in bounds cycle is clean" * doctest::test_suite("regression"))
 {
     const unsigned int uiSize = 16;
-    Snd::FreeList list(uiSize, 1, 8, 1);
+    Snd::FreeList list(uiSize, 1, true, 8);
     char* p = (char*)list.Alloc();
     char* q = (char*)list.Alloc();
     REQUIRE(p);

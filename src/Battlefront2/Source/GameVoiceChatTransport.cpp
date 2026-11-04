@@ -36,7 +36,7 @@ void Transport::SetSendReceiveEnableUsingMask(const unsigned char nodeID, const 
         const unsigned int numPlayers = BuildPlayerTeamInfo(teamInfo, 64, nodeID, &nodeTeam);
         for (unsigned int i = 0; i < numPlayers; ++i)
         {
-            if (teamInfo[i].player < 0 || teamInfo[i].player == nodeID)
+            if (teamInfo[i].player < 0 || teamInfo[i].player == nodeID || (unsigned int)teamInfo[i].player >= mNumNodes)
             {
                 continue;
             }

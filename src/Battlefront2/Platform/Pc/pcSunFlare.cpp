@@ -17,7 +17,6 @@
 #include "PebbleFL/Common/PblMath.h"
 #include "RedEngineFL/Application/RedWater.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 // GLOBAL: SWBF2 0x007b2750
 // __xmm@00000010000000100000000000000000

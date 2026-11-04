@@ -11,12 +11,10 @@
 #include "GameObject.h"
 #include "NetGame.h"
 #include "UnitController.h"
-#include "Weapon.h"
 #include "PebbleFL/Common/PblHashTable.h"
 #include "PebbleFL/Common/PblMath.h"
 #include "RedEngineFL/Graphics/RedModel.h"
 #include "RedEngineFL/Graphics/RedPose.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 // SYNTHETIC: SWBF2 0x00402210
 // `dynamic initializer for 'Aimer::sMemoryPool''
@@ -41,6 +39,20 @@ namespace AIUtil
 
 extern bool netIsLocalTurn;
 extern bool netIsLateTurn;
+
+class Weapon : public Thread
+{
+public:
+    virtual bool IsRtti(unsigned int uRtti);
+    virtual unsigned int GetDerivedRtti();
+    virtual const char* GetDerivedRttiName();
+    virtual void Init();
+    virtual float GetOrdnanceVelocity();
+    virtual float GetOrdnanceGravity();
+
+    char mWeaponState[0x104 - 0x18];
+    PblHandle<const GameObject> mTarget;
+};
 
 namespace
 {

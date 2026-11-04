@@ -1,6 +1,5 @@
 #include <d3dx9math.h>
 #include "Battlefront2/Source/LensFlare.h"
-#include "Battlefront2/Platform/Pc/pcSunFlare.h"
 #include <math.h>
 
 #include "PebbleFL/Common/PblHashTable.h"
@@ -17,7 +16,6 @@
 #include "RedEngineFL/Graphics/PC/Shaders/pcFlareShader.h"
 #include "RedEngineFL/Graphics/PC/Shaders/pcSampleShader.h"
 #include "RedEngineFL/Application/pc/pcRenderHelpers.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 // GLOBAL: SWBF2 0x007b2920
 // __xmm@41880000000000000000000000000000

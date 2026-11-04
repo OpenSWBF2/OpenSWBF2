@@ -22,7 +22,6 @@
 #include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblMatrix.h"
 #include "PebbleFL/Common/PblRandom.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 class GameObject;
 

@@ -9,6 +9,7 @@
 #include "RedEngineFL/Util/RedWarning.h"
 
 #include "CommandLine.h"
+#include "LocalLimits.h"
 #include "FLInputManager.h"
 #include "GameLoop.h"
 #include "GameSoundEngine.h"
@@ -77,6 +78,13 @@ bool gBootLagger;
 bool gShowLoadSpam;
 // GLOBAL: SWBF2 0x01e3075c
 bool gLogFinalScore;
+bool gExitOnGameOver;
+int gDigestTrace;
+bool gFactoryLog;
+bool gNoFocusPause;
+bool gAllowUploads = LocalLimits::kUploadsDefault;
+bool gSeedSet;
+unsigned int gSeed;
 // GLOBAL: SWBF2 0x007e6310
 int gBootLaggerPing = 300;
 

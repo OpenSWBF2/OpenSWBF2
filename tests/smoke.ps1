@@ -851,6 +851,7 @@ function Get-FlagChecks($game, $tests) {
 }
 
 $script:SpacerAllow = @(
+    'src\Battlefront2\Source\Aimer.cpp|mWeaponState|[0x104-0x18]',
     'src\Battlefront2\Source\CommandFlyer.h|_tailPad|[0x7]',
     'src\Battlefront2\Source\CommandHover.h|_tailPad|[0x8]',
     'src\Battlefront2\Source\CommandLine.cpp|szCmdLine|[0x800]',
@@ -860,12 +861,26 @@ $script:SpacerAllow = @(
     'src\Battlefront2\Source\CustomContent.cpp|source|[0x4000]',
     'src\Battlefront2\Source\CustomContent.cpp|unusedPath|[64]',
     'src\Battlefront2\Source\EntityBuildingAnimatedArmed.h|mTailPadding|[0xc]',
+    'src\Battlefront2\Source\EntityCarrier.h|_flightFlagPadding|[3]',
+    'src\Battlefront2\Source\EntityCarrier.h|_turretPadding|[3]',
+    'src\Battlefront2\Source\EntityCarrier.h|_renderPadding|[3]',
+    'src\Battlefront2\Source\EntityCarrier.h|_toCollisionVptr|[0x08]',
+    'src\Battlefront2\Source\EntityCarrier.h|_toVptr94|[0x84]',
+    'src\Battlefront2\Source\EntityCarrier.h|_toVptr140|[0xa8]',
+    'src\Battlefront2\Source\EntityCarrier.h|_toVptr200|[0xbc]',
+    'src\Battlefront2\Source\EntityCarrier.h|_toControllable|[0x3c]',
+    'src\Battlefront2\Source\EntityCarrier.h|_toVptr258|[0x14]',
+    'src\Battlefront2\Source\EntityCarrier.h|_toPathFollower|[0x170]',
+    'src\Battlefront2\Source\EntityCarrier.h|_toVelocity|[0x170]',
+    'src\Battlefront2\Source\EntityCarrier.h|_toState|[0x18]',
+    'src\Battlefront2\Source\EntityCarrier.h|_toClass|[0xc4]',
+    'src\Battlefront2\Source\EntityCarrier.h|_toPose|[0x1230]',
+    'src\Battlefront2\Source\EntityCarrier.h|mPoseAndTail|[0x530]',
     'src\Battlefront2\Source\EntityCarrier.h|_tailPad|[0xc]',
-    'src\Battlefront2\Source\EntityFlyer.h|_flightFlagPadding|[3]',
-    'src\Battlefront2\Source\EntityFlyer.h|_turretPadding|[3]',
-    'src\Battlefront2\Source\EntityFlyer.h|_renderPadding|[3]',
+    'src\Battlefront2\Source\EntityCarrier.h|_tail|[0x0c]',
     'src\Battlefront2\Source\EntityPortableTurret.h|_tailPad|[6]',
     'src\Battlefront2\Source\EntityPropAnimated.cpp|acUnused|[256]',
+    'src\Battlefront2\Source\FLInputManager.h|mRawInputStorage|[0x28a0-4]',
     'src\Battlefront2\Source\FLInputManager.h|mReservedBeforeMode|[4]',
     'src\Battlefront2\Source\FLInputManager.h|mReservedAfterFlip|[3]',
     'src\Battlefront2\Source\FLInputManager.h|mReservedBeforeGuiInputs|[2]',
@@ -876,27 +891,29 @@ $script:SpacerAllow = @(
     'src\Battlefront2\Source\FLInputManager.h|mReservedBeforeTextTimer|[2]',
     'src\Battlefront2\Source\FLInputManager.h|mReservedBeforeJoysticks|[4]',
     'src\Battlefront2\Source\FLInputManager.h|mReservedBeforeMissingPort|[3]',
-    'src\Battlefront2\Source\GameState.cpp|sStatsMatchData|[0x40]',
-    'src\Battlefront2\Source\GameState.h|sStatsMatchData|[0x40]',
-    'src\Battlefront2\Source\GameVoiceChat.cpp|_gDecoderStorage|[sizeof(GameVoiceChat::Decoder)+sizeof(void*)-1]',
-    'src\Battlefront2\Source\GameVoiceChat.cpp|_gNodeStorage|[sizeof(GameVoiceChat::Node)+sizeof(void*)-1]',
-    'src\Battlefront2\Source\GameVoiceChat.cpp|_gEncoderStorage|[sizeof(GameVoiceChat::Encoder)+sizeof(void*)-1]',
+    'src\Battlefront2\Source\GameLoop.cpp|mOpaqueWaterState|[0xa4]',
+    'src\Battlefront2\Source\gamespyStatsManager.cpp|sStatsMatchData|[0x40]',
+    'src\Battlefront2\Source\gamespyStatsManager.cpp|sStatsMatchData|[0x40]',
+    'src\Battlefront2\Source\GameVoiceChat.cpp|_gDecoderStorage|[0x288+3]',
+    'src\Battlefront2\Source\GameVoiceChat.cpp|_gNodeStorage|[0x50+3]',
+    'src\Battlefront2\Source\GameVoiceChat.cpp|_gEncoderStorage|[0x50C+3]',
     'src\Battlefront2\Source\GameVoiceChat.cpp|pad|[3]',
     'src\Battlefront2\Source\HUDEvent.cpp|acName|[0x400]',
     'src\Battlefront2\Source\HUDManager.cpp|acName|[0x400]',
     'src\Battlefront2\Source\LuaCallbacks_LoadSave.cpp|aSerialized|[0x10000]',
-    'src\Battlefront2\Source\LuaCallbacks_LoadSave.cpp|aSerialized|[0x10000]',
     'src\Battlefront2\Source\LuaCallbacks_Net.cpp|padding|[3]',
     'src\Battlefront2\Source\LuaCallbacks_Net.cpp|padding|[3]',
     'src\Battlefront2\Source\LuaCallbacks_Options.cpp|kSha512Padding|[128]',
+    'src\Battlefront2\Source\MountedTurret.cpp|mFlyerBaseStorage|[0x564]',
+    'src\Battlefront2\Source\MuzzleFlash.cpp|mUnmodeledPrefix|[0x88]',
     'src\Battlefront2\Source\NetAdmin.cpp|remoteResponse|[0x1800]',
     'src\Battlefront2\Source\NetAdmin.cpp|remoteResponse|[0x1800]',
     'src\Battlefront2\Source\NetAdmin.h|pad|[3]',
     'src\Battlefront2\Source\NetAdminMd5.cpp|md5Padding|[64]',
-    'src\Battlefront2\Source\NetSetup.h|mDirectJoinReserved|[4]',
-    'src\Battlefront2\Source\NetSetup.h|mDirectJoinPadding|[3]',
-    'src\Battlefront2\Source\NetSetup.h|mDirectJoinReservedTail|[16]',
+    'src\Battlefront2\Source\NetSetup.cpp|sStatsMatchData|[0x40]',
     'src\Battlefront2\Source\NetSetup.h|mQueryWaitPadding|[3]',
+    'src\Battlefront2\Source\NetState.h|mInvisibilityStateStorage|[0x258-0x22c]',
+    'src\Battlefront2\Source\OrdnanceBeam.cpp|mWeaponState|[0x70]',
     'src\Battlefront2\Source\PlayerProfile.h|mAlignmentBeforeDifficulty|[2]',
     'src\Battlefront2\Source\PlayerProfile.h|mAlignmentBeforeUnlockState|[3]',
     'src\Battlefront2\Source\PlayerProfile.h|mPadding|[61]',
@@ -911,19 +928,21 @@ $script:SpacerAllow = @(
     'src\Battlefront2\Source\PlayerProfile.h|mPadding|[96]',
     'src\Battlefront2\Source\PlayerProfile.h|mAlignmentBeforeBonus|[3]',
     'src\Battlefront2\Source\PlayerProfile.h|mAlignmentBeforeCRC|[3]',
+    'src\Battlefront2\Source\ProceduralAnimation.cpp|pad_0000|[0x234]',
+    'src\Battlefront2\Source\ScopeDisplay.cpp|mWeaponState|[0x64-sizeof(Thread)]',
     'src\Battlefront2\Source\VisionManager.cpp|heapMem|[(150+1)*sizeof(VisHeap::RECORD)]',
     'src\Battlefront2\Source\WeaponGrenade.h|mUnmodeledTail|[0x120-0x118]',
     'src\Battlefront2\Source\WeaponLauncher.h|mUnmodeledTail|[8]',
     'src\Battlefront2\Source\WeaponRepair.h|mUnmodeledTail|[0x120-0x111]',
     'src\lglcd\lgLcd.cpp|Data|[0x104]',
-    'src\PebbleFL\Common\PblTrace.cpp|acMessage|[0x400]',
     'src\RedEngineFL\Application\pc\pcFLRender.h|unknown04|[20]',
-    'src\RedEngineFL\Graphics\PC\pcDisplaySettings.cpp|acDiskName|[sizeof(kSave.acAdapterName)+1]',
     'src\RedEngineFL\Graphics\PC\pcRedAutoSettings.h|mReservedAfterDistortion|[2]',
     'src\RedEngineFL\Graphics\PC\pcRedAutoSettings.h|mReservedAfterHDR|[3]',
     'src\RedEngineFL\Graphics\PC\pcRedAutoSettings.h|mReservedAfterBumpMapping|[3]',
     'src\RedEngineFL\Graphics\PC\StateManager_DX.h|pad_40932|[2]',
-    'src\RedEngineFL\input\pc\pcRedMouse.cpp|aucInfo|[sizeof(BITMAPINFOHEADER)+2*sizeof(RGBQUAD)]',
+    'src\RedEngineFL\Interface\RedBorderElement.h|mOtherPositionAttributes|[0x0c-0x08]',
+    'src\RedEngineFL\Interface\RedBorderElement.h|mOtherTextureAttributes|[0x1c-0x14]',
+    'src\RedEngineFL\Interface\RedBorderElement.h|mReservedTail|[0x260-0x254]',
     'src\RedEngineFL\movie\pc\pcRedMoviePlayer.h|pad1c|[0xd0-0x1c]',
     'src\SoundFL\source\sndenginebase.h|smVoiceStorage|[0xA800]',
     'src\SoundFL\source\sndenginebase.h|smStreamStorage|[0x1446A68]',
@@ -941,19 +960,39 @@ $script:ByteDeclItemRx = New-Object regex ('\G' + $script:ByteDeclItem + '(?:,|$
 $script:SpacerNameRx = '(?i)pad|reserv|unmodel|unknown|^_*unk|spacer|filler|tail|unused|dummy|storage|align|^_+\w*\d'
 $script:OffsetAllow = @(
     'src\Battlefront2\Source\CollisionMesh.cpp|(unsigned short*)(memblock + iBytes - 2 * iIndices)',
+    'src\Battlefront2\Source\EventManager_Object.h|(const int*)((const char*)&object + 0x234)',
     'src\Battlefront2\Source\GameMemory.cpp|(char*)gTempHeapBlock + 0x1FFF00',
+    'src\Battlefront2\Source\GameState.cpp|(unsigned int*)((char*)CameraManager::sInstance + 0x1c)',
     'src\Battlefront2\Source\GameVoiceChatEncoder.cpp|(Snd::StreamPacket*)(mEncoderBuffer + uiAlignedEncoded)',
     'src\Battlefront2\Source\GameVoiceChatEncoder.cpp|(VoiceChat::AudioPacket*)(mEncoderPackets + 1)',
     'src\Battlefront2\Source\HUDManager.cpp|(char*)HUD::gEditHeapMem + 0xFFFFF',
-    'src\Battlefront2\Source\LuaCallbacks_Mission.cpp|(Tag*)((char*)pBlock - uTagSize)',
-    'src\Battlefront2\Source\NetSetup.cpp|(char*)(ppcTable + iCount)',
+    'src\Battlefront2\Source\LuaCallbacks_IFace.cpp|(const float*)(pRaw + 0x14)',
+    'src\Battlefront2\Source\LuaCallbacks_IFace.cpp|(const float*)(pRaw + 0xbf4)',
+    'src\Battlefront2\Source\NetSetup.cpp|(char*)(fileNames + iCount)',
     'src\Battlefront2\Source\pcCrash.cpp|(IMAGE_NT_HEADERS*)((char*)hExe + pDos->e_lfanew)',
     'src\Battlefront2\Source\pcCrash.cpp|(IMAGE_NT_HEADERS*)(pBase + pDos->e_lfanew)',
     'src\Battlefront2\Source\pcMain.cpp|(char*)s_memoryArena + 0x4000000',
     'src\Battlefront2\Source\pcMain.cpp|(char*)p + 0x300000',
-    'src\Battlefront2\Source\VoiceChatNode.cpp|(SendMetrics*)(VoiceChat::Node::sReceiveMetrics + uiNodes)',
-    'src\Battlefront2\Source\VoiceChatNode.cpp|(AudioPacket*)(pBlock + uiNodes * sizeof(ReceiveStream))',
+    'src\Battlefront2\Source\PlayerProfile.cpp|(PlayerProfile::tProfile**)((char*)&mDefaultProfile + 0x10)',
+    'src\Battlefront2\Source\PlayerProfile.cpp|(double*)(pRaw + 0x2610 + iMode * 8)',
+    'src\Battlefront2\Source\SoundDebugDisplay.cpp|(Snd::SourceTransport*)(pEncoder + 0x78)',
+    'src\Battlefront2\Source\SoundDebugDisplay.cpp|(Snd::SourceTransport*)(pEncoder + 0x478)',
+    'src\Battlefront2\Source\SoundDebugDisplay.cpp|(Snd::SourceTransport*)(pEncoder + 0x4b8)',
+    'src\Battlefront2\Source\SoundDebugDisplay.cpp|(Snd::SourceTransport*)(pEncoder + 0x08)',
+    'src\Battlefront2\Source\VoiceChatNode.cpp|(SendMetrics*)(pPerNode + uiNodes * sizeof(ReceiveMetrics))',
+    'src\Battlefront2\Source\VoiceChatNode.cpp|(unsigned int*)(pEntry + 0x12)',
+    'src\Battlefront2\Source\VoiceChatNode.cpp|(unsigned int*)(pEntry + 0x04)',
+    'src\Battlefront2\Source\VoiceChatNode.cpp|(unsigned int*)(pEntry + 0x08)',
+    'src\Battlefront2\Source\VoiceChatNode.cpp|(unsigned int*)(pEntry + 0x0C)',
+    'src\Battlefront2\Source\VoiceChatNode.cpp|(unsigned int*)(pEntryBuf + 0x04)',
+    'src\Battlefront2\Source\VoiceChatNode.cpp|(unsigned int*)(pEntryBuf + 0x08)',
     'src\Battlefront2\Source\VoiceChatNode.cpp|(char*)mBitmap + 1',
+    'src\RedEngineFL\Graphics\PC\pcRedRenderer.cpp|(unsigned char*)&RedRenderer::m_aLightingStatePool[2048] + 4',
+    'src\RedEngineFL\Graphics\PC\pcRedRenderer.cpp|(const unsigned char*)&RedAmbientLight::BLACK + 4',
+    'src\RedEngineFL\Graphics\PC\pcRedRenderer.cpp|(void**)((unsigned char*)&RedRenderer::m_aLightingStatePool[2048] + 0x70)',
+    'src\RedEngineFL\Graphics\PC\pcRedRenderer.cpp|(unsigned char*)&RedRenderer::m_aLightingStatePool[2049] + 4',
+    'src\RedEngineFL\Graphics\PC\pcRedRenderer.cpp|(const unsigned char*)&RedAmbientLight::WHITE + 4',
+    'src\RedEngineFL\Graphics\PC\pcRedRenderer.cpp|(void**)((unsigned char*)&RedRenderer::m_aLightingStatePool[2049] + 0x70)',
     'src\RedEngineFL\Graphics\PC\pcRedSegment.cpp|(PblVector3*)(vertex + normalOffset)',
     'src\RedEngineFL\Graphics\PC\pcRedSegment.cpp|(PblVector3*)(vertex + normalOffset)',
     'src\RedEngineFL\Graphics\PC\pcRedSegment.cpp|(PblVector3*)(vertex + tangentOffset)',
@@ -961,6 +1000,7 @@ $script:OffsetAllow = @(
     'src\RedEngineFL\Memory\RedMemory.cpp|(Tag*)((char*)tag + rest)',
     'src\RedEngineFL\Memory\RedMemory.cpp|(Tag*)((char*)tag + need)',
     'src\RedEngineFL\Memory\RedMemory.cpp|(Tag*)((char*)block - hdr)',
+    'src\RedEngineFL\Memory\RedMemory.cpp|(Tag*)((char*)pBlock - uTagSize)',
     'src\RedEngineFL\Memory\RedMemoryPool.cpp|(char**)((char*)mPool + i * mSize)',
     'src\RedEngineFL\Memory\RedMemoryPool.cpp|(char**)((char*)mPool + (mCount - 1) * mSize)',
     'src\RedEngineFL\Memory\RedMemoryPool.cpp|(char**)((char*)mFree + i * mSize)',
@@ -970,13 +1010,6 @@ $script:OffsetAllow = @(
     'src\RedEngineFL\Util\RedLocalizeDB.cpp|(FLLocalizeEntry*)((char*)pEntry + pEntry->mEntryLen)',
     'src\RedEngineFL\Util\RedScreenShot.cpp|(const unsigned int*)((unsigned char*)rect.pBits + rect.Pitch * y)',
     'src\SoundFL\source\sndbufferio.cpp|(void*)(mOffset + (char*)mBuffer)',
-    'src\SoundFL\source\sndenginebase.cpp|(Stream*)((unsigned char*)smStreams + uiOffset)',
-    'src\SoundFL\source\sndenginebase.cpp|(Stream*)((unsigned char*)smStreams + uiOffset)',
-    'src\SoundFL\source\sndenginebase.cpp|(Voice*)((unsigned char*)smVoices + uiOffset)',
-    'src\SoundFL\source\sndenginebase.cpp|(Stream*)((unsigned char*)smStreams + uiOffset)',
-    'src\SoundFL\source\sndenginebase.cpp|(Stream*)((unsigned char*)smStreams + uiOffset)',
-    'src\SoundFL\source\sndenginebase.cpp|(Voice*)((unsigned char*)smVoices + uiOffset)',
-    'src\SoundFL\source\sndenginebase.cpp|(Stream*)((unsigned char*)smStreams + uiOffset)',
     'src\SoundFL\source\sndfreelist.cpp|(Block*)(pEntries + uiBlockBytes)',
     'src\SoundFL\source\sndsamplebankbase.cpp|(Sample*)((char*)pMemory + sizeof(SampleBank))',
     'src\SoundFL\source\sndsoundlayered.cpp|(FireForgetLayer*)(smFireForgetLayerStorage + i * sizeof(FireForgetLayer))',
@@ -985,19 +1018,153 @@ $script:OffsetAllow = @(
     'src\SoundFL\source\sndstreamresampler.cpp|(const short*)((const char*)pInput->mBuffer + pInput->mBufferUsed)',
     'src\SoundFL\source\sndstreamresampler.cpp|(short*)((char*)pDst + mBufferSize)',
     'src\SoundFL\source\win\snddsbufferrenderer.cpp|(short*)((unsigned char*)pData + uiWritten)',
-    'src\SoundFL\source\win\sndengine.cpp|(Voice*)((unsigned char*)EngineBase::smVoices + uiOffset)',
     'src\SoundFL\source\win\sndengine.cpp|(Voice*)((unsigned char*)EngineBase::smVoices + i * sizeof(Voice))',
     'src\SoundFL\source\win\sndengine.cpp|(Voice*)((unsigned char*)EngineBase::smVoices + i * sizeof(Voice))',
     'src\Zephyr\Source\ZephyrAnimBank.cpp|(const ZephyrAnimD*)(pkBlock + 1)',
-    'src\Zephyr\Source\ZephyrAnimBank.cpp|(const ZephyrAnimBlockHeader*)(pkAnimD + m_u16NumAnims)',
+    'src\Zephyr\Source\ZephyrAnimBank.cpp|(const ZephyrAnimBlockHeader*)(pkAnimD + u16NumAnims)',
     'src\Zephyr\Source\ZephyrAnimBank.cpp|(const ZephyrAnimJointD*)(pkBlock + 1)',
-    'src\Zephyr\Source\ZephyrAnimBank.cpp|(const ZephyrAnimBlockHeader*)((const char*)pkJointD + 48 * pkHeader->u32NumTotalJoints)',
-    'src\Zephyr\Source\ZephyrAnimBank.cpp|(char*)(m_pkAnims + m_u16NumAnims)',
+    'src\Zephyr\Source\ZephyrAnimBank.cpp|(const ZephyrAnimBlockHeader*)((const char*)pkJointD + 48 * u32NumTotalJoints)',
+    'src\Zephyr\Source\ZephyrAnimBank.cpp|(char*)(pkAnims + u16NumAnims)',
     'src\Zephyr\Source\ZephyrAnimBank.cpp|(const ZephyrAnimJointD*)((const char*)pkJointD + 48 * u16NumJoints)',
     'src\Zephyr\Source\ZephyrSkeletonShared.cpp|(ZephyrJointShared*)((char*)this + kOffsets.m_uJoints)',
     'src\Zephyr\Source\ZephyrSkeletonShared.cpp|(unsigned int*)(i + 1)',
     'src\Zephyr\Source\ZephyrSkinShared.cpp|(ZephyrJointSet*)((char*)this + kOffsets.m_uJointSets)',
     'src\Zephyr\Source\ZephyrSkinShared.cpp|(ZephyrSkeletonShared*)((char*)this + kOffsets.m_uSkeleton)'
+)
+$script:NewSizeAllow = @(
+    'src\Battlefront2\Source\ActiveRegion.h|static void* operator new(unsigned int uSize);',
+    'src\Battlefront2\Source\AIGoal.h|static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }',
+    'src\Battlefront2\Source\AILowLevel.cpp|inline void* Navigator::operator new(unsigned int uiSize)',
+    'src\Battlefront2\Source\AmmoCounter.h|static void* operator new(unsigned int size) { return sMemoryPool.Allocate(size); }',
+    'src\Battlefront2\Source\Asteroid.h|static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }',
+    'src\Battlefront2\Source\Cloth.h|static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }',
+    'src\Battlefront2\Source\Cloth.h|static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }',
+    'src\Battlefront2\Source\CollisionMesh.h|static void* operator new(unsigned int uSize)',
+    'src\Battlefront2\Source\CollisionObject.h|static void* operator new(unsigned int uiSize);',
+    'src\Battlefront2\Source\Combo.h|static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }',
+    'src\Battlefront2\Source\Combo.h|static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }',
+    'src\Battlefront2\Source\Combo.h|static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }',
+    'src\Battlefront2\Source\Combo.h|static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }',
+    'src\Battlefront2\Source\Combo.h|static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }',
+    'src\Battlefront2\Source\Combo.h|static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }',
+    'src\Battlefront2\Source\Combo.h|static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }',
+    'src\Battlefront2\Source\CommandFlyer.h|static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }',
+    'src\Battlefront2\Source\CommandHover.h|static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }',
+    'src\Battlefront2\Source\CommandWalker.h|static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }',
+    'src\Battlefront2\Source\ConnectivityGraphFollower.h|static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }',
+    'src\Battlefront2\Source\EnergyBar.h|static void* operator new(unsigned int size) { return sMemoryPool.Allocate(size); }',
+    'src\Battlefront2\Source\EntityBuildingArmedDynamic.cpp|inline void* EntityBuildingArmedDynamic::operator new(unsigned int uSize)',
+    'src\Battlefront2\Source\EntityBuildingArmedDynamic.h|static void* operator new(unsigned int uSize);',
+    'src\Battlefront2\Source\EntityCarrier.cpp|inline void* EntityCarrier::operator new(unsigned int uSize)',
+    'src\Battlefront2\Source\EntityCarrier.h|static void* operator new(unsigned int uSize);',
+    'src\Battlefront2\Source\EntityCarrier.h|static void* operator new(unsigned int uSize);',
+    'src\Battlefront2\Source\EntityDefenseGridTurret.cpp|inline void* EntityDefenseGridTurret::operator new(unsigned int uSize)',
+    'src\Battlefront2\Source\EntityDefenseGridTurret.h|static void* operator new(unsigned int uSize);',
+    'src\Battlefront2\Source\EntityFlyer.cpp|inline void* EntityFlyer::operator new(unsigned int uSize)',
+    'src\Battlefront2\Source\EntityHover.cpp|inline void* EntityHover::operator new(unsigned int uSize)',
+    'src\Battlefront2\Source\EntityHover.h|static void* operator new(unsigned int uSize);',
+    'src\Battlefront2\Source\EntityLight.h|static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }',
+    'src\Battlefront2\Source\EntityMine.h|static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }',
+    'src\Battlefront2\Source\EntityPortableTurret.h|static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }',
+    'src\Battlefront2\Source\EntityRemoteTerminal.h|static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }',
+    'src\Battlefront2\Source\EntitySound.cpp|static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }',
+    'src\Battlefront2\Source\EntitySoundStatic.cpp|inline void* EntitySoundStatic::operator new(unsigned int uSize)',
+    'src\Battlefront2\Source\EntitySoundStatic.h|static void* operator new(unsigned int uSize);',
+    'src\Battlefront2\Source\EntitySoundStream.h|static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }',
+    'src\Battlefront2\Source\EntityWalker.cpp|inline void* WalkerLegPair::operator new(unsigned int uSize)',
+    'src\Battlefront2\Source\EntityWalker.h|static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }',
+    'src\Battlefront2\Source\FlagItem.h|static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }',
+    'src\Battlefront2\Source\FLGuiManager.h|static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }',
+    'src\Battlefront2\Source\FoleyFXOrdnance.h|static void* operator new(unsigned int) { return smFreeList.Alloc(); }',
+    'src\Battlefront2\Source\FoleyFXSoldier.h|static void* operator new(unsigned int) { return smFreeList.Alloc(); }',
+    'src\Battlefront2\Source\FoleyFXWalker.h|static void* operator new(unsigned int) { return smFreeList.Alloc(); }',
+    'src\Battlefront2\Source\HintManager.h|static void* operator new(unsigned int uSize);',
+    'src\Battlefront2\Source\LightFlash.h|static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }',
+    'src\Battlefront2\Source\LightningBoltEffect.h|static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }',
+    'src\Battlefront2\Source\LoadUtil.cpp|inline void* BaseHint::operator new(unsigned int uSize)',
+    'src\Battlefront2\Source\Music.cpp|inline void* Music::operator new(unsigned int uSize)',
+    'src\Battlefront2\Source\Music.h|static void* operator new(unsigned int uSize);',
+    'src\Battlefront2\Source\Navigator.h|static void* operator new(unsigned int uiSize);',
+    'src\Battlefront2\Source\Ordnance.h|static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }',
+    'src\Battlefront2\Source\OrdnanceTowCable.h|static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }',
+    'src\Battlefront2\Source\PathFinder.h|static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }',
+    'src\Battlefront2\Source\PathFinder.h|static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }',
+    'src\Battlefront2\Source\PathFollower.h|static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }',
+    'src\Battlefront2\Source\PathManager.h|static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }',
+    'src\Battlefront2\Source\PathManager.h|static void* operator new(unsigned int uiSize);',
+    'src\Battlefront2\Source\PlayerController.h|static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }',
+    'src\Battlefront2\Source\PowerupItem.h|static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }',
+    'src\Battlefront2\Source\ShieldEffect.h|static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }',
+    'src\Battlefront2\Source\SoldierAnimation.h|static void* operator new(unsigned int uiSize);',
+    'src\Battlefront2\Source\SoldierAnimatorClass.cpp|inline void* SoldierAnimation::operator new(unsigned int uiSize)',
+    'src\Battlefront2\Source\StickInfo.h|static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }',
+    'src\Battlefront2\Source\TentacleSimulator.h|static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }',
+    'src\Battlefront2\Source\Timer.h|static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }',
+    'src\Battlefront2\Source\TreeGrid.cpp|inline void* TreeGridStack::operator new(unsigned int uiSize)',
+    'src\Battlefront2\Source\TriggerSoundRegion.h|static void* operator new(unsigned int)',
+    'src\Battlefront2\Source\TriggerSoundRegion.h|static void* operator new(unsigned int)',
+    'src\Battlefront2\Source\TriggerSoundRegion.h|static void* operator new(unsigned int)',
+    'src\Battlefront2\Source\UnitAgent.h|static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }',
+    'src\Battlefront2\Source\UnitController.h|static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }',
+    'src\Battlefront2\Source\VehicleEngine.cpp|void* VehicleEngineClass::Boost::operator new(unsigned int)',
+    'src\Battlefront2\Source\VehicleEngine.h|static void* operator new(unsigned int uiSize);',
+    'src\Battlefront2\Source\VehicleSpawn.h|static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }',
+    'src\Battlefront2\Source\VisionManager.h|static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }',
+    'src\Battlefront2\Source\WalkerAnimation.h|static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }',
+    'src\Battlefront2\Source\WalkerAnimation.h|static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }',
+    'src\Battlefront2\Source\WalkerLegPair.h|static void* operator new(unsigned int uSize);',
+    'src\RedEngineFL\Graphics\RedOmniLight.h|static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }',
+    'src\RedEngineFL\Graphics\RedShadingState.cpp|inline void* RedShadingPose::Entry::operator new(unsigned int uiSize)',
+    'src\RedEngineFL\Graphics\RedShadingState.h|static void* operator new(unsigned int uiSize);',
+    'src\RedEngineFL\Graphics\RedShadingState.h|static void* operator new(unsigned int uiSize);',
+    'src\RedEngineFL\Memory\engineAlloc.h|void* __cdecl operator new(unsigned int size);',
+    'src\RedEngineFL\Memory\engineAlloc.h|void* __cdecl operator new[](unsigned int size);',
+    'src\RedEngineFL\Memory\RedMemory.cpp|void* __cdecl operator new(unsigned int size)',
+    'src\RedEngineFL\Memory\RedMemory.cpp|void* __cdecl operator new[](unsigned int size)',
+    'src\RedEngineFL\Util\ext\baselist.h|static void* operator new(unsigned int uiSize, IAllocator& rAlloc)',
+    'src\RedEngineFL\Util\ext\baselist.h|static void* operator new(unsigned int uiSize, IAllocator& rAlloc)',
+    'src\RedEngineFL\Util\ext\Globals.h|static void* operator new(unsigned int uiSize, IAllocator& rAlloc)',
+    'src\SoundFL\source\sndallocator.h|static void* operator new(unsigned int uiSize, void* pMemory, bool bTemp)',
+    'src\SoundFL\source\sndallocator.h|static void operator delete(void* p, unsigned int )',
+    'src\SoundFL\source\sndbus.h|static void* operator new(unsigned int)',
+    'src\SoundFL\source\sndenginebase.cpp|void Allocator<VoiceBase>::operator delete(void* p, unsigned int uiSize)',
+    'src\SoundFL\source\sndi3dl2reverbpreset.h|static void* operator new(unsigned int)',
+    'src\SoundFL\source\sndobjectweightlist.h|static void* operator new(unsigned int)',
+    'src\SoundFL\source\sndparametergraph.h|static void* operator new(unsigned int) { return smFreeList.Alloc(); }',
+    'src\SoundFL\source\sndparametergraph.h|static void* operator new(unsigned int) { return smFreeList.Alloc(); }',
+    'src\SoundFL\source\sndsamplebankbase.cpp|void Allocator<SampleBankBase>::operator delete(void* p, unsigned int uiSize)',
+    'src\SoundFL\source\sndsamplebankbase.cpp|void Allocator<SampleBase>::operator delete(void* p, unsigned int uiSize)',
+    'src\SoundFL\source\sndsound.h|static void* operator new(unsigned int)',
+    'src\SoundFL\source\sndsoundlayered.cpp|void Allocator<SoundLayered::FireForgetLayer>::operator delete(void* p, unsigned int uiSize)',
+    'src\SoundFL\source\sndsoundlayered.h|static void* operator new(unsigned int) { return smFreeList.Alloc(); }',
+    'src\SoundFL\source\sndsoundlayered.h|static void* operator new(unsigned int) { return smFreeList.Alloc(); }',
+    'src\SoundFL\source\sndsoundparameterized.h|static void* operator new(unsigned int) { return smFreeList.Alloc(); }',
+    'src\SoundFL\source\sndsoundparameterized.h|static void* __cdecl operator new(unsigned int) { return smFreeList.Alloc(); }',
+    'src\SoundFL\source\sndsoundparameterized.h|static void* operator new(unsigned int) { return smFreeList.Alloc(); }',
+    'src\SoundFL\source\sndsoundparameterized.h|static void* operator new(unsigned int) { return smFreeList.Alloc(); }',
+    'src\SoundFL\source\sndsoundstream.h|static void* operator new(unsigned int)',
+    'src\SoundFL\source\sndspace.h|static void* operator new(unsigned int)',
+    'src\SoundFL\source\sndstreambase.cpp|void Allocator<StreamBase::Info>::operator delete(void* p, unsigned int uiSize)'
+)
+$script:FastcallAllow = @(
+    'src\Battlefront2\Source\ActiveRegion.cpp|void* __fastcall InitRawListIterator(void** pCurrent, void*, const void* pSource)',
+    'src\Battlefront2\Source\ActiveRegion.h|void* __fastcall InitRawListIterator(void** pCurrent, void* pEdx, const void* pSource);',
+    'src\Battlefront2\Source\CameraManager.cpp|typedef const PblVector3& (__fastcall *ObjectVelocityFn)(GameObject* pThis, void*);',
+    'src\Battlefront2\Source\CameraManager.cpp|typedef Controllable* (__fastcall *ObjectControllableFn)(GameObject* pThis, void*);',
+    'src\Battlefront2\Source\ChaseCamera.cpp|typedef const PblVector3& (__fastcall *GetVelocityFn)(GameObject* pThis, void*);',
+    'src\Battlefront2\Source\EntityPathFollower.cpp|int __fastcall ReturnEdxValue(int, int value)',
+    'src\Battlefront2\Source\GameVoiceChatTransport.cpp|bool __fastcall IsFriendBuddy(int ignored, int iPlayer);',
+    'src\Battlefront2\Source\HUDElementMap.cpp|bool __fastcall IsFriendBuddy(int iLocalIndex, int iPlayerId);',
+    'src\Battlefront2\Source\HUDElementMap.cpp|int __fastcall GetFriendBuddy(int, unsigned int index)',
+    'src\Battlefront2\Source\HUDElementMap.cpp|bool __fastcall IsFriendBuddy(int, int playerId)',
+    'src\Battlefront2\Source\LuaCallbacks.cpp|int __fastcall GetScreenTransitionType(const char* pcName, void*)',
+    'src\Battlefront2\Source\LuaCallbacks.h|int __fastcall GetScreenTransitionType(const char* pcName, void*);',
+    'src\Battlefront2\Source\LuaCallbacks_LoadSave.cpp|void __fastcall GetMissionWorld(char* pcWorld, int)',
+    'src\Battlefront2\Source\LuaCallbacks_Net.cpp|bool __fastcall IsFriendBuddy(int ignored, int iPlayer);',
+    'src\Battlefront2\Source\NameDisplay.cpp|bool __fastcall IsFriendBuddy(int iLocalIndex, int iPlayerId);',
+    'src\Battlefront2\Source\SkyDome.cpp|typedef void(__fastcall* SceneObjectFn)(void* pThis, void*);',
+    'src\Battlefront2\Source\SpawnManager.cpp|bool __fastcall IsFriendBuddy(int iLocalIndex, int iPlayerId);',
+    'src\Battlefront2\Source\StatusDisplay.cpp|bool __fastcall IsFriendBuddy(int ignored, int iPlayer);'
 )
 $script:OffsetQual = '(?:(?:const|volatile)\s*)*'
 $script:OffsetByteType = '(?:(?:const|volatile)\s+)*(?:(?:unsigned|signed)\s+)?(?:char|__int8|BYTE|UCHAR|CHAR|INT8|UINT8|uint8_t|int8_t|std::uint8_t|std::int8_t|std::byte|byte)(?:\s+(?:const|volatile))*\s*\*\s*' + $script:OffsetQual
@@ -1034,7 +1201,7 @@ function Test-ByteSpacer($decl) {
     return ($decl.Size -match '0[xX][0-9A-Fa-f]' -or $decl.Size -match '\b(?:sizeof|offsetof)\b' -or $decl.Name -match $script:SpacerNameRx)
 }
 
-function Get-SourceChecks([string]$root, [string[]]$spacerAllow = $script:SpacerAllow, [string[]]$offsetAllow = $script:OffsetAllow) {
+function Get-SourceChecks([string]$root, [string[]]$spacerAllow = $script:SpacerAllow, [string[]]$offsetAllow = $script:OffsetAllow, [string[]]$newSizeAllow = $script:NewSizeAllow, [string[]]$fastcallAllow = $script:FastcallAllow) {
     $defs = @(
         @{ Name = 'new-size-t'; Path = $null; Rx = @(
             '\boperator\s*(new|delete)\s*(\[\s*\])?\s*\(\s*(?:void\s*\*\s*\w*\s*,\s*)?(?:unsigned(?:\s+int)?|UINT|uint32_t|unsigned\s+__int32)\b') },
@@ -1056,7 +1223,7 @@ function Get-SourceChecks([string]$root, [string[]]$spacerAllow = $script:Spacer
             '__fastcall\s*\*?\s*(?:\w+::)*\w*\s*\)?\s*\(\s*int\s+iLocalIndex\s*,',
             '__fastcall\s*\*?\s*(?:\w+::)*\w*\s*\)?\s*\(\s*(?:const\s+)?\w+\s*\*\s*\w*\s*,\s*int\s*,\s*unsigned\b',
             '__fastcall\s+(?:\w+::)*\w+\s*\((?=[^(){};]*\)\s*\{)\s*(?:(?:const\s+)?[\w:]+(?:\s+(?:int|char|short|long))?(?:\s*[*&]+\s*|\s+)(?!(?:int|char|short|long|const)\b)\w+\s*,\s*int|int\s*,\s*(?:const\s+)?[\w:]+(?:\s+(?:int|char|short|long))?(?:\s*[*&]+\s*|\s+)(?!(?:int|char|short|long|const)\b)\w+)\s*[,)]') },
-        @{ Name = 'd3dx-decl'; Path = '^(?!.*\\src\\PebbleFL\\pc\\PblD3DX\.h$)'; Rx = @(
+        @{ Name = 'd3dx-decl'; Path = $null; Rx = @(
             'extern\s*"C"[^;{}]*?\bD3DX\w*\s*\(',
             '(?:\b_{1,2}stdcall|\bWINAPI|\bAPIENTRY|\bCALLBACK|\bSTDMETHODCALLTYPE|\bSTDAPICALLTYPE|\bNTAPI|\bPASCAL)\b(?:\s|/\*.*?\*/)*(?:(?:const\s+)?[\w:]+(?:\s*\*+\s*|\s+)(?:/\*.*?\*/\s*)*)?D3DX\w*\s*\(') },
         @{ Name = 'gamma-get'; Path = $null; Rx = @('GetDeviceGammaRamp') }
@@ -1070,6 +1237,11 @@ function Get-SourceChecks([string]$root, [string[]]$spacerAllow = $script:Spacer
     $offsetLeft = New-Object System.Collections.Hashtable ([StringComparer]::Ordinal)
     foreach ($a in @($offsetAllow)) { if ($a) { $offsetLeft[$a] = 1 + [int]$offsetLeft[$a] } }
     $offsetHits = New-Object System.Collections.Generic.List[string]
+    $sigLeft = @{}
+    foreach ($p in @(@('new-size-t', $newSizeAllow), @('fastcall-edx', $fastcallAllow))) {
+        $sigLeft[$p[0]] = New-Object System.Collections.Hashtable ([StringComparer]::Ordinal)
+        foreach ($a in @($p[1])) { if ($a) { $sigLeft[$p[0]][$a] = 1 + [int]$sigLeft[$p[0]][$a] } }
+    }
     $src = Join-Path $root 'src'
     foreach ($f in (Get-ChildItem -LiteralPath $src -Recurse -File | Where-Object { $script:SourceExtensions -contains $_.Extension -and $_.FullName -notmatch '\\src\\(LuaFL|ZlibFL)\\' })) {
         $text = [IO.File]::ReadAllText($f.FullName)
@@ -1103,11 +1275,19 @@ function Get-SourceChecks([string]$root, [string[]]$spacerAllow = $script:Spacer
             }
             $end = -1
             $seen = @{}
+            $left = $sigLeft[$d.Name]
             foreach ($s in @($spans | Sort-Object Start)) {
                 if ($s.Start -lt $end) { $end = [Math]::Max($end, $s.End); continue }
                 $end = $s.End
-                $key = '{0}:{1}' -f $rel, $text.Substring(0, $s.Start).Split("`n").Count
-                if (-not $seen[$key]) { $seen[$key] = $true; $hits[$d.Name].Add($key) }
+                $line = $text.Substring(0, $s.Start).Split("`n").Count
+                $key = '{0}:{1}' -f $rel, $line
+                if ($seen[$key]) { continue }
+                $seen[$key] = $true
+                if ($left) {
+                    $sig = '{0}|{1}' -f $rel, ([regex]::Replace($text.Split("`n")[$line - 1].Trim(), '\s+', ' '))
+                    if ($left[$sig] -gt 0) { $left[$sig]--; continue }
+                }
+                $hits[$d.Name].Add($key)
             }
         }
     }
@@ -1122,6 +1302,11 @@ function Get-SourceChecks([string]$root, [string[]]$spacerAllow = $script:Spacer
             if (-not $c.Success -or $c.Groups[1].Value -notmatch $suiteOk) {
                 $suiteHits.Add(('{0}:{1}' -f $rel, $text.Substring(0, $m.Index).Split("`n").Count))
             }
+        }
+    }
+    foreach ($n in @($sigLeft.Keys)) {
+        foreach ($k in @($sigLeft[$n].Keys | Sort-Object)) {
+            for ($i = 0; $i -lt $sigLeft[$n][$k]; $i++) { $hits[$n].Add('unused allow ' + $k) }
         }
     }
     $rows = @($defs | ForEach-Object { New-Object PSObject -Property @{ Name = $_.Name; Ok = ($hits[$_.Name].Count -eq 0); Detail = ($hits[$_.Name] -join ', ') } })

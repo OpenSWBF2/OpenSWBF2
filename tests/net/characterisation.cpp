@@ -58,7 +58,7 @@ TEST_CASE("recv single packet" * doctest::test_suite("characterisation"))
     g.Reset();
     NetStampAndQueue(pPacket, 7, PKT_GAME_MOVE, 3, 0, 1, 0);
     NetPktGroup out;
-    CHECK(NetComm::Recv(&out, PKT_GAME_MOVE));
+    CHECK(NetComm::Recv(out, PKT_GAME_MOVE));
     CHECK(out.pktCount == 1);
     out.BeginRead();
     int iValue = 0;
@@ -75,7 +75,7 @@ TEST_CASE("recv two fragments reordered" * doctest::test_suite("characterisation
     NetStampAndQueue(pSecond, 9, PKT_GAME_MOVE, 2, 1, 2, 0);
     NetStampAndQueue(pFirst, 9, PKT_GAME_MOVE, 2, 0, 2, 0);
     NetPktGroup out;
-    CHECK(NetComm::Recv(&out, PKT_GAME_MOVE));
+    CHECK(NetComm::Recv(out, PKT_GAME_MOVE));
     CHECK(out.pktCount == 2);
     out.BeginRead();
     int iA = 0;
@@ -130,7 +130,7 @@ TEST_CASE("duplicate fragment keeps accounting" * doctest::test_suite("character
     NetStampAndQueue(MakeOne(1), 5, PKT_GAME_MOVE, 1, 0, 2, 0);
     NetStampAndQueue(MakeOne(2), 5, PKT_GAME_MOVE, 1, 0, 2, 0);
     NetPktGroup out;
-    CHECK(!NetComm::Recv(&out, PKT_GAME_MOVE));
+    CHECK(!NetComm::Recv(out, PKT_GAME_MOVE));
     CHECK(NetCountPackets(0) == 512);
 }
 
@@ -139,7 +139,7 @@ TEST_CASE("count zero is dropped" * doctest::test_suite("characterisation"))
     NetTestReset();
     NetStampAndQueue(MakeOne(1), 5, PKT_GAME_MOVE, 1, 0, 0, 0);
     NetPktGroup out;
-    CHECK(!NetComm::Recv(&out, PKT_GAME_MOVE));
+    CHECK(!NetComm::Recv(out, PKT_GAME_MOVE));
     CHECK(inPktGroups[0].pktCount == 0);
     CHECK(netRejectCounts[NET_REJECT_FRAG_COUNT_ZERO] == 1);
     CHECK(NetCountPackets(0) == 512);

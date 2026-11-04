@@ -4,6 +4,7 @@
 #include "PebbleFL/Common/PblRandom.h"
 #include "PebbleFL/Common/PblUnicode.h"
 #include "PebbleFL/Common/PblHashTable.h"
+#include "testutil.h"
 
 TEST_CASE("random lcg sequence for seed 1" * doctest::test_suite("unit"))
 {
@@ -43,9 +44,9 @@ TEST_CASE("hash table store find remove" * doctest::test_suite("unit"))
     int iValue = 5;
     unsigned int uiKey = PblHash("thing");
     CHECK(!table.Find(uiKey));
-    CHECK(table.Store(uiKey, &iValue));
+    CHECK(HashStoreNew(table, uiKey, &iValue));
     REQUIRE(table.Find(uiKey));
     CHECK(*table.Find(uiKey) == 5);
-    CHECK(table.Remove(uiKey));
+    CHECK(HashRemoveOld(table, uiKey));
     CHECK(!table.Find(uiKey));
 }

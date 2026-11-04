@@ -3,7 +3,6 @@
 
 #include <math.h>
 #include <stddef.h>
-#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x00729a40
 bool PblRegion::IsPointInside(const PblVector3& rPoint) const
@@ -528,6 +527,22 @@ PblRegion* PblRegion::Find(unsigned int uId)
         }
     }
     return 0;
+}
+
+bool PblRegion::Contains(const PblRegion* pRegion)
+{
+    if (!pRegion)
+    {
+        return false;
+    }
+    for (PblListSingle::Itor it(sList); it.GetNode() != sList.GetTerminator(); ++it)
+    {
+        if ((PblRegion*)it.GetNode()->GetObjectA(&sList, offsetof(PblRegion, mNode)) == pRegion)
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 

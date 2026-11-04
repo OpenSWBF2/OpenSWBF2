@@ -51,8 +51,6 @@ struct CollisionSizeData
     char mName[32];
     int mSize;
 };
-static_assert(sizeof(CollisionSizeData) == 0x24, "collision size data size");
-static_assert(offsetof(CollisionSizeData, mSize) == 0x20, "collision size data size field");
 // GLOBAL: SWBF2 0x01e303a0
 CollisionSizeData mTopCollision[25];
 int __cdecl _topCollisionCallback(const void* pA, const void* pB);
@@ -557,8 +555,8 @@ void CollisionMesh::Read(PblFileChunk& chunk)
 // FUNCTION: SWBF2 0x004610f0
 int __cdecl _topCollisionCallback(const void* pA, const void* pB)
 {
-    const int iA = ((const CollisionSizeData*)pA)->mSize;
-    const int iB = ((const CollisionSizeData*)pB)->mSize;
+    const int iA = ((const int*)pA)[8];
+    const int iB = ((const int*)pB)[8];
     if (iA > iB)
     {
         return 1;

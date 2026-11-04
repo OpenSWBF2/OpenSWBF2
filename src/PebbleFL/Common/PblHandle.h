@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PebbleFL/Common/PblAsan.h"
+
 // VTABLE: SWBF2 0x00785b04
 class PblHandled
 {
@@ -10,7 +12,7 @@ public:
     // FUNCTION: SWBF2 0x0042cf20
     virtual ~PblHandled() { mHandleId = 0; }
 
-    unsigned int GetHandleId() const;
+    PBL_ASAN_NO_SANITIZE unsigned int GetHandleId() const;
 
     static unsigned int SetNextHandleId(unsigned int uId);
 
@@ -126,7 +128,7 @@ private:
     {
         if (mObject)
         {
-            if (mObject->mHandleId == mSavedHandleId)
+            if (PBL_HANDLE_ID(mObject) == mSavedHandleId)
             {
                 return mObject;
             }

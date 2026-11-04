@@ -644,7 +644,7 @@ void GameObjectInterpolator::SetNextFloat(int iNetUniqueId, int iIndex, float fV
 // FUNCTION: SWBF2 0x005376f0
 float GameObjectInterpolator::GetCurFloat(int iNetUniqueId, int iIndex)
 {
-    if (iNetUniqueId < 0)
+    if (!PblInBounds(count, iNetUniqueId))
     {
         return 0.0f;
     }
@@ -658,7 +658,7 @@ float GameObjectInterpolator::GetCurFloat(int iNetUniqueId, int iIndex)
 // FUNCTION: SWBF2 0x00537730
 float GameObjectInterpolator::GetPrevFloat(int iNetUniqueId, int iIndex)
 {
-    if (iNetUniqueId < 0)
+    if (!PblInBounds(count, iNetUniqueId))
     {
         return 0.0f;
     }
@@ -699,7 +699,7 @@ void GameObjectInterpolator::GetVector(int iNetUniqueId, PblVector3& vVector)
 // FUNCTION: SWBF2 0x00537660
 float GameObjectInterpolator::GetFloat(int iNetUniqueId, int iIndex)
 {
-    if (iNetUniqueId < 0)
+    if (!PblInBounds(count, iNetUniqueId))
     {
         return 0.0f;
     }
@@ -722,7 +722,7 @@ float GameObjectInterpolator::GetLoopingFloat(int iNetUniqueId, int iIndex, floa
                                                float fMax, bool& bWrapped)
 {
     bWrapped = false;
-    if (iNetUniqueId < 0)
+    if (!PblInBounds(count, iNetUniqueId))
     {
         return 0.0f;
     }

@@ -33,7 +33,7 @@ public:
 
     bool IsLooping() const;
 
-    static void* operator new(size_t uiSize);
+    static void* operator new(unsigned int uiSize);
 
     void SetupDynamicPose(ZephyrPoseDyn<32>& pose, float fTime) const;
 

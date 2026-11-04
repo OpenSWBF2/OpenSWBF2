@@ -1282,6 +1282,10 @@ int ScriptCB_SetSpectatorMode(lua_State*)
 {
     int iGuest = LuaHelper::GetInt(1);
     bool bEnabled = LuaHelper::GetBool(2);
+    if (!PblInBounds(g_SpectatorEnabled, iGuest))
+    {
+        return 0;
+    }
     g_SpectatorEnabled[iGuest] = bEnabled;
     int id = NetGame::GetLocalIndex(iGuest);
     if (bEnabled)
@@ -1677,6 +1681,20 @@ namespace Lua_Callbacks
 {
 // GLOBAL: SWBF2 0x007e7f30
 int gHeroRuleRespawnVal[4] = { 90, 90, -1, -1 };
+}
+
+namespace Lua_Callbacks
+{
+static_assert(sizeof(gNumBots) / sizeof(gNumBots[0]) == eGAMERULES_MAX, "gNumBots size");
+static_assert(sizeof(gHeroesEnabled) / sizeof(gHeroesEnabled[0]) == eGAMERULES_MAX, "gHeroesEnabled size");
+static_assert(sizeof(gHeroRuleUnlock) / sizeof(gHeroRuleUnlock[0]) == eGAMERULES_MAX, "gHeroRuleUnlock size");
+static_assert(sizeof(gHeroRuleUnlockVal) / sizeof(gHeroRuleUnlockVal[0]) == eGAMERULES_MAX,
+              "gHeroRuleUnlockVal size");
+static_assert(sizeof(gHeroRuleTeam) / sizeof(gHeroRuleTeam[0]) == eGAMERULES_MAX, "gHeroRuleTeam size");
+static_assert(sizeof(gHeroRulePlayer) / sizeof(gHeroRulePlayer[0]) == eGAMERULES_MAX, "gHeroRulePlayer size");
+static_assert(sizeof(gHeroRuleRespawn) / sizeof(gHeroRuleRespawn[0]) == eGAMERULES_MAX, "gHeroRuleRespawn size");
+static_assert(sizeof(gHeroRuleRespawnVal) / sizeof(gHeroRuleRespawnVal[0]) == eGAMERULES_MAX,
+              "gHeroRuleRespawnVal size");
 }
 
 namespace Lua_Callbacks

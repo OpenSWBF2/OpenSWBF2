@@ -187,7 +187,7 @@ public:
 
     void PlatformCleanup();
 
-    static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
+    static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }
     static void operator delete(void* p) { sMemoryPool.Free(p); }
 
     void PostReadInit();

@@ -18,8 +18,39 @@
 #include "WeaponDispenser.h"
 #include "WeaponRepair.h"
 #include "PebbleFL/Common/PblMatrix.h"
-#include "VOHelper.h"
-#include "TeamManager.h"
+
+namespace AI
+{
+
+enum AIAffil
+{
+    AFFIL_ENEMY = 1,
+    AFFIL_NEUTRAL = 2,
+    AFFIL_ALLY = 4,
+    AFFIL_ALLYNEUTRAL = 6,
+    AFFIL_ALL = 7
+};
+
+enum VOType
+{
+    VOT_RepairStart = 16,
+    VOT_RepairEnd = 17,
+    VOT_GivePowerup = 18
+};
+
+namespace VOHelper
+{
+
+int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget, const GameObject* pOther, float fDelay);
+}
+}
+
+namespace TeamManager
+{
+
+int GetObjectsInRange(const PblVector3& vPos, float fRadius, GameObject** const ppObjects,
+                      int iMax, const GameObject* pIgnore, AI::AIAffil eAffil);
+}
 
 namespace AIUtil
 {

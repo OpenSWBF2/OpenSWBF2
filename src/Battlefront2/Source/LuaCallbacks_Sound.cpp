@@ -362,13 +362,26 @@ int ScriptCB_TriggerSoundRegionEnable(lua_State*)
     return 0;
 }
 
+static Snd::Stream* GetLuaStream(int iStream)
+{
+    if ((unsigned int)(iStream - 1) < 6u)
+    {
+        return &Snd::EngineBase::smStreams[iStream - 1];
+    }
+    return 0;
+}
+
 // FUNCTION: SWBF2 0x0059bf80
 int ScriptCB_CloseAudioStream(lua_State*)
 {
     unsigned int streamIndex = LuaHelper::GetInt(1);
     if (streamIndex)
     {
-        Snd::Stream* pStream = &Snd::EngineBase::smStreams[streamIndex - 1];
+        Snd::Stream* pStream = GetLuaStream(streamIndex);
+        if (!pStream)
+        {
+            return 0;
+        }
         if (pStream->IsOpen())
         {
             pStream->Close();
@@ -402,9 +415,10 @@ int ScriptCB_AudioStreamComplete(lua_State*)
     if (LuaHelper::IsNumber(1))
     {
         unsigned int streamID = LuaHelper::GetInt(1);
-        if (streamID)
+        Snd::Stream* pStream = GetLuaStream(streamID);
+        if (pStream)
         {
-            LuaHelper::PushInt(Snd::EngineBase::smStreams[streamID - 1].GetPlayState() == Snd::SourceTransport::playState_stopped);
+            LuaHelper::PushInt(pStream->GetPlayState() == Snd::SourceTransport::playState_stopped);
             return 1;
         }
     }

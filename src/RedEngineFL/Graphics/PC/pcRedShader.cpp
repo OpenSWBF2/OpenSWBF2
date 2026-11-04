@@ -14,6 +14,8 @@
 
 void __cdecl PblTraceP(const char* Format, ...);
 
+#pragma init_seg(lib)
+
 // SYNTHETIC: SWBF2 0x004072e0
 // `dynamic initializer for 'pcRedShader::s_ShaderFactoryByRenderType''
 

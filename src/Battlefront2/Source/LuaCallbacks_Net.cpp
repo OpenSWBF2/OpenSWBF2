@@ -2132,8 +2132,7 @@ int ScriptCB_SetNetLoginName(lua_State*)
     if (lua_gettop(LuaHelper::mState) == 1 && LuaHelper::IsString(1))
     {
         unsigned short name[34];
-        const char* pcName = luaL_checklstring(LuaHelper::mState, 1, 0);
-        PblUnicode::ustrncnv((char*)name, (const unsigned short*)pcName, 66);
+        PblUnicode::ustrncnv((char*)name, LuaWideString::Check(LuaHelper::mState, 1), 66);
         NetSetup::SetLoginName(FLInputManager::Instance()->GetPrimaryPort(), (const char*)name);
     }
     return 0;

@@ -28,8 +28,6 @@
 #include "Damageable.h"
 #include "Ordnance.h"
 #include "CombatUtil.h"
-#include "VOHelper.h"
-#include "TeamManager.h"
 
 namespace ControllerManager
 {
@@ -171,6 +169,19 @@ void ControllerManager::BroadcastEvent(AI::EventInfo* pInfo, int iMaxCount)
     }
 }
 
+namespace AI
+{
+
+enum AIAffil
+{
+    AFFIL_ENEMY = 1,
+    AFFIL_NEUTRAL = 2,
+    AFFIL_ALLY = 4,
+    AFFIL_ALLYNEUTRAL = 6,
+    AFFIL_ALL = 7
+};
+}
+
 class EntitySoldier
 {
 public:
@@ -204,6 +215,38 @@ void UpdateAutoBalance();
 namespace VisionManager
 {
 bool RayTests(int i);
+}
+
+namespace AI
+{
+enum VOType
+{
+    VOT_NONE = 0
+};
+
+namespace VOHelper
+{
+struct QueuedSound
+{
+    VOType mType;
+    PblHandle<const GameObject> mSpeaker;
+    PblHandle<const GameObject> mPlayer;
+    PblHandle<const GameObject> mTarget;
+    PblVector3 mPos;
+    bool mUseTarget;
+    float mTime;
+    int mHandle;
+
+    ~QueuedSound();
+};
+extern QueuedSound mSndQueue[20];
+
+int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,
+         const GameObject* pOther, float fDelay);
+
+int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,
+         const PblVector3& vPos, float fDelay);
+}
 }
 
 namespace ControllerManager

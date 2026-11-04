@@ -49,6 +49,8 @@ const char EntityClass::rttiNameEntityClass[] = "EntityClass";
 // GLOBAL: SWBF2 0x01eb9870
 PblHashTable<EntityEx, 1024> EntityEx::mIdMap;
 
+PblPtrSet<32768> EntityEx::sLive;
+
 
 
 // FUNCTION: SWBF2 0x004918d0

@@ -39,7 +39,6 @@
 #include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblQuaternion.h"
 #include "RedEngineFL/Application/pc/pcFLRender.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 // SYNTHETIC: SWBF2 0x0049d340
 // EntityDroidClass::`scalar deleting destructor'

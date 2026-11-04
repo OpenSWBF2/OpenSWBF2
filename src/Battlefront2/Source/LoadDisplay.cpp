@@ -36,7 +36,6 @@
 #include "RedEngineFL/Memory/RedMemory.h"
 #include "RedEngineFL/Util/RedLocalizeDB.h"
 #include "RedEngineFL/Application/pc/pcRenderHelpers.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 // GLOBAL: SWBF2 0x007b2980
 // __xmm@80000000800000008000000080000000
@@ -515,7 +514,7 @@ void LoadDisplay::SetLoadState()
     if (GameLoop::AreMetagameRulesOn() && !_strnicmp(m_missionFileName, "spa", 3))
     {
         char acWorld[4];
-        Lua_Callbacks::GetMissionWorld(acWorld);
+        Lua_Callbacks::GetMissionWorld(acWorld, 0);
         sprintf(acBuffer, "mapname.name.spa_%s", acWorld);
     }
     else

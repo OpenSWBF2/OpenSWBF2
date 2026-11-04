@@ -46,7 +46,7 @@ TEST_CASE("net fixture single packet round trip" * doctest::test_suite("unit"))
     NetStampAndQueue(pPacket, 7, PKT_GAME_MOVE, 3, 0, 1, 0);
 
     NetPktGroup out;
-    CHECK(NetComm::Recv(&out, PKT_GAME_MOVE));
+    CHECK(NetComm::Recv(out, PKT_GAME_MOVE));
     out.BeginRead();
     int iValue = 0;
     out.Read(iValue);

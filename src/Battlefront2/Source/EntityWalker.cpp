@@ -63,7 +63,6 @@
 #include "UnitController.h"
 #include "PebbleFL/Common/PblQuaternion.h"
 #include "RedEngineFL/Application/pc/pcFLRender.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 // FUNCTION: SWBF2 0x00501a80
 float EntityWalker::GetAimTurnRate() const
@@ -1801,6 +1800,10 @@ EntityWalker::EntityWalker(EntityWalkerClass* pClass, const EntityDesc& desc)
     mVelocityNoGrav.z = 0.0f;
     memset(mAimer, 0, sizeof(mAimer));
     memset(mWeapon, 0, sizeof(mWeapon));
+    for (int i = 0; i < 3; ++i)
+    {
+        mLegPairs[i] = 0;
+    }
 
     for (int i = 0; i < mClass->mWeaponCount; ++i)
     {
@@ -2368,7 +2371,7 @@ void EntityWalker::Render(unsigned char ucViewport, float fDist, unsigned int ui
                                                                     bWrapped);
         float fLegState = gameObjectInterpolator.GetLoopingFloat(mNetUniqueId, 1,
                                                                   mDirection == Backward ? -1.0f : 1.0f,
-                                                                  mLegPairs[0]->GetStateLimit(), bWrapped);
+                                                                  mLegPairCount > 0 ? mLegPairs[0]->GetStateLimit() : 0.0f, bWrapped);
         mBlend->SetFrameState(fBlendState);
         if (mLegPairCount > 0)
         {

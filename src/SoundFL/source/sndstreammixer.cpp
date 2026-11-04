@@ -92,7 +92,9 @@ void StreamMixer::SetPacketArray(StreamPacketIO* const pIO,
 // FUNCTION: SWBF2 0x0073fde0
 void StreamMixer::SetSynchronizedMixing(bool b)
 {
-    mSynchronizedMixing = (unsigned char)(b ? 1 : 0);
+    char* const pThis = (char*)this;
+
+    pThis[0x88] = (char)(b ? 1 : 0);
 }
 
 // FUNCTION: SWBF2 0x0073fb20

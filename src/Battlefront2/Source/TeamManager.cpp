@@ -60,6 +60,19 @@ void TeamManager::UpdatePositions()
     }
 }
 
+namespace AI
+{
+
+enum AIAffil
+{
+    AFFIL_ENEMY = 1,
+    AFFIL_NEUTRAL = 2,
+    AFFIL_ALLY = 4,
+    AFFIL_ALLYNEUTRAL = 6,
+    AFFIL_ALL = 7
+};
+}
+
 namespace TeamManager
 {
 

@@ -9,19 +9,8 @@
 #include "EnergyBar.h"
 #include "NetPacket.h"
 #include "ParticleEmitterObject.h"
-#include "WeaponAreaEffect.h"
 #include "WeaponCannonInstance.h"
-#include "WeaponDetonator.h"
-#include "WeaponDisguise.h"
-#include "WeaponDispenser.h"
-#include "WeaponGrenade.h"
-#include "WeaponInvisibility.h"
-#include "WeaponLaser.h"
-#include "WeaponLauncher.h"
 #include "WeaponMeleeInstance.h"
-#include "WeaponMeleeThrow.h"
-#include "WeaponRemote.h"
-#include "WeaponTowCable.h"
 
 class GameModel;
 class Team;
@@ -47,6 +36,7 @@ public:
     void Write(NetPktGroup& group);
     void Read(NetPktGroup& group);
 };
+ 
 
 void WriteTrigger(NetPktGroup& group, Trigger* pTrigger);
 void ReadTrigger(NetPktGroup& group, Trigger* pTrigger);

@@ -206,19 +206,22 @@ TEST_CASE("pbl hash table finds values by address" * doctest::test_suite("regres
     sTestHashTable.Clear();
     int iA = 1;
     int iB = 2;
-    REQUIRE(sTestHashTable.Store(0x1234u, &iA));
-    REQUIRE(sTestHashTable.Store(0x5678u, &iB));
+    REQUIRE(HashStoreNew(sTestHashTable, 0x1234u, &iA));
+    REQUIRE(HashStoreNew(sTestHashTable, 0x5678u, &iB));
     CHECK(sTestHashTable.HasValue(&iA));
     CHECK(sTestHashTable.HasValue(&iB));
     CHECK(!sTestHashTable.HasValue(0));
     CHECK(!sTestHashTable.HasValue((const int*)(uintptr_t)0x10));
     CHECK(!sTestHashTable.HasValue((const int*)(uintptr_t)0xFFFFFFF0));
 
-    REQUIRE(sTestHashTable.Remove(0x1234u));
+    REQUIRE(HashRemoveOld(sTestHashTable, 0x1234u));
+    static_assert(sizeof(sTestHashTable) == sizeof(int) + 16 * sizeof(unsigned int), "hash table layout");
+    const unsigned int* puiSlots =
+        reinterpret_cast<const unsigned int*>(reinterpret_cast<const char*>(&sTestHashTable) + sizeof(int));
     bool bStaleValue = false;
     for (int i = 0; i < 8; ++i)
     {
-        bStaleValue = bStaleValue || (const int*)sTestHashTable._table[8 + i] == &iA;
+        bStaleValue = bStaleValue || (const int*)puiSlots[8 + i] == &iA;
     }
     CHECK(bStaleValue);
     CHECK(!sTestHashTable.HasValue(&iA));
@@ -431,12 +434,16 @@ TEST_CASE("lua handle sites route through validation" * doctest::test_suite("reg
 
     const char* const apcCompareOnly[] = {
         "return RegionMatches((RedRegion*)lua_topointer(LuaHelper::mState, iIndex));",
-        "pMatch->mObject = (EntityEx*)lua_topointer(LuaHelper::mState, 2);",
+        "return ObjectMatches<char>((GameObject*)lua_topointer(LuaHelper::mState, 2));",
+        "return ObjectMatches<DamageOwner>((GameObject*)lua_topointer(LuaHelper::mState, 2));",
+        "return ObjectMatches<int>((GameObject*)lua_topointer(LuaHelper::mState, 2));",
+        "return ObjectMatches<float>((GameObject*)lua_topointer(LuaHelper::mState, 2));",
     };
+    const int iCompareOnly = (int)(sizeof(apcCompareOnly) / sizeof(apcCompareOnly[0]));
     int iUpvalue = 0;
     int iAccessor = 0;
     int iSaveItems = 0;
-    int aiCompareOnly[2] = { 0, 0 };
+    int aiCompareOnly[5] = { 0, 0, 0, 0, 0 };
     for (size_t i = 0; i < vFiles.size(); ++i)
     {
         std::string sText;
@@ -467,7 +474,7 @@ TEST_CASE("lua handle sites route through validation" * doctest::test_suite("reg
                 continue;
             }
             bool bCompare = false;
-            for (int k = 0; k < 2; ++k)
+            for (int k = 0; k < iCompareOnly; ++k)
             {
                 if (vLines[j] == apcCompareOnly[k])
                 {
@@ -483,8 +490,11 @@ TEST_CASE("lua handle sites route through validation" * doctest::test_suite("reg
     CHECK(iUpvalue == 24);
     CHECK(iAccessor == 1);
     CHECK(iSaveItems == 3);
-    CHECK(aiCompareOnly[0] == 1);
-    CHECK(aiCompareOnly[1] == 1);
+    for (int k = 0; k < iCompareOnly; ++k)
+    {
+        INFO(apcCompareOnly[k]);
+        CHECK(aiCompareOnly[k] == 1);
+    }
 
     struct GetFile
     {

@@ -15,7 +15,6 @@
 #include "RedEngineFL/Graphics/PC/Shaders/pcTerrainShader.h"
 #include "SoundFL/source/sndenginebase.h"
 #include "SoundFL/source/sndspace.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 #undef PlaySound
 

@@ -15,7 +15,6 @@
 #include "UnitController.h"
 #include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblMatrix.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 extern PblVector3 gVectorZero;
 

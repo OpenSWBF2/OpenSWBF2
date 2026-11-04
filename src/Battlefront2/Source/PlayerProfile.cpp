@@ -182,8 +182,7 @@ void PlayerPrefs::InitAll()
     PlayerPrefs::mAllUserPrefs[0].mJoystick = 0;
 
     PlayerPrefs::mAllUserPrefs[0].pProfile = PlayerProfile::GetProfile(0);
-    mDefaultProfile.mName[7] = 0;
-    mDefaultProfile.mName[8] = 0;
+    *(PlayerProfile::tProfile**)((char*)&mDefaultProfile + 0x10) = PlayerProfile::GetProfile(1);
 }
 
 // FUNCTION: SWBF2 0x0061c4d0
@@ -292,10 +291,11 @@ void PlayerProfile::tGameOpt::ApplySettings(int iPort, int  )
     }
 
     RawControllerInputs* pJoystick = FLInputManager::s_instance.GetPlayerJoystick(iPort);
+    unsigned char* pRaw = (unsigned char*)pJoystick;
 
     for (int iMode = 0; iMode < 5; ++iMode)
     {
-        memcpy(pJoystick->mCurKeyboardBindings[iMode], mKeyboardBindings[iMode],
+        memcpy(pRaw + 0x20bc + iMode * sizeof(mKeyboardBindings[0]), mKeyboardBindings[iMode],
                sizeof(mKeyboardBindings[0]));
     }
 
@@ -310,13 +310,13 @@ void PlayerProfile::tGameOpt::ApplySettings(int iPort, int  )
             mControllerScale[1][iMode] = 4;
         }
 
-        pJoystick->mJoystickSensitivityX[iMode] = mControllerScale[0][iMode];
-        pJoystick->mJoystickSensitivityY[iMode] = mControllerScale[1][iMode];
-        pJoystick->mFlip[iMode] = mFlip[iMode];
-        pJoystick->mMouseSensitivity[iMode] = ConvertMouseScaleToRawScale(mMouseSensitivity[iMode] / 10.0f, iMode);
-        pJoystick->mJoystickSensitivityX[iMode] = mJoystickSensitivityX[iMode];
-        pJoystick->mJoystickSensitivityY[iMode] = mJoystickSensitivityY[iMode];
-        pJoystick->mMouseAssist[iMode] = mMouseAssist[iMode];
+        pRaw[0x2638 + iMode] = mControllerScale[0][iMode];
+        pRaw[0x263d + iMode] = mControllerScale[1][iMode];
+        pRaw[0x000c + iMode] = mFlip[iMode];
+        *(double*)(pRaw + 0x2610 + iMode * 8) = ConvertMouseScaleToRawScale(mMouseSensitivity[iMode] / 10.0f, iMode);
+        pRaw[0x2638 + iMode] = mJoystickSensitivityX[iMode];
+        pRaw[0x263d + iMode] = mJoystickSensitivityY[iMode];
+        pRaw[0x2642 + iMode] = mMouseAssist[iMode];
 
         pJoystick->ApplyDeadZone(mDeadZone);
     }
@@ -1451,7 +1451,7 @@ void PlayerProfile::tProfile::ResetToDefault()
 {
     ResetProfile();
     const unsigned short* pStr = RedLocalizeDB::Find(0x62a0afc0, false);
-    PblUnicode::ustrncpy(mName, pStr, 16);
+    PblUnicode::ustrlcpy(mName, pStr, 16);
     mName[15] = 0;
 }
 

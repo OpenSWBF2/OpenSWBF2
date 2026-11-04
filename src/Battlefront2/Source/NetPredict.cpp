@@ -2,7 +2,6 @@
 #include "NetPredict.h"
 #include "NetGame.h"
 #include "PebbleFL/Common/PblIndex.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 NetInterpolator netInterpolator;
 

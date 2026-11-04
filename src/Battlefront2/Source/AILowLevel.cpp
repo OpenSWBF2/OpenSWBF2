@@ -36,7 +36,6 @@
 #include "WeaponRepair.h"
 #include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblQuaternion.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 namespace
 {
@@ -112,7 +111,7 @@ inline void* Navigator::operator new(unsigned int uiSize)
     return sMemoryPool.Allocate(uiSize);
 }
 
-inline void* AIPath::operator new(unsigned int uiSize)
+void* AIPath::operator new(size_t uiSize)
 {
     return sMemoryPool.Allocate(uiSize);
 }

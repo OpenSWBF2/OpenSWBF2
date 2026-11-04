@@ -26,7 +26,6 @@
 #include "PebbleFL/Common/PblRandom.h"
 #include "RedEngineFL/Application/pc/pcRenderHelpers.h"
 #include "pcFLRender.h"
-#include "Battlefront2/Platform/Pc/pcSunFlare.h"
 
 // FUNCTION: SWBF2 0x00720b80
 void __cdecl RedWater::pcBeginVisibilityTest(unsigned int uiID)

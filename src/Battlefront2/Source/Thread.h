@@ -81,7 +81,7 @@ void PblOrderedList<TYPE, KEY>::Add(Node* pNode, TYPE* pObject, KEY iOrder)
 {
     Node* pAt = _head._pNext;
     ++_iCount;
-    _head._iOrder = (KEY)((1ull << (sizeof(KEY) * 8 - 1)) - 1);
+    _head._iOrder = 0x7FFFFFFF;
 
     while (iOrder > pAt->_iOrder)
     {
@@ -122,8 +122,8 @@ public:
     virtual void DeactivateThread();
     virtual bool IsThreadActive();
 
-    typedef PblOrderedList<Thread, intptr_t>::Node ThreadListNode;
-    typedef PblOrderedList<Thread, intptr_t> ThreadList;
+    typedef PblOrderedList<Thread, int>::Node ThreadListNode;
+    typedef PblOrderedList<Thread, int> ThreadList;
 
     ThreadListNode mThreadListNode;
 
@@ -161,7 +161,7 @@ public:
     int mPriority;
     ThreadGroup* mNext;
     ThreadGroup* mPrev;
-    PblOrderedList<Thread, intptr_t> mThreads;
+    PblOrderedList<Thread, int> mThreads;
 };
  
  

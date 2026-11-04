@@ -1,7 +1,5 @@
 #pragma once
 
-#include <stddef.h>
-
 namespace Snd
 {
 
@@ -55,7 +53,7 @@ public:
     {
     public:
 
-        uintptr_t GetAddress(MemoryBitmap& bitmap) const
+        unsigned int GetAddress(MemoryBitmap& bitmap) const
         {
             return mStartEntry * bitmap.GetEntrySize() + bitmap.GetStartAddress();
         }
@@ -70,12 +68,12 @@ public:
     bool Resize(unsigned int uiSize, MemoryHandle& handle);
 
     unsigned int GetEntrySize() const;
-    uintptr_t GetStartAddress() const;
+    unsigned int GetStartAddress() const;
 
-    void Initialize(uintptr_t uiStartAddress, unsigned int uiMemorySize,
+    void Initialize(unsigned int uiStartAddress, unsigned int uiMemorySize,
                     unsigned int uiEntrySize, unsigned char* pBitmap);
 
-    uintptr_t mStartAddress;
+    unsigned int mStartAddress;
     unsigned int mMemorySize;
     unsigned int mEntrySize;
 };

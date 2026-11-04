@@ -44,6 +44,8 @@ static unsigned __int64 sLastSoundTick;
 
 static float sAccumulatedSoundTime;
 
+double gSoundClockTime;
+
 namespace FrameUpdate
 {
 extern float fOneOverTicksPerSecond;
@@ -133,15 +135,9 @@ void SetHeap(int iHeap)
 }
 
 // FUNCTION: SWBF2 0x005387a0
-void* __cdecl SndAlloc(size_t uiSize)
+void* __cdecl SndAlloc(unsigned int uiSize)
 {
-#ifdef _WIN64
-    if (uiSize > 0xFFFFFFFFu)
-    {
-        return 0;
-    }
-#endif
-    return RedAllocFromHeap(GameSoundEngine::gSoundHeap, (unsigned int)uiSize, 0);
+    return RedAllocFromHeap(GameSoundEngine::gSoundHeap, uiSize, 0);
 }
 
 // FUNCTION: SWBF2 0x005387c0

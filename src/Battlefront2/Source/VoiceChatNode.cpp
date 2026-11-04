@@ -66,7 +66,10 @@ namespace VoiceChat
 }
 
 // GLOBAL: SWBF2 0x007ebee8
-PblList<VoiceChat::Node> VoiceChat::Node::sList;
+void* VoiceChat::Node::sList[4] = { VoiceChat::Node::sList, VoiceChat::Node::sList, VoiceChat::Node::sList, 0 };
+// GLOBAL: SWBF2 0x007ebef8
+
+int sRegisteredNodeCount;
 
 // FUNCTION: SWBF2 0x00674580
 void VoiceChat::Node::SetSkipOutOfSequence(bool skip, float fRate)
@@ -93,8 +96,7 @@ bool VoiceChat::Node::OpenStatic(Transport* transport, float fSeconds, float fA,
     VoiceChat::Node::sReadHeader.mSize = uiBitmapBytes;
     VoiceChat::Node::sWriteHeader.mSize = uiBitmapBytes;
 
-    const unsigned int uiSize = uiNodes * (sizeof(ReceiveMetrics) + sizeof(SendMetrics))
-        + ((uiBitmapBytes + 3) >> 2) * 8;
+    const unsigned int uiSize = uiNodes * 68 + ((uiBitmapBytes + 3) >> 2) * 8;
 
     char* p = (char*)VoiceChat::Alloc(uiSize);
     VoiceChat::Node::sReadHeader.mBitmap = (unsigned char*)p;
@@ -115,7 +117,7 @@ bool VoiceChat::Node::OpenStatic(Transport* transport, float fSeconds, float fA,
     VoiceChat::Node::sReceiveMetrics = (ReceiveMetrics*)pPerNode;
     VoiceChat::Node::sSendMetrics = (SendMetrics*)(pPerNode + uiNodes * sizeof(ReceiveMetrics));
 
-    memset(VoiceChat::Node::sReadHeader.mBitmap, 0, uiSize);
+    memset(VoiceChat::Node::sReadHeader.mBitmap, 0, VoiceChat::Node::sWriteHeader.mSize + uiNodes * 68 + VoiceChat::Node::sReadHeader.mSize);
 
     VoiceChat::Node::sTime = 0;
     VoiceChat::Node::sBufferSizeMs = (1.0f / fSeconds) * 2.0f * 1000.0f;
@@ -124,9 +126,10 @@ bool VoiceChat::Node::OpenStatic(Transport* transport, float fSeconds, float fA,
     if (uiNodes != 0)
     {
         const float fPerNode = fB / 1000.0f;
-        for (unsigned int i = 0; i < uiNodes; ++i)
+        char* q = (char*)pPerNode;
+        for (unsigned int i = uiNodes; i != 0; --i, q += 0x24)
         {
-            VoiceChat::Node::sReceiveMetrics[i].receiveLatency = fPerNode;
+            *(float*)q = fPerNode;
         }
     }
 
@@ -221,33 +224,33 @@ bool VoiceChat::Node::Open(unsigned int captureDeviceIndex, unsigned int renderD
     mSendSeq = 0;
     mNumDecoderInputs = numDecoderInputs;
 
-    AudioPacket* pPacket = (AudioPacket*)(pBlock + uiNodes * sizeof(ReceiveStream));
-    char* pData = (char*)(((unsigned long)(pPacket + uiPackets * uiNodes) + 3u) & ~3u);
+    char* pEntryBuf = pBlock + uiNodes * 0x18;
+    char* pData = (char*)((((unsigned long)(pEntryBuf) +
+                            uiPackets * uiNodes * 0x10u) + 3u) & ~3u);
 
     for (unsigned int i = 0; i < uiNodes; ++i)
     {
         ReceiveStream& entry = mReceiveStreams[i];
+        unsigned char* const pEntry = (unsigned char*)&entry;
 
-        entry.activated = false;
-        entry.starving = false;
-        entry.writeIndex = 0;
-        entry.readIndex = 0;
-        entry.packet = pPacket;
-        entry.bufferedData = 0.0f;
-        entry.activationTime = 0.0f;
-        entry.lastPacketSize = 0;
-        entry.decoderInput = 0xFF;
+        pEntry[0x17] &= 0xFC;
+        *(unsigned int*)(pEntry + 0x12) = 0;
+        entry.packet = (AudioPacket*)pEntryBuf;
+        *(unsigned int*)(pEntry + 0x04) = 0;
+        *(unsigned int*)(pEntry + 0x08) = 0;
+        *(unsigned int*)(pEntry + 0x0C) = 0;
+        pEntry[0x16] = (char)0xFF;
 
         UpdateReceiveStreamLatency((unsigned char)i);
 
         for (unsigned int p = uiPackets; p != 0; --p)
         {
-            pPacket->mDiscontinuity = false;
-            pPacket->mData = pData;
+            pEntryBuf[0x0C] &= 0xFE;
+            ((AudioPacket*)pEntryBuf)->mData = pData;
             pData += uiAlignedBytes;
-            pPacket->mSize = 0;
-            pPacket->mAppData = 0;
-            ++pPacket;
+            *(unsigned int*)(pEntryBuf + 0x04) = 0;
+            *(unsigned int*)(pEntryBuf + 0x08) = 0;
+            pEntryBuf += 0x10;
         }
     }
 
@@ -417,12 +420,15 @@ float VoiceChat::Node::GetBufferSizeMs()
 // FUNCTION: SWBF2 0x00674360
 VoiceChat::Node* VoiceChat::Node::FindByID(unsigned char uNodeID)
 {
-    for (PblList<VoiceChat::Node>::Itor it(VoiceChat::Node::sList); it; ++it)
+    PblList<VoiceChat::Node>::Node* pNode =
+        (PblList<VoiceChat::Node>::Node*)VoiceChat::Node::sList[1];
+    while (pNode->_pObject)
     {
-        if (it->GetID() == uNodeID)
+        if (pNode->_pObject->GetID() == uNodeID)
         {
-            return it;
+            return pNode->_pObject;
         }
+        pNode = pNode->_pNext;
     }
     return 0;
 }
@@ -891,7 +897,7 @@ bool VoiceChat::Node::SendAudioPacket(const AudioPacket* const audio, const Head
                                        unsigned char destination, float* const sendTime)
 {
     VoiceChat::Node::SendMetrics* metrics = destination == 0xff ? 0
-        : &VoiceChat::Node::sSendMetrics[destination];
+        : &((VoiceChat::Node::SendMetrics*)VoiceChat::Node::sSendMetrics)[destination];
     NetPacket* packet = (NetPacket*)VoiceChat::NetPacketAudio::Alloc();
     if (!packet)
     {
@@ -1250,7 +1256,7 @@ void VoiceChat::Node::Update(float fDeltaTime)
         NetPacketAudio::Free(pAppPacket);
     }
 
-    for (PblList<Node>::Itor it(VoiceChat::Node::sList); it; ++it)
+    for (void** pLink = (void**)VoiceChat::Node::sList[1]; pLink[3]; pLink = (void**)pLink[1])
     {
         Node* pNode = (Node*)pLink[3];
         VoiceChat::Node::sSendMetrics[pNode->GetID()].bandwidth = 0.0f;
@@ -1274,9 +1280,9 @@ void VoiceChat::Node::Update(float fDeltaTime)
             kSilence.mData = 0;
             kSilence.mSize = 0;
             kSilence.mAppData = 0;
-            for (PblList<Node>::Itor it(VoiceChat::Node::sList); it; ++it)
+            for (void** pLink = (void**)VoiceChat::Node::sList[1]; pLink[3]; pLink = (void**)pLink[1])
             {
-                it->ReceiveAudioPacket(i, &kSilence);
+                ((Node*)pLink[3])->ReceiveAudioPacket(i, &kSilence);
             }
         }
 

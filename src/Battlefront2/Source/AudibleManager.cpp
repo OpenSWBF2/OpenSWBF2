@@ -19,6 +19,26 @@
 #include "NetGame.h"
 #include "TeamManager.h"
 
+namespace AI
+{
+
+enum AIAffil
+{
+    AFFIL_ENEMY = 1,
+    AFFIL_NEUTRAL = 2,
+    AFFIL_ALLY = 4,
+    AFFIL_ALLYNEUTRAL = 6,
+    AFFIL_ALL = 7
+};
+}
+
+namespace TeamManager
+{
+
+int GetObjectsInRange(const PblVector3& vPos, float fRange, GameObject** const ppObjects, int iMax,
+                      const GameObject* pObject, AI::AIAffil eAffil);
+}
+
 namespace AudibleManager
 {
 extern GameObject** sPVRect;

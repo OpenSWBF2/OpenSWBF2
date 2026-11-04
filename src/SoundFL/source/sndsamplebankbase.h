@@ -1,7 +1,5 @@
 #pragma once
 
-#include <stddef.h>
-
 #include "PebbleFL/Common/PblListSingle.h"
 #include "sndallocator.h"
 #include "sndallocbitmap.h"
@@ -48,7 +46,7 @@ protected:
     {
         return mHandle.GetSize(EngineBase::smSoundRAMAllocator);
     }
-    uintptr_t GetBaseAddress() const
+    unsigned int GetBaseAddress() const
     {
         return mHandle.GetAddress(EngineBase::smSoundRAMAllocator);
     }

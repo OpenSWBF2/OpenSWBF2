@@ -59,7 +59,6 @@
 #include "GameObject.h"
 #include "PebbleFL/Common/PblHandle.h"
 #include "PebbleFL/Common/PblMatrix.h"
-#include "PebbleFL/pc/PblD3DX.h"
 
 // GLOBAL: SWBF2 0x007b2630
 // __xmm@00000000000000003f80000000000000

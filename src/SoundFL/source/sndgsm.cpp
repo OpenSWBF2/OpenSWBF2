@@ -20,7 +20,7 @@ void GSM::Decode(unsigned char (*pFrame)[33], short (*pSamples)[160])
 // FUNCTION: SWBF2 0x0074bcc0
 void GSM::Encode(short (*pSamples)[160], unsigned char (*pFrame)[33])
 {
-    ::gsm_encode(this, *pSamples, *pFrame);
+    ::gsm_encode((char*)this, *pSamples, *pFrame);
 }
 
 // FUNCTION: SWBF2 0x0074bce0
