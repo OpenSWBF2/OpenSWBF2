@@ -49,12 +49,6 @@ void AdjustScreenGroupAspect(RedScreenGroupElement* pGroup)
 
 #pragma warning(disable : 4316)
 
-HUD::Manager::ConfigFile::Factory::Factory()
-    : HUD::Item::Factory(0xD4E0C797u)
-{
-    mName = "FileInfo";
-}
-
 // FUNCTION: SWBF2 0x00564990
 HUD::Item* HUD::TransformNumberColor::Factory::CreateItem(const char* const pName, ItemCallback pCallback,
                                                           void* const pUserData)
@@ -165,7 +159,7 @@ bool HUD::Manager::ConfigFile::ReadData(PblConfig& config, PblConfig::Data& data
             iNumArgs = 2;
         }
         mNumSupportedSplitModes = 0;
-        for (int i = 0; i < iNumArgs; ++i)
+        for (unsigned int i = 0; i < iNumArgs; ++i)
         {
 
             const char* pName = (const char*)data.m_auiArgs + data.m_auiArgs[i];
@@ -189,7 +183,7 @@ bool HUD::Manager::ConfigFile::ReadData(PblConfig& config, PblConfig::Data& data
             iNumArgs = 4;
         }
         mNumSupportedViewPorts = 0;
-        for (int i = 0; i < iNumArgs; ++i)
+        for (unsigned int i = 0; i < iNumArgs; ++i)
         {
             mSupportedViewPorts[mNumSupportedViewPorts++] = (unsigned int)data.GetFloatArg(i);
         }
@@ -356,10 +350,11 @@ void HUD::Manager::Close()
     unsigned int uNumViews = CameraManager::Instance()->m_iNumCam;
     for (unsigned int i = 0; i < uNumViews; ++i)
     {
-        HUD::gScreenGroup[i + 1].Enable(false);
-        FLRenderer::RemoveInterfaceElement(i, &HUD::gScreenGroup[i + 1]);
-        HUD::gScreenGroupEdit[i + 1].Enable(false);
-        FLRenderer::RemoveInterfaceElement(i, &HUD::gScreenGroupEdit[i + 1]);
+        const unsigned int uGroup = i + 1;
+        HUD::gScreenGroup[uGroup].Enable(false);
+        FLRenderer::RemoveInterfaceElement(i, &HUD::gScreenGroup[uGroup]);
+        HUD::gScreenGroupEdit[uGroup].Enable(false);
+        FLRenderer::RemoveInterfaceElement(i, &HUD::gScreenGroupEdit[uGroup]);
     }
 
     delete[] HUD::gScreenGroup;
@@ -385,10 +380,10 @@ void HUD::Manager::Close()
 bool HUD::Manager::Write()
 {
     HUD::File file;
-    Manager::ConfigFile** ppConfig = gConfigFiles;
+    unsigned int uConfig = 0;
     for (Item* pItem = Item::GetFirst(); pItem; pItem = Item::GetNext(pItem))
     {
-        if ((Item*)*ppConfig == pItem)
+        if ((Item*)gConfigFiles[uConfig] == pItem)
         {
             char acName[0x400];
             _snprintf(acName, sizeof(acName) - 1, "data\\%s.hud", pItem->GetName());
@@ -401,7 +396,7 @@ bool HUD::Manager::Write()
             {
                 return false;
             }
-            ++ppConfig;
+            ++uConfig;
         }
         if (file.IsOpen() && pItem->WriteEnabled())
         {
@@ -444,29 +439,30 @@ void HUD::Manager::Load(PblFileChunk& chunk)
     unsigned int uNumViews = CameraManager::Instance()->m_iNumCam;
     sLoadNumViews = uNumViews;
     HUD::Element::SetupViewportDimensions(uNumViews, false);
-    for (unsigned int i = 0; i < uNumViews; ++i)
+    unsigned int uGroup = 1;
+    for (unsigned int i = 0; i < uNumViews; ++i, ++uGroup)
     {
-        if (!HUD::gScreenGroup[i + 1].GetGroup())
+        if (!HUD::gScreenGroup[uGroup].GetGroup())
         {
-            HUD::gScreenGroup[i + 1].SetZOrder(50);
-            HUD::gScreenGroup[i + 1].m_fScreenRelativeX = 0.0f;
-            HUD::gScreenGroup[i + 1].m_fScreenRelativeY = 0.0f;
-            HUD::gScreenGroup[i + 1].Enable(true);
-            HUD::gScreenGroup[i + 1].SetUseSafezone(false);
-            HUD::gScreenGroup[i + 1].m_bUsePerspectiveHack = true;
-            AdjustScreenGroupAspect(&HUD::gScreenGroup[i + 1]);
-            FLRenderer::AddInterfaceElement(i, &HUD::gScreenGroup[i + 1], RedInterfaceScreen::LEFT,
+            HUD::gScreenGroup[uGroup].SetZOrder(50);
+            HUD::gScreenGroup[uGroup].m_fScreenRelativeX = 0.0f;
+            HUD::gScreenGroup[uGroup].m_fScreenRelativeY = 0.0f;
+            HUD::gScreenGroup[uGroup].Enable(true);
+            HUD::gScreenGroup[uGroup].SetUseSafezone(false);
+            HUD::gScreenGroup[uGroup].m_bUsePerspectiveHack = true;
+            AdjustScreenGroupAspect(&HUD::gScreenGroup[uGroup]);
+            FLRenderer::AddInterfaceElement(i, &HUD::gScreenGroup[uGroup], RedInterfaceScreen::LEFT,
                                             RedInterfaceScreen::TOP, false);
         }
-        if (!HUD::gScreenGroupEdit[i + 1].GetGroup())
+        if (!HUD::gScreenGroupEdit[uGroup].GetGroup())
         {
-            HUD::gScreenGroupEdit[i + 1].SetZOrder(50);
-            HUD::gScreenGroupEdit[i + 1].m_fScreenRelativeX = 0.0f;
-            HUD::gScreenGroupEdit[i + 1].m_fScreenRelativeY = 0.0f;
-            HUD::gScreenGroupEdit[i + 1].Enable(HUD::gScreenGroupEditEnabled);
-            HUD::gScreenGroupEdit[i + 1].SetUseSafezone(false);
-            HUD::gScreenGroupEdit[i + 1].m_bUsePerspectiveHack = true;
-            FLRenderer::AddInterfaceElement(i, &HUD::gScreenGroupEdit[i + 1], RedInterfaceScreen::LEFT,
+            HUD::gScreenGroupEdit[uGroup].SetZOrder(50);
+            HUD::gScreenGroupEdit[uGroup].m_fScreenRelativeX = 0.0f;
+            HUD::gScreenGroupEdit[uGroup].m_fScreenRelativeY = 0.0f;
+            HUD::gScreenGroupEdit[uGroup].Enable(HUD::gScreenGroupEditEnabled);
+            HUD::gScreenGroupEdit[uGroup].SetUseSafezone(false);
+            HUD::gScreenGroupEdit[uGroup].m_bUsePerspectiveHack = true;
+            FLRenderer::AddInterfaceElement(i, &HUD::gScreenGroupEdit[uGroup], RedInterfaceScreen::LEFT,
                                             RedInterfaceScreen::TOP, false);
         }
     }
@@ -541,15 +537,3 @@ unsigned int HUD::Objective::GetTextHashID() const
 
 // GLOBAL: SWBF2 0x01e56fc0
 HUD::Manager::ConfigFile* HUD::gConfigFiles[256];
-
-bool HUD::Manager::ConfigFile::ViewportsSupported() const
-{
-    for (unsigned int i = 0; i < mNumSupportedViewPorts; ++i)
-    {
-        if (mSupportedViewPorts[i] == CameraManager::Instance()->GetNumCameras())
-        {
-            return true;
-        }
-    }
-    return mNumSupportedViewPorts == 0;
-}

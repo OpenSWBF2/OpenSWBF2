@@ -46,9 +46,9 @@ void NetSocket::StartSockets()
 void NetSocket::OpenBroadcastSockets()
 {
     sockaddr_in addr;
+    netBroadcastSendSocket = (unsigned int)socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     BOOL bBroadcast = TRUE;
-    netBroadcastSendSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    setsockopt(netBroadcastSendSocket, SOL_SOCKET, SO_BROADCAST, (const char*)&bBroadcast,
+    setsockopt((SOCKET)netBroadcastSendSocket, SOL_SOCKET, SO_BROADCAST, (const char*)&bBroadcast,
                sizeof(bBroadcast));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_BROADCAST;
@@ -58,9 +58,9 @@ void NetSocket::OpenBroadcastSockets()
         DecodeError(WSAGetLastError());
     }
 
+    netBroadcastRecvSocket = (unsigned int)socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     BOOL bReuse = TRUE;
-    netBroadcastRecvSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    setsockopt(netBroadcastRecvSocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&bReuse,
+    setsockopt((SOCKET)netBroadcastRecvSocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&bReuse,
                sizeof(bReuse));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
@@ -84,19 +84,20 @@ int NetSocket::OpenDirectSocket(bool bHost)
     {
         ++iPort;
     }
-    for (;;)
+    int iResult;
+    do
     {
         sockaddr_in addr;
-        addr.sin_family = AF_INET;
         addr.sin_addr.s_addr = INADDR_ANY;
+        addr.sin_family = AF_INET;
         addr.sin_port = htons((u_short)iPort);
-        if (bind(netDirectSocket, (const sockaddr*)&addr, sizeof(addr)) != SOCKET_ERROR)
+        iResult = bind((SOCKET)netDirectSocket, (const sockaddr*)&addr, sizeof(addr));
+        if (iResult == SOCKET_ERROR)
         {
-            break;
+            DecodeError(WSAGetLastError());
+            ++iPort;
         }
-        DecodeError(WSAGetLastError());
-        ++iPort;
-    }
+    } while (iResult == SOCKET_ERROR);
     int iSize = 0x8000;
     setsockopt(netDirectSocket, SOL_SOCKET, SO_RCVBUF, (const char*)&iSize, sizeof(iSize));
     iSize = 0x10000;
@@ -126,19 +127,19 @@ int NetSocket::SendSocket(int iDest, char* pData, int iLen)
     if (!NetComm::IsLAN())
     {
         const NetSocketPeerRecord* pPeer = (const NetSocketPeerRecord*)NetCommP::GetAddr(iDest);
-        if (!gf::isInitialized())
+        if (gf::isInitialized())
         {
-            return 0;
-        }
-        unsigned __int64 lobbyId;
-        if (iDest > 64 || !*CopyEnteredLobbyId(&lobbyId))
-        {
+            unsigned __int64 lobbyId;
+            if (iDest <= 64 && *CopyEnteredLobbyId(&lobbyId))
+            {
+                void* pNetworking = GetGalaxyNetworking();
+                return ((galaxy::api::INetworking*)pNetworking)->SendP2PPacket(
+                           pPeer->mGalaxyId, pData, iLen, 2, 0)
+                     ? iLen : -1;
+            }
             return -1;
         }
-        void* pNetworking = GetGalaxyNetworking();
-        return ((galaxy::api::INetworking*)pNetworking)->SendP2PPacket(
-                   pPeer->mGalaxyId, pData, iLen, 2, 0)
-             ? iLen : -1;
+        return 0;
     }
     else
     {

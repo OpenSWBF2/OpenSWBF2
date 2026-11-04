@@ -1,3 +1,4 @@
+#include "PebbleFL/Common/PblMath.h"
 #include <math.h>
 #include <d3dx9math.h>
 
@@ -32,7 +33,7 @@ static const float gTentacleAngle = 0.52359879f;
 
 // GLOBAL: SWBF2 0x01f992e0
 // TentacleSimulator::sMemoryPool
-MemoryPool TentacleSimulator::sMemoryPool("TentacleSimulator", 0x268);
+MemoryPool TentacleSimulator::sMemoryPool("TentacleSimulator", sizeof(TentacleSimulator));
 
 // FUNCTION: SWBF2 0x00656e70
 void TentacleSimulator::EnforceBoxCollision(const PblMatrix& matrix, float fX, float fY, float fZ)
@@ -40,7 +41,7 @@ void TentacleSimulator::EnforceBoxCollision(const PblMatrix& matrix, float fX, f
     const float* m = (const float*)&matrix;
     for (int t = 0; t < mNumTentacles; ++t)
     {
-        for (int b = 1; b <= mBonesPerTentacle; ++b)
+        for (int b = 1; b < mBonesPerTentacle + 1; ++b)
         {
             PblVector3& pos = tPos[t][b];
             const float dx = pos.x - m[12];
@@ -93,7 +94,7 @@ void TentacleSimulator::EnforceCylinderCollision(const PblMatrix& matrix, float 
     const float* m = (const float*)&matrix;
     for (int t = 0; t < mNumTentacles; ++t)
     {
-        for (int b = 1; b <= mBonesPerTentacle; ++b)
+        for (int b = 1; b < mBonesPerTentacle + 1; ++b)
         {
             PblVector3& pos = tPos[t][b];
             const float dx = pos.x - m[12];
@@ -107,7 +108,7 @@ void TentacleSimulator::EnforceCylinderCollision(const PblMatrix& matrix, float 
             }
             const float radialX = m[0] * dx + m[1] * dy + m[2] * dz;
             const float radialZ = m[8] * dx + m[9] * dy + m[10] * dz;
-            const float radialDistance = sqrtf(radialX * radialX + radialZ * radialZ);
+            const float radialDistance = PblMath::Sqrt(radialX * radialX + radialZ * radialZ);
             const float radialDepth = fRadius - radialDistance;
             if (radialDepth <= 0.0f)
             {
@@ -147,12 +148,9 @@ TentacleSimulator::TentacleSimulator(unsigned int uiNumTentacles, unsigned int u
     {
         for (int b = 0; b < mBonesPerTentacle; b++)
         {
-            oldPos[t][b].x = 0.0f;
-            oldPos[t][b].y = 0.0f;
-            oldPos[t][b].z = 0.0f;
-            tPos[t][b].x = 0.0f;
-            tPos[t][b].y = 0.0f;
-            tPos[t][b].z = 0.0f;
+            const PblVector3 vZero(0.0f, 0.0f, 0.0f);
+            oldPos[t][b] = vZero;
+            tPos[t][b] = vZero;
         }
     }
     mNumTentacles = uiNumTentacles;
@@ -176,14 +174,13 @@ void TentacleSimulator::UpdateTimer(float fDeltaTime)
         if (mTimeSinceLastUpdate > 0.0f)
         {
             mTimerOffset = mInternalTimer - mTimeSinceLastUpdate;
-            mTimeSinceLastUpdate = 0.0f;
             mInternalTimer = fDeltaTime;
         }
         else
         {
-            mTimeSinceLastUpdate = 0.0f;
             mInternalTimer = fDeltaTime + mInternalTimer;
         }
+        mTimeSinceLastUpdate = 0.0f;
     }
     else
     {
@@ -212,8 +209,8 @@ void TentacleSimulator::DoTentacles(RedPose* pPose, const PblMatrix& mParent,
         {
             fDeltaTime = fDeltaTime - mTimeSinceLastUpdate;
         }
-        mTimerOffset = 0.0f;
         mTimeSinceLastUpdate = NetGame::GetTurnRatio() * mInternalTimer;
+        mTimerOffset = 0.0f;
     }
 
     if (!pPose)
@@ -278,7 +275,7 @@ void TentacleSimulator::UpdatePose(RedPose* pPose, const PblMatrix& mParent,
             const float fCosAngle = cos(gTentacleAngle);
 
             PblMatrix& m = pOutMatrices[t * mBonesPerTentacle + b];
-            m = *pBones[t][b];
+            m = PblMatrix(*pBones[t][b]);
             if (b > 0)
             {
                 const PblMatrix mInverse = pBones[t][b - 1]->GetInverseFast();
@@ -300,7 +297,7 @@ void TentacleSimulator::UpdatePose(RedPose* pPose, const PblMatrix& mParent,
                 D3DXVECTOR3 vAxis;
                 D3DXVec3Cross(&vAxis, pZ, &vNormal);
                 float fAngle = acos(fDot);
-                if (sqrtf(D3DXVec3Dot(&vAxis, &vAxis)) * fAngle < 0.0f)
+                if (PblMath::Sqrt(D3DXVec3Dot(&vAxis, &vAxis)) * fAngle < 0.0f)
                 {
                     fAngle = -fAngle;
                 }
@@ -321,10 +318,11 @@ void TentacleSimulator::UpdatePose(RedPose* pPose, const PblMatrix& mParent,
                 {
                     D3DXMATRIX mRotation;
                     D3DXMatrixRotationAxis(&mRotation, &vAxis, fAngle);
-                    D3DXVECTOR3 vSegment = vEnd - vStart;
+                    vEnd -= vStart;
                     D3DXVECTOR3 vRotated;
-                    D3DXVec3TransformNormal(&vRotated, &vSegment, &mRotation);
-                    vEnd = vRotated + vStart;
+                    D3DXVec3TransformNormal(&vRotated, &vEnd, &mRotation);
+                    vEnd = vRotated;
+                    vEnd += vStart;
                     *(D3DXVECTOR3*)&tPos[t][b + 1] = vEnd;
                 }
             }
@@ -335,22 +333,22 @@ void TentacleSimulator::UpdatePose(RedPose* pPose, const PblMatrix& mParent,
             *(D3DXVECTOR3*)m.m[2] = vZ;
             m.m[2][3] = 0.0f;
 
-            D3DXVECTOR3 vCross;
+            D3DXVECTOR3 vCrossX;
             D3DXVECTOR3 vX;
-            D3DXVec3Cross(&vCross, (const D3DXVECTOR3*)m.m[1], (const D3DXVECTOR3*)m.m[2]);
-            D3DXVec3Normalize(&vX, &vCross);
+            D3DXVec3Cross(&vCrossX, (const D3DXVECTOR3*)m.m[1], (const D3DXVECTOR3*)m.m[2]);
+            D3DXVec3Normalize(&vX, &vCrossX);
             *(D3DXVECTOR3*)m.m[0] = vX;
             m.m[0][3] = 0.0f;
 
+            D3DXVECTOR3 vCrossY;
             D3DXVECTOR3 vY;
-            D3DXVec3Cross(&vCross, (const D3DXVECTOR3*)m.m[2], (const D3DXVECTOR3*)m.m[0]);
-            D3DXVec3Normalize(&vY, &vCross);
+            D3DXVec3Cross(&vCrossY, (const D3DXVECTOR3*)m.m[2], (const D3DXVECTOR3*)m.m[0]);
+            D3DXVec3Normalize(&vY, &vCrossY);
             *(D3DXVECTOR3*)m.m[1] = vY;
             m.m[1][3] = 0.0f;
 
-            unsigned int uiName = TENTACLE_NAMES[mBonesPerTentacle * t + b];
-            pPose->Remove(uiName);
-            pPose->Store(uiName, &m);
+            pPose->Remove(TENTACLE_NAMES[mBonesPerTentacle * t + b]);
+            pPose->Store(TENTACLE_NAMES[mBonesPerTentacle * t + b], &m);
         }
     }
 }
@@ -387,13 +385,10 @@ void TentacleSimulator::UpdatePositions(float fDeltaTime, const PblVector3& vVel
     oldVelocity = vVel;
 
     static const PblVector3 vGravity(0.0f, -9.8f, 0.0f);
-    static const float fDragScale = 1.0f;
+    static float fDragScale = 1.0f;
 
     const PblMatrix mInverse = mParent.GetInverseFast();
-    PblVector3 vForce;
-    vForce.x = vGravity.x - vAccel.x * 0.5f;
-    vForce.y = vGravity.y - vAccel.y * 0.5f;
-    vForce.z = vGravity.z - vAccel.z * 0.5f;
+    const PblVector3 vForce = vGravity - vAccel * 0.5f;
     PblVector3 vLocalForce;
     D3DXVec3TransformNormal((D3DXVECTOR3*)&vLocalForce, (const D3DXVECTOR3*)&vForce,
                             (const D3DXMATRIX*)&mInverse);
@@ -441,7 +436,7 @@ void TentacleSimulator::UpdatePositions(float fDeltaTime, const PblVector3& vVel
             float fDx = vPos.x - tPos[t][b].x;
             float fDy = vPos.y - tPos[t][b].y;
             float fDz = vPos.z - tPos[t][b].z;
-            float fLength = sqrtf(fDx * fDx + fDy * fDy + fDz * fDz);
+            float fLength = PblMath::Sqrt(fDx * fDx + fDy * fDy + fDz * fDz);
 
             float fRestLength = 0.25f;
             if (b != mBonesPerTentacle - 1)
@@ -451,7 +446,7 @@ void TentacleSimulator::UpdatePositions(float fDeltaTime, const PblVector3& vVel
                 float fBx = p1[0] - p0[0];
                 float fBy = p1[1] - p0[1];
                 float fBz = p1[2] - p0[2];
-                fRestLength = sqrtf(fBx * fBx + fBy * fBy + fBz * fBz);
+                fRestLength = PblMath::Sqrt(fBx * fBx + fBy * fBy + fBz * fBz);
             }
 
             float fScale = (fLength - fRestLength) / fLength;
@@ -471,20 +466,16 @@ void TentacleSimulator::EnforceCollisions(const RedPose* pPose, const PblMatrix&
         return;
     }
 
-    PblMatrix mCollision = *pBone;
+    PblMatrix mBone = *pBone;
     float fOffset = 0.0f;
     if (mCollType == 1)
     {
         fOffset = 0.98f;
     }
-    mCollision.m[3][3] = 1.0f;
-    float fX = mCollision.m[3][0] + mCollision.m[0][0] * 0.0f + mCollision.m[1][0] * fOffset + mCollision.m[2][0] * 0.0f;
-    float fY = mCollision.m[3][1] + mCollision.m[0][1] * 0.0f + mCollision.m[1][1] * fOffset + mCollision.m[2][1] * 0.0f;
-    float fZ = mCollision.m[3][2] + mCollision.m[0][2] * 0.0f + mCollision.m[1][2] * fOffset + mCollision.m[2][2] * 0.0f;
-    mCollision.m[3][0] = fX;
-    mCollision.m[3][1] = fY;
-    mCollision.m[3][2] = fZ;
+    mBone.m[3][3] = 1.0f;
+    mBone[3] = mBone.GetTranslation() + mBone.GetXAxis() * 0.0f + mBone.GetYAxis() * fOffset + mBone.GetZAxis() * 0.0f;
 
+    const PblMatrix mCollision = mBone;
     switch (mCollType)
     {
     case 0:
@@ -500,23 +491,20 @@ void TentacleSimulator::EnforceCollisions(const RedPose* pPose, const PblMatrix&
 
     if (sDrawCollisionShapes)
     {
-        mCollision = mCollision * mParent;
+        const PblMatrix mWorld = mBone * mParent;
         switch (mCollType)
         {
         case 0:
         {
-            PblBox box;
-            box._vMin = PblVector3(-0.35f, -0.18f, -0.5f);
-            box._vMax = PblVector3(0.35f, 0.18f, 0.5f);
-            RedDebug::DrawOBB(box, mCollision, RedColor::WHITE);
+            const PblBox box(PblVector3(-0.35f, -0.18f, -0.5f), PblVector3(0.35f, 0.18f, 0.5f));
+            RedDebug::DrawOBB(box, mWorld, RedColor::WHITE);
             break;
         }
         case 1:
-            RedDebug::DrawSphere(PblVector3(mCollision.m[3][0], mCollision.m[3][1], mCollision.m[3][2]),
-                                 1.234f, RedColor::WHITE);
+            RedDebug::DrawSphere(mWorld.GetTranslation(), 1.234f, RedColor::WHITE);
             break;
         case 2:
-            RedDebug::DrawCone(mCollision, 0.18f, 1.234f, 1.234f, RedColor::WHITE);
+            RedDebug::DrawCone(mWorld, 0.18f, 1.234f, 1.234f, RedColor::WHITE);
             break;
         }
     }
@@ -525,23 +513,16 @@ void TentacleSimulator::EnforceCollisions(const RedPose* pPose, const PblMatrix&
 // FUNCTION: SWBF2 0x00656d00
 void TentacleSimulator::EnforceSphereCollision(const PblMatrix& mMatrix, float fRadius)
 {
-    const PblVector3& vCenter = mMatrix.GetTranslation();
     for (int i = 0; i < mNumTentacles; ++i)
     {
-        const float fRadiusSq = fRadius * fRadius;
         for (int j = 1; j < mBonesPerTentacle + 1; ++j)
         {
             PblVector3& vPos = tPos[i][j];
-            const float dx = vPos.x - vCenter.x;
-            const float dy = vPos.y - vCenter.y;
-            const float dz = vPos.z - vCenter.z;
-            const float fDistSq = dx * dx + dy * dy + dz * dz;
-            if (fRadiusSq > fDistSq)
+            const PblVector3 vDelta = vPos - mMatrix.GetTranslation();
+            const float fDistSq = SquaredLength(vDelta);
+            if (fRadius * fRadius > fDistSq)
             {
-                const float fScale = fRadius / sqrtf(fDistSq);
-                vPos.x = dx * fScale + vCenter.x;
-                vPos.y = dy * fScale + vCenter.y;
-                vPos.z = dz * fScale + vCenter.z;
+                vPos = mMatrix.GetTranslation() + vDelta * (fRadius / (float)sqrt((double)fDistSq));
             }
         }
     }

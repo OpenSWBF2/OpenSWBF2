@@ -1,3 +1,4 @@
+#include "PebbleFL/Common/PblMath.h"
 #include "PropGenerator.h"
 #include "PebbleFL/Common/PblVector.h"
 
@@ -231,10 +232,9 @@ void PropGenerator::SortClusters()
         afScore.SetSize(iNum);
     }
 
-    PropCluster** ppClusters = mClusterObjectArray + iFirst;
     for (int i = 0; i < iNum; i++)
     {
-        PropCluster* pCluster = ppClusters[i];
+        PropCluster* pCluster = mClusterObjectArray[iFirst + i];
         afScore[i] = FLT_MAX;
         for (int iCam = 0; iCam < iNumCameras; iCam++)
         {
@@ -242,11 +242,7 @@ void PropGenerator::SortClusters()
             {
                 continue;
             }
-            const PblVector3& vPos = pCluster->GetRenderPos();
-            float dx = vPos.x - m_amCamera[iCam].m[3][0];
-            float dy = vPos.y - m_amCamera[iCam].m[3][1];
-            float dz = vPos.z - m_amCamera[iCam].m[3][2];
-            float fDist = dx * dx + dy * dy + dz * dz;
+            float fDist = SquaredLength(pCluster->GetRenderPos() - m_amCamera[iCam].GetTranslation());
             if (fDist < afScore[i])
             {
                 afScore[i] = fDist;
@@ -264,9 +260,9 @@ void PropGenerator::SortClusters()
             {
                 afScore[i] = fJ;
                 afScore[j] = fI;
-                PropCluster* pSwap = ppClusters[i];
-                ppClusters[i] = ppClusters[j];
-                ppClusters[j] = pSwap;
+                PropCluster* pSwap = mClusterObjectArray[iFirst + i];
+                mClusterObjectArray[iFirst + i] = mClusterObjectArray[iFirst + j];
+                mClusterObjectArray[iFirst + j] = pSwap;
             }
         }
     }
@@ -285,10 +281,7 @@ float PropGenerator::CalcDistScore_(const PropCluster* pCluster, const PblVector
         {
             continue;
         }
-        float dx = vPos.x - m_amCamera[iCam].m[3][0];
-        float dy = vPos.y - m_amCamera[iCam].m[3][1];
-        float dz = vPos.z - m_amCamera[iCam].m[3][2];
-        float fDist = dx * dx + dy * dy + dz * dz;
+        float fDist = SquaredLength(vPos - m_amCamera[iCam].GetTranslation());
         if (fDist < fBest)
         {
             fBest = fDist;
@@ -310,18 +303,14 @@ void PropGenerator::Update()
         FlushClusterObjects_();
     }
 
-    CameraManager* pCameraManager = CameraManager::Instance();
-    int iNumCameras = pCameraManager->GetNumCameras();
+    int iNumCameras = CameraManager::Instance()->GetNumCameras();
 
     for (int iCam = 0; iCam < iNumCameras; iCam++)
     {
-        const PblMatrix& mCamera = pCameraManager->GetCamera(iCam)->GetMatrix();
+        const PblMatrix& mCamera = CameraManager::Instance()->GetCamera(iCam)->GetMatrix();
         PblMatrix& mLast = m_amCamera[iCam];
 
-        float dx = mCamera.m[3][0] - mLast.m[3][0];
-        float dy = mCamera.m[3][1] - mLast.m[3][1];
-        float dz = mCamera.m[3][2] - mLast.m[3][2];
-        if (dx * dx + dy * dy + dz * dz > 40000.0f ||
+        if (SquaredLength(mCamera.GetTranslation() - mLast.GetTranslation()) > 40000.0f ||
             mLast.m[2][0] * mCamera.m[2][0] + mLast.m[2][1] * mCamera.m[2][1] +
                     mLast.m[2][2] * mCamera.m[2][2] < 0.7f)
         {
@@ -354,7 +343,7 @@ void PropGenerator::Update()
 
     for (int iCam = 0; iCam < iNumCameras; iCam++)
     {
-        RedCamera* pCamera = pCameraManager->GetCamera(iCam);
+        RedCamera* pCamera = CameraManager::Instance()->GetCamera(iCam);
         float fNear, fFar, fWidth, fHeight;
         pCamera->GetFrustum(fNear, fFar, fWidth, fHeight);
 
@@ -365,63 +354,49 @@ void PropGenerator::Update()
         float fSecHeight = sqrtf(1.0f / (fTanHeight * fTanHeight) + 1.0f);
 
         const PblMatrix& m = m_amCamera[iCam];
-        const float* vRight = m.m[0];
-        const float* vUp = m.m[1];
-        const float* vAt = m.m[2];
-        const float* vPos = m.m[3];
+        const PblVector3& vRight = m.GetXAxis();
+        const PblVector3& vUp = m.GetYAxis();
+        const PblVector3& vAt = m.GetZAxis();
+        const PblVector3& vPos = m.GetTranslation();
+        bool bAtUp = vAt.y > 0.0f;
 
-        float fWidthDist = mClusterCellWidth * fSecWidth * 0.5f;
-        PblVector3 vWidthStart(vPos[0] + vAt[0] * fWidthDist,
-                               vPos[1] + vAt[1] * fWidthDist,
-                               vPos[2] + vAt[2] * fWidthDist);
-        float fHeightDist = mClusterCellWidth * fSecHeight * 0.5f;
-        PblVector3 vHeightStart(vPos[0] + vAt[0] * fHeightDist,
-                                vPos[1] + vAt[1] * fHeightDist,
-                                vPos[2] + vAt[2] * fHeightDist);
+        PblVector3 vWidthStart = vPos + vAt * (mClusterCellWidth * fSecWidth * 0.5f);
+        PblVector3 vHeightStart = vPos + vAt * (mClusterCellWidth * fSecHeight * 0.5f);
         float fWidthOffset = (fSecWidth - 1.0f) * mClusterCellWidth * 0.5f;
         float fHeightOffset = (fSecHeight - 1.0f) * mClusterCellWidth * 0.5f;
-        bool bAtUp = vAt[1] > 0.0f;
 
-        if ((vUp[1] + vAt[1] * fTanHeight > 0.0f) == bAtUp)
+        if ((vUp.y + vAt.y * fTanHeight > 0.0f) == bAtUp)
         {
             avStart[iNumLines] = vWidthStart;
-            avDir[iNumLines] = PblVector3(vUp[0] * fTanHeight - vAt[0],
-                                          vUp[1] * fTanHeight - vAt[1],
-                                          vUp[2] * fTanHeight - vAt[2]);
-            avSide[iNumLines] = PblVector3(vRight[0], vRight[1], vRight[2]);
+            avDir[iNumLines] = -vAt + vUp * fTanHeight;
+            avSide[iNumLines] = vRight;
             afSlope[iNumLines] = fTanWidth;
             afOffset[iNumLines] = fWidthOffset;
             iNumLines++;
         }
-        if ((vAt[1] * fTanHeight - vUp[1] > 0.0f) == bAtUp)
+        if ((vAt.y * fTanHeight - vUp.y > 0.0f) == bAtUp)
         {
             avStart[iNumLines] = vWidthStart;
-            avDir[iNumLines] = PblVector3(-vAt[0] - vUp[0] * fTanHeight,
-                                          -vAt[1] - vUp[1] * fTanHeight,
-                                          -vAt[2] - vUp[2] * fTanHeight);
-            avSide[iNumLines] = PblVector3(-vRight[0], -vRight[1], -vRight[2]);
+            avDir[iNumLines] = -vAt - vUp * fTanHeight;
+            avSide[iNumLines] = -vRight;
             afSlope[iNumLines] = fTanWidth;
             afOffset[iNumLines] = fWidthOffset;
             iNumLines++;
         }
-        if ((vRight[1] + vAt[1] * fTanWidth > 0.0f) == bAtUp)
+        if ((vRight.y + vAt.y * fTanWidth > 0.0f) == bAtUp)
         {
             avStart[iNumLines] = vHeightStart;
-            avDir[iNumLines] = PblVector3(vRight[0] * fTanWidth - vAt[0],
-                                          vRight[1] * fTanWidth - vAt[1],
-                                          vRight[2] * fTanWidth - vAt[2]);
-            avSide[iNumLines] = PblVector3(-vUp[0], -vUp[1], -vUp[2]);
+            avDir[iNumLines] = -vAt + vRight * fTanWidth;
+            avSide[iNumLines] = -vUp;
             afSlope[iNumLines] = fTanHeight;
             afOffset[iNumLines] = fHeightOffset;
             iNumLines++;
         }
-        if ((vAt[1] * fTanWidth - vRight[1] > 0.0f) == bAtUp)
+        if ((vAt.y * fTanWidth - vRight.y > 0.0f) == bAtUp)
         {
             avStart[iNumLines] = vHeightStart;
-            avDir[iNumLines] = PblVector3(-vAt[0] - vRight[0] * fTanWidth,
-                                          -vAt[1] - vRight[1] * fTanWidth,
-                                          -vAt[2] - vRight[2] * fTanWidth);
-            avSide[iNumLines] = PblVector3(vUp[0], vUp[1], vUp[2]);
+            avDir[iNumLines] = -vAt - vRight * fTanWidth;
+            avSide[iNumLines] = vUp;
             afSlope[iNumLines] = fTanHeight;
             afOffset[iNumLines] = fHeightOffset;
             iNumLines++;
@@ -434,13 +409,13 @@ void PropGenerator::Update()
         avDir[i].y = 0.0f;
         avStart[i].y = 0.0f;
         avSide[i].y = 0.0f;
-        afDirLength[i] = sqrtf(avDir[i].x * avDir[i].x + avDir[i].z * avDir[i].z);
-        afSideLength[i] = sqrtf(avSide[i].x * avSide[i].x + avSide[i].z * avSide[i].z);
+        afDirLength[i] = PblMath::Sqrt(avDir[i].x * avDir[i].x + avDir[i].z * avDir[i].z);
+        afSideLength[i] = PblMath::Sqrt(avSide[i].x * avSide[i].x + avSide[i].z * avSide[i].z);
     }
 
     float fStep = mClusterCellWidth * 0.7071f;
     float fMaxDist;
-    if (pCameraManager->GetNumCameras() > 1)
+    if (CameraManager::Instance()->GetNumCameras() > 1)
     {
         fMaxDist = mClusterCellWidth + 50.0f;
     }
@@ -479,17 +454,18 @@ void PropGenerator::Update()
                     continue;
                 }
 
-                PropCluster* pCluster = mClusterObjectArray[iNextCluster++];
+                int iCellZ = iIndex / mClusterMapWidth;
+                int iCellX = iIndex - iCellZ * mClusterMapWidth;
                 float fHalfMap = (float)mClusterMapWidth * 0.5f;
-                float fCellX = ((float)(iIndex % mClusterMapWidth) - fHalfMap + 0.5f) * mClusterCellWidth;
-                float fCellZ = ((float)(iIndex / mClusterMapWidth) - fHalfMap + 0.5f) * mClusterCellWidth;
+                float fCellX = ((float)iCellX - fHalfMap + 0.5f) * mClusterCellWidth;
+                float fCellZ = ((float)iCellZ - fHalfMap + 0.5f) * mClusterCellWidth;
+                PropCluster* pCluster = mClusterObjectArray[iNextCluster++];
 
                 if (pCluster->mMapIndex != -1)
                 {
-
                     PblVector3 vCellPos(fCellX, 10.0f, -fCellZ);
                     float fNewScore = CalcDistScore_(pCluster, vCellPos, true);
-                    if (CalcDistScore_(pCluster, pCluster->GetRenderPos(), false) < fNewScore)
+                    if (!(fNewScore <= CalcDistScore_(pCluster, pCluster->GetRenderPos(), false)))
                     {
                         continue;
                     }
@@ -524,101 +500,6 @@ namespace TreeLine
 void CreateTreeLine(PblFileChunk& chunk);
 }
 void CreateTreeLineOnPath(unsigned int uPathName, PblFileChunk& chunk);
-
-// FUNCTION: SWBF2 0x0065c890
-void CreateTreeLineOnPath(unsigned int uPathName, PblFileChunk& chunk)
-{
-    EntityClass* aClasses[10];
-    EntityClass* aOtherClasses[5];
-    int iNumClasses = 0;
-    int iNumOtherClasses = 0;
-    float fSpacing = 18.0f;
-    bool bReverse = false;
-    while (chunk.HasMoreChildren())
-    {
-        PblFileChunk child = chunk.ReadNextChild();
-        unsigned int uProperty = child._pFile->Read32();
-        child._pFile->Read8();
-        switch (uProperty)
-        {
-        case 0x6850acc6:
-        {
-            EntityClass* pClass = EntityClass::Find(child._pFile->Read32());
-            if (pClass)
-            {
-                aClasses[iNumClasses++] = pClass;
-            }
-            break;
-        }
-        case 0xef838cc7:
-        {
-            EntityClass* pClass = EntityClass::Find(child._pFile->Read32());
-            if (pClass)
-            {
-                aOtherClasses[iNumOtherClasses++] = pClass;
-            }
-            break;
-        }
-        case 0xbad71c66:
-            bReverse = true;
-            break;
-        case 0x2eb31462:
-            fSpacing = child._pFile->ReadFloat();
-            break;
-        }
-    }
-
-    const RedPath* pPath = RedPath::Find(uPathName);
-    if (!pPath || pPath->GetNumPoints() < 2)
-    {
-        return;
-    }
-
-    PblVector3 vPrevious = pPath->GetPointPosition(0);
-    const float fSpacingSquared = fSpacing * fSpacing;
-    for (int iPoint = 1; iPoint < pPath->GetNumPoints(); ++iPoint)
-    {
-        const PblVector3 vEnd = pPath->GetPointPosition(iPoint);
-        PblVector3 vDelta(vEnd.x - vPrevious.x, vEnd.y - vPrevious.y, vEnd.z - vPrevious.z);
-        while (vDelta.x * vDelta.x + vDelta.y * vDelta.y + vDelta.z * vDelta.z > fSpacingSquared)
-        {
-            const float fInvLength = 1.0f / sqrtf(vDelta.x * vDelta.x + vDelta.y * vDelta.y + vDelta.z * vDelta.z);
-            const PblVector3 vDirection(vDelta.x * fInvLength, vDelta.y * fInvLength, vDelta.z * fInvLength);
-            if (iNumClasses)
-            {
-                const float fSign = bReverse ? -1.0f : 1.0f;
-                const PblVector3 vCenter(vPrevious.x + vDirection.x * fSpacing * 0.5f,
-                                         vPrevious.y + vDirection.y * fSpacing * 0.5f,
-                                         vPrevious.z + vDirection.z * fSpacing * 0.5f);
-                const PblVector3 vForward(-vDirection.z * fSign, 0.0f, vDirection.x * fSign);
-                EntityDesc desc;
-                desc.mMatrix = DirectionMatrix(vForward, PblVector3(0.0f, 1.0f, 0.0f), vCenter);
-                aClasses[PblRandom::_Global.GetInt() % iNumClasses]->Build(desc);
-            }
-            vPrevious.x += vDirection.x * fSpacing;
-            vPrevious.y += vDirection.y * fSpacing;
-            vPrevious.z += vDirection.z * fSpacing;
-            vDelta = PblVector3(vEnd.x - vPrevious.x, vEnd.y - vPrevious.y, vEnd.z - vPrevious.z);
-        }
-    }
-}
-
-// FUNCTION: SWBF2 0x0065cd80
-void TreeLine::CreateTreeLine(PblFileChunk& chunk)
-{
-    while (chunk.HasMoreChildren())
-    {
-        PblFileChunk child = chunk.ReadNextChild();
-        const unsigned int uProperty = child._pFile->Read32();
-        child._pFile->Read8();
-        if (uProperty == 0x84874d36)
-        {
-            const unsigned int uPathName = child._pFile->Read32();
-            PblFileChunk pathChunk = chunk.ReadNextChild();
-            CreateTreeLineOnPath(uPathName, pathChunk);
-        }
-    }
-}
 
 // FUNCTION: SWBF2 0x0062b110
 void PropGenerator::FlushClusterObjects_()
@@ -711,18 +592,23 @@ void PropGenerator::Read(PblFileChunk& chunk)
         const unsigned int uiHash = child._pFile->Read32();
         child._pFile->Read8();
 
-        if (uiHash == 0x07a640f6)
+        switch (uiHash)
         {
-            PropLayer& layer = mPropLayers[(int)child._pFile->ReadFloat()];
-            layer.Clear();
+        case 0x07a640f6:
+        {
+            const int iLayer = (int)child._pFile->ReadFloat();
+            mPropLayers[iLayer].Clear();
             PblFileChunk layerChunk = chunk.ReadNextChild();
-            layer.Read(layerChunk);
+            mPropLayers[iLayer].Read(layerChunk);
             mLoaded = true;
+            break;
         }
-        else if (uiHash == 0x40b06ff7)
+        case 0x40b06ff7:
         {
             PblFileChunk treeLineChunk = chunk.ReadNextChild();
             TreeLine::CreateTreeLine(treeLineChunk);
+            break;
+        }
         }
     }
 
@@ -753,6 +639,7 @@ void PropGenerator::SetupClusters()
         {
             const int iIndex = z * mClusterMapWidth + x;
             mClusterMap[iIndex].Setup(x, z);
+            const int iCellX = x * 2;
 
             for (int iLayer = 0; iLayer < 4; iLayer++)
             {
@@ -761,20 +648,21 @@ void PropGenerator::SetupClusters()
                     continue;
                 }
 
-                SetRandSeed(iIndex + z * 2 + iLayer);
-                PropLayer& layer = mPropLayers[iLayer];
-                for (int cz = z * 2; cz < z * 2 + 2; cz++)
+                SetRandSeed(iLayer + z * 2 + iIndex);
+                int cz = z * 2;
+                for (int nz = 0; nz < 2; nz++, cz++)
                 {
-                    for (int cx = x * 2; cx < x * 2 + 2; cx++)
+                    int cx = iCellX;
+                    for (int nx = 0; nx < 2; nx++, cx++)
                     {
                         if (!((GetLayers(cx, cz) >> iLayer) & 1))
                         {
                             continue;
                         }
 
-                        for (int i = 0; i < layer.mObjectsPerCell; i++)
+                        for (int i = 0; i < mPropLayers[iLayer].mObjectsPerCell; i++)
                         {
-                            layer.CreateCollisionObjects(cx, cz, mLayerMapWidth >> 1, 0.0f);
+                            mPropLayers[iLayer].CreateCollisionObjects(cx, cz, mLayerMapWidth >> 1, 0.0f);
                         }
                     }
                 }
@@ -804,21 +692,24 @@ void PropGenerator::AddObjectsFromClusterIndex(int iClusterIndex, int iLayer, Pb
         return;
     }
 
-    const int x = iClusterIndex % mClusterMapWidth;
     const int z = iClusterIndex / mClusterMapWidth;
-    SetRandSeed(iClusterIndex + z * 2 + iLayer);
-    PropLayer& layer = mPropLayers[iLayer];
-    for (int cz = z * 2; cz < z * 2 + 2; cz++)
+    const int x = iClusterIndex - z * mClusterMapWidth;
+    const int iCellX = x * 2;
+    const int iCellZ = z * 2;
+    SetRandSeed(iClusterIndex + iCellZ + iLayer);
+    int cz = iCellZ;
+    for (int nz = 0; nz < 2; nz++, cz++)
     {
-        for (int cx = x * 2; cx < x * 2 + 2; cx++)
+        int cx = iCellX;
+        for (int nx = 0; nx < 2; nx++, cx++)
         {
             if (!((GetLayers(cx, cz) >> iLayer) & 1))
             {
                 continue;
             }
-            for (int i = 0; i < layer.mObjectsPerCell; i++)
+            for (int i = 0; i < mPropLayers[iLayer].mObjectsPerCell; i++)
             {
-                PropObject* pObject = layer.CreateObject(cx, cz, mLayerMapWidth >> 1, 0.0f);
+                PropObject* pObject = mPropLayers[iLayer].CreateObject(cx, cz, mLayerMapWidth >> 1, 0.0f);
                 if (pObject)
                 {
                     objects.AddLast(&pObject->mNode, pObject);
@@ -831,12 +722,14 @@ void PropGenerator::AddObjectsFromClusterIndex(int iClusterIndex, int iLayer, Pb
 // FUNCTION: SWBF2 0x0062b5d0
 void PropClusterInfo::Setup(int x, int z)
 {
+    const int iBaseX = x * 2;
+    const int iBaseZ = z * 2;
     mLayerInfo = 0;
     for (int i = 0; i < 2; i++)
     {
         for (int j = 0; j < 2; j++)
         {
-            mLayerInfo |= PropGenerator::GetLayers(x * 2 + i, z * 2 + j);
+            mLayerInfo |= PropGenerator::GetLayers(iBaseX + i, iBaseZ + j);
         }
     }
     mOwner = mLayerInfo ? 0 : 0xff;
@@ -878,17 +771,13 @@ const PropObject* PropGenerator::FindPropObject(const PblVector3& vPos, bool bPa
         {
             continue;
         }
-        const PblVector3& vCenter = pCluster->GetRenderPos();
-        float dx = vPos.x - vCenter.x;
-        float dy = vPos.y - vCenter.y;
-        float dz = vPos.z - vCenter.z;
-        if (dx * dx + dy * dy + dz * dz < 900.0f)
+        if (SquaredLength(vPos - pCluster->GetRenderPos()) < 900.0f)
         {
             const PropObjectMesh* pObject =
                 static_cast<const PropObjectMesh*>(pCluster->FindPropObject(vPos, bParam));
             if (pObject)
             {
-                float fVis = pObject->mModel->mAIVisFactorCrouch + pObject->mModel->mAIVisFactorStand;
+                float fVis = pObject->mModel->mAIVisFactorStand + pObject->mModel->mAIVisFactorCrouch;
                 if (fVis < fBestVis)
                 {
                     fBestVis = fVis;

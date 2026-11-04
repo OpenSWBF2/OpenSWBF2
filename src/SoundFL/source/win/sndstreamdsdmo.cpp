@@ -45,19 +45,18 @@ bool StreamDSDMO::CreateDMO(const _GUID& rCLSID, const StreamFormat& rIn,
 
     if (mDMO.Create(rCLSID, &rIn, &rOut))
     {
-        unsigned long ulSize = 0;
-        unsigned long ulMaxLookahead = 0;
-        unsigned long ulAlignment = 0;
+        unsigned long ulSize;
+        unsigned long ulMaxLookahead;
+        unsigned long ulAlignment;
 
-        if (Engine::Succeeded(mDMO.GetMediaObject()->GetInputSizeInfo(
-                                  0, &ulSize, &ulMaxLookahead, &ulAlignment),
-                              kFile, 58))
+        const HRESULT hr = mDMO.GetMediaObject()->GetInputSizeInfo(
+            0, &ulSize, &ulMaxLookahead, &ulAlignment);
+        if (Engine::Succeeded(hr, kFile, 58))
         {
             const unsigned int uiInputFrameSize =
                 SampleInfo::GetFrameSize(rIn.GetFormat()) * rIn.GetNumChannels();
             mInputFrameSize = uiInputFrameSize;
 
-            unsigned int uiMinSize = ulSize;
             for (unsigned int i = 0; i < 9; ++i)
             {
                 if (rCLSID.Data1 != kStandardEffects[i]->Data1)
@@ -71,14 +70,14 @@ bool StreamDSDMO::CreateDMO(const _GUID& rCLSID, const StreamFormat& rIn,
                 const unsigned int uiRounded =
                     ((uiLatencyBytes - 1 + uiInputFrameSize) / uiInputFrameSize)
                     * uiInputFrameSize;
-                if (uiMinSize < uiRounded)
+                if (ulSize < uiRounded)
                 {
-                    uiMinSize = uiRounded;
+                    ulSize = uiRounded;
                 }
                 break;
             }
 
-            mMinSize = uiMinSize;
+            mMinSize = ulSize;
             mAlignment = ulAlignment;
             mAudioFrameSize =
                 SampleInfo::GetFrameSize(rOut.GetFormat()) * rOut.GetNumChannels();
@@ -154,8 +153,6 @@ void StreamDSDMO::Update()
             StreamNodeSource* const pInputNode = StreamNodeSink::mConnection.mInputNode;
             if (pInputNode != 0)
             {
-                typedef StreamPacket* (__thiscall* GetPacketFn)(
-                    StreamNodeSource* pThis, unsigned int uiOutput);
                 pInPacket = pInputNode->GetPacket(StreamNodeSink::mConnection.mInputNodeOutputIndex);
             }
             else
@@ -195,13 +192,7 @@ void StreamDSDMO::Update()
             const bool bLastPacket = (pInPacket->mFlags & 1) != 0;
             const bool bDiscontinuity = ((pInPacket->mFlags >> 1) & 1) != 0;
 
-            if (pBuffer == 0)
-            {
-
-                pDeliver = pInPacket->mBuffer;
-                uiDeliverSize = pInPacket->mBufferUsed;
-            }
-            else
+            if (pBuffer != 0)
             {
                 if (mBuffer.GetDataLeft() != 0)
                 {
@@ -243,6 +234,12 @@ void StreamDSDMO::Update()
                     pDeliver = pBuffer;
                     uiDeliverSize = uiOffset;
                 }
+            }
+            else
+            {
+
+                pDeliver = pInPacket->mBuffer;
+                uiDeliverSize = pInPacket->mBufferUsed;
             }
 
             if (bLastPacket)
@@ -316,8 +313,8 @@ void StreamDSDMO::Update()
 
             const unsigned int uiFrames = uiBytes / mAudioFrameSize;
 
-            bool bFlagBit0 = false;
-            bool bFlagBit1 = false;
+            bool bFlagBit0;
+            bool bFlagBit1;
             if (bMarkerDelivered)
             {
 
@@ -326,11 +323,16 @@ void StreamDSDMO::Update()
                 bFlagBit0 = (ucFlags & 1) != 0;
                 bFlagBit1 = ((ucFlags >> 1) & 1) != 0;
             }
+            else
+            {
+                bFlagBit0 = false;
+                bFlagBit1 = false;
+            }
 
             PacketComplete(pOutPacket, uiBytes, uiFrames, bFlagBit0, bFlagBit1,
                            uiPos);
 
-            StreamNode::mPlaybackPosition = uiPos + uiFrames;
+            StreamNode::mPlaybackPosition = uiFrames + uiPos;
             pOutputIO->Reset();
         }
 
@@ -389,33 +391,14 @@ void StreamDSDMO::SetInputBuffer(void* pBuffer, unsigned int uiSize)
     mBuffer.Reset();
     StreamSourceProducer::Flush();
 
-    const unsigned int uiRequested = uiSize;
-
     mFlags = 0;
 
     if (pBuffer != 0 && uiSize != 0)
     {
-
-        unsigned int uiAlignment = mAlignment;
-        if (uiAlignment == 0)
-        {
-            uiAlignment = 1;
-        }
-        mAlignment = uiAlignment;
+        mAlignment = mAlignment ? mAlignment : 1;
     }
 
-    const unsigned int uiFrameSize = mInputFrameSize;
-    if (uiFrameSize != 0)
-    {
-
-        mBuffer.SetBuffer(pBuffer,
-                          (uiRequested / uiFrameSize) * uiFrameSize);
-    }
-    else
-    {
-
-        mBuffer.SetBuffer(pBuffer, 0);
-    }
+    mBuffer.SetBuffer(pBuffer, mInputFrameSize ? (uiSize / mInputFrameSize) * mInputFrameSize : 0);
 }
 
 }

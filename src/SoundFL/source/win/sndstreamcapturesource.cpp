@@ -180,20 +180,19 @@ bool StreamCaptureSource::Open(unsigned char ucDeviceIndex,
 {
     mLock.Wait();
 
-    const unsigned int uiIndex = ucDeviceIndex;
-
     GUID cGuidDevice;
-    if (uiIndex == 0xFE)
+    switch (ucDeviceIndex)
     {
+    case 0xFE:
         cGuidDevice = kDSDevIdDefaultCapture;
-    }
-    else if (uiIndex == 0xFF)
-    {
-        cGuidDevice = kDSDevIdDefaultVoiceCapture;
-    }
-    else
-    {
+        break;
 
+    case 0xFF:
+        cGuidDevice = kDSDevIdDefaultVoiceCapture;
+        break;
+
+    default:
+    {
         DSDeviceEnumerator cEnumerator;
 
         if (!cEnumerator.Enumerate(DSDeviceEnumerator::type_Capture, false))
@@ -202,13 +201,13 @@ bool StreamCaptureSource::Open(unsigned char ucDeviceIndex,
             return false;
         }
 
-        cGuidDevice = cEnumerator.GetDeviceIDByIndex(uiIndex);
+        cGuidDevice = cEnumerator.GetDeviceIDByIndex(ucDeviceIndex);
+        break;
+    }
     }
 
-    if (Engine::Failed(DirectSoundCaptureCreate8(
-                           &cGuidDevice,
-                           &mCaptureDevice, 0),
-                       kFile, 112))
+    HRESULT hr = DirectSoundCaptureCreate8(&cGuidDevice, &mCaptureDevice, 0);
+    if (Engine::Failed(hr, kFile, 112))
     {
         mLock.Signal();
         return false;
@@ -226,19 +225,13 @@ bool StreamCaptureSource::Open(unsigned char ucDeviceIndex,
     cDesc.dwFlags = DSCBCAPS_WAVEMAPPED;
     cDesc.dwBufferBytes = mCaptureBufferSize;
     cDesc.lpwfxFormat = &cWaveFormat.Format;
-    cDesc.dwFXCount = 0;
-    cDesc.lpDSCFXDesc = 0;
 
-    IDirectSoundCapture8* const pDevice =
-        mCaptureDevice;
-
-    if (Engine::Failed(pDevice->CreateCaptureBuffer(
-                           &cDesc,
-                           (IDirectSoundCaptureBuffer**)&mCaptureBuffer, 0),
-                       kFile, 133))
+    hr = mCaptureDevice->CreateCaptureBuffer(
+        &cDesc, (IDirectSoundCaptureBuffer**)&mCaptureBuffer, 0);
+    if (Engine::Failed(hr, kFile, 133))
     {
 
-        pDevice->Release();
+        mCaptureDevice->Release();
         mLock.Signal();
         return false;
     }
@@ -247,7 +240,7 @@ bool StreamCaptureSource::Open(unsigned char ucDeviceIndex,
         SampleInfo::GetFrameSize(cFormat.GetFormat())
         * cFormat.GetNumChannels();
 
-    StreamCaptureSourceBase::Open((unsigned char)uiIndex, cFormat,
+    StreamCaptureSourceBase::Open(ucDeviceIndex, cFormat,
                                   uiPacketSize, ucNumPackets, pPackets);
 
     Flush(true);
@@ -309,19 +302,16 @@ void StreamCaptureSource::UpdateObject()
             || eState == SourceTransport::playState_paused
             || eState == SourceTransport::playState_pausing)
         {
-            const unsigned int uiPacketSize = mPacketSize;
-            
-
             bool bContinue = true;
 
-            for (;;)
+            do
             {
 
                 StreamPacket* const pPacket =
                     mPackets
                     + mReadPacketIndex;
 
-                if (pPacket->mRefCount != 0)
+                if (pPacket->mRefCount > 0)
                 {
                     break;
                 }
@@ -385,7 +375,7 @@ void StreamCaptureSource::UpdateObject()
                 unsigned int uiChunk = uiAvailable;
                 {
                     const unsigned int uiDataLeft =
-                        mOutputPacket.GetDataLeft(uiPacketSize);
+                        mOutputPacket.GetDataLeft(mPacketSize);
                     if (uiChunk > uiDataLeft)
                     {
                         uiChunk = uiDataLeft;
@@ -414,24 +404,24 @@ void StreamCaptureSource::UpdateObject()
                     if (dwAudio1 != 0)
                     {
                         memcpy(mOutputPacket.GetData(pPacket), pvAudio1, dwAudio1);
-                        mOutputPacket.UpdateOffset(uiPacketSize, dwAudio1);
+                        mOutputPacket.UpdateOffset(mPacketSize, dwAudio1);
                     }
 
                     if (dwAudio2 != 0)
                     {
                         memcpy(mOutputPacket.GetData(pPacket), pvAudio2, dwAudio2);
-                        mOutputPacket.UpdateOffset(uiPacketSize, dwAudio2);
+                        mOutputPacket.UpdateOffset(mPacketSize, dwAudio2);
                     }
 
                     mCaptureBuffer->Unlock(pvAudio1, dwAudio1,
                                     pvAudio2, dwAudio2);
 
-                    if (mOutputPacket.GetDataLeft(uiPacketSize) == 0)
+                    if (mOutputPacket.GetDataLeft(mPacketSize) == 0)
                     {
                         const unsigned int uiPos =
                             mPlaybackPosition;
 
-                        pPacket->mBufferUsed = uiPacketSize;
+                        pPacket->mBufferUsed = mPacketSize;
                         pPacket->mFlags = (unsigned short)
                             (pPacket->mFlags & 0xFFFCu);
                         pPacket->mPos = uiPos;
@@ -439,7 +429,7 @@ void StreamCaptureSource::UpdateObject()
 
                         mPlaybackPosition =
                             uiPos
-                            + uiPacketSize / mFrameSize;
+                            + mPacketSize / mFrameSize;
 
                         ++mReadPacketIndex;
                         if (mReadPacketIndex
@@ -449,12 +439,7 @@ void StreamCaptureSource::UpdateObject()
                         }
                     }
                 }
-
-                if (!bContinue)
-                {
-                    break;
-                }
-            }
+            } while (bContinue);
         }
     }
 

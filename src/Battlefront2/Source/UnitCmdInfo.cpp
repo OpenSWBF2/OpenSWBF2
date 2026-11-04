@@ -45,7 +45,7 @@ UnitCombatInfo::UnitCombatInfo(State eState, PblHandle<const GameObject> who)
     : UnitCmdInfo(CMD_COMBAT, 0, PblVector3(0, 0, 0), 0)
 {
     SetState(eState);
-    mWho = const_cast<GameObject*>(static_cast<const GameObject*>(who));
+    mWho = PblHandle<GameObject>(const_cast<GameObject*>(static_cast<const GameObject*>(who)));
 }
 
 // FUNCTION: SWBF2 0x006627d0
@@ -166,11 +166,7 @@ UnitGoalAgentInfo::UnitGoalAgentInfo(UnitControllerCommand eCmd, const FlagItem*
 // FUNCTION: SWBF2 0x00662d10
 const PblVector3 UnitGoalAgentInfo::GetPos() const
 {
-    if (mParam == 1 || mParam == 4)
-    {
-        return mPos;
-    }
-    return PblVector3(0.0f, 0.0f, 0.0f);
+    return (mParam == AI::GTT_POS || mParam == AI::GTT_FLAG) ? mPos : PblVector3(0.0f, 0.0f, 0.0f);
 }
 
 // FUNCTION: SWBF2 0x00662d70

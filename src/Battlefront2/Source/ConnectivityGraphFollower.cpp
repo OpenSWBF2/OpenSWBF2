@@ -12,7 +12,7 @@
 
 // GLOBAL: SWBF2 0x01eb9750
 // ConnectivityGraphFollower::sMemoryPool
-MemoryPool ConnectivityGraphFollower::sMemoryPool("ConnectivityGraphFollower", 0x3c);
+MemoryPool ConnectivityGraphFollower::sMemoryPool("ConnectivityGraphFollower", sizeof(ConnectivityGraphFollower));
 
 static inline float DistSq(const PblVector3& a, const PblVector3& b)
 {
@@ -21,9 +21,13 @@ static inline float DistSq(const PblVector3& a, const PblVector3& b)
 
 // FUNCTION: SWBF2 0x00482020
 ConnectivityGraphFollower::ConnectivityGraphFollower(UnitController* pCtrl)
-    : mGraph(0), mType(0), mCtrl(pCtrl), mDestNode(0), mUseDest2ForWeights(false),
-      mDestPos(0.0f, 0.0f, 0.0f)
 {
+    mCtrl = pCtrl;
+    mDestPos = PblVector3(0.0f, 0.0f, 0.0f);
+    mUseDest2ForWeights = false;
+    mGraph = 0;
+    mDestNode = 0;
+    mType = 0;
 }
 
 // FUNCTION: SWBF2 0x00482070
@@ -89,14 +93,21 @@ bool ConnectivityGraphFollower::SetDestination(const ConnectivityGraph* pGraph,
         }
         else
         {
-            mDestNode = DistSq(pToArc->n1->GetCenter(), vTo) < DistSq(pToArc->n2->GetCenter(), vTo)
-                            ? pToArc->n1
-                            : pToArc->n2;
+            const PblVector3 vDiffA = pToArc->n1->GetCenter() - vTo;
+            const PblVector3 vDiffB = pToArc->n2->GetCenter() - vTo;
+            if (SquaredLength(vDiffA) < SquaredLength(vDiffB))
+            {
+                mDestNode = pToArc->n1;
+            }
+            else
+            {
+                mDestNode = pToArc->n2;
+            }
         }
         mDestNode2 = mDestNode == pToArc->n1 ? pToArc->n2 : pToArc->n1;
         mUseDest2ForWeights = pArc1 && pArc2
-                              && DistSq(mDestNode->GetCenter(), mDestPos)
-                                     > DistSq(mDestNode2->GetCenter(), mDestPos);
+                              && SquaredLength(mDestNode2->GetCenter() - mDestPos)
+                                     < SquaredLength(mDestNode->GetCenter() - mDestPos);
         return GotoNextLeg();
     }
 
@@ -123,10 +134,16 @@ bool ConnectivityGraphFollower::SetDestination(const ConnectivityGraph* pGraph,
         }
         else
         {
-            mCurDestNode = DistSq(pFromArc->n2->GetCenter(), vFrom)
-                                   > DistSq(pFromArc->n1->GetCenter(), vFrom)
-                               ? pFromArc->n2
-                               : pFromArc->n1;
+            const PblVector3 vDiffA = pFromArc->n1->GetCenter() - vFrom;
+            const PblVector3 vDiffB = pFromArc->n2->GetCenter() - vFrom;
+            if (SquaredLength(vDiffA) < SquaredLength(vDiffB))
+            {
+                mCurDestNode = pFromArc->n2;
+            }
+            else
+            {
+                mCurDestNode = pFromArc->n1;
+            }
             mCurArc = const_cast<ConnectivityArc*>(
                 mCurDestNode->GetRandomArc(pFromArc, *pGraph, eType));
         }
@@ -180,10 +197,16 @@ bool ConnectivityGraphFollower::SetDestination(const ConnectivityGraph* pGraph,
         }
         else
         {
-            mCurDestNode = DistSq(pFromArc->n2->GetCenter(), vFrom)
-                                   > DistSq(pFromArc->n1->GetCenter(), vFrom)
-                               ? pFromArc->n2
-                               : pFromArc->n1;
+            const PblVector3 vDiffA = pFromArc->n1->GetCenter() - vFrom;
+            const PblVector3 vDiffB = pFromArc->n2->GetCenter() - vFrom;
+            if (SquaredLength(vDiffA) < SquaredLength(vDiffB))
+            {
+                mCurDestNode = pFromArc->n2;
+            }
+            else
+            {
+                mCurDestNode = pFromArc->n1;
+            }
         }
         mCurArc = const_cast<ConnectivityArc*>(
             mCurDestNode->GetRandomArc(pFromArc, *mGraph, eType));
@@ -202,16 +225,23 @@ bool ConnectivityGraphFollower::SetDestination(const ConnectivityGraph* pGraph,
     }
     else
     {
-        mDestNode = DistSq(pToArc->n1->GetCenter(), vTo) < DistSq(pToArc->n2->GetCenter(), vTo)
-                        ? pToArc->n1
-                        : pToArc->n2;
+        const PblVector3 vDiffA = pToArc->n1->GetCenter() - vTo;
+        const PblVector3 vDiffB = pToArc->n2->GetCenter() - vTo;
+        if (SquaredLength(vDiffA) < SquaredLength(vDiffB))
+        {
+            mDestNode = pToArc->n1;
+        }
+        else
+        {
+            mDestNode = pToArc->n2;
+        }
     }
     mDestNode2 = mDestNode == pToArc->n1 ? pToArc->n2 : pToArc->n1;
     mUseDest2ForWeights =
         pArc1 && pArc2
-        && DistSq(mDestNode->GetCenter(), mDestPos) > DistSq(mDestNode2->GetCenter(), mDestPos);
+        && SquaredLength(mDestNode2->GetCenter() - mDestPos) < SquaredLength(mDestNode->GetCenter() - mDestPos);
     mCurArc = const_cast<ConnectivityArc*>(pFromArc);
-    mCurDestNode = const_cast<ConnectivityNode*>(pOther);
+    mCurDestNode = mCurDestNode == pFromArc->n1 ? pFromArc->n2 : pFromArc->n1;
     mCurDestPos = mCurDestNode->GetRandomPointInside(ConnectivityGraphFollower::GetNodeBufferRadius(mCtrl));
     return true;
 }
@@ -255,12 +285,11 @@ bool ConnectivityGraphFollower::GotoNextLeg()
 // FUNCTION: SWBF2 0x004828b0
 bool ConnectivityGraphFollower::CanGetNewRandomPoint() const
 {
-    const ConnectivityGraphFollower* pFollower = (const ConnectivityGraphFollower*)this;
-    if (pFollower->mCurDestNode == pFollower->mDestNode && pFollower->mDestClassification == 1)
+    if (mCurDestNode == mDestNode && mDestClassification == 1)
     {
         return false;
     }
-    return pFollower->mCurDestNode != 0;
+    return mCurDestNode ? true : false;
 }
 
 // FUNCTION: SWBF2 0x004828d0

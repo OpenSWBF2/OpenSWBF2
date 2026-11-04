@@ -110,9 +110,7 @@ void ParticleSpawner::SetupParticle(Particle& particle, const PblMatrix& mat, un
     particle.mVelocity = v;
 
     const float fInherit = mInheritVelocityFactor.GetValue(rand) + fInheritVelocity;
-    particle.mVelocity.x += vVelocity.x * fInherit;
-    particle.mVelocity.y += vVelocity.y * fInherit;
-    particle.mVelocity.z += vVelocity.z * fInherit;
+    particle.mVelocity += vVelocity * fInherit;
     particle.mSize[0] *= fSize;
     particle.mUseHSV = mUseHSV;
     particle.mLifeTime = fAge;
@@ -149,13 +147,9 @@ void ParticleSpawner::SetupLocalParticle(Particle& particle, PblRandom& rand, in
     PblVector3 vOffset;
     SetupSpread(vOffset, mOffset, rand);
     const float fPositionScale = mPositionDirectionScale.GetValue(rand);
-    particle.mPosition.x = vOffset.x + fPositionScale * vDir.x;
-    particle.mPosition.y = vOffset.y + vDir.y * fPositionScale;
-    particle.mPosition.z = vOffset.z + vDir.z * fPositionScale;
+    particle.mPosition = vOffset + vDir * fPositionScale;
     const float fVelocityScale = mVelocityDirectionScale.GetValue(rand);
-    particle.mVelocity.x = fVelocityScale * vDir.x;
-    particle.mVelocity.y = vDir.y * fVelocityScale;
-    particle.mVelocity.z = vDir.z * fVelocityScale;
+    particle.mVelocity = vDir * fVelocityScale;
     particle.mSize[0] = mSize[0].GetValue(rand);
     particle.mColor[0].r = mRed[0].GetValue(rand);
     particle.mColor[0].g = mGreen[0].GetValue(rand);

@@ -25,25 +25,6 @@
 #include <float.h>
 float GetDefaultFOV();
 
-// FUNCTION: SWBF2 0x004b3dd0
-CameraTrackSetting* EntityFlyer::GetCameraTrackSettings()
-{
-    return &mClass->mCameraSettings;
-}
-
-// FUNCTION: SWBF2 0x004b5f00
-void EntityFlyer::SetupCameraZoomFactor(float& rZoom)
-{
-    rZoom = 1.0f;
-    if (mTargetInfo.mIsAiming && mWeaponIndex[0] >= 0 &&
-        mWeapon[mWeaponIndex[0]])
-    {
-        rZoom = mWeapon[mWeaponIndex[0]]->mZoomTurnScale;
-    }
-}
-
-
-
 // SYNTHETIC: SWBF2 0x00496ea0
 // EntityCarrier::`scalar deleting destructor'
 // SYNTHETIC: SWBF2 0x00497941
@@ -85,9 +66,7 @@ EntityCarrier::EntityCarrier(EntityCarrierClass* pClass, const EntityDesc& desc)
 {
     memset(mCargoArray, 0, sizeof(mCargoArray));
     mCargoCount = pClass->mCargoCount;
-    static_cast<VehicleEngine*>(this)->TurnOn(
-        mClass ? static_cast<VehicleEngineClass*>(mClass) : 0,
-        mCollisionSphere.GetCenter(), mVelocity, 1.0f);
+    VehicleEngine::TurnOn(GetClass(), mMatrix.GetTranslation(), mVelocity, 1.0f);
 }
 
 // SYNTHETIC: SWBF2 0x00497957
@@ -166,16 +145,21 @@ namespace
 // FUNCTION: SWBF2 0x00477720
 void EntityFlyer::SetPosition(const PblVector3& vPos)
 {
-    PblMatrix& matrix = mMatrix;
-    matrix.SetTranslation(vPos);
-    EntityFlyerUpdateCollisionSphere(this);
+    mMatrix.SetTranslation(vPos);
+    PblVector3 center;
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&center), reinterpret_cast<const D3DXVECTOR3*>(&mModel->_mModel->_BoundingSphere.GetCenter()), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
+    SetCollisionCenter(center);
+    RecalculateAABB();
 }
 
 // FUNCTION: SWBF2 0x004777c0
 void EntityFlyer::SetMatrix(const PblMatrix& mMatrix)
 {
     this->mMatrix = mMatrix;
-    EntityFlyerUpdateCollisionSphere(this);
+    PblVector3 center;
+    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&center), reinterpret_cast<const D3DXVECTOR3*>(&mModel->_mModel->_BoundingSphere.GetCenter()), reinterpret_cast<const D3DXMATRIX*>(&this->mMatrix));
+    SetCollisionCenter(center);
+    RecalculateAABB();
 }
 
 
@@ -183,7 +167,7 @@ void EntityFlyer::SetMatrix(const PblMatrix& mMatrix)
 // FUNCTION: SWBF2 0x004778d0
 Trackable* EntityFlyer::GetTrackable()
 {
-    return this ? static_cast<Trackable*>(static_cast<Controllable*>(this)) : 0;
+    return this;
 }
 
 // FUNCTION: SWBF2 0x004779a0
@@ -253,7 +237,7 @@ const char EntityCarrier::rttiNameEntityCarrier[] = "EntityCarrier";
 
 // GLOBAL: SWBF2 0x01ebb8f0
 // EntityCarrier::sMemoryPool
-MemoryPool EntityCarrier::sMemoryPool("EntityCarrier", 0x1df0);
+MemoryPool EntityCarrier::sMemoryPool("EntityCarrier", sizeof(EntityCarrier));
 
 
 
@@ -281,71 +265,44 @@ const char EntityCarrierClass::rttiNameEntityCarrierClass[] = "EntityCarrierClas
 // FUNCTION: SWBF2 0x00497300
 bool EntityCarrier::AttachCargo(int, GameObject* pGameObject)
 {
-
-    if (mCargoArray[0].mObject.mObject)
+    if (mCargoArray[0].mObject)
     {
-        if (PBL_HANDLE_ID(mCargoArray[0].mObject.mObject) != mCargoArray[0].mObject.mSavedHandleId)
-        {
-            mCargoArray[0].mObject.mObject = 0;
-            mCargoArray[0].mObject.mSavedHandleId = 0;
-        }
-        else
-        {
-            return false;
-        }
+        return false;
     }
 
     EntityCarrierClass* pClass = GetClass();
-    const PblVector3* pOffset = &pGameObject->GetAttachOffset();
-
-    mCargoArray[0].mOffset.x = pClass->mCargoInfo[0].mOffset.x - pOffset->x;
-    mCargoArray[0].mOffset.y = pClass->mCargoInfo[0].mOffset.y - pOffset->y;
-    mCargoArray[0].mOffset.z = pClass->mCargoInfo[0].mOffset.z - pOffset->z;
-    mCargoArray[0].mObject.mObject = (GameObject*)pGameObject;
-    mCargoArray[0].mObject.mSavedHandleId = ((GameObject*)pGameObject)->mHandleId;
-
-    static_cast<CollisionObject*>(pGameObject)->mParent = static_cast<CollisionObject*>(this);
+    mCargoArray[0].mOffset = pClass->mCargoInfo[0].mOffset - pGameObject->GetAttachOffset();
+    mCargoArray[0].mObject = pGameObject;
+    mCargoArray[0].mObject->mParent = static_cast<CollisionObject*>(this);
 
     UpdateLandedHeight();
 
-    const PblVector3& vVelocity = GetVelocity();
-    GetClass()->mSoundCargoPickup.Play(&mMatrix.GetTranslation(), &vVelocity, true, true);
+    GetClass()->mSoundCargoPickup.Play(&mMatrix.GetTranslation(), &GetVelocity(), true, true);
     return true;
 }
 
 // FUNCTION: SWBF2 0x00497410
 bool EntityCarrier::DetachCargo(int iSlot)
 {
-
-    EntityCarrier::CargoSlot* pSlot = &mCargoArray[iSlot];
-    if (!pSlot->mObject.mObject)
+    if (!mCargoArray[iSlot].mObject)
     {
         return false;
     }
 
-    if (PBL_HANDLE_ID(pSlot->mObject.mObject) != pSlot->mObject.mSavedHandleId)
-    {
-        pSlot->mObject.mObject = 0;
-        pSlot->mObject.mSavedHandleId = 0;
-        return false;
-    }
-
-    static_cast<CollisionObject*>(pSlot->mObject.mObject)->mParent = 0;
-    pSlot->mObject.mObject = 0;
-    pSlot->mObject.mSavedHandleId = 0;
+    mCargoArray[iSlot].mObject->mParent = 0;
+    mCargoArray[iSlot].mObject = 0;
 
     UpdateLandedHeight();
 
-    const PblVector3& vVelocity = GetVelocity();
-    GetClass()->mSoundCargoDropoff.Play(&mMatrix.GetTranslation(), &vVelocity, true, true);
+    const PblVector3* pVelocity = &GetVelocity();
+    GetClass()->mSoundCargoDropoff.Play(&mMatrix.GetTranslation(), pVelocity, true, true);
     return true;
 }
 
 // FUNCTION: SWBF2 0x004974b0
 void EntityCarrier::UpdateLandedHeight()
 {
-    float& fLandedHeight = mLandedHeight;
-    fLandedHeight = GetClass()->mLandedHeight;
+    mLandedHeight = GetClass()->mLandedHeight;
 
     for (int i = 0; i < mCargoCount; ++i)
     {
@@ -355,28 +312,27 @@ void EntityCarrier::UpdateLandedHeight()
             continue;
         }
 
-        if (PBL_HANDLE_ID(pSlot->mObject.mObject) != pSlot->mObject.mSavedHandleId)
+        if (pSlot->mObject.mObject->mHandleId == pSlot->mObject.mSavedHandleId)
+        {
+            const GameModel* pModel = pSlot->mObject.mObject->GetModel();
+            if (pModel)
+            {
+                float fCandidate = -pSlot->mOffset.y - pModel->_mModel->_TotalBoundingBox._vMin.y;
+                mLandedHeight = mLandedHeight > fCandidate ? mLandedHeight : fCandidate;
+            }
+        }
+        else
         {
             pSlot->mObject.mObject = 0;
             pSlot->mObject.mSavedHandleId = 0;
-            continue;
         }
-
-        const GameModel* pModel = pSlot->mObject.mObject->GetModel();
-        if (!pModel)
-        {
-            continue;
-        }
-
-        float fCandidate = -pSlot->mOffset.y - pModel->_mModel->_TotalBoundingBox._vMin.y;
-        fLandedHeight = fLandedHeight > fCandidate ? fLandedHeight : fCandidate;
     }
 }
 
 // FUNCTION: SWBF2 0x00497560
 void EntityCarrier::ActivatePhysics()
 {
-    static_cast<Controllable*>(this)->ActivateThread(-1, PER_TURN);
+    ActivateThread(-1, PER_TURN);
 }
 
 // FUNCTION: SWBF2 0x00497580
@@ -420,28 +376,13 @@ EntityCarrierClass::EntityCarrierClass(EntityCarrierClass* pSrc, unsigned int uH
 // FUNCTION: SWBF2 0x004976b0
 void EntityCarrierClass::SetProperty(unsigned int uProperty, const char* pszValue)
 {
-    if (uProperty > 0x8897DB28u)
+    switch (uProperty)
     {
-        if (uProperty != 0x910A89FCu)
-        {
-            EntityFlyerClass::SetProperty(uProperty, pszValue);
-            return;
-        }
+    case 0x759C8F54u:
+        mSoundCargoPickup.SetID(pszValue, true, false);
+        break;
 
-        float x, y, z;
-        sscanf(pszValue, "%f %f %f", &x, &y, &z);
-        mCargoInfo[mCargoCount].mHash = 0;
-        mCargoInfo[mCargoCount].mOffset.x = x;
-        mCargoInfo[mCargoCount].mOffset.y = y;
-        mCargoInfo[mCargoCount].mOffset.z = z;
-        ++mCargoCount;
-    }
-    else if (uProperty == 0x8897DB28u)
-    {
-        mSoundCargoDropoff.SetID(pszValue, true, false);
-    }
-    else if (uProperty == 0x3E2C4DA4u)
-    {
+    case 0x3E2C4DA4u:
         mCargoInfo[mCargoCount].mHash = PblTEMPHash(pszValue);
 
         if (mModel)
@@ -449,7 +390,7 @@ void EntityCarrierClass::SetProperty(unsigned int uProperty, const char* pszValu
             const RedSkeleton* pSkeleton = mModel->GetRedModel(0)->GetSkeleton();
             if (pSkeleton)
             {
-                for (unsigned int i = 0; i < 128; ++i)
+                for (int i = 0; i < 128; ++i)
                 {
                     if (pSkeleton->GetBoneNameHash(i) == mCargoInfo[mCargoCount].mHash)
                     {
@@ -462,14 +403,28 @@ void EntityCarrierClass::SetProperty(unsigned int uProperty, const char* pszValu
                 }
             }
         }
-    }
-    else if (uProperty == 0x759C8F54u)
-    {
-        mSoundCargoPickup.SetID(pszValue, true, false);
-    }
-    else
-    {
+        break;
+
+    case 0x8897DB28u:
+        mSoundCargoDropoff.SetID(pszValue, true, false);
+        break;
+
+    default:
         EntityFlyerClass::SetProperty(uProperty, pszValue);
+        break;
+
+    case 0x910A89FCu:
+    {
+        float x, y, z;
+        sscanf(pszValue, "%f %f %f", &x, &y, &z);
+        mCargoInfo[mCargoCount].mHash = 0;
+        PblVector3& vOffset = mCargoInfo[mCargoCount].mOffset;
+        vOffset.x = x;
+        vOffset.y = y;
+        vOffset.z = z;
+        ++mCargoCount;
+        break;
+    }
     }
 }
 
@@ -512,225 +467,4 @@ namespace FLRenderer
 {
 unsigned int GetViewportCount();
 }
-
-// FUNCTION: SWBF2 0x004b5010
-void EntityFlyer::SetupCameraTrackMatrix(PblMatrix& rMatrix, float fDeltaTime)
-{
-    if (mClass->IsGuidedMissile() &&
-        (!mPilot || mEnergyBar.GetEnergy() <= 0.0f || mCrashTimer != 0.0f))
-    {
-        int iJoystick = GetJoystickIndex();
-        if (iJoystick >= 0)
-        {
-            ChaseCamera* pCamera = CameraManager::sInstance->mChaseCamera[iJoystick];
-            if (pCamera)
-            {
-                pCamera->ClearShake();
-            }
-        }
-        PblVector3 vCamera = rMatrix.GetTranslation();
-        const PblMatrix& mBody = GetMatrix();
-        PblVector3 vBack(-mBody.m[2][0], -mBody.m[2][1], -mBody.m[2][2]);
-        const PblVector3& vCenter = GetCollisionCenter();
-        PblVector3 vOffset(vCamera.x - vCenter.x, vCamera.y - vCenter.y, vCamera.z - vCenter.z);
-        if (vOffset.y * vBack.y + vOffset.x * vBack.x + vOffset.z * vBack.z -
-                mClass->mGuidedMissileDeathCamMinDistance < 0.0f)
-        {
-            float fPullback = mClass->mGuidedMissileDeathCamPullbackSpeed * fDeltaTime;
-            const PblMatrix& mNow = GetMatrix();
-            PblVector3 vDir(-mNow.m[2][0], -mNow.m[2][1], -mNow.m[2][2]);
-            const GameObject* pIgnore = GetGameObject();
-            CollisionObject* pHit;
-            if (CollisionManager::RayHit(vCamera, vDir, fPullback, pHit, 0, &pIgnore, 1, 0x90, false) >= 1.0f)
-            {
-                rMatrix.m[3][0] = vDir.x * fPullback + vCamera.x;
-                rMatrix.m[3][1] = vDir.y * fPullback + vCamera.y;
-                rMatrix.m[3][2] = vDir.z * fPullback + vCamera.z;
-                rMatrix.m[3][3] = 1.0f;
-            }
-        }
-        return;
-    }
-
-    const PblMatrix& mTarget = GetSmoothedMatrix();
-    if (IsAlive() && (mTargetInfo.mIsAiming || (mTracker && mTracker->IsFirstPersonView())))
-    {
-        mTrickCameraInterpDir = 0.0f;
-        mTrickCameraInterpDetach = 0.0f;
-        const PblVector3 vBack(-mEyeDir.x, -mEyeDir.y, -mEyeDir.z);
-        rMatrix = DirectionMatrix(vBack, mTarget.GetYAxis(), mEyePoint);
-        int iFirstPerson = GetFirstPersonIndex();
-        if (iFirstPerson >= 0 && !mTargetInfo.mIsAiming)
-        {
-            FirstPerson::UpdateCamera(iFirstPerson, rMatrix);
-        }
-    }
-    else
-    {
-        PblMatrix mUnbank;
-        mUnbank.SetRotateZ(-mBankRollAngle);
-        mUnbank.RotateX(-mBankPitchAngle);
-        PblMatrix mBody;
-        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mBody), reinterpret_cast<const D3DXMATRIX*>(&mUnbank), reinterpret_cast<const D3DXMATRIX*>(&mTarget));
-
-        if (mTowCableWalker != 0)
-        {
-            CameraTrackSetting& rSettings = mClass->mCameraSettings;
-            const PblVector3 vSavedOffset = rSettings.mCameraTrackOffset;
-            PblVector3 vPos = mBody.GetTranslation();
-            const PblVector3& vWalker = mTowCableWalker->GetCollisionObject()->GetPosition();
-            PblVector3 vToCamera(vPos.x - vWalker.x, vPos.y - vWalker.y, vPos.z - vWalker.z);
-            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vPos), reinterpret_cast<const D3DXVECTOR3*>(&vToCamera));
-            const float fSide = vPos.x * mTarget.m[0][0] + vPos.y * mTarget.m[0][1] + vPos.z * mTarget.m[0][2];
-            rSettings.mCameraTrackOffset.y = 0.5f;
-            rSettings.mCameraTrackOffset.z = 8.0f;
-            rSettings.mCameraTrackOffset.x = fSide > 0.0f ? 2.0f : -2.0f;
-            const float fRadius = GetCollisionRadius();
-            rSettings.mCameraTrackOffset.x *= fRadius;
-            rSettings.mCameraTrackOffset.y = fRadius * rSettings.mCameraTrackOffset.y;
-            rSettings.mCameraTrackOffset.z = fRadius * rSettings.mCameraTrackOffset.z;
-            rSettings.SetupCameraTrackMatrix(this, rMatrix, fDeltaTime, mBody, mEyeDir, 1.0f, 1.0f, this);
-            rSettings.mCameraTrackOffset = vSavedOffset;
-            mTrickCameraInterpDir = 0.0f;
-            mTrickCameraInterpDetach = 0.0f;
-        }
-        else
-        {
-            CameraTrackSetting settings = mClass->mCameraSettings;
-            if (mInFlip)
-            {
-                mTrickCameraInterpDir = 1.0f;
-                mTrickCameraDetach = 0.2f;
-                mTrickCameraInterpDetach = 1.0f;
-            }
-            else if (mSideRoll.x != 0.0f || mSideRoll.y != 0.0f)
-            {
-                mTrickCameraDetach = 0.48f;
-                mTrickCameraInterpDetach = 1.0f;
-            }
-            else if (mState == CRASHING || mState == CRASHED)
-            {
-                mTrickCameraDetach = 0.25f;
-                mTrickCameraInterpDetach = 1.0f;
-            }
-
-            if (mTrickCameraInterpDir > 0.0f)
-            {
-                settings.mCameraAimTension = (1.0f - mTrickCameraInterpDir) * 50.0f + mTrickCameraInterpDir * 20.0f;
-            }
-            else
-            {
-                settings.mCameraAimTension = FLT_MAX;
-            }
-            settings.mCameraTiltValue = 0.087665f;
-            if (FLRenderer::GetViewportCount() == 2)
-            {
-                settings.mCameraMoveTensionU *= 1.5f;
-                settings.mCameraMoveTensionD *= 1.5f;
-                settings.mCameraTrackCenter.y *= 0.6666667f;
-                settings.mCameraTrackOffset.y *= 0.6666667f;
-            }
-
-            const float fDetach = mTrickCameraDetach * mTrickCameraInterpDetach + (1.0f - mTrickCameraInterpDetach);
-            if (fDetach < 0.99f)
-            {
-                int iJoystick = GetJoystickIndex();
-                ChaseCamera* pCamera = iJoystick >= 0 ? CameraManager::sInstance->mChaseCamera[iJoystick] : 0;
-                if (pCamera)
-                {
-                    pCamera->mTimer = fDetach;
-                }
-                if (NetGame::IsEnabled())
-                {
-                    for (unsigned int i = 0; i < GameLoop::GetNumCameras(); ++i)
-                    {
-                        if (NetGame::GetSpectator(i) == mPlayerId)
-                        {
-                            ChaseCamera* pSpectator = CameraManager::sInstance->mChaseCamera[i];
-                            if (pSpectator)
-                            {
-                                pSpectator->mTimer = fDetach;
-                            }
-                        }
-                    }
-                }
-            }
-
-            const PblVector3 vAhead(0.0f, 0.0f, 5.0f);
-            PblVector3 vAim;
-            if (mTrickCameraInterpDir > 0.0f)
-            {
-                PblVector3 vPoint;
-                D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vPoint), reinterpret_cast<const D3DXVECTOR3*>(&vAhead), reinterpret_cast<const D3DXMATRIX*>(&mBody));
-                PblVector3 vToPoint(vPoint.x - rMatrix.m[3][0], vPoint.y - rMatrix.m[3][1],
-                                    vPoint.z - rMatrix.m[3][2]);
-                PblVector3 vNormal;
-                D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNormal), reinterpret_cast<const D3DXVECTOR3*>(&vToPoint));
-                vAim = vNormal;
-            }
-            else
-            {
-                vAim = mEyeDir;
-            }
-
-            if (mGetSpeedSpeed > 0.0001f)
-            {
-                settings.SetupAmbientShift(mBody, mAmbientShift, mAmbientShiftTarget, mAmbientShiftSpeed,
-                                           mAmbientShiftSpeedMax, fDeltaTime);
-            }
-            else
-            {
-                mAmbientShift.x = 0.0f;
-                mAmbientShift.y = 0.0f;
-                mAmbientShift.z = 0.0f;
-            }
-
-            const float fInterp = mTrickCameraInterpDir;
-            const PblVector3 vBlendAim(vAim.x * fInterp + mEyeDir.x * (1.0f - fInterp),
-                                       vAim.y * fInterp + mEyeDir.y * (1.0f - fInterp),
-                                       vAim.z * fInterp + mEyeDir.z * (1.0f - fInterp));
-            settings.SetupCameraTrackMatrix(this, rMatrix, fDeltaTime, mBody, vBlendAim, 1.0f, 1.0f, this);
-
-            const float fDecay = fDeltaTime * 0.9f;
-            mTrickCameraInterpDir -= fDecay;
-            if (mTrickCameraInterpDir < 0.0f)
-            {
-                mTrickCameraInterpDir = 0.0f;
-            }
-            mTrickCameraInterpDetach -= fDecay;
-            if (mTrickCameraInterpDetach < 0.0f)
-            {
-                mTrickCameraInterpDetach = 0.0f;
-            }
-        }
-    }
-
-    if (!NetGame::IsEnabled())
-    {
-        const float fBlurStart = mClass->mBlurStartV;
-        const float fBlurEnd = mClass->mMaxFlyerSpeed > mClass->mBoostFlyerSpeed ? mClass->mMaxFlyerSpeed
-                                                                                 : mClass->mBoostFlyerSpeed;
-        const float fSpeed = mGetSpeedSpeed;
-        int iJoystick = GetJoystickIndex();
-        if (iJoystick >= 0 && fSpeed > fBlurStart)
-        {
-            float fBlend = (fSpeed - fBlurStart) / (fBlurEnd - fBlurStart);
-            if (fBlend < 0.0f)
-            {
-                fBlend = 0.0f;
-            }
-            else if (fBlend > 1.0f)
-            {
-                fBlend = 1.0f;
-            }
-            if (mClass->mBlurEffect * fBlend > 0.0f)
-            {
-                MotionBlurEffect::Start(0, mClass->mBlurEffect * fBlend, iJoystick);
-            }
-        }
-    }
-}
-
-
-
-
+

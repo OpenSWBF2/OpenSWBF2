@@ -174,7 +174,7 @@ void LensFlareEffect::PlatformInit()
                                  D3DPOOL_DEFAULT, 0);
     s_intensityTex = new RedTexture(16, 16, D3DFMT_A8R8G8B8, 1, D3DUSAGE_RENDERTARGET,
                                     D3DPOOL_DEFAULT, 0);
-    s_pClearShader = pcRedShader::Create(PblHash("Clear"), 3, 0, 0, 0x80000,
+    s_pClearShader = pcRedShader::Create(0x5c6e1222, 3, 0, 0, 0x80000,
                                          RedColor::WHITE, RedColor::BLACK, 32.0f);
 
     if (RedRenderer::pcGetGeometryMode() == GEOMETRYMODE_UNCOMPRESSED)
@@ -204,13 +204,15 @@ void LensFlareEffect::PlatformInit()
             kuiFlareShader, 0x82, 0, 0, 0x10040, RedColor::WHITE, RedColor::BLACK, 32.0f);
         s_pSampleShader = (pcSampleShader*)pcRedShader::Create(
             kuiSampleShader, 2, 0, 0, 0, RedColor::WHITE, RedColor::BLACK, 32.0f);
+        s_pSampleShader->SetInputTexture(s_sampleTex);
+        s_pSampleShader->SetScale(1.0f / 255.0f);
+        s_pSampleShader->SetOutputPosition(0.0f, 0.0f);
     }
     else
     {
         s_samplePoints = pcRedPrimitive::Create(D3DPT_POINTLIST, 0x1002, 8, 256, 0, true);
-        const PblBox box(0.0f, 0.0f, 0.0f, 17.0f, 17.0f, 0.0f);
-        s_samplePoints->m_bbox = box;
-        CompressedPos::SetBoundingBox(box);
+        s_samplePoints->m_bbox = PblBox(0.0f, 0.0f, 0.0f, 17.0f, 17.0f, 0.0f);
+        CompressedPos::SetBoundingBox(PblBox(0.0f, 0.0f, 0.0f, 17.0f, 17.0f, 0.0f));
         short* v = (short*)s_samplePoints->BeginVertexData();
         if (!v)
         {
@@ -220,12 +222,9 @@ void LensFlareEffect::PlatformInit()
         {
             for (int j = 0; j < 16; j++)
             {
-                v[0] = CompressedPos_Encode((float)i, CompressedPos::s_vMin.x,
-                                            CompressedPos::s_vScaleInv.x);
-                v[1] = CompressedPos_Encode((float)j, CompressedPos::s_vMin.y,
-                                            CompressedPos::s_vScaleInv.y);
-                v[2] = CompressedPos_Encode(0.0f, CompressedPos::s_vMin.z,
-                                            CompressedPos::s_vScaleInv.z);
+                v[0] = (short)(((float)i - CompressedPos::s_vMin.x) * CompressedPos::s_vScaleInv.x - 32767.5f);
+                v[1] = (short)(((float)j - CompressedPos::s_vMin.y) * CompressedPos::s_vScaleInv.y - 32767.5f);
+                v[2] = (short)((0.0f - CompressedPos::s_vMin.z) * CompressedPos::s_vScaleInv.z - 32767.5f);
                 v += 4;
             }
         }
@@ -238,11 +237,11 @@ void LensFlareEffect::PlatformInit()
             kuiFlareShader, 0x1082, 0, 0, 0x10040, RedColor::WHITE, RedColor::BLACK, 32.0f);
         s_pSampleShader = (pcSampleShader*)pcRedShader::Create(
             kuiSampleShader, 0x1002, 0, 0, 0, RedColor::WHITE, RedColor::BLACK, 32.0f);
+        s_pSampleShader->SetInputTexture(s_sampleTex);
+        s_pSampleShader->SetScale(1.0f / 255.0f);
+        s_pSampleShader->SetOutputPosition(0.0f, 0.0f);
     }
 
-    s_pSampleShader->SetOutputPosition(0.0f, 0.0f);
-    s_pSampleShader->SetScale(1.0f / 255.0f);
-    s_pSampleShader->SetInputTexture(s_sampleTex);
 }
 
 // FUNCTION: SWBF2 0x0041c000
@@ -285,13 +284,13 @@ void LensFlareEffect::Render(int value)
     {
         return;
     }
-    if (RedRenderer::pcGetGeometryMode() != GEOMETRYMODE_UNCOMPRESSED)
+    if (RedRenderer::pcGetGeometryMode() == GEOMETRYMODE_UNCOMPRESSED)
     {
-        _List.Render<FlareCompressedVertex, 37506>();
+        _List.Render<FlareVertex, 642>();
     }
     else
     {
-        _List.Render<FlareVertex, 642>();
+        _List.Render<FlareCompressedVertex, 37506>();
     }
 }
 
@@ -415,8 +414,8 @@ void LensFlare::Emit<FlareCompressedVertex>(FlareCompressedVertex*& pVertices,
     pVertices[13] = pVertices[12];
     pVertices += 14;
 
-    RedColor half(_color, _color.a >> 1);
     RedColor clear(_color, 0);
+    RedColor half(_color, _color.a >> 1);
     EmitRing(pVertices, pos, angle, 0.0f, _fSize, _fSize * 4.0f,
              _color, half, clear, 12, fU, fV);
 }
@@ -440,58 +439,59 @@ void LensFlare::Emit<FlareVertex>(FlareVertex*& pVertices, const PblVector3& pos
     PblMath::SinCos(&fSin[0], &fCos[0], angle);
     PblMath::SinCos(&fSin[1], &fCos[1], 1.0472f - angle);
     const float size = _fSize * 2.0f;
-    PblVector3 vVert[6];
-    vVert[0] = pos + PblVector3(fCos[0] * size, fSin[0] * (size * 2.0f), 0.0f);
-    vVert[1] = pos + PblVector3((fCos[0] * -0.5f - fSin[0] * 0.866f) * size,
-                               (fCos[0] * 0.866f - fSin[0] * 0.5f) * (size * 2.0f), 0.0f);
-    vVert[2] = pos + PblVector3((fCos[0] * -0.5f - fSin[0] * -0.866f) * size,
-                               (fSin[0] * -0.5f - fCos[0] * 0.866f) * (size * 2.0f), 0.0f);
-    vVert[3] = pos + PblVector3(fCos[1] * (size * 3.5f), fSin[1] * size, 0.0f);
-    vVert[4] = pos + PblVector3((fCos[1] * -0.5f - fSin[1] * 0.866f) * (size * 3.5f),
-                               (fCos[1] * 0.866f - fSin[1] * 0.5f) * size, 0.0f);
-    vVert[5] = pos + PblVector3((fCos[1] * -0.5f - fSin[1] * -0.866f) * (size * 3.5f),
-                               (fSin[1] * -0.5f - fCos[1] * 0.866f) * size, 0.0f);
+    const float size2 = size * 2.0f;
+    const float size35 = size * 3.5f;
+    PblVector3 v0 = pos + PblVector3(fCos[0] * size, fSin[0] * size2, 0.0f);
+    PblVector3 v1 = pos + PblVector3((fCos[0] * -0.5f - fSin[0] * 0.866f) * size,
+                                     (fCos[0] * 0.866f - fSin[0] * 0.5f) * size2, 0.0f);
+    PblVector3 v2 = pos + PblVector3((fCos[0] * -0.5f - fSin[0] * -0.866f) * size,
+                                     (fSin[0] * -0.5f - fCos[0] * 0.866f) * size2, 0.0f);
+    PblVector3 v3 = pos + PblVector3(fCos[1] * size35, fSin[1] * size, 0.0f);
+    PblVector3 v4 = pos + PblVector3((fCos[1] * -0.5f - fSin[1] * 0.866f) * size35,
+                                     (fCos[1] * 0.866f - fSin[1] * 0.5f) * size, 0.0f);
+    PblVector3 v5 = pos + PblVector3((fCos[1] * -0.5f - fSin[1] * -0.866f) * size35,
+                                     (fSin[1] * -0.5f - fCos[1] * 0.866f) * size, 0.0f);
 
     RedColor faded(_color, (unsigned char)(int)((float)_color.a * fFade));
     RedColor black(RedColor::BLACK, 0);
-    pVertices[0].pos.SetPos(vVert[0].x, vVert[0].y, vVert[0].z);
+    pVertices[0].pos.SetPos(v0.x, v0.y, v0.z);
     pVertices[0].uv.SetUV(fU, fV);
     pVertices[0].color = black;
     pVertices[1] = pVertices[0];
-    pVertices[2].pos.SetPos(vVert[1].x, vVert[1].y, vVert[1].z);
+    pVertices[2].pos.SetPos(v1.x, v1.y, v1.z);
     pVertices[2].uv.SetUV(fU, fV);
     pVertices[2].color = black;
     pVertices[3].pos.SetPos(pos.x, pos.y, pos.z);
     pVertices[3].uv.SetUV(fU, fV);
     pVertices[3].color = faded;
-    pVertices[4].pos.SetPos(vVert[2].x, vVert[2].y, vVert[2].z);
+    pVertices[4].pos.SetPos(v2.x, v2.y, v2.z);
     pVertices[4].uv.SetUV(fU, fV);
     pVertices[4].color = black;
-    pVertices[5].pos.SetPos(vVert[0].x, vVert[0].y, vVert[0].z);
+    pVertices[5].pos.SetPos(v0.x, v0.y, v0.z);
     pVertices[5].uv.SetUV(fU, fV);
     pVertices[5].color = black;
     pVertices[6] = pVertices[5];
-    pVertices[7].pos.SetPos(vVert[3].x, vVert[3].y, vVert[3].z);
+    pVertices[7].pos.SetPos(v3.x, v3.y, v3.z);
     pVertices[7].uv.SetUV(fU, fV);
     pVertices[7].color = black;
     pVertices[8] = pVertices[7];
-    pVertices[9].pos.SetPos(vVert[4].x, vVert[4].y, vVert[4].z);
+    pVertices[9].pos.SetPos(v4.x, v4.y, v4.z);
     pVertices[9].uv.SetUV(fU, fV);
     pVertices[9].color = black;
     pVertices[10].pos.SetPos(pos.x, pos.y, pos.z);
     pVertices[10].uv.SetUV(fU, fV);
     pVertices[10].color = faded;
-    pVertices[11].pos.SetPos(vVert[5].x, vVert[5].y, vVert[5].z);
+    pVertices[11].pos.SetPos(v5.x, v5.y, v5.z);
     pVertices[11].uv.SetUV(fU, fV);
     pVertices[11].color = black;
-    pVertices[12].pos.SetPos(vVert[3].x, vVert[3].y, vVert[3].z);
+    pVertices[12].pos.SetPos(v3.x, v3.y, v3.z);
     pVertices[12].uv.SetUV(fU, fV);
     pVertices[12].color = black;
     pVertices[13] = pVertices[12];
     pVertices += 14;
 
-    RedColor half(_color, _color.a >> 1);
     RedColor clear(_color, 0);
+    RedColor half(_color, _color.a >> 1);
     EmitRing(pVertices, pos, angle, 0.0f, _fSize, _fSize * 4.0f,
              _color, half, clear, 12, fU, fV);
 }

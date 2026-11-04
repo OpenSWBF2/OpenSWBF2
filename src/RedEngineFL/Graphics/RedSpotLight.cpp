@@ -79,19 +79,19 @@ void RedSpotLight::DebugDraw() const
     PblVector3 vNormal;
     if (vSide.x * vSide.x + vSide.y * vSide.y + vSide.z * vSide.z > 0.99f)
     {
-        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNormal), reinterpret_cast<const D3DXVECTOR3*>(&vSide));
+        D3DXVec3Normalize(&vNormal, &vSide);
     }
     else
     {
         PblVector3 vSideY(gVectorUnitY.y * vDir.z - gVectorUnitY.z * vDir.y,
                           gVectorUnitY.z * vDir.x - gVectorUnitY.x * vDir.z,
                           gVectorUnitY.x * vDir.y - gVectorUnitY.y * vDir.x);
-        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNormal), reinterpret_cast<const D3DXVECTOR3*>(&vSideY));
+        D3DXVec3Normalize(&vNormal, &vSideY);
     }
     vSide = vNormal;
 
     PblVector3 vUp;
-    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vUp), reinterpret_cast<const D3DXVECTOR3*>(&vDir));
+    D3DXVec3Normalize(&vUp, &vDir);
 
     PblMatrix mBase;
     mBase.m[0][0] = vSide.x;
@@ -163,10 +163,10 @@ bool RedSpotLight::IsVisible(const RedCamera* pCamera) const
 // FUNCTION: SWBF2 0x006ef430
 void RedSpotLight::SetColor(const RedColorValue& color)
 {
-    float fScale = (m_fRadius * 0.5f) * (m_fRadius * 0.5f);
     m_color = color;
     m_d3dLight.Diffuse = *(const D3DCOLORVALUE*)&color;
-    m_d3dLight.Diffuse.r *= fScale;
+    float fScale = (m_fRadius * 0.5f) * (m_fRadius * 0.5f);
+    m_d3dLight.Diffuse.r = fScale * m_d3dLight.Diffuse.r;
     m_d3dLight.Diffuse.g *= fScale;
     m_d3dLight.Diffuse.b *= fScale;
     m_d3dLight.Specular = m_d3dLight.Diffuse;
@@ -246,40 +246,30 @@ bool RedSpotLight::SphereIntersect(const PblVector3& vCenter, float fRadius) con
 
     if (m_bBidirectional)
     {
-        vToCenter.x = vCenter.x - m_vPos.x;
-        vToCenter.y = vCenter.y - m_vPos.y;
-        vToCenter.z = vCenter.z - m_vPos.z;
-        fAxisDist = vDir.x * vToCenter.x + vDir.y * vToCenter.y + vDir.z * vToCenter.z;
+        vToCenter = vCenter - m_vPos;
+        fAxisDist = DotProduct(vToCenter, vDir);
         if (fAxisDist < 0.0f)
         {
-            vDir.x *= -1.0f;
-            vDir.y *= -1.0f;
-            vDir.z *= -1.0f;
+            vDir *= -1.0f;
         }
     }
 
     float fSin = m_fTanHalfOuterConeAngle * m_fCosHalfOuterConeAngle;
     float fPullBack = fRadius / fSin;
-    PblVector3 vApex(vCenter.x - vDir.x * fPullBack,
-                     vCenter.y - vDir.y * fPullBack,
-                     vCenter.z - vDir.z * fPullBack);
-    PblVector3 vD(vCenter.x - vApex.x, vCenter.y - vApex.y, vCenter.z - vApex.z);
-    float fDot = vD.x * vDir.x + vD.y * vDir.y + vD.z * vDir.z;
+    PblVector3 vApex = vCenter - vDir * fPullBack;
+    PblVector3 vD = vCenter - vApex;
+    float fDot = DotProduct(vD, vDir);
 
     if (fDot > 0.0f
-        && fDot * fDot >= (vD.x * vD.x + vD.y * vD.y + vD.z * vD.z)
-                              * (m_fCosHalfOuterConeAngle * m_fCosHalfOuterConeAngle))
+        && fDot * fDot >= SquaredLength(vD) * (m_fCosHalfOuterConeAngle * m_fCosHalfOuterConeAngle))
     {
         if (!m_bBidirectional)
         {
-            vToCenter.x = vCenter.x - m_vPos.x;
-            vToCenter.y = vCenter.y - m_vPos.y;
-            vToCenter.z = vCenter.z - m_vPos.z;
-            fAxisDist = -(vDir.x * vToCenter.x + vDir.y * vToCenter.y + vDir.z * vToCenter.z);
+            vToCenter = vCenter - m_vPos;
+            fAxisDist = -DotProduct(vDir, vToCenter);
         }
 
-        float fLengthSq = vToCenter.x * vToCenter.x + vToCenter.y * vToCenter.y
-                        + vToCenter.z * vToCenter.z;
+        float fLengthSq = SquaredLength(vToCenter);
         if (fAxisDist > 0.0f && fAxisDist * fAxisDist >= fSin * fSin * fLengthSq)
         {
             return fRadius * fRadius >= fLengthSq;
@@ -304,14 +294,18 @@ void RedSpotLight::_RecalculateProjectionMatrix() const
     mProj.m[2][2] = 0.0f;
     mProj.m[2][3] = 1.0f;
 
-    const float fDot = m_vDirection.y * gVectorUnitY.y + m_vDirection.x * gVectorUnitY.x
-                     + m_vDirection.z * gVectorUnitY.z;
-    const PblVector3& vUp = ((float)fabs((double)fDot) > 0.99f) ? gVectorUnitX : gVectorUnitY;
+    const float fDot = DotProduct(m_vDirection, gVectorUnitY);
 
-    const PblMatrix mView = DirectionMatrix(m_vDirection, vUp, m_vPos);
-    const PblMatrix mInvView = mView.GetInverseFast();
-    PblMatrix mResult = mInvView * mProj;
-    m_mProjection = mResult;
+    PblMatrix mView;
+    if ((float)fabs((double)fDot) > 0.99f)
+    {
+        mView = DirectionMatrix(m_vDirection, gVectorUnitX, m_vPos);
+    }
+    else
+    {
+        mView = DirectionMatrix(m_vDirection, gVectorUnitY, m_vPos);
+    }
+    m_mProjection = mView.GetInverseFast() * mProj;
     m_bProjectionDirty = false;
 }
 

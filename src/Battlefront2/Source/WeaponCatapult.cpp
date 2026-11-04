@@ -63,8 +63,9 @@ WeaponCatapult::WeaponCatapult(const WeaponCatapultClass* pClass, const WeaponDe
     : Weapon(pClass, desc)
 {
     mCatapultClass = const_cast<WeaponCatapultClass*>(pClass);
-    mLastArmAngle = pClass->mCockedAngle;
-    mNextArmAngle = pClass->mCockedAngle;
+    float fCockedAngle = pClass->mCockedAngle;
+    mLastArmAngle = fCockedAngle;
+    mNextArmAngle = fCockedAngle;
     mCatapultBuilding = 0;
     Entity* pEntity = mOwner->GetGameObject()->GetEntity();
     if (pEntity && pEntity->IsRtti(EntityBuildingArmed::rttiHashEntityBuildingArmed))
@@ -98,46 +99,40 @@ void WeaponCatapult::SetArmAngle(float fAngle)
     {
         return;
     }
-    if (pArm != &mArmPoseMatrix)
+    PblMatrix* pOut = &mArmPoseMatrix;
+    if (pArm != pOut)
     {
         mCatapultBuilding->mPose.Remove(mCatapultClass->mArmHash);
-        mCatapultBuilding->mPose.Store(mCatapultClass->mArmHash, &mArmPoseMatrix);
+        mCatapultBuilding->mPose.Store(mCatapultClass->mArmHash, pOut);
     }
 
-    const PblVector3 vX(pArm->m[0][0], pArm->m[0][1], pArm->m[0][2]);
+    const PblVector3 vX = pArm->GetXAxis();
     const PblVector3 vUp(0.0f, 1.0f, 0.0f);
-    mArmPoseMatrix.m[0][0] = vX.x;
-    mArmPoseMatrix.m[0][1] = vX.y;
-    mArmPoseMatrix.m[0][2] = vX.z;
-    mArmPoseMatrix.m[0][3] = 0.0f;
-    mArmPoseMatrix.m[1][0] = vUp.y * vX.z - vUp.z * vX.y;
-    mArmPoseMatrix.m[1][1] = vUp.z * vX.x - vUp.x * vX.z;
-    mArmPoseMatrix.m[1][2] = vUp.x * vX.y - vUp.y * vX.x;
-    mArmPoseMatrix.m[1][3] = 0.0f;
-    mArmPoseMatrix.m[2][0] = vUp.x;
-    mArmPoseMatrix.m[2][1] = vUp.y;
-    mArmPoseMatrix.m[2][2] = vUp.z;
-    mArmPoseMatrix.m[2][3] = 0.0f;
+    (*pOut)[0] = pArm->GetXAxis();
+    pOut->m[0][3] = 0.0f;
+    (*pOut)[1] = PblVector3(vUp.y * vX.z - vUp.z * vX.y, vUp.z * vX.x - vUp.x * vX.z,
+                            vUp.x * vX.y - vUp.y * vX.x);
+    pOut->m[1][3] = 0.0f;
+    (*pOut)[2] = vUp;
+    pOut->m[2][3] = 0.0f;
 
-    PblQuaternion qArm(mArmPoseMatrix);
+    PblQuaternion qArm(*pOut);
     const PblVector3 vOmega(fAngle, 0.0f, 0.0f);
-    const float fLength = sqrtf(vOmega.x * vOmega.x + vOmega.y * vOmega.y + vOmega.z * vOmega.z);
+    const float fLength = PblMath::Sqrt(vOmega.x * vOmega.x + vOmega.y * vOmega.y + vOmega.z * vOmega.z);
     if (fLength > 0.0001f)
     {
         const float fInv = 1.0f / fLength;
-        float fSin, fCos;
-        PblMath::SinCos(&fSin, &fCos, fLength * 0.5f);
-        qArm = qArm * PblQuaternion(fCos, vOmega.x * fInv * fSin, vOmega.y * fInv * fSin, vOmega.z * fInv * fSin);
+        const PblVector3 vAxis(vOmega.x * fInv, vOmega.y * fInv, vOmega.z * fInv);
+        qArm = qArm * PblQuaternion(vAxis, fLength);
     }
 
-    PblQuaternion qUnit;
     PblMatrix mPose;
-    D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mPose), D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&qUnit), reinterpret_cast<const D3DXQUATERNION*>(&qArm)));
+    D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mPose), D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&qArm), reinterpret_cast<const D3DXQUATERNION*>(&qArm)));
     mPose.m[3][0] = pArm->m[3][0];
     mPose.m[3][1] = pArm->m[3][1];
     mPose.m[3][2] = pArm->m[3][2];
     mPose.m[3][3] = 1.0f;
-    mArmPoseMatrix = mPose;
+    *pOut = mPose;
 }
 
 // FUNCTION: SWBF2 0x00681080
@@ -158,10 +153,7 @@ void WeaponCatapult::EnterFire()
     if (const PblMatrix* pArm = mCatapultBuilding->mPose.Find(mCatapultClass->mArmHash))
     {
         const PblVector3& vBase = mCatapultBuilding->GetPosition();
-        const float fX = pArm->m[3][0] + vBase.x - vFirePos.x;
-        const float fY = pArm->m[3][1] + vBase.y - vFirePos.y;
-        const float fZ = pArm->m[3][2] + vBase.z - vFirePos.z;
-        const float fDist = sqrtf(fX * fX + fY * fY + fZ * fZ);
+        const float fDist = Length(vBase + pArm->GetTranslation() - vFirePos);
         if (fDist > 0.0f)
         {
             const float fRate = mClass->mOrdnanceClass->GetVelocity() / fDist;
@@ -172,7 +164,8 @@ void WeaponCatapult::EnterFire()
                 {
                     mArmAccel = fRate / fSwing;
                     mArmSpeed = 0.0f;
-                    mStateLimit += (float)fabs(fSwing);
+                    const double dSwingMagnitude = fabs((double)fSwing);
+                    mStateLimit += (float)dSwingMagnitude;
                 }
             }
         }
@@ -207,14 +200,13 @@ void WeaponCatapult::EnterReload()
 {
     mLastArmAngle = mNextArmAngle;
     mNextArmAngle = mCatapultClass->mCockedAngle;
-    const float fSwing = mNextArmAngle - mLastArmAngle;
     if (mClass->mReloadTime > 0.0f)
     {
-        mArmSpeed = fSwing / mClass->mReloadTime;
+        mArmSpeed = (mNextArmAngle - mLastArmAngle) / mClass->mReloadTime;
     }
     else
     {
-        mArmSpeed = fSwing * 0.25f;
+        mArmSpeed = (mNextArmAngle - mLastArmAngle) * 0.25f;
     }
     mCurrArmAngle = mLastArmAngle;
     mArmAccel = 0.0f;
@@ -245,7 +237,11 @@ void WeaponCatapult::ExitReload()
 // FUNCTION: SWBF2 0x00681420
 bool WeaponCatapult::CheckFire() const
 {
-    return mTrigger && mTrigger->IsDown();
+    if (!mTrigger)
+    {
+        return false;
+    }
+    return mTrigger->m_bDown;
 }
 
 // FUNCTION: SWBF2 0x00681430
@@ -265,8 +261,13 @@ bool WeaponCatapult::Fire()
     desc.mPosition = mAimer->mFirePos;
     desc.mDirection = mAimer->mDirection;
     desc.mOwner = mOwner->GetGameObject();
-    desc.mDamageOwner = DamageOwner(mOwner->mCharacter, mOwner->GetGameObject(), mOwner->GetGameObject()->GetTeam(),
-                                    GetEntityClass(mOwner->GetGameObject()), mClass, mOwner->GetOffenseMultiplier());
+    desc.mDamageOwner.mCharacter = mOwner->mCharacter;
+    PblHandle<GameObject> hOwner(mOwner->GetGameObject());
+    desc.mDamageOwner.mGameObject = hOwner;
+    desc.mDamageOwner.mDamageMultiplier = mOwner->GetOffenseMultiplier();
+    desc.mDamageOwner.mTeam = mOwner->GetGameObject()->GetTeam();
+    desc.mDamageOwner.mClass = GetEntityClass(mOwner->GetGameObject());
+    desc.mDamageOwner.mWeapon = mClass;
     desc.mTarget = const_cast<GameObject*>(static_cast<const GameObject*>(mTarget));
     desc.mBodyID = mTargetBodyID;
 
@@ -298,14 +299,9 @@ void WeaponCatapult::Render(const PblMatrix& matrix, const RedPose* pPose, const
         {
             const PblVector3 vFirePos = mAimer->mFirePos;
             const PblVector3& vBase = mCatapultBuilding->GetPosition();
-            const float fX = pArm->m[3][0] + vBase.x - vFirePos.x;
-            const float fY = pArm->m[3][1] + vBase.y - vFirePos.y;
-            const float fZ = pArm->m[3][2] + vBase.z - vFirePos.z;
-            const float fDist = sqrtf(fX * fX + fY * fY + fZ * fZ);
+            const float fDist = Length(vBase + pArm->GetTranslation() - vFirePos);
             PblMatrix mOrdnance = *pArm * mCatapultBuilding->GetMatrix();
-            mOrdnance.m[3][0] += mOrdnance.m[1][0] * fDist;
-            mOrdnance.m[3][1] += mOrdnance.m[1][1] * fDist;
-            mOrdnance.m[3][2] += mOrdnance.m[1][2] * fDist;
+            mOrdnance.SetTranslation(mOrdnance.GetTranslation() + mOrdnance.GetYAxis() * fDist);
             mOrdnance.m[3][3] = 1.0f;
             mCatapultClass->mOrdnanceModel->Render(&mOrdnance, 0, color, uFlags, 0);
         }
@@ -387,6 +383,5 @@ WeaponClass* WeaponCatapultClass::Derive(unsigned int uHash)
 Weapon* WeaponCatapultClass::Build(const WeaponDesc& desc)
 {
     PostLoadInit();
-    void* pMemory = Weapon::sMemoryPool.Allocate(0x170);
-    return pMemory ? reinterpret_cast<Weapon*>(::new (pMemory) WeaponCatapult(this, desc)) : 0;
+    return new WeaponCatapult(this, desc);
 }

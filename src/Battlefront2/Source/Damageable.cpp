@@ -280,7 +280,7 @@ void Damageable::ApplyNetClientDamage(const DamageDesc& damage, unsigned int uFl
                         continue;
                     }
                     int iViewport = NetGame::GetJoystickIndex(it->mPlayerId);
-                    if (iViewport >= 0 && mIsAlive)
+                    if (iViewport >= 0 && IsAlive())
                     {
                         float fAmount;
                         if (mCurHealth > 0.0f)
@@ -295,11 +295,10 @@ void Damageable::ApplyNetClientDamage(const DamageDesc& damage, unsigned int uFl
                         {
                             fAmount = 1.0f;
                         }
-                        RedColor color = RedColor::RED;
-                        color.a = (unsigned char)(int)(fAmount * 96.0f + 32.0f);
-                        float fTime = fAmount * 0.15f + 0.15f;
-                        ScreenFilterEffect::Instance()->TimedFilter(iViewport, fTime, 0.0f, fTime, color,
-                                                                    0xDE020766);
+                        ScreenFilterEffect::Instance()->TimedFilter(
+                            iViewport, fAmount * 0.15f + 0.15f, 0.0f, fAmount * 0.15f + 0.15f,
+                            RedColor(RedColor::RED, (unsigned char)(int)(fAmount * 96.0f + 32.0f)),
+                            0xDE020766);
                     }
                 }
             }
@@ -369,7 +368,7 @@ void Damageable::ApplyDamageCommon(const DamageDesc& damage, unsigned int uFlags
     }
 
     float fDamage = damage.mBaseValue * fMultiplier * damage.mDamageOwner.mDamageMultiplier;
-    if (Team::sTeams[static_cast<const GameObject*>(this)->GetTeam()]->mAffiliation[damage.mDamageOwner.mTeam] > 0)
+    if (Team::sTeams[static_cast<const GameObject*>(this)->GetTeam()]->GetAffiliation(damage.mDamageOwner.mTeam) > 0)
     {
         Character* pAttacker = damage.mDamageOwner.mCharacter;
         if (pAttacker && pAttacker->mPlayerId < 0 && pObject->GetControllable() &&
@@ -391,8 +390,8 @@ void Damageable::ApplyDamageCommon(const DamageDesc& damage, unsigned int uFlags
             bDamaged = true;
             if (fShieldLost > mCurShield)
             {
-                fShieldLost = mCurShield;
                 fDamage -= mCurShield / damage.mShieldScale;
+                fShieldLost = mCurShield;
             }
             else
             {
@@ -404,7 +403,14 @@ void Damageable::ApplyDamageCommon(const DamageDesc& damage, unsigned int uFlags
             Character* pAttacker = damage.mDamageOwner.mCharacter;
             if ((!pAttacker || pAttacker->mPlayerId < 0) && fFloor > 0.0f && fFloor > fShield)
             {
-                mCurShield = (fShield + fShieldLost < fFloor) ? fShield + fShieldLost : fShieldLost;
+                if (fShield + fShieldLost >= fFloor)
+                {
+                    mCurShield = fShieldLost;
+                }
+                else
+                {
+                    mCurShield = fShield + fShieldLost;
+                }
             }
             ShieldChangeCallback(fShieldLost);
             SpreadDamageEvent(damage, bIsShot, vPos, 0.0f, fShieldLost);
@@ -424,7 +430,14 @@ void Damageable::ApplyDamageCommon(const DamageDesc& damage, unsigned int uFlags
             Character* pAttacker = damage.mDamageOwner.mCharacter;
             if ((!pAttacker || pAttacker->mPlayerId < 0) && fFloor > 0.0f && fFloor > fHealth)
             {
-                mCurHealth = (fHealth + fHealthLost < fFloor) ? fHealth + fHealthLost : fFloor;
+                if (fHealth + fHealthLost >= fFloor)
+                {
+                    mCurHealth = fFloor;
+                }
+                else
+                {
+                    mCurHealth = fHealth + fHealthLost;
+                }
             }
             HealthChangeCallback(false, fHealthLost);
             SpreadDamageEvent(damage, bIsShot, vPos, fHealthLost, 0.0f);
@@ -440,7 +453,7 @@ void Damageable::ApplyDamageCommon(const DamageDesc& damage, unsigned int uFlags
                         continue;
                     }
                     int iViewport = NetGame::GetJoystickIndex(it->mPlayerId);
-                    if (iViewport >= 0 && mIsAlive)
+                    if (iViewport >= 0 && IsAlive())
                     {
                         float fAmount;
                         if (mCurHealth > 0.0f)
@@ -455,11 +468,10 @@ void Damageable::ApplyDamageCommon(const DamageDesc& damage, unsigned int uFlags
                         {
                             fAmount = 1.0f;
                         }
-                        RedColor color = RedColor::RED;
-                        color.a = (unsigned char)(int)(fAmount * 96.0f + 32.0f);
-                        float fTime = fAmount * 0.15f + 0.15f;
-                        ScreenFilterEffect::Instance()->TimedFilter(iViewport, fTime, 0.0f, fTime, color,
-                                                                    0xDE020766);
+                        ScreenFilterEffect::Instance()->TimedFilter(
+                            iViewport, fAmount * 0.15f + 0.15f, 0.0f, fAmount * 0.15f + 0.15f,
+                            RedColor(RedColor::RED, (unsigned char)(int)(fAmount * 96.0f + 32.0f)),
+                            0xDE020766);
                     }
                 }
             }
@@ -481,14 +493,13 @@ void Damageable::ApplyDamageCommon(const DamageDesc& damage, unsigned int uFlags
         GetGameObject()->GetGameObjectClass()->GetVehicleType() != 9 &&
         GetGameObject()->GetTeam() != damage.mDamageOwner.mTeam)
     {
-        Character* pAttacker = damage.mDamageOwner.mCharacter;
-        if (GetGameObject() == pAttacker->GetDamagedVehicle())
+        if (GetGameObject() == damage.mDamageOwner.mCharacter->GetDamagedVehicle())
         {
-            pAttacker->AddTotalVehicleDamage(fTotalLost);
+            damage.mDamageOwner.mCharacter->AddTotalVehicleDamage(fTotalLost);
         }
         else
         {
-            pAttacker->SetDamagedVehicle(GetGameObject());
+            damage.mDamageOwner.mCharacter->SetDamagedVehicle(GetGameObject());
         }
     }
 
@@ -540,14 +551,12 @@ bool Damageable::ApplyDamage(const DamageDesc& damage, const PblVector3& vDir,
     vFlat.x = vDir.x;
     vFlat.y = 0.0001f;
     vFlat.z = vDir.z;
-    PblVector3 vNormal;
-    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNormal), reinterpret_cast<const D3DXVECTOR3*>(&vFlat));
-    vFlat = vNormal;
-    const PblMatrix& mMatrix = GetGameObject()->GetMatrix();
-    PblVector3 vHit;
-    vHit.x = mMatrix.m[3][0] - vFlat.x * 30.0f;
-    vHit.y = mMatrix.m[3][1] - vFlat.y * 30.0f;
-    vHit.z = mMatrix.m[3][2] - vFlat.z * 30.0f;
+    {
+        PblVector3 vNormal;
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNormal), reinterpret_cast<const D3DXVECTOR3*>(&vFlat));
+        vFlat = vNormal;
+    }
+    PblVector3 vHit = GetGameObject()->GetMatrix().GetTranslation() - vFlat * 30.0f;
     ApplyDamageCommon(damage, uFlags, fMultiplier, true, vHit);
 
     bool bAlive = mIsAlive;
@@ -555,11 +564,14 @@ bool Damageable::ApplyDamage(const DamageDesc& damage, const PblVector3& vDir,
         pAttackerObject && pAttackerObject->GetAffiliationToMe(GetGameObject()) < 0)
     {
         short sMedalsType = damage.mDamageOwner.mWeapon->mScoreForMedalsType;
-        MedalsMgr* pMedals = damage.mDamageOwner.mCharacter->mMedalsMgr;
-        if (sMedalsType >= 0 && pMedals)
+        if (sMedalsType >= 0)
         {
-            pMedals->AddMedalPoints(sMedalsType, !bAlive, fMultiplier > 1.0f, (HealthType)mHealthType, false,
-                                    false, 1);
+            MedalsMgr* pMedals = damage.mDamageOwner.mCharacter->mMedalsMgr;
+            if (pMedals)
+            {
+                pMedals->AddMedalPoints(sMedalsType, !bAlive, fMultiplier > 1.0f, (HealthType)mHealthType,
+                                        false, false, 1);
+            }
         }
     }
     return bAlive;
@@ -568,8 +580,7 @@ bool Damageable::ApplyDamage(const DamageDesc& damage, const PblVector3& vDir,
 // FUNCTION: SWBF2 0x004895e0
 bool Damageable::ApplyDamage(const DamageDesc& damage, unsigned int uFlags)
 {
-    float fMultiplier = GetDamageMultiplier(-1);
-    ApplyDamageCommon(damage, uFlags, fMultiplier, false, gVectorZero);
+    ApplyDamageCommon(damage, uFlags, GetDamageMultiplier(-1), false, gVectorZero);
     return mIsAlive;
 }
 
@@ -608,10 +619,9 @@ void Damageable::SpreadDamageEvent(const DamageDesc& damage, bool bIsShot, const
     const PblList<Controllable>& list = pObject->GetControllableList();
     for (PblList<Controllable>::Itor it = list.Begin(); it != list.End(); ++it)
     {
-        Controller* pController = it->mCtrl;
-        if (pController && pController->IsRtti(UnitController::GetRtti()))
+        if (it->mCtrl && it->mCtrl->IsRtti(UnitController::GetRtti()))
         {
-            UnitController* pUnit = static_cast<UnitController*>(pController);
+            UnitController* pUnit = static_cast<UnitController*>(it->mCtrl);
             AI::EventInfo_Damaged info(damage.mDamageOwner.mCharacter, bIsShot, vPos, fHealthLost, false);
             pUnit->SendEvent(&info);
         }
@@ -621,7 +631,7 @@ void Damageable::SpreadDamageEvent(const DamageDesc& damage, bool bIsShot, const
 // FUNCTION: SWBF2 0x004897d0
 void Damageable::HealthChangeCallback(bool, float)
 {
-    if (!(0.0f < mCurHealth))
+    if (mCurHealth <= 0.0f)
     {
         mIsAlive = false;
     }
@@ -665,12 +675,8 @@ void Damageable::HealthChangeCallback(bool, float)
         {
             return;
         }
-        bool bShow = false;
-        if (!bUnbuilt && pStage->mPercent + 0.0001f > fRatio &&
-            (!(0.0f < pStage->mPercentStop) || !(fRatio < pStage->mPercentStop - 0.0001f)))
-        {
-            bShow = true;
-        }
+        const bool bShow = !bUnbuilt && fRatio < pStage->mPercent + 0.0001f &&
+                           (pStage->mPercentStop <= 0.0f || pStage->mPercentStop - 0.0001f <= fRatio);
 
         if (!(mDamageEffect[i] == 0))
         {
@@ -687,7 +693,7 @@ void Damageable::HealthChangeCallback(bool, float)
         }
         else if (bShow)
         {
-            FLEffectClass* pEffectClass = FLEffect::s_EffectClasses.Find(pStage->mNameHash);
+            FLEffectClass* pEffectClass = FLEffect::Get(pStage->mNameHash);
             if (!pEffectClass)
             {
                 continue;
@@ -716,8 +722,9 @@ void Damageable::HealthChangeCallback(bool, float)
                 mDamageEffect[i]->AttachEffectToObject(pGeometry, pStage->mHardPoint, mOffset, true);
             }
             GameObject* pOwner = GetGameObject();
+            const FLEffectObject* pEffect = mDamageEffect[i].operator->();
             mDamageEffectSound[i].Play(&pStage->mSound,
-                                       reinterpret_cast<const PblVector3*>(&mDamageEffect[i]->m_mWorldMatrix.m[3][0]),
+                                       reinterpret_cast<const PblVector3*>(&pEffect->m_mWorldMatrix.m[3][0]),
                                        &pOwner->GetVelocity(), true);
         }
     }
@@ -752,22 +759,22 @@ void Event<GameObject, DamageOwner>::Callback::Trigger(GameObject& item, DamageO
         if (pChild)
         {
             pChild->AddRef();
-            while (pChild)
+        }
+        while (pChild)
+        {
+            if (!pChild->IsAlive())
             {
-                if (!pChild->IsAlive())
-                {
-                    pChild->Release();
-                    break;
-                }
-                Callback* pNext = (Callback*)pChild->mSibling;
-                if (pNext)
-                {
-                    pNext->AddRef();
-                }
-                pChild->Trigger(item, param);
                 pChild->Release();
-                pChild = pNext;
+                break;
             }
+            Callback* pNext = (Callback*)pChild->mSibling;
+            if (pNext)
+            {
+                pNext->AddRef();
+            }
+            pChild->Trigger(item, param);
+            pChild->Release();
+            pChild = pNext;
         }
     }
     Release();
@@ -784,22 +791,22 @@ void Event<GameObject, float>::Callback::Trigger(GameObject& item, float& param)
         if (pChild)
         {
             pChild->AddRef();
-            while (pChild)
+        }
+        while (pChild)
+        {
+            if (!pChild->IsAlive())
             {
-                if (!pChild->IsAlive())
-                {
-                    pChild->Release();
-                    break;
-                }
-                Callback* pNext = (Callback*)pChild->mSibling;
-                if (pNext)
-                {
-                    pNext->AddRef();
-                }
-                pChild->Trigger(item, param);
                 pChild->Release();
-                pChild = pNext;
+                break;
             }
+            Callback* pNext = (Callback*)pChild->mSibling;
+            if (pNext)
+            {
+                pNext->AddRef();
+            }
+            pChild->Trigger(item, param);
+            pChild->Release();
+            pChild = pNext;
         }
     }
     Release();

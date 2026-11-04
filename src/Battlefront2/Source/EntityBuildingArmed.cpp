@@ -64,11 +64,8 @@ const char EntityBuildingArmedClass::rttiNameEntityBuildingArmedClass[] = "Entit
 EntityBuildingArmedClass::EntityBuildingArmedClass(EntityBuildingArmedClass* pBase, unsigned int uHash)
     : EntityBuildingClass(pBase, uHash)
 {
+    memcpy(mTurretClass, pBase->mTurretClass, sizeof(mTurretClass));
     sCurrentSection = -1;
-    for (int i = 0; i < 8; i++)
-    {
-        mTurretClass[i] = pBase->mTurretClass[i];
-    }
 }
 
 // FUNCTION: SWBF2 0x00496950
@@ -138,6 +135,8 @@ void EntityBuildingArmedClass::SetProperty(unsigned int uProperty, const char* p
             sCurrentSection = 7;
             break;
         case 0xdbaa7975:
+            sCurrentSection = -1;
+            return;
         default:
             sCurrentSection = -1;
             return;
@@ -225,23 +224,20 @@ void EntityBuildingArmed::Init()
     }
     if (mModel->GetRedModel(0)->_pStencilShadow)
     {
-        RedDirectionalLight* pLight = RedLight::GetGlobalDirectionalLight(0);
-        if (!pLight->IsShadowCaster())
+        RedDirectionalLight* pLight = NULL;
+        if (RedLight::GetGlobalDirectionalLight(0)->IsShadowCaster())
         {
-            pLight = RedLight::GetGlobalDirectionalLight(1)->IsShadowCaster()
-                         ? RedLight::GetGlobalDirectionalLight(1)
-                         : NULL;
+            pLight = RedLight::GetGlobalDirectionalLight(0);
+        }
+        else if (RedLight::GetGlobalDirectionalLight(1)->IsShadowCaster())
+        {
+            pLight = RedLight::GetGlobalDirectionalLight(1);
         }
         if (pLight)
         {
             const PblVector3& vDir = pLight->m_vDirection;
-            float fGrow = _Sphere.w;
-            if (vDir.y < -0.5f)
-            {
-                fGrow /= vDir.y * -2.0f;
-            }
-            SetRenderPos(PblVector3(vDir.x * fGrow + _Sphere.x, vDir.y * fGrow + _Sphere.y,
-                                    vDir.z * fGrow + _Sphere.z));
+            float fGrow = vDir.y < -0.5f ? _Sphere.w / (vDir.y * -2.0f) : _Sphere.w;
+            SetRenderPos(GetRenderPos() + vDir * fGrow);
             SetRenderRadius(_Sphere.w + fGrow);
             SetTestBBox(false);
         }
@@ -358,14 +354,12 @@ void EntityBuildingArmed::Respawn()
 // FUNCTION: SWBF2 0x00495d50
 void EntityBuildingArmed::SetProperty(unsigned int uProperty, const char* pszValue)
 {
-    if (uProperty == 0x966F4238u)
-    {
-        mNoAIBoard = atoi(pszValue) != 0;
-    }
-    else
+    if (uProperty != 0x966F4238u)
     {
         reinterpret_cast<GameObject*>(this)->GameObject::SetProperty(uProperty, pszValue);
+        return;
     }
+    mNoAIBoard = atoi(pszValue) != 0;
 }
 
 // FUNCTION: SWBF2 0x00476e50
@@ -401,12 +395,12 @@ Trackable* EntityBuildingArmed::GetTrackable()
 {
     for (int i = 0; i < mNumTurrets; i++)
     {
-        Controllable* pPilot = TurretControllable(mTurret[i])->GetPilot();
+        Controllable* pPilot = mTurret[i]->GetPilot();
         if (pPilot && pPilot->mPlayerId >= 0 &&
             (NetGame::GetSpectator(NetGame::GetLocalIndex(0)) == pPilot->mPlayerId ||
              NetGame::GetJoystickIndex(pPilot->mPlayerId) >= 0))
         {
-            return TurretControllable(mTurret[i]);
+            return mTurret[i];
         }
     }
     return 0;
@@ -443,9 +437,13 @@ void EntityBuildingArmed::Render(unsigned char uFlags, float fDist, unsigned int
     {
         for (int i = 0; i < GetTurretCount(); ++i)
         {
-            if (GetTurretPtr(i) && !GetTrackable()->RenderTrackable(GetTurretPtr(i)->mPlayerId))
+            if (GetTurretPtr(i))
             {
-                return;
+                Trackable* pTrackable = GetTrackable();
+                if (!pTrackable->RenderTrackable(GetTurretPtr(i)->mPlayerId))
+                {
+                    return;
+                }
             }
         }
     }
@@ -461,34 +459,37 @@ void EntityBuildingArmed::Render(unsigned char uFlags, float fDist, unsigned int
         return;
     }
 
-    if (mClass->m_bDynamicLighting)
+    if (!mClass->m_bDynamicLighting)
     {
-        uMask &= ~0x80;
+        uMask |= 0x80;
     }
     else
     {
-        uMask |= 0x80;
+        uMask &= ~0x80;
     }
 
     float fNear, fFar, fWidth, fHeight;
     RedRenderer::GetCamera()->GetFrustum(fNear, fFar, fWidth, fHeight);
-    const RedCamera* pCamera = RedRenderer::GetCamera();
+    const PblMatrix& mView = RedRenderer::GetCamera()->GetMatrix();
     if (GetModel()->GetRedModel(0)->_pStencilShadow && RedStencilShadow::GetShadowEnable())
     {
-        RedDirectionalLight* pLight = RedLight::GetGlobalDirectionalLight(0);
-        if (!pLight->IsShadowCaster())
+        RedDirectionalLight* pLight = NULL;
+        if (RedLight::GetGlobalDirectionalLight(0)->IsShadowCaster())
         {
-            pLight = RedLight::GetGlobalDirectionalLight(1)->IsShadowCaster()
-                         ? RedLight::GetGlobalDirectionalLight(1)
-                         : NULL;
+            pLight = RedLight::GetGlobalDirectionalLight(0);
+        }
+        else if (RedLight::GetGlobalDirectionalLight(1)->IsShadowCaster())
+        {
+            pLight = RedLight::GetGlobalDirectionalLight(1);
         }
         float fLength;
         if (pLight)
         {
             uMask |= 0x10000;
+            float fMinLength = _Sphere.w * -2.0f / pLight->m_vDirection.y;
             const PblVector3& vDir = pLight->m_vDirection;
-            float fMinLength = _Sphere.w * -2.0f / vDir.y;
-            PblVector3 vStart(_Sphere.x, _Sphere.w + _Sphere.y, _Sphere.z);
+            PblVector3 vStart = GetRenderPos();
+            vStart.y += _Sphere.w;
             const GameObject* pIgnore = this;
             CollisionObject* pHit;
             fLength = CollisionManager::RayHit(vStart, vDir, 50.0f, pHit, NULL, &pIgnore, 1, 0x90, false) * 50.0f;
@@ -505,18 +506,15 @@ void EntityBuildingArmed::Render(unsigned char uFlags, float fDist, unsigned int
         static float fMaxShadowLength =
             static_cast<const EntityGeometryClass*>(mEntityClass)->mMaxShadowLength;
         float fShadowLength = fMaxShadowLength;
-        if (fShadowLength <= 0.0f || fShadowLength > fLength)
+        if (!(fShadowLength > 0.0f) || fShadowLength > fLength)
         {
             fShadowLength = fLength;
         }
         RedRenderer::SetStencilShadowLength(fShadowLength);
 
-        const PblMatrix& mView = pCamera->GetMatrix();
-        float fDX = mView.m[3][0] - mView.m[2][0] * fNear - _Sphere.x;
-        float fDY = mView.m[3][1] - mView.m[2][1] * fNear - _Sphere.y;
-        float fDZ = mView.m[3][2] - mView.m[2][2] * fNear - _Sphere.z;
+        PblVector3 vOffset = mView.GetTranslation() - mView.GetZAxis() * fNear - GetRenderPos();
         float fReach = _Sphere.w + fLength + fWidth * 1.33f;
-        RedRenderer::SetStencilShadowZFail(fReach * fReach > fDY * fDY + fDX * fDX + fDZ * fDZ);
+        RedRenderer::SetStencilShadowZFail(fReach * fReach > SquaredLength(vOffset));
     }
     else
     {
@@ -538,11 +536,14 @@ void EntityBuildingArmed::Render(unsigned char uFlags, float fDist, unsigned int
 
     mModel->Render(uFlags, fDist, &mMatrix, &mPose, color, uMask, NULL);
 
-    for (int i = 0; i < mNumTurrets; ++i)
+    if (mNumTurrets > 0)
     {
-        if (mTurret[i])
+        for (int i = 0; i < mNumTurrets; ++i)
         {
-            mTurret[i]->PostRender(mSaved[i]);
+            if (mTurret[i])
+            {
+                mTurret[i]->PostRender(mSaved[i]);
+            }
         }
     }
 }
@@ -558,9 +559,5 @@ bool EntityBuildingArmed::Update(float fDeltaTime)
     UpdateStatus(fDeltaTime);
     EntityBuilding::Update(fDeltaTime);
 
-    if (IsAlive() || mClass->mDestroyedModel || mClass->mUnbuiltModel)
-    {
-        return true;
-    }
-    return NetGame::IsEnabled();
+    return IsAlive() || mClass->mDestroyedModel || mClass->mUnbuiltModel || NetGame::IsEnabled();
 }

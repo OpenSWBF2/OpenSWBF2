@@ -153,7 +153,8 @@ int ScriptCB_GetLoginList(lua_State* L)
     {
         PlayerProfile::SetNumMemoryProfiles(1);
         unsigned short ausName[64];
-        FormatProfileName(ausName, 64, RedLocalizeDB::Find(0x3802F15B, false), 1);
+        const unsigned short* pusTemplate = RedLocalizeDB::Find(0x3802F15B, false);
+        PblUnicode::usnprintf(ausName, 64, pusTemplate, 1);
         PlayerProfile::GetProfile(0)->InitProfile(ausName);
     }
 
@@ -168,7 +169,6 @@ int ScriptCB_GetLoginList(lua_State* L)
 
         PlayerProfile::tProfile* pCur = PlayerProfile::GetCurProfile();
         PlayerProfile::tProfile* pProfile = PlayerProfile::GetProfile(0);
-        int iInList = 0;
         if (pProfile && !pProfile->mbFakeProfile &&
             SaveGameManager::IsUniqueFilename(pProfile->mName, 1))
         {
@@ -176,11 +176,11 @@ int ScriptCB_GetLoginList(lua_State* L)
             LuaHelper::TableWriteVal("showstr", pProfile->mName);
             LuaHelper::TableWriteVal("memslot", 1);
             lua_rawseti(LuaHelper::mState, -2, 1);
-            iInList = 1;
             iCount = 1;
         }
 
-        if (iInList + iNumFiles < 1 && FLInputManager::Instance()->GetPrimaryPort())
+        int iUnique = 0;
+        if (iCount + iNumFiles < 1 && FLInputManager::Instance()->GetPrimaryPort())
         {
             if (pCur)
             {
@@ -188,7 +188,6 @@ int ScriptCB_GetLoginList(lua_State* L)
             }
 
             unsigned short* pusName = pProfile->mName;
-            int iUnique = 0;
             bool bClash;
             do
             {
@@ -224,12 +223,18 @@ int ScriptCB_GetLoginList(lua_State* L)
         lua_newtable(LuaHelper::mState);
         LuaHelper::TableWriteVal("showstr", pusFile);
         LuaHelper::TableWriteVal("memslot", 0);
-        lua_rawseti(LuaHelper::mState, -2, ++iCount);
+        lua_rawseti(LuaHelper::mState, -2, iCount + 1);
+        ++iCount;
     }
 
     lua_setglobal(LuaHelper::mState, pcTableName);
     DoPeriodicLuaGC(false);
-    lua_pushnumber(LuaHelper::mState, (float)(SaveGameManager::InMemoryMode() == 1 ? 1 : 1024));
+    int iBlockSize = 1024;
+    if (SaveGameManager::InMemoryMode() == 1)
+    {
+        iBlockSize = 1;
+    }
+    lua_pushnumber(LuaHelper::mState, (float)iBlockSize);
     return 1;
 }
 
@@ -243,7 +248,8 @@ int ScriptCB_IsCurProfileDirty(lua_State* L)
         PlayerProfile::BackupDefaultProfile();
     }
     PlayerProfile::tProfile* pProfile = PlayerProfile::GetCurProfile();
-    lua_pushboolean(LuaHelper::mState, pProfile && pProfile->IsDirty(bArg));
+    bool bDirty = pProfile && pProfile->IsDirty(bArg);
+    lua_pushboolean(LuaHelper::mState, bDirty);
     return 1;
 }
 
@@ -256,15 +262,15 @@ int ScriptCB_IsProfileDirty(lua_State* L)
     {
         PlayerProfile::BackupDefaultProfile();
     }
-    unsigned int uiIndex = (int)luaL_checknumber(LuaHelper::mState, 1) - 1;
-    if (uiIndex >= 1)
+    int iIndex = (int)luaL_checknumber(LuaHelper::mState, 1) - 1;
+    if (iIndex >= 0 && iIndex < 1)
     {
-        return 0;
+        PlayerProfile::tProfile* pProfile = PlayerProfile::GetProfile(iIndex);
+        bool bDirty = pProfile && pProfile->IsDirty(bArg) && !pProfile->mbFakeProfile;
+        lua_pushboolean(LuaHelper::mState, bDirty);
+        return 1;
     }
-    PlayerProfile::tProfile* pProfile = PlayerProfile::GetProfile(uiIndex);
-    lua_pushboolean(LuaHelper::mState,
-                    pProfile && pProfile->IsDirty(bArg) && !pProfile->mbFakeProfile);
-    return 1;
+    return 0;
 }
 
 // FUNCTION: SWBF2 0x00588770
@@ -272,14 +278,15 @@ int ScriptCB_SetProfileNotDirty(lua_State* L)
 {
     LuaHelper::GetTop();
     int iIndex = LuaHelper::GetInt(1) - 1;
-    if (iIndex >= 0 && iIndex < 1)
+    if (iIndex < 0 || iIndex >= 1)
     {
-        PlayerProfile::tProfile* pProfile = PlayerProfile::GetProfile(iIndex - 1);
-        if (pProfile)
-        {
-            pProfile->UpdateProfCRC();
-            pProfile->mIsDirty = false;
-        }
+        return 0;
+    }
+    PlayerProfile::tProfile* pProfile = PlayerProfile::GetProfile(iIndex - 1);
+    if (pProfile)
+    {
+        pProfile->UpdateProfCRC();
+        pProfile->mIsDirty = false;
     }
     return 0;
 }
@@ -444,7 +451,12 @@ int ScriptCB_GetCurrentPCTitleVersion(lua_State* L)
 int ScriptCB_AddProfile(lua_State* L)
 {
     lua_gettop(LuaHelper::mState);
-    if (!lua_isstring(LuaHelper::mState, 1) || !SaveGameManager::CanCreateNewFile(1))
+    if (!lua_isstring(LuaHelper::mState, 1))
+    {
+        lua_pushnil(LuaHelper::mState);
+        return 1;
+    }
+    if (!SaveGameManager::CanCreateNewFile(1))
     {
         lua_pushnil(LuaHelper::mState);
         return 1;
@@ -812,7 +824,14 @@ int ScriptCB_StartSaveMetagame(lua_State* L)
     const unsigned short* pusOld = LuaWideString::Opt(LuaHelper::mState, 1);
     const unsigned short* pusName = LuaWideString::Opt(LuaHelper::mState, 2);
     unsigned short ausFilename[128];
-    PblUnicode::ustrlcpy(ausFilename, pusName ? pusName : PlayerProfile::GetProfile(FLInputManager::Instance()->GetPrimaryPort())->mName, 128);
+    if (pusName)
+    {
+        PblUnicode::ustrlcpy(ausFilename, pusName, 128);
+    }
+    else
+    {
+        PblUnicode::ustrlcpy(ausFilename, PlayerProfile::GetProfile(FLInputManager::Instance()->GetPrimaryPort())->mName, 128);
+    }
     SaveFile::MakeMetagameFilename(ausFilename, ausFilename);
     SaveGameManager::StartQueue();
     SaveGameManager::QueueSave(ausFilename, 2, sMetagameBuffer, sizeof(sMetagameBuffer));
@@ -888,7 +907,14 @@ int ScriptCB_StartSaveCampaign(lua_State* L)
     const unsigned short* pusOld = LuaWideString::Opt(LuaHelper::mState, 1);
     const unsigned short* pusName = LuaWideString::Opt(LuaHelper::mState, 2);
     unsigned short ausFilename[128];
-    PblUnicode::ustrlcpy(ausFilename, pusName ? pusName : PlayerProfile::GetProfile(FLInputManager::Instance()->GetPrimaryPort())->mName, 128);
+    if (pusName)
+    {
+        PblUnicode::ustrlcpy(ausFilename, pusName, 128);
+    }
+    else
+    {
+        PblUnicode::ustrlcpy(ausFilename, PlayerProfile::GetProfile(FLInputManager::Instance()->GetPrimaryPort())->mName, 128);
+    }
     SaveFile::MakeMetagameFilename(ausFilename, ausFilename);
     SaveGameManager::StartQueue();
     SaveGameManager::QueueSave(ausFilename, 3, sCampaignBuffer, sizeof(sCampaignBuffer));
@@ -931,12 +957,13 @@ int ScriptCB_IsCurrentCampaign(lua_State* L)
 // FUNCTION: SWBF2 0x00589690
 int ScriptCB_TrimLoginName(lua_State* L)
 {
+    char acName[100];
+    char* pcName = acName;
     if (lua_gettop(LuaHelper::mState) == 1 && lua_isstring(LuaHelper::mState, 1))
     {
-        char acName[100];
-        strlcpy(acName, luaL_checklstring(LuaHelper::mState, 1, 0), sizeof(acName));
+        const char* pcLogin = luaL_checklstring(LuaHelper::mState, 1, 0);
+        strlcpy(acName, pcLogin, sizeof(acName));
 
-        char* pcName = acName;
         while (*pcName && isspace(*pcName))
         {
             ++pcName;
@@ -975,9 +1002,11 @@ int ScriptCB_GetUniqueLoginName(lua_State* L)
         return 1;
     }
 
-    for (unsigned int uiTry = 1; uiTry <= 2; ++uiTry)
+    unsigned int uiTry = 0;
+    do
     {
-        FormatProfileName(Lua_Callbacks::sTempReturnString16, 256, pusBase, (int)uiTry);
+        ++uiTry;
+        PblUnicode::usnprintf(Lua_Callbacks::sTempReturnString16, 512, pusBase, uiTry);
         bool bUnique = true;
         for (int i = 0; i < PlayerProfile::GetNumMemoryProfiles(); ++i)
         {
@@ -989,9 +1018,10 @@ int ScriptCB_GetUniqueLoginName(lua_State* L)
         }
         if (bUnique)
         {
-            break;
+            LuaHelper::PushString(Lua_Callbacks::sTempReturnString16);
+            return 1;
         }
-    }
+    } while (uiTry < 2);
     LuaHelper::PushString(Lua_Callbacks::sTempReturnString16);
     return 1;
 }
@@ -1065,9 +1095,9 @@ int ScriptCB_DoesProfileExistOnCard(lua_State* L)
     }
     bool bExists = false;
     PlayerProfile::tProfile* pProfile = PlayerProfile::GetProfile(iIndex);
-    if (pProfile)
+    if (pProfile && !SaveGameManager::IsUniqueFilename(pProfile->mName, 1))
     {
-        bExists = !SaveGameManager::IsUniqueFilename(pProfile->mName, 1);
+        bExists = true;
     }
     LuaHelper::PushBool(bExists);
     return 1;
@@ -1128,8 +1158,6 @@ namespace Lua_Callbacks
 int ScriptCB_GetSavedMetagameList(lua_State* L)
 {
     OneSavegame aSavegames[0x800];
-    unsigned short ausName[128];
-    unsigned short ausDate[128];
 
     lua_gettop(LuaHelper::mState);
     lua_toboolean(LuaHelper::mState, 1);
@@ -1142,13 +1170,14 @@ int ScriptCB_GetSavedMetagameList(lua_State* L)
         ++iNumFiles;
     }
 
-    int iArg;
-    const unsigned short* pusFile;
     if (iNumFiles >= 0x800)
     {
+        unsigned short ausName[128];
+        unsigned short ausDate[128];
+        int iArg;
+        const unsigned short* pusFile;
         SaveGameManager::ResetFileList();
-        int iIndex = 1;
-        while ((pusFile = SaveGameManager::GetNextFileName(2, &iArg)) != 0)
+        for (int iIndex = 1; (pusFile = SaveGameManager::GetNextFileName(2, &iArg)) != 0; ++iIndex)
         {
             lua_newtable(LuaHelper::mState);
             LuaHelper::TableWriteVal("filename", pusFile);
@@ -1159,21 +1188,24 @@ int ScriptCB_GetSavedMetagameList(lua_State* L)
             {
                 LuaHelper::TableWriteVal("isCurrent", true);
             }
-            lua_rawseti(LuaHelper::mState, -2, iIndex++);
+            lua_rawseti(LuaHelper::mState, -2, iIndex);
         }
     }
     else
     {
+        unsigned short ausName[128];
+        unsigned short ausDate[128];
+        int iArg;
+        const unsigned short* pusFile;
         int iCount = 0;
         SaveGameManager::ResetFileList();
         while ((pusFile = SaveGameManager::GetNextFileName(2, &iArg)) != 0)
         {
-            OneSavegame* pSave = &aSavegames[iCount];
             SaveFile::SplitMetagameFilename(pusFile, ausName, ausDate, 0, 0, 0);
-            memcpy(pSave->mFilename, pusFile, sizeof(pSave->mFilename));
-            memcpy(pSave->mGamename, ausName, sizeof(pSave->mGamename));
-            memcpy(pSave->mGamedate, ausDate, sizeof(pSave->mGamedate));
-            pSave->mIsCurrent = sCampaignFilename[0] && !PblUnicode::ustrcmp(sCampaignFilename, pusFile);
+            memcpy(aSavegames[iCount].mFilename, pusFile, sizeof(aSavegames[iCount].mFilename));
+            memcpy(aSavegames[iCount].mGamename, ausName, sizeof(aSavegames[iCount].mGamename));
+            memcpy(aSavegames[iCount].mGamedate, ausDate, sizeof(aSavegames[iCount].mGamedate));
+            aSavegames[iCount].mIsCurrent = sCampaignFilename[0] && !PblUnicode::ustrcmp(sCampaignFilename, pusFile);
             ++iCount;
         }
 
@@ -1201,8 +1233,6 @@ int ScriptCB_GetSavedMetagameList(lua_State* L)
 int ScriptCB_GetSavedCampaignList(lua_State*)
 {
     OneSavegame aSavegames[0x800];
-    unsigned short ausName[128];
-    unsigned short ausDate[128];
 
     lua_gettop(LuaHelper::mState);
     lua_toboolean(LuaHelper::mState, 1);
@@ -1215,13 +1245,14 @@ int ScriptCB_GetSavedCampaignList(lua_State*)
         ++iNumFiles;
     }
 
-    int iArg;
-    const unsigned short* pusFile;
     if (iNumFiles >= 0x800)
     {
+        unsigned short ausDate[128];
+        unsigned short ausName[128];
+        int iArg;
+        const unsigned short* pusFile;
         SaveGameManager::ResetFileList();
-        int iIndex = 1;
-        while ((pusFile = SaveGameManager::GetNextFileName(3, &iArg)) != 0)
+        for (int iIndex = 1; (pusFile = SaveGameManager::GetNextFileName(3, &iArg)) != 0; ++iIndex)
         {
             lua_newtable(LuaHelper::mState);
             LuaHelper::TableWriteVal("filename", pusFile);
@@ -1232,21 +1263,24 @@ int ScriptCB_GetSavedCampaignList(lua_State*)
             {
                 LuaHelper::TableWriteVal("isCurrent", true);
             }
-            lua_rawseti(LuaHelper::mState, -2, iIndex++);
+            lua_rawseti(LuaHelper::mState, -2, iIndex);
         }
     }
     else
     {
+        unsigned short ausDate[128];
+        unsigned short ausName[128];
+        int iArg;
+        const unsigned short* pusFile;
         int iCount = 0;
         SaveGameManager::ResetFileList();
         while ((pusFile = SaveGameManager::GetNextFileName(3, &iArg)) != 0)
         {
-            OneSavegame* pSave = &aSavegames[iCount];
             SaveFile::SplitMetagameFilename(pusFile, ausName, ausDate, 0, 0, 0);
-            memcpy(pSave->mFilename, pusFile, sizeof(pSave->mFilename));
-            memcpy(pSave->mGamename, ausName, sizeof(pSave->mGamename));
-            memcpy(pSave->mGamedate, ausDate, sizeof(pSave->mGamedate));
-            pSave->mIsCurrent = sCampaignFilename[0] && !PblUnicode::ustrcmp(sCampaignFilename, pusFile);
+            memcpy(aSavegames[iCount].mFilename, pusFile, sizeof(aSavegames[iCount].mFilename));
+            memcpy(aSavegames[iCount].mGamename, ausName, sizeof(aSavegames[iCount].mGamename));
+            memcpy(aSavegames[iCount].mGamedate, ausDate, sizeof(aSavegames[iCount].mGamedate));
+            aSavegames[iCount].mIsCurrent = sCampaignFilename[0] && !PblUnicode::ustrcmp(sCampaignFilename, pusFile);
             ++iCount;
         }
 
@@ -1273,7 +1307,8 @@ int ScriptCB_GetSavedCampaignList(lua_State*)
 // FUNCTION: SWBF2 0x0058a160
 int ScriptCB_Logout(lua_State* L)
 {
-    if (lua_gettop(LuaHelper::mState) <= 1)
+    unsigned int uiNumArgs = lua_gettop(LuaHelper::mState);
+    if (uiNumArgs <= 1)
     {
         PlayerProfile::tProfile* pProfile = PlayerProfile::GetProfile(0);
         if (pProfile)
@@ -1289,14 +1324,14 @@ int ScriptCB_Logout(lua_State* L)
 // FUNCTION: SWBF2 0x0058a1f0
 int ScriptCB_IsMetagameStateSaved(lua_State* L)
 {
-    lua_pushboolean(LuaHelper::mState, sMetagameBufferSize != 0);
+    lua_pushboolean(LuaHelper::mState, sMetagameBufferSize > 0);
     return 1;
 }
 
 // FUNCTION: SWBF2 0x0058a270
 int ScriptCB_IsCampaignStateSaved(lua_State* L)
 {
-    lua_pushboolean(LuaHelper::mState, sCampaignBufferSize != 0);
+    lua_pushboolean(LuaHelper::mState, sCampaignBufferSize > 0);
     return 1;
 }
 
@@ -1314,7 +1349,7 @@ int ScriptCB_GetInTrainingMission(lua_State* L)
 // FUNCTION: SWBF2 0x0058a360
 int ScriptCB_IsMissionSetupSaved(lua_State* L)
 {
-    lua_pushboolean(LuaHelper::mState, sMissionBufferSize != 0);
+    lua_pushboolean(LuaHelper::mState, sMissionBufferSize > 0);
     return 1;
 }
 
@@ -1328,15 +1363,14 @@ int ScriptCB_StartNewMetagame(lua_State*)
 // FUNCTION: SWBF2 0x00589dc0
 int ScriptCB_DoesMetagameExistOnCard(lua_State*)
 {
-    if (lua_isstring(LuaHelper::mState, 1))
-    {
-        const unsigned short* pusName = LuaWideString::Check(LuaHelper::mState, 1);
-        lua_pushboolean(LuaHelper::mState, !SaveGameManager::IsUniqueFilename(pusName, 2));
-    }
-    else
+    if (!lua_isstring(LuaHelper::mState, 1))
     {
         lua_pushnil(LuaHelper::mState);
+        return 1;
     }
+    const unsigned short* pusName = reinterpret_cast<const unsigned short*>(luaL_checklstring(LuaHelper::mState, 1, 0));
+    bool bExists = !SaveGameManager::IsUniqueFilename(pusName, 2);
+    lua_pushboolean(LuaHelper::mState, bExists);
     return 1;
 }
 
@@ -1350,15 +1384,14 @@ int ScriptCB_StartNewCampaign(lua_State*)
 // FUNCTION: SWBF2 0x0058a100
 int ScriptCB_DoesCampaignExistOnCard(lua_State*)
 {
-    if (lua_isstring(LuaHelper::mState, 1))
-    {
-        const unsigned short* pusName = LuaWideString::Check(LuaHelper::mState, 1);
-        lua_pushboolean(LuaHelper::mState, !SaveGameManager::IsUniqueFilename(pusName, 3));
-    }
-    else
+    if (!lua_isstring(LuaHelper::mState, 1))
     {
         lua_pushnil(LuaHelper::mState);
+        return 1;
     }
+    const unsigned short* pusName = reinterpret_cast<const unsigned short*>(luaL_checklstring(LuaHelper::mState, 1, 0));
+    bool bExists = !SaveGameManager::IsUniqueFilename(pusName, 3);
+    lua_pushboolean(LuaHelper::mState, bExists);
     return 1;
 }
 
@@ -1524,16 +1557,148 @@ int SaveFile::TimeToString(unsigned short* pusDest, int iYear, int iMonth, int i
     return PblUnicode::ustrncnv(pusDest, acStamp, 16);
 }
 
-// FUNCTION: SWBF2 0x004266b0
-void SaveFile::MakeMetagameFilename(unsigned short* pusDest, unsigned short const* pusSource)
+namespace Lua_Callbacks
 {
-    unsigned short ausStamp[16];
-    SYSTEMTIME localTime;
-    PblUnicode::ustrlcpy(pusDest, pusSource, 128);
-    GetLocalTime(&localTime);
-    SaveFile::TimeToString(ausStamp, localTime.wYear, localTime.wMonth, localTime.wDay,
-               localTime.wHour, localTime.wMinute, localTime.wSecond);
-    PblUnicode::ustrlcat(pusDest, ausStamp, 128);
+
+// FUNCTION: SWBF2 0x0058a410
+static int WriteLuaItem(unsigned char* pOut, int iIndex, int iDepth, bool bArg)
+{
+    (void)bArg;
+    lua_pushvalue(LuaHelper::mState, iIndex);
+    const int iType = lua_type(LuaHelper::mState, -1);
+    *pOut = static_cast<unsigned char>(iType);
+    unsigned char* pWrite = pOut + 1;
+    switch (iType)
+    {
+    case LUA_TBOOLEAN:
+        *pWrite++ = lua_toboolean(LuaHelper::mState, -1) != 0;
+        break;
+    case LUA_TLIGHTUSERDATA:
+    {
+        void const* pValue = lua_topointer(LuaHelper::mState, -1);
+        memcpy(pWrite, &pValue, sizeof(pValue));
+        pWrite += sizeof(pValue);
+        break;
+    }
+    case LUA_TNUMBER:
+    {
+        float fValue = static_cast<float>(luaL_checknumber(LuaHelper::mState, -1));
+        memcpy(pWrite, &fValue, sizeof(fValue));
+        pWrite += sizeof(fValue);
+        break;
+    }
+    case LUA_TSTRING:
+    {
+        const char* pcValue = luaL_checklstring(LuaHelper::mState, -1, 0);
+        const unsigned int uLength = strlen(pcValue) + 1;
+        memcpy(pWrite, pcValue, uLength);
+        pWrite += uLength;
+        break;
+    }
+    case LUA_TTABLE:
+        lua_pushnil(LuaHelper::mState);
+        while (lua_next(LuaHelper::mState, -2))
+        {
+            pWrite += WriteLuaItem(pWrite, -2, iDepth + 1, false);
+            pWrite += WriteLuaItem(pWrite, -1, iDepth + 1, false);
+            lua_settop(LuaHelper::mState, -2);
+        }
+        *pWrite++ = 0;
+        break;
+    case LUA_TFUNCTION:
+    {
+        void const* pValue = lua_topointer(LuaHelper::mState, -1);
+        if (Lua_Callbacks::FindLuaGlobal(pValue))
+        {
+            const char* pcName = luaL_checklstring(LuaHelper::mState, -1, 0);
+            const unsigned int uLength = strlen(pcName) + 1;
+            memcpy(pWrite, pcName, uLength);
+            pWrite += uLength;
+            lua_settop(LuaHelper::mState, -2);
+        }
+        else
+        {
+            *pWrite++ = 0;
+        }
+        break;
+    }
+    default:
+        break;
+    }
+    lua_settop(LuaHelper::mState, -2);
+    return static_cast<int>(pWrite - pOut);
+}
+}
+
+namespace Lua_Callbacks
+{
+
+// FUNCTION: SWBF2 0x0058a5c0
+static int ReadLuaItem(unsigned char* pData, int iDepth, bool bArg)
+{
+    (void)bArg;
+    unsigned char* pRead = pData + 1;
+    switch (*pData)
+    {
+    case LUA_TNONE:
+        break;
+    case LUA_TBOOLEAN:
+    {
+        bool bValue = *pRead++ != 0;
+        lua_pushboolean(LuaHelper::mState, bValue);
+        break;
+    }
+    case LUA_TLIGHTUSERDATA:
+    {
+        void* pValue;
+        memcpy(&pValue, pRead, sizeof(pValue));
+        pRead += sizeof(pValue);
+        lua_pushlightuserdata(LuaHelper::mState, pValue);
+        break;
+    }
+    case LUA_TNUMBER:
+    {
+        float fValue;
+        memcpy(&fValue, pRead, sizeof(fValue));
+        pRead += sizeof(fValue);
+        lua_pushnumber(LuaHelper::mState, fValue);
+        break;
+    }
+    case LUA_TSTRING:
+    {
+        const char* pcValue = reinterpret_cast<const char*>(pRead);
+        const unsigned int uSize = strlen(pcValue) + 1;
+        pRead += uSize;
+        lua_pushlstring(LuaHelper::mState, pcValue, uSize - 1);
+        break;
+    }
+    case LUA_TTABLE:
+        lua_newtable(LuaHelper::mState);
+        while (*pRead)
+        {
+            pRead += ReadLuaItem(pRead, iDepth + 1, false);
+            pRead += ReadLuaItem(pRead, iDepth + 1, false);
+            lua_rawset(LuaHelper::mState, -3);
+        }
+        ++pRead;
+        break;
+    case LUA_TFUNCTION:
+    {
+        const char* pcName = reinterpret_cast<const char*>(pRead);
+        pRead += strlen(pcName) + 1;
+        LuaHelper::GetGlobal(pcName);
+        break;
+    }
+    case LUA_TUSERDATA:
+    case LUA_TTHREAD:
+        lua_pushnil(LuaHelper::mState);
+        break;
+    default:
+        lua_pushnil(LuaHelper::mState);
+        break;
+    }
+    return static_cast<int>(pRead - pData);
+}
 }
 
 // FUNCTION: SWBF2 0x0058a750
@@ -1628,9 +1793,15 @@ static int LoadLuaItems(lua_State* L, unsigned char* pBuffer, unsigned int iSize
     {
         return 0;
     }
-    unsigned char aSerialized[65536];
-    const unsigned int uSize = _zlibuncompress(aSerialized, sizeof(aSerialized), pBuffer, iSize);
-    return LuaSaveItems::Read(LuaHelper::mState, aSerialized, uSize);
+    unsigned char aSerialized[0x10000];
+    _zlibuncompress(aSerialized, 0x10000, pBuffer, iSize);
+    const int uCount = aSerialized[0];
+    unsigned int uRead = 1;
+    for (int i = 1; i <= uCount; ++i)
+    {
+        uRead += Lua_Callbacks::ReadLuaItem(aSerialized + uRead, 0, false);
+    }
+    return uCount;
 }
 }
 
@@ -1653,7 +1824,7 @@ namespace Lua_Callbacks
 // FUNCTION: SWBF2 0x0058aa10
 bool IsMetaGameStateSaved()
 {
-    return sMetagameBufferSize != 0;
+    return sMetagameBufferSize > 0;
 }
 }
 

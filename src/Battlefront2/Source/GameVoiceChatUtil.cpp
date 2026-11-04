@@ -56,11 +56,11 @@ void* VoiceChat::NetPacketAudio::Read(unsigned int& length)
 {
     NetPacket* current = (NetPacket*)mAppPacket;
     unsigned int available = (unsigned int)((int)current->mMaxIndex - (int)current->mCurIndex);
-    char* data = current->mData + current->mCurIndex;
     if (length > available)
     {
         length = available;
     }
+    char* data = current->mData + current->mCurIndex;
     current->mCurIndex += (short)length;
     return data;
 }
@@ -72,8 +72,9 @@ void* VoiceChat::NetPacketAudio::Alloc()
     if (packet)
     {
         packet->BeginWrite();
+        return packet;
     }
-    return packet;
+    return 0;
 }
 
 // FUNCTION: SWBF2 0x0053e380
@@ -113,19 +114,18 @@ bool __cdecl SendVoice(NetPacket* packet, unsigned char destination, unsigned in
                 if (count)
                 {
                     VoiceChat::Node* voiceNode = GameVoiceChat::GetNode(i);
-                    while (i < count)
+                    do
                     {
                         if (voiceNode && voiceNode->GetID() == node)
                         {
                             break;
                         }
                         ++i;
-                    }
+                    } while (i < count);
                 }
-                Snd::Queue<NetPacket*,4>& queue = GameVoiceChat::gPacketQueue[i];
-                if (!queue.IsFull())
+                if (!GameVoiceChat::gPacketQueue[i].IsFull())
                 {
-                    queue.Add(packet);
+                    GameVoiceChat::gPacketQueue[i].Add(packet);
                     return true;
                 }
             }

@@ -18,7 +18,7 @@
 
 // GLOBAL: SWBF2 0x01f9a7e0
 // WalkerLegPair::sMemoryPool
-MemoryPool WalkerLegPair::sMemoryPool("WalkerLegPair", 0x130);
+MemoryPool WalkerLegPair::sMemoryPool("WalkerLegPair", sizeof(WalkerLegPair));
 
 
 
@@ -76,11 +76,9 @@ WalkerLegPair::WalkerLegPair(EntityWalker* pParent, const WalkerLegPairInfo& inf
     mBlend->SetJointMask(2, mTopMask);
 
     mLegJoints[Left] = info.mLegJoints[Left];
+    mLegAdjustments[Left] = PblQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
     mLegJoints[Right] = info.mLegJoints[Right];
-
-    PblQuaternion identity(1.0f, 0.0f, 0.0f, 0.0f);
-    mLegAdjustments[Left] = identity;
-    mLegAdjustments[Right] = identity;
+    mLegAdjustments[Right] = PblQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
     mBlendFactor = 0.0f;
 }
 
@@ -142,10 +140,11 @@ void WalkerLegPair::InitDone()
 // FUNCTION: SWBF2 0x00676900
 bool WalkerLegPair::FootTerrainCollision(const CollisionResult* pResult)
 {
+    const int iCollider = pResult->mColliderId;
     int i;
     for (i = 0; i < FootCount; ++i)
     {
-        if (mFootCollisionBody[i] == pResult->mColliderId)
+        if (mFootCollisionBody[i] == iCollider)
         {
             break;
         }
@@ -181,9 +180,10 @@ void WalkerLegPair::SetupGroundCollision(const PblMatrix& mMatrix, float fPitch,
 
     for (int i = 0; i < FootCount; ++i)
     {
-        PblVector3 vStart(vOrigin.x + mMatrix.m[0][0] * pFeet[i].x + mMatrix.m[2][0] * pFeet[i].z,
-                          vOrigin.y + mMatrix.m[0][1] * pFeet[i].x + mMatrix.m[2][1] * pFeet[i].z + fLegLength,
-                          vOrigin.z + mMatrix.m[0][2] * pFeet[i].x + mMatrix.m[2][2] * pFeet[i].z);
+        PblVector3 vStart = vOrigin;
+        vStart.x = vStart.x + mMatrix.m[0][0] * pFeet[i].x + mMatrix.m[2][0] * pFeet[i].z;
+        vStart.y = vStart.y + mMatrix.m[0][1] * pFeet[i].x + mMatrix.m[2][1] * pFeet[i].z + fLegLength;
+        vStart.z = vStart.z + mMatrix.m[0][2] * pFeet[i].x + mMatrix.m[2][2] * pFeet[i].z;
         CollisionObject* pHitObject;
         float fHit = CollisionManager::RayHit(vStart, PblVector3(0.0f, -1.0f, 0.0f), fRayLength, pHitObject,
                                               NULL, NULL, 0, 0x90, false);
@@ -191,15 +191,7 @@ void WalkerLegPair::SetupGroundCollision(const PblMatrix& mMatrix, float fPitch,
     }
 
     mFootHeightDifference = mFootHeight[Left] - mFootHeight[Right];
-    float fBlend = mFootHeightDifference * -0.6f;
-    if (fBlend < -1.0f)
-    {
-        fBlend = -1.0f;
-    }
-    else if (fBlend > 1.0f)
-    {
-        fBlend = 1.0f;
-    }
+    float fBlend = Clamp(mFootHeightDifference * -0.6f, -1.0f, 1.0f);
     mBlendFactor += (fBlend - mBlendFactor) * 0.4f;
 
     if (mParent->mClass->mOrientRoll)
@@ -279,13 +271,13 @@ void WalkerLegPair::AdjustLeg(eFoot eWhich, const PblQuaternion& kAdjust)
         return;
     }
 
-    ZephyrTransform* pJoints = mParent->mZephyrPoseStatic.m_pJoints;
-    PblQuaternion& kJoint = pJoints[(unsigned short)iJoint].kQuat;
+    PblQuaternion& kJoint = mParent->mZephyrPoseStatic.m_pJoints[(unsigned short)iJoint].kQuat;
     PblQuaternion kRot = kJoint;
     for (char iParent = mParent->mZephyrSkeleton.m_pShared->m_pJoints[iJoint].m_iParent; iParent;
          iParent = mParent->mZephyrSkeleton.m_pShared->m_pJoints[iParent].m_iParent)
     {
-        kRot = pJoints[(unsigned short)iParent].kQuat * kRot;
+        const PblQuaternion& kParentRot = mParent->mZephyrPoseStatic.m_pJoints[(unsigned short)iParent].kQuat;
+        kRot = kParentRot * kRot;
     }
 
     mLegAdjustments[eWhich] = kRot.Inverse() * kAdjust * kRot;

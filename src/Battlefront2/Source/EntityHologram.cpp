@@ -152,20 +152,6 @@ void FLEffectObject::UpdatedWorldMatrix()
 
 
 
-// FUNCTION: SWBF2 0x004be070
-void LightBeam::SetInitialWidth(float fWidth)
-{
-    _Flare._fSize = fWidth;
-    _fHeadSizeX = _fHeadSizeZ = fWidth * 0.5f;
-}
-
-// FUNCTION: SWBF2 0x004be0a0
-void LightBeam::SetInitialWidth(float fWidthX, float fWidthZ)
-{
-    _fHeadSizeX = fWidthX * 0.5f;
-    _fHeadSizeZ = fWidthZ * 0.5f;
-    _Flare._fSize = _fHeadSizeX + _fHeadSizeZ;
-}
 
 
 
@@ -234,7 +220,14 @@ EntityHologram::EntityHologram(EntityHologramClass* pClass, const EntityDesc& de
         m_pLightBeam = new LightBeam();
         m_pLightBeam->SetLength(pClass->m_fHeight);
         float fFadeLength = pClass->m_fHeight * kfHoloBeamFadeLengthFactor;
-        m_pLightBeam->SetFadeLength(fFadeLength < kfHoloBeamFadeLength ? fFadeLength : kfHoloBeamFadeLength);
+        if (fFadeLength < kfHoloBeamFadeLength)
+        {
+            m_pLightBeam->SetFadeLength(fFadeLength);
+        }
+        else
+        {
+            m_pLightBeam->SetFadeLength(kfHoloBeamFadeLength);
+        }
         m_pLightBeam->SetDrawDistance(pClass->m_fVisibleDistance);
         m_pLightBeam->SetInitialWidth(pClass->m_fBeamInitialWidth);
         m_pLightBeam->SetFinalWidth(pClass->m_fSize * kfHoloBeamWidthCone);
@@ -286,9 +279,11 @@ EntityHologram::EntityHologram(EntityHologramClass* pClass, const EntityDesc& de
     m_fCurrentFadeInFactor = 0.0f;
 
     float fRadius = pClass->m_fSize * 0.5f + pClass->m_fHeight * 0.5f;
-    PblVector3 vOffset(0.0f, fRadius, 0.0f);
     PblVector3 vCenter;
-    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vCenter), reinterpret_cast<const D3DXVECTOR3*>(&vOffset), reinterpret_cast<const D3DXMATRIX*>(&m_WorldMatrix));
+    {
+        PblVector3 vOffset(0.0f, fRadius, 0.0f);
+        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vCenter), reinterpret_cast<const D3DXVECTOR3*>(&vOffset), reinterpret_cast<const D3DXMATRIX*>(&m_WorldMatrix));
+    }
 
     PblMatrix mReflection;
     if (FLRenderer::IsReflected(vCenter, fRadius, mReflection, true))
@@ -298,11 +293,11 @@ EntityHologram::EntityHologram(EntityHologramClass* pClass, const EntityDesc& de
         float fDX = vCenter.x - vReflected.x;
         float fDY = vCenter.y - vReflected.y;
         float fDZ = vCenter.z - vReflected.z;
-        float fDist = sqrtf(fDX * fDX + fDY * fDY + fDZ * fDZ);
+        float fDist = PblMath::Sqrt(fDX * fDX + fDY * fDY + fDZ * fDZ);
         if (fDist > fRadius * 2.0f)
         {
             vCenter = Interpolate(vCenter, vReflected, fRadius / fDist);
-            fRadius *= 2.0f;
+            fRadius += fRadius;
         }
         else
         {
@@ -318,7 +313,7 @@ EntityHologram::EntityHologram(EntityHologramClass* pClass, const EntityDesc& de
         fRadius *= 1.1f;
     }
     SetRenderRadius(fRadius);
-    Activate();
+    AddToScene();
 
     _Thread.SetOwner(this);
     SetModel(pClass->m_pHoloModel);
@@ -331,7 +326,7 @@ EntityHologram::EntityHologram(EntityHologramClass* pClass, const EntityDesc& de
 // FUNCTION: SWBF2 0x004bea60
 EntityHologram::~EntityHologram()
 {
-    Deactivate();
+    static_cast<RedSceneObject*>(this)->Deactivate();
     delete m_apOmniLight[0];
     m_apOmniLight[0] = 0;
     delete m_pLightBeam;
@@ -354,12 +349,12 @@ bool EntityHologram::Update(float fDeltaTime)
     }
     m_fAspect = (1.0f - m_fAspect) * fReturn + m_fAspect;
 
-    if (PblRandom::GetGlobalFloat() < pClass->m_fPopRate * m_fPopTimer * 0.5f)
+    if (PblRandom::_Global.GetFloat() < pClass->m_fPopRate * m_fPopTimer * 0.5f)
     {
-        float fPop = PblRandom::GetGlobalFloat();
+        float fPop = PblRandom::_Global.GetFloat();
         if (fPop < kfHoloPopAspectProbability)
         {
-            float fAspect = PblRandom::GetGlobalFloat();
+            float fAspect = PblRandom::_Global.GetFloat();
             if (fAspect < 0.5f)
             {
                 fAspect *= 2.0f;
@@ -373,14 +368,14 @@ bool EntityHologram::Update(float fDeltaTime)
         }
         if (fPop > kfHoloPopRotateProbability)
         {
-            float fTilt = PblRandom::GetGlobalFloat();
+            float fTilt = PblRandom::_Global.GetFloat();
             m_fTilt = fTilt * fTilt * 0.017453292f * kfHoloMaxTilt;
-            m_fRotateTimer = PblRandom::GetGlobalFloat() * PblMath::fTwoPi / pClass->m_fRotateRate;
+            m_fRotateTimer = PblRandom::_Global.GetFloat() * 6.2831855f / pClass->m_fRotateRate;
         }
         m_fPopTimer = 0.0f;
     }
 
-    if (PblRandom::GetGlobalFloat() < pClass->m_fFlickerRate * m_fFlickerTimer * 0.5f)
+    if (PblRandom::_Global.GetFloat() < pClass->m_fFlickerRate * m_fFlickerTimer * 0.5f)
     {
         m_fFlickerTimer = 0.0f;
     }
@@ -421,26 +416,25 @@ bool EntityHologram::Update(float fDeltaTime)
     if (m_fFlickerTimer <= 0.0f)
     {
         m_fCurrentIntensity =
-            ((pClass->m_fFlickerAlphaMax - pClass->m_fFlickerAlphaMin) * PblRandom::GetGlobalFloat() +
+            ((pClass->m_fFlickerAlphaMax - pClass->m_fFlickerAlphaMin) * PblRandom::_Global.GetFloat() +
              pClass->m_fFlickerAlphaMin) * m_fCurrentIntensity;
     }
 
-    RedColor lightColor = m_color;
-    if (pClass->m_eType == TYPE_ICON_BUILD)
+    const int iType = pClass->m_eType;
+    if (iType == TYPE_ICON_BUILD)
     {
-
         CameraManager* pCameraManager = CameraManager::Instance();
         unsigned int uView = pCameraManager->m_hView[0];
         if (uView < 1)
         {
             unsigned char ucBit = (unsigned char)(1 << uView);
-            if (pCameraManager->m_uiVisibleIconMask[0] & 1)
+            if (!(pCameraManager->m_uiVisibleIconMask[0] & 1))
             {
-                m_uiHideInView &= ~ucBit;
+                m_uiHideInView |= ucBit;
             }
             else
             {
-                m_uiHideInView |= ucBit;
+                m_uiHideInView &= ~ucBit;
             }
             m_pLightBeam->HideInView(uView, true);
             if (m_apOmniLight[0])
@@ -448,11 +442,25 @@ bool EntityHologram::Update(float fDeltaTime)
                 m_apOmniLight[0]->m_uiHideInView |= ucBit;
             }
         }
+
+        if (m_apOmniLight[0])
+        {
+            m_apOmniLight[0]->SetColor(ToColorValue(
+                Interpolate(RedColor::BLACK, m_color, pClass->m_fLightIntensity * m_fCurrentIntensity)));
+        }
+        if (m_pLightBeam)
+        {
+            RedColor beamColor = m_color;
+            beamColor.a = (unsigned char)(int)(pClass->m_fBeamIntensity * m_fCurrentIntensity * m_color.a);
+            m_pLightBeam->SetColor(beamColor);
+            m_pLightBeam->SetFinalWidth(pClass->m_fSize * kfHoloBeamWidthCone * m_fCurrentFadeInFactor *
+                                        m_fAspect);
+        }
     }
     else
     {
         m_uiHideInView = 0;
-        if (pClass->m_eType == TYPE_ICON_ALIGNED)
+        if (iType == TYPE_ICON_ALIGNED)
         {
             int iPlayer = NetGame::GetLocalIndex(0);
             int iSpectator = NetGame::GetSpectator(iPlayer);
@@ -463,22 +471,37 @@ bool EntityHologram::Update(float fDeltaTime)
             Character* pCharacter = Character::FindPlayer(iPlayer);
             Team* pTeam = pCharacter ? pCharacter->mTeamPtr : Team::sTeams[1];
 
-            lightColor = pTeam->GetColor(m_iTeam);
+            RedColor teamColor = pTeam->mColor[m_iTeam];
+            if (m_apOmniLight[0])
+            {
+                m_apOmniLight[0]->SetColor(ToColorValue(
+                    Interpolate(RedColor::BLACK, teamColor, pClass->m_fLightIntensity * m_fCurrentIntensity)));
+            }
+            if (m_pLightBeam)
+            {
+                RedColor beamColor = m_color;
+                beamColor.a = (unsigned char)(int)(pClass->m_fBeamIntensity * m_fCurrentIntensity * m_color.a);
+                m_pLightBeam->SetColor(beamColor);
+                m_pLightBeam->SetFinalWidth(pClass->m_fSize * kfHoloBeamWidthCone * m_fCurrentFadeInFactor *
+                                            m_fAspect);
+            }
         }
-    }
-
-    if (m_apOmniLight[0])
-    {
-        m_apOmniLight[0]->SetColor(ToColorValue(
-            Interpolate(RedColor::BLACK, lightColor, pClass->m_fLightIntensity * m_fCurrentIntensity)));
-    }
-    if (m_pLightBeam)
-    {
-        RedColor beamColor = m_color;
-        beamColor.a = (unsigned char)(int)(pClass->m_fBeamIntensity * m_fCurrentIntensity * m_color.a);
-        m_pLightBeam->SetColor(beamColor);
-        m_pLightBeam->SetFinalWidth(pClass->m_fSize * kfHoloBeamWidthCone * m_fCurrentFadeInFactor *
-                                    m_fAspect);
+        else
+        {
+            if (m_apOmniLight[0])
+            {
+                m_apOmniLight[0]->SetColor(ToColorValue(
+                    Interpolate(RedColor::BLACK, m_color, pClass->m_fLightIntensity * m_fCurrentIntensity)));
+            }
+            if (m_pLightBeam)
+            {
+                RedColor beamColor = m_color;
+                beamColor.a = (unsigned char)(int)(pClass->m_fBeamIntensity * m_fCurrentIntensity * m_color.a);
+                m_pLightBeam->SetColor(beamColor);
+                m_pLightBeam->SetFinalWidth(pClass->m_fSize * kfHoloBeamWidthCone * m_fCurrentFadeInFactor *
+                                            m_fAspect);
+            }
+        }
     }
     return true;
 }
@@ -672,74 +695,67 @@ void EntityHologram::Render(unsigned char ucViewport, float fDist, unsigned int 
         }
     }
 
-    if (!m_pHoloModel || m_fCurrentIntensity * pClass->m_fImageIntensity <= 0.0f)
+    if (m_pHoloModel && m_fCurrentIntensity * pClass->m_fImageIntensity > 0.0f)
     {
-        return;
-    }
+        const PblVector3& vCamera = RedRenderer::GetCamera()->GetMatrix().GetTranslation();
+        const PblVector3& vPos = m_WorldMatrix.GetTranslation();
+        float fDX = vCamera.x - vPos.x;
+        float fDY = vCamera.y - vPos.y;
+        float fDZ = vCamera.z - vPos.z;
+        float fDistSq = fDY * fDY + fDX * fDX + fDZ * fDZ;
+        float fVisibleSq = pClass->m_fVisibleDistance * pClass->m_fVisibleDistance;
+        if (fDistSq < fVisibleSq)
+        {
+            float fFade = 1.0f;
+            if (fDistSq > kfFadeDrawDistanceSquared * fVisibleSq)
+            {
+                fFade = (1.0f - fDistSq / fVisibleSq) * kfFadeDrawDistanceFactor;
+            }
+            float fInvAspect = 1.0f / m_fAspect;
+            float fSize = m_fCurrentFadeInFactor * pClass->m_fSize;
 
-    const PblVector3& vCamera = RedRenderer::GetCamera()->GetMatrix().GetTranslation();
-    const PblVector3& vPos = m_WorldMatrix.GetTranslation();
-    float fDX = vCamera.x - vPos.x;
-    float fDY = vCamera.y - vPos.y;
-    float fDZ = vCamera.z - vPos.z;
-    float fDistSq = fDY * fDY + fDX * fDX + fDZ * fDZ;
-    float fVisibleSq = pClass->m_fVisibleDistance * pClass->m_fVisibleDistance;
-    if (fVisibleSq <= fDistSq)
-    {
-        return;
-    }
+            PblMatrix mModel(gMatrixIdentity);
+            PblMatrix mTemp;
+            D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mModel), reinterpret_cast<const D3DXMATRIX*>(&mModel),
+                               D3DXMatrixRotationX(reinterpret_cast<D3DXMATRIX*>(&mTemp), m_fTilt));
+            D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mModel), reinterpret_cast<const D3DXMATRIX*>(&mModel),
+                               D3DXMatrixRotationY(reinterpret_cast<D3DXMATRIX*>(&mTemp), pClass->m_fRotateRate * m_fRotateTimer));
 
-    float fFade = 1.0f;
-    if (fDistSq > kfFadeDrawDistanceSquared * fVisibleSq)
-    {
-        fFade = (1.0f - fDistSq / fVisibleSq) * kfFadeDrawDistanceFactor;
-    }
-    float fInvAspect = 1.0f / m_fAspect;
-    float fSize = m_fCurrentFadeInFactor * pClass->m_fSize;
+            mModel.m[3][0] += 0.0f;
+            mModel.m[3][1] += pClass->m_fHeight;
+            mModel.m[3][2] += 0.0f;
+            float fScaleXZ = m_fAspect * fSize;
+            float fScaleY = fSize * fInvAspect;
+            mModel[0] = mModel[0] * fScaleXZ;
+            mModel.m[0][3] = 0.0f;
+            mModel[1] = mModel[1] * fScaleY;
+            mModel.m[1][3] = 0.0f;
+            mModel[2] = mModel[2] * fScaleXZ;
+            mModel.m[2][3] = 0.0f;
+            mModel *= m_WorldMatrix;
 
-    PblMatrix mModel(gMatrixIdentity);
-    PblMatrix mTemp;
-    mModel.RotateX(m_fTilt);
-    mModel.RotateY(pClass->m_fRotateRate * m_fRotateTimer);
-
-    float fScaleXZ = m_fAspect * fSize;
-    float fScaleY = fSize * fInvAspect;
-    for (int i = 0; i < 3; ++i)
-    {
-        float fScale = (i == 1) ? fScaleY : fScaleXZ;
-        mModel.m[i][0] *= fScale;
-        mModel.m[i][1] *= fScale;
-        mModel.m[i][2] *= fScale;
-        mModel.m[i][3] = 0.0f;
-    }
-    mModel.m[3][0] += 0.0f;
-    mModel.m[3][1] += pClass->m_fHeight;
-    mModel.m[3][2] += 0.0f;
-    mModel *= m_WorldMatrix;
-
-    float fNear, fUnused;
-    RedRenderer::GetCamera()->GetFrustum(fNear, fUnused, fUnused, fUnused);
-    const PblVector3& vZ = RedRenderer::GetCamera()->GetMatrix().GetZAxis();
-    const PblVector3& vEye = RedRenderer::GetCamera()->GetMatrix().GetTranslation();
-    const PblVector3& vModel = mModel.GetTranslation();
-    float fDepth =
-        -fNear - (vZ.y * (vModel.y - vEye.y) + vZ.x * (vModel.x - vEye.x) + vZ.z * (vModel.z - vEye.z));
-    if (fDepth <= 0.0f)
-    {
-        return;
-    }
-
-    if (fSize > fDepth)
-    {
-        fFade *= fDepth / fSize;
-    }
-    color.a = (unsigned char)(int)(color.a * m_fCurrentIntensity * pClass->m_fImageIntensity * fFade);
-    m_pHoloModel->Render(&mModel, 0, color, uiFlags | 0x10, 0);
-    if (bReflected)
-    {
-        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mTemp), reinterpret_cast<const D3DXMATRIX*>(&mModel), reinterpret_cast<const D3DXMATRIX*>(&mReflection));
-        mReflection = mTemp;
-        m_pHoloModel->Render(&mReflection, 0, color, (uiFlags & ~0x10000u) | 0x10000110, 0);
+            float fNear, fUnused;
+            RedRenderer::GetCamera()->GetFrustum(fNear, fUnused, fUnused, fUnused);
+            const PblVector3& vZ = RedRenderer::GetCamera()->GetMatrix().GetZAxis();
+            const PblVector3& vEye = RedRenderer::GetCamera()->GetMatrix().GetTranslation();
+            const PblVector3 vToModel = mModel.GetTranslation() - vEye;
+            float fDepth = -fNear - (vZ.y * vToModel.y + vZ.x * vToModel.x + vZ.z * vToModel.z);
+            if (fDepth > 0.0f)
+            {
+                if (fSize > fDepth)
+                {
+                    fFade *= fDepth / fSize;
+                }
+                color.a = (unsigned char)(int)(color.a * m_fCurrentIntensity * pClass->m_fImageIntensity * fFade);
+                m_pHoloModel->Render(&mModel, 0, color, uiFlags | 0x10, 0);
+                if (bReflected)
+                {
+                    D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mTemp), reinterpret_cast<const D3DXMATRIX*>(&mModel), reinterpret_cast<const D3DXMATRIX*>(&mReflection));
+                    mReflection = mTemp;
+                    m_pHoloModel->Render(&mReflection, 0, color, (uiFlags & ~0x10000u) | 0x10000110, 0);
+                }
+            }
+        }
     }
 }
 
@@ -786,9 +802,11 @@ void EntityHologram::SetStoredMatrix(const PblMatrix& mMatrix)
 
     const EntityHologramClass* pClass = static_cast<const EntityHologramClass*>(mEntityClass);
     float fRadius = pClass->m_fSize * 0.5f + pClass->m_fHeight * 0.5f;
-    PblVector3 vOffset(0.0f, fRadius, 0.0f);
     PblVector3 vCenter;
-    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vCenter), reinterpret_cast<const D3DXVECTOR3*>(&vOffset), reinterpret_cast<const D3DXMATRIX*>(&m_WorldMatrix));
+    {
+        PblVector3 vOffset(0.0f, fRadius, 0.0f);
+        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vCenter), reinterpret_cast<const D3DXVECTOR3*>(&vOffset), reinterpret_cast<const D3DXMATRIX*>(&m_WorldMatrix));
+    }
 
     PblMatrix mReflection;
     if (FLRenderer::IsReflected(vCenter, fRadius, mReflection, true))
@@ -798,11 +816,11 @@ void EntityHologram::SetStoredMatrix(const PblMatrix& mMatrix)
         float fDX = vCenter.x - vReflected.x;
         float fDY = vCenter.y - vReflected.y;
         float fDZ = vCenter.z - vReflected.z;
-        float fDist = sqrtf(fDX * fDX + fDY * fDY + fDZ * fDZ);
+        float fDist = PblMath::Sqrt(fDX * fDX + fDY * fDY + fDZ * fDZ);
         if (fDist > fRadius * 2.0f)
         {
             vCenter = Interpolate(vCenter, vReflected, fRadius / fDist);
-            fRadius *= 2.0f;
+            fRadius += fRadius;
         }
         else
         {
@@ -844,7 +862,7 @@ EntityHologramClass::EntityHologramClass(unsigned int uHash)
     m_fImageIntensity = 0.5f;
     m_fFlareIntensity = 0.0f;
     m_fLightRadius = 10.0f;
-    m_fRotateRate = 6.2831855f * 0.5f;
+    m_fRotateRate = PblMath::fTwoPi * 0.5f;
     m_fPopRate = 0.03f;
     m_fFlickerRate = 0.2f;
     m_fFlickerAlphaMin = 0.4f;

@@ -102,7 +102,7 @@ void PatrolHelper::EnterState()
 
         bool bTryHint = AIUtil::GetRandomInt(1, 4) != 1;
         bool bSoldier = GetMe()->GetEntity()->IsRtti(EntitySoldier::rttiHashEntitySoldier);
-        if (bTryHint && bSoldier)
+        if (bTryHint & bSoldier)
         {
             const BaseHint* hints[10];
             int iCount = HintManager::RequestPatrolHints(GetCtrl(), mPost, 10, hints);
@@ -127,16 +127,10 @@ void PatrolHelper::EnterState()
     {
         PblVector3 vPos = AIUtil::GetCommandPostPos(pPost);
         PblVector3 vOffset = AIUtil::GetCommandPostOffset(pPost);
-        PblVector3 vDest(vOffset.x + vPos.x, vPos.y + vOffset.y, vPos.z + vOffset.z);
+        PblVector3 vDest = vPos + vOffset;
         LowLevel(GetCtrl()).SetNavigator_Goto(vDest, NULL, false, false);
         break;
     }
-
-    case STATE_GOTO_HINT:
-        mHint->Reserve(GetMe()->GetGameObject());
-        LowLevel(GetCtrl()).SetNavigator_Goto(mHint->GetCollisionCenter(), NULL, false, false);
-        mNextPatrolTime = AIUtil::GetRandomInt(30, 45) + GameLoop::GetMissionTime();
-        break;
 
     case STATE_GOTO_BASE:
     {
@@ -153,20 +147,24 @@ void PatrolHelper::EnterState()
         PblVector3 vDir = PblRandom::_Sim.GetVector3();
         vDir.y = 0.0f;
         float fDist = AIUtil::GetRandomFloat(8.0f, 14.0f);
-        vPos.x += vDir.x * fDist;
-        vPos.y += vDir.y * fDist;
-        vPos.z += vDir.z * fDist;
+        vPos += vDir * fDist;
         LowLevel(GetCtrl()).SetNavigator_Slide(vPos, NULL);
         break;
     }
 
+    case STATE_GOTO_HINT:
+        mHint->Reserve(GetMe()->GetGameObject());
+        LowLevel(GetCtrl()).SetNavigator_Goto(mHint->GetCollisionCenter(), NULL, false, false);
+        mNextPatrolTime = AIUtil::GetRandomInt(30, 45) + GameLoop::GetMissionTime();
+        break;
+
     case STATE_GUARD_HINT:
     {
+        GetMe()->GetGameObject();
         mOverrideDefaultFacePos = true;
         const PblVector3& vForward = mHint->GetZAxis();
         PblVector3 vLook(vForward.x * 10.0f, vForward.y * 10.0f, vForward.z * 10.0f);
-        PblVector3 vDest = LowLevel(GetCtrl()).GetGlobalDest();
-        mDefaultFacePos = PblVector3(vDest.x + vLook.x, vDest.y + vLook.y, vDest.z + vLook.z);
+        mDefaultFacePos = LowLevel(GetCtrl()).GetGlobalDest() + vLook;
         mHeight = mHint->GetRandomPrimaryStance();
         break;
     }
@@ -212,6 +210,7 @@ void PatrolHelper::UpdateState(float dt)
             SetNextState(STATE_GUARD_HINT);
             break;
         }
+        GetMe()->GetGameObject();
         mHint->Reserve(GetMe()->GetGameObject());
         if (GameLoop::GetMissionTime() > mNextPatrolTime)
         {
@@ -237,6 +236,7 @@ void PatrolHelper::UpdateState(float dt)
             SetNextState(STATE_START);
             break;
         }
+        GetMe()->GetGameObject();
         mHint->Reserve(GetMe()->GetGameObject());
         break;
 
@@ -253,16 +253,21 @@ void PatrolHelper::UpdateState(float dt)
 const PatrolHint* PatrolHelper::SelectHint(int i, const BaseHint** ppHint)
 {
     const GameObject* pMe = GetMe()->GetGameObject();
-    while (i > 0)
+    if (i > 0)
     {
-        --i;
-        const BaseHint** ppPick = &ppHint[AIUtil::GetRandomInt(0, i)];
-        const BaseHint* pHint = *ppPick;
-        if (AIUtil::IsHintAvailable(pMe, pHint) && pHint != mHint)
+        const BaseHint** ppLast = ppHint + (i - 1);
+        do
         {
-            return static_cast<const PatrolHint*>(pHint);
-        }
-        *ppPick = ppHint[i];
+            --i;
+            const BaseHint** ppPick = &ppHint[AIUtil::GetRandomInt(0, i)];
+            const BaseHint* pHint = *ppPick;
+            if (AIUtil::IsHintAvailable(pMe, pHint) && pHint != mHint)
+            {
+                return static_cast<const PatrolHint*>(pHint);
+            }
+            *ppPick = *ppLast;
+            --ppLast;
+        } while (i > 0);
     }
     return NULL;
 }

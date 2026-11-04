@@ -144,12 +144,12 @@ void Frustum::GetBaseEdges(Ray<Vector3<float> >* pEdges) const
 {
     Vector3<float> right = normalize(cross(up_, fwd_));
     pEdges[0].dir_ = fwd_ * far_ + up_ * height_ + right * width_;
-    pEdges[0].orig_ = center_;
     pEdges[1].dir_ = fwd_ * far_ - up_ * height_ + right * width_;
-    pEdges[1].orig_ = center_;
     pEdges[2].dir_ = fwd_ * far_ - up_ * height_ - right * width_;
-    pEdges[2].orig_ = center_;
     pEdges[3].dir_ = fwd_ * far_ + up_ * height_ - right * width_;
+    pEdges[0].orig_ = center_;
+    pEdges[1].orig_ = center_;
+    pEdges[2].orig_ = center_;
     pEdges[3].orig_ = center_;
 }
 
@@ -433,7 +433,8 @@ bool Overlap3D::Op(const BasePoly3D& rPoly, const Ray<Vector3<float> >& rRay)
     Vector3<float> skew(0.353234f, 1.2242f, 0.98245f);
     Vector3<float> axis1 = normalize(cross(plane.dir_, normalize(skew)));
     Vector3<float> yaxis = normalize(cross(plane.dir_, axis1));
-    Vector3<float> xaxis = normalize(cross(plane.dir_, yaxis));
+    Vector3<float> xaxis;
+    xaxis = normalize(cross(plane.dir_, yaxis));
 
     Vector2<float> points[256];
     BasePoly2D poly2(points, rPoly.numPoints_);

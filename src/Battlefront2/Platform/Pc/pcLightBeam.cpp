@@ -53,10 +53,10 @@ static bool InitStaticData()
     *pIndex++ = 3;
     *pIndex++ = 9;
     *pIndex++ = 9;
-    for (i = 10; i < 16; i++)
+    for (i = 0; i < 6; i++)
     {
-        *pIndex++ = i - 7;
-        *pIndex++ = i;
+        *pIndex++ = i + 3;
+        *pIndex++ = i + 10;
     }
     *pIndex++ = 15;
     *pIndex++ = 15;
@@ -67,9 +67,9 @@ static bool InitStaticData()
     }
 
     s_afBeamAlpha[0] = 0.0f;
-    for (int iRing = 0; iRing < 6; iRing++)
+    for (i = 0; i < 6; i++)
     {
-        const float f = (float)iRing;
+        const float f = (float)i;
 
         float x = (f + 0.5f) * (1.0f / 3.0f) - 1.0f;
         if (x < 0.001f)
@@ -80,12 +80,12 @@ static bool InitStaticData()
         {
             x += 1.0f / 18.0f;
         }
-        s_avBeamRadius[iRing] = PblVector3(x, (float)sqrt((double)(1.0f - x * x)), 0.0f);
+        s_avBeamRadius[i] = PblVector3(x, (float)sqrt((double)(1.0f - x * x)), 0.0f);
 
         float a = f * 0.4f - 1.0f;
-        s_afBeamAlpha[2 * iRing + 1] = (float)sqrt((double)(1.0f - a * a));
+        s_afBeamAlpha[2 * i + 1] = (float)sqrt((double)(1.0f - a * a));
         a = (f + 1.0f) * (1.0f / 3.0f) - 1.0f;
-        s_afBeamAlpha[2 * iRing + 2] = (float)sqrt((double)(1.0f - a * a));
+        s_afBeamAlpha[2 * i + 2] = (float)sqrt((double)(1.0f - a * a));
     }
 
     pIndex = s_auiHaloIndices;
@@ -100,22 +100,22 @@ static bool InitStaticData()
         *pIndex++ = 0;
     }
     *pIndex++ = 1;
-    for (i = 17; i < 33; i++)
+    for (i = 0; i < 16; i++)
     {
-        *pIndex++ = i - 16;
-        *pIndex++ = i;
+        *pIndex++ = i + 1;
+        *pIndex++ = i + 17;
     }
     *pIndex++ = 1;
     *pIndex++ = 17;
 
     const float fStep = PblMath::fTwoPi * (1.0f / 16.0f);
-    for (int iSide = 0; iSide < 16; iSide++)
+    for (i = 0; i < 16; i++)
     {
         float fSin, fCos;
-        PblMath::SinCos(&fSin, &fCos, (float)iSide * fStep);
-        s_avHaloRadius[iSide] = PblVector3(-fSin, fCos, 0.0f);
-        PblMath::SinCos(&fSin, &fCos, ((float)iSide + 0.5f) * fStep);
-        s_avHaloRadius[16 + iSide] = PblVector3(-fSin, fCos, 0.0f);
+        PblMath::SinCos(&fSin, &fCos, (float)i * fStep);
+        s_avHaloRadius[i] = PblVector3(-fSin, fCos, 0.0f);
+        PblMath::SinCos(&fSin, &fCos, ((float)i + 0.5f) * fStep);
+        s_avHaloRadius[16 + i] = PblVector3(-fSin, fCos, 0.0f);
     }
 
     return true;
@@ -131,18 +131,27 @@ void LightBeamEffect::_PlatformInit()
         m_pShader->Release();
     }
 
-    m_pShader = pcRedShader::Create(
-        PblHash("LightBeam"),
-        RedRenderer::pcGetGeometryMode() == GEOMETRYMODE_COMPRESSED ? 0x1082 : 0x82,
-        0, 0, 0x10040, RedColor::WHITE, RedColor::BLACK, 32.0f);
+    if (RedRenderer::pcGetGeometryMode() == GEOMETRYMODE_COMPRESSED)
+    {
+        m_pShader = pcRedShader::Create(0xe8651328, 0x1082, 0, 0, 0x10040,
+                                        RedColor::WHITE, RedColor::BLACK, 32.0f);
+    }
+    else
+    {
+        m_pShader = pcRedShader::Create(0xe8651328, 0x82, 0, 0, 0x10040,
+                                        RedColor::WHITE, RedColor::BLACK, 32.0f);
+    }
 }
 
 // FUNCTION: SWBF2 0x00410ba0
-inline void VertexC::SetPos(const PblVector3& v)
+void VertexC::SetPos(const PblVector3& v)
 {
-    pos.x = (short)((v.x - CompressedPos::s_vMin.x) * CompressedPos::s_vScaleInv.x - 32767.5f);
-    pos.y = (short)((v.y - CompressedPos::s_vMin.y) * CompressedPos::s_vScaleInv.y - 32767.5f);
-    pos.z = (short)((v.z - CompressedPos::s_vMin.z) * CompressedPos::s_vScaleInv.z - 32767.5f);
+    const float x = v.x;
+    const float z = v.z;
+    const float y = v.y;
+    pos.x = (short)((x - CompressedPos::s_vMin.x) * CompressedPos::s_vScaleInv.x - 32767.5f);
+    pos.y = (short)((y - CompressedPos::s_vMin.y) * CompressedPos::s_vScaleInv.y - 32767.5f);
+    pos.z = (short)((z - CompressedPos::s_vMin.z) * CompressedPos::s_vScaleInv.z - 32767.5f);
 }
 
 
@@ -230,11 +239,11 @@ void LightBeamEffect::RenderLightBeam(const LightBeam* pBeam, unsigned int uiFla
     {
         return;
     }
-    if (((float)fabs(vView.x) - fRadius) * fNear * 2.0f > -(vView.z * fWidth))
+    if (((float)fabs((double)(vView.x)) - fRadius) * fNear * 2.0f > -(vView.z * fWidth))
     {
         return;
     }
-    if (((float)fabs(vView.y) - fRadius) * fNear * 2.0f > -(vView.z * fHeight))
+    if (((float)fabs((double)(vView.y)) - fRadius) * fNear * 2.0f > -(vView.z * fHeight))
     {
         return;
     }
@@ -274,10 +283,10 @@ void LightBeamEffect::RenderLightBeam(const LightBeam* pBeam, unsigned int uiFla
         if (pBeam->_fHeadSizeX != pBeam->_fHeadSizeZ || pBeam->_fTailSizeX != pBeam->_fTailSizeZ)
         {
             const PblMatrix& mWorld = pBeam->m_mWorldMatrix;
-            const float fAcrossX = (float)fabs(mWorld.m[0][0] * vSide.x + mWorld.m[0][1] * vSide.y
-                                               + mWorld.m[0][2] * vSide.z);
-            const float fAcrossZ = (float)fabs(mWorld.m[2][0] * vSide.x + mWorld.m[2][1] * vSide.y
-                                               + mWorld.m[2][2] * vSide.z);
+            const float fAcrossX = (float)fabs((double)(mWorld.m[0][0] * vSide.x + mWorld.m[0][1] * vSide.y
+                                               + mWorld.m[0][2] * vSide.z));
+            const float fAcrossZ = (float)fabs((double)(mWorld.m[2][0] * vSide.x + mWorld.m[2][1] * vSide.y
+                                               + mWorld.m[2][2] * vSide.z));
             if (pBeam->_fHeadSizeX != pBeam->_fHeadSizeZ)
             {
                 fHeadSize = (float)sqrt((double)(pBeam->_fHeadSizeX * pBeam->_fHeadSizeX * fAcrossX * fAcrossX
@@ -371,7 +380,7 @@ void LightBeamEffect::RenderLightBeam(const LightBeam* pBeam, unsigned int uiFla
 
         RedColor edgeColor = pBeam->_color;
         edgeColor.a = 0;
-        const float fFadeWidth = (float)fabs(fCos) * (fTailSize - pBeam->_fFadeLength) + pBeam->_fFadeLength;
+        const float fFadeWidth = (float)fabs((double)(fCos)) * (fTailSize - pBeam->_fFadeLength) + pBeam->_fFadeLength;
         const float fFadeIntensity = pBeam->_fFadeAmount * fIntensity;
         const float fMaxSize = (fTailSize > fHeadSize ? fTailSize : fHeadSize) * 1.01f;
         const PblBox box(-fMaxSize, -0.01f, -1.0f,

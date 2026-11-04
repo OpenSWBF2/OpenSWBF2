@@ -65,8 +65,10 @@ bool HUD::ElementBarSegmented::Segment::SetProperty(const unsigned int uHashID, 
     {
         mGroup->RefreshFormatting(false);
 
-        const float fFadeIn = mGroup->GetFadeInTime() > GetFadeInTime() ? mGroup->GetFadeInTime()
-                                                                        : GetFadeInTime();
+        const float fFadeIn =
+            mGroup->mFader.GetPhaseTime(HUD::Envelope::phase_Attack) > mFader.GetPhaseTime(HUD::Envelope::phase_Attack)
+                ? mGroup->mFader.GetPhaseTime(HUD::Envelope::phase_Attack)
+                : mFader.GetPhaseTime(HUD::Envelope::phase_Attack);
         const unsigned int uNumSegments = mGroup->mNumSegments;
         for (float fTime = 0.0f; fTime < fFadeIn; fTime += 0.1f)
         {
@@ -99,9 +101,13 @@ HUD::ElementBarSegmented::ElementBarSegmented(const char* const pName, Factory::
     mAngleStart = 0.0f;
     mAngleEnd = 0.0f;
 
-    mSegmentAll.SetFactory(HUD::Item::Factory::FindByHashID(0x46544626u));
-    mSegmentAll.mDynamicAlloc = false;
-    mSegmentAll.mWriteEnabled = false;
+    HUD::Item* pSegmentAll = &mSegmentAll;
+    if (pSegmentAll)
+    {
+        pSegmentAll->SetFactory(HUD::Item::Factory::FindByHashID(0x46544626u));
+    }
+    mSegmentAll.SetDynamicallyAllocated(false);
+    mSegmentAll.SetWriteEnabled(false);
     mSegmentAll.SetGroup(this);
     mSegmentAll.HUD::Item::SetName("Segment");
 }
@@ -121,29 +127,35 @@ HUD::ElementBarSegmented::~ElementBarSegmented()
 // FUNCTION: SWBF2 0x0054bf90
 bool HUD::ElementBarSegmented::SetProperty(const unsigned int uHashID, const void* const pValue)
 {
+    bool bResult;
     switch (uHashID)
     {
     case kNumSegments:
         SetupSegments(*(const unsigned int*)pValue);
+        bResult = true;
         break;
     case kCircular:
         mCircular = *(const bool*)pValue;
+        bResult = true;
         break;
     case kAngleStart:
         mAngleStart = *(const float*)pValue * 0.017453292f;
+        bResult = true;
         break;
     case kAngleEnd:
         mAngleEnd = *(const float*)pValue * 0.017453292f;
+        bResult = true;
         break;
     default:
-        if (!HUD::ElementGroupBase::SetProperty(uHashID, pValue) &&
-            !HUD::ElementBar::SetProperty(uHashID, pValue))
-        {
-            return false;
-        }
+        bResult = HUD::ElementGroupBase::SetProperty(uHashID, pValue) ||
+                  HUD::ElementBar::SetProperty(uHashID, pValue);
+        break;
     }
-    SetValue(mValue);
-    return true;
+    if (bResult)
+    {
+        SetValue(mValue);
+    }
+    return bResult;
 }
 
 // SYNTHETIC: SWBF2 0x0054cacc
@@ -184,7 +196,7 @@ float HUD::ElementBarSegmented::SetValue(const float fValue)
     {
         const float fHalfWidth = fWidth * 0.5f;
         const float fHalfHeight = fHeight * 0.5f;
-        const float fSpan = (float)fabs(mAngleEnd - mAngleStart);
+        const float fSpan = (float)fabs((double)(mAngleEnd - mAngleStart));
         const float fStep = fSpan / (float)(int)mNumSegments;
         const float fLit = fSpan * fValueApplied + mAngleStart;
 
@@ -193,7 +205,8 @@ float HUD::ElementBarSegmented::SetValue(const float fValue)
             float fSin, fCos;
             PblMath::SinCos(&fSin, &fCos, fAngle);
             const float fX = fSin * fHalfWidth + fHalfWidth;
-            const float fY = fHalfHeight - 0.75f / RedRenderer::GetScreenAspectRatio() * (fCos * fHalfHeight);
+            const float fCosHeight = fCos * fHalfHeight;
+            const float fY = -(0.75f / RedRenderer::GetScreenAspectRatio() * fCosHeight) + fHalfHeight;
 
             matrix.SetRotateZ(fAngle);
             matrix.m[3][0] = fX;
@@ -253,8 +266,8 @@ void HUD::ElementBarSegmented::RefreshFormatting(bool bAddToGroup)
 {
     for (unsigned int i = 0; i < mNumSegments; ++i)
     {
-        mSegments[i].mDynamicAlloc = false;
-        mSegments[i].mWriteEnabled = false;
+        mSegments[i].SetDynamicallyAllocated(false);
+        mSegments[i].SetWriteEnabled(false);
         if (bAddToGroup)
         {
             HUD::ElementGroupBase::AddElement(&mSegments[i]);

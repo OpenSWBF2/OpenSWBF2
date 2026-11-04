@@ -1,3 +1,4 @@
+#include "PebbleFL/Common/PblMath.h"
 #include <d3dx9math.h>
 #include "ItemTimerDisplay.h"
 
@@ -38,24 +39,23 @@ void ItemTimerDisplay::Init()
     for (unsigned int i = 0; i < CameraManager::sInstance->m_iNumCam; ++i)
     {
         const unsigned int hView = CameraManager::sInstance->m_hView[i];
-        DisplayThread* pThread = sDisplayThread[i];
-        pThread->ActivateThread(0, PER_FRAME);
-        pThread->mItemTimerCount = 0;
+        sDisplayThread[i]->ActivateThread(0, PER_FRAME);
+        sDisplayThread[i]->mItemTimerCount = 0;
 
         for (int j = 0; j < 8; ++j)
         {
-            pThread->mItemArray[j] = 0;
-            RedScreenGroupElement* pGroup = &pThread->mItemGroup[j];
-            pGroup->Enable(false);
-            pGroup->AddElement(&pThread->mItemText[j]);
+            sDisplayThread[i]->mItemArray[j] = 0;
+            sDisplayThread[i]->mItemGroup[j].Enable(false);
+            sDisplayThread[i]->mItemGroup[j].AddElement(&sDisplayThread[i]->mItemText[j]);
 
-            RedTextElement* pText = &pThread->mItemText[j];
-            pText->SetFont(RedFont::GAMEFONT_TINY);
-            pText->SetIntercharacterSpacing(0);
-            pText->m_eStyle = RedGlyphCacheElement::TEXT_STYLE_SHADOW;
-            pText->SetTextAlign(RedTextElement::TEXT_HALIGN_CENTER, RedTextElement::TEXT_VALIGN_BOTTOM);
+            sDisplayThread[i]->mItemText[j].SetFont(RedFont::GAMEFONT_TINY);
+            sDisplayThread[i]->mItemText[j].SetIntercharacterSpacing(0);
+            sDisplayThread[i]->mItemText[j].m_eStyle = RedGlyphCacheElement::TEXT_STYLE_SHADOW;
+            sDisplayThread[i]->mItemText[j].SetTextAlign(RedTextElement::TEXT_HALIGN_CENTER,
+                                                         RedTextElement::TEXT_VALIGN_BOTTOM);
 
-            FLRenderer::AddInterfaceElement(hView, pGroup, 0.5f, 0.5f, false);
+            FLRenderer::AddInterfaceElement(hView, &sDisplayThread[i]->mItemGroup[j], RedInterfaceScreen::CENTER,
+                                            RedInterfaceScreen::CENTER, false);
         }
     }
 }
@@ -171,10 +171,9 @@ bool ItemTimerDisplay::DisplayThread::Update(float fDeltaTime)
     {
         const EntityItem* pObject = mItemArray[i];
         float fHeight = pObject->GetCollisionRadius() * 1.2f;
+        PblVector3 vOffset = gVectorUnitY * fHeight;
         const PblVector3& vCenter = pObject->GetCollisionCenter();
-        PblVector3 vPos(vCenter.x + gVectorUnitY.x * fHeight,
-                        vCenter.y + gVectorUnitY.y * fHeight,
-                        vCenter.z + gVectorUnitY.z * fHeight);
+        PblVector3 vPos = vCenter + vOffset;
 
         PblVector3 vScreen = pCamera->TransformWorldPointToProjectionSpace(vPos);
         if (vScreen.z < -1.0f || vScreen.z > 1.0f)
@@ -187,14 +186,14 @@ bool ItemTimerDisplay::DisplayThread::Update(float fDeltaTime)
         PblVector3 vDelta(vPos.x - vCamPos.x, vPos.y - vCamPos.y, vPos.z - vCamPos.z);
         PblVector3 vDir;
         D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vDelta));
-        if (vDir.y * -mCamera.m[2][1] + vDir.x * -mCamera.m[2][0] + vDir.z * -mCamera.m[2][2] <= 0.0f)
+        if (DotProduct(vDir, -mCamera.GetZAxis()) <= 0.0f)
         {
             continue;
         }
 
-        float fDist = sqrtf((vPos.x - vCamPos.x) * (vPos.x - vCamPos.x) +
-                            (vPos.y - vCamPos.y) * (vPos.y - vCamPos.y) +
-                            (vPos.z - vCamPos.z) * (vPos.z - vCamPos.z));
+        float fDist = PblMath::Sqrt((vPos.y - vCamPos.y) * (vPos.y - vCamPos.y) +
+                                    (vPos.x - vCamPos.x) * (vPos.x - vCamPos.x) +
+                                    (vPos.z - vCamPos.z) * (vPos.z - vCamPos.z));
         unsigned char uAlpha = 0xff;
         if (fDist > 20.0f)
         {

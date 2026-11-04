@@ -46,13 +46,11 @@ void LoadDisplay::PlatformRenderTexture(unsigned int uiTextureHash, float x0, fl
 
     float left, top, right, bottom;
     RedRenderer::pcGetViewportExtents(left, top, right, bottom);
-    float width = right - left;
-    float height = bottom - top;
 
-    float sx0 = width * x0 + left;
-    float sy0 = height * y0 + top;
-    float sx1 = width * x1 + left;
-    float sy1 = height * y1 + top;
+    float sx0 = (right - left) * x0 + left;
+    float sy0 = (bottom - top) * y0 + top;
+    float sx1 = (right - left) * x1 + left;
+    float sy1 = (bottom - top) * y1 + top;
     float tu0 = u0 * uScale + uOffset;
     float tv0 = v0 * vScale + vOffset;
     float tu1 = u1 * uScale + uOffset;
@@ -69,7 +67,7 @@ void LoadDisplay::PlatformRenderTexture(unsigned int uiTextureHash, float x0, fl
     pPrimitive->EndVertexData();
 
     pcClearShader* pShader = (pcClearShader*)pcRedShader::Create(
-        PblHash("Clear"), 0x203, 0, 0, 0x210004, RedColor::WHITE, RedColor::BLACK, 32.0f);
+        0x5c6e1222, 0x203, 0, 0, 0x210004, RedColor::WHITE, RedColor::BLACK, 32.0f);
     pShader->m_pTex = RedTexture::Find(uiTextureHash);
     RedRenderer::pcRenderPrimitive(pPrimitive, pShader, gMatrixIdentity,
                                    RedColor::WHITE, 0x200, 0, 0, 0);

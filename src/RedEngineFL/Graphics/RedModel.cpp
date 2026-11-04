@@ -37,11 +37,6 @@ bool RedModel::pc_shareBuffers = true;
 // GLOBAL: SWBF2 0x007deee8
 static float sfShadowDistance = 30.0f;
 
-void RedModel::ClearAll()
-{
-    _HashTable.Clear();
-}
-
 // FUNCTION: SWBF2 0x006c3d60
 RedModel::RedModel()
 {
@@ -150,7 +145,19 @@ unsigned int RedModel::GetBoneIndex(unsigned int uiName) const
 // FUNCTION: SWBF2 0x006c3fc0
 unsigned int RedModel::GetBoneIndex(const char* pcName) const
 {
-    return GetBoneIndex(PblTEMPHash(pcName));
+    const unsigned int uiName = PblTEMPHash(pcName);
+    const RedSkeleton* pSkeleton = _pSkeleton;
+    if (pSkeleton)
+    {
+        for (unsigned int i = 0; i < pSkeleton->m_uiNumBones; ++i)
+        {
+            if (uiName == pSkeleton->m_auiNameHash[i])
+            {
+                return i;
+            }
+        }
+    }
+    return 0;
 }
 
 // FUNCTION: SWBF2 0x006c4010
@@ -183,15 +190,15 @@ bool RedModel::GetHierarchicalBoneMatrix(unsigned int uiBone, PblMatrix& mat) co
             {
                 int iParent = pSkeleton->GetParentBone(i);
                 const PblMatrix& bone = pSkeleton->m_amDefaultPose[i];
-                if (iParent < 0)
+                if (iParent >= 0)
                 {
-                    mat = bone;
+                    const PblMatrix& parent = pSkeleton->m_amDefaultPose[iParent];
+                    PblMatrix result = bone * parent.GetInverseFast();
+                    mat = result;
                 }
                 else
                 {
-                    PblMatrix inv = pSkeleton->m_amDefaultPose[iParent].GetInverseFast();
-                    PblMatrix result = bone * inv;
-                    mat = result;
+                    mat = bone;
                 }
                 return true;
             }
@@ -211,11 +218,7 @@ unsigned int RedModel::GetParentBone(unsigned int uiBone) const
             if (pSkeleton->m_auiNameHash[i] == uiBone)
             {
                 int iParent = pSkeleton->GetParentBone(i);
-                if (iParent >= 0)
-                {
-                    return pSkeleton->m_auiNameHash[iParent];
-                }
-                return 0;
+                return iParent >= 0 ? pSkeleton->m_auiNameHash[iParent] : 0;
             }
         }
     }
@@ -237,11 +240,9 @@ unsigned int RedModel::GetParentBoneAndOffset(unsigned int uiBone, PblVector3& v
                 {
                     return 0;
                 }
-                PblMatrix inv = pSkeleton->m_amDefaultPose[iParent].GetInverseFast();
-                PblVector3 v;
-                D3DXVec3TransformCoord((D3DXVECTOR3*)&v,
-                                       (const D3DXVECTOR3*)&pSkeleton->m_amDefaultPose[i].m[3][0],
-                                       (const D3DXMATRIX*)&inv);
+                const PblMatrix& bone = pSkeleton->m_amDefaultPose[i];
+                const PblMatrix& parent = pSkeleton->m_amDefaultPose[iParent];
+                PblVector3 v = parent.GetInverseFast().ApplyTransform(bone.GetTranslation());
                 vOffset = v;
                 return _pSkeleton->m_auiNameHash[iParent];
             }
@@ -265,8 +266,9 @@ unsigned int RedModel::GetParentBoneAndOffsetMatrix(unsigned int uiBone, PblMatr
                 {
                     return 0;
                 }
-                PblMatrix inv = pSkeleton->m_amDefaultPose[iParent].GetInverseFast();
-                PblMatrix result = pSkeleton->m_amDefaultPose[i] * inv;
+                const PblMatrix& bone = pSkeleton->m_amDefaultPose[i];
+                const PblMatrix& parent = pSkeleton->m_amDefaultPose[iParent];
+                PblMatrix result = bone * parent.GetInverseFast();
                 mat = result;
                 return _pSkeleton->m_auiNameHash[iParent];
             }
@@ -303,20 +305,19 @@ void RedModel::Render(const PblMatrix* pMatrix, const RedPose* pPose, const RedC
     {
         abCulled[i] = false;
         const RedSegment* pSegment = _apSegments[i];
-        if (!pPose && !pSegment->m_uiNumBones && !(uiFlags & 0x4000000))
+        if (!pPose && pSegment->m_uiNumBones <= 0 && !(uiFlags & 0x4000000))
         {
             const PblBox& box = pSegment->mBox;
             PblVector3 vHalf;
             vHalf.x = (box._vMax.x - box._vMin.x) * 0.5f;
             vHalf.y = (box._vMax.y - box._vMin.y) * 0.5f;
             vHalf.z = (box._vMax.z - box._vMin.z) * 0.5f;
-            float fRadius = sqrtf(vHalf.x * vHalf.x + vHalf.y * vHalf.y + vHalf.z * vHalf.z);
+            float fRadius = (float)sqrt((double)(vHalf.x * vHalf.x + vHalf.y * vHalf.y + vHalf.z * vHalf.z));
             PblVector3 vCenter;
             vCenter.x = box._vMin.x + vHalf.x;
             vCenter.y = box._vMin.y + vHalf.y;
             vCenter.z = box._vMin.z + vHalf.z;
-            D3DXVec3TransformCoord((D3DXVECTOR3*)&vCenter, (const D3DXVECTOR3*)&vCenter,
-                                   (const D3DXMATRIX*)pMatrix);
+            vCenter = pMatrix->ApplyTransform(vCenter);
             float fFar = -1.0f;
             if (fFarSceneRange != 0.0f && (uiFlags & 0x20000))
             {
@@ -348,10 +349,10 @@ void RedModel::Render(const PblMatrix* pMatrix, const RedPose* pPose, const RedC
         }
         else
         {
+            float fSphereRadius = _BoundingSphere.w;
             PblSphere sphere;
-            D3DXVec3TransformCoord((D3DXVECTOR3*)&sphere, (const D3DXVECTOR3*)&_BoundingSphere,
-                                   (const D3DXMATRIX*)pMatrix);
-            sphere.w = _BoundingSphere.w;
+            sphere.SetCenter(pMatrix->ApplyTransform(_BoundingSphere.GetCenter()));
+            sphere.SetRadius(fSphereRadius);
             RedRenderer::SetLightingState(*RedLight::GetLightingState(
                 sphere, 4, (uiFlags & 0x80) != 0, (_uiFlags & 1) != 0, _bNoProjTexture));
         }
@@ -360,9 +361,10 @@ void RedModel::Render(const PblMatrix* pMatrix, const RedPose* pPose, const RedC
     RedColor colorCopy = color;
 
     const PblMatrix& camMatrix = RedRenderer::GetCamera()->GetMatrix();
-    float fDistance = -((pMatrix->m[3][1] - camMatrix.m[3][1]) * camMatrix.m[2][1] +
-                        (pMatrix->m[3][0] - camMatrix.m[3][0]) * camMatrix.m[2][0] +
-                        (pMatrix->m[3][2] - camMatrix.m[3][2]) * camMatrix.m[2][2]);
+    const PblVector3 vDelta(pMatrix->m[3][0] - camMatrix.m[3][0], pMatrix->m[3][1] - camMatrix.m[3][1],
+                            pMatrix->m[3][2] - camMatrix.m[3][2]);
+    float fDistance = -(camMatrix.m[2][1] * vDelta.y + camMatrix.m[2][0] * vDelta.x +
+                        camMatrix.m[2][2] * vDelta.z);
     fDistance = Max(fDistance, 0.0f);
     fDistance -= RedRenderer::GetCamera()->GetNearPlane();
     float fRadius = _BoundingSphere.w;
@@ -383,7 +385,7 @@ void RedModel::Render(const PblMatrix* pMatrix, const RedPose* pPose, const RedC
         memset(apBoneMatrices, 0, _pSkeleton->m_uiNumBones * sizeof(apBoneMatrices[0]));
     }
 
-    if (color.a)
+    if (color.a > 0)
     {
         for (int i = 0; i < _iNumSegments; ++i)
         {
@@ -395,14 +397,13 @@ void RedModel::Render(const PblMatrix* pMatrix, const RedPose* pPose, const RedC
             RedShadingState* pState = 0;
             if (pShadingPose)
             {
-                RedSegment* pSegment = _apSegments[i];
-                if (pSegment->m_uiMaterialNameHash)
+                if (_apSegments[i]->m_uiMaterialNameHash)
                 {
-                    pState = pShadingPose->Find(pSegment->m_uiMaterialNameHash);
+                    pState = pShadingPose->Find(_apSegments[i]->m_uiMaterialNameHash);
                 }
                 if (!pState)
                 {
-                    pState = pShadingPose->FindDefault(pSegment->GetRenderTypeHash());
+                    pState = pShadingPose->FindDefault(_apSegments[i]->GetRenderTypeHash());
                 }
             }
 
@@ -411,31 +412,26 @@ void RedModel::Render(const PblMatrix* pMatrix, const RedPose* pPose, const RedC
             if (uiNumBones)
             {
                 PblMatrix* pBoneMatrices = RedRenderer::AllocBoneMatricesInCache(uiNumBones);
-                if (!pBoneMatrices)
-                {
-                    continue;
-                }
-                const unsigned char* pIndices = _apSegments[i]->m_puiBoneIndexMap;
                 if (pPose)
                 {
                     if (_bHardSkin)
                     {
-                        pPose->GetHardSkinMatrices(pBoneMatrices, pIndices, uiNumBones);
+                        pPose->GetHardSkinMatrices(pBoneMatrices, _apSegments[i]->m_puiBoneIndexMap,
+                                                   uiNumBones);
                     }
                     else
                     {
-                        pPose->GetSkinMatrices(pBoneMatrices, pIndices, uiNumBones);
+                        pPose->GetSkinMatrices(pBoneMatrices, _apSegments[i]->m_puiBoneIndexMap,
+                                               uiNumBones);
                     }
                 }
                 else
                 {
-                    _pSkeleton->GetSkinMatrices(pBoneMatrices, pIndices, uiNumBones);
+                    _pSkeleton->GetSkinMatrices(pBoneMatrices, _apSegments[i]->m_puiBoneIndexMap,
+                                                uiNumBones);
                 }
-                const RedColor* pColor = &color;
-                if (_apSegments[i]->IsTransparent() || color.a < 0xff)
-                {
-                    pColor = &colorCopy;
-                }
+                const RedColor* pColor =
+                    (_apSegments[i]->IsTransparent() || color.a < 0xff) ? &colorCopy : &color;
                 _apSegments[i]->Render(pWorld, pBoneMatrices, uiNumBones, uiFlags, *pColor, pState);
             }
             else if (pPose)
@@ -446,21 +442,15 @@ void RedModel::Render(const PblMatrix* pMatrix, const RedPose* pPose, const RedC
                     PblMatrix mBone = pPose->_GetBoneMatrix(uiBone) * *pMatrix;
                     apBoneMatrices[uiBone] = RedRenderer::AllocMatrixInCache(mBone);
                 }
-                const RedColor* pColor = &color;
-                if (_apSegments[i]->IsTransparent() || color.a < 0xff)
-                {
-                    pColor = &colorCopy;
-                }
+                const RedColor* pColor =
+                    (_apSegments[i]->IsTransparent() || color.a < 0xff) ? &colorCopy : &color;
                 _apSegments[i]->Render(apBoneMatrices[uiBone], 0, 0, uiFlags & ~0x1000000, *pColor,
                                        pState);
             }
             else
             {
-                const RedColor* pColor = &color;
-                if (pSegment->IsTransparent() || color.a < 0xff)
-                {
-                    pColor = &colorCopy;
-                }
+                const RedColor* pColor =
+                    (_apSegments[i]->IsTransparent() || color.a < 0xff) ? &colorCopy : &color;
                 _apSegments[i]->Render(pWorld, 0, 0, uiFlags, *pColor, pState);
             }
         }
@@ -497,17 +487,17 @@ RedModel* RedModel::Read(PblFileChunk& chunk)
 {
     RedModel* pModel = new RedModel;
     pModel->_Read(chunk);
-    if (_HashTable.Find(pModel->_uiNameHash))
+    if (!_HashTable.Find(pModel->_uiNameHash))
     {
-        if (sLoadNestedLevels)
-        {
-            PblTraceP("FIXME: Duplicate RedModel name exists in another level file: %08x\n",
-                      pModel->_uiNameHash);
-        }
-        return _HashTable.Find(pModel->_uiNameHash);
+        _HashTable.Store(pModel->_uiNameHash, pModel);
+        return pModel;
     }
-    _HashTable.Store(pModel->_uiNameHash, pModel);
-    return pModel;
+    if (sLoadNestedLevels)
+    {
+        PblTraceP("FIXME: Duplicate RedModel name exists in another level file: %08x\n",
+                  pModel->_uiNameHash);
+    }
+    return _HashTable.Find(pModel->_uiNameHash);
 }
 
 // FUNCTION: SWBF2 0x006c4b90
@@ -566,7 +556,7 @@ void RedModel::_Read(PblFileChunk& chunk)
             child.ReadString(acNodeName, 256);
             if (acNodeName[0] == 'h' && acNodeName[1] == 'p' && acNodeName[2] == '_')
             {
-                char* pc = acNodeName + 1;
+                char* pc = acNodeName;
                 while (pc[1])
                 {
                     ++pc;
@@ -597,31 +587,32 @@ void RedModel::_Read(PblFileChunk& chunk)
                 PblTraceP("Model with %d segments [%s]\n", _iNumSegments, acName);
             }
             child._pFile->Read32();
-            PblBox box;
-            box._vMin.x = child._pFile->ReadFloat();
-            box._vMin.y = child._pFile->ReadFloat();
-            box._vMin.z = child._pFile->ReadFloat();
-            box._vMax.x = child._pFile->ReadFloat();
-            box._vMax.y = child._pFile->ReadFloat();
-            box._vMax.z = child._pFile->ReadFloat();
-            PblBox totalBox;
-            totalBox._vMin.x = child._pFile->ReadFloat();
-            totalBox._vMin.y = child._pFile->ReadFloat();
-            totalBox._vMin.z = child._pFile->ReadFloat();
-            totalBox._vMax.x = child._pFile->ReadFloat();
-            totalBox._vMax.y = child._pFile->ReadFloat();
-            totalBox._vMax.z = child._pFile->ReadFloat();
+            float fMinX = child._pFile->ReadFloat();
+            float fMinY = child._pFile->ReadFloat();
+            float fMinZ = child._pFile->ReadFloat();
+            float fMaxX = child._pFile->ReadFloat();
+            float fMaxY = child._pFile->ReadFloat();
+            float fMaxZ = child._pFile->ReadFloat();
+            float fTotalMinX = child._pFile->ReadFloat();
+            float fTotalMinY = child._pFile->ReadFloat();
+            float fTotalMinZ = child._pFile->ReadFloat();
+            float fTotalMaxX = child._pFile->ReadFloat();
+            float fTotalMaxY = child._pFile->ReadFloat();
+            float fTotalMaxZ = child._pFile->ReadFloat();
             _iNumBones = child._pFile->Read32();
             _uiNumStripVtx = child._pFile->Read32();
-            _BoundingBox = box;
-            _TotalBoundingBox = totalBox;
+            _BoundingBox = PblBox(fMinX, fMinY, fMinZ, fMaxX, fMaxY, fMaxZ);
+            _TotalBoundingBox = PblBox(fTotalMinX, fTotalMinY, fTotalMinZ,
+                                       fTotalMaxX, fTotalMaxY, fTotalMaxZ);
             float dx = _TotalBoundingBox._vMax.x - _TotalBoundingBox._vMin.x;
             float dy = _TotalBoundingBox._vMax.y - _TotalBoundingBox._vMin.y;
             float dz = _TotalBoundingBox._vMax.z - _TotalBoundingBox._vMin.z;
-            _BoundingSphere.x = (_TotalBoundingBox._vMax.x + _TotalBoundingBox._vMin.x) * 0.5f;
-            _BoundingSphere.y = (_TotalBoundingBox._vMax.y + _TotalBoundingBox._vMin.y) * 0.5f;
-            _BoundingSphere.z = (_TotalBoundingBox._vMax.z + _TotalBoundingBox._vMin.z) * 0.5f;
-            _BoundingSphere.w = (float)sqrt((double)(dx * dx + dy * dy + dz * dz)) * 0.5f;
+            PblSphere sphere;
+            sphere.x = (_TotalBoundingBox._vMax.x + _TotalBoundingBox._vMin.x) * 0.5f;
+            sphere.y = (_TotalBoundingBox._vMax.y + _TotalBoundingBox._vMin.y) * 0.5f;
+            sphere.z = (_TotalBoundingBox._vMax.z + _TotalBoundingBox._vMin.z) * 0.5f;
+            sphere.w = (float)sqrt((double)(dx * dx + dy * dy + dz * dz)) * 0.5f;
+            _BoundingSphere = sphere;
             break;
         }
         case 0x52485053:

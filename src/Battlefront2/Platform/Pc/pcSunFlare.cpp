@@ -153,7 +153,7 @@ void SunFlareEffect::Init()
     s_intensityTex = new RedTexture(2, 2, D3DFMT_A8R8G8B8, 1, D3DUSAGE_RENDERTARGET,
                                     D3DPOOL_DEFAULT, 0);
     s_pClearShader = (pcClearShader*)pcRedShader::Create(
-        PblHash("Clear"), 0x203, 0, 0, 0x80000, RedColor::WHITE, RedColor::BLACK, 32.0f);
+        0x5c6e1222, 0x203, 0, 0, 0x80000, RedColor::WHITE, RedColor::BLACK, 32.0f);
 
     if (RedRenderer::pcGetGeometryMode() == GEOMETRYMODE_UNCOMPRESSED)
     {
@@ -191,9 +191,8 @@ void SunFlareEffect::Init()
     else
     {
         s_samplePoints = pcRedPrimitive::Create(D3DPT_POINTLIST, 0x9282, 8, 256, 0, true);
-        const PblBox box(0.0f, 0.0f, 0.0f, 15.0f, 15.0f, 0.0f);
-        s_samplePoints->m_bbox = box;
-        CompressedPos::SetBoundingBox(box);
+        s_samplePoints->m_bbox = PblBox(0.0f, 0.0f, 0.0f, 15.0f, 15.0f, 0.0f);
+        CompressedPos::SetBoundingBox(PblBox(0.0f, 0.0f, 0.0f, 15.0f, 15.0f, 0.0f));
         CompressedPos* v = (CompressedPos*)s_samplePoints->BeginVertexData();
         if (!v)
         {
@@ -314,8 +313,11 @@ FLEffectClass* SunFlareEffect::BuildClass(PblConfig& config) const
             PblVector3 vDirection(fCosYaw * v.x - fSinYaw * v.z, v.y,
                                   fSinYaw * v.x + fCosYaw * v.z);
             pFlare->SetDirection(vDirection);
-            RedWater::SetSpecularDirection(
-                PblVector3(-vDirection.x, -vDirection.y, -vDirection.z));
+            if (!RedWater::IsSpecularDirectionSet())
+            {
+                RedWater::SetSpecularDirection(
+                    PblVector3(-vDirection.x, -vDirection.y, -vDirection.z));
+            }
             break;
         }
         case 0xE3C8D91Eu:
@@ -385,18 +387,18 @@ void SunFlareEffect::Render(int value)
 // FUNCTION: SWBF2 0x0042df30
 void SunFlareEffect::RenderSky(unsigned int uiPass) const
 {
-    if (RedRenderer::pcGetGeometryMode() != GEOMETRYMODE_UNCOMPRESSED)
+    if (RedRenderer::pcGetGeometryMode() == GEOMETRYMODE_UNCOMPRESSED)
     {
         for (PblList<SunFlare>::Itor it = _List.Begin(); it != _List.End(); ++it)
         {
-            it->RenderSunAndHalo<FlareCompressedVertex, 37506>(uiPass);
+            it->RenderSunAndHalo<FlareVertex, 642>(uiPass);
         }
     }
     else
     {
         for (PblList<SunFlare>::Itor it = _List.Begin(); it != _List.End(); ++it)
         {
-            it->RenderSunAndHalo<FlareVertex, 642>(uiPass);
+            it->RenderSunAndHalo<FlareCompressedVertex, 37506>(uiPass);
         }
     }
 }
@@ -568,19 +570,20 @@ void SunFlare::_Render() const
         return;
     }
     const PblVector3& vAxis = RedRenderer::GetCamera()->GetMatrix().GetZAxis();
-    if (_vDirection.x * vAxis.x + _vDirection.y * vAxis.y + _vDirection.z * vAxis.z > 0.0f)
+    if (DotProduct(_vDirection, vAxis) > 0.0f)
     {
         return;
     }
 
     float fDistance = GetDistance();
-    PblVector3 vOffset(_vDirection.x * fDistance, _vDirection.y * fDistance,
-                       _vDirection.z * fDistance);
+    const PblVector3 vOffset = _vDirection * fDistance;
     const PblVector3& vCamera = RedRenderer::GetCamera()->GetMatrix().GetTranslation();
-    PblVector3 vPosition(vCamera.x + vOffset.x, vCamera.y + vOffset.y, vCamera.z + vOffset.z);
-    PblVector3 vView;
-    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vView), reinterpret_cast<const D3DXVECTOR3*>(&vPosition), reinterpret_cast<const D3DXMATRIX*>(&RedRenderer::GetCamera()->GetMatrixInverse()));
-    vPosition = vView;
+    PblVector3 vPosition = vCamera + vOffset;
+    {
+        PblVector3 vView;
+        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vView), reinterpret_cast<const D3DXVECTOR3*>(&vPosition), reinterpret_cast<const D3DXMATRIX*>(&RedRenderer::GetCamera()->GetMatrixInverse()));
+        vPosition = vView;
+    }
 
     float fSize = _fSize * fDistance * 0.00833f / RedRenderer::GetCamera()->GetZoom();
     float fFlareOutSize = _fFlareOutSize * fDistance * 0.00833f;

@@ -201,8 +201,8 @@ void DSBufferRenderer::ResetGain()
 // FUNCTION: SWBF2 0x0073e250
 void DSBufferRenderer::StopBuffer()
 {
-
-    if (DSBuffer::GetBuffer() == 0)
+    IDirectSoundBuffer8* pBuffer = DSBuffer::GetBuffer();
+    if (pBuffer == 0)
     {
         return;
     }
@@ -214,8 +214,8 @@ void DSBufferRenderer::StopBuffer()
 
     DSBuffer::Stop();
 
-    if (!Engine::Succeeded(DSBuffer::GetBuffer()->SetCurrentPosition(0),
-                           "source\\win\\snddsbufferrenderer.cpp", 578))
+    HRESULT hr = pBuffer->SetCurrentPosition(0);
+    if (!Engine::Succeeded(hr, "source\\win\\snddsbufferrenderer.cpp", 578))
     {
         PblTraceP("DSBufferRenderer : unable to reset buffer play cursor\n");
 
@@ -231,52 +231,44 @@ void DSBufferRenderer::UpdateGain(bool bEnable, float fGain)
 
     if ((mFlags & 0x10) != 0)
     {
-
         if (Source2D3D::Get3DMode())
         {
             DSBuffer::SetGain(fSourceGain * fGain);
-            return;
         }
-
-        DSBuffer::SetGain(fSourceGain);
-        DSBuffer::SetPan(Source2D::mPan);
-        return;
+        else
+        {
+            DSBuffer::SetGain(fSourceGain);
+            DSBuffer::SetPan(Source2D::mPan);
+        }
     }
-
-    if (Source2D3D::Get3DMode())
+    else if (Source2D3D::Get3DMode())
     {
-
         const int iGain =
             (int)(fSourceGain * fGain * 32767.0f) << 16;
-        int* pTarget = mGainTarget;
         for (unsigned int i = 0; i < mNumChannels; ++i)
         {
-            *pTarget++ = iGain;
+            mGainTarget[i] = iGain;
         }
-        return;
     }
-
-    if (mNumChannels == 2)
+    else if (mNumChannels == 2)
     {
-
         GainMatrix gains;
         Source2D::CalculateGain(fSourceGain, 1.0f, gains);
 
         mGainTarget[0] = (int)(gains.frontLeft * 32767.0f) << 16;
 
         mGainTarget[1] = (int)(gains.frontRight * 32767.0f) << 16;
-
-        return;
     }
-
-    const int iGain = (int)(fSourceGain * 32767.0f) << 16;
-    int* pTarget = mGainTarget;
-    for (unsigned int i = 0; i < mNumChannels; ++i)
+    else
     {
-        *pTarget++ = iGain;
-    }
+        const int iGain = (int)(fSourceGain * 32767.0f) << 16;
+        for (unsigned int i = 0; i < mNumChannels; ++i)
+        {
+            mGainTarget[i] = iGain;
+        }
 
-    DSBuffer::SetPan(Source2D::mPan);
+        DSBuffer::SetPan(Source2D::mPan);
+    }
 }
 
 // FUNCTION: SWBF2 0x0073eab0
@@ -432,10 +424,11 @@ unsigned int DSBufferRenderer::WriteData(void* pData, unsigned int uiSize,
                                          SourceTransport::PlayState ePlayState)
 {
     unsigned int uiWritten = 0;
+    const StreamPacket* pPacket;
 
-    for (;;)
+    do
     {
-        const StreamPacket* pPacket = PeekPacket();
+        pPacket = PeekPacket();
         if (pPacket == 0)
         {
 
@@ -482,28 +475,25 @@ unsigned int DSBufferRenderer::WriteData(void* pData, unsigned int uiSize,
                     readSizeSamples &= ~7u;
                     while (readSizeSamples != 0)
                     {
-                        int sample0 = ((mGainCurrent[0] >> 16) * input[0]) >> 16;
+                        int sample = ((mGainCurrent[0] >> 16) * *input++) >> 16;
                         mGainCurrent[0] += (mGainTarget[0] - mGainCurrent[0]) >> 1;
-                        output[0] = (short)ClampSample(sample0);
-                        int sample1 = ((mGainCurrent[0] >> 16) * input[1]) >> 16;
+                        *output++ = (short)ClampSample(sample);
+                        sample = ((mGainCurrent[0] >> 16) * *input++) >> 16;
                         mGainCurrent[0] += (mGainTarget[0] - mGainCurrent[0]) >> 1;
-                        output[1] = (short)ClampSample(sample1);
-                        int sample2 = ((mGainCurrent[0] >> 16) * input[2]) >> 16;
+                        *output++ = (short)ClampSample(sample);
+                        sample = ((mGainCurrent[0] >> 16) * *input++) >> 16;
                         mGainCurrent[0] += (mGainTarget[0] - mGainCurrent[0]) >> 1;
-                        output[2] = (short)ClampSample(sample2);
-                        int sample3 = ((mGainCurrent[0] >> 16) * input[3]) >> 16;
+                        *output++ = (short)ClampSample(sample);
+                        sample = ((mGainCurrent[0] >> 16) * *input++) >> 16;
                         mGainCurrent[0] += (mGainTarget[0] - mGainCurrent[0]) >> 1;
-                        output[3] = (short)ClampSample(sample3);
-                        input += 4;
-                        output += 4;
+                        *output++ = (short)ClampSample(sample);
                         readSizeSamples -= 4;
                     }
-                    while (remaining != 0)
+                    while (remaining-- != 0)
                     {
                         int sample = ((mGainCurrent[0] >> 16) * *input++) >> 16;
                         mGainCurrent[0] += (mGainTarget[0] - mGainCurrent[0]) >> 1;
                         *output++ = (short)ClampSample(sample);
-                        --remaining;
                     }
                     break;
                 }
@@ -515,44 +505,40 @@ unsigned int DSBufferRenderer::WriteData(void* pData, unsigned int uiSize,
                     readSizeSamples &= ~15u;
                     while (readSizeSamples != 0)
                     {
-                        int sample0 = ((mGainCurrent[0] >> 16) * input[0]) >> 16;
+                        int sample = ((mGainCurrent[0] >> 16) * *input++) >> 16;
                         mGainCurrent[0] += (mGainTarget[0] - mGainCurrent[0]) >> 1;
-                        output[0] = (short)ClampSample(sample0);
-                        int sample1 = ((mGainCurrent[1] >> 16) * input[1]) >> 16;
+                        *output++ = (short)ClampSample(sample);
+                        sample = ((mGainCurrent[1] >> 16) * *input++) >> 16;
                         mGainCurrent[1] += (mGainTarget[1] - mGainCurrent[1]) >> 1;
-                        output[1] = (short)ClampSample(sample1);
-                        int sample2 = ((mGainCurrent[0] >> 16) * input[2]) >> 16;
+                        *output++ = (short)ClampSample(sample);
+                        sample = ((mGainCurrent[0] >> 16) * *input++) >> 16;
                         mGainCurrent[0] += (mGainTarget[0] - mGainCurrent[0]) >> 1;
-                        output[2] = (short)ClampSample(sample2);
-                        int sample3 = ((mGainCurrent[1] >> 16) * input[3]) >> 16;
+                        *output++ = (short)ClampSample(sample);
+                        sample = ((mGainCurrent[1] >> 16) * *input++) >> 16;
                         mGainCurrent[1] += (mGainTarget[1] - mGainCurrent[1]) >> 1;
-                        output[3] = (short)ClampSample(sample3);
-                        sample0 = ((mGainCurrent[0] >> 16) * input[4]) >> 16;
+                        *output++ = (short)ClampSample(sample);
+                        sample = ((mGainCurrent[0] >> 16) * *input++) >> 16;
                         mGainCurrent[0] += (mGainTarget[0] - mGainCurrent[0]) >> 1;
-                        output[4] = (short)ClampSample(sample0);
-                        sample1 = ((mGainCurrent[1] >> 16) * input[5]) >> 16;
+                        *output++ = (short)ClampSample(sample);
+                        sample = ((mGainCurrent[1] >> 16) * *input++) >> 16;
                         mGainCurrent[1] += (mGainTarget[1] - mGainCurrent[1]) >> 1;
-                        output[5] = (short)ClampSample(sample1);
-                        sample2 = ((mGainCurrent[0] >> 16) * input[6]) >> 16;
+                        *output++ = (short)ClampSample(sample);
+                        sample = ((mGainCurrent[0] >> 16) * *input++) >> 16;
                         mGainCurrent[0] += (mGainTarget[0] - mGainCurrent[0]) >> 1;
-                        output[6] = (short)ClampSample(sample2);
-                        sample3 = ((mGainCurrent[1] >> 16) * input[7]) >> 16;
+                        *output++ = (short)ClampSample(sample);
+                        sample = ((mGainCurrent[1] >> 16) * *input++) >> 16;
                         mGainCurrent[1] += (mGainTarget[1] - mGainCurrent[1]) >> 1;
-                        output[7] = (short)ClampSample(sample3);
-                        input += 8;
-                        output += 8;
+                        *output++ = (short)ClampSample(sample);
                         readSizeSamples -= 8;
                     }
                     while (remaining != 0)
                     {
-                        int sample0 = ((mGainCurrent[0] >> 16) * input[0]) >> 16;
+                        int sample = ((mGainCurrent[0] >> 16) * *input++) >> 16;
                         mGainCurrent[0] += (mGainTarget[0] - mGainCurrent[0]) >> 1;
-                        output[0] = (short)ClampSample(sample0);
-                        int sample1 = ((mGainCurrent[1] >> 16) * input[1]) >> 16;
+                        *output++ = (short)ClampSample(sample);
+                        sample = ((mGainCurrent[1] >> 16) * *input++) >> 16;
                         mGainCurrent[1] += (mGainTarget[1] - mGainCurrent[1]) >> 1;
-                        output[1] = (short)ClampSample(sample1);
-                        input += 2;
-                        output += 2;
+                        *output++ = (short)ClampSample(sample);
                         remaining -= 2;
                     }
                     break;
@@ -600,7 +586,7 @@ unsigned int DSBufferRenderer::WriteData(void* pData, unsigned int uiSize,
         {
             return uiWritten;
         }
-    }
+    } while (pPacket != 0);
 
     const unsigned char ucLastPacketFlags = (unsigned char)(mFlags & 3u);
 
@@ -616,21 +602,20 @@ unsigned int DSBufferRenderer::WriteData(void* pData, unsigned int uiSize,
 
     if (mLeftToPlay == 0 && (mFlags & 8) != 0)
     {
-        if (ucLastPacketFlags == 0)
+        if (ucLastPacketFlags != 0)
         {
+            mFlags = (unsigned char)(mFlags | 4u);
 
-            StreamNode::SetStarved((mFlags & 4) == 0);
+            if ((mFlags & 2) != 0)
+            {
+                StreamNode::Stop();
+            }
+
+            mFlags = (unsigned char)(mFlags & 0xFCu);
             return uiWritten;
         }
 
-        mFlags = (unsigned char)(mFlags | 4u);
-
-        if ((mFlags & 2) != 0)
-        {
-            StreamNode::Stop();
-        }
-
-        mFlags = (unsigned char)(mFlags & 0xFCu);
+        StreamNode::SetStarved((mFlags & 4) == 0);
         return uiWritten;
     }
 
@@ -672,16 +657,17 @@ void DSBufferRenderer::UpdateObject()
 
             if (Source2D3D::Get3DMode())
             {
+                SourceI3DL2Interpolated* const pI3DL2 = this;
 
-                SourceI3DL2::mFlags =
-                    (unsigned short)(SourceI3DL2::mFlags
+                pI3DL2->SourceI3DL2::mFlags =
+                    (unsigned short)(pI3DL2->SourceI3DL2::mFlags
                                      | (unsigned int)
                                            SourceI3DL2::flags_forceUpdate);
 
-                SourceI3DL2Interpolated::Update(Source3D::mClosestListener,
-                                                Source3D::mPos3D,
-                                                Source3D::mProps->mSpaceDistance,
-                                                false);
+                pI3DL2->Update(Source3D::mClosestListener,
+                               Source3D::mPos3D,
+                               Source3D::mProps->mSpaceDistance,
+                               false);
             }
 
             Engine::SetupDirectSoundEffects(this, this);
@@ -759,7 +745,8 @@ void DSBufferRenderer::UpdateObject()
 
     unsigned long ulPlayPos;
     unsigned long ulWritePos;
-    if (!Engine::Succeeded(pBuffer->GetCurrentPosition(&ulPlayPos, &ulWritePos),
+    const HRESULT hrPosition = pBuffer->GetCurrentPosition(&ulPlayPos, &ulWritePos);
+    if (!Engine::Succeeded(hrPosition,
                            "source\\win\\snddsbufferrenderer.cpp", 268))
     {
         return;
@@ -827,9 +814,10 @@ void DSBufferRenderer::UpdateObject()
         void* pAudio2;
         unsigned long ulBytes2;
         unsigned int uiWritten = 0;
-        if (!Engine::Succeeded(pBuffer->Lock(mNextLockPos, uiLockSize,
+        const HRESULT hrLock = pBuffer->Lock(mNextLockPos, uiLockSize,
                                              &pAudio1, &ulBytes1,
-                                             &pAudio2, &ulBytes2, 0),
+                                             &pAudio2, &ulBytes2, 0);
+        if (!Engine::Succeeded(hrLock,
                                "source\\win\\snddsbufferrenderer.cpp", 361))
         {
             return;
@@ -863,13 +851,9 @@ void DSBufferRenderer::UpdateObject()
         const bool bStarving = StreamNode::IsStarving();
         StreamNode::SetStarved(bStarving);
 
-        if (!bStarving && (mFlags & 4) == 0)
-        {
-            return;
-        }
-
-        if (StreamNode::QueryDesiredPlayState()
-            == SourceTransport::playState_stopped)
+        if ((!bStarving && (mFlags & 4) == 0)
+            || StreamNode::QueryDesiredPlayState()
+                   == SourceTransport::playState_stopped)
         {
             return;
         }
@@ -892,16 +876,12 @@ bool DSBufferRenderer::SetFormat(SampleInfo::Format eFormat,
                                  IDirectSound* pDirectSound,
                                  unsigned long ulFlags, bool bPrimary)
 {
-
+    const bool bHardwareEffects = Engine::smHardwareEffectsAvailable;
     const bool b3DMono = b3D && uiNumChannels == 1;
 
-    float fMs = fBufferMs;
-
-    if (Engine::GetDSCaps().dwMaxHwMixingAllBuffers == 0
-        && 500.0f > fBufferMs)
-    {
-        fMs = 500.0f;
-    }
+    float fMs = (Engine::GetDSCaps().dwMaxHwMixingAllBuffers == 0 && 500.0f > fBufferMs)
+                    ? 500.0f
+                    : fBufferMs;
 
     if (Engine::GetMinStreamBufferSizeMs() > fMs)
     {
@@ -938,16 +918,13 @@ bool DSBufferRenderer::SetFormat(SampleInfo::Format eFormat,
                 ? DSBCAPS_LOCHARDWARE
                 : DSBCAPS_LOCSOFTWARE;
 
-        const bool bProperties = Engine::smHardwareEffectsAvailable && b3DMono;
-
-        const unsigned int uiBufferFlags =
-            (unsigned int)(b3DMono ? DSBCAPS_CTRL3D : DSBCAPS_CTRLPAN)
-            | uiLocation
-            | (unsigned int)(DSBCAPS_GETCURRENTPOSITION2 | DSBCAPS_CTRLVOLUME
-                             | DSBCAPS_CTRLFREQUENCY);
-
         if (DSBuffer::Create(eFormat, uiNumChannels, uiFrequency, uiLength,
-                             b3DMono, bProperties, uiBufferFlags, false, true,
+                             b3DMono, bHardwareEffects && b3DMono,
+                             (unsigned int)(b3DMono ? DSBCAPS_CTRL3D : DSBCAPS_CTRLPAN)
+                                 | uiLocation
+                                 | (unsigned int)(DSBCAPS_GETCURRENTPOSITION2 | DSBCAPS_CTRLVOLUME
+                                                  | DSBCAPS_CTRLFREQUENCY),
+                             false, true,
                              pDirectSound, ulFlags, true))
         {
 
@@ -958,7 +935,8 @@ bool DSBufferRenderer::SetFormat(SampleInfo::Format eFormat,
                 DSBCAPS caps;
                 caps.dwSize = sizeof(DSBCAPS);
 
-                if (Engine::Succeeded(DSBuffer::GetBuffer()->GetCaps(&caps),
+                const HRESULT hrCaps = DSBuffer::GetBuffer()->GetCaps(&caps);
+                if (Engine::Succeeded(hrCaps,
                                       "source\\win\\snddsbufferrenderer.cpp", 884))
                 {
                     mBufferSize = caps.dwBufferBytes;

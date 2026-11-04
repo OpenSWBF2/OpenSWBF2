@@ -1,3 +1,4 @@
+#include "PebbleFL/Common/PblMath.h"
 #include "EntityGeometry.h"
 #include "PebbleFL/Common/PblVector.h"
 
@@ -105,11 +106,12 @@ EntityGeometry::EntityGeometry(EntityGeometryClass* pClass, const EntityDesc& de
         fRadius = pClass->mPotentialCollisionRadius;
     }
     SetCollisionRadius(fRadius);
+    Set2DCollisionRadius(fRadius);
     RecalculateAABB();
 
     const PblBox& box = mModel->_mModel->_TotalBoundingBox;
-    float fDimY = box._vMax.y - box._vMin.y;
     float fDimX = box._vMax.x - box._vMin.x;
+    float fDimY = box._vMax.y - box._vMin.y;
     float fDimZ = box._vMax.z - box._vMin.z;
     SetMass(fDimY * fDimX * fDimZ + 0.0001f);
 
@@ -191,7 +193,7 @@ void EntityGeometry::SetProperty(unsigned int uProperty, const char* pszValue)
         }
         else if (IsInCollisionList())
         {
-            CollisionManager::RemoveBody(this);
+            RemoveFromCollisionManager();
         }
         break;
     }
@@ -212,11 +214,11 @@ void EntityGeometry::BuildEffects()
 // FUNCTION: SWBF2 0x004ba6a0
 float EntityGeometry::GetSmallestCollisionDim() const
 {
-    if (mModel)
+    if (!mModel)
     {
-        return mSmallestCollisionDim;
+        return GetCollisionRadius() * 2.0f;
     }
-    return GetCollisionRadius() * 2.0f;
+    return mSmallestCollisionDim;
 }
 
 // FUNCTION: SWBF2 0x004ba6f0
@@ -250,8 +252,7 @@ PblVector3 EntityGeometry::GetTargetPoint(const PblVector3& vPos, const PblVecto
         (D3DXVECTOR3*)&vOffset,
         (const D3DXVECTOR3*)&static_cast<EntityGeometryClass*>(mEntityClass)->GetTargetPointOffset(),
         (const D3DXMATRIX*)&GetMatrix());
-    const PblVector3& vCenter = GetCollisionCenter();
-    return PblVector3(vCenter.x + vOffset.x, vCenter.y + vOffset.y, vCenter.z + vOffset.z);
+    return GetCollisionCenter() + vOffset;
 }
 
 // FUNCTION: SWBF2 0x004ba870
@@ -264,93 +265,94 @@ PblVector3 EntityGeometry::GetTargetPointMissVector() const
 bool EntityGeometry::SetupShadow(const GameObject* pObject, const GameModel* pModel, unsigned char ucLod,
                                  unsigned int& uFlags, unsigned int uShadowTexture)
 {
-    RedDirectionalLight* pLight = RedLight::GetGlobalDirectionalLight(0);
-    if (!pLight->IsShadowCaster())
+    RedDirectionalLight* pLight = NULL;
+    if (RedLight::GetGlobalDirectionalLight(0)->IsShadowCaster())
     {
-        pLight = RedLight::GetGlobalDirectionalLight(1)->IsShadowCaster()
-                     ? RedLight::GetGlobalDirectionalLight(1)
-                     : NULL;
+        pLight = RedLight::GetGlobalDirectionalLight(0);
     }
-    if (!pLight)
+    else if (RedLight::GetGlobalDirectionalLight(1)->IsShadowCaster())
     {
-        uFlags &= ~0x10000;
-        return false;
+        pLight = RedLight::GetGlobalDirectionalLight(1);
     }
-
-    if (ucLod == 0 && !(uFlags & 0x220000) && pModel->GetRedModel(0)->_pStencilShadow &&
-        RedStencilShadow::GetShadowEnable())
+    if (pLight)
     {
-        const PblVector3& vDir = pLight->m_vDirection;
-        float fMinLength = _Sphere.w * -2.0f / vDir.y;
-        if (fMinLength < 6.0f)
+        if (ucLod == 0 && !(uFlags & 0x220000) && pModel->GetRedModel(0)->_pStencilShadow &&
+            RedStencilShadow::GetShadowEnable())
         {
-            fMinLength = 6.0f;
-        }
-        uFlags |= 0x10000;
-
-        float fBack = _Sphere.w * 2.0f;
-        PblVector3 vStart(_Sphere.x - vDir.x * fBack, _Sphere.y - vDir.y * fBack, _Sphere.z - vDir.z * fBack);
-        CollisionObject* pHit;
-        float fLength = CollisionManager::RayHit(vStart, vDir, 50.0f, pHit, NULL, &pObject, pObject != NULL,
-                                                 0x90, false) * 50.0f;
-        if (fMinLength > fLength)
-        {
-            fLength = fMinLength;
-        }
-
-        float fNear, fFar, fWidth, fHeight;
-        RedRenderer::GetCamera()->GetFrustum(fNear, fFar, fWidth, fHeight);
-        const PblMatrix& mCamera = RedRenderer::GetCamera()->GetMatrix();
-        const PblVector3& vCamPos = mCamera.GetTranslation();
-        const PblVector3& vCamDir = mCamera.GetZAxis();
-        float fDX = vCamPos.x - vCamDir.x * fNear - _Sphere.x;
-        float fDY = vCamPos.y - vCamDir.y * fNear - _Sphere.y;
-        float fDZ = vCamPos.z - vCamDir.z * fNear - _Sphere.z;
-        float fReach = _Sphere.w + fLength + fWidth * 1.33f;
-        RedRenderer::SetStencilShadowLength(fLength);
-        RedRenderer::SetStencilShadowZFail(fReach * fReach > fDX * fDX + fDY * fDY + fDZ * fDZ);
-        uFlags |= 0x10000;
-        return true;
-    }
-
-    uFlags &= ~0x10000;
-    if (uShadowTexture)
-    {
-        PblVector3 vDown(-gVectorUnitY.x, -gVectorUnitY.y, -gVectorUnitY.z);
-        PblVector3 vPos(_Sphere.x, _Sphere.y, _Sphere.z);
-        float fRadius = GetCollisionRadius();
-        if (const RedModel* pRedModel = pModel->GetRedModel(ucLod))
-        {
-            fRadius = pRedModel->_BoundingSphere.w;
-        }
-        PblVector3 vNormal = gVectorUnitY;
-        CollisionObject* pHit;
-        float fHit = CollisionManager::RayHit(vPos, vDown, 5.0f, pHit, &vNormal, &pObject, pObject != NULL,
-                                              0x90, false);
-        if (fHit < 1.0f)
-        {
-            float fAlpha = 1.0f - RedRenderer::GetShadowIntensity();
-            float fDist = fHit * 5.0f;
-            PblVector3 vHit(vPos.x + vDown.x * fDist, vPos.y + vDown.y * fDist, vPos.z + vDown.z * fDist);
-            const PblVector3& vDir = pLight->m_vDirection;
-            PblVector3 vShadowNormal(0.0f - vDir.x * 0.2f, 0.8f - vDir.y * 0.2f, 0.0f - vDir.z * 0.2f);
-            float fStart = vPos.y - fRadius - vHit.y;
-            if (-vDir.x * vShadowNormal.x - vShadowNormal.z * vDir.z > -vDir.x * vNormal.x - vNormal.z * vDir.z)
+            const PblVector3& vLightDir = pLight->m_vDirection;
+            float fMinLength = _Sphere.w * -2.0f / vLightDir.y;
+            if (fMinLength < 6.0f)
             {
-                RedDropShadowManager::AddShadow(uShadowTexture, vHit, vShadowNormal, vDir, fStart,
-                                                fStart + fRadius * 2.0f, fRadius * 2.0f, fAlpha);
+                fMinLength = 6.0f;
+            }
+            uFlags |= 0x10000;
+
+            PblVector3 vStart = GetRenderPos();
+            PblVector3 vDir = pLight->m_vDirection;
+            vStart -= vDir * (_Sphere.w * 2.0f);
+            const GameObject* pIgnore = pObject;
+            CollisionObject* pHit;
+            float fLength = CollisionManager::RayHit(vStart, vDir, 50.0f, pHit, NULL, &pIgnore, pIgnore != NULL,
+                                                     0x90, false) * 50.0f;
+            if (fMinLength > fLength)
+            {
+                fLength = fMinLength;
+            }
+
+            float fNear, fFar, fWidth, fHeight;
+            RedRenderer::GetCamera()->GetFrustum(fNear, fFar, fWidth, fHeight);
+            const PblMatrix& mCamera = RedRenderer::GetCamera()->GetMatrix();
+            const PblVector3 vDelta = mCamera.GetTranslation() - mCamera.GetZAxis() * fNear - GetRenderPos();
+            float fReach = _Sphere.w + fLength + fWidth * 1.33f;
+            RedRenderer::SetStencilShadowLength(fLength);
+            RedRenderer::SetStencilShadowZFail(SquaredLength(vDelta) < fReach * fReach);
+            uFlags |= 0x10000;
+            return true;
+        }
+
+        uFlags &= ~0x10000;
+        if (uShadowTexture)
+        {
+            PblVector3 vDown(-gVectorUnitY.x, -gVectorUnitY.y, -gVectorUnitY.z);
+            PblVector3 vPos = GetRenderPos();
+            float fRadius = GetCollisionRadius();
+            if (const RedModel* pRedModel = pModel->GetRedModel(ucLod))
+            {
+                fRadius = pRedModel->_BoundingSphere.w;
+            }
+            PblVector3 vNormal = gVectorUnitY;
+            const GameObject* pIgnore = pObject;
+            CollisionObject* pHit;
+            float fHit = CollisionManager::RayHit(vPos, vDown, 5.0f, pHit, &vNormal, &pIgnore, pIgnore != NULL,
+                                                  0x90, false);
+            if (fHit < 1.0f)
+            {
+                float fAlpha = 1.0f - RedRenderer::GetShadowIntensity();
+                float fDist = fHit * 5.0f;
+                PblVector3 vHit = vPos + vDown * fDist;
+                const PblVector3& vDir = pLight->m_vDirection;
+                PblVector3 vShadowNormal = PblVector3(0.0f, 0.8f, 0.0f) - vDir * 0.2f;
+                float fStart = vPos.y - fRadius - vHit.y;
+                if (-vDir.x * vShadowNormal.x - vShadowNormal.z * vDir.z > -vDir.x * vNormal.x - vNormal.z * vDir.z)
+                {
+                    RedDropShadowManager::AddShadow(uShadowTexture, vHit, vShadowNormal, vDir, fStart,
+                                                    fStart + fRadius * 2.0f, fRadius * 2.0f, fAlpha);
+                }
             }
         }
+        return false;
     }
+    uFlags &= ~0x10000;
     return false;
 }
 
 // FUNCTION: SWBF2 0x004bb700
 void EntityGeometry::SetupLightingState(unsigned int& uFlags)
 {
+    float fRadius = GetCollisionRadius();
+    const PblVector3& vCenter = GetCollisionCenter();
     PblSphere sphere;
-    sphere.SetCenter(GetCollisionCenter());
-    sphere.SetRadius(GetCollisionRadius());
+    sphere.Set(vCenter.x, vCenter.y, vCenter.z, fRadius);
     RedRenderer::SetLightingState(*RedLight::GetLightingState(sphere, 4, (uFlags & 0x80) != 0, false, false));
     uFlags |= 0x80000000;
 }
@@ -362,20 +364,14 @@ EntityGeometryClass::EntityGeometryClass(unsigned int uHash)
     _fPriorityMod = 1.0f;
     mModel = 0;
 
-    for (int i = 0; i < 10; ++i)
-    {
-        mChunkAttachPoints[i] = 0;
-    }
+    memset(mChunkAttachPoints, 0, sizeof(mChunkAttachPoints));
 
     mLODClass = 1;
     mHitLocations = 0;
     mNumHitLocations = 0;
 
-    for (int i = 0; i < 10; ++i)
-    {
-        mChunkDescriptors[i] = 0;
-        mFullChunkCollisions[i] = 0;
-    }
+    memset(mChunkDescriptors, 0, sizeof(mChunkDescriptors));
+    memset(mFullChunkCollisions, 0, sizeof(mFullChunkCollisions));
 
     for (int i = 0; i < 10; ++i)
     {
@@ -399,38 +395,33 @@ void ChunkDescriptor::Init()
 {
     mMatrix.Reset();
 
-    mVelocity.x = 0.0f;
-    mVelocity.y = 0.0f;
     mVelocity.z = 0.0f;
+    mVelocity.y = 0.0f;
+    mVelocity.x = 0.0f;
     mModel = 0;
     mPrimitive = 0;
     mMaxTerrainCollisions = 0;
     mTerrainImpactEffect = 0;
     mPhysicsType = 0;
-    mOmega.x = 0.0f;
-    mOmega.y = 0.0f;
     mOmega.z = 0.0f;
-    mGravity.x = 0.0f;
-    mGravity.y = -9.8f;
-    mGravity.z = 0.0f;
+    mOmega.y = 0.0f;
+    mOmega.x = 0.0f;
     mFullCollisionModel = 0;
     mCoefficientOfRestitution = 0.0f;
     mCoefficientOfFriction = 0.0f;
     mSimpleFrictionConstant = 0.0f;
     mMinDeathCollisionSpeed = 0.0f;
     mForceZeroYAxisVelocity = false;
-    mMaxStaticLifetime = -1.0f;
-    for (int i = 0; i < 3; i++)
-    {
-        mTrailEffect[i] = 0;
-        mSmokeEffect[i] = 0;
-        mTrailAttachPoints[i] = 0;
-        mSmokeAttachPoints[i] = 0;
-    }
+    memset(mTrailEffect, 0, sizeof(mTrailEffect));
+    memset(mSmokeEffect, 0, sizeof(mSmokeEffect));
+    memset(mTrailAttachPoints, 0, sizeof(mTrailAttachPoints));
+    memset(mSmokeAttachPoints, 0, sizeof(mSmokeAttachPoints));
+    mGravity = PblVector3(0.0f, -9.8f, 0.0f);
     mNoBuildingCollisions = false;
     mKeepSoldierCollisions = false;
     mLinearDamping = 0.0f;
     mAngularDamping = 0.0f;
+    mMaxStaticLifetime = -1.0f;
 }
 
 // ChunkDescriptor::ChunkDescriptor(const ChunkDescriptor&)
@@ -470,33 +461,15 @@ EntityGeometryClass::EntityGeometryClass(EntityGeometryClass* pBase, unsigned in
     _fPriorityMod = 1.0f;
     mModel = pBase->mModel;
 
-    for (int i = 0; i < 10; ++i)
-    {
-        mChunkDescriptors[i] = pBase->mChunkDescriptors[i];
-    }
-    for (int i = 0; i < 10; ++i)
-    {
-        mFullChunkCollisions[i] = pBase->mFullChunkCollisions[i];
-    }
-    for (int i = 0; i < 10; ++i)
-    {
-        mChunkAttachPoints[i] = pBase->mChunkAttachPoints[i];
-    }
+    memcpy(mChunkDescriptors, pBase->mChunkDescriptors, sizeof(mChunkDescriptors));
+    memcpy(mFullChunkCollisions, pBase->mFullChunkCollisions, sizeof(mFullChunkCollisions));
+    memcpy(mChunkAttachPoints, pBase->mChunkAttachPoints, sizeof(mChunkAttachPoints));
 
     mLODClass = pBase->mLODClass;
 
-    for (int i = 0; i < 10; ++i)
-    {
-        mInitialChunkSpeed[i] = pBase->mInitialChunkSpeed[i];
-    }
-    for (int i = 0; i < 10; ++i)
-    {
-        mChunkVelocityFactor[i] = pBase->mChunkVelocityFactor[i];
-    }
-    for (int i = 0; i < 10; ++i)
-    {
-        mChunkUpFactor[i] = pBase->mChunkUpFactor[i];
-    }
+    memcpy(mInitialChunkSpeed, pBase->mInitialChunkSpeed, sizeof(mInitialChunkSpeed));
+    memcpy(mChunkVelocityFactor, pBase->mChunkVelocityFactor, sizeof(mChunkVelocityFactor));
+    memcpy(mChunkUpFactor, pBase->mChunkUpFactor, sizeof(mChunkUpFactor));
 
     mNumHitLocations = pBase->mNumHitLocations;
     mHitLocations = 0;
@@ -670,88 +643,6 @@ void EntityGeometryClass::SetProperty(unsigned int uProperty, const char* pszVal
         AddTargetableCollision(pszValue);
         break;
 
-    case 0x74e63ee8:
-    case 0x07d00083:
-    case 0x330acaab:
-    case 0x8cf29543:
-    case 0x7cdccf2a:
-    case 0xfec8cea9:
-    {
-        PblVector3 vCenter = mModel->_mModel->_BoundingSphere.GetCenter();
-
-        char acName[32];
-        char acType[32];
-        char acParent[32];
-        float x, y, z, a, b, c;
-        sscanf(pszValue, "%s %s %s %f %f %f %f %f %f", acName, acType, acParent, &x, &y, &z, &a, &b, &c);
-
-        PblMatrix matrix = gMatrixIdentity;
-        matrix.m[3][0] = x;
-        matrix.m[3][1] = y;
-        matrix.m[3][2] = z;
-        matrix.m[3][3] = 1.0f;
-
-        CollisionPrimitive primitive;
-
-        float fDX = vCenter.x - x;
-        float fDY = vCenter.y - y;
-        float fDZ = vCenter.z - z;
-        float fRadius;
-        switch (PblTEMPHash(acType))
-        {
-        case 0x1ccafdcc:
-            primitive.SetBox(a, b, c, -1.0f);
-            fRadius = sqrtf(fDX * fDX + fDY * fDY + fDZ * fDZ);
-            fRadius = (float)sqrt((double)(a * a + b * b + c * c)) + fRadius;
-            break;
-        case 0x4a182b8f:
-            primitive.SetCylinder(a, b);
-            fRadius = sqrtf(fDX * fDX + fDY * fDY + fDZ * fDZ);
-            fRadius = (float)sqrt((double)(a * 2.0f * a + b * 0.25f * b)) + fRadius;
-            break;
-        case 0x73f51491:
-            primitive.SetAACylinder(a, b);
-            fRadius = sqrtf(fDX * fDX + fDY * fDY + fDZ * fDZ);
-            fRadius = (float)sqrt((double)(a * 2.0f * a + b * 0.25f * b)) + fRadius;
-            break;
-        default:
-            primitive.SetSphere(a);
-            fRadius = sqrtf(fDX * fDX + fDY * fDY + fDZ * fDZ) + a;
-            break;
-        }
-        mPotentialCollisionRadius = __max(mPotentialCollisionRadius, fRadius);
-
-        CollisionMask terrainMask = mCollisionModel.GetCollisionMask(COLL_TERRAIN);
-        CollisionMask staticMask = mCollisionModel.GetCollisionMask(COLL_STATIC);
-        CollisionMask rigidMask = mCollisionModel.GetCollisionMask(COLL_RIGID);
-        CollisionMask softMask = mCollisionModel.GetCollisionMask(COLL_SOFT);
-        CollisionMask ordnanceMask = mCollisionModel.GetCollisionMask(COLL_ORDNANCE);
-        CollisionMask targetableMask = mCollisionModel.GetCollisionMask(COLL_TARGETABLE);
-
-        mCollisionModel.AddBody(new CollisionBodyPrimitive(primitive, acName, matrix, PblTEMPHash(acParent)));
-
-        int iMaskId = mCollisionModel.GetMaskId(PblHash(acName));
-        if (iMaskId >= 0)
-        {
-            switch (uProperty)
-            {
-            case 0x74e63ee8: targetableMask.SetId(iMaskId); break;
-            case 0x330acaab: ordnanceMask.SetId(iMaskId); break;
-            case 0x07d00083: softMask.SetId(iMaskId); break;
-            case 0x7cdccf2a: terrainMask.SetId(iMaskId); break;
-            case 0x8cf29543: staticMask.SetId(iMaskId); break;
-            case 0xfec8cea9: rigidMask.SetId(iMaskId); break;
-            }
-            mCollisionModel.SetCollisionMask(COLL_TERRAIN, terrainMask);
-            mCollisionModel.SetCollisionMask(COLL_STATIC, staticMask);
-            mCollisionModel.SetCollisionMask(COLL_RIGID, rigidMask);
-            mCollisionModel.SetCollisionMask(COLL_SOFT, softMask);
-            mCollisionModel.SetCollisionMask(COLL_ORDNANCE, ordnanceMask);
-            mCollisionModel.SetCollisionMask(COLL_TARGETABLE, targetableMask);
-        }
-        break;
-    }
-
     case 0xda328455:
     {
         if ((unsigned int)sCurrentChunk > 9)
@@ -800,24 +691,100 @@ void EntityGeometryClass::SetProperty(unsigned int uProperty, const char* pszVal
         if (!mChunkDescriptors[sCurrentChunk]->mPrimitive || CollisionBodyPrimitive::Find(PblHash(acName)))
         {
             PblBox box = mChunkDescriptors[sCurrentChunk]->mModel->_mModel->_TotalBoundingBox;
-            float fCenterX = (box._vMin.x + box._vMax.x) * 0.5f;
-            float fCenterY = (box._vMin.y + box._vMax.y) * 0.5f;
-            float fCenterZ = (box._vMin.z + box._vMax.z) * 0.5f;
+            PblVector3 vCenter = (box._vMin + box._vMax) * 0.5f;
 
             CollisionPrimitive primitive;
             PblMatrix matrix = gMatrixIdentity;
-            float fHalfX = (float)fabs(box._vMax.x - box._vMin.x) * 0.5f;
-            float fHalfY = (float)fabs(box._vMax.y - box._vMin.y) * 0.5f;
-            float fHalfZ = (float)fabs(box._vMax.z - box._vMin.z) * 0.5f;
-            primitive.SetSphere(sqrtf(fHalfX * fHalfX + fHalfY * fHalfY + fHalfZ * fHalfZ));
-            matrix.m[3][0] = fCenterX;
-            matrix.m[3][1] = fCenterY;
-            matrix.m[3][2] = fCenterZ;
+            float fHalfX = (float)fabs((double)(box._vMax.x - box._vMin.x)) * 0.5f;
+            float fHalfY = (float)fabs((double)(box._vMax.y - box._vMin.y)) * 0.5f;
+            float fHalfZ = (float)fabs((double)(box._vMax.z - box._vMin.z)) * 0.5f;
+            primitive.SetSphere(PblMath::Sqrt(fHalfX * fHalfX + fHalfY * fHalfY + fHalfZ * fHalfZ));
+            matrix[3] = vCenter;
             matrix.m[3][3] = 1.0f;
             mChunkDescriptors[sCurrentChunk]->mPrimitive = new CollisionBodyPrimitive(primitive, "", matrix, 0);
         }
         sCurrentSmoke = 0;
         sCurrentTrail = 0;
+        break;
+    }
+
+    case 0x74e63ee8:
+    case 0x07d00083:
+    case 0x330acaab:
+    case 0x8cf29543:
+    case 0x7cdccf2a:
+    case 0xfec8cea9:
+    {
+        PblVector3 vCenter = mModel->_mModel->_BoundingSphere.GetCenter();
+
+        char acName[32];
+        char acType[32];
+        char acParent[32];
+        float x, y, z, a, b, c;
+        sscanf(pszValue, "%s %s %s %f %f %f %f %f %f", acName, acType, acParent, &x, &y, &z, &a, &b, &c);
+
+        PblMatrix matrix = gMatrixIdentity;
+        PblVector3 vPos;
+        vPos.x = x;
+        matrix.m[3][0] = vPos.x;
+        vPos.y = y;
+        matrix.m[3][1] = vPos.y;
+        vPos.z = z;
+        matrix.m[3][2] = vPos.z;
+        matrix.m[3][3] = 1.0f;
+
+        CollisionPrimitive primitive;
+
+        float fRadius;
+        switch (PblTEMPHash(acType))
+        {
+        case 0x1ccafdcc:
+            primitive.SetBox(a, b, c, -1.0f);
+            fRadius = (float)sqrt((double)(a * a + b * b + c * c)) + Length(vCenter - vPos);
+            break;
+        case 0x4a182b8f:
+            primitive.SetCylinder(a, b);
+            fRadius = (float)sqrt((double)(a * 2.0f * a + b * 0.25f * b)) + Length(vCenter - vPos);
+            break;
+        case 0x73f51491:
+            primitive.SetAACylinder(a, b);
+            fRadius = (float)sqrt((double)(a * 2.0f * a + b * 0.25f * b)) + Length(vCenter - vPos);
+            break;
+        default:
+            primitive.SetSphere(a);
+            fRadius = Length(vCenter - vPos) + a;
+            break;
+        }
+        mPotentialCollisionRadius = __max(mPotentialCollisionRadius, fRadius);
+
+        CollisionMask terrainMask = mCollisionModel.GetCollisionMask(COLL_TERRAIN);
+        CollisionMask staticMask = mCollisionModel.GetCollisionMask(COLL_STATIC);
+        CollisionMask rigidMask = mCollisionModel.GetCollisionMask(COLL_RIGID);
+        CollisionMask softMask = mCollisionModel.GetCollisionMask(COLL_SOFT);
+        CollisionMask ordnanceMask = mCollisionModel.GetCollisionMask(COLL_ORDNANCE);
+        CollisionMask targetableMask = mCollisionModel.GetCollisionMask(COLL_TARGETABLE);
+
+        mCollisionModel.AddBody(new CollisionBodyPrimitive(primitive, acName, matrix, PblTEMPHash(acParent)));
+
+        int iMaskId = mCollisionModel.GetMaskId(PblHash(acName));
+        if (iMaskId >= 0)
+        {
+            switch (uProperty)
+            {
+            case 0x74e63ee8: targetableMask.SetId(iMaskId); break;
+            case 0x330acaab: ordnanceMask.SetId(iMaskId); break;
+            case 0x07d00083: softMask.SetId(iMaskId); break;
+            case 0x7cdccf2a: terrainMask.SetId(iMaskId); break;
+            case 0x8cf29543: staticMask.SetId(iMaskId); break;
+            case 0xfec8cea9: rigidMask.SetId(iMaskId); break;
+            }
+            mCollisionModel.SetCollisionMask(COLL_TERRAIN, terrainMask);
+            mCollisionModel.SetCollisionMask(COLL_STATIC, staticMask);
+            mCollisionModel.SetCollisionMask(COLL_RIGID, rigidMask);
+            mCollisionModel.SetCollisionMask(COLL_SOFT, softMask);
+            mCollisionModel.SetCollisionMask(COLL_ORDNANCE, ordnanceMask);
+            mCollisionModel.SetCollisionMask(COLL_TARGETABLE, targetableMask);
+        }
         break;
     }
 
@@ -853,10 +820,10 @@ void EntityGeometryClass::SetProperty(unsigned int uProperty, const char* pszVal
         {
             float x, y, z;
             sscanf(pszValue, "%f %f %f", &x, &y, &z);
-            ChunkDescriptor* pDesc = mChunkDescriptors[sCurrentChunk];
-            pDesc->mOmega.x = x;
-            pDesc->mOmega.y = y;
-            pDesc->mOmega.z = z;
+            ChunkDescriptor* pDescriptor = mChunkDescriptors[sCurrentChunk];
+            pDescriptor->mOmega.x = x;
+            pDescriptor->mOmega.y = y;
+            pDescriptor->mOmega.z = z;
         }
         break;
     case 0xd0259d88:
@@ -864,10 +831,10 @@ void EntityGeometryClass::SetProperty(unsigned int uProperty, const char* pszVal
         {
             float x, y, z;
             sscanf(pszValue, "%f %f %f", &x, &y, &z);
-            ChunkDescriptor* pDesc = mChunkDescriptors[sCurrentChunk];
-            pDesc->mGravity.x = x;
-            pDesc->mGravity.y = y;
-            pDesc->mGravity.z = z;
+            ChunkDescriptor* pDescriptor = mChunkDescriptors[sCurrentChunk];
+            pDescriptor->mGravity.x = x;
+            pDescriptor->mGravity.y = y;
+            pDescriptor->mGravity.z = z;
         }
         break;
     case 0xc2f5ffd5:
@@ -948,9 +915,13 @@ void EntityGeometryClass::SetProperty(unsigned int uProperty, const char* pszVal
         }
         break;
     case 0xa8fb54e9:
-        if ((unsigned int)sCurrentChunk <= 9 && (unsigned int)(sCurrentTrail - 1) <= 2)
+        if ((unsigned int)sCurrentChunk <= 9)
         {
-            mChunkDescriptors[sCurrentChunk]->mTrailAttachPoints[sCurrentTrail - 1] = PblTEMPHash(pszValue);
+            unsigned int uTrail = sCurrentTrail - 1;
+            if (uTrail <= 2)
+            {
+                mChunkDescriptors[sCurrentChunk]->mTrailAttachPoints[uTrail] = PblTEMPHash(pszValue);
+            }
         }
         break;
     case 0xd350c3de:
@@ -961,9 +932,13 @@ void EntityGeometryClass::SetProperty(unsigned int uProperty, const char* pszVal
         }
         break;
     case 0x472e0410:
-        if ((unsigned int)sCurrentChunk <= 9 && (unsigned int)(sCurrentSmoke - 1) <= 2)
+        if ((unsigned int)sCurrentChunk <= 9)
         {
-            mChunkDescriptors[sCurrentChunk]->mSmokeAttachPoints[sCurrentSmoke - 1] = PblTEMPHash(pszValue);
+            unsigned int uSmoke = sCurrentSmoke - 1;
+            if (uSmoke <= 2)
+            {
+                mChunkDescriptors[sCurrentChunk]->mSmokeAttachPoints[uSmoke] = PblTEMPHash(pszValue);
+            }
         }
         break;
 
@@ -1002,11 +977,7 @@ int EntityGeometryClass::GetNumChunks()
 bool EntityGeometryClass::AddBuildingCollision(const char* pszValue)
 {
     unsigned int uName = PblHash(pszValue);
-    if (uName == 0xada7afdb || uName == 0x5c6e1222)
-    {
-        sStaticCollisionMask = 0;
-    }
-    else
+    if (uName != 0xada7afdb && uName != 0x5c6e1222)
     {
         int iMaskId = mCollisionModel.GetMaskId(uName);
         if (iMaskId < 0)
@@ -1014,8 +985,13 @@ bool EntityGeometryClass::AddBuildingCollision(const char* pszValue)
             return false;
         }
         sStaticCollisionMask |= 1 << iMaskId;
+        mCollisionModel.SetCollisionMask(COLL_STATIC, CollisionMask(sStaticCollisionMask));
     }
-    mCollisionModel.SetCollisionMask(COLL_STATIC, CollisionMask(sStaticCollisionMask));
+    else
+    {
+        sStaticCollisionMask = 0;
+        mCollisionModel.SetCollisionMask(COLL_STATIC, CollisionMask(sStaticCollisionMask));
+    }
     return true;
 }
 
@@ -1023,11 +999,7 @@ bool EntityGeometryClass::AddBuildingCollision(const char* pszValue)
 bool EntityGeometryClass::AddVehicleCollision(const char* pszValue)
 {
     unsigned int uName = PblHash(pszValue);
-    if (uName == 0xada7afdb || uName == 0x5c6e1222)
-    {
-        sRigidCollisionMask = 0;
-    }
-    else
+    if (uName != 0xada7afdb && uName != 0x5c6e1222)
     {
         int iMaskId = mCollisionModel.GetMaskId(uName);
         if (iMaskId < 0)
@@ -1035,8 +1007,13 @@ bool EntityGeometryClass::AddVehicleCollision(const char* pszValue)
             return false;
         }
         sRigidCollisionMask |= 1 << iMaskId;
+        mCollisionModel.SetCollisionMask(COLL_RIGID, CollisionMask(sRigidCollisionMask));
     }
-    mCollisionModel.SetCollisionMask(COLL_RIGID, CollisionMask(sRigidCollisionMask));
+    else
+    {
+        sRigidCollisionMask = 0;
+        mCollisionModel.SetCollisionMask(COLL_RIGID, CollisionMask(sRigidCollisionMask));
+    }
     return true;
 }
 
@@ -1044,11 +1021,7 @@ bool EntityGeometryClass::AddVehicleCollision(const char* pszValue)
 bool EntityGeometryClass::AddTerrainCollision(const char* pszValue)
 {
     unsigned int uName = PblHash(pszValue);
-    if (uName == 0xada7afdb || uName == 0x5c6e1222)
-    {
-        sTerrainCollisionMask = 0;
-    }
-    else
+    if (uName != 0xada7afdb && uName != 0x5c6e1222)
     {
         int iMaskId = mCollisionModel.GetMaskId(uName);
         if (iMaskId < 0)
@@ -1056,8 +1029,13 @@ bool EntityGeometryClass::AddTerrainCollision(const char* pszValue)
             return false;
         }
         sTerrainCollisionMask |= 1 << iMaskId;
+        mCollisionModel.SetCollisionMask(COLL_TERRAIN, CollisionMask(sTerrainCollisionMask));
     }
-    mCollisionModel.SetCollisionMask(COLL_TERRAIN, CollisionMask(sTerrainCollisionMask));
+    else
+    {
+        sTerrainCollisionMask = 0;
+        mCollisionModel.SetCollisionMask(COLL_TERRAIN, CollisionMask(sTerrainCollisionMask));
+    }
     return true;
 }
 
@@ -1065,11 +1043,7 @@ bool EntityGeometryClass::AddTerrainCollision(const char* pszValue)
 bool EntityGeometryClass::AddOrdnanceCollision(const char* pszValue)
 {
     unsigned int uName = PblHash(pszValue);
-    if (uName == 0xada7afdb || uName == 0x5c6e1222)
-    {
-        sOrdnanceCollisionMask = 0;
-    }
-    else
+    if (uName != 0xada7afdb && uName != 0x5c6e1222)
     {
         int iMaskId = mCollisionModel.GetMaskId(uName);
         if (iMaskId < 0)
@@ -1077,8 +1051,13 @@ bool EntityGeometryClass::AddOrdnanceCollision(const char* pszValue)
             return false;
         }
         sOrdnanceCollisionMask |= 1 << iMaskId;
+        mCollisionModel.SetCollisionMask(COLL_ORDNANCE, CollisionMask(sOrdnanceCollisionMask));
     }
-    mCollisionModel.SetCollisionMask(COLL_ORDNANCE, CollisionMask(sOrdnanceCollisionMask));
+    else
+    {
+        sOrdnanceCollisionMask = 0;
+        mCollisionModel.SetCollisionMask(COLL_ORDNANCE, CollisionMask(sOrdnanceCollisionMask));
+    }
     return true;
 }
 
@@ -1086,11 +1065,7 @@ bool EntityGeometryClass::AddOrdnanceCollision(const char* pszValue)
 bool EntityGeometryClass::AddSoldierCollision(const char* pszValue)
 {
     unsigned int uName = PblHash(pszValue);
-    if (uName == 0xada7afdb || uName == 0x5c6e1222)
-    {
-        sSoftCollisionMask = 0;
-    }
-    else
+    if (uName != 0xada7afdb && uName != 0x5c6e1222)
     {
         int iMaskId = mCollisionModel.GetMaskId(uName);
         if (iMaskId < 0)
@@ -1098,8 +1073,13 @@ bool EntityGeometryClass::AddSoldierCollision(const char* pszValue)
             return false;
         }
         sSoftCollisionMask |= 1 << iMaskId;
+        mCollisionModel.SetCollisionMask(COLL_SOFT, CollisionMask(sSoftCollisionMask));
     }
-    mCollisionModel.SetCollisionMask(COLL_SOFT, CollisionMask(sSoftCollisionMask));
+    else
+    {
+        sSoftCollisionMask = 0;
+        mCollisionModel.SetCollisionMask(COLL_SOFT, CollisionMask(sSoftCollisionMask));
+    }
     return true;
 }
 
@@ -1107,11 +1087,7 @@ bool EntityGeometryClass::AddSoldierCollision(const char* pszValue)
 bool EntityGeometryClass::AddTargetableCollision(const char* pszValue)
 {
     unsigned int uName = PblHash(pszValue);
-    if (uName == 0xada7afdb || uName == 0x5c6e1222)
-    {
-        sTargetableCollisionMask = 0;
-    }
-    else
+    if (uName != 0xada7afdb && uName != 0x5c6e1222)
     {
         int iMaskId = mCollisionModel.GetMaskId(uName);
         if (iMaskId < 0)
@@ -1119,21 +1095,27 @@ bool EntityGeometryClass::AddTargetableCollision(const char* pszValue)
             return false;
         }
         sTargetableCollisionMask |= 1 << iMaskId;
+        mCollisionModel.SetCollisionMask(COLL_TARGETABLE, CollisionMask(sTargetableCollisionMask));
     }
-    mCollisionModel.SetCollisionMask(COLL_TARGETABLE, CollisionMask(sTargetableCollisionMask));
+    else
+    {
+        sTargetableCollisionMask = 0;
+        mCollisionModel.SetCollisionMask(COLL_TARGETABLE, CollisionMask(sTargetableCollisionMask));
+    }
     return true;
 }
 
 // FUNCTION: SWBF2 0x004920e0
 void EntityGeometry::SetPosition(const PblVector3& vPos)
 {
-    mMatrix[3] = vPos;
-    mMatrix.m[3][3] = 1.0f;
+    PblMatrix& rMatrix = mMatrix;
+    rMatrix[3] = vPos;
+    rMatrix.m[3][3] = 1.0f;
 
     PblVector3 vCenter;
     D3DXVec3TransformCoord((D3DXVECTOR3*)&vCenter,
                            (const D3DXVECTOR3*)&mModel->_mModel->_BoundingSphere.GetCenter(),
-                           (const D3DXMATRIX*)&mMatrix);
+                           (const D3DXMATRIX*)&rMatrix);
     SetCollisionCenter(vCenter);
     RecalculateAABB();
     SetRenderPos(GetCollisionCenter());
@@ -1176,30 +1158,22 @@ void EntityGeometry::CreateChunkCluster(float fScale)
     }
 
     int iNumChunks = 0;
-    float fCenterX = 0.0f;
-    float fCenterY = 0.0f;
-    float fCenterZ = 0.0f;
+    PblVector3 vCenter(0.0f, 0.0f, 0.0f);
     for (int i = 0; i < 10; ++i)
     {
-        ChunkDescriptor* pDesc = pClass->mChunkDescriptors[i];
-        if (!pDesc)
+        if (!pClass->mChunkDescriptors[i])
         {
             continue;
         }
-        pDesc->mMatrix = mMatrix;
+        pClass->mChunkDescriptors[i]->mMatrix = mMatrix;
         if (pClass->mChunkAttachPoints[i] && pPose)
         {
             if (const PblMatrix* pAttach = pPose->Find(pClass->mChunkAttachPoints[i]))
             {
-                PblMatrix mAttached;
-                mAttached = *pAttach * mMatrix;
-                pDesc->mMatrix = mAttached;
+                pClass->mChunkDescriptors[i]->mMatrix = *pAttach * mMatrix;
             }
         }
-        PblMatrix mChunk = pDesc->mPrimitive->GetWorldMatrix(mMatrix, pPose);
-        fCenterX += mChunk.m[3][0];
-        fCenterY += mChunk.m[3][1];
-        fCenterZ += mChunk.m[3][2];
+        vCenter += pClass->mChunkDescriptors[i]->mPrimitive->GetWorldMatrix(mMatrix, pPose).GetTranslation();
         ++iNumChunks;
     }
     if (iNumChunks <= 0)
@@ -1208,8 +1182,8 @@ void EntityGeometry::CreateChunkCluster(float fScale)
     }
 
     float fInvCount = 1.0f / (float)iNumChunks;
-    fCenterZ *= fInvCount;
-    fCenterX *= fInvCount;
+    vCenter.z *= fInvCount;
+    vCenter.x *= fInvCount;
     ChunkCluster* pCluster = ChunkClusterManager::GetFreeCluster(true);
     if (!pCluster)
     {
@@ -1217,40 +1191,35 @@ void EntityGeometry::CreateChunkCluster(float fScale)
     }
     pCluster->mParentClass = pClass;
     GetGameObject();
-    fCenterY = GetPosition().y;
+    vCenter.y = GetPosition().y;
 
     for (int i = 0; i < 10; ++i)
     {
-        ChunkDescriptor* pDesc = pClass->mChunkDescriptors[i];
-        if (!pDesc)
+        if (!pClass->mChunkDescriptors[i])
         {
             continue;
         }
-        pDesc->mFullCollisionModel =
+        pClass->mChunkDescriptors[i]->mFullCollisionModel =
             pClass->mFullChunkCollisions[i]->GetNumBodies() ? pClass->mFullChunkCollisions[i] : 0;
-        pDesc->mMatrix = mMatrix;
+        pClass->mChunkDescriptors[i]->mMatrix = mMatrix;
         const PblVector3& vVelocity = GetVelocity();
-        float fFactor = pClass->mChunkVelocityFactor[i];
-        pDesc->mVelocity.x = vVelocity.x * fFactor;
-        pDesc->mVelocity.y = vVelocity.y * fFactor;
-        pDesc->mVelocity.z = vVelocity.z * fFactor;
+        pClass->mChunkDescriptors[i]->mVelocity = vVelocity * pClass->mChunkVelocityFactor[i];
         if (pClass->mChunkAttachPoints[i] && pPose)
         {
             if (const PblMatrix* pAttach = pPose->Find(pClass->mChunkAttachPoints[i]))
             {
-                PblMatrix mAttached;
-                mAttached = *pAttach * mMatrix;
-                pDesc->mMatrix = mAttached;
+                pClass->mChunkDescriptors[i]->mMatrix = *pAttach * mMatrix;
             }
         }
 
-        PblMatrix mChunk = pDesc->mPrimitive->GetWorldMatrix(mMatrix, pPose);
-        float fDX = mChunk.m[3][0] - fCenterX;
-        float fDY = mChunk.m[3][1] - fCenterY;
-        float fDZ = mChunk.m[3][2] - fCenterZ;
+        const PblVector3 vDelta =
+            pClass->mChunkDescriptors[i]->mPrimitive->GetWorldMatrix(mMatrix, pPose).GetTranslation() - vCenter;
+        float fDX = vDelta.x;
+        float fDY = vDelta.y;
+        float fDZ = vDelta.z;
         float fDistSq = fDX * fDX + fDY * fDY + fDZ * fDZ;
-        float fUp = sqrtf(fDistSq) * pClass->mChunkUpFactor[i];
-        PblVector3 vOut(fDX + 0.0f, fUp + fDY, fDZ + 0.0f);
+        float fUp = PblMath::Sqrt(fDistSq) * pClass->mChunkUpFactor[i];
+        PblVector3 vOut = vDelta + PblVector3(0.0f, fUp, 0.0f);
         PblVector3 vDir;
         D3DXVec3Normalize((D3DXVECTOR3*)&vDir, (const D3DXVECTOR3*)&vOut);
 
@@ -1261,39 +1230,33 @@ void EntityGeometry::CreateChunkCluster(float fScale)
             {
                 float fRadius = GetCollisionRadius();
                 float fKick = PblRandom::GetSim().GetFloat() * 15.0f + 15.0f;
-                float fInvRadius = 1.0f / fRadius;
-                pDesc->mVelocity.x += vDir.x * fKick * fInvRadius;
-                pDesc->mVelocity.y += vDir.y * fKick * fInvRadius;
-                pDesc->mVelocity.z += vDir.z * fKick * fInvRadius;
+                pClass->mChunkDescriptors[i]->mVelocity += vDir * fKick * (1.0f / fRadius);
             }
-            if (pDesc->mPhysicsType == PHYSICS_LEAF)
+            if (pClass->mChunkDescriptors[i]->mPhysicsType == PHYSICS_LEAF)
             {
-                pDesc->mVelocity.x *= 0.25f;
-                pDesc->mVelocity.y *= 0.25f;
-                pDesc->mVelocity.z *= 0.25f;
+                pClass->mChunkDescriptors[i]->mVelocity *= 0.25f;
             }
-            const PblVector3& v = pDesc->mVelocity;
-            if (5.0f > sqrtf(v.x * v.x + v.y * v.y + v.z * v.z))
+            const PblVector3& v = pClass->mChunkDescriptors[i]->mVelocity;
+            if (5.0f > PblMath::Sqrt(v.x * v.x + v.y * v.y + v.z * v.z))
             {
                 float fPush = PblRandom::GetSim().GetFloat() * 2.0f + 4.0f;
-                pDesc->mVelocity.x = vDir.x * fPush;
-                pDesc->mVelocity.y = vDir.y * fPush;
-                pDesc->mVelocity.z = vDir.z * fPush;
-                if (2.0f > pDesc->mVelocity.y)
+                pClass->mChunkDescriptors[i]->mVelocity = vDir * fPush;
+                if (2.0f > pClass->mChunkDescriptors[i]->mVelocity.y)
                 {
-                    pDesc->mVelocity.y = PblRandom::GetSim().GetFloat() + 2.0f;
+                    pClass->mChunkDescriptors[i]->mVelocity.y = PblRandom::GetSim().GetFloat() + 2.0f;
                 }
             }
         }
         else
         {
-            pDesc->mVelocity.x += vDir.x * fSpeed;
-            pDesc->mVelocity.y += vDir.y * fSpeed;
-            pDesc->mVelocity.z += vDir.z * fSpeed;
+            pClass->mChunkDescriptors[i]->mVelocity += fSpeed * vDir;
         }
-        pDesc->mVelocity *= fScale;
+        pClass->mChunkDescriptors[i]->mVelocity *= fScale;
 
-        ChunkDescriptor kChunk(*pDesc);
+        ChunkDescriptor kChunk(*pClass->mChunkDescriptors[i]);
+        kChunk.mOmega = pClass->mChunkDescriptors[i]->mOmega;
+        kChunk.mSimpleFrictionConstant = pClass->mChunkDescriptors[i]->mSimpleFrictionConstant;
+        kChunk.mMaxStaticLifetime = pClass->mChunkDescriptors[i]->mMaxStaticLifetime;
         pCluster->AddChunk(kChunk);
     }
 

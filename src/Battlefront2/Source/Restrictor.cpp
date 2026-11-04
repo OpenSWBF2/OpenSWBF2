@@ -1,3 +1,4 @@
+#include "PebbleFL/Common/PblMath.h"
 #include <math.h>
 
 #include "Restrictor.h"
@@ -5,15 +6,16 @@
 // FUNCTION: SWBF2 0x00630230
 void Restrictor::RestrictMovement(PblVector3& vMovement)
 {
-    for (int i = 0; i < mNumRestrictions; ++i)
+    if (mNumRestrictions > 0)
     {
-        const PblVector3& vNormal = mRestrictions[i];
-        float fDot = vNormal.x * vMovement.x + vNormal.y * vMovement.y + vNormal.z * vMovement.z;
-        if (fDot < 0.0f)
+        for (int i = 0; i < mNumRestrictions; ++i)
         {
-            vMovement.x = vMovement.x - vNormal.x * fDot;
-            vMovement.y = vMovement.y - vNormal.y * fDot;
-            vMovement.z = vMovement.z - vNormal.z * fDot;
+            const PblVector3& vNormal = mRestrictions[i];
+            float fDot = DotProduct(vNormal, vMovement);
+            if (fDot < 0.0f)
+            {
+                vMovement -= vNormal * fDot;
+            }
         }
     }
 }
@@ -42,7 +44,7 @@ PblVector3 Restrictor::RestrictMovement(const PblVector3& vDir, float& fDist)
             vResult.x = vResult.x - vNormal.x * fDot;
             vResult.y = vResult.y - vNormal.y * fDot;
             vResult.z = vResult.z - vNormal.z * fDot;
-            float fLength = sqrtf(vResult.x * vResult.x + vResult.y * vResult.y + vResult.z * vResult.z);
+            float fLength = PblMath::Sqrt(vResult.x * vResult.x + vResult.y * vResult.y + vResult.z * vResult.z);
             if (fLength > 0.0f)
             {
                 float fInv = 1.0f / fLength;

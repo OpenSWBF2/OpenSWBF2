@@ -17,7 +17,7 @@
 
 // GLOBAL: SWBF2 0x01ecb1a8
 // Music::sMemoryPool
-MemoryPool Music::sMemoryPool("Music", 0x48);
+MemoryPool Music::sMemoryPool("Music", sizeof(Music));
 
 // SYNTHETIC: SWBF2 0x00404370
 // `dynamic initializer for 'Music::sMusicInactive''
@@ -119,15 +119,17 @@ void Music::Update(float fDeltaTime)
             {
                 Stop();
             }
-            if (mStream->GetPlayState() != Snd::SourceTransport::playState_stopped)
+            if (mStream->GetPlayState() == Snd::SourceTransport::playState_stopped)
             {
-                mPlaybackTime += fDeltaTime;
-                break;
+                mPlayStateDesired = playState_stopped;
+                mPlayStateCurrent = playState_stopping;
             }
         }
-        mPlayStateDesired = playState_stopped;
-        mPlayStateCurrent = playState_stopping;
-
+        else
+        {
+            mPlayStateCurrent = playState_stopping;
+            mPlayStateDesired = playState_stopped;
+        }
     case playState_stopping:
         mPlaybackTime += fDeltaTime;
         break;
@@ -160,22 +162,26 @@ void Music::Update(float fDeltaTime)
                     mStream = Snd::EngineBase::GetOpenStream(pProps->mStreamID);
                 }
 
-                if (!mStream)
+                if (mStream)
                 {
-                    mPlayStateCurrent = playState_starting;
+                    if (!mStream->GetLocked())
+                    {
+                        mStream->Lock(true);
+                        pProps->SetupStream(mStream, 0);
+                        mStream->SetPitch(pProps->SourceVariation::CalculatePitch(pProps->mPitch));
+                        float fGain = pProps->SourceVariation::CalculateGain(pProps->mGain);
+                        mStream->SetGain(fGain);
+                        mStream->GetBus()->Fade(mFadeInTime, 1.0f, 0.0f);
+                        mStream->Play(false);
+                        mStream->SetPlaybackPosition(mPlaybackPosition);
+                        ++sMusicPlaying;
+                        mPlayStateCurrent = playState_starting;
+                        mPlaybackTime = 0.0f;
+                    }
                 }
-                else if (!mStream->GetLocked())
+                else
                 {
-                    mStream->Lock(true);
-                    pProps->SetupStream(mStream, 0);
-                    mStream->SetPitch(pProps->SourceVariation::CalculatePitch(pProps->mPitch));
-                    mStream->SetGain(pProps->SourceVariation::CalculateGain(pProps->mGain));
-                    mStream->GetBus()->Fade(mFadeInTime, 1.0f, 0.0f);
-                    mStream->Play(false);
-                    mStream->SetPlaybackPosition(mPlaybackPosition);
-                    ++sMusicPlaying;
                     mPlayStateCurrent = playState_starting;
-                    mPlaybackTime = 0.0f;
                 }
             }
             break;
@@ -189,13 +195,16 @@ void Music::Update(float fDeltaTime)
         case playState_playing:
             if (mStream)
             {
-                if (mPlaybackTime < mMinPlaybackTime)
+                if (mPlaybackTime >= mMinPlaybackTime)
                 {
-                    break;
+                    mStream->GetBus()->Fade(mFadeOutTime, 0.0f, -1.0f);
+                    mPlayStateCurrent = playState_stopping;
                 }
-                mStream->GetBus()->Fade(mFadeOutTime, 0.0f, -1.0f);
             }
-            mPlayStateCurrent = playState_stopping;
+            else
+            {
+                mPlayStateCurrent = playState_stopping;
+            }
             break;
 
         case playState_stopping:
@@ -213,12 +222,14 @@ void Music::Update(float fDeltaTime)
                 }
                 --sMusicPlaying;
                 mStream = 0;
+                mInactiveTime = 0.0f;
+                mPlaybackPosition = 0;
+                mNode.mNode.Remove();
+                sMusicInactive.Add(&mNode);
+                return;
             }
-            else
-            {
-                --sMusicPlaying;
-                mPlayStateCurrent = playState_stopped;
-            }
+            --sMusicPlaying;
+            mPlayStateCurrent = playState_stopped;
             mInactiveTime = 0.0f;
             mPlaybackPosition = 0;
             mNode.mNode.Remove();
@@ -258,11 +269,6 @@ void Music::Update(float fDeltaTime)
             }
             break;
 
-        case playState_stopping:
-        case playState_stopped:
-            mPlayStateDesired = playState_stopped;
-            break;
-
         case playState_pausing:
             if (mStream)
             {
@@ -280,6 +286,11 @@ void Music::Update(float fDeltaTime)
             {
                 mPlayStateCurrent = playState_paused;
             }
+            break;
+
+        case playState_stopping:
+        case playState_stopped:
+            mPlayStateDesired = playState_stopped;
             break;
         }
         break;
@@ -354,20 +365,73 @@ void Music::IgnoreInactiveTime(bool bIgnore)
     sIgnoreInactiveTime = bIgnore;
 }
 
-// FUNCTION: SWBF2 0x005a9eb0
-void Music::StopAll()
+// FUNCTION: SWBF2 0x005a9d10
+void Music::UpdateAll(float fDeltaTime)
 {
-    PblListDouble::Node* pLink = sMusicActive.mTerminator.mNext;
-    while (pLink != &sMusicActive.mTerminator)
+    int i = 0;
+    PblListDoubleSorted::Itor itor(sMusicActive);
+    for (;;)
     {
-        PblListDoubleSorted::Node* pNode =
-            (PblListDoubleSorted::Node*)((char*)pLink - offsetof(PblListDoubleSorted::Node, mNode));
+        PblListDoubleSorted::Node* pNode = itor.GetNode(&sMusicActive);
         if (pNode == sMusicActive.GetTerminator())
         {
             break;
         }
+        ++itor;
 
         Music* pMusic = (Music*)((char*)pNode - offsetof(Music, mNode));
+        if (i == 0)
+        {
+            if (!sMusicPlaying && (sInactiveTime >= sMinInactiveTime || sIgnoreInactiveTime)
+                && pMusic->mPlayStateCurrent != playState_starting
+                && pMusic->mPlayStateCurrent != playState_playing)
+            {
+                sInactiveTime = 0.0f;
+                pMusic->mPlayStateDesired = playState_playing;
+            }
+        }
+        else if (pMusic->mPlayStateCurrent != playState_stopping
+                 && pMusic->mPlayStateCurrent != playState_stopped
+                 && pMusic->mPlayStateCurrent != playState_pausing
+                 && pMusic->mPlayStateCurrent != playState_paused)
+        {
+            pMusic->Stop();
+        }
+        pMusic->Update(fDeltaTime);
+        ++i;
+    }
+
+    PblListDoubleSorted::Itor inactiveItor(sMusicInactive);
+    for (;;)
+    {
+        PblListDoubleSorted::Node* pNode = inactiveItor.GetNode(&sMusicInactive);
+        if (pNode == sMusicInactive.GetTerminator())
+        {
+            break;
+        }
+        ++inactiveItor;
+        ((Music*)((char*)pNode - offsetof(Music, mNode)))->Update(fDeltaTime);
+    }
+
+    if (!sMusicPlaying)
+    {
+        sInactiveTime += fDeltaTime;
+    }
+}
+
+// FUNCTION: SWBF2 0x005a9eb0
+void Music::StopAll()
+{
+    PblListDoubleSorted::Itor itor(sMusicActive);
+    for (;;)
+    {
+        PblListDoubleSorted::Node* pNode = itor.GetNode(&sMusicActive);
+        Music* pMusic = (Music*)pNode->GetObjectA(&sMusicActive, offsetof(Music, mNode));
+        if (!pMusic)
+        {
+            break;
+        }
+
         if (pMusic->mStream)
         {
             Snd::SourceTransport* pTransport = pMusic->mStream;
@@ -375,7 +439,7 @@ void Music::StopAll()
             pTransport->Stop();
         }
 
-        pLink = pLink->mNext;
+        ++itor;
         pMusic->mPlayStateCurrent = playState_stopped;
         pMusic->Stop();
     }
@@ -400,11 +464,10 @@ Music* Music::FindByID(const char* pcID)
 // FUNCTION: SWBF2 0x005a9f40
 Music* Music::FindByHashID(PblListDoubleSorted* pList, unsigned int uHashID)
 {
-    for (PblListDouble::Node* pLink = pList->mTerminator.mNext; pLink != &pList->mTerminator;
-         pLink = pLink->mNext)
+    PblListDoubleSorted::Itor itor(pList);
+    for (;;)
     {
-        PblListDoubleSorted::Node* pNode =
-            (PblListDoubleSorted::Node*)((char*)pLink - offsetof(PblListDoubleSorted::Node, mNode));
+        PblListDoubleSorted::Node* pNode = itor.GetNode(pList);
         if (pNode == pList->GetTerminator())
         {
             break;
@@ -415,6 +478,7 @@ Music* Music::FindByHashID(PblListDoubleSorted* pList, unsigned int uHashID)
         {
             return pMusic;
         }
+        ++itor;
     }
     return 0;
 }
@@ -457,8 +521,8 @@ void Music::Load(PblFileChunk& chunk)
             Music::sMemoryPool.Setup(0x20, Music::sMemoryPool.GetSize(), Music::sMemoryPool.GetGrow());
         }
         Music* pMusic = new Music;
-        PblFileChunk data = chunk.ReadNextChild();
-        pMusic->Read(data);
+        child = chunk.ReadNextChild();
+        pMusic->Read(child);
     }
     Music::sMusicInactive.Sort();
 }

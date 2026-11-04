@@ -299,9 +299,17 @@ SoldierAnimationBank::WEAPON SoldierAnimationBank::_FindWeaponAnyCombo(unsigned 
 // FUNCTION: SWBF2 0x0063c6f0
 SoldierAnimationBank::WEAPON SoldierAnimationBank::AddWeapon(const char* pcName, const char* pcParent, const char* pcAlertState)
 {
-    const char* pcShortName = _SkipPrefix(pcName);
+    const char* pcShortName = strchr(pcName, '_');
+    if (pcShortName)
+    {
+        ++pcShortName;
+    }
+    else
+    {
+        pcShortName = pcName;
+    }
     unsigned int uiNameHash = PblHash(pcShortName);
-    WEAPON eWeapon = FindWeapon(uiNameHash);
+    WEAPON eWeapon = ForwardFindWeaponByHash(uiNameHash);
     if (eWeapon != INVALID_WEAPON)
     {
         return eWeapon;
@@ -313,14 +321,23 @@ SoldierAnimationBank::WEAPON SoldierAnimationBank::AddWeapon(const char* pcName,
     }
 
     WEAPON eParent;
-    unsigned int uiParentHash = PblHash(_SkipPrefix(pcParent));
+    const char* pcParentName = strchr(pcParent, '_');
+    if (pcParentName)
+    {
+        ++pcParentName;
+    }
+    else
+    {
+        pcParentName = pcParent;
+    }
+    unsigned int uiParentHash = PblHash(pcParentName);
     if (uiParentHash == uiNameHash || uiParentHash == 0x20FD0E45u  )
     {
         eParent = (WEAPON)s_iNumWeapons;
     }
     else
     {
-        eParent = FindWeapon(uiParentHash);
+        eParent = ForwardFindWeaponByHash(uiParentHash);
         if (eParent == INVALID_WEAPON)
         {
             return INVALID_WEAPON;
@@ -333,13 +350,20 @@ SoldierAnimationBank::WEAPON SoldierAnimationBank::AddWeapon(const char* pcName,
     }
 
     bool bHasAlertState;
-    if (pcAlertState && _stricmp(pcAlertState, "noalert") == 0)
+    if (pcAlertState)
     {
-        bHasAlertState = false;
-    }
-    else if (pcAlertState && _stricmp(pcAlertState, "alert") == 0)
-    {
-        bHasAlertState = true;
+        if (_stricmp(pcAlertState, "noalert") == 0)
+        {
+            bHasAlertState = false;
+        }
+        else if (_stricmp(pcAlertState, "alert") == 0)
+        {
+            bHasAlertState = true;
+        }
+        else
+        {
+            bHasAlertState = _GetWeapon(eParent)->bHasAlertState != 0;
+        }
     }
     else
     {
@@ -365,7 +389,15 @@ SoldierAnimationBank::WEAPON SoldierAnimationBank::AddWeaponCombo(const char* pc
         return INVALID_WEAPON;
     }
 
-    const char* pcShortName = _SkipPrefix(pcName);
+    const char* pcShortName = strchr(pcName, '_');
+    if (pcShortName)
+    {
+        ++pcShortName;
+    }
+    else
+    {
+        pcShortName = pcName;
+    }
     unsigned int uiNameHash = PblHash(pcShortName);
     COMBO eCombo = AddCombo(PblHash(pcCombo));
     if (eCombo == INVALID_COMBO)
@@ -376,7 +408,7 @@ SoldierAnimationBank::WEAPON SoldierAnimationBank::AddWeaponCombo(const char* pc
     WEAPON eWeapon = FindWeaponCombo(uiNameHash, eCombo);
     if (eWeapon != INVALID_WEAPON)
     {
-        return GetWeaponRoot(eWeapon) == MELEE ? eWeapon : INVALID_WEAPON;
+        return GetWeaponRoot(eWeapon) != MELEE ? INVALID_WEAPON : eWeapon;
     }
 
     if (!pcParent)
@@ -384,7 +416,16 @@ SoldierAnimationBank::WEAPON SoldierAnimationBank::AddWeaponCombo(const char* pc
         return INVALID_WEAPON;
     }
 
-    WEAPON eParent = _FindWeaponAnyCombo(PblHash(_SkipPrefix(pcParent)));
+    const char* pcParentName = strchr(pcParent, '_');
+    if (pcParentName)
+    {
+        ++pcParentName;
+    }
+    else
+    {
+        pcParentName = pcParent;
+    }
+    WEAPON eParent = _FindWeaponAnyCombo(PblHash(pcParentName));
     if (eParent == INVALID_WEAPON || GetWeaponRoot(eParent) != MELEE)
     {
         return INVALID_WEAPON;
@@ -666,29 +707,33 @@ SoldierAnimationBank::COMBO_ANIMATION SoldierAnimationBank::AddComboAnimation(CO
 unsigned int SoldierAnimationBank::AddComboAnimation(COMBO eCombo, COMBO_ANIMATION eAnimation)
 {
     Combo* pCombo = _GetCombo(eCombo);
-    unsigned int uiIndex = GetComboAnimationIndex(eCombo, eAnimation);
-    if (uiIndex < pCombo->uiNumAnimations)
+    const unsigned int uiNumAnimations = pCombo->uiNumAnimations;
+    unsigned int uiIndex;
+    for (uiIndex = 0; uiIndex < uiNumAnimations; ++uiIndex)
     {
-        return uiIndex;
+        if (pCombo->aeAnimation[uiIndex] == eAnimation)
+        {
+            return uiIndex;
+        }
     }
 
     if (s_iNumComboAnimationsInPool >= MAX_COMBO_ANIMATION_POOL_SIZE)
     {
-        return pCombo->uiNumAnimations;
+        return uiNumAnimations;
     }
 
     COMBO_ANIMATION* peSlot = &s_aeComboAnimationPool[s_iNumComboAnimationsInPool];
-    if (pCombo->uiNumAnimations == 0)
+    if (uiNumAnimations == 0)
     {
         pCombo->aeAnimation = peSlot;
     }
-    else if (peSlot != &pCombo->aeAnimation[pCombo->uiNumAnimations])
+    else if (peSlot != &pCombo->aeAnimation[uiNumAnimations])
     {
-        return pCombo->uiNumAnimations;
+        return uiNumAnimations;
     }
 
     ++s_iNumComboAnimationsInPool;
-    pCombo->uiNumAnimations = uiIndex + 1;
+    pCombo->uiNumAnimations = uiNumAnimations + 1;
     *peSlot = eAnimation;
     return uiIndex;
 }

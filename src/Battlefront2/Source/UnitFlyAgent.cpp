@@ -78,8 +78,10 @@ void UnitFlyAgent::EnterState()
 
     case 2:
     {
-        const PblVector3& vFwd = mCtrl->mOwner->GetMatrix().GetZAxis();
-        PblVector3 vDest(vPos.x + vFwd.x * 200.0f, vPos.y + 0.0f, vPos.z + vFwd.z * 200.0f);
+        PblVector3 vFwd = mCtrl->mOwner->GetMatrix().GetZAxis();
+        vFwd.y = 0.0f;
+        PblVector3 vDest = vFwd * 200.0f;
+        vDest += vPos;
         vDest.y += 1.0f;
 
         AIPath* pPath = new AIPath();
@@ -114,10 +116,11 @@ void UnitFlyAgent::EnterState()
 
     case 4:
     {
-        const int iTeam = static_cast<Trackable*>(mCtrl->mOwner)->GetGameObject()->GetTeam();
         int iTries = 0;
+        const int iTeam = mCtrl->mOwner->GetGameObject()->GetTeam();
         bool bGood;
         PblVector3 vDest;
+        float fDistSq;
         do
         {
             CommandPostManager* pManager = CommandPostManager::Instance();
@@ -139,14 +142,13 @@ void UnitFlyAgent::EnterState()
                 bGood = true;
             }
             vDest = AIUtil::GetCommandPostPos(pPost);
+            fDistSq = SquaredLength(vDest - vPos);
             ++iTries;
-        } while (!bGood &&
-                 (vDest.x - vPos.x) * (vDest.x - vPos.x) + (vDest.y - vPos.y) * (vDest.y - vPos.y) +
-                         (vDest.z - vPos.z) * (vDest.z - vPos.z) < 10000.0f &&
-                 iTries < 10);
+        } while (!bGood && fDistSq < 10000.0f && iTries < 10);
 
-        vDest.y += 20.0f;
-        GetLowLevel().SetNavigator_Goto(vDest, 0, false, false);
+        PblVector3 vGoto = vDest;
+        vGoto.y += 20.0f;
+        GetLowLevel().SetNavigator_Goto(vGoto, 0, false, false);
         if (GetFlyer()->GetState() != EntityFlyer::FLYING)
         {
             GetFlyer()->TakeOff();
@@ -156,7 +158,7 @@ void UnitFlyAgent::EnterState()
 
     case 5:
     {
-        mHint->Reserve(static_cast<Trackable*>(mCtrl->mOwner)->GetGameObject());
+        mHint->Reserve(mCtrl->mOwner->GetGameObject());
         PblMatrix mLand = mHint->BuildMatrix();
         VehicleSpawn::gCalcBeginLandPos(*GetFlyer()->mClass, &mLand);
         const PblVector3 vLand = mLand.GetTranslation();
@@ -164,8 +166,7 @@ void UnitFlyAgent::EnterState()
         const float fDist = GetFlyer()->GetMaxSpeed() * 2.0f;
         PblVector3 vBack = AIUtil::GetSafeNormalXZ(mHint->GetZAxis());
         vBack.y = -0.2f;
-        const PblVector3 vApproach(vLand.x - vBack.x * fDist, vLand.y - vBack.y * fDist,
-                                   vLand.z - vBack.z * fDist);
+        const PblVector3 vApproach = vLand - vBack * fDist;
 
         AIPath* pPath = new AIPath();
         if (pPath)
@@ -183,10 +184,10 @@ void UnitFlyAgent::EnterState()
     case 6:
         if (mGotoNonOwnedCP)
         {
-            AIUtil::DeployCargo(static_cast<Trackable*>(mCtrl->mOwner)->GetGameObject(), 0);
+            AIUtil::DeployCargo(mCtrl->mOwner->GetGameObject(), 0);
             if (!IsTransport())
             {
-                mHint->SetReserveDelay(static_cast<Trackable*>(mCtrl->mOwner)->GetGameObject(), 20.0f);
+                mHint->SetReserveDelay(mCtrl->mOwner->GetGameObject(), 20.0f);
                 mCtrl->mOwner->SetExitVehicle(mHint->GetCommandPost());
                 mCtrl->mOwner->GetCharacter()->SetVehicleBlockTime(GameLoop::GetMissionTime() + 15.0f);
                 return;
@@ -212,28 +213,28 @@ const char* UnitFlyAgent::NFINAL_GetStateString(int iState) const
 // FUNCTION: SWBF2 0x00667460
 const EntityFlyer* UnitFlyAgent::GetFlyer() const
 {
-    if (!mCtrl->mOwner)
+    if (mCtrl->mOwner)
     {
-        return 0;
+        return static_cast<const EntityFlyer*>(mCtrl->mOwner);
     }
-    return static_cast<const EntityFlyer*>(mCtrl->mOwner);
+    return 0;
 }
 
 // FUNCTION: SWBF2 0x00667480
 EntityFlyer* UnitFlyAgent::GetFlyer()
 {
-    if (!mCtrl->mOwner)
+    if (mCtrl->mOwner)
     {
-        return 0;
+        return static_cast<EntityFlyer*>(mCtrl->mOwner);
     }
-    return static_cast<EntityFlyer*>(mCtrl->mOwner);
+    return 0;
 }
 
 // FUNCTION: SWBF2 0x00666e80
 bool UnitFlyAgent::IsTransport() const
 {
-    const GameObject* pResult = static_cast<const Trackable*>(mCtrl->mOwner)->GetGameObject();
-    return pResult->GetGameObjectClass()->GetVehicleType() == 5;
+    const GameObject* pResult = GetMe()->GetGameObject();
+    return pResult->GetGameObjectClass()->GetVehicleType() == 5 ? true : false;
 }
 
 // FUNCTION: SWBF2 0x00667440
@@ -249,28 +250,23 @@ float UnitFlyAgent::GetUpdateRate() const
 // FUNCTION: SWBF2 0x00666ea0
 bool UnitFlyAgent::IsNearLandingPt()
 {
-    if (GameLoop::GetMissionTime() <= mNextHintCheckTime)
+    if (GameLoop::GetMissionTime() > mNextHintCheckTime)
     {
-        return false;
+        mNextHintCheckTime = GameLoop::GetMissionTime() + 3.0f;
+        mHint = 0;
+
+        const PblMatrix& mat = mCtrl->mOwner->GetMatrix();
+        const BaseHint* candidates[1];
+        const int iCount = HintManager::RequestLandHints(mCtrl, mat.GetTranslation(), 80, 1, candidates,
+                                                         mGotoNonOwnedCP);
+        if (iCount > 0)
+        {
+            mHint = const_cast<BaseHint*>(candidates[AIUtil::GetRandomInt(0, iCount - 1)]);
+            mHint->Reserve(mCtrl->mOwner->GetGameObject());
+            return true;
+        }
     }
-
-    mHint = 0;
-    mNextHintCheckTime = GameLoop::GetMissionTime() + 3.0f;
-
-    const PblMatrix& mat = mCtrl->mOwner->GetMatrix();
-    const float* pPos = reinterpret_cast<const float*>(&mat) + 12;
-
-    const BaseHint* candidates[1];
-    const int iCount = HintManager::RequestLandHints(mCtrl, *reinterpret_cast<const PblVector3*>(pPos), 80, 1,
-                                                     candidates, mGotoNonOwnedCP);
-    if (iCount <= 0)
-    {
-        return false;
-    }
-
-    mHint = const_cast<BaseHint*>(candidates[AIUtil::GetRandomInt(0, iCount - 1)]);
-    mHint->Reserve(static_cast<Trackable*>(mCtrl->mOwner)->GetGameObject());
-    return true;
+    return false;
 }
 
 // FUNCTION: SWBF2 0x00666d00
@@ -278,9 +274,7 @@ void UnitFlyAgent::UpdateStatePostVision(float dt)
 {
     if (GetLowLevel().IsStuck() == 2)
     {
-        GameObject* pObject = static_cast<Trackable*>(mCtrl->mOwner)->GetGameObject();
-        static_cast<Damageable*>(pObject)
-            ->InstantDeath(DamageOwner(0, 0, 0, 0, 0, 1.0f), true);
+        mCtrl->mOwner->GetGameObject()->InstantDeath(DamageOwner(0, 0, 0, 0, 0, 1.0f), true);
     }
 
     mAttackHelper.Update();
@@ -324,7 +318,7 @@ void UnitFlyAgent::UpdateStatePostVision(float dt)
         }
         break;
     case 5:
-        mHint->Reserve(static_cast<Trackable*>(mCtrl->mOwner)->GetGameObject());
+        mHint->Reserve(mCtrl->mOwner->GetGameObject());
         if (GetFlyer()->mState == 0)
         {
             SetNextState(6);
@@ -349,7 +343,8 @@ bool UnitFlyAgent::IsNearATAT()
             return false;
         }
         pFlyer->mAIEng.ai.mReactionThinkTime = 4.75f;
-        if (PblRandom::GetGlobalFloat() > pFlyer->mClass->mCircleATATFrequency)
+        const float fFrequency = pFlyer->mClass->mCircleATATFrequency;
+        if (fFrequency < PblRandom::GetGlobalFloat())
         {
             return false;
         }
@@ -378,19 +373,20 @@ bool UnitFlyAgent::IsNearATAT()
             }
             EntityFlyer* pOther = static_cast<EntityFlyer*>(pObject->GetEntity());
             if (pOther != GetFlyer() && pOther->mTowCableWalker &&
-                pOther->GetTowCableWalker()->GetGameObject() ==
-                    static_cast<Trackable*>(pATAT)->GetGameObject())
+                pOther->GetTowCableWalker()->GetGameObject() == pATAT->GetGameObject())
             {
                 bFree = false;
             }
         }
 
-        const PblVector3 vATAT = pATAT->GetMatrix().GetTranslation();
+        PblVector3 vATAT = pATAT->GetMatrix().GetTranslation();
         if (pFlyer->mTowCableWalker)
         {
-            const PblVector3 vDelta(pFlyer->mPointToCircle.x - vATAT.x, pFlyer->mPointToCircle.y - vATAT.y,
-                                    pFlyer->mPointToCircle.z - vATAT.z);
-            if (vDelta.x * vDelta.x + vDelta.y * vDelta.y + vDelta.z * vDelta.z > 2500.0f)
+            const PblVector3 vCircle = pFlyer->mPointToCircle;
+            const float dx = vCircle.x - vATAT.x;
+            const float dy = vCircle.y - vATAT.y;
+            const float dz = vCircle.z - vATAT.z;
+            if (dx * dx + dy * dy + dz * dz > 2500.0f)
             {
                 bFree = false;
             }
@@ -400,9 +396,9 @@ bool UnitFlyAgent::IsNearATAT()
         {
             const PblVector3& vFwd = pATAT->GetMatrix().GetZAxis();
             const bool bWasCircling = pFlyer->mbCirclingPoint;
+            vATAT += vFwd * 0.0f;
             pFlyer->mbCirclingPoint = true;
-            pFlyer->mPointToCircle = PblVector3(vATAT.x + vFwd.x * 0.0f, vATAT.y + vFwd.y * 0.0f,
-                                                vATAT.z + vFwd.z * 0.0f);
+            pFlyer->mPointToCircle = vATAT;
             if (!bWasCircling)
             {
                 pFlyer->EntityPathFollower::Reset(pFlyer->mClass);
@@ -421,8 +417,8 @@ bool UnitFlyAgent::IsNearATAT()
                     UnitController* pGunner = UnitControllerPtr(it->mCtrl);
                     if (pGunner)
                     {
-                        pGunner->mThreatManager.AddThreat(static_cast<Trackable*>(pATAT)->GetGameObject());
-                        pGunner->ForceSetAttackHelperTarget(static_cast<Trackable*>(pATAT)->GetGameObject());
+                        pGunner->mThreatManager.AddThreat(pATAT->GetGameObject());
+                        pGunner->ForceSetAttackHelperTarget(pATAT->GetGameObject());
                     }
                 }
             }
@@ -440,9 +436,10 @@ bool UnitFlyAgent::IsNearATAT()
 // FUNCTION: SWBF2 0x006673b0
 bool UnitFlyAgent::IsRoofOverhead() const
 {
-    const PblVector3 vStart = mCtrl->mOwner->GetMatrix().GetTranslation();
+    PblVector3 vStart;
+    vStart = mCtrl->mOwner->GetMatrix().GetTranslation();
     const PblVector3 vEnd(vStart.x + 0.0f, vStart.y + 100.0f, vStart.z + 0.0f);
-    const GameObject* pIgnore = static_cast<const Trackable*>(mCtrl->mOwner)->GetGameObject();
+    const GameObject* pIgnore = GetMe()->GetGameObject();
     return CollisionManager::RayTest(vStart, vEnd, &pIgnore, 1, 0x9a);
 }
 

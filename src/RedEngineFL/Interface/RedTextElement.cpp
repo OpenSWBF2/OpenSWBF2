@@ -138,7 +138,7 @@ unsigned int RedTextElement::ClipString(const unsigned short* const pcText,
             {
                 sWidth = (short)(int)(pGlyph->width * m_fScaleX + 0.5f);
                 sAdvance = (short)(sWidth + m_iSpacing);
-                if (!m_pFont->IsPrintingChar(c))
+                if (!m_pFont->IsPrintingChar(*rpcEnd))
                 {
                     bSpace = true;
                 }
@@ -188,23 +188,22 @@ unsigned int RedTextElement::ClipString(const unsigned short* const pcText,
 
         if (bNewline)
         {
-            TextLine& rLine = aLines[uiLine];
-            rLine.pcEnd = (unsigned short*)rpcEnd;
-            if (rLine.pcStart)
+            aLines[uiLine].pcEnd = (unsigned short*)rpcEnd;
+            if (aLines[uiLine].pcStart)
             {
-                rLine.iWidth = rsCursorX;
-                rLine.bClipped = m_uiWidth && rsCursorX > (int)m_uiWidth;
+                aLines[uiLine].iWidth = rsCursorX;
+                aLines[uiLine].bClipped = m_uiWidth && rsCursorX > (int)m_uiWidth;
             }
             else
             {
-                rLine.pcStart = (unsigned short*)rpcEnd;
-                rLine.iWidth = 0;
-                rLine.bClipped = false;
+                aLines[uiLine].pcStart = (unsigned short*)rpcEnd;
+                aLines[uiLine].iWidth = 0;
+                aLines[uiLine].bClipped = false;
             }
             pcLineStart = rpcEnd + 1;
             rsCursorX = 0;
 
-            int iExtent = rLine.iWidth;
+            int iExtent = aLines[uiLine].iWidth;
             if (iExtent > 0xffff)
             {
                 iExtent = 0xffff;
@@ -226,19 +225,18 @@ unsigned int RedTextElement::ClipString(const unsigned short* const pcText,
         }
         else if (bWordBreak && m_uiWidth && sWidth + rsCursorX > (int)m_uiWidth)
         {
-            TextLine& rLine = aLines[uiLine];
-            rLine.bClipped = false;
+            aLines[uiLine].bClipped = false;
             if (!pcBreak)
             {
-                rLine.pcEnd = (unsigned short*)rpcEnd;
-                rLine.iWidth = rsCursorX;
+                aLines[uiLine].pcEnd = (unsigned short*)rpcEnd;
+                aLines[uiLine].iWidth = rsCursorX;
                 pcLineStart = rpcEnd;
                 rsCursorX = 0;
             }
             else
             {
-                rLine.pcEnd = (unsigned short*)pcBreak;
-                rLine.iWidth = sBreakX;
+                aLines[uiLine].pcEnd = (unsigned short*)pcBreak;
+                aLines[uiLine].iWidth = sBreakX;
                 const unsigned short* pcOldBreak = pcBreak;
                 pcBreak = 0;
                 if (pcOldBreak < pcLineStart)
@@ -252,7 +250,7 @@ unsigned int RedTextElement::ClipString(const unsigned short* const pcText,
                 }
             }
 
-            int iExtent = rLine.iWidth;
+            int iExtent = aLines[uiLine].iWidth;
             if (iExtent > 0xffff)
             {
                 iExtent = 0xffff;
@@ -428,12 +426,12 @@ int RedTextElement::WriteCache(const unsigned short* pcText)
     }
 
     const unsigned int uiTabSpacing = (unsigned short)GetTabSpacing();
+    unsigned int uiMaxLines = 80;
     const unsigned int uiTextHeight = GetTextHeight();
 
-    unsigned int uiMaxLines = 80;
-    unsigned int uiNumLines = 0;
-    const unsigned short* pcClipEnd = 0;
-    short sCursorX = 0;
+    unsigned int uiNumLines;
+    const unsigned short* pcClipEnd;
+    short sCursorX;
 
     unsigned int uiFirstLine = ClipString(pcWork, aLines, uiMaxLines, uiNumLines,
                                           pcClipEnd, uiTextHeight, sCursorX);
@@ -445,16 +443,9 @@ int RedTextElement::WriteCache(const unsigned short* pcText)
     {
         bool bCursorDone = ((int)(pcClipEnd - pcWork) < (int)m_uiCursorPos);
 
-        unsigned int uiLines;
-        if (uiNumLines < uiMaxLines)
-        {
-            uiLines = (unsigned short)uiNumLines;
-            uiFirstLine = 0;
-        }
-        else
-        {
-            uiLines = (unsigned short)uiMaxLines;
-        }
+        const unsigned int uiLines = uiNumLines < uiMaxLines ? (unsigned short)uiNumLines
+                                                             : (unsigned short)uiMaxLines;
+        uiFirstLine = uiNumLines < uiMaxLines ? 0 : uiFirstLine;
 
         m_uiNumLines = (unsigned short)uiLines;
 
@@ -518,7 +509,8 @@ int RedTextElement::WriteCache(const unsigned short* pcText)
                     continue;
                 }
 
-                const RedFont::Glyph* pGlyph = m_pFont->FindGlyph(*pc);
+                const RedFont* pFont = m_pFont;
+                const RedFont::Glyph* pGlyph = pFont->FindGlyph(*pc);
                 if (!pGlyph)
                 {
                     continue;
@@ -536,7 +528,7 @@ int RedTextElement::WriteCache(const unsigned short* pcText)
 
                 const int iAdvance = (int)(pGlyph->width * fScaleX + 0.5f);
 
-                if (m_pFont->IsPrintingChar(*pc))
+                if (pFont->IsPrintingChar(*pc))
                 {
                     if (m_clip == 0 && m_uiWidth != 0
                         && iAdvance + iX > (int)m_uiWidth)

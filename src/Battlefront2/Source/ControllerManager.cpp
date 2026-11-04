@@ -49,6 +49,12 @@ int sClientFrameCount;
 float sClientPeriodicUpdateTime;
 }
 
+namespace ControllerManager
+{
+    // GLOBAL: SWBF2 0x0078e770
+    extern const int UPDATES_PER_SECOND = 2;
+}
+
 // GLOBAL: SWBF2 0x01f9c290
 PblList<PlayerController>* sHostPlayerCtrls;
 // GLOBAL: SWBF2 0x01f9c284
@@ -137,13 +143,9 @@ void ControllerManager::RemoveController(Controller* pCtrl)
 // FUNCTION: SWBF2 0x004862f0
 void ControllerManager::RequestControllerUpdateASAP(UnitController* pCtrl)
 {
-    const float fUpdateTime = pCtrl->GetUpdateTime();
-    float fTime = GameLoop::GetMissionTime() + 0.0001f;
-    if (fTime > fUpdateTime)
-    {
-        fTime = fUpdateTime;
-    }
-    pCtrl->mNextUpdateTime = fTime;
+    const float fScheduledTime = pCtrl->mNextUpdateTime;
+    const float fSoon = GameLoop::GetMissionTime() + 0.0001f;
+    pCtrl->mNextUpdateTime = (fSoon > fScheduledTime) ? fScheduledTime : fSoon;
 
     PblOrderedList<UnitController, float>::Node* pNode = pCtrl->GetManagerNode();
     sAICtrls->Remove(pNode);
@@ -336,8 +338,7 @@ void ControllerManager::UpdatePilotSelf()
             continue;
         }
 
-        UnitCmdInfo cmd(CMD_DEATHMATCH, PblHandle<GameObject>(), PblVector3(0.0f, 0.0f, 0.0f),
-                        PblHandle<GameObject>());
+        UnitCmdInfo cmd(CMD_DEATHMATCH, NULL, PblVector3(0.0f, 0.0f, 0.0f), NULL);
         it->QueueCommand(cmd);
     }
 }
@@ -345,7 +346,7 @@ void ControllerManager::UpdatePilotSelf()
 // FUNCTION: SWBF2 0x00486040
 void ControllerManager::UpdateCrowd(Controller* pCtrl)
 {
-    if (pCtrl->mCrowdTestTimer + 1.0f > GameLoop::GetMissionTime())
+    if (GameLoop::GetMissionTime() < pCtrl->mCrowdTestTimer + 1.0f)
     {
         return;
     }
@@ -363,9 +364,8 @@ void ControllerManager::UpdateCrowd(Controller* pCtrl)
 
     for (PblList<PlayerController>::Itor it(*sPlayerCtrls); it; ++it)
     {
-        PlayerController* pOther = it;
-        Controllable* pOtherOwner = pOther->mOwner;
-        if (pOther == pCtrl || !pOtherOwner || !pOtherOwner->GetGameObject() ||
+        Controllable* pOtherOwner = it->mOwner;
+        if (it == pCtrl || !pOtherOwner || !pOtherOwner->GetGameObject() ||
             !pOtherOwner->GetEntity()->IsRtti(EntitySoldier::rttiHashEntitySoldier))
         {
             continue;
@@ -385,9 +385,8 @@ void ControllerManager::UpdateCrowd(Controller* pCtrl)
 
     for (PblOrderedList<UnitController, float>::Itor it(*sAICtrls); it; ++it)
     {
-        UnitController* pOther = it;
-        Controllable* pOtherOwner = pOther->mOwner;
-        if (pOther == pCtrl || !pOtherOwner || !pOtherOwner->GetGameObject() ||
+        Controllable* pOtherOwner = it->mOwner;
+        if (it == pCtrl || !pOtherOwner || !pOtherOwner->GetGameObject() ||
             !pOtherOwner->GetEntity()->IsRtti(EntitySoldier::rttiHashEntitySoldier))
         {
             continue;
@@ -421,11 +420,12 @@ void ControllerManager::DoPeriodicUpdate(float fDeltaTime)
     UpdatePilotSelf();
     for (PblList<PlayerController>::Itor it(*sPlayerCtrls); it; ++it)
     {
-        UpdateControllerAudibles((PlayerController*)it);
+        UpdateControllerAudibles<PlayerController>(it);
         it->UpdateFreeSpace();
         UpdateCrowd(it);
         Controllable* pOwner = it->mOwner;
-        pOwner->mCharacter->mAdrenaline.Update(fDeltaTime, pOwner->GetGameObject());
+        Character* pCharacter = pOwner->mCharacter;
+        pCharacter->mAdrenaline.Update(fDeltaTime, pOwner->GetGameObject());
     }
     sUpdateFriendlyFire();
     AIDifficulty::UpdateAutoBalance();
@@ -476,13 +476,20 @@ void ControllerManager::Update(float fDeltaTime)
     }
 
     int iScale = 1;
-    if (PathManager::IsDone())
+    if (!PathManager::IsDone())
     {
-        iScale = 2;
+        if (AIUtil::IsUberMode())
+        {
+            PathManager::Update(10.0f);
+        }
+        else
+        {
+            PathManager::Update(1.0f);
+        }
     }
     else
     {
-        PathManager::Update(AIUtil::IsUberMode() ? 10.0f : 1.0f);
+        iScale = 2;
     }
     if (!VisionManager::RayTests((AIUtil::IsUberMode() ? 50 : 10) * iScale))
     {
@@ -495,10 +502,11 @@ void ControllerManager::LogVODeath(int iVictimTeam, int iKillerTeam, const PblVe
 {
     for (PblList<PlayerController>::Itor it(*sPlayerCtrls); (PlayerController*)it; ++it)
     {
-        Controllable* pOwner = it->mOwner;
-        if (pOwner && SquaredLength(pOwner->GetMatrix().GetTranslation() - vPos) < 625.0f)
+        PlayerController* pPlayer = it;
+        Controllable* pOwner = pPlayer->mOwner;
+        if (pOwner && SquaredLength(vPos - pOwner->GetMatrix().GetTranslation()) < 625.0f)
         {
-            it->LogVODeath(iVictimTeam, iKillerTeam);
+            pPlayer->LogVODeath(iVictimTeam, iKillerTeam);
         }
     }
 }

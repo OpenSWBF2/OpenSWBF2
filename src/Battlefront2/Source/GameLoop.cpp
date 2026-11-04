@@ -338,10 +338,10 @@ void UpdateDedicatedNoRender()
 {
     HDC hDC = GetDC(hGlobalWnd);
     RECT rect;
-    rect.left = 0;
-    rect.top = 0;
-    rect.right = RedInterfaceScreen::s_screenFull.m_uiWidthInPixels;
     rect.bottom = RedInterfaceScreen::s_screenFull.m_uiHeightInPixels;
+    rect.left = 0;
+    rect.right = RedInterfaceScreen::s_screenFull.m_uiWidthInPixels;
+    rect.top = 0;
     char acText[1024] = "";
     FillRect(hDC, &rect, (HBRUSH)GetStockObject(WHITE_BRUSH));
     HGDIOBJ hOldFont = SelectObject(hDC, GetStockObject(ANSI_FIXED_FONT));
@@ -354,8 +354,10 @@ void UpdateDedicatedNoRender()
     acLine[sizeof(acLine) - 1] = 0;
     strlcat(acText, acLine, sizeof(acText));
 
-    const unsigned short* pTeam1 = Team::sTeams[1] ? Team::sTeams[1]->GetName() : 0;
-    const unsigned short* pTeam2 = Team::sTeams[2] ? Team::sTeams[2]->GetName() : 0;
+    Team* pFirstTeam = Team::sTeams[1];
+    Team* pSecondTeam = Team::sTeams[2];
+    const unsigned short* pTeam1 = pFirstTeam ? pFirstTeam->GetName() : 0;
+    const unsigned short* pTeam2 = pSecondTeam ? pSecondTeam->GetName() : 0;
     if (pTeam1 && pTeam2)
     {
         char acTeam1[128];
@@ -632,17 +634,12 @@ namespace GameLoop
     extern float sClientDeltaTime;
 }
 
-void EntityEx::InitFind()
-{
-    mIdMap.Clear();
-}
-
-void TreeGridStack::SetupMemoryPool(unsigned int uCount, unsigned int uSize, unsigned int uGrow)
+inline void TreeGridStack::SetupMemoryPool(unsigned int uCount, unsigned int uSize, unsigned int uGrow)
 {
     sMemoryPool.Setup(uCount, uSize, uGrow);
 }
 
-void SoldierAnimatorClass::PostLoad()
+inline void SoldierAnimatorClass::PostLoad()
 {
     if (sInstance)
     {
@@ -773,11 +770,11 @@ namespace GameLoop
 // FUNCTION: SWBF2 0x00530ea0
 float GetMissionTime()
 {
-    if (!sMissionTimeInitialized)
+    if (sMissionTimeInitialized)
     {
-        return 0.0f;
+        return sMissionTime.GetElapsed();
     }
-    return sMissionTime.GetElapsed();
+    return 0.0f;
 }
 
 // FUNCTION: SWBF2 0x00530ed0
@@ -850,8 +847,8 @@ int Init()
     sMissionTimeInitialized = false;
     for (int i = 0; i < 3; ++i)
     {
-        netHeroFirstUnlocked[i] = false;
         netHeroUnlocked[i] = false;
+        netHeroFirstUnlocked[i] = false;
     }
     SetLastGameWinner(-1);
     SimDigest::Reset();
@@ -977,7 +974,7 @@ int Init()
     }
 
     LuaHelper::InitState();
-    LuaHelper::CallGlobalProc("ScriptInit");
+    LuaHelper::CallProc("ScriptInit");
     SpawnManager::Instance()->SetupSoldierMemoryPool();
     RedShadowProxy::CleanUp();
     RedTerrain::Activate();
@@ -998,15 +995,44 @@ int Init()
         NetGame::EnterClient();
     }
 
-    CaptureDisplay::InitAll();
-    BootDisplay::InitAll();
+    unsigned int i;
+
+    CaptureDisplay::sInstance[0]->Init();
+    for (i = 0; i < CameraManager::Instance()->GetNumCameras(); ++i)
+    {
+        CaptureDisplay::sInstance[i]->Bind(i);
+    }
+    BootDisplay::sInstance[0]->Init();
+    for (i = 0; i < CameraManager::Instance()->GetNumCameras(); ++i)
+    {
+        BootDisplay::sInstance[i]->Bind(i);
+    }
     ChatMessageDisplay::Instance()->Init();
-    SpectatorDisplay::InitAll();
+    SpectatorDisplay::sInstance[0]->Init();
+    for (i = 0; i < CameraManager::Instance()->GetNumCameras(); ++i)
+    {
+        SpectatorDisplay::sInstance[i]->Bind(i);
+    }
     ToolTipsDisplay::sInstance->Init();
-    ReticuleDisplay::BindAll();
-    HeroMessageDisplay::InitAll();
-    ScopeDisplay::InitAll();
-    StatusDisplay::InitAll();
+    for (i = 0; i < CameraManager::Instance()->GetNumCameras(); ++i)
+    {
+        ReticuleDisplay::sInstance[i]->Bind(i);
+    }
+    HeroMessageDisplay::sInstance[0]->Init();
+    for (i = 0; i < CameraManager::Instance()->GetNumCameras(); ++i)
+    {
+        HeroMessageDisplay::sInstance[i]->Bind(i);
+    }
+    ScopeDisplay::sInstance[0]->Init();
+    for (i = 0; i < CameraManager::Instance()->GetNumCameras(); ++i)
+    {
+        ScopeDisplay::sInstance[i]->Bind(i);
+    }
+    StatusDisplay::sInstance[0]->Init();
+    for (i = 0; i < CameraManager::Instance()->GetNumCameras(); ++i)
+    {
+        StatusDisplay::sInstance[i]->Bind(i);
+    }
     EndDisplay::Instance()->Init();
     NameDisplay::Init();
     ItemTimerDisplay::Init();
@@ -1026,8 +1052,8 @@ int Init()
 
     QOSDisplay::InitHost();
 
-    sMissionTime.Mark(&GameState::_TimeBase);
     sMissionTimeInitialized = true;
+    sMissionTime.Mark(&GameState::_TimeBase);
     GameLoop::sDeltaTime = 0.0f;
     sSystemDeltaTime = 0.0f;
     GameLoop::sClientDeltaTime = 0.0f;
@@ -1128,10 +1154,10 @@ int PostLoad()
             mAttractInfoText.SetText(pText, true);
         }
         mAttractGroup.AddElement(&mAttractInfoText);
-        mAttractGroup.Visible(true);
+        mAttractGroup.Enable(true);
         for (unsigned int i = 0; i < CameraManager::Instance()->GetNumCameras(); ++i)
         {
-            FLRenderer::AddInterfaceElement(CameraManager::Instance()->m_hView[i], &mAttractGroup, RedInterfaceScreen::CENTER, RedInterfaceScreen::CENTER,
+            FLRenderer::AddInterfaceElement(CameraManager::Instance()->m_hView[i], &mAttractGroup, 0.5f, 0.5f,
                                             true);
         }
     }
@@ -1153,7 +1179,7 @@ int PostLoad()
         mDedicatedTeam2Text.SetFont(RedFont::GAMEFONT_SMALL);
         mDedicatedTeam2Text.SetTextAlign(RedTextElement::TEXT_HALIGN_RIGHT, RedTextElement::TEXT_VALIGN_BOTTOM);
         mDedicatedTeam2Text.SetColor(RedColor::RED);
-        mDedicatedGroup.Visible(false);
+        mDedicatedGroup.Enable(false);
         mDedicatedTitleText.SetText("", true);
         mDedicatedTeam1Text.SetText("", true);
         mDedicatedTeam2Text.SetText("", true);
@@ -1190,17 +1216,17 @@ int PostLoad()
     RedSceneManager::SetupStaticWorld();
 
     mWaitMessageGroup.SetPosition(0.0f, -30.0f);
-    mWaitMessageGroup.Visible(false);
+    mWaitMessageGroup.Enable(false);
     mWaitTextElement.SetIntercharacterSpacing(0);
     mWaitTextElement.SetTextStyle(RedGlyphCacheElement::TEXT_STYLE_SHADOW);
     mWaitTextElement.SetTextAlign(RedTextElement::TEXT_HALIGN_CENTER, RedTextElement::TEXT_VALIGN_BASELINE);
-    mWaitTextElement.Visible(true);
+    mWaitTextElement.Enable(true);
     mWaitMessageGroup.AddElement(&mWaitTextElement);
     mWaitTimer = 0.0f;
     FLRenderer::AddInterfaceElement(&mWaitMessageGroup, RedInterfaceScreen::CENTER, RedInterfaceScreen::CENTER, true);
 
     sMissionActive = true;
-    LuaHelper::CallGlobalProc("ScriptPostLoad");
+    LuaHelper::CallProc("ScriptPostLoad");
     LuaHelper::CloseScript();
     FLInputManager::s_instance.Update(0.0f);
     NetGame::CreateVeryLast();
@@ -1210,51 +1236,67 @@ int PostLoad()
 // FUNCTION: SWBF2 0x00532100
 void UpdateDedicatedMsg(float fDeltaTime)
 {
-    if (g_bNoRender)
+    if (!g_bNoRender)
     {
-        UpdateDedicatedNoRender();
-        return;
-    }
+        const float fSafeZone = RedInterfaceScreen::GetScreenSafeZone();
+        const float fRangeX = (float)RedInterfaceScreen::GetScreenWidth() * fSafeZone - 360.0f;
+        const float fRangeY = (float)RedInterfaceScreen::GetScreenHeight() * fSafeZone - 380.0f;
+        DedicatedMsgX += fDeltaTime * DedicatedMsgDX;
+        DedicatedMsgY += fDeltaTime * DedicatedMsgDY;
 
-    const float fSafeZone = RedInterfaceScreen::GetScreenSafeZone();
-    const float fRangeX = (float)RedInterfaceScreen::GetScreenWidth() * fSafeZone - 360.0f;
-    const float fRangeY = (float)RedInterfaceScreen::GetScreenHeight() * fSafeZone - 380.0f;
-    DedicatedMsgX += fDeltaTime * DedicatedMsgDX;
-    DedicatedMsgY += fDeltaTime * DedicatedMsgDY;
-
-    float fX = (float)fmod(DedicatedMsgX, fRangeX * 2.0f);
-    float fY = (float)fmod(DedicatedMsgY, fRangeY * 2.0f);
-    if (fX > fRangeX)
-    {
-        fX = fRangeX * 2.0f - fX;
-    }
-    if (fY > fRangeY)
-    {
-        fY = fRangeY * 2.0f - fY;
-    }
-    mDedicatedGroup.SetPosition(PblVector3(fX - fRangeX * 0.5f, fY - fRangeY * 0.5f - 10.0f, 0.0f));
-
-    unsigned short acName[128];
-    unsigned short acCount[128];
-    RedTextElement* apText[2] = { &mDedicatedTeam1Text, &mDedicatedTeam2Text };
-    for (int i = 0; i < 2; ++i)
-    {
-        Team* pTeam = Team::sTeams[i + 1];
-        const int iCount = mShowTeamPoints[i] ? pTeam->mPoints : pTeam->mCurReinforcements;
-        if (pTeam->mName)
+        float fX = fmodf(DedicatedMsgX, fRangeX * 2.0f);
+        float fY = fmodf(DedicatedMsgY, fRangeY * 2.0f);
+        if (fX > fRangeX)
         {
-            PblUnicode::ustrlcpy(acName, pTeam->mName, 128);
+            fX = fRangeX * 2.0f - fX;
+        }
+        if (fY > fRangeY)
+        {
+            fY = fRangeY * 2.0f - fY;
+        }
+        PblVector3 vPosition;
+        vPosition.x = fX - fRangeX * 0.5f;
+        vPosition.y = fY - fRangeY * 0.5f - 10.0f;
+        vPosition.z = 0.0f;
+        mDedicatedGroup.SetPosition(vPosition);
+
+        unsigned short acName[128];
+        unsigned short acCount[128];
+
+        Team* pTeam1 = Team::sTeams[1];
+        const int iCount1 = mShowTeamPoints[0] ? pTeam1->mPoints : pTeam1->mCurReinforcements;
+        if (pTeam1->mName)
+        {
+            PblUnicode::ustrlcpy(acName, pTeam1->mName, 128);
         }
         else
         {
             PblUnicode::ustrncnv(acName, "", 128);
         }
-        PblUnicode::usnprintf(acCount, 128, " : %d", iCount);
+        PblUnicode::usnprintf(acCount, 128, " : %d", iCount1);
         PblUnicode::ustrlcat(acName, acCount, 128);
-        apText[i]->SetText(acName, true);
-    }
+        mDedicatedTeam1Text.SetText(acName, true);
 
-    mDedicatedGroup.Visible(!PauseMenu::GetPaused(0));
+        Team* pTeam2 = Team::sTeams[2];
+        const int iCount2 = mShowTeamPoints[1] ? pTeam2->mPoints : pTeam2->mCurReinforcements;
+        if (pTeam2->mName)
+        {
+            PblUnicode::ustrlcpy(acName, pTeam2->mName, 128);
+        }
+        else
+        {
+            PblUnicode::ustrncnv(acName, "", 128);
+        }
+        PblUnicode::usnprintf(acCount, 128, " : %d", iCount2);
+        PblUnicode::ustrlcat(acName, acCount, 128);
+        mDedicatedTeam2Text.SetText(acName, true);
+
+        mDedicatedGroup.Enable(!PauseMenu::GetPaused(0));
+    }
+    else
+    {
+        UpdateDedicatedNoRender();
+    }
 }
 
 // FUNCTION: SWBF2 0x005323e0
@@ -1294,22 +1336,14 @@ void Update(float fDeltaTime, float fSystemDeltaTime)
         {
             if (!mWaitMessageGroup.IsEnabled())
             {
-                const PblHash hWait("common.waitforhost");
+                const unsigned int uiWaitHash = PblHash("common.waitforhost");
                 mWaitTextElement.SetFont(RedFont::GAMEFONT_SMALL);
-                mWaitTextElement.SetText(RedLocalizeDB::Find(hWait, false), true);
+                mWaitTextElement.SetText(RedLocalizeDB::Find(uiWaitHash, false), true);
             }
             mWaitMessageGroup.Enable(true);
         }
 
-        float fAlpha = (1.0f - (float)fabs((mWaitTimer - (float)(int)mWaitTimer) * 2.0f - 1.0f)) * 255.0f;
-        if (fAlpha < 0.0f)
-        {
-            fAlpha = 0.0f;
-        }
-        else if (fAlpha > 255.0f)
-        {
-            fAlpha = 255.0f;
-        }
+        const float fAlpha = Clamp((1.0f - (float)fabs((double)((mWaitTimer - (float)(int)mWaitTimer) * 2.0f - 1.0f))) * 255.0f, 0.0f, 255.0f);
         mWaitTimer += fDeltaTime;
         mWaitTextElement.m_color.a = (unsigned char)(int)fAlpha;
     }
@@ -1320,19 +1354,7 @@ void Update(float fDeltaTime, float fSystemDeltaTime)
         return;
     }
 
-    static bool sbRunningLogged;
-    if (gExitOnGameOver && !sbRunningLogged)
-    {
-        sbRunningLogged = true;
-        LOG(LogSim, Inform, "OPENSWBF2 MISSION RUNNING %s", mMissionScript);
-    }
-    if (sbRunningLogged)
-    {
-        pcCrash::RunMissionCrashTest();
-    }
-    SimDigest::LogFactories();
-
-    ScreenTransition::sInstance->Update(fSystemDeltaTime);
+    ScreenTransition::sInstance->ScreenTransition::Update(fSystemDeltaTime);
     sSystemDeltaTime = fSystemDeltaTime;
 
     if (gAttractMode)
@@ -1401,9 +1423,8 @@ void Update(float fDeltaTime, float fSystemDeltaTime)
             }
             else
             {
-
-                const float fThreshold = netSecondsPerTurn * (netFrameLock ? 0.85f : 0.95f);
                 int iTurns = 0;
+                const float fThreshold = netFrameLock ? netSecondsPerTurn * 0.85f : netSecondsPerTurn * 0.95f;
                 while (clientInputAcc >= fThreshold && iTurns < 64)
                 {
                     clientInputAcc -= netSecondsPerTurn;
@@ -1660,13 +1681,17 @@ void Update(float fDeltaTime, float fSystemDeltaTime)
                     {
                         const Team* pTeam = Team::sTeams[iTeam];
                         const bool bPlayerTeam = AIUtil::IsPlayerTeam(iTeam);
+                        const int iReinforcements = pTeam->mMaxReinforcements < 0x7fffffff ? pTeam->mCurReinforcements : -1;
+                        const int iWinningTeams = Team::sWinningTeams;
+                        const int iMembers = pTeam->mMemberCount;
+                        const int iSide = pTeam->mSide;
                         fprintf(pFile, "\t%c=%s\t%du@%d%c\t%3dr\t%2dp",
-                                (Team::sWinningTeams & (1 << iTeam)) ? 'W' : 'L',
-                                SideNamePrefix(pTeam->mSide),
-                                pTeam->mMemberCount,
+                                (iWinningTeams & (1 << iTeam)) ? 'W' : 'L',
+                                sSideNamePrefixes[iSide],
+                                iMembers,
                                 AIDifficulty::GetIntSkill((const UnitController*)bPlayerTeam, false),
                                 bPlayerTeam ? 'P' : ' ',
-                                pTeam->mMaxReinforcements >= 0x7fffffff ? -1 : pTeam->mCurReinforcements,
+                                iReinforcements,
                                 pTeam->mPoints);
                     }
                     fprintf(pFile, "\n");
@@ -1698,7 +1723,8 @@ void Update(float fDeltaTime, float fSystemDeltaTime)
             endTimer.Update(fSystemDeltaTime);
             if (!NetGame::IsEnabled() || NetGame::IsGameOver())
             {
-                if ((EndDisplay::Instance()->IsFinished() || endTimer.IsFinished()) && !GameLoop::sShowStats &&
+                const bool bEndDisplayFinished = EndDisplay::Instance()->IsFinished();
+                if ((endTimer.IsFinished() || bEndDisplayFinished) && !GameLoop::sShowStats &&
                     (NetGame::IsEnabled() || !PauseMenu::GetPaused(0)))
                 {
                     EndDisplay::Instance()->Hide();
@@ -1795,32 +1821,28 @@ int Cleanup()
 // FUNCTION: SWBF2 0x00533740
 void SetWorldFilename(char const* pcName)
 {
-    if (pcName)
-    {
-        if (!mWorldFileName[0])
-        {
-            strlcpy(mWorldFileName, pcName, sizeof(mWorldFileName));
-        }
-    }
-    else
+    if (!pcName)
     {
         memset(mWorldFileName, 0, sizeof(mWorldFileName));
+        return;
+    }
+    if (!mWorldFileName[0])
+    {
+        strlcpy(mWorldFileName, pcName, sizeof(mWorldFileName));
     }
 }
 
 // FUNCTION: SWBF2 0x00533770
 void SetTerrainFilename(char const* pcName)
 {
-    if (pcName)
-    {
-        if (!mTerrainFileName[0])
-        {
-            strlcpy(mTerrainFileName, pcName, sizeof(mTerrainFileName));
-        }
-    }
-    else
+    if (!pcName)
     {
         memset(mTerrainFileName, 0, sizeof(mTerrainFileName));
+        return;
+    }
+    if (!mTerrainFileName[0])
+    {
+        strlcpy(mTerrainFileName, pcName, sizeof(mTerrainFileName));
     }
 }
 
@@ -1840,7 +1862,7 @@ int GetJoystickYFlip()
     RawControllerInputs* pJoystick = FLInputManager::s_instance.GetPlayerJoystick(PauseMenu::GetPausingViewport());
     if (pJoystick)
     {
-        return pJoystick->GetFlip();
+        return pJoystick->GetFlipForMode(pJoystick->GetInputMode());
     }
     return 0;
 }
@@ -1934,23 +1956,12 @@ namespace GameLoop
 // FUNCTION: SWBF2 0x00533560
 bool GetCanSwitchSides()
 {
-    if (NetGame::IsEnabled())
+    if (!NetGame::IsEnabled())
     {
-        return !netAutoAssignTeams;
+        return GameLoop::mbCanSwitchSides && !GameLoop::mbMetagameRules;
     }
-    return GameLoop::mbCanSwitchSides && !GameLoop::mbMetagameRules;
+    return !netAutoAssignTeams;
 }
-}
-
-// FUNCTION: SWBF2 0x00549eb0
-void HUD::Element::UpdateAll(float fDeltaTime)
-{
-    for (PblListDouble::Node* pNode = HUD::Element::sList.mTerminator.mNext;
-         pNode != &HUD::Element::sList.mTerminator; pNode = pNode->mNext)
-    {
-        HUD::Element* pElement = (HUD::Element*)((char*)pNode - offsetof(HUD::Element, mNode));
-        pElement->Update(fDeltaTime);
-    }
 }
 
 namespace HUD
@@ -2045,7 +2056,7 @@ void GameLoop::UpdateStats(float fDeltaTime, float fSystemDeltaTime)
     static_cast<Thread&>(sFlashyTextManagerInstance).Update(fSystemDeltaTime);
     GameSoundEngine::Update(fSystemDeltaTime);
     GuiManager::UpdateAll(fSystemDeltaTime);
-    ScreenTransition::sInstance->Update(fSystemDeltaTime);
+    ScreenTransition::sInstance->ScreenTransition::Update(fSystemDeltaTime);
     NetGame::ReceiveClient();
     NetGame::LeaveClient();
     if (NetGame::IsHost())

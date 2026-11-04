@@ -142,15 +142,15 @@ void HUD::ElementGroupPlayer::PlayerIndexChanged()
 // FUNCTION: SWBF2 0x0054f910
 bool HUD::ElementMap::BitmapGroup::SetProperty(const unsigned int uHashID, const void* const pValue)
 {
-    if (!HUD::ElementBitmapBase::SetProperty(uHashID, pValue))
+    if (HUD::ElementBitmapBase::SetProperty(uHashID, pValue))
     {
-        return false;
+        if (mMap && mMap->GetMode() == mMapMode)
+        {
+            CopyToBitmaps(mBitmaps, mNumBitmaps, 0, false);
+        }
+        return true;
     }
-    if (mMap && mMap->GetMode() == mMapMode)
-    {
-        CopyToBitmaps(mBitmaps, mNumBitmaps, 0, false);
-    }
-    return true;
+    return false;
 }
 
 // SYNTHETIC: SWBF2 0x0054f9f0
@@ -240,7 +240,9 @@ HUD::ElementMap::ElementMap(const char* const pName, Factory::ItemCallback pCall
     gBackdropDefaults[0] = gBackdropDefaultSmallOld;
     for (i = 0; i < mode_MAX; ++i)
     {
-        mPosition[i] = PblVector3(gBackdropDefaults[i].x, gBackdropDefaults[i].y, 0.0f);
+        mPosition[i].x = gBackdropDefaults[i].x;
+        mPosition[i].y = gBackdropDefaults[i].y;
+        mPosition[i].z = 0.0f;
     }
 
     PblMatrix matrix;
@@ -301,7 +303,7 @@ HUD::ElementMap::ElementMap(const char* const pName, Factory::ItemCallback pCall
         pDirection->mWriteEnabled = false;
     }
 
-    const bool bSplitScreen = CameraManager::Instance()->GetNumCameras() > 1;
+    const unsigned int uScaleIndex = CameraManager::Instance()->GetNumCameras() > 1 ? 1 : 0;
 
     for (i = 0; i < mode_MAX; ++i)
     {
@@ -315,7 +317,7 @@ HUD::ElementMap::ElementMap(const char* const pName, Factory::ItemCallback pCall
         pTarget->SetColor(RedColor::BLACK);
         pTarget->SetStyle(RedBitmapElement::BITMAP_STYLE_SHADOW);
         pTarget->HUD::ElementBitmapBase::SetRect(
-            sSymbolScale[bSplitScreen] / sViewportWidth, sSymbolScale[bSplitScreen] / sViewportHeight,
+            sSymbolScale[uScaleIndex] / sViewportWidth, sSymbolScale[uScaleIndex] / sViewportHeight,
             RedBitmapElement::BITMAP_HALIGN_CENTER, RedBitmapElement::BITMAP_VALIGN_CENTER);
         pTarget->SetZOrder(126);
         pTarget->mDynamicAlloc = false;
@@ -337,7 +339,7 @@ HUD::ElementMap::ElementMap(const char* const pName, Factory::ItemCallback pCall
         }
         pPost->SetStyle(RedBitmapElement::BITMAP_STYLE_SHADOW);
         pPost->HUD::ElementBitmapBase::SetRect(
-            sSymbolScale[bSplitScreen] / sViewportWidth, sSymbolScale[bSplitScreen] / sViewportHeight,
+            sSymbolScale[uScaleIndex] / sViewportWidth, sSymbolScale[uScaleIndex] / sViewportHeight,
             RedBitmapElement::BITMAP_HALIGN_CENTER, RedBitmapElement::BITMAP_VALIGN_CENTER);
         pPost->SetZOrder(128);
         pPost->mDynamicAlloc = false;
@@ -358,7 +360,7 @@ HUD::ElementMap::ElementMap(const char* const pName, Factory::ItemCallback pCall
 
     for (i = 0; i < 16; ++i)
     {
-        mPost[i].CreateHotSpot((sViewportWidth / 640.0f - 1.0f) * 3.0f * sSymbolScale[bSplitScreen]);
+        mPost[i].CreateHotSpot((sViewportWidth / 640.0f - 1.0f) * 3.0f * sSymbolScale[uScaleIndex]);
     }
 
     for (i = 0; i < mode_MAX; ++i)
@@ -395,7 +397,7 @@ HUD::ElementMap::ElementMap(const char* const pName, Factory::ItemCallback pCall
         pPostSelect->HUD::ElementBitmap::SetTexture("hud_icon_flash");
         pPostSelect->SetStyle(RedBitmapElement::BITMAP_STYLE_SHADOW);
         pPostSelect->HUD::ElementBitmapBase::SetRect(
-            sSymbolScale[bSplitScreen] / sViewportWidth, sSymbolScale[bSplitScreen] / sViewportHeight,
+            sSymbolScale[uScaleIndex] / sViewportWidth, sSymbolScale[uScaleIndex] / sViewportHeight,
             RedBitmapElement::BITMAP_HALIGN_CENTER, RedBitmapElement::BITMAP_VALIGN_CENTER);
         pPostSelect->SetZOrder(128);
         pPostSelect->mDynamicAlloc = false;
@@ -416,7 +418,7 @@ HUD::ElementMap::ElementMap(const char* const pName, Factory::ItemCallback pCall
         }
         pMarker->SetStyle(RedBitmapElement::BITMAP_STYLE_SHADOW);
         pMarker->HUD::ElementBitmapBase::SetRect(
-            sSymbolScale[bSplitScreen] / sViewportWidth, sSymbolScale[bSplitScreen] / sViewportHeight,
+            sSymbolScale[uScaleIndex] / sViewportWidth, sSymbolScale[uScaleIndex] / sViewportHeight,
             RedBitmapElement::BITMAP_HALIGN_CENTER, RedBitmapElement::BITMAP_VALIGN_CENTER);
         pMarker->SetZOrder(127);
         pMarker->mDynamicAlloc = false;
@@ -437,7 +439,7 @@ HUD::ElementMap::ElementMap(const char* const pName, Factory::ItemCallback pCall
         }
         pNorth->SetStyle(RedBitmapElement::BITMAP_STYLE_SHADOW);
         pNorth->HUD::ElementBitmapBase::SetRect(
-            sSymbolScale[bSplitScreen] / sViewportWidth, sSymbolScale[bSplitScreen] / sViewportHeight,
+            sSymbolScale[uScaleIndex] / sViewportWidth, sSymbolScale[uScaleIndex] / sViewportHeight,
             RedBitmapElement::BITMAP_HALIGN_CENTER, RedBitmapElement::BITMAP_VALIGN_BOTTOM);
         pNorth->SetZOrder(127);
         pNorth->mDynamicAlloc = false;
@@ -466,8 +468,13 @@ void HUD::ElementMap::Read(PblConfig& config, Factory::ItemCallback pCallback, v
         PblConfig::Data data = config.ReadNextData();
         if (config.m_pChunk->PeekNextChildId() == 0x504f4353)
         {
-            for (i = 0; i < mode_MAX; ++i)
+            for (i = 0;; ++i)
             {
+                if (i >= mode_MAX)
+                {
+                    ReadChild(config, data, pCallback, pUserData);
+                    break;
+                }
                 if (data.GetId() == mBackdrop[i].GetNameHash())
                 {
                     PblConfig scope(config.ReadNextScope(), true);
@@ -531,10 +538,6 @@ void HUD::ElementMap::Read(PblConfig& config, Factory::ItemCallback pCallback, v
                     break;
                 }
             }
-            if (i >= mode_MAX)
-            {
-                ReadChild(config, data, pCallback, pUserData);
-            }
         }
         else
         {
@@ -580,16 +583,14 @@ void HUD::ElementMap::PostReadSetup()
     for (unsigned int i = 0; i < mode_MAX; ++i)
     {
         PblMatrix matrix = gMatrixIdentity;
-        matrix.m[3][0] = mPosition[i].x;
-        matrix.m[3][1] = mPosition[i].y;
-        matrix.m[3][2] = mPosition[i].z;
+        matrix[3] = mPosition[i];
         matrix.m[3][3] = 1.0f;
         mMatrix[i].SetMatrix(&matrix);
         mMatrix[i].ApplyRelativeMode(GetContainerFrameWidth(), GetContainerFrameHeight(),
                                      GetContainerViewWidth(), GetContainerViewHeight(),
                                      InScreenGroup());
         mMatrix[i].SetMatrix(0);
-        mPosition[i] = PblVector3(matrix.m[3][0], matrix.m[3][1], matrix.m[3][2]);
+        mPosition[i] = matrix[3];
         mBackdrop[i].RedInterfaceElement::Scale(1.0f, 1.0f / (0.75f / RedRenderer::GetScreenAspectRatio()));
     }
 
@@ -599,7 +600,7 @@ void HUD::ElementMap::PostReadSetup()
     }
     else
     {
-        RedGroupElement::Scale(1.0f, 0.75f / RedRenderer::GetScreenAspectRatio());
+        RedGroupElement::Scale(0.75f / RedRenderer::GetScreenAspectRatio(), 1.0f);
     }
 }
 
@@ -654,19 +655,19 @@ bool HUD::ElementMap::ReadData(PblConfig& config, PblConfig::Data& data)
         mMatrix[mode_Small].SetMatrix(&matrix);
         mMatrix[mode_Small].ReadPosition(data, kPositionHash);
         mMatrix[mode_Small].SetMatrix(0);
-        mPosition[mode_Small] = PblVector3(matrix.m[3][0], matrix.m[3][1], matrix.m[3][2]);
+        mPosition[mode_Small] = matrix.GetTranslation();
         return true;
     case kPositionLargeHash:
         mMatrix[mode_Large].SetMatrix(&matrix);
         mMatrix[mode_Large].ReadPosition(data, kPositionHash);
         mMatrix[mode_Large].SetMatrix(0);
-        mPosition[mode_Large] = PblVector3(matrix.m[3][0], matrix.m[3][1], matrix.m[3][2]);
+        mPosition[mode_Large] = matrix.GetTranslation();
         return true;
     case kPositionSpawnHash:
         mMatrix[mode_Spawn].SetMatrix(&matrix);
         mMatrix[mode_Spawn].ReadPosition(data, kPositionHash);
         mMatrix[mode_Spawn].SetMatrix(0);
-        mPosition[mode_Spawn] = PblVector3(matrix.m[3][0], matrix.m[3][1], matrix.m[3][2]);
+        mPosition[mode_Spawn] = matrix.GetTranslation();
         return true;
     case kBackgroundMaskShapeSmallHash:
         uShape = TranslateString((const char* const*)sMaskShapeStrings, maskShape_MAX, data.GetStringArg(0));
@@ -703,10 +704,10 @@ bool HUD::ElementMap::ReadData(PblConfig& config, PblConfig::Data& data)
 // FUNCTION: SWBF2 0x00555840
 HUD::ElementMap* HUD::ElementMap::FindByPlayerIndex(int iPlayerIndex)
 {
-    for (PblListSingle::Itor itor(sMapList); itor.GetNode() != &sMapList.mHead; ++itor)
+    for (PblListSingle::Itor itor(sMapList); itor.GetNode() != sMapList.GetTerminator(); ++itor)
     {
-        ElementMap* pMap = (ElementMap*)((char*)itor.GetNode() - offsetof(ElementMap, mMapNode));
-        if (pMap->mPlayerIndex == iPlayerIndex)
+        ElementMap* pMap = (ElementMap*)itor.GetNode()->GetObjectA(&sMapList, offsetof(ElementMap, mMapNode));
+        if (iPlayerIndex == pMap->mPlayerIndex)
         {
             return pMap;
         }
@@ -783,8 +784,8 @@ void HUD::ElementMap::Update(const float fElapsed)
             const Controllable* pVehicle = mPlayerCharacter->mVehicle;
 
             PblMatrix matrix = CameraManager::Instance()->GetCamera(mPlayerIndex)->GetMatrix();
-            mPlayerDirection = matrix.GetZAxis();
             mPlayerPosition = matrix.GetTranslation();
+            mPlayerDirection = matrix.GetZAxis();
 
             const GameObject* pVehicleObject;
             if (pVehicle && (pVehicleObject = pVehicle->GetGameObject()) != 0)
@@ -797,9 +798,7 @@ void HUD::ElementMap::Update(const float fElapsed)
                 {
                     matrix = pVehicleObject->GetMatrix();
                 }
-                mPlayerMovementDirection.x = -matrix.m[2][0];
-                mPlayerMovementDirection.y = -matrix.m[2][1];
-                mPlayerMovementDirection.z = -matrix.m[2][2];
+                mPlayerMovementDirection = PblVector3(-matrix.m[2][0], -matrix.m[2][1], -matrix.m[2][2]);
             }
             else
             {
@@ -835,14 +834,7 @@ void HUD::ElementMap::Update(const float fElapsed)
                 const EntityClass::MapParams& params = pClass->mMapParams;
 
                 float fFactor = (fSpeed - params.mSpeedMin) / (params.mSpeedMax - params.mSpeedMin);
-                if (fFactor < 0.0f)
-                {
-                    fFactor = 0.0f;
-                }
-                else if (fFactor > 1.0f)
-                {
-                    fFactor = 1.0f;
-                }
+                fFactor = fFactor < 0.0f ? 0.0f : (fFactor > 1.0f ? 1.0f : fFactor);
                 fRadius = (params.mViewRangeMax - params.mViewRangeMin) * fFactor + params.mViewRangeMin;
             }
 
@@ -857,7 +849,8 @@ void HUD::ElementMap::Update(const float fElapsed)
         {
             if (mMode == mode_Small)
             {
-                fRotation = -PblMath::Atan2(-mPlayerDirection.x, mPlayerDirection.z);
+                const float fNegX = -mPlayerDirection.x;
+                fRotation = -PblMath::Atan2(fNegX, mPlayerDirection.z);
             }
             else
             {
@@ -891,13 +884,18 @@ void HUD::ElementMap::Update(const float fElapsed)
     }
 }
 
+static inline float AbsValue(float f)
+{
+    return f < 0.0f ? -f : f;
+}
+
 // FUNCTION: SWBF2 0x005529a0
 bool HUD::ElementMap::CalculateScreenCoordinates(const PblVector3& vPosition, float& fX, float& fY,
                                                  bool bClamp, float* const pfDistanceSq) const
 {
     const Dim& dim = mDim[mMode];
-    fY = (vPosition.z - dim.centerZ) * dim.scale;
     fX = (vPosition.x - dim.centerX) * dim.scale;
+    fY = (vPosition.z - dim.centerZ) * dim.scale;
     const float fDistanceSq = fY * fY + fX * fX;
     if (pfDistanceSq)
     {
@@ -919,14 +917,14 @@ bool HUD::ElementMap::CalculateScreenCoordinates(const PblVector3& vPosition, fl
     }
     else
     {
-        float fAbsX = fabsf(fX);
-        if (fAbsX > 0.5f || fabsf(fY) > 0.5f)
+        float fAbsX = AbsValue(fX);
+        if (fAbsX > 0.5f || AbsValue(fY) > 0.5f)
         {
             if (!bClamp)
             {
                 return false;
             }
-            const float fAbsY = fabsf(fY);
+            const float fAbsY = AbsValue(fY);
             if (!(fAbsX > fAbsY))
             {
                 fAbsX = fAbsY;
@@ -949,7 +947,7 @@ void HUD::ElementMap::UpdateBackdropTexCoords()
 {
     const Dim& dim = mDim[mMode];
     const Dim& large = mDim[mode_Large];
-    static_cast<RedBitmapElement&>(mBackdrop[mMode]).SetTexCoords(
+    mBackdrop[mMode].SetTexCoords(
         (dim.centerX - dim.radius - large.centerX) * large.scale + 0.5f,
         (dim.centerZ - dim.radius - large.centerZ) * large.scale + 0.5f,
         (dim.centerX + dim.radius - large.centerX) * large.scale + 0.5f,
@@ -999,11 +997,13 @@ void HUD::ElementMap::UpdatePlayerIcon()
         fNorth = sNorth;
     }
 
-    const float fViewAngle = PblMath::Atan2(-mPlayerDirection.x, mPlayerDirection.z) + fNorth;
+    const float fViewDirX = -mPlayerDirection.x;
+    const float fViewAngle = PblMath::Atan2(fViewDirX, mPlayerDirection.z) + fNorth;
     float fMoveAngle;
     if (mPlayerCharacter && mPlayerCharacter->mVehicle)
     {
-        fMoveAngle = PblMath::Atan2(-mPlayerMovementDirection.x, mPlayerMovementDirection.z) + fNorth;
+        const float fMoveDirX = -mPlayerMovementDirection.x;
+        fMoveAngle = PblMath::Atan2(fMoveDirX, mPlayerMovementDirection.z) + fNorth;
     }
     else
     {
@@ -1021,13 +1021,11 @@ void HUD::ElementMap::UpdatePlayerIcon()
         fX = fScreenX;
     }
 
-    const PblMatrix mFlat(
-        PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-        PblVector4{ 0.0f, 0.0f, -1.0f, 0.0f },
-        PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-        PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
-
     const PblVector3& vViewScale = mPlayerFOV[mMode].HUD::Element::mMatrix.GetScale();
+    const D3DXMATRIXA16 mFlat(1.0f, 0.0f, 0.0f, 0.0f,
+                              0.0f, 0.0f, -1.0f, 0.0f,
+                              0.0f, 1.0f, 0.0f, 0.0f,
+                              0.0f, 0.0f, 0.0f, 1.0f);
     PblMatrix matrix = mFlat;
     matrix.RotateZ(fViewAngle - PblMath::fPi);
     matrix.Scale(vViewScale.x, vViewScale.y, vViewScale.z);
@@ -1066,16 +1064,9 @@ const Team* HUD::ElementMap::GetPlayerTeam() const
 // FUNCTION: SWBF2 0x005531c0
 void HUD::ElementMap::UpdateTargetIcons(const Controllable* pPlayer)
 {
-    if (!netIsDedicated)
+    if (!netIsDedicated && (!GetPlayerTeam() || !pPlayer))
     {
-        if (!GetPlayerTeam())
-        {
-            return;
-        }
-        if (!pPlayer)
-        {
-            return;
-        }
+        return;
     }
 
     const bool bSensorArray =
@@ -1083,7 +1074,7 @@ void HUD::ElementMap::UpdateTargetIcons(const Controllable* pPlayer)
     const bool bEasy = mPlayerIndex >= 0 && GameLoop::mbHistoricalRules &&
                        PlayerProfile::GetProfile(mPlayerIndex)->mGameOptions.mCurDiffLevel <= eDIFFICULTY_MEDIUM;
 
-    for (unsigned int i = 0; i < TargetManager::MAX_TARGETS; ++i)
+    for (int i = 0; i < TargetManager::MAX_TARGETS; ++i)
     {
         TargetManager::Target& target = TargetManager::_gTarget[i];
         RedBitmapElement& bitmap = mTarget[i];
@@ -1112,9 +1103,8 @@ void HUD::ElementMap::UpdateTargetIcons(const Controllable* pPlayer)
             GameObject* pTarget = target.actor;
             const PblMatrix& mPlayer = pPlayer->GetMatrix();
             const PblMatrix& mTargetMatrix = pTarget->GetMatrix();
-            vDelta.x = mTargetMatrix.m[3][0] - mPlayer.m[3][0];
-            vDelta.y = mTargetMatrix.m[3][1] - mPlayer.m[3][1];
-            vDelta.z = mTargetMatrix.m[3][2] - mPlayer.m[3][2];
+            vDelta = PblVector3(mTargetMatrix.m[3][0] - mPlayer.m[3][0], mTargetMatrix.m[3][1] - mPlayer.m[3][1],
+                                mTargetMatrix.m[3][2] - mPlayer.m[3][2]);
 
             const float fLength2EstAlpha = 0.94805944f;
             const float fLength2EstBeta = 0.39269909f;
@@ -1130,9 +1120,7 @@ void HUD::ElementMap::UpdateTargetIcons(const Controllable* pPlayer)
         else
         {
             fDistance = 0.0f;
-            vDelta.x = 0.0f;
-            vDelta.y = 0.0f;
-            vDelta.z = 0.0f;
+            vDelta = PblVector3(0.0f, 0.0f, 0.0f);
         }
 
         const float fScale = CalcFireIndication(target, fDistance);
@@ -1145,7 +1133,7 @@ void HUD::ElementMap::UpdateTargetIcons(const Controllable* pPlayer)
                 GameObject* pTarget = target.actor;
                 if (pTarget->GetControllable() &&
                     FriendBuddyList::IsFriendBuddy(NetGame::GetLocalIndex(mPlayerIndex),
-                               ((GameObject*)target.actor)->GetControllable()->GetPlayerId()))
+                               target.actor->GetControllable()->GetPlayerId()))
                 {
                     color = gHudHighlightColor;
                 }
@@ -1184,7 +1172,7 @@ void HUD::ElementMap::UpdateTargetIcons(const Controllable* pPlayer)
         }
         else
         {
-            if (bBuilding && ((GameObject*)target.actor)->mEntityClass->mRemoveFromMapWhenDead)
+            if (bBuilding && target.actor->mEntityClass->mRemoveFromMapWhenDead)
             {
                 bitmap.Enable(false);
                 continue;
@@ -1205,8 +1193,8 @@ void HUD::ElementMap::UpdateTargetIcons(const Controllable* pPlayer)
         }
 
         const PblMatrix& mHeading = ((GameObject*)target.actor)->GetMatrix();
-        const PblVector3 vDirection =
-            NormalizeEst(PblVector3(-mHeading.m[2][0], 0.0f, -mHeading.m[2][2]));
+        PblVector3 vDirection;
+        vDirection = NormalizeEst(PblVector3(-mHeading.m[2][0], 0.0f, -mHeading.m[2][2]));
         PblMatrix matrix;
         matrix.m[0][0] = vDirection.z * fSize;
         matrix.m[0][1] = -(vDirection.x * fSize);
@@ -1232,8 +1220,8 @@ static inline float Length2EstXZ(float fX, float fZ)
 {
     const float fLength2EstAlpha = 0.94805944f;
     const float fLength2EstBeta = 0.39269909f;
-    const float fA = (float)fabs((double)fX);
-    const float fB = (float)fabs((double)fZ);
+    const float fA = fabsf(fX);
+    const float fB = fabsf(fZ);
     return fA > fB ? fA * fLength2EstAlpha + fB * fLength2EstBeta
                    : fA * fLength2EstBeta + fB * fLength2EstAlpha;
 }
@@ -1242,8 +1230,7 @@ static inline float Length2EstXZ(float fX, float fZ)
 bool HUD::ElementMap::IsInRadarRange(const Controllable* pPlayer, TargetManager::Target& target,
                                      const PblVector3& vDelta, float fDistance) const
 {
-    const EntityClass* pClass =
-        static_cast<const Trackable*>(pPlayer)->GetGameObject()->GetEntityClass();
+    const EntityClass* pClass = pPlayer->GetGameObject()->GetEntityClass();
 
     if (!((GameObject*)target.actor)->GetEntity()->IsRtti(EntitySoldier::rttiHashEntitySoldier) &&
         !((GameObject*)target.actor)->GetEntity()->IsRtti(EntityDroideka::rttiHashEntityDroideka))
@@ -1268,15 +1255,17 @@ bool HUD::ElementMap::IsInRadarRange(const Controllable* pPlayer, TargetManager:
     {
         return true;
     }
-    if (!(pClass->mMapParams.mRangeViewCone > fDistance))
+    if (pClass->mMapParams.mRangeViewCone > fDistance)
     {
-        return false;
+        const float fDot = vDelta.x * pPlayer->mEyeDir.x + vDelta.z * pPlayer->mEyeDir.z;
+        const float fEye = Length2EstXZ(pPlayer->mEyeDir.x, pPlayer->mEyeDir.z);
+        const float fDelta = Length2EstXZ(vDelta.x, vDelta.z);
+        if (fDot / (fDelta * fEye) > pClass->mMapParams.mViewConeCosine)
+        {
+            return true;
+        }
     }
-
-    const float fDot = vDelta.x * pPlayer->mEyeDir.x + vDelta.z * pPlayer->mEyeDir.z;
-    const float fEye = Length2EstXZ(pPlayer->mEyeDir.x, pPlayer->mEyeDir.z);
-    const float fDelta = Length2EstXZ(vDelta.x, vDelta.z);
-    return fDot / (fDelta * fEye) > pClass->mMapParams.mViewConeCosine;
+    return false;
 }
 
 // FUNCTION: SWBF2 0x00553b30
@@ -1291,12 +1280,11 @@ float HUD::ElementMap::CalcFireIndication(TargetManager::Target& target, float f
     const PblList<Controllable>& list = ((GameObject*)target.actor)->GetControllableList();
     for (PblList<Controllable>::Itor it = list.Begin(); (Controllable*)it; ++it)
     {
-        Controllable* pControllable = it;
-        const int iCount = pControllable->GetWeaponCount();
+        const int iCount = ((Controllable*)it)->GetWeaponCount();
         for (int i = 0; i < iCount && fScale == 0.0f; ++i)
         {
-            Weapon* pWeapon = pControllable->GetWeaponPtr(i);
-            if (pWeapon && (pWeapon->mState == Weapon::FIRE || pWeapon->mState == Weapon::FIRE2))
+            Weapon* pWeapon = ((Controllable*)it)->GetWeaponPtr(i);
+            if (pWeapon && (unsigned int)(pWeapon->mState - Weapon::FIRE) <= (unsigned int)(Weapon::FIRE2 - Weapon::FIRE))
             {
                 const float fFire = 1.0f - pWeapon->mStateTimer / pWeapon->mStateLimit;
                 if (!(fScale > fFire))
@@ -1336,17 +1324,18 @@ void HUD::ElementMap::UpdatePostIcons(float fElapsed, float fRotation)
                 const int iHoldTeam = post.actor->mHoldTeam;
                 if (iHoldTeam != 0 && iHoldTeam != iTeam)
                 {
-                    const float fTime = (float)fmod((double)GameLoop::GetMissionTime(), 1.0);
+                    const float fTime = fmodf(GameLoop::GetMissionTime(), 1.0f);
                     if (fTime < 0.25f)
                     {
                         const RedColor holdColor = pTeam->GetColor(iHoldTeam < 0 ? 0 : iHoldTeam);
+                        const RedColor teamColor = bitmap.m_color;
                         if (fTime < 0.125f)
                         {
-                            bitmap.m_color = Interpolate(bitmap.m_color, holdColor, fTime * 8.0f);
+                            bitmap.m_color = Interpolate(teamColor, holdColor, fTime * 8.0f);
                         }
                         else
                         {
-                            bitmap.m_color = Interpolate(bitmap.m_color, holdColor, (0.25f - fTime) * 8.0f);
+                            bitmap.m_color = Interpolate(teamColor, holdColor, (0.25f - fTime) * 8.0f);
                         }
                     }
                 }
@@ -1363,8 +1352,8 @@ void HUD::ElementMap::UpdatePostIcons(float fElapsed, float fRotation)
                     {
                         const PblVector3& vAxis = post.actor->GetMatrix().GetZAxis();
                         const PblVector3 vForward(-vAxis.x, -vAxis.y, -vAxis.z);
-                        bitmap.SetMatrixPosRotScale(fX, fY, PblMath::Atan2(-vForward.x, vForward.z),
-                                                    post.mapParams.mScale, post.mapParams.mScale);
+                        const float fAngle = PblMath::Atan2(-vForward.x, vForward.z);
+                        bitmap.SetMatrixPosRotScale(fX, fY, fAngle, post.mapParams.mScale, post.mapParams.mScale);
                     }
                     bitmap.Enable(true);
 
@@ -1453,7 +1442,7 @@ void HUD::ElementMap::UpdateMarkerIcons()
         float fTime;
         if (marker.flashAlpha || marker.pulseSize)
         {
-            fTime = (float)fmod((double)GameLoop::GetMissionTime(), 1.0);
+            fTime = fmodf(GameLoop::GetMissionTime(), 1.0f);
         }
         else
         {
@@ -1471,21 +1460,15 @@ void HUD::ElementMap::UpdateMarkerIcons()
         }
         else
         {
-            const PblMatrix& mMatrix = ((GameObject*)marker.actor)->GetMatrix();
-            const PblMatrix& mSmoothed = ((GameObject*)marker.actor)->GetSmoothedMatrix();
-            const float fOffsetX = mSmoothed.m[3][0] - mMatrix.m[3][0];
-            const float fOffsetY = mSmoothed.m[3][1] - mMatrix.m[3][1];
-            const float fOffsetZ = mSmoothed.m[3][2] - mMatrix.m[3][2];
-            const PblVector3& vCenter = ((GameObject*)marker.actor)->GetCollisionCenter();
-            vPosition.x = vCenter.x + fOffsetX;
-            vPosition.y = vCenter.y + fOffsetY;
-            vPosition.z = vCenter.z + fOffsetZ;
+            const PblVector3 vOffset = ((GameObject*)marker.actor)->GetSmoothedMatrix().GetTranslation() -
+                                       ((GameObject*)marker.actor)->GetMatrix().GetTranslation();
+            vPosition = ((GameObject*)marker.actor)->GetCollisionCenter() + vOffset;
             if (marker.color.a == 0)
             {
                 color = pTeam->GetColor(((GameObject*)marker.actor)->GetTeam());
             }
         }
-        bitmap.m_color = color;
+        bitmap.SetColor(color);
 
         float fX, fY;
         if (!CalculateScreenCoordinates(vPosition, fX, fY, true, 0))
@@ -1493,15 +1476,12 @@ void HUD::ElementMap::UpdateMarkerIcons()
             continue;
         }
 
-        float fScale = marker.scale;
-        if (marker.pulseSize)
-        {
-            fScale = fScale * fTime + marker.pulseStartScale;
-        }
+        const float fScale = marker.pulseSize ? marker.scale * fTime + marker.pulseStartScale : marker.scale;
         if (mMode == mode_Small)
         {
-            bitmap.SetMatrixPosRotScale(fX, fY, PblMath::Atan2(-mPlayerDirection.x, mPlayerDirection.z), fScale,
-                                        fScale);
+            const float fNegX = -mPlayerDirection.x;
+            const float fAngle = PblMath::Atan2(fNegX, mPlayerDirection.z);
+            bitmap.SetMatrixPosRotScale(fX, fY, fAngle, fScale, fScale);
         }
         else if (sNorth != 0.0f)
         {
@@ -1597,40 +1577,46 @@ void HUD::ElementMap::Init()
 // FUNCTION: SWBF2 0x00554ab0
 void HUD::ElementMap::RefreshMapDependancy()
 {
-    if (mPlayerIndex < 0)
+    const int iPlayer = mPlayerIndex;
+    if (iPlayer < 0)
     {
         return;
     }
 
-    const GameEvents::PlayerEvents& events = GameEvents::gPlayerEvents[mPlayerIndex];
     const bool bEnabled = mEnableState == enableState_Enabling || mEnableState == enableState_Enabled;
-    if (bEnabled && mMode != mode_Small)
-    {
-        HUD::Event(events.objectiveListEnable, true).Send();
-    }
-    else
-    {
-        HUD::Event(events.objectiveListDisable, true).Send();
-    }
+    HUD::Event listEvent(bEnabled && mMode != mode_Small ? GameEvents::gPlayerEvents[iPlayer].objectiveListEnable
+                                                         : GameEvents::gPlayerEvents[iPlayer].objectiveListDisable,
+                         true);
+    listEvent.Send();
 
     if (bEnabled)
     {
         switch (mMode)
         {
         case mode_Small:
-            HUD::Event(events.mapSpawnLargeDisable, true).Send();
+        {
+            HUD::Event smallEvent(GameEvents::gPlayerEvents[iPlayer].mapSpawnLargeDisable, true);
+            smallEvent.Send();
             break;
+        }
         case mode_Spawn:
-            HUD::Event(events.mapSpawn, true).Send();
+        {
+            HUD::Event spawnEvent(GameEvents::gPlayerEvents[iPlayer].mapSpawn, true);
+            spawnEvent.Send();
+        }
 
         case mode_Large:
-            HUD::Event(events.mapSpawnLarge, true).Send();
+        {
+            HUD::Event largeEvent(GameEvents::gPlayerEvents[iPlayer].mapSpawnLarge, true);
+            largeEvent.Send();
             break;
+        }
         }
     }
     else
     {
-        HUD::Event(events.mapSpawnLargeDisable, true).Send();
+        HUD::Event disableEvent(GameEvents::gPlayerEvents[iPlayer].mapSpawnLargeDisable, true);
+        disableEvent.Send();
     }
 }
 
@@ -1647,7 +1633,8 @@ void HUD::ElementMap::SetMode(Mode eMode)
         UpdateEnableState(enableState_Enabling);
         if (mPlayerIndex >= 0)
         {
-            HUD::Event(GameEvents::gPlayerEvents[mPlayerIndex].mapEnable, true).Send();
+            HUD::Event enableEvent(GameEvents::gPlayerEvents[mPlayerIndex].mapEnable, true);
+            enableEvent.Send();
         }
     }
 
@@ -1662,10 +1649,7 @@ void HUD::ElementMap::SetMode(Mode eMode)
     }
 
     RedGroupElement::SetPosition(mPosition[eMode]);
-    mGroupMatrix.m[3][0] = mPosition[mMode].x;
-    mGroupMatrix.m[3][1] = mPosition[mMode].y;
-    mGroupMatrix.m[3][2] = mPosition[mMode].z;
-    mGroupMatrix.m[3][3] = 1.0f;
+    mGroupMatrix.SetTranslation(mPosition[mMode]);
     EnableModeElements(true);
 
     if (mMode != mode_Small && mInitialized)
@@ -1748,7 +1732,7 @@ void HUD::ElementMap::EventDisable(const HUD::Event& event, void* const pData)
 // FUNCTION: SWBF2 0x00552b20
 CommandPost* HUD::ElementMap::GetPost(float fX, float fY, CommandPost* pExcludedPost, int iTeam)
 {
-    for (unsigned int i = 0; i < TargetManager::MAX_POSTS; ++i)
+    for (int i = 0; i < TargetManager::MAX_POSTS; ++i)
     {
         TargetManager::Post& post = TargetManager::_gPost[i];
         if (!post.actor || !mPost[i].IsEnabled())
@@ -1756,13 +1740,13 @@ CommandPost* HUD::ElementMap::GetPost(float fX, float fY, CommandPost* pExcluded
             continue;
         }
         GameObject* pObject = post.actor->mObject;
-        if (pObject->mTeam != iTeam)
+        if (pObject->mTeam != iTeam || !mPost[i].m_pHotSpot)
         {
             continue;
         }
-        if (mPost[i].TestHotSpot(fX, fY) && post.actor != pExcludedPost)
+        if (mPost[i].m_pHotSpot->IsPointInside(fX, fY) && pExcludedPost != post.actor)
         {
-            return post.actor;
+            return TargetManager::_gPost[i].actor;
         }
     }
     return 0;
@@ -1803,16 +1787,13 @@ bool HUD::ElementMap::GetProperty(const unsigned int uHashID, void* pValue)
 bool HUD::ElementMap::SetProperty(const unsigned int uHashID, const void* pValue)
 {
     PblMatrix matrix = gMatrixIdentity;
-    matrix.m[3][0] = mPosition[mMode].x;
-    matrix.m[3][1] = mPosition[mMode].y;
-    matrix.m[3][2] = mPosition[mMode].z;
+    matrix[3] = mPosition[mMode];
     matrix.m[3][3] = 1.0f;
     HUD::Element::mMatrix.SetMatrix(&matrix);
     HUD::Element::mMatrix.ApplyScale();
     HUD::Element::mMatrix.SetMatrix(0);
     RedGroupElement::SetMatrix(matrix);
 
-    bool bResult = true;
     switch (uHashID)
     {
     case kEventToggleMapModeHash:
@@ -1894,22 +1875,22 @@ bool HUD::ElementMap::SetProperty(const unsigned int uHashID, const void* pValue
         sNorth = *(const float*)pValue;
         break;
     case kPositionHash:
-        bResult = ElementGroupPlayer::SetProperty(kPositionHash, pValue);
-        if (bResult)
+        if (!ElementGroupPlayer::SetProperty(kPositionHash, pValue))
         {
-            mPosition[mMode] = *(const PblVector3*)pValue;
+            return false;
         }
+        mPosition[mMode] = *(const PblVector3*)pValue;
         break;
     default:
-        bResult = ElementGroupPlayer::SetProperty(uHashID, pValue);
+        if (!ElementGroupPlayer::SetProperty(uHashID, pValue))
+        {
+            return false;
+        }
         break;
     }
 
-    if (bResult)
-    {
-        mGroupMatrix = RedGroupElement::m_mLocal;
-    }
-    return bResult;
+    mGroupMatrix = RedGroupElement::m_mLocal;
+    return true;
 }
 
 // FUNCTION: SWBF2 0x00555290
@@ -1979,49 +1960,6 @@ const char* HUD::ElementMap::PropertyTranslateEnum(const unsigned int uHashID,
     }
 }
 
-namespace FriendBuddyList
-{
-
-// FUNCTION: SWBF2 0x0052e140
-unsigned int GetFriendBuddyCount()
-{
-    return gf::friends::friendCount();
-}
-}
-
-namespace FriendBuddyList
-{
-
-// FUNCTION: SWBF2 0x0052e150
-int __fastcall GetFriendBuddy(int, unsigned int index)
-{
-    galaxy::api::GalaxyID id = gf::friends::friendByIndex(index);
-    if (id.value)
-    {
-        return NetGame::FindPlayerByGSID((int)id.value, (int)(id.value >> 32));
-    }
-    return 0;
-}
-}
-
-namespace FriendBuddyList
-{
-
-// FUNCTION: SWBF2 0x0052e190
-bool __fastcall IsFriendBuddy(int, int playerId)
-{
-    const unsigned int count = FriendBuddyList::GetFriendBuddyCount();
-    for (unsigned int i = 0; i < count; ++i)
-    {
-        if (FriendBuddyList::GetFriendBuddy(0, i) == playerId)
-        {
-            return true;
-        }
-    }
-    return false;
-}
-}
-
 // FUNCTION: SWBF2 0x005558a0
 void HUD::ElementMap::EventToggleMapMode(const HUD::Event& event, void* const pData)
 {
@@ -2035,25 +1973,23 @@ void HUD::ElementMap::EventToggleMapMode(const HUD::Event& event, void* const pD
         return;
     }
 
+    const int iPlayerIndex = pMap->mPlayerIndex;
     const bool wasEnabled = pMap->IsEnabled();
     if (wasEnabled)
     {
         Mode nextMode = (Mode)(pMap->mMode + 1);
-        if (nextMode == mode_Spawn)
+        if (nextMode == mode_Spawn && pMap->mAllowToggleOff)
         {
-            if (pMap->mAllowToggleOff)
-            {
-                pMap->SetMode(mode_Small);
-                pMap->UpdateEnableState(enableState_Disabling);
-                pMap->RefreshMapDependancy();
-            }
-            else
-            {
-                pMap->SetMode(mode_Small);
-            }
+            pMap->SetMode(mode_Small);
+            pMap->UpdateEnableState(enableState_Disabling);
+            pMap->RefreshMapDependancy();
         }
         else
         {
+            if (nextMode == mode_Spawn)
+            {
+                nextMode = mode_Small;
+            }
             pMap->SetMode(nextMode);
         }
     }
@@ -2063,11 +1999,18 @@ void HUD::ElementMap::EventToggleMapMode(const HUD::Event& event, void* const pD
     }
 
     pMap->Update(0.001f);
-    if (pMap->IsEnabled() != wasEnabled)
+    if (pMap->IsEnabled())
     {
-        HUD::Event(pMap->IsEnabled()
-            ? GameEvents::gPlayerEvents[pMap->mPlayerIndex].mapEnable
-            : GameEvents::gPlayerEvents[pMap->mPlayerIndex].mapDisable, true).Send();
+        if (!wasEnabled)
+        {
+            HUD::Event mapEvent(GameEvents::gPlayerEvents[iPlayerIndex].mapEnable, true);
+            mapEvent.Send();
+        }
+    }
+    else if (wasEnabled)
+    {
+        HUD::Event mapEvent(GameEvents::gPlayerEvents[iPlayerIndex].mapDisable, true);
+        mapEvent.Send();
     }
 }
 
@@ -2091,6 +2034,7 @@ void __cdecl HUD::ElementMap::WriteBitmapElement(HUD::ElementBitmapBase* pBitmap
 // FUNCTION: SWBF2 0x00555b70
 void HUD::ElementMap::EventRefreshMarker(const HUD::Event& event, void* const pData)
 {
+    ElementMap* pMap = (ElementMap*)pData;
     if (event.GetClass()->GetType() != HUD::EventClass::type_Uint)
     {
         return;
@@ -2101,7 +2045,6 @@ void HUD::ElementMap::EventRefreshMarker(const HUD::Event& event, void* const pD
         return;
     }
 
-    ElementMap* pMap = (ElementMap*)pData;
     const TargetManager::Marker& marker = TargetManager::gMarkers[index];
     RedBitmapElement& bitmap = pMap->mMarker[index];
     bitmap.SetTexture(marker.textureHash);
@@ -2124,15 +2067,14 @@ void HUD::ElementMap::EventRefreshTarget(const HUD::Event& event, void* const pD
         return;
     }
 
-    ElementMap* pMap = (ElementMap*)pData;
-    RedBitmapElement& target = pMap->mTarget[uIndex];
     GameObject* pObject = TargetManager::_gTarget[uIndex].actor;
+    RedBitmapElement& target = ((ElementMap*)pData)->mTarget[uIndex];
     if (pObject)
     {
-        target.SetTexture(pObject->GetEntityClass()->mMapParams.mTexture);
+        const unsigned int uTexture = pObject->GetEntityClass()->mMapParams.mTexture;
+        target.SetTexture(uTexture);
     }
-    RedColor color = { 0, 0, 0, 0 };
-    target.SetColor(color);
+    target.SetColor(RedColor(0, 0, 0, 0));
     target.Enable(false);
 }
 
@@ -2150,14 +2092,14 @@ void HUD::ElementMap::EventRefreshPost(const HUD::Event& event, void* const pDat
     }
 
     ElementMap* pMap = (ElementMap*)pData;
+    const TargetManager::Post& postInfo = TargetManager::_gPost[uIndex];
     RedBitmapElement& post = pMap->mPost[uIndex];
-    CommandPost* pPost = TargetManager::_gPost[uIndex].actor;
-    if (pPost)
+    if (postInfo.actor)
     {
-        post.SetTexture(pPost->mObject->GetEntityClass()->mMapParams.mTexture);
+        const unsigned int uTexture = postInfo.actor->mObject->GetEntityClass()->mMapParams.mTexture;
+        post.SetTexture(uTexture);
     }
-    RedColor color = { 0, 0, 0, 0 };
-    post.SetColor(color);
+    post.SetColor(RedColor(0, 0, 0, 0));
     post.Enable(false);
     pMap->mPostText[uIndex].Enable(false);
 }

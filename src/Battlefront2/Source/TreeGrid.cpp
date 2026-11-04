@@ -1,9 +1,11 @@
+#include "PebbleFL/Common/PblMath.h"
 #include <new>
 #include <d3dx9math.h>
 #include <math.h>
 #include <string.h>
 
 #include "TreeGrid.h"
+#include "TreeGridCache.h"
 #include "CollisionObject.h"
 #include "CollisionUtil.h"
 #include "PebbleFL/Common/PblVector.h"
@@ -66,9 +68,9 @@ TreeGrid::TreeGrid(const PblVector3& rMin, const PblVector3& rMax, float fMinSiz
     {
         mLayerData[i].mSize = mLayerData[i - 1].mSize * 0.5f;
         mLayerData[i].mSizePerMeter = 1.0f / mLayerData[i].mSize;
-        mLayerData[i].mGridSize = mLayerData[i - 1].mGridSize * 2;
-        mLayerData[i].mStartIndex = mLayerData[i - 1].mStartIndex
-                                  + mLayerData[i - 1].mGridSize * mLayerData[i - 1].mGridSize;
+        const int iPrevGridSize = mLayerData[i - 1].mGridSize;
+        mLayerData[i].mGridSize = iPrevGridSize * 2;
+        mLayerData[i].mStartIndex = mLayerData[i - 1].mStartIndex + iPrevGridSize * iPrevGridSize;
     }
 }
 
@@ -100,9 +102,8 @@ void TreeGrid::Add(TreeGridObject* pObj, const PblVector3& rPos, float fSize, fl
             ++iLevel;
         }
 
-        const TreeGridLayerData& rLayer = mLayerData[iLevel];
-        iCell = rLayer.mStartIndex + (int)(rLayer.mGridSize * fX)
-              + rLayer.mGridSize * (int)(rLayer.mGridSize * fZ);
+        iCell = mLayerData[iLevel].mStartIndex + (int)(mLayerData[iLevel].mGridSize * fX)
+              + mLayerData[iLevel].mGridSize * (int)(mLayerData[iLevel].mGridSize * fZ);
     }
 
     if (!mGrid[iCell])
@@ -159,9 +160,9 @@ bool TreeGrid::ProcessCellRect(int iCell, TreeGridCallback pCallback, TreeGridCa
     RedStack stack;
     TreeGridObject** ppHits = (TreeGridObject**)stack.Alloc(16 * sizeof(TreeGridObject*));
 
+    int iNumHits = 0;
     for (TreeGridStack* pStack = mGrid[iCell]; pStack; pStack = pStack->mNext)
     {
-        int iNumHits = 0;
         for (int i = 0; i < pStack->mStackSize; ++i)
         {
             if ((pStack->mData[0][i] & pData->mData[0])
@@ -178,6 +179,7 @@ bool TreeGrid::ProcessCellRect(int iCell, TreeGridCallback pCallback, TreeGridCa
                 return false;
             }
         }
+        iNumHits = 0;
     }
     return true;
 }
@@ -211,9 +213,9 @@ bool TreeGrid::ProcessCellSphere(int iCell, TreeGridCallback pCallback, TreeGrid
     RedStack stack;
     TreeGridObject** ppHits = (TreeGridObject**)stack.Alloc(16 * sizeof(TreeGridObject*));
 
+    int iNumHits = 0;
     for (TreeGridStack* pStack = mGrid[iCell]; pStack; pStack = pStack->mNext)
     {
-        int iNumHits = 0;
         for (int i = 0; i < pStack->mStackSize; ++i)
         {
             if ((pStack->mData[0][i] & pData->mData[0])
@@ -230,6 +232,7 @@ bool TreeGrid::ProcessCellSphere(int iCell, TreeGridCallback pCallback, TreeGrid
                 return false;
             }
         }
+        iNumHits = 0;
     }
     return true;
 }
@@ -328,7 +331,7 @@ void TreeGrid::CallbackOnLazyRay(const PblVector3& rFrom, const PblVector3& rTo,
     }
 
     PblVector3 vDir(rTo.x - rFrom.x, rTo.y - rFrom.y, rTo.z - rFrom.z);
-    float fLength = sqrtf(vDir.x * vDir.x + vDir.y * vDir.y + vDir.z * vDir.z);
+    float fLength = PblMath::Sqrt(vDir.x * vDir.x + vDir.y * vDir.y + vDir.z * vDir.z);
     PblVector3 vNormal;
     D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNormal), reinterpret_cast<const D3DXVECTOR3*>(&vDir));
     vDir = vNormal;
@@ -492,16 +495,20 @@ bool TreeGrid::ProcessNeighborhood(int iX, int iZ, int iGridSize, int iStartInde
             iCell += iGridSize - (iMaxX - iMinX + 1);
         }
     }
-    else if (sLastX == iX)
+    else if (sLastX != iX)
     {
 
-        int z = iZ < sLastZ ? iZ + piExtents[2] - 1 : iZ + piExtents[3];
-        if (z >= 0 && z <= iGridSize - 1)
+        int x = iX + piExtents[iX >= sLastX ? 1 : 0];
+        if (iX < sLastX)
         {
-            int iMinX = iX - 1 + piExtents[0] > 0 ? iX - 1 + piExtents[0] : 0;
-            int iMaxX = iX + piExtents[1] < iGridSize - 1 ? iX + piExtents[1] : iGridSize - 1;
-            int iCell = iStartIndex + iMinX + iGridSize * z;
-            for (int x = iMinX; x <= iMaxX; ++x, ++iCell)
+            --x;
+        }
+        if (x >= 0 && x <= iGridSize - 1)
+        {
+            int iMinZ = iZ - 1 + piExtents[2] > 0 ? iZ - 1 + piExtents[2] : 0;
+            int iMaxZ = iZ + piExtents[3] < iGridSize - 1 ? iZ + piExtents[3] : iGridSize - 1;
+            int iCell = iStartIndex + x + iGridSize * iMinZ;
+            for (int z = iMinZ; z <= iMaxZ; ++z, iCell += iGridSize)
             {
                 if (!ProcessCell(iCell, pCallback, pData, fDist))
                 {
@@ -513,13 +520,17 @@ bool TreeGrid::ProcessNeighborhood(int iX, int iZ, int iGridSize, int iStartInde
     else
     {
 
-        int x = iX < sLastX ? iX + piExtents[0] - 1 : iX + piExtents[1];
-        if (x >= 0 && x <= iGridSize - 1)
+        int z = iZ + piExtents[iZ >= sLastZ ? 3 : 2];
+        if (iZ < sLastZ)
         {
-            int iMinZ = iZ - 1 + piExtents[2] > 0 ? iZ - 1 + piExtents[2] : 0;
-            int iMaxZ = iZ + piExtents[3] < iGridSize - 1 ? iZ + piExtents[3] : iGridSize - 1;
-            int iCell = iStartIndex + x + iGridSize * iMinZ;
-            for (int z = iMinZ; z <= iMaxZ; ++z, iCell += iGridSize)
+            --z;
+        }
+        if (z >= 0 && z <= iGridSize - 1)
+        {
+            int iMinX = iX - 1 + piExtents[0] > 0 ? iX - 1 + piExtents[0] : 0;
+            int iMaxX = iX + piExtents[1] < iGridSize - 1 ? iX + piExtents[1] : iGridSize - 1;
+            int iCell = iStartIndex + iMinX + iGridSize * z;
+            for (int x = iMinX; x <= iMaxX; ++x, ++iCell)
             {
                 if (!ProcessCell(iCell, pCallback, pData, fDist))
                 {
@@ -584,8 +595,8 @@ void TreeGrid::_CallbackOnRay(const PblVector3& rFrom, const PblVector3& rTo, in
     {
         fCellSize = mMaxSize / iGridSize;
         iStepX = 2 * (fEndX > fStartX) - 1;
-        float fDX = fEndX - fStartX;
         iStepZ = 2 * (fEndZ > fStartZ) - 1;
+        float fDX = fEndX - fStartX;
         float fDZ = fEndZ - fStartZ;
         float fLength = sqrtf(fDX * fDX + fDZ * fDZ);
         if (fDist > fCellSize * fLength)
@@ -653,7 +664,7 @@ void TreeGrid::_CallbackOnRay(const PblVector3& rFrom, const PblVector3& rTo, in
             }
             while (x != iEndX || z != iEndZ)
             {
-                if (fDist <= (fNextX - fDeltaX) * fCellSize && fDist <= (fNextZ - fDeltaZ) * fCellSize)
+                if (!(fDist > (fNextX - fDeltaX) * fCellSize || fDist > (fNextZ - fDeltaZ) * fCellSize))
                 {
                     break;
                 }
@@ -717,17 +728,16 @@ void TreeGrid::CallbackOnFatRay(const PblVector3& rFrom, const PblVector3& rTo, 
                                 TreeGridCallback pCallback, TreeGridCallbackData* pData)
 {
     int aiExtents[4] = { 0, 0, 0, 0 };
-    PblVector3 vDir(rTo.x - rFrom.x, rTo.y - rFrom.y, rTo.z - rFrom.z);
-    PblVector3 vNormal;
-    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNormal), reinterpret_cast<const D3DXVECTOR3*>(&vDir));
-
-    PblVector3 vHalf(vNormal.x * fRadius * 0.5f, vNormal.y * fRadius * 0.5f,
-                     vNormal.z * fRadius * 0.5f);
+    PblVector3 vHalf;
+    {
+        PblVector3 vDir = rTo - rFrom;
+        PblVector3 vNormal;
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNormal), reinterpret_cast<const D3DXVECTOR3*>(&vDir));
+        vHalf = vNormal * fRadius * 0.5f;
+    }
     PblVector3 vSide(vHalf.z, 0.0f, -vHalf.x);
-    PblVector3 vFrom(rFrom.x + (-vHalf.x - vSide.x), rFrom.y + (-vHalf.y - vSide.y),
-                     rFrom.z + (-vHalf.z - vSide.z));
-    PblVector3 vTo(rTo.x + (vHalf.x - vSide.x), rTo.y + (vHalf.y - vSide.y),
-                   rTo.z + (vHalf.z - vSide.z));
+    PblVector3 vFrom = rFrom + (-vHalf - vSide);
+    PblVector3 vTo = rTo + (vHalf - vSide);
 
     float fCellSize = mMaxSize / mMaxGridSize;
     int iSideX = (int)(vSide.x * 2.0f / fCellSize);
@@ -799,4 +809,22 @@ TreeGridStack* TreeGridStack::RemoveObject(TreeGridObject* pObj)
         return pNext;
     }
     return this;
+}
+
+// FUNCTION: SWBF2 0x0065c810
+void TreeGridCache::CallbackOnRect(TreeGrid* pTreeGrid, const PblVector3& rMin, const PblVector3& rMax, TreeGridCallback pCallback, TreeGridCallbackData* pData)
+{
+    pTreeGrid->CallbackOnRect(rMin, rMax, pCallback, pData);
+}
+
+// FUNCTION: SWBF2 0x0065c830
+void TreeGridCache::CallbackOnLazyRay(TreeGrid* pTreeGrid, const PblVector3& rFrom, const PblVector3& rTo, TreeGridCallback pCallback, TreeGridCallbackData* pData)
+{
+    pTreeGrid->CallbackOnLazyRay(rFrom, rTo, pCallback, pData);
+}
+
+// FUNCTION: SWBF2 0x0065c850
+void TreeGridCache::CallbackOnSphere(TreeGrid* pTreeGrid, const PblVector3& rCenter, float fRadius, TreeGridCallback pCallback, TreeGridCallbackData* pData)
+{
+    pTreeGrid->CallbackOnSphere(rCenter, fRadius, pCallback, pData);
 }

@@ -28,7 +28,7 @@ const char AI::AIGoal::rttiNameAIGoal[] = "AIGoal";
 
 // GLOBAL: SWBF2 0x01eb0410
 // AI::AIGoal::sMemoryPool
-MemoryPool AI::AIGoal::sMemoryPool("AIGoal", 0x20);
+MemoryPool AI::AIGoal::sMemoryPool("AIGoal", sizeof(AI::AIGoal));
 
 
 
@@ -39,48 +39,30 @@ MemoryPool AI::AIGoal::sMemoryPool("AIGoal", 0x20);
 // FUNCTION: SWBF2 0x00439b50
 bool AI::GoalTarget::GetLocation(PblVector3& vPos)
 {
-    switch (mType)
+    if (mType == GTT_GAMEOBJECT)
     {
-    case GTT_GAMEOBJECT:
         if (!mGameObj)
         {
             return false;
         }
         vPos = mGameObj->GetTargetPoint(PblVector3(0.0f, 0.0f, 0.0f), PblVector3(0.0f, 1.0f, 0.0f), -1);
         return true;
-    case GTT_CHARACTER:
+    }
+    if (mType == GTT_CHARACTER)
     {
-        const Controllable* pCtrl = mChr->GetControllable();
-        if (!pCtrl)
+        if (!mChr->GetControllable())
         {
             return false;
         }
-        vPos = pCtrl->GetMatrix().GetTranslation();
+        vPos = *(const PblVector3*)&mChr->GetControllable()->GetMatrix().m[3][0];
         return true;
     }
-    case GTT_POS:
+    if (mType == GTT_POS)
+    {
         vPos = mPos;
         return true;
     }
     return false;
-}
-
-// FUNCTION: SWBF2 0x00439c90
-const GameObject* AI::GoalTarget::GetGameObject()
-{
-    if (mType == GTT_GAMEOBJECT)
-    {
-        return mGameObj;
-    }
-    if (mType == GTT_CHARACTER)
-    {
-        const Controllable* pCtrl = mChr->GetControllable();
-        if (pCtrl)
-        {
-            return pCtrl->GetGameObject();
-        }
-    }
-    return 0;
 }
 
 // SYNTHETIC: SWBF2 0x00439af0
@@ -103,12 +85,11 @@ void AI::AIGoal::UnAssignAll()
 {
     for (PblList<Character>::Itor itor(mUnitList); itor; ++itor)
     {
-        Controllable* pCtrl = itor->GetControllable();
-        UnitController* pController = pCtrl ? UnitControllerPtr(pCtrl->mCtrl) : 0;
+        UnitController* pController = !itor->GetControllable() ? 0 : UnitControllerPtr(itor->GetControllable()->mCtrl);
         if (pController)
         {
-            CmdInfo cmd = UnitCmdInfo(CMD_WAIT, PblHandle<GameObject>(), PblVector3(0.0f, 0.0f, 0.0f),
-                                      PblHandle<GameObject>());
+            PblHandle<GameObject> hNone;
+            CmdInfo cmd = UnitCmdInfo(CMD_WAIT, hNone, PblVector3(0.0f, 0.0f, 0.0f), hNone);
             pController->ForceCommand(cmd);
         }
     }
@@ -134,12 +115,11 @@ void AI::AIGoal::Update()
 {
     for (PblList<Character>::Itor itor(mUnitList); itor; ++itor)
     {
-        Controllable* pCtrl = itor->GetControllable();
-        if (!pCtrl)
+        if (!itor->GetControllable())
         {
             continue;
         }
-        UnitController* pController = UnitControllerPtr(pCtrl->mCtrl);
+        UnitController* pController = UnitControllerPtr(itor->GetControllable()->mCtrl);
         if (!pController)
         {
             continue;
@@ -175,9 +155,10 @@ CommandPost* AI::AIGoal::GetSpawnLocation(const Character* pChr) const
         return 0;
     }
 
-    float fTotalWeight = 0.0f;
+    CommandPostItor itor = CommandPostManager::Instance()->GetItor();
     int iTeam = pChr->mTeamNumber;
-    for (CommandPostItor itor = CommandPostManager::Instance()->GetItor(); itor; ++itor)
+    float fTotalWeight = 0.0f;
+    for (; itor; ++itor)
     {
         CommandPost* pPost = *itor;
         if (pPost->CanTeamSpawnHere(iTeam))
@@ -185,13 +166,13 @@ CommandPost* AI::AIGoal::GetSpawnLocation(const Character* pChr) const
             fTotalWeight += pPost->mAISpawnWeight;
         }
     }
-    if (fTotalWeight <= 0.0f)
+    if (!(fTotalWeight > 0.0f))
     {
         return 0;
     }
 
     float fPick = AIUtil::GetRandomFloat(0.0f, fTotalWeight - 1.0f);
-    for (CommandPostItor itor = CommandPostManager::Instance()->GetItor(); itor; ++itor)
+    for (itor = CommandPostManager::Instance()->GetItor(); itor; ++itor)
     {
         CommandPost* pPost = *itor;
         if (pPost->CanTeamSpawnHere(iTeam))
@@ -204,58 +185,4 @@ CommandPost* AI::AIGoal::GetSpawnLocation(const Character* pChr) const
         }
     }
     return 0;
-}
-
-// FUNCTION: SWBF2 0x0043a250
-void AI::AIGoalManager::AssignUnit(Character* pChr)
-{
-    float fWeights[MAX_GOALS];
-    int iNumGoals = 0;
-    float fTotalWeight = 0.0f;
-    for (int i = 0; i < MAX_GOALS; i++)
-    {
-        AIGoal* pGoal = mGoals[i];
-        if (pGoal && pGoal->GetTeam() == pChr->mTeamNumber && pGoal->mEnabled)
-        {
-            ++iNumGoals;
-            fWeights[i] = pGoal->mWeight;
-            fTotalWeight += pGoal->mWeight;
-        }
-        else
-        {
-            fWeights[i] = 0.0f;
-        }
-    }
-
-    if (iNumGoals == 0 || fTotalWeight == 0.0f)
-    {
-        return;
-    }
-    if (fTotalWeight <= 0.0f)
-    {
-        fTotalWeight = 1.0f;
-    }
-
-    int iBest = -1;
-    float fBestRatio = 1e11f;
-    int iTeam = pChr->mTeamNumber;
-    int iNumMembers = Team::GetPtr(iTeam)->mMemberCount;
-    for (int i = 0; i < MAX_GOALS; i++)
-    {
-        AIGoal* pGoal = mGoals[i];
-        if (pGoal && pGoal->GetTeam() == iTeam && pGoal->mEnabled)
-        {
-            float fRatio = (float)pGoal->mUnitList.GetCount() /
-                           (fWeights[i] / fTotalWeight * (float)iNumMembers);
-            if (fRatio < fBestRatio)
-            {
-                fBestRatio = fRatio;
-                iBest = i;
-            }
-        }
-    }
-    if (iBest >= 0)
-    {
-        mGoals[iBest]->AddUnit(pChr);
-    }
 }

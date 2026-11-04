@@ -41,18 +41,19 @@ SoundDebugDisplay* SoundDebugDisplay::sInstance;
 void SoundDebugDisplay::DisplayVoiceChatInfo()
 {
     GameVoiceChat::Transport* pTransport = GameVoiceChat::GetTransport();
-    const unsigned char ucNodes = pTransport->mNumNodes;
+    const unsigned char ucNodes = pTransport->GetNumNodes();
     const unsigned int uiEnabledNodes = GameVoiceChat::GetNumEnabledNodes();
-    for (unsigned int uiEnabled = 0; uiEnabled < uiEnabledNodes; ++uiEnabled)
+    for (unsigned char uiEnabled = 0; uiEnabled < uiEnabledNodes; ++uiEnabled)
     {
         GameVoiceChat::Node* pNode = GameVoiceChat::GetEnabledNode(uiEnabled);
-        const unsigned char ucNodeID = pNode->mNodeID;
-        char* const pEncoder = (char*)pNode->mEncoder;
-        GameVoiceChat::Decoder* const pDecoder = pNode->mDecoder ?
-            static_cast<GameVoiceChat::Decoder*>(pNode->mDecoder) : 0;
+        const unsigned char ucNodeID = pNode->GetID();
+        char* const pEncoder = (char*)&pNode->GetEncoder();
+        VoiceChat::Decoder* const pBaseDecoder = &pNode->GetDecoder();
+        GameVoiceChat::Decoder* const pDecoder = pBaseDecoder ?
+            static_cast<GameVoiceChat::Decoder*>(pBaseDecoder) : 0;
         Printf("Headset %d (player id=%d)\n", uiEnabled, ucNodeID);
 
-        unsigned int uiConnections = 0;
+        unsigned char ucConnections = 0;
         float fTotalOut = 0.0f;
         for (unsigned char ucOther = 0; ucOther < ucNodes; ++ucOther)
         {
@@ -66,7 +67,7 @@ void SoundDebugDisplay::DisplayVoiceChatInfo()
                    metrics.sendCount, metrics.lastSendTime, metrics.droppedCount,
                    metrics.bandwidth, metrics.bandwidthAverage);
             fTotalOut += metrics.bandwidthAverage;
-            ++uiConnections;
+            ++ucConnections;
         }
         Printf("total out %2.02f\n", fTotalOut);
 
@@ -91,23 +92,21 @@ void SoundDebugDisplay::DisplayVoiceChatInfo()
                    metrics.starvedFrequency, metrics.starvedCount, metrics.outOfOrderCount,
                    pcReceive, pcSend, uiDecoded);
         }
-        if (!uiConnections)
+        if (!ucConnections)
         {
             Printf("No other players connected\n");
         }
 
-        const char* pcEncoder = GetPlayStateStringShort(((Snd::SourceTransport*)(pEncoder + 0x78))->GetPlayState());
-        const char* pcVAD = GetPlayStateStringShort(((Snd::SourceTransport*)(pEncoder + 0x478))->GetPlayState());
-        const char* pcAGC = GetPlayStateStringShort(((Snd::SourceTransport*)(pEncoder + 0x4b8))->GetPlayState());
-        const char* pcSource = GetPlayStateStringShort(((Snd::SourceTransport*)(pEncoder + 0x08))->GetPlayState());
-        Printf("capture: src %s, agc %s, vad %s, enc %s", pcSource, pcAGC, pcVAD, pcEncoder);
+        Printf("capture: src %s, agc %s, vad %s, enc %s",
+               GetPlayStateStringShort(((Snd::SourceTransport*)(pEncoder + 0x08))->GetPlayState()),
+               GetPlayStateStringShort(((Snd::SourceTransport*)(pEncoder + 0x4b8))->GetPlayState()),
+               GetPlayStateStringShort(((Snd::SourceTransport*)(pEncoder + 0x478))->GetPlayState()),
+               GetPlayStateStringShort(((Snd::SourceTransport*)(pEncoder + 0x78))->GetPlayState()));
 
-        Snd::StreamNode* pRenderer = &static_cast<Snd::StreamNode&>(pDecoder->mAuxRenderer);
-        const char* pcStarving = pRenderer->IsStarving() ? "stv" : "ok ";
-        const char* pcPlayState = GetPlayStateStringShort(((Snd::SourceTransport*)pRenderer)->GetPlayState());
-        Snd::StreamMixer* pMixer = &pDecoder->mMixer;
         Printf("render : mix %s, aux %s %s %2d:%2d\n",
-               pMixer->IsActive() ? "ply" : "stp", pcPlayState, pcStarving, 0, 0);
+               pDecoder->mMixer.IsActive() ? "ply" : "stp",
+               GetPlayStateStringShort(pDecoder->mAuxRenderer.GetPlayState()),
+               pDecoder->mAuxRenderer.IsStarving() ? "stv" : "ok ", 0, 0);
     }
 }
 
@@ -146,7 +145,7 @@ SoundDebugDisplay::SoundDebugDisplay()
         fY += 15.0f;
     }
 
-    FLRenderer::AddInterfaceElement(&mGroupElement, 0.0f, 0.0f, true);
+    FLRenderer::AddInterfaceElement(&mGroupElement, RedInterfaceScreen::LEFT, RedInterfaceScreen::TOP, true);
     Clear();
 }
 
@@ -170,7 +169,7 @@ void SoundDebugDisplay::Init()
 bool SoundDebugDisplay::Update(float fDeltaTime)
 {
     Clear();
-    if (fDeltaTime == 0.0f)
+    if (0.0f == fDeltaTime)
     {
         return true;
     }
@@ -251,9 +250,8 @@ void SoundDebugDisplay::Printf(const char* pcFormat, ...)
             }
         }
 
-        RedTextElement* pText = &mTextElement[mCursorPosY];
-        pText->SetText(acBuffer, true);
-        pText->Enable(true);
+        mTextElement[mCursorPosY].SetText(acBuffer, true);
+        mTextElement[mCursorPosY].Enable(true);
         ++mCursorPosY;
     }
 
@@ -304,42 +302,27 @@ void SoundDebugDisplay::DisplayVirtualVoices(Snd::VoiceVirtualManager* pManager)
     }
 
     const PblListDoubleSorted& list = pManager->mActiveList;
+    PblListDoubleSorted::Itor itor(list);
     Printf("voice, pri., dist., 3d gain, play pos., min, max, roll");
 
-    for (PblListDouble::Node* pLink = list.mTerminator.mNext; pLink != &list.mTerminator;
-         pLink = pLink->mNext)
+    PblListDoubleSorted::Node* pNode;
+    for (; (pNode = itor.GetNode(&list)) != list.GetTerminator(); ++itor)
     {
-        PblListDoubleSorted::Node* pNode =
-            (PblListDoubleSorted::Node*)((char*)pLink - offsetof(PblListDoubleSorted::Node, mNode));
-        if (pNode == list.GetTerminator())
-        {
-            break;
-        }
-
         Snd::VoiceVirtual* pVoice =
             (Snd::VoiceVirtual*)((char*)pNode - offsetof(Snd::VoiceVirtual, mNode));
 
         float fGain;
         pVoice->Snd::Source3D::CalculateGain(fGain);
 
-        if (mMode == mode_Sounds)
+        if ((mMode == mode_Sounds && pVoice->mCustomFlags != 0) ||
+            (mMode != mode_Sounds &&
+             (mSampleID == 0 || (pVoice->mSample != 0 && pVoice->mSample->mHashID == mSampleID))))
         {
-            if (pVoice->mCustomFlags == 0)
-            {
-                continue;
-            }
+            Printf("0x%08x, %.02f, %.02f, %.02f, 0x%08x, %.02f, %.02f, %.02f",
+                   pVoice->mVoice, pVoice->mNode.mSortValue, pVoice->mDistanceLength, fGain,
+                   pVoice->mPlaybackPosition, pVoice->mMinDistance, pVoice->mMaxDistance,
+                   pVoice->mRollOffFactor);
         }
-        else if (mSampleID != 0 &&
-                 (pVoice->mSample == 0 || pVoice->mSample->mHashID != mSampleID))
-        {
-            continue;
-        }
-
-        const Snd::Source3D::Properties& props = *pVoice;
-        Printf("0x%08x, %.02f, %.02f, %.02f, 0x%08x, %.02f, %.02f, %.02f",
-               pVoice->mVoice, pNode->mSortValue, pVoice->mDistanceLength, fGain,
-               pVoice->mPlaybackPosition, props.mMinDistance, props.mMaxDistance,
-               props.mRollOffFactor);
     }
 }
 
@@ -360,74 +343,72 @@ void SoundDebugDisplay::DisplayChaseInfo(float fDeltaTime)
         return;
     }
     GameObject* pObject = pOwner->GetGameObject();
-    if (!pObject)
+    if (pObject)
     {
-        mGameObjectPrev = 0;
-        return;
-    }
+        const PblVector3& vVelocity = pObject->GetVelocity();
+        const float fSpeed = Length(vVelocity);
+        const float fAccel = (fSpeed - mSpeedPrev) / fDeltaTime;
+        Printf("Speed %03.03f", fSpeed);
+        if (fDeltaTime > 0.0f)
+        {
+            if (mGameObjectPrev == pObject)
+            {
+                Printf("Acceleration %03.03f", fAccel);
+            }
+            else
+            {
+                mSpeedPrev = 0.0f;
+            }
+        }
+        mSpeedPrev = fSpeed;
 
-    const PblVector3& vVelocity = pObject->GetVelocity();
-    const float fSpeed = sqrtf(vVelocity.x * vVelocity.x + vVelocity.y * vVelocity.y +
-                               vVelocity.z * vVelocity.z);
-    const float fAccel = (fSpeed - mSpeedPrev) / fDeltaTime;
-    Printf("Speed %03.03f", fSpeed);
-    if (fDeltaTime > 0.0f)
-    {
-        if (mGameObjectPrev == pObject)
+        if (pObject->IsRtti(0x8b3e2650))
         {
-            Printf("Acceleration %03.03f", fAccel);
+            EntityWalker* pWalker = (EntityWalker*)pObject;
+            const unsigned int uiFeet = 2 * pWalker->mLegPairCount;
+            for (unsigned int i = 0; i < uiFeet; ++i)
+            {
+                Printf("FH %d %d %d %03.03f", (pWalker->mFootState >> i) & 1,
+                       (pWalker->mFootState >> (i + 8)) & 1,
+                       (pWalker->mFootState >> (i + 16)) & 1,
+                       pWalker->mLastFootHeight[i]);
+            }
         }
-        else
+        else if (pObject->IsRtti(0x3639fed7))
         {
-            mSpeedPrev = 0.0f;
+            EntityDroideka* pDroideka = (EntityDroideka*)pObject;
+            const unsigned int uiFeet = pDroideka->mClass->mNumFeet;
+            for (unsigned int i = 0; i < uiFeet; ++i)
+            {
+                Printf("FH %d %d %d %03.03f", (pDroideka->mFootState >> i) & 1,
+                       (pDroideka->mFootState >> (i + 8)) & 1,
+                       (pDroideka->mFootState >> (i + 16)) & 1,
+                       pDroideka->mLastFootHeight[i]);
+            }
         }
-    }
-    mSpeedPrev = fSpeed;
-
-    if (pObject->IsRtti(EntityWalker::rttiHashEntityWalker))
-    {
-        EntityWalker* pWalker = (EntityWalker*)pObject;
-        for (unsigned int i = 0; i < (unsigned int)(2 * pWalker->mLegPairCount); ++i)
+        else if (pObject->IsRtti(0x26395ec0))
         {
-            Printf("FH %d %d %d %03.03f", (pWalker->mFootState >> i) & 1,
-                   (pWalker->mFootState >> (i + 8)) & 1,
-                   (pWalker->mFootState >> (i + 16)) & 1,
-                   pWalker->mLastFootHeight[i]);
+            EntityFlyer* pFlyer = (EntityFlyer*)pObject;
+            Printf("Speed %03.03f", pFlyer->mSpeedPrev);
+            float fClassAccel = pFlyer->mClass->mAcceleration;
+            if (fClassAccel == 0.0f)
+            {
+                fClassAccel = 1.0f;
+            }
+            Printf("Acceleration %03.03f", fAccel / fClassAccel);
         }
-    }
-    else if (pObject->IsRtti(EntityDroideka::rttiHashEntityDroideka))
-    {
-        EntityDroideka* pDroideka = (EntityDroideka*)pObject;
-        for (unsigned int i = 0; i < pDroideka->mClass->mNumFeet; ++i)
+        else if (pObject->IsRtti(0xc6cd61cc))
         {
-            Printf("FH %d %d %d %03.03f", (pDroideka->mFootState >> i) & 1,
-                   (pDroideka->mFootState >> (i + 8)) & 1,
-                   (pDroideka->mFootState >> (i + 16)) & 1,
-                   pDroideka->mLastFootHeight[i]);
+            EntityHover* pHover = (EntityHover*)pObject;
+            Printf("Speed %03.03f", pHover->mSpeedPrev);
+            float fClassAccel = pHover->mClass->mAcceleration;
+            if (fClassAccel == 0.0f)
+            {
+                fClassAccel = 1.0f;
+            }
+            Printf("Acceleration %03.03f", fAccel / fClassAccel);
+            Printf("Height %03.03f", 1.0f - pHover->mGroundRatio);
         }
-    }
-    else if (pObject->IsRtti(EntityFlyer::rttiHashEntityFlyer))
-    {
-        EntityFlyer* pFlyer = (EntityFlyer*)pObject;
-        Printf("Speed %03.03f", pFlyer->mSpeedPrev);
-        float fClassAccel = pFlyer->mClass->mAcceleration;
-        if (fClassAccel == 0.0f)
-        {
-            fClassAccel = 1.0f;
-        }
-        Printf("Acceleration %03.03f", fAccel / fClassAccel);
-    }
-    else if (pObject->IsRtti(EntityHover::rttiHashEntityHover))
-    {
-        EntityHover* pHover = (EntityHover*)pObject;
-        Printf("Speed %03.03f", pHover->mSpeedPrev);
-        float fClassAccel = pHover->mClass->mAcceleration;
-        if (fClassAccel == 0.0f)
-        {
-            fClassAccel = 1.0f;
-        }
-        Printf("Acceleration %03.03f", fAccel / fClassAccel);
-        Printf("Height %03.03f", 1.0f - pHover->mGroundRatio);
     }
     mGameObjectPrev = pObject;
 }
@@ -438,27 +419,21 @@ void SoundDebugDisplay::DisplayMusicInfo()
     Printf("Active  , Cur. PS, Des. PS, Pos., Inact., Play, Pri.");
 
     const PblListDoubleSorted& list = Music::sMusicActive;
-    for (PblListDouble::Node* pLink = list.mTerminator.mNext; pLink != &list.mTerminator;
-         pLink = pLink->mNext)
+    PblListDoubleSorted::Itor itor(list);
+    PblListDoubleSorted::Node* pNode;
+    for (; (pNode = itor.GetNode(&list)) != list.GetTerminator(); ++itor)
     {
-        PblListDoubleSorted::Node* pNode =
-            (PblListDoubleSorted::Node*)((char*)pLink - offsetof(PblListDoubleSorted::Node, mNode));
-        if (pNode == list.GetTerminator())
-        {
-            break;
-        }
-
         Music* pMusic = (Music*)((char*)pNode - offsetof(Music, mNode));
 
-        float fPlaybackTimeLeft = pMusic->mMinPlaybackTime - pMusic->mPlaybackTime;
-        if (!(fPlaybackTimeLeft > 0.0f))
-        {
-            fPlaybackTimeLeft = 0.0f;
-        }
         float fInactiveTimeLeft = pMusic->GetInactiveTimeLeft();
         if (!(fInactiveTimeLeft > 0.0f))
         {
             fInactiveTimeLeft = 0.0f;
+        }
+        float fPlaybackTimeLeft = pMusic->mMinPlaybackTime - pMusic->mPlaybackTime;
+        if (!(fPlaybackTimeLeft > 0.0f))
+        {
+            fPlaybackTimeLeft = 0.0f;
         }
 
         Printf("0x%08x, %s, %s, 0x%08x, %02.02f, %02.02f, %02.02f", pMusic->mHashID,
@@ -476,16 +451,16 @@ const char* SoundDebugDisplay::GetMusicPlayStateString(unsigned int uiPlayState)
     case Music::playState_invalid:
     case Music::playState_paused:
         return "Paused ";
-    case Music::playState_starting:
-        return "Starting";
-    case Music::playState_playing:
-        return "Playing";
-    case Music::playState_stopping:
-        return "Stopping";
-    case Music::playState_stopped:
-        return "Stopped ";
     case Music::playState_pausing:
         return "Pausing";
+    case Music::playState_playing:
+        return "Playing";
+    case Music::playState_starting:
+        return "Starting";
+    case Music::playState_stopped:
+        return "Stopped ";
+    case Music::playState_stopping:
+        return "Stopping";
     }
     return "";
 }
@@ -497,10 +472,10 @@ const char* SoundDebugDisplay::GetPlayStateStringShort(unsigned int uiPlayState)
     {
     case Snd::SourceTransport::playState_playing:
         return "ply";
-    case Snd::SourceTransport::playState_pausing:
-        return "psg";
     case Snd::SourceTransport::playState_paused:
         return "psd";
+    case Snd::SourceTransport::playState_pausing:
+        return "psg";
     case Snd::SourceTransport::playState_stopped:
         return "stp";
     }
@@ -510,7 +485,8 @@ const char* SoundDebugDisplay::GetPlayStateStringShort(unsigned int uiPlayState)
 // FUNCTION: SWBF2 0x0064b3d0
 void SoundDebugDisplay::DisplayStreamInfo()
 {
-    Snd::StreamBase::Info* pInfo = Snd::StreamBase::Info::Find(mStreamID);
+    const unsigned int uiStreamID = mStreamID;
+    Snd::StreamBase::Info* pInfo = Snd::StreamBase::Info::Find(uiStreamID);
     if (pInfo)
     {
         DisplayVirtualVoices(pInfo->GetStreamManager());

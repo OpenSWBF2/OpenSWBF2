@@ -185,15 +185,19 @@ WEAPONCLASS _GetWeaponClassFromWeapon(const Weapon* pWeapon)
     }
 
     switch (SoldierAnimationBank::GetWeaponRoot(
-        (SoldierAnimationBank::WEAPON)pWeapon->GetClass()->mSoldierAnimationWeapon))
+        (SoldierAnimationBank::WEAPON)pWeapon->GetSoldierAnimationWeapon()))
     {
     case SoldierAnimationBank::RIFLE:
         return RIFLE;
     case SoldierAnimationBank::BAZOOKA:
         return BAZOOKA;
-    default:
+    case SoldierAnimationBank::INVALID_WEAPON:
+    case SoldierAnimationBank::TOOL:
+    case SoldierAnimationBank::PISTOL:
+    case SoldierAnimationBank::MELEE:
         return TOOL;
     }
+    return TOOL;
 }
 
 // FUNCTION: SWBF2 0x0051ecb0
@@ -226,12 +230,12 @@ void FirstPersonRenderable::UpdateAimer(const PblMatrix& mMatrix)
 
     switch (mObjectType)
     {
-    case TYPE_SOLDIER:
-        UpdateSoldierAimer(mMatrix);
-        break;
     case TYPE_COCKPIT:
     case TYPE_HOVER:
         UpdateCockpitAimer(mMatrix);
+        break;
+    case TYPE_SOLDIER:
+        UpdateSoldierAimer(mMatrix);
         break;
     case TYPE_DROIDEKA:
         UpdateDroidekaAimer(mMatrix);
@@ -254,7 +258,7 @@ void FirstPersonRenderable::UpdateSoldierAimer(const PblMatrix& mMatrix)
     float fSpeedSq = vVelocity.x * vVelocity.x + vVelocity.z * vVelocity.z;
     if (mSoldierState == RUN)
     {
-        if (fSpeedSq >= 20.0f)
+        if (!(fSpeedSq < 20.0f))
         {
             fSpeed = fSpeedSq / 20.0f;
         }
@@ -278,13 +282,9 @@ void FirstPersonRenderable::UpdateSoldierAimer(const PblMatrix& mMatrix)
     const PblMatrix* pBone = kPose.Find(0x8629b159);
 
     PblMatrix mOffset = gMatrixIdentity;
-    PblMatrix mTemp;
     mOffset.RotateY(3.0f);
     mOffset.RotateZ(0.05f);
-    mOffset.m[3][0] = sFirstPersonOffsetX;
-    mOffset.m[3][1] = sFirstPersonOffsetY;
-    mOffset.m[3][2] = sFirstPersonOffsetZ;
-    mOffset.m[3][3] = 1.0f;
+    mOffset.SetTranslation(PblVector3(sFirstPersonOffsetX, sFirstPersonOffsetY, sFirstPersonOffsetZ));
 
     if (mOwner->GetControllableClass()->mCockpitTension > 0.0f)
     {
@@ -296,20 +296,16 @@ void FirstPersonRenderable::UpdateSoldierAimer(const PblMatrix& mMatrix)
         mCockpitRotation = PblQuaternion(mMatrix);
     }
 
-    PblQuaternion qRotation;
-    PblMatrix mRotation;
-    D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mRotation), D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&qRotation), reinterpret_cast<const D3DXQUATERNION*>(&mCockpitRotation)));
-    mRotation.m[3][0] = mMatrix.m[3][0];
-    mRotation.m[3][1] = mMatrix.m[3][1];
-    mRotation.m[3][2] = mMatrix.m[3][2];
-    mRotation.m[3][3] = 1.0f;
+    const PblMatrix mRotation(mCockpitRotation, mMatrix.GetTranslation());
 
     PblMatrix mBone = *pBone;
-    D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mTemp), reinterpret_cast<const D3DXMATRIX*>(&mOffset), reinterpret_cast<const D3DXMATRIX*>(&mBone));
-    D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mModelMatrix), reinterpret_cast<const D3DXMATRIX*>(&mTemp), reinterpret_cast<const D3DXMATRIX*>(&mRotation));
+    mModelMatrix = (mOffset * mBone) * mRotation;
 
+    mModelMatrix[0] = PblVector3(mModelMatrix.m[0][0], mModelMatrix.m[0][1], mModelMatrix.m[0][2]);
     mModelMatrix.m[0][3] = 0.0f;
+    mModelMatrix[1] = PblVector3(mModelMatrix.m[1][0], mModelMatrix.m[1][1], mModelMatrix.m[1][2]);
     mModelMatrix.m[1][3] = 0.0f;
+    mModelMatrix[2] = PblVector3(mModelMatrix.m[2][0], mModelMatrix.m[2][1], mModelMatrix.m[2][2]);
     mModelMatrix.m[2][3] = 0.0f;
     mWeaponMatrix = mModelMatrix;
 }
@@ -346,12 +342,8 @@ void FirstPersonRenderable::UpdateDroidekaAimer(const PblMatrix& mMatrix)
     const PblMatrix* pBone = kPose.Find(0x8629b159);
 
     PblMatrix mOffset = gMatrixIdentity;
-    PblMatrix mTemp;
     mOffset.RotateY(3.2f);
-    mOffset.m[3][0] = 0.01f;
-    mOffset.m[3][1] = 0.35f;
-    mOffset.m[3][2] = -0.0f;
-    mOffset.m[3][3] = 1.0f;
+    mOffset.SetTranslation(PblVector3(0.01f, 0.35f, -0.0f));
 
     if (mOwner->GetControllableClass()->mCockpitTension > 0.0f)
     {
@@ -363,23 +355,18 @@ void FirstPersonRenderable::UpdateDroidekaAimer(const PblMatrix& mMatrix)
         mCockpitRotation = PblQuaternion(mMatrix);
     }
 
-    PblQuaternion qRotation;
-    PblMatrix mRotation;
-    D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mRotation), D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&qRotation), reinterpret_cast<const D3DXQUATERNION*>(&mCockpitRotation)));
-    mRotation.m[3][0] = mMatrix.m[3][0];
-    mRotation.m[3][1] = mMatrix.m[3][1];
-    mRotation.m[3][2] = mMatrix.m[3][2];
-    mRotation.m[3][3] = 1.0f;
+    const PblMatrix mRotation(mCockpitRotation, mMatrix.GetTranslation());
 
     PblMatrix mBone = *pBone;
-    D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mTemp), reinterpret_cast<const D3DXMATRIX*>(&mOffset), reinterpret_cast<const D3DXMATRIX*>(&mBone));
-    D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mModelMatrix), reinterpret_cast<const D3DXMATRIX*>(&mTemp), reinterpret_cast<const D3DXMATRIX*>(&mRotation));
+    mModelMatrix = (mOffset * mBone) * mRotation;
 
     const PblMatrix* pWeaponBone = kPose.Find(0x2b960099);
     Weapon* pWeapon = mOwner->GetWeaponPtr(mOwner->GetActiveWeaponChannel());
     if (pWeaponBone && pWeapon)
     {
-        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mWeaponMatrix), reinterpret_cast<const D3DXMATRIX*>(pWeaponBone), reinterpret_cast<const D3DXMATRIX*>(&mModelMatrix));
+        PblMatrix mWeapon;
+        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mWeapon), reinterpret_cast<const D3DXMATRIX*>(pWeaponBone), reinterpret_cast<const D3DXMATRIX*>(&mModelMatrix));
+        mWeaponMatrix = mWeapon;
     }
 }
 
@@ -414,9 +401,7 @@ void FirstPersonRenderable::UpdateCockpitAimer(const PblMatrix& mMatrix)
                 fT = 1.0f;
             }
             float fS = 1.0f - fT;
-            vOffset.x = fS * 0.0f + fT * 0.0f;
-            vOffset.y = fS * -1.5f + fT * -1.4f;
-            vOffset.z = fS * -1.7f + fT * -1.0f;
+            vOffset = fS * PblVector3(0.0f, -1.5f, -1.7f) + fT * PblVector3(0.0f, -1.4f, -1.0f);
         }
         else
         {
@@ -458,15 +443,10 @@ void FirstPersonRenderable::UpdateCockpitAimer(const PblMatrix& mMatrix)
         {
             mCockpitTrans = pBone->GetTranslation();
         }
-        vPos.x += (pBone->m[3][0] - mCockpitTrans.x) * 0.2f;
-        vPos.y += (pBone->m[3][1] - mCockpitTrans.y) * 0.2f;
-        vPos.z += (pBone->m[3][2] - mCockpitTrans.z) * 0.2f;
+        vPos = mCamera.GetTranslation() + (pBone->GetTranslation() - mCockpitTrans) * 0.2f;
     }
 
-    PblQuaternion qRotation;
-    PblMatrix mRotation;
-    D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mRotation), D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&qRotation), reinterpret_cast<const D3DXQUATERNION*>(&mCockpitRotation)));
-    mRotation.SetTranslation(vPos);
+    const PblMatrix mRotation(mCockpitRotation, vPos);
     mModelMatrix = mOffset * mRotation;
 }
 
@@ -517,7 +497,7 @@ void FirstPersonRenderable::Activate(int value)
     }
 
     bReadyToRender = false;
-    PblMatrix mCamera = CameraManager::sInstance->GetChaseCameraTransform(mCameraId);
+    PblMatrix mCamera = CameraManager::sInstance->mChaseCamera[mCameraId]->GetMatrix();
     mCockpitRotation = PblQuaternion(mCamera);
     mCockpitTrans = PblVector3(-66.6f, 66.6f, -66.6f);
     Renderable::Activate(value);
@@ -591,11 +571,11 @@ void FirstPersonRenderable::UpdateSoldier(const RedModel* pModel, Controllable* 
     WEAPONCLASS eWeaponClass = _GetWeaponClassFromWeapon(pWeapon);
 
     const PblVector3& vVelocity = pOwner->GetGameObject()->GetVelocity();
+    SOLDIERANIMATION eAnim = mSoldierState;
     bool bLoop = false;
-    mAnimPlaySpeed = 1.0f;
     float fBlend = 1.0f;
     float fSpeedSq = vVelocity.x * vVelocity.x + vVelocity.z * vVelocity.z;
-    SOLDIERANIMATION eAnim = mSoldierState;
+    mAnimPlaySpeed = 1.0f;
 
     if ((eAnim == SHOOT1 || eAnim == SHOOT2) &&
         !mZephyrPoseDynamic.m_bAnimFinished && !pWeapon->GetFiredFlag())
@@ -663,28 +643,28 @@ void FirstPersonRenderable::UpdateSoldier(const RedModel* pModel, Controllable* 
         {
             switch (mEntitySoldierState)
             {
+            case SoldierState::ROLL:
+                eAnim = JUMP;
+                bLoop = false;
+                break;
             case SoldierState::JUMP:
-                bTransition = false;
                 bLoop = false;
                 eAnim = JUMP;
                 fTransitionTimer = 0.0f;
                 fTransitionTimerMax = 0.5f;
                 mTransitionAnim = JUMP_LAND;
-                break;
-            case SoldierState::ROLL:
-                eAnim = JUMP;
-                bLoop = false;
+                bTransition = false;
                 break;
             case SoldierState::JET_JUMP:
             case SoldierState::JET_HOVER:
                 break;
             case SoldierState::FALL:
-                bTransition = false;
                 bLoop = true;
                 eAnim = FLAIL;
                 fTransitionTimer = 0.0f;
                 fTransitionTimerMax = 1.0f;
                 mTransitionAnim = HANDSDOWN;
+                bTransition = false;
                 break;
             default:
                 if (fSpeedSq < 0.1f)
@@ -708,9 +688,16 @@ void FirstPersonRenderable::UpdateSoldier(const RedModel* pModel, Controllable* 
 
     if (fSpeedSq >= 1.0f && pCamera->mCurrCamPt <= -1 &&
         mEntitySoldierState != SoldierState::JET_HOVER &&
-        mEntitySoldierState != SoldierState::JET_JUMP && bTransition)
+        mEntitySoldierState != SoldierState::JET_JUMP && bTransition == true)
     {
-        pCamera->ViewBob(mEntitySoldierState == SoldierState::PRONE ? 0.5f : 1.0f);
+        if (mEntitySoldierState == SoldierState::PRONE)
+        {
+            pCamera->ViewBob(0.5f);
+        }
+        else
+        {
+            pCamera->ViewBob(1.0f);
+        }
     }
 
     if (fSpeedSq >= 0.1f && mEntitySoldierState == SoldierState::PRONE)
@@ -768,9 +755,9 @@ void FirstPersonRenderable::UpdateCockpit(const RedModel* pModel, Controllable* 
         return;
     }
 
+    PblMatrix mCamera = CameraManager::sInstance->mChaseCamera[mCameraId]->GetMatrix();
     if (!bReadyToRender)
     {
-        PblMatrix mCamera = CameraManager::sInstance->GetChaseCameraTransform(mCameraId);
         pOwner->GetTrackable()->SetupCameraTrackMatrix(mCamera, 0.0f);
         mCockpitRotation = PblQuaternion(mCamera);
         mCockpitTrans = PblVector3(-66.6f, 66.6f, -66.6f);
@@ -814,7 +801,7 @@ void FirstPersonRenderable::UpdateDroideka(const RedModel* pModel, Controllable*
     WEAPONCLASS eWeaponClass = _GetWeaponClassFromWeapon(pWeapon);
     mAnimPlaySpeed = 1.0f;
 
-    SOLDIERANIMATION eAnim;
+    SOLDIERANIMATION eAnim = DROIDEKA_IDLE;
     bool bLoop;
     switch (pWeapon->GetState())
     {
@@ -832,7 +819,10 @@ void FirstPersonRenderable::UpdateDroideka(const RedModel* pModel, Controllable*
         bLoop = false;
         break;
     default:
-        eAnim = pOwner->GetThrust() == 0.0f ? DROIDEKA_IDLE : DROIDEKA_WALK;
+        if (pOwner->GetThrust() != 0.0f)
+        {
+            eAnim = DROIDEKA_WALK;
+        }
         bLoop = true;
         break;
     }
@@ -945,11 +935,7 @@ void FirstPersonRenderable::RenderSoldier(unsigned int uFlags) const
     {
         fSavedFactor = RedLight::m_sGlobalDirectionalFactor[iLight];
         const GameObject* pIgnore = mOwner->GetGameObject();
-        const PblVector3& vLight = RedLight::GetGlobalDirectionalLight(iLight)->m_vDirection;
-        PblVector3 vDir;
-        vDir.x = -vLight.x;
-        vDir.y = -vLight.y;
-        vDir.z = -vLight.z;
+        const PblVector3 vDir = -RedLight::GetGlobalDirectionalLight(iLight)->m_vDirection;
         float& fShadowVal = const_cast<FirstPersonRenderable*>(this)->mShadowVal;
         if (CollisionManager::RayTest(mWeaponMatrix.GetTranslation(), vDir, 500.0f, &pIgnore, 1, 0))
         {
@@ -966,8 +952,8 @@ void FirstPersonRenderable::RenderSoldier(unsigned int uFlags) const
     if (mObjectModel)
     {
 
-        RedShadingPose shadingPose;
         RedShadingPose* pShadingPose = 0;
+        RedShadingPose shadingPose;
         if (mOwner)
         {
             GameObject* pObject = mOwner->GetGameObject();
@@ -976,11 +962,11 @@ void FirstPersonRenderable::RenderSoldier(unsigned int uFlags) const
                 unsigned char ucInvisibility = static_cast<EntitySoldier*>(pObject)->GetInvisibilityAlpha();
                 if (ucInvisibility)
                 {
+                    unsigned char ucCloak = 0xff;
                     if (ucInvisibility > 0xd8)
                     {
                         ucInvisibility = 0xd8;
                     }
-                    unsigned char ucCloak = 0xff;
                     if (ucInvisibility < 0x80)
                     {
                         ucCloak = (unsigned char)(ucInvisibility * 2);
@@ -1002,7 +988,8 @@ void FirstPersonRenderable::RenderSoldier(unsigned int uFlags) const
 
     if (mCurrentWeapon)
     {
-        mCurrentWeapon->Render(PblMatrix(reinterpret_cast<const _D3DXMATRIXA16*>(&mWeaponMatrix)), &pose, RedColor::WHITE, uFlags, true);
+        const PblMatrix mWeapon(reinterpret_cast<const _D3DXMATRIXA16*>(&mWeaponMatrix));
+        mCurrentWeapon->Render(mWeapon, &pose, RedColor::WHITE, uFlags, true);
     }
 
     if (bShadow)
@@ -1022,12 +1009,12 @@ void FirstPersonRenderable::Render(int value)
 
     switch (mObjectType)
     {
-    case TYPE_SOLDIER:
-        RenderSoldier(uFlags);
-        break;
     case TYPE_COCKPIT:
     case TYPE_HOVER:
         RenderCockpit(uFlags);
+        break;
+    case TYPE_SOLDIER:
+        RenderSoldier(uFlags);
         break;
     case TYPE_DROIDEKA:
         RenderDroideka(uFlags);
@@ -1220,13 +1207,13 @@ int FirstPerson::AddGeometry(const char* pszName)
             return i;
         }
     }
-    if (FirstPerson::sModelCount >= 64)
+    if (FirstPerson::sModelCount < 64)
     {
-        return -1;
+        strncpy(sModelName[FirstPerson::sModelCount], pszName, 255);
+        sModelName[FirstPerson::sModelCount][255] = 0;
+        return FirstPerson::sModelCount++;
     }
-    strncpy(sModelName[FirstPerson::sModelCount], pszName, 255);
-    sModelName[FirstPerson::sModelCount][255] = 0;
-    return FirstPerson::sModelCount++;
+    return -1;
 }
 
 
@@ -1276,25 +1263,23 @@ void FirstPersonCameraManager::Update(PblMatrix& rMatrix)
             mCameraPos = rMatrix.GetTranslation();
 
             PblMatrix mRotation = gMatrixIdentity;
-            PblMatrix mTemp;
             mRotation.RotateX(mCurRotVec.x);
             mRotation.RotateY(mCurRotVec.y);
             mRotation.RotateZ(mCurRotVec.z);
-            D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mTemp), reinterpret_cast<const D3DXMATRIX*>(&mRotation), reinterpret_cast<const D3DXMATRIX*>(&rMatrix));
-            rMatrix = mTemp;
+            rMatrix = mRotation * rMatrix;
         }
         if (fT == 1.0f)
         {
-            if (++mCurrCamPt >= mNumPoints)
+            if (++mCurrCamPt < mNumPoints)
+            {
+                mCurrCamTime = mCamTime[mCurrCamPt];
+            }
+            else
             {
                 mCurRotVec = PblVector3(0.0f, 0.0f, 0.0f);
                 mCurrCamPt = -1;
                 mIsGoingProne = false;
                 mIsReturning = false;
-            }
-            else
-            {
-                mCurrCamTime = mCamTime[mCurrCamPt];
             }
         }
     }
@@ -1322,8 +1307,7 @@ void FirstPerson::Update(unsigned int uPlayer, eViewObjectType eType, int iArg,
     {
         return;
     }
-    FirstPersonRenderable* pRenderable = s_pRenderable[uPlayer];
-    if (!pRenderable)
+    if (!s_pRenderable[uPlayer])
     {
         return;
     }
@@ -1332,42 +1316,40 @@ void FirstPerson::Update(unsigned int uPlayer, eViewObjectType eType, int iArg,
         if (iArg == -1 || iArg == -2)
         {
             FirstPerson::sModel[uPlayer] = 0;
-            pRenderable->bReadyToRender = false;
-            pRenderable->bStreamingModel = false;
+            s_pRenderable[uPlayer]->bReadyToRender = false;
+            s_pRenderable[uPlayer]->bStreamingModel = false;
             FirstPerson::sModelId[uPlayer] = iArg;
         }
         else
         {
-            const RedModel* pModel = LoadDynamicModel(sModelName[iArg], true);
-            FirstPerson::sModel[uPlayer] = pModel;
-            if (pModel)
+            FirstPerson::sModel[uPlayer] = LoadDynamicModel(sModelName[iArg], true);
+            if (FirstPerson::sModel[uPlayer])
             {
-                pRenderable->bStreamingModel = false;
+                s_pRenderable[uPlayer]->bStreamingModel = false;
                 FirstPerson::sModelId[uPlayer] = iArg;
             }
             else
             {
-                pRenderable->bReadyToRender = false;
-                pRenderable->bStreamingModel = true;
+                s_pRenderable[uPlayer]->bReadyToRender = false;
+                s_pRenderable[uPlayer]->bStreamingModel = true;
             }
         }
     }
-    const RedModel* pModel = FirstPerson::sModel[uPlayer];
     switch (eType)
     {
     case TYPE_SOLDIER:
-        pRenderable->UpdateSoldier(pModel, pOwner, pAimer);
-        break;
-    case TYPE_COCKPIT:
-        pRenderable->mObjectType = TYPE_COCKPIT;
-        pRenderable->UpdateCockpit(pModel, pOwner, pAimer);
-        break;
-    case TYPE_DROIDEKA:
-        pRenderable->UpdateDroideka(pModel, pOwner, pAimer);
+        s_pRenderable[uPlayer]->UpdateSoldier(FirstPerson::sModel[uPlayer], pOwner, pAimer);
         break;
     case TYPE_HOVER:
-        pRenderable->mObjectType = TYPE_HOVER;
-        pRenderable->UpdateCockpit(pModel, pOwner, pAimer);
+        s_pRenderable[uPlayer]->mObjectType = TYPE_HOVER;
+        s_pRenderable[uPlayer]->UpdateCockpit(FirstPerson::sModel[uPlayer], pOwner, pAimer);
+        break;
+    case TYPE_COCKPIT:
+        s_pRenderable[uPlayer]->mObjectType = TYPE_COCKPIT;
+        s_pRenderable[uPlayer]->UpdateCockpit(FirstPerson::sModel[uPlayer], pOwner, pAimer);
+        break;
+    case TYPE_DROIDEKA:
+        s_pRenderable[uPlayer]->UpdateDroideka(FirstPerson::sModel[uPlayer], pOwner, pAimer);
         break;
     }
 }
@@ -1404,12 +1386,12 @@ void FirstPersonRenderable::SetAnimAndTransition(SOLDIERANIMATION aAnim,
     {
         return;
     }
+    fTransitionTimer = 0.0f;
     int iWeaponClass = mWeaponClass;
     if (iWeaponClass == WEAPONCLASS_NONE)
     {
         iWeaponClass = RIFLE;
     }
-    fTransitionTimer = 0.0f;
     fTransitionTimerMax = aTime;
     mTransitionAnim = aTrans;
     SetAnimation(FirstPerson::mAnim[iWeaponClass * NUM_SOLDIERANIMATIONS + aAnim], false);
@@ -1544,7 +1526,8 @@ void FirstPersonRenderable::RenderDroideka(unsigned int uFlags) const
     Weapon* pWeapon = mOwner->GetWeaponPtr(mOwner->GetActiveWeaponChannel());
     if (pWeapon)
     {
-        pWeapon->Render(PblMatrix(reinterpret_cast<const _D3DXMATRIXA16*>(&mWeaponMatrix)), &pose, RedColor::WHITE, uFlags, true);
+        PblMatrix weaponMatrix(reinterpret_cast<const _D3DXMATRIXA16*>(&mWeaponMatrix));
+        pWeapon->Render(weaponMatrix, &pose, RedColor::WHITE, uFlags, true);
     }
 
     if (bShadow)
@@ -1560,31 +1543,28 @@ float FirstPersonCameraManager::SetCameraPath(PblVector3* pPos, PblVector3* pPos
 {
     FirstPerson::IsActive(0);
     mNumPoints = uPoints;
-    PblHermiteVector3* pPosHermite = mHermPos;
-    PblHermiteVector3* pRotHermite = mHermRot;
     float fTotalTime = 0.0f;
     for (unsigned int i = 0; i < uPoints; ++i)
     {
-        if (i)
+        if (i == 0)
         {
-            pPosHermite[i].Set(pPos[i - 1], pPos[i], pPosSlope[i - 1], pPosSlope[i], 1.0f);
-            pRotHermite[i].Set(pRot[i - 1], pRot[i], pRotSlope[i - 1], pRotSlope[i], 1.0f);
-        }
-        else if (mCurrCamPt == -1)
-        {
-            const PblVector3 vZero(0.0f, 0.0f, 0.0f);
-            pPosHermite[0].Set(vZero, pPos[0], vZero, pPosSlope[0], 1.0f);
-            pRotHermite[0].Set(mCurRotVec, pRot[0], vZero, pRotSlope[0], 1.0f);
+            if (mCurrCamPt != -1)
+            {
+                float fT = 1.0f - mCurrCamTime / mCamTime[mCurrCamPt];
+                mHermPos[0].Set(mHermPos[mCurrCamPt].getValue(fT), pPos[0], mHermPos[mCurrCamPt].getSlope(fT), pPosSlope[0], 1.0f);
+                mHermRot[0].Set(mHermRot[mCurrCamPt].getValue(fT), pRot[0], mHermRot[mCurrCamPt].getSlope(fT), pRotSlope[0], 1.0f);
+            }
+            else
+            {
+                const PblVector3 vZero(0.0f, 0.0f, 0.0f);
+                mHermPos[0].Set(vZero, pPos[0], vZero, pPosSlope[0], 1.0f);
+                mHermRot[0].Set(mCurRotVec, pRot[0], vZero, pRotSlope[0], 1.0f);
+            }
         }
         else
         {
-            float fT = 1.0f - mCurrCamTime / mCamTime[mCurrCamPt];
-            const PblVector3 vPos = pPosHermite[mCurrCamPt].getValue(fT);
-            const PblVector3 vPosSlope = pPosHermite[mCurrCamPt].getSlope(fT);
-            const PblVector3 vRot = pRotHermite[mCurrCamPt].getValue(fT);
-            const PblVector3 vRotSlope = pRotHermite[mCurrCamPt].getSlope(fT);
-            pPosHermite[0].Set(vPos, pPos[0], vPosSlope, pPosSlope[0], 1.0f);
-            pRotHermite[0].Set(vRot, pRot[0], vRotSlope, pRotSlope[0], 1.0f);
+            mHermPos[i].Set(pPos[i - 1], pPos[i], pPosSlope[i - 1], pPosSlope[i], 1.0f);
+            mHermRot[i].Set(pRot[i - 1], pRot[i], pRotSlope[i - 1], pRotSlope[i], 1.0f);
         }
         mCamTime[i] = pTime[i];
         fTotalTime += pTime[i];
@@ -1683,24 +1663,31 @@ void FirstPersonCameraManager::ViewBob(float fScale)
         return;
     }
 
-    const float fBob = fScale * 0.1f;
-    PblVector3 vPos[4] = {
-        PblVector3(-0.0f, fBob, 0.0f),
-        PblVector3(0.0f, -0.0f, 0.0f),
-        PblVector3(0.0f, fBob, 0.0f),
-        PblVector3(0.0f, 0.0f, 0.0f)
-    };
-    PblVector3 vPosSlope[4] = {
-        PblVector3(0.1f, 0.1f, 0.0f),
-        PblVector3(0.2f, 0.2f, 0.0f),
-        PblVector3(0.2f, 0.1f, 0.0f),
-        PblVector3(0.0f, 0.0f, 0.0f)
-    };
-    PblVector3 vRot[4] = { PblVector3(0.0f, 0.0f, 0.0f), PblVector3(0.0f, 0.0f, 0.0f),
-                           PblVector3(0.0f, 0.0f, 0.0f), PblVector3(0.0f, 0.0f, 0.0f) };
-    PblVector3 vRotSlope[4] = { PblVector3(0.0f, 0.0f, 0.0f), PblVector3(0.0f, 0.0f, 0.0f),
-                                PblVector3(0.0f, 0.0f, 0.0f), PblVector3(0.0f, 0.0f, 0.0f) };
-    float fTime[4] = { 0.2f, 0.2f, 0.2f, 0.2f };
+    PblVector3 vPos[4];
+    vPos[0] = PblVector3(-0.0f, fScale * 0.1f, 0.0f);
+    vPos[1] = PblVector3(0.0f, -0.0f, 0.0f);
+    vPos[2] = PblVector3(0.0f, fScale * 0.1f, 0.0f);
+    vPos[3] = PblVector3(0.0f, 0.0f, 0.0f);
+    PblVector3 vPosSlope[4];
+    vPosSlope[0] = PblVector3(0.1f, 0.1f, 0.0f);
+    vPosSlope[1] = PblVector3(0.2f, 0.2f, 0.0f);
+    vPosSlope[2] = PblVector3(0.2f, 0.1f, 0.0f);
+    vPosSlope[3] = PblVector3(0.0f, 0.0f, 0.0f);
+    PblVector3 vRot[4];
+    vRot[0] = PblVector3(0.0f, 0.0f, 0.0f);
+    vRot[1] = PblVector3(0.0f, 0.0f, 0.0f);
+    vRot[2] = PblVector3(0.0f, 0.0f, 0.0f);
+    vRot[3] = PblVector3(0.0f, 0.0f, 0.0f);
     mIsBobbing = true;
+    PblVector3 vRotSlope[4];
+    vRotSlope[0] = PblVector3(0.0f, 0.0f, 0.0f);
+    vRotSlope[1] = PblVector3(0.0f, 0.0f, 0.0f);
+    vRotSlope[2] = PblVector3(0.0f, 0.0f, 0.0f);
+    vRotSlope[3] = PblVector3(0.0f, 0.0f, 0.0f);
+    float fTime[4];
+    fTime[0] = 0.2f;
+    fTime[1] = 0.2f;
+    fTime[2] = 0.2f;
+    fTime[3] = 0.2f;
     SetCameraPath(vPos, vPosSlope, vRot, vRotSlope, fTime, 4);
 }

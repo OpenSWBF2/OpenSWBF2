@@ -49,8 +49,6 @@ void SoftOutput::Connect(StreamNodeSource* const pSource, unsigned int uiOutput,
 // FUNCTION: SWBF2 0x00746be0
 void SoftOutput::Connect()
 {
-    StreamNodeSource* pSource = &mMixer;
-
     if (mEffectsEnabled)
     {
         mSplitter.StreamNodeSink::Connect(&mMixer, 0);
@@ -58,10 +56,12 @@ void SoftOutput::Connect()
         mDMO.StreamNodeSink::Connect(&mSplitter, 1);
         mMixerOutput.StreamNodeSinkNInput::Connect(&mDMO, 0, 1);
         mPostOutputMixFlusher.StreamNodeSink::Connect(&mMixerOutput, 0);
-        pSource = &mPostOutputMixFlusher;
+        mRenderer.StreamNodeSink::Connect(&mPostOutputMixFlusher, 0);
     }
-
-    mRenderer.StreamNodeSink::Connect(pSource, 0);
+    else
+    {
+        mRenderer.StreamNodeSink::Connect(&mMixer, 0);
+    }
 }
 
 // FUNCTION: SWBF2 0x00746c80
@@ -161,15 +161,10 @@ bool SoftOutput::SetOutputBufferSize(float fBufferMs, bool bRestart, bool bEffec
     Engine::GetThreadUpdate()->Resume();
 
     const unsigned int uiChannels = mRenderer.mNumChannels;
-    const unsigned int uiFormat = mRenderer.mFormat;
     if (uiChannels != format.GetNumChannels()
-        || uiFormat != format.GetFormat())
+        || mRenderer.mFormat != format.GetFormat())
     {
-        if (!bRestart)
-        {
-            return false;
-        }
-        if (!SetOutputBufferSize(fBufferMs, false, true, 48000))
+        if (!bRestart || !SetOutputBufferSize(fBufferMs, false, true, 48000))
         {
             return false;
         }
@@ -177,7 +172,7 @@ bool SoftOutput::SetOutputBufferSize(float fBufferMs, bool bRestart, bool bEffec
 
     format.SetFrequency(mRenderer.mFrequency);
 
-    if (mEffectsEnabled
+    if (bEffects
         && !mDMO.CreateDMO(GUID_DSFX_STANDARD_I3DL2REVERB, format, format))
     {
         mEffectsEnabled = false;
@@ -201,7 +196,7 @@ bool SoftOutput::SetOutputBufferSize(float fBufferMs, bool bRestart, bool bEffec
 
     FreeMixBuffer();
 
-    mMixBuffer = AllocPerm(uiHalfPacket * 4
+    mMixBuffer = AllocPerm(uiMixBytes
                            + (uiHalfPacket + uiPacketSize * 2) * 4
                            + uiDMOBytes);
     if (!mMixBuffer)
@@ -211,14 +206,15 @@ bool SoftOutput::SetOutputBufferSize(float fBufferMs, bool bRestart, bool bEffec
 
     unsigned char* pBuffer = (unsigned char*)mMixBuffer;
     mMixerInfo.mMixersPackets[0].mBuffer = pBuffer;
-    mMixerInfo.mMixersPackets[1].mBuffer = pBuffer + uiPacketSize;
-    unsigned char* pNext = pBuffer + uiPacketSize * 2;
+    pBuffer += uiPacketSize;
+    mMixerInfo.mMixersPackets[1].mBuffer = pBuffer;
+    pBuffer += uiPacketSize;
 
     mMixer.SetPackets(uiPacketSize, mMixerInfo.mMixersPackets, 2);
     mMixer.SetChannels(1, 2);
     mMixer.StreamNodeSinkNInput::SetConnectionArray(mMixerInfo.mMixerConns, 32);
     mMixer.SetGainArray(mMixerInfo.mMixerGains);
-    mMixer.SetMixBuffer((int*)pNext);
+    mMixer.SetMixBuffer((int*)pBuffer);
     mMixer.SetPacketArray(mMixerInfo.mPacketIO, mMixerInfo.mOffsets);
     mMixer.SetSynchronizedMixing(true);
     mMixer.SetSynchronizedActivation(false);
@@ -227,7 +223,7 @@ bool SoftOutput::SetOutputBufferSize(float fBufferMs, bool bRestart, bool bEffec
     mMixer.SetStopOnLast(mEffectsEnabled);
 
     unsigned char* pSlice =
-        (unsigned char*)(((unsigned int)(pNext + uiMixBytes) + uiAlignment - 1)
+        (unsigned char*)(((unsigned int)(pBuffer + uiMixBytes) + uiAlignment - 1)
                          & ~(uiAlignment - 1));
     const unsigned int uiDMOInput = (uiDMOBytes / uiAlignment) * uiAlignment;
 

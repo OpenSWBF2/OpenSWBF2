@@ -98,11 +98,6 @@ void pcShaderSegment::Render(const PblMatrix* pWorld, const PblMatrix* pBoneMatr
     }
 }
 
-static const D3DXMATRIXA16 _IdentityMatrix(1.0f, 0.0f, 0.0f, 0.0f,
-                                           0.0f, 1.0f, 0.0f, 0.0f,
-                                           0.0f, 0.0f, 1.0f, 0.0f,
-                                           0.0f, 0.0f, 0.0f, 1.0f);
-
 static const float kInv255 = 1.0f / 255.0f;
 
 static const PblMatrix& _GetSkinMatrix(unsigned int uiNumBones, const unsigned char* puiWeights,
@@ -351,7 +346,7 @@ pcSoftwareSkinnedShaderSegment::_CreateSkinnedPrimitive(
 static const PblMatrix& _GetSkinMatrix(unsigned int uiNumBones, const unsigned char* puiWeights,
                                        const unsigned char* puiIndices, const PblMatrix* pMatrices)
 {
-    static PblMatrix s_mSkin = *(const PblMatrix*)&_IdentityMatrix;
+    static PblMatrix s_mSkin = gMatrixIdentity;
 
     if (uiNumBones == 1 || puiWeights[0] == 0xFF)
     {
@@ -361,35 +356,28 @@ static const PblMatrix& _GetSkinMatrix(unsigned int uiNumBones, const unsigned c
     unsigned int i = 1;
     float fWeight = puiWeights[0] * kInv255;
     const PblMatrix* pBone = &pMatrices[puiIndices[0]];
-    for (int r = 0; r < 4; ++r)
-    {
-        s_mSkin.m[r][0] = pBone->m[r][0] * fWeight;
-        s_mSkin.m[r][1] = pBone->m[r][1] * fWeight;
-        s_mSkin.m[r][2] = pBone->m[r][2] * fWeight;
-    }
+    s_mSkin[0] = fWeight * (*pBone)[0];
+    s_mSkin[1] = fWeight * (*pBone)[1];
+    s_mSkin[2] = fWeight * (*pBone)[2];
+    s_mSkin[3] = fWeight * (*pBone)[3];
 
-    for (unsigned int uiTotal = puiWeights[0]; uiTotal < 0xFF; uiTotal += puiWeights[i - 1])
+    for (unsigned int uiTotal = puiWeights[0]; uiTotal < 0xFF; uiTotal += puiWeights[i++])
     {
         pBone = &pMatrices[puiIndices[i]];
         fWeight = puiWeights[i] * kInv255;
         if (i >= uiNumBones - 1)
         {
             const float fScale = (1.0f - fWeight) / (uiTotal * kInv255);
-            for (int r = 0; r < 4; ++r)
-            {
-                s_mSkin.m[r][0] = s_mSkin.m[r][0] * fScale + pBone->m[r][0] * fWeight;
-                s_mSkin.m[r][1] = s_mSkin.m[r][1] * fScale + pBone->m[r][1] * fWeight;
-                s_mSkin.m[r][2] = s_mSkin.m[r][2] * fScale + pBone->m[r][2] * fWeight;
-            }
+            s_mSkin[0] = s_mSkin[0] * fScale + fWeight * (*pBone)[0];
+            s_mSkin[1] = s_mSkin[1] * fScale + fWeight * (*pBone)[1];
+            s_mSkin[2] = s_mSkin[2] * fScale + fWeight * (*pBone)[2];
+            s_mSkin[3] = s_mSkin[3] * fScale + fWeight * (*pBone)[3];
             break;
         }
-        ++i;
-        for (int r = 0; r < 4; ++r)
-        {
-            s_mSkin.m[r][0] += pBone->m[r][0] * fWeight;
-            s_mSkin.m[r][1] += pBone->m[r][1] * fWeight;
-            s_mSkin.m[r][2] += pBone->m[r][2] * fWeight;
-        }
+        s_mSkin[0] += fWeight * (*pBone)[0];
+        s_mSkin[1] += fWeight * (*pBone)[1];
+        s_mSkin[2] += fWeight * (*pBone)[2];
+        s_mSkin[3] += fWeight * (*pBone)[3];
     }
     return s_mSkin;
 }
@@ -425,11 +413,6 @@ bool RedSegment::IsVertexLit() const
     return false;
 }
 
-bool RedModel::pcGetShareBufferEnable()
-{
-    return pc_shareBuffers;
-}
-
 static inline const PblBox& _GetModelBox(const RedModel* pModel)
 {
     return pModel->_BoundingBox;
@@ -438,6 +421,7 @@ static inline const PblBox& _GetModelBox(const RedModel* pModel)
 // FUNCTION: SWBF2 0x00717d80
 RedSegment* __cdecl RedSegment::Read(PblFileChunk& chunk, const RedModel* pModel)
 {
+    float fSpecularPower = 10.0f;
     PblBox bbox = _GetModelBox(pModel);
     RedColor diffuse = RedColor::WHITE;
     RedColor specular = RedColor::BLACK;
@@ -463,11 +447,7 @@ RedSegment* __cdecl RedSegment::Read(PblFileChunk& chunk, const RedModel* pModel
     unsigned int auiTextures[4] = { 0, 0, 0, 0 };
     unsigned int uiMaterialFlags = 0;
     unsigned int uiMaterialName = 0;
-    float fSpecularPower = 10.0f;
-    RedShaderData shaderData;
-    shaderData.uiData0 = 0;
-    shaderData.uiData1 = 0;
-    shaderData.attachedLightName = 0;
+    RedShaderData shaderData = {};
     char acRenderType[256];
     char acName[256];
 
@@ -476,29 +456,28 @@ RedSegment* __cdecl RedSegment::Read(PblFileChunk& chunk, const RedModel* pModel
     while (chunk.HasMoreChildren())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        PblFile* pFile = child._pFile;
         switch (child._iId)
         {
         case 0x4C52544D:
         {
-            uiMaterialFlags = pFile->Read32();
+            uiMaterialFlags = child._pFile->Read32();
             if (bForceFlags && (uiMaterialFlags & 4))
             {
                 uiMaterialFlags |= 0xC000;
             }
-            unsigned int uiColor = pFile->Read32();
+            unsigned int uiColor = child._pFile->Read32();
+            diffuse.a = (unsigned char)(uiColor >> 24);
             diffuse.b = (unsigned char)(uiColor >> 16);
             diffuse.g = (unsigned char)(uiColor >> 8);
             diffuse.r = (unsigned char)uiColor;
-            diffuse.a = (unsigned char)(uiColor >> 24);
-            uiColor = pFile->Read32();
+            uiColor = child._pFile->Read32();
+            specular.a = (unsigned char)(uiColor >> 24);
             specular.b = (unsigned char)(uiColor >> 16);
             specular.g = (unsigned char)(uiColor >> 8);
             specular.r = (unsigned char)uiColor;
-            specular.a = (unsigned char)(uiColor >> 24);
-            fSpecularPower = (float)pFile->Read32();
-            shaderData.uiData0 = (unsigned char)pFile->Read32();
-            shaderData.uiData1 = (unsigned char)pFile->Read32();
+            fSpecularPower = (float)child._pFile->Read32();
+            shaderData.uiData0 = (unsigned char)child._pFile->Read32();
+            shaderData.uiData1 = (unsigned char)child._pFile->Read32();
             child.ReadString(acName, 256);
             shaderData.attachedLightName = PblHash(acName);
             break;
@@ -509,23 +488,23 @@ RedSegment* __cdecl RedSegment::Read(PblFileChunk& chunk, const RedModel* pModel
             break;
         case 0x4D414E54:
         {
-            unsigned int uiIndex = pFile->Read32();
+            unsigned int uiIndex = child._pFile->Read32();
             child.ReadString(acName, 256);
-            if (uiIndex > 3)
+            if (uiIndex <= 3)
             {
-                PblTraceP("ERROR: Model has out of range texture index [%d]!\n", uiIndex);
+                auiTextures[uiIndex] = PblHash(acName);
             }
             else
             {
-                auiTextures[uiIndex] = PblHash(acName);
+                PblTraceP("ERROR: Model has out of range texture index [%d]!\n", uiIndex);
             }
             break;
         }
         case 0x54414456:
         {
-            unsigned int uiCount = pFile->Read32();
-            unsigned int uiSize = pFile->Read32();
-            unsigned int uiFormat = pFile->Read32();
+            unsigned int uiCount = child._pFile->Read32();
+            unsigned int uiSize = child._pFile->Read32();
+            unsigned int uiFormat = child._pFile->Read32();
             if (!bHaveVertices &&
                 (!(uiFormat & 0xF000) ||
                  RedRenderer::pcGetGeometryMode() == GEOMETRYMODE_COMPRESSED))
@@ -535,15 +514,15 @@ RedSegment* __cdecl RedSegment::Read(PblFileChunk& chunk, const RedModel* pModel
                 bSoftwareSkinned = true;
                 bHaveVertices = true;
                 pVertexData = new unsigned char[uiCount * uiSize];
-                pFile->ReadData(pVertexData, uiCount * uiSize);
+                child._pFile->ReadData(pVertexData, uiCount * uiSize);
             }
             break;
         }
         case 0x46554256:
         {
-            unsigned int uiCount = pFile->Read32();
-            unsigned int uiSize = pFile->Read32();
-            unsigned int uiFormat = pFile->Read32();
+            unsigned int uiCount = child._pFile->Read32();
+            unsigned int uiSize = child._pFile->Read32();
+            unsigned int uiFormat = child._pFile->Read32();
             if ((uiFormat & 0x1C) &&
                 RedRenderer::pcGetRenderCaps().skinning == SKINNING_SOFTWARE)
             {
@@ -554,9 +533,21 @@ RedSegment* __cdecl RedSegment::Read(PblFileChunk& chunk, const RedModel* pModel
             {
                 break;
             }
-            const GeometryModeT geometry = RedRenderer::pcGetRenderCaps().geometry;
-            if ((uiFormat & 0xF000) ? geometry == GEOMETRYMODE_COMPRESSED
-                                    : !bHaveVertices)
+            if (uiFormat & 0xF000)
+            {
+                if (RedRenderer::pcGetRenderCaps().geometry == GEOMETRYMODE_COMPRESSED)
+                {
+                    uiVertexSize = uiSize;
+                    uiVertexFormat = uiFormat;
+                    bHaveVertices = true;
+                    pVertexBuffer = pcRedVertexBuffer::Create(
+                        uiCount, uiSize, true, RedModel::pcGetShareBufferEnable());
+                    void* pData = pVertexBuffer->Lock(uiCount, uiStartVertex);
+                    child._pFile->ReadData(pData, uiCount * uiSize);
+                    pVertexBuffer->Unlock();
+                }
+            }
+            else if (!bHaveVertices)
             {
                 uiVertexSize = uiSize;
                 uiVertexFormat = uiFormat;
@@ -564,44 +555,44 @@ RedSegment* __cdecl RedSegment::Read(PblFileChunk& chunk, const RedModel* pModel
                 pVertexBuffer = pcRedVertexBuffer::Create(
                     uiCount, uiSize, true, RedModel::pcGetShareBufferEnable());
                 void* pData = pVertexBuffer->Lock(uiCount, uiStartVertex);
-                pFile->ReadData(pData, uiCount * uiSize);
+                child._pFile->ReadData(pData, uiCount * uiSize);
                 pVertexBuffer->Unlock();
             }
             break;
         }
         case 0x46554249:
         {
-            uiNumIndices = pFile->Read32();
+            uiNumIndices = child._pFile->Read32();
             pIndexBuffer = pcRedIndexBuffer::Create(
                 uiNumIndices, true, RedModel::pcGetShareBufferEnable());
             void* pData = pIndexBuffer->Lock(uiNumIndices, uiStartIndex);
-            pFile->ReadData(pData, uiNumIndices * 2);
+            child._pFile->ReadData(pData, uiNumIndices * 2);
             pIndexBuffer->Unlock();
             break;
         }
         case 0x4F464E49:
-            uiPrimType = pFile->Read32();
-            uiNumVertices = pFile->Read32();
-            uiPrimCount = pFile->Read32();
+            uiPrimType = child._pFile->Read32();
+            uiNumVertices = child._pFile->Read32();
+            uiPrimCount = child._pFile->Read32();
             break;
         case 0x4E494B53:
         {
-            unsigned int uiCount = pFile->Read32();
-            uiSkinNumBones = pFile->Read32();
+            unsigned int uiCount = child._pFile->Read32();
+            uiSkinNumBones = child._pFile->Read32();
             if (bSoftwareSkinned)
             {
                 const unsigned int uiSize = uiCount * (uiSkinNumBones * 2 - 1);
                 puiSkinData = new unsigned char[uiSize];
-                pFile->ReadData(puiSkinData, uiSize);
+                child._pFile->ReadData(puiSkinData, uiSize);
             }
             break;
         }
         case 0x50414D42:
-            uiNumBones = pFile->Read32();
+            uiNumBones = child._pFile->Read32();
             if (uiNumBones)
             {
                 puiBoneIndexMap = new unsigned char[uiNumBones];
-                pFile->ReadData(puiBoneIndexMap, uiNumBones);
+                child._pFile->ReadData(puiBoneIndexMap, uiNumBones);
             }
             break;
         case 0x4D414E42:
@@ -613,13 +604,17 @@ RedSegment* __cdecl RedSegment::Read(PblFileChunk& chunk, const RedModel* pModel
             uiMaterialName = PblHash(acName);
             break;
         case 0x584F4242:
-            bbox._vMin.x = pFile->ReadFloat();
-            bbox._vMin.y = pFile->ReadFloat();
-            bbox._vMin.z = pFile->ReadFloat();
-            bbox._vMax.x = pFile->ReadFloat();
-            bbox._vMax.y = pFile->ReadFloat();
-            bbox._vMax.z = pFile->ReadFloat();
+        {
+            const float fMinX = child._pFile->ReadFloat();
+            const float fMinY = child._pFile->ReadFloat();
+            const float fMinZ = child._pFile->ReadFloat();
+            const float fMaxX = child._pFile->ReadFloat();
+            bbox._vMin = PblVector3(fMinX, fMinY, fMinZ);
+            bbox._vMax.x = fMaxX;
+            bbox._vMax.y = child._pFile->ReadFloat();
+            bbox._vMax.z = child._pFile->ReadFloat();
             break;
+        }
         }
     }
 

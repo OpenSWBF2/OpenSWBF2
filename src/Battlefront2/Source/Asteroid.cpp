@@ -18,6 +18,9 @@
 #include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblQuaternion.h"
 #include "PebbleFL/Common/PblRandom.h"
+#include "PebbleFL/Common/PblRegion.h"
+#include "PebbleFL/Common/PblHermite.h"
+#include "RedEngineFL/Application/RedPath.h"
 #include "CameraManager.h"
 #include <d3dx9math.h>
 #include <math.h>
@@ -77,10 +80,7 @@ AsteroidClass::AsteroidClass(AsteroidClass* pBase, unsigned int uHash)
     mMaxOmega = pBase->mMaxOmega;
     mCollidable = pBase->mCollidable;
     mNumChildren = pBase->mNumChildren;
-    for (int i = 0; i < 10; ++i)
-    {
-        mChildren[i] = pBase->mChildren[i];
-    }
+    memcpy(mChildren, pBase->mChildren, sizeof(mChildren));
     mExplosionBreak = pBase->mExplosionBreak;
     mExplosionDestruct = pBase->mExplosionDestruct;
     mLODClass = 1;
@@ -179,18 +179,12 @@ void AsteroidClass::SetProperty(unsigned int uProperty, const char* pszValue)
         if (iNumBodies == 0 && mModel)
         {
             const PblBox& box = mModel->_mModel->_TotalBoundingBox;
-            float fCenterX = (box._vMin.x + box._vMax.x) * 0.5f;
-            float fCenterY = (box._vMin.y + box._vMax.y) * 0.5f;
-            float fCenterZ = (box._vMin.z + box._vMax.z) * 0.5f;
-            float fHalfX = (box._vMax.x - box._vMin.x) * 0.5f;
-            float fHalfY = (box._vMax.y - box._vMin.y) * 0.5f;
-            float fHalfZ = (box._vMax.z - box._vMin.z) * 0.5f;
+            const PblVector3 vCenter = (box._vMax + box._vMin) * 0.5f;
+            const PblVector3 vHalf = (box._vMax - box._vMin) * 0.5f;
             CollisionPrimitive primitive;
             PblMatrix matrix = gMatrixIdentity;
-            primitive.SetAACylinder((fHalfZ + fHalfX) * 0.5f, fHalfY * 2.0f);
-            matrix.m[3][0] = fCenterX;
-            matrix.m[3][1] = fCenterY;
-            matrix.m[3][2] = fCenterZ;
+            primitive.SetAACylinder((vHalf.x + vHalf.z) * 0.5f, vHalf.y * 2.0f);
+            matrix[3] = vCenter;
             matrix.m[3][3] = 1.0f;
             mCollisionModel.AddBody(new CollisionBodyPrimitive(primitive, "main_body", matrix, 0));
         }
@@ -283,7 +277,7 @@ EntityClass* AsteroidClass::Derive(unsigned int uHash)
 
 // GLOBAL: SWBF2 0x01eb0500
 // Asteroid::sMemoryPool
-MemoryPool Asteroid::sMemoryPool("Asteroid", 0x280);
+MemoryPool Asteroid::sMemoryPool("Asteroid", sizeof(Asteroid));
 
 // SYNTHETIC: SWBF2 0x004022c0
 // `dynamic initializer for 'Asteroid::rttiHashAsteroid''
@@ -325,6 +319,192 @@ Entity* AsteroidClass::Build(const EntityDesc& desc)
     return pAsteroid;
 }
 
+struct LengthEntryT
+{
+    float length;
+    int segmentIndex;
+};
+
+PblMatrix DirectionMatrix(const PblVector3& vDir, const PblVector3& vUp, const PblVector3& vPos);
+
+// FUNCTION: SWBF2 0x00445c90
+void AsteroidClass::FillRegion(const char* pcRegion, int iCount, PblVector3 vMin, PblVector3 vMax)
+{
+    if (NetGame::IsEnabled() && NetGame::IsClient())
+    {
+        return;
+    }
+    PblRegion* pRegion = PblRegion::Find(PblHash(pcRegion));
+    if (!pRegion)
+    {
+        return;
+    }
+    for (int i = 0; i < iCount; ++i)
+    {
+        PblVector3 vPosition;
+        switch (pRegion->mType)
+        {
+        case PblRegion::type_sphere:
+        {
+            PblVector3 vUnit = PblRandom::GetSim().GetVector3() * 2.0f - PblVector3(1.0f, 1.0f, 1.0f);
+            PblVector3 vDir;
+            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vUnit));
+            const float fMaxRadius = pRegion->mSize.w;
+            float fRadius = fMaxRadius * PblRandom::GetSim().GetFloat();
+            vPosition = vDir * fRadius;
+            vPosition += pRegion->mMatrix.GetTranslation();
+            break;
+        }
+        case PblRegion::type_box:
+        case PblRegion::type_box_aligned:
+        {
+            PblVector3 vUnit = PblRandom::GetSim().GetVector3() * 2.0f - PblVector3(1.0f, 1.0f, 1.0f);
+            PblVector3 vLocal = vUnit * pRegion->mSize;
+            vPosition = pRegion->mMatrix.ApplyTransform(vLocal);
+            break;
+        }
+        case PblRegion::type_cylinder:
+        case PblRegion::type_cylinder_xaligned:
+        case PblRegion::type_cylinder_yaligned:
+        case PblRegion::type_cylinder_zaligned:
+        {
+            PblVector3 vUnit = PblRandom::GetSim().GetVector3() * 2.0f - PblVector3(1.0f, 1.0f, 1.0f);
+            float fLength = sqrtf(vUnit.x * vUnit.x + vUnit.z * vUnit.z);
+            const float fMaxRadius = pRegion->mSize.x;
+            float fRadius = fMaxRadius * PblRandom::GetSim().GetFloat();
+            PblVector3 vLocal(vUnit.x / fLength * fRadius, pRegion->mSize.y * vUnit.y, vUnit.z / fLength * fRadius);
+            vPosition = pRegion->mMatrix.ApplyTransform(vLocal);
+            break;
+        }
+        default:
+            break;
+        }
+
+        PblVector3 vDir;
+        vDir.x = (vMax.x - vMin.x) * PblRandom::GetSim().GetFloat() + vMin.x;
+        vDir.y = (vMax.y - vMin.y) * PblRandom::GetSim().GetFloat() + vMin.y;
+        vDir.z = (vMax.z - vMin.z) * PblRandom::GetSim().GetFloat() + vMin.z;
+        const PblVector3& vUp =
+            (float)fabs((double)(vDir.x * gVectorUnitY.x + vDir.y * gVectorUnitY.y + vDir.z * gVectorUnitY.z)) < 0.99f
+                ? gVectorUnitZ
+                : gVectorUnitY;
+        EntityDesc desc;
+        desc.mMatrix = gMatrixIdentity;
+        desc.mPlayerId = 0;
+        desc.mMatrix = DirectionMatrix(vDir, vUp, vPosition);
+        Build(desc);
+    }
+}
+
+// FUNCTION: SWBF2 0x00446250
+void GetPoint(float s, LengthEntryT* parameterizedArcLength, int numEntries,
+              PblHermiteVector3* hermiteSegment, PblVector3& pos, PblVector3& direction)
+{
+    int low = 0;
+    int high = numEntries - 2;
+    int index;
+    float start, end;
+    for (;;)
+    {
+        index = (high + low) / 2;
+        start = parameterizedArcLength[index].length;
+        if (s >= start)
+        {
+            end = parameterizedArcLength[index + 1].length;
+            if (s <= end)
+            {
+                break;
+            }
+        }
+        if (start <= s)
+        {
+            if (s > start)
+            {
+                low = index + 1;
+            }
+        }
+        else
+        {
+            high = index - 1;
+        }
+    }
+    const float t = (s - start) / (end - start);
+    const int segmentIndex = parameterizedArcLength[index].segmentIndex;
+    pos = hermiteSegment[segmentIndex].getValue(t);
+    direction = hermiteSegment[segmentIndex].getSlope(t);
+}
+
+// FUNCTION: SWBF2 0x00446400
+void AsteroidClass::FillPath(const char* pcPath, float fDensity, int iCount,
+                               PblVector3 vMin, PblVector3 vMax)
+{
+    if (NetGame::IsEnabled() && NetGame::IsClient())
+    {
+        return;
+    }
+    const RedPath* pPath = RedPath::Find(PblHash(pcPath));
+    if (!pPath)
+    {
+        return;
+    }
+
+    int iNumPoints = pPath->GetNumPoints();
+    int iNumKeys = 10 * iNumPoints - 9;
+    LengthEntryT* pKeys = new LengthEntryT[iNumKeys];
+    PblHermiteVector3* pSegments = new PblHermiteVector3[iNumPoints - 1];
+    pKeys[0].length = 0.0f;
+    pKeys[0].segmentIndex = 0;
+    float fLength = 0.0f;
+    for (int i = 1; i < iNumPoints; ++i)
+    {
+        PblMatrix mStart(pPath->GetPointRotation(i - 1), pPath->GetPointPosition(i - 1));
+        PblMatrix mEnd(pPath->GetPointRotation(i), pPath->GetPointPosition(i));
+        pSegments[i - 1].Set(mStart.GetTranslation(), mEnd.GetTranslation(), mStart.GetZAxis(), mEnd.GetZAxis(), 1.0f);
+        for (int j = 0; j < 10; ++j)
+        {
+            PblVector3 vFrom = pSegments[i - 1].getValue((float)j / 10.0f);
+            PblVector3 vTo = pSegments[i - 1].getValue((float)(j + 1) / 10.0f);
+            PblVector3 vStep = vTo - vFrom;
+            fLength += PblMath::Sqrt(vStep.y * vStep.y + vStep.x * vStep.x + vStep.z * vStep.z);
+            pKeys[(i - 1) * 10 + j + 1].length = fLength;
+            pKeys[(i - 1) * 10 + j + 1].segmentIndex = i - 1;
+        }
+    }
+
+    for (int i = 0; i < iCount; ++i)
+    {
+        PblVector3 vPosition, vDir;
+        GetPoint(PblRandom::GetSim().GetFloat() * fLength, pKeys, iNumKeys,
+                 pSegments, vPosition, vDir);
+        const PblVector3& vPathUp =
+            (float)fabs((double)(vDir.x * gVectorUnitY.x + vDir.y * gVectorUnitY.y + vDir.z * gVectorUnitY.z)) < 0.99f
+                ? gVectorUnitZ
+                : gVectorUnitY;
+        PblMatrix mPath = DirectionMatrix(vDir, vPathUp, vPosition);
+
+        PblVector3 vUnit = PblRandom::GetSim().GetVector3() * 2.0f - PblVector3(1.0f, 1.0f, 1.0f);
+        float fOffsetLength = sqrtf(vUnit.x * vUnit.x + vUnit.z * vUnit.z);
+        float fRadius = PblRandom::GetSim().GetFloat() * fDensity;
+        PblVector3 vOffset(vUnit.x / fOffsetLength * fRadius, vUnit.y / fOffsetLength * fRadius, 0.0f);
+        vPosition = mPath.ApplyTransform(vOffset);
+
+        vDir.x = (vMax.x - vMin.x) * PblRandom::GetSim().GetFloat() + vMin.x;
+        vDir.y = (vMax.y - vMin.y) * PblRandom::GetSim().GetFloat() + vMin.y;
+        vDir.z = (vMax.z - vMin.z) * PblRandom::GetSim().GetFloat() + vMin.z;
+        const PblVector3& vUp =
+            (float)fabs((double)(vDir.x * gVectorUnitY.x + vDir.y * gVectorUnitY.y + vDir.z * gVectorUnitY.z)) < 0.99f
+                ? gVectorUnitZ
+                : gVectorUnitY;
+        EntityDesc desc;
+        desc.mMatrix = gMatrixIdentity;
+        desc.mPlayerId = 0;
+        desc.mMatrix = DirectionMatrix(vDir, vUp, vPosition);
+        Build(desc);
+    }
+    delete[] pKeys;
+    delete[] pSegments;
+}
+
 // FUNCTION: SWBF2 0x00444390
 void GameObject::ReserveForPlayer(float fTime)
 {
@@ -345,17 +525,18 @@ Asteroid::Asteroid(AsteroidClass* pClass, const EntityDesc& desc)
     : GameObject(pClass, desc, COLL_ASTEROID, &pClass->mModel->_mLodData)
 {
     mClass = pClass;
-    Activate();
+    GameObject* pObject = this;
+    pObject->Activate();
 
     const float fOmega =
-        (mClass->mMaxOmega - mClass->mMinOmega) * PblRandom::GetGlobalFloat() + mClass->mMinOmega;
+        (mClass->mMaxOmega - mClass->mMinOmega) * PblRandom::_Global.GetFloat() + mClass->mMinOmega;
     const PblVector3 vAxis = PblRandom::GetGlobalVector3();
-    mOmega = PblVector3(vAxis.x * fOmega, vAxis.y * fOmega, vAxis.z * fOmega);
+    mOmega = vAxis * fOmega;
 
     const float fSpeed =
-        (mClass->mMaxSpeed - mClass->mMinSpeed) * PblRandom::GetGlobalFloat() + mClass->mMinSpeed;
+        (mClass->mMaxSpeed - mClass->mMinSpeed) * PblRandom::_Global.GetFloat() + mClass->mMinSpeed;
+    mVelocity = mMatrix.GetZAxis() * fSpeed;
     mMass = 10.0f;
-    mVelocity = PblVector3(mMatrix.m[2][0] * fSpeed, mMatrix.m[2][1] * fSpeed, mMatrix.m[2][2] * fSpeed);
     NetGame::Created(this);
 }
 
@@ -399,16 +580,25 @@ const PblVector3& Asteroid::GetVelocity() const
 // FUNCTION: SWBF2 0x00444560
 void Asteroid::SetPosition(const PblVector3& vPos)
 {
-    mMatrix[3] = vPos;
-    mMatrix.m[3][3] = 1.0f;
-    AsteroidCollisionFollows(this);
+    mMatrix.SetTranslation(vPos);
+    PblVector3 vCenter;
+    D3DXVec3TransformCoord((D3DXVECTOR3*)&vCenter,
+                           (const D3DXVECTOR3*)&mModel->_mModel->_BoundingSphere.GetCenter(),
+                           (const D3DXMATRIX*)&mMatrix);
+    SetCollisionCenter(vCenter);
+    RecalculateAABB();
 }
 
 // FUNCTION: SWBF2 0x00444600
 void Asteroid::SetMatrix(const PblMatrix& matrix)
 {
     mMatrix = matrix;
-    AsteroidCollisionFollows(this);
+    PblVector3 vCenter;
+    D3DXVec3TransformCoord((D3DXVECTOR3*)&vCenter,
+                           (const D3DXVECTOR3*)&mModel->_mModel->_BoundingSphere.GetCenter(),
+                           (const D3DXMATRIX*)&mMatrix);
+    SetCollisionCenter(vCenter);
+    RecalculateAABB();
 }
 
 // FUNCTION: SWBF2 0x004446b0
@@ -483,28 +673,25 @@ void Asteroid::Kill()
     if (pClass->mNumChildren > 0)
     {
         EntityDesc desc;
-        desc.mMatrix = gMatrixIdentity;
         desc.mPlayerId = 0;
         for (int i = 0; i < pClass->mNumChildren; ++i)
         {
             EntityClass* pChildClass = EntityClass::Find(pClass->mChildren[i].mClassHash);
-            PblMatrix mBone;
-            if (pChildClass &&
-                mModel->_mLod[0]->GetBoneMatrix(pClass->mChildren[i].mHardPointHash, mBone))
+            if (pChildClass)
             {
-                PblMatrix mChild;
-                mChild = mBone * mMatrix;
-                desc.mMatrix = mChild;
-                Entity* pChild = pChildClass->Build(desc);
-                if (pChild)
+                PblMatrix mBone;
+                if (mModel->_mLod[0]->GetBoneMatrix(pClass->mChildren[i].mHardPointHash, mBone))
                 {
-                    pChild->Init();
-                    const PblVector3& vPos = mMatrix.GetTranslation();
-                    PblVector3 vDir(desc.mMatrix.m[3][0] - vPos.x, desc.mMatrix.m[3][1] - vPos.y,
-                                    desc.mMatrix.m[3][2] - vPos.z);
-                    D3DXVec3Normalize((D3DXVECTOR3*)&vDir, (const D3DXVECTOR3*)&vDir);
-                    static_cast<EntityGeometry*>(pChild)->SetVelocity(
-                        PblVector3(vDir.x * 50.0f, vDir.y * 50.0f, vDir.z * 50.0f));
+                    PblMatrix mChild;
+                    mChild = mBone * mMatrix;
+                    desc.mMatrix = mChild;
+                    Entity* pChild = pChildClass->Build(desc);
+                    if (pChild)
+                    {
+                        pChild->Init();
+                        const PblVector3 vDir = desc.mMatrix.GetTranslation() - mMatrix.GetTranslation();
+                        static_cast<EntityGeometry*>(pChild)->SetVelocity(Normalize(vDir) * 50.0f);
+                    }
                 }
             }
         }
@@ -542,15 +729,14 @@ bool Asteroid::Update(float fDeltaTime)
         }
     }
 
-    CameraManager* pCameras = CameraManager::Instance();
-    for (unsigned int i = 0; i < pCameras->GetNumCameras(); ++i)
+    for (unsigned int i = 0; i < CameraManager::Instance()->GetNumCameras(); ++i)
     {
-        const PblMatrix& mView = pCameras->GetCamera(i)->GetMatrixInverse();
-        const PblVector3& vPos = static_cast<CollisionObject*>(this)->GetPosition();
-        const float fZ = vPos.x * mView.m[0][2] + vPos.y * mView.m[1][2] +
-                         vPos.z * mView.m[2][2] + mView.m[3][2];
+        const PblMatrix& mView = CameraManager::Instance()->GetCamera(i)->GetMatrixInverse();
+        CollisionObject& rObject = *this;
+        const float fZ = rObject.GetPosition().x * mView.m[0][2] + rObject.GetPosition().y * mView.m[1][2] +
+                         rObject.GetPosition().z * mView.m[2][2] + mView.m[3][2];
         PblVector3 vView;
-        D3DXVec3TransformCoord((D3DXVECTOR3*)&vView, (const D3DXVECTOR3*)&vPos,
+        D3DXVec3TransformCoord((D3DXVECTOR3*)&vView, (const D3DXVECTOR3*)&rObject.GetPosition(),
                                (const D3DXMATRIX*)&mView);
         if (fZ < -2000.0f || fZ > 0.0f)
         {
@@ -564,9 +750,10 @@ bool Asteroid::Update(float fDeltaTime)
     if (fOmega > 0.0001f)
     {
         const float fInv = 1.0f / fOmega;
+        const PblVector3 vAxis = mOmega * fInv;
         float fSin, fCos;
         PblMath::SinCos(&fSin, &fCos, fOmega * fDeltaTime * 0.5f);
-        const PblQuaternion qStep(fCos, mOmega.x * fInv * fSin, mOmega.y * fInv * fSin, mOmega.z * fInv * fSin);
+        const PblQuaternion qStep(fCos, vAxis.x * fSin, vAxis.y * fSin, vAxis.z * fSin);
         qRotation = qRotation * qStep;
     }
     vPos += mVelocity * fDeltaTime;
@@ -589,7 +776,8 @@ void Asteroid::Render(unsigned char ucLod, float fDist, unsigned int uMask)
     const PblMatrix& mRender = GetSmoothedMatrix();
     const PblMatrix mInverse = mRender.GetInverseFast();
     SetupShadow(this, mModel, ucLod, uMask, 0);
-    mModel->Render(ucLod, fDist, &mRender, 0, RedColor::WHITE, uMask & ~0x10u, 0);
+    uMask &= ~0x10u;
+    mModel->Render(ucLod, fDist, &mRender, 0, RedColor::WHITE, uMask, 0);
 }
 
 // FUNCTION: SWBF2 0x00445350

@@ -135,15 +135,18 @@ bool GameSound::CanPlay() const
     {
         return false;
     }
-    if (GameState::GetState() == 0x11E1FC01)
+    if (GameState::GetState() != 0x11E1FC01)
     {
-        return true;
+        if (GameLoop::IsGameOver() && mType == type_soundStream)
+        {
+            return false;
+        }
+        if (!NetGame::IsOnceClientTurn())
+        {
+            return false;
+        }
     }
-    if (GameLoop::IsGameOver() && mType == type_soundStream)
-    {
-        return false;
-    }
-    return NetGame::IsOnceClientTurn();
+    return true;
 }
 
 // FUNCTION: SWBF2 0x00538010
@@ -174,11 +177,12 @@ void GameSound::Play(const PblVector3* pPos, const PblVector3* pVel, bool bArg3,
         }
         case type_soundLayered:
         {
+            const Snd::SoundLayered::Properties* pProps =
+                (const Snd::SoundLayered::Properties*)mProps;
             Snd::Source3D source3D;
             source3D.SetPosition(pPos);
             source3D.SetVelocity(pVel);
-            Snd::SoundLayered::Play(&source3D,
-                                    (const Snd::SoundLayered::Properties*)mProps);
+            Snd::SoundLayered::Play(&source3D, pProps);
             return;
         }
         case type_soundStream:
@@ -215,6 +219,8 @@ void GameSound::Play(const PblVector3* pPos, const PblVector3* pVel, bool bArg3,
 // FUNCTION: SWBF2 0x005381c0
 void GameSound::SetID(const char* pName, bool, bool bDeferred)
 {
+    char buffer[512];
+    char* pModifier = buffer;
     mProps = 0;
     mType = type_invalid;
     if (!pName || !strlen(pName))
@@ -222,10 +228,8 @@ void GameSound::SetID(const char* pName, bool, bool bDeferred)
         return;
     }
 
-    char buffer[512];
     strcpy(buffer, pName);
-    char* pModifier = buffer;
-    while (*pModifier && *pModifier != ' ')
+    while (*pModifier != ' ' && *pModifier)
     {
         ++pModifier;
     }
@@ -297,8 +301,14 @@ float GameSound::GetMuteDistance() const
         case type_sound:
             return ((const Snd::Sound::Properties*)mProps)->mMuteDistance;
         case type_soundLayered:
-            return ((const Snd::SoundLayered::Properties*)mProps)
-                ->FindLayerByIndex(0)->mSoundProps->mMuteDistance;
+        {
+            const Snd::SoundLayered::Properties* pLayered = (const Snd::SoundLayered::Properties*)mProps;
+            const PblListSingle::Node* pFirst = pLayered->mLayerList.GetFirst();
+            pFirst = (pFirst == pLayered->mLayerList.GetTerminator()) ? 0 : pFirst;
+            Snd::SoundLayered::Properties::Layer* pLayer = static_cast<Snd::SoundLayered::Properties::Layer*>(
+                pFirst->GetObjectA(&pLayered->mLayerList, offsetof(Snd::SoundLayered::Properties::Layer, mNode)));
+            return pLayer->mSoundProps->mMuteDistance;
+        }
         case type_soundStream:
             return ((const Snd::SoundStream::Properties*)mProps)->mMuteDistance;
         }
@@ -338,8 +348,14 @@ float GameSound::GetGain() const
     case type_sound:
         return ((const Snd::Sound::Properties*)mProps)->mGain;
     case type_soundLayered:
-        return ((const Snd::SoundLayered::Properties*)mProps)
-            ->FindLayerByIndex(0)->mSoundProps->mGain;
+    {
+        const Snd::SoundLayered::Properties* pLayered = (const Snd::SoundLayered::Properties*)mProps;
+        const PblListSingle::Node* pFirst = pLayered->mLayerList.GetFirst();
+        pFirst = (pFirst == pLayered->mLayerList.GetTerminator()) ? 0 : pFirst;
+        Snd::SoundLayered::Properties::Layer* pLayer = static_cast<Snd::SoundLayered::Properties::Layer*>(
+            pFirst->GetObjectA(&pLayered->mLayerList, offsetof(Snd::SoundLayered::Properties::Layer, mNode)));
+        return pLayer->mSoundProps->mGain;
+    }
     case type_soundStream:
         return ((const Snd::SoundStream::Properties*)mProps)->mGain;
     }
@@ -354,8 +370,14 @@ float GameSound::GetPitch() const
     case type_sound:
         return ((const Snd::Sound::Properties*)mProps)->mPitch;
     case type_soundLayered:
-        return ((const Snd::SoundLayered::Properties*)mProps)
-            ->FindLayerByIndex(0)->mSoundProps->mPitch;
+    {
+        const Snd::SoundLayered::Properties* pLayered = (const Snd::SoundLayered::Properties*)mProps;
+        const PblListSingle::Node* pFirst = pLayered->mLayerList.GetFirst();
+        pFirst = (pFirst == pLayered->mLayerList.GetTerminator()) ? 0 : pFirst;
+        Snd::SoundLayered::Properties::Layer* pLayer = static_cast<Snd::SoundLayered::Properties::Layer*>(
+            pFirst->GetObjectA(&pLayered->mLayerList, offsetof(Snd::SoundLayered::Properties::Layer, mNode)));
+        return pLayer->mSoundProps->mPitch;
+    }
     case type_soundStream:
         return ((const Snd::SoundStream::Properties*)mProps)->mPitch;
     }
@@ -476,8 +498,9 @@ void GameSoundControllable::Update(const GameSound* pSound, const PblVector3* pP
         }
     }
 
-    if (Snd::VoiceVirtual* pVoice = GetVoiceVirtual())
+    if (mVoiceVirtualHandle)
     {
+        Snd::VoiceVirtual* pVoice = Snd::Sound::VoiceVirtualHandleToVoiceVirtual(mVoiceVirtualHandle);
         if (pPos)
         {
             pVoice->SetPosition(pPos);

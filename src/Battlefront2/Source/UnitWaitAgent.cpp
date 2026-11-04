@@ -37,10 +37,12 @@ UnitWaitAgent::UnitWaitAgent(UnitController* pCtrl)
 // FUNCTION: SWBF2 0x0066b3e0
 void UnitWaitAgent::EnterState()
 {
-    if (mCurState == 2)
+    switch (mCurState)
     {
+    case 2:
         mTargetTimer = GameLoop::GetMissionTime();
         SetNewSearchHeading();
+        break;
     }
 }
 
@@ -59,15 +61,17 @@ void UnitWaitAgent::SetNewSearchHeading()
     }
     float fAngle = AIUtil::GetRandomFloat(-fRange, fRange);
 
-    const PblVector3& vAhead = mCtrl->GetOriginalAheadDir();
-    float fSin, fCos;
-    PblMath::SinCos(&fSin, &fCos, fAngle);
-    PblVector3 vOffset((vAhead.x * fCos - vAhead.z * fSin) * 1000.0f,
-                       vAhead.y * 1000.0f,
-                       (vAhead.z * fCos + vAhead.x * fSin) * 1000.0f);
+    PblVector3 vRotated;
+    {
+        const PblVector3& vAhead = mCtrl->GetOriginalAheadDir();
+        float fSin, fCos;
+        PblMath::SinCos(&fSin, &fCos, fAngle);
+        vRotated = PblVector3(vAhead.x * fCos - vAhead.z * fSin,
+                              vAhead.y,
+                              vAhead.z * fCos + vAhead.x * fSin);
+    }
 
-    const PblMatrix& mat = GetMe()->GetMatrix();
-    mSearchPos = PblVector3(mat.m[3][0] + vOffset.x, mat.m[3][1] + vOffset.y, mat.m[3][2] + vOffset.z);
+    mSearchPos = GetMe()->GetMatrix().GetTranslation() + vRotated * 1000.0f;
 }
 
 // FUNCTION: SWBF2 0x0066b500
@@ -75,32 +79,45 @@ void UnitWaitAgent::UpdateStatePostVision(float dt)
 {
     AttackHelper& attack = mAttackHelper;
     attack.Update();
-    if (mCurState != 2)
+    switch (mCurState)
     {
-        return;
-    }
-
-    if (AIUtil::GetRandomIntPerSecond(1, 9) == 2)
+    case 2:
     {
-        SetNewSearchHeading();
-    }
-
-    GameObject* pObj = GetMe()->GetGameObject();
-    if (pObj && pObj->GetMaxSpeed() == 0.0f)
-    {
-        if (attack.HasTarget())
+        if (AIUtil::GetRandomIntPerSecond(1, 9) == 2)
         {
-            mTargetTimer = GameLoop::GetMissionTime();
+            SetNewSearchHeading();
         }
-        else if (GameLoop::GetMissionTime() > mTargetTimer + AIUtil::gStationaryWaitTime)
-        {
-            GetLowLevel().SetExitVehicle(0);
-            return;
-        }
-    }
 
-    UnitAgent::FaceTargetCommon(HEIGHT_COUNT, true,
-                                PblVector3(mSearchPos.x + 0.0f, mSearchPos.y + 1.6f, mSearchPos.z + 0.0f));
+        GameObject* pObj = GetMe()->GetGameObject();
+        if (pObj && pObj->GetMaxSpeed() == 0.0f)
+        {
+            if (attack.HasTarget())
+            {
+                mTargetTimer = GameLoop::GetMissionTime();
+            }
+            else if (GameLoop::GetMissionTime() > mTargetTimer + AIUtil::gStationaryWaitTime)
+            {
+                GetLowLevel().SetExitVehicle(0);
+                return;
+            }
+        }
+
+        if (attack.GetVisibleTarget())
+        {
+            GetLowLevel().SetHeading(attack.GetVisibleTarget());
+        }
+        else if (attack.HasTarget())
+        {
+            const PblVector3& vLastSeen = attack.GetLastSeenTargetPos();
+            GetLowLevel().SetHeading(PblVector3(vLastSeen.x + 0.0f, vLastSeen.y + 1.6f, vLastSeen.z + 0.0f), 0.0f);
+        }
+        else
+        {
+            GetLowLevel().SetHeading(PblVector3(mSearchPos.x + 0.0f, mSearchPos.y + 1.6f, mSearchPos.z + 0.0f), 0.0f);
+        }
+        break;
+    }
+    }
 }
 
 // FUNCTION: SWBF2 0x0066b660

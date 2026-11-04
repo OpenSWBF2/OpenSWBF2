@@ -116,14 +116,7 @@ bool EntityPathFollowerClass::SetProperty(unsigned int uProperty, const char* ps
             mCosMaxAngle = PblMath::Cos(mCosMaxAngle * 0.017453292f);
             return true;
         case 0xab9db3f4:
-            if (mAcceleration != 0.0f)
-            {
-                mAcceleration = 1.0f / mAcceleration;
-            }
-            else
-            {
-                mAcceleration = 0.0001f;
-            }
+            mAcceleration = mAcceleration != 0.0f ? 1.0f / mAcceleration : 0.0001f;
             return true;
         }
     }
@@ -172,18 +165,18 @@ EntityPathFollower::BranchParams::BranchParams(const EntityPathFollowerClass* pP
 
 // FUNCTION: SWBF2 0x004d2770
 EntityPathFollower::EntityPathFollower(const EntityPathFollowerClass* const pClass)
+    : mSpeed(1.0f),
+      mOffPathSpeed(1.0f),
+      mCurSpeed(0.0f),
+      mAcceleration(1.0f),
+      mYaw(FLT_MAX),
+      mSplineRoll(0.0f),
+      mCurRoll(0.0f),
+      mCurRollAcceleration(0.0f),
+      mRollVelocity(0.0f),
+      mStrafeTimer(0.0f),
+      mT(0.0f)
 {
-    mSpeed = 1.0f;
-    mOffPathSpeed = 1.0f;
-    mCurSpeed = 0.0f;
-    mAcceleration = 1.0f;
-    mYaw = FLT_MAX;
-    mSplineRoll = 0.0f;
-    mCurRoll = 0.0f;
-    mCurRollAcceleration = 0.0f;
-    mRollVelocity = 0.0f;
-    mStrafeTimer = 0.0f;
-    mT = 0.0f;
     mPath = 0;
     mIndex = 0;
     mDirection = 0;
@@ -203,7 +196,7 @@ EntityPathFollower::EntityPathFollower(const EntityPathFollowerClass* const pCla
         mSpeed = pClass->mSpeed;
         mAcceleration = pClass->mAcceleration;
     }
-    sList.Add(this, this);
+    sList.AddLast(this, this);
     mAttacker = 0;
 }
 
@@ -279,20 +272,22 @@ bool EntityPathFollower::MoveTo(const PathStart& start, const PblVector3* const 
     mPath = start.mAttrib.mPath;
     mIndex = start.mAttrib.mPointIndex;
     mDirection = start.mDirection;
+    bool bAdded = true;
     if (!(NetGame::IsEnabled() && NetGame::IsClient()))
     {
         const EntityPathFollowerClass* pClass = params.mPathClass;
         mLastUsedID = (bUseCTFClass && pClass->mEntityClassID_CTF) ? pClass->mEntityClassID_CTF
                                                                    : pClass->mEntityClassID;
-        if (!mPath->Add(mLastUsedID, mDirection, &mNode))
-        {
-            mPath = 0;
-            Reset(params.mPathClass);
-            return false;
-        }
+        bAdded = mPath->Add(mLastUsedID, mDirection, &mNode);
     }
-    SetupNextSegment(pPosition, params, false, b3);
-    return true;
+    if (bAdded)
+    {
+        SetupNextSegment(pPosition, params, false, b3);
+        return true;
+    }
+    mPath = 0;
+    Reset(params.mPathClass);
+    return false;
 }
 
 // FUNCTION: SWBF2 0x004d2b00
@@ -300,33 +295,37 @@ bool EntityPathFollower::HeadTowards(PblVector3& vTarget, float fDistance, Branc
 {
     const GameObject* pIgnore = params.mGameObject;
     PblVector3 vPosition = params.mMatrix.GetTranslation();
-    PblVector3 vDelta(vTarget.x - vPosition.x, vTarget.y - vPosition.y, vTarget.z - vPosition.z);
-    PblVector3 vDir;
-    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vDelta));
-    PblVector3 vEnd(vDir.x * fDistance + vPosition.x, vDir.y * fDistance + vPosition.y,
-                    vDir.z * fDistance + vPosition.z);
-    if (CollisionManager::RayTest(vPosition, vEnd, &pIgnore, 1, 0))
+    PblVector3 vEnd = Normalize(vTarget - vPosition) * fDistance + vPosition;
+    if (!CollisionManager::RayTest(vPosition, vEnd, &pIgnore, 1, 0))
     {
-        return false;
+        Reset(params.mPathClass);
+        const PblVector3& vForward = params.mMatrix.GetZAxis();
+        PblVector3 vBehind = vPosition - vForward * 30.0f;
+        PblVector3 vBeyond = Normalize(vTarget - vPosition) * (fDistance + 200.0f) + vPosition;
+        SetPoint(vBehind, 0);
+        SetPoint(vPosition, 1);
+        SetPoint(vEnd, 2);
+        SetPoint(vBeyond, 3);
+        SmoothPath(params, &vPosition, 20.0f, 125.0f, 300.0f, 30.0f, 0.707f);
+        return true;
     }
+    return false;
+}
 
-    Reset(params.mPathClass);
-    const PblVector3& vForward = params.mMatrix.GetZAxis();
-    PblVector3 vBehind(vPosition.x - vForward.x * 30.0f, vPosition.y - vForward.y * 30.0f,
-                       vPosition.z - vForward.z * 30.0f);
-    PblVector3 vDelta2(vTarget.x - vPosition.x, vTarget.y - vPosition.y, vTarget.z - vPosition.z);
-    PblVector3 vBeyond;
-    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vBeyond), reinterpret_cast<const D3DXVECTOR3*>(&vDelta2));
-    float fBeyond = fDistance + 200.0f;
-    vBeyond.x = vBeyond.x * fBeyond + vPosition.x;
-    vBeyond.y = vBeyond.y * fBeyond + vPosition.y;
-    vBeyond.z = vBeyond.z * fBeyond + vPosition.z;
-    SetPoint(vBehind, 0);
-    SetPoint(vPosition, 1);
-    SetPoint(vEnd, 2);
-    SetPoint(vBeyond, 3);
-    SmoothPath(params, &vPosition, 20.0f, 125.0f, 300.0f, 30.0f, 0.707f);
-    return true;
+namespace
+{
+    inline bool IsCarryingFlagRef(GameObject* const& pObject)
+    {
+        return pObject && pObject->GetControllable() && pObject->GetControllable()->mCharacter &&
+               pObject->GetControllable()->mCharacter->mCarriedFlagPtr;
+    }
+}
+
+namespace
+{
+    inline bool IsCarryingFlag(GameObject* pObject);
+    inline Character* GetFlagOwner(const FlagItem* pFlag);
+    inline const PblMatrix& GetFlagMatrix(const FlagItem* pFlag);
 }
 
 // FUNCTION: SWBF2 0x004d2d30
@@ -342,7 +341,7 @@ void EntityPathFollower::SmoothPath(BranchParams& params, const PblVector3* pTar
     bool bForce = fCosAngle >= 1.0f;
     PblVector3 vRel(pTarget->x - mOffset.x, pTarget->y - mOffset.y, pTarget->z - mOffset.z);
     const PblVector3& vPoint2 = GetPoint(2);
-    PblVector3 vDelta(vPoint2.x - vRel.x, vPoint2.y - vRel.y, vPoint2.z - vRel.z);
+    PblVector3 vDelta = vPoint2 - vRel;
     PblVector3 vDir;
     D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vDelta));
 
@@ -361,54 +360,20 @@ void EntityPathFollower::SmoothPath(BranchParams& params, const PblVector3* pTar
         return;
     }
 
-    vPoint.x = m.m[1][2] * vDir.y - m.m[1][1] * vDir.z;
-    vPoint.y = m.m[1][0] * vDir.z - m.m[1][2] * vDir.x;
-    vPoint.z = m.m[1][1] * vDir.x - m.m[1][0] * vDir.y;
+    vPoint = PblVector3(m.m[1][2] * vDir.y - m.m[1][1] * vDir.z, m.m[1][0] * vDir.z - m.m[1][2] * vDir.x,
+                        m.m[1][1] * vDir.x - m.m[1][0] * vDir.y);
     if (m.m[2][0] * vPoint.x + m.m[2][1] * vPoint.y + m.m[2][2] * vPoint.z < 0.0f)
     {
-        vPoint.x = -vPoint.x;
-        vPoint.y = -vPoint.y;
-        vPoint.z = -vPoint.z;
+        vPoint = -vPoint;
     }
 
-    float fDist = sqrtf(vDelta.x * vDelta.x + vDelta.y * vDelta.y + vDelta.z * vDelta.z);
+    float fDist = PblMath::Sqrt(vDelta.x * vDelta.x + vDelta.y * vDelta.y + vDelta.z * vDelta.z);
     float fDistT = fDist / fDistRange;
-    float fAngleT = (1.0f - fDot) * 3.0f;
-    if (0.0f > fAngleT)
-    {
-        fAngleT = 0.0f;
-    }
-    else if (fAngleT > 1.0f)
-    {
-        fAngleT = 1.0f;
-    }
-    if (0.0f > fDistT)
-    {
-        fDistT = 0.0f;
-    }
-    else if (fDistT > 1.0f)
-    {
-        fDistT = 1.0f;
-    }
+    float fAngleT = Clamp((1.0f - fDot) * 3.0f, 0.0f, 1.0f);
+    fDistT = Clamp(fDistT, 0.0f, 1.0f);
     float fT = fDistT * fAngleT;
-    float fOffset = fT * fMaxOffset;
-    if (fMinOffset > fOffset)
-    {
-        fOffset = fMinOffset;
-    }
-    else if (fOffset > fMaxOffset)
-    {
-        fOffset = fMaxOffset;
-    }
-    float fLead = fDot;
-    if (0.0f > fDot)
-    {
-        fLead = 0.0f;
-    }
-    else if (fDot > 1.0f)
-    {
-        fLead = 1.0f;
-    }
+    float fOffset = Clamp(fT * fMaxOffset, fMinOffset, fMaxOffset);
+    float fLead = Clamp(fDot, 0.0f, 1.0f);
     fLead *= 0.5f;
 
     PblVector3 vLead;
@@ -449,9 +414,9 @@ void EntityPathFollower::SmoothPath(BranchParams& params, const PblVector3* pTar
             vLead.y = vForward.y * fForwardScale * fT * 0.25f;
             vLead.z = vForward.z * fForwardScale * fT * 0.25f;
         }
-        vPoint.x = pTarget->x - mOffset.x + vSide.x * 0.25f + vLead.x;
-        vPoint.y = pTarget->y - mOffset.y + vSide.y * 0.25f + vLead.y;
-        vPoint.z = pTarget->z - mOffset.z + vSide.z * 0.25f + vLead.z;
+        vPoint = PblVector3(pTarget->x - mOffset.x + vSide.x * 0.25f + vLead.x,
+                            pTarget->y - mOffset.y + vSide.y * 0.25f + vLead.y,
+                            pTarget->z - mOffset.z + vSide.z * 0.25f + vLead.z);
         if (!bForce && !RayTestSpline(GetPoint(0), GetPoint(1), vPoint, GetPoint(2), params.mGameObject, 2))
         {
             return;
@@ -469,7 +434,7 @@ void EntityPathFollower::DelayPath(BranchParams& params, float fDistance)
     {
         SetPoint(GetPoint(2), 3);
         const PblMatrix& m = params.mMatrix;
-        PblVector3 pt2 = m.GetTranslation() + m.GetZAxis() * fDistance;
+        PblVector3 pt2 = fDistance * m.GetZAxis() + m.GetTranslation();
         SetPoint(pt2, 2);
         mbDelayIndexIncrement = true;
     }
@@ -485,7 +450,7 @@ bool EntityPathFollower::IsFlyerPlayerCentric(BranchParams& params)
     }
     Controllable* pControllable = params.mGameObject ? GetControllable(params.mGameObject) : 0;
     UnitController* pController = UnitControllerPtr(pControllable);
-    return !pController || (char)(pController->GetRandomSeed() & 0xf) > 7;
+    return !pController || (pController->GetRandomSeed() & 0xf) > 7;
 }
 
 // FUNCTION: SWBF2 0x004d66a0
@@ -714,8 +679,20 @@ unsigned int EntityPathFollower::CreateSquadronFromClosestEntities(const PblVect
                                                                    const PblVector3& vDirection, float fSquareRange,
                                                                    float fCosMaxAngle)
 {
-    if (NetGame::IsEnabled() || !GetBranchParams().mPathClass->mbFlyerVsFlyer ||
-        (!GetEntitySquadronClass()->mNumFormations && !InSquadron()) || !mPath)
+    if (NetGame::IsEnabled())
+    {
+        return 0;
+    }
+    bool bFlyerVsFlyer = GetBranchParams().mPathClass->mbFlyerVsFlyer;
+    if (!bFlyerVsFlyer)
+    {
+        return 0;
+    }
+    if (!GetEntitySquadronClass()->mNumFormations && !InSquadron())
+    {
+        return 0;
+    }
+    if (!mPath)
     {
         return 0;
     }
@@ -734,8 +711,8 @@ unsigned int EntityPathFollower::CreateSquadronFromClosestEntities(const PblVect
 
     RedStack stack;
     PblListDoubleSorted candidates;
-    unsigned int uCount = 0;
     char* pMemory = (char*)stack.Alloc(sList.GetCount() * sizeof(Candidate));
+    unsigned int uCount = 0;
     unsigned int uAllegiance = GetAllegiance();
     for (PblList<EntityPathFollower>::Itor it(sList); (EntityPathFollower*)it; ++it)
     {
@@ -784,11 +761,10 @@ unsigned int EntityPathFollower::CreateSquadronFromClosestEntities(const PblVect
             if (CreateSquadron(uCount + 1))
             {
                 unsigned int uAdded = 0;
-                for (PblListDouble::Node* pLink = candidates.mTerminator.mNext; pLink != &candidates.mTerminator;
-                     pLink = pLink->mNext)
+                PblListDoubleSorted::Itor addItor(candidates);
+                for (;;)
                 {
-                    PblListDoubleSorted::Node* pNode =
-                        (PblListDoubleSorted::Node*)((char*)pLink - offsetof(PblListDoubleSorted::Node, mNode));
+                    PblListDoubleSorted::Node* const pNode = addItor.GetNode(&candidates);
                     if (pNode == candidates.GetTerminator())
                     {
                         break;
@@ -798,6 +774,7 @@ unsigned int EntityPathFollower::CreateSquadronFromClosestEntities(const PblVect
                     {
                         break;
                     }
+                    ++addItor;
                 }
                 if (uAdded == uCount)
                 {
@@ -808,11 +785,9 @@ unsigned int EntityPathFollower::CreateSquadronFromClosestEntities(const PblVect
                     start.mAttrib.mSquareDist = 0.0f;
                     start.mAttrib.mVectorDist = PblVector3(0.0f, 0.0f, 0.0f);
                     start.mDirection = mDirection;
-                    for (PblListDouble::Node* pLink = candidates.mTerminator.mNext;
-                         pLink != &candidates.mTerminator; pLink = pLink->mNext)
+                    for (PblListDoubleSorted::Itor moveItor(candidates);; ++moveItor)
                     {
-                        PblListDoubleSorted::Node* pNode =
-                            (PblListDoubleSorted::Node*)((char*)pLink - offsetof(PblListDoubleSorted::Node, mNode));
+                        PblListDoubleSorted::Node* const pNode = moveItor.GetNode(&candidates);
                         if (pNode == candidates.GetTerminator())
                         {
                             break;
@@ -870,11 +845,13 @@ bool EntityPathFollower::Branch(BranchParams& params, const PblVector3* const pP
         }
     }
 
-    bool bHasFlag = IsCarryingFlag(params.mGameObject);
+    bool bHasFlag = IsCarryingFlagRef(params.mGameObject);
     if (InSquadron() && !IsSquadronLeader())
     {
         const EntityPathFollower* pLeader = static_cast<const EntityPathFollower*>(GetSquadronLeader());
-        start.mAttrib.mVectorDist = PblVector3(0.0f, 0.0f, 0.0f);
+        start.mAttrib.mVectorDist.z = 0.0f;
+        start.mAttrib.mVectorDist.y = 0.0f;
+        start.mAttrib.mVectorDist.x = 0.0f;
         start.mAttrib.mPath = pLeader->mPath;
         start.mAttrib.mPointIndex = pLeader->mIndex;
         start.mAttrib.mSquareDist = 0.0f;
@@ -883,8 +860,8 @@ bool EntityPathFollower::Branch(BranchParams& params, const PblVector3* const pP
     }
     else
     {
-        int iPrev = mIndex - mDirection;
         const EntityPath::BranchRegion* pRegion = 0;
+        int iPrev = mIndex - mDirection;
         const EntityPath* pExcludePath = 0;
         const PblVector3* pExclude = 0;
         const EntityPath::NodeProperties* pProps =
@@ -944,13 +921,21 @@ bool EntityPathFollower::Branch(BranchParams& params, const PblVector3* const pP
     }
 
     bool bResult = false;
-    if (start.mAttrib.mPath && MoveTo(start, pPosition ? pPosition : &params.mMatrix.GetTranslation(), 0, params,
-                                      bHasFlag, false, bHavePosition))
+    if (start.mAttrib.mPath)
     {
-        bResult = true;
-        if (mbStraightLine)
+        if (MoveTo(start, pPosition ? pPosition : &params.mMatrix.GetTranslation(), 0, params, bHasFlag, false,
+                   bHavePosition))
         {
-            DelayPath(params, 100.0f);
+            bResult = true;
+            if (mbStraightLine)
+            {
+                DelayPath(params, 100.0f);
+            }
+        }
+        else
+        {
+            bResult = false;
+            Reset(params.mPathClass);
         }
     }
     else
@@ -965,40 +950,45 @@ bool EntityPathFollower::Branch(BranchParams& params, const PblVector3* const pP
 void EntityPathFollower::EndOfSegment(BranchParams& params, const PblVector3* const pPosition, bool bForceBranch,
                                       bool bSetupNext)
 {
-    bool bBranch = bForceBranch || (!mPath && !GetPointIsSet(2) && !GetPointIsSet(3));
-    bBranch = bBranch || (mPath && (mIndex < 0 || mIndex >= mPath->GetNumPoints()));
+    bool bBranch = bForceBranch;
+    if (!bBranch)
+    {
+        bBranch |= !mPath && !GetPointIsSet(2) && !GetPointIsSet(3);
+    }
+    bBranch |= mPath && (mIndex < 0 || mIndex >= mPath->GetNumPoints());
     if (!bBranch && mPath)
     {
         int iPrev = mIndex - mDirection;
         const EntityPath::NodeProperties* pProps =
             iPrev >= 0 && iPrev < mPath->GetNumPoints() ? &mPath->GetNodeProperties(iPrev) : 0;
-        bBranch = pProps && pProps->mBranchProbability > PblRandom::GetGlobalFloat();
+        if (pProps)
+        {
+            const float fProbability = pProps->mBranchProbability;
+            bBranch = fProbability > PblRandom::GetGlobalFloat();
+        }
+    }
+
+    if (bBranch && !NetGame::IsEnabled() && !gAttractMode && params.mPathClass->mbFlyerVsFlyer &&
+        IsFlyerPlayerCentric(params))
+    {
+        Character* pPlayer = NetGame::GetLocalPlayer(0);
+        if (pPlayer && pPlayer->GetVehicle())
+        {
+            Controllable* pControllable = pPlayer->GetControllable();
+            if (pControllable)
+            {
+                PblVector3 vPosition = pPosition ? *pPosition : params.mMatrix.GetTranslation();
+                PblVector3 vTarget = pControllable->GetMatrix().GetTranslation();
+                if (SquaredLength(vTarget - vPosition) > 160000.0f && HeadTowards(vTarget, 150.0f, params))
+                {
+                    return;
+                }
+            }
+        }
     }
 
     if (bBranch)
     {
-        if (!NetGame::IsEnabled() && !gAttractMode && params.mPathClass->mbFlyerVsFlyer &&
-            IsFlyerPlayerCentric(params))
-        {
-            Character* pPlayer = NetGame::GetLocalPlayer(0);
-            if (pPlayer && pPlayer->GetVehicle())
-            {
-                Controllable* pControllable = pPlayer->GetControllable();
-                if (pControllable)
-                {
-                    PblVector3 vPosition = pPosition ? *pPosition : params.mMatrix.GetTranslation();
-                    PblVector3 vTarget = pControllable->GetMatrix().GetTranslation();
-                    if ((vTarget.x - vPosition.x) * (vTarget.x - vPosition.x) +
-                                (vTarget.y - vPosition.y) * (vTarget.y - vPosition.y) +
-                                (vTarget.z - vPosition.z) * (vTarget.z - vPosition.z) >
-                            160000.0f &&
-                        HeadTowards(vTarget, 150.0f, params))
-                    {
-                        return;
-                    }
-                }
-            }
-        }
         Branch(params, pPosition ? pPosition : &params.mMatrix.GetTranslation(), pPosition != 0);
     }
     else if (bSetupNext)
@@ -1066,15 +1056,12 @@ bool EntityPathFollower::Update(BranchParams& params, float fElapsed, PblVector3
         ResetStateVars();
         BranchParams leader = static_cast<EntityPathFollower*>(GetSquadronLeader())->GetBranchParams();
         const PblMatrix& lead = leader.mMatrix;
-        float fSlot = (float)mFormationSlot;
-        PblVector3 vPos(lead.m[3][0] + lead.m[0][0] * fSlot * 15.0f, lead.m[3][1] + lead.m[0][1] * fSlot * 15.0f,
-                        lead.m[3][2] + lead.m[0][2] * fSlot * 15.0f);
+        float fSlot = (float)GetFormationSlot();
+        PblVector3 vPos = lead.GetTranslation() + lead.GetXAxis() * fSlot * 15.0f;
         PblMatrix& matrix = params.mMatrix;
         matrix.SetTranslation(vPos);
-        static_cast<CollisionObject*>(params.mGameObject)->mLastPosition = vPos;
-        matrix.m[2][0] = lead.m[2][0];
-        matrix.m[2][1] = lead.m[2][1];
-        matrix.m[2][2] = lead.m[2][2];
+        static_cast<CollisionObject&>(*params.mGameObject).mLastPosition = vPos;
+        matrix[2] = lead[2];
         matrix.m[2][3] = 0.0f;
         if (params.mGameObject->IsRtti(EntityFlyer::rttiHashEntityFlyer))
         {
@@ -1161,28 +1148,21 @@ bool EntityPathFollower::Update(BranchParams& params, float fElapsed, PblVector3
         vTangent = PblVector3(fInv * vTangent.x, vTangent.y * fInv, vTangent.z * fInv);
     }
     PblVector3 vNormal;
-    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNormal), reinterpret_cast<const D3DXVECTOR3*>(&vLookAhead));
+    D3DXVec3Normalize(&vNormal, &vLookAhead);
     vLookAhead = vNormal;
 
     PblMatrix rotation;
     PblMatrix* pRotation = pMatrix ? pMatrix : &rotation;
     float fTurn = Rotate(params.mPathClass, params.mMatrix, fElapsed, vTangent, vLookAhead, pRotation);
-    PblMatrix& matrix = params.mMatrix;
-    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNormal), reinterpret_cast<const D3DXVECTOR3*>((const PblVector3*)&matrix.m[0][0]));
-    matrix.m[0][0] = vNormal.x;
-    matrix.m[0][1] = vNormal.y;
-    matrix.m[0][2] = vNormal.z;
-    matrix.m[0][3] = 0.0f;
-    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNormal), reinterpret_cast<const D3DXVECTOR3*>((const PblVector3*)&matrix.m[1][0]));
-    matrix.m[1][0] = vNormal.x;
-    matrix.m[1][1] = vNormal.y;
-    matrix.m[1][2] = vNormal.z;
-    matrix.m[1][3] = 0.0f;
-    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNormal), reinterpret_cast<const D3DXVECTOR3*>((const PblVector3*)&matrix.m[2][0]));
-    matrix.m[2][0] = vNormal.x;
-    matrix.m[2][1] = vNormal.y;
-    matrix.m[2][2] = vNormal.z;
-    matrix.m[2][3] = 0.0f;
+    D3DXVec3Normalize(&vNormal, &params.mMatrix[0]);
+    params.mMatrix[0] = vNormal;
+    params.mMatrix.m[0][3] = 0.0f;
+    D3DXVec3Normalize(&vNormal, &params.mMatrix[1]);
+    params.mMatrix[1] = vNormal;
+    params.mMatrix.m[1][3] = 0.0f;
+    D3DXVec3Normalize(&vNormal, &params.mMatrix[2]);
+    params.mMatrix[2] = vNormal;
+    params.mMatrix.m[2][3] = 0.0f;
 
     PblVector3 vTarget = vPoint;
     UpdateSquadron(params.mPathClass, *pRotation, fElapsed, vPosition, vTarget);
@@ -1198,7 +1178,7 @@ bool EntityPathFollower::Update(BranchParams& params, float fElapsed, PblVector3
     if (InSquadron())
     {
         PblVector3 vDelta(vTarget.x - vOldPosition.x, vTarget.y - vOldPosition.y, vTarget.z - vOldPosition.z);
-        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNormal), reinterpret_cast<const D3DXVECTOR3*>(&vDelta));
+        D3DXVec3Normalize(&vNormal, &vDelta);
         vTangent = vNormal;
         fTurn = Rotate(params.mPathClass, params.mMatrix, fElapsed, vTangent, vLookAhead, pRotation);
     }
@@ -1210,46 +1190,24 @@ bool EntityPathFollower::Update(BranchParams& params, float fElapsed, PblVector3
     if (fDx * fDx + fDy * fDy + fDz * fDz > 225.0f)
     {
         float fScale = 10.0f / sqrtf(fDx * fDx + fDy * fDy + fDz * fDz);
-        vNew = PblVector3((vTarget.x - vOldPosition.x) * fScale + vOldPosition.x,
-                          (vTarget.y - vOldPosition.y) * fScale + vOldPosition.y,
-                          (vTarget.z - vOldPosition.z) * fScale + vOldPosition.z);
+        vNew = (vTarget - vOldPosition) * fScale + vOldPosition;
     }
-    matrix.SetTranslation(vNew);
+    params.mMatrix.SetTranslation(vNew);
     if (pMatrix)
     {
-        pMatrix->m[3][0] = vNew.x;
-        pMatrix->m[3][1] = vNew.y;
-        pMatrix->m[3][2] = vNew.z;
-        pMatrix->m[3][3] = 1.0f;
+        pMatrix->SetTranslation(vNew);
     }
 
     float fInvElapsed = 1.0f / fElapsed;
-    vVelocity = PblVector3((vPosition.x - vOldPosition.x) * fInvElapsed, (vPosition.y - vOldPosition.y) * fInvElapsed,
-                           (vPosition.z - vOldPosition.z) * fInvElapsed);
+    vVelocity = (vPosition - vOldPosition) * fInvElapsed;
 
-    float fTurnRatio = (float)fabs(fTurn / 3.1415927f);
-    if (fTurnRatio < 0.0f)
-    {
-        fTurnRatio = 0.0f;
-    }
-    else if (fTurnRatio > 1.0f)
-    {
-        fTurnRatio = 1.0f;
-    }
+    float fTurnRatio = Clamp((float)fabs((double)(fTurn / 3.1415927f)), 0.0f, 1.0f);
     float fOldSpeed = mCurSpeed;
     float fTurnScale = params.mPathClass->mTurnSpeed * fTurnRatio + (1.0f - fTurnRatio);
     float fPathSpeed = mPath ? mPath->mSpeedFactor : mOffPathSpeed;
     float fNodeSpeed = mPath ? mPath->GetNodeProperties(mIndex).mSpeedFactor : 1.0f;
     float fAccel = mAcceleration * fElapsed;
-    float fBlend = fAccel;
-    if (fBlend < 0.0f)
-    {
-        fBlend = 0.0f;
-    }
-    else if (fBlend > 1.0f)
-    {
-        fBlend = 1.0f;
-    }
+    float fBlend = Clamp(fAccel, 0.0f, 1.0f);
     mCurSpeed = (mSpeed * fPathSpeed * fNodeSpeed * fTurnScale - fOldSpeed) * fBlend + fOldSpeed;
     if (fSpeedLimit > 0.0f)
     {
@@ -1331,7 +1289,10 @@ bool EntityPathFollower::Update(BranchParams& params, float fElapsed, PblVector3
 void EntityPathFollower::UpdateSquadron(const EntityPathFollowerClass* const pClass, const PblMatrix& matrix,
                                         float fElapsed, const PblVector3& vPosition, PblVector3& vPoint)
 {
-    UpdatePosition(pClass, fElapsed, matrix, vPoint);
+    {
+        PblMatrix mCopy = matrix;
+        UpdatePosition(pClass, fElapsed, mCopy, vPoint);
+    }
     if (!InSquadron() || IsSquadronLeader())
     {
         return;
@@ -1339,21 +1300,24 @@ void EntityPathFollower::UpdateSquadron(const EntityPathFollowerClass* const pCl
 
     EntityPathFollower* pLeader = static_cast<EntityPathFollower*>(GetSquadronLeader());
     float fFactor;
-    if (mPath != pLeader->mPath)
+    if (mPath == pLeader->mPath)
     {
-        fFactor = 3.0f;
-    }
-    else if (mIndex == pLeader->mIndex)
-    {
-        fFactor = mT - pLeader->mT < 0.0f ? 2.0f : 0.3f;
-    }
-    else if (mIndex * mDirection < pLeader->mIndex * pLeader->mDirection)
-    {
-        fFactor = 2.5f;
+        if (mIndex == pLeader->mIndex)
+        {
+            fFactor = mT - pLeader->mT < 0.0f ? 2.0f : 0.3f;
+        }
+        else if (mIndex * mDirection < pLeader->mIndex * pLeader->mDirection)
+        {
+            fFactor = 2.5f;
+        }
+        else
+        {
+            fFactor = 0.1f;
+        }
     }
     else
     {
-        fFactor = 0.1f;
+        fFactor = 3.0f;
     }
 
     float fWorldSpeed = GetBranchParams().mWorldSpeed;
@@ -1389,31 +1353,23 @@ bool EntityPathFollower::ShotAtByEnemy(BranchParams& params)
     }
     else
     {
-        const PblMatrix& m = params.mMatrix;
-        vStart = PblVector3(m.m[3][0] - m.m[2][0] * 20.0f - mOffset.x, m.m[3][1] - m.m[2][1] * 20.0f - mOffset.y,
-                            m.m[3][2] - m.m[2][2] * 20.0f - mOffset.z);
+        vStart = params.mMatrix.GetTranslation() - params.mMatrix.GetZAxis() * 20.0f - mOffset;
     }
     Reset(params.mPathClass);
 
     PblVector3 vAttacker = mAttacker->GetControllable()->GetMatrix().GetTranslation();
-    const PblVector3& vPosition = params.mMatrix.GetTranslation();
-    float fDist = sqrtf((vPosition.x - vAttacker.x) * (vPosition.x - vAttacker.x) +
-                        (vPosition.y - vAttacker.y) * (vPosition.y - vAttacker.y) +
-                        (vPosition.z - vAttacker.z) * (vPosition.z - vAttacker.z));
+    float fDist = Length(params.mMatrix.GetTranslation() - vAttacker);
     float fRight = PblRandom::GetGlobalFloatRange(0.0f, 2.0f);
     float fUp = PblRandom::GetGlobalFloatRange(0.0f, 2.0f);
-    const PblMatrix& attacker = mAttacker->GetControllable()->GetMatrix();
-    PblVector3 vAhead(attacker.m[2][0] * fDist * 0.5f, attacker.m[2][1] * fDist * 0.5f,
-                      attacker.m[2][2] * fDist * 0.5f);
-    const PblMatrix& up = mAttacker->GetControllable()->GetMatrix();
-    PblVector3 vUp(up.m[1][0] * fUp, up.m[1][1] * fUp, up.m[1][2] * fUp);
-    const PblMatrix& right = mAttacker->GetControllable()->GetMatrix();
-    PblVector3 vOffset(right.m[0][0] * fRight + vUp.x, right.m[0][1] * fRight + vUp.y,
-                       right.m[0][2] * fRight + vUp.z);
+    Controllable* pAhead = mAttacker->GetControllable();
+    Controllable* pUp = mAttacker->GetControllable();
+    Controllable* pRight = mAttacker->GetControllable();
+    PblVector3 vAhead = pAhead->GetMatrix().GetZAxis() * fDist * 0.5f;
+    PblVector3 vUp = pUp->GetMatrix().GetYAxis() * fUp;
+    PblVector3 vOffset = pRight->GetMatrix().GetXAxis() * fRight + vUp;
     PblVector3 vDir;
     D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vOffset));
-    PblVector3 vTarget(vDir.x * 30.0f + vAttacker.x + vAhead.x, vDir.y * 30.0f + vAttacker.y + vAhead.y,
-                       vDir.z * 30.0f + vAttacker.z + vAhead.z);
+    PblVector3 vTarget = vDir * 30.0f + vAttacker + vAhead;
 
     SavePoints(&params.mMatrix.GetTranslation(), 0, true);
     SetPoint(vStart, 0);
@@ -1451,17 +1407,13 @@ void EntityPathFollower::PickupCTFFlag(BranchParams& params)
         const PblVector3& vFlag = GetFlagMatrix(pFlag).GetTranslation();
         const PblVector3& vForward = GetMatrix().GetZAxis();
         PblVector3 vPosition = GetMatrix().GetTranslation();
-        PblVector3 vAhead(vPosition.x + vForward.x * 300.0f * 0.5f, vPosition.y + vForward.y * 300.0f * 0.5f,
-                          vPosition.z + vForward.z * 300.0f * 0.5f);
-        if ((vFlag.x - vAhead.x) * (vFlag.x - vAhead.x) + (vFlag.y - vAhead.y) * (vFlag.y - vAhead.y) +
-                (vFlag.z - vAhead.z) * (vFlag.z - vAhead.z) >=
-            90000.0f)
+        PblVector3 vAhead = vPosition + vForward * 300.0f * 0.5f;
+        if (!(90000.0f > SquaredLength(vFlag - vAhead)))
         {
             continue;
         }
+        PblVector3 vEnd = vFlag + (vFlag - vPosition);
         const GameObject* pIgnore = params.mGameObject;
-        PblVector3 vEnd(vFlag.x + (vFlag.x - vPosition.x), vFlag.y + (vFlag.y - vPosition.y),
-                        vFlag.z + (vFlag.z - vPosition.z));
         if (!CollisionManager::RayTest(vPosition, vEnd, &pIgnore, 1, -2))
         {
             continue;
@@ -1471,17 +1423,16 @@ void EntityPathFollower::PickupCTFFlag(BranchParams& params)
         SetPoint(CalculateZeroPoint(vPosition, vForward, vFlag), 0);
         SetPoint(vPosition, 1);
         SetPoint(vFlag, 2);
-        PblVector3 vDelta(vFlag.x - vPosition.x, vFlag.y - vPosition.y, vFlag.z - vPosition.z);
-        float fLength = sqrtf(vDelta.x * vDelta.x + vDelta.y * vDelta.y + vDelta.z * vDelta.z);
+        PblVector3 vDelta = vFlag - vPosition;
+        float fLength = Length(vDelta);
         float fInv = 1.0f / fLength;
+        PblVector3 vDir = vDelta * fInv;
         float fBeyond = fLength * 3.0f;
         if (!(200.0f > fBeyond))
         {
             fBeyond = 200.0f;
         }
-        PblVector3 vBeyond(vFlag.x + vDelta.x * fInv * fBeyond, vFlag.y + vDelta.y * fInv * fBeyond,
-                           vFlag.z + vDelta.z * fInv * fBeyond);
-        SetPoint(vBeyond, 3);
+        SetPoint(vFlag + vDir * fBeyond, 3);
         return;
     }
 }
@@ -1506,10 +1457,8 @@ bool EntityPathFollower::CirclePoint(float fRadius)
     {
         vSideDir = PblVector3(-vSideDir.x, -vSideDir.y, -vSideDir.z);
     }
-    PblVector3 vSide(mPointToCircle.x + vSideDir.x * fRadius, mPointToCircle.y + vSideDir.y * fRadius,
-                     mPointToCircle.z + vSideDir.z * fRadius);
-    PblVector3 vNext(mPointToCircle.x + vDir.x * fRadius, mPointToCircle.y + vDir.y * fRadius,
-                     mPointToCircle.z + vDir.z * fRadius);
+    PblVector3 vSide = mPointToCircle + vSideDir * fRadius;
+    PblVector3 vNext = mPointToCircle + vDir * fRadius;
     if (GetPointIsSet(3))
     {
         const PblVector3& vLast = GetPoint(3);
@@ -1520,8 +1469,7 @@ bool EntityPathFollower::CirclePoint(float fRadius)
         {
             vDir = PblVector3(-vDir.x, -vDir.y, -vDir.z);
         }
-        vNext = PblVector3(mPointToCircle.x + vDir.x * fRadius, mPointToCircle.y + vDir.y * fRadius,
-                           mPointToCircle.z + vDir.z * fRadius);
+        vNext = mPointToCircle + vDir * fRadius;
     }
 
     const GameObject* pIgnore = params.mGameObject;
@@ -1535,28 +1483,27 @@ bool EntityPathFollower::CirclePoint(float fRadius)
     vSide.y = vSide.y - fDrop + 5.0f;
     vNext.y = vNext.y - fDrop + 5.0f;
 
-    if (!GetPointIsSet(1))
+    if (GetPointIsSet(1))
     {
-        SavePoints(&vPosition, 0, true);
-        SetPoint(vSide, 2);
-        SetPoint(vNext, 3);
-        SmoothPath(params, &vPosition, 25.0f, 35.0f, 100.0f, 10.0f, 1.0f);
+        if (!RayTestSpline(GetPoint(1), GetPoint(2), GetPoint(3), vNext, params.mGameObject, 2))
+        {
+            if (!(fRadius > 20.0f) || !GetPointIsSet(3))
+            {
+                mbCirclingPoint = false;
+                return false;
+            }
+            float fCloser = fRadius - 10.0f;
+            vNext = mPointToCircle + vDir * fCloser;
+        }
+        mPathSpline.AddPoint(vNext);
+        mT -= 1.0f;
         return true;
     }
 
-    if (!RayTestSpline(GetPoint(1), GetPoint(2), GetPoint(3), vNext, params.mGameObject, 2))
-    {
-        if (!(fRadius > 20.0f) || !GetPointIsSet(3))
-        {
-            mbCirclingPoint = false;
-            return false;
-        }
-        float fCloser = fRadius - 10.0f;
-        vNext = PblVector3(fCloser * vDir.x + mPointToCircle.x, mPointToCircle.y + vDir.y * fCloser,
-                           mPointToCircle.z + vDir.z * fCloser);
-    }
-    mPathSpline.AddPoint(vNext);
-    mT -= 1.0f;
+    SavePoints(&vPosition, 0, true);
+    SetPoint(vSide, 2);
+    SetPoint(vNext, 3);
+    SmoothPath(params, &vPosition, 25.0f, 35.0f, 100.0f, 10.0f, 1.0f);
     return true;
 }
 
@@ -1565,13 +1512,12 @@ void EntityPathFollower::GetNextTowardsAttackerPoint(BranchParams& params, PblVe
 {
     if (mAttacker->GetControllable())
     {
-        const PblMatrix& attacker = mAttacker->GetControllable()->GetMatrix();
+        const PblMatrix attacker = mAttacker->GetControllable()->GetMatrix();
         PblVector3 vAhead(attacker.m[2][0] * 30.0f, attacker.m[2][1] * 30.0f, attacker.m[2][2] * 30.0f);
         float fUp = PblRandom::GetGlobalFloatRange(0.0f, 2.0f);
+        PblVector3 vUp = attacker.GetYAxis() * fUp;
         float fRight = PblRandom::GetGlobalFloatRange(0.0f, 2.0f);
-        PblVector3 vOffset(attacker.m[0][0] * fRight + attacker.m[1][0] * fUp,
-                           attacker.m[0][1] * fRight + attacker.m[1][1] * fUp,
-                           attacker.m[0][2] * fRight + attacker.m[1][2] * fUp);
+        PblVector3 vOffset = attacker.GetXAxis() * fRight + vUp;
         PblVector3 vDir;
         D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vOffset));
         const PblVector3& vPosition = params.mMatrix.GetTranslation();
@@ -1597,9 +1543,8 @@ bool EntityPathFollower::SetupNextSegment(const PblVector3* const pPosition, Bra
         int iPrev = mIndex - mDirection;
         const PblQuaternion& qPrev =
             iPrev >= 0 && iPrev < mPath->GetNumPoints() ? mPath->GetPointRotation(iPrev) : qIdentity;
-        int iIndex = mIndex;
         const PblQuaternion& qNext =
-            iIndex >= 0 && iIndex < mPath->GetNumPoints() ? mPath->GetPointRotation(iIndex) : qPrev;
+            mIndex >= 0 && mIndex < mPath->GetNumPoints() ? mPath->GetPointRotation(mIndex) : qPrev;
 
         PblVector3 vPrevRight(1.0f, 0.0f, 0.0f);
         qPrev.RotateVector(vPrevRight);
@@ -1641,9 +1586,7 @@ bool EntityPathFollower::SavePoints(const PblVector3* const pPosition, BranchPar
         {
             mPath->CalculatePointPosition(iPrev, mDirection, vPoint);
             const PblVector3& vOld = GetPoint(0);
-            if (250.0f > (vOld.x - vPoint.x) * (vOld.x - vPoint.x) + (vOld.y - vPoint.y) * (vOld.y - vPoint.y) +
-                             (vOld.z - vPoint.z) * (vOld.z - vPoint.z) &&
-                GetPointIsSet(1))
+            if (250.0f > SquaredLength(vOld - vPoint) && GetPointIsSet(1))
             {
                 SetPoint(GetPoint(1), 0);
             }
@@ -1693,11 +1636,12 @@ bool EntityPathFollower::SavePoints(const PblVector3* const pPosition, BranchPar
         else
         {
             BranchParams params = GetBranchParams();
-            const PblMatrix& matrix =
-                params.mGameObject ? static_cast<CollisionObject*>(params.mGameObject)->GetMatrix() : params.mMatrix;
-            vDirection = matrix.GetZAxis();
+            vDirection = params.mGameObject
+                             ? static_cast<CollisionObject*>(params.mGameObject)->GetMatrix().GetZAxis()
+                             : params.mMatrix.GetZAxis();
         }
-        SetPoint(CalculateZeroPoint(GetPoint(1), vDirection, GetPoint(2)), 0);
+        PblVector3 vZero = CalculateZeroPoint(GetPoint(1), vDirection, GetPoint(2));
+        SetPoint(vZero, 0);
     }
 
     if (mPath && iNext >= 0 && iNext < iNumPoints)
@@ -1723,18 +1667,11 @@ float EntityPathFollower::Roll(const EntityPathFollowerClass* const pClass, floa
         return (mSplineRoll - mCurRoll) * mT + mCurRoll;
     }
 
-    float fBank = mCurSpeed * fTurnRate * pClass->mPathRollValues.mRollSpeedFactor;
-    if (-1.5707964f > fBank)
-    {
-        fBank = -1.5707964f;
-    }
-    else if (fBank > 1.5707964f)
-    {
-        fBank = 1.5707964f;
-    }
+    float fBank = Clamp(mCurSpeed * fTurnRate * pClass->mPathRollValues.mRollSpeedFactor, -PblMath::fHalfPi,
+                        PblMath::fHalfPi);
 
-    float fWeave = 1.0f;
     float fTime = GameLoop::GetMissionTime() + (float)(((unsigned int)this >> 2) & 0xf);
+    float fWeave = 1.0f;
     if (!AIUtil::gGroundFlyerMap)
     {
         fWeave = 2.0f;
@@ -1743,65 +1680,34 @@ float EntityPathFollower::Roll(const EntityPathFollowerClass* const pClass, floa
                         (PblMath::Cos(fTime * 2.33f) * (PblMath::Sin(fTime * 1.17f) * fWeave)) +
                     fBank;
 
-    float fFactor = pClass->mPathRollValues.mRollTurnFactor * fElapsed;
-    if (0.0f > fFactor)
-    {
-        fFactor = 0.0f;
-    }
-    else if (fFactor > 1.0f)
-    {
-        fFactor = 1.0f;
-    }
+    float fFactor = Clamp(pClass->mPathRollValues.mRollTurnFactor * fElapsed, 0.0f, 1.0f);
     mSplineRoll = (fTarget - mSplineRoll) * fFactor + mSplineRoll;
 
     float fDelta = mSplineRoll - mCurRoll;
     float fAccel;
-    if (((float)fabs(mRollVelocity) / pClass->mPathRollValues.mRollSpeed + 1.0f) *
-            pClass->mPathRollValues.mRollTolerance >
-        (float)fabs(fDelta))
+    if (fabsf(fDelta) <
+        (fabsf(mRollVelocity) / pClass->mPathRollValues.mRollSpeed + 1.0f) *
+            pClass->mPathRollValues.mRollTolerance)
     {
-        fAccel = -((0.0f > mRollVelocity ? -1.0f : 1.0f) * pClass->mPathRollValues.mRollAcceleration);
+        fAccel = -(pClass->mPathRollValues.mRollAcceleration * (0.0f > mRollVelocity ? -1.0f : 1.0f));
     }
     else
     {
-        fAccel = (0.0f > fDelta ? -1.0f : 1.0f) * pClass->mPathRollValues.mRollAcceleration;
+        fAccel = pClass->mPathRollValues.mRollAcceleration * (0.0f > fDelta ? -1.0f : 1.0f);
     }
 
-    float fResp = pClass->mPathRollValues.mRollAccelResp * fElapsed;
-    if (0.0f > fResp)
-    {
-        fResp = 0.0f;
-    }
-    else if (fResp > 1.0f)
-    {
-        fResp = 1.0f;
-    }
+    float fResp = Clamp(pClass->mPathRollValues.mRollAccelResp * fElapsed, 0.0f, 1.0f);
     mCurRollAcceleration = (fAccel - mCurRollAcceleration) * fResp + mCurRollAcceleration;
 
     float fSpeed = pClass->mPathRollValues.mRollSpeed;
-    float fVelocity = mCurRollAcceleration * fElapsed + mRollVelocity;
-    if (-fSpeed > fVelocity)
-    {
-        fVelocity = -fSpeed;
-    }
-    else if (fVelocity > fSpeed)
-    {
-        fVelocity = fSpeed;
-    }
+    float fVelocity = Clamp(mCurRollAcceleration * fElapsed + mRollVelocity, -fSpeed, fSpeed);
     mRollVelocity = fVelocity;
     mCurRoll = mRollVelocity * fElapsed + mCurRoll;
 
-    float fDamp = pClass->mPathRollValues.mRollDampening * fElapsed;
-    if (0.0f > fDamp)
-    {
-        fDamp = 0.0f;
-    }
-    else if (fDamp > 1.0f)
-    {
-        fDamp = 1.0f;
-    }
+    float fDamp = Clamp(pClass->mPathRollValues.mRollDampening * fElapsed, 0.0f, 1.0f);
+    const float fRoll = (fTarget - mCurRoll) * fDamp + mCurRoll;
+    mCurRoll = fRoll;
     mYaw = fYaw;
-    mCurRoll = (fTarget - mCurRoll) * fDamp + mCurRoll;
     return mCurRoll;
 }
 
@@ -1841,13 +1747,14 @@ bool EntityPathFollower::CalculateDistance(const PblVector3& vPosition, const En
 {
     PblVector3 vDist = *pPath->GetPointPosition(uIndex);
     vDist -= vPosition;
+    float fSquareDist = SquaredLength(vDist);
     attrib.mPath = pPath;
     attrib.mPointIndex = uIndex;
     attrib.SetVectorDistance(vDist);
-    attrib.mSquareDist = SquaredLength(vDist);
-    if (fBestSquareDist > attrib.mSquareDist && attrib.mSquareDist > fMinDist * fMinDist)
+    attrib.mSquareDist = fSquareDist;
+    if (fBestSquareDist > fSquareDist && fSquareDist > fMinDist * fMinDist)
     {
-        fBestSquareDist = attrib.mSquareDist;
+        fBestSquareDist = fSquareDist;
         return true;
     }
     return false;
@@ -2053,8 +1960,9 @@ bool EntityPathFollower::RayTestSpline(const PblVector3& p0, const PblVector3& p
 {
     PblCatmullRom spline;
     spline.Init(p0, p1, p2, p3);
-    PblVector3 vLast = p1;
     const GameObject* pIgnoreList = pIgnore;
+    PblVector3 vLast;
+    vLast = p1;
     float fStep = 1.0f / (float)iSteps;
     for (float t = fStep; 1.0f >= t; t += fStep)
     {

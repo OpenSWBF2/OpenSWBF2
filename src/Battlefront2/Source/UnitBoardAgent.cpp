@@ -45,7 +45,7 @@ GameObject* GetAlivePtr(PblHandle<GameObject> const& hObj, bool bIncludeBuilding
 namespace
 {
 
-unsigned int GetHandleId(const GameObject* pObj)
+inline unsigned int GetHandleId(const GameObject* pObj)
 {
     return PBL_HANDLE_ID(pObj);
 }
@@ -128,20 +128,27 @@ int UnitBoardAgent::EventHandler(AI::EventInfo* pInfo)
     switch (pInfo->mType)
     {
     case AI::EVT_EmptyVehicle:
-        if (ResolveHandle(pInfo->mGameObject) == ResolveHandle(mVehicle) || !GetMe() || !ResolveHandle(mVehicle))
+    {
+        GameObject* pEventObject = pInfo->mGameObject;
+        GameObject* pCurrentVehicle = mVehicle;
+        if (pEventObject == pCurrentVehicle || !GetMe() || !mVehicle)
         {
             return 0;
         }
-        if (DistSq(GetCollisionObject(ResolveHandle(mVehicle))->GetPosition(), GetMe()->GetMatrix().GetTranslation()) <=
-            DistSq(GetCollisionObject(ResolveHandle(pInfo->mGameObject))->GetPosition(), GetMe()->GetMatrix().GetTranslation()))
+        Controllable* pMe = GetMe();
+        GameObject* pVehicle = mVehicle.operator->();
+        const float fVehicleDistSq = DistSq(pVehicle->GetPosition(), pMe->GetMatrix().GetTranslation());
+        pMe = GetMe();
+        GameObject* pEmptyVehicle = pInfo->mGameObject.operator->();
+        if (fVehicleDistSq > DistSq(pEmptyVehicle->GetPosition(), pMe->GetMatrix().GetTranslation()))
         {
-            return 0;
-        }
-        if (UnitAgent::EventHandler(pInfo) == 1)
-        {
-            return 1;
+            if (UnitAgent::EventHandler(pInfo) == 1)
+            {
+                return 1;
+            }
         }
         return 0;
+    }
 
     case AI::EVT_Grenade:
     case AI::EVT_Damaged:
@@ -186,7 +193,7 @@ void UnitBoardAgent::EnterState()
             }
             else
             {
-                const PblMatrix& rMatrix = pVehicle->GetCollisionObject()->GetMatrix();
+                const PblMatrix& rMatrix = pVehicle->GetMatrix();
                 GetLowLevel().SetNavigator_Goto(rMatrix.GetTranslation(), AIUtil::GetGameObjectBarrier(pVehicle),
                                                 false, false);
             }
@@ -204,10 +211,10 @@ void UnitBoardAgent::EnterState()
             GetLowLevel().SetNavigator_Stationary();
         }
         AI::VOHelper::CancelQueuedSound(mVOResponseHandle);
-        if (pVehicle->GetControllableList().Begin()->GetPlayerId() >= 0)
+        if (pVehicle->GetFirstControllable()->GetPlayerId() >= 0)
         {
-            AI::VOHelper::Play(AI::VOT_JustBoardedVehicle, GetMe()->GetGameObject(), 0, pVehicle,
-                               GameLoop::GetMissionTime() + 0.5f);
+            const float fPlayTime = GameLoop::GetMissionTime() + 0.5f;
+            AI::VOHelper::Play(AI::VOT_JustBoardedVehicle, GetMe()->GetGameObject(), 0, pVehicle, fPlayTime);
         }
         break;
     }
@@ -217,9 +224,12 @@ void UnitBoardAgent::EnterState()
 // FUNCTION: SWBF2 0x00662260
 void UnitBoardAgent::ExitState()
 {
-    if (mCurState == 2 || mCurState == 3)
+    switch (mCurState)
     {
+    case 2:
+    case 3:
         ReserveManager::UnreserveReserver(GetMe()->GetGameObject(), RT_BOARD);
+        break;
     }
 }
 
@@ -258,7 +268,7 @@ void UnitBoardAgent::UpdateStatePostVision(float dt)
             const CollisionObject* pMe = GetMe()->GetGameObject()->GetCollisionObject();
             const CollisionObject* pVehicleCol = pVehicle->GetCollisionObject();
             float fRange = pMe->GetCollisionRadius() + pVehicleCol->GetCollisionRadius() + 1.5f;
-            if (fRange * fRange > DistSq(pMe->GetCollisionCenter(), pVehicleCol->GetCollisionCenter()))
+            if (SquaredLength(pMe->GetCollisionCenter() - pVehicleCol->GetCollisionCenter()) < fRange * fRange)
             {
                 SetNextState(3);
             }

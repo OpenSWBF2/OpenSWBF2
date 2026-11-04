@@ -40,7 +40,7 @@ bool g_InputRepeatEnable = true;
 
 // GLOBAL: SWBF2 0x01ebd9b0
 // GuiManager::Event::sMemoryPool
-MemoryPool GuiManager::Event::sMemoryPool("GuiManager::Event", 0x4c);
+MemoryPool GuiManager::Event::sMemoryPool("GuiManager::Event", sizeof(GuiManager::Event));
 
 // SYNTHETIC: SWBF2 0x00403970
 // `dynamic initializer for 'sInstances''
@@ -202,8 +202,8 @@ void GuiManager::UpdateAll(float fElapsed)
         bool bSplitScreen = uiState == 0x8ff60339 && GameLoop::sShowStats && GameLoop::mNumCameras > 1;
         bool bShell = uiState == 0x11e1fc01;
         FLInputManager* pInput = FLInputManager::Instance();
-        bool bReadAll = pInput->GetReadAll();
-        bool bBindMultiple = pInput->GetAllowBindMultiple();
+        bool bReadAll = pInput->mReadAllControllers;
+        bool bBindMultiple = pInput->mAllowBindMultiple;
         int iPrimary = pInput->GetPrimaryPort();
 
         if (!FLInputManager::s_instance.AnyMissing())
@@ -216,37 +216,35 @@ void GuiManager::UpdateAll(float fElapsed)
 
             int iController = mInstances->mJoystickIndex;
             GUIInputs* pInputs = 0;
+            bool bUseInputs = true;
             if (bSplitScreen)
             {
                 if (PlayerPrefs::mAllUserPrefs[0].mJoystick == iPrimary)
                 {
                     iController = 0;
                 }
-                pInputs = pInput->GetPlayerGuiInputs(iController);
             }
             else if (!bShell)
             {
                 iController = 0;
-                pInputs = pInput->GetPlayerGuiInputs(iController);
             }
             else if (bReadAll)
             {
-                bool bBound;
                 if (bBindMultiple)
                 {
                     iController = pInput->GetHWPort(0);
-                    bBound = iController >= 0;
+                    bUseInputs = iController >= 0;
                 }
                 else
                 {
-                    bBound = pInput->IsControllerBound(iController);
-                }
-                if (bBound)
-                {
-                    pInputs = pInput->GetPlayerGuiInputs(iController);
+                    bUseInputs = pInput->IsControllerBound(iController);
                 }
             }
-            else if (iPrimary <= 0)
+            else
+            {
+                bUseInputs = iPrimary <= 0;
+            }
+            if (bUseInputs)
             {
                 pInputs = pInput->GetPlayerGuiInputs(iController);
             }
@@ -329,7 +327,14 @@ void GuiManager::ChangeToScreen(const char* pScreen, bool, bool bExitArg)
     {
         ClosePopup(true);
     }
-    SetCurrentScreen(pScreen, bExitArg, true);
+    if (bExitArg)
+    {
+        SetCurrentScreen(pScreen, true, true);
+    }
+    else
+    {
+        SetCurrentScreen(pScreen, false, true);
+    }
 }
 
 // FUNCTION: SWBF2 0x00528660
@@ -367,19 +372,7 @@ void GuiManager::PopScreen(const char* pScreen)
         ClosePopup(true);
     }
 
-    if (pScreen)
-    {
-        for (int i = mScreenStackPos; i >= 0; --i)
-        {
-            if (!_stricmp(mScreenStack[i]->GetNameStr(), pScreen))
-            {
-                mScreenStackPos = i;
-                SetCurrentScreen(mScreenStack[i]->GetNameStr(), false, false);
-                return;
-            }
-        }
-    }
-    else
+    if (!pScreen)
     {
         --mScreenStackPos;
         if (mScreenStackPos >= 0 && mScreenStack[mScreenStackPos])
@@ -389,6 +382,18 @@ void GuiManager::PopScreen(const char* pScreen)
         else
         {
             SetCurrentScreen("", false, false);
+        }
+    }
+    else
+    {
+        for (int i = mScreenStackPos; i >= 0; --i)
+        {
+            if (!_stricmp(mScreenStack[i]->GetNameStr(), pScreen))
+            {
+                mScreenStackPos = i;
+                SetCurrentScreen(mScreenStack[i]->GetNameStr(), false, false);
+                return;
+            }
         }
     }
 }
@@ -548,9 +553,7 @@ void GuiManager::CloseError(bool bOk, bool)
         RedFreeToHeap(GameMemory::RunTimeHeap, mErrorLevelInfo[mErrorLevel].pMessage, 0);
         mErrorLevelInfo[mErrorLevel].pMessage = 0;
     }
-    mErrorLevelInfo[mErrorLevel].pMessage = 0;
-    mErrorLevelInfo[mErrorLevel].pfnIsResolved = 0;
-    mErrorLevelInfo[mErrorLevel].pfnErrorBoxOk = 0;
+    memset(&mErrorLevelInfo[mErrorLevel], 0, sizeof(ErrorLevelInfo));
 
     void (*pfnErrorBoxOk)(bool) = mfnOnErrorBoxOk;
     int iLevel = mErrorLevel;
@@ -607,20 +610,28 @@ const char* GuiManager::GetCurrentFocus() const
 // FUNCTION: SWBF2 0x00528dc0
 bool GuiManager::CallLuaFunctionOfScope(const char* pcFunc, bool bPopupOnly)
 {
+    bool bResult;
     if (mCurrentError[0])
     {
-        return LuaHelper::CallTableProcWThis(mCurrentError, pcFunc);
+        bResult = LuaHelper::CallTableProcWThis(mCurrentError, pcFunc);
     }
-    bool bPopup = mCurrentPopup[0] != 0;
-    if (bPopup)
+    else
     {
-        if (bPopupOnly)
+        bool bPopup = mCurrentPopup[0] != 0;
+        if (bPopup && bPopupOnly)
         {
-            return LuaHelper::CallTableProcWThis(mCurrentPopup, pcFunc);
+            bResult = LuaHelper::CallTableProcWThis(mCurrentPopup, pcFunc);
         }
-        LuaHelper::CallTableProcWThis(mCurrentPopup, pcFunc);
+        else
+        {
+            if (bPopup)
+            {
+                LuaHelper::CallTableProcWThis(mCurrentPopup, pcFunc);
+            }
+            bResult = LuaHelper::CallTableProcWThis(mCurrentScope, pcFunc);
+        }
     }
-    return LuaHelper::CallTableProcWThis(mCurrentScope, pcFunc);
+    return bResult;
 }
 
 // FUNCTION: SWBF2 0x00528e10
@@ -639,12 +650,12 @@ bool GuiManager::CallLuaFunctionOfScope(const char* pcFunc, float fArg, bool bPo
         return false;
     }
     bool bPopup = mCurrentPopup[0] != 0;
+    if (bPopup && bPopupOnly)
+    {
+        return LuaHelper::CallTableProcWThis(mCurrentPopup, pcFunc, fArg);
+    }
     if (bPopup)
     {
-        if (bPopupOnly)
-        {
-            return LuaHelper::CallTableProcWThis(mCurrentPopup, pcFunc, fArg);
-        }
         LuaHelper::CallTableProcWThis(mCurrentPopup, pcFunc, fArg);
     }
     return LuaHelper::CallTableProcWThis(mCurrentScope, pcFunc, fArg);
@@ -665,23 +676,29 @@ bool GuiManager::CallLuaFunctionOfScope(const char* pcFunc, const unsigned short
     {
         return false;
     }
+    bool bResult;
     bool bPopup = mCurrentPopup[0] != 0;
-    if (bPopup)
+    if (bPopup && bPopupOnly)
     {
-        if (bPopupOnly)
-        {
-            return LuaHelper::CallTableProcWThis(mCurrentPopup, pcFunc, pusArg);
-        }
-        LuaHelper::CallTableProcWThis(mCurrentPopup, pcFunc, pusArg);
+        bResult = LuaHelper::CallTableProcWThis(mCurrentPopup, pcFunc, pusArg);
     }
-    return LuaHelper::CallTableProcWThis(mCurrentScope, pcFunc, pusArg);
+    else
+    {
+        if (bPopup)
+        {
+            LuaHelper::CallTableProcWThis(mCurrentPopup, pcFunc, pusArg);
+        }
+        bResult = LuaHelper::CallTableProcWThis(mCurrentScope, pcFunc, pusArg);
+    }
+    return bResult;
 }
 
 // FUNCTION: SWBF2 0x00528f60
 void GuiManager::UpdateCursor()
 {
-    LuaHelper::CallTableProcWThis(Instance()->GetCurrentFocus(), "HandleMouse",
-                                  (float)mMouseX, (float)mMouseY);
+    float fX = (float)mMouseX;
+    float fY = (float)mMouseY;
+    LuaHelper::CallTableProcWThis(Instance()->GetCurrentFocus(), "HandleMouse", fX, fY);
 }
 
 // FUNCTION: SWBF2 0x00528fb0
@@ -711,13 +728,17 @@ void GuiManager::HandleEvents()
                           EventToLuaFunction[eEventType_Input].luaCallbackFunction,
                           InputCodeToLuaFunctionExt[pEvent->val.i32].luaCallbackFunctionExt);
                 acFunc[sizeof(acFunc) - 1] = 0;
-                if (pEvent->val.i32 == eInputCode_Key || pEvent->mController >= 0)
+                if (pEvent->val.i32 == eInputCode_Key)
                 {
                     CallLuaFunctionOfScope(acFunc, (float)pEvent->mController, true);
                 }
-                else
+                else if (pEvent->mController < 0)
                 {
                     CallLuaFunctionOfScope(acFunc, true);
+                }
+                else
+                {
+                    CallLuaFunctionOfScope(acFunc, (float)pEvent->mController, true);
                 }
             }
             break;

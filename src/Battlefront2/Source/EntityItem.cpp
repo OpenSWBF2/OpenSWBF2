@@ -1,3 +1,4 @@
+#include "PebbleFL/Common/PblMath.h"
 #include <d3dx9math.h>
 #include <float.h>
 #include <math.h>
@@ -59,10 +60,12 @@ EntityItemClass::EntityItemClass(unsigned int uHash)
 {
     mNoLifeSpanDisplay = false;
 
-    m_colorLight.b = 0;
-    m_colorLight.g = 0;
-    m_colorLight.r = 0;
-    m_colorLight.a = 0;
+    RedColor colorLight;
+    colorLight.b = 0;
+    colorLight.g = 0;
+    colorLight.r = 0;
+    colorLight.a = 0;
+    m_colorLight = colorLight;
 
     m_bDynamicLighting = true;
 
@@ -117,6 +120,10 @@ void EntityItemClass::SetProperty(unsigned int uProperty, const char* pszValue)
             break;
     }
     case 0xC28F0C96:
+    {
+        mCollisionSound.SetID(pszValue, false, false);
+            break;
+    }
     case 0xEDC6251A:
     {
         mCollisionSound.SetID(pszValue, false, false);
@@ -131,7 +138,7 @@ void EntityItemClass::SetProperty(unsigned int uProperty, const char* pszValue)
     {
         if (*pszValue)
         {
-            mTrailEffect = FLEffect::s_EffectClasses.Find(PblHash(pszValue));
+            mTrailEffect = FLEffect::Get(PblHash(pszValue));
         }
         else
         {
@@ -196,11 +203,8 @@ void EntityItemClass::SetProperty(unsigned int uProperty, const char* pszValue)
         {
             const PblBox& box = mModel->_mModel->_TotalBoundingBox;
             CollisionPrimitive primitive;
-            float fX = box._vMax.x - box._vMin.x;
-            float fY = box._vMax.y - box._vMin.y;
-            float fZ = box._vMax.z - box._vMin.z;
-            float fLength = sqrtf(fY * fY + fX * fX + fZ * fZ);
-            primitive.SetBox(fX * 0.5f, fY * 0.5f, fZ * 0.5f, fLength * 0.5f);
+            primitive.SetBox((box._vMax.x - box._vMin.x) * 0.5f, (box._vMax.y - box._vMin.y) * 0.5f,
+                             (box._vMax.z - box._vMin.z) * 0.5f, Length(box._vMax - box._vMin) * 0.5f);
             PblMatrix matrix = gMatrixIdentity;
             matrix.m[3][0] = (box._vMin.x + box._vMax.x) * 0.5f;
             matrix.m[3][1] = (box._vMin.y + box._vMax.y) * 0.5f;
@@ -258,41 +262,35 @@ Entity* EntityItemClass::Build(const EntityDesc& desc)
 // FUNCTION: SWBF2 0x004cac40
 EntityItem::EntityItem(EntityItemClass* pClass, const EntityDesc& desc)
     : GameObject(pClass, desc, COLL_ITEM, &pClass->mModel->_mLodData)
+    , mVelocity(gVectorZero)
+    , mStationary(false)
+    , mClass(pClass)
+    , mLifeTimer(pClass->mLifeSpan)
+    , mOwner(0)
+    , m_pLight(0)
 {
-    mVelocity = gVectorZero;
-    mStationary = false;
-    mClass = pClass;
-    mLifeTimer = pClass->mLifeSpan;
-    mOwner = 0;
-    m_pLight = 0;
-
-    Activate();
+    static_cast<RedSceneObject&>(*this).Activate();
 
     if (!NetGame::IsEnabled() || NetGame::IsClient())
     {
-        if (mClass->m_uiLightOdfNameHash)
+        if (pClass->m_uiLightOdfNameHash)
         {
-            m_pLight = EntityLightClass::Build(mClass->m_uiLightOdfNameHash);
-            if (mClass->m_fRadiusLight > 0.0f)
+            m_pLight = EntityLightClass::Build(pClass->m_uiLightOdfNameHash);
+            if (pClass->m_fRadiusLight > 0.0f)
             {
-                m_pLight->SetOmniLightRadius(mClass->m_fRadiusLight);
+                m_pLight->SetOmniLightRadius(pClass->m_fRadiusLight);
             }
-            if (mClass->m_colorLight.a > 0)
+            if (pClass->m_colorLight.a > 0)
             {
-                m_pLight->SetColor(mClass->m_colorLight);
+                m_pLight->SetColor(pClass->m_colorLight);
             }
             PblMatrix matrix = gMatrixIdentity;
-            matrix.m[3][0] = mMatrix.m[3][0];
-            matrix.m[3][1] = mMatrix.m[3][1];
-            matrix.m[3][2] = mMatrix.m[3][2];
-            matrix.m[3][3] = 1.0f;
+            matrix.SetTranslation(mMatrix.GetTranslation());
             if (m_pLight->_fBeamLength > 0.0f)
             {
                 matrix[0] = gVectorUnitX;
                 matrix.m[0][3] = 0.0f;
-                matrix.m[1][0] = -gVectorUnitZ.x;
-                matrix.m[1][1] = -gVectorUnitZ.y;
-                matrix.m[1][2] = -gVectorUnitZ.z;
+                matrix[1] = -gVectorUnitZ;
                 matrix.m[1][3] = 0.0f;
                 matrix[2] = gVectorUnitY;
                 matrix.m[2][3] = 0.0f;
@@ -300,27 +298,25 @@ EntityItem::EntityItem(EntityItemClass* pClass, const EntityDesc& desc)
             m_pLight->SetMatrix(matrix);
             m_pLight->TurnOn();
         }
-        else if (mClass->m_fRadiusLight > 0.0f && mClass->m_colorLight.a > 0)
+        else if (pClass->m_fRadiusLight > 0.0f && pClass->m_colorLight.a > 0)
         {
             m_pLight = new EntityLight();
-            m_pLight->SetColor(mClass->m_colorLight);
-            m_pLight->SetOmniLightRadius(mClass->m_fRadiusLight);
+            m_pLight->SetColor(pClass->m_colorLight);
+            m_pLight->SetOmniLightRadius(pClass->m_fRadiusLight);
             m_pLight->SetHaloRadius(0.0f);
             m_pLight->SetFlareIntensity(0.0f);
             PblMatrix matrix = gMatrixIdentity;
-            matrix.m[3][0] = mMatrix.m[3][0];
-            matrix.m[3][1] = mMatrix.m[3][1];
-            matrix.m[3][2] = mMatrix.m[3][2];
-            matrix.m[3][3] = 1.0f;
+            matrix.SetTranslation(mMatrix.GetTranslation());
             m_pLight->SetMatrix(matrix);
             m_pLight->TurnOn();
         }
     }
 
-    if (mClass->mTrailEffect &&
-        (!NetGame::IsEnabled() || NetGame::IsClient() || (NetGame::IsOneWorld() && NetGame::IsHost())))
+    const bool bNetBuildsTrail =
+        !NetGame::IsEnabled() || NetGame::IsClient() || (NetGame::IsOneWorld() && NetGame::IsHost());
+    if (pClass->mTrailEffect && bNetBuildsTrail)
     {
-        mTrailEmitterObj = mClass->mTrailEffect->BuildEffect();
+        mTrailEmitterObj = pClass->mTrailEffect->BuildEffect();
         if (mTrailEmitterObj)
         {
             mTrailEmitterObj->AttachEffectToVector((const PblVector3*)mMatrix.m[3], true);
@@ -345,7 +341,7 @@ EntityItem::~EntityItem()
         mTrailEmitterObj->DetachFromTarget();
         mTrailEmitterObj->DeactivateEffect();
     }
-    Deactivate();
+    RemoveFromScene();
 }
 
 // SYNTHETIC: SWBF2 0x004caba0
@@ -377,16 +373,13 @@ void EntityItem::SetVelocity(const PblVector3& vVelocity)
 bool EntityItem::Update(float fDeltaTime)
 {
     mLifeTimer -= fDeltaTime;
-    if (mLifeTimer > -1.0f && IsAlive())
+    if (!(-1.0f >= mLifeTimer) && IsAlive())
     {
         if (!mStationary)
         {
             float fHalfDrop = mClass->mGravity * -9.8f * 0.5f * fDeltaTime;
             mVelocity.y += fHalfDrop;
-            const PblVector3& vPos = GetPosition();
-            PblVector3 vNew(vPos.x + mVelocity.x * fDeltaTime, vPos.y + mVelocity.y * fDeltaTime,
-                            vPos.z + mVelocity.z * fDeltaTime);
-            SetPosition(vNew);
+            SetPosition(mVelocity * fDeltaTime + GetPosition());
             mVelocity.y += fHalfDrop;
             if (!(NetGame::IsEnabled() && NetGame::IsClient()) && mMatrix.m[3][1] < -1000.0f)
             {
@@ -413,21 +406,26 @@ bool EntityItem::Update(float fDeltaTime)
         gameObjectInterpolator.SetNext(mNetUniqueId, mStationary ? 0 : &mMatrix);
         return true;
     }
-    return NetGame::IsEnabled() && NetGame::IsClient();
+    if (NetGame::IsEnabled() && NetGame::IsClient())
+    {
+        return true;
+    }
+    return false;
 }
 
 // FUNCTION: SWBF2 0x004cb450
 void EntityItem::Render(unsigned char ucLod, float fAlpha, unsigned int uiFlags)
 {
-    if (!(mLifeTimer > -1.0f))
+    if (-1.0f >= mLifeTimer)
     {
         return;
     }
 
     float fFade = 1.0f;
-    if (mLifeTimer + 1.0f <= 1.0f)
+    const float fLife = mLifeTimer + 1.0f;
+    if (!(fLife > 1.0f))
     {
-        fFade = mLifeTimer + 1.0f;
+        fFade = fLife;
     }
     RedColor color;
     color.b = 0xff;
@@ -435,13 +433,13 @@ void EntityItem::Render(unsigned char ucLod, float fAlpha, unsigned int uiFlags)
     color.r = 0xff;
     color.a = (unsigned char)(int)(fAlpha * 255.0f * fFade);
 
-    if (mClass->m_bDynamicLighting)
+    if (!mClass->m_bDynamicLighting)
     {
-        uiFlags &= ~0x80;
+        uiFlags |= 0x80;
     }
     else
     {
-        uiFlags |= 0x80;
+        uiFlags &= ~0x80;
     }
     // GLOBAL: SWBF2 0x01faa924
     // sPlayerShadow
@@ -465,8 +463,9 @@ void EntityItem::Render(unsigned char ucLod, float fAlpha, unsigned int uiFlags)
     PblMatrix mReflection;
     if (FLRenderer::IsReflected(GetRenderPos(), _Sphere.w, mReflection, false))
     {
+        const PblMatrix mBase = *pMatrix;
         PblMatrix mWorld;
-        mWorld = *pMatrix * mReflection;
+        mWorld = mBase * mReflection;
         mReflection = mWorld;
         mModel->Render(ucLod, fAlpha, &mReflection, 0, color, (uiFlags & ~0x10000) | 0x10000100, 0);
     }
@@ -489,34 +488,37 @@ bool EntityItem::CollisionCallback(const CollisionResult* pResult, CollisionObje
     if (pOther->GetCollisionType() != COLL_SOFT && pOther->GetCollisionType() != COLL_RIGID)
     {
         const PblVector3& vNormal = pResult->mSeparationNormal;
-        float fDot = vNormal.x * mVelocity.x + mVelocity.y * vNormal.y + mVelocity.z * vNormal.z;
+        float fDot = DotProduct(vNormal, mVelocity);
         if (fDot < 0.0f)
         {
-            (pOther->GetCollisionType() == COLL_WATER ? mClass->mCollisionWaterSound
-                                                      : mClass->mCollisionSound)
-                .Play((const PblVector3*)mMatrix.m[3], 0, false, true);
+            if (pOther->GetCollisionType() == COLL_WATER)
+            {
+                mClass->mCollisionWaterSound.Play((const PblVector3*)mMatrix.m[3], 0, false, true);
+            }
+            else
+            {
+                mClass->mCollisionSound.Play((const PblVector3*)mMatrix.m[3], 0, false, true);
+            }
             if (fDot > -1.0f)
             {
                 mMatrix = NormalMatrix(mMatrix.GetZAxis(), vNormal,
                                      mMatrix.GetTranslation());
                 mVelocity = gVectorZero;
                 mStationary = true;
-                CollisionManager::DeactivateItem(EntityGeometry::GetCollisionObject());
+                CollisionManager::DeactivateItem(this);
             }
             else
             {
                 float fRebound = mClass->mRebound;
-                float fFriction = mClass->mFriction * fDot * (fRebound + 1.0f);
+                float fFriction = mClass->mFriction * fDot;
                 mVelocity -= vNormal * fDot;
-                float fScale = -(fFriction / sqrtf(mVelocity.x * mVelocity.x + mVelocity.y * mVelocity.y +
-                                                   mVelocity.z * mVelocity.z));
+                float fScale = -(fFriction * (fRebound + 1.0f) / PblMath::Sqrt(mVelocity.x * mVelocity.x + mVelocity.y * mVelocity.y +
+                                                           mVelocity.z * mVelocity.z));
                 if (!(1.0f > fScale))
                 {
                     fScale = 1.0f;
                 }
-                mVelocity.x -= fScale * mVelocity.x;
-                mVelocity.y -= mVelocity.y * fScale;
-                mVelocity.z -= mVelocity.z * fScale;
+                mVelocity -= mVelocity * fScale;
                 float fBounce = fRebound * fDot;
                 mVelocity -= vNormal * fBounce;
             }
@@ -568,7 +570,7 @@ bool EntityItem::IsSuitableEnemy() const
 // FUNCTION: SWBF2 0x004cba80
 void EntityItem::DeactivatePhysics()
 {
-    static_cast<Thread*>(this)->DeactivateThread();
+    DeactivateThread();
 }
 
 // FUNCTION: SWBF2 0x004cbad0

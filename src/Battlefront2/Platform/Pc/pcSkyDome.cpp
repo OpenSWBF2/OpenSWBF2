@@ -48,34 +48,41 @@ SkyFogRenderable::~SkyFogRenderable()
 // FUNCTION: SWBF2 0x00428690
 void SkyFogRenderable::Init()
 {
-    m_pShader = pcRedShader::Create(PblHash("SkyFog"), 0x202, 0, 0, 0,
+    m_pShader = pcRedShader::Create(0x890EFA1E, 0x202, 0, 0, 0,
                                     RedColor::WHITE, RedColor::BLACK, 32.0f);
     static_cast<pcSkyFogShader*>(m_pShader)->SetTexture(
         RedRenderer::pcGetBuffer(PC_BUFFER_SKY));
 
     m_pPrimitive = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, 0x202, 0x14, 4,
                                           0, true);
-    m_pPrimitive->m_bbox._vMin = PblVector3(-1.0f, -1.0f, -1.0f);
-    m_pPrimitive->m_bbox._vMax = PblVector3(1.0f, 1.0f, 1.0f);
+    PblBox box(-1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 1.0f);
+    m_pPrimitive->m_bbox = box;
+    CompressedPos::SetBoundingBox(box);
 
-    PblVector3 vMin = { -1.0f, -1.0f, -1.0f };
-    PblVector3 vExtent = { 2.0f, 2.0f, 2.0f };
-    CompressedPos::s_vMin = vMin;
-    CompressedPos::s_vScale = vExtent * (1.0f / 65535.0f);
-    CompressedPos::s_vScaleInv.x = 1.0f / CompressedPos::s_vScale.x;
-    CompressedPos::s_vScaleInv.y = 1.0f / CompressedPos::s_vScale.y;
-    CompressedPos::s_vScaleInv.z = 1.0f / CompressedPos::s_vScale.z;
-
-    float* v = (float*)m_pPrimitive->BeginVertexData();
-    if (!v)
+    struct FogVertex
+    {
+        PblVector3 vPos;
+        float fU;
+        float fV;
+    };
+    FogVertex* pVertex = (FogVertex*)m_pPrimitive->BeginVertexData();
+    if (!pVertex)
     {
         return;
     }
 
-    v[0] = -1.0f;  v[1] = -1.0f;  v[2] = 1.0f;  v[3] = 0.0f;  v[4] = 1.0f;
-    v[5] = 1.0f;   v[6] = -1.0f;  v[7] = 1.0f;  v[8] = 1.0f;  v[9] = 1.0f;
-    v[10] = -1.0f; v[11] = 1.0f;  v[12] = 1.0f; v[13] = 0.0f; v[14] = 0.0f;
-    v[15] = 1.0f;  v[16] = 1.0f;  v[17] = 1.0f; v[18] = 1.0f; v[19] = 0.0f;
+    pVertex[0].vPos = PblVector3(-1.0f, -1.0f, 1.0f);
+    pVertex[0].fU = 0.0f;
+    pVertex[0].fV = 1.0f;
+    pVertex[1].vPos = PblVector3(1.0f, -1.0f, 1.0f);
+    pVertex[1].fU = 1.0f;
+    pVertex[1].fV = 1.0f;
+    pVertex[2].vPos = PblVector3(-1.0f, 1.0f, 1.0f);
+    pVertex[2].fU = 0.0f;
+    pVertex[2].fV = 0.0f;
+    pVertex[3].vPos = PblVector3(1.0f, 1.0f, 1.0f);
+    pVertex[3].fU = 1.0f;
+    pVertex[3].fV = 0.0f;
 
     m_pPrimitive->EndVertexData();
 
@@ -130,21 +137,26 @@ void SkyDome::Render(int value)
             mat = gMatrixIdentity;
             D3DXMatrixRotationAxis(reinterpret_cast<D3DXMATRIX*>(&mat), reinterpret_cast<const D3DXVECTOR3*>(&rDome.mRotationAxis),
                                    RedRenderer::GetTimeBase()->GetTime() * rDome.mRotationSpeed *
-                                       PblMath::fTwoPi);
+                                       6.2831855f);
 
             const PblMatrix& camMatrix = pCamera->GetMatrix();
-            PblVector3 pos = camMatrix.GetTranslation();
             if (rDome.mType == STATIC_HEIGHT)
             {
                 float fHeight = rDome.mOffset + mDomeHeight;
+                PblVector3 pos = camMatrix.GetTranslation();
                 pos.y = fHeight - (fHeight - pos.y) * rDome.mMovementScale;
+                mat.SetTranslation(pos);
             }
-            mat.SetTranslation(pos);
+            else
+            {
+                mat.SetTranslation(camMatrix.GetTranslation());
+            }
 
             for (int j = 0; j < rDome.mNumEffectData; ++j)
             {
                 EffectData& rData = rDome.mEffectData[j];
-                if (!rData.effect)
+                ParticleEmitterObject* pEffect = rData.effect;
+                if (!pEffect)
                 {
                     continue;
                 }
@@ -153,12 +165,13 @@ void SkyDome::Render(int value)
                 rDome.mModel->GetBoneMatrix(rData.hardPoint, boneMat);
                 PblMatrix product = boneMat * mat;
                 boneMat = product;
-                rData.pos = boneMat.GetTranslation();
+                const PblVector3& vEffectPos = boneMat.GetTranslation();
+                rData.pos = vEffectPos;
 
                 const PblVector3& camPos = camMatrix.GetTranslation();
                 const PblVector3& camZ = camMatrix.GetZAxis();
-                if (camZ.y * (rData.pos.y - camPos.y) + (rData.pos.x - camPos.x) * camZ.x +
-                        camZ.z * (rData.pos.z - camPos.z) < 0.0f)
+                const PblVector3 vToEffect = vEffectPos - camPos;
+                if (camZ.y * vToEffect.y + vToEffect.x * camZ.x + camZ.z * vToEffect.z < 0.0f)
                 {
                     rData.effect->Update(0.0f);
                     rData.effect->Render(0, 1.0f, 0);
@@ -205,7 +218,7 @@ void SkyDome::Render(int value)
     RedRenderer::SetFogEnable(bFogEnable);
 
     float fFarSceneRange = FLRenderer::GetFarSceneRange();
-    if (FLRenderer::GetNearSceneFadeStart() < fFarSceneRange)
+    if (!(FLRenderer::GetNearSceneFadeStart() >= fFarSceneRange))
     {
         RedTerrain::Render(uiFlags | 0x20000);
         RedRenderer::pcFlush(RENDERPHASE_OPAQUE);

@@ -28,33 +28,33 @@ GrassPatchClass::GrassPatchClass(unsigned int uHash)
     : Thread()
     , EntityClass(uHash)
 {
-    mBoundingRadius = 64.0f;
+    mTransparentFlag = false;
     mParticle = 0;
     mNumParticles = 50;
+    mBoundingRadius = 64.0f;
     mSizeMin = 10.0f;
     mSizeMax = 15.0f;
-    mYOffset = 0.0f;
     mAlpha = 0.5f;
-    mMaxDistance = 100.0f;
+    mRenderData = 0;
     mTextureHash = 0xB26FAC7Du;
     mRadiusFadeMin = -1.0f;
     mRadiusFadeMax = -1.0f;
+    mMaxDistance = 100.0f;
     mDarknessMin = 1.0f;
     mDarknessMax = 1.0f;
     mNumParts = 4;
     mBoxX = -1.0f;
     mBoxZ = -1.0f;
+    mYOffset = 0.0f;
     mFlatHeightMin = 0.2f;
     mFlatHeightMax = 0.2f;
     mFlatSizeMultiplier = 2.0f;
     mFlatFaceFactor = 0.5f;
     mFlatShadowHeight = 0.0f;
-    mMaxSkew = 0.1f;
+    mFlatGrassSwingFlag = false;
     mFlatCount = 6;
     mSkinnyFactor = 0.3f;
-    mFlatGrassSwingFlag = false;
-    mRenderData = 0;
-    mTransparentFlag = false;
+    mMaxSkew = 0.1f;
 
     sClasses.AddLast(&mClassNode, this);
 }
@@ -62,45 +62,27 @@ GrassPatchClass::GrassPatchClass(unsigned int uHash)
 // FUNCTION: SWBF2 0x005409e0
 GrassPatch::GrassPatch(GrassPatchClass* pClass, const PblMatrix& matrix)
     : RedSceneObject(&noloddata)
-    , mClass(pClass)
 {
+    mClass = pClass;
     mMatrix = gMatrixIdentity;
 
-    mMatrix.m[1][0] = matrix.m[1][0];
-    mMatrix.m[1][1] = matrix.m[1][1];
-    mMatrix.m[1][2] = matrix.m[1][2];
+    mMatrix[1] = matrix[1];
     mMatrix.m[1][3] = 0.0f;
 
-    PblVector3 vBack(-mMatrix.m[2][0], -mMatrix.m[2][1], -mMatrix.m[2][2]);
-    PblVector3 vRight(mMatrix.m[1][2] * vBack.y - mMatrix.m[1][1] * vBack.z,
-                      mMatrix.m[1][0] * vBack.z - mMatrix.m[1][2] * vBack.x,
-                      mMatrix.m[1][1] * vBack.x - mMatrix.m[1][0] * vBack.y);
-    PblVector3 vOut;
-    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vOut), reinterpret_cast<const D3DXVECTOR3*>(&vRight));
-    mMatrix.m[0][0] = vOut.x;
-    mMatrix.m[0][1] = vOut.y;
-    mMatrix.m[0][2] = vOut.z;
+    mMatrix[0] = Normalize(CrossProduct(-mMatrix[2], mMatrix[1]));
     mMatrix.m[0][3] = 0.0f;
 
-    PblVector3 vAt(mMatrix.m[1][2] * mMatrix.m[0][1] - mMatrix.m[1][1] * mMatrix.m[0][2],
-                   mMatrix.m[1][0] * mMatrix.m[0][2] - mMatrix.m[0][0] * mMatrix.m[1][2],
-                   mMatrix.m[0][0] * mMatrix.m[1][1] - mMatrix.m[1][0] * mMatrix.m[0][1]);
-    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vOut), reinterpret_cast<const D3DXVECTOR3*>(&vAt));
-    mMatrix.m[2][0] = vOut.x;
-    mMatrix.m[2][1] = vOut.y;
-    mMatrix.m[2][2] = vOut.z;
+    mMatrix[2] = Normalize(CrossProduct(mMatrix[0], mMatrix[1]));
     mMatrix.m[2][3] = 0.0f;
 
-    mMatrix.m[3][0] = matrix.m[3][0];
-    mMatrix.m[3][1] = matrix.m[3][1];
-    mMatrix.m[3][2] = matrix.m[3][2];
+    mMatrix[3] = matrix[3];
     mMatrix.m[3][3] = 1.0f;
 
     PblVector3 vCenter;
     D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vCenter), reinterpret_cast<const D3DXVECTOR3*>(&mClass->mBoundingOffset), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
     SetRenderPos(vCenter);
     SetRenderRadius(mClass->mBoundingRadius);
-    Activate();
+    AddToScene();
 
     GrassPatchClass::sObjects.AddLast(&mObjectNode, this);
 }
@@ -270,28 +252,23 @@ void GrassPatchClass::Init()
 
     for (int i = 0; i < mNumParticles; ++i)
     {
-        GrassParticle& particle = mParticle[i];
         float fFade;
 
-        if (mBoxX > 0.0f || mBoxZ > 0.0f)
-        {
-            const float fZ = (PblRandom::GetGlobalFloat() - 0.5f) * mBoxZ;
-            const float fX = (PblRandom::GetGlobalFloat() - 0.5f) * mBoxX;
-            particle.mPos = PblVector3(fX, 0.0f, fZ);
-            fFade = 1.0f;
-        }
-        else
+        if (mBoxX <= 0.0f && mBoxZ <= 0.0f)
         {
             fFade = 0.0f;
             while (fFade == 0.0f)
             {
-                const float fZ = (PblRandom::GetGlobalFloat() * 2.0f - 1.0f) * mRadiusFadeMax;
-                const float fX = (PblRandom::GetGlobalFloat() * 2.0f - 1.0f) * mRadiusFadeMax;
-                particle.mPos = PblVector3(fX, 0.0f, fZ);
+                const float fZ = (PblRandom::_Global.GetFloat() * 2.0f - 1.0f) * mRadiusFadeMax;
+                const float fX = (PblRandom::_Global.GetFloat() * 2.0f - 1.0f) * mRadiusFadeMax;
+                PblVector3& vPos = mParticle[i].mPos;
+                vPos.x = fX;
+                vPos.y = 0.0f;
+                vPos.z = fZ;
 
-                const float fDist = sqrtf(particle.mPos.x * particle.mPos.x
-                                          + particle.mPos.y * particle.mPos.y
-                                          + particle.mPos.z * particle.mPos.z);
+                const float fDist = PblMath::Sqrt(mParticle[i].mPos.x * mParticle[i].mPos.x
+                                          + mParticle[i].mPos.y * mParticle[i].mPos.y
+                                          + mParticle[i].mPos.z * mParticle[i].mPos.z);
                 if (fDist < mRadiusFadeMin)
                 {
                     fFade = 1.0f;
@@ -302,112 +279,118 @@ void GrassPatchClass::Init()
                 }
             }
         }
-
-        particle.mSize = (mSizeMax - mSizeMin) * PblRandom::GetGlobalFloat() + mSizeMin;
-
-        const float fDarkness = (mDarknessMax - mDarknessMin) * PblRandom::GetGlobalFloat() + mDarknessMin;
-        particle.mColor.a = mAlpha;
-        particle.mColor.r = fDarkness;
-        particle.mColor.g = fDarkness;
-        particle.mColor.b = fDarkness;
-
-        float fA, fB;
-        do
+        else
         {
-            fA = PblRandom::GetGlobalFloat() - 0.5f;
-            fB = PblRandom::GetGlobalFloat() - 0.5f;
-        } while (fA * fA + fB * fB == 0.0f);
+            const float fZ = (PblRandom::_Global.GetFloat() - 0.5f) * mBoxZ;
+            const float fX = (PblRandom::_Global.GetFloat() - 0.5f) * mBoxX;
+            PblVector3& vPos = mParticle[i].mPos;
+            vPos.x = fX;
+            vPos.y = 0.0f;
+            vPos.z = fZ;
+            fFade = 1.0f;
+        }
 
-        particle.mTime = PblRandom::GetGlobalFloat() * 10.0f;
-        particle.mOffset = 0.0f;
-        particle.mLODPriority = 0.0f;
-        particle.mFlatType = false;
-        particle.mSkew = (PblRandom::GetGlobalFloat() - 0.5f) * (mMaxSkew * 2.0f);
+        mParticle[i].mSize = (mSizeMax - mSizeMin) * PblRandom::_Global.GetFloat() + mSizeMin;
+
+        const float fDarkness = (mDarknessMax - mDarknessMin) * PblRandom::_Global.GetFloat() + mDarknessMin;
+        RedColorValue& color = mParticle[i].mColor;
+        color.a = mAlpha;
+        color.r = fDarkness;
+        color.g = fDarkness;
+        color.b = fDarkness;
+
+        float fA = PblRandom::_Global.GetFloat() - 0.5f;
+        float fB = PblRandom::_Global.GetFloat() - 0.5f;
+        while (fA * fA + fB * fB == 0.0f)
+        {
+            fA = PblRandom::_Global.GetFloat() - 0.5f;
+            fB = PblRandom::_Global.GetFloat() - 0.5f;
+        }
+
+        mParticle[i].mTime = PblRandom::_Global.GetFloat() * 10.0f;
+        mParticle[i].mOffset = 0.0f;
+        mParticle[i].mLODPriority = 0.0f;
+        mParticle[i].mFlatType = false;
+        mParticle[i].mSkew = (PblRandom::_Global.GetFloat() - 0.5f) * (mMaxSkew * 2.0f);
 
         if (mNumParts == 3 || mNumParts > 4)
         {
             bool bFlat = false;
             if (mNumParts == 3)
             {
-                particle.mTexture = (unsigned char)(i % (mFlatCount + 2));
-                if (particle.mTexture > 1)
+                mParticle[i].mTexture = (unsigned char)(i % (mFlatCount + 2));
+                if (mParticle[i].mTexture > 1)
                 {
-                    particle.mTexture = 2;
+                    mParticle[i].mTexture = 2;
                     bFlat = true;
                 }
             }
             else
             {
-                particle.mTexture = (unsigned char)(i % (mFlatCount + 4));
-                while (particle.mTexture > 5)
+                mParticle[i].mTexture = (unsigned char)(i % (mFlatCount + 4));
+                while (mParticle[i].mTexture > 5)
                 {
-                    particle.mTexture -= 2;
+                    mParticle[i].mTexture -= 2;
                 }
-                bFlat = particle.mTexture > 3;
+                bFlat = mParticle[i].mTexture > 3;
             }
 
-            particle.mPos.y = mYOffset;
+            mParticle[i].mPos.y = mYOffset;
             if (bFlat)
             {
-                particle.mHeight = particle.mSize * mFlatSizeMultiplier;
-                particle.mSize = mFlatSizeMultiplier * particle.mSize;
-                particle.mUpFactor = PblRandom::GetGlobalFloat() * 0.1f + 0.05f;
-                particle.mPos.y += ((mFlatHeightMax - mFlatHeightMin) * PblRandom::GetGlobalFloat()
+                mParticle[i].mHeight = mParticle[i].mSize * mFlatSizeMultiplier;
+                mParticle[i].mSize = mFlatSizeMultiplier * mParticle[i].mSize;
+                mParticle[i].mUpFactor = PblRandom::_Global.GetFloat() * 0.1f + 0.05f;
+                mParticle[i].mPos.y += ((mFlatHeightMax - mFlatHeightMin) * PblRandom::_Global.GetFloat()
                                     * (1.0f - fFade) + mFlatHeightMin) * mSizeMin;
-                particle.mFlatType = true;
+                mParticle[i].mFlatType = true;
 
                 do
                 {
-                    const float fZ = PblRandom::GetGlobalFloat() - 0.5f;
-                    const float fX = PblRandom::GetGlobalFloat() - 0.5f;
-                    particle.mUp = PblVector3(fX, 0.0f, fZ);
-                } while (fabsf(particle.mUp.x) < 0.01f && fabsf(particle.mUp.z) < 0.01f);
-                D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&particle.mUp), reinterpret_cast<const D3DXVECTOR3*>(&particle.mUp));
-                particle.mUp.y = (PblRandom::GetGlobalFloat() - 0.5f) * 0.3f;
-                D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&particle.mUp), reinterpret_cast<const D3DXVECTOR3*>(&particle.mUp));
+                    const float fZ = PblRandom::_Global.GetFloat() - 0.5f;
+                    const float fX = PblRandom::_Global.GetFloat() - 0.5f;
+                    mParticle[i].mUp = PblVector3(fX, 0.0f, fZ);
+                } while ((mParticle[i].mUp.x < 0.0f ? -mParticle[i].mUp.x : mParticle[i].mUp.x) < 0.01f
+                         && (mParticle[i].mUp.z < 0.0f ? -mParticle[i].mUp.z : mParticle[i].mUp.z) < 0.01f);
+                mParticle[i].mUp = Normalize(mParticle[i].mUp);
+                mParticle[i].mUp.y = (PblRandom::_Global.GetFloat() - 0.5f) * 0.3f;
+                mParticle[i].mUp = Normalize(mParticle[i].mUp);
             }
             else
             {
-                particle.mHeight = particle.mSize;
-                particle.mSize = mSkinnyFactor * particle.mSize;
-                particle.mUpFactor = PblRandom::GetGlobalFloat() * 0.2f + 0.8f;
-                particle.mLODPriority = 10000.0f;
+                mParticle[i].mHeight = mParticle[i].mSize;
+                mParticle[i].mSize = mSkinnyFactor * mParticle[i].mSize;
+                mParticle[i].mUpFactor = PblRandom::_Global.GetFloat() * 0.2f + 0.8f;
+                mParticle[i].mLODPriority = 10000.0f;
             }
         }
         else
         {
-            particle.mUpFactor = 1.0f;
-            particle.mHeight = particle.mSize * 0.9f;
-            particle.mSize = particle.mSize * 1.1f;
-            particle.mTexture = (unsigned char)(i % 4);
-            particle.mPos.y = mYOffset;
-            particle.mPos.y += (1.0f - fFade) * (mSizeMin * -0.5f);
+            mParticle[i].mUpFactor = 1.0f;
+            mParticle[i].mHeight = mParticle[i].mSize * 0.9f;
+            mParticle[i].mSize = mParticle[i].mSize * 1.1f;
+            mParticle[i].mTexture = (unsigned char)(i % 4);
+            mParticle[i].mPos.y = mYOffset;
+            mParticle[i].mPos.y += (1.0f - fFade) * (mSizeMin * -0.5f);
         }
 
-        const float fHalfSize = particle.mSize * 0.5f;
-        vMin.x = Min(vMin.x, particle.mPos.x - fHalfSize);
-        vMin.y = Min(vMin.y, particle.mPos.y - particle.mSize);
-        vMin.z = Min(vMin.z, particle.mPos.z - fHalfSize);
-        vMax.x = Max(vMax.x, particle.mPos.x + fHalfSize);
-        vMax.y = Max(vMax.y, particle.mPos.y + particle.mSize);
-        vMax.z = Max(vMax.z, particle.mPos.z + fHalfSize);
+        const float fHalfSize = mParticle[i].mSize * 0.5f;
+        vMin.x = Min(vMin.x, mParticle[i].mPos.x - fHalfSize);
+        vMin.y = Min(vMin.y, mParticle[i].mPos.y - mParticle[i].mSize);
+        vMin.z = Min(vMin.z, mParticle[i].mPos.z - fHalfSize);
+        vMax.x = Max(vMax.x, mParticle[i].mPos.x + fHalfSize);
+        vMax.y = Max(vMax.y, mParticle[i].mPos.y + mParticle[i].mSize);
+        vMax.z = Max(vMax.z, mParticle[i].mPos.z + fHalfSize);
     }
 
-    mBoundingOffset.x = (vMax.x + vMin.x) * 0.5f;
-    mBoundingOffset.y = (vMax.y + vMin.y) * 0.5f;
-    mBoundingOffset.z = (vMax.z + vMin.z) * 0.5f;
+    mBoundingOffset = (vMax + vMin) * 0.5f;
     mBoundingRadius = 0.0f;
-    mBoundingBoxRadius.x = vMax.x - mBoundingOffset.x;
-    mBoundingBoxRadius.y = vMax.y - mBoundingOffset.y;
-    mBoundingBoxRadius.z = vMax.z - mBoundingOffset.z;
+    mBoundingBoxRadius = vMax - mBoundingOffset;
 
     for (int i = 0; i < mNumParticles; ++i)
     {
-        const PblVector3& vPos = mParticle[i].mPos;
-        const float fX = vPos.x - mBoundingOffset.x;
-        const float fY = vPos.y - mBoundingOffset.y;
-        const float fZ = vPos.z - mBoundingOffset.z;
-        const float fRadius = sqrtf(fX * fX + fY * fY + fZ * fZ) + mParticle[i].mSize;
+        const PblVector3 vDelta = mParticle[i].mPos - mBoundingOffset;
+        const float fRadius = PblMath::Sqrt(vDelta.x * vDelta.x + vDelta.y * vDelta.y + vDelta.z * vDelta.z) + mParticle[i].mSize;
         mBoundingRadius = Max(fRadius, mBoundingRadius);
     }
 
@@ -428,10 +411,9 @@ Entity* GrassPatchClass::Build(const EntityDesc& desc)
 // FUNCTION: SWBF2 0x00542000
 bool GrassPatchClass::Update(float fDeltaTime)
 {
-    const float fSwing = fDeltaTime * 0.8f;
     for (int i = 0; i < mNumParticles; ++i)
     {
-        mParticle[i].mTime += ((float)(i % 5) * 0.2f + 1.0f) * fSwing;
+        mParticle[i].mTime += ((float)(i % 5) * 0.2f + 1.0f) * (fDeltaTime * 0.8f);
         mParticle[i].mOffset = PblMath::Sin(mParticle[i].mTime);
     }
     return true;
@@ -448,14 +430,12 @@ void GrassPatchClass::Render(const PblMatrix& matrix, const GrassPatch*, unsigne
 // FUNCTION: SWBF2 0x00540cd0
 void GrassPatch::Render(unsigned char, float, unsigned int uiFlags)
 {
-    if (RedSceneManager::InTransparentPhase())
-    {
-        ((GrassPatchClass*)mClass)->Render(mMatrix, this, uiFlags);
-    }
-    else
+    if (!RedSceneManager::InTransparentPhase())
     {
         RedSceneManager::AddTransparentObject(this);
+        return;
     }
+    ((GrassPatchClass*)mClass)->Render(mMatrix, this, uiFlags);
 }
 
 // FUNCTION: SWBF2 0x005420f0

@@ -44,7 +44,7 @@ void AttackPatterns::DoFlyDirect()
     vToTarget.x = vTarget.x - vPos.x;
     vToTarget.y = vTarget.y - vPos.y;
     vToTarget.z = vTarget.z - vPos.z;
-    PblVector3 vFront = GetFront(GetMe()->GetMatrix());
+    PblVector3 vFront = GetMe()->GetMatrix().GetZAxis();
 
     if (vFront.y * vToTarget.y + vFront.x * vToTarget.x + vFront.z * vToTarget.z > 0.0f ||
         AIUtil::GetRandomIntPerSecond(1, 3) == 1)
@@ -76,20 +76,15 @@ void AttackPatterns::DoFlyDirect()
         float fDistSq = vToTarget.y * vToTarget.y + vToTarget.x * vToTarget.x + vToTarget.z * vToTarget.z;
         if (fDistSq > (pClass->mMaxFlyerSpeed * 2.0f) * (pClass->mMaxFlyerSpeed * 2.0f))
         {
-            const PblVector3& vVelocity = GetTargetVelocity(GetAttackHelper()->GetTarget());
-            vDest.x = vVelocity.x + vTarget.x;
-            vDest.y = vVelocity.y + vTarget.y;
-            vDest.z = vVelocity.z + vTarget.z;
+            const PblVector3& vVelocity =
+                static_cast<const EntityGeometry*>(GetAttackHelper()->GetTarget()->GetEntity())->GetVelocity();
+            vDest = vVelocity + vTarget;
             vDest.y = Min(vDest.y, AIUtil::gMaxFlyHeight);
         }
         else
         {
-            float fAhead = pClass->mMaxFlyerSpeed * 5.0f;
-            vDest.x = vFront.x * fAhead + vPos.x;
-            vDest.y = vFront.y * fAhead + vPos.y;
-            vDest.z = vFront.z * fAhead + vPos.z;
-            float fMid = (AIUtil::gMinFlyHeight + AIUtil::gMaxFlyHeight) * 0.5f;
-            vDest.y = Min(vDest.y, fMid);
+            vDest = vFront * (pClass->mMaxFlyerSpeed * 5.0f) + vPos;
+            vDest.y = Min(vDest.y, (AIUtil::gMinFlyHeight + AIUtil::gMaxFlyHeight) * 0.5f);
         }
         mOwner->GetLowLevel().SetNavigator_GotoDirect(vDest, false, false);
     }
@@ -115,18 +110,9 @@ void AttackPatterns::GeneratePath()
     // GLOBAL: SWBF2 0x01fac36c
     static const float fSide = Max(40.0f, pClass->mMaxFlyerSpeed);
 
-    PblVector3 vBehind;
-    vBehind.x = (vTarget.x - vDir.x * fBack) + gVectorUnitY.x * 90.0f;
-    vBehind.y = (vTarget.y - vDir.y * fBack) + gVectorUnitY.y * 90.0f;
-    vBehind.z = (vTarget.z - vDir.z * fBack) + gVectorUnitY.z * 90.0f;
-    PblVector3 vNear;
-    vNear.x = (vTarget.x - vDir.x * fSide) + gVectorUnitY.x * 0.0f;
-    vNear.y = (vTarget.y - vDir.y * fSide) + gVectorUnitY.y * 0.0f;
-    vNear.z = (vTarget.z - vDir.z * fSide) + gVectorUnitY.z * 0.0f;
-    PblVector3 vPast;
-    vPast.x = (vDir.x * fSide + vTarget.x) + gVectorUnitY.x * 30.0f;
-    vPast.y = (vDir.y * fSide + vTarget.y) + gVectorUnitY.y * 30.0f;
-    vPast.z = (vDir.z * fSide + vTarget.z) + gVectorUnitY.z * 30.0f;
+    PblVector3 vBehind = vTarget - vDir * fBack + gVectorUnitY * 90.0f;
+    PblVector3 vNear = vTarget - vDir * fSide + gVectorUnitY * 0.0f;
+    PblVector3 vPast = vDir * fSide + vTarget + gVectorUnitY * 30.0f;
 
     vBehind.y = Min(vBehind.y, AIUtil::gMaxFlyHeight);
     vNear.y = Min(vNear.y, AIUtil::gMaxFlyHeight);
@@ -149,12 +135,12 @@ void AttackPatterns::DoFlyStrafe()
 {
     const GameObject* pTarget = GetAttackHelper()->GetTarget();
     PblVector3 vPos = GetMe()->GetMatrix().GetTranslation();
-    PblVector3 vTarget = (static_cast<const CollisionObject*>(pTarget)->GetMatrix()).GetTranslation();
+    PblVector3 vTarget = pTarget->GetMatrix().GetTranslation();
     PblVector3 vToTarget;
     vToTarget.x = vTarget.x - vPos.x;
     vToTarget.y = vTarget.y - vPos.y;
     vToTarget.z = vTarget.z - vPos.z;
-    PblVector3 vFront = GetFront(GetMe()->GetMatrix());
+    PblVector3 vFront = GetMe()->GetMatrix().GetZAxis();
 
     if (vFront.y * vToTarget.y + vFront.x * vToTarget.x + vFront.z * vToTarget.z > 0.5f)
     {
@@ -162,7 +148,7 @@ void AttackPatterns::DoFlyStrafe()
         mOverrideFire = true;
     }
 
-    if (mOwner->GetLowLevel().IsAtDest())
+    if (GetCtrl()->GetLowLevel().IsAtDest())
     {
         GeneratePath();
         return;

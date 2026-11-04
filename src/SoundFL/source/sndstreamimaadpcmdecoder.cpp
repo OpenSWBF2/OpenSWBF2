@@ -99,6 +99,7 @@ char StreamIMAADPCMDecoder::GetNextStepIndex(unsigned char uNibble, short sStepI
 // FUNCTION: SWBF2 0x0074a570
 void StreamIMAADPCMDecoder::DecodeImaAdpcmFrame(unsigned char const* pSrc, short* pDst)
 {
+    unsigned char cLeft = 63;
     const int iHeader = *(const int*)pSrc;
     short sPredictor = (short)iHeader;
     char cStepIndex = (char)((iHeader >> 16) & ~0x80);
@@ -112,12 +113,11 @@ void StreamIMAADPCMDecoder::DecodeImaAdpcmFrame(unsigned char const* pSrc, short
 
     *pDst++ = sPredictor;
 
-    unsigned char cLeft = 63;
     for (;;)
     {
-        const unsigned char uByte = *pSrc++;
+        unsigned char uByte = *pSrc++;
 
-        unsigned char uNibble = uByte & 0xf;
+        const unsigned char uNibble = uByte & 0xf;
         sPredictor = DecodeImaAdpcmSample(uNibble, sPredictor, smAsStep[cStepIndex]);
         cStepIndex = GetNextStepIndex(uNibble, cStepIndex);
         *pDst++ = sPredictor;
@@ -126,9 +126,9 @@ void StreamIMAADPCMDecoder::DecodeImaAdpcmFrame(unsigned char const* pSrc, short
             break;
         }
 
-        uNibble = uByte >> 4;
-        sPredictor = DecodeImaAdpcmSample(uNibble, sPredictor, smAsStep[cStepIndex]);
-        cStepIndex = GetNextStepIndex(uNibble, cStepIndex);
+        uByte >>= 4;
+        sPredictor = DecodeImaAdpcmSample(uByte, sPredictor, smAsStep[cStepIndex]);
+        cStepIndex = GetNextStepIndex(uByte, cStepIndex);
         *pDst++ = sPredictor;
         if (--cLeft == 0)
         {
@@ -187,12 +187,13 @@ void StreamIMAADPCMDecoder::Flush()
 StreamPacket* StreamIMAADPCMDecoder::GetPacket(unsigned int uiOutput)
 {
     StreamPacket* pPacket = StreamCodec::GetPacket(uiOutput);
-    if (pPacket == 0 && !IsFlushing())
+    if (pPacket != 0 || IsFlushing())
     {
-        Update();
-        pPacket = StreamCodec::GetPacket(uiOutput);
+        return pPacket;
     }
-    return pPacket;
+
+    Update();
+    return StreamCodec::GetPacket(uiOutput);
 }
 
 // FUNCTION: SWBF2 0x0074ab60
@@ -236,13 +237,13 @@ void StreamIMAADPCMDecoder::Update()
             mInputPacketIO.SetPacket(pInput, pInput->mBufferUsed);
         }
 
-        while (pOutput != 0 && pInput != 0)
+        while (pInput != 0 && pOutput != 0)
         {
             void* const pSamples = mOutputPacketIO.GetData(pOutput);
             const unsigned int uiFrameSize = mNumChannels * 36;
             mInputBufferIO.GetOffset();
-            bool bLast = false;
             bool bDiscontinuity = false;
+            bool bLast = false;
 
             mInputPacketIO.GetDataLeft(mInputPacketIO.GetPacketSize());
             const unsigned int uiCopy = mInputBufferIO.ClampToDataLeft(
@@ -253,9 +254,9 @@ void StreamIMAADPCMDecoder::Update()
 
             if (mInputBufferIO.UpdateOffset(uiFrameSize, uiCopy))
             {
+                const unsigned char* const pFrame = mInputBuffer;
                 mInputBufferIO.Reset();
 
-                const unsigned char* const pFrame = mInputBuffer;
                 if (pFrame != 0)
                 {
                     DecodeImaAdpcmFrameInterleaved(pFrame, (short*)pSamples);
@@ -276,12 +277,12 @@ void StreamIMAADPCMDecoder::Update()
                 }
             }
 
-            if (mOutputPacketIO.GetDataLeft(GetPacketSize()) == 0 || bLast ||
-                bDiscontinuity)
+            if (mOutputPacketIO.GetDataLeft(GetPacketSize()) == 0 ||
+                (bLast | bDiscontinuity))
             {
                 const unsigned int uiBytes = mOutputPacketIO.GetOffset();
-                const unsigned int uiPos = mPlaybackPosition;
                 const unsigned int uiSamples = uiBytes / (mNumChannels * 2);
+                const unsigned int uiPos = mPlaybackPosition;
                 PacketComplete(pOutput, uiBytes, uiSamples, bLast,
                                bDiscontinuity, uiPos);
                 mPlaybackPosition = uiPos + uiSamples;

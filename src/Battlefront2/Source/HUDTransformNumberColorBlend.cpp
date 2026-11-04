@@ -27,25 +27,31 @@ void HUD::TransformNumberColorBlend::EventInput(const Event& event, void* const 
         return;
     }
     RedColor color = pTransform->CalculateOutputColor(event.GetDataFloat());
-    const unsigned int uAlpha = pTransform->mAlpha;
-    const unsigned int uOther = 255 - uAlpha;
+    const unsigned char alpha = pTransform->mAlpha;
     const unsigned char* pBlend = (const unsigned char*)pTransform->mBlendColor;
-    if (pTransform->mBlendMode == blendMode_Alpha)
+    switch (pTransform->mBlendMode)
     {
-        color.b = (unsigned char)(((uAlpha * color.b) >> 8) + ((uOther * pBlend[0]) >> 8));
-        color.g = (unsigned char)(((uAlpha * color.g) >> 8) + ((uOther * pBlend[1]) >> 8));
-        color.r = (unsigned char)(((uAlpha * color.r) >> 8) + ((uOther * pBlend[2]) >> 8));
+    case blendMode_Alpha:
+    {
+        const int iOther = 255 - alpha;
+        color.r = (unsigned char)(((pBlend[2] * iOther) >> 8) + ((color.r * alpha) >> 8));
+        color.g = (unsigned char)(((pBlend[1] * iOther) >> 8) + ((color.g * alpha) >> 8));
+        color.b = (unsigned char)(((pBlend[0] * iOther) >> 8) + ((color.b * alpha) >> 8));
+        break;
     }
-    else if (pTransform->mBlendMode == blendMode_Additive)
+    case blendMode_Additive:
     {
-        unsigned int b = pBlend[0] + ((uAlpha * color.b) >> 8);
-        unsigned int g = pBlend[1] + ((uAlpha * color.g) >> 8);
-        unsigned int r = pBlend[2] + ((uAlpha * color.r) >> 8);
-        color.b = (unsigned char)(b > 255 ? 255 : b);
-        color.g = (unsigned char)(g > 255 ? 255 : g);
+        unsigned short r = (unsigned short)(((color.r * alpha) >> 8) + pBlend[2]);
+        unsigned short g = (unsigned short)(((color.g * alpha) >> 8) + pBlend[1]);
+        unsigned short b = (unsigned short)(((color.b * alpha) >> 8) + pBlend[0]);
         color.r = (unsigned char)(r > 255 ? 255 : r);
+        color.g = (unsigned char)(g > 255 ? 255 : g);
+        color.b = (unsigned char)(b > 255 ? 255 : b);
+        break;
     }
-    Event(pTransform->mEventClassOutput, &color).Send();
+    }
+    Event eventOut(pTransform->mEventClassOutput, &color);
+    eventOut.Send();
 }
 
 // FUNCTION: SWBF2 0x00568380
@@ -93,15 +99,13 @@ bool HUD::TransformNumberColorBlend::ReadData(PblConfig& config, PblConfig::Data
         mAlpha = (unsigned char)(int)(data.GetFloatArg(0) * 255.0f);
         return true;
     case 0x211b0ef6:
-        Item::ReadEvent(data, mEventBlend);
-        return true;
+        return Item::ReadEvent(data, mEventBlend);
     case 0x41b355c1:
-        Item::ReadEvent(data, mEventAlpha);
-        return true;
+        return Item::ReadEvent(data, mEventAlpha);
     case 0xfa784eab:
     {
         unsigned int uMode = HUD::TranslateString((const char**)sBlendMode, 2, data.GetStringArg(0)) + 1;
-        if (uMode <= blendMode_Additive)
+        if (uMode < blendMode_Additive + 1)
         {
             mBlendMode = (BlendMode)uMode;
         }

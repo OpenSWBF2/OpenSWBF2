@@ -79,7 +79,7 @@ static float GetOptimalBuildingKillingRange(const Controllable* pMe)
     for (int i = 0; i < pMe->GetWeaponCount(); ++i)
     {
         const WeaponClass* pClass = GetWeaponClass(pMe->GetWeaponPtr(i));
-        if ((pClass->mAITargetTypes & 0x10) && fRange <= pClass->mOptimalRange)
+        if ((pClass->mAITargetTypes & 0x10) && !(fRange > pClass->mOptimalRange))
         {
             fRange = pClass->mOptimalRange;
         }
@@ -109,7 +109,8 @@ const char UnitDestroyAgent::rttiNameUnitDestroyAgent[] = "UnitDestroyAgent";
 
 // FUNCTION: SWBF2 0x00666080
 UnitDestroyAgent::UnitDestroyAgent(UnitController* pCtrl, const AI::GoalTarget& target)
-    : UnitAgent(pCtrl)
+    : UnitAgent(pCtrl),
+      mTarget(AI::GTT_NONE)
 {
     mTarget = target;
     mCurState = 1;
@@ -119,50 +120,48 @@ UnitDestroyAgent::UnitDestroyAgent(UnitController* pCtrl, const AI::GoalTarget& 
 // FUNCTION: SWBF2 0x006660f0
 void UnitDestroyAgent::EnterState()
 {
-    if (mCurState != STATE_Goto)
+    switch (mCurState)
     {
-        return;
-    }
-
-    PblVector3 vPos;
-    if (!mTarget.GetLocation(vPos))
+    case STATE_Goto:
     {
-        if (mTarget.mType == AI::GTT_GAMEOBJECT)
+        PblVector3 vPos;
+        if (!mTarget.GetLocation(vPos))
         {
-            SetNextState(100);
-            return;
+            if (mTarget.mType == AI::GTT_GAMEOBJECT)
+            {
+                SetNextState(100);
+                return;
+            }
+            if (mTarget.mType == AI::GTT_CHARACTER)
+            {
+                SetNextState(STATE_WaitForSpawn);
+                return;
+            }
         }
-        if (mTarget.mType == AI::GTT_CHARACTER)
+
+        mLastSeekPos = vPos;
+        PathFinder::GetClosestValidPoint(vPos, vPos, GetMe()->GetGameObject());
+
+        Controllable* pMe = GetMe();
+        float fRand = AIUtil::GetRandomFloat(3.0f, 10.0f);
+        float fDist = CombatUtil::GetWeaponMinRange(pMe);
+        float fMax = CombatUtil::GetWeaponMaxRange(pMe);
+        if (!(fDist > fRand))
         {
-            SetNextState(STATE_WaitForSpawn);
-            return;
+            fDist = fRand > fMax ? fMax : fRand;
         }
+        if (GetMe()->GetWeaponCount() >= 1 && GetMe()->GetWeaponPtr(0)->IsMelee())
+        {
+            fDist = 0.0f;
+        }
+
+        PblVector3 vDest = vPos + AIUtil::GetSafeNormalXZ(PblRandom::GetGlobalVector3()) * fDist;
+        PathFinder::PushValidPoint(vPos, vDest, GetMe()->GetGameObject());
+
+        GetLowLevel().SetNavigator_Goto(vDest, 0, false, false);
+        break;
     }
-
-    mLastSeekPos = vPos;
-    PathFinder::GetClosestValidPoint(vPos, vPos, GetMe()->GetGameObject());
-
-    Controllable* pMe = GetMe();
-    float fRand = AIUtil::GetRandomFloat(3.0f, 10.0f);
-    float fDist = CombatUtil::GetWeaponMinRange(pMe);
-    float fMax = CombatUtil::GetWeaponMaxRange(pMe);
-    if (fDist <= fRand)
-    {
-        fDist = fRand > fMax ? fMax : fRand;
     }
-    if (GetMe()->GetWeaponCount() >= 1 && IsMelee(GetMe()->GetWeaponPtr(0)))
-    {
-        fDist = 0.0f;
-    }
-
-    PblVector3 vDest = PblRandom::GetGlobalVector3();
-    PblVector3 vDir = AIUtil::GetSafeNormalXZ(vDest);
-    vDest.x = vPos.x + vDir.x * fDist;
-    vDest.y = vPos.y + vDir.y * fDist;
-    vDest.z = vPos.z + vDir.z * fDist;
-    PathFinder::PushValidPoint(vPos, vDest, GetMe()->GetGameObject());
-
-    GetLowLevel().SetNavigator_Goto(vDest, 0, false, false);
 }
 
 // FUNCTION: SWBF2 0x00666290
@@ -176,7 +175,10 @@ void UnitDestroyAgent::CheckTargetPosition(const PblVector3& vPos)
     float dx = vPos.x - mLastSeekPos.x;
     float dy = vPos.y - mLastSeekPos.y;
     float dz = vPos.z - mLastSeekPos.z;
-    if (dx * dx + dy * dy + dz * dz > 15.0f * 15.0f)
+    float fDistSq = dx * dx;
+    fDistSq += dy * dy;
+    fDistSq += dz * dz;
+    if (fDistSq > 15.0f * 15.0f)
     {
         SetNextState(2);
     }
@@ -187,7 +189,9 @@ void UnitDestroyAgent::UpdateStatePostVision(float dt)
 {
     mAttackHelper.Update();
 
-    if (mCurState == STATE_Goto)
+    switch (mCurState)
+    {
+    case STATE_Goto:
     {
         PblVector3 vPos;
         if (!mTarget.GetLocation(vPos))
@@ -206,27 +210,23 @@ void UnitDestroyAgent::UpdateStatePostVision(float dt)
         CheckTargetPosition(vPos);
 
         GameObject* pMyObj = GetMe()->GetGameObject();
-        const PblVector3& vMyPos = GetCollisionObject(pMyObj)->GetPosition();
+        const CollisionObject& rMyCollision = *pMyObj;
+        const PblVector3& vMyPos = rMyCollision.GetPosition();
         float dx = vPos.x - vMyPos.x;
         float dy = vPos.y - vMyPos.y;
         float dz = vPos.z - vMyPos.z;
         float fDistSq = dy * dy + dx * dx + dz * dz;
 
-        bool bMelee = false;
-        if (GetMe()->GetWeaponCount() >= 1 && IsMelee(GetMe()->GetWeaponPtr(0)))
-        {
-            bMelee = true;
-        }
+        const bool bMelee = GetMe()->GetWeaponCount() >= 1 && GetMe()->GetWeaponPtr(0)->IsMelee();
 
-        const Damageable* pMyHealth = GetDamageable(pMyObj);
+        const Damageable& rMyHealth = *pMyObj;
         bool bAttacking = false;
-        if (pMyHealth->mCurHealth > pMyHealth->mMaxHealth * 0.5f &&
+        if (rMyHealth.mCurHealth > rMyHealth.mMaxHealth * 0.5f &&
             mTarget.mType == AI::GTT_GAMEOBJECT && !bMelee && GetLowLevel().IsNavigatorInProgress())
         {
-            const Entity* pTarget = reinterpret_cast<const Entity*>(ResolveHandle(mTarget.mGameObj));
-            if (pTarget->IsRtti(EntityBuilding::rttiHashEntityBuilding))
+            if (mTarget.mGameObj->IsRtti(EntityBuilding::rttiHashEntityBuilding))
             {
-                if (GetThreatManager(mCtrl)->GetVisibleObject() == mTarget.GetGameObject())
+                if (mTarget.GetGameObject() == GetThreatManager(mCtrl)->GetVisibleObject())
                 {
                     float fRange = GetOptimalBuildingKillingRange(GetMe());
                     if (fRange * fRange > fDistSq)
@@ -241,14 +241,15 @@ void UnitDestroyAgent::UpdateStatePostVision(float dt)
             }
         }
 
-        if (pMyHealth->mCurHealth > pMyHealth->mMaxHealth * 0.5f &&
+        if (rMyHealth.mCurHealth > rMyHealth.mMaxHealth * 0.5f &&
             mTarget.mType == AI::GTT_GAMEOBJECT)
         {
             float fNear = AIUtil::GetCollisionRadius(pMyObj) * 30.0f;
             if (!bAttacking && fNear * fNear > fDistSq)
             {
-                vPos = GetCollisionObject(mTarget.GetGameObject())->GetPosition();
-                if (GetThreatManager(mCtrl)->GetVisibleObject() == mTarget.GetGameObject() ||
+                const CollisionObject& rTargetCollision = *mTarget.GetGameObject();
+                vPos = rTargetCollision.GetPosition();
+                if (mTarget.GetGameObject() == GetThreatManager(mCtrl)->GetVisibleObject() ||
                     AIUtil::CanSee(GetMe(), mTarget.GetGameObject(), &vPos))
                 {
                     mCtrl->ForceSetAttackHelperTarget(mTarget.GetGameObject());
@@ -258,13 +259,16 @@ void UnitDestroyAgent::UpdateStatePostVision(float dt)
         }
 
         FaceTarget(HEIGHT_STAND);
+        break;
     }
-    else if (mCurState == STATE_WaitForSpawn)
+    case STATE_WaitForSpawn:
     {
         if (mTarget.mChr->GetControllable())
         {
             SetNextState(STATE_Goto);
         }
+        break;
+    }
     }
 }
 

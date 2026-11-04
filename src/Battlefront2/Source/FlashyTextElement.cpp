@@ -25,7 +25,15 @@ FlashyTextManager sFlashyTextManagerInstance;
 // FUNCTION: SWBF2 0x005269b0
 void FlashyTextManager::Init(bool bMission)
 {
-    sFlashyTextManagerInstance.ActivateThread(0, bMission ? PER_FRAME : PER_TURN);
+    Thread* pThread = &sFlashyTextManagerInstance;
+    if (bMission)
+    {
+        pThread->ActivateThread(0, PER_FRAME);
+    }
+    else
+    {
+        pThread->ActivateThread(0, PER_TURN);
+    }
 }
 
 // GLOBAL: SWBF2 0x007e6670
@@ -69,7 +77,8 @@ void FlashyTextElement::CommonConstructor()
 }
 
 // FUNCTION: SWBF2 0x005260a0
-void FlashyTextElement::SetBackgroundSize(char cOffsetX, char cOffsetY, char cExpandX, char cExpandY)
+void FlashyTextElement::SetBackgroundSize(unsigned char cOffsetX, unsigned char cOffsetY, unsigned char cExpandX,
+                                          unsigned char cExpandY)
 {
     mBGOffsetX = cOffsetX - 12;
     mBGOffsetY = cOffsetY;
@@ -118,11 +127,11 @@ void FlashyTextElement::RenderUsingContext(const PblMatrix& mContext, const RedC
         fLeft -= fShift;
     }
 
-    if (mDrawBG && mState != FLASHY_STATE_DELAY)
+    if (mDrawBG && mState > FLASHY_STATE_DELAY)
     {
         int iExpandX = mBGExpandX;
-        int iExpandY = mBGExpandY;
         float fX = (float)mBGOffsetX + fLeft - (float)iExpandX;
+        int iExpandY = mBGExpandY;
         float fY = (float)mBGOffsetY + fTop - (float)iExpandY;
         float fWidth = (float)(iExpandX * 2) + (mWidth ? (float)mWidth : fRight - fLeft) + (float)mTail;
         float fHeight = (float)(iExpandY * 2) + (fBottom - fTop);
@@ -134,15 +143,13 @@ void FlashyTextElement::RenderUsingContext(const PblMatrix& mContext, const RedC
         RedColor bgColor = color;
         if (mHashMid != 0x83245ab6 && m_eStyle != TEXT_STYLE_SELECTED)
         {
-            bgColor.b = 0x96;
-            bgColor.g = 0x96;
-            bgColor.r = 0x96;
+            bgColor = RedColor(0x96, 0x96, 0x96, color.a);
         }
 
-        float fY1 = fHeight + fY;
-        float fCapX = fHeight + fX;
         if (mXFlipped)
         {
+            float fY1 = fHeight + fY;
+            float fCapX = fHeight + fX;
             RenderBitmap(mContext, bgColor, mHashLeft, fCapX, fY, fX, fY1);
             float fMidX = fWidth + fX;
             RenderBitmap(mContext, bgColor, mHashMid, fMidX, fY, fCapX, fY1);
@@ -157,6 +164,8 @@ void FlashyTextElement::RenderUsingContext(const PblMatrix& mContext, const RedC
         }
         else
         {
+            float fCapX = fHeight + fX;
+            float fY1 = fHeight + fY;
             if (mFlipped)
             {
                 RenderBitmap(mContext, bgColor, mHashLeft, fX, fY1, fCapX, fY);
@@ -198,9 +207,7 @@ void FlashyTextElement::RenderUsingContext(const PblMatrix& mContext, const RedC
         }
 
         PblMatrix mScaled = mContext;
-        mScaled.m[1][0] = mContext.m[1][0] * fScale;
-        mScaled.m[1][1] = mContext.m[1][1] * fScale;
-        mScaled.m[1][2] = mContext.m[1][2] * fScale;
+        mScaled[1] = mContext[1] * fScale;
         mScaled.m[1][3] = 0.0f;
         mScaled.m[3][1] = mContext.m[3][1] - (1.0f - fScale) * 0.5f * (fBottom - fTop);
 
@@ -218,10 +225,7 @@ void FlashyTextElement::RenderUsingContext(const PblMatrix& mContext, const RedC
             {
                 fGreen = 255.0f;
             }
-            textColor.b = 100;
-            textColor.g = (unsigned char)(int)fGreen;
-            textColor.r = 0xff;
-            textColor.a = 0xff;
+            textColor = RedColor(0xff, (unsigned char)(int)fGreen, 100, 0xff);
         }
 
         RedTextElement::RenderUsingContext(mScaled, fade * textColor * color);
@@ -242,8 +246,8 @@ void FlashyTextElement::StartFlashiness()
 // FUNCTION: SWBF2 0x005268e0
 bool FlashyTextElement::UpdateFlashiness(float fDeltaTime)
 {
-    cStateTimes[FLASHY_STATE_DELAY] = mTimeDelay;
     mTime += fDeltaTime;
+    cStateTimes[FLASHY_STATE_DELAY] = mTimeDelay;
     if (mTime >= cStateTimes[mState])
     {
         do
@@ -292,72 +296,4 @@ void FlashyTextManager::RemoveFromUpdateList(FlashyTextElement* pElement)
 bool FlashyTextManager::IsElementActive(FlashyTextElement* pElement)
 {
     return pElement->mNode.IsInList();
-}
-
-// FUNCTION: SWBF2 0x00414720
-void FlashyTextElement::PlatformConstructor()
-{
-    m_pInterfaceBitmapShader = 0;
-}
-
-// FUNCTION: SWBF2 0x00414730
-void FlashyTextElement::Init()
-{
-    m_pInterfaceBitmapShader = (pcInterfaceShader*)pcRedShader::Create(
-        0x84ea5130, 0x202, 0, 0, 0, RedColor::WHITE, RedColor::BLACK, 32.0f);
-
-    m_pInterfaceBitmapShader->m_mode = pcInterfaceShader::INTERFACE_MODE_BITMAP;
-}
-
-// FUNCTION: SWBF2 0x00414770
-void FlashyTextElement::Cleanup()
-{
-    if (m_pInterfaceBitmapShader)
-    {
-        m_pInterfaceBitmapShader->Release();
-        m_pInterfaceBitmapShader = 0;
-    }
-}
-
-// FUNCTION: SWBF2 0x004147c0
-void FlashyTextElement::RenderBitmap(const PblMatrix& mContext, const RedColor& color,
-                                     unsigned int uHash, float fX0, float fY0,
-                                     float fX1, float fY1)
-{
-    // GLOBAL: SWBF2 0x007ec3f0
-    static FlashyVertexT vertices[4] = {
-        { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f },
-        { 0.0f, 1.0f, 0.0f, 0.0f, 1.0f },
-        { 1.0f, 0.0f, 0.0f, 1.0f, 0.0f },
-        { 1.0f, 1.0f, 0.0f, 1.0f, 1.0f },
-    };
-
-    m_pInterfaceBitmapShader->SetTexture(uHash);
-    vertices[0].x = fX0;
-    vertices[0].y = fY0;
-    vertices[1].x = fX0;
-    vertices[1].y = fY1;
-    vertices[2].x = fX1;
-    vertices[2].y = fY0;
-    vertices[3].x = fX1;
-    vertices[3].y = fY1;
-    m_pInterfaceBitmapShader->m_materialFlags &= ~0x40u;
-
-    pcRedPrimitive* pPrimitive = pcRedPrimitive::Create(
-        D3DPT_TRIANGLESTRIP, 0x202, sizeof(FlashyVertexT), 4, 0, false);
-
-    void* pVertexData = pPrimitive->BeginVertexData();
-    if (!pVertexData)
-    {
-        return;
-    }
-
-    memcpy(pVertexData, vertices, sizeof(vertices));
-
-    pPrimitive->EndVertexData();
-
-    RedRenderer::pcRenderPrimitive(pPrimitive, m_pInterfaceBitmapShader,
-                                   mContext, color, 0x200, 0, 0, 0);
-
-    pPrimitive->Release();
 }

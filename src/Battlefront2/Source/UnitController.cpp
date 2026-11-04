@@ -231,10 +231,16 @@ UnitController::UnitController(Controllable* pOwner)
     mAgent = 0;
     mLodHumanPlayer = 0;
     mCrowdCheckTime = -100.0f;
-    mJustEnteredVehicleGoToPickupAgent =
-        mOwner->GetEntity()->IsRtti(EntityWalker::rttiHashEntityWalker) ||
+    if (mOwner->GetEntity()->IsRtti(EntityWalker::rttiHashEntityWalker) ||
         mOwner->GetEntity()->IsRtti(EntityHover::rttiHashEntityHover) ||
-        mOwner->GetEntity()->IsRtti(EntityFlyer::rttiHashEntityFlyer);
+        mOwner->GetEntity()->IsRtti(EntityFlyer::rttiHashEntityFlyer))
+    {
+        mJustEnteredVehicleGoToPickupAgent = true;
+    }
+    else
+    {
+        mJustEnteredVehicleGoToPickupAgent = false;
+    }
     mLookAheadOnly = false;
     SetRandomSeed(AIUtil::GetRandomInt(0, 100));
     const PblMatrix& rOwnerMatrix = mOwner->GetMatrix();
@@ -320,6 +326,17 @@ void UnitController::EnterState()
     case STATE_COMBAT:
         EnterCombat();
         return;
+    case STATE_CAPTURECP:
+    {
+        const CommandPost* pPost =
+            static_cast<const UnitCaptureCPInfo*>(GetCurCmd())->GetCommandPost();
+        if (!pPost)
+        {
+            return;
+        }
+        mAgent = new UnitTrooperAgent(this, pPost);
+        break;
+    }
     case STATE_WAIT_SECONDARY:
     {
 
@@ -337,20 +354,19 @@ void UnitController::EnterState()
     case STATE_UNBOARD:
         mAgent = new UnitUnBoardAgent(this);
         break;
+    case STATE_SC_HOLD:
+        mAgent = new UnitHoldAgent(this);
+        break;
+    case STATE_SC_FOLLOW:
+    {
+        const UnitFollowInfo* pInfo = static_cast<const UnitFollowInfo*>(GetCurCmd());
+        mAgent = new UnitFollowAgent(this, static_cast<GameObject*>(pInfo->GetWho()),
+                                     pInfo->GetParam() != 0);
+        break;
+    }
     case STATE_RANDOM:
         mAgent = new UnitRandomAgent(this);
         break;
-    case STATE_CAPTURECP:
-    {
-        const CommandPost* pPost =
-            static_cast<const UnitCaptureCPInfo*>(GetCurCmd())->GetCommandPost();
-        if (!pPost)
-        {
-            return;
-        }
-        mAgent = new UnitTrooperAgent(this, pPost);
-        break;
-    }
     case STATE_CTFOFFENSE:
     {
         const UnitGoalAgentInfo* pInfo = static_cast<const UnitGoalAgentInfo*>(GetCurCmd());
@@ -362,28 +378,18 @@ void UnitController::EnterState()
         break;
     case STATE_DEFEND:
     {
-        AI::GoalTarget target;
+        AI::GoalTarget target(AI::GTT_NONE);
         static_cast<const UnitGoalAgentInfo*>(GetCurCmd())->GetGoalTarget(target);
         mAgent = new UnitDefendAgent(this, target);
         break;
     }
     case STATE_DESTROY:
     {
-        AI::GoalTarget target;
+        AI::GoalTarget target(AI::GTT_NONE);
         static_cast<const UnitGoalAgentInfo*>(GetCurCmd())->GetGoalTarget(target);
         mAgent = new UnitDestroyAgent(this, target);
         break;
     }
-    case STATE_SC_FOLLOW:
-    {
-        const UnitFollowInfo* pInfo = static_cast<const UnitFollowInfo*>(GetCurCmd());
-        PblHandle<GameObject> who = pInfo->GetWho();
-        mAgent = new UnitFollowAgent(this, PblHandle<const GameObject>(Resolve(who)), pInfo->GetParam() != 0);
-        break;
-    }
-    case STATE_SC_HOLD:
-        mAgent = new UnitHoldAgent(this);
-        break;
     }
 }
 
@@ -413,10 +419,9 @@ void UnitController::UpdateHighLevel()
     float dt = fTime - mLastUpdateTime;
     mLastUpdateTime = fTime;
 
-    static_cast<Trackable*>(mOwner)->GetGameObject();
-    const Damageable* pHealth = static_cast<const Damageable*>(
-        static_cast<Trackable*>(mOwner)->GetGameObject());
-    if (!pHealth->mIsAlive)
+    mOwner->GetGameObject();
+    const GameObject* pObj = mOwner->GetGameObject();
+    if (!pObj->IsAlive())
     {
         mNextUpdateTime = fTime + 100000.0f;
         return;
@@ -439,7 +444,7 @@ void UnitController::UpdateHighLevel()
 
     if (Character* pCharacter = mOwner->mCharacter)
     {
-        pCharacter->mAdrenaline.Update(dt, static_cast<Trackable*>(mOwner)->GetGameObject());
+        pCharacter->mAdrenaline.Update(dt, mOwner->GetGameObject());
     }
 
     mThreatManager.Update(dt, this);
@@ -449,7 +454,7 @@ void UnitController::UpdateHighLevel()
     UseAutoTurrets();
     mOwner->SetCurrentCollision(0);
 
-    if (static_cast<Trackable*>(mOwner)->GetGameObject() && AIUtil::IsEndGame(0) &&
+    if (mOwner->GetGameObject() && AIUtil::IsEndGame(0) &&
         !AIUtil::ShouldStayInVehicle(mOwner))
     {
         mLowLevel.SetExitVehicle(0);
@@ -463,11 +468,10 @@ void UnitController::UpdateHighLevel()
 // FUNCTION: SWBF2 0x00663af0
 void UnitController::UpdateLowLevel(float dt)
 {
-    AILowLevel* pLowLevel = &mLowLevel;
-    mLowLevelUpdateSkipDt += dt;
+    mLowLevelUpdateSkipDt = dt + mLowLevelUpdateSkipDt;
     if (--mLowLevelUpdateSkips >= 0)
     {
-        pLowLevel->UpdateSkip();
+        mLowLevel.UpdateSkip();
         return;
     }
 
@@ -485,10 +489,10 @@ void UnitController::UpdateLowLevel(float dt)
         break;
     }
 
-    static_cast<Trackable*>(mOwner)->GetGameObject();
+    mOwner->GetGameObject();
     UpdateTargetBubbleSize(mLowLevelUpdateSkipDt);
     UpdateTotalVisFactor();
-    pLowLevel->Update(mLowLevelUpdateSkipDt);
+    mLowLevel.Update(mLowLevelUpdateSkipDt);
     mLowLevelUpdateSkipDt = 0.0f;
 }
 
@@ -552,11 +556,11 @@ const GameObject* UnitController::GetAttackHelperVisibleTarget() const
 // FUNCTION: SWBF2 0x00663cc0
 const PblVector3& UnitController::GetAttackHelperTargetLastSeenPosition() const
 {
-    if (mAgent)
+    if (!mAgent)
     {
-        return mAgent->mAttackHelper.GetLastSeenTargetPos();
+        return gMatrixIdentity.GetTranslation();
     }
-    return gMatrixIdentity.GetTranslation();
+    return mAgent->mAttackHelper.GetLastSeenTargetPos();
 }
 
 // FUNCTION: SWBF2 0x00663ce0
@@ -571,7 +575,7 @@ void UnitController::ForceSetAttackHelperTarget(const GameObject* pTarget)
 // FUNCTION: SWBF2 0x00663dd0
 void UnitController::UpdateLodState()
 {
-    if (mLodStateUpdateTime + 0.5f > GameLoop::GetMissionTime())
+    if (GameLoop::GetMissionTime() < mLodStateUpdateTime + 0.5f)
     {
         return;
     }
@@ -589,6 +593,7 @@ void UnitController::UpdateLodState()
         {
             continue;
         }
+        const Character& rCharacter = *pCharacter;
 
         int iCharLod = 3;
         const PblVector3& vPos = pCharacter->GetControllable()->GetMatrix().GetTranslation();
@@ -610,15 +615,13 @@ void UnitController::UpdateLodState()
             }
         }
 
-        const Controllable* pOther = pCharacter->GetControllable();
-        if (!AIUtil::CanPotentiallySee(mOwner, static_cast<const Trackable*>(pOther)->GetGameObject(), 0))
+        if (!AIUtil::CanPotentiallySee(mOwner, rCharacter.GetControllable()->GetGameObject(), 0))
         {
             iCharLod--;
         }
 
-        pOther = pCharacter->GetControllable();
-        const RedSceneObject& scene = *static_cast<const Trackable*>(pOther)->GetGameObject();
-        if (scene.PortalActive() && !scene.IsActive(pvs::GetCurrentFrame_()))
+        const GameObject* pSceneObj = rCharacter.GetControllable()->GetGameObject();
+        if (pSceneObj->PortalActive() && !pSceneObj->IsActive(pvs::GetCurrentFrame_()))
         {
             iCharLod--;
         }
@@ -641,7 +644,7 @@ void UnitController::UpdateLodState()
 
     if (!AIDebug::SkipCameraForLODs() && iLod != 4)
     {
-        float fRadius = AIUtil::GetCollisionRadius(static_cast<Trackable*>(mOwner)->GetGameObject()) * 3.0f;
+        float fRadius = AIUtil::GetCollisionRadius(mOwner->GetGameObject()) * 3.0f;
         if (CameraManager::sInstance->IsInsideAnyCamera(vMyPos, fRadius, (float)GetLODDistLow()))
         {
             iLod = 3;
@@ -670,26 +673,26 @@ void UnitController::SetRandomSeed(int iSeed)
 // FUNCTION: SWBF2 0x006640d0
 int UnitController::SendEvent(AI::EventInfo* pInfo)
 {
-    if (!mAgent)
+    int iResult = 0;
+    if (mAgent)
     {
-        return 0;
-    }
+        iResult = mAgent->EventHandler(pInfo);
+        if (pInfo->mNextCmd.GetCmdType() != CMD_NONE)
+        {
+            if (mAgent->ShouldQueueCurCmd(pInfo->mNextCmd))
+            {
+                CmdInfo curCmd = mAgent->mCtrl->CopyCurCmd();
+                mAgent->mCtrl->PrependQueueCommands(curCmd, pInfo->mNextCmd);
+            }
+            else
+            {
+                mAgent->mCtrl->PrependQueueCommand(pInfo->mNextCmd);
+            }
 
-    int iResult = mAgent->EventHandler(pInfo);
-    if (pInfo->mNextCmd.GetCmdType() != CMD_NONE)
-    {
-        if (mAgent->ShouldQueueCurCmd(pInfo->mNextCmd))
-        {
-            mAgent->mCtrl->PrependQueueCommands(mAgent->mCtrl->CopyCurCmd(), pInfo->mNextCmd);
-        }
-        else
-        {
-            mAgent->mCtrl->PrependQueueCommand(pInfo->mNextCmd);
-        }
-
-        if (mLodState >= 3)
-        {
-            ControllerManager::RequestControllerUpdateASAP(this);
+            if (mLodState >= 3)
+            {
+                ControllerManager::RequestControllerUpdateASAP(this);
+            }
         }
     }
     return iResult;
@@ -728,24 +731,21 @@ bool UnitController::IsTargetLOSPossiblyBlocked()
     }
 
     const PblVector3& vMyPos = mOwner->GetMatrix().GetTranslation();
-    float dx = vMyPos.x - mLastShotDistPos.x;
-    float dy = vMyPos.y - mLastShotDistPos.y;
-    float dz = vMyPos.z - mLastShotDistPos.z;
-    if (dx * dx + dy * dy + dz * dz > 1.0f)
+    if (SquaredLength(vMyPos - mLastShotDistPos) > 1.0f)
     {
         return false;
     }
 
-    const PblVector3& vTargetPos = GetPosition(pTarget);
-    dx = vTargetPos.x - vMyPos.x;
-    dy = vTargetPos.y - vMyPos.y;
-    dz = vTargetPos.z - vMyPos.z;
-    float fDistSq = dx * dx + dy * dy + dz * dz;
+    float fDistSq = SquaredLength(GetPosition(pTarget) - vMyPos);
     if (fDistSq < 4.0f)
     {
         return false;
     }
-    return fDistSq > mLastShotDistSq * 4.0f;
+    if (fDistSq > mLastShotDistSq * 4.0f)
+    {
+        return true;
+    }
+    return false;
 }
 
 // FUNCTION: SWBF2 0x006642d0
@@ -760,13 +760,12 @@ void UnitController::UpdateInvisibility()
         return;
     }
 
-    AILowLevel* pLowLevel = &mLowLevel;
     for (int i = 0; i < mOwner->GetWeaponCount(); ++i)
     {
         if (mOwner->GetWeaponPtr(i)->IsRtti(WeaponInvisibility::rttiHashWeaponInvisibility))
         {
-            pLowLevel->SetNextWeapon(i);
-            pLowLevel->SetFireRequest(true, false);
+            GetLowLevel().SetNextWeapon(i);
+            GetLowLevel().SetFireRequest(true, false);
         }
     }
 }
@@ -796,15 +795,15 @@ void UnitController::UseBuffs()
             (pClass->mTargetSides & 4) && (pClass->mAITargetTypes & 1))
         {
             GameObject* apUnits[3];
-            const Team* pTeam = Team::GetPtr(static_cast<Trackable*>(mOwner)->GetGameObject()->GetTeam());
-            if (ControllerManager::GetUnitsInRange(mOwner->GetMatrix().GetTranslation(), pClass->mMaxRange, apUnits, 3,
+            Controllable* pOwner = mOwner;
+            const Team* pTeam = Team::GetPtr(pOwner->GetGameObject()->GetTeam());
+            if (ControllerManager::GetUnitsInRange(pOwner->GetMatrix().GetTranslation(), pClass->mMaxRange, apUnits, 3,
                                                    pTeam, AI::AFFIL_ALLYNEUTRAL) < 3)
             {
                 return;
             }
-            AILowLevel* pLowLevel = &mLowLevel;
-            pLowLevel->SetNextWeapon(i);
-            pLowLevel->SetFireRequest(true, false);
+            mLowLevel.SetNextWeapon(i);
+            mLowLevel.SetFireRequest(true, false);
         }
     }
 }
@@ -875,11 +874,11 @@ void UnitController::AddFriendlyFire(const GameObject* pObject)
 // FUNCTION: SWBF2 0x00663d70
 const GameObject* UnitController::GetFriendlyFire(int iIndex)
 {
-    if (iIndex >= mFriendlyCount)
+    if (iIndex < mFriendlyCount)
     {
-        return 0;
+        return ((PblHandle<const GameObject>*)mFriendly)[iIndex];
     }
-    return mFriendly[iIndex];
+    return 0;
 }
 
 // FUNCTION: SWBF2 0x00664090

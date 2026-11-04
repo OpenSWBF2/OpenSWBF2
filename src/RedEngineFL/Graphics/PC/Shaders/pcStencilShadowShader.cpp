@@ -64,6 +64,9 @@ static float s_DebugNearWireColor[4] = { 1.0f, 0.0f, 1.0f, 0.3f };
 
 static float s_DebugFarWireColor[4] = { 0.8f, 0.2f, 0.8f, 0.1f };
 
+// GLOBAL: SWBF2 0x00784cb8
+const unsigned int pcStencilShadowShader::s_stencilRef = 0;
+
 // GLOBAL: SWBF2 0x00784cbc
 static const D3DVERTEXELEMENT9 s_softskinned_facenormal_ShadowFormat[7] =
 {
@@ -164,15 +167,15 @@ void pcStencilShadowShader::Begin_Fixed(unsigned int, unsigned int uiPass) const
     RedRenderer::pcSetRenderState(D3DRS_STENCILREF, s_uiStencilMask);
     RedRenderer::pcSetRenderState(D3DRS_STENCILMASK, s_uiStencilMask);
     RedRenderer::pcSetRenderState(D3DRS_STENCILWRITEMASK, s_uiStencilMask);
-    if (uiPass)
-    {
-        RedRenderer::pcSetCullMode(PCREDCULL_BACK);
-        RedRenderer::pcSetRenderState(D3DRS_STENCILPASS, D3DSTENCILOP_DECR);
-    }
-    else
+    if (!uiPass)
     {
         RedRenderer::pcSetCullMode(PCREDCULL_FRONT);
         RedRenderer::pcSetRenderState(D3DRS_STENCILPASS, D3DSTENCILOP_INCR);
+    }
+    else
+    {
+        RedRenderer::pcSetCullMode(PCREDCULL_BACK);
+        RedRenderer::pcSetRenderState(D3DRS_STENCILPASS, D3DSTENCILOP_DECR);
     }
     RedRenderer::pcSetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
     RedRenderer::pcSetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
@@ -294,7 +297,14 @@ void pcStencilShadowShader::RenderVolume(const RenderItem* pItem, unsigned int) 
 {
     if (s_bDebugShadowVolumes)
     {
-        if (!((pItem->flags & 0x400) ? s_DrawFlaggedDebugVolumes : s_DrawUnflaggedDebugVolumes))
+        if (pItem->flags & 0x400)
+        {
+            if (!s_DrawFlaggedDebugVolumes)
+            {
+                return;
+            }
+        }
+        else if (!s_DrawUnflaggedDebugVolumes)
         {
             return;
         }
@@ -339,7 +349,7 @@ void pcStencilShadowShader::RenderVolume(const RenderItem* pItem, unsigned int) 
     }
 }
 
-static unsigned long ColorValueToARGB(const RedColorValue& c)
+static inline unsigned long ColorValueToARGB(const RedColorValue& c)
 {
     return D3DCOLOR_ARGB((int)(c.a * 255.0f), (int)(c.r * 255.0f), (int)(c.g * 255.0f),
                          (int)(c.b * 255.0f));
@@ -354,8 +364,23 @@ void pcStencilShadowShader::Render_Fixed(const RenderItem* pItem, unsigned int u
         static const RedColorValue backColor(0.2f, 0.2f, 1.0f, 0.3f);
         // GLOBAL: SWBF2 0x009c9d50
         static const RedColorValue frontColor(1.0f, 0.0f, 0.0f, 0.3f);
-        RedRenderer::pcSetRenderState(D3DRS_TEXTUREFACTOR,
-                                      ColorValueToARGB(uiPass ? backColor : frontColor));
+        unsigned char r, g, bl, al;
+        if (!uiPass)
+        {
+            bl = (unsigned char)(int)(frontColor.b * 255.0f);
+            g = (unsigned char)(int)(frontColor.g * 255.0f);
+            al = (unsigned char)(int)(frontColor.a * 255.0f);
+            r = (unsigned char)(int)(frontColor.r * 255.0f);
+        }
+        else
+        {
+            bl = (unsigned char)(int)(backColor.b * 255.0f);
+            g = (unsigned char)(int)(backColor.g * 255.0f);
+            al = (unsigned char)(int)(backColor.a * 255.0f);
+            r = (unsigned char)(int)(backColor.r * 255.0f);
+        }
+        const RedColor factor(r, g, bl, al);
+        RedRenderer::pcSetRenderState(D3DRS_TEXTUREFACTOR, factor.GetARGB());
     }
 
     RedRenderer::pcLoadFormat(m_pVertexFormat);
@@ -370,10 +395,18 @@ void pcStencilShadowShader::Render_Fixed(const RenderItem* pItem, unsigned int u
         RedRenderer::pcSetCullMode(PCREDCULL_NONE);
         RedRenderer::pcSetRenderState(D3DRS_FILLMODE, D3DFILL_WIREFRAME);
         RedRenderer::pcSetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
-        RedRenderer::pcSetRenderState(D3DRS_TEXTUREFACTOR, ColorValueToARGB(visibleColor));
+        const RedColor visible((unsigned char)(int)(visibleColor.r * 255.0f),
+                               (unsigned char)(int)(visibleColor.g * 255.0f),
+                               (unsigned char)(int)(visibleColor.b * 255.0f),
+                               (unsigned char)(int)(visibleColor.a * 255.0f));
+        RedRenderer::pcSetRenderState(D3DRS_TEXTUREFACTOR, visible.GetARGB());
         pItem->pPrim->Draw();
         RedRenderer::pcSetRenderState(D3DRS_ZFUNC, D3DCMP_GREATEREQUAL);
-        RedRenderer::pcSetRenderState(D3DRS_TEXTUREFACTOR, ColorValueToARGB(hiddenColor));
+        const RedColor hidden((unsigned char)(int)(hiddenColor.r * 255.0f),
+                              (unsigned char)(int)(hiddenColor.g * 255.0f),
+                              (unsigned char)(int)(hiddenColor.b * 255.0f),
+                              (unsigned char)(int)(hiddenColor.a * 255.0f));
+        RedRenderer::pcSetRenderState(D3DRS_TEXTUREFACTOR, hidden.GetARGB());
         pItem->pPrim->Draw();
         RedRenderer::pcSetCullMode(uiPass ? PCREDCULL_BACK : PCREDCULL_FRONT);
         RedRenderer::pcSetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
@@ -387,56 +420,126 @@ void pcStencilShadowShader::Render_Prog1(const RenderItem* pItem, unsigned int u
     RedRenderer::pcLoadFormat(m_pVertexFormat);
     const float fLength = pItem->fStencilShadowLength;
 
-    const bool bDirectional =
-        pItem->uiShaderState >= 11 ? uiPass == 0 : pItem->uiShaderState <= 5;
-    if (bDirectional)
+    if (pItem->uiShaderState >= 11)
     {
-        for (int i = 0; pItem->pLightingState->pDirectionalLights[i] && i < 2; i++)
+        if (uiPass == 0)
         {
-            const RedDirectionalLight* pLight = pItem->pLightingState->pDirectionalLights[i];
+            for (int i = 0; pItem->pLightingState->pDirectionalLights[i] && i < 2;)
+            {
+                const RedDirectionalLight* pLight = pItem->pLightingState->pDirectionalLights[i++];
+                if (!pLight->IsShadowCaster())
+                {
+                    continue;
+                }
+                pcRedVertexShaderConstantRegister* pRegs =
+                    RedRenderer::pcLockVertexShaderConstants(40, 2);
+                pRegs[40].component[0] = pLight->m_vDirection.x;
+                pRegs[40].component[1] = pLight->m_vDirection.y;
+                pRegs[40].component[2] = pLight->m_vDirection.z;
+                pRegs[41].SetFloats(fLength, 0.0f, 0.0f);
+                RedRenderer::pcUnlockVertexShaderConstants(pRegs);
+                RenderVolume(pItem, uiPass);
+            }
+        }
+        else
+        {
+            for (int i = 0; pItem->pLightingState->pOmniLights[i] && i < 4;)
+            {
+                const RedOmniLight* pLight = pItem->pLightingState->pOmniLights[i++];
+                if (!pLight->IsShadowCaster())
+                {
+                    continue;
+                }
+                pcRedVertexShaderConstantRegister* pRegs =
+                    RedRenderer::pcLockVertexShaderConstants(40, 2);
+                const float fRadius = pLight->m_radius;
+                pRegs[40].component[0] = pLight->m_pos.x;
+                pRegs[40].component[1] = pLight->m_pos.y;
+                pRegs[40].component[2] = pLight->m_pos.z;
+                pRegs[40].component[3] = fRadius;
+                pRegs[41].SetFloats(0.0f, 0.0f, 0.0f);
+                RedRenderer::pcUnlockVertexShaderConstants(pRegs);
+                RenderVolume(pItem, uiPass);
+            }
+
+            for (int i = 0; pItem->pLightingState->pSpotLights[i] && i < 1;)
+            {
+                const RedSpotLight* pLight = pItem->pLightingState->pSpotLights[i++];
+                if (!pLight->IsShadowCaster())
+                {
+                    continue;
+                }
+                pcRedVertexShaderConstantRegister* pRegs =
+                    RedRenderer::pcLockVertexShaderConstants(40, 2);
+                const float fRadius = pLight->GetShadowRadius();
+                pRegs[40].component[0] = pLight->m_vPos.x;
+                pRegs[40].component[1] = pLight->m_vPos.y;
+                pRegs[40].component[2] = pLight->m_vPos.z;
+                pRegs[40].component[3] = fRadius;
+                pRegs[41].SetFloats(0.0f, 0.0f, 0.0f);
+                RedRenderer::pcUnlockVertexShaderConstants(pRegs);
+                RenderVolume(pItem, uiPass);
+            }
+        }
+    }
+    else if (pItem->uiShaderState > 5)
+    {
+        for (int i = 0; pItem->pLightingState->pOmniLights[i] && i < 4;)
+        {
+            const RedOmniLight* pLight = pItem->pLightingState->pOmniLights[i++];
             if (!pLight->IsShadowCaster())
             {
                 continue;
             }
             pcRedVertexShaderConstantRegister* pRegs =
                 RedRenderer::pcLockVertexShaderConstants(40, 2);
-            pRegs[40].SetFloats(pLight->m_vDirection.x, pLight->m_vDirection.y,
-                                pLight->m_vDirection.z);
+            const float fRadius = pLight->m_radius;
+            pRegs[40].component[0] = pLight->m_pos.x;
+            pRegs[40].component[1] = pLight->m_pos.y;
+            pRegs[40].component[2] = pLight->m_pos.z;
+            pRegs[40].component[3] = fRadius;
+            pRegs[41].SetFloats(0.0f, 0.0f, 0.0f);
+            RedRenderer::pcUnlockVertexShaderConstants(pRegs);
+            RenderVolume(pItem, uiPass);
+        }
+
+        for (int i = 0; pItem->pLightingState->pSpotLights[i] && i < 1;)
+        {
+            const RedSpotLight* pLight = pItem->pLightingState->pSpotLights[i++];
+            if (!pLight->IsShadowCaster())
+            {
+                continue;
+            }
+            pcRedVertexShaderConstantRegister* pRegs =
+                RedRenderer::pcLockVertexShaderConstants(40, 2);
+            const float fRadius = pLight->GetShadowRadius();
+            pRegs[40].component[0] = pLight->m_vPos.x;
+            pRegs[40].component[1] = pLight->m_vPos.y;
+            pRegs[40].component[2] = pLight->m_vPos.z;
+            pRegs[40].component[3] = fRadius;
+            pRegs[41].SetFloats(0.0f, 0.0f, 0.0f);
+            RedRenderer::pcUnlockVertexShaderConstants(pRegs);
+            RenderVolume(pItem, uiPass);
+        }
+    }
+    else
+    {
+        for (int i = 0; pItem->pLightingState->pDirectionalLights[i] && i < 2;)
+        {
+            const RedDirectionalLight* pLight = pItem->pLightingState->pDirectionalLights[i++];
+            if (!pLight->IsShadowCaster())
+            {
+                continue;
+            }
+            pcRedVertexShaderConstantRegister* pRegs =
+                RedRenderer::pcLockVertexShaderConstants(40, 2);
+            pRegs[40].component[0] = pLight->m_vDirection.x;
+            pRegs[40].component[1] = pLight->m_vDirection.y;
+            pRegs[40].component[2] = pLight->m_vDirection.z;
             pRegs[41].SetFloats(fLength, 0.0f, 0.0f);
             RedRenderer::pcUnlockVertexShaderConstants(pRegs);
             RenderVolume(pItem, uiPass);
         }
-        return;
-    }
-
-    for (int i = 0; pItem->pLightingState->pOmniLights[i] && i < 4; i++)
-    {
-        const RedOmniLight* pLight = pItem->pLightingState->pOmniLights[i];
-        if (!pLight->IsShadowCaster())
-        {
-            continue;
-        }
-        pcRedVertexShaderConstantRegister* pRegs = RedRenderer::pcLockVertexShaderConstants(40, 2);
-        pRegs[40].SetFloats(pLight->m_pos.x, pLight->m_pos.y, pLight->m_pos.z);
-        pRegs[40].component[3] = pLight->m_radius;
-        pRegs[41].SetFloats(0.0f, 0.0f, 0.0f);
-        RedRenderer::pcUnlockVertexShaderConstants(pRegs);
-        RenderVolume(pItem, uiPass);
-    }
-
-    for (int i = 0; pItem->pLightingState->pSpotLights[i] && i < 1; i++)
-    {
-        const RedSpotLight* pLight = pItem->pLightingState->pSpotLights[i];
-        if (!pLight->IsShadowCaster())
-        {
-            continue;
-        }
-        pcRedVertexShaderConstantRegister* pRegs = RedRenderer::pcLockVertexShaderConstants(40, 2);
-        pRegs[40].SetFloats(pLight->m_vPos.x, pLight->m_vPos.y, pLight->m_vPos.z);
-        pRegs[40].component[3] = pLight->GetShadowRadius();
-        pRegs[41].SetFloats(0.0f, 0.0f, 0.0f);
-        RedRenderer::pcUnlockVertexShaderConstants(pRegs);
-        RenderVolume(pItem, uiPass);
     }
 }
 
@@ -474,8 +577,8 @@ void pcStencilShadowShader::_Init(unsigned int uiFlags,
 {
     if (uiFlags & 0x800)
     {
-        m_mode = MODE_GPU_EXTRUSION_FACENORMAL_SKINNEDHARD;
         m_pVertexFormat = s_pSkinnedInputFormat[0];
+        m_mode = MODE_GPU_EXTRUSION_FACENORMAL_SKINNEDHARD;
     }
     else
     {

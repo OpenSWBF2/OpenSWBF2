@@ -28,21 +28,20 @@ void SampleBank::LoadData(PblFileChunk& chunk, char const* pcName, unsigned int 
         const int iStart = pFile->Tell();
         for (unsigned int i = 0; i < uiNumSamples; ++i)
         {
-            Sample& sample = mSamples[i];
-            const unsigned int uiLength = sample.mAliasSample ? 0 : sample.mLength;
+            const unsigned int uiLength = mSamples[i].mAliasSample ? 0 : mSamples[i].mLength;
             void* pData;
-            if (uiLength)
-            {
-                Engine::GetMixConfig();
-                pData = sample.mAddress;
-                pFile->Seek(iStart + puiOffsets[i], PblFile::SeekFromStart);
-                pFile->ReadData(pData, uiLength);
-            }
-            else
+            if (!uiLength)
             {
                 pData = 0;
             }
-            sample.UploadData(pData, uiLength);
+            else
+            {
+                Engine::GetMixConfig();
+                pData = mSamples[i].mAddress;
+                pFile->Seek(iStart + puiOffsets[i], PblFile::SeekFromStart);
+                pFile->ReadData(pData, uiLength);
+            }
+            mSamples[i].UploadData(pData, uiLength);
         }
         pFile->Seek(iStart, PblFile::SeekFromStart);
         pFile->Seek(iStart + chunk._iSize + 8, PblFile::SeekFromStart);

@@ -80,13 +80,14 @@ public:
 
     pcRedVertexShaderConstantRegister* GetRegisterArray(int iFirst, int iCount)
     {
+        const int iLast = iFirst + iCount - 1;
         if (m_iMinConstantSet > iFirst)
         {
             m_iMinConstantSet = iFirst;
         }
-        if (m_iMaxConstantSet < iFirst + iCount - 1)
+        if (m_iMaxConstantSet < iLast)
         {
-            m_iMaxConstantSet = iFirst + iCount - 1;
+            m_iMaxConstantSet = iLast;
         }
         return m_Registers;
     }
@@ -3112,7 +3113,7 @@ void RedRenderer::pcRegisterResetFunction(void(__cdecl* pFunction)(ResetFlagsT))
     }
 
     m_resetFunctions[uiCount] = pFunction;
-    m_numResetFunctions = uiCount + 1;
+    ++m_numResetFunctions;
 }
 
 // FUNCTION: SWBF2 0x006b9f50
@@ -3207,7 +3208,6 @@ void RedRenderer::pcRenderPrimitive(pcRedPrimitive* pPrim, pcRedShader* pShader,
                                     RedShadingState* pShadingState)
 {
 
-    pcRedShader* const pZPrepass = m_systemShaders[1];
     if (!sLightingEnable)
     {
         uiFlags |= 0x10;
@@ -3328,94 +3328,7 @@ void RedRenderer::pcRenderPrimitive(pcRedPrimitive* pPrim, pcRedShader* pShader,
     RenderSortKey key;
     key.id = 0;
 
-    switch (phase)
-    {
-    case 0x10:
-    case 0x20:
-    case 2:
-    {
-        unsigned char low =
-            (unsigned char)internalGetTransformAndLightingID(uiRVF, uiEnvState, uiPassCaps);
-        key.translucent.material =
-            ((pCurShader->GetID(uiState) & 0xff) << 8) | low;
-        key.translucent.translucent = 1;
-
-        unsigned int hidden = uiFlags & 0x10000000;
-        if (hidden)
-        {
-            phase = 2;
-        }
-
-        if (uiFlags & 0x8000000)
-        {
-            key.translucent.depth = 0x7ff;
-            key.translucent.pass = 2;
-
-            unsigned int uiZState = pItem->pRootShader->GetZPrepassState();
-            unsigned int uiZPassCaps =
-                pZPrepass->GetShaderDef()->m_states[uiZState].pass[0].uiPassCaps;
-            const bool bZPrepassPoolHasRoom = PoolMath::RenderItemHasRoom(m_curRenderItemOffset, 0x128c);
-            if (bZPrepassPoolHasRoom)
-            {
-                unsigned int copyCount = m_curRenderItemOffset;
-                RenderItem* pCopy = &m_renderItemPool[copyCount];
-                m_curRenderItemOffset = copyCount + 1;
-                *pCopy = *pItem;
-                pCopy->pPrim->AddRef();
-                if (pCopy->pShadingState)
-                {
-                    pCopy->pShadingState->AddRef();
-                }
-                pCopy->pRootShader = pItem->pRootShader;
-                pCopy->pRootShader->AddRef();
-                pCopy->pShaderChain[0] = pZPrepass;
-                pCopy->pShaderChain[0]->AddRef();
-                pCopy->uiShaderChainSize = 1;
-                pCopy->uiCurrentShader = 0;
-                pCopy->uiShaderState = uiZState;
-                pCopy->flags |= 0x10;
-                pCopy->pLightingState = &m_aLightingStatePool[2049];
-
-                unsigned char copyLow =
-                    (unsigned char)internalGetTransformAndLightingID(uiRVF, uiEnvState, uiZPassCaps);
-                RenderSortKey copyKey;
-                copyKey.id = 0;
-                copyKey.translucent.material =
-                    ((GetShaderID_(pCopy->pShaderChain[pCopy->uiCurrentShader], pCopy,
-                                   pCopy->uiShaderState) &
-                      0xff)
-                     << 8) |
-                    copyLow;
-                copyKey.translucent.depth = 0x7ff;
-                copyKey.translucent.pass = 2;
-                copyKey.translucent.translucent = 1;
-
-                m_preShadowTransparentItems.Push(pCopy, ~copyKey.id);
-            }
-            else
-            {
-                ensure(bZPrepassPoolHasRoom);
-            }
-        }
-        else if ((uiFlags & 0x20000000) &&
-                 pItem->pRootShader->SortAsZWritingTransparent())
-        {
-            if (hidden)
-            {
-                key.translucent.pass = 1;
-            }
-        }
-        else if (hidden)
-        {
-            key.translucent.pass = 2;
-        }
-        else
-        {
-            key.translucent.pass = 3;
-        }
-        break;
-    }
-    default:
+    if (phase != 0x10 && phase != 0x20 && phase != 2)
     {
         if (phase == 1)
         {
@@ -3433,13 +3346,13 @@ void RedRenderer::pcRenderPrimitive(pcRedPrimitive* pPrim, pcRedShader* pShader,
                 unsigned int uiZState = pItem->pRootShader->GetZPrepassState();
                 if (uiZState != (unsigned int)-1)
                 {
-                    unsigned int uiZPassCaps = pZPrepass->GetPassCaps(uiZState, 0);
+                    unsigned int uiZPassCaps = m_systemShaders[SYSTEM_SHADER_ZPREPASS]->GetPassCaps(uiZState, 0);
                     unsigned char low = (unsigned char)internalGetTransformAndLightingID(
                         uiRVF, uiEnvState, uiZPassCaps);
                     RenderSortKey queryKey;
                     queryKey.id = 0;
                     queryKey.opaque.material =
-                        ((GetShaderID_(pZPrepass, pItem, uiZState) & 0xff) << 8) | low;
+                        ((GetShaderID_(m_systemShaders[SYSTEM_SHADER_ZPREPASS], pItem, uiZState) & 0xff) << 8) | low;
                     if (m_iImmediateMode == 1)
                     {
 
@@ -3498,8 +3411,8 @@ void RedRenderer::pcRenderPrimitive(pcRedPrimitive* pPrim, pcRedShader* pShader,
         if (phase != 4 && m_iImmediateMode == 0 &&
             &mWorld != &gMatrixIdentity)
         {
-            PblVector3 vCenter = (pPrim->m_bbox.GetMax() + pPrim->m_bbox.GetMin()) * 0.5f;
             PblVector3 vView;
+            PblVector3 vCenter = (pPrim->m_bbox.GetMin() + pPrim->m_bbox.GetMax()) * 0.5f;
             D3DXVec3TransformCoord((D3DXVECTOR3*)&vView, (const D3DXVECTOR3*)&vCenter,
                                    (const D3DXMATRIX*)&mWorld);
 
@@ -3524,8 +3437,80 @@ void RedRenderer::pcRenderPrimitive(pcRedPrimitive* pPrim, pcRedShader* pShader,
             }
             key.opaque.depth = uiDepth;
         }
-        break;
     }
+    else
+    {
+        unsigned char low =
+            (unsigned char)internalGetTransformAndLightingID(uiRVF, uiEnvState, uiPassCaps);
+        key.translucent.material =
+            ((pCurShader->GetID(uiState) & 0xff) << 8) | low;
+        key.translucent.translucent = 1;
+
+        unsigned int hidden = uiFlags & 0x10000000;
+        if (hidden)
+        {
+            phase = 2;
+        }
+
+        if (uiFlags & 0x8000000)
+        {
+            key.translucent.depth = 0x7ff;
+            key.translucent.pass = 2;
+
+            unsigned int uiZState = pItem->pRootShader->GetZPrepassState();
+            unsigned int uiZPassCaps =
+                m_systemShaders[SYSTEM_SHADER_ZPREPASS]->GetShaderDef()->m_states[uiZState].pass[0].uiPassCaps;
+            unsigned int copyCount = m_curRenderItemOffset;
+            RenderItem* pCopy = &m_renderItemPool[copyCount];
+            m_curRenderItemOffset = copyCount + 1;
+            *pCopy = *pItem;
+            pCopy->pPrim->AddRef();
+            if (pCopy->pShadingState)
+            {
+                pCopy->pShadingState->AddRef();
+            }
+            pCopy->pRootShader = pItem->pRootShader;
+            pCopy->pRootShader->AddRef();
+            pCopy->pShaderChain[0] = m_systemShaders[SYSTEM_SHADER_ZPREPASS];
+            pCopy->pShaderChain[0]->AddRef();
+            pCopy->uiShaderChainSize = 1;
+            pCopy->uiCurrentShader = 0;
+            pCopy->uiShaderState = uiZState;
+            pCopy->flags |= 0x10;
+            pCopy->pLightingState = &m_aLightingStatePool[2049];
+
+            unsigned char copyLow =
+                (unsigned char)internalGetTransformAndLightingID(uiRVF, uiEnvState, uiZPassCaps);
+            RenderSortKey copyKey;
+            copyKey.id = 0;
+            copyKey.translucent.material =
+                ((GetShaderID_(pCopy->pShaderChain[pCopy->uiCurrentShader], pCopy,
+                               pCopy->uiShaderState) &
+                  0xff)
+                 << 8) |
+                copyLow;
+            copyKey.translucent.depth = 0x7ff;
+            copyKey.translucent.pass = 2;
+            copyKey.translucent.translucent = 1;
+
+            m_preShadowTransparentItems.Push(pCopy, ~copyKey.id);
+        }
+        else if ((uiFlags & 0x20000000) &&
+                 pItem->pRootShader->SortAsZWritingTransparent())
+        {
+            if (hidden)
+            {
+                key.translucent.pass = 1;
+            }
+        }
+        else if (hidden)
+        {
+            key.translucent.pass = 2;
+        }
+        else
+        {
+            key.translucent.pass = 3;
+        }
     }
 
     int firstIndex = GetPhasePass_(RENDERPHASE_OPAQUE);
@@ -3596,7 +3581,7 @@ inline TransparentHeap<ITEM, KEY>::TransparentHeap(unsigned int uiMaxSize)
 }
 
 template <class ITEM, class KEY>
-TransparentHeap<ITEM, KEY>::~TransparentHeap()
+inline TransparentHeap<ITEM, KEY>::~TransparentHeap()
 {
     delete[] m_aNodePool;
 }
@@ -3825,7 +3810,15 @@ void RedRenderer::Init()
     const bool bWasLoading = gLoading;
     gLoading = true;
 
-    for (;;)
+    const int iWidth = rc.right - rc.left;
+    const int iHeight = rc.bottom - rc.top;
+    const int iX = (desktop.right - iWidth + desktop.left) / 2;
+    const int iY = (desktop.bottom - iHeight + desktop.top) / 2;
+    SetWindowPos(hGlobalWnd, 0, iX, iY, iWidth, iHeight, uFlags);
+
+    HRESULT hr = m_pd3dDevice->Reset(&m_d3dpp);
+
+    while (hr == D3DERR_DEVICELOST)
     {
         unsigned int uiElapsed = ResetClock() - dwStart;
         const bool bRevertAvailable =
@@ -3933,26 +3926,49 @@ void RedRenderer::Init()
                                   caps.MaxTextureWidth, caps.MaxTextureHeight,
                                   m_renderCaps.nonpow2textures != 0);
 
-    m_buffers[1] = new RedTexture(kSizes.akBuf[1].uiW, kSizes.akBuf[1].uiH, D3DFMT_A8R8G8B8, 1,
-                                  D3DUSAGE_RENDERTARGET, D3DPOOL_DEFAULT, 0);
-    m_buffers[0] = new RedTexture(kSizes.akBuf[0].uiW, kSizes.akBuf[0].uiH, D3DFMT_A8R8G8B8, 1,
-                                  D3DUSAGE_RENDERTARGET, D3DPOOL_DEFAULT, 0);
-    m_buffers[2] = new RedTexture(kSizes.akBuf[2].uiW, kSizes.akBuf[2].uiH, D3DFMT_A8R8G8B8, 1,
-                                  D3DUSAGE_RENDERTARGET, D3DPOOL_DEFAULT, 0);
-    sDisplayGenW = m_d3dpp.BackBufferWidth;
-    sDisplayGenH = m_d3dpp.BackBufferHeight;
+    unsigned int uiPow2Height;
+    iShift = 31;
+    for (;;)
+    {
+        uiPow2Height = 1u << iShift;
+        if (uiPow2Height <= m_d3dpp.BackBufferHeight &&
+            uiPow2Height <= caps.MaxTextureHeight)
+        {
+            break;
+        }
+        --iShift;
+    }
+
+    if (m_renderCaps.nonpow2textures)
+    {
+        m_buffers[1] = new RedTexture(m_d3dpp.BackBufferWidth,
+                                      m_d3dpp.BackBufferHeight,
+                                      D3DFMT_A8R8G8B8, 1,
+                                      D3DUSAGE_RENDERTARGET, D3DPOOL_DEFAULT, 0);
+    }
+    else
+    {
+        m_buffers[1] = new RedTexture(uiPow2Width, uiPow2Height,
+                                      D3DFMT_A8R8G8B8, 1,
+                                      D3DUSAGE_RENDERTARGET, D3DPOOL_DEFAULT, 0);
+    }
+
+    m_buffers[0] = new RedTexture(
+        uiPow2Width > 0x200 ? 0x200 : uiPow2Width,
+        uiPow2Height > 0x200 ? 0x200 : uiPow2Height,
+        D3DFMT_A8R8G8B8, 1, D3DUSAGE_RENDERTARGET, D3DPOOL_DEFAULT, 0);
+
+    m_buffers[2] = new RedTexture(
+        uiPow2Width > 0x100 ? 0x100 : uiPow2Width,
+        uiPow2Height > 0x100 ? 0x100 : uiPow2Height,
+        D3DFMT_A8R8G8B8, 1, D3DUSAGE_RENDERTARGET, D3DPOOL_DEFAULT, 0);
 
     RedRenderer::m_camera = 0;
     RedRenderer::m_frameNumber = 0;
     RedRenderer::m_fStencilShadowLength = 500.0f;
     RedRenderer::m_bStencilShadowZFail = true;
-    m_systemShaders[0] = 0;
-    m_systemShaders[1] = 0;
-    m_systemShaders[2] = 0;
-    m_systemShaders[3] = 0;
+    memset(m_systemShaders, 0, sizeof(m_systemShaders));
     RedRenderer::m_bScreenSpaceShadows = false;
-    m_systemShaders[4] = 0;
-    m_systemShaders[5] = 0;
     RedRenderer::m_iImmediateMode = 0;
     RedRenderer::m_bFogEnable = false;
     RedRenderer::m_colorFog = RedColor::BLACK;
@@ -3969,23 +3985,19 @@ void RedRenderer::Init()
     pcRedIndexBuffer::Init();
     pcRedShader::Init();
 
-    memset(&RedRenderer::m_aLightingStatePool[2048], 0, sizeof(RedLightingState));
-    memset(&RedRenderer::m_aLightingStatePool[2049], 0, sizeof(RedLightingState));
-    memset(&RedRenderer::m_aLightingStatePool[2050], 0, sizeof(RedLightingState));
-
     RedRenderer::m_curRenderItemOffset = 0;
     RedRenderer::m_uiCurMatrixPoolOffset = 0;
     RedRenderer::m_uiCurLightingStatePoolOffset = 0;
 
-    memcpy((unsigned char*)&RedRenderer::m_aLightingStatePool[2048] + 4,
-           (const unsigned char*)&RedAmbientLight::BLACK + 4, 0x6C);
-    *(void**)((unsigned char*)&RedRenderer::m_aLightingStatePool[2048] + 0x70) =
-        &RedDirectionalLight::BLACK;
+    memset(&RedRenderer::m_aLightingStatePool[2048], 0, sizeof(RedLightingState));
+    memset(&RedRenderer::m_aLightingStatePool[2049], 0, sizeof(RedLightingState));
+    memset(&RedRenderer::m_aLightingStatePool[2050], 0, sizeof(RedLightingState));
 
-    memcpy((unsigned char*)&RedRenderer::m_aLightingStatePool[2049] + 4,
-           (const unsigned char*)&RedAmbientLight::WHITE + 4, 0x6C);
-    *(void**)((unsigned char*)&RedRenderer::m_aLightingStatePool[2049] + 0x70) =
-        &RedDirectionalLight::BLACK;
+    RedRenderer::m_aLightingStatePool[2048].ambientLight = RedAmbientLight::BLACK;
+    RedRenderer::m_aLightingStatePool[2048].pDirectionalLights[0] = &RedDirectionalLight::BLACK;
+
+    RedRenderer::m_aLightingStatePool[2049].ambientLight = RedAmbientLight::WHITE;
+    RedRenderer::m_aLightingStatePool[2049].pDirectionalLights[0] = &RedDirectionalLight::BLACK;
 
     RedRenderer::m_pLightingState = &RedRenderer::m_aLightingStatePool[2048];
 
@@ -3995,7 +4007,7 @@ void RedRenderer::Init()
 
     m_systemShaders[0] = 0;
 
-    m_systemShaders[1] = pcRedShader::Create(PblHash("zprepass"), 0x1002, 0, 0, 0,
+    m_systemShaders[SYSTEM_SHADER_ZPREPASS] = pcRedShader::Create(PblHash("zprepass"), 0x1002, 0, 0, 0,
                                              RedColor::WHITE, RedColor::BLACK,
                                              32.0f);
     m_systemShaders[2] = pcRedShader::Create(PblHash("pervertexdiffuselighting"),
@@ -4026,7 +4038,7 @@ void RedRenderer::InitStatic()
     }
     else
     {
-        m_pD3D = new FakeD3D;
+        m_pD3D = CreateFakeD3D();
     }
 
     if (!m_pD3D)
@@ -4113,17 +4125,12 @@ void RedRenderer::InitStatic()
         }
 
         D3DCAPS9 caps;
-        memset(&caps, 0, sizeof(caps));
-        if (m_pD3D->GetDeviceCaps(gAdapter, D3DDEVTYPE_HAL, &caps) == D3D_OK)
-        {
-            sPresentIntervals = caps.PresentationIntervals;
-        }
-        m_d3dpp.PresentationInterval = ResolveInterval(false, m_d3dpp.Windowed != FALSE, true);
-        DWORD dwBehaviorFlags = (caps.DevCaps & D3DDEVCAPS_HWTRANSFORMANDLIGHT)
-                                    ? D3DCREATE_HARDWARE_VERTEXPROCESSING
-                                    : D3DCREATE_SOFTWARE_VERTEXPROCESSING;
+        m_pD3D->GetDeviceCaps(0, D3DDEVTYPE_HAL, &caps);
 
-        hr = m_pD3D->CreateDevice(gAdapter, D3DDEVTYPE_HAL, hGlobalWnd, dwBehaviorFlags,
+        hr = m_pD3D->CreateDevice(0, D3DDEVTYPE_HAL, hGlobalWnd,
+                                  (caps.DevCaps & D3DDEVCAPS_HWTRANSFORMANDLIGHT)
+                                      ? D3DCREATE_HARDWARE_VERTEXPROCESSING
+                                      : D3DCREATE_SOFTWARE_VERTEXPROCESSING,
                                   &m_d3dpp, &m_pd3dDevice);
 
         HRESULT hrIdentifier = m_pD3D->GetAdapterIdentifier(gAdapter, 0, &m_adaptorIdentifier);
@@ -4139,7 +4146,7 @@ void RedRenderer::InitStatic()
     {
 
         m_pd3dDevice = 0;
-        m_pd3dDevice = new FakeD3DDevice;
+        m_pd3dDevice = CreateFakeDevice();
         memset(&m_adaptorIdentifier, 0, sizeof(m_adaptorIdentifier));
     }
 
@@ -4229,14 +4236,14 @@ void RedRenderer::internalSetupCaps()
     m_renderCaps.cubemaps = ((m_deviceCaps.TextureCaps >> 11) & 1) != 0;
     m_renderCaps.volumemaps = ((m_deviceCaps.TextureCaps >> 13) & 1) != 0;
 
-    if (m_deviceCaps.TextureCaps & D3DPTEXTURECAPS_POW2)
+    if (!(m_deviceCaps.TextureCaps & D3DPTEXTURECAPS_POW2))
     {
-        m_renderCaps.nonpow2textures =
-            (TextureNonPow2SupportT)((m_deviceCaps.TextureCaps >> 8) & 1);
+        m_renderCaps.nonpow2textures = TEXTURE_NONPOW2_ALWAYS;
     }
     else
     {
-        m_renderCaps.nonpow2textures = TEXTURE_NONPOW2_ALWAYS;
+        m_renderCaps.nonpow2textures =
+            (TextureNonPow2SupportT)((m_deviceCaps.TextureCaps >> 8) & 1);
     }
 
     RedVideoConfig::VidMode_ApplyRenderCapOverrides(m_renderCaps);
@@ -4251,16 +4258,18 @@ void RedRenderer::pcSetCursorImage(RedTexture const* pTexture, unsigned int uiX,
         return;
     }
 
+    const unsigned int uiHeight = pTexture->m_uiHeight;
+    const unsigned int uiWidth = pTexture->m_uiWidth;
     IDirect3DSurface9* pSurface = 0;
     ((IDirect3DTexture9*)pTexture->m_pTexture)->GetSurfaceLevel(0, &pSurface);
 
-    if (uiX >= pTexture->m_uiWidth)
+    if (uiX >= uiWidth)
     {
-        uiX = pTexture->m_uiWidth;
+        uiX = uiWidth;
     }
-    if (uiY >= pTexture->m_uiHeight)
+    if (uiY >= uiHeight)
     {
-        uiY = pTexture->m_uiHeight;
+        uiY = uiHeight;
     }
 
     m_pd3dDevice->SetCursorProperties(uiX, uiY, pSurface);
@@ -4281,33 +4290,12 @@ void RedRenderer::pcSetDisplayMode(unsigned int uiWidth, unsigned int uiHeight,
     m_clientW = uiClientW;
     m_clientH = uiClientH;
     m_d3dpp.BackBufferWidth = uiWidth;
+    m_d3dpp.Windowed = bWindowed ? TRUE : FALSE;
     m_d3dpp.BackBufferHeight = uiHeight;
     m_d3dpp.MultiSampleType = msType;
     m_d3dpp.MultiSampleQuality = ulMSQuality;
-    m_d3dpp.Windowed = bWindowed;
-    m_d3dpp.PresentationInterval = ResolveInterval(bVSync, bWindowed, true);
-
-    m_d3dpp.FullScreen_RefreshRateInHz = 0;
-    if (!bWindowed && !g_bNoRender)
-    {
-        const unsigned int uiCount =
-            pcGetValidDisplayModes(gAdapter, 0, 0, 0, 0);
-        if (uiCount)
-        {
-            DisplayLogic::DisplayModeRec* pList = new DisplayLogic::DisplayModeRec[uiCount];
-            pcGetValidDisplayModes(gAdapter, pList, uiCount, 0, 0);
-            unsigned int uiDesktopHz = 0;
-            DEVMODEA dm;
-            if (SavedDesktopMode(gAdapter, dm) && dm.dmDisplayFrequency > 1)
-            {
-                uiDesktopHz = dm.dmDisplayFrequency;
-            }
-            m_d3dpp.FullScreen_RefreshRateInHz = DisplayLogic::PickRefresh(
-                pList, uiCount, uiWidth, uiHeight, DisplayCfg::gDisplay.uiRefresh, false,
-                uiDesktopHz);
-            delete[] pList;
-        }
-    }
+    m_d3dpp.PresentationInterval =
+        bVSync ? D3DPRESENT_INTERVAL_DEFAULT : D3DPRESENT_INTERVAL_IMMEDIATE;
 
     PblTraceP("pcSetDisplayMode- width: %d hieght: %d windowed: %d mstype: %d "
               "msquality: %d vsync: %d \n",
@@ -4506,12 +4494,18 @@ pcRedPrimitive* RedRenderer::m_occlusionQueryShapes[4];
 IDirect3DQuery9* RedRenderer::internalGetD3DVisibilityQuery()
 {
     const unsigned int i = RedRenderer::m_curVisibilityIndex;
-    if (i < 2024 ? i == 2023 : i - 2024 >= 2023)
+    if (i >= 2024)
+    {
+        if (i - 2024 >= 2023)
+        {
+            return 0;
+        }
+    }
+    else if (i == 2023)
     {
         return 0;
     }
-    RedRenderer::m_curVisibilityIndex = i + 1;
-    return m_pVisibility[i];
+    return m_pVisibility[RedRenderer::m_curVisibilityIndex++];
 }
 
 // FUNCTION: SWBF2 0x006b4460
@@ -4562,10 +4556,10 @@ void RedRenderer::internalInitOcclusionQuery()
     sOcclusionQuerySubmitIndex = 0;
     RedRenderer::m_occlusionQueryFlushOffset = 0;
 
-    float fSin;
-    float fCos;
-    float fSinTheta;
-    float fCosTheta;
+    float fSin = 0.0f;
+    float fCos = 0.0f;
+    float fSinTheta = 0.0f;
+    float fCosTheta = 0.0f;
     unsigned int i;
     float* pVertex;
 
@@ -4580,29 +4574,39 @@ void RedRenderer::internalInitOcclusionQuery()
         PblMath::SinCos(&fSin, &fCos, (float)i * PblMath::fTwoPi / 6.0f);
 
         const float fZero = 0.0f;
-        pVertex[0] = fCos * fZero;
+        const float fZZero = fSin * fZero;
+        const float fXZero = fCos * fZero;
+        pVertex[0] = fXZero;
         pVertex[1] = 0.0f;
-        pVertex[2] = fSin * fZero;
-        pVertex[3] = fCos;
+        pVertex[2] = fZZero;
+        const float fZRim = fSin;
+        const float fXRim = fCos;
+        pVertex[3] = fXRim;
         pVertex[4] = 1.0f;
-        pVertex[5] = fSin;
+        pVertex[5] = fZRim;
         pVertex += 6;
     }
 
-    pVertex[0] = fCos;
+    const float fZ1 = fSin;
+    const float fX1 = fCos;
+    pVertex[0] = fX1;
     pVertex[1] = 1.0f;
-    pVertex[2] = fSin;
-    pVertex[3] = fCos;
+    pVertex[2] = fZ1;
+    const float fZ1b = fSin;
+    const float fX1b = fCos;
+    pVertex[3] = fX1b;
     pVertex[4] = 1.0f;
-    pVertex[5] = fSin;
+    pVertex[5] = fZ1b;
     pVertex += 6;
 
     for (i = 0; i <= 6; i++)
     {
         PblMath::SinCos(&fSin, &fCos, (float)i * PblMath::fTwoPi / 6.0f);
-        pVertex[0] = fCos;
+        const float fX2 = fCos;
+        const float fZ2 = fSin;
+        pVertex[0] = fX2;
         pVertex[1] = 1.0f;
-        pVertex[2] = fSin;
+        pVertex[2] = fZ2;
         pVertex[3] = 0.0f;
         pVertex[4] = 1.0f;
         pVertex[5] = 0.0f;
@@ -4623,46 +4627,62 @@ void RedRenderer::internalInitOcclusionQuery()
         pVertex[0] = 0.0f;
         pVertex[1] = -1.0f;
         pVertex[2] = 0.0f;
-        pVertex[3] = fCos;
+        const float fZRim = fSin;
+        const float fXRim = fCos;
+        pVertex[3] = fXRim;
         pVertex[4] = -1.0f;
-        pVertex[5] = fSin;
+        pVertex[5] = fZRim;
         pVertex += 6;
     }
 
-    pVertex[0] = fCos;
+    const float fZ3 = fSin;
+    const float fX3 = fCos;
+    pVertex[0] = fX3;
     pVertex[1] = -1.0f;
-    pVertex[2] = fSin;
-    pVertex[3] = fCos;
+    pVertex[2] = fZ3;
+    const float fZ3b = fSin;
+    const float fX3b = fCos;
+    pVertex[3] = fX3b;
     pVertex[4] = -1.0f;
-    pVertex[5] = fSin;
+    pVertex[5] = fZ3b;
     pVertex += 6;
 
     for (i = 0; i <= 6; i++)
     {
         PblMath::SinCos(&fSin, &fCos, (float)i * PblMath::fTwoPi / 6.0f);
-        pVertex[0] = fCos;
+        const float fZ4 = fSin;
+        const float fX4 = fCos;
+        pVertex[0] = fX4;
         pVertex[1] = -1.0f;
-        pVertex[2] = fSin;
-        pVertex[3] = fCos;
+        pVertex[2] = fZ4;
+        const float fZ4b = fSin;
+        const float fX4b = fCos;
+        pVertex[3] = fX4b;
         pVertex[4] = 1.0f;
-        pVertex[5] = fSin;
+        pVertex[5] = fZ4b;
         pVertex += 6;
     }
 
-    pVertex[0] = fCos;
+    const float fZ5 = fSin;
+    const float fX5 = fCos;
+    pVertex[0] = fX5;
     pVertex[1] = 1.0f;
-    pVertex[2] = fSin;
-    pVertex[3] = fCos;
+    pVertex[2] = fZ5;
+    const float fZ5b = fSin;
+    const float fX5b = fCos;
+    pVertex[3] = fX5b;
     pVertex[4] = 1.0f;
-    pVertex[5] = fSin;
+    pVertex[5] = fZ5b;
     pVertex += 6;
 
     for (i = 0; i <= 6; i++)
     {
         PblMath::SinCos(&fSin, &fCos, (float)i * PblMath::fTwoPi / 6.0f);
-        pVertex[0] = fCos;
+        const float fX6 = fCos;
+        const float fZ6 = fSin;
+        pVertex[0] = fX6;
         pVertex[1] = 1.0f;
-        pVertex[2] = fSin;
+        pVertex[2] = fZ6;
         pVertex[3] = 0.0f;
         pVertex[4] = 1.0f;
         pVertex[5] = 0.0f;
@@ -4691,14 +4711,18 @@ void RedRenderer::internalInitOcclusionQuery()
                             -((float)i * PblMath::fTwoPi * 0.125f));
 
             PblMath::SinCos(&fSinTheta, &fCosTheta, fTheta0);
-            pVertex[0] = fCos * fSinTheta;
+            const float fX0 = fCos * fSinTheta;
+            const float fZ0 = fSin * fSinTheta;
+            pVertex[0] = fX0;
             pVertex[1] = fCosTheta;
-            pVertex[2] = fSin * fSinTheta;
+            pVertex[2] = fZ0;
 
             PblMath::SinCos(&fSinTheta, &fCosTheta, fTheta1);
-            pVertex[3] = fCos * fSinTheta;
+            const float fX1 = fCos * fSinTheta;
+            const float fZ1 = fSin * fSinTheta;
+            pVertex[3] = fX1;
             pVertex[4] = fCosTheta;
-            pVertex[5] = fSin * fSinTheta;
+            pVertex[5] = fZ1;
             pVertex += 6;
 
             fSinTheta1 = fSinTheta;
@@ -4716,7 +4740,7 @@ void RedRenderer::internalInitOcclusionQuery()
 
     RedRenderer::m_occlusionQueryShapes[0]->EndVertexData();
 
-    static const unsigned int auiCorners[20] = {
+    unsigned int auiCorners[20] = {
         0, 1, 2, 3,
         6, 7, 7, 3,
         5, 1, 4, 0,
@@ -4733,9 +4757,12 @@ void RedRenderer::internalInitOcclusionQuery()
     for (i = 0; i < 20; i++)
     {
         const unsigned int uiCorner = auiCorners[i];
-        pVertex[0] = (uiCorner & 4) ? 1.0f : -1.0f;
-        pVertex[1] = (uiCorner & 2) ? 1.0f : -1.0f;
-        pVertex[2] = (uiCorner & 1) ? 1.0f : -1.0f;
+        const float fZ = (uiCorner & 1) ? 1.0f : -1.0f;
+        const float fY = (uiCorner & 2) ? 1.0f : -1.0f;
+        const float fX = (uiCorner & 4) ? 1.0f : -1.0f;
+        pVertex[0] = fX;
+        pVertex[1] = fY;
+        pVertex[2] = fZ;
         pVertex += 3;
     }
 
@@ -5175,10 +5202,10 @@ void RedRenderer::internalResetState()
 
     for (int i = 0; i < 64; i++)
     {
-
-        if (m_opaqueQueues._elements[i].Reserve_(0, true))
+        SortHeap& rQueue = m_opaqueQueues._elements[i];
+        if (rQueue.Reserve_(0, true))
         {
-            m_opaqueQueues._elements[i]._numElements = 0;
+            rQueue._numElements = 0;
         }
         m_opaqueQueues._elements[i].globalPass_ = i;
     }
@@ -5193,10 +5220,9 @@ void RedRenderer::internalResetState()
     RedRenderer::m_bSetTransform_Projection = true;
     RedRenderer::m_bSetTransform_View = true;
 
+    m_screenAspectRatio = (float)m_d3dpp.BackBufferHeight / (float)m_d3dpp.BackBufferWidth;
     RedInterfaceScreen::s_screenFull.SetDimensions(m_d3dpp.BackBufferWidth,
                                                    m_d3dpp.BackBufferHeight);
-    m_screenAspectRatio = (float)((double)m_d3dpp.BackBufferHeight
-                                  / (double)m_d3dpp.BackBufferWidth);
     RedInterfaceScreen::s_fScreenBottomV = 1.0f;
 
     RedInterfaceScreen::s_screenFull.SetSafeZone(0.9f);
@@ -5281,12 +5307,8 @@ void RedRenderer::internalResetState()
     memset(m_curStream, 0, sizeof(m_curStream));
     memset(m_VSConstants.m_Registers, 0, sizeof(m_VSConstants.m_Registers));
 
-    m_clearColor.b = 0;
-    m_clearColor.g = 0;
-    m_clearColor.r = 0;
-    m_clearColor.a = 0;
-    D3DCOLOR dwClear = (D3DCOLOR)(((((unsigned int)m_clearColor.a << 8)
-                                    | m_clearColor.r) << 8 | m_clearColor.g) << 8);
+    m_clearColor = RedColor(0, 0, 0, 0);
+    D3DCOLOR dwClear = m_clearColor.GetARGB();
 
     m_VSConstants.m_iMinConstantSet = 0x60;
     m_VSConstants.m_iMaxConstantSet = 0;
@@ -5464,25 +5486,26 @@ void RedRenderer::pcSetRenderState(D3DRENDERSTATETYPE eState, unsigned long ulVa
 
     m_curRenderStateMode[eState] = ulValue;
 
-    if (!stateManagerEnabled_)
+    if (stateManagerEnabled_)
+    {
+        dx::StateManager_DX& rSM = dx::StateManager_DX::GetInstance();
+        if (rSM.m_bForce || rSM.m_CurrentState.m_RenderStates[eState] != ulValue)
+        {
+
+            rSM.renderStates_.Add(dx::NVStateID(1, eState, 0));
+            rSM.m_CurrentState.m_RenderStates[eState] = ulValue;
+        }
+    }
+    else
     {
         m_pd3dDevice->SetRenderState(eState, ulValue);
-        return;
-    }
-
-    dx::StateManager_DX& rSM = dx::StateManager_DX::GetInstance();
-    if (rSM.m_bForce || rSM.m_CurrentState.m_RenderStates[eState] != ulValue)
-    {
-
-        rSM.renderStates_.Add(dx::NVStateID(1, eState, 0));
-        rSM.m_CurrentState.m_RenderStates[eState] = ulValue;
     }
 }
 
 // FUNCTION: SWBF2 0x006b9e00
 void RedRenderer::pcSetViewport(const RedViewport& rViewport)
 {
-    IDirect3DSurface9* pTarget = 0;
+    IDirect3DSurface9* pTarget;
     m_pd3dDevice->GetRenderTarget(0, &pTarget);
 
     D3DSURFACE_DESC desc;
@@ -5490,9 +5513,8 @@ void RedRenderer::pcSetViewport(const RedViewport& rViewport)
     pTarget->Release();
 
     float fWidth = (float)(double)desc.Width;
+    m_viewport.X = (unsigned int)(rViewport.fOffsetX * fWidth);
     float fHeight = (float)(double)desc.Height;
-
-    m_viewport.X = (unsigned int)(fWidth * rViewport.fOffsetX);
     m_viewport.Y = (unsigned int)(fHeight * rViewport.fOffsetY);
     m_viewport.Width = (unsigned int)(fWidth * rViewport.fWidth);
     m_viewport.Height = (unsigned int)(fHeight * rViewport.fHeight);
@@ -5519,8 +5541,8 @@ inline void pcRedVertexShaderConstants::Update()
             m_iMaxConstantSet - m_iMinConstantSet + 1);
     }
 
-    m_iMaxConstantSet = 0;
     m_iMinConstantSet = 0x60;
+    m_iMaxConstantSet = 0;
 }
 
 // FUNCTION: SWBF2 0x006b8120
@@ -5639,7 +5661,7 @@ void RedRenderer::pcSetTransform(D3DTRANSFORMSTATETYPE eState, const PblMatrix& 
         rView = rMatrix;
         for (int row = 0; row < 4; ++row)
         {
-            rView.m[row][2] = -rView.m[row][2];
+            rView.m[row][2] *= -1.0f;
         }
     }
     else if (eState == D3DTS_PROJECTION)
@@ -5751,7 +5773,7 @@ void RedRenderer::internalShaderBeginEnd()
 {
     if (RedRenderer::m_pPrevShader)
     {
-        (RedRenderer::m_pPrevShader->*RedRenderer::m_pPrevShader->EndFunc)(RedRenderer::m_uiPrevShaderState, (RedRenderer::m_PrevSortID >> 16) & 3);
+        (RedRenderer::m_pPrevShader->*RedRenderer::m_pPrevShader->EndFunc)(RedRenderer::m_uiPrevShaderState, ((unsigned int)RedRenderer::m_PrevSortID >> 16) & 3);
         internalStateStackPop();
         RedRenderer::m_pPrevShader->Release();
     }
@@ -5908,10 +5930,10 @@ void RedRenderer::internalUpdateSceneConstants()
 
     if (RedRenderer::m_userNearClipPlaneEnable)
     {
-        PblMatrix mViewProj;
-        D3DXMatrixMultiply((D3DXMATRIX*)&mViewProj, (const D3DXMATRIX*)&rView,
+        PblMatrix mClip;
+        D3DXMatrixMultiply((D3DXMATRIX*)&mClip, (const D3DXMATRIX*)&rView,
                            (const D3DXMATRIX*)&rProj);
-        PblMatrix mClip = mViewProj.GetInverse();
+        mClip = mClip.GetInverse();
         mClip.Transpose4x4();
 
         PblVector4 vPlane(RedRenderer::m_userNearClipPlane.GetA(),
@@ -5968,7 +5990,7 @@ void RedRenderer::internalUpdateSceneConstants()
 
     if (m_renderCaps.pipeline != PIPELINE_FIXED)
     {
-        pcRedVertexShaderConstantRegister* pRegs = pcLockVertexShaderConstants(2, 7);
+        pcRedVertexShaderConstantRegister* pRegs = m_VSConstants.GetRegisterArray(2, 7);
         pRegs[2].SetMatrix4x4(RedRenderer::m_mViewProjection);
 
         const PblMatrix& rCamera = ((const RedCamera*)RedRenderer::m_camera)->GetMatrix();
@@ -6017,7 +6039,7 @@ void RedRenderer::internalUpdateSceneConstants()
         pRegs[8].component[2] = RedRenderer::m_lightingScale;
         pRegs[8].component[3] = 1.0f;
 
-        pcUnlockVertexShaderConstants(pRegs);
+        m_VSConstants.Update();
     }
     else
     {
@@ -6116,8 +6138,9 @@ PblMatrix* RedRenderer::AllocBoneMatricesInCache(unsigned int uiCount)
 // FUNCTION: SWBF2 0x006b02a0
 RedLightingState* RedRenderer::AllocLightingStateInCache()
 {
-    RedLightingState* pState = &m_aLightingStatePool[RedRenderer::m_uiCurLightingStatePoolOffset];
-    RedRenderer::m_uiCurLightingStatePoolOffset = RedRenderer::m_uiCurLightingStatePoolOffset + 1 < 2048 ? RedRenderer::m_uiCurLightingStatePoolOffset + 1 : 1;
+    unsigned int uiIndex = RedRenderer::m_uiCurLightingStatePoolOffset;
+    RedLightingState* pState = &m_aLightingStatePool[uiIndex];
+    RedRenderer::m_uiCurLightingStatePoolOffset = (uiIndex + 1 < 2048 ? uiIndex : 0) + 1;
     memset(pState, 0, sizeof(RedLightingState));
     return pState;
 }
@@ -6130,8 +6153,8 @@ const PblMatrix* RedRenderer::AllocMatrixInCache(const PblMatrix& mat)
     {
         RedRenderer::m_uiCurMatrixPoolOffset = 0;
     }
-    RedRenderer::m_uiCurMatrixPoolOffset = RedRenderer::m_uiCurMatrixPoolOffset + 1;
     *pMatrix = mat;
+    RedRenderer::m_uiCurMatrixPoolOffset = RedRenderer::m_uiCurMatrixPoolOffset + 1;
     return pMatrix;
 }
 
@@ -6203,10 +6226,10 @@ bool RedRenderer::BeginFrame()
 
     ResetScriptFrame();
 
-    D3DCOLOR clearColor = (((((unsigned int)m_clearColor.a << 8) | m_clearColor.r) << 8
-                            | m_clearColor.g) << 8) | m_clearColor.b;
     m_pd3dDevice->Clear(0, 0, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL,
-                        clearColor, 1.0f, 0);
+                        (((((unsigned int)m_clearColor.a << 8) | m_clearColor.r) << 8
+                          | m_clearColor.g) << 8) | m_clearColor.b,
+                        1.0f, 0);
 
     ++RedRenderer::m_frameNumber;
     RedRenderer::m_occlusionQueryFlushOffset = 0;
@@ -6437,20 +6460,22 @@ void RedRenderer::Cleanup()
     sStageArm = false;
     sNoticeTag.bValid = false;
 
-    for (int i = 0; i < 3; ++i)
-    {
-        delete m_buffers[i];
-        m_buffers[i] = 0;
-    }
+    delete m_buffers[0];
+    m_buffers[0] = 0;
+    delete m_buffers[1];
+    m_buffers[1] = 0;
+    delete m_buffers[2];
+    m_buffers[2] = 0;
 
     RedRenderer::m_camera = 0;
     RedRenderer::m_frameNumber = 0;
 
     for (int i = 0; i < 64; ++i)
     {
-        if (m_opaqueQueues._elements[i].Reserve_(0, true))
+        SortHeap& rQueue = m_opaqueQueues._elements[i];
+        if (rQueue.Reserve_(0, true))
         {
-            m_opaqueQueues._elements[i]._numElements = 0;
+            rQueue._numElements = 0;
         }
     }
     if (m_opaqueQueues.Reserve_(0, true))
@@ -6476,11 +6501,7 @@ void RedRenderer::Cleanup()
     memset(&RedRenderer::m_aLightingStatePool[2050], 0, sizeof(RedLightingState));
     RedRenderer::m_pLightingState = &RedRenderer::m_aLightingStatePool[2048];
 
-    if (dx::localInstance_)
-    {
-        delete dx::localInstance_;
-    }
-    dx::localInstance_ = 0;
+    dx::StateManager_DX::ClearInstance();
 }
 
 // FUNCTION: SWBF2 0x006b08f0
@@ -6629,21 +6650,14 @@ void RedRenderer::FlushOcclusionQueries()
         return;
     }
 
-    const bool bOcclusionFlushPoolHasRoom = PoolMath::RenderItemHasRoom(RedRenderer::m_curRenderItemOffset, 0x128c);
-    if (!ensure(bOcclusionFlushPoolHasRoom))
-    {
-        return;
-    }
-
-    pcRedShader* pShader = m_systemShaders[SYSTEM_SHADER_ZPREPASS];
-    unsigned int uiCaps = pShader->GetPassCaps(0, 0);
+    unsigned int uiCaps = m_systemShaders[SYSTEM_SHADER_ZPREPASS]->GetShaderDef()->m_states[0].pass[0].uiPassCaps;
 
     RenderItem* pItem = &m_renderItemPool[RedRenderer::m_curRenderItemOffset++];
     pItem->pBoneMatrices = 0;
     pItem->numBoneMatrices = 0;
     pItem->pShadingState = 0;
     pItem->pRootShader = m_systemShaders[SYSTEM_SHADER_NORMAL];
-    pItem->pShaderChain[0] = pShader;
+    pItem->pShaderChain[0] = m_systemShaders[SYSTEM_SHADER_ZPREPASS];
     pItem->uiShaderChainSize = 1;
     pItem->uiCurrentShader = 0;
     pItem->uiShaderState = 0;
@@ -6652,21 +6666,27 @@ void RedRenderer::FlushOcclusionQueries()
     pItem->uiEnvState = 0;
     pItem->pVisibilityQuery = 0;
 
-    unsigned char ucTL = (unsigned char)internalGetTransformAndLightingID(0x1002, 0, uiCaps);
-    unsigned short usID = (unsigned short)(((GetShaderID_(pShader, pItem, 0) & 0xff) << 8) | ucTL);
+    SortIdT sortId;
+    sortId.id = 0;
+    sortId.o_tnl = internalGetTransformAndLightingID(0x1002, 0, uiCaps);
+    sortId.o_customID = GetShaderID_(m_systemShaders[SYSTEM_SHADER_ZPREPASS], pItem, 0);
 
-    unsigned int uiBase = sOcclusionQuerySubmitIndex < 700 ? 0 : 700;
+    unsigned int uiBase = 0;
+    if (sOcclusionQuerySubmitIndex >= 700)
+    {
+        uiBase = 700;
+    }
     for (unsigned int i = uiBase + RedRenderer::m_occlusionQueryFlushOffset; i < sOcclusionQuerySubmitIndex; ++i)
     {
         OcclusionQueryT& rQuery = m_occlusionQueries[i];
         pItem->pmObjWorld = &rQuery.worldMat;
         pItem->pPrim = m_occlusionQueryShapes[rQuery.shape];
         rQuery.pVisibilityQuery->Issue(D3DISSUE_BEGIN);
-        internalRenderZPrepassProg1(pItem, usID);
+        internalRenderZPrepassProg1(pItem, sortId.o_shaderID);
         rQuery.pVisibilityQuery->Issue(D3DISSUE_END);
     }
-    --RedRenderer::m_curRenderItemOffset;
     RedRenderer::m_occlusionQueryFlushOffset = sOcclusionQuerySubmitIndex - uiBase;
+    --RedRenderer::m_curRenderItemOffset;
 }
 
 // FUNCTION: SWBF2 0x006b0ed0
@@ -6757,8 +6777,11 @@ bool RedRenderer::GetOcclusionQueryPixelCount(unsigned int uiQuery, unsigned int
     {
         return false;
     }
-    return m_occlusionQueries[uiQuery].pVisibilityQuery->GetData(&uiPixelCount, sizeof(uiPixelCount), 0)
-           == S_OK;
+    if (m_occlusionQueries[uiQuery].pVisibilityQuery->GetData(&uiPixelCount, sizeof(uiPixelCount), 0) == S_OK)
+    {
+        return true;
+    }
+    return false;
 }
 
 // FUNCTION: SWBF2 0x006b1570
@@ -6770,13 +6793,16 @@ unsigned int pcRedShader::GetPassCaps(unsigned int uiState, unsigned int uiPass)
 // FUNCTION: SWBF2 0x006b15a0
 int GetPhasePass_(RenderPhaseT ePhase)
 {
-    switch (ePhase)
+    if (ePhase == RENDERPHASE_OPAQUE)
     {
-    case RENDERPHASE_OPAQUE:
         return 0;
-    case RENDERPHASE_SHADOW:
+    }
+    if (ePhase == RENDERPHASE_SHADOW)
+    {
         return 4;
-    case RENDERPHASE_POSTSHADOW:
+    }
+    if (ePhase == RENDERPHASE_POSTSHADOW)
+    {
         return 6;
     }
     return ePhase == RENDERPHASE_TRANSPARENT ? 20 : 0;
@@ -6806,8 +6832,8 @@ const PblMatrix& RedRenderer::GetProjectionMatrix()
     rProj.m[3][3] = 0.0f;
     rProj.m[0][0] = fNear * 2.0f / fWidth;
     rProj.m[1][1] = fNear * -2.0f / fHeight;
-    rProj.m[3][2] = fNear * -PROJECTION_FAR_PLANE / (PROJECTION_FAR_PLANE - fNear);
     rProj.m[2][2] = -PROJECTION_FAR_PLANE / (PROJECTION_FAR_PLANE - fNear);
+    rProj.m[3][2] = fNear * -PROJECTION_FAR_PLANE / (PROJECTION_FAR_PLANE - fNear);
     return rProj;
 }
 
@@ -6902,7 +6928,7 @@ void RedRenderer::SetFilterColor(RedColor color, int iAmount)
 void RedRenderer::SetFogColor(const RedColor& color)
 {
     RedRenderer::m_colorFog = color;
-    RedColor c = m_lightingScaleColor * RedRenderer::m_colorFog;
+    RedColor c = RedRenderer::m_colorFog * m_lightingScaleColor;
     pcSetRenderState(D3DRS_FOGCOLOR,
                      (((((unsigned int)c.a << 8) | c.r) << 8 | c.g) << 8) | c.b);
 }
@@ -6925,17 +6951,19 @@ void RedRenderer::SetMultiplicativeFog(int iPower)
     grey.a = ucGrey;
     RedColor c = grey * RedRenderer::m_colorFog;
 
+    RedColorValue value(c);
     float fExp = 1.0f / (float)iPower;
-    float fR = (float)pow((double)(c.r * (1.0f / 255.0f)), (double)fExp);
-    float fG = (float)pow((double)(c.g * (1.0f / 255.0f)), (double)fExp);
-    float fB = (float)pow((double)(c.b * (1.0f / 255.0f)), (double)fExp);
-    float fA = (float)pow((double)(c.a * (1.0f / 255.0f)), (double)fExp);
+    value.r = (float)pow((double)value.r, (double)fExp);
+    value.g = (float)pow((double)value.g, (double)fExp);
+    value.b = (float)pow((double)value.b, (double)fExp);
+    value.a = (float)pow((double)value.a, (double)fExp);
 
-    pcSetRenderState(D3DRS_FOGCOLOR,
-                     ((((((unsigned int)(unsigned char)(int)(fA * 255.0f) << 8)
-                         | (unsigned char)(int)(fR * 255.0f)) << 8)
-                       | (unsigned char)(int)(fG * 255.0f)) << 8)
-                         | (unsigned char)(int)(fB * 255.0f));
+    const unsigned char b = (unsigned char)(int)(value.b * 255.0f);
+    const unsigned char g = (unsigned char)(int)(value.g * 255.0f);
+    const unsigned char r = (unsigned char)(int)(value.r * 255.0f);
+    const unsigned char a = (unsigned char)(int)(value.a * 255.0f);
+    pcSetRenderState(D3DRS_FOGCOLOR, ((unsigned int)a << 24) | ((unsigned int)r << 16) |
+                                         ((unsigned int)g << 8) | (unsigned int)b);
 }
 
 // FUNCTION: SWBF2 0x006b3c60
@@ -6949,6 +6977,11 @@ void RedRenderer::SetScreenOffset(float fX, float fY)
 void RedRenderer::SetShadowIntensity(float fIntensity)
 {
     RedRenderer::m_shadowIntensity = fIntensity;
+}
+
+// FUNCTION: SWBF2 0x006b3ca0
+void RedRenderer::SetSky(bool)
+{
 }
 
 // FUNCTION: SWBF2 0x006b3cb0
@@ -7028,13 +7061,15 @@ void dx::StateManager_DX::SetSamplerState(unsigned long ulSampler, D3DSAMPLERSTA
 void dx::StateManager_DX::SetStreamSource(unsigned int uiStream, IDirect3DVertexBuffer9* pStreamData,
                                           unsigned int uiOffset, unsigned int uiStride)
 {
-    NVStreamData& rData = m_CurrentState.m_StreamData[uiStream];
-    if (m_bForce || rData.m_pStreamData != pStreamData || rData.m_Stride != 0)
+    if (m_bForce || m_CurrentState.m_StreamData[uiStream].m_pStreamData != pStreamData
+        || m_CurrentState.m_StreamData[uiStream].m_Stride != 0)
     {
         m_DirtyStates.Add(NVStateID(12, uiStream, 0));
-        rData.m_pStreamData = pStreamData;
-        rData.m_Offset = uiOffset;
-        rData.m_Stride = uiStride;
+        NVStreamData newData;
+        newData.m_pStreamData = pStreamData;
+        newData.m_Offset = uiOffset;
+        newData.m_Stride = uiStride;
+        m_CurrentState.m_StreamData[uiStream] = newData;
     }
 }
 
@@ -7075,38 +7110,41 @@ void dx::StateManager_DX::SetVertexShader(IDirect3DVertexShader9* pShader)
 unsigned int RedRenderer::SubmitOcclusionQuery(const PblMatrix& mWorld, OcclusionQueryShapeT eShape,
                                                const PblVector3& vScale, bool)
 {
-    if (!g_bNoRender || !sEnableOcclusionQueries)
+    if (!g_bNoRender)
+    {
+        return (unsigned int)-1;
+    }
+    if (!sEnableOcclusionQueries)
     {
         return (unsigned int)-1;
     }
 
     unsigned int uiIndex = sOcclusionQuerySubmitIndex;
-    if (uiIndex < 700)
+    if (uiIndex >= 700)
     {
-        if (uiIndex == 699)
+        if (uiIndex - 700 >= 699)
         {
             return (unsigned int)-1;
         }
     }
-    else if (uiIndex - 700 >= 699)
+    else if (uiIndex == 699)
     {
         return (unsigned int)-1;
     }
 
-    OcclusionQueryT& rQuery = m_occlusionQueries[uiIndex];
-    rQuery.pVisibilityQuery = internalGetD3DVisibilityQuery();
-    if (!rQuery.pVisibilityQuery)
+    m_occlusionQueries[uiIndex].pVisibilityQuery = internalGetD3DVisibilityQuery();
+    if (!m_occlusionQueries[uiIndex].pVisibilityQuery)
     {
         return (unsigned int)-1;
     }
 
-    rQuery.worldMat = mWorld;
-    rQuery.worldMat.m[0][0] = vScale.x * rQuery.worldMat.m[0][0];
-    rQuery.worldMat.m[1][1] = vScale.y * rQuery.worldMat.m[1][1];
-    rQuery.worldMat.m[2][2] = vScale.z * rQuery.worldMat.m[2][2];
-    sOcclusionQuerySubmitIndex = uiIndex + 1;
-    rQuery.shape = eShape;
-    return uiIndex;
+    m_occlusionQueries[uiIndex].worldMat = mWorld;
+    m_occlusionQueries[uiIndex].worldMat.m[0][0] = vScale.x * m_occlusionQueries[uiIndex].worldMat.m[0][0];
+    m_occlusionQueries[uiIndex].worldMat.m[1][1] = vScale.y * m_occlusionQueries[uiIndex].worldMat.m[1][1];
+    m_occlusionQueries[uiIndex].worldMat.m[2][2] = vScale.z * m_occlusionQueries[uiIndex].worldMat.m[2][2];
+    m_occlusionQueries[uiIndex].shape = eShape;
+    ++sOcclusionQuerySubmitIndex;
+    return sOcclusionQuerySubmitIndex - 1;
 }
 
 // FUNCTION: SWBF2 0x006b41b0
@@ -7199,16 +7237,18 @@ void RedRenderer::internalRenderImmediate(RenderItem* pItem)
         sortId.o_tnl = internalGetTransformAndLightingID(uiRVF, pItem->uiEnvState, uiCaps);
         internalRenderFunc(pItem, sortId.o_shaderID, sortId.o_pass);
 
+        unsigned int uiPassState = pItem->uiShaderState;
         while (sortId.o_pass + 1 < pItem->pShaderChain[pItem->uiCurrentShader]
-                                       ->GetShaderDef()->m_states[pItem->uiShaderState].uiNumPasses)
+                                       ->GetShaderDef()->m_states[uiPassState].uiNumPasses)
         {
+            uiPassState = pItem->uiShaderState;
             ++sortId.o_pass;
-            const pcRedShaderDef::StateT& rState =
-                pItem->pShaderChain[pItem->uiCurrentShader]
-                    ->GetShaderDef()->m_states[pItem->uiShaderState];
             sortId.o_tnl = internalGetTransformAndLightingID(
-                uiRVF, pItem->uiEnvState, rState.pass[sortId.o_pass].uiPassCaps);
+                uiRVF, pItem->uiEnvState,
+                pItem->pShaderChain[pItem->uiCurrentShader]
+                    ->GetShaderDef()->m_states[uiPassState].pass[sortId.o_pass].uiPassCaps);
             internalRenderFunc(pItem, sortId.o_shaderID, sortId.o_pass);
+            uiPassState = pItem->uiShaderState;
         }
     }
     pItem->Free();
@@ -7254,15 +7294,16 @@ inline bool LightFlag0_(const RedLight* pLight) { return (pLight->m_uiFlags & 1)
 inline float LightFlag1_(const RedLight* pLight) { return (float)(int)((pLight->m_uiFlags >> 1) & 1); }
 }
 
-static unsigned int ToD3DColor_(const RedColorValue& c)
+static inline unsigned int ToD3DColor_(const RedColorValue& c)
 {
-    return ((unsigned int)(unsigned char)(int)(c.a * 255.0f) << 24) |
-           ((unsigned int)(unsigned char)(int)(c.r * 255.0f) << 16) |
-           ((unsigned int)(unsigned char)(int)(c.g * 255.0f) << 8) |
-           (unsigned int)(unsigned char)(int)(c.b * 255.0f);
+    const unsigned char b = (unsigned char)(int)(c.b * 255.0f);
+    const unsigned char g = (unsigned char)(int)(c.g * 255.0f);
+    const unsigned char r = (unsigned char)(int)(c.r * 255.0f);
+    const unsigned char a = (unsigned char)(int)(c.a * 255.0f);
+    return ((unsigned int)a << 24) | ((unsigned int)r << 16) | ((unsigned int)g << 8) | (unsigned int)b;
 }
 
-static float Saturate_(float f)
+static inline float Saturate_(float f)
 {
     if (f < 0.0f)
     {
@@ -7275,7 +7316,7 @@ static float Saturate_(float f)
     return f;
 }
 
-static void SetScaledLight_(unsigned int uiIndex, const D3DLIGHT9& rSource, float fScale,
+static inline void SetScaledLight_(unsigned int uiIndex, const D3DLIGHT9& rSource, float fScale,
                             bool bSaturate)
 {
     D3DLIGHT9 light = rSource;
@@ -7324,23 +7365,17 @@ void __cdecl RedRenderer::internalRenderFixed(RenderItem* pItem, unsigned int ui
     if ((uiTnl & 0x1f) && !(pItem->flags & 0x10) && (uiPassCaps & 6))
     {
         const RedLightingState* pLS = pItem->pLightingState;
-        const bool bNormals = (uiRVF & 0x100) != 0;
-        const bool bAmbient = !bNormals && (uiPassCaps & 2);
-        const bool bDirectional = pLS->pDirectionalLights[0] && (!bNormals || (uiPassCaps & 4));
+        const unsigned int uiNormals = uiRVF & 0x100;
+        const bool bAmbient = !uiNormals && (uiPassCaps & 2);
+        const bool bDirectional = pLS->pDirectionalLights[0] && (!uiNormals || (uiPassCaps & 4));
         if (bDirectional || pLS->pOmniLights[0])
         {
             const PblMatrix mWorldInverse = pItem->pmObjWorld->GetInverseFast();
         }
 
-        if (bAmbient)
-        {
-            pcSetRenderState(D3DRS_AMBIENT,
-                             ToD3DColor_(pLS->ambientLight.m_color));
-        }
-        else
-        {
-            pcSetRenderState(D3DRS_AMBIENT, *(const unsigned int*)&RedColor::BLACK);
-        }
+        const unsigned int uiAmbient = bAmbient ? ToD3DColor_(pLS->ambientLight.m_color)
+                                                : RedColor::BLACK.GetARGB();
+        pcSetRenderState(D3DRS_AMBIENT, uiAmbient);
 
         if (bDirectional)
         {
@@ -7387,7 +7422,7 @@ void __cdecl RedRenderer::internalRenderFixed(RenderItem* pItem, unsigned int ui
     }
     else
     {
-        pcSetRenderState(D3DRS_AMBIENT, *(const unsigned int*)&RedColor::WHITE);
+        pcSetRenderState(D3DRS_AMBIENT, RedColor::WHITE.GetARGB());
     }
 
     pcRedShader* pShader;
@@ -7427,7 +7462,7 @@ void __cdecl RedRenderer::internalRenderProg1(RenderItem* pItem, unsigned int ui
     internalShaderBeginEnd(pItem, uiShaderID, uiPass);
 
     pcRedVertexShaderConstantRegister* pRegs;
-    if (pItem->pBoneMatrices && pItem->pBoneMatrices != RedRenderer::m_pmBoneMatricesPrev)
+    if (pItem->pBoneMatrices && RedRenderer::m_pmBoneMatricesPrev != pItem->pBoneMatrices)
     {
         RedRenderer::m_pmBoneMatricesPrev = pItem->pBoneMatrices;
         pRegs = m_VSConstants.GetRegisterArray(51, 3 * pItem->numBoneMatrices);
@@ -7440,7 +7475,7 @@ void __cdecl RedRenderer::internalRenderProg1(RenderItem* pItem, unsigned int ui
 
     float fSpotW = 2.0f;
     float fSpotProjected = 0.0f;
-    if (pItem->pPrim != RedRenderer::m_pPrimPrev)
+    if (RedRenderer::m_pPrimPrev != pItem->pPrim)
     {
         RedRenderer::m_pPrimPrev = pItem->pPrim;
         pRegs = m_VSConstants.GetRegisterArray(12, 4);
@@ -7454,21 +7489,20 @@ void __cdecl RedRenderer::internalRenderProg1(RenderItem* pItem, unsigned int ui
             pRegs[12].component[0] = 1.0f;
             pRegs[12].component[1] = 0.0f;
         }
-        pRegs[12].component[2] = (uiRVF & 0x8000) ? (1.0f / 2048.0f) : 1.0f;
+        pRegs[12].component[2] = 1.0f / 2048.0f;
+        if (!(uiRVF & 0x8000))
+        {
+            pRegs[12].component[2] = 1.0f;
+        }
         pRegs[12].component[3] = 1.0f;
 
         if (uiRVF & 0x1000)
         {
-            const PblBox& rBox = pItem->pPrim->m_bbox;
-            const float fScale = 1.0f / 65534.0f;
-            pRegs[13].component[3] = 0.0f;
-            pRegs[13].component[0] = (rBox._vMax.x - rBox._vMin.x) * fScale;
-            pRegs[13].component[1] = (rBox._vMax.y - rBox._vMin.y) * fScale;
-            pRegs[13].component[2] = (rBox._vMax.z - rBox._vMin.z) * fScale;
-            pRegs[14].component[3] = 1.0f;
-            pRegs[14].component[0] = (rBox._vMax.x + rBox._vMin.x) * 0.5f;
-            pRegs[14].component[1] = (rBox._vMax.y + rBox._vMin.y) * 0.5f;
-            pRegs[14].component[2] = (rBox._vMax.z + rBox._vMin.z) * 0.5f;
+            const PblBox& box = pItem->pPrim->m_bbox;
+            const PblVector3 vSize = (box._vMax - box._vMin) * (1.0f / 65534.0f);
+            pRegs[13].SetFloats(vSize.x, vSize.y, vSize.z, 0.0f);
+            const PblVector3 vCenter = (box._vMin + box._vMax) * 0.5f;
+            pRegs[14].SetFloats(vCenter.x, vCenter.y, vCenter.z, 1.0f);
         }
         else
         {
@@ -7484,19 +7518,15 @@ void __cdecl RedRenderer::internalRenderProg1(RenderItem* pItem, unsigned int ui
 
         if (uiRVF & 0x80)
         {
-            pRegs[15].component[0] = 0.0f;
-            pRegs[15].component[1] = 1.0f;
+            pRegs[15].SetFloats(0.0f, 1.0f, 0.0f, 1.0f);
         }
         else
         {
-            pRegs[15].component[0] = 1.0f;
-            pRegs[15].component[1] = 0.0f;
+            pRegs[15].SetFloats(1.0f, 0.0f, 0.0f, 1.0f);
         }
-        pRegs[15].component[2] = 0.0f;
-        pRegs[15].component[3] = 1.0f;
     }
 
-    if (pItem->pmObjWorld != RedRenderer::m_pmObjWorldPrev)
+    if (RedRenderer::m_pmObjWorldPrev != pItem->pmObjWorld)
     {
         RedRenderer::m_pmObjWorldPrev = pItem->pmObjWorld;
         pRegs = m_VSConstants.GetRegisterArray(16, 3);
@@ -7517,62 +7547,74 @@ void __cdecl RedRenderer::internalRenderProg1(RenderItem* pItem, unsigned int ui
         float fOmniProjected = 0.0f;
         const RedColorValue black = RedColorValue::BLACK;
 
-        const RedDirectionalLight* pDir0 = pLS->pDirectionalLights[0];
-        const RedDirectionalLight* pDir1 = 0;
         if (!bNormals)
         {
             const RedAmbientLight& rAmbient = pLS->ambientLight;
             SetColor_(pRegs[19], rAmbient.m_topColor);
             SetColor_(pRegs[20], rAmbient.m_bottomColor);
-            if (pDir0)
+            if (pLS->pDirectionalLights[0])
             {
-                const float fFactor = pLS->pDirectionalFactor[0];
-                SetRGBW_(pRegs[21], ScaledColor_(pDir0, fFactor), LightFlag1_(pDir0));
-                SetXYZ_(pRegs[22], pDir0->m_vDirection);
-                fDirProjected = (float)(int)((const RedLight*)pDir0 ==
+                SetRGBW_(pRegs[21],
+                         ScaledColor_(pLS->pDirectionalLights[0], pLS->pDirectionalFactor[0]),
+                         (float)pLS->pDirectionalLights[0]->IsShadowCaster());
+                SetXYZ_(pRegs[22], pLS->pDirectionalLights[0]->m_vDirection);
+                fDirProjected = (float)(int)((const RedLight*)pLS->pDirectionalLights[0] ==
                                              pItem->pLightingState->pProjectedLight);
-                pDir1 = pLS->pDirectionalLights[1];
-                if (pDir1)
+                if (pLS->pDirectionalLights[1])
                 {
-                    SetRGBW_(pRegs[23], ScaledColor_(pDir1, pLS->pDirectionalFactor[1]),
-                             LightFlag1_(pDir1));
+                    SetRGBW_(pRegs[23],
+                             ScaledColor_(pLS->pDirectionalLights[1], pLS->pDirectionalFactor[1]),
+                             (float)pLS->pDirectionalLights[1]->IsShadowCaster());
+                    SetXYZ_(pRegs[24], pLS->pDirectionalLights[1]->m_vDirection);
                 }
+                else
+                {
+                    SetRGBW_(pRegs[23], black, 0.0f);
+                }
+            }
+            else
+            {
+                SetRGBW_(pRegs[21], black, 0.0f);
+                SetRGBW_(pRegs[23], black, 0.0f);
             }
         }
         else
         {
             SetColor_(pRegs[19], black);
             SetColor_(pRegs[20], black);
-            if (pDir0)
+            if (pLS->pDirectionalLights[0])
             {
-                RedColorValue color = LightFlag0_(pDir0)
-                                          ? black
-                                          : ScaledColor_(pDir0, pLS->pDirectionalFactor[0]);
-                SetRGBW_(pRegs[21], color, LightFlag1_(pDir0) * pLS->pDirectionalFactor[0]);
-                SetXYZ_(pRegs[22], pDir0->m_vDirection);
-                fDirProjected = (float)(int)((const RedLight*)pDir0 ==
+                RedColorValue color =
+                    LightFlag0_(pLS->pDirectionalLights[0])
+                        ? black
+                        : ScaledColor_(pLS->pDirectionalLights[0], pLS->pDirectionalFactor[0]);
+                SetRGBW_(pRegs[21], color,
+                         (float)pLS->pDirectionalLights[0]->IsShadowCaster() *
+                             pLS->pDirectionalFactor[0]);
+                SetXYZ_(pRegs[22], pLS->pDirectionalLights[0]->m_vDirection);
+                fDirProjected = (float)(int)((const RedLight*)pLS->pDirectionalLights[0] ==
                                              pItem->pLightingState->pProjectedLight);
-                pDir1 = pLS->pDirectionalLights[1];
-                if (pDir1)
+                if (pLS->pDirectionalLights[1])
                 {
-
-                    color = LightFlag0_(pDir0) ? black
-                                               : ScaledColor_(pDir1, pLS->pDirectionalFactor[1]);
-                    SetRGBW_(pRegs[23], color, LightFlag1_(pDir1) * pLS->pDirectionalFactor[1]);
+                    color = LightFlag0_(pLS->pDirectionalLights[0])
+                                ? black
+                                : ScaledColor_(pLS->pDirectionalLights[1],
+                                               pLS->pDirectionalFactor[1]);
+                    SetRGBW_(pRegs[23], color,
+                             (float)pLS->pDirectionalLights[1]->IsShadowCaster() *
+                                 pLS->pDirectionalFactor[1]);
+                    SetXYZ_(pRegs[24], pLS->pDirectionalLights[1]->m_vDirection);
+                }
+                else
+                {
+                    SetRGBW_(pRegs[23], black, 0.0f);
                 }
             }
-        }
-        if (!pDir0)
-        {
-            SetRGBW_(pRegs[21], black, 0.0f);
-        }
-        if (pDir1)
-        {
-            SetXYZ_(pRegs[24], pDir1->m_vDirection);
-        }
-        else
-        {
-            SetRGBW_(pRegs[23], black, 0.0f);
+            else
+            {
+                SetRGBW_(pRegs[21], black, 0.0f);
+                SetRGBW_(pRegs[23], black, 0.0f);
+            }
         }
 
         unsigned int uiOmni = uiTnl & 3;
@@ -7584,9 +7626,9 @@ void __cdecl RedRenderer::internalRenderProg1(RenderItem* pItem, unsigned int ui
                 const RedOmniLight* pOmni3 = pLS->pOmniLights[3];
                 if (pOmni3)
                 {
-                    SetRGBW_(pRegs[31], pOmni3->m_color, LightFlag1_(pOmni3));
-                    SetXYZ_(pRegs[32], pOmni3->m_pos);
-                    pRegs[32].component[3] = pOmni3->m_fRadiusInvSq;
+                    SetRGBW_(pRegs[31], pOmni3->m_color, (float)pOmni3->IsShadowCaster());
+                    pRegs[32].SetFloats(pOmni3->m_pos.x, pOmni3->m_pos.y, pOmni3->m_pos.z,
+                                        pOmni3->m_fRadiusInvSq);
                 }
                 else
                 {
@@ -7607,25 +7649,25 @@ void __cdecl RedRenderer::internalRenderProg1(RenderItem* pItem, unsigned int ui
             case 3:
             {
                 const RedOmniLight* pOmni = pLS->pOmniLights[2];
-                SetRGBW_(pRegs[29], pOmni->m_color, LightFlag1_(pOmni));
-                SetXYZ_(pRegs[30], pOmni->m_pos);
-                pRegs[30].component[3] = pOmni->m_fRadiusInvSq;
+                SetRGBW_(pRegs[29], pOmni->m_color, (float)pOmni->IsShadowCaster());
+                pRegs[30].SetFloats(pOmni->m_pos.x, pOmni->m_pos.y, pOmni->m_pos.z,
+                                    pOmni->m_fRadiusInvSq);
             }
 
             case 2:
             {
                 const RedOmniLight* pOmni = pLS->pOmniLights[1];
-                SetRGBW_(pRegs[27], pOmni->m_color, LightFlag1_(pOmni));
-                SetXYZ_(pRegs[28], pOmni->m_pos);
-                pRegs[28].component[3] = pOmni->m_fRadiusInvSq;
+                SetRGBW_(pRegs[27], pOmni->m_color, (float)pOmni->IsShadowCaster());
+                pRegs[28].SetFloats(pOmni->m_pos.x, pOmni->m_pos.y, pOmni->m_pos.z,
+                                    pOmni->m_fRadiusInvSq);
             }
 
             case 1:
             {
                 const RedOmniLight* pOmni = pLS->pOmniLights[0];
-                SetRGBW_(pRegs[25], pOmni->m_color, LightFlag1_(pOmni));
-                SetXYZ_(pRegs[26], pOmni->m_pos);
-                pRegs[26].component[3] = pOmni->m_fRadiusInvSq;
+                SetRGBW_(pRegs[25], pOmni->m_color, (float)pOmni->IsShadowCaster());
+                pRegs[26].SetFloats(pOmni->m_pos.x, pOmni->m_pos.y, pOmni->m_pos.z,
+                                    pOmni->m_fRadiusInvSq);
                 fOmniProjected = (float)(int)((const RedLight*)pOmni ==
                                               pItem->pLightingState->pProjectedLight);
             }
@@ -7641,20 +7683,22 @@ void __cdecl RedRenderer::internalRenderProg1(RenderItem* pItem, unsigned int ui
                 const RedSpotLight* pSpot = pLS->pSpotLights[0];
                 if (pSpot)
                 {
-                    SetRGBW_(pRegs[29], pSpot->m_color, LightFlag1_(pSpot));
-                    SetXYZ_(pRegs[30], pSpot->m_vPos);
-                    pRegs[30].component[3] = pSpot->m_fRadiusInvSq;
+                    SetRGBW_(pRegs[29], pSpot->m_color, (float)pSpot->IsShadowCaster());
+                    pRegs[30].SetFloats(pSpot->m_vPos.x, pSpot->m_vPos.y, pSpot->m_vPos.z,
+                                        pSpot->m_fRadiusInvSq);
                     if (!pSpot->m_bBidirectional)
                     {
                         fSpotW = 0.0f;
                     }
                     SetXYZ_(pRegs[31], pSpot->m_vDirection);
                     pRegs[31].component[3] = fSpotW;
-                    pRegs[32].component[1] = pSpot->m_fCosHalfInnerConeAngle;
-                    pRegs[32].component[0] = pSpot->m_fCosHalfOuterConeAngle;
-                    pRegs[32].component[3] = pSpot->m_fFalloff;
-                    pRegs[32].component[2] = 1.0f / (pSpot->m_fCosHalfInnerConeAngle -
-                                                     pSpot->m_fCosHalfOuterConeAngle);
+                    const float fCosInner = pSpot->m_fCosHalfInnerConeAngle;
+                    const float fCosOuter = pSpot->m_fCosHalfOuterConeAngle;
+                    const float fFalloff = pSpot->m_fFalloff;
+                    pRegs[32].component[1] = fCosInner;
+                    pRegs[32].component[0] = fCosOuter;
+                    pRegs[32].component[3] = fFalloff;
+                    pRegs[32].component[2] = 1.0f / (fCosInner - fCosOuter);
                     fSpotProjected = (float)(int)((const RedLight*)pSpot ==
                                                   pItem->pLightingState->pProjectedLight);
                 }
@@ -7738,22 +7782,22 @@ void __cdecl RedRenderer::internalRenderProg1(RenderItem* pItem, unsigned int ui
 void RedRenderer::internalRenderZPrepassProg1(RenderItem* pItem, unsigned int uiShaderID)
 {
     const unsigned int uiRVF = pItem->pPrim->m_vertexFormat->m_uiVertexBufferRVF;
-    const unsigned short iShader = pItem->uiCurrentShader;
-    pcRedShader* pShader = pItem->pShaderChain[iShader];
+    pcRedShader* pShader = pItem->pShaderChain[pItem->uiCurrentShader];
     const unsigned int uiState = pItem->uiShaderState;
 
-    pItem->pShaderChain[iShader] = m_systemShaders[SYSTEM_SHADER_ZPREPASS];
+    pItem->pShaderChain[pItem->uiCurrentShader] = m_systemShaders[SYSTEM_SHADER_ZPREPASS];
     pItem->uiShaderState = pItem->pRootShader->GetZPrepassState();
     internalShaderBeginEnd(pItem, uiShaderID, 0);
-    pItem->pShaderChain[iShader] = pShader;
+    pItem->pShaderChain[pItem->uiCurrentShader] = pShader;
     pItem->uiShaderState = uiState;
 
     pcRedVertexShaderConstantRegister* pRegs;
     if (pItem->pBoneMatrices &&
-        pItem->pBoneMatrices != RedRenderer::m_pmBoneMatricesPrev)
+        RedRenderer::m_pmBoneMatricesPrev != pItem->pBoneMatrices)
     {
         RedRenderer::m_pmBoneMatricesPrev = pItem->pBoneMatrices;
-        pRegs = m_VSConstants.GetRegisterArray(51, 3 * pItem->numBoneMatrices);
+        const int iBoneRegs = 3 * pItem->numBoneMatrices;
+        pRegs = m_VSConstants.GetRegisterArray(51, iBoneRegs);
         for (unsigned short i = 0; i < pItem->numBoneMatrices; ++i)
         {
             pRegs[51 + 3 * i].SetMatrix4x3(pItem->pBoneMatrices[i]);
@@ -7761,27 +7805,34 @@ void RedRenderer::internalRenderZPrepassProg1(RenderItem* pItem, unsigned int ui
         m_VSConstants.Update();
     }
 
-    if (pItem->pPrim != RedRenderer::m_pPrimPrev)
+    if (RedRenderer::m_pPrimPrev != pItem->pPrim)
     {
         RedRenderer::m_pPrimPrev = pItem->pPrim;
         pRegs = m_VSConstants.GetRegisterArray(12, 4);
-        pRegs[12].component[0] = (uiRVF & 0x4000) ? 2.0f : 1.0f;
-        pRegs[12].component[1] = (uiRVF & 0x4000) ? -1.0f : 0.0f;
-        pRegs[12].component[2] = (uiRVF & 0x8000) ? 1.0f / 2048.0f : 1.0f;
+        if (uiRVF & 0x4000)
+        {
+            pRegs[12].component[0] = 2.0f;
+            pRegs[12].component[1] = -1.0f;
+        }
+        else
+        {
+            pRegs[12].component[0] = 1.0f;
+            pRegs[12].component[1] = 0.0f;
+        }
+        pRegs[12].component[2] = 1.0f / 2048.0f;
+        if (!(uiRVF & 0x8000))
+        {
+            pRegs[12].component[2] = 1.0f;
+        }
         pRegs[12].component[3] = 1.0f;
 
         if (uiRVF & 0x1000)
         {
             const PblBox& box = pItem->pPrim->m_bbox;
-            const float scale = 1.0f / 65534.0f;
-            pRegs[13].component[0] = (box._vMax.x - box._vMin.x) * scale;
-            pRegs[13].component[1] = (box._vMax.y - box._vMin.y) * scale;
-            pRegs[13].component[2] = (box._vMax.z - box._vMin.z) * scale;
-            pRegs[13].component[3] = 0.0f;
-            pRegs[14].component[0] = (box._vMax.x + box._vMin.x) * 0.5f;
-            pRegs[14].component[1] = (box._vMax.y + box._vMin.y) * 0.5f;
-            pRegs[14].component[2] = (box._vMax.z + box._vMin.z) * 0.5f;
-            pRegs[14].component[3] = 1.0f;
+            const PblVector3 vSize = (box._vMax - box._vMin) * (1.0f / 65534.0f);
+            pRegs[13].SetFloats(vSize.x, vSize.y, vSize.z, 0.0f);
+            const PblVector3 vCenter = (box._vMax + box._vMin) * 0.5f;
+            pRegs[14].SetFloats(vCenter.x, vCenter.y, vCenter.z, 1.0f);
         }
         else
         {
@@ -7794,13 +7845,17 @@ void RedRenderer::internalRenderZPrepassProg1(RenderItem* pItem, unsigned int ui
             pRegs[14].component[2] = 0.0f;
             pRegs[14].component[3] = 1.0f;
         }
-        pRegs[15].component[0] = (uiRVF & 0x80) ? 0.0f : 1.0f;
-        pRegs[15].component[1] = (uiRVF & 0x80) ? 1.0f : 0.0f;
-        pRegs[15].component[2] = 0.0f;
-        pRegs[15].component[3] = 1.0f;
+        if (uiRVF & 0x80)
+        {
+            pRegs[15].SetFloats(0.0f, 1.0f, 0.0f, 1.0f);
+        }
+        else
+        {
+            pRegs[15].SetFloats(1.0f, 0.0f, 0.0f, 1.0f);
+        }
     }
 
-    if (pItem->pmObjWorld != RedRenderer::m_pmObjWorldPrev)
+    if (RedRenderer::m_pmObjWorldPrev != pItem->pmObjWorld)
     {
         RedRenderer::m_pmObjWorldPrev = pItem->pmObjWorld;
         pRegs = m_VSConstants.GetRegisterArray(16, 3);
@@ -7826,7 +7881,8 @@ void RedRenderer::internalShaderBeginEnd(RenderItem* pItem, unsigned int uiShade
     prevId.id = (unsigned int)RedRenderer::m_PrevSortID;
     bool bNewID = prevId.id != sortId.id;
     bool bNewShader;
-    if (prevId.t_pass == sortId.t_pass && prevId.t_customID == sortId.t_customID)
+    unsigned int uiPrevPass = ((unsigned int)RedRenderer::m_PrevSortID >> 16) & 3;
+    if (uiPrevPass == sortId.t_pass && (unsigned char)prevId.t_customID == (unsigned char)sortId.t_customID)
     {
         bNewShader = false;
     }
@@ -7835,7 +7891,7 @@ void RedRenderer::internalShaderBeginEnd(RenderItem* pItem, unsigned int uiShade
         bNewShader = true;
         if (RedRenderer::m_pPrevShader)
         {
-            (RedRenderer::m_pPrevShader->*RedRenderer::m_pPrevShader->EndFunc)(RedRenderer::m_uiPrevShaderState, prevId.t_pass);
+            (RedRenderer::m_pPrevShader->*RedRenderer::m_pPrevShader->EndFunc)(RedRenderer::m_uiPrevShaderState, uiPrevPass);
             internalStateStackPop();
             RedRenderer::m_pPrevShader->Release();
         }
@@ -7905,37 +7961,36 @@ void RedRenderer::pcLoadPixelShader(const pcRedPixelShader* pShader)
 void RedRenderer::pcSetSamplerState(unsigned int uiSampler, D3DSAMPLERSTATETYPE eType,
                                     unsigned int uiValue)
 {
-    unsigned long ulOld = m_curSamplerState[uiSampler][eType];
-    if (uiValue == ulOld)
+    if (uiValue == m_curSamplerState[uiSampler][eType])
     {
         return;
     }
 
     if (m_iStateStackFrame != 0 && !m_bIsSamplerStateUndo[uiSampler][eType])
     {
-        unsigned int uiSlot = m_uiNumSamplerStateUndo;
         m_bIsSamplerStateUndo[uiSampler][eType] = true;
-        m_SamplerStateUndo[uiSlot].sampler = uiSampler;
-        m_SamplerStateUndo[uiSlot].type = eType;
-        m_SamplerStateUndo[uiSlot].value = ulOld;
-        m_uiNumSamplerStateUndo = uiSlot + 1;
+        m_SamplerStateUndo[m_uiNumSamplerStateUndo].sampler = uiSampler;
+        m_SamplerStateUndo[m_uiNumSamplerStateUndo].type = eType;
+        m_SamplerStateUndo[m_uiNumSamplerStateUndo].value = m_curSamplerState[uiSampler][eType];
+        ++m_uiNumSamplerStateUndo;
     }
 
     m_curSamplerState[uiSampler][eType] = uiValue;
-    if (!stateManagerEnabled_)
+    if (stateManagerEnabled_)
+    {
+        dx::StateManager_DX::GetInstance().SetSamplerState(uiSampler, eType, uiValue);
+    }
+    else
     {
         m_pd3dDevice->SetSamplerState(uiSampler, eType, uiValue);
-        return;
     }
-    dx::StateManager_DX::GetInstance().SetSamplerState(uiSampler, eType, uiValue);
 }
 
 // FUNCTION: SWBF2 0x006b9ac0
 void RedRenderer::pcSetTextureStageState(unsigned int uiStage, D3DTEXTURESTAGESTATETYPE eType,
                                          unsigned long ulValue)
 {
-    unsigned long ulOld = m_curTextureStageState[uiStage][eType];
-    if (ulValue == ulOld)
+    if (ulValue == m_curTextureStageState[uiStage][eType])
     {
         return;
     }
@@ -7946,17 +8001,19 @@ void RedRenderer::pcSetTextureStageState(unsigned int uiStage, D3DTEXTURESTAGEST
         m_bIsTextureStageStateUndo[uiStage][eType] = true;
         m_TextureStageStateUndo[uiSlot].stage = uiStage;
         m_TextureStageStateUndo[uiSlot].type = eType;
-        m_TextureStageStateUndo[uiSlot].value = ulOld;
-        m_uiNumTextureStageStateUndo = uiSlot + 1;
+        m_TextureStageStateUndo[uiSlot].value = m_curTextureStageState[uiStage][eType];
+        ++m_uiNumTextureStageStateUndo;
     }
 
     m_curTextureStageState[uiStage][eType] = ulValue;
-    if (!stateManagerEnabled_)
+    if (stateManagerEnabled_)
+    {
+        dx::StateManager_DX::GetInstance().SetTextureStageState(uiStage, eType, ulValue);
+    }
+    else
     {
         m_pd3dDevice->SetTextureStageState(uiStage, eType, ulValue);
-        return;
     }
-    dx::StateManager_DX::GetInstance().SetTextureStageState(uiStage, eType, ulValue);
 }
 
 // FUNCTION: SWBF2 0x006b8760
@@ -8021,7 +8078,12 @@ void RedRenderer::pcSetTexture(unsigned int uiStage, const RedTexture* pTexture)
     }
     m_curSetTextures[uiStage] = const_cast<RedTexture*>(pTexture);
 
-    if (pTexture && pTexture->m_uiLastFrameUsed < (unsigned int)RedRenderer::m_frameNumber)
+    if (!pTexture)
+    {
+        m_curSetTextures[uiStage] = 0;
+        return;
+    }
+    if (pTexture->m_uiLastFrameUsed < (unsigned int)RedRenderer::m_frameNumber)
     {
         const_cast<RedTexture*>(pTexture)->m_uiLastFrameUsed = RedRenderer::m_frameNumber;
         // GLOBAL: SWBF2 0x008eed68
@@ -8054,6 +8116,10 @@ void dx::StateManager_DX::FlushState()
             m_pD3DDev->SetMaterial(&m_CurrentState.m_D3DMaterial);
             m_ChipState.m_D3DMaterial = m_CurrentState.m_D3DMaterial;
             break;
+        case 7:
+            m_pD3DDev->SetFVF(m_CurrentState.m_FVF);
+            m_ChipState.m_FVF = m_CurrentState.m_FVF;
+            break;
         case 5:
             if (m_bForce || m_ChipState.m_VertexShader != m_CurrentState.m_VertexShader)
             {
@@ -8066,10 +8132,6 @@ void dx::StateManager_DX::FlushState()
             m_pD3DDev->SetVertexDeclaration(m_CurrentState.m_VertexShaderDecl);
             m_ChipState.m_VertexShaderDecl = m_CurrentState.m_VertexShaderDecl;
             break;
-        case 7:
-            m_pD3DDev->SetFVF(m_CurrentState.m_FVF);
-            m_ChipState.m_FVF = m_CurrentState.m_FVF;
-            break;
         case 8:
             if (m_bForce || m_ChipState.m_PixelShader != m_CurrentState.m_PixelShader)
             {
@@ -8080,52 +8142,57 @@ void dx::StateManager_DX::FlushState()
             break;
         case 9:
         {
-            const unsigned long ulState = pState->m_dwValue0;
-            m_pD3DDev->SetTransform((D3DTRANSFORMSTATETYPE)ulState,
-                                    (const D3DMATRIX*)m_CurrentState.m_Matrices[ulState]);
-            memcpy(m_ChipState.m_Matrices[ulState], m_CurrentState.m_Matrices[ulState],
-                   sizeof(m_ChipState.m_Matrices[ulState]));
+            m_pD3DDev->SetTransform((D3DTRANSFORMSTATETYPE)pState->m_dwValue0,
+                                    (const D3DMATRIX*)m_CurrentState.m_Matrices[pState->m_dwValue0]);
+            const D3DMATRIX matrix = *(const D3DMATRIX*)m_CurrentState.m_Matrices[pState->m_dwValue0];
+            memcpy(m_ChipState.m_Matrices[pState->m_dwValue0], &matrix, sizeof(D3DMATRIX));
             break;
         }
         case 10:
-        {
-            const unsigned long ulReg = pState->m_dwValue0;
-            const float* pChip = m_ChipState.m_VertexShaderConstants[ulReg];
-            const float* pCur = m_CurrentState.m_VertexShaderConstants[ulReg];
-            if (m_bForce || pChip[0] != pCur[0] || pChip[1] != pCur[1] || pChip[2] != pCur[2]
-                || pChip[3] != pCur[3])
+            if (!m_bForce)
             {
-                m_pD3DDev->SetVertexShaderConstantF(ulReg, pCur, 1);
-                memcpy(m_ChipState.m_VertexShaderConstants[ulReg], pCur, 16);
+                const float* pChip = m_ChipState.m_VertexShaderConstants[pState->m_dwValue0];
+                if (pChip[0] == m_CurrentState.m_VertexShaderConstants[pState->m_dwValue0][0]
+                    && pChip[1] == m_CurrentState.m_VertexShaderConstants[pState->m_dwValue0][1]
+                    && pChip[2] == m_CurrentState.m_VertexShaderConstants[pState->m_dwValue0][2]
+                    && pChip[3] == m_CurrentState.m_VertexShaderConstants[pState->m_dwValue0][3])
+                {
+                    break;
+                }
             }
+            m_pD3DDev->SetVertexShaderConstantF(pState->m_dwValue0, m_CurrentState.m_VertexShaderConstants[pState->m_dwValue0], 1);
+            memcpy(m_ChipState.m_VertexShaderConstants[pState->m_dwValue0], m_CurrentState.m_VertexShaderConstants[pState->m_dwValue0], 16);
             break;
-        }
         case 11:
-        {
-            const unsigned long ulReg = pState->m_dwValue0;
-            const float* pChip = m_ChipState.m_PixelShaderConstants[ulReg];
-            const float* pCur = m_CurrentState.m_PixelShaderConstants[ulReg];
-            if (m_bForce || pChip[0] != pCur[0] || pChip[1] != pCur[1] || pChip[2] != pCur[2]
-                || pChip[3] != pCur[3])
+            if (!m_bForce)
             {
-                m_pD3DDev->SetPixelShaderConstantF(ulReg, pCur, 1);
-                memcpy(m_ChipState.m_PixelShaderConstants[ulReg], pCur, 16);
+                const float* pChip = m_ChipState.m_PixelShaderConstants[pState->m_dwValue0];
+                if (pChip[0] == m_CurrentState.m_PixelShaderConstants[pState->m_dwValue0][0]
+                    && pChip[1] == m_CurrentState.m_PixelShaderConstants[pState->m_dwValue0][1]
+                    && pChip[2] == m_CurrentState.m_PixelShaderConstants[pState->m_dwValue0][2]
+                    && pChip[3] == m_CurrentState.m_PixelShaderConstants[pState->m_dwValue0][3])
+                {
+                    break;
+                }
             }
+            m_pD3DDev->SetPixelShaderConstantF(pState->m_dwValue0, m_CurrentState.m_PixelShaderConstants[pState->m_dwValue0], 1);
+            memcpy(m_ChipState.m_PixelShaderConstants[pState->m_dwValue0], m_CurrentState.m_PixelShaderConstants[pState->m_dwValue0], 16);
             break;
-        }
         case 12:
-        {
-            const unsigned long ulStream = pState->m_dwStage;
-            NVStreamData& rChip = m_ChipState.m_StreamData[ulStream];
-            const NVStreamData& rCur = m_CurrentState.m_StreamData[ulStream];
-            if (m_bForce || rChip.m_pStreamData != rCur.m_pStreamData || rChip.m_Stride != rCur.m_Stride)
+            if (m_bForce
+                || m_ChipState.m_StreamData[pState->m_dwStage].m_pStreamData
+                       != m_CurrentState.m_StreamData[pState->m_dwStage].m_pStreamData
+                || m_ChipState.m_StreamData[pState->m_dwStage].m_Stride
+                       != m_CurrentState.m_StreamData[pState->m_dwStage].m_Stride)
             {
                 COUNT_PERFRAME_VALUE("numSetStream");
-                m_pD3DDev->SetStreamSource(ulStream, rCur.m_pStreamData, rCur.m_Offset, rCur.m_Stride);
-                rChip = rCur;
+                m_pD3DDev->SetStreamSource(pState->m_dwStage,
+                                           m_CurrentState.m_StreamData[pState->m_dwStage].m_pStreamData,
+                                           m_CurrentState.m_StreamData[pState->m_dwStage].m_Offset,
+                                           m_CurrentState.m_StreamData[pState->m_dwStage].m_Stride);
+                m_ChipState.m_StreamData[pState->m_dwStage] = m_CurrentState.m_StreamData[pState->m_dwStage];
             }
             break;
-        }
         case 13:
             if (m_bForce
                 || m_ChipState.m_IndexData.m_pIndexData != m_CurrentState.m_IndexData.m_pIndexData
@@ -8155,9 +8222,11 @@ void dx::StateManager_DX::FlushStateEx_()
     {
         for (int i = 0; i < renderStates_.GetSize(); ++i)
         {
-            const D3DRENDERSTATETYPE eState = renderStates_[i].m_RenderStateType;
-            m_pD3DDev->SetRenderState(eState, m_CurrentState.m_RenderStates[eState]);
-            m_ChipState.m_RenderStates[eState] = m_CurrentState.m_RenderStates[eState];
+            const NVStateID& rId = renderStates_[i];
+            m_pD3DDev->SetRenderState(rId.m_RenderStateType,
+                                      m_CurrentState.m_RenderStates[rId.m_RenderStateType]);
+            m_ChipState.m_RenderStates[rId.m_RenderStateType] =
+                m_CurrentState.m_RenderStates[rId.m_RenderStateType];
         }
         for (int i = 0; i < textureStageStates_.GetSize(); ++i)
         {
@@ -8178,20 +8247,23 @@ void dx::StateManager_DX::FlushStateEx_()
         for (int i = 0; i < textureStates_.GetSize(); ++i)
         {
             COUNT_PERFRAME_VALUE("numSetTex");
-            const unsigned long ulStage = textureStates_[i].m_dwStage;
-            m_pD3DDev->SetTexture(ulStage, m_CurrentState.m_Textures[ulStage]);
-            m_ChipState.m_Textures[ulStage] = m_CurrentState.m_Textures[ulStage];
+            const NVStateID& rId = textureStates_[i];
+            m_pD3DDev->SetTexture(rId.m_dwStage, m_CurrentState.m_Textures[rId.m_dwStage]);
+            m_ChipState.m_Textures[rId.m_dwStage] = m_CurrentState.m_Textures[rId.m_dwStage];
         }
     }
     else
     {
         for (int i = 0; i < renderStates_.GetSize(); ++i)
         {
-            const D3DRENDERSTATETYPE eState = renderStates_[i].m_RenderStateType;
-            if (m_ChipState.m_RenderStates[eState] != m_CurrentState.m_RenderStates[eState])
+            const NVStateID& rId = renderStates_[i];
+            if (m_ChipState.m_RenderStates[rId.m_RenderStateType] !=
+                m_CurrentState.m_RenderStates[rId.m_RenderStateType])
             {
-                m_pD3DDev->SetRenderState(eState, m_CurrentState.m_RenderStates[eState]);
-                m_ChipState.m_RenderStates[eState] = m_CurrentState.m_RenderStates[eState];
+                m_pD3DDev->SetRenderState(rId.m_RenderStateType,
+                                          m_CurrentState.m_RenderStates[rId.m_RenderStateType]);
+                m_ChipState.m_RenderStates[rId.m_RenderStateType] =
+                    m_CurrentState.m_RenderStates[rId.m_RenderStateType];
             }
         }
         for (int i = 0; i < textureStageStates_.GetSize(); ++i)
@@ -8220,12 +8292,12 @@ void dx::StateManager_DX::FlushStateEx_()
         }
         for (int i = 0; i < textureStates_.GetSize(); ++i)
         {
-            const unsigned long ulStage = textureStates_[i].m_dwStage;
-            if (m_ChipState.m_Textures[ulStage] != m_CurrentState.m_Textures[ulStage])
+            const NVStateID& rId = textureStates_[i];
+            if (m_ChipState.m_Textures[rId.m_dwStage] != m_CurrentState.m_Textures[rId.m_dwStage])
             {
                 COUNT_PERFRAME_VALUE("numSetTex");
-                m_pD3DDev->SetTexture(ulStage, m_CurrentState.m_Textures[ulStage]);
-                m_ChipState.m_Textures[ulStage] = m_CurrentState.m_Textures[ulStage];
+                m_pD3DDev->SetTexture(rId.m_dwStage, m_CurrentState.m_Textures[rId.m_dwStage]);
+                m_ChipState.m_Textures[rId.m_dwStage] = m_CurrentState.m_Textures[rId.m_dwStage];
             }
         }
     }
@@ -8362,15 +8434,15 @@ void RedRenderer::internalRenderFromHeap(HEAP& heap)
         pItem->pVisibilityQuery = internalGetD3DVisibilityQuery();
         unsigned int uiFlags = pItem->flags;
         pItem->flags = uiFlags & ~0x20;
-        if (pItem->pVisibilityQuery)
+        if (!pItem->pVisibilityQuery)
+        {
+            internalRenderZPrepassProg1(pItem, sortId.o_shaderID);
+        }
+        else
         {
             pItem->pVisibilityQuery->Issue(D3DISSUE_BEGIN);
             internalRenderZPrepassProg1(pItem, sortId.o_shaderID);
             pItem->pVisibilityQuery->Issue(D3DISSUE_END);
-        }
-        else
-        {
-            internalRenderZPrepassProg1(pItem, sortId.o_shaderID);
         }
         pItem->flags = uiFlags & ~0x1000;
         return;
@@ -8544,14 +8616,13 @@ void RedRenderer::pcSetFogForBlendMode(FOGFORBLEND_MODE eMode)
         return;
     }
 
-    RedColor color;
     switch (eMode)
     {
     case FOGFORBLEND_ADD:
         pcSetRenderState(D3DRS_FOGCOLOR, 0xFF000000);
-        return;
+        break;
     case FOGFORBLEND_MODULATE:
-        color = RedColor::WHITE * m_lightingScaleColor;
+        pcSetRenderState(D3DRS_FOGCOLOR, (RedColor::WHITE * m_lightingScaleColor).GetARGB());
         break;
     case FOGFORBLEND_MODULATE2X:
     {
@@ -8560,15 +8631,13 @@ void RedRenderer::pcSetFogForBlendMode(FOGFORBLEND_MODE eMode)
         grey.g = 0x80;
         grey.r = 0x80;
         grey.a = 0xFF;
-        color = grey * m_lightingScaleColor;
+        pcSetRenderState(D3DRS_FOGCOLOR, (grey * m_lightingScaleColor).GetARGB());
         break;
     }
     default:
-        color = RedRenderer::m_colorFog * m_lightingScaleColor;
+        pcSetRenderState(D3DRS_FOGCOLOR, (RedRenderer::m_colorFog * m_lightingScaleColor).GetARGB());
         break;
     }
-    pcSetRenderState(D3DRS_FOGCOLOR,
-                     (((((unsigned int)color.a << 8) | color.r) << 8 | color.g) << 8) | color.b);
 }
 
 // FUNCTION: SWBF2 0x006b94a0

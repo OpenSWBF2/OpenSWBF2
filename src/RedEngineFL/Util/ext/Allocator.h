@@ -194,6 +194,8 @@ private:
     static HashMultiAllocator* sDefault;
 };
 
+void ResetMemory_();
+
 }
 
 // VTABLE: SWBF2 0x00783938

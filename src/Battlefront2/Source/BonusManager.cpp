@@ -161,12 +161,9 @@ void BonusManager::UpdateIndividualBonuses(float)
 void BonusManager::ClearTeamBonuses()
 {
     mVOStartTimer = 5.0f;
-    for (int i = 0; i < 2; ++i)
-    {
-        mTeamBonuses[i] = 0;
-        mUnlockHeroTimer[i] = 0.0f;
-        mbDidUseGarrison[i] = false;
-    }
+    memset(mTeamBonuses, 0, sizeof(mTeamBonuses));
+    memset(mUnlockHeroTimer, 0, sizeof(mUnlockHeroTimer));
+    memset(mbDidUseGarrison, 0, sizeof(mbDidUseGarrison));
     CleanupTeamBonusAutoturrets();
 }
 
@@ -174,7 +171,7 @@ void BonusManager::ClearTeamBonuses()
 int BonusManager::GetTeamIndex(int iTeam)
 {
     if (GameState::GetState() == 0x8FF60339 && GameLoop::AreMetagameRulesOn() &&
-        GetSide(Team::sTeams[1]) > GetSide(Team::sTeams[2]))
+        Team::sTeams[1]->mSide > Team::sTeams[2]->mSide)
     {
         return 2 - iTeam;
     }
@@ -206,11 +203,7 @@ void BonusManager::SetTeamBonusActive(int iTeam, unsigned int uBonus, bool bActi
 // FUNCTION: SWBF2 0x0044c7e0
 bool BonusManager::IsTeamBonusActive(int iTeam, unsigned int uBonus)
 {
-    if (iTeam < 1 || iTeam > 2)
-    {
-        return false;
-    }
-    return mTeamBonuses[GetTeamIndex(iTeam)] == uBonus;
+    return iTeam >= 1 && iTeam <= 2 && mTeamBonuses[GetTeamIndex(iTeam)] == uBonus;
 }
 
 // FUNCTION: SWBF2 0x0044c810
@@ -258,23 +251,23 @@ void BonusManager::UpdateTeamBonusBactaTanks(int iTeam, float fDeltaTime)
     Team* pTeam = Team::sTeams[iTeam];
     for (int i = 0; i < pTeam->mMemberCount; ++i)
     {
-        Character* pCharacter = pTeam->mMemberArray[i];
-        if (!pCharacter || !pCharacter->mUnit || !GetTrackable(pCharacter->mUnit)->GetGameObject())
+        Character* pCharacter = pTeam->GetMemberPtr(i);
+        if (!pCharacter || !pCharacter->mUnit || !pCharacter->mUnit->GetGameObject())
         {
             continue;
         }
 
-        Damageable* pDamageable = GetDamageable(GetTrackable(pCharacter->mUnit)->GetGameObject());
-        float fHealth = CurHealth(pDamageable);
+        GameObject* pObject = pCharacter->mUnit->GetGameObject();
+        float fHealth = pObject->mCurHealth;
         if (fHealth > 0.0f)
         {
-            float fMaxHealth = MaxHealth(pDamageable);
+            float fMaxHealth = pObject->mMaxHealth;
             float fNewHealth = fHealth + fMaxHealth * 0.01f * fDeltaTime;
             if (!(fMaxHealth > fNewHealth))
             {
                 fNewHealth = fMaxHealth;
             }
-            pDamageable->SetCurHealth(fNewHealth, true, 0);
+            pObject->SetCurHealth(fNewHealth, true, 0);
         }
     }
 }
@@ -387,8 +380,8 @@ void BonusManager::CleanupTeamBonusAutoturrets()
         delete[] mpCommandPostData;
         mpCommandPostData = 0;
     }
-    mbIsBonusAutoturretsInitialized = false;
     mNumCPs = 0;
+    mbIsBonusAutoturretsInitialized = false;
 }
 
 // FUNCTION: SWBF2 0x0044cc10
@@ -398,17 +391,18 @@ void BonusManager::UpdateTeamBonusAutoturrets(int iTeam, float fDeltaTime)
     for (int i = 0; i < mNumCPs; ++i)
     {
         CommandPostData& data = mpCommandPostData[i];
-        CommandPost* pPost = data.pCommandPost;
         if (bActive)
         {
-            if (pPost->GetGameObject()->IsAlive() && GetTeam(pPost->GetGameObject()) == iTeam)
+            if (data.pCommandPost->GetGameObject()->IsAlive() &&
+                GetTeam(data.pCommandPost->GetGameObject()) == iTeam)
             {
                 AddTurretsToCP(data, iTeam);
             }
         }
         else
         {
-            if (pPost->GetGameObject() && GetTeam(pPost->GetGameObject()) == iTeam)
+            if (data.pCommandPost->GetGameObject() &&
+                GetTeam(data.pCommandPost->GetGameObject()) == iTeam)
             {
                 RemoveTurretsFromCP(data);
             }
@@ -428,10 +422,10 @@ void BonusManager::AddTurretsToCP(CommandPostData& data, int iTeam)
             if (!pTurret)
             {
                 const PblVector3& vPosition = pPath->GetPointPosition(i);
-                PblQuaternion qRotation;
+                D3DXQUATERNION qRotation;
                 PblMatrix matrix;
                 D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&matrix),
-                                             D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&qRotation), reinterpret_cast<const D3DXQUATERNION*>(&pPath->GetPointRotation(i))));
+                                             D3DXQuaternionNormalize(&qRotation, reinterpret_cast<const D3DXQUATERNION*>(&pPath->GetPointRotation(i))));
                 matrix.m[3][0] = vPosition.x;
                 matrix.m[3][1] = vPosition.y;
                 matrix.m[3][2] = vPosition.z;
@@ -497,8 +491,8 @@ EntityDefenseGridTurret* BonusManager::MakeNewAutoturret(const PblMatrix& matrix
     if (pEntity)
     {
         GameObject* pObject = static_cast<EntityDefenseGridTurret*>(pEntity);
-        SetTeam(pObject, iTeam);
-        SetPerceivedTeam(pObject, iTeam);
+        pObject->SetTeam(iTeam);
+        pObject->SetPerceivedTeam(iTeam);
         pEntity->Init();
     }
     return reinterpret_cast<EntityDefenseGridTurret*>(pEntity);
@@ -509,23 +503,21 @@ void BonusManager::PlayTeamBonusVO(unsigned int uBonus, int iTeam)
 {
     char acName[128] = "team_bonus_";
 
-    const char* pcBonus;
     switch (uBonus)
     {
-    case 0x85ad826d: pcBonus = "energy_boost"; break;
-    case 0x56e2ce71: pcBonus = "sensor_array"; break;
-    case 0x96f36950: pcBonus = "garrison"; break;
-    case 0xbb03442e: pcBonus = "advanced_blasters"; break;
-    case 0xc10b9cdc: pcBonus = "bacta_tanks"; break;
-    case 0xc81956e6: pcBonus = "supplies"; break;
-    case 0xd265e905: pcBonus = "sabotage"; break;
-    case 0xd6a6e644: pcBonus = "garrison_used_by"; break;
-    case 0xddb212e1: pcBonus = "combat_shielding"; break;
-    case 0xde68cb69: pcBonus = "autoturrets"; break;
-    case 0xeac1e9d4: pcBonus = "leader"; break;
+    case 0x85ad826d: strlcat(acName, "energy_boost", sizeof(acName)); break;
+    case 0x56e2ce71: strlcat(acName, "sensor_array", sizeof(acName)); break;
+    case 0x96f36950: strlcat(acName, "garrison", sizeof(acName)); break;
+    case 0xbb03442e: strlcat(acName, "advanced_blasters", sizeof(acName)); break;
+    case 0xc10b9cdc: strlcat(acName, "bacta_tanks", sizeof(acName)); break;
+    case 0xc81956e6: strlcat(acName, "supplies", sizeof(acName)); break;
+    case 0xd265e905: strlcat(acName, "sabotage", sizeof(acName)); break;
+    case 0xd6a6e644: strlcat(acName, "garrison_used_by", sizeof(acName)); break;
+    case 0xddb212e1: strlcat(acName, "combat_shielding", sizeof(acName)); break;
+    case 0xde68cb69: strlcat(acName, "autoturrets", sizeof(acName)); break;
+    case 0xeac1e9d4: strlcat(acName, "leader", sizeof(acName)); break;
     default: return;
     }
-    strlcat(acName, pcBonus, sizeof(acName));
 
     for (int i = 1; i <= 2; ++i)
     {
@@ -535,8 +527,15 @@ void BonusManager::PlayTeamBonusVO(unsigned int uBonus, int iTeam)
             continue;
         }
 
-        strlcat(acName, i == iTeam ? "_us_" : "_them_", sizeof(acName));
-        switch (GetSide(pTeam))
+        if (i == iTeam)
+        {
+            strlcat(acName, "_us_", sizeof(acName));
+        }
+        else
+        {
+            strlcat(acName, "_them_", sizeof(acName));
+        }
+        switch (pTeam->mSide)
         {
         case 2: strlcat(acName, "imp", sizeof(acName)); break;
         case 3: strlcat(acName, "rep", sizeof(acName)); break;

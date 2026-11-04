@@ -52,7 +52,7 @@ namespace
         return static_cast<const CollisionObject&>(*pObj).GetMatrix();
     }
 
-    const PblVector3& GameObjectGetVelocity(const GameObject* pObj)
+    inline const PblVector3& GameObjectGetVelocity(const GameObject* pObj)
     {
         return pObj->GetVelocity();
     }
@@ -152,19 +152,7 @@ bool NavigatorSlide::IsEqual(AILowLevel* pOwner, const PblVector3& globalDest)
 bool NavigatorSlide::IsEqual(AILowLevel* pOwner, const GameObject* pSlideObj, float fOffset,
                              bool bUseAttackHelper)
 {
-    if (mOwner != pOwner)
-    {
-        return false;
-    }
-
-    if (mSlideObj.mObject &&
-        PBL_HANDLE_ID(mSlideObj.mObject) != mSlideObj.mSavedHandleId)
-    {
-        mSlideObj.mObject = 0;
-        mSlideObj.mSavedHandleId = 0;
-    }
-
-    return mSlideObj.mObject == pSlideObj && mOffset == fOffset &&
+    return mOwner == pOwner && mSlideObj == pSlideObj && mOffset == fOffset &&
            mUseAttackHelper == bUseAttackHelper && mCurState != 100;
 }
 
@@ -254,15 +242,16 @@ PblVector3 NavigatorSlide::GetBouncePosition() const
 {
     float fDist = (float)AIUtil::GetRandomInt(10, 20);
     float fAngle = AIUtil::GetRandomFloat(PblMath::fPi / 4.0f, PblMath::fPi / 2.0f);
-    float fSin, fCos;
-    PblMath::SinCos(&fSin, &fCos, (AIUtil::GetRandomInt(0, 1) ? -1 : 1) * fAngle);
+    PblVector3 dir;
+    {
+        float fSin, fCos;
+        PblMath::SinCos(&fSin, &fCos, (AIUtil::GetRandomInt(0, 1) ? -1 : 1) * fAngle);
+        dir = PblVector3(mBarrierNormal.x * fCos - mBarrierNormal.z * fSin,
+                         mBarrierNormal.y,
+                         mBarrierNormal.z * fCos + mBarrierNormal.x * fSin) * fDist;
+    }
 
-    PblVector3 dir((mBarrierNormal.x * fCos - mBarrierNormal.z * fSin) * fDist,
-                   mBarrierNormal.y * fDist,
-                   (mBarrierNormal.z * fCos + mBarrierNormal.x * fSin) * fDist);
-
-    const PblMatrix& mat = GetMatrix();
-    return PblVector3(mat.m[3][0] + dir.x, mat.m[3][1] + dir.y, mat.m[3][2] + dir.z);
+    return dir + GetMatrix().GetTranslation();
 }
 
 // FUNCTION: SWBF2 0x005ae430
@@ -280,12 +269,15 @@ void NavigatorSlide::NextInfantrySlidePos(const PblVector3& dest)
                                                     AIUtil::GetAIType(pObj), &pIgnore, 1);
     if (mBounceAtLocalDest)
     {
-        PblVector3 delta(slideDest.x - pos.x, slideDest.y - pos.y, slideDest.z - pos.z);
-        if (delta.x * delta.x + delta.y * delta.y + delta.z * delta.z > 0.1f)
+        const float dx = slideDest.x - pos.x;
+        const float dy = slideDest.y - pos.y;
+        const float dz = slideDest.z - pos.z;
+        if (dx * dx + dy * dy + dz * dz > 0.1f)
         {
+            PblVector3 delta(dx, dy, dz);
             PblVector3 dir;
             D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&dir), reinterpret_cast<const D3DXVECTOR3*>(&delta));
-            if (delta.x * delta.x + delta.y * delta.y + delta.z * delta.z > 1.0f)
+            if (dx * dx + dy * dy + dz * dz > 1.0f)
             {
                 slideDest = PblVector3(slideDest.x - dir.x, slideDest.y - dir.y, slideDest.z - dir.z);
             }
@@ -340,10 +332,7 @@ void NavigatorSlide::UpdateInfantrySlideObject()
             const GameObject* pTarget = mOwner->mOwner->GetAttackHelperVisibleTarget();
             if (pTarget)
             {
-                const PblVector3& vel = GameObjectGetVelocity(pTarget);
-                dest.x += vel.x;
-                dest.y += vel.y;
-                dest.z += vel.z;
+                dest += pTarget->GetVelocity();
             }
             NextInfantrySlidePos(dest);
             mGlobalDest = dest;
@@ -373,10 +362,10 @@ bool NavigatorSlide::GetObjectSlideToPosition(PblVector3* pPos) const
     *pPos = (GameObjectGetMatrix(pObj)).GetTranslation();
     const PblVector3& myPos = GetMatrix().GetTranslation();
     PblVector3 dir(myPos.x - pPos->x, myPos.y - pPos->y, myPos.z - pPos->z);
-    PblVector3 normal = AIUtil::GetSafeNormalXZ(dir);
-    pPos->x += normal.x * mOffset;
-    pPos->y += normal.y * mOffset;
-    pPos->z += normal.z * mOffset;
+    const PblVector3 delta = mOffset * AIUtil::GetSafeNormalXZ(dir);
+    pPos->x += delta.x;
+    pPos->y += delta.y;
+    pPos->z += delta.z;
     return true;
 }
 
@@ -391,7 +380,7 @@ void NavigatorSlide::NextVehicleSlidePos()
     for (int i = 0; i < 5; ++i)
     {
         const Obstacle* pHit = 0;
-        float fStep = GameObjectGetMaxSpeed(GetGameObject()) * 1.5f;
+        float fStep = GetGameObject()->GetMaxSpeed() * 1.5f;
         if (fStep > 30.0f)
         {
             fStep = 30.0f;
@@ -401,12 +390,11 @@ void NavigatorSlide::NextVehicleSlidePos()
             fStep = 1.0f;
         }
 
-        const PblVector3 delta(mSlidePos.x - pos.x, mSlidePos.y - pos.y, mSlidePos.z - pos.z);
+        const PblVector3 delta = mSlidePos - pos;
         PblVector3 dest = mSlidePos;
-        if (delta.z * delta.z + delta.x * delta.x > fStep * fStep)
+        if (SquaredLengthXZ(delta) > fStep * fStep)
         {
-            const PblVector3 normal = AIUtil::GetSafeNormalXZ(delta);
-            dest = PblVector3(pos.x + normal.x * fStep, pos.y + normal.y * fStep, pos.z + normal.z * fStep);
+            dest = pos + AIUtil::GetSafeNormalXZ(delta) * fStep;
         }
 
         float fDistSq;
@@ -424,11 +412,20 @@ void NavigatorSlide::NextVehicleSlidePos()
         {
             const float lx = left.x - pos.x;
             const float lz = left.z - pos.z;
+            const float fLeftDistSq = lz * lz + lx * lx;
             const float rx = right.x - pos.x;
             const float rz = right.z - pos.z;
-            mSlideDirection = (rz * rz + rx * rx <= lz * lz + lx * lx) ? SLIDE_RIGHT : SLIDE_LEFT;
+            const float fRightDistSq = rz * rz + rx * rx;
+            mSlideDirection = (fLeftDistSq < fRightDistSq) ? SLIDE_LEFT : SLIDE_RIGHT;
         }
-        mSlidePos = (mSlideDirection == SLIDE_LEFT) ? left : right;
+        if (mSlideDirection == SLIDE_LEFT)
+        {
+            mSlidePos = left;
+        }
+        else
+        {
+            mSlidePos = right;
+        }
     }
 
     if (!(mSlidePathDest != mSlidePos))

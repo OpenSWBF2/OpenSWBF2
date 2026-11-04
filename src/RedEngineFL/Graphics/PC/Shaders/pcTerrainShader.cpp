@@ -254,7 +254,18 @@ void pcTerrainShader::Begin_Fixed(unsigned int uiState, unsigned int uiPass) con
         RedRenderer::pcSetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
         RedRenderer::pcSetTexture(0, s_pFarTexture);
         SetWrapLinear(0);
-        SetCameraSpaceTransform(0, XZTextureMatrix(s_FarTextureTransform));
+        PblMatrix mCamera;
+        mCamera = RedRenderer::GetCamera()->GetMatrix();
+        mCamera[2] = -mCamera[2];
+        mCamera.m[2][3] = 0.0f;
+        PblMatrix mWorldToTexture;
+        mWorldToTexture.SetXAxis(s_FarTextureTransform.x, 0.0f, 0.0f, 0.0f);
+        mWorldToTexture.SetYAxis(0.0f, 0.0f, 0.0f, 0.0f);
+        mWorldToTexture.SetZAxis(0.0f, s_FarTextureTransform.y, 0.0f, 0.0f);
+        mWorldToTexture.SetTranslation(s_FarTextureTransform.z, s_FarTextureTransform.w, 0.0f, 1.0f);
+        PblMatrix mTexture;
+        mTexture = mCamera * mWorldToTexture;
+        RedRenderer::pcFFSetTextureTransform(0, mTexture);
         RedRenderer::pcSetTextureStageState(0, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
         RedRenderer::pcSetTextureStageState(0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
 
@@ -262,7 +273,9 @@ void pcTerrainShader::Begin_Fixed(unsigned int uiState, unsigned int uiPass) con
         {
             RedRenderer::pcSetTexture(1, s_pFarDetailTexture);
             SetWrapLinear(1);
-            SetCameraSpaceTransform(1, XZTextureMatrix(s_FarDetailTextureTransform));
+            mWorldToTexture = PblMatrix(PblVector3(s_FarDetailTextureTransform.x, 0.0f, 0.0f), PblVector3(0.0f, 0.0f, 0.0f), PblVector3(0.0f, s_FarDetailTextureTransform.y, 0.0f), PblVector3(s_FarDetailTextureTransform.z, s_FarDetailTextureTransform.w, 0.0f));
+            mTexture = mCamera * mWorldToTexture;
+            RedRenderer::pcFFSetTextureTransform(1, mTexture);
             RedRenderer::pcSetTextureStageState(1, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
             RedRenderer::pcSetTextureStageState(1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
             RedRenderer::pcSetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
@@ -287,10 +300,8 @@ void pcTerrainShader::Begin_Fixed(unsigned int uiState, unsigned int uiPass) con
             RedRenderer::pcSetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
         }
         RedRenderer::pcLoadFormat(s_pFarVertexInputFormat);
-        return;
     }
-
-    if (uiState >= 6)
+    else if (uiState >= 6)
     {
         RedRenderer::pcGetDevice()->GetTransform(D3DTS_PROJECTION, (D3DMATRIX*)&s_mProjectionRestore);
         PblMatrix mProjection = s_mProjectionRestore;
@@ -303,7 +314,14 @@ void pcTerrainShader::Begin_Fixed(unsigned int uiState, unsigned int uiPass) con
         RedRenderer::pcSetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
         RedRenderer::pcSetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
         RedRenderer::pcSetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
-        SetVertexColorWhiteMaterial();
+        RedRenderer::pcSetRenderState(D3DRS_COLORVERTEX, TRUE);
+        RedRenderer::pcSetRenderState(D3DRS_DIFFUSEMATERIALSOURCE, D3DMCS_COLOR1);
+        RedRenderer::pcSetRenderState(D3DRS_AMBIENTMATERIALSOURCE, D3DMCS_COLOR1);
+        RedRenderer::pcSetRenderState(D3DRS_EMISSIVEMATERIALSOURCE, D3DMCS_MATERIAL);
+        memcpy(&s_d3dMat.Diffuse, &RedColorValue::WHITE, sizeof(s_d3dMat.Diffuse));
+        memcpy(&s_d3dMat.Ambient, &RedColorValue::WHITE, sizeof(s_d3dMat.Ambient));
+        memset(&s_d3dMat.Emissive, 0, sizeof(s_d3dMat.Emissive));
+        RedRenderer::pcGetDevice()->SetMaterial(&s_d3dMat);
 
         SetWrapLinear(0);
         SetMipBias(0, kfMainTextureMipBias);
@@ -316,16 +334,21 @@ void pcTerrainShader::Begin_Fixed(unsigned int uiState, unsigned int uiPass) con
         RedRenderer::pcSetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
         RedRenderer::pcSetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
         RedRenderer::pcLoadFormat(s_pFFLayerNVertexInputFormat);
-        return;
     }
-
-    if (uiPass == 0)
+    else if (uiPass == 0)
     {
         RedRenderer::pcSetRenderState(D3DRS_COLORWRITEENABLE, 0xf);
         RedRenderer::pcSetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
         RedRenderer::pcSetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
-        SetVertexColorWhiteMaterial();
-        for (unsigned int i = 0; i < 2; i++)
+        RedRenderer::pcSetRenderState(D3DRS_COLORVERTEX, TRUE);
+        RedRenderer::pcSetRenderState(D3DRS_DIFFUSEMATERIALSOURCE, D3DMCS_COLOR1);
+        RedRenderer::pcSetRenderState(D3DRS_AMBIENTMATERIALSOURCE, D3DMCS_COLOR1);
+        RedRenderer::pcSetRenderState(D3DRS_EMISSIVEMATERIALSOURCE, D3DMCS_MATERIAL);
+        memcpy(&s_d3dMat.Diffuse, &RedColorValue::WHITE, sizeof(s_d3dMat.Diffuse));
+        memcpy(&s_d3dMat.Ambient, &RedColorValue::WHITE, sizeof(s_d3dMat.Ambient));
+        memset(&s_d3dMat.Emissive, 0, sizeof(s_d3dMat.Emissive));
+        RedRenderer::pcGetDevice()->SetMaterial(&s_d3dMat);
+        for (int i = 0; i < 2; i++)
         {
             SetWrapLinear(i);
             SetMipBias(i, kfMainTextureMipBias);
@@ -342,13 +365,10 @@ void pcTerrainShader::Begin_Fixed(unsigned int uiState, unsigned int uiPass) con
         RedRenderer::pcSetTextureStageState(2, D3DTSS_COLOROP, D3DTOP_DISABLE);
         RedRenderer::pcSetTextureStageState(2, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
         RedRenderer::pcLoadFormat(s_pVertexInputFormat);
-        return;
     }
-
-    RedRenderer::pcSetRenderState(D3DRS_ZWRITEENABLE, FALSE);
-
-    if (uiPass == 1)
+    else if (uiPass == 1)
     {
+        RedRenderer::pcSetRenderState(D3DRS_ZWRITEENABLE, FALSE);
         RedRenderer::pcSetRenderState(D3DRS_COLORWRITEENABLE, 0xf);
         RedRenderer::pcSetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
         RedRenderer::pcSetRenderState(D3DRS_DESTBLEND, D3DBLEND_SRCCOLOR);
@@ -388,7 +408,13 @@ void pcTerrainShader::Begin_Fixed(unsigned int uiState, unsigned int uiPass) con
             const PblVector4& vU = RedShadowMap::_vShadowMapTransformU;
             const PblVector4& vV = RedShadowMap::_vShadowMapTransformV;
             const PblVector4& vW = RedShadowMap::_vShadowMapTransformW;
-            SetCameraSpaceTransform(1, PblMatrix(PblVector3(vU.x, vV.x, vW.x), PblVector3(vU.y, vV.y, vW.y), PblVector3(vU.z, vV.z, vW.z), PblVector3(vU.w, vV.w, vW.w)));
+            PblMatrix mCamera(RedRenderer::GetCamera()->GetMatrix());
+            mCamera[2] = -mCamera[2];
+            mCamera.m[2][3] = 0.0f;
+            PblMatrix mTexture;
+            const PblMatrix mShadow(PblVector3(vU.x, vV.x, vW.x), PblVector3(vU.y, vV.y, vW.y), PblVector3(vU.z, vV.z, vW.z), PblVector3(vU.w, vV.w, vW.w));
+            mTexture = mCamera * mShadow;
+            RedRenderer::pcFFSetTextureTransform(1, mTexture);
             RedRenderer::pcSetTextureStageState(1, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
             RedRenderer::pcSetTextureStageState(1, D3DTSS_TEXTURETRANSFORMFLAGS,
                                                 D3DTTFF_COUNT3 | D3DTTFF_PROJECTED);
@@ -407,50 +433,63 @@ void pcTerrainShader::Begin_Fixed(unsigned int uiState, unsigned int uiPass) con
             RedRenderer::pcSetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
         }
         RedRenderer::pcLoadFormat(s_pVertexInputFormat);
-        return;
     }
+    else
+    {
+        RedRenderer::pcSetRenderState(D3DRS_ZWRITEENABLE, FALSE);
+        RedRenderer::pcSetRenderState(D3DRS_COLORWRITEENABLE, 7);
+        RedRenderer::pcSetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+        RedRenderer::pcSetRenderState(D3DRS_DESTBLEND, D3DBLEND_SRCCOLOR);
+        RedRenderer::pcSetRenderState(D3DRS_SRCBLEND, D3DBLEND_DESTCOLOR);
+        RedRenderer::pcSetFogForBlendMode(RedRenderer::FOGFORBLEND_MODULATE2X);
+        RedRenderer::pcSetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
+        RedRenderer::pcSetTexture(0, s_pDetailTexture);
+        RedRenderer::pcSetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
+        RedRenderer::pcSetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
+        RedRenderer::pcSetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+        RedRenderer::pcSetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+        RedRenderer::pcSetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
+        SetMipBias(0, kfDetailTextureMipBias);
+        const PblVector4& vT0 = s_DetailTextureTransform[0];
+        const PblVector4& vT1 = s_DetailTextureTransform[1];
+        PblMatrix mCamera;
+        mCamera = RedRenderer::GetCamera()->GetMatrix();
+        mCamera[2] = -mCamera[2];
+        mCamera.m[2][3] = 0.0f;
+        PblMatrix mTexture;
+        const PblMatrix mDetail(PblVector3(vT0.x, vT1.x, 0.0f), PblVector3(vT0.y, vT1.y, 0.0f), PblVector3(vT0.z, vT1.z, 0.0f), PblVector3(vT0.w, vT1.w, 0.0f));
+        mTexture = mCamera * mDetail;
+        RedRenderer::pcFFSetTextureTransform(0, mTexture);
+        RedRenderer::pcSetTextureStageState(0, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
+        RedRenderer::pcSetTextureStageState(0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
 
-    RedRenderer::pcSetRenderState(D3DRS_COLORWRITEENABLE, 7);
-    RedRenderer::pcSetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
-    RedRenderer::pcSetRenderState(D3DRS_DESTBLEND, D3DBLEND_SRCCOLOR);
-    RedRenderer::pcSetRenderState(D3DRS_SRCBLEND, D3DBLEND_DESTCOLOR);
-    RedRenderer::pcSetFogForBlendMode(RedRenderer::FOGFORBLEND_MODULATE2X);
-    RedRenderer::pcSetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
-    RedRenderer::pcSetTexture(0, s_pDetailTexture);
-    SetWrapLinear(0);
-    SetMipBias(0, kfDetailTextureMipBias);
-    const PblVector4& vT0 = s_DetailTextureTransform[0];
-    const PblVector4& vT1 = s_DetailTextureTransform[1];
-    SetCameraSpaceTransform(0, PblMatrix(PblVector3(vT0.x, vT1.x, 0.0f), PblVector3(vT0.y, vT1.y, 0.0f), PblVector3(vT0.z, vT1.z, 0.0f), PblVector3(vT0.w, vT1.w, 0.0f)));
-    RedRenderer::pcSetTextureStageState(0, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
-    RedRenderer::pcSetTextureStageState(0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
+        RedRenderer::pcSetTexture(1, RedTexture::Find(kuiLinearRamp));
+        RedRenderer::pcSetSamplerState(1, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+        RedRenderer::pcSetSamplerState(1, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+        RedRenderer::pcSetSamplerState(1, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+        RedRenderer::pcSetSamplerState(1, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+        RedRenderer::pcSetSamplerState(1, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
 
-    RedRenderer::pcSetTexture(1, RedTexture::Find(kuiLinearRamp));
-    RedRenderer::pcSetSamplerState(1, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
-    RedRenderer::pcSetSamplerState(1, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
-    RedRenderer::pcSetSamplerState(1, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
-    RedRenderer::pcSetSamplerState(1, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
-    RedRenderer::pcSetSamplerState(1, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
-
-    const float fHalf = s_fDetailFadeDistance * 0.5f;
-    const float fScale = 1.0f / (s_fDetailFadeDistance - fHalf);
-    const PblMatrix mFade = PblMatrix(PblVector3(0.0f, 0.0f, 0.0f), PblVector3(0.0f, 0.0f, 0.0f), PblVector3(fScale, 0.0f, 0.0f), PblVector3(-(fScale * fHalf), 0.0f, 0.0f));
-    RedRenderer::pcFFSetTextureTransform(1, mFade);
-    RedRenderer::pcSetTextureStageState(1, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
-    RedRenderer::pcSetTextureStageState(1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
-    RedRenderer::pcSetRenderState(D3DRS_TEXTUREFACTOR, 0x808080);
-    RedRenderer::pcSetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
-    RedRenderer::pcSetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-    RedRenderer::pcSetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
-    RedRenderer::pcSetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
-    RedRenderer::pcSetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_BLENDTEXTUREALPHA);
-    RedRenderer::pcSetTextureStageState(1, D3DTSS_COLORARG1, D3DTA_CURRENT);
-    RedRenderer::pcSetTextureStageState(1, D3DTSS_COLORARG2, D3DTA_TFACTOR);
-    RedRenderer::pcSetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
-    RedRenderer::pcSetTextureStageState(1, D3DTSS_ALPHAARG1, D3DTA_CURRENT);
-    RedRenderer::pcSetTextureStageState(2, D3DTSS_COLOROP, D3DTOP_DISABLE);
-    RedRenderer::pcSetTextureStageState(2, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
-    RedRenderer::pcLoadFormat(s_pVertexInputFormat);
+        const float fHalf = s_fDetailFadeDistance * 0.5f;
+        const float fScale = 1.0f / (s_fDetailFadeDistance - fHalf);
+        const PblMatrix mFade = PblMatrix(PblVector3(0.0f, 0.0f, 0.0f), PblVector3(0.0f, 0.0f, 0.0f), PblVector3(fScale, 0.0f, 0.0f), PblVector3(-(fScale * fHalf), 0.0f, 0.0f));
+        RedRenderer::pcFFSetTextureTransform(1, mFade);
+        RedRenderer::pcSetTextureStageState(1, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
+        RedRenderer::pcSetTextureStageState(1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
+        RedRenderer::pcSetRenderState(D3DRS_TEXTUREFACTOR, 0x808080);
+        RedRenderer::pcSetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
+        RedRenderer::pcSetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+        RedRenderer::pcSetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+        RedRenderer::pcSetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+        RedRenderer::pcSetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_BLENDTEXTUREALPHA);
+        RedRenderer::pcSetTextureStageState(1, D3DTSS_COLORARG1, D3DTA_CURRENT);
+        RedRenderer::pcSetTextureStageState(1, D3DTSS_COLORARG2, D3DTA_TFACTOR);
+        RedRenderer::pcSetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+        RedRenderer::pcSetTextureStageState(1, D3DTSS_ALPHAARG1, D3DTA_CURRENT);
+        RedRenderer::pcSetTextureStageState(2, D3DTSS_COLOROP, D3DTOP_DISABLE);
+        RedRenderer::pcSetTextureStageState(2, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+        RedRenderer::pcLoadFormat(s_pVertexInputFormat);
+    }
 }
 
 // FUNCTION: SWBF2 0x006f99f0
@@ -490,9 +529,69 @@ void pcTerrainShader::Begin_Prog1(unsigned int uiState, unsigned int uiPass) con
 
     if (uiState <= 9)
     {
-        if (uiPass != 0)
+        if (uiPass == 0)
         {
-            SetModulate2XBlend();
+            RedRenderer::pcSetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+            RedRenderer::pcSetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
+            RedRenderer::pcSetRenderState(D3DRS_COLORWRITEENABLE, 0xf);
+
+            const bool bShadow = uiState >= 6;
+            const bool bDetail = uiState == 5 || uiState == 9;
+            const unsigned int uiNumLayers = (uiState & 1) ? 2 : (bShadow ? 3 : 4);
+            for (unsigned int i = 0; i < uiNumLayers; i++)
+            {
+                SetWrapLinear(i);
+                SetMipBias(i, kfMainTextureMipBias);
+            }
+            if (bDetail)
+            {
+                RedRenderer::pcSetTexture(2, s_pDetailTexture);
+                SetWrapLinear(2);
+            }
+            if (bShadow)
+            {
+                RedRenderer::pcSetTexture(3, s_pShadowMapTexture);
+                RedRenderer::pcSetTextureStageState(3, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_PROJECTED);
+                RedRenderer::pcSetSamplerState(3, D3DSAMP_ADDRESSU, s_uiShadowMapWrapMode);
+                RedRenderer::pcSetSamplerState(3, D3DSAMP_ADDRESSV, s_uiShadowMapWrapMode);
+                RedRenderer::pcSetSamplerState(3, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+                RedRenderer::pcSetSamplerState(3, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+                RedRenderer::pcSetSamplerState(3, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
+            }
+
+            pcRedVertexShaderConstantRegister* pRegs;
+            if (bDetail)
+            {
+                pRegs = RedRenderer::pcLockVertexShaderConstants(39, 8);
+                SetColor(pRegs[39], RedColorValue(RedColor::WHITE));
+                Set(pRegs[40], -2.0f / s_fDetailFadeDistance, 2.0f, s_fLightningValue, kInv255);
+                SetVector(pRegs[45], s_DetailTextureTransform[0]);
+                SetVector(pRegs[46], s_DetailTextureTransform[1]);
+            }
+            else
+            {
+                pRegs = RedRenderer::pcLockVertexShaderConstants(39, 2);
+                SetColor(pRegs[39], RedColorValue(RedColor::WHITE));
+                Set(pRegs[40], 0.0f, 0.0f, s_fLightningValue, kInv255);
+            }
+            RedRenderer::pcUnlockVertexShaderConstants(pRegs);
+
+            if (bShadow)
+            {
+                RedColorValue ambient = RedLight::GetGlobalAmbientLight()->m_color;
+                RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, &ambient.r, 1);
+            }
+            RedRenderer::pcLoadFormat(s_pVertexInputFormat);
+        }
+        else
+        {
+            RedRenderer::pcSetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+            RedRenderer::pcSetRenderState(D3DRS_SRCBLEND, D3DBLEND_DESTCOLOR);
+            RedRenderer::pcSetRenderState(D3DRS_DESTBLEND, D3DBLEND_SRCCOLOR);
+            RedRenderer::pcSetFogForBlendMode(RedRenderer::FOGFORBLEND_MODULATE2X);
+            RedRenderer::pcSetRenderState(D3DRS_ZWRITEENABLE, FALSE);
+            RedRenderer::pcSetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
+            RedRenderer::pcSetRenderState(D3DRS_COLORWRITEENABLE, 7);
             RedRenderer::pcSetTexture(0, s_pDetailTexture);
             SetWrapLinear(0);
             SetMipBias(0, kfDetailTextureMipBias);
@@ -504,55 +603,7 @@ void pcTerrainShader::Begin_Prog1(unsigned int uiState, unsigned int uiPass) con
             SetVector(pRegs[42], s_DetailTextureTransform[1]);
             RedRenderer::pcUnlockVertexShaderConstants(pRegs);
             RedRenderer::pcLoadFormat(s_pPosVertexInputFormat);
-            return;
         }
-
-        RedRenderer::pcSetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
-        RedRenderer::pcSetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
-        RedRenderer::pcSetRenderState(D3DRS_COLORWRITEENABLE, 0xf);
-
-        const bool bShadow = uiState >= 6;
-        const bool bDetail = uiState == 5 || uiState == 9;
-        const unsigned int uiNumLayers = (uiState & 1) ? 2 : (bShadow ? 3 : 4);
-        for (unsigned int i = 0; i < uiNumLayers; i++)
-        {
-            SetWrapLinear(i);
-            SetMipBias(i, kfMainTextureMipBias);
-        }
-        if (bDetail)
-        {
-            RedRenderer::pcSetTexture(2, s_pDetailTexture);
-            SetWrapLinear(2);
-        }
-        if (bShadow)
-        {
-            SetShadowMapStage(3);
-        }
-
-        const RedColorValue color = ToColorValue(RedColor::WHITE);
-        pcRedVertexShaderConstantRegister* pRegs;
-        if (bDetail)
-        {
-            pRegs = RedRenderer::pcLockVertexShaderConstants(39, 8);
-            SetColor(pRegs[39], color);
-            Set(pRegs[40], -2.0f / s_fDetailFadeDistance, 2.0f, s_fLightningValue, kInv255);
-            SetVector(pRegs[45], s_DetailTextureTransform[0]);
-            SetVector(pRegs[46], s_DetailTextureTransform[1]);
-        }
-        else
-        {
-            pRegs = RedRenderer::pcLockVertexShaderConstants(39, 2);
-            SetColor(pRegs[39], color);
-            Set(pRegs[40], 0.0f, 0.0f, s_fLightningValue, kInv255);
-        }
-        RedRenderer::pcUnlockVertexShaderConstants(pRegs);
-
-        if (bShadow)
-        {
-            RedColorValue ambient = RedLight::GetGlobalAmbientLight()->m_color;
-            RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, &ambient.r, 1);
-        }
-        RedRenderer::pcLoadFormat(s_pVertexInputFormat);
         return;
     }
 
@@ -563,7 +614,13 @@ void pcTerrainShader::Begin_Prog1(unsigned int uiState, unsigned int uiPass) con
         RedRenderer::pcSetRenderState(D3DRS_COLORWRITEENABLE, 0xf);
         if (uiState >= 13)
         {
-            SetShadowMapStage(2);
+            RedRenderer::pcSetTexture(2, s_pShadowMapTexture);
+            RedRenderer::pcSetTextureStageState(2, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_PROJECTED);
+            RedRenderer::pcSetSamplerState(2, D3DSAMP_ADDRESSU, s_uiShadowMapWrapMode);
+            RedRenderer::pcSetSamplerState(2, D3DSAMP_ADDRESSV, s_uiShadowMapWrapMode);
+            RedRenderer::pcSetSamplerState(2, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+            RedRenderer::pcSetSamplerState(2, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+            RedRenderer::pcSetSamplerState(2, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
         }
 
         pcRedVertexShaderConstantRegister* pRegs;
@@ -597,12 +654,15 @@ void pcTerrainShader::Begin_Prog1(unsigned int uiState, unsigned int uiPass) con
             SetVector(pRegs[42], s_BumpLuminosityTextureTransform[1]);
             RedRenderer::pcUnlockVertexShaderConstants(pRegs);
 
-            RedColorValue ambient[2];
-            ambient[0] = RedLight::GetGlobalAmbientLight()->m_color;
-            ambient[1] = RedLight::GetGlobalAmbientLight()->m_color;
+            RedColorValue ambient[2] = {RedLight::GetGlobalAmbientLight()->m_color,
+                                        RedLight::GetGlobalAmbientLight()->m_color};
             RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, &ambient[0].r, 2);
         }
-        SetWrapLinear(0);
+        RedRenderer::pcSetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
+        RedRenderer::pcSetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
+        RedRenderer::pcSetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+        RedRenderer::pcSetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+        RedRenderer::pcSetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
         SetMipBias(0, kfDetailTextureMipBias);
         RedRenderer::pcLoadFormat(s_pVertexInputFormat);
         return;
@@ -626,28 +686,30 @@ void pcTerrainShader::Begin_Prog1(unsigned int uiState, unsigned int uiPass) con
         RedRenderer::pcSetRenderState(D3DRS_COLORWRITEENABLE, 7);
 
         pcRedVertexShaderConstantRegister* pRegs;
-        if ((uiState - 2) & 2)
+        if (((uiState - 2) & 2) == 0)
+        {
+            RedRenderer::pcSetTexture(0, s_pNormalizationCubeMap);
+            pRegs = RedRenderer::pcLockVertexShaderConstants(39, 2);
+            const RedColorValue white(RedColor::WHITE);
+            memcpy(&pRegs[39], &white, sizeof(white));
+            Set(pRegs[40], -2.0f / s_fDetailFadeDistance, 2.0f, 0.0f, 0.0f);
+            RedRenderer::pcUnlockVertexShaderConstants(pRegs);
+            RedRenderer::pcSetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+            RedRenderer::pcSetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+            RedRenderer::pcSetSamplerState(0, D3DSAMP_ADDRESSW, D3DTADDRESS_CLAMP);
+        }
+        else
         {
             RedRenderer::pcSetTexture(0, s_pBumpLuminosityTexture);
             pRegs = RedRenderer::pcLockVertexShaderConstants(39, 4);
-            SetColor(pRegs[39], ToColorValue(RedColor::WHITE));
+            const RedColorValue white(RedColor::WHITE);
+            memcpy(&pRegs[39], &white, sizeof(white));
             Set(pRegs[40], -2.0f / s_fDetailFadeDistance, 2.0f, 0.0f, 0.0f);
             SetVector(pRegs[41], s_BumpLuminosityTextureTransform[0]);
             SetVector(pRegs[42], s_BumpLuminosityTextureTransform[1]);
             RedRenderer::pcUnlockVertexShaderConstants(pRegs);
             RedRenderer::pcSetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
             RedRenderer::pcSetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
-        }
-        else
-        {
-            RedRenderer::pcSetTexture(0, s_pNormalizationCubeMap);
-            pRegs = RedRenderer::pcLockVertexShaderConstants(39, 2);
-            SetColor(pRegs[39], ToColorValue(RedColor::WHITE));
-            Set(pRegs[40], -2.0f / s_fDetailFadeDistance, 2.0f, 0.0f, 0.0f);
-            RedRenderer::pcUnlockVertexShaderConstants(pRegs);
-            RedRenderer::pcSetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
-            RedRenderer::pcSetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
-            RedRenderer::pcSetSamplerState(0, D3DSAMP_ADDRESSW, D3DTADDRESS_CLAMP);
         }
         RedRenderer::pcSetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
         RedRenderer::pcSetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
@@ -666,7 +728,13 @@ void pcTerrainShader::Begin_Prog1(unsigned int uiState, unsigned int uiPass) con
         return;
     }
 
-    SetModulate2XBlend();
+    RedRenderer::pcSetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+    RedRenderer::pcSetRenderState(D3DRS_SRCBLEND, D3DBLEND_DESTCOLOR);
+    RedRenderer::pcSetRenderState(D3DRS_DESTBLEND, D3DBLEND_SRCCOLOR);
+    RedRenderer::pcSetFogForBlendMode(RedRenderer::FOGFORBLEND_MODULATE2X);
+    RedRenderer::pcSetRenderState(D3DRS_ZWRITEENABLE, FALSE);
+    RedRenderer::pcSetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
+    RedRenderer::pcSetRenderState(D3DRS_COLORWRITEENABLE, 7);
     const unsigned int uiNumLayers = (uiState & 1) ? 2 : 4;
     for (unsigned int i = 0; i < uiNumLayers; i++)
     {
@@ -674,7 +742,7 @@ void pcTerrainShader::Begin_Prog1(unsigned int uiState, unsigned int uiPass) con
         SetMipBias(i, kfMainTextureMipBias);
     }
     pcRedVertexShaderConstantRegister* pRegs = RedRenderer::pcLockVertexShaderConstants(39, 2);
-    SetColor(pRegs[39], ToColorValue(RedColor::WHITE));
+    SetColor(pRegs[39], RedColorValue(RedColor::WHITE));
     Set(pRegs[40], 0.0f, 0.0f, 0.0f, kInv255);
     RedRenderer::pcUnlockVertexShaderConstants(pRegs);
     RedRenderer::pcLoadFormat(s_pVertexInputFormat);
@@ -784,23 +852,26 @@ unsigned int pcTerrainShader::GetState_Prog1(const RenderItem* pItem) const
         }
 
         unsigned int uiNumLights = uiEnvState & 3;
-        if (uiNumLights == 0)
+        if (uiNumLights != 0)
         {
-            return m_uiLayerIndex[2] < 16 ? 16 : 17;
+            if (uiNumLights == 3 && pItem->pLightingState->pOmniLights[3])
+            {
+                uiNumLights = 4;
+            }
+            if (s_uiOptions & 0x40000)
+            {
+                return (m_uiLayerIndex[2] >= 16) + 4 * uiNumLights + 16;
+            }
+            return (m_uiLayerIndex[2] >= 16) + 4 * uiNumLights + 14;
         }
-        if (uiNumLights == 3 && pItem->pLightingState->pOmniLights[3])
-        {
-            uiNumLights = 4;
-        }
-        if (s_uiOptions & 0x40000)
-        {
-            return (m_uiLayerIndex[2] >= 16) + 4 * uiNumLights + 16;
-        }
-        return (m_uiLayerIndex[2] >= 16) + 4 * uiNumLights + 14;
+        return (m_uiLayerIndex[2] >= 16) + 16;
     }
 
-    return ((s_uiOptions & 0x10000) ? 4 : 0) + ((m_uiOptions & 1) ? 4 : 2)
-           + (m_uiLayerIndex[2] >= 16);
+    if (m_uiOptions & 1)
+    {
+        return ((s_uiOptions & 0x10000) ? 4 : 0) + 4 + (m_uiLayerIndex[2] >= 16);
+    }
+    return ((s_uiOptions & 0x10000) ? 4 : 0) + 2 + (m_uiLayerIndex[2] >= 16);
 }
 
 // FUNCTION: SWBF2 0x006faea0
@@ -842,17 +913,17 @@ static PblMatrix LayerTextureMatrix(unsigned int uiLayer)
     const PblVector4& v1 = pcTerrainShader::s_TextureTransform[uiLayer][1];
     return PblMatrix(PblVector3(v0.x, v1.x, 0.0f), PblVector3(v0.y, v1.y, 0.0f), PblVector3(v0.z, v1.z, 0.0f), PblVector3(v0.w, v1.w, 0.0f));
 }
-
 // FUNCTION: SWBF2 0x006faf00
 void pcTerrainShader::Render_Fixed(const RenderItem* pItem, unsigned int uiPass) const
 {
     const unsigned int uiState = pItem->uiShaderState;
     if (uiState <= 1)
     {
-        s_d3dMat.Diffuse.r = pItem->tweakColor.r * kInv255;
-        s_d3dMat.Diffuse.g = pItem->tweakColor.g * kInv255;
-        s_d3dMat.Diffuse.b = pItem->tweakColor.b * kInv255;
-        s_d3dMat.Diffuse.a = pItem->tweakColor.a * kInv255;
+        const RedColorValue color = ToColorValue(pItem->tweakColor);
+        s_d3dMat.Diffuse.r = color.r;
+        s_d3dMat.Diffuse.g = color.g;
+        s_d3dMat.Diffuse.b = color.b;
+        s_d3dMat.Diffuse.a = color.a;
         s_d3dMat.Ambient = s_d3dMat.Diffuse;
         s_d3dMat.Emissive.r = 0.0f;
         s_d3dMat.Emissive.g = 0.0f;
@@ -864,18 +935,36 @@ void pcTerrainShader::Render_Fixed(const RenderItem* pItem, unsigned int uiPass)
     else if (uiState >= 6)
     {
         const unsigned int uiLayer = m_uiLayerIndex[0];
+        PblMatrix mCamera;
+        mCamera = RedRenderer::GetCamera()->GetMatrix();
+        mCamera.m[2][3] = 0.0f;
+        mCamera[2] = -mCamera[2];
         RedRenderer::pcSetTexture(0, s_apTextures[uiLayer]);
-        SetCameraSpaceTransform(0, LayerTextureMatrix(uiLayer));
+        const PblVector4& v0 = s_TextureTransform[uiLayer][0];
+        const PblVector4& v1 = s_TextureTransform[uiLayer][1];
+        const PblMatrix mLayer(PblVector3(v0.x, v1.x, 0.0f), PblVector3(v0.y, v1.y, 0.0f), PblVector3(v0.z, v1.z, 0.0f), PblVector3(v0.w, v1.w, 0.0f));
+        PblMatrix mTexture;
+        mTexture = mCamera * mLayer;
+        RedRenderer::pcFFSetTextureTransform(0, mTexture);
     }
     else if (uiPass == 0)
     {
         RedRenderer::pcSetRenderState(D3DRS_ZWRITEENABLE, !((pItem->flags >> 5) & 1));
+        PblMatrix mCamera;
+        mCamera = RedRenderer::GetCamera()->GetMatrix();
+        mCamera.m[2][3] = 0.0f;
+        mCamera[2] = -mCamera[2];
         const unsigned int uiNumLayers = m_uiLayerIndex[1] < 16 ? 2 : 1;
         for (unsigned int i = 0; i < uiNumLayers; i++)
         {
             const unsigned int uiLayer = m_uiLayerIndex[i];
             RedRenderer::pcSetTexture(i, s_apTextures[uiLayer]);
-            SetCameraSpaceTransform(i, LayerTextureMatrix(uiLayer));
+            const PblVector4& v0 = s_TextureTransform[uiLayer][0];
+            const PblVector4& v1 = s_TextureTransform[uiLayer][1];
+            const PblMatrix mLayer(PblVector3(v0.x, v1.x, 0.0f), PblVector3(v0.y, v1.y, 0.0f), PblVector3(v0.z, v1.z, 0.0f), PblVector3(v0.w, v1.w, 0.0f));
+            PblMatrix mTexture;
+            mTexture = mCamera * mLayer;
+            RedRenderer::pcFFSetTextureTransform(i, mTexture);
         }
         if (uiNumLayers == 2)
         {
@@ -911,9 +1000,8 @@ void pcTerrainShader::Render_Fixed(const RenderItem* pItem, unsigned int uiPass)
 void pcTerrainShader::Render_Prog1(const RenderItem* pItem, unsigned int uiPass) const
 {
     const unsigned int uiState = pItem->uiShaderState;
-    unsigned int uiNumLayers = 0;
 
-    if (uiState <= 1 || (uiState > 9 && uiState <= 15))
+    if (uiState <= 1)
     {
         RedRenderer::pcSetRenderState(D3DRS_ZWRITEENABLE, (pItem->flags & 0x20) == 0);
     }
@@ -922,6 +1010,7 @@ void pcTerrainShader::Render_Prog1(const RenderItem* pItem, unsigned int uiPass)
         if (uiPass == 0)
         {
             RedRenderer::pcSetRenderState(D3DRS_ZWRITEENABLE, (pItem->flags & 0x20) == 0);
+            unsigned int uiNumLayers;
             if (uiState & 1)
             {
                 uiNumLayers = m_uiLayerIndex[1] < 16 ? 2 : 1;
@@ -934,7 +1023,29 @@ void pcTerrainShader::Render_Prog1(const RenderItem* pItem, unsigned int uiPass)
             {
                 uiNumLayers = 3;
             }
+
+            pcRedVertexShaderConstantRegister* pRegs =
+                RedRenderer::pcLockVertexShaderConstants(41, uiNumLayers * 2);
+            for (unsigned int i = 0; i < uiNumLayers; i++)
+            {
+                const int iLayer = m_uiLayerIndex[i];
+                if (iLayer < 16)
+                {
+                    RedRenderer::pcSetTexture(i, s_apTextures[iLayer]);
+                    SetVector(pRegs[41 + 2 * i], s_TextureTransform[iLayer][0]);
+                    SetVector(pRegs[42 + 2 * i], s_TextureTransform[iLayer][1]);
+                }
+                else
+                {
+                    RedRenderer::pcSetTexture(i, 0);
+                }
+            }
+            RedRenderer::pcUnlockVertexShaderConstants(pRegs);
         }
+    }
+    else if (uiState <= 15)
+    {
+        RedRenderer::pcSetRenderState(D3DRS_ZWRITEENABLE, (pItem->flags & 0x20) == 0);
     }
     else if (uiState >= 18 && uiPass < GetShaderDef()->m_states[uiState].uiNumPasses - 1)
     {
@@ -942,7 +1053,7 @@ void pcTerrainShader::Render_Prog1(const RenderItem* pItem, unsigned int uiPass)
         unsigned int uiNumLights = ((uiState - 18) >> 2) + 1;
         if (uiNumLights == 4)
         {
-            uiNumLights = (uiPass == 0) * 2 + 1;
+            uiNumLights = uiPass == 0 ? 3 : 1;
         }
         const unsigned int uiFirst = uiPass * 3;
 
@@ -950,26 +1061,27 @@ void pcTerrainShader::Render_Prog1(const RenderItem* pItem, unsigned int uiPass)
             RedRenderer::pcLockVertexShaderConstants(43, uiNumLights);
         RedColorValue colors[3];
         RedOmniLight* const* ppLights = &pLightingState->pOmniLights[uiFirst];
-        if (uiNumLights != 1)
+        switch (uiNumLights)
         {
-            if (uiNumLights != 2)
-            {
-                Set(pRegs[45], ppLights[2]->m_pos.x, ppLights[2]->m_pos.y, ppLights[2]->m_pos.z,
-                    ppLights[2]->m_fRadiusInv);
-                colors[2] = ppLights[2]->m_color;
-            }
+        default:
+            Set(pRegs[45], ppLights[2]->m_pos.x, ppLights[2]->m_pos.y, ppLights[2]->m_pos.z,
+                ppLights[2]->m_fRadiusInv);
+            colors[2] = ppLights[2]->m_color;
+        case 2:
             Set(pRegs[44], ppLights[1]->m_pos.x, ppLights[1]->m_pos.y, ppLights[1]->m_pos.z,
                 ppLights[1]->m_fRadiusInv);
             colors[1] = ppLights[1]->m_color;
+        case 1:
+            Set(pRegs[43], ppLights[0]->m_pos.x, ppLights[0]->m_pos.y, ppLights[0]->m_pos.z,
+                ppLights[0]->m_fRadiusInv);
+            colors[0] = ppLights[0]->m_color;
         }
-        Set(pRegs[43], ppLights[0]->m_pos.x, ppLights[0]->m_pos.y, ppLights[0]->m_pos.z,
-            ppLights[0]->m_fRadiusInv);
-        colors[0] = ppLights[0]->m_color;
         RedRenderer::pcUnlockVertexShaderConstants(pRegs);
         RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, &colors[0].r, uiNumLights);
     }
     else
     {
+        unsigned int uiNumLayers;
         if (uiState & 1)
         {
             uiNumLayers = m_uiLayerIndex[1] < 16 ? 2 : 1;
@@ -978,10 +1090,7 @@ void pcTerrainShader::Render_Prog1(const RenderItem* pItem, unsigned int uiPass)
         {
             uiNumLayers = m_uiLayerIndex[3] < 16 ? 4 : 3;
         }
-    }
 
-    if (uiNumLayers)
-    {
         pcRedVertexShaderConstantRegister* pRegs =
             RedRenderer::pcLockVertexShaderConstants(41, uiNumLayers * 2);
         for (unsigned int i = 0; i < uiNumLayers; i++)

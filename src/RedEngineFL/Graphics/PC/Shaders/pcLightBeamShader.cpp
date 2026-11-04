@@ -308,8 +308,14 @@ void pcLightBeamShader::Begin_Fixed(unsigned int, unsigned int) const
     const float fStart = RedRenderer::pcGetNearSceneStart();
     const float fScale = 1.0f / (RedRenderer::pcGetNearSceneEnd() - fStart);
     PblMatrix mTransform;
-    memset(&mTransform, 0, 2 * sizeof(mTransform.m[0]));
-    mTransform.m[2][0] = fScale;
+    mTransform.m[0][0] = 0.0f;
+    mTransform.m[0][1] = 0.0f;
+    mTransform.m[0][2] = 0.0f;
+    mTransform.m[0][3] = 0.0f;
+    mTransform.m[1][0] = 0.0f;
+    mTransform.m[1][1] = 0.0f;
+    mTransform.m[1][2] = 0.0f;
+    mTransform.m[1][3] = 0.0f;
     mTransform.m[2][1] = 0.0f;
     mTransform.m[2][2] = 0.0f;
     mTransform.m[2][3] = 0.0f;
@@ -317,6 +323,7 @@ void pcLightBeamShader::Begin_Fixed(unsigned int, unsigned int) const
     mTransform.m[3][1] = 0.0f;
     mTransform.m[3][2] = 0.0f;
     mTransform.m[3][3] = 1.0f;
+    mTransform.m[2][0] = fScale;
     RedRenderer::pcSetTextureStageState(0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
     RedRenderer::pcSetTextureStageState(0, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
     RedRenderer::pcFFSetTextureTransform(0, mTransform);

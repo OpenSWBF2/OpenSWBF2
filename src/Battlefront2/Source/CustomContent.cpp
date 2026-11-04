@@ -29,29 +29,27 @@ void CopyFiles()
 
     PblFile input;
     input.Open(fullName, true, false, true);
-    if (!input.IsOpen())
+    if (input.IsOpen())
     {
-        return;
-    }
+        strlcpy(destination, fullName, sizeof(destination));
+        PblFile output;
+        output.OpenCreate(destination, true, false, true);
+        if (!output.IsOpen())
+        {
+            input.Close();
+            return;
+        }
 
-    strlcpy(destination, fullName, sizeof(destination));
-    PblFile output;
-    output.OpenCreate(destination, true, false, true);
-    if (!output.IsOpen())
-    {
+        for (int remaining = input.GetSize(); remaining > 0; )
+        {
+            int count = remaining < (int)sizeof(source) ? remaining : (int)sizeof(source);
+            input.ReadData(source, count);
+            output.WriteData(source, count);
+            remaining -= count;
+        }
         input.Close();
-        return;
+        output.Close();
     }
-
-    for (int remaining = input.GetSize(); remaining > 0; )
-    {
-        int count = remaining < (int)sizeof(source) ? remaining : (int)sizeof(source);
-        input.ReadData(source, count);
-        output.WriteData(source, count);
-        remaining -= count;
-    }
-    input.Close();
-    output.Close();
 }
 
 // GLOBAL: SWBF2 0x007e6321
@@ -62,21 +60,21 @@ void CustomContent::Create(bool bMission)
 {
     if (HasHD())
     {
-        if (bMission)
-        {
-            char acMission[64];
-            strlcpy(acMission, GameLoop::mMissionScript, sizeof(acMission));
-            acMission[sizeof(acMission) - 1] = 0;
-            _strlwr(acMission);
-            strncmp(acMission, "tat2", 4);
-        }
-        else
+        if (!bMission)
         {
             if (firstTime)
             {
                 CopyFiles();
             }
             firstTime = false;
+        }
+        else
+        {
+            char acMission[64];
+            strlcpy(acMission, GameLoop::mMissionScript, sizeof(acMission));
+            acMission[sizeof(acMission) - 1] = 0;
+            _strlwr(acMission);
+            strncmp(acMission, "tat2", 4);
         }
     }
 }

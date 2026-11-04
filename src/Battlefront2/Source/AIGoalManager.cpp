@@ -89,11 +89,11 @@ CommandPost* AIGoalManager::GetSpawnLocation(Character* pChr)
 {
     MakeSureUnitHasGoal(pChr);
     AIGoal* pGoal = FindGoal(pChr);
-    if (pGoal)
+    if (!pGoal)
     {
-        return pGoal->GetSpawnLocation(pChr);
+        return 0;
     }
-    return 0;
+    return pGoal->GetSpawnLocation(pChr);
 }
 
 // FUNCTION: SWBF2 0x0043a4b0
@@ -117,49 +117,48 @@ AIGoal* AIGoalManager::AddGoal(unsigned char uTeam, AIGoalType eType, float fWei
         return 0;
     }
 
-    int i = 0;
-    while (mGoals[i])
+    for (int i = 0; i < MAX_GOALS; ++i)
     {
-        if (++i >= MAX_GOALS)
+        if (mGoals[i])
         {
-            return 0;
+            continue;
         }
+        switch (eType)
+        {
+        case AIGOAL_CONQUEST:
+            mGoals[i] = new ConquestGoal(uTeam, fWeight);
+            break;
+        case AIGOAL_DEATHMATCH:
+            mGoals[i] = new DeathmatchGoal(uTeam, fWeight);
+            break;
+        case AIGOAL_DEFEND:
+            if (pTarget && pTarget->mType != GTT_NONE)
+            {
+                mGoals[i] = new DefendGoal(uTeam, fWeight, *pTarget);
+            }
+            break;
+        case AIGOAL_DESTROY:
+            if (pTarget && pTarget->mType != GTT_NONE)
+            {
+                mGoals[i] = new DestroyGoal(uTeam, fWeight, *pTarget);
+            }
+            break;
+        case AIGOAL_CTFOFFENSE:
+            mGoals[i] = new CTFGoal(uTeam, fWeight, *pTarget);
+            break;
+        case AIGOAL_CTFDEFENSE:
+            mGoals[i] = new CTFGoalD(uTeam, fWeight, *pTarget);
+            break;
+        case AIGOAL_FOLLOW:
+            if (pTarget && (pTarget->mType == GTT_CHARACTER || pTarget->mType == GTT_GAMEOBJECT))
+            {
+                mGoals[i] = new FollowGoal(uTeam, fWeight, *pTarget);
+            }
+            break;
+        }
+        return mGoals[i];
     }
-
-    switch (eType)
-    {
-    case AIGOAL_CONQUEST:
-        mGoals[i] = new ConquestGoal(uTeam, fWeight);
-        break;
-    case AIGOAL_DESTROY:
-        if (pTarget && pTarget->mType != GTT_NONE)
-        {
-            mGoals[i] = new DestroyGoal(uTeam, fWeight, *pTarget);
-        }
-        break;
-    case AIGOAL_DEFEND:
-        if (pTarget && pTarget->mType != GTT_NONE)
-        {
-            mGoals[i] = new DefendGoal(uTeam, fWeight, *pTarget);
-        }
-        break;
-    case AIGOAL_DEATHMATCH:
-        mGoals[i] = new DeathmatchGoal(uTeam, fWeight);
-        break;
-    case AIGOAL_CTFOFFENSE:
-        mGoals[i] = new CTFGoal(uTeam, fWeight, *pTarget);
-        break;
-    case AIGOAL_CTFDEFENSE:
-        mGoals[i] = new CTFGoalD(uTeam, fWeight, *pTarget);
-        break;
-    case AIGOAL_FOLLOW:
-        if (pTarget && (pTarget->mType == GTT_CHARACTER || pTarget->mType == GTT_GAMEOBJECT))
-        {
-            mGoals[i] = new FollowGoal(uTeam, fWeight, *pTarget);
-        }
-        break;
-    }
-    return mGoals[i];
+    return 0;
 }
 
 // FUNCTION: SWBF2 0x0043a760
@@ -193,21 +192,23 @@ void AIGoalManager::ClearAllGoals(int iTeam)
 // FUNCTION: SWBF2 0x0043a7f0
 bool AIGoalManager::Update(float)
 {
-    if (mNextUpdateTime <= GameLoop::GetMissionTime())
+    if (mNextUpdateTime > GameLoop::GetMissionTime())
     {
-        mNextUpdateTime = GameLoop::GetMissionTime() + 1.0f;
+        return true;
+    }
 
-        for (int i = 0; i < Character::sCharacterLimit; i++)
-        {
-            MakeSureUnitHasGoal(Character::GetPtr(i));
-        }
+    mNextUpdateTime = GameLoop::GetMissionTime() + 1.0f;
 
-        for (int i = 0; i < MAX_GOALS; i++)
+    for (int i = 0; i < Character::sCharacterLimit; i++)
+    {
+        MakeSureUnitHasGoal(Character::GetPtr(i));
+    }
+
+    for (int i = 0; i < MAX_GOALS; i++)
+    {
+        if (mGoals[i])
         {
-            if (mGoals[i])
-            {
-                mGoals[i]->Update();
-            }
+            mGoals[i]->Update();
         }
     }
     return true;
@@ -220,6 +221,60 @@ void AI::AIGoalManager::Destroy()
 {
     delete mInstance;
     mInstance = 0;
+}
+
+// FUNCTION: SWBF2 0x0043a250
+void AI::AIGoalManager::AssignUnit(Character* pChr)
+{
+    float fWeights[MAX_GOALS];
+    int iNumGoals = 0;
+    float fTotalWeight = 0.0f;
+    for (int i = 0; i < MAX_GOALS; i++)
+    {
+        AIGoal* pGoal = mGoals[i];
+        if (pGoal && pGoal->GetTeam() == pChr->mTeamNumber && pGoal->mEnabled)
+        {
+            ++iNumGoals;
+            fWeights[i] = pGoal->mWeight;
+            fTotalWeight += pGoal->mWeight;
+        }
+        else
+        {
+            fWeights[i] = 0.0f;
+        }
+    }
+
+    if (iNumGoals == 0 || fTotalWeight == 0.0f)
+    {
+        return;
+    }
+    if (fTotalWeight <= 0.0f)
+    {
+        fTotalWeight = 1.0f;
+    }
+
+    int iBest = -1;
+    float fBestRatio = 1e11f;
+    int iTeam = pChr->mTeamNumber;
+    int iNumMembers = Team::GetPtr(iTeam)->mMemberCount;
+    for (int i = 0; i < MAX_GOALS; i++)
+    {
+        AIGoal* pGoal = mGoals[i];
+        if (pGoal && pGoal->GetTeam() == iTeam && pGoal->mEnabled)
+        {
+            float fRatio = (float)pGoal->mUnitList.GetCount() /
+                           (fWeights[i] / fTotalWeight * (float)iNumMembers);
+            if (fRatio < fBestRatio)
+            {
+                fBestRatio = fRatio;
+                iBest = i;
+            }
+        }
+    }
+    if (iBest >= 0)
+    {
+        mGoals[iBest]->AddUnit(pChr);
+    }
 }
 
 // GLOBAL: SWBF2 0x01e2fdac

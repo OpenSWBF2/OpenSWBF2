@@ -92,14 +92,12 @@ void SoundStream::Init()
 
     for (unsigned int i = 0; i < 24; ++i)
     {
-        PblListDoubleSorted::Node* pNode = &smFireForget[i].mNode;
-
-        if (pNode->mNode.IsAttached())
+        if (smFireForget[i].mNode.mNode.IsAttached())
         {
-            pNode->mNode.Remove();
+            smFireForget[i].mNode.mNode.Remove();
         }
 
-        smFree.Add(pNode);
+        smFree.Add(&smFireForget[i].mNode);
     }
 }
 
@@ -211,7 +209,8 @@ void SoundStream::Properties::Read(PblFileChunk& chunk)
             for (PblListSingle::Node* pNode = smPropertyList.mHead.mNext;
                  pNode != &smPropertyList.mHead; pNode = pNode->mNext)
             {
-                Properties* const pParent = reinterpret_cast<Properties*>(reinterpret_cast<char*>(pNode) - offsetof(Properties, mNode));
+                Properties* const pParent = static_cast<Properties*>(pNode->GetObjectA(
+                    &smPropertyList, offsetof(Properties, mNode)));
                 if (pParent->mHashID != uiParentID)
                 {
                     continue;
@@ -316,8 +315,8 @@ bool SoundStream::Properties::SetupStream(Stream* pStream, unsigned int uiSegmen
 
     if (GetRandomPlayPosition())
     {
-        pStream->mPlaybackPosition =
-            (unsigned int)((float)pSegment->mLengthSamples * sndRandom.GetFloat());
+        const unsigned int uiLength = pSegment->mLengthSamples;
+        pStream->mPlaybackPosition = (unsigned int)(sndRandom.GetFloat() * (float)uiLength);
         pStream->SourceTransport::mFlags |= SourceTransport::flags_updatePlaybackPosition;
     }
     return true;
@@ -372,7 +371,7 @@ float SoundStream::Properties::CalculatePriority(const PblVector3* const pPos,
     transport.mFlags = SourceTransport::flags_stopped;
     transport.Play(true);
 
-    const Source3D* pSource3D = 0;
+    const Source3D* pSource3D;
     if (Get3DMode())
     {
         source3D.SetProperties(const_cast<Properties*>(this));
@@ -381,6 +380,10 @@ float SoundStream::Properties::CalculatePriority(const PblVector3* const pPos,
         source3D.mFlags |= Source3D::flags_updateListener;
         source3D.DetermineClosestListener();
         pSource3D = &source3D;
+    }
+    else
+    {
+        pSource3D = 0;
     }
     return SourceVirtual::CalculatePriority(&transport, this, pSource3D, 0, 0,
                                             mBus->mFinalGain, false);
@@ -476,7 +479,8 @@ void __cdecl SoundStream::Play(const Properties* pProps, Source3D* pSource3D, bo
         return;
     }
 
-    const unsigned int uiIndex = (unsigned int)(pStream - EngineBase::smStreams);
+    const unsigned int uiIndex =
+        ((unsigned int)pStream - (unsigned int)EngineBase::smStreams) / sizeof(Stream);
 
     if (bQueue)
     {
@@ -495,16 +499,14 @@ void __cdecl SoundStream::Play(const Properties* pProps, Source3D* pSource3D, bo
     }
 
     Stream* const pPlaying = &EngineBase::smStreams[uiIndex];
-    if (pPlaying->GetPlayState() != SourceTransport::playState_stopped && smPlayingProps[uiIndex])
+    if (pPlaying->GetPlayState() != SourceTransport::playState_stopped && smPlayingProps[uiIndex]
+        && !(fPriority >= smPlayingProps[uiIndex]->CalculatePriority(&smPlayingPos[uiIndex],
+                                                                     &smPlayingVel[uiIndex])))
     {
-        if (fPriority < smPlayingProps[uiIndex]->CalculatePriority(&smPlayingPos[uiIndex],
-                                                                   &smPlayingVel[uiIndex]))
-        {
-            return;
-        }
+        return;
     }
 
-    if (!pProps->SetupStream(pPlaying, uiSegmentID))
+    if (!pProps->SetupStream(&EngineBase::smStreams[uiIndex], uiSegmentID))
     {
         return;
     }
@@ -528,7 +530,8 @@ void __cdecl SoundStream::Play(const Properties* pProps, bool bQueue)
 // FUNCTION: SWBF2 0x00737420
 void SoundStream::Properties::SetupSoundStream(SoundStream* pStream) const
 {
-    pStream->mInfo = StreamBase::Info::Find(mStreamID);
+    const unsigned int uiStreamID = mStreamID;
+    pStream->mInfo = StreamBase::Info::Find(uiStreamID);
     if (!pStream->mInfo)
     {
         return;
@@ -560,31 +563,31 @@ void SoundStream::Play(bool bRestart)
         return;
     }
 
-    unsigned int uiSegmentID = (unsigned int)mProperties->mSelObjectWeightList->GetObjectA();
-    const StreamBase::Info* pInfo = StreamBase::Info::Find(mProperties->mStreamID);
-    if (!pInfo)
+    const unsigned int uiSegmentID = (unsigned int)mProperties->mSelObjectWeightList->GetObjectA();
+    const unsigned int uiStreamID = mProperties->mStreamID;
+    const StreamBase::Info* pInfo = StreamBase::Info::Find(uiStreamID);
+    if (pInfo)
     {
-        return;
-    }
-    const StreamBase::Segment* pSegment = (const StreamBase::Segment*)bsearch(
-        &uiSegmentID, pInfo->mSegments, pInfo->mNumSegments, sizeof(StreamBase::Segment),
-        StreamBase::Segment::CompareSearch);
-    if (!pSegment)
-    {
-        return;
-    }
+        unsigned int uiSearchKey = uiSegmentID;
+        const StreamBase::Segment* pSegment = (const StreamBase::Segment*)bsearch(
+            &uiSearchKey, pInfo->mSegments, pInfo->mNumSegments, sizeof(StreamBase::Segment),
+            StreamBase::Segment::CompareSearch);
+        if (pSegment)
+        {
+            SetPitch(mProperties->SourceVariation::CalculatePitch(mProperties->mPitch));
+            SetGain(mProperties->SourceVariation::CalculateGain(mProperties->mGain));
+            SetSample((const Sample*)pSegment);
+            if (mProperties->GetRandomPlayPosition())
+            {
+                const unsigned int uiLength = pSegment->mLength;
+                mPlaybackPosition = (unsigned int)(sndRandom.GetFloat() * (float)uiLength);
+                SourceTransport::mFlags |= SourceTransport::flags_updatePlaybackPosition;
+            }
 
-    SetPitch(mProperties->SourceVariation::CalculatePitch(mProperties->mPitch));
-    SetGain(mProperties->SourceVariation::CalculateGain(mProperties->mGain));
-    SetSample((const Sample*)pSegment);
-    if (mProperties->GetRandomPlayPosition())
-    {
-        mPlaybackPosition = (unsigned int)(sndRandom.GetFloat() * (float)pSegment->mLength);
-        SourceTransport::mFlags |= SourceTransport::flags_updatePlaybackPosition;
+            SourceBus::Play(this);
+            VoiceVirtual::Play(bRestart);
+        }
     }
-
-    SourceBus::Play(this);
-    VoiceVirtual::Play(bRestart);
 }
 
 }

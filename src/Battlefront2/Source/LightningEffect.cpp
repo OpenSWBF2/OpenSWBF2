@@ -81,10 +81,7 @@ LightningEffect::LightningEffect()
     : FLEffect(0xE812F405u, 3)
 {
     Enable(false);
-    m_colorLightning.r = 0.937254965f;
-    m_colorLightning.g = 0.972549081f;
-    m_colorLightning.b = 1.0f;
-    m_colorLightning.a = 1.0f;
+    m_colorLightning = RedColorValue(0.937254965f, 0.972549081f, 1.0f, 1.0f);
     m_fSunlightFadeMax = 0.1f;
     m_fSkyDomeDarken = 0.4f;
     m_fBrightnessMin = 0.9f;
@@ -127,15 +124,12 @@ void LightningEffect::ReadConfig(PblConfig& config)
             break;
         case 0x3D7E6258u:
         {
-            unsigned char r = ClampColorComponent(data.GetFloatArg(0));
-            unsigned char g = ClampColorComponent(data.GetFloatArg(1));
-            unsigned char b = ClampColorComponent(data.GetFloatArg(2));
-            RedColorValue color;
-            color.r = r * (1.0f / 255.0f);
-            color.g = g * (1.0f / 255.0f);
-            color.b = b * (1.0f / 255.0f);
-            color.a = 1.0f;
-            m_colorLightning = color;
+            RedColor color;
+            color.r = ClampColorComponent(data.GetFloatArg(0));
+            color.g = ClampColorComponent(data.GetFloatArg(1));
+            color.b = ClampColorComponent(data.GetFloatArg(2));
+            color.a = 255;
+            m_colorLightning = RedColorValue(color);
             break;
         }
         case 0x15F3DEB6u:

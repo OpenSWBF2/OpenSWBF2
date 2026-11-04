@@ -48,6 +48,7 @@ static const unsigned int kuiClearShader = PblHash("Clear");
 
 // GLOBAL: SWBF2 0x009c8948
 // kuiFilterShader
+// STRING: SWBF2 0x00784420
 static const unsigned int kuiFilterShader = PblHash("FilterCopy");
 
 static void __cdecl ShadowQuadReset(ResetFlagsT eFlags)
@@ -166,24 +167,16 @@ void pcShadowQuadRenderable::Init()
         kuiClearShader, 3, 0, 0, 0x80000, RedColor::WHITE, RedColor::BLACK, 32.0f);
 
     m_pPrimitive = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, 2, 0xc, 4, 0, true);
-    float* pVerts = (float*)m_pPrimitive->BeginVertexData();
+    PblVector3* pVerts = (PblVector3*)m_pPrimitive->BeginVertexData();
     if (!pVerts)
     {
         return;
     }
 
-    pVerts[0] = -1.0f;
-    pVerts[1] = -1.0f;
-    pVerts[2] = 1.0f;
-    pVerts[3] = 1.0f;
-    pVerts[4] = -1.0f;
-    pVerts[5] = 1.0f;
-    pVerts[6] = -1.0f;
-    pVerts[7] = 1.0f;
-    pVerts[8] = 1.0f;
-    pVerts[9] = 1.0f;
-    pVerts[10] = 1.0f;
-    pVerts[11] = 1.0f;
+    pVerts[0] = PblVector3(-1.0f, -1.0f, 1.0f);
+    pVerts[1] = PblVector3(1.0f, -1.0f, 1.0f);
+    pVerts[2] = PblVector3(-1.0f, 1.0f, 1.0f);
+    pVerts[3] = PblVector3(1.0f, 1.0f, 1.0f);
     m_pPrimitive->EndVertexData();
 
     IDirect3DSurface9* pBackBuffer;
@@ -304,7 +297,10 @@ void pcShadowQuadRenderable::Render(int value)
     RedRenderer::pcFlush(0);
     RedRenderer::pcSetRenderState(D3DRS_COLORWRITEENABLE, D3DCOLORWRITEENABLE_ALPHA);
 
-    colour = RedColor(0, 0, 0, 0xff);
+    colour.b = 0;
+    colour.g = 0;
+    colour.r = 0;
+    colour.a = 0xff;
     RedRenderer::pcRenderPrimitive(mesh, m_pScreenShader,
                                    gMatrixIdentity,
                                    colour, 0x200, 0,
@@ -335,7 +331,10 @@ void pcShadowQuadRenderable::Render(int value)
         backBuffer->Release();
         surface->Release();
 
-        colour = RedColor(0, 0, 0, 0);
+        colour.b = 0;
+        colour.g = 0;
+        colour.r = 0;
+        colour.a = 0;
         RedRenderer::pcRenderPrimitive(mesh,
                                        m_pScreenShader,
                                        gMatrixIdentity,

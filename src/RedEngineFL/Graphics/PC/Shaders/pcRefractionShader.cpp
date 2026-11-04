@@ -53,7 +53,7 @@ static PblMatrix _IdentityMatrix(
     PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
     PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
 
-static unsigned long FloatBits_(float f)
+static inline unsigned long FloatBits_(float f)
 {
     return *(const unsigned long*)&f;
 }
@@ -214,26 +214,27 @@ void pcRefractionShader::Begin_Fixed(unsigned int uiState, unsigned int uiPass) 
 
     if (s_bumpEnable)
     {
-        const PblVector3& vZ = RedRenderer::GetCamera()->GetMatrix().GetZAxis();
-        const float fAngle = atan2f(vZ.z, vZ.x) - PblMath::fHalfPi;
+        const PblVector3 vZ = RedRenderer::GetCamera()->GetMatrix().GetZAxis();
 
         PblMatrix mTmp;
-        PblMatrix mRot = _IdentityMatrix;
+        PblMatrix mScale = gMatrixIdentity;
+        PblMatrix mRot = gMatrixIdentity;
+        const float fAngle = atan2f(vZ.z, vZ.x) - PblMath::fHalfPi;
+
         D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mRot), reinterpret_cast<const D3DXMATRIX*>(&mRot), D3DXMatrixRotationZ(reinterpret_cast<D3DXMATRIX*>(&mTmp), fAngle));
-        PblMatrix mScale = _IdentityMatrix;
         D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mScale), reinterpret_cast<const D3DXMATRIX*>(&mScale),
                            D3DXMatrixScaling(reinterpret_cast<D3DXMATRIX*>(&mTmp), m_distortionScale, m_distortionScale,
                                              m_distortionScale));
         D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mTmp), reinterpret_cast<const D3DXMATRIX*>(&mScale), reinterpret_cast<const D3DXMATRIX*>(&mRot));
         s_bumpMat = mTmp;
 
-        const PblMatrix mBias(PblVector4{ 0.5f, 0.0f, 0.0f, 0.0f },
-                              PblVector4{ 0.0f, -0.5f, 0.0f, 0.0f },
-                              PblVector4{ 0.0f, 0.0f, 0.0f, 0.0f },
-                              PblVector4{ 0.5f, 0.5f, 1.0f, 1.0f });
+        const D3DXMATRIXA16 mBias(0.5f, 0.0f, 0.0f, 0.0f,
+                                  0.0f, -0.5f, 0.0f, 0.0f,
+                                  0.0f, 0.0f, 0.0f, 0.0f,
+                                  0.5f, 0.5f, 1.0f, 1.0f);
         PblMatrix mProj;
         RedRenderer::pcGetDevice()->GetTransform(D3DTS_PROJECTION, (D3DMATRIX*)&mProj);
-        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mTmp), reinterpret_cast<const D3DXMATRIX*>(&mProj), reinterpret_cast<const D3DXMATRIX*>(&mBias));
+        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mTmp), reinterpret_cast<const D3DXMATRIX*>(&mProj), &mBias);
         s_refractionTexMat = mTmp;
     }
 }
@@ -268,15 +269,18 @@ void pcRefractionShader::Begin_Prog1(unsigned int uiState, unsigned int) const
 
     if (uiFlags & 8)
     {
-        const PblVector3& vZ = RedRenderer::GetCamera()->GetMatrix().GetZAxis();
-        const float fAngle = atan2f(vZ.z, vZ.x) - PblMath::fHalfPi;
+        const PblVector3 vZ = RedRenderer::GetCamera()->GetMatrix().GetZAxis();
 
         PblMatrix mTmp;
-        PblMatrix mRot = _IdentityMatrix;
-        mRot.RotateZ(fAngle);
-        PblMatrix mScale = _IdentityMatrix;
-        mScale.Scale(m_distortionScale, m_distortionScale, m_distortionScale);
-        mTmp = mScale * mRot;
+        PblMatrix mRot = gMatrixIdentity;
+        PblMatrix mScale = gMatrixIdentity;
+        const float fAngle = (float)atan2((double)vZ.z, (double)vZ.x) - PblMath::fHalfPi;
+
+        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mRot), reinterpret_cast<const D3DXMATRIX*>(&mRot), D3DXMatrixRotationZ(reinterpret_cast<D3DXMATRIX*>(&mTmp), fAngle));
+        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mScale), reinterpret_cast<const D3DXMATRIX*>(&mScale),
+                           D3DXMatrixScaling(reinterpret_cast<D3DXMATRIX*>(&mTmp), m_distortionScale, m_distortionScale,
+                                             m_distortionScale));
+        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mTmp), reinterpret_cast<const D3DXMATRIX*>(&mScale), reinterpret_cast<const D3DXMATRIX*>(&mRot));
         s_bumpMat = mTmp;
 
         RedRenderer::pcSetTextureStageState(1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_PROJECTED);
@@ -321,11 +325,8 @@ RedShadingState* pcRefractionShader::CreateShadingState() const
     transform.m_bTransform = m_material.diffuseTexTransform.m_bTransform;
     if (transform.m_bTransform)
     {
-        for (int iRow = 0; iRow < 3; ++iRow)
-        {
-            transform.m_Transform[iRow][0] = m_material.diffuseTexTransform.m_Transform[iRow][0];
-            transform.m_Transform[iRow][1] = m_material.diffuseTexTransform.m_Transform[iRow][1];
-        }
+        memcpy(transform.m_Transform, m_material.diffuseTexTransform.m_Transform,
+               sizeof(transform.m_Transform));
     }
     return pState;
 }
@@ -424,7 +425,7 @@ unsigned int pcRefractionShader::GetState_Prog1(const RenderItem*) const
 // FUNCTION: SWBF2 0x0070da20
 unsigned int pcRefractionShader::GetZPrepassState() const
 {
-    return (m_material.materialFlags >> 1) & 1;
+    return ((unsigned char)m_material.materialFlags >> 1) & 1;
 }
 
 // FUNCTION: SWBF2 0x0070da30
@@ -452,21 +453,23 @@ bool pcRefractionShader::IsTransparent() const
 void pcRefractionShader::RenderZPrepass(const RenderItem* pItem) const
 {
     const RedMaterial* pMaterial = pItem->pRootShader->m_material;
-    RedRenderer::pcSetCullMode((pMaterial->materialFlags & 0x8000) ? PCREDCULL_NONE : PCREDCULL_BACK);
+    const unsigned int uiMatFlags = pMaterial->materialFlags;
+    RedRenderer::pcSetCullMode((uiMatFlags & 0x10000) ? PCREDCULL_NONE : PCREDCULL_BACK);
 
-    if (pMaterial->materialFlags & 2)
+    const unsigned int uiAlphaTest = (uiMatFlags >> 1) & 1;
+    if (uiAlphaTest == 1)
     {
         RedColor color;
-        color.r = (unsigned char)(int)(pMaterial->diffuseColor.r * 255.0f);
-        color.g = (unsigned char)(int)(pMaterial->diffuseColor.g * 255.0f);
         color.b = (unsigned char)(int)(pMaterial->diffuseColor.b * 255.0f);
+        color.g = (unsigned char)(int)(pMaterial->diffuseColor.g * 255.0f);
+        color.r = (unsigned char)(int)(pMaterial->diffuseColor.r * 255.0f);
         color.a = (unsigned char)(int)(pMaterial->diffuseColor.a * 255.0f);
         color.r = (unsigned char)(int)(color.r * (pItem->tweakColor.r * (1.0f / 255.0f)) + 0.5f);
         color.g = (unsigned char)(int)(color.g * (pItem->tweakColor.g * (1.0f / 255.0f)) + 0.5f);
         color.b = (unsigned char)(int)(color.b * (pItem->tweakColor.b * (1.0f / 255.0f)) + 0.5f);
         color.a = (unsigned char)(int)(color.a * (pItem->tweakColor.a * (1.0f / 255.0f)) + 0.5f);
 
-        RedRenderer::pcSetCullMode((pMaterial->materialFlags & 0x8000) ? PCREDCULL_NONE : PCREDCULL_BACK);
+        RedRenderer::pcSetCullMode((pMaterial->materialFlags & 0x10000) ? PCREDCULL_NONE : PCREDCULL_BACK);
 
         unsigned int uiDiffuseMap;
         const RedTextureTransform* pTransform = 0;
@@ -490,31 +493,17 @@ void pcRefractionShader::RenderZPrepass(const RenderItem* pItem) const
         RedRenderer::pcSetRenderState(D3DRS_ALPHAREF, color.a >> 1);
 
         pcRedVertexShaderConstantRegister* pRegs = RedRenderer::pcLockVertexShaderConstants(39, 3);
-        pRegs[39].component[0] = color.r * (1.0f / 255.0f);
-        pRegs[39].component[1] = color.g * (1.0f / 255.0f);
-        pRegs[39].component[2] = color.b * (1.0f / 255.0f);
-        pRegs[39].component[3] = color.a * (1.0f / 255.0f);
+        pRegs[39].SetFloats(color.r * (1.0f / 255.0f), color.g * (1.0f / 255.0f), color.b * (1.0f / 255.0f),
+                            color.a * (1.0f / 255.0f));
         if (pTransform)
         {
-            pRegs[40].component[0] = (*pTransform)(0, 0);
-            pRegs[40].component[1] = (*pTransform)(1, 0);
-            pRegs[40].component[2] = 0.0f;
-            pRegs[40].component[3] = (*pTransform)(2, 0);
-            pRegs[41].component[0] = (*pTransform)(0, 1);
-            pRegs[41].component[1] = (*pTransform)(1, 1);
-            pRegs[41].component[2] = 0.0f;
-            pRegs[41].component[3] = (*pTransform)(2, 1);
+            pRegs[40].SetFloats((*pTransform)(0, 0), (*pTransform)(1, 0), 0.0f, (*pTransform)(2, 0));
+            pRegs[41].SetFloats((*pTransform)(0, 1), (*pTransform)(1, 1), 0.0f, (*pTransform)(2, 1));
         }
         else
         {
-            pRegs[40].component[0] = 1.0f;
-            pRegs[40].component[1] = 0.0f;
-            pRegs[40].component[2] = 0.0f;
-            pRegs[40].component[3] = 0.0f;
-            pRegs[41].component[0] = 0.0f;
-            pRegs[41].component[1] = 1.0f;
-            pRegs[41].component[2] = 0.0f;
-            pRegs[41].component[3] = 0.0f;
+            pRegs[40].SetFloats(1.0f, 0.0f, 0.0f, 0.0f);
+            pRegs[41].SetFloats(0.0f, 1.0f, 0.0f, 0.0f);
         }
         RedRenderer::pcUnlockVertexShaderConstants(pRegs);
     }
@@ -536,19 +525,16 @@ static void FFSetTextureTransform_(unsigned int uiStage, const RedTextureTransfo
 void pcRefractionShader::Render_Fixed(const RenderItem* pItem, unsigned int uiPass) const
 {
     RedColor color;
-    color.r = (unsigned char)(int)(m_material.diffuseColor.r * 255.0f);
-    color.g = (unsigned char)(int)(m_material.diffuseColor.g * 255.0f);
     color.b = (unsigned char)(int)(m_material.diffuseColor.b * 255.0f);
+    color.g = (unsigned char)(int)(m_material.diffuseColor.g * 255.0f);
+    color.r = (unsigned char)(int)(m_material.diffuseColor.r * 255.0f);
     color.a = (unsigned char)(int)(m_material.diffuseColor.a * 255.0f);
     color.r = (unsigned char)(int)(color.r * (pItem->tweakColor.r * (1.0f / 255.0f)) + 0.5f);
     color.g = (unsigned char)(int)(color.g * (pItem->tweakColor.g * (1.0f / 255.0f)) + 0.5f);
     color.b = (unsigned char)(int)(color.b * (pItem->tweakColor.b * (1.0f / 255.0f)) + 0.5f);
     color.a = (unsigned char)(int)(color.a * (pItem->tweakColor.a * (1.0f / 255.0f)) + 0.5f);
 
-    s_d3dMat.Diffuse.r = color.r * (1.0f / 255.0f);
-    s_d3dMat.Diffuse.g = color.g * (1.0f / 255.0f);
-    s_d3dMat.Diffuse.b = color.b * (1.0f / 255.0f);
-    s_d3dMat.Diffuse.a = color.a * (1.0f / 255.0f);
+    s_d3dMat.Diffuse = RedColorValue(color);
     s_d3dMat.Ambient = s_d3dMat.Diffuse;
     RedRenderer::pcGetDevice()->SetMaterial(&s_d3dMat);
 
@@ -572,35 +558,40 @@ void pcRefractionShader::Render_Fixed(const RenderItem* pItem, unsigned int uiPa
         RedRenderer::pcSetRenderState(D3DRS_COLORVERTEX, FALSE);
     }
 
-    RedRenderer::pcSetCullMode((m_material.materialFlags & 0x8000) ? PCREDCULL_NONE : PCREDCULL_BACK);
+    RedRenderer::pcSetCullMode((m_material.materialFlags & 0x10000) ? PCREDCULL_NONE : PCREDCULL_BACK);
+
+    const RedTextureTransform& diffuse = m_material.diffuseTexTransform;
+    const D3DXMATRIXA16 mDiffuseTransform(diffuse(0, 0), diffuse(0, 1), 0.0f, 0.0f,
+                                          diffuse(1, 0), diffuse(1, 1), 0.0f, 0.0f,
+                                          diffuse(2, 0), diffuse(2, 1), 0.0f, 0.0f,
+                                          0.0f, 0.0f, 0.0f, 1.0f);
+    const RedTextureTransform& bump = m_bumpMapTransform;
+    const D3DXMATRIXA16 mBumpTransform(bump(0, 0), bump(0, 1), 0.0f, 0.0f,
+                                       bump(1, 0), bump(1, 1), 0.0f, 0.0f,
+                                       bump(2, 0), bump(2, 1), 0.0f, 0.0f,
+                                       0.0f, 0.0f, 0.0f, 1.0f);
 
     switch (pItem->uiShaderState)
     {
     case 0:
     case 2:
         RedRenderer::pcSetTexture(0, RedTexture::Find(m_material.diffuseMapHash));
-        FFSetTextureTransform_(0, m_material.diffuseTexTransform);
+        RedRenderer::pcFFSetTextureTransform(0, reinterpret_cast<const PblMatrix&>(mDiffuseTransform));
         break;
 
     case 1:
         if (uiPass != 0)
         {
             RedRenderer::pcSetTexture(0, RedTexture::Find(m_material.diffuseMapHash));
-            FFSetTextureTransform_(0, m_material.diffuseTexTransform);
+            RedRenderer::pcFFSetTextureTransform(0, reinterpret_cast<const PblMatrix&>(mDiffuseTransform));
             break;
         }
 
     case 3:
         RedRenderer::pcSetTexture(0, RedTexture::Find(m_material.bumpMapHash));
-        FFSetTextureTransform_(0, m_bumpMapTransform);
-        if (m_refractionMap)
-        {
-            RedRenderer::pcSetTexture(1, m_refractionMap);
-        }
-        else
-        {
-            RedRenderer::pcSetTexture(1, RedRenderer::pcGetBuffer(PC_BUFFER_REFRACTION));
-        }
+        RedRenderer::pcFFSetTextureTransform(0, reinterpret_cast<const PblMatrix&>(mBumpTransform));
+        RedRenderer::pcSetTexture(1, m_refractionMap ? m_refractionMap
+                                                     : RedRenderer::pcGetBuffer(PC_BUFFER_REFRACTION));
         RedRenderer::pcFFSetTextureTransform(1, s_refractionTexMat);
         RedRenderer::pcSetTextureStageState(0, D3DTSS_BUMPENVMAT00, FloatBits_(s_bumpMat.m[0][0]));
         RedRenderer::pcSetTextureStageState(0, D3DTSS_BUMPENVMAT10, FloatBits_(s_bumpMat.m[1][0]));
@@ -619,18 +610,17 @@ void pcRefractionShader::Render_Prog1(const RenderItem* pItem, unsigned int) con
     const unsigned int uiFlags = PIPELINE1_INV_STATE_MAP[pItem->uiShaderState];
 
     RedColor color;
-    color.r = (unsigned char)(int)(m_material.diffuseColor.r * 255.0f);
-    color.g = (unsigned char)(int)(m_material.diffuseColor.g * 255.0f);
     color.b = (unsigned char)(int)(m_material.diffuseColor.b * 255.0f);
+    color.g = (unsigned char)(int)(m_material.diffuseColor.g * 255.0f);
+    color.r = (unsigned char)(int)(m_material.diffuseColor.r * 255.0f);
     color.a = (unsigned char)(int)(m_material.diffuseColor.a * 255.0f);
-    color.r = (unsigned char)(int)(color.r * (pItem->tweakColor.r * (1.0f / 255.0f)) + 0.5f);
-    color.g = (unsigned char)(int)(color.g * (pItem->tweakColor.g * (1.0f / 255.0f)) + 0.5f);
-    color.b = (unsigned char)(int)(color.b * (pItem->tweakColor.b * (1.0f / 255.0f)) + 0.5f);
-    color.a = (unsigned char)(int)(color.a * (pItem->tweakColor.a * (1.0f / 255.0f)) + 0.5f);
+    color = pItem->tweakColor * color;
 
-    const RedColor refraction = pItem->pShadingState
-                                    ? pItem->pShadingState->GetColorParam(0xbc6f8a5e)
-                                    : m_colorRefraction;
+    RedColor refraction = m_colorRefraction;
+    if (pItem->pShadingState)
+    {
+        refraction = pItem->pShadingState->GetColorParam(0xbc6f8a5e);
+    }
     const float fAlpha = refraction.a * (1.0f / 255.0f);
 
     RedRenderer::pcSetCullMode((m_material.materialFlags & 0x10000) ? PCREDCULL_NONE
@@ -642,19 +632,11 @@ void pcRefractionShader::Render_Prog1(const RenderItem* pItem, unsigned int) con
         RedRenderer::pcSetRenderState(D3DRS_ALPHABLENDENABLE, ucAlpha < 0xff);
 
         pcRedVertexShaderConstantRegister* pRegs = RedRenderer::pcLockVertexShaderConstants(39, 3);
-        pRegs[39].component[0] = color.r * (1.0f / 255.0f);
-        pRegs[39].component[1] = color.g * (1.0f / 255.0f);
-        pRegs[39].component[2] = color.b * (1.0f / 255.0f);
-        pRegs[39].component[3] = ucAlpha * (1.0f / 255.0f);
+        pRegs[39].SetFloats(color.r * (1.0f / 255.0f), color.g * (1.0f / 255.0f),
+                            color.b * (1.0f / 255.0f), ucAlpha * (1.0f / 255.0f));
         const RedTextureTransform& diffuse = m_material.diffuseTexTransform;
-        pRegs[40].component[0] = diffuse(0, 0);
-        pRegs[40].component[1] = diffuse(1, 0);
-        pRegs[40].component[2] = 0.0f;
-        pRegs[40].component[3] = diffuse(2, 0);
-        pRegs[41].component[0] = diffuse(0, 1);
-        pRegs[41].component[1] = diffuse(1, 1);
-        pRegs[41].component[2] = 0.0f;
-        pRegs[41].component[3] = diffuse(2, 1);
+        pRegs[40].SetFloats(diffuse(0, 0), diffuse(1, 0), 0.0f, diffuse(2, 0));
+        pRegs[41].SetFloats(diffuse(0, 1), diffuse(1, 1), 0.0f, diffuse(2, 1));
         RedRenderer::pcUnlockVertexShaderConstants(pRegs);
 
         RedRenderer::pcSetTexture(0, RedTexture::Find(m_material.diffuseMapHash));
@@ -662,10 +644,8 @@ void pcRefractionShader::Render_Prog1(const RenderItem* pItem, unsigned int) con
     else
     {
         pcRedVertexShaderConstantRegister* pRegs = RedRenderer::pcLockVertexShaderConstants(39, 10);
-        pRegs[39].component[0] = color.r * (1.0f / 255.0f);
-        pRegs[39].component[1] = color.g * (1.0f / 255.0f);
-        pRegs[39].component[2] = color.b * (1.0f / 255.0f);
-        pRegs[39].component[3] = color.a * (1.0f / 255.0f);
+        pRegs[39].SetFloats(color.r * (1.0f / 255.0f), color.g * (1.0f / 255.0f),
+                            color.b * (1.0f / 255.0f), color.a * (1.0f / 255.0f));
         pRegs[40].component[0] = 1.0f;
         pRegs[40].component[1] = 0.0f;
         pRegs[40].component[2] = m_distortionScale * 8.0f;
@@ -675,26 +655,21 @@ void pcRefractionShader::Render_Prog1(const RenderItem* pItem, unsigned int) con
         pRegs[41].SetMatrix4x4(mTex);
 
         const RedTextureTransform& diffuse = m_material.diffuseTexTransform;
-        pRegs[45].component[0] = diffuse(0, 0);
-        pRegs[45].component[1] = diffuse(1, 0);
-        pRegs[45].component[2] = 0.0f;
-        pRegs[45].component[3] = diffuse(2, 0);
-        pRegs[46].component[0] = diffuse(0, 1);
-        pRegs[46].component[1] = diffuse(1, 1);
-        pRegs[46].component[2] = 0.0f;
-        pRegs[46].component[3] = diffuse(2, 1);
+        pRegs[45].SetFloats(diffuse(0, 0), diffuse(1, 0), 0.0f, diffuse(2, 0));
+        pRegs[46].SetFloats(diffuse(0, 1), diffuse(1, 1), 0.0f, diffuse(2, 1));
         const RedTextureTransform& bump = m_bumpMapTransform;
-        pRegs[47].component[0] = bump(0, 0);
-        pRegs[47].component[1] = bump(1, 0);
-        pRegs[47].component[2] = 0.0f;
-        pRegs[47].component[3] = bump(2, 0);
-        pRegs[48].component[0] = bump(0, 1);
-        pRegs[48].component[1] = bump(1, 1);
-        pRegs[48].component[2] = 0.0f;
-        pRegs[48].component[3] = bump(2, 1);
+        pRegs[47].SetFloats(bump(0, 0), bump(1, 0), 0.0f, bump(2, 0));
+        pRegs[48].SetFloats(bump(0, 1), bump(1, 1), 0.0f, bump(2, 1));
         RedRenderer::pcUnlockVertexShaderConstants(pRegs);
 
-        RedRenderer::pcSetRenderState(D3DRS_ALPHABLENDENABLE, color.a < 0xff);
+        if (color.a < 0xff)
+        {
+            RedRenderer::pcSetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+        }
+        else
+        {
+            RedRenderer::pcSetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+        }
 
         if (uiFlags & 8)
         {
@@ -724,18 +699,14 @@ void pcRefractionShader::Render_Prog1(const RenderItem* pItem, unsigned int) con
         }
 
         RedColorValue psConst[2];
-        psConst[0].r = 1.0f;
-        psConst[0].g = 1.0f;
-        psConst[0].b = 1.0f;
-        psConst[0].a = fAlpha;
+        psConst[0] = RedColorValue(1.0f, 1.0f, 1.0f, fAlpha);
         if (pItem->pLightingState->pProjectedLight)
         {
-            const RedLight* pLight = pItem->pLightingState->pProjectedLight;
-            RedRenderer::pcSetSamplerState(3, D3DSAMP_ADDRESSU, pLight->GetProjectionTextureWrapMode());
-            RedRenderer::pcSetSamplerState(3, D3DSAMP_ADDRESSV, pLight->GetProjectionTextureWrapMode());
-            RedRenderer::pcSetSamplerState(3, D3DSAMP_ADDRESSW, pLight->GetProjectionTextureWrapMode());
-            RedRenderer::pcSetTexture(3, RedTexture::Find(pLight->m_uiProjTexHash));
-            psConst[1] = pLight->m_color;
+            RedRenderer::pcSetSamplerState(3, D3DSAMP_ADDRESSU, pItem->pLightingState->pProjectedLight->GetProjectionTextureWrapMode());
+            RedRenderer::pcSetSamplerState(3, D3DSAMP_ADDRESSV, pItem->pLightingState->pProjectedLight->GetProjectionTextureWrapMode());
+            RedRenderer::pcSetSamplerState(3, D3DSAMP_ADDRESSW, pItem->pLightingState->pProjectedLight->GetProjectionTextureWrapMode());
+            RedRenderer::pcSetTexture(3, RedTexture::Find(pItem->pLightingState->pProjectedLight->m_uiProjTexHash));
+            psConst[1] = pItem->pLightingState->pProjectedLight->m_color;
         }
         else
         {
@@ -817,7 +788,11 @@ void pcRefractionShader::_Init(unsigned int uiFlags,
                                const RedColor& color1,
                                float fSpecularPower)
 {
-    unsigned int uiState = (uiFlags & 0x20) ? 0x22 : 2;
+    unsigned int uiState = 2;
+    if (uiFlags & 0x20)
+    {
+        uiState = 0x22;
+    }
     if (uiFlags & 0x1c)
     {
         uiState |= (uiFlags & 0x1c);
@@ -829,15 +804,20 @@ void pcRefractionShader::_Init(unsigned int uiFlags,
 
     memset(&m_material, 0, sizeof(m_material));
 
-    m_material.diffuseColor.r = color0.r * (1.0f / 255.0f);
-    m_material.diffuseColor.g = color0.g * (1.0f / 255.0f);
-    m_material.diffuseColor.b = color0.b * (1.0f / 255.0f);
-    m_material.diffuseColor.a = color0.a * (1.0f / 255.0f);
+    const float kInv255 = 1.0f / 255.0f;
+    RedColorValue diffuse;
+    diffuse.r = color0.r * kInv255;
+    diffuse.g = color0.g * kInv255;
+    diffuse.b = color0.b * kInv255;
+    diffuse.a = color0.a * kInv255;
+    m_material.diffuseColor = diffuse;
 
-    m_material.specularColor.r = color1.r * (1.0f / 255.0f);
-    m_material.specularColor.g = color1.g * (1.0f / 255.0f);
-    m_material.specularColor.b = color1.b * (1.0f / 255.0f);
-    m_material.specularColor.a = color1.a * (1.0f / 255.0f);
+    RedColorValue specular;
+    specular.r = color1.r * kInv255;
+    specular.g = color1.g * kInv255;
+    specular.b = color1.b * kInv255;
+    specular.a = color1.a * kInv255;
+    m_material.specularColor = specular;
 
     m_material.materialFlags = uiMaterialFlags;
     m_material.specularPower = fSpecularPower;
@@ -891,13 +871,10 @@ void pcRefractionShader::_Init(unsigned int uiFlags,
     }
 
     pcRedShader::m_material = &m_material;
-    m_colorRefraction.b = 0xff;
-    m_colorRefraction.g = 0xff;
-    m_colorRefraction.r = 0xff;
-    m_colorRefraction.a = 0;
     m_material.diffuseTexTransform.m_bTransform = 0;
     m_material.detailTexTransform.m_bTransform = 0;
     m_material.animationData = 0;
+    m_colorRefraction = RedColor(0xff, 0xff, 0xff, 0);
     m_bumpMapTransform.m_bTransform = 0;
     m_refractionMap = 0;
     m_distortionScale = 0.015f;

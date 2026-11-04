@@ -71,11 +71,11 @@ struct DroidekaVertexU
 // FUNCTION: SWBF2 0x004285c0
 const PblBox& ShieldEffect::GetBBox() const
 {
-    if (!m_pClass->m_pPrim)
+    if (m_pClass->m_pPrim)
     {
-        return *(const PblBox*)0;
+        return m_pClass->m_pPrim->m_bbox;
     }
-    return m_pClass->m_pPrim->m_bbox;
+    return *(const PblBox*)0;
 }
 
 
@@ -106,20 +106,25 @@ void ShieldEffect::PlatformRender(const PblMatrix& mMatrix, unsigned char ucView
     {
         PblMatrix mBillboard = RedRenderer::GetCamera()->GetMatrix();
         const PblVector3& vX = mMatrix.GetXAxis();
-        const float fScale = sqrtf(vX.x * vX.x + vX.y * vX.y + vX.z * vX.z);
+        const float fScale = PblMath::Sqrt(vX.x * vX.x + vX.y * vX.y + vX.z * vX.z);
         mBillboard.Scale(fScale);
-        mBillboard.m[3][0] = mMatrix.m[3][0];
-        mBillboard.m[3][1] = mMatrix.m[3][1];
-        mBillboard.m[3][2] = mMatrix.m[3][2];
-        mBillboard.m[3][3] = 1.0f;
+        mBillboard.SetTranslation(mMatrix.GetTranslation());
 
         const PblVector3& vCamera = RedRenderer::GetCamera()->GetMatrix().GetTranslation();
         const float fX = vCamera.x - mMatrix.m[3][0];
         const float fY = vCamera.y - mMatrix.m[3][1];
         const float fZ = vCamera.z - mMatrix.m[3][2];
         const float fRadius = m_pClass->m_fRadius;
-        m_pShader->m_fVertexMinDistSqr = 0.0f;
-        m_pShader->m_fViewAngleFactor = fRadius * fRadius > fY * fY + fX * fX + fZ * fZ ? 0.2f : 0.0f;
+        if (fRadius * fRadius > fY * fY + fX * fX + fZ * fZ)
+        {
+            m_pShader->m_fViewAngleFactor = 0.2f;
+            m_pShader->m_fVertexMinDistSqr = 0.0f;
+        }
+        else
+        {
+            m_pShader->m_fViewAngleFactor = 0.0f;
+            m_pShader->m_fVertexMinDistSqr = 0.0f;
+        }
         RedRenderer::pcRenderPrimitive(m_pClass->m_pPrim, m_pShader,
                                        mBillboard, RedColor::WHITE,
                                        uiFlags, 0, 0, 0);
@@ -127,8 +132,10 @@ void ShieldEffect::PlatformRender(const PblMatrix& mMatrix, unsigned char ucView
     }
 
     const float fZoom = RedRenderer::GetCamera()->GetZoom();
-    pcShieldShader::s_fFadeStart = FLRenderer::GetNearSceneFadeStart() * fZoom;
-    pcShieldShader::s_fFadeEnd = FLRenderer::GetNearSceneFadeEnd() * fZoom;
+    const float fFadeStart = FLRenderer::GetNearSceneFadeStart() * fZoom;
+    const float fFadeEnd = FLRenderer::GetNearSceneFadeEnd() * fZoom;
+    pcShieldShader::s_fFadeStart = fFadeStart;
+    pcShieldShader::s_fFadeEnd = fFadeEnd;
     float fOffsetU = m_pClass->m_fScrollRate * m_fScrollTimer;
     fOffsetU -= (float)(int)fOffsetU;
     float fOffsetV;
@@ -147,12 +154,13 @@ void ShieldEffect::PlatformRender(const PblMatrix& mMatrix, unsigned char ucView
         if (fRadius * fRadius > fY * fY + fX * fX + fZ * fZ)
         {
             m_pShader->m_fViewAngleFactor = 0.2f;
+            m_pShader->m_fVertexMinDistSqr = 0.0f;
         }
         else
         {
             m_pShader->m_fViewAngleFactor = m_pClass->m_fViewAngleFactor;
+            m_pShader->m_fVertexMinDistSqr = 0.0f;
         }
-        m_pShader->m_fVertexMinDistSqr = 0.0f;
     }
     m_pShader->m_fOffsetU = fOffsetU;
     m_pShader->m_fOffsetV = fOffsetV;
@@ -164,6 +172,7 @@ void ShieldEffect::PlatformRender(const PblMatrix& mMatrix, unsigned char ucView
 // FUNCTION: SWBF2 0x00427120
 void ShieldEffectClass::PlatformInit()
 {
+    const float fAngleStep = PblMath::fTwoPi / 32.0f;
     m_pPrim = 0;
 
     if (m_type == 0)
@@ -172,7 +181,7 @@ void ShieldEffectClass::PlatformInit()
         float afCos[33];
         for (int i = 0; i < 33; ++i)
         {
-            PblMath::SinCos(&afSin[i], &afCos[i], (float)i * (PblMath::fTwoPi / 32.0f));
+            PblMath::SinCos(&afSin[i], &afCos[i], (float)i * fAngleStep);
         }
 
         if (RedRenderer::pcGetRenderCaps().pipeline == PIPELINE_FIXED)
@@ -190,9 +199,9 @@ void ShieldEffectClass::PlatformInit()
 
         if (RedRenderer::pcGetRenderCaps().pipeline == PIPELINE_FIXED)
         {
-            m_pPrim->m_bbox._vMin = PblVector3(-m_fRadius, -m_fRadius, -m_fHeight);
-            m_pPrim->m_bbox._vMax = PblVector3(m_fRadius, m_fRadius, m_fHeight);
-            CompressedPos::SetBoundingBox(m_pPrim->m_bbox);
+            PblBox box(-m_fRadius, -m_fRadius, -m_fHeight, m_fRadius, m_fRadius, m_fHeight);
+            m_pPrim->m_bbox = box;
+            CompressedPos::SetBoundingBox(box);
 
             DroidekaVertexU* pVertex = (DroidekaVertexU*)m_pPrim->BeginVertexData();
             if (!pVertex)
@@ -228,9 +237,9 @@ void ShieldEffectClass::PlatformInit()
         }
         else
         {
-            m_pPrim->m_bbox._vMin = PblVector3(-m_fRadius, -m_fHeight, -m_fRadius);
-            m_pPrim->m_bbox._vMax = PblVector3(m_fRadius, m_fHeight, m_fRadius);
-            CompressedPos::SetBoundingBox(m_pPrim->m_bbox);
+            PblBox box(-m_fRadius, -m_fHeight, -m_fRadius, m_fRadius, m_fHeight, m_fRadius);
+            m_pPrim->m_bbox = box;
+            CompressedPos::SetBoundingBox(box);
 
             void* pVertices = m_pPrim->BeginVertexData();
             if (!pVertices)
@@ -313,149 +322,149 @@ void ShieldEffectClass::PlatformInit()
             }
         }
         m_pPrim->EndIndexData();
-        return;
-    }
-
-    const float fStep = PblMath::fHalfPi / 12.0f;
-
-    float afSin[33];
-    float afCos[33];
-    float afWave[33];
-    for (int i = 0; i < 33; ++i)
-    {
-        float fAngle = (float)i * (PblMath::fTwoPi / 32.0f);
-        PblMath::SinCos(&afSin[i], &afCos[i], fAngle);
-        afWave[i] = PblMath::Cos(fAngle * 2.0f + PblMath::fTwoPi * 0.73f) * 0.3f
-                  + PblMath::Cos(PblMath::fTwoPi * 0.21f + fAngle) * 0.4f
-                  + PblMath::Cos(fAngle * 3.0f + PblMath::fTwoPi * 0.57f) * 0.2f
-                  + PblMath::Cos(fAngle * 5.0f + PblMath::fTwoPi * 0.07f) * 0.1f;
-    }
-
-    if (RedRenderer::pcGetGeometryMode())
-    {
-        m_pPrim = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, 0xD222, sizeof(ShieldVertexC), 16 * 33, 1023, true);
     }
     else
     {
-        m_pPrim = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, 0x222, sizeof(ShieldVertexU), 16 * 33, 1023, true);
-    }
+        const float fStep = PblMath::fHalfPi / 12.0f;
 
-    m_pPrim->m_bbox._vMin = PblVector3(m_fRadius * -1.01f,
-                                       PblMath::Sin(fStep * 3.0f) * m_fHeight * -1.01f,
-                                       m_fRadius * -1.01f);
-    m_pPrim->m_bbox._vMax = PblVector3(m_fRadius * 1.01f, m_fHeight * 1.01f, m_fRadius * 1.01f);
-    CompressedPos::SetBoundingBox(m_pPrim->m_bbox);
-
-    void* pVertices = m_pPrim->BeginVertexData();
-    if (!pVertices)
-    {
-        return;
-    }
-
-    if (RedRenderer::pcGetGeometryMode())
-    {
-        ShieldVertexC* pVertex = (ShieldVertexC*)pVertices;
-        int iRing = -3;
-        for (unsigned short j = 0; j <= 15; ++j, ++iRing)
+        float afSin[33];
+        float afCos[33];
+        float afWave[33];
+        for (int i = 0; i < 33; ++i)
         {
-            float fPhi = (float)iRing * fStep;
-            float fCos = PblMath::Cos(fPhi);
-            float fSin = PblMath::Sin(fPhi);
-            float fRingRadius = fCos * m_fRadius;
-            float fRingHeight = m_fHeight * fSin;
-            float fInvLen = 1.0f / sqrtf(m_fHeight * m_fHeight * fCos * fCos +
-                                         m_fRadius * m_fRadius * fSin * fSin);
-            float fNormalRadius = m_fHeight * fCos * fInvLen;
-            float fNormalHeight = fSin * m_fRadius * fInvLen;
-            float fWaveScale = j < 15 ? 0.08f : 0.0f;
-            float fV = (float)(iRing + 3) / 15.0f;
-            for (int i = 0; i < 33; ++i)
-            {
-                pVertex->SetPos(PblVector3(afCos[i] * fRingRadius, fRingHeight, afSin[i] * fRingRadius));
-                pVertex->SetNormal(PblVector3(afCos[i] * fNormalRadius, fNormalHeight, afSin[i] * fNormalRadius));
-                pVertex->SetUV((float)i * 4.0f / 32.0f, afWave[i] * fWaveScale + 1.0f - fV);
-                ++pVertex;
-            }
+            float fAngle = (float)i * fAngleStep;
+            PblMath::SinCos(&afSin[i], &afCos[i], fAngle);
+            afWave[i] = PblMath::Cos(fAngle * 2.0f + PblMath::fTwoPi * 0.73f) * 0.3f
+                      + PblMath::Cos(PblMath::fTwoPi * 0.21f + fAngle) * 0.4f
+                      + PblMath::Cos(fAngle * 3.0f + PblMath::fTwoPi * 0.57f) * 0.2f
+                      + PblMath::Cos(fAngle * 5.0f + PblMath::fTwoPi * 0.07f) * 0.1f;
         }
-    }
-    else
-    {
-        ShieldVertexU* pVertex = (ShieldVertexU*)pVertices;
-        int iRing = -3;
-        for (unsigned short j = 0; j <= 15; ++j, ++iRing)
+
+        if (RedRenderer::pcGetGeometryMode())
         {
-            float fPhi = (float)iRing * fStep;
-            float fCos = PblMath::Cos(fPhi);
-            float fSin = PblMath::Sin(fPhi);
-            float fRingRadius = fCos * m_fRadius;
-            float fRingHeight = fSin * m_fHeight;
-            float fInvLen = 1.0f / sqrtf(m_fHeight * m_fHeight * fCos * fCos +
-                                         m_fRadius * m_fRadius * fSin * fSin);
-            float fNormalRadius = fCos * m_fHeight * fInvLen;
-            float fNormalHeight = fSin * m_fRadius * fInvLen;
-            float fWaveScale = j < 15 ? 0.08f : 0.0f;
-            float fV = (float)(iRing + 3) / 15.0f;
-            for (int i = 0; i < 33; ++i)
-            {
-                pVertex->SetPos(PblVector3(fRingRadius * afCos[i], fRingHeight, fRingRadius * afSin[i]));
-                pVertex->SetNormal(PblVector3(fNormalRadius * afCos[i], fNormalHeight, fNormalRadius * afSin[i]));
-                pVertex->SetUV((float)i * 4.0f / 32.0f, afWave[i] * fWaveScale + 1.0f - fV);
-                ++pVertex;
-            }
+            m_pPrim = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, 0xD222, sizeof(ShieldVertexC), 16 * 33, 1023, true);
         }
-    }
-
-    m_pPrim->EndVertexData();
-
-    unsigned short* pIndex = m_pPrim->BeginIndexData();
-    for (unsigned short k = 0; k < 32; ++k)
-    {
-        if ((k & 1) == 0)
+        else
         {
-            for (unsigned short j = 0; j < 16; ++j)
+            m_pPrim = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, 0x222, sizeof(ShieldVertexU), 16 * 33, 1023, true);
+        }
+
+        PblBox box(m_fRadius * -1.01f, PblMath::Sin(fStep * 3.0f) * m_fHeight * -1.01f, m_fRadius * -1.01f,
+                   m_fRadius * 1.01f, m_fHeight * 1.01f, m_fRadius * 1.01f);
+        m_pPrim->m_bbox = box;
+        CompressedPos::SetBoundingBox(box);
+
+        void* pVertices = m_pPrim->BeginVertexData();
+        if (!pVertices)
+        {
+            return;
+        }
+
+        if (RedRenderer::pcGetGeometryMode())
+        {
+            ShieldVertexC* pVertex = (ShieldVertexC*)pVertices;
+            int iRing = -3;
+            for (unsigned short j = 0; j <= 15; ++j, ++iRing)
             {
-                *pIndex++ = k + j * 33;
-                *pIndex++ = k + 1 + j * 33;
+                float fPhi = (float)iRing * fStep;
+                float fCos = PblMath::Cos(fPhi);
+                float fSin = PblMath::Sin(fPhi);
+                float fRingRadius = fCos * m_fRadius;
+                float fRingHeight = m_fHeight * fSin;
+                float fInvLen = 1.0f / sqrtf(m_fHeight * m_fHeight * fCos * fCos +
+                                             m_fRadius * m_fRadius * fSin * fSin);
+                float fNormalRadius = m_fHeight * fCos * fInvLen;
+                float fNormalHeight = fSin * m_fRadius * fInvLen;
+                float fWaveScale = j < 15 ? 0.08f : 0.0f;
+                float fV = (float)(iRing + 3) / 15.0f;
+                for (int i = 0; i < 33; ++i)
+                {
+                    pVertex->SetPos(PblVector3(afCos[i] * fRingRadius, fRingHeight, afSin[i] * fRingRadius));
+                    pVertex->SetNormal(PblVector3(afCos[i] * fNormalRadius, fNormalHeight, afSin[i] * fNormalRadius));
+                    pVertex->SetUV((float)i * 4.0f / 32.0f, afWave[i] * fWaveScale + 1.0f - fV);
+                    ++pVertex;
+                }
             }
         }
         else
         {
-            for (unsigned short j = 15; j > 0; --j)
+            ShieldVertexU* pVertex = (ShieldVertexU*)pVertices;
+            int iRing = -3;
+            for (unsigned short j = 0; j <= 15; ++j, ++iRing)
             {
-                *pIndex++ = k + 1 + j * 33;
-                *pIndex++ = k + (j - 1) * 33;
-            }
-            *pIndex++ = k + 1;
-            if (k != 31)
-            {
-                *pIndex++ = k + 1;
+                float fPhi = (float)iRing * fStep;
+                float fCos = PblMath::Cos(fPhi);
+                float fSin = PblMath::Sin(fPhi);
+                float fRingRadius = fCos * m_fRadius;
+                float fRingHeight = fSin * m_fHeight;
+                float fInvLen = 1.0f / sqrtf(m_fHeight * m_fHeight * fCos * fCos +
+                                             m_fRadius * m_fRadius * fSin * fSin);
+                float fNormalRadius = fCos * m_fHeight * fInvLen;
+                float fNormalHeight = fSin * m_fRadius * fInvLen;
+                float fWaveScale = j < 15 ? 0.08f : 0.0f;
+                float fV = (float)(iRing + 3) / 15.0f;
+                for (int i = 0; i < 33; ++i)
+                {
+                    pVertex->SetPos(PblVector3(fRingRadius * afCos[i], fRingHeight, fRingRadius * afSin[i]));
+                    pVertex->SetNormal(PblVector3(fNormalRadius * afCos[i], fNormalHeight, fNormalRadius * afSin[i]));
+                    pVertex->SetUV((float)i * 4.0f / 32.0f, afWave[i] * fWaveScale + 1.0f - fV);
+                    ++pVertex;
+                }
             }
         }
+
+        m_pPrim->EndVertexData();
+
+        unsigned short* pIndex = m_pPrim->BeginIndexData();
+        for (unsigned short k = 0; k < 32; ++k)
+        {
+            if ((k & 1) == 0)
+            {
+                for (unsigned short j = 0; j < 16; ++j)
+                {
+                    *pIndex++ = k + j * 33;
+                    *pIndex++ = k + 1 + j * 33;
+                }
+            }
+            else
+            {
+                for (unsigned short j = 15; j > 0; --j)
+                {
+                    *pIndex++ = k + 1 + j * 33;
+                    *pIndex++ = k + (j - 1) * 33;
+                }
+                *pIndex++ = k + 1;
+                if (k != 31)
+                {
+                    *pIndex++ = k + 1;
+                }
+            }
+        }
+        m_pPrim->EndIndexData();
     }
-    m_pPrim->EndIndexData();
 }
 
 // FUNCTION: SWBF2 0x00428220
 void ShieldEffect::PlatformInit()
 {
-    pcRedShader* pShader;
+    pcShieldShader* pShader;
     if (RedRenderer::pcGetRenderCaps().pipeline == PIPELINE_FIXED && m_pClass->m_type == 0)
     {
-        pShader = pcRedShader::Create(0x337519B0, 0xA2, &m_pClass->m_uiTextureHash, 1, 0x100C0,
+        pShader = (pcShieldShader*)pcRedShader::Create(0x337519B0, 0xA2, &m_pClass->m_uiTextureHash, 1, 0x100C0,
                                       m_pClass->m_color, m_pClass->m_colorSpecular, 32.0f);
     }
     else if (RedRenderer::pcGetGeometryMode())
     {
-        pShader = pcRedShader::Create(0x337519B0, 0xD222, &m_pClass->m_uiTextureHash, 1, 0x100C4,
+        pShader = (pcShieldShader*)pcRedShader::Create(0x337519B0, 0xD222, &m_pClass->m_uiTextureHash, 1, 0x100C4,
                                       m_pClass->m_color, m_pClass->m_colorSpecular, 32.0f);
     }
     else
     {
-        pShader = pcRedShader::Create(0x337519B0, 0x222, &m_pClass->m_uiTextureHash, 1, 0x100C4,
+        pShader = (pcShieldShader*)pcRedShader::Create(0x337519B0, 0x222, &m_pClass->m_uiTextureHash, 1, 0x100C4,
                                       m_pClass->m_color, m_pClass->m_colorSpecular, 32.0f);
     }
 
-    m_pShader = (pcShieldShader*)pShader;
-    m_pShader->m_fViewAngleFactor = m_pClass->m_fViewAngleFactor;
-    m_pShader->m_fVertexMinDistSqr = 0.0f;
+    pShader->m_fViewAngleFactor = m_pClass->m_fViewAngleFactor;
+    m_pShader = pShader;
+    pShader->m_fVertexMinDistSqr = 0.0f;
 }

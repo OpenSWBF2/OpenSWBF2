@@ -76,9 +76,9 @@ void MedalsMgr::HudIndication(int iType, const char* pPrefix, const RedColor& co
                 continue;
             }
 
-            char key[68];
-            strlcpy(key, pPrefix, sizeof(key));
-            strlcat(key, sMedalPoints_condition[iType].name, sizeof(key));
+            char key[64];
+            strncpy(key, pPrefix, 64);
+            strncat(key, sMedalPoints_condition[iType].name, 64);
 
             unsigned short wideKey[64];
             const unsigned short* pText = RedLocalizeDB::Find(PblHash(key), true);
@@ -102,12 +102,9 @@ MedalsMgr::MedalsMgr(Character* pOwner)
 // FUNCTION: SWBF2 0x005a30b0
 void MedalsMgr::Init()
 {
-    for (int i = 0; i < MEDAL_TYPES_COUNT; ++i)
-    {
-        mMedalsGathered[i] = 0;
-        mMedalPoints[i] = 0;
-        mAwardTime[i] = 0.0f;
-    }
+    memset(mMedalsGathered, 0, sizeof(mMedalsGathered));
+    memset(mMedalPoints, 0, sizeof(mMedalPoints));
+    memset(mAwardTime, 0, sizeof(mAwardTime));
     mAwardAvailable = 0;
 }
 
@@ -148,16 +145,16 @@ MedalsMgr::CareerLevel MedalsMgr::GetLevel(int iType) const
     {
         return VETERAN;
     }
-    short sMedals = GetMedals(iType);
-    if (sMedals >= 64)
+    int iMedals = GetMedals(iType);
+    if (iMedals >= 64)
     {
         return LEGENDARY;
     }
-    if (sMedals >= 32)
+    if (iMedals >= 32)
     {
         return ELITE;
     }
-    if (sMedals >= 4)
+    if (iMedals >= 4)
     {
         return VETERAN;
     }
@@ -170,7 +167,11 @@ short MedalsMgr::GetPointsNeededForMedal(int iType) const
     if (GetLevel(iType) >= ELITE)
     {
         short sPoints = (short)(sMedalPoints_condition[iType].pointsPerMedal * 3 / 4);
-        return sPoints ? sPoints : 1;
+        if (!sPoints)
+        {
+            sPoints = 1;
+        }
+        return sPoints;
     }
     return sMedalPoints_condition[iType].pointsPerMedal;
 }
@@ -190,24 +191,23 @@ void MedalsMgr::AddMedalPoints(int iType, bool bKill, bool bCritHit, HealthType 
         return;
     }
 
-    const PointCondition& condition = sMedalPoints_condition[iType];
-    if (condition.kill && !bKill)
+    if (sMedalPoints_condition[iType].kill && !bKill)
     {
         return;
     }
-    if (condition.critHit && !bCritHit)
+    if (sMedalPoints_condition[iType].critHit && !bCritHit)
     {
         return;
     }
-    if (eHealthType < NUM_HEALTH_TYPES && !((1 << eHealthType) & condition.healthType))
+    if (eHealthType < NUM_HEALTH_TYPES && !((1 << eHealthType) & sMedalPoints_condition[iType].healthType))
     {
         return;
     }
-    if (condition.hack && !bHack)
+    if (sMedalPoints_condition[iType].hack && !bHack)
     {
         return;
     }
-    if (condition.score && !bScore)
+    if (sMedalPoints_condition[iType].score && !bScore)
     {
         return;
     }
@@ -239,16 +239,18 @@ bool MedalsMgr::IsAwardAvailableInternal(int iType) const
     {
         return false;
     }
-    if (iType < 0)
+    if (iType >= 0)
     {
-        return true;
+        CareerLevel eLevel = GetLevel(iType);
+        if (eLevel < VETERAN || mMedalPoints[iType] < GetPointsNeededForMedal(iType))
+        {
+            if (eLevel < LEGENDARY)
+            {
+                return false;
+            }
+        }
     }
-    CareerLevel eLevel = GetLevel(iType);
-    if (eLevel >= VETERAN && mMedalPoints[iType] >= GetPointsNeededForMedal(iType))
-    {
-        return true;
-    }
-    return eLevel >= LEGENDARY;
+    return true;
 }
 
 // FUNCTION: SWBF2 0x005a33d0
@@ -292,13 +294,13 @@ void MedalsMgr::WriteObject(NetPktGroup& group)
 // FUNCTION: SWBF2 0x005a3720
 void MedalsMgr::ReadObject(NetPktGroup& group)
 {
-    unsigned int uOld = mAwardAvailable;
+    unsigned short uOld = mAwardAvailable;
     unsigned int uNew;
     group.ReadBits(uNew, 16);
     mAwardAvailable = (unsigned short)uNew;
-    for (int i = 0; i < MEDAL_TYPES_COUNT; ++i)
+    unsigned short uBit = 1;
+    for (int i = 0; i < MEDAL_TYPES_COUNT; ++i, uBit <<= 1)
     {
-        unsigned short uBit = (unsigned short)(1 << i);
         if (!(uOld & uBit) && (mAwardAvailable & uBit))
         {
             HudIndication(i, "game.awards.bonus.", sAwardHudColor, true);
@@ -342,14 +344,14 @@ void MedalsMgr::ClearAllMedalPoints()
     }
     for (int i = 0; i < MEDAL_TYPES_COUNT; ++i)
     {
-        if (IsAwardAvailableInternal(i) && GameLoop::GetMissionTime() - mAwardTime[i] <= 30.0f)
-        {
-            mAwardAvailable |= 1 << i;
-        }
-        else
+        if (!IsAwardAvailableInternal(i) || GameLoop::GetMissionTime() - mAwardTime[i] > 30.0f)
         {
             mMedalPoints[i] = 0;
             mAwardTime[i] = 0.0f;
+        }
+        else
+        {
+            mAwardAvailable |= 1 << i;
         }
     }
 }

@@ -39,18 +39,17 @@ void PAAnimationGroup::ClientGeometryCreated(CollisionObject* pHost, CollisionOb
             sPAAnims[i].mClientGeometry = pClient;
         }
     }
-    for (int i = 0; i < PAAnimationGroup::mNumHierarchies; ++i)
+    for (int h = 0; h < mNumHierarchies; ++h)
     {
-        PAHierarchy& hierarchy = *PAAnimationGroup::mHierarchies[i];
-        if (hierarchy.mRoot.mHostGeometry == pHost)
+        if (mHierarchies[h]->mRoot.mHostGeometry == pHost)
         {
-            hierarchy.mRoot.mClientGeometry = pClient;
+            mHierarchies[h]->mRoot.mClientGeometry = pClient;
         }
-        for (int j = 0; j < hierarchy.mNumObjs; ++j)
+        for (int n = 0; n < mHierarchies[h]->mNumObjs; ++n)
         {
-            if (hierarchy.mObjs[j].mHostGeometry == pHost)
+            if (mHierarchies[h]->mObjs[n].mHostGeometry == pHost)
             {
-                hierarchy.mObjs[j].mClientGeometry = pClient;
+                mHierarchies[h]->mObjs[n].mClientGeometry = pClient;
             }
         }
     }
@@ -82,10 +81,10 @@ bool PAManagerInterpolator::Update(float)
         mTotalFrameTime = 0.0f;
         PAManager::sInstance->Update(fRemaining);
     }
-    float fFrameTime = mTotalTurnTime * NetGame::GetTurnRatio();
-    PAManager::sInstance->Update(fFrameTime - mTotalFrameTime);
+    float fTurnRatio = NetGame::GetTurnRatio();
+    PAManager::sInstance->Update(mTotalTurnTime * fTurnRatio - mTotalFrameTime);
     mIsFrameUpdate = false;
-    mTotalFrameTime = fFrameTime;
+    mTotalFrameTime = mTotalTurnTime * fTurnRatio;
     return true;
 }
 
@@ -210,18 +209,30 @@ void __cdecl PAAnimationGroup::ReadHierarchy(PblFileChunk& chunk)
         }
 
         PAHierarchy* pHierarchy = new PAHierarchy;
-        pHierarchy->mNumObjs = iNodeCount - 1;
+        const int iNumObjs = iNodeCount - 1;
+        pHierarchy->mNumObjs = iNumObjs;
         PAAnimationGroup::mHierarchies[PAAnimationGroup::mNumHierarchies++] = pHierarchy;
-        pHierarchy->mObjs = new PAHierarchyNode[pHierarchy->mNumObjs];
-        for (int i = 0; i < pHierarchy->mNumObjs; ++i)
+        PAHierarchyNode* pAlloc = new PAHierarchyNode[iNumObjs];
+        PAHierarchyNode* pNodes;
+        if (pAlloc)
         {
-            PAHierarchyNode& node = pHierarchy->mObjs[i];
-            node.mObjHash = 0;
-            node.mHostGeometry = 0;
-            node.mGeometry = &node.mHostGeometry;
-            node.mClientGeometry = 0;
-            memcpy(&node.mLocalMatrix, &gMatrixIdentity, sizeof(node.mLocalMatrix));
+            PAHierarchyNode* pNode = pAlloc;
+            for (int n = iNumObjs - 1; n >= 0; --n)
+            {
+                pNode->mObjHash = 0;
+                pNode->mHostGeometry = 0;
+                pNode->mClientGeometry = 0;
+                pNode->mGeometry = &pNode->mHostGeometry;
+                memcpy(&pNode->mLocalMatrix, &gMatrixIdentity, sizeof(pNode->mLocalMatrix));
+                ++pNode;
+            }
+            pNodes = pAlloc;
         }
+        else
+        {
+            pNodes = 0;
+        }
+        pHierarchy->mObjs = pNodes;
         char acName[128];
         pHierarchy->mRoot.mObjHash = PblHash(child.ReadString(acName, sizeof(acName)));
         for (int i = 0; i < pHierarchy->mNumObjs; ++i)
@@ -288,9 +299,14 @@ PAManagerInterpolator pamanagerInterpolator;
 
 // FUNCTION: SWBF2 0x00626c30
 PAAnimation::PAAnimation()
-    : mNumPosKeys(0), mStartPosKey(0), mNumRotKeys(0), mStartRotKey(0), mLoop(false),
-      mLocalTranslation(false), mTotalTime(0.0f)
 {
+    mNumRotKeys = 0;
+    mStartRotKey = 0;
+    mLoop = false;
+    mLocalTranslation = false;
+    mTotalTime = 0.0f;
+    mNumPosKeys = 0;
+    mStartPosKey = 0;
 }
 
 // SYNTHETIC: SWBF2 0x00626c50
@@ -506,9 +522,7 @@ void PAAnimation::InterpolateKeys(PABaseKey key0, PABaseKey key1, float fTime, P
     case PA_LINEAR:
     {
         float fT = fElapsed / fSpan;
-        result.mVal.x = key0.mVal.x * (1.0f - fT) + key1.mVal.x * fT;
-        result.mVal.y = key0.mVal.y * (1.0f - fT) + key1.mVal.y * fT;
-        result.mVal.z = key0.mVal.z * (1.0f - fT) + key1.mVal.z * fT;
+        result.mVal = key0.mVal * (1.0f - fT) + key1.mVal * fT;
         break;
     }
     case PA_SPLINE:
@@ -529,10 +543,6 @@ void PAAnimation::CalculateNextMatrix(float fDeltaTime, float& fTime, const PblM
         return;
     }
 
-    PABaseKey key0;
-    PABaseKey key1;
-    PABaseKey key;
-
     if (!mLocalTranslation)
     {
         fTime += fDeltaTime;
@@ -549,6 +559,9 @@ void PAAnimation::CalculateNextMatrix(float fDeltaTime, float& fTime, const PblM
         }
 
         result = start;
+        PABaseKey key1;
+        PABaseKey key0;
+        PABaseKey key;
         if (GetKeys(fTime, key0, key1, true, 0, NULL))
         {
             InterpolateKeys(key0, key1, fTime, key);
@@ -564,13 +577,10 @@ void PAAnimation::CalculateNextMatrix(float fDeltaTime, float& fTime, const PblM
         {
             InterpolateKeys(key0, key1, fTime, key);
             PblVector3 vOrigin = start.GetTranslation();
-            result.m[3][0] = vOrigin.x + key.mVal.x * start.m[0][0] + key.mVal.y * start.m[1][0] +
-                             key.mVal.z * start.m[2][0];
-            result.m[3][1] = vOrigin.y + key.mVal.x * start.m[0][1] + key.mVal.y * start.m[1][1] +
-                             key.mVal.z * start.m[2][1];
-            result.m[3][2] = vOrigin.z + key.mVal.x * start.m[0][2] + key.mVal.y * start.m[1][2] +
-                             key.mVal.z * start.m[2][2];
-            result.m[3][3] = 1.0f;
+            vOrigin += start.GetXAxis() * key.mVal.x;
+            vOrigin += start.GetYAxis() * key.mVal.y;
+            vOrigin += start.GetZAxis() * key.mVal.z;
+            result.SetTranslation(vOrigin);
         }
         return;
     }
@@ -589,6 +599,9 @@ void PAAnimation::CalculateNextMatrix(float fDeltaTime, float& fTime, const PblM
 
     unsigned char ucKey;
     PblVector3 vLastPos;
+    PABaseKey key1;
+    PABaseKey key0;
+    PABaseKey key;
     if (GetKeys(fTime, key0, key1, false, 0, &ucKey))
     {
         InterpolateKeys(key0, key1, fTime, key);
@@ -601,10 +614,7 @@ void PAAnimation::CalculateNextMatrix(float fDeltaTime, float& fTime, const PblM
     {
         if (mTotalTime >= fCurTime && fCurTime + 0.0166667f > mTotalTime)
         {
-            result.m[3][0] = start.m[3][0];
-            result.m[3][1] = start.m[3][1];
-            result.m[3][2] = start.m[3][2];
-            result.m[3][3] = 1.0f;
+            result.SetTranslation(start.GetTranslation());
             vLastPos.x = 0.0f;
             vLastPos.y = 0.0f;
             vLastPos.z = 0.0f;
@@ -624,14 +634,17 @@ void PAAnimation::CalculateNextMatrix(float fDeltaTime, float& fTime, const PblM
             }
         }
 
-        if (GetKeys(fKeyTime, key0, key1, true, 0, &ucKey))
+        PABaseKey rotKey1;
+        PABaseKey rotKey0;
+        if (GetKeys(fKeyTime, rotKey0, rotKey1, true, 0, &ucKey))
         {
             PblMatrix rot = gMatrixIdentity;
-            InterpolateKeys(key0, key1, fKeyTime, key);
+            PABaseKey rotKey;
+            InterpolateKeys(rotKey0, rotKey1, fKeyTime, rotKey);
             PblMatrix temp;
-            rot.RotateX(key.mVal.x);
-            rot.RotateY(key.mVal.y);
-            rot.RotateZ(key.mVal.z);
+            rot.RotateX(rotKey.mVal.x);
+            rot.RotateY(rotKey.mVal.y);
+            rot.RotateZ(rotKey.mVal.z);
             PblVector3 vPos = result.GetTranslation();
             D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&temp), reinterpret_cast<const D3DXMATRIX*>(&rot), reinterpret_cast<const D3DXMATRIX*>(&start));
             result = temp;
@@ -642,17 +655,15 @@ void PAAnimation::CalculateNextMatrix(float fDeltaTime, float& fTime, const PblM
         if (GetKeys(fKeyTime, key0, key1, false, 0, &ucKey))
         {
             InterpolateKeys(key0, key1, fKeyTime, key);
-            vDelta.x = key.mVal.x - vLastPos.x;
-            vDelta.y = key.mVal.y - vLastPos.y;
-            vDelta.z = key.mVal.z - vLastPos.z;
+            vDelta = key.mVal - vLastPos;
             vLastPos = key.mVal;
         }
 
         PblVector3 vPos = result.GetTranslation();
-        result.m[3][0] = vPos.x + vDelta.x * result.m[0][0] + vDelta.y * result.m[1][0] + vDelta.z * result.m[2][0];
-        result.m[3][1] = vPos.y + vDelta.x * result.m[0][1] + vDelta.y * result.m[1][1] + vDelta.z * result.m[2][1];
-        result.m[3][2] = vPos.z + vDelta.x * result.m[0][2] + vDelta.y * result.m[1][2] + vDelta.z * result.m[2][2];
-        result.m[3][3] = 1.0f;
+        vPos += result.GetXAxis() * vDelta.x;
+        vPos += result.GetYAxis() * vDelta.y;
+        vPos += result.GetZAxis() * vDelta.z;
+        result.SetTranslation(vPos);
 
         fCurTime = fNextTime;
     } while (fEndTime > fCurTime);
@@ -690,25 +701,26 @@ PAAnimationGroup::~PAAnimationGroup()
 // FUNCTION: SWBF2 0x00628020
 bool PAAnimationGroup::AddAnimation(unsigned int uiAnimHash, unsigned int uiObjHash)
 {
-    if (sNextAvailableAnim >= 255)
+    const unsigned char ucAnim = sNextAvailableAnim;
+    if (ucAnim >= 255)
     {
         return false;
     }
     if (!mNumAnims)
     {
-        mStartAnim = sNextAvailableAnim;
+        mStartAnim = ucAnim;
     }
     ++mNumAnims;
-    PAAnimationData& data = sPAAnims[sNextAvailableAnim++];
-    data.mAnimHash = uiAnimHash;
-    data.mObjHash = uiObjHash;
-    data.mHostTimer = 0.0f;
-    data.mClientTimer = 0.0f;
-    data.mTimer = &data.mHostTimer;
-    data.mInitialMatrix = gMatrixIdentity;
-    data.mGeometry = &data.mHostGeometry;
-    data.mHostGeometry = NULL;
-    data.mClientGeometry = NULL;
+    sPAAnims[ucAnim].mAnimHash = uiAnimHash;
+    sPAAnims[ucAnim].mObjHash = uiObjHash;
+    sPAAnims[ucAnim].mTimer = &sPAAnims[ucAnim].mHostTimer;
+    *sPAAnims[ucAnim].mTimer = 0.0f;
+    sPAAnims[ucAnim].mClientTimer = 0.0f;
+    sPAAnims[ucAnim].mInitialMatrix = gMatrixIdentity;
+    sPAAnims[ucAnim].mGeometry = &sPAAnims[ucAnim].mHostGeometry;
+    *sPAAnims[ucAnim].mGeometry = NULL;
+    sPAAnims[ucAnim].mClientGeometry = NULL;
+    sNextAvailableAnim = ucAnim + 1;
     return true;
 }
 
@@ -804,39 +816,36 @@ void PAAnimationGroup::GeometryCreated(unsigned int uObjHash, CollisionObject* p
         return;
     }
 
-    for (PAAnimationData* pData = sPAAnims; pData < sPAAnims + 255; ++pData)
+    for (int i = 0; i < 255; ++i)
     {
-        if (pData->mObjHash == uObjHash)
+        if (sPAAnims[i].mObjHash == uObjHash)
         {
-            *pData->mGeometry = pObject;
-            pData->mInitialMatrix = matrix;
+            *sPAAnims[i].mGeometry = pObject;
+            sPAAnims[i].mInitialMatrix = matrix;
             pObject->mProcedurallyAnimated = true;
         }
     }
 
     for (int h = 0; h < mNumHierarchies; ++h)
     {
-        PAHierarchy* pHierarchy = mHierarchies[h];
-        if (pHierarchy->mRoot.mObjHash == uObjHash)
+        if (mHierarchies[h]->mRoot.mObjHash == uObjHash)
         {
-            *pHierarchy->mRoot.mGeometry = pObject;
+            *mHierarchies[h]->mRoot.mGeometry = pObject;
             pObject->mProcedurallyAnimated = true;
         }
-        for (int n = 0; n < pHierarchy->mNumObjs; ++n)
+        for (int n = 0; n < mHierarchies[h]->mNumObjs; ++n)
         {
-            PAHierarchyNode& node = pHierarchy->mObjs[n];
-            if (node.mObjHash == uObjHash)
+            if (mHierarchies[h]->mObjs[n].mObjHash == uObjHash)
             {
-                *node.mGeometry = pObject;
+                *mHierarchies[h]->mObjs[n].mGeometry = pObject;
                 pObject->mProcedurallyAnimated = true;
             }
-            CollisionObject* pRoot = *pHierarchy->mRoot.mGeometry;
-            if (pRoot && *node.mGeometry)
+            CollisionObject* pRoot = *mHierarchies[h]->mRoot.mGeometry;
+            if (pRoot && *mHierarchies[h]->mObjs[n].mGeometry)
             {
                 PblMatrix inverse = pRoot->GetMatrix().GetInverseFast();
-                PblMatrix local;
-                D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&local), reinterpret_cast<const D3DXMATRIX*>(&(*node.mGeometry)->GetMatrix()), reinterpret_cast<const D3DXMATRIX*>(&inverse));
-                node.mLocalMatrix = local;
+                mHierarchies[h]->mObjs[n].mLocalMatrix =
+                    (*mHierarchies[h]->mObjs[n].mGeometry)->GetMatrix() * inverse;
             }
         }
     }
@@ -873,14 +882,13 @@ void PAAnimationGroup::GeometryDeleted(CollisionObject* pObject)
 // FUNCTION: SWBF2 0x006288e0
 void PAAnimationGroup::UpdateTreeGrid(CollisionObject* pObject)
 {
-    if (pObject)
+    if (pObject && CollisionManager::sInstance && CollisionManager::sInstance->mTreeGrid &&
+        pObject->IsInCollisionList())
     {
-        TreeGrid* grid = CollisionManager::GetTreeGrid();
-        if (grid && pObject->IsInCollisionList())
-        {
-            grid->Update(pObject, pObject->GetCollisionCenter(),
-                         pObject->GetCollisionRadius() * 2.0f, pObject->m2dRadius * 2.0f);
-        }
+        const float f2dRadius = pObject->m2dRadius;
+        CollisionManager::sInstance->mTreeGrid->Update(pObject, pObject->GetCollisionCenter(),
+                                                       pObject->GetCollisionRadius() * 2.0f,
+                                                       f2dRadius * 2.0f);
     }
 }
 
@@ -895,6 +903,7 @@ void PAAnimationGroup::UpdateAnimations(float fDeltaTime)
     for (int i = mStartAnim; i < mStartAnim + mNumAnims; ++i)
     {
         PAAnimationData& data = sPAAnims[i];
+        PblMatrix& initial = data.mInitialMatrix;
         PAAnimation* pAnim = PAAnimation::_HashTable.Find(data.mAnimHash);
         if (!pAnim || !*data.mGeometry)
         {
@@ -905,7 +914,7 @@ void PAAnimationGroup::UpdateAnimations(float fDeltaTime)
             ((PAGameObjectTeam*)(*data.mGeometry)->GetGameObject())->mTeam)
         {
             *data.mTimer = 0.0f;
-            data.mInitialMatrix = (*data.mGeometry)->GetMatrix();
+            initial = (*data.mGeometry)->GetMatrix();
         }
         else if (mEndTime > 0.0f)
         {
@@ -915,17 +924,17 @@ void PAAnimationGroup::UpdateAnimations(float fDeltaTime)
             }
             else if (*data.mTimer + fDeltaTime > mEndTime)
             {
-                pAnim->Update(mEndTime - *data.mTimer, *data.mTimer, *data.mGeometry, data.mInitialMatrix);
+                pAnim->Update(mEndTime - *data.mTimer, *data.mTimer, *data.mGeometry, initial);
                 *mActive = false;
             }
             else
             {
-                pAnim->Update(fDeltaTime, *data.mTimer, *data.mGeometry, data.mInitialMatrix);
+                pAnim->Update(fDeltaTime, *data.mTimer, *data.mGeometry, initial);
             }
         }
         else
         {
-            pAnim->Update(fDeltaTime, *data.mTimer, *data.mGeometry, data.mInitialMatrix);
+            pAnim->Update(fDeltaTime, *data.mTimer, *data.mGeometry, initial);
         }
 
         PblMatrix matrix = (*data.mGeometry)->GetMatrix();
@@ -936,20 +945,17 @@ void PAAnimationGroup::UpdateAnimations(float fDeltaTime)
 
         for (int h = 0; h < mNumHierarchies; ++h)
         {
-            PAHierarchy* pHierarchy = mHierarchies[h];
-            if (pHierarchy->mRoot.mObjHash != data.mObjHash)
+            if (mHierarchies[h]->mRoot.mObjHash != data.mObjHash)
             {
                 continue;
             }
-            for (int n = 0; n < pHierarchy->mNumObjs; ++n)
+            for (int n = 0; n < mHierarchies[h]->mNumObjs; ++n)
             {
-                CollisionObject* pObject = *pHierarchy->mObjs[n].mGeometry;
+                CollisionObject* pObject = *mHierarchies[h]->mObjs[n].mGeometry;
                 if (pObject && pObject->CanProcedurallyAnimate())
                 {
-                    PblMatrix world;
-                    world = pHierarchy->mObjs[n].mLocalMatrix * matrix;
-                    (*pHierarchy->mObjs[n].mGeometry)->SetMatrix(world);
-                    UpdateTreeGrid(*pHierarchy->mObjs[n].mGeometry);
+                    (*mHierarchies[h]->mObjs[n].mGeometry)->SetMatrix(mHierarchies[h]->mObjs[n].mLocalMatrix * matrix);
+                    UpdateTreeGrid(*mHierarchies[h]->mObjs[n].mGeometry);
                 }
             }
         }
@@ -967,23 +973,22 @@ void PAAnimationGroup::WriteObject(NetPktGroup& group)
 
     for (int i = mStartAnim; i < mStartAnim + mNumAnims; ++i)
     {
-        PAAnimationData& data = sPAAnims[i];
-        if (!*data.mGeometry)
+        if (!*sPAAnims[i].mGeometry)
         {
             continue;
         }
 
-        PAAnimation* pAnim = PAAnimation::_HashTable.Find(data.mAnimHash);
+        PAAnimation* pAnim = PAAnimation::_HashTable.Find(sPAAnims[i].mAnimHash);
         int iBits = 1;
         const int iDeciseconds = (int)(pAnim->mTotalTime * 10.0f);
-        while (iBits < 32 && (1 << (iBits - 1)) < iDeciseconds)
+        while ((1 << (iBits - 1)) < iDeciseconds && iBits < 32)
         {
             ++iBits;
         }
-        group.WriteFixed(*data.mTimer, 0.0f, pAnim->mTotalTime, iBits);
+        group.WriteFixed(*sPAAnims[i].mTimer, 0.0f, pAnim->mTotalTime, iBits);
         if (pAnim->mLocalTranslation)
         {
-            WriteMatrix(group, (*data.mGeometry)->GetMatrix());
+            WriteMatrix(group, (*sPAAnims[i].mGeometry)->GetMatrix());
         }
     }
 }
@@ -999,29 +1004,28 @@ void PAAnimationGroup::ReadObject(NetPktGroup& group)
 
     for (int i = mStartAnim; i < mStartAnim + mNumAnims; ++i)
     {
-        PAAnimationData& data = sPAAnims[i];
-        if (!*data.mGeometry)
+        if (!*sPAAnims[i].mGeometry)
         {
             continue;
         }
-        PAAnimation* pAnim = PAAnimation::_HashTable.Find(data.mAnimHash);
+        PAAnimation* pAnim = PAAnimation::_HashTable.Find(sPAAnims[i].mAnimHash);
         int iBits = 1;
         const int iDeciseconds = (int)(pAnim->mTotalTime * 10.0f);
-        while (iBits < 32 && (1 << (iBits - 1)) < iDeciseconds)
+        while ((1 << (iBits - 1)) < iDeciseconds && iBits < 32)
         {
             ++iBits;
         }
-        group.ReadFixed(*data.mTimer, 0.0f, pAnim->mTotalTime, iBits);
+        group.ReadFixed(*sPAAnims[i].mTimer, 0.0f, pAnim->mTotalTime, iBits);
         if (pAnim->mLocalTranslation)
         {
             PblMatrix matrix;
             ReadMatrix(group, matrix);
-            if ((*data.mGeometry)->CanProcedurallyAnimate())
+            if ((*sPAAnims[i].mGeometry)->CanProcedurallyAnimate())
             {
-                (*data.mGeometry)->SetMatrix(matrix);
+                (*sPAAnims[i].mGeometry)->SetMatrix(matrix);
             }
         }
-        UpdateTreeGrid(*data.mGeometry);
+        UpdateTreeGrid(*sPAAnims[i].mGeometry);
     }
 }
 

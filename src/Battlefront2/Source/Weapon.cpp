@@ -66,8 +66,7 @@ Weapon* WeaponClass::Build(const WeaponDesc& desc)
     {
         return 0;
     }
-    void* pMemory = Weapon::operator new(sizeof(Weapon));
-    return pMemory ? ::new (pMemory) Weapon(this, desc) : 0;
+    return new Weapon(this, desc);
 }
 
 // SYNTHETIC: SWBF2 0x00679b40
@@ -136,6 +135,8 @@ WeaponClass::WeaponClass(unsigned int uHash)
 {
 
     mPostLoadInit = false;
+    mStrengthLimit = 0.0f;
+    mNextCharge = 0;
 
     mSoldierAnimationWeapon = -1;
     for (int i = 0; i < 32; ++i)
@@ -147,8 +148,6 @@ WeaponClass::WeaponClass(unsigned int uHash)
     mMaxRangeDefault = true;
     mHashWeaponName = false;
 
-    mStrengthLimit = 0.0f;
-    mNextCharge = 0;
     mLabel = 0;
     mNameHash = uHash;
     mHUDNameHash = 0;
@@ -159,7 +158,7 @@ WeaponClass::WeaponClass(unsigned int uHash)
     mModel = 0;
     mHighResModel = 0;
     mReloadTime = 0.6f;
-    mExtremeRange = 0.0f;
+    mMinRange = 0.0f;
     mOptimalRange = 30.0f;
     mMaxRange = 60.0f;
     mZoomMin = 1.0f;
@@ -190,10 +189,10 @@ WeaponClass::WeaponClass(unsigned int uHash)
     mChargeDelayLight = 0.0f;
     mChargeDelayHeavy = 0.0f;
     mTimeAtMaxCharge = 2.0f;
+    mExtremeRange = 0.0f;
     mLockOnRange = 0.0f;
     mLockOnAngle = 0.0f;
     mLockOffAngle = 0.0f;
-    mMinRange = 0.0f;
     mTargetSides = 1;
     mTargetTypes = -97;
     mAITargetTypes = -97;
@@ -209,14 +208,18 @@ WeaponClass::WeaponClass(unsigned int uHash)
     mInstantPlayFireAnim = false;
     mIsOffhand = false;
 
-    mFlashColor.b = 0x32;
-    mFlashColor.g = 0xFF;
-    mFlashColor.r = 0xFF;
-    mFlashColor.a = 0xFF;
-    mFlashLightColor.b = 0x19;
-    mFlashLightColor.g = 0x7F;
-    mFlashLightColor.r = 0x7F;
-    mFlashLightColor.a = 0xFF;
+    RedColor flashColor;
+    flashColor.b = 0x32;
+    flashColor.g = 0xFF;
+    flashColor.r = 0xFF;
+    flashColor.a = 0xFF;
+    mFlashColor = flashColor;
+    RedColor flashLightColor;
+    flashLightColor.b = 0x19;
+    flashLightColor.g = 0x7F;
+    flashLightColor.r = 0x7F;
+    flashLightColor.a = 0xFF;
+    mFlashLightColor = flashLightColor;
 
     mScoreForMedalsType = -1;
     mMedalsTypeToUnlock = -1;
@@ -224,13 +227,13 @@ WeaponClass::WeaponClass(unsigned int uHash)
     mFlashRadius = -1.0f;
     mFlashWidth = 0.25f;
     mFlashLength = 0.1f;
-    mBarrageDelay = 2.0f;
     mFlashLightRadius = 0.0f;
     mFlashLightDuration = 0.0f;
     mBarrageMin = 3;
     mBarrageMax = 6;
-    mEnergyDrain = 0.0f;
+    mBarrageDelay = 2.0f;
     mChargeUpEffect = 0;
+    mEnergyDrain = 0.0f;
     mAIBubbleSizeMultiplier = 1.0f;
     mAIBubbleScaleDistDivider = 20.0f;
     mAIBubbleScaleClamp = 10.0f;
@@ -381,8 +384,9 @@ void WeaponClass::Read(PblFileChunk& chunk)
             }
 
             pClass = pClass->Derive(uType);
+            pCharge = pClass;
             StringDB::Store(uType, pcType);
-            strlcpy(pClass->mFilename, acType, sizeof(pClass->mFilename));
+            strlcpy(pCharge->mFilename, acType, sizeof(pCharge->mFilename));
             _snprintf(acBuffer, sizeof(acBuffer), "weapons.%s", acType);
             char* pcUnderscore = strchr(acBuffer, '_');
             if (pcUnderscore)
@@ -394,8 +398,7 @@ void WeaponClass::Read(PblFileChunk& chunk)
             {
                 *pcUnderscore = '.';
             }
-            pClass->mLabel = (unsigned short*)RedLocalizeDB::Find(PblHash(acBuffer), true);
-            pCharge = pClass;
+            pCharge->mLabel = (unsigned short*)RedLocalizeDB::Find(PblHash(acBuffer), true);
             break;
         }
         case 0x45534142:
@@ -416,9 +419,10 @@ void WeaponClass::Read(PblFileChunk& chunk)
         }
     }
 
-    for (WeaponClass* p = pClass; p; p = p->mNextCharge)
+    while (pClass)
     {
-        p->PostReadInit();
+        pClass->PostReadInit();
+        pClass = pClass->mNextCharge;
     }
     pCharge->mNextCharge = pCharge;
 }
@@ -712,15 +716,16 @@ void WeaponClass::SetProperty(unsigned int uProperty, const char* pszValue)
         break;
     case 0xA7678F8F:
     {
-        const char* pcUnderscore = strchr(pszValue, '_');
-        if (pcUnderscore)
+        const char* pcName = strchr(pszValue, '_');
+        if (pcName)
         {
-            mSoldierAnimationWeapon = SoldierAnimationBank::FindWeapon(pcUnderscore + 1);
+            ++pcName;
         }
         else
         {
-            mSoldierAnimationWeapon = SoldierAnimationBank::FindWeapon(pszValue);
+            pcName = pszValue;
         }
+        mSoldierAnimationWeapon = SoldierAnimationBank::FindWeapon(pcName);
         break;
     }
     case 0x9FF840D6:
@@ -902,8 +907,9 @@ void WeaponClass::SetProperty(unsigned int uProperty, const char* pszValue)
     case 0x47C86B4A:
         if (!mName[0])
         {
-            const char* pcName = pszValue;
-            for (const char* pc = pszValue; *pc;)
+            const char* pc = pszValue;
+            const char* pcName = pc;
+            while (*pc)
             {
                 if (*pc++ == '_')
                 {
@@ -1178,7 +1184,7 @@ float WeaponClass::GetBarrageDelay() const
 // FUNCTION: SWBF2 0x0067bd30
 void WeaponClass::RenderFlash(const PblVector3& vPos, const PblVector3& vDir, float fScale) const
 {
-    if (!(mFlashRadius > 0.0f) || !mMuzzleFlashModel)
+    if (mFlashRadius <= 0.0f || !mMuzzleFlashModel)
     {
         return;
     }
@@ -1195,21 +1201,15 @@ void WeaponClass::RenderFlash(const PblVector3& vPos, const PblVector3& vDir, fl
     color.r = mFlashColor.r;
     color.a = (unsigned char)(int)fFade;
 
-    const float r = mFlashRadius;
-    PblVector3 vSide(vDir.y * 0.0f - vDir.z, vDir.z * 0.0f - vDir.x * 0.0f, vDir.x - vDir.y * 0.0f);
     PblMatrix mFlash;
-    mFlash.m[0][0] = vSide.x * r;
-    mFlash.m[0][1] = vSide.y * r;
-    mFlash.m[0][2] = vSide.z * r;
-    mFlash.m[0][3] = 0.0f;
-    mFlash.m[1][0] = (vDir.y * vSide.z - vDir.z * vSide.y) * r;
-    mFlash.m[1][1] = (vDir.z * vSide.x - vDir.x * vSide.z) * r;
-    mFlash.m[1][2] = (vDir.x * vSide.y - vDir.y * vSide.x) * r;
-    mFlash.m[1][3] = 0.0f;
-    mFlash.m[2][0] = vDir.x * r;
-    mFlash.m[2][1] = vDir.y * r;
-    mFlash.m[2][2] = vDir.z * r;
+    mFlash[2] = vDir * mFlashRadius;
     mFlash.m[2][3] = 0.0f;
+    PblVector3 vSide(vDir.y * 0.0f - vDir.z, vDir.z * 0.0f - vDir.x * 0.0f, vDir.x - vDir.y * 0.0f);
+    mFlash[0] = vSide * mFlashRadius;
+    mFlash.m[0][3] = 0.0f;
+    mFlash[1] = PblVector3(vDir.y * vSide.z - vDir.z * vSide.y, vDir.z * vSide.x - vDir.x * vSide.z,
+                           vDir.x * vSide.y - vDir.y * vSide.x) * mFlashRadius;
+    mFlash.m[1][3] = 0.0f;
     mFlash.SetTranslation(vPos);
     mMuzzleFlashModel->Render(&mFlash, 0, color, 0, 0);
 }
@@ -1252,7 +1252,7 @@ GameSound WeaponClass::sWeaponChangeUnableSound;
 
 // GLOBAL: SWBF2 0x01f9a830
 // Weapon::sMemoryPool
-MemoryPool Weapon::sMemoryPool("Weapon", 0x110);
+MemoryPool Weapon::sMemoryPool("Weapon", sizeof(Weapon));
 
 // SYNTHETIC: SWBF2 0x00677650
 // Weapon::operator delete
@@ -1369,21 +1369,6 @@ bool Weapon::IsBusy() const
 
 
 
-// FUNCTION: SWBF2 0x00677810
-bool WeaponClass::PostLoadInit()
-{
-    if (mPostLoadInit)
-    {
-        return false;
-    }
-    mPostLoadInit = true;
-    if (mNextCharge)
-    {
-        mNextCharge->PostLoadInit();
-    }
-    return true;
-}
-
 // FUNCTION: SWBF2 0x00677840
 Weapon::Weapon(const WeaponClass* pClass, const WeaponDesc& desc)
     : mStart(pClass),
@@ -1450,7 +1435,7 @@ Weapon::~Weapon()
 // FUNCTION: SWBF2 0x00677b70
 void Weapon::Init()
 {
-    if (BonusManager::sInstance.IsTeamBonusActive(GetTeam(mOwner->GetGameObject()), 0xc81956e6))
+    if (BonusManager::sInstance.IsTeamBonusActive(GetTeam(GetOwner()->GetGameObject()), 0xc81956e6))
     {
         float fDefault = m_pAmmoCounter->mDefaultMaxClips;
         if (fDefault < 1.7014117e38f)
@@ -1511,12 +1496,16 @@ bool Weapon::ZoomFirstPerson() const
     {
         return true;
     }
-    if (!mOwner || !mOwner->GetGameObject())
+    if (!mOwner)
     {
         return false;
     }
-    return GetEntityType(mOwner->GetGameObject()) != ENT_SOLDIER &&
-           GetEntityType(mOwner->GetGameObject()) != ENT_DROIDEKA;
+    if (!mOwner->GetGameObject())
+    {
+        return false;
+    }
+    return mOwner->GetGameObject()->GetEntityType() != ENT_SOLDIER &&
+           mOwner->GetGameObject()->GetEntityType() != ENT_DROIDEKA;
 }
 
 // FUNCTION: SWBF2 0x00677db0
@@ -1537,17 +1526,17 @@ void Weapon::NotifySoldierState(int iState, float, bool, bool, const PblVector3&
 
     if (!SoldierCanOperate() && mState > IDLE)
     {
-        if (mState <= FIRE2)
+        if (mState > FIRE2)
         {
-            ExitFire();
-        }
-        else if (mState == CHARGE)
-        {
+            if (mState != CHARGE)
+            {
+                return;
+            }
             ExitCharge();
         }
         else
         {
-            return;
+            ExitFire();
         }
         mState = IDLE;
         EnterIdle();
@@ -1650,8 +1639,8 @@ void Weapon::Select(unsigned int, bool bOffhand)
     mMuzzleFlashStartTime = GameLoop::GetMissionTime() - 1.0f;
     if (!bOffhand)
     {
-        mClass->mWeaponChangeSound.Play(&(GetCollisionMatrix(pObject)).GetTranslation(),
-                                        &GetVelocity(pObject), false, true);
+        const PblVector3& vPos = pObject->GetMatrix().GetTranslation();
+        mClass->mWeaponChangeSound.Play(&vPos, &GetVelocity(pObject), false, true);
     }
 }
 
@@ -1709,7 +1698,8 @@ bool Weapon::Update(float fDeltaTime)
     }
 
     GameObject* pObject = mOwner->GetGameObject();
-    const PblVector3& vPos = (GetCollisionMatrix(pObject)).GetTranslation();
+    EntityGeometry& rGeometry = *pObject;
+    const PblVector3& vPos = rGeometry.GetMatrix().GetTranslation();
     const PblVector3& vVel = GetVelocity(pObject);
     if (mSoundControl.mFlags & GameSoundControllable::flags_playing)
     {
@@ -1731,6 +1721,19 @@ bool Weapon::Update(float fDeltaTime)
     {
         switch (mState)
         {
+        case OVERHEAT:
+            if (UpdateIdle(fDeltaTime))
+            {
+                if (mSelectedFlag && mTrigger->IsPressed() && mOwner && mOwner->mPlayerId >= 0)
+                {
+                    mSoundPropsFire = mClass->mFireEmptySound;
+                    const PblVector3& vFirePos = rGeometry.GetMatrix().GetTranslation();
+                    mSoundControlFire.Play(&mSoundPropsFire, &vFirePos, &GetVelocity(pObject), true);
+                }
+                return true;
+            }
+            break;
+
         case IDLE:
             if (mSelectedFlag && CheckFire() && SoldierCanOperate())
             {
@@ -1794,8 +1797,8 @@ bool Weapon::Update(float fDeltaTime)
                     mTrigger->IsPressed())
                 {
                     mSoundPropsFire = mClass->mFireEmptySound;
-                    mSoundControlFire.Play(&mSoundPropsFire, &(GetCollisionMatrix(pObject)).GetTranslation(),
-                                           &GetVelocity(pObject), true);
+                    const PblVector3& vFirePos = rGeometry.GetMatrix().GetTranslation();
+                    mSoundControlFire.Play(&mSoundPropsFire, &vFirePos, &GetVelocity(pObject), true);
                 }
                 return true;
             }
@@ -1839,26 +1842,13 @@ bool Weapon::Update(float fDeltaTime)
                 if (mOwner && mOwner->mPlayerId >= 0 && mSelectedFlag && mTrigger->IsPressed())
                 {
                     mSoundPropsFire = mClass->mFireEmptySound;
-                    mSoundControlFire.Play(&mSoundPropsFire, &(GetCollisionMatrix(pObject)).GetTranslation(),
-                                           &GetVelocity(pObject), true);
+                    const PblVector3& vFirePos = rGeometry.GetMatrix().GetTranslation();
+                    mSoundControlFire.Play(&mSoundPropsFire, &vFirePos, &GetVelocity(pObject), true);
                 }
                 return true;
             }
             if (bExit)
             {
-                return true;
-            }
-            break;
-
-        case OVERHEAT:
-            if (UpdateIdle(fDeltaTime))
-            {
-                if (mSelectedFlag && mTrigger->IsPressed() && mOwner && mOwner->mPlayerId >= 0)
-                {
-                    mSoundPropsFire = mClass->mFireEmptySound;
-                    mSoundControlFire.Play(&mSoundPropsFire, &(GetCollisionMatrix(pObject)).GetTranslation(),
-                                           &GetVelocity(pObject), true);
-                }
                 return true;
             }
             break;
@@ -1875,8 +1865,8 @@ bool Weapon::Update(float fDeltaTime)
                 if (mOwner && mOwner->mPlayerId >= 0 && mSelectedFlag && mTrigger->IsPressed())
                 {
                     mSoundPropsFire = mClass->mFireEmptySound;
-                    mSoundControlFire.Play(&mSoundPropsFire, &(GetCollisionMatrix(pObject)).GetTranslation(),
-                                           &GetVelocity(pObject), true);
+                    const PblVector3& vFirePos = rGeometry.GetMatrix().GetTranslation();
+                    mSoundControlFire.Play(&mSoundPropsFire, &vFirePos, &GetVelocity(pObject), true);
                 }
                 return true;
             }
@@ -1923,7 +1913,6 @@ float Weapon::GetSoundRadius() const
     switch (mState)
     {
     case IDLE:
-    case EMPTY:
         if (CheckFire())
         {
             return mSoundPropsFire.GetMuteDistance();
@@ -1934,6 +1923,12 @@ float Weapon::GetSoundRadius() const
     case CHARGE:
     case RELOAD:
         return mSoundProps.GetMuteDistance();
+    case EMPTY:
+        if (CheckFire())
+        {
+            return mSoundPropsFire.GetMuteDistance();
+        }
+        return 0.0f;
     default:
         return 0.0f;
     }
@@ -1950,8 +1945,8 @@ void Weapon::EnterIdle()
     {
         mSoundProps = mClass->mOverheatSound;
         GameObject* pObject = mOwner->GetGameObject();
-        mSoundControl.Play(&mSoundProps, &(GetCollisionMatrix(mOwner->GetGameObject())).GetTranslation(),
-                           &GetVelocity(pObject), true);
+        const PblVector3& vPos = mOwner->GetGameObject()->GetMatrix().GetTranslation();
+        mSoundControl.Play(&mSoundProps, &vPos, &GetVelocity(pObject), true);
         if (Snd::VoiceVirtual* pVoice = mSoundControl.GetVoiceVirtual())
         {
             pVoice->SetPitch(mSoundProps.GetPitch() * mClass->mOverheatSoundPitch);
@@ -1962,8 +1957,8 @@ void Weapon::EnterIdle()
 // FUNCTION: SWBF2 0x006789c0
 bool Weapon::UpdateIdle(float fDeltaTime)
 {
-    mStateTimer += fDeltaTime;
     WeaponState eOld = mState;
+    mStateTimer += fDeltaTime;
     mState = CheckOverheat() ? OVERHEAT : IDLE;
     if (eOld == OVERHEAT)
     {
@@ -1999,7 +1994,7 @@ void Weapon::ExitIdle()
 void Weapon::PlayFireSound(bool bNoLoop)
 {
     GameObject* pObject = mOwner->GetGameObject();
-    const PblVector3* pPos = mAimer ? &mAimer->mFirePos : &(GetCollisionMatrix(pObject)).GetTranslation();
+    const PblVector3* pPos = mAimer ? &mAimer->mFirePos : &pObject->GetMatrix().GetTranslation();
     const PblVector3& vVel = GetVelocity(pObject);
     if (mClass->mFireSoundStop && (mSoundControlFire.mFlags & GameSoundControllable::flags_playing))
     {
@@ -2088,7 +2083,7 @@ void Weapon::EnterCharge()
     if (!IsRtti(0xe33ded9d) || NetGame::GetJoystickIndex(mOwner->mPlayerId) >= 0)
     {
         mSoundProps = mClass->mChargeSound;
-        const PblVector3* pPos = mAimer ? &mAimer->mFirePos : &(GetCollisionMatrix(pObject)).GetTranslation();
+        const PblVector3* pPos = mAimer ? &mAimer->mFirePos : &pObject->GetMatrix().GetTranslation();
         mSoundControl.Play(&mSoundProps, pPos, &GetVelocity(pObject), true);
     }
     if (Snd::VoiceVirtual* pVoice = mSoundControl.GetVoiceVirtual())
@@ -2148,7 +2143,7 @@ bool Weapon::UpdateCharge(float fDeltaTime)
                                           ? pClass->mMaxChargeStrengthLight
                                           : mCurChargeStrengthLight;
         }
-        if (bHeavyFull)
+        if (bHeavyFull == true)
         {
             mCurTimeAtMaxCharge -= fDeltaTime;
             if (mCurTimeAtMaxCharge <= 0.0f)
@@ -2170,7 +2165,7 @@ bool Weapon::UpdateCharge(float fDeltaTime)
     if (mStateTimer > mStateLimit && !mCharged)
     {
         GameObject* pObject = mOwner->GetGameObject();
-        const PblVector3* pPos = mAimer ? &mAimer->mFirePos : &(GetCollisionMatrix(pObject)).GetTranslation();
+        const PblVector3* pPos = mAimer ? &mAimer->mFirePos : &pObject->GetMatrix().GetTranslation();
         mClass->mChargedSound.Play(pPos, &GetVelocity(pObject), false, true);
         mCharged = true;
         if (mClass->mStopChargeSound)
@@ -2197,7 +2192,7 @@ void Weapon::EnterReload()
     mStateTimer = 0.0f;
     mStateLimit = mClass->mReloadTime;
     mSoundProps = mClass->mReloadSound;
-    const PblVector3* pPos = mAimer ? &mAimer->mFirePos : &(GetCollisionMatrix(pObject)).GetTranslation();
+    const PblVector3* pPos = mAimer ? &mAimer->mFirePos : &pObject->GetMatrix().GetTranslation();
     mSoundControl.Play(&mSoundProps, pPos, &GetVelocity(pObject), true);
     if (mOwner->mPlayerId >= 0 && GameLoop::gUnlimitedAmmo && !NetGame::IsEnabled())
     {
@@ -2291,7 +2286,7 @@ bool Weapon::ReloadDone() const
 bool Weapon::CheckOverheat() const
 {
     if (mOwner->mPlayerId < 0 && mOwner->GetGameObject() &&
-        ObjectIsRtti(mOwner->GetGameObject(), EntityFlyer::rttiHashEntityFlyer))
+        mOwner->GetGameObject()->IsRtti(EntityFlyer::rttiHashEntityFlyer))
     {
         return false;
     }
@@ -2338,9 +2333,11 @@ void Weapon::Render(const PblMatrix& mat, const RedPose* pPose, const RedColor& 
     }
 
     pThis->mFirePointMatrix = *pMatrix;
-    PblVector3 vFirePos;
-    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vFirePos), reinterpret_cast<const D3DXVECTOR3*>(&mRenderClass->mFirePointOffset), reinterpret_cast<const D3DXMATRIX*>(pMatrix));
-    pThis->mFirePointMatrix[3] = vFirePos;
+    {
+        PblVector3 vFirePos;
+        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vFirePos), reinterpret_cast<const D3DXVECTOR3*>(&mRenderClass->mFirePointOffset), reinterpret_cast<const D3DXMATRIX*>(pMatrix));
+        pThis->mFirePointMatrix[3] = vFirePos;
+    }
     pThis->mFirePointMatrix.m[3][3] = 1.0f;
 
     float fFlash = mMuzzleFlashStartTime - GameLoop::GetMissionTime();
@@ -2354,27 +2351,29 @@ void Weapon::Render(const PblMatrix& mat, const RedPose* pPose, const RedColor& 
     {
         if (!mChargeUpEmitter)
         {
-            pThis->mChargeUpEmitter =
+            ParticleEmitterObject* pEmitter =
                 static_cast<ParticleEmitterObject*>(mRenderClass->mChargeUpEffect->BuildEffect());
+            pThis->mChargeUpEmitter.mObject = pEmitter;
+            pThis->mChargeUpEmitter.mSavedHandleId = pEmitter ? pEmitter->mHandleId : 0;
             if (mChargeUpEmitter)
             {
-                mChargeUpEmitter->PermaRemoveParticleEffect();
+                static_cast<ParticleEmitterObject*>(mChargeUpEmitter)->PermaRemoveParticleEffect();
             }
         }
         if (mChargeUpEmitter)
         {
-            mChargeUpEmitter->AttachEffectToMatrix(&mFirePointMatrix, false);
+            mChargeUpEmitter().AttachEffectToMatrix(&mFirePointMatrix, false);
 
             RedColorValue chargeColor;
             chargeColor.r = chargeColor.g = chargeColor.b = chargeColor.a = mStateTimer / mStateLimit;
-            mChargeUpEmitter->SetEmitterColor(chargeColor);
-            mChargeUpEmitter->Update(0.0f);
-            mChargeUpEmitter->Render(1, 1.0f, 0);
+            mChargeUpEmitter().SetEmitterColor(chargeColor);
+            static_cast<ParticleEmitterObject*>(mChargeUpEmitter)->Update(0.0f);
+            static_cast<ParticleEmitterObject*>(mChargeUpEmitter)->Render(1, 1.0f, 0);
         }
     }
     else if (mChargeUpEmitter)
     {
-        mChargeUpEmitter->StopNow();
+        mChargeUpEmitter().StopNow();
     }
 }
 
@@ -2384,15 +2383,16 @@ void Weapon::SignalFire()
     float fTime = GameLoop::GetMissionTime();
     if (NetGame::IsEnabled() && (NetGame::IsClient() || NetGame::IsOneWorld()))
     {
-        float fDelta = (float)fabs(fTime - mLastFireTime);
+        double dElapsed = fTime - mLastFireTime;
+        float fDelta = fabs(dElapsed);
         if (fDelta >= 0.05f)
         {
             PlayFireSound(true);
         }
     }
+    mMuzzleFlashStartTime = mClass->mFlashLength + fTime;
     mFiredFlag = 1;
     mLastFireTime = fTime;
-    mMuzzleFlashStartTime = mClass->mFlashLength + fTime;
 }
 
 // FUNCTION: SWBF2 0x006796c0
@@ -2412,7 +2412,12 @@ void Weapon::ResetSkip()
 void WeaponClass::Render(const PblMatrix& mMatrix, const RedPose* pPose, const RedColor& color,
                          unsigned int uiFlags, bool) const
 {
-    if (!color.a || !mModel)
+    if (!color.a)
+    {
+        return;
+    }
+    RedModel* pModel = mModel;
+    if (!pModel)
     {
         return;
     }
@@ -2429,7 +2434,7 @@ void WeaponClass::Render(const PblMatrix& mMatrix, const RedPose* pPose, const R
         mBoneMatrix = *pBone * mMatrix;
         pMatrix = &mBoneMatrix;
     }
-    mModel->Render(pMatrix, 0, color, uiFlags, 0);
+    pModel->Render(pMatrix, 0, color, uiFlags, 0);
 }
 
 // FUNCTION: SWBF2 0x005b41b0

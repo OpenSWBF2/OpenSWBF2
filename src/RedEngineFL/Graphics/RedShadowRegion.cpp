@@ -43,7 +43,7 @@ bool RedShadowRegion::GetShadowValues(const PblVector3& vPos, float fRadius,
     int iMax = 0;
     float fTotal = 0.0f;
 
-    for (PblList<RedShadowRegion>::Itor it(s_VisibleList); (RedShadowRegion*)it; ++it)
+    for (PblList<RedShadowRegion>::Itor it(s_VisibleList); it != s_VisibleList.End(); ++it)
     {
         float fFactor = it->GetIntersectionFactor(vPos, fRadius);
         if (fFactor > 0.0f)
@@ -81,15 +81,14 @@ bool RedShadowRegion::GetShadowValues(const PblVector3& vPos, float fRadius,
             float fScale = fGlobal / fTotal;
             pfDirectional[0] = fScale;
             pfDirectional[1] = fScale;
-            const RedAmbientLight* pGlobal = RedLight::m_sGlobalAmbient;
-            ambient.m_topColor.r = pGlobal->m_topColor.r * fScale;
-            ambient.m_topColor.g = pGlobal->m_topColor.g * fScale;
-            ambient.m_topColor.b = pGlobal->m_topColor.b * fScale;
-            ambient.m_topColor.a = pGlobal->m_topColor.a * fScale;
-            ambient.m_bottomColor.r = pGlobal->m_bottomColor.r * fScale;
-            ambient.m_bottomColor.g = pGlobal->m_bottomColor.g * fScale;
-            ambient.m_bottomColor.b = pGlobal->m_bottomColor.b * fScale;
-            ambient.m_bottomColor.a = pGlobal->m_bottomColor.a * fScale;
+            ambient.m_topColor = RedColorValue(RedLight::m_sGlobalAmbient->m_topColor.r * fScale,
+                                               RedLight::m_sGlobalAmbient->m_topColor.g * fScale,
+                                               RedLight::m_sGlobalAmbient->m_topColor.b * fScale,
+                                               RedLight::m_sGlobalAmbient->m_topColor.a * fScale);
+            ambient.m_bottomColor = RedColorValue(RedLight::m_sGlobalAmbient->m_bottomColor.r * fScale,
+                                                  RedLight::m_sGlobalAmbient->m_bottomColor.g * fScale,
+                                                  RedLight::m_sGlobalAmbient->m_bottomColor.b * fScale,
+                                                  RedLight::m_sGlobalAmbient->m_bottomColor.a * fScale);
         }
 
         for (int i = 0; i < iCount; ++i)
@@ -102,18 +101,22 @@ bool RedShadowRegion::GetShadowValues(const PblVector3& vPos, float fRadius,
             const RedColorValue& top = info.ambient.m_topColor;
             if (top.a > 0.0f)
             {
-                ambient.m_topColor.r += top.r * fWeight;
-                ambient.m_topColor.g += top.g * fWeight;
-                ambient.m_topColor.b += top.b * fWeight;
-                ambient.m_topColor.a += top.a * fWeight;
+                const RedColorValue topScaled(top.r * fWeight, top.g * fWeight,
+                                              top.b * fWeight, top.a * fWeight);
+                ambient.m_topColor = RedColorValue(ambient.m_topColor.r + topScaled.r,
+                                                   ambient.m_topColor.g + topScaled.g,
+                                                   ambient.m_topColor.b + topScaled.b,
+                                                   ambient.m_topColor.a + topScaled.a);
             }
             const RedColorValue& bottom = info.ambient.m_bottomColor;
             if (bottom.a > 0.0f)
             {
-                ambient.m_bottomColor.r += bottom.r * fWeight;
-                ambient.m_bottomColor.g += bottom.g * fWeight;
-                ambient.m_bottomColor.b += bottom.b * fWeight;
-                ambient.m_bottomColor.a += bottom.a * fWeight;
+                const RedColorValue bottomScaled(bottom.r * fWeight, bottom.g * fWeight,
+                                                 bottom.b * fWeight, bottom.a * fWeight);
+                ambient.m_bottomColor = RedColorValue(ambient.m_bottomColor.r + bottomScaled.r,
+                                                      ambient.m_bottomColor.g + bottomScaled.g,
+                                                      ambient.m_bottomColor.b + bottomScaled.b,
+                                                      ambient.m_bottomColor.a + bottomScaled.a);
             }
         }
 
@@ -145,8 +148,9 @@ void RedShadowRegionFactory::ReadParameter(const char* pcRegionName, const char*
 {
     RedShadowRegion::Info* pInfo = (RedShadowRegion::Info*)pDesc;
     const float kToFloat = 1.0f / 255.0f;
+    const unsigned int uiParameter = PblHash(pcParameter);
 
-    switch (PblHash(pcParameter))
+    switch (uiParameter)
     {
     case 0x10f7c207:
     {
@@ -171,11 +175,12 @@ void RedShadowRegionFactory::ReadParameter(const char* pcRegionName, const char*
         int r, g, b;
         if (sscanf(pcValue, "%d,%d,%d", &r, &g, &b) == 3)
         {
-            RedColorValue& c = pInfo->ambient.m_topColor;
+            RedColorValue c;
             c.r = (unsigned char)r * kToFloat;
             c.g = (unsigned char)g * kToFloat;
             c.b = (unsigned char)b * kToFloat;
             c.a = 1.0f;
+            pInfo->ambient.m_topColor = c;
         }
         break;
     }
@@ -184,11 +189,9 @@ void RedShadowRegionFactory::ReadParameter(const char* pcRegionName, const char*
         int r, g, b;
         if (sscanf(pcValue, "%d,%d,%d", &r, &g, &b) == 3)
         {
-            RedColorValue& c = pInfo->ambient.m_bottomColor;
-            c.r = (unsigned char)r * kToFloat;
-            c.g = (unsigned char)g * kToFloat;
-            c.b = (unsigned char)b * kToFloat;
-            c.a = (unsigned char)0xff * kToFloat;
+            const RedColor color(r, g, b, 0xff);
+            const RedColorValue value(color);
+            pInfo->ambient.m_bottomColor = value;
         }
         break;
     }

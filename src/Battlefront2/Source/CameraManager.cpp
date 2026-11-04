@@ -242,29 +242,55 @@ void CameraManager::SetChaseCameraRandomShot(int iCam)
     if (mNumShots > 2)
     {
         uiShot = PblRandom::GetGlobalInt() % mNumShots;
-        for (int i = 0; uiShot == sLastChaseShot && i < 16; i++)
+    }
+    else
+    {
+        uiShot = (sLastChaseShot + 1) % mNumShots;
+    }
+    if (mNumShots > 2)
+    {
+        if (uiShot == sLastChaseShot)
         {
-            uiShot = PblRandom::GetGlobalInt() % mNumShots;
+            for (int i = 0; i < 16; i++)
+            {
+                if (uiShot != sLastChaseShot)
+                {
+                    break;
+                }
+                uiShot = PblRandom::GetGlobalInt() % mNumShots;
+            }
         }
         if (uiShot == sLastChaseShot)
         {
             uiShot = (sLastChaseShot + 1) % mNumShots;
         }
     }
-    else
-    {
-        uiShot = (sLastChaseShot + 1) % mNumShots;
-    }
 
-    mChaseCamera[iCam]->SetRotation(mShotRotation[uiShot]);
+    ChaseCamera* pCamera = mChaseCamera[iCam];
+    D3DXQUATERNION qUnit;
+    PblMatrix mRot;
+    D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mRot), D3DXQuaternionNormalize(&qUnit, reinterpret_cast<const D3DXQUATERNION*>(&mShotRotation[uiShot])));
+    mRot.m[3][0] = pCamera->mMatrix.m[3][0];
+    mRot.m[3][1] = pCamera->mMatrix.m[3][1];
+    mRot.m[3][2] = pCamera->mMatrix.m[3][2];
+    mRot.m[3][3] = 1.0f;
+    pCamera->mMatrix = mRot;
     sLastChaseShot = uiShot;
-    mChaseCamera[iCam]->SetPosition(mShotPosition[uiShot]);
+    mChaseCamera[iCam]->mMatrix.SetTranslation(mShotPosition[uiShot]);
 }
 
 // FUNCTION: SWBF2 0x0044e330
 void CameraManager::SetChaseCameraRotation(const PblQuaternion& qRot, int iCam)
 {
-    mChaseCamera[iCam]->SetRotation(qRot);
+    ChaseCamera* pCamera = mChaseCamera[iCam];
+    D3DXQUATERNION qUnit;
+    PblMatrix mRot;
+    D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mRot), D3DXQuaternionNormalize(&qUnit, reinterpret_cast<const D3DXQUATERNION*>(&qRot)));
+    mRot.m[3][0] = pCamera->mMatrix.m[3][0];
+    mRot.m[3][1] = pCamera->mMatrix.m[3][1];
+    mRot.m[3][2] = pCamera->mMatrix.m[3][2];
+    mRot.m[3][3] = 1.0f;
+    pCamera->mMatrix = mRot;
 }
 
 // FUNCTION: SWBF2 0x0044ef30
@@ -280,8 +306,8 @@ void CameraManager::SetChaseCameraShot(int iCam, int iShot)
         iShot = mNumShots - 1;
     }
 
-    mChaseCamera[iCam]->SetRotation(mShotRotation[iShot]);
-    mChaseCamera[iCam]->SetPosition(mShotPosition[iShot]);
+    SetChaseCameraRotation(mShotRotation[iShot], iCam);
+    mChaseCamera[iCam]->mMatrix.SetTranslation(mShotPosition[iShot]);
 }
 
 // FUNCTION: SWBF2 0x0044ef90
@@ -517,7 +543,7 @@ bool CameraManager::IsInsideAnyCamera(const PblVector3& vPos, float fRadius, flo
 // FUNCTION: SWBF2 0x0044f610
 int CameraManager::GetCameraIdForView(unsigned int uiView) const
 {
-    for (int i = 0; i < 1; i++)
+    for (unsigned int i = 0; i < 1; i++)
     {
         if (m_hView[i] == uiView)
         {
@@ -567,10 +593,9 @@ bool CameraInterpolator::Update(float)
                         (mOld.m[3][1] - mNew.m[3][1]) * fT + mNew.m[3][1],
                         (mOld.m[3][2] - mNew.m[3][2]) * fT + mNew.m[3][2]);
 
-        PblQuaternion qRot = Interpolate(qNew, qOld, fT);
-        PblQuaternion qUnit;
+        D3DXQUATERNION qUnit;
         PblMatrix mBlend;
-        D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mBlend), D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&qUnit), reinterpret_cast<const D3DXQUATERNION*>(&qRot)));
+        D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mBlend), D3DXQuaternionNormalize(&qUnit, reinterpret_cast<const D3DXQUATERNION*>(&Interpolate(qNew, qOld, fT))));
         mBlend.m[3][0] = vPos.x;
         mBlend.m[3][1] = vPos.y;
         mBlend.m[3][2] = vPos.z;

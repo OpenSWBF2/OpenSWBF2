@@ -42,40 +42,49 @@ void TerrainRenderable::_RenderLowRes(unsigned int uiFlags) const
 
     const RedCamera* pCurrent = RedRenderer::GetCamera();
     RedCamera camera(*pCurrent);
+    float fZoom = pCurrent->GetZoom();
     float fNear, fFar, fWidth, fHeight;
     pCurrent->GetFrustum(fNear, fFar, fWidth, fHeight);
-    float fZoom = pCurrent->GetZoom();
     camera.SetZoom(fZoom);
-    float fClipNear = uiFlags & 0x200000 ? FLRenderer::GetNearPlane()
-                                       : FLRenderer::GetNearSceneFadeStart();
-    camera.SetNearFarPlane(fClipNear * fZoom, m_fFarTerrainMaxDistance);
+    camera.SetNearFarPlane((uiFlags & 0x200000 ? FLRenderer::GetNearPlane()
+                                               : FLRenderer::GetNearSceneFadeStart()) * fZoom,
+                           m_fFarTerrainMaxDistance);
 
-    int dimension = m_iLowResPatchesPerDimension;
-    bool reverseX = -pCurrent->GetMatrix().m[2][0] < 0.0f;
-    bool reverseZ = -pCurrent->GetMatrix().m[2][2] < 0.0f;
-    int xStart = reverseX ? dimension - 1 : 0;
-    int xEnd = reverseX ? -1 : dimension;
-    int xStep = reverseX ? -1 : 1;
-    int zStart = reverseZ ? dimension - 1 : 0;
-    int zEnd = reverseZ ? -1 : dimension;
-    int zStep = reverseZ ? -1 : 1;
+    int xStart = 0;
+    int xEnd = m_iLowResPatchesPerDimension;
+    int xStep = 1;
+    if (-pCurrent->GetMatrix().m[2][0] < 0.0f)
+    {
+        xStart = m_iLowResPatchesPerDimension - 1;
+        xEnd = -1;
+        xStep = -1;
+    }
+    int zStart = 0;
+    int zEnd = m_iLowResPatchesPerDimension;
+    int zStep = 1;
+    if (-pCurrent->GetMatrix().m[2][2] < 0.0f)
+    {
+        zStart = m_iLowResPatchesPerDimension - 1;
+        zEnd = -1;
+        zStep = -1;
+    }
     for (int z = zStart; z != zEnd; z += zStep)
     {
         for (int x = xStart; x != xEnd; x += xStep)
         {
-            const LowResPatch& patch = m_aLowResPatches[x + z * dimension];
+            const LowResPatch& patch = m_aLowResPatches[x + z * m_iLowResPatchesPerDimension];
             if (!patch.pPrim)
             {
                 continue;
             }
             const PblVector3& vMin = patch.bbox._vMin;
             const PblVector3& vMax = patch.bbox._vMax;
-            PblVector3 vCenter((vMax.x + vMin.x) * 0.5f,
-                               (vMax.y + vMin.y) * 0.5f,
-                               (vMax.z + vMin.z) * 0.5f);
             PblVector3 vExtent((vMax.x - vMin.x) * 0.5f,
                                (vMax.y - vMin.y) * 0.5f,
                                (vMax.z - vMin.z) * 0.5f);
+            PblVector3 vCenter((vMax.x + vMin.x) * 0.5f,
+                               (vMax.y + vMin.y) * 0.5f,
+                               (vMax.z + vMin.z) * 0.5f);
             if (camera.ClassifyAABox(vCenter, vExtent) == RedCamera::VISIBILITY_NONE)
             {
                 continue;
@@ -183,25 +192,24 @@ void TerrainRenderable::Deinit()
     {
         for (int i = 0; i < RedTerrain::_iNumPatches; ++i)
         {
-            Patch& patch = m_aPatches[i];
-            for (unsigned int j = 0; j < patch.uiNumPasses; ++j)
+            for (unsigned int j = 0; j < m_aPatches[i].uiNumPasses; ++j)
             {
-                if (patch.apPrim[j])
+                if (m_aPatches[i].apPrim[j])
                 {
-                    patch.apPrim[j]->Release();
+                    m_aPatches[i].apPrim[j]->Release();
                 }
-                if (patch.apShader[j])
+                if (m_aPatches[i].apShader[j])
                 {
-                    patch.apShader[j]->Release();
+                    m_aPatches[i].apShader[j]->Release();
                 }
-                if (patch.apShader2[j])
+                if (m_aPatches[i].apShader2[j])
                 {
-                    patch.apShader2[j]->Release();
+                    m_aPatches[i].apShader2[j]->Release();
                 }
             }
-            delete[] patch.apPrim;
-            delete[] patch.apShader;
-            delete[] patch.apShader2;
+            delete[] m_aPatches[i].apPrim;
+            delete[] m_aPatches[i].apShader;
+            delete[] m_aPatches[i].apShader2;
         }
         delete[] m_aPatches;
         m_aPatches = 0;
@@ -299,9 +307,9 @@ void TerrainRenderable::Render(int value)
         }
         RedCamera farCamera(*pCamera);
         float fZoom = pCamera->GetZoom();
-        float fFadeStart = (uiFlags & 0x200000) ? FLRenderer::GetNearPlane()
-                                                : FLRenderer::GetNearSceneFadeStart();
-        farCamera.SetNearFarPlane(fFadeStart * fZoom, m_fFarTerrainMaxDistance);
+        float fFarDistance = m_fFarTerrainMaxDistance;
+        farCamera.SetNearFarPlane(((uiFlags & 0x200000) ? FLRenderer::GetNearPlane() : FLRenderer::GetNearSceneFadeStart()) * fZoom,
+                                  fFarDistance);
     }
 
     float fNear, fFar, fWidth, fHeight;
@@ -310,7 +318,7 @@ void TerrainRenderable::Render(int value)
     const PblVector3& vRight = mCamera.GetXAxis();
     const PblVector3& vUp = mCamera.GetYAxis();
     const PblVector3& vAt = mCamera.GetZAxis();
-    PblVector3 vPos(mCamera.m[3][0], mCamera.m[3][1], mCamera.m[3][2]);
+    PblVector3 vPos = mCamera.GetTranslation();
 
     float fHalfWidth = fFar * 0.5f * fWidth / fNear;
     float fHalfHeight = fFar * 0.5f * fHeight / fNear;
@@ -341,8 +349,8 @@ void TerrainRenderable::Render(int value)
     int iMaxX = _CalcPatchX(box._vMax.x);
     int iMinZ = _CalcPatchZ(box._vMin.z);
     int iMaxZ = _CalcPatchZ(box._vMax.z);
-    const int iNumPatches = RedTerrain::_iPatchesPerDimension;
-    if (iMaxX < 0 || iMinX >= iNumPatches || iMaxZ < 0 || iMinZ >= iNumPatches)
+    if (iMaxX < 0 || iMinX >= RedTerrain::_iPatchesPerDimension || iMaxZ < 0 ||
+        iMinZ >= RedTerrain::_iPatchesPerDimension)
     {
         return;
     }
@@ -350,22 +358,22 @@ void TerrainRenderable::Render(int value)
     {
         iMinX = 0;
     }
-    if (iMaxX >= iNumPatches)
+    if (iMaxX >= RedTerrain::_iPatchesPerDimension)
     {
-        iMaxX = iNumPatches - 1;
+        iMaxX = RedTerrain::_iPatchesPerDimension - 1;
     }
     if (iMinZ < 0)
     {
         iMinZ = 0;
     }
-    if (iMaxZ >= iNumPatches)
+    if (iMaxZ >= RedTerrain::_iPatchesPerDimension)
     {
-        iMaxZ = iNumPatches - 1;
+        iMaxZ = RedTerrain::_iPatchesPerDimension - 1;
     }
 
     int iStepX = 1;
     int iStepZ = 1;
-    if (-vAt.x < 0.0f)
+    if (-pCamera->GetMatrix().GetZAxis().x < 0.0f)
     {
         int iTemp = iMinX;
         iMinX = iMaxX;
@@ -373,7 +381,7 @@ void TerrainRenderable::Render(int value)
         iStepX = -1;
     }
     iMaxX += iStepX;
-    if (-vAt.z < 0.0f)
+    if (-pCamera->GetMatrix().GetZAxis().z < 0.0f)
     {
         int iTemp = iMinZ;
         iMinZ = iMaxZ;
@@ -409,13 +417,6 @@ void TerrainRenderable::Render(int value)
     }
 
     float fHalfPatch = (float)RedTerrain::_iPatchPointsPerDimension * RedTerrain::_fMetersPerPoint * 0.5f;
-    float afExtentZ[5];
-    float afExtentX[5];
-    for (int i = 0; i < 5; ++i)
-    {
-        afExtentZ[i] = (float)fabs(avNormal[i].z * fHalfPatch);
-        afExtentX[i] = (float)fabs(avNormal[i].x * fHalfPatch);
-    }
 
     for (int iZ = iMinZ; iZ != iMaxZ; iZ += iStepZ)
     {
@@ -425,13 +426,14 @@ void TerrainRenderable::Render(int value)
         float afRowDist[5];
         for (int i = 0; i < 5; ++i)
         {
-            afRowDist[i] = afDist[i] - (avNormal[i].z * fZ - afExtentZ[i] - afExtentX[i]);
+            afRowDist[i] = afDist[i] - (avNormal[i].z * fZ - (float)fabs(avNormal[i].z * fHalfPatch) -
+                                        (float)fabs(avNormal[i].x * fHalfPatch));
         }
 
         int iLastPlane = 0;
         for (int iX = iMinX; iX != iMaxX; iX += iStepX)
         {
-            Patch& patch = m_aPatches[iZ * iNumPatches + iX];
+            Patch& patch = m_aPatches[iZ * RedTerrain::_iPatchesPerDimension + iX];
             float fX = (float)((RedTerrain::_iPatchPointsPerDimension >> 1) +
                                (iX << RedTerrain::_iPatchPointsPerDimensionLog2)) * RedTerrain::_fMetersPerPoint -
                        RedTerrain::_fTerrainCenterX;
@@ -453,7 +455,7 @@ void TerrainRenderable::Render(int value)
             {
                 const PblVector3& vNormal = avNormal[iPlane];
                 if (iPlane != iLastPlane &&
-                    vNormal.x * fX + vNormal.y * fCenterY - (float)fabs(vNormal.y) * fExtentY > afRowDist[iPlane])
+                    vNormal.x * fX + fCenterY * vNormal.y - (float)fabs(vNormal.y) * fExtentY > afRowDist[iPlane])
                 {
                     break;
                 }
@@ -475,10 +477,7 @@ void TerrainRenderable::Render(int value)
             {
                 PblMatrix mWorld = gMatrixIdentity;
                 const PblBox& bbox = patch.apPrim[0]->m_bbox;
-                mWorld.m[3][0] = bbox._vMin.x;
-                mWorld.m[3][1] = 0.0f;
-                mWorld.m[3][2] = bbox._vMin.z;
-                mWorld.m[3][3] = 1.0f;
+                mWorld.SetTranslation(PblVector3(bbox._vMin.x, 0.0f, bbox._vMin.z));
                 for (unsigned int uiPass = 0; uiPass < patch.uiNumPasses; ++uiPass)
                 {
                     RedRenderer::pcRenderPrimitive(patch.apPrim[uiPass],
@@ -488,15 +487,7 @@ void TerrainRenderable::Render(int value)
                                                    0, 0);
                 }
             }
-            else if (pcTerrainShader2::IsEnabled())
-            {
-                RedRenderer::pcRenderPrimitive(patch.apPrim[0],
-                                               patch.apShader2[0],
-                                               gMatrixIdentity,
-                                               RedColor::WHITE,
-                                               uiFlags | 0x1000000, 0, 0, 0);
-            }
-            else
+            else if (!pcTerrainShader2::IsEnabled())
             {
                 if (m_bEnablePixelLighting)
                 {
@@ -508,6 +499,14 @@ void TerrainRenderable::Render(int value)
                 }
                 RedRenderer::pcRenderPrimitive(patch.apPrim[0],
                                                patch.apShader[0],
+                                               gMatrixIdentity,
+                                               RedColor::WHITE,
+                                               uiFlags | 0x1000000, 0, 0, 0);
+            }
+            else
+            {
+                RedRenderer::pcRenderPrimitive(patch.apPrim[0],
+                                               patch.apShader2[0],
                                                gMatrixIdentity,
                                                RedColor::WHITE,
                                                uiFlags | 0x1000000, 0, 0, 0);
@@ -532,28 +531,33 @@ void RedTerrain::SetFarTerrainTexture(unsigned int uiHash, float fA, unsigned in
 void TerrainRenderable::SetFarTerrainTexture(unsigned int uiHash, float fA, unsigned int uiB, float fC)
 {
     float fScale = fA / ((float)RedTerrain::_iPointsPerDimension * RedTerrain::_fMetersPerPoint);
-    float fOffset = RedTerrain::_fMetersPerPoint * 0.5f * fScale;
+    float fMinX = RedTerrain::_fMetersPerPoint * 0.5f * fScale - 0.5f;
+    float fMinY = -0.5f - RedTerrain::_fMetersPerPoint * 0.5f * fScale;
     if (!pcTerrainShader2::IsEnabled())
     {
-        pcTerrainShader::_InitFarRendering(uiHash, fScale, fScale, fOffset - 0.5f, -0.5f - fOffset);
+        pcTerrainShader::_InitFarRendering(uiHash, fScale, fScale, fMinX, fMinY);
     }
     float fDetailScale = RedTerrain::_fPointsPerMeter * fC;
     if (!pcTerrainShader2::IsEnabled())
     {
         pcTerrainShader::_InitFarDetail(uiB, fDetailScale, fDetailScale, 0.0f, 0.0f);
     }
-    m_bEnableFarDetail = uiB != 0;
-    if (m_pFarShader)
+    bool bEnableDetail = uiB != 0;
+    m_bEnableFarDetail = bEnableDetail;
+    pcTerrainShader* pFarShader = m_pFarShader;
+    if (pFarShader)
     {
-        m_pFarShader->m_uiOptions |= 8;
-        if (m_bEnableFarDetail)
+        pFarShader->m_uiOptions |= 8;
+        unsigned char uiOptions = pFarShader->m_uiOptions;
+        if (bEnableDetail)
         {
-            m_pFarShader->m_uiOptions |= 1;
+            uiOptions |= 1;
         }
         else
         {
-            m_pFarShader->m_uiOptions &= ~1;
+            uiOptions &= ~1;
         }
+        pFarShader->m_uiOptions = uiOptions;
     }
 }
 
@@ -578,8 +582,8 @@ void TerrainRenderable::_InitPixelLighting(bool bEnable)
     if (m_bBumpTextureAvailable && m_bEnableBumpMapping)
     {
         float fScale = m_fBumpLuminosityScale * RedTerrain::_fPointsPerMeter;
-        PblVector4 vScale0 = { fScale, 0.0f, 0.0f, 0.0f };
         PblVector4 vScale1 = { 0.0f, 0.0f, fScale, 0.0f };
+        PblVector4 vScale0 = { fScale, 0.0f, 0.0f, 0.0f };
         pcTerrainShader2::_InitBumpLuminosityPixelLighting(0x785887DA, m_uiBumpLuminosityTextureHash,
                                                            vScale0, vScale1, m_fStaticBumpFactor);
     }
@@ -606,7 +610,7 @@ void TerrainRenderable::_InitPixelLighting(bool bEnable)
         m_pPrePixelLightingShader2 = (pcTerrainShader2*)pcRedShader::Create(
             PblHash("Terrain2"), uiFlags, 0, 0, 0, RedColor::WHITE, RedColor::BLACK, 32.0f);
         m_pPrePixelLightingShader = (pcTerrainShader*)pcRedShader::Create(
-            PblHash("Terrain"), uiFlags, 0, 0, 0, RedColor::WHITE, RedColor::BLACK, 32.0f);
+            0x74DBC80E, uiFlags, 0, 0, 0, RedColor::WHITE, RedColor::BLACK, 32.0f);
     }
     m_pPrePixelLightingShader->m_uiOptions |= 4;
     m_pPrePixelLightingShader->m_uiOptions |= 1;
@@ -635,7 +639,7 @@ void TerrainRenderable::_Reset()
 namespace
 {
 
-pcRedIndexBuffer* ReadIndexBuffer(PblFileChunk& chunk, unsigned int uiNumIndices, unsigned int& ruiStartIndex)
+inline pcRedIndexBuffer* ReadIndexBuffer(PblFileChunk& chunk, unsigned int uiNumIndices, unsigned int& ruiStartIndex)
 {
     pcRedIndexBuffer* pIB = pcRedIndexBuffer::Create(uiNumIndices, true, true);
     chunk._pFile->ReadData(pIB->Lock(uiNumIndices, ruiStartIndex), uiNumIndices * sizeof(unsigned short));
@@ -656,60 +660,57 @@ void TerrainRenderable::Read(PblFileChunk& chunk)
     for (int i = 0; i < RedTerrain::_iNumLayers; ++i)
     {
         float s = 1.0f / RedTerrain::_fLayerMetersPerTexture[i];
-        PblVector4 vScale0 = { 0.0f, 0.0f, 0.0f, 0.0f };
-        PblVector4 vScale1 = { 0.0f, 0.0f, 0.0f, 0.0f };
         switch (RedTerrain::_uiLayerTextureOrientation[i])
         {
         case 1:
-            vScale0.x = s;
-            vScale1.y = s;
+            pcTerrainShader2::_InitLayer(i, RedTerrain::_uiLayerTextureHash[i], PblVector4(s, 0.0f, 0.0f, 0.0f),
+                                         PblVector4(0.0f, s, 0.0f, 0.0f));
             break;
         case 2:
-            vScale0.y = s;
-            vScale1.z = s;
+            pcTerrainShader2::_InitLayer(i, RedTerrain::_uiLayerTextureHash[i], PblVector4(0.0f, s, 0.0f, 0.0f),
+                                         PblVector4(0.0f, 0.0f, s, 0.0f));
             break;
         case 3:
-            vScale0.z = s;
-            vScale1.x = s;
+            pcTerrainShader2::_InitLayer(i, RedTerrain::_uiLayerTextureHash[i], PblVector4(0.0f, 0.0f, s, 0.0f),
+                                         PblVector4(s, 0.0f, 0.0f, 0.0f));
             break;
         case 4:
-            vScale0.y = s;
-            vScale1.x = s;
+            pcTerrainShader2::_InitLayer(i, RedTerrain::_uiLayerTextureHash[i], PblVector4(0.0f, s, 0.0f, 0.0f),
+                                         PblVector4(s, 0.0f, 0.0f, 0.0f));
             break;
         case 5:
-            vScale0.z = s;
-            vScale1.y = s;
+            pcTerrainShader2::_InitLayer(i, RedTerrain::_uiLayerTextureHash[i], PblVector4(0.0f, 0.0f, s, 0.0f),
+                                         PblVector4(0.0f, s, 0.0f, 0.0f));
             break;
         case 6:
-            vScale0.x = -s;
-            vScale1.z = s;
+            pcTerrainShader2::_InitLayer(i, RedTerrain::_uiLayerTextureHash[i], PblVector4(-s, 0.0f, 0.0f, 0.0f),
+                                         PblVector4(0.0f, 0.0f, s, 0.0f));
             break;
         case 7:
-            vScale0.x = -s;
-            vScale1.y = s;
+            pcTerrainShader2::_InitLayer(i, RedTerrain::_uiLayerTextureHash[i], PblVector4(-s, 0.0f, 0.0f, 0.0f),
+                                         PblVector4(0.0f, s, 0.0f, 0.0f));
             break;
         case 8:
-            vScale0.y = -s;
-            vScale1.z = s;
+            pcTerrainShader2::_InitLayer(i, RedTerrain::_uiLayerTextureHash[i], PblVector4(0.0f, -s, 0.0f, 0.0f),
+                                         PblVector4(0.0f, 0.0f, s, 0.0f));
             break;
         case 9:
-            vScale0.z = -s;
-            vScale1.x = s;
+            pcTerrainShader2::_InitLayer(i, RedTerrain::_uiLayerTextureHash[i], PblVector4(0.0f, 0.0f, -s, 0.0f),
+                                         PblVector4(s, 0.0f, 0.0f, 0.0f));
             break;
         case 10:
-            vScale0.y = -s;
-            vScale1.x = s;
+            pcTerrainShader2::_InitLayer(i, RedTerrain::_uiLayerTextureHash[i], PblVector4(0.0f, -s, 0.0f, 0.0f),
+                                         PblVector4(s, 0.0f, 0.0f, 0.0f));
             break;
         case 11:
-            vScale0.z = -s;
-            vScale1.y = s;
+            pcTerrainShader2::_InitLayer(i, RedTerrain::_uiLayerTextureHash[i], PblVector4(0.0f, 0.0f, -s, 0.0f),
+                                         PblVector4(0.0f, s, 0.0f, 0.0f));
             break;
         default:
-            vScale0.x = s;
-            vScale1.z = s;
+            pcTerrainShader2::_InitLayer(i, RedTerrain::_uiLayerTextureHash[i], PblVector4(s, 0.0f, 0.0f, 0.0f),
+                                         PblVector4(0.0f, 0.0f, s, 0.0f));
             break;
         }
-        pcTerrainShader2::_InitLayer(i, RedTerrain::_uiLayerTextureHash[i], vScale0, vScale1);
     }
 
     m_fDetailMaxDistance = (float)RedTerrain::_iPatchPointsPerDimension * RedTerrain::_fMetersPerPoint;
@@ -721,11 +722,9 @@ void TerrainRenderable::Read(PblFileChunk& chunk)
     {
         m_fDetailMaxDistance = 16.0f;
     }
-    {
-        PblVector4 vScale0 = { RedTerrain::_fPointsPerMeter, 0.0f, 0.0f, 0.0f };
-        PblVector4 vScale1 = { 0.0f, 0.0f, RedTerrain::_fPointsPerMeter, 0.0f };
-        pcTerrainShader2::_InitDetail(RedTerrain::_uiDetailTextureHash, vScale0, vScale1, m_fDetailMaxDistance);
-    }
+    pcTerrainShader2::_InitDetail(RedTerrain::_uiDetailTextureHash,
+                                  PblVector4(RedTerrain::_fPointsPerMeter, 0.0f, 0.0f, 0.0f),
+                                  PblVector4(0.0f, 0.0f, RedTerrain::_fPointsPerMeter, 0.0f), m_fDetailMaxDistance);
 
     int iPatch = 0;
     unsigned int uiDefaultStartIndex = 0;
@@ -736,7 +735,9 @@ void TerrainRenderable::Read(PblFileChunk& chunk)
     {
         PblFileChunk child = chunk.ReadNextChild();
 
-        if (child._iId == 0x48435450)
+        switch (child._iId)
+        {
+        case 0x48435450:
         {
             unsigned int auiLayer[4] = { 0, 0, 0, 0 };
             unsigned int auiFormat[3] = { 0, 0, 0 };
@@ -756,7 +757,9 @@ void TerrainRenderable::Read(PblFileChunk& chunk)
             while (child.HasMoreChildren())
             {
                 PblFileChunk leaf = child.ReadNextChild();
-                if (leaf._iId == 0x4F464E49)
+                switch (leaf._iId)
+                {
+                case 0x4F464E49:
                 {
                     uiNumLayers = leaf._pFile->Read8();
                     for (unsigned char j = 0; j < uiNumLayers; ++j)
@@ -784,8 +787,9 @@ void TerrainRenderable::Read(PblFileChunk& chunk)
                     patch.iHeightMin = leaf._pFile->Read16();
                     patch.iHeightMax = leaf._pFile->Read16();
                     iHeightShift = leaf._pFile->Read16();
+                    break;
                 }
-                else if (leaf._iId == 0x46554256)
+                case 0x46554256:
                 {
                     unsigned int uiNumVertices = leaf._pFile->Read32();
                     unsigned int uiVertexSize = leaf._pFile->Read32();
@@ -809,8 +813,9 @@ void TerrainRenderable::Read(PblFileChunk& chunk)
                         }
                         ++iNumVB;
                     }
+                    break;
                 }
-                else if (leaf._iId == 0x46554249)
+                case 0x46554249:
                 {
                     if (iNumVB == iNumUncompressedVB)
                     {
@@ -821,6 +826,8 @@ void TerrainRenderable::Read(PblFileChunk& chunk)
                             apIB[iNumVB - 1] = ReadIndexBuffer(leaf, uiNumIndices, auiStartIndex[iNumVB - 1]);
                         }
                     }
+                    break;
+                }
                 }
             }
 
@@ -889,8 +896,9 @@ void TerrainRenderable::Read(PblFileChunk& chunk)
                     32.0f);
             }
             ++iPatch;
+            break;
         }
-        else if (child._iId == 0x4E4D4F43)
+        case 0x4E4D4F43:
         {
             while (child.HasMoreChildren())
             {
@@ -901,8 +909,9 @@ void TerrainRenderable::Read(PblFileChunk& chunk)
                     m_pIBDefault = ReadIndexBuffer(leaf, uiDefaultNumIndices, uiDefaultStartIndex);
                 }
             }
+            break;
         }
-        else if (child._iId == 0x52574F4C)
+        case 0x52574F4C:
         {
             while (child.HasMoreChildren())
             {
@@ -944,15 +953,18 @@ void TerrainRenderable::Read(PblFileChunk& chunk)
                             while (lp.HasMoreChildren())
                             {
                                 PblFileChunk leaf = lp.ReadNextChild();
-                                if (leaf._iId == 0x46554249)
+                                switch (leaf._iId)
+                                {
+                                case 0x46554249:
                                 {
                                     uiNumIndices = leaf._pFile->Read32();
                                     if (uiNumIndices)
                                     {
                                         pIB = ReadIndexBuffer(leaf, uiNumIndices, uiStartIndex);
                                     }
+                                    break;
                                 }
-                                else if (leaf._iId == 0x46554256)
+                                case 0x46554256:
                                 {
                                     unsigned int uiCount = leaf._pFile->Read32();
                                     unsigned int uiVertexSize = leaf._pFile->Read32();
@@ -974,8 +986,9 @@ void TerrainRenderable::Read(PblFileChunk& chunk)
                                         leaf._pFile->ReadData(pVB->Lock(uiCount, uiStartVertex), uiCount * uiVertexSize);
                                         pVB->Unlock();
                                     }
+                                    break;
                                 }
-                                else if (leaf._iId == 0x4F464E49)
+                                case 0x4F464E49:
                                 {
                                     PblBox& bbox = pLowRes->bbox;
                                     bbox._vMin.x = leaf._pFile->ReadFloat();
@@ -984,6 +997,8 @@ void TerrainRenderable::Read(PblFileChunk& chunk)
                                     bbox._vMax.y = leaf._pFile->ReadFloat();
                                     bbox._vMin.z = leaf._pFile->ReadFloat();
                                     bbox._vMax.z = leaf._pFile->ReadFloat();
+                                    break;
+                                }
                                 }
                             }
 
@@ -1022,6 +1037,8 @@ void TerrainRenderable::Read(PblFileChunk& chunk)
                     }
                 }
             }
+            break;
+        }
         }
     }
 

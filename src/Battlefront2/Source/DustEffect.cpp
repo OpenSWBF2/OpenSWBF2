@@ -49,43 +49,24 @@ PblList<DustEffect> DustEffectClass::sDustEffects;
 // FUNCTION: SWBF2 0x0048ec20
 DustEffect::DustEffect(DustEffectClass* pClass, const PblMatrix& matrix)
     : RedSceneObject(&cloudClusterObjectLodData)
-    , mClass(pClass)
 {
+    mClass = pClass;
     mMatrix = gMatrixIdentity;
 
-    mMatrix.m[1][0] = matrix.m[1][0] * mClass->mHeightScale;
-    mMatrix.m[1][1] = matrix.m[1][1] * mClass->mHeightScale;
-    mMatrix.m[1][2] = matrix.m[1][2] * mClass->mHeightScale;
+    mMatrix[1] = matrix[1] * pClass->mHeightScale;
     mMatrix.m[1][3] = 0.0f;
 
-    PblVector3 vBack(-mMatrix.m[2][0], -mMatrix.m[2][1], -mMatrix.m[2][2]);
-    PblVector3 vRight(mMatrix.m[1][2] * vBack.y - mMatrix.m[1][1] * vBack.z,
-                      mMatrix.m[1][0] * vBack.z - mMatrix.m[1][2] * vBack.x,
-                      mMatrix.m[1][1] * vBack.x - mMatrix.m[1][0] * vBack.y);
-    PblVector3 vOut;
-    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vOut), reinterpret_cast<const D3DXVECTOR3*>(&vRight));
-    mMatrix.m[0][0] = vOut.x;
-    mMatrix.m[0][1] = vOut.y;
-    mMatrix.m[0][2] = vOut.z;
+    mMatrix[0] = Normalize(CrossProduct(-mMatrix[2], mMatrix[1]));
     mMatrix.m[0][3] = 0.0f;
 
-    PblVector3 vAt(mMatrix.m[1][2] * mMatrix.m[0][1] - mMatrix.m[1][1] * mMatrix.m[0][2],
-                   mMatrix.m[1][0] * mMatrix.m[0][2] - mMatrix.m[0][0] * mMatrix.m[1][2],
-                   mMatrix.m[0][0] * mMatrix.m[1][1] - mMatrix.m[1][0] * mMatrix.m[0][1]);
-    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vOut), reinterpret_cast<const D3DXVECTOR3*>(&vAt));
-    mMatrix.m[2][0] = vOut.x;
-    mMatrix.m[2][1] = vOut.y;
-    mMatrix.m[2][2] = vOut.z;
+    mMatrix[2] = Normalize(CrossProduct(mMatrix[0], mMatrix[1]));
     mMatrix.m[2][3] = 0.0f;
 
-    mMatrix.m[3][0] = matrix.m[3][0];
-    mMatrix.m[3][1] = matrix.m[3][1];
-    mMatrix.m[3][2] = matrix.m[3][2];
-    mMatrix.m[3][3] = 1.0f;
+    mMatrix.SetTranslation(matrix.GetTranslation());
 
     SetRenderPos(mMatrix.GetTranslation());
     SetRenderRadius(mClass->mBoundingRadius);
-    Activate();
+    AddToScene();
 
     DustEffectClass::sDustEffects.AddLast(&mEffectNode, this);
 }
@@ -113,16 +94,12 @@ void DustEffect::Render(unsigned char ucViewport, float fDist, unsigned int uiFl
 
     if (mClass->mCameraDistance > 0.0f)
     {
-        mMatrix.m[3][0] = camMatrix.m[3][0];
-        mMatrix.m[3][2] = camMatrix.m[3][2];
-        mMatrix.m[3][3] = 1.0f;
+        mMatrix.SetTranslation(camMatrix.m[3][0], mMatrix.m[3][1], camMatrix.m[3][2], 1.0f);
         SetRenderPos(mMatrix.GetTranslation());
     }
 
-    float fDistance = camMatrix.m[2][1] * (camMatrix.m[3][1] - mMatrix.m[3][1]) +
-                      camMatrix.m[2][0] * (camMatrix.m[3][0] - mMatrix.m[3][0]) +
-                      camMatrix.m[2][2] * (camMatrix.m[3][2] - mMatrix.m[3][2]) +
-                      mClass->mBoundingRadius;
+    PblVector3 vToCamera = camMatrix.GetTranslation() - mMatrix.GetTranslation();
+    float fDistance = DotProduct(vToCamera, camMatrix[2]) + mClass->mBoundingRadius;
 
     if (fDistance < mClass->mMinDistance || fDistance > mClass->mMaxDistance)
     {
@@ -157,19 +134,21 @@ void DustEffectClass::CreateClient()
 
     for (PblList<DustEffectClass>::Itor it(sDustEffectClasses); it; ++it)
     {
-        if (it->mParticle)
+        DustEffectClass* pClass = it;
+        if (pClass->mParticle)
         {
-            it->Deactivate();
-            it->DeactivateThread();
+            pClass->Deactivate();
+            pClass->DeactivateThread();
         }
     }
     NetGame::EnterClient();
     for (PblList<DustEffectClass>::Itor it(sDustEffectClasses); it; ++it)
     {
-        if (it->mParticle)
+        DustEffectClass* pClass = it;
+        if (pClass->mParticle)
         {
-            it->Activate(10000);
-            it->ActivateThread(0, PER_FRAME);
+            pClass->Activate(10000);
+            pClass->ActivateThread(0, PER_FRAME);
         }
     }
     NetGame::LeaveClient();
@@ -191,9 +170,7 @@ bool DustEffectClass::UpdateParticle(DustParticle& particle, float fDeltaTime,
     }
 
     particle.mColor.a = mColor.a;
-    particle.mPos.x += vWind.x + particle.mVel.x * fDeltaTime;
-    particle.mPos.y += vWind.y + particle.mVel.y * fDeltaTime;
-    particle.mPos.z += vWind.z + particle.mVel.z * fDeltaTime;
+    particle.mPos += vWind + particle.mVel * fDeltaTime;
 
     float fFadeIn = particle.mLifeTime * FADE_IN_PERCENT;
     if (particle.mTime < fFadeIn)
@@ -202,8 +179,8 @@ bool DustEffectClass::UpdateParticle(DustParticle& particle, float fDeltaTime,
     }
     else
     {
-        float fFadeOut = particle.mLifeTime * FADE_OUT_PERCENT;
         float fRemaining = particle.mLifeTime - particle.mTime;
+        float fFadeOut = particle.mLifeTime * FADE_OUT_PERCENT;
         if (fRemaining < fFadeOut)
         {
             particle.mColor.a *= fRemaining / fFadeOut;
@@ -230,30 +207,35 @@ bool DustEffectClass::UpdateParticle(DustParticle& particle, float fDeltaTime,
 void DustEffectClass::SpawnParticle(DustParticle& particle)
 {
     {
-        const float fZ = (mPosMax.z - mPosMin.z) * PblRandom::GetGlobalFloat() + mPosMin.z;
-        const float fY = (mPosMax.y - mPosMin.y) * PblRandom::GetGlobalFloat() + mPosMin.y;
-        const float fX = (mPosMax.x - mPosMin.x) * PblRandom::GetGlobalFloat() + mPosMin.x;
-        particle.mPos = PblVector3(fX, fY, fZ);
+        const float fRandomZ = PblRandom::_Global.GetFloat();
+        const float fRandomY = PblRandom::_Global.GetFloat();
+        const float fRandomX = PblRandom::_Global.GetFloat();
+        particle.mPos.x = (mPosMax.x - mPosMin.x) * fRandomX + mPosMin.x;
+        particle.mPos.y = (mPosMax.y - mPosMin.y) * fRandomY + mPosMin.y;
+        particle.mPos.z = (mPosMax.z - mPosMin.z) * fRandomZ + mPosMin.z;
     }
 
     if (mCameraDistance > 0.0f)
     {
         const PblMatrix& camMatrix = CameraManager::sInstance->mRedCamera[0]->GetMatrix();
-        float fForward = mCameraDistance + particle.mPos.z;
-        float fSide = particle.mPos.x;
-        particle.mPos.x = camMatrix.m[0][0] * fSide + -camMatrix.m[2][0] * fForward;
-        particle.mPos.z = camMatrix.m[0][2] * fSide + -camMatrix.m[2][2] * fForward;
+        const PblVector3 vForward(-camMatrix.m[2][0], 0.0f, -camMatrix.m[2][2]);
+        const PblVector3 vRight = camMatrix[0];
+        const float fHeight = particle.mPos.y;
+        particle.mPos = vRight * particle.mPos.x + vForward * (mCameraDistance + particle.mPos.z);
+        particle.mPos.y = fHeight;
     }
 
     particle.mColor.a = 0.0f;
     {
-        const float fZ = (mVelMax.z - mVelMin.z) * PblRandom::GetGlobalFloat() + mVelMin.z;
-        const float fY = (mVelMax.y - mVelMin.y) * PblRandom::GetGlobalFloat() + mVelMin.y;
-        const float fX = (mVelMax.x - mVelMin.x) * PblRandom::GetGlobalFloat() + mVelMin.x;
-        particle.mVel = PblVector3(fX, fY, fZ);
+        const float fRandomZ = PblRandom::_Global.GetFloat();
+        const float fRandomY = PblRandom::_Global.GetFloat();
+        const float fRandomX = PblRandom::_Global.GetFloat();
+        particle.mVel.x = (mVelMax.x - mVelMin.x) * fRandomX + mVelMin.x;
+        particle.mVel.y = (mVelMax.y - mVelMin.y) * fRandomY + mVelMin.y;
+        particle.mVel.z = (mVelMax.z - mVelMin.z) * fRandomZ + mVelMin.z;
     }
-    particle.mSize = (mSizeMax - mSizeMin) * PblRandom::GetGlobalFloat() + mSizeMin;
-    particle.mLifeTime = (mLifeTimeMax - mLifeTimeMin) * PblRandom::GetGlobalFloat() + mLifeTimeMin;
+    particle.mSize = (mSizeMax - mSizeMin) * PblRandom::_Global.GetFloat() + mSizeMin;
+    particle.mLifeTime = (mLifeTimeMax - mLifeTimeMin) * PblRandom::_Global.GetFloat() + mLifeTimeMin;
     particle.mTime = 0.0f;
 
     mDustSound.Play(&particle.mPos, 0, false, true);
@@ -270,7 +252,7 @@ bool DustEffectClass::Update(float fDeltaTime)
                            mOldCamPos.z - camMatrix.m[3][2]);
         if (vWind.x * vWind.x + vWind.y * vWind.y + vWind.z * vWind.z > 100.0f)
         {
-            vWind = PblVector3(0.0f, 0.0f, 0.0f);
+            vWind.x = vWind.y = vWind.z = 0.0f;
         }
         mOldCamPos = camMatrix.GetTranslation();
     }
@@ -311,23 +293,19 @@ DustEffectClass::DustEffectClass(unsigned int uHash)
     mSizeMax = 15.0f;
     mLifeTimeMin = 2.0f;
     mLifeTimeMax = 3.0f;
-    mColor.r = 1.0f;
-    mColor.g = 1.0f;
-    mColor.b = 1.0f;
-    mColor.a = 1.0f;
-    mMinDistance = 0.0f;
+    mColor = RedColorValue(1.0f, 1.0f, 1.0f, 1.0f);
+    mRenderData = 0;
     mTextureHash = 0xAA3E3A1Fu;
     mRadiusFadeMin = -1.0f;
     mRadiusFadeMax = -1.0f;
     mHeightScale = 0.2f;
     mTimer = 0.0f;
     mCameraDistance = -1.0f;
-    mOldCamPos.x = 0.0f;
-    mOldCamPos.y = 0.0f;
-    mOldCamPos.z = 0.0f;
-    mRenderData = 0;
+    mMinDistance = 0.0f;
 
     sDustEffectClasses.AddLast(&mClassNode, this);
+
+    mOldCamPos.x = mOldCamPos.y = mOldCamPos.z = 0.0f;
 }
 
 // SYNTHETIC: SWBF2 0x00490b0d
@@ -350,8 +328,6 @@ DustEffectClass::~DustEffectClass()
 // FUNCTION: SWBF2 0x0048fad0
 void DustEffectClass::SetProperty(unsigned int uProperty, const char* pszValue)
 {
-    float fX, fY, fZ;
-
     switch (uProperty)
     {
     case 0x3c6468f4:
@@ -359,22 +335,28 @@ void DustEffectClass::SetProperty(unsigned int uProperty, const char* pszValue)
         break;
 
     case 0x38b0b50d:
+    {
+        float fX, fY, fZ;
         sscanf(pszValue, "%f %f %f", &fX, &fY, &fZ);
         mPosMax.x = fX;
         mPosMax.y = fY;
         mPosMax.z = fZ;
         break;
+    }
 
     case 0x3d7e6258:
         sscanf(pszValue, "%f %f %f %f", &mColor.r, &mColor.g, &mColor.b, &mColor.a);
         break;
 
     case 0x597c1bb7:
+    {
+        float fX, fY, fZ;
         sscanf(pszValue, "%f %f %f", &fX, &fY, &fZ);
         mPosMin.x = fX;
         mPosMin.y = fY;
         mPosMin.z = fZ;
         break;
+    }
 
     case 0x4e2c3b35:
         sscanf(pszValue, "%f", &mCameraDistance);
@@ -401,18 +383,24 @@ void DustEffectClass::SetProperty(unsigned int uProperty, const char* pszValue)
         break;
 
     case 0xb10f20ca:
+    {
+        float fX, fY, fZ;
         sscanf(pszValue, "%f %f %f", &fX, &fY, &fZ);
         mVelMin.x = fX;
         mVelMin.y = fY;
         mVelMin.z = fZ;
         break;
+    }
 
     case 0xa7bcb86c:
+    {
+        float fX, fY, fZ;
         sscanf(pszValue, "%f %f %f", &fX, &fY, &fZ);
         mVelMax.x = fX;
         mVelMax.y = fY;
         mVelMax.z = fZ;
         break;
+    }
 
     case 0xb4368857:
         mDustSound.SetID(pszValue, false, false);
@@ -468,11 +456,11 @@ void DustEffectClass::CalcBoundingRadius()
         return;
     }
 
-    float fPosMin = sqrtf(mPosMin.x * mPosMin.x + mPosMin.y * mPosMin.y + mPosMin.z * mPosMin.z);
-    float fPosMax = sqrtf(mPosMax.x * mPosMax.x + mPosMax.y * mPosMax.y + mPosMax.z * mPosMax.z);
+    float fPosMin = PblMath::Sqrt(mPosMin.x * mPosMin.x + mPosMin.y * mPosMin.y + mPosMin.z * mPosMin.z);
+    float fPosMax = PblMath::Sqrt(mPosMax.x * mPosMax.x + mPosMax.y * mPosMax.y + mPosMax.z * mPosMax.z);
     float fPos = fPosMax > fPosMin ? fPosMax : fPosMin;
-    float fVelMin = sqrtf(mVelMin.x * mVelMin.x + mVelMin.y * mVelMin.y + mVelMin.z * mVelMin.z);
-    float fVelMax = sqrtf(mVelMax.x * mVelMax.x + mVelMax.y * mVelMax.y + mVelMax.z * mVelMax.z);
+    float fVelMin = PblMath::Sqrt(mVelMin.x * mVelMin.x + mVelMin.y * mVelMin.y + mVelMin.z * mVelMin.z);
+    float fVelMax = PblMath::Sqrt(mVelMax.x * mVelMax.x + mVelMax.y * mVelMax.y + mVelMax.z * mVelMax.z);
     float fVel = fVelMax > fVelMin ? fVelMax : fVelMin;
     mBoundingRadius = mLifeTimeMax * fVel + fPos + fHalfSize;
 }
@@ -493,7 +481,7 @@ bool DustEffectClass::Init()
     for (int i = 0; i < mNumParticles; ++i)
     {
         SpawnParticle(mParticle[i]);
-        mParticle[i].mLifeTime *= PblRandom::GetGlobalFloat();
+        mParticle[i].mLifeTime = PblRandom::_Global.GetFloat() * mParticle[i].mLifeTime;
         mParticle[i].mColor = mColor;
         mParticle[i].mTime = 0.0f;
     }
@@ -598,6 +586,7 @@ Entity* CloudClusterClass::Build(const EntityDesc& desc)
 void CloudClusterClass::RenderDustEffects(const PblVector3& vPos, unsigned int uSeed, unsigned int uiFlags)
 {
     PblMatrix matrix = gMatrixIdentity;
+    PblRandom random = { uSeed ^ 0xc71c2830 };
     // SYNTHETIC: SWBF2 0x00766ed0
     // `CloudClusterClass::RenderDustEffects'::`2'::`dynamic atexit destructor for 'positionHeap''
 
@@ -605,21 +594,17 @@ void CloudClusterClass::RenderDustEffects(const PblVector3& vPos, unsigned int u
     static PblHeap<int, float> positionHeap(20, 100000.0f, 0);
     // GLOBAL: SWBF2 0x01faa800
     static PblVector3 positions[20];
-    PblRandom random = { uSeed ^ 0xc71c2830 };
     const PblMatrix& camMatrix = RedRenderer::GetCamera()->GetMatrix();
 
     for (int i = 0; i < mNumDustEffectsInCluster; ++i)
     {
-        DustEffectClass* pEffect = mDustEffects[i];
-        if (!pEffect)
+        if (!mDustEffects[i])
         {
             continue;
         }
-        matrix.m[1][0] = 0.0f;
-        matrix.m[1][1] = pEffect->mHeightScale;
-        matrix.m[1][2] = 0.0f;
+        matrix[1] = PblVector3(0.0f, mDustEffects[i]->mHeightScale, 0.0f);
         matrix.m[1][3] = 0.0f;
-        if (pEffect->Init())
+        if (mDustEffects[i]->Init())
         {
             for (int j = 0; j < mNumDustObjectsInEffects[i]; ++j)
             {
@@ -632,11 +617,9 @@ void CloudClusterClass::RenderDustEffects(const PblVector3& vPos, unsigned int u
                 positions[j].x += vPos.x;
                 positions[j].y += vPos.y;
                 positions[j].z += vPos.z;
-                const float fDistance = (camMatrix.m[3][0] - positions[j].x) * camMatrix.m[2][0] +
-                                        (camMatrix.m[3][1] - positions[j].y) * camMatrix.m[2][1] +
-                                        (camMatrix.m[3][2] - positions[j].z) * camMatrix.m[2][2];
-                if (pEffect->mMaxDistance > fDistance &&
-                    (pEffect->mMinDistance <= 0.0f || fDistance > pEffect->mMinDistance))
+                const float fDistance = DotProduct(camMatrix.GetTranslation() - positions[j], camMatrix.GetZAxis());
+                if (mDustEffects[i]->mMaxDistance > fDistance &&
+                    (mDustEffects[i]->mMinDistance <= 0.0f || fDistance > mDustEffects[i]->mMinDistance))
                 {
                     positionHeap.Push(j, fDistance);
                 }
@@ -647,16 +630,16 @@ void CloudClusterClass::RenderDustEffects(const PblVector3& vPos, unsigned int u
             const float fDistance = positionHeap.Value(0);
             const PblVector3& vObject = positions[positionHeap.Get(0)];
             matrix.SetTranslation(vObject);
-            float fAlpha = (pEffect->mMaxDistance - fDistance) * 0.002f;
+            float fAlpha = (mDustEffects[i]->mMaxDistance - fDistance) * 0.002f;
             if (!(1.0f > fAlpha))
             {
                 fAlpha = 1.0f;
             }
-            if (pEffect->mMinDistance > 0.0f && pEffect->mMinDistance + 200.0f > fDistance)
+            if (mDustEffects[i]->mMinDistance > 0.0f && mDustEffects[i]->mMinDistance + 200.0f > fDistance)
             {
-                fAlpha = (fDistance - pEffect->mMinDistance) * 0.005f * fAlpha;
+                fAlpha = (fDistance - mDustEffects[i]->mMinDistance) * 0.005f * fAlpha;
             }
-            pEffect->Render(matrix, fAlpha * 0.9f, uiFlags);
+            mDustEffects[i]->Render(matrix, fAlpha * 0.9f, uiFlags);
             positionHeap.Pop();
         }
     }
@@ -671,7 +654,8 @@ CloudClusterObject::CloudClusterObject(CloudClusterClass* pClass, const PblVecto
     mClass = pClass;
     SetRenderPos(mPosition);
     SetRenderRadius(mClass->mBoundingRadius);
-    Activate();
+    RedSceneObject* pObject = this;
+    pObject->Activate();
 }
 
 // FUNCTION: SWBF2 0x00490a10
@@ -691,12 +675,10 @@ void CloudClusterObject::Render(unsigned char ucViewport, float fDist, unsigned 
     {
         return;
     }
-    if (RedSceneManager::InTransparentPhase())
-    {
-        mClass->RenderDustEffects(mPosition, mSeed, uiFlags);
-    }
-    else
+    if (!RedSceneManager::InTransparentPhase())
     {
         RedSceneManager::AddTransparentObject(this);
+        return;
     }
+    mClass->RenderDustEffects(mPosition, mSeed, uiFlags);
 }

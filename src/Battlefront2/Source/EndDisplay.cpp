@@ -58,8 +58,8 @@ EndDisplay::EndDisplay()
     sCanRender = true;
     for (unsigned int i = 0; i < CameraManager::sInstance->m_iNumCam; ++i)
     {
-        FLRenderer::AddInterfaceElement(CameraManager::sInstance->m_hView[i], &mEndGroup[i], 0.5f, 0.5f,
-                                        true);
+        FLRenderer::AddInterfaceElement(CameraManager::sInstance->m_hView[i], &mEndGroup[i],
+                                        RedInterfaceScreen::CENTER, RedInterfaceScreen::CENTER, true);
         mEndText[i].Enable(false);
         mEndGroup[i].AddElement(&mEndText[i]);
     }
@@ -129,12 +129,12 @@ void EndDisplay::Show(unsigned int uiWinners, float fMinDisplayTime)
         Character* pPlayer = NetGame::GetLocalPlayer(i);
         if (pPlayer)
         {
-            int iWon = (uiWinners >> pPlayer->mTeamNumber) & 1;
+            bool bPlayerWon = ((uiWinners >> pPlayer->mTeamNumber) & 1) != 0;
             RedBitmapElement* pText = &mEndText[i];
             pText->Enable(true);
-            pText->SetColor(sColor[iWon]);
-            pText->SetTexCoords(sTexcoords[iWon * 2][0], sTexcoords[iWon * 2][1],
-                                sTexcoords[iWon * 2 + 1][0], sTexcoords[iWon * 2 + 1][1], false);
+            pText->SetColor(sColor[bPlayerWon]);
+            pText->SetTexCoords(sTexcoords[bPlayerWon * 2][0], sTexcoords[bPlayerWon * 2][1],
+                                sTexcoords[bPlayerWon * 2 + 1][0], sTexcoords[bPlayerWon * 2 + 1][1], false);
         }
     }
     if (bFirstShow)
@@ -284,16 +284,16 @@ bool EndDisplay::IsReallyFinished()
 // FUNCTION: SWBF2 0x00491320
 bool EndDisplay::IsFinished()
 {
-    if (!IsReallyFinished())
+    if (IsReallyFinished())
     {
-        return false;
+        bool finished = true;
+        for (unsigned int i = 0; i < CameraManager::sInstance->m_iNumCam; ++i)
+        {
+            finished &= !mEndText[i].IsEnabled();
+        }
+        return finished;
     }
-    bool finished = true;
-    for (unsigned int i = 0; i < CameraManager::sInstance->m_iNumCam; ++i)
-    {
-        finished &= !mEndText[i].IsEnabled();
-    }
-    return finished;
+    return false;
 }
 
 // FUNCTION: SWBF2 0x00491360

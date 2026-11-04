@@ -69,20 +69,23 @@ bool GameVoiceChat::Encoder::Open(unsigned int captureDeviceIndex, float fMaxPac
     mEncoderPackets = mCapturePackets + 2;
     mAudioPacket = (VoiceChat::AudioPacket*)(mEncoderPackets + 1);
 
-    for (unsigned int i = 0; i < 2; ++i)
+    unsigned int i = 0;
+    do
     {
         ::new (&mCapturePackets[i]) Snd::StreamPacket();
         mCapturePackets[i].mBuffer = pCursor;
         pCursor += uiAlignedFrame;
-    }
+        ++i;
+    } while (i < 2);
 
     ::new (mEncoderPackets) Snd::StreamPacket();
     mEncoderPackets->mBuffer = mEncoderBuffer;
 
-    mAudioPacket->mDiscontinuity = false;
-    mAudioPacket->mData = 0;
-    mAudioPacket->mSize = 0;
-    mAudioPacket->mAppData = 0;
+    VoiceChat::AudioPacket* pAudioPacket = mAudioPacket;
+    pAudioPacket->mDiscontinuity = false;
+    pAudioPacket->mData = 0;
+    pAudioPacket->mSize = 0;
+    pAudioPacket->mAppData = 0;
 
     Snd::StreamFormat cFormat(Snd::SampleInfo::format_PCM16, 8000, 1);
 
@@ -283,7 +286,7 @@ bool IsBanned();
 }
 
 // FUNCTION: SWBF2 0x0053da10
-unsigned char GameVoiceChat::Encoder::IsEnabled()
+bool GameVoiceChat::Encoder::IsEnabled()
 {
     return mPlaying
         && mSource.GetPlayState()
@@ -291,32 +294,9 @@ unsigned char GameVoiceChat::Encoder::IsEnabled()
 }
 
 // FUNCTION: SWBF2 0x0053daf0
-unsigned char VoiceChat::Encoder::IsEnabled()
+bool VoiceChat::Encoder::IsEnabled()
 {
     return static_cast<GameVoiceChat::Encoder*>(this)->IsEnabled();
-}
-
-// FUNCTION: SWBF2 0x0053db70
-void GameVoiceChat::Node::SetID(unsigned int uChannel)
-{
-    void* pNode = this;
-    if (!((VoiceChat::Node*)pNode)->IsOpen())
-    {
-        return;
-    }
-
-    if (GameVoiceChat::IsSuspended())
-    {
-        GameVoiceChat::SetNodeID((GameVoiceChat::Node*)pNode, (unsigned char)uChannel);
-        return;
-    }
-
-    const bool bNoChannel = GameVoiceChat::IsBanned();
-    ((VoiceChat::Node*)pNode)->SetID(bNoChannel ? 0xFF : (unsigned char)uChannel);
-    if (bNoChannel && (unsigned char)uChannel != 0xFF)
-    {
-        GameVoiceChat::GetTransport()->SetLocalNode((unsigned char)uChannel, false, false, false);
-    }
 }
 
 // FUNCTION: SWBF2 0x0053d7c0
@@ -324,36 +304,29 @@ VoiceChat::AudioPacket* GameVoiceChat::Encoder::GetData()
 {
     VoiceChat::AudioPacket* const pAudio = mAudioPacket + mAudioPacketIndex;
 
-    if (!IsPlaying())
+    if (IsPlaying() && pAudio->mAppData == 0)
     {
-        return 0;
+        mAGC.Update();
+        mVAD.Update();
+        mEncoder.Update();
+
+        Snd::StreamPacket* const pPacket = mEncoder.GetPacket(0);
+        if (pPacket != 0)
+        {
+            pAudio->mAppData = pPacket;
+            pAudio->mData = pPacket->mBuffer;
+            pAudio->mDiscontinuity = pPacket->GetDiscontinuity();
+            pAudio->mSize = pPacket->mBufferUsed;
+
+            if (++mAudioPacketIndex == 1)
+            {
+                mAudioPacketIndex = 0;
+            }
+
+            return pAudio;
+        }
     }
-    if (pAudio->mAppData != 0)
-    {
-        return 0;
-    }
-
-    mAGC.Update();
-    mVAD.Update();
-    mEncoder.Update();
-
-    Snd::StreamPacket* const pPacket = mEncoder.GetPacket(0);
-    if (pPacket == 0)
-    {
-        return 0;
-    }
-
-    pAudio->mAppData = pPacket;
-    pAudio->mData = pPacket->mBuffer;
-    pAudio->mDiscontinuity = pPacket->GetDiscontinuity();
-    pAudio->mSize = pPacket->mBufferUsed;
-
-    if (++mAudioPacketIndex == 1)
-    {
-        mAudioPacketIndex = 0;
-    }
-
-    return pAudio;
+    return 0;
 }
 
 // FUNCTION: SWBF2 0x0053d8e0

@@ -9,17 +9,17 @@ class ListAllocatorImpl : public ListAllocator
 public:
     // FUNCTION: SWBF2 0x006e9210
     ListAllocatorImpl(unsigned int uBaseMem, unsigned int uMaxMem)
-        : baseAlloc_(&valloc_),
-          pageSize_(0x2000),
-          roundsize_(32),
-          basemem_(uBaseMem),
-          usedmem_(0),
-          maxmem_(uMaxMem),
-          freemem_(0),
-          freelist_(0)
+        : freelist_(0)
     {
+        baseAlloc_ = &valloc_;
+        pageSize_ = 0x2000;
+        basemem_ = uBaseMem;
+        maxmem_ = uMaxMem;
+        usedmem_ = 0;
+        freemem_ = 0;
         pages_.Reserve(16);
-        ExternalAlloc_(basemem_);
+        roundsize_ = 32;
+        ExternalAlloc_(uBaseMem);
     }
     // FUNCTION: SWBF2 0x006e9320
     virtual ~ListAllocatorImpl()
@@ -210,32 +210,30 @@ public:
     // FUNCTION: SWBF2 0x006e9760
     DLNode<Buffer>* ExternalAlloc_(unsigned int uSize)
     {
-        if (usedmem_ + uSize > maxmem_)
+        if (usedmem_ + uSize <= maxmem_)
         {
-            return 0;
+            Buffer buf(0, uSize);
+            baseAlloc_->Allocate(buf);
+            if (buf.data_)
+            {
+                pages_.Add(buf);
+
+                DLNode<Buffer>* pNode = (DLNode<Buffer>*)buf.data_;
+                buf.size_ -= sizeof(DLNode<Buffer>);
+                pNode->elem_.data_ = pNode + 1;
+                pNode->elem_.size_ = buf.size_;
+                pNode->next_ = 0;
+                pNode->prev_ = 0;
+                buf.data_ = pNode->elem_.data_;
+                Deallocate(buf);
+
+                usedmem_ += uSize;
+                return pNode;
+            }
         }
-
-        Buffer buf(0, uSize);
-        baseAlloc_->Allocate(buf);
-        if (!buf.data_)
-        {
-            return 0;
-        }
-
-        pages_.Add(buf);
-
-        DLNode<Buffer>* pNode = (DLNode<Buffer>*)buf.data_;
-        buf.size_ -= sizeof(DLNode<Buffer>);
-        pNode->elem_.data_ = pNode + 1;
-        pNode->elem_.size_ = buf.size_;
-        pNode->next_ = 0;
-        pNode->prev_ = 0;
-        buf.data_ = pNode->elem_.data_;
-        Deallocate(buf);
-
-        usedmem_ += uSize;
-        return pNode;
+        return 0;
     }
+
     // FUNCTION: SWBF2 0x006e97f0
     PBL_ASAN_NO_SANITIZE DLNode<Buffer>* FindFreeBlock(const Buffer& rBuf)
     {
@@ -283,10 +281,7 @@ protected:
 
 
 
-// FUNCTION: SWBF2 0x006e9310
-ListAllocator::~ListAllocator()
-{
-}
+
 
 
 

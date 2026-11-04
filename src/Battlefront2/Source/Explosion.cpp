@@ -81,8 +81,8 @@ ExplosionClass::ExplosionClass(unsigned int uHash)
     mInitialChunkSpeedMin = -1.0f;
     mInitialChunkSpeedMax = -1.0f;
     mChunkStartDistance = 0.0f;
-    mDoDamageToOwner = true;
     mLightColor = RedColor::BLACK;
+    mDoDamageToOwner = true;
     mLightRadius = 0.0f;
     mLightDuration = 0.0f;
     mVisibleRadius = 60.0f;
@@ -93,7 +93,8 @@ ExplosionClass::ExplosionClass(unsigned int uHash)
 
 // FUNCTION: SWBF2 0x0051cba0
 ExplosionClass::ExplosionClass(ExplosionClass* pParent, unsigned int uHash)
-    : Factory<Ordnance, ExplosionClass, OrdnanceDesc>(pParent, uHash)
+    : Factory<Ordnance, ExplosionClass, OrdnanceDesc>(pParent, uHash),
+      mDamage(DamageOwner(0, 0, 0, 0, 0, 1.0f), 0.0f)
 {
     mDamage = pParent->mDamage;
     mDamageRadius[0] = pParent->mDamageRadius[0];
@@ -112,10 +113,7 @@ ExplosionClass::ExplosionClass(ExplosionClass* pParent, unsigned int uHash)
     mPushRadius[0] = pParent->mPushRadius[0];
     mPushRadius[1] = pParent->mPushRadius[1];
     mPushDeadOnly = pParent->mPushDeadOnly;
-    for (int i = 0; i < 5; ++i)
-    {
-        mEffects[i] = pParent->mEffects[i];
-    }
+    memcpy(mEffects, pParent->mEffects, sizeof(mEffects));
     mNumEffects = pParent->mNumEffects;
     mDecalHash = pParent->mDecalHash;
     mWaterEffectHash = pParent->mWaterEffectHash;
@@ -168,8 +166,7 @@ void ExplosionClass::Read(PblFileChunk& chunk)
         case 0x504F5250:
         {
             const unsigned int uProperty = child._pFile->Read32();
-            char* pcValue = child.ReadString(acBuffer, sizeof(acBuffer));
-            OdfValue::Sanitize(uProperty, pcValue);
+            const char* pcValue = child.ReadString(acBuffer, sizeof(acBuffer));
             pClass->SetProperty(uProperty, pcValue);
             break;
         }
@@ -272,13 +269,34 @@ void ExplosionClass::SetProperty(unsigned int uProperty, const char* pszValue)
         }
         break;
     case 0xde15f6ae:
-        mDecalHash = *pszValue ? (unsigned int)PblHash(pszValue) : 0;
+        if (*pszValue)
+        {
+            mDecalHash = PblHash(pszValue);
+        }
+        else
+        {
+            mDecalHash = 0;
+        }
         break;
     case 0x87733801:
-        mWaterEffectHash = *pszValue ? (unsigned int)PblHash(pszValue) : 0;
+        if (*pszValue)
+        {
+            mWaterEffectHash = PblHash(pszValue);
+        }
+        else
+        {
+            mWaterEffectHash = 0;
+        }
         break;
     case 0xddb924a1:
-        mShieldEffectHash = *pszValue ? (unsigned int)PblHash(pszValue) : 0;
+        if (*pszValue)
+        {
+            mShieldEffectHash = PblHash(pszValue);
+        }
+        else
+        {
+            mShieldEffectHash = 0;
+        }
         break;
     case 0xf350b4e5:
         mSound.SetID(pszValue, false, false);
@@ -293,30 +311,25 @@ void ExplosionClass::SetProperty(unsigned int uProperty, const char* pszValue)
     case 0xda328455:
     {
         mChunkDescriptor.Init();
-        mChunkDescriptor.mModel = const_cast<GameModel*>(GameModel::Find(PblHash(pszValue)));
+        mChunkDescriptor.mModel = GameModel::_HashTable.Find(PblHash(pszValue));
 
         char acName[128];
         _snprintf(acName, 127, "%s0", pszValue);
         acName[127] = 0;
-        mChunkDescriptor.mPrimitive = CollisionBodyPrimitive::Find(PblHash(acName));
+        mChunkDescriptor.mPrimitive = CollisionBodyPrimitive::_HashTable.Find(PblHash(acName));
         _snprintf(acName, 127, "%s1", pszValue);
         acName[127] = 0;
         if (!mChunkDescriptor.mPrimitive || CollisionBodyPrimitive::Find(PblHash(acName)))
         {
-            const PblBox& box = mChunkDescriptor.mModel->_mModel->_TotalBoundingBox;
-            float fCenterX = (box._vMin.x + box._vMax.x) * 0.5f;
-            float fCenterY = (box._vMin.y + box._vMax.y) * 0.5f;
-            float fCenterZ = (box._vMin.z + box._vMax.z) * 0.5f;
+            const PblBox box = mChunkDescriptor.mModel->_mModel->_TotalBoundingBox;
+            PblVector3 vCenter = (box._vMin + box._vMax) * 0.5f;
             CollisionPrimitive primitive;
             PblMatrix matrix = gMatrixIdentity;
-            float fHalfX = (float)fabs(box._vMax.x - box._vMin.x) * 0.5f;
-            float fHalfY = (float)fabs(box._vMax.y - box._vMin.y) * 0.5f;
-            float fHalfZ = (float)fabs(box._vMax.z - box._vMin.z) * 0.5f;
-            primitive.SetSphere(sqrtf(fHalfX * fHalfX + fHalfY * fHalfY + fHalfZ * fHalfZ));
-            matrix.m[3][0] = fCenterX;
-            matrix.m[3][1] = fCenterY;
-            matrix.m[3][2] = fCenterZ;
-            matrix.m[3][3] = 1.0f;
+            float fHalfX = (float)fabs((double)(box._vMax.x - box._vMin.x)) * 0.5f;
+            float fHalfY = (float)fabs((double)(box._vMax.y - box._vMin.y)) * 0.5f;
+            float fHalfZ = (float)fabs((double)(box._vMax.z - box._vMin.z)) * 0.5f;
+            primitive.SetSphere(PblMath::Sqrt(fHalfX * fHalfX + fHalfY * fHalfY + fHalfZ * fHalfZ));
+            matrix.SetTranslation(vCenter);
             mChunkDescriptor.mPrimitive = new CollisionBodyPrimitive(primitive, "", matrix, 0);
         }
         sCurrentSmoke = 0;
@@ -336,17 +349,17 @@ void ExplosionClass::SetProperty(unsigned int uProperty, const char* pszValue)
     case 0xc8e32dc3:
     {
         const unsigned int uType = PblHash(pszValue);
-        if (uType == 0x2648cd55)
+        switch (uType)
         {
+        case 0x2648cd55:
             mChunkDescriptor.mPhysicsType = 3;
-        }
-        else if (uType == 0xd290c23b)
-        {
+            break;
+        case 0xd290c23b:
             mChunkDescriptor.mPhysicsType = 2;
-        }
-        else
-        {
+            break;
+        default:
             mChunkDescriptor.mPhysicsType = uType != 0xff79b33c;
+            break;
         }
         break;
     }
@@ -369,14 +382,14 @@ void ExplosionClass::SetProperty(unsigned int uProperty, const char* pszValue)
         break;
     }
     case 0x94f0544b:
-        if (sCurrentTrail < sizeof(mChunkDescriptor.mTrailEffect) / sizeof(mChunkDescriptor.mTrailEffect[0]))
+        if (sCurrentTrail <= 2u)
         {
             mChunkDescriptor.mTrailEffect[sCurrentTrail] = PblHash(pszValue);
             ++sCurrentTrail;
         }
         break;
     case 0xd350c3de:
-        if (sCurrentSmoke < sizeof(mChunkDescriptor.mSmokeEffect) / sizeof(mChunkDescriptor.mSmokeEffect[0]))
+        if (sCurrentSmoke <= 2u)
         {
             mChunkDescriptor.mSmokeEffect[sCurrentSmoke] = PblHash(pszValue);
             ++sCurrentSmoke;
@@ -395,22 +408,20 @@ void ExplosionClass::SetProperty(unsigned int uProperty, const char* pszValue)
         RedColor color;
         if (iCount >= 4)
         {
+            color.a = 255;
             color.b = (unsigned char)(b * a / 255);
             color.g = (unsigned char)(g * a / 255);
             color.r = (unsigned char)(r * a / 255);
+            mLightColor = color;
         }
         else if (iCount == 3)
         {
             color.b = (unsigned char)b;
             color.g = (unsigned char)g;
             color.r = (unsigned char)r;
+            color.a = 255;
+            mLightColor = color;
         }
-        else
-        {
-            break;
-        }
-        color.a = 255;
-        mLightColor = color;
         break;
     }
     case 0x2776564d:
@@ -438,24 +449,23 @@ void ExplosionClass::CreateExplosion(const PblVector3& aPos, const DamageOwner& 
 {
     (void)aCollType;
     bool doClient;
-    bool bCreateEffects;
     if (NetGame::IsEnabled() && !NetGame::IsClient() && !(NetGame::IsOneWorld() && NetGame::IsHost()))
     {
         doClient = false;
-        bCreateEffects = false;
     }
     else
     {
         doClient = true;
-        bCreateEffects = CameraManager::sInstance->IsInsideAnyCamera(aPos, mVisibleRadius, 400.0f);
     }
+    const bool bCreateEffects =
+        doClient && CameraManager::sInstance->IsInsideAnyCamera(aPos, mVisibleRadius, 400.0f);
 
     mSound.Play(&aPos, 0, false, true);
 
     float fWaterHeight;
     bool bUnderWater = RedWater::GetWaterHeight(aPos, fWaterHeight) && fWaterHeight + 0.3f >= aPos.y;
 
-    int iEffect = (int)(mNumEffects * PblRandom::GetGlobalFloat());
+    int iEffect = (int)(mNumEffects * PblRandom::_Global.GetFloat());
     if (bCreateEffects)
     {
         if (bUnderWater)
@@ -463,10 +473,7 @@ void ExplosionClass::CreateExplosion(const PblVector3& aPos, const DamageOwner& 
             if (mDamageRadius[1] > 0.0f)
             {
                 float fSplashRadius = mDamageRadius[1] * 0.5f;
-                if (fSplashRadius >= 0.4f)
-                {
-                    fSplashRadius = 0.4f;
-                }
+                fSplashRadius = fSplashRadius < 0.4f ? fSplashRadius : 0.4f;
                 RedWater::AddWaterRing(aPos, fSplashRadius + 3.0f, fSplashRadius);
                 if (mWaterEffectHash)
                 {
@@ -491,38 +498,35 @@ void ExplosionClass::CreateExplosion(const PblVector3& aPos, const DamageOwner& 
             if (mLightRadius > 0.0f && mLightDuration > 0.0f)
             {
 
-                RedColorValue newcolor;
-                newcolor.r = mLightColor.r * (1.0f / 255.0f) * 20.0f;
-                newcolor.g = mLightColor.g * (1.0f / 255.0f) * 20.0f;
-                newcolor.b = mLightColor.b * (1.0f / 255.0f) * 20.0f;
-                newcolor.a = mLightColor.a * (1.0f / 255.0f) * 20.0f;
-                if (newcolor.r > 1.0f)
+                float fR = mLightColor.r * (1.0f / 255.0f) * 20.0f;
+                float fG = mLightColor.g * (1.0f / 255.0f) * 20.0f;
+                float fB = mLightColor.b * (1.0f / 255.0f) * 20.0f;
+                float fA = mLightColor.a * (1.0f / 255.0f) * 20.0f;
+                if (fR > 1.0f)
                 {
-                    newcolor.r = 1.0f;
+                    fR = 1.0f;
                 }
-                if (newcolor.g > 1.0f)
+                if (fG > 1.0f)
                 {
-                    newcolor.g = 1.0f;
+                    fG = 1.0f;
                 }
-                if (newcolor.b > 1.0f)
+                if (fB > 1.0f)
                 {
-                    newcolor.b = 1.0f;
+                    fB = 1.0f;
                 }
-                if (newcolor.a > 1.0f)
+                if (fA > 1.0f)
                 {
-                    newcolor.a = 1.0f;
+                    fA = 1.0f;
                 }
-                RedColor color;
-                color.b = (unsigned char)(int)(newcolor.b * 255.0f);
-                color.g = (unsigned char)(int)(newcolor.g * 255.0f);
-                color.r = (unsigned char)(int)(newcolor.r * 255.0f);
-                color.a = (unsigned char)(int)(newcolor.a * 255.0f);
                 PblSphere sphere;
                 sphere.x = aPos.x + 0.0f;
                 sphere.y = aPos.y + 3.0f;
                 sphere.z = aPos.z + 0.0f;
                 sphere.w = mLightRadius * 3.0f;
-                new LightFlash(sphere, color, mLightDuration);
+                new LightFlash(sphere,
+                               RedColor((unsigned char)(int)(fR * 255.0f), (unsigned char)(int)(fG * 255.0f),
+                                        (unsigned char)(int)(fB * 255.0f), (unsigned char)(int)(fA * 255.0f)),
+                               mLightDuration);
             }
         }
     }
@@ -541,7 +545,6 @@ void ExplosionClass::CreateExplosion(const PblVector3& aPos, const DamageOwner& 
         if (chunkCluster)
         {
             chunkCluster->mParentClass = 0;
-            PblRandom& rand = PblRandom::GetSim();
             for (int i = 0; i < mNumChunks; ++i)
             {
                 if (i >= 10)
@@ -555,63 +558,78 @@ void ExplosionClass::CreateExplosion(const PblVector3& aPos, const DamageOwner& 
                 mChunkDescriptor.mFullCollisionModel = 0;
 
                 float sinPitch, cosPitch, sinYaw, cosYaw;
-                PblMath::SinCos(&sinPitch, &cosPitch, rand.GetFloat() * PblMath::fTwoPi);
-                PblMath::SinCos(&sinYaw, &cosYaw, rand.GetFloat() * PblMath::fTwoPi);
+                PblMath::SinCos(&sinPitch, &cosPitch, PblRandom::GetSim().GetFloat() * PblMath::fTwoPi);
+                PblMath::SinCos(&sinYaw, &cosYaw, PblRandom::GetSim().GetFloat() * PblMath::fTwoPi);
                 PblVector3 vAxis(sinYaw * cosPitch, sinPitch, cosYaw * cosPitch);
                 float fSinHalf, fCosHalf;
-                PblMath::SinCos(&fSinHalf, &fCosHalf, rand.GetFloat() * PblMath::fTwoPi * 0.5f);
+                PblMath::SinCos(&fSinHalf, &fCosHalf, PblRandom::GetSim().GetFloat() * PblMath::fTwoPi * 0.5f);
                 PblQuaternion q;
                 q._fX = fSinHalf * vAxis.x;
                 q._fY = fSinHalf * vAxis.y;
                 q._fZ = fSinHalf * vAxis.z;
                 q._fS = fCosHalf;
-                PblQuaternion qNorm;
+                D3DXQUATERNION qNorm;
                 PblMatrix mRot;
-                D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mRot), D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&qNorm), reinterpret_cast<const D3DXQUATERNION*>(&q)));
+                D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mRot), D3DXQuaternionNormalize(&qNorm, reinterpret_cast<const D3DXQUATERNION*>(&q)));
+                mRot.m[3][0] = aPos.x;
+                mRot.m[3][1] = aPos.y;
+                mRot.m[3][2] = aPos.z;
+                mRot.m[3][3] = 1.0f;
                 mChunkDescriptor.mMatrix = mRot;
-                mChunkDescriptor.mMatrix.SetTranslation(aPos);
 
-                PblVector3 vRand;
                 if (aFlying)
                 {
-                    vRand.x = (0.5f - rand.GetFloat()) * 2.0f;
-                    vRand.y = (0.5f - rand.GetFloat()) * 2.0f;
-                    vRand.z = (0.5f - rand.GetFloat()) * 2.0f;
+                    if (mInitialChunkSpeedMin < 0.0f)
+                    {
+                        PblVector3 vRand;
+                        vRand.x = (0.5f - PblRandom::GetSim().GetFloat()) * 2.0f;
+                        vRand.y = (0.5f - PblRandom::GetSim().GetFloat()) * 2.0f;
+                        vRand.z = (0.5f - PblRandom::GetSim().GetFloat()) * 2.0f;
+                        PblVector3 vDir;
+                        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vRand));
+                        const float fSpeed = PblRandom::GetSim().GetFloat() * mPushRadius[1] + mPushRadius[1];
+                        mChunkDescriptor.mVelocity = vDir * fSpeed;
+                    }
+                    else
+                    {
+                        PblVector3 vRand;
+                        vRand.x = (0.5f - PblRandom::GetSim().GetFloat()) * 2.0f;
+                        vRand.y = (0.5f - PblRandom::GetSim().GetFloat()) * 2.0f;
+                        vRand.z = (0.5f - PblRandom::GetSim().GetFloat()) * 2.0f;
+                        PblVector3 vDir;
+                        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vRand));
+                        const float fSpeed = PblRandom::GetSim().GetFloat() * (mInitialChunkSpeedMax - mInitialChunkSpeedMin) +
+                                             mInitialChunkSpeedMin;
+                        mChunkDescriptor.mVelocity = vDir * fSpeed;
+                    }
                 }
                 else if (mInitialChunkSpeedMin < 0.0f)
                 {
-                    vRand.x = (0.5f - rand.GetFloat()) * 2.0f;
-                    vRand.y = (rand.GetFloat() + 1.0f) * 4.0f;
-                    vRand.z = (0.5f - rand.GetFloat()) * 2.0f;
+                    PblVector3 vRand;
+                    vRand.x = (0.5f - PblRandom::GetSim().GetFloat()) * 2.0f;
+                    vRand.y = (PblRandom::GetSim().GetFloat() + 1.0f) * 4.0f;
+                    vRand.z = (0.5f - PblRandom::GetSim().GetFloat()) * 2.0f;
+                    PblVector3 vDir;
+                    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vRand));
+                    const float fSpeed = PblRandom::GetSim().GetFloat() * mPushRadius[1] + mPushRadius[1];
+                    mChunkDescriptor.mVelocity = vDir * fSpeed;
                 }
                 else
                 {
-                    vRand.x = (0.5f - rand.GetFloat()) * 2.0f;
-                    vRand.y = rand.GetFloat() + 0.5f;
-                    vRand.z = (0.5f - rand.GetFloat()) * 2.0f;
+                    PblVector3 vRand;
+                    vRand.x = (0.5f - PblRandom::GetSim().GetFloat()) * 2.0f;
+                    vRand.y = PblRandom::GetSim().GetFloat() + 0.5f;
+                    vRand.z = (0.5f - PblRandom::GetSim().GetFloat()) * 2.0f;
+                    PblVector3 vDir;
+                    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vRand));
+                    const float fSpeed = PblRandom::GetSim().GetFloat() * (mInitialChunkSpeedMax - mInitialChunkSpeedMin) +
+                                         mInitialChunkSpeedMin;
+                    mChunkDescriptor.mVelocity = vDir * fSpeed;
                 }
-                PblVector3 vDir;
-                D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vRand));
-                float fSpeed;
-                if (mInitialChunkSpeedMin < 0.0f)
-                {
-                    fSpeed = rand.GetFloat() * mPushRadius[1] + mPushRadius[1];
-                }
-                else
-                {
-                    fSpeed = rand.GetFloat() * (mInitialChunkSpeedMax - mInitialChunkSpeedMin) +
-                             mInitialChunkSpeedMin;
-                }
-                mChunkDescriptor.mVelocity.x = vDir.x * fSpeed;
-                mChunkDescriptor.mVelocity.y = fSpeed * vDir.y;
-                mChunkDescriptor.mVelocity.z = fSpeed * vDir.z;
 
                 PblVector3 vOut;
                 D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vOut), reinterpret_cast<const D3DXVECTOR3*>(&mChunkDescriptor.mVelocity));
-                mChunkDescriptor.mMatrix.m[3][0] = vOut.x * mChunkStartDistance + aPos.x;
-                mChunkDescriptor.mMatrix.m[3][1] = aPos.y + mChunkStartDistance * vOut.y;
-                mChunkDescriptor.mMatrix.m[3][2] = aPos.z + mChunkStartDistance * vOut.z;
-                mChunkDescriptor.mMatrix.m[3][3] = 1.0f;
+                mChunkDescriptor.mMatrix.SetTranslation(aPos + vOut * mChunkStartDistance);
 
                 ChunkDescriptor tmpDesc(mChunkDescriptor);
 
@@ -622,91 +640,91 @@ void ExplosionClass::CreateExplosion(const PblVector3& aPos, const DamageOwner& 
         }
     }
 
-    if (mDamageRadius[1] > 0.0f || mPushRadius[1] > 0.0f)
+    if (mDamageRadius[1] <= 0.0f && mPushRadius[1] <= 0.0f)
     {
-        float maxRadius = mDamageRadius[1] > mPushRadius[1] ? mDamageRadius[1] : mPushRadius[1];
-        GameObject* array[20];
-        int count = CollisionManager::GetObjectsInRange(
-            aPos, maxRadius, array, 20, 0,
-            COLL_ITEM | COLL_SOFT | COLL_RIGID | COLL_STATIC | COLL_ATTACHED | COLL_SHIELD);
+        return;
+    }
 
-        DamageDesc damage = mDamage;
-        damage.mDamageOwner = aOwner;
+    float maxRadius = mDamageRadius[1] > mPushRadius[1] ? mDamageRadius[1] : mPushRadius[1];
+    GameObject* array[20];
+    int count = CollisionManager::GetObjectsInRange(
+        aPos, maxRadius, array, 20, 0,
+        COLL_ITEM | COLL_SOFT | COLL_RIGID | COLL_STATIC | COLL_ATTACHED | COLL_SHIELD);
 
-        while (count--)
+    DamageDesc damage = mDamage;
+    damage.mDamageOwner = aOwner;
+
+    while (count--)
+    {
+        if (!mDoDamageToOwner && aOwner.mGameObject &&
+            array[count] == aOwner.mGameObject)
         {
-            GameObject* pObject = array[count];
-            if (!mDoDamageToOwner && aOwner.mGameObject &&
-                pObject == aOwner.mGameObject)
-            {
-                continue;
-            }
-
-            GameObject* pBase = pObject;
-            if (pBase->GetCollisionType() == COLL_ITEM &&
-                !pObject->IsRtti(EntityMine::rttiHashEntityMine))
-            {
-                continue;
-            }
-
-            PblVector3 targetPos = pBase->GetMatrix().GetTranslation();
-            const CollisionObject* pCollision = pObject->GetCollisionObject();
-            if (pCollision)
-            {
-                targetPos = pCollision->GetCollisionCenter();
-            }
-            PblVector3 dir(targetPos.x - aPos.x, targetPos.y - aPos.y, targetPos.z - aPos.z);
-            targetPos = pObject->GetTargetPoint(aPos, dir, -1);
-
-            const GameObject* ignore[1] = { pObject };
-            if (CollisionManager::RayTest(aPos, targetPos, ignore, 1, COLL_STATIC | COLL_TERRAIN))
-            {
-                continue;
-            }
-
-            if (mDamageRadius[1] > 0.0f)
-            {
-                pObject->ApplyRadiusDamage(aPos, mDamageRadius[0], mDamageRadius[1], damage);
-            }
-            if (!mPushDeadOnly || !pObject->IsAlive())
-            {
-                if (mPushRadius[1] > 0.0f)
-                {
-                    pObject->ApplyRadiusPush(aPos, mPushRadius[0], mPushRadius[1], mPush, false);
-                }
-            }
+            continue;
         }
 
-        if (bCreateEffects && mShakeRadius[1] > 0.0f)
+        if (array[count]->GetCollisionType() == COLL_ITEM &&
+            !array[count]->IsRtti(EntityMine::rttiHashEntityMine))
         {
+            continue;
+        }
 
-            CameraManager* pManager = CameraManager::sInstance;
-            Trackable* pTrackable = pManager->mCurGameCamera[0] == pManager->mDeathCamera[0]
-                                        ? pManager->mDeathCamera[0]->mOwner
-                                        : pManager->mChaseCamera[0]->mOwner;
-            if (pTrackable)
+        PblVector3 targetPos = array[count]->GetMatrix().GetTranslation();
+        const CollisionObject* pCollision = array[count]->GetCollisionObject();
+        if (pCollision)
+        {
+            targetPos = pCollision->GetCollisionCenter();
+        }
+        PblVector3 dir(targetPos.x - aPos.x, targetPos.y - aPos.y, targetPos.z - aPos.z);
+        targetPos = array[count]->GetTargetPoint(aPos, dir, -1);
+
+        const GameObject* ignore[1] = { array[count] };
+        if (CollisionManager::RayTest(aPos, targetPos, ignore, 1, COLL_STATIC | COLL_TERRAIN))
+        {
+            continue;
+        }
+
+        if (mDamageRadius[1] > 0.0f)
+        {
+            array[count]->ApplyRadiusDamage(aPos, mDamageRadius[0], mDamageRadius[1], damage);
+        }
+        if (!mPushDeadOnly || !array[count]->IsAlive())
+        {
+            if (mPushRadius[1] > 0.0f)
             {
-                GameObject* pTarget = pTrackable->GetGameObject();
-                if (pTarget)
+                array[count]->ApplyRadiusPush(aPos, mPushRadius[0], mPushRadius[1], mPush, false);
+            }
+        }
+    }
+
+    if (bCreateEffects && mShakeRadius[1] > 0.0f)
+    {
+
+        CameraManager* pManager = CameraManager::sInstance;
+        Trackable* pTrackable = pManager->mCurGameCamera[0] == pManager->mDeathCamera[0]
+                                    ? pManager->mDeathCamera[0]->mOwner
+                                    : pManager->mChaseCamera[0]->mOwner;
+        if (pTrackable)
+        {
+            GameObject* pTarget = pTrackable->GetGameObject();
+            if (pTarget)
+            {
+                const PblVector3& vTarget = pTarget->GetCollisionObject()->GetPosition();
+                float dx = vTarget.x - aPos.x;
+                float dy = vTarget.y - aPos.y;
+                float dz = vTarget.z - aPos.z;
+                float length = PblMath::Sqrt(dx * dx + dy * dy + dz * dz);
+                if (length > 0.0001f)
                 {
-                    const PblVector3& vTarget = pTarget->GetCollisionObject()->GetPosition();
-                    float dx = vTarget.x - aPos.x;
-                    float dy = vTarget.y - aPos.y;
-                    float dz = vTarget.z - aPos.z;
-                    float length = sqrtf(dx * dx + dy * dy + dz * dz);
-                    if (length > 0.0001f)
+                    float scale = pTarget->CalcRadiusEffect(length, mShakeRadius[0], mShakeRadius[1]);
+                    if (scale > 0.0f)
                     {
-                        float scale = pTarget->CalcRadiusEffect(length, mShakeRadius[0], mShakeRadius[1]);
-                        if (scale > 0.0f)
-                        {
 
-                            scale = pTrackable->GetControllable()->GetControllableClass()->mShakeScale * scale;
-                            float scaledShake = mShake * scale;
-                            float scaledLength = mShakeLength * scale;
-                            CameraManager::sInstance->ApplyShake(scaledShake, scaledLength);
+                        scale = pTrackable->GetControllable()->GetControllableClass()->mShakeScale * scale;
+                        float scaledShake = mShake * scale;
+                        float scaledLength = mShakeLength * scale;
+                        CameraManager::sInstance->ApplyShake(scaledShake, scaledLength);
 
-                            pTrackable->GetControllable();
-                        }
+                        pTrackable->GetControllable();
                     }
                 }
             }

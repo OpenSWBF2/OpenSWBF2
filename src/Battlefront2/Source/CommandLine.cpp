@@ -28,7 +28,6 @@
 #include "PebbleFL/Common/PblMath.h"
 
 extern bool mSafeMode;
-extern eGAMELANGUAGE gForceLang;
 
 namespace PlayerProfile
 {
@@ -37,24 +36,6 @@ namespace PlayerProfile
 void SetSafeMode()
 {
     mSafeMode = true;
-}
-}
-
-namespace RedLocalizeDB
-{
-
-// FUNCTION: SWBF2 0x006c5b80
-void ForceLanguageID(int iLanguage)
-{
-    if (iLanguage == 5)
-    {
-        RedFont::sJapaneseOnly = true;
-        gForceLang = static_cast<eGAMELANGUAGE>(iLanguage);
-    }
-    else if (iLanguage >= -1 && iLanguage < 9)
-    {
-        gForceLang = static_cast<eGAMELANGUAGE>(iLanguage);
-    }
 }
 }
 
@@ -197,7 +178,8 @@ namespace RedLocalizeDB
 void ParseCommandLine(char const* pcAppName, char const* pcCmdLine)
 {
 
-    char* apcArgv[256] = { 0 };
+    char* apcArgv[256];
+    memset(apcArgv, 0, sizeof(apcArgv));
     char szCmdLine[0x800] = "";
     char szArgv0[0x100] = "";
 
@@ -220,15 +202,11 @@ void ParseCommandLine(char const* pcAppName, char const* pcCmdLine)
             ++i;
             apcArgv[iArgc++] = &szCmdLine[i];
 
-            while (szCmdLine[i] != '\0')
+            while ((szCmdLine[i] != '\0' && szCmdLine[i] != '"') ||
+                   (szCmdLine[i] == '"' && szCmdLine[i - 1] == '\\'))
             {
-                if (szCmdLine[i] == '"')
+                if (szCmdLine[i] == '"' && szCmdLine[i - 1] == '\\')
                 {
-                    if (szCmdLine[i - 1] != '\\')
-                    {
-                        break;
-                    }
-
                     szCmdLine[i - 1] = '_';
                     szCmdLine[i] = '_';
                 }
@@ -549,12 +527,22 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             break;
         case 0x1DEBAE35:
         case 0xA563005A:
-            netHeroRuleRespawnVal = Lua_Callbacks::gHeroRuleRespawnVal[0] = Lua_Callbacks::gHeroRuleRespawnVal[1] = atoi(apcArgv[++i]);
+        {
+            int iValue = atoi(apcArgv[++i]);
+            netHeroRuleRespawnVal = iValue;
+            Lua_Callbacks::gHeroRuleRespawnVal[0] = iValue;
+            Lua_Callbacks::gHeroRuleRespawnVal[1] = iValue;
             break;
+        }
         case 0x202DB217:
         case 0xCD0D5437:
-            netHeroRuleUnlock = Lua_Callbacks::gHeroRuleUnlock[0] = Lua_Callbacks::gHeroRuleUnlock[1] = atoi(apcArgv[++i]);
+        {
+            int iValue = atoi(apcArgv[++i]);
+            netHeroRuleUnlock = iValue;
+            Lua_Callbacks::gHeroRuleUnlock[0] = iValue;
+            Lua_Callbacks::gHeroRuleUnlock[1] = iValue;
             break;
+        }
         case 0x204F0D0D:
             break;
         case 0x2264B8ED:
@@ -599,8 +587,13 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             netThrottle = atoi(apcArgv[++i]);
             break;
         case 0x3A00D703:
-            netPlayerLimit = netHostedPlayerLimit = netDedicatedPlayerLimit = atoi(apcArgv[++i]);
+        {
+            int iLimit = atoi(apcArgv[++i]);
+            netPlayerLimit = iLimit;
+            netHostedPlayerLimit = iLimit;
+            netDedicatedPlayerLimit = iLimit;
             break;
+        }
         case 0x3A224D98:
             gSpawnInvicibility = atoi(apcArgv[++i]);
             break;
@@ -609,8 +602,13 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             break;
         case 0x3EC8DA95:
         case 0xD0CFBC35:
-            netHeroRuleRespawn = Lua_Callbacks::gHeroRuleRespawn[0] = Lua_Callbacks::gHeroRuleRespawn[1] = atoi(apcArgv[++i]);
+        {
+            int iValue = atoi(apcArgv[++i]);
+            netHeroRuleRespawn = iValue;
+            Lua_Callbacks::gHeroRuleRespawn[0] = iValue;
+            Lua_Callbacks::gHeroRuleRespawn[1] = iValue;
             break;
+        }
         case 0x3F0ECDEB:
         case 0x77E5E744:
         case 0xBBB3B003:
@@ -657,8 +655,13 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             break;
         case 0x69F6C31E:
         case 0xF546DAFE:
-            netHeroRuleTeam = Lua_Callbacks::gHeroRuleTeam[0] = Lua_Callbacks::gHeroRuleTeam[1] = atoi(apcArgv[++i]);
+        {
+            int iValue = atoi(apcArgv[++i]);
+            netHeroRuleTeam = iValue;
+            Lua_Callbacks::gHeroRuleTeam[0] = iValue;
+            Lua_Callbacks::gHeroRuleTeam[1] = iValue;
             break;
+        }
         case 0x70EA3B55:
             RedLocalizeDB::ForceLanguageID(atoi(apcArgv[++i]));
             break;
@@ -713,8 +716,13 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             break;
         case 0x99B7123E:
         case 0xECD7701E:
-            netHeroRulePlayer = Lua_Callbacks::gHeroRulePlayer[0] = Lua_Callbacks::gHeroRulePlayer[1] = atoi(apcArgv[++i]);
+        {
+            int iValue = atoi(apcArgv[++i]);
+            netHeroRulePlayer = iValue;
+            Lua_Callbacks::gHeroRulePlayer[0] = iValue;
+            Lua_Callbacks::gHeroRulePlayer[1] = iValue;
             break;
+        }
         case 0xA2FD7D0C:
             PlayerPrefs::gDefaultTeamNum = atoi(apcArgv[++i]);
             break;
@@ -732,8 +740,13 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             break;
         case 0xAC16C90C:
         case 0xB418A0AC:
-            netHeroRuleUnlockVal = Lua_Callbacks::gHeroRuleUnlockVal[0] = Lua_Callbacks::gHeroRuleUnlockVal[1] = atoi(apcArgv[++i]);
+        {
+            int iValue = atoi(apcArgv[++i]);
+            netHeroRuleUnlockVal = iValue;
+            Lua_Callbacks::gHeroRuleUnlockVal[0] = iValue;
+            Lua_Callbacks::gHeroRuleUnlockVal[1] = iValue;
             break;
+        }
         case 0xB08CEC40:
             gUseValues = false;
             break;

@@ -44,26 +44,19 @@ void StreamSplitter::Setup(StreamPacket** const ppQueue,
 // FUNCTION: SWBF2 0x0074cf70
 void StreamSplitter::Flush()
 {
-
-    typedef StreamPacket* (__thiscall* GetPacketFn)(StreamSplitter* pThis,
-                                                    unsigned int uiOutput);
-
     mFlushing = 1;
 
     for (unsigned int uiOutput = 0; uiOutput < mNumOutputs; uiOutput++)
     {
-        for (;;)
+        StreamPacket* pPacket;
+        do
         {
-            StreamPacket* const pPacket =
-                GetPacket(uiOutput);
-
-            if (pPacket == 0)
+            pPacket = GetPacket(uiOutput);
+            if (pPacket)
             {
-                break;
+                pPacket->Unlock();
             }
-
-            pPacket->Unlock();
-        }
+        } while (pPacket);
     }
 
     mReadPos = 0;
@@ -82,59 +75,55 @@ StreamPacket* StreamSplitter::GetPacket(unsigned int uiOutput)
     typedef StreamPacket* (__thiscall* GetPacketFn)(StreamNodeSource* pThis,
                                                     unsigned int uiOutput);
 
-    if (StreamNode::GetPlayState() == SourceTransport::playState_stopped &&
-        !mFlushing)
-    {
-        return 0;
-    }
+    StreamPacket* pResult = 0;
 
-    StreamPacket** const ppWrite = &mPackets[mReadPos];
-    if (*ppWrite == 0 && !mFlushing)
+    if (StreamNode::GetPlayState() != SourceTransport::playState_stopped ||
+        mFlushing)
     {
-        StreamNodeSource* const pInput = StreamNodeSink::mConnection.mInputNode;
-        *ppWrite = pInput
-            ? pInput->GetPacket(StreamNodeSink::mConnection.mInputNodeOutputIndex)
-            : 0;
-        if (*ppWrite)
+        StreamPacket** const ppWrite = &mPackets[mReadPos];
+        if (*ppWrite == 0 && !mFlushing)
         {
-            mRefCount[mReadPos] = 0;
-            if (++mReadPos == mNumPackets)
+            StreamNodeSource* const pInput = StreamNodeSink::mConnection.mInputNode;
+            *ppWrite = pInput
+                ? pInput->GetPacket(StreamNodeSink::mConnection.mInputNodeOutputIndex)
+                : 0;
+            if (*ppWrite)
             {
-                mReadPos = 0;
+                mRefCount[mReadPos] = 0;
+                if (++mReadPos == mNumPackets)
+                {
+                    mReadPos = 0;
+                }
+                for (unsigned int i = 0; i < mNumOutputs; i++)
+                {
+                    ++mRemaining[i];
+                }
             }
-            for (unsigned int i = 0; i < mNumOutputs; i++)
+        }
+
+        if (mRemaining[uiOutput] != 0)
+        {
+            const unsigned int uiIndex = mReadPos < mRemaining[uiOutput]
+                ? mReadPos + (mNumPackets - mRemaining[uiOutput])
+                : mReadPos - mRemaining[uiOutput];
+            StreamPacket** const ppRead = &mPackets[uiIndex];
+            StreamPacket* const pPacket = *ppRead;
+            if (pPacket != 0)
             {
-                ++mRemaining[i];
+                unsigned short* const puRefCount = &mRefCount[uiIndex];
+                --mRemaining[uiOutput];
+                pPacket->Lock();
+                if (++*puRefCount == mNumOutputs)
+                {
+                    pPacket->Unlock();
+                    *ppRead = 0;
+                    *puRefCount = 0;
+                }
+                pResult = pPacket;
             }
         }
     }
-
-    unsigned short* const puRemaining = &mRemaining[uiOutput];
-    if (*puRemaining == 0)
-    {
-        return 0;
-    }
-
-    const unsigned int uiIndex = mReadPos < *puRemaining
-        ? mReadPos + (mNumPackets - *puRemaining)
-        : mReadPos - *puRemaining;
-    StreamPacket** const ppRead = &mPackets[uiIndex];
-    StreamPacket* const pPacket = *ppRead;
-    if (pPacket == 0)
-    {
-        return 0;
-    }
-
-    unsigned short* const puRefCount = &mRefCount[uiIndex];
-    --*puRemaining;
-    pPacket->Lock();
-    if (++*puRefCount == mNumOutputs)
-    {
-        pPacket->Unlock();
-        *ppRead = 0;
-        *puRefCount = 0;
-    }
-    return pPacket;
+    return pResult;
 }
 
 }

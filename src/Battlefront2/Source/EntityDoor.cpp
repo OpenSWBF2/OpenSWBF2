@@ -21,30 +21,31 @@ extern bool netFrameLock;
 // FUNCTION: SWBF2 0x00498460
 void EntityDoor::Render(unsigned char ucViewport, float fDist, unsigned int uiFlags)
 {
-    if (mAnimatedClass->m_bDynamicLighting)
-    {
-        uiFlags &= ~0x80u;
-    }
-    else
+    if (!static_cast<const EntityPropClass*>(mEntityClass)->m_bDynamicLighting)
     {
         uiFlags |= 0x80u;
     }
+    else
+    {
+        uiFlags &= ~0x80u;
+    }
     SetupShadow(0, mModel, ucViewport, uiFlags, 0);
 
-    bool bNetwork = netInShell ? netEnabled : netEnabledNext;
-    bool bInterpolate = bNetwork && !netFrameLock && !mIsLocked;
     float fPoseTime = mZephyrPoseDyn.m_fCurT;
-    if (bInterpolate)
+    if (NetGame::IsEnabled() && !netFrameLock && !mIsLocked)
     {
-        float fStep = NetGame::GetTurnRatio() * mRenderDt;
-        float fInterpolated = mIsOpen ? mLastAnimTime + fStep : mLastAnimTime - fStep;
-        if (mIsOpen && fInterpolated > 1.0f)
+        const float fRenderDt = mRenderDt;
+        float fStep = fRenderDt * NetGame::GetTurnRatio();
+        float fInterpolated;
+        if (mIsOpen)
         {
-            fInterpolated = 1.0f;
+            fInterpolated = mLastAnimTime + fStep;
+            fInterpolated = 1.0f > fInterpolated ? fInterpolated : 1.0f;
         }
-        if (!mIsOpen && fInterpolated < 0.0f)
+        else
         {
-            fInterpolated = 0.0f;
+            fInterpolated = mLastAnimTime - fStep;
+            fInterpolated = fInterpolated > 0.0f ? fInterpolated : 0.0f;
         }
         mZephyrPoseDyn.SetCurTime(fInterpolated);
         mZephyrPoseDyn.Update(0.0f);
@@ -56,22 +57,20 @@ void EntityDoor::Render(unsigned char ucViewport, float fDist, unsigned int uiFl
         mPose.ConvertFromZephyrPose(mZephyrSkeleton);
     }
 
-    const GameModel* pModel = GetModel();
-    pModel->Render(ucViewport, fDist, &mMatrix, &mPose, RedColor::WHITE,
-                   uiFlags | 0x01000000u, 0);
+    GetModel()->Render(ucViewport, fDist, &mMatrix, &mPose, RedColor(255, 255, 255, 255),
+                       uiFlags | 0x01000000u, 0);
     if (!(uiFlags & 0x00200000u))
     {
         PblMatrix reflection;
         if (FLRenderer::IsReflected(GetCollisionCenter(), GetCollisionRadius(), reflection, false))
         {
-            PblMatrix reflected;
-            reflected = mMatrix * reflection;
-            pModel->Render(ucViewport, fDist, &reflected, &mPose, RedColor::WHITE,
-                           (uiFlags & 0xeffefeffu) | 0x10000100u, 0);
+            reflection = mMatrix * reflection;
+            GetModel()->Render(ucViewport, fDist, &reflection, &mPose, RedColor::WHITE,
+                               (uiFlags & 0xeffefeffu) | 0x10000100u, 0);
         }
     }
 
-    if (bInterpolate)
+    if (NetGame::IsEnabled() && !netFrameLock && !mIsLocked)
     {
         mZephyrPoseDyn.SetCurTime(fPoseTime);
         mZephyrPoseDyn.Update(0.0f);
@@ -174,11 +173,7 @@ EntityDoorClass::EntityDoorClass(unsigned int uHash)
 {
     mAnimObj = 0;
     mAnimation = 0;
-    for (int i = 0; i < 3; i++)
-    {
-        mAnimationTriggers[i].mTriggerPoint = 0;
-        mAnimationTriggers[i].mTriggerRadius = 0.0f;
-    }
+    memset(mAnimationTriggers, 0, sizeof(mAnimationTriggers));
 }
 
 // FUNCTION: SWBF2 0x00497f60
@@ -217,11 +212,11 @@ EntityDoor::EntityDoor(EntityDoorClass* pClass, const EntityDesc& desc)
 {
     hasPortal_ = true;
     portal_ = 0;
+    mAnimObj = pClass->mAnimObj;
     mOpenTrigger = false;
     mIsOpen = false;
     mIsLocked = false;
     mJustRendered = false;
-    mAnimObj = pClass->mAnimObj;
     mAnimatedClass = pClass;
     mTimeSinceLastTriggered = 500.0f;
     mLastAnimTime = 0.0f;
@@ -231,8 +226,9 @@ EntityDoor::EntityDoor(EntityDoorClass* pClass, const EntityDesc& desc)
         mShadowProxy->RemoveFromScene();
     }
 
+    const ZephyrSkeletonShared* pShared = mAnimatedClass->mAnimObj->GetZephyrSkeletonShared();
     ZephyrPoseStatic<32> kPose;
-    mZephyrSkeleton.Open(*mAnimatedClass->mAnimObj->GetZephyrSkeletonShared(), kPose);
+    mZephyrSkeleton.Open(*pShared, kPose);
     kPose.Open(mZephyrSkeleton);
     mZephyrPoseDyn.Open(mZephyrSkeleton);
     mZephyrPoseDyn.SetLoop(false);
@@ -287,9 +283,9 @@ bool EntityDoor::Update(float fDeltaTime)
 {
     if (hasPortal_ && !portal_)
     {
-        const PblSphere& rSphere = GetCollisionSphere();
-        portal_ = pvs::IManager::GetInstance().FindNearestPortal(
-            geo::Sphere(geo::Vector3<float>(rSphere.x, rSphere.y, rSphere.z), rSphere.w), 10.5f);
+        const PblSphere sphere = GetCollisionSphere();
+        const geo::Sphere kSphere(geo::Vector3<float>(sphere.x, sphere.y, sphere.z), sphere.w);
+        portal_ = pvs::IManager::GetInstance().FindNearestPortal(kSphere, 10.5f);
         hasPortal_ = portal_ != 0;
     }
 
@@ -305,37 +301,40 @@ bool EntityDoor::Update(float fDeltaTime)
     {
         for (int i = 0; i < 3; ++i)
         {
-            const EntityDoorClass::AnimationTrigger& rTrigger = mAnimatedClass->mAnimationTriggers[i];
-            if (!rTrigger.mTriggerPoint)
+            if (!mAnimatedClass->mAnimationTriggers[i].mTriggerPoint)
             {
                 continue;
             }
             PblMatrix mBone;
-            if (!GetModel()->GetRedModel(0)->GetBoneMatrix(rTrigger.mTriggerPoint, mBone))
+            if (!GetModel()->GetRedModel(0)->GetBoneMatrix(mAnimatedClass->mAnimationTriggers[i].mTriggerPoint, mBone))
             {
                 continue;
             }
-            PblMatrix mWorld;
-            mWorld = mBone * mMatrix;
+            const PblMatrix mWorld = mBone * mMatrix;
 
             GameObject* apUnits[20];
             int iCount;
             if (NetGame::IsEnabled() && netEnabledNext && netClientActive)
             {
-                iCount = NetGame::GetObjectsInRange(mWorld.GetTranslation(), rTrigger.mTriggerRadius, apUnits, 20, 0,
+                iCount = NetGame::GetObjectsInRange(mWorld.GetTranslation(),
+                                    mAnimatedClass->mAnimationTriggers[i].mTriggerRadius, apUnits, 20, 0,
                                     COLL_SOFT);
             }
             else
             {
-                iCount = ControllerManager::GetUnitsInRange(mWorld.GetTranslation(), rTrigger.mTriggerRadius,
+                iCount = ControllerManager::GetUnitsInRange(mWorld.GetTranslation(),
+                                                            mAnimatedClass->mAnimationTriggers[i].mTriggerRadius,
                                                             apUnits, 20, 0, AI::AFFIL_ALL);
             }
-            for (int j = 0; j < iCount; ++j)
+            if (iCount > 0)
             {
-                if (apUnits[j]->GetObjectData(0) == 2)
+                for (int j = 0; j < iCount; ++j)
                 {
-                    bTriggered = true;
-                    break;
+                    if (apUnits[j]->GetObjectData(0) == 2)
+                    {
+                        bTriggered = true;
+                        break;
+                    }
                 }
             }
         }
@@ -457,11 +456,12 @@ void EntityDoor::BeginIter()
 // FUNCTION: SWBF2 0x00498ea0
 EntityDoor* EntityDoor::GetCurrentIter()
 {
-    if (msDoorIter == mspDoors->End())
+    EntityDoor* pDoor = msDoorIter;
+    if (pDoor != mspDoors->End())
     {
-        return 0;
+        return pDoor;
     }
-    return msDoorIter;
+    return 0;
 }
 
 // FUNCTION: SWBF2 0x00498ed0
@@ -479,10 +479,7 @@ EntityDoorClass::EntityDoorClass(EntityDoorClass* pBase, unsigned int uHash)
 {
     mAnimObj = pBase->mAnimObj;
     mAnimation = pBase->mAnimation;
-    for (int i = 0; i < 3; i++)
-    {
-        mAnimationTriggers[i] = pBase->mAnimationTriggers[i];
-    }
+    memcpy(mAnimationTriggers, pBase->mAnimationTriggers, sizeof(mAnimationTriggers));
 }
 
 // FUNCTION: SWBF2 0x00499020
@@ -494,7 +491,7 @@ EntityDoorClass::~EntityDoorClass()
 bool EntityDoorClass::InitAnimations(const char* pszName)
 {
     mAnimObj = RedAnimation::Find(PblHash(pszName));
-    return mAnimObj != 0;
+    return mAnimObj ? true : false;
 }
 
 // FUNCTION: SWBF2 0x00499070
@@ -519,23 +516,22 @@ void EntityDoorClass::SetProperty(unsigned int uProperty, const char* pszValue)
         char acName[256];
         float fRadius;
         sscanf(pszValue, "%s %f", acName, &fRadius);
-        int i = 0;
-        while (mAnimationTriggers[i].mTriggerPoint)
+        for (int i = 0; i < 3; i++)
         {
-            if (++i >= 3)
+            if (!mAnimationTriggers[i].mTriggerPoint)
             {
-                return;
+                mAnimationTriggers[i].mTriggerPoint = PblTEMPHash(acName);
+                mAnimationTriggers[i].mTriggerRadius = fRadius;
+                break;
             }
         }
-        mAnimationTriggers[i].mTriggerPoint = PblTEMPHash(acName);
-        mAnimationTriggers[i].mTriggerRadius = fRadius;
         break;
     }
 
     case 0xe145ee5d:
         if (mAnimObj)
         {
-            mAnimation = mAnimObj->FindAnimation(pszValue);
+            mAnimation = (ZephyrAnim*)mAnimObj->FindAnimation(pszValue);
         }
         break;
 

@@ -68,15 +68,14 @@ unsigned char Threat::GetPriority(float fTime, Controllable* pMe) const
 
     const PblMatrix& mMe = pMe->GetMatrix();
     const PblVector3& vHim = mThreatObject->GetPosition();
-    PblVector3 vToMe(mMe.GetTranslation().x - vHim.x, mMe.GetTranslation().y - vHim.y,
-                     mMe.GetTranslation().z - vHim.z);
+    const PblVector3 vToMe = mMe.GetTranslation() - vHim;
     PblVector3 vDir;
     D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vToMe));
 
     if (pMe->GetEntity()->IsRtti(EntityFlyer::rttiHashEntityFlyer))
     {
         const PblVector3& vFwd = mMe.GetZAxis();
-        if (-vDir.x * vFwd.x + -vDir.y * vFwd.y + -vDir.z * vFwd.z <= 0.0f)
+        if (DotProduct(-vDir, vFwd) <= 0.0f)
         {
             return 0;
         }
@@ -99,21 +98,9 @@ unsigned char Threat::GetPriority(float fTime, Controllable* pMe) const
     else
     {
         const PblVector3& vHisFwd = mThreatObject->GetMatrix().GetZAxis();
-        float fFacing = vDir.x * vHisFwd.x + vDir.y * vHisFwd.y + vDir.z * vHisFwd.z;
-        float fMin = AIDifficulty::GetPlayerThreatAngle() * 2.0f - 1.0f;
-        if (fMin < 0.0f)
-        {
-            fMin = 0.0f;
-        }
-        float fScale = (fFacing - 0.6f) / 0.4f;
-        if (fScale < fMin)
-        {
-            fScale = fMin;
-        }
-        else if (fScale > 1.0f)
-        {
-            fScale = 1.0f;
-        }
+        float fFacing = DotProduct(vHisFwd, vDir);
+        float fMin = Max(0.0f, AIDifficulty::GetPlayerThreatAngle() * 2.0f - 1.0f);
+        const float fScale = Clamp((fFacing - 0.6f) / 0.4f, fMin, 1.0f);
         iVisual = (int)((float)iVisual * fScale);
     }
 
@@ -121,8 +108,8 @@ unsigned char Threat::GetPriority(float fTime, Controllable* pMe) const
     {
         for (PblList<FlagItem>::Itor it(*FlagItem::sList); (FlagItem*)it; ++it)
         {
-            if (reinterpret_cast<EntityItem*>((FlagItem*)it)->mOwner ==
-                mThreatObject->mControllableList.GetFirst()->_pObject->mCharacter)
+            const Character* pOwner = reinterpret_cast<EntityItem*>((FlagItem*)it)->mOwner;
+            if (pOwner == mThreatObject->mControllableList.GetFirst()->_pObject->mCharacter)
             {
                 iVisual = 100;
                 break;
@@ -182,7 +169,7 @@ void UnitThreatManager::Update(float dt, UnitController* pCtrl)
         if (iBest != mVisibleObjectIndex)
         {
             mLastVisObjUpdateTime = fTime;
-            if ((unsigned int)iBest >= MAX_THREATS || mVisibleObjectIndex < 0 ||
+            if ((unsigned int)iBest > MAX_THREATS - 1 || mVisibleObjectIndex < 0 ||
                 mVisibleObjectIndex >= MAX_THREATS)
             {
                 mVisibleObjectIndex = iBest;
@@ -190,8 +177,8 @@ void UnitThreatManager::Update(float dt, UnitController* pCtrl)
             else
             {
                 Controllable* pMe = mMyCtrl->mOwner;
-                unsigned char uCur = mThreats[mVisibleObjectIndex].GetPriority(fTime, pMe);
-                if (mThreats[iBest].GetPriority(fTime, pMe) > uCur + 10)
+                int iCurPriority = mThreats[mVisibleObjectIndex].GetPriority(fTime, pMe) + 10;
+                if (mThreats[iBest].GetPriority(fTime, pMe) > iCurPriority)
                 {
                     mVisibleObjectIndex = iBest;
                 }
@@ -325,8 +312,8 @@ void UnitThreatManager::UpdateThreat(GameObject* pObj, ThreatStatus eStatus)
         }
         if (iWorst >= 0)
         {
-            mThreats[iWorst].Reset();
             iIndex = iWorst;
+            mThreats[iIndex].Reset();
         }
         if (iIndex < 0)
         {
@@ -381,13 +368,19 @@ bool UnitThreatManager::ShouldRaytestUnit(const GameObject* pObj) const
         {
             return true;
         }
+        bool bVisPlayer = false;
         Controllable* pVisCtl = pVisible->GetFirstControllable();
-        if (pVisCtl && pVisCtl->mCtrl && PlayerControllerPtr(pVisCtl->mCtrl))
+        if (pVisCtl && pVisCtl->mCtrl)
+        {
+            bVisPlayer = PlayerControllerPtr(pVisCtl->mCtrl) != 0;
+        }
+        if (bVisPlayer)
         {
             return false;
         }
     }
-    return TimeSinceLastRaytest(pObj) >= fRaytestInterval[mMyCtrl->mLodState];
+    const int iLodState = mMyCtrl->mLodState;
+    return TimeSinceLastRaytest(pObj) >= fRaytestInterval[iLodState];
 }
 
 }

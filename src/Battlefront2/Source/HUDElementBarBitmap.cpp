@@ -92,9 +92,8 @@ HUD::ElementBarBitmap::ElementBarBitmap(const char* const pName, HUD::Item::Fact
 
     mFlashyBit.SetWriteEnabled(false);
     mFlashyBit.SetDynamicallyAllocated(false);
-    RedBitmapElement& rFlashy = mFlashyBit;
-    rFlashy.SetTexture(0xDE020766u);
-    rFlashy.SetColor(RedColor::WHITE);
+    mFlashyBit.SetTexture(0xDE020766u);
+    mFlashyBit.SetColor(RedColor::WHITE);
     mFlashyBit.mFader.SetPhaseTime(HUD::Envelope::phase_Hold, 0.0f);
     mFlashyBit.mFader.SetPhaseTime(HUD::Envelope::phase_Sustain, 0.0f);
     mEventDisable.Init(EventDisable, this);
@@ -119,9 +118,8 @@ void HUD::ElementBarBitmap::PostReadSetup()
 // FUNCTION: SWBF2 0x0054b390
 void HUD::ElementBarBitmap::RefreshFlashyBit()
 {
-    RedBitmapElement& rFlashy = mFlashyBit;
     RedGroupElement* pGroup = RedBitmapElement::GetGroup();
-    RedGroupElement* pFlashyGroup = rFlashy.GetGroup();
+    RedGroupElement* pFlashyGroup = mFlashyBit.GetGroup();
     if (pGroup != pFlashyGroup)
     {
         if (pFlashyGroup)
@@ -133,16 +131,17 @@ void HUD::ElementBarBitmap::RefreshFlashyBit()
             pGroup->AddElement(&mFlashyBit);
         }
     }
-    rFlashy.SetMatrix(m_mLocal);
+    mFlashyBit.RedBitmapElement::SetMatrix(m_mLocal);
     mFlashyBit.mAlpha = mAlpha;
-    rFlashy.SetZOrder(m_zorder ? m_zorder - 1 : 0);
-    rFlashy.SetBlendMode(GetBlendMode());
+    const unsigned char uZOrder = m_zorder;
+    mFlashyBit.SetZOrder(uZOrder ? uZOrder - 1 : 0);
+    mFlashyBit.SetBlendMode(GetBlendMode());
     mFlashyBit.mFader.SetPhaseTime(HUD::Envelope::phase_Release,
                                    mIncreasedValue ? mFlashyIncFadeOutTime : mFlashyDecFadeOutTime);
     const RedTexture* pTexture = GetTexture();
     if (pTexture)
     {
-        rFlashy.SetTexture(pTexture->GetName());
+        mFlashyBit.SetTexture(pTexture->GetName());
     }
 }
 
@@ -186,19 +185,16 @@ void HUD::ElementBarBitmap::Update(const float fElapsed)
     float fFlashyLeft, fFlashyTop, fFlashyRight, fFlashyBottom;
     mFlashyBit.RedBitmapElement::GetRect(fFlashyLeft, fFlashyTop, fFlashyRight, fFlashyBottom);
 
-    float fT = 0.0f;
+    float fFade;
     if (mFlashyBit.mFader.GetPhase() == HUD::Envelope::phase_Release)
     {
-        fT = mFlashyBit.mFader.GetElapsed();
-        if (fT < 0.0f)
-        {
-            fT = 0.0f;
-        }
-        else if (fT > 1.0f)
-        {
-            fT = 1.0f;
-        }
+        fFade = mFlashyBit.mFader.GetElapsed();
     }
+    else
+    {
+        fFade = 0.0f;
+    }
+    const float fT = fFade < 0.0f ? 0.0f : (fFade > 1.0f ? 1.0f : fFade);
 
     mFlashyBit.RedBitmapElement::SetRect(
         fFlashyLeft, fFlashyBottom - ((fBottom - fTop) * (1.0f - fT) + mFlashyScale * fT), fFlashyRight,
@@ -239,7 +235,11 @@ bool HUD::ElementBarBitmap::SetProperty(const unsigned int uHashID, const void* 
     case 0x1ffad2e0u: mBarU1 = ((const float*)pValue)[2]; break;
     case 0x967ad461u: mBarWidth = *(const float*)pValue; break;
     }
-    return ElementBitmapBase::SetProperty(uHashID, pValue) || ElementBar::SetProperty(uHashID, pValue);
+    if (!ElementBitmapBase::SetProperty(uHashID, pValue) && !ElementBar::SetProperty(uHashID, pValue))
+    {
+        return false;
+    }
+    return true;
 }
 
 // SYNTHETIC: SWBF2 0x0054b7a3
@@ -255,7 +255,11 @@ bool HUD::ElementBarBitmap::GetProperty(const unsigned int uHashID, void* const 
     case kScaleTexture: *(bool*)pValue = mScaleTex; return true;
     case kScaleSize: *(bool*)pValue = mScaleSize; return true;
     }
-    return ElementBitmapBase::GetProperty(uHashID, pValue) || ElementBar::GetProperty(uHashID, pValue);
+    if (!ElementBitmapBase::GetProperty(uHashID, pValue) && !ElementBar::GetProperty(uHashID, pValue))
+    {
+        return false;
+    }
+    return true;
 }
 
 // FUNCTION: SWBF2 0x0054ae90
@@ -270,20 +274,20 @@ void HUD::ElementBarBitmap::GetSize(float& rfWidth, float& rfHeight)
 // FUNCTION: SWBF2 0x0054b580
 void HUD::ElementBarBitmap::WriteData(HUD::File& file, unsigned int uTabs)
 {
-    float fU0, fV0, fU1, fV1;
-    RedBitmapElement::GetTexCoords(fU0, fV0, fU1, fV1);
-    RedBitmapElement::SetTexCoords(fU0, fV0, mBarU1, fV1, false);
+    RedBitmapElement* const pBitmap = (RedBitmapElement*)mElement;
+    float fX0, fY0, fX1, fY1;
+    pBitmap->GetTexCoords(fX0, fY0, fX1, fY1);
+    pBitmap->SetTexCoords(fX0, fY0, mBarU1, fY1, false);
     file.WriteProperty("ScaleSize", uTabs, (int)mScaleSize, 1);
     file.WriteProperty("ScaleTexture", uTabs, (int)mScaleTex, 1);
     file.WriteProperty("FlashyScale", uTabs, mFlashyScale, 0.2f);
     file.WriteProperty("FlashyIncFadeOutTime", uTabs, mFlashyIncFadeOutTime, 0.0f);
     file.WriteProperty("FlashyDecFadeOutTime", uTabs, mFlashyDecFadeOutTime, 0.0f);
     ElementBar::WriteData(file, uTabs);
-    float fLeft, fTop, fRight, fBottom;
-    RedBitmapElement::GetRect(fLeft, fTop, fRight, fBottom);
-    RedBitmapElement::SetRect(fLeft, fTop, fLeft + mBarWidth, fBottom);
+    pBitmap->GetRect(fX0, fY0, fX1, fY1);
+    pBitmap->SetRect(fX0, fY0, fX0 + mBarWidth, fY1);
     ElementBitmapBase::WriteData(file, uTabs);
-    RedBitmapElement::SetRect(fLeft, fTop, fRight, fBottom);
+    pBitmap->SetRect(fX0, fY0, fX1, fY1);
 }
 
 // FUNCTION: SWBF2 0x0054b070
@@ -293,7 +297,7 @@ float HUD::ElementBarBitmap::SetValue(const float fValue)
     const float fOldValue = mValue;
     const float fNewValue = HUD::ElementBar::SetValue(fValue);
 
-    if ((float)fabs((double)(fOldValue - fNewValue)) > 0.0001f)
+    if (fabsf(fOldValue - fNewValue) > 0.0001f)
     {
         float fU0, fV0, fU1, fV1;
         pBitmap->GetTexCoords(fU0, fV0, fU1, fV1);

@@ -45,26 +45,28 @@ unsigned int __cdecl DSBuffer::CreateBuffers(bool b3D, bool bProperties,
                                              unsigned int uiCount,
                                              IDirectSound* pDirectSound)
 {
-    Engine::smErrorsEnabled = false;
     unsigned int uiCreated = 0;
-    const unsigned int uiBaseFlags = uiFlags | (b3D ? DSBCAPS_CTRL3D : DSBCAPS_CTRLPAN)
-                                           | 0x100A0;
-    IDirectSound* pDevice = pDirectSound ? pDirectSound : (IDirectSound*)Engine::smDirectSound;
+    if (!pDirectSound)
+    {
+        pDirectSound = (IDirectSound*)Engine::smDirectSound;
+    }
+    Engine::smErrorsEnabled = false;
 
     do
     {
         DSBuffer& rBuffer = pBuffers[uiCreated];
-        const bool bSetupEffects = b3D && pDevice == (IDirectSound*)Engine::smDirectSound
+        const bool bSetupEffects = b3D && (IDirectSound*)Engine::smDirectSound == pDirectSound
                                    && Engine::smHardwareEffectsAvailable;
         const unsigned int uiChannels = b3D ? 1 : (bProperties ? 2 : 1);
         WaveFormat format(SampleInfo::format_PCM16, uiChannels, 44100, !b3D, 0);
 
-        unsigned int uiBufferFlags = uiBaseFlags;
+        unsigned int uiBufferFlags = uiFlags | (b3D ? DSBCAPS_CTRL3D : DSBCAPS_CTRLPAN)
+                                     | 0x100A0;
+        rBuffer.mDirectSound = (IDirectSound*)Engine::smDirectSound;
         if ((uiBufferFlags & (DSBCAPS_LOCHARDWARE | DSBCAPS_LOCSOFTWARE)) == 0)
         {
             uiBufferFlags |= DSBCAPS_LOCDEFER;
         }
-        rBuffer.mDirectSound = (IDirectSound*)Engine::smDirectSound;
         if (uiBufferFlags & DSBCAPS_LOCDEFER)
         {
             rBuffer.mResourcesAcquired = 0;
@@ -81,9 +83,9 @@ unsigned int __cdecl DSBuffer::CreateBuffers(bool b3D, bool bProperties,
         desc.dwBufferBytes = 4;
         desc.lpwfxFormat = &format.Format;
         desc.guid3DAlgorithm = DS3DALG_DEFAULT;
-        HRESULT hr = rBuffer.mDirectSound->CreateSoundBuffer(
-            &desc, (IDirectSoundBuffer**)&rBuffer.mBuffer, 0);
-        if (!Engine::Succeeded(hr, "source\\win\\snddsbuffer.cpp", 222))
+        if (!Engine::Succeeded(rBuffer.mDirectSound->CreateSoundBuffer(
+                                   &desc, (IDirectSoundBuffer**)&rBuffer.mBuffer, 0),
+                               "source\\win\\snddsbuffer.cpp", 222))
         {
             rBuffer.mResourcesAcquired = 0;
             rBuffer.Destroy();
@@ -92,9 +94,10 @@ unsigned int __cdecl DSBuffer::CreateBuffers(bool b3D, bool bProperties,
 
         if (b3D)
         {
-            hr = rBuffer.mBuffer->QueryInterface(IID_IDirectSound3DBuffer,
-                                                  (void**)&rBuffer.mBuffer3D);
-            if (!Engine::Succeeded(hr, "source\\win\\snddsbuffer.cpp", 244))
+            if (!Engine::Succeeded(rBuffer.mBuffer->QueryInterface(
+                                       IID_IDirectSound3DBuffer,
+                                       (void**)&rBuffer.mBuffer3D),
+                                   "source\\win\\snddsbuffer.cpp", 244))
             {
                 rBuffer.Destroy();
                 break;
@@ -271,8 +274,9 @@ bool DSBuffer::Create(SampleInfo::Format eFormat, unsigned int uiNumChannels,
 {
     WaveFormat format(eFormat, uiNumChannels, uiSampleRate, !b3D, ulChannelMask);
 
-    mDirectSound = pDirectSound ? pDirectSound
-                                : (IDirectSound*)Engine::smDirectSound;
+    IDirectSound* pSound = pDirectSound ? pDirectSound
+                                        : (IDirectSound*)Engine::smDirectSound;
+    mDirectSound = pSound;
 
     unsigned int uiBufferFlags;
     unsigned int uiBufferBytes;
@@ -291,9 +295,9 @@ bool DSBuffer::Create(SampleInfo::Format eFormat, unsigned int uiNumChannels,
     else
     {
         uiBufferFlags = uiFlags
-                      | (b3D ? DSBCAPS_CTRL3D : DSBCAPS_CTRLPAN)
-                      | DSBCAPS_GETCURRENTPOSITION2 | DSBCAPS_CTRLVOLUME
-                      | DSBCAPS_CTRLFREQUENCY;
+                      | ((b3D ? DSBCAPS_CTRL3D : DSBCAPS_CTRLPAN)
+                         | DSBCAPS_GETCURRENTPOSITION2 | DSBCAPS_CTRLVOLUME
+                         | DSBCAPS_CTRLFREQUENCY);
         if ((uiBufferFlags & (DSBCAPS_LOCHARDWARE | DSBCAPS_LOCSOFTWARE)) == 0)
         {
             uiBufferFlags |= DSBCAPS_LOCDEFER;
@@ -314,10 +318,9 @@ bool DSBuffer::Create(SampleInfo::Format eFormat, unsigned int uiNumChannels,
 
     desc.guid3DAlgorithm = DS3DALG_DEFAULT;
 
-    HRESULT hr = mDirectSound->CreateSoundBuffer(
-        &desc, (IDirectSoundBuffer**)&mBuffer, 0);
-
-    if (!Engine::Succeeded(hr, "source\\win\\snddsbuffer.cpp", 222))
+    if (!Engine::Succeeded(pSound->CreateSoundBuffer(
+                               &desc, (IDirectSoundBuffer**)&mBuffer, 0),
+                           "source\\win\\snddsbuffer.cpp", 222))
     {
         mResourcesAcquired = 0;
         Destroy();
@@ -335,9 +338,9 @@ bool DSBuffer::Create(SampleInfo::Format eFormat, unsigned int uiNumChannels,
 
     if (b3D && !bPrimary)
     {
-        hr = mBuffer->QueryInterface(IID_IDirectSound3DBuffer,
-                                     (void**)&mBuffer3D);
-        if (!Engine::Succeeded(hr, "source\\win\\snddsbuffer.cpp", 244))
+        if (!Engine::Succeeded(mBuffer->QueryInterface(IID_IDirectSound3DBuffer,
+                                                       (void**)&mBuffer3D),
+                               "source\\win\\snddsbuffer.cpp", 244))
         {
             Destroy();
             return false;
@@ -451,11 +454,11 @@ bool DSBuffer::GetFormat(SampleInfo::Format& reFormat,
             if (Engine::Succeeded(mBuffer->GetFormat(pwfx, dwSize, 0),
                                   "source\\win\\snddsbuffer.cpp", 763))
             {
-                bResult = true;
                 reFormat = (pwfx->wBitsPerSample == 8) ? SampleInfo::format_PCM8
                                                        : SampleInfo::format_PCM16;
                 ruiNumChannels = pwfx->nChannels;
                 ruiSampleRate = pwfx->nSamplesPerSec;
+                bResult = true;
             }
             FreeTemp(pwfx);
         }
@@ -467,7 +470,13 @@ bool DSBuffer::GetFormat(SampleInfo::Format& reFormat,
 // FUNCTION: SWBF2 0x00744540
 unsigned long DSBuffer::GetStatus()
 {
+    DSBCAPS caps;
     DWORD dwStatus;
+    DWORD dwBytes1;
+    DWORD dwBytes2;
+    void* pAudio1;
+    void* pAudio2;
+
     mBuffer->GetStatus(&dwStatus);
 
     if ((dwStatus & DSBSTATUS_BUFFERLOST) != 0)
@@ -476,15 +485,10 @@ unsigned long DSBuffer::GetStatus()
 
         if (mBuffer->Restore() >= 0)
         {
-            DSBCAPS caps;
             memset(&caps, 0, sizeof(caps));
             caps.dwSize = sizeof(DSBCAPS);
             mBuffer->GetCaps(&caps);
 
-            void* pAudio1 = 0;
-            void* pAudio2 = 0;
-            DWORD dwBytes1 = 0;
-            DWORD dwBytes2 = 0;
             HRESULT hr = mBuffer->Lock(0, caps.dwBufferBytes, &pAudio1,
                                        &dwBytes1, &pAudio2, &dwBytes2, 0);
             if (Engine::Succeeded(hr, "source\\win\\snddsbuffer.cpp", 810))
@@ -651,14 +655,15 @@ void DSBuffer::SetFrequency(unsigned int uiFrequency)
 
         mFrequency += (mTargetFrequency - mFrequency) >> 8;
 
+        const int iMaxHz = (int)Engine::smSecBufSampleRateMax;
         int iHz = (int)(mFrequency >> 32);
         if (iHz < 100)
         {
             iHz = 100;
         }
-        else if (iHz > (int)Engine::smSecBufSampleRateMax)
+        else if (iHz > iMaxHz)
         {
-            iHz = (int)Engine::smSecBufSampleRateMax;
+            iHz = iMaxHz;
         }
 
         mBuffer->SetFrequency(iHz);
@@ -674,20 +679,21 @@ void DSBuffer::SetFrequency(unsigned int uiFrequency)
 
     mInterpolation = (unsigned char)(ucInterpolation & ~0x02);
 
+    const int iMaxHz = (int)Engine::smSecBufSampleRateMax;
     int iHz = (int)uiFrequency;
     if (iHz < 100)
     {
         iHz = 100;
     }
-    else if (iHz > (int)Engine::smSecBufSampleRateMax)
+    else if (iHz > iMaxHz)
     {
-        iHz = (int)Engine::smSecBufSampleRateMax;
+        iHz = iMaxHz;
     }
 
     mBuffer->SetFrequency(iHz);
 
     mFrequency = (__int64)uiFrequency << 32;
-    mTargetFrequency = mFrequency;
+    mTargetFrequency = (__int64)uiFrequency << 32;
 }
 
 // FUNCTION: SWBF2 0x00744ae0
@@ -758,6 +764,7 @@ void DSBuffer::SetGain(float fGain)
 // FUNCTION: SWBF2 0x00744c20
 void DSBuffer::SetPan(float fPan) const
 {
+    int iPan = 0;
     if (!mBuffer)
     {
         return;
@@ -767,20 +774,18 @@ void DSBuffer::SetPan(float fPan) const
         return;
     }
 
-    if (fPan == 0.0f)
+    if (fPan != 0.0f)
     {
-        mBuffer->SetPan(0);
-        return;
+        if (fPan < 0.0f)
+        {
+            iPan = ConvertLinearToLog(fPan + 1.0f);
+        }
+        else
+        {
+            iPan = -ConvertLinearToLog(1.0f - fPan);
+        }
     }
-
-    if (fPan < 0.0f)
-    {
-        mBuffer->SetPan(ConvertLinearToLog(fPan + 1.0f));
-    }
-    else
-    {
-        mBuffer->SetPan(-ConvertLinearToLog(1.0f - fPan));
-    }
+    mBuffer->SetPan(iPan);
 }
 
 // FUNCTION: SWBF2 0x00744ca0
@@ -849,41 +854,40 @@ bool DSBuffer::Set3DParams(DS3DBUFFER& rParams, bool bDeferred) const
 {
     DWORD dwApply = bDeferred ? DS3D_DEFERRED : DS3D_IMMEDIATE;
 
-    if (mBuffer3D->SetAllParameters(&rParams, dwApply) >= 0)
+    if (mBuffer3D->SetAllParameters(&rParams, dwApply) < 0)
     {
-        return true;
+        bool bResult = true;
+
+        HRESULT hr = mBuffer3D->SetMinDistance(rParams.flMinDistance, dwApply);
+        bResult &= Engine::Succeeded(hr, "source\\win\\snddsbuffer.cpp", 544);
+
+        hr = mBuffer3D->SetMaxDistance(rParams.flMaxDistance, dwApply);
+        bResult &= Engine::Succeeded(hr, "source\\win\\snddsbuffer.cpp", 546);
+
+        hr = mBuffer3D->SetPosition(rParams.vPosition.x, rParams.vPosition.y,
+                                    rParams.vPosition.z, dwApply);
+        bResult &= Engine::Succeeded(hr, "source\\win\\snddsbuffer.cpp", 550);
+
+        hr = mBuffer3D->SetVelocity(rParams.vVelocity.x, rParams.vVelocity.y,
+                                    rParams.vVelocity.z, dwApply);
+        bResult &= Engine::Succeeded(hr, "source\\win\\snddsbuffer.cpp", 554);
+
+        hr = mBuffer3D->SetConeAngles(rParams.dwInsideConeAngle,
+                                      rParams.dwOutsideConeAngle, dwApply);
+        bResult &= Engine::Succeeded(hr, "source\\win\\snddsbuffer.cpp", 558);
+
+        hr = mBuffer3D->SetConeOrientation(rParams.vConeOrientation.x,
+                                           rParams.vConeOrientation.y,
+                                           rParams.vConeOrientation.z, dwApply);
+        bResult &= Engine::Succeeded(hr, "source\\win\\snddsbuffer.cpp", 563);
+
+        hr = mBuffer3D->SetConeOutsideVolume(rParams.lConeOutsideVolume, dwApply);
+        bResult &= Engine::Succeeded(hr, "source\\win\\snddsbuffer.cpp", 566);
+
+        return bResult;
     }
 
-    bool bResult = Engine::Succeeded(
-        mBuffer3D->SetMinDistance(rParams.flMinDistance, dwApply), "source\\win\\snddsbuffer.cpp", 544);
-
-    bResult &= Engine::Succeeded(
-        mBuffer3D->SetMaxDistance(rParams.flMaxDistance, dwApply), "source\\win\\snddsbuffer.cpp", 546);
-
-    bResult &= Engine::Succeeded(
-        mBuffer3D->SetPosition(rParams.vPosition.x, rParams.vPosition.y,
-                               rParams.vPosition.z, dwApply), "source\\win\\snddsbuffer.cpp", 550);
-
-    bResult &= Engine::Succeeded(
-        mBuffer3D->SetVelocity(rParams.vVelocity.x, rParams.vVelocity.y,
-                               rParams.vVelocity.z, dwApply), "source\\win\\snddsbuffer.cpp", 554);
-
-    bResult &= Engine::Succeeded(
-        mBuffer3D->SetConeAngles(rParams.dwInsideConeAngle,
-                                 rParams.dwOutsideConeAngle, dwApply),
-        "source\\win\\snddsbuffer.cpp", 558);
-
-    bResult &= Engine::Succeeded(
-        mBuffer3D->SetConeOrientation(rParams.vConeOrientation.x,
-                                      rParams.vConeOrientation.y,
-                                      rParams.vConeOrientation.z, dwApply),
-        "source\\win\\snddsbuffer.cpp", 563);
-
-    bResult &= Engine::Succeeded(
-        mBuffer3D->SetConeOutsideVolume(rParams.lConeOutsideVolume, dwApply),
-        "source\\win\\snddsbuffer.cpp", 566);
-
-    return bResult;
+    return true;
 }
 
 }

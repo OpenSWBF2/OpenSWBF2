@@ -150,15 +150,10 @@ static void ReleaseMutex()
 // FUNCTION: SWBF2 0x006171b0
 void Startup_InitApplicationMemory()
 {
-    pcCrash::ReserveLowAddressSpace();
-    s_memoryArena = malloc(0x4000000);
-    if (!s_memoryArena || pcCrash::SimulateAllocFailure("arenaoom"))
-    {
-        pcCrash::FatalInit("arena", 0x4000000);
-    }
+    char* pArena = (char*)malloc(0x4000000);
+    s_memoryArena = pArena;
 
-    GameMemory::InitApplicationMemory((char*)s_memoryArena,
-                                      (char*)s_memoryArena + 0x4000000);
+    GameMemory::InitApplicationMemory(pArena, pArena + 0x4000000);
 }
 
 // FUNCTION: SWBF2 0x006171d0
@@ -323,7 +318,7 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
             {
                 SoundEnable(true);
             }
-            break;
+            return DefWindowProcA(hWnd, WM_SYSCOMMAND, wParam, lParam);
 
         case SC_CLOSE:
             gIsQuitting = true;
@@ -501,13 +496,21 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
         }
     }
 
-    GameState::SetState(GameLoop::mMissionScript[0] ? 0x8FF60339 : 0x11E1FC01);
+    if (GameLoop::mMissionScript[0])
+    {
+        GameState::SetState(0x8FF60339);
+    }
+    else
+    {
+        GameState::SetState(0x11E1FC01);
+    }
 
     if (g_bNoRender || bDedicated)
     {
         strcat(appName, " Dedicated");
     }
 
+    MSG msg;
     WNDCLASSA wc;
     wc.style = CS_BYTEALIGNCLIENT | CS_OWNDC | CS_DBLCLKS | CS_HREDRAW | CS_VREDRAW;
     wc.lpfnWndProc = WindowProc;
@@ -537,24 +540,13 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
     const unsigned long ulClientW = pcWidth ? pcWidth : 800;
     const unsigned long ulClientH = pcHeight ? pcHeight : 600;
 
-    DisplayLogic::Rect monitor = {0, 0, 0, 0};
-    DisplayLogic::Rect work = {0, 0, 0, 0};
-    DisplayLogic::Rect rc;
-    if (!g_bNoRender && PcWindow::PrimaryMonitorRects(monitor, work))
-    {
-        DisplayLogic::Frame frame = PcWindow::MeasureFrame(ws.style, ws.exStyle, 0);
-        rc = DisplayLogic::PlaceWindow(eMode, monitor, work, ulClientW, ulClientH, frame);
-    }
-    else
-    {
-        RECT rcAdj;
-        SetRect(&rcAdj, 0, 0, ulClientW, ulClientH);
-        AdjustWindowRect(&rcAdj, ws.style, FALSE);
-        rc.l = 0;
-        rc.t = 0;
-        rc.r = rcAdj.right - rcAdj.left;
-        rc.b = rcAdj.bottom - rcAdj.top;
-    }
+    RECT rcDesktop;
+    GetClientRect(GetDesktopWindow(), &rcDesktop);
+
+    int nWidth = rc.right - rc.left;
+    int nHeight = rc.bottom - rc.top;
+    int X = (rcDesktop.right - nWidth + rcDesktop.left) / 2;
+    int Y = (rcDesktop.bottom - nHeight + rcDesktop.top) / 2;
 
     char szTitle[264];
     strcpy(szTitle, "Star Wars Battlefront II");
@@ -564,17 +556,10 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
         strcat(szTitle, autoNetSession);
     }
 
+    HWND hWnd = CreateWindowExA(dwExStyle, appName, "Star Wars Battlefront II", dwStyle,
+                                X, Y, nWidth, nHeight, 0, 0, hInstance, 0);
     hGlobalInstance = hInstance;
-    hGlobalWnd = CreateWindowExA(ws.exStyle, appName, "Star Wars Battlefront II", ws.style,
-                                 rc.l, rc.t, rc.r - rc.l, rc.b - rc.t,
-                                 g_bNoRender ? HWND_MESSAGE : 0, 0, hInstance, 0);
-    RedRenderer::pcSeedDisplayMode(eMode);
-
-    if (pcEnableLogging)
-    {
-        LOG(LogCore, Inform, "OPENSWBF2 DPI awareness=%s dpi=%u",
-            DisplayLogic::DpiLevelName(PcWindow::GetDpiLevel()), PcWindow::QueryDpi(hGlobalWnd));
-    }
+    hGlobalWnd = hWnd;
 
     if (pcPostInstall)
     {
@@ -588,56 +573,48 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
         return 0;
     }
 
-    FrameLimiter::Init(g_bNoRender);
+    GetDeviceGammaRamp(GetDC(hGlobalWnd), &s_originalGammaRamp);
+    SetICMMode(GetDC(hGlobalWnd), ICM_OFF);
 
-    if (!g_bNoRender)
-    {
-        SetICMMode(GetDC(hGlobalWnd), ICM_ON);
-    }
-
-    MSG msg;
     bool bActive = true;
     msg.message = 0;
     PeekMessageA(&msg, 0, 0, 0, PM_NOREMOVE);
-    if (msg.message != WM_QUIT)
+    while (msg.message != WM_QUIT)
     {
-        MessageDrain::DrainOps ops;
-        ops.Peek = DrainPeek;
-        ops.Dispatch = DrainDispatch;
-        ops.Now = DrainNow;
-        ops.pCtx = 0;
-        LARGE_INTEGER iFreq;
-        QueryPerformanceFrequency(&iFreq);
-        const __int64 iDrainTicks = iFreq.QuadPart * MessageDrain::kMaxMsPerPass / 1000;
-
-        for (;;)
+        bool bAppActive = gAppActive;
+        if (bActive != bAppActive)
         {
-            MessageDrain::DrainResult r =
-                MessageDrain::DrainMessages(ops, MessageDrain::kMaxMsgsPerPass, iDrainTicks);
-            if (r.bQuit)
+            bActive = bAppActive;
+
+            ActivateFrontline(bAppActive);
+        }
+
+        bool bMessage = PeekMessageA(&msg, 0, 0, 0, PM_REMOVE) != 0;
+        if (bActive)
+        {
+            if (bMessage)
             {
-                break;
+                TranslateMessage(&msg);
+                DispatchMessageA(&msg);
             }
-
-            if (bActive != gAppActive && !gNoFocusPause)
+            else if (!GameState::Update())
             {
-                bActive = gAppActive;
-
-                ActivateFrontline(bActive);
+                SendMessageA(hGlobalWnd, WM_CLOSE, 0, 0);
             }
-
-            if (!bActive)
+        }
+        else
+        {
+            if (bMessage)
             {
                 Sleep(10);
             }
             if (!GameState::Update())
             {
-                SendMessageA(hGlobalWnd, WM_CLOSE, 0, 0);
-            }
-            if (sCloseDeferred && !gLoading)
-            {
-                sCloseDeferred = false;
-                PostMessageA(hGlobalWnd, WM_CLOSE, 0, 0);
+                Sleep(10);
+                if (!GameState::Update())
+                {
+                    SendMessageA(hGlobalWnd, WM_CLOSE, 0, 0);
+                }
             }
         }
     }

@@ -193,8 +193,7 @@ void EntityClass::Read(PblFileChunk& chunk)
         case 0x504F5250:
         {
             const unsigned int uProperty = child._pFile->Read32();
-            char* pcValue = child.ReadString(acBuffer, sizeof(acBuffer));
-            OdfValue::Sanitize(uProperty, pcValue);
+            const char* pcValue = child.ReadString(acBuffer, sizeof(acBuffer));
             pClass->SetProperty(uProperty, pcValue);
             break;
         }
@@ -231,7 +230,10 @@ EntityEx::EntityEx(unsigned int uId, EntityClass* pEntityClass)
     mEntityClass = pEntityClass;
     if (mId)
     {
-        Store(mId, this);
+        if (!(NetGame::IsEnabled() && NetGame::IsClient()))
+        {
+            mIdMap.Store(mId, this);
+        }
     }
 }
 
@@ -241,7 +243,10 @@ EntityEx::~EntityEx()
     sLive.Remove(this);
     if (mId)
     {
-        Remove(mId);
+        if (!(NetGame::IsEnabled() && NetGame::IsClient()))
+        {
+            mIdMap.Remove(mId);
+        }
     }
 }
 

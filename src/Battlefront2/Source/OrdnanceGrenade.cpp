@@ -1,3 +1,4 @@
+#include "PebbleFL/Common/PblMath.h"
 #include <d3dx9math.h>
 #include "OrdnanceGrenade.h"
 
@@ -201,26 +202,26 @@ OrdnanceGrenade::~OrdnanceGrenade()
 void OrdnanceGrenade::Render(unsigned char ucViewport, float fDist, unsigned int uiFlags)
 {
     OrdnanceGrenadeClass* pClass = (OrdnanceGrenadeClass*)mClass;
-    if (!pClass->mAlignVertical)
+    if (pClass->mAlignVertical)
     {
-        OrdnanceBullet::Render(ucViewport, fDist, uiFlags);
+        if (!pClass->mModel)
+        {
+            return;
+        }
+
+        PblVector3 vPos = mPosition;
+        if (!netFrameLock && NetGame::IsEnabled() &&
+            netInterpolator.GetIndex(mInterpIndex, 0, PblHandled::mHandleId))
+        {
+            netInterpolator.GetVec(mInterpIndex, vPos);
+        }
+
+        PblMatrix mat = _IdentityMatrix;
+        mat.SetTranslation(vPos);
+        ((OrdnanceGrenadeClass*)mClass)->mModel->Render(&mat, 0, RedColor::WHITE, uiFlags, 0);
         return;
     }
-    if (!pClass->mModel)
-    {
-        return;
-    }
-
-    PblVector3 vPos = mPosition;
-    if (!netFrameLock && NetGame::IsEnabled() &&
-        netInterpolator.GetIndex(mInterpIndex, 0, PblHandled::mHandleId))
-    {
-        netInterpolator.GetVec(mInterpIndex, vPos);
-    }
-
-    PblMatrix mat = _IdentityMatrix;
-    mat.SetTranslation(vPos);
-    ((OrdnanceGrenadeClass*)mClass)->mModel->Render(&mat, 0, RedColor::WHITE, uiFlags, 0);
+    OrdnanceBullet::Render(ucViewport, fDist, uiFlags);
 }
 
 // FUNCTION: SWBF2 0x006002c0
@@ -242,12 +243,12 @@ bool OrdnanceGrenade::CheckCollision()
 {
     PblVector3 vStart = GetOldPosition();
     const PblVector3& vEnd = GetPosition();
-    PblVector3 vDir(vEnd.x - vStart.x, vEnd.y - vStart.y, vEnd.z - vStart.z);
-    const float fDist = sqrtf(vDir.y * vDir.y + vDir.x * vDir.x + vDir.z * vDir.z);
+    const PblVector3 vDelta = vEnd - vStart;
+    const float fDist = PblMath::Sqrt(vDelta.x * vDelta.x + vDelta.y * vDelta.y + vDelta.z * vDelta.z);
     if (fDist > 0.0f)
     {
         const float fInv = 1.0f / fDist;
-        vDir *= fInv;
+        const PblVector3 vDir(vDelta.x * fInv, vDelta.y * fInv, vDelta.z * fInv);
 
         CollisionObject* pHitObject = 0;
         const GameObject* pIgnore = GetOwner();
@@ -258,10 +259,8 @@ bool OrdnanceGrenade::CheckCollision()
                                                     mCheckStaticCollision ? 0x13BA : 0x132A, true);
         if (fHit < 1.0f)
         {
-            const float fAlong = fHit * fLength;
-            PblVector3 vHit(vDir.x * fAlong + vStart.x, vDir.y * fAlong + vStart.y,
-                            vDir.z * fAlong + vStart.z);
-            return !Collide(pHitObject, vHit, vNormal, CollisionManager::GetLastRayHitBodyId());
+            return !Collide(pHitObject, vDir * (fHit * fLength) + vStart, vNormal,
+                            CollisionManager::GetLastRayHitBodyId());
         }
     }
     return true;
@@ -284,8 +283,8 @@ bool OrdnanceGrenade::Collide(CollisionObject* pObject, const PblVector3& vPos,
     OrdnanceGrenadeClass* pClass = (OrdnanceGrenadeClass*)mClass;
     if (pObject->GetCollisionType() == COLL_WATER)
     {
-        mVelocity = PblVector3(0.0f, -0.2f, 0.0f);
         mNumBounces = 4;
+        mVelocity = PblVector3(0.0f, -0.2f, 0.0f);
         pClass->mSoundCollisionWater.Play(&vPos, 0, false, true);
         RedWater::AddWaterRing(vPos, 1.5f, 0.01f);
         WaterEffect::AddWaterEffect(pClass->mImpactEffectWater, vPos);
@@ -304,29 +303,27 @@ bool OrdnanceGrenade::Collide(CollisionObject* pObject, const PblVector3& vPos,
             {
                 PblVector3 vDir;
                 D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&mVelocity));
-                AsDamageable(pVictim)->ApplyDamage(GetDamage(), vDir, vPos, iBodyId, 0xFFFFFFFF);
+                Damageable* pDamageable = static_cast<Damageable*>(pVictim);
+                pDamageable->ApplyDamage(GetDamage(), vDir, vPos, iBodyId, 0xFFFFFFFF);
             }
         }
 
-        const float fDot = mVelocity.x * vNormal.x + mVelocity.y * vNormal.y + mVelocity.z * vNormal.z;
+        const float fDot = DotProduct(mVelocity, vNormal);
         if (fDot < 0.0f)
         {
             const float fRebound = pClass->mRebound;
             const float fFriction = pClass->mFriction;
-            mPosition = PblVector3(vPos.x + vNormal.x * 0.01f, vPos.y + vNormal.y * 0.01f,
-                                   vPos.z + vNormal.z * 0.01f);
+            mPosition = vPos + vNormal * 0.01f;
 
             mVelocity -= vNormal * fDot;
             float fSlow = -(fFriction * fDot * (fRebound + 1.0f) /
-                            sqrtf(mVelocity.x * mVelocity.x + mVelocity.y * mVelocity.y +
+                            PblMath::Sqrt(mVelocity.x * mVelocity.x + mVelocity.y * mVelocity.y +
                                   mVelocity.z * mVelocity.z));
             fSlow = fSlow < 1.0f ? fSlow : 1.0f;
-            mVelocity.x -= fSlow * mVelocity.x;
-            mVelocity.y -= mVelocity.y * fSlow;
-            mVelocity.z -= mVelocity.z * fSlow;
+            mVelocity -= mVelocity * fSlow;
 
             const float fBounce = fRebound * fDot;
-            mVelocity -= vNormal * fBounce;
+            mVelocity -= fBounce * vNormal;
             if (mVelocity.x * mVelocity.x + mVelocity.y * mVelocity.y + mVelocity.z * mVelocity.z < 1.0f)
             {
                 ++mNumBounces;

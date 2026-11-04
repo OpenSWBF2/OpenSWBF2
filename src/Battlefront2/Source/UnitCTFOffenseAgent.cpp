@@ -24,14 +24,14 @@ float UnitCTFOffenseAgent::GetUpdateRate() const
 {
     switch (mCurState)
     {
-    case 2:
-    case 5:
-        return 2.0f;
     case 3:
     case 8:
         return 0.8f;
     case 4:
         return 1.0f;
+    case 2:
+    case 5:
+        return 2.0f;
     case 6:
     case 7:
         return mDefendHelper.GetUpdateRate();
@@ -53,12 +53,13 @@ const char UnitCTFOffenseAgent::rttiNameUnitCTFOffenseAgent[] = "UnitCTFOffenseA
 
 // FUNCTION: SWBF2 0x00664730
 UnitCTFOffenseAgent::UnitCTFOffenseAgent(UnitController* pCtrl, const FlagItem* pFlag, const PblVector3& vPos)
-    : UnitAgent(pCtrl), mCombatHelper(this), mDefendHelper(this), mCapturePos(vPos)
+    : UnitAgent(pCtrl), mCombatHelper(this), mDefendHelper(this)
 {
     mCurState = 1;
     mNextState = 1;
     mFlag.mObject = reinterpret_cast<const GameObject*>(pFlag);
     mFlag.mSavedHandleId = pFlag ? pFlag->mHandleId : 0;
+    mCapturePos = vPos;
 
     mDefendCarrierOffset = AIUtil::GetRandomFloat(1.0f, 6.0f);
 }
@@ -76,27 +77,24 @@ void UnitCTFOffenseAgent::Kill()
 // FUNCTION: SWBF2 0x006646f0
 int GetFormationType(const UnitController* pCtrl)
 {
-    if (!pCtrl)
+    if (pCtrl)
     {
-        return 0;
+        const Controllable* pOwner = pCtrl->mOwner;
+        if (pOwner)
+        {
+            const Character* pData = pOwner->mCharacter;
+            if (pData)
+            {
+                const Team* pTeam = pData->mTeamPtr;
+                if (pTeam)
+                {
+                    const unsigned int value = pTeam->mSide;
+                    return (value >= 2 && value <= 3) ? 2 : 3;
+                }
+            }
+        }
     }
-    const Controllable* pOwner = pCtrl->mOwner;
-    if (!pOwner)
-    {
-        return 0;
-    }
-    const Character* pData = pOwner->mCharacter;
-    if (!pData)
-    {
-        return 0;
-    }
-    const Team* pTeam = pData->mTeamPtr;
-    if (!pTeam)
-    {
-        return 0;
-    }
-    const unsigned int value = pTeam->mSide;
-    return (static_cast<unsigned int>(value - 2) > 1) + 2;
+    return 0;
 }
 
 
@@ -149,20 +147,32 @@ int UnitCTFOffenseAgent::EventHandler(AI::EventInfo* pInfo)
     case AI::EVT_Vision_CanSeeEnemy:
     case AI::EVT_Audible_CanHearEnemy:
     case AI::EVT_EndInvisibility:
-        if (GetFlag(mFlag))
+        if (const GameObject* pFlag = mFlag)
         {
+            if (mCurState == 3)
+            {
+                DamagedEventPlayerCentricness(pInfo);
+                return AI::EVT_NotHandled;
+            }
+            if (mCurState == 8)
+            {
+                DamagedEventPlayerCentricness(pInfo);
+                return AI::EVT_NotHandled;
+            }
             if (mCurState == 2)
             {
-                const PblMatrix& flagMat = GetCollisionObject(GetFlag(mFlag))->GetMatrix();
-                const PblMatrix& myMat = mCtrl->mOwner->GetMatrix();
-                float dx = myMat.m[3][0] - flagMat.m[3][0];
+                const GameObject* pFlagObject = mFlag.operator->();
+                const Controllable* pMe = mCtrl->mOwner;
+                const PblMatrix& flagMat = pFlagObject->GetMatrix();
+                const PblMatrix& myMat = pMe->GetMatrix();
                 float dz = myMat.m[3][2] - flagMat.m[3][2];
+                float dx = myMat.m[3][0] - flagMat.m[3][0];
                 if (dx * dx + dz * dz < 100.0f)
                 {
                     return AI::EVT_NotHandled;
                 }
             }
-            if (mCurState == 3 || mCurState == 8 || mCurState == 4)
+            if (mCurState == 4)
             {
                 DamagedEventPlayerCentricness(pInfo);
                 return AI::EVT_NotHandled;
@@ -174,8 +184,7 @@ int UnitCTFOffenseAgent::EventHandler(AI::EventInfo* pInfo)
         }
         mCombatCmd = pInfo->mNextCmd;
         SetNextState(8);
-        pInfo->mNextCmd = UnitCmdInfo(CMD_NONE, PblHandle<GameObject>(), PblVector3(0, 0, 0),
-                                      PblHandle<GameObject>());
+        pInfo->mNextCmd = UnitCmdInfo(CMD_NONE, NULL, PblVector3(0, 0, 0), NULL);
         return AI::EVT_Handled;
 
     case AI::EVT_CTF_FlagKill:
@@ -262,65 +271,53 @@ bool UnitCTFOffenseAgent::IsFlagInAlliedHandsButNotMine() const
         return false;
     }
     const Character* pMe = mCtrl->mOwner->mCharacter;
-    if (pCarrier == pMe)
-    {
-        return false;
-    }
-    return pMe->mTeamPtr->GetAffiliation(pCarrier->mTeamNumber) > 0;
+    return pCarrier != pMe && pMe->mTeamPtr->GetAffiliation(pCarrier->mTeamNumber) > 0;
 }
 
 // FUNCTION: SWBF2 0x006649a0
 bool UnitCTFOffenseAgent::IsFlagInEnemyHands() const
 {
     const GameObject* pFlag = mFlag;
-    if (!pFlag)
+    if (pFlag)
     {
-        return false;
+        const Character* pCarrier = static_cast<const EntityItem*>(pFlag)->GetOwner();
+        if (pCarrier)
+        {
+            const int iCarrierTeam = pCarrier->mTeamNumber;
+            return mCtrl->mOwner->mCharacter->mTeamPtr->GetAffiliation(iCarrierTeam) < 0;
+        }
     }
-    const Character* pCarrier = static_cast<const EntityItem*>(pFlag)->GetOwner();
-    if (!pCarrier)
-    {
-        return false;
-    }
-    return mCtrl->mOwner->mCharacter->mTeamPtr->GetAffiliation(pCarrier->mTeamNumber) < 0;
+    return false;
 }
 
 // FUNCTION: SWBF2 0x00664d30
 void UnitCTFOffenseAgent::FaceTargetIfClose(ControllableHeight eHeight)
 {
-    AILowLevel& lowLevel = mCtrl->GetLowLevel();
-    lowLevel.SetHeight(eHeight);
+    mCtrl->GetLowLevel().SetHeight(eHeight);
     const PblMatrix& myMat = mCtrl->mOwner->GetMatrix();
-    AttackHelper* pAttack = &mAttackHelper;
-    const GameObject* pTarget = pAttack->GetVisibleTarget();
-    PblVector3 vLastSeen = pAttack->HasTarget() ? pAttack->GetLastSeenTargetPos() : PblVector3(0, 0, 0);
+    const GameObject* pTarget = mAttackHelper.GetVisibleTarget();
+    PblVector3 vLastSeen = mAttackHelper.HasTarget() ? mAttackHelper.GetLastSeenTargetPos() : PblVector3(0, 0, 0);
 
-    if (pAttack->GetVisibleTarget())
+    if (mAttackHelper.GetVisibleTarget())
     {
-        const PblVector3& vTarget = GetCollisionObject(pTarget)->GetPosition();
-        float dx = myMat.m[3][0] - vTarget.x;
-        float dy = myMat.m[3][1] - vTarget.y;
-        float dz = myMat.m[3][2] - vTarget.z;
-        if (dx * dx + dy * dy + dz * dz < 625.0f)
+        const PblVector3& vTarget = pTarget->GetPosition();
+        if (SquaredLength(myMat.GetTranslation() - vTarget) < 625.0f)
         {
-            lowLevel.SetHeading(pAttack->GetVisibleTarget());
+            mCtrl->GetLowLevel().SetHeading(mAttackHelper.GetVisibleTarget());
             return;
         }
     }
 
-    if (pAttack->HasTarget())
+    if (mAttackHelper.HasTarget())
     {
-        float dx = myMat.m[3][0] - vLastSeen.x;
-        float dy = myMat.m[3][1] - vLastSeen.y;
-        float dz = myMat.m[3][2] - vLastSeen.z;
-        if (dx * dx + dy * dy + dz * dz < 625.0f)
+        if (SquaredLength(myMat.GetTranslation() - vLastSeen) < 625.0f)
         {
-            lowLevel.SetHeading(PblVector3(vLastSeen.x + 0.0f, vLastSeen.y + 1.6f, vLastSeen.z + 0.0f), 0.0f);
+            mCtrl->GetLowLevel().SetHeading(PblVector3(vLastSeen.x + 0.0f, vLastSeen.y + 1.6f, vLastSeen.z + 0.0f), 0.0f);
             return;
         }
     }
 
-    lowLevel.SetHeadingDefault();
+    mCtrl->GetLowLevel().SetHeadingDefault();
 }
 
 // FUNCTION: SWBF2 0x00664a10
@@ -374,6 +371,8 @@ void UnitCTFOffenseAgent::EnterState()
                         return;
                     }
                 }
+                SetNextState(7);
+                return;
             }
             SetNextState(7);
         }
@@ -384,9 +383,7 @@ void UnitCTFOffenseAgent::EnterState()
         break;
 
     case 2:
-        mCtrl->GetLowLevel().SetNavigator_Goto(
-            *reinterpret_cast<const PblVector3*>(&GetCollisionObject(static_cast<const GameObject*>(mFlag))->GetMatrix().m[3][0]),
-            0, false, false);
+        mCtrl->GetLowLevel().SetNavigator_Goto(mFlag->GetMatrix().GetTranslation(), 0, false, false);
         break;
 
     case 3:
@@ -400,15 +397,26 @@ void UnitCTFOffenseAgent::EnterState()
         break;
 
     case 6:
-        mDefendHelper.Init(AI::GoalTarget(pFlag));
+    {
+        AI::GoalTarget target(pFlag);
+        mDefendHelper.Init(target);
         break;
+    }
 
     case 7:
     {
         const RedRegion* pHome = reinterpret_cast<const FlagItem*>(pFlag)->GetHomeRegion();
-        PblVector3 vPos = pHome ? pHome->mMatrix.GetTranslation()
-                                : GetCollisionObject(pFlag)->GetPosition();
-        mDefendHelper.Init(AI::GoalTarget(vPos));
+        PblVector3 vPos;
+        if (pHome)
+        {
+            vPos = pHome->mMatrix.GetTranslation();
+        }
+        else
+        {
+            vPos = GetCollisionObject(pFlag)->GetPosition();
+        }
+        AI::GoalTarget target(vPos);
+        mDefendHelper.Init(target);
         break;
     }
 
@@ -448,13 +456,13 @@ void UnitCTFOffenseAgent::UpdateStatePostVision(float dt)
             SetNextState(1);
             return;
         }
-        if (!mCtrl->GetLowLevel().IsNavigatorInProgress())
+        if (mCtrl->GetLowLevel().IsNavigatorInProgress())
         {
-            SetNextState(1);
-            return;
+            FaceTargetIfClose(HEIGHT_STAND);
+            break;
         }
-        FaceTargetIfClose(HEIGHT_STAND);
-        break;
+        SetNextState(1);
+        return;
 
     case 3:
         if (!IsFlagInMyHands())
@@ -478,9 +486,8 @@ void UnitCTFOffenseAgent::UpdateStatePostVision(float dt)
             break;
         }
         GameObject* pCarrierObj = pCarrier->GetControllable()->GetGameObject();
-        FormationType eFormation = static_cast<FormationType>(GetFormationType(mCtrl));
-        PblVector3 vOffset = ReserveManager::ReserveOffset(pCarrierObj, mCtrl->mOwner->GetGameObject(), eFormation);
-        PblVector3 vFollow(vOffset.x * 2.0f, vOffset.y * 2.0f, vOffset.z * 2.0f);
+        PblVector3 vFollow = ReserveManager::ReserveOffset(pCarrierObj, mCtrl->mOwner->GetGameObject(),
+                                                           static_cast<FormationType>(GetFormationType(mCtrl))) * 2.0f;
         mCtrl->GetLowLevel().SetNavigator_FollowTarget(pCarrierObj, vFollow);
         FaceTargetIfClose(HEIGHT_STAND);
         break;

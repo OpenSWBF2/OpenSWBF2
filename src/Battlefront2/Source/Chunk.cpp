@@ -94,6 +94,8 @@ Chunk::Chunk()
 // SYNTHETIC: SWBF2 0x004550c0
 // Chunk::~Chunk
 
+static const PblVector3 vGravity(0.0f, -9.8f, 0.0f);
+
 // FUNCTION: SWBF2 0x00455150
 void Chunk::ClearAll()
 {
@@ -115,38 +117,24 @@ void Chunk::ClearAll()
     mOmega.z = 0.0f;
     mOmega.y = 0.0f;
     mOmega.x = 0.0f;
-    mGravity = PblVector3(0.0f, -9.8f, 0.0f);
+    mGravity = vGravity;
     mMaxTerrainCollisions = 0;
     mNumTerrainCollisions = 0;
     mTerrainImpactEffect = 0;
-    for (int i = 0; i < 3; i++)
-    {
-        mTrailEffect[i] = 0;
-    }
-    for (int i = 0; i < 3; i++)
-    {
-        mSmokeEffect[i] = 0;
-    }
+    memset(mTrailEffect, 0, sizeof(mTrailEffect));
+    memset(mSmokeEffect, 0, sizeof(mSmokeEffect));
     mPhysicsType = PHYSICS_SIMPLE_RIGID;
 
     for (int i = 0; i < 3; i++)
     {
-        if (mTrailEmitters[i].mObject)
+        if (mTrailEmitters[i])
         {
-            FLEffectObject* pEffect = mTrailEmitters[i];
-            if (pEffect)
-            {
-                pEffect->StopAndFinish();
-            }
+            mTrailEmitters[i]->StopAndFinish();
             mTrailEmitters[i] = NULL;
         }
-        if (mSmokeEmitters[i].mObject)
+        if (mSmokeEmitters[i])
         {
-            FLEffectObject* pEffect = mSmokeEmitters[i];
-            if (pEffect)
-            {
-                pEffect->StopAndFinish();
-            }
+            mSmokeEmitters[i]->StopAndFinish();
             mSmokeEmitters[i] = NULL;
         }
     }
@@ -196,22 +184,10 @@ void Chunk::SetData(ChunkDescriptor& desc)
     mNumTerrainCollisions = 0;
     mMaxTerrainCollisions = desc.mMaxTerrainCollisions;
     mTerrainImpactEffect = desc.mTerrainImpactEffect;
-    for (int i = 0; i < 3; i++)
-    {
-        mTrailEffect[i] = desc.mTrailEffect[i];
-    }
-    for (int i = 0; i < 3; i++)
-    {
-        mSmokeEffect[i] = desc.mSmokeEffect[i];
-    }
-    for (int i = 0; i < 3; i++)
-    {
-        mTrailAttachPoints[i] = desc.mTrailAttachPoints[i];
-    }
-    for (int i = 0; i < 3; i++)
-    {
-        mSmokeAttachPoints[i] = desc.mSmokeAttachPoints[i];
-    }
+    memcpy(mTrailEffect, desc.mTrailEffect, sizeof(mTrailEffect));
+    memcpy(mSmokeEffect, desc.mSmokeEffect, sizeof(mSmokeEffect));
+    memcpy(mTrailAttachPoints, desc.mTrailAttachPoints, sizeof(mTrailAttachPoints));
+    memcpy(mSmokeAttachPoints, desc.mSmokeAttachPoints, sizeof(mSmokeAttachPoints));
     mPhysicsType = (ChunkPhysicsType)desc.mPhysicsType;
     mCoefficientOfRestitution = desc.mCoefficientOfRestitution;
     mCoefficientOfFriction = desc.mCoefficientOfFriction;
@@ -269,10 +245,12 @@ void Chunk::SetData(ChunkDescriptor& desc)
     rotation.m[3][1] = 0.0f;
     rotation.m[3][2] = 0.0f;
     rotation.m[3][3] = 1.0f;
-    mInverseWorldInertiaTensor = rotation.GetInverseFast() * mInverseBodyInertiaTensor * rotation;
+    const PblMatrix rotationInverse = rotation.GetInverseFast();
+    mInverseWorldInertiaTensor = rotationInverse * mInverseBodyInertiaTensor * rotation;
     mAngularMomentum = TransformCoord(desc.mOmega, bodyInertia * rotation);
     mOmega = TransformCoord(mAngularMomentum, mInverseWorldInertiaTensor);
-    mPrimitiveMatrix = localMatrix.GetInverseFast();
+    const PblMatrix primitiveInverse = localMatrix.GetInverseFast();
+    mPrimitiveMatrix = primitiveInverse;
 
     if (!desc.mKeepSoldierCollisions)
     {
@@ -290,16 +268,16 @@ void Chunk::SetData(ChunkDescriptor& desc)
     if (mPhysicsType == PHYSICS_COCKPIT)
     {
         const PblMatrix& m = mCollisionMatrix;
-        float fX = m.m[0][0] * mVelocity.x + m.m[0][1] * mVelocity.y + m.m[0][2] * mVelocity.z;
-        float fY = m.m[1][0] * mVelocity.x + m.m[1][1] * mVelocity.y + m.m[1][2] * mVelocity.z;
-        float fZ = m.m[2][0] * mVelocity.x + m.m[2][1] * mVelocity.y + m.m[2][2] * mVelocity.z;
+        float fX = DotProduct(m.GetXAxis(), mVelocity);
+        float fY = DotProduct(m.GetYAxis(), mVelocity);
+        float fZ = DotProduct(m.GetZAxis(), mVelocity);
         if (fX > fY)
         {
             mForwardAxis = (fX > fZ) ? 0 : 2;
         }
         else
         {
-            mForwardAxis = (fY <= fZ) ? 2 : 1;
+            mForwardAxis = (fY > fZ) ? 1 : 2;
         }
     }
     mLinearDamping = desc.mLinearDamping;
@@ -327,18 +305,21 @@ void Chunk::CreateTrailEmitters()
             continue;
         }
 
-        const PblMatrix* pAttach = NULL;
         if (mTrailAttachPoints[i])
         {
             RedPose pose;
             mModel->GetRedModel(0)->SetupPose(pose);
-            pAttach = pose.Find(mTrailAttachPoints[i]);
+            const PblMatrix* pAttach = pose.Find(mTrailAttachPoints[i]);
             if (pAttach)
             {
                 pEffect->AttachEffectToMatrix(&mMatrix, *pAttach, true);
             }
+            else
+            {
+                pEffect->AttachEffectToMatrix(&mCollisionMatrix, true);
+            }
         }
-        if (!pAttach)
+        else
         {
             pEffect->AttachEffectToMatrix(&mCollisionMatrix, true);
         }
@@ -367,18 +348,21 @@ void Chunk::CreateSmokeEmitters()
             continue;
         }
 
-        const PblMatrix* pAttach = NULL;
         if (mSmokeAttachPoints[i])
         {
             RedPose pose;
             mModel->GetRedModel(0)->SetupPose(pose);
-            pAttach = pose.Find(mSmokeAttachPoints[i]);
+            const PblMatrix* pAttach = pose.Find(mSmokeAttachPoints[i]);
             if (pAttach)
             {
                 pEffect->AttachEffectToMatrix(&mMatrix, *pAttach, true);
             }
+            else
+            {
+                pEffect->AttachEffectToMatrix(&mMatrix, true);
+            }
         }
-        if (!pAttach)
+        else
         {
             pEffect->AttachEffectToMatrix(&mMatrix, true);
         }
@@ -445,41 +429,51 @@ void Chunk::Update(float fDeltaTime)
 
     bCollisionOnUpdate = false;
     PblVector3 vPos = mCollisionMatrix.GetTranslation();
-    PblVector3 vForce(mGravity.x * mMass + 0.0f - mVelocity.x * mLinearDamping,
-                      mGravity.y * mMass + 0.0f - mVelocity.y * mLinearDamping,
-                      mGravity.z * mMass + 0.0f - mVelocity.z * mLinearDamping);
+    PblVector3 vForce(0.0f, 0.0f, 0.0f);
+    vForce += mGravity * mMass;
+    vForce -= mVelocity * mLinearDamping;
 
     if (mPhysicsType == PHYSICS_COCKPIT)
     {
-
-        PblVector3 vForward = Normalize(mVelocity);
         switch (mForwardAxis)
         {
         case 0:
         {
+            PblVector3 vForward = Normalize(mVelocity);
             PblVector3 vZ = Normalize(CrossProduct(vForward, mCollisionMatrix.GetYAxis()));
             PblVector3 vY = CrossProduct(vZ, vForward);
-            SetAxis(mCollisionMatrix, 0, vForward);
-            SetAxis(mCollisionMatrix, 1, vY);
-            SetAxis(mCollisionMatrix, 2, vZ);
+            mCollisionMatrix[0] = vForward;
+            mCollisionMatrix.m[0][3] = 0.0f;
+            mCollisionMatrix[1] = vY;
+            mCollisionMatrix.m[1][3] = 0.0f;
+            mCollisionMatrix[2] = vZ;
+            mCollisionMatrix.m[2][3] = 0.0f;
             break;
         }
         case 1:
         {
+            PblVector3 vForward = Normalize(mVelocity);
             PblVector3 vX = Normalize(CrossProduct(vForward, mCollisionMatrix.GetZAxis()));
             PblVector3 vZ = CrossProduct(vX, vForward);
-            SetAxis(mCollisionMatrix, 0, vX);
-            SetAxis(mCollisionMatrix, 1, vForward);
-            SetAxis(mCollisionMatrix, 2, vZ);
+            mCollisionMatrix[0] = vX;
+            mCollisionMatrix.m[0][3] = 0.0f;
+            mCollisionMatrix[1] = vForward;
+            mCollisionMatrix.m[1][3] = 0.0f;
+            mCollisionMatrix[2] = vZ;
+            mCollisionMatrix.m[2][3] = 0.0f;
             break;
         }
         case 2:
         {
+            PblVector3 vForward = Normalize(mVelocity);
             PblVector3 vY = Normalize(CrossProduct(vForward, mCollisionMatrix.GetXAxis()));
             PblVector3 vX = CrossProduct(vY, vForward);
-            SetAxis(mCollisionMatrix, 0, vX);
-            SetAxis(mCollisionMatrix, 1, vY);
-            SetAxis(mCollisionMatrix, 2, vForward);
+            mCollisionMatrix[0] = vX;
+            mCollisionMatrix.m[0][3] = 0.0f;
+            mCollisionMatrix[1] = vY;
+            mCollisionMatrix.m[1][3] = 0.0f;
+            mCollisionMatrix[2] = vForward;
+            mCollisionMatrix.m[2][3] = 0.0f;
             break;
         }
         }
@@ -487,40 +481,32 @@ void Chunk::Update(float fDeltaTime)
     else if (mPhysicsType != PHYSICS_SIMPLE_RIGID)
     {
         float fDamping = -mAngularDamping;
-        mAngularMomentum.x += fDamping * mAngularMomentum.x * fDeltaTime;
-        mAngularMomentum.y += mAngularMomentum.y * fDamping * fDeltaTime;
-        mAngularMomentum.z += mAngularMomentum.z * fDamping * fDeltaTime;
+        mAngularMomentum += mAngularMomentum * fDamping * fDeltaTime;
         mOmega = TransformCoord(mAngularMomentum, mInverseWorldInertiaTensor);
     }
 
     PblQuaternion q = PblQuaternion(mCollisionMatrix);
-    PblMatrix mInverse = mCollisionMatrix.GetInverseFast();
     PblVector3 vSpin;
-    D3DXVec3TransformNormal((D3DXVECTOR3*)&vSpin, (const D3DXVECTOR3*)&mOmega, (const D3DXMATRIX*)&mInverse);
+    D3DXVec3TransformNormal((D3DXVECTOR3*)&vSpin, (const D3DXVECTOR3*)&mOmega,
+                            (const D3DXMATRIX*)&mCollisionMatrix.GetInverseFast());
     vSpin.x *= fDeltaTime;
     vSpin.y *= fDeltaTime;
     vSpin.z *= fDeltaTime;
-    float fAngle = sqrtf(vSpin.x * vSpin.x + vSpin.y * vSpin.y + vSpin.z * vSpin.z);
+    float fAngle = PblMath::Sqrt(vSpin.x * vSpin.x + vSpin.y * vSpin.y + vSpin.z * vSpin.z);
     if (fAngle > EPSILON)
     {
         float fInv = 1.0f / fAngle;
-        q = q * PblQuaternion(PblVector3(vSpin.x * fInv, vSpin.y * fInv, vSpin.z * fInv), fAngle);
+        q = q * PblQuaternion(vSpin * fInv, fAngle);
     }
 
-    mVelocity.x += mOneOverMass * vForce.x * fDeltaTime;
-    mVelocity.y += mOneOverMass * vForce.y * fDeltaTime;
-    mVelocity.z += mOneOverMass * vForce.z * fDeltaTime;
+    mVelocity += mOneOverMass * vForce * fDeltaTime;
     if (mForceZeroYAxisVelocity)
     {
         const PblVector3& vUp = mMatrix.GetYAxis();
         float fDot = mVelocity.y * vUp.y + vUp.x * mVelocity.x + mVelocity.z * vUp.z;
-        mVelocity.x -= fDot * vUp.x;
-        mVelocity.y -= vUp.y * fDot;
-        mVelocity.z -= vUp.z * fDot;
+        mVelocity -= fDot * vUp;
     }
-    vPos.x += mVelocity.x * fDeltaTime;
-    vPos.y += mVelocity.y * fDeltaTime;
-    vPos.z += mVelocity.z * fDeltaTime;
+    vPos += mVelocity * fDeltaTime;
 
     mCollisionMatrix = PblMatrix(q, vPos);
     mMatrix = mPrimitiveMatrix * mCollisionMatrix;
@@ -532,7 +518,8 @@ void Chunk::Update(float fDeltaTime)
     rotation.m[3][1] = 0.0f;
     rotation.m[3][2] = 0.0f;
     rotation.m[3][3] = 1.0f;
-    mInverseWorldInertiaTensor = rotation.GetInverseFast() * mInverseBodyInertiaTensor * rotation;
+    const PblMatrix rotationInverse = rotation.GetInverseFast();
+    mInverseWorldInertiaTensor = rotationInverse * mInverseBodyInertiaTensor * rotation;
 
     CollisionObject* pHit = NULL;
     PblVector3 vNormal;
@@ -599,88 +586,72 @@ bool Chunk::DoSimpleRigidCollision(const CollisionResult* pResult, CollisionObje
                                    Restrictor* pRestrictor)
 {
     const CollisionObjectType eType = pOther->GetCollisionType();
-    if (!mIsMoving)
+    if (mIsMoving)
     {
-        return CollisionObject::CollisionCallback(pResult, pOther, pRestrictor);
-    }
-
-    if (mNumTerrainCollisions >= mMaxTerrainCollisions && eType == COLL_TERRAIN)
-    {
-        if (mNumTerrainCollisions == mMaxTerrainCollisions)
+        if (mNumTerrainCollisions >= mMaxTerrainCollisions && eType == COLL_TERRAIN)
         {
-            PblVector3 vImpact = pResult->mCollisionPosition;
-            vImpact.y = RedTerrain::GetHoleHeight(vImpact.x, vImpact.z);
-            DoTerrainImpactEffect(vImpact);
+            if (mNumTerrainCollisions == mMaxTerrainCollisions)
+            {
+                PblVector3 vImpact = pResult->mCollisionPosition;
+                vImpact.y = RedTerrain::GetHoleHeight(vImpact.x, vImpact.z);
+                DoTerrainImpactEffect(vImpact);
+                ++mNumTerrainCollisions;
+            }
+            return true;
+        }
+
+        PblVector3& vVelocity = mVelocity;
+        const PblVector3& vNormal = pResult->mSeparationNormal;
+        const float fImpactSpeed = -(vVelocity.x * vNormal.x + vVelocity.y * vNormal.y +
+                                     vVelocity.z * vNormal.z);
+        if (fImpactSpeed > 0.0f)
+        {
+            FoleyFXCollider::CollisionCallback(pOther->GetCollisionType(),
+                                               static_cast<FoleyFXCollidee*>(pOther), &GetPosition());
+            PlayImpactEffects(&mMatrix.GetTranslation(), &vVelocity);
+
+            if ((pOther->GetCollisionType() & (COLL_SOFT | COLL_RIGID)) && mMinDeathCollisionSpeed > 0.0f &&
+                vVelocity.x * vVelocity.x + vVelocity.y * vVelocity.y + vVelocity.z * vVelocity.z >
+                    mMinDeathCollisionSpeed * mMinDeathCollisionSpeed)
+            {
+                GameObject* pObject = pOther->GetGameObject();
+                if (pObject)
+                {
+                    pObject->InstantDeath(DamageOwner(0, 0, 0, 0, 0, 1.0f), true);
+                    return true;
+                }
+            }
+
+            const float fImpulse = (mCoefficientOfRestitution + 1.0f) * fImpactSpeed;
+            vVelocity += vNormal * fImpulse;
+
+            if (mSimpleFrictionConstant > 0.0f)
+            {
+                const PblVector3 vTangent = Normalize(CrossProduct(CrossProduct(vNormal, vVelocity), vNormal));
+                const float fSlip = DotProduct(vVelocity, vTangent) * mSimpleFrictionConstant * mOneOverMass;
+                vVelocity -= vTangent * fSlip;
+
+                const PblVector3 vAxis = mCollisionMatrix.GetYAxis();
+                PblVector3 vRadius = pResult->mCollisionPosition - mCollisionMatrix.GetTranslation();
+                vRadius -= vAxis * DotProduct(vRadius, vAxis);
+                const float fRadius = PblMath::Sqrt(vRadius.x * vRadius.x + vRadius.y * vRadius.y + vRadius.z * vRadius.z);
+                if (fRadius > 0.0f)
+                {
+                    const float fOmega = PblMath::Sqrt(vVelocity.x * vVelocity.x + vVelocity.y * vVelocity.y +
+                                                       vVelocity.z * vVelocity.z) / fRadius;
+                    mOmega = vAxis * fOmega;
+                    if (DotProduct(vAxis, CrossProduct(vVelocity, PblVector3(0.0f, 1.0f, 0.0f))) > 0.0f)
+                    {
+                        mOmega = -mOmega;
+                    }
+                }
+            }
+        }
+
+        if (eType == COLL_TERRAIN || vNormal.y > 0.8f)
+        {
             ++mNumTerrainCollisions;
         }
-        return true;
-    }
-
-    const PblVector3& vNormal = pResult->mSeparationNormal;
-    const float fImpactSpeed = -(mVelocity.x * vNormal.x + mVelocity.y * vNormal.y +
-                                 mVelocity.z * vNormal.z);
-    if (fImpactSpeed > 0.0f)
-    {
-        FoleyFXCollider::CollisionCallback(eType, static_cast<FoleyFXCollidee*>(pOther), &GetPosition());
-        PlayImpactEffects(&mMatrix.GetTranslation(), &mVelocity);
-
-        if ((eType & (COLL_SOFT | COLL_RIGID)) && mMinDeathCollisionSpeed > 0.0f &&
-            mVelocity.x * mVelocity.x + mVelocity.y * mVelocity.y + mVelocity.z * mVelocity.z >
-                mMinDeathCollisionSpeed * mMinDeathCollisionSpeed)
-        {
-            GameObject* pObject = pOther->GetGameObject();
-            if (pObject)
-            {
-                DamageOwner owner(0, 0, 0, 0, 0, 1.0f);
-                pObject->InstantDeath(owner, true);
-                return true;
-            }
-        }
-
-        const float fImpulse = (mCoefficientOfRestitution + 1.0f) * fImpactSpeed;
-        mVelocity.x += vNormal.x * fImpulse;
-        mVelocity.y += vNormal.y * fImpulse;
-        mVelocity.z += vNormal.z * fImpulse;
-
-        if (mSimpleFrictionConstant > 0.0f)
-        {
-
-            PblVector3 vTangent = CrossProduct(vNormal, CrossProduct(mVelocity, vNormal));
-            D3DXVec3Normalize((D3DXVECTOR3*)&vTangent, (const D3DXVECTOR3*)&vTangent);
-            const float fSlip = (mVelocity.x * vTangent.x + mVelocity.y * vTangent.y +
-                                 mVelocity.z * vTangent.z) * mSimpleFrictionConstant * mOneOverMass;
-            mVelocity.x -= vTangent.x * fSlip;
-            mVelocity.y -= vTangent.y * fSlip;
-            mVelocity.z -= vTangent.z * fSlip;
-
-            const PblVector3& vAxis = mCollisionMatrix.GetYAxis();
-            const PblVector3& vCenter = mCollisionMatrix.GetTranslation();
-            PblVector3 vRadius(pResult->mCollisionPosition.x - vCenter.x,
-                               pResult->mCollisionPosition.y - vCenter.y,
-                               pResult->mCollisionPosition.z - vCenter.z);
-            const float fAlongAxis = vRadius.x * vAxis.x + vRadius.y * vAxis.y + vRadius.z * vAxis.z;
-            vRadius.x -= vAxis.x * fAlongAxis;
-            vRadius.y -= vAxis.y * fAlongAxis;
-            vRadius.z -= vAxis.z * fAlongAxis;
-            const float fRadius = sqrtf(vRadius.x * vRadius.x + vRadius.y * vRadius.y + vRadius.z * vRadius.z);
-            if (fRadius > 0.0f)
-            {
-                float fOmega = sqrtf(mVelocity.x * mVelocity.x + mVelocity.y * mVelocity.y +
-                                      mVelocity.z * mVelocity.z) / fRadius;
-                if (CrossProduct(vAxis, mVelocity).y > 0.0f)
-                {
-                    fOmega = -fOmega;
-                }
-                mOmega.x = vAxis.x * fOmega;
-                mOmega.y = vAxis.y * fOmega;
-                mOmega.z = vAxis.z * fOmega;
-            }
-        }
-    }
-
-    if (eType == COLL_TERRAIN || vNormal.y > 0.8f)
-    {
-        ++mNumTerrainCollisions;
     }
     return CollisionObject::CollisionCallback(pResult, pOther, pRestrictor);
 }
@@ -709,12 +680,10 @@ bool Chunk::DoFullRigidCollision(const CollisionResult* pResult, CollisionObject
                       pResult->mCollisionPosition.z - vCenter.z);
         PblVector3 vNormal = pResult->mSeparationNormal;
 
-        PblVector3 vSpinVel = CrossProduct(mOmega, vR);
-        PblVector3 vVel(mVelocity.x + vSpinVel.x, mVelocity.y + vSpinVel.y, mVelocity.z + vSpinVel.z);
+        const PblVector3 vVel = mVelocity + CrossProduct(mOmega, vR);
         float fDot = vNormal.y * vVel.y + vVel.x * vNormal.x + vNormal.z * vVel.z;
-        PblVector3 vSlip = Normalize(PblVector3(vVel.x - vNormal.x * fDot, vVel.y - vNormal.y * fDot,
-                                                vVel.z - vNormal.z * fDot));
-        PblVector3 vFriction(-vSlip.x, -vSlip.y, -vSlip.z);
+        const PblVector3 vFriction = -Normalize(PblVector3(vVel.x - vNormal.x * fDot, vVel.y - vNormal.y * fDot,
+                                                           vVel.z - vNormal.z * fDot));
 
         if (fDot < 0.0f && (eType == COLL_TERRAIN || eType == COLL_STATIC || eType == COLL_RIGID))
         {
@@ -745,9 +714,7 @@ bool Chunk::DoFullRigidCollision(const CollisionResult* pResult, CollisionObject
             mAngularMomentum.z += vL.z;
             mOmega = TransformCoord(mAngularMomentum, mInverseWorldInertiaTensor);
 
-            const PblVector3 vW = CrossProduct(mOmega, vR);
-            float fSlip = (mVelocity.y + vW.y) * vFriction.y + (mVelocity.x + vW.x) * vFriction.x +
-                          (mVelocity.z + vW.z) * vFriction.z;
+            float fSlip = DotProduct(mVelocity + CrossProduct(mOmega, vR), vFriction);
             if (fSlip < 0.0f && (eType == COLL_TERRAIN || eType == COLL_STATIC || eType == COLL_RIGID))
             {
                 if (mNumTerrainCollisions >= mMaxTerrainCollisions && eType != COLL_STATIC && eType != COLL_RIGID)
@@ -834,22 +801,18 @@ void Chunk::Render(unsigned char ucAlpha, float fDist, unsigned int uiFlags)
 
         PblQuaternion q = PblQuaternion(mCollisionMatrix);
         PblVector3 vBack(-mOmega.x, -mOmega.y, -mOmega.z);
-        PblMatrix mInverse = mCollisionMatrix.GetInverseFast();
         PblVector3 vSpin;
-        D3DXVec3TransformNormal((D3DXVECTOR3*)&vSpin, (const D3DXVECTOR3*)&vBack, (const D3DXMATRIX*)&mInverse);
-        vSpin.x *= fDt;
-        vSpin.y *= fDt;
-        vSpin.z *= fDt;
+        D3DXVec3TransformNormal((D3DXVECTOR3*)&vSpin, (const D3DXVECTOR3*)&vBack,
+                                (const D3DXMATRIX*)&mCollisionMatrix.GetInverseFast());
+        const PblVector3 vRotation = vSpin * fDt;
         PblVector3 vPos = mCollisionMatrix.GetTranslation();
-        float fAngle = sqrtf(vSpin.x * vSpin.x + vSpin.y * vSpin.y + vSpin.z * vSpin.z);
+        float fAngle = PblMath::Sqrt(vRotation.x * vRotation.x + vRotation.y * vRotation.y + vRotation.z * vRotation.z);
         if (fAngle > EPSILON)
         {
             float fInv = 1.0f / fAngle;
-            q = q * PblQuaternion(PblVector3(vSpin.x * fInv, vSpin.y * fInv, vSpin.z * fInv), fAngle);
+            q = q * PblQuaternion(vRotation * fInv, fAngle);
         }
-        vPos.x -= mVelocity.x * fDt;
-        vPos.y -= mVelocity.y * fDt;
-        vPos.z -= mVelocity.z * fDt;
+        vPos -= mVelocity * fDt;
         mRender = mPrimitiveMatrix * PblMatrix(q, vPos);
     }
 
@@ -885,6 +848,7 @@ ChunkCluster::~ChunkCluster()
 void ChunkCluster::RecalculateCenterAndRadius()
 {
     PblVector3 vCenter(0.0f, 0.0f, 0.0f);
+    float fRadius = 0.0f;
     int iCount = 0;
     for (int i = 0; i < 10; i++)
     {
@@ -903,11 +867,8 @@ void ChunkCluster::RecalculateCenterAndRadius()
     }
 
     float fInv = 1.0f / iCount;
-    vCenter.x *= fInv;
-    vCenter.y *= fInv;
-    vCenter.z *= fInv;
+    vCenter = fInv * vCenter;
 
-    float fRadius = 0.0f;
     for (int i = 0; i < 10; i++)
     {
         if (mChunks[i].IsValid())
@@ -916,7 +877,7 @@ void ChunkCluster::RecalculateCenterAndRadius()
             float fX = vPos.x - vCenter.x;
             float fY = vPos.y - vCenter.y;
             float fZ = vPos.z - vCenter.z;
-            float fReach = sqrtf(fY * fY + fX * fX + fZ * fZ) + mChunks[i].GetCollisionRadius() + 1.0f;
+            float fReach = mChunks[i].GetCollisionRadius() + sqrtf(fY * fY + fX * fX + fZ * fZ) + 1.0f;
             if (fReach > fRadius)
             {
                 fRadius = fReach;
@@ -947,11 +908,12 @@ bool ChunkCluster::Update(float fDeltaTime)
     bool bMoved = false;
     for (int i = 0; i < 10; i++)
     {
-        if (mChunks[i].IsMoving())
+        const bool bChunkMoving = mChunks[i].IsMoving();
+        mChunks[i].Update(fDeltaTime);
+        if (bChunkMoving)
         {
             bMoved = true;
         }
-        mChunks[i].Update(fDeltaTime);
     }
     if (bMoved)
     {
@@ -979,23 +941,25 @@ void ChunkCluster::Render(unsigned char ucViewport, float fDist, unsigned int ui
 
     if (fY * fY + fX * fX + fZ * fZ < 800.0f && RedStencilShadow::GetShadowEnable())
     {
-        RedDirectionalLight* pLight = RedLight::GetGlobalDirectionalLight(0);
-        if (!pLight->IsShadowCaster())
+        RedDirectionalLight* pLight = NULL;
+        if (RedLight::GetGlobalDirectionalLight(0)->IsShadowCaster())
         {
-            pLight = RedLight::GetGlobalDirectionalLight(1)->IsShadowCaster()
-                         ? RedLight::GetGlobalDirectionalLight(1)
-                         : NULL;
+            pLight = RedLight::GetGlobalDirectionalLight(0);
+        }
+        else if (RedLight::GetGlobalDirectionalLight(1)->IsShadowCaster())
+        {
+            pLight = RedLight::GetGlobalDirectionalLight(1);
         }
         float fLength;
         if (pLight)
         {
-            const PblVector3& vDir = pLight->m_vDirection;
-            float fMinLength = _Sphere.w * -2.0f / vDir.y;
+            float fMinLength = _Sphere.w * -2.0f / pLight->m_vDirection.y;
             uiFlags |= 0x10000;
-            PblVector3 vStart(_Sphere.x, _Sphere.w + _Sphere.y, _Sphere.z);
+            PblVector3 vStart = _Sphere;
+            vStart.y = _Sphere.w + vStart.y;
             const GameObject* pIgnore = NULL;
             CollisionObject* pHit;
-            fLength = CollisionManager::RayHit(vStart, vDir, 50.0f, pHit, NULL, &pIgnore, 1, 0x90, false) * 50.0f;
+            fLength = CollisionManager::RayHit(vStart, pLight->m_vDirection, 50.0f, pHit, NULL, &pIgnore, 1, 0x90, false) * 50.0f;
             if (fMinLength > fLength)
             {
                 fLength = fMinLength;
@@ -1008,11 +972,10 @@ void ChunkCluster::Render(unsigned char ucViewport, float fDist, unsigned int ui
         RedRenderer::SetStencilShadowLength(fLength);
 
         const PblMatrix& mView = pCamera->GetMatrix();
-        float fDX = mView.m[3][0] - mView.m[2][0] * fNear - _Sphere.x;
-        float fDY = mView.m[3][1] - mView.m[2][1] * fNear - _Sphere.y;
-        float fDZ = mView.m[3][2] - mView.m[2][2] * fNear - _Sphere.z;
+        const PblVector3& vCenter = _Sphere;
+        float fDist2 = SquaredLength(mView.GetTranslation() - mView.GetZAxis() * fNear - vCenter);
         float fReach = _Sphere.w + fLength + fWidth * 1.33f;
-        RedRenderer::SetStencilShadowZFail(fReach * fReach > fDX * fDX + fDY * fDY + fDZ * fDZ);
+        RedRenderer::SetStencilShadowZFail(fReach * fReach > fDist2);
     }
 
     for (int i = 0; i < 10; i++)
@@ -1069,19 +1032,19 @@ ChunkClusterManager* ChunkClusterManager::sHostInstance;
 // FUNCTION: SWBF2 0x004586a0
 bool ChunkClusterManager::CreateClient(bool bDeactivate)
 {
-    if (NetGame::IsOneWorld())
-    {
-        sClientInstance = 0;
-        sHostInstance->DeactivateThread();
-        sHostInstance->ActivateThread(-10, PER_LOCAL_TURN);
-    }
-    else
+    if (!NetGame::IsOneWorld())
     {
         sClientInstance = new ChunkClusterManager;
         if (bDeactivate)
         {
             sClientInstance->DeactivateThread();
         }
+    }
+    else
+    {
+        sClientInstance = 0;
+        sHostInstance->DeactivateThread();
+        sHostInstance->ActivateThread(-10, PER_LOCAL_TURN);
     }
     return true;
 }
@@ -1125,8 +1088,8 @@ ChunkClusterManager::ChunkClusterManager()
         mChunkClusters[i].mID = -1;
         for (unsigned char j = 0; j < 10; j++)
         {
-            mChunkClusters[i].mChunks[j].mID = j;
             mChunkClusters[i].mChunks[j].mParentCluster = &mChunkClusters[i];
+            mChunkClusters[i].mChunks[j].mID = j;
         }
     }
 }
@@ -1154,14 +1117,14 @@ bool ChunkClusterManager::Create()
 // FUNCTION: SWBF2 0x00458660
 bool ChunkClusterManager::Destroy()
 {
-    if (!sInstance)
+    if (sInstance)
     {
-        return false;
+        delete sHostInstance;
+        sHostInstance = 0;
+        sInstance = 0;
+        return true;
     }
-    delete sHostInstance;
-    sHostInstance = 0;
-    sInstance = 0;
-    return true;
+    return false;
 }
 
 // FUNCTION: SWBF2 0x00458800
@@ -1172,7 +1135,14 @@ ChunkCluster* ChunkClusterManager::GetFreeCluster(bool bArg)
         if (!sInstance->mChunkClusters[i].IsValid())
         {
             ChunkCluster* pCluster = &sInstance->mChunkClusters[i];
-            pCluster->mID = bArg ? i : -1;
+            if (bArg)
+            {
+                pCluster->mID = i;
+            }
+            else
+            {
+                pCluster->mID = -1;
+            }
             pCluster->Activate();
             return &sInstance->mChunkClusters[i];
         }
@@ -1198,12 +1168,19 @@ ChunkCluster* ChunkClusterManager::GetFreeCluster(bool bArg)
         }
     }
     sInstance->mChunkClusters[i].ClearChunks();
+    ChunkCluster* pCluster = &sInstance->mChunkClusters[i];
     if (++sInstance->mOldestChunkCluster >= 8)
     {
         sInstance->mOldestChunkCluster = 0;
     }
-    ChunkCluster* pCluster = &sInstance->mChunkClusters[i];
-    pCluster->mID = bArg ? i : -1;
+    if (bArg)
+    {
+        pCluster->mID = i;
+    }
+    else
+    {
+        pCluster->mID = -1;
+    }
     pCluster->Activate();
     return pCluster;
 }
@@ -1211,25 +1188,24 @@ ChunkCluster* ChunkClusterManager::GetFreeCluster(bool bArg)
 // FUNCTION: SWBF2 0x004587b0
 ChunkCluster* ChunkClusterManager::GetClusterByID(unsigned char ucID, bool bArg)
 {
-    if (ucID >= 8)
+    if (ucID < 8)
     {
-        return 0;
-    }
-    for (int i = 0; i < 8; ++i)
-    {
-        if (sInstance->mChunkClusters[i].mID == ucID)
+        for (int i = 0; i < 8; ++i)
         {
-            return &sInstance->mChunkClusters[i];
+            if (sInstance->mChunkClusters[i].mID == ucID)
+            {
+                return &sInstance->mChunkClusters[i];
+            }
         }
-    }
-    if (bArg)
-    {
-        ChunkCluster* pCluster = GetFreeCluster(true);
-        if (pCluster)
+        if (bArg)
         {
-            pCluster->mID = ucID;
+            ChunkCluster* pCluster = GetFreeCluster(true);
+            if (pCluster)
+            {
+                pCluster->mID = ucID;
+                return pCluster;
+            }
         }
-        return pCluster;
     }
     return 0;
 }

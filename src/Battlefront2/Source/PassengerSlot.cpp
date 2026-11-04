@@ -24,7 +24,7 @@
 
 // GLOBAL: SWBF2 0x01ef7ca0
 // PassengerSlot::sMemoryPool
-MemoryPool PassengerSlot::sMemoryPool("PassengerSlot", 0x1f0);
+MemoryPool PassengerSlot::sMemoryPool("PassengerSlot", sizeof(PassengerSlot));
 
 // SYNTHETIC: SWBF2 0x00405dc0
 // `dynamic initializer for 'PassengerSlot::rttiHashPassengerSlot''
@@ -74,20 +74,22 @@ Entity* PassengerSlotClass::Build(const EntityDesc& desc)
 // FUNCTION: SWBF2 0x0060fe30
 bool PassengerSlotClass::SetProperty(unsigned int uProperty, const char* pszValue, const RedModel* pModel)
 {
-    if (uProperty == 0xBFBBAB62)
+    if (uProperty != 0xBFBBAB62)
     {
-        if (pModel)
+        if (!mCameraSettings.SetProperty(uProperty, pszValue))
         {
-            PblMatrix mat;
-            if (pModel->GetParentBoneAndOffsetMatrix(PblTEMPHash(pszValue), mat))
-            {
-                mMountMatrix = mat;
-            }
+            return ControllableClass::SetProperty(uProperty, pszValue, pModel);
         }
+        return true;
     }
-    else if (!mCameraSettings.SetProperty(uProperty, pszValue))
+    if (pModel)
     {
-        return ControllableClass::SetProperty(uProperty, pszValue, pModel);
+        PblMatrix mat;
+        unsigned int uBone = PblTEMPHash(pszValue);
+        if (pModel->GetParentBoneAndOffsetMatrix(uBone, mat))
+        {
+            mMountMatrix = mat;
+        }
     }
     return true;
 }
@@ -256,11 +258,7 @@ bool PassengerSlot::Update(float fDeltaTime)
 {
     Controllable::Update(fDeltaTime);
 
-    Controllable* pPilot = mPilot;
-    if (mPilotType == PILOT_SELF || (mPilotType == PILOT_VEHICLESELF && pPilot == this))
-    {
-        pPilot = 0;
-    }
+    Controllable* pPilot = GetPilot();
 
     if (pPilot)
     {
@@ -301,13 +299,15 @@ bool PassengerSlot::Update(float fDeltaTime)
     if (mPowerupTimer >= mClass->mPowerupDelay)
     {
         mPowerupTimer -= mClass->mPowerupDelay;
+        float fAddHealth = mClass->mAddHealth;
+        float fAddAmmo = mClass->mAddAmmo;
         if (pPilot)
         {
             GameObject* pPilotObject = mPilot->GetGameObject();
             if (pPilotObject)
             {
-                PowerupUtility::ApplyHealth(pPilotObject, mClass->mAddHealth, 0, false);
-                PowerupUtility::ApplyAmmo(pPilotObject, mClass->mAddAmmo, false);
+                PowerupUtility::ApplyHealth(pPilotObject, fAddHealth, 0, false);
+                PowerupUtility::ApplyAmmo(pPilotObject, fAddAmmo, false);
             }
         }
     }

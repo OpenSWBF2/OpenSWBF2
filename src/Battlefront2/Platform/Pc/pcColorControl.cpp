@@ -81,12 +81,14 @@ void ColorControl::PlatformInit()
         m_level[i] = 0.5f;
     }
 
-    for (unsigned int i = 0; i < 256; i++)
+    int i = 0;
+    for (int iValue = 0; iValue < 256 * 0x101; iValue += 0x101)
     {
-        const WORD wValue = (WORD)(i * 0x101);
+        const WORD wValue = (WORD)iValue;
         m_gammaRamp.blue[i] = wValue;
         m_gammaRamp.green[i] = wValue;
         m_gammaRamp.red[i] = wValue;
+        i++;
     }
 
     RedRenderer::pcSetGammaRamp(m_gammaRamp);
@@ -103,9 +105,9 @@ void ColorControl::PlatformEnable(bool bEnable)
         m_levelInternal[0] = 0.5f;
         m_levelInternal[1] = 0.5f;
         m_levelInternal[2] = 0.5f;
-        for (unsigned int i = 0; i < 256; i++)
+        for (unsigned int i = 0, uiValue = 0; uiValue < 0x10100; i++, uiValue += 0x101)
         {
-            const WORD wValue = (WORD)(i * 0x101);
+            const WORD wValue = (WORD)uiValue;
             m_gammaRamp.blue[i] = wValue;
             m_gammaRamp.green[i] = wValue;
             m_gammaRamp.red[i] = wValue;
@@ -131,9 +133,21 @@ void ColorControl::Update(float fDeltaTime)
 
         for (int i = 0; i < 256; i++)
         {
-            m_gammaRamp.red[i] = awRamp[i];
-            m_gammaRamp.blue[i] = awRamp[i];
-            m_gammaRamp.green[i] = awRamp[i];
+            float fValue = powf(((float)i * (1.0f / 255.0f) - 0.5f + fOffset) * fScale + 0.5f,
+                                fExponent);
+            if (fValue < 0.0f)
+            {
+                fValue = 0.0f;
+            }
+            else if (fValue > 1.0f)
+            {
+                fValue = 1.0f;
+            }
+
+            const WORD wValue = (WORD)(int)(fValue * 65535.0f);
+            m_gammaRamp.red[i] = wValue;
+            m_gammaRamp.blue[i] = wValue;
+            m_gammaRamp.green[i] = wValue;
         }
 
         UpdateDisplay(m_gammaRamp);

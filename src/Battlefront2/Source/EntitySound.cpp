@@ -55,7 +55,7 @@ const char EntitySoundClass::rttiNameEntitySoundClass[] = "EntitySoundClass";
 
 // GLOBAL: SWBF2 0x01ebc150
 // SoundSpaceRegion::sMemoryPool
-MemoryPool SoundSpaceRegion::sMemoryPool("SoundSpaceRegion", 0x70);
+MemoryPool SoundSpaceRegion::sMemoryPool("SoundSpaceRegion", sizeof(SoundSpaceRegion));
 
 // SYNTHETIC: SWBF2 0x00402de0
 // `dynamic initializer for 'EntitySound::sEntitySoundList''
@@ -87,15 +87,18 @@ EntitySound::EntitySound(EntitySoundClass* pClass, const EntityDesc& desc)
     mSoundId = pClass->mSoundId;
     if (pClass->mFlags & 1)
     {
-        SetMinDistance(pClass->mMinDistance);
+        mMinDistance = pClass->mMinDistance;
+        mFlags |= 1;
     }
     if (pClass->mFlags & 4)
     {
-        SetMuteDistance(pClass->mMuteDistance);
+        mMuteDistance = pClass->mMuteDistance;
+        mFlags |= 4;
     }
     if (pClass->mFlags & 2)
     {
-        SetMaxDistance(pClass->mMaxDistance);
+        mMaxDistance = pClass->mMaxDistance;
+        mFlags |= 2;
     }
     mPosition = desc.mMatrix.GetTranslation();
     sEntitySoundList.AddLast(&mNode);
@@ -221,8 +224,10 @@ EntitySound* EntitySoundClass::CreateSoundFromRegion(RedRegionDesc& desc, const 
         {
             pSound->SetMinDistance(desc.mSize.w / fScale);
         }
-        pSound->SetMuteDistance(desc.mSize.w);
-        pSound->SetMaxDistance(desc.mSize.w);
+        pSound->mMuteDistance = desc.mSize.w;
+        pSound->mFlags |= 4;
+        pSound->mMaxDistance = desc.mSize.w;
+        pSound->mFlags |= 2;
     }
     return pSound;
 }
@@ -251,14 +256,14 @@ unsigned int Snd::Space::GetRegionCount() const
 // FUNCTION: SWBF2 0x004fac50
 Snd::Space::Region* Snd::Space::FindRegionByIndex(unsigned int uIndex)
 {
-    PblListSingle::Node* pNode = 0;
-    if (!mList.IsEmpty())
+    PblListSingle::Node* pNode = mList.mHead.mNext;
+    if (pNode == &mList.mHead)
     {
-        pNode = mList.mHead.mNext;
-        for (; uIndex; --uIndex)
-        {
-            pNode = pNode->mNext;
-        }
+        return 0;
+    }
+    for (; uIndex; --uIndex)
+    {
+        pNode = pNode->mNext;
     }
     if (!pNode || pNode == &mList.mHead)
     {
@@ -288,10 +293,28 @@ Snd::Space* Snd::Space::FindByIndex(unsigned int uIndex)
 // FUNCTION: SWBF2 0x004fb1e0
 void SoundSpaceRegion::DestroyAll()
 {
-    unsigned int uCount = Snd::Space::GetCount();
+    unsigned int uCount = 0;
+    for (PblListSingle::Itor it(Snd::Space::smSpaceList); it.GetNode() != Snd::Space::smSpaceList.GetTerminator(); ++it)
+    {
+        ++uCount;
+    }
     for (unsigned int i = 0; i < uCount; ++i)
     {
-        Snd::Space* pSpace = Snd::Space::FindByIndex(i);
+        PblListSingle::Node* pNode = Snd::Space::smSpaceList.mHead.mNext;
+        if (Snd::Space::smSpaceList.IsEmpty())
+        {
+            pNode = 0;
+        }
+        else
+        {
+            for (unsigned int uStep = 0; uStep < i; ++uStep)
+            {
+                pNode = pNode->mNext;
+            }
+        }
+        Snd::Space* pSpace = pNode == &Snd::Space::smSpaceList.mHead
+            ? 0
+            : reinterpret_cast<Snd::Space*>(reinterpret_cast<char*>(pNode) - offsetof(Snd::Space, mNode));
         while (pSpace->GetRegionCount())
         {
             SoundSpaceRegion* pRegion =
@@ -313,17 +336,15 @@ void* SoundSpaceRegionFactory::CreateRegion(RedRegionDesc& desc, const char* pcN
     sscanf(pcName, acFormat, acSpaceName);
 
     Snd::Space* const pSpace = Snd::Space::Find(PblHash(acSpaceName));
-    if (!pSpace)
+    if (pSpace)
     {
-        return 0;
+        RedRegion region(desc);
+        SoundSpaceRegion* const pRegion = new SoundSpaceRegion(region);
+        if (pRegion)
+        {
+            pSpace->mList.AddLast(&pRegion->mSpaceNode);
+            return pRegion;
+        }
     }
-
-    RedRegion region(desc);
-    SoundSpaceRegion* const pRegion = new SoundSpaceRegion(region);
-    if (!pRegion)
-    {
-        return 0;
-    }
-    pSpace->mList.AddLast(&pRegion->mSpaceNode);
-    return pRegion;
+    return 0;
 }

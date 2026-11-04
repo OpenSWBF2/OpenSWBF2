@@ -191,20 +191,18 @@ const RedLightingState* RedLight::GetLightingState(const PblBox& box, int iMaxOm
     }
 
     int iMaxSpotLights = 1;
-    if (RedRenderer::pcGetRenderOptions().mGraphicsTier == 0)
+    const bool bLowestTier = RedRenderer::pcGetRenderOptions().mGraphicsTier == 0;
+    if (bLowestTier)
     {
         iMaxOmniLights = 0;
         iMaxSpotLights = 0;
     }
 
-    PblVector3 vCenter((box._vMin.x + box._vMax.x) * 0.5f, (box._vMin.y + box._vMax.y) * 0.5f,
-                       (box._vMin.z + box._vMax.z) * 0.5f);
-    float fSizeX = box._vMax.x - box._vMin.x;
-    float fSizeY = box._vMax.y - box._vMin.y;
-    float fSizeZ = box._vMax.z - box._vMin.z;
-    float fRadius = (float)sqrt((double)(fSizeX * fSizeX + fSizeY * fSizeY + fSizeZ * fSizeZ)) * 0.5f;
+    PblVector3 vCenter = (box._vMax + box._vMin) * 0.5f;
+    PblVector3 vSize = box._vMax - box._vMin;
+    float fRadius = (float)sqrt((double)(vSize.x * vSize.x + vSize.y * vSize.y + vSize.z * vSize.z)) * 0.5f;
 
-    float afDirectionalPriority[2] = { 0.0f, 0.0f };
+    float afDirectionalPriority[2] = { 0 };
     const PblMatrix& mCamera = RedRenderer::GetCamera()->GetMatrix();
     bool bDefault = true;
 
@@ -216,9 +214,8 @@ const RedLightingState* RedLight::GetLightingState(const PblBox& box, int iMaxOm
         state.pEnvMap = RedTexture::Find(m_sGlobalEnvMapHash);
     }
     state.envMapFactor = 1.0f;
-    state.bStaticLighting = bStatic;
+    state.bStaticLighting = bStatic != 0;
 
-    bool bShadowed = false;
     if (!bStatic && !bNoShadowRegions)
     {
         RedAmbientLight ambient;
@@ -228,7 +225,6 @@ const RedLightingState* RedLight::GetLightingState(const PblBox& box, int iMaxOm
         if (RedShadowRegion::GetShadowValues(vCenter, fRadius, afDirectional, ambient, uiEnvMapHash,
                                              fEnvMapFactor))
         {
-            bShadowed = true;
             bDefault = false;
             afDirectional[0] *= m_sGlobalDirectionalFactor[0];
             afDirectional[1] *= m_sGlobalDirectionalFactor[1];
@@ -245,8 +241,29 @@ const RedLightingState* RedLight::GetLightingState(const PblBox& box, int iMaxOm
             state.pEnvMap = RedTexture::Find(uiEnvMapHash);
             state.envMapFactor = fEnvMapFactor;
         }
+        else
+        {
+            for (int i = 0; i < 2; ++i)
+            {
+                if (m_sGlobalDirectionals[i])
+                {
+                    float fFactor = m_sGlobalDirectionalFactor[i];
+                    if (fFactor < 1.0f)
+                    {
+                        bDefault = false;
+                    }
+                    if (fFactor > 0.0f)
+                    {
+                        afDirectionalPriority[state.numDirectionalLights] = FLT_MAX;
+                        state.pDirectionalLights[state.numDirectionalLights] = m_sGlobalDirectionals[i];
+                        state.pDirectionalFactor[state.numDirectionalLights] = fFactor;
+                        ++state.numDirectionalLights;
+                    }
+                }
+            }
+        }
     }
-    if (!bShadowed)
+    else
     {
         for (int i = 0; i < 2; ++i)
         {
@@ -259,8 +276,8 @@ const RedLightingState* RedLight::GetLightingState(const PblBox& box, int iMaxOm
                 }
                 if (fFactor > 0.0f)
                 {
-                    state.pDirectionalLights[state.numDirectionalLights] = m_sGlobalDirectionals[i];
                     afDirectionalPriority[state.numDirectionalLights] = FLT_MAX;
+                    state.pDirectionalLights[state.numDirectionalLights] = m_sGlobalDirectionals[i];
                     state.pDirectionalFactor[state.numDirectionalLights] = fFactor;
                     ++state.numDirectionalLights;
                 }
@@ -272,8 +289,7 @@ const RedLightingState* RedLight::GetLightingState(const PblBox& box, int iMaxOm
          it != s_VisibleDirectionalLightList.End(); ++it)
     {
         RedDirectionalLight* pLight = static_cast<RedDirectionalLight*>((RedLight*)it);
-        if (bStatic && (pLight->m_uiFlags & LIGHT_FLAG_STATIC) &&
-            !(pLight->m_uiFlags & LIGHT_FLAG_SPECULARCASTER))
+        if (bStatic && pLight->IsStatic() && !pLight->IsSpecularCaster())
         {
             break;
         }
@@ -292,6 +308,7 @@ const RedLightingState* RedLight::GetLightingState(const PblBox& box, int iMaxOm
             {
                 continue;
             }
+            float fIntensity = pLight->GetIntensity();
             float fDX = pRegion->mMatrix.m[3][0] - mCamera.m[3][0];
             float fDY = pRegion->mMatrix.m[3][1] - mCamera.m[3][1];
             float fDZ = pRegion->mMatrix.m[3][2] - mCamera.m[3][2];
@@ -302,7 +319,7 @@ const RedLightingState* RedLight::GetLightingState(const PblBox& box, int iMaxOm
             {
                 fDivisor = fCamera;
             }
-            fPriority = pLight->GetIntensity() / fDivisor;
+            fPriority = fIntensity / fDivisor;
         }
 
         int i = 0;
@@ -358,7 +375,7 @@ const RedLightingState* RedLight::GetLightingState(const PblBox& box, int iMaxOm
 
     if (iMaxOmniLights > 0)
     {
-        float afOmniPriority[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+        float afOmniPriority[4] = { 0 };
         if (iMaxOmniLights > 4)
         {
             iMaxOmniLights = 4;
@@ -367,7 +384,7 @@ const RedLightingState* RedLight::GetLightingState(const PblBox& box, int iMaxOm
              it != s_VisibleOmniLightList.End(); ++it)
         {
             RedOmniLight* pLight = static_cast<RedOmniLight*>((RedLight*)it);
-            if (bStatic && (pLight->m_uiFlags & LIGHT_FLAG_STATIC))
+            if (bStatic && pLight->IsStatic())
             {
                 break;
             }
@@ -379,19 +396,34 @@ const RedLightingState* RedLight::GetLightingState(const PblBox& box, int iMaxOm
             const PblVector3& vPos = pLight->m_pos;
             float fDistSq = 0.0f;
             float fD;
-            if (box._vMin.x > vPos.x || vPos.x > box._vMax.x)
+            if (box._vMin.x > vPos.x)
             {
-                fD = vPos.x - (box._vMin.x > vPos.x ? box._vMin.x : box._vMax.x);
+                fD = vPos.x - box._vMin.x;
                 fDistSq = fD * fD;
             }
-            if (box._vMin.y > vPos.y || vPos.y > box._vMax.y)
+            else if (vPos.x > box._vMax.x)
             {
-                fD = vPos.y - (box._vMin.y > vPos.y ? box._vMin.y : box._vMax.y);
+                fD = vPos.x - box._vMax.x;
+                fDistSq = fD * fD;
+            }
+            if (box._vMin.y > vPos.y)
+            {
+                fD = vPos.y - box._vMin.y;
                 fDistSq += fD * fD;
             }
-            if (box._vMin.z > vPos.z || vPos.z > box._vMax.z)
+            else if (vPos.y > box._vMax.y)
             {
-                fD = vPos.z - (box._vMin.z > vPos.z ? box._vMin.z : box._vMax.z);
+                fD = vPos.y - box._vMax.y;
+                fDistSq += fD * fD;
+            }
+            if (box._vMin.z > vPos.z)
+            {
+                fD = vPos.z - box._vMin.z;
+                fDistSq += fD * fD;
+            }
+            else if (vPos.z > box._vMax.z)
+            {
+                fD = vPos.z - box._vMax.z;
                 fDistSq += fD * fD;
             }
             float fRadiusSq = pLight->m_radius * pLight->m_radius;
@@ -400,9 +432,9 @@ const RedLightingState* RedLight::GetLightingState(const PblBox& box, int iMaxOm
                 continue;
             }
 
+            float fIntensity = pLight->GetIntensity();
             float fDivisor = 1.0f;
             float fDist4 = fDistSq * 4.0f;
-            float fIntensity = pLight->GetIntensity();
             if (fDist4 > fRadiusSq)
             {
                 fIntensity *= fRadiusSq;
@@ -477,7 +509,7 @@ const RedLightingState* RedLight::GetLightingState(const PblBox& box, int iMaxOm
              it != s_VisibleSpotLightList.End(); ++it)
         {
             RedSpotLight* pLight = static_cast<RedSpotLight*>((RedLight*)it);
-            if (bStatic && (pLight->m_uiFlags & LIGHT_FLAG_STATIC))
+            if (bStatic && pLight->IsStatic())
             {
                 break;
             }
@@ -489,19 +521,34 @@ const RedLightingState* RedLight::GetLightingState(const PblBox& box, int iMaxOm
             const PblVector3& vPos = pLight->m_vPos;
             float fDistSq = 0.0f;
             float fD;
-            if (box._vMin.x > vPos.x || vPos.x > box._vMax.x)
+            if (box._vMin.x > vPos.x)
             {
-                fD = vPos.x - (box._vMin.x > vPos.x ? box._vMin.x : box._vMax.x);
+                fD = vPos.x - box._vMin.x;
                 fDistSq = fD * fD;
             }
-            if (box._vMin.y > vPos.y || vPos.y > box._vMax.y)
+            else if (vPos.x > box._vMax.x)
             {
-                fD = vPos.y - (box._vMin.y > vPos.y ? box._vMin.y : box._vMax.y);
+                fD = vPos.x - box._vMax.x;
+                fDistSq = fD * fD;
+            }
+            if (box._vMin.y > vPos.y)
+            {
+                fD = vPos.y - box._vMin.y;
                 fDistSq += fD * fD;
             }
-            if (box._vMin.z > vPos.z || vPos.z > box._vMax.z)
+            else if (vPos.y > box._vMax.y)
             {
-                fD = vPos.z - (box._vMin.z > vPos.z ? box._vMin.z : box._vMax.z);
+                fD = vPos.y - box._vMax.y;
+                fDistSq += fD * fD;
+            }
+            if (box._vMin.z > vPos.z)
+            {
+                fD = vPos.z - box._vMin.z;
+                fDistSq += fD * fD;
+            }
+            else if (vPos.z > box._vMax.z)
+            {
+                fD = vPos.z - box._vMax.z;
                 fDistSq += fD * fD;
             }
             float fRadiusSq = pLight->m_fRadius * pLight->m_fRadius;
@@ -514,9 +561,9 @@ const RedLightingState* RedLight::GetLightingState(const PblBox& box, int iMaxOm
                 continue;
             }
 
+            float fIntensity = pLight->GetIntensity();
             float fDivisor = 1.0f;
             float fDist4 = fDistSq * 4.0f;
-            float fIntensity = pLight->GetIntensity();
             if (fDist4 > fRadiusSq)
             {
                 fIntensity *= fRadiusSq;
@@ -607,13 +654,15 @@ const RedLightingState* RedLight::GetLightingState(const PblSphere& sphere, int 
     }
 
     int iMaxSpotLights = 1;
-    if (RedRenderer::pcGetRenderOptions().mGraphicsTier == 0)
+    const bool bLowestTier = RedRenderer::pcGetRenderOptions().mGraphicsTier == 0;
+    if (bLowestTier)
     {
         iMaxOmniLights = 0;
         iMaxSpotLights = 0;
     }
 
-    float afDirectionalPriority[2] = { 0.0f, 0.0f };
+    float afDirectionalPriority[2];
+    memset(afDirectionalPriority, 0, sizeof(afDirectionalPriority));
     const PblMatrix& mCamera = RedRenderer::GetCamera()->GetMatrix();
     bool bDefault = true;
 
@@ -625,9 +674,8 @@ const RedLightingState* RedLight::GetLightingState(const PblSphere& sphere, int 
         state.pEnvMap = RedTexture::Find(m_sGlobalEnvMapHash);
     }
     state.envMapFactor = 1.0f;
-    state.bStaticLighting = bStatic;
+    state.bStaticLighting = bStatic != 0;
 
-    bool bShadowed = false;
     if (!bStatic && !bNoShadowRegions)
     {
         RedAmbientLight ambient;
@@ -637,7 +685,6 @@ const RedLightingState* RedLight::GetLightingState(const PblSphere& sphere, int 
         if (RedShadowRegion::GetShadowValues(sphere.GetCenter(), sphere.GetRadius(), afDirectional,
                                              ambient, uiEnvMapHash, fEnvMapFactor))
         {
-            bShadowed = true;
             bDefault = false;
             afDirectional[0] *= m_sGlobalDirectionalFactor[0];
             afDirectional[1] *= m_sGlobalDirectionalFactor[1];
@@ -654,8 +701,29 @@ const RedLightingState* RedLight::GetLightingState(const PblSphere& sphere, int 
             state.pEnvMap = RedTexture::Find(uiEnvMapHash);
             state.envMapFactor = fEnvMapFactor;
         }
+        else
+        {
+            for (int i = 0; i < 2; ++i)
+            {
+                if (m_sGlobalDirectionals[i])
+                {
+                    float fFactor = m_sGlobalDirectionalFactor[i];
+                    if (fFactor < 1.0f)
+                    {
+                        bDefault = false;
+                    }
+                    if (fFactor > 0.0f)
+                    {
+                        afDirectionalPriority[state.numDirectionalLights] = FLT_MAX;
+                        state.pDirectionalLights[state.numDirectionalLights] = m_sGlobalDirectionals[i];
+                        state.pDirectionalFactor[state.numDirectionalLights] = fFactor;
+                        ++state.numDirectionalLights;
+                    }
+                }
+            }
+        }
     }
-    if (!bShadowed)
+    else
     {
         for (int i = 0; i < 2; ++i)
         {
@@ -668,8 +736,8 @@ const RedLightingState* RedLight::GetLightingState(const PblSphere& sphere, int 
                 }
                 if (fFactor > 0.0f)
                 {
-                    state.pDirectionalLights[state.numDirectionalLights] = m_sGlobalDirectionals[i];
                     afDirectionalPriority[state.numDirectionalLights] = FLT_MAX;
+                    state.pDirectionalLights[state.numDirectionalLights] = m_sGlobalDirectionals[i];
                     state.pDirectionalFactor[state.numDirectionalLights] = fFactor;
                     ++state.numDirectionalLights;
                 }
@@ -681,8 +749,7 @@ const RedLightingState* RedLight::GetLightingState(const PblSphere& sphere, int 
          it != s_VisibleDirectionalLightList.End(); ++it)
     {
         RedDirectionalLight* pLight = static_cast<RedDirectionalLight*>((RedLight*)it);
-        if (bStatic && (pLight->m_uiFlags & LIGHT_FLAG_STATIC) &&
-            !(pLight->m_uiFlags & LIGHT_FLAG_SPECULARCASTER))
+        if (bStatic && pLight->IsStatic() && !pLight->IsSpecularCaster())
         {
             break;
         }
@@ -701,17 +768,15 @@ const RedLightingState* RedLight::GetLightingState(const PblSphere& sphere, int 
             {
                 continue;
             }
-            float fDX = pRegion->mMatrix.m[3][0] - mCamera.m[3][0];
-            float fDY = pRegion->mMatrix.m[3][1] - mCamera.m[3][1];
-            float fDZ = pRegion->mMatrix.m[3][2] - mCamera.m[3][2];
-            float fCamera = (fDX * fDX + fDY * fDY + fDZ * fDZ) *
+            float fIntensity = pLight->GetIntensity();
+            float fCamera = SquaredLength(pRegion->mMatrix.GetTranslation() - mCamera.GetTranslation()) *
                             LIGHT_MAX_PREFERED_CAMERA_DISTANCE_INVSQR;
             float fDivisor = 1.0f;
             if (fCamera > 1.0f)
             {
                 fDivisor = fCamera;
             }
-            fPriority = pLight->GetIntensity() / fDivisor;
+            fPriority = fIntensity / fDivisor;
         }
 
         int i = 0;
@@ -767,7 +832,8 @@ const RedLightingState* RedLight::GetLightingState(const PblSphere& sphere, int 
 
     if (iMaxOmniLights > 0)
     {
-        float afOmniPriority[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+        float afOmniPriority[4];
+        memset(afOmniPriority, 0, sizeof(afOmniPriority));
         if (iMaxOmniLights > 4)
         {
             iMaxOmniLights = 4;
@@ -776,7 +842,7 @@ const RedLightingState* RedLight::GetLightingState(const PblSphere& sphere, int 
              it != s_VisibleOmniLightList.End(); ++it)
         {
             RedOmniLight* pLight = static_cast<RedOmniLight*>((RedLight*)it);
-            if (bStatic && (pLight->m_uiFlags & LIGHT_FLAG_STATIC))
+            if (bStatic && pLight->IsStatic())
             {
                 break;
             }
@@ -785,30 +851,23 @@ const RedLightingState* RedLight::GetLightingState(const PblSphere& sphere, int 
                 continue;
             }
 
-            float fRadius = pLight->m_radius;
-            float fDX = pLight->m_pos.x - sphere.x;
-            float fDY = pLight->m_pos.y - sphere.y;
-            float fDZ = pLight->m_pos.z - sphere.z;
-            float fDistSq = fDX * fDX + fDY * fDY + fDZ * fDZ;
-            float fReach = sphere.GetRadius() + fRadius;
+            float fDistSq = SquaredLength(pLight->m_pos - sphere.GetCenter());
+            float fReach = sphere.GetRadius() + pLight->m_radius;
             if (fDistSq >= fReach * fReach)
             {
                 continue;
             }
 
-            float fRadiusSq = fRadius * fRadius;
+            float fIntensity = pLight->GetIntensity();
+            float fRadiusSq = pLight->m_radius * pLight->m_radius;
             float fDivisor = 1.0f;
             float fDist4 = fDistSq * 4.0f;
-            float fIntensity = pLight->GetIntensity();
             if (fDist4 > fRadiusSq)
             {
                 fIntensity *= fRadiusSq;
                 fDivisor = fDist4;
             }
-            fDX = pLight->m_pos.x - mCamera.m[3][0];
-            fDY = pLight->m_pos.y - mCamera.m[3][1];
-            fDZ = pLight->m_pos.z - mCamera.m[3][2];
-            float fCamera = (fDX * fDX + fDY * fDY + fDZ * fDZ) *
+            float fCamera = SquaredLength(pLight->m_pos - mCamera.GetTranslation()) *
                             LIGHT_MAX_PREFERED_CAMERA_DISTANCE_INVSQR;
             if (fCamera > 1.0f)
             {
@@ -874,7 +933,7 @@ const RedLightingState* RedLight::GetLightingState(const PblSphere& sphere, int 
              it != s_VisibleSpotLightList.End(); ++it)
         {
             RedSpotLight* pLight = static_cast<RedSpotLight*>((RedLight*)it);
-            if (bStatic && (pLight->m_uiFlags & LIGHT_FLAG_STATIC))
+            if (bStatic && pLight->IsStatic())
             {
                 break;
             }
@@ -883,11 +942,11 @@ const RedLightingState* RedLight::GetLightingState(const PblSphere& sphere, int 
                 continue;
             }
 
-            float fRadius = sphere.GetRadius();
-            float fReach = fRadius + pLight->m_fRadius;
             float fDX = pLight->m_vPos.x - sphere.x;
             float fDY = pLight->m_vPos.y - sphere.y;
             float fDZ = pLight->m_vPos.z - sphere.z;
+            float fRadius = sphere.GetRadius();
+            float fReach = fRadius + pLight->m_fRadius;
             float fDistSq = fDX * fDX + fDY * fDY + fDZ * fDZ;
             if (fDistSq >= fReach * fReach)
             {
@@ -898,10 +957,10 @@ const RedLightingState* RedLight::GetLightingState(const PblSphere& sphere, int 
                 continue;
             }
 
+            float fIntensity = pLight->GetIntensity();
             float fRadiusSq = pLight->m_fRadius * pLight->m_fRadius;
             float fDivisor = 1.0f;
             float fDist4 = fDistSq * 4.0f;
-            float fIntensity = pLight->GetIntensity();
             if (fDist4 > fRadiusSq)
             {
                 fIntensity *= fRadiusSq;
@@ -1055,18 +1114,9 @@ void RedShadowMap::SetScreenSpaceShadowMap(RedTexture* pTexture, const PblMatrix
     _pShadowMapTexture = pTexture;
     RedShadowMap::_uiShadowMapHash = pTexture ? pTexture->GetName() : 0;
 
-    _vShadowMapTransformU.x = matrix.m[0][0];
-    _vShadowMapTransformU.y = matrix.m[1][0];
-    _vShadowMapTransformU.z = matrix.m[2][0];
-    _vShadowMapTransformU.w = matrix.m[3][0];
-    _vShadowMapTransformV.x = matrix.m[0][1];
-    _vShadowMapTransformV.y = matrix.m[1][1];
-    _vShadowMapTransformV.z = matrix.m[2][1];
-    _vShadowMapTransformV.w = matrix.m[3][1];
-    _vShadowMapTransformW.x = matrix.m[0][3];
-    _vShadowMapTransformW.y = matrix.m[1][3];
-    _vShadowMapTransformW.z = matrix.m[2][3];
-    _vShadowMapTransformW.w = matrix.m[3][3];
+    _vShadowMapTransformU = PblVector4(matrix.m[0][0], matrix.m[1][0], matrix.m[2][0], matrix.m[3][0]);
+    _vShadowMapTransformV = PblVector4(matrix.m[0][1], matrix.m[1][1], matrix.m[2][1], matrix.m[3][1]);
+    _vShadowMapTransformW = PblVector4(matrix.m[0][3], matrix.m[1][3], matrix.m[2][3], matrix.m[3][3]);
     RedRenderer::pcSetShadowMapTransform(_vShadowMapTransformU,
                                          _vShadowMapTransformV,
                                          _vShadowMapTransformW);
@@ -1077,20 +1127,12 @@ static const float kf1by255 = 1.0f / 255.0f;
 // FUNCTION: SWBF2 0x006c8af0
 void RedLight::ReadGlobals(PblConfig& config)
 {
+    unsigned int uiEnvMap = 0;
     unsigned int uiLight1 = 0;
     unsigned int uiLight2 = 0;
-    unsigned int uiEnvMap = 0;
 
-    RedColorValue topColor;
-    topColor.r = RedColor::CYAN.r * kf1by255;
-    topColor.g = RedColor::CYAN.g * kf1by255;
-    topColor.b = RedColor::CYAN.b * kf1by255;
-    topColor.a = RedColor::CYAN.a * kf1by255;
-    RedColorValue bottomColor;
-    bottomColor.r = RedColor::YELLOW.r * kf1by255;
-    bottomColor.g = RedColor::YELLOW.g * kf1by255;
-    bottomColor.b = RedColor::YELLOW.b * kf1by255;
-    bottomColor.a = RedColor::YELLOW.a * kf1by255;
+    RedColorValue topColor(RedColor::CYAN);
+    RedColorValue bottomColor(RedColor::YELLOW);
 
     while (!config.IsDone())
     {
@@ -1098,16 +1140,10 @@ void RedLight::ReadGlobals(PblConfig& config)
         switch (data.GetId())
         {
         case 0xa710dc3c:
-            topColor.r = data.GetUint8Arg(0) * kf1by255;
-            topColor.g = data.GetUint8Arg(1) * kf1by255;
-            topColor.b = data.GetUint8Arg(2) * kf1by255;
-            topColor.a = 1.0f;
+            topColor = RedColor(data.GetUint8Arg(0), data.GetUint8Arg(1), data.GetUint8Arg(2), 0xff);
             break;
         case 0x4ea76b2a:
-            bottomColor.r = data.GetUint8Arg(0) * kf1by255;
-            bottomColor.g = data.GetUint8Arg(1) * kf1by255;
-            bottomColor.b = data.GetUint8Arg(2) * kf1by255;
-            bottomColor.a = 1.0f;
+            bottomColor = RedColor(data.GetUint8Arg(0), data.GetUint8Arg(1), data.GetUint8Arg(2), 0xff);
             break;
         case 0xbb6dd0da:
             uiEnvMap = PblHash(data.GetStringArg(0));
@@ -1163,14 +1199,25 @@ void RedLight::Read(PblFileChunk& chunk)
     {
         PblConfig::Data data = config.ReadNextData();
 
-        PblConfig scope(config.ReadNextScope(), true);
-        if (data.GetId() == 0xe29d1e2f)
+        switch (data.GetId())
         {
+        case 0xe29d1e2f:
+        {
+            PblConfig scope(config.ReadNextScope(), true);
             ReadLight(scope, PblHash(data.GetStringArg(0)));
+            break;
         }
-        else if (data.GetId() == 0xf7548f33)
+        case 0xf7548f33:
         {
+            PblConfig scope(config.ReadNextScope(), true);
             ReadGlobals(scope);
+            break;
+        }
+        default:
+        {
+            PblConfig skipped(config.ReadNextScope(), true);
+            break;
+        }
         }
     }
 }
@@ -1180,11 +1227,6 @@ void RedLight::ReadLight(PblConfig& config, unsigned int uiName)
 {
     PblQuaternion qRotation(1.0f, 0.0f, 0.0f, 0.0f);
     PblVector3 vPosition;
-    RedColorValue color;
-    color.r = RedColor::BLACK.r * kf1by255;
-    color.g = RedColor::BLACK.g * kf1by255;
-    color.b = RedColor::BLACK.b * kf1by255;
-    color.a = RedColor::BLACK.a * kf1by255;
     unsigned int uiType = 0;
     unsigned int uiRegion = 0;
     unsigned int uiTexture = 0;
@@ -1198,10 +1240,15 @@ void RedLight::ReadLight(PblConfig& config, unsigned int uiName)
     float fOffsetU = 0.0f;
     float fOffsetV = 0.0f;
     bool bBidirectional = false;
-    bool bCastShadow = false;
-    bool bCastSpecular = false;
     bool bStatic = false;
+    bool bCastSpecular = false;
+    bool bCastShadow = false;
     bool bOverbright = false;
+    RedColorValue color;
+    color.r = RedColor::BLACK.r * kf1by255;
+    color.g = RedColor::BLACK.g * kf1by255;
+    color.b = RedColor::BLACK.b * kf1by255;
+    color.a = RedColor::BLACK.a * kf1by255;
 
     while (!config.IsDone())
     {
@@ -1394,7 +1441,7 @@ void RedLight::UpdateAllVisibility(const RedCamera* pCamera, unsigned int uiView
         switch (pLight->m_eType)
         {
         case TYPE_DIRECTIONAL:
-            if ((pLight->m_uiFlags & LIGHT_FLAG_STATIC) && !(pLight->m_uiFlags & LIGHT_FLAG_SPECULARCASTER))
+            if (it->IsStatic() && !it->IsSpecularCaster())
             {
                 s_VisibleDirectionalLightList.AddLast(&pLight->m_VisibleNode, pLight);
             }
@@ -1404,7 +1451,7 @@ void RedLight::UpdateAllVisibility(const RedCamera* pCamera, unsigned int uiView
             }
             break;
         case TYPE_POINT:
-            if (pLight->m_uiFlags & LIGHT_FLAG_STATIC)
+            if (pLight->IsStatic())
             {
                 s_VisibleOmniLightList.AddLast(&pLight->m_VisibleNode, pLight);
             }
@@ -1414,7 +1461,7 @@ void RedLight::UpdateAllVisibility(const RedCamera* pCamera, unsigned int uiView
             }
             break;
         case TYPE_SPOT:
-            if (pLight->m_uiFlags & LIGHT_FLAG_STATIC)
+            if (pLight->IsStatic())
             {
                 s_VisibleSpotLightList.AddLast(&pLight->m_VisibleNode, pLight);
             }
@@ -1429,10 +1476,10 @@ void RedLight::UpdateAllVisibility(const RedCamera* pCamera, unsigned int uiView
     RedLightingState state;
     memset(&state, 0, sizeof(state));
     state.pDirectionalLights[0] = m_sGlobalDirectionals[0];
-    state.pDirectionalLights[1] = m_sGlobalDirectionals[1];
     state.pDirectionalFactor[0] = m_sGlobalDirectionalFactor[0];
-    state.pDirectionalFactor[1] = m_sGlobalDirectionalFactor[1];
+    state.pDirectionalLights[1] = m_sGlobalDirectionals[1];
     state.numDirectionalLights = 2;
+    state.pDirectionalFactor[1] = m_sGlobalDirectionalFactor[1];
     state.ambientLight = *m_sGlobalAmbient;
     state.pEnvMap = RedTexture::Find(m_sGlobalEnvMapHash);
     state.envMapFactor = 1.0f;
