@@ -637,14 +637,8 @@ CommandPost* CommandPost::BuildPost(GameObject* pObject, CommandPostClass* pClas
 {
     int iForced = sForcedIndex;
     sForcedIndex = -1;
-    if (iIndex >= 0)
-    {
-        if (*sPostCount <= iIndex)
-        {
-            *sPostCount = iIndex + 1;
-        }
-    }
-    else
+    int iFound = -1;
+    if (iForced < 0)
     {
         for (int i = 0; i < *sPostCount; i++)
         {
@@ -658,6 +652,16 @@ CommandPost* CommandPost::BuildPost(GameObject* pObject, CommandPostClass* pClas
                 }
             }
         }
+    }
+    int iIndex = LocalLimits::ChoosePostIndex(iForced, iFound, *sPostCount);
+    const bool bCommandPostLimitOk = iIndex >= 0;
+    if (!ensure(bCommandPostLimitOk))
+    {
+        return 0;
+    }
+    if (iIndex >= *sPostCount)
+    {
+        *sPostCount = iIndex + 1;
     }
 
     if (!sPostArray[iIndex])

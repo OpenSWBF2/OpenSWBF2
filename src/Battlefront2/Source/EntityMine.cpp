@@ -273,7 +273,7 @@ bool EntityMine::Update(float fDeltaTime)
     if (pStick)
     {
         GameObject* pStuckTo = pStick->mCollHandle.mObject;
-        if (pStuckTo && pStuckTo->mHandleId != pStick->mCollHandle.mSavedHandleId)
+        if (pStuckTo && PBL_HANDLE_ID(pStuckTo) != pStick->mCollHandle.mSavedHandleId)
         {
             mParent = 0;
             delete pStick;

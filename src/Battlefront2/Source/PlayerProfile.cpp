@@ -568,8 +568,7 @@ static void ComputeTargetMode(const PlayerProfile::tPCOpt& rOpt, bool bQuiet, Ta
     unsigned int uiDeskH = 0;
     if (eMode == DisplayLogic::kModeBorderless && !g_bNoRender)
     {
-        uiWidth = (unsigned int)pcWidth;
-        uiHeight = (unsigned int)pcHeight;
+        RedRenderer::pcGetAdapterDesktop(gAdapter, uiDeskW, uiDeskH);
     }
 
     unsigned int uiResX = rOpt.mResolutionX;
@@ -636,8 +635,7 @@ static void ComputeTargetMode(const PlayerProfile::tPCOpt& rOpt, bool bQuiet, Ta
 
     if (!uiWidth || !uiHeight)
     {
-        D3DDISPLAYMODE modes[50];
-        const D3DDISPLAYMODE fallback[2] = {
+        const unsigned int fallback[2][2] = {
             { 800, 600 },
             { 640, 480 },
         };
@@ -1499,8 +1497,7 @@ void PlayerProfile::tProfile::SanityCheck()
 
     if (PblUnicode::ustrlen(mName) < 1)
     {
-        const unsigned short* pDefaultName = RedLocalizeDB::Find(0x62a0afc0, false);
-        PblUnicode::ustrncpy(mName, pDefaultName, 16);
+        PblUnicode::ustrlcpy(mName, RedLocalizeDB::Find(0x62a0afc0, false), 16);
         mName[15] = 0;
     }
     if (PblUnicode::ustrlen(mName) < 1)

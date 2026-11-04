@@ -977,7 +977,8 @@ bool SpawnDisplay::CanShowHeroes()
             if (pPlayer)
             {
                 int iTeam = pPlayer->mTeamNumber;
-                return netHeroUnlocked[iTeam] && netHeroPlayerID[iTeam] > -1 && netHeroPlayerID[iTeam] == iLocal;
+                return PblInBounds(netHeroUnlocked, iTeam) && netHeroUnlocked[iTeam] &&
+                       netHeroPlayerID[iTeam] > -1 && netHeroPlayerID[iTeam] == iLocal;
             }
         }
     }

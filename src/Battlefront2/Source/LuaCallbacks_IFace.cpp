@@ -695,7 +695,7 @@ bool Util_GetRedInterfaceElement(int iNumArgs, RedInterfaceElement*& pElement,
         {
             return false;
         }
-        pElement = (RedInterfaceElement*)lua_topointer(LuaHelper::mState, 1);
+        pElement = Util_GetLuaElement(1);
     }
     else
     {
@@ -726,7 +726,7 @@ bool Util_GetRedScreenGroupElement(int iNumArgs, RedScreenGroupElement*& pElemen
         {
             return false;
         }
-        pElement = pGroup;
+        pElement = static_cast<RedScreenGroupElement*>(pGroupElement);
     }
     else
     {
@@ -3448,12 +3448,14 @@ int ScriptCB_IFModel_AttachModel(lua_State* L)
     {
         return 0;
     }
-    Red3DModelElement* pAttached = static_cast<Red3DModelElement*>(
-        const_cast<void*>(lua_topointer(LuaHelper::mState, iArg)));
-    Red3DModelElement* pModel = static_cast<Red3DModelElement*>(pElement);
-    pModel->m_AttachedObj = pAttached;
-    pModel->m_uiHardpointHash = PblTEMPHash(luaL_checkstring(LuaHelper::mState, iArg + 1));
-    pAttached->m_bAmAttached = true;
+    RedInterfaceElement* pAttachedElement = Util_GetLuaElement(iArg);
+    if (pAttachedElement && pAttachedElement->IsModel())
+    {
+        Red3DModelElement* pAttached = static_cast<Red3DModelElement*>(pAttachedElement);
+        Red3DModelElement* pModel = static_cast<Red3DModelElement*>(pElement);
+        const unsigned int uiHash = PblTEMPHash(luaL_checkstring(LuaHelper::mState, iArg + 1));
+        pModel->AttachModel(pAttached, uiHash);
+    }
     return 0;
 }
 
@@ -3634,9 +3636,9 @@ int ScriptCB_OpenErrorBox(lua_State* L)
         && lua_isstring(LuaHelper::mState, 2))
     {
         GuiManager::eErrorSeverity eSeverity = (GuiManager::eErrorSeverity)(int)(float)luaL_checknumber(LuaHelper::mState, 1);
-        const char* pcMessage = luaL_checkstring(LuaHelper::mState, 2);
+        const unsigned short* pusMessage = LuaWideString::Check(LuaHelper::mState, 2);
         GuiManager::Instance()->OpenError(eSeverity,
-            reinterpret_cast<const unsigned short*>(pcMessage), 0, fnErrorBoxOk);
+            pusMessage, 0, fnErrorBoxOk);
     }
     return 0;
 }
@@ -4425,7 +4427,12 @@ int ScriptCB_GetActionFromIdx(lua_State* L)
     int iIndex = (int)(float)luaL_checknumber(LuaHelper::mState, 1);
     int iMode = FLInputManager::s_instance.GetPlayerJoystick(PauseMenu::GetPausingViewport())->GetInputMode();
     --iIndex;
-    for (int i = 0; i <= iIndex; ++i)
+    if (iIndex < 0)
+    {
+        lua_pushnumber(LuaHelper::mState, (float)ePROCESSEDINPUT_NONE);
+        return 1;
+    }
+    for (int i = 0; i <= iIndex && PblInBounds(sKeyboardCmdsPerMode[iMode], i); ++i)
     {
         int iAction = sKeyboardCmdsPerMode[iMode][i];
         if (iAction == ePROCESSEDINPUT_NONE || iAction == ePROCESSEDINPUT_MAX)

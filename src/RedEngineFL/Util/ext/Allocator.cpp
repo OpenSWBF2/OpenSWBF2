@@ -53,6 +53,7 @@ void StackAllocator::Allocate(Buffer& rBuf)
     }
 
     rBuf.data_ = pPos;
+    PblAsanUnpoison(pPos, rBuf.size_);
     pos_ += uSize;
     sizes_[bpos_] = rBuf.size_;
     bpos_ = (bpos_ + 1) % 8;

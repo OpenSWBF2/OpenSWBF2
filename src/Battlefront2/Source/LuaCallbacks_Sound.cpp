@@ -1519,7 +1519,12 @@ int ScriptCB_SetLowReinforcementsVoiceOver(lua_State*)
     if (nArgs == 5 && (int)luaL_checknumber(LuaHelper::mState, 5))
     {
         float fFraction = (float)luaL_checknumber(LuaHelper::mState, 4);
-        iCount = (int)(Team::sTeams[iTeam]->mCurReinforcements * fFraction);
+        Team* pTeam = Team::Lookup(iTeam);
+        if (!pTeam)
+        {
+            return 0;
+        }
+        iCount = (int)(pTeam->mCurReinforcements * fFraction);
     }
     else
     {
@@ -1543,7 +1548,12 @@ int ScriptCB_SetAmbientMusic(lua_State*)
     if (nArgs == 5 && (int)luaL_checknumber(LuaHelper::mState, 5))
     {
         float fFraction = (float)luaL_checknumber(LuaHelper::mState, 2);
-        iCount = (int)(Team::sTeams[iTeam]->mCurReinforcements * fFraction);
+        Team* pTeam = Team::Lookup(iTeam);
+        if (!pTeam)
+        {
+            return 0;
+        }
+        iCount = (int)(pTeam->mCurReinforcements * fFraction);
     }
     else
     {

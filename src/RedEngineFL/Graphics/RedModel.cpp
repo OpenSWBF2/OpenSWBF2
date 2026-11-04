@@ -412,6 +412,10 @@ void RedModel::Render(const PblMatrix* pMatrix, const RedPose* pPose, const RedC
             if (uiNumBones)
             {
                 PblMatrix* pBoneMatrices = RedRenderer::AllocBoneMatricesInCache(uiNumBones);
+                if (!pBoneMatrices)
+                {
+                    continue;
+                }
                 if (pPose)
                 {
                     if (_bHardSkin)

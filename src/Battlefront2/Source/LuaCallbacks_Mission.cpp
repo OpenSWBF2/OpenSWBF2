@@ -1716,7 +1716,7 @@ int CreateTimer(lua_State* L)
     Timer* pTimer = Timer::Find(pcName);
     if (!pTimer)
     {
-        if (!Timer::sMemoryPool.IsFull())
+        if (!Timer::sMemoryPool.IsFull() && Timer::sMap.GetNumEntries() < Timer::sMap.GetMaxEntries())
         {
             pTimer = new Timer(pcName);
         }
@@ -2019,11 +2019,19 @@ int DeleteAIGoal(lua_State* L)
     {
         return 0;
     }
-    AI::AIGoal* pGoal = (AI::AIGoal*)lua_topointer(LuaHelper::mState, 1);
-    if (pGoal)
+    AI::AIGoal* pGoal = (AI::AIGoal*)LuaHandleArg::Get(LuaHelper::mState, 1);
+    AI::AIGoalManager* pManager = AI::AIGoalManager::Instance();
+    if (pGoal && pManager)
     {
-        pGoal->UnAssignAll();
-        AI::AIGoalManager::Instance()->DeleteGoal(pGoal);
+        for (int i = 0; i < AI::AIGoalManager::MAX_GOALS; ++i)
+        {
+            if (pManager->mGoals[i] == pGoal)
+            {
+                pGoal->UnAssignAll();
+                pManager->DeleteGoal(pGoal);
+                break;
+            }
+        }
     }
     return 0;
 }
@@ -2540,7 +2548,7 @@ static FLEffectObject* GetEffect(lua_State* L, int iIndex)
 // FUNCTION: SWBF2 0x00590f90
 int IsEffectActive(lua_State* L)
 {
-    FLEffectObject* pEffect = (FLEffectObject*)lua_topointer(LuaHelper::mState, 1);
+    FLEffectObject* pEffect = GetEffect(LuaHelper::mState, 1);
     if (pEffect)
     {
         lua_pushboolean(LuaHelper::mState, pEffect->IsEffectActive());
@@ -3365,6 +3373,7 @@ int CreateEffect(lua_State* L)
         FLEffectObject* pEffect = pClass->BuildEffect();
         if (pEffect)
         {
+            (void)ensure(FLEffectObject::sLuaHandles.Insert(pEffect));
             lua_pushlightuserdata(LuaHelper::mState, pEffect);
             return 1;
         }
@@ -3386,9 +3395,12 @@ int AttachEffectToMatrix(lua_State* L)
         return 0;
     }
     PblMatrix matrix;
-    memcpy(&matrix, lua_touserdata(LuaHelper::mState, 2), sizeof(matrix));
-    const PblMatrix* pOffset = lua_type(LuaHelper::mState, 3) <= LUA_TNIL ?
-        &gMatrixIdentity : (const PblMatrix*)lua_touserdata(LuaHelper::mState, 3);
+    memcpy(&matrix, pSource, sizeof(matrix));
+    const PblMatrix* pOffset = LuaMatrixArg::Get(LuaHelper::mState, 3);
+    if (!pOffset)
+    {
+        pOffset = &gMatrixIdentity;
+    }
     pEffect->AttachEffectToMatrix(&matrix, *pOffset, false);
     return 0;
 }
@@ -3612,9 +3624,13 @@ int TogglePlanningGraphArcs(lua_State* L)
 // FUNCTION: SWBF2 0x00590c90
 int Print3D(lua_State* L)
 {
-    PblMatrix matrix = *(const PblMatrix*)lua_touserdata(LuaHelper::mState, 1);
+    const PblMatrix* pMatrix = LuaMatrixArg::Get(LuaHelper::mState, 1);
     const char* pcText = luaL_checklstring(LuaHelper::mState, 2, 0);
-    RedDebug::Printf3D(matrix.GetTranslation(), "%s", pcText);
+    if (!pMatrix)
+    {
+        return 0;
+    }
+    RedDebug::Printf3D(pMatrix->GetTranslation(), "%s", pcText);
     return 0;
 }
 
@@ -3779,7 +3795,7 @@ int DisableSmallMapMiniMap(lua_State*)
 // FUNCTION: SWBF2 0x00590ef0
 int GetEffectMatrix(lua_State* L)
 {
-    FLEffectObject* pEffect = (FLEffectObject*)lua_topointer(LuaHelper::mState, 1);
+    FLEffectObject* pEffect = GetEffect(LuaHelper::mState, 1);
     if (pEffect)
     {
         LuaHelper::PushObject<PblMatrix>(pEffect->m_mWorldMatrix);
@@ -3795,7 +3811,8 @@ int CreateEntity(lua_State* L)
     if (pClass)
     {
         EntityDesc desc;
-        if (lua_isuserdata(LuaHelper::mState, 2))
+        const PblMatrix* pDescMatrix = LuaMatrixArg::Get(LuaHelper::mState, 2);
+        if (pDescMatrix)
         {
             memcpy(&desc.mMatrix, pDescMatrix, sizeof(desc.mMatrix));
         }
@@ -3824,10 +3841,10 @@ int CreateMatrix(lua_State* L)
     PblMatrix matrix;
     D3DXMatrixRotationAxis(reinterpret_cast<D3DXMATRIX*>(&matrix), reinterpret_cast<const D3DXVECTOR3*>(&axis), fAngle);
     matrix.SetTranslation(PblVector3(LuaHelper::GetFloat(5), LuaHelper::GetFloat(6), LuaHelper::GetFloat(7)));
-    if (lua_isuserdata(LuaHelper::mState, 8))
+    const PblMatrix* pParent = LuaMatrixArg::Get(LuaHelper::mState, 8);
+    if (pParent)
     {
-        PblMatrix other = *(const PblMatrix*)lua_touserdata(LuaHelper::mState, 8);
-        matrix = matrix * other;
+        matrix = matrix * *pParent;
     }
     LuaHelper::PushObject<PblMatrix>(matrix);
     return 1;
@@ -3904,8 +3921,11 @@ int AttachEffectToObject(lua_State* L)
     {
         EntityGeometry* pEntity = _GetEntity<EntityGeometry>(LuaHelper::mState, 2);
         const char* pcBone = luaL_optlstring(LuaHelper::mState, 3, 0, 0);
-        const PblMatrix* pOffset = lua_type(LuaHelper::mState, 4) <= LUA_TNIL ?
-            &gMatrixIdentity : (const PblMatrix*)lua_touserdata(LuaHelper::mState, 4);
+        const PblMatrix* pOffset = LuaMatrixArg::Get(LuaHelper::mState, 4);
+        if (!pOffset)
+        {
+            pOffset = &gMatrixIdentity;
+        }
         pEffect->AttachEffectToObject(pEntity, PblHash(pcBone), *pOffset, true);
     }
     return 0;

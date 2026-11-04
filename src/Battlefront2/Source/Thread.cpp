@@ -127,7 +127,7 @@ void Thread::ActivateThread(int iOrder, ThreadType eThreadType)
     }
 
     pGroup = pGroup->FindCreate(-iOrder);
-    pGroup->mThreads.Add(&mThreadListNode, this, (int)this);
+    pGroup->mThreads.Add(&mThreadListNode, this, PblPtrOrderKey(this));
 }
 
 // FUNCTION: SWBF2 0x00657760

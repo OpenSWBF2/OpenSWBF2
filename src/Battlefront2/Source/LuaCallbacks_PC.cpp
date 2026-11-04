@@ -600,8 +600,19 @@ int ScriptCB_FillResolutionTable(lua_State* L)
     int iMultiSampleQuality = lua_isnumber(LuaHelper::mState, 2) ? LuaHelper::GetInt(2) : 0;
 
     int iIndex = 1;
-    D3DDISPLAYMODE modes[50];
-    unsigned int uiNumModes = RedRenderer::pcGetValidDisplayModes(modes, 50, 800, 600);
+    unsigned int uiAll = RedRenderer::pcGetValidDisplayModes(gAdapter, 0, 0, 800, 600);
+    DisplayLogic::DisplayModeRec* pAll = uiAll ? new DisplayLogic::DisplayModeRec[uiAll] : 0;
+    if (pAll)
+    {
+        RedRenderer::pcGetValidDisplayModes(gAdapter, pAll, uiAll, 800, 600);
+    }
+    unsigned int uiNumModes = pAll ? DisplayLogic::UniqueResolutions(pAll, uiAll, 800, 600, 0, 0) : 0;
+    DisplayLogic::DisplayModeRec* modes =
+        uiNumModes ? new DisplayLogic::DisplayModeRec[uiNumModes] : 0;
+    if (modes)
+    {
+        DisplayLogic::UniqueResolutions(pAll, uiAll, 800, 600, modes, uiNumModes);
+    }
     PlayerProfile::tProfile* pProfile = PlayerProfile::GetCurProfile();
 
     int iCurSel = 1;
@@ -619,7 +630,7 @@ int ScriptCB_FillResolutionTable(lua_State* L)
             continue;
         }
 
-        AddResolution(iIndex, usLabel, modes[i].Width, modes[i].Height);
+        AddResolution(iIndex, usLabel, modes[i].w, modes[i].h);
         ++iIndex;
         if (pProfile
             && modes[i].w == pProfile->mPCOptions.mResolutionX
@@ -647,18 +658,8 @@ int ScriptCB_FillMultisampleTable(lua_State* L)
     DoPeriodicLuaGC(false);
     lua_newtable(LuaHelper::mState);
 
-    int aiType[17];
-    int aiQuality[17];
-    aiType[0] = D3DMULTISAMPLE_NONE;
-    aiQuality[0] = 0;
-    unsigned int iNumModes = 1;
-
-    lua_gettop(LuaHelper::mState);
-    int iWidth = lua_isnumber(LuaHelper::mState, 1) ? LuaHelper::GetInt(1) : 800;
-    int iHeight = lua_isnumber(LuaHelper::mState, 2) ? LuaHelper::GetInt(2) : 600;
-
-    int iNumQualities = RedVideoConfig::VidMode_GetNumMultiSampleQualityModes();
-    if (iNumQualities > 0)
+    bool bWindowed = DisplayLogic::D3DWindowed(RedRenderer::m_displayMode);
+    if (lua_isboolean(LuaHelper::mState, 3))
     {
         bWindowed = lua_toboolean(LuaHelper::mState, 3) != 0;
     }
@@ -695,7 +696,7 @@ int ScriptCB_FillMultisampleTable(lua_State* L)
 
     PlayerProfile::tProfile* pProfile = PlayerProfile::GetCurProfile();
     int iCurSel = 1;
-    for (unsigned int i = 0; i < iNumModes; ++i)
+    for (unsigned int i = 0; i < uiEntries; ++i)
     {
         const int iType = (int)aEntries[i].uiType;
         const int iQuality = (int)aEntries[i].uiQuality;

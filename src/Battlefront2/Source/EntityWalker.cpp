@@ -130,6 +130,7 @@ EntityWalkerClass::EntityWalkerClass(unsigned int uHash)
     sCurrentSection = -1;
     sWeaponSection = 0;
     sCurPair = -1;
+    sOwnLegPairInfo = 0;
     s_bSetZephyrSkeletonShared = false;
 
     m_pZephyrSkeletonShared = 0;
@@ -4397,7 +4398,7 @@ bool EntityWalker::PostCollisionUpdate(float fDeltaTime)
         {
             gameObjectInterpolator.SetNext(mNetUniqueId, &GetSmoothedMatrix());
             float fBlendTurn = mBlend->GetTurnState();
-            float fFrontTurn = mLegPairs[0]->GetTurnState();
+            float fFrontTurn = mLegPairCount > 0 ? mLegPairs[0]->GetTurnState() : 0.0f;
             float fBackTurn = mLegPairCount > 1 ? mLegPairs[1]->GetTurnState() : 0.0f;
             gameObjectInterpolator.SetNextFloat(mNetUniqueId, 0, fBlendTurn);
             gameObjectInterpolator.SetNextFloat(mNetUniqueId, 1, fFrontTurn);

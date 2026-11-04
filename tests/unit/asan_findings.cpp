@@ -152,8 +152,8 @@ TEST_CASE("hero and game rules reads stay bounded" * doctest::test_suite("regres
         const char* pcGuard;
     };
     const GuardSite akSites[8] = {
-        { "src\\Battlefront2\\Source\\Character.cpp", "return PblInBounds(netHeroLastPlayerID, mTeamNumber) &&" },
-        { "src\\Battlefront2\\Source\\Character.cpp", "if (PblInBounds(netHeroLastPlayerID, mTeamNumber) &&" },
+        { "src\\Battlefront2\\Source\\Character.cpp", "\n        if (PblInBounds(netHeroLastPlayerID, mTeamNumber) &&" },
+        { "src\\Battlefront2\\Source\\Character.cpp", "            if (PblInBounds(netHeroLastPlayerID, mTeamNumber) &&" },
         { "src\\Battlefront2\\Source\\Character.cpp", "PblInBounds(netHeroUnlocked, iTeam) && netHeroUnlocked[iTeam] &&" },
         { "src\\Battlefront2\\Source\\Character.cpp", "PblInBounds(netHeroKillerID, rOwner.mCharacter->mTeamNumber)" },
         { "src\\Battlefront2\\Source\\Character.cpp", "!PblInBounds(netHeroPlayerID, mTeamNumber) ||" },
@@ -578,9 +578,9 @@ TEST_CASE("squadron formation list fits its stack block" * doctest::test_suite("
 {
     std::string sSquadron = ReadRepoTextLf("src\\Battlefront2\\Source\\EntitySquadron.cpp");
     CHECK(sSquadron.find("    const EntityFormation** ppFormations = "
-                         "(const EntityFormation**)stack.Alloc((int)(mNumFormations * sizeof(*ppFormations)));\n")
+                         "(const EntityFormation**)stack.Alloc((int)(uNumFormations * sizeof(*ppFormations)));\n")
           != std::string::npos);
-    CHECK(sSquadron.find("stack.Alloc(mNumFormations)") == std::string::npos);
+    CHECK(sSquadron.find("stack.Alloc(uNumFormations)") == std::string::npos);
 }
 
 TEST_CASE("squadron formation list stops at ten" * doctest::test_suite("regression"))
@@ -711,7 +711,7 @@ TEST_CASE("walker without leg pairs never reads a leg pair" * doctest::test_suit
                        "            mLegPairs[0]->ResetTurnState();\n"
                        "        }\n")
           != std::string::npos);
-    CHECK(sWalker.find("mLegPairCount > 0 ? mLegPairs[0]->GetTurnState() : 0.0f);\n") != std::string::npos);
+    CHECK(sWalker.find("float fFrontTurn = mLegPairCount > 0 ? mLegPairs[0]->GetTurnState() : 0.0f;\n") != std::string::npos);
     CHECK(CountText(sWalker, "mLegPairs[0]") == 6);
     CHECK(CountText(sWalker, "mLegPairs[1]") == 6);
 }

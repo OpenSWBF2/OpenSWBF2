@@ -363,11 +363,13 @@ try {
         'y = (Foo*)((char*)pAllowed + 4);',
         'z = (Foo*)( (char*)pSpaced  +  4 );',
         'k = (float)(fA + fB);',
-        'h = (char*)p + iSize;'
+        'h = (char*)p + iSize;',
+        'n = (IMAGE_NT_HEADERS*)((char*)pBase + pDos->e_lfanew);',
+        'm = (IMAGE_NT_HEADERS*)((char*)pBase + 0x3c);'
     )
     $allow = @('src\x.cpp|(Foo*)((char*)pAllowed + 4)', 'src\x.cpp|(Foo*)( (char*)pSpaced + 4 )', 'src\x.cpp|(Foo*)((char*)pMissing + 4)', 'src\y.cpp|(Foo*)((char*)pAllowed + 4)')
     $sc = @(Get-SourceChecks $offsetDir @() $allow | Where-Object { $_.Name -eq 'offset-hack' })
-    $want = ((@(1, 2, 3, 4, 5, 6, 7, 14) | ForEach-Object { "src\x.cpp:$_" }) + 'unused allow src\x.cpp|(Foo*)((char*)pMissing + 4)' + 'unused allow src\y.cpp|(Foo*)((char*)pAllowed + 4)') -join ', '
+    $want = ((@(1, 2, 3, 4, 5, 6, 7, 14, 19) | ForEach-Object { "src\x.cpp:$_" }) + 'unused allow src\x.cpp|(Foo*)((char*)pMissing + 4)' + 'unused allow src\y.cpp|(Foo*)((char*)pAllowed + 4)') -join ', '
     if ($sc.Count -ne 1 -or $sc[0].Ok -or $sc[0].Detail -ne $want) { $failed++; Write-Host "FAILED ${n}: offset-hack flags every byte-offset form outside the exact allow-list: $($sc.Detail)" }
     else { Write-Host "OK $n offset-hack flags every byte-offset form outside the exact allow-list" }
 }

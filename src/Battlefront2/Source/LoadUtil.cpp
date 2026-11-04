@@ -671,7 +671,8 @@ void LoadUtil::ProcessEntity(PblFileChunk& chunk)
         case 0x504F5250:
         {
             const unsigned int uProperty = child._pFile->Read32();
-            const char* pcValue = child.ReadString(acValue, sizeof(acValue));
+            char* pcValue = child.ReadString(acValue, sizeof(acValue));
+            OdfValue::Sanitize(uProperty, pcValue);
             pEntity->SetProperty(uProperty, pcValue);
             break;
         }

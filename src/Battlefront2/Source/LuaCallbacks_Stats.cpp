@@ -175,8 +175,8 @@ int ScriptCB_GetPlayerIDAtRank(lua_State*)
     }
     int iTeam = (int)luaL_checknumber(LuaHelper::mState, 1);
     int iRank = (int)luaL_checknumber(LuaHelper::mState, 2);
-    Team* pTeam = Team::sTeams[iTeam];
-    if (iRank >= 0)
+    Team* pTeam = Team::Lookup(iTeam);
+    if (pTeam && iRank >= 0)
     {
         Character* pCharacter = 0;
         for (int i = 0; i < pTeam->mMemberCount; ++i)
@@ -1002,7 +1002,10 @@ int ScriptCB_PersonalStatsSetTitles(lua_State* L)
         }
         Red3DModelElementLite* pIcon = (Red3DModelElementLite*)RedInterfaceElement::Find(0x262d6743u);
         pIcon->SetModel(GetSideIcon(pTeam->GetSide()));
-        pIcon->SetColor(pTeam->mColor[iSlot]);
+        if (PblInBounds(pTeam->mColor, iSlot))
+        {
+            pIcon->SetColor(pTeam->mColor[iSlot]);
+        }
     }
     return 0;
 }
@@ -1089,7 +1092,7 @@ int ScriptCB_GetPersonalStats(lua_State* L)
         pStats = &NetGame::GetLocalPlayer(GetStatsPageJoystick())->GetPlayerStats();
     }
 
-    for (int i = 0; i < 10; ++i)
+    for (int i = 0; pStats && i < 10; ++i)
     {
         lua_newtable(LuaHelper::mState);
         switch (i)

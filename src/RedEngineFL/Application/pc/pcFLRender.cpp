@@ -367,23 +367,7 @@ unsigned int FLRenderer::AddView(const RedViewport& rViewport, RedCamera* pCamer
     FLRenderer::m_bInterfaceEnable[uiView] = true;
     m_bSceneEnable[uiView] = true;
 
-    m_pViewInterfaceScreen[uiView]->SetDimensions(
-        (unsigned int)((float)RedInterfaceScreen::GetScreenWidth() * rViewport.fWidth),
-        (unsigned int)((float)RedInterfaceScreen::GetScreenHeight() * rViewport.fHeight));
-
-    float fMargin = 0.5f - RedInterfaceScreen::s_screenFull.m_fSafeZoneWidth * 0.5f;
-    float fLeft = (fMargin >= rViewport.fOffsetX) ? fMargin : rViewport.fOffsetX + 0.01f;
-    float fTop = (fMargin >= rViewport.fOffsetY) ? fMargin : rViewport.fOffsetY + 0.01f;
-    float fRight = rViewport.fOffsetX + rViewport.fWidth;
-    float fLimit = 1.0f - fMargin;
-    fRight = (fRight >= fLimit) ? fLimit : fRight - 0.01f;
-    float fBottom = rViewport.fOffsetY + rViewport.fHeight;
-    fBottom = (fBottom >= fLimit) ? fLimit : fBottom - 0.01f;
-
-    m_pViewInterfaceScreen[uiView]->SetSafeZone((fRight - fLeft) / rViewport.fWidth,
-                                                (fBottom - fTop) / rViewport.fHeight,
-                                                (fLeft - rViewport.fOffsetX) / rViewport.fWidth,
-                                                (fTop - rViewport.fOffsetY) / rViewport.fHeight);
+    LayoutViewScreen(uiView);
     return uiView;
 }
 

@@ -649,9 +649,10 @@ void GameSoundEngine::Update(float fDeltaTime)
 
     const unsigned __int64 uiNow = PblTime::GetTickCount();
     const int iTicks = (int)((unsigned int)(uiNow - sLastSoundTick) & 0x7fffffff);
-    fDeltaTime = (float)iTicks * FrameUpdate::fOneOverTicksPerSecond;
+    fDeltaTime = g_fFixedRate > 0.0f ? fDeltaTime : (float)iTicks * FrameUpdate::fOneOverTicksPerSecond;
     sLastSoundTick = uiNow;
 
+    gSoundClockTime += fDeltaTime;
     sAccumulatedSoundTime += fDeltaTime;
     if (!(sAccumulatedSoundTime > 0.02f))
     {

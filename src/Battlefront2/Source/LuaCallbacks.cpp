@@ -623,7 +623,7 @@ int ScriptCB_ununicode(lua_State*)
 
     if (lua_isstring(LuaHelper::mState, 1))
     {
-        const unsigned short* pusString = (const unsigned short*)luaL_checklstring(LuaHelper::mState, 1, 0);
+        const unsigned short* pusString = LuaWideString::Check(LuaHelper::mState, 1);
         if (PblUnicode::ustrlen(pusString) < 256)
         {
             ConvertUnicodeSkippingWide(sTempReturnString, pusString, 256);
@@ -692,7 +692,7 @@ int ScriptCB_usprintf(lua_State*)
             {
                 return 0;
             }
-            apusArgs[i - 2] = (const unsigned short*)luaL_checklstring(LuaHelper::mState, i, 0);
+            apusArgs[i - 2] = LuaWideString::Check(LuaHelper::mState, i);
         }
 
         const unsigned short* pusFormat = RedLocalizeDB::Find(pcKey ? (unsigned int)PblHash(pcKey) : 0, false);
@@ -704,7 +704,7 @@ int ScriptCB_usprintf(lua_State*)
             return 1;
         }
 
-        switch (iTop)
+        switch (LocalizedFormatArgsFit(pusFormat, iTop - 1) ? iTop : 0)
         {
         case 2:
             iLen = PblUnicode::usnprintf(sTempReturnString16, 255, pusFormat, apusArgs[0]);
@@ -751,8 +751,8 @@ int ScriptCB_ustrupper(lua_State*)
         return 0;
     }
 
-    const unsigned short* pusSource = (const unsigned short*)luaL_checklstring(LuaHelper::mState, 1, 0);
-    PblUnicode::ustrncpy(sTempReturnString16, pusSource, 256);
+    const unsigned short* pusSource = LuaWideString::Check(LuaHelper::mState, 1);
+    PblUnicode::ustrlcpy(sTempReturnString16, pusSource, 256);
     int iLen = PblUnicode::ustrlen(sTempReturnString16);
     for (int i = 0; i < iLen; ++i)
     {
@@ -771,7 +771,7 @@ int ScriptCB_srand(lua_State*)
     unsigned int uSeed = 0xdeadbeef;
     if (!lua_gettop(LuaHelper::mState))
     {
-        uSeed = (unsigned int)time(0) + GetTickCount();
+        uSeed = gSeedSet ? gSeed : (unsigned int)time(0) + GetTickCount();
     }
     else if (lua_isnumber(LuaHelper::mState, 1))
     {
@@ -1390,7 +1390,11 @@ int ScriptCB_ShowMultipageText(lua_State*)
         const char* pcElement = luaL_checklstring(LuaHelper::mState, 1, 0);
         int iPage = (int)luaL_checknumber(LuaHelper::mState, 2);
         RedTextElement* pTextElement = (RedTextElement*)RedInterfaceElement::Find(pcElement);
-        const unsigned short* pusText = sPageStart[iPage - 1];
+        const unsigned short* pusText = PblInBounds(sPageStart, iPage - 1) ? sPageStart[iPage - 1] : 0;
+        if (!pTextElement)
+        {
+            return 0;
+        }
         if (!pusText)
         {
             unsigned short ausEmpty[5];
@@ -1686,6 +1690,10 @@ int ScriptCB_MetagameSetSide(lua_State*)
 {
     const char* pcSide = LuaHelper::GetString(2);
     __int64 iIndex = (__int64)luaL_checknumber(LuaHelper::mState, 1);
+    if (iIndex != (int)iIndex || !PblInBounds(GameLoop::mMetagameSide, (int)iIndex))
+    {
+        return 0;
+    }
     GameLoop::SetMetagameSide((int)iIndex, Team::TranslateTeamName(pcSide));
     return 0;
 }

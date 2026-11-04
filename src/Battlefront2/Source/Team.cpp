@@ -893,7 +893,7 @@ void Team::GenerateRandomName(unsigned short* const pName, int iTeam) const
 
     if (mFirstCount)
     {
-        PblUnicode::ustrlcat(pName, mFirstNames[mNameRand.GetInt() % mFirstCount], 64);
+        PblUnicode::ustrlcat(pName, mFirstNames[mNameRand.GetInt() % mFirstCount], 60);
     }
     else
     {

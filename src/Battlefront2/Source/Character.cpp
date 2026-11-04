@@ -806,7 +806,8 @@ bool Character::IsHero() const
     }
     else if (!mUnit)
     {
-        if (netHeroLastPlayerID[mTeamNumber] == mPlayerId && mPlayerId != -1)
+        if (PblInBounds(netHeroLastPlayerID, mTeamNumber) &&
+            netHeroLastPlayerID[mTeamNumber] == mPlayerId && mPlayerId != -1)
         {
             bHero = true;
         }
@@ -1179,8 +1180,8 @@ bool Character::ChangeTeam(int iTeam)
 {
     if (!mHeroFlag && mTeamNumber != iTeam)
     {
-        Team* pTeam = Team::sTeams[iTeam];
-        if (pTeam->mMemberCount < pTeam->GetMemberLimit())
+        Team* pTeam = Team::Lookup(iTeam);
+        if (pTeam && pTeam->mMemberCount < pTeam->GetMemberLimit())
         {
             mTeamPtr->RemoveMember(this);
             mTeamNumber = iTeam;
@@ -1330,14 +1331,15 @@ void Character::Died()
     }
 
     int iTeam = mTeamNumber;
-    if (netHeroesEnabled && netHeroUnlocked[iTeam] &&
+    if (netHeroesEnabled && PblInBounds(netHeroUnlocked, iTeam) && netHeroUnlocked[iTeam] &&
         (netHeroPlayerID[iTeam] != -1 || netHeroAIID[iTeam] != -1))
     {
         bool bIsHero = netHeroPlayerID[iTeam] != -1 ? mPlayerId == netHeroPlayerID[iTeam]
                                                     : this == GetPtr(netHeroAIID[iTeam]);
         if (bIsHero && mUnit && mHeroFlag)
         {
-            if (rOwner.mCharacter && rOwner.mCharacter != this)
+            if (rOwner.mCharacter && rOwner.mCharacter != this &&
+                PblInBounds(netHeroKillerID, rOwner.mCharacter->mTeamNumber))
             {
                 netHeroKillerID[rOwner.mCharacter->mTeamNumber] = rOwner.mCharacter->mPlayerId;
             }

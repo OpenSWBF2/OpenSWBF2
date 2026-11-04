@@ -356,7 +356,7 @@ const EntityFormation* EntitySquadronClass::SelectFormation(unsigned int uNumSlo
 {
     const unsigned int uNumFormations = mNumFormations;
     RedStack stack;
-    const EntityFormation** ppFormations = (const EntityFormation**)stack.Alloc(uNumFormations);
+    const EntityFormation** ppFormations = (const EntityFormation**)stack.Alloc((int)(uNumFormations * sizeof(*ppFormations)));
     int iNumFound = 0;
     for (unsigned int i = 0; i < uNumFormations; ++i)
     {

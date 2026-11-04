@@ -1252,7 +1252,7 @@ unsigned short* SafeLocalizeStrcpy(unsigned short* pusDest, const char* pcSrc, u
         PblUnicode::ustrncnv(pusDest, pcSrc, uiSize);
         return 0;
     }
-    wcscpy((wchar_t*)pusDest, (const wchar_t*)pusText);
+    PblUnicode::ustrlcpy(pusDest, pusText, uiSize);
     return pusDest;
 }
 

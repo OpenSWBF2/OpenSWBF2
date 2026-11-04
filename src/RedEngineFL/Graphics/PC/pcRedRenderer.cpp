@@ -3460,40 +3460,48 @@ void RedRenderer::pcRenderPrimitive(pcRedPrimitive* pPrim, pcRedShader* pShader,
             unsigned int uiZState = pItem->pRootShader->GetZPrepassState();
             unsigned int uiZPassCaps =
                 m_systemShaders[SYSTEM_SHADER_ZPREPASS]->GetShaderDef()->m_states[uiZState].pass[0].uiPassCaps;
-            unsigned int copyCount = m_curRenderItemOffset;
-            RenderItem* pCopy = &m_renderItemPool[copyCount];
-            m_curRenderItemOffset = copyCount + 1;
-            *pCopy = *pItem;
-            pCopy->pPrim->AddRef();
-            if (pCopy->pShadingState)
+            const bool bZPrepassPoolHasRoom = PoolMath::RenderItemHasRoom(m_curRenderItemOffset, 0x128c);
+            if (bZPrepassPoolHasRoom)
             {
-                pCopy->pShadingState->AddRef();
+                unsigned int copyCount = m_curRenderItemOffset;
+                RenderItem* pCopy = &m_renderItemPool[copyCount];
+                m_curRenderItemOffset = copyCount + 1;
+                *pCopy = *pItem;
+                pCopy->pPrim->AddRef();
+                if (pCopy->pShadingState)
+                {
+                    pCopy->pShadingState->AddRef();
+                }
+                pCopy->pRootShader = pItem->pRootShader;
+                pCopy->pRootShader->AddRef();
+                pCopy->pShaderChain[0] = m_systemShaders[SYSTEM_SHADER_ZPREPASS];
+                pCopy->pShaderChain[0]->AddRef();
+                pCopy->uiShaderChainSize = 1;
+                pCopy->uiCurrentShader = 0;
+                pCopy->uiShaderState = uiZState;
+                pCopy->flags |= 0x10;
+                pCopy->pLightingState = &m_aLightingStatePool[2049];
+
+                unsigned char copyLow =
+                    (unsigned char)internalGetTransformAndLightingID(uiRVF, uiEnvState, uiZPassCaps);
+                RenderSortKey copyKey;
+                copyKey.id = 0;
+                copyKey.translucent.material =
+                    ((GetShaderID_(pCopy->pShaderChain[pCopy->uiCurrentShader], pCopy,
+                                   pCopy->uiShaderState) &
+                      0xff)
+                     << 8) |
+                    copyLow;
+                copyKey.translucent.depth = 0x7ff;
+                copyKey.translucent.pass = 2;
+                copyKey.translucent.translucent = 1;
+
+                m_preShadowTransparentItems.Push(pCopy, ~copyKey.id);
             }
-            pCopy->pRootShader = pItem->pRootShader;
-            pCopy->pRootShader->AddRef();
-            pCopy->pShaderChain[0] = m_systemShaders[SYSTEM_SHADER_ZPREPASS];
-            pCopy->pShaderChain[0]->AddRef();
-            pCopy->uiShaderChainSize = 1;
-            pCopy->uiCurrentShader = 0;
-            pCopy->uiShaderState = uiZState;
-            pCopy->flags |= 0x10;
-            pCopy->pLightingState = &m_aLightingStatePool[2049];
-
-            unsigned char copyLow =
-                (unsigned char)internalGetTransformAndLightingID(uiRVF, uiEnvState, uiZPassCaps);
-            RenderSortKey copyKey;
-            copyKey.id = 0;
-            copyKey.translucent.material =
-                ((GetShaderID_(pCopy->pShaderChain[pCopy->uiCurrentShader], pCopy,
-                               pCopy->uiShaderState) &
-                  0xff)
-                 << 8) |
-                copyLow;
-            copyKey.translucent.depth = 0x7ff;
-            copyKey.translucent.pass = 2;
-            copyKey.translucent.translucent = 1;
-
-            m_preShadowTransparentItems.Push(pCopy, ~copyKey.id);
+            else
+            {
+                ensure(bZPrepassPoolHasRoom);
+            }
         }
         else if ((uiFlags & 0x20000000) &&
                  pItem->pRootShader->SortAsZWritingTransparent())
@@ -3810,15 +3818,7 @@ void RedRenderer::Init()
     const bool bWasLoading = gLoading;
     gLoading = true;
 
-    const int iWidth = rc.right - rc.left;
-    const int iHeight = rc.bottom - rc.top;
-    const int iX = (desktop.right - iWidth + desktop.left) / 2;
-    const int iY = (desktop.bottom - iHeight + desktop.top) / 2;
-    SetWindowPos(hGlobalWnd, 0, iX, iY, iWidth, iHeight, uFlags);
-
-    HRESULT hr = m_pd3dDevice->Reset(&m_d3dpp);
-
-    while (hr == D3DERR_DEVICELOST)
+    for (;;)
     {
         unsigned int uiElapsed = ResetClock() - dwStart;
         const bool bRevertAvailable =
@@ -3926,42 +3926,14 @@ void RedRenderer::Init()
                                   caps.MaxTextureWidth, caps.MaxTextureHeight,
                                   m_renderCaps.nonpow2textures != 0);
 
-    unsigned int uiPow2Height;
-    iShift = 31;
-    for (;;)
-    {
-        uiPow2Height = 1u << iShift;
-        if (uiPow2Height <= m_d3dpp.BackBufferHeight &&
-            uiPow2Height <= caps.MaxTextureHeight)
-        {
-            break;
-        }
-        --iShift;
-    }
-
-    if (m_renderCaps.nonpow2textures)
-    {
-        m_buffers[1] = new RedTexture(m_d3dpp.BackBufferWidth,
-                                      m_d3dpp.BackBufferHeight,
-                                      D3DFMT_A8R8G8B8, 1,
-                                      D3DUSAGE_RENDERTARGET, D3DPOOL_DEFAULT, 0);
-    }
-    else
-    {
-        m_buffers[1] = new RedTexture(uiPow2Width, uiPow2Height,
-                                      D3DFMT_A8R8G8B8, 1,
-                                      D3DUSAGE_RENDERTARGET, D3DPOOL_DEFAULT, 0);
-    }
-
-    m_buffers[0] = new RedTexture(
-        uiPow2Width > 0x200 ? 0x200 : uiPow2Width,
-        uiPow2Height > 0x200 ? 0x200 : uiPow2Height,
-        D3DFMT_A8R8G8B8, 1, D3DUSAGE_RENDERTARGET, D3DPOOL_DEFAULT, 0);
-
-    m_buffers[2] = new RedTexture(
-        uiPow2Width > 0x100 ? 0x100 : uiPow2Width,
-        uiPow2Height > 0x100 ? 0x100 : uiPow2Height,
-        D3DFMT_A8R8G8B8, 1, D3DUSAGE_RENDERTARGET, D3DPOOL_DEFAULT, 0);
+    m_buffers[1] = new RedTexture(kSizes.akBuf[1].uiW, kSizes.akBuf[1].uiH, D3DFMT_A8R8G8B8, 1,
+                                  D3DUSAGE_RENDERTARGET, D3DPOOL_DEFAULT, 0);
+    m_buffers[0] = new RedTexture(kSizes.akBuf[0].uiW, kSizes.akBuf[0].uiH, D3DFMT_A8R8G8B8, 1,
+                                  D3DUSAGE_RENDERTARGET, D3DPOOL_DEFAULT, 0);
+    m_buffers[2] = new RedTexture(kSizes.akBuf[2].uiW, kSizes.akBuf[2].uiH, D3DFMT_A8R8G8B8, 1,
+                                  D3DUSAGE_RENDERTARGET, D3DPOOL_DEFAULT, 0);
+    sDisplayGenW = m_d3dpp.BackBufferWidth;
+    sDisplayGenH = m_d3dpp.BackBufferHeight;
 
     RedRenderer::m_camera = 0;
     RedRenderer::m_frameNumber = 0;
@@ -4125,12 +4097,17 @@ void RedRenderer::InitStatic()
         }
 
         D3DCAPS9 caps;
-        m_pD3D->GetDeviceCaps(0, D3DDEVTYPE_HAL, &caps);
+        memset(&caps, 0, sizeof(caps));
+        if (m_pD3D->GetDeviceCaps(gAdapter, D3DDEVTYPE_HAL, &caps) == D3D_OK)
+        {
+            sPresentIntervals = caps.PresentationIntervals;
+        }
+        m_d3dpp.PresentationInterval = ResolveInterval(false, m_d3dpp.Windowed != FALSE, true);
+        DWORD dwBehaviorFlags = (caps.DevCaps & D3DDEVCAPS_HWTRANSFORMANDLIGHT)
+                                    ? D3DCREATE_HARDWARE_VERTEXPROCESSING
+                                    : D3DCREATE_SOFTWARE_VERTEXPROCESSING;
 
-        hr = m_pD3D->CreateDevice(0, D3DDEVTYPE_HAL, hGlobalWnd,
-                                  (caps.DevCaps & D3DDEVCAPS_HWTRANSFORMANDLIGHT)
-                                      ? D3DCREATE_HARDWARE_VERTEXPROCESSING
-                                      : D3DCREATE_SOFTWARE_VERTEXPROCESSING,
+        hr = m_pD3D->CreateDevice(gAdapter, D3DDEVTYPE_HAL, hGlobalWnd, dwBehaviorFlags,
                                   &m_d3dpp, &m_pd3dDevice);
 
         HRESULT hrIdentifier = m_pD3D->GetAdapterIdentifier(gAdapter, 0, &m_adaptorIdentifier);
@@ -4294,8 +4271,30 @@ void RedRenderer::pcSetDisplayMode(unsigned int uiWidth, unsigned int uiHeight,
     m_d3dpp.BackBufferHeight = uiHeight;
     m_d3dpp.MultiSampleType = msType;
     m_d3dpp.MultiSampleQuality = ulMSQuality;
-    m_d3dpp.PresentationInterval =
-        bVSync ? D3DPRESENT_INTERVAL_DEFAULT : D3DPRESENT_INTERVAL_IMMEDIATE;
+    m_d3dpp.Windowed = bWindowed;
+    m_d3dpp.PresentationInterval = ResolveInterval(bVSync, bWindowed, true);
+
+    m_d3dpp.FullScreen_RefreshRateInHz = 0;
+    if (!bWindowed && !g_bNoRender)
+    {
+        const unsigned int uiCount =
+            pcGetValidDisplayModes(gAdapter, 0, 0, 0, 0);
+        if (uiCount)
+        {
+            DisplayLogic::DisplayModeRec* pList = new DisplayLogic::DisplayModeRec[uiCount];
+            pcGetValidDisplayModes(gAdapter, pList, uiCount, 0, 0);
+            unsigned int uiDesktopHz = 0;
+            DEVMODEA dm;
+            if (SavedDesktopMode(gAdapter, dm) && dm.dmDisplayFrequency > 1)
+            {
+                uiDesktopHz = dm.dmDisplayFrequency;
+            }
+            m_d3dpp.FullScreen_RefreshRateInHz = DisplayLogic::PickRefresh(
+                pList, uiCount, uiWidth, uiHeight, DisplayCfg::gDisplay.uiRefresh, false,
+                uiDesktopHz);
+            delete[] pList;
+        }
+    }
 
     PblTraceP("pcSetDisplayMode- width: %d hieght: %d windowed: %d mstype: %d "
               "msquality: %d vsync: %d \n",
@@ -6646,6 +6645,12 @@ OcclusionQueryT RedRenderer::m_occlusionQueries[1400];
 void RedRenderer::FlushOcclusionQueries()
 {
     if (g_bNoRender)
+    {
+        return;
+    }
+
+    const bool bOcclusionFlushPoolHasRoom = PoolMath::RenderItemHasRoom(RedRenderer::m_curRenderItemOffset, 0x128c);
+    if (!ensure(bOcclusionFlushPoolHasRoom))
     {
         return;
     }

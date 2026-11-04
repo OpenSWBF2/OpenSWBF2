@@ -879,7 +879,7 @@ void VidMode_Init(IDirect3D9* pD3D)
 
     for (int iMultiSampleType = 0; iMultiSampleType <= 16; ++iMultiSampleType)
     {
-        if (m_pD3D->CheckDeviceMultiSampleType(0, D3DDEVTYPE_HAL,
+        if (m_pD3D->CheckDeviceMultiSampleType(gAdapter, D3DDEVTYPE_HAL,
                                                D3DFMT_A8R8G8B8, TRUE,
                                                (D3DMULTISAMPLE_TYPE)iMultiSampleType,
                                                &dwQualityLevels) != D3D_OK)
@@ -928,7 +928,7 @@ void VidMode_Init(IDirect3D9* pD3D)
                 pp.MultiSampleType = (D3DMULTISAMPLE_TYPE)iMultiSampleType;
 
                 pDevice = 0;
-                if (m_pD3D->CreateDevice(0, D3DDEVTYPE_HAL, hGlobalWnd, dwBehaviorFlags,
+                if (m_pD3D->CreateDevice(gAdapter, D3DDEVTYPE_HAL, hGlobalWnd, dwBehaviorFlags,
                                          &pp, &pDevice) != D3D_OK)
                 {
                     pConfig->AddVidMode((int)mode.Width, (int)mode.Height,
@@ -1177,7 +1177,7 @@ void VidMode_StartupVoodoo(IDirect3D9* pD3D)
 
     pDevice = 0;
 
-    if (m_pD3D->CreateDevice(0, D3DDEVTYPE_HAL, hGlobalWnd, dwBehaviorFlags,
+    if (m_pD3D->CreateDevice(gAdapter, D3DDEVTYPE_HAL, hGlobalWnd, dwBehaviorFlags,
                              &pp, &pDevice) != D3D_OK)
     {
         return;

@@ -824,6 +824,235 @@ Line list (the `DIFF` and `MISSING` lines exactly as `wire-order.ps1` prints the
 - `DIFF src/Battlefront2/Source/pcNetSocket.cpp 0x00617e50 NetSocket::SendSocket`: branch-swap: the LAN and Galaxy branches are swapped; iDest > 64 && iDest == 68 equals iDest == 68
 - `DIFF src/Battlefront2/Source/pcNetSocket.cpp ReadGalaxy ReadGalaxy`: rename-only: same calls, same widths, same order; only argument expressions differ
 
+## Phase 29: Gametoast ea864010 against 7c27dee
+
+Phase 29 merged Gametoast/swbf2decomp `ea864010` and re-applied our changes on top of it. The
+reference is 7c27dee, the Phase 28 result, built Release v143 in the staged main tree. Every
+difference in SIM DIGEST, Factory order, layout pins, corpora and the network Write/Read order
+between 7c27dee and the branch is listed here with its cause, the Gametoast commit in
+d5596ee..ea864010 and the retail evidence (D-14; Factory order and wire format under D-16).
+
+Method: `-factorylog -digesttrace 1600` runs of the six digest missions on both builds
+(`artifacts/p29-base`), then temporary probes built into a 7c27dee worktree and the detached
+branch worktree (never committed): per-object position, velocity and health; the Global and Sim
+random seeds around every thread update; the call stack of every Sim draw; the candidates,
+target points and ray tests of `ExplosionClass::CreateExplosion`; TreeGrid add, update and remove
+calls near a point; light updates and turn-offs. Each cause was confirmed by reverting only that
+change on the branch: with the three changes below reverted, all six missions equal 7c27dee in
+every one of 1600 traced turns and at turn 1500 (experiment E2,
+`artifacts/p29-base/exp-e2`).
+
+| Mission | 7c27dee digest (turn 1500) | Branch digest | First split turn | Cause |
+|---------|----------------------------|---------------|------------------|-------|
+| geo1c_con | `rand=1354762085/2950811992 state=0x16D65714` | same | 1 (state only, 289 turns, rand never moves) | C-WALKER-GRAVITY (accepted) |
+| nab2g_c | `rand=2206058303/116923646 state=0xA880CE00` | same | 0 | none |
+| hot1g_con | `rand=403802221/2528439372 state=0x2F003610` | `rand=403802221/2528439372 state=0xC95E64E8` | 1 (state only, 922 turns, rand never moves) | C-WALKER-GRAVITY (accepted) |
+| spa3c_ass | `rand=529082281/2897934758 state=0x7385D175` | `rand=1799084171/444301954 state=0xC77ED51E` | 1019 (Sim seed 1015) | C-PILOT-DELETE (accepted) |
+| dag1c_ctf | `rand=2837596015/2599533116 state=0xD9F4B470` | `rand=423450483/1140324658 state=0xED6D9B0A` | 1065 (Global seed 1064) | C-FLAG-PICKUP (accepted) |
+| kas2c_uber | `rand=612937807/386973628 state=0x765A955F` | same | 0 | none |
+
+`tests/smoke/digest-expected.txt` rows changed: `digest-hot1g_con`, `hot1g_con`, `trace-seed-1`
+(C-WALKER-GRAVITY), `digest-spa3c_ass`, `spa3c_ass` (C-PILOT-DELETE), `digest-dag1c_ctf`,
+`dag1c_ctf` (C-FLAG-PICKUP). The factory logs are byte-identical on all six missions, so no
+`factory-*.txt` changed. As in Phase 28, the v143 `digest-trace-*.txt` files in this directory are
+the vs2013 comparison record and are not rewritten.
+
+### C-WALKER-GRAVITY
+
+- Function: `EntityWalker::PostCollisionUpdate` (`// FUNCTION: SWBF2 0x00505670`,
+  `src/Battlefront2/Source/EntityWalker.cpp`), the grounded gravity constant
+  `float fGravity = m_bIsJumping ? -9.8f : -29.400002f;`.
+- Gametoast change: 4a34a604 ("Ryan: memory pools using sizeof") wrote `-29.400002f`, which is
+  `0xC1EB3334`. d5596ee and 7c27dee had `-29.4f` (`0xC1EB3333`), one ulp smaller in magnitude.
+- Retail evidence: the retail exe loads the constant from `0x007B25C4`, which holds `34 33 EB C1`
+  (`0xC1EB3334`), next to `-9.8f` at `0x007B25A4`. Gametoast's value is the retail value.
+- Effect: every walker's grounded `mVelocity.y` differs by one ulp after the gravity step (geo1c_con
+  turn 1, `BF7A7EA0` against `BF7A7EA1`, positions equal). The velocity enters the state hash, so
+  geo1c_con and hot1g_con show state-only differences while walkers settle; the rand seeds never
+  move. geo1c_con returns to the same turn-1500 digest; hot1g_con keeps a different state hash at
+  turn 1500.
+- Confirmation: with only `-29.4f` restored on the branch (and the unrelated C-CRITSYS-SHIELD
+  revert, which moves nothing), geo1c_con and hot1g_con equal 7c27dee in every one of 1600 turns.
+- Judgement: accepted (retail constant). Re-baselined rows: `digest-hot1g_con`, `hot1g_con`,
+  `trace-seed-1` to `rand=403802221/2528439372 state=0xC95E64E8` (turns=1500 time=50.000
+  snd=49.923).
+
+### C-PILOT-DELETE
+
+- Function: `Controllable::Kill` (`// FUNCTION: SWBF2 0x00483ba0`,
+  `src/Battlefront2/Source/Controllable.cpp`), the `PILOT_VEHICLE` case.
+- Gametoast change: 8d20cf5c ("Ryan: gameplay, weapons, combat fixes") caches
+  `Controllable* pPilot = mPilot;` and uses `pPilot` for `InstantDeath`, `Kill` and `delete`.
+  d5596ee and 7c27dee re-read `mPilot` for each step. `mPilot->Kill()` clears the vehicle's
+  `mPilot`, so 7c27dee's `delete mPilot` deleted a null pointer and left the dead pilot soldier
+  alive in the world.
+- Retail evidence: retail loads `mPilot` once (`mov ebx,[edi+0D0h]` at `0x00483BE6`), calls
+  `Kill` through `ebx` (`0x00483C97`) and then the scalar deleting destructor through `ebx`
+  (`mov eax,[ebx]; push 1; call [eax]` at `0x00483CCF`). Retail deletes the cached pilot, as
+  Gametoast does.
+- Effect: spa3c_ass turn 1015, a piloted flyer is destroyed. On 7c27dee the dead pilot stays in
+  the TreeGrid at the flyer's position, so the flyer's `mExplosionDestruct` finds it
+  (`GetObjectsInRange` returns 3 objects, the soldier among them) and
+  `EntitySoldier::ApplyRadiusPush` draws one Sim random number for the chunk roll. On the branch
+  the soldier was deleted in `Controllable::Kill` (called from `EntityFlyer::Kill`), the
+  explosion finds 2 objects, and that flyer update draws 23 numbers instead of 24. The Sim seed
+  splits at 1015 and the state at 1019.
+- Confirmation: experiment E2 (above).
+- Judgement: accepted (retail control flow; 7c27dee leaked a dead soldier per destroyed piloted
+  vehicle). Re-baselined rows: `digest-spa3c_ass`, `spa3c_ass` to
+  `rand=1799084171/444301954 state=0xC77ED51E`.
+
+### C-FLAG-PICKUP
+
+- Function: `FlagItem::CollisionCallback` (`// FUNCTION: SWBF2 0x00524fd0`,
+  `src/Battlefront2/Source/FlagItem.cpp`), the pickup gate.
+- Gametoast change: 8d20cf5c ("Ryan: gameplay, weapons, combat fixes") changed
+  `(!mStationary || mClass->mLifeSpan - mLifeTimer > 0.5f)` to
+  `(mStationary || mClass->mLifeSpan - mLifeTimer > 0.5f)`.
+- Retail evidence: retail tests `byte ptr [esi+258h]` (`EntityItem::mStationary`; `mClass` is at
+  +25Ch, `mLifeTimer` at +260h, `mOwner` at +264h, the same order as EntityItem.h) at
+  `0x00524FFD` and jumps straight to the pickup (`jne 00525025`) when it is non-zero; only a zero
+  byte falls through to the `mLifeSpan - mLifeTimer > 0.5f` test (`0x007B2014` = 0.5f). That is
+  `mStationary || ...`, Gametoast's form.
+- Effect: dag1c_ctf, a soldier picks up a flag one turn earlier on the branch. The pickup turns
+  off the flag's `EntityLight` (`FlagItem::CollisionCallback` -> `EntityLight::TurnOff`, turn
+  1063), so one fewer light draws `PblRandom::GetGlobalFloat()` per frame from frame 1064. The
+  Global seed splits at 1064 and the state at 1065. The Sim seed is unaffected until then.
+- Confirmation: experiment E2 (above).
+- Judgement: accepted (retail condition). Re-baselined rows: `digest-dag1c_ctf`, `dag1c_ctf` to
+  `rand=423450483/1140324658 state=0xED6D9B0A`.
+- Smoke expectation: with retail pickups the dag1c_ctf CTF game ends by captures (`W=Rep` 5,
+  `L=CIS` 4 at mission time 501 s, about 15 s of wall time) instead of still running at the 30 s case
+  limit. On 7c27dee and in E2 the mission is still running at the limit. The `digest-dag1c_ctf`
+  case in `tests/smoke.ps1` now expects `Pass` with the default timeout (same log checks), and
+  `dag1c_ctf` in `tests/smoke/missions-all.txt` expects `Pass`.
+- 29-10 `-Smoke All`: the same gate ends 33 more flag games by captures before the 120 s case
+  limit, so their `missions-all.txt` lines go from `TimeOut` to `Pass`:
+  - CTF: cor1c_ctf, cor1g_ctf, dag1g_ctf, geo1c_ctf, kas2c_ctf, kas2g_ctf, mus1c_ctf, mus1g_ctf,
+    myg1c_ctf, myg1g_ctf, nab2c_ctf, nab2g_ctf, pol1c_ctf, pol1g_ctf, tat2c_ctf and tat2g_ctf.
+  - 1-flag: end1g_1flag, fel1c_1flag, fel1g_1flag, hot1g_1flag, spa1g_1flag, spa3c_1flag,
+    spa6c_1flag, spa7c_1flag, spa8g_1flag, spa9g_1flag, tan1c_1flag, tan1g_1flag, tat3c_1flag,
+    tat3g_1flag, uta1c_1flag, yav1c_1flag and yav1g_1flag. tat3c_1flag and tat3g_1flag were `Fatal` (see C-TAT3-STALE).
+  - On a fresh 7c27dee Release build (scratch worktree `artifacts/wt-tat3`), tat3c_1flag is still
+    running at the limit.
+  - dea1c/dea1g, kam1c/kam1g and uta1g 1-flag still run past the limit and stay `TimeOut`.
+  - The game end is deterministic (hot1g_1flag ends at frame 67204 and uta1c_1flag at frame 71747
+    in both runs), but the wall time is not. end1g_1flag, hot1g_1flag, tat3c_1flag and uta1c_1flag
+    take 80 to 110 s with 8 jobs and are close to the 120 s case limit. uta1c_1flag timed out at
+    121 s in the first run and passed at 107 s in the second. `missions-all.txt` has no per-case
+    limit, so on a loaded machine run `-Smoke All -SmokeTimeout 180`.
+
+### C-CRITSYS-SHIELD
+
+- Function: `SpaceAssault_RandomCritSysDamage` (`// FUNCTION: SWBF2 0x00439770`,
+  `src/Battlefront2/Source/AIDifficulty.cpp`, `/fp:strict` TU).
+- Gametoast change: 5e6d8759 caps the damage on `pTarget->mCurShield` (when it is above 0) with
+  `Min(Min(15000.0f, fBestDamage * 5.0f), mCurShield)`. 7c27dee capped on `mCurHealth` with
+  `fCap = min(fBestDamage * 5, 15000, mCurHealth)` written as two ifs.
+- Retail evidence: retail reads `movss xmm1,[ebx+150h]` (`0x0043989C`) with the Damageable
+  subobject at +140h (`lea ecx,[ebx+140h]` before `ApplyDamage`), so the field is Damageable+10h:
+  vtable, `mCurHealth`, `mMaxHealth`, `mAddHealth`, then `mCurShield` at +10h. The min order is
+  `comiss xmm2,xmm0; ja` (15000 kept only when `fBestDamage * 5 > 15000`) then
+  `comiss xmm1,xmm0; ja` (the cap kept only when `mCurShield > cap`), which is
+  `Min(Min(15000, x), shield)` with `Min(a, b) = a < b ? a : b`, NaN included.
+- Effect: none in the six traced missions. Reverting it on the branch leaves spa3c_ass (the only
+  space assault mission traced) on the branch digest.
+- Judgement: accepted (retail field and order); a behaviour change toward retail with no row moved.
+
+### C-TAT3-STALE
+
+- Rows: `tat3c_con`, `tat3g_con`, `tat3c_1flag` and `tat3g_1flag` in `tests/smoke/missions-all.txt`. They
+  expected `Fatal`: the Phase 3 `0xC0000005` at `d3dx9_43.dll+0x1BA553`, which Phase 6 traced to a
+  bad pose pointer in `BuildRootWorldMatrix<32>`.
+- Finding: none of the four crashes on the branch. A fresh 7c27dee Release build run from the
+  staged main tree's working directory with the same arguments doesn't crash either:
+  - tat3c_con and tat3g_con reach the turn-1500 digest and exit 0;
+  - tat3c_1flag is still running at the limit.
+- So this is not a Phase 29 difference. The `Fatal` lines were already stale at 7c27dee, and
+  Phase 28 didn't run `-Smoke All`. The crash went away in the d5596ee code merged in Phase 28:
+  - 694871b2 ("Zephyr 100%") rewrote `ZephyrSkeleton::BuildWorldMatrices` without the D3DX
+    quaternion and matrix calls in which the fault was taken;
+  - the Phase 29 run has no d3dx9 fault and no dump.
+- Judgement: re-baselined to the observed classes. The two `_con` lines become `Pass`. The two
+  `_1flag` lines become `Pass` through C-FLAG-PICKUP, which ends their flag game.
+- Open: `ZephyrSkeleton<N>`'s constructor and `Open(shared)` still leave `m_pPoseFinal` unset,
+  as retail does. Only the callers' pose `Open` keeps `BuildWorldMatrices` safe.
+
+### Phase 29 D-13 items (29-D13-ITEMS.tsv)
+
+Every line of `29-D13-ITEMS.tsv` was checked against 7c27dee. E2 (the three causes above reverted,
+everything else of the branch kept) equals 7c27dee in every traced turn of all six missions, so
+none of these rewrites moves a value in the traced window. The reasons below say why they are
+equal in general:
+
+- RedTerrain (5aa2e604, e3c65b6b; C1 TU): `PointInSphere` compares the same `x*x + y*y + z*z`
+  (`D3DXVec3LengthSq` sums in that order) with the operands of `>` swapped; `GetInterpolatedHeight`
+  uses `Clamp`, equal to the two ifs for every non-NaN value, and our C1 SSE line (L-1101) is
+  unchanged; `GetInterpolatedLight` evaluates the same expressions in another order with no side
+  effects; `RayHit` replaces `fabsf(d) < EPSILON` by `(d < 0 ? -d : d) < EPSILON`, equal for every
+  input including -0 and NaN; `_RayHit` swaps the two terms of a two-term sum and of
+  `(vEnd + vStart) * 0.5f`, and float addition of two terms is commutative. No change.
+- WeaponCannon (00233e01, 525b1bc3, 8d20cf5c; C3 TU): the compare rewrites (`!(x > 0)` to
+  `x <= 0` and branch swaps) differ only for NaN, which OdfValue keeps out of these fields;
+  `NotifySoldierState` uses a branchy abs whose only difference from `fabsf` is the sign of -0 in a
+  value that is only compared; `UpdateFire`'s salvo loop
+  (`while (mSalvoCount > 0 && mSalvoDelay <= 0.0f)`) fires and draws the same as the old loop with
+  its inner break, because it is entered only with `mSalvoCount > 0`; `GetYawSpread` reads the target
+  through `GameObject::GetMatrix` instead of the CollisionObject base, which is the same final
+  overrider (`EntityGeometry::GetMatrix`). Retail calls it through the CollisionObject subobject
+  (`lea esi,[eax+0Ch]; call [edx+40h]` at `0x0067E92D`) and sums `(x*x + y*y) + z*z`, the order of
+  `D3DXVec3LengthSq`. `WeaponCannon::Update` takes the sound position from the render matrix; it
+  feeds no sim value. No change.
+- CommandPost::BuildPost (c2fc0345): `SquaredLength` is `D3DXVec3LengthSq`, the same terms in the
+  same order. No change.
+- EntitySoldier, EntityWalker, EntityFlyer, EntityHover, EntityDroideka, SoldierAnimator,
+  OrdnanceBullet, WeaponMelee (b644efc2, 471c1e05, 525b1bc3, c3ce70af, 00233e01, 34105915,
+  8d20cf5c): the whole-file float rewrites. Bisected by experiment: E1 (walker constant only)
+  and E2 (the three causes) leave no traced turn different on any mission, so of all these
+  rewrites only the walker constant moved a value. A scan of every changed float literal in
+  `git diff 7c27dee -- src` (bit patterns compared per file) finds no other literal that moved by a
+  few ulps. EntitySoldier::Move now computes `fGravityStep = fDeltaTime * GRAVITY_FORCE` first
+  (b644efc2), the retail order (C-SOLDIER-SLOPE). No change.
+- AIDifficulty (5e6d8759; C2 TU): `GetIntSkill`, `GetFlyerSpeedRange`, the random-flyer loops and
+  the auto-balance roll give the same values for every non-NaN input; the crit-system cap is
+  C-CRITSYS-SHIELD. kas2c_uber, the C2 guard mission, is identical in every traced turn. No change.
+- TeamManager range queries (00233e01, 4a34a604): `SquaredLength` and `CrossProduct` from the
+  PblMath helpers use the terms of the hand-expanded code; no traced turn moves. No change.
+
+### Re-check of the Phase 28 causes
+
+- C-SOLDIER-SLOPE: Phase 29 re-check: superseded by b644efc2 ("fGravityStep = fDeltaTime *
+  GRAVITY_FORCE; -(vFront.y * fGravityStep)"), which is the retail order; L-1960 is
+  `superseded`. geo1c_con, nab2g_c, dag1c_ctf (before C-FLAG-PICKUP) and kas2c_uber equal 7c27dee
+  in every traced turn, which is the proof.
+- C-ADDR-FLYER: Phase 29 re-check: unchanged. `EntityFlyer::GetBranchParams` and
+  `EntityPathFollower::Roll` still add `((unsigned int)this >> 2) & 0xf`. The pool census
+  (29-08) found every pool size unchanged, and E2 equals 7c27dee on hot1g_con and spa3c_ass in
+  every traced turn, so the heap layout did not move again.
+- C-2DRADIUS: Phase 29 re-check: unchanged. `SetCollisionRadius` still sets `m2dRadius`; 8d20cf5c
+  added a `Set2DCollisionRadius(fRadius)` with the same value after it in `FlagItem`, which
+  changes nothing.
+- C-PTR03-SENTINEL: Phase 29 re-check: unchanged. `PblOrderedList::Add` still sets `0x7FFFFFFF`;
+  Gametoast only swapped the two head-link stores in the constructor and made `Add` inline.
+- C-PIN-28: Phase 29 re-check: unchanged. `tests/unit/layout_pins.cpp` is identical to 7c27dee and
+  every pin passes on the branch.
+- C-D14-RECHECK: Phase 29 re-check: re-derived for 5aa2e604/e3c65b6b (C1), 5e6d8759 (C2) and
+  8d20cf5c (C3) in "Phase 29 D-13 items" above. Both `/fp:strict` TUs keep the flag. kas2c_uber
+  (C2) and dag1c_ctf up to the C-FLAG-PICKUP split (C1) are unchanged.
+- C-SHADER-INIT: Phase 29 re-check: unchanged. `#pragma init_seg(lib)` is still in
+  `pcRedShader.cpp`. The six new upstream TUs (pcFlashyTextElement, FriendBuddyList, TreeLine,
+  pcRedFootprint, pcRedVertexCache, PblPrintfWrapper) caused no startup crash; every mission ran
+  on the first staged branch build.
+- C-WIRE-ORDER: Phase 29 re-check: re-derived. `wire-order.ps1 -Base 7c27dee` with
+  compiler-resolved widths on both sides (`FILES 19`, `COMPARED 1381 base=1382 root=1381`) prints no
+  `DIFF` or `MISSING` line; per file the multiset of resolved overload widths is identical. The
+  base function without a match has no Write/Read call. `VoiceChatNode.cpp` (outside the wire set)
+  was checked by hand: `SendAudioPacket` (0x006743b0) still writes the header bitmap, then the
+  payload, then sends; `Header::SendSetup` writes the same bits in the same order; and
+  `((n + 7) / 8 * 8) / 8` equals `(n + 7) >> 3` for unsigned n.
+- Factory: Phase 29 re-check: all six factory logs are byte-identical between 7c27dee and the
+  branch.
+
 ## Policy
 
 The v143 files in `tests/corpus/` and this directory are the reference from now on. The digest

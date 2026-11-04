@@ -432,7 +432,10 @@ void StopInGameMoviePlay()
     if (g_InGameMoviePlayerState)
     {
         const float fElapsed = (float)(PblTime::GetTickCount() - g_InGameMovieStartTime);
-        if (fElapsed / (float)PblTime::ticksPerSecond > g_MovieStopDelayTime)
+        const float fSeconds = g_fFixedRate > 0.0f
+            ? GameState::GetSystemTimeBase()->GetTime() - g_InGameMovieStartSystemTime
+            : fElapsed / (float)PblTime::ticksPerSecond;
+        if (fSeconds > g_MovieStopDelayTime)
         {
             g_InGameMoviePlayerState = 0;
             g_InGameMoviePlayerFrame = 0;

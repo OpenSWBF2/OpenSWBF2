@@ -92,7 +92,7 @@ bool VoiceChat::Node::OpenStatic(Transport* transport, float fSeconds, float fA,
     const unsigned char uiNodes = transport->GetNumNodes();
     const unsigned int uiNodesLog2 = transport->GetNumNodesLog2();
 
-    const unsigned int uiBitmapBytes = ((uiNodesLog2 + 8 + uiNodes) & ~7u) / 8;
+    const unsigned int uiBitmapBytes = Node::Header::GetMaxBytes(uiNodes, uiNodesLog2);
     VoiceChat::Node::sReadHeader.mSize = uiBitmapBytes;
     VoiceChat::Node::sWriteHeader.mSize = uiBitmapBytes;
 
@@ -313,6 +313,10 @@ void VoiceChat::Node::Close(bool, bool)
 // FUNCTION: SWBF2 0x00672de0
 void VoiceChat::Node::SetID(unsigned char uChannel)
 {
+    if (uChannel != 0xFF && VoiceChat::Node::sTransport && uChannel >= VoiceChat::Node::sTransport->GetNumNodes())
+    {
+        uChannel = 0xFF;
+    }
     if (mNodeID == uChannel)
     {
         return;

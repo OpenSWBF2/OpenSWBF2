@@ -48,7 +48,7 @@ bool FreeList::AllocBlocks(unsigned int uiNumBlocks, Block** ppFirstBlock)
         pNew->mBitmap.Initialize((unsigned char*)pNew + sizeof(Block),
                                  mEntriesPerBlock);
 #if defined(__SANITIZE_ADDRESS__)
-        PblAsanPoison(pEntries, uiBlockBytes);
+        PblAsanPoison(pEntries, mEntriesPerBlock * mEntrySize);
 #endif
 
         mBlockList.AddLast(&pNew->mNode);

@@ -1354,6 +1354,18 @@ void Update(float fDeltaTime, float fSystemDeltaTime)
         return;
     }
 
+    static bool sbRunningLogged;
+    if (gExitOnGameOver && !sbRunningLogged)
+    {
+        sbRunningLogged = true;
+        LOG(LogSim, Inform, "OPENSWBF2 MISSION RUNNING %s", mMissionScript);
+    }
+    if (sbRunningLogged)
+    {
+        pcCrash::RunMissionCrashTest();
+    }
+    SimDigest::LogFactories();
+
     ScreenTransition::sInstance->ScreenTransition::Update(fSystemDeltaTime);
     sSystemDeltaTime = fSystemDeltaTime;
 
@@ -1687,7 +1699,7 @@ void Update(float fDeltaTime, float fSystemDeltaTime)
                         const int iSide = pTeam->mSide;
                         fprintf(pFile, "\t%c=%s\t%du@%d%c\t%3dr\t%2dp",
                                 (iWinningTeams & (1 << iTeam)) ? 'W' : 'L',
-                                sSideNamePrefixes[iSide],
+                                SideNamePrefix(iSide),
                                 iMembers,
                                 AIDifficulty::GetIntSkill((const UnitController*)bPlayerTeam, false),
                                 bPlayerTeam ? 'P' : ' ',

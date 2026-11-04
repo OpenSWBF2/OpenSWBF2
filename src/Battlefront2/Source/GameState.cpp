@@ -579,21 +579,29 @@ void GameState::UpdateTime()
 
     if (!(g_fFixedRate > 0.0f))
     {
-        const __int64 iMinTicks = Frequency.QuadPart / 80;
-        do
+        FrameLimiter::FrameOps ops;
+        FrameLimiter::FramePlan plan;
+        static bool sbCapSuppressed = false;
+        bool bThrottled = RedRenderer::pcPresentThrottles();
+        bool bSuppressed = bThrottled && DisplayCfg::gDisplay.uiFps != 0;
+        if (bSuppressed != sbCapSuppressed)
         {
-            QueryPerformanceCounter(&perfCount);
-            iDeltaTicks = perfCount.QuadPart - oldPerfCount.QuadPart;
-            if (iDeltaTicks < iMinTicks)
+            sbCapSuppressed = bSuppressed;
+            if (bSuppressed)
             {
-                int iSleep = -15 - (int)((double)(unsigned __int64)(iMinTicks - iDeltaTicks)
-                                         * -1000.0 / (double)Frequency.QuadPart);
-                if (iSleep > 0)
-                {
-                    Sleep(iSleep);
-                }
+                LOG(LogRender, Inform, "OPENSWBF2 PACING vsync on, fps cap %u not applied",
+                    DisplayCfg::gDisplay.uiFps);
             }
-        } while (iDeltaTicks < iMinTicks);
+            else
+            {
+                LOG(LogRender, Inform, "OPENSWBF2 PACING fps cap %u applied",
+                    DisplayCfg::gDisplay.uiFps);
+            }
+        }
+        FrameLimiter::BindReal(ops, plan, DisplayLogic::EffectiveFpsCap(DisplayCfg::gDisplay.uiFps, bThrottled));
+        __int64 iNowTicks = 0;
+        iDeltaTicks = FrameLimiter::Pace(ops, plan, oldPerfCount.QuadPart, iNowTicks);
+        perfCount.QuadPart = iNowTicks;
 
         if (iDeltaTicks > maxAdvanceTicks)
         {
@@ -701,6 +709,7 @@ bool GameState::Update()
     if (_pCurrentState)
     {
         PblProfile::StartFrame();
+        RedLog::NextFrame();
         FrameUpdate::Update();
         UpdateTime();
         _pCurrentState->Update(sDeltaTime, sSystemDeltaTime);
@@ -895,7 +904,7 @@ void GameState::PreStateInit(bool bMission)
     }
 
     gDrawFlyerShadows = true;
-    PblRandom::SetGlobalSeed(0);
+    PblRandom::SetGlobalSeed(gSeedSet ? gSeed : 0);
 
     RedMissionLog::Init();
     MissionLog::Init();
@@ -957,7 +966,7 @@ void GameState::PreStateInit(bool bMission)
     RedTexture::Init();
     RedRenderer::Init();
 
-    if (!pProfile->mInitialized)
+    if (pProfile && !pProfile->mInitialized)
     {
         pProfile->mPCOptions.renderOptions = RedAutoSettings::GetRenderOptions();
         pProfile->mPCOptions.mResolutionX = (unsigned short)pProfile->mPCOptions.renderOptions.defaultWidth;

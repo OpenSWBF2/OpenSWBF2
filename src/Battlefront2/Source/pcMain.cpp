@@ -150,8 +150,13 @@ static void ReleaseMutex()
 // FUNCTION: SWBF2 0x006171b0
 void Startup_InitApplicationMemory()
 {
+    pcCrash::ReserveLowAddressSpace();
     char* pArena = (char*)malloc(0x4000000);
     s_memoryArena = pArena;
+    if (!pArena || pcCrash::SimulateAllocFailure("arenaoom"))
+    {
+        pcCrash::FatalInit("arena", 0x4000000);
+    }
 
     GameMemory::InitApplicationMemory(pArena, pArena + 0x4000000);
 }
@@ -540,13 +545,24 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
     const unsigned long ulClientW = pcWidth ? pcWidth : 800;
     const unsigned long ulClientH = pcHeight ? pcHeight : 600;
 
-    RECT rcDesktop;
-    GetClientRect(GetDesktopWindow(), &rcDesktop);
-
-    int nWidth = rc.right - rc.left;
-    int nHeight = rc.bottom - rc.top;
-    int X = (rcDesktop.right - nWidth + rcDesktop.left) / 2;
-    int Y = (rcDesktop.bottom - nHeight + rcDesktop.top) / 2;
+    DisplayLogic::Rect monitor = {0, 0, 0, 0};
+    DisplayLogic::Rect work = {0, 0, 0, 0};
+    DisplayLogic::Rect rc;
+    if (!g_bNoRender && PcWindow::PrimaryMonitorRects(monitor, work))
+    {
+        DisplayLogic::Frame frame = PcWindow::MeasureFrame(ws.style, ws.exStyle, 0);
+        rc = DisplayLogic::PlaceWindow(eMode, monitor, work, ulClientW, ulClientH, frame);
+    }
+    else
+    {
+        RECT rcAdj;
+        SetRect(&rcAdj, 0, 0, ulClientW, ulClientH);
+        AdjustWindowRect(&rcAdj, ws.style, FALSE);
+        rc.l = 0;
+        rc.t = 0;
+        rc.r = rcAdj.right - rcAdj.left;
+        rc.b = rcAdj.bottom - rcAdj.top;
+    }
 
     char szTitle[264];
     strcpy(szTitle, "Star Wars Battlefront II");
@@ -556,10 +572,17 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
         strcat(szTitle, autoNetSession);
     }
 
-    HWND hWnd = CreateWindowExA(dwExStyle, appName, "Star Wars Battlefront II", dwStyle,
-                                X, Y, nWidth, nHeight, 0, 0, hInstance, 0);
     hGlobalInstance = hInstance;
-    hGlobalWnd = hWnd;
+    hGlobalWnd = CreateWindowExA(ws.exStyle, appName, "Star Wars Battlefront II", ws.style,
+                                 rc.l, rc.t, rc.r - rc.l, rc.b - rc.t,
+                                 g_bNoRender ? HWND_MESSAGE : 0, 0, hInstance, 0);
+    RedRenderer::pcSeedDisplayMode(eMode);
+
+    if (pcEnableLogging)
+    {
+        LOG(LogCore, Inform, "OPENSWBF2 DPI awareness=%s dpi=%u",
+            DisplayLogic::DpiLevelName(PcWindow::GetDpiLevel()), PcWindow::QueryDpi(hGlobalWnd));
+    }
 
     if (pcPostInstall)
     {
@@ -573,48 +596,55 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
         return 0;
     }
 
-    GetDeviceGammaRamp(GetDC(hGlobalWnd), &s_originalGammaRamp);
-    SetICMMode(GetDC(hGlobalWnd), ICM_OFF);
+    FrameLimiter::Init(g_bNoRender);
+
+    if (!g_bNoRender)
+    {
+        SetICMMode(GetDC(hGlobalWnd), ICM_OFF);
+    }
 
     bool bActive = true;
     msg.message = 0;
     PeekMessageA(&msg, 0, 0, 0, PM_NOREMOVE);
-    while (msg.message != WM_QUIT)
+    if (msg.message != WM_QUIT)
     {
-        bool bAppActive = gAppActive;
-        if (bActive != bAppActive)
-        {
-            bActive = bAppActive;
+        MessageDrain::DrainOps ops;
+        ops.Peek = DrainPeek;
+        ops.Dispatch = DrainDispatch;
+        ops.Now = DrainNow;
+        ops.pCtx = 0;
+        LARGE_INTEGER iFreq;
+        QueryPerformanceFrequency(&iFreq);
+        const __int64 iDrainTicks = iFreq.QuadPart * MessageDrain::kMaxMsPerPass / 1000;
 
-            ActivateFrontline(bAppActive);
-        }
+        for (;;)
+        {
+            MessageDrain::DrainResult r =
+                MessageDrain::DrainMessages(ops, MessageDrain::kMaxMsgsPerPass, iDrainTicks);
+            if (r.bQuit)
+            {
+                break;
+            }
 
-        bool bMessage = PeekMessageA(&msg, 0, 0, 0, PM_REMOVE) != 0;
-        if (bActive)
-        {
-            if (bMessage)
+            if (bActive != gAppActive && !gNoFocusPause)
             {
-                TranslateMessage(&msg);
-                DispatchMessageA(&msg);
+                bActive = gAppActive;
+
+                ActivateFrontline(bActive);
             }
-            else if (!GameState::Update())
-            {
-                SendMessageA(hGlobalWnd, WM_CLOSE, 0, 0);
-            }
-        }
-        else
-        {
-            if (bMessage)
+
+            if (!bActive)
             {
                 Sleep(10);
             }
             if (!GameState::Update())
             {
-                Sleep(10);
-                if (!GameState::Update())
-                {
-                    SendMessageA(hGlobalWnd, WM_CLOSE, 0, 0);
-                }
+                SendMessageA(hGlobalWnd, WM_CLOSE, 0, 0);
+            }
+            if (sCloseDeferred && !gLoading)
+            {
+                sCloseDeferred = false;
+                PostMessageA(hGlobalWnd, WM_CLOSE, 0, 0);
             }
         }
     }

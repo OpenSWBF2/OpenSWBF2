@@ -413,10 +413,12 @@ int RedCreateHeap(void* start, void* end, unsigned int align, char const* name)
             heap.used.last = 0;
             heap.align = align;
             heap.name = name;
+            PblAsanPoison(s, size);
             heap.frozen = false;
             return i;
         }
     }
+    PblAsanPoison(s, size);
     return -1;
 }
 

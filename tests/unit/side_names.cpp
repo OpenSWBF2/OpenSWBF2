@@ -24,6 +24,6 @@ TEST_CASE("final score uses the bounded side name" * doctest::test_suite("regres
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\GameLoop.cpp", sText));
-    CHECK(sText.find("SideNamePrefix(pTeam->mSide)") != std::string::npos);
+    CHECK(sText.find("SideNamePrefix(iSide)") != std::string::npos);
     CHECK(sText.find("sSideNamePrefixes[") == std::string::npos);
 }

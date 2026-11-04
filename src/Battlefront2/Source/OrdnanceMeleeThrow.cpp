@@ -360,7 +360,7 @@ bool OrdnanceMeleeThrow::Update(float fDeltaTime)
     }
 
     OrdnanceMeleeThrowClass* pClass = (OrdnanceMeleeThrowClass*)mClass;
-    if (m_pOwner.mObject && m_pOwner.mObject->mHandleId != m_pOwner.mSavedHandleId)
+    if (m_pOwner.mObject && PBL_HANDLE_ID(m_pOwner.mObject) != m_pOwner.mSavedHandleId)
     {
         return false;
     }

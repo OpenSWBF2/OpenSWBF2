@@ -104,6 +104,7 @@
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcDecal.cpp" />
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcDustEffect.cpp" />
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcDynamicSprite.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcFlashyTextElement.cpp" />
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcFLJoystick.cpp" />
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcFirstPerson.cpp" />
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcFishEffect.cpp" />
@@ -286,6 +287,7 @@
     <ClCompile Include="src\Battlefront2\Source\FollowGoal.cpp" />
     <ClCompile Include="src\Battlefront2\Source\FrameUpdate.cpp" />
     <ClCompile Include="src\Battlefront2\Source\FreeCamera.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\FriendBuddyList.cpp" />
     <ClCompile Include="src\Battlefront2\Source\Fsm.cpp" />
     <ClCompile Include="src\Battlefront2\Source\GameCamera.cpp" />
     <ClCompile Include="src\Battlefront2\Source\GameLoop.cpp" />
@@ -520,6 +522,7 @@
     <ClCompile Include="src\Battlefront2\Source\Tracker.cpp" />
     <ClCompile Include="src\Battlefront2\Source\TreeGrid.cpp" />
     <ClCompile Include="src\Battlefront2\Source\TreeGridCache.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\TreeLine.cpp" />
     <ClCompile Include="src\Battlefront2\Source\TriggerRegionManager.cpp" />
     <ClCompile Include="src\Battlefront2\Source\TriggerSoundRegion.cpp" />
     <ClCompile Include="src\Battlefront2\Source\UnitAgent.cpp" />
@@ -738,6 +741,7 @@
     <ClCompile Include="src\RedEngineFL\Application\pc\pcWindow.cpp" />
     <ClCompile Include="src\RedEngineFL\Application\pc\pcMessageDrain.cpp" />
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedDeviceEnumerator.cpp" />
+    <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedFootprint.cpp" />
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedIndexBuffer.cpp" />
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedPixelShader.cpp" />
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedPrimitive.cpp" />
@@ -749,6 +753,7 @@
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedStencilShadow.cpp" />
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedTexture.cpp" />
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedVertexBuffer.cpp" />
+    <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedVertexCache.cpp" />
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedVertexFormat.cpp" />
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedVertexShader.cpp" />
     <ClCompile Include="src\RedEngineFL\Graphics\RedAmbientLight.cpp" />
@@ -920,6 +925,7 @@
     <ClCompile Include="src\SoundFL\source\win\sndvoice.cpp" />
     <ClCompile Include="src\Steam\gfGalaxy.cpp" />
     <ClCompile Include="src\Steam\gfSteamAuth.cpp" />
+    <ClCompile Include="src\Zephyr\Source\PblPrintfWrapper.cpp" />
     <ClCompile Include="src\Zephyr\Source\ZephyrAnim.cpp" />
     <ClCompile Include="src\Zephyr\Source\ZephyrAnimBank.cpp" />
     <ClCompile Include="src\Zephyr\Source\ZephyrAnimBankReader.cpp" />

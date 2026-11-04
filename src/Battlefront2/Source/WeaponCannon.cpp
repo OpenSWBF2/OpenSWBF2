@@ -71,18 +71,6 @@ namespace
         return pObject->GetEntityClass();
     }
 
-    const GameObject* GetHandleObject(const PblHandle<const GameObject>& handle)
-    {
-        PblHandle<const GameObject>& h = const_cast<PblHandle<const GameObject>&>(handle);
-        if (h.mObject &&
-            PBL_HANDLE_ID(h.mObject) != h.mSavedHandleId)
-        {
-            h.mObject = 0;
-            h.mSavedHandleId = 0;
-        }
-        return h.mObject;
-    }
-
 }
 
 // FUNCTION: SWBF2 0x00680050
@@ -801,7 +789,7 @@ bool WeaponCannon::Fire()
     }
 
     const GameObject* pTarget = mTarget.mObject;
-    if (pTarget && pTarget->mHandleId != mTarget.mSavedHandleId)
+    if (pTarget && PBL_HANDLE_ID(pTarget) != mTarget.mSavedHandleId)
     {
         mTarget.mObject = 0;
         mTarget.mSavedHandleId = 0;

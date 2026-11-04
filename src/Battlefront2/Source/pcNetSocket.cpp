@@ -46,9 +46,9 @@ void NetSocket::StartSockets()
 void NetSocket::OpenBroadcastSockets()
 {
     sockaddr_in addr;
-    netBroadcastSendSocket = (unsigned int)socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    netBroadcastSendSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     BOOL bBroadcast = TRUE;
-    setsockopt((SOCKET)netBroadcastSendSocket, SOL_SOCKET, SO_BROADCAST, (const char*)&bBroadcast,
+    setsockopt(netBroadcastSendSocket, SOL_SOCKET, SO_BROADCAST, (const char*)&bBroadcast,
                sizeof(bBroadcast));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_BROADCAST;
@@ -58,9 +58,9 @@ void NetSocket::OpenBroadcastSockets()
         DecodeError(WSAGetLastError());
     }
 
-    netBroadcastRecvSocket = (unsigned int)socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    netBroadcastRecvSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     BOOL bReuse = TRUE;
-    setsockopt((SOCKET)netBroadcastRecvSocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&bReuse,
+    setsockopt(netBroadcastRecvSocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&bReuse,
                sizeof(bReuse));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
@@ -91,7 +91,7 @@ int NetSocket::OpenDirectSocket(bool bHost)
         addr.sin_addr.s_addr = INADDR_ANY;
         addr.sin_family = AF_INET;
         addr.sin_port = htons((u_short)iPort);
-        iResult = bind((SOCKET)netDirectSocket, (const sockaddr*)&addr, sizeof(addr));
+        iResult = bind(netDirectSocket, (const sockaddr*)&addr, sizeof(addr));
         if (iResult == SOCKET_ERROR)
         {
             DecodeError(WSAGetLastError());

@@ -312,7 +312,7 @@ void EntityCarrier::UpdateLandedHeight()
             continue;
         }
 
-        if (pSlot->mObject.mObject->mHandleId == pSlot->mObject.mSavedHandleId)
+        if (PBL_HANDLE_ID(pSlot->mObject.mObject) == pSlot->mObject.mSavedHandleId)
         {
             const GameModel* pModel = pSlot->mObject.mObject->GetModel();
             if (pModel)

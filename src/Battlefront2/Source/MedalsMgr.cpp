@@ -77,8 +77,8 @@ void MedalsMgr::HudIndication(int iType, const char* pPrefix, const RedColor& co
             }
 
             char key[64];
-            strncpy(key, pPrefix, 64);
-            strncat(key, sMedalPoints_condition[iType].name, 64);
+            strlcpy(key, pPrefix, sizeof(key));
+            strlcat(key, sMedalPoints_condition[iType].name, sizeof(key));
 
             unsigned short wideKey[64];
             const unsigned short* pText = RedLocalizeDB::Find(PblHash(key), true);

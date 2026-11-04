@@ -364,8 +364,10 @@ TEST_CASE("lua stream and ui indices are bounded" * doctest::test_suite("regress
     const std::string sMain = HardenSource("src\\Battlefront2\\Source\\LuaCallbacks.cpp");
     const std::string sPages = HardenBody(sMain, "int ScriptCB_ShowMultipageText(lua_State*");
     CHECK(HardenHas(sPages, "PblInBounds(sPageStart, iPage - 1)"));
-    CHECK(HardenHas(sPages, "if (pTextElement)"));
+    CHECK(HardenHas(sPages, "if (!pTextElement)"));
     CHECK(HardenHas(HardenBody(sMain, "int ScriptCB_IndexMultipageText(lua_State*"), "pTextElement && i < 300"));
+    CHECK(HardenHas(HardenBody(sMain, "int ScriptCB_MetagameSetSide(lua_State*"),
+                    "iIndex != (int)iIndex || !PblInBounds(GameLoop::mMetagameSide, (int)iIndex)"));
 
     const std::string sIFace = HardenSource("src\\Battlefront2\\Source\\LuaCallbacks_IFace.cpp");
     const char* apcBindings[2] = { "int ScriptCB_SetBinding(lua_State*", "int ScriptCB_GetActionFromIdx(lua_State*" };
@@ -389,7 +391,7 @@ TEST_CASE("create timer refuses when the timer map is full" * doctest::test_suit
 {
     const std::string sMission = HardenSource("src\\Battlefront2\\Source\\LuaCallbacks_Mission.cpp");
     const std::string sBody = HardenBody(sMission, "int CreateTimer(lua_State*");
-    CHECK(HardenHas(sBody, "Timer::sMemoryPool.IsFull() || Timer::sMap.GetNumEntries() >= Timer::sMap.GetMaxEntries()"));
+    CHECK(HardenHas(sBody, "!Timer::sMemoryPool.IsFull() && Timer::sMap.GetNumEntries() < Timer::sMap.GetMaxEntries()"));
 }
 
 TEST_CASE("delete entity refuses character owned entities" * doctest::test_suite("regression"))
@@ -414,5 +416,5 @@ TEST_CASE("screen group fallback returns true when set" * doctest::test_suite("r
 {
     const std::string sIFace = HardenSource("src\\Battlefront2\\Source\\LuaCallbacks_IFace.cpp");
     const std::string sBody = HardenBody(sIFace, "bool Util_GetRedScreenGroupElement(");
-    CHECK(HardenHas(sBody, "    pElement = pCurCreateScreenGroup;\n    return pElement != 0;\n}"));
+    CHECK(HardenHas(sBody, "        pElement = pCurCreateScreenGroup;\n    }\n    return pElement != 0;\n}"));
 }
