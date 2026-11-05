@@ -47,6 +47,7 @@ public:
     ~ParticleSpawner() {}
 
     void SetupParticle(Particle& particle, const PblMatrix& mat, unsigned int uSeed, int iIndex, float fAge,
+                       const PblVector3& aPositionScale, const PblVector3& aVelocityScale,
                        float fSize, const PblVector3& vVelocity, float fInheritVelocity,
                        bool bNoRegisterStep) const;
     void SetupLocalParticle(Particle& particle, PblRandom& rand, int iIndex) const;
@@ -93,4 +94,4 @@ public:
  
 
 void SetupRotationResult(PblVector3& vDir, const ParticleSpawner::RotationData& data,
-                float fTime, int iIndex, PblRandom& rand);
+                int iIndex, float fTime, PblRandom& rand);

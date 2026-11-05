@@ -79,7 +79,7 @@ public:
 
     PblVector3 mDirection;
     float mLength;
-    Aimer* mAttachAimer;
+    const Aimer* mAttachAimer;
     OrdnanceBeam* m_pRicochet;
     bool mDeadFlag;
 

@@ -374,7 +374,7 @@ void HUD::ElementTarget::Target::Update(float fDeltaTime, HUD::ElementBitmap& bi
                 pLockOn[i].RedInterfaceElement::SetColor(bitmap.m_color);
                 pLockOn[i].SetMatrixPosRotScale(fCorners[i][0], fCorners[i][1],
                                                 HUD::ElementTarget::sLockOnRotation[i],
-                                                fLockOnScale, fLockOnScale);
+                                                fLockOnScale);
             }
         }
         else
@@ -390,13 +390,13 @@ void HUD::ElementTarget::Target::Update(float fDeltaTime, HUD::ElementBitmap& bi
             {
                 fOffset = 0.0f;
             }
-            element.SetMatrixPosScale(fX, fY - fOffset, fScale, fScale);
+            element.SetMatrixPosScale(fX, fY - fOffset, fScale);
         }
     }
     else
     {
         const float fRotation = PblMath::Atan2(vPos.x, -vPos.y);
-        element.SetMatrixPosRotScale(fX, fY, fRotation, fScale, fScale);
+        element.SetMatrixPosRotScale(fX, fY, fRotation, fScale);
     }
 }
 

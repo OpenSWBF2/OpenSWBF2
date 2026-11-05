@@ -34,23 +34,22 @@ void Event<RedRegion, Character>::Callback::Trigger(RedRegion& item, Character& 
         if (pChild)
         {
             pChild->AddRef();
-            while (pChild)
+        }
+        while (pChild)
+        {
+            if (!pChild->IsAlive())
             {
-                const bool bAlive = pChild->mAliveFlag;
-                if (!bAlive)
-                {
-                    pChild->Release();
-                    break;
-                }
-                Callback* pNext = (Callback*)pChild->mSibling;
-                if (pNext)
-                {
-                    pNext->AddRef();
-                }
-                pChild->Trigger(item, param);
                 pChild->Release();
-                pChild = pNext;
+                break;
             }
+            Callback* pNext = (Callback*)pChild->mSibling;
+            if (pNext)
+            {
+                pNext->AddRef();
+            }
+            pChild->Trigger(item, param);
+            pChild->Release();
+            pChild = pNext;
         }
     }
     Release();
@@ -74,14 +73,14 @@ ActiveRegion::ActiveRegion(RedRegion& region) : mRegion(region), mPlayers(GetPla
 }
 
 // FUNCTION: SWBF2 0x00437b50
-ActiveRegion* __fastcall Activate(RedRegion* pRegion)
+void Activate(RedRegion& region)
 {
-    ActiveRegion* pActive = sMap.Find(pRegion->mId);
+    ActiveRegion* pActive = sMap.Find(region.mId);
     if (pActive)
     {
-        return pActive;
+        return;
     }
-    return ::new (ActiveRegion::sMemoryPool.Allocate(sizeof(ActiveRegion))) ActiveRegion(*pRegion);
+    new ActiveRegion(region);
 }
 
 // FUNCTION: SWBF2 0x00437bc0
@@ -130,7 +129,7 @@ int Activate(lua_State*)
     RedRegion* pRegion = ActiveRegions::Find(LuaHelper::mState, 1);
     if (pRegion)
     {
-        ActiveRegions::Activate(pRegion);
+        ActiveRegions::Activate(*pRegion);
     }
     return 0;
 }

@@ -35,7 +35,7 @@ const char UnitFlyAgent::rttiNameUnitFlyAgent[] = "UnitFlyAgent";
 
 namespace VehicleManager
 {
-int RequestVehiclesInRange(const PblVector3& vPos, GameObject** ppOut, float fRadius, int iMax);
+int RequestVehiclesInRange(const PblVector3& vPos, float fRadius, GameObject** ppOut, int iMax);
 }
 
 // FUNCTION: SWBF2 0x00666790
@@ -261,7 +261,7 @@ bool UnitFlyAgent::IsNearLandingPt()
                                                          mGotoNonOwnedCP);
         if (iCount > 0)
         {
-            mHint = const_cast<BaseHint*>(candidates[AIUtil::GetRandomInt(0, iCount - 1)]);
+            mHint = candidates[AIUtil::GetRandomInt(0, iCount - 1)];
             mHint->Reserve(mCtrl->mOwner->GetGameObject());
             return true;
         }
@@ -352,7 +352,7 @@ bool UnitFlyAgent::IsNearATAT()
 
     const PblVector3 vPos = mCtrl->mOwner->GetMatrix().GetTranslation();
     GameObject* pNearby[20];
-    const int iCount = VehicleManager::RequestVehiclesInRange(vPos, pNearby, 200.0f, 20);
+    const int iCount = VehicleManager::RequestVehiclesInRange(vPos, 200.0f, pNearby, 20);
 
     bool bFree = true;
     for (int i = 0; i < iCount; ++i)

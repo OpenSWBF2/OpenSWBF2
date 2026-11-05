@@ -267,7 +267,7 @@ bool FlashyTextElement::UpdateFlashiness(float fDeltaTime)
 // FUNCTION: SWBF2 0x005269d0
 void FlashyTextManager::Clean()
 {
-    sFlashyTextManagerInstance.mFTEList.RemoveAll();
+    sFlashyTextManagerInstance.mFTEList.Clear();
 }
 
 // FUNCTION: SWBF2 0x005269e0

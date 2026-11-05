@@ -87,7 +87,7 @@ public:
     SafeHeight mSafeHeight;
     ForceDestSide mDestSide;
     int mIgnoreCnt;
-    Obstacle* mIgnore[2];
+    const Obstacle* mIgnore[2];
     bool mDoCallbacksOnPts;
     bool mDone;
     PathFollowerDoneReason mDoneReason;

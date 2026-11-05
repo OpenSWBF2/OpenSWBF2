@@ -33,6 +33,8 @@ public:
         // PblList<Controllable>::Itor::Itor(const PblList<Controllable>&)
         Itor(const PblList<TYPE>& list) { _pNode = list._head._pNext; }
 
+        Itor(const PblList<TYPE>* pList) { _pNode = pList->_head._pNext; }
+
         // TEMPLATE: SWBF2 0x0049e1c0
         // PblList<Factory<Weapon,WeaponClass,WeaponDesc> >::Itor::Itor
         // TEMPLATE: SWBF2 0x005d3b50
@@ -154,28 +156,17 @@ public:
         pNode->_pPrev->_pNext = pNode->_pNext;
     }
 
-    void Clear()
-    {
-        while (_iCount > 0)
-        {
-            Node* pNode = _head._pNext;
-            TYPE* pObject = pNode->_pObject;
-            Remove(pNode);
-            delete pObject;
-        }
-    }
-
     // TEMPLATE: SWBF2 0x0043a180
-    // PblList<Character>::RemoveAll
+    // PblList<Character>::Clear
     // TEMPLATE: SWBF2 0x0056fa50
-    // PblList<LensFlare>::RemoveAll
+    // PblList<LensFlare>::Clear
     // TEMPLATE: SWBF2 0x00695020
-    // PblList<PrecipitationEffect::RainShadowRegion>::RemoveAll
+    // PblList<PrecipitationEffect::RainShadowRegion>::Clear
     // TEMPLATE: SWBF2 0x006edbe0
-    // PblList<RedShadowProxy>::RemoveAll
+    // PblList<RedShadowProxy>::Clear
     // TEMPLATE: SWBF2 0x00526ab0
-    // PblList<FlashyTextElement>::RemoveAll
-    void RemoveAll()
+    // PblList<FlashyTextElement>::Clear
+    void Clear()
     {
         while (_iCount > 0)
         {
@@ -186,3 +177,8 @@ public:
     Node _head;
     int _iCount;
 };
+
+// TEMPLATE: SWBF2 0x00542120
+// PblList<GrassPatch>::Clear
+// TEMPLATE: SWBF2 0x0056f380
+// PblList<LeafPatch>::Clear

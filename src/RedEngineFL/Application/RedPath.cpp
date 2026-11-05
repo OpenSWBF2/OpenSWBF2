@@ -29,12 +29,12 @@ RedPath::NodeArray::~NodeArray()
 // FUNCTION: SWBF2 0x006dde80
 RedPath::~RedPath()
 {
-    sPathList.RemoveAll();
+    sPathList.Clear();
 }
 
 // TEMPLATE: SWBF2 0x006ddfa0
-// PblList<RedPath>::RemoveAll
-template void PblList<RedPath>::RemoveAll();
+// PblList<RedPath>::Clear
+template void PblList<RedPath>::Clear();
 
 // FUNCTION: SWBF2 0x006dded0
 void RedPath::List::Add(RedPath* const pPath)
@@ -66,7 +66,7 @@ bool RedPath::NodeArray::AllocNodes(unsigned int uNumNodes)
 // FUNCTION: SWBF2 0x006ddfe0
 void RedPath::ClearPaths()
 {
-    sPathList.RemoveAll();
+    sPathList.Clear();
 }
 
 // FUNCTION: SWBF2 0x006ddff0

@@ -70,11 +70,11 @@ public:
         unsigned int m_auiArgs[128];
     };
 
-    bool IsDone() const { return !m_pChunk->HasMoreChildren(); }
+    bool IsDone() const { return m_pChunk->IsDone(); }
 
     bool IsScopeNext() const
     {
-        return m_pChunk->HasMoreChildren() && m_pChunk->PeekNextChildId() == 0x504f4353;
+        return !m_pChunk->IsDone() && m_pChunk->PeekNextChildId() == 0x504f4353;
     }
 
     Data ReadNextData();

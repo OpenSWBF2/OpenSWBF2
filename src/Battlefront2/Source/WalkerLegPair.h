@@ -61,6 +61,8 @@ public:
     void StateChanged(int iState);
 
     WalkerBlend* GetBlend() { return mBlend; }
+    int GetFootCollisionBodyId(int iFoot) { return mFootCollisionBody[iFoot]; }
+    float GetPushValue() const { return mPushValue; }
     float GetTurnState();
 
 private:

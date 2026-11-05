@@ -51,6 +51,7 @@ bool gTeamStatsSortInvert;
 // FUNCTION: SWBF2 0x0059eac0
 static const char* GetSideIcon(int iSide)
 {
+    // GLOBAL: SWBF2 0x007aa3b4
     static const char* sideIcons[7] =
     {
         0, "com_icon_alliance", "com_icon_imperial", "com_icon_republic", "com_icon_CIS", 0, 0

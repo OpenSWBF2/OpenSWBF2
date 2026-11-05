@@ -47,13 +47,13 @@ WeaponInvisibilityClass::WeaponInvisibilityClass(unsigned int uHash)
     mAITargetTypes = 0;
 
     m_eInvisibilityTrigger = TRIGGER_TOGGLE;
+    m_fInvisibilityPersistTime = 0.0f;
     m_fInvisibilityMin = 0.4f;
     m_fInvisibilityMax = 0.8f;
     m_fSpeedForInvisibilityMin = 8.0f;
     m_fSpeedForInvisibilityMax = 2.0f;
     m_fInvisibilityIncRate = 0.4f;
     m_fInvisibilityDecRate = 0.8f;
-    m_fInvisibilityPersistTime = 0.0f;
     m_fFlickerAmplitude = 0.0f;
     m_fFlickerTimeMin = 10.0f;
     m_fFlickerTimeMax = 10.0f;
@@ -166,7 +166,7 @@ WeaponClass* WeaponInvisibilityClass::Derive(unsigned int uHash)
 
 inline float Controllable::GetEnergy() const
 {
-    EnergyBar* pEnergyBar = const_cast<Controllable*>(this)->GetEnergyBar();
+    const EnergyBar* pEnergyBar = GetEnergyBar();
     return pEnergyBar ? pEnergyBar->GetEnergy() : 0.0f;
 }
 
@@ -181,11 +181,11 @@ Weapon* WeaponInvisibilityClass::Build(const WeaponDesc& desc)
 WeaponInvisibility::WeaponInvisibility(const WeaponInvisibilityClass* pClass, const WeaponDesc& desc)
     : Weapon(pClass, desc)
 {
+    m_bInvisibilityOn = false;
+    m_bInvisibilityActive = false;
     m_fInvisibilityFactor = 0.0f;
     m_fInvisibilityPersistTimer = 0.0f;
     m_fInvisibilityFlickerTimer = 0.0f;
-    m_bInvisibilityOn = false;
-    m_bInvisibilityActive = false;
     mFired = false;
     mOwnerHealth = 0.0f;
 }

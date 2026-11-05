@@ -113,7 +113,19 @@ public:
 
     }
 
-    Node* FindByIndex(unsigned int uiIndex) const;
+    Node* GetFirst() const
+    {
+        return static_cast<Node*>(PblListSingle::GetFirst()->GetObjectA(this, offsetof(Node, mNode)));
+    }
+    Node* FindByIndex(unsigned int uiIndex) const
+    {
+        Itor itor(GetFirst());
+        for (unsigned int i = 0; i < uiIndex; ++i)
+        {
+            ++itor;
+        }
+        return static_cast<Node*>(itor.GetNode()->mNode.GetObjectA(this, offsetof(Node, mNode)));
+    }
     unsigned int GetCount() const;
 };
 

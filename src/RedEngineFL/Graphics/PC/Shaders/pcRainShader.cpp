@@ -229,10 +229,7 @@ void pcRainShader::Render_Prog1(const RenderItem* pItem, unsigned int) const
     color.a = fAlpha > 255.0f ? 0xff : (unsigned char)(int)fAlpha;
 
     pcRedVertexShaderConstantRegister* pRegs = RedRenderer::pcLockVertexShaderConstants(39, 1);
-    pRegs[39].component[0] = color.r * (1.0f / 255.0f);
-    pRegs[39].component[1] = color.g * (1.0f / 255.0f);
-    pRegs[39].component[2] = color.b * (1.0f / 255.0f);
-    pRegs[39].component[3] = color.a * (1.0f / 255.0f);
+    pRegs[39].SetColor(RedColorValue(color));
     RedRenderer::pcUnlockVertexShaderConstants(pRegs);
     RedRenderer::pcLoadFormat(m_pVertexFormat);
     pItem->pPrim->Draw();
@@ -291,7 +288,7 @@ void pcRainShader::_InitPipelineFuncArray()
 // FUNCTION: SWBF2 0x00705420
 void pcRainShader::_Read(PblFileChunk& chunk) const
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId != 0x454d414e)

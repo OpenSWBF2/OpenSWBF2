@@ -63,7 +63,7 @@ float SourceVirtual::CalculatePriority(const SourceTransport* pTransport,
     float fGain = pSource2D3D->mGain;
     if (pSource2D3D->Get3DMode() && fGain > 0.0f)
     {
-        float f3DGain = fGain;
+        float f3DGain;
         pSource3D->CalculateGain(f3DGain);
         fGain = f3DGain * fGain;
     }

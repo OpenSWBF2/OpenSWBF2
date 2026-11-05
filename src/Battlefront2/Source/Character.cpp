@@ -1583,26 +1583,22 @@ void Event<Character, DamageOwner>::Callback::Trigger(Character& item, DamageOwn
         if (pChild)
         {
             pChild->AddRef();
-            while (pChild)
-            {
-                const bool bAlive = pChild->IsAlive();
-                if (!bAlive)
-                {
-                    break;
-                }
-                Callback* pNext = (Callback*)pChild->mSibling;
-                if (pNext)
-                {
-                    pNext->AddRef();
-                }
-                pChild->Trigger(item, param);
-                pChild->Release();
-                pChild = pNext;
-            }
-            if (pChild)
+        }
+        while (pChild)
+        {
+            if (!pChild->IsAlive())
             {
                 pChild->Release();
+                break;
             }
+            Callback* pNext = (Callback*)pChild->mSibling;
+            if (pNext)
+            {
+                pNext->AddRef();
+            }
+            pChild->Trigger(item, param);
+            pChild->Release();
+            pChild = pNext;
         }
     }
     Release();
@@ -1625,26 +1621,22 @@ void Event<Character, char>::Callback::Trigger(Character& item, char& param)
         if (pChild)
         {
             pChild->AddRef();
-            while (pChild)
-            {
-                const bool bAlive = pChild->IsAlive();
-                if (!bAlive)
-                {
-                    break;
-                }
-                Callback* pNext = (Callback*)pChild->mSibling;
-                if (pNext)
-                {
-                    pNext->AddRef();
-                }
-                pChild->Trigger(item, param);
-                pChild->Release();
-                pChild = pNext;
-            }
-            if (pChild)
+        }
+        while (pChild)
+        {
+            if (!pChild->IsAlive())
             {
                 pChild->Release();
+                break;
             }
+            Callback* pNext = (Callback*)pChild->mSibling;
+            if (pNext)
+            {
+                pNext->AddRef();
+            }
+            pChild->Trigger(item, param);
+            pChild->Release();
+            pChild = pNext;
         }
     }
     Release();

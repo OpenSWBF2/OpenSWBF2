@@ -78,5 +78,5 @@ public:
 
     static void SetLuaState(lua_State* pState) { _pLuaState = pState; }
 
-    static void Reset() { _ActiveEventList.RemoveAll(); _InactiveEventList.RemoveAll(); }
+    static void Reset() { _ActiveEventList.Clear(); _InactiveEventList.Clear(); }
 };

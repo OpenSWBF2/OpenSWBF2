@@ -1,8 +1,7 @@
 #pragma once
 
 #include <stddef.h>
-
-class PblFile;
+#include "PblFile.h"
 
 class PblFileChunk
 {
@@ -16,13 +15,19 @@ public:
 
     void GetChunkData(void* pBuffer);
 
+    void ReadData(void* pBuffer, int iNumBytes) { _pFile->ReadData(pBuffer, iNumBytes); }
+    char Read8() { return _pFile->Read8(); }
+    short Read16() { return _pFile->Read16(); }
+    int Read32() { return _pFile->Read32(); }
+    float ReadFloat() { return _pFile->ReadFloat(); }
+
     char* ReadString(char* pcBuffer, int iBufSize);
 
     void Realign();
 
-    bool HasMoreChildren() const
+    bool IsDone() const
     {
-        return _iNext + ((-_iNext) & 3) < _iEnd;
+        return _iNext + ((-_iNext) & 3) >= _iEnd;
     }
 
     int GetSize() const { return _iSize; }

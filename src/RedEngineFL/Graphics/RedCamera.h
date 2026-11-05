@@ -34,6 +34,11 @@ public:
     void SetZoom(float fZoom);
     const PblVector3 TransformCameraPointToProjectionSpace(const PblVector3& rPoint) const;
 
+    const PblVector3 TransformWorldPointToCameraSpace(const PblVector3& rPoint) const
+    {
+        return _MatrixInverse.ApplyTransform(rPoint);
+    }
+
     const PblVector3 TransformWorldPointToProjectionSpace(const PblVector3& rPoint) const;
 
     enum VisibilityT

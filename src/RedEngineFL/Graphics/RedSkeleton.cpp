@@ -8,23 +8,6 @@
 
 
 
-static PblMatrix* _NewAlignedMatrices(unsigned int uiCount)
-{
-    unsigned int uiSize = (uiCount > 0x3ffffff) ? 0xffffffff : uiCount * sizeof(PblMatrix);
-    if (uiSize > 0xffffffef)
-    {
-        return 0;
-    }
-    char* p = new char[uiSize + 16];
-    if (!p)
-    {
-        return 0;
-    }
-    unsigned char uPad = (unsigned char)(16 - ((unsigned int)p & 15));
-    p += uPad;
-    p[-1] = (char)uPad;
-    return (PblMatrix*)p;
-}
 
 // GLOBAL: SWBF2 0x009a0a18
 RedSkeleton* RedSkeleton::s_pCurrentSkeleton;
@@ -113,7 +96,7 @@ void RedSkeleton::_Read(PblFileChunk& chunk)
     char acName[256];
 
     m_uiNumBones = 0;
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
@@ -126,8 +109,8 @@ void RedSkeleton::_Read(PblFileChunk& chunk)
 
             if (m_uiNumBones)
             {
-                m_amDefaultPose = _NewAlignedMatrices(m_uiNumBones);
-                m_amDefaultPoseInv = _NewAlignedMatrices(m_uiNumBones);
+                m_amDefaultPose = new PblMatrix[m_uiNumBones];
+                m_amDefaultPoseInv = new PblMatrix[m_uiNumBones];
                 m_aConnections = new Connection[m_uiNumBones];
                 m_auiNameHash = new unsigned int[m_uiNumBones];
             }

@@ -61,7 +61,7 @@ unsigned int FoleyFX::GetClassID() const
 // FUNCTION: SWBF2 0x0052c140
 void FoleyFX::ReadChunk(PblFileChunk& chunk)
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         const unsigned int uChunkID = child._pFile->Read32();
@@ -92,7 +92,7 @@ bool FoleyFX::Read(PblFileChunk& chunk, unsigned int uChunkID)
 // FUNCTION: SWBF2 0x0052c200
 void FoleyFX::Load(PblFileChunk& chunk)
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId != 0x41544144)

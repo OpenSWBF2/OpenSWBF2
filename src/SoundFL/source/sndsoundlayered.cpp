@@ -571,7 +571,7 @@ namespace Snd
 // FUNCTION: SWBF2 0x00738e70
 void __cdecl SoundLayered::Properties::Load(PblFileChunk& chunk, bool bOnce)
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId != 0x41544144u)
@@ -598,7 +598,7 @@ namespace Snd
 // FUNCTION: SWBF2 0x00739330
 void SoundLayered::Properties::Read(PblFileChunk& chunk)
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         const unsigned int uiID = child._pFile->Read32();

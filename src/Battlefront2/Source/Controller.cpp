@@ -3,6 +3,7 @@
 #include "AIDifficulty.h"
 #include "AIUtil.h"
 #include "Controllable.h"
+#include "EntityCarrier.h"
 #include "EntitySoldier.h"
 #include "GameLoop.h"
 #include "GameObject.h"
@@ -21,11 +22,6 @@ void Controller::SetRegionVisFactor(float fCrouch, float fStand)
     mRegionVisTime = GameLoop::GetMissionTime();
 }
 
-class EntityFlyer
-{
-public:
-    static PblHash rttiHashEntityFlyer;
-};
 
 
 // SYNTHETIC: SWBF2 0x00402790
@@ -204,13 +200,13 @@ void Controller::UpdateTargetBubbleSize(float dt)
                           mTargetBubbleLastVel.z - vVelocity.z);
         mTargetBubbleLastVel = vVelocity;
         IncreaseTargetBubbleSize(
-            PblMath::Sqrt(vDelta.x * vDelta.x + vDelta.y * vDelta.y + vDelta.z * vDelta.z) * 0.455f
+            Length(vDelta) * 0.455f
             / fMaxSpeed);
     }
 
     PblVector3 vRandom = PblRandom::_Global.GetVector3();
     PblVector3 vAxis = mTargetBubbleAxis + vRandom;
-    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vRandom), reinterpret_cast<const D3DXVECTOR3*>(&vAxis));
+    vRandom = Normalize(vAxis);
     mTargetBubbleAxis = vRandom;
 
     PblQuaternion qTurn(mTargetBubbleAxis, dt * 2.0f);
@@ -265,7 +261,7 @@ void Controller::SetFoliageVisFactor(float fCrouch, float fStand)
 }
 
 // FUNCTION: SWBF2 0x00485950
-bool Controller::GetCrouchedForVis()
+bool Controller::GetCrouchedForVis() const
 {
     if (mOwner->GetGameObject() &&
         mOwner->GetGameObject()->IsRtti(EntitySoldier::rttiHashEntitySoldier))
@@ -280,13 +276,13 @@ bool Controller::GetCrouchedForVis()
 }
 
 // FUNCTION: SWBF2 0x004859b0
-float Controller::GetFoliageVisFactor()
+float Controller::GetFoliageVisFactor() const
 {
     return GetCrouchedForVis() ? mFoliageVisCrouch : mFoliageVisStand;
 }
 
 // FUNCTION: SWBF2 0x004859d0
-float Controller::GetInvisibilityVisFactor()
+float Controller::GetInvisibilityVisFactor() const
 {
     if (!mOwner->GetGameObject() ||
         !mOwner->GetGameObject()->IsRtti(EntitySoldier::rttiHashEntitySoldier))
@@ -294,19 +290,11 @@ float Controller::GetInvisibilityVisFactor()
         return 1.0f;
     }
     float fVis = 1.0f - static_cast<EntitySoldier*>(mOwner->GetGameObject())->GetInvisibilityFactor();
-    if (fVis < 0.0f)
-    {
-        return 0.0f;
-    }
-    if (fVis > 1.0f)
-    {
-        return 1.0f;
-    }
-    return fVis;
+    return Clamp(fVis, 0.0f, 1.0f);
 }
 
 // FUNCTION: SWBF2 0x00485a70
-float Controller::GetRegionVisFactor()
+float Controller::GetRegionVisFactor() const
 {
     if (GameLoop::GetMissionTime() - 1.0f > mRegionVisTime)
     {

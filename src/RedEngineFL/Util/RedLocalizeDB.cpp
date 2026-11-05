@@ -263,7 +263,7 @@ bool Read(PblFileChunk& chunk)
     }
 
     bool bLanguage = false;
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)

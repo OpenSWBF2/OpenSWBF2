@@ -7,6 +7,12 @@
 #include "CollisionObject.h"
 #include "Controllable.h"
 #include "Entity.h"
+#include "EntityDroideka.h"
+#include "MountedTurret.h"
+#include "EntityBuildingArmed.h"
+#include "EntityTrap.h"
+#include "EntityItem.h"
+#include "EntityMine.h"
 #include "EntityCarrier.h"
 #include "EntitySoldier.h"
 #include "FLInputManager.h"
@@ -28,6 +34,7 @@
 #include "GameLoop.h"
 #include "Team.h"
 #include "UnitController.h"
+#include "VOHelper.h"
 
 #include <float.h>
 #include <math.h>
@@ -39,18 +46,6 @@
  
  
 
-class EntityDroideka
-{
-public:
-    static PblHash rttiHashEntityDroideka;
-
-    bool IsRollingOrTransition() const;
-};
-class MountedTurret { public: static PblHash rttiHashMountedTurret; };
-class EntityBuildingArmed { public: static PblHash rttiHashEntityBuildingArmed; };
-class EntityTrap { public: static PblHash rttiHashEntityTrap; };
-class EntityItem { public: static PblHash rttiHashEntityItem; };
-class EntityMine { public: static PblHash rttiHashEntityMine; };
 
 namespace PopupText
 {
@@ -254,80 +249,31 @@ void PlayerController::Update(float dt)
     float fPitch = mJoystick->GetPitchAxis();
 
     float fBuildup = mMouseTurnBuildup + fTurn;
-    if (fBuildup < -1.0f)
-    {
-        fBuildup = -1.0f;
-    }
-    else if (fBuildup > 1.0f)
-    {
-        fBuildup = 1.0f;
-    }
+    fBuildup = Clamp(fBuildup, -1.0f, 1.0f);
     mMouseTurnBuildup = fBuildup;
 
-    if (fStrafe < -1.0f)
-    {
-        fStrafe = -1.0f;
-    }
-    else if (fStrafe > 1.0f)
-    {
-        fStrafe = 1.0f;
-    }
-    if (fMove < -1.0f)
-    {
-        fMove = -1.0f;
-    }
-    else if (fMove > 1.0f)
-    {
-        fMove = 1.0f;
-    }
+    fStrafe = Clamp(fStrafe, -1.0f, 1.0f);
+    fMove = Clamp(fMove, -1.0f, 1.0f);
 
     if (bMouseMode && bIsSoldier)
     {
-        if (fTurn < -16.0f)
-        {
-            fTurn = -16.0f;
-        }
-        else if (fTurn > 16.0f)
-        {
-            fTurn = 16.0f;
-        }
-        if (fPitch < -16.0f)
-        {
-            fPitch = -16.0f;
-        }
-        else if (fPitch > 16.0f)
-        {
-            fPitch = 16.0f;
-        }
+        fTurn = Clamp(fTurn, -16.0f, 16.0f);
+        fPitch = Clamp(fPitch, -16.0f, 16.0f);
     }
     else
     {
-        if (fTurn < -1.0f)
-        {
-            fTurn = -1.0f;
-        }
-        else if (fTurn > 1.0f)
-        {
-            fTurn = 1.0f;
-        }
-        if (fPitch < -1.0f)
-        {
-            fPitch = -1.0f;
-        }
-        else if (fPitch > 1.0f)
-        {
-            fPitch = 1.0f;
-        }
+        fTurn = Clamp(fTurn, -1.0f, 1.0f);
+        fPitch = Clamp(fPitch, -1.0f, 1.0f);
     }
 
     if (!(bMouseMode && bIsSoldier))
     {
         if (fPitch * fPitch + fTurn * fTurn >= 0.9f)
         {
-            float fTurnBuildup = dt + mOwner->GetTurnBuildup();
-            mOwner->SetTurnBuildup(fTurnBuildup < 1.0f ? fTurnBuildup : 1.0f);
+            float fTurnBuildup = mOwner->GetTurnBuildup() + dt;
+            mOwner->SetTurnBuildup(Min(fTurnBuildup, 1.0f));
             float fPitchBuildup = mOwner->GetPitchBuildup() + dt;
-            mOwner->SetPitchBuildup(fPitchBuildup < 1.0f ? fPitchBuildup : 1.0f);
+            mOwner->SetPitchBuildup(Min(fPitchBuildup, 1.0f));
         }
         else
         {
@@ -422,8 +368,7 @@ void PlayerController::Update(float dt)
                     {
                         pCharacter->mUnit->ExitVehicle(true, true);
                     }
-                    pUnitObject->mIsAlive = false;
-                    pUnitObject->mVanishing = true;
+                    pUnitObject->InstantVanish();
                     return;
                 }
                 if (mJoystick->IsDeclineHeroPressed())
@@ -568,7 +513,7 @@ void PlayerController::Update(float dt)
             bool bLocked = pTarget != 0;
             GameObject* pMe = mOwner->GetGameObject();
 
-            if (pTarget && pTarget->GetDerivedRtti() == EntitySoldier::rttiHashEntitySoldier &&
+            if (pTarget && pTarget->GetDerivedRtti() == EntitySoldier::GetRtti() &&
                 static_cast<const EntitySoldier*>(pTarget)->GetInvisibilityFactor() > 0.0f &&
                 pMe->GetAffiliationToMe(pTarget) < 0)
             {
@@ -612,7 +557,7 @@ void PlayerController::Update(float dt)
 
                 PblVector3 vCenter;
                 float fRadius;
-                if (pTarget->mHealthType == HEALTH_TYPE_BUILDING_UNBUILT &&
+                if (pTarget->GetHealthType() == HEALTH_TYPE_BUILDING_UNBUILT &&
                     pTarget->IsRtti(EntityTrap::rttiHashEntityTrap))
                 {
                     vCenter = pTarget->GetCollisionObject()->GetCollisionCenter();
@@ -620,23 +565,20 @@ void PlayerController::Update(float dt)
                 }
                 else
                 {
-                    const PblBox& box = pTarget->GetModel()->_mModel->_TotalBoundingBox;
+                    const PblBox& box = pTarget->GetModel()->GetTotalBoundingBox();
                     PblVector3 vMid((box._vMax.x + box._vMin.x) * 0.5f, (box._vMax.y + box._vMin.y) * 0.5f,
                                     (box._vMax.z + box._vMin.z) * 0.5f);
                     vCenter = static_cast<const CollisionObject*>(pTarget)->GetMatrix().ApplyTransform(vMid);
-                    float dx = box._vMax.x - box._vMin.x;
-                    float dy = box._vMax.y - box._vMin.y;
-                    float dz = box._vMax.z - box._vMin.z;
-                    fRadius = PblMath::Sqrt(dy * dy + dx * dx + dz * dz) * 0.5f;
+                    fRadius = Length(box._vMax - box._vMin) * 0.5f;
                 }
 
                 float fPrio = TargetInfo::GetTargetPrio(vStart, vDir, vCenter, fRadius, fAngle, fRange, false);
                 bool bKeep = false;
 
                 if (!(fPrio < 0.0f) &&
-                    (pTarget->mIsAlive || pTarget->mHealthType == HEALTH_TYPE_BUILDING_DEAD ||
-                     pTarget->mHealthType == HEALTH_TYPE_BUILDING_UNBUILT) &&
-                    pTarget->mIsTargetable && pTarget->IsVisibleToMe(pMe))
+                    (pTarget->IsAlive() || pTarget->GetHealthType() == HEALTH_TYPE_BUILDING_DEAD ||
+                     pTarget->GetHealthType() == HEALTH_TYPE_BUILDING_UNBUILT) &&
+                    pTarget->IsTargetable() && pTarget->IsVisibleToMe(pMe))
                 {
                     if (!bHoldLock)
                     {
@@ -644,15 +586,14 @@ void PlayerController::Update(float dt)
                     }
                     PblVector3 vPoint = pTarget->GetTargetPoint(vStart, vDir, iBodyID);
                     PblVector3 vBack = vStart - vPoint;
-                    PblVector3 vBackDir;
-                    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vBackDir), reinterpret_cast<const D3DXVECTOR3*>(&vBack));
+                    PblVector3 vBackDir = Normalize(vBack);
                     vPoint += vBackDir * fRadius;
                     const GameObject* apIgnore[2] = { pMe, pTarget };
                     if (!CollisionManager::RayTest(vStart, vPoint, apIgnore, 2, 0x90))
                     {
                         bKeep = true;
                         bLocked = ((1 << (pMe->GetAffiliationToMe(pTarget) + 1)) & iTargetSides) != 0 &&
-                                  ((1 << pTarget->mHealthType) & iTargetTypes) != 0 &&
+                                  ((1 << pTarget->GetHealthType()) & iTargetTypes) != 0 &&
                                   fRadius + fLockOnRange >= Length(vCenter - vStart);
                         if (bHoldLock)
                         {
@@ -687,9 +628,9 @@ void PlayerController::Update(float dt)
                     {
                         continue;
                     }
-                    if (!(pObject->mIsAlive || pObject->mHealthType == HEALTH_TYPE_BUILDING_DEAD ||
-                          pObject->mHealthType == HEALTH_TYPE_BUILDING_UNBUILT) ||
-                        !pObject->mIsTargetable || !pObject->IsVisibleToMe(pMe))
+                    if (!(pObject->IsAlive() || pObject->GetHealthType() == HEALTH_TYPE_BUILDING_DEAD ||
+                          pObject->GetHealthType() == HEALTH_TYPE_BUILDING_UNBUILT) ||
+                        !pObject->IsTargetable() || !pObject->IsVisibleToMe(pMe))
                     {
                         continue;
                     }
@@ -698,7 +639,7 @@ void PlayerController::Update(float dt)
                     {
                         continue;
                     }
-                    if (pObject->GetDerivedRtti() == EntitySoldier::rttiHashEntitySoldier &&
+                    if (pObject->GetDerivedRtti() == EntitySoldier::GetRtti() &&
                         static_cast<const EntitySoldier*>(pObject)->GetInvisibilityFactor() > 0.0f &&
                         pMe->GetAffiliationToMe(pObject) < 0)
                     {
@@ -706,7 +647,7 @@ void PlayerController::Update(float dt)
                     }
 
                     bool bLockable = ((1 << (pMe->GetAffiliationToMe(pObject) + 1)) & iTargetSides) != 0 &&
-                                     ((1 << pObject->mHealthType) & iTargetTypes) != 0;
+                                     ((1 << pObject->GetHealthType()) & iTargetTypes) != 0;
                     if (bLocked && !bLockable)
                     {
                         continue;
@@ -714,7 +655,7 @@ void PlayerController::Update(float dt)
 
                     PblVector3 vCenter;
                     float fRadius;
-                    if (pObject->mHealthType == HEALTH_TYPE_BUILDING_UNBUILT &&
+                    if (pObject->GetHealthType() == HEALTH_TYPE_BUILDING_UNBUILT &&
                         pObject->IsRtti(EntityTrap::rttiHashEntityTrap))
                     {
                         vCenter = pObject->GetCollisionObject()->GetCollisionCenter();
@@ -722,14 +663,11 @@ void PlayerController::Update(float dt)
                     }
                     else
                     {
-                        const PblBox& box = pObject->GetModel()->_mModel->_TotalBoundingBox;
+                        const PblBox& box = pObject->GetModel()->GetTotalBoundingBox();
                         PblVector3 vMid((box._vMin.x + box._vMax.x) * 0.5f, (box._vMin.y + box._vMax.y) * 0.5f,
                                         (box._vMin.z + box._vMax.z) * 0.5f);
                         vCenter = static_cast<const CollisionObject*>(pObject)->GetMatrix().ApplyTransform(vMid);
-                        float dx = box._vMax.x - box._vMin.x;
-                        float dy = box._vMax.y - box._vMin.y;
-                        float dz = box._vMax.z - box._vMin.z;
-                        fRadius = PblMath::Sqrt(dx * dx + dy * dy + dz * dz) * 0.5f;
+                        fRadius = Length(box._vMax - box._vMin) * 0.5f;
                     }
 
                     if (pObject->GetControllable() && pObject->GetControllable()->mCharacter &&
@@ -756,8 +694,7 @@ void PlayerController::Update(float dt)
                         int iObjectBodyID = pObject->GetTargetBodyID(vStart, vDir);
                         PblVector3 vPoint = pObject->GetTargetPoint(vStart, vDir, iObjectBodyID);
                         PblVector3 vBack = vStart - vPoint;
-                        PblVector3 vBackDir;
-                        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vBackDir), reinterpret_cast<const D3DXVECTOR3*>(&vBack));
+                        PblVector3 vBackDir = Normalize(vBack);
                         vPoint += vBackDir * fRadius;
                         const GameObject* apIgnore[2] = { pMe, pObject };
                         if (!CollisionManager::RayTest(vStart, vPoint, apIgnore, 2, 0x90))
@@ -839,13 +776,7 @@ int GetObjectsInRange(const PblVector3& vPos, float fRange, GameObject** const p
 
 namespace AI
 {
-enum VOType
-{
-    VOT_NotShootingCriticalHit = 33,
-    VOT_NearbyFriendlySlaughter = 35,
-    VOT_NearbyEnemySlaughter = 36,
-    VOT_NearbyTeamKillSlaughter = 37
-};
+
 namespace VOHelper
 {
 int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,

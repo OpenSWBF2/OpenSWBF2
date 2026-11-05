@@ -388,15 +388,6 @@ static unsigned int sAnimationBankHashes[5];
 
 
 
-// FUNCTION: SWBF2 0x0048c9e0
-void RedInterfaceElement::CreateHotSpot(float fLeft, float fTop, float fRight, float fBottom)
-{
-    if (!m_pHotSpot)
-    {
-        m_pHotSpot = new RedHotSpot;
-    }
-    m_pHotSpot->SetRect(fLeft, fTop, fRight, fBottom);
-}
 
 // GLOBAL: SWBF2 0x007e6cc0
 // sIFaceCallbacks
@@ -4137,21 +4128,18 @@ int ScriptCB_GetEnumerateLeaderBoardData(lua_State* L)
 // FUNCTION: SWBF2 0x00586920
 int ScriptCB_SetSunlight(lua_State* L)
 {
+    PblVector3 restoreSunDirection(1.0f, -1.0f, -1.0f);
+    RedColorValue restoreSunColor(255.0f, 255.0f, 255.0f, 1.0f);
     RedAmbientLight& rAmbient = RedInterfaceScreen::s_lightingState.ambientLight;
     const RedColorValue& rTop = RedColorValue::BLACK;
     const RedColorValue& rBottom = RedColorValue::BLACK;
     rAmbient.SetTopColor(rTop);
     rAmbient.SetBottomColor(rBottom);
-    RedColorValue mean;
-    mean.r = (rTop.r + rBottom.r) * 0.5f;
-    mean.g = (rTop.g + rBottom.g) * 0.5f;
-    mean.b = (rTop.b + rBottom.b) * 0.5f;
-    mean.a = (rTop.a + rBottom.a) * 0.5f;
+    RedColorValue mean = (rTop + rBottom) * 0.5f;
     rAmbient.SetColor(mean);
 
-    RedColorValue sunColor(255.0f, 255.0f, 255.0f, 1.0f);
-    RedInterfaceScreen::s_directionalLight[0].SetDirection(PblVector3(1.0f, -1.0f, -1.0f));
-    RedInterfaceScreen::s_directionalLight[0].SetColor(sunColor);
+    RedInterfaceScreen::s_directionalLight[0].SetDirection(restoreSunDirection);
+    RedInterfaceScreen::s_directionalLight[0].SetColor(restoreSunColor);
     return 1;
 }
 
@@ -4494,7 +4482,7 @@ int ScriptCB_GetEntityWeaponMesh(lua_State* L)
             const WeaponClass* pWeapon = pObjectClass->GetWeaponClass(0);
             if (pWeapon && pWeapon->mModel)
             {
-                lua_pushlightuserdata(LuaHelper::mState, pWeapon->mModel);
+                lua_pushlightuserdata(LuaHelper::mState, const_cast<RedModel*>(pWeapon->mModel));
                 return 1;
             }
         }
@@ -4570,8 +4558,7 @@ int ScriptCB_SetIFaceLighting(lua_State* L)
         Lua_Callbacks::TableReadColor("bottom", bottom);
         rAmbient.SetTopColor(top);
         rAmbient.SetBottomColor(bottom);
-        RedColorValue sum(top.r + bottom.r, top.g + bottom.g, top.b + bottom.b, top.a + bottom.a);
-        RedColorValue mean(sum.r * 0.5f, sum.g * 0.5f, sum.b * 0.5f, sum.a * 0.5f);
+        RedColorValue mean = (top + bottom) * 0.5f;
         rAmbient.SetColor(mean);
     }
     lua_settop(LuaHelper::mState, -2);

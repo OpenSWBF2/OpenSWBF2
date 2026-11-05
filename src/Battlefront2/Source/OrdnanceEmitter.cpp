@@ -46,15 +46,15 @@ OrdnanceEmitterClass::OrdnanceEmitterClass(unsigned int uHash)
     mStunAnimation = 0;
     mStunTime = 0.0f;
     mMinDamage = 0.0f;
+    mPush = 0.0f;
+    mConeLength = 10.0f;
+    mConeWidth = 0.866f;
+    mMaxTargets = 5;
     mMaxDamage = 0.0f;
     mDamageThreshold = 0.0f;
     mMaxJumpDistance = 10.0f;
     mJumpDeduction = 0.0f;
-    mPush = 0.0f;
-    mConeLength = 10.0f;
-    mConeWidth = 0.866f;
     mFirstRadius = 1.5f;
-    mMaxTargets = 5;
     mNoChaining = false;
     mRadius = 0.0f;
     mBuffOffenseTimer = 0.0f;
@@ -366,12 +366,6 @@ OrdnanceClass* OrdnanceEmitterClass::Derive(unsigned int uHash)
     return new OrdnanceEmitterClass(this, uHash);
 }
 
-static inline const PblVector3 RotateY(const PblVector3& v, float fAngle)
-{
-    float fSin, fCos;
-    PblMath::SinCos(&fSin, &fCos, fAngle);
-    return PblVector3(fCos * v.x - fSin * v.z, v.y, fSin * v.x + fCos * v.z);
-}
 
 static inline const PblVector3 RotateZ(const PblVector3& v, float fAngle)
 {

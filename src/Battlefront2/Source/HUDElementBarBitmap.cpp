@@ -306,17 +306,19 @@ float HUD::ElementBarBitmap::SetValue(const float fValue)
 
         if (mScaleSize)
         {
-            float fLeft, fTop, fRight, fBottom;
-            pBitmap->GetRect(fLeft, fTop, fRight, fBottom);
-            const float fScaledRight = mBarWidth * fNewValue + fLeft;
-            pBitmap->SetRect(fLeft, fTop, fScaledRight, fBottom);
+            float fPrevLeft, fPrevTop, fPrevRight, fPrevBottom;
+            pBitmap->GetRect(fPrevLeft, fPrevTop, fPrevRight, fPrevBottom);
+            float fTop = fPrevTop;
+            float fBottom = fPrevBottom;
+            const float fScaledRight = mBarWidth * fNewValue + fPrevLeft;
+            pBitmap->SetRect(fPrevLeft, fTop, fScaledRight, fBottom);
 
             if (mFlashyBit.RedInterfaceElement::IsEnabled())
             {
                 mFlashyBit.HUD::Element::Enable(false);
             }
 
-            mIncreasedValue = fScaledRight > fRight;
+            mIncreasedValue = fScaledRight > fPrevRight;
             if (mInitialValueSet &&
                 ((mIncreasedValue && mFlashyIncFadeOutTime > 0.0001f) ||
                  (!mIncreasedValue && mFlashyDecFadeOutTime > 0.0001f)))
@@ -326,7 +328,7 @@ float HUD::ElementBarBitmap::SetValue(const float fValue)
                 {
                     mFlashyBit.SetTexCoords(fScaledU1, fV0, fU1, fV1, false);
                 }
-                mFlashyBit.RedBitmapElement::SetRect(fScaledRight, fTop, fRight, fBottom);
+                mFlashyBit.RedBitmapElement::SetRect(fScaledRight, fTop, fPrevRight, fBottom);
                 mFlashyBit.HUD::Element::Enable(true);
             }
         }

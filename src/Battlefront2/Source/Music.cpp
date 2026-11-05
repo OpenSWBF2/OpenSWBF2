@@ -323,7 +323,7 @@ void Music::UpdatePriority(bool bResort)
 // FUNCTION: SWBF2 0x005a9ab0
 void Music::Read(PblFileChunk& chunk)
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk data = chunk.ReadNextChild();
         const unsigned int uTag = data._pFile->Read32();
@@ -503,7 +503,7 @@ void Music::DestroyAll(PblListDoubleSorted* pList)
 // FUNCTION: SWBF2 0x005a9c20
 void Music::Load(PblFileChunk& chunk)
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId != 0x41544144)

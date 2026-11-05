@@ -62,7 +62,7 @@ bool WeaponCatapult::CheckReload() const
 WeaponCatapult::WeaponCatapult(const WeaponCatapultClass* pClass, const WeaponDesc& desc)
     : Weapon(pClass, desc)
 {
-    mCatapultClass = const_cast<WeaponCatapultClass*>(pClass);
+    mCatapultClass = pClass;
     float fCockedAngle = pClass->mCockedAngle;
     mLastArmAngle = fCockedAngle;
     mNextArmAngle = fCockedAngle;
@@ -229,8 +229,8 @@ bool WeaponCatapult::UpdateReload(float fDeltaTime)
 // FUNCTION: SWBF2 0x00681400
 void WeaponCatapult::ExitReload()
 {
-    mLastArmAngle = mNextArmAngle;
     mShowOrdnance = true;
+    mLastArmAngle = mNextArmAngle;
     Weapon::ExitReload();
 }
 

@@ -9,12 +9,12 @@ namespace util
 struct AssertBounds_
 {
 };
-
 template <class TYPE, class ARRAY, class BOUNDS>
 class IterArray : public ARRAY
 {
 public:
-
+    // TEMPLATE: SWBF2 0x006afea0
+    // util::IterArray<util::TKeyPair_<RenderItem *,unsigned int>,util::BaseArray<util::TKeyPair_<RenderItem *,unsigned int>,util::TNewArrayAlloc<util::TKeyPair_<RenderItem *,unsigned int> > >,util::AssertBounds_>::~IterArray<util::TKeyPair_<RenderItem *,unsigned int>,util::BaseArray<util::TKeyPair_<RenderItem *,unsigned int>,util::TNewArrayAlloc<util::TKeyPair_<RenderItem *,unsigned int> > >,util::AssertBounds_>
     void Clear()
     {
         this->Reserve_(0, true);
@@ -191,3 +191,6 @@ private:
 };
 
 }
+
+// TEMPLATE: SWBF2 0x0062b810
+// util::Vector<float,util::BaseArray<float,util::TNewArrayAlloc<float> > >::SetSize_

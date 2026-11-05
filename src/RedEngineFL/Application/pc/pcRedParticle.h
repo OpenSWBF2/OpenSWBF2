@@ -56,6 +56,10 @@ public:
 
     struct TexCoords
     {
+        TexCoords() = default;
+        TexCoords(int au0, int av0, int au1, int av1)
+            : u0(au0), v0(av0), u1(au1), v1(av1) {}
+
         unsigned int u0 : 8;
         unsigned int v0 : 8;
         unsigned int u1 : 8;

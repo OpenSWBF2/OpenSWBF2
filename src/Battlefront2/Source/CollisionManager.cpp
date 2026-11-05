@@ -614,10 +614,10 @@ CollisionManager::CollisionManager(const PblVector3& vMin, const PblVector3& vMa
 
 
 // TEMPLATE: SWBF2 0x00460960
-// PblList<CollisionObject>::RemoveAll
+// PblList<CollisionObject>::Clear
 
 // TEMPLATE: SWBF2 0x004609a0
-// PblList<Ordnance>::RemoveAll
+// PblList<Ordnance>::Clear
 
 // FUNCTION: SWBF2 0x0045e750
 CollisionManager::~CollisionManager()
@@ -625,15 +625,15 @@ CollisionManager::~CollisionManager()
     mOrdnanceUpdate.DeactivateThread();
     DeactivateThread();
     delete mTreeGrid;
-    mOrdnance.RemoveAll();
-    mItemBodies.RemoveAll();
-    mSoftBodies.RemoveAll();
-    mRigidBodies.RemoveAll();
-    mAsteroidBodies.RemoveAll();
-    mStaticBodies.RemoveAll();
-    mAttachedBodies.RemoveAll();
-    mLeafPatchBodies.RemoveAll();
-    mShieldBodies.RemoveAll();
+    mOrdnance.Clear();
+    mItemBodies.Clear();
+    mSoftBodies.Clear();
+    mRigidBodies.Clear();
+    mAsteroidBodies.Clear();
+    mStaticBodies.Clear();
+    mAttachedBodies.Clear();
+    mLeafPatchBodies.Clear();
+    mShieldBodies.Clear();
 }
 
 // FUNCTION: SWBF2 0x0045e830
@@ -1142,8 +1142,8 @@ void CollisionManager::UpdateSimple(PblList<CollisionObject>& list, int iFilter)
     }
 
     PblList<CollisionObject>::Itor it(list);
-    bool bDistanceGated = !NetGame::IsEnabled() || NetGame::IsClient();
-    bool bClient = NetGame::IsEnabled() && NetGame::IsClient();
+    bool bDistanceGated = !NetGame::IsEnabled() || NetGame::OnClient();
+    bool bClient = NetGame::IsEnabled() && NetGame::OnClient();
 
     while (CollisionObject* pObject = it)
     {
@@ -1156,10 +1156,8 @@ void CollisionManager::UpdateSimple(PblList<CollisionObject>& list, int iFilter)
         PblVector3 vCenter = pObject->GetCollisionCenter();
         for (int i = 0; i < iNumCameras && !bNear; ++i)
         {
-            float fDx = vCameraPos[i].x - vCenter.x;
-            float fDy = vCameraPos[i].y - vCenter.y;
-            float fDz = vCameraPos[i].z - vCenter.z;
-            bNear = mMaxCollisionDistanceSq > fDy * fDy + fDx * fDx + fDz * fDz;
+            PblVector3 cameraDiff = vCameraPos[i] - vCenter;
+            bNear = mMaxCollisionDistanceSq > DotProduct(cameraDiff, cameraDiff);
         }
 
         if (bClient && bNear)
@@ -1255,8 +1253,8 @@ void CollisionManager::UpdateRestricted(PblList<CollisionObject>& aList, int aTy
         camPos[i] = CameraManager::Instance()->GetCamera(i)->GetMatrix().GetTranslation();
     }
 
-    bool bClient = !NetGame::IsEnabled() || NetGame::IsClient();
-    bool bNetClient = NetGame::IsEnabled() && NetGame::IsClient();
+    bool bClient = !NetGame::IsEnabled() || NetGame::OnClient();
+    bool bNetClient = NetGame::IsEnabled() && NetGame::OnClient();
 
     PblList<CollisionObject>::Itor it(aList);
     sSafetyIt = &it;
@@ -1268,36 +1266,26 @@ void CollisionManager::UpdateRestricted(PblList<CollisionObject>& aList, int aTy
         restrictor.Clear();
         sSafetyObjPointer = &obj;
 
-        const PblVector3& vLastPosition = obj->mLastPosition;
-        const PblVector3& vPosition = obj->GetPosition();
-        PblVector3 diff(vPosition.x - vLastPosition.x, vPosition.y - vLastPosition.y,
-                        vPosition.z - vLastPosition.z);
-        float totalDist = PblMath::Sqrt(diff.y * diff.y + diff.x * diff.x + diff.z * diff.z);
+        PblVector3 diff = obj->GetPosition() - obj->mLastPosition;
+        float totalDist = Length(diff);
         if (totalDist > 100.0f)
         {
             obj->mLastPosition = obj->GetPosition();
             continue;
         }
 
-        float fInvDist = 1.0f / (totalDist + EPSILON);
-        PblVector3 deltaMove = diff * fInvDist;
-        float fRadius = obj->GetCollisionRadius();
-        float fHalfDim = obj->GetSmallestCollisionDim() * 0.5f;
-        float fStepSize = fRadius > fHalfDim ? fHalfDim : fRadius;
-        int maxTests = (int)(totalDist / fStepSize + 1.0f);
-        float fStepLength = totalDist / (float)maxTests;
-        deltaMove.x *= fStepLength;
-        deltaMove.y *= fStepLength;
-        deltaMove.z *= fStepLength;
+        PblVector3 lastDir = diff / (totalDist + EPSILON);
+        int maxTests = (int)(totalDist / Min(obj->GetCollisionRadius(),
+            obj->GetSmallestCollisionDim() * 0.5f) + 1.0f);
+        float deltaDist = totalDist / (float)maxTests;
+        PblVector3 deltaMove = lastDir * deltaDist;
 
         bool bNear = false;
         PblVector3 pos = obj->GetCollisionCenter();
         for (int i = 0; i < numCams && !bNear; ++i)
         {
-            float fDx = camPos[i].x - pos.x;
-            float fDy = camPos[i].y - pos.y;
-            float fDz = camPos[i].z - pos.z;
-            bNear = mMaxCollisionDistanceSq > fDy * fDy + fDx * fDx + fDz * fDz;
+            PblVector3 cameraDiff = camPos[i] - pos;
+            bNear = mMaxCollisionDistanceSq > DotProduct(cameraDiff, cameraDiff);
         }
 
         bool bTest = false;
@@ -1323,12 +1311,12 @@ void CollisionManager::UpdateRestricted(PblList<CollisionObject>& aList, int aTy
         if (bTest)
         {
             data.mMe = obj;
-            data.mCenter = obj->GetCollisionCenter() - diff * 0.5f;
+            data.mCenter = obj->GetCollisionCenter() - 0.5f * diff;
             data.mRadius = totalDist * 0.5f + obj->GetCollisionRadius();
-            data.mMinPos = PblVector3(data.mCenter.x - data.mRadius, data.mCenter.y - data.mRadius,
-                                      data.mCenter.z - data.mRadius);
-            data.mMaxPos = PblVector3(data.mCenter.x + data.mRadius, data.mCenter.y + data.mRadius,
-                                      data.mCenter.z + data.mRadius);
+            PblVector3 size;
+            size.SetAll(data.mRadius);
+            data.mMinPos = data.mCenter - size;
+            data.mMaxPos = data.mCenter + size;
             if (mTreeGrid)
             {
                 TreeGridCache::CallbackOnSphere(mTreeGrid, data.mCenter, data.mRadius, CollectDataCallback, &data);

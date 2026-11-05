@@ -462,7 +462,7 @@ int WeaponAreaEffect::UpdateTargets(GameObject** ppTargets, int iNumTargets)
             const PblVector3& vTarget = pTarget->GetCollisionCenter();
             const float fTargetRadius = pTarget->GetCollisionRadius();
             const float fOffsetY = vTarget.y - vCenter.y;
-            const float fHeight = fOffsetY < 0.0f ? -fOffsetY : fOffsetY;
+            const float fHeight = Value(fOffsetY);
             if (fHeight > _GetClass()->m_fAreaHeight * 0.5f + fTargetRadius)
             {
                 continue;
@@ -512,14 +512,14 @@ int WeaponAreaEffect::UpdateTargets(GameObject** ppTargets, int iNumTargets)
             const float dz = vTarget.z - pAimer->mFirePos.z;
             const float fTargetRadius = pTarget->GetCollisionRadius();
             const float fPlaneDist = dx * vNormal.x + vNormal.y * dy + vNormal.z * dz;
-            const float fHeight = fPlaneDist < 0.0f ? -fPlaneDist : fPlaneDist;
+            const float fHeight = Value(fPlaneDist);
             if (fHeight > _GetClass()->m_fAreaHeight * 0.5f + fTargetRadius)
             {
                 continue;
             }
             const float fForward = vDir.x * dx + vDir.y * dy + vDir.z * dz;
             const float fSideDist = mOwnerMatrix.m[0][1] * dy + mOwnerMatrix.m[0][0] * dx + mOwnerMatrix.m[0][2] * dz;
-            const float fSide = fSideDist < 0.0f ? -fSideDist : fSideDist;
+            const float fSide = Value(fSideDist);
             if (fSide * fCos - fTargetRadius > fForward * fSin)
             {
                 continue;
@@ -575,14 +575,14 @@ int WeaponAreaEffect::UpdateTargets(GameObject** ppTargets, int iNumTargets)
             const float dz = vTarget.z - pAimer->mFirePos.z;
             const float fTargetRadius = pTarget->GetCollisionRadius();
             const float fPlaneDist = dx * vNormal.x + vNormal.y * dy + vNormal.z * dz;
-            const float fHeight = fPlaneDist < 0.0f ? -fPlaneDist : fPlaneDist;
+            const float fHeight = Value(fPlaneDist);
             if (fHeight > _GetClass()->m_fAreaHeight * 0.5f + fTargetRadius)
             {
                 continue;
             }
             const float fForward = vDir.x * dx + vDir.y * dy + vDir.z * dz;
             const float fSideDist = dx * mOwnerMatrix.m[0][0] + dy * mOwnerMatrix.m[0][1] + mOwnerMatrix.m[0][2] * dz;
-            const float fSide = fSideDist < 0.0f ? -fSideDist : fSideDist;
+            const float fSide = Value(fSideDist);
             if (fSide * fCos - fTargetRadius > fForward * fSin)
             {
                 continue;

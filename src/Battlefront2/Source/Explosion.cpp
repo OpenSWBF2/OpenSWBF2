@@ -145,7 +145,7 @@ void ExplosionClass::Read(PblFileChunk& chunk)
     char acBuffer[128];
     ExplosionClass* pClass = 0;
 
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)

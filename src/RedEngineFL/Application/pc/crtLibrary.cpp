@@ -151,6 +151,45 @@
 // LIBRARY: SWBF2 0x00752b34
 // std::exception::exception
 
+// GLOBAL: SWBF2 0x007e3cc0
+// __defaultmatherr
+
+// GLOBAL: SWBF2 0x007e3cc4
+// __globallocalestatus
+
+// GLOBAL: SWBF2 0x01e2f8a8
+// argc
+
+// GLOBAL: SWBF2 0x01e2f8ac
+// argv
+
+// GLOBAL: SWBF2 0x01e2f8b0
+// envp
+
+// GLOBAL: SWBF2 0x01e2f8b4
+// argret
+
+// GLOBAL: SWBF2 0x01e2f8b8
+// startinfo
+
+// GLOBAL: SWBF2 0x01e2fbe0
+// _commode
+
+// GLOBAL: SWBF2 0x01e2fbe4
+// _dowildcard
+
+// GLOBAL: SWBF2 0x01e2fbe8
+// _newmode
+
+// GLOBAL: SWBF2 0x01e2fbec
+// _fmode
+
+// GLOBAL: SWBF2 0x01fac3c0
+// __onexitend
+
+// GLOBAL: SWBF2 0x01fac3c4
+// __onexitbegin
+
 // LIBRARY: SWBF2 0x00752b3a
 // pre_c_init
 
@@ -160,14 +199,59 @@
 // LIBRARY: SWBF2 0x00752c3e
 // WinMainCRTStartup
 
+// LIBRARY: SWBF2 0x00752c48
+// __tmainCRTStartup
+
 // LIBRARY: SWBF2 0x00752dfc
 // memset
+
+// GLOBAL: SWBF2 0x0076b5ac
+// __xc_a
+
+// GLOBAL: SWBF2 0x0076ca88
+// __xc_z
+
+// GLOBAL: SWBF2 0x0076ca8c
+// __xi_a
+
+// GLOBAL: SWBF2 0x0076caa0
+// __xi_z
+
+// GLOBAL: SWBF2 0x01e2f89c
+// has_cctor
+
+// GLOBAL: SWBF2 0x01e2f8a0
+// mainret
+
+// GLOBAL: SWBF2 0x01e2f8a4
+// managedapp
+
+// GLOBAL: SWBF2 0x01fac3b4
+// __native_startup_lock
+
+// GLOBAL: SWBF2 0x01fac3b8
+// __native_startup_state
+
+// GLOBAL: SWBF2 0x01fac3bc
+// __dyn_tls_init_callback
 
 // LIBRARY: SWBF2 0x00752e08
 // __raise_securityfailure
 
 // LIBRARY: SWBF2 0x00752e45
 // __report_gsfailure
+
+// GLOBAL: SWBF2 0x00787358
+// GS_ExceptionPointers
+
+// GLOBAL: SWBF2 0x01e2f8c0
+// GS_ExceptionRecord
+
+// GLOBAL: SWBF2 0x01e2f910
+// GS_ContextRecord
+
+// GLOBAL: SWBF2 0x01e2fbdc
+// DebuggerWasPresent
 
 // LIBRARY: SWBF2 0x00752f40
 // __report_rangecheckfailure
@@ -389,7 +473,7 @@
 // __security_init_cookie
 
 // LIBRARY: SWBF2 0x00753a0d
-// UserMathErrorFunction
+// _matherr
 
 // LIBRARY: SWBF2 0x00753a10
 // _RTC_Initialize
@@ -415,6 +499,15 @@
 // LIBRARY: SWBF2 0x00753a90
 // __crtTerminateProcess
 
+// GLOBAL: SWBF2 0x007e3ccc
+// __isa_enabled
+
+// GLOBAL: SWBF2 0x01e2fbf0
+// __isa_available
+
+// GLOBAL: SWBF2 0x01e2fbf4
+// __favor
+
 // LIBRARY: SWBF2 0x00753a96
 // __isa_available_init
 
@@ -438,6 +531,24 @@
 
 // LIBRARY: SWBF2 0x00753f92
 // _controlfp_s
+
+// GLOBAL: SWBF2 0x01fad400
+// __e02PI
+
+// GLOBAL: SWBF2 0x01fad730
+// _2il0floatpacket_2
+
+// GLOBAL: SWBF2 0x01fad740
+// _2il0floatpacket_9
+
+// GLOBAL: SWBF2 0x01fad760
+// __dPI02
+
+// GLOBAL: SWBF2 0x01fad770
+// __d02PI
+
+// GLOBAL: SWBF2 0x01fad780
+// __DP4
 
 // LIBRARY: SWBF2 0x00753fa0
 // ___common_sin_reduction_LA
@@ -499,8 +610,81 @@
 // SYNTHETIC: SWBF2 0x005d49a0
 // std::_System_error_category::`scalar deleting destructor'
 
+// GLOBAL: SWBF2 0x00787360
+// _Int32ToUInt32
+
+// GLOBAL: SWBF2 0x00787370
+// _MantissaMask
+
+// GLOBAL: SWBF2 0x00787378
+// _IntegerBit
+
+// GLOBAL: SWBF2 0x00787380
+// _SignBit64
+
+// GLOBAL: SWBF2 0x00787390
+// _MinInt64
+
+// GLOBAL: SWBF2 0x00787398
+// _MaxInt64
+
+// GLOBAL: SWBF2 0x007873a0
+// _MaxUInt64
+
+// GLOBAL: SWBF2 0x007873a8
+// _MaxFP32
+
+// GLOBAL: SWBF2 0x007873b0
+// _MinFP32
+
+// GLOBAL: SWBF2 0x007873b8
+// _MinSubInexact
+
+// GLOBAL: SWBF2 0x007873d0
+// _i1075
+
+// GLOBAL: SWBF2 0x007873d4
+// _i1087
+
+// GLOBAL: SWBF2 0x007873d8
+// _x0800
+
+// GLOBAL: SWBF2 0x007873dc
+// _x17FF
+
+// GLOBAL: SWBF2 0x007873e0
+// _CWMask
+
 // GLOBAL: SWBF2 0x007e3cb8
 // __security_cookie
 
 // GLOBAL: SWBF2 0x007e3cbc
 // __security_cookie_complement
+
+// LIBRARY: SWBF2 0x007531eb
+// _ftol3_NaN
+
+// LIBRARY: SWBF2 0x00753203
+// _ftol3_work
+
+// LIBRARY: SWBF2 0x00753289
+// _ftol3_common
+
+// LIBRARY: SWBF2 0x0075334b
+// _ftol3_arg_error
+
+// LIBRARY: SWBF2 0x007533a1
+// _dtoui3
+
+// LIBRARY: SWBF2 0x007533b0
+// _dtoul3
+
+// LIBRARY: SWBF2 0x007533bf
+// _dtol3
+
+// LIBRARY: SWBF2 0x007533cc
+// _dtol3_NaN
+
+// LIBRARY: SWBF2 0x007533e9
+// _dtol3_work
+

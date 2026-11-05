@@ -6,19 +6,13 @@
 #include "Character.h"
 #include "Controllable.h"
 #include "Entity.h"
+#include "EntityCarrier.h"
 #include "EventInfo.h"
 #include "GameLoop.h"
 #include "GameObject.h"
 #include "UnitController.h"
 #include "PebbleFL/Common/PblMatrix.h"
 #include "PebbleFL/Common/PblVector.h"
-
-
-class EntityFlyer
-{
-public:
-    static PblHash rttiHashEntityFlyer;
-};
 
 namespace ReserveManager
 {

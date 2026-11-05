@@ -24,10 +24,12 @@
 #include "SpawnManager.h"
 #include "CameraManager.h"
 #include "EntityCarrier.h"
+#include "EntitySoldier.h"
 #include "WeaponCannonInstance.h"
 #include "Damageable.h"
 #include "Ordnance.h"
 #include "CombatUtil.h"
+#include "VOHelper.h"
 
 namespace ControllerManager
 {
@@ -184,12 +186,6 @@ enum AIAffil
 };
 }
 
-class EntitySoldier
-{
-public:
-    static PblHash rttiHashEntitySoldier;
-};
-
 namespace VehicleManager
 {
 
@@ -217,38 +213,6 @@ void UpdateAutoBalance();
 namespace VisionManager
 {
 bool RayTests(int i);
-}
-
-namespace AI
-{
-enum VOType
-{
-    VOT_NONE = 0
-};
-
-namespace VOHelper
-{
-struct QueuedSound
-{
-    VOType mType;
-    PblHandle<const GameObject> mSpeaker;
-    PblHandle<const GameObject> mPlayer;
-    PblHandle<const GameObject> mTarget;
-    PblVector3 mPos;
-    bool mUseTarget;
-    float mTime;
-    int mHandle;
-
-    ~QueuedSound();
-};
-extern QueuedSound mSndQueue[20];
-
-int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,
-         const GameObject* pOther, float fDelay);
-
-int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,
-         const PblVector3& vPos, float fDelay);
-}
 }
 
 namespace ControllerManager
@@ -651,34 +615,3 @@ template <class T> void UpdateControllerAudibles(T* pCtrl)
 template void UpdateControllerAudibles<PlayerController>(PlayerController* pCtrl);
 }
 
-namespace AI
-{
-namespace VOHelper
-{
-
-// FUNCTION: SWBF2 0x00672640
-void Update()
-{
-    using namespace AI::VOHelper;
-
-    const float fTime = GameLoop::GetMissionTime();
-    for (int i = 0; i < 20; ++i)
-    {
-        QueuedSound& rSound = mSndQueue[i];
-        if (rSound.mType == AI::VOT_NONE || !(fTime > rSound.mTime))
-        {
-            continue;
-        }
-        if (rSound.mUseTarget)
-        {
-            Play(rSound.mType, rSound.mSpeaker, rSound.mPlayer, rSound.mTarget, 0.0f);
-        }
-        else
-        {
-            Play(rSound.mType, rSound.mSpeaker, rSound.mPlayer, rSound.mPos, 0.0f);
-        }
-        rSound.mType = AI::VOT_NONE;
-    }
-}
-}
-}

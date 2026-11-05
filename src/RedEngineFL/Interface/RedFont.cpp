@@ -2372,7 +2372,7 @@ void RedVariableWidthFont::Read(PblFileChunk& chunk)
 {
     char acName[256];
 
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)

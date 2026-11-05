@@ -168,11 +168,7 @@ public:
     // FUNCTION: SWBF2 0x00477a70
     float GetEjectTimer() const
     {
-        if (mProcedurallyAnimated)
-        {
-            return 0.0f;
-        }
-        return mAIEng.ai.mEjectTimer;
+        return mProcedurallyAnimated ? 0.0f : mAIEng.ai.mEjectTimer;
     }
 
     // FUNCTION: SWBF2 0x00477aa0

@@ -477,7 +477,7 @@ bool GameObject::FoliageCollision()
             bPlayed = true;
         }
     }
-    mPrevFoliageObj = (void*)pFoliage;
+    mPrevFoliageObj = pFoliage;
     if (GetControllable() && GetControllable()->mCtrl)
     {
         GetControllable()->mCtrl->SetFoliageVisFactor(fCrouch, fStand);
@@ -1202,26 +1202,22 @@ void Event<GameObject, char>::Callback::Trigger(GameObject& item, char& param)
         if (pChild)
         {
             pChild->AddRef();
-            while (pChild)
-            {
-                const bool bAlive = pChild->mAliveFlag;
-                if (!bAlive)
-                {
-                    break;
-                }
-                Callback* pNext = (Callback*)pChild->mSibling;
-                if (pNext)
-                {
-                    pNext->AddRef();
-                }
-                pChild->Trigger(item, param);
-                pChild->Release();
-                pChild = pNext;
-            }
-            if (pChild)
+        }
+        while (pChild)
+        {
+            if (!pChild->IsAlive())
             {
                 pChild->Release();
+                break;
             }
+            Callback* pNext = (Callback*)pChild->mSibling;
+            if (pNext)
+            {
+                pNext->AddRef();
+            }
+            pChild->Trigger(item, param);
+            pChild->Release();
+            pChild = pNext;
         }
     }
     Release();

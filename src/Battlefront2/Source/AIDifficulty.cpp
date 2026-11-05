@@ -430,7 +430,7 @@ namespace AIDifficulty
 {
 
 // FUNCTION: SWBF2 0x00439620
-static GameObject* GetRandomFlyer(const Team* pTeam, AI::AIAffil eAffil)
+static GameObject* GetRandomFlyer(Team* pTeam, AI::AIAffil eAffil)
 {
     GameObject* apObjects[40];
     const PblVector3 vOrigin(0.0f, 0.0f, 0.0f);
@@ -459,7 +459,7 @@ namespace AIDifficulty
 {
 
 // FUNCTION: SWBF2 0x004396e0
-static void SpaceAssault_RandomFlyerKill(const Team* pTeam)
+static void SpaceAssault_RandomFlyerKill(Team* pTeam)
 {
     GameObject* pVictim = AIDifficulty::GetRandomFlyer(pTeam, AI::AFFIL_ALLY);
     if (!pVictim)
@@ -484,7 +484,7 @@ namespace AIDifficulty
 {
 
 // FUNCTION: SWBF2 0x00439770
-static void SpaceAssault_RandomCritSysDamage(const Team* pTeam)
+static void SpaceAssault_RandomCritSysDamage(Team* pTeam)
 {
     GameObject* pFlyer = AIDifficulty::GetRandomFlyer(pTeam, AI::AFFIL_ENEMY);
     if (!pFlyer)

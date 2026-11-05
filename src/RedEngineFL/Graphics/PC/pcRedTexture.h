@@ -26,6 +26,7 @@ public:
     unsigned int GetHeight() const { return m_uiHeight; }
 
     unsigned int GetName() const { return m_uiNameHash; }
+    IDirect3DBaseTexture9* pcGetD3DTexture() const { return m_pTexture; }
 
     static const RedTexture* GetFirst();
     static const RedTexture* GetLast();

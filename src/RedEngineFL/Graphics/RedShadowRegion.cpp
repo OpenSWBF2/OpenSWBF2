@@ -130,14 +130,14 @@ bool RedShadowRegion::GetShadowValues(const PblVector3& vPos, float fRadius,
 }
 
 // TEMPLATE: SWBF2 0x00719510
-// PblList<RedShadowRegion>::RemoveAll
-template void PblList<RedShadowRegion>::RemoveAll();
+// PblList<RedShadowRegion>::Clear
+template void PblList<RedShadowRegion>::Clear();
 
 // FUNCTION: SWBF2 0x00719950
 void RedShadowRegion::Init()
 {
-    s_VisibleList.RemoveAll();
-    s_List.RemoveAll();
+    s_VisibleList.Clear();
+    s_List.Clear();
 }
 
 // FUNCTION: SWBF2 0x00719970
@@ -210,8 +210,8 @@ void RedShadowRegionFactory::ReadParameter(const char* pcRegionName, const char*
 // FUNCTION: SWBF2 0x007194f0
 void RedShadowRegion::Cleanup()
 {
-    s_VisibleList.RemoveAll();
-    s_List.RemoveAll();
+    s_VisibleList.Clear();
+    s_List.Clear();
 }
 
 // SYNTHETIC: SWBF2 0x006c6a70

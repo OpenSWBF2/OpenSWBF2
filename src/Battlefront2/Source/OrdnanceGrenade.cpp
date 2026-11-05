@@ -69,9 +69,9 @@ OrdnanceGrenadeClass::OrdnanceGrenadeClass(unsigned int uHash)
 {
     mRebound = 0.5f;
     mFriction = 0.2f;
-    mImpactEffectWater = 0;
     mStartTimerOnContact = true;
     mAlignVertical = true;
+    mImpactEffectWater = 0;
 }
 
 // FUNCTION: SWBF2 0x00600a50
@@ -303,8 +303,7 @@ bool OrdnanceGrenade::Collide(CollisionObject* pObject, const PblVector3& vPos,
             {
                 PblVector3 vDir;
                 D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&mVelocity));
-                Damageable* pDamageable = static_cast<Damageable*>(pVictim);
-                pDamageable->ApplyDamage(GetDamage(), vDir, vPos, iBodyId, 0xFFFFFFFF);
+                pVictim->ApplyDamage(GetDamage(), vDir, vPos, iBodyId, 0xFFFFFFFF);
             }
         }
 

@@ -192,7 +192,7 @@ public:
     bool mJumping;
     float mSwitchToJetJumpTimer;
     float mJumpStartTime;
-    JetJumpHint* mJetJumpHint;
+    const JetJumpHint* mJetJumpHint;
     float mSwitchToJetJumpHintTimer;
     bool mLocateAtDest;
     bool mDoLoop;

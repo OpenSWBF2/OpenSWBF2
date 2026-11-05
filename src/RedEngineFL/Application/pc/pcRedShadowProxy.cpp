@@ -58,18 +58,13 @@ void RedShadowProxy::BuildData(const RedModel* pModel, const PblMatrix* pMatrix,
     }
 
     const PblBox& box = pModel->_BoundingBox;
-    const D3DXMATRIX* pMat = (const D3DXMATRIX*)pMatrix;
 
     if (pLight)
     {
         float fMaxHit = 0.0f;
         for (int i = 0; i < 8; ++i)
         {
-            D3DXVECTOR3 vCorner((i & 4) ? box._vMax.x : box._vMin.x,
-                                (i & 2) ? box._vMax.y : box._vMin.y,
-                                (i & 1) ? box._vMax.z : box._vMin.z);
-            PblVector3 vStart;
-            D3DXVec3TransformCoord((D3DXVECTOR3*)&vStart, &vCorner, pMat);
+            PblVector3 vStart = pMatrix->ApplyTransform(box.GetBoxCorner(i));
             PblVector3 vEnd = vStart + pLight->m_vDirection * 500.0f;
             float fHit = RedTerrain::RayHit(vStart, vEnd, 0.05f, 5.0f);
             if (fHit <= 1.0f && fHit > fMaxHit)
@@ -100,11 +95,11 @@ void RedShadowProxy::BuildData(const RedModel* pModel, const PblMatrix* pMatrix,
     }
     else
     {
-        m_fShadowLength = (float)sqrt(SquaredLength(box._vMin - box._vMax)) * 2.0f;
+        m_fShadowLength = Length(box._vMin - box._vMax) * 2.0f;
     }
 
     float fShadowLength = m_fShadowLength;
-    float fMaxLength = (float)sqrt(SquaredLength(box._vMin - box._vMax)) * 3.0f;
+    float fMaxLength = Length(box._vMin - box._vMax) * 3.0f;
     if (fMaxLength > fShadowLength)
     {
         fMaxLength = fShadowLength;
@@ -113,10 +108,7 @@ void RedShadowProxy::BuildData(const RedModel* pModel, const PblMatrix* pMatrix,
 
     m_vCasterCenter = pMatrix->ApplyTransform((box._vMax + box._vMin) * 0.5f);
 
-    float hx = (box._vMax.x - box._vMin.x) * 0.5f;
-    float hy = (box._vMax.y - box._vMin.y) * 0.5f;
-    float hz = (box._vMax.z - box._vMin.z) * 0.5f;
-    m_fCasterRadius = (float)sqrt(hx * hx + hy * hy + hz * hz);
+    m_fCasterRadius = Length((box._vMax - box._vMin) * 0.5f);
 
     if (pLight)
     {
@@ -189,5 +181,5 @@ void RedShadowProxy::CleanUp()
 // FUNCTION: SWBF2 0x006edd00
 void RedShadowProxy::Reset()
 {
-    _sShadowItemsList.RemoveAll();
+    _sShadowItemsList.Clear();
 }

@@ -429,7 +429,7 @@ bool AttackPatterns::ToggleToJetJumpHint(int iReturnState)
             if (!bHover && GameLoop::GetMissionTime() > mSwitchToJetJumpHintTimer)
             {
                 mSwitchToJetJumpHintTimer = AIUtil::GetRandomInt(3, 8) + GameLoop::GetMissionTime();
-                mJetJumpHint = (JetJumpHint*)mJetJumpHintHelper.HELPERFindHint();
+                mJetJumpHint = mJetJumpHintHelper.HELPERFindHint();
                 if (mJetJumpHint)
                 {
                     mReturnState = iReturnState;
@@ -573,7 +573,7 @@ void AttackPatterns::CycleSerpDir()
     }
     mSerpStrafe = mSerpCur;
 
-    PblVector3 vSide(vAhead.y * 0.0f - vAhead.z, vAhead.z * 0.0f - vAhead.x * 0.0f, vAhead.x - vAhead.y * 0.0f);
+    PblVector3 vSide = CrossProduct(vAhead, PblVector3(0.0f, 1.0f, 0.0f));
     float fSide = (mSerpStrafe == RIGHT) ? 30.0f : -30.0f;
     float fAhead = (mSerpAhead == FORWARD) ? 30.0f : -30.0f;
 
@@ -938,11 +938,8 @@ void AttackPatterns::PickRetreatSpot()
     PblVector3 vTarget = GetAttackHelper()->GetLastSeenTargetPos();
     PblVector3 vAway = AIUtil::GetSafeNormalXZ(PblVector3(vPos.x - vTarget.x, vPos.y - vTarget.y, vPos.z - vTarget.z));
 
-    float fSin, fCos;
-    PblMath::SinCos(&fSin, &fCos, AIUtil::GetRandomFloat(-PblMath::fPi / 4.0f, PblMath::fPi / 4.0f));
-    float fRotX = vAway.x * fCos - vAway.z * fSin;
-    float fRotZ = vAway.z * fCos + vAway.x * fSin;
-    vAway = PblVector3(fRotX, vAway.y, fRotZ);
+    float fAngle = AIUtil::GetRandomFloat(-PblMath::fPi / 4.0f, PblMath::fPi / 4.0f);
+    vAway = RotateY(vAway, fAngle);
 
     PblVector3 vDest(vAway.x * 100.0f + vPos.x, vAway.y * 100.0f + vPos.y, vAway.z * 100.0f + vPos.z);
     mOwner->GetLowLevel().SetNavigator_Slide(vDest, NULL);
@@ -1146,37 +1143,38 @@ void AttackPatterns::InitJetJump()
 {
     for (int iTries = 10; --iTries >= 0;)
     {
-        PblVector3 vOffset = PblRandom::GetGlobalVector3() * 40.0f;
-        vOffset.y = 0.0f;
-        if (vOffset.x * vOffset.x + vOffset.y * vOffset.y + vOffset.z * vOffset.z < 400.0f)
+        PblVector3 vDest = PblRandom::GetGlobalVector3() * 40.0f;
+        vDest.y = 0.0f;
+        if (SquaredLength(vDest) < 400.0f)
         {
             continue;
         }
 
-        const PblVector3 vTarget = GetMe()->GetMatrix().GetTranslation() + vOffset;
-        const GameObject* pMeObj = GetMe()->GetGameObject();
-        if (!PathFinder::IsPointValid(vTarget, AIUtil::GetCollisionRadius(pMeObj), AIUtil::GetAIType(pMeObj),
+        vDest = GetMe()->GetMatrix().GetTranslation() + vDest;
+        GameObject* pMeObj = GetMe()->GetGameObject();
+        if (!PathFinder::IsPointValid(vDest, AIUtil::GetCollisionRadius(pMeObj), AIUtil::GetAIType(pMeObj),
                                       0, 0, 0))
         {
             continue;
         }
 
-        const PblVector3 vAbove = vTarget + PblVector3(0.0f, 40.0f, 0.0f);
-        const GameObject* pIgnore = GetMe()->GetGameObject();
-        if (CollisionManager::RayTest(vTarget, vAbove, &pIgnore, 1, 0x9a))
+        PblVector3 vDestPos = vDest + PblVector3(0.0f, 40.0f, 0.0f);
+        PblVector3 vSrcPos = vDest;
+        const GameObject* pIgnore[1] = { GetMe()->GetGameObject() };
+        if (CollisionManager::RayTest(vSrcPos, vDestPos, pIgnore, 1, 0x9a))
         {
             continue;
         }
 
         if (!AIUtil::gAIAllowBlindJetJumps &&
-            PathFinder::TestTrivialStraightLineHit(GetMe()->GetMatrix().GetTranslation(), vTarget,
+            PathFinder::TestTrivialStraightLineHit(GetMe()->GetMatrix().GetTranslation(), vDest,
                                                    AIUtil::GetCollisionRadius(pMeObj),
                                                    AIUtil::GetAIType(pMeObj), 0, 0, false) == true)
         {
             continue;
         }
 
-        mOwner->GetLowLevel().SetNavigator_Goto(vTarget, 0, false, false);
+        mOwner->GetLowLevel().SetNavigator_Goto(vDest, 0, false, false);
         mOwner->GetLowLevel().SetJetJump(PblVector3(0.0f, 0.0f, 0.0f));
         mJumpStartTime = GameLoop::GetMissionTime();
         mJumping = true;
@@ -1214,7 +1212,7 @@ void AttackPatterns::InitJetJumpCharge()
     vDiff.y = vTarget.y - vMe.y;
     vDiff.z = vTarget.z - vMe.z;
     PblVector3 vDir;
-    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vDiff));
+    vDir = Normalize(vDiff);
     mOwner->GetLowLevel().SetJetJump((vDir + PblVector3(0.0f, 1.0f, 0.0f)) * 0.70710677f);
     mOwner->GetLowLevel().SetNavigator_Slide(pTarget, -3.0f, false, NULL);
 }

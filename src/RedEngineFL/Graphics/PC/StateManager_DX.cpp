@@ -20,90 +20,155 @@ void StateManagerState::CaptureDeviceState(IDirect3DDevice9* pD3DDev)
 {
     pD3DDev->GetFVF(&m_FVF);
 
-    memset(m_ValidRenderStates, 0, sizeof(m_ValidRenderStates));
-    memset(m_ValidTextureStates, 0, sizeof(m_ValidTextureStates));
-    memset(m_ValidSamplerStates, 0, sizeof(m_ValidSamplerStates));
-
-    for (int i = 7;   i <= 9;   i++)
+    for (unsigned int i = 0; i < 256; ++i)
     {
-        m_ValidRenderStates[i] = true;
+        m_ValidRenderStates[i] = false;
     }
-    for (int i = 14;  i <= 16;  i++)
+    for (unsigned int i = 0; i < 128; ++i)
     {
-        m_ValidRenderStates[i] = true;
+        m_ValidTextureStates[i] = false;
     }
-    for (int i = 19;  i <= 20;  i++)
+    for (unsigned int i = 0; i < 128; ++i)
     {
-        m_ValidRenderStates[i] = true;
-    }
-    for (int i = 22;  i <= 29;  i++)
-    {
-        m_ValidRenderStates[i] = true;
-    }
-    for (int i = 34;  i <= 38;  i++)
-    {
-        m_ValidRenderStates[i] = true;
-    }
-    m_ValidRenderStates[48] = true;
-    for (int i = 52;  i <= 60;  i++)
-    {
-        m_ValidRenderStates[i] = true;
-    }
-    for (int i = 128; i <= 137; i++)
-    {
-        m_ValidRenderStates[i] = true;
-    }
-    for (int i = 139; i <= 143; i++)
-    {
-        m_ValidRenderStates[i] = true;
-    }
-    for (int i = 145; i <= 148; i++)
-    {
-        m_ValidRenderStates[i] = true;
-    }
-    for (int i = 151; i <= 152; i++)
-    {
-        m_ValidRenderStates[i] = true;
-    }
-    for (int i = 154; i <= 163; i++)
-    {
-        m_ValidRenderStates[i] = true;
-    }
-    for (int i = 165; i <= 168; i++)
-    {
-        m_ValidRenderStates[i] = true;
-    }
-    for (int i = 170; i <= 176; i++)
-    {
-        m_ValidRenderStates[i] = true;
-    }
-    for (int i = 178; i <= 195; i++)
-    {
-        m_ValidRenderStates[i] = true;
-    }
-    for (int i = 198; i <= 209; i++)
-    {
-        m_ValidRenderStates[i] = true;
+        m_ValidSamplerStates[i] = false;
     }
 
-    for (int i = 1;  i <= 11; i++)
-    {
-        m_ValidTextureStates[i] = true;
-    }
-    for (int i = 22; i <= 24; i++)
-    {
-        m_ValidTextureStates[i] = true;
-    }
-    for (int i = 26; i <= 28; i++)
-    {
-        m_ValidTextureStates[i] = true;
-    }
-    m_ValidTextureStates[32] = true;
+    m_ValidRenderStates[D3DRS_ZENABLE] = true;
+    m_ValidRenderStates[D3DRS_FILLMODE] = true;
+    m_ValidRenderStates[D3DRS_SHADEMODE] = true;
+    m_ValidRenderStates[D3DRS_ZWRITEENABLE] = true;
+    m_ValidRenderStates[D3DRS_ALPHATESTENABLE] = true;
+    m_ValidRenderStates[D3DRS_LASTPIXEL] = true;
+    m_ValidRenderStates[D3DRS_SRCBLEND] = true;
+    m_ValidRenderStates[D3DRS_DESTBLEND] = true;
+    m_ValidRenderStates[D3DRS_CULLMODE] = true;
+    m_ValidRenderStates[D3DRS_ZFUNC] = true;
+    m_ValidRenderStates[D3DRS_ALPHAREF] = true;
+    m_ValidRenderStates[D3DRS_ALPHAFUNC] = true;
+    m_ValidRenderStates[D3DRS_DITHERENABLE] = true;
+    m_ValidRenderStates[D3DRS_ALPHABLENDENABLE] = true;
+    m_ValidRenderStates[D3DRS_FOGENABLE] = true;
+    m_ValidRenderStates[D3DRS_SPECULARENABLE] = true;
+    m_ValidRenderStates[D3DRS_FOGCOLOR] = true;
+    m_ValidRenderStates[D3DRS_FOGTABLEMODE] = true;
+    m_ValidRenderStates[D3DRS_FOGSTART] = true;
+    m_ValidRenderStates[D3DRS_FOGEND] = true;
+    m_ValidRenderStates[D3DRS_FOGDENSITY] = true;
+    m_ValidRenderStates[D3DRS_RANGEFOGENABLE] = true;
+    m_ValidRenderStates[D3DRS_STENCILENABLE] = true;
+    m_ValidRenderStates[D3DRS_STENCILFAIL] = true;
+    m_ValidRenderStates[D3DRS_STENCILZFAIL] = true;
+    m_ValidRenderStates[D3DRS_STENCILPASS] = true;
+    m_ValidRenderStates[D3DRS_STENCILFUNC] = true;
+    m_ValidRenderStates[D3DRS_STENCILREF] = true;
+    m_ValidRenderStates[D3DRS_STENCILMASK] = true;
+    m_ValidRenderStates[D3DRS_STENCILWRITEMASK] = true;
+    m_ValidRenderStates[D3DRS_TEXTUREFACTOR] = true;
+    m_ValidRenderStates[D3DRS_WRAP0] = true;
+    m_ValidRenderStates[D3DRS_WRAP1] = true;
+    m_ValidRenderStates[D3DRS_WRAP2] = true;
+    m_ValidRenderStates[D3DRS_WRAP3] = true;
+    m_ValidRenderStates[D3DRS_WRAP4] = true;
+    m_ValidRenderStates[D3DRS_WRAP5] = true;
+    m_ValidRenderStates[D3DRS_WRAP6] = true;
+    m_ValidRenderStates[D3DRS_WRAP7] = true;
+    m_ValidRenderStates[D3DRS_CLIPPING] = true;
+    m_ValidRenderStates[D3DRS_LIGHTING] = true;
+    m_ValidRenderStates[D3DRS_AMBIENT] = true;
+    m_ValidRenderStates[D3DRS_FOGVERTEXMODE] = true;
+    m_ValidRenderStates[D3DRS_COLORVERTEX] = true;
+    m_ValidRenderStates[D3DRS_LOCALVIEWER] = true;
+    m_ValidRenderStates[D3DRS_NORMALIZENORMALS] = true;
+    m_ValidRenderStates[D3DRS_DIFFUSEMATERIALSOURCE] = true;
+    m_ValidRenderStates[D3DRS_SPECULARMATERIALSOURCE] = true;
+    m_ValidRenderStates[D3DRS_AMBIENTMATERIALSOURCE] = true;
+    m_ValidRenderStates[D3DRS_EMISSIVEMATERIALSOURCE] = true;
+    m_ValidRenderStates[D3DRS_VERTEXBLEND] = true;
+    m_ValidRenderStates[D3DRS_CLIPPLANEENABLE] = true;
+    m_ValidRenderStates[D3DRS_POINTSIZE] = true;
+    m_ValidRenderStates[D3DRS_POINTSIZE_MIN] = true;
+    m_ValidRenderStates[D3DRS_POINTSPRITEENABLE] = true;
+    m_ValidRenderStates[D3DRS_POINTSCALEENABLE] = true;
+    m_ValidRenderStates[D3DRS_POINTSCALE_A] = true;
+    m_ValidRenderStates[D3DRS_POINTSCALE_B] = true;
+    m_ValidRenderStates[D3DRS_POINTSCALE_C] = true;
+    m_ValidRenderStates[D3DRS_MULTISAMPLEANTIALIAS] = true;
+    m_ValidRenderStates[D3DRS_MULTISAMPLEMASK] = true;
+    m_ValidRenderStates[D3DRS_PATCHEDGESTYLE] = true;
+    m_ValidRenderStates[D3DRS_DEBUGMONITORTOKEN] = true;
+    m_ValidRenderStates[D3DRS_POINTSIZE_MAX] = true;
+    m_ValidRenderStates[D3DRS_INDEXEDVERTEXBLENDENABLE] = true;
+    m_ValidRenderStates[D3DRS_COLORWRITEENABLE] = true;
+    m_ValidRenderStates[D3DRS_TWEENFACTOR] = true;
+    m_ValidRenderStates[D3DRS_BLENDOP] = true;
+    m_ValidRenderStates[D3DRS_POSITIONDEGREE] = true;
+    m_ValidRenderStates[D3DRS_NORMALDEGREE] = true;
+    m_ValidRenderStates[D3DRS_SCISSORTESTENABLE] = true;
+    m_ValidRenderStates[D3DRS_SLOPESCALEDEPTHBIAS] = true;
+    m_ValidRenderStates[D3DRS_ANTIALIASEDLINEENABLE] = true;
+    m_ValidRenderStates[D3DRS_MINTESSELLATIONLEVEL] = true;
+    m_ValidRenderStates[D3DRS_MAXTESSELLATIONLEVEL] = true;
+    m_ValidRenderStates[D3DRS_ADAPTIVETESS_X] = true;
+    m_ValidRenderStates[D3DRS_ADAPTIVETESS_Y] = true;
+    m_ValidRenderStates[D3DRS_ADAPTIVETESS_Z] = true;
+    m_ValidRenderStates[D3DRS_ADAPTIVETESS_W] = true;
+    m_ValidRenderStates[D3DRS_ENABLEADAPTIVETESSELLATION] = true;
+    m_ValidRenderStates[D3DRS_TWOSIDEDSTENCILMODE] = true;
+    m_ValidRenderStates[D3DRS_CCW_STENCILFAIL] = true;
+    m_ValidRenderStates[D3DRS_CCW_STENCILZFAIL] = true;
+    m_ValidRenderStates[D3DRS_CCW_STENCILPASS] = true;
+    m_ValidRenderStates[D3DRS_CCW_STENCILFUNC] = true;
+    m_ValidRenderStates[D3DRS_COLORWRITEENABLE1] = true;
+    m_ValidRenderStates[D3DRS_COLORWRITEENABLE2] = true;
+    m_ValidRenderStates[D3DRS_COLORWRITEENABLE3] = true;
+    m_ValidRenderStates[D3DRS_BLENDFACTOR] = true;
+    m_ValidRenderStates[D3DRS_SRGBWRITEENABLE] = true;
+    m_ValidRenderStates[D3DRS_DEPTHBIAS] = true;
+    m_ValidRenderStates[D3DRS_WRAP8] = true;
+    m_ValidRenderStates[D3DRS_WRAP9] = true;
+    m_ValidRenderStates[D3DRS_WRAP10] = true;
+    m_ValidRenderStates[D3DRS_WRAP11] = true;
+    m_ValidRenderStates[D3DRS_WRAP12] = true;
+    m_ValidRenderStates[D3DRS_WRAP13] = true;
+    m_ValidRenderStates[D3DRS_WRAP14] = true;
+    m_ValidRenderStates[D3DRS_WRAP15] = true;
+    m_ValidRenderStates[D3DRS_SEPARATEALPHABLENDENABLE] = true;
+    m_ValidRenderStates[D3DRS_SRCBLENDALPHA] = true;
+    m_ValidRenderStates[D3DRS_DESTBLENDALPHA] = true;
+    m_ValidRenderStates[D3DRS_BLENDOPALPHA] = true;
 
-    for (int i = 1; i <= 13; i++)
-    {
-        m_ValidSamplerStates[i] = true;
-    }
+    m_ValidTextureStates[D3DTSS_COLOROP] = true;
+    m_ValidTextureStates[D3DTSS_COLORARG1] = true;
+    m_ValidTextureStates[D3DTSS_COLORARG2] = true;
+    m_ValidTextureStates[D3DTSS_ALPHAOP] = true;
+    m_ValidTextureStates[D3DTSS_ALPHAARG1] = true;
+    m_ValidTextureStates[D3DTSS_ALPHAARG2] = true;
+    m_ValidTextureStates[D3DTSS_BUMPENVMAT00] = true;
+    m_ValidTextureStates[D3DTSS_BUMPENVMAT01] = true;
+    m_ValidTextureStates[D3DTSS_BUMPENVMAT10] = true;
+    m_ValidTextureStates[D3DTSS_BUMPENVMAT11] = true;
+    m_ValidTextureStates[D3DTSS_TEXCOORDINDEX] = true;
+    m_ValidTextureStates[D3DTSS_BUMPENVLSCALE] = true;
+    m_ValidTextureStates[D3DTSS_BUMPENVLOFFSET] = true;
+    m_ValidTextureStates[D3DTSS_TEXTURETRANSFORMFLAGS] = true;
+    m_ValidTextureStates[D3DTSS_COLORARG0] = true;
+    m_ValidTextureStates[D3DTSS_ALPHAARG0] = true;
+    m_ValidTextureStates[D3DTSS_RESULTARG] = true;
+    m_ValidTextureStates[D3DTSS_CONSTANT] = true;
+
+    m_ValidSamplerStates[D3DSAMP_ADDRESSU] = true;
+    m_ValidSamplerStates[D3DSAMP_ADDRESSV] = true;
+    m_ValidSamplerStates[D3DSAMP_ADDRESSW] = true;
+    m_ValidSamplerStates[D3DSAMP_BORDERCOLOR] = true;
+    m_ValidSamplerStates[D3DSAMP_MAGFILTER] = true;
+    m_ValidSamplerStates[D3DSAMP_MINFILTER] = true;
+    m_ValidSamplerStates[D3DSAMP_MIPFILTER] = true;
+    m_ValidSamplerStates[D3DSAMP_MIPMAPLODBIAS] = true;
+    m_ValidSamplerStates[D3DSAMP_MAXMIPLEVEL] = true;
+    m_ValidSamplerStates[D3DSAMP_MAXANISOTROPY] = true;
+    m_ValidSamplerStates[D3DSAMP_SRGBTEXTURE] = true;
+    m_ValidSamplerStates[D3DSAMP_ELEMENTINDEX] = true;
+    m_ValidSamplerStates[D3DSAMP_DMAPOFFSET] = true;
 
     for (unsigned long i = 1; i < 256; i++)
     {
@@ -181,24 +246,16 @@ void StateManagerState::ResetState()
 
     for (int i = 0; i < 300; i++)
     {
-        float* m = m_Matrices[i];
-        m[1] = m[2] = m[3] = m[4] = m[6] = m[7] = m[8] = m[9] = m[11] = m[12] = m[13] = m[14] = 0.0f;
-        m[0] = m[5] = m[10] = m[15] = 1.0f;
+        D3DXMatrixIdentity(&m_Matrices[i]);
     }
 
     for (int i = 0; i < 1024; i++)
     {
-        for (int j = 0; j < 4; j++)
-        {
-            m_VertexShaderConstants[i][j] = 0.0f;
-        }
+        m_VertexShaderConstants[i] = D3DXVECTOR4(0.0f, 0.0f, 0.0f, 0.0f);
     }
     for (int i = 0; i < 1024; i++)
     {
-        for (int j = 0; j < 4; j++)
-        {
-            m_PixelShaderConstants[i][j] = 0.0f;
-        }
+        m_PixelShaderConstants[i] = D3DXVECTOR4(0.0f, 0.0f, 0.0f, 0.0f);
     }
 
     m_FVF = 0;

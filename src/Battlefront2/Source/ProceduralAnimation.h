@@ -45,6 +45,7 @@ public:
     bool AddPositionKey(const PABaseKey& key);
     bool AddRotationKey(const PABaseKey& key);
     float GetTotalTime() { return mTotalTime; }
+    static PAAnimation* Find(unsigned int uHash) { return _HashTable.Find(uHash); }
 
     void CalculateNextMatrix(float fDeltaTime, float& fTime, const PblMatrix& start, PblMatrix& result) const;
     void Update(float fDeltaTime, float& fTime, CollisionObject* pObject, const PblMatrix& start) const;

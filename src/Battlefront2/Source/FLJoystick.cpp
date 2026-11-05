@@ -63,8 +63,8 @@ void GUIInputs::Process()
 {
     for (int i = 0; i < eGUIINPUT_MAX; i++)
     {
-        float fAbs = mGUIInputs[i] < 0.0f ? -mGUIInputs[i] : mGUIInputs[i];
-        bool bRepeat = false;
+        float fAbs = Value(mGUIInputs[i]);
+        bool bSend = false;
         switch (i)
         {
         case eGUIINPUT_Up:
@@ -73,20 +73,18 @@ void GUIInputs::Process()
         case eGUIINPUT_Right:
         case eGUIINPUT_yAxis:
         case eGUIINPUT_xAxis:
-            bRepeat = true;
+            bSend = true;
             break;
         default:
             break;
         }
 
-        lua_pushstring(LuaHelper::mState, "gbWantMousedownEvents");
-        lua_gettable(LuaHelper::mState, LUA_GLOBALSINDEX);
-        bool bSend = bRepeat;
-        if (!lua_isnil(LuaHelper::mState, -1))
+        LuaHelper::GetGlobal("gbWantMousedownEvents");
+        if (!LuaHelper::IsNil(-1))
         {
             bSend = true;
         }
-        lua_pop(LuaHelper::mState, 1);
+        LuaHelper::Pop(1);
 
         if (i != eGUIINPUT_FreeEyeUp && i != eGUIINPUT_FreeEyeDown)
         {
@@ -139,7 +137,7 @@ float ProcessedInputs::IsSecondarySwitchButtonPressed() const
 // FUNCTION: SWBF2 0x0052b5d0
 bool RawControllerInputs::IsDefaultBindings(int iMode)
 {
-    return memcmp(&mRawInputStorage[0x1acc - 4 + iMode * sizeof(sDefaultBindings[0])],
+    return memcmp(mCurBindings[iMode],
                   sDefaultBindings[iMode], sizeof(sDefaultBindings[0])) == 0;
 }
 
@@ -176,7 +174,7 @@ void Rumble::StopIntermittent()
 }
 
 // FUNCTION: SWBF2 0x0052b640
-void ProcessedInputs::Set(ePROCESSEDINPUT_TYPE eType, bool& bLocked, float fValue, float fLastValue)
+void ProcessedInputs::Set(ePROCESSEDINPUT_TYPE eType, bool& bLocked, float fLastValue, float fValue)
 {
     if (eType == ePROCESSEDINPUT_NONE)
     {

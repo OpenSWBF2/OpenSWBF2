@@ -6,6 +6,7 @@
 #include "PebbleFL/Common/PblRef.h"
 #include "RedColor.h"
 #include "RedTextureTransform.h"
+#include "RedEngineFL/Memory/RedMemoryPool.h"
 
 class RedModel;
 class MemoryPool;
@@ -91,6 +92,11 @@ public:
 };
  
  
+
+inline void* RedShadingState::operator new(unsigned int uiSize)
+{
+    return sMemoryPool.Allocate(uiSize);
+}
 
 inline RedShadingState::RedShadingState(unsigned int uiRenderTypeHash)
     : m_uiRenderTypeHash(uiRenderTypeHash), m_uiNumValues(0)

@@ -58,7 +58,7 @@ public:
 
 static RedKeyboard* GetInputsKeyboard(RawControllerInputs* const pInputs)
 {
-    return *(RedKeyboard**)&pInputs->mRawInputStorage[0x2608 - 4];
+    return pInputs->GetKeyboard();
 }
 
 namespace FLRenderer
@@ -143,14 +143,14 @@ void HUD::Editor::Enable(bool bEnable)
 
 inline const RedModel* RedModel::GetFirst()
 {
-    return PblHashTable<RedModel, 1024>::Itor(&_HashTable);
+    return PblHashTable<RedModel, 1024>::Itor(_HashTable);
 }
 
 // FUNCTION: SWBF2 0x00544950
 const RedModel* RedModel::GetLast()
 {
     const RedModel* pLast = 0;
-    for (PblHashTable<RedModel, 1024>::Itor it(&_HashTable); (RedModel*)it; ++it)
+    for (PblHashTable<RedModel, 1024>::Itor it(_HashTable); (RedModel*)it; ++it)
     {
         pLast = it;
     }
@@ -161,7 +161,7 @@ const RedModel* RedModel::GetLast()
 const RedModel* RedModel::GetNext(const RedModel* const pModel)
 {
     bool bFound = false;
-    PblHashTable<RedModel, 1024>::Itor it = _HashTable.Begin();
+    PblHashTable<RedModel, 1024>::Itor it(_HashTable);
     while ((RedModel*)it && !bFound)
     {
         bFound = (pModel == it);
@@ -170,7 +170,7 @@ const RedModel* RedModel::GetNext(const RedModel* const pModel)
     const RedModel* pNext = it;
     if (!pNext)
     {
-        pNext = PblHashTable<RedModel, 1024>::Itor(&_HashTable);
+        pNext = PblHashTable<RedModel, 1024>::Itor(_HashTable);
     }
     return pNext;
 }
@@ -179,7 +179,7 @@ const RedModel* RedModel::GetNext(const RedModel* const pModel)
 const RedModel* RedModel::GetPrev(const RedModel* const pModel)
 {
     const RedModel* pPrev = pModel;
-    for (PblHashTable<RedModel, 1024>::Itor it(&_HashTable); (RedModel*)it; ++it)
+    for (PblHashTable<RedModel, 1024>::Itor it(_HashTable); (RedModel*)it; ++it)
     {
         if (pModel == it)
         {
@@ -192,14 +192,14 @@ const RedModel* RedModel::GetPrev(const RedModel* const pModel)
 
 inline const RedTexture* RedTexture::GetFirst()
 {
-    return PblHashTable<RedTexture, 4096>::Itor(&s_textureHashTable);
+    return PblHashTable<RedTexture, 4096>::Itor(s_textureHashTable);
 }
 
 // FUNCTION: SWBF2 0x00544ae0
 const RedTexture* RedTexture::GetLast()
 {
     const RedTexture* pLast = 0;
-    for (PblHashTable<RedTexture, 4096>::Itor it(&s_textureHashTable); (RedTexture*)it; ++it)
+    for (PblHashTable<RedTexture, 4096>::Itor it(s_textureHashTable); (RedTexture*)it; ++it)
     {
         pLast = it;
     }
@@ -210,7 +210,7 @@ const RedTexture* RedTexture::GetLast()
 const RedTexture* RedTexture::GetNext(const RedTexture* const pTexture)
 {
     bool bFound = false;
-    PblHashTable<RedTexture, 4096>::Itor it = s_textureHashTable.Begin();
+    PblHashTable<RedTexture, 4096>::Itor it(s_textureHashTable);
     while ((RedTexture*)it && !bFound)
     {
         bFound = (pTexture == it);
@@ -219,7 +219,7 @@ const RedTexture* RedTexture::GetNext(const RedTexture* const pTexture)
     const RedTexture* pNext = it;
     if (!pNext)
     {
-        pNext = PblHashTable<RedTexture, 4096>::Itor(&s_textureHashTable);
+        pNext = PblHashTable<RedTexture, 4096>::Itor(s_textureHashTable);
     }
     return pNext;
 }
@@ -228,7 +228,7 @@ const RedTexture* RedTexture::GetNext(const RedTexture* const pTexture)
 const RedTexture* RedTexture::GetPrev(const RedTexture* const pTexture)
 {
     const RedTexture* pPrev = pTexture;
-    for (PblHashTable<RedTexture, 4096>::Itor it(&s_textureHashTable); (RedTexture*)it; ++it)
+    for (PblHashTable<RedTexture, 4096>::Itor it(s_textureHashTable); (RedTexture*)it; ++it)
     {
         if (pTexture == it)
         {
@@ -1161,7 +1161,7 @@ bool HUD::Editor::GetControlValue(RawControllerInputs* const pInputs, Control eC
     case control_Select: ucKey = DIK_INSERT; break;
     }
 
-    RedKeyboard* pKeyboard = *(RedKeyboard**)&pInputs->mRawInputStorage[0x2608 - 4];
+    RedKeyboard* pKeyboard = pInputs->GetKeyboard();
     bool bDown = pKeyboard->IsKeyDown(ucKey);
     if (bPressed)
     {

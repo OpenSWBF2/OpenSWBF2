@@ -355,13 +355,12 @@ float EntityPath::CalculateSuitability(const PblVector3* const pPosition, const 
     PblVector3 vDelta;
     if (!pDelta)
     {
-        const PblVector3& vPoint = RedPath::GetPointPosition(i);
-        vDelta = PblVector3(vPoint.x - pPosition->x, vPoint.y - pPosition->y, vPoint.z - pPosition->z);
+        vDelta = RedPath::GetPointPosition(i) - *pPosition;
         pDelta = &vDelta;
     }
     if (fDistSq == -1.0f)
     {
-        fDistSq = pDelta->x * pDelta->x + pDelta->y * pDelta->y + pDelta->z * pDelta->z;
+        fDistSq = SquaredLength(*pDelta);
     }
 
     float fSuitability = fDistSq != 0.0f ? fRange / fDistSq : 1.0f;
@@ -378,8 +377,8 @@ float EntityPath::CalculateSuitability(const PblVector3* const pPosition, const 
     if (fDistSq != 0.0f)
     {
         float fInvDist = 1.0f / (float)sqrt(fDistSq);
-        const PblVector3 vToPoint(pDelta->x * fInvDist, pDelta->y * fInvDist, pDelta->z * fInvDist);
-        float fDot = pDirection->x * vToPoint.x + pDirection->y * vToPoint.y + pDirection->z * vToPoint.z;
+        const PblVector3 vToPoint = *pDelta * fInvDist;
+        float fDot = DotProduct(*pDirection, vToPoint);
         if (fMinDot > fDot)
         {
             return 0.0f;
@@ -394,8 +393,8 @@ float EntityPath::CalculateSuitability(const PblVector3* const pPosition, const 
     PblVector3 vPathDirection;
     CalculateDirection(i, cDirection, vPathDirection);
     float fInvDist = 1.0f / (float)sqrt(fDistSq);
-    const PblVector3 vToPoint(pDelta->x * fInvDist, pDelta->y * fInvDist, pDelta->z * fInvDist);
-    float fDot = vToPoint.x * vPathDirection.x + vToPoint.y * vPathDirection.y + vToPoint.z * vPathDirection.z;
+    const PblVector3 vToPoint = *pDelta * fInvDist;
+    float fDot = DotProduct(vToPoint, vPathDirection);
     if (fMinDot > fDot)
     {
         return 0.0f;

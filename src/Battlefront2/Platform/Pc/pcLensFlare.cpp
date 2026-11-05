@@ -295,10 +295,7 @@ void LensFlareEffect::Render(int value)
 }
 
 
-inline const PblVector3 RedRenderer::TransformCameraPointToScreenSpace(const PblVector3& vPoint)
-{
-    return TransformProjectionPointToScreenSpace(TransformCameraPointToProjectionSpace(vPoint));
-}
+
 
 static bool IsFlareVisible(const LensFlare* pFlare, unsigned int uiView, const PblMatrix& mView,
                            float fNear, float fFar, float fWidth, float fHeight,

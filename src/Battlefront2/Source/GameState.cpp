@@ -57,6 +57,8 @@
 #include "RumbleRegion.h"
 #include "SkyObject.h"
 #include "SoldierAnimatorLowRes.h"
+#include "PauseMenu.h"
+#include "SoldierAnimatorClass.h"
 #include "StatusDisplay.h"
 #include "Thread.h"
 #include "RedEngineFL/Graphics/PC/pcRedTexture.h"
@@ -244,7 +246,6 @@ namespace Lua_Callbacks
 void InitMission();
 }
 
-class PauseMenu { public: static void Init(); static void Reset(); };
 namespace PropGenerator
 {
     void Init();
@@ -272,7 +273,7 @@ namespace RedInputManager
 
 namespace SaveGameManager
 {
-    void Init();
+    void Init(bool bForceNoSaveDevice);
 }
 
 namespace StatsManager
@@ -349,7 +350,6 @@ namespace QOSDisplay
     void Reset();
 }
 
-class SoldierAnimatorClass { public: static void Destroy(); };
 
 namespace RedMissionLog
 {
@@ -766,26 +766,26 @@ namespace SaveGameManager
 namespace SaveGameManager
 {
     // GLOBAL: SWBF2 0x01eaeff7
-    unsigned char mForceNoSaveDevice;
+    bool mForceNoSaveDevice;
 }
 namespace PblBuildType
 {
     // GLOBAL: SWBF2 0x009cef72
-    unsigned char gCreateMemoryProfile;
+    bool gCreateMemoryProfile;
 }
 
 namespace SaveGameManager
 {
 
 // FUNCTION: SWBF2 0x00632ee0
-void Init()
+void Init(bool bForceNoSaveDevice)
 {
     SaveGameManager::mOnDone = 0;
     SaveGameManager::mReqSaveFile2Data = 0;
     SaveGameManager::mReqSaveFile1Data = 0;
     SaveGameManager::mReqSaveFile2Size = 0;
     SaveGameManager::mReqSaveFile1Size = 0;
-    SaveGameManager::mForceNoSaveDevice = PblBuildType::gCreateMemoryProfile;
+    SaveGameManager::mForceNoSaveDevice = bForceNoSaveDevice;
 }
 }
 
@@ -928,7 +928,7 @@ void GameState::PreStateInit(bool bMission)
     if (bMission)
     {
         unsigned int uiMissionHash = GameLoop::mMissionScriptHash;
-        if (!LoadUtil::ReadDataFile("MISSION.lvl", 0, &uiMissionHash, 1, 0))
+        if (!LoadUtil::ReadDataFile("MISSION.lvl", 0, 0, &uiMissionHash, 1, 0))
         {
             RedTexture::Init();
             RedRenderer::Init();
@@ -942,7 +942,7 @@ void GameState::PreStateInit(bool bMission)
         {
             char acName[256] = { 0 };
             _snprintf(acName, sizeof(acName), "MISSION\\%s.lvl", GameLoop::mMissionScript);
-            if (LoadUtil::ReadDataFile(acName, 0, 0, 0, 0))
+            if (LoadUtil::ReadDataFile(acName, 0, 0, 0, 0, 0))
             {
                 bOpened = LuaHelper::OpenScript(GameLoop::mMissionScript);
             }
@@ -986,7 +986,7 @@ void GameState::PreStateInit(bool bMission)
         GameMovie::Create(GameMemory::RunTimeHeap);
     }
 
-    SaveGameManager::Init();
+    SaveGameManager::Init(PblBuildType::gCreateMemoryProfile);
     RedRenderer::SetFogEnable(true);
     RedRenderer::SetSky(1);
     RedVertexCache::Init();
@@ -1082,7 +1082,7 @@ void GameState::PreStateInit(bool bMission)
         RedLocalizeDB::SetSkipCount(1);
     }
 
-    LoadUtil::ReadDataFile("core.lvl", 0, 0, 0, 0);
+    LoadUtil::ReadDataFile("core.lvl", 0, 0, 0, 0, 0);
 
     if (bMission && DownloadableContent::IsDownloadableContent())
     {
@@ -1092,12 +1092,12 @@ void GameState::PreStateInit(bool bMission)
                                sizeof(acFullName), true);
         if (file.Open(acFullName, false, false, true))
         {
-            LoadUtil::ReadDataFile(file, 0, 0, 0, 0);
+            LoadUtil::ReadDataFile(file, 0, 0, 0, 0, 0);
             file.Close();
         }
     }
 
-    LoadUtil::ReadDataFile("common.lvl", 0, 0, 0, 0);
+    LoadUtil::ReadDataFile("common.lvl", 0, 0, 0, 0, 0);
     RedFont::PostCommonInit();
     GameSoundEngine::InitializeBusGains();
     gSoundEnabled = true;
@@ -1426,22 +1426,22 @@ void GameState::JournalStartTimes()
 }
 
 // TEMPLATE: SWBF2 0x0053be20
-// PblList<LuaEvent>::RemoveAll
+// PblList<LuaEvent>::Clear
 
 // TEMPLATE: SWBF2 0x0053be60
-// PblList<IFScreen>::RemoveAll
+// PblList<IFScreen>::Clear
 
 // TEMPLATE: SWBF2 0x0053beb0
-// PblList<Factory<Entity,EntityClass,EntityDesc> >::RemoveAll
+// PblList<Factory<Entity,EntityClass,EntityDesc> >::Clear
 
 // TEMPLATE: SWBF2 0x0053bf00
-// PblList<Factory<Ordnance,OrdnanceClass,OrdnanceDesc> >::RemoveAll
+// PblList<Factory<Ordnance,OrdnanceClass,OrdnanceDesc> >::Clear
 
 // TEMPLATE: SWBF2 0x0053bf50
-// PblList<Factory<Weapon,WeaponClass,WeaponDesc> >::RemoveAll
+// PblList<Factory<Weapon,WeaponClass,WeaponDesc> >::Clear
 
 // TEMPLATE: SWBF2 0x0053bfa0
-// PblList<Factory<Ordnance,ExplosionClass,OrdnanceDesc> >::RemoveAll
+// PblList<Factory<Ordnance,ExplosionClass,OrdnanceDesc> >::Clear
 
 // FUNCTION: SWBF2 0x0053b640
 void GameState::PostStateCleanup(bool bMission)

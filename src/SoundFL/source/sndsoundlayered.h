@@ -226,19 +226,8 @@ public:
 
 inline Sound* SoundLayered::GetLayerByIndex(unsigned int uIndex)
 {
-    PblListSingle::Node* pNode = mSoundList.IsEmpty() ? 0 : mSoundList.mHead.mNext;
-    if (pNode)
-    {
-        for (; uIndex; --uIndex)
-        {
-            pNode = pNode->mNext;
-        }
-    }
-    if (pNode == &mSoundList.mHead)
-    {
-        return 0;
-    }
-    return (SoundLayer*)((char*)pNode - offsetof(SoundLayer, mLayerNode));
+    return static_cast<SoundLayer*>(mSoundList.FindByIndex(uIndex)->GetObjectA(
+        &mSoundList, offsetof(SoundLayer, mLayerNode)));
 }
 
 }

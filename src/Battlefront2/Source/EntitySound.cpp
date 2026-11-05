@@ -253,24 +253,6 @@ unsigned int Snd::Space::GetRegionCount() const
     return uCount;
 }
 
-// FUNCTION: SWBF2 0x004fac50
-Snd::Space::Region* Snd::Space::FindRegionByIndex(unsigned int uIndex)
-{
-    PblListSingle::Node* pNode = mList.mHead.mNext;
-    if (pNode == &mList.mHead)
-    {
-        return 0;
-    }
-    for (; uIndex; --uIndex)
-    {
-        pNode = pNode->mNext;
-    }
-    if (!pNode || pNode == &mList.mHead)
-    {
-        return 0;
-    }
-    return reinterpret_cast<Region*>(reinterpret_cast<char*>(pNode) - offsetof(Region, mSpaceNode));
-}
 
 Snd::Space* Snd::Space::FindByIndex(unsigned int uIndex)
 {

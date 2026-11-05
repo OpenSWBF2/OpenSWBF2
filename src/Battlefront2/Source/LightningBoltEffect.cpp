@@ -44,29 +44,10 @@ inline Controllable* GetControllable(GameObject* pObject)
     return pObject->GetControllable();
 }
 
-inline unsigned char ClampColorComponent(float f)
-{
-    if (f < 0.0f)
-    {
-        f = 0.0f;
-    }
-    else if (f > 255.0f)
-    {
-        f = 255.0f;
-    }
-    return (unsigned char)(int)f;
-}
-
 inline void ReadColor(const PblConfig::Data& data, RedColor& color)
 {
-    unsigned char a = data.GetNumArgs() > 3 ? ClampColorComponent(data.GetFloatArg(3)) : 0xff;
-    unsigned char b = ClampColorComponent(data.GetFloatArg(2));
-    unsigned char g = ClampColorComponent(data.GetFloatArg(1));
-    unsigned char r = ClampColorComponent(data.GetFloatArg(0));
-    color.a = a;
-    color.r = r;
-    color.g = g;
-    color.b = b;
+    color.Set(data.GetUint8Arg(0), data.GetUint8Arg(1), data.GetUint8Arg(2),
+              data.GetNumArgs() > 3 ? data.GetUint8Arg(3) : 0xff);
 }
 }
 
@@ -127,8 +108,6 @@ void LightningBoltEffect::CreateClient()
 // FUNCTION: SWBF2 0x00571050
 LightningBoltEffectClass::LightningBoltEffectClass(PblConfig& config)
 {
-    mColor.b = mColor.g = mColor.r = mColor.a = 0xff;
-    mChildColor.b = mChildColor.g = mChildColor.r = mChildColor.a = 0xff;
     mTexture = 0xE812F405u;
     mWidth = 2.0f;
     mFadeTime = 1.0f;
@@ -145,6 +124,8 @@ LightningBoltEffectClass::LightningBoltEffectClass(PblConfig& config)
     mChildTextureSize = 3.0f;
     mChildWidth = 0.3f;
     mChildSpreadFactor = 1.0f;
+    mColor.Set(255, 255, 255, 255);
+    mChildColor.Set(255, 255, 255, 255);
 
     while (!config.IsDone())
     {
@@ -222,7 +203,7 @@ LightningBoltEffectClass::LightningBoltEffectClass(PblConfig& config)
 // FUNCTION: SWBF2 0x00571540
 LightningBoltEffectClass::~LightningBoltEffectClass()
 {
-    mObjects.RemoveAll();
+    mObjects.Clear();
     mNode.GetList()->Remove(&mNode);
 }
 
@@ -274,14 +255,13 @@ LightningBoltEffectObject* LightningBoltEffectObject::Create(const LightningBolt
 LightningBoltEffectObject::LightningBoltEffectObject(const LightningBoltEffectClass* pClass)
     : RedSceneObject(&largeEffectLodData)
 {
-    mGameObject.mObject = 0;
-    mGameObject.mSavedHandleId = 0;
     mClass = const_cast<LightningBoltEffectClass*>(pClass);
     mLifeTime = pClass->mFadeTime;
     mRandSeed = PblRandom::GetGlobalInt();
     mRandSeed2 = PblRandom::GetGlobalInt();
     mInterpolation = 0.0f;
     mStrength = 1.0f;
+    mGameObject = 0;
 }
 
 // SYNTHETIC: SWBF2 0x00572814
@@ -396,32 +376,25 @@ void LightningBoltEffectObject::Render(const PblVector3& vStart, const PblVector
                                        int iMaxBranches, float fBranchSpread,
                                        float fBranchLength) const
 {
-    PblRandom rand1;
-    rand1.SetSeed(uiSeed ^ 0xC71C2830);
-    PblRandom rand2;
-    rand2.SetSeed(uiSeed2 ^ 0xC71C2830);
+    PblRandom rand1(uiSeed ^ 0xC71C2830u);
+    PblRandom rand2(uiSeed2 ^ 0xC71C2830u);
 
     PblVector3 avBranchStart[10];
     PblVector3 avBranchDir[10];
     float afBranchWidth[10];
     int iBranches = 0;
 
-    PblVector3 vDir(vEnd.x - vStart.x, vEnd.y - vStart.y, vEnd.z - vStart.z);
-    float fLength = PblMath::Sqrt(vDir.x * vDir.x + vDir.y * vDir.y + vDir.z * vDir.z);
+    PblVector3 vDir = vEnd - vStart;
+    float fLength = Length(vDir);
     float fTexCoord = 0.0f;
     if (fLength <= 0.0f)
     {
         return;
     }
 
-    float fInvLength = 1.0f / fLength;
-    vDir *= fInvLength;
+    vDir /= fLength;
 
-    int iSegments = (int)(fLength / fBreakDistance);
-    if (iSegments < 3)
-    {
-        iSegments = 3;
-    }
+    int iSegments = Max((int)(fLength / fBreakDistance), 3);
     if (iSegments > 100)
     {
         return;
@@ -431,72 +404,46 @@ void LightningBoltEffectObject::Render(const PblVector3& vStart, const PblVector
     float fWidthStep = fWidth / (iSegments + 1);
     float fTexStep = fSegLength / fTextureSize;
 
-    RedParticleRenderer::TexCoords texCoords;
-    texCoords.u0 = 0;
-    texCoords.v0 = 0;
-    texCoords.u1 = 0xff;
-    texCoords.v1 = 0xff;
-
-    RedColor capColor;
-    capColor.b = color.b;
-    capColor.g = color.g;
-    capColor.r = color.r;
-    capColor.a = 0;
+    RedParticleRenderer::TexCoords texCoords(0, 0, 0xff, 0xff);
 
     PblVector3 vPos = vStart;
-    RedParticleRenderer::SubmitParticle(PIT_STREAK_HEAD, vPos, capColor, fWidth, 0.0f, texCoords,
+    RedParticleRenderer::SubmitParticle(PIT_STREAK_HEAD, vPos, RedColor(color, 0), fWidth, 0.0f, texCoords,
                                         gVectorUnitX, gVectorUnitY);
 
-    PblVector3 vStep(vDir.x * fSegLength, vDir.y * fSegLength, vDir.z * fSegLength);
     for (int i = 1; i < iSegments; ++i)
     {
         fTexCoord += fTexStep;
-        vPos.x += vStep.x;
-        vPos.y += vStep.y;
-        vPos.z += vStep.z;
+        vPos += vDir * fSegLength;
 
         PblVector3 vFrom((rand1.GetFloat() - 0.5f) * fSpread, (rand1.GetFloat() - 0.5f) * fSpread,
                          (rand1.GetFloat() - 0.5f) * fSpread);
-        float fDot = vFrom.x * vDir.x + vFrom.y * vDir.y + vFrom.z * vDir.z;
-        vFrom.x -= vDir.x * fDot;
-        vFrom.y -= vDir.y * fDot;
-        vFrom.z -= vDir.z * fDot;
+        vFrom -= vDir * DotProduct(vFrom, vDir);
 
         PblVector3 vTo((rand2.GetFloat() - 0.5f) * fSpread, (rand2.GetFloat() - 0.5f) * fSpread,
                        (rand2.GetFloat() - 0.5f) * fSpread);
-        fDot = vTo.x * vDir.x + vTo.y * vDir.y + vTo.z * vDir.z;
-        vTo.x -= vDir.x * fDot;
-        vTo.y -= vDir.y * fDot;
-        vTo.z -= vDir.z * fDot;
-        rand2.GetInt();
+        vTo -= vDir * DotProduct(vTo, vDir);
+        rand2.GetFloat();
 
-        PblVector3 vOffset((vTo.x - vFrom.x) * fInterpolation + vFrom.x,
-                           (vTo.y - vFrom.y) * fInterpolation + vFrom.y,
-                           (vTo.z - vFrom.z) * fInterpolation + vFrom.z);
-        PblVector3 vJoint(vPos.x + vOffset.x, vPos.y + vOffset.y, vPos.z + vOffset.z);
-        RedParticleRenderer::SubmitParticle(PIT_STREAK, vJoint, color, fWidth, fTexCoord, texCoords,
+        PblVector3 vOffset = Interpolate(vFrom, vTo, fInterpolation);
+        RedParticleRenderer::SubmitParticle(PIT_STREAK, vPos + vOffset, color, fWidth, fTexCoord, texCoords,
                                             gVectorUnitX, gVectorUnitY);
 
         if (rand1.GetFloat() < fBranchFactor && iBranches < iMaxBranches)
         {
-            avBranchStart[iBranches] = vJoint;
-            PblVector3 vBranch(vOffset.x + vDir.x * fBranchSpread, vOffset.y + vDir.y * fBranchSpread,
-                               vOffset.z + vDir.z * fBranchSpread);
-            D3DXVec3Normalize((D3DXVECTOR3*)&avBranchDir[iBranches], (const D3DXVECTOR3*)&vBranch);
+            avBranchStart[iBranches] = vPos + vOffset;
+            avBranchDir[iBranches] = Normalize(vOffset + vDir * fBranchSpread);
             afBranchWidth[iBranches] = fWidth;
             ++iBranches;
         }
         fWidth -= fWidthStep;
     }
 
-    RedParticleRenderer::SubmitParticle(PIT_STREAK_TAIL, vEnd, capColor, fWidth, fTexCoord + fTexStep,
+    RedParticleRenderer::SubmitParticle(PIT_STREAK_TAIL, vEnd, RedColor(color, 0), fWidth, fTexCoord + fTexStep,
                                         texCoords, gVectorUnitX, gVectorUnitY);
 
     for (int i = iBranches - 1; i >= 0; --i)
     {
-        PblVector3 vBranchEnd(avBranchStart[i].x + avBranchDir[i].x * fBranchLength,
-                              avBranchStart[i].y + avBranchDir[i].y * fBranchLength,
-                              avBranchStart[i].z + avBranchDir[i].z * fBranchLength);
+        PblVector3 vBranchEnd = avBranchStart[i] + avBranchDir[i] * fBranchLength;
         Render(avBranchStart[i], vBranchEnd, afBranchWidth[i], fSpread, uiSeed + i + 1,
                uiSeed2 + i + 1, fInterpolation, color, fBreakDistance, fTextureSize,
                fBranchFactor * 0.5f, 0, fBranchSpread, fBranchLength * 0.5f);
@@ -510,5 +457,5 @@ void LightningBoltEffectObject::SetStrength(float fStrength)
 }
 
 // TEMPLATE: SWBF2 0x005727e0
-// PblList<LightningBoltEffectObject>::RemoveAll
-template void PblList<LightningBoltEffectObject>::RemoveAll();
+// PblList<LightningBoltEffectObject>::Clear
+template void PblList<LightningBoltEffectObject>::Clear();

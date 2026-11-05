@@ -28,6 +28,8 @@ public:
         *this = v;
     }
 
+    PblVector3(const D3DXVECTOR3* pVector);
+
     // FUNCTION: SWBF2 0x0043ec00
     void SetAll(float fValue)
     {
@@ -60,8 +62,14 @@ public:
     float GetY() const;
     float GetZ() const;
 
+    void Set(float fX, float fY, float fZ);
+
+    void AddX(float value);
     void AddY(float value);
+    void AddZ(float value);
+    void MulX(float value);
     void MulY(float value);
+    void MulZ(float value);
 
 };
 
@@ -84,6 +92,7 @@ const float SquaredLength(const PblVector3& vVector);
 const float SquaredLengthXZ(const PblVector3& vVector);
 const PblVector3 CrossProduct(const PblVector3& lhs, const PblVector3& rhs);
 const PblVector3 Normalize(const PblVector3& vVector);
+const PblVector3 RotateY(const PblVector3& vVector, float fAngle);
 
 
 
@@ -125,6 +134,16 @@ public:
 class PblSphere : public PblVector4
 {
 public:
+    PblSphere() {}
+    PblSphere(float fX, float fY, float fZ, float fRadius)
+        : PblVector4(fX, fY, fZ, fRadius)
+    {
+    }
+    PblSphere(const PblVector3& vCenter, float fRadius)
+        : PblVector4(vCenter.x, vCenter.y, vCenter.z, fRadius)
+    {
+    }
+
     // FUNCTION: SWBF2 0x0040fdf0
     const PblVector3& GetCenter() const { return *(const PblVector3*)this; }
     float GetRadius() const { return w; }
@@ -180,6 +199,13 @@ public:
         {
             _vMax.z = rv.z;
         }
+    }
+
+    const PblVector3 GetBoxCorner(int iCorner) const
+    {
+        return PblVector3(iCorner & 4 ? _vMax.x : _vMin.x,
+                          iCorner & 2 ? _vMax.y : _vMin.y,
+                          iCorner & 1 ? _vMax.z : _vMin.z);
     }
 
     const PblBox GetTransformedBox(const class PblMatrix& rMatrix) const;

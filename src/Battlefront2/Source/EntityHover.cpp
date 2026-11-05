@@ -61,19 +61,6 @@
 #include "RedEngineFL/Application/pc/pcFLRender.h"
 
 
-namespace
-{
-
-    inline void UpdateCollisionSphere(EntityHover* pHover)
-    {
-        const PblMatrix& matrix = pHover->mMatrix;
-        PblVector3 center;
-        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&center), reinterpret_cast<const D3DXVECTOR3*>(&pHover->mModel->_mModel->_BoundingSphere.GetCenter()),
-                               reinterpret_cast<const D3DXMATRIX*>(&matrix));
-        pHover->SetCollisionCenter(center);
-        pHover->RecalculateAABB();
-    }
-}
 
 // SYNTHETIC: SWBF2 0x00402ba0
 // `dynamic initializer for 'EntityHover::rttiHashEntityHover''
@@ -130,20 +117,6 @@ Entity* EntityHover::GetEntity()
 const Entity* EntityHover::GetEntity() const
 {
     return this;
-}
-
-// FUNCTION: SWBF2 0x00478b10
-void EntityHover::SetPosition(const PblVector3& vPosition)
-{
-    mMatrix.SetTranslation(vPosition);
-    UpdateCollisionSphere(this);
-}
-
-// FUNCTION: SWBF2 0x00478bb0
-void EntityHover::SetMatrix(const PblMatrix& matrix)
-{
-    mMatrix = matrix;
-    UpdateCollisionSphere(this);
 }
 
 // FUNCTION: SWBF2 0x00478c80
@@ -410,11 +383,6 @@ EntityHover::EntityHover(EntityHoverClass* pClass, const EntityDesc& desc)
         WeaponDesc weaponDesc;
         weaponDesc.mOwner = this;
         weaponDesc.mAimer = mAimer[i];
-        weaponDesc.mTrigger = 0;
-        weaponDesc.mReload = 0;
-        weaponDesc.mNumClips = 0;
-        weaponDesc.m_pAmmoCounter = 0;
-        weaponDesc.m_pEnergyBar = 0;
         weaponDesc.mTrigger = &mControlFire[mClass->mWeaponChannel[i]];
         weaponDesc.mReload = &mControlReload;
         const WeaponAmmoDesc& ammo = mClass->mWeaponAmmo[i];
@@ -1924,11 +1892,10 @@ void EntityHover::Move(float fDeltaTime, float fThrust, float fStrafe, float fTu
     PblMatrix mUnbank;
     mUnbank.SetRotateZ(-mBankRollAngle);
     mUnbank.RotateX(-mBankPitchAngle);
-    PblMatrix mBody;
-    mBody = mUnbank * mMatrix;
+    PblMatrix flatMatrix = mUnbank * mMatrix;
 
     const GameObject* pIgnore = this;
-    float fInput = fabsf(fStrafe) > fabsf(fThrust) ? fabsf(fStrafe) : fabsf(fThrust);
+    const float fInput = Max(fabsf(fStrafe), fabsf(fThrust));
 
     EnergyBar* pEnergy = &mEnergyBar;
     if (rBoost && !(mClass->mBoostSpeed > 0.0f && pEnergy->SpendEnergy(mClass->mEnergyBoostDrain * fDeltaTime)))
@@ -1944,8 +1911,6 @@ void EntityHover::Move(float fDeltaTime, float fThrust, float fStrafe, float fTu
         pEnergy->AddEnergy(mClass->mEnergyAutoRestore * fMultiplier * fDeltaTime);
     }
 
-    PblMatrix mGround;
-    const PblMatrix* pDrive;
     if (mClass->mNumColliderBodies > 0)
     {
         mVelocity.y = (mClass->mGravityScale * -9.8f - (1.0f - mClass->mGravityScale) * mGroundRatio * 9.8f) *
@@ -1956,14 +1921,43 @@ void EntityHover::Move(float fDeltaTime, float fThrust, float fStrafe, float fTu
         {
             fSpring = 1.0f;
         }
-        mOmega.x = mBody.m[2][1] * fabsf(mBody.m[2][1]) * fSpring + mOmega.x;
+        mOmega.x = flatMatrix.m[2][1] * fabsf(flatMatrix.m[2][1]) * fSpring + mOmega.x;
         fSpring = mClass->mLevelSpring * fDeltaTime;
         if (fSpring > 1.0f)
         {
             fSpring = 1.0f;
         }
-        mOmega.z = mOmega.z - fabsf(mBody.m[0][1]) * mBody.m[0][1] * fSpring;
-        pDrive = &mBody;
+        mOmega.z = mOmega.z - fabsf(flatMatrix.m[0][1]) * flatMatrix.m[0][1] * fSpring;
+        const float maxStrafe = mClass->mStrafeSpeed;
+        const float accelScale = Max(flatMatrix.GetYAxis().y, 0.0f) * mGroundRatio * fDeltaTime;
+        float acceleration = (rBoost ? mClass->mBoostAcceleration
+                                    : Interpolate(mClass->mDeceleration, mClass->mAcceleration, fInput)) * accelScale;
+        float traction = mClass->mTraction * accelScale;
+        float finalSpeed = fThrust < 0.0f ? mClass->mReverseSpeed
+                                        : (rBoost ? mClass->mBoostSpeed : mClass->mForwardSpeed);
+        float deltaVelocityX = -(maxStrafe * fStrafe) - DotProduct(mVelocity, flatMatrix.GetXAxis());
+        float deltaVelocityZ = finalSpeed * fThrust - DotProduct(mVelocity, flatMatrix.GetZAxis());
+        mVelocity += flatMatrix.GetZAxis() * Clamp(deltaVelocityZ, -acceleration, acceleration);
+        if (maxStrafe < 0.0001f)
+        {
+            mVelocity += flatMatrix.GetXAxis() * Clamp(deltaVelocityX, -traction, traction);
+        }
+        else
+        {
+            mVelocity += flatMatrix.GetXAxis() * Clamp(deltaVelocityX, -acceleration, acceleration);
+            if (fInput > 0.0001f)
+            {
+                PblVector3 centrip = flatMatrix.GetYAxis() * mOmega.y;
+                PblVector3 fDeltaCentrip = CrossProduct(centrip, mVelocity) * fDeltaTime;
+                float maxDrag = traction - acceleration;
+                const float fMagSq = SquaredLength(fDeltaCentrip);
+                if (fMagSq > maxDrag * maxDrag)
+                {
+                    fDeltaCentrip *= maxDrag / (float)sqrt((double)fMagSq);
+                }
+                mVelocity += fDeltaCentrip * fInput;
+            }
+        }
     }
     else
     {
@@ -1977,81 +1971,55 @@ void EntityHover::Move(float fDeltaTime, float fThrust, float fStrafe, float fTu
             PblVector3 vNormal = gVectorUnitY;
             float fHit = CollisionManager::RayHit(vStart, vDown, fLength, pHit, &vNormal, &pIgnore, 1, 0x190, false);
             mGroundNormal = vNormal;
-            fHeight = fHit * fLength + mBody.m[3][1] - vStart.y;
+            fHeight = fHit * fLength + flatMatrix.m[3][1] - vStart.y;
 
-            if (mVelocity.x * mVelocity.x + mVelocity.z * mVelocity.z > 25.0f)
+            if (SquaredLengthXZ(mVelocity) > 25.0f)
             {
-                PblVector3 vAhead(vDown.x * fLength + mVelocity.x, mVelocity.y + vDown.y * fLength,
-                                  mVelocity.z + vDown.z * fLength);
-                float fAheadLength = PblMath::Sqrt(vAhead.y * vAhead.y + vAhead.x * vAhead.x + vAhead.z * vAhead.z);
-                float fInv = 1.0f / fAheadLength;
-                PblVector3 vAheadDir(vAhead.x * fInv, vAhead.y * fInv, vAhead.z * fInv);
+                PblVector3 vAhead = mVelocity + vDown * fLength;
+                float fAheadLength = Length(vAhead);
+                PblVector3 vAheadDir = vAhead / fAheadLength;
                 float fAheadHit = CollisionManager::RayHit(vStart, vAheadDir, fAheadLength, pHit, &vNormal, &pIgnore,
                                                            1, 0x190, false);
                 if (1.0f > fAheadHit)
                 {
                     float fAheadDist = fAheadHit * fAheadLength;
-                    float fDrop = -((vAheadDir.x * fAheadDist) * vNormal.x + (vAheadDir.y * fAheadDist) * vNormal.y +
-                                    vNormal.z * (vAheadDir.z * fAheadDist));
-                    if (!(fDrop > fHeight))
-                    {
-                        fHeight = fDrop;
-                    }
+                    fHeight = Min(fHeight, -DotProduct(vAheadDir * fAheadDist, vNormal));
                     if (vNormal.y > 0.0f)
                     {
                         float fBlend = (1.0f - fAheadHit) * vNormal.y;
-                        PblVector3 vBlend((vNormal.x - mGroundNormal.x) * fBlend + mGroundNormal.x,
-                                          (vNormal.y - mGroundNormal.y) * fBlend + mGroundNormal.y,
-                                          (vNormal.z - mGroundNormal.z) * fBlend + mGroundNormal.z);
-                        PblVector3 vGround;
-                        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vGround), reinterpret_cast<const D3DXVECTOR3*>(&vBlend));
-                        mGroundNormal = vGround;
+                        mGroundNormal = Normalize(Interpolate(mGroundNormal, vNormal, fBlend));
                     }
                 }
             }
 
-            float fRatio = 1.0f - (fHeight - mClass->mSetAltitude) / (mClass->mSetAltitude * 9.0f);
-            if (0.0f > fRatio)
-            {
-                fRatio = 0.0f;
-            }
-            else if (fRatio > 1.0f)
-            {
-                fRatio = 1.0f;
-            }
+            float fRatio = Clamp(1.0f - (fHeight - mClass->mSetAltitude) / (mClass->mSetAltitude * 9.0f), 0.0f, 1.0f);
             mGroundRatio = fRatio;
             float fLift = mClass->mSetAltitude > 0.0f ? 0.1f : 0.0f;
             PblVector3 vTilt(mGroundNormal.x * fRatio, mGroundNormal.y + fLift, mGroundNormal.z * fRatio);
-            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vUp), reinterpret_cast<const D3DXVECTOR3*>(&vTilt));
+            vUp = Normalize(vTilt);
         }
         else if (mGroundRatio == 1.0f)
         {
-            PblVector3 vStart(mBody.m[3][0] + 0.0f, mBody.m[3][1] + GetCollisionRadius(), mBody.m[3][2] + 0.0f);
+            PblVector3 vStart = flatMatrix.GetTranslation() + PblVector3(0.0f, GetCollisionRadius(), 0.0f);
             PblVector3 vDown(0.0f, -1.0f, 0.0f);
             CollisionManager::RayHit(vStart, vDown, 32.0f, pHit, &mGroundNormal, &pIgnore, 1, 0x90, false);
             vUp = mGroundNormal;
         }
         else
         {
-            vUp.x = 0.0f;
-            vUp.y = 1.0f;
-            vUp.z = 0.0f;
+            vUp.Set(0.0f, 1.0f, 0.0f);
         }
 
-        mGround = NormalMatrix(mBody.GetZAxis(), mGroundNormal, gVectorZero);
+        PblMatrix alignmentMatrix = NormalMatrix(flatMatrix.GetZAxis(), mGroundNormal, gVectorZero);
         mVelocity.y = (-9.8f - (mClass->mGravityScale - 1.0f) * mGroundRatio * 9.8f) * fDeltaTime + mVelocity.y;
         if (mClass->mSetAltitude > 0.0f)
         {
             float fLift = (mClass->mSetAltitude - fHeight) * mClass->mLiftSpring + mGroundRatio * 9.8f -
-                          (mGroundNormal.y * mVelocity.y + mGroundNormal.x * mVelocity.x +
-                           mGroundNormal.z * mVelocity.z) *
-                              mClass->mLiftDamp;
+                          DotProduct(mGroundNormal, mVelocity) * mClass->mLiftDamp;
             if (fLift > 0.0f)
             {
                 fLift *= fDeltaTime;
-                mVelocity.x = mVelocity.x + fLift * mGroundNormal.x;
-                mVelocity.y = mGroundNormal.y * fLift + mVelocity.y;
-                mVelocity.z = mGroundNormal.z * fLift + mVelocity.z;
+                mVelocity += mGroundNormal * fLift;
             }
         }
 
@@ -2072,97 +2040,42 @@ void EntityHover::Move(float fDeltaTime, float fThrust, float fStrafe, float fTu
         {
             fSpring = 1.0f;
         }
-        mOmega.x = mOmega.x + (mBody.m[2][0] * vUp.x + mBody.m[2][1] * vUp.y + mBody.m[2][2] * vUp.z) * fSpring;
+        mOmega.x = mOmega.x + DotProduct(flatMatrix.GetZAxis(), vUp) * fSpring;
         fSpring = mClass->mLevelSpring * fDeltaTime;
         if (fSpring > 1.0f)
         {
             fSpring = 1.0f;
         }
-        mOmega.z = mOmega.z - (mBody.m[0][0] * vUp.x + mBody.m[0][1] * vUp.y + mBody.m[0][2] * vUp.z) * fSpring;
-        pDrive = &mGround;
-    }
-
-    const PblMatrix& mDrive = *pDrive;
-    float fClimb = mBody.m[1][1] > 0.0f ? mBody.m[1][1] : 0.0f;
-    float fGrip = fClimb * mGroundRatio * fDeltaTime;
-    float fAccel = (rBoost ? mClass->mBoostAcceleration
-                           : (mClass->mAcceleration - mClass->mDeceleration) * fInput + mClass->mDeceleration) *
-                   fGrip;
-    float fTraction = mClass->mTraction * fGrip;
-    float fSpeed;
-    if (0.0f > fThrust)
-    {
-        fSpeed = mClass->mReverseSpeed;
-    }
-    else if (rBoost)
-    {
-        fSpeed = mClass->mBoostSpeed;
-    }
-    else
-    {
-        fSpeed = mClass->mForwardSpeed;
-    }
-    float fStrafeSpeed = mClass->mStrafeSpeed;
-    float fStrafeDelta = -(fStrafeSpeed * fStrafe) - (mVelocity.y * mDrive.m[0][1] + mDrive.m[0][0] * mVelocity.x +
-                                                      mVelocity.z * mDrive.m[0][2]);
-    float fForwardDelta =
-        fSpeed * fThrust - (mVelocity.y * mDrive.m[2][1] + mDrive.m[2][0] * mVelocity.x + mVelocity.z * mDrive.m[2][2]);
-    if (-fAccel > fForwardDelta)
-    {
-        fForwardDelta = -fAccel;
-    }
-    else if (fForwardDelta > fAccel)
-    {
-        fForwardDelta = fAccel;
-    }
-    mVelocity.x = fForwardDelta * mDrive.m[2][0] + mVelocity.x;
-    mVelocity.y = fForwardDelta * mDrive.m[2][1] + mVelocity.y;
-    mVelocity.z = fForwardDelta * mDrive.m[2][2] + mVelocity.z;
-    if (0.0001f > fStrafeSpeed)
-    {
-
-        if (-fTraction > fStrafeDelta)
+        mOmega.z = mOmega.z - DotProduct(flatMatrix.GetXAxis(), vUp) * fSpring;
+        const float maxStrafe = mClass->mStrafeSpeed;
+        const float accelScale = Max(flatMatrix.GetYAxis().y, 0.0f) * mGroundRatio * fDeltaTime;
+        float acceleration = (rBoost ? mClass->mBoostAcceleration
+                                    : Interpolate(mClass->mDeceleration, mClass->mAcceleration, fInput)) * accelScale;
+        float traction = mClass->mTraction * accelScale;
+        float finalSpeed = fThrust < 0.0f ? mClass->mReverseSpeed
+                                        : (rBoost ? mClass->mBoostSpeed : mClass->mForwardSpeed);
+        float deltaVelocityX = -(maxStrafe * fStrafe) - DotProduct(mVelocity, alignmentMatrix.GetXAxis());
+        float deltaVelocityZ = finalSpeed * fThrust - DotProduct(mVelocity, alignmentMatrix.GetZAxis());
+        mVelocity += alignmentMatrix.GetZAxis() * Clamp(deltaVelocityZ, -acceleration, acceleration);
+        if (maxStrafe < 0.0001f)
         {
-            fStrafeDelta = -fTraction;
+            mVelocity += alignmentMatrix.GetXAxis() * Clamp(deltaVelocityX, -traction, traction);
         }
-        else if (fStrafeDelta > fTraction)
+        else
         {
-            fStrafeDelta = fTraction;
-        }
-        mVelocity.x = mDrive.m[0][0] * fStrafeDelta + mVelocity.x;
-        mVelocity.y = mDrive.m[0][1] * fStrafeDelta + mVelocity.y;
-        mVelocity.z = mDrive.m[0][2] * fStrafeDelta + mVelocity.z;
-    }
-    else
-    {
-        if (-fAccel > fStrafeDelta)
-        {
-            fStrafeDelta = -fAccel;
-        }
-        else if (fStrafeDelta > fAccel)
-        {
-            fStrafeDelta = fAccel;
-        }
-        mVelocity.x = mDrive.m[0][0] * fStrafeDelta + mVelocity.x;
-        mVelocity.y = mDrive.m[0][1] * fStrafeDelta + mVelocity.y;
-        mVelocity.z = mDrive.m[0][2] * fStrafeDelta + mVelocity.z;
-        if (fInput > 0.0001f)
-        {
-
-            PblVector3 vSpin(mDrive.m[1][0] * mOmega.y, mDrive.m[1][1] * mOmega.y, mDrive.m[1][2] * mOmega.y);
-            PblVector3 vDrag((vSpin.y * mVelocity.z - vSpin.z * mVelocity.y) * fDeltaTime,
-                             (vSpin.z * mVelocity.x - vSpin.x * mVelocity.z) * fDeltaTime,
-                             (vSpin.x * mVelocity.y - vSpin.y * mVelocity.x) * fDeltaTime);
-            float fMaxDrag = fTraction - fAccel;
-            float fDragSq = vDrag.x * vDrag.x + vDrag.y * vDrag.y + vDrag.z * vDrag.z;
-            if (fDragSq > fMaxDrag * fMaxDrag)
+            mVelocity += alignmentMatrix.GetXAxis() * Clamp(deltaVelocityX, -acceleration, acceleration);
+            if (fInput > 0.0001f)
             {
-                float fScale = fMaxDrag / (float)sqrt((double)fDragSq);
-                vDrag *= fScale;
+                PblVector3 centrip = alignmentMatrix.GetYAxis() * mOmega.y;
+                PblVector3 fDeltaCentrip = CrossProduct(centrip, mVelocity) * fDeltaTime;
+                float maxDrag = traction - acceleration;
+                const float fMagSq = SquaredLength(fDeltaCentrip);
+                if (fMagSq > maxDrag * maxDrag)
+                {
+                    fDeltaCentrip *= maxDrag / (float)sqrt((double)fMagSq);
+                }
+                mVelocity += fDeltaCentrip * fInput;
             }
-            mVelocity.x = vDrag.x * fInput + mVelocity.x;
-            mVelocity.y = vDrag.y * fInput + mVelocity.y;
-            mVelocity.z = vDrag.z * fInput + mVelocity.z;
         }
     }
 
@@ -2172,8 +2085,7 @@ void EntityHover::Move(float fDeltaTime, float fThrust, float fStrafe, float fTu
         {
             float fMinSpeed = mClass->mJumpMinSpeedMult * mClass->mForwardSpeed;
             if (mControlJump.IsDown() && mGroundRatio > 0.9f &&
-                mVelocity.x * mMatrix.m[2][0] + mVelocity.y * mMatrix.m[2][1] + mVelocity.z * mMatrix.m[2][2] >
-                    fMinSpeed)
+                DotProduct(mVelocity, mMatrix.GetZAxis()) > fMinSpeed)
             {
                 mJumpMode = true;
             }
@@ -2183,23 +2095,12 @@ void EntityHover::Move(float fDeltaTime, float fThrust, float fStrafe, float fTu
                  pEnergy->SpendEnergy(mClass->mJumpEnergyPerSec * fDeltaTime))
         {
             mJumpTimer += fDeltaTime;
-            float fForward =
-                mVelocity.x * mMatrix.m[2][0] + mVelocity.y * mMatrix.m[2][1] + mVelocity.z * mMatrix.m[2][2];
+            float fForward = DotProduct(mVelocity, mMatrix.GetZAxis());
             float fMinSpeed = mClass->mJumpMinSpeedMult * mClass->mForwardSpeed;
-            float fRatio = (fForward - fMinSpeed) / (mClass->mForwardSpeed - fMinSpeed);
-            if (0.0f > fRatio)
-            {
-                fRatio = 0.0f;
-            }
-            else if (fRatio > 1.0f)
-            {
-                fRatio = 1.0f;
-            }
+            float fRatio = Clamp((fForward - fMinSpeed) / (mClass->mForwardSpeed - fMinSpeed), 0.0f, 1.0f);
             if ((1.0f - fRatio) * mClass->mJumpTimeMin + mClass->mJumpTimeMax * fRatio > mJumpTimer)
             {
-                mVelocity.x = mClass->mJumpForce * mMatrix.m[1][0] * fDeltaTime + mVelocity.x;
-                mVelocity.y = mMatrix.m[1][1] * mClass->mJumpForce * fDeltaTime + mVelocity.y;
-                mVelocity.z = mMatrix.m[1][2] * mClass->mJumpForce * fDeltaTime + mVelocity.z;
+                mVelocity += mMatrix.GetYAxis() * mClass->mJumpForce * fDeltaTime;
             }
             else
             {
@@ -2212,8 +2113,8 @@ void EntityHover::Move(float fDeltaTime, float fThrust, float fStrafe, float fTu
         }
     }
 
-    float fVelocity = PblMath::Sqrt(mVelocity.x * mVelocity.x + mVelocity.y * mVelocity.y + mVelocity.z * mVelocity.z);
-    float fForward = mVelocity.x * mMatrix.m[2][0] + mVelocity.y * mMatrix.m[2][1] + mVelocity.z * mMatrix.m[2][2];
+    float fVelocity = Length(mVelocity);
+    float fForward = DotProduct(mVelocity, mMatrix.GetZAxis());
     bool bMouse = false;
     if (mPlayerId >= 0)
     {
@@ -2224,45 +2125,20 @@ void EntityHover::Move(float fDeltaTime, float fThrust, float fStrafe, float fTu
     if (mPlayerId >= 0 && !bMouse)
     {
         fTopSpeed = mClass->mForwardSpeed;
-        float fRatio = fForward / fTopSpeed;
-        if (0.0f > fRatio)
-        {
-            fRatio = 0.0f;
-        }
-        else if (fRatio > 1.0f)
-        {
-            fRatio = 1.0f;
-        }
-        fTurnRate = ((mClass->mTurnRate - mClass->mSpinRate) * fRatio + mClass->mSpinRate - mClass->mPitchRate) *
-                        mTurnBuildup +
-                    mClass->mPitchRate;
+        float fRatio = Clamp(fForward / fTopSpeed, 0.0f, 1.0f);
+        fTurnRate = Interpolate(mClass->mPitchRate,
+                                Interpolate(mClass->mSpinRate, mClass->mTurnRate, fRatio), mTurnBuildup);
     }
     else
     {
         fTopSpeed = mClass->mForwardSpeed;
-        float fRatio = fForward / fTopSpeed;
-        if (0.0f > fRatio)
-        {
-            fRatio = 0.0f;
-        }
-        else if (fRatio > 1.0f)
-        {
-            fRatio = 1.0f;
-        }
-        fTurnRate = (mClass->mTurnRate - mClass->mSpinRate) * fRatio + mClass->mSpinRate;
+        float fRatio = Clamp(fForward / fTopSpeed, 0.0f, 1.0f);
+        fTurnRate = Interpolate(mClass->mSpinRate, mClass->mTurnRate, fRatio);
     }
     fTurnRate = -fTurnRate;
     if (mClass->mBoostSpeed > 0.0f && fVelocity > fTopSpeed)
     {
-        float fBoost = (fVelocity - fTopSpeed) / (mClass->mBoostSpeed - fTopSpeed);
-        if (0.0f > fBoost)
-        {
-            fBoost = 0.0f;
-        }
-        else if (fBoost > 1.0f)
-        {
-            fBoost = 1.0f;
-        }
+        float fBoost = Clamp((fVelocity - fTopSpeed) / (mClass->mBoostSpeed - fTopSpeed), 0.0f, 1.0f);
         fTurnRate *= 1.0f - (1.0f - mClass->mBoostTurnMultiplier) * fBoost;
     }
     float fTurnTarget = fTurnRate * fTurn;
@@ -2279,49 +2155,28 @@ void EntityHover::Move(float fDeltaTime, float fThrust, float fStrafe, float fTu
 
     PblQuaternion qOrient(mMatrix);
     PblVector3 vPos = mMatrix.GetTranslation();
-    float fRate = PblMath::Sqrt(mOmega.x * mOmega.x + mOmega.y * mOmega.y + mOmega.z * mOmega.z);
+    float fRate = Length(mOmega);
     if (fRate > 0.0001f)
     {
-        float fInv = 1.0f / fRate;
-        PblVector3 vAxis(fInv * mOmega.x, mOmega.y * fInv, mOmega.z * fInv);
-        float fSin;
-        float fCos;
-        PblMath::SinCos(&fSin, &fCos, fRate * fDeltaTime * 0.5f);
-        PblQuaternion qDelta;
-        qDelta._fX = vAxis.x * fSin;
-        qDelta._fY = vAxis.y * fSin;
-        qDelta._fZ = vAxis.z * fSin;
-        qDelta._fS = fCos;
-        qOrient = qOrient * qDelta;
+        qOrient *= PblQuaternion(mOmega / fRate, fRate * fDeltaTime);
     }
 
     PblVector3 vDir;
     if (fVelocity > mClass->mForwardSpeed * 0.1f)
     {
-        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&mVelocity));
+        vDir = Normalize(mVelocity);
     }
-    PblVector3 vNewPos(vPos.x + mVelocity.x * fDeltaTime, vPos.y + mVelocity.y * fDeltaTime,
-                       vPos.z + mVelocity.z * fDeltaTime);
+    PblVector3 vNewPos = vPos + mVelocity * fDeltaTime;
 
-    PblVector3 vLocal;
-    D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vLocal), reinterpret_cast<const D3DXVECTOR3*>(&mVelocity), reinterpret_cast<const D3DXMATRIX*>(&mBody.GetInverseFast()));
-    float fInvSpeed = 1.0f / mClass->mForwardSpeed;
-    float fSlipSide = (vLocal.z * mOmega.y - mOmega.z * vLocal.y) * fInvSpeed;
-    float fSlipFront = (mOmega.x * vLocal.y - mOmega.y * vLocal.x) * fInvSpeed;
-    mBankPitchAngle = (mClass->mThrustPitchAngle * fThrust + mClass->mBankAngle * fSlipFront - mBankPitchAngle) *
-                          (mClass->mBankFilter * fDeltaTime) +
-                      mBankPitchAngle;
-    mBankRollAngle = (mClass->mStrafeRollAngle * fStrafe - mClass->mBankAngle * fSlipSide - mBankRollAngle) *
-                         (mClass->mBankFilter * fDeltaTime) +
-                     mBankRollAngle;
+    PblVector3 vLocal = flatMatrix.GetInverseFast().ApplyRotation(mVelocity);
+    PblVector3 centrip = CrossProduct(mOmega, vLocal) / mClass->mForwardSpeed;
+    const float bankAlpha = mClass->mBankFilter * fDeltaTime;
+    mBankPitchAngle = Interpolate(mBankPitchAngle,
+                                  mClass->mThrustPitchAngle * fThrust + mClass->mBankAngle * centrip.z, bankAlpha);
+    mBankRollAngle = Interpolate(mBankRollAngle,
+                                 mClass->mStrafeRollAngle * fStrafe - mClass->mBankAngle * centrip.x, bankAlpha);
 
-    PblQuaternion qUnit;
-    PblMatrix mNew;
-    D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mNew), D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&qUnit), reinterpret_cast<const D3DXQUATERNION*>(&qOrient)));
-    mNew.m[3][0] = vNewPos.x;
-    mNew.m[3][1] = vNewPos.y;
-    mNew.m[3][2] = vNewPos.z;
-    mNew.m[3][3] = 1.0f;
+    PblMatrix mNew(qOrient, vNewPos);
     PblMatrix mBank;
     PblMatrix mBankRoll;
     mBank.SetRotateX(mBankPitchAngle);
@@ -2357,8 +2212,8 @@ void EntityHover::Move(float fDeltaTime, float fThrust, float fStrafe, float fTu
         {
             fStrain = (float)fabs((double)(fThrottle - fForward));
         }
-        mStrain = (fStrain - mStrain) * 0.1f + mStrain;
-        mAccel = (fAcceleration - mAccel) * 0.01f + mAccel;
+        mStrain = Interpolate(mStrain, fStrain, 0.1f);
+        mAccel = Interpolate(mAccel, fAcceleration, 0.01f);
         float fHealth = mMaxHealth != 0.0f ? mCurHealth / mMaxHealth : 0.0f;
         VehicleEngine::Update(mClass, fDeltaTime, mMatrix.GetTranslation(), mVelocity, fRevs, mAccel, fHealth, 0.0f,
                               0.0f, mGroundRatio, mStrain, false, false, 0.0f);
@@ -2376,17 +2231,9 @@ void EntityHover::Move(float fDeltaTime, float fThrust, float fStrafe, float fTu
     if (mPilot && mClass->mAnimObj && mClass->mAnimFins)
     {
         float fRate = fDeltaTime * 5.0f;
-        mFinPitchValue = (fThrust - mFinPitchValue) * fRate + mFinPitchValue;
-        float fRoll = fStrafe * 0.5f + fTurn;
-        if (-1.0f > fRoll)
-        {
-            fRoll = -1.0f;
-        }
-        else if (fRoll > 1.0f)
-        {
-            fRoll = 1.0f;
-        }
-        mFinRollValue = (fRoll - mFinRollValue) * fRate + mFinRollValue;
+        mFinPitchValue = Interpolate(mFinPitchValue, fThrust, fRate);
+        float fRoll = Clamp(fStrafe * 0.5f + fTurn, -1.0f, 1.0f);
+        mFinRollValue = Interpolate(mFinRollValue, fRoll, fRate);
         mForceFrameNum1 = mFinRollValue + 4.0f;
         mForceFrameBlend = (float)fabs((double)mFinPitchValue);
         mForceFrameNum2 = mFinPitchValue > 0.0f ? mFinRollValue + 1.0f : mFinRollValue + 7.0f;
@@ -2407,8 +2254,7 @@ void EntityHover::Move(float fDeltaTime, float fThrust, float fStrafe, float fTu
 
     if (mClass->mWheelCount > 0)
     {
-        float fWheelForward =
-            mVelocity.x * mMatrix.m[2][0] + mVelocity.y * mMatrix.m[2][1] + mVelocity.z * mMatrix.m[2][2];
+        float fWheelForward = DotProduct(mVelocity, mMatrix.GetZAxis());
         float fWheelTurn = mOmega.y;
         for (int i = 0; i < mClass->mWheelCount; ++i)
         {
@@ -2658,7 +2504,7 @@ bool EntityHover::PostCollisionUpdate(float fDeltaTime)
     {
         return true;
     }
-    if (mPlayerId >= 0)
+    if (IsPlayer())
     {
         ++gDebugCount;
     }
@@ -2682,12 +2528,10 @@ bool EntityHover::PostCollisionUpdate(float fDeltaTime)
     PblMath::SinCos(&fSinPitch, &fCosPitch, mPitchValue);
     PblMath::SinCos(&fSinYaw, &fCosYaw, mYawValue);
     PblVector3 vLocal(fSinYaw * fCosPitch, fSinPitch, fCosYaw * fCosPitch);
-    PblVector3 vEyeDir;
-    D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vEyeDir), reinterpret_cast<const D3DXVECTOR3*>(&vLocal), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
-    mEyeDir = vEyeDir;
+    mEyeDir = mMatrix.ApplyRotation(vLocal);
     mEyePoint = mClass->mCameraSettings.CalcEyePoint(mMatrix);
 
-    if (mPlayerId >= 0 && mTracker)
+    if (IsPlayer() && mTracker)
     {
         if (mTargetInfo.mIsAiming || mTracker->IsFirstPersonView())
         {
@@ -2696,9 +2540,7 @@ bool EntityHover::PostCollisionUpdate(float fDeltaTime)
         else
         {
 
-            PblMatrix mLook =
-                DirectionMatrix(PblVector3(-mEyeDir.x, -mEyeDir.y, -mEyeDir.z), mMatrix.GetYAxis(), gVectorZero);
-            PblQuaternion qLook = PblQuaternion(mLook);
+            PblQuaternion qLook(DirectionMatrix(-mEyeDir, mMatrix.GetYAxis(), gVectorZero));
             PblQuaternion qTilt(gVectorUnitX, -mClass->mCameraSettings.GetCameraTiltValue());
             PblMatrix mCamera(qLook * qTilt, gVectorZero);
 
@@ -2721,9 +2563,7 @@ bool EntityHover::PostCollisionUpdate(float fDeltaTime)
         if (iIndex >= 0 && mWeapon[iIndex] && mWeapon[iIndex]->mTarget)
         {
             PblVector3 vTarget = mWeapon[iIndex]->mTarget->GetTargetPoint(mEyePoint, mEyeDir, -1);
-            fDist = PblMath::Sqrt((vTarget.x - mEyePoint.x) * (vTarget.x - mEyePoint.x) +
-                                  (vTarget.y - mEyePoint.y) * (vTarget.y - mEyePoint.y) +
-                                  (vTarget.z - mEyePoint.z) * (vTarget.z - mEyePoint.z));
+            fDist = Length(vTarget - mEyePoint);
         }
         mTargetInfo.mAimPoint = mEyePoint + mEyeDir * fDist;
     }
@@ -2734,20 +2574,15 @@ bool EntityHover::PostCollisionUpdate(float fDeltaTime)
         FLEffectClass* pEffectClass = 0;
         if (mClass->mWakeEffect)
         {
-            pEffectClass = FLEffect::s_EffectClasses.Find(mClass->mWakeEffect);
+            pEffectClass = FLEffect::Get(mClass->mWakeEffect);
         }
         float fMoveInput = mControlMove;
         float fStrafeInput = mControlStrafe;
-        if (pEffectClass && (fMoveInput < 0.0f ? -fMoveInput : fMoveInput) +
-                                    (fStrafeInput < 0.0f ? -fStrafeInput : fStrafeInput) >
-                                0.01f)
+        if (pEffectClass && Value(fMoveInput) + Value(fStrafeInput) > 0.01f)
         {
             PblMatrix mPrimitive = mCollisionModel->GetLocalMatrix(mClass->mWakeEmitterPrimitives[i], GetPose());
             PblMatrix mWake = mMatrix;
-            mWake.m[3][0] = mPrimitive.m[3][0];
-            mWake.m[3][1] = vLowest.y;
-            mWake.m[3][2] = mPrimitive.m[3][2];
-            mWake.m[3][3] = 1.0f;
+            mWake.SetTranslation(mPrimitive.m[3][0], vLowest.y, mPrimitive.m[3][2], 1.0f);
             if (!mWakeEmitters[i])
             {
 
@@ -2786,7 +2621,7 @@ bool EntityHover::PostCollisionUpdate(float fDeltaTime)
     if (!netFrameLock && NetGame::IsEnabled())
     {
         bool bFeed = true;
-        if (!(NetGame::IsClient() && netIsLocalTurn))
+        if (!(NetGame::OnClient() && netIsLocalTurn))
         {
             if (!NetGame::IsHost() || !NetGame::IsOneWorld() || netIsLateTurn)
             {
@@ -2794,7 +2629,7 @@ bool EntityHover::PostCollisionUpdate(float fDeltaTime)
             }
             else if (mNetUniqueId >= 0)
             {
-                mNetUniqueId = NetGame::GetHostWorldUniqueId(mNetUniqueId, this);
+                SetNetUniqueId(NetGame::GetHostWorldUniqueId(mNetUniqueId, this));
             }
         }
         if (bFeed)
@@ -2807,15 +2642,11 @@ bool EntityHover::PostCollisionUpdate(float fDeltaTime)
 
     if (mPilot && mPilot->GetGameObject()->IsRtti(EntitySoldier::rttiHashEntitySoldier))
     {
-        GameObject* pSoldier = mPilot->GetGameObject();
-        PblMatrix mInverse = GetMatrix().GetInverseFast();
-        PblMatrix mSeat;
-        mSeat = pSoldier->GetMatrix() * mInverse;
-        PblMatrix mLocal = mSeat;
-        PblMatrix mSmoothed = GetSmoothedMatrix();
-        PblMatrix mRender;
-        mRender = mLocal * mSmoothed;
-        pSoldier->SetRenderPos(mRender.GetTranslation());
+        EntitySoldier* pSoldier = static_cast<EntitySoldier*>(mPilot->GetGameObject());
+        PblMatrix localSoldierMat = pSoldier->GetMatrix() * GetMatrix().GetInverseFast();
+        PblMatrix vehSmoothMat = GetSmoothedMatrix();
+        PblMatrix smoothedSoldierMat = localSoldierMat * vehSmoothMat;
+        pSoldier->SetRenderPos(smoothedSoldierMat.GetTranslation());
     }
     return true;
 }
@@ -2906,14 +2737,13 @@ void EntityHover::UpdateColliderBody(int iBody, float fDeltaTime)
             if (fDepth > 0.0f)
             {
                 float fRatio = fDepth / mClass->mColliderBodyInfo[iBody].mSpringLength;
-                float fCompress = 1.0f > fRatio ? fRatio : 1.0f;
-                mColliderBody[iBody].mOverlap =
-                    mColliderBody[iBody].mOverlap > fCompress ? mColliderBody[iBody].mOverlap : fCompress;
+                float fCompress = Min(fRatio, 1.0f);
+                mColliderBody[iBody].mOverlap = Max(mColliderBody[iBody].mOverlap, fCompress);
                 if (fRatio > 1.0f && 0.0f > mVelocity.y)
                 {
-                    mVelocity.y *= 0.5f;
-                    mVelocity.x *= 0.9f;
-                    mVelocity.z *= 0.9f;
+                    mVelocity.MulY(0.5f);
+                    mVelocity.MulX(0.9f);
+                    mVelocity.MulZ(0.9f);
                     mOmega = mOmega * 0.9f;
                 }
             }
@@ -2951,9 +2781,7 @@ void EntityHover::UpdateColliderBody(int iBody, float fDeltaTime)
                    mOmega.z;
     }
 
-    mColliderBody[iBody].mNormal.z = 0.0f;
-    mColliderBody[iBody].mNormal.y = 0.0f;
-    mColliderBody[iBody].mNormal.x = 0.0f;
+    mColliderBody[iBody].mNormal.SetAll(0.0f);
     mColliderBody[iBody].mOldOverlap = mColliderBody[iBody].mOverlap;
     mColliderBody[iBody].mOverlap = 0.0f;
 }
@@ -3025,7 +2853,7 @@ bool EntityHover::CollisionCallback(const CollisionResult* pResult, CollisionObj
             vRelVel -= vOtherVel;
         }
         const PblVector3& vNormal = pResult->mSeparationNormal;
-        float fApproach = vNormal.y * vRelVel.y + vRelVel.x * vNormal.x + vNormal.z * vRelVel.z;
+        float fApproach = DotProduct(vNormal, vRelVel);
 
         if (pOther->GetCollisionType() != COLL_SOFT)
         {
@@ -3063,12 +2891,7 @@ bool EntityHover::CollisionCallback(const CollisionResult* pResult, CollisionObj
                 float fFriction = 0.25f;
                 if (mClass->mSetAltitude == 0.0f)
                 {
-                    float fUp = vNormal.y * mMatrix.m[1][1] + vNormal.x * mMatrix.m[1][0] +
-                                vNormal.z * mMatrix.m[1][2];
-                    if (0.0f > fUp)
-                    {
-                        fUp = 0.0f;
-                    }
+                    float fUp = Max(0.0f, DotProduct(vNormal, mMatrix.GetYAxis()));
                     fFriction = (1.0f - fUp * fUp * fUp * fUp) * 0.25f;
                 }
                 float fBounce = fApproach * -1.125f;
@@ -3076,20 +2899,12 @@ bool EntityHover::CollisionCallback(const CollisionResult* pResult, CollisionObj
                 {
                     float fMass = mMass;
                     float fOtherMass = pOther->mMass;
-                    float fClosing = -(mVelocity.y * vNormal.y + vNormal.x * mVelocity.x + mVelocity.z * vNormal.z);
-                    if (!(fClosing > 0.0f))
-                    {
-                        fClosing = 0.0f;
-                    }
+                    float fClosing = Max(-DotProduct(mVelocity, vNormal), 0.0f);
                     float fOtherClosing;
                     if (pOther->GetGameObject())
                     {
                         const PblVector3& vOtherVel = pOther->GetGameObject()->GetVelocity();
-                        fOtherClosing = vOtherVel.y * vNormal.y + vOtherVel.x * vNormal.x + vOtherVel.z * vNormal.z;
-                        if (!(fOtherClosing > 0.0f))
-                        {
-                            fOtherClosing = 0.0f;
-                        }
+                        fOtherClosing = Max(DotProduct(vOtherVel, vNormal), 0.0f);
                     }
                     else
                     {
@@ -3101,13 +2916,7 @@ bool EntityHover::CollisionCallback(const CollisionResult* pResult, CollisionObj
 
                 mVelocity = vRelVel;
                 mVelocity -= vNormal * fApproach;
-                float fSlide = fBounce * fFriction /
-                               PblMath::Sqrt(mVelocity.x * mVelocity.x + mVelocity.y * mVelocity.y +
-                                     mVelocity.z * mVelocity.z);
-                if (!(1.0f > fSlide))
-                {
-                    fSlide = 1.0f;
-                }
+                float fSlide = Min(fBounce * fFriction / Length(mVelocity), 1.0f);
                 mVelocity -= mVelocity * fSlide;
                 mVelocity += vNormal * (fBounce + fApproach);
                 if (pOther->GetGameObject())
@@ -3119,8 +2928,7 @@ bool EntityHover::CollisionCallback(const CollisionResult* pResult, CollisionObj
                 if (SquaredLength(mVelocity) > mClass->mForwardSpeed * 0.0001f * mClass->mForwardSpeed &&
                     mClass->mSuspensionCenterHash)
                 {
-                    float fUp = mMatrix.m[1][1] * vNormal.y + mMatrix.m[1][0] * vNormal.x +
-                                mMatrix.m[1][2] * vNormal.z;
+                    float fUp = DotProduct(mMatrix.GetYAxis(), vNormal);
                     CollisionObjectType eTerrain = COLL_TERRAIN;
                     if (mCollisionModel->GetCollisionMask(eTerrain).IsSet(pResult->mReceiverId))
                     {

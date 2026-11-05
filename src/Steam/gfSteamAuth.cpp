@@ -162,17 +162,16 @@ public:
 EncryptedAppTicketDownloader::EncryptedAppTicketDownloader(std::string& ticket, int& eResult)
     : m_pTicket(&ticket), m_peResult(&eResult), m_bDone(false)
 {
-    if (SteamUser_BLoggedOn())
-    {
-
-        ISteamUser* pUser = SteamUser();
-        const SteamAPICall_t hCall = pUser->RequestEncryptedAppTicket(0, 0);
-        m_callResult.Set(hCall, this, &EncryptedAppTicketDownloader::OnEncryptedAppTicketResponse);
-    }
-    else
+    if (!SteamUser_BLoggedOn())
     {
         *m_peResult = 2;
         m_bDone = true;
+    }
+    else
+    {
+        ISteamUser* pUser = SteamUser();
+        const SteamAPICall_t hCall = pUser->RequestEncryptedAppTicket(0, 0);
+        m_callResult.Set(hCall, this, &EncryptedAppTicketDownloader::OnEncryptedAppTicketResponse);
     }
 }
 
@@ -184,21 +183,17 @@ void EncryptedAppTicketDownloader::OnEncryptedAppTicketResponse(EncryptedAppTick
     {
         return;
     }
-    if (pResponse->m_eResult == 1)
-    {
-
-        unsigned char acTicket[1024];
-
-        unsigned int uSize = 0;
-        ISteamUser* pUser = SteamUser();
-        pUser->GetEncryptedAppTicket(acTicket, sizeof(acTicket), &uSize);
-        m_pTicket->reserve(uSize + 1);
-        m_pTicket->assign((const char*)acTicket, uSize);
-    }
-    else
+    if (pResponse->m_eResult != 1)
     {
         *m_peResult = pResponse->m_eResult;
+        return;
     }
+    unsigned char acTicket[1024];
+    unsigned int uSize;
+    ISteamUser* pUser = SteamUser();
+    pUser->GetEncryptedAppTicket(acTicket, sizeof(acTicket), &uSize);
+    m_pTicket->reserve(uSize + 1);
+    m_pTicket->assign((const char*)acTicket, uSize);
 }
 
 
@@ -234,7 +229,8 @@ public:
     {
         if (connectionString)
         {
-            gFriendConnectionStrings[userID.value] = connectionString;
+            const unsigned __int64 key = userID.ToUint64();
+            gFriendConnectionStrings[key] = connectionString;
         }
     }
 };
@@ -329,18 +325,22 @@ int gf::SteamAuthProvider::GetEncryptedAppTicket(char* pTicket, int iSize)
     {
         return 0;
     }
-    return (int)gEncryptedAppTicket.copy(pTicket, gEncryptedAppTicket.size());
+    gEncryptedAppTicket.copy(pTicket, gEncryptedAppTicket.size());
+    return (int)gEncryptedAppTicket.size();
 }
 
 // FUNCTION: SWBF2 0x0052ed50
 const char* gf::SteamAuthProvider::GetPersonaName()
 {
-    if (!SteamUser_BLoggedOn() || !SteamFriends())
+    if (SteamUser_BLoggedOn())
     {
-        return 0;
+        if (SteamFriends())
+        {
+            ISteamFriends* pFriends = SteamFriends();
+            return pFriends->GetPersonaName();
+        }
     }
-    ISteamFriends* pFriends = SteamFriends();
-    return pFriends->GetPersonaName();
+    return 0;
 }
 
 // FUNCTION: SWBF2 0x0052e9e0
@@ -362,13 +362,13 @@ bool gf::isInitialized()
 bool gf::checkError()
 
 {
-    galaxy::api::IError* pError = GetGalaxyLastError();
-    if (!pError)
+    galaxy::api::IError* pError = (galaxy::api::IError*)GetGalaxyLastError();
+    if (pError)
     {
-        return false;
+        pError->GetMsg();
+        return true;
     }
-    pError->GetMsg();
-    return true;
+    return false;
 }
 
 // FUNCTION: SWBF2 0x0052edd0
@@ -464,15 +464,17 @@ bool gf::utils::FromString(const char* pcValue, bool bDefault)
 // FUNCTION: SWBF2 0x0052efa0
 int gf::utils::FromString(const char* pcValue, int iDefault)
 {
-    sscanf(pcValue, "%d", &iDefault);
-    return iDefault;
+    int value = iDefault;
+    sscanf(pcValue, "%d", &value);
+    return value;
 }
 
 // FUNCTION: SWBF2 0x0052efd0
 unsigned int gf::utils::FromString(const char* pcValue, unsigned int uDefault)
 {
-    sscanf(pcValue, "%u", &uDefault);
-    return uDefault;
+    unsigned int value = uDefault;
+    sscanf(pcValue, "%u", &value);
+    return value;
 }
 
 // GLOBAL: SWBF2 0x01e55fb6
@@ -482,19 +484,17 @@ bool gFriendsStarted;
 bool gf::friends::start()
 {
     gFriendsStarted = false;
-    if (!gf::isInitialized())
+    if (gf::isInitialized())
     {
-        return false;
+        galaxy::api::IUser* pUser = (galaxy::api::IUser*)GetGalaxyUserInterface();
+        if (pUser->SignedIn())
+        {
+            galaxy::api::IFriends* pFriends = (galaxy::api::IFriends*)GetGalaxyFriendsInterface();
+            pFriends->RequestFriendList();
+            return !gf::checkError();
+        }
     }
-
-    galaxy::api::IUser* pUser = GetGalaxyUserInterface();
-    if (!pUser->SignedIn())
-    {
-        return false;
-    }
-
-    GetGalaxyFriendsInterface()->RequestFriendList();
-    return !gf::checkError();
+    return false;
 }
 
 // FUNCTION: SWBF2 0x0052f040
@@ -539,12 +539,12 @@ galaxy::api::GalaxyID gf::friends::friendByIndex(unsigned int uIndex)
 const char* gf::friends::friendNameByIndex(unsigned int uIndex)
 {
     galaxy::api::GalaxyID id = friendByIndex(uIndex);
-    if (!id.value)
+    if (id.value)
     {
-        return "";
+        void* pFriends = GetGalaxyFriendsInterface();
+        return ((galaxy::api::IFriends*)pFriends)->GetFriendPersonaName(id);
     }
-    galaxy::api::IFriends* pFriends = GetGalaxyFriendsInterface();
-    return pFriends->GetFriendPersonaName(id);
+    return "";
 }
 
 // GLOBAL: SWBF2 0x01e55fb4
@@ -596,38 +596,29 @@ bool gf::friends::isFriend(const galaxy::api::GalaxyID& id)
 bool gf::friends::isJoinableByIndex(unsigned int index)
 {
     const galaxy::api::GalaxyID id = friendByIndex(index);
-    if (!id.value)
+    if (id.value)
     {
-        return false;
+        if (gFriendConnectionStrings.count(id.ToUint64()))
+        {
+            return true;
+        }
     }
-    const std::pair<std::unordered_map<unsigned __int64, std::string>::iterator,
-                    std::unordered_map<unsigned __int64, std::string>::iterator> range =
-        gFriendConnectionStrings.equal_range(id.value);
-    return range.first != range.second;
+    return false;
 }
 
 // FUNCTION: SWBF2 0x0052f210
 const char* gf::friends::connectionStringByIndex(unsigned int index)
 {
     const galaxy::api::GalaxyID id = friendByIndex(index);
-    if (!id.value)
+    if (id.value)
     {
-        return 0;
+        if (gFriendConnectionStrings.count(id.ToUint64()))
+        {
+            const unsigned __int64 key = id.ToUint64();
+            return gFriendConnectionStrings[key].c_str();
+        }
     }
-    const std::pair<std::unordered_map<unsigned __int64, std::string>::iterator,
-                    std::unordered_map<unsigned __int64, std::string>::iterator> range =
-        gFriendConnectionStrings.equal_range(id.value);
-    if (range.first == range.second)
-    {
-        return 0;
-    }
-    std::unordered_map<unsigned __int64, std::string>::iterator entry =
-        gFriendConnectionStrings.find(id.value);
-    if (entry == gFriendConnectionStrings.end())
-    {
-        return gFriendConnectionStrings[id.value].c_str();
-    }
-    return entry->second.c_str();
+    return 0;
 }
 
 // LIBRARY: SWBF2 0x0052e560

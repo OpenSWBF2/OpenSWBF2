@@ -1,4 +1,5 @@
 #include "AmmoCounter.h"
+#include "WeaponInvisibility.h"
 #include "UnitController.h"
 #include "PebbleFL/Common/PblVector.h"
 
@@ -16,6 +17,10 @@
 #include "ControllerManager.h"
 #include "Damageable.h"
 #include "Entity.h"
+#include "EntityCarrier.h"
+#include "EntityHover.h"
+#include "EntitySoldier.h"
+#include "EntityWalker.h"
 #include "EventInfo.h"
 #include "GameLoop.h"
 #include "GameObject.h"
@@ -43,14 +48,6 @@
 
 // GLOBAL: SWBF2 0x007b28b0
 // __xmm@3f800000400000004040000040800000
-
-class EntitySoldier { public: static PblHash rttiHashEntitySoldier; };
-
-class EntityWalker { public: static PblHash rttiHashEntityWalker; };
-class EntityHover { public: static PblHash rttiHashEntityHover; };
-class EntityFlyer { public: static PblHash rttiHashEntityFlyer; };
-class WeaponInvisibility { public: static PblHash rttiHashWeaponInvisibility; };
-
 
  
 
@@ -86,12 +83,12 @@ int GetUnitsInRange(const PblVector3& vPos, float fRadius, GameObject** const pp
 
 namespace AIUtil
 {
-bool __fastcall ShouldStayInVehicle(Controllable* pMe);
+bool __fastcall ShouldStayInVehicle(const Controllable* pMe);
 }
 
 namespace AIUtil
 {
-bool __cdecl CanPotentiallySee(Controllable* pMe, const GameObject* pObject, float* pOut);
+bool __cdecl CanPotentiallySee(const Controllable* pMe, const GameObject* pObject, float* pOut);
 }
 
 namespace AIDebug
@@ -248,7 +245,7 @@ UnitController::UnitController(Controllable* pOwner)
     mSkip = false;
     mFriendlyCount = 0;
     mUpdateRate = 0.5f;
-    mLodState = 3;
+    mLodState = AILOD_NORMAL;
     mLowLevelUpdateSkips = 0;
     mLowLevelUpdateSkipDt = 0.0f;
     mVisionSkip = 0;
@@ -581,21 +578,21 @@ void UnitController::UpdateLodState()
     }
     mLodStateUpdateTime = GameLoop::GetMissionTime();
 
-    int iLod = 0;
-    const PblVector3& vMyPos = mOwner->GetMatrix().GetTranslation();
+    AILodState iLod = AILOD_WICKED_LOW;
+    const PblMatrix& mMyMatrix = mOwner->GetMatrix();
+    const PblVector3& vMyPos = mMyMatrix.GetTranslation();
     float fClosestDistSq = FLT_MAX;
     mLodHumanPlayer = 0;
 
     for (int i = 0; i < Character::sCharacterLimit; i++)
     {
-        Character* pCharacter = Character::GetPtr(i);
+        const Character* pCharacter = Character::GetPtr(i);
         if (pCharacter->mPlayerId < 0 || !pCharacter->GetControllable())
         {
             continue;
         }
-        const Character& rCharacter = *pCharacter;
 
-        int iCharLod = 3;
+        int iCharLod = AILOD_NORMAL;
         const PblVector3& vPos = pCharacter->GetControllable()->GetMatrix().GetTranslation();
         float dx = vPos.x - vMyPos.x;
         float dy = vPos.y - vMyPos.y;
@@ -604,23 +601,23 @@ void UnitController::UpdateLodState()
         int iHigh = GetLODDistHigh();
         if ((float)(iHigh * iHigh) > fDistSq)
         {
-            iCharLod = 4;
+            iCharLod = AILOD_HIGH;
         }
         else
         {
             int iLow = GetLODDistLow();
             if (fDistSq > (float)(iLow * iLow))
             {
-                iCharLod = 2;
+                iCharLod = AILOD_LOW;
             }
         }
 
-        if (!AIUtil::CanPotentiallySee(mOwner, rCharacter.GetControllable()->GetGameObject(), 0))
+        if (!AIUtil::CanPotentiallySee(mOwner, pCharacter->GetControllable()->GetGameObject(), 0))
         {
             iCharLod--;
         }
 
-        const GameObject* pSceneObj = rCharacter.GetControllable()->GetGameObject();
+        const GameObject* pSceneObj = pCharacter->GetControllable()->GetGameObject();
         if (pSceneObj->PortalActive() && !pSceneObj->IsActive(pvs::GetCurrentFrame_()))
         {
             iCharLod--;
@@ -630,27 +627,27 @@ void UnitController::UpdateLodState()
         {
             iCharLod = iLod;
         }
-        iLod = iCharLod;
+        iLod = static_cast<AILodState>(iCharLod);
         if (fClosestDistSq > fDistSq)
         {
             fClosestDistSq = fDistSq;
             mLodHumanPlayer = pCharacter;
         }
-        if (iLod == 4)
+        if (iLod == AILOD_HIGH)
         {
             break;
         }
     }
 
-    if (!AIDebug::SkipCameraForLODs() && iLod != 4)
+    if (!AIDebug::SkipCameraForLODs() && iLod != AILOD_HIGH)
     {
         float fRadius = AIUtil::GetCollisionRadius(mOwner->GetGameObject()) * 3.0f;
         if (CameraManager::sInstance->IsInsideAnyCamera(vMyPos, fRadius, (float)GetLODDistLow()))
         {
-            iLod = 3;
+            iLod = AILOD_NORMAL;
             if (CameraManager::sInstance->IsInsideAnyCamera(vMyPos, fRadius, (float)GetLODDistHigh()))
             {
-                iLod = 4;
+                iLod = AILOD_HIGH;
             }
         }
     }
@@ -818,7 +815,7 @@ void UnitController::UseAutoTurrets()
 
     const GameObject* pTarget = mThreatManager.GetVisibleObject();
     const Controllable* pTargetCtl = pTarget ? pTarget->GetControllable() : 0;
-    Controller* pTargetCtrl = pTargetCtl ? pTargetCtl->mCtrl : 0;
+    const Controller* pTargetCtrl = pTargetCtl ? pTargetCtl->mCtrl : 0;
     if (!pTargetCtrl || !pTargetCtrl->IsInCrowd())
     {
         return;
@@ -830,7 +827,7 @@ void UnitController::UseAutoTurrets()
 
     for (int i = 0; i < mOwner->GetWeaponCount(); ++i)
     {
-        Weapon* pWeapon = mOwner->GetWeaponPtr(i);
+        const Weapon* pWeapon = mOwner->GetWeaponPtr(i);
         const WeaponClass* pClass = pWeapon->mClass;
         if (!pClass || pWeapon->CheckOverheat())
         {

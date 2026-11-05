@@ -5,7 +5,15 @@ namespace GameVoiceChat
     void Close();
     void Reset();
 
+    class Encoder;
+    class Decoder;
     class Node;
+    extern Encoder* gEncoders[1];
+    extern Decoder* gDecoders[1];
+    extern Node* gNodes[1];
+    extern unsigned char* gEncoderStorage;
+    extern unsigned char* gDecoderStorage;
+    extern unsigned char* gNodeStorage;
     Node* GetNode(unsigned int nodeIndex);
     Node* FindNodeByDeviceID(const unsigned int deviceID);
     Node* GetEnabledNode(unsigned int uiEnabledIndex, unsigned int& uiIndex);

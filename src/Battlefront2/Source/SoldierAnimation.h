@@ -1,5 +1,7 @@
 #pragma once
 
+#include "SoldierAnimationData.h"
+
 class MemoryPool;
 class ZephyrAnim;
 class SoldierAnimationData;
@@ -21,6 +23,11 @@ public:
 
     unsigned short GetAnimationNumFrames() const;
     float GetAnimationLength() const { return (GetAnimationNumFrames() - 1) * 0.033333335f; }
+
+    SoldierAnimationData::AIM_TYPE GetAimType() const
+    {
+        return (SoldierAnimationData::AIM_TYPE)m_pAnimData->m_uiAimType;
+    }
 
     unsigned char GetAnimIndex() const;
     unsigned char GetSyncType() const;

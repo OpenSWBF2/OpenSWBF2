@@ -397,19 +397,15 @@ void BuildMultiSampleTypeList(D3DDeviceCombo* pDeviceCombo)
 // FUNCTION: SWBF2 0x00716370
 void BuildDSMSConflictList(D3DDeviceCombo* pDeviceCombo)
 {
-    PblList<D3DFormat>& dsList = pDeviceCombo->DepthStencilFormatList;
-    for (PblList<D3DFormat>::Node* pDSNode = dsList.GetFirst();
-         pDSNode->_pObject != dsList._head._pObject;
-         pDSNode = pDSNode->_pNext)
+    for (PblList<D3DFormat>::Itor idsf = pDeviceCombo->DepthStencilFormatList.Begin();
+         idsf != pDeviceCombo->DepthStencilFormatList.End(); ++idsf)
     {
-        const D3DFORMAT dsFmt = pDSNode->_pObject->format;
+        const D3DFORMAT dsFmt = idsf->format;
 
-        PblList<D3DMultisampleType>& msList = pDeviceCombo->MultiSampleTypeList;
-        for (PblList<D3DMultisampleType>::Node* pMSNode = msList.GetFirst();
-             pMSNode->_pObject != msList._head._pObject;
-             pMSNode = pMSNode->_pNext)
+        for (PblList<D3DMultisampleType>::Itor ims = pDeviceCombo->MultiSampleTypeList.Begin();
+             ims != pDeviceCombo->MultiSampleTypeList.End(); ++ims)
         {
-            const D3DMULTISAMPLE_TYPE msType = pMSNode->_pObject->MSType;
+            const D3DMULTISAMPLE_TYPE msType = ims->MSType;
 
             if (SUCCEEDED(m_pD3D->CheckDeviceMultiSampleType(pDeviceCombo->AdapterOrdinal,
                                                              pDeviceCombo->DevType,
@@ -423,7 +419,7 @@ void BuildDSMSConflictList(D3DDeviceCombo* pDeviceCombo)
             D3DDSMSConflict* pDSMSConflict = new D3DDSMSConflict;
             pDSMSConflict->DSFormat = dsFmt;
             pDSMSConflict->MSType = msType;
-            pDeviceCombo->DSMSConflictList.AddLast(&pDSMSConflict->mNode, pDSMSConflict);
+            pDeviceCombo->DSMSConflictList.Add(&pDSMSConflict->mNode, pDSMSConflict);
         }
     }
 }
@@ -533,11 +529,10 @@ void EnumerateDeviceCombos(D3DDeviceInfo* pDeviceInfo, PblList<D3DFormat>* pAdap
     abWindowed[0] = false;
     abWindowed[1] = true;
 
-    for (PblList<D3DFormat>::Node* pNode = pAdapterFormatList->GetFirst();
-         pNode->_pObject != pAdapterFormatList->_head._pObject;
-         pNode = pNode->_pNext)
+    for (PblList<D3DFormat>::Itor iaf = pAdapterFormatList->Begin();
+         iaf != pAdapterFormatList->End(); ++iaf)
     {
-        const D3DFORMAT adapterFormat = pNode->_pObject->format;
+        const D3DFORMAT adapterFormat = iaf->format;
 
         for (unsigned int ifmt = 0; ifmt < 6; ++ifmt)
         {
@@ -609,7 +604,7 @@ void EnumerateDeviceCombos(D3DDeviceInfo* pDeviceInfo, PblList<D3DFormat>* pAdap
                 }
 
                 BuildPresentIntervalList(pDeviceInfo, pDeviceCombo);
-                pDeviceInfo->DeviceComboList.AddLast(&pDeviceCombo->mNode, pDeviceCombo);
+                pDeviceInfo->DeviceComboList.Add(&pDeviceCombo->mNode, pDeviceCombo);
             }
         }
     }
@@ -670,10 +665,7 @@ void Enumerate(unsigned int uiMinColorChannelBits, unsigned int uiMinAlphaChanne
         pAdapterInfo->AdapterOrdinal = uiAdapter;
         m_pD3D->GetAdapterIdentifier(uiAdapter, 0, &pAdapterInfo->AdapterIdentifier);
 
-        while (adapterFormatList.GetCount() > 0)
-        {
-            adapterFormatList.Remove(adapterFormatList.GetFirst());
-        }
+        adapterFormatList.Clear();
 
         const UINT uiNumAdapterModes =
             m_pD3D->GetAdapterModeCount(uiAdapter, D3DFMT_X8R8G8B8);
@@ -729,15 +721,14 @@ void Enumerate(unsigned int uiMinColorChannelBits, unsigned int uiMinAlphaChanne
             }
             if (pDisplayMode->mNode._pList == 0)
             {
-                pAdapterInfo->DisplayModeList.AddLast(&pDisplayMode->mNode, pDisplayMode);
+                pAdapterInfo->DisplayModeList.Add(&pDisplayMode->mNode, pDisplayMode);
             }
 
             bool bFound = false;
-            for (PblList<D3DFormat>::Node* pFmt = adapterFormatList.GetFirst();
-                 pFmt->_pObject != adapterFormatList._head._pObject;
-                 pFmt = pFmt->_pNext)
+            for (PblList<D3DFormat>::Itor it = adapterFormatList.Begin();
+                 it != adapterFormatList.End(); ++it)
             {
-                if (pFmt->_pObject->format == pDisplayMode->displayMode.Format)
+                if (it->format == pDisplayMode->displayMode.Format)
                 {
                     bFound = true;
                     break;
@@ -747,7 +738,7 @@ void Enumerate(unsigned int uiMinColorChannelBits, unsigned int uiMinAlphaChanne
             {
                 D3DFormat* pAdapterFormat = new D3DFormat;
                 pAdapterFormat->format = displayMode.Format;
-                adapterFormatList.AddLast(&pAdapterFormat->mNode, pAdapterFormat);
+                adapterFormatList.Add(&pAdapterFormat->mNode, pAdapterFormat);
             }
         }
 
@@ -759,7 +750,7 @@ void Enumerate(unsigned int uiMinColorChannelBits, unsigned int uiMinAlphaChanne
         }
         else
         {
-            m_AdapterInfoList.AddLast(&pAdapterInfo->mNode, pAdapterInfo);
+            m_AdapterInfoList.Add(&pAdapterInfo->mNode, pAdapterInfo);
         }
     }
 

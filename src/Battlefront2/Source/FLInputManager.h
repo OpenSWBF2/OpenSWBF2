@@ -64,10 +64,12 @@ public:
 
     bool GetFlip() { return mFlip[GetInputMode()] != 0; }
     bool GetMouseAssist() const { return mMouseAssist[GetInputMode()]; }
+    unsigned char GetJoystickSensitivityX() const { return mJoystickSensitivityX[GetInputMode()]; }
+    unsigned char GetJoystickSensitivityY() const { return mJoystickSensitivityY[GetInputMode()]; }
     void SetMouseAssist(bool assist, int mode) { mMouseAssist[mode] = assist; }
 
     void SetFlip(bool bFlip) { mFlip[GetInputMode()] = bFlip; }
-    bool GetFlipForMode(int iMode) const { return mFlip[iMode]; }
+    bool GetFlipForMode(int iMode) { return mFlip[iMode]; }
 
     void SetKeyBindingsFromMode(ActionKey* pKeys, unsigned int uiMode)
     {
@@ -84,12 +86,7 @@ public:
     static UiBindKeys sKeyboardGuiBindings[144];
     static UiBindKeys s_defUIBindings[76];
 
-    union {
 
-    unsigned char mRawInputStorage[0x28a0 - 4];
-    struct {
-
-    unsigned char mReservedBeforeMode[4];
     unsigned int mMode;
     bool mFlip[5];
     unsigned char mReservedAfterFlip[3];
@@ -115,8 +112,7 @@ public:
     unsigned char mReservedBeforeMouse[2];
     RedMouse* _redMouse;
     RedKeyboard* _redKeyboard;
-    unsigned char mReservedBeforeSensitivity[4];
-    unsigned char mMouseSensitivity[5][8];
+    double mMouseSensitivity[5];
     unsigned char mJoystickSensitivityX[5];
     unsigned char mJoystickSensitivityY[5];
     bool mMouseAssist[5];
@@ -126,16 +122,13 @@ public:
     unsigned short m_ChatWords[64];
     unsigned char m_ChatLength;
     unsigned char m_KeyDownTime[144];
-    unsigned char mReservedBeforeMousePosition[5];
-    unsigned char mMouseOldX[8];
-    unsigned char mMouseOldY[8];
+    double mMouseOldX;
+    double mMouseOldY;
     float mMouseOldXTimer;
     float mMouseOldYTimer;
 
     int mLastMouseDeltaX;
     int mLastMouseDeltaY;
-    };
-    };
 };
  
  

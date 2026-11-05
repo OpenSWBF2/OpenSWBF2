@@ -169,32 +169,6 @@ void pcPerVertexDiffuseLightingShader::Render_Fixed(const RenderItem*, unsigned 
 {
 }
 
-static inline void SetOmniLightConstants(pcRedVertexShaderConstantRegister* pRegs, int k,
-                                         const RedOmniLight* pLight)
-{
-    pRegs[25 + 2 * k].component[0] = pLight->m_color.r;
-    pRegs[25 + 2 * k].component[1] = pLight->m_color.g;
-    pRegs[25 + 2 * k].component[2] = pLight->m_color.b;
-    pRegs[25 + 2 * k].component[3] = 1.0f;
-    pRegs[26 + 2 * k].component[0] = pLight->m_pos.x;
-    pRegs[26 + 2 * k].component[1] = pLight->m_pos.y;
-    pRegs[26 + 2 * k].component[2] = pLight->m_pos.z;
-    pRegs[26 + 2 * k].component[3] = pLight->m_fRadiusInvSq;
-}
-
-static inline void SetNullOmniLightConstants(pcRedVertexShaderConstantRegister* pRegs, int k)
-{
-    const RedColorValue& black = RedColorValue::BLACK;
-    pRegs[25 + 2 * k].component[0] = black.r;
-    pRegs[25 + 2 * k].component[1] = black.g;
-    pRegs[25 + 2 * k].component[2] = black.b;
-    pRegs[25 + 2 * k].component[3] = 1.0f;
-    pRegs[26 + 2 * k].component[0] = 0.0f;
-    pRegs[26 + 2 * k].component[1] = 0.0f;
-    pRegs[26 + 2 * k].component[2] = 0.0f;
-    pRegs[26 + 2 * k].component[3] = 1.0f;
-}
-
 // FUNCTION: SWBF2 0x00710970
 void pcPerVertexDiffuseLightingShader::Render_Prog1(const RenderItem* pItem, unsigned int) const
 {
@@ -217,54 +191,26 @@ void pcPerVertexDiffuseLightingShader::Render_Prog1(const RenderItem* pItem, uns
         if (!bVertexLit)
         {
             const RedAmbientLight* pAmbient = &pLighting->ambientLight;
-            pRegs[19].component[0] = pAmbient->m_topColor.r;
-            pRegs[19].component[1] = pAmbient->m_topColor.g;
-            pRegs[19].component[2] = pAmbient->m_topColor.b;
-            pRegs[19].component[3] = pAmbient->m_topColor.a;
-            pRegs[20].component[0] = pAmbient->m_bottomColor.r;
-            pRegs[20].component[1] = pAmbient->m_bottomColor.g;
-            pRegs[20].component[2] = pAmbient->m_bottomColor.b;
-            pRegs[20].component[3] = pAmbient->m_bottomColor.a;
+            pRegs[19].SetColor(pAmbient->m_topColor);
+            pRegs[20].SetColor(pAmbient->m_bottomColor);
         }
         else
         {
-            pRegs[19].component[0] = black.r;
-            pRegs[19].component[1] = black.g;
-            pRegs[19].component[2] = black.b;
-            pRegs[19].component[3] = black.a;
-            pRegs[20].component[0] = black.r;
-            pRegs[20].component[1] = black.g;
-            pRegs[20].component[2] = black.b;
-            pRegs[20].component[3] = black.a;
+            pRegs[19].SetColor(black);
+            pRegs[20].SetColor(black);
         }
 
-        pRegs[21].SetFloats(pLighting->pDirectionalLights[0]->m_color.r,
-                            pLighting->pDirectionalLights[0]->m_color.g,
-                            pLighting->pDirectionalLights[0]->m_color.b,
-                            pLighting->pDirectionalFactor[0]);
-        pRegs[22].SetFloats(pLighting->pDirectionalLights[0]->m_vDirection.x,
-                            pLighting->pDirectionalLights[0]->m_vDirection.y,
-                            pLighting->pDirectionalLights[0]->m_vDirection.z);
+        pRegs[21].SetColorAlpha(pLighting->pDirectionalLights[0]->m_color, pLighting->pDirectionalFactor[0]);
+        pRegs[22].SetVectorXYZ(pLighting->pDirectionalLights[0]->m_vDirection);
         if (pLighting->pDirectionalLights[1])
         {
-            pRegs[23].SetFloats(pLighting->pDirectionalLights[1]->m_color.r,
-                                pLighting->pDirectionalLights[1]->m_color.g,
-                                pLighting->pDirectionalLights[1]->m_color.b,
-                                pLighting->pDirectionalFactor[1]);
-            pRegs[24].SetFloats(pLighting->pDirectionalLights[1]->m_vDirection.x,
-                                pLighting->pDirectionalLights[1]->m_vDirection.y,
-                                pLighting->pDirectionalLights[1]->m_vDirection.z);
+            pRegs[23].SetColorAlpha(pLighting->pDirectionalLights[1]->m_color, pLighting->pDirectionalFactor[1]);
+            pRegs[24].SetVectorXYZ(pLighting->pDirectionalLights[1]->m_vDirection);
         }
         else
         {
-            pRegs[23].component[0] = black.r;
-            pRegs[23].component[1] = black.g;
-            pRegs[23].component[2] = black.b;
-            pRegs[23].component[3] = 0.0f;
-            pRegs[24].component[0] = 0.0f;
-            pRegs[24].component[1] = 0.0f;
-            pRegs[24].component[2] = 0.0f;
-            pRegs[24].component[3] = 1.0f;
+            pRegs[23].SetColorAlpha(black, 0.0f);
+            pRegs[24].SetFloats(0.0f, 0.0f, 0.0f, 1.0f);
         }
         RedRenderer::pcUnlockVertexShaderConstants(pRegs);
 
@@ -272,11 +218,9 @@ void pcPerVertexDiffuseLightingShader::Render_Prog1(const RenderItem* pItem, uns
         {
             pRegs = RedRenderer::pcLockVertexShaderConstants(29, 5);
             const RedSpotLight* pSpot = pLighting->pSpotLights[0];
-            pRegs[29].SetFloats(pSpot->m_color.r, pSpot->m_color.g, pSpot->m_color.b, 1.0f);
-            pRegs[30].SetFloats(pSpot->m_vPos.x, pSpot->m_vPos.y, pSpot->m_vPos.z,
-                                pSpot->m_fRadiusInvSq);
-            pRegs[31].SetFloats(pSpot->m_vDirection.x, pSpot->m_vDirection.y,
-                                pSpot->m_vDirection.z, pSpot->m_bBidirectional ? 2.0f : 0.0f);
+            pRegs[29].SetColorAlpha(pSpot->m_color, 1.0f);
+            pRegs[30].SetVectorW(pSpot->m_vPos, pSpot->m_fRadiusInvSq);
+            pRegs[31].SetVectorW(pSpot->m_vDirection, pSpot->m_bBidirectional ? 2.0f : 0.0f);
             pRegs[32].SetFloats(
                 pSpot->m_fCosHalfOuterConeAngle, pSpot->m_fCosHalfInnerConeAngle,
                 1.0f / (pSpot->m_fCosHalfInnerConeAngle - pSpot->m_fCosHalfOuterConeAngle),
@@ -284,18 +228,18 @@ void pcPerVertexDiffuseLightingShader::Render_Prog1(const RenderItem* pItem, uns
             RedRenderer::pcUnlockVertexShaderConstants(pRegs);
 
             pRegs = RedRenderer::pcLockVertexShaderConstants(35, 3);
-            pRegs[35].SetFloats(pSpot->GetProjectionMatrix().m[0][0],
-                                pSpot->GetProjectionMatrix().m[1][0],
-                                pSpot->GetProjectionMatrix().m[2][0],
-                                pSpot->GetProjectionMatrix().m[3][0]);
-            pRegs[36].SetFloats(pSpot->GetProjectionMatrix().m[0][1],
-                                pSpot->GetProjectionMatrix().m[1][1],
-                                pSpot->GetProjectionMatrix().m[2][1],
-                                pSpot->GetProjectionMatrix().m[3][1]);
-            pRegs[37].SetFloats(pSpot->GetProjectionMatrix().m[0][3],
-                                pSpot->GetProjectionMatrix().m[1][3],
-                                pSpot->GetProjectionMatrix().m[2][3],
-                                pSpot->GetProjectionMatrix().m[3][3]);
+            pRegs[35].SetFloats(pSpot->GetProjectionMatrix()(0, 0),
+                                pSpot->GetProjectionMatrix()(1, 0),
+                                pSpot->GetProjectionMatrix()(2, 0),
+                                pSpot->GetProjectionMatrix()(3, 0));
+            pRegs[36].SetFloats(pSpot->GetProjectionMatrix()(0, 1),
+                                pSpot->GetProjectionMatrix()(1, 1),
+                                pSpot->GetProjectionMatrix()(2, 1),
+                                pSpot->GetProjectionMatrix()(3, 1));
+            pRegs[37].SetFloats(pSpot->GetProjectionMatrix()(0, 3),
+                                pSpot->GetProjectionMatrix()(1, 3),
+                                pSpot->GetProjectionMatrix()(2, 3),
+                                pSpot->GetProjectionMatrix()(3, 3));
             RedRenderer::pcUnlockVertexShaderConstants(pRegs);
 
             RedRenderer::pcSetTexture(0, RedTexture::Find(PblHash("flames1")));
@@ -321,31 +265,71 @@ void pcPerVertexDiffuseLightingShader::Render_Prog1(const RenderItem* pItem, uns
             pRegs = RedRenderer::pcLockVertexShaderConstants(25, 8);
             if (pLighting->pOmniLights[3])
             {
-                SetOmniLightConstants(pRegs, 0, pLighting->pOmniLights[0]);
-                SetOmniLightConstants(pRegs, 1, pLighting->pOmniLights[1]);
-                SetOmniLightConstants(pRegs, 2, pLighting->pOmniLights[2]);
-                SetOmniLightConstants(pRegs, 3, pLighting->pOmniLights[3]);
+                {
+                    const RedOmniLight* pLight = pLighting->pOmniLights[0];
+                    pRegs[25].SetColorAlpha(pLight->m_color, 1.0f);
+                    pRegs[26].SetVectorW(pLight->m_pos, pLight->m_fRadiusInvSq);
+                }
+                {
+                    const RedOmniLight* pLight = pLighting->pOmniLights[1];
+                    pRegs[27].SetColorAlpha(pLight->m_color, 1.0f);
+                    pRegs[28].SetVectorW(pLight->m_pos, pLight->m_fRadiusInvSq);
+                }
+                {
+                    const RedOmniLight* pLight = pLighting->pOmniLights[2];
+                    pRegs[29].SetColorAlpha(pLight->m_color, 1.0f);
+                    pRegs[30].SetVectorW(pLight->m_pos, pLight->m_fRadiusInvSq);
+                }
+                {
+                    const RedOmniLight* pLight = pLighting->pOmniLights[3];
+                    pRegs[31].SetColorAlpha(pLight->m_color, 1.0f);
+                    pRegs[32].SetVectorW(pLight->m_pos, pLight->m_fRadiusInvSq);
+                }
             }
             else if (pLighting->pOmniLights[2])
             {
-                SetOmniLightConstants(pRegs, 0, pLighting->pOmniLights[0]);
-                SetOmniLightConstants(pRegs, 1, pLighting->pOmniLights[1]);
-                SetOmniLightConstants(pRegs, 2, pLighting->pOmniLights[2]);
-                SetNullOmniLightConstants(pRegs, 3);
+                {
+                    const RedOmniLight* pLight = pLighting->pOmniLights[0];
+                    pRegs[25].SetColorAlpha(pLight->m_color, 1.0f);
+                    pRegs[26].SetVectorW(pLight->m_pos, pLight->m_fRadiusInvSq);
+                }
+                {
+                    const RedOmniLight* pLight = pLighting->pOmniLights[1];
+                    pRegs[27].SetColorAlpha(pLight->m_color, 1.0f);
+                    pRegs[28].SetVectorW(pLight->m_pos, pLight->m_fRadiusInvSq);
+                }
+                {
+                    const RedOmniLight* pLight = pLighting->pOmniLights[2];
+                    pRegs[29].SetColorAlpha(pLight->m_color, 1.0f);
+                    pRegs[30].SetVectorW(pLight->m_pos, pLight->m_fRadiusInvSq);
+                }
+                pRegs[31].SetColorAlpha(black, 1.0f);
+                pRegs[32].SetFloats(0.0f, 0.0f, 0.0f, 1.0f);
             }
             else
             {
-                SetOmniLightConstants(pRegs, 0, pLighting->pOmniLights[0]);
+                {
+                    const RedOmniLight* pLight = pLighting->pOmniLights[0];
+                    pRegs[25].SetColorAlpha(pLight->m_color, 1.0f);
+                    pRegs[26].SetVectorW(pLight->m_pos, pLight->m_fRadiusInvSq);
+                }
                 if (pLighting->pOmniLights[1])
                 {
-                    SetOmniLightConstants(pRegs, 1, pLighting->pOmniLights[1]);
+                    {
+                        const RedOmniLight* pLight = pLighting->pOmniLights[1];
+                        pRegs[27].SetColorAlpha(pLight->m_color, 1.0f);
+                        pRegs[28].SetVectorW(pLight->m_pos, pLight->m_fRadiusInvSq);
+                    }
                 }
                 else
                 {
-                    SetNullOmniLightConstants(pRegs, 1);
+                    pRegs[27].SetColorAlpha(black, 1.0f);
+                    pRegs[28].SetFloats(0.0f, 0.0f, 0.0f, 1.0f);
                 }
-                SetNullOmniLightConstants(pRegs, 2);
-                SetNullOmniLightConstants(pRegs, 3);
+                pRegs[29].SetColorAlpha(black, 1.0f);
+                pRegs[30].SetFloats(0.0f, 0.0f, 0.0f, 1.0f);
+                pRegs[31].SetColorAlpha(black, 1.0f);
+                pRegs[32].SetFloats(0.0f, 0.0f, 0.0f, 1.0f);
             }
             RedRenderer::pcUnlockVertexShaderConstants(pRegs);
         }
@@ -404,7 +388,7 @@ void pcPerVertexDiffuseLightingShader::_InitPipelineFuncArray()
 // FUNCTION: SWBF2 0x00711480
 void pcPerVertexDiffuseLightingShader::_Read(PblFileChunk& chunk) const
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId != 0x454d414e)

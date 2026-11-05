@@ -59,7 +59,7 @@ namespace PblBuildType
 }
 namespace PblBuildType
 {
-    extern unsigned char gCreateMemoryProfile;
+    extern bool gCreateMemoryProfile;
 }
 namespace PblBuildType
 {
@@ -140,7 +140,7 @@ int ShellLoop::Init()
 
     ObjectiveManager::Init();
     PAManager::Create();
-    LoadUtil::ReadDataFile("shell.lvl", 0, 0, 0, 0);
+    LoadUtil::ReadDataFile("shell.lvl", 0, 0, 0, 0, 0);
 
     LuaHelper::InitState();
     lua_setgcthreshold(LuaHelper::mState, 0x400);

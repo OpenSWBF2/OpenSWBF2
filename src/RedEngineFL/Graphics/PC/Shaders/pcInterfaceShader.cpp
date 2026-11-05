@@ -10,6 +10,7 @@
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "RedEngineFL/Graphics/PC/pcRedPrimitive.h"
 #include "RedEngineFL/Graphics/PC/pcRedTexture.h"
+#include "RedEngineFL/Graphics/RedMaterial.h"
 #include "PebbleFL/Common/PblMatrix.h"
 
 void __cdecl PblTraceP(const char* Format, ...);
@@ -302,12 +303,9 @@ void pcInterfaceShader::Render_Prog1(const RenderItem* pItem, unsigned int) cons
         pRegs[40].component[3] = -2.0f;
         RedRenderer::pcUnlockVertexShaderConstants(pRegs);
 
-        PblVector4 shadowColor;
-        shadowColor.x = RedColor::BLACK.r * (1.0f / 255.0f);
-        shadowColor.y = RedColor::BLACK.g * (1.0f / 255.0f);
-        shadowColor.z = RedColor::BLACK.b * (1.0f / 255.0f);
-        shadowColor.w = (unsigned char)(pItem->tweakColor.a >> 1) * (1.0f / 255.0f);
-        RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, &shadowColor.x, 1);
+        const RedColorValue shadowColor(
+            RedColor(RedColor::BLACK, (unsigned char)(pItem->tweakColor.a >> 1)));
+        RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, &shadowColor.r, 1);
         pItem->pPrim->Draw();
     }
 
@@ -383,7 +381,7 @@ void pcInterfaceShader::_InitPipelineFuncArray()
 // FUNCTION: SWBF2 0x00702250
 void pcInterfaceShader::_Read(PblFileChunk& chunk) const
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId != 0x454d414e)
@@ -431,6 +429,7 @@ pcInterfaceShader pcInterfaceShader::s_Factory;
 // `dynamic initializer for 'pcInterfaceShader::s_shaderDef''
 // SYNTHETIC: SWBF2 0x00769c80
 // `dynamic atexit destructor for 'pcInterfaceShader::s_shaderDef''
+// STRING: SWBF2 0x00784744
 pcRedShaderDef pcInterfaceShader::s_shaderDef("interface_shader.xml");
 
 // SYNTHETIC: SWBF2 0x004098f0

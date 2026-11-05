@@ -234,30 +234,26 @@ void NavigatorFollowTarget::UpdateState(float dt)
 // FUNCTION: SWBF2 0x005acaf0
 void NavigatorFollowTarget::UpdateTarget()
 {
-    if (!HandleObject(mFollowTarget))
+    if (!mFollowTarget)
     {
         SetNextState(100);
         return;
     }
 
-    const int iPrev = (mCrumbHead > 0) ? mCrumbHead - 1 : NUM_CRUMBS - 1;
-    const int iNext = (mCrumbHead < NUM_CRUMBS - 1) ? mCrumbHead + 1 : 0;
+    const int iHead = mCrumbHead;
+    const int iPrev = (iHead > 0) ? iHead - 1 : NUM_CRUMBS - 1;
+    const int iNext = (iHead < NUM_CRUMBS - 1) ? iHead + 1 : 0;
 
-    const PblVector3& vWobble = GetSineRandomOffsetXZ(
-        HandleObject(mFollowTarget),
-        ReserveManager::GetReserveOrder(HandleObject(mFollowTarget),
-                                        mOwner->mOwner->mOwner->GetGameObject(), RT_FORMATION));
-    const float fOffsetX = vWobble.x * 0.3f;
-    const float fOffsetY = vWobble.y * 0.3f;
-    const float fOffsetZ = vWobble.z * 0.3f;
-
-    PblVector3 vPos;
-    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vPos), reinterpret_cast<const D3DXVECTOR3*>(&mFollowOffset), reinterpret_cast<const D3DXMATRIX*>(&static_cast<const CollisionObject&>(*HandleObject(mFollowTarget)).GetMatrix()));
-    PblVector3& vHead = mCrumbBuffer[mCrumbHead];
-    vHead = PblVector3(vPos.x + fOffsetX, vPos.y + fOffsetY, vPos.z + fOffsetZ);
+    Controllable* pMe = mOwner->mOwner->mOwner;
+    PblVector3 vOffset = GetSineRandomOffsetXZ(
+        mFollowTarget,
+        ReserveManager::GetReserveOrder(mFollowTarget,
+                                        pMe->GetGameObject(), RT_FORMATION)) * 0.3f;
+    mCrumbBuffer[iHead] = mFollowTarget->GetMatrix().ApplyTransform(mFollowOffset) + vOffset;
+    PblVector3& vHead = mCrumbBuffer[iHead];
 
     PblVector3 vNormal;
-    PathFinder::PushValidPoint(GameObjectPosition(HandleObject(mFollowTarget)), vHead, vNormal,
+    PathFinder::PushValidPoint(mFollowTarget->GetPosition(), vHead, vNormal,
                                GetMyRadius(), GetMyProhibit(), (const Obstacle**)mIgnore, mIgnoreCnt);
 
     const PblVector3& vPrev = mCrumbBuffer[iPrev];

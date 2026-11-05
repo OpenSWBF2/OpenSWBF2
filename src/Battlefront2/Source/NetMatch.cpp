@@ -71,7 +71,9 @@ extern NetAddr myAddr;
 galaxy::api::IMatchmaking* GetGalaxyMatchmaking();
 hostent* getlocalhost();
 bool PumpGalaxyMatchmaking();
-void ResetLanRegistration();
+void StartRegisterLanGame();
+void UpdateRegisterLanGame();
+void EndFindLanGames();
 
 void ReadString(NetPktGroup& group, char* text, unsigned int capacity);
 void WriteString(NetPktGroup& group, const char* text, unsigned int capacity);
@@ -86,9 +88,9 @@ unsigned int NetSetup::GetPassword()
 static bool IsPrivateIP(unsigned long addr)
 {
     unsigned int ip = ntohl(addr);
-    int b1 = ip >> 24;
-    int b2 = (ip >> 16) & 0xff;
-    return b1 == 10 || (b1 == 172 && b2 >= 16 && b2 <= 31) ||
+    unsigned int b1 = ip >> 24;
+    unsigned int b2 = (ip >> 16) & 0xff;
+    return b1 == 10 || (b1 == 172 && b2 - 16 <= 15) ||
            (b1 == 192 && b2 == 168);
 }
 
@@ -100,13 +102,16 @@ unsigned long GetPrivateIP()
     {
         return 0;
     }
-    for (char** addr = host->h_addr_list; *addr; ++addr)
+    int index = 0;
+    char* address;
+    while ((address = host->h_addr_list[index]) != 0)
     {
-        unsigned long ip = *(unsigned long*)*addr;
+        unsigned long ip = *(unsigned long*)address;
         if (IsPrivateIP(ip))
         {
             return ip;
         }
+        ++index;
     }
     return 0;
 }
@@ -159,7 +164,7 @@ void NetMatch::StartRegisterGame(bool)
             {
                 addr->privPort = NetComm::GetDirectPort();
                 netLanRegisterState = 1;
-                ResetLanRegistration();
+                StartRegisterLanGame();
                 netMatchOperation = 1;
             }
         }
@@ -216,10 +221,7 @@ void __fastcall NetMatch::EndFindGames(bool clearMatchmaking)
     }
     if (NetComm::IsLAN())
     {
-        closesocket((SOCKET)netBroadcastSendSocket);
-        netBroadcastSendSocket = INVALID_SOCKET;
-        closesocket((SOCKET)netBroadcastRecvSocket);
-        netBroadcastRecvSocket = INVALID_SOCKET;
+        EndFindLanGames();
         return;
     }
     netLobbyState = 0;
@@ -241,7 +243,11 @@ void NetMatch::UpdateFindGames()
 // FUNCTION: SWBF2 0x005d5f90
 bool NetMatch::IsDoneFindGames()
 {
-    return !NetComm::IsLAN() && netLobbyState == 2;
+    if (NetComm::IsLAN())
+    {
+        return false;
+    }
+    return netLobbyState == 2;
 }
 
 // FUNCTION: SWBF2 0x005d5fb0
@@ -302,40 +308,46 @@ void NetMatch::EndJoinGame()
 // FUNCTION: SWBF2 0x005d60a0
 bool NetMatch::StartConnect(NetAddr& address, NetKey& key, int destination)
 {
-    return NetComm::IsLAN();
+    if (NetComm::IsLAN())
+    {
+        return true;
+    }
+    return false;
 }
 
 // FUNCTION: SWBF2 0x005d60b0
 bool NetMatch::UpdateConnect(NetAddr&, NetKey&, int, int& connected)
 {
-    if (NetComm::IsLAN())
+    if (!NetComm::IsLAN())
+    {
+        bool hasLobby = netEnteredLobbyId != 0;
+        connected = hasLobby ? 13 : JRR_CONNECTION_LOST;
+        PumpGalaxyMatchmaking();
+        if (netLobbyState != 3)
+        {
+            int state = netConnectState;
+            switch (state)
+            {
+            case 0:
+                break;
+            case 1:
+                connected = 11;
+                break;
+            case 2:
+                connected = JRR_FULL;
+                break;
+            default:
+                connected = 12;
+                break;
+            }
+            return state == 0;
+        }
+    }
+    else
     {
         connected = 13;
-        return true;
     }
-    bool hasLobby = netEnteredLobbyId != 0;
-    connected = hasLobby ? 13 : JRR_CONNECTION_LOST;
-    PumpGalaxyMatchmaking();
-    if (netLobbyState == 3)
-    {
-        return true;
-    }
-    int state = netConnectState;
-    switch (state)
-    {
-    case 0:
-        break;
-    case 1:
-        connected = 11;
-        break;
-    case 2:
-        connected = JRR_FULL;
-        break;
-    default:
-        connected = 12;
-        break;
-    }
-    return state == 0;
+    return true;
 }
 
 // FUNCTION: SWBF2 0x005d6150
@@ -350,16 +362,20 @@ void NetMatch::SetNoCableError()
         NetSetup::SetErrorMode(true);
         bool link = NetComm::IsLAN();
         netLoginErrorLevel = 9;
-        netLoginErrorMessage = link ? "xlive.errors.nocable_syslink" : "xlive.errors.nocable";
+        netLoginErrorMessage = "xlive.errors.nocable_syslink";
+        if (!link)
+        {
+            netLoginErrorMessage = "xlive.errors.nocable";
+        }
         return;
     }
 }
 
 // FUNCTION: SWBF2 0x005d6580
-void NetMatch::SetLocalGSID(unsigned int lo, unsigned int hi)
+void NetMatch::SetLocalGSID(unsigned __int64 id)
 {
-    netLocalGSID = ((unsigned __int64)hi << 32) | lo;
-    NetGame::SetPlayerGSID(0, netLocalGSID);
+    netLocalGSID = id;
+    NetGame::SetPlayerGSID(0, id);
 }
 
 // FUNCTION: SWBF2 0x005d6710
@@ -468,9 +484,7 @@ void __fastcall HandleFoundPacket(NetPacket* packet, const void* source)
                     group.ReadBits(bits, 16);
                     int sourceIp, sourcePort;
                     NetSocket::GetAddr(source, sourceIp, sourcePort);
-                    NetAddr from(sourceIp, bits, 0);
-                    address = from;
-                    addressOk = from.hasPriv;
+                    address = NetAddr(sourceIp, bits, 0);
                 }
                 unsigned int maxPlayers, numPlayers;
                 group.ReadBits(maxPlayers, 6);
@@ -550,9 +564,9 @@ char* NetMatch::GetIPAddr()
     hostent* host = getlocalhost();
     if (host)
     {
-        for (char** addr = host->h_addr_list; *addr; ++addr)
+        for (int i = 0; host->h_addr_list[i]; ++i)
         {
-            inet_ntop(AF_INET, *addr, netLocalIPText, sizeof(netLocalIPText));
+            strlcpy(netLocalIPText, inet_ntoa(*(in_addr*)host->h_addr_list[i]), sizeof(netLocalIPText));
         }
         JournalString(netLocalIPText, sizeof(netLocalIPText));
     }
@@ -624,12 +638,7 @@ void NetMatch::UpdateRegisterGame()
     {
         if (netLanRegisterState)
         {
-            NetPacket* pPkt;
-            while ((pPkt = NetComm::Recv(PKT_FIND, PKT_FOUND)) != 0)
-            {
-                HandleFindPacket(pPkt);
-            }
-            HandleQueryPackets();
+            UpdateRegisterLanGame();
         }
     }
     else
@@ -777,9 +786,9 @@ NetAddr::NetAddr(int addr, int port, int overridePort)
 // FUNCTION: SWBF2 0x005d7700
 void NetMatch::StartFindAddress()
 {
-    NetAddr* addr = &NetSetupP::GetMyAddr();
     if (NetComm::IsLAN())
     {
+        NetAddr* addr = &NetSetupP::GetMyAddr();
         unsigned long ip = GetPrivateIP();
         addr->privAddr = ip;
         if (ip)
@@ -790,6 +799,7 @@ void NetMatch::StartFindAddress()
     }
     else
     {
+        NetAddr* addr = &NetSetupP::GetMyAddr();
         addr->hasPriv = false;
         addr->privAddr = 0;
         addr->privPort = 0;
@@ -808,14 +818,33 @@ void NetMatch::SetRegisterArchFilter()
     archFilter = NET_ARCH_ANY;
 }
 
+// FUNCTION: SWBF2 0x005d6770
+void StartRegisterLanGame()
+{
+    netLobbyState = 0;
+    netLobbyRequestPending = false;
+    netLeavingLobby = false;
+    netCreatedLobbyId = 0;
+    netEnteredLobbyId = 0;
+    NetSocket::OpenBroadcastSockets();
+}
+
 // FUNCTION: SWBF2 0x005d67b0
 void EndRegisterLanGame()
 {
     NetMatch::SetRegisterArchFilter();
-    closesocket(netBroadcastSendSocket);
-    netBroadcastSendSocket = INVALID_SOCKET;
-    closesocket(netBroadcastRecvSocket);
-    netBroadcastRecvSocket = INVALID_SOCKET;
+    NetSocket::CloseBroadcastSockets();
+}
+
+// FUNCTION: SWBF2 0x005d67c0
+void UpdateRegisterLanGame()
+{
+    NetPacket* packet;
+    while ((packet = NetComm::Recv(PKT_FIND, PKT_FOUND)) != 0)
+    {
+        HandleFindPacket(packet);
+    }
+    HandleQueryPackets();
 }
 
 // FUNCTION: SWBF2 0x005d6690
@@ -835,7 +864,7 @@ void NetMatch::SetGameError(const char* message, int severity)
         gui->CloseError(false, true);
     }
     NetSetup::RequestQuit(0);
-    ShellLoop::SetNetCableErrorOnEnter(severity, message);
+    ShellLoop::SetNetCableErrorOnEnter(gameErrorLvl, gameErrorMsg);
     gameErrorMsg = 0;
     gameErrorLvl = 0;
 }
@@ -935,6 +964,12 @@ void NetMatch::UpdateJoinGame()
     {
         PumpGalaxyMatchmaking();
     }
+}
+
+// FUNCTION: SWBF2 0x005d6860
+void EndFindLanGames()
+{
+    NetSocket::CloseBroadcastSockets();
 }
 
 // GLOBAL: SWBF2 0x007ec514

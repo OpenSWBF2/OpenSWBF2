@@ -128,13 +128,15 @@ WalkerLegPair::~WalkerLegPair()
 void WalkerLegPair::InitDone()
 {
     BuildBlendLookupTable();
-    mLegTransform[Left] = mParent->mZephyrSkeleton.m_pWorldMatrices[mLegJoints[Left]];
-    mLegTransform[Right] = mParent->mZephyrSkeleton.m_pWorldMatrices[mLegJoints[Right]];
+    mLegTransform[Left] = PblMatrix(reinterpret_cast<const _D3DXMATRIXA16*>(
+        mParent->mZephyrSkeleton.GetWorldMatrix(mLegJoints[Left])));
+    mLegTransform[Right] = PblMatrix(reinterpret_cast<const _D3DXMATRIXA16*>(
+        mParent->mZephyrSkeleton.GetWorldMatrix(mLegJoints[Right])));
 
-    const CollisionModel* pModel = mParent->GetCollisionModel();
-    float fRight = pModel->GetLocalMatrix(mFootCollisionBody[Right], mParent->GetPose()).m[3][2];
-    float fLeft = pModel->GetLocalMatrix(mFootCollisionBody[Left], mParent->GetPose()).m[3][2];
-    mLocalZOffset = (fLeft + fRight) * 0.5f;
+    PblVector3 vMid =
+        (mParent->GetCollisionModel()->GetLocalMatrix(GetFootCollisionBodyId(Left), mParent->GetPose()).GetTranslation() +
+         mParent->GetCollisionModel()->GetLocalMatrix(GetFootCollisionBodyId(Right), mParent->GetPose()).GetTranslation()) * 0.5f;
+    mLocalZOffset = vMid.z;
 }
 
 // FUNCTION: SWBF2 0x00676900
@@ -175,24 +177,24 @@ void WalkerLegPair::SetupGroundCollision(const PblMatrix& mMatrix, float fPitch,
 {
     float fLegLength = mParent->mClass->mLegRayHitLength;
     PblVector3 vOrigin = mMatrix.GetTranslation();
-    vOrigin.y -= sinf(fPitch * 2.0f) * mLocalZOffset;
-    float fRayLength = fLegLength * 2.0f;
+    float fBaseHeight = -sinf(fPitch * 2.0f) * mLocalZOffset;
+    vOrigin.AddY(fBaseHeight);
 
     for (int i = 0; i < FootCount; ++i)
     {
         PblVector3 vStart = vOrigin;
-        vStart.x = vStart.x + mMatrix.m[0][0] * pFeet[i].x + mMatrix.m[2][0] * pFeet[i].z;
-        vStart.y = vStart.y + mMatrix.m[0][1] * pFeet[i].x + mMatrix.m[2][1] * pFeet[i].z + fLegLength;
-        vStart.z = vStart.z + mMatrix.m[0][2] * pFeet[i].x + mMatrix.m[2][2] * pFeet[i].z;
+        vStart += mMatrix.GetXAxis() * pFeet[i].x;
+        vStart += mMatrix.GetZAxis() * pFeet[i].z;
+        vStart.AddY(fLegLength);
         CollisionObject* pHitObject;
-        float fHit = CollisionManager::RayHit(vStart, PblVector3(0.0f, -1.0f, 0.0f), fRayLength, pHitObject,
+        float fHit = CollisionManager::RayHit(vStart, PblVector3(0.0f, -1.0f, 0.0f), fLegLength * 2.0f, pHitObject,
                                               NULL, NULL, 0, 0x90, false);
         mFootHeight[i] = (1.0f - fHit * 2.0f) * fLegLength;
     }
 
     mFootHeightDifference = mFootHeight[Left] - mFootHeight[Right];
     float fBlend = Clamp(mFootHeightDifference * -0.6f, -1.0f, 1.0f);
-    mBlendFactor += (fBlend - mBlendFactor) * 0.4f;
+    mBlendFactor = Interpolate(mBlendFactor, fBlend, 0.4f);
 
     if (mParent->mClass->mOrientRoll)
     {
@@ -200,18 +202,14 @@ void WalkerLegPair::SetupGroundCollision(const PblMatrix& mMatrix, float fPitch,
     }
     else
     {
-        float fLow = mFootHeight[Right] > mFootHeight[Left] ? mFootHeight[Left] : mFootHeight[Right];
+        float fLow = Min(mFootHeight[Left], mFootHeight[Right]);
         mPushValue = fLow;
-        float fHigh = mFootHeight[Left] > mFootHeight[Right] ? mFootHeight[Left] : mFootHeight[Right];
+        float fHigh = Max(mFootHeight[Left], mFootHeight[Right]);
         float fHalf = fLegLength * 0.5f;
         if (fHigh > fHalf)
         {
-            float fT = (fHigh - fHalf) / (fLegLength * 0.4f);
-            if (fT > 1.0f)
-            {
-                fT = 1.0f;
-            }
-            mPushValue = (fHigh - fLow) * fT + fLow;
+            float fT = Min((fHigh - fHalf) / (fLegLength * 0.4f), 1.0f);
+            mPushValue = Interpolate(fLow, fHigh, fT);
         }
     }
 }

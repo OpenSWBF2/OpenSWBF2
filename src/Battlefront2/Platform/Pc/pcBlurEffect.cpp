@@ -9,6 +9,22 @@
 #include "RedEngineFL/Graphics/PC/Shaders/pcFilterCopyShader.h"
 #include "RedEngineFL/Application/pc/pcRenderHelpers.h"
 
+namespace
+{
+struct BlurVertex
+{
+    PosXYZW pos;
+    TexCoord uv0;
+};
+
+struct FilterVertex
+{
+    PosXYZ pos;
+    TexCoord uv0;
+};
+
+}
+
 // GLOBAL: SWBF2 0x007b2930
 // __xmm@41f00000000000000000000000000000
 
@@ -88,8 +104,8 @@ void BlurEffect::Render(int value)
 
     pcRedPrimitive* pPrimitive =
         pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, 0x202, 20, 4, 0, false);
-    float* pVerts = (float*)pPrimitive->BeginVertexData();
-    if (!pVerts)
+    FilterVertex* pFilterVerts = (FilterVertex*)pPrimitive->BeginVertexData();
+    if (!pFilterVerts)
     {
         return;
     }
@@ -108,14 +124,14 @@ void BlurEffect::Render(int value)
     const float fTempHeight = (float)(RedRenderer::pcGetBuffer(PC_BUFFER_TEMP))->m_uiHeight;
     float fV0 = (bottom - top) * m_downSizeFactor / fTempHeight;
 
-    pVerts[0] = -1.0f;  pVerts[1] = 1.0f;   pVerts[2] = 0.0f;
-    pVerts[3] = 0.0f;   pVerts[4] = 0.0f;
-    pVerts[5] = -1.0f;  pVerts[6] = 1.0f - fV1 * 2.0f;     pVerts[7] = 0.0f;
-    pVerts[8] = 0.0f;   pVerts[9] = fV0;
-    pVerts[10] = fU1 * 2.0f - 1.0f;    pVerts[11] = 1.0f;  pVerts[12] = 0.0f;
-    pVerts[13] = fU0;   pVerts[14] = 0.0f;
-    pVerts[15] = fU1 * 2.0f - 1.0f;    pVerts[16] = 1.0f - fV1 * 2.0f;    pVerts[17] = 0.0f;
-    pVerts[18] = fU0;   pVerts[19] = fV0;
+    pFilterVerts[0].pos.SetPos(-1.0f, 1.0f, 0.0f);
+    pFilterVerts[0].uv0.SetUV(0.0f, 0.0f);
+    pFilterVerts[1].pos.SetPos(-1.0f, 1.0f - fV1 * 2.0f, 0.0f);
+    pFilterVerts[1].uv0.SetUV(0.0f, fV0);
+    pFilterVerts[2].pos.SetPos(fU1 * 2.0f - 1.0f, 1.0f, 0.0f);
+    pFilterVerts[2].uv0.SetUV(fU0, 0.0f);
+    pFilterVerts[3].pos.SetPos(fU1 * 2.0f - 1.0f, 1.0f - fV1 * 2.0f, 0.0f);
+    pFilterVerts[3].uv0.SetUV(fU0, fV0);
     pPrimitive->EndVertexData();
 
     m_pFilterShader->SetTextures(RedRenderer::pcGetBuffer(PC_BUFFER_TEMP),
@@ -130,8 +146,8 @@ void BlurEffect::Render(int value)
     m_pClearShader->SetBlendMode(pcClearShader::BLENDMODE_CONSTANT_BLEND);
 
     pPrimitive = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, 0x203, 24, 4, 0, false);
-    pVerts = (float*)pPrimitive->BeginVertexData();
-    if (!pVerts)
+    BlurVertex* pBlurVerts = (BlurVertex*)pPrimitive->BeginVertexData();
+    if (!pBlurVerts)
     {
         return;
     }
@@ -139,14 +155,14 @@ void BlurEffect::Render(int value)
     RedRenderer::pcGetViewport(viewport);
     RedRenderer::pcGetViewportExtents(left, top, right, bottom);
 
-    pVerts[0] = left;   pVerts[1] = top;     pVerts[2] = 0.0f;  pVerts[3] = 1.0f;
-    pVerts[4] = 0.0f;   pVerts[5] = 0.0f;
-    pVerts[6] = left;   pVerts[7] = bottom;  pVerts[8] = 0.0f;  pVerts[9] = 1.0f;
-    pVerts[10] = 0.0f;  pVerts[11] = fV1;
-    pVerts[12] = right; pVerts[13] = top;    pVerts[14] = 0.0f; pVerts[15] = 1.0f;
-    pVerts[16] = fU1;   pVerts[17] = 0.0f;
-    pVerts[18] = right; pVerts[19] = bottom; pVerts[20] = 0.0f; pVerts[21] = 1.0f;
-    pVerts[22] = fU1;   pVerts[23] = fV1;
+    pBlurVerts[0].pos.SetPos(left, top, 0.0f, 1.0f);
+    pBlurVerts[0].uv0.SetUV(0.0f, 0.0f);
+    pBlurVerts[1].pos.SetPos(left, bottom, 0.0f, 1.0f);
+    pBlurVerts[1].uv0.SetUV(0.0f, fV1);
+    pBlurVerts[2].pos.SetPos(right, top, 0.0f, 1.0f);
+    pBlurVerts[2].uv0.SetUV(fU1, 0.0f);
+    pBlurVerts[3].pos.SetPos(right, bottom, 0.0f, 1.0f);
+    pBlurVerts[3].uv0.SetUV(fU1, fV1);
     pPrimitive->EndVertexData();
 
     RedRenderer::pcRenderPrimitive(pPrimitive, m_pClearShader, gMatrixIdentity,

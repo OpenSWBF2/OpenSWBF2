@@ -46,19 +46,18 @@ bool StreamIMAADPCMDecoder::ValidateStepIndex(unsigned char uStepIndex)
 short StreamIMAADPCMDecoder::DecodeImaAdpcmSample(unsigned char uNibble, short sPredictor,
                                                   short sStepSize)
 {
-    const int iStep = sStepSize;
-    int iDiff = iStep >> 3;
+    int iDiff = sStepSize >> 3;
     if (uNibble & 4)
     {
-        iDiff += iStep;
+        iDiff += sStepSize;
     }
     if (uNibble & 2)
     {
-        iDiff += iStep >> 1;
+        iDiff += sStepSize >> 1;
     }
     if (uNibble & 1)
     {
-        iDiff += iStep >> 2;
+        iDiff += sStepSize >> 2;
     }
     if (uNibble & 8)
     {
@@ -148,12 +147,11 @@ void StreamIMAADPCMDecoder::DecodeImaAdpcmFrameInterleaved(unsigned char const* 
 
     for (unsigned char uChannel = 0; uChannel < mNumChannels; ++uChannel)
     {
-        unsigned int auFrame[9];
-        const unsigned int* puIn = (const unsigned int*)pSrc + uChannel;
-        for (unsigned int i = 0; i < 9; ++i)
+        unsigned char auFrame[36];
+        for (unsigned int i = 0; i < sizeof(auFrame); i += sizeof(unsigned int))
         {
-            auFrame[i] = *puIn;
-            puIn += mNumChannels;
+            memcpy(auFrame + i, pSrc + uChannel * sizeof(unsigned int) + i * mNumChannels,
+                   sizeof(unsigned int));
         }
 
         short asSamples[64];

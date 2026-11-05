@@ -17,12 +17,7 @@
 
 
 
-struct NormalXYZ
-{
-    float x;
-    float y;
-    float z;
-};
+
 
 
 
@@ -204,7 +199,7 @@ void RedParticleRenderer::AddParticleToBuffers(void* pVertices, unsigned short* 
     m_blurBounds._vMax = PblVector3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 
     bool bStreakStart = false;
-    int iBaseVertex = 0;
+    unsigned int iBaseVertex = 0;
 
     for (int i = 0; i < m_particleIndex; ++i)
     {
@@ -224,32 +219,36 @@ void RedParticleRenderer::AddParticleToBuffers(void* pVertices, unsigned short* 
                 SetUV(pBlurVerts[2], info.mColor, info.u[1], info.v[1]);
                 SetUV(pBlurVerts[3], info.mColor, info.u[0], info.v[1]);
 
+                float fRotation = info.mRotation;
                 const float fHalfSize = info.mSize * 0.5f;
                 PblVector3 vRight;
                 PblVector3 vUp;
-                if (info.mRotation == 0.0f)
+                if (fRotation == 0.0f)
                 {
                     vRight = mCamera.GetXAxis();
                 }
                 else
                 {
-                    vRight = mCamera.GetXAxis() * GetCos(info.mRotation) + mCamera.GetYAxis() * GetSin(info.mRotation);
+                    vRight = mCamera.GetXAxis() * GetCos(fRotation) + mCamera.GetYAxis() * GetSin(fRotation);
                 }
-                if (info.mRotation == 0.0f)
+                if (fRotation == 0.0f)
                 {
                     vUp = mCamera.GetYAxis();
                 }
                 else
                 {
-                    vUp = mCamera.GetYAxis() * GetCos(info.mRotation) - mCamera.GetXAxis() * GetSin(info.mRotation);
+                    vUp = mCamera.GetYAxis() * GetCos(fRotation) - mCamera.GetXAxis() * GetSin(fRotation);
                 }
 
-                const PblVector3 vCorner[4] = { vRight + vUp, vUp - vRight, -(vUp - vRight), -(vRight + vUp) };
-                for (int k = 0; k < 4; ++k)
-                {
-                    SetXYZ(pBlurVerts[k], info.mPos + vCorner[k] * fHalfSize,
-                           info.mPos + vCorner[k] * (m_blurValue + fHalfSize));
-                }
+                pBlurVerts[0].normal.SetNormal(info.mPos + (vRight + vUp) * (m_blurValue + fHalfSize));
+                pBlurVerts[1].normal.SetNormal(info.mPos + (vUp - vRight) * (m_blurValue + fHalfSize));
+                pBlurVerts[2].normal.SetNormal(info.mPos + (-(vUp - vRight)) * (m_blurValue + fHalfSize));
+                pBlurVerts[3].normal.SetNormal(info.mPos + (-(vRight + vUp)) * (m_blurValue + fHalfSize));
+
+                pBlurVerts[0].pos.SetPos(info.mPos + (vRight + vUp) * fHalfSize);
+                pBlurVerts[1].pos.SetPos(info.mPos + (vUp - vRight) * fHalfSize);
+                pBlurVerts[2].pos.SetPos(info.mPos + (-(vUp - vRight)) * fHalfSize);
+                pBlurVerts[3].pos.SetPos(info.mPos + (-(vRight + vUp)) * fHalfSize);
             }
             else
             {
@@ -258,26 +257,27 @@ void RedParticleRenderer::AddParticleToBuffers(void* pVertices, unsigned short* 
                 SetUV(pVerts[2], info.mColor, info.u[1], info.v[1]);
                 SetUV(pVerts[3], info.mColor, info.u[0], info.v[1]);
 
+                float fRotation = info.mRotation;
                 const float fHalfSize = info.mSize * 0.5f;
                 PblVector3 vRight;
                 PblVector3 vUp;
-                if (info.mRotation == 0.0f)
+                if (fRotation == 0.0f)
                 {
                     vRight = mCamera.GetXAxis() * fHalfSize;
                 }
                 else
                 {
-                    vRight = mCamera.GetXAxis() * (GetCos(info.mRotation) * fHalfSize)
-                           + mCamera.GetYAxis() * (GetSin(info.mRotation) * fHalfSize);
+                    vRight = mCamera.GetXAxis() * (GetCos(fRotation) * fHalfSize)
+                           + mCamera.GetYAxis() * (GetSin(fRotation) * fHalfSize);
                 }
-                if (info.mRotation == 0.0f)
+                if (fRotation == 0.0f)
                 {
                     vUp = mCamera.GetYAxis() * fHalfSize;
                 }
                 else
                 {
-                    vUp = mCamera.GetYAxis() * (GetCos(info.mRotation) * fHalfSize)
-                        - mCamera.GetXAxis() * (GetSin(info.mRotation) * fHalfSize);
+                    vUp = mCamera.GetYAxis() * (GetCos(fRotation) * fHalfSize)
+                        - mCamera.GetXAxis() * (GetSin(fRotation) * fHalfSize);
                 }
 
                 SetXYZ(pVerts[0], info.mPos + vRight + vUp);
@@ -370,24 +370,19 @@ void RedParticleRenderer::AddParticleToBuffers(void* pVertices, unsigned short* 
             const PblVector3 vToStart = vStart - vCamPos;
             const PblVector3 vToEnd = vEnd - vCamPos;
 
-            PblVector3 vNormal;
-            Cross(&vNormal, vToEnd, vToStart);
+            PblVector3 vNormal = CrossProduct(vToEnd, vToStart);
             if (IsZero(vNormal))
             {
                 vNormal = -pCamera->GetMatrix().GetXAxis();
             }
             else
             {
-                PblVector3 vTemp;
-                D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vTemp), reinterpret_cast<const D3DXVECTOR3*>(&vNormal));
-                vNormal = vTemp;
+                vNormal = Normalize(vNormal);
             }
 
             PblVector3 vWidth = vNormal * fStartWidth;
-            PblVector3 vSide;
-            Cross(&vSide, vToStart, vWidth);
-            PblVector3 vSideNorm;
-            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vSideNorm), reinterpret_cast<const D3DXVECTOR3*>(&vSide));
+            PblVector3 vSide = CrossProduct(vToStart, vWidth);
+            PblVector3 vSideNorm = Normalize(vSide);
             PblVector3 vDepth = vSideNorm * fStartWidth;
 
             if (m_blendMode == BLEND_BLUR)
@@ -409,10 +404,8 @@ void RedParticleRenderer::AddParticleToBuffers(void* pVertices, unsigned short* 
 
                 const PblVector3 vToEndCam = vEnd - mCamera.GetTranslation();
                 const PblVector3 vEndWidth = vNormal * info.mSize;
-                PblVector3 vEndSide;
-                Cross(&vEndSide, vToEndCam, vEndWidth);
-                PblVector3 vEndSideNorm;
-                D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vEndSideNorm), reinterpret_cast<const D3DXVECTOR3*>(&vEndSide));
+                PblVector3 vEndSide = CrossProduct(vToEndCam, vEndWidth);
+                PblVector3 vEndSideNorm = Normalize(vEndSide);
 
                 const PblVector3 vZero(0.0f, 0.0f, 0.0f);
                 SetUV(pBlurVerts[4], info.mColor, 0.25f, 0.5f);
@@ -441,13 +434,12 @@ void RedParticleRenderer::AddParticleToBuffers(void* pVertices, unsigned short* 
             unsigned char startAlpha = info.mColor.a;
             unsigned char midAlpha = 0;
             const PblVector3 vDir = vEnd - vStart;
-            if (Dot(vDir, vDir) > 0.0f)
+            if (SquaredLength(vDir) > 0.0f)
             {
-                PblVector3 vDirNorm;
-                D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDirNorm), reinterpret_cast<const D3DXVECTOR3*>(&vDir));
+                PblVector3 vDirNorm = Normalize(vDir);
                 const PblVector3 vStartToCam = vCamPos - vStart;
-                const PblVector3 vOffLine = vStartToCam - vDirNorm * Dot(vStartToCam, vDirNorm);
-                if (fStartWidth * fStartWidth > Dot(vOffLine, vOffLine))
+                const PblVector3 vOffLine = vStartToCam - vDirNorm * DotProduct(vStartToCam, vDirNorm);
+                if (fStartWidth * fStartWidth > SquaredLength(vOffLine))
                 {
                     startAlpha = 0;
                     vStart = (vEnd + vStart) * 0.5f;
@@ -477,8 +469,7 @@ void RedParticleRenderer::AddParticleToBuffers(void* pVertices, unsigned short* 
 
             if (startAlpha)
             {
-                RedColor color = info.mColor;
-                color.a = startAlpha;
+                RedColor color(info.mColor, startAlpha);
                 const PblVector3 vEndWidth = vNormal * fEndWidth;
                 SetXYZ(pVerts[4], vStart);
                 SetUV(pVerts[4], prev.mColor, 0.25f, 0.5f);
@@ -501,8 +492,7 @@ void RedParticleRenderer::AddParticleToBuffers(void* pVertices, unsigned short* 
 
             if (midAlpha)
             {
-                RedColor color = prev.mColor;
-                color.a = midAlpha;
+                RedColor color(prev.mColor, midAlpha);
                 const PblVector3 vMid = vStart + vDepth;
                 SetXYZ(pVerts[nVerts], vMid + vWidth);
                 SetUV(pVerts[nVerts], color, 0.0f, 0.0f);

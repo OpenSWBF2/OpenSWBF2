@@ -107,15 +107,11 @@ LeafPatchRenderable::~LeafPatchRenderable()
 }
 
 // FUNCTION: SWBF2 0x0041ba90
-void LeafPatchClass::Render(float fAlpha, const PblMatrix& matrix, unsigned int uiFlags,
+void LeafPatchClass::Render(const PblMatrix& matrix, float fAlpha, int, unsigned int uiFlags,
                             const RedColorValue& color) const
 {
-    RedColor packed;
-    packed.b = (unsigned char)(int)(color.b * 255.0f);
-    packed.g = (unsigned char)(int)(color.g * 255.0f);
-    packed.r = (unsigned char)(int)(color.r * 255.0f);
-    packed.a = (unsigned char)(int)(color.a * fAlpha * 255.0f);
-    mRenderData->RenderInstance(matrix, packed, uiFlags);
+    const RedColorValue faded(color, fAlpha);
+    mRenderData->RenderInstance(matrix, faded, uiFlags);
 }
 
 // FUNCTION: SWBF2 0x0041bb00
@@ -133,9 +129,8 @@ bool LeafPatchClass::RenderMaxDist(const PblMatrix& matrix, float& fDist,
     const PblMatrix& cam = RedRenderer::GetCamera()->_Matrix;
     const RedCamera* pCamera = RedRenderer::GetCamera();
     const PblVector3& vPos = matrix.GetTranslation();
-    const PblVector3 vDelta = PblVector3(cam.m[3][0], cam.m[3][1], cam.m[3][2]) - vPos;
-    const float distance = cam.m[2][1] * vDelta.y + cam.m[2][0] * vDelta.x +
-                           cam.m[2][2] * vDelta.z;
+    const PblVector3 vDelta = cam.GetTranslation() - vPos;
+    const float distance = DotProduct(cam.GetZAxis(), vDelta);
     if (distance < -mBoundingRadius ||
         distance > pCamera->_fZoom * fMaxDist + mBoundingRadius)
     {
@@ -146,10 +141,8 @@ bool LeafPatchClass::RenderMaxDist(const PblMatrix& matrix, float& fDist,
         BirdParticleManager::SetPotentialScatterPoint(&vPos, mMaxScatterBirds);
     }
     PblMatrix scaled = matrix;
-    scaled.m[1][3] = 0.0f;
-    PblVector3& vUp = scaled[1];
-    vUp = PblVector3(vUp.x * mHeightScale, vUp.y * mHeightScale, vUp.z * mHeightScale);
-    Render(1.0f, scaled, uiFlags, color);
+    scaled.SetYAxis(scaled.GetYAxis() * mHeightScale);
+    Render(scaled, 1.0f, 0, uiFlags, color);
     return true;
 }
 
@@ -161,21 +154,19 @@ static PblBox sBox(-50.0f, -50.0f, -50.0f, 50.0f, 50.0f, 50.0f);
 namespace
 {
 
-struct LeafVertexCompressed
+struct LeafPatchCompressedVertex
 {
-    short pos[3];
-    short pad;
-    unsigned char normal[3];
-    unsigned char padNormal;
+    CompressedPos pos;
+    CompressedNormal normal;
     RedColor color;
-    LeafPatchRenderable::CompressedTexCoord uv;
+    CompressedTexCoord uv;
 };
-struct LeafVertexUncompressed
+struct LeafPatchVertex
 {
-    float pos[3];
-    float normal[3];
+    PblVector3 pos;
+    PblVector3 normal;
     RedColor color;
-    LeafPatchRenderable::TexCoord uv;
+    TexCoord uv;
 };
 }
 
@@ -195,8 +186,7 @@ void LeafPatchRenderable::RenderInstance(const PblMatrix& matrix, const RedColor
         return;
     }
 
-    PblSphere sphere;
-    sphere.Set(matrix.m[3][0], matrix.m[3][1], matrix.m[3][2], m_pClass->mBoundingRadius);
+    PblSphere sphere(matrix.GetTranslation(), m_pClass->mBoundingRadius);
     RedRenderer::SetLightingState(*RedLight::GetLightingState(sphere, 4, false, false, false));
 
     RedRenderer::GetCamera();
@@ -323,78 +313,65 @@ void LeafPatchRenderable::Begin()
 void LeafPatchRenderable::AddParticle(const PblVector3& vPos, float fSize, const RedColor& color,
                                       float fRotation, int iParticleIndex, unsigned char ucTexture)
 {
-    bool bCompressed = RedRenderer::pcGetGeometryMode() == GEOMETRYMODE_COMPRESSED;
-    float fScale = bCompressed ? 655.34998f : 1.0f;
+    const GeometryModeT geometryMode = RedRenderer::pcGetGeometryMode();
+    const float BOX_SCALE = geometryMode == GEOMETRYMODE_UNCOMPRESSED ? 1.0f : 655.34998f;
 
-    const PblVector3& vRight = m_avRight[iParticleIndex % 10];
-    float upX = m_vUp.x * fSize, upY = m_vUp.y * fSize, upZ = m_vUp.z * fSize;
-    float rightX = vRight.x * fSize, rightY = vRight.y * fSize, rightZ = vRight.z * fSize;
+    const PblVector3 right = m_avRight[iParticleIndex % 10] * fSize;
+    const PblVector3 midPos = vPos * BOX_SCALE + m_vFront * 0.1f;
+    const PblVector3 up = m_vUp * fSize * 0.5f;
+    const PblVector3 pos = up + midPos + right * (fRotation - 0.5f);
+    const PblVector3 pos2 = midPos - up - right * 0.5f;
 
-    float biasX = vPos.x * fScale + m_vFront.x * 0.1f;
-    float biasY = vPos.y * fScale + m_vFront.y * 0.1f;
-    float biasZ = vPos.z * fScale + m_vFront.z * 0.1f;
-
-    float fShift = fRotation - 0.5f;
-    PblVector3 cornerTop(biasX + upX * 0.5f + rightX * fShift, biasY + upY * 0.5f + rightY * fShift,
-                         biasZ + upZ * 0.5f + rightZ * fShift);
-    PblVector3 cornerBottom(biasX - upX * 0.5f - rightX * 0.5f, biasY - upY * 0.5f - rightY * 0.5f,
-                            biasZ - upZ * 0.5f - rightZ * 0.5f);
-
-    PblVector3 corners[4] = {
-        cornerTop,
-        PblVector3(cornerTop.x + rightX, cornerTop.y + rightY, cornerTop.z + rightZ),
-        PblVector3(cornerBottom.x + rightX, cornerBottom.y + rightY, cornerBottom.z + rightZ),
-        cornerBottom,
-    };
-
-    static const int kCornerOrder[4] = { 2, 3, 1, 0 };
-
-    const CompressedTexCoord* pCompressedUV = s_CompressedTexCoords[m_iTexCoordType][ucTexture];
-    const TexCoord* pUV = s_TexCoords[m_iTexCoordType][ucTexture];
-
-    if (bCompressed)
+    if (geometryMode == GEOMETRYMODE_UNCOMPRESSED)
     {
-        float fInvScale = 1.0f / fScale;
-        LeafVertexCompressed* pv = (LeafVertexCompressed*)m_pVertices;
-        for (int i = 0; i < 4; ++i)
-        {
-            pv->pos[0] = (short)corners[i].x;
-            pv->pos[1] = (short)corners[i].y;
-            pv->pos[2] = (short)corners[i].z;
-
-            PblVector3 vNormal(corners[i].x * fInvScale, corners[i].y * fInvScale,
-                               corners[i].z * fInvScale);
-            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNormal), reinterpret_cast<const D3DXVECTOR3*>(&vNormal));
-            pv->normal[0] = (unsigned char)((vNormal.z + 1.0f) * 127.5f);
-            pv->normal[1] = (unsigned char)((vNormal.y + 1.0f) * 127.5f);
-            pv->normal[2] = (unsigned char)((vNormal.x + 1.0f) * 127.5f);
-
-            pv->color = color;
-            pv->uv = pCompressedUV[kCornerOrder[i]];
-            ++pv;
-        }
-        m_pVertices = pv;
+        LeafPatchVertex*& pVertices = reinterpret_cast<LeafPatchVertex*&>(m_pVertices);
+        const TexCoord* pTexCoord = s_TexCoords[m_iTexCoordType][ucTexture];
+        pVertices->pos = pos;
+        pVertices->normal = Normalize(pos);
+        pVertices->color = color;
+        pVertices->uv = pTexCoord[2];
+        ++pVertices;
+        pVertices->pos = pos + right;
+        pVertices->normal = Normalize(pos + right);
+        pVertices->color = color;
+        pVertices->uv = pTexCoord[3];
+        ++pVertices;
+        pVertices->pos = pos2 + right;
+        pVertices->normal = Normalize(pos2 + right);
+        pVertices->color = color;
+        pVertices->uv = pTexCoord[1];
+        ++pVertices;
+        pVertices->pos = pos2;
+        pVertices->normal = Normalize(pos2);
+        pVertices->color = color;
+        pVertices->uv = pTexCoord[0];
+        ++pVertices;
     }
     else
     {
-        LeafVertexUncompressed* pv = (LeafVertexUncompressed*)m_pVertices;
-        for (int i = 0; i < 4; ++i)
-        {
-            pv->pos[0] = corners[i].x;
-            pv->pos[1] = corners[i].y;
-            pv->pos[2] = corners[i].z;
-
-            PblVector3 vNormal = corners[i];
-            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNormal), reinterpret_cast<const D3DXVECTOR3*>(&vNormal));
-            pv->normal[0] = vNormal.x;
-            pv->normal[1] = vNormal.y;
-            pv->normal[2] = vNormal.z;
-
-            pv->color = color;
-            pv->uv = pUV[kCornerOrder[i]];
-            ++pv;
-        }
-        m_pVertices = pv;
+        LeafPatchCompressedVertex*& pVertices =
+            reinterpret_cast<LeafPatchCompressedVertex*&>(m_pVertices);
+        const CompressedTexCoord* pTexCoord = s_CompressedTexCoords[m_iTexCoordType][ucTexture];
+        pVertices->pos.SetPosHex(pos.x, pos.y, pos.z);
+        pVertices->normal.SetNormal(Normalize((pos) / BOX_SCALE));
+        pVertices->color = color;
+        pVertices->uv = pTexCoord[2];
+        ++pVertices;
+        pVertices->pos.SetPosHex(pos.x + right.x, pos.y + right.y, pos.z + right.z);
+        pVertices->normal.SetNormal(Normalize((pos + right) / BOX_SCALE));
+        pVertices->color = color;
+        pVertices->uv = pTexCoord[3];
+        ++pVertices;
+        pVertices->pos.SetPosHex(pos2.x + right.x, pos2.y + right.y, pos2.z + right.z);
+        pVertices->normal.SetNormal(Normalize((pos2 + right) / BOX_SCALE));
+        pVertices->color = color;
+        pVertices->uv = pTexCoord[1];
+        ++pVertices;
+        pVertices->pos.SetPosHex(pos2.x, pos2.y, pos2.z);
+        pVertices->normal.SetNormal(Normalize((pos2) / BOX_SCALE));
+        pVertices->color = color;
+        pVertices->uv = pTexCoord[0];
+        ++pVertices;
     }
 }
 

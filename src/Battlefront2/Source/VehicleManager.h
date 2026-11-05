@@ -18,7 +18,7 @@ namespace VehicleManager
 
     bool sIsFull(const GameObject* pObject);
     int sGameObjSortByDistance(const void* pA, const void* pB);
-    int RequestVehiclesInRange(const PblVector3& vPos, GameObject** ppOut, float fRadius, int iMax);
+    int RequestVehiclesInRange(const PblVector3& vPos, float fRadius, GameObject** ppOut, int iMax);
 
     extern ListPool<PblHandle<GameObject>, int>* sVehicles;
 }

@@ -34,6 +34,21 @@ public:
     bool RestartJumpAnimation(float fForward, float fSide, bool bForce);
     void SetAction(SoldierState::SoldierState eState, const PblMatrix& legMatrix, unsigned int uiAnimationHash);
 
+    void ForceAnimationBlend(float fFrame1, float fFrame2, float fBlend)
+    {
+        mForceFrameNum1 = fFrame1;
+        mForceFrameNum2 = fFrame2;
+        mForceFrameBlend = fBlend;
+    }
+
+    void Release(const EntitySoldier& soldier)
+    {
+        if (mOwner == &soldier)
+        {
+            mOwner = 0;
+        }
+    }
+
     const EntitySoldier* GetOwner() const
     {
         return mOwner ? mOwner : (const EntitySoldier*)mOwnerId;
@@ -49,6 +64,7 @@ public:
 
     void SetAlert(bool bAlert);
 
+    bool IsAlert() const { return m_bAlert; }
     float GetAlertFactor() const;
     void SetupPose(class RedPose& pose);
 
@@ -91,7 +107,7 @@ public:
 
     PblMatrix mLegMatrix;
     PblList<SoldierAnimator>::Node mLRUNode;
-    EntitySoldier* mOwner;
+    const EntitySoldier* mOwner;
     unsigned int mOwnerId;
     PblBitVector<32> mUpperBodyAnimMask;
     PblBitVector<32> mLowerBodyAnimMask;
@@ -104,8 +120,8 @@ public:
     float m_fAlertBlendDuration;
     float m_fTakeKneeTimer;
     float m_fSlideDistance;
-    int m_eLastHitDir;
-    ZephyrAnim* mOverlayAnim;
+    EntitySoldier::DAMAGEDIR m_eLastHitDir;
+    const ZephyrAnim* mOverlayAnim;
     float mOverlayTime;
     float mOverlayBlendFactor;
     unsigned int mAnimationHash;
@@ -121,8 +137,8 @@ public:
     ZephyrPoseStatic<32> mZephyrPoseStatic;
     ZephyrPoseDyn<32> mZephyrPoseDynUpper;
     ZephyrPoseDyn<32> mZephyrPoseDynLower;
-    SoldierAnimation* m_pAnimLower;
-    SoldierAnimation* m_pAnimUpper;
+    const SoldierAnimation* m_pAnimLower;
+    const SoldierAnimation* m_pAnimUpper;
     float mAnimationTimerLower;
     float mAnimationTimerUpper;
     float mBlendDurationLower;

@@ -15,9 +15,11 @@ namespace LoadUtil
 
 enum FileType { FILE_TYPE_LEVEL = 0, FILE_TYPE_MOVIE = 1, FILE_TYPE_NONE = 2 };
 
-bool ReadDataFile(char const* pName, void* pUnused, unsigned int const* puiHashes,
+bool ReadDataFile(char const* pName, unsigned int const* puiIds, unsigned int uiIdCount,
+                  unsigned int const* puiHashes,
                   unsigned int uiCount, char const** ppNames);
-bool ReadDataFile(PblFile& file, void* pUnused, unsigned int const* puiHashes,
+bool ReadDataFile(PblFile& file, unsigned int const* puiIds, unsigned int uiIdCount,
+                  unsigned int const* puiHashes,
                   unsigned int uiCount, char const** ppNames);
 
 bool ReadDataFileOnHeap(char const* pName, int iHeap, unsigned int const* puiIds,

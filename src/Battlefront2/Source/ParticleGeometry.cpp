@@ -6,6 +6,7 @@
 #include "ParticleEmitter.h"
 #include "ParticleSystem.h"
 #include "PebbleFL/Common/PblMath.h"
+#include "PebbleFL/Common/PblAngle.h"
 #include <math.h>
 
 namespace ParticleSystem
@@ -178,19 +179,12 @@ void ParticleGeometry::Render(Particle& particle, bool bLast) const
         }
     }
 
-    RedColorValue color;
-    color.r = particle.mColor[0].r;
-    color.g = particle.mColor[0].g;
-    color.b = particle.mColor[0].b;
+    RedColorValue color = particle.mColor[0];
     const float fFade = 1.0f - particle.mColor[0].a;
     color.a = (1.0f - fFade * fFade + particle.mColor[0].a) * 0.5f;
     if (mBlendMode == BLEND_BLUR)
     {
-        color.a *= 2.0f;
-        if (!(1.0f > color.a))
-        {
-            color.a = 1.0f;
-        }
+        color.a = Min(color.a * 2.0f, 1.0f);
     }
     if (mType != ParticleGeometry::PT_STREAK)
     {
@@ -222,8 +216,7 @@ void ParticleGeometry::Render(Particle& particle, bool bLast) const
         const float fSize = particle.mSize[0] * fSizeMultiplier;
         const int iFrame = particle.mFrameIndex;
         const float fLength = mSparkLength * fSizeMultiplier;
-        const PblVector3 vStreak(particle.mVelocity.x * fLength, particle.mVelocity.y * fLength,
-                                 particle.mVelocity.z * fLength);
+        const PblVector3 vStreak = particle.mVelocity * fLength;
         RedParticleRenderer::TexCoords texCoords = { 0, 0, 255, 255 };
         if (iFrame >= 0)
         {
@@ -239,11 +232,9 @@ void ParticleGeometry::Render(Particle& particle, bool bLast) const
         const unsigned char ucG = (unsigned char)(int)(color.g * 255.0f);
         const unsigned char ucR = (unsigned char)(int)(color.r * 255.0f);
         const unsigned char ucA = (unsigned char)(int)(color.a * 255.0f);
-        const PblVector3 vHead(vPos.x - vStreak.x, vPos.y - vStreak.y, vPos.z - vStreak.z);
-        RedParticleRenderer::SubmitParticle(PIT_STREAK_HEAD, vHead, RedColor(ucR, ucG, ucB, ucA), fSize, 0.0f, texCoords,
+        RedParticleRenderer::SubmitParticle(PIT_STREAK_HEAD, vPos - vStreak, RedColor(ucR, ucG, ucB, ucA), fSize, 0.0f, texCoords,
                                             gVectorUnitX, gVectorUnitY);
-        const PblVector3 vMid(vPos.x - vStreak.x * 0.5f, vPos.y - vStreak.y * 0.5f, vPos.z - vStreak.z * 0.5f);
-        RedParticleRenderer::SubmitParticle(PIT_STREAK, vMid, RedColor(ucR, ucG, ucB, ucA), fSize, 0.5f, texCoords,
+        RedParticleRenderer::SubmitParticle(PIT_STREAK, vPos - vStreak * 0.5f, RedColor(ucR, ucG, ucB, ucA), fSize, 0.5f, texCoords,
                                             gVectorUnitX, gVectorUnitY);
         RedParticleRenderer::SubmitParticle(PIT_STREAK_TAIL, vPos, RedColor(ucR, ucG, ucB, ucA), fSize, 1.0f, texCoords,
                                             gVectorUnitX, gVectorUnitY);
@@ -255,13 +246,14 @@ void ParticleGeometry::Render(Particle& particle, bool bLast) const
             return;
         }
 
-        const float fCos = (float)cos((double)particle.mRotation[0]);
-        const float fSin = (float)sin((double)particle.mRotation[0]);
+        PblAngle angle(particle.mRotation[0]);
         const float fSize = particle.mSize[0];
 
-        PblMatrix mWorld = PblMatrix(PblVector3(fSize * fCos, 0.0f, -(fSize * fSin)), PblVector3(0.0f, fSize, 0.0f),
-                                     PblVector3(fSize * fSin, 0.0f, fSize * fCos), PblVector3(0.0f, 0.0f, 0.0f)) *
-                           particle.mInfoData->mMatrix;
+        PblMatrix rotMat(PblVector3(fSize * angle.GetCos(), 0.0f, -(fSize * angle.GetSin())),
+                         PblVector3(0.0f, fSize, 0.0f),
+                         PblVector3(fSize * angle.GetSin(), 0.0f, fSize * angle.GetCos()),
+                         PblVector3(0.0f, 0.0f, 0.0f));
+        PblMatrix mWorld = rotMat * particle.mInfoData->mMatrix;
         mWorld.SetTranslation(vPos);
         unsigned int uiFlags = 1;
         if (mBlendMode == BLEND_ADDITIVE)
@@ -354,11 +346,8 @@ void ParticleGeometry::Render(Particle& particle, bool bLast) const
         }
         if (particle.mNoRegisterStep)
         {
-            PblVector3 v;
-            D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&v), reinterpret_cast<const D3DXVECTOR3*>(&vRight), reinterpret_cast<const D3DXMATRIX*>(&particle.mInfoData->mMatrix));
-            vRight = v;
-            D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&v), reinterpret_cast<const D3DXVECTOR3*>(&vUp), reinterpret_cast<const D3DXMATRIX*>(&particle.mInfoData->mMatrix));
-            vUp = v;
+            vRight = particle.mInfoData->mMatrix.ApplyRotation(vRight);
+            vUp = particle.mInfoData->mMatrix.ApplyRotation(vUp);
         }
         RedColor redColor;
         redColor.b = (unsigned char)(int)(color.b * 255.0f);

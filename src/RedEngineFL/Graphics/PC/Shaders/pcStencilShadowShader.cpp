@@ -361,26 +361,11 @@ void pcStencilShadowShader::Render_Fixed(const RenderItem* pItem, unsigned int u
     if (s_bDebugShadowVolumes)
     {
         // GLOBAL: SWBF2 0x009c9d3c
-        static const RedColorValue backColor(0.2f, 0.2f, 1.0f, 0.3f);
+        static RedColorValue s_colorBack(0.2f, 0.2f, 1.0f, 0.3f);
         // GLOBAL: SWBF2 0x009c9d50
-        static const RedColorValue frontColor(1.0f, 0.0f, 0.0f, 0.3f);
-        unsigned char r, g, bl, al;
-        if (!uiPass)
-        {
-            bl = (unsigned char)(int)(frontColor.b * 255.0f);
-            g = (unsigned char)(int)(frontColor.g * 255.0f);
-            al = (unsigned char)(int)(frontColor.a * 255.0f);
-            r = (unsigned char)(int)(frontColor.r * 255.0f);
-        }
-        else
-        {
-            bl = (unsigned char)(int)(backColor.b * 255.0f);
-            g = (unsigned char)(int)(backColor.g * 255.0f);
-            al = (unsigned char)(int)(backColor.a * 255.0f);
-            r = (unsigned char)(int)(backColor.r * 255.0f);
-        }
-        const RedColor factor(r, g, bl, al);
-        RedRenderer::pcSetRenderState(D3DRS_TEXTUREFACTOR, factor.GetARGB());
+        static RedColorValue s_colorFront(1.0f, 0.0f, 0.0f, 0.3f);
+        RedRenderer::pcSetRenderState(D3DRS_TEXTUREFACTOR,
+                                     uiPass ? RedColor(s_colorBack) : RedColor(s_colorFront));
     }
 
     RedRenderer::pcLoadFormat(m_pVertexFormat);
@@ -389,24 +374,16 @@ void pcStencilShadowShader::Render_Fixed(const RenderItem* pItem, unsigned int u
     if (s_bDebugShadowVolumes)
     {
         // GLOBAL: SWBF2 0x009c9d60
-        static const RedColorValue visibleColor(1.0f, 0.0f, 1.0f, 0.3f);
+        static RedColorValue s_colorZPass(1.0f, 0.0f, 1.0f, 0.3f);
         // GLOBAL: SWBF2 0x009c9d70
-        static const RedColorValue hiddenColor(0.8f, 0.2f, 0.8f, 0.1f);
+        static RedColorValue s_colorZFail(0.8f, 0.2f, 0.8f, 0.1f);
         RedRenderer::pcSetCullMode(PCREDCULL_NONE);
         RedRenderer::pcSetRenderState(D3DRS_FILLMODE, D3DFILL_WIREFRAME);
         RedRenderer::pcSetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
-        const RedColor visible((unsigned char)(int)(visibleColor.r * 255.0f),
-                               (unsigned char)(int)(visibleColor.g * 255.0f),
-                               (unsigned char)(int)(visibleColor.b * 255.0f),
-                               (unsigned char)(int)(visibleColor.a * 255.0f));
-        RedRenderer::pcSetRenderState(D3DRS_TEXTUREFACTOR, visible.GetARGB());
+        RedRenderer::pcSetRenderState(D3DRS_TEXTUREFACTOR, RedColor(s_colorZPass));
         pItem->pPrim->Draw();
         RedRenderer::pcSetRenderState(D3DRS_ZFUNC, D3DCMP_GREATEREQUAL);
-        const RedColor hidden((unsigned char)(int)(hiddenColor.r * 255.0f),
-                              (unsigned char)(int)(hiddenColor.g * 255.0f),
-                              (unsigned char)(int)(hiddenColor.b * 255.0f),
-                              (unsigned char)(int)(hiddenColor.a * 255.0f));
-        RedRenderer::pcSetRenderState(D3DRS_TEXTUREFACTOR, hidden.GetARGB());
+        RedRenderer::pcSetRenderState(D3DRS_TEXTUREFACTOR, RedColor(s_colorZFail));
         pItem->pPrim->Draw();
         RedRenderer::pcSetCullMode(uiPass ? PCREDCULL_BACK : PCREDCULL_FRONT);
         RedRenderer::pcSetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
@@ -433,9 +410,7 @@ void pcStencilShadowShader::Render_Prog1(const RenderItem* pItem, unsigned int u
                 }
                 pcRedVertexShaderConstantRegister* pRegs =
                     RedRenderer::pcLockVertexShaderConstants(40, 2);
-                pRegs[40].component[0] = pLight->m_vDirection.x;
-                pRegs[40].component[1] = pLight->m_vDirection.y;
-                pRegs[40].component[2] = pLight->m_vDirection.z;
+                pRegs[40].SetVectorXYZ(pLight->m_vDirection);
                 pRegs[41].SetFloats(fLength, 0.0f, 0.0f);
                 RedRenderer::pcUnlockVertexShaderConstants(pRegs);
                 RenderVolume(pItem, uiPass);
@@ -452,11 +427,7 @@ void pcStencilShadowShader::Render_Prog1(const RenderItem* pItem, unsigned int u
                 }
                 pcRedVertexShaderConstantRegister* pRegs =
                     RedRenderer::pcLockVertexShaderConstants(40, 2);
-                const float fRadius = pLight->m_radius;
-                pRegs[40].component[0] = pLight->m_pos.x;
-                pRegs[40].component[1] = pLight->m_pos.y;
-                pRegs[40].component[2] = pLight->m_pos.z;
-                pRegs[40].component[3] = fRadius;
+                pRegs[40].SetVectorW(pLight->m_pos, pLight->m_radius);
                 pRegs[41].SetFloats(0.0f, 0.0f, 0.0f);
                 RedRenderer::pcUnlockVertexShaderConstants(pRegs);
                 RenderVolume(pItem, uiPass);
@@ -471,11 +442,7 @@ void pcStencilShadowShader::Render_Prog1(const RenderItem* pItem, unsigned int u
                 }
                 pcRedVertexShaderConstantRegister* pRegs =
                     RedRenderer::pcLockVertexShaderConstants(40, 2);
-                const float fRadius = pLight->GetShadowRadius();
-                pRegs[40].component[0] = pLight->m_vPos.x;
-                pRegs[40].component[1] = pLight->m_vPos.y;
-                pRegs[40].component[2] = pLight->m_vPos.z;
-                pRegs[40].component[3] = fRadius;
+                pRegs[40].SetVectorW(pLight->m_vPos, pLight->GetShadowRadius());
                 pRegs[41].SetFloats(0.0f, 0.0f, 0.0f);
                 RedRenderer::pcUnlockVertexShaderConstants(pRegs);
                 RenderVolume(pItem, uiPass);
@@ -493,11 +460,7 @@ void pcStencilShadowShader::Render_Prog1(const RenderItem* pItem, unsigned int u
             }
             pcRedVertexShaderConstantRegister* pRegs =
                 RedRenderer::pcLockVertexShaderConstants(40, 2);
-            const float fRadius = pLight->m_radius;
-            pRegs[40].component[0] = pLight->m_pos.x;
-            pRegs[40].component[1] = pLight->m_pos.y;
-            pRegs[40].component[2] = pLight->m_pos.z;
-            pRegs[40].component[3] = fRadius;
+            pRegs[40].SetVectorW(pLight->m_pos, pLight->m_radius);
             pRegs[41].SetFloats(0.0f, 0.0f, 0.0f);
             RedRenderer::pcUnlockVertexShaderConstants(pRegs);
             RenderVolume(pItem, uiPass);
@@ -512,11 +475,7 @@ void pcStencilShadowShader::Render_Prog1(const RenderItem* pItem, unsigned int u
             }
             pcRedVertexShaderConstantRegister* pRegs =
                 RedRenderer::pcLockVertexShaderConstants(40, 2);
-            const float fRadius = pLight->GetShadowRadius();
-            pRegs[40].component[0] = pLight->m_vPos.x;
-            pRegs[40].component[1] = pLight->m_vPos.y;
-            pRegs[40].component[2] = pLight->m_vPos.z;
-            pRegs[40].component[3] = fRadius;
+            pRegs[40].SetVectorW(pLight->m_vPos, pLight->GetShadowRadius());
             pRegs[41].SetFloats(0.0f, 0.0f, 0.0f);
             RedRenderer::pcUnlockVertexShaderConstants(pRegs);
             RenderVolume(pItem, uiPass);
@@ -533,9 +492,7 @@ void pcStencilShadowShader::Render_Prog1(const RenderItem* pItem, unsigned int u
             }
             pcRedVertexShaderConstantRegister* pRegs =
                 RedRenderer::pcLockVertexShaderConstants(40, 2);
-            pRegs[40].component[0] = pLight->m_vDirection.x;
-            pRegs[40].component[1] = pLight->m_vDirection.y;
-            pRegs[40].component[2] = pLight->m_vDirection.z;
+            pRegs[40].SetVectorXYZ(pLight->m_vDirection);
             pRegs[41].SetFloats(fLength, 0.0f, 0.0f);
             RedRenderer::pcUnlockVertexShaderConstants(pRegs);
             RenderVolume(pItem, uiPass);
@@ -612,7 +569,7 @@ void pcStencilShadowShader::_InitPipelineFuncArray()
 // FUNCTION: SWBF2 0x00707dd0
 void pcStencilShadowShader::_Read(PblFileChunk& chunk) const
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId != 0x454d414e)

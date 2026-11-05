@@ -525,8 +525,8 @@ inline void pcShadowQuadRenderable::Create()
 
 inline void ReflectionRegion::Init()
 {
-    s_VisibleList.RemoveAll();
-    s_List.RemoveAll();
+    s_VisibleList.Clear();
+    s_List.Clear();
 }
 
 inline void pcShadowQuadRenderable::Destroy()
@@ -538,8 +538,8 @@ inline void pcShadowQuadRenderable::Destroy()
 
 inline void ReflectionRegion::Cleanup()
 {
-    s_VisibleList.RemoveAll();
-    s_List.RemoveAll();
+    s_VisibleList.Clear();
+    s_List.Clear();
 }
 
 // FUNCTION: SWBF2 0x006bbc20
@@ -687,7 +687,7 @@ void FLRenderer::SetTransitionOverlayRect(int iView, float fX0, float fY0, float
 // FUNCTION: SWBF2 0x006bf320
 void ReflectionRegion::UpdateAllVisibility(const RedCamera* pCamera)
 {
-    s_VisibleList.RemoveAll();
+    s_VisibleList.Clear();
     if (!pCamera)
     {
         return;
@@ -922,35 +922,35 @@ void FLRenderer::CaptureFrame(unsigned int uiView)
 }
 
 // TEMPLATE: SWBF2 0x006bbe40
-// PblList<ReflectionRegion>::RemoveAll
-template void PblList<ReflectionRegion>::RemoveAll();
+// PblList<ReflectionRegion>::Clear
+template void PblList<ReflectionRegion>::Clear();
 
 // FUNCTION: SWBF2 0x006bbe80
 bool ClipLoopToFrustumPlanes(PblVector3* pOut, int& nOut, const PblVector3* pIn,
                              const int nIn, const COMPONENT eComponent,
                              const float fMin, const float fMax)
 {
-    int aiCode[32];
-    int iAll = 0;
+    unsigned int auiClipped[32];
+    unsigned int uiAnyClipped = 0;
     for (int i = 0; i < nIn; i++)
     {
-        const float fC = (&pIn[i].x)[eComponent];
+        const float fC = pIn[i][eComponent];
         if (pIn[i].z * fMin > fC)
         {
-            aiCode[i] = 1;
-            iAll |= 1;
+            auiClipped[i] = 1;
+            uiAnyClipped |= 1;
         }
         else if (fC > pIn[i].z * fMax)
         {
-            aiCode[i] = 2;
-            iAll |= 2;
+            auiClipped[i] = 2;
+            uiAnyClipped |= 2;
         }
         else
         {
-            aiCode[i] = 0;
+            auiClipped[i] = 0;
         }
     }
-    if (!iAll)
+    if (!uiAnyClipped)
     {
         return false;
     }
@@ -960,62 +960,55 @@ bool ClipLoopToFrustumPlanes(PblVector3* pOut, int& nOut, const PblVector3* pIn,
     for (int i = 0; i < nIn; i++)
     {
         const int iNext = (i + 1) % nIn;
-        if (!aiCode[i])
+        if (!auiClipped[i])
         {
             pOut[nOut++] = pIn[i];
         }
 
-        const int iCross = aiCode[i] ^ aiCode[iNext];
-        if (!iCross)
+        const unsigned int uiClippedDelta = auiClipped[i] ^ auiClipped[iNext];
+        if (!uiClippedDelta)
         {
             continue;
         }
 
-        const float* pCur = &pIn[i].x;
-        const float* pNext = &pIn[iNext].x;
-        const float fDC = pCur[eComponent] - pNext[eComponent];
+        const float fDC = pIn[i][eComponent] - pIn[iNext][eComponent];
         const float fDZ = pIn[i].z - pIn[iNext].z;
         float fT;
-        float* pDst;
         if (fDC >= 0.0f)
         {
-            if (iCross & 2)
+            if (uiClippedDelta & 2)
             {
-                fT = (pCur[eComponent] - pIn[i].z * fMax) / (fDC - fDZ * fMax);
-                pDst = &pOut[nOut].x;
+                fT = (pIn[i][eComponent] - pIn[i].z * fMax) / (fDC - fDZ * fMax);
                 pOut[nOut].z = pIn[iNext].z * fT + (1.0f - fT) * pIn[i].z;
-                pDst[eComponent] = pOut[nOut].z * fMax;
-                pDst[iOther] = pNext[iOther] * fT + (1.0f - fT) * pCur[iOther];
+                pOut[nOut][eComponent] = pOut[nOut].z * fMax;
+                pOut[nOut][iOther] = pIn[iNext][iOther] * fT + (1.0f - fT) * pIn[i][iOther];
                 nOut++;
             }
-            if (iCross & 1)
+            if (uiClippedDelta & 1)
             {
-                fT = (pCur[eComponent] - pIn[i].z * fMin) / (fDC - fDZ * fMin);
-                pDst = &pOut[nOut].x;
+                fT = (pIn[i][eComponent] - pIn[i].z * fMin) / (fDC - fDZ * fMin);
                 pOut[nOut].z = (1.0f - fT) * pIn[i].z + pIn[iNext].z * fT;
-                pDst[eComponent] = pOut[nOut].z * fMin;
-                pDst[iOther] = pNext[iOther] * fT + (1.0f - fT) * pCur[iOther];
+                pOut[nOut][eComponent] = pOut[nOut].z * fMin;
+                pOut[nOut][iOther] = pIn[iNext][iOther] * fT + (1.0f - fT) * pIn[i][iOther];
                 nOut++;
             }
         }
         else
         {
-            if (iCross & 1)
+            if (uiClippedDelta & 1)
             {
-                fT = (pCur[eComponent] - pIn[i].z * fMin) / (fDC - fDZ * fMin);
-                pDst = &pOut[nOut].x;
+                fT = (pIn[i][eComponent] - pIn[i].z * fMin) / (fDC - fDZ * fMin);
                 pOut[nOut].z = pIn[iNext].z * fT + (1.0f - fT) * pIn[i].z;
-                pDst[eComponent] = pOut[nOut].z * fMin;
-                pDst[iOther] = pNext[iOther] * fT + (1.0f - fT) * pCur[iOther];
+                pOut[nOut][eComponent] = pOut[nOut].z * fMin;
+                pOut[nOut][iOther] = pIn[iNext][iOther] * fT + (1.0f - fT) * pIn[i][iOther];
                 nOut++;
             }
-            if (iCross & 2)
+            if (uiClippedDelta & 2)
             {
-                fT = (pCur[eComponent] - pIn[i].z * fMax) / (fDC - fDZ * fMax);
-                pDst = &pOut[nOut].x;
+                fT = (pIn[i][eComponent] - pIn[i].z * fMax) / (fDC - fDZ * fMax);
                 pOut[nOut].z = pIn[iNext].z * fT + (1.0f - fT) * pIn[i].z;
-                pDst[eComponent] = pOut[nOut].z * fMax;
-                pDst[iOther] = pNext[iOther] * fT + (1.0f - fT) * pCur[iOther];
+                pOut[nOut][eComponent] = pOut[nOut].z * fMax;
+                pOut[nOut][iOther] = pIn[iNext][iOther] * fT + (1.0f - fT) * pIn[i][iOther];
                 nOut++;
             }
         }
@@ -1739,8 +1732,7 @@ void FLRenderer::RenderReflections()
         const PblMatrix& mCamera = pCamera->GetMatrix();
         const RedCamera* pSceneCamera = 0;
         bool bClipPlane;
-        if (plane.GetA() * mCamera.m[3][0] + mCamera.m[3][1] * plane.GetB() + mCamera.m[3][2] * plane.GetC() +
-                plane.GetD() > 0.0f)
+        if (plane.Distance(mCamera.GetTranslation()) > 0.0f)
         {
             RedRenderer::pcSetFrontFace(PCREDFRONT_CW);
 

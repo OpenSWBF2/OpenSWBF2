@@ -180,13 +180,13 @@ public:
     bool IsOn() const { return m_bLightsaberOn || m_fTurnOnTimer < m_fTurnOnDuration; }
     bool IsOn(unsigned int uiBlade) const;
     float GetLightSaberLengthFactor(unsigned int uiBlade) const;
-    void RenderLightsaberTrail(unsigned int uiEdge, const PblMatrix* pMatrix, bool bTrailOn,
-                               unsigned int uiFlags);
+    void RenderLightsaberTrail(unsigned int uiEdge, const PblMatrix& mMatrix, bool bTrailOn,
+                               unsigned int uiFlags) const;
     bool TestInputQueueForButtons(unsigned int iPressedMask, unsigned int iReleasedMask) const;
-    bool TestConditionExceptInputQueue(float fPreviousTime, float fCurrentTime,
-                                       const Combo::Condition* pCondition);
-    bool TestCondition(float fPreviousTime, float fCurrentTime, const Combo::Condition* pCondition,
-                       float* pfMatchTime);
+    bool TestConditionExceptInputQueue(const void* pConditionPtr, float fPreviousTime,
+                                       float fCurrentTime) const;
+    bool TestCondition(const void* pConditionPtr, float fPreviousTime, float fCurrentTime,
+                       float& fMatchTime);
 
 protected:
     void ClearInput();
@@ -257,7 +257,7 @@ public:
     float m_fTurnOnTimer;
     float m_fTurnOnDuration;
     DamageData* m_pDamageData;
-    TrailData* m_pTrailData;
+    mutable TrailData* m_pTrailData;
     GameSoundControllable m_OnOffSound;
     GameSound m_OnOffSoundProps;
 };

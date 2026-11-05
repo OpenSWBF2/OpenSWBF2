@@ -91,16 +91,16 @@ public:
 
     Node* FindByIndex(unsigned int uiIndex) const
     {
-        Node* pNode = GetFirst();
-        while (pNode != GetTerminator())
+        Itor itor(this);
+        if (itor.GetNode() == GetTerminator())
         {
-            if (uiIndex-- == 0)
-            {
-                return pNode;
-            }
-            pNode = pNode->GetNext();
+            return 0;
         }
-        return 0;
+        for (unsigned int i = 0; i < uiIndex; ++i)
+        {
+            ++itor;
+        }
+        return itor.GetNode();
     }
 
     const Node* GetTerminator() const { return &mHead; }

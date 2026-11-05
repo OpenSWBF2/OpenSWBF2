@@ -1,4 +1,5 @@
 #include "AmmoCounter.h"
+#include "WeaponDispenser.h"
 #include <d3dx9math.h>
 #include <float.h>
 #include <math.h>
@@ -12,6 +13,9 @@
 #include "CollisionObject.h"
 #include "ConnectivityGraph.h"
 #include "Entity.h"
+#include "EntityCarrier.h"
+#include "EntityDroideka.h"
+#include "EntitySoldier.h"
 #include "EnergyBar.h"
 #include "GameObject.h"
 #include "GameLoop.h"
@@ -51,30 +55,6 @@ inline float Weapon::GetHeat() const
 {
     return 1.0f - m_pEnergyBar->GetEnergy() / m_pEnergyBar->GetEnergyMax();
 }
-
-class EntitySoldier
-{
-public:
-    static PblHash rttiHashEntitySoldier;
-};
-
-class EntityFlyer
-{
-public:
-    static PblHash rttiHashEntityFlyer;
-};
-
-class EntityDroideka
-{
-public:
-    static PblHash rttiHashEntityDroideka;
-};
-
-class WeaponDispenser
-{
-public:
-    static PblHash rttiHashWeaponDispenser;
-};
 
 namespace CombatUtil
 {

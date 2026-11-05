@@ -28,7 +28,7 @@ public:
     virtual float GetVelocity();
     virtual float GetRange();
 
-    RedModel* mModel;
+    const RedModel* mModel;
     bool mStraightBullet;
     bool mFadeColorLight;
     RedLodData mLodData;

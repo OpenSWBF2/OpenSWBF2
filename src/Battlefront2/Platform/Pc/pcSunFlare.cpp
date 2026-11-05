@@ -117,34 +117,6 @@ void EmitRing(VERTEX*& pVertices, const PblVector3& vPosition, float, float, flo
 
 
 
-static void SetSunFlareVertex(FlareVertex& v, float x, float y, float z,
-                              const RedColor& color, float u, float texV)
-{
-    v.pos.SetPos(x, y, z);
-    v.color = color;
-    v.uv.SetUV(u, texV);
-}
-
-static void SetSunFlareVertex(FlareCompressedVertex& v, float x, float y, float z,
-                              const RedColor& color, float u, float texV)
-{
-    v.pos.SetPos(x, y, z);
-    v.color = color;
-    v.uv.SetUV(u, texV);
-}
-
-static void SetSunFlareDiscVertex(FlareVertex& v, float x, float y, float z)
-{
-    v.pos.SetPos(x, y, z);
-    v.color = RedColor::WHITE;
-}
-
-static void SetSunFlareDiscVertex(FlareCompressedVertex& v, float x, float y, float z)
-{
-    v.pos.SetPos(x, y, z);
-    v.color = RedColor::WHITE;
-}
-
 // FUNCTION: SWBF2 0x0042d8b0
 void SunFlareEffect::Init()
 {
@@ -306,17 +278,14 @@ FLEffectClass* SunFlareEffect::BuildClass(PblConfig& config) const
         {
             float fPitch = data.GetFloatArg(0) * 0.017453292f;
             float fYaw = data.GetNumArgs() > 1 ? data.GetFloatArg(1) * 0.017453292f : 0.0f;
-            float fSinPitch, fCosPitch, fSinYaw, fCosYaw;
+            float fSinPitch, fCosPitch;
             PblMath::SinCos(&fSinPitch, &fCosPitch, fPitch);
             PblVector3 v(fSinPitch, -fCosPitch, 0.0f);
-            PblMath::SinCos(&fSinYaw, &fCosYaw, fYaw);
-            PblVector3 vDirection(fCosYaw * v.x - fSinYaw * v.z, v.y,
-                                  fSinYaw * v.x + fCosYaw * v.z);
+            PblVector3 vDirection = RotateY(v, fYaw);
             pFlare->SetDirection(vDirection);
             if (!RedWater::IsSpecularDirectionSet())
             {
-                RedWater::SetSpecularDirection(
-                    PblVector3(-vDirection.x, -vDirection.y, -vDirection.z));
+                RedWater::SetSpecularDirection(-vDirection);
             }
             break;
         }
@@ -410,7 +379,7 @@ void SunFlareEffect::SunFlareList::Cleanup()
     {
         delete GetFirst()->_pObject;
     }
-    RemoveAll();
+    Clear();
 }
 
 // FUNCTION: SWBF2 0x0042e000
@@ -619,19 +588,15 @@ template <class VERTEX, int RVF>
 void SunFlare::RenderSunAndHalo(unsigned int uiPass) const
 {
     const PblVector3& vAxis = RedRenderer::GetCamera()->GetMatrix().GetZAxis();
-    if (_vDirection.x * vAxis.x + _vDirection.y * vAxis.y + _vDirection.z * vAxis.z > 0.0f)
+    if (DotProduct(_vDirection, vAxis) > 0.0f)
     {
         return;
     }
 
     float fDistance = GetDistance();
-    PblVector3 vOffset(_vDirection.x * fDistance, _vDirection.y * fDistance,
-                       _vDirection.z * fDistance);
-    const PblVector3& vCamera = RedRenderer::GetCamera()->GetMatrix().GetTranslation();
-    PblVector3 vPosition(vCamera.x + vOffset.x, vCamera.y + vOffset.y, vCamera.z + vOffset.z);
-    PblVector3 vView;
-    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vView), reinterpret_cast<const D3DXVECTOR3*>(&vPosition), reinterpret_cast<const D3DXMATRIX*>(&RedRenderer::GetCamera()->GetMatrixInverse()));
-    vPosition = vView;
+    PblVector3 vPosition = RedRenderer::GetCamera()->GetMatrix().GetTranslation()
+        + _vDirection * fDistance;
+    vPosition = RedRenderer::GetCamera()->GetMatrixInverse().ApplyTransform(vPosition);
 
     const float fScale = fDistance * 0.00833f;
     const float fSize = _fSize * fScale / RedRenderer::GetCamera()->GetZoom();
@@ -677,12 +642,10 @@ bool CreateTextures(RedTexture* pTexture, const PblVector3& vPosition, float fSi
         return false;
     }
 
-    const PblVector3 vMin = RedRenderer::TransformProjectionPointToScreenSpace(
-        RedRenderer::TransformCameraPointToProjectionSpace(
-            PblVector3(vPosition.x - fSize, vPosition.y - fSize, vPosition.z)));
-    const PblVector3 vMax = RedRenderer::TransformProjectionPointToScreenSpace(
-        RedRenderer::TransformCameraPointToProjectionSpace(
-            PblVector3(vPosition.x + fSize, vPosition.y + fSize, vPosition.z)));
+    PblVector3 corner(vPosition.x - fSize, vPosition.y - fSize, vPosition.z);
+    const PblVector3 vMin = RedRenderer::TransformCameraPointToScreenSpace(corner);
+    corner.Set(vPosition.x + fSize, vPosition.y + fSize, vPosition.z);
+    const PblVector3 vMax = RedRenderer::TransformCameraPointToScreenSpace(corner);
     float viewMinX, viewMinY, viewMaxX, viewMaxY;
     RedRenderer::pcGetViewportExtents(viewMinX, viewMinY, viewMaxX, viewMaxY);
     if (viewMinX >= vMax.x || vMin.x >= viewMaxX || viewMinY >= vMin.y ||
@@ -700,7 +663,7 @@ bool CreateTextures(RedTexture* pTexture, const PblVector3& vPosition, float fSi
         IDirect3DSurface9* pBack;
         IDirect3DSurface9* pSky;
         RedRenderer::pcGetDevice()->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &pBack);
-        ((IDirect3DTexture9*)RedRenderer::pcGetBuffer(PC_BUFFER_SKY)->m_pTexture)->GetSurfaceLevel(0, &pSky);
+        ((IDirect3DTexture9*)RedRenderer::pcGetBuffer(PC_BUFFER_SKY)->pcGetD3DTexture())->GetSurfaceLevel(0, &pSky);
         D3DSURFACE_DESC backDesc, skyDesc;
         pBack->GetDesc(&backDesc);
         pSky->GetDesc(&skyDesc);
@@ -766,7 +729,7 @@ bool CreateTextures(RedTexture* pTexture, const PblVector3& vPosition, float fSi
 
     pcRedPrimitive* pDisc = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, RVF,
                                                    sizeof(VERTEX), 42, 0, false);
-    pDisc->m_bbox = s_boundingBox;
+    pDisc->SetBoundingBox(s_boundingBox);
     CompressedPos::SetBoundingBox(s_boundingBox);
     VERTEX* pDiscV = (VERTEX*)pDisc->BeginVertexData();
     if (!pDiscV)
@@ -777,13 +740,15 @@ bool CreateTextures(RedTexture* pTexture, const PblVector3& vPosition, float fSi
     {
         float s, c;
         PblMath::SinCos(&s, &c, (float)i * 6.2831855f / 20.0f);
-        SetSunFlareDiscVertex(pDiscV[2 * i], vPosition.x, vPosition.y, vPosition.z);
-        SetSunFlareDiscVertex(pDiscV[2 * i + 1], vPosition.x + c * fSize,
-                             vPosition.y + s * fSize, vPosition.z);
+        PblVector3 vSegPos = vPosition + PblVector3(c * fSize, s * fSize, 0.0f);
+        pDiscV[2 * i].pos.SetPos(vPosition.x, vPosition.y, vPosition.z);
+        pDiscV[2 * i].color = RedColor::WHITE;
+        pDiscV[2 * i + 1].pos.SetPos(vSegPos.x, vSegPos.y, vSegPos.z);
+        pDiscV[2 * i + 1].color = RedColor::WHITE;
     }
     pDisc->EndVertexData();
     RedRenderer::pcRenderPrimitive(pDisc, s_pSunAndHaloShader,
-                                   RedRenderer::GetCamera()->GetMatrix(), RedColor::BLACK, 0x200, 0, 0, 0);
+                                   RedRenderer::GetCamera()->GetMatrix(), RedColor(RedColor::BLACK, 255), 0x200, 0, 0, 0);
     pDisc->Release();
 
     if (!bSunAndHalo && FLRenderer::GetFarSceneRange() > FLRenderer::GetNearSceneFadeStart())
@@ -829,8 +794,8 @@ bool CreateTextures(RedTexture* pTexture, const PblVector3& vPosition, float fSi
     IDirect3DSurface9* pSun;
     IDirect3DSurface9* pSample;
     RedRenderer::pcGetDevice()->GetRenderTarget(0, &pSource);
-    ((IDirect3DTexture9*)pTexture->m_pTexture)->GetSurfaceLevel(0, &pSun);
-    ((IDirect3DTexture9*)s_sampleTex->m_pTexture)->GetSurfaceLevel(0, &pSample);
+    ((IDirect3DTexture9*)pTexture->pcGetD3DTexture())->GetSurfaceLevel(0, &pSun);
+    ((IDirect3DTexture9*)s_sampleTex->pcGetD3DTexture())->GetSurfaceLevel(0, &pSample);
     RedRenderer::pcGetDevice()->StretchRect(pSource, &source, pSun, &dest, D3DTEXF_NONE);
     if (!bSunAndHalo)
     {
@@ -878,26 +843,37 @@ void RenderFlareOuts(RedTexture* pTexture, const PblVector3& vPosition, float fS
     VERTEX* pVertex = pBase;
     float size = fSize;
     float step = (fFlareOutSize - fSize) / (float)iNumFlareOuts;
+    RedColor color(RedColor::WHITE, initialAlpha);
     for (int i = 0; i < iNumFlareOuts; ++i)
     {
         size += step;
         float fade = 1.0f - (float)i / (float)iNumFlareOuts;
-        RedColor color(RedColor::WHITE, (unsigned char)(int)((float)initialAlpha * fade * fade * fade));
+        color.a = (unsigned char)(int)((float)initialAlpha * fade * fade * fade);
         if (color.a < 3)
         {
             break;
         }
-        const float x0 = vPosition.x - size, x1 = vPosition.x + size;
-        const float y0 = vPosition.y - size, y1 = vPosition.y + size;
-        SetSunFlareVertex(pVertex[0], x0, y0, vPosition.z, color, rect.minX, rect.maxY);
-        SetSunFlareVertex(pVertex[1], x1, y0, vPosition.z, color, rect.maxX, rect.maxY);
-        SetSunFlareVertex(pVertex[2], x1, y1, vPosition.z, color, rect.maxX, rect.minY);
-        SetSunFlareVertex(pVertex[3], x0, y0, vPosition.z, color, rect.minX, rect.maxY);
-        SetSunFlareVertex(pVertex[4], x1, y1, vPosition.z, color, rect.maxX, rect.minY);
-        SetSunFlareVertex(pVertex[5], x0, y1, vPosition.z, color, rect.minX, rect.minY);
+        pVertex[0].pos.SetPos(vPosition.x - size, vPosition.y - size, vPosition.z);
+        pVertex[0].uv.SetUV(rect.minX, rect.maxY);
+        pVertex[0].color = color;
+        pVertex[1].pos.SetPos(vPosition.x + size, vPosition.y - size, vPosition.z);
+        pVertex[1].uv.SetUV(rect.maxX, rect.maxY);
+        pVertex[1].color = color;
+        pVertex[2].pos.SetPos(vPosition.x + size, vPosition.y + size, vPosition.z);
+        pVertex[2].uv.SetUV(rect.maxX, rect.minY);
+        pVertex[2].color = color;
+        pVertex[3].pos.SetPos(vPosition.x - size, vPosition.y - size, vPosition.z);
+        pVertex[3].uv.SetUV(rect.minX, rect.maxY);
+        pVertex[3].color = color;
+        pVertex[4].pos.SetPos(vPosition.x + size, vPosition.y + size, vPosition.z);
+        pVertex[4].uv.SetUV(rect.maxX, rect.minY);
+        pVertex[4].color = color;
+        pVertex[5].pos.SetPos(vPosition.x - size, vPosition.y + size, vPosition.z);
+        pVertex[5].uv.SetUV(rect.minX, rect.minY);
+        pVertex[5].color = color;
         pVertex += 6;
     }
-    const int vertexCount = pVertex - pBase;
+    const unsigned int vertexCount = pVertex - pBase;
     pBuffer->Unlock();
     pcRedPrimitive* pPrimitive = pcRedPrimitive::Create(D3DPT_TRIANGLELIST,
                                                          vertexCount / 3, RVF, vertexCount,
@@ -966,23 +942,23 @@ void EmitRing(VERTEX*& pVertices, const PblVector3& vPosition, float fAngle,
             vPosition + PblVector3(fCos * fOuterRadius, fSin * fOuterRadius, 0.0f)
         };
         pVertices[0].pos.SetPos(vSegPos[0]);
-        pVertices[0].color = innerColor;
         pVertices[0].uv.SetUV(fU, fV);
+        pVertices[0].color = innerColor;
         pVertices[1].pos.SetPos(vSegPos[1]);
-        pVertices[1].color = middleColor;
         pVertices[1].uv.SetUV(fU, fV);
+        pVertices[1].color = middleColor;
         if (i == 0)
         {
             pVertices[2 * iSegments + 2].pos.SetPos(vSegPos[1]);
-            pVertices[2 * iSegments + 2].color = middleColor;
             pVertices[2 * iSegments + 2].uv.SetUV(fU, fV);
+            pVertices[2 * iSegments + 2].color = middleColor;
         }
         pVertices[2 * iSegments + 3].pos.SetPos(vSegPos[1]);
-        pVertices[2 * iSegments + 3].color = middleColor;
         pVertices[2 * iSegments + 3].uv.SetUV(fU, fV);
+        pVertices[2 * iSegments + 3].color = middleColor;
         pVertices[2 * iSegments + 4].pos.SetPos(vSegPos[2]);
-        pVertices[2 * iSegments + 4].color = outerColor;
         pVertices[2 * iSegments + 4].uv.SetUV(fU, fV);
+        pVertices[2 * iSegments + 4].color = outerColor;
         pVertices += 2;
     }
     pVertices += 2 * iSegments + 3;
@@ -1011,6 +987,8 @@ void SunFlare::EmitSunRings(VERTEX*& pVertices, const PblVector3& vPosition,
     const PblMatrix& projection = RedRenderer::GetProjectionMatrix();
     radius = GetDistance();
     const float fScale = radius * 0.0037f;
+    unsigned char maxColor = (unsigned char)Max((int)_color.g, (int)_color.r);
+    maxColor = (unsigned char)Max((int)_color.b, (int)maxColor);
     const float fDepthInv = 1.0f / vPosition.z;
     const float fProjX = projection.m[0][0] * vPosition.x * fDepthInv;
     const float fProjY = projection.m[1][1] * vPosition.y * fDepthInv;
@@ -1020,16 +998,7 @@ void SunFlare::EmitSunRings(VERTEX*& pVertices, const PblVector3& vPosition,
         fForeshorten = 0.0f;
     }
 
-    unsigned char maxColor = _color.b;
-    if (_color.g > maxColor)
-    {
-        maxColor = _color.g;
-    }
-    if (_color.r > maxColor)
-    {
-        maxColor = _color.r;
-    }
-    const unsigned char alpha = (unsigned char)PblMath::Floor((float)maxColor * fForeshorten + 0.5f);
+    const unsigned char alpha = (unsigned char)PblMath::Round((float)maxColor * fForeshorten);
     const float fSpikeScale = _spikeSize * fScale;
     const float fAngle = (vPosition.y * 6.2831855f + vPosition.x * 3.1415927f)
                          / vPosition.z + fSpikeScale * 3.1415927f * 0.33333001f;
@@ -1038,18 +1007,18 @@ void SunFlare::EmitSunRings(VERTEX*& pVertices, const PblVector3& vPosition,
     PblMath::SinCos(&fSin[1], &fCos[1], 1.0471871f - fAngle);
     const float r = ((fForeshorten + 1.0f) * (float)maxColor * 0.5f * 0.05f * 0.1f)
                     * fSpikeScale;
-    const float x = vPosition.x, y = vPosition.y, z = vPosition.z;
-    PblVector3 vVert[6];
-    vVert[0] = vPosition + PblVector3(fCos[0] * r, fSin[0] * (r * 2.0f), 0.0f);
-    vVert[1] = vPosition + PblVector3((fCos[0] * -0.5f - fSin[0] * 0.866f) * r,
-                                     (fCos[0] * 0.866f - fSin[0] * 0.5f) * (r * 2.0f), 0.0f);
-    vVert[2] = vPosition + PblVector3((fCos[0] * -0.5f - fSin[0] * -0.866f) * r,
-                                     (fSin[0] * -0.5f - fCos[0] * 0.866f) * (r * 2.0f), 0.0f);
-    vVert[3] = vPosition + PblVector3(fCos[1] * (r * 2.5f), fSin[1] * r, 0.0f);
-    vVert[4] = vPosition + PblVector3((fCos[1] * -0.5f - fSin[1] * 0.866f) * (r * 2.5f),
-                                     (fCos[1] * 0.866f - fSin[1] * 0.5f) * r, 0.0f);
-    vVert[5] = vPosition + PblVector3((fCos[1] * -0.5f - fSin[1] * -0.866f) * (r * 2.5f),
-                                     (fSin[1] * -0.5f - fCos[1] * 0.866f) * r, 0.0f);
+    PblVector3 vVert[6] = {
+        vPosition + PblVector3(fCos[0] * r, fSin[0] * (r * 2.0f), 0.0f),
+        vPosition + PblVector3((fCos[0] * -0.5f - fSin[0] * 0.866f) * r,
+                                     (fCos[0] * 0.866f - fSin[0] * 0.5f) * (r * 2.0f), 0.0f),
+        vPosition + PblVector3((fCos[0] * -0.5f - fSin[0] * -0.866f) * r,
+                                     (fSin[0] * -0.5f - fCos[0] * 0.866f) * (r * 2.0f), 0.0f),
+        vPosition + PblVector3(fCos[1] * (r * 2.5f), fSin[1] * r, 0.0f),
+        vPosition + PblVector3((fCos[1] * -0.5f - fSin[1] * 0.866f) * (r * 2.5f),
+                                     (fCos[1] * 0.866f - fSin[1] * 0.5f) * r, 0.0f),
+        vPosition + PblVector3((fCos[1] * -0.5f - fSin[1] * -0.866f) * (r * 2.5f),
+                                     (fSin[1] * -0.5f - fCos[1] * 0.866f) * r, 0.0f)
+    };
 
     const RedColor clear(0, 0, 0, 0);
     const RedColor& spike = _spikeColor;
@@ -1091,9 +1060,7 @@ void SunFlare::EmitSunRings(VERTEX*& pVertices, const PblVector3& vPosition,
     const RedCamera* pCamera = RedRenderer::GetCamera();
     const float fThreshold = PblMath::Cos(pCamera->GetFOV() * 0.5f);
     const PblVector3& cameraAxis = pCamera->GetMatrix().GetZAxis();
-    float facing = -(cameraAxis.x * _vDirection.x +
-                     cameraAxis.y * _vDirection.y +
-                     cameraAxis.z * _vDirection.z);
+    float facing = -DotProduct(cameraAxis, _vDirection);
     if (facing < 0.0f)
     {
         facing = fThreshold;
@@ -1115,131 +1082,131 @@ void SunFlare::EmitSunRings(VERTEX*& pVertices, const PblVector3& vPosition,
              fade * 3.0f * factor, whiteInner, whiteMiddle, whiteOuter,
              30, fTexU, fTexV);
 
-    vVert[0].x = x * -0.30000001f;
-    vVert[0].y = y * -0.30000001f;
-    vVert[0].z = z;
-    EmitRing(pVertices, vVert[0], 0.0f, z * 0,
-             z * 0.015f, z * 0.02f,
+    vVert[0].x = vPosition.x * -0.30000001f;
+    vVert[0].y = vPosition.y * -0.30000001f;
+    vVert[0].z = vPosition.z;
+    EmitRing(pVertices, vVert[0], 0.0f, 0.0f,
+             vPosition.z * 0.015f, vPosition.z * 0.02f,
              RedColor(27, 54, 13, alpha),
              RedColor(13, 27, 13, alpha),
              RedColor(13, 27, 27, 0),
              6, fTexU, fTexV);
 
-    vVert[0].x = x * -0.34f;
-    vVert[0].y = y * -0.34f;
-    vVert[0].z = z;
-    EmitRing(pVertices, vVert[0], 0.0f, z * 0,
-             z * 0.0049999999f, z * 0.0099999998f,
+    vVert[0].x = vPosition.x * -0.34f;
+    vVert[0].y = vPosition.y * -0.34f;
+    vVert[0].z = vPosition.z;
+    EmitRing(pVertices, vVert[0], 0.0f, 0.0f,
+             vPosition.z * 0.0049999999f, vPosition.z * 0.0099999998f,
              RedColor(108, 54, 54, alpha),
              RedColor(54, 54, 54, alpha),
              RedColor(54, 54, 108, 0),
              5, fTexU, fTexV);
 
-    vVert[0].x = x * -0.5f;
-    vVert[0].y = y * -0.5f;
-    vVert[0].z = z;
-    EmitRing(pVertices, vVert[0], 0.0f, z * fForeshorten * 0.059999999f,
-             z * (fForeshorten + 1.0f) * 0.082500003f, z * (fForeshorten + 1.0f) * 0.1f,
+    vVert[0].x = vPosition.x * -0.5f;
+    vVert[0].y = vPosition.y * -0.5f;
+    vVert[0].z = vPosition.z;
+    EmitRing(pVertices, vVert[0], 0.0f, vPosition.z * fForeshorten * 0.059999999f,
+             vPosition.z * (fForeshorten + 1.0f) * 0.082500003f, vPosition.z * (fForeshorten + 1.0f) * 0.1f,
              RedColor(27, 13, 54, 0),
              RedColor(20, 27, 10, alpha),
              RedColor(54, 13, 0, 0),
              20, fTexU, fTexV);
 
-    vVert[0].x = x * -0.77499998f;
-    vVert[0].y = y * -0.77499998f;
-    vVert[0].z = z;
-    EmitRing(pVertices, vVert[0], 0.0f, z * 0,
-             z * 0.0099999998f, z * 0.02f,
+    vVert[0].x = vPosition.x * -0.77499998f;
+    vVert[0].y = vPosition.y * -0.77499998f;
+    vVert[0].z = vPosition.z;
+    EmitRing(pVertices, vVert[0], 0.0f, 0.0f,
+             vPosition.z * 0.0099999998f, vPosition.z * 0.02f,
              RedColor(13, 20, 13, alpha),
              RedColor(13, 20, 13, alpha),
              RedColor(13, 20, 13, 0),
              6, fTexU, fTexV);
 
-    vVert[0].x = x * -0.82499999f;
-    vVert[0].y = y * -0.82499999f;
-    vVert[0].z = z;
-    EmitRing(pVertices, vVert[0], 0.0f, z * 0,
-             z * 0.02f, z * 0.039999999f,
+    vVert[0].x = vPosition.x * -0.82499999f;
+    vVert[0].y = vPosition.y * -0.82499999f;
+    vVert[0].z = vPosition.z;
+    EmitRing(pVertices, vVert[0], 0.0f, 0.0f,
+             vPosition.z * 0.02f, vPosition.z * 0.039999999f,
              RedColor(20, 34, 20, alpha),
              RedColor(20, 34, 20, alpha),
              RedColor(20, 34, 20, 0),
              8, fTexU, fTexV);
 
-    vVert[0].x = x * -0.89499998f;
-    vVert[0].y = y * -0.89499998f;
-    vVert[0].z = z;
-    EmitRing(pVertices, vVert[0], 0.0f, z * 0,
-             z * 0.01825f, z * 0.037500001f,
+    vVert[0].x = vPosition.x * -0.89499998f;
+    vVert[0].y = vPosition.y * -0.89499998f;
+    vVert[0].z = vPosition.z;
+    EmitRing(pVertices, vVert[0], 0.0f, 0.0f,
+             vPosition.z * 0.01825f, vPosition.z * 0.037500001f,
              RedColor(20, 34, 20, alpha),
              RedColor(20, 34, 20, alpha),
              RedColor(27, 40, 27, 0),
              8, fTexU, fTexV);
 
-    vVert[0].x = x * -0.94999999f;
-    vVert[0].y = y * -0.94999999f;
-    vVert[0].z = z;
-    EmitRing(pVertices, vVert[0], 0.0f, z * 0,
-             z * 0.015f, z * 0.029999999f,
+    vVert[0].x = vPosition.x * -0.94999999f;
+    vVert[0].y = vPosition.y * -0.94999999f;
+    vVert[0].z = vPosition.z;
+    EmitRing(pVertices, vVert[0], 0.0f, 0.0f,
+             vPosition.z * 0.015f, vPosition.z * 0.029999999f,
              RedColor(13, 20, 13, alpha),
              RedColor(13, 20, 13, alpha),
              RedColor(13, 20, 13, 0),
              7, fTexU, fTexV);
 
-    vVert[0].x = x * 0.30000001f;
-    vVert[0].y = y * 0.30000001f;
-    vVert[0].z = z;
-    EmitRing(pVertices, vVert[0], 0.0f, z * 0,
-             z * 0.0040000002f, z * 0.0080000004f,
+    vVert[0].x = vPosition.x * 0.30000001f;
+    vVert[0].y = vPosition.y * 0.30000001f;
+    vVert[0].z = vPosition.z;
+    EmitRing(pVertices, vVert[0], 0.0f, 0.0f,
+             vPosition.z * 0.0040000002f, vPosition.z * 0.0080000004f,
              RedColor(136, 68, 27, alpha),
              RedColor(108, 68, 13, alpha),
              RedColor(0, 0, 0, alpha),
              5, fTexU, fTexV);
 
-    vVert[0].x = x * 0.2f;
-    vVert[0].y = y * 0.2f;
-    vVert[0].z = z;
-    EmitRing(pVertices, vVert[0], 0.0f, z * 0,
-             z * 0.025f, z * 0.039999999f,
+    vVert[0].x = vPosition.x * 0.2f;
+    vVert[0].y = vPosition.y * 0.2f;
+    vVert[0].z = vPosition.z;
+    EmitRing(pVertices, vVert[0], 0.0f, 0.0f,
+             vPosition.z * 0.025f, vPosition.z * 0.039999999f,
              RedColor(68, 0, 0, alpha),
              RedColor(54, 13, 0, alpha),
              RedColor(0, 0, 0, alpha),
              6, fTexU, fTexV);
 
-    vVert[0].x = x * 0.125f;
-    vVert[0].y = y * 0.125f;
-    vVert[0].z = z;
-    EmitRing(pVertices, vVert[0], 0.0f, z * 0,
-             z * 0.015f, z * 0.025f,
+    vVert[0].x = vPosition.x * 0.125f;
+    vVert[0].y = vPosition.y * 0.125f;
+    vVert[0].z = vPosition.z;
+    EmitRing(pVertices, vVert[0], 0.0f, 0.0f,
+             vPosition.z * 0.015f, vPosition.z * 0.025f,
              RedColor(61, 54, 0, alpha),
              RedColor(27, 54, 0, alpha),
              RedColor(0, 0, 0, alpha),
              6, fTexU, fTexV);
 
-    vVert[0].x = x * 1.7f;
-    vVert[0].y = y * 1.7f;
-    vVert[0].z = z;
-    EmitRing(pVertices, vVert[0], 0.0f, z * 0,
-             z * 0.015f, z * 0.02f,
+    vVert[0].x = vPosition.x * 1.7f;
+    vVert[0].y = vPosition.y * 1.7f;
+    vVert[0].z = vPosition.z;
+    EmitRing(pVertices, vVert[0], 0.0f, 0.0f,
+             vPosition.z * 0.015f, vPosition.z * 0.02f,
              RedColor(0, 13, 81, alpha),
              RedColor(0, 0, 68, alpha),
              RedColor(0, 0, 68, 0),
              6, fTexU, fTexV);
 
-    vVert[0].x = x * 1.53f;
-    vVert[0].y = y * 1.53f;
-    vVert[0].z = z;
-    EmitRing(pVertices, vVert[0], 0.0f, z * 0,
-             z * 0.0145f, z * 0.0175f,
+    vVert[0].x = vPosition.x * 1.53f;
+    vVert[0].y = vPosition.y * 1.53f;
+    vVert[0].z = vPosition.z;
+    EmitRing(pVertices, vVert[0], 0.0f, 0.0f,
+             vPosition.z * 0.0145f, vPosition.z * 0.0175f,
              RedColor(34, 0, 81, alpha),
              RedColor(0, 0, 68, alpha),
              RedColor(0, 0, 68, 0),
              5, fTexU, fTexV);
 
-    vVert[0].x = x * 1.62f;
-    vVert[0].y = y * 1.62f;
-    vVert[0].z = z;
-    EmitRing(pVertices, vVert[0], 0.0f, z * 0,
-             z * 0.02f, z * 0.022500001f,
+    vVert[0].x = vPosition.x * 1.62f;
+    vVert[0].y = vPosition.y * 1.62f;
+    vVert[0].z = vPosition.z;
+    EmitRing(pVertices, vVert[0], 0.0f, 0.0f,
+             vPosition.z * 0.02f, vPosition.z * 0.022500001f,
              RedColor(20, 27, 68, alpha),
              RedColor(13, 20, 54, alpha),
              RedColor(0, 0, 0, 0),

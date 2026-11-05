@@ -102,7 +102,7 @@ private:
     void PlatformRender(const PblMatrix& mMatrix, unsigned char ucViewport, unsigned int uiFlags);
 
 public:
-    ShieldEffectClass* m_pClass;
+    const ShieldEffectClass* m_pClass;
     pcShieldShader* m_pShader;
     float m_fScrollTimer;
     float m_fTurnOnTimer;

@@ -86,7 +86,7 @@ template <class TYPE, class CLASS, class DESC>
 inline void Factory<TYPE, CLASS, DESC>::Reset()
 {
     sCounter = 0;
-    sList.RemoveAll();
+    sList.Clear();
 }
 
 template <class TYPE, class CLASS, class DESC>

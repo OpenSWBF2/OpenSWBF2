@@ -3,6 +3,7 @@
 #include "PebbleFL/Common/PblChunk.h"
 #include "RedEngineFL/Memory/engineAlloc.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
+#include "RedEngineFL/Graphics/RedMaterial.h"
 #include "RedEngineFL/Graphics/PC/pcRedVertexFormat.h"
 #include "RedEngineFL/Graphics/PC/pcRedTexture.h"
 #include "RedEngineFL/Graphics/PC/pcRedPrimitive.h"
@@ -320,8 +321,8 @@ void pcFilterCopyShader::Render_Prog1(const RenderItem* pItem, unsigned int uiPa
             if (m_curSample >= m_numSamples)
             {
                 RedRenderer::pcSetTexture(i, 0);
-                const PblVector4 vZero(0.0f, 0.0f, 0.0f, 0.0f);
-                RedRenderer::pcGetDevice()->SetPixelShaderConstantF(i, vZero, 1);
+                const RedColorValue coefficient(0.0f, 0.0f, 0.0f, 0.0f);
+                RedRenderer::pcGetDevice()->SetPixelShaderConstantF(i, &coefficient.r, 1);
                 pRegs[40 + i].component[0] = 0.0f;
                 pRegs[40 + i].component[1] = 0.0f;
             }
@@ -329,8 +330,8 @@ void pcFilterCopyShader::Render_Prog1(const RenderItem* pItem, unsigned int uiPa
             {
                 RedRenderer::pcSetTexture(i, m_srcTex);
                 const float fValue = m_samples[m_curSample].fValue;
-                const PblVector4 vWeight(fValue, fValue, fValue, fValue);
-                RedRenderer::pcGetDevice()->SetPixelShaderConstantF(i, vWeight, 1);
+                const RedColorValue coefficient(fValue, fValue, fValue, fValue);
+                RedRenderer::pcGetDevice()->SetPixelShaderConstantF(i, &coefficient.r, 1);
                 const RedTexture* pSrc = m_srcTex;
                 const float fOffsetU = m_samples[m_curSample].fOffsetX / (float)pSrc->m_uiWidth;
                 const float fOffsetV = m_samples[m_curSample].fOffsetY / (float)pSrc->m_uiHeight;
@@ -421,7 +422,7 @@ void pcFilterCopyShader::_InitPipelineFuncArray()
 // FUNCTION: SWBF2 0x00710420
 void pcFilterCopyShader::_Read(PblFileChunk& chunk) const
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId != 0x454d414e)

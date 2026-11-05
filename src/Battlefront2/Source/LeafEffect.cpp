@@ -113,21 +113,21 @@ void FallingLeafParticle::DoFlutterUpdate(float fDeltaTime)
     float fAngle = Length(vOmega);
     if (fAngle > EPSILON)
     {
-        float fInv = 1.0f / fAngle;
-        q = q * PblQuaternion(PblVector3(vOmega.x * fInv, vOmega.y * fInv, vOmega.z * fInv), fAngle);
+        q *= PblQuaternion(vOmega / fAngle, fAngle);
     }
     if (mRandomness < 0.15f)
     {
-        q = q * PblQuaternion(PblVector3(0.0f, 1.0f, 0.0f), (mRandomness - 1.0f) * 10.0f * mFallTime);
+        q *= PblQuaternion(PblVector3(0.0f, 1.0f, 0.0f), (mRandomness - 1.0f) * 10.0f * mFallTime);
     }
 
     mMatrix = PblMatrix(q, vPos);
 
     float fSlide = fSin * -1.8f;
-    PblVector3 vSlide(mMatrix.m[0][0] * fSlide, mMatrix.m[0][1] * fSlide, mMatrix.m[0][2] * fSlide);
-    mVelocity = Interpolate(sFlutterSinkVelocity, vSlide, (float)fabs((double)(mRandomness * fSin)));
+    PblVector3 vSlide = fSlide * mMatrix[0];
+    mVelocity = Interpolate(sFlutterSinkVelocity, vSlide, fabsf(mRandomness * fSin));
 
-    mMatrix.SetTranslation(mVelocity * fDeltaTime + vPos);
+    vPos += mVelocity * fDeltaTime;
+    mMatrix.SetTranslation(vPos);
 }
 
 // FUNCTION: SWBF2 0x0056bc10
@@ -200,17 +200,13 @@ bool FallingLeafParticle::Update(float fDeltaTime)
 
         PblVector3 vSwirl = (mWindVelocity + mConstantWindVelocity * 16.0f * (1.0f - mFallTime / kTwoPi)) * kTwoPi;
 
-        PblVector3 vOmega(vSwirl.y * 0.0f - vSwirl.z,
-                          vSwirl.z * 0.0f - vSwirl.x * 0.0f,
-                          vSwirl.x - vSwirl.y * 0.0f);
-        PblVector3 vLocal;
-        D3DXVec3TransformNormal((D3DXVECTOR3*)&vLocal, (const D3DXVECTOR3*)&vOmega, (const D3DXMATRIX*)&mMatrix.GetInverseFast());
+        PblVector3 vOmega = CrossProduct(vSwirl, PblVector3(0.0f, 1.0f, 0.0f));
+        mMatrix.GetInverseFast().ApplyRotation(vOmega);
 
         float fAngle = Length(vOmega);
         if (fAngle > EPSILON)
         {
-            float fInv = 1.0f / fAngle;
-            q = q * PblQuaternion(PblVector3(vOmega.x * fInv, vOmega.y * fInv, vOmega.z * fInv), fAngle);
+            q *= PblQuaternion(vOmega / fAngle, fAngle);
         }
 
         vPos += (mWindVelocity + mConstantWindVelocity) * fDeltaTime;
@@ -247,8 +243,8 @@ bool FallingLeafParticle::Update(float fDeltaTime)
 // FUNCTION: SWBF2 0x0056c470
 void FallingLeafParticle::AddWindVelocity(const PblVector3& vVelocity)
 {
-    float fSpeed = PblMath::Sqrt(vVelocity.x * vVelocity.x + vVelocity.y * vVelocity.y + vVelocity.z * vVelocity.z);
-    mWindVelocity += vVelocity * 0.9f;
+    float fSpeed = Length(vVelocity);
+    mWindVelocity += 0.9f * vVelocity;
     mWindVelocity += PblVector3(0.0f, fSpeed * 0.4f, 0.0f);
 }
 

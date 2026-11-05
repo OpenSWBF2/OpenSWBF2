@@ -185,19 +185,9 @@ void UnitFollowAgent::EnterState()
         PblVector3 vDest;
         do
         {
-            const GameObject* pTargetA = mTarget;
-            const CollisionObject& rTargetA = *pTargetA;
-            const GameObject* pTargetB = mTarget;
-
-            const PblVector3 vRandom = PblRandom::GetGlobalVector3();
-            const PblVector3 vPush = (vRandom * 20.0f) * 0.2f;
-
-            const PblVector3 vRow = (rTargetA.GetMatrix()[2] * 20.0f) * 0.5f;
-
-            const PblVector3& rTargetPos = pTargetB->GetPosition();
+            vDest = mTarget->GetPosition() - (mTarget->GetMatrix().GetZAxis() * 20.0f) * 0.5f +
+                    (PblRandom::GetGlobalVector3() * 20.0f) * 0.2f;
             ++uTries;
-            vDest = PblVector3(rTargetPos.x - vRow.x + vPush.x, rTargetPos.y - vRow.y + vPush.y,
-                               rTargetPos.z - vRow.z + vPush.z);
             bValid = PathFinder::IsPointValid(vDest, 0, mCtrl->mOwner->GetGameObject());
         } while (!bValid && uTries < 20);
 
@@ -307,14 +297,8 @@ void UnitFollowAgent::UpdateStatePostVision(float dt)
             else
             {
                 bIsSeatedSoldier = false;
-                Controllable* pMe = mCtrl->mOwner;
-                const GameObject* pTarget = mTarget.operator->();
-                const PblMatrix& mine = pMe->GetMatrix();
-                const PblVector3& theirPos = pTarget->GetPosition();
-                float dx = theirPos.x - mine.m[3][0];
-                float dy = theirPos.y - mine.m[3][1];
-                float dz = theirPos.z - mine.m[3][2];
-                if (dx * dx + dy * dy + dz * dz < 100.0f && CheckForForwardHintNodes())
+                float fDistSq = SquaredLength(mTarget->GetPosition() - GetMe()->GetMatrix().GetTranslation());
+                if (fDistSq < 100.0f && CheckForForwardHintNodes())
                 {
                     SetNextState(6);
                     break;
@@ -345,9 +329,10 @@ void UnitFollowAgent::UpdateStatePostVision(float dt)
                         if (GetMe()->GetGameObject()->GetAffiliationToMe(
                                 mTarget->mControllableList.GetFirst()->_pObject->mReticuleTarget[0]) < 0)
                         {
+                            const GameObject* pTarget = mTarget.operator->();
                             AI::UnitThreatManager& rThreats = mCtrl->mThreatManager;
                             rThreats.AddThreat(const_cast<GameObject*>(
-                                static_cast<const GameObject*>(mTarget->GetControllable()->mReticuleTarget[0])));
+                                static_cast<const GameObject*>(pTarget->GetControllable()->mReticuleTarget[0])));
                         }
                     }
                 }
@@ -406,14 +391,8 @@ void UnitFollowAgent::UpdateStatePostVision(float dt)
         }
         else
         {
-            Controllable* pMe = mCtrl->mOwner;
-            const GameObject* pTarget = mTarget.operator->();
-            const PblMatrix& mine = pMe->GetMatrix();
-            const PblVector3& theirs = pTarget->GetPosition();
-            float dx = theirs.x - mine.m[3][0];
-            float dy = theirs.y - mine.m[3][1];
-            float dz = theirs.z - mine.m[3][2];
-            if (dx * dx + dy * dy + dz * dz > 400.0f)
+            float fDistSq = SquaredLength(mTarget->GetPosition() - GetMe()->GetMatrix().GetTranslation());
+            if (fDistSq > 400.0f)
             {
                 SetNextState(mTightFollowMode ? 2 : 5);
             }

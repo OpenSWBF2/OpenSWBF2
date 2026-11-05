@@ -8,6 +8,7 @@
 #include "RedEngineFL/Application/Renderable.h"
 #include "RedEngineFL/Graphics/RedColor.h"
 #include "RedEngineFL/Graphics/RedMaterial.h"
+#include "RedEngineFL/Graphics/PC/pcRedPrimitive.h"
 
 class pcRedPrimitive;
 class pcRedShader;
@@ -19,14 +20,8 @@ class LeafPatchRenderable : public Renderable
 {
 public:
 
-    struct CompressedTexCoord
-    {
-        short u, v;
-    };
-    struct TexCoord
-    {
-        float u, v;
-    };
+    typedef ::CompressedTexCoord CompressedTexCoord;
+    typedef ::TexCoord TexCoord;
 
     LeafPatchRenderable(const LeafPatchClass* pClass);
     virtual ~LeafPatchRenderable();

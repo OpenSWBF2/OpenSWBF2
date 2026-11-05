@@ -212,11 +212,7 @@ public:
 
 // FUNCTION: SWBF2 0x006afd00
 inline RedLight::RedLight(TypeT eType)
+    : m_uiHideInView(0), m_uiFlags(0), m_eType(eType), m_uiProjTexHash(0),
+      m_uiProjTexWrapMode(3), m_uiProjTexBlendMode(0)
 {
-    m_uiHideInView = 0;
-    m_uiFlags = 0;
-    m_eType = eType;
-    m_uiProjTexHash = 0;
-    m_uiProjTexWrapMode = 3;
-    m_uiProjTexBlendMode = 0;
 }

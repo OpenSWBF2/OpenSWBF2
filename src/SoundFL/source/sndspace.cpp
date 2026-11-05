@@ -88,9 +88,6 @@ bool Space::IsPointInside(const ::PblVector3& rPoint, float fRadius) const
         return false;
     }
 
-    const float fLength2EstAlpha = 0.94805944f;
-    const float fLength2EstBeta = 0.39269909f;
-
     const bool bHasRadius = fRadius > 0.0f;
     float fDistance = 0.0f;
 
@@ -107,15 +104,7 @@ bool Space::IsPointInside(const ::PblVector3& rPoint, float fRadius) const
         {
             vDelta = pRegion->mMatrix.GetTranslation() - rPoint;
 
-            float fA = (float)fabs(vDelta.x);
-            float fB = (float)fabs(vDelta.y);
-            float fEst = fA > fB ? fA * fLength2EstAlpha + fB * fLength2EstBeta
-                                 : fA * fLength2EstBeta + fB * fLength2EstAlpha;
-
-            fA = (float)fabs(fEst);
-            fB = (float)fabs(vDelta.z);
-            fDistance = fA > fB ? fA * fLength2EstAlpha + fB * fLength2EstBeta
-                                : fA * fLength2EstBeta + fB * fLength2EstAlpha;
+            fDistance = LengthEst(vDelta);
 
             if (fRadius >= fDistance)
             {
@@ -201,16 +190,11 @@ void Space::SetupSource(SourceI3DL2* pSource, bool bInsideSpace) const
     pSource->mOcclusionHFGain = fOcclusionHFGain;
     pSource->mOcclusionLFRatio = fOcclusionLFRatio;
 
-    pSource->mDirectGain = mDirectGain;
-    pSource->mFlags |= (unsigned short)SourceI3DL2::flags_directGain;
-    pSource->mDirectHFGain = mDirectHFGain;
-    pSource->mFlags |= (unsigned short)SourceI3DL2::flags_directHFGain;
-    pSource->mRoomGain = mRoomGain;
-    pSource->mFlags |= (unsigned short)SourceI3DL2::flags_roomGain;
-    pSource->mRoomHFGain = mRoomHFGain;
-    pSource->mFlags |= (unsigned short)SourceI3DL2::flags_roomHFGain;
-    pSource->mRoomRollOffFactor = mRoomRollOffFactor;
-    pSource->mFlags |= (unsigned short)SourceI3DL2::flags_roomRollOffFactor;
+    pSource->SetDirectGain(mDirectGain);
+    pSource->SetDirectHFGain(mDirectHFGain);
+    pSource->SetRoomGain(mRoomGain);
+    pSource->SetRoomHFGain(mRoomHFGain);
+    pSource->SetRoomRollOff(mRoomRollOffFactor);
 }
 
 // FUNCTION: SWBF2 0x00733d90
@@ -225,56 +209,16 @@ void Space::SetupSourceInterpolated(SourceI3DL2Interpolated* pSource,
                                   fObstructionLFRatio, fOcclusionLFRatio,
                                   bInsideSpace);
 
-    SourceI3DL2* const pTarget = &pSource->mTarget;
-    pTarget->mFlags |=
-        (unsigned short)SourceI3DL2::flags_obstructionHFGain;
-    pTarget->mObstructionHFGain = fObstructionHFGain;
-    pSource->mFlags |=
-        (unsigned char)SourceI3DL2Interpolated::flags_interpolate;
+    pSource->SetObstructionHFGain(fObstructionHFGain);
+    pSource->SetObstructionLFRatio(fObstructionLFRatio);
+    pSource->SetOcclusionHFGain(fOcclusionHFGain);
+    pSource->SetOcclusionLFRatio(fOcclusionLFRatio);
 
-    pTarget->mFlags |=
-        (unsigned short)SourceI3DL2::flags_obstructionLFRatio;
-    pTarget->mObstructionLFRatio = fObstructionLFRatio;
-    pSource->mFlags |=
-        (unsigned char)SourceI3DL2Interpolated::flags_interpolate;
-
-    pTarget->mFlags |=
-        (unsigned short)SourceI3DL2::flags_occlusionHFGain;
-    pTarget->mOcclusionHFGain = fOcclusionHFGain;
-    pSource->mFlags |=
-        (unsigned char)SourceI3DL2Interpolated::flags_interpolate;
-
-    pTarget->mFlags |=
-        (unsigned short)SourceI3DL2::flags_occlusionLFRatio;
-    pTarget->mOcclusionLFRatio = fOcclusionLFRatio;
-    pSource->mFlags |=
-        (unsigned char)SourceI3DL2Interpolated::flags_interpolate;
-
-    pTarget->mFlags |= (unsigned short)SourceI3DL2::flags_directGain;
-    pTarget->mDirectGain = mDirectGain;
-    pSource->mFlags |=
-        (unsigned char)SourceI3DL2Interpolated::flags_interpolate;
-
-    pTarget->mFlags |= (unsigned short)SourceI3DL2::flags_directHFGain;
-    pTarget->mDirectHFGain = mDirectHFGain;
-    pSource->mFlags |=
-        (unsigned char)SourceI3DL2Interpolated::flags_interpolate;
-
-    pTarget->mFlags |= (unsigned short)SourceI3DL2::flags_roomGain;
-    pTarget->mRoomGain = mRoomGain;
-    pSource->mFlags |=
-        (unsigned char)SourceI3DL2Interpolated::flags_interpolate;
-
-    pTarget->mFlags |= (unsigned short)SourceI3DL2::flags_roomHFGain;
-    pTarget->mRoomHFGain = mRoomHFGain;
-    pSource->mFlags |=
-        (unsigned char)SourceI3DL2Interpolated::flags_interpolate;
-
-    pTarget->mFlags |=
-        (unsigned short)SourceI3DL2::flags_roomRollOffFactor;
-    pTarget->mRoomRollOffFactor = mRoomRollOffFactor;
-    pSource->mFlags |=
-        (unsigned char)SourceI3DL2Interpolated::flags_interpolate;
+    pSource->SetDirectGain(mDirectGain);
+    pSource->SetDirectHFGain(mDirectHFGain);
+    pSource->SetRoomGain(mRoomGain);
+    pSource->SetRoomHFGain(mRoomHFGain);
+    pSource->SetRoomRollOff(mRoomRollOffFactor);
 }
 
 // FUNCTION: SWBF2 0x00733490
@@ -352,7 +296,7 @@ void Space::ConnectSpace(Space* const pSpace, float fGainFactor)
 // FUNCTION: SWBF2 0x00733a90
 void Space::Read(PblFileChunk& chunk)
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         const unsigned int uiID = child._pFile->Read32();
@@ -373,7 +317,7 @@ void Space::Read(PblFileChunk& chunk)
         case 0x148F0D58u:
         {
             PblFileChunk list = chunk.ReadNextChild();
-            while (list.HasMoreChildren())
+            while (!list.IsDone())
             {
                 PblFileChunk entry = list.ReadNextChild();
                 if (entry._pFile->Read32() != 0x3553E285u)
@@ -402,7 +346,7 @@ void Space::Read(PblFileChunk& chunk)
 // FUNCTION: SWBF2 0x00733920
 void __cdecl Space::Load(PblFileChunk& chunk, bool bOnce)
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId != 0x41544144u)

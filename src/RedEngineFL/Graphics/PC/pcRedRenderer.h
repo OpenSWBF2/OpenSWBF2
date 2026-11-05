@@ -757,6 +757,8 @@ extern unsigned int gAdapter;
 #include "RedEngineFL/Util/ext/heap.h"
 
 #include "RedEngineFL/Graphics/RedColor.h"
+#include "RedEngineFL/Graphics/RedMaterial.h"
+#include "PebbleFL/Common/PblVector.h"
 
 struct DisplayRequestTag
 {
@@ -955,7 +957,51 @@ struct pcRedVertexShaderConstantRegister
         component[3] = fW;
     }
 
-    float component[4];
+    void SetColor(const RedColorValue& color)
+    {
+        r = color.r;
+        g = color.g;
+        b = color.b;
+        a = color.a;
+    }
+
+    void SetColorAlpha(const RedColorValue& color, float fAlpha)
+    {
+        r = color.r;
+        g = color.g;
+        b = color.b;
+        a = fAlpha;
+    }
+
+    void SetVector(const PblVector4& vector)
+    {
+        x = vector.x;
+        y = vector.y;
+        z = vector.z;
+        w = vector.w;
+    }
+
+    void SetVectorXYZ(const PblVector3& vector)
+    {
+        x = vector.x;
+        y = vector.y;
+        z = vector.z;
+    }
+
+    void SetVectorW(const PblVector3& vector, float fW)
+    {
+        x = vector.x;
+        y = vector.y;
+        z = vector.z;
+        w = fW;
+    }
+
+    union
+    {
+        float component[4];
+        struct { float x, y, z, w; };
+        struct { float r, g, b, a; };
+    };
 };
  
 
@@ -1092,7 +1138,10 @@ public:
     static const PblVector3 TransformCameraPointToProjectionSpace(const PblVector3& vPoint);
     static const PblVector3 TransformProjectionPointToScreenSpace(const PblVector3& vPoint);
 
-    static const PblVector3 TransformCameraPointToScreenSpace(const PblVector3& vPoint);
+    static const PblVector3 TransformCameraPointToScreenSpace(const PblVector3& vPoint)
+    {
+        return TransformProjectionPointToScreenSpace(TransformCameraPointToProjectionSpace(vPoint));
+    }
     static const PblVector3 TransformWorldPointToProjectionSpace(const PblVector3& vPoint);
 
     static void internalCleanupOcclusionQuery();

@@ -186,6 +186,7 @@ public:
     ~ClothData();
 
     void PlatformCleanup();
+    pcRedShader* GetShader() const { return m_pShader; }
 
     static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }
     static void operator delete(void* p) { sMemoryPool.Free(p); }

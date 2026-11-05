@@ -132,7 +132,9 @@ void GameMovie::Open()
 }
 
 // FUNCTION: SWBF2 0x00534590
-void GameMovie::Open(const char* const pszFile, const char* const pszName, int iHeap1, int iHeap2)
+void GameMovie::Open(const char* const pszFile, const char* const pszName, const int iHeap1,
+                     const int iHeap2, const bool, const unsigned int uiReadBufferSize,
+                     const unsigned int uiReadSize)
 {
     if (!GameMovie::sUseMovies)
     {
@@ -167,8 +169,8 @@ void GameMovie::Open(const char* const pszFile, const char* const pszName, int i
 
     if (sRedMovie && !GameMemory::TempLoadHeap)
     {
-        if (!sRedMovie->Open(sFilename, GameMovie::sDataHeap, GameMovie::sTextureHeap, PblHash(pszName), 0xFFFFFFFFu,
-                             0xFFFFFFFFu, 3))
+        if (!sRedMovie->Open(sFilename, GameMovie::sDataHeap, GameMovie::sTextureHeap, PblHash(pszName), uiReadBufferSize,
+                             uiReadSize, 3))
         {
             ++gMovieOpenFailures;
         }
@@ -309,18 +311,17 @@ void UpdatInGameMovie()
             GameMovie::Play(ingame_movie_idname, "", 0, 0,
                             RedInterfaceScreen::GetScreenWidth(),
                             RedInterfaceScreen::GetScreenHeight(), false);
+            RedMovie* const pMovie = GameMovie::sRedMovie;
             while (!g_InGameMovieQueue.IsEmpty())
             {
-                const unsigned int* pName = 0;
-                if (!g_InGameMovieQueue.IsEmpty())
-                {
-                    pName = static_cast<const unsigned int*>(g_InGameMovieQueue.QueueBase::Get(
+                const unsigned int* pName = g_InGameMovieQueue.IsEmpty()
+                    ? 0
+                    : static_cast<const unsigned int*>(g_InGameMovieQueue.QueueBase::Get(
                         sizeof(unsigned int), g_InGameMovieQueue.mElements, 12));
-                }
                 const RedMovie::Properties* pProperty = RedMovie::Properties::FindByHashID(*pName);
                 if (pProperty)
                 {
-                    GameMovie::sRedMovie->Play(pProperty, true);
+                    pMovie->Play(pProperty, true);
                 }
             }
             g_InGameMoviePlayerState = 3;

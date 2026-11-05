@@ -24,6 +24,8 @@
 #include "EntityTerrain.h"
 #include "FirstPerson.h"
 #include "FishEffect.h"
+#include "EntityWater.h"
+#include "BirdEffect.h"
 #include "FlagItem.h"
 #include "FLGuiManager.h"
 #include "FLInputManager.h"
@@ -115,7 +117,6 @@
 
 class VideoEffect { public: static void Init(); };
 class LetterboxEffect { public: static void Init(); };
-class BirdParticleManager { public: static void PlatformInit(); };
 
 class WeaponMeleeClass { public: static void PostLoad(); };
 class WeaponMelee { public: static void PostLoad() { WeaponMeleeClass::PostLoad(); } };
@@ -143,13 +144,6 @@ namespace RedMissionLog
     bool Enabled();
 }
 
-class EntityWater
-{
-public:
-    EntityWater();
-
-    unsigned char mOpaqueWaterState[0xa4];
-};
 
 class EntitySoldier
 {
@@ -715,7 +709,7 @@ namespace GameLoop
 }
 namespace GameLoop
 {
-    bool CheckToggleDisplay();
+    void CheckToggleDisplay();
 }
 namespace TeamManager
 {
@@ -1932,7 +1926,7 @@ void SetCanSwitchSides(bool bFlag)
 
 namespace RedScreenShot
 {
-    void TakeScreenShot();
+    bool TakeScreenShot();
 }
 
 namespace GameLoop
@@ -1956,9 +1950,9 @@ namespace GameLoop
 {
 
 // FUNCTION: SWBF2 0x00533540
-bool CheckToggleDisplay()
+void CheckToggleDisplay()
 {
-    return FLInputManager::Instance()->GetPlayerJoystick(0)->GetKeyboard()->IsKeyDown(0x46);
+    FLInputManager::Instance()->GetPlayerJoystick(0)->GetKeyboard()->IsKeyDown(0x46);
 }
 }
 

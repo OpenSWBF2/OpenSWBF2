@@ -9,13 +9,12 @@
 void SaveFile::SplitMetagameFilename(unsigned short const* pusFilename,
                                      unsigned short* pusName,
                                      unsigned short* pusDate,
-                                     char* pcArg4,
-                                     unsigned int uiArg5,
-                                     unsigned int uiArg6)
+                                     char* pcShortDate,
+                                     unsigned int uiGameDateLen,
+                                     unsigned int uiShortDateLen)
 {
-    (void)pcArg4;
-    (void)uiArg5;
-    (void)uiArg6;
+    (void)pcShortDate;
+    (void)uiShortDateLen;
 
     const unsigned int uiLen = PblUnicode::ustrlen(pusFilename);
 
@@ -47,7 +46,7 @@ void SaveFile::SplitMetagameFilename(unsigned short const* pusFilename,
         char acDate[64];
         _snprintf(acDate, 64, "%04d-%02d-%02d %02d:%02d.%02d", iYear, iMonth, iDay,
                   iHour, iMinute, iSecond);
-        PblUnicode::ustrncnv(pusDate, acDate, 64);
+        PblUnicode::ustrncnv(pusDate, acDate, uiGameDateLen);
     }
 }
 
@@ -79,13 +78,14 @@ int SaveFile::GetType()
 }
 
 // FUNCTION: SWBF2 0x004266b0
-void SaveFile::MakeMetagameFilename(unsigned short* pusDest, unsigned short const* pusSource)
+void SaveFile::MakeMetagameFilename(unsigned short* pusDest, unsigned short const* pusSource,
+                                     unsigned int uiFilenameLen)
 {
     unsigned short ausStamp[16];
     SYSTEMTIME localTime;
-    PblUnicode::ustrlcpy(pusDest, pusSource, 128);
+    PblUnicode::ustrncpy(pusDest, pusSource, uiFilenameLen);
     GetLocalTime(&localTime);
     SaveFile::TimeToString(ausStamp, localTime.wYear, localTime.wMonth, localTime.wDay,
-               localTime.wHour, localTime.wMinute, localTime.wSecond);
-    PblUnicode::ustrlcat(pusDest, ausStamp, 128);
+               localTime.wHour, localTime.wMinute, localTime.wSecond, 16);
+    PblUnicode::ustrlcat(pusDest, ausStamp, uiFilenameLen);
 }

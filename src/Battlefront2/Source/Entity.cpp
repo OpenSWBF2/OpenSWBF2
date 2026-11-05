@@ -159,7 +159,7 @@ void EntityClass::Read(PblFileChunk& chunk)
     char acType[128];
     EntityClass* pClass = 0;
 
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)

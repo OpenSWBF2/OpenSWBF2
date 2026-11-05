@@ -14,31 +14,22 @@ GameVoiceChat::Node::Node(Encoder* const encoder, Decoder* const decoder)
 // FUNCTION: SWBF2 0x0053db70
 void GameVoiceChat::Node::SetID(unsigned int uChannel)
 {
-    void* pNode = this;
-    if (!((VoiceChat::Node*)pNode)->IsOpen())
+    if (!IsOpen())
     {
         return;
     }
 
     if (GameVoiceChat::IsSuspended())
     {
-        GameVoiceChat::SetNodeID((GameVoiceChat::Node*)pNode, (unsigned char)uChannel);
+        GameVoiceChat::SetNodeID(this, (unsigned char)uChannel);
         return;
     }
 
-    unsigned char ucChannel = (unsigned char)uChannel;
     const bool bNoChannel = GameVoiceChat::IsBanned();
-    if (bNoChannel)
+    VoiceChat::Node::SetID(bNoChannel ? (unsigned char)0xFF : (unsigned char)uChannel);
+    if (bNoChannel && (unsigned char)uChannel != 0xFF)
     {
-        ((VoiceChat::Node*)pNode)->SetID(0xFF);
-        if (ucChannel != 0xFF)
-        {
-            GameVoiceChat::GetTransport()->SetLocalNode(ucChannel, false, false, false);
-        }
-    }
-    else
-    {
-        ((VoiceChat::Node*)pNode)->SetID(ucChannel);
+        GameVoiceChat::GetTransport()->SetLocalNode((unsigned char)uChannel, false, false, false);
     }
 }
 

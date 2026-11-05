@@ -9,6 +9,8 @@
 #include "Controllable.h"
 #include "EnergyBar.h"
 #include "GameObject.h"
+#include "GameModel.h"
+#include "RedEngineFL/Graphics/RedModel.h"
 #include "GameLoop.h"
 #include "GameSound.h"
 #include "Trackable.h"
@@ -206,8 +208,27 @@ protected:
 
 public:
 
-    virtual void SetPosition(const PblVector3& vPosition);
-    virtual void SetMatrix(const PblMatrix& mMatrix);
+    // FUNCTION: SWBF2 0x0047f9d0
+    virtual void SetPosition(const PblVector3& vPosition)
+    {
+        mMatrix.SetTranslation(vPosition);
+        PblVector3 center;
+        D3DXVec3TransformCoord(&center, &mModel->_mModel->_BoundingSphere.GetCenter(),
+                               reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
+        SetCollisionCenter(center);
+        RecalculateAABB();
+    }
+
+    // FUNCTION: SWBF2 0x0047fa70
+    virtual void SetMatrix(const PblMatrix& matrix)
+    {
+        mMatrix = matrix;
+        PblVector3 center;
+        D3DXVec3TransformCoord(&center, &mModel->_mModel->_BoundingSphere.GetCenter(),
+                               reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
+        SetCollisionCenter(center);
+        RecalculateAABB();
+    }
     virtual bool CollisionCallback(const CollisionResult* pResult, CollisionObject* pOther,
                                    Restrictor* pRestrictor);
     virtual void SetTerrainHeight(int iIndex, float fHeight);

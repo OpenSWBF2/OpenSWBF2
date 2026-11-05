@@ -49,7 +49,7 @@ public:
 
     static void GetSessionId(NetSessionId& session);
 
-    static void SetLocalGSID(unsigned int lo, unsigned int hi);
+    static void SetLocalGSID(unsigned __int64 id);
 
     static unsigned __int64 GetLocalGSID();
 

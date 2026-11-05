@@ -78,7 +78,7 @@ namespace RedScreenShot
     bool StitchImage(Accumulator<RedScreenShot::Pixel>* pAccumulators, int iTilesX, int iTilesY,
                      int iSamplesPerPixel, const RedScreenShot::GammaRamp& gamma, const char* pcFileName,
                      unsigned short uiWidth, unsigned short uiHeight);
-    void TakeScreenShot();
+    bool TakeScreenShot();
 }
 
 namespace RedScreenShot

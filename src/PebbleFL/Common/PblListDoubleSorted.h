@@ -165,8 +165,14 @@ public:
 
                 pNode->mNode.Remove();
 
-                PblListDouble::Node* pAt = pAfter ? pAfter->mNode.mNext : mTerminator.mNext;
-                AddBefore(pAt, &pNode->mNode);
+                if (pAfter)
+                {
+                    AddAfter(&pAfter->mNode, &pNode->mNode);
+                }
+                else
+                {
+                    AddFirst(&pNode->mNode);
+                }
             }
 
             pPrev = pNode;

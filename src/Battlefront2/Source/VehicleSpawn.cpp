@@ -566,12 +566,12 @@ bool VehicleSpawn::Update(float fDeltaTime)
 // FUNCTION: SWBF2 0x0066eac0
 void VehicleSpawn::Reset()
 {
-    sVehicleSpawnList.RemoveAll();
+    sVehicleSpawnList.Clear();
 }
 
 // TEMPLATE: SWBF2 0x00670110
-// PblList<VehicleSpawn>::RemoveAll
-template void PblList<VehicleSpawn>::RemoveAll();
+// PblList<VehicleSpawn>::Clear
+template void PblList<VehicleSpawn>::Clear();
 
 
 

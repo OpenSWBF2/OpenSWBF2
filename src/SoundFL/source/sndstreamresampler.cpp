@@ -49,23 +49,8 @@ void StreamResampler::CompletePacket()
         mInputPacket = 0;
     }
 
-    if (bLast)
-    {
-        mOutputPacket.mFlags |= 1;
-    }
-    else
-    {
-        mOutputPacket.mFlags &= ~1;
-    }
-
-    if (bDiscontinuity)
-    {
-        mOutputPacket.mFlags |= 2;
-    }
-    else
-    {
-        mOutputPacket.mFlags &= ~2;
-    }
+    mOutputPacket.SetLast(bLast);
+    mOutputPacket.SetDiscontinuity(bDiscontinuity);
 }
 
 // FUNCTION: SWBF2 0x0074ccc0

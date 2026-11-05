@@ -230,17 +230,12 @@ void pcShadowQuadRenderable::Render(int value)
         return;
     }
 
-    RedColor colour;
     if (RedRenderer::pcGetRenderCaps().pipeline == 0)
     {
-        colour.b = RedColor::BLACK.b;
-    colour.g = RedColor::BLACK.g;
-    colour.r = RedColor::BLACK.r;
-        colour.a = 0x80;
         RedRenderer::pcRenderPrimitive(m_pPrimitive,
                                        m_pShadowShader,
                                        gMatrixIdentity,
-                                       colour, 0x200,
+                                       RedColor(RedColor::BLACK, 0x80), 0x200,
                                        0, 0, 0);
         RedDropShadowManager::Render(value | 0x200);
         return;
@@ -297,24 +292,16 @@ void pcShadowQuadRenderable::Render(int value)
     RedRenderer::pcFlush(0);
     RedRenderer::pcSetRenderState(D3DRS_COLORWRITEENABLE, D3DCOLORWRITEENABLE_ALPHA);
 
-    colour.b = 0;
-    colour.g = 0;
-    colour.r = 0;
-    colour.a = 0xff;
     RedRenderer::pcRenderPrimitive(mesh, m_pScreenShader,
                                    gMatrixIdentity,
-                                   colour, 0x200, 0,
+                                   RedColor(0, 0, 0, 0xff), 0x200, 0,
                                    0, 0);
 
     float alpha = RedRenderer::GetShadowIntensity() * 255.0f;
-    colour.b = RedColor::BLACK.b;
-    colour.g = RedColor::BLACK.g;
-    colour.r = RedColor::BLACK.r;
-    colour.a = (unsigned char)(int)alpha;
     RedRenderer::pcRenderPrimitive(m_pPrimitive,
                                    m_pShadowShader,
                                    gMatrixIdentity,
-                                   colour, 0x200, 0,
+                                   RedColor(RedColor::BLACK, (unsigned char)(int)alpha), 0x200, 0,
                                    0, 0);
     RedDropShadowManager::Render(value | 0x200);
 
@@ -331,14 +318,10 @@ void pcShadowQuadRenderable::Render(int value)
         backBuffer->Release();
         surface->Release();
 
-        colour.b = 0;
-        colour.g = 0;
-        colour.r = 0;
-        colour.a = 0;
         RedRenderer::pcRenderPrimitive(mesh,
                                        m_pScreenShader,
                                        gMatrixIdentity,
-                                       colour, 0x200,
+                                       RedColor(0, 0, 0, 0), 0x200,
                                        0, 0, 0);
     }
 

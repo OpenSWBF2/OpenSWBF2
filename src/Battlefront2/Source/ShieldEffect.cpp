@@ -204,7 +204,7 @@ ShieldEffect::ShieldEffect(const ShieldEffectClass* pClass)
     : RedSceneObject(&fambaaShieldEffectLodData)
 {
     m_uiAttachFlags |= UPDATE_REQUIRED;
-    m_pClass = const_cast<ShieldEffectClass*>(pClass);
+    m_pClass = pClass;
     m_fScrollTimer = 0.0f;
     m_fTurnOnTimer = 0.0f;
     m_fTurnOnFactor = 0.0f;
@@ -287,7 +287,6 @@ void ShieldEffect::TurnOff()
 void ShieldEffect::Render(unsigned char ucViewport, float, unsigned int uiFlags)
 {
     InterpolateWorldMatrix();
-
     const PblMatrix* pMatrix = &m_mWorldMatrix;
     PblMatrix mScaled;
     if (m_pClass->m_type == 0)
@@ -296,7 +295,9 @@ void ShieldEffect::Render(unsigned char ucViewport, float, unsigned int uiFlags)
         if (m_bTurnOn)
         {
             const float fPeak = 0.94f;
+            // GLOBAL: SWBF2 0x01fac1b4
             static float s_fInvPeak = 1.0f / fPeak;
+            // GLOBAL: SWBF2 0x01fac1bc
             static float s_fInvSettle = 1.0f / (1.0f - fPeak);
             if (m_fTurnOnFactor < fPeak)
             {
@@ -311,7 +312,6 @@ void ShieldEffect::Render(unsigned char ucViewport, float, unsigned int uiFlags)
         {
             fScale = m_fTurnOnFactor;
         }
-
         mScaled = m_mWorldMatrix;
         if (fScale != 1.0f)
         {

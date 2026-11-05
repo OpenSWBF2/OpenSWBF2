@@ -77,7 +77,7 @@ AI::AIGoal::AIGoal(AIGoalType eType, unsigned char uTeam, float fWeight)
 // FUNCTION: SWBF2 0x00439d50
 AI::AIGoal::~AIGoal()
 {
-    mUnitList.RemoveAll();
+    mUnitList.Clear();
 }
 
 // FUNCTION: SWBF2 0x00439d60
@@ -88,12 +88,11 @@ void AI::AIGoal::UnAssignAll()
         UnitController* pController = !itor->GetControllable() ? 0 : UnitControllerPtr(itor->GetControllable()->mCtrl);
         if (pController)
         {
-            PblHandle<GameObject> hNone;
-            CmdInfo cmd = UnitCmdInfo(CMD_WAIT, hNone, PblVector3(0.0f, 0.0f, 0.0f), hNone);
+            UnitCmdInfo cmd = UnitCmdInfo(CMD_WAIT, 0, PblVector3(0.0f, 0.0f, 0.0f), 0);
             pController->ForceCommand(cmd);
         }
     }
-    mUnitList.RemoveAll();
+    mUnitList.Clear();
 }
 
 // FUNCTION: SWBF2 0x00439e80

@@ -43,7 +43,7 @@ protected:
 public:
     PblVector3 mGlobalDest;
     int mIgnoreCnt;
-    Obstacle* mIgnore[2];
+    const Obstacle* mIgnore[2];
     ConnectivityGraphFollower* mGraphFollower;
     bool mRollIntoDest;
 };

@@ -26,7 +26,7 @@ public:
 
     PblBitVector<600> GetPlayersInRegion();
 
-    static void* operator new(unsigned int uSize);
+    static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }
 
     // SYNTHETIC: SWBF2 0x004375c0
     // ActiveRegions::ActiveRegion::operator delete
@@ -48,7 +48,7 @@ int Activate(lua_State* L);
 int Deactivate(lua_State* L);
 int Name(lua_State* L);
 int IsInside(lua_State* L);
-ActiveRegion* __fastcall Activate(RedRegion* pRegion);
+void Activate(RedRegion& region);
 void __fastcall Deactivate(RedRegion* pRegion);
 RedRegion* __fastcall Find(lua_State* L, int iIndex);
 

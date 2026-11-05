@@ -150,7 +150,7 @@ UnitGoalAgentInfo::UnitGoalAgentInfo(UnitControllerCommand eCmd, const AI::GoalT
 {
     mPos = pTarget->mPos;
     mParam = pTarget->mType;
-    mChr = pTarget->mChr;
+    mChr = const_cast<Character*>(pTarget->mChr);
     mWho = const_cast<GameObject*>(static_cast<const GameObject*>(pTarget->mGameObj));
 }
 

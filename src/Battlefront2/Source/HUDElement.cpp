@@ -22,7 +22,7 @@ PblMatrix HUD::Element::CalculateGroupMatrix(HUD::ElementGroupBase* const pGroup
     if (pParent)
     {
         result = CalculateGroupMatrix(pParent);
-        *(D3DXMATRIX*)&result = *(const D3DXMATRIX*)&local * *(const D3DXMATRIX*)&result;
+        result = local * result;
     }
     else
     {
@@ -217,8 +217,7 @@ bool HUD::Matrix::ReadPosition(PblConfig::Data& data, unsigned int uHashID)
     mRelativeMode = (RelativeMode)iMode;
 
     PblMatrix& matrix = *mMatrix;
-    *(PblVector3*)&matrix.m[3][0] = vPosition;
-    matrix.m[3][3] = 1.0f;
+    matrix.SetTranslation(vPosition);
     return true;
 }
 
@@ -361,21 +360,11 @@ void HUD::Matrix::ApplyScale()
 {
     const PblVector3 vPosition = mMatrix->GetTranslation();
 
-    PblVector3 vAxis;
-    D3DXVec3Normalize((D3DXVECTOR3*)&vAxis, (const D3DXVECTOR3*)mMatrix->m[0]);
-    *(PblVector3*)mMatrix->m[0] = vAxis;
-    mMatrix->m[0][3] = 0.0f;
-    D3DXVec3Normalize((D3DXVECTOR3*)&vAxis, (const D3DXVECTOR3*)mMatrix->m[1]);
-    *(PblVector3*)mMatrix->m[1] = vAxis;
-    mMatrix->m[1][3] = 0.0f;
-    D3DXVec3Normalize((D3DXVECTOR3*)&vAxis, (const D3DXVECTOR3*)mMatrix->m[2]);
-    *(PblVector3*)mMatrix->m[2] = vAxis;
-    mMatrix->m[2][3] = 0.0f;
+    mMatrix->SetXAxis(Normalize(mMatrix->GetXAxis()));
+    mMatrix->SetYAxis(Normalize(mMatrix->GetYAxis()));
+    mMatrix->SetZAxis(Normalize(mMatrix->GetZAxis()));
 
-    PblMatrix scaling;
-    D3DXMatrixMultiply((D3DXMATRIX*)mMatrix, (D3DXMATRIX*)mMatrix,
-                       D3DXMatrixScaling((D3DXMATRIX*)&scaling, mScale.x, mScale.y, mScale.z));
-
+    mMatrix->Scale(mScale.x, mScale.y, mScale.z);
     mMatrix->SetTranslation(vPosition);
 }
 
@@ -631,24 +620,14 @@ void HUD::Element::SetRuntimeScale(float fScale)
     }
 
     PblMatrix matrix = mElement->m_mLocal;
-    float afScale[3];
-    for (int i = 0; i < 3; ++i)
-    {
-        const float* pRow = matrix.m[i];
-        afScale[i] = PblMath::Sqrt(pRow[0] * pRow[0] + pRow[1] * pRow[1] + pRow[2] * pRow[2])
-                   / mRuntimeScale * fScale;
-    }
+    const float fScaleX = Length(matrix.GetXAxis()) / mRuntimeScale * fScale;
+    const float fScaleY = Length(matrix.GetYAxis()) / mRuntimeScale * fScale;
+    const float fScaleZ = Length(matrix.GetZAxis()) / mRuntimeScale * fScale;
     mRuntimeScale = fScale;
 
-    for (int i = 0; i < 3; ++i)
-    {
-        PblVector3 vAxis;
-        D3DXVec3Normalize((D3DXVECTOR3*)&vAxis, (const D3DXVECTOR3*)matrix.m[i]);
-        matrix.m[i][0] = vAxis.x * afScale[i];
-        matrix.m[i][1] = vAxis.y * afScale[i];
-        matrix.m[i][2] = vAxis.z * afScale[i];
-        matrix.m[i][3] = 0.0f;
-    }
+    matrix.SetXAxis(Normalize(matrix.GetXAxis()) * fScaleX);
+    matrix.SetYAxis(Normalize(matrix.GetYAxis()) * fScaleY);
+    matrix.SetZAxis(Normalize(matrix.GetZAxis()) * fScaleZ);
     mElement->SetMatrix(matrix);
 }
 
@@ -1284,6 +1263,10 @@ HUD::Element* HUD::Element::GetFirst()
 // FUNCTION: SWBF2 0x00549d40
 HUD::Element* HUD::Element::GetLast()
 {
+    if (sList.mTerminator.mNext == &sList.mTerminator)
+    {
+        return 0;
+    }
     PblListDouble::Node* node = sList.mTerminator.mPrev;
     return node == &sList.mTerminator ? 0 : reinterpret_cast<Element*>(reinterpret_cast<char*>(node) - offsetof(Element, mNode));
 }

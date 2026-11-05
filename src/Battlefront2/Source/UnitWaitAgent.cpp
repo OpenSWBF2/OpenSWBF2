@@ -61,15 +61,7 @@ void UnitWaitAgent::SetNewSearchHeading()
     }
     float fAngle = AIUtil::GetRandomFloat(-fRange, fRange);
 
-    PblVector3 vRotated;
-    {
-        const PblVector3& vAhead = mCtrl->GetOriginalAheadDir();
-        float fSin, fCos;
-        PblMath::SinCos(&fSin, &fCos, fAngle);
-        vRotated = PblVector3(vAhead.x * fCos - vAhead.z * fSin,
-                              vAhead.y,
-                              vAhead.z * fCos + vAhead.x * fSin);
-    }
+    PblVector3 vRotated = RotateY(mCtrl->GetOriginalAheadDir(), fAngle);
 
     mSearchPos = GetMe()->GetMatrix().GetTranslation() + vRotated * 1000.0f;
 }

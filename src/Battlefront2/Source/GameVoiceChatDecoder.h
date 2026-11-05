@@ -41,9 +41,10 @@ public:
     void Close();
     void Flush();
     void Stop();
-    char IsPlaying();
+    bool IsPlaying();
 
     void SetGain(float fGain, unsigned int uiOutput);
+    float GetGain(unsigned int uiOutput) const;
     unsigned int GetNumOutputs() const;
 
     Snd::StreamSourceProducer* mProducers;

@@ -40,7 +40,7 @@ void ResetFileList();
 
 namespace SaveGameManager
 {
-    extern unsigned char mForceNoSaveDevice;
+    extern bool mForceNoSaveDevice;
 }
 
 namespace SaveGameManager
@@ -267,15 +267,15 @@ namespace SaveGameManager
 {
 
 // FUNCTION: SWBF2 0x006331a0
-int GetUniqueFilename(unsigned short* pusFilename, int iStart, int iArg3, unsigned int uiArg4)
+int GetUniqueFilename(unsigned short* pusFilename, int iFileType, int iStart, unsigned int uiFilenameLen)
 {
     unsigned short ausName[256];
     for (; iStart < 10000; ++iStart)
     {
-        FormatProfileName(ausName, 256, pusFilename, iStart);
-        if (IsUniqueFilename(ausName, 1))
+        PblUnicode::usnprintf(ausName, 256, pusFilename, iStart);
+        if (IsUniqueFilename(ausName, iFileType))
         {
-            PblUnicode::ustrlcpy(pusFilename, ausName, 16);
+            PblUnicode::ustrlcpy(pusFilename, ausName, uiFilenameLen);
             return iStart;
         }
     }

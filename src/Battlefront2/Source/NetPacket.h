@@ -136,7 +136,7 @@ public:
 
     void Remove(NetPacket* pPkt);
 
-    bool IsEnd() const;
+    bool IsEnd();
     void BeginWrite();
     void EndWrite();
     PBL_ASAN_NO_SANITIZE void PushFront(NetPacket* pPkt);

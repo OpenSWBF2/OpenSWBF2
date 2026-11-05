@@ -10,6 +10,7 @@
 #include "Controllable.h"
 #include "EnergyBar.h"
 #include "GameObject.h"
+#include "GameModel.h"
 #include "GameSound.h"
 #include "PlayableEntitySounds.h"
 #include "Trackable.h"
@@ -17,6 +18,7 @@
 #include "Weapon.h"
 #include "PebbleFL/Common/PblAngle.h"
 #include "RedEngineFL/Graphics/RedPose.h"
+#include "RedEngineFL/Graphics/RedModel.h"
 #include "Zephyr/Source/ZephyrPoseDyn.h"
 #include "Zephyr/Source/ZephyrSkeleton.h"
 
@@ -353,8 +355,27 @@ protected:
 
 public:
 
-    virtual void SetPosition(const PblVector3& vPos);
-    virtual void SetMatrix(const PblMatrix& mMatrix);
+    // FUNCTION: SWBF2 0x0049e820
+    virtual void SetPosition(const PblVector3& vPos)
+    {
+        mMatrix.SetTranslation(vPos);
+        PblVector3 center;
+        D3DXVec3TransformCoord(&center, &mModel->_mModel->_BoundingSphere.GetCenter(),
+                               reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
+        SetCollisionCenter(center);
+        RecalculateAABB();
+    }
+
+    // FUNCTION: SWBF2 0x0049e8c0
+    virtual void SetMatrix(const PblMatrix& matrix)
+    {
+        mMatrix = matrix;
+        PblVector3 center;
+        D3DXVec3TransformCoord(&center, &mModel->_mModel->_BoundingSphere.GetCenter(),
+                               reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
+        SetCollisionCenter(center);
+        RecalculateAABB();
+    }
     virtual float GetSmallestCollisionDim() const;
     virtual bool CollisionCallback(const CollisionResult* pResult, CollisionObject* pOther,
                                    Restrictor* pRestrictor);

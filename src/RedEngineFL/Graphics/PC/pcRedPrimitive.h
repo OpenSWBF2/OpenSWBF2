@@ -33,9 +33,36 @@ struct CompressedPos
 
     void SetPos(const PblVector3& v) { SetPos(v.x, v.y, v.z); }
 
+    void SetPosHex(short aX, short aY, short aZ)
+    {
+        x = aX;
+        y = aY;
+        z = aZ;
+    }
+
     static PblVector3 s_vMin;
     static PblVector3 s_vScale;
     static PblVector3 s_vScaleInv;
+};
+
+struct CompressedNormal
+{
+    void SetNormal(float fX, float fY, float fZ)
+    {
+        x = (unsigned char)((fX + 1.0f) * 127.5f);
+        y = (unsigned char)((fY + 1.0f) * 127.5f);
+        z = (unsigned char)((fZ + 1.0f) * 127.5f);
+    }
+
+    void SetNormal(const PblVector3& vNormal)
+    {
+        SetNormal(vNormal.x, vNormal.y, vNormal.z);
+    }
+
+    unsigned char z;
+    unsigned char y;
+    unsigned char x;
+    unsigned char w;
 };
 #pragma pack(pop)
 
@@ -44,6 +71,25 @@ class pcRedVertexBuffer;
 class pcRedVertexFormat;
 
 #pragma pack(push, 1)
+struct NormalXYZ
+{
+    void SetNormal(const PblVector3& vNormal)
+    {
+        x = vNormal.x;
+        y = vNormal.y;
+        z = vNormal.z;
+    }
+
+    void GetNormal(PblVector3& vNormal) const
+    {
+        vNormal.x = x;
+        vNormal.y = y;
+        vNormal.z = z;
+    }
+
+    float x, y, z;
+};
+
 struct PosXYZ
 {
     void SetPos(float fX, float fY, float fZ) { x = fX; y = fY; z = fZ; }
@@ -51,6 +97,19 @@ struct PosXYZ
     void GetPos(PblVector3& v) const;
 
     float x, y, z;
+};
+
+struct PosXYZW
+{
+    void SetPos(float fX, float fY, float fZ, float fW)
+    {
+        x = fX;
+        y = fY;
+        z = fZ;
+        w = fW;
+    }
+
+    float x, y, z, w;
 };
 
 struct TexCoord
@@ -121,6 +180,8 @@ public:
     void EndIndexData();
 
     void Draw() const;
+
+    void SetBoundingBox(const PblBox& box) { m_bbox = box; }
 
     static unsigned int GetNumD3DPrimitives(D3DPRIMITIVETYPE primType,
                                             unsigned int uiNumVertices);

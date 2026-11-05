@@ -91,7 +91,7 @@ BoundaryManager::~BoundaryManager()
 // FUNCTION: SWBF2 0x0044dfc0
 void BoundaryManager::Read(PblFileChunk& chunk)
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk data = chunk.ReadNextChild();
         const unsigned int uHash = data._pFile->Read32();
@@ -100,7 +100,7 @@ void BoundaryManager::Read(PblFileChunk& chunk)
         if (uHash == 0x54eacca7)
         {
             PblFileChunk scope = chunk.ReadNextChild();
-            while (scope.HasMoreChildren())
+            while (!scope.IsDone())
             {
 
                 data = scope.ReadNextChild();
@@ -129,15 +129,17 @@ void BoundaryManager::AddPath(unsigned int uPathID)
 }
 
 // FUNCTION: SWBF2 0x0044e110
-bool BoundaryManager::IsOutOfBounds(const PblVector3& vPos) const
+bool BoundaryManager::IsOutOfBounds(const PblVector3& vPos)
 {
     if (!mBoundaries)
     {
         return false;
     }
+    float x = vPos.x;
+    float z = vPos.z;
     for (Boundary* pBoundary = mBoundaries; pBoundary; pBoundary = pBoundary->mNext)
     {
-        if (pBoundary->IsInBounds(vPos))
+        if (pBoundary->IsInBounds(x, z))
         {
             return false;
         }
@@ -169,11 +171,11 @@ Boundary::~Boundary()
 }
 
 // FUNCTION: SWBF2 0x0044e260
-bool Boundary::IsInBounds(const PblVector3& vPos) const
+bool Boundary::IsInBounds(float x, float z)
 {
     for (int i = 0; i < mCount; ++i)
     {
-        if ((vPos.z - mEdges[i].z) * mEdges[i].nz + (vPos.x - mEdges[i].x) * mEdges[i].nx > 0.0f)
+        if ((z - mEdges[i].z) * mEdges[i].nz + (x - mEdges[i].x) * mEdges[i].nx > 0.0f)
         {
             return false;
         }

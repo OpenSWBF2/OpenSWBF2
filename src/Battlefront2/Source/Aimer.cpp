@@ -11,6 +11,7 @@
 #include "GameObject.h"
 #include "NetGame.h"
 #include "UnitController.h"
+#include "WeaponCannonInstance.h"
 #include "PebbleFL/Common/PblHashTable.h"
 #include "PebbleFL/Common/PblMath.h"
 #include "RedEngineFL/Graphics/RedModel.h"
@@ -39,20 +40,6 @@ namespace AIUtil
 
 extern bool netIsLocalTurn;
 extern bool netIsLateTurn;
-
-class Weapon : public Thread
-{
-public:
-    virtual bool IsRtti(unsigned int uRtti);
-    virtual unsigned int GetDerivedRtti();
-    virtual const char* GetDerivedRttiName();
-    virtual void Init();
-    virtual float GetOrdnanceVelocity();
-    virtual float GetOrdnanceGravity();
-
-    char mWeaponState[0x104 - 0x18];
-    PblHandle<const GameObject> mTarget;
-};
 
 namespace
 {
@@ -377,14 +364,8 @@ void Aimer::SetupPose(const PblMatrix& mParent, RedPose& pose, bool bRecurse) co
         const PblMatrix* pParentBone = pose.Find(mClass->mParentHash);
         if (pParentBone)
         {
-            PblMatrix mMount;
-            {
-                PblMatrix mOffset = PblMatrix(mClass->mOffsetRot, mOffsetPos);
-                mMount = mOffset * *pParentBone;
-            }
-            PblVector3 vDir;
-            D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&mDirection), reinterpret_cast<const D3DXMATRIX*>(&mParent));
-            mMountPoseMatrix = DirectionMatrix(vDir, mMount[1], mMount[3]);
+            PblMatrix mMount = PblMatrix(mClass->mOffsetRot, mOffsetPos) * *pParentBone;
+            mMountPoseMatrix = DirectionMatrix(mParent.ApplyRotation(mDirection), mMount[1], mMount[3]);
 
             const PblMatrix* pOld = pose.Find(mClass->mMountHash);
             if (pOld != &mMountPoseMatrix)
@@ -409,12 +390,9 @@ void Aimer::SetupPose(const PblMatrix& mParent, RedPose& pose, bool bRecurse) co
                 PblVector3 vOffset = mClass->mBarrelInfo[i].mOffset;
                 if (mRecoil[i] > 0.0f)
                 {
-                    vOffset.z += -mClass->mBarrelInfo[i].mRecoil * mRecoil[i];
+                    vOffset.AddZ(-mClass->mBarrelInfo[i].mRecoil * mRecoil[i]);
                 }
-                PblVector3 vPos;
-                D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vPos), reinterpret_cast<const D3DXVECTOR3*>(&vOffset), reinterpret_cast<const D3DXMATRIX*>(&mBarrelPoseMatrix[i]));
-                mBarrelPoseMatrix[i][3] = vPos;
-                mBarrelPoseMatrix[i].m[3][3] = 1.0f;
+                mBarrelPoseMatrix[i].SetTranslation(mBarrelPoseMatrix[i].ApplyTransform(vOffset));
 
                 const PblMatrix* pOld = pose.Find(mClass->mBarrelInfo[i].mHash);
                 if (pOld != &mBarrelPoseMatrix[i])
@@ -484,14 +462,12 @@ bool Aimer::GetLeadPos(const PblVector3& vTarget, const PblVector3& vVelocity, P
         const float fSpeed = mWeapon->GetOrdnanceVelocity();
         if (fSpeed > 0.0001f)
         {
-            const float dx = vTarget.x - mRootPos.x;
-            const float dy = vTarget.y - mRootPos.y;
-            const float dz = vTarget.z - mRootPos.z;
+            PblVector3 aTargetDir = vTarget - mRootPos;
             const float fGravity = mWeapon->GetOrdnanceGravity();
             if (fGravity == 0.0f)
             {
-                float b = -(vVelocity.x * dx + vVelocity.y * dy + vVelocity.z * dz);
-                const float fDistSq = dy * dy + dx * dx + dz * dz;
+                float b = -DotProduct(vVelocity, aTargetDir);
+                const float fDistSq = DotProduct(aTargetDir, aTargetDir);
                 const float fDisc = b * b - (vVelocity.x * vVelocity.x + vVelocity.y * vVelocity.y
                                              + vVelocity.z * vVelocity.z - fSpeed * fSpeed) * fDistSq;
                 if (fDisc > 0.0f)
@@ -501,14 +477,14 @@ bool Aimer::GetLeadPos(const PblVector3& vTarget, const PblVector3& vVelocity, P
                 const float fTime = fDistSq / b;
                 if (fTime > 0.0f)
                 {
-                    *pvLead += vVelocity * fTime;
+                    *pvLead += fTime * vVelocity;
                 }
             }
             else
             {
-                float a = dy * fGravity + fSpeed * fSpeed;
+                float a = aTargetDir.y * fGravity + fSpeed * fSpeed;
                 const float fGravitySq = fGravity * fGravity;
-                const float fDisc = a * a - (dy * dy + dx * dx + dz * dz) * fGravitySq;
+                const float fDisc = a * a - (DotProduct(aTargetDir, aTargetDir)) * fGravitySq;
                 if (fDisc > 0.0f)
                 {
                     a -= sqrtf(fDisc);
@@ -520,9 +496,9 @@ bool Aimer::GetLeadPos(const PblVector3& vTarget, const PblVector3& vVelocity, P
                 const float fTimeSq = a * 2.0f / fGravitySq;
                 if (fTimeSq > 0.0f)
                 {
-                    pvLead->y -= fGravity * 0.5f * fTimeSq;
+                    pvLead->AddY(-(fGravity * 0.5f * fTimeSq));
                     const float fTime = sqrtf(fTimeSq);
-                    *pvLead += vVelocity * fTime;
+                    *pvLead += fTime * vVelocity;
                 }
                 else
                 {
@@ -608,10 +584,9 @@ bool Aimer::Update(float fDeltaTime)
     }
 
     const PblVector3 vFireOffset = mFirePos - mRootPos;
-    const float t = mDirection.y * vFireOffset.y + mDirection.x * vFireOffset.x + mDirection.z * vFireOffset.z;
+    const float t = DotProduct(mDirection, vFireOffset);
     const PblVector3 vDelta = vAimPoint - (mFirePos - mDirection * t);
-    PblVector3 vDir;
-    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vDelta));
+    PblVector3 vDir = Normalize(vDelta);
 
     const UnitController* pCtrl = UnitControllerPtr(mOwner);
     if (pCtrl)
@@ -629,21 +604,18 @@ bool Aimer::Update(float fDeltaTime)
     const float fOldYaw = mYaw;
 
     const float fPitchMax = mClass->mPitchRate * fDeltaTime;
-    const float fPitch = Clamp(mMount.m[0][0] * vAxis.x + mMount.m[0][1] * vAxis.y + mMount.m[0][2] * vAxis.z,
+    const float fPitch = Clamp(DotProduct(mMount.GetXAxis(), vAxis),
                                -fPitchMax, fPitchMax);
     mPitch = fOldPitch - fPitch;
 
     const float fYawMax = mClass->mYawRate * fDeltaTime;
-    const float fYaw = Clamp(mMount.m[1][0] * vAxis.x + mMount.m[1][1] * vAxis.y + mMount.m[1][2] * vAxis.z,
+    const float fYaw = Clamp(DotProduct(mMount.GetYAxis(), vAxis),
                              -fYawMax, fYawMax);
     mYaw = fOldYaw + fYaw;
 
-    if ((float)fabs((double)(fOldPitch - mPitch)) < 0.0001f && (float)fabs((double)(fOldYaw - mYaw)) < 0.0001f)
+    if (fabsf(fOldPitch - mPitch) < 0.0001f && fabsf(fOldYaw - mYaw) < 0.0001f)
     {
-        const float fx = mRootPos.x - mOldRootPos.x;
-        const float fy = mRootPos.y - mOldRootPos.y;
-        const float fz = mRootPos.z - mOldRootPos.z;
-        if (fy * fy + fx * fx + fz * fz < 0.0001f)
+        if (SquaredLength(mRootPos - mOldRootPos) < 0.0001f)
         {
             return true;
         }
@@ -662,9 +634,7 @@ bool Aimer::Update(float fDeltaTime)
         const PblMatrix mAim = DirectionMatrix(mDirection, mMount[1], mRootPos);
         const AimerClass::BarrelInfo& barrel = mClass->mBarrelInfo[mCurrentBarrel];
         const PblVector3 vOffset = barrel.mFireOffset + barrel.mOffset;
-        PblVector3 vPos;
-        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vPos), reinterpret_cast<const D3DXVECTOR3*>(&vOffset), reinterpret_cast<const D3DXMATRIX*>(&mAim));
-        mFirePos = vPos;
+        mFirePos = mAim.ApplyTransform(vOffset);
     }
     else
     {

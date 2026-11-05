@@ -33,6 +33,8 @@ public:
     bool Enabled() const { return (mFlags & flags_enabled) != 0; }
 
     const Space* GetSpace() const { return mSpace; }
+    const ::PblVector3* GetRight() const { return &mRight; }
+    const ::PblVector3* GetFront() const { return mFront; }
     void Enable(bool bEnable)
     {
         if (bEnable)
@@ -63,18 +65,7 @@ public:
         mFront = const_cast< ::PblVector3*>(pF);
         const ::PblVector3* pU = pUp ? pUp : &Globals::smUpVector;
         mUp = const_cast< ::PblVector3*>(pU);
-        if (pRight)
-        {
-            mRight = *pRight;
-        }
-        else
-        {
-            ::PblVector3 vRight;
-            vRight.x = pU->y * pF->z - pU->z * pF->y;
-            vRight.y = pU->z * pF->x - pU->x * pF->z;
-            vRight.z = pU->x * pF->y - pU->y * pF->x;
-            mRight = vRight;
-        }
+        mRight = pRight ? *pRight : CrossProduct(*pU, *pF);
     }
 
     void SetPositonSpace(const ::PblVector3* pPos)

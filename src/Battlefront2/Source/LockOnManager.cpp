@@ -170,12 +170,9 @@ void LockOnManager::CreateAll()
     {
         new LockOnManager(i);
     }
-    LockOnManager::Target* pTarget = sTargetCommon;
-    for (int n = 32; n != 0; --n, ++pTarget)
+    for (unsigned int i = 0; i < 32; i++)
     {
-        pTarget->obj.mObject = 0;
-        pTarget->teamMask = 0;
-        pTarget->obj.mSavedHandleId = 0;
+        sTargetCommon[i].SetObj(0, 0);
     }
 }
 
@@ -280,7 +277,7 @@ void LockOnManager::UpdateAll(float fDeltaTime)
 }
 
 // FUNCTION: SWBF2 0x0057da40
-void LockOnManager::AddTargetCommon(GameObject* pActor, unsigned int uTeamMask)
+LockOnManager::Target* LockOnManager::AddTargetCommon(GameObject* pActor, unsigned int uTeamMask)
 {
     unsigned int i;
     for (i = 0; i < 32; ++i)
@@ -295,7 +292,7 @@ void LockOnManager::AddTargetCommon(GameObject* pActor, unsigned int uTeamMask)
     }
     if (i >= 32)
     {
-        return;
+        return 0;
     }
     for (unsigned int j = 0; j < 4; ++j)
     {
@@ -308,6 +305,7 @@ void LockOnManager::AddTargetCommon(GameObject* pActor, unsigned int uTeamMask)
     }
     HUD::Event event(HUD::GameEvents::gTargetResetCommon, i);
     event.Send();
+    return &sTargetCommon[i];
 }
 
 extern bool netFrameLock;
@@ -317,11 +315,9 @@ extern bool mbHistoricalRules;
 }
 
 // FUNCTION: SWBF2 0x0057b430
-void LockOnManager::CalculateScreenCoordinates(Controllable* const pCtrl, RedCamera* const pCamera, const PblVector3* pPos, float* pScreenX, float* pScreenY, bool* pOffScreen, bool bAimRay)
+void LockOnManager::CalculateScreenCoordinates(Controllable* const pCtrl, RedCamera* const pCamera, const PblVector3& pPos, float& pScreenX, float& pScreenY, bool& pOffScreen, bool bAimRay) const
 {
-    LockOnManager* pThis = (LockOnManager*)this;
-    PblVector3 vCamera;
-    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vCamera), reinterpret_cast<const D3DXVECTOR3*>(pPos), reinterpret_cast<const D3DXMATRIX*>(&pCamera->GetMatrixInverse()));
+    const PblVector3 vCamera = pCamera->TransformWorldPointToCameraSpace(pPos);
     const PblVector3 vProjected = pCamera->TransformCameraPointToProjectionSpace(vCamera);
 
     float fDot;
@@ -329,14 +325,14 @@ void LockOnManager::CalculateScreenCoordinates(Controllable* const pCtrl, RedCam
     {
         const PblMatrix& mCamera = pCamera->GetMatrix();
         const PblVector3 vForward(-mCamera.m[2][0], -mCamera.m[2][1], -mCamera.m[2][2]);
-        const PblVector3 vDelta(pPos->x - mCamera.m[3][0], pPos->y - mCamera.m[3][1], pPos->z - mCamera.m[3][2]);
+        const PblVector3 vDelta(pPos.x - mCamera.m[3][0], pPos.y - mCamera.m[3][1], pPos.z - mCamera.m[3][2]);
         PblVector3 vToTarget;
         D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vToTarget), reinterpret_cast<const D3DXVECTOR3*>(&vDelta));
         fDot = vForward.x * vToTarget.x + vForward.y * vToTarget.y + vForward.z * vToTarget.z;
     }
     else
     {
-        const PblVector3 vDelta(pPos->x - pCtrl->mEyePoint.x, pPos->y - pCtrl->mEyePoint.y, pPos->z - pCtrl->mEyePoint.z);
+        const PblVector3 vDelta(pPos.x - pCtrl->mEyePoint.x, pPos.y - pCtrl->mEyePoint.y, pPos.z - pCtrl->mEyePoint.z);
         PblVector3 vToTarget;
         D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vToTarget), reinterpret_cast<const D3DXVECTOR3*>(&vDelta));
         fDot = pCtrl->mEyeDir.x * vToTarget.x + pCtrl->mEyeDir.y * vToTarget.y + pCtrl->mEyeDir.z * vToTarget.z;
@@ -344,16 +340,16 @@ void LockOnManager::CalculateScreenCoordinates(Controllable* const pCtrl, RedCam
 
     if (vCamera.z > 0.0f)
     {
-        *pScreenX = -vProjected.x;
-        *pScreenY = -vProjected.y;
+        pScreenX = -vProjected.x;
+        pScreenY = -vProjected.y;
     }
     else
     {
-        *pScreenX = vProjected.x;
-        *pScreenY = vProjected.y;
+        pScreenX = vProjected.x;
+        pScreenY = vProjected.y;
     }
-    const float fAbsX = fabsf(*pScreenX);
-    float fAbsY = fabsf(*pScreenY);
+    const float fAbsX = fabsf(pScreenX);
+    float fAbsY = fabsf(pScreenY);
     if (!pCtrl->GetEntity() || !pCtrl->GetEntity()->IsRtti(EntityFlyer::rttiHashEntityFlyer))
     {
         if (fDot < 0.2f && fAbsY > fAbsX * 0.3f)
@@ -361,24 +357,24 @@ void LockOnManager::CalculateScreenCoordinates(Controllable* const pCtrl, RedCam
             float fLimit = fAbsX * 0.3f;
             if (!(fDot <= 0.0f))
             {
-                fLimit += (fAbsY - fLimit) * (fDot / 0.2f);
+                fLimit = Interpolate(fLimit, fAbsY, fDot / 0.2f);
             }
             const float fScale = fLimit / fAbsY;
             fAbsY = fScale * fAbsY;
-            *pScreenY *= fScale;
+            pScreenY *= fScale;
         }
     }
 
-    if (fDot <= 0.0f || fAbsX > pThis->mSafeZone || fAbsY > pThis->mSafeZone)
+    if (fDot <= 0.0f || fAbsX > mSafeZone || fAbsY > mSafeZone)
     {
-        const float fScale = fAbsX >= fAbsY ? pThis->mSafeZone / fAbsX : pThis->mSafeZone / fAbsY;
-        *pScreenX *= fScale;
-        *pScreenY *= fScale;
-        *pOffScreen = true;
+        const float fScale = fAbsX >= fAbsY ? mSafeZone / fAbsX : mSafeZone / fAbsY;
+        pScreenX *= fScale;
+        pScreenY *= fScale;
+        pOffScreen = true;
     }
     else
     {
-        *pOffScreen = false;
+        pOffScreen = false;
     }
 }
 
@@ -406,9 +402,7 @@ void LockOnManager::UpdateTargetVisibility(Controllable* const pCtrl, RedCamera*
     {
         if (const PblMatrix* pBone = pPose->Find(0x3483A489u))
         {
-            PblVector3 vBonePos;
-            D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vBonePos), reinterpret_cast<const D3DXVECTOR3*>((const PblVector3*)pBone->m[3]), reinterpret_cast<const D3DXMATRIX*>(&pObject->GetMatrix()));
-            vPos = vBonePos;
+            vPos = pObject->GetMatrix().ApplyTransform(pBone->GetTranslation());
         }
     }
     else if (const GameModel* pModel = pObject->GetModel())
@@ -416,9 +410,7 @@ void LockOnManager::UpdateTargetVisibility(Controllable* const pCtrl, RedCamera*
         PblMatrix mBone;
         if (pModel->GetRedModel(0) && pModel->GetRedModel(0)->GetBoneMatrix(0x3483A489u, mBone))
         {
-            PblVector3 vBonePos;
-            D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vBonePos), reinterpret_cast<const D3DXVECTOR3*>((const PblVector3*)mBone.m[3]), reinterpret_cast<const D3DXMATRIX*>(&pObject->GetMatrix()));
-            vPos = vBonePos;
+            vPos = pObject->GetMatrix().ApplyTransform(mBone.GetTranslation());
         }
     }
 
@@ -426,33 +418,28 @@ void LockOnManager::UpdateTargetVisibility(Controllable* const pCtrl, RedCamera*
     if (bCommon)
     {
         PblVector3 vUp(0.0f, 1.3f, 0.0f);
-        PblVector3 vOut;
-        D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vOut), reinterpret_cast<const D3DXVECTOR3*>(&vUp), reinterpret_cast<const D3DXMATRIX*>(&pObject->GetMatrix()));
-        vLift = vOut;
+        vLift = pObject->GetMatrix().ApplyRotation(vUp);
     }
     else if (rInfo.mLocked)
     {
-        vLift = PblVector3(0.0f, 0.0f, 0.0f);
+        vLift.Set(0.0f, 0.0f, 0.0f);
     }
     else
     {
         PblVector3 vUp;
         if (pObject == pCtrl->GetGameObject())
         {
-            vUp = PblVector3(0.0f, 0.3f, pObject->GetCollisionRadius() * -0.2f);
+            vUp.Set(0.0f, 0.3f, pObject->GetCollisionRadius() * -0.2f);
         }
         else
         {
             float fUp = pObject->GetCollisionRadius() * 0.7f;
-            vUp = PblVector3(0.0f, 4.0f > fUp ? fUp : 4.0f, 0.0f);
+            vUp.Set(0.0f, 4.0f > fUp ? fUp : 4.0f, 0.0f);
         }
-        PblVector3 vOut;
-        D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vOut), reinterpret_cast<const D3DXVECTOR3*>(&vUp), reinterpret_cast<const D3DXMATRIX*>(&pObject->GetMatrix()));
-        vLift = vOut;
+        vLift = pObject->GetMatrix().ApplyRotation(vUp);
     }
 
-    float fDist = PblMath::Sqrt((vPos.y - vEye.y) * (vPos.y - vEye.y) + (vPos.x - vEye.x) * (vPos.x - vEye.x) +
-                        (vPos.z - vEye.z) * (vPos.z - vEye.z));
+    float fDist = Length(vPos - vEye);
     if (fDist > rTarget.maxDistTrack)
     {
         return;
@@ -484,27 +471,24 @@ void LockOnManager::UpdateTargetVisibility(Controllable* const pCtrl, RedCamera*
             gameObjectInterpolator.GetMatrix(pVehicle->mNetUniqueId, mSmoothed);
         }
         const PblMatrix& mVehicle = pVehicle->GetMatrix();
-        vLag = PblVector3(mSmoothed.m[3][0] - mVehicle.m[3][0], mSmoothed.m[3][1] - mVehicle.m[3][1],
-                          mSmoothed.m[3][2] - mVehicle.m[3][2]);
+        vLag = mSmoothed.GetTranslation() - mVehicle.GetTranslation();
     }
 
     const bool bAimRay = !rInfo.mLocked || (pCtrl->GetEntity() && pCtrl->GetEntity()->IsRtti(EntityFlyer::rttiHashEntityFlyer));
 
-    PblVector3 vPoint(vLag.x + vPos.x + vLift.x, vLag.y + vPos.y + vLift.y, vLag.z + vPos.z + vLift.z);
+    PblVector3 vPoint = vLag + vPos + vLift;
     float fScreenX;
     float fScreenY;
     bool bOffScreen;
-    CalculateScreenCoordinates(pCtrl, pCamera, &vPoint, &fScreenX, &fScreenY, &bOffScreen, bAimRay);
+    CalculateScreenCoordinates(pCtrl, pCamera, vPoint, fScreenX, fScreenY, bOffScreen, bAimRay);
     ++uArg9;
-    if (!bArg8 && !rInfo.mVisibilityChecked)
+    if (!bArg8 && !rInfo.GetVisibilityChecked())
     {
-        rInfo.mVisible = AIUtil::CanSeePosition(vEye, pCtrl, vPos, pObject);
-        rInfo.mVisibilityChecked = true;
-        rInfo.mPositionValid = true;
+        rInfo.SetVisible(AIUtil::CanSeePosition(vEye, pCtrl, vPos, pObject));
         bArg8 = true;
     }
-    rInfo.mPosition = PblVector3(fScreenX, fScreenY, fDist);
-    rInfo.mOnScreen = !bOffScreen;
+    rInfo.SetPosition(PblVector3(fScreenX, fScreenY, fDist));
+    rInfo.SetOnScreen(!bOffScreen);
 
     bool bFlagCarrier;
     if (bCommon)
@@ -933,9 +917,7 @@ void LockOnManager::SetupNearestTargets(Controllable* const playerControllable, 
             else
             {
                 PblVector3 targetPos = target.obj->GetMatrix().GetTranslation();
-                PblVector3 toTargetVector(targetPos.x - playerControllable->mEyePoint.x,
-                                          targetPos.y - playerControllable->mEyePoint.y,
-                                          targetPos.z - playerControllable->mEyePoint.z);
+                PblVector3 toTargetVector = targetPos - playerControllable->mEyePoint;
                 float dot;
                 if (target.obj == playerObject)
                 {
@@ -943,15 +925,11 @@ void LockOnManager::SetupNearestTargets(Controllable* const playerControllable, 
                 }
                 else
                 {
-                    PblVector3 direction;
-                    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&direction), reinterpret_cast<const D3DXVECTOR3*>(&toTargetVector));
-                    dot = playerControllable->mEyeDir.x * direction.x + direction.y * playerControllable->mEyeDir.y +
-                          direction.z * playerControllable->mEyeDir.z;
+                    dot = DotProduct(playerControllable->mEyeDir, Normalize(toTargetVector));
                 }
 
                 if (dot >= autoLoseDotProd &&
-                    autoLoseDistSquare >= toTargetVector.x * toTargetVector.x + toTargetVector.y * toTargetVector.y +
-                                              toTargetVector.z * toTargetVector.z &&
+                    autoLoseDistSquare >= SquaredLength(toTargetVector) &&
                     (!autoLoseVisibilityCheck || targetIsVisible))
                 {
                     target.timer = 0.0f;
@@ -1097,14 +1075,10 @@ void LockOnManager::SetupNearestTargets(Controllable* const playerControllable, 
                                 if (object->GetCollisionType() == COLL_ATTACHED)
                                 {
                                     const PblMatrix& objMatrix = object->GetMatrix();
-                                    targetPos.x += objMatrix.m[1][0] * 0.4f;
-                                    targetPos.y += objMatrix.m[1][1] * 0.4f;
-                                    targetPos.z += objMatrix.m[1][2] * 0.4f;
+                                    targetPos += objMatrix[1] * 0.4f;
                                 }
 
-                                float distSquare = (targetPos.x - playerPosition.x) * (targetPos.x - playerPosition.x) +
-                                                   (targetPos.y - playerPosition.y) * (targetPos.y - playerPosition.y) +
-                                                   (targetPos.z - playerPosition.z) * (targetPos.z - playerPosition.z);
+                                float distSquare = SquaredLength(targetPos - playerPosition);
                                 float dot;
                                 if (object == playerObject)
                                 {
@@ -1112,14 +1086,8 @@ void LockOnManager::SetupNearestTargets(Controllable* const playerControllable, 
                                 }
                                 else
                                 {
-                                    PblVector3 toTarget(targetPos.x - playerControllable->mEyePoint.x,
-                                                        targetPos.y - playerControllable->mEyePoint.y,
-                                                        targetPos.z - playerControllable->mEyePoint.z);
-                                    PblVector3 direction;
-                                    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&direction), reinterpret_cast<const D3DXVECTOR3*>(&toTarget));
-                                    dot = direction.x * playerControllable->mEyeDir.x +
-                                          direction.y * playerControllable->mEyeDir.y +
-                                          direction.z * playerControllable->mEyeDir.z;
+                                    PblVector3 toTarget = targetPos - playerControllable->mEyePoint;
+                                    dot = DotProduct(playerControllable->mEyeDir, Normalize(toTarget));
                                 }
 
                                 if (mLockDistSquareFilter >= distSquare &&

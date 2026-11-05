@@ -128,18 +128,6 @@ bool OrdnanceMeleeThrow::Collide(CollisionObject* pObject, const PblVector3& vPo
 
 class RedPose;
 
-namespace
-{
-
-    void RenderWeapon(WeaponMelee* pWeapon, const PblMatrix& mat, const RedPose* pPose,
-                      const RedColor& color, unsigned int uiFlags, bool bArg)
-    {
-        typedef void(__thiscall * RenderFn)(WeaponMelee*, const PblMatrix&, const RedPose*,
-                                            const RedColor&, unsigned int, bool);
-        pWeapon->Render(mat, pPose, color, uiFlags, bArg);
-    }
-}
-
 // SYNTHETIC: SWBF2 0x00405b20
 // `dynamic initializer for 'OrdnanceMeleeThrow::rttiHashOrdnanceMeleeThrow''
 // OrdnanceMeleeThrow::rttiHashOrdnanceMeleeThrow
@@ -212,7 +200,7 @@ void OrdnanceMeleeThrow::Render(unsigned char, float, unsigned int uiFlags)
 
     mOffscreenTime = 0.0f;
     PblMatrix mat = m_mMatrix;
-    RenderWeapon(m_pWeapon->m_pPrimaryWeapon, mat, 0, RedColor::WHITE, uiFlags | 1, true);
+    m_pWeapon->m_pPrimaryWeapon->Render(mat, 0, RedColor::WHITE, uiFlags | 1, true);
 }
 
 // FUNCTION: SWBF2 0x00603550
@@ -387,8 +375,7 @@ bool OrdnanceMeleeThrow::Update(float fDeltaTime)
         mOldPosition = mPosition;
         mPosition = Interpolate(mOldPosition, vTarget, fT);
         PblMatrix mRotate(gMatrixIdentity);
-        D3DXMatrixRotationAxis((D3DXMATRIX*)&mRotate, (const D3DXVECTOR3*)&m_vRotationAxis,
-                               pClass->m_fOmega * fDeltaTime * 0.5f);
+        mRotate.SetRotateArbitraryAxis(pClass->m_fOmega * fDeltaTime * 0.5f, m_vRotationAxis);
         m_mMatrix = m_mMatrix * mRotate;
         m_mMatrix.SetTranslation(mPosition);
         m_pWeapon->m_pPrimaryWeapon->UpdateEffects(fDeltaTime, mPosition, mVelocity, 0);
@@ -429,7 +416,7 @@ bool OrdnanceMeleeThrow::Update(float fDeltaTime)
     mOldPosition = mPosition;
     mPosition += mVelocity * fStep;
     PblMatrix mRotate = gMatrixIdentity;
-    D3DXMatrixRotationAxis((D3DXMATRIX*)&mRotate, (const D3DXVECTOR3*)&m_vRotationAxis, pClass->m_fOmega * fStep);
+    mRotate.SetRotateArbitraryAxis(pClass->m_fOmega * fStep, m_vRotationAxis);
     m_mMatrix = m_mMatrix * mRotate;
     m_mMatrix.SetTranslation(mPosition);
 
@@ -486,14 +473,13 @@ void OrdnanceMeleeThrow::ApplyDamage(float fDeltaTime)
     const float fStep = fDeltaTime / (float)iNumSteps;
 
     PblMatrix mRotate = gMatrixIdentity;
-    D3DXMatrixRotationAxis((D3DXMATRIX*)&mRotate, (const D3DXVECTOR3*)&m_vRotationAxis, fStep * pClass->m_fOmega);
+    mRotate.SetRotateArbitraryAxis(fStep * pClass->m_fOmega, m_vRotationAxis);
     PblMatrix mFirst = m_mMatrix * mRotate;
     mFirst.SetTranslation(m_mMatrix.GetTranslation() + mVelocity * fStep);
     PblMatrix mLast;
     if (fDeltaTime > fStep)
     {
-        D3DXMatrixRotationAxis((D3DXMATRIX*)&mRotate, (const D3DXVECTOR3*)&m_vRotationAxis,
-                               fDeltaTime * pClass->m_fOmega);
+        mRotate.SetRotateArbitraryAxis(fDeltaTime * pClass->m_fOmega, m_vRotationAxis);
         mLast = m_mMatrix * mRotate;
         mLast.SetTranslation(m_mMatrix.GetTranslation() + mVelocity * fDeltaTime);
     }
@@ -571,8 +557,7 @@ void OrdnanceMeleeThrow::ApplyDamage(float fDeltaTime)
         PblMatrix mStep;
         if (iStep < iNumSteps - 1)
         {
-            D3DXMatrixRotationAxis((D3DXMATRIX*)&mRotate, (const D3DXVECTOR3*)&m_vRotationAxis,
-                                   fTime * pClass->m_fOmega);
+            mRotate.SetRotateArbitraryAxis(fTime * pClass->m_fOmega, m_vRotationAxis);
             mStep = m_mMatrix * mRotate;
             mStep.SetTranslation(m_mMatrix.GetTranslation() + mVelocity * fTime);
         }
@@ -620,7 +605,7 @@ void OrdnanceMeleeThrow::ApplyDamage(float fDeltaTime)
 
                         if (!pObject->Deflect(0, vDir, vHit))
                         {
-                            static_cast<Damageable*>(pObject)->ApplyDamage(GetDamage(), vDir, vHit, -1, 0xffffffff);
+                            pObject->ApplyDamage(GetDamage(), vDir, vHit, -1, 0xffffffff);
 
                             if (pWeaponClass->m_uiNumHitEffects > 0 && pWeaponClass->m_uiHitEffects[0] &&
                                 !pHitEffectClass)

@@ -1348,22 +1348,22 @@ void Event<Character, GameObject>::Callback::Trigger(Character& item, GameObject
         if (pChild)
         {
             pChild->AddRef();
-            while (pChild)
+        }
+        while (pChild)
+        {
+            if (!pChild->IsAlive())
             {
-                if (!pChild->IsAlive())
-                {
-                    pChild->Release();
-                    break;
-                }
-                Callback* pNext = (Callback*)pChild->mSibling;
-                if (pNext)
-                {
-                    pNext->AddRef();
-                }
-                pChild->Trigger(item, param);
                 pChild->Release();
-                pChild = pNext;
+                break;
             }
+            Callback* pNext = (Callback*)pChild->mSibling;
+            if (pNext)
+            {
+                pNext->AddRef();
+            }
+            pChild->Trigger(item, param);
+            pChild->Release();
+            pChild = pNext;
         }
     }
     Release();
@@ -1605,11 +1605,6 @@ EntityFlyer::EntityFlyer(EntityFlyerClass* pClass, const EntityDesc& desc)
         WeaponDesc weaponDesc;
         weaponDesc.mOwner = this;
         weaponDesc.mAimer = mAimer[i];
-        weaponDesc.mTrigger = 0;
-        weaponDesc.mReload = 0;
-        weaponDesc.mNumClips = 0;
-        weaponDesc.m_pAmmoCounter = 0;
-        weaponDesc.m_pEnergyBar = 0;
         weaponDesc.mTrigger = &mControlFire[mClass->mWeaponChannel[i]];
         weaponDesc.mReload = &mControlReload;
         const WeaponAmmoDesc& ammo = mClass->mWeaponAmmo[i];
@@ -2552,64 +2547,66 @@ void EntityFlyer::UpdateContrailEffects()
     {
         return;
     }
-
-    float fSpeed = mGetSpeedSpeed;
-    if (mState == FLYING)
+    if (mState != FLYING)
     {
-        float fBoost = mClass->mBoostFlyerSpeed;
-        float fMax = mClass->mMaxFlyerSpeed;
-        float fStart = (fBoost - fMax) * 0.1f + fMax;
-        if (fStart >= fBoost)
-        {
-            fBoost = fStart * 1.5f;
-        }
-        if (!(fStart > fSpeed))
-        {
-            float fRatio;
-            if (fBoost > fStart)
-            {
-                fRatio = (fSpeed - fStart) / (fBoost - fStart);
-                if (0.0f > fRatio)
-                {
-                    fRatio = 0.0f;
-                }
-                else if (fRatio > 1.0f)
-                {
-                    fRatio = 1.0f;
-                }
-            }
-            else
-            {
-                fRatio = 0.0f;
-            }
-            mTurbulance = fRatio;
+        mTurbulance = 0.0f;
+        TurnOffContrailEffects();
+        return;
+    }
 
-            for (int i = 0; i < 12; ++i)
-            {
-                if (!mClass->mContrailEffectName[i])
-                {
-                    return;
-                }
-                if (0.5f > mClass->mContrailEffectMinSpeed[i])
-                {
-                    if (mContrailEffect[i])
-                    {
-                        mContrailEffect[i]->DeactivateEffect();
-                        mContrailEffect[i] = 0;
-                    }
-                }
-                else if (TurnOnContrailEffect(i))
-                {
-                    mContrailEffect[i]->ScaleSet(
-                        (mClass->mContrailEffectMaxScale[i] - mClass->mContrailEffectMinScale[i]) * fRatio +
-                        mClass->mContrailEffectMinScale[i]);
-                }
-            }
-            return;
+    float maxEffectSpeed = mClass->mBoostFlyerSpeed;
+    float minEffectSpeed = (maxEffectSpeed - mClass->mMaxFlyerSpeed) * 0.1f + mClass->mMaxFlyerSpeed;
+    if (minEffectSpeed >= maxEffectSpeed)
+    {
+        maxEffectSpeed = minEffectSpeed * 1.5f;
+    }
+    if (minEffectSpeed > mGetSpeedSpeed)
+    {
+        mTurbulance = 0.0f;
+        TurnOffContrailEffects();
+        return;
+    }
+
+    float effectScale;
+    if (maxEffectSpeed > minEffectSpeed)
+    {
+        effectScale = (mGetSpeedSpeed - minEffectSpeed) / (maxEffectSpeed - minEffectSpeed);
+        if (0.0f > effectScale)
+        {
+            effectScale = 0.0f;
+        }
+        else if (effectScale > 1.0f)
+        {
+            effectScale = 1.0f;
         }
     }
-    mTurbulance = 0.0f;
-    TurnOffContrailEffects();
+    else
+    {
+        effectScale = 0.0f;
+    }
+    mTurbulance = effectScale;
+
+    for (int a = 0; a < 12; ++a)
+    {
+        if (!mClass->mContrailEffectName[a])
+        {
+            return;
+        }
+        if (0.5f > mClass->mContrailEffectMinSpeed[a])
+        {
+            if (mContrailEffect[a])
+            {
+                mContrailEffect[a]->DeactivateEffect();
+                mContrailEffect[a] = 0;
+            }
+        }
+        else if (TurnOnContrailEffect(a))
+        {
+            mContrailEffect[a]->ScaleSet(
+                (mClass->mContrailEffectMaxScale[a] - mClass->mContrailEffectMinScale[a]) * effectScale +
+                mClass->mContrailEffectMinScale[a]);
+        }
+    }
 }
 
 // FUNCTION: SWBF2 0x004ac150
@@ -2974,9 +2971,7 @@ bool EntityFlyer::PostCollisionUpdate(float fDeltaTime)
             {
                 FoleyFXCollider::CollisionCallback(COLL_WATER, 0, &GetPosition());
                 PlayImpactEffects(&mMatrix.GetTranslation(), &mVelocity);
-                PblVector3 vVel = mVelocity;
-                PblVector3 vEngine = mMatrix.GetTranslation();
-                VehicleEngine::Collision(mClass, vEngine, vVel);
+                VehicleEngine::Collision(mClass, PblVector3(&mMatrix.GetTranslation()), PblVector3(&mVelocity));
 
                 GetControllableList();
             }
@@ -3003,36 +2998,21 @@ bool EntityFlyer::PostCollisionUpdate(float fDeltaTime)
             {
                 mVelocity -= gVectorUnitY * fApproach;
                 float fBounce = fApproach * -1.125f;
-                float fDrag = fBounce * 0.25f /
-                              PblMath::Sqrt(mVelocity.x * mVelocity.x + mVelocity.y * mVelocity.y + mVelocity.z * mVelocity.z);
-                if (!(1.0f > fDrag))
-                {
-                    fDrag = 1.0f;
-                }
+                float fDrag = Min(fBounce * 0.25f / Length(mVelocity), 1.0f);
                 mVelocity -= mVelocity * fDrag;
                 mVelocity += (fBounce + fApproach) * gVectorUnitY;
 
                 if (mState != LANDING)
                 {
-                    float fSplash =
-                        PblMath::Sqrt(mVelocity.x * mVelocity.x + mVelocity.y * mVelocity.y + mVelocity.z * mVelocity.z) /
-                            40.0f +
-                        0.01f;
-                    if (!(1.0f > fSplash))
-                    {
-                        fSplash = 1.0f;
-                    }
+                    float fSplash = Min(Length(mVelocity) / 40.0f + 0.01f, 1.0f);
                     if (fSplash > 0.0f)
                     {
                         float fBlend = fSplash * 0.3f;
                         const PblVector3& vNose = mMatrix.GetZAxis();
-                        PblVector3 vDir(vNose.x * (1.0f - fBlend) + fBlend * gVectorUnitY.x,
-                                        vNose.y * (1.0f - fBlend) + fBlend * gVectorUnitY.y,
-                                        vNose.z * (1.0f - fBlend) + fBlend * gVectorUnitY.z);
+                        PblVector3 vDir = vNose * (1.0f - fBlend) + fBlend * gVectorUnitY;
                         if (mVelocity.x != 0.0f || mVelocity.y != 0.0f || mVelocity.z != 0.0f)
                         {
-                            PblVector3 vHeading;
-                            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vHeading), reinterpret_cast<const D3DXVECTOR3*>(&mVelocity));
+                            PblVector3 vHeading = Normalize(mVelocity);
                             vDir = vDir + vHeading * 0.3f;
                         }
                         mMatrix = DirectionMatrix(vDir, mMatrix.GetYAxis(), mMatrix.GetTranslation());
@@ -3063,12 +3043,11 @@ bool EntityFlyer::PostCollisionUpdate(float fDeltaTime)
     PblMatrix mUnbank;
     mUnbank.SetRotateZ(-mBankRollAngle);
     mUnbank.RotateX(-mBankPitchAngle);
-    PblMatrix mBody;
-    D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mBody), reinterpret_cast<const D3DXMATRIX*>(&mUnbank), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
+    PblMatrix mBody = mUnbank * mMatrix;
     mEyeDir = mBody.GetZAxis();
     mEyePoint = mClass->mCameraSettings.CalcEyePoint(mMatrix);
 
-    if (mPlayerId >= 0 && mTracker)
+    if (IsPlayer() && mTracker)
     {
         if (mTargetInfo.mIsAiming || mTracker->IsFirstPersonView())
         {
@@ -3077,37 +3056,20 @@ bool EntityFlyer::PostCollisionUpdate(float fDeltaTime)
         else
         {
 
-            PblMatrix mLook =
-                DirectionMatrix(PblVector3(-mEyeDir.x, -mEyeDir.y, -mEyeDir.z), mMatrix.GetYAxis(), gVectorZero);
-            PblQuaternion qLook = PblQuaternion(mLook);
-            float fSin;
-            float fCos;
-            PblMath::SinCos(&fSin, &fCos, -mClass->mCameraSettings.GetCameraTiltValue() * 0.5f);
-            PblQuaternion qTilt;
-            qTilt._fX = fSin * gVectorUnitX.x;
-            qTilt._fY = gVectorUnitX.y * fSin;
-            qTilt._fZ = gVectorUnitX.z * fSin;
-            qTilt._fS = fCos;
-            PblQuaternion qCamera = qLook * qTilt;
-
-            PblMatrix mCamera(qCamera, gVectorZero);
+            PblQuaternion targetRot(DirectionMatrix(-mEyeDir, mMatrix.GetYAxis(), gVectorZero));
+            PblQuaternion tiltRot(gVectorUnitX, -mClass->mCameraSettings.GetCameraTiltValue());
+            PblMatrix mCamera(targetRot * tiltRot, gVectorZero);
 
             mTargetInfo.mAimStart = mClass->mCameraSettings.CalcCameraPoint(mMatrix, mCamera);
-            float fAlong = mEyeDir.y * (mEyePoint.y - mTargetInfo.mAimStart.y) +
-                           mEyeDir.x * (mEyePoint.x - mTargetInfo.mAimStart.x) +
-                           mEyeDir.z * (mEyePoint.z - mTargetInfo.mAimStart.z);
-            mTargetInfo.mAimStart.x = mTargetInfo.mAimStart.x + mEyeDir.x * fAlong;
-            mTargetInfo.mAimStart.y = mEyeDir.y * fAlong + mTargetInfo.mAimStart.y;
-            mTargetInfo.mAimStart.z = mEyeDir.z * fAlong + mTargetInfo.mAimStart.z;
+            float fAlong = DotProduct(mEyeDir, mEyePoint - mTargetInfo.mAimStart);
+            mTargetInfo.mAimStart += mEyeDir * fAlong;
         }
         const GameObject* pIgnore = this;
         CollisionObject* pHit;
         float fDist =
             CollisionManager::RayHit(mTargetInfo.mAimStart, mEyeDir, 1024.0f, pHit, 0, &pIgnore, 1, 0x9a, true) *
             1024.0f;
-        mTargetInfo.mAimPoint = PblVector3(mTargetInfo.mAimStart.x + mEyeDir.x * fDist,
-                                           mTargetInfo.mAimStart.y + mEyeDir.y * fDist,
-                                           mTargetInfo.mAimStart.z + mEyeDir.z * fDist);
+        mTargetInfo.mAimPoint = mTargetInfo.mAimStart + mEyeDir * fDist;
     }
     else
     {
@@ -3124,14 +3086,11 @@ bool EntityFlyer::PostCollisionUpdate(float fDeltaTime)
                 fBubble = pTarget->GetControllable()->mCtrl->mTargetBubbleSize_Cached;
             }
             float fLead = pTarget->IsRtti(EntityFlyer::rttiHashEntityFlyer) ? fBubble * 0.6f : 0.0f;
-            PblVector3 vOffset = mCtrl ? mCtrl->mTargetBubbleOffset : gVectorZero;
-            mTargetInfo.mAimPoint = PblVector3(vTarget.x + fLead * vOffset.x, vTarget.y + vOffset.y * fLead,
-                                               vTarget.z + vOffset.z * fLead);
+            mTargetInfo.mAimPoint = vTarget + fLead * (mCtrl ? mCtrl->mTargetBubbleOffset : gVectorZero);
         }
         else
         {
-            mTargetInfo.mAimPoint = PblVector3(mEyeDir.x * 1024.0f + mEyePoint.x, mEyePoint.y + mEyeDir.y * 1024.0f,
-                                               mEyePoint.z + mEyeDir.z * 1024.0f);
+            mTargetInfo.mAimPoint = mEyePoint + mEyeDir * 1024.0f;
         }
     }
 
@@ -3145,14 +3104,13 @@ bool EntityFlyer::PostCollisionUpdate(float fDeltaTime)
         const PblVector3& vCenter = GetCollisionCenter();
         const PblVector3& vPosition = GetPosition();
         const PblVector3& vSmoothed = GetSmoothedMatrix().GetTranslation();
-        SetRenderPos(PblVector3(vSmoothed.x + vCenter.x - vPosition.x, vSmoothed.y + vCenter.y - vPosition.y,
-                                vSmoothed.z + vCenter.z - vPosition.z));
+        SetRenderPos(vSmoothed + vCenter - vPosition);
     }
 
     if (!netFrameLock && NetGame::IsEnabled())
     {
         bool bFeed = true;
-        if (!(NetGame::IsClient() && netIsLocalTurn))
+        if (!(NetGame::OnClient() && netIsLocalTurn))
         {
             if (!NetGame::IsHost() || !NetGame::IsOneWorld() || netIsLateTurn)
             {
@@ -3160,7 +3118,7 @@ bool EntityFlyer::PostCollisionUpdate(float fDeltaTime)
             }
             else if (mNetUniqueId >= 0)
             {
-                mNetUniqueId = NetGame::GetHostWorldUniqueId(mNetUniqueId, this);
+                SetNetUniqueId(NetGame::GetHostWorldUniqueId(mNetUniqueId, this));
             }
         }
         if (bFeed)
@@ -3171,15 +3129,11 @@ bool EntityFlyer::PostCollisionUpdate(float fDeltaTime)
 
     if (mPilot && mPilot->GetGameObject()->IsRtti(EntitySoldier::rttiHashEntitySoldier))
     {
-        GameObject* pSoldier = mPilot->GetGameObject();
-        PblMatrix mInverse = GetMatrix().GetInverseFast();
-        PblMatrix mSeat;
-        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mSeat), reinterpret_cast<const D3DXMATRIX*>(&pSoldier->GetMatrix()), reinterpret_cast<const D3DXMATRIX*>(&mInverse));
-        PblMatrix mLocal = mSeat;
-        PblMatrix mSmoothed = GetSmoothedMatrix();
-        PblMatrix mRender;
-        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mRender), reinterpret_cast<const D3DXMATRIX*>(&mLocal), reinterpret_cast<const D3DXMATRIX*>(&mSmoothed));
-        pSoldier->SetRenderPos(mRender.GetTranslation());
+        EntitySoldier* pSoldier = static_cast<EntitySoldier*>(mPilot->GetGameObject());
+        PblMatrix localSoldierMat = pSoldier->GetMatrix() * GetMatrix().GetInverseFast();
+        PblMatrix vehSmoothMat = GetSmoothedMatrix();
+        PblMatrix smoothedSoldierMat = localSoldierMat * vehSmoothMat;
+        pSoldier->SetRenderPos(smoothedSoldierMat.GetTranslation());
     }
     return true;
 }

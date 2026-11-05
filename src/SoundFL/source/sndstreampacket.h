@@ -67,7 +67,18 @@ struct StreamPacket
         }
     }
 
-    void SetDiscontinuity(bool bDiscontinuity);
+    // FUNCTION: SWBF2 0x0073caf0
+    void SetDiscontinuity(bool bDiscontinuity)
+    {
+        if (bDiscontinuity)
+        {
+            mFlags |= 2;
+        }
+        else
+        {
+            mFlags &= 0xFFFD;
+        }
+    }
 
     unsigned int mPos;
     void* mBuffer;

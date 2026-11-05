@@ -224,23 +224,14 @@ void RedInterfaceElement::Render(const PblMatrix& mParent, const RedColor& color
         return;
     }
 
-    PblMatrix mContext;
-    D3DXMatrixMultiply((D3DXMATRIX*)&mContext,
-                       (const D3DXMATRIX*)&m_mLocal,
-                       (const D3DXMATRIX*)&mParent);
+    PblMatrix mContext = m_mLocal * mParent;
 
     mContext.m[3][0] = floorf(mContext.m[3][0] + 0.5f);
     mContext.m[3][1] = floorf(mContext.m[3][1] + 0.5f);
 
-    RedColor modulated;
-    modulated.r = (unsigned char)((float)m_color.r * kInv255 * (float)color.r + 0.5f);
-    modulated.g = (unsigned char)((float)m_color.g * kInv255 * (float)color.g + 0.5f);
-    modulated.b = (unsigned char)((float)m_color.b * kInv255 * (float)color.b + 0.5f);
-    modulated.a = (unsigned char)((float)m_color.a * kInv255 * (float)color.a + 0.5f);
-
     mContext.m[3][3] = 1.0f;
 
-    RenderUsingContext(mContext, modulated);
+    RenderUsingContext(mContext, m_color * color);
 
     if (m_pHotSpot)
     {

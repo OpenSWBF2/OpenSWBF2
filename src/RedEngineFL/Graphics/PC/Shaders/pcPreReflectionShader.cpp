@@ -199,7 +199,7 @@ void pcPreReflectionShader::_InitPipelineFuncArray()
 // FUNCTION: SWBF2 0x0070b3f0
 void pcPreReflectionShader::_Read(PblFileChunk& chunk) const
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId != 0x454d414e)

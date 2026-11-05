@@ -646,13 +646,13 @@ void LeafPatchClass::Reset()
         it->DestroyRenderData();
     }
 
-    sClasses.RemoveAll();
-    sObjects.RemoveAll();
+    sClasses.Clear();
+    sObjects.Clear();
 }
 
 // TEMPLATE: SWBF2 0x0056f3d0
-// PblList<LeafPatchClass>::RemoveAll
-template void PblList<LeafPatchClass>::RemoveAll();
+// PblList<LeafPatchClass>::Clear
+template void PblList<LeafPatchClass>::Clear();
 
 // GLOBAL: SWBF2 0x007ebad8
 PblList<LeafPatch> LeafPatchClass::sObjects;

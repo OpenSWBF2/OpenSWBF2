@@ -10,6 +10,11 @@ public:
 
     PblPlane(float a, float b, float c, float d) : PblVector4(a, b, c, d) {}
 
+    float Distance(const PblVector3& point) const
+    {
+        return DotProduct(*this, point) + w;
+    }
+
     float GetA() const { return x; }
     float GetB() const { return y; }
     float GetC() const { return z; }

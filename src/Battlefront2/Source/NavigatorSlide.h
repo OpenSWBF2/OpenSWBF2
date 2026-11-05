@@ -61,7 +61,7 @@ private:
 
 public:
     int mIgnoreCnt;
-    Obstacle* mIgnore[2];
+    const Obstacle* mIgnore[2];
     PblVector3 mGlobalDest;
     PblHandle<const GameObject> mSlideObj;
     bool mUseAttackHelper;

@@ -101,7 +101,7 @@ bool PrepareForRender(ParticleEmitter* pEmitter, const PblVector3& vPos, int iUn
 {
     const PblMatrix& mCamera = RedRenderer::GetCamera()->GetMatrix();
     const PblVector3 vOffset = mCamera.GetTranslation() - vPos;
-    const float fDist = DotProduct(mCamera.GetZAxis(), vOffset);
+    float fDist = DotProduct(mCamera.GetZAxis(), vOffset);
     const float fZoom = RedRenderer::GetCamera()->GetZoom();
     fMaxDist = fZoom * fMaxDist;
 
@@ -127,11 +127,11 @@ bool PrepareForRender(ParticleEmitter* pEmitter, const PblVector3& vPos, int iUn
         return false;
     }
 
-    const float fDepth = fDist - fRadius;
-    fMaxDist = Min(fMaxDist, 90.0f);
+    fDist -= fRadius;
+    const float fLodMaxDist = Min(fMaxDist, 90.0f);
     mFadeVal = fAlpha;
 
-    float fLod = (4.0f / (fMaxDist + ParticleSystem::mFadeBias - 20.0f)) * (fDepth - 20.0f);
+    float fLod = (4.0f / (fLodMaxDist + ParticleSystem::mFadeBias - 20.0f)) * (fDist - 20.0f);
     int iLod;
     if (fLod > 0.0f && !(3.0f > fLod))
     {
@@ -151,11 +151,11 @@ bool PrepareForRender(ParticleEmitter* pEmitter, const PblVector3& vPos, int iUn
     }
     ParticleSystem::mCurrentLod = iLod;
     mSizeMultiplier = fLod * 0.1f + 1.2f;
-    mMinParticleSize = fDepth * 0.002f + 0.01f;
+    mMinParticleSize = fDist * 0.002f + 0.01f;
 
     RedParticleRenderer::SubmitBounds(vMin, vMax);
-    mBoundingBox._vMax = vMax;
-    mBoundingBox._vMin = vMin;
+    mBoundingBox.SetMax(vMax);
+    mBoundingBox.SetMin(vMin);
     mLod = iLod;
     uiRenderFlags = uiFlags;
     return true;
@@ -172,9 +172,9 @@ void FlushParticleCache()
     RedParticleRenderer::SubmitTexture(mCacheTexture, mCacheBlendMode, 0);
     RedParticleRenderer::SetBlurParams(mCacheBlurValue, mCacheBlurParam);
 
-    PblHeap<unsigned int, float>::RECORD records[301];
+    char pool[301 * sizeof(PblHeap<unsigned int, float>::RECORD)];
     const PblMatrix& mCamera = RedRenderer::GetCamera()->GetMatrix();
-    PblHeap<unsigned int, float> heap(300, FLT_MAX, records);
+    PblHeap<unsigned int, float> heap(300, FLT_MAX, pool);
 
     while (mNumCachedParticles)
     {
@@ -297,17 +297,14 @@ namespace ParticleSystem
 // FUNCTION: SWBF2 0x0060e700
 void CacheParticle(const PblVector3& vPos, const RedColorValue& color, float fSize, float fRotation)
 {
-    const unsigned int uIndex = ParticleSystem::mNumCachedParticles;
-    if (uIndex >= 300)
+    if (ParticleSystem::mNumCachedParticles < 300)
     {
-        return;
+        sCachedParticles[ParticleSystem::mNumCachedParticles].mPos = vPos;
+        sCachedParticles[ParticleSystem::mNumCachedParticles].mColor = color;
+        sCachedParticles[ParticleSystem::mNumCachedParticles].mSize = fSize;
+        sCachedParticles[ParticleSystem::mNumCachedParticles].mRotation = fRotation;
+        ++ParticleSystem::mNumCachedParticles;
     }
-    ::CacheParticle& particle = sCachedParticles[uIndex];
-    particle.mPos = vPos;
-    ParticleSystem::mNumCachedParticles = uIndex + 1;
-    particle.mColor = color;
-    particle.mSize = fSize;
-    particle.mRotation = fRotation;
 }
 
 }

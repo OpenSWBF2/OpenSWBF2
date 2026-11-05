@@ -32,9 +32,8 @@ HUD::Item* HUD::ObjectiveList::Factory::CreateItem(const char* const pName, Item
 
 // FUNCTION: SWBF2 0x00565dc0
 HUD::Objective::Objective()
+    : _team(0), _state(INACTIVE)
 {
-    _team = 0;
-    _state = INACTIVE;
     _textHashID = 0;
     _popupTextID = 0;
     _textElement.SetFont(RedFont::GAMEFONT_SMALL);

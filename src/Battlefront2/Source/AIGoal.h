@@ -59,7 +59,7 @@ struct GoalTarget
 
     GoalTargetType mType;
     PblVector3 mPos;
-    Character* mChr;
+    const Character* mChr;
     PblHandle<const GameObject> mGameObj;
 
     bool GetLocation(PblVector3& vPos);

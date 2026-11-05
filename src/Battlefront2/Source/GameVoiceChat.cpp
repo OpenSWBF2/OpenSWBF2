@@ -21,53 +21,53 @@ namespace GameVoiceChat
 
 // GLOBAL: SWBF2 0x01e563cc
 
-void* sVoiceChatEncoders[1];
+GameVoiceChat::Encoder* GameVoiceChat::gEncoders[1];
 namespace GameVoiceChat
 {
     // GLOBAL: SWBF2 0x01e5665c
-    void* gNodes[1];
+    Node* gNodes[1];
 }
 // GLOBAL: SWBF2 0x01e566b4
 
-void* sVoiceChatDecoders[1];
+GameVoiceChat::Decoder* GameVoiceChat::gDecoders[1];
 
 namespace GameVoiceChat
 {
     // GLOBAL: SWBF2 0x01e563d0
-    char _gDecoderStorage[0x288 + 3];
+    unsigned char _gDecoderStorage[sizeof(Decoder) + 4];
 }
 namespace GameVoiceChat
 {
     // GLOBAL: SWBF2 0x01e56660
-    char _gNodeStorage[0x50 + 3];
+    unsigned char _gNodeStorage[sizeof(Node) + 4];
 }
 namespace GameVoiceChat
 {
     // GLOBAL: SWBF2 0x01e566b8
-    char _gEncoderStorage[0x50C + 3];
+    unsigned char _gEncoderStorage[sizeof(Encoder) + 4];
 }
 
 
 // SYNTHETIC: SWBF2 0x00403ec0
-// `dynamic initializer for 'sEncoderStorage''
+// GameVoiceChat::`dynamic initializer for 'gEncoderStorage''
 
 // GLOBAL: SWBF2 0x01ec5fb8
-// sEncoderStorage
-void* sEncoderStorage = (void*)(((unsigned int)GameVoiceChat::_gEncoderStorage + 3) & ~3u);
+// GameVoiceChat::gEncoderStorage
+unsigned char* GameVoiceChat::gEncoderStorage = (unsigned char*)(((unsigned int)GameVoiceChat::_gEncoderStorage + 3) & ~3u);
 
 // SYNTHETIC: SWBF2 0x00403ed0
-// `dynamic initializer for 'sDecoderStorage''
+// GameVoiceChat::`dynamic initializer for 'gDecoderStorage''
 
 // GLOBAL: SWBF2 0x01ec5fbc
-// sDecoderStorage
-void* sDecoderStorage = (void*)(((unsigned int)GameVoiceChat::_gDecoderStorage + 3) & ~3u);
+// GameVoiceChat::gDecoderStorage
+unsigned char* GameVoiceChat::gDecoderStorage = (unsigned char*)(((unsigned int)GameVoiceChat::_gDecoderStorage + 3) & ~3u);
 
 // SYNTHETIC: SWBF2 0x00403ee0
-// `dynamic initializer for 'sNodeStorage''
+// GameVoiceChat::`dynamic initializer for 'gNodeStorage''
 
 // GLOBAL: SWBF2 0x01ec6018
-// sNodeStorage
-void* sNodeStorage = (void*)(((unsigned int)GameVoiceChat::_gNodeStorage + 3) & ~3u);
+// GameVoiceChat::gNodeStorage
+unsigned char* GameVoiceChat::gNodeStorage = (unsigned char*)(((unsigned int)GameVoiceChat::_gNodeStorage + 3) & ~3u);
 
 // FUNCTION: SWBF2 0x0053c500
 unsigned int GameVoiceChat::GetNumNodes()
@@ -121,23 +121,23 @@ void GameVoiceChat::Close()
             continue;
         }
 
-        if (((VoiceChat::Node*)GameVoiceChat::gNodes[i])->IsOpen())
+        if (GameVoiceChat::gNodes[i]->IsOpen())
         {
-            ((GameVoiceChat::Node*)GameVoiceChat::gNodes[i])->SetID(0xFF);
-            ((VoiceChat::Node*)GameVoiceChat::gNodes[i])->Close();
+            GameVoiceChat::gNodes[i]->SetID(0xFF);
+            GameVoiceChat::gNodes[i]->Close();
         }
         GameVoiceChat::gNodes[i] = 0;
 
-        if (sVoiceChatEncoders[i])
+        if (GameVoiceChat::gEncoders[i])
         {
-            ((GameVoiceChat::Encoder*)sVoiceChatEncoders[i])->~Encoder();
-            sVoiceChatEncoders[i] = 0;
+            GameVoiceChat::gEncoders[i]->~Encoder();
+            GameVoiceChat::gEncoders[i] = 0;
         }
 
-        if (sVoiceChatDecoders[i])
+        if (GameVoiceChat::gDecoders[i])
         {
-            ((GameVoiceChat::Decoder*)sVoiceChatDecoders[i])->~Decoder();
-            sVoiceChatDecoders[i] = 0;
+            GameVoiceChat::gDecoders[i]->~Decoder();
+            GameVoiceChat::gDecoders[i] = 0;
         }
     }
 
@@ -182,7 +182,7 @@ void GameVoiceChat::PlayerChange()
 
 namespace GameVoiceChat
 {
-    extern void* gNodes[1];
+    extern Node* gNodes[1];
 }
 namespace GameVoiceChat
 {
@@ -196,7 +196,7 @@ GameVoiceChat::Node* GameVoiceChat::GetEnabledNode(unsigned int uiEnabledIndex, 
     uiIndex = 0;
     for (unsigned int i = 0; i < uiNumNodes; ++i)
     {
-        GameVoiceChat::Node* pNode = (GameVoiceChat::Node*)GameVoiceChat::gNodes[i];
+        GameVoiceChat::Node* pNode = GameVoiceChat::gNodes[i];
         if (pNode->GetID() == 0xFF)
         {
             continue;
@@ -276,7 +276,7 @@ void GameVoiceChat::Update(float fDeltaTime)
     const unsigned int uiNodes = (unsigned int)GameVoiceChat::GetNumNodes();
     for (unsigned int i = 0; i < uiNodes; ++i)
     {
-        VoiceChat::Node* pNode = (VoiceChat::Node*)GameVoiceChat::gNodes[i];
+        VoiceChat::Node* pNode = GameVoiceChat::gNodes[i];
         if (pNode && pNode->GetID() != 0xFF)
         {
             const int iLocal = NetGame::GetJoystickIndex(pNode->GetID());
@@ -306,7 +306,7 @@ namespace GameVoiceChat
 // FUNCTION: SWBF2 0x0053c4e0
 Node* GetNode(const unsigned int nodeIndex)
 {
-    return (Node*)GameVoiceChat::gNodes[0];
+    return GameVoiceChat::gNodes[0];
 }
 
 }
@@ -317,7 +317,7 @@ namespace GameVoiceChat
 // FUNCTION: SWBF2 0x0053c4f0
 Node* FindNodeByDeviceID(const unsigned int deviceID)
 {
-    return (Node*)GameVoiceChat::gNodes[0];
+    return GameVoiceChat::gNodes[0];
 }
 
 }

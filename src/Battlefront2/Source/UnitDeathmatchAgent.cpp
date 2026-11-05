@@ -145,7 +145,7 @@ void UnitDeathmatchAgent::EnterState()
             Controllable* pMe = GetMe();
             const PblVector3& vMyPos = pMe->GetMatrix().GetTranslation();
             const PblVector3 vDelta = vDest - vMyPos;
-            D3DXVec3Normalize((D3DXVECTOR3*)&vDir, (const D3DXVECTOR3*)&vDelta);
+            vDir = Normalize(vDelta);
             float fRadius = pMe->GetGameObject()->GetCollisionRadius();
             vDest -= vDir * fRadius;
         }

@@ -313,28 +313,21 @@ EntityBuilding::EntityBuilding(EntityBuildingClass* pClass, const EntityDesc& de
     if (pClass->mUnbuiltModel)
     {
         mState = STATE_UNBUILT;
-        mHealthType = HEALTH_TYPE_BUILDING_UNBUILT;
+        SetHealthType(HEALTH_TYPE_BUILDING_UNBUILT);
         SetModel(mClass->mUnbuiltModel);
         SetCollisionModel(&mClass->mUnbuiltCollisionModel);
 
-        PblVector3 vCenter;
-        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vCenter), reinterpret_cast<const D3DXVECTOR3*>(&mModel->_mModel->_BoundingSphere.GetCenter()), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
-        SetCollisionCenter(vCenter);
-        float fRadius = mModel->_mModel->_BoundingSphere.GetRadius();
-        if (!(fRadius > mClass->mPotentialCollisionRadius))
-        {
-            fRadius = mClass->mPotentialCollisionRadius;
-        }
-        SetCollisionRadius(fRadius);
+        SetCollisionCenter(mMatrix.ApplyTransform(mModel->GetBoundingSphere().GetCenter()));
+        SetCollisionRadius(Max(mModel->GetBoundingSphere().GetRadius(), mClass->mPotentialCollisionRadius));
         RecalculateAABB();
         SetRenderPos(GetCollisionCenter());
         SetRenderRadius(GetCollisionRadius());
 
         mIsAlive = false;
         SetCurHealth(0.0f, false, 0);
-        mAddHealth = 0.0f;
+        SetAddHealth(0.0f);
         SetCurShield(0.0f, false, 0);
-        mMaxShield = 0.0f;
+        SetMaxShield(0.0f);
         mAddShield = 0.0f;
 
         if (pClass->m_pHologramClass)
@@ -343,8 +336,7 @@ EntityBuilding::EntityBuilding(EntityBuildingClass* pClass, const EntityDesc& de
             PblMatrix mBone;
             if (mClass->mUnbuiltModel->_mLod[0]->GetBoneMatrix(0xD1E4CC7A, mBone))
             {
-                PblMatrix mWorld = mBone * GetCollisionObject()->GetMatrix();
-                hologramDesc.mMatrix = mWorld;
+                hologramDesc.mMatrix = mBone * GetCollisionObject()->GetMatrix();
             }
             else
             {
@@ -366,7 +358,7 @@ EntityBuilding::EntityBuilding(EntityBuildingClass* pClass, const EntityDesc& de
     TargetManager::AddTarget(this, false);
 
     mpShadow = 0;
-    if ((!NetGame::IsEnabled() || NetGame::IsClient()) && !mClass->mDestroyedModel && !mClass->mUnbuiltModel)
+    if ((!NetGame::IsEnabled() || NetGame::OnClient()) && !mClass->mDestroyedModel && !mClass->mUnbuiltModel)
     {
         mpShadow = new RedShadowProxy;
         mpShadow->BuildData(mModel->GetRedModel(0), &mMatrix, GetCollisionRadius(), GetCollisionCenter());
@@ -651,7 +643,7 @@ void EntityBuilding::Respawn()
     mClass->mBuiltSound.Play(&mMatrix.GetTranslation(), 0, false, true);
     if (mClass->mHealthType == HEALTH_TYPE_BUILDING)
     {
-        mHealthType = HEALTH_TYPE_BUILDING;
+        SetHealthType(HEALTH_TYPE_BUILDING);
     }
     if (mObstacle && mClass->mDisableBarrierWhenDead)
     {
@@ -673,15 +665,8 @@ void EntityBuilding::Respawn()
         }
 
         SetMatrix(mMatrix);
-        PblVector3 vCenter;
-        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vCenter), reinterpret_cast<const D3DXVECTOR3*>(&mModel->_mModel->_BoundingSphere.GetCenter()), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
-        SetCollisionCenter(vCenter);
-        float fRadius = mModel->_mModel->_BoundingSphere.GetRadius();
-        if (!(fRadius > mClass->mPotentialCollisionRadius))
-        {
-            fRadius = mClass->mPotentialCollisionRadius;
-        }
-        SetCollisionRadius(fRadius);
+        SetCollisionCenter(mMatrix.ApplyTransform(mModel->GetBoundingSphere().GetCenter()));
+        SetCollisionRadius(Max(mModel->GetBoundingSphere().GetRadius(), mClass->mPotentialCollisionRadius));
         RecalculateAABB();
         SetRenderPos(GetCollisionCenter());
         SetRenderRadius(GetCollisionRadius());
@@ -696,10 +681,10 @@ void EntityBuilding::Respawn()
         AddStaticToCollisionManager();
     }
 
-    mAddHealth = mClass->mAddHealth;
+    SetAddHealth(mClass->mAddHealth);
     ResetStatus();
     SetCurShield(mClass->mAddShield > 0.0f ? 0.0f : mClass->mMaxShield, false, 0);
-    mMaxShield = mClass->mMaxShield;
+    SetMaxShield(mClass->mMaxShield);
     mAddShield = mClass->mAddShield;
     GameObject::Respawn();
 }

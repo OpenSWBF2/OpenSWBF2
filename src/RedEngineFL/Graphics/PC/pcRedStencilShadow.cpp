@@ -350,29 +350,28 @@ void RedStencilShadow::Render(const PblMatrix* pMatrix,
 RedStencilShadow::VisibilityTestT RedStencilShadow::ShadowVolumeVisibilityTest(
     const PblVector3& vCenter, float fRadius, float fLength)
 {
-    const float dx = s_vNearPlaneCenter.x - vCenter.x;
-    const float dy = s_vNearPlaneCenter.y - vCenter.y;
-    const float dz = s_vNearPlaneCenter.z - vCenter.z;
-    const float projection = s_vProjection.x * dx + s_vProjection.y * dy +
-                             s_vProjection.z * dz;
-    const float distanceSq = dx * dx + dy * dy + dz * dz;
+    const PblVector3 vCasterToNearPlane = s_vNearPlaneCenter - vCenter;
+    const float projection = DotProduct(s_vProjection, vCasterToNearPlane);
+    const float distanceSq = vCasterToNearPlane.x * vCasterToNearPlane.x +
+                             vCasterToNearPlane.y * vCasterToNearPlane.y +
+                             vCasterToNearPlane.z * vCasterToNearPlane.z;
     const float radius = s_fNearPlaneRadius + fRadius;
     const float radiusSq = radius * radius;
-    if (projection > 0.0f)
+    if (projection <= 0.0f)
     {
-        if (projection < fLength)
-        {
-            if (radiusSq > distanceSq - projection * projection)
-            {
-                return TEST_CONTAINS_CAMERA;
-            }
-        }
-        else if (radiusSq > distanceSq - 2.0f * fLength * projection + fLength * fLength)
+        if (radiusSq > distanceSq)
         {
             return TEST_CONTAINS_CAMERA;
         }
     }
-    else if (radiusSq > distanceSq)
+    else if (projection >= fLength)
+    {
+        if (radiusSq > distanceSq - 2.0f * fLength * projection + fLength * fLength)
+        {
+            return TEST_CONTAINS_CAMERA;
+        }
+    }
+    else if (radiusSq > distanceSq - projection * projection)
     {
         return TEST_CONTAINS_CAMERA;
     }
@@ -380,7 +379,7 @@ RedStencilShadow::VisibilityTestT RedStencilShadow::ShadowVolumeVisibilityTest(
     for (int i = 0; i < s_iNumTestPlanes; ++i)
     {
         const PblVector4& plane = s_aTestPlane[i];
-        if (plane.x * vCenter.x + plane.y * vCenter.y + plane.z * vCenter.z + plane.w > fRadius)
+        if (DotProduct(plane, vCenter) + plane.w > fRadius)
         {
             return TEST_NOT_VISIBLE;
         }
@@ -801,7 +800,7 @@ void RedStencilShadow::Read(PblFileChunk& chunk)
     unsigned char* puiBoneIndexMap = 0;
     ShadowSegment* pSegment = new ShadowSegment;
     const RenderCapsT& caps = RedRenderer::pcGetRenderCaps();
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
@@ -859,7 +858,7 @@ void ShadowData::Read(PblFileChunk& chunk)
     PblBox box(FLT_MAX, FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX, -FLT_MAX);
 
     PblTraceP("Model has shadow data\n");
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
@@ -990,7 +989,7 @@ void RedStencilShadow::ReadCPUShadowData(PblFileChunk& chunk, ShadowSegment* pSe
     unsigned int uiFlags = 0;
     ShadowData* pShadowData = 0;
     int iSkinType = 0;
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
@@ -1026,7 +1025,7 @@ void RedStencilShadow::ReadGPUShadowData(PblFileChunk& chunk, ShadowSegment* pSe
     pcRedIndexBuffer* pIndexBuffer = 0;
     int iSkinType = 0;
     int iNormalMode = 0;
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
@@ -1107,28 +1106,6 @@ void RedStencilShadow::ReadGPUShadowData(PblFileChunk& chunk, ShadowSegment* pSe
     }
 }
 
-static inline void _AddTestPlane(bool bFlip, const D3DXVECTOR3& vEdge, const D3DXVECTOR3& vPoint)
-{
-    const D3DXVECTOR3& vProjection = *(const D3DXVECTOR3*)&RedStencilShadow::s_vProjection;
-    D3DXVECTOR3 vCross;
-    if (bFlip)
-    {
-        D3DXVec3Cross(&vCross, &vProjection, &vEdge);
-    }
-    else
-    {
-        D3DXVec3Cross(&vCross, &vEdge, &vProjection);
-    }
-    D3DXVECTOR3 vNormal;
-    D3DXVec3Normalize(&vNormal, &vCross);
-
-    PblVector4& plane = RedStencilShadow::s_aTestPlane[RedStencilShadow::s_iNumTestPlanes++];
-    plane.x = vNormal.x;
-    plane.y = vNormal.y;
-    plane.z = vNormal.z;
-    plane.w = -D3DXVec3Dot(&vPoint, &vNormal);
-}
-
 // FUNCTION: SWBF2 0x006e6f40
 void RedStencilShadow::SetVisibilityTestCamera(const RedCamera* pCamera)
 {
@@ -1136,64 +1113,86 @@ void RedStencilShadow::SetVisibilityTestCamera(const RedCamera* pCamera)
 
     float fNear, fFar, fWidth, fHeight;
     pCamera->GetFrustum(fNear, fFar, fWidth, fHeight);
-    s_fNearPlaneRadius = (float)sqrt(fWidth * fWidth + fHeight * fHeight);
+    s_fNearPlaneRadius = sqrtf(fWidth * fWidth + fHeight * fHeight);
 
     const PblMatrix& mCamera = pCamera->GetMatrix();
-    const D3DXVECTOR3& vRight = *(const D3DXVECTOR3*)mCamera.m[0];
-    const D3DXVECTOR3& vUp = *(const D3DXVECTOR3*)mCamera.m[1];
-    const D3DXVECTOR3& vFwd = *(const D3DXVECTOR3*)mCamera.m[2];
-    const D3DXVECTOR3& vPos = *(const D3DXVECTOR3*)mCamera.m[3];
+    const PblVector3& vRight = mCamera[0];
+    const PblVector3& vUp = mCamera[1];
+    const PblVector3& vFwd = mCamera[2];
+    const PblVector3& vPos = mCamera[3];
 
-    *(D3DXVECTOR3*)&s_vNearPlaneCenter = vPos - vFwd * fNear;
+    s_vNearPlaneCenter = vPos - vFwd * fNear;
+    PblVector3 vProjectionLocal = pCamera->GetMatrixInverse().ApplyRotation(s_vProjection);
 
-    D3DXVECTOR3 vLocal;
-    D3DXVec3TransformNormal(&vLocal, (const D3DXVECTOR3*)&s_vProjection,
-                            (const D3DXMATRIX*)&pCamera->GetMatrixInverse());
+    const float fNearPlaneToTan = 0.5f / fNear;
+    const float fTanHalfFOVx = fNearPlaneToTan * fWidth;
+    const float fTanHalfFOVy = fNearPlaneToTan * fHeight;
 
-    float fScale = 0.5f / fNear;
-    float fHalfWidth = fScale * fWidth;
-    float fHalfHeight = fScale * fHeight;
-
-    bool bFar = vLocal.z > 0.0f;
-    bool bRight = vLocal.z * fHalfWidth + vLocal.x < 0.0f;
-    bool bLeft = vLocal.z * fHalfWidth - vLocal.x < 0.0f;
-    bool bTop = vLocal.y + vLocal.z * fHalfHeight < 0.0f;
-    bool bBottom = vLocal.z * fHalfHeight - vLocal.y < 0.0f;
+    enum FRUSTUM_PLANES
+    {
+        PLANE_FAR = 0,
+        PLANE_RIGHT = 1,
+        PLANE_LEFT = 2,
+        PLANE_TOP = 3,
+        PLANE_BOTTOM = 4
+    };
+    bool abFacing[5];
+    abFacing[PLANE_FAR] = vProjectionLocal.z > 0.0f;
+    abFacing[PLANE_RIGHT] = vProjectionLocal.z * fTanHalfFOVx + vProjectionLocal.x < 0.0f;
+    abFacing[PLANE_LEFT] = vProjectionLocal.z * fTanHalfFOVx - vProjectionLocal.x < 0.0f;
+    abFacing[PLANE_TOP] = vProjectionLocal.y + vProjectionLocal.z * fTanHalfFOVy < 0.0f;
+    abFacing[PLANE_BOTTOM] = vProjectionLocal.z * fTanHalfFOVy - vProjectionLocal.y < 0.0f;
 
     s_iNumTestPlanes = 0;
 
-    if (bTop != bRight)
+    if (abFacing[PLANE_TOP] != abFacing[PLANE_RIGHT])
     {
-        _AddTestPlane(bTop, vRight * fHalfWidth + vUp * fHalfHeight - vFwd, vPos);
+        PblVector3 vEdge = vRight * fTanHalfFOVx + vUp * fTanHalfFOVy - vFwd;
+        PblVector3 vPlane = Normalize(abFacing[PLANE_TOP] ? CrossProduct(s_vProjection, vEdge) : CrossProduct(vEdge, s_vProjection));
+        s_aTestPlane[s_iNumTestPlanes++] = PblVector4(vPlane.x, vPlane.y, vPlane.z, -DotProduct(vPos, vPlane));
     }
-    if (bRight != bBottom)
+    if (abFacing[PLANE_RIGHT] != abFacing[PLANE_BOTTOM])
     {
-        _AddTestPlane(bRight, vRight * fHalfWidth - vUp * fHalfHeight - vFwd, vPos);
+        PblVector3 vEdge = vRight * fTanHalfFOVx - vUp * fTanHalfFOVy - vFwd;
+        PblVector3 vPlane = Normalize(abFacing[PLANE_RIGHT] ? CrossProduct(s_vProjection, vEdge) : CrossProduct(vEdge, s_vProjection));
+        s_aTestPlane[s_iNumTestPlanes++] = PblVector4(vPlane.x, vPlane.y, vPlane.z, -DotProduct(vPos, vPlane));
     }
-    if (bBottom != bLeft && s_iNumTestPlanes < 2)
+    if (abFacing[PLANE_BOTTOM] != abFacing[PLANE_LEFT] && s_iNumTestPlanes < 2)
     {
-        _AddTestPlane(bBottom, -vRight * fHalfWidth - vUp * fHalfHeight - vFwd, vPos);
+        PblVector3 vEdge = -vRight * fTanHalfFOVx - vUp * fTanHalfFOVy - vFwd;
+        PblVector3 vPlane = Normalize(abFacing[PLANE_BOTTOM] ? CrossProduct(s_vProjection, vEdge) : CrossProduct(vEdge, s_vProjection));
+        s_aTestPlane[s_iNumTestPlanes++] = PblVector4(vPlane.x, vPlane.y, vPlane.z, -DotProduct(vPos, vPlane));
     }
-    if (bLeft != bTop && s_iNumTestPlanes < 2)
+    if (abFacing[PLANE_LEFT] != abFacing[PLANE_TOP] && s_iNumTestPlanes < 2)
     {
-        _AddTestPlane(bLeft, -vRight * fHalfWidth + vUp * fHalfHeight - vFwd, vPos);
+        PblVector3 vEdge = -vRight * fTanHalfFOVx + vUp * fTanHalfFOVy - vFwd;
+        PblVector3 vPlane = Normalize(abFacing[PLANE_LEFT] ? CrossProduct(s_vProjection, vEdge) : CrossProduct(vEdge, s_vProjection));
+        s_aTestPlane[s_iNumTestPlanes++] = PblVector4(vPlane.x, vPlane.y, vPlane.z, -DotProduct(vPos, vPlane));
     }
 
-    if (bTop != bFar)
+    if (abFacing[PLANE_TOP] != abFacing[PLANE_FAR])
     {
-        _AddTestPlane(bTop, -vRight, vPos + vUp * (fHalfHeight * fFar) - vFwd * fFar);
+        PblVector3 vPlane = Normalize(abFacing[PLANE_TOP] ? CrossProduct(s_vProjection, -vRight) : CrossProduct(-vRight, s_vProjection));
+        PblVector3 vPoint = vPos + vUp * (fTanHalfFOVy * fFar) - vFwd * fFar;
+        s_aTestPlane[s_iNumTestPlanes++] = PblVector4(vPlane.x, vPlane.y, vPlane.z, -DotProduct(vPoint, vPlane));
     }
-    if (bRight != bFar)
+    if (abFacing[PLANE_RIGHT] != abFacing[PLANE_FAR])
     {
-        _AddTestPlane(bRight, vUp, vPos + vRight * (fHalfWidth * fFar) - vFwd * fFar);
+        PblVector3 vPlane = Normalize(abFacing[PLANE_RIGHT] ? CrossProduct(s_vProjection, vUp) : CrossProduct(vUp, s_vProjection));
+        PblVector3 vPoint = vPos + vRight * (fTanHalfFOVx * fFar) - vFwd * fFar;
+        s_aTestPlane[s_iNumTestPlanes++] = PblVector4(vPlane.x, vPlane.y, vPlane.z, -DotProduct(vPoint, vPlane));
     }
-    if (bBottom != bFar)
+    if (abFacing[PLANE_BOTTOM] != abFacing[PLANE_FAR])
     {
-        _AddTestPlane(bBottom, vRight, vPos - vUp * (fHalfHeight * fFar) - vFwd * fFar);
+        PblVector3 vPlane = Normalize(abFacing[PLANE_BOTTOM] ? CrossProduct(s_vProjection, vRight) : CrossProduct(vRight, s_vProjection));
+        PblVector3 vPoint = vPos - vUp * (fTanHalfFOVy * fFar) - vFwd * fFar;
+        s_aTestPlane[s_iNumTestPlanes++] = PblVector4(vPlane.x, vPlane.y, vPlane.z, -DotProduct(vPoint, vPlane));
     }
-    if (bLeft != bFar && s_iNumTestPlanes < 5)
+    if (abFacing[PLANE_LEFT] != abFacing[PLANE_FAR] && s_iNumTestPlanes < 5)
     {
-        _AddTestPlane(bLeft, -vUp, vPos - vRight * (fHalfWidth * fFar) - vFwd * fFar);
+        PblVector3 vPlane = Normalize(abFacing[PLANE_LEFT] ? CrossProduct(s_vProjection, -vUp) : CrossProduct(-vUp, s_vProjection));
+        PblVector3 vPoint = vPos - vRight * (fTanHalfFOVx * fFar) - vFwd * fFar;
+        s_aTestPlane[s_iNumTestPlanes++] = PblVector4(vPlane.x, vPlane.y, vPlane.z, -DotProduct(vPoint, vPlane));
     }
 }
 
@@ -1201,6 +1200,7 @@ void RedStencilShadow::SetVisibilityTestCamera(const RedCamera* pCamera)
 static const PblMatrix& _GetSkinMatrix(unsigned int uiNumBones, const unsigned char* puiWeights,
                                 const unsigned char* puiIndices, const PblMatrix* pMatrices)
 {
+    // GLOBAL: SWBF2 0x009a09d0
     static PblMatrix s_mSkin = gMatrixIdentity;
 
     if (uiNumBones == 1 || puiWeights[0] == 0xFF)

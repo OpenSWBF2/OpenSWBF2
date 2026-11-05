@@ -38,6 +38,7 @@ PblVector3 pcShieldShader::s_vLightDir;
 PblVector3 pcShieldShader::s_vLightX;
 PblVector3 pcShieldShader::s_vLightY;
 
+// GLOBAL: SWBF2 0x00965070
 static D3DMATERIAL9 s_d3dMat;
 
 // SYNTHETIC: SWBF2 0x00407fc0
@@ -196,12 +197,7 @@ void pcShieldShader::Render_Fixed(const RenderItem* pItem, unsigned int) const
         light.Specular.b *= 2.0f;
         RedRenderer::pcGetDevice()->SetLight(0, &light);
         RedRenderer::pcGetDevice()->LightEnable(0, TRUE);
-        D3DCOLORVALUE specular;
-        specular.r = m_colorSpecular.r * kInv255;
-        specular.g = m_colorSpecular.g * kInv255;
-        specular.b = m_colorSpecular.b * kInv255;
-        specular.a = m_colorSpecular.a * kInv255;
-        s_d3dMat.Specular = specular;
+        s_d3dMat.Specular = RedColorValue(m_colorSpecular);
         s_d3dMat.Power = m_specPower;
         RedRenderer::pcGetDevice()->SetMaterial(&s_d3dMat);
     }
@@ -248,21 +244,17 @@ void pcShieldShader::Begin_Prog1(unsigned int, unsigned int) const
         s_vLightDir = vDir;
         s_vLightX = PblVector3(s_vLightDir.z, 0.0f, -s_vLightDir.x);
 
-        const float fLenSq = s_vLightX.x * s_vLightX.x + s_vLightX.y * s_vLightX.y +
-                             s_vLightX.z * s_vLightX.z;
+        const float fLenSq = SquaredLength(s_vLightX);
         if (fLenSq >= 1e-6f)
         {
-            const float fInvLen = 1.0f / sqrtf(fLenSq);
-            s_vLightX *= fInvLen;
+            s_vLightX /= sqrtf(fLenSq);
         }
         else
         {
             s_vLightX = PblVector3(1.0f, 0.0f, 0.0f);
         }
 
-        s_vLightY = PblVector3(s_vLightDir.y * s_vLightX.z - s_vLightDir.z * s_vLightX.y,
-                               s_vLightDir.z * s_vLightX.x - s_vLightDir.x * s_vLightX.z,
-                               s_vLightDir.x * s_vLightX.y - s_vLightDir.y * s_vLightX.x);
+        s_vLightY = CrossProduct(s_vLightDir, s_vLightX);
     }
 }
 
@@ -346,7 +338,7 @@ void pcShieldShader::Render_Prog1(const RenderItem* pItem, unsigned int) const
 
     pcRedVertexShaderConstantRegister* pRegs = RedRenderer::pcLockVertexShaderConstants(39, 6);
     const RedColorValue diffuse(color);
-    pRegs[39].SetFloats(diffuse.r, diffuse.g, diffuse.b, diffuse.a);
+    pRegs[39].SetColor(diffuse);
 
     if (m_specPower < 4.0f)
     {
@@ -360,13 +352,13 @@ void pcShieldShader::Render_Prog1(const RenderItem* pItem, unsigned int) const
     else
     {
         const RedColorValue specular(m_colorSpecular);
-        pRegs[40].SetFloats(specular.r, specular.g, specular.b, specular.a);
+        pRegs[40].SetColor(specular);
     }
 
     const PblVector3 vSpecX = s_vLightX * m_specSizeInv;
-    pRegs[41].SetFloats(vSpecX.x, vSpecX.y, vSpecX.z);
+    pRegs[41].SetVectorXYZ(vSpecX);
     const PblVector3 vSpecY = m_specSizeInv * s_vLightY;
-    pRegs[42].SetFloats(vSpecY.x, vSpecY.y, vSpecY.z);
+    pRegs[42].SetVectorXYZ(vSpecY);
 
     pRegs[43].SetFloats(m_fOffsetU, m_fOffsetV, m_fViewAngleFactor, m_fVertexMinDistSqr);
 
@@ -390,10 +382,7 @@ void pcShieldShader::Render_Prog1(const RenderItem* pItem, unsigned int) const
     }
     else
     {
-        pRegs[44].component[0] = 0.0f;
-        pRegs[44].component[1] = 1.0f;
-        pRegs[44].component[2] = 0.0f;
-        pRegs[44].component[3] = 0.0f;
+        pRegs[44].SetFloats(0.0f, 1.0f, 0.0f, 0.0f);
     }
 
     RedRenderer::pcUnlockVertexShaderConstants(pRegs);
@@ -503,7 +492,7 @@ void pcShieldShader::_InitPipelineFuncArray()
 // FUNCTION: SWBF2 0x006cdfc0
 void pcShieldShader::_Read(PblFileChunk& chunk) const
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId != 0x454d414e)

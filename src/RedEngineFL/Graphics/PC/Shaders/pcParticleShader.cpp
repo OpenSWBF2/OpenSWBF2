@@ -86,9 +86,9 @@ void pcParticleShader::Begin_Prog1(unsigned int, unsigned int) const
     if (m_blurEnable)
     {
         // GLOBAL: SWBF2 0x009c9880
-        // s_BiasToTextureMatrix
+        // scaleTexMatrix
 
-        static const PblMatrix s_BiasToTextureMatrix(
+        static PblMatrix scaleTexMatrix(
             PblVector4{ 0.5f, 0.0f, 0.0f, 0.0f },
             PblVector4{ 0.0f, 0.5f, 0.0f, 0.0f },
             PblVector4{ 0.0f, 0.0f, 0.5f, 0.0f },
@@ -96,7 +96,7 @@ void pcParticleShader::Begin_Prog1(unsigned int, unsigned int) const
 
         const RedCamera* pCamera = RedRenderer::GetCamera();
         PblMatrix mViewProj = pCamera->GetMatrixInverse() * RedRenderer::GetProjectionMatrix();
-        PblMatrix mTex = mViewProj * s_BiasToTextureMatrix;
+        PblMatrix mTex = mViewProj * scaleTexMatrix;
         s_blurTexMatrix = mTex;
 
         RedRenderer::pcSetSamplerState(1, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
@@ -131,7 +131,7 @@ void pcParticleShader::Begin_Fixed(unsigned int uiState, unsigned int) const
     if (uiState == 1)
     {
         // GLOBAL: SWBF2 0x009c97b0
-        static const PblMatrix mBias(PblVector4{ 0.5f, 0.0f, 0.0f, 0.0f },
+        static PblMatrix scaleTexMatrix(PblVector4{ 0.5f, 0.0f, 0.0f, 0.0f },
                                      PblVector4{ 0.0f, -0.5f, 0.0f, 0.0f },
                                      PblVector4{ 0.0f, 0.0f, 0.0f, 0.0f },
                                      PblVector4{ 0.5f, 0.5f, 1.0f, 1.0f });
@@ -142,7 +142,7 @@ void pcParticleShader::Begin_Fixed(unsigned int uiState, unsigned int) const
         RedRenderer::pcGetDevice()->GetTransform(D3DTS_PROJECTION, (D3DMATRIX*)&mProjection);
         RedRenderer::pcGetDevice()->GetTransform(D3DTS_VIEW, (D3DMATRIX*)&mView);
         PblMatrix mViewProj = mView * mProjection;
-        PblMatrix mTex = mViewProj * mBias;
+        PblMatrix mTex = mViewProj * scaleTexMatrix;
         s_blurTexMatrix = mTex;
 
         RedRenderer::pcSetSamplerState(1, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
@@ -364,8 +364,7 @@ void pcParticleShader::Render_Prog1(const RenderItem* pItem, unsigned int) const
         RedRenderer::pcSetRenderState(D3DRS_FOGENABLE, FALSE);
         pcRedVertexShaderConstantRegister* pRegs =
             RedRenderer::pcLockVertexShaderConstants(39, 7);
-        pRegs[39].SetFloats(color.r * (1.0f / 255.0f), color.g * (1.0f / 255.0f),
-                            color.b * (1.0f / 255.0f), color.a * (1.0f / 255.0f));
+        pRegs[39].SetColor(RedColorValue(color));
         pRegs[40].SetFloats(fFadeScale, fFadeOffset, 0.0f, 0.0f);
         pRegs[41].SetFloats(m_fTextureScale, m_fTextureScale, 0.0f, 0.0f);
         PblMatrix mTex = *pItem->pmObjWorld * s_blurTexMatrix;
@@ -378,8 +377,7 @@ void pcParticleShader::Render_Prog1(const RenderItem* pItem, unsigned int) const
     {
         pcRedVertexShaderConstantRegister* pRegs =
             RedRenderer::pcLockVertexShaderConstants(39, 3);
-        pRegs[39].SetFloats(color.r * (1.0f / 255.0f), color.g * (1.0f / 255.0f),
-                            color.b * (1.0f / 255.0f), color.a * (1.0f / 255.0f));
+        pRegs[39].SetColor(RedColorValue(color));
         pRegs[40].SetFloats(fFadeScale, fFadeOffset, 0.0f, 0.0f);
         pRegs[41].SetFloats(m_fTextureScale, m_fTextureScale, 0.0f, 0.0f);
         RedRenderer::pcUnlockVertexShaderConstants(pRegs);
@@ -448,7 +446,7 @@ void pcParticleShader::_InitPipelineFuncArray()
 // FUNCTION: SWBF2 0x00703bc0
 void pcParticleShader::_Read(PblFileChunk& chunk) const
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId != 0x454d414e)

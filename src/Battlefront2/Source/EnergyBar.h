@@ -44,6 +44,11 @@ public:
 
     float GetEnergy() const { return m_fEnergy; }
     float GetEnergyMax() const { return m_pClass->m_fEnergyMax; }
+    float GetEnergyFraction() const
+    {
+        float fMax = GetEnergyMax();
+        return fMax > 0.0f ? GetEnergy() / fMax : 0.0f;
+    }
     bool IsOverheating() const { return m_bOverheat != 0; }
     static void SetupMemoryPool(unsigned int count, unsigned int size,
                                 unsigned int grow) { sMemoryPool.Setup(count, size, grow); }

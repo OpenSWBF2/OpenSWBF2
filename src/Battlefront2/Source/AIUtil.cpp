@@ -273,22 +273,14 @@ namespace AIUtil
 {
 
 // FUNCTION: SWBF2 0x00442b30
-bool __fastcall ShouldStayInVehicle(Controllable* pMe)
+bool __fastcall ShouldStayInVehicle(const Controllable* pMe)
 {
-    static_cast<const Controllable*>(pMe)->GetGameObject();
-    if (!AIUtil::IsEndGame(0))
+    pMe->GetGameObject();
+    if (AIUtil::IsEndGame(0) && pMe->IsPilotable() && pMe->GetPilot())
     {
-        return true;
+        return false;
     }
-    if (!pMe->IsPilotable())
-    {
-        return true;
-    }
-    if (pMe->mPilotType == PILOT_VEHICLESELF && pMe->mPilot == pMe)
-    {
-        return true;
-    }
-    return pMe->mPilot == 0;
+    return true;
 }
 }
 
@@ -503,7 +495,7 @@ static void sCalculateTurnControls(const Controllable* pMe, float fScale, const 
     else
     {
         const PblVector3 vUp = pMe->GetMatrix().GetYAxis();
-        const PblVector3 vFlat = vToDest - vUp * DotProduct(vUp, vToDest);
+        const PblVector3 vFlat = vToDest - DotProduct(vUp, vToDest) * vUp;
         PblVector3 vFwd = pMe->GetMatrix().GetZAxis();
         if (bFromEye)
         {
@@ -533,7 +525,7 @@ static void sCalculateTurnControls(const Controllable* pMe, float fScale, const 
     {
         const PblVector3 vLocal = UnrotateVector(mEye, vToDest2);
         PblVector3 vDir;
-        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vLocal));
+        vDir = Normalize(vLocal);
 
         float fPitch = 0.0f;
         const float fRate = Clamp(fPitchRate, 1.0f, 3.0f);
@@ -553,7 +545,7 @@ static void sCalculateTurnControls(const Controllable* pMe, float fScale, const 
     {
         const PblVector3& vRight = mEye.GetXAxis();
         const PblVector3& vFwd = mEye.GetZAxis();
-        const PblVector3 vFlat = vToDest2 - vRight * DotProduct(vRight, vToDest2);
+        const PblVector3 vFlat = vToDest2 - DotProduct(vRight, vToDest2) * vRight;
         if (DotProduct(vFwd, vFlat) > 0.0f)
         {
             float fPitch = -DotProduct(vRight, CrossProduct(vFwd, GetSafeNormal(vFlat)));
@@ -697,7 +689,7 @@ void AIUtil::CalculateHeadingControls(const Controllable* pMe, float fScale,
     const Aimer* pAimer = pMe->GetCurAimer();
 
     const WeaponClass* pWeaponClass =
-        pAimer ? *(const WeaponClass* const*)((const char*)pAimer->GetWeapon() + 0x64) : 0;
+        pAimer ? pAimer->GetWeapon()->GetClass() : 0;
     if (pTarget)
     {
         vBubble = CalculateBubbleOffset(pMe, vAim, pTarget, pWeaponClass);
@@ -803,7 +795,7 @@ void UpdatePhysics(const Controllable* pMe, float fScale, const ControllableDest
         else
         {
             PblVector3 vDir;
-            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vToDest));
+            vDir = Normalize(vToDest);
 
             PblVector3 vFwd = pMe->GetMatrix().GetZAxis();
             PblVector3 vFwdXZ;
@@ -926,7 +918,7 @@ bool AIUtil::GetTangentPointToCircle(const PblVector3& vCenter, const PblVector3
 
 // FUNCTION: SWBF2 0x00440a20
 void AIUtil::CalculateFlyerSteerPoint(const PblVector3& vPos, const PblVector3& vDir, const PblVector3& vGoal,
-                const PblVector3& vGoalDir, float fRadius, PblVector3& vSteer, int iTurn)
+                const PblVector3& vGoalDir, float fRadius, PblVector3& vSteer, ForceDestSide iTurn)
 {
     const float fGoalX = vGoal.x;
     const float fGoalZ = vGoal.z;
@@ -936,7 +928,7 @@ void AIUtil::CalculateFlyerSteerPoint(const PblVector3& vPos, const PblVector3& 
     PblVector3 vFlat = vDir;
     vFlat.y = 0.0f;
     PblVector3 vFwd;
-    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vFwd), reinterpret_cast<const D3DXVECTOR3*>(&vFlat));
+    vFwd = Normalize(vFlat);
     vFlat = vGoalDir;
     vFlat.y = 0.0f;
     vFlat = Normalize(vFlat);
@@ -1017,10 +1009,9 @@ void AIUtil::CalculateFlyerSteerPoint(const PblVector3& vPos, const PblVector3& 
     PblVector3 vCircle(fCircleX, 0.0f, fCircleZ);
     PblVector3 vGoalFlat(fGoalX, 0.0f, fGoalZ);
     PblVector3 vTangent;
-    PblVector3 vTangentDir;
     float fTangentX;
     float fTangentZ;
-    if (AIUtil::GetTangentPointToCircle(vCircle, vGoalFlat, fRadius, vTangent, vTangentDir, bSide))
+    if (AIUtil::GetTangentPointToCircle(vCircle, vGoalFlat, fRadius, vTangent, vFwd, bSide))
     {
         fTangentX = vTangent.x;
         fTangentZ = vTangent.z;
@@ -1054,29 +1045,24 @@ void AIUtil::CalculateFlyerSteerPoint(const PblVector3& vPos, const PblVector3& 
 void AIUtil::CalculateSoldierSteerPoint(const PblVector3& vPrev, const PblVector3& vGoto,
                                         const PblVector3& vPos, float fSpeed, PblVector3& vSteer)
 {
-    PblVector3 vTo;
-    PblVector3 vFrom;
-    vFrom = vPrev;
+    PblVector3 vFrom = vPrev;
     vFrom.y = vPos.y;
-    vTo = vGoto;
+    PblVector3 vTo = vGoto;
     vTo.y = vPos.y;
-    const PblVector3 vLeg(vTo.x - vFrom.x, vTo.y - vFrom.y, vTo.z - vFrom.z);
-    if (0.0001f > vLeg.x * vLeg.x + vLeg.y * vLeg.y + vLeg.z * vLeg.z)
+    if (0.0001f > SquaredLength(vTo - vFrom))
     {
         vSteer = vTo;
         return;
     }
 
     const PblVector3 vDir = Normalize(vTo - vFrom);
-    const PblVector3 vRel(vPos.x - vFrom.x, vPos.y - vFrom.y, vPos.z - vFrom.z);
-    const float fAhead = vDir.y * vRel.y + vRel.x * vDir.x + vDir.z * vRel.z + fSpeed + 0.2f;
-    if (fAhead * fAhead > vLeg.z * vLeg.z + vLeg.x * vLeg.x)
+    const float fAhead = DotProduct(vPos - vFrom, vDir) + fSpeed + 0.2f;
+    if (fAhead * fAhead > SquaredLengthXZ(vTo - vFrom))
     {
         vSteer = vTo;
         return;
     }
-    vSteer = PblVector3(vDir.x * fAhead + vFrom.x, vDir.y * fAhead + vFrom.y,
-                        vDir.z * fAhead + vFrom.z);
+    vSteer = vDir * fAhead + vFrom;
 }
 
 // FUNCTION: SWBF2 0x00440f20
@@ -1325,7 +1311,7 @@ namespace AIUtil
 {
 
 // FUNCTION: SWBF2 0x00441860
-bool __cdecl CanPotentiallySee(Controllable* pMe, const GameObject* pObject, float* pOut)
+bool __cdecl CanPotentiallySee(const Controllable* pMe, const GameObject* pObject, float* pOut)
 {
     // GLOBAL: SWBF2 0x01faa7d0
     static const float sCosHalfFOV = PblMath::Cos(FOV_ANGLE * 0.5f);
@@ -1515,7 +1501,7 @@ namespace AIUtil
 {
 
 // FUNCTION: SWBF2 0x00442000
-bool ShouldSoldierDodgeThisType(int eType)
+bool ShouldSoldierDodgeThisType(CollisionObjectType eType)
 {
     switch (eType)
     {
@@ -1524,9 +1510,14 @@ bool ShouldSoldierDodgeThisType(int eType)
     case COLL_ATTACHED:
     case COLL_SPECIAL:
         return true;
+    case COLL_UNKNOWN:
+    case COLL_ITEM:
+    case COLL_SOFT:
+    case COLL_ASTEROID:
     case COLL_TERRAIN:
     case COLL_WATER:
     case COLL_LEAFPATCH:
+    case COLL_ORDNANCE:
         return false;
     default:
         return false;
@@ -1743,12 +1734,8 @@ PblVector3 AIUtil::DumbDown(const GameObject* pObject, float fDeltaTime, Aimer* 
     if (vDir.y * vAim.y + vDir.x * vAim.x + vAim.z * vDir.z < (float)cos(0.523598790f))
     {
         const PblVector3 vUp = CrossProduct(vDir, vAim);
-        const PblVector3 vRight = CrossProduct(vDir, vUp);
-        PblMatrix mAim(vRight, vUp, vDir, gVectorZero);
-        PblMatrix mRotate;
-        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mAim), reinterpret_cast<const D3DXMATRIX*>(&mAim),
-                           D3DXMatrixRotationY(reinterpret_cast<D3DXMATRIX*>(&mRotate),
-                                               vUp.y > 0.0f ? 0.523598790f : -0.523598790f));
+        PblMatrix mAim(CrossProduct(vDir, vUp), vUp, vDir, gVectorZero);
+        mAim.RotateY(vUp.y > 0.0f ? 0.523598790f : -0.523598790f);
         vAim = mAim.GetZAxis();
         pAimer->SetAngVel(gVectorZero);
     }
@@ -1765,7 +1752,8 @@ PblVector3 AIUtil::DumbDown(const GameObject* pObject, float fDeltaTime, Aimer* 
         pAimer->SetAngVel(vNewVel);
     }
 
-    return Normalize(pAimer->GetAngVel() * fDeltaTime + vAim);
+    vAim = Normalize(pAimer->GetAngVel() * fDeltaTime + vAim);
+    return vAim;
 }
 
 // FUNCTION: SWBF2 0x00442ab0
@@ -1909,10 +1897,10 @@ bool AIUtil::ResolveCollision(const GameObject* pMe, const GameObject* pOther)
             }
 
             const PblVector3& vMyVel = pMe->GetVelocity();
-            if (vMyVel.x * vMyVel.x + vMyVel.z * vMyVel.z > 0.0001f)
+            if (SquaredLengthXZ(vMyVel) > 0.0001f)
             {
                 const PblVector3& vOtherVel = pOther->GetVelocity();
-                if (vOtherVel.x * vOtherVel.x + vOtherVel.z * vOtherVel.z > 0.0001f)
+                if (SquaredLengthXZ(vOtherVel) > 0.0001f)
                 {
                     const PblVector3 vMyDir = GetSafeNormal(pMe->GetVelocity());
                     const PblVector3 vOtherDir = GetSafeNormal(pOther->GetVelocity());
@@ -1920,11 +1908,9 @@ bool AIUtil::ResolveCollision(const GameObject* pMe, const GameObject* pOther)
                     vMyPos = pMe->GetMatrix().GetTranslation();
                     PblVector3 vOtherPos;
                     vOtherPos = pOther->GetMatrix().GetTranslation();
-                    const PblVector3 vDelta(vOtherPos.x - vMyPos.x, vOtherPos.y - vMyPos.y,
-                                            vOtherPos.z - vMyPos.z);
-                    const PblVector3 vToOther = GetSafeNormal(vDelta);
+                    const PblVector3 vToOther = GetSafeNormal(vOtherPos - vMyPos);
                     const float fMyDot = DotProduct(vMyDir, -vToOther);
-                    const float fOtherDot = vOtherDir.y * vToOther.y + vOtherDir.x * vToOther.x + vOtherDir.z * vToOther.z;
+                    const float fOtherDot = DotProduct(vOtherDir, vToOther);
                     return fOtherDot > fMyDot;
                 }
             }

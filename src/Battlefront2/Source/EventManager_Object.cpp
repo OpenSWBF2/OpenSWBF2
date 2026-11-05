@@ -900,7 +900,7 @@ template Event<GameObject, float>::Filter<ObjectMatchesClass<float> >*
 Event<GameObject, float>::GetFilter(ObjectMatchesClass<float>&, Callback*);
 
 // TEMPLATE: SWBF2 0x00514f40
-// EventManager::Node::~Node, emitted as an unwind copy
+// EventManager::Node::~Node
 
 // TEMPLATE: SWBF2 0x00515310
 // EventManager::RegisterUnregisterLuaCallback<GameObject,char>

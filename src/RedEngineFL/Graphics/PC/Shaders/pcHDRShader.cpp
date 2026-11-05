@@ -7,6 +7,7 @@
 #include "RedEngineFL/Graphics/PC/pcRedVertexFormat.h"
 #include "RedEngineFL/Graphics/PC/pcRedPrimitive.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
+#include "RedEngineFL/Graphics/RedMaterial.h"
 
 void __cdecl PblTraceP(const char* Format, ...);
 
@@ -189,13 +190,13 @@ void pcHDRShader::Render_Prog1(const RenderItem* pItem, unsigned int) const
                         1.0f / (float)m_sourceTex->m_uiHeight * m_bloomOffset);
     RedRenderer::pcUnlockVertexShaderConstants(pRegs);
 
-    const float afPSConstants[12] =
+    const RedColorValue pixelShaderConstants[3] =
     {
-        0.3f, 0.59f, 0.11f, m_glowThreshold,
-        m_glowFactor, m_glowFactor, m_glowFactor, m_bloomWeight,
-        1.0f, 1.0f, 1.0f, m_glowFactor
+        RedColorValue(0.3f, 0.59f, 0.11f, m_glowThreshold),
+        RedColorValue(m_glowFactor, m_glowFactor, m_glowFactor, m_bloomWeight),
+        RedColorValue(1.0f, 1.0f, 1.0f, m_glowFactor)
     };
-    RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, afPSConstants, 3);
+    RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, &pixelShaderConstants[0].r, 3);
 
     if (m_state == HDR_MODE_SCALEANDBLOOM)
     {
@@ -286,7 +287,7 @@ void pcHDRShader::_InitPipelineFuncArray()
 // FUNCTION: SWBF2 0x00714130
 void pcHDRShader::_Read(PblFileChunk& chunk) const
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId != 0x454d414e)

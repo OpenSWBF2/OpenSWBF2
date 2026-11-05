@@ -71,75 +71,24 @@ bool RedSpotLight::AABBIntersect(const PblVector3& vMin, const PblVector3& vMax)
 // FUNCTION: SWBF2 0x006eef30
 void RedSpotLight::DebugDraw() const
 {
-    const PblVector3& vDir = m_vDirection;
-
-    PblVector3 vSide(gVectorUnitX.y * vDir.z - gVectorUnitX.z * vDir.y,
-                     gVectorUnitX.z * vDir.x - gVectorUnitX.x * vDir.z,
-                     gVectorUnitX.x * vDir.y - gVectorUnitX.y * vDir.x);
-    PblVector3 vNormal;
-    if (vSide.x * vSide.x + vSide.y * vSide.y + vSide.z * vSide.z > 0.99f)
+    PblVector3 vXAxis = CrossProduct(gVectorUnitX, m_vDirection);
+    if (SquaredLength(vXAxis) > 0.99f)
     {
-        D3DXVec3Normalize(&vNormal, &vSide);
+        vXAxis = Normalize(vXAxis);
     }
     else
     {
-        PblVector3 vSideY(gVectorUnitY.y * vDir.z - gVectorUnitY.z * vDir.y,
-                          gVectorUnitY.z * vDir.x - gVectorUnitY.x * vDir.z,
-                          gVectorUnitY.x * vDir.y - gVectorUnitY.y * vDir.x);
-        D3DXVec3Normalize(&vNormal, &vSideY);
+        vXAxis = Normalize(CrossProduct(gVectorUnitY, m_vDirection));
     }
-    vSide = vNormal;
-
-    PblVector3 vUp;
-    D3DXVec3Normalize(&vUp, &vDir);
-
-    PblMatrix mBase;
-    mBase.m[0][0] = vSide.x;
-    mBase.m[0][1] = vSide.y;
-    mBase.m[0][2] = vSide.z;
-    mBase.m[0][3] = 0.0f;
-    mBase.m[1][0] = vUp.x;
-    mBase.m[1][1] = vUp.y;
-    mBase.m[1][2] = vUp.z;
-    mBase.m[1][3] = 0.0f;
-    mBase.m[2][0] = vUp.y * vSide.z - vUp.z * vSide.y;
-    mBase.m[2][1] = vUp.z * vSide.x - vUp.x * vSide.z;
-    mBase.m[2][2] = vUp.x * vSide.y - vUp.y * vSide.x;
-    mBase.m[2][3] = 0.0f;
-    mBase.m[3][0] = m_vPos.x;
-    mBase.m[3][1] = m_vPos.y;
-    mBase.m[3][2] = m_vPos.z;
-    mBase.m[3][3] = 1.0f;
-
-    RedColor color;
-    color.r = (unsigned char)(int)(m_color.r * 255.0f);
-    color.g = (unsigned char)(int)(m_color.g * 255.0f);
-    color.b = (unsigned char)(int)(m_color.b * 255.0f);
-    color.a = (unsigned char)(int)(m_color.a * 255.0f);
-    RedDebug::DrawCone(mBase, m_fRadius, 0.0f, m_fTanHalfOuterConeAngle * m_fRadius, color);
-    color.r = (unsigned char)(int)(m_color.r * 255.0f);
-    color.g = (unsigned char)(int)(m_color.g * 255.0f);
-    color.b = (unsigned char)(int)(m_color.b * 255.0f);
-    color.a = (unsigned char)(int)(m_color.a * 255.0f);
-    RedDebug::DrawCone(mBase, m_fRadius, 0.0f, m_fTanHalfInnerConeAngle * m_fRadius, color);
-
+    PblVector3 vYAxis = Normalize(m_vDirection);
+    PblMatrix mWorld(vXAxis, vYAxis, CrossProduct(vYAxis, vXAxis), m_vPos);
+    RedDebug::DrawCone(mWorld, m_fRadius, 0.0f, m_fTanHalfOuterConeAngle * m_fRadius, m_color);
+    RedDebug::DrawCone(mWorld, m_fRadius, 0.0f, m_fTanHalfInnerConeAngle * m_fRadius, m_color);
     if (m_bBidirectional)
     {
-        mBase.m[1][0] = -vUp.x;
-        mBase.m[1][1] = -vUp.y;
-        mBase.m[1][2] = -vUp.z;
-        mBase.m[1][3] = 0.0f;
-
-        color.r = (unsigned char)(int)(m_color.r * 255.0f);
-        color.g = (unsigned char)(int)(m_color.g * 255.0f);
-        color.b = (unsigned char)(int)(m_color.b * 255.0f);
-        color.a = (unsigned char)(int)(m_color.a * 255.0f);
-        RedDebug::DrawCone(mBase, m_fRadius, 0.0f, m_fTanHalfOuterConeAngle * m_fRadius, color);
-        color.r = (unsigned char)(int)(m_color.r * 255.0f);
-        color.g = (unsigned char)(int)(m_color.g * 255.0f);
-        color.b = (unsigned char)(int)(m_color.b * 255.0f);
-        color.a = (unsigned char)(int)(m_color.a * 255.0f);
-        RedDebug::DrawCone(mBase, m_fRadius, 0.0f, m_fTanHalfInnerConeAngle * m_fRadius, color);
+        mWorld.SetYAxis(-mWorld.GetYAxis());
+        RedDebug::DrawCone(mWorld, m_fRadius, 0.0f, m_fTanHalfOuterConeAngle * m_fRadius, m_color);
+        RedDebug::DrawCone(mWorld, m_fRadius, 0.0f, m_fTanHalfInnerConeAngle * m_fRadius, m_color);
     }
 }
 

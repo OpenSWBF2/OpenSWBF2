@@ -57,13 +57,13 @@ unsigned int Hash16(unsigned short const* pusString)
 
 // FUNCTION: SWBF2 0x00631650
 SaveFsm::SaveFsm()
-    : mCurSaveFile(0)
-    , mLoadQueueCnt(0)
-    , mXBOXTotalFreeNeeded(-1)
-    , mXBOXAdditionalFreeNeeded(-1)
 {
     mCurState = 1;
     mNextState = 2;
+    mCurSaveFile = 0;
+    mLoadQueueCnt = 0;
+    mXBOXTotalFreeNeeded = -1;
+    mXBOXAdditionalFreeNeeded = -1;
 }
 
 // SYNTHETIC: SWBF2 0x006316f0

@@ -94,10 +94,8 @@ public:
     int _iRefCount;
 };
 
- 
- 
- 
- 
- 
- 
- 
+// FUNCTION: SWBF2 0x00411c50
+inline const RedModel* RedModel::Find(unsigned int uiName)
+{
+    return _HashTable.Find(uiName);
+}

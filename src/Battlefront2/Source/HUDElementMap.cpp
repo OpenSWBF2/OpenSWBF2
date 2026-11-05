@@ -884,11 +884,6 @@ void HUD::ElementMap::Update(const float fElapsed)
     }
 }
 
-static inline float AbsValue(float f)
-{
-    return f < 0.0f ? -f : f;
-}
-
 // FUNCTION: SWBF2 0x005529a0
 bool HUD::ElementMap::CalculateScreenCoordinates(const PblVector3& vPosition, float& fX, float& fY,
                                                  bool bClamp, float* const pfDistanceSq) const
@@ -917,14 +912,14 @@ bool HUD::ElementMap::CalculateScreenCoordinates(const PblVector3& vPosition, fl
     }
     else
     {
-        float fAbsX = AbsValue(fX);
-        if (fAbsX > 0.5f || AbsValue(fY) > 0.5f)
+        float fAbsX = ::Value(fX);
+        if (fAbsX > 0.5f || ::Value(fY) > 0.5f)
         {
             if (!bClamp)
             {
                 return false;
             }
-            const float fAbsY = AbsValue(fY);
+            const float fAbsY = ::Value(fY);
             if (!(fAbsX > fAbsY))
             {
                 fAbsX = fAbsY;
@@ -1103,19 +1098,8 @@ void HUD::ElementMap::UpdateTargetIcons(const Controllable* pPlayer)
             GameObject* pTarget = target.actor;
             const PblMatrix& mPlayer = pPlayer->GetMatrix();
             const PblMatrix& mTargetMatrix = pTarget->GetMatrix();
-            vDelta = PblVector3(mTargetMatrix.m[3][0] - mPlayer.m[3][0], mTargetMatrix.m[3][1] - mPlayer.m[3][1],
-                                mTargetMatrix.m[3][2] - mPlayer.m[3][2]);
-
-            const float fLength2EstAlpha = 0.94805944f;
-            const float fLength2EstBeta = 0.39269909f;
-            float fA = (float)fabs((double)vDelta.x);
-            float fB = (float)fabs((double)vDelta.y);
-            float fEst = fA > fB ? fA * fLength2EstAlpha + fB * fLength2EstBeta
-                                 : fA * fLength2EstBeta + fB * fLength2EstAlpha;
-            fA = (float)fabs((double)fEst);
-            fB = (float)fabs((double)vDelta.z);
-            fDistance = fA > fB ? fA * fLength2EstAlpha + fB * fLength2EstBeta
-                                : fA * fLength2EstBeta + fB * fLength2EstAlpha;
+            vDelta = mTargetMatrix.GetTranslation() - mPlayer.GetTranslation();
+            fDistance = LengthEst(vDelta);
         }
         else
         {
@@ -1208,22 +1192,9 @@ void HUD::ElementMap::UpdateTargetIcons(const Controllable* pPlayer)
         matrix.m[2][1] = 0.0f;
         matrix.m[2][2] = fSize;
         matrix.m[2][3] = 0.0f;
-        matrix.m[3][0] = fX;
-        matrix.m[3][1] = fY;
-        matrix.m[3][2] = 0.0f;
-        matrix.m[3][3] = 1.0f;
+        matrix.SetTranslation(fX, fY, 0.0f, 1.0f);
         bitmap.SetMatrix(matrix);
     }
-}
-
-static inline float Length2EstXZ(float fX, float fZ)
-{
-    const float fLength2EstAlpha = 0.94805944f;
-    const float fLength2EstBeta = 0.39269909f;
-    const float fA = fabsf(fX);
-    const float fB = fabsf(fZ);
-    return fA > fB ? fA * fLength2EstAlpha + fB * fLength2EstBeta
-                   : fA * fLength2EstBeta + fB * fLength2EstAlpha;
 }
 
 // FUNCTION: SWBF2 0x005538a0
@@ -1258,8 +1229,8 @@ bool HUD::ElementMap::IsInRadarRange(const Controllable* pPlayer, TargetManager:
     if (pClass->mMapParams.mRangeViewCone > fDistance)
     {
         const float fDot = vDelta.x * pPlayer->mEyeDir.x + vDelta.z * pPlayer->mEyeDir.z;
-        const float fEye = Length2EstXZ(pPlayer->mEyeDir.x, pPlayer->mEyeDir.z);
-        const float fDelta = Length2EstXZ(vDelta.x, vDelta.z);
+        const float fEye = PblMath::Length2Est(pPlayer->mEyeDir.x, pPlayer->mEyeDir.z);
+        const float fDelta = PblMath::Length2Est(vDelta.x, vDelta.z);
         if (fDot / (fDelta * fEye) > pClass->mMapParams.mViewConeCosine)
         {
             return true;
@@ -1346,14 +1317,14 @@ void HUD::ElementMap::UpdatePostIcons(float fElapsed, float fRotation)
                 {
                     if (post.actor->GetGameObject()->GetGameObjectType() == GO_BUILDING)
                     {
-                        bitmap.SetMatrixPosScale(fX, fY, post.mapParams.mScale, post.mapParams.mScale);
+                        bitmap.SetMatrixPosScale(fX, fY, post.mapParams.mScale);
                     }
                     else
                     {
                         const PblVector3& vAxis = post.actor->GetMatrix().GetZAxis();
                         const PblVector3 vForward(-vAxis.x, -vAxis.y, -vAxis.z);
                         const float fAngle = PblMath::Atan2(-vForward.x, vForward.z);
-                        bitmap.SetMatrixPosRotScale(fX, fY, fAngle, post.mapParams.mScale, post.mapParams.mScale);
+                        bitmap.SetMatrixPosRotScale(fX, fY, fAngle, post.mapParams.mScale);
                     }
                     bitmap.Enable(true);
 
@@ -1361,8 +1332,7 @@ void HUD::ElementMap::UpdatePostIcons(float fElapsed, float fRotation)
                     {
                         float fSin, fCos;
                         PblMath::SinCos(&fSin, &fCos, -fRotation);
-                        text.SetMatrixPosRotScale(fSin * 5.0f + fX, fY - fCos * 5.0f, -fRotation, 1.0f,
-                                                  1.0f);
+                        text.SetMatrixPosRotScale(fSin * 5.0f + fX, fY - fCos * 5.0f, -fRotation, 1.0f);
                         RedColor color = mPostTextAll[mMode].m_color;
                         if (mMode == mode_Small)
                         {
@@ -1394,7 +1364,7 @@ void HUD::ElementMap::UpdatePostIcons(float fElapsed, float fRotation)
                         const float fScale = mMode == mode_Spawn
                                                  ? mPostScale[i] * post.mapParams.mScale
                                                  : mPostFlashRadius * mPostScale[i] + post.mapParams.mScale;
-                        select.SetMatrixPosScale(fX, fY, fScale, fScale);
+                        select.SetMatrixPosScale(fX, fY, fScale);
                         mPostScale[i] -= mPostFlashRate * fElapsed;
                         if (mPostScale[i] < 0.0f)
                         {
@@ -1481,15 +1451,15 @@ void HUD::ElementMap::UpdateMarkerIcons()
         {
             const float fNegX = -mPlayerDirection.x;
             const float fAngle = PblMath::Atan2(fNegX, mPlayerDirection.z);
-            bitmap.SetMatrixPosRotScale(fX, fY, fAngle, fScale, fScale);
+            bitmap.SetMatrixPosRotScale(fX, fY, fAngle, fScale);
         }
         else if (sNorth != 0.0f)
         {
-            bitmap.SetMatrixPosRotScale(fX, fY, -sNorth, fScale, fScale);
+            bitmap.SetMatrixPosRotScale(fX, fY, -sNorth, fScale);
         }
         else
         {
-            bitmap.SetMatrixPosScale(fX, fY, fScale, fScale);
+            bitmap.SetMatrixPosScale(fX, fY, fScale);
         }
         bitmap.Enable(true);
     }
@@ -1787,8 +1757,7 @@ bool HUD::ElementMap::GetProperty(const unsigned int uHashID, void* pValue)
 bool HUD::ElementMap::SetProperty(const unsigned int uHashID, const void* pValue)
 {
     PblMatrix matrix = gMatrixIdentity;
-    matrix[3] = mPosition[mMode];
-    matrix.m[3][3] = 1.0f;
+    matrix.SetTranslation(mPosition[mMode]);
     HUD::Element::mMatrix.SetMatrix(&matrix);
     HUD::Element::mMatrix.ApplyScale();
     HUD::Element::mMatrix.SetMatrix(0);

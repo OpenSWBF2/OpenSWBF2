@@ -201,7 +201,7 @@ void pcZPrepassShader::Render_Fixed(const RenderItem* pItem, unsigned int) const
         PblMatrix mTransform = gMatrixIdentity;
         mTransform.SetXAxis(transform(0, 0), transform(0, 1), 0.0f, 0.0f);
         mTransform.SetYAxis(transform(1, 0), transform(1, 1), 0.0f, 0.0f);
-        mTransform.SetZAxis(transform(2, 0), transform(2, 1), 1.0f, 0.0f);
+        mTransform.SetZAxis(transform(3, 0), transform(3, 1), 1.0f, 0.0f);
         RedRenderer::pcSetTexture(0, pTexture);
         RedRenderer::pcFFSetTextureTransform(0, mTransform);
     }
@@ -269,8 +269,8 @@ void pcZPrepassShader::_Init(unsigned int uiFlags,
         }
     }
 
-    pcRedShader::m_material = &m_material;
     m_pVertexInputFormat = pcRedVertexFormat::Create(uiFlags, uiState);
+    pcRedShader::m_material = &m_material;
 }
 
 // FUNCTION: SWBF2 0x00702bf0
@@ -298,7 +298,7 @@ void pcZPrepassShader::_InitPipelineFuncArray()
 // FUNCTION: SWBF2 0x00702c50
 void pcZPrepassShader::_Read(PblFileChunk& chunk) const
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId != 0x454d414e)

@@ -405,7 +405,7 @@ bool RedMovie::IsPlaying() const
 // FUNCTION: SWBF2 0x006f5790
 void RedMovie::Load(PblFileChunk& chunk, bool bOne)
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId != 0x41544144)
@@ -565,7 +565,7 @@ void RedMovie::Play(const Properties* const pProperties, bool bPlayAtEnd)
 // FUNCTION: SWBF2 0x006f5bd0
 void RedMovie::Properties::Read(PblFileChunk& chunk)
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         switch ((unsigned int)child._pFile->Read32())
@@ -615,7 +615,7 @@ void RedMovie::Properties::Read(PblFileChunk& chunk)
 // FUNCTION: SWBF2 0x006f5d90
 void RedMovie::SegmentSubtitles::Read(PblFileChunk& chunk)
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         switch ((unsigned int)child._pFile->Read32())
@@ -649,7 +649,7 @@ void RedMovie::SegmentSubtitles::Read(PblFileChunk& chunk)
 void RedMovie::Properties::ReadSegments(PblFileChunk& chunk)
 {
     float fTotalProbability = 0.0f;
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if ((unsigned int)child._pFile->Read32() != 0xf3c342e6)
@@ -683,7 +683,7 @@ void RedMovie::SegmentSubtitles::ReadSubtitles(PblFileChunk& chunk)
 
     FreeSubtitles();
 
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if ((unsigned int)child._pFile->Read32() != 0x115bfcb9)

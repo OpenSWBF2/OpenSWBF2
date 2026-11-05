@@ -224,7 +224,7 @@ void pcRedShaderDef::LoadVertexAndPixelShader(unsigned int uiState, unsigned int
 // FUNCTION: SWBF2 0x006aca70
 void __cdecl pcRedShader::Read(PblFileChunk& chunk)
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId != 0x50595452)
@@ -256,7 +256,7 @@ void __cdecl pcRedShader::Read(PblFileChunk& chunk)
 void pcRedShaderDef::Read(PblFileChunk& chunk)
 {
     unsigned int uiNumPipelines = 0;
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
@@ -287,7 +287,7 @@ void pcRedShaderDef::Read(PblFileChunk& chunk)
 // FUNCTION: SWBF2 0x006acc20
 void pcRedShaderDef::ReadPipeline(PblFileChunk& chunk, unsigned int)
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
@@ -316,7 +316,7 @@ void pcRedShaderDef::ReadPipeline(PblFileChunk& chunk, unsigned int)
         case 0x5f505350:
         {
             int i = 0;
-            while (child.HasMoreChildren())
+            while (!child.IsDone())
             {
                 PblFileChunk program = child.ReadNextChild();
                 if (program._iId == 0x5f5f5350)
@@ -331,7 +331,7 @@ void pcRedShaderDef::ReadPipeline(PblFileChunk& chunk, unsigned int)
         case 0x5f505356:
         {
             int i = 0;
-            while (child.HasMoreChildren())
+            while (!child.IsDone())
             {
                 PblFileChunk program = child.ReadNextChild();
                 if (program._iId == 0x5f5f5356)
@@ -350,23 +350,23 @@ void pcRedShaderDef::ReadPipeline(PblFileChunk& chunk, unsigned int)
 // FUNCTION: SWBF2 0x006ace30
 void pcRedShaderDef::ReadState(PblFileChunk& chunk)
 {
-    int iState = -1;
-    int iPass = -1;
-    while (chunk.HasMoreChildren())
+    unsigned int iState = -1;
+    unsigned int iPass = -1;
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
         {
         case 0x53534150:
-            while (child.HasMoreChildren())
+            while (!child.IsDone())
             {
                 PblFileChunk item = child.ReadNextChild();
                 switch (item._iId)
                 {
                 case 0x5f535650:
                 {
-                    const int iSlot = item._pFile->Read32();
-                    const int iProgram = item._pFile->Read32();
+                    const unsigned int iSlot = item._pFile->Read32();
+                    const unsigned int iProgram = item._pFile->Read32();
                     m_states[iState].pass[iPass].apVertexShaders[iSlot] = m_vertexShaderPool[iProgram];
                     break;
                 }

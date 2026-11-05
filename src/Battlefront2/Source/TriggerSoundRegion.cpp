@@ -91,7 +91,7 @@ TriggerSoundRegion::Group::~Group()
 // FUNCTION: SWBF2 0x0065d4a0
 void TriggerSoundRegion::Group::Read(PblFileChunk& chunk)
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk data = chunk.ReadNextChild();
         const unsigned int uHash = data._pFile->Read32();
@@ -183,7 +183,7 @@ const GameSound* TriggerSoundRegion::Properties::GetSound(Team::Side eSide, floa
 // FUNCTION: SWBF2 0x0065d720
 void TriggerSoundRegion::Properties::Read(PblFileChunk& chunk)
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk data = chunk.ReadNextChild();
         const unsigned int uHash = data._pFile->Read32();
@@ -225,7 +225,7 @@ void TriggerSoundRegion::Properties::Read(PblFileChunk& chunk)
 // FUNCTION: SWBF2 0x0065d840
 void TriggerSoundRegion::Properties::Load(PblFileChunk& chunk)
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId != 0x41544144)

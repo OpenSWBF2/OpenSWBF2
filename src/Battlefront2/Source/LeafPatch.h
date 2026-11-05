@@ -36,7 +36,7 @@ public:
     bool RenderMaxDist(const class PblMatrix& matrix, float& fDist, unsigned int uiFlags,
                        float fMaxDist, const class RedColorValue& color) const;
 
-    void Render(float fAlpha, const class PblMatrix& matrix, unsigned int uiFlags,
+    void Render(const class PblMatrix& matrix, float fAlpha, int, unsigned int uiFlags,
                 const class RedColorValue& color) const;
 
     void CreateVineBranch(PblVector3 vPos, PblVector3 vDir, int iCount, PblRandom& rand);

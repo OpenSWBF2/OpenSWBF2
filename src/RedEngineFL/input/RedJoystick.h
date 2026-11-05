@@ -23,6 +23,9 @@ public:
 
     void SetDeadZoneScale(float fScale);
 
+    unsigned __int64 GetDownButtons() const { return m_uiDownButtons; }
+    float GetAxis(int iAxis) const { return m_fAxis[iAxis]; }
+
     void Insert();
     void Remove();
     void Cleanup();

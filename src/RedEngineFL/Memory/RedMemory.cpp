@@ -520,7 +520,7 @@ unsigned int RedGetHeapSize(int heap)
 }
 
 // FUNCTION: SWBF2 0x006c3b40
-bool RedMoveHeapEnd(int iHeap, int iDelta)
+void RedMoveHeapEnd(int iHeap, int iDelta)
 {
     int iSource = iHeap;
     int iTarget = iHeap + 1;
@@ -544,5 +544,5 @@ bool RedMoveHeapEnd(int iHeap, int iDelta)
     heaps[iHeap + 1].size -= iDelta;
     TagRemoveList(&heaps[iTarget].used, pTag);
     TagAddList(&heaps[iSource].used, pTag);
-    return RedFreeToHeapInternal(iSource, pBlock, 0);
+    RedFreeToHeapInternal(iSource, pBlock, 0);
 }

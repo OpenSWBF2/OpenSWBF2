@@ -93,19 +93,19 @@ float HUD::ProceduralBarBitmap::SetValue(const float fValue)
 // FUNCTION: SWBF2 0x005669a0
 HUD::ProceduralBarBitmap::ProceduralBarBitmap(const char* const pName, Factory::ItemCallback pCallback,
                                               void* const pUserData)
-    : HUD::ElementBarBitmap(pName, pCallback, pUserData),
-      halign_(RedBitmapElement::BITMAP_HALIGN_LEFT),
-      valign_(RedBitmapElement::BITMAP_VALIGN_TOP),
-      width_(0.0f),
-      height_(0.0f),
-      value_(0.0f),
-      mGlowAlphaBase(0.5f),
-      mGlowAlphaScale(1.0f),
-      mNoiseFreq(60.0f),
-      mNoiseRoughness(0.3f),
-      mGlowScaleSize(0.05f),
-      mGlowScaleBase(1.3f)
+    : HUD::ElementBarBitmap(pName, pCallback, pUserData)
 {
+    halign_ = RedBitmapElement::BITMAP_HALIGN_LEFT;
+    valign_ = RedBitmapElement::BITMAP_VALIGN_TOP;
+    height_ = 0.0f;
+    width_ = 0.0f;
+    value_ = 0.0f;
+    mNoiseFreq = 60.0f;
+    mNoiseRoughness = 0.3f;
+    mGlowScaleSize = 0.05f;
+    mGlowScaleBase = 1.3f;
+    mGlowAlphaBase = 0.5f;
+    mGlowAlphaScale = 1.0f;
 }
 
 // SYNTHETIC: SWBF2 0x00566f14

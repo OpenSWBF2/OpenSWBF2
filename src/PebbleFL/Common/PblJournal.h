@@ -33,3 +33,4 @@ public:
 };
 
 void JournalString(char* pcString, int iMax);
+void __cdecl JournalBytes(char* bytes, int len);

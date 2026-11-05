@@ -6,22 +6,19 @@
 #include "RedEngineFL/Application/pc/pcRenderHelpers.h"
 #include "pcSunFlare.h"
 
-namespace
-{
 struct LeafVertex
 {
-    float x, y, z;
+    PblVector3 pos;
     RedColor color;
-    float u, v;
+    TexCoord uv;
 };
 
-struct CompressedLeafVertex
+struct LeafCompressedVertex
 {
-    short x, y, z, pad;
+    CompressedPos pos;
     RedColor color;
-    unsigned int uv;
+    CompressedTexCoord uv;
 };
-}
 
 // FUNCTION: SWBF2 0x0041a380
 pcRedPrimitive* FallingLeafParticle::CreateGeometry(float fSize, RedColor color)
@@ -30,33 +27,21 @@ pcRedPrimitive* FallingLeafParticle::CreateGeometry(float fSize, RedColor color)
     LeafVertex* pVertices = (LeafVertex*)pPrimitive->BeginVertexData();
     if (pVertices)
     {
-        pVertices[0].x = -fSize;
-        pVertices[0].y = 0.0f;
-        pVertices[0].z = -fSize;
+        pVertices[0].pos.Set(-fSize, 0.0f, -fSize);
         pVertices[0].color = color;
-        pVertices[0].u = 0.0f;
-        pVertices[0].v = 0.0f;
+        pVertices[0].uv.SetUV(0.0f, 0.0f);
 
-        pVertices[1].x = -fSize;
-        pVertices[1].y = 0.0f;
-        pVertices[1].z = fSize;
+        pVertices[1].pos.Set(-fSize, 0.0f, fSize);
         pVertices[1].color = color;
-        pVertices[1].u = 1.0f;
-        pVertices[1].v = 0.0f;
+        pVertices[1].uv.SetUV(1.0f, 0.0f);
 
-        pVertices[2].x = fSize;
-        pVertices[2].y = 0.0f;
-        pVertices[2].z = -fSize;
+        pVertices[2].pos.Set(fSize, 0.0f, -fSize);
         pVertices[2].color = color;
-        pVertices[2].u = 0.0f;
-        pVertices[2].v = 1.0f;
+        pVertices[2].uv.SetUV(0.0f, 1.0f);
 
-        pVertices[3].x = fSize;
-        pVertices[3].y = 0.0f;
-        pVertices[3].z = fSize;
+        pVertices[3].pos.Set(fSize, 0.0f, fSize);
         pVertices[3].color = color;
-        pVertices[3].u = 1.0f;
-        pVertices[3].v = 1.0f;
+        pVertices[3].uv.SetUV(1.0f, 1.0f);
         pPrimitive->EndVertexData();
     }
     return pPrimitive;
@@ -65,47 +50,29 @@ pcRedPrimitive* FallingLeafParticle::CreateGeometry(float fSize, RedColor color)
 // FUNCTION: SWBF2 0x0041a470
 pcRedPrimitive* FallingLeafParticle::CreateCompressedGeometry(float fSize, RedColor color)
 {
-    pcRedPrimitive* pPrimitive = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, 0x9282, 16, 4, 0, false);
+    pcRedPrimitive* pPrimitive = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, 0x9282, sizeof(LeafCompressedVertex), 4, 0, false);
     const PblBox bbox(-0.25f, -0.25f, -0.25f, 0.25f, 0.25f, 0.25f);
     pPrimitive->m_bbox = bbox;
+    CompressedPos::SetBoundingBox(bbox);
 
-    CompressedPos::s_vMin = bbox._vMin;
-    CompressedPos::s_vScale.x = (bbox._vMax.x - bbox._vMin.x) * (1.0f / 65535.0f);
-    CompressedPos::s_vScale.y = (bbox._vMax.y - bbox._vMin.y) * (1.0f / 65535.0f);
-    CompressedPos::s_vScale.z = (bbox._vMax.z - bbox._vMin.z) * (1.0f / 65535.0f);
-    CompressedPos::s_vScaleInv.x = 1.0f / CompressedPos::s_vScale.x;
-    CompressedPos::s_vScaleInv.y = 1.0f / CompressedPos::s_vScale.y;
-    CompressedPos::s_vScaleInv.z = 1.0f / CompressedPos::s_vScale.z;
-
-    CompressedLeafVertex* pVertices = (CompressedLeafVertex*)pPrimitive->BeginVertexData();
+    LeafCompressedVertex* pVertices = (LeafCompressedVertex*)pPrimitive->BeginVertexData();
     if (pVertices)
     {
-        const float fNegSize = -fSize;
-
-        pVertices[0].x = (short)(int)((fNegSize - CompressedPos::s_vMin.x) * CompressedPos::s_vScaleInv.x - 32767.5f);
-        pVertices[0].y = (short)(int)((0.0f - CompressedPos::s_vMin.y) * CompressedPos::s_vScaleInv.y - 32767.5f);
-        pVertices[0].z = (short)(int)((fNegSize - CompressedPos::s_vMin.z) * CompressedPos::s_vScaleInv.z - 32767.5f);
+        pVertices[0].pos.SetPos(-fSize, 0.0f, -fSize);
         pVertices[0].color = color;
-        pVertices[0].uv = 0;
+        pVertices[0].uv.SetUV(0.0f, 0.0f);
 
-        pVertices[1].x = (short)(int)((fNegSize - CompressedPos::s_vMin.x) * CompressedPos::s_vScaleInv.x - 32767.5f);
-        pVertices[1].y = (short)(int)((0.0f - CompressedPos::s_vMin.y) * CompressedPos::s_vScaleInv.y - 32767.5f);
-        pVertices[1].z = (short)(int)((fSize - CompressedPos::s_vMin.z) * CompressedPos::s_vScaleInv.z - 32767.5f);
+        pVertices[1].pos.SetPos(-fSize, 0.0f, fSize);
         pVertices[1].color = color;
-        pVertices[1].uv = 0x800;
+        pVertices[1].uv.SetUV(1.0f, 0.0f);
 
-        pVertices[2].x = (short)(int)((fSize - CompressedPos::s_vMin.x) * CompressedPos::s_vScaleInv.x - 32767.5f);
-        pVertices[2].y = (short)(int)((0.0f - CompressedPos::s_vMin.y) * CompressedPos::s_vScaleInv.y - 32767.5f);
-        pVertices[2].z = (short)(int)((fNegSize - CompressedPos::s_vMin.z) * CompressedPos::s_vScaleInv.z - 32767.5f);
+        pVertices[2].pos.SetPos(fSize, 0.0f, -fSize);
         pVertices[2].color = color;
-        pVertices[2].uv = 0x08000000;
+        pVertices[2].uv.SetUV(0.0f, 1.0f);
 
-        pVertices[3].x = (short)(int)((fSize - CompressedPos::s_vMin.x) * CompressedPos::s_vScaleInv.x - 32767.5f);
-        pVertices[3].y = (short)(int)((0.0f - CompressedPos::s_vMin.y) * CompressedPos::s_vScaleInv.y - 32767.5f);
-        pVertices[3].z = (short)(int)((fSize - CompressedPos::s_vMin.z) * CompressedPos::s_vScaleInv.z - 32767.5f);
+        pVertices[3].pos.SetPos(fSize, 0.0f, fSize);
         pVertices[3].color = color;
-        pVertices[3].uv = 0x08000800;
-
+        pVertices[3].uv.SetUV(1.0f, 1.0f);
         pPrimitive->EndVertexData();
     }
     return pPrimitive;

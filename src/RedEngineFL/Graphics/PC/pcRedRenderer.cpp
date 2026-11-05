@@ -2773,25 +2773,17 @@ static unsigned int CollectAdapterModes(unsigned int uiAdapter, unsigned int uiM
                                         unsigned int uiMinHeight,
                                         DisplayLogic::DisplayModeRec* pRaw)
 {
-    PblList<D3DAdapterInfo>& adapterList = pcRedDeviceEnumerator::GetDeviceList();
+    unsigned int uiCount = 0;
 
-    unsigned int uiFilled = 0;
-    for (PblList<D3DAdapterInfo>::Node* pAdapterNode = adapterList.GetFirst();
-         pAdapterNode->_pObject != adapterList._head._pObject;
-         pAdapterNode = pAdapterNode->_pNext)
+    PblList<D3DAdapterInfo>& adaptors = pcRedDeviceEnumerator::GetDeviceList();
+
+    for (PblList<D3DAdapterInfo>::Itor adaptorIt = adaptors.Begin();
+         adaptorIt != adaptors.End(); ++adaptorIt)
     {
-        if (pAdapterNode->_pObject->AdapterOrdinal != (int)uiAdapter)
+        for (PblList<D3DDisplayMode>::Itor displayModeIt = adaptorIt->DisplayModeList.Begin();
+             displayModeIt != adaptorIt->DisplayModeList.End(); ++displayModeIt)
         {
-            continue;
-        }
-
-        PblList<D3DDisplayMode>& modeList = pAdapterNode->_pObject->DisplayModeList;
-
-        for (PblList<D3DDisplayMode>::Node* pModeNode = modeList.GetFirst();
-             pModeNode->_pObject != modeList._head._pObject;
-             pModeNode = pModeNode->_pNext)
-        {
-            const D3DDISPLAYMODE& mode = pModeNode->_pObject->displayMode;
+            D3DDISPLAYMODE& mode = displayModeIt->displayMode;
 
             if (mode.Width < uiMinWidth || mode.Height < uiMinHeight)
             {
@@ -4463,7 +4455,8 @@ template util::TKeyPair_<RenderItem*, unsigned int>* util::TypedArrayAllocator<u
 // TEMPLATE: SWBF2 0x006b0390
 // util::TypedArrayAllocator<RedRenderer::SortHeap,util::NewAllocator>::Allocate_
 template RedRenderer::SortHeap* util::TypedArrayAllocator<RedRenderer::SortHeap>::Allocate_(int&);
-// FUNCTION: SWBF2 0x006afbe0
+// TEMPLATE: SWBF2 0x006afbe0
+// util::Vector<util::TKeyPair_<RenderItem *,unsigned int>,util::BaseArray<util::TKeyPair_<RenderItem *,unsigned int>,util::TNewArrayAlloc<util::TKeyPair_<RenderItem *,unsigned int> > > >::Vector<util::TKeyPair_<RenderItem *,unsigned int>,util::BaseArray<util::TKeyPair_<RenderItem *,unsigned int>,util::TNewArrayAlloc<util::TKeyPair_<RenderItem *,unsigned int> > > >
 template util::Vector<util::TKeyPair_<RenderItem*, unsigned int> >::Vector(util::Vector<util::TKeyPair_<RenderItem*, unsigned int> > const&);
 // TEMPLATE: SWBF2 0x006b2e30
 // util::BaseArray<util::TKeyPair_<RenderItem *,unsigned int>,util::TNewArrayAlloc<util::TKeyPair_<RenderItem *,unsigned int> > >::Reserve_
@@ -4471,7 +4464,6 @@ template bool util::BaseArray<util::TKeyPair_<RenderItem*, unsigned int> >::Rese
 // TEMPLATE: SWBF2 0x006b2f20
 // util::BaseArray<RedRenderer::SortHeap,util::TNewArrayAlloc<RedRenderer::SortHeap> >::Reserve_
 template bool util::BaseArray<RedRenderer::SortHeap>::Reserve_(int, bool);
-
 // TEMPLATE: SWBF2 0x006afe10
 // util::BaseArray<RedRenderer::SortHeap,util::TNewArrayAlloc<RedRenderer::SortHeap> >::~BaseArray<RedRenderer::SortHeap,util::TNewArrayAlloc<RedRenderer::SortHeap> >
 template util::BaseArray<RedRenderer::SortHeap>::~BaseArray();
@@ -5630,7 +5622,14 @@ PblPlane RedRenderer::m_userNearClipPlane;
 // FUNCTION: SWBF2 0x006b81a0
 void RedRenderer::pcFFSetTextureTransform(unsigned int uiStage, const PblMatrix& rMatrix)
 {
-    pcSetTransform((D3DTRANSFORMSTATETYPE)(D3DTS_TEXTURE0 + uiStage), rMatrix);
+    if (stateManagerEnabled_)
+    {
+        dx::StateManager_DX::GetInstance().SetTransform((D3DTRANSFORMSTATETYPE)(D3DTS_TEXTURE0 + uiStage), (const D3DMATRIX*)&rMatrix);
+    }
+    else
+    {
+        m_pd3dDevice->SetTransform((D3DTRANSFORMSTATETYPE)(D3DTS_TEXTURE0 + uiStage), (const D3DMATRIX*)&rMatrix);
+    }
 }
 
 // FUNCTION: SWBF2 0x006b8520
@@ -6789,12 +6788,6 @@ bool RedRenderer::GetOcclusionQueryPixelCount(unsigned int uiQuery, unsigned int
     return false;
 }
 
-// FUNCTION: SWBF2 0x006b1570
-unsigned int pcRedShader::GetPassCaps(unsigned int uiState, unsigned int uiPass) const
-{
-    return GetShaderDef()->m_states[uiState].pass[uiPass].uiPassCaps;
-}
-
 // FUNCTION: SWBF2 0x006b15a0
 int GetPhasePass_(RenderPhaseT ePhase)
 {
@@ -7299,14 +7292,7 @@ inline bool LightFlag0_(const RedLight* pLight) { return (pLight->m_uiFlags & 1)
 inline float LightFlag1_(const RedLight* pLight) { return (float)(int)((pLight->m_uiFlags >> 1) & 1); }
 }
 
-static inline unsigned int ToD3DColor_(const RedColorValue& c)
-{
-    const unsigned char b = (unsigned char)(int)(c.b * 255.0f);
-    const unsigned char g = (unsigned char)(int)(c.g * 255.0f);
-    const unsigned char r = (unsigned char)(int)(c.r * 255.0f);
-    const unsigned char a = (unsigned char)(int)(c.a * 255.0f);
-    return ((unsigned int)a << 24) | ((unsigned int)r << 16) | ((unsigned int)g << 8) | (unsigned int)b;
-}
+
 
 static inline float Saturate_(float f)
 {
@@ -7321,26 +7307,7 @@ static inline float Saturate_(float f)
     return f;
 }
 
-static inline void SetScaledLight_(unsigned int uiIndex, const D3DLIGHT9& rSource, float fScale,
-                            bool bSaturate)
-{
-    D3DLIGHT9 light = rSource;
-    RedColorValue color;
-    color.r = light.Diffuse.r * fScale;
-    color.g = light.Diffuse.g * fScale;
-    color.b = light.Diffuse.b * fScale;
-    if (bSaturate)
-    {
-        color.r = Saturate_(color.r);
-        color.g = Saturate_(color.g);
-        color.b = Saturate_(color.b);
-    }
-    color.a = 1.0f;
-    light.Specular = *(const D3DCOLORVALUE*)&color;
-    light.Diffuse = *(const D3DCOLORVALUE*)&color;
-    RedRenderer::pcGetDevice()->SetLight(uiIndex, &light);
-    RedRenderer::pcGetDevice()->LightEnable(uiIndex, TRUE);
-}
+
 
 // FUNCTION: SWBF2 0x006b4d90
 void __cdecl RedRenderer::internalRenderFixed(RenderItem* pItem, unsigned int uiShaderID,
@@ -7348,10 +7315,7 @@ void __cdecl RedRenderer::internalRenderFixed(RenderItem* pItem, unsigned int ui
 {
     const unsigned int uiRVF = pItem->pPrim->m_vertexFormat->m_uiVertexBufferRVF;
     const unsigned int uiPassCaps = pItem->pShaderChain[pItem->uiCurrentShader]
-                                        ->GetShaderDef()
-                                        ->m_states[pItem->uiShaderState]
-                                        .pass[uiPass]
-                                        .uiPassCaps;
+                                        ->GetPassCaps(pItem->uiShaderState, uiPass);
     const unsigned int uiTnl = uiShaderID & 0xff;
     unsigned int uiNumLights = 0;
     internalShaderBeginEnd(pItem, uiShaderID, uiPass);
@@ -7378,18 +7342,27 @@ void __cdecl RedRenderer::internalRenderFixed(RenderItem* pItem, unsigned int ui
             const PblMatrix mWorldInverse = pItem->pmObjWorld->GetInverseFast();
         }
 
-        const unsigned int uiAmbient = bAmbient ? ToD3DColor_(pLS->ambientLight.m_color)
+        const unsigned int uiAmbient = bAmbient ? RedColor(pLS->ambientLight.m_color).GetARGB()
                                                 : RedColor::BLACK.GetARGB();
         pcSetRenderState(D3DRS_AMBIENT, uiAmbient);
 
         if (bDirectional)
         {
+            D3DLIGHT9 sun = pLS->pDirectionalLights[0]->m_d3dLight;
             float fFactor = pLS->pDirectionalFactor[0];
             if (pItem->flags & 0x800)
             {
                 fFactor *= 0.5f;
             }
-            SetScaledLight_(0, pLS->pDirectionalLights[0]->m_d3dLight, fFactor, true);
+            RedColorValue color;
+            color.r = Clamp(sun.Diffuse.r * fFactor, 0.0f, 1.0f);
+            color.g = Clamp(sun.Diffuse.g * fFactor, 0.0f, 1.0f);
+            color.b = Clamp(sun.Diffuse.b * fFactor, 0.0f, 1.0f);
+            color.a = 1.0f;
+            sun.Specular = *(const D3DCOLORVALUE*)&color;
+            sun.Diffuse = *(const D3DCOLORVALUE*)&color;
+            m_pd3dDevice->SetLight(0, &sun);
+            m_pd3dDevice->LightEnable(0, TRUE);
             uiNumLights = 1;
         }
 
@@ -7397,18 +7370,57 @@ void __cdecl RedRenderer::internalRenderFixed(RenderItem* pItem, unsigned int ui
         {
             if (pItem->flags & 0x800)
             {
-                SetScaledLight_(uiNumLights++, pLS->pOmniLights[0]->m_d3dLight, 0.5f, false);
+                D3DLIGHT9 d3dLight = pLS->pOmniLights[0]->m_d3dLight;
+                RedColorValue color;
+                color.r = d3dLight.Diffuse.r * 0.5f;
+                color.g = d3dLight.Diffuse.g * 0.5f;
+                color.b = d3dLight.Diffuse.b * 0.5f;
+                color.a = 1.0f;
+                d3dLight.Specular = *(const D3DCOLORVALUE*)&color;
+                d3dLight.Diffuse = *(const D3DCOLORVALUE*)&color;
+                m_pd3dDevice->SetLight(uiNumLights, &d3dLight);
+                m_pd3dDevice->LightEnable(uiNumLights, TRUE);
+                ++uiNumLights;
                 if (pLS->pOmniLights[1])
                 {
-                    SetScaledLight_(uiNumLights++, pLS->pOmniLights[1]->m_d3dLight, 0.5f, false);
+                    D3DLIGHT9 d3dLight = pLS->pOmniLights[1]->m_d3dLight;
+                    RedColorValue color;
+                    color.r = d3dLight.Diffuse.r * 0.5f;
+                    color.g = d3dLight.Diffuse.g * 0.5f;
+                    color.b = d3dLight.Diffuse.b * 0.5f;
+                    color.a = 1.0f;
+                    d3dLight.Specular = *(const D3DCOLORVALUE*)&color;
+                    d3dLight.Diffuse = *(const D3DCOLORVALUE*)&color;
+                    m_pd3dDevice->SetLight(uiNumLights, &d3dLight);
+                    m_pd3dDevice->LightEnable(uiNumLights, TRUE);
+                    ++uiNumLights;
                     if (pLS->pOmniLights[2])
                     {
-                        SetScaledLight_(uiNumLights++, pLS->pOmniLights[2]->m_d3dLight, 0.5f, false);
+                        D3DLIGHT9 d3dLight = pLS->pOmniLights[2]->m_d3dLight;
+                        RedColorValue color;
+                        color.r = d3dLight.Diffuse.r * 0.5f;
+                        color.g = d3dLight.Diffuse.g * 0.5f;
+                        color.b = d3dLight.Diffuse.b * 0.5f;
+                        color.a = 1.0f;
+                        d3dLight.Specular = *(const D3DCOLORVALUE*)&color;
+                        d3dLight.Diffuse = *(const D3DCOLORVALUE*)&color;
+                        m_pd3dDevice->SetLight(uiNumLights, &d3dLight);
+                        m_pd3dDevice->LightEnable(uiNumLights, TRUE);
+                        ++uiNumLights;
 
                         if (pLS->pOmniLights[3])
                         {
-                            SetScaledLight_(uiNumLights++, pLS->pOmniLights[0]->m_d3dLight, 0.5f,
-                                            false);
+                            D3DLIGHT9 d3dLight = pLS->pOmniLights[0]->m_d3dLight;
+                            RedColorValue color;
+                            color.r = d3dLight.Diffuse.r * 0.5f;
+                            color.g = d3dLight.Diffuse.g * 0.5f;
+                            color.b = d3dLight.Diffuse.b * 0.5f;
+                            color.a = 1.0f;
+                            d3dLight.Specular = *(const D3DCOLORVALUE*)&color;
+                            d3dLight.Diffuse = *(const D3DCOLORVALUE*)&color;
+                            m_pd3dDevice->SetLight(uiNumLights, &d3dLight);
+                            m_pd3dDevice->LightEnable(uiNumLights, TRUE);
+                            ++uiNumLights;
                         }
                     }
                 }
@@ -7443,13 +7455,13 @@ void __cdecl RedRenderer::internalRenderFixed(RenderItem* pItem, unsigned int ui
             pcSetFrontFace(PCREDFRONT_CCW);
         }
         pShader = pItem->pShaderChain[pItem->uiCurrentShader];
-        (pShader->*pShader->RenderFunc)(pItem, uiPass);
+        pShader->Render(pItem, uiPass);
         pcSetFrontFace(eFront);
     }
     else
     {
         pShader = pItem->pShaderChain[pItem->uiCurrentShader];
-        (pShader->*pShader->RenderFunc)(pItem, uiPass);
+        pShader->Render(pItem, uiPass);
     }
 
     for (unsigned int i = 0; i < uiNumLights; ++i)
@@ -8148,40 +8160,32 @@ void dx::StateManager_DX::FlushState()
         case 9:
         {
             m_pD3DDev->SetTransform((D3DTRANSFORMSTATETYPE)pState->m_dwValue0,
-                                    (const D3DMATRIX*)m_CurrentState.m_Matrices[pState->m_dwValue0]);
-            const D3DMATRIX matrix = *(const D3DMATRIX*)m_CurrentState.m_Matrices[pState->m_dwValue0];
-            memcpy(m_ChipState.m_Matrices[pState->m_dwValue0], &matrix, sizeof(D3DMATRIX));
+                                    &m_CurrentState.m_Matrices[pState->m_dwValue0]);
+            const D3DMATRIX matrix = m_CurrentState.m_Matrices[pState->m_dwValue0];
+            memcpy(&m_ChipState.m_Matrices[pState->m_dwValue0], &matrix, sizeof(D3DMATRIX));
             break;
         }
         case 10:
             if (!m_bForce)
             {
-                const float* pChip = m_ChipState.m_VertexShaderConstants[pState->m_dwValue0];
-                if (pChip[0] == m_CurrentState.m_VertexShaderConstants[pState->m_dwValue0][0]
-                    && pChip[1] == m_CurrentState.m_VertexShaderConstants[pState->m_dwValue0][1]
-                    && pChip[2] == m_CurrentState.m_VertexShaderConstants[pState->m_dwValue0][2]
-                    && pChip[3] == m_CurrentState.m_VertexShaderConstants[pState->m_dwValue0][3])
+                if (m_ChipState.m_VertexShaderConstants[pState->m_dwValue0] == m_CurrentState.m_VertexShaderConstants[pState->m_dwValue0])
                 {
                     break;
                 }
             }
             m_pD3DDev->SetVertexShaderConstantF(pState->m_dwValue0, m_CurrentState.m_VertexShaderConstants[pState->m_dwValue0], 1);
-            memcpy(m_ChipState.m_VertexShaderConstants[pState->m_dwValue0], m_CurrentState.m_VertexShaderConstants[pState->m_dwValue0], 16);
+            m_ChipState.m_VertexShaderConstants[pState->m_dwValue0] = m_CurrentState.m_VertexShaderConstants[pState->m_dwValue0];
             break;
         case 11:
             if (!m_bForce)
             {
-                const float* pChip = m_ChipState.m_PixelShaderConstants[pState->m_dwValue0];
-                if (pChip[0] == m_CurrentState.m_PixelShaderConstants[pState->m_dwValue0][0]
-                    && pChip[1] == m_CurrentState.m_PixelShaderConstants[pState->m_dwValue0][1]
-                    && pChip[2] == m_CurrentState.m_PixelShaderConstants[pState->m_dwValue0][2]
-                    && pChip[3] == m_CurrentState.m_PixelShaderConstants[pState->m_dwValue0][3])
+                if (m_ChipState.m_PixelShaderConstants[pState->m_dwValue0] == m_CurrentState.m_PixelShaderConstants[pState->m_dwValue0])
                 {
                     break;
                 }
             }
             m_pD3DDev->SetPixelShaderConstantF(pState->m_dwValue0, m_CurrentState.m_PixelShaderConstants[pState->m_dwValue0], 1);
-            memcpy(m_ChipState.m_PixelShaderConstants[pState->m_dwValue0], m_CurrentState.m_PixelShaderConstants[pState->m_dwValue0], 16);
+            m_ChipState.m_PixelShaderConstants[pState->m_dwValue0] = m_CurrentState.m_PixelShaderConstants[pState->m_dwValue0];
             break;
         case 12:
             if (m_bForce

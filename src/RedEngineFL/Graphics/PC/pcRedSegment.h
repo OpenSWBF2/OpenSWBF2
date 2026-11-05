@@ -89,7 +89,7 @@ public:
     virtual bool IsVertexLit() const;
 
     pcRedPrimitive* _CreateSkinnedPrimitive(const PblMatrix* pBoneMatrices, int iNumBones,
-                                            unsigned int count);
+                                            unsigned int count) const;
 
     unsigned char* m_pVertexData;
     unsigned char* m_puiSkinData;

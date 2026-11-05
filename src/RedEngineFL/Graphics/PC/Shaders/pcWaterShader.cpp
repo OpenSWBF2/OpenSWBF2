@@ -22,7 +22,7 @@
 void __cdecl PblTraceP(const char* Format, ...);
 
 // TEMPLATE: SWBF2 0x006fe970
-// float RedTextureTransform::operator()(int,int) const (pcWaterShader.obj copy)
+// RedTextureTransform::operator()
 
 class PblMatrix;
 extern PblMatrix gMatrixIdentity;
@@ -437,8 +437,7 @@ void pcWaterShader::Render_Prog2(const RenderItem* pItem, unsigned int uiPass) c
     else if (pItem->uiShaderState == 5 && uiPass == 1)
     {
         pcRedVertexShaderConstantRegister* pRegs = RedRenderer::pcLockVertexShaderConstants(40, 6);
-        pRegs[40].component[3] = 32.0f;
-        pRegs[40].SetFloats(-s_vSpecularDirection.x, -s_vSpecularDirection.y, -s_vSpecularDirection.z);
+        pRegs[40].SetVectorW(-s_vSpecularDirection, 32.0f);
         pRegs[41].SetFloats(0.0f, 0.5f, -0.5f, 0.0f);
         pRegs[42].SetFloats(m_normalMapTransform1(0, 0), m_normalMapTransform1(1, 0), 0.0f, m_normalMapTransform1(2, 0));
         pRegs[43].SetFloats(m_normalMapTransform1(0, 1), m_normalMapTransform1(1, 1), 0.0f, m_normalMapTransform1(2, 1));
@@ -692,7 +691,7 @@ void pcWaterShader::_InitPipelineFuncArray()
 // FUNCTION: SWBF2 0x0070ae40
 void pcWaterShader::_Read(PblFileChunk& chunk) const
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId != 0x454d414e)
@@ -947,10 +946,7 @@ void pcWaterShader::Begin_Prog1(unsigned int uiState, unsigned int uiPass) const
     }
 
     pcRedVertexShaderConstantRegister* pRegs = RedRenderer::pcLockVertexShaderConstants(40, 3);
-    pRegs[40].component[0] = 0.0f;
-    pRegs[40].component[1] = 0.5f;
-    pRegs[40].component[2] = -0.5f;
-    pRegs[40].component[3] = 0.0f;
+    pRegs[40].SetFloats(0.0f, 0.5f, -0.5f, 0.0f);
     const float fStart = RedRenderer::GetCamera()->GetZoom() * FLRenderer::GetNearSceneFadeStart();
     const float fEnd = RedRenderer::GetCamera()->GetZoom() * FLRenderer::GetNearSceneFadeEnd();
     bool bFade = false;
@@ -969,11 +965,7 @@ void pcWaterShader::Begin_Prog1(unsigned int uiState, unsigned int uiPass) const
         pRegs[41].component[3] = 1.0f;
         pRegs[41].component[2] = 0.0f;
     }
-    const PblVector3 vLightDirection = -s_vSpecularDirection;
-    pRegs[42].component[0] = vLightDirection.x;
-    pRegs[42].component[1] = vLightDirection.y;
-    pRegs[42].component[2] = vLightDirection.z;
-    pRegs[42].component[3] = 32.0f;
+    pRegs[42].SetVectorW(-s_vSpecularDirection, 32.0f);
     RedRenderer::pcUnlockVertexShaderConstants(pRegs);
 }
 

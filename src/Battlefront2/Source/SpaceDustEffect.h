@@ -25,7 +25,28 @@ public:
 
         ~DustEmitterData();
 
-        void Init(bool bFreeParticles, bool bAllocParticles);
+        // FUNCTION: SWBF2 0x0064cf30
+        void Init(bool bFreeParticles, bool bAllocParticles)
+        {
+            mEnabled = false;
+            mTimeSinceLastSpawned = 0.0f;
+            if (bFreeParticles && mParticle)
+            {
+                delete[] mParticle;
+                mParticle = 0;
+            }
+            if (bAllocParticles && !mParticle)
+            {
+                mParticle = new ParticleData[80];
+            }
+            if (mParticle)
+            {
+                for (int i = 0; i < 80; i++)
+                {
+                    mParticle[i].mLifeLeft = -1.0f;
+                }
+            }
+        }
 
         bool mEnabled;
         float mTimeSinceLastSpawned;
@@ -42,7 +63,7 @@ public:
     virtual bool IsReflected();
     virtual void Init();
 
-    static void Init(bool bAllocate);
+    void Init(bool bAllocate);
     virtual void Cleanup();
     virtual void Update(float fDeltaTime);
     virtual void ReadConfig(PblConfig& config);

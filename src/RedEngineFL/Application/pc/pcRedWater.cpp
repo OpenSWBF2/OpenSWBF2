@@ -241,27 +241,9 @@ unsigned int kuiWaterSplashTextureHash = PblHash("fx_splash");
 
 static const float kInv255 = 1.0f / 255.0f;
 
-struct CompressedNormal
-{
-    void SetNormal(float fX, float fY, float fZ)
-    {
-        x = (unsigned char)((fX + 1.0f) * 127.5f);
-        y = (unsigned char)((fY + 1.0f) * 127.5f);
-        z = (unsigned char)((fZ + 1.0f) * 127.5f);
-    }
 
-    unsigned char z;
-    unsigned char y;
-    unsigned char x;
-    unsigned char w;
-};
 
-struct NormalXYZ
-{
-    void SetNormal(float fX, float fY, float fZ) { x = fX; y = fY; z = fZ; }
 
-    float x, y, z;
-};
 
 struct CompressedOceanVertex
 {
@@ -351,7 +333,7 @@ pcRedPrimitive* RedWater::pcCreateDynamicPatchPrimitive(
             const PblVector3& normal = pNormals[i];
             pVert->pos.SetPos(pos.x * m_metersPerPatch, fHeightScale * pos.y + fHeightBase,
                               pos.z * m_metersPerPatch);
-            pVert->normal.SetNormal(normal.x, normal.y, normal.z);
+            pVert->normal.SetNormal(normal);
             pVert->uv.SetUV(pos.x, pos.z);
             pVert->color = RedColor(RedColor::WHITE, m_foamIntensity[i]);
             ++pVert;
@@ -408,7 +390,7 @@ pcRedPrimitive* RedWater::pcCreateStaticPatchPrimitive(
         for (unsigned int z = 0; z < uiPointsZ; ++z, fZ += fStepZ)
         {
             pVert->pos.SetPos(fX, 0.0f, fZ);
-            pVert->normal.SetNormal(0.0f, 1.0f, 0.0f);
+            pVert->normal.SetNormal(PblVector3(0.0f, 1.0f, 0.0f));
             pVert->uv.SetUV((float)x / (float)(uiPointsX - 1),
                              (float)z / (float)(uiPointsZ - 1));
             ++pVert;
@@ -454,6 +436,10 @@ struct WaterDistortionRingVertex
     RedColor color;
     TexCoord uv;
 };
+struct ScreenVertex
+{
+    PosXYZW pos;
+};
 struct CompressedWaterSplashVertex
 {
     CompressedPos pos;
@@ -462,7 +448,7 @@ struct CompressedWaterSplashVertex
 };
 struct WaterSplashVertex
 {
-    PblVector3 pos;
+    PosXYZ pos;
     RedColor color;
     TexCoord uv;
 };
@@ -487,28 +473,6 @@ static void pcSetRingBoundingBox(pcRedPrimitive* pPrim, const PblVector3& vWorld
     CompressedPos::s_vMin = vBoxMin;
     CompressedPos::s_vScale = vScale;
     CompressedPos::s_vScaleInv = vScaleInv;
-}
-
-static inline void pcSetPos(CompressedPos& out, const PblVector3& v)
-{
-    out.x = (short)((v.x - CompressedPos::s_vMin.x) * CompressedPos::s_vScaleInv.x
-                    - 32767.5f);
-    out.y = (short)((v.y - CompressedPos::s_vMin.y) * CompressedPos::s_vScaleInv.y
-                    - 32767.5f);
-    out.z = (short)((v.z - CompressedPos::s_vMin.z) * CompressedPos::s_vScaleInv.z
-                    - 32767.5f);
-}
-template <class T>
-static inline void pcSetDistortionRingVertex(T& vert, const PblVector3& vPos, float fSin, float fCos,
-                                      float fDist, RedColor color, float u, float v)
-{
-    vert.pos.SetPos(vPos.x + fCos * fDist, vPos.y + WATERRING_HEIGHT_BIAS,
-                    vPos.z + fSin * fDist);
-    vert.normal.SetNormal(0.0f, 1.0f, 0.0f);
-    vert.binormal_s.SetNormal(-fSin, 0.0f, fCos);
-    vert.binormal_t.SetNormal(-fCos, 0.0f, -fSin);
-    vert.color = color;
-    vert.uv.SetUV(u, v);
 }
 
 // TEMPLATE: SWBF2 0x0071ae80
@@ -569,17 +533,17 @@ void RedWater::pcRenderDistortionRing(pcRedShader* pShader, const PblVector3& vW
         PblMath::SinCos(&fSin, &fCos, (float)i * PblMath::fTwoPi / 40.0f);
         pVert->pos.SetPos(vPos.x + fCos * fInner, vPos.y + WATERRING_HEIGHT_BIAS,
                           vPos.z + fSin * fInner);
-        pVert->normal.SetNormal(0.0f, 1.0f, 0.0f);
-        pVert->binormal_s.SetNormal(-fSin, 0.0f, fCos);
-        pVert->binormal_t.SetNormal(-fCos, 0.0f, -fSin);
+        pVert->normal.SetNormal(PblVector3(0.0f, 1.0f, 0.0f));
+        pVert->binormal_s.SetNormal(PblVector3(-fSin, 0.0f, fCos));
+        pVert->binormal_t.SetNormal(PblVector3(-fCos, 0.0f, -fSin));
         pVert->uv.SetUV(fU, 1.0f - fInnerV);
         pVert->color = color;
         ++pVert;
         pVert->pos.SetPos(vPos.x + fCos * fOuter, vPos.y + WATERRING_HEIGHT_BIAS,
                           vPos.z + fSin * fOuter);
-        pVert->normal.SetNormal(0.0f, 1.0f, 0.0f);
-        pVert->binormal_s.SetNormal(-fSin, 0.0f, fCos);
-        pVert->binormal_t.SetNormal(-fCos, 0.0f, -fSin);
+        pVert->normal.SetNormal(PblVector3(0.0f, 1.0f, 0.0f));
+        pVert->binormal_s.SetNormal(PblVector3(-fSin, 0.0f, fCos));
+        pVert->binormal_t.SetNormal(PblVector3(-fCos, 0.0f, -fSin));
         pVert->uv.SetUV(fU, 0.0f);
         pVert->color = color;
         ++pVert;
@@ -622,8 +586,7 @@ void RedWater::pcRenderDistortionWakeRing(pcRedShader* pShader, const PblVector3
         fAlpha = WATERRING_MAX_ALPHA;
     }
 
-    float fSpeed = (float)sqrt(vVelocity.y * vVelocity.y + vVelocity.x * vVelocity.x +
-                               vVelocity.z * vVelocity.z);
+    float fSpeed = Length(vVelocity);
     if (fSpeed < WATERRING_SPEED)
     {
         if (fSpeed <= 0.0f)
@@ -633,15 +596,14 @@ void RedWater::pcRenderDistortionWakeRing(pcRedShader* pShader, const PblVector3
         fAlpha = WATERRING_SPEEDINV * fSpeed * fAlpha;
     }
 
-    float fGroundSpeed = (float)sqrt(vVelocity.z * vVelocity.z + vVelocity.x * vVelocity.x);
+    float fGroundSpeed = LengthXZ(vVelocity);
     float fStretch = WATERRING_SPEEDINV * fGroundSpeed;
     PblVector3 vDir = vVelocity;
     float fFalloff = 150.0f;
     if (fGroundSpeed > 0.01f)
     {
         float fInv = 1.0f / fGroundSpeed;
-        vDir.x *= fInv;
-        vDir.z *= fInv;
+        vDir *= fInv;
         fFalloff = fInv * WATERRING_SPEED;
     }
     else
@@ -762,32 +724,52 @@ void RedWater::pcRenderDistortionWakeRing(pcRedShader* pShader, const PblVector3
             {
                 RedColor lastColor(255, 255, 255, (unsigned char)(afAlpha[iLast] * 255.0f));
                 RedColor prevColor(255, 255, 255, (unsigned char)(afAlpha[iPrev] * 255.0f));
-                pcSetDistortionRingVertex(pVert[0], vPos, afSin[iLast], afCos[iLast], fOuter,
-                                          lastColor, fLastU, 0.0f);
-                pcSetDistortionRingVertex(pVert[1], vPos, afSin[iPrev], afCos[iPrev], fInner,
-                                          prevColor, fU - WATERRING_TEX_STEP, 1.0f - fInnerV);
-                pcSetDistortionRingVertex(pVert[2], vPos, afSin[iPrev], afCos[iPrev], fInner,
-                                          prevColor, fU - WATERRING_TEX_STEP, 1.0f - fInnerV);
-                pcSetDistortionRingVertex(pVert[3], vPos, afSin[iPrev], afCos[iPrev], fOuter,
-                                          prevColor, fU - WATERRING_TEX_STEP, 0.0f);
+                pVert[0].pos.SetPos(vPos + PblVector3(afCos[iLast] * fOuter,
+                                                   WATERRING_HEIGHT_BIAS, afSin[iLast] * fOuter));
+                pVert[0].normal.SetNormal(PblVector3(0.0f, 1.0f, 0.0f));
+                pVert[0].binormal_s.SetNormal(PblVector3(-afSin[iLast], 0.0f, afCos[iLast]));
+                pVert[0].binormal_t.SetNormal(PblVector3(-afCos[iLast], 0.0f, -afSin[iLast]));
+                pVert[0].uv.SetUV(fLastU, 0.0f);
+                pVert[0].color = lastColor;
+                pVert[1].pos.SetPos(vPos + PblVector3(afCos[iPrev] * fInner,
+                                                   WATERRING_HEIGHT_BIAS, afSin[iPrev] * fInner));
+                pVert[1].normal.SetNormal(PblVector3(0.0f, 1.0f, 0.0f));
+                pVert[1].binormal_s.SetNormal(PblVector3(-afSin[iPrev], 0.0f, afCos[iPrev]));
+                pVert[1].binormal_t.SetNormal(PblVector3(-afCos[iPrev], 0.0f, -afSin[iPrev]));
+                pVert[1].uv.SetUV(fU - WATERRING_TEX_STEP, 1.0f - fInnerV);
+                pVert[1].color = prevColor;
+                pVert[2].pos.SetPos(vPos + PblVector3(afCos[iPrev] * fInner,
+                                                   WATERRING_HEIGHT_BIAS, afSin[iPrev] * fInner));
+                pVert[2].normal.SetNormal(PblVector3(0.0f, 1.0f, 0.0f));
+                pVert[2].binormal_s.SetNormal(PblVector3(-afSin[iPrev], 0.0f, afCos[iPrev]));
+                pVert[2].binormal_t.SetNormal(PblVector3(-afCos[iPrev], 0.0f, -afSin[iPrev]));
+                pVert[2].uv.SetUV(fU - WATERRING_TEX_STEP, 1.0f - fInnerV);
+                pVert[2].color = prevColor;
+                pVert[3].pos.SetPos(vPos + PblVector3(afCos[iPrev] * fOuter,
+                                                   WATERRING_HEIGHT_BIAS, afSin[iPrev] * fOuter));
+                pVert[3].normal.SetNormal(PblVector3(0.0f, 1.0f, 0.0f));
+                pVert[3].binormal_s.SetNormal(PblVector3(-afSin[iPrev], 0.0f, afCos[iPrev]));
+                pVert[3].binormal_t.SetNormal(PblVector3(-afCos[iPrev], 0.0f, -afSin[iPrev]));
+                pVert[3].uv.SetUV(fU - WATERRING_TEX_STEP, 0.0f);
+                pVert[3].color = prevColor;
                 pVert += 4;
             }
 
             RedColor color(255, 255, 255, (unsigned char)(afAlpha[iSeg] * 255.0f));
             float fSin = afSin[iSeg];
             float fCos = afCos[iSeg];
-            pVert[0].pos.SetPos(vPos.x + fCos * fInner, vPos.y + WATERRING_HEIGHT_BIAS,
-                               vPos.z + fSin * fInner);
-            pVert[0].normal.SetNormal(0.0f, 1.0f, 0.0f);
-            pVert[0].binormal_s.SetNormal(-fSin, 0.0f, fCos);
-            pVert[0].binormal_t.SetNormal(-fCos, 0.0f, -fSin);
+            pVert[0].pos.SetPos(vPos + PblVector3(fCos * fInner,
+                                               WATERRING_HEIGHT_BIAS, fSin * fInner));
+            pVert[0].normal.SetNormal(PblVector3(0.0f, 1.0f, 0.0f));
+            pVert[0].binormal_s.SetNormal(PblVector3(-fSin, 0.0f, fCos));
+            pVert[0].binormal_t.SetNormal(PblVector3(-fCos, 0.0f, -fSin));
             pVert[0].uv.SetUV(fU, 1.0f - fInnerV);
             pVert[0].color = color;
-            pVert[1].pos.SetPos(vPos.x + fCos * fOuter, vPos.y + WATERRING_HEIGHT_BIAS,
-                               vPos.z + fSin * fOuter);
-            pVert[1].normal.SetNormal(0.0f, 1.0f, 0.0f);
-            pVert[1].binormal_s.SetNormal(-fSin, 0.0f, fCos);
-            pVert[1].binormal_t.SetNormal(-fCos, 0.0f, -fSin);
+            pVert[1].pos.SetPos(vPos + PblVector3(fCos * fOuter,
+                                               WATERRING_HEIGHT_BIAS, fSin * fOuter));
+            pVert[1].normal.SetNormal(PblVector3(0.0f, 1.0f, 0.0f));
+            pVert[1].binormal_s.SetNormal(PblVector3(-fSin, 0.0f, fCos));
+            pVert[1].binormal_t.SetNormal(PblVector3(-fCos, 0.0f, -fSin));
             pVert[1].uv.SetUV(fU, 0.0f);
             pVert[1].color = color;
             pVert += 2;
@@ -803,16 +785,6 @@ void RedWater::pcRenderDistortionWakeRing(pcRedShader* pShader, const PblVector3
                                    gMatrixIdentity,
                                    RedColor::WHITE, 0x200, 0, 0, 0);
     pPrim->Release();
-}
-
-template <class T>
-static inline void pcSetWakeRingVertex(T& vert, const PblVector3& vPos, float fSin, float fCos,
-                                float fDist, RedColor color, float u, float v)
-{
-    vert.pos.SetPos(vPos.x + fCos * fDist, vPos.y + WATERRING_HEIGHT_BIAS,
-                    vPos.z + fSin * fDist);
-    vert.uv.SetUV(u, v);
-    vert.color = color;
 }
 
 // TEMPLATE: SWBF2 0x0071e9f0
@@ -845,8 +817,7 @@ void RedWater::pcRenderWakeRing(pcRedShader* pShader, const PblVector3& vWorldMi
         fAlpha = WATERRING_MAX_ALPHA;
     }
 
-    float fSpeed = (float)sqrt(vVelocity.y * vVelocity.y + vVelocity.x * vVelocity.x +
-                               vVelocity.z * vVelocity.z);
+    float fSpeed = Length(vVelocity);
     if (fSpeed < WATERRING_SPEED)
     {
         if (fSpeed <= 0.0f)
@@ -856,15 +827,14 @@ void RedWater::pcRenderWakeRing(pcRedShader* pShader, const PblVector3& vWorldMi
         fAlpha = WATERRING_SPEEDINV * fSpeed * fAlpha;
     }
 
-    float fGroundSpeed = (float)sqrt(vVelocity.z * vVelocity.z + vVelocity.x * vVelocity.x);
+    float fGroundSpeed = LengthXZ(vVelocity);
     float fStretch = WATERRING_SPEEDINV * fGroundSpeed;
     PblVector3 vDir = vVelocity;
     float fFalloff = 150.0f;
     if (fGroundSpeed > 0.01f)
     {
         float fInv = 1.0f / fGroundSpeed;
-        vDir.x *= fInv;
-        vDir.z *= fInv;
+        vDir *= fInv;
         fFalloff = fInv * WATERRING_SPEED;
     }
     else
@@ -985,26 +955,38 @@ void RedWater::pcRenderWakeRing(pcRedShader* pShader, const PblVector3& vWorldMi
             {
                 RedColor lastColor(255, 255, 255, (unsigned char)(afAlpha[iLast] * 255.0f));
                 RedColor prevColor(255, 255, 255, (unsigned char)(afAlpha[iPrev] * 255.0f));
-                pcSetWakeRingVertex(pVert[0], vPos, afSin[iLast], afCos[iLast], fOuter,
-                                    lastColor, fLastU, 0.0f);
-                pcSetWakeRingVertex(pVert[1], vPos, afSin[iPrev], afCos[iPrev], fInner,
-                                    prevColor, fU - WATERRING_TEX_STEP, 1.0f - fInnerV);
-                pcSetWakeRingVertex(pVert[2], vPos, afSin[iPrev], afCos[iPrev], fInner,
-                                    prevColor, fU - WATERRING_TEX_STEP, 1.0f - fInnerV);
-                pcSetWakeRingVertex(pVert[3], vPos, afSin[iPrev], afCos[iPrev], fOuter,
-                                    prevColor, fU - WATERRING_TEX_STEP, 0.0f);
+                pVert[0].pos.SetPos(vPos + PblVector3(afCos[iLast] * fOuter,
+                                                      WATERRING_HEIGHT_BIAS,
+                                                      afSin[iLast] * fOuter));
+                pVert[0].uv.SetUV(fLastU, 0.0f);
+                pVert[0].color = lastColor;
+                pVert[1].pos.SetPos(vPos + PblVector3(afCos[iPrev] * fInner,
+                                                      WATERRING_HEIGHT_BIAS,
+                                                      afSin[iPrev] * fInner));
+                pVert[1].uv.SetUV(fU - WATERRING_TEX_STEP, 1.0f - fInnerV);
+                pVert[1].color = prevColor;
+                pVert[2].pos.SetPos(vPos + PblVector3(afCos[iPrev] * fInner,
+                                                      WATERRING_HEIGHT_BIAS,
+                                                      afSin[iPrev] * fInner));
+                pVert[2].uv.SetUV(fU - WATERRING_TEX_STEP, 1.0f - fInnerV);
+                pVert[2].color = prevColor;
+                pVert[3].pos.SetPos(vPos + PblVector3(afCos[iPrev] * fOuter,
+                                                      WATERRING_HEIGHT_BIAS,
+                                                      afSin[iPrev] * fOuter));
+                pVert[3].uv.SetUV(fU - WATERRING_TEX_STEP, 0.0f);
+                pVert[3].color = prevColor;
                 pVert += 4;
             }
 
             RedColor color(255, 255, 255, (unsigned char)(afAlpha[iSeg] * 255.0f));
             float fSin = afSin[iSeg];
             float fCos = afCos[iSeg];
-            pVert[0].pos.SetPos(vPos.x + fCos * fInner, vPos.y + WATERRING_HEIGHT_BIAS,
-                               vPos.z + fSin * fInner);
+            pVert[0].pos.SetPos(vPos + PblVector3(fCos * fInner,
+                                               WATERRING_HEIGHT_BIAS, fSin * fInner));
             pVert[0].uv.SetUV(fU, 1.0f - fInnerV);
             pVert[0].color = color;
-            pVert[1].pos.SetPos(vPos.x + fCos * fOuter, vPos.y + WATERRING_HEIGHT_BIAS,
-                               vPos.z + fSin * fOuter);
+            pVert[1].pos.SetPos(vPos + PblVector3(fCos * fOuter,
+                                               WATERRING_HEIGHT_BIAS, fSin * fOuter));
             pVert[1].uv.SetUV(fU, 0.0f);
             pVert[1].color = color;
             pVert += 2;
@@ -1100,10 +1082,8 @@ void RedWater::pcRenderSplash<CompressedWaterSplashVertex, 37506>(
     {
         fTopAlpha = 0.6f;
     }
-    RedColor baseColor = WATERSPLASH_COLOR;
-    baseColor.a = (unsigned char)(fBaseAlpha * 255.0f);
-    RedColor topColor = WATERSPLASH_COLOR;
-    topColor.a = (unsigned char)(fTopAlpha * 255.0f);
+    RedColor baseColor(WATERSPLASH_COLOR, (unsigned char)(fBaseAlpha * 255.0f));
+    RedColor topColor(WATERSPLASH_COLOR, (unsigned char)(fTopAlpha * 255.0f));
 
     float fU = fTexStart;
     float fDrop = m_fWaterHeightOffset - fAge * 5.0f * fAge;
@@ -1126,15 +1106,13 @@ void RedWater::pcRenderSplash<CompressedWaterSplashVertex, 37506>(
             fTopY = 0.0f;
         }
 
-        pcSetPos(pVert[0].pos, PblVector3(vPos.x + fSegCos * fBase, vPos.y + 0.0f,
-                                          vPos.z + fSegSin * fBase));
-        pVert[0].uv.u = (short)(fU * 2048.0f);
-        pVert[0].uv.v = (short)((0.98f - fRise * 0.3f / fReach) * 2048.0f);
+        pVert[0].pos.SetPos(PblVector3(vPos.x + fSegCos * fBase, vPos.y + 0.0f,
+                                      vPos.z + fSegSin * fBase));
+        pVert[0].uv.SetUV(fU, 0.98f - fRise * 0.3f / fReach);
         pVert[0].color = baseColor;
-        pcSetPos(pVert[1].pos, PblVector3(vPos.x + fSegCos * fTop, vPos.y + fTopY,
-                                          vPos.z + fSegSin * fTop));
-        pVert[1].uv.v = 40;
-        pVert[1].uv.u = (short)(fU * 2048.0f);
+        pVert[1].pos.SetPos(PblVector3(vPos.x + fSegCos * fTop, vPos.y + fTopY,
+                                      vPos.z + fSegSin * fTop));
+        pVert[1].uv.SetUV(fU, 0.02f);
         pVert[1].color = topColor;
         pVert += 2;
         if (fLength == 0.0f)
@@ -1227,10 +1205,8 @@ void RedWater::pcRenderSplash<WaterSplashVertex, 642>(
     {
         fTopAlpha = 0.6f;
     }
-    RedColor baseColor = WATERSPLASH_COLOR;
-    baseColor.a = (unsigned char)(fBaseAlpha * 255.0f);
-    RedColor topColor = WATERSPLASH_COLOR;
-    topColor.a = (unsigned char)(fTopAlpha * 255.0f);
+    RedColor baseColor(WATERSPLASH_COLOR, (unsigned char)(fBaseAlpha * 255.0f));
+    RedColor topColor(WATERSPLASH_COLOR, (unsigned char)(fTopAlpha * 255.0f));
 
     float fU = fTexStart;
     float fDrop = m_fWaterHeightOffset - fAge * 5.0f * fAge;
@@ -1253,17 +1229,13 @@ void RedWater::pcRenderSplash<WaterSplashVertex, 642>(
             fTopY = 0.0f;
         }
 
-        pVert[0].pos.x = vPos.x + fSegCos * fBase;
-        pVert[0].pos.y = vPos.y + 0.0f;
-        pVert[0].pos.z = vPos.z + fSegSin * fBase;
-        pVert[0].uv.v = 0.98f - fRise * 0.3f / fReach;
-        pVert[0].uv.u = fU;
+        pVert[0].pos.SetPos(PblVector3(vPos.x + fSegCos * fBase, vPos.y + 0.0f,
+                                      vPos.z + fSegSin * fBase));
+        pVert[0].uv.SetUV(fU, 0.98f - fRise * 0.3f / fReach);
         pVert[0].color = baseColor;
-        pVert[1].pos.x = vPos.x + fSegCos * fTop;
-        pVert[1].pos.y = vPos.y + fTopY;
-        pVert[1].pos.z = vPos.z + fSegSin * fTop;
-        pVert[1].uv.v = 0.01f;
-        pVert[1].uv.u = fU;
+        pVert[1].pos.SetPos(PblVector3(vPos.x + fSegCos * fTop, vPos.y + fTopY,
+                                      vPos.z + fSegSin * fTop));
+        pVert[1].uv.SetUV(fU, 0.02f);
         pVert[1].color = topColor;
         pVert += 2;
         if (fLength == 0.0f)
@@ -1711,7 +1683,7 @@ void RedWater::PlatformReadConfigData(PblConfig::Data& data)
 // FUNCTION: SWBF2 0x0071fd70
 void* RedWater::PlatformReadCustomPatch(PblFileChunk* pChunk)
 {
-    if (!pChunk->HasMoreChildren())
+    if (pChunk->IsDone())
     {
         return 0;
     }
@@ -1728,7 +1700,7 @@ void* RedWater::PlatformReadCustomPatch(PblFileChunk* pChunk)
         unsigned int uiStartIndex = 0;
         unsigned int uiNumIndices = 0;
 
-        while (patch.HasMoreChildren())
+        while (!patch.IsDone())
         {
             PblFileChunk child = patch.ReadNextChild();
             switch (child._iId)
@@ -1883,8 +1855,8 @@ void RedWater::PlatformRenderUnderWaterView(PblVector3* pVerts, int iNumVerts)
     }
 
     pcRedPrimitive* pPrimitive =
-        pcRedPrimitive::Create(D3DPT_TRIANGLEFAN, 3, 16, iNumVerts, 0, false);
-    float* pOut = (float*)pPrimitive->BeginVertexData();
+        pcRedPrimitive::Create(D3DPT_TRIANGLEFAN, 3, sizeof(ScreenVertex), iNumVerts, 0, false);
+    ScreenVertex* pOut = (ScreenVertex*)pPrimitive->BeginVertexData();
     if (!pOut)
     {
         return;
@@ -1896,25 +1868,15 @@ void RedWater::PlatformRenderUnderWaterView(PblVector3* pVerts, int iNumVerts)
     {
         float fX = pVerts[i].x;
         float fY = pVerts[i].y;
-        pOut[1] = (0.5f - fY * 0.5f) * (fMaxY - fMinY);
-        pOut[0] = (fX * 0.5f + 0.5f) * (fMaxX - fMinX);
-        pOut[2] = 0.0f;
-        pOut[3] = 1.0f;
-        pOut += 4;
+        pOut->pos.SetPos((fX * 0.5f + 0.5f) * (fMaxX - fMinX),
+                         (0.5f - fY * 0.5f) * (fMaxY - fMinY), 0.0f, 1.0f);
+        ++pOut;
     }
     pPrimitive->EndVertexData();
 
-    float fR = m_underwaterColor.r * kInv255;
-    float fG = m_underwaterColor.g * kInv255;
-    float fB = m_underwaterColor.b * kInv255;
-    float fScale = RedRenderer::GetLightingScale();
-    RedColor color;
-    color.r = (unsigned char)(int)(fR * fScale * 255.0f);
-    color.a = m_underwaterColor.a;
-    color.b = (unsigned char)(int)(fB * fScale * 255.0f);
-    color.g = (unsigned char)(int)(fG * fScale * 255.0f);
+    RedColor color = RedColorValue(m_underwaterColor) * RedRenderer::GetLightingScale();
     RedRenderer::pcRenderPrimitive(pPrimitive, s_pUnderWaterShader, gMatrixIdentity,
-                                   color, 0x200, 0, 0, 0);
+                                   RedColor(color, m_underwaterColor.a), 0x200, 0, 0, 0);
     pPrimitive->Release();
 }
 
@@ -2131,12 +2093,7 @@ inline void pcOceanShader::SetBaseMap(RedTexture* pTexture, RedTextureTransform*
     m_baseMap = pTexture;
     if (pTransform)
     {
-        m_textureTransform.m_bTransform = pTransform->m_bTransform;
-        if (m_textureTransform.m_bTransform)
-        {
-            memcpy(m_textureTransform.m_Transform, pTransform->m_Transform,
-                   sizeof(m_textureTransform.m_Transform));
-        }
+        m_textureTransform = *pTransform;
     }
     else
     {
@@ -2149,12 +2106,7 @@ inline void pcOceanShader::SetFoamMap(RedTexture* pTexture, RedTextureTransform*
     m_foamMap = pTexture;
     if (pTransform)
     {
-        m_foamMapTransform.m_bTransform = pTransform->m_bTransform;
-        if (m_foamMapTransform.m_bTransform)
-        {
-            memcpy(m_foamMapTransform.m_Transform, pTransform->m_Transform,
-                   sizeof(m_foamMapTransform.m_Transform));
-        }
+        m_foamMapTransform = *pTransform;
     }
     else
     {
@@ -2324,21 +2276,11 @@ void RedWater::pcSetupShaders()
 
     float fScrollU = m_velocityU * fTime;
     float fScrollV = m_velocityV * fTime;
-    transform1.m_Transform[1][0] = 0.0f;
-    transform1.m_Transform[0][1] = 0.0f;
-    transform1.m_bTransform = 1;
-    transform2.m_Transform[1][0] = 0.0f;
-    transform2.m_Transform[0][1] = 0.0f;
-    transform2.m_bTransform = 1;
     s_bWaterShaderSetupPending = false;
-    transform1.m_Transform[0][0] = m_tilesU;
-    transform2.m_Transform[0][0] = m_tilesU;
-    transform1.m_Transform[1][1] = m_tilesV;
-    transform2.m_Transform[1][1] = m_tilesV;
-    transform1.m_Transform[2][0] = m_tilesU * (fScrollU - (float)(int)fScrollU);
-    transform1.m_Transform[2][1] = (fScrollV - (float)(int)fScrollV) * m_tilesV;
-    transform2.m_Transform[2][0] = m_tilesU * (-fScrollU - (float)(int)-fScrollU);
-    transform2.m_Transform[2][1] = (-fScrollV - (float)(int)-fScrollV) * m_tilesV;
+    transform1.SetOriginScale(fScrollU - (float)(int)fScrollU,
+                              fScrollV - (float)(int)fScrollV, m_tilesU, m_tilesV);
+    transform2.SetOriginScale(-fScrollU - (float)(int)-fScrollU,
+                              -fScrollV - (float)(int)-fScrollV, m_tilesU, m_tilesV);
 
     if (!s_pNormalWaterShader)
     {
@@ -2350,13 +2292,9 @@ void RedWater::pcSetupShaders()
 
     float fMaskU = m_fSpecularMaskScrollU * fTime;
     float fMaskV = m_fSpecularMaskScrollV * fTime;
-    transform1.m_bTransform = 1;
-    transform1.m_Transform[0][0] = m_fSpecularMaskTileU;
-    transform1.m_Transform[0][1] = 0.0f;
-    transform1.m_Transform[1][0] = 0.0f;
-    transform1.m_Transform[1][1] = m_fSpecularMaskTileV;
-    transform1.m_Transform[2][0] = m_fSpecularMaskTileU * (fMaskU - (float)(int)fMaskU);
-    transform1.m_Transform[2][1] = (fMaskV - (float)(int)fMaskV) * m_fSpecularMaskTileV;
+    transform1.SetOriginScale(fMaskU - (float)(int)fMaskU,
+                              fMaskV - (float)(int)fMaskV,
+                              m_fSpecularMaskTileU, m_fSpecularMaskTileV);
     if (m_uiNumSpecularMaskTextures)
     {
         float fFrame = m_fSpecularMaskTexturesFrameRate * fTime;
@@ -2370,13 +2308,7 @@ void RedWater::pcSetupShaders()
             &transform1, fFrame - (float)iFrame);
     }
 
-    transform1.m_bTransform = 1;
-    transform1.m_Transform[0][0] = m_tilesU;
-    transform1.m_Transform[0][1] = 0.0f;
-    transform1.m_Transform[1][0] = 0.0f;
-    transform1.m_Transform[1][1] = m_tilesV;
-    transform1.m_Transform[2][0] = m_tilesU * 0.0f;
-    transform1.m_Transform[2][1] = m_tilesV * 0.0f;
+    transform1.SetOriginScale(0.0f, 0.0f, m_tilesU, m_tilesV);
     if (m_uiNumBumpMapTextures)
     {
         float fFrame = m_fBumpMapTexturesFrameRate * fTime;

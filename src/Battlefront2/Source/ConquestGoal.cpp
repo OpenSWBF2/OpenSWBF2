@@ -272,6 +272,6 @@ float AI::ConquestGoal::sGetImportance(const CommandPost* pPost, int iTeam)
     {
         return (float)pPost->GetStrategicAttackValue(pTeam->GetSide());
     }
-    return ((float)pPost->GetStrategicAttackValue(pTeam->GetSide()) +
-            (float)pPost->GetStrategicDefendValue(pTeam->GetSide())) * 0.5f;
+    return ((float)pPost->GetStrategicDefendValue(pTeam->GetSide()) +
+            (float)pPost->GetStrategicAttackValue(pTeam->GetSide())) * 0.5f;
 }

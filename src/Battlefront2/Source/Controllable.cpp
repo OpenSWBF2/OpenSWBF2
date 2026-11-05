@@ -21,12 +21,7 @@
 #include "RedEngineFL/Graphics/RedPose.h"
 #include "Aimer.h"
 #include "EntitySoldier.h"
-
-class EntityFlyer
-{
-public:
-    static PblHash rttiHashEntityFlyer;
-};
+#include "EntityCarrier.h"
 
 
 

@@ -43,12 +43,12 @@ GamePath* GamePathFactory::CreatePath() const
 // FUNCTION: SWBF2 0x00537c50
 void GamePathFactory::ClearFactoryList()
 {
-    sList.RemoveAll();
+    sList.Clear();
 }
 
 // TEMPLATE: SWBF2 0x00537ea0
-// PblList<GamePathFactory>::RemoveAll
-template void PblList<GamePathFactory>::RemoveAll();
+// PblList<GamePathFactory>::Clear
+template void PblList<GamePathFactory>::Clear();
 
 // FUNCTION: SWBF2 0x00537c60
 void GamePathFactory::Read(PblFileChunk& chunk)

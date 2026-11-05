@@ -158,10 +158,11 @@ void Damageable::SetCurHealth(float fHealth, bool bNotify, DamageOwner* pOwner)
         {
             mDamageOwner = *pOwner;
         }
+        float fDifference = fOld - fHealth;
         mCurHealth = fHealth;
         if (bNotify)
         {
-            HealthChangeCallback(false, fOld - fHealth);
+            HealthChangeCallback(false, fDifference);
         }
         else
         {
@@ -184,12 +185,12 @@ void Damageable::SetCurShield(float fShield, bool, DamageOwner*)
 // FUNCTION: SWBF2 0x00488910
 void Damageable::UpdateStatus(float fDeltaTime)
 {
-    if (mAddHealth != 0.0f && mMaxHealth > mCurHealth)
+    if (mAddHealth != 0.0f && mCurHealth < mMaxHealth)
     {
         float fHealth = mCurHealth + mAddHealth * fDeltaTime;
         SetCurHealth(mMaxHealth > fHealth ? fHealth : mMaxHealth, true, 0);
     }
-    if (mAddShield != 0.0f && mMaxShield > mCurShield)
+    if (mAddShield != 0.0f && mCurShield < mMaxShield)
     {
         float fShield = mCurShield + mAddShield * fDeltaTime;
         float fNew = mMaxShield;

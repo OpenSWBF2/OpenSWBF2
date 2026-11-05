@@ -43,7 +43,7 @@ public:
 
     static void Reset()
     {
-        sAllScreensList.RemoveAll();
+        sAllScreensList.Clear();
         spCurrentScreen[0] = 0;
     }
     static IFScreen* spCurrentScreen[1];

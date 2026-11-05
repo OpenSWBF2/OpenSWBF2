@@ -29,6 +29,22 @@ public:
     template <class U>
     Vector3(U ux, U uy, U uz) : x((T)ux), y((T)uy), z((T)uz) {}
 
+    const Vector3& operator+=(const Vector3& other)
+    {
+        x += other.x;
+        y += other.y;
+        z += other.z;
+        return *this;
+    }
+
+    const Vector3& operator*=(T value)
+    {
+        x *= value;
+        y *= value;
+        z *= value;
+        return *this;
+    }
+
     T x;
     T y;
     T z;

@@ -330,11 +330,9 @@ void TreeGrid::CallbackOnLazyRay(const PblVector3& rFrom, const PblVector3& rTo,
         fMaxZ = rFrom.z;
     }
 
-    PblVector3 vDir(rTo.x - rFrom.x, rTo.y - rFrom.y, rTo.z - rFrom.z);
-    float fLength = PblMath::Sqrt(vDir.x * vDir.x + vDir.y * vDir.y + vDir.z * vDir.z);
-    PblVector3 vNormal;
-    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNormal), reinterpret_cast<const D3DXVECTOR3*>(&vDir));
-    vDir = vNormal;
+    PblVector3 vDir = rTo - rFrom;
+    float fLength = Length(vDir);
+    vDir = Normalize(vDir);
 
     float fDist = 1e11f;
     for (int i = 0; i < 5; ++i)
@@ -375,8 +373,8 @@ void TreeGrid::CallbackOnLazyRay(const PblVector3& rFrom, const PblVector3& rTo,
 
     while (iGridSize > 2)
     {
-        int iX0 = iMinX - 1 > 0 ? iMinX - 1 : 0;
-        int iZ0 = iMinZ - 1 > 0 ? iMinZ - 1 : 0;
+        int iX0 = Max(iMinX - 1, 0);
+        int iZ0 = Max(iMinZ - 1, 0);
         int iCell = iStartIndex + iX0 + iGridSize * iZ0;
         for (int z = iZ0; z <= iMaxZ; ++z)
         {
@@ -412,22 +410,25 @@ void TreeGrid::CallbackOnSphere(const PblVector3& rCenter, float fRadius,
         }
     }
 
-    float fMaxX = (rCenter.x + fRadius - mOffset) * mSizePerMeter;
+    PblVector3 vRadius(fRadius, fRadius, fRadius);
+    PblVector3 aMaxPos = rCenter + vRadius;
+    PblVector3 aMinPos = rCenter - vRadius;
+    float fMaxX = (aMaxPos.x - mOffset) * mSizePerMeter;
     if (fMaxX < 0.0f)
     {
         return;
     }
-    float fMaxZ = (rCenter.z + fRadius - mOffset) * mSizePerMeter;
+    float fMaxZ = (aMaxPos.z - mOffset) * mSizePerMeter;
     if (fMaxZ < 0.0f)
     {
         return;
     }
-    float fMinX = (rCenter.x - fRadius - mOffset) * mSizePerMeter;
+    float fMinX = (aMinPos.x - mOffset) * mSizePerMeter;
     if (fMinX >= 1.0f)
     {
         return;
     }
-    float fMinZ = (rCenter.z - fRadius - mOffset) * mSizePerMeter;
+    float fMinZ = (aMinPos.z - mOffset) * mSizePerMeter;
     if (fMinZ >= 1.0f)
     {
         return;
@@ -442,8 +443,8 @@ void TreeGrid::CallbackOnSphere(const PblVector3& rCenter, float fRadius,
 
     while (iGridSize > 2)
     {
-        int iX0 = iMinX - 1 > 0 ? iMinX - 1 : 0;
-        int iZ0 = iMinZ - 1 > 0 ? iMinZ - 1 : 0;
+        int iX0 = Max(iMinX - 1, 0);
+        int iZ0 = Max(iMinZ - 1, 0);
         int iCell = iStartIndex + iX0 + iGridSize * iZ0;
         for (int z = iZ0; z <= iMaxZ; ++z)
         {

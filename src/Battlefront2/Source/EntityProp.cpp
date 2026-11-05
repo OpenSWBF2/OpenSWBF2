@@ -149,57 +149,59 @@ EntityProp::EntityProp(EntityPropClass* pClass, const EntityDesc& desc)
     mMoving = false;
     mClass = pClass;
 
-    PblBox box;
-    box._vMin.x = FLT_MAX;
-    box._vMin.y = FLT_MAX;
-    box._vMin.z = FLT_MAX;
-    box._vMax.x = -FLT_MAX;
-    box._vMax.y = -FLT_MAX;
-    box._vMax.z = -FLT_MAX;
-    bool bHaveBody = false;
-    CollisionModel* pCollisionModel = mCollisionModel;
-    for (int i = 0; i < pCollisionModel->GetNumBodies(); ++i)
+    PblVector3 minSize;
+    PblVector3 maxSize;
+    minSize.SetAll(FLT_MAX);
+    maxSize.SetAll(-FLT_MAX);
+    bool wasAnyBodies = false;
+    CollisionModel* model = mCollisionModel;
+    for (int i = 0; i < model->GetNumBodies(); ++i)
     {
-        CollisionBody* pBody = pCollisionModel->GetBody(i);
-        if (!pBody)
+        CollisionBody* body = model->GetBody(i);
+        if (!body)
         {
             continue;
         }
-        bHaveBody = true;
-        if (pBody->bIsMesh)
+        wasAnyBodies = true;
+        if (body->bIsMesh)
         {
-            CollisionMesh* pMesh = static_cast<CollisionBodyMesh*>(pBody)->mMesh;
-            PblBox bodyBox = pMesh->GetWorldspaceAABB(pBody->GetWorldMatrix(mMatrix, 0));
-            box._vMin.x = bodyBox._vMin.x > box._vMin.x ? box._vMin.x : bodyBox._vMin.x;
-            box._vMin.y = bodyBox._vMin.y > box._vMin.y ? box._vMin.y : bodyBox._vMin.y;
-            box._vMin.z = bodyBox._vMin.z > box._vMin.z ? box._vMin.z : bodyBox._vMin.z;
-            box._vMax.x = box._vMax.x > bodyBox._vMax.x ? box._vMax.x : bodyBox._vMax.x;
-            box._vMax.y = box._vMax.y > bodyBox._vMax.y ? box._vMax.y : bodyBox._vMax.y;
-            box._vMax.z = box._vMax.z > bodyBox._vMax.z ? box._vMax.z : bodyBox._vMax.z;
+            CollisionMesh* mesh = static_cast<CollisionBodyMesh*>(body)->mMesh;
+            PblBox box = mesh->GetWorldspaceAABB(body->GetWorldMatrix(mMatrix, 0));
+            PblVector3 bMin = box.GetMin();
+            PblVector3 bMax = box.GetMax();
+            minSize.x = bMin.x > minSize.x ? minSize.x : bMin.x;
+            minSize.y = bMin.y > minSize.y ? minSize.y : bMin.y;
+            minSize.z = bMin.z > minSize.z ? minSize.z : bMin.z;
+            maxSize.x = maxSize.x > bMax.x ? maxSize.x : bMax.x;
+            maxSize.y = maxSize.y > bMax.y ? maxSize.y : bMax.y;
+            maxSize.z = maxSize.z > bMax.z ? maxSize.z : bMax.z;
         }
         else
         {
-            PblBox bodyBox = static_cast<CollisionBodyPrimitive*>(pBody)->mPrimitive.GetWorldspaceAABB(
-                pBody->GetWorldMatrix(mMatrix, 0));
-            box._vMin.x = bodyBox._vMin.x > box._vMin.x ? box._vMin.x : bodyBox._vMin.x;
-            box._vMin.y = bodyBox._vMin.y > box._vMin.y ? box._vMin.y : bodyBox._vMin.y;
-            box._vMin.z = bodyBox._vMin.z > box._vMin.z ? box._vMin.z : bodyBox._vMin.z;
-            box._vMax.x = box._vMax.x > bodyBox._vMax.x ? box._vMax.x : bodyBox._vMax.x;
-            box._vMax.y = box._vMax.y > bodyBox._vMax.y ? box._vMax.y : bodyBox._vMax.y;
-            box._vMax.z = box._vMax.z > bodyBox._vMax.z ? box._vMax.z : bodyBox._vMax.z;
+            PblMatrix bMat = body->GetWorldMatrix(mMatrix, 0);
+            PblBox box = static_cast<CollisionBodyPrimitive*>(body)->mPrimitive.GetWorldspaceAABB(bMat);
+            PblVector3 bMin = box.GetMin();
+            PblVector3 bMax = box.GetMax();
+            minSize.x = bMin.x > minSize.x ? minSize.x : bMin.x;
+            minSize.y = bMin.y > minSize.y ? minSize.y : bMin.y;
+            minSize.z = bMin.z > minSize.z ? minSize.z : bMin.z;
+            maxSize.x = maxSize.x > bMax.x ? maxSize.x : bMax.x;
+            maxSize.y = maxSize.y > bMax.y ? maxSize.y : bMax.y;
+            maxSize.z = maxSize.z > bMax.z ? maxSize.z : bMax.z;
         }
     }
-    if (bHaveBody)
+    if (wasAnyBodies)
     {
-        mAABB = box;
+        mAABB.SetMin(minSize);
+        mAABB.SetMax(maxSize);
     }
 
-    float fHalfX = (mAABB._vMax.x - mAABB._vMin.x) * 0.5f;
-    float fHalfZ = (mAABB._vMax.z - mAABB._vMin.z) * 0.5f;
-    float f2dRadius = PblMath::Sqrt(fHalfX * fHalfX + 0.0f + fHalfZ * fHalfZ);
-    if (GetCollisionRadius() > f2dRadius)
+    PblVector3 vector2d = (mAABB.GetMax() - mAABB.GetMin()) * 0.5f;
+    vector2d.y = 0.0f;
+    float radius = Length(vector2d);
+    if (GetCollisionRadius() > radius)
     {
-        Set2DCollisionRadius(f2dRadius);
+        Set2DCollisionRadius(radius);
     }
     SetTestBBox(GetCollisionRadius() > 1.0f);
     AddToScene();
@@ -244,11 +246,7 @@ EntityProp::EntityProp(EntityPropClass* pClass, const EntityDesc& desc)
 
     PAAnimationGroup::GeometryCreated(desc.mNameId, this, mMatrix);
 
-    PblVector3 vOffset;
-    D3DXVec3TransformNormal((D3DXVECTOR3*)&vOffset, (const D3DXVECTOR3*)&mClass->mSoundOffset,
-                            (const D3DXMATRIX*)&mMatrix);
-    const PblVector3& vPos = mMatrix.GetTranslation();
-    mPrevPos = PblVector3(vOffset.x + vPos.x, vOffset.y + vPos.y, vOffset.z + vPos.z);
+    mPrevPos = mMatrix.GetTranslation() + mMatrix.ApplyRotation(mClass->mSoundOffset);
 }
 
 // FUNCTION: SWBF2 0x00497ea0
@@ -346,49 +344,20 @@ void EntityProp::Render(unsigned char ucViewport, float fDist, unsigned int uiFl
 // FUNCTION: SWBF2 0x004d99a0
 void EntityProp::UpdateSound()
 {
-    bool bMovementSounds = mClass->mStopMovementSound.GetProperties() ||
+    bool movementSounds = mClass->mStopMovementSound.GetProperties() ||
                            mClass->mStartMovementSound.GetProperties() ||
                            mClass->mAttachedSoundOnlyMoving;
-    if (!mClass->mAttachedSound.GetProperties() && !bMovementSounds)
+    if (!mClass->mAttachedSound.GetProperties() && !movementSounds)
     {
         return;
     }
 
-    PblVector3 vPos;
-    {
-        PblVector3 vOffset;
-        D3DXVec3TransformNormal((D3DXVECTOR3*)&vOffset, (const D3DXVECTOR3*)&mClass->mSoundOffset,
-                                (const D3DXMATRIX*)&mMatrix);
-        vPos.x = mMatrix.m[3][0] + vOffset.x;
-        vPos.y = mMatrix.m[3][1] + vOffset.y;
-        vPos.z = mMatrix.m[3][2] + vOffset.z;
-    }
+    PblVector3 pos = mMatrix.GetTranslation() + mMatrix.ApplyRotation(mClass->mSoundOffset);
+    float moveDist = movementSounds ? LengthEst(pos - mPrevPos) : 0.0f;
 
-    float fMove;
-    if (bMovementSounds)
-    {
-        const float fLength2EstAlpha = 0.94805944f;
-        const float fLength2EstBeta = 0.39269909f;
+    mPrevPos = Interpolate(mPrevPos, pos, 0.5f);
 
-        const PblVector3 vDelta = vPos - mPrevPos;
-        float fA = fabsf(vDelta.x);
-        float fB = fabsf(vDelta.y);
-        float fEst = fA > fB ? fA * fLength2EstAlpha + fB * fLength2EstBeta
-                             : fA * fLength2EstBeta + fB * fLength2EstAlpha;
-
-        fA = fabsf(fEst);
-        fB = fabsf(vDelta.z);
-        fMove = fA > fB ? fA * fLength2EstAlpha + fB * fLength2EstBeta
-                        : fA * fLength2EstBeta + fB * fLength2EstAlpha;
-    }
-    else
-    {
-        fMove = 0.0f;
-    }
-
-    mPrevPos = Interpolate(mPrevPos, vPos, 0.5f);
-
-    if (mAttachedSound.mFlags & GameSoundControllable::flags_playing)
+    if (mAttachedSound.GetPlaying())
     {
         mAttachedSound.Update(&mClass->mAttachedSound, &mPrevPos, 0);
     }
@@ -399,18 +368,18 @@ void EntityProp::UpdateSound()
 
     if (mMoving)
     {
-        if (fMove < 0.0001f)
+        if (moveDist < 0.0001f)
         {
             mClass->mStopMovementSound.Play(&mPrevPos, 0, false, true);
             if (mClass->mAttachedSoundOnlyMoving &&
-                !(mAttachedSound.mFlags & GameSoundControllable::flags_playing))
+                !(mAttachedSound.GetPlaying()))
             {
                 mAttachedSound.Play(&mClass->mAttachedSound, &mPrevPos, 0, true);
             }
             mMoving = false;
         }
     }
-    else if (fMove > 0.0001f)
+    else if (moveDist > 0.0001f)
     {
         mClass->mStartMovementSound.Play(&mPrevPos, 0, false, true);
         if (mClass->mAttachedSoundOnlyMoving)

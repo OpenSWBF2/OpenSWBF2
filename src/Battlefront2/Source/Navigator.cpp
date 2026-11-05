@@ -3,6 +3,7 @@
 #include <d3dx9math.h>
 
 #include "Navigator.h"
+#include "CollisionManager.h"
 #include "AILowLevel.h"
 #include "AIUtil.h"
 #include "Character.h"
@@ -18,14 +19,6 @@
 #include "UnitController.h"
 #include "PebbleFL/Common/PblMatrix.h"
 #include "PebbleFL/Common/PblRandom.h"
-
-class CollisionManager
-{
-public:
-
-    static int GetObjectsInRange(const PblVector3& vPos, float fRange, GameObject** const ppList,
-                                 int iMax, const GameObject* pIgnore, int iFlags);
-};
 
 namespace PowerupUtility
 {
@@ -82,14 +75,6 @@ const char Navigator::rttiNameNavigator[] = "Navigator";
 
 // SYNTHETIC: SWBF2 0x005ab310
 // Navigator::`scalar deleting destructor'
-
-// FUNCTION: SWBF2 0x005ab340
-ObstacleTest::ObstacleTest(const PblVector3& rSrc, const PblVector3& rDest)
-    : mSrc(rSrc), mDest(rDest)
-{
-    mBoundCenter = ((mSrc + mDest) * 0.5f);
-    mBoundRadius = Length(mBoundCenter - mSrc);
-}
 
 // FUNCTION: SWBF2 0x005ab410
 Navigator::Navigator(AILowLevel* pOwner)
@@ -263,7 +248,7 @@ bool Navigator::AttemptWallFollow(float fStep, bool bRight)
     {
         return false;
     }
-    Controllable* pMe = mOwner->mOwner->mOwner;
+    const Controllable* pMe = mOwner->mOwner->mOwner;
     if (pMe && pMe->mCharacter && pMe->mCharacter->mCarriedFlagPtr)
     {
         return false;
@@ -275,18 +260,14 @@ bool Navigator::AttemptWallFollow(float fStep, bool bRight)
     int eProhibit = GetMyProhibit();
 
     const PblVector3& vGoto = mPathFollower->mGotoPoint;
-    float fGX = vPos.x - vGoto.x;
-    float fGY = vPos.y - vGoto.y;
-    float fGZ = vPos.z - vGoto.z;
     float fMinDistSq = fRadius * fRadius * 10.0f * 10.0f;
-    if (fMinDistSq > fGX * fGX + fGY * fGY + fGZ * fGZ)
+    if (fMinDistSq > SquaredLength(vPos - vGoto))
     {
         return false;
     }
 
     float fProbe = fRadius * 6.0f;
-    PblVector3 vToGoto = vGoto - vPos;
-    PblVector3 vDir = AIUtil::GetSafeNormalXZ(vToGoto);
+    PblVector3 vDir = AIUtil::GetSafeNormalXZ(vGoto - vPos);
     PblVector3 vSide(vDir.z, 0.0f, -vDir.x);
     if (bRight)
     {
@@ -320,21 +301,17 @@ bool Navigator::AttemptWallFollow(float fStep, bool bRight)
     PblVector3 vFar = vPos + vSide * fProbe;
     PblVector3 vNormal, vCorner, vOther;
     pHit->IntersectionNewer(ObstacleTest(vPos, vFar), fRadius, &fDistSq, &vNormal, &vCorner, &vOther);
-    if ((vOther.x - vCorner.x) * vDir.x + (vOther.y - vCorner.y) * vDir.y +
-            (vOther.z - vCorner.z) * vDir.z > 0.0f)
+    if (DotProduct(vOther - vCorner, vDir) > 0.0f)
     {
         vCorner = vOther;
     }
 
-    float fCX = vCorner.x - vWall.x;
-    float fCZ = vCorner.z - vWall.z;
-    if (fMinDistSq > fCX * fCX + fCZ * fCZ)
+    if (fMinDistSq > SquaredLengthXZ(vCorner - vWall))
     {
         return false;
     }
-    PblVector3 vToCorner = vCorner - vWall;
-    PblVector3 vCornerDir = AIUtil::GetSafeNormalXZ(vToCorner);
-    if (0.95f > vCornerDir.x * vDir.x + vCornerDir.y * vDir.y + vCornerDir.z * vDir.z)
+    PblVector3 vCornerDir = AIUtil::GetSafeNormalXZ(vCorner - vWall);
+    if (0.95f > DotProduct(vCornerDir, vDir))
     {
         return false;
     }
@@ -345,11 +322,7 @@ bool Navigator::AttemptWallFollow(float fStep, bool bRight)
     float fAhead = fDist * 2.0f + fStep;
     PblVector3 vAhead = vStart + vDir * fAhead;
 
-    float fAX = vStart.x - vAhead.x;
-    float fAZ = vStart.z - vAhead.z;
-    float fBX = vStart.x - vCorner.x;
-    float fBZ = vStart.z - vCorner.z;
-    if (fAX * fAX + fAZ * fAZ > fBX * fBX + fBZ * fBZ)
+    if (SquaredLengthXZ(vStart - vAhead) > SquaredLengthXZ(vStart - vCorner))
     {
         return false;
     }

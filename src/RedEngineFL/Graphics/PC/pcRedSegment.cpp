@@ -201,14 +201,13 @@ void pcSoftwareSkinnedShaderSegment::Render(const PblMatrix* pWorld,
 // FUNCTION: SWBF2 0x00718960
 pcRedPrimitive*
 pcSoftwareSkinnedShaderSegment::_CreateSkinnedPrimitive(
-    const PblMatrix* pBoneMatrices, int iNumBones, unsigned int count)
+    const PblMatrix* pBoneMatrices, int iNumBones, unsigned int count) const
 {
     if (count > m_uiSkinNumBones)
     {
         count = m_uiSkinNumBones;
     }
 
-    PblVector3 t0, t1, t2, t3, t4, t5, t6;
     unsigned int stride = m_uiVertexSize >> 2;
     int normalOffset = 0;
     int tangentOffset = 0;
@@ -273,11 +272,10 @@ pcSoftwareSkinnedShaderSegment::_CreateSkinnedPrimitive(
     case 0:
         for (unsigned int i = 0; i < m_uiNumVertices; ++i)
         {
-            const PblMatrix* matrix = (const PblMatrix*)&_GetSkinMatrix(
+            const PblMatrix& matrix = _GetSkinMatrix(
                 m_uiSkinNumBones, bones, weights, pBoneMatrices);
             PblVector3* position = (PblVector3*)vertex;
-            D3DXVec3TransformCoord((D3DXVECTOR3*)&t0, (const D3DXVECTOR3*)position, (const D3DXMATRIX*)matrix);
-            *position = t0;
+            *position = matrix.ApplyTransform(*position);
             vertex += stride;
             bones += count * 2 - 1;
             weights += count * 2 - 1;
@@ -287,15 +285,13 @@ pcSoftwareSkinnedShaderSegment::_CreateSkinnedPrimitive(
     case 0x20:
         for (unsigned int i = 0; i < m_uiNumVertices; ++i)
         {
-            const PblMatrix* matrix = (const PblMatrix*)&_GetSkinMatrix(
+            const PblMatrix& matrix = _GetSkinMatrix(
                 m_uiSkinNumBones, bones, weights, pBoneMatrices);
             PblVector3* position = (PblVector3*)vertex;
             PblVector3* normal =
                 (PblVector3*)(vertex + normalOffset);
-            D3DXVec3TransformCoord((D3DXVECTOR3*)&t6, (const D3DXVECTOR3*)position, (const D3DXMATRIX*)matrix);
-            *position = t6;
-            D3DXVec3TransformNormal((D3DXVECTOR3*)&t4, (const D3DXVECTOR3*)normal, (const D3DXMATRIX*)matrix);
-            *normal = t4;
+            *position = matrix.ApplyTransform(*position);
+            *normal = matrix.ApplyRotation(*normal);
             vertex += stride;
             bones += count * 2 - 1;
             weights += count * 2 - 1;
@@ -305,7 +301,7 @@ pcSoftwareSkinnedShaderSegment::_CreateSkinnedPrimitive(
     case 0x60:
         for (unsigned int i = 0; i < m_uiNumVertices; ++i)
         {
-            const PblMatrix* matrix = (const PblMatrix*)&_GetSkinMatrix(
+            const PblMatrix& matrix = _GetSkinMatrix(
                 m_uiSkinNumBones, bones, weights, pBoneMatrices);
             PblVector3* position = (PblVector3*)vertex;
             PblVector3* normal =
@@ -314,14 +310,10 @@ pcSoftwareSkinnedShaderSegment::_CreateSkinnedPrimitive(
                 (PblVector3*)(vertex + tangentOffset);
             PblVector3* binormal =
                 (PblVector3*)(vertex + binormalOffset);
-            D3DXVec3TransformCoord((D3DXVECTOR3*)&t3, (const D3DXVECTOR3*)position, (const D3DXMATRIX*)matrix);
-            *position = t3;
-            D3DXVec3TransformNormal((D3DXVECTOR3*)&t1, (const D3DXVECTOR3*)normal, (const D3DXMATRIX*)matrix);
-            *normal = t1;
-            D3DXVec3TransformNormal((D3DXVECTOR3*)&t2, (const D3DXVECTOR3*)tangent, (const D3DXMATRIX*)matrix);
-            *tangent = t2;
-            D3DXVec3TransformNormal((D3DXVECTOR3*)&t5, (const D3DXVECTOR3*)binormal, (const D3DXMATRIX*)matrix);
-            *binormal = t5;
+            *position = matrix.ApplyTransform(*position);
+            *normal = matrix.ApplyRotation(*normal);
+            *tangent = matrix.ApplyRotation(*tangent);
+            *binormal = matrix.ApplyRotation(*binormal);
             vertex += stride;
             bones += count * 2 - 1;
             weights += count * 2 - 1;
@@ -346,6 +338,7 @@ pcSoftwareSkinnedShaderSegment::_CreateSkinnedPrimitive(
 static const PblMatrix& _GetSkinMatrix(unsigned int uiNumBones, const unsigned char* puiWeights,
                                        const unsigned char* puiIndices, const PblMatrix* pMatrices)
 {
+    // GLOBAL: SWBF2 0x009cab40
     static PblMatrix s_mSkin = gMatrixIdentity;
 
     if (uiNumBones == 1 || puiWeights[0] == 0xFF)
@@ -356,10 +349,10 @@ static const PblMatrix& _GetSkinMatrix(unsigned int uiNumBones, const unsigned c
     unsigned int i = 1;
     float fWeight = puiWeights[0] * kInv255;
     const PblMatrix* pBone = &pMatrices[puiIndices[0]];
-    s_mSkin[0] = fWeight * (*pBone)[0];
-    s_mSkin[1] = fWeight * (*pBone)[1];
-    s_mSkin[2] = fWeight * (*pBone)[2];
-    s_mSkin[3] = fWeight * (*pBone)[3];
+    s_mSkin[0] = (*pBone)[0] * fWeight;
+    s_mSkin[1] = (*pBone)[1] * fWeight;
+    s_mSkin[2] = (*pBone)[2] * fWeight;
+    s_mSkin[3] = (*pBone)[3] * fWeight;
 
     for (unsigned int uiTotal = puiWeights[0]; uiTotal < 0xFF; uiTotal += puiWeights[i++])
     {
@@ -368,16 +361,16 @@ static const PblMatrix& _GetSkinMatrix(unsigned int uiNumBones, const unsigned c
         if (i >= uiNumBones - 1)
         {
             const float fScale = (1.0f - fWeight) / (uiTotal * kInv255);
-            s_mSkin[0] = s_mSkin[0] * fScale + fWeight * (*pBone)[0];
-            s_mSkin[1] = s_mSkin[1] * fScale + fWeight * (*pBone)[1];
-            s_mSkin[2] = s_mSkin[2] * fScale + fWeight * (*pBone)[2];
-            s_mSkin[3] = s_mSkin[3] * fScale + fWeight * (*pBone)[3];
+            s_mSkin[0] = s_mSkin[0] * fScale + (*pBone)[0] * fWeight;
+            s_mSkin[1] = s_mSkin[1] * fScale + (*pBone)[1] * fWeight;
+            s_mSkin[2] = s_mSkin[2] * fScale + (*pBone)[2] * fWeight;
+            s_mSkin[3] = s_mSkin[3] * fScale + (*pBone)[3] * fWeight;
             break;
         }
-        s_mSkin[0] += fWeight * (*pBone)[0];
-        s_mSkin[1] += fWeight * (*pBone)[1];
-        s_mSkin[2] += fWeight * (*pBone)[2];
-        s_mSkin[3] += fWeight * (*pBone)[3];
+        s_mSkin[0] += (*pBone)[0] * fWeight;
+        s_mSkin[1] += (*pBone)[1] * fWeight;
+        s_mSkin[2] += (*pBone)[2] * fWeight;
+        s_mSkin[3] += (*pBone)[3] * fWeight;
     }
     return s_mSkin;
 }
@@ -453,7 +446,7 @@ RedSegment* __cdecl RedSegment::Read(PblFileChunk& chunk, const RedModel* pModel
 
     const bool bForceFlags = pModel && pModel->_uiNameHash == 0x33B99965;
 
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)

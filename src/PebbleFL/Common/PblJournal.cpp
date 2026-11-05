@@ -50,6 +50,6 @@ void JournalString(char* pcString, int iMax)
 }
 
 // FUNCTION: SWBF2 0x0072b350
-void __cdecl JournalReceiveTraceStub()
+void __cdecl JournalBytes(char* bytes, int len)
 {
 }

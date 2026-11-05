@@ -15,7 +15,10 @@ public:
     static void DestroyKeepProperty();
 
     static void Open();
-    static void Open(const char* const pszFile, const char* const pszName, int iHeap1, int iHeap2);
+    static void Open(const char* const pszFile, const char* const pszName, const int iHeap1,
+                     const int iHeap2, const bool bAllocTextureHeap = false,
+                     const unsigned int uiReadBufferSize = 0xFFFFFFFFu,
+                     const unsigned int uiReadSize = 0xFFFFFFFFu);
 
     static void Close();
 

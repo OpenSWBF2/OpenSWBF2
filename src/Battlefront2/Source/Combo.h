@@ -445,6 +445,12 @@ public:
         float GetVelocityX() const { return m_iVelocityX * 0.02f; }
         float GetVelocityFromThrust() const { return m_uiVelocityFromThrust * 0.1f; }
         float GetVelocityFromStrafe() const { return m_uiVelocityFromStrafe * 0.1f; }
+        bool IsGravity() const { return m_iGravity != 10; }
+        float GetGravity() const { return m_iGravity * 0.1f; }
+        bool IsVelocityYTarget() const { return m_iGravityVelocityYTarget != -2048; }
+        float GetVelocityYTarget() const { return m_iGravityVelocityYTarget * 0.1f; }
+        bool IsGravityZeroAtTarget() const { return m_bGravityZeroAtTarget != 0; }
+        bool IsVelocityYImpulse() const { return m_iGravity == GRAVITY_IMPULSE; }
         bool IsAlignedToThrust() const { return m_bAlignToThrust != 0; }
 
         // FUNCTION: SWBF2 0x00470ec0

@@ -282,12 +282,12 @@ void pcOceanShader::Render_Prog1(const RenderItem* pItem, unsigned int) const
     RedRenderer::pcUnlockVertexShaderConstants(pRegs);
 
     const RedDirectionalLight* pSun = RedLight::m_sGlobalDirectionals[0];
-    const RedColorValue lightDir(-pSun->m_vDirection.x, -pSun->m_vDirection.y,
+    const PblVector4 lightDir(-pSun->m_vDirection.x, -pSun->m_vDirection.y,
                                  -pSun->m_vDirection.z, 0.0f);
     const RedColorValue lightColor(pSun->m_color);
     const RedColorValue ambient(RedLight::m_sGlobalAmbient->m_color);
 
-    RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, &lightDir.r, 1);
+    RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, &lightDir.x, 1);
     RedRenderer::pcGetDevice()->SetPixelShaderConstantF(1, &lightColor.r, 1);
     RedRenderer::pcGetDevice()->SetPixelShaderConstantF(2, &ambient.r, 1);
 
@@ -354,7 +354,7 @@ void pcOceanShader::_InitPipelineFuncArray()
 // FUNCTION: SWBF2 0x0070c9f0
 void pcOceanShader::_Read(PblFileChunk& chunk) const
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId != 0x454d414e)

@@ -736,7 +736,7 @@ void NetPktGroup::Set(NetPacket* pPkt)
 }
 
 // FUNCTION: SWBF2 0x005d92a0
-bool NetPktGroup::IsEnd() const
+bool NetPktGroup::IsEnd()
 {
     if (!pktPtr)
     {

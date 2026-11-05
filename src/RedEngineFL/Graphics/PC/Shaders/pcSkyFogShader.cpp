@@ -130,7 +130,7 @@ void pcSkyFogShader::_InitPipelineFuncArray()
 // FUNCTION: SWBF2 0x00704390
 void pcSkyFogShader::_Read(PblFileChunk& chunk) const
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId != 0x454d414e)
@@ -279,22 +279,9 @@ void pcSkyFogShader::Render_Prog1(const RenderItem* pItem, unsigned int) const
     const float fNear = RedRenderer::pcGetNearSceneStart();
 
     pcRedVertexShaderConstantRegister* pRegs = RedRenderer::pcLockVertexShaderConstants(40, 3);
-    pRegs[40].component[0] = fNear;
-    pRegs[40].component[1] = fNear;
-    pRegs[40].component[2] = fNear;
-    pRegs[40].component[3] = 1.0f;
-    pRegs[41].component[0] = proj.m[0][2];
-    pRegs[41].component[1] = proj.m[1][2];
-    pRegs[41].component[2] = -proj.m[2][2];
-    pRegs[41].component[3] = proj.m[3][2];
-    const float fWidth = viewport.fWidth;
-    const float fHeight = viewport.fHeight;
-    const float fOffsetX = viewport.fOffsetX;
-    const float fOffsetY = viewport.fOffsetY;
-    pRegs[42].component[0] = fWidth;
-    pRegs[42].component[1] = fHeight;
-    pRegs[42].component[2] = fOffsetX;
-    pRegs[42].component[3] = fOffsetY;
+    pRegs[40].SetFloats(fNear, fNear, fNear, 1.0f);
+    pRegs[41].SetFloats(proj.m[0][2], proj.m[1][2], -proj.m[2][2], proj.m[3][2]);
+    pRegs[42].SetFloats(viewport.fWidth, viewport.fHeight, viewport.fOffsetX, viewport.fOffsetY);
     RedRenderer::pcUnlockVertexShaderConstants(pRegs);
 
     RedRenderer::pcLoadFormat(m_pVertexInputFormat);

@@ -66,7 +66,7 @@ public:
 
     struct Pose
     {
-        ZephyrAnim* m_pZephyrAnim;
+        const ZephyrAnim* m_pZephyrAnim;
         SoldierAnimatorLowRes* m_pAnimator;
     };
 
@@ -78,14 +78,14 @@ public:
 
     struct AnimPool
     {
-        ZephyrAnim** m_apZephyrAnim;
+        const ZephyrAnim** m_apZephyrAnim;
         SoldierAnimatorLowRes_Pool* m_apAnimator;
         int m_iLastUsed;
     };
 
     struct UnsharedAnimPool
     {
-        ZephyrAnim** m_apZephyrAnim;
+        const ZephyrAnim** m_apZephyrAnim;
         SoldierAnimatorLowRes_UnsharedPool* m_apAnimator;
     };
 
@@ -113,7 +113,7 @@ private:
 
 public:
     SoldierAnimatorLowResClass* m_pNext;
-    SoldierAnimatorLowResClass* m_pParent;
+    const SoldierAnimatorLowResClass* m_pParent;
     char m_szName[32];
     unsigned int m_uiNameHash;
     Pose* m_aPose;

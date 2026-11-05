@@ -841,7 +841,7 @@ static int OpenAudioStream(const char* pcName, unsigned int uiSegment)
     if (strlen(acSegment))
     {
         const unsigned int uID = PblHash(acSegment);
-        while (chunk.HasMoreChildren())
+        while (!chunk.IsDone())
         {
             child = chunk.ReadNextChild();
             if (child._iId == uID)
@@ -1416,27 +1416,6 @@ void StreamBase::SeekSegment(const Segment* pSegment)
 namespace Snd
 {
 
-// FUNCTION: SWBF2 0x0059b4e0
-StreamBase::Segment* StreamBase::FindSegment(unsigned int uiSegmentID) const
-{
-    for (const PblListSingle::Node* pLink = mInfoList.mHead.mNext; pLink != &mInfoList.mHead;
-         pLink = pLink->mNext)
-    {
-        const Info* pInfo = (const Info*)((const ObjectList::Node*)pLink)->mObject;
-        if (!pInfo)
-        {
-            break;
-        }
-        unsigned int uiKey = uiSegmentID;
-        Segment* pSegment = (Segment*)bsearch(&uiKey, pInfo->mSegments, pInfo->mNumSegments,
-                                              sizeof(Segment), Segment::CompareSearch);
-        if (pSegment)
-        {
-            return pSegment;
-        }
-    }
-    return 0;
-}
 }
 
 namespace Lua_Callbacks

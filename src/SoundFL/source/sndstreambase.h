@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdlib.h>
+
 class PblFileChunk;
 
 #include "sndobjectlist.h"
@@ -46,6 +48,7 @@ public:
 
     // FUNCTION: SWBF2 0x0059b4c0
     InfoItor GetInfoItor() const { return InfoItor(mInfoList); }
+    Info* FindInfoByIndex(unsigned int uiIndex) const;
 
     bool IsOpen() const { return !mInfoList.IsEmpty(); }
     // FUNCTION: SWBF2 0x0059b470
@@ -188,5 +191,28 @@ public:
 };
 
  
+
+inline StreamBase::Info* StreamBase::FindInfoByIndex(unsigned int uiIndex) const
+{
+    return !mInfoList.IsEmpty()
+        ? static_cast<Info*>(mInfoList.FindByIndex(uiIndex)->GetObjectA()) : 0;
+}
+
+// FUNCTION: SWBF2 0x0059b4e0
+inline StreamBase::Segment* StreamBase::FindSegment(unsigned int uiSegmentID) const
+{
+    for (InfoItor itor(mInfoList); const Info* pInfo = itor.GetInfo(); ++itor)
+    {
+        unsigned int uiKey = uiSegmentID;
+        Segment* pSegment = (Segment*)bsearch(&uiKey, pInfo->mSegments, pInfo->mNumSegments,
+                                              sizeof(Segment), Segment::CompareSearch);
+        if (pSegment)
+        {
+            return pSegment;
+        }
+    }
+    return 0;
+}
+
 
 }
