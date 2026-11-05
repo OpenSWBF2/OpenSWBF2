@@ -10,7 +10,7 @@
 class FoleyFXWalker : public FoleyFXImpact
 {
 public:
-    static void* operator new(unsigned int) { return smFreeList.Alloc(); }
+    static void* operator new(size_t) { return smFreeList.Alloc(); }
     // SYNTHETIC: SWBF2 0x0052c080
     // FoleyFXWalker::operator delete
     static void operator delete(void* p) { smFreeList.Free(p); }

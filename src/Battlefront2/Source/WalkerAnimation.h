@@ -61,7 +61,7 @@ class WalkerBlendUnit
 {
 public:
 
-    static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }
+    static void* operator new(size_t uiSize) { return sMemoryPool.Allocate(uiSize); }
     // SYNTHETIC: SWBF2 0x00675980
     // WalkerBlendUnit::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
@@ -112,7 +112,7 @@ public:
         }
     }
 
-    static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }
+    static void* operator new(size_t uiSize) { return sMemoryPool.Allocate(uiSize); }
     // SYNTHETIC: SWBF2 0x004ff680
     // WalkerBlend::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }

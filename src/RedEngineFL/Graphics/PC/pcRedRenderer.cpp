@@ -2773,13 +2773,17 @@ static unsigned int CollectAdapterModes(unsigned int uiAdapter, unsigned int uiM
                                         unsigned int uiMinHeight,
                                         DisplayLogic::DisplayModeRec* pRaw)
 {
-    unsigned int uiCount = 0;
-
     PblList<D3DAdapterInfo>& adaptors = pcRedDeviceEnumerator::GetDeviceList();
 
+    unsigned int uiFilled = 0;
     for (PblList<D3DAdapterInfo>::Itor adaptorIt = adaptors.Begin();
          adaptorIt != adaptors.End(); ++adaptorIt)
     {
+        if (adaptorIt->AdapterOrdinal != (int)uiAdapter)
+        {
+            continue;
+        }
+
         for (PblList<D3DDisplayMode>::Itor displayModeIt = adaptorIt->DisplayModeList.Begin();
              displayModeIt != adaptorIt->DisplayModeList.End(); ++displayModeIt)
         {

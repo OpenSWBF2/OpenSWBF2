@@ -25,6 +25,7 @@ namespace Globals
 
 void* (__cdecl* smAlloc)(size_t) = StubSndAlloc;
 void (__cdecl* smFree)(void*) = StubSndFree;
+::PblVector3 smNullVector;
 
 }
 

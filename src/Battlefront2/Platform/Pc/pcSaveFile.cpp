@@ -83,7 +83,7 @@ void SaveFile::MakeMetagameFilename(unsigned short* pusDest, unsigned short cons
 {
     unsigned short ausStamp[16];
     SYSTEMTIME localTime;
-    PblUnicode::ustrncpy(pusDest, pusSource, uiFilenameLen);
+    PblUnicode::ustrlcpy(pusDest, pusSource, uiFilenameLen);
     GetLocalTime(&localTime);
     SaveFile::TimeToString(ausStamp, localTime.wYear, localTime.wMonth, localTime.wDay,
                localTime.wHour, localTime.wMinute, localTime.wSecond, 16);

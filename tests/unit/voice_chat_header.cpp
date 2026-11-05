@@ -14,11 +14,11 @@ void BuildHeader(unsigned char* pBitmap, bool bRelay, unsigned int uiSender, uns
 {
     const unsigned int uiLog2 = 6;
     memset(pBitmap, 0, 9);
-    VoiceChat::SetBits(pBitmap, 0, bRelay ? 1 : 0, 1);
-    VoiceChat::SetBits(pBitmap, 12, uiSender, uiLog2);
+    VoiceChat::SetBits(pBitmap, bRelay ? 1 : 0, 0, 1);
+    VoiceChat::SetBits(pBitmap, uiSender, 12, uiLog2);
     if (!bRelay)
     {
-        VoiceChat::SetBits(pBitmap, 12 + uiLog2, uiReceiver, uiLog2);
+        VoiceChat::SetBits(pBitmap, uiReceiver, 12 + uiLog2, uiLog2);
     }
 }
 

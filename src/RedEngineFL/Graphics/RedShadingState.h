@@ -17,7 +17,7 @@ class RedShadingState : public PblRef
 public:
 
     RedShadingState(unsigned int uiRenderTypeHash);
-    static void* operator new(unsigned int uiSize);
+    static void* operator new(size_t uiSize);
     static void operator delete(void* pBlock);
 
     static MemoryPool sMemoryPool;
@@ -70,7 +70,7 @@ public:
 
     struct Entry
     {
-        static void* operator new(unsigned int uiSize);
+        static void* operator new(size_t uiSize);
         static void operator delete(void* pBlock);
 
         static MemoryPool sMemoryPool;
@@ -93,7 +93,7 @@ public:
  
  
 
-inline void* RedShadingState::operator new(unsigned int uiSize)
+inline void* RedShadingState::operator new(size_t uiSize)
 {
     return sMemoryPool.Allocate(uiSize);
 }

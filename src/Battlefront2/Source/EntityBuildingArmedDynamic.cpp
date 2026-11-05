@@ -115,7 +115,7 @@ EntityBuildingArmedDynamic::EntityBuildingArmedDynamic(EntityBuildingArmedDynami
 // SYNTHETIC: SWBF2 0x00496e03
 // ??_EEntityBuildingArmedDynamic@@WCGA@AEPAXI@Z
 
-inline void* EntityBuildingArmedDynamic::operator new(unsigned int uSize)
+inline void* EntityBuildingArmedDynamic::operator new(size_t uSize)
 {
     return sMemoryPool.Allocate(uSize);
 }

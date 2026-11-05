@@ -231,7 +231,7 @@ bool GameVoiceChat::Decoder::Open(unsigned int playbackDevice, float fPacketMs, 
         ::new (&mProducerPackets[i]) Snd::StreamPacket();
         ::new (&mDecoders[i]) Snd::StreamGSMDecoder();
         ::new (&mDecoderPackets[i]) Snd::StreamPacket();
-        ::new (&mMixerConnections[i]) Snd::StreamPacket();
+        GameVoiceChat::ClearMixerConnection(mMixerConnections, i);
         ::new (&mMixerPacketIO[i]) Snd::StreamPacketIO;
     }
 

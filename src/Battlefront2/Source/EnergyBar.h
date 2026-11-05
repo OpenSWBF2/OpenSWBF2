@@ -52,7 +52,7 @@ public:
     bool IsOverheating() const { return m_bOverheat != 0; }
     static void SetupMemoryPool(unsigned int count, unsigned int size,
                                 unsigned int grow) { sMemoryPool.Setup(count, size, grow); }
-    static void* operator new(unsigned int size) { return sMemoryPool.Allocate(size); }
+    static void* operator new(size_t size) { return sMemoryPool.Allocate(size); }
     static void operator delete(void* block) { sMemoryPool.Free(block); }
 
     static MemoryPool sMemoryPool;

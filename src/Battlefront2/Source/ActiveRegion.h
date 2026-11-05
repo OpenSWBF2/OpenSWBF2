@@ -26,7 +26,7 @@ public:
 
     PblBitVector<600> GetPlayersInRegion();
 
-    static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }
+    static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
 
     // SYNTHETIC: SWBF2 0x004375c0
     // ActiveRegions::ActiveRegion::operator delete

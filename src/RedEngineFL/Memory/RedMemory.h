@@ -18,7 +18,9 @@ extern "C"
     void RedMarkHeapPermanent(int heap, bool permanent);
     void RedSetTempHeap(int heap);
 
-    unsigned int RedGetHeapFree(int heap);
+    PBL_ASAN_NO_SANITIZE unsigned int RedGetHeapFree(int heap);
+    char const* RedGetHeapName(int heap);
+    extern void (*OnFailure)(int heap, unsigned int size);
     void RedMoveHeapEnd(int heap, int offset);
 
     extern int __RedCurrHeap;

@@ -29,7 +29,7 @@ public:
             ~Properties()
             {
             }
-            static void* operator new(unsigned int) { return smFreeList.Alloc(); }
+            static void* operator new(size_t) { return smFreeList.Alloc(); }
             static void operator delete(void* p) { smFreeList.Free(p); }
 
             const ParameterGraph* mGraph;
@@ -48,7 +48,7 @@ public:
         // FUNCTION: SWBF2 0x00735790
         Layer() { Reset(); }
 
-        static void* __cdecl operator new(unsigned int) { return smFreeList.Alloc(); }
+        static void* __cdecl operator new(size_t) { return smFreeList.Alloc(); }
         // FUNCTION: SWBF2 0x00735ae0
         static void __cdecl operator delete(void* p) { smFreeList.Free(p); }
 
@@ -67,7 +67,7 @@ public:
         public:
             Properties();
             ~Properties();
-            static void* operator new(unsigned int) { return smFreeList.Alloc(); }
+            static void* operator new(size_t) { return smFreeList.Alloc(); }
             static void operator delete(void* p) { smFreeList.Free(p); }
 
             void Read(PblFileChunk& chunk);
@@ -89,7 +89,7 @@ public:
         Properties();
 
         ~Properties();
-        static void* operator new(unsigned int) { return smFreeList.Alloc(); }
+        static void* operator new(size_t) { return smFreeList.Alloc(); }
         static void operator delete(void* p) { smFreeList.Free(p); }
 
         static void __cdecl Load(PblFileChunk& chunk, bool bOnce);

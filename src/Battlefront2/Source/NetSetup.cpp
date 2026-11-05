@@ -2739,7 +2739,7 @@ extern bool netLobbyRequestPending;
 extern bool netLeavingLobby;
 extern unsigned __int64 netCreatedLobbyId;
 extern bool gGalaxyInitialized;
-void* GetGalaxyMatchmaking();
+galaxy::api::IMatchmaking* GetGalaxyMatchmaking();
 namespace gf
 {
 bool checkError();
@@ -5787,8 +5787,8 @@ bool CNetFindGame::Update()
                 {
                     continue;
                 }
-                void* networking = GetGalaxyNetworkingInterface();
-                int ping = ((galaxy::api::INetworking*)networking)->GetPingWith(itor->mAddr.mGalaxyId);
+                galaxy::api::INetworking* networking = GetGalaxyNetworkingInterface();
+                int ping = networking->GetPingWith(itor->mAddr.mGalaxyId);
                 float pingTime = fmaxf(0.0f, (float)ping * 0.001f);
                 itor->mFindData.mPingTime = pingTime;
             }

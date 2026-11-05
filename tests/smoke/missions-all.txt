@@ -12,7 +12,7 @@ dea1c_con Pass
 dea1g_1flag TimeOut
 dea1g_c TimeOut
 dea1g_con Pass
-end1g_1flag Pass
+end1g_1flag Pass 240
 end1g_con Pass
 end1g_hunt Pass
 fel1c_1flag Pass
@@ -25,7 +25,7 @@ geo1c_con Pass
 geo1c_ctf Pass
 geo1c_hunt Pass
 geo1c_xl Pass
-hot1g_1flag Pass
+hot1g_1flag Pass 240
 hot1g_c TimeOut
 hot1g_con Pass
 hot1g_hunt Pass
@@ -93,11 +93,11 @@ tat2g_con Pass
 tat2g_ctf Pass
 tat2g_eli Pass
 tat2g_hunt Pass
-tat3c_1flag Pass
+tat3c_1flag Pass 240
 tat3c_con Pass
 tat3g_1flag Pass
 tat3g_con Pass
-uta1c_1flag Pass
+uta1c_1flag Pass 240
 uta1c_c TimeOut
 uta1c_con Pass
 uta1g_1flag TimeOut

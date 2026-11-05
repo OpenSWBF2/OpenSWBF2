@@ -21,7 +21,7 @@ public:
 
     AllocType GetAllocType() const { return (AllocType)mAllocType; }
 
-    static void* operator new(unsigned int uiSize, void* pMemory, bool bTemp)
+    static void* operator new(size_t uiSize, void* pMemory, bool bTemp)
     {
         void* p;
         AllocType eType;
@@ -47,7 +47,7 @@ public:
         return p;
     }
 
-    static void operator delete(void* p, unsigned int  )
+    static void operator delete(void* p, size_t  )
     {
         switch (((T*)p)->GetAllocType())
         {

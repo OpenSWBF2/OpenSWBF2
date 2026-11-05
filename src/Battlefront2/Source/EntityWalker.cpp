@@ -10,6 +10,7 @@
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 #include "GameLoop.h"
 #include "WalkerLegPair.h"
+#include "WalkerLegPairBounds.h"
 #include "PebbleFL/Common/PblAngle.h"
 #include <math.h>
 #include <stdio.h>
@@ -603,11 +604,7 @@ void ReadAngleLimits(const char* pszValue, float& rMin, float& rMax)
 
 static WalkerLegPairInfo* CurLegPair(WalkerLegPairInfo* pInfo, int iCount)
 {
-    if (pInfo && sCurPair >= 0 && sCurPair < iCount)
-    {
-        return &pInfo[sCurPair];
-    }
-    return 0;
+    return LegPairAt(pInfo, sCurPair, iCount);
 }
 
 // FUNCTION: SWBF2 0x005087b0
@@ -1126,14 +1123,7 @@ void EntityWalkerClass::SetProperty(unsigned int uProperty, const char* pszValue
     {
         int iCount = 0;
         sscanf(pszValue, "%d", &iCount);
-        if (iCount < 0)
-        {
-            iCount = 0;
-        }
-        else if (iCount > 3)
-        {
-            iCount = 3;
-        }
+        iCount = ClampLegPairCount(iCount);
         if (mLegPairInfo == sOwnLegPairInfo)
         {
             delete[] mLegPairInfo;
@@ -1512,7 +1502,7 @@ static bool sBipedHack;
 
 
 
-inline void* WalkerLegPair::operator new(unsigned int uSize)
+inline void* WalkerLegPair::operator new(size_t uSize)
 {
     return sMemoryPool.Allocate(uSize);
 }
@@ -4324,8 +4314,8 @@ bool EntityWalker::PostCollisionUpdate(float fDeltaTime)
         {
             gameObjectInterpolator.SetNext(mNetUniqueId, &GetSmoothedMatrix());
             float fBlendTurn = mBlend->GetTurnState();
-            float fFrontTurn = mLegPairCount > 0 ? mLegPairs[0]->GetTurnState() : 0.0f;
-            float fBackTurn = mLegPairCount > 1 ? mLegPairs[1]->GetTurnState() : 0.0f;
+            float fFrontTurn = LegPairTurnState(mLegPairs, mLegPairCount, 0);
+            float fBackTurn = LegPairTurnState(mLegPairs, mLegPairCount, 1);
             gameObjectInterpolator.SetNextFloat(mNetUniqueId, 0, fBlendTurn);
             gameObjectInterpolator.SetNextFloat(mNetUniqueId, 1, fFrontTurn);
             gameObjectInterpolator.SetNextFloat(mNetUniqueId, 2, fBackTurn);

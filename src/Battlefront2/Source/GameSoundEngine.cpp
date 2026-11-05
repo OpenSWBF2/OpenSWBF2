@@ -135,7 +135,7 @@ void SetHeap(int iHeap)
 }
 
 // FUNCTION: SWBF2 0x005387a0
-void* __cdecl SndAlloc(unsigned int uiSize)
+void* __cdecl SndAlloc(size_t uiSize)
 {
     return RedAllocFromHeap(GameSoundEngine::gSoundHeap, uiSize, 0);
 }
@@ -147,7 +147,7 @@ void __cdecl SndFree(void* pBlock)
 }
 
 // FUNCTION: SWBF2 0x005387e0
-void* __cdecl SndTempAlloc(unsigned int uiSize)
+void* __cdecl SndTempAlloc(size_t uiSize)
 {
     return RedAllocFromHeap(GameMemory::RunTimeHeap, uiSize, 0);
 }

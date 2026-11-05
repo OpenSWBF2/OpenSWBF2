@@ -83,7 +83,7 @@ public:
 
     bool operator()(GameObject& object, PARAM&) const
     {
-        return (*(const int*)((const char*)&object + 0x234) << 28 >> 28) == mTeam;
+        return object.GetTeam() == mTeam;
     }
 
     bool operator==(const ObjectMatchesTeam& other) const

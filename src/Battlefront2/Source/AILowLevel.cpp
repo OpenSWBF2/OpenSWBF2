@@ -86,7 +86,7 @@ namespace
     }
 }
 
-inline void* Navigator::operator new(unsigned int uiSize)
+inline void* Navigator::operator new(size_t uiSize)
 {
     return sMemoryPool.Allocate(uiSize);
 }

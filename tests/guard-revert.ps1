@@ -5,17 +5,24 @@ param(
     [string]$Scratch,
     [string]$RowsFile,
     [int]$CaseTimeout = 30,
-    [ValidateSet('', 'Debug', 'Release', 'Test')][string]$Configuration = ''
+    [ValidateSet('', 'Debug', 'Release', 'Test')][string]$Configuration = '',
+    [switch]$Full,
+    [switch]$ListSelected,
+    [string]$ProvenFile
 )
 $ErrorActionPreference = 'Stop'
 if ($Row) { $Row = @($Row | ForEach-Object { $_ -split ',' }) }
 $testsDir = $PSScriptRoot
 $root = Split-Path $testsDir -Parent
 if (-not $RowsFile) { $RowsFile = Join-Path $testsDir 'guardrevert\rows.ps1' }
+if (-not $ProvenFile) { $ProvenFile = Join-Path $testsDir 'guardrevert\proven.tsv' }
+$ProvenFile = [IO.Path]::GetFullPath($ProvenFile)
+$script:ProofColumns = @('Id', 'RowHash', 'DepDigest', 'TriggerDigest', 'Toolset', 'Tree', 'Commit', 'Result', 'Control', 'Config', 'Date')
 if (-not $Scratch) { $Scratch = Join-Path $root 'artifacts\guard-revert\wt' }
 $Scratch = [IO.Path]::GetFullPath($Scratch)
 if ($env:TEMP -and $Scratch.StartsWith([IO.Path]::GetFullPath($env:TEMP), [StringComparison]::OrdinalIgnoreCase)) { Write-Host 'Scratch must not be under TEMP: MSBuild incremental builds miss header changes there.'; exit 2 }
 . (Join-Path $testsDir 'smoke.ps1')
+. (Join-Path $testsDir 'guardrevert\select.ps1')
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 if (-not $OutDir) { $OutDir = Join-Path $root "artifacts\guard-revert\$stamp" }
 $script:TestsConfiguration = 'Debug'
@@ -140,6 +147,101 @@ function Set-Anchor([string]$path, [string]$anchor, [string]$replacement) {
     return $bytes
 }
 
+function Get-GitList([string[]]$gitArgs) {
+    return @(((Invoke-Git $root $gitArgs) -join "`n").Split([char]0) | Where-Object { $_ })
+}
+
+function Get-GuardHashes {
+    $h = New-Object System.Collections.Hashtable ([StringComparer]::OrdinalIgnoreCase)
+    foreach ($e in (Get-GitList @('ls-files', '-s', '-z'))) {
+        $tab = $e.IndexOf("`t")
+        $h[$e.Substring($tab + 1).Replace('/', '\')] = $e.Split(' ')[1]
+    }
+    $live = @()
+    foreach ($p in (@(Get-GitList @('diff', '--name-only', '-z', 'HEAD')) + @(Get-GitList @('ls-files', '--others', '--exclude-standard', '-z')))) {
+        $k = $p.Replace('/', '\')
+        if (Test-Path -LiteralPath (Join-Path $root $k) -PathType Leaf) { $live += $p }
+        else { $h.Remove($k) }
+    }
+    if ($live.Count) {
+        $ErrorActionPreference = 'Continue'
+        $out = @($live | & git -C $root hash-object --stdin-paths)
+        if ($LASTEXITCODE -ne 0 -or $out.Count -ne $live.Count) { throw 'git hash-object failed' }
+        for ($i = 0; $i -lt $live.Count; $i++) { $h[$live[$i].Replace('/', '\')] = "$($out[$i])".Trim() }
+    }
+    return $h
+}
+
+function Get-GuardTestInfo {
+    $sources = @{}
+    $dups = @{}
+    $literals = @{}
+    foreach ($f in (Get-ChildItem -LiteralPath $testsDir -Recurse -File -Filter '*.cpp' | Where-Object { $_.FullName -notmatch '\\tests\\third_party\\' })) {
+        $rel = $f.FullName.Substring($root.Length + 1)
+        $text = [IO.File]::ReadAllText($f.FullName)
+        foreach ($m in [regex]::Matches($text, 'TEST_CASE\s*\(\s*"((?:[^"\\]|\\.)*)"')) {
+            $name = $m.Groups[1].Value -replace '\\(.)', '$1'
+            if ($sources.ContainsKey($name) -and $sources[$name] -ne $rel) { $dups[$name] = $true }
+            $sources[$name] = $rel
+        }
+        $lits = New-Object System.Collections.Generic.List[string]
+        foreach ($m in [regex]::Matches($text, '"((?:[^"\\\r\n]|\\.)*)"')) {
+            $v = $m.Groups[1].Value
+            if ($v -match '^(?:src\\\\|src/|\.\./src/|data\\\\|data/|\.\./data/)') { $lits.Add((($v -replace '^\.\./', '').Replace('\\', '\').Replace('/', '\'))) }
+            elseif ($v -match '^corpus(?:$|\\\\|/)') { $lits.Add('tests\' + $v.Replace('\\', '\').Replace('/', '\')) }
+        }
+        if ($lits.Count) { $literals[$rel] = @($lits | Select-Object -Unique) }
+    }
+    foreach ($name in $dups.Keys) { $sources.Remove($name) }
+    return @{ Sources = $sources; Literals = $literals }
+}
+
+function Get-TestsProjectGameTUs {
+    $xml = [IO.File]::ReadAllText((Join-Path $testsDir 'OpenSWBF2Tests.vcxproj'))
+    return @([regex]::Matches($xml, '<ClCompile\s+Include="\.\.\\(src\\[^"]+)"') | ForEach-Object { $_.Groups[1].Value })
+}
+
+function Read-GuardProofs([string]$path) {
+    $proofs = @{}
+    if (-not (Test-Path -LiteralPath $path)) { return $proofs }
+    $lines = @([IO.File]::ReadAllLines($path) | Where-Object { $_ })
+    if ($lines.Count -lt 2) { return $proofs }
+    $cols = $lines[0].Split("`t")
+    foreach ($l in ($lines | Select-Object -Skip 1)) {
+        $f = $l.Split("`t")
+        $o = [ordered]@{}
+        for ($i = 0; $i -lt $cols.Count; $i++) { $o[$cols[$i]] = $(if ($i -lt $f.Count) { $f[$i] } else { '' }) }
+        if ($o.Id) { $proofs[$o.Id] = [pscustomobject]$o }
+    }
+    return $proofs
+}
+
+function Add-GuardProof($r, [string]$ctl, [string]$result) {
+    if (-not $script:TreeClean) { return }
+    $d = $script:Decisions[$r.Id]
+    $dep = $d.DepDigest
+    if ($d.Doubt) { $dep = '-' }
+    $date = [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ')
+    $line = @($r.Id, $d.RowHash, $dep, $d.TriggerDigest, $script:Toolset, $script:Tree, $script:Commit, $result, $ctl, $script:ProofConfig, $date) -join "`t"
+    [IO.File]::AppendAllText($script:PartialFile, $line + "`r`n")
+}
+
+function Merge-GuardProofs {
+    if (-not $script:PartialFile -or -not (Test-Path -LiteralPath $script:PartialFile)) { return }
+    $byId = New-Object 'System.Collections.Generic.SortedDictionary[string,string]' ([StringComparer]::Ordinal)
+    $old = Read-GuardProofs $ProvenFile
+    foreach ($id in $old.Keys) {
+        $p = $old[$id]
+        $byId[$id] = @($script:ProofColumns | ForEach-Object { [string]$p.$_ }) -join "`t"
+    }
+    foreach ($l in [IO.File]::ReadAllLines($script:PartialFile)) {
+        if ($l) { $byId[$l.Split("`t")[0]] = $l }
+    }
+    New-Item -ItemType Directory -Force -Path (Split-Path $ProvenFile -Parent) | Out-Null
+    $text = ((@($script:ProofColumns -join "`t") + @($byId.Values)) -join "`r`n") + "`r`n"
+    [IO.File]::WriteAllText($ProvenFile, $text)
+}
+
 try {
     . $RowsFile
     $rows = @($GuardRevertRows)
@@ -147,6 +249,71 @@ try {
     if ($dupIds.Count) { throw "duplicate row Id: $($dupIds -join ', ')" }
     if ($Row) { $rows = @($rows | Where-Object { $Row -contains $_.Id }) }
     if ($rows.Count -eq 0) { Write-Host 'No rows selected.'; exit 2 }
+    $vsTools = Find-VsTools
+    $script:Toolset = 'unknown'
+    if ($vsTools) { $script:Toolset = $vsTools.ToolsVersion }
+    $script:ProofConfig = "$script:TestsConfiguration/$script:GameConfiguration"
+    $statusArgs = @('status', '--porcelain', '--untracked-files=normal', '--', '.', ':!tests/guardrevert/proven.tsv')
+    $rootPrefix = $root.TrimEnd('\') + '\'
+    if ($ProvenFile.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+        $statusArgs += ':!' + $ProvenFile.Substring($rootPrefix.Length).Replace('\', '/')
+    }
+    New-Item -ItemType Directory -Force -Path (Join-Path $root 'artifacts') | Out-Null
+    Set-Content -Path (Join-Path $root 'artifacts\.gitignore') -Value '*' -Encoding ASCII
+    $before = (Invoke-Git $root $statusArgs) -join "`n"
+    $script:TreeClean = -not $before
+    $script:Tree = "$(Invoke-Git $root @('rev-parse', 'HEAD^{tree}'))".Trim()
+    $script:Commit = "$(Invoke-Git $root @('rev-parse', 'HEAD'))".Trim()
+    $script:TreeChanged = $false
+    $proofs = Read-GuardProofs $ProvenFile
+    $testInfo = Get-GuardTestInfo
+    $tlogRoot = $root.TrimEnd('\') + '\'
+    $selIn = @{
+        Rows = $rows
+        Proofs = $proofs
+        Hashes = (Get-GuardHashes)
+        TestsReads = (Read-ClReadTlog (Join-Path $root "obj\Tests\$script:TestsConfiguration\OpenSWBF2Tests.tlog\CL.read.1.tlog") $tlogRoot)
+        AsanReads = (Read-ClReadTlog (Join-Path $root 'obj\Tests\Asan\OpenSWBF2Tests.tlog\CL.read.1.tlog') $tlogRoot)
+        GameReads = (Read-ClReadTlog (Join-Path $root "obj\Win32\$script:GameConfiguration\BattlefrontII.tlog\CL.read.1.tlog") $tlogRoot)
+        TestsProjectGameTUs = (Get-TestsProjectGameTUs)
+        TestSources = $testInfo.Sources
+        TestLiterals = $testInfo.Literals
+        GlobalTriggers = $script:GuardGlobalTriggers
+        Toolset = $script:Toolset
+    }
+    $script:Decisions = @{}
+    foreach ($d in @(Select-GuardRows $selIn)) {
+        $p = $proofs[$d.Id]
+        if ($d.Action -eq 'CARRY' -and $p.Config -ne $script:ProofConfig) { $d.Action = 'SELECT'; $d.Reason = "config $($p.Config)" }
+        if ($Row) { $d.Action = 'SELECT'; $d.Reason = 'named' }
+        elseif ($Full -and $d.Action -eq 'CARRY') { $d.Action = 'SELECT'; $d.Reason = 'full' }
+        $script:Decisions[$d.Id] = $d
+    }
+    $carryLines = @()
+    $listLines = @()
+    foreach ($r in $rows) {
+        $d = $script:Decisions[$r.Id]
+        if ($d.Action -eq 'SELECT') { $listLines += "SELECT $($d.Id) $($d.Kind) $($d.Reason)" }
+        else {
+            $p = $proofs[$d.Id]
+            $line = "CARRY $($d.Id) $($d.Kind) $($p.Commit) $($p.Tree) $($p.Date)"
+            $carryLines += $line
+            $listLines += $line
+        }
+    }
+    $rows = @($rows | Where-Object { $script:Decisions[$_.Id].Action -eq 'SELECT' })
+    $totals = "selected $($rows.Count) carried $($carryLines.Count)"
+    if ($ListSelected) {
+        $listLines | ForEach-Object { Write-Host $_ }
+        Write-Host $totals
+        exit 0
+    }
+    if ($rows.Count -eq 0) {
+        $carryLines | ForEach-Object { Write-Host $_ }
+        Write-Host $totals
+        exit 0
+    }
+    if (-not $script:TreeClean) { Write-Host 'PROOFS NOT RECORDED: tree not clean' }
     $selectedIds = @($rows | ForEach-Object { $_.Id })
     $smokeRows = @($rows | Where-Object { $_.Kind -eq 'Smoke' })
     $hardRows = @($rows | Where-Object { $_.Kind -eq 'Hardening' })
@@ -166,9 +333,9 @@ try {
 
     $msbuild = Find-MSBuild
     New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
+    $script:PartialFile = Join-Path $OutDir 'proven.partial.tsv'
     New-Item -ItemType Directory -Force -Path $Scratch | Out-Null
     $wt = Join-Path $Scratch "gr-$stamp"
-    $before = (Invoke-Git $root @('status', '--porcelain')) -join "`n"
     $table = @()
     $failed = $false
     $added = $false
@@ -240,6 +407,7 @@ try {
                 }
                 $table += New-Object PSObject -Property @{ Id = $r.Id; Tests = ($r.Tests -join ' | '); Control = $ctl; Reverted = $result; Exit = $code; Detail = $detail }
                 if ($result -ne 'RED' -or $ctl -ne 'GREEN') { $failed = $true }
+                else { Add-GuardProof $r 'GREEN' 'RED' }
                 Write-Host ('{0,-12} control={1,-8} reverted={2,-11} exit={3} {4}' -f $r.Id, $ctl, $result, $code, $detail)
             }
         }
@@ -307,23 +475,34 @@ try {
                 }
                 $table += New-Object PSObject -Property @{ Id = $r.Id; Tests = ($r.Tests -join ' | '); Control = $ctl; Reverted = $result; Exit = $code; Detail = $detail }
                 if ($result -ne 'RED' -or $ctl -ne 'GREEN') { $failed = $true }
+                elseif ($r.Kind -eq 'AsanCanary') { Add-GuardProof $r 'REPORTED' 'CLEAN' }
+                else { Add-GuardProof $r 'GREEN' 'RED' }
                 Write-Host ('{0,-12} control={1,-8} reverted={2,-11} exit={3} {4}' -f $r.Id, $ctl, $result, $code, $detail)
             }
         }
 
         if ($hardRows.Count -gt 0) {
             $wtExe = Join-Path $wt "bin\Win32\$script:GameConfiguration\BattlefrontII.exe"
-            $getCheck = {
-                param($name)
-                $db = Find-Dumpbin
-                $hdr = (& $db /headers $wtExe) -join "`n"
-                $imp = (& $db /imports $wtExe) -join "`n"
-                return ((@(Get-HardeningChecks $hdr '' 0 0 0) + @(Get-ImportChecks $imp) + @(Get-SourceChecks $wt)) | Where-Object { $_.Name -eq $name })
+            $binNames = @((@(Get-HardeningChecks '' '' 0 0 0) + @(Get-ImportChecks '')) | ForEach-Object { $_.Name })
+            $getChecks = {
+                param([string[]]$names)
+                $res = @()
+                if (@($names | Where-Object { $binNames -contains $_ }).Count) {
+                    $db = Find-Dumpbin
+                    $hdr = (& $db /headers $wtExe) -join "`n"
+                    $imp = (& $db /imports $wtExe) -join "`n"
+                    $res += @(Get-HardeningChecks $hdr '' 0 0 0) + @(Get-ImportChecks $imp)
+                }
+                $srcNames = @($names | Where-Object { $binNames -notcontains $_ })
+                if ($srcNames.Count) { $res += @(Get-SourceChecks $wt -Only $srcNames) }
+                return @($res | Where-Object { $names -contains $_.Name })
             }
             if (-not (Build-Game $wt (Join-Path $OutDir 'build-hardening-control.log'))) { throw "hardening control build failed, see $(Join-Path $OutDir 'build-hardening-control.log')" }
             $hardControl = @{}
-            foreach ($name in ($hardRows | ForEach-Object { $_.Check } | Select-Object -Unique)) {
-                $hardControl[$name] = [bool](& $getCheck $name).Ok
+            $hardNames = @($hardRows | ForEach-Object { $_.Check } | Select-Object -Unique)
+            $hardAll = @(& $getChecks $hardNames)
+            foreach ($name in $hardNames) {
+                $hardControl[$name] = [bool](@($hardAll | Where-Object { $_.Name -eq $name }) | Select-Object -First 1).Ok
             }
             foreach ($r in $hardRows) {
                 $path = Join-Path $wt $r.File
@@ -335,7 +514,7 @@ try {
                 try {
                     $orig = Set-Anchor $path $r.Anchor $r.Replacement
                     if (Build-Game $wt (Join-Path $OutDir "build-$($r.Id).log")) {
-                        $chk = & $getCheck $r.Check
+                        $chk = @(& $getChecks @($r.Check)) | Select-Object -First 1
                         $detail = "check=$($r.Check) ok=$($chk.Ok)"
                         if ($chk.Ok) { $result = 'STILL-GREEN' } else { $result = 'RED' }
                     }
@@ -349,6 +528,7 @@ try {
                 }
                 $table += New-Object PSObject -Property @{ Id = $r.Id; Tests = "hardening:$($r.Check)"; Control = $ctl; Reverted = $result; Exit = ''; Detail = $detail }
                 if ($result -ne 'RED' -or $ctl -ne 'GREEN') { $failed = $true }
+                else { Add-GuardProof $r 'GREEN' 'RED' }
                 Write-Host ('{0,-12} control={1,-8} reverted={2,-11} {3}' -f $r.Id, $ctl, $result, $detail)
             }
         }
@@ -373,6 +553,7 @@ try {
                 if (-not (& $buildProj $project $log)) { throw "tlog control build failed, see $log" }
             }
             $tlogControl = @{}
+            $tlogProven = @()
             foreach ($name in ($tlogRows | ForEach-Object { $_.Check } | Select-Object -Unique)) {
                 $tlogControl[$name] = & $getFlag $name
             }
@@ -405,17 +586,20 @@ try {
                 }
                 $table += New-Object PSObject -Property @{ Id = $r.Id; Tests = "tlog:$($r.Check)"; Control = $ctl; Reverted = $result; Exit = ''; Detail = $detail }
                 if ($result -ne 'RED' -or $ctl -ne 'GREEN') { $failed = $true }
+                else { $tlogProven += $r }
                 Write-Host ('{0,-16} control={1,-8} reverted={2,-11} {3}' -f $r.Id, $ctl, $result, $detail)
             }
             foreach ($project in ($tlogRows | ForEach-Object { $_.Project } | Select-Object -Unique)) {
                 $log = Join-Path $OutDir "build-tlog-restored-$project.log"
                 if (-not (& $buildProj $project $log)) { throw "tlog restored build failed, see $log" }
             }
+            $restoredOk = $true
             foreach ($name in $tlogControl.Keys) {
                 $chk = & $getFlag $name
                 Write-Host ('tlog restored {0}: ok={1} {2}' -f $name, $chk.Ok, $chk.Detail)
-                if (-not $chk.Ok) { $failed = $true }
+                if (-not $chk.Ok) { $failed = $true; $restoredOk = $false }
             }
+            if ($restoredOk) { foreach ($r in $tlogProven) { Add-GuardProof $r 'GREEN' 'RED' } }
         }
 
         if ($smokeRows.Count -gt 0) {
@@ -455,6 +639,7 @@ try {
                 }
                 $table += New-Object PSObject -Property @{ Id = $r.Id; Tests = "smoke:$($r.Case)"; Control = $ctl; Reverted = $result; Exit = $code; Detail = $detail }
                 if ($result -ne 'RED' -or $ctl -ne 'GREEN') { $failed = $true }
+                else { Add-GuardProof $r 'GREEN' 'RED' }
                 Write-Host ('{0,-12} control={1,-8} reverted={2,-11} exit={3} {4}' -f $r.Id, $ctl, $result, $code, $detail)
             }
         }
@@ -481,6 +666,18 @@ try {
             }
         }
         & git -C $root worktree prune 2>&1 | Out-Null
+        $script:TreeChanged = $true
+        try {
+            $after = (Invoke-Git $root $statusArgs) -join "`n"
+            $headAfter = "$(Invoke-Git $root @('rev-parse', 'HEAD'))".Trim()
+            $script:TreeChanged = ($after -ne $before) -or ($headAfter -ne $script:Commit)
+        }
+        catch { Write-Host "STATUS CHECK FAILED: $($_.Exception.Message)" }
+        if ($script:TreeChanged) { Write-Host 'PROOFS NOT RECORDED: main tree changed during the run' }
+        else {
+            try { Merge-GuardProofs }
+            catch { Write-Host "PROOF MERGE FAILED: $($_.Exception.Message)"; $cleanupFailed = $true }
+        }
     }
 
     $lines = @()
@@ -489,6 +686,8 @@ try {
         $lines += ('{0,-12} {1,-8} {2,-11} {3,-10} {4} {5}' -f $t.Id, $t.Control, $t.Reverted, $t.Exit, $t.Tests, $t.Detail)
     }
     Write-Host ''
+    $carryLines | ForEach-Object { Write-Host $_ }
+    Write-Host $totals
     $lines | ForEach-Object { Write-Host $_ }
     $lines | Set-Content -Path (Join-Path $OutDir 'summary.txt') -Encoding ASCII
     Write-Host "Artifacts: $OutDir"
@@ -507,7 +706,6 @@ catch {
     exit 1
 }
 
-$after = (Invoke-Git $root @('status', '--porcelain')) -join "`n"
-if ($before -ne $after) { Write-Host 'WARNING: main tree status changed during the run.'; exit 1 }
+if ($script:TreeChanged) { Write-Host 'WARNING: main tree status changed during the run.'; exit 1 }
 if ($failed -or $cleanupFailed) { exit 1 }
 exit 0

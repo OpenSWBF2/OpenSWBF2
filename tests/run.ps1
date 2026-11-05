@@ -38,6 +38,12 @@ if ($Clean) {
             Write-Host "Removed $d"
         }
     }
+    $artifacts = Join-Path $root 'artifacts'
+    $artLinks = @(Get-ReparsePoints $artifacts)
+    if ($artLinks.Count -gt 0) {
+        Remove-Junctions $artifacts
+        Write-Host "Removed $($artLinks.Count) junction(s) under $artifacts"
+    }
     exit 0
 }
 

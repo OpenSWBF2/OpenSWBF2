@@ -2,6 +2,7 @@
 #include "Battlefront2/Source/SunFlare.h"
 #include "pcSunFlare.h"
 #include "PebbleFL/Common/PblHashTable.h"
+#include "PebbleFL/Common/PblListDelete.h"
 #include "PebbleFL/Common/PblVector.h"
 #include "RedEngineFL/Graphics/RedColor.h"
 #include "RedEngineFL/Graphics/PC/pcRedPrimitive.h"
@@ -375,10 +376,7 @@ void SunFlareEffect::RenderSky(unsigned int uiPass) const
 // FUNCTION: SWBF2 0x0042dfa0
 void SunFlareEffect::SunFlareList::Cleanup()
 {
-    while (GetCount() > 0)
-    {
-        delete GetFirst()->_pObject;
-    }
+    PblListDeleteSelfRemoving(*this);
     Clear();
 }
 

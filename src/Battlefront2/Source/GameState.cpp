@@ -1345,7 +1345,7 @@ void GameState::MissionState::Enter()
     GameLoop::Init();
     GameLoop::PostLoad();
 
-    unsigned int uiCount = *(unsigned int*)((char*)CameraManager::sInstance + 0x1c);
+    unsigned int uiCount = CameraManager::sInstance->m_iNumCam;
     for (unsigned int i = 0; i < uiCount; ++i)
     {
         int iIndex = FLInputManager::s_instance.GetHWPort(i);

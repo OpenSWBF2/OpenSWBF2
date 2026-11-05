@@ -2657,6 +2657,9 @@
     <ClInclude Include="src\Battlefront2\Source\Damageable.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\DataFileName.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\DeathCamera.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
@@ -2688,6 +2691,9 @@
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\DustEffect.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\EffectAttach.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\EndDisplay.h">
@@ -3054,6 +3060,9 @@
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\HeroMessageDisplay.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\HeroSlots.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\HintManager.h">
@@ -3542,6 +3551,9 @@
     <ClInclude Include="src\Battlefront2\Source\SquadCommands.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\SquadronFormation.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\StatIconDisplay.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
@@ -3711,6 +3723,9 @@
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\WalkerLegPair.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\WalkerLegPairBounds.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\WaterEffect.h">
@@ -3900,6 +3915,9 @@
       <Filter>src\PebbleFL\Common</Filter>
     </ClInclude>
     <ClInclude Include="src\PebbleFL\Common\PblList.h">
+      <Filter>src\PebbleFL\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="src\PebbleFL\Common\PblListDelete.h">
       <Filter>src\PebbleFL\Common</Filter>
     </ClInclude>
     <ClInclude Include="src\PebbleFL\Common\PblListDouble.h">
@@ -4419,6 +4437,9 @@
       <Filter>src\SoundFL\source</Filter>
     </ClInclude>
     <ClInclude Include="src\SoundFL\source\sndqueue.h">
+      <Filter>src\SoundFL\source</Filter>
+    </ClInclude>
+    <ClInclude Include="src\SoundFL\source\sndreleasevoice.h">
       <Filter>src\SoundFL\source</Filter>
     </ClInclude>
     <ClInclude Include="src\SoundFL\source\sndsamplebankbase.h">

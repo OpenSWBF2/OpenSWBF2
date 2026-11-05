@@ -230,15 +230,15 @@ bool VoiceChat::Node::Open(unsigned int captureDeviceIndex, unsigned int renderD
                 for (unsigned char i = 0; i < uiNodes; ++i)
                 {
                     ReceiveStream& entry = mReceiveStreams[i];
-                    unsigned char* const pEntry = (unsigned char*)&entry;
-
-                    pEntry[0x17] &= 0xFC;
-                    *(unsigned int*)(pEntry + 0x12) = 0;
+                    entry.activated = false;
+                    entry.starving = false;
+                    entry.writeIndex = 0;
+                    entry.readIndex = 0;
                     entry.packet = pPackets;
-                    *(unsigned int*)(pEntry + 0x04) = 0;
-                    *(unsigned int*)(pEntry + 0x08) = 0;
-                    *(unsigned int*)(pEntry + 0x0C) = 0;
-                    pEntry[0x16] = (char)0xFF;
+                    entry.bufferedData = 0.0f;
+                    entry.activationTime = 0.0f;
+                    entry.lastPacketSize = 0;
+                    entry.decoderInput = 0xFF;
 
                     UpdateReceiveStreamLatency(i);
 

@@ -5,6 +5,55 @@
 #include "testutil.h"
 #include "nettest.h"
 
+void __fastcall HandleCommPacketIn(NetPacket* pPacket);
+
+namespace
+{
+
+__declspec(noinline) void PoisonStack()
+{
+    volatile unsigned char acFill[4096];
+    for (unsigned int i = 0; i < sizeof(acFill); ++i)
+    {
+        acFill[i] = 0xA5;
+    }
+}
+
+}
+
+TEST_CASE("net header read of a short packet leaves zeroed fields" * doctest::test_suite("regression"))
+{
+    const unsigned char acData[3] = {PKT_GAME_MOVE, 0x34, 0x12};
+    const unsigned int auLength[3] = {0, 1, 3};
+    for (int t = 0; t < 3; ++t)
+    {
+        const unsigned int uLength = auLength[t];
+        CAPTURE(uLength);
+        NetTestReset();
+        NetPacket* pPacket = NetPacket::Alloc(true);
+        REQUIRE(pPacket);
+        pPacket->BeginWrite();
+        memset(pPacket->mData, 0xA5, 3);
+        memcpy(pPacket->mData + 3, acData, uLength);
+        pPacket->mCommIndex = 3;
+        pPacket->mMaxIndex = (short)(3 + uLength);
+        PoisonStack();
+        HandleCommPacketIn(pPacket);
+        const NetComm::PktHeader& header = NetComm::Header(pPacket);
+        CHECK(header.type == (uLength >= 1 ? PKT_GAME_MOVE : 0));
+        CHECK(header.group == (uLength >= 3 ? 0x1234 : 0));
+        CHECK(header.src == 0);
+        CHECK(header.idx == 0);
+        CHECK(header.count == 0);
+        CHECK(header.compressed == 0);
+        NetPktGroup complete;
+        complete.Reset();
+        CHECK_FALSE(RecvGroup(complete, pPacket));
+        CHECK(netRejectCounts[NET_REJECT_FRAG_COUNT_ZERO] == 1);
+        CHECK(NetCountPackets(0) == 512);
+    }
+}
+
 TEST_CASE("empty datagram is dropped" * doctest::test_suite("regression"))
 {
     NetTestReset();

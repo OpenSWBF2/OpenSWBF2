@@ -5999,7 +5999,10 @@ GameObject* CommandBuilding::AddToClient()
     PAAnimationGroup::ClientGeometryCreated(this, client);
     client->SetTeam(mTeam);
     client->SetPerceivedTeam(mPerceivedTeam);
-    client->mPost->CopyFrom(mPost);
+    if (mPost && client->mPost)
+    {
+        client->mPost->CopyFrom(mPost);
+    }
     client->Init();
     client->BuildEffects();
     NetGame::LeaveClient();
@@ -6078,7 +6081,10 @@ GameObject* CommandBuildingArmed::AddToClient()
     PAAnimationGroup::ClientGeometryCreated(this, client);
     client->SetTeam(mTeam);
     client->SetPerceivedTeam(mPerceivedTeam);
-    client->mPost->CopyFrom(mPost);
+    if (mPost && client->mPost)
+    {
+        client->mPost->CopyFrom(mPost);
+    }
     client->Init();
     client->BuildEffects();
     NetGame::LeaveClient();
@@ -6103,7 +6109,10 @@ GameObject* CommandBuildingAnimatedArmed::AddToClient()
     PAAnimationGroup::ClientGeometryCreated(this, client);
     client->SetTeam(mTeam);
     client->SetPerceivedTeam(mPerceivedTeam);
-    client->mPost->CopyFrom(mPost);
+    if (mPost && client->mPost)
+    {
+        client->mPost->CopyFrom(mPost);
+    }
     client->Init();
     client->BuildEffects();
     NetGame::LeaveClient();

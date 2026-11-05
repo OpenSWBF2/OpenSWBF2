@@ -3,6 +3,15 @@ $T1Runtimes = 'd3dx9_43.dll', 'vcruntime140.dll', 'msvcp140.dll'
 $GameRuntimes = $T1Runtimes + 'msvcr120.dll', 'msvcp120.dll'
 
 function Get-VsTools {
+    $tools = Find-VsTools
+    if (-not $tools) {
+        Write-Host 'Visual Studio 2022 with the C++ x86/x64 build tools not found.'
+        exit 2
+    }
+    return $tools
+}
+
+function Find-VsTools {
     if ($script:VsTools) { return $script:VsTools }
     $vs = $null
     $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
@@ -22,10 +31,7 @@ function Get-VsTools {
             }
         }
     }
-    if (-not $tools -or -not (Test-Path -LiteralPath $tools.Bin) -or -not (Test-Path -LiteralPath $tools.MSBuild)) {
-        Write-Host 'Visual Studio 2022 with the C++ x86/x64 build tools not found.'
-        exit 2
-    }
+    if (-not $tools -or -not (Test-Path -LiteralPath $tools.Bin) -or -not (Test-Path -LiteralPath $tools.MSBuild)) { return $null }
     $script:VsTools = $tools
     return $tools
 }

@@ -125,7 +125,7 @@ public:
     EntityRemoteTerminal* GetPrevAvailableTerminal(const EntitySoldier* pSoldier);
     void UpdateHealthRemote(float fAddHealth);
 
-    static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }
+    static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
     // SYNTHETIC: SWBF2 0x004dc980
     // EntityRemoteTerminal::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }

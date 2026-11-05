@@ -377,11 +377,11 @@ finally {
     Remove-Item -Recurse -Force $offsetDir -ErrorAction SilentlyContinue
 }
 $n++
-$allCases = @(Get-SmokeCases 'All' @('foo1c_ctf TimeOut', 'tat3c_con Fatal', 'bar1c_con', 'quux1c_con Pass') $false $null)
+$allCases = @(Get-SmokeCases 'All' @('foo1c_ctf TimeOut', 'tat3c_con Fatal', 'bar1c_con', 'quux1c_con Pass', 'foo2c_ctf Pass 240') $false $null)
 $byName = @{}
 foreach ($c in $allCases) { $byName[$c.Name] = $c }
 $rejected = 0
-foreach ($badLine in 'baz1c_con Bogus', 'qux1c_con GsFailure') {
+foreach ($badLine in 'baz1c_con Bogus', 'qux1c_con GsFailure', 'foo3c_ctf Pass abc') {
     try { Get-SmokeCases 'All' @($badLine) $false $null | Out-Null } catch { $rejected++ }
 }
 $why = $null
@@ -390,7 +390,8 @@ elseif ($byName['tat3c_con'].Expect.Class -ne 'Fatal' -or $byName['tat3c_con'].T
 elseif (-not $byName['tat3c_con'].Expect.LogRx -or $byName['tat3c_con'].Expect.Code -ne 3 -or $byName['tat3c_con'].Expect.MaxDumps -ne 1) { $why = 'Fatal line must pin the d3dx9 signature' }
 elseif ('FATAL: exception 0xC0000005 at 0x658FA553 (d3dx9_43.dll+0x1BA553) build 6ADE5B7C1C4C000' -notmatch $byName['tat3c_con'].Expect.LogRx) { $why = 'Fatal LogRx does not match the recorded tat3 crash' }
 elseif ($byName['bar1c_con'].Expect.Class -ne 'Pass' -or $byName['quux1c_con'].Expect.Class -ne 'Pass') { $why = 'missing or Pass class must be Pass' }
-elseif ($rejected -ne 2) { $why = 'unknown and GsFailure classes must be rejected' }
+elseif ($byName['foo2c_ctf'].Expect.Class -ne 'Pass' -or $byName['foo2c_ctf'].Timeout -ne 240 -or $byName['bar1c_con'].Timeout -ne 0 -or $byName['quux1c_con'].Timeout -ne 0) { $why = 'third token must set the case timeout' }
+elseif ($rejected -ne 3) { $why = 'unknown classes, GsFailure and non-integer timeouts must be rejected' }
 elseif (@($allCases | Where-Object { $_.Name -like 'crash-*' }).Count -ne 39 -or -not $byName.ContainsKey('fatal-init') -or $byName['dedicated'].Timeout -ne 0) { $why = 'dedicated or crash cases changed' }
 if ($why) { $failed++; Write-Host "FAILED ${n}: all-missions parsing: $why" }
 else { Write-Host "OK $n all-missions parsing" }
@@ -565,7 +566,7 @@ try {
         Set-Content -Path $rowsFile -Value ($rowLine + "`r`n" + $gc[1]) -Encoding ASCII
         $wtBefore = @(& git -C $repo worktree list).Count
         $grOut = Join-Path $grTmp "out$n"
-        $out = (& powershell -NoProfile -Command "& '$grScript' -RowsFile '$rowsFile' -OutDir '$grOut'; exit `$LASTEXITCODE" 2>&1 | Out-String)
+        $out = (& powershell -NoProfile -Command "& '$grScript' -RowsFile '$rowsFile' -OutDir '$grOut' -ProvenFile '$(Join-Path $grTmp "proven$n.tsv")'; exit `$LASTEXITCODE" 2>&1 | Out-String)
         $code = $LASTEXITCODE
         $wtAfter = @(& git -C $repo worktree list).Count
         $why = $null
@@ -575,6 +576,65 @@ try {
         if ($why) { $failed++; Write-Host "FAILED ${n}: $($gc[0]): $why" }
         else { Write-Host "OK $n $($gc[0])" }
     }
+    $n++
+    $midMark = Join-Path $repo ("selftest-midrun-" + [guid]::NewGuid().ToString('N') + '.txt')
+    $midProven = Join-Path $grTmp "proven$n.tsv"
+    $rowsFile = Join-Path $grTmp "rows$n.ps1"
+    Set-Content -Path $rowsFile -Encoding ASCII -Value @(
+        $rowLine,
+        'function Assert-Runtimes { }',
+        'function Find-GameDataRoot { }',
+        'function Find-MSBuild { ''msbuild'' }',
+        'function Build-Tests { $true }',
+        'function Set-Anchor { $null }',
+        '$script:SelftestRuns = 0',
+        'function Run-Case {',
+        '    $script:SelftestRuns++',
+        '    $state = ''GREEN''',
+        "    if (`$script:SelftestRuns -gt 1) { Set-Content -LiteralPath '$midMark' -Value 'x'; `$state = 'RED' }",
+        '    New-Object PSObject -Property @{ State = $state; Detail = ''''; Code = 0; Text = ''''; Report = $null }',
+        '}'
+    )
+    $wtBefore = @(& git -C $repo worktree list).Count
+    try {
+        $out = (& powershell -NoProfile -Command "& '$grScript' -RowsFile '$rowsFile' -OutDir '$(Join-Path $grTmp "out$n")' -ProvenFile '$midProven'; exit `$LASTEXITCODE" 2>&1 | Out-String)
+        $code = $LASTEXITCODE
+    }
+    finally {
+        Remove-Item -LiteralPath $midMark -Force -ErrorAction SilentlyContinue
+    }
+    $wtAfter = @(& git -C $repo worktree list).Count
+    $why = $null
+    if ($code -ne 1) { $why = "exit $code, expected 1" }
+    elseif ($out -notmatch 'PROOFS NOT RECORDED: main tree changed during the run') { $why = 'no PROOFS NOT RECORDED line for the mid-run change' }
+    elseif (Test-Path -LiteralPath $midProven) { $why = 'a proof was recorded after the main tree changed' }
+    elseif ($out -notmatch 'SELFTEST-01\s+control=GREEN\s+reverted=RED') { $why = 'the row did not run to RED, so the case proves nothing' }
+    elseif ($wtAfter -ne $wtBefore) { $why = "worktree count went from $wtBefore to $wtAfter" }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: guard-revert records no proof when the main tree changes mid-run: $why" }
+    else { Write-Host "OK $n guard-revert records no proof when the main tree changes mid-run" }
+    $n++
+    $wtBefore = @(& git -C $repo worktree list).Count
+    $grWt =Join-Path $repo 'artifacts\guard-revert\wt'
+    $grDirs = @(Get-ChildItem -LiteralPath $grWt -Directory -Filter 'gr-*' -ErrorAction SilentlyContinue | ForEach-Object { $_.Name })
+    $grOut = Join-Path $grTmp "out$n"
+    $out = @(& powershell -NoProfile -Command "& '$grScript' -ListSelected -OutDir '$grOut' -ProvenFile '$(Join-Path $grTmp "proven$n.tsv")'; exit `$LASTEXITCODE" 2>&1 | ForEach-Object { "$_" })
+    $code = $LASTEXITCODE
+    $wtAfter = @(& git -C $repo worktree list).Count
+    $grNew = @(Get-ChildItem -LiteralPath $grWt -Directory -Filter 'gr-*' -ErrorAction SilentlyContinue | Where-Object { $grDirs -notcontains $_.Name })
+    $GuardRevertRows = $null
+    . (Join-Path $PSScriptRoot 'guardrevert\rows.ps1')
+    $listIds = @($out | Where-Object { $_ -match '^(?:SELECT|CARRY) ' } | ForEach-Object { $_.Split(' ')[1] })
+    $rowIds = @($GuardRevertRows | ForEach-Object { $_.Id })
+    $idDiff = @(Compare-Object @($rowIds | Sort-Object) @($listIds | Sort-Object) -CaseSensitive)
+    $why = $null
+    if ($code -ne 0) { $why = "exit $code" }
+    elseif ($listIds.Count -ne $rowIds.Count) { $why = "$($listIds.Count) list lines for $($rowIds.Count) rows" }
+    elseif ($idDiff.Count) { $why = "listed ids differ from rows.ps1: $($idDiff[0].InputObject)" }
+    elseif ($wtAfter -ne $wtBefore) { $why = "worktree count went from $wtBefore to $wtAfter" }
+    elseif ($grNew.Count) { $why = "new scratch tree $($grNew[0].Name)" }
+    elseif (Test-Path -LiteralPath $grOut) { $why = 'the run created its output directory, so it got past the build step' }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: guard-revert -ListSelected: $why" }
+    else { Write-Host "OK $n guard-revert -ListSelected lists every row once and builds nothing" }
     $n++
     $rpTarget = Join-Path $grTmp 'target'
     New-Item -ItemType Directory -Force -Path (Split-Path $junction -Parent) | Out-Null
@@ -648,11 +708,180 @@ try {
     }
     if ($why) { $failed++; Write-Host "FAILED ${n}: staged cleanup of a junction folder: $why" }
     else { Write-Host "OK $n staged cleanup of a junction folder removes only the junction" }
+
+    $n++
+    $why = $null
+    $stArt = Join-Path $stTmp 'artifacts'
+    $stWorker = Join-Path $stArt 'tests\run\smoke-workers\w1'
+    New-Item -ItemType Directory -Force -Path $stWorker | Out-Null
+    Set-Content -Path (Join-Path $stWorker 'result.txt') -Value 'x'
+    $stLinks += Join-Path $stWorker 'data'
+    & cmd /c mklink /J "$($stLinks[-1])" "$stTargetA" | Out-Null
+    try { Remove-Junctions $stArt } catch { $why = "threw: $_" }
+    if (-not $why) {
+        if (Test-Path -LiteralPath $stLinks[-1]) { $why = 'artifact junction still exists' }
+        elseif (-not (Test-Path -LiteralPath (Join-Path $stWorker 'result.txt'))) { $why = 'artifact file next to the junction is gone' }
+        elseif (-not (Test-Path -LiteralPath (Join-Path $stTargetA 'sentinel.txt'))) { $why = 'junction target sentinel is gone' }
+    }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: artifact junction cleanup: $why" }
+    else { Write-Host "OK $n artifact junction cleanup removes only the junctions and keeps the artifacts" }
 }
 finally {
     foreach ($l in $stLinks) { if (Test-Path -LiteralPath $l) { & cmd /c rmdir "$l" | Out-Null } }
     $stLeft = @($stLinks | Where-Object { Test-Path -LiteralPath $_ })
     if ($stLeft.Count -eq 0 -and (Test-Path -LiteralPath $stTmp)) { Remove-Item -LiteralPath $stTmp -Recurse -Force -ErrorAction SilentlyContinue }
+}
+. (Join-Path $PSScriptRoot 'guardrevert\select.ps1')
+$selTmp = Join-Path $env:TEMP ("openswbf2-selftest-sel-" + [guid]::NewGuid().ToString('N'))
+function Write-SelResult([string]$Name, $Why) {
+    $script:n++
+    if ($Why) { $script:failed++; Write-Host "FAILED $($script:n): selector: ${Name}: $Why" }
+    else { Write-Host "OK $($script:n) selector: $Name" }
+}
+function Invoke-SelCase($Over) {
+    $in = @{}
+    foreach ($k in $selBase.Keys) { $in[$k] = $selBase[$k] }
+    foreach ($k in $Over.Keys) { $in[$k] = $Over[$k] }
+    $r = @{}
+    foreach ($x in @(Select-GuardRows $in)) { if ($null -ne $x) { $r[$x.Id] = $x } }
+    $r
+}
+function Test-SelCase([string]$Name, $Over, [string[]]$Want, [string]$Reason) {
+    $why = $null
+    try {
+        $r = Invoke-SelCase $Over
+        $sel = @($r.Values | Where-Object { $_.Action -eq 'SELECT' } | ForEach-Object { $_.Id } | Sort-Object)
+        $exp = @($Want | Sort-Object)
+        if ($r.Count -ne $selRows.Count) { $why = "$($r.Count) results for $($selRows.Count) rows" }
+        elseif (($sel -join ',') -ne ($exp -join ',')) { $why = "selected '$($sel -join ',')', expected '$($exp -join ',')'" }
+        elseif ($Reason) {
+            $bad = @($r.Values | Where-Object { $_.Action -eq 'SELECT' -and $_.Reason -notlike $Reason })
+            if ($bad.Count) { $why = "$($bad[0].Id) reason '$($bad[0].Reason)', expected '$Reason'" }
+        }
+        if (-not $why) {
+            $c = @($r.Values | Where-Object { $_.Action -eq 'CARRY' -and $_.Commit -ne 'c0ffee1' })
+            if ($c.Count) { $why = "$($c[0].Id) carried without its proof commit" }
+        }
+    }
+    catch { $why = "threw: $_" }
+    Write-SelResult $Name $why
+}
+function Copy-SelHashes([string]$Path, $Value) {
+    $h = @{}
+    foreach ($k in $selHashes.Keys) { $h[$k] = $selHashes[$k] }
+    if ($null -eq $Value) { $h.Remove($Path) } else { $h[$Path] = $Value }
+    $h
+}
+try {
+    New-Item -ItemType Directory -Path $selTmp | Out-Null
+    $why = $null
+    try {
+        $pt = Join-Path $selTmp 'parse.tlog'
+        Set-Content -Encoding Unicode -Path $pt -Value @('^C:\R\SRC\A.CPP', 'C:\R\SRC\A.H', 'C:\PROGRAM FILES\X.H', '^C:\R\SRC\B.CPP|C:\R\SRC\C.CPP', 'C:\R\SRC\A.H')
+        $pr = Read-ClReadTlog $pt 'C:\R\'
+        if ($null -eq $pr -or $null -eq $pr.Sets) { $why = 'no result' }
+        elseif ($pr.Sets.Count -ne 3) { $why = "$($pr.Sets.Count) TUs, expected 3" }
+        else {
+            foreach ($tu in 'src\A.cpp', 'src\B.cpp', 'src\C.cpp') {
+                if (-not $pr.Sets.ContainsKey($tu)) { $why = "no TU $tu"; break }
+                $s = $pr.Sets[$tu]
+                if ($s.Count -ne 2 -or -not $s.Contains($tu) -or -not $s.Contains('src\A.h')) { $why = "$tu reads '$(@($s) -join ', ')'"; break }
+            }
+        }
+    }
+    catch { $why = "threw: $_" }
+    Write-SelResult 'UTF-16 tlog parses blocks, multi-source groups and drops out-of-repo paths' $why
+
+    $why = $null
+    try {
+        $h1 = Get-GuardRowHash @{ Id = 'A'; File = 'f'; Anchor = "x`r`ny"; Tests = @('t1', 't2') }
+        $h2 = Get-GuardRowHash @{ Tests = @('t1', 't2'); Anchor = "x`ny"; File = 'f'; Id = 'A' }
+        $h3 = Get-GuardRowHash @{ Id = 'A'; File = 'f'; Anchor = "x`ny"; Tests = @('t2', 't1') }
+        $h4 = Get-GuardRowHash @{ Id = 'A'; File = 'f'; Anchor = "x`ny"; Tests = @('t1', 't2'); Asan = $true }
+        if ($h1 -notmatch '^[0-9a-f]{64}$') { $why = "hash '$h1' is not lower-case SHA-256 hex" }
+        elseif ($h1 -ne $h2) { $why = 'key order or CRLF changed the hash' }
+        elseif ($h1 -eq $h3) { $why = 'Tests order did not change the hash' }
+        elseif ($h1 -eq $h4) { $why = 'an extra key did not change the hash' }
+        elseif ((Get-GuardRowKind @{ Asan = $true }) -ne 'Asan' -or (Get-GuardRowKind @{ Kind = 'Smoke' }) -ne 'Smoke' -or (Get-GuardRowKind @{ Id = 'x' }) -ne 'T1') { $why = 'row kind' }
+    }
+    catch { $why = "threw: $_" }
+    Write-SelResult 'row hash folds CRLF, ignores key order and covers Tests order and every key' $why
+
+    $selRoot = Join-Path $selTmp 'repo'
+    $selFiles = @('src\G\Game.cpp', 'src\G\Game.h', 'src\G\Lib.cpp', 'src\G\Lib.h', 'src\G\Shared.h', 'src\X\pcWindow.cpp', 'src\G\Other.cpp', 'tests\unit\t_lib.cpp', 'tests\unit\t_pin.cpp', 'tests\unit\t_other.cpp', 'tests\stubs\stub.cpp', 'tests\corpus\c\1.txt', 'data\scripts\a.lua', 'tests\smoke\s.txt', 'BattlefrontII.vcxproj', 'tests\smoke.ps1')
+    $old = (Get-Date).AddDays(-1)
+    $selHashes = @{}
+    $i = 0
+    foreach ($f in $selFiles) {
+        $i++
+        $p = Join-Path $selRoot $f
+        New-Item -ItemType Directory -Force -Path (Split-Path $p -Parent) | Out-Null
+        Set-Content -Path $p -Value 'x'
+        (Get-Item -LiteralPath $p).LastWriteTime = $old
+        $selHashes[$f] = "hash$i"
+    }
+    $R = $selRoot.ToUpperInvariant() + '\'
+    $testsTlog = Join-Path $selTmp 'tests.tlog'
+    Set-Content -Encoding Unicode -Path $testsTlog -Value @("^${R}SRC\G\LIB.CPP", "${R}SRC\G\LIB.H", "${R}SRC\G\SHARED.H", "^${R}TESTS\UNIT\T_LIB.CPP", "${R}SRC\G\LIB.H", "^${R}TESTS\UNIT\T_PIN.CPP", "^${R}TESTS\UNIT\T_OTHER.CPP", "^${R}TESTS\STUBS\STUB.CPP")
+    $gameTlog = Join-Path $selTmp 'game.tlog'
+    Set-Content -Encoding Unicode -Path $gameTlog -Value @("^${R}SRC\G\GAME.CPP", "${R}SRC\G\GAME.H", "${R}SRC\G\SHARED.H", "^${R}SRC\G\LIB.CPP", "${R}SRC\G\LIB.H", "${R}SRC\G\SHARED.H", "^${R}SRC\X\PCWINDOW.CPP", "^${R}SRC\G\OTHER.CPP")
+    $selTests = Read-ClReadTlog $testsTlog $selRoot
+    $selGame = Read-ClReadTlog $gameTlog $selRoot
+    $selRows = @(
+        @{ Id = 'S-LIB'; File = 'src\G\Lib.cpp'; Anchor = 'a'; Replacement = 'b'; Tests = @('lib works') },
+        @{ Id = 'S-PIN'; File = 'src\X\pcWindow.cpp'; Anchor = 'a'; Replacement = 'b'; Tests = @('pin text') },
+        @{ Id = 'S-HDR'; File = 'src\G\Lib.h'; Anchor = 'a'; Replacement = 'b'; Tests = @('other case') },
+        @{ Id = 'S-ASAN'; Asan = $true; File = 'src\G\Lib.cpp'; Anchor = 'a'; Replacement = 'b'; Tests = @('lib works') },
+        @{ Id = 'S-CANARY'; Kind = 'AsanCanary'; File = 'src\G\Shared.h'; Anchor = 'a'; Replacement = 'b'; Tests = @('other case'); Report = 'r' },
+        @{ Id = 'S-HARD'; Kind = 'Hardening'; Check = 'c'; File = 'src\G\Game.cpp'; Anchor = 'a'; Replacement = 'b' },
+        @{ Id = 'S-HARD2'; Kind = 'Hardening'; Check = 'c'; File = 'src\G\Other.cpp'; Anchor = 'a'; Replacement = 'b' },
+        @{ Id = 'S-SMOKE'; Kind = 'Smoke'; Case = 'crash-x'; File = 'src\G\Game.h'; Anchor = 'a'; Replacement = 'b' },
+        @{ Id = 'S-TLOG'; Kind = 'Tlog'; Project = 'game'; Check = 'f'; File = 'BattlefrontII.vcxproj'; Anchor = 'a'; Replacement = 'b' }
+    )
+    $selAll = @($selRows | ForEach-Object { $_.Id })
+    $selT1 = @('S-LIB', 'S-PIN', 'S-HDR', 'S-ASAN', 'S-CANARY')
+    $selBase = @{
+        Rows = $selRows; Proofs = @{}; Hashes = $selHashes; TestsReads = $selTests; AsanReads = $selTests; GameReads = $selGame
+        TestsProjectGameTUs = @('src\G\Lib.cpp')
+        TestSources = @{ 'lib works' = 'tests\unit\t_lib.cpp'; 'pin text' = 'tests\unit\t_pin.cpp'; 'other case' = 'tests\unit\t_other.cpp' }
+        TestLiterals = @{ 'tests\unit\t_pin.cpp' = @('tests\corpus\c\') }
+        Toolset = '14.44.35207'
+    }
+    Test-SelCase 'missing record selects every row' @{} $selAll 'no record'
+    $selProofs = @{}
+    foreach ($x in (Invoke-SelCase @{}).Values) {
+        $selProofs[$x.Id] = @{ RowHash = $x.RowHash; DepDigest = $x.DepDigest; TriggerDigest = $x.TriggerDigest; Toolset = '14.44.35207'; Commit = 'c0ffee1'; Date = '2026-11-04' }
+    }
+    $selBase.Proofs = $selProofs
+    Test-SelCase 'unchanged inputs carry every row with its proof commit' @{} @() $null
+    $p2 = @{}
+    foreach ($k in $selProofs.Keys) { if ($k -ne 'S-HARD2') { $p2[$k] = $selProofs[$k] } }
+    Test-SelCase 'one missing record selects only that row' @{ Proofs = $p2 } @('S-HARD2') 'no record'
+    Test-SelCase '.cpp touched selects its rows and the game read sets that contain it' @{ Hashes = (Copy-SelHashes 'src\G\Game.cpp' 'new') } @('S-HARD', 'S-SMOKE') 'deps changed'
+    Test-SelCase 'header touched selects every read set that contains it' @{ Hashes = (Copy-SelHashes 'src\G\Shared.h' 'new') } @('S-LIB', 'S-PIN', 'S-HDR', 'S-ASAN', 'S-CANARY', 'S-HARD', 'S-SMOKE') 'deps changed'
+    Test-SelCase 'test file touched selects only its cases rows' @{ Hashes = (Copy-SelHashes 'tests\unit\t_pin.cpp' 'new') } @('S-PIN') 'deps changed'
+    Test-SelCase 'directory literal file touched selects its test rows' @{ Hashes = (Copy-SelHashes 'tests\corpus\c\1.txt' 'new') } @('S-PIN') 'deps changed'
+    $r2 = @($selRows | ForEach-Object { $_.Clone() })
+    ($r2 | Where-Object { $_.Id -eq 'S-HARD2' }).Anchor = 'z'
+    Test-SelCase 'row edited selects only that row' @{ Rows = $r2 } @('S-HARD2') 'row changed'
+    Test-SelCase 'vcxproj touched selects every row' @{ Hashes = (Copy-SelHashes 'BattlefrontII.vcxproj' 'new') } $selAll 'global trigger*'
+    Test-SelCase 'smoke.ps1 touched selects every row' @{ Hashes = (Copy-SelHashes 'tests\smoke.ps1' 'new') } $selAll 'global trigger*'
+    Test-SelCase 'stubs touched selects every row' @{ Hashes = (Copy-SelHashes 'tests\stubs\stub.cpp' 'new') } $selAll 'global trigger*'
+    Test-SelCase 'toolset changed selects every row' @{ Toolset = '14.50.1' } $selAll 'toolset'
+    Test-SelCase 'no tlog selects every row that needs one' @{ TestsReads = $null; AsanReads = $null; GameReads = $null } @('S-LIB', 'S-PIN', 'S-HDR', 'S-ASAN', 'S-CANARY', 'S-HARD', 'S-HARD2', 'S-SMOKE') 'no tlog*'
+    Test-SelCase 'unmapped path selects the rows that read it' @{ Hashes = (Copy-SelHashes 'src\G\Game.h' $null) } @('S-HARD', 'S-SMOKE') 'unmapped *'
+    Test-SelCase 'unmapped literal selects its test rows' @{ TestLiterals = @{ 'tests\unit\t_pin.cpp' = @('tests\corpus\c\', 'tests\missing\x.txt') } } @('S-PIN') 'unmapped literal*'
+    Test-SelCase 'unknown test name selects its rows' @{ TestSources = @{ 'lib works' = 'tests\unit\t_lib.cpp'; 'pin text' = 'tests\unit\t_pin.cpp' } } @('S-HDR', 'S-CANARY') 'unknown test*'
+    Test-SelCase 'text-pin row left alone by an unrelated change' @{ Hashes = (Copy-SelHashes 'src\G\Other.cpp' 'new') } @('S-HARD2', 'S-SMOKE') 'deps changed'
+    Test-SelCase 'smoke row depends on every game TU it links with' @{ Hashes = (Copy-SelHashes 'src\X\pcWindow.cpp' 'new') } @('S-PIN', 'S-SMOKE') 'deps changed'
+    $p = Join-Path $selRoot 'src\G\Lib.h'
+    (Get-Item -LiteralPath $p).LastWriteTime = (Get-Date).AddHours(1)
+    $stale = Read-ClReadTlog $testsTlog $selRoot
+    Test-SelCase 'stale tlog selects every row that needs the stale TU' @{ TestsReads = $stale; AsanReads = $stale } $selT1 'stale tlog*'
+}
+catch { $failed++; Write-Host "FAILED: selector block threw: $_" }
+finally {
+    Remove-Item -LiteralPath $selTmp -Recurse -Force -ErrorAction SilentlyContinue
 }
 if ($failed -gt 0) { exit 1 }
 exit 0

@@ -7,6 +7,7 @@
 #include "sndenginebase.h"
 #include "sndlistenerbase.h"
 #include "sndsourcei3dl2.h"
+#include "sndreleasevoice.h"
 #include "win/sndsamplebank.h"
 #include "PebbleFL/Common/PblRandom.h"
 #include <stddef.h>
@@ -313,14 +314,7 @@ void __cdecl Sound::VoiceVirtualRelease(VoiceVirtual* pVoice)
     pThis->SetStolenCallback(0, 0);
     pVoice->SetInactiveCallback(&FireForget::InactiveCallback, pVoice);
     const unsigned int i = (unsigned int)(pThis - smVoiceVirtuals);
-    smSource3DPositions[i] = *pVoice->mPos3D;
-    smSource3DVelocities[i] = *pVoice->mVel3D;
-    pVoice->SetPosition(&smSource3DPositions[i]);
-    pVoice->SetVelocity(&smSource3DVelocities[i]);
-    if (pVoice->mVoice)
-    {
-        pVoice->mVoice->SetPosVel3D(&smSource3DPositions[i], &smSource3DVelocities[i]);
-    }
+    KeepReleasedVoicePosVel(pVoice, &smSource3DPositions[i], &smSource3DVelocities[i]);
 }
 
 // FUNCTION: SWBF2 0x0073a430

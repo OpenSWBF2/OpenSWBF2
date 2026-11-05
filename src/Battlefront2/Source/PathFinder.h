@@ -36,7 +36,7 @@ public:
 
     Obstacle(const PblMatrix& rMatrix, const PblVector4& rSize, int eProhibit, unsigned int uName);
 
-    static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }
+    static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
     static void operator delete(void* p) { sMemoryPool.Free(p); }
 
     static void SetupMemoryPool(unsigned int uCount, unsigned int uSize, unsigned int uGrow)
@@ -91,7 +91,7 @@ namespace PathFinder
         PathNode(const PblVector3& rPos, float fLocalCost, const PathNode* pParent);
         void Set(const PblVector3& rPos, float fLocalCost, const PathNode* pParent);
 
-        static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }
+        static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
         static void operator delete(void* p) { sMemoryPool.Free(p); }
 
         const PblVector3& GetPos() const { return mPos; }

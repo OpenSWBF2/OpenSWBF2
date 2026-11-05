@@ -272,7 +272,7 @@ int GetUniqueFilename(unsigned short* pusFilename, int iFileType, int iStart, un
     unsigned short ausName[256];
     for (; iStart < 10000; ++iStart)
     {
-        PblUnicode::usnprintf(ausName, 256, pusFilename, iStart);
+        FormatProfileName(ausName, 256, pusFilename, iStart);
         if (IsUniqueFilename(ausName, iFileType))
         {
             PblUnicode::ustrlcpy(pusFilename, ausName, uiFilenameLen);

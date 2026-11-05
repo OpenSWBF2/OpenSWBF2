@@ -2727,7 +2727,10 @@ int SpaceAssaultLinkCriticalSystems(lua_State* L)
         while (lua_next(LuaHelper::mState, 1))
         {
             unsigned int uHash = PblHash(luaL_checklstring(LuaHelper::mState, -1, 0));
-            auHashes[iCount] = uHash;
+            if (iCount < 32)
+            {
+                auHashes[iCount] = uHash;
+            }
             ++iCount;
             lua_pop(LuaHelper::mState, 1);
         }

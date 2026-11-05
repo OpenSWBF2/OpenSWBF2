@@ -26,7 +26,7 @@ static const float EPSILON = 0.0001f;
 // TreeGridStack::sMemoryPool
 MemoryPool TreeGridStack::sMemoryPool("TreeGridStack", sizeof(TreeGridStack));
 
-inline void* TreeGridStack::operator new(unsigned int uiSize)
+inline void* TreeGridStack::operator new(size_t uiSize)
 {
     return sMemoryPool.Allocate(uiSize);
 }

@@ -189,7 +189,7 @@ void EncryptedAppTicketDownloader::OnEncryptedAppTicketResponse(EncryptedAppTick
         return;
     }
     unsigned char acTicket[1024];
-    unsigned int uSize;
+    unsigned int uSize = 0;
     ISteamUser* pUser = SteamUser();
     pUser->GetEncryptedAppTicket(acTicket, sizeof(acTicket), &uSize);
     m_pTicket->reserve(uSize + 1);
@@ -362,7 +362,7 @@ bool gf::isInitialized()
 bool gf::checkError()
 
 {
-    galaxy::api::IError* pError = (galaxy::api::IError*)GetGalaxyLastError();
+    galaxy::api::IError* pError = GetGalaxyLastError();
     if (pError)
     {
         pError->GetMsg();
@@ -486,10 +486,10 @@ bool gf::friends::start()
     gFriendsStarted = false;
     if (gf::isInitialized())
     {
-        galaxy::api::IUser* pUser = (galaxy::api::IUser*)GetGalaxyUserInterface();
+        galaxy::api::IUser* pUser = GetGalaxyUserInterface();
         if (pUser->SignedIn())
         {
-            galaxy::api::IFriends* pFriends = (galaxy::api::IFriends*)GetGalaxyFriendsInterface();
+            galaxy::api::IFriends* pFriends = GetGalaxyFriendsInterface();
             pFriends->RequestFriendList();
             return !gf::checkError();
         }
@@ -541,8 +541,8 @@ const char* gf::friends::friendNameByIndex(unsigned int uIndex)
     galaxy::api::GalaxyID id = friendByIndex(uIndex);
     if (id.value)
     {
-        void* pFriends = GetGalaxyFriendsInterface();
-        return ((galaxy::api::IFriends*)pFriends)->GetFriendPersonaName(id);
+        galaxy::api::IFriends* pFriends = GetGalaxyFriendsInterface();
+        return pFriends->GetFriendPersonaName(id);
     }
     return "";
 }

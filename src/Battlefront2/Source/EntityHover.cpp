@@ -309,7 +309,7 @@ EntityClass* EntityHoverClass::Derive(unsigned int uHash)
 
 
 
-inline void* EntityHover::operator new(unsigned int uSize)
+inline void* EntityHover::operator new(size_t uSize)
 {
     return sMemoryPool.Allocate(uSize);
 }

@@ -12,6 +12,7 @@
 #include "LuaFL/include/lauxlib.h"
 #include "LuaFL/include/lualib.h"
 #include "Battlefront2/Source/Team.h"
+#include "Battlefront2/Source/DataFileName.h"
 
 Team** Team::sTeams;
 
@@ -392,6 +393,79 @@ TEST_CASE("create timer refuses when the timer map is full" * doctest::test_suit
     const std::string sMission = HardenSource("src\\Battlefront2\\Source\\LuaCallbacks_Mission.cpp");
     const std::string sBody = HardenBody(sMission, "int CreateTimer(lua_State*");
     CHECK(HardenHas(sBody, "!Timer::sMemoryPool.IsFull() && Timer::sMap.GetNumEntries() < Timer::sMap.GetMaxEntries()"));
+}
+
+TEST_CASE("space assault critical systems stay inside the hash array" * doctest::test_suite("regression"))
+{
+    const std::string sMission = HardenSource("src\\Battlefront2\\Source\\LuaCallbacks_Mission.cpp");
+    const std::string sBody = HardenBody(sMission, "int SpaceAssaultLinkCriticalSystems(lua_State*");
+    CHECK(HardenHas(sBody, "unsigned int auHashes[32];"));
+    CHECK(HardenCount(sBody, "auHashes[iCount]") == 1);
+    const size_t uiGuard = sBody.find("if (iCount < 32)");
+    REQUIRE(uiGuard != std::string::npos);
+    const size_t uiStore = sBody.find("auHashes[iCount] = uHash;");
+    REQUIRE(uiStore != std::string::npos);
+    CHECK(uiGuard < uiStore);
+    CHECK(sBody.find("++iCount;", uiGuard) > uiStore);
+    CHECK(HardenHas(sBody, "if (iCount <= 32)"));
+}
+
+struct DataFileNameProbe
+{
+    char acFile[8];
+    char acFileAfter[4];
+    char acLvl[8];
+    char acLvlAfter[4];
+};
+
+static bool DataFileNameGuardsIntact(const DataFileNameProbe& kProbe)
+{
+    for (int i = 0; i < 4; ++i)
+    {
+        if (kProbe.acFileAfter[i] != 'x' || kProbe.acLvlAfter[i] != 'x')
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+TEST_CASE("read data file name parts stay inside their blocks" * doctest::test_suite("regression"))
+{
+    DataFileNameProbe probe;
+    memset(&probe, 'x', sizeof(probe));
+    CHECK(SplitDataFileName("a.lvl;b", probe.acFile, probe.acLvl, 8));
+    CHECK(strcmp(probe.acFile, "a.lvl") == 0);
+    CHECK(strcmp(probe.acLvl, "b") == 0);
+    CHECK(SplitDataFileName("abcdefg;hijklmn", probe.acFile, probe.acLvl, 8));
+    CHECK(strcmp(probe.acFile, "abcdefg") == 0);
+    CHECK(strcmp(probe.acLvl, "hijklmn") == 0);
+    CHECK(SplitDataFileName("side", probe.acFile, probe.acLvl, 8));
+    CHECK(strcmp(probe.acFile, "side") == 0);
+    CHECK(probe.acLvl[0] == '\0');
+    CHECK(DataFileNameGuardsIntact(probe));
+
+    memset(&probe, 'x', sizeof(probe));
+    CHECK_FALSE(SplitDataFileName("abcdefgh", probe.acFile, probe.acLvl, 8));
+    CHECK(DataFileNameGuardsIntact(probe));
+
+    memset(&probe, 'x', sizeof(probe));
+    CHECK_FALSE(SplitDataFileName("a;abcdefgh", probe.acFile, probe.acLvl, 8));
+    CHECK(DataFileNameGuardsIntact(probe));
+}
+
+TEST_CASE("read data file splits its name through the bounded helper (source pin: LoadUtil.cpp is not linked into T1)" * doctest::test_suite("regression"))
+{
+    const std::string sLoad = HardenSource("src\\Battlefront2\\Source\\LoadUtil.cpp");
+    const std::string sBody = HardenBody(sLoad, "bool LoadUtil::ReadDataFileOnHeap(");
+    CHECK(HardenHas(sBody, "    if (!SplitDataFileName(pName, pcFileName, pcLvlName, 0x100))\n"
+                           "    {\n"
+                           "        gLoading = false;\n"
+                           "        return false;\n"
+                           "    }\n"));
+    CHECK(HardenCount(sBody, "pcFileName = (char*)stack.Alloc(0x100);") == 1);
+    CHECK(HardenCount(sBody, "pcLvlName = (char*)stack.Alloc(0x100);") == 1);
+    CHECK_FALSE(HardenHas(sBody, "= pName[i];"));
 }
 
 TEST_CASE("delete entity refuses character owned entities" * doctest::test_suite("regression"))

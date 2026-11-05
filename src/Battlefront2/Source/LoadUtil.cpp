@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "LoadUtil.h"
+#include "DataFileName.h"
 
 #include "BoundaryManager.h"
 #include "CollisionBody.h"
@@ -445,20 +446,10 @@ bool LoadUtil::ReadDataFileOnHeap(char const* pName, int iHeap,
     unsigned int uiLvlHash = 0;
     gLoading = true;
 
-    int i = 0;
-    for (; pName[i] != '\0' && pName[i] != ';'; ++i)
+    if (!SplitDataFileName(pName, pcFileName, pcLvlName, 0x100))
     {
-        pcFileName[i] = pName[i];
-    }
-    pcFileName[i] = '\0';
-    if (pName[i++] == ';')
-    {
-        int j = 0;
-        for (; pName[i] != '\0'; ++i)
-        {
-            pcLvlName[j++] = pName[i];
-        }
-        pcLvlName[j] = '\0';
+        gLoading = false;
+        return false;
     }
 
     if (!_stricmp(pcFileName, "mission.lvl") && DownloadableContent::IsDownloadableContent())
@@ -766,7 +757,7 @@ void LoadUtil::ProcessRegion(PblFileChunk& chunk)
 
 bool __cdecl IsCoverHintFilteringEnabled();
 
-inline void* BaseHint::operator new(unsigned int uSize)
+inline void* BaseHint::operator new(size_t uSize)
 {
     return sMemoryPool.Allocate(uSize);
 }

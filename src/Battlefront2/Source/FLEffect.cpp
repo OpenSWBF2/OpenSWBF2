@@ -1,4 +1,5 @@
 #include "FLEffect.h"
+#include "EffectAttach.h"
 
 #include <d3dx9math.h>
 
@@ -372,13 +373,7 @@ bool FLEffectObject::Update(float fDeltaTime)
 
 void FLEffectObject::DetachFromTarget()
 {
-    if (m_hobjAttachedToObject.mObject || !(m_uiAttachFlags & ATTACHED_DYNAMIC))
-    {
-        return;
-    }
-    _UpdateWorldMatrix();
-    m_uiAttachFlags &= ~(ATTACHED_DYNAMIC | ATTACHED_TO_VECTOR);
-    m_pmAttachedToMatrix = 0;
+    DetachEffectFromTarget(*this);
 }
 
 // FUNCTION: SWBF2 0x00527270

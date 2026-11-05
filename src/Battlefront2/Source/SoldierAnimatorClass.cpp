@@ -985,7 +985,7 @@ public:
  
  
 
-inline void* SoldierAnimation::operator new(unsigned int uiSize)
+inline void* SoldierAnimation::operator new(size_t uiSize)
 {
     return sMemoryPool.Allocate(uiSize);
 }

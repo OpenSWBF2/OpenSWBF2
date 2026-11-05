@@ -44,7 +44,7 @@ public:
 
     EntityCloth(EntityClothClass* pClass, const EntityDesc& desc);
 
-    static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }
+    static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
     // SYNTHETIC: SWBF2 0x00458b30
     // EntityCloth::operator delete
     static void operator delete(void* p) { sMemoryPool.Free(p); }
@@ -188,7 +188,7 @@ public:
     void PlatformCleanup();
     pcRedShader* GetShader() const { return m_pShader; }
 
-    static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }
+    static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
     static void operator delete(void* p) { sMemoryPool.Free(p); }
 
     void PostReadInit();

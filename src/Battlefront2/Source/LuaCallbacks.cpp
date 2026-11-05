@@ -693,7 +693,7 @@ int ScriptCB_usprintf(lua_State*)
             {
                 return 0;
             }
-            apusArgs[i - 1] = (const unsigned short*)luaL_checklstring(LuaHelper::mState, i, 0);
+            apusArgs[i - 1] = LuaWideString::Check(LuaHelper::mState, i);
         }
 
         const unsigned short* pusFormat = RedLocalizeDB::Find(pcKey ? (unsigned int)PblHash(pcKey) : 0, false);
