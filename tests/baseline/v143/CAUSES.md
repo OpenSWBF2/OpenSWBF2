@@ -939,8 +939,8 @@ the vs2013 comparison record and are not rewritten.
   - The game end is deterministic (hot1g_1flag ends at frame 67204 and uta1c_1flag at frame 71747
     in both runs), but the wall time is not. end1g_1flag, hot1g_1flag, tat3c_1flag and uta1c_1flag
     take 80 to 110 s with 8 jobs and are close to the 120 s case limit. uta1c_1flag timed out at
-    121 s in the first run and passed at 107 s in the second. `missions-all.txt` has no per-case
-    limit, so on a loaded machine run `-Smoke All -SmokeTimeout 180`.
+    121 s in the first run and passed at 107 s in the second. Their `missions-all.txt` lines carry
+    a 240 s per-case limit as a third token.
 
 ### C-CRITSYS-SHIELD
 
@@ -1051,6 +1051,217 @@ equal in general:
   payload, then sends; `Header::SendSetup` writes the same bits in the same order; and
   `((n + 7) / 8 * 8) / 8` equals `(n + 7) >> 3` for unsigned n.
 - Factory: Phase 29 re-check: all six factory logs are byte-identical between 7c27dee and the
+  branch.
+
+## Phase 30: Gametoast 472a77d1 against 5db7e6ac
+
+Phase 30 merged Gametoast/swbf2decomp `472a77d1` (10 commits past `ea864010`) and re-applied our
+changes on top of it. The reference is 5db7e6ac, the Phase 29 result, built Release v143 in the
+staged main tree (`artifacts/p30-base`). Every difference in SIM DIGEST, Factory order, layout pins,
+corpora and the network Write/Read order between 5db7e6ac and the branch is listed here with its
+cause, the Gametoast commit in ea864010..472a77d1 and the retail evidence (Phase 30 D-18/D-19;
+Factory order and wire format under Phase 29 D-16).
+
+Method: `-factorylog -digesttrace 1600` runs of the six digest missions on both builds
+(`artifacts/p30-base`, `artifacts/p30-branch`), the Standard, Twice, Dedicated and Crash smoke
+sets, the layout pins in `tests/unit/layout_pins.cpp`, and `wire-order.ps1 -Base 5db7e6ac` with
+compiler-resolved overload widths on both sides. Retail evidence is from `dumpbin /disasm` of the
+retail Steam `BattlefrontII.exe`.
+
+| Mission | 5db7e6ac digest (turn 1500) | Branch digest | First split turn | Cause |
+|---------|-----------------------------|---------------|------------------|-------|
+| geo1c_con | `rand=1354762085/2950811992 state=0x16D65714` | same | none (1600 of 1600 turns equal) | none |
+| nab2g_c | `rand=2206058303/116923646 state=0xA880CE00` | same | none (1600 of 1600 turns equal) | none |
+| hot1g_con | `rand=403802221/2528439372 state=0xC95E64E8` | same | none (1600 of 1600 turns equal) | none |
+| spa3c_ass | `rand=1799084171/444301954 state=0xC77ED51E` | same | none (1600 of 1600 turns equal) | none |
+| dag1c_ctf | `rand=423450483/1140324658 state=0xED6D9B0A` | same | none (1600 of 1600 turns equal) | none |
+| kas2c_uber | `rand=612937807/386973628 state=0x765A955F` | same | none (1600 of 1600 turns equal) | none |
+
+No `tests/smoke/digest-expected.txt` row changed. The six factory logs are byte-identical, so no
+`factory-*.txt` changed, and every one of the 1600 traced turns is identical on all six missions,
+so no `digest-trace-*.txt` changed. `tests/baseline/vs2013` and the corpora are unchanged. The
+only baseline edit is the layout pin block for `RawControllerInputs` and `FLInputManager`
+(C-INPUT-ALIGN).
+
+### C-INPUT-ALIGN
+
+- Function: the `RawControllerInputs` layout in `src/Battlefront2/Source/FLInputManager.h`, read by
+  `// FUNCTION: SWBF2 0x00414b80` (`src/Battlefront2/Platform/Pc/pcFLJoystick.cpp`) and stored in
+  `FLInputManager::s_instance` (`// GLOBAL: SWBF2 0x01ebdc50`).
+- Gametoast change: 7ad37c55 ("Core, HUD, and input APIs") removed the `mRawInputStorage` union
+  and the `mReservedBeforeMode`, `mReservedBeforeSensitivity` and `mReservedBeforeMousePosition`
+  spacers, and typed `mMouseSensitivity[5]`, `mMouseOldX` and `mMouseOldY` as `double`. Every
+  member offset is unchanged (the pins on `mMode` 0x8, `mMouseSensitivity` 0x2610,
+  `mMouseOldX` 0x2880 and `mMouseOldY` 0x2888 hold, and `sizeof(RawControllerInputs)` stays
+  0x28a0), but the `double` members give
+  `RawControllerInputs` and `FLInputManager` 8-byte alignment, and `sizeof(FLInputManager)` grows
+  from 0x2f84 to 0x2f88 with 4 bytes of tail padding.
+- Retail evidence: retail reads and writes those fields as doubles (`movsd xmm4,[esi+2880h]` at
+  `0x0041500E`, `movsd xmm4,[esi+2888h]` at `0x004150A8`, `movsd [esi+2880h],xmm2` and
+  `movsd [esi+2888h],xmm1` at `0x00415172`), so the retail type has 8-byte alignment under the
+  default packing. `s_instance` sits at `0x01ebdc50` (8-aligned), and the next global,
+  `AI::FollowGoal::rttiHashFollowGoal`, is at `0x01ec0bd8` = `0x01ebdc50 + 0x2f88`. The retail
+  object therefore spans 0x2f88 bytes, as Gametoast's type does.
+- Effect: none on the sim. No source uses the 0x2f84 size, `s_instance` is static (no pool or
+  heap allocation depends on it), and every traced turn is identical.
+- Judgement: accepted (retail types and size). Re-baselined pins in `tests/unit/layout_pins.cpp`:
+  `alignof(RawControllerInputs) == 8`, `sizeof(FLInputManager) == 0x2f88`,
+  `alignof(FLInputManager) == 8`; the pins on the removed spacers `mReservedBeforeMode`,
+  `mReservedBeforeSensitivity` and `mReservedBeforeMousePosition` are replaced by pins on the named
+  members `mMouseOldX` (0x2880) and `mMouseOldY` (0x2888).
+
+### C-PBLLIST-RENDER
+
+- Function: `PblList<T>::Clear` (`src/PebbleFL/Common/PblList.h`) and its callers
+  `RedTexture::Init` (`// FUNCTION: SWBF2 0x006ba2a0`, `pcRedTexture.cpp`), the
+  `pcRedIndexBuffer` init and cleanup (`0x006ca130`, `0x006c9df0`, `pcRedIndexBuffer.cpp`) and the
+  `pcRedVertexBuffer` cleanup (`0x006cabc0`, `pcRedVertexBuffer.cpp`).
+- Gametoast change: cf7b956a ("Annotation fixes and IsDone / Clear") deleted the deleting
+  `PblList::Clear()` and renamed the unlink-only `RemoveAll()` to `Clear()`.
+- Finding: these renderer lists never used the template. `PblList<RedTexture>::Clear`
+  (`0x006ba260`), `PblList<pcRedIndexBuffer>::Clear` (`0x006c9f80`) and
+  `PblList<pcRedVertexBuffer>::Clear` (`0x006ca790`) are explicit specialisations in those files,
+  each `while (_iCount > 0) Remove(_head._pNext);`, byte-identical at 5db7e6ac and on the branch.
+  The 30-D13-ITEMS.tsv "Old" column (deleting) was wrong; the behaviour did not change.
+- Retail evidence: retail `0x006ba260`, `0x006c9f80` and `0x006ca790` only unlink (`dec [ecx+10h]`,
+  clear `_pList` and `_pObject`, relink the neighbours, loop while the count is positive; no call).
+  `0x006ba2a0` ends in `mov ecx,7DE9A0h; jmp 006BA260`, `0x006ca130` calls `0x006c9f80` twice and
+  `0x006cabc0` calls `0x006ca790`. `pcRedIndexBuffer::Cleanup` (`0x006c9df0`) unlinks and
+  releases every buffer itself (the inlined unlink at `0x006C9EC0`, then `Release` until the
+  reference count is 0) before it clears the then empty lists. Retail's own `Clear` templates (0x0043a180, 0x0056fa50,
+  0x00695020, 0x006edbe0, 0x00526ab0) are the unlink-only form too.
+- Effect: none. The one owning caller that relied on deletion, `~PrecipitationEffect`, deletes its
+  regions with an explicit unlink-then-delete loop (SUNFLARE-02, 30-05).
+- Judgement: accepted (retail behaviour, no change). No row moved.
+
+### C-DOT-ORDER-30
+
+- Functions (30-D13-ITEMS.tsv): `RedTerrain::_RayHit` (a360dd99), `EntitySoldier::CollisionCallback`
+  (`0x004e5380`), `EntitySoldier::PostCollisionUpdate` (`0x004e6660`),
+  `EntitySoldier::UpdateWeaponAndAimer` (`0x004e6f80`), `EntitySoldier::Render` (`0x004e23d0`),
+  `EntityHover::Move` (`0x004c3fa0`), `EntityHover::CollisionCallback` (`0x004c66a0`),
+  `EntityFlyer::PostCollisionUpdate` (`0x004b1e70`), `EntityDroideka::CollisionCallback`
+  (`0x004a0e00`) (472a77d1, "Animation, collision, and geometry"),
+  `CollisionManager::UpdateSimple` (`0x0045f600`), `CollisionManager::UpdateRestricted`
+  (`0x0045f970`) (a360dd99, "More proper render and effect calls"), `Aimer::GetLeadPos`
+  (`0x0043d7f0`) and `Aimer::Update` (`0x0043db20`) (7ad37c55, "Core, HUD, and input APIs").
+- Gametoast change: hand-expanded three-term sums written `a.y*b.y + a.x*b.x + a.z*b.z` became
+  `DotProduct`, `SquaredLength` or `Length`, which inline `D3DXVec3Dot`, `D3DXVec3LengthSq` and
+  `D3DXVec3Length` and sum `(a.x*b.x + a.y*b.y) + a.z*b.z`.
+- Finding: only the first two terms swap. Each product has the same operands (multiplication is
+  commutative), float addition of two terms is commutative, and the third term is added last in
+  both forms, so `(y + x) + z` and `(x + y) + z` are the same value bit for bit, NaN and signed zero
+  included. The vector differences fed to `DotProduct` (`mEyePoint - mAimStart`, `vFrom - vTo`) are
+  the same per-component subtractions the old code wrote inline. `Clamp`, `Min`, `Max`, `Interpolate`,
+  `fabsf`, `PblQuaternion(axis, angle)` and `PblMatrix(q, t)` were checked in 30-07 to give the old
+  values for every input.
+- Effect: none. All six missions are identical to 5db7e6ac in every one of 1600 traced turns.
+  `EntitySoldier::Render` is on the render path only (a dedicated host never renders).
+- Judgement: accepted (same values by construction). No row moved.
+
+### C-FENV-TERRAIN
+
+- Function: `CollisionPrimitive::CollideTerrain` (`// FUNCTION: SWBF2 0x00467dd0`,
+  `src/Battlefront2/Source/CollisionPrimitive.cpp`) and the old `TerrainDepth` helper.
+- Gametoast change: 472a77d1 ("Animation, collision, and geometry") removed the
+  `#pragma fenv_access(on)`/`(off)` pair that Gametoast's initial commit (85aff8b2) had put around
+  these functions, and inlined the depth as `GetHoleHeight - vTrans.y + collHeight`.
+- Finding: the expressions keep their terms and order, and the cylinder `sqrt` is `sqrtf` of the
+  same sum (a double `sqrt` of a float rounded back to float is the correctly rounded float root,
+  which `sqrtf` returns). Only the `fenv_access` restriction on code generation is gone.
+- Effect: none. Every traced turn is identical on all six missions, and the CollideTerrain path runs
+  for every soldier and vehicle on terrain in each of them.
+- Judgement: accepted (no source value change; the pragma was a matching device, not retail
+  behaviour). No row moved.
+
+### C-SIM-REWRITE-30
+
+- Functions: the upstream-only sim files rewritten by 0a5ec338 ("Animation, vehicles, geometry")
+  and 472a77d1 with no ledger row, so not read hunk by hunk in 30-07: `CollisionMesh.cpp`,
+  `WalkerLegPair.cpp`, `SoldierAnimator.cpp`, `SoldierAnimatorLowRes.cpp`, `EntityDroid.cpp`,
+  `EntityProp.cpp`, `ProceduralAnimation.cpp`, `TreeGrid.cpp`, `VehicleCoverHelper.cpp`,
+  `Combo.cpp`, `EntityPath.cpp`, `BoundaryManager.cpp`, `UnitFlyAgent.cpp`,
+  `UnitTrooperAgent.cpp` and `GameModel.cpp`.
+- Gametoast change: hand-expanded vector math replaced by the `PblVector`/`PblMatrix` helpers.
+- Finding: 30-D13-ITEMS.tsv asked for a bisect "if a digest moves". None moved: the six factory
+  logs are byte-identical and every one of 1600 traced turns is identical on all six missions
+  (geo1c_con, nab2g_c, hot1g_con, spa3c_ass, dag1c_ctf, kas2c_uber), which cover soldiers, walkers,
+  hovers, flyers, droidekas, props, paths and AI on ground and space maps. The Twice, Dedicated and
+  Crash sets pass on the same build.
+- Judgement: accepted (no observable difference). No row moved.
+
+### C-WIRE-ORDER-30
+
+- Functions: the 26 `DIFF` lines of `wire-order.ps1 -Base 5db7e6ac` with compiler-resolved widths on
+  both sides (`FILES 19`, `COMPARED 1381 base=1381 root=1384`, no `MISSING` and no `ADDED` line;
+  the three extra root functions have no Write/Read call). Each is classified in the phase's
+  `tools/wire-classes.tsv`.
+- Gametoast change: d1bfef35 ("Sound, voice, and network reconstruction") rewrote the NetState
+  reads with named `bool` locals, `Read(bool&)`/`Write(bool)` and `reinterpret_cast` enum reads,
+  rebuilt `UnpackHeader` around `NetComm::PktHeader`, swapped the zoom branches of
+  `Weapon::Write`/`Weapon::Read` and replaced the `mBankPitchAngle` range literal by
+  `PblMath::fTwoPi`.
+- Finding, by class:
+  - Text only (17 lines: `UnpackHeader` 0x005b2f10 and NetState 0x005f1650, 0x005f1af0, 0x005ecca0,
+    0x005eeaf0, 0x005ef2f0, 0x005f52d0, 0x005efaf0, 0x005e7fd0, 0x005e8e80, 0x005eb7e0, 0x005ede90,
+    0x005f4ba0, 0x005e9660, 0x005ea140, 0x005f2ec0, 0x005f1db0): the resolved shape is identical.
+    `Read(bool&)` is `ReadBits(uValue, 1)` and `Write(bool)` is `WriteBits(bValue != 0, 1)`
+    (`NetPacket.h`); `UnpackHeader` still reads u8, u16, u8, u8 in that order.
+  - Branch swap (0x005e8330 `Weapon::Write`, 0x005e84d0 `Weapon::Read`): `mZoomRate != 0.0f` with
+    `WriteFixed(..., 5)` first became `mZoomRate == 0.0f` with the 1-bit flag first. The two tests
+    are exact complements for every value including NaN, so each runtime path writes and reads the
+    same field and width as before.
+  - Constant token (0x005eb920, 0x005ebfe0, 0x005f3500, 0x005f3910, `EntityFlyer` object and late
+    state): `-PblMath::fTwoPi, PblMath::fTwoPi` for `-6.2831854820251465f, 6.2831854820251465f`.
+    `fTwoPi = fPi * 2.0f` with `fPi = 3.141592654f` (`0x40490FDB`) is `0x40C90FDB`, the bits of
+    `6.2831854820251465f`; the 16-bit width is unchanged.
+  - Tool parse (`ReadGalaxy`, 0x00618250 `NetSocket::RecvGalaxySockets`): the base calls span two
+    lines and the parser kept only the first; both sides pass the same arguments
+    (`netGalaxyReceiveBuffer, capacity, &size, peer.mGalaxyId, 0`; capacities 2048 and
+    `1012 - packetPrefix.value`). Only a redundant `INetworking*` cast is gone.
+  - Typed getter (0x00617e50 `NetSocket::SendSocket`): `GetGalaxyNetworkingForNetComm` now returns
+    `INetworking*`, so the cast before `SendP2PPacket` is gone; both sides call
+    `SendP2PPacket(pPeer->mGalaxyId, pData, iLen, 2, 0)` with the same arguments.
+- Effect: none. No Write/Read order or width changed, so the wire format is unchanged.
+- Judgement: no wire change; nothing to fix or accept.
+
+### Phase 30 D-13 items (30-D13-ITEMS.tsv)
+
+| Test | Cause |
+|------|-------|
+| layout-pin FLInputManager.h | C-INPUT-ALIGN |
+| pbllist-clear pcRedTexture.cpp, pcRedIndexBuffer.cpp, pcRedVertexBuffer.cpp | C-PBLLIST-RENDER |
+| float RedTerrain::_RayHit | C-DOT-ORDER-30 (`GetInterpolatedNormal` now calls `Normalize`, which is `D3DXVec3Normalize`, on the same cross product) |
+| digest-risk EntitySoldier::CollisionCallback, ::PostCollisionUpdate, ::UpdateWeaponAndAimer, ::Render; EntityHover::Move, ::CollisionCallback; EntityFlyer::PostCollisionUpdate; CollisionManager::UpdateSimple, ::UpdateRestricted; Aimer::GetLeadPos, ::Update; EntityDroideka::CollisionCallback | C-DOT-ORDER-30 |
+| digest-risk CollisionPrimitive::CollideTerrain | C-FENV-TERRAIN |
+| digest-risk upstream-only sim files | C-SIM-REWRITE-30 |
+
+### Re-check of the Phase 29 causes
+
+- C-WALKER-GRAVITY: Phase 30 re-check: unchanged. 0a5ec338 and 472a77d1 rewrote `EntityWalker.cpp`
+  but kept `float fGravity = m_bIsJumping ? -9.8f : -29.400002f;`; `mVelocity.y = fGravity *
+  fDeltaTime + mVelocity.y` became `mVelocity.AddY(fGravity * fDeltaTime)`, a two-term sum with
+  the operands swapped (commutative). geo1c_con and hot1g_con are identical in every traced turn.
+- C-PILOT-DELETE: Phase 30 re-check: unchanged. 7ad37c55 only replaced the local `EntityFlyer`
+  stub declaration in `Controllable.cpp` with `#include "EntityCarrier.h"`; `Controllable::Kill`
+  still caches `pPilot` and deletes it. spa3c_ass is identical in every traced turn.
+- C-FLAG-PICKUP: Phase 30 re-check: unchanged. cf7b956a and a360dd99 changed the `Event<FlagItem,
+  ...>` triggers and `AddToTeamManager`; the pickup gate is still `mStationary || ...`. dag1c_ctf is
+  identical in every traced turn.
+- C-CRITSYS-SHIELD: Phase 30 re-check: unchanged. 7ad37c55 only dropped `const` from the
+  `Team*` parameters of `GetRandomFlyer`, `SpaceAssault_RandomFlyerKill` and
+  `SpaceAssault_RandomCritSysDamage`; the cap is still `Min(Min(15000.0f, fBestDamage * 5.0f),
+  pTarget->mCurShield)`. `AIDifficulty.cpp` keeps `/fp:strict`.
+- C-TAT3-STALE: Phase 30 re-check: unchanged. ea864010..472a77d1 does not touch `src/Zephyr`.
+- Phase 28 causes whose files 472a77d1's range touched: C-SHADER-INIT, Phase 30 re-check:
+  unchanged; cf7b956a and 2443aca3 changed `pcRedShader.cpp`, `#pragma init_seg(lib)` is still at
+  line 17, and no mission crashed at startup. C-ADDR-FLYER, Phase 30 re-check: unchanged; both
+  `((unsigned int)this >> 2) & 0xf` sites remain (`EntityFlyer.cpp`, `EntityPathFollower.cpp`), and
+  hot1g_con and spa3c_ass are identical in every traced turn. C-D14-RECHECK, Phase 30 re-check:
+  unchanged; `RedTerrain.cpp` (C1, a360dd99 and cf7b956a) is covered by C-DOT-ORDER-30 and our
+  C1 SSE line is unchanged; `WeaponCannon.cpp` (C3) and `PblOrderedList.h` (C-PTR03-SENTINEL) are
+  untouched by the range. C-WIRE-ORDER, Phase 30 re-check: re-derived as C-WIRE-ORDER-30.
+- Factory: Phase 30 re-check: all six factory logs are byte-identical between 5db7e6ac and the
   branch.
 
 ## Policy

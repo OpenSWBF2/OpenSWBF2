@@ -260,23 +260,22 @@ void Event<FlagItem, Character>::Callback::Trigger(FlagItem& item, Character& pa
         if (pChild)
         {
             pChild->AddRef();
-            while (pChild)
+        }
+        while (pChild)
+        {
+            if (!pChild->IsAlive())
             {
-                const bool bAlive = pChild->mAliveFlag;
-                if (!bAlive)
-                {
-                    pChild->Release();
-                    break;
-                }
-                Callback* pNext = (Callback*)pChild->mSibling;
-                if (pNext)
-                {
-                    pNext->AddRef();
-                }
-                pChild->Trigger(item, param);
                 pChild->Release();
-                pChild = pNext;
+                break;
             }
+            Callback* pNext = (Callback*)pChild->mSibling;
+            if (pNext)
+            {
+                pNext->AddRef();
+            }
+            pChild->Trigger(item, param);
+            pChild->Release();
+            pChild = pNext;
         }
     }
     Release();
@@ -293,23 +292,22 @@ void Event<FlagItem, char>::Callback::Trigger(FlagItem& item, char& param)
         if (pChild)
         {
             pChild->AddRef();
-            while (pChild)
+        }
+        while (pChild)
+        {
+            if (!pChild->IsAlive())
             {
-                const bool bAlive = pChild->mAliveFlag;
-                if (!bAlive)
-                {
-                    pChild->Release();
-                    break;
-                }
-                Callback* pNext = (Callback*)pChild->mSibling;
-                if (pNext)
-                {
-                    pNext->AddRef();
-                }
-                pChild->Trigger(item, param);
                 pChild->Release();
-                pChild = pNext;
+                break;
             }
+            Callback* pNext = (Callback*)pChild->mSibling;
+            if (pNext)
+            {
+                pNext->AddRef();
+            }
+            pChild->Trigger(item, param);
+            pChild->Release();
+            pChild = pNext;
         }
     }
     Release();
@@ -463,14 +461,14 @@ bool FlagItem::AddToTeamManager() const
 // FUNCTION: SWBF2 0x00524090
 void FlagItem::Reset()
 {
-    sHostList.RemoveAll();
-    sClientList.RemoveAll();
+    sHostList.Clear();
+    sClientList.Clear();
     sFlagGameplayType = (FlagGameplayType)0;
 }
 
 // TEMPLATE: SWBF2 0x00525bf0
-// PblList<FlagItem>::RemoveAll
-template void PblList<FlagItem>::RemoveAll();
+// PblList<FlagItem>::Clear
+template void PblList<FlagItem>::Clear();
 
 // FUNCTION: SWBF2 0x00524460
 void FlagItem::Create()

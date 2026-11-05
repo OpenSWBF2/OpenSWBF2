@@ -903,7 +903,7 @@ bool RedMoviePlayerBase::Open(const char* const pFileName, RedTexture** ppTextur
 // FUNCTION: SWBF2 0x00725de0
 bool RedMoviePlayerBase::OpenHeader(PblFileChunk& chunk, int iHeap, unsigned int uiArg4)
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
@@ -949,7 +949,7 @@ RedMoviePlayerBase::Info* RedMoviePlayerBase::Info::Read(PblFileChunk& chunk, in
     unsigned int uiHashID = 0;
     unsigned int uiNumSegments = 0;
 
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         switch ((unsigned int)chunk._pFile->Read32())
         {
@@ -996,7 +996,7 @@ bool RedMoviePlayerBase::Info::ReadSegments(PblFileChunk& chunk, unsigned int ui
     unsigned int uiIndex = 0;
     unsigned int uiStartPos = 0;
 
-    while (chunk.HasMoreChildren() && uiNumSegments)
+    while (!chunk.IsDone() && uiNumSegments)
     {
         if ((unsigned int)chunk._pFile->Read32() != 0xf3c342e6)
         {
@@ -1007,7 +1007,7 @@ bool RedMoviePlayerBase::Info::ReadSegments(PblFileChunk& chunk, unsigned int ui
         unsigned int uiLength = 0;
         unsigned int uiGap = 0;
         bool bReading = true;
-        while (chunk.HasMoreChildren() && bReading)
+        while (!chunk.IsDone() && bReading)
         {
             switch ((unsigned int)chunk._pFile->Read32())
             {

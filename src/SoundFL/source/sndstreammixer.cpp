@@ -92,9 +92,7 @@ void StreamMixer::SetPacketArray(StreamPacketIO* const pIO,
 // FUNCTION: SWBF2 0x0073fde0
 void StreamMixer::SetSynchronizedMixing(bool b)
 {
-    char* const pThis = (char*)this;
-
-    pThis[0x88] = (char)(b ? 1 : 0);
+    mSynchronizedMixing = b ? 1 : 0;
 }
 
 // FUNCTION: SWBF2 0x0073fb20
@@ -463,15 +461,17 @@ void StreamMixer::Update()
                         const int iTarget1 = mGain[uiGainBase + uiTargets + 1];
                         pGain[0] += (iTarget0 - pGain[0]) >> mInterpolationRate;
                         pGain[1] += (iTarget1 - pGain[1]) >> mInterpolationRate;
-                        for (unsigned int f = 0; f < uiFrames; ++f)
+                        unsigned int uiRemaining = uiFrames;
+                        while (uiRemaining--)
                         {
-                            pMix[0] += (pData[f] * iGain0) >> 15;
+                            pMix[0] += (*pData * iGain0) >> 15;
                             iGain0 = pGain[0] >> 16;
                             pGain[0] += (iTarget0 - pGain[0]) >> mInterpolationRate;
-                            pMix[1] += (pData[f] * iGain1) >> 15;
+                            pMix[1] += (*pData * iGain1) >> 15;
                             iGain1 = pGain[1] >> 16;
                             pGain[1] += (iTarget1 - pGain[1]) >> mInterpolationRate;
                             pMix += 2;
+                            ++pData;
                         }
                     }
                     else
@@ -581,9 +581,10 @@ void StreamMixer::Update()
             else
             {
                 const unsigned int uiSamples = mInputChannels * uiFrames;
-                for (unsigned int s = 0; s < uiSamples; ++s)
+                unsigned int uiRemaining = uiSamples;
+                while (uiRemaining--)
                 {
-                    pMix[s] += pData[s];
+                    *pMix++ += *pData++;
                 }
             }
 

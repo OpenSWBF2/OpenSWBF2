@@ -22,7 +22,7 @@ public:
     Boundary(const RedPath* pPath);
     ~Boundary();
 
-    bool IsInBounds(const PblVector3& vPos) const;
+    bool IsInBounds(float x, float z);
 
 private:
     void AddEdge(int i, const PblVector3& vStart, const PblVector3& vEnd);
@@ -49,7 +49,7 @@ public:
 
     void Read(PblFileChunk& chunk);
 
-    bool IsOutOfBounds(const PblVector3& vPos) const;
+    bool IsOutOfBounds(const PblVector3& vPos);
 
     void PlayOutOfBoundsVoiceOver(int iTeam);
 

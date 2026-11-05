@@ -35,7 +35,7 @@ public:
     Music();
     ~Music();
 
-    static void* operator new(unsigned int uSize);
+    static void* operator new(size_t uSize);
 
     void Play();
     void Stop();

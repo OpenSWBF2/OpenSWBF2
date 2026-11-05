@@ -14,6 +14,12 @@ namespace FLRenderer
 unsigned int GetCurrentViewport();
 }
 
+struct ScreenVertex
+{
+    PosXYZW pos;
+    TexCoord uv;
+};
+
 // GLOBAL: SWBF2 0x01f9ae58
 static pcClearShader* s_pClearShader;
 
@@ -40,7 +46,7 @@ void ScreenFilterEffect::PlatformRender(unsigned int) const
     unsigned int uiViewport = FLRenderer::GetCurrentViewport();
     pcRedPrimitive* pPrimitive =
         pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, 0x203, 24, 4, 0, false);
-    float* pVerts = (float*)pPrimitive->BeginVertexData();
+    ScreenVertex* pVerts = (ScreenVertex*)pPrimitive->BeginVertexData();
     if (!pVerts)
     {
         return;
@@ -51,25 +57,21 @@ void ScreenFilterEffect::PlatformRender(unsigned int) const
     float left, top, right, bottom;
     RedRenderer::pcGetViewportExtents(left, top, right, bottom);
 
-    pVerts[0] = left;   pVerts[1] = top;     pVerts[2] = 0.0f;  pVerts[3] = 1.0f;
-    pVerts[4] = 0.0f;   pVerts[5] = 0.0f;
-    pVerts[6] = left;   pVerts[7] = bottom;  pVerts[8] = 0.0f;  pVerts[9] = 1.0f;
-    pVerts[10] = 0.0f;  pVerts[11] = 1.0f;
-    pVerts[12] = right; pVerts[13] = top;    pVerts[14] = 0.0f; pVerts[15] = 1.0f;
-    pVerts[16] = 1.0f;  pVerts[17] = 0.0f;
-    pVerts[18] = right; pVerts[19] = bottom; pVerts[20] = 0.0f; pVerts[21] = 1.0f;
-    pVerts[22] = 1.0f;  pVerts[23] = 1.0f;
+    pVerts[0].pos.SetPos(left, top, 0.0f, 1.0f);
+    pVerts[0].uv.SetUV(0.0f, 0.0f);
+    pVerts[1].pos.SetPos(left, bottom, 0.0f, 1.0f);
+    pVerts[1].uv.SetUV(0.0f, 1.0f);
+    pVerts[2].pos.SetPos(right, top, 0.0f, 1.0f);
+    pVerts[2].uv.SetUV(1.0f, 0.0f);
+    pVerts[3].pos.SetPos(right, bottom, 0.0f, 1.0f);
+    pVerts[3].uv.SetUV(1.0f, 1.0f);
     pPrimitive->EndVertexData();
 
     const FilterData& data = m_data[uiViewport];
     s_pClearShader->m_pTex = RedTexture::Find(data.uiTextureHash);
-    RedColor color;
-    color.b = data.filterColor.b;
-    color.g = data.filterColor.g;
-    color.r = data.filterColor.r;
-    color.a = (unsigned char)(int)(data.filterColor.a * data.fIntensity);
     RedRenderer::pcRenderPrimitive(pPrimitive, s_pClearShader, gMatrixIdentity,
-                                   color, 0x200, 0, 0, 0);
+                                   RedColor(data.filterColor, (unsigned char)(int)(data.filterColor.a * data.fIntensity)),
+                                   0x200, 0, 0, 0);
 
     pPrimitive->Release();
 }

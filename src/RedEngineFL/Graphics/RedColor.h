@@ -14,6 +14,15 @@ public:
     RedColor(unsigned char aR, unsigned char aG, unsigned char aB, unsigned char aA)
         : b(aB), g(aG), r(aR), a(aA) {}
 
+    RedColor& Set(unsigned char aR, unsigned char aG, unsigned char aB, unsigned char aA)
+    {
+        r = aR;
+        g = aG;
+        b = aB;
+        a = aA;
+        return *this;
+    }
+
     unsigned char b;
     unsigned char g;
     unsigned char r;
@@ -25,6 +34,8 @@ public:
         return ((unsigned int)a << 24) | ((unsigned int)r << 16) |
                ((unsigned int)g << 8) | (unsigned int)b;
     }
+
+    operator unsigned int() const { return GetARGB(); }
 
     static RedColor WHITE;
     static RedColor LTGREY;
@@ -49,12 +60,23 @@ public:
     // FUNCTION: SWBF2 0x00492000
     const RedColor& operator*=(const RedColor& c)
     {
-        r = (unsigned char)(int)(c.r * (r * (1.0f / 255.0f)) + 0.5f);
+        r = (unsigned char)(int)(r * (1.0f / 255.0f) * c.r + 0.5f);
         g = (unsigned char)(int)(g * (1.0f / 255.0f) * c.g + 0.5f);
         b = (unsigned char)(int)(b * (1.0f / 255.0f) * c.b + 0.5f);
-        a = (unsigned char)(int)(c.a * (a * (1.0f / 255.0f)) + 0.5f);
+        a = (unsigned char)(int)(a * (1.0f / 255.0f) * c.a + 0.5f);
         return *this;
     }
 };
+
+// FUNCTION: SWBF2 0x004bd820
+inline const RedColor Interpolate(const RedColor& a, const RedColor& b, float t)
+{
+    RedColor result;
+    result.b = (unsigned char)(int)(a.b * (1.0f - t) + b.b * t + 0.5f);
+    result.g = (unsigned char)(int)(a.g * (1.0f - t) + b.g * t + 0.5f);
+    result.r = (unsigned char)(int)(a.r * (1.0f - t) + b.r * t + 0.5f);
+    result.a = (unsigned char)(int)(a.a * (1.0f - t) + b.a * t + 0.5f);
+    return result;
+}
 
  

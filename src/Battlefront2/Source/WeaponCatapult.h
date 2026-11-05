@@ -27,7 +27,7 @@ public:
     virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
 
-    RedModel* mOrdnanceModel;
+    const RedModel* mOrdnanceModel;
     unsigned int mArmHash;
     float mCockedAngle;
 };
@@ -73,7 +73,7 @@ public:
     static const char rttiNameWeaponCatapult[];
 
     PblMatrix mArmPoseMatrix;
-    WeaponCatapultClass* mCatapultClass;
+    const WeaponCatapultClass* mCatapultClass;
     float mLastArmAngle;
     float mNextArmAngle;
     float mArmAccel;

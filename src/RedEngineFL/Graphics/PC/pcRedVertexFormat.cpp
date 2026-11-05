@@ -440,5 +440,5 @@ void pcRedVertexFormat::Cleanup()
         {
         }
     }
-    s_vertexFormatList.RemoveAll();
+    s_vertexFormatList.Clear();
 }

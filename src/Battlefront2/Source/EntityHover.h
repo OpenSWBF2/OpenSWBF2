@@ -9,6 +9,8 @@
 #include "Controllable.h"
 #include "EnergyBar.h"
 #include "GameObject.h"
+#include "GameModel.h"
+#include "RedEngineFL/Graphics/RedModel.h"
 #include "GameLoop.h"
 #include "GameSound.h"
 #include "Trackable.h"
@@ -324,7 +326,7 @@ public:
 
     virtual ~EntityHover();
 
-    static void* operator new(unsigned int uSize);
+    static void* operator new(size_t uSize);
     static void operator delete(void* pBlock);
 
     virtual bool IsRtti(unsigned int uRtti) const;
@@ -392,8 +394,27 @@ public:
     virtual void WriteLateState(NetPktGroup& group);
     virtual void ReadLateState(NetPktGroup& group);
 
-    virtual void SetPosition(const PblVector3& vPosition);
-    virtual void SetMatrix(const PblMatrix& mMatrix);
+    // FUNCTION: SWBF2 0x00478b10
+    virtual void SetPosition(const PblVector3& vPosition)
+    {
+        mMatrix.SetTranslation(vPosition);
+        PblVector3 center;
+        D3DXVec3TransformCoord(&center, &mModel->_mModel->_BoundingSphere.GetCenter(),
+                               reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
+        SetCollisionCenter(center);
+        RecalculateAABB();
+    }
+
+    // FUNCTION: SWBF2 0x00478bb0
+    virtual void SetMatrix(const PblMatrix& matrix)
+    {
+        mMatrix = matrix;
+        PblVector3 center;
+        D3DXVec3TransformCoord(&center, &mModel->_mModel->_BoundingSphere.GetCenter(),
+                               reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
+        SetCollisionCenter(center);
+        RecalculateAABB();
+    }
     virtual bool CollisionCallback(const CollisionResult* pResult, CollisionObject* pOther,
                                    Restrictor* pRestrictor);
 

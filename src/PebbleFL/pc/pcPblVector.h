@@ -1,5 +1,28 @@
 #pragma once
 
+inline PblVector3::PblVector3(const D3DXVECTOR3* pVector)
+    : D3DXVECTOR3(*pVector)
+{
+}
+
+inline const PblVector3 RotateY(const PblVector3& vVector, float fAngle)
+{
+    float fCa, fSa;
+    PblMath::SinCos(&fSa, &fCa, fAngle);
+    PblVector3 Temp;
+    Temp.x = vVector.x * fCa - vVector.z * fSa;
+    Temp.y = vVector.y;
+    Temp.z = vVector.z * fCa + vVector.x * fSa;
+    return Temp;
+}
+
+inline void PblVector3::Set(float fX, float fY, float fZ)
+{
+    x = fX;
+    y = fY;
+    z = fZ;
+}
+
 // FUNCTION: SWBF2 0x0040ca30
 inline const PblVector3 operator+(const PblVector3& lhs, const PblVector3& rhs)
 {
@@ -100,9 +123,29 @@ inline const PblVector3 Normalize(const PblVector3& vVector)
     return Temp;
 }
 
+inline void PblVector3::AddX(float value)
+{
+    x += value;
+}
+
+inline void PblVector3::AddZ(float value)
+{
+    z += value;
+}
+
 inline void PblVector3::AddY(float value)
 {
     y += value;
+}
+
+inline void PblVector3::MulX(float value)
+{
+    x *= value;
+}
+
+inline void PblVector3::MulZ(float value)
+{
+    z *= value;
 }
 
 inline void PblVector3::MulY(float value)

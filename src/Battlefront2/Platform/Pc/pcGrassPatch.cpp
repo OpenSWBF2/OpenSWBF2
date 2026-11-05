@@ -175,7 +175,6 @@ void GrassPatchClass::PlatformRender(const PblMatrix& matrix, const RedColorValu
     RedColor packed = ToRedColor(color);
     mRenderData->RenderInstance(matrix, packed, uiFlags);
 }
-
 // FUNCTION: SWBF2 0x00419080
 void GrassPatchClass::CreateRenderData()
 {
@@ -185,7 +184,6 @@ void GrassPatchClass::CreateRenderData()
         mRenderData = new GrassPatchRenderable(this);
     }
 }
-
 // FUNCTION: SWBF2 0x00418e10
 void GrassPatchClass::RenderMaxDist(const PblMatrix& matrix, float fMaxDist,
                                     const RedColorValue& color, unsigned int uiFlags) const
@@ -205,6 +203,7 @@ void GrassPatchClass::RenderMaxDist(const PblMatrix& matrix, float fMaxDist,
     }
     const float fFadeDistance = 20.0f;
     float alpha = 1.0f;
+    // GLOBAL: SWBF2 0x01faa764
     static float FADE = fFadeDistance;
     if (uiFlags & 0x20000000)
     {
@@ -229,6 +228,7 @@ void GrassPatchClass::RenderMaxDist(const PblMatrix& matrix, float fMaxDist,
     }
     else
     {
+        // GLOBAL: SWBF2 0x01faa760
         static float inverseFADE = 1.0f / FADE;
         if (distance > fMaxDist - FADE)
         {

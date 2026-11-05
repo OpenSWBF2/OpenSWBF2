@@ -3,6 +3,7 @@
 #include <stddef.h>
 
 #include "vector.h"
+#include "basics.h"
 
 class PblMatrix;
 
@@ -23,6 +24,11 @@ struct Sphere
 
     Sphere(const BasePoly3D& rPoly);
     Sphere(const ExtrudedPoly3D& rPoly);
+
+    void Enclose(const Vector3<float>& point)
+    {
+        radius_ = Max_(radius_, length(center_ - point));
+    }
 
     Vector3<float> center_;
     float radius_;

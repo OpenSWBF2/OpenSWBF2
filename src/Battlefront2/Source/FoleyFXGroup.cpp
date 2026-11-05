@@ -32,7 +32,7 @@ FoleyFXGroup::~FoleyFXGroup()
 // FUNCTION: SWBF2 0x0052c800
 void FoleyFXGroup::Read(PblFileChunk& chunk)
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._pFile->Read32())

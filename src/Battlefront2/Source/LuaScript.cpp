@@ -34,7 +34,7 @@ void LuaScriptFactory::_Read(PblFileChunk& chunk)
 {
     char acName[256];
     acName[0] = 0;
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
@@ -134,7 +134,7 @@ unsigned int LuaScript::RemoveScript(const char* pcName)
 // FUNCTION: SWBF2 0x005a1900
 void LuaScriptFactory::Cleanup()
 {
-    _GlobalList.RemoveAll();
+    _GlobalList.Clear();
     sScriptMemUsage = 0;
 }
 
@@ -151,5 +151,5 @@ void LuaScriptFactory::PurgeUnused()
 }
 
 // TEMPLATE: SWBF2 0x005a1b30
-// PblList<LuaScriptFactory>::RemoveAll
-template void PblList<LuaScriptFactory>::RemoveAll();
+// PblList<LuaScriptFactory>::Clear
+template void PblList<LuaScriptFactory>::Clear();

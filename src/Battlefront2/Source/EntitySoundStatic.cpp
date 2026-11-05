@@ -85,7 +85,7 @@ const char EntitySoundStatic::rttiNameEntitySoundStatic[] = "EntitySoundStatic";
 
 
 
-inline void* EntitySoundStatic::operator new(unsigned int uSize)
+inline void* EntitySoundStatic::operator new(size_t uSize)
 {
     return sMemoryPool.Allocate(uSize);
 }

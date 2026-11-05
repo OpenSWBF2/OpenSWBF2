@@ -3,6 +3,7 @@
 #include <stddef.h>
 
 #include "Battlefront2Lod.h"
+#include "RedEngineFL/Graphics/RedModel.h"
 #include "PebbleFL/Common/PblHashTable.h"
 
 class PblFileChunk;
@@ -38,6 +39,10 @@ public:
     }
 
     const RedModel* GetRedModel(unsigned char lod) const { return _mLod[lod]; }
+
+    const PblSphere& GetBoundingSphere() const { return _mModel->_BoundingSphere; }
+
+    const PblBox& GetTotalBoundingBox() const { return _mModel->_TotalBoundingBox; }
 
     unsigned int _uiNameHash;
     unsigned int _iLodType;

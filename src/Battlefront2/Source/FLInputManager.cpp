@@ -208,7 +208,7 @@ wchar_t GetRawFromProcessed_(ePROCESSEDINPUT_TYPE uiAction)
 void InitMagicCharMap(void)
 {
     util::HashTable<unsigned short, unsigned int, util::NewAllocator>& rMap =
-        *RedTextElement::GetMagicCharMap();
+        RedTextElement::GetMagicCharMap();
 
     rMap[0xE70B21B8u] = 0x8100;
     rMap[0x1E8375FAu] = 0x8101;

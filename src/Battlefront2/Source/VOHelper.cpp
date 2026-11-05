@@ -683,3 +683,35 @@ void Reset()
 
 }
 }
+
+namespace AI
+{
+namespace VOHelper
+{
+
+// FUNCTION: SWBF2 0x00672640
+void Update()
+{
+    using namespace AI::VOHelper;
+
+    const float fTime = GameLoop::GetMissionTime();
+    for (int i = 0; i < 20; ++i)
+    {
+        QueuedSound& rSound = mSndQueue[i];
+        if (rSound.mType == AI::VOT_NONE || !(fTime > rSound.mTime))
+        {
+            continue;
+        }
+        if (rSound.mUseTarget)
+        {
+            Play(rSound.mType, rSound.mSpeaker, rSound.mPlayer, rSound.mTarget, 0.0f);
+        }
+        else
+        {
+            Play(rSound.mType, rSound.mSpeaker, rSound.mPlayer, rSound.mPos, 0.0f);
+        }
+        rSound.mType = AI::VOT_NONE;
+    }
+}
+}
+}

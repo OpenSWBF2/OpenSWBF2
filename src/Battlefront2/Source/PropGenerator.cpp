@@ -581,7 +581,7 @@ int PropGenerator::GetClusterIndex(float x, float z)
 // FUNCTION: SWBF2 0x0062b250
 void PropGenerator::Read(PblFileChunk& chunk)
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId != 0x41544144)
@@ -809,8 +809,8 @@ const RedLodData* PropGenerator::GetLodData(int iIndex)
     return pBest;
 }
 
-// TEMPLATE: SWBF2 0x0062b810
-// util::Vector<float,util::BaseArray<float,util::TNewArrayAlloc<float> > >::SetSize
+
+
 template bool util::Vector<float>::SetSize(int);
 
 namespace PropGenerator

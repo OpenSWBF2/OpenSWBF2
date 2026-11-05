@@ -220,12 +220,7 @@ void pcFlareShader::Render_Fixed(const RenderItem* pItem, unsigned int) const
 // FUNCTION: SWBF2 0x00706450
 void pcFlareShader::Render_Prog1(const RenderItem* pItem, unsigned int) const
 {
-    const RedColor& c = pItem->tweakColor;
-    RedColor color;
-    color.r = (unsigned char)(int)(m_colorDiffuse.r * (c.r * (1.0f / 255.0f)) + 0.5f);
-    color.g = (unsigned char)(int)(m_colorDiffuse.g * (c.g * (1.0f / 255.0f)) + 0.5f);
-    color.b = (unsigned char)(int)(m_colorDiffuse.b * (c.b * (1.0f / 255.0f)) + 0.5f);
-    color.a = (unsigned char)(int)(m_colorDiffuse.a * (c.a * (1.0f / 255.0f)) + 0.5f);
+    RedColor colorDiffuse = pItem->tweakColor * m_colorDiffuse;
 
     if (m_uiMaterialFlags & 0x20000)
     {
@@ -259,14 +254,7 @@ void pcFlareShader::Render_Prog1(const RenderItem* pItem, unsigned int) const
     }
 
     pcRedVertexShaderConstantRegister* pRegs = RedRenderer::pcLockVertexShaderConstants(39, 1);
-    const float fR = color.r * (1.0f / 255.0f);
-    const float fG = color.g * (1.0f / 255.0f);
-    const float fB = color.b * (1.0f / 255.0f);
-    const float fA = color.a * (1.0f / 255.0f);
-    pRegs[39].component[0] = fR;
-    pRegs[39].component[1] = fG;
-    pRegs[39].component[2] = fB;
-    pRegs[39].component[3] = fA;
+    pRegs[39].SetColor(RedColorValue(colorDiffuse));
     RedRenderer::pcUnlockVertexShaderConstants(pRegs);
 
     RedRenderer::pcSetTexture(0, m_texture);
@@ -327,7 +315,7 @@ void pcFlareShader::_InitPipelineFuncArray()
 // FUNCTION: SWBF2 0x00706750
 void pcFlareShader::_Read(PblFileChunk& chunk) const
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId != 0x454d414e)

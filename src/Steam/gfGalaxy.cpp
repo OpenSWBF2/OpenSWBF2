@@ -116,9 +116,7 @@ void gf::GalaxyAuthListener::OnAuthSuccess()
 
     galaxy::api::IUser* pUser = GetGalaxyUser();
 
-    galaxy::api::GalaxyID result = pUser->GetGalaxyID();
-    const galaxy::api::GalaxyID* id = &result;
-    NetMatch::SetLocalGSID((unsigned int)id->value, (unsigned int)(id->value >> 32));
+    NetMatch::SetLocalGSID(pUser->GetGalaxyID().ToUint64());
 
     StatsManager::Init();
     gf::friends::start();
@@ -444,7 +442,7 @@ void NetMatch::StartLogin(int iViewport, bool bArg2, char const* pcArg3, char co
     }
 
     netLoginPending = true;
-    NetMatch::SetLocalGSID(0, 0);
+    NetMatch::SetLocalGSID(0);
     if (gf::_sap())
     {
         const char* pcPersonaName = gf::_sap()->GetPersonaName();

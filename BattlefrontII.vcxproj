@@ -1032,6 +1032,7 @@
     <ClInclude Include="src\Battlefront2\Source\CoverHelper.h" />
     <ClInclude Include="src\Battlefront2\Source\DamageRegion.h" />
     <ClInclude Include="src\Battlefront2\Source\Damageable.h" />
+    <ClInclude Include="src\Battlefront2\Source\DataFileName.h" />
     <ClInclude Include="src\Battlefront2\Source\DeathCamera.h" />
     <ClInclude Include="src\Battlefront2\Source\DeathmatchGoal.h" />
     <ClInclude Include="src\Battlefront2\Source\Decal.h" />
@@ -1043,6 +1044,7 @@
     <ClInclude Include="src\Battlefront2\Source\DisplaySoldier.h" />
     <ClInclude Include="src\Battlefront2\Source\DownloadableContent.h" />
     <ClInclude Include="src\Battlefront2\Source\DustEffect.h" />
+    <ClInclude Include="src\Battlefront2\Source\EffectAttach.h" />
     <ClInclude Include="src\Battlefront2\Source\EndDisplay.h" />
     <ClInclude Include="src\Battlefront2\Source\EnergyBar.h" />
     <ClInclude Include="src\Battlefront2\Source\Entity.h" />
@@ -1165,6 +1167,7 @@
     <ClInclude Include="src\Battlefront2\Source\HUDViewPort.h" />
     <ClInclude Include="src\Battlefront2\Source\HeatShimmerEffect.h" />
     <ClInclude Include="src\Battlefront2\Source\HeroMessageDisplay.h" />
+    <ClInclude Include="src\Battlefront2\Source\HeroSlots.h" />
     <ClInclude Include="src\Battlefront2\Source\HintManager.h" />
     <ClInclude Include="src\Battlefront2\Source\IFaceSoldierAnimator.h" />
     <ClInclude Include="src\Battlefront2\Source\IdleHelper.h" />
@@ -1327,6 +1330,7 @@
     <ClInclude Include="src\Battlefront2\Source\SpawnManager.h" />
     <ClInclude Include="src\Battlefront2\Source\SpectatorDisplay.h" />
     <ClInclude Include="src\Battlefront2\Source\SquadCommands.h" />
+    <ClInclude Include="src\Battlefront2\Source\SquadronFormation.h" />
     <ClInclude Include="src\Battlefront2\Source\StatIconDisplay.h" />
     <ClInclude Include="src\Battlefront2\Source\StatusDisplay.h" />
     <ClInclude Include="src\Battlefront2\Source\StickInfo.h" />
@@ -1384,6 +1388,7 @@
     <ClInclude Include="src\Battlefront2\Source\VoiceOverManager.h" />
     <ClInclude Include="src\Battlefront2\Source\WalkerAnimation.h" />
     <ClInclude Include="src\Battlefront2\Source\WalkerLegPair.h" />
+    <ClInclude Include="src\Battlefront2\Source\WalkerLegPairBounds.h" />
     <ClInclude Include="src\Battlefront2\Source\WaterEffect.h" />
     <ClInclude Include="src\Battlefront2\Source\Weapon.h" />
     <ClInclude Include="src\Battlefront2\Source\WeaponAreaEffect.h" />
@@ -1447,6 +1452,7 @@
     <ClInclude Include="src\PebbleFL\Common\PblHermite.h" />
     <ClInclude Include="src\PebbleFL\Common\PblJournal.h" />
     <ClInclude Include="src\PebbleFL\Common\PblList.h" />
+    <ClInclude Include="src\PebbleFL\Common\PblListDelete.h" />
     <ClInclude Include="src\PebbleFL\Common\PblListDouble.h" />
     <ClInclude Include="src\PebbleFL\Common\PblListDoubleSorted.h" />
     <ClInclude Include="src\PebbleFL\Common\PblListSingle.h" />
@@ -1620,6 +1626,7 @@
     <ClInclude Include="src\SoundFL\source\sndobjectweightlist.h" />
     <ClInclude Include="src\SoundFL\source\sndparametergraph.h" />
     <ClInclude Include="src\SoundFL\source\sndqueue.h" />
+    <ClInclude Include="src\SoundFL\source\sndreleasevoice.h" />
     <ClInclude Include="src\SoundFL\source\sndsamplebankbase.h" />
     <ClInclude Include="src\SoundFL\source\sndsamplebase.h" />
     <ClInclude Include="src\SoundFL\source\sndsampleinfo.h" />

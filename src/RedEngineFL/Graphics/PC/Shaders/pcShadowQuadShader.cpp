@@ -242,7 +242,7 @@ void pcShadowQuadShader::_InitPipelineFuncArray()
 // FUNCTION: SWBF2 0x007084e0
 void pcShadowQuadShader::_Read(PblFileChunk& chunk) const
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId != 0x454d414e)

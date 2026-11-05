@@ -96,6 +96,11 @@ public:
         pAt->mPrev = pNode;
     }
 
+    void AddAfter(Node* oldNode, Node* newNode)
+    {
+        AddBefore(oldNode->mNext, newNode);
+    }
+
     void AddFirst(Node* pNode)
     {
         Node* pAt = mTerminator.mNext;

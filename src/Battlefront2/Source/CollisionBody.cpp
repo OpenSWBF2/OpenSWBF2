@@ -187,7 +187,7 @@ void CollisionBodyPrimitive::Read(PblFileChunk& chunk)
     int iPrim = 0;
     unsigned char ucMask = 0;
 
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)

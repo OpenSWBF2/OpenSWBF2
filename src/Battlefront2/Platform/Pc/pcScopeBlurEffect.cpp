@@ -15,6 +15,23 @@ namespace FLRenderer
 unsigned int GetCurrentViewport();
 }
 
+namespace
+{
+struct BlurVertex
+{
+    PosXYZW pos;
+    TexCoord uv0;
+    TexCoord uv1;
+};
+
+struct FilterVertex
+{
+    PosXYZ pos;
+    TexCoord uv0;
+};
+
+}
+
 // GLOBAL: SWBF2 0x007e5e78
 static FilterCopyShaderSample BoxFilter[9] = {
     { 0.125f, -3.0f, 3.0f },  { 0.125f, -2.0f, 2.0f },  { 0.125f, -1.0f, 1.0f },
@@ -72,14 +89,15 @@ void ScopeBlurEffect::Render(int value)
     float left, top, bottom, right;
     float fV;
     RedViewport viewport;
+    pcRedPrimitive* pPrimitive;
 
     if ((RedRenderer::pcGetDeviceCaps().DevCaps2 & D3DDEVCAPS2_CAN_STRETCHRECT_FROM_TEXTURES) &&
         RedRenderer::pcGetRenderOptions().distortion)
     {
         pcCopyBackBuffer();
 
-        pcRedPrimitive* pFilterPrimitive = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, 0x202, 20, 4, 0, false);
-        float* pFilterVerts = (float*)pFilterPrimitive->BeginVertexData();
+        pPrimitive = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, 0x202, 20, 4, 0, false);
+        FilterVertex* pFilterVerts = (FilterVertex*)pPrimitive->BeginVertexData();
         if (!pFilterVerts)
         {
             return;
@@ -88,28 +106,26 @@ void ScopeBlurEffect::Render(int value)
         RedRenderer::pcGetViewport(viewport);
         RedRenderer::pcGetViewportExtents(left, top, right, bottom);
 
-        fU = (float)m_pBlurTexture->m_uiWidth /
-             (float)(RedRenderer::pcGetBuffer(PC_BUFFER_TEMP))->m_uiWidth;
-        fV = (float)m_pBlurTexture->m_uiHeight /
-             (float)(RedRenderer::pcGetBuffer(PC_BUFFER_TEMP))->m_uiHeight;
+        fU = (float)m_pBlurTexture->GetWidth() /
+             (float)(RedRenderer::pcGetBuffer(PC_BUFFER_TEMP))->GetWidth();
+        fV = (float)m_pBlurTexture->GetHeight() /
+             (float)(RedRenderer::pcGetBuffer(PC_BUFFER_TEMP))->GetHeight();
 
-        float fY = 1.0f - fV * 2.0f;
-        float fX = fU * 2.0f - 1.0f;
-        pFilterVerts[0] = -1.0f;  pFilterVerts[1] = 1.0f;   pFilterVerts[2] = 0.0f;
-        pFilterVerts[3] = 0.0f;   pFilterVerts[4] = 0.0f;
-        pFilterVerts[5] = -1.0f;  pFilterVerts[6] = fY;     pFilterVerts[7] = 0.0f;
-        pFilterVerts[8] = 0.0f;   pFilterVerts[9] = 1.0f;
-        pFilterVerts[10] = fX;    pFilterVerts[11] = 1.0f;  pFilterVerts[12] = 0.0f;
-        pFilterVerts[13] = 1.0f;  pFilterVerts[14] = 0.0f;
-        pFilterVerts[15] = fX;    pFilterVerts[16] = fY;    pFilterVerts[17] = 0.0f;
-        pFilterVerts[18] = 1.0f;  pFilterVerts[19] = 1.0f;
-        pFilterPrimitive->EndVertexData();
+        pFilterVerts[0].pos.SetPos(-1.0f, 1.0f, 0.0f);
+        pFilterVerts[0].uv0.SetUV(0.0f, 0.0f);
+        pFilterVerts[1].pos.SetPos(-1.0f, 1.0f - fV * 2.0f, 0.0f);
+        pFilterVerts[1].uv0.SetUV(0.0f, 1.0f);
+        pFilterVerts[2].pos.SetPos(fU * 2.0f - 1.0f, 1.0f, 0.0f);
+        pFilterVerts[2].uv0.SetUV(1.0f, 0.0f);
+        pFilterVerts[3].pos.SetPos(fU * 2.0f - 1.0f, 1.0f - fV * 2.0f, 0.0f);
+        pFilterVerts[3].uv0.SetUV(1.0f, 1.0f);
+        pPrimitive->EndVertexData();
 
         m_pFilterShader->SetTextures(m_pBlurTexture, RedRenderer::pcGetBuffer(PC_BUFFER_TEMP));
         m_pFilterShader->SetSamples(9, BoxFilter);
-        RedRenderer::pcRenderPrimitive(pFilterPrimitive, m_pFilterShader, gMatrixIdentity,
+        RedRenderer::pcRenderPrimitive(pPrimitive, m_pFilterShader, gMatrixIdentity,
                                        RedColor::WHITE, 0x200, 0, 0, 0);
-        pFilterPrimitive->Release();
+        pPrimitive->Release();
 
         m_pClearShader->m_pTex = RedRenderer::pcGetBuffer(PC_BUFFER_TEMP);
         color.a = (unsigned char)m_alpha[uiViewport];
@@ -125,8 +141,8 @@ void ScopeBlurEffect::Render(int value)
 
     m_pClearShader->m_pAlphaMaskTex = RedTexture::Find(0xF745F270);
 
-    pcRedPrimitive* pPrimitive = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, 0x403, 32, 4, 0, false);
-    float* pVerts = (float*)pPrimitive->BeginVertexData();
+    pPrimitive = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, 0x403, 32, 4, 0, false);
+    BlurVertex* pVerts = (BlurVertex*)pPrimitive->BeginVertexData();
     if (!pVerts)
     {
         return;
@@ -135,14 +151,18 @@ void ScopeBlurEffect::Render(int value)
     RedRenderer::pcGetViewport(viewport);
     RedRenderer::pcGetViewportExtents(left, top, right, bottom);
 
-    pVerts[0] = left;   pVerts[1] = top;     pVerts[2] = 0.0f;  pVerts[3] = 1.0f;
-    pVerts[4] = viewport.fOffsetX * fU;    pVerts[5] = viewport.fOffsetY * fV;     pVerts[6] = 0.0f;  pVerts[7] = 0.0f;
-    pVerts[8] = left;   pVerts[9] = bottom;  pVerts[10] = 0.0f; pVerts[11] = 1.0f;
-    pVerts[12] = viewport.fOffsetX * fU;   pVerts[13] = (viewport.fHeight + viewport.fOffsetY) * fV;    pVerts[14] = 0.0f; pVerts[15] = 1.0f;
-    pVerts[16] = right; pVerts[17] = top;    pVerts[18] = 0.0f; pVerts[19] = 1.0f;
-    pVerts[20] = (viewport.fWidth + viewport.fOffsetX) * fU;   pVerts[21] = viewport.fOffsetY * fV;     pVerts[22] = 1.0f; pVerts[23] = 0.0f;
-    pVerts[24] = right; pVerts[25] = bottom; pVerts[26] = 0.0f; pVerts[27] = 1.0f;
-    pVerts[28] = (viewport.fWidth + viewport.fOffsetX) * fU;   pVerts[29] = (viewport.fHeight + viewport.fOffsetY) * fV;    pVerts[30] = 1.0f; pVerts[31] = 1.0f;
+    pVerts[0].pos.SetPos(left, top, 0.0f, 1.0f);
+    pVerts[0].uv0.SetUV(viewport.fOffsetX * fU, viewport.fOffsetY * fV);
+    pVerts[0].uv1.SetUV(0.0f, 0.0f);
+    pVerts[1].pos.SetPos(left, bottom, 0.0f, 1.0f);
+    pVerts[1].uv0.SetUV(viewport.fOffsetX * fU, (viewport.fHeight + viewport.fOffsetY) * fV);
+    pVerts[1].uv1.SetUV(0.0f, 1.0f);
+    pVerts[2].pos.SetPos(right, top, 0.0f, 1.0f);
+    pVerts[2].uv0.SetUV((viewport.fWidth + viewport.fOffsetX) * fU, viewport.fOffsetY * fV);
+    pVerts[2].uv1.SetUV(1.0f, 0.0f);
+    pVerts[3].pos.SetPos(right, bottom, 0.0f, 1.0f);
+    pVerts[3].uv0.SetUV((viewport.fWidth + viewport.fOffsetX) * fU, (viewport.fHeight + viewport.fOffsetY) * fV);
+    pVerts[3].uv1.SetUV(1.0f, 1.0f);
     pPrimitive->EndVertexData();
 
     RedRenderer::pcRenderPrimitive(pPrimitive, m_pClearShader, gMatrixIdentity,
@@ -164,8 +184,8 @@ void ScopeBlurEffect::pcCopyBackBuffer() const
     RECT destRect;
     destRect.left = 0;
     destRect.top = 0;
-    destRect.right = m_pBlurTexture->m_uiWidth;
-    destRect.bottom = m_pBlurTexture->m_uiHeight;
+    destRect.right = m_pBlurTexture->GetWidth();
+    destRect.bottom = m_pBlurTexture->GetHeight();
 
     IDirect3DSurface9* pBackBuffer;
     RedRenderer::pcGetDevice()->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &pBackBuffer);

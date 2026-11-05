@@ -2,8 +2,14 @@
 #include <d3dx9math.h>
 
 #include "CollisionUtil.h"
+#include "RedEngineFL/Graphics/RedColor.h"
 #include "PebbleFL/Common/PblVector.h"
 #include "PebbleFL/Common/PblMatrix.h"
+
+// FUNCTION: SWBF2 0x0046c020
+void CollisionUtil::RenderBox(const PblMatrix&, float, float, float, RedColor)
+{
+}
 
 // FUNCTION: SWBF2 0x00469060
 bool CollisionUtil::CollideSphereAABB(const PblVector3& rCenter, float fRadius,
@@ -348,20 +354,17 @@ namespace CollisionUtil
 bool CollideCylinderSphere(const PblMatrix& matrix, float fRadius, float fHalfHeight, const PblVector3& vSphereCenter,
                 float fSphereRadius, PblVector3& vNormal, float& fDepth)
 {
-    PblVector3 vXAxis = matrix.GetXAxis();
-    PblVector3 vYAxis = matrix.GetYAxis();
-    PblVector3 vZAxis = matrix.GetZAxis();
-    PblVector3 vOffset(vSphereCenter.x - matrix.m[3][0], vSphereCenter.y - matrix.m[3][1],
-                       vSphereCenter.z - matrix.m[3][2]);
-    PblVector3 vLocal(vXAxis.x * vOffset.x + vXAxis.y * vOffset.y + vXAxis.z * vOffset.z,
-                      vYAxis.x * vOffset.x + vYAxis.y * vOffset.y + vYAxis.z * vOffset.z,
-                      vZAxis.x * vOffset.x + vZAxis.y * vOffset.y + vZAxis.z * vOffset.z);
+    PblVector3 faceNormals[3] = { matrix.GetXAxis(), matrix.GetYAxis(), matrix.GetZAxis() };
+    PblVector3 kDiff = vSphereCenter - matrix.GetTranslation();
+    PblVector3 vLocal(DotProduct(kDiff, faceNormals[0]),
+                      DotProduct(kDiff, faceNormals[1]),
+                      DotProduct(kDiff, faceNormals[2]));
     float fDist2 = vLocal.x * vLocal.x + vLocal.z * vLocal.z;
 
     if (!(vLocal.y > fHalfHeight || -fHalfHeight > vLocal.y))
     {
 
-        float fDist = (float)sqrt((double)fDist2);
+        float fDist = sqrtf(fDist2);
         fDepth = (fRadius + fSphereRadius) - fDist;
         if (!(fDepth > 0.0f))
         {
@@ -369,17 +372,16 @@ bool CollideCylinderSphere(const PblMatrix& matrix, float fRadius, float fHalfHe
         }
         if (fDist > 0.0001f)
         {
-            float fInv = 1.0f / fDist;
-            float fWorldX = fInv * vLocal.x;
-            float fWorldY = fInv * 0.0f;
-            float fWorldZ = vLocal.z * fInv;
-            vNormal = PblVector3(vXAxis.x * fWorldX + vYAxis.x * fWorldY + vZAxis.x * fWorldZ,
-                                 vXAxis.y * fWorldX + vYAxis.y * fWorldY + vZAxis.y * fWorldZ,
-                                 vXAxis.z * fWorldX + vYAxis.z * fWorldY + vZAxis.z * fWorldZ);
+            PblVector3 tmpDir = vLocal;
+            tmpDir.y = 0.0f;
+            tmpDir = tmpDir / fDist;
+            vNormal = tmpDir.x * matrix.GetXAxis() +
+                      tmpDir.y * matrix.GetYAxis() +
+                      tmpDir.z * matrix.GetZAxis();
         }
         else
         {
-            fDepth = fSphereRadius > fRadius ? fSphereRadius : fRadius;
+            fDepth = Max(fSphereRadius, fRadius);
             vNormal = matrix.GetZAxis();
         }
         return true;
@@ -388,42 +390,39 @@ bool CollideCylinderSphere(const PblMatrix& matrix, float fRadius, float fHalfHe
     if (fRadius * fRadius > fDist2)
     {
 
-        fDepth = fSphereRadius - ((float)fabs((double)vLocal.y) - fHalfHeight);
+        fDepth = fSphereRadius - (fabsf(vLocal.y) - fHalfHeight);
         if (!(fDepth > 0.0f))
         {
             return false;
         }
         if (0.0f > vLocal.y)
         {
-            vNormal = PblVector3(matrix.m[1][0] * -1.0f, matrix.m[1][1] * -1.0f, matrix.m[1][2] * -1.0f);
+            vNormal = -1.0f * faceNormals[1];
         }
         else
         {
-            vNormal = matrix.GetYAxis();
+            vNormal = faceNormals[1];
         }
         return true;
     }
 
-    float fScale = fRadius / (float)sqrt((double)fDist2);
-    PblVector3 vEdge(fScale * vLocal.x, fScale * 0.0f, vLocal.z * fScale);
-    float fCapY = 0.0f > vLocal.y ? -fHalfHeight : fHalfHeight;
-    float fX = vLocal.x - vEdge.x;
-    float fZ = vLocal.z - vEdge.z;
-    float fY = vLocal.y - fCapY;
-    float fEdgeDist2 = fX * fX + fY * fY + fZ * fZ;
+    float xzDist = sqrtf(fDist2);
+    PblVector3 tmpDir = vLocal;
+    tmpDir.y = 0.0f;
+    tmpDir = (fRadius / xzDist) * tmpDir;
+    tmpDir.y = 0.0f > vLocal.y ? -fHalfHeight : fHalfHeight;
+    tmpDir = vLocal - tmpDir;
+    float fEdgeDist2 = DotProduct(tmpDir, tmpDir);
     if (!(fSphereRadius * fSphereRadius > fEdgeDist2))
     {
         return false;
     }
-    float fEdgeDist = (float)sqrt((double)fEdgeDist2);
+    float fEdgeDist = sqrtf(fEdgeDist2);
     fDepth = fSphereRadius - fEdgeDist;
-    float fInv = 1.0f / fEdgeDist;
-    float fWorldX = fX * fInv;
-    float fWorldY = fY * fInv;
-    float fWorldZ = fZ * fInv;
-    vNormal = PblVector3(vXAxis.x * fWorldX + vYAxis.x * fWorldY + vZAxis.x * fWorldZ,
-                         vXAxis.y * fWorldX + vYAxis.y * fWorldY + vZAxis.y * fWorldZ,
-                         vXAxis.z * fWorldX + vYAxis.z * fWorldY + vZAxis.z * fWorldZ);
+    tmpDir = tmpDir / fEdgeDist;
+    vNormal = tmpDir.x * matrix.GetXAxis() +
+              tmpDir.y * matrix.GetYAxis() +
+              tmpDir.z * matrix.GetZAxis();
     return true;
 }
 }
@@ -432,134 +431,94 @@ namespace CollisionUtil
 {
 
 // FUNCTION: SWBF2 0x004696b0
-bool GetClosestPointInPolygon(const PblVector3& vPos, int iNumCorners, const PblVector3* pCorners, PblVector3& vOutPos,
+bool GetClosestPointInPolygon(PblVector3& vPos, int iNumCorners, const PblVector3* pCorners, PblVector3& vOutPos,
                 float fMaxDist)
 {
-    PblVector3 c0 = pCorners[0];
-    const PblVector3& c1 = pCorners[1];
-    const PblVector3& c2 = pCorners[2];
-    float e0x = c1.x - c0.x;
-    float e0y = c1.y - c0.y;
-    float e0z = c1.z - c0.z;
-    float e1x = c2.x - c1.x;
-    float e1y = c2.y - c1.y;
-    float e1z = c2.z - c1.z;
-    float nx = e0y * e1z - e0z * e1y;
-    float ny = e0z * e1x - e0x * e1z;
-    float nz = e0x * e1y - e0y * e1x;
-    float fNormal2 = nx * nx + ny * ny + nz * nz;
-    if (fNormal2 < 0.0001f)
+    PblVector3 Out0 = pCorners[0];
+    PblVector3 Out1 = pCorners[1];
+    PblVector3 Out2 = pCorners[2];
+    PblVector3 e10 = Out1 - Out0;
+    PblVector3 e21 = Out2 - Out1;
+    PblVector3 normal = CrossProduct(e10, e21);
+    float mag2 = SquaredLength(normal);
+    if (mag2 < 0.0001f)
     {
         return false;
     }
-
-    float fDist = nx * (vPos.x - c0.x) + ny * (vPos.y - c0.y) + nz * (vPos.z - c0.z);
-    if (fDist < 0.0f)
+    PblVector3 p10 = vPos - Out0;
+    float dist = DotProduct(p10, normal);
+    if (dist < 0.0f)
     {
         return false;
     }
-    float fMaxDist2 = fMaxDist * fMaxDist;
-    if (fDist * fDist > fNormal2 * fMaxDist2)
+    float maxDist2 = fMaxDist * fMaxDist;
+    if (dist * dist > mag2 * maxDist2)
     {
         return false;
     }
-
-    float fT = fDist / fNormal2;
-    float px = vPos.x - nx * fT;
-    float py = vPos.y - ny * fT;
-    float pz = vPos.z - nz * fT;
-
-    float fFirstStart = e0x * (px - c0.x) + e0y * (py - c0.y) + e0z * (pz - c0.z);
-    float fEnd = -(e0x * (px - c1.x) + e0y * (py - c1.y) + e0z * (pz - c1.z));
-    if (fFirstStart >= 0.0f && fEnd >= 0.0f &&
-        (ny * e0z - nz * e0y) * (px - c0.x) + (nz * e0x - nx * e0z) * (py - c0.y) +
-                (nx * e0y - ny * e0x) * (pz - c0.z) < 0.0f)
+    PblVector3 pointOut = vPos - normal * (dist / mag2);
+    float side01 = DotProduct(e10, pointOut - Out0);
+    float side10 = -DotProduct(e10, pointOut - Out1);
+    if (side01 >= 0.0f && side10 >= 0.0f &&
+        DotProduct(CrossProduct(normal, e10), pointOut - Out0) < 0.0f)
     {
-        float fS = fFirstStart / (e0x * e0x + e0y * e0y + e0z * e0z);
-        float qx = e0x * fS + c0.x;
-        float qy = e0y * fS + c0.y;
-        float qz = e0z * fS + c0.z;
-        if ((vPos.x - qx) * (vPos.x - qx) + (vPos.y - qy) * (vPos.y - qy) + (vPos.z - qz) * (vPos.z - qz) <=
-            fMaxDist2)
+        PblVector3 pointOutNew = Out0 + e10 * (side01 / SquaredLength(e10));
+        PblVector3 vDist = vPos - pointOutNew;
+        if (SquaredLength(vDist) <= maxDist2)
         {
-            vOutPos = PblVector3(qx, qy, qz);
+            vOutPos = pointOutNew;
             return true;
         }
         return false;
     }
-
     for (int i = 1; i < iNumCorners; ++i)
     {
-        const PblVector3& a = pCorners[i];
-        const PblVector3& b = pCorners[i + 1 == iNumCorners ? 0 : i + 1];
-        float ex = b.x - a.x;
-        float ey = b.y - a.y;
-        float ez = b.z - a.z;
-        float fStart = ex * (px - a.x) + ey * (py - a.y) + ez * (pz - a.z);
-        float fNextEnd = -(ex * (px - b.x) + ey * (py - b.y) + ez * (pz - b.z));
-        if (fStart >= 0.0f && fNextEnd >= 0.0f &&
-            (ny * ez - nz * ey) * (px - a.x) + (nz * ex - nx * ez) * (py - a.y) + (nx * ey - ny * ex) * (pz - a.z) <
-                0.0f)
+        int i2 = i + 1;
+        if (i2 == iNumCorners)
         {
-            float fS = fStart / (ex * ex + ey * ey + ez * ez);
-            float qx = ex * fS + a.x;
-            float qy = ey * fS + a.y;
-            float qz = ez * fS + a.z;
-            if ((vPos.x - qx) * (vPos.x - qx) + (vPos.y - qy) * (vPos.y - qy) + (vPos.z - qz) * (vPos.z - qz) >
-                fMaxDist2)
+            i2 = 0;
+        }
+        Out2 = pCorners[i2];
+        PblVector3 e21New = Out2 - Out1;
+        float side12 = DotProduct(e21New, pointOut - Out1);
+        float side21 = -DotProduct(e21New, pointOut - Out2);
+        if (side12 >= 0.0f && side21 >= 0.0f &&
+            DotProduct(CrossProduct(normal, e21New), pointOut - Out1) < 0.0f)
+        {
+            PblVector3 pointOutNew = Out1 + e21New * (side12 / SquaredLength(e21New));
+            PblVector3 vDist = vPos - pointOutNew;
+            if (SquaredLength(vDist) > maxDist2)
             {
                 return false;
             }
-            vOutPos = PblVector3(qx, qy, qz);
+            vOutPos = pointOutNew;
             return true;
         }
-        if (fEnd <= 0.0f && fStart <= 0.0f)
+        if (side10 <= 0.0f && side12 <= 0.0f)
         {
-            if ((vPos.x - a.x) * (vPos.x - a.x) + (vPos.y - a.y) * (vPos.y - a.y) + (vPos.z - a.z) * (vPos.z - a.z) >
-                fMaxDist2)
+            PblVector3 vDist = vPos - Out1;
+            if (SquaredLength(vDist) > maxDist2)
             {
                 return false;
             }
-            vOutPos = a;
+            vOutPos = Out1;
             return true;
         }
-        fEnd = fNextEnd;
+        Out1 = pCorners[i2];
+        side10 = side21;
     }
-
-    if (fEnd > 0.0f || fFirstStart > 0.0f)
+    if (side10 > 0.0f || side01 > 0.0f)
     {
-        vOutPos = PblVector3(px, py, pz);
+        vOutPos = pointOut;
         return true;
     }
-    if ((vPos.x - c0.x) * (vPos.x - c0.x) + (vPos.y - c0.y) * (vPos.y - c0.y) + (vPos.z - c0.z) * (vPos.z - c0.z) >
-        fMaxDist2)
+    if (SquaredLength(p10) > maxDist2)
     {
         return false;
     }
-    vOutPos = c0;
+    vOutPos = Out0;
     return true;
 }
-}
-
-static inline float Fabs(float f)
-{
-    return (float)fabs((double)f);
-}
-
-static inline void GetAxis(const PblMatrix& m, int i, PblVector3& v)
-{
-    switch (i)
-    {
-    case 0:
-        v = PblVector3(m.m[0][0], m.m[0][1], m.m[0][2]);
-        break;
-    case 1:
-        v = PblVector3(m.m[1][0], m.m[1][1], m.m[1][2]);
-        break;
-    case 2:
-        v = PblVector3(m.m[2][0], m.m[2][1], m.m[2][2]);
-        break;
-    }
 }
 
 // FUNCTION: SWBF2 0x00468810
@@ -569,27 +528,21 @@ bool CollisionUtil::CollideBoxes(const PblVector3& vVelocityA, const PblMatrix& 
 {
     fDepth = fWidthA + fHeightA + fDepthA + fWidthB + fHeightB + fDepthB;
 
-    PblMatrix mInvA = mA.GetInverseFast();
-    PblMatrix mRel;
-    mRel = mB * mInvA;
-
-    PblVector3 vRelVel(vVelocityB.x - vVelocityA.x, vVelocityB.y - vVelocityA.y, vVelocityB.z - vVelocityA.z);
-    PblVector3 vRelDir;
-    D3DXVec3Normalize((D3DXVECTOR3*)&vRelDir, (const D3DXVECTOR3*)&vRelVel);
-
-    const float (*R)[4] = mRel.m;
-    PblVector3 vAxis[3] = { PblVector3(R[0][0], R[0][1], R[0][2]), PblVector3(R[1][0], R[1][1], R[1][2]),
-                            PblVector3(R[2][0], R[2][1], R[2][2]) };
-    PblVector3 vOffset(R[3][0], R[3][1], R[3][2]);
-    float fExtentA[3] = { fWidthA, fHeightA, fDepthA };
-    float fExtentB[3] = { fWidthB, fHeightB, fDepthB };
+    PblMatrix mRel = mB * mA.GetInverseFast();
+    PblVector3 relBoxMove2 = Normalize(vVelocityB - vVelocityA);
+    PblVector3 xAxis21 = mRel.GetXAxis();
+    PblVector3 yAxis21 = mRel.GetYAxis();
+    PblVector3 zAxis21 = mRel.GetZAxis();
+    PblVector3 pos21 = mRel.GetTranslation();
+    PblVector3 boxSize1(fWidthA, fHeightA, fDepthA);
+    PblVector3 boxSize2(fWidthB, fHeightB, fDepthB);
     int i;
 
     for (i = 0; i < 3; ++i)
     {
-        float fT = (&vOffset.x)[i];
-        float fSep = Fabs((&vAxis[0].x)[i]) * fWidthB + Fabs((&vAxis[1].x)[i]) * fHeightB +
-                     Fabs((&vAxis[2].x)[i]) * fDepthB + fExtentA[i] - Fabs(fT);
+        float fT = pos21[i];
+        float fSep = fabsf(xAxis21[i]) * fWidthB + fabsf(yAxis21[i]) * fHeightB +
+                     fabsf(zAxis21[i]) * fDepthB + boxSize1[i] - fabsf(fT);
         if (0.0f > fSep)
         {
             return false;
@@ -597,10 +550,15 @@ bool CollisionUtil::CollideBoxes(const PblVector3& vVelocityA, const PblMatrix& 
         if (fDepth > fSep)
         {
             fDepth = fSep;
-            GetAxis(mA, i, vNormal);
+            switch (i)
+            {
+            case 0: vNormal = mA.GetXAxis(); break;
+            case 1: vNormal = mA.GetYAxis(); break;
+            case 2: vNormal = mA.GetZAxis(); break;
+            }
             if (0.0f > fT)
             {
-                vNormal = PblVector3(-vNormal.x, -vNormal.y, -vNormal.z);
+                vNormal = -vNormal;
             }
         }
     }
@@ -608,9 +566,14 @@ bool CollisionUtil::CollideBoxes(const PblVector3& vVelocityA, const PblMatrix& 
     PblVector3 v;
     for (i = 0; i < 3; ++i)
     {
-        GetAxis(mRel, i, v);
-        float fProj = R[3][0] * v.x + R[3][1] * v.y + R[3][2] * v.z;
-        float fSep = Fabs(v.x) * fWidthA + Fabs(v.y) * fHeightA + Fabs(v.z) * fDepthA + fExtentB[i] - Fabs(fProj);
+        switch (i)
+        {
+        case 0: v = xAxis21; break;
+        case 1: v = yAxis21; break;
+        case 2: v = zAxis21; break;
+        }
+        float fProj = DotProduct(pos21, v);
+        float fSep = fabsf(v.x) * fWidthA + fabsf(v.y) * fHeightA + fabsf(v.z) * fDepthA + boxSize2[i] - fabsf(fProj);
         if (0.0f > fSep)
         {
             return false;
@@ -618,66 +581,70 @@ bool CollisionUtil::CollideBoxes(const PblVector3& vVelocityA, const PblMatrix& 
         if (fDepth > fSep)
         {
             fDepth = fSep;
-            GetAxis(mB, i, vNormal);
+            switch (i)
+            {
+            case 0: vNormal = mB.GetXAxis(); break;
+            case 1: vNormal = mB.GetYAxis(); break;
+            case 2: vNormal = mB.GetZAxis(); break;
+            }
             if (0.0f > fProj)
             {
-                vNormal = PblVector3(-vNormal.x, -vNormal.y, -vNormal.z);
+                vNormal = -vNormal;
             }
         }
     }
 
-    const float* T = R[3];
 
-    if (0.0f > (Fabs(R[0][1]) * fDepthA + Fabs(R[0][2]) * fHeightA) +
-                   (Fabs(R[1][0]) * fDepthB + Fabs(R[2][0]) * fHeightB) - Fabs(R[0][1] * T[2] - R[0][2] * T[1]))
+    if (0.0f > (fabsf(xAxis21.y) * fDepthA + fabsf(xAxis21.z) * fHeightA) +
+                   (fabsf(yAxis21.x) * fDepthB + fabsf(zAxis21.x) * fHeightB) - fabsf(xAxis21.y * pos21.z - xAxis21.z * pos21.y))
     {
         return false;
     }
 
-    if (0.0f > (Fabs(R[1][1]) * fDepthA + Fabs(R[1][2]) * fHeightA) +
-                   (Fabs(R[2][0]) * fWidthB + Fabs(R[0][0]) * fDepthB) - Fabs(R[1][1] * T[2] - R[1][2] * T[1]))
+    if (0.0f > (fabsf(yAxis21.y) * fDepthA + fabsf(yAxis21.z) * fHeightA) +
+                   (fabsf(zAxis21.x) * fWidthB + fabsf(xAxis21.x) * fDepthB) - fabsf(yAxis21.y * pos21.z - yAxis21.z * pos21.y))
     {
         return false;
     }
 
-    if (0.0f > (Fabs(R[2][1]) * fDepthA + Fabs(R[2][2]) * fHeightA) +
-                   (Fabs(R[1][0]) * fWidthB + Fabs(R[0][0]) * fHeightB) - Fabs(R[2][1] * T[2] - R[2][2] * T[1]))
+    if (0.0f > (fabsf(zAxis21.y) * fDepthA + fabsf(zAxis21.z) * fHeightA) +
+                   (fabsf(yAxis21.x) * fWidthB + fabsf(xAxis21.x) * fHeightB) - fabsf(zAxis21.y * pos21.z - zAxis21.z * pos21.y))
     {
         return false;
     }
 
-    if (0.0f > (Fabs(R[0][2]) * fWidthA + Fabs(R[0][0]) * fDepthA) +
-                   (Fabs(R[2][1]) * fHeightB + Fabs(R[1][1]) * fDepthB) - Fabs(R[0][2] * T[0] - R[0][0] * T[2]))
+    if (0.0f > (fabsf(xAxis21.z) * fWidthA + fabsf(xAxis21.x) * fDepthA) +
+                   (fabsf(zAxis21.y) * fHeightB + fabsf(yAxis21.y) * fDepthB) - fabsf(xAxis21.z * pos21.x - xAxis21.x * pos21.z))
     {
         return false;
     }
 
-    if (0.0f > (Fabs(R[1][0]) * fDepthA + Fabs(R[1][2]) * fWidthA) +
-                   (Fabs(R[0][1]) * fDepthB + Fabs(R[2][1]) * fWidthB) - Fabs(R[1][2] * T[0] - R[1][0] * T[2]))
+    if (0.0f > (fabsf(yAxis21.x) * fDepthA + fabsf(yAxis21.z) * fWidthA) +
+                   (fabsf(xAxis21.y) * fDepthB + fabsf(zAxis21.y) * fWidthB) - fabsf(yAxis21.z * pos21.x - yAxis21.x * pos21.z))
     {
         return false;
     }
 
-    if (0.0f > (Fabs(R[2][0]) * fDepthA + Fabs(R[2][2]) * fWidthA) +
-                   (Fabs(R[0][1]) * fHeightB + Fabs(R[1][1]) * fWidthB) - Fabs(R[2][2] * T[0] - R[2][0] * T[2]))
+    if (0.0f > (fabsf(zAxis21.x) * fDepthA + fabsf(zAxis21.z) * fWidthA) +
+                   (fabsf(xAxis21.y) * fHeightB + fabsf(yAxis21.y) * fWidthB) - fabsf(zAxis21.z * pos21.x - zAxis21.x * pos21.z))
     {
         return false;
     }
 
-    if (0.0f > (Fabs(R[0][1]) * fWidthA + Fabs(R[0][0]) * fHeightA) +
-                   (Fabs(R[2][2]) * fHeightB + Fabs(R[1][2]) * fDepthB) - Fabs(R[0][0] * T[1] - R[0][1] * T[0]))
+    if (0.0f > (fabsf(xAxis21.y) * fWidthA + fabsf(xAxis21.x) * fHeightA) +
+                   (fabsf(zAxis21.z) * fHeightB + fabsf(yAxis21.z) * fDepthB) - fabsf(xAxis21.x * pos21.y - xAxis21.y * pos21.x))
     {
         return false;
     }
 
-    if (0.0f > (Fabs(R[1][0]) * fHeightA + Fabs(R[1][1]) * fWidthA) +
-                   (Fabs(R[0][2]) * fDepthB + Fabs(R[2][2]) * fWidthB) - Fabs(R[1][0] * T[1] - R[1][1] * T[0]))
+    if (0.0f > (fabsf(yAxis21.x) * fHeightA + fabsf(yAxis21.y) * fWidthA) +
+                   (fabsf(xAxis21.z) * fDepthB + fabsf(zAxis21.z) * fWidthB) - fabsf(yAxis21.x * pos21.y - yAxis21.y * pos21.x))
     {
         return false;
     }
 
-    if (0.0f > (Fabs(R[2][0]) * fHeightA + Fabs(R[2][1]) * fWidthA) +
-                   (Fabs(R[0][2]) * fHeightB + Fabs(R[1][2]) * fWidthB) - Fabs(R[2][0] * T[1] - R[2][1] * T[0]))
+    if (0.0f > (fabsf(zAxis21.x) * fHeightA + fabsf(zAxis21.y) * fWidthA) +
+                   (fabsf(xAxis21.z) * fHeightB + fabsf(yAxis21.z) * fWidthB) - fabsf(zAxis21.x * pos21.y - zAxis21.y * pos21.x))
     {
         return false;
     }
@@ -939,13 +906,6 @@ float RayHitBubble(const PblVector3& vStart, const PblVector3& vDir, float fLeng
 }
 
 
-static inline PblVector3 InverseRotate(const PblMatrix& m, float x, float y, float z)
-{
-    return PblVector3(m.m[0][0] * x + m.m[0][1] * y + m.m[0][2] * z,
-                      m.m[1][0] * x + m.m[1][1] * y + m.m[1][2] * z,
-                      m.m[2][0] * x + m.m[2][1] * y + m.m[2][2] * z);
-}
-
 namespace CollisionUtil
 {
 
@@ -953,9 +913,13 @@ namespace CollisionUtil
 float RayHitBox(const PblVector3& vStart, const PblVector3& vDir, float fLength, const PblMatrix& matrix,
                  float fWidth, float fDepth, float fHeight, PblVector3* pNormal)
 {
-    const PblVector3& vPos = matrix.GetTranslation();
-    PblVector3 vLocalStart = InverseRotate(matrix, vStart.x - vPos.x, vStart.y - vPos.y, vStart.z - vPos.z);
-    PblVector3 vLocalDir = InverseRotate(matrix, vDir.x, vDir.y, vDir.z);
+    PblVector3 kDiff = vStart - matrix.GetTranslation();
+    PblVector3 vLocalStart(DotProduct(kDiff, matrix.GetXAxis()),
+                          DotProduct(kDiff, matrix.GetYAxis()),
+                          DotProduct(kDiff, matrix.GetZAxis()));
+    PblVector3 vLocalDir(DotProduct(vDir, matrix.GetXAxis()),
+                        DotProduct(vDir, matrix.GetYAxis()),
+                        DotProduct(vDir, matrix.GetZAxis()));
 
     float fHit = 0.0f;
     int face = FindAACenteredBoxRayIntersection(vLocalStart, vLocalDir, fLength, fWidth, fHeight, fDepth, fHit);
@@ -971,13 +935,13 @@ float RayHitBox(const PblVector3& vStart, const PblVector3& vDir, float fLength,
         case 2: *pNormal = matrix.GetYAxis(); break;
         case 3: *pNormal = matrix.GetZAxis(); break;
         case -1:
-            *pNormal = PblVector3(matrix.m[0][0] * -1.0f, matrix.m[0][1] * -1.0f, matrix.m[0][2] * -1.0f);
+            *pNormal = -1.0f * matrix.GetXAxis();
             break;
         case -2:
-            *pNormal = PblVector3(matrix.m[1][0] * -1.0f, matrix.m[1][1] * -1.0f, matrix.m[1][2] * -1.0f);
+            *pNormal = -1.0f * matrix.GetYAxis();
             break;
         case -3:
-            *pNormal = PblVector3(matrix.m[2][0] * -1.0f, matrix.m[2][1] * -1.0f, matrix.m[2][2] * -1.0f);
+            *pNormal = -1.0f * matrix.GetZAxis();
             break;
         default:
             pNormal->x = 0.0f;
@@ -1001,15 +965,11 @@ float RayHitAACylinder(const PblVector3& vStart, const PblVector3& vDir, float f
         {
             if (vStart.y > vCenter.y)
             {
-                pNormal->x = 0.0f;
-                pNormal->y = 1.0f;
-                pNormal->z = 0.0f;
+                pNormal->Set(0.0f, 1.0f, 0.0f);
             }
             else
             {
-                pNormal->x = 0.0f;
-                pNormal->y = -1.0f;
-                pNormal->z = 0.0f;
+                pNormal->Set(0.0f, -1.0f, 0.0f);
             }
         }
         return 1.0f;
@@ -1073,29 +1033,26 @@ namespace CollisionUtil
 float RayHitAxisAlignedCylinder(const PblVector3& vStart, const PblVector3& vDir, float fLength, const PblVector3& vCenter,
                  float fRadius, float fHalfHeight, PblVector3* pNormal)
 {
-    float fEndY = vDir.y * fLength + vStart.y;
+    PblVector3 vEnd = vStart + vDir * fLength;
     float fTop = vCenter.y + fHalfHeight;
     if (vStart.y > fTop)
     {
-        if (fTop > fEndY)
+        if (fTop > vEnd.y)
         {
-            float t = (vStart.y - fTop) / (vStart.y - fEndY);
-            float dx = t * fLength * vDir.x + vStart.x - vCenter.x;
-            float dz = t * fLength * vDir.z + vStart.z - vCenter.z;
-            if (fRadius * fRadius > dx * dx + dz * dz)
+            float t = (vStart.y - fTop) / (vStart.y - vEnd.y);
+            PblVector3 vIntersect = vStart + vDir * (t * fLength);
+            if (fRadius * fRadius > SquaredLengthXZ(vIntersect - vCenter))
             {
                 if (pNormal)
                 {
-                    pNormal->x = 0.0f;
-                    pNormal->y = 1.0f;
-                    pNormal->z = 0.0f;
+                    pNormal->Set(0.0f, 1.0f, 0.0f);
                 }
                 return t;
             }
 
             t += 0.0001f;
             float fStep = t * fLength;
-            PblVector3 vS(fStep * vDir.x + vStart.x, fStep * vDir.y + vStart.y, fStep * vDir.z + vStart.z);
+            PblVector3 vS = vStart + vDir * fStep;
             float fRest = 1.0f - t;
             float fHit = RayHitAACylinder(vS, vDir, fRest * fLength, vCenter, fRadius, fHalfHeight, pNormal);
             if (fHit < 1.0f)
@@ -1109,25 +1066,22 @@ float RayHitAxisAlignedCylinder(const PblVector3& vStart, const PblVector3& vDir
     float fBottom = vCenter.y - fHalfHeight;
     if (fBottom > vStart.y)
     {
-        if (fEndY > fBottom)
+        if (vEnd.y > fBottom)
         {
-            float t = (vStart.y - fBottom) / (vStart.y - fEndY);
-            float dx = t * fLength * vDir.x + vStart.x - vCenter.x;
-            float dz = t * fLength * vDir.z + vStart.z - vCenter.z;
-            if (fRadius * fRadius > dx * dx + dz * dz)
+            float t = (vStart.y - fBottom) / (vStart.y - vEnd.y);
+            PblVector3 vIntersect = vStart + vDir * (t * fLength);
+            if (fRadius * fRadius > SquaredLengthXZ(vIntersect - vCenter))
             {
                 if (pNormal)
                 {
-                    pNormal->x = 0.0f;
-                    pNormal->y = -1.0f;
-                    pNormal->z = 0.0f;
+                    pNormal->Set(0.0f, -1.0f, 0.0f);
                 }
                 return t;
             }
 
             t += 0.0001f;
             float fStep = t * fLength;
-            PblVector3 vS(fStep * vDir.x + vStart.x, fStep * vDir.y + vStart.y, fStep * vDir.z + vStart.z);
+            PblVector3 vS = vStart + vDir * fStep;
             float fRest = 1.0f - t;
             float fHit = RayHitAACylinder(vS, vDir, fRest * fLength, vCenter, fRadius, fHalfHeight, pNormal);
             if (fHit < 1.0f)
@@ -1148,19 +1102,22 @@ namespace CollisionUtil
 float RayHitCylinder(const PblVector3& vStart, const PblVector3& vDir, float fLength, const PblMatrix& matrix,
                  float fRadius, float fHalfHeight, PblVector3* pNormal)
 {
-    const PblVector3& vPos = matrix.GetTranslation();
-    PblVector3 vLocalStart = InverseRotate(matrix, vStart.x - vPos.x, vStart.y - vPos.y, vStart.z - vPos.z);
-    PblVector3 vLocalDir = InverseRotate(matrix, vDir.x, vDir.y, vDir.z);
+    PblVector3 kDiff = vStart - matrix.GetTranslation();
+    PblVector3 vLocalStart(DotProduct(kDiff, matrix.GetXAxis()),
+                          DotProduct(kDiff, matrix.GetYAxis()),
+                          DotProduct(kDiff, matrix.GetZAxis()));
+    PblVector3 vLocalDir(DotProduct(vDir, matrix.GetXAxis()),
+                        DotProduct(vDir, matrix.GetYAxis()),
+                        DotProduct(vDir, matrix.GetZAxis()));
     PblVector3 vCenter(0.0f, 0.0f, 0.0f);
     PblVector3 vLocalNormal;
 
     float fHit = CollisionUtil::RayHitAxisAlignedCylinder(vLocalStart, vLocalDir, fLength, vCenter, fRadius, fHalfHeight, &vLocalNormal);
     if (fHit < 1.0f && pNormal)
     {
-        *pNormal = PblVector3(
-            matrix.m[0][0] * vLocalNormal.x + matrix.m[1][0] * vLocalNormal.y + matrix.m[2][0] * vLocalNormal.z,
-            matrix.m[0][1] * vLocalNormal.x + matrix.m[1][1] * vLocalNormal.y + matrix.m[2][1] * vLocalNormal.z,
-            matrix.m[0][2] * vLocalNormal.x + matrix.m[1][2] * vLocalNormal.y + matrix.m[2][2] * vLocalNormal.z);
+        *pNormal = vLocalNormal.x * matrix.GetXAxis() +
+                   vLocalNormal.y * matrix.GetYAxis() +
+                   vLocalNormal.z * matrix.GetZAxis();
     }
     return fHit;
 }

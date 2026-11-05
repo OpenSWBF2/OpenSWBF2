@@ -49,7 +49,7 @@ public:
     CommandWalker(CommandWalkerClass* pClass, const EntityDesc& desc);
     virtual ~CommandWalker();
 
-    static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }
+    static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
     // SYNTHETIC: SWBF2 0x0047fdb0
     // CommandWalker::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }

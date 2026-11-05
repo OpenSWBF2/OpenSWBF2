@@ -32,6 +32,61 @@ public:
 
     SourceI3DL2();
 
+    void SetDirectGain(float fValue)
+    {
+        mFlags |= flags_directGain;
+        mDirectGain = fValue;
+    }
+
+    void SetDirectHFGain(float fValue)
+    {
+        mFlags |= flags_directHFGain;
+        mDirectHFGain = fValue;
+    }
+
+    void SetRoomGain(float fValue)
+    {
+        mFlags |= flags_roomGain;
+        mRoomGain = fValue;
+    }
+
+    void SetRoomHFGain(float fValue)
+    {
+        mFlags |= flags_roomHFGain;
+        mRoomHFGain = fValue;
+    }
+
+    void SetRoomRollOff(float fValue)
+    {
+        mFlags |= flags_roomRollOffFactor;
+        mRoomRollOffFactor = fValue;
+    }
+
+    void SetObstructionHFGain(float fValue)
+    {
+        mFlags |= flags_obstructionHFGain;
+        mObstructionHFGain = fValue;
+    }
+
+    void SetObstructionLFRatio(float fValue)
+    {
+        mFlags |= flags_obstructionLFRatio;
+        mObstructionLFRatio = fValue;
+    }
+
+    void SetOcclusionHFGain(float fValue)
+    {
+        mFlags |= flags_occlusionHFGain;
+        mOcclusionHFGain = fValue;
+    }
+
+    void SetOcclusionLFRatio(float fValue)
+    {
+        mFlags |= flags_occlusionLFRatio;
+        mOcclusionLFRatio = fValue;
+    }
+
+
     float CalculateGainEstimate() const;
 
     bool Read(PblFileChunk& chunk, unsigned int uiPropertyID);
@@ -77,6 +132,61 @@ public:
     };
 
     SourceI3DL2Interpolated() : mFlags(0) {}
+
+    void SetDirectGain(float fValue)
+    {
+        mTarget.SetDirectGain(fValue);
+        mFlags |= flags_interpolate;
+    }
+
+    void SetDirectHFGain(float fValue)
+    {
+        mTarget.SetDirectHFGain(fValue);
+        mFlags |= flags_interpolate;
+    }
+
+    void SetRoomGain(float fValue)
+    {
+        mTarget.SetRoomGain(fValue);
+        mFlags |= flags_interpolate;
+    }
+
+    void SetRoomHFGain(float fValue)
+    {
+        mTarget.SetRoomHFGain(fValue);
+        mFlags |= flags_interpolate;
+    }
+
+    void SetRoomRollOff(float fValue)
+    {
+        mTarget.SetRoomRollOff(fValue);
+        mFlags |= flags_interpolate;
+    }
+
+    void SetObstructionHFGain(float fValue)
+    {
+        mTarget.SetObstructionHFGain(fValue);
+        mFlags |= flags_interpolate;
+    }
+
+    void SetObstructionLFRatio(float fValue)
+    {
+        mTarget.SetObstructionLFRatio(fValue);
+        mFlags |= flags_interpolate;
+    }
+
+    void SetOcclusionHFGain(float fValue)
+    {
+        mTarget.SetOcclusionHFGain(fValue);
+        mFlags |= flags_interpolate;
+    }
+
+    void SetOcclusionLFRatio(float fValue)
+    {
+        mTarget.SetOcclusionLFRatio(fValue);
+        mFlags |= flags_interpolate;
+    }
+
 
     void Update(const ListenerBase* const pListener,
                 const ::PblVector3* const pPos,

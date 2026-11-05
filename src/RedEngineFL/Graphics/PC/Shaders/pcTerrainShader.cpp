@@ -256,8 +256,7 @@ void pcTerrainShader::Begin_Fixed(unsigned int uiState, unsigned int uiPass) con
         SetWrapLinear(0);
         PblMatrix mCamera;
         mCamera = RedRenderer::GetCamera()->GetMatrix();
-        mCamera[2] = -mCamera[2];
-        mCamera.m[2][3] = 0.0f;
+        mCamera.SetZAxis(-mCamera[2]);
         PblMatrix mWorldToTexture;
         mWorldToTexture.SetXAxis(s_FarTextureTransform.x, 0.0f, 0.0f, 0.0f);
         mWorldToTexture.SetYAxis(0.0f, 0.0f, 0.0f, 0.0f);
@@ -409,8 +408,7 @@ void pcTerrainShader::Begin_Fixed(unsigned int uiState, unsigned int uiPass) con
             const PblVector4& vV = RedShadowMap::_vShadowMapTransformV;
             const PblVector4& vW = RedShadowMap::_vShadowMapTransformW;
             PblMatrix mCamera(RedRenderer::GetCamera()->GetMatrix());
-            mCamera[2] = -mCamera[2];
-            mCamera.m[2][3] = 0.0f;
+            mCamera.SetZAxis(-mCamera[2]);
             PblMatrix mTexture;
             const PblMatrix mShadow(PblVector3(vU.x, vV.x, vW.x), PblVector3(vU.y, vV.y, vW.y), PblVector3(vU.z, vV.z, vW.z), PblVector3(vU.w, vV.w, vW.w));
             mTexture = mCamera * mShadow;
@@ -454,8 +452,7 @@ void pcTerrainShader::Begin_Fixed(unsigned int uiState, unsigned int uiPass) con
         const PblVector4& vT1 = s_DetailTextureTransform[1];
         PblMatrix mCamera;
         mCamera = RedRenderer::GetCamera()->GetMatrix();
-        mCamera[2] = -mCamera[2];
-        mCamera.m[2][3] = 0.0f;
+        mCamera.SetZAxis(-mCamera[2]);
         PblMatrix mTexture;
         const PblMatrix mDetail(PblVector3(vT0.x, vT1.x, 0.0f), PblVector3(vT0.y, vT1.y, 0.0f), PblVector3(vT0.z, vT1.z, 0.0f), PblVector3(vT0.w, vT1.w, 0.0f));
         mTexture = mCamera * mDetail;
@@ -512,15 +509,15 @@ void pcTerrainShader::Begin_Prog1(unsigned int uiState, unsigned int uiPass) con
             RedRenderer::pcSetTexture(1, s_pFarDetailTexture);
             SetWrapLinear(1);
             pRegs = RedRenderer::pcLockVertexShaderConstants(39, 3);
-            SetColor(pRegs[39], RedColorValue::WHITE);
-            SetVector(pRegs[40], s_FarTextureTransform);
-            SetVector(pRegs[41], s_FarDetailTextureTransform);
+            pRegs[39].SetColor(RedColorValue::WHITE);
+            pRegs[40].SetVector(s_FarTextureTransform);
+            pRegs[41].SetVector(s_FarDetailTextureTransform);
         }
         else
         {
             pRegs = RedRenderer::pcLockVertexShaderConstants(39, 2);
-            SetColor(pRegs[39], RedColorValue::WHITE);
-            SetVector(pRegs[40], s_FarTextureTransform);
+            pRegs[39].SetColor(RedColorValue::WHITE);
+            pRegs[40].SetVector(s_FarTextureTransform);
         }
         RedRenderer::pcUnlockVertexShaderConstants(pRegs);
         RedRenderer::pcLoadFormat(s_pFarVertexInputFormat);
@@ -563,16 +560,16 @@ void pcTerrainShader::Begin_Prog1(unsigned int uiState, unsigned int uiPass) con
             if (bDetail)
             {
                 pRegs = RedRenderer::pcLockVertexShaderConstants(39, 8);
-                SetColor(pRegs[39], RedColorValue(RedColor::WHITE));
-                Set(pRegs[40], -2.0f / s_fDetailFadeDistance, 2.0f, s_fLightningValue, kInv255);
-                SetVector(pRegs[45], s_DetailTextureTransform[0]);
-                SetVector(pRegs[46], s_DetailTextureTransform[1]);
+                pRegs[39].SetColor(RedColorValue(RedColor::WHITE));
+                pRegs[40].SetFloats(-2.0f / s_fDetailFadeDistance, 2.0f, s_fLightningValue, kInv255);
+                pRegs[45].SetVector(s_DetailTextureTransform[0]);
+                pRegs[46].SetVector(s_DetailTextureTransform[1]);
             }
             else
             {
                 pRegs = RedRenderer::pcLockVertexShaderConstants(39, 2);
-                SetColor(pRegs[39], RedColorValue(RedColor::WHITE));
-                Set(pRegs[40], 0.0f, 0.0f, s_fLightningValue, kInv255);
+                pRegs[39].SetColor(RedColorValue(RedColor::WHITE));
+                pRegs[40].SetFloats(0.0f, 0.0f, s_fLightningValue, kInv255);
             }
             RedRenderer::pcUnlockVertexShaderConstants(pRegs);
 
@@ -597,10 +594,10 @@ void pcTerrainShader::Begin_Prog1(unsigned int uiState, unsigned int uiPass) con
             SetMipBias(0, kfDetailTextureMipBias);
 
             pcRedVertexShaderConstantRegister* pRegs = RedRenderer::pcLockVertexShaderConstants(39, 4);
-            SetColor(pRegs[39], RedColorValue::WHITE);
-            Set(pRegs[40], -2.0f / s_fDetailFadeDistance, 2.0f, 0.0f, 0.0f);
-            SetVector(pRegs[41], s_DetailTextureTransform[0]);
-            SetVector(pRegs[42], s_DetailTextureTransform[1]);
+            pRegs[39].SetColor(RedColorValue::WHITE);
+            pRegs[40].SetFloats(-2.0f / s_fDetailFadeDistance, 2.0f, 0.0f, 0.0f);
+            pRegs[41].SetVector(s_DetailTextureTransform[0]);
+            pRegs[42].SetVector(s_DetailTextureTransform[1]);
             RedRenderer::pcUnlockVertexShaderConstants(pRegs);
             RedRenderer::pcLoadFormat(s_pPosVertexInputFormat);
         }
@@ -627,8 +624,8 @@ void pcTerrainShader::Begin_Prog1(unsigned int uiState, unsigned int uiPass) con
         if (uiState == 10 || uiState == 13)
         {
             pRegs = RedRenderer::pcLockVertexShaderConstants(39, 2);
-            SetColor(pRegs[39], RedColorValue::WHITE);
-            Set(pRegs[40], 0.0f, 0.0f, s_fLightningValue, 0.0f);
+            pRegs[39].SetColor(RedColorValue::WHITE);
+            pRegs[40].SetFloats(0.0f, 0.0f, s_fLightningValue, 0.0f);
             RedRenderer::pcUnlockVertexShaderConstants(pRegs);
             RedRenderer::pcLoadFormat(s_pVertexInputFormat);
             return;
@@ -638,20 +635,20 @@ void pcTerrainShader::Begin_Prog1(unsigned int uiState, unsigned int uiPass) con
         {
             RedRenderer::pcSetTexture(0, s_pDetailTexture);
             pRegs = RedRenderer::pcLockVertexShaderConstants(39, 4);
-            SetColor(pRegs[39], RedColorValue::WHITE);
-            Set(pRegs[40], -2.0f / s_fDetailFadeDistance, 2.0f, s_fLightningValue, 0.0f);
-            SetVector(pRegs[41], s_DetailTextureTransform[0]);
-            SetVector(pRegs[42], s_DetailTextureTransform[1]);
+            pRegs[39].SetColor(RedColorValue::WHITE);
+            pRegs[40].SetFloats(-2.0f / s_fDetailFadeDistance, 2.0f, s_fLightningValue, 0.0f);
+            pRegs[41].SetVector(s_DetailTextureTransform[0]);
+            pRegs[42].SetVector(s_DetailTextureTransform[1]);
             RedRenderer::pcUnlockVertexShaderConstants(pRegs);
         }
         else
         {
             RedRenderer::pcSetTexture(0, s_pBumpLuminosityTexture);
             pRegs = RedRenderer::pcLockVertexShaderConstants(39, 4);
-            SetColor(pRegs[39], RedColorValue::WHITE);
-            Set(pRegs[40], -2.0f / s_fDetailFadeDistance, 2.0f, s_fLightningValue, 0.0f);
-            SetVector(pRegs[41], s_BumpLuminosityTextureTransform[0]);
-            SetVector(pRegs[42], s_BumpLuminosityTextureTransform[1]);
+            pRegs[39].SetColor(RedColorValue::WHITE);
+            pRegs[40].SetFloats(-2.0f / s_fDetailFadeDistance, 2.0f, s_fLightningValue, 0.0f);
+            pRegs[41].SetVector(s_BumpLuminosityTextureTransform[0]);
+            pRegs[42].SetVector(s_BumpLuminosityTextureTransform[1]);
             RedRenderer::pcUnlockVertexShaderConstants(pRegs);
 
             RedColorValue ambient[2] = {RedLight::GetGlobalAmbientLight()->m_color,
@@ -691,8 +688,8 @@ void pcTerrainShader::Begin_Prog1(unsigned int uiState, unsigned int uiPass) con
             RedRenderer::pcSetTexture(0, s_pNormalizationCubeMap);
             pRegs = RedRenderer::pcLockVertexShaderConstants(39, 2);
             const RedColorValue white(RedColor::WHITE);
-            memcpy(&pRegs[39], &white, sizeof(white));
-            Set(pRegs[40], -2.0f / s_fDetailFadeDistance, 2.0f, 0.0f, 0.0f);
+            pRegs[39].SetColor(white);
+            pRegs[40].SetFloats(-2.0f / s_fDetailFadeDistance, 2.0f, 0.0f, 0.0f);
             RedRenderer::pcUnlockVertexShaderConstants(pRegs);
             RedRenderer::pcSetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
             RedRenderer::pcSetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
@@ -703,10 +700,10 @@ void pcTerrainShader::Begin_Prog1(unsigned int uiState, unsigned int uiPass) con
             RedRenderer::pcSetTexture(0, s_pBumpLuminosityTexture);
             pRegs = RedRenderer::pcLockVertexShaderConstants(39, 4);
             const RedColorValue white(RedColor::WHITE);
-            memcpy(&pRegs[39], &white, sizeof(white));
-            Set(pRegs[40], -2.0f / s_fDetailFadeDistance, 2.0f, 0.0f, 0.0f);
-            SetVector(pRegs[41], s_BumpLuminosityTextureTransform[0]);
-            SetVector(pRegs[42], s_BumpLuminosityTextureTransform[1]);
+            pRegs[39].SetColor(white);
+            pRegs[40].SetFloats(-2.0f / s_fDetailFadeDistance, 2.0f, 0.0f, 0.0f);
+            pRegs[41].SetVector(s_BumpLuminosityTextureTransform[0]);
+            pRegs[42].SetVector(s_BumpLuminosityTextureTransform[1]);
             RedRenderer::pcUnlockVertexShaderConstants(pRegs);
             RedRenderer::pcSetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
             RedRenderer::pcSetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
@@ -742,8 +739,8 @@ void pcTerrainShader::Begin_Prog1(unsigned int uiState, unsigned int uiPass) con
         SetMipBias(i, kfMainTextureMipBias);
     }
     pcRedVertexShaderConstantRegister* pRegs = RedRenderer::pcLockVertexShaderConstants(39, 2);
-    SetColor(pRegs[39], RedColorValue(RedColor::WHITE));
-    Set(pRegs[40], 0.0f, 0.0f, 0.0f, kInv255);
+    pRegs[39].SetColor(RedColorValue(RedColor::WHITE));
+    pRegs[40].SetFloats(0.0f, 0.0f, 0.0f, kInv255);
     RedRenderer::pcUnlockVertexShaderConstants(pRegs);
     RedRenderer::pcLoadFormat(s_pVertexInputFormat);
 }
@@ -937,8 +934,7 @@ void pcTerrainShader::Render_Fixed(const RenderItem* pItem, unsigned int uiPass)
         const unsigned int uiLayer = m_uiLayerIndex[0];
         PblMatrix mCamera;
         mCamera = RedRenderer::GetCamera()->GetMatrix();
-        mCamera.m[2][3] = 0.0f;
-        mCamera[2] = -mCamera[2];
+        mCamera.SetZAxis(-mCamera[2]);
         RedRenderer::pcSetTexture(0, s_apTextures[uiLayer]);
         const PblVector4& v0 = s_TextureTransform[uiLayer][0];
         const PblVector4& v1 = s_TextureTransform[uiLayer][1];
@@ -952,8 +948,7 @@ void pcTerrainShader::Render_Fixed(const RenderItem* pItem, unsigned int uiPass)
         RedRenderer::pcSetRenderState(D3DRS_ZWRITEENABLE, !((pItem->flags >> 5) & 1));
         PblMatrix mCamera;
         mCamera = RedRenderer::GetCamera()->GetMatrix();
-        mCamera.m[2][3] = 0.0f;
-        mCamera[2] = -mCamera[2];
+        mCamera.SetZAxis(-mCamera[2]);
         const unsigned int uiNumLayers = m_uiLayerIndex[1] < 16 ? 2 : 1;
         for (unsigned int i = 0; i < uiNumLayers; i++)
         {
@@ -1064,16 +1059,13 @@ void pcTerrainShader::Render_Prog1(const RenderItem* pItem, unsigned int uiPass)
         switch (uiNumLights)
         {
         default:
-            Set(pRegs[45], ppLights[2]->m_pos.x, ppLights[2]->m_pos.y, ppLights[2]->m_pos.z,
-                ppLights[2]->m_fRadiusInv);
+            pRegs[45].SetVectorW(ppLights[2]->m_pos, ppLights[2]->m_fRadiusInv);
             colors[2] = ppLights[2]->m_color;
         case 2:
-            Set(pRegs[44], ppLights[1]->m_pos.x, ppLights[1]->m_pos.y, ppLights[1]->m_pos.z,
-                ppLights[1]->m_fRadiusInv);
+            pRegs[44].SetVectorW(ppLights[1]->m_pos, ppLights[1]->m_fRadiusInv);
             colors[1] = ppLights[1]->m_color;
         case 1:
-            Set(pRegs[43], ppLights[0]->m_pos.x, ppLights[0]->m_pos.y, ppLights[0]->m_pos.z,
-                ppLights[0]->m_fRadiusInv);
+            pRegs[43].SetVectorW(ppLights[0]->m_pos, ppLights[0]->m_fRadiusInv);
             colors[0] = ppLights[0]->m_color;
         }
         RedRenderer::pcUnlockVertexShaderConstants(pRegs);
@@ -1281,7 +1273,7 @@ void pcTerrainShader::_InitShadowMap(RedTexture* pTexture, unsigned int uiWrapMo
 // FUNCTION: SWBF2 0x006fbc00
 void pcTerrainShader::_Read(PblFileChunk& chunk) const
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId != 0x454d414e)

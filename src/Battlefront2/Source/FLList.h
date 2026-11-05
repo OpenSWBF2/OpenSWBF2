@@ -55,8 +55,8 @@ FLList<T>::FLList(int iSize)
 template <class T>
 FLList<T>::~FLList()
 {
-    mUsedList.RemoveAll();
-    mFreeList.RemoveAll();
+    mUsedList.Clear();
+    mFreeList.Clear();
     if (mNodes)
     {
         delete[] mNodes;

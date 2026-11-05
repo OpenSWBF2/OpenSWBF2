@@ -27,7 +27,26 @@ public:
         sMemoryPool.Free(p);
     }
 
-    static ParticleEmitterInfoData* Create();
+    // FUNCTION: SWBF2 0x0060b910
+    static ParticleEmitterInfoData* Create()
+    {
+        if (sMemoryPool.IsFull())
+        {
+            return 0;
+        }
+        return new ParticleEmitterInfoData;
+    }
+
+    void LinkNext(ParticleEmitterInfoData* newNext)
+    {
+        if (mNext)
+        {
+            mNext->mPrev = newNext;
+        }
+        newNext->mNext = mNext;
+        newNext->mPrev = this;
+        mNext = newNext;
+    }
 
     PblMatrix mMatrix;
     PblVector3 mVelocity;

@@ -54,12 +54,7 @@ RedOmniLight::~RedOmniLight()
 // FUNCTION: SWBF2 0x006eeaa0
 void RedOmniLight::DebugDraw() const
 {
-    RedColor color;
-    color.r = (unsigned char)(int)(m_color.r * 255.0f);
-    color.g = (unsigned char)(int)(m_color.g * 255.0f);
-    color.b = (unsigned char)(int)(m_color.b * 255.0f);
-    color.a = (unsigned char)(int)(m_color.a * 255.0f);
-    RedDebug::DrawSphere(m_pos, m_radius, color);
+    RedDebug::DrawSphere(m_pos, m_radius, m_color);
 }
 
 // FUNCTION: SWBF2 0x006eeb20

@@ -161,7 +161,7 @@ public:
                  util::BaseArray<unsigned short,
                                  util::TNewArrayAlloc<unsigned short> > > m_text;
 
-    static util::HashTable<unsigned short, unsigned int, util::NewAllocator>*
+    static util::HashTable<unsigned short, unsigned int, util::NewAllocator>&
         GetMagicCharMap();
 
     static void ClearMagicCharMap();

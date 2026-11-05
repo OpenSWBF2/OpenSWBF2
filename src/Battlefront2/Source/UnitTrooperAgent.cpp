@@ -6,6 +6,9 @@
 #include "CommandPost.h"
 #include "Controllable.h"
 #include "Entity.h"
+#include "EntityHover.h"
+#include "EntitySoldier.h"
+#include "EntityWalker.h"
 #include "EventInfo.h"
 #include "GameLoop.h"
 #include "GameObject.h"
@@ -45,27 +48,9 @@ namespace CombatUtil
     float GetWeaponOptimalRange(const Controllable* pMe);
 }
 
-class EntitySoldier
-{
-public:
-    static PblHash rttiHashEntitySoldier;
-};
-
-class EntityHover
-{
-public:
-    static PblHash rttiHashEntityHover;
-};
-
-class EntityWalker
-{
-public:
-    static PblHash rttiHashEntityWalker;
-};
-
 namespace VehicleManager
 {
-int RequestVehiclesInRange(const PblVector3& vPos, GameObject** ppOut, float fRadius, int iMax);
+int RequestVehiclesInRange(const PblVector3& vPos, float fRadius, GameObject** ppOut, int iMax);
 }
 
 namespace
@@ -222,7 +207,7 @@ bool UnitTrooperAgent::CheckForVehicleConvoy()
     }
 
     GameObject* nearby[10];
-    int iCount = VehicleManager::RequestVehiclesInRange(myPos, nearby, 50.0f, 10);
+    int iCount = VehicleManager::RequestVehiclesInRange(myPos, 50.0f, nearby, 10);
     for (int i = 0; i < iCount; ++i)
     {
         GameObject* pObj = nearby[i];
@@ -409,7 +394,7 @@ void UnitTrooperAgent::UpdateStatePostVision(float dt)
         PblVector3 vFollow = ReserveManager::ReserveOffset(
             static_cast<GameObject*>(mConvoyParent), mCtrl->mOwner->GetGameObject(),
             FT_CONVOY) * fDist;
-        vFollow.z *= 0.3f;
+        vFollow.MulZ(0.3f);
         GetLowLevel().SetNavigator_FollowTarget(static_cast<GameObject*>(mConvoyParent), vFollow);
         break;
     }

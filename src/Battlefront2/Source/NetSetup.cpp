@@ -2740,21 +2740,9 @@ extern bool netLeavingLobby;
 extern unsigned __int64 netCreatedLobbyId;
 extern bool gGalaxyInitialized;
 galaxy::api::IMatchmaking* GetGalaxyMatchmaking();
-void ResetLanRegistration();
 namespace gf
 {
 bool checkError();
-}
-
-// FUNCTION: SWBF2 0x005d6770
-void ResetLanRegistration()
-{
-    netLobbyState = 0;
-    netLobbyRequestPending = false;
-    netLeavingLobby = false;
-    netCreatedLobbyId = 0;
-    netEnteredLobbyId = 0;
-    NetSocket::OpenBroadcastSockets();
 }
 
 // GLOBAL: SWBF2 0x01faab3c
@@ -5799,8 +5787,8 @@ bool CNetFindGame::Update()
                 {
                     continue;
                 }
-                void* networking = GetGalaxyNetworkingInterface();
-                int ping = ((galaxy::api::INetworking*)networking)->GetPingWith(itor->mAddr.mGalaxyId);
+                galaxy::api::INetworking* networking = GetGalaxyNetworkingInterface();
+                int ping = networking->GetPingWith(itor->mAddr.mGalaxyId);
                 float pingTime = fmaxf(0.0f, (float)ping * 0.001f);
                 itor->mFindData.mPingTime = pingTime;
             }

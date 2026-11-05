@@ -57,7 +57,7 @@ bool ObjectWeightList::ReadObjectWeights(PblFileChunk& chunk, unsigned int uiObj
 {
     (void)uiObjectID;
     float fTotal = 0.0f;
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         float fInterval = 0.0f;
         float fIntervalDev = 0.0f;

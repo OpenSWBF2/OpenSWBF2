@@ -13,6 +13,7 @@
 #include "PebbleFL/Common/PblVector.h"
 #include "PebbleFL/Common/PblMatrix.h"
 #include "RedEngineFL/Application/RedTerrain.h"
+#include "RedEngineFL/Graphics/RedColor.h"
 
 
 static inline PblVector3 ApplyRotation(const PblMatrix& m, const PblVector3& v)
@@ -109,8 +110,12 @@ void CollisionPrimitive::SetBox(float fWidth, float fHeight, float fDepth, float
 // FUNCTION: SWBF2 0x00464860
 PblBox CollisionPrimitive::GetWorldspaceAABB(const PblMatrix& matrix) const
 {
-    PblVector3 vMin(FLT_MAX, FLT_MAX, FLT_MAX);
-    PblVector3 vMax(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+    float minx = FLT_MAX;
+    float miny = FLT_MAX;
+    float minz = FLT_MAX;
+    float maxx = -FLT_MAX;
+    float maxy = -FLT_MAX;
+    float maxz = -FLT_MAX;
     PblVector3 corners[8];
     for (int i = 0; i < 8; ++i)
     {
@@ -121,9 +126,12 @@ PblBox CollisionPrimitive::GetWorldspaceAABB(const PblMatrix& matrix) const
     {
     case BOX:
     {
-        PblVector3 x = ApplyRotation(matrix, PblVector3(mWidth, 0.0f, 0.0f));
-        PblVector3 y = ApplyRotation(matrix, PblVector3(0.0f, mHeight, 0.0f));
-        PblVector3 z = ApplyRotation(matrix, PblVector3(0.0f, 0.0f, mDepth));
+        PblVector3 x(mWidth, 0.0f, 0.0f);
+        PblVector3 y(0.0f, mHeight, 0.0f);
+        PblVector3 z(0.0f, 0.0f, mDepth);
+        x = matrix.ApplyRotation(x);
+        y = matrix.ApplyRotation(y);
+        z = matrix.ApplyRotation(z);
         corners[0] += x + y + z;
         corners[1] += x + y + -z;
         corners[2] += x + -y + z;
@@ -138,9 +146,12 @@ PblBox CollisionPrimitive::GetWorldspaceAABB(const PblMatrix& matrix) const
         break;
     case CYLINDER:
     {
-        PblVector3 x = ApplyRotation(matrix, PblVector3(mRadius, 0.0f, 0.0f));
-        PblVector3 y = ApplyRotation(matrix, PblVector3(0.0f, mHeight * 0.5f, 0.0f));
-        PblVector3 z = ApplyRotation(matrix, PblVector3(0.0f, 0.0f, mRadius));
+        PblVector3 x(mRadius, 0.0f, 0.0f);
+        PblVector3 y(0.0f, mHeight * 0.5f, 0.0f);
+        PblVector3 z(0.0f, 0.0f, mRadius);
+        x = matrix.ApplyRotation(x);
+        y = matrix.ApplyRotation(y);
+        z = matrix.ApplyRotation(z);
         corners[0] += x + y + z;
         corners[1] += x + y + -z;
         corners[2] += x + -y + z;
@@ -153,7 +164,8 @@ PblBox CollisionPrimitive::GetWorldspaceAABB(const PblMatrix& matrix) const
     }
     default:
     {
-        PblVector3 vRadius(mRadius, mRadius, mRadius);
+        PblVector3 vRadius;
+        vRadius.SetAll(mRadius);
         corners[0] += vRadius;
         corners[1] -= vRadius;
         break;
@@ -162,36 +174,34 @@ PblBox CollisionPrimitive::GetWorldspaceAABB(const PblMatrix& matrix) const
 
     for (int i = 0; i < 8; ++i)
     {
-        if (vMin.x > corners[i].x)
+        if (minx > corners[i].x)
         {
-            vMin.x = corners[i].x;
+            minx = corners[i].x;
         }
-        if (vMin.y > corners[i].y)
+        if (miny > corners[i].y)
         {
-            vMin.y = corners[i].y;
+            miny = corners[i].y;
         }
-        if (vMin.z > corners[i].z)
+        if (minz > corners[i].z)
         {
-            vMin.z = corners[i].z;
+            minz = corners[i].z;
         }
-        if (corners[i].x > vMax.x)
+        if (corners[i].x > maxx)
         {
-            vMax.x = corners[i].x;
+            maxx = corners[i].x;
         }
-        if (corners[i].y > vMax.y)
+        if (corners[i].y > maxy)
         {
-            vMax.y = corners[i].y;
+            maxy = corners[i].y;
         }
-        if (corners[i].z > vMax.z)
+        if (corners[i].z > maxz)
         {
-            vMax.z = corners[i].z;
+            maxz = corners[i].z;
         }
     }
 
-    PblBox box;
-    box._vMin = vMin;
-    box._vMax = vMax;
-    return box;
+    PblBox worldaabb(minx, miny, minz, maxx, maxy, maxz);
+    return worldaabb;
 }
 
 // FUNCTION: SWBF2 0x004652c0
@@ -351,9 +361,15 @@ bool CollisionPrimitive::RayTest(const PblMatrix& matrix, const PblVector3& vSta
     }
 }
 
-// FUNCTION: SWBF2 0x0046c020
-void CollisionPrimitive::Render(const PblMatrix&) const
+// FUNCTION: SWBF2 0x004685b0
+void CollisionPrimitive::Render(const PblMatrix& matrix) const
 {
+    switch (mType)
+    {
+    case BOX:
+        CollisionUtil::RenderBox(matrix, mWidth, mHeight, mDepth, RedColor(255, 0, 255, 255));
+        break;
+    }
 }
 
 // FUNCTION: SWBF2 0x00465cf0
@@ -495,15 +511,12 @@ bool CollisionPrimitive::InitMeshCollision(const PblMatrix& matrix, const Collis
                            (const D3DXMATRIX*)&sWorld2Collision);
     sLocalPos = vTransformed;
     D3DXVec3TransformNormal((D3DXVECTOR3*)&vTransformed, (const D3DXVECTOR3*)&matrix.m[0][0], (const D3DXMATRIX*)&sWorld2Collision);
-    sPrimitiveInCollision[0] = vTransformed;
-    sPrimitiveInCollision.m[0][3] = 0.0f;
+    sPrimitiveInCollision.SetXAxis(vTransformed);
     D3DXVec3TransformNormal((D3DXVECTOR3*)&vTransformed, (const D3DXVECTOR3*)&matrix.m[1][0], (const D3DXMATRIX*)&sWorld2Collision);
-    sPrimitiveInCollision[1] = vTransformed;
-    sPrimitiveInCollision.m[1][3] = 0.0f;
+    sPrimitiveInCollision.SetYAxis(vTransformed);
     PblVector3 vRow2;
     D3DXVec3TransformNormal((D3DXVECTOR3*)&vRow2, (const D3DXVECTOR3*)&matrix.m[2][0], (const D3DXMATRIX*)&sWorld2Collision);
-    sPrimitiveInCollision[2] = vRow2;
-    sPrimitiveInCollision.m[2][3] = 0.0f;
+    sPrimitiveInCollision.SetZAxis(vRow2);
     sPrimitiveInCollision.SetTranslation(sLocalPos);
 
     if (!CollisionObject::sCollidingWithMesh)
@@ -615,164 +628,118 @@ template void PolyListContainer<100>::GetPolygon(int, int&, const PblVector3*&);
 template void PolyListContainer<100>::RemovePolygon(int);
 
 // FUNCTION: SWBF2 0x00466060
-int CollisionPrimitive::GetClosestPoint(PblVector3& vMidPoint, float& fMaxDist, PolyListContainer<100>& triList, PblVector3& vOutPoint, PblVector3& vClosestCylPoint, const PblMatrix&, const PblMatrix&) const
+int CollisionPrimitive::GetClosestPoint(PblVector3& aMidPoint, float& aMaxDist,
+    PolyListContainer<100>& aTriList, PblVector3& aOutPoint, PblVector3& aClosestCylPoint,
+    const PblMatrix&, const PblMatrix&) const
 {
-    const CollisionPrimitive* pPrim = (const CollisionPrimitive*)this;
-    const PblMatrix& m = sPrimitiveInCollision;
-    int iClosest = -1;
-    float fClosestDist = -1.0f;
-    if (pPrim->mType == CollisionPrimitive::BOX)
+    float trueMaxDist = -1.0f;
+    int triangleId = -1;
+    StackArray<PblVector3, 100> vertArray;
+    if (mType == BOX)
     {
-        fMaxDist = 1.0f;
+        aMaxDist = 1.0f;
     }
 
-    for (int iPoly = 0; iPoly < triList.mPolyCount; ++iPoly)
+    for (int t = 0; t < aTriList.mPolyCount; ++t)
     {
-        int iNumVerts;
-        const PblVector3* pVerts;
-        triList.GetPolygon(iPoly, iNumVerts, pVerts);
-        if (iNumVerts > 100)
+        int numVertices;
+        const PblVector3* corners;
+        aTriList.GetPolygon(t, numVertices, corners);
+        numVertices = Min(numVertices, 100);
+        float cylDist = mRadius;
+        if (mType == BOX)
         {
-            iNumVerts = 100;
-        }
-        float fRadius = pPrim->mRadius;
-
-        PblVector3 aBoxVerts[100];
-        if (pPrim->mType == CollisionPrimitive::BOX)
-        {
-            memcpy(aBoxVerts, pVerts, iNumVerts * sizeof(PblVector3));
-            for (int k = 0; k < iNumVerts; ++k)
+            PblVector3* verts = vertArray.GetPtr();
+            memcpy(verts, corners, numVertices * sizeof(PblVector3));
+            for (int s = 0; s < numVertices; ++s)
             {
-                PblVector3& v = aBoxVerts[k];
-                float dx = v.x - vMidPoint.x;
-                float dy = v.y - vMidPoint.y;
-                float dz = v.z - vMidPoint.z;
-                float a = (dx * m.m[0][0] + dy * m.m[0][1] + dz * m.m[0][2]) / pPrim->mWidth;
-                float b = (dx * m.m[1][0] + dy * m.m[1][1] + dz * m.m[1][2]) / pPrim->mHeight;
-                float c = (dx * m.m[2][0] + dy * m.m[2][1] + dz * m.m[2][2]) / pPrim->mDepth;
-                v.x = a * m.m[0][0] + b * m.m[1][0] + c * m.m[2][0] + vMidPoint.x;
-                v.y = a * m.m[0][1] + b * m.m[1][1] + c * m.m[2][1] + vMidPoint.y;
-                v.z = a * m.m[0][2] + b * m.m[1][2] + c * m.m[2][2] + vMidPoint.z;
+                PblVector3 cornerDiff = verts[s] - aMidPoint;
+                float dotY = DotProduct(cornerDiff, sPrimitiveInCollision.GetYAxis()) / mHeight;
+                float dotX = DotProduct(cornerDiff, sPrimitiveInCollision.GetXAxis()) / mWidth;
+                float dotZ = DotProduct(cornerDiff, sPrimitiveInCollision.GetZAxis()) / mDepth;
+                verts[s] = dotX * sPrimitiveInCollision.GetXAxis() +
+                    dotY * sPrimitiveInCollision.GetYAxis() +
+                    dotZ * sPrimitiveInCollision.GetZAxis() + aMidPoint;
             }
-            pVerts = aBoxVerts;
+            corners = verts;
         }
 
-        PblVector3 vOutPos;
-        if (!CollisionUtil::GetClosestPointInPolygon(vMidPoint, iNumVerts, pVerts, vOutPos, fMaxDist))
+        PblVector3 outPos;
+        if (!CollisionUtil::GetClosestPointInPolygon(aMidPoint, numVertices, corners, outPos, aMaxDist))
         {
             continue;
         }
 
-        if (pPrim->mType == CollisionPrimitive::BOX)
+        switch (mType)
         {
-            float dx = vOutPos.x - vMidPoint.x;
-            float dy = vOutPos.y - vMidPoint.y;
-            float dz = vOutPos.z - vMidPoint.z;
-            float fDist = PblMath::Sqrt(dx * dx + dy * dy + dz * dz);
-            if (fMaxDist > fDist && fDist < 1.0f)
+        case BOX:
+        {
+            PblVector3 outDiff = outPos - aMidPoint;
+            float distortedLength = Length(outDiff);
+            if (aMaxDist > distortedLength && distortedLength < 1.0f)
             {
-                fMaxDist = fDist;
-
-                float a = (dx * m.m[0][0] + dy * m.m[0][1] + dz * m.m[0][2]) * pPrim->mWidth;
-                float b = (dx * m.m[1][0] + dy * m.m[1][1] + dz * m.m[1][2]) * pPrim->mHeight;
-                float c = (dx * m.m[2][0] + dy * m.m[2][1] + dz * m.m[2][2]) * pPrim->mDepth;
-                vOutPoint.x = a * m.m[0][0] + b * m.m[1][0] + c * m.m[2][0] + vMidPoint.x;
-                vOutPoint.y = a * m.m[0][1] + b * m.m[1][1] + c * m.m[2][1] + vMidPoint.y;
-                vOutPoint.z = a * m.m[0][2] + b * m.m[1][2] + c * m.m[2][2] + vMidPoint.z;
-                float ox = vOutPoint.x - vMidPoint.x;
-                float oy = vOutPoint.y - vMidPoint.y;
-                float oz = vOutPoint.z - vMidPoint.z;
-                fClosestDist = PblMath::Sqrt(ox * ox + oy * oy + oz * oz);
-                iClosest = iPoly;
+                aMaxDist = distortedLength;
+                float outDotX = DotProduct(outDiff, sPrimitiveInCollision.GetXAxis()) * mWidth;
+                float outDotY = DotProduct(outDiff, sPrimitiveInCollision.GetYAxis()) * mHeight;
+                float outDotZ = DotProduct(outDiff, sPrimitiveInCollision.GetZAxis()) * mDepth;
+                aOutPoint = outDotX * sPrimitiveInCollision.GetXAxis() +
+                    outDotY * sPrimitiveInCollision.GetYAxis() +
+                    outDotZ * sPrimitiveInCollision.GetZAxis() + aMidPoint;
+                trueMaxDist = Length(aOutPoint - aMidPoint);
+                triangleId = t;
             }
+            break;
         }
-        else if (pPrim->mType == CollisionPrimitive::CYLINDER)
+        case CYLINDER:
         {
-            float fHalfHeight = pPrim->mHeight * 0.5f;
-            float ux = fHalfHeight * m.m[1][0];
-            float uy = fHalfHeight * m.m[1][1];
-            float uz = fHalfHeight * m.m[1][2];
-            PblVector3 vSegStart(sLocalPos.x - ux, sLocalPos.y - uy, sLocalPos.z - uz);
-            PblVector3 vSegEnd(ux + sLocalPos.x, uy + sLocalPos.y, uz + sLocalPos.z);
-            PblVector3 vAxisPoint;
-            CollisionUtil::GetClosestPoint_SegmentPoint(vSegStart, vSegEnd, vOutPos, vAxisPoint);
-
-            float ax = m.m[1][0];
-            float ay = m.m[1][1];
-            float az = m.m[1][2];
-            float fX = vAxisPoint.x - vOutPos.x;
-            float fY = vAxisPoint.y - vOutPos.y;
-            float fZ = vAxisPoint.z - vOutPos.z;
-            if (fabsf(fX * ax + fY * ay + fZ * az) < 0.0001f && fRadius * fRadius > fX * fX + fY * fY + fZ * fZ)
+            PblVector3 closestPoint;
+            CollisionUtil::GetClosestPoint_SegmentPoint(
+                sLocalPos - (mHeight * 0.5f) * sPrimitiveInCollision.GetYAxis(),
+                (mHeight * 0.5f) * sPrimitiveInCollision.GetYAxis() + sLocalPos,
+                outPos, closestPoint);
+            PblVector3 outDiff = closestPoint - outPos;
+            PblVector3 yAxis = sPrimitiveInCollision.GetYAxis();
+            if (fabsf(DotProduct(outDiff, yAxis)) < 0.0001f &&
+                cylDist * cylDist > SquaredLength(outDiff))
             {
-                vClosestCylPoint = vAxisPoint;
-                vOutPoint = vOutPos;
-                iClosest = iPoly;
+                aClosestCylPoint = closestPoint;
+                aOutPoint = outPos;
+                triangleId = t;
                 continue;
             }
 
-            float dx = vOutPos.x - sLocalPos.x;
-            float dy = vOutPos.y - sLocalPos.y;
-            float dz = vOutPos.z - sLocalPos.z;
-            if (dx * ax + dy * ay + dz * az < 0.0f)
+            PblVector3 testDir = outPos - sLocalPos;
+            if (DotProduct(testDir, yAxis) < 0.0f)
             {
-                ax = -ax;
-                ay = -ay;
-                az = -az;
+                yAxis = -yAxis;
             }
-            float n1x = dz * ay - dy * az;
-            float n1y = dx * az - dz * ax;
-            float n1z = dy * ax - dx * ay;
-            PblVector3 vRadialIn(n1y * az - n1z * ay, n1z * ax - n1x * az, n1x * ay - n1y * ax);
-            D3DXVECTOR3 vRadial;
-            D3DXVec3Normalize(&vRadial, (const D3DXVECTOR3*)&vRadialIn);
-            if (dx * vRadial.x + vRadial.y * dy + vRadial.z * dz < 0.0f)
+            PblVector3 crossProd = CrossProduct(yAxis, testDir);
+            PblVector3 radAxis = Normalize(CrossProduct(crossProd, yAxis));
+            if (DotProduct(testDir, radAxis) < 0.0f)
             {
-                vRadial = D3DXVECTOR3(-vRadial.x, -vRadial.y, -vRadial.z);
+                radAxis = -radAxis;
             }
-            float fH = pPrim->mHeight * 0.5f;
-            float fR = pPrim->mRadius;
-            PblVector3 vSEnd(fH * ax + sLocalPos.x + fR * vRadial.x, fH * ay + sLocalPos.y + vRadial.y * fR,
-                             fH * az + sLocalPos.z + vRadial.z * fR);
-            PblVector3 vTangentIn(n1z * dy - n1y * dz, n1x * dz - n1z * dx, n1y * dx - n1x * dy);
-            D3DXVECTOR3 vTangent;
-            D3DXVec3Normalize(&vTangent, (const D3DXVECTOR3*)&vTangentIn);
-            float fProj = (vSEnd.x - sLocalPos.x) * vTangent.x + (vSEnd.y - sLocalPos.y) * vTangent.y +
-                          (vSEnd.z - sLocalPos.z) * vTangent.z;
-            PblVector3 vTEnd(vTangent.x * fProj + vOutPos.x, vTangent.y * fProj + vOutPos.y,
-                             vTangent.z * fProj + vOutPos.z);
-            PblVector3 vSPoint, vTPoint;
-            CollisionUtil::GetClosestPoints_SegmentSegment(sLocalPos, vSEnd, vOutPos, vTEnd, vSPoint, vTPoint);
-            float sx = vSPoint.x - vTPoint.x;
-            float sy = vSPoint.y - vTPoint.y;
-            float sz = vSPoint.z - vTPoint.z;
-            if (sx * sx + sy * sy + sz * sz >= 0.0001f)
+            PblVector3 endPointCyl = (mHeight * 0.5f) * yAxis + sLocalPos + mRadius * radAxis;
+            PblVector3 testAxis = Normalize(CrossProduct(testDir, crossProd));
+            PblVector3 endPointTest = DotProduct(endPointCyl - sLocalPos, testAxis) * testAxis + outPos;
+            PblVector3 cylOut;
+            PblVector3 testOut;
+            CollisionUtil::GetClosestPoints_SegmentSegment(sLocalPos, endPointCyl, outPos,
+                endPointTest, cylOut, testOut);
+            if (SquaredLength(cylOut - testOut) >= 0.0001f)
             {
                 continue;
             }
 
-            float e0x = pVerts[1].x - pVerts[0].x;
-            float e0y = pVerts[1].y - pVerts[0].y;
-            float e0z = pVerts[1].z - pVerts[0].z;
-            float e1x = pVerts[2].x - pVerts[0].x;
-            float e1y = pVerts[2].y - pVerts[0].y;
-            float e1z = pVerts[2].z - pVerts[0].z;
-            float nx = e0y * e1z - e0z * e1y;
-            float ny = e0z * e1x - e0x * e1z;
-            float nz = e0x * e1y - e0y * e1x;
+            PblVector3 polyNorm = CrossProduct(corners[1] - corners[0], corners[2] - corners[0]);
             bool bInside = true;
-            int k = 0;
-            while (bInside && k < iNumVerts - 1)
+            int vertNum = 0;
+            while (bInside && vertNum < numVertices - 1)
             {
-                float px = pVerts[k].x - vSPoint.x;
-                float py = pVerts[k].y - vSPoint.y;
-                float pz = pVerts[k].z - vSPoint.z;
-                float qx = pVerts[k + 1].x - vSPoint.x;
-                float qy = pVerts[k + 1].y - vSPoint.y;
-                float qz = pVerts[k + 1].z - vSPoint.z;
-                if ((py * qz - pz * qy) * nx + (pz * qx - px * qz) * ny + (px * qy - py * qx) * nz >= 0.0f)
+                if (DotProduct(CrossProduct(corners[vertNum] - cylOut,
+                    corners[vertNum + 1] - cylOut), polyNorm) >= 0.0f)
                 {
-                    ++k;
+                    ++vertNum;
                 }
                 else
                 {
@@ -784,197 +751,146 @@ int CollisionPrimitive::GetClosestPoint(PblVector3& vMidPoint, float& fMaxDist, 
                 continue;
             }
 
-            float vx = fH * m.m[1][0];
-            float vy = fH * m.m[1][1];
-            float vz = fH * m.m[1][2];
-            PblVector3 vStart(sLocalPos.x - vx, sLocalPos.y - vy, sLocalPos.z - vz);
-            PblVector3 vEnd(vx + sLocalPos.x, vy + sLocalPos.y, vz + sLocalPos.z);
-            CollisionUtil::GetClosestPoint_SegmentPoint(vStart, vEnd, vSPoint, vAxisPoint);
-            vClosestCylPoint = vAxisPoint;
-            vOutPoint = vSPoint;
-            iClosest = iPoly;
+            CollisionUtil::GetClosestPoint_SegmentPoint(
+                sLocalPos - (mHeight * 0.5f) * sPrimitiveInCollision.GetYAxis(),
+                (mHeight * 0.5f) * sPrimitiveInCollision.GetYAxis() + sLocalPos,
+                cylOut, closestPoint);
+            aClosestCylPoint = closestPoint;
+            aOutPoint = cylOut;
+            triangleId = t;
+            break;
         }
-        else
-        {
-            float dx = vOutPos.x - vMidPoint.x;
-            float dy = vOutPos.y - vMidPoint.y;
-            float dz = vOutPos.z - vMidPoint.z;
-            float fDist2 = dx * dx + dy * dy + dz * dz;
-            if (iClosest < 0 || fMaxDist * fMaxDist > fDist2)
+        default:
+            if (triangleId < 0 || aMaxDist * aMaxDist > SquaredLength(outPos - aMidPoint))
             {
-                fMaxDist = PblMath::Sqrt(fDist2);
-                vOutPoint = vOutPos;
-                iClosest = iPoly;
+                aMaxDist = Length(outPos - aMidPoint);
+                aOutPoint = outPos;
+                triangleId = t;
             }
+            break;
         }
     }
 
-    if (pPrim->mType == CollisionPrimitive::BOX)
+    if (mType == BOX)
     {
-        fMaxDist = fClosestDist;
+        aMaxDist = trueMaxDist;
     }
-    return iClosest;
+    return triangleId;
 }
 
 // FUNCTION: SWBF2 0x004675b0
 bool CollisionPrimitive::CollideMesh(const PblMatrix& matrix, const CollisionMesh* pMesh,
-                                     const PblMatrix& meshMatrix, PblVector3& vCollisionDir,
-                                     float& fCollisionOverlap, float& fClosest) const
+    const PblMatrix& meshMatrix, PblVector3& vCollisionDir, float& fCollisionOverlap,
+    float& fClosest) const
 {
-    (void)pMesh;
-    const PblMatrix& m = sPrimitiveInCollision;
     fClosest = sRadius;
-    PblVector3 vOutPoint, vClosestCylPoint;
-    int iIndex = GetClosestPoint(sLocalPos, fClosest, *sTriList, vOutPoint, vClosestCylPoint, matrix, meshMatrix);
-    if (iIndex < 0)
+    PblVector3 closestPos;
+    PblVector3 closestCylPos;
+    int collTriId = GetClosestPoint(sLocalPos, fClosest, *sTriList, closestPos, closestCylPos,
+        matrix, meshMatrix);
+    if (collTriId < 0)
     {
         return false;
     }
 
     if (mType == BOX)
     {
-        float dx = sLocalPos.x - vOutPoint.x;
-        float dy = sLocalPos.y - vOutPoint.y;
-        float dz = sLocalPos.z - vOutPoint.z;
-        vCollisionDir = PblVector3(dx, dy, dz);
-
-        float fX = dx * m.m[0][0] + dy * m.m[0][1] + dz * m.m[0][2];
-        float fY = dx * m.m[1][0] + dy * m.m[1][1] + dz * m.m[1][2];
-        float fZ = dx * m.m[2][0] + dy * m.m[2][1] + dz * m.m[2][2];
-        float a = fX / mWidth;
-        float b = fY / mHeight;
-        float c = fZ / mDepth;
-        float ux = a * m.m[0][0] + b * m.m[1][0] + c * m.m[2][0];
-        float uy = a * m.m[0][1] + b * m.m[1][1] + c * m.m[2][1];
-        float uz = a * m.m[0][2] + b * m.m[1][2] + c * m.m[2][2];
-        float fAbsX = fabsf(ux * m.m[0][0] + uy * m.m[0][1] + uz * m.m[0][2]);
-        float fAbsY = fabsf(ux * m.m[1][0] + uy * m.m[1][1] + uz * m.m[1][2]);
-        float fAbsZ = fabsf(ux * m.m[2][0] + uy * m.m[2][1] + uz * m.m[2][2]);
-        int iAxis;
-        float fSize, fAlong;
-        if (fAbsX > fAbsY && fAbsX > fAbsZ)
+        vCollisionDir = sLocalPos - closestPos;
+        float dotX1 = DotProduct(vCollisionDir, sPrimitiveInCollision.GetXAxis());
+        float dotY1 = DotProduct(vCollisionDir, sPrimitiveInCollision.GetYAxis());
+        float dotZ1 = DotProduct(vCollisionDir, sPrimitiveInCollision.GetZAxis());
+        PblVector3 unitDiff = (dotX1 / mWidth) * sPrimitiveInCollision.GetXAxis() +
+            (dotY1 / mHeight) * sPrimitiveInCollision.GetYAxis() +
+            (dotZ1 / mDepth) * sPrimitiveInCollision.GetZAxis();
+        float dotX2 = fabsf(DotProduct(unitDiff, sPrimitiveInCollision.GetXAxis()));
+        float dotY2 = fabsf(DotProduct(unitDiff, sPrimitiveInCollision.GetYAxis()));
+        float dotZ2 = fabsf(DotProduct(unitDiff, sPrimitiveInCollision.GetZAxis()));
+        if (dotX2 > dotY2 && dotX2 > dotZ2)
         {
-            iAxis = 0;
-            fSize = mWidth;
-            fAlong = fX;
+            vCollisionDir = dotX1 < 0.0f ? -sPrimitiveInCollision.GetXAxis() :
+                sPrimitiveInCollision.GetXAxis();
+            fCollisionOverlap = mWidth - fabsf(dotX1);
         }
-        else if (fAbsX <= fAbsY && fAbsY > fAbsZ)
+        else if (dotX2 <= dotY2 && dotY2 > dotZ2)
         {
-            iAxis = 1;
-            fSize = mHeight;
-            fAlong = fY;
+            vCollisionDir = dotY1 < 0.0f ? -sPrimitiveInCollision.GetYAxis() :
+                sPrimitiveInCollision.GetYAxis();
+            fCollisionOverlap = mHeight - fabsf(dotY1);
         }
         else
         {
-            iAxis = 2;
-            fSize = mDepth;
-            fAlong = fZ;
+            vCollisionDir = dotZ1 < 0.0f ? -sPrimitiveInCollision.GetZAxis() :
+                sPrimitiveInCollision.GetZAxis();
+            fCollisionOverlap = mDepth - fabsf(dotZ1);
         }
-        if (0.0f > fAlong)
-        {
-            vCollisionDir = PblVector3(-m.m[iAxis][0], -m.m[iAxis][1], -m.m[iAxis][2]);
-        }
-        else
-        {
-            vCollisionDir = PblVector3(m.m[iAxis][0], m.m[iAxis][1], m.m[iAxis][2]);
-        }
-        fCollisionOverlap = fSize - fabsf(fAlong);
     }
     else if (mType == CYLINDER)
     {
-        float cx = vClosestCylPoint.x - vOutPoint.x;
-        float cy = vClosestCylPoint.y - vOutPoint.y;
-        float cz = vClosestCylPoint.z - vOutPoint.z;
-        float fRadialOverlap = mRadius - PblMath::Sqrt(cx * cx + cy * cy + cz * cz);
-        float fHalfHeight = mHeight * 0.5f;
-        float fAxial = fabsf((vOutPoint.x - sLocalPos.x) * m.m[1][0] + (vOutPoint.y - sLocalPos.y) * m.m[1][1] +
-                                   (vOutPoint.z - sLocalPos.z) * m.m[1][2]);
-        float fCapOverlap = fHalfHeight - fAxial;
-        PblVector3 vToCyl(cx, cy, cz);
-        if (fHalfHeight - fCapOverlap >= 0.0001f)
+        float radiusOverlap = mRadius - Length(closestCylPos - closestPos);
+        float heightOverlap = mHeight * 0.5f - fabsf(DotProduct(closestPos - sLocalPos,
+            sPrimitiveInCollision.GetYAxis()));
+        if (mHeight * 0.5f - heightOverlap >= 0.0001f)
         {
-            float dx = sLocalPos.x - vOutPoint.x;
-            float dy = sLocalPos.y - vOutPoint.y;
-            float dz = sLocalPos.z - vOutPoint.z;
-            vCollisionDir = PblVector3(dx, dy, dz);
-            float fDist = PblMath::Sqrt(dx * dx + dy * dy + dz * dz);
-            float fOverlap = fDist / (mHeight * 0.5f - fCapOverlap) * fCapOverlap;
-            if ((mHeight * 0.25f * mHeight + mRadius * mRadius) * 0.8f < (fOverlap + fDist) * (fOverlap + fDist))
+            vCollisionDir = sLocalPos - closestPos;
+            float dist = Length(vCollisionDir);
+            float tmpOverlap = dist / (mHeight * 0.5f - heightOverlap) * heightOverlap;
+            float testSq = (mHeight * 0.25f * mHeight + mRadius * mRadius) * 0.8f;
+            if (testSq < (tmpOverlap + dist) * (tmpOverlap + dist))
             {
-                fCollisionOverlap = fRadialOverlap;
-                D3DXVec3Normalize((D3DXVECTOR3*)&vCollisionDir, (const D3DXVECTOR3*)&vToCyl);
+                fCollisionOverlap = radiusOverlap;
+                vCollisionDir = Normalize(closestCylPos - closestPos);
             }
             else
             {
-                fCollisionOverlap = fOverlap;
-                float fInv = 1.0f / fDist;
-                vCollisionDir.x = fInv * vCollisionDir.x;
-                vCollisionDir.y = fInv * vCollisionDir.y;
-                vCollisionDir.z = fInv * vCollisionDir.z;
+                fCollisionOverlap = tmpOverlap;
+                vCollisionDir /= dist;
             }
         }
         else
         {
-            fCollisionOverlap = fRadialOverlap;
-            D3DXVec3Normalize((D3DXVECTOR3*)&vCollisionDir, (const D3DXVECTOR3*)&vToCyl);
+            fCollisionOverlap = radiusOverlap;
+            vCollisionDir = Normalize(closestCylPos - closestPos);
         }
     }
     else
     {
-        float dx = sLocalPos.x - vOutPoint.x;
-        float dy = sLocalPos.y - vOutPoint.y;
-        float dz = sLocalPos.z - vOutPoint.z;
-        vCollisionDir = PblVector3(dx, dy, dz);
-        fCollisionOverlap = PblMath::Sqrt(dx * dx + dy * dy + dz * dz);
+        vCollisionDir = sLocalPos - closestPos;
+        fCollisionOverlap = Length(vCollisionDir);
         if (fCollisionOverlap < 0.0001f)
         {
             return false;
         }
-        float fInv = 1.0f / fCollisionOverlap;
-        vCollisionDir.x = fInv * vCollisionDir.x;
-        vCollisionDir.y = fInv * vCollisionDir.y;
-        vCollisionDir.z = fInv * vCollisionDir.z;
+        vCollisionDir /= fCollisionOverlap;
         fCollisionOverlap = sRadius - fCollisionOverlap;
     }
 
-    vCollisionDir = ApplyRotation(meshMatrix, vCollisionDir);
+    vCollisionDir = meshMatrix.ApplyRotation(vCollisionDir);
     if (CollisionObject::sCollideTrisWithAllPrimitives)
     {
-        int iNumVerts;
-        const PblVector3* pVerts = NULL;
-        sTriList->GetPolygon(iIndex, iNumVerts, pVerts);
-        sCollTriList->AddPolygon((unsigned char)iNumVerts, pVerts);
+        int numVertices;
+        const PblVector3* vertices = NULL;
+        sTriList->GetPolygon(collTriId, numVertices, vertices);
+        sCollTriList->AddPolygon((unsigned char)numVertices, vertices);
     }
-    sTriList->RemovePolygon(iIndex);
+    sTriList->RemovePolygon(collTriId);
     return true;
 }
 
-static inline PblVector3 Cross(const PblVector3& a, const PblVector3& b)
-{
-    return PblVector3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
-}
-
-#pragma fenv_access(on)
-
-static inline float TerrainDepth(const PblVector3& vPos, float fY, float fOffset)
-{
-    const float fAbove = RedTerrain::GetHoleHeight(vPos.x, vPos.z) - fY;
-    return fAbove + fOffset;
-}
 
 // FUNCTION: SWBF2 0x00467dd0
 bool CollisionPrimitive::CollideTerrain(const PblMatrix& matrix, PblVector3& vNormal, float& fDepth,
                                         PblVector3& vPos) const
 {
     const PblVector3& vTrans = matrix.GetTranslation();
-    float fOffset = mHeight * 0.5f;
-    PblVector3 vSide(0.0f, 0.0f, 0.0f);
-    vPos = PblVector3(vTrans.x - 0.0f, vTrans.y - fOffset, vTrans.z - 0.0f);
+    float collHeight = mHeight * 0.5f;
+    float terrainHeight;
+    PblVector3 radiusDir(0.0f, 0.0f, 0.0f);
+    vPos = vTrans - PblVector3(0.0f, collHeight, 0.0f);
 
     if (mType == SPHERE)
     {
-        fOffset = mRadius;
-        vPos = PblVector3(vTrans.x - 0.0f, vTrans.y - mRadius, vTrans.z - 0.0f);
+        collHeight = mRadius;
+        vPos = vTrans - PblVector3(0.0f, mRadius, 0.0f);
     }
     else if (mType == CYLINDER)
     {
@@ -982,82 +898,80 @@ bool CollisionPrimitive::CollideTerrain(const PblMatrix& matrix, PblVector3& vNo
         const float fA = matrix.m[0][1] * mRadius;
         const float fB = matrix.m[1][1] * fHalfHeight;
         const float fC = matrix.m[2][1] * mRadius;
-        fOffset = (float)sqrt((double)(fA * fA + fB * fB + fC * fC));
+        PblVector3 tmp(fA, fB, fC);
+        collHeight = sqrtf(DotProduct(tmp, tmp));
 
-        PblVector3 vDir(matrix.m[1][0], matrix.m[1][1], matrix.m[1][2]);
+        PblVector3 vDir = matrix.GetYAxis();
         if (vDir.y > 0.0f)
         {
-            vDir = PblVector3(-vDir.x, -vDir.y, -vDir.z);
+            vDir = -vDir;
         }
-        vPos = PblVector3(vTrans.x + vDir.x * fHalfHeight, vTrans.y + vDir.y * fHalfHeight,
-                          vTrans.z + vDir.z * fHalfHeight);
+        vPos = vTrans + fHalfHeight * vDir;
 
-        vSide = Cross(Cross(vDir, PblVector3(0.0f, -1.0f, 0.0f)), vDir);
-        if (vSide.x * vSide.x + vSide.y * vSide.y + vSide.z * vSide.z > 0.01f)
+        radiusDir = CrossProduct(CrossProduct(vDir, PblVector3(0.0f, -1.0f, 0.0f)), vDir);
+        if (DotProduct(radiusDir, radiusDir) > 0.01f)
         {
-            PblVector3 vUnit;
-            D3DXVec3Normalize((D3DXVECTOR3*)&vUnit, (const D3DXVECTOR3*)&vSide);
-            vSide = vUnit;
+            radiusDir = Normalize(radiusDir);
         }
-        vPos.x += mRadius * vSide.x;
-        vPos.y += mRadius * vSide.y;
-        vPos.z += mRadius * vSide.z;
-        fDepth = TerrainDepth(vPos, vTrans.y, fOffset);
-        if (fDepth < 0.0f || fDepth > fOffset * 4.0f)
+        vPos += mRadius * radiusDir;
+        terrainHeight = RedTerrain::GetHoleHeight(vPos.x, vPos.z);
+        fDepth = terrainHeight - vTrans.y + collHeight;
+        if (fDepth < 0.0f || fDepth > collHeight * 4.0f)
         {
             const PblVector3 vRim = vPos;
-            vPos.x -= mHeight * vDir.x;
-            vPos.y -= mHeight * vDir.y;
-            vPos.z -= mHeight * vDir.z;
-            fDepth = TerrainDepth(vPos, vTrans.y, fOffset);
-            if (fDepth < 0.0f || fDepth > fOffset * 4.0f)
+            vPos -= mHeight * vDir;
+            terrainHeight = RedTerrain::GetHoleHeight(vPos.x, vPos.z);
+            fDepth = terrainHeight - vTrans.y + collHeight;
+            if (fDepth < 0.0f || fDepth > collHeight * 4.0f)
             {
                 const float fDiameter = mRadius * 2.0f;
-                vPos = PblVector3(vRim.x - fDiameter * vSide.x, vRim.y - fDiameter * vSide.y,
-                                  vRim.z - fDiameter * vSide.z);
-                fDepth = TerrainDepth(vPos, vTrans.y, fOffset);
+                vPos = vRim - fDiameter * radiusDir;
+                terrainHeight = RedTerrain::GetHoleHeight(vPos.x, vPos.z);
+                fDepth = terrainHeight - vTrans.y + collHeight;
             }
         }
     }
     else if (mType == BOX)
     {
 
-        float fX = 0.0f, fY = 0.0f, fZ = 0.0f;
-        if (matrix.m[0][1] < -0.0001f)
+        PblVector3 xAxis = matrix.GetXAxis();
+        PblVector3 yAxis = matrix.GetYAxis();
+        PblVector3 zAxis = matrix.GetZAxis();
+        PblVector3 dirs(0.0f, 0.0f, 0.0f);
+        if (xAxis.y < -0.0001f)
         {
-            fX = mWidth;
+            dirs.x = mWidth;
         }
-        else if (matrix.m[0][1] > 0.0001f)
+        else if (xAxis.y > 0.0001f)
         {
-            fX = -mWidth;
+            dirs.x = -mWidth;
         }
-        if (matrix.m[1][1] < -0.0001f)
+        if (yAxis.y < -0.0001f)
         {
-            fY = mHeight;
+            dirs.y = mHeight;
         }
-        else if (matrix.m[1][1] > 0.0001f)
+        else if (yAxis.y > 0.0001f)
         {
-            fY = -mHeight;
+            dirs.y = -mHeight;
         }
-        if (matrix.m[2][1] < -0.0001f)
+        if (zAxis.y < -0.0001f)
         {
-            fZ = mDepth;
+            dirs.z = mDepth;
         }
-        else if (matrix.m[2][1] > 0.0001f)
+        else if (zAxis.y > 0.0001f)
         {
-            fZ = -mDepth;
+            dirs.z = -mDepth;
         }
-        vPos = PblVector3(vTrans.x + matrix.m[0][0] * fX + matrix.m[1][0] * fY + matrix.m[2][0] * fZ,
-                          vTrans.y + matrix.m[0][1] * fX + matrix.m[1][1] * fY + matrix.m[2][1] * fZ,
-                          vTrans.z + matrix.m[0][2] * fX + matrix.m[1][2] * fY + matrix.m[2][2] * fZ);
-        fOffset = vTrans.y - vPos.y;
+        vPos = vTrans + dirs.x * xAxis + dirs.y * yAxis + dirs.z * zAxis;
+        collHeight = vTrans.y - vPos.y;
     }
 
     if (mType != CYLINDER)
     {
-        fDepth = TerrainDepth(vPos, vTrans.y, fOffset);
+        terrainHeight = RedTerrain::GetHoleHeight(vPos.x, vPos.z);
+        fDepth = terrainHeight - vTrans.y + collHeight;
     }
-    if (fDepth < 0.0f || fDepth > fOffset * 2.0f)
+    if (fDepth < 0.0f || fDepth > collHeight * 2.0f)
     {
         return false;
     }
@@ -1066,18 +980,15 @@ bool CollisionPrimitive::CollideTerrain(const PblMatrix& matrix, PblVector3& vNo
     if (mType == CYLINDER)
     {
 
-        const float fDot = matrix.m[1][0] * vNormal.x + matrix.m[1][1] * vNormal.y + matrix.m[1][2] * vNormal.z;
-        if (1.0f - (float)fabs((double)fDot) < 0.0001f)
+        const float fDot = DotProduct(matrix.GetYAxis(), vNormal);
+        if (1.0f - fabsf(fDot) < 0.0001f)
         {
-            vPos.x -= mRadius * vSide.x;
-            vPos.y -= mRadius * vSide.y;
-            vPos.z -= mRadius * vSide.z;
+            vPos -= mRadius * radiusDir;
         }
     }
-    fDepth = vNormal.x * 0.0f + vNormal.y * fDepth + vNormal.z * 0.0f;
+    fDepth = DotProduct(vNormal, PblVector3(0.0f, fDepth, 0.0f));
     return true;
 }
-#pragma fenv_access(off)
 
 // SYNTHETIC: SWBF2 0x004024e0
 // `dynamic initializer for 'sHostTriList''

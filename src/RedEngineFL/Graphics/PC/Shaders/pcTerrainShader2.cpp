@@ -198,24 +198,6 @@ static inline const PblVector4 operator*(const PblVector4& a, const PblVector4& 
     return v;
 }
 
-static inline RedColorValue ToColorValue(const RedColor& c)
-{
-    RedColorValue v;
-    v.r = c.r * (1.0f / 255.0f);
-    v.g = c.g * (1.0f / 255.0f);
-    v.b = c.b * (1.0f / 255.0f);
-    v.a = c.a * (1.0f / 255.0f);
-    return v;
-}
-
-static inline void SetVector(pcRedVertexShaderConstantRegister& reg, const PblVector4& v)
-{
-    reg.component[0] = v.x;
-    reg.component[1] = v.y;
-    reg.component[2] = v.z;
-    reg.component[3] = v.w;
-}
-
 // FUNCTION: SWBF2 0x006fcb60
 pcTerrainShader2::pcTerrainShader2()
 {
@@ -275,10 +257,10 @@ void pcTerrainShader2::Begin_Prog1(unsigned int, unsigned int uiPass) const
         }
 
         pcRedVertexShaderConstantRegister* pRegs = RedRenderer::pcLockVertexShaderConstants(41, 4);
-        SetVector(pRegs[41], s_DetailTextureTransform[0][0]);
-        SetVector(pRegs[42], s_DetailTextureTransform[0][1]);
-        SetVector(pRegs[43], s_DetailTextureTransform[1][0]);
-        SetVector(pRegs[44], s_DetailTextureTransform[1][1]);
+        pRegs[41].SetVector(s_DetailTextureTransform[0][0]);
+        pRegs[42].SetVector(s_DetailTextureTransform[0][1]);
+        pRegs[43].SetVector(s_DetailTextureTransform[1][0]);
+        pRegs[44].SetVector(s_DetailTextureTransform[1][1]);
         RedRenderer::pcUnlockVertexShaderConstants(pRegs);
 
         RedRenderer::pcSetSamplerState(2, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
@@ -303,11 +285,7 @@ void pcTerrainShader2::Begin_Prog1(unsigned int, unsigned int uiPass) const
     }
 
     pcRedVertexShaderConstantRegister* pRegs = RedRenderer::pcLockVertexShaderConstants(39, 1);
-    const RedColorValue white = ToColorValue(RedColor::WHITE);
-    pRegs[39].component[0] = white.r;
-    pRegs[39].component[1] = white.g;
-    pRegs[39].component[2] = white.b;
-    pRegs[39].component[3] = white.a;
+    pRegs[39].SetColor(RedColorValue(RedColor::WHITE));
     RedRenderer::pcUnlockVertexShaderConstants(pRegs);
 
     RedRenderer::pcSetFogForBlendMode(RedRenderer::FOGFORBLEND_NORMAL);
@@ -501,8 +479,8 @@ void pcTerrainShader2::Render_Prog1(const RenderItem* pItem, unsigned int uiPass
             if (iLayer < 16)
             {
                 RedRenderer::pcSetTexture(i, s_apTextures[iLayer]);
-                SetVector(pRegs[41 + 2 * i], s_TextureTransform[iLayer][0]);
-                SetVector(pRegs[42 + 2 * i], s_TextureTransform[iLayer][1]);
+                pRegs[41 + 2 * i].SetVector(s_TextureTransform[iLayer][0]);
+                pRegs[42 + 2 * i].SetVector(s_TextureTransform[iLayer][1]);
             }
             else
             {
@@ -511,8 +489,8 @@ void pcTerrainShader2::Render_Prog1(const RenderItem* pItem, unsigned int uiPass
         }
 
         RedRenderer::pcSetTexture(3, sDetailTextureStageLimit >= 1 ? s_pDetailTexture : s_pNullDetailMap);
-        SetVector(pRegs[47], s_DetailTextureTransform[2][0]);
-        SetVector(pRegs[48], s_DetailTextureTransform[2][1]);
+        pRegs[47].SetVector(s_DetailTextureTransform[2][0]);
+        pRegs[48].SetVector(s_DetailTextureTransform[2][1]);
         RedRenderer::pcUnlockVertexShaderConstants(pRegs);
     }
     else if (uiPass == 1)
@@ -643,8 +621,8 @@ void pcTerrainShader2::_Init(unsigned int uiFlags,
         s_pDetailTexture = s_pNullDetailMap;
     }
 
-    s_material.diffuseColor = ToColorValue(color0);
-    s_material.specularColor = ToColorValue(color1);
+    s_material.diffuseColor = RedColorValue(color0);
+    s_material.specularColor = RedColorValue(color1);
     s_material.specularPower = fSpecularPower;
     m_material = &s_material;
 }
@@ -676,10 +654,12 @@ void pcTerrainShader2::_InitBumpLuminosityPixelLighting(unsigned int uiHash,
     {
         s_material.bumpMapHash = uiBumpLuminosityTextureHash_;
         s_material.materialFlags |= 0x10000020;
-        s_material.detailTexTransform.SetScale(s_DetailTextureTransform[0][0].x,
-                                               s_DetailTextureTransform[0][1].z);
-        s_material.diffuseTexTransform.SetScale(s_DetailTextureTransform[0][0].x,
-                                                s_DetailTextureTransform[0][1].z);
+        s_material.detailTexTransform.SetScale(0.0f, 0.0f);
+        s_material.diffuseTexTransform.SetScale(0.0f, 0.0f);
+        s_material.detailTexTransform(0, 0) = s_DetailTextureTransform[0][0].x;
+        s_material.detailTexTransform(1, 1) = s_DetailTextureTransform[0][1].z;
+        s_material.diffuseTexTransform(0, 0) = s_DetailTextureTransform[0][0].x;
+        s_material.diffuseTexTransform(1, 1) = s_DetailTextureTransform[0][1].z;
     }
 }
 
@@ -856,7 +836,7 @@ void pcTerrainShader2::_InitShadowMap(RedTexture* pTexture, unsigned int uiWrapM
 // FUNCTION: SWBF2 0x006fe370
 void pcTerrainShader2::_Read(PblFileChunk& chunk) const
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId != 0x454d414e)

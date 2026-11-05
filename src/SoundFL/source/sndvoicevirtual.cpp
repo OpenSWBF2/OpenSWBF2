@@ -4,6 +4,7 @@
 #include "sndenginebase.h"
 #include "win/sndsamplebank.h"
 #include "sndsourcei3dl2.h"
+#include "sndreleasevoice.h"
 
 namespace Snd
 {
@@ -111,8 +112,7 @@ void VoiceVirtual::SetVoice(VoiceBase* pVoice)
     if (mVoice)
     {
         mVoice->SourceTransport::Stop();
-        mVoice->Lock(false);
-        mVoice->SetPosVel3D(&Globals::smNullVector, &Globals::smNullVector);
+        ReleaseHardwareVoice(mVoice);
     }
     if (pVoice)
     {

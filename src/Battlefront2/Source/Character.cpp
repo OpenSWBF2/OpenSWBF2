@@ -56,7 +56,7 @@
 #include "GameMusic.h"
 #include "ShellLoop.h"
 #include "TeamAssist.h"
-#include "PebbleFL/Common/PblIndex.h"
+#include "HeroSlots.h"
 
 // GLOBAL: SWBF2 0x01e30330
 int Character::sCharacterLimit;
@@ -806,8 +806,7 @@ bool Character::IsHero() const
     }
     else if (!mUnit)
     {
-        if (PblInBounds(netHeroLastPlayerID, mTeamNumber) &&
-            netHeroLastPlayerID[mTeamNumber] == mPlayerId && mPlayerId != -1)
+        if (HeroSlotIs(netHeroLastPlayerID, mTeamNumber, mPlayerId) && mPlayerId != -1)
         {
             bHero = true;
         }
@@ -1045,8 +1044,7 @@ void Character::Spawn(const PblMatrix& mMatrix)
             SelectClass(0);
         }
         else if (NetGame::IsEnabled() && mTeamPtr->GetClassPtr(mClassIndex)->mHeroFlag &&
-                 (!PblInBounds(netHeroPlayerID, mTeamNumber) ||
-                  mPlayerId != netHeroPlayerID[mTeamNumber]))
+                 !HeroSlotIs(netHeroPlayerID, mTeamNumber, mPlayerId))
         {
             SelectClass(0);
         }
@@ -1084,8 +1082,7 @@ void Character::Spawn(const PblMatrix& mMatrix)
         ++mTeamPtr->mMemberActive;
         if (mPlayerId != -1)
         {
-            if (PblInBounds(netHeroLastPlayerID, mTeamNumber) &&
-                netHeroLastPlayerID[mTeamNumber] == mPlayerId)
+            if (HeroSlotIs(netHeroLastPlayerID, mTeamNumber, mPlayerId))
             {
                 NetGame::ClearLastHero(mTeamNumber);
             }
@@ -1101,7 +1098,7 @@ void Character::Spawn(const PblMatrix& mMatrix)
         }
         else
         {
-            int iHeroId = PblInBounds(netHeroAIID, mTeamNumber) ? netHeroAIID[mTeamNumber] : -1;
+            int iHeroId = HeroSlotOr(netHeroAIID, mTeamNumber, -1);
             if (iHeroId != -1 && GetPtr(iHeroId) == this)
             {
                 NetGame::AcceptHero(mTeamNumber, iHeroId);
@@ -1331,17 +1328,16 @@ void Character::Died()
     }
 
     int iTeam = mTeamNumber;
-    if (netHeroesEnabled && PblInBounds(netHeroUnlocked, iTeam) && netHeroUnlocked[iTeam] &&
+    if (netHeroesEnabled && HeroSlotSet(netHeroUnlocked, iTeam) &&
         (netHeroPlayerID[iTeam] != -1 || netHeroAIID[iTeam] != -1))
     {
         bool bIsHero = netHeroPlayerID[iTeam] != -1 ? mPlayerId == netHeroPlayerID[iTeam]
                                                     : this == GetPtr(netHeroAIID[iTeam]);
         if (bIsHero && mUnit && mHeroFlag)
         {
-            if (rOwner.mCharacter && rOwner.mCharacter != this &&
-                PblInBounds(netHeroKillerID, rOwner.mCharacter->mTeamNumber))
+            if (rOwner.mCharacter && rOwner.mCharacter != this)
             {
-                netHeroKillerID[rOwner.mCharacter->mTeamNumber] = rOwner.mCharacter->mPlayerId;
+                SetHeroSlot(netHeroKillerID, rOwner.mCharacter->mTeamNumber, rOwner.mCharacter->mPlayerId);
             }
             NetGame::HeroKilled(iTeam);
         }
@@ -1583,26 +1579,22 @@ void Event<Character, DamageOwner>::Callback::Trigger(Character& item, DamageOwn
         if (pChild)
         {
             pChild->AddRef();
-            while (pChild)
-            {
-                const bool bAlive = pChild->IsAlive();
-                if (!bAlive)
-                {
-                    break;
-                }
-                Callback* pNext = (Callback*)pChild->mSibling;
-                if (pNext)
-                {
-                    pNext->AddRef();
-                }
-                pChild->Trigger(item, param);
-                pChild->Release();
-                pChild = pNext;
-            }
-            if (pChild)
+        }
+        while (pChild)
+        {
+            if (!pChild->IsAlive())
             {
                 pChild->Release();
+                break;
             }
+            Callback* pNext = (Callback*)pChild->mSibling;
+            if (pNext)
+            {
+                pNext->AddRef();
+            }
+            pChild->Trigger(item, param);
+            pChild->Release();
+            pChild = pNext;
         }
     }
     Release();
@@ -1625,26 +1617,22 @@ void Event<Character, char>::Callback::Trigger(Character& item, char& param)
         if (pChild)
         {
             pChild->AddRef();
-            while (pChild)
-            {
-                const bool bAlive = pChild->IsAlive();
-                if (!bAlive)
-                {
-                    break;
-                }
-                Callback* pNext = (Callback*)pChild->mSibling;
-                if (pNext)
-                {
-                    pNext->AddRef();
-                }
-                pChild->Trigger(item, param);
-                pChild->Release();
-                pChild = pNext;
-            }
-            if (pChild)
+        }
+        while (pChild)
+        {
+            if (!pChild->IsAlive())
             {
                 pChild->Release();
+                break;
             }
+            Callback* pNext = (Callback*)pChild->mSibling;
+            if (pNext)
+            {
+                pNext->AddRef();
+            }
+            pChild->Trigger(item, param);
+            pChild->Release();
+            pChild = pNext;
         }
     }
     Release();

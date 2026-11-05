@@ -2,6 +2,7 @@
 
 #include <stddef.h>
 #include <string.h>
+#include <d3dx9math.h>
 #include "PblVector.h"
 
 class PblVector3;
@@ -9,7 +10,7 @@ class PblVector4;
 class PblQuaternion;
 struct _D3DXMATRIXA16;
 
-class __declspec(align(16)) PblMatrix
+class __declspec(align(16)) PblMatrix : public D3DXMATRIXA16
 {
 public:
 
@@ -52,6 +53,7 @@ public:
 
     void Reset();
 
+    void SetRotateArbitraryAxis(float fAngle, const PblVector3& vAxis);
     void SetRotateX(float fAngle);
     void SetRotateY(float fAngle);
     void SetRotateZ(float fAngle);
@@ -83,11 +85,21 @@ public:
     // FUNCTION: SWBF2 0x0040cb70
     const PblVector3& GetZAxis() const { return *(const PblVector3*)&m[2][0]; }
 
+    void SetXAxis(const PblVector3& vAxis);
+    void SetYAxis(const PblVector3& vAxis);
+    void SetZAxis(const PblVector3& vAxis);
+
     void SetXAxis(float fX, float fY, float fZ, float fW);
     void SetYAxis(float fX, float fY, float fZ, float fW);
     void SetZAxis(float fX, float fY, float fZ, float fW);
     void SetTranslation(float fX, float fY, float fZ, float fW);
     void SetTranslation(const PblVector3& vTranslation);
+
+    void Translate(float fX, float fY, float fZ);
+    void Translate(const PblVector3& vTranslation)
+    {
+        Translate(vTranslation.x, vTranslation.y, vTranslation.z);
+    }
 
     float& operator()(int iRow, int iColumn);
     float operator()(int iRow, int iColumn) const;
@@ -95,7 +107,6 @@ public:
     PblVector3& operator[](int iRow);
     const PblVector3& operator[](int iRow) const;
 
-    float m[4][4];
 };
 
 #include "PebbleFL/pc/pcPblMatrix.h"

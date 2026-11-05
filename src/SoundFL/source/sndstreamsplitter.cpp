@@ -101,23 +101,30 @@ StreamPacket* StreamSplitter::GetPacket(unsigned int uiOutput)
             }
         }
 
-        if (mRemaining[uiOutput] != 0)
+        unsigned short& remaining = mRemaining[uiOutput];
+        if (remaining != 0)
         {
-            const unsigned int uiIndex = mReadPos < mRemaining[uiOutput]
-                ? mReadPos + (mNumPackets - mRemaining[uiOutput])
-                : mReadPos - mRemaining[uiOutput];
+            unsigned int uiIndex = mReadPos;
+            if (uiIndex >= remaining)
+            {
+                uiIndex -= remaining;
+            }
+            else
+            {
+                uiIndex += mNumPackets - remaining;
+            }
             StreamPacket** const ppRead = &mPackets[uiIndex];
             StreamPacket* const pPacket = *ppRead;
             if (pPacket != 0)
             {
-                unsigned short* const puRefCount = &mRefCount[uiIndex];
-                --mRemaining[uiOutput];
+                unsigned short& refCount = mRefCount[uiIndex];
+                --remaining;
                 pPacket->Lock();
-                if (++*puRefCount == mNumOutputs)
+                if (++refCount == mNumOutputs)
                 {
                     pPacket->Unlock();
                     *ppRead = 0;
-                    *puRefCount = 0;
+                    refCount = 0;
                 }
                 pResult = pPacket;
             }

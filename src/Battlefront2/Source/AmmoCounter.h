@@ -38,7 +38,7 @@ public:
     void UnloadClip_Unlimitted();
     void LoadClip_Unlimitted();
 
-    static void* operator new(unsigned int size) { return sMemoryPool.Allocate(size); }
+    static void* operator new(size_t size) { return sMemoryPool.Allocate(size); }
     static void operator delete(void* block) { sMemoryPool.Free(block); }
 
     void Write(NetPktGroup& group) const;

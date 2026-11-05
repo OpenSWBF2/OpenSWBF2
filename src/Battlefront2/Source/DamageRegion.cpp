@@ -84,12 +84,12 @@ void DamageRegion::Update(float fDeltaTime) const
 // FUNCTION: SWBF2 0x0048a0b0
 void DamageRegion::ClearList()
 {
-    sList.RemoveAll();
+    sList.Clear();
 }
 
 // TEMPLATE: SWBF2 0x0048a260
-// PblList<DamageRegion>::RemoveAll
-template void PblList<DamageRegion>::RemoveAll();
+// PblList<DamageRegion>::Clear
+template void PblList<DamageRegion>::Clear();
 
 // FUNCTION: SWBF2 0x0048a0c0
 void DamageRegion::UpdateAll(float fDeltaTime)
@@ -116,7 +116,7 @@ void DamageRegion::Create()
 // FUNCTION: SWBF2 0x0048a180
 void DamageRegion::Destroy()
 {
-    sList.RemoveAll();
+    sList.Clear();
     mUpdateThread = 0;
 }
 

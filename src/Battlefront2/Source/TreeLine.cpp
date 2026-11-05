@@ -29,7 +29,7 @@ void CreateTreeLineOnPath(unsigned int uPathName, PblFileChunk& chunk)
     int iNumOtherClasses = 0;
     float fSpacing = 18.0f;
     bool bReverse = false;
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         unsigned int uProperty = child._pFile->Read32();
@@ -99,7 +99,7 @@ void CreateTreeLineOnPath(unsigned int uPathName, PblFileChunk& chunk)
 // FUNCTION: SWBF2 0x0065cd80
 void TreeLine::CreateTreeLine(PblFileChunk& chunk)
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         const unsigned int uProperty = child._pFile->Read32();

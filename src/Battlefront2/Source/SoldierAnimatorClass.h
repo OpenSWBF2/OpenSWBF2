@@ -84,6 +84,11 @@ public:
     bool GetAnimationBoneMatrix(SoldierAnimationBank::MAP eMap, unsigned char uiAnimIndex, unsigned int uiJointCrc,
                                 float fTime, PblMatrix& matrix) const;
 
+    const SoldierOrdnanceCollisionTable& GetSoldierOrdnanceCollisionTable(SoldierAnimationBank::MAP eMap) const
+    {
+        return m_aOrdCollTable[eMap];
+    }
+
     static const int NUM_ACTION_ANIMATIONS_TOTAL = 76;
     static const int NUM_MOVEMENT_ANIMATIONS_TOTAL = 156;
     static const int NUM_WEAPON_ANIMATIONS_TOTAL = 36;

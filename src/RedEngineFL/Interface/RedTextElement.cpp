@@ -430,18 +430,17 @@ int RedTextElement::WriteCache(const unsigned short* pcText)
     const unsigned int uiTextHeight = GetTextHeight();
 
     unsigned int uiNumLines;
-    const unsigned short* pcClipEnd;
+    const unsigned short* pc;
     short sCursorX;
 
     unsigned int uiFirstLine = ClipString(pcWork, aLines, uiMaxLines, uiNumLines,
-                                          pcClipEnd, uiTextHeight, sCursorX);
+                                          pc, uiTextHeight, sCursorX);
 
-    const unsigned short* pc = 0;
     int iY = 0;
 
     if (uiNumLines != 0)
     {
-        bool bCursorDone = ((int)(pcClipEnd - pcWork) < (int)m_uiCursorPos);
+        bool bCursorDone = ((int)(pc - pcWork) < (int)m_uiCursorPos);
 
         const unsigned int uiLines = uiNumLines < uiMaxLines ? (unsigned short)uiNumLines
                                                              : (unsigned short)uiMaxLines;
@@ -575,7 +574,7 @@ int RedTextElement::WriteCache(const unsigned short* pcText)
 }
 
 // FUNCTION: SWBF2 0x006d7de0
-util::HashTable<unsigned short, unsigned int, util::NewAllocator>*
+util::HashTable<unsigned short, unsigned int, util::NewAllocator>&
 RedTextElement::GetMagicCharMap()
 {
     if (!mMagicCharMap_)
@@ -584,7 +583,7 @@ RedTextElement::GetMagicCharMap()
                                              util::NewAllocator>();
     }
 
-    return mMagicCharMap_;
+    return *mMagicCharMap_;
 }
 
 // FUNCTION: SWBF2 0x006d7640

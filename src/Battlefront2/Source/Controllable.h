@@ -204,6 +204,10 @@ public:
     virtual int GetWeaponIndex(int iChannel) const;
     virtual Weapon* GetWeaponPtr(int iIndex) const;
     virtual EnergyBar* GetEnergyBar();
+    const EnergyBar* GetEnergyBar() const
+    {
+        return const_cast<Controllable*>(this)->GetEnergyBar();
+    }
 
     float GetEnergy() const;
     // FUNCTION: SWBF2 0x00478a40

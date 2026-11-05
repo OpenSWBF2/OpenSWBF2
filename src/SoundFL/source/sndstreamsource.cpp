@@ -45,7 +45,7 @@ void __cdecl StreamSource::FileOpComplete(File* pFile, void* pCallbackData,
             pThis->mFlags &= ~flags_SeekPending;
             pThis->mFlags |= (unsigned char)flags_SeekReady;
 
-            pPacket->mFlags |= 2;
+            pPacket->SetDiscontinuity(true);
         }
 
         ++pThis->mPacketReadPos;
@@ -352,7 +352,7 @@ void StreamSource::Update()
             }
         }
 
-        pPacket->mFlags &= (unsigned short)~1;
+        pPacket->SetLast(false);
 
         if (mFile.GetPos() + uiReadSize >= mSegment.mOffset + mSegment.mLength)
         {
@@ -363,10 +363,10 @@ void StreamSource::Update()
             else
             {
                 pPacket->SetDiscontinuity(!GetLooping());
-                pPacket->mFlags |= 2;
+                pPacket->SetDiscontinuity(true);
                 if ((mFlags & (flags_Looping | flags_SegmentQueued)) == 0)
                 {
-                    pPacket->mFlags |= 1;
+                    pPacket->SetLast(true);
                 }
                 mFlags |= (unsigned char)flags_LastPacket;
                 pPacket->mCallback = 0;

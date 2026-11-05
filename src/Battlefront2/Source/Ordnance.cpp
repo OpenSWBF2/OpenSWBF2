@@ -497,7 +497,7 @@ void OrdnanceClass::Read(PblFileChunk& chunk)
     char acBuffer[128];
     OrdnanceClass* pClass = 0;
 
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)

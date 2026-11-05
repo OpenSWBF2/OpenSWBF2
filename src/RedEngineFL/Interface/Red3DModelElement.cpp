@@ -95,13 +95,7 @@ void Red3DModelElement::RenderUsingContext(const PblMatrix& mContext,
 
     if (m_bApplyRotationScale)
     {
-        D3DXQUATERNION qRotation;
-        PblMatrix mLocal;
-        D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mLocal), D3DXQuaternionNormalize(&qRotation, reinterpret_cast<const D3DXQUATERNION*>(&m_rotation)));
-        mLocal.m[3][0] = m_translation.x;
-        mLocal.m[3][1] = m_translation.y;
-        mLocal.m[3][2] = m_translation.z;
-        mLocal.m[3][3] = 1.0f;
+        PblMatrix mLocal(m_rotation, m_translation);
         if (m_OmegaY != 0.0f)
         {
             mLocal.RotateY(m_Yaw * 0.017453292f);

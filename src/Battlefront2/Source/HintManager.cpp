@@ -383,6 +383,7 @@ int RequestHintsCommon(int iType, const UnitController* pController,
 static int RequestCPHintsCommon(const UnitController* pController, int iType, const CommandPost* pPost,
                                 int iMaxHints, const BaseHint** ppHints)
 {
+    // GLOBAL: SWBF2 0x01faa990
     static const BaseHint* pCPHints[50];
     int iCount = RequestHintsCommon(iType, pController, AIUtil::GetCommandPostPos(pPost), 300, 50, pCPHints);
     int iFound = 0;
@@ -396,7 +397,6 @@ static int RequestCPHintsCommon(const UnitController* pController, int iType, co
     }
     return iFound;
 }
-
 // FUNCTION: SWBF2 0x00543c90
 int RequestSnipeHints(const UnitController* pController, const PblVector3& vPos,
                       int iRadius, int iMaxHints, const BaseHint** ppHints)

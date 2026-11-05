@@ -170,7 +170,7 @@ bool RedTexture::_Read(PblFileChunk& chunk)
     _D3DFORMAT format = (_D3DFORMAT)0;
     bool bResult = true;
 
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
@@ -526,7 +526,7 @@ void RedTexture::pcReadFormat(PblFileChunk& chunk, _D3DFORMAT format)
     int iFace = -1;
     unsigned int uiSkip = 0;
 
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
@@ -632,7 +632,7 @@ void RedTexture::pcReadFormat(PblFileChunk& chunk, _D3DFORMAT format)
 
         case 0x45434146:
             ++iFace;
-            while (child.HasMoreChildren())
+            while (!child.IsDone())
             {
                 PblFileChunk level = child.ReadNextChild();
                 if (level._iId == 0x5F4C564C)
@@ -651,7 +651,7 @@ void RedTexture::pcReadLevel(PblFileChunk& chunk, unsigned int uiSkip, int iFace
     int iSize = 0;
     unsigned int uiLevel = 0;
 
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)

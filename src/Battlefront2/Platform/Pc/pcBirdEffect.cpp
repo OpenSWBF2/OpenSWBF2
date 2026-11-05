@@ -62,13 +62,6 @@ void BirdParticleManager::PlatformCleanup()
 // GLOBAL: SWBF2 0x0078c2e4
 const RedColor kBirdColor = { 0xcc, 0xcc, 0xcc, 0xff };
 
-namespace
-{
-
-
-
-
-
 struct BirdVertex
 {
     PblVector3 pos;
@@ -85,6 +78,8 @@ struct BirdCompressedVertex
 };
  
 
+namespace
+{
 inline void SetBirdVertex(BirdVertex& v, const PblVector3& vPos, float fU, float fV)
 {
     v.pos = vPos;
@@ -94,7 +89,7 @@ inline void SetBirdVertex(BirdVertex& v, const PblVector3& vPos, float fU, float
 
 inline void SetBirdVertex(BirdCompressedVertex& v, const PblVector3& vPos, float fU, float fV)
 {
-    v.pos.SetPos(vPos.x, vPos.y, vPos.z);
+    v.pos.SetPos(vPos);
     v.color = kBirdColor;
     v.uv.SetUV(fU, fV);
 }
@@ -158,12 +153,24 @@ pcRedPrimitive* BirdParticle::CreateCompressedGeometry()
     if (pVerts)
     {
         float fHalf = fSize * 0.5f;
-        SetBirdVertex(pVerts[0], PblVector3(0.0f, fSize * -0.5f, -fSize), 0.0f, 1.0f);
-        SetBirdVertex(pVerts[1], PblVector3(0.0f, fSize * -0.5f, fSize), 1.0f, 1.0f);
-        SetBirdVertex(pVerts[2], PblVector3(0.0f, fHalf, fSize), 1.0f, 0.5f);
-        SetBirdVertex(pVerts[3], PblVector3(0.0f, fSize * -0.5f, -fSize), 0.0f, 1.0f);
-        SetBirdVertex(pVerts[4], PblVector3(0.0f, fHalf, fSize), 1.0f, 0.5f);
-        SetBirdVertex(pVerts[5], PblVector3(0.0f, fHalf, -fSize), 0.0f, 0.5f);
+        pVerts[0].pos.SetPos(0.0f, fSize * -0.5f, -fSize);
+        pVerts[0].color = kBirdColor;
+        pVerts[0].uv.SetUV(0.0f, 1.0f);
+        pVerts[1].pos.SetPos(0.0f, fSize * -0.5f, fSize);
+        pVerts[1].color = kBirdColor;
+        pVerts[1].uv.SetUV(1.0f, 1.0f);
+        pVerts[2].pos.SetPos(0.0f, fHalf, fSize);
+        pVerts[2].color = kBirdColor;
+        pVerts[2].uv.SetUV(1.0f, 0.5f);
+        pVerts[3].pos.SetPos(0.0f, fSize * -0.5f, -fSize);
+        pVerts[3].color = kBirdColor;
+        pVerts[3].uv.SetUV(0.0f, 1.0f);
+        pVerts[4].pos.SetPos(0.0f, fHalf, fSize);
+        pVerts[4].color = kBirdColor;
+        pVerts[4].uv.SetUV(1.0f, 0.5f);
+        pVerts[5].pos.SetPos(0.0f, fHalf, -fSize);
+        pVerts[5].color = kBirdColor;
+        pVerts[5].uv.SetUV(0.0f, 0.5f);
 
         const PblVector3 vShoulder(0.0f, 0.0f, fSize * 0.65f);
         BirdWing r = MakeBirdWing(*this, vShoulder, fSize, false);
@@ -214,12 +221,24 @@ pcRedPrimitive* BirdParticle::CreateGeometry()
         if (pVerts)
         {
             float fHalf = fSize * 0.5f;
-            SetBirdVertex(pVerts[0], PblVector3(0.0f, fSize * -0.5f, -fSize), 0.0f, 1.0f);
-            SetBirdVertex(pVerts[1], PblVector3(0.0f, fSize * -0.5f, fSize), 1.0f, 1.0f);
-            SetBirdVertex(pVerts[2], PblVector3(0.0f, fHalf, fSize), 1.0f, 0.5f);
-            SetBirdVertex(pVerts[3], PblVector3(0.0f, fSize * -0.5f, -fSize), 0.0f, 1.0f);
-            SetBirdVertex(pVerts[4], PblVector3(0.0f, fHalf, fSize), 1.0f, 0.5f);
-            SetBirdVertex(pVerts[5], PblVector3(0.0f, fHalf, -fSize), 0.0f, 0.5f);
+            pVerts[0].pos.Set(0.0f, fSize * -0.5f, -fSize);
+            pVerts[0].color = kBirdColor;
+            pVerts[0].uv.SetUV(0.0f, 1.0f);
+            pVerts[1].pos.Set(0.0f, fSize * -0.5f, fSize);
+            pVerts[1].color = kBirdColor;
+            pVerts[1].uv.SetUV(1.0f, 1.0f);
+            pVerts[2].pos.Set(0.0f, fHalf, fSize);
+            pVerts[2].color = kBirdColor;
+            pVerts[2].uv.SetUV(1.0f, 0.5f);
+            pVerts[3].pos.Set(0.0f, fSize * -0.5f, -fSize);
+            pVerts[3].color = kBirdColor;
+            pVerts[3].uv.SetUV(0.0f, 1.0f);
+            pVerts[4].pos.Set(0.0f, fHalf, fSize);
+            pVerts[4].color = kBirdColor;
+            pVerts[4].uv.SetUV(1.0f, 0.5f);
+            pVerts[5].pos.Set(0.0f, fHalf, -fSize);
+            pVerts[5].color = kBirdColor;
+            pVerts[5].uv.SetUV(0.0f, 0.5f);
 
             const PblVector3 vShoulder(0.0f, 0.0f, fSize * 0.65f);
             BirdWing r = MakeBirdWing(*this, vShoulder, fSize, false);

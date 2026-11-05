@@ -128,7 +128,7 @@ void pcSpecularLightingShader::_InitPipelineFuncArray()
 // FUNCTION: SWBF2 0x007137d0
 void pcSpecularLightingShader::_Read(PblFileChunk& chunk) const
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId != 0x454d414e)
@@ -350,12 +350,12 @@ void pcSpecularLightingShader::PerPixelLighting(const RenderItem* pItem, unsigne
     const RedLightingState* pLighting = pItem->pLightingState;
     const RedMaterial* pMaterial = pItem->pRootShader->m_material;
 
-    RedColorValue colors[3];
+    RedColorValue lightConstants[6];
     const float fScale = RedRenderer::GetLightingScale() * (pItem->tweakColor.a * kInv255);
     const RedColorValue& specular = pMaterial->specularColor;
-    colors[0] = RedColorValue(specular.r * fScale, specular.g * fScale, specular.b * fScale,
+    lightConstants[0] = RedColorValue(specular.r * fScale, specular.g * fScale, specular.b * fScale,
                               specular.a * fScale);
-    colors[0].a = (pMaterial->materialFlags & 8) ? 1.0f : 0.0f;
+    lightConstants[0].a = (pMaterial->materialFlags & 8) ? 1.0f : 0.0f;
 
     if (uiPass || pItem->uiShaderState == 5 || pItem->uiShaderState == 8)
     {
@@ -369,14 +369,14 @@ void pcSpecularLightingShader::PerPixelLighting(const RenderItem* pItem, unsigne
         }
 
         const RedColorValue& white = RedColorValue::WHITE;
-        colors[2] = RedColorValue(colors[0].r * white.r, colors[0].g * white.g,
-                                  colors[0].b * white.b, colors[0].a * white.a);
-        RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, &colors[0].r, 3);
+        lightConstants[2] = RedColorValue(lightConstants[0].r * white.r, lightConstants[0].g * white.g,
+                                  lightConstants[0].b * white.b, lightConstants[0].a * white.a);
+        RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, &lightConstants[0].r, 3);
         pItem->pPrim->Draw();
         return;
     }
 
-    colors[1] = GetSpecularWeights(pMaterial->specularPower);
+    lightConstants[1] = GetSpecularWeights(pMaterial->specularPower);
 
     for (int i = 0; i < pLighting->numDirectionalLights; i++)
     {
@@ -387,14 +387,13 @@ void pcSpecularLightingShader::PerPixelLighting(const RenderItem* pItem, unsigne
         }
 
         pcRedVertexShaderConstantRegister* pRegs = RedRenderer::pcLockVertexShaderConstants(42, 1);
-        pRegs[42].SetFloats(-pLight->m_vDirection.x, -pLight->m_vDirection.y,
-                            -pLight->m_vDirection.z, 0.0f);
+        pRegs[42].SetVectorW(-pLight->m_vDirection, 0.0f);
         RedRenderer::pcUnlockVertexShaderConstants(pRegs);
 
         const float fFactor = pLighting->pDirectionalFactor[i];
-        colors[2] = RedColorValue(pLight->m_color.r * fFactor, pLight->m_color.g * fFactor,
+        lightConstants[2] = RedColorValue(pLight->m_color.r * fFactor, pLight->m_color.g * fFactor,
                                   pLight->m_color.b * fFactor, pLight->m_color.a * fFactor);
-        RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, &colors[0].r, 3);
+        RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, &lightConstants[0].r, 3);
         pItem->pPrim->Draw();
     }
 
@@ -407,15 +406,11 @@ void pcSpecularLightingShader::PerPixelLighting(const RenderItem* pItem, unsigne
         }
 
         pcRedVertexShaderConstantRegister* pRegs = RedRenderer::pcLockVertexShaderConstants(42, 1);
-        const float fRadius = pLight->m_fRadiusInvSq;
-        pRegs[42].component[0] = pLight->m_pos.x;
-        pRegs[42].component[1] = pLight->m_pos.y;
-        pRegs[42].component[2] = pLight->m_pos.z;
-        pRegs[42].component[3] = fRadius;
+        pRegs[42].SetVectorW(pLight->m_pos, pLight->m_fRadiusInvSq);
         RedRenderer::pcUnlockVertexShaderConstants(pRegs);
 
-        colors[2] = pLight->m_color;
-        RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, &colors[0].r, 3);
+        lightConstants[2] = pLight->m_color;
+        RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, &lightConstants[0].r, 3);
         pItem->pPrim->Draw();
     }
 
@@ -428,15 +423,11 @@ void pcSpecularLightingShader::PerPixelLighting(const RenderItem* pItem, unsigne
         }
 
         pcRedVertexShaderConstantRegister* pRegs = RedRenderer::pcLockVertexShaderConstants(42, 1);
-        const float fRadius = pLight->m_fRadiusInvSq;
-        pRegs[42].component[0] = pLight->m_vPos.x;
-        pRegs[42].component[1] = pLight->m_vPos.y;
-        pRegs[42].component[2] = pLight->m_vPos.z;
-        pRegs[42].component[3] = fRadius;
+        pRegs[42].SetVectorW(pLight->m_vPos, pLight->m_fRadiusInvSq);
         RedRenderer::pcUnlockVertexShaderConstants(pRegs);
 
-        colors[2] = pLight->m_color;
-        RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, &colors[0].r, 3);
+        lightConstants[2] = pLight->m_color;
+        RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, &lightConstants[0].r, 3);
         pItem->pPrim->Draw();
     }
 }
@@ -450,15 +441,10 @@ void pcSpecularLightingShader::PerVertexLighting(const RenderItem* pItem, unsign
     const RedLightingState* pLighting = pItem->pLightingState;
     const int iMaxLights = MAX_LIGHTS_PER_STATE[pItem->uiShaderState];
 
-    RedColorValue colors[6];
-    RedColorValue scaled;
+    RedColorValue lightConstants[6];
     const float fScale = RedRenderer::GetLightingScale() * (pItem->tweakColor.a * kInv255);
-    for (int iChannel = 0; iChannel < 4; iChannel++)
-    {
-        (&scaled.r)[iChannel] = (&pMaterial->specularColor.r)[iChannel] * fScale;
-    }
-    colors[0] = scaled;
-    colors[0].a = (pMaterial->materialFlags & 8) ? 1.0f : 0.0f;
+    lightConstants[0] = pMaterial->specularColor * fScale;
+    lightConstants[0].a = (pMaterial->materialFlags & 8) ? 1.0f : 0.0f;
 
     pcRedVertexShaderConstantRegister* pRegs = RedRenderer::pcLockVertexShaderConstants(42, 4);
     pRegs[42].SetFloats(0.0f, 0.0f, 0.0f, sqrtf(pMaterial->specularPower) * kfSpecularSizeInv);
@@ -474,20 +460,15 @@ void pcSpecularLightingShader::PerVertexLighting(const RenderItem* pItem, unsign
             }
 
             const float fFactor = pLighting->pDirectionalFactor[i];
-            for (int iChannel = 0; iChannel < 4; iChannel++)
-            {
-                (&scaled.r)[iChannel] = (&pLight->m_color.r)[iChannel] * fFactor;
-            }
-            colors[2 + iLight] = scaled;
-            pRegs[42].component[iLight] = 0.0f;
-            pRegs[43 + iLight].SetFloats(-pLight->m_vDirection.x, -pLight->m_vDirection.y,
-                                         -pLight->m_vDirection.z, 0.0f);
-            iLight++;
+            ++iLight;
+            lightConstants[1 + iLight] = pLight->m_color * fFactor;
+            pRegs[42].component[iLight - 1] = 0.0f;
+            pRegs[42 + iLight].SetVectorW(-pLight->m_vDirection, 0.0f);
 
             if (iLight >= iMaxLights)
             {
                 RedRenderer::pcUnlockVertexShaderConstants(pRegs);
-                RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, &colors[0].r, iMaxLights + 2);
+                RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, &lightConstants[0].r, iMaxLights + 2);
                 pItem->pPrim->Draw();
                 pRegs = RedRenderer::pcLockVertexShaderConstants(42, 4);
                 iLight = 0;
@@ -503,16 +484,15 @@ void pcSpecularLightingShader::PerVertexLighting(const RenderItem* pItem, unsign
                 continue;
             }
 
-            colors[2 + iLight] = pLight->m_color;
-            pRegs[42].component[iLight] = 0.0f;
-            pRegs[43 + iLight].SetFloats(pLight->m_pos.x, pLight->m_pos.y, pLight->m_pos.z,
-                                         pLight->m_fRadiusInvSq);
-            iLight++;
+            ++iLight;
+            lightConstants[1 + iLight] = pLight->m_color;
+            pRegs[42].component[iLight - 1] = 0.0f;
+            pRegs[42 + iLight].SetVectorW(pLight->m_pos, pLight->m_fRadiusInvSq);
 
             if (iLight >= iMaxLights)
             {
                 RedRenderer::pcUnlockVertexShaderConstants(pRegs);
-                RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, &colors[0].r, iMaxLights + 2);
+                RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, &lightConstants[0].r, iMaxLights + 2);
                 pItem->pPrim->Draw();
                 pRegs = RedRenderer::pcLockVertexShaderConstants(42, 4);
                 iLight = 0;
@@ -528,16 +508,15 @@ void pcSpecularLightingShader::PerVertexLighting(const RenderItem* pItem, unsign
                 continue;
             }
 
-            colors[2 + iLight] = pLight->m_color;
-            pRegs[42].component[iLight] = 0.0f;
-            pRegs[43 + iLight].SetFloats(pLight->m_vPos.x, pLight->m_vPos.y, pLight->m_vPos.z,
-                                         pLight->m_fRadiusInvSq);
-            iLight++;
+            ++iLight;
+            lightConstants[1 + iLight] = pLight->m_color;
+            pRegs[42].component[iLight - 1] = 0.0f;
+            pRegs[42 + iLight].SetVectorW(pLight->m_vPos, pLight->m_fRadiusInvSq);
 
             if (iLight >= iMaxLights)
             {
                 RedRenderer::pcUnlockVertexShaderConstants(pRegs);
-                RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, &colors[0].r, iMaxLights + 2);
+                RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, &lightConstants[0].r, iMaxLights + 2);
                 pItem->pPrim->Draw();
                 pRegs = RedRenderer::pcLockVertexShaderConstants(42, 4);
                 iLight = 0;
@@ -551,18 +530,18 @@ void pcSpecularLightingShader::PerVertexLighting(const RenderItem* pItem, unsign
     {
         if (pMaterial->envMapHash)
         {
-            colors[2 + iLight] = RedColorValue::WHITE;
-            pRegs[42].component[iLight] = 1.0f;
-            iLight++;
+            ++iLight;
+            lightConstants[1 + iLight] = RedColorValue::WHITE;
+            pRegs[42].component[iLight - 1] = 1.0f;
             uiSpotStage = iLight;
             RedRenderer::pcSetTexture(iLight, RedTexture::Find(pMaterial->envMapHash));
             RedRenderer::pcSetTextureStageState(iLight, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
         }
         else if (pLighting->pEnvMap)
         {
-            colors[2 + iLight] = RedColorValue::WHITE;
-            pRegs[42].component[iLight] = 1.0f;
-            iLight++;
+            ++iLight;
+            lightConstants[1 + iLight] = RedColorValue::WHITE;
+            pRegs[42].component[iLight - 1] = 1.0f;
             uiSpotStage = iLight;
             RedRenderer::pcSetTexture(iLight, pLighting->pEnvMap);
             RedRenderer::pcSetTextureStageState(iLight, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
@@ -574,9 +553,9 @@ void pcSpecularLightingShader::PerVertexLighting(const RenderItem* pItem, unsign
     {
         for (int i = iLight; i < iMaxLights; i++)
         {
-            colors[2 + i] = RedColorValue::BLACK;
+            lightConstants[2 + i] = RedColorValue::BLACK;
         }
-        RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, &colors[0].r, iMaxLights + 2);
+        RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, &lightConstants[0].r, iMaxLights + 2);
         pItem->pPrim->Draw();
     }
 

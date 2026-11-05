@@ -104,23 +104,17 @@ void DropShadowRenderable::AddShadow(unsigned int uiTexture, const PblVector3& v
                                      const PblVector3& vNormal, const PblVector3& vDir,
                                      float fStart, float fEnd, float, float fAlpha)
 {
-    float fDot = vNormal.y * vDir.y + vDir.x * vNormal.x + vDir.z * vNormal.z;
-    PblVector3 vAlong(vDir.x * vNormal.y - gVectorUnitY.x * fDot,
-                      vDir.y * vNormal.y - gVectorUnitY.y * fDot,
-                      vDir.z * vNormal.y - gVectorUnitY.z * fDot);
-    float fLengthSq = vAlong.x * vAlong.x + vAlong.y * vAlong.y + vAlong.z * vAlong.z;
+    const float fDot = DotProduct(vNormal, vDir);
+    const PblVector3 vProj = vDir * vNormal.y - gVectorUnitY * fDot;
+    const float fLengthSq = SquaredLength(vProj);
     if (0.0f > fLengthSq)
     {
         return;
     }
 
     const PblMatrix& camMatrix = RedRenderer::GetCamera()->_Matrix;
-    PblVector3 vToShadow(vPos.x - camMatrix.m[3][0],
-                         vPos.y - camMatrix.m[3][1],
-                         vPos.z - camMatrix.m[3][2]);
-    PblVector3 vView;
-    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vView), reinterpret_cast<const D3DXVECTOR3*>(&vToShadow));
-    float fCosView = -(vNormal.x * vView.x + vView.y * vNormal.y + vView.z * vNormal.z);
+    const PblVector3 vViewDir = Normalize(vPos - camMatrix[3]);
+    const float fCosView = -DotProduct(vNormal, vViewDir);
     if (MIN_COS_VIEW_ANGLE >= fCosView)
     {
         return;
@@ -133,8 +127,7 @@ void DropShadowRenderable::AddShadow(unsigned int uiTexture, const PblVector3& v
     _DropShadow& shadow = mShadowsList[mShadowCount - 1];
 
     float fLength = sqrt(fLengthSq);
-    float fInvLength = 1.0f / fLength;
-    vAlong *= fInvLength;
+    PblVector3 vProjDir = vProj * (1.0f / fLength);
 
     float fScale = 2.0f;
     if (!(fLength > -fDot * 2.0f))
@@ -142,11 +135,7 @@ void DropShadowRenderable::AddShadow(unsigned int uiTexture, const PblVector3& v
         fScale = 1.0f / -fDot * fLength;
     }
 
-    PblVector3 vCross(vNormal.z * vDir.y - vNormal.y * vDir.z,
-                      vDir.z * vNormal.x - vNormal.z * vDir.x,
-                      vNormal.y * vDir.x - vDir.y * vNormal.x);
-    PblVector3 vSide;
-    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vSide), reinterpret_cast<const D3DXVECTOR3*>(&vCross));
+    const PblVector3 vWidthDir = Normalize(CrossProduct(vDir, vNormal));
 
     if (FADE_COS_VIEW_ANGLE > fCosView)
     {
@@ -161,20 +150,14 @@ void DropShadowRenderable::AddShadow(unsigned int uiTexture, const PblVector3& v
 
     const PblMatrix& camMatrix2 = RedRenderer::GetCamera()->_Matrix;
     float fOffset = (fStart - mPosOffset) * fScale * mShadowSize;
-    PblVector3 vStart(vAlong.x * fOffset + vPos.x + camMatrix2.m[2][0] * mShadowOffset,
-                      vAlong.y * fOffset + vPos.y + camMatrix2.m[2][1] * mShadowOffset,
-                      vAlong.z * fOffset + vPos.z + camMatrix2.m[2][2] * mShadowOffset);
+    const PblVector3 vStart = vProjDir * fOffset + vPos + camMatrix2[2] * mShadowOffset;
     float fRun = fEnd - fStart;
-    PblVector3 vRun(vAlong.x * fScale * fRun * mShadowSize,
-                    vAlong.y * fScale * fRun * mShadowSize,
-                    vAlong.z * fScale * fRun * mShadowSize);
+    vProjDir = vProjDir * fScale * fRun * mShadowSize;
 
-    shadow.vtxpos[0] = PblVector3(vStart.x - vSide.x, vStart.y - vSide.y, vStart.z - vSide.z);
-    shadow.vtxpos[1] = PblVector3(vSide.x + vStart.x, vSide.y + vStart.y, vSide.z + vStart.z);
-    shadow.vtxpos[2] = PblVector3(vSide.x + vStart.x + vRun.x, vSide.y + vStart.y + vRun.y,
-                                  vSide.z + vStart.z + vRun.z);
-    shadow.vtxpos[3] = PblVector3(vStart.x - vSide.x + vRun.x, vStart.y - vSide.y + vRun.y,
-                                  vStart.z - vSide.z + vRun.z);
+    shadow.vtxpos[0] = vStart - vWidthDir;
+    shadow.vtxpos[1] = vWidthDir + vStart;
+    shadow.vtxpos[2] = vWidthDir + vStart + vProjDir;
+    shadow.vtxpos[3] = vStart - vWidthDir + vProjDir;
 
     if (uiTexture != m_uiTexture)
     {
@@ -200,47 +183,6 @@ void DropShadowRenderable::AddShadow(unsigned int uiTexture, const PblVector3& v
     }
 }
 
-template <class VERTEX>
-static void DropShadowFillQuads(const DropShadowRenderable::_DropShadow* pShadows, int iCount,
-                                float fShade, VERTEX* pVertex, unsigned short* pIndices)
-{
-    unsigned short usBase = 0;
-    for (int i = 0; i < iCount; ++i)
-    {
-        const DropShadowRenderable::_DropShadow& shadow = pShadows[i];
-        RedColor color;
-        color.b = shadow.color.b;
-        color.g = shadow.color.g;
-        color.r = shadow.color.r;
-        color.a = (unsigned char)(int)(shadow.color.a * fShade);
-        pVertex[0].SetPos(shadow.vtxpos[0]);
-        pVertex[0].color = color;
-        pVertex[0].SetUV(0.8f, 1.0f);
-        pVertex[1].SetPos(shadow.vtxpos[1]);
-        pVertex[1].color = color;
-        pVertex[1].SetUV(0.2f, 1.0f);
-        pVertex[2].SetPos(shadow.vtxpos[2]);
-        pVertex[2].color = color;
-        pVertex[2].SetUV(0.2f, 0.0f);
-        pVertex[3].SetPos(shadow.vtxpos[3]);
-        pVertex[3].color = color;
-        pVertex[3].SetUV(0.8f, 0.0f);
-        pVertex += 4;
-        if (usBase)
-        {
-            pIndices[0] = pIndices[-1];
-            pIndices[1] = usBase;
-            pIndices += 2;
-        }
-        pIndices[0] = usBase;
-        pIndices[1] = (unsigned short)(usBase + 1);
-        pIndices[2] = (unsigned short)(usBase + 3);
-        pIndices[3] = (unsigned short)(usBase + 2);
-        pIndices += 4;
-        usBase += 4;
-    }
-}
-
 // FUNCTION: SWBF2 0x006ee460
 void DropShadowRenderable::Render(int value)
 {
@@ -250,9 +192,9 @@ void DropShadowRenderable::Render(int value)
         return;
     }
 
-    PblBox box = RedRenderer::GetCamera()->_box;
-    box._vMax = PblVector3(box._vMax.x + 20.0f, box._vMax.y + 20.0f, box._vMax.z + 20.0f);
-    box._vMin = PblVector3(box._vMin.x - 20.0f, box._vMin.y - 20.0f, box._vMin.z - 20.0f);
+    PblBox box = RedRenderer::GetCamera()->GetCameraBox();
+    box._vMax = box._vMax + PblVector3(20.0f, 20.0f, 20.0f);
+    box._vMin = box._vMin - PblVector3(20.0f, 20.0f, 20.0f);
 
     unsigned short usNumVertices = (unsigned short)(mShadowCount * 4);
     unsigned short usNumIndices = (unsigned short)(mShadowCount * 6 - 2);
@@ -267,7 +209,7 @@ void DropShadowRenderable::Render(int value)
         pPrimitive = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, 0x282, sizeof(DropShadowVertex::VertexU),
                                             usNumVertices, usNumIndices, false);
     }
-    pPrimitive->m_bbox = box;
+    pPrimitive->SetBoundingBox(box);
 
     void* pVertices = pPrimitive->BeginVertexData();
     if (!pVertices)
@@ -281,14 +223,8 @@ void DropShadowRenderable::Render(int value)
     {
         const RedColorValue& sun = ((RedLight*)RedLight::m_sGlobalDirectionals[0])->m_color;
         const RedColorValue& amb = ((RedLight*)RedLight::m_sGlobalAmbient)->m_color;
-        RedColor sunColor;
-        sunColor.b = (unsigned char)(int)(sun.b * 255.0f);
-        sunColor.g = (unsigned char)(int)(sun.g * 255.0f);
-        sunColor.r = (unsigned char)(int)(sun.r * 255.0f);
-        RedColor ambColor;
-        ambColor.b = (unsigned char)(int)(amb.b * 255.0f);
-        ambColor.g = (unsigned char)(int)(amb.g * 255.0f);
-        ambColor.r = (unsigned char)(int)(amb.r * 255.0f);
+        RedColor sunColor = sun;
+        RedColor ambColor = amb;
         float fSun = (sunColor.r * 0.32f + sunColor.g * 0.43f + sunColor.b * 0.25f) / 255.0f;
         float fAmb = (ambColor.r * 0.32f + ambColor.g * 0.43f + ambColor.b * 0.25f) / 255.0f;
         ((pcParticleShader*)m_pShader)->SetShadowMode(false);
@@ -299,15 +235,74 @@ void DropShadowRenderable::Render(int value)
         ((pcParticleShader*)m_pShader)->SetShadowMode(true);
     }
 
+    unsigned short usBase = 0;
     if (RedRenderer::pcGetGeometryMode())
     {
-        DropShadowFillQuads(mShadowsList, mShadowCount, fShade,
-                            (DropShadowVertex::VertexC*)pVertices, pIndices);
+        DropShadowVertex::VertexC* pVertex = (DropShadowVertex::VertexC*)pVertices;
+        for (int i = 0; i < mShadowCount; ++i)
+        {
+            const DropShadowRenderable::_DropShadow& shadow = mShadowsList[i];
+            RedColor color(shadow.color, (unsigned char)(int)(shadow.color.a * fShade));
+            pVertex[0].SetPos(shadow.vtxpos[0]);
+            pVertex[0].color = color;
+            pVertex[0].SetUV(0.8f, 1.0f);
+            pVertex[1].SetPos(shadow.vtxpos[1]);
+            pVertex[1].color = color;
+            pVertex[1].SetUV(0.2f, 1.0f);
+            pVertex[2].SetPos(shadow.vtxpos[2]);
+            pVertex[2].color = color;
+            pVertex[2].SetUV(0.2f, 0.0f);
+            pVertex[3].SetPos(shadow.vtxpos[3]);
+            pVertex[3].color = color;
+            pVertex[3].SetUV(0.8f, 0.0f);
+            pVertex += 4;
+            if (usBase)
+            {
+                pIndices[0] = pIndices[-1];
+                pIndices[1] = usBase;
+                pIndices += 2;
+            }
+            pIndices[0] = usBase;
+            pIndices[1] = (unsigned short)(usBase + 1);
+            pIndices[2] = (unsigned short)(usBase + 3);
+            pIndices[3] = (unsigned short)(usBase + 2);
+            pIndices += 4;
+            usBase += 4;
+        }
     }
     else
     {
-        DropShadowFillQuads(mShadowsList, mShadowCount, fShade,
-                            (DropShadowVertex::VertexU*)pVertices, pIndices);
+        DropShadowVertex::VertexU* pVertex = (DropShadowVertex::VertexU*)pVertices;
+        for (int i = 0; i < mShadowCount; ++i)
+        {
+            const DropShadowRenderable::_DropShadow& shadow = mShadowsList[i];
+            RedColor color(shadow.color, (unsigned char)(int)(shadow.color.a * fShade));
+            pVertex[0].SetPos(shadow.vtxpos[0]);
+            pVertex[0].color = color;
+            pVertex[0].SetUV(0.8f, 1.0f);
+            pVertex[1].SetPos(shadow.vtxpos[1]);
+            pVertex[1].color = color;
+            pVertex[1].SetUV(0.2f, 1.0f);
+            pVertex[2].SetPos(shadow.vtxpos[2]);
+            pVertex[2].color = color;
+            pVertex[2].SetUV(0.2f, 0.0f);
+            pVertex[3].SetPos(shadow.vtxpos[3]);
+            pVertex[3].color = color;
+            pVertex[3].SetUV(0.8f, 0.0f);
+            pVertex += 4;
+            if (usBase)
+            {
+                pIndices[0] = pIndices[-1];
+                pIndices[1] = usBase;
+                pIndices += 2;
+            }
+            pIndices[0] = usBase;
+            pIndices[1] = (unsigned short)(usBase + 1);
+            pIndices[2] = (unsigned short)(usBase + 3);
+            pIndices[3] = (unsigned short)(usBase + 2);
+            pIndices += 4;
+            usBase += 4;
+        }
     }
 
     pPrimitive->EndVertexData();

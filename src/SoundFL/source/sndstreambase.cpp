@@ -11,7 +11,7 @@ StreamBase::Info::~Info()
 }
 
 template <>
-void Allocator<StreamBase::Info>::operator delete(void* p, unsigned int uiSize)
+void Allocator<StreamBase::Info>::operator delete(void* p, size_t uiSize)
 {
     (void)uiSize;
     switch (((StreamBase::Info*)p)->GetAllocType())
@@ -117,11 +117,11 @@ void StreamBase::Close()
         RemoveFromManager();
     }
 
-    PblListSingle::Node* pNode = mInfoList.mHead.mNext;
-    while (pNode != &mInfoList.mHead)
+    ObjectList::Itor itor(mInfoList);
+    while (itor.GetNode() != (ObjectList::Node*)mInfoList.GetTerminator())
     {
-        Info* const pInfo = (Info*)((ObjectList::Node*)pNode)->mObject;
-        pNode = pNode->mNext;
+        Info* const pInfo = (Info*)itor.GetNode()->GetObjectA();
+        ++itor;
         mInfoList.Remove(pInfo);
         if (--pInfo->mRefCount == 0)
         {
@@ -176,7 +176,7 @@ bool StreamBase::LoadSegments(PblFileChunk& chunk, Segment* pSegments,
     unsigned int uiOffset = 0;
     unsigned int uiRemaining = uiNumSegments;
 
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         if (!uiRemaining)
         {
@@ -195,7 +195,7 @@ bool StreamBase::LoadSegments(PblFileChunk& chunk, Segment* pSegments,
             bool bAlias = false;
             unsigned int uiAliasOffset = 0;
 
-            while (chunk.HasMoreChildren() && bContinue)
+            while (!chunk.IsDone() && bContinue)
             {
                 switch ((unsigned int)chunk._pFile->Read32())
                 {
@@ -246,9 +246,8 @@ bool StreamBase::LoadSegments(PblFileChunk& chunk, Segment* pSegments,
                 }
             }
             uiOffset += uiSize;
-            new (&pSegments[uiCount], false) Segment(uiHashID, bAlias ? uiAliasOffset : uiOffset - uiSize,
-                                         uiLength, uiLengthSamples, uiFrequency, uiPadding);
-            ++uiCount;
+            new (&pSegments[uiCount++], false) Segment(uiHashID, bAlias ? uiAliasOffset : uiOffset - uiSize,
+                                           uiLength, uiLengthSamples, uiFrequency, uiPadding);
         }
         --uiRemaining;
     }
@@ -270,7 +269,7 @@ bool StreamBase::Open(PblFileChunk& chunk, unsigned int uiHashID, const char* pc
     Info* pInfo = 0;
     bool bNewInfo = true;
 
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
@@ -295,7 +294,7 @@ bool StreamBase::Open(PblFileChunk& chunk, unsigned int uiHashID, const char* pc
             unsigned int uiFormat = 0;
             bInfo = true;
 
-            while (child.HasMoreChildren() && bContinue)
+            while (!child.IsDone() && bContinue)
             {
                 switch ((unsigned int)child._pFile->Read32())
                 {

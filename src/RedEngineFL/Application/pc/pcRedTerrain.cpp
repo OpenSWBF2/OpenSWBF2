@@ -79,12 +79,8 @@ void TerrainRenderable::_RenderLowRes(unsigned int uiFlags) const
             }
             const PblVector3& vMin = patch.bbox._vMin;
             const PblVector3& vMax = patch.bbox._vMax;
-            PblVector3 vExtent((vMax.x - vMin.x) * 0.5f,
-                               (vMax.y - vMin.y) * 0.5f,
-                               (vMax.z - vMin.z) * 0.5f);
-            PblVector3 vCenter((vMax.x + vMin.x) * 0.5f,
-                               (vMax.y + vMin.y) * 0.5f,
-                               (vMax.z + vMin.z) * 0.5f);
+            PblVector3 vExtent = (vMax - vMin) * 0.5f;
+            PblVector3 vCenter = (vMax + vMin) * 0.5f;
             if (camera.ClassifyAABox(vCenter, vExtent) == RedCamera::VISIBILITY_NONE)
             {
                 continue;
@@ -731,7 +727,7 @@ void TerrainRenderable::Read(PblFileChunk& chunk)
     unsigned int uiDefaultNumIndices = 0;
     PblBox lowResBox;
 
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
 
@@ -754,7 +750,7 @@ void TerrainRenderable::Read(PblFileChunk& chunk)
             int iHeightShift = 0;
             Patch& patch = m_aPatches[iPatch];
 
-            while (child.HasMoreChildren())
+            while (!child.IsDone())
             {
                 PblFileChunk leaf = child.ReadNextChild();
                 switch (leaf._iId)
@@ -868,7 +864,7 @@ void TerrainRenderable::Read(PblFileChunk& chunk)
                         auiStartVertex[uiPass], apVB[uiPass], uiDefaultStartIndex, m_pIBDefault);
                     apVB[uiPass]->Release();
                 }
-                patch.apPrim[uiPass]->m_bbox = box;
+                patch.apPrim[uiPass]->SetBoundingBox(box);
 
                 if (uiPass)
                 {
@@ -876,7 +872,7 @@ void TerrainRenderable::Read(PblFileChunk& chunk)
                         PblHash("Terrain2"), auiFormat[uiPass], &auiLayer[uiPass + 1], 1, 0, RedColor::WHITE,
                         RedColor::BLACK, 32.0f);
                     patch.apShader[uiPass] = (pcTerrainShader*)pcRedShader::Create(
-                        PblHash("Terrain"), auiFormat[uiPass], &auiLayer[uiPass + 1], 1, 0, RedColor::WHITE,
+                        0x74DBC80E, auiFormat[uiPass], &auiLayer[uiPass + 1], 1, 0, RedColor::WHITE,
                         RedColor::BLACK, 32.0f);
                     pcTerrainShader* pShader = patch.apShader[uiPass];
                     pShader->m_uiOptions = (unsigned char)((pShader->m_uiOptions & 0xCF) | (uiPass == 1 ? 0x10 : 0x20));
@@ -892,7 +888,7 @@ void TerrainRenderable::Read(PblFileChunk& chunk)
                 unsigned int uiNumParams =
                     (RedRenderer::pcGetRenderCaps().pipeline == PIPELINE_FIXED && uiNumLayers >= 2) ? 2 : uiNumLayers;
                 patch.apShader[0] = (pcTerrainShader*)pcRedShader::Create(
-                    PblHash("Terrain"), auiFormat[0], auiLayer, uiNumParams, 0, RedColor::WHITE, RedColor::BLACK,
+                    0x74DBC80E, auiFormat[0], auiLayer, uiNumParams, 0, RedColor::WHITE, RedColor::BLACK,
                     32.0f);
             }
             ++iPatch;
@@ -900,7 +896,7 @@ void TerrainRenderable::Read(PblFileChunk& chunk)
         }
         case 0x4E4D4F43:
         {
-            while (child.HasMoreChildren())
+            while (!child.IsDone())
             {
                 PblFileChunk leaf = child.ReadNextChild();
                 if (leaf._iId == 0x46554249)
@@ -913,7 +909,7 @@ void TerrainRenderable::Read(PblFileChunk& chunk)
         }
         case 0x52574F4C:
         {
-            while (child.HasMoreChildren())
+            while (!child.IsDone())
             {
                 PblFileChunk sub = child.ReadNextChild();
                 if (sub._iId == 0x4F464E49)
@@ -938,7 +934,7 @@ void TerrainRenderable::Read(PblFileChunk& chunk)
                     unsigned int uiSharedStartIndex = 0;
                     unsigned int uiSharedNumIndices = 0;
                     LowResPatch* pLowRes = m_aLowResPatches;
-                    while (sub.HasMoreChildren())
+                    while (!sub.IsDone())
                     {
                         PblFileChunk lp = sub.ReadNextChild();
                         if (lp._iId == 0x4354504C)
@@ -950,7 +946,7 @@ void TerrainRenderable::Read(PblFileChunk& chunk)
                             unsigned int uiStartIndex = 0;
                             pcRedVertexBuffer* pVB = 0;
                             unsigned int uiNumIndices = 0;
-                            while (lp.HasMoreChildren())
+                            while (!lp.IsDone())
                             {
                                 PblFileChunk leaf = lp.ReadNextChild();
                                 switch (leaf._iId)
@@ -1018,13 +1014,13 @@ void TerrainRenderable::Read(PblFileChunk& chunk)
                             pVB->Release();
                             if (pLowRes->pPrim)
                             {
-                                pLowRes->pPrim->m_bbox = lowResBox;
+                                pLowRes->pPrim->SetBoundingBox(lowResBox);
                             }
                             ++pLowRes;
                         }
                         else if (lp._iId == 0x4E4D4F43)
                         {
-                            while (lp.HasMoreChildren())
+                            while (!lp.IsDone())
                             {
                                 PblFileChunk leaf = lp.ReadNextChild();
                                 if (leaf._iId == 0x46554249)
@@ -1046,7 +1042,7 @@ void TerrainRenderable::Read(PblFileChunk& chunk)
     m_pFarShader2 = (pcTerrainShader2*)pcRedShader::Create(PblHash("Terrain2"), uiFarFlags2, 0, 0, 0,
                                                            RedColor::WHITE, RedColor::BLACK, 32.0f);
     unsigned int uiFarFlags = RedRenderer::pcGetGeometryMode() == GEOMETRYMODE_COMPRESSED ? 0x1002 : 0x2;
-    m_pFarShader = (pcTerrainShader*)pcRedShader::Create(PblHash("Terrain"), uiFarFlags, 0, 0, 0, RedColor::WHITE,
+    m_pFarShader = (pcTerrainShader*)pcRedShader::Create(0x74DBC80E, uiFarFlags, 0, 0, 0, RedColor::WHITE,
                                                          RedColor::BLACK, 32.0f);
     if (m_pFarShader)
     {

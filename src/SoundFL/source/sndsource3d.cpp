@@ -86,22 +86,14 @@ void Source3D::CalculateGain(float& rfGain) const
     CalculateNormalizedDirection(vDirection);
 
     const Listener* pListener = mClosestListener;
-    const ::PblVector3 right = pListener->mRight;
-    const ::PblVector3 front = *pListener->mFront;
+    const float fRight = DotProduct(vDirection, pListener->GetRight());
+    const float fOffGain = mProps->mOffCentreGain;
+    const float fFront = -DotProduct(vDirection, pListener->GetFront());
+    float fCone = (1.0f - (float)fabs((double)fRight) * 2.0f) * fFront;
 
-    float fRight = right.y * vDirection.y
-                 + vDirection.x * right.x
-                 + vDirection.z * right.z;
-    float fCone = 1.0f - (float)fabs((double)fRight) * 2.0f;
-
-    float fFront = -(front.x * vDirection.x
-                     + front.y * vDirection.y
-                     + front.z * vDirection.z);
-    fCone *= fFront;
-
-    if (mProps->mOffCentreGain > fCone)
+    if (fOffGain > fCone)
     {
-        fCone = mProps->mOffCentreGain;
+        fCone = fOffGain;
     }
 
     rfGain *= fCone;
@@ -253,12 +245,11 @@ void Source3D::CalculateNormalizedDirection(::PblVector3& rvDirection) const
 
     if (0.0f == mDistance.x && 0.0f == mDistance.y && 0.0f == mDistance.z)
     {
-        vNormal = *mClosestListener->mFront;
+        vNormal = mClosestListener->GetFront();
     }
     else if (EngineBase::smSpeakerConfig == EngineBase::speakerConfig_AnalogSurround)
     {
-        D3DXVec3Normalize((D3DXVECTOR3*)&vNormal,
-                           (const D3DXVECTOR3*)&mDistance);
+        vNormal = Normalize(mDistance);
     }
     else
     {

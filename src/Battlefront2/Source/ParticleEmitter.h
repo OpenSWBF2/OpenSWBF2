@@ -101,6 +101,8 @@ public:
 
     void SetColor(const RedColorValue& color);
 
+    ParticleEmitter* GetNext() { return mNext; }
+
     void ScaleMultiply(float fScale)
     {
         mSize = fScale * mSize;
@@ -132,7 +134,7 @@ public:
     RedColorValue mColor;
     float mSize;
     float mInheritVelocityFactor;
-    ParticleEmitterClass* mClass;
+    const ParticleEmitterClass* mClass;
     unsigned int mSeed;
     unsigned int mSpawnerSeed;
     ParticleEmitterInfoData* mFirstInfo;
@@ -144,7 +146,15 @@ public:
     static MemoryPool sMemoryPool;
 
     static void Cleanup();
-    static ParticleEmitter* Create(const ParticleEmitterClass* pClass);
+    // FUNCTION: SWBF2 0x00609d00
+    static ParticleEmitter* Create(const ParticleEmitterClass* pClass)
+    {
+        if (sMemoryPool.IsFull())
+        {
+            return 0;
+        }
+        return new ParticleEmitter(pClass);
+    }
 };
 
  
@@ -152,3 +162,10 @@ public:
  
  
  
+
+    // FUNCTION: SWBF2 0x0060b990
+    // ParticleEmitter::ScaleMultiply
+    // FUNCTION: SWBF2 0x0060b9e0
+    // ParticleEmitter::SetInheritVelocityFactor
+    // FUNCTION: SWBF2 0x0060b9c0
+    // ParticleEmitter::ScaleSet

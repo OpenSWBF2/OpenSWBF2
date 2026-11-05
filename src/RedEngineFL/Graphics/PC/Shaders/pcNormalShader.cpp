@@ -236,7 +236,7 @@ void pcNormalShader::_InitPipelineFuncArray()
 // FUNCTION: SWBF2 0x007014c0
 void pcNormalShader::_Read(PblFileChunk& chunk) const
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId != 0x454d414e)
@@ -329,11 +329,6 @@ bool s_bDetailTextureTransformPrev;
 
 class PblMatrix;
 extern PblMatrix gMatrixIdentity;
-
-void* RedShadingState::operator new(size_t uiSize)
-{
-    return sMemoryPool.Allocate(uiSize);
-}
 
 // FUNCTION: SWBF2 0x006fe950
 void RedShadingState::operator delete(void* pBlock)
@@ -577,18 +572,11 @@ void pcNormalShader::RenderZPrepass(const RenderItem* pItem) const
         }
         RedRenderer::pcSetRenderState(D3DRS_ALPHAREF, 0x7f);
 
-        RedColor materialColor;
-        materialColor.b = (unsigned char)(int)(pMaterial->diffuseColor.b * 255.0f);
-        materialColor.g = (unsigned char)(int)(pMaterial->diffuseColor.g * 255.0f);
-        materialColor.r = (unsigned char)(int)(pMaterial->diffuseColor.r * 255.0f);
-        materialColor.a = (unsigned char)(int)(pMaterial->diffuseColor.a * 255.0f);
+        RedColor materialColor = pMaterial->diffuseColor;
         const RedColor color = pItem->tweakColor * materialColor;
 
         pcRedVertexShaderConstantRegister* pRegs = RedRenderer::pcLockVertexShaderConstants(39, 3);
-        pRegs[39].component[0] = color.r * kInv255;
-        pRegs[39].component[1] = color.g * kInv255;
-        pRegs[39].component[2] = color.b * kInv255;
-        pRegs[39].component[3] = color.a * kInv255;
+        pRegs[39].SetColor(RedColorValue(color));
         if (pTransform)
         {
             const float fTx = (*pTransform)(2, 0);
@@ -762,8 +750,7 @@ void pcNormalShader::Begin_Fixed(unsigned int uiState, unsigned int uiPass) cons
             RedRenderer::pcSetTextureStageState(1, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
 
             PblMatrix mCamera = RedRenderer::GetCamera()->GetMatrix();
-            mCamera[2] = -mCamera[2];
-            mCamera.m[2][3] = 0.0f;
+            mCamera.SetZAxis(-mCamera[2]);
             const PblVector4& vU = RedShadowMap::_vShadowMapTransformU;
             const PblVector4& vV = RedShadowMap::_vShadowMapTransformV;
             const PblVector4& vW = RedShadowMap::_vShadowMapTransformW;
@@ -853,35 +840,12 @@ void pcNormalShader::Begin_Prog1(unsigned int uiState, unsigned int) const
     }
 
     pcRedVertexShaderConstantRegister* pRegs = RedRenderer::pcLockVertexShaderConstants(39, 6);
-    RedColorValue white;
-    white.r = RedColor::WHITE.r * kInv255;
-    white.g = RedColor::WHITE.g * kInv255;
-    white.b = RedColor::WHITE.b * kInv255;
-    white.a = RedColor::WHITE.a * kInv255;
-    pRegs[39].component[0] = white.r;
-    pRegs[39].component[1] = white.g;
-    pRegs[39].component[2] = white.b;
-    pRegs[39].component[3] = white.a;
-    pRegs[40].component[0] = 1.0f;
-    pRegs[40].component[1] = 0.0f;
-    pRegs[40].component[2] = 0.0f;
-    pRegs[40].component[3] = 0.0f;
-    pRegs[41].component[0] = 1.0f;
-    pRegs[41].component[1] = 0.0f;
-    pRegs[41].component[2] = 0.0f;
-    pRegs[41].component[3] = 0.0f;
-    pRegs[42].component[0] = 0.0f;
-    pRegs[42].component[1] = 1.0f;
-    pRegs[42].component[2] = 0.0f;
-    pRegs[42].component[3] = 0.0f;
-    pRegs[43].component[0] = 1.0f;
-    pRegs[43].component[1] = 0.0f;
-    pRegs[43].component[2] = 0.0f;
-    pRegs[43].component[3] = 0.0f;
-    pRegs[44].component[0] = 0.0f;
-    pRegs[44].component[1] = 1.0f;
-    pRegs[44].component[2] = 0.0f;
-    pRegs[44].component[3] = 0.0f;
+    pRegs[39].SetColor(RedColorValue(RedColor::WHITE));
+    pRegs[40].SetFloats(1.0f, 0.0f, 0.0f, 0.0f);
+    pRegs[41].SetFloats(1.0f, 0.0f, 0.0f, 0.0f);
+    pRegs[42].SetFloats(0.0f, 1.0f, 0.0f, 0.0f);
+    pRegs[43].SetFloats(1.0f, 0.0f, 0.0f, 0.0f);
+    pRegs[44].SetFloats(0.0f, 1.0f, 0.0f, 0.0f);
     RedRenderer::pcUnlockVertexShaderConstants(pRegs);
 
     s_colorDiffusePrev = RedColor::WHITE;
@@ -894,11 +858,7 @@ void pcNormalShader::Render_Fixed(const RenderItem* pItem, unsigned int uiPass) 
 {
     const RedMaterial* pMaterial = pItem->pRootShader->m_material;
 
-    RedColor materialColor;
-    materialColor.b = (unsigned char)(int)(pMaterial->diffuseColor.b * 255.0f);
-    materialColor.g = (unsigned char)(int)(pMaterial->diffuseColor.g * 255.0f);
-    materialColor.r = (unsigned char)(int)(pMaterial->diffuseColor.r * 255.0f);
-    materialColor.a = (unsigned char)(int)(pMaterial->diffuseColor.a * 255.0f);
+    RedColor materialColor = pMaterial->diffuseColor;
     const RedColor color = pItem->tweakColor * materialColor;
 
     s_d3dMat.Diffuse.r = color.r * kInv255;
@@ -1094,11 +1054,7 @@ void pcNormalShader::Render_Prog1(const RenderItem* pItem, unsigned int) const
     const bool bTransparent = (uiMatFlags & 0x46) != 0;
     const bool bFlag10 = ((uiMatFlags >> 4) & 1) != 0;
 
-    RedColor materialColor;
-    materialColor.b = (unsigned char)(int)(pMaterial->diffuseColor.b * 255.0f);
-    materialColor.g = (unsigned char)(int)(pMaterial->diffuseColor.g * 255.0f);
-    materialColor.r = (unsigned char)(int)(pMaterial->diffuseColor.r * 255.0f);
-    materialColor.a = (unsigned char)(int)(pMaterial->diffuseColor.a * 255.0f);
+    RedColor materialColor = pMaterial->diffuseColor;
     const RedColor color = pItem->tweakColor * materialColor;
 
     const bool bSeparate = m_lightingInSeparatePass && !(pItem->flags & 0x10000000);
@@ -1183,16 +1139,12 @@ void pcNormalShader::Render_Prog1(const RenderItem* pItem, unsigned int) const
         if (bSeparate)
         {
             const float fLightingScale = RedRenderer::GetLightingScale();
-            pRegs[40].component[0] = 0.0f;
-            pRegs[40].component[1] = fLightingScale;
+            pRegs[40].SetFloats(0.0f, fLightingScale, 0.0f, 0.0f);
         }
         else
         {
-            pRegs[40].component[0] = 1.0f;
-            pRegs[40].component[1] = 0.0f;
+            pRegs[40].SetFloats(1.0f, 0.0f, 0.0f, 0.0f);
         }
-        pRegs[40].component[3] = 0.0f;
-        pRegs[40].component[2] = 0.0f;
     }
     else
     {
@@ -1201,20 +1153,16 @@ void pcNormalShader::Render_Prog1(const RenderItem* pItem, unsigned int) const
         s_colorDiffusePrev = color;
 
         pRegs = RedRenderer::pcLockVertexShaderConstants(39, 6);
-        pRegs[39].SetFloats(color.r * kInv255, color.g * kInv255, color.b * kInv255, color.a * kInv255);
+        pRegs[39].SetColor(RedColorValue(color));
         if (bSeparate)
         {
             const float fLightingScale = RedRenderer::GetLightingScale();
-            pRegs[40].component[0] = 0.0f;
-            pRegs[40].component[1] = fLightingScale;
+            pRegs[40].SetFloats(0.0f, fLightingScale, 0.0f, 0.0f);
         }
         else
         {
-            pRegs[40].component[0] = 1.0f;
-            pRegs[40].component[1] = 0.0f;
+            pRegs[40].SetFloats(1.0f, 0.0f, 0.0f, 0.0f);
         }
-        pRegs[40].component[3] = 0.0f;
-        pRegs[40].component[2] = 0.0f;
 
         pRegs[41].SetFloats((*pTransform)(0, 0), (*pTransform)(1, 0), 0.0f, (*pTransform)(2, 0));
         pRegs[42].SetFloats((*pTransform)(0, 1), (*pTransform)(1, 1), 0.0f, (*pTransform)(2, 1));
@@ -1376,17 +1324,7 @@ void pcNormalShader::UpdateAnimation()
         fScrollV -= (float)(int)fScrollV;
     }
 
-    RedTextureTransform& transform = m_material.diffuseTexTransform;
-    if (!transform.m_bTransform)
-    {
-        transform.m_bTransform = 1;
-        transform.m_Transform[0][0] = 1.0f;
-        transform.m_Transform[1][0] = 0.0f;
-        transform.m_Transform[0][1] = 0.0f;
-        transform.m_Transform[1][1] = 1.0f;
-    }
-    transform.m_Transform[2][0] = fScrollU;
-    transform.m_Transform[2][1] = fScrollV;
+    m_material.diffuseTexTransform.SetOffset(fScrollU, fScrollV);
 }
 
 // SYNTHETIC: SWBF2 0x004097f0
@@ -1412,6 +1350,7 @@ pcNormalShader pcNormalShader::s_Factory;
 
 // GLOBAL: SWBF2 0x009c934c
 // pcNormalShader::s_shaderDef
+// STRING: SWBF2 0x00784650
 pcRedShaderDef pcNormalShader::s_shaderDef("normal_shader.xml");
 
 // SYNTHETIC: SWBF2 0x00409810

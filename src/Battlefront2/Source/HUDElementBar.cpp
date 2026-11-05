@@ -25,8 +25,9 @@ const char* HUD::ElementBar::PropertyTranslateEnum(const unsigned int, const uns
 
 // FUNCTION: SWBF2 0x0054a220
 HUD::ElementBar::ElementBar()
-    : mDefaultValue(0.0f), mValue(1.0f), mMinValue(0.0f), mMaxValue(1.0f)
+    : mValue(1.0f), mMinValue(0.0f), mMaxValue(1.0f)
 {
+    mDefaultValue = 0.0f;
     mEventValue.Init(EventValue, this);
 }
 

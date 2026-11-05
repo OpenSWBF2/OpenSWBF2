@@ -126,6 +126,11 @@ public:
     void LoadVertexAndPixelShader(unsigned int uiState, unsigned int uiPass,
                                   unsigned int uiVertexShader) const;
 
+    unsigned int GetPassCaps(unsigned int uiState, unsigned int uiPass) const
+    {
+        return m_states[uiState].pass[uiPass].uiPassCaps;
+    }
+
     void Reset();
 
     static void __cdecl Cleanup();
@@ -212,7 +217,16 @@ public:
 
     virtual int GetDiffuseMapHash(int, int);
 
-    unsigned int GetPassCaps(unsigned int uiState, unsigned int uiPass) const;
+    // FUNCTION: SWBF2 0x006b1570
+    unsigned int GetPassCaps(unsigned int uiState, unsigned int uiPass) const
+    {
+        return GetShaderDef()->GetPassCaps(uiState, uiPass);
+    }
+
+    void Render(const RenderItem* pItem, unsigned int uiPass) const
+    {
+        (this->*RenderFunc)(pItem, uiPass);
+    }
 
     // FUNCTION: SWBF2 0x006ac870
     static void __cdecl Init();

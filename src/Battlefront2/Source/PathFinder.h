@@ -15,7 +15,13 @@ class ObstacleTest
 public:
     ObstacleTest() {}
 
-    ObstacleTest(const PblVector3& rSrc, const PblVector3& rDest);
+    // FUNCTION: SWBF2 0x005ab340
+    ObstacleTest(const PblVector3& rSrc, const PblVector3& rDest)
+        : mSrc(rSrc), mDest(rDest)
+    {
+        mBoundCenter = ((mSrc + mDest) * 0.5f);
+        mBoundRadius = Length(mBoundCenter - mSrc);
+    }
 
     PblVector3 mSrc;
     PblVector3 mDest;
@@ -30,7 +36,7 @@ public:
 
     Obstacle(const PblMatrix& rMatrix, const PblVector4& rSize, int eProhibit, unsigned int uName);
 
-    static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }
+    static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
     static void operator delete(void* p) { sMemoryPool.Free(p); }
 
     static void SetupMemoryPool(unsigned int uCount, unsigned int uSize, unsigned int uGrow)
@@ -82,18 +88,10 @@ namespace PathFinder
     {
     public:
 
-        PathNode(const PblVector3& rPos, float fCostSoFar, const PathNode* pParent)
-            : mPos(rPos), mCostSoFar(fCostSoFar), mParentNode(pParent)
-        {
-        }
-        void Set(const PblVector3& rPos, float fCostSoFar, const PathNode* pParent)
-        {
-            mPos = rPos;
-            mCostSoFar = fCostSoFar;
-            mParentNode = pParent;
-        }
+        PathNode(const PblVector3& rPos, float fLocalCost, const PathNode* pParent);
+        void Set(const PblVector3& rPos, float fLocalCost, const PathNode* pParent);
 
-        static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }
+        static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
         static void operator delete(void* p) { sMemoryPool.Free(p); }
 
         const PblVector3& GetPos() const { return mPos; }
@@ -115,7 +113,7 @@ namespace PathFinder
 
     struct ObstacleData : public TreeGridCallbackData
     {
-        Obstacle* mArray[300];
+        const Obstacle* mArray[300];
         int mLength;
     };
 
@@ -127,8 +125,8 @@ namespace PathFinder
         float mRadius;
         int mProhibit;
         bool hit;
-        Obstacle* hitObs;
-        Obstacle* mIgnore[2];
+        const Obstacle* hitObs;
+        const Obstacle* mIgnore[2];
         int mIgnoreCnt;
     };
 
@@ -142,7 +140,7 @@ namespace PathFinder
         int mProhibit;
         PblVector3 mNormal;
         bool mTruncated;
-        Obstacle* mIgnore[2];
+        const Obstacle* mIgnore[2];
         int mIgnoreCnt;
     };
 
@@ -151,7 +149,7 @@ namespace PathFinder
         ObstacleTest mObsTest;
         float mRadiusVehicle;
         int mProhibit;
-        Obstacle* mIgnore[2];
+        const Obstacle* mIgnore[2];
         int mIgnoreCnt;
         bool hit;
         bool mOnlyDynamic;
@@ -228,7 +226,7 @@ extern bool sFoundDest;
 extern bool sComplete;
 extern PblVector3 sPerpVec;
 extern PblVector3 sSrcPos;
-extern Obstacle* sIgnore[2];
+extern const Obstacle* sIgnore[2];
 extern float sPerpLength;
 extern int sProhibit;
 extern int sIgnoreCnt;

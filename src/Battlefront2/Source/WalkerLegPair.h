@@ -50,7 +50,7 @@ public:
     void SetInterpolate(bool bInterpolate);
 
     void BuildBlendLookupTable();
-    static void* operator new(unsigned int uSize);
+    static void* operator new(size_t uSize);
     static void operator delete(void* pBlock);
 
     void Update(float fDt);
@@ -61,6 +61,8 @@ public:
     void StateChanged(int iState);
 
     WalkerBlend* GetBlend() { return mBlend; }
+    int GetFootCollisionBodyId(int iFoot) { return mFootCollisionBody[iFoot]; }
+    float GetPushValue() const { return mPushValue; }
     float GetTurnState();
 
 private:

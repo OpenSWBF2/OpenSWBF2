@@ -9,7 +9,7 @@
 
 // FUNCTION: SWBF2 0x0060d8d0
 void SetupRotationResult(PblVector3& vDir, const ParticleSpawner::RotationData& data,
-                float fTime, int iIndex, PblRandom& rand)
+                int iIndex, float fTime, PblRandom& rand)
 {
     const float fStartX = data.mStartX.GetValue(rand);
     const float fMoveX = data.mMoveX.GetValue(rand);
@@ -97,7 +97,7 @@ void NormalizeSafe(PblVector3& v)
 }
 
 // FUNCTION: SWBF2 0x0060dd30
-void ParticleSpawner::SetupParticle(Particle& particle, const PblMatrix& mat, unsigned int uSeed, int iIndex, float fAge, float fSize, const PblVector3& vVelocity, float fInheritVelocity, bool bNoRegisterStep) const
+void ParticleSpawner::SetupParticle(Particle& particle, const PblMatrix& mat, unsigned int uSeed, int iIndex, float fAge, const PblVector3& aPositionScale, const PblVector3& aVelocityScale, float fSize, const PblVector3& vVelocity, float fInheritVelocity, bool bNoRegisterStep) const
 {
     PblRandom rand(((unsigned int)iIndex * 0x40018FC9u + uSeed * 0x4000029Du) % 0x40000003u ^ 0xC71C2830u);
     SetupLocalParticle(particle, rand, iIndex);
@@ -127,29 +127,25 @@ void ParticleSpawner::SetupLocalParticle(Particle& particle, PblRandom& rand, in
         SetupSpread(vDir, mDirectionData.mSpreadData, rand);
         break;
     case ParticleSpawner::SPAWN_VORTEX:
-        SetupRotationResult(vDir, mDirectionData.mRotationData, 0.0f, iIndex, rand);
+        SetupRotationResult(vDir, mDirectionData.mRotationData, iIndex, 0.0f, rand);
         break;
     case ParticleSpawner::SPAWN_CIRCLE:
         SetupSpread(vDir, mDirectionData.mSpreadData, rand);
         NormalizeSafe(vDir);
         break;
     case ParticleSpawner::SPAWN_ROTATOR:
-        SetupRotationResult(vDir, mDirectionData.mRotationData, 0.0f, iIndex, rand);
+        SetupRotationResult(vDir, mDirectionData.mRotationData, iIndex, 0.0f, rand);
         NormalizeSafe(vDir);
         break;
     default:
-        vDir.z = 0.0f;
-        vDir.y = 0.0f;
-        vDir.x = 0.0f;
+        vDir.SetAll(0.0f);
         break;
     }
 
     PblVector3 vOffset;
     SetupSpread(vOffset, mOffset, rand);
-    const float fPositionScale = mPositionDirectionScale.GetValue(rand);
-    particle.mPosition = vOffset + vDir * fPositionScale;
-    const float fVelocityScale = mVelocityDirectionScale.GetValue(rand);
-    particle.mVelocity = vDir * fVelocityScale;
+    particle.mPosition = vOffset + vDir * mPositionDirectionScale.GetValue(rand);
+    particle.mVelocity = vDir * mVelocityDirectionScale.GetValue(rand);
     particle.mSize[0] = mSize[0].GetValue(rand);
     particle.mColor[0].r = mRed[0].GetValue(rand);
     particle.mColor[0].g = mGreen[0].GetValue(rand);

@@ -366,7 +366,7 @@ template Event<FlagItem, Character>::Filter<CharacterMatchesClass>*
 Event<FlagItem, Character>::GetFilter(CharacterMatchesClass&, Callback*);
 
 // TEMPLATE: SWBF2 0x00512430
-// EventManager::Node::~Node, emitted as an unwind copy
+// EventManager::Node::~Node
 
 // TEMPLATE: SWBF2 0x00512640
 // EventManager::RegisterUnregisterLuaCallback<FlagItem,Character>

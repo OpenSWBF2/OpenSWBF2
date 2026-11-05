@@ -126,7 +126,7 @@ public:
 
         static MemoryPool sMemoryPool;
 
-        static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }
+        static void* operator new(size_t uiSize) { return sMemoryPool.Allocate(uiSize); }
 
         static const float TIME_SCALE_INV;
         static const float TIME_SCALE;
@@ -240,7 +240,7 @@ public:
 
         static MemoryPool sMemoryPool;
 
-        static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }
+        static void* operator new(size_t uiSize) { return sMemoryPool.Allocate(uiSize); }
 
         static const float ENERGY_SCALE_INV;
 
@@ -255,7 +255,7 @@ public:
     {
     public:
         static MemoryPool sMemoryPool;
-        static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }
+        static void* operator new(size_t uiSize) { return sMemoryPool.Allocate(uiSize); }
         static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
         float fTime;
@@ -390,7 +390,7 @@ public:
     public:
         static MemoryPool sMemoryPool;
 
-        static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }
+        static void* operator new(size_t uiSize) { return sMemoryPool.Allocate(uiSize); }
 
         static const float WIDTH_SCALE_INV;
         static const float PUSH_SCALE_INV;
@@ -445,6 +445,12 @@ public:
         float GetVelocityX() const { return m_iVelocityX * 0.02f; }
         float GetVelocityFromThrust() const { return m_uiVelocityFromThrust * 0.1f; }
         float GetVelocityFromStrafe() const { return m_uiVelocityFromStrafe * 0.1f; }
+        bool IsGravity() const { return m_iGravity != 10; }
+        float GetGravity() const { return m_iGravity * 0.1f; }
+        bool IsVelocityYTarget() const { return m_iGravityVelocityYTarget != -2048; }
+        float GetVelocityYTarget() const { return m_iGravityVelocityYTarget * 0.1f; }
+        bool IsGravityZeroAtTarget() const { return m_bGravityZeroAtTarget != 0; }
+        bool IsVelocityYImpulse() const { return m_iGravity == GRAVITY_IMPULSE; }
         bool IsAlignedToThrust() const { return m_bAlignToThrust != 0; }
 
         // FUNCTION: SWBF2 0x00470ec0
@@ -694,7 +700,7 @@ public:
 
         static MemoryPool sMemoryPool;
 
-        static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }
+        static void* operator new(size_t uiSize) { return sMemoryPool.Allocate(uiSize); }
 
         static const float TIME_SCALE_INV;
         static const float ENERGY_RATE_SCALE_INV;
@@ -832,7 +838,7 @@ public:
     public:
         static MemoryPool sMemoryPool;
 
-        static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }
+        static void* operator new(size_t uiSize) { return sMemoryPool.Allocate(uiSize); }
 
         static const float ENERGY_SCALE_INV;
 
@@ -858,7 +864,7 @@ public:
     const Combo& operator=(const Combo& copy);
     void ReadConfig(PblConfig& config);
     static void PostLoad();
-    static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }
+    static void* operator new(size_t uiSize) { return sMemoryPool.Allocate(uiSize); }
     // SYNTHETIC: SWBF2 0x00470950
     // Combo::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }

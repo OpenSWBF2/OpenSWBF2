@@ -71,7 +71,9 @@ extern NetAddr myAddr;
 galaxy::api::IMatchmaking* GetGalaxyMatchmaking();
 hostent* getlocalhost();
 bool PumpGalaxyMatchmaking();
-void ResetLanRegistration();
+void StartRegisterLanGame();
+void UpdateRegisterLanGame();
+void EndFindLanGames();
 
 void ReadString(NetPktGroup& group, char* text, unsigned int capacity);
 void WriteString(NetPktGroup& group, const char* text, unsigned int capacity);
@@ -86,9 +88,9 @@ unsigned int NetSetup::GetPassword()
 static bool IsPrivateIP(unsigned long addr)
 {
     unsigned int ip = ntohl(addr);
-    int b1 = ip >> 24;
-    int b2 = (ip >> 16) & 0xff;
-    return b1 == 10 || (b1 == 172 && b2 >= 16 && b2 <= 31) ||
+    unsigned int b1 = ip >> 24;
+    unsigned int b2 = (ip >> 16) & 0xff;
+    return b1 == 10 || (b1 == 172 && b2 - 16 <= 15) ||
            (b1 == 192 && b2 == 168);
 }
 
@@ -100,13 +102,16 @@ unsigned long GetPrivateIP()
     {
         return 0;
     }
-    for (char** addr = host->h_addr_list; *addr; ++addr)
+    int index = 0;
+    char* address;
+    while ((address = host->h_addr_list[index]) != 0)
     {
-        unsigned long ip = *(unsigned long*)*addr;
+        unsigned long ip = *(unsigned long*)address;
         if (IsPrivateIP(ip))
         {
             return ip;
         }
+        ++index;
     }
     return 0;
 }
@@ -159,7 +164,7 @@ void NetMatch::StartRegisterGame(bool)
             {
                 addr->privPort = NetComm::GetDirectPort();
                 netLanRegisterState = 1;
-                ResetLanRegistration();
+                StartRegisterLanGame();
                 netMatchOperation = 1;
             }
         }
@@ -172,8 +177,8 @@ void NetMatch::StartRegisterGame(bool)
     }
 
     netMatchOperation = 1;
-    void* matchmaking = GetGalaxyMatchmaking();
-    ((galaxy::api::IMatchmaking*)matchmaking)->CreateLobby(2, NetSetup::GetMaxPlayers(), false, 2);
+    galaxy::api::IMatchmaking* matchmaking = GetGalaxyMatchmaking();
+    matchmaking->CreateLobby(2, NetSetup::GetMaxPlayers(), false, 2);
     if (!gf::checkError())
     {
         netLobbyState = 3;
@@ -216,10 +221,7 @@ void __fastcall NetMatch::EndFindGames(bool clearMatchmaking)
     }
     if (NetComm::IsLAN())
     {
-        closesocket((SOCKET)netBroadcastSendSocket);
-        netBroadcastSendSocket = INVALID_SOCKET;
-        closesocket((SOCKET)netBroadcastRecvSocket);
-        netBroadcastRecvSocket = INVALID_SOCKET;
+        EndFindLanGames();
         return;
     }
     netLobbyState = 0;
@@ -241,7 +243,11 @@ void NetMatch::UpdateFindGames()
 // FUNCTION: SWBF2 0x005d5f90
 bool NetMatch::IsDoneFindGames()
 {
-    return !NetComm::IsLAN() && netLobbyState == 2;
+    if (NetComm::IsLAN())
+    {
+        return false;
+    }
+    return netLobbyState == 2;
 }
 
 // FUNCTION: SWBF2 0x005d5fb0
@@ -262,8 +268,8 @@ void NetMatch::StartJoinGame(NetAddr& address, NetKey&)
     }
     else if (gf::isInitialized())
     {
-        void* matchmaking = GetGalaxyMatchmaking();
-        ((galaxy::api::IMatchmaking*)matchmaking)->JoinLobby(address.mGalaxyId);
+        galaxy::api::IMatchmaking* matchmaking = GetGalaxyMatchmaking();
+        matchmaking->JoinLobby(address.mGalaxyId);
         if (gf::checkError())
         {
             return;
@@ -302,40 +308,46 @@ void NetMatch::EndJoinGame()
 // FUNCTION: SWBF2 0x005d60a0
 bool NetMatch::StartConnect(NetAddr& address, NetKey& key, int destination)
 {
-    return NetComm::IsLAN();
+    if (NetComm::IsLAN())
+    {
+        return true;
+    }
+    return false;
 }
 
 // FUNCTION: SWBF2 0x005d60b0
 bool NetMatch::UpdateConnect(NetAddr&, NetKey&, int, int& connected)
 {
-    if (NetComm::IsLAN())
+    if (!NetComm::IsLAN())
+    {
+        bool hasLobby = netEnteredLobbyId != 0;
+        connected = hasLobby ? 13 : JRR_CONNECTION_LOST;
+        PumpGalaxyMatchmaking();
+        if (netLobbyState != 3)
+        {
+            int state = netConnectState;
+            switch (state)
+            {
+            case 0:
+                break;
+            case 1:
+                connected = 11;
+                break;
+            case 2:
+                connected = JRR_FULL;
+                break;
+            default:
+                connected = 12;
+                break;
+            }
+            return state == 0;
+        }
+    }
+    else
     {
         connected = 13;
-        return true;
     }
-    bool hasLobby = netEnteredLobbyId != 0;
-    connected = hasLobby ? 13 : JRR_CONNECTION_LOST;
-    PumpGalaxyMatchmaking();
-    if (netLobbyState == 3)
-    {
-        return true;
-    }
-    int state = netConnectState;
-    switch (state)
-    {
-    case 0:
-        break;
-    case 1:
-        connected = 11;
-        break;
-    case 2:
-        connected = JRR_FULL;
-        break;
-    default:
-        connected = 12;
-        break;
-    }
-    return state == 0;
+    return true;
 }
 
 // FUNCTION: SWBF2 0x005d6150
@@ -350,16 +362,20 @@ void NetMatch::SetNoCableError()
         NetSetup::SetErrorMode(true);
         bool link = NetComm::IsLAN();
         netLoginErrorLevel = 9;
-        netLoginErrorMessage = link ? "xlive.errors.nocable_syslink" : "xlive.errors.nocable";
+        netLoginErrorMessage = "xlive.errors.nocable_syslink";
+        if (!link)
+        {
+            netLoginErrorMessage = "xlive.errors.nocable";
+        }
         return;
     }
 }
 
 // FUNCTION: SWBF2 0x005d6580
-void NetMatch::SetLocalGSID(unsigned int lo, unsigned int hi)
+void NetMatch::SetLocalGSID(unsigned __int64 id)
 {
-    netLocalGSID = ((unsigned __int64)hi << 32) | lo;
-    NetGame::SetPlayerGSID(0, netLocalGSID);
+    netLocalGSID = id;
+    NetGame::SetPlayerGSID(0, id);
 }
 
 // FUNCTION: SWBF2 0x005d6710
@@ -468,9 +484,8 @@ void __fastcall HandleFoundPacket(NetPacket* packet, const void* source)
                     group.ReadBits(bits, 16);
                     int sourceIp, sourcePort;
                     NetSocket::GetAddr(source, sourceIp, sourcePort);
-                    NetAddr from(sourceIp, bits, 0);
-                    address = from;
-                    addressOk = from.hasPriv;
+                    address = NetAddr(sourceIp, bits, 0);
+                    addressOk = address.hasPriv;
                 }
                 unsigned int maxPlayers, numPlayers;
                 group.ReadBits(maxPlayers, 6);
@@ -550,9 +565,9 @@ char* NetMatch::GetIPAddr()
     hostent* host = getlocalhost();
     if (host)
     {
-        for (char** addr = host->h_addr_list; *addr; ++addr)
+        for (int i = 0; host->h_addr_list[i]; ++i)
         {
-            inet_ntop(AF_INET, *addr, netLocalIPText, sizeof(netLocalIPText));
+            inet_ntop(AF_INET, host->h_addr_list[i], netLocalIPText, sizeof(netLocalIPText));
         }
         JournalString(netLocalIPText, sizeof(netLocalIPText));
     }
@@ -583,8 +598,8 @@ char const* NetMatch::GetLoginOverrideName(int  )
         }
         if (!pcName)
         {
-            void* pFriends = GetGalaxyFriends();
-            pcName = ((galaxy::api::IFriends*)pFriends)->GetPersonaName();
+            galaxy::api::IFriends* pFriends = GetGalaxyFriends();
+            pcName = pFriends->GetPersonaName();
         }
         sName = pcName;
 
@@ -624,12 +639,7 @@ void NetMatch::UpdateRegisterGame()
     {
         if (netLanRegisterState)
         {
-            NetPacket* pPkt;
-            while ((pPkt = NetComm::Recv(PKT_FIND, PKT_FOUND)) != 0)
-            {
-                HandleFindPacket(pPkt);
-            }
-            HandleQueryPackets();
+            UpdateRegisterLanGame();
         }
     }
     else
@@ -646,8 +656,8 @@ bool NetMatch::IsLoginSuccessful(int  , bool  )
     {
         return false;
     }
-    void* pUser = GetGalaxyUser();
-    return ((galaxy::api::IUser*)pUser)->SignedIn();
+    galaxy::api::IUser* pUser = GetGalaxyUser();
+    return pUser->SignedIn();
 }
 
 // FUNCTION: SWBF2 0x005d62f0
@@ -671,8 +681,8 @@ void NetMatch::CancelLogin(int  , bool  )
     netNoCableCount = 0;
     if (gf::isInitialized())
     {
-        void* pFriends = GetGalaxyFriends();
-        ((galaxy::api::IFriends*)pFriends)->DeleteRichPresence("connect");
+        galaxy::api::IFriends* pFriends = GetGalaxyFriends();
+        pFriends->DeleteRichPresence("connect");
     }
     netLobbyState = 0;
     netCreatedLobbyId = 0;
@@ -777,9 +787,9 @@ NetAddr::NetAddr(int addr, int port, int overridePort)
 // FUNCTION: SWBF2 0x005d7700
 void NetMatch::StartFindAddress()
 {
-    NetAddr* addr = &NetSetupP::GetMyAddr();
     if (NetComm::IsLAN())
     {
+        NetAddr* addr = &NetSetupP::GetMyAddr();
         unsigned long ip = GetPrivateIP();
         addr->privAddr = ip;
         if (ip)
@@ -790,6 +800,7 @@ void NetMatch::StartFindAddress()
     }
     else
     {
+        NetAddr* addr = &NetSetupP::GetMyAddr();
         addr->hasPriv = false;
         addr->privAddr = 0;
         addr->privPort = 0;
@@ -808,14 +819,33 @@ void NetMatch::SetRegisterArchFilter()
     archFilter = NET_ARCH_ANY;
 }
 
+// FUNCTION: SWBF2 0x005d6770
+void StartRegisterLanGame()
+{
+    netLobbyState = 0;
+    netLobbyRequestPending = false;
+    netLeavingLobby = false;
+    netCreatedLobbyId = 0;
+    netEnteredLobbyId = 0;
+    NetSocket::OpenBroadcastSockets();
+}
+
 // FUNCTION: SWBF2 0x005d67b0
 void EndRegisterLanGame()
 {
     NetMatch::SetRegisterArchFilter();
-    closesocket(netBroadcastSendSocket);
-    netBroadcastSendSocket = INVALID_SOCKET;
-    closesocket(netBroadcastRecvSocket);
-    netBroadcastRecvSocket = INVALID_SOCKET;
+    NetSocket::CloseBroadcastSockets();
+}
+
+// FUNCTION: SWBF2 0x005d67c0
+void UpdateRegisterLanGame()
+{
+    NetPacket* packet;
+    while ((packet = NetComm::Recv(PKT_FIND, PKT_FOUND)) != 0)
+    {
+        HandleFindPacket(packet);
+    }
+    HandleQueryPackets();
 }
 
 // FUNCTION: SWBF2 0x005d6690
@@ -835,7 +865,7 @@ void NetMatch::SetGameError(const char* message, int severity)
         gui->CloseError(false, true);
     }
     NetSetup::RequestQuit(0);
-    ShellLoop::SetNetCableErrorOnEnter(severity, message);
+    ShellLoop::SetNetCableErrorOnEnter(gameErrorLvl, gameErrorMsg);
     gameErrorMsg = 0;
     gameErrorLvl = 0;
 }
@@ -857,14 +887,14 @@ void NetMatch::EndRegisterGame()
     }
     if (netCreatedLobbyId)
     {
-        void* matchmaking = GetGalaxyMatchmaking();
-        ((galaxy::api::IMatchmaking*)matchmaking)->SetLobbyData(
+        galaxy::api::IMatchmaking* matchmaking = GetGalaxyMatchmaking();
+        matchmaking->SetLobbyData(
             galaxy::api::GalaxyID(netCreatedLobbyId), "galaxy_lobby_cancelled", gf::utils::ToString(true));
     }
     if (netEnteredLobbyId)
     {
-        void* matchmaking = GetGalaxyMatchmaking();
-        ((galaxy::api::IMatchmaking*)matchmaking)->LeaveLobby(galaxy::api::GalaxyID(netEnteredLobbyId));
+        galaxy::api::IMatchmaking* matchmaking = GetGalaxyMatchmaking();
+        matchmaking->LeaveLobby(galaxy::api::GalaxyID(netEnteredLobbyId));
         netLeavingLobby = true;
     }
     netEnteredLobbyId = 0;
@@ -921,10 +951,10 @@ void NetMatch::StartFindGames(bool, FindType, const char*, NetSessionId* id)
     if (gf::isInitialized())
     {
         netLobbyState = 1;
-        void* matchmaking = GetGalaxyMatchmaking();
-        ((galaxy::api::IMatchmaking*)matchmaking)->AddRequestLobbyListStringFilter("galaxy_lobby_cancelled", "1", 1);
+        galaxy::api::IMatchmaking* matchmaking = GetGalaxyMatchmaking();
+        matchmaking->AddRequestLobbyListStringFilter("galaxy_lobby_cancelled", "1", 1);
         matchmaking = GetGalaxyMatchmaking();
-        ((galaxy::api::IMatchmaking*)matchmaking)->RequestLobbyList(false);
+        matchmaking->RequestLobbyList(false);
     }
 }
 
@@ -935,6 +965,12 @@ void NetMatch::UpdateJoinGame()
     {
         PumpGalaxyMatchmaking();
     }
+}
+
+// FUNCTION: SWBF2 0x005d6860
+void EndFindLanGames()
+{
+    NetSocket::CloseBroadcastSockets();
 }
 
 // GLOBAL: SWBF2 0x007ec514
@@ -1032,30 +1068,30 @@ static void HandleQueryPackets()
     {
         netLobbyPublishPumps = 0;
         galaxy::api::IMatchmaking* matchmaking;
-        matchmaking = (galaxy::api::IMatchmaking*)GetGalaxyMatchmaking();
+        matchmaking = GetGalaxyMatchmaking();
         matchmaking->SetLobbyData(
             galaxy::api::GalaxyID(netCreatedLobbyId), "fgd_str_host_name", NetSetup::GetHostName());
-        matchmaking = (galaxy::api::IMatchmaking*)GetGalaxyMatchmaking();
+        matchmaking = GetGalaxyMatchmaking();
         matchmaking->SetLobbyData(
             galaxy::api::GalaxyID(netCreatedLobbyId), "fgd_str_game_type", NetSetup::GetGameType());
-        matchmaking = (galaxy::api::IMatchmaking*)GetGalaxyMatchmaking();
+        matchmaking = GetGalaxyMatchmaking();
         matchmaking->SetLobbyData(
             galaxy::api::GalaxyID(netCreatedLobbyId), "fgd_str_map_name", GetNextMissionForLobby());
-        matchmaking = (galaxy::api::IMatchmaking*)GetGalaxyMatchmaking();
+        matchmaking = GetGalaxyMatchmaking();
         matchmaking->SetLobbyData(
             galaxy::api::GalaxyID(netCreatedLobbyId), "fgr_bool_netAutoAim", gf::utils::ToString(netAutoAim));
-        matchmaking = (galaxy::api::IMatchmaking*)GetGalaxyMatchmaking();
+        matchmaking = GetGalaxyMatchmaking();
         matchmaking->SetLobbyData(
             galaxy::api::GalaxyID(netCreatedLobbyId), "fgr_bool_netAutoAssignTeams", gf::utils::ToString(netAutoAssignTeams));
-        matchmaking = (galaxy::api::IMatchmaking*)GetGalaxyMatchmaking();
+        matchmaking = GetGalaxyMatchmaking();
         matchmaking->SetLobbyData(
             galaxy::api::GalaxyID(netCreatedLobbyId), "fgr_bool_netTeamDamage", gf::utils::ToString(netTeamDamage));
-        matchmaking = (galaxy::api::IMatchmaking*)GetGalaxyMatchmaking();
+        matchmaking = GetGalaxyMatchmaking();
         matchmaking->SetLobbyData(
             galaxy::api::GalaxyID(netCreatedLobbyId), "fgd_bool_has_password", gf::utils::ToString(NetSetup::mPasswordHash != 0));
         if (NetSetup::mPasswordHash)
         {
-            matchmaking = (galaxy::api::IMatchmaking*)GetGalaxyMatchmaking();
+            matchmaking = GetGalaxyMatchmaking();
             matchmaking->SetLobbyData(
             galaxy::api::GalaxyID(netCreatedLobbyId), "galaxy_lobby_password", GetEncodedLobbyPassword());
         }
@@ -1075,73 +1111,73 @@ static void HandleQueryPackets()
                 iPlaying++;
             }
         }
-        matchmaking = (galaxy::api::IMatchmaking*)GetGalaxyMatchmaking();
+        matchmaking = GetGalaxyMatchmaking();
         matchmaking->SetLobbyData(
             galaxy::api::GalaxyID(netCreatedLobbyId), "fgr_int_netNumBots", gf::utils::ToString(netNumBots));
-        matchmaking = (galaxy::api::IMatchmaking*)GetGalaxyMatchmaking();
+        matchmaking = GetGalaxyMatchmaking();
         matchmaking->SetLobbyData(
             galaxy::api::GalaxyID(netCreatedLobbyId), "fgr_int_r0", gf::utils::ToString(iReinf0));
-        matchmaking = (galaxy::api::IMatchmaking*)GetGalaxyMatchmaking();
+        matchmaking = GetGalaxyMatchmaking();
         matchmaking->SetLobbyData(
             galaxy::api::GalaxyID(netCreatedLobbyId), "fgr_int_r1", gf::utils::ToString(iReinf1));
-        matchmaking = (galaxy::api::IMatchmaking*)GetGalaxyMatchmaking();
+        matchmaking = GetGalaxyMatchmaking();
         matchmaking->SetLobbyData(
             galaxy::api::GalaxyID(netCreatedLobbyId), "fgd_int_numPlayers", gf::utils::ToString(iPlaying));
-        matchmaking = (galaxy::api::IMatchmaking*)GetGalaxyMatchmaking();
+        matchmaking = GetGalaxyMatchmaking();
         matchmaking->SetLobbyData(
             galaxy::api::GalaxyID(netCreatedLobbyId), "fgd_int_netPlayerLimit", gf::utils::ToString(netPlayerLimit));
         unsigned char u8Turns = PlayerProfile::GetCurProfile()->mOnlineOptions.mu8TurnsPerSecond;
-        matchmaking = (galaxy::api::IMatchmaking*)GetGalaxyMatchmaking();
+        matchmaking = GetGalaxyMatchmaking();
         matchmaking->SetLobbyData(
             galaxy::api::GalaxyID(netCreatedLobbyId), "fgd_int_serverType", gf::utils::ToString(1));
-        matchmaking = (galaxy::api::IMatchmaking*)GetGalaxyMatchmaking();
+        matchmaking = GetGalaxyMatchmaking();
         matchmaking->SetLobbyData(
             galaxy::api::GalaxyID(netCreatedLobbyId), "fgd_int_turns_per_second", gf::utils::ToString((int)u8Turns));
-        matchmaking = (galaxy::api::IMatchmaking*)GetGalaxyMatchmaking();
+        matchmaking = GetGalaxyMatchmaking();
         matchmaking->SetLobbyData(
             galaxy::api::GalaxyID(netCreatedLobbyId), "fgr_int_netMinPlayersToAutoLaunchDedicated", gf::utils::ToString(netMinPlayersToAutoLaunchDedicated));
-        matchmaking = (galaxy::api::IMatchmaking*)GetGalaxyMatchmaking();
+        matchmaking = GetGalaxyMatchmaking();
         matchmaking->SetLobbyData(
             galaxy::api::GalaxyID(netCreatedLobbyId), "fgr_int_mDifficulty", gf::utils::ToString(PlayerPrefs::mAllUserPrefs[0].mDifficulty));
-        matchmaking = (galaxy::api::IMatchmaking*)GetGalaxyMatchmaking();
+        matchmaking = GetGalaxyMatchmaking();
         matchmaking->SetLobbyData(
             galaxy::api::GalaxyID(netCreatedLobbyId), "fgr_int_netShowNames", gf::utils::ToString(netShowNames));
-        matchmaking = (galaxy::api::IMatchmaking*)GetGalaxyMatchmaking();
+        matchmaking = GetGalaxyMatchmaking();
         matchmaking->SetLobbyData(
             galaxy::api::GalaxyID(netCreatedLobbyId), "fgr_int_gSpawnInvicibility", gf::utils::ToString(gSpawnInvicibility));
-        matchmaking = (galaxy::api::IMatchmaking*)GetGalaxyMatchmaking();
+        matchmaking = GetGalaxyMatchmaking();
         matchmaking->SetLobbyData(
             galaxy::api::GalaxyID(netCreatedLobbyId), "fgr_int_netHeroesEnabled", gf::utils::ToString(netHeroesEnabled));
         if (netHeroesEnabled)
         {
-            matchmaking = (galaxy::api::IMatchmaking*)GetGalaxyMatchmaking();
+            matchmaking = GetGalaxyMatchmaking();
             matchmaking->SetLobbyData(
             galaxy::api::GalaxyID(netCreatedLobbyId), "fgr_uint_netHeroRuleUnlock", gf::utils::ToString((unsigned int)netHeroRuleUnlock));
-            matchmaking = (galaxy::api::IMatchmaking*)GetGalaxyMatchmaking();
+            matchmaking = GetGalaxyMatchmaking();
             matchmaking->SetLobbyData(
             galaxy::api::GalaxyID(netCreatedLobbyId), "fgr_int_netHeroRuleUnlockVal", gf::utils::ToString(netHeroRuleUnlockVal));
-            matchmaking = (galaxy::api::IMatchmaking*)GetGalaxyMatchmaking();
+            matchmaking = GetGalaxyMatchmaking();
             matchmaking->SetLobbyData(
             galaxy::api::GalaxyID(netCreatedLobbyId), "fgr_uint_netHeroRuleTeam", gf::utils::ToString((unsigned int)netHeroRuleTeam));
-            matchmaking = (galaxy::api::IMatchmaking*)GetGalaxyMatchmaking();
+            matchmaking = GetGalaxyMatchmaking();
             matchmaking->SetLobbyData(
             galaxy::api::GalaxyID(netCreatedLobbyId), "fgr_uint_netHeroRulePlayer", gf::utils::ToString((unsigned int)netHeroRulePlayer));
-            matchmaking = (galaxy::api::IMatchmaking*)GetGalaxyMatchmaking();
+            matchmaking = GetGalaxyMatchmaking();
             matchmaking->SetLobbyData(
             galaxy::api::GalaxyID(netCreatedLobbyId), "fgr_uint_netHeroRuleRespawn", gf::utils::ToString((unsigned int)netHeroRuleRespawn));
-            matchmaking = (galaxy::api::IMatchmaking*)GetGalaxyMatchmaking();
+            matchmaking = GetGalaxyMatchmaking();
             matchmaking->SetLobbyData(
             galaxy::api::GalaxyID(netCreatedLobbyId), "fgr_uint_netHeroRuleRespawnVal", gf::utils::ToString((unsigned int)netHeroRuleRespawnVal));
         }
-        matchmaking = (galaxy::api::IMatchmaking*)GetGalaxyMatchmaking();
+        matchmaking = GetGalaxyMatchmaking();
         matchmaking->SetLobbyData(
             galaxy::api::GalaxyID(netCreatedLobbyId), "galaxy_revision", gf::utils::ToString(1u));
-        matchmaking = (galaxy::api::IMatchmaking*)GetGalaxyMatchmaking();
+        matchmaking = GetGalaxyMatchmaking();
         matchmaking->SetLobbyData(
             galaxy::api::GalaxyID(netCreatedLobbyId), "galaxy_lobby_cancelled", gf::utils::ToString(false));
 
-        void* pMatchmaking = GetGalaxyMatchmaking();
-        ((galaxy::api::IMatchmaking*)pMatchmaking)->SetLobbyJoinable(galaxy::api::GalaxyID(netCreatedLobbyId), true);
+        galaxy::api::IMatchmaking* pMatchmaking = GetGalaxyMatchmaking();
+        pMatchmaking->SetLobbyJoinable(galaxy::api::GalaxyID(netCreatedLobbyId), true);
     }
     netLobbyPublishPumps++;
 }

@@ -533,22 +533,22 @@ void Event<Character, AI::EventType>::Callback::Trigger(Character& item, AI::Eve
         if (pChild)
         {
             pChild->AddRef();
-            while (pChild)
+        }
+        while (pChild)
+        {
+            if (!pChild->IsAlive())
             {
-                if (!pChild->IsAlive())
-                {
-                    pChild->Release();
-                    break;
-                }
-                Callback* pNext = (Callback*)pChild->mSibling;
-                if (pNext)
-                {
-                    pNext->AddRef();
-                }
-                pChild->Trigger(item, param);
                 pChild->Release();
-                pChild = pNext;
+                break;
             }
+            Callback* pNext = (Callback*)pChild->mSibling;
+            if (pNext)
+            {
+                pNext->AddRef();
+            }
+            pChild->Trigger(item, param);
+            pChild->Release();
+            pChild = pNext;
         }
     }
     Release();

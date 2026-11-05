@@ -106,9 +106,9 @@ void AttackPatterns::GeneratePath()
     const EntityFlyerClass* pClass =
         static_cast<const EntityFlyerClass*>(GetMe()->GetEntity()->GetEntityClass());
     // GLOBAL: SWBF2 0x01fac374
-    static const float fBack = Max(160.0f, pClass->mMaxFlyerSpeed * 4.0f);
+    static float fBack = Max(160.0f, pClass->mMaxFlyerSpeed * 4.0f);
     // GLOBAL: SWBF2 0x01fac36c
-    static const float fSide = Max(40.0f, pClass->mMaxFlyerSpeed);
+    static float fSide = Max(40.0f, pClass->mMaxFlyerSpeed);
 
     PblVector3 vBehind = vTarget - vDir * fBack + gVectorUnitY * 90.0f;
     PblVector3 vNear = vTarget - vDir * fSide + gVectorUnitY * 0.0f;

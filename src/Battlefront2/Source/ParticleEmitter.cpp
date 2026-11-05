@@ -73,15 +73,6 @@ ParticleEmitter::ParticleEmitter(const ParticleEmitterClass* pClass)
     Reset(pClass);
 }
 
-// FUNCTION: SWBF2 0x00609d00
-ParticleEmitter* ParticleEmitter::Create(const ParticleEmitterClass* pClass)
-{
-    if (ParticleEmitter::sMemoryPool.mUsed >= ParticleEmitter::sMemoryPool.mCount)
-    {
-        return 0;
-    }
-    return new ParticleEmitter(pClass);
-}
 
 
 // FUNCTION: SWBF2 0x0060a130
@@ -95,7 +86,7 @@ void ParticleEmitter::Reset(const ParticleEmitterClass* pClass)
     }
     delete mNext;
 
-    mClass = (ParticleEmitterClass*)pClass;
+    mClass = pClass;
     unsigned int uSeed = pClass->mNextSeed;
     if (uSeed == 0)
     {
@@ -262,23 +253,20 @@ void ParticleEmitter::Render(float fTime)
         return;
     }
 
+    PblRandom rand(0);
     ParticleEmitterInfoData* pInfo = mFirstInfo;
     unsigned int uSeed = mSeed;
     float fDelay = mSpawnDelay;
     short sCount = mParticleCount;
 
     PblMatrix mat = pInfo->mMatrix;
-    mat.SetTranslation(PblVector3(mat.m[3][0] + pInfo->mVelocity.x * fDelay,
-                                   mat.m[3][1] + pInfo->mVelocity.y * fDelay,
-                                   mat.m[3][2] + pInfo->mVelocity.z * fDelay));
+    mat.SetTranslation(mat.GetTranslation() + pInfo->mVelocity * fDelay);
     while (fDelay > pInfo->mLifeTime && pInfo->mNext)
     {
         fDelay -= pInfo->mLifeTime;
         pInfo = pInfo->mNext;
         mat = pInfo->mMatrix;
-        mat.SetTranslation(PblVector3(mat.m[3][0] + pInfo->mVelocity.x * fDelay,
-                                       mat.m[3][1] + pInfo->mVelocity.y * fDelay,
-                                       mat.m[3][2] + pInfo->mVelocity.z * fDelay));
+        mat.SetTranslation(mat.GetTranslation() + pInfo->mVelocity * fDelay);
     }
 
     PblMatrix matFirst;
@@ -315,19 +303,18 @@ void ParticleEmitter::Render(float fTime)
             break;
         }
 
-        PblRandom rand(uSeed);
+        rand.SetSeed(uSeed);
         rand.GetInt();
         uSeed = rand.GetInt();
-        ParticleEmitterClass* const pClass = mClass;
-        const float fBurstDelay = pClass->mBurstDelay.GetValue(rand);
-        int iBurst = (int)(pClass->mBurstCount.GetValue(rand) + 0.5f);
+        const float fBurstDelay = mClass->mBurstDelay.GetValue(rand);
+        int iBurst = (int)(mClass->mBurstCount.GetValue(rand) + 0.5f);
         if (iBurst > 128)
         {
             iBurst = 128;
         }
-        if (mMaxParticles != -1 && mMaxParticles - sCount < iBurst)
+        if (mMaxParticles != -1)
         {
-            iBurst = mMaxParticles - sCount;
+            iBurst = Min(iBurst, mMaxParticles - sCount);
         }
 
         unsigned int uParticleSeed = uSeed;
@@ -338,21 +325,21 @@ void ParticleEmitter::Render(float fTime)
             {
                 break;
             }
-            PblRandom particleRand(uParticleSeed);
-            particleRand.GetInt();
-            uParticleSeed = particleRand.GetInt();
-            if (pClass->mGeometry.mType != ParticleGeometry::PT_STREAK && !ParticleSystem::IsLodActive(sCount & 3))
+            rand.SetSeed(uParticleSeed);
+            rand.GetInt();
+            uParticleSeed = rand.GetInt();
+            if (mClass->mGeometry.mType != ParticleGeometry::PT_STREAK && !ParticleSystem::IsLodActive(sCount & 3))
             {
                 continue;
             }
 
             Particle& particle = sParticleCache[iNum];
             const float fAge = fTime - (pInfo->mStartTime + fDelay);
-            if (pClass->mNoRegisterStep)
+            if (mClass->mNoRegisterStep)
             {
                 mat = matFirst;
             }
-            if (pClass->mWorldAlignedFlag)
+            if (mClass->mWorldAlignedFlag)
             {
                 for (int r = 0; r < 3; ++r)
                 {
@@ -360,18 +347,18 @@ void ParticleEmitter::Render(float fTime)
                     mat.m[r][3] = 0.0f;
                 }
             }
-            pClass->mSpawner.SetupParticle(particle, mat, spawnRand.GetInt(), sCount, fAge, mSize, pInfo->mVelocity, mInheritVelocityFactor, pClass->mNoRegisterStep);
+            mClass->mSpawner.SetupParticle(particle, mat, spawnRand.GetInt(), sCount, fAge, PblVector3(mSize, mSize, mSize), PblVector3(mSize, mSize, mSize), mSize, pInfo->mVelocity, mInheritVelocityFactor, mClass->mNoRegisterStep);
             particle.mInfoData = pInfo;
-            sParticleCache[i].mFrameIndex = pClass->mGeometry.mType == ParticleGeometry::PT_ANIMATED ? 0 : -1;
-            if (pClass->mGeometry.mType == ParticleGeometry::PT_STREAK)
+            sParticleCache[i].mFrameIndex = mClass->mGeometry.mType == ParticleGeometry::PT_ANIMATED ? 0 : -1;
+            if (mClass->mGeometry.mType == ParticleGeometry::PT_STREAK)
             {
                 particle.mRotation[0] *= fTime;
             }
             const float fBorn = pInfo->mStartTime + fDelay;
-            if (pClass->mSpawner.mFadeInTime > fBorn)
+            if (mClass->mSpawner.mFadeInTime > fBorn)
             {
-                const float fFade = fBorn / pClass->mSpawner.mFadeInTime;
-                for (int k = 0; k < pClass->mSpawner.mNumColors; ++k)
+                const float fFade = fBorn / mClass->mSpawner.mFadeInTime;
+                for (int k = 0; k < mClass->mSpawner.mNumColors; ++k)
                 {
                     particle.mColor[k].a *= fFade;
                 }
@@ -384,17 +371,13 @@ void ParticleEmitter::Render(float fTime)
         }
 
         fDelay += fBurstDelay;
-        mat.SetTranslation(PblVector3(mat.m[3][0] + pInfo->mVelocity.x * fBurstDelay,
-                                       mat.m[3][1] + pInfo->mVelocity.y * fBurstDelay,
-                                       mat.m[3][2] + pInfo->mVelocity.z * fBurstDelay));
+        mat.SetTranslation(mat.GetTranslation() + pInfo->mVelocity * fBurstDelay);
         while (fDelay > pInfo->mLifeTime && pInfo->mNext)
         {
             fDelay -= pInfo->mLifeTime;
             pInfo = pInfo->mNext;
             mat = pInfo->mMatrix;
-            mat.SetTranslation(PblVector3(mat.m[3][0] + pInfo->mVelocity.x * fDelay,
-                                           mat.m[3][1] + pInfo->mVelocity.y * fDelay,
-                                           mat.m[3][2] + pInfo->mVelocity.z * fDelay));
+            mat.SetTranslation(mat.GetTranslation() + pInfo->mVelocity * fDelay);
         }
         if (fDelay > pInfo->mLifeTime && !pInfo->mNext)
         {
@@ -412,15 +395,16 @@ void ParticleEmitter::Render(float fTime)
         if (mClass->mGeometry.mType == ParticleGeometry::PT_ANIMATED)
         {
             const int iTotal = (int)mClass->mGeometry.mTotalFrames;
-            const int iFrame = (int)(particle.mLifeTime / mClass->mGeometry.mTimePerFrame);
+            int iFrame = (int)(particle.mLifeTime / mClass->mGeometry.mTimePerFrame);
             if (mClass->mGeometry.mLooping)
             {
-                particle.mFrameIndex = (char)(iFrame % iTotal);
+                iFrame %= iTotal;
             }
-            else
+            else if (iFrame >= iTotal)
             {
-                particle.mFrameIndex = iFrame < iTotal ? (char)iFrame : -1;
+                iFrame = -1;
             }
+            particle.mFrameIndex = (char)iFrame;
         }
         else
         {
@@ -428,15 +412,12 @@ void ParticleEmitter::Render(float fTime)
         }
     }
 
+    RedColorValue emitterColor = mColor;
     for (int i = 0; i < iNum; ++i)
     {
         for (int k = 0; k < mClass->mSpawner.mNumColors; ++k)
         {
-            RedColorValue& color = sParticleCache[i].mColor[k];
-            color.r *= mColor.r;
-            color.g *= mColor.g;
-            color.b *= mColor.b;
-            color.a *= mColor.a;
+            sParticleCache[i].mColor[k] *= emitterColor;
         }
     }
 
@@ -463,17 +444,13 @@ void ParticleEmitter::RenderAsEmitter(float fTime)
     short sCount = mParticleCount;
 
     PblMatrix mat = pInfo->mMatrix;
-    mat.SetTranslation(PblVector3(mat.m[3][0] + pInfo->mVelocity.x * fDelay,
-                                   mat.m[3][1] + pInfo->mVelocity.y * fDelay,
-                                   mat.m[3][2] + pInfo->mVelocity.z * fDelay));
+    mat.SetTranslation(mat.GetTranslation() + pInfo->mVelocity * fDelay);
     while (fDelay > pInfo->mLifeTime && pInfo->mNext)
     {
         fDelay -= pInfo->mLifeTime;
         pInfo = pInfo->mNext;
         mat = pInfo->mMatrix;
-        mat.SetTranslation(PblVector3(mat.m[3][0] + pInfo->mVelocity.x * fDelay,
-                                       mat.m[3][1] + pInfo->mVelocity.y * fDelay,
-                                       mat.m[3][2] + pInfo->mVelocity.z * fDelay));
+        mat.SetTranslation(mat.GetTranslation() + pInfo->mVelocity * fDelay);
     }
 
     PblMatrix matFirst;
@@ -508,16 +485,16 @@ void ParticleEmitter::RenderAsEmitter(float fTime)
         PblRandom rand(uSeed);
         rand.GetInt();
         uSeed = rand.GetInt();
-        ParticleEmitterClass* const pClass = mClass;
+        const ParticleEmitterClass* const pClass = mClass;
         const float fBurstDelay = pClass->mBurstDelay.GetValue(rand);
         int iBurst = (int)(pClass->mBurstCount.GetValue(rand) + 0.5f);
         if (iBurst > 128)
         {
             iBurst = 128;
         }
-        if (mMaxParticles != -1 && mMaxParticles - sCount < iBurst)
+        if (mMaxParticles != -1)
         {
-            iBurst = mMaxParticles - sCount;
+            iBurst = Min(iBurst, mMaxParticles - sCount);
         }
 
         unsigned int uParticleSeed = uSeed;
@@ -558,7 +535,7 @@ void ParticleEmitter::RenderAsEmitter(float fTime)
             Particle step;
             float fStepTime = 0.0f;
             float fStepDelta = 0.3f;
-            mClass->mSpawner.SetupParticle(particle, mat, spawnRand.GetInt(), sCount, fAge, mSize, pInfo->mVelocity, mInheritVelocityFactor, mClass->mNoRegisterStep);
+            mClass->mSpawner.SetupParticle(particle, mat, spawnRand.GetInt(), sCount, fAge, PblVector3(mSize, mSize, mSize), PblVector3(mSize, mSize, mSize), mSize, pInfo->mVelocity, mInheritVelocityFactor, mClass->mNoRegisterStep);
             particle.mInfoData = pInfo;
             if (fAge >= 0.0f)
             {
@@ -586,11 +563,7 @@ void ParticleEmitter::RenderAsEmitter(float fTime)
 
             for (int k = 0; k < mClass->mSpawner.mNumColors; ++k)
             {
-                RedColorValue& color = step.mColor[k];
-                color.r *= mColor.r;
-                color.g *= mColor.g;
-                color.b *= mColor.b;
-                color.a *= mColor.a;
+                step.mColor[k] *= mColor;
             }
             pChild->SetEmitterColor(step.mColor[0]);
             pChild->Render_(0, 1.0f, 0);
@@ -599,17 +572,13 @@ void ParticleEmitter::RenderAsEmitter(float fTime)
         }
 
         fDelay += fBurstDelay;
-        mat.SetTranslation(PblVector3(mat.m[3][0] + pInfo->mVelocity.x * fBurstDelay,
-                                       mat.m[3][1] + pInfo->mVelocity.y * fBurstDelay,
-                                       mat.m[3][2] + pInfo->mVelocity.z * fBurstDelay));
+        mat.SetTranslation(mat.GetTranslation() + pInfo->mVelocity * fBurstDelay);
         while (fDelay > pInfo->mLifeTime && pInfo->mNext)
         {
             fDelay -= pInfo->mLifeTime;
             pInfo = pInfo->mNext;
             mat = pInfo->mMatrix;
-            mat.SetTranslation(PblVector3(mat.m[3][0] + pInfo->mVelocity.x * fDelay,
-                                           mat.m[3][1] + pInfo->mVelocity.y * fDelay,
-                                           mat.m[3][2] + pInfo->mVelocity.z * fDelay));
+            mat.SetTranslation(mat.GetTranslation() + pInfo->mVelocity * fDelay);
         }
     }
 }

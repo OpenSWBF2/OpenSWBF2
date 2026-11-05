@@ -4,6 +4,7 @@
 #include "PebbleFL/Common/PblListDoubleSorted.h"
 #include "PebbleFL/Common/PblRandom.h"
 #include "RedEngineFL/Util/RedStack.h"
+#include "SquadronFormation.h"
 
 #include <string.h>
 
@@ -28,11 +29,7 @@ bool EntitySquadronClass::SetProperty(unsigned int uProperty, const char* pszVal
         mMember = PblHash(pszValue);
         return true;
     case 0xe5108b93:
-        if (mNumFormations < 10)
-        {
-            mFormations[mNumFormations] = PblHash(pszValue);
-            mNumFormations++;
-        }
+        AppendFormation(mFormations, mNumFormations, pszValue);
         return true;
     default:
         return ODFPropertySet::SetProperty(sPropertySet, sizeof(sPropertySet) / sizeof(sPropertySet[0]),
@@ -356,7 +353,7 @@ const EntityFormation* EntitySquadronClass::SelectFormation(unsigned int uNumSlo
 {
     const unsigned int uNumFormations = mNumFormations;
     RedStack stack;
-    const EntityFormation** ppFormations = (const EntityFormation**)stack.Alloc((int)(uNumFormations * sizeof(*ppFormations)));
+    const EntityFormation** ppFormations = AllocFormationList<const EntityFormation>(stack, uNumFormations);
     int iNumFound = 0;
     for (unsigned int i = 0; i < uNumFormations; ++i)
     {

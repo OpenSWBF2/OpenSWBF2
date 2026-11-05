@@ -28,7 +28,7 @@ class UnitAgent : public Agent
 
 public:
 
-    static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }
+    static void* operator new(size_t uiSize) { return sMemoryPool.Allocate(uiSize); }
     // SYNTHETIC: SWBF2 0x0065dd30
     // UnitAgent::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }

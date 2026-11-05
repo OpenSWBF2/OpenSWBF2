@@ -135,7 +135,7 @@ void SoldierAnimator::SetNewOwner(unsigned int uiOwnerId, const EntitySoldier* p
     m_bAnimControlledMove = false;
     m_bAnimVelocityMatched = false;
     mSkeletonScale = fSkeletonScale;
-    mOwner = const_cast<EntitySoldier*>(pOwner);
+    mOwner = pOwner;
     mMoveAnimation = SoldierAnimType::IDLE;
     mAction = SoldierAnimType::MOVE;
     mSoldierAction = SoldierState::STAND;
@@ -239,9 +239,7 @@ void SoldierAnimator::SetAction(SoldierState::SoldierState eState, const PblMatr
 
     if (m_bFirstTime)
     {
-        mMovement.z = 0.0f;
-        mMovement.y = 0.0f;
-        mMovement.x = 0.0f;
+        mMovement.SetAll(0.0f);
         mLegDirection = legMatrix.GetZAxis();
     }
     else
@@ -249,9 +247,7 @@ void SoldierAnimator::SetAction(SoldierState::SoldierState eState, const PblMatr
         mMovement = legMatrix.GetTranslation() - mLegMatrix.GetTranslation();
         if (SquaredLength(mMovement) > 100.0f)
         {
-            mMovement.z = 0.0f;
-            mMovement.y = 0.0f;
-            mMovement.x = 0.0f;
+            mMovement.SetAll(0.0f);
         }
     }
     mLegMatrix = legMatrix;
@@ -422,10 +418,8 @@ void SoldierAnimator::SetAction(SoldierState::SoldierState eState, const PblMatr
         if (fDt > 0.0f)
         {
             float fInvDt = 1.0f / fDt;
-            const PblVector3& z = legMatrix.GetZAxis();
-            const PblVector3& x = legMatrix.GetXAxis();
-            fForward = (z.y * mMovement.y + z.x * mMovement.x + z.z * mMovement.z) * fInvDt;
-            fSide = (mMovement.y * x.y + x.x * mMovement.x + mMovement.z * x.z) * fInvDt;
+            fForward = DotProduct(mMovement, legMatrix.GetZAxis()) * fInvDt;
+            fSide = DotProduct(mMovement, legMatrix.GetXAxis()) * fInvDt;
         }
         else
         {
@@ -434,7 +428,7 @@ void SoldierAnimator::SetAction(SoldierState::SoldierState eState, const PblMatr
         }
         if (m_bUseDirectionalJumps && !(fSide * fSide + fForward * fForward < 4.0f))
         {
-            float fAbsSide = (fSide < 0.0f ? -fSide : fSide);
+            float fAbsSide = Value(fSide);
             if (fForward > fAbsSide)
             {
                 mAction = SoldierAnimType::JUMP_FORWARD;
@@ -476,12 +470,10 @@ void SoldierAnimator::SetAction(SoldierState::SoldierState eState, const PblMatr
     case SoldierState::FLY:
     {
         mRotSpeed = PblRandom::GetGlobalFloat() * 20.0f - 10.0f;
-        const PblVector3& z = legMatrix.GetZAxis();
-        const PblVector3& x = legMatrix.GetXAxis();
-        float fForward = z.y * mMovement.y + z.x * mMovement.x + z.z * mMovement.z;
-        float fSide = mMovement.y * x.y + mMovement.x * x.x + mMovement.z * x.z;
+        float fForward = DotProduct(mMovement, legMatrix.GetZAxis());
+        float fSide = DotProduct(mMovement, legMatrix.GetXAxis());
         mActionTime = 0.0f;
-        if ((fForward < 0.0f ? -fForward : fForward) > (fSide < 0.0f ? -fSide : fSide))
+        if (Value(fForward) > Value(fSide))
         {
             mAction = fForward < 0.0f ? SoldierAnimType::FLY_BACKWARD : SoldierAnimType::FLY_FORWARD;
         }
@@ -495,11 +487,9 @@ void SoldierAnimator::SetAction(SoldierState::SoldierState eState, const PblMatr
     case SoldierState::TUMBLE:
     {
         mActionTime = 0.0f;
-        float fX = mMovement.y * mLegMatrix.m[0][1] + mMovement.x * mLegMatrix.m[0][0] +
-                   mMovement.z * mLegMatrix.m[0][2];
-        float fZ = mLegMatrix.m[2][1] * mMovement.y + mLegMatrix.m[2][0] * mMovement.x +
-                   mLegMatrix.m[2][2] * mMovement.z;
-        if ((fX < 0.0f ? -fX : fX) > 0.05f || (fZ < 0.0f ? -fZ : fZ) > 0.05f)
+        float fX = DotProduct(mMovement, mLegMatrix.GetXAxis());
+        float fZ = DotProduct(mMovement, mLegMatrix.GetZAxis());
+        if (Value(fX) > 0.05f || Value(fZ) > 0.05f)
         {
             mLegAngle = atan2f(fX, fZ);
         }
@@ -507,8 +497,7 @@ void SoldierAnimator::SetAction(SoldierState::SoldierState eState, const PblMatr
         {
             mLegAngle = 0.0f;
         }
-        const PblVector3& z = legMatrix.GetZAxis();
-        if (mMovement.y * z.y + mMovement.x * z.x + mMovement.z * z.z > 0.0f)
+        if (DotProduct(mMovement, legMatrix.GetZAxis()) > 0.0f)
         {
             mAction = SoldierAnimType::TUMBLE_FORWARD;
         }
@@ -574,8 +563,7 @@ void SoldierAnimator::SetAction(SoldierState::SoldierState eState, const PblMatr
 
     case SoldierState::FLY_RECOVER:
         mActionTime = 0.0f;
-        if (mLegMatrix.m[2][1] * mMovement.y + mLegMatrix.m[2][0] * mMovement.x +
-                mLegMatrix.m[2][2] * mMovement.z > 0.0f)
+        if (DotProduct(mMovement, mLegMatrix.GetZAxis()) > 0.0f)
         {
             mAction = SoldierAnimType::TUMBLE_FORWARD;
         }
@@ -606,13 +594,13 @@ void SoldierAnimator::SetAction(SoldierState::SoldierState eState, const PblMatr
                 mOverlayTime = 0.0f;
                 switch (m_eLastHitDir)
                 {
-                case 1:
+                case EntitySoldier::LEFT:
                     mAction = SoldierAnimType::DIE_LEFT;
                     break;
-                case 2:
+                case EntitySoldier::BACKWARD:
                     mAction = SoldierAnimType::DIE_BACKWARD;
                     break;
-                case 3:
+                case EntitySoldier::RIGHT:
                     mAction = SoldierAnimType::DIE_RIGHT;
                     break;
                 default:
@@ -805,7 +793,7 @@ void SoldierAnimator::SetupPose(RedPose& pose)
     if (mOverlayTime > 0.0f)
     {
         pOverlayAnim = mOverlayAnim;
-        fOverlayBlend = mOverlayBlendFactor * (mOverlayTime < 1.0f ? mOverlayTime : 1.0f);
+        fOverlayBlend = mOverlayBlendFactor * Min(mOverlayTime, 1.0f);
         mOverlayTime -= fDeltaTime * OVERLAY_FADEOUT_RATE;
         if (mOverlayTime < 0.0f)
         {
@@ -854,11 +842,9 @@ void SoldierAnimator::SetupPose(RedPose& pose)
     {
     case SoldierAnimType::DIVE:
     {
-        const PblVector3& z = mLegMatrix.GetZAxis();
-        const PblVector3& x = mLegMatrix.GetXAxis();
         UpdateActionAnimation(SoldierAnimType::DIVE, fDeltaTime, 1.0f,
-                              atan2f(mMovement.y * x.y + mMovement.x * x.x + mMovement.z * x.z,
-                                     z.y * mMovement.y + z.x * mMovement.x + z.z * mMovement.z),
+                              atan2f(DotProduct(mMovement, mLegMatrix.GetXAxis()),
+                                     DotProduct(mMovement, mLegMatrix.GetZAxis())),
                               0.0f, false);
         break;
     }
@@ -899,11 +885,9 @@ void SoldierAnimator::SetupPose(RedPose& pose)
         }
         else
         {
-            const PblVector3& z = mLegMatrix.GetZAxis();
-            const PblVector3& x = mLegMatrix.GetXAxis();
-            float fForward = z.y * mMovement.y + z.x * mMovement.x + z.z * mMovement.z;
-            float fSide = mMovement.y * x.y + mMovement.x * x.x + mMovement.z * x.z;
-            if ((fForward < 0.0f ? -fForward : fForward) > (fSide < 0.0f ? -fSide : fSide))
+            float fForward = DotProduct(mMovement, mLegMatrix.GetZAxis());
+            float fSide = DotProduct(mMovement, mLegMatrix.GetXAxis());
+            if (Value(fForward) > Value(fSide))
             {
                 mAction = fForward >= 0.0f ? SoldierAnimType::FLY_FORWARD : SoldierAnimType::FLY_BACKWARD;
             }
@@ -918,12 +902,10 @@ void SoldierAnimator::SetupPose(RedPose& pose)
     case SoldierAnimType::TUMBLE_FORWARD:
     case SoldierAnimType::TUMBLE_BACKWARD:
     {
-        const PblVector3& z = mLegMatrix.GetZAxis();
-        const PblVector3& x = mLegMatrix.GetXAxis();
         if (mSoldierAction == SoldierState::FLY_RECOVER)
         {
-            float fZ = mMovement.y * z.y + mMovement.x * z.x + mMovement.z * z.z;
-            float fX = mMovement.y * x.y + x.x * mMovement.x + mMovement.z * x.z;
+            float fZ = DotProduct(mMovement, mLegMatrix.GetZAxis());
+            float fX = DotProduct(mMovement, mLegMatrix.GetXAxis());
             if (fX * fX + fZ * fZ > 0.01f)
             {
                 mLegAngle = atan2f(fX, fZ);
@@ -937,9 +919,9 @@ void SoldierAnimator::SetupPose(RedPose& pose)
         }
         else
         {
-            float fZ = z.y * mMovement.y + z.x * mMovement.x + z.z * mMovement.z;
-            float fX = mMovement.y * x.y + mMovement.x * x.x + mMovement.z * x.z;
-            if ((fX < 0.0f ? -fX : fX) > 0.05f || (fZ < 0.0f ? -fZ : fZ) > 0.05f)
+            float fZ = DotProduct(mMovement, mLegMatrix.GetZAxis());
+            float fX = DotProduct(mMovement, mLegMatrix.GetXAxis());
+            if (Value(fX) > 0.05f || Value(fZ) > 0.05f)
             {
                 mLegAngle = atan2f(fX, fZ);
                 if (mAction == SoldierAnimType::TUMBLE_BACKWARD)
@@ -951,7 +933,7 @@ void SoldierAnimator::SetupPose(RedPose& pose)
             float fSpeed;
             if (fDeltaTime > 0.0f)
             {
-                fSpeed = PblMath::Sqrt(mMovement.x * mMovement.x + mMovement.y * mMovement.y + mMovement.z * mMovement.z) /
+                fSpeed = Length(mMovement) /
                          (fDeltaTime * 10.0f);
             }
             else
@@ -1009,7 +991,7 @@ void SoldierAnimator::SetupPose(RedPose& pose)
             mAction = SoldierAnimType::MOVE;
         }
         else if (fDeltaTime > 0.0f && mActionTime > 0.5f &&
-                 (m_bAnimControlledMove || mMovement.x * mMovement.x + mMovement.z * mMovement.z >
+                 (m_bAnimControlledMove || SquaredLengthXZ(mMovement) >
                                                fDeltaTime * 0.3f * 0.3f * fDeltaTime))
         {
             mAction = SoldierAnimType::MOVE;
@@ -1054,7 +1036,7 @@ void SoldierAnimator::SetupPose(RedPose& pose)
             }
         }
         else if (fDeltaTime > 0.0f && mActionTime > 0.3f &&
-                 mMovement.x * mMovement.x + mMovement.z * mMovement.z > fDeltaTime * 0.3f * 0.3f * fDeltaTime)
+                 SquaredLengthXZ(mMovement) > fDeltaTime * 0.3f * 0.3f * fDeltaTime)
         {
             mAction = SoldierAnimType::MOVE;
             if (mPosture == SoldierAnimType::CROUCH)
@@ -1078,10 +1060,8 @@ void SoldierAnimator::SetupPose(RedPose& pose)
         {
             bool bFirstPerson = mOwner && mOwner->GetTracker() && mOwner->GetTracker()->IsFirstPersonView() &&
                                 NetGame::GetJoystickIndex(mOwner->GetPlayerId()) >= 0;
-            const PblVector3& z = mLegMatrix.GetZAxis();
-            const PblVector3& x = mLegMatrix.GetXAxis();
-            float fForward = (z.y * mMovement.y + mMovement.x * z.x + z.z * mMovement.z) / fDeltaTime;
-            float fSide = (mMovement.y * x.y + x.x * mMovement.x + mMovement.z * x.z) / fDeltaTime;
+            float fForward = DotProduct(mMovement, mLegMatrix.GetZAxis()) / fDeltaTime;
+            float fSide = DotProduct(mMovement, mLegMatrix.GetXAxis()) / fDeltaTime;
             fAngle = atan2f(fSide, fForward);
             fSpeed = PblMath::Sqrt(fSide * fSide + fForward * fForward) / pAnim->GetVelocityZ();
             if (bFirstPerson)
@@ -1129,39 +1109,6 @@ void SoldierAnimator::SetupPose(RedPose& pose)
     {
         mRotAngle = 0.0f;
     }
-}
-
-namespace
-{
-
-inline PblMatrix& RotateJointWorldMatrix(ZephyrSkeleton<32>& kSkel, int iJoint, float fYaw, float fPitch,
-                                         PblBitVector<32>& kDirty, const PblMatrix* pParent)
-{
-    PblMatrix mRotate;
-    PblMatrix mTemp;
-    D3DXMatrixRotationY(reinterpret_cast<D3DXMATRIX*>(&mRotate), fYaw);
-    D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mRotate), reinterpret_cast<const D3DXMATRIX*>(&mRotate), D3DXMatrixRotationX(reinterpret_cast<D3DXMATRIX*>(&mTemp), fPitch));
-    kSkel.BuildWorldMatrices(gMatrixIdentity, iJoint, kDirty);
-
-    PblMatrix& mWorld = kSkel.m_pWorldMatrices[iJoint];
-    PblVector3 vOrigin;
-    if (pParent)
-    {
-        const ZephyrTransform& kBase = kSkel.m_pShared->m_pJoints[iJoint].m_kBaseTransform;
-        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vOrigin), reinterpret_cast<const D3DXVECTOR3*>(&kBase.kTrans), reinterpret_cast<const D3DXMATRIX*>(pParent));
-    }
-    else
-    {
-        vOrigin = mWorld.GetTranslation();
-    }
-    D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mTemp), reinterpret_cast<const D3DXMATRIX*>(&mWorld), reinterpret_cast<const D3DXMATRIX*>(&mRotate));
-    mWorld = mTemp;
-    mWorld.m[3][0] = vOrigin.x;
-    mWorld.m[3][1] = vOrigin.y;
-    mWorld.m[3][2] = vOrigin.z;
-    mWorld.m[3][3] = 1.0f;
-    return mWorld;
-}
 }
 
 // FUNCTION: SWBF2 0x00642860
@@ -1240,29 +1187,23 @@ void SoldierAnimator::ApplyProceduralAnimationAndBuildWorldMatrices(float fDelta
         }
     }
 
-    float fPitchSin = mLegMatrix.GetYAxis().y * mAimDir.y + mLegMatrix.GetYAxis().x * mAimDir.x +
-                      mLegMatrix.GetYAxis().z * mAimDir.z;
-    float fYaw = atan2f(mAimDir.y * mLegMatrix.GetXAxis().y + mLegMatrix.GetXAxis().x * mAimDir.x +
-                            mAimDir.z * mLegMatrix.GetXAxis().z,
-                        mLegMatrix.GetZAxis().y * mAimDir.y + mLegMatrix.GetZAxis().x * mAimDir.x +
-                            mLegMatrix.GetZAxis().z * mAimDir.z);
+    float fPitchSin = DotProduct(mAimDir, mLegMatrix.GetYAxis());
+    float fYaw = atan2f(DotProduct(mAimDir, mLegMatrix.GetXAxis()),
+                       DotProduct(mAimDir, mLegMatrix.GetZAxis()));
     float fPitch = -asinf(fPitchSin);
 
     float fRate;
     if (mSoldierAction == SoldierState::ARMED_PASSENGER || (fRate = fDeltaTime * 4.5f) >= 1.0f)
     {
         float fYawOffset = fYaw - mLegAngle;
-        mAimYAngle = ((fYawOffset < fYawMin) ? fYawMin : (fYawOffset > fYawMax) ? fYawMax : fYawOffset) + mLegAngle;
-        mAimXAngle = (fPitch < fPitchMin) ? fPitchMin : (fPitch > fPitchMax) ? fPitchMax : fPitch;
+        mAimYAngle = Clamp(fYawOffset, fYawMin, fYawMax) + mLegAngle;
+        mAimXAngle = Clamp(fPitch, fPitchMin, fPitchMax);
     }
     else
     {
         float fYawOffset = fYaw - mLegAngle;
-        mAimYAngle += (((fYawOffset < fYawMin) ? fYawMin : (fYawOffset > fYawMax) ? fYawMax : fYawOffset) +
-                       mLegAngle - mAimYAngle) *
-                      fRate;
-        mAimXAngle += (((fPitch < fPitchMin) ? fPitchMin : (fPitch > fPitchMax) ? fPitchMax : fPitch) - mAimXAngle) *
-                      fRate;
+        mAimYAngle = Interpolate(mAimYAngle, Clamp(fYawOffset, fYawMin, fYawMax) + mLegAngle, fRate);
+        mAimXAngle = Interpolate(mAimXAngle, Clamp(fPitch, fPitchMin, fPitchMax), fRate);
     }
     if (mPosture == SoldierAnimType::PRONE && mAimXAngle < 0.0f)
     {
@@ -1273,52 +1214,86 @@ void SoldierAnimator::ApplyProceduralAnimationAndBuildWorldMatrices(float fDelta
     float fAimPitch = mAimXAngle;
     PblBitVector<32> kDirty;
     kDirty.SetAll();
-    const ZephyrSkeletonShared* pShared;
+    PblMatrix worldRotation;
+    PblMatrix* mat;
 
     if (fTorsoWeight > 0.0f)
     {
-        float fTorsoYaw;
-        float fTorsoPitch;
-        const PblMatrix* pSpine;
-        pShared = mZephyrSkeleton.m_pShared;
-        int iJoint = pShared->GetJointIdxByCrc(0x5de52389);
+        int iJoint = mZephyrSkeleton.m_pShared->GetJointIdxByCrc(0x5de52389);
+        float fTorsoYaw = fAimYaw * fTorsoWeight;
+        float fTorsoPitch = fAimPitch * fTorsoWeight;
         if (iJoint >= 0)
         {
-            fTorsoYaw = fAimYaw * fTorsoWeight;
-            fTorsoPitch = fAimPitch * fTorsoWeight;
-            const PblMatrix& mLower =
-                RotateJointWorldMatrix(mZephyrSkeleton, iJoint, fTorsoYaw * 0.125f, fTorsoPitch * 0.125f, kDirty, 0);
-            pSpine = &RotateJointWorldMatrix(mZephyrSkeleton, mZephyrSkeleton.m_pShared->GetJointIdxByCrc(0x8c1c9bba),
-                                             fTorsoYaw * 0.375f, fTorsoPitch * 0.375f, kDirty, &mLower);
+            worldRotation.SetRotateY(fTorsoYaw * 0.125f);
+            worldRotation.RotateX(fTorsoPitch * 0.125f);
+            mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity, iJoint, kDirty);
+            mat = &mZephyrSkeleton.m_pWorldMatrices[iJoint];
+            PblVector3 pos = mat->GetTranslation();
+            *mat = *mat * worldRotation;
+            mat->SetTranslation(pos);
+            iJoint = mZephyrSkeleton.m_pShared->GetJointIdxByCrc(0x8c1c9bba);
+            worldRotation.SetRotateY(fTorsoYaw * 0.375f);
+            worldRotation.RotateX(fTorsoPitch * 0.375f);
+            mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity, iJoint, kDirty);
+            pos = mat->ApplyTransform(mZephyrSkeleton.m_pShared->m_pJoints[iJoint].m_kBaseTransform.kTrans);
+            mat = &mZephyrSkeleton.m_pWorldMatrices[iJoint];
+            *mat = *mat * worldRotation;
+            mat->SetTranslation(pos);
         }
         else
         {
-            int iSpine = pShared->GetJointIdxByCrc(0x93e93819);
-            fTorsoYaw = fAimYaw * fTorsoWeight;
-            fTorsoPitch = fAimPitch * fTorsoWeight;
-            pSpine = &RotateJointWorldMatrix(mZephyrSkeleton, iSpine, fTorsoYaw * 0.5f, fTorsoPitch * 0.5f, kDirty, 0);
+            iJoint = mZephyrSkeleton.m_pShared->GetJointIdxByCrc(0x93e93819);
+            worldRotation.SetRotateY(fTorsoYaw * 0.5f);
+            worldRotation.RotateX(fTorsoPitch * 0.5f);
+            mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity, iJoint, kDirty);
+            mat = &mZephyrSkeleton.m_pWorldMatrices[iJoint];
+            PblVector3 pos = mat->GetTranslation();
+            *mat = *mat * worldRotation;
+            mat->SetTranslation(pos);
         }
-        RotateJointWorldMatrix(mZephyrSkeleton, mZephyrSkeleton.m_pShared->GetJointIdxByCrc(0xe5b51072),
-                               fTorsoYaw * 0.5f, fTorsoPitch * 0.5f, kDirty, pSpine);
+        iJoint = mZephyrSkeleton.m_pShared->GetJointIdxByCrc(0xe5b51072);
+        worldRotation.SetRotateY(fTorsoYaw * 0.5f);
+        worldRotation.RotateX(fTorsoPitch * 0.5f);
+        mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity, iJoint, kDirty);
+        PblVector3 pos = mat->ApplyTransform(mZephyrSkeleton.m_pShared->m_pJoints[iJoint].m_kBaseTransform.kTrans);
+        mat = &mZephyrSkeleton.m_pWorldMatrices[iJoint];
+        *mat = *mat * worldRotation;
+        mat->SetTranslation(pos);
     }
 
     if (fHeadWeight > 0.0f)
     {
-        pShared = mZephyrSkeleton.m_pShared;
-        int iNeck = pShared->GetJointIdxByCrc(0xd2afb28a);
-        if (iNeck >= 0)
+        int iJoint = mZephyrSkeleton.m_pShared->GetJointIdxByCrc(0xd2afb28a);
+        float fHeadYaw = fAimYaw * fHeadWeight;
+        float fHeadPitch = fAimPitch * fHeadWeight;
+        if (iJoint >= 0)
         {
-            float fHeadYaw = fAimYaw * fHeadWeight;
-            float fHeadPitch = fAimPitch * fHeadWeight;
-            const PblMatrix& mNeck =
-                RotateJointWorldMatrix(mZephyrSkeleton, iNeck, fHeadYaw * 0.25f, fHeadPitch * 0.25f, kDirty, 0);
-            RotateJointWorldMatrix(mZephyrSkeleton, mZephyrSkeleton.m_pShared->GetJointIdxByCrc(0x8afdf5e4),
-                                   fHeadYaw * 0.375f, fHeadPitch * 0.375f, kDirty, &mNeck);
+            worldRotation.SetRotateY(fHeadYaw * 0.25f);
+            worldRotation.RotateX(fHeadPitch * 0.25f);
+            mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity, iJoint, kDirty);
+            mat = &mZephyrSkeleton.m_pWorldMatrices[iJoint];
+            PblVector3 pos = mat->GetTranslation();
+            *mat = *mat * worldRotation;
+            mat->SetTranslation(pos);
+            iJoint = mZephyrSkeleton.m_pShared->GetJointIdxByCrc(0x8afdf5e4);
+            worldRotation.SetRotateY(fHeadYaw * 0.375f);
+            worldRotation.RotateX(fHeadPitch * 0.375f);
+            mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity, iJoint, kDirty);
+            pos = mat->ApplyTransform(mZephyrSkeleton.m_pShared->m_pJoints[iJoint].m_kBaseTransform.kTrans);
+            mat = &mZephyrSkeleton.m_pWorldMatrices[iJoint];
+            *mat = *mat * worldRotation;
+            mat->SetTranslation(pos);
         }
         else
         {
-            RotateJointWorldMatrix(mZephyrSkeleton, pShared->GetJointIdxByCrc(0x8afdf5e4),
-                                   fAimYaw * fHeadWeight * 0.625f, fAimPitch * fHeadWeight * 0.625f, kDirty, 0);
+            iJoint = mZephyrSkeleton.m_pShared->GetJointIdxByCrc(0x8afdf5e4);
+            worldRotation.SetRotateY(fHeadYaw * 0.625f);
+            worldRotation.RotateX(fHeadPitch * 0.625f);
+            mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity, iJoint, kDirty);
+            mat = &mZephyrSkeleton.m_pWorldMatrices[iJoint];
+            PblVector3 pos = mat->GetTranslation();
+            *mat = *mat * worldRotation;
+            mat->SetTranslation(pos);
         }
     }
 
@@ -1492,7 +1467,7 @@ void SoldierAnimator::UpdateMovementAnimation(float fDeltaTime, const ZephyrAnim
     float fLegAngle = mLegAngle;
     bool bRestartWeaponAnim = m_bRestartWeaponAnim;
     m_bRestartWeaponAnim = false;
-    bool bAlert = m_bAlert;
+    bool bAlert = IsAlert();
 
     SoldierAnimType::MovementAnimation eMove = SoldierAnimType::IDLE;
     SoldierAnimType::MovementAnimation eNewMove = SoldierAnimType::IDLE;
@@ -1519,10 +1494,8 @@ void SoldierAnimator::UpdateMovementAnimation(float fDeltaTime, const ZephyrAnim
         }
         else
         {
-            const PblVector3& z = mLegMatrix.GetZAxis();
-            const PblVector3& x = mLegMatrix.GetXAxis();
-            fForward = (z.y * mMovement.y + z.x * mMovement.x + z.z * mMovement.z) / fDeltaTime;
-            fSide = (mMovement.y * x.y + x.x * mMovement.x + mMovement.z * x.z) / fDeltaTime;
+            fForward = DotProduct(mMovement, mLegMatrix.GetZAxis()) / fDeltaTime;
+            fSide = DotProduct(mMovement, mLegMatrix.GetXAxis()) / fDeltaTime;
             eNewMove = GetMovementAnimation(fSide, fForward, fMoveAngle, fRate);
             if (bFirstPerson && eNewMove > SoldierAnimType::TURN_RIGHT)
             {
@@ -1544,8 +1517,8 @@ void SoldierAnimator::UpdateMovementAnimation(float fDeltaTime, const ZephyrAnim
                 {
                     eMove = mMoveAnimation;
                 }
-                const PblVector3& dir = mLegDirection;
-                fLegAngle += atan2f(dir.y * x.y + dir.x * x.x + dir.z * x.z, z.y * dir.y + z.x * dir.x + z.z * dir.z);
+                fLegAngle += atan2f(DotProduct(mLegDirection, mLegMatrix.GetXAxis()),
+                                   DotProduct(mLegDirection, mLegMatrix.GetZAxis()));
                 if (eMove <= SoldierAnimType::IDLE_LOOK_AROUND)
                 {
 
@@ -1781,7 +1754,7 @@ void SoldierAnimator::UpdateMovementAnimation(float fDeltaTime, const ZephyrAnim
                 }
                 if (fFactor > 0.0f)
                 {
-                    fLegAngle += (fTarget - fLegAngle) * fFactor;
+                    fLegAngle = Interpolate(fLegAngle, fTarget, fFactor);
                 }
                 mMoveTurnRate = 0.0f;
             }
@@ -1804,7 +1777,7 @@ void SoldierAnimator::UpdateMovementAnimation(float fDeltaTime, const ZephyrAnim
                 }
                 if (fFactor > 0.0f)
                 {
-                    fLegAngle += (fTarget - fLegAngle) * fFactor;
+                    fLegAngle = Interpolate(fLegAngle, fTarget, fFactor);
                 }
                 mMoveTurnRate = 0.0f;
                 m_fTakeKneeTimer = 0.0f;
@@ -2085,7 +2058,7 @@ bool SoldierAnimator::UpdateUpperBodyAnimation(float fDeltaTime, const SoldierAn
     mAnimationTimerUpper = fDeltaTime;
     mBlendFactorUpper = 0.0f;
     mBlendDurationUpper = fBlendTime;
-    m_pAnimUpper = const_cast<SoldierAnimation*>(pAnim);
+    m_pAnimUpper = pAnim;
 
     unsigned char uiPrevAim = m_uiAimState & 3;
     m_uiAimState = pAnim->m_pAnimData->m_uiAimType;
@@ -2162,7 +2135,7 @@ bool SoldierAnimator::UpdateLowerBodyAnimation(float fDeltaTime, const SoldierAn
     mZephyrPoseDynLower.SetCurTime(fTime);
     mZephyrPoseDynLower.Update(fDeltaTime);
     mAnimationTimerLower = fDeltaTime;
-    m_pAnimLower = const_cast<SoldierAnimation*>(pAnim);
+    m_pAnimLower = pAnim;
     mBlendFactorLower = 0.0f;
     mBlendDurationLower = fBlendTime;
     return true;
@@ -2355,7 +2328,7 @@ void SoldierAnimator::SetDamageDir(EntitySoldier::DAMAGEDIR eDir)
         break;
     }
 
-    mOverlayAnim = (ZephyrAnim*)SoldierAnimatorClass::Instance()
+    mOverlayAnim = SoldierAnimatorClass::Instance()
                        ->GetUpperBodyActionAnimation(eAnim, mWeaponAnimationMap)
                        ->GetAnimation();
     mOverlayTime = 1.0f;

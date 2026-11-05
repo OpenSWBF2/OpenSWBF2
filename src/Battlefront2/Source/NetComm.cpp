@@ -534,7 +534,7 @@ void NetSocket::SetAddr(NetSocketPeerRecord& peer, int ip, int port)
 }
 
 // FUNCTION: SWBF2 0x005b2300
-void* GetGalaxyMatchmakingForNetComm()
+galaxy::api::IMatchmaking* GetGalaxyMatchmakingForNetComm()
 {
     if (!galaxy::api::GalaxyFactory::GetInstance())
     {
@@ -545,7 +545,7 @@ void* GetGalaxyMatchmakingForNetComm()
 }
 
 // FUNCTION: SWBF2 0x005b2320
-void* GetGalaxyNetworkingForNetComm()
+galaxy::api::INetworking* GetGalaxyNetworkingForNetComm()
 {
     if (!galaxy::api::GalaxyFactory::GetInstance())
     {
@@ -559,13 +559,12 @@ void* GetGalaxyNetworkingForNetComm()
 int NetComm::GetPing(int iDest)
 {
     NetDest& dest = netDests[iDest];
-    const unsigned __int64 peer = dest.mAddress.mGalaxyId.ToUint64();
-    if (!peer)
+    if (!dest.mAddress.mGalaxyId.value)
     {
         return dest.ping;
     }
-    void* pNetworking = GetGalaxyNetworkingForNetComm();
-    int iPing = ((galaxy::api::INetworking*)pNetworking)->GetPingWith(galaxy::api::GalaxyID(peer));
+    galaxy::api::INetworking* pNetworking = GetGalaxyNetworkingForNetComm();
+    int iPing = pNetworking->GetPingWith(dest.mAddress.mGalaxyId);
     return iPing < 0 ? dest.ping : iPing;
 }
 
@@ -670,8 +669,8 @@ void NetComm::Disconnect(int iDest)
     netDests[iDest].Clean();
     if (iDest == 64 && netDests[iDest].mAddress.mGalaxyId.value)
     {
-        void* pInterface = GetGalaxyMatchmakingForNetComm();
-        ((galaxy::api::IMatchmaking*)pInterface)->LeaveLobby(galaxy::api::GalaxyID(netDests[iDest].mAddress.mGalaxyId.value));
+        galaxy::api::IMatchmaking* pInterface = GetGalaxyMatchmakingForNetComm();
+        pInterface->LeaveLobby(galaxy::api::GalaxyID(netDests[iDest].mAddress.mGalaxyId.value));
         gf::checkError();
     }
     netDests[iDest].mAddress.mGalaxyId.value = 0;
@@ -751,7 +750,7 @@ void __fastcall PackHeader(NetPacket* pPacket)
 void __fastcall CleanGroups(int iDest, int iSequence)
 {
     int iRecent = iSequence - 16;
-    int iOld = iSequence - 272;
+    int iOld = iRecent - 256;
     if (iRecent < 0)
     {
         iRecent += 0x10000;
@@ -984,11 +983,13 @@ void NetComm::Reset()
 // FUNCTION: SWBF2 0x005b2750
 void NetComm::AdvanceTime(bool bClamp)
 {
-    LARGE_INTEGER liTicks;
-    QueryPerformanceCounter(&liTicks);
-    unsigned __int64 iDelta = liTicks.QuadPart - lastTicks;
-    lastTicks = liTicks.QuadPart;
-    netTimeBase.AdvanceTicks(iDelta);
+    LARGE_INTEGER perfCount;
+    QueryPerformanceCounter(&perfCount);
+    unsigned __int64 ticks = perfCount.QuadPart;
+    PblJournal::Record(ticks, PJT_FULL);
+    unsigned __int64 dt = ticks - lastTicks;
+    lastTicks = ticks;
+    netTimeBase.AdvanceTicks(dt);
 
     float fOld = netTime;
     float fElapsed = netTimeStamp.GetElapsed();
@@ -1064,8 +1065,8 @@ int __fastcall FindSource(const void* pSource, unsigned int uType)
         {
             unsigned __int64 peerID;
             CopyEnteredLobbyId(&peerID);
-            void* pInterface = GetGalaxyMatchmakingForNetComm();
-            if (((galaxy::api::IMatchmaking*)pInterface)->GetLobbyOwner(galaxy::api::GalaxyID(peerID)) ==
+            galaxy::api::IMatchmaking* pInterface = GetGalaxyMatchmakingForNetComm();
+            if (pInterface->GetLobbyOwner(galaxy::api::GalaxyID(peerID)) ==
                 static_cast<const NetSocketPeerRecord*>(pSource)->mGalaxyId)
             {
                 address.mGalaxyId.value = peerID;
@@ -1073,6 +1074,7 @@ int __fastcall FindSource(const void* pSource, unsigned int uType)
         }
     }
 
+    const unsigned __int64 sourceId = address.mGalaxyId.ToUint64();
     for (; iDest < _countof(netDests); ++iDest)
     {
         if (NetComm::IsLAN())
@@ -1085,7 +1087,7 @@ int __fastcall FindSource(const void* pSource, unsigned int uType)
                 return iDest;
             }
         }
-        else if (address.mGalaxyId.value == netDests[iDest].mAddress.mGalaxyId.value)
+        else if (sourceId == netDests[iDest].mAddress.mGalaxyId.value)
         {
             return iDest;
         }
@@ -1131,37 +1133,34 @@ void DoSends()
     }
 }
 
-unsigned int __fastcall UnpackHeader(NetPacket* pPacket);
+void __fastcall UnpackHeader(NetPacket* pPacket);
 
 // FUNCTION: SWBF2 0x005b2ea0
-unsigned int __fastcall HandleCommPacketIn(NetPacket* pPacket)
+void __fastcall HandleCommPacketIn(NetPacket* pPacket)
 {
-    return UnpackHeader(pPacket);
+    UnpackHeader(pPacket);
 }
 
 // FUNCTION: SWBF2 0x005b2f10
-unsigned int __fastcall UnpackHeader(NetPacket* pPacket)
+void __fastcall UnpackHeader(NetPacket* pPacket)
 {
     pPacket->mCurIndex = (signed char)pPacket->mCommIndex;
-    unsigned char uByte = 0;
-    unsigned short uWord = 0;
-    unsigned int uFirst = 0, uSecond = 0;
-    unsigned char* pFirst = (unsigned char*)&uFirst;
-    unsigned char* pSecond = (unsigned char*)&uSecond;
-    pPacket->Read(uByte);
-    pFirst[2] = uByte;
-        pPacket->Read(uWord);
-    pFirst[0] = (unsigned char)uWord;
-    pFirst[1] = (unsigned char)(uWord >> 8);
-    pPacket->Read(uByte);
-    pSecond[0] = uByte;
-    pPacket->Read(uByte);
-    pSecond[1] = uByte & 0x7f;
-    pSecond[2] = uByte >> 7;
+    NetComm::PktHeader header = NetComm::PktHeader();
+    unsigned char type = 0;
+    pPacket->Read(type);
+    header.type = type;
+    unsigned short group = 0;
+    pPacket->Read(group);
+    header.group = group;
+    unsigned char idx = 0;
+    pPacket->Read(idx);
+    header.idx = idx;
+    unsigned char count = 0;
+    pPacket->Read(count);
+    header.count = count & 0x7f;
+    header.compressed = count >> 7;
     pPacket->mDataIndex = (char)pPacket->mCurIndex;
-    *(unsigned int*)&NetComm::Header(pPacket).group = uFirst;
-    *(unsigned int*)&NetComm::Header(pPacket).idx = uSecond;
-    return uSecond;
+    NetComm::Header(pPacket) = header;
 }
 
 // FUNCTION: SWBF2 0x005b31c0

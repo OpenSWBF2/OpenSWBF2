@@ -73,7 +73,7 @@ public:
     ShieldEffect(const ShieldEffectClass* pClass);
     virtual ~ShieldEffect();
 
-    static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }
+    static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
     // SYNTHETIC: SWBF2 0x00636540
     // ShieldEffect::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
@@ -102,7 +102,7 @@ private:
     void PlatformRender(const PblMatrix& mMatrix, unsigned char ucViewport, unsigned int uiFlags);
 
 public:
-    ShieldEffectClass* m_pClass;
+    const ShieldEffectClass* m_pClass;
     pcShieldShader* m_pShader;
     float m_fScrollTimer;
     float m_fTurnOnTimer;

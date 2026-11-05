@@ -7,6 +7,7 @@
 #include "ProceduralAnimation.h"
 #include "CollisionManager.h"
 #include "CollisionObject.h"
+#include "GameObject.h"
 #include "NetGame.h"
 #include "NetPacket.h"
 #include "TreeGrid.h"
@@ -174,12 +175,6 @@ void PAManager::LeaveClient()
 void ReadMatrix(NetPktGroup& group, PblMatrix& matrix);
 void WriteMatrix(NetPktGroup& group, const PblMatrix& matrix);
 
-struct PAGameObjectTeam
-{
-    char pad_0000[0x234];
-    int mTeam : 4;
-};
-
 
 
 // FUNCTION: SWBF2 0x006284e0
@@ -195,7 +190,7 @@ PAHierarchy::PAHierarchy()
 // FUNCTION: SWBF2 0x00628340
 void __cdecl PAAnimationGroup::ReadHierarchy(PblFileChunk& chunk)
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId != 0x4f464e49)
@@ -321,7 +316,7 @@ PAAnimation::~PAAnimation()
 void PAAnimation::Read(PblFileChunk& chunk)
 {
     PAAnimation* pAnim = NULL;
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         unsigned int uiId = child._iId;
@@ -559,28 +554,30 @@ void PAAnimation::CalculateNextMatrix(float fDeltaTime, float& fTime, const PblM
         }
 
         result = start;
-        PABaseKey key1;
-        PABaseKey key0;
-        PABaseKey key;
-        if (GetKeys(fTime, key0, key1, true, 0, NULL))
+        PABaseKey nextRotKey;
+        PABaseKey lastRotKey;
+        if (GetKeys(fTime, lastRotKey, nextRotKey, true, 0, NULL))
         {
-            InterpolateKeys(key0, key1, fTime, key);
-            PblMatrix rot = gMatrixIdentity;
-            PblMatrix temp;
-            rot.RotateX(key.mVal.x);
-            rot.RotateY(key.mVal.y);
-            rot.RotateZ(key.mVal.z);
-            D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&temp), reinterpret_cast<const D3DXMATRIX*>(&rot), reinterpret_cast<const D3DXMATRIX*>(&result));
-            result = temp;
+            PABaseKey interpRot;
+            InterpolateKeys(lastRotKey, nextRotKey, fTime, interpRot);
+            PblMatrix rotM = gMatrixIdentity;
+            rotM.RotateX(interpRot.mVal.x);
+            rotM.RotateY(interpRot.mVal.y);
+            rotM.RotateZ(interpRot.mVal.z);
+            result = rotM * result;
         }
-        if (GetKeys(fTime, key0, key1, false, 0, NULL))
+
+        PABaseKey nextPosKey;
+        PABaseKey lastPosKey;
+        if (GetKeys(fTime, lastPosKey, nextPosKey, false, 0, NULL))
         {
-            InterpolateKeys(key0, key1, fTime, key);
-            PblVector3 vOrigin = start.GetTranslation();
-            vOrigin += start.GetXAxis() * key.mVal.x;
-            vOrigin += start.GetYAxis() * key.mVal.y;
-            vOrigin += start.GetZAxis() * key.mVal.z;
-            result.SetTranslation(vOrigin);
+            PABaseKey interpPos;
+            InterpolateKeys(lastPosKey, nextPosKey, fTime, interpPos);
+            PblVector3 tmpPos = start.GetTranslation();
+            tmpPos += interpPos.mVal.x * start.GetXAxis();
+            tmpPos += interpPos.mVal.y * start.GetYAxis();
+            tmpPos += interpPos.mVal.z * start.GetZAxis();
+            result.SetTranslation(tmpPos);
         }
         return;
     }
@@ -597,79 +594,78 @@ void PAAnimation::CalculateNextMatrix(float fDeltaTime, float& fTime, const PblM
         fTime = mTotalTime;
     }
 
-    unsigned char ucKey;
-    PblVector3 vLastPos;
-    PABaseKey key1;
-    PABaseKey key0;
-    PABaseKey key;
-    if (GetKeys(fTime, key0, key1, false, 0, &ucKey))
+    PABaseKey nextPosKey;
+    PABaseKey lastPosKey;
+    unsigned char posKey0;
+    PblVector3 prevPos;
+    if (GetKeys(fTime, lastPosKey, nextPosKey, false, 0, &posKey0))
     {
-        InterpolateKeys(key0, key1, fTime, key);
-        vLastPos = key.mVal;
+        PABaseKey interpPos;
+        InterpolateKeys(lastPosKey, nextPosKey, fTime, interpPos);
+        prevPos = interpPos.mVal;
     }
 
-    float fCurTime = fTime;
-    float fEndTime = fTime + fDeltaTime;
+    static const float stepSize = 0.0166667f;
+    float nextTime = fTime;
+    float finalTime = fTime + fDeltaTime;
     do
     {
-        if (mTotalTime >= fCurTime && fCurTime + 0.0166667f > mTotalTime)
+        if (nextTime <= mTotalTime && nextTime + stepSize > mTotalTime)
         {
             result.SetTranslation(start.GetTranslation());
-            vLastPos.x = 0.0f;
-            vLastPos.y = 0.0f;
-            vLastPos.z = 0.0f;
+            prevPos.x = 0.0f;
+            prevPos.y = 0.0f;
+            prevPos.z = 0.0f;
         }
 
-        float fNextTime = fCurTime + 0.0166667f;
-        float fKeyTime = fNextTime;
-        if (fNextTime > fEndTime)
+        nextTime += stepSize;
+        float fT = nextTime;
+        if (fT > finalTime)
         {
-            fKeyTime = fEndTime;
+            fT = finalTime;
         }
         if (mLoop)
         {
-            while (fKeyTime > mTotalTime)
+            while (fT > mTotalTime)
             {
-                fKeyTime -= mTotalTime;
+                fT -= mTotalTime;
             }
         }
 
-        PABaseKey rotKey1;
-        PABaseKey rotKey0;
-        if (GetKeys(fKeyTime, rotKey0, rotKey1, true, 0, &ucKey))
+        PABaseKey nextRotKey;
+        PABaseKey lastRotKey;
+        unsigned char rotKey0;
+        if (GetKeys(fT, lastRotKey, nextRotKey, true, 0, &rotKey0))
         {
-            PblMatrix rot = gMatrixIdentity;
-            PABaseKey rotKey;
-            InterpolateKeys(rotKey0, rotKey1, fKeyTime, rotKey);
-            PblMatrix temp;
-            rot.RotateX(rotKey.mVal.x);
-            rot.RotateY(rotKey.mVal.y);
-            rot.RotateZ(rotKey.mVal.z);
-            PblVector3 vPos = result.GetTranslation();
-            D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&temp), reinterpret_cast<const D3DXMATRIX*>(&rot), reinterpret_cast<const D3DXMATRIX*>(&start));
-            result = temp;
-            result.SetTranslation(vPos);
+            PblMatrix relM = gMatrixIdentity;
+            PABaseKey interpRot;
+            InterpolateKeys(lastRotKey, nextRotKey, fT, interpRot);
+            relM.RotateX(interpRot.mVal.x);
+            relM.RotateY(interpRot.mVal.y);
+            relM.RotateZ(interpRot.mVal.z);
+            PblVector3 tmpPos = result.GetTranslation();
+            result = relM * start;
+            result.SetTranslation(tmpPos);
         }
 
-        PblVector3 vDelta = gVectorZero;
-        if (GetKeys(fKeyTime, key0, key1, false, 0, &ucKey))
+        PblVector3 dPos = gVectorZero;
+        if (GetKeys(fT, lastPosKey, nextPosKey, false, 0, &posKey0))
         {
-            InterpolateKeys(key0, key1, fKeyTime, key);
-            vDelta = key.mVal - vLastPos;
-            vLastPos = key.mVal;
+            PABaseKey interpPos;
+            InterpolateKeys(lastPosKey, nextPosKey, fT, interpPos);
+            dPos = interpPos.mVal - prevPos;
+            prevPos = interpPos.mVal;
         }
 
-        PblVector3 vPos = result.GetTranslation();
-        vPos += result.GetXAxis() * vDelta.x;
-        vPos += result.GetYAxis() * vDelta.y;
-        vPos += result.GetZAxis() * vDelta.z;
-        result.SetTranslation(vPos);
-
-        fCurTime = fNextTime;
-    } while (fEndTime > fCurTime);
-
-    fTime = fEndTime;
+        PblVector3 tmpPos = result.GetTranslation();
+        tmpPos += dPos.x * result.GetXAxis();
+        tmpPos += dPos.y * result.GetYAxis();
+        tmpPos += dPos.z * result.GetZAxis();
+        result.SetTranslation(tmpPos);
+    } while (nextTime < finalTime);
+    fTime = finalTime;
 }
+
 
 // FUNCTION: SWBF2 0x00627f10
 void PAAnimation::Update(float fDeltaTime, float& fTime, CollisionObject* pObject, const PblMatrix& start) const
@@ -767,7 +763,7 @@ void PAAnimationGroup::UpdateStartPositions()
 void PAAnimationGroup::Read(PblFileChunk& chunk)
 {
     PAAnimationGroup* pGroup = NULL;
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         char acName[128];
@@ -904,14 +900,14 @@ void PAAnimationGroup::UpdateAnimations(float fDeltaTime)
     {
         PAAnimationData& data = sPAAnims[i];
         PblMatrix& initial = data.mInitialMatrix;
-        PAAnimation* pAnim = PAAnimation::_HashTable.Find(data.mAnimHash);
+        PAAnimation* pAnim = PAAnimation::Find(data.mAnimHash);
         if (!pAnim || !*data.mGeometry)
         {
             continue;
         }
 
         if (mStopWhenControlled && (*data.mGeometry)->GetGameObject() &&
-            ((PAGameObjectTeam*)(*data.mGeometry)->GetGameObject())->mTeam)
+            (*data.mGeometry)->GetGameObject()->GetTeam())
         {
             *data.mTimer = 0.0f;
             initial = (*data.mGeometry)->GetMatrix();
@@ -978,7 +974,7 @@ void PAAnimationGroup::WriteObject(NetPktGroup& group)
             continue;
         }
 
-        PAAnimation* pAnim = PAAnimation::_HashTable.Find(sPAAnims[i].mAnimHash);
+        PAAnimation* pAnim = PAAnimation::Find(sPAAnims[i].mAnimHash);
         int iBits = 1;
         const int iDeciseconds = (int)(pAnim->mTotalTime * 10.0f);
         while ((1 << (iBits - 1)) < iDeciseconds && iBits < 32)
@@ -1008,7 +1004,7 @@ void PAAnimationGroup::ReadObject(NetPktGroup& group)
         {
             continue;
         }
-        PAAnimation* pAnim = PAAnimation::_HashTable.Find(sPAAnims[i].mAnimHash);
+        PAAnimation* pAnim = PAAnimation::Find(sPAAnims[i].mAnimHash);
         int iBits = 1;
         const int iDeciseconds = (int)(pAnim->mTotalTime * 10.0f);
         while ((1 << (iBits - 1)) < iDeciseconds && iBits < 32)

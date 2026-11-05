@@ -13,7 +13,7 @@ bool GetBit(const unsigned char* const bitmap, unsigned int bit);
 
 unsigned int GetMSBIndex(unsigned int uiValue);
 
-void SetBits(unsigned char* const bitmap, unsigned int bit, unsigned int value, unsigned int count);
+void SetBits(unsigned char* const bitmap, unsigned int value, unsigned int bit, unsigned int count);
 unsigned int GetBits(const unsigned char* const bitmap, unsigned int bit, unsigned int count);
 }
 

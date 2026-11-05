@@ -325,7 +325,7 @@ void VehicleManager::Update()
 }
 
 // FUNCTION: SWBF2 0x0066e390
-int VehicleManager::RequestVehiclesInRange(const PblVector3& vPos, GameObject** ppOut, float fRadius, int iMax)
+int VehicleManager::RequestVehiclesInRange(const PblVector3& vPos, float fRadius, GameObject** ppOut, int iMax)
 {
     const float fRadiusSq = fRadius * fRadius;
     int iCount = 0;

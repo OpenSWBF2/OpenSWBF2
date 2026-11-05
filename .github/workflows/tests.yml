@@ -6,12 +6,15 @@ on:
     tags: ['v*']
   pull_request:
     branches: [main, 'release/**']
+  schedule:
+    - cron: '17 8 * * 0'
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: tests-${{ github.ref }}
+  group: tests-${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'full-' || '' }}${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -30,6 +33,10 @@ jobs:
       - name: Runner self-test
         shell: cmd
         run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\selftest.ps1 -Configuration Test
+      - name: Clean staged output
+        if: always()
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\run.ps1 -Configuration Test -Clean
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: failure() || cancelled()
         with:
@@ -63,10 +70,66 @@ jobs:
         if: ${{ !cancelled() }}
         shell: cmd
         run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\selftest.ps1 -Configuration Asan
+      - name: Clean staged output
+        if: always()
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\run.ps1 -Asan -Clean
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: failure() || cancelled()
         with:
           name: asan-artifacts
+          path: artifacts/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  full:
+    name: full
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: [self-hosted, windows, v143]
+    timeout-minutes: 360
+    concurrency:
+      group: tests-full
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          clean: true
+      - name: All smoke
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\run.ps1 -Smoke All
+      - name: Full guard revert
+        if: ${{ !cancelled() }}
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\guard-revert.ps1 -Full -ProvenFile artifacts\proven-ci.tsv
+      - name: ASan T1, hardening and Standard smoke
+        if: ${{ !cancelled() }}
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\run.ps1 -Asan
+      - name: ASan Twice smoke
+        if: ${{ !cancelled() }}
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\run.ps1 -Asan -Smoke Twice
+      - name: ASan Dedicated smoke
+        if: ${{ !cancelled() }}
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\run.ps1 -Asan -Smoke Dedicated
+      - name: x64 census
+        if: ${{ !cancelled() }}
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\x64-census.ps1 -Name census-ci -OutDir artifacts\census
+      - name: Clean staged output
+        if: always()
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\run.ps1 -Clean
+      - name: Clean staged ASan output
+        if: always()
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\run.ps1 -Asan -Clean
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: failure() || cancelled()
+        with:
+          name: full-artifacts
           path: artifacts/
           if-no-files-found: ignore
           retention-days: 7

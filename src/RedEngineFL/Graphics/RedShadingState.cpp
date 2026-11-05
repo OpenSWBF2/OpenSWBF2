@@ -28,7 +28,7 @@ MemoryPool RedShadingPose::Entry::sMemoryPool("RedShadingPose::Entry", sizeof(Re
 // RedShadingState::sMemoryPool
 MemoryPool RedShadingState::sMemoryPool("RedShadingState", sizeof(RedShadingState));
 
-inline void* RedShadingPose::Entry::operator new(unsigned int uiSize)
+inline void* RedShadingPose::Entry::operator new(size_t uiSize)
 {
     return sMemoryPool.Allocate(uiSize);
 }

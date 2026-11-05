@@ -734,7 +734,7 @@ void BirdParticle::RespawnGroundBird(const PblVector3& vPos, const BirdParticleT
 
     SetRenderRadius(mType.mSize);
     SetRenderPos(vNewPos);
-    Activate();
+    AddToScene();
     StartBirdSound();
     mBirdSound.Update(&BirdParticleManager::sInstance->mBirdSound, &mMatrix.GetTranslation(), &mVelocity);
 
@@ -815,34 +815,31 @@ void BirdParticle::RespawnScatterBird(const PblVector3& vPos, const BirdParticle
     mRandomness = PblRandom::_Global.GetFloat();
 
     if (vAway.y >= -EPSILON &&
-        mMatrix.m[2][0] * vAway.x + mMatrix.m[2][1] * vAway.y + mMatrix.m[2][2] * vAway.z < 0.0f)
+        DotProduct(mMatrix.GetZAxis(), vAway) < 0.0f)
     {
-        PblVector3 vX = mMatrix[0];
-        PblVector3 vY = mMatrix[1];
-        PblVector3 vZ = mMatrix[2];
+        PblVector3 vX = mMatrix.GetXAxis();
+        PblVector3 vY = mMatrix.GetYAxis();
+        PblVector3 vZ = mMatrix.GetZAxis();
         vX.x = -vX.x;
         vX.z = -vX.z;
         vY.x = -vY.x;
         vY.z = -vY.z;
         vZ.x = -vZ.x;
         vZ.z = -vZ.z;
-        mMatrix[0] = vX;
-        mMatrix.m[0][3] = 0.0f;
-        mMatrix[1] = vY;
-        mMatrix.m[1][3] = 0.0f;
-        mMatrix[2] = vZ;
-        mMatrix.m[2][3] = 0.0f;
+        mMatrix.SetXAxis(vX);
+        mMatrix.SetYAxis(vY);
+        mMatrix.SetZAxis(vZ);
     }
 
     mInitMatrix = mMatrix;
     float fSpeed = mRandomness * 8.0f + 8.0f;
-    mVelocity = PblVector3(mInitMatrix.m[2][0] * fSpeed, mInitMatrix.m[2][1] * fSpeed, mInitMatrix.m[2][2] * fSpeed);
+    mVelocity = fSpeed * mInitMatrix.GetZAxis();
     mIsValid = true;
     mType = type;
 
     SetRenderRadius(mType.mSize);
     SetRenderPos(vPos);
-    Activate();
+    AddToScene();
     StartBirdSound();
     mBirdSound.Update(&BirdParticleManager::sInstance->mBirdSound, &mMatrix.GetTranslation(), &mVelocity);
 }
@@ -850,7 +847,7 @@ void BirdParticle::RespawnScatterBird(const PblVector3& vPos, const BirdParticle
 // FUNCTION: SWBF2 0x00449bf0
 void BirdParticle::UpdateFlying(float fDeltaTime)
 {
-    PblVector3 vInitPos = mInitMatrix.GetTranslation();
+    PblVector3 vPos = mInitMatrix.GetTranslation();
     float fFlap = (mRandomness * 8.0f + 8.0f) * mFlapTime;
 
     float angle = PblMath::Sin(fFlap) * (fHalfPi * 0.5f);
@@ -869,7 +866,8 @@ void BirdParticle::UpdateFlying(float fDeltaTime)
 
     float fBob = PblMath::Sin(fWing2) * 0.1f;
     const PblVector3& vUp = mInitMatrix.GetYAxis();
-    PblVector3 vPos = mVelocity * mTotalLifetime + (vInitPos - vUp * fBob);
+    vPos -= fBob * vUp;
+    vPos += mVelocity * mTotalLifetime;
     mMatrix.SetTranslation(vPos);
     SetRenderPos(vPos);
 

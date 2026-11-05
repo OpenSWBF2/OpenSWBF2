@@ -86,7 +86,7 @@ public:
     RedSceneObject* mNextSceneObject;
     RedSceneObject* mPrevSceneObject;
     RedSceneAABox* mSceneAABox;
-    PblVector4 _Sphere;
+    PblSphere _Sphere;
     RedLodData* _pLodData;
     unsigned int _uiRenderFlags;
     bool _bActive;

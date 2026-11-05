@@ -21,10 +21,25 @@ public:
 
     AllocType GetAllocType() const { return (AllocType)mAllocType; }
 
-    static void* operator new(unsigned int uiSize, void* pMemory, bool bTemp)
+    static void* operator new(size_t uiSize, void* pMemory, bool bTemp)
     {
-        const AllocType eType = pMemory ? allocType_custom : (bTemp ? allocType_tempHeap : allocType_heap);
-        void* p = pMemory ? pMemory : (bTemp ? AllocTemp(uiSize) : Alloc(uiSize));
+        void* p;
+        AllocType eType;
+        if (pMemory)
+        {
+            p = pMemory;
+            eType = allocType_custom;
+        }
+        else if (bTemp)
+        {
+            p = AllocTemp(uiSize);
+            eType = allocType_tempHeap;
+        }
+        else
+        {
+            p = Alloc(uiSize);
+            eType = allocType_heap;
+        }
         if (p)
         {
             ((T*)p)->mAllocType = (unsigned char)eType;
@@ -32,7 +47,7 @@ public:
         return p;
     }
 
-    static void operator delete(void* p, unsigned int  )
+    static void operator delete(void* p, size_t  )
     {
         switch (((T*)p)->GetAllocType())
         {

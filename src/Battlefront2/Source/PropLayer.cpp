@@ -36,7 +36,7 @@ void PropLayer::Read(PblFileChunk& chunk)
     mSpreadFactor = 1;
     mMaxDistance = 1.0f;
 
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId != 0x41544144)

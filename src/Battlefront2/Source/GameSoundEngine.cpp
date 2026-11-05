@@ -135,7 +135,7 @@ void SetHeap(int iHeap)
 }
 
 // FUNCTION: SWBF2 0x005387a0
-void* __cdecl SndAlloc(unsigned int uiSize)
+void* __cdecl SndAlloc(size_t uiSize)
 {
     return RedAllocFromHeap(GameSoundEngine::gSoundHeap, uiSize, 0);
 }
@@ -147,7 +147,7 @@ void __cdecl SndFree(void* pBlock)
 }
 
 // FUNCTION: SWBF2 0x005387e0
-void* __cdecl SndTempAlloc(unsigned int uiSize)
+void* __cdecl SndTempAlloc(size_t uiSize)
 {
     return RedAllocFromHeap(GameMemory::RunTimeHeap, uiSize, 0);
 }
@@ -300,15 +300,6 @@ namespace GameVoiceChat
 {
 extern bool gPlayerChange;
 }
-extern void* sVoiceChatEncoders[1];
-namespace GameVoiceChat
-{
-extern void* gNodes[1];
-}
-extern void* sVoiceChatDecoders[1];
-extern void* sEncoderStorage;
-extern void* sDecoderStorage;
-extern void* sNodeStorage;
 
 namespace GameVoiceChat
 {
@@ -335,11 +326,11 @@ bool Open(float fSeconds, bool bSoundWorking)
 
             for (unsigned int i = 0; i < uiNodes; ++i)
             {
-                sVoiceChatEncoders[i] = new ((GameVoiceChat::Encoder*)sEncoderStorage + i) GameVoiceChat::Encoder;
-                sVoiceChatDecoders[i] = new ((GameVoiceChat::Decoder*)sDecoderStorage + i) GameVoiceChat::Decoder;
-                GameVoiceChat::gNodes[i] = new ((GameVoiceChat::Node*)sNodeStorage + i)
-                    GameVoiceChat::Node((GameVoiceChat::Encoder*)sVoiceChatEncoders[i],
-                                        (GameVoiceChat::Decoder*)sVoiceChatDecoders[i]);
+                GameVoiceChat::gEncoders[i] = new ((GameVoiceChat::Encoder*)GameVoiceChat::gEncoderStorage + i) GameVoiceChat::Encoder;
+                GameVoiceChat::gDecoders[i] = new ((GameVoiceChat::Decoder*)GameVoiceChat::gDecoderStorage + i) GameVoiceChat::Decoder;
+                GameVoiceChat::gNodes[i] = new ((GameVoiceChat::Node*)GameVoiceChat::gNodeStorage + i)
+                    GameVoiceChat::Node(GameVoiceChat::gEncoders[i],
+                                        GameVoiceChat::gDecoders[i]);
             }
 
             GameVoiceChat::gPlayerChange = true;
@@ -363,15 +354,15 @@ bool Open(float fSeconds, bool bSoundWorking)
                 {
                     break;
                 }
-                bAllOpen &= ((VoiceChat::Node*)GameVoiceChat::gNodes[i])->Open(0xFF, 0xFF, 0x0C);
+                bAllOpen &= GameVoiceChat::gNodes[i]->Open(0xFF, 0xFF, 0x0C);
             }
 
             if (bAllOpen)
             {
                 for (i = 0; i < uiNodes; ++i)
                 {
-                    ((GameVoiceChat::Node*)GameVoiceChat::gNodes[i])->SetSendMask(GameVoiceChat::Transport::mask_TeamFriend, true, false);
-                    ((GameVoiceChat::Node*)GameVoiceChat::gNodes[i])->SetReceiveMask(GameVoiceChat::Transport::mask_Everyone, true, false);
+                    GameVoiceChat::gNodes[i]->SetSendMask(GameVoiceChat::Transport::mask_TeamFriend, true, false);
+                    GameVoiceChat::gNodes[i]->SetReceiveMask(GameVoiceChat::Transport::mask_Everyone, true, false);
                 }
                 RedSetCurrentHeap(iOldHeap);
                 return true;
@@ -379,20 +370,20 @@ bool Open(float fSeconds, bool bSoundWorking)
 
             for (i = 0; i < uiNodes; ++i)
             {
-                if (((VoiceChat::Node*)GameVoiceChat::gNodes[i])->IsOpen())
+                if (GameVoiceChat::gNodes[i]->IsOpen())
                 {
-                    ((VoiceChat::Node*)GameVoiceChat::gNodes[i])->Close();
+                    GameVoiceChat::gNodes[i]->Close();
                 }
             }
 
             for (i = 0; i < uiNodes; ++i)
             {
-                ((GameVoiceChat::Encoder*)sVoiceChatEncoders[i])->~Encoder();
+                (GameVoiceChat::gEncoders[i])->~Encoder();
 
-                ((GameVoiceChat::Decoder*)sVoiceChatDecoders[i])->~Decoder();
+                (GameVoiceChat::gDecoders[i])->~Decoder();
 
-                sVoiceChatEncoders[i] = 0;
-                sVoiceChatDecoders[i] = 0;
+                GameVoiceChat::gEncoders[i] = 0;
+                GameVoiceChat::gDecoders[i] = 0;
                 GameVoiceChat::gNodes[i] = 0;
             }
 

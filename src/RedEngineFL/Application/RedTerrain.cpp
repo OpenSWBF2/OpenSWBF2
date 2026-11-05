@@ -244,12 +244,7 @@ float RedTerrain::GetInterpolatedLight(float fX, float fZ)
     return (fB - fA) * fFracX + fA;
 }
 
-static PblVector3 TriangleNormal(const PblVector3& p0, const PblVector3& p1, const PblVector3& p2)
-{
-    const PblVector3 a(p1.x - p0.x, p1.y - p0.y, p1.z - p0.z);
-    const PblVector3 b(p2.x - p0.x, p2.y - p0.y, p2.z - p0.z);
-    return CrossProduct(b, a);
-}
+
 
 // FUNCTION: SWBF2 0x006c1b50
 const PblVector3 RedTerrain::GetInterpolatedNormal(float fX, float fZ)
@@ -282,38 +277,37 @@ const PblVector3 RedTerrain::GetInterpolatedNormal(float fX, float fZ)
     const float fFracZ = fGridZ - (float)iZ;
     const float fM = _fMetersPerPoint;
 
-    PblVector3 vNormal;
     if (iZ & 1)
     {
         if (1.0f - fFracZ > fFracX)
         {
-            vNormal = TriangleNormal(PblVector3(0.0f, GetHeight(iX, iZ), 0.0f),
-                                     PblVector3(fM, GetHeight(iX + 1, iZ), 0.0f),
-                                     PblVector3(0.0f, GetHeight(iX, iZ + 1), fM));
+            const PblVector3 p0(0.0f, GetHeight(iX, iZ), 0.0f);
+            const PblVector3 a = PblVector3(fM, GetHeight(iX + 1, iZ), 0.0f) - p0;
+            const PblVector3 b = PblVector3(0.0f, GetHeight(iX, iZ + 1), fM) - p0;
+            return Normalize(CrossProduct(b, a));
         }
         else
         {
-            vNormal = TriangleNormal(PblVector3(fM, GetHeight(iX + 1, iZ + 1), fM),
-                                     PblVector3(0.0f, GetHeight(iX, iZ + 1), fM),
-                                     PblVector3(fM, GetHeight(iX + 1, iZ), 0.0f));
+            const PblVector3 p0(fM, GetHeight(iX + 1, iZ + 1), fM);
+            const PblVector3 a = PblVector3(0.0f, GetHeight(iX, iZ + 1), fM) - p0;
+            const PblVector3 b = PblVector3(fM, GetHeight(iX + 1, iZ), 0.0f) - p0;
+            return Normalize(CrossProduct(b, a));
         }
     }
     else if (fFracZ > fFracX)
     {
-        vNormal = TriangleNormal(PblVector3(0.0f, GetHeight(iX, iZ + 1), fM),
-                                 PblVector3(0.0f, GetHeight(iX, iZ), 0.0f),
-                                 PblVector3(fM, GetHeight(iX + 1, iZ + 1), fM));
+        const PblVector3 p0(0.0f, GetHeight(iX, iZ + 1), fM);
+        const PblVector3 a = PblVector3(0.0f, GetHeight(iX, iZ), 0.0f) - p0;
+        const PblVector3 b = PblVector3(fM, GetHeight(iX + 1, iZ + 1), fM) - p0;
+        return Normalize(CrossProduct(b, a));
     }
     else
     {
-        vNormal = TriangleNormal(PblVector3(fM, GetHeight(iX + 1, iZ), 0.0f),
-                                 PblVector3(fM, GetHeight(iX + 1, iZ + 1), fM),
-                                 PblVector3(0.0f, GetHeight(iX, iZ), 0.0f));
+        const PblVector3 p0(fM, GetHeight(iX + 1, iZ), 0.0f);
+        const PblVector3 a = PblVector3(fM, GetHeight(iX + 1, iZ + 1), fM) - p0;
+        const PblVector3 b = PblVector3(0.0f, GetHeight(iX, iZ), 0.0f) - p0;
+        return Normalize(CrossProduct(b, a));
     }
-
-    PblVector3 vResult;
-    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vResult), reinterpret_cast<const D3DXVECTOR3*>(&vNormal));
-    return vResult;
 }
 
 static int ClampToGrid(float fGrid)
@@ -349,7 +343,7 @@ bool RedTerrain::PointInHole(const PblVector3& vPos)
     static PblVector3 vLastPos(FLT_MAX, FLT_MAX, FLT_MAX);
     // GLOBAL: SWBF2 0x0093eb90
     static bool bLastInHole;
-    if (vPos.x == vLastPos.x && vPos.y == vLastPos.y && vPos.z == vLastPos.z)
+    if (vPos == vLastPos)
     {
         return bLastInHole;
     }
@@ -480,7 +474,7 @@ void RedTerrain::Read(PblFileChunk& chunk)
         _uiLayerTextureRotation[i] = 0;
     }
 
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         PblFile* pFile = child._pFile;
@@ -690,7 +684,7 @@ void RedTerrain::Read(PblFileChunk& chunk)
             break;
 
         case 0x53545543:
-            while (child.HasMoreChildren())
+            while (!child.IsDone())
             {
                 PblFileChunk cut = child.ReadNextChild();
                 if (cut._iId == 0x4F464E49)
@@ -704,7 +698,7 @@ void RedTerrain::Read(PblFileChunk& chunk)
                     mTerrainBytesUsed += sizeof(Hole);
                     RedSetCurrentHeap(iOldHeap);
 
-                    while (cut.HasMoreChildren())
+                    while (!cut.IsDone())
                     {
                         PblFileChunk part = cut.ReadNextChild();
                         PblFile* pPartFile = part._pFile;
@@ -764,8 +758,7 @@ float RedTerrain::_RayHit(const PblVector3& vStart, const PblVector3& vEnd, floa
     PblVector3 vTo = vEnd;
     const float fTolerance2 = fTolerance * fTolerance;
 
-    while ((vFrom.y - vTo.y) * (vFrom.y - vTo.y) + (vFrom.x - vTo.x) * (vFrom.x - vTo.x) +
-               (vFrom.z - vTo.z) * (vFrom.z - vTo.z) > fTolerance2)
+    while (SquaredLength(vFrom - vTo) > fTolerance2)
     {
         const PblVector3 vMid = (vTo + vFrom) * 0.5f;
         const float fAbove = GetInterpolatedHeight(vMid.x, vMid.z) - vMid.y;
@@ -790,14 +783,9 @@ float RedTerrain::_RayHit(const PblVector3& vStart, const PblVector3& vEnd, floa
 // FUNCTION: SWBF2 0x006c32f0
 float RedTerrain::_RayHit(const PblVector3& vStart, const PblVector3& vEnd, float fA, float fB, bool& bAbove)
 {
-    const float fDeltaX = vStart.x - vEnd.x;
-    const float fDeltaZ = vStart.z - vEnd.z;
-    if (fDeltaZ * fDeltaZ + fDeltaX * fDeltaX > fB * fB)
+    if (SquaredLengthXZ(vStart - vEnd) > fB * fB)
     {
-        const float fFirst = _RayHit(vStart,
-                                     PblVector3((vEnd.x + vStart.x) * 0.5f, (vStart.y + vEnd.y) * 0.5f,
-                                                (vEnd.z + vStart.z) * 0.5f),
-                                     fA, fB, bAbove);
+        const float fFirst = _RayHit(vStart, (vEnd + vStart) * 0.5f, fA, fB, bAbove);
         if (1.0f > fFirst)
         {
             return fFirst * 0.5f;
@@ -828,13 +816,13 @@ float RedTerrain::_RayHit(const PblVector3& vStart, const PblVector3& vEnd, floa
 void RedTerrain::Reset()
 {
     _bEnable = false;
-    _HoleList.RemoveAll();
+    _HoleList.Clear();
     mTerrainBytesUsed = 0;
 }
 
 // TEMPLATE: SWBF2 0x006c1650
-// PblList<RedTerrain::Hole>::RemoveAll
-template void PblList<RedTerrain::Hole>::RemoveAll();
+// PblList<RedTerrain::Hole>::Clear
+template void PblList<RedTerrain::Hole>::Clear();
 
 // FUNCTION: SWBF2 0x004108f0
 int RedTerrain::GetHeightUnscaled(int iX, int iZ)

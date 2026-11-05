@@ -53,14 +53,11 @@ DustEffect::DustEffect(DustEffectClass* pClass, const PblMatrix& matrix)
     mClass = pClass;
     mMatrix = gMatrixIdentity;
 
-    mMatrix[1] = matrix[1] * pClass->mHeightScale;
-    mMatrix.m[1][3] = 0.0f;
+    mMatrix.SetYAxis(matrix.GetYAxis() * pClass->mHeightScale);
 
-    mMatrix[0] = Normalize(CrossProduct(-mMatrix[2], mMatrix[1]));
-    mMatrix.m[0][3] = 0.0f;
+    mMatrix.SetXAxis(Normalize(CrossProduct(-mMatrix.GetZAxis(), mMatrix.GetYAxis())));
 
-    mMatrix[2] = Normalize(CrossProduct(mMatrix[0], mMatrix[1]));
-    mMatrix.m[2][3] = 0.0f;
+    mMatrix.SetZAxis(Normalize(CrossProduct(mMatrix.GetXAxis(), mMatrix.GetYAxis())));
 
     mMatrix.SetTranslation(matrix.GetTranslation());
 
@@ -218,7 +215,8 @@ void DustEffectClass::SpawnParticle(DustParticle& particle)
     if (mCameraDistance > 0.0f)
     {
         const PblMatrix& camMatrix = CameraManager::sInstance->mRedCamera[0]->GetMatrix();
-        const PblVector3 vForward(-camMatrix.m[2][0], 0.0f, -camMatrix.m[2][2]);
+        PblVector3 vForward = -camMatrix.GetZAxis();
+        vForward.y = 0.0f;
         const PblVector3 vRight = camMatrix[0];
         const float fHeight = particle.mPos.y;
         particle.mPos = vRight * particle.mPos.x + vForward * (mCameraDistance + particle.mPos.z);
@@ -248,11 +246,10 @@ bool DustEffectClass::Update(float fDeltaTime)
     if (mCameraDistance > 0.0f)
     {
         const PblMatrix& camMatrix = CameraManager::sInstance->mRedCamera[0]->GetMatrix();
-        vWind = PblVector3(mOldCamPos.x - camMatrix.m[3][0], mOldCamPos.y - camMatrix.m[3][1],
-                           mOldCamPos.z - camMatrix.m[3][2]);
-        if (vWind.x * vWind.x + vWind.y * vWind.y + vWind.z * vWind.z > 100.0f)
+        vWind = mOldCamPos - camMatrix.GetTranslation();
+        if (SquaredLength(vWind) > 100.0f)
         {
-            vWind.x = vWind.y = vWind.z = 0.0f;
+            vWind.SetAll(0.0f);
         }
         mOldCamPos = camMatrix.GetTranslation();
     }
@@ -511,17 +508,17 @@ void DustEffectClass::Reset()
     {
         it->DestroyRenderData();
     }
-    sDustEffectClasses.RemoveAll();
-    sDustEffects.RemoveAll();
+    sDustEffectClasses.Clear();
+    sDustEffects.Clear();
 }
 
 // TEMPLATE: SWBF2 0x00490ac0
-// PblList<DustEffectClass>::RemoveAll
-template void PblList<DustEffectClass>::RemoveAll();
+// PblList<DustEffectClass>::Clear
+template void PblList<DustEffectClass>::Clear();
 
 // TEMPLATE: SWBF2 0x00490a70
-// PblList<DustEffect>::RemoveAll
-template void PblList<DustEffect>::RemoveAll();
+// PblList<DustEffect>::Clear
+template void PblList<DustEffect>::Clear();
 
 // FUNCTION: SWBF2 0x00490250
 CloudClusterClass::CloudClusterClass(unsigned int uHash)

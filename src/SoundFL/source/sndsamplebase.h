@@ -13,14 +13,11 @@ public:
     SampleBase(unsigned int uiHashID, void* pAddress, unsigned int uiLength,
                unsigned int uiLengthSamples, float fFrequency, SampleInfo::Format eFormat,
                SampleBase* pAlias)
+        : SampleInfo(eFormat, (unsigned int)fFrequency, uiLength, uiHashID),
+          mAddress(pAddress),
+          mLengthSamples(uiLengthSamples),
+          mAliasSample(pAlias)
     {
-        mFormat = (char)eFormat;
-        mFrequency = (unsigned int)fFrequency;
-        mHashID = uiHashID;
-        mAddress = pAddress;
-        mLength = uiLength;
-        mLengthSamples = uiLengthSamples;
-        mAliasSample = pAlias;
     }
 
     void* GetAddress() const { return mAddress; }

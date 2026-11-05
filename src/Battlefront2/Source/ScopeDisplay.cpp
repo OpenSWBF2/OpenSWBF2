@@ -118,9 +118,9 @@ void ScopeDisplay::Create()
 ScopeDisplay::ScopeDisplay()
 {
     mJoystickIndex = -1;
+    sCanRender = true;
     const int iHalfWidth = RedInterfaceScreen::GetScreenWidth() / 2;
     const int iHalfHeight = RedInterfaceScreen::s_screenFull.m_uiHeightInPixels / 2;
-    sCanRender = true;
     mGroupWeaponScope.Enable(false);
     mGroupWeaponScope.SendToBack();
 

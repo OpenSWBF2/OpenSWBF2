@@ -202,7 +202,7 @@ void OrdnanceBulletClass::SetProperty(unsigned int uProperty, const char* pszVal
     case 0x47C86B4A:
         if (*pszValue)
         {
-            mModel = RedModel::_HashTable.Find(PblHash(pszValue));
+            mModel = RedModel::Find(PblHash(pszValue));
             mLodData = ModelLodData(0, 0, 0, mModel, 0);
         }
         else
@@ -576,8 +576,7 @@ bool OrdnanceBullet::Collide(CollisionObject* pObject, const PblVector3& vPos, c
         {
             return true;
         }
-        Damageable* pDamageable = static_cast<Damageable*>(pVictim);
-        pDamageable->ApplyDamage(GetDamage(), vDir, vPos, iBody, uDamageFlags);
+        pVictim->ApplyDamage(GetDamage(), vDir, vPos, iBody, uDamageFlags);
     }
 
     if (!NetGame::IsEnabled() || NetGame::IsClient() ||

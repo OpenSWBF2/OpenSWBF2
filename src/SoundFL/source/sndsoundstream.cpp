@@ -164,7 +164,7 @@ void __cdecl SoundStream::Properties::operator delete(void* p)
 // FUNCTION: SWBF2 0x00736c70
 void __cdecl SoundStream::Properties::Load(PblFileChunk& chunk, bool bOnce)
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId != 0x41544144u)
@@ -187,7 +187,7 @@ void __cdecl SoundStream::Properties::Load(PblFileChunk& chunk, bool bOnce)
 // FUNCTION: SWBF2 0x00737180
 void SoundStream::Properties::Read(PblFileChunk& chunk)
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         const unsigned int uiID = child._pFile->Read32();

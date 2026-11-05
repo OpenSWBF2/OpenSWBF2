@@ -77,14 +77,13 @@ void __fastcall HeartBeat(const unsigned __int64* pPeer)
     if (adminKeyNextTime > fNow + 61.0f || fNow > adminKeyNextTime)
     {
         ++adminKeyCount;
-        unsigned int seed = netRandom._uiSeed * 1664525u + 1013904223u;
         adminKeyNextTime = fNow + 60.0f;
-        netRandom._uiSeed = seed * 1664525u + 1013904223u;
-        adminKey[adminKeyCount & 1] = (char)(seed >> 16);
+        adminKey[adminKeyCount & 1] = (char)netRandom.GetInt();
     }
+    const unsigned __int64 peer = *pPeer;
     for (int i = 0; i < 3; ++i)
     {
-        if (*(const unsigned __int64*)&adminDests[i].addr == *pPeer)
+        if (*(const unsigned __int64*)&adminDests[i].addr == peer)
         {
             adminDests[i].lastRecvTime = fNow;
             return;
@@ -105,8 +104,8 @@ void __fastcall HeartBeat(const unsigned __int64* pPeer)
             iSlot = i;
         }
     }
-    adminDests[iSlot].addr = (unsigned int)*pPeer;
-    adminDests[iSlot].port = (unsigned int)(*pPeer >> 32);
+    adminDests[iSlot].addr = (unsigned int)peer;
+    adminDests[iSlot].port = (unsigned int)(peer >> 32);
     adminDests[iSlot].lastRecvTime = fNow;
     adminDests[iSlot].admin = false;
 }
@@ -181,7 +180,8 @@ void __fastcall SendAdminMessage(char* pcMessage)
             admin.port = 0;
             admin.lastRecvTime = 0.0f;
         }
-        else if ((admin.addr || admin.port) && admin.lastRecvTime >= fNow - 60.0f && admin.admin)
+        else if (((unsigned __int64)admin.addr | ((unsigned __int64)admin.port << 32)) != 0 &&
+                 !(admin.lastRecvTime < fNow - 60.0f) && admin.admin)
         {
             const int iDest = FindAdminDest(admin.GetPeer());
             if (iDest < 0)
@@ -203,7 +203,15 @@ void __fastcall SendAdminMessage(char* pcMessage)
 // FUNCTION: SWBF2 0x005b1a40
 void __fastcall NetAdmin::ChatMessage(int iPlayer, const unsigned short* pusMessage)
 {
-    const char* pcName = iPlayer == 64 ? "ADMIN" : NetGame::GetPlayerName(iPlayer);
+    const char* pcName;
+    if (iPlayer != 64)
+    {
+        pcName = NetGame::GetPlayerName(iPlayer);
+    }
+    else
+    {
+        pcName = "ADMIN";
+    }
     char acBuffer[128];
     _snprintf(acBuffer, 127, "%s: ", pcName);
     acBuffer[127] = 0;
@@ -328,6 +336,7 @@ static void DetectBandwidth()
                 iNeeded += 81920;
             }
         }
+        const unsigned int uStartLostBytes = netLostBytes;
         int iUp, iDown;
         NetComm::GetBandwidth(64, iUp, iDown);
         if (iNeeded > iUp)
@@ -339,7 +348,7 @@ static void DetectBandwidth()
         NetComm::GetBytes(iIn, iOut);
 
         lastOutBytes = iOut;
-        lastLostBytes = uLostBytes;
+        lastLostBytes = uStartLostBytes;
         detectState = 2;
         nextDetect = fNow + 16.0f;
     }
@@ -856,7 +865,11 @@ bool IsNum(unsigned short c)
     {
         return false;
     }
-    return c <= '9';
+    if (c > '9')
+    {
+        return false;
+    }
+    return true;
 }
 
 // FUNCTION: SWBF2 0x005b14a0
@@ -868,23 +881,23 @@ static bool IsNextArgInt(unsigned short* pusLine)
     {
         ++pusLine;
     }
-    if (!IsNum(*pusLine))
+    if (IsNum(*pusLine))
     {
-        return false;
+        ++pusLine;
+        do
+        {
+            unsigned short c = *pusLine;
+            if (c == ' ' || c == 0)
+            {
+                return true;
+            }
+            if (!IsNum(c))
+            {
+                break;
+            }
+            ++pusLine;
+        } while (++p != token + sizeof(token));
     }
-
-    do
-    {
-        unsigned short c = *++pusLine;
-        if (c == ' ' || c == 0)
-        {
-            return true;
-        }
-        if (!IsNum(c))
-        {
-            return false;
-        }
-    } while (++p != token + sizeof(token));
     return false;
 }
 
@@ -899,7 +912,7 @@ static bool IsNextArgString(unsigned short* pusLine)
     {
         return false;
     }
-    return *pusLine != 0;
+    return *pusLine;
 }
 
 // FUNCTION: SWBF2 0x005aecf0
@@ -2298,13 +2311,12 @@ void __fastcall ParseAutoNetCommandLine(char* pCmdLine)
     if (pcOption)
     {
         char* pcValue = strchr(pcOption, ' ');
-        char cTerminator = ' ';
-
         while (*pcValue == ' ')
         {
             ++pcValue;
         }
 
+        char cTerminator = ' ';
         if (*pcValue == '"')
         {
             ++pcValue;
@@ -2460,7 +2472,7 @@ void FormatPlayerStatusLine(char* pcOut, int iNumber, const char* pcName, int iT
     _snprintf(pcOut, 512, "%d", iNumber);
     pcOut[strlen(pcOut)] = ' ';
     _snprintf(pcOut + 3, 17, "\"%s\"", pcName);
-    unsigned int uLength = strlen(pcOut + 3);
+    int uLength = (int)strlen(pcOut + 3);
     if (uLength >= 17)
     {
         pcOut[19] = '"';
@@ -2487,8 +2499,12 @@ void FormatPlayerStatusLine(char* pcOut, int iNumber, const char* pcName, int iT
 // FUNCTION: SWBF2 0x005b1f70
 void __fastcall FormatRefusedAdminLine(int iPlayer, unsigned short* pusLine)
 {
-    const char* pcPlayer = "admin";
-    if (iPlayer != 64)
+    const char* pcPlayer;
+    if (iPlayer == 64)
+    {
+        pcPlayer = "admin";
+    }
+    else
     {
         pcPlayer = NetGame::GetPlayerName(iPlayer);
         if (!pcPlayer)

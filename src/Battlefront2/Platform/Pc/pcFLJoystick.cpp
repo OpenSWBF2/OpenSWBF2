@@ -343,7 +343,7 @@ RawControllerInputs::RawControllerInputs()
     _redKeyboard = 0;
     for (int i = 0; i < 5; i++)
     {
-        *(double*)mMouseSensitivity[i] = 1.0;
+        mMouseSensitivity[i] = 1.0;
         mJoystickSensitivityX[i] = 4;
         mJoystickSensitivityY[i] = 4;
         mMouseAssist[i] = 1;
@@ -359,8 +359,8 @@ RawControllerInputs::RawControllerInputs()
     memset(m_KeyDownTime, 0, 0x90);
     mMouseOldXTimer = 0;
     mMouseOldYTimer = 0;
-    memset(mMouseOldX, 0, sizeof(mMouseOldX));
-    memset(mMouseOldY, 0, sizeof(mMouseOldY));
+    mMouseOldX = 0.0;
+    mMouseOldY = 0.0;
     mLastMouseDeltaX = 0;
     mLastMouseDeltaY = 0;
 }
@@ -657,8 +657,6 @@ unsigned char __cdecl ActionKeyToRawInput(unsigned short usActionKey)
 // FUNCTION: SWBF2 0x00414b80
 void RawControllerInputs::ReadLatest(float fDeltaTime)
 {
-    double& mMouseOldX = *(double*)this->mMouseOldX;
-    double& mMouseOldY = *(double*)this->mMouseOldY;
     int& iLastDX = mLastMouseDeltaX;
     int& iLastDY = mLastMouseDeltaY;
 
@@ -676,7 +674,7 @@ void RawControllerInputs::ReadLatest(float fDeltaTime)
             continue;
         }
 
-        const unsigned __int64 uiButtons = pJoystick->m_uiDownButtons;
+        const unsigned __int64 uiButtons = pJoystick->GetDownButtons();
         for (unsigned int i = 0; i < 48; i++)
         {
             if (uiButtons & ((unsigned __int64)1 << i))
@@ -689,17 +687,10 @@ void RawControllerInputs::ReadLatest(float fDeltaTime)
         float* pRaw = mRawInputFloat[iPort];
         for (int iAxis = 0; iAxis < 8; iAxis++)
         {
-            float fAxis = _redJoystick[iPort]->m_fAxis[iAxis];
+            float fAxis = _redJoystick[iPort]->GetAxis(iAxis);
             if (fabsf(fAxis) < 1.0f)
             {
-                if (fAxis < -1.0f)
-                {
-                    fAxis = -1.0f;
-                }
-                else if (fAxis > 1.0f)
-                {
-                    fAxis = 1.0f;
-                }
+                fAxis = Clamp(fAxis, -1.0f, 1.0f);
             }
             pRaw[48 + 2 * iAxis] = fAxis;
             pRaw[49 + 2 * iAxis] = -fAxis;
@@ -748,11 +739,11 @@ void RawControllerInputs::ReadLatest(float fDeltaTime)
         {
             dY = -dY;
         }
-        const double dSensitivity = *(double*)mMouseSensitivity[mMode] * (1.0 / 2048.0);
+        const double dSensitivity = mMouseSensitivity[mMode] * (1.0 / 2048.0);
         dX = dX / (double)fDeltaTime;
         dY = dY / (double)fDeltaTime;
 
-        if (mMouseAssist[mMode] && (mMode == 1 || mMode == 2 || mMode == 4) &&
+        if (GetMouseAssist() && (mMode == 1 || mMode == 2 || mMode == 4) &&
             GameState::GetState() == 0x8FF60339 && !PauseMenu::GetPaused(0))
         {
             const double dThreshold = (mMode == 2) ? 1.0 : 1000.0;
@@ -904,11 +895,7 @@ void RawControllerInputs::ReadLatest(float fDeltaTime)
 
     if (_redMouse)
     {
-        const int iMouseY = _redMouse->m_Y;
-        const int iMouseX = _redMouse->m_X;
-        MouseCoords& rCoords = m_pGuiInputs->mMouseCoords;
-        rCoords.mPosX = iMouseX;
-        rCoords.mPosY = iMouseY;
+        m_pGuiInputs->SetMousePos(_redMouse->m_X, _redMouse->m_Y);
     }
 
     if (bAnyInput)
@@ -973,26 +960,34 @@ void RawControllerInputs::StandardInputProcess()
                 bool bCancelAssist = false;
                 float fValue;
                 float fLastValue;
-                if (ucRaw < 64 && (iAction == ePROCESSEDINPUT_TURN_AXIS ||
-                                   iAction == ePROCESSEDINPUT_TURN_POS ||
-                                   iAction == ePROCESSEDINPUT_TURN_NEG))
+                if (ucRaw < 64)
                 {
-                    fValue = AdjustValueForSensitivity(mRawInputFloat[ucPort][iRaw], mJoystickSensitivityX[mMode]);
-                    fLastValue = AdjustValueForSensitivity(mLastRawInputFloat[ucPort][iRaw], mJoystickSensitivityX[mMode]);
-                    if (fValue < -0.4 || fValue > 0.4)
+                    if (iAction == ePROCESSEDINPUT_TURN_AXIS ||
+                        iAction == ePROCESSEDINPUT_TURN_POS ||
+                        iAction == ePROCESSEDINPUT_TURN_NEG)
                     {
-                        bCancelAssist = true;
+                        fValue = AdjustValueForSensitivity(mRawInputFloat[ucPort][iRaw], GetJoystickSensitivityX());
+                        fLastValue = AdjustValueForSensitivity(mLastRawInputFloat[ucPort][iRaw], GetJoystickSensitivityX());
+                        if (fValue < -0.4 || fValue > 0.4)
+                        {
+                            bCancelAssist = true;
+                        }
                     }
-                }
-                else if (ucRaw < 64 && (iAction == ePROCESSEDINPUT_PITCH_AXIS ||
-                                        iAction == ePROCESSEDINPUT_PITCH_POS ||
-                                        iAction == ePROCESSEDINPUT_PITCH_NEG))
-                {
-                    fValue = AdjustValueForSensitivity(mRawInputFloat[ucPort][iRaw], mJoystickSensitivityY[mMode]);
-                    fLastValue = AdjustValueForSensitivity(mLastRawInputFloat[ucPort][iRaw], mJoystickSensitivityY[mMode]);
-                    if (fValue < -0.4 || fValue > 0.4)
+                    else if (iAction == ePROCESSEDINPUT_PITCH_AXIS ||
+                             iAction == ePROCESSEDINPUT_PITCH_POS ||
+                             iAction == ePROCESSEDINPUT_PITCH_NEG)
                     {
-                        bCancelAssist = true;
+                        fValue = AdjustValueForSensitivity(mRawInputFloat[ucPort][iRaw], GetJoystickSensitivityY());
+                        fLastValue = AdjustValueForSensitivity(mLastRawInputFloat[ucPort][iRaw], GetJoystickSensitivityY());
+                        if (fValue < -0.4 || fValue > 0.4)
+                        {
+                            bCancelAssist = true;
+                        }
+                    }
+                    else
+                    {
+                        fValue = mRawInputFloat[ucPort][iRaw];
+                        fLastValue = mLastRawInputFloat[ucPort][iRaw];
                     }
                 }
                 else
@@ -1010,8 +1005,8 @@ void RawControllerInputs::StandardInputProcess()
                 if (bCancelAssist)
                 {
                     mMouseOldXTimer = 0.0f;
-                    *(double*)mMouseOldX = 0.0;
-                    *(double*)mMouseOldY = 0.0;
+                    mMouseOldX = 0.0;
+                    mMouseOldY = 0.0;
                     mMouseOldYTimer = 0.0f;
                 }
 
@@ -1028,7 +1023,7 @@ void RawControllerInputs::StandardInputProcess()
                 }
 
                 mProcessDestination->Set((ePROCESSEDINPUT_TYPE)iAction,
-                                         mLockedRawInputBool[ucPort][iRaw], fValue, fLastValue);
+                                         mLockedRawInputBool[ucPort][iRaw], fLastValue, fValue);
             }
             else if (_redKeyboard->IsKeyDown((unsigned char)mCurKeyboardBindings[mMode][iAction].mKey[j]))
             {
@@ -1037,11 +1032,11 @@ void RawControllerInputs::StandardInputProcess()
                     iAction == ePROCESSEDINPUT_PITCH_POS || iAction == ePROCESSEDINPUT_PITCH_NEG)
                 {
                     mMouseOldXTimer = 0.0f;
-                    *(double*)mMouseOldX = 0.0;
-                    *(double*)mMouseOldY = 0.0;
+                    mMouseOldX = 0.0;
+                    mMouseOldY = 0.0;
                     mMouseOldYTimer = 0.0f;
                 }
-                mProcessDestination->Set((ePROCESSEDINPUT_TYPE)iAction, bLocked, 1.0f, 0.0f);
+                mProcessDestination->Set((ePROCESSEDINPUT_TYPE)iAction, bLocked, 0.0f, 1.0f);
             }
         }
     }

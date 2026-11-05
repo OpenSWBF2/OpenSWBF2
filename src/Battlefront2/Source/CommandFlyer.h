@@ -52,7 +52,7 @@ public:
 
     virtual ~CommandFlyer();
 
-    static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }
+    static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
     // SYNTHETIC: SWBF2 0x00477be0
     // CommandFlyer::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }

@@ -63,7 +63,7 @@ public:
     static const char rttiNameWeaponMeleeClass[];
 
     Combo* m_pComboODF;
-    Combo* m_pCombo;
+    const Combo* m_pCombo;
     ExplosionClass* mImpactExplosion;
     unsigned int m_uiHitEffects[5];
     short m_uiNumHitEffects;
@@ -77,7 +77,7 @@ public:
     DamageDesc mDamage;
     unsigned int m_uiNumDamageEdges;
     DamageEdge* m_aDamageEdge;
-    RedModel* m_apWeaponModel[3];
+    const RedModel* m_apWeaponModel[3];
     unsigned int m_auiHardpoint[4];
     unsigned int m_uiNumWeapons;
 

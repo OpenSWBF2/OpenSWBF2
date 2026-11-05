@@ -251,8 +251,7 @@ bool HUD::ElementModel3D::SetProperty(const unsigned int uHashID, const void* co
         case kPositionHash:
         {
             PblMatrix& matrix = pMeshInfo->GetMatrix();
-            matrix[3] = *(const PblVector3*)pValue;
-            matrix.m[3][3] = 1.0f;
+            matrix.SetTranslation(*(const PblVector3*)pValue);
             SetModel(pElement->GetModel());
             if (pMeshInfo != &mDefault)
             {

@@ -36,7 +36,7 @@ const char EntityDefenseGridTurret::rttiNameEntityDefenseGridTurret[] = "EntityD
 // EntityDefenseGridTurret::sMemoryPool
 MemoryPool EntityDefenseGridTurret::sMemoryPool("EntityDefenseGridTurret", sizeof(EntityDefenseGridTurret));
 
-inline void* EntityDefenseGridTurret::operator new(unsigned int uSize)
+inline void* EntityDefenseGridTurret::operator new(size_t uSize)
 {
     return sMemoryPool.Allocate(uSize);
 }

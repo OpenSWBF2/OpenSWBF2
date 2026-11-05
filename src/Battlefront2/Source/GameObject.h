@@ -411,6 +411,8 @@ public:
 
     void SetOwningTeam(int iTeam) { mOwningTeam = iTeam; }
 
+    bool IsTargetable() const { return mIsTargetable; }
+
     // FUNCTION: SWBF2 0x0044c540
     void SetPerceivedTeam(int iTeam) { mPerceivedTeam = iTeam; }
 
@@ -437,7 +439,7 @@ public:
 
     PblList<Controllable> mControllableList;
     int mNetUniqueId;
-    void* mPrevFoliageObj;
+    const void* mPrevFoliageObj;
     GameSoundControllable mGameObjectAttachedSound;
     PblHandle<FLEffectObject> mDisabledEffectHandle;
 protected:

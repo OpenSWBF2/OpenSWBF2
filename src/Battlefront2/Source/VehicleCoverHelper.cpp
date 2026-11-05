@@ -392,30 +392,25 @@ const VehicleCoverHint* VehicleCoverHelper::SelectHint(int iCount, const BaseHin
 // FUNCTION: SWBF2 0x0066c8e0
 float VehicleCoverHelper::IsHintSuitable_Combat(const VehicleCoverHint* pHint) const
 {
-    PblVector3 vMe = GetMe()->GetMatrix().GetTranslation();
-    PblVector3 vTarget = GetAttackHelper(mOwner)->GetLastSeenTargetPos();
-    PblVector3 vMeToTarget(vTarget.x - vMe.x, 0.0f, vTarget.z - vMe.z);
-    PblVector3 vHint = pHint->GetCollisionCenter();
-    float fCosMax = PblMath::Cos(1.0471976f);
-    PblVector3 vTargetToHint(vHint.x - vTarget.x, vHint.y - vTarget.y, vHint.z - vTarget.z);
+    PblVector3 me = GetMe()->GetMatrix().GetTranslation();
+    PblVector3 enemy = GetAttackHelper(mOwner)->GetLastSeenTargetPos();
+    PblVector3 enemyDirXZ = enemy - me;
+    enemyDirXZ.y = 0.0f;
+    PblVector3 hint = pHint->GetCollisionCenter();
+    const float THRESHOLD = PblMath::Cos(1.0471976f);
+    PblVector3 hintFromEnemyDirXZ = hint - enemy;
 
-    if (vTargetToHint.x * vMeToTarget.x + vTargetToHint.y * vMeToTarget.y + vTargetToHint.z * vMeToTarget.z < 0.0f)
+    if (DotProduct(hintFromEnemyDirXZ, enemyDirXZ) < 0.0f)
     {
-        PblVector3 vHintToTarget(vTarget.x - vHint.x, vTarget.y - vHint.y, vTarget.z - vHint.z);
-        PblVector3 vDir = AIUtil::GetSafeNormalXZ(vHintToTarget);
-        const PblVector3& vZ = pHint->GetZAxis();
-        if (vZ.y * vDir.y + vZ.x * vDir.x + vZ.z * vDir.z > fCosMax)
+        PblVector3 enemyNormFromHintXZ = AIUtil::GetSafeNormalXZ(enemy - hint);
+        if (DotProduct(pHint->GetZAxis(), enemyNormFromHintXZ) > THRESHOLD)
         {
-            float fMaxDist = GetMaxHintDist();
-            float fDistSq = vTargetToHint.z * vTargetToHint.z + vTargetToHint.x * vTargetToHint.x;
-            if (fMaxDist * fMaxDist > fDistSq)
+            float maxDist = GetMaxHintDist();
+            float hintFromEnemyDirXZSq = SquaredLengthXZ(hintFromEnemyDirXZ);
+            if (maxDist * maxDist > hintFromEnemyDirXZSq && hintFromEnemyDirXZSq > 0.0f)
             {
-                if (fDistSq > 0.0f)
-                {
-                    float dx = vHint.x - vMe.x;
-                    float dz = vHint.z - vMe.z;
-                    return dz * dz * 2.25f + dx * dx * 2.25f + fDistSq;
-                }
+                float score = SquaredLengthXZ(hint - me) * 2.25f + hintFromEnemyDirXZSq;
+                return score;
             }
         }
     }

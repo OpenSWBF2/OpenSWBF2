@@ -368,13 +368,14 @@ namespace Lua_Callbacks
 void DoPeriodicLuaGC(bool bForce)
 {
     // GLOBAL: SWBF2 0x01faa690
-    static unsigned int uCount;
+    // CallCount
+    static int CallCount;
 
-    if (bForce || (uCount & 0x3f) == 0)
+    if (bForce || (CallCount & 0x3f) == 0)
     {
         lua_setgcthreshold(LuaHelper::mState, lua_getgccount(LuaHelper::mState));
     }
-    ++uCount;
+    ++CallCount;
 }
 
 // FUNCTION: SWBF2 0x0057dcc0
@@ -685,14 +686,14 @@ int ScriptCB_usprintf(lua_State*)
         }
 
         const char* pcKey = luaL_checklstring(LuaHelper::mState, 1, 0);
-        const unsigned short* apusArgs[7];
+        const unsigned short* apusArgs[8];
         for (int i = 2; i <= iTop; ++i)
         {
             if (!lua_isstring(LuaHelper::mState, i))
             {
                 return 0;
             }
-            apusArgs[i - 2] = LuaWideString::Check(LuaHelper::mState, i);
+            apusArgs[i - 1] = LuaWideString::Check(LuaHelper::mState, i);
         }
 
         const unsigned short* pusFormat = RedLocalizeDB::Find(pcKey ? (unsigned int)PblHash(pcKey) : 0, false);
@@ -707,30 +708,30 @@ int ScriptCB_usprintf(lua_State*)
         switch (LocalizedFormatArgsFit(pusFormat, iTop - 1) ? iTop : 0)
         {
         case 2:
-            iLen = PblUnicode::usnprintf(sTempReturnString16, 255, pusFormat, apusArgs[0]);
+            iLen = PblUnicode::usnprintf(sTempReturnString16, 255, pusFormat, apusArgs[1]);
             break;
         case 3:
-            iLen = PblUnicode::usnprintf(sTempReturnString16, 255, pusFormat, apusArgs[0], apusArgs[1]);
+            iLen = PblUnicode::usnprintf(sTempReturnString16, 255, pusFormat, apusArgs[1], apusArgs[2]);
             break;
         case 4:
-            iLen = PblUnicode::usnprintf(sTempReturnString16, 255, pusFormat, apusArgs[0], apusArgs[1],
-                                         apusArgs[2]);
+            iLen = PblUnicode::usnprintf(sTempReturnString16, 255, pusFormat, apusArgs[1], apusArgs[2],
+                                         apusArgs[3]);
             break;
         case 5:
-            iLen = PblUnicode::usnprintf(sTempReturnString16, 255, pusFormat, apusArgs[0], apusArgs[1],
-                                         apusArgs[2], apusArgs[3]);
+            iLen = PblUnicode::usnprintf(sTempReturnString16, 255, pusFormat, apusArgs[1], apusArgs[2],
+                                         apusArgs[3], apusArgs[4]);
             break;
         case 6:
-            iLen = PblUnicode::usnprintf(sTempReturnString16, 255, pusFormat, apusArgs[0], apusArgs[1],
-                                         apusArgs[2], apusArgs[3], apusArgs[4]);
+            iLen = PblUnicode::usnprintf(sTempReturnString16, 255, pusFormat, apusArgs[1], apusArgs[2],
+                                         apusArgs[3], apusArgs[4], apusArgs[5]);
             break;
         case 7:
-            iLen = PblUnicode::usnprintf(sTempReturnString16, 255, pusFormat, apusArgs[0], apusArgs[1],
-                                         apusArgs[2], apusArgs[3], apusArgs[4], apusArgs[5]);
+            iLen = PblUnicode::usnprintf(sTempReturnString16, 255, pusFormat, apusArgs[1], apusArgs[2],
+                                         apusArgs[3], apusArgs[4], apusArgs[5], apusArgs[6]);
             break;
         case 8:
-            iLen = PblUnicode::usnprintf(sTempReturnString16, 255, pusFormat, apusArgs[0], apusArgs[1],
-                                         apusArgs[2], apusArgs[3], apusArgs[4], apusArgs[5], apusArgs[6]);
+            iLen = PblUnicode::usnprintf(sTempReturnString16, 255, pusFormat, apusArgs[1], apusArgs[2],
+                                         apusArgs[3], apusArgs[4], apusArgs[5], apusArgs[6], apusArgs[7]);
             break;
         default:
             PblUnicode::ustrncpy(sTempReturnString16, pusFormat, 255);
@@ -1042,9 +1043,9 @@ int ScriptCB_ReadLeftstick(lua_State*)
     }
 
     RawControllerInputs* pJoystick = FLInputManager::Instance()->GetPlayerJoystick(iJoystick);
-    const float* pfRaw = (const float*)&pJoystick->mRawInputStorage[0x10 - 4];
-    lua_pushnumber(LuaHelper::mState, pfRaw[iJoystick * 76 + 49]);
-    lua_pushnumber(LuaHelper::mState, pfRaw[iJoystick * 76 + 51]);
+    const float* pfRaw = pJoystick->mRawInputFloat[0];
+    lua_pushnumber(LuaHelper::mState, pfRaw[iJoystick * 76 + 48]);
+    lua_pushnumber(LuaHelper::mState, pfRaw[iJoystick * 76 + 50]);
     return 2;
 }
 

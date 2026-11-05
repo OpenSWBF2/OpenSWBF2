@@ -98,7 +98,7 @@ PBL_ASAN_NO_SANITIZE void TagMergeIntoList(TagList* list, Tag* tag);
 PBL_ASAN_NO_SANITIZE void TagRemoveList(TagList* list, Tag* tag);
 
 // FUNCTION: SWBF2 0x006c3540
-void* __cdecl operator new(unsigned int size)
+void* __cdecl operator new(size_t size)
 {
     return RedAllocFromHeap(__RedCurrHeap, size, 0);
 }
@@ -113,7 +113,7 @@ void __cdecl operator delete(void* block)
 }
 
 // FUNCTION: SWBF2 0x006c3580
-void* __cdecl operator new[](unsigned int size)
+void* __cdecl operator new[](size_t size)
 {
     return RedAllocFromHeap(__RedCurrHeap, size, 0);
 }
@@ -520,7 +520,7 @@ unsigned int RedGetHeapSize(int heap)
 }
 
 // FUNCTION: SWBF2 0x006c3b40
-bool RedMoveHeapEnd(int iHeap, int iDelta)
+void RedMoveHeapEnd(int iHeap, int iDelta)
 {
     int iSource = iHeap;
     int iTarget = iHeap + 1;
@@ -544,5 +544,5 @@ bool RedMoveHeapEnd(int iHeap, int iDelta)
     heaps[iHeap + 1].size -= iDelta;
     TagRemoveList(&heaps[iTarget].used, pTag);
     TagAddList(&heaps[iSource].used, pTag);
-    return RedFreeToHeapInternal(iSource, pBlock, 0);
+    RedFreeToHeapInternal(iSource, pBlock, 0);
 }

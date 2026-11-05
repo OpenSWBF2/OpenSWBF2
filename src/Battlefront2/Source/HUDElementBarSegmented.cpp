@@ -209,10 +209,7 @@ float HUD::ElementBarSegmented::SetValue(const float fValue)
             const float fY = -(0.75f / RedRenderer::GetScreenAspectRatio() * fCosHeight) + fHalfHeight;
 
             matrix.SetRotateZ(fAngle);
-            matrix.m[3][0] = fX;
-            matrix.m[3][1] = fY;
-            matrix.m[3][2] = 0.0f;
-            matrix.m[3][3] = 1.0f;
+            matrix.SetTranslation(fX, fY, 0.0f, 1.0f);
 
             Segment& seg = mSegments[i];
             if (!seg.IsEnabled())
@@ -232,10 +229,7 @@ float HUD::ElementBarSegmented::SetValue(const float fValue)
 
         for (; fPos < fLit && i < mNumSegments; fPos += fStep, ++i)
         {
-            matrix.m[3][0] = fPos;
-            matrix.m[3][1] = 0.0f;
-            matrix.m[3][2] = 0.0f;
-            matrix.m[3][3] = 1.0f;
+            matrix.SetTranslation(fPos, 0.0f, 0.0f, 1.0f);
 
             Segment& seg = mSegments[i];
             if (!seg.IsEnabled())

@@ -1,10 +1,12 @@
 #pragma once
 
 #include "PebbleFL/Common/PblHashTable.h"
+#include "PebbleFL/Common/PblBitVector.h"
 
 #include <stddef.h>
 
 #include "GameSound.h"
+#include "CollisionMesh.h"
 #include "RedEngineFL/Graphics/RedPose.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 #include "Zephyr/Source/ZephyrPoseStatic.h"
@@ -190,8 +192,8 @@ public:
     float m_fCollisionTorsoScale;
     ZephyrSkeletonShared* mSpecialSkeleton;
 
-    char mUpperBodyAnimMask[4];
-    char mLowerBodyAnimMask[4];
+    PblBitVector<32> mUpperBodyAnimMask;
+    PblBitVector<32> mLowerBodyAnimMask;
     ZephyrSkeletonShared* mSpecialSkeletonLowRes;
     AnimatedAddon* mAddon;
     float mFootstepStride;
@@ -582,6 +584,7 @@ public:
 
     float GetClassMaxTurnSpeed() const;
     void SetAlert(bool bAlert);
+    bool IsAlert() const { return mAlertTimer > 0.0f; }
     int GetJoystickIndex();
 
     void TriggerBuffHealthEffect();
@@ -789,7 +792,7 @@ public:
     PblMatrix mSafeMatrix;
     CollisionState mCollisionState;
 
-    unsigned char mCollisionMeshCache[3][316];
+    CollisionMeshCache mCollisionMeshCache[3];
     float mBuffOffenseTimer;
     float mBuffOffenseMult;
     float mBuffDefenseTimer;

@@ -75,6 +75,24 @@ inline void PblMatrix::Reset()
     D3DXMatrixIdentity(reinterpret_cast<D3DXMATRIX*>(this));
 }
 
+inline void PblMatrix::SetXAxis(const PblVector3& vAxis)
+{
+    *reinterpret_cast<PblVector3*>(m[0]) = vAxis;
+    m[0][3] = 0.0f;
+}
+
+inline void PblMatrix::SetYAxis(const PblVector3& vAxis)
+{
+    *reinterpret_cast<PblVector3*>(m[1]) = vAxis;
+    m[1][3] = 0.0f;
+}
+
+inline void PblMatrix::SetZAxis(const PblVector3& vAxis)
+{
+    *reinterpret_cast<PblVector3*>(m[2]) = vAxis;
+    m[2][3] = 0.0f;
+}
+
 inline void PblMatrix::SetXAxis(float fX, float fY, float fZ, float fW)
 {
     m[0][0] = fX;
@@ -120,6 +138,19 @@ inline const PblVector3 PblMatrix::ApplyTransform(const PblVector3& vector) cons
     PblVector3 result;
     D3DXVec3TransformCoord(&result, &vector, reinterpret_cast<const D3DXMATRIX*>(this));
     return result;
+}
+
+inline void PblMatrix::SetRotateArbitraryAxis(float fAngle, const PblVector3& vAxis)
+{
+    D3DXMatrixRotationAxis(reinterpret_cast<D3DXMATRIX*>(this),
+                           reinterpret_cast<const D3DXVECTOR3*>(&vAxis), fAngle);
+}
+
+inline void PblMatrix::Translate(float fX, float fY, float fZ)
+{
+    m[3][0] += fX;
+    m[3][1] += fY;
+    m[3][2] += fZ;
 }
 
 inline void PblMatrix::SetRotateX(float fAngle)

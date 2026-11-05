@@ -19,6 +19,7 @@ public:
     static void StartSockets();
 
     static void OpenBroadcastSockets();
+    static void CloseBroadcastSockets();
     static int OpenDirectSocket(bool bHost);
 
     static void CloseDirectSocket();

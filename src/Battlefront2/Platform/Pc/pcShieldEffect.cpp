@@ -16,29 +16,13 @@
 
 struct ShieldVertexC
 {
-    short pos[4];
-    unsigned char n[4];
-    short uv[2];
+    CompressedPos pos;
+    CompressedNormal n;
+    CompressedTexCoord uv;
 
-    void SetPos(const PblVector3& v)
-    {
-        pos[0] = (short)(int)((v.x - CompressedPos::s_vMin.x) * CompressedPos::s_vScaleInv.x - 32767.5f);
-        pos[1] = (short)(int)((v.y - CompressedPos::s_vMin.y) * CompressedPos::s_vScaleInv.y - 32767.5f);
-        pos[2] = (short)(int)((v.z - CompressedPos::s_vMin.z) * CompressedPos::s_vScaleInv.z - 32767.5f);
-    }
-
-    void SetNormal(const PblVector3& v)
-    {
-        n[2] = (unsigned char)(int)((v.x + 1.0f) * 127.5f);
-        n[1] = (unsigned char)(int)((v.y + 1.0f) * 127.5f);
-        n[0] = (unsigned char)(int)((v.z + 1.0f) * 127.5f);
-    }
-
-    void SetUV(float u, float v)
-    {
-        uv[0] = (short)(int)(u * 2048.0f);
-        uv[1] = (short)(int)(v * 2048.0f);
-    }
+    void SetPos(const PblVector3& v) { pos.SetPos(v); }
+    void SetNormal(const PblVector3& v) { n.SetNormal(v); }
+    void SetUV(float u, float v) { uv.SetUV(u, v); }
 };
 
 struct ShieldVertexU
@@ -105,25 +89,20 @@ void ShieldEffect::PlatformRender(const PblMatrix& mMatrix, unsigned char ucView
     if (!RedRenderer::pcGetRenderCaps().pipeline && !m_pClass->m_type)
     {
         PblMatrix mBillboard = RedRenderer::GetCamera()->GetMatrix();
-        const PblVector3& vX = mMatrix.GetXAxis();
-        const float fScale = PblMath::Sqrt(vX.x * vX.x + vX.y * vX.y + vX.z * vX.z);
+        const float fScale = Length(mMatrix.GetXAxis());
         mBillboard.Scale(fScale);
         mBillboard.SetTranslation(mMatrix.GetTranslation());
 
         const PblVector3& vCamera = RedRenderer::GetCamera()->GetMatrix().GetTranslation();
-        const float fX = vCamera.x - mMatrix.m[3][0];
-        const float fY = vCamera.y - mMatrix.m[3][1];
-        const float fZ = vCamera.z - mMatrix.m[3][2];
+        const PblVector3 vDiff = vCamera - mMatrix.GetTranslation();
         const float fRadius = m_pClass->m_fRadius;
-        if (fRadius * fRadius > fY * fY + fX * fX + fZ * fZ)
+        if (fRadius * fRadius > SquaredLength(vDiff))
         {
-            m_pShader->m_fViewAngleFactor = 0.2f;
-            m_pShader->m_fVertexMinDistSqr = 0.0f;
+            m_pShader->SetViewAngleFactor(0.2f, 0.0f);
         }
         else
         {
-            m_pShader->m_fViewAngleFactor = 0.0f;
-            m_pShader->m_fVertexMinDistSqr = 0.0f;
+            m_pShader->SetViewAngleFactor(0.0f, 0.0f);
         }
         RedRenderer::pcRenderPrimitive(m_pClass->m_pPrim, m_pShader,
                                        mBillboard, RedColor::WHITE,
@@ -134,8 +113,7 @@ void ShieldEffect::PlatformRender(const PblMatrix& mMatrix, unsigned char ucView
     const float fZoom = RedRenderer::GetCamera()->GetZoom();
     const float fFadeStart = FLRenderer::GetNearSceneFadeStart() * fZoom;
     const float fFadeEnd = FLRenderer::GetNearSceneFadeEnd() * fZoom;
-    pcShieldShader::s_fFadeStart = fFadeStart;
-    pcShieldShader::s_fFadeEnd = fFadeEnd;
+    pcShieldShader::SetNearSceneFade(fFadeStart, fFadeEnd);
     float fOffsetU = m_pClass->m_fScrollRate * m_fScrollTimer;
     fOffsetU -= (float)(int)fOffsetU;
     float fOffsetV;
@@ -146,24 +124,19 @@ void ShieldEffect::PlatformRender(const PblMatrix& mMatrix, unsigned char ucView
     else
     {
         const PblVector3& vCamera = RedRenderer::GetCamera()->GetMatrix().GetTranslation();
-        const float fX = vCamera.x - mMatrix.m[3][0];
-        const float fY = vCamera.y - mMatrix.m[3][1];
-        const float fZ = vCamera.z - mMatrix.m[3][2];
+        const PblVector3 vDiff = vCamera - mMatrix.GetTranslation();
         const float fRadius = m_pClass->m_fRadius;
         fOffsetV = 0.0f;
-        if (fRadius * fRadius > fY * fY + fX * fX + fZ * fZ)
+        if (fRadius * fRadius > SquaredLength(vDiff))
         {
-            m_pShader->m_fViewAngleFactor = 0.2f;
-            m_pShader->m_fVertexMinDistSqr = 0.0f;
+            m_pShader->SetViewAngleFactor(0.2f, 0.0f);
         }
         else
         {
-            m_pShader->m_fViewAngleFactor = m_pClass->m_fViewAngleFactor;
-            m_pShader->m_fVertexMinDistSqr = 0.0f;
+            m_pShader->SetViewAngleFactor(m_pClass->m_fViewAngleFactor, 0.0f);
         }
     }
-    m_pShader->m_fOffsetU = fOffsetU;
-    m_pShader->m_fOffsetV = fOffsetV;
+    m_pShader->SetTexOffset(fOffsetU, fOffsetV);
     RedRenderer::pcRenderPrimitive(m_pClass->m_pPrim, m_pShader,
                                    mMatrix, RedColor::WHITE,
                                    uiFlags, 0, 0, 0);
@@ -179,7 +152,7 @@ void ShieldEffectClass::PlatformInit()
     {
         float afSin[33];
         float afCos[33];
-        for (int i = 0; i < 33; ++i)
+        for (unsigned short i = 0; i < 33; ++i)
         {
             PblMath::SinCos(&afSin[i], &afCos[i], (float)i * fAngleStep);
         }
@@ -213,7 +186,7 @@ void ShieldEffectClass::PlatformInit()
             color.b = 255;
             color.g = 255;
             color.r = 255;
-            for (int j = 0; j < 13; ++j)
+            for (unsigned short j = 0; j < 13; ++j)
             {
                 float fPhi = (float)j * (PblMath::fPi / 12.0f);
                 float fSin = PblMath::Sin(fPhi);
@@ -226,7 +199,7 @@ void ShieldEffectClass::PlatformInit()
                 float fNormalHeight = m_fRadius * fCos * fInvLen;
                 float fFade = 1.0f - fCos * fCos;
                 color.a = (unsigned char)(int)(fFade * fFade * fFade * 255.0f);
-                for (int i = 0; i < 33; ++i)
+                for (unsigned short i = 0; i < 33; ++i)
                 {
                     pVertex->SetPos(PblVector3(afCos[i] * fRingRadius, afSin[i] * fRingRadius, fRingHeight));
                     pVertex->SetNormal(PblVector3(afCos[i] * fNormalRadius, afSin[i] * fNormalRadius, fNormalHeight));
@@ -250,7 +223,7 @@ void ShieldEffectClass::PlatformInit()
             if (RedRenderer::pcGetGeometryMode())
             {
                 ShieldVertexC* pVertex = (ShieldVertexC*)pVertices;
-                for (int j = 0; j < 13; ++j)
+                for (unsigned short j = 0; j < 13; ++j)
                 {
                     float fPhi = (float)j * (PblMath::fPi / 12.0f);
                     float fSin = PblMath::Sin(fPhi);
@@ -261,7 +234,7 @@ void ShieldEffectClass::PlatformInit()
                                                  m_fRadius * m_fRadius * fCos * fCos);
                     float fNormalRadius = m_fHeight * fSin * fInvLen;
                     float fNormalHeight = m_fRadius * fCos * fInvLen;
-                    for (int i = 0; i < 33; ++i)
+                    for (unsigned short i = 0; i < 33; ++i)
                     {
                         pVertex->SetPos(PblVector3(afCos[i] * fRingRadius, fRingHeight, afSin[i] * fRingRadius));
                         pVertex->SetNormal(PblVector3(afCos[i] * fNormalRadius, fNormalHeight, afSin[i] * fNormalRadius));
@@ -273,7 +246,7 @@ void ShieldEffectClass::PlatformInit()
             else
             {
                 ShieldVertexU* pVertex = (ShieldVertexU*)pVertices;
-                for (int j = 0; j < 13; ++j)
+                for (unsigned short j = 0; j < 13; ++j)
                 {
                     float fPhi = (float)j * (PblMath::fPi / 12.0f);
                     float fSin = PblMath::Sin(fPhi);
@@ -284,7 +257,7 @@ void ShieldEffectClass::PlatformInit()
                                                  m_fRadius * m_fRadius * fCos * fCos);
                     float fNormalRadius = m_fHeight * fSin * fInvLen;
                     float fNormalHeight = m_fRadius * fCos * fInvLen;
-                    for (int i = 0; i < 33; ++i)
+                    for (unsigned short i = 0; i < 33; ++i)
                     {
                         pVertex->SetPos(PblVector3(afCos[i] * fRingRadius, fRingHeight, afSin[i] * fRingRadius));
                         pVertex->SetNormal(PblVector3(afCos[i] * fNormalRadius, fNormalHeight, afSin[i] * fNormalRadius));
@@ -330,7 +303,7 @@ void ShieldEffectClass::PlatformInit()
         float afSin[33];
         float afCos[33];
         float afWave[33];
-        for (int i = 0; i < 33; ++i)
+        for (unsigned short i = 0; i < 33; ++i)
         {
             float fAngle = (float)i * fAngleStep;
             PblMath::SinCos(&afSin[i], &afCos[i], fAngle);
@@ -377,7 +350,7 @@ void ShieldEffectClass::PlatformInit()
                 float fNormalHeight = fSin * m_fRadius * fInvLen;
                 float fWaveScale = j < 15 ? 0.08f : 0.0f;
                 float fV = (float)(iRing + 3) / 15.0f;
-                for (int i = 0; i < 33; ++i)
+                for (unsigned short i = 0; i < 33; ++i)
                 {
                     pVertex->SetPos(PblVector3(afCos[i] * fRingRadius, fRingHeight, afSin[i] * fRingRadius));
                     pVertex->SetNormal(PblVector3(afCos[i] * fNormalRadius, fNormalHeight, afSin[i] * fNormalRadius));
@@ -403,7 +376,7 @@ void ShieldEffectClass::PlatformInit()
                 float fNormalHeight = fSin * m_fRadius * fInvLen;
                 float fWaveScale = j < 15 ? 0.08f : 0.0f;
                 float fV = (float)(iRing + 3) / 15.0f;
-                for (int i = 0; i < 33; ++i)
+                for (unsigned short i = 0; i < 33; ++i)
                 {
                     pVertex->SetPos(PblVector3(fRingRadius * afCos[i], fRingHeight, fRingRadius * afSin[i]));
                     pVertex->SetNormal(PblVector3(fNormalRadius * afCos[i], fNormalHeight, fNormalRadius * afSin[i]));

@@ -6,6 +6,7 @@
 #include "RedEngineFL/Graphics/RedCamera.h"
 #include "PebbleFL/Common/PblConfig.h"
 #include "PebbleFL/Common/PblHashTable.h"
+#include "PebbleFL/Common/PblListDelete.h"
 #include "PebbleFL/Common/PblRandom.h"
 
 #include <math.h>
@@ -349,7 +350,7 @@ void PrecipitationEffect::Cleanup()
     PlatformCleanup();
     delete[] m_pData;
     m_pData = 0;
-    m_RainShadows.RemoveAll();
+    m_RainShadows.Clear();
 }
 
 RedColor ReadColor(const PblConfig::Data& data);
@@ -686,7 +687,7 @@ void PrecipitationEffect::Destroy()
 // FUNCTION: SWBF2 0x006938d0
 PrecipitationEffect::~PrecipitationEffect()
 {
-    m_RainShadows.Clear();
+    PblListRemoveAndDelete(m_RainShadows);
     Cleanup();
 }
 

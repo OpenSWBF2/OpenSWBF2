@@ -19,7 +19,7 @@ void FirstPerson::LoadLVLFile(char const* pName)
     _snprintf(acPath, sizeof(acPath) - 1, "%s%s.lvl", "FPM\\", acName);
     acPath[sizeof(acPath) - 1] = 0;
 
-    LoadUtil::ReadDataFile(acPath, 0, 0, 0, 0);
+    LoadUtil::ReadDataFile(acPath, 0, 0, 0, 0, 0);
 }
 
 // FUNCTION: SWBF2 0x00411da0

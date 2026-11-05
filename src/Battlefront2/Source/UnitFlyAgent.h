@@ -37,7 +37,7 @@ protected:
     bool IsNearATAT();
 
 public:
-    BaseHint* mHint;
+    const BaseHint* mHint;
     float mNextHintCheckTime;
     bool mGotoNonOwnedCP;
     float mWaitTime;

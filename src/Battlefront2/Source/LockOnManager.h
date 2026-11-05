@@ -15,8 +15,8 @@ class LockOnManager
 {
 public:
 
-    void CalculateScreenCoordinates(Controllable* const pCtrl, RedCamera* const pCamera, const PblVector3* pPos,
-                                    float* pScreenX, float* pScreenY, bool* pOffScreen, bool bAimRay);
+    void CalculateScreenCoordinates(Controllable* const pCtrl, RedCamera* const pCamera, const PblVector3& pPos,
+                                    float& pScreenX, float& pScreenY, bool& pOffScreen, bool bAimRay) const;
     class TargetInfo;
 
     struct Target
@@ -99,10 +99,18 @@ public:
         void SetLocked(bool bLocked) { mLocked = bLocked; }
         void SetHint(bool bHint) { mHintTarget = bHint; }
         void SetAttacker(bool bAttacker) { mAttacker = bAttacker; }
+        void SetVisible(const bool bVisible)
+        {
+            mVisible = bVisible;
+            mVisibilityChecked = true;
+            mPositionValid = true;
+        }
         void SetOnScreen(bool bOnScreen) { mOnScreen = bOnScreen; }
         void SetFriendly(bool bFriendly) { mFriendly = bFriendly; }
         void SetFlagCarrier(bool bFlagCarrier) { mFlagCarrier = bFlagCarrier; }
         void ClearPositionValid() { mPositionValid = false; }
+        void SetPosition(const PblVector3 vPosition) { mPosition = vPosition; }
+        bool GetVisibilityChecked() const { return mVisibilityChecked; }
         bool GetOnScreen() const { return mOnScreen; }
         bool GetVisible() const { return mVisible; }
         bool GetFlagCarrier() const { return mFlagCarrier; }
@@ -187,7 +195,7 @@ public:
     static void ClearVisibilityChecked(TargetInfo* const pInfo, unsigned int uCount);
     static void ClearPositionValid(TargetInfo* const pInfo, unsigned int uCount);
 
-    static void AddTargetCommon(GameObject* pActor, unsigned int uTeamMask);
+    static Target* AddTargetCommon(GameObject* pActor, unsigned int uTeamMask);
 
     static void RemoveTargetCommon(GameObject* const pActor, unsigned int uTeamMask);
 protected:

@@ -48,7 +48,7 @@ I3DL2ReverbPreset* __cdecl I3DL2ReverbPreset::Find(unsigned int uiHashID)
 // FUNCTION: SWBF2 0x00744fb0
 void I3DL2ReverbPreset::Read(PblFileChunk& chunk)
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         const unsigned int uiID = child._pFile->Read32();
@@ -67,7 +67,7 @@ void I3DL2ReverbPreset::Read(PblFileChunk& chunk)
 // FUNCTION: SWBF2 0x00744eb0
 void __cdecl I3DL2ReverbPreset::Load(PblFileChunk& chunk, bool bOnce)
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId != 0x41544144u)

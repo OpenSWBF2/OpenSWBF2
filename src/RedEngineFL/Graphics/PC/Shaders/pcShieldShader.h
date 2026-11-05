@@ -34,6 +34,24 @@ public:
 
     void SetSpecularPower(float fPower);
 
+    void SetTexOffset(float fOffsetU, float fOffsetV)
+    {
+        m_fOffsetU = fOffsetU;
+        m_fOffsetV = fOffsetV;
+    }
+
+    void SetViewAngleFactor(float fFactor, float fMinDistSqr)
+    {
+        m_fViewAngleFactor = fFactor;
+        m_fVertexMinDistSqr = fMinDistSqr;
+    }
+
+    static void SetNearSceneFade(float fFadeStart, float fFadeEnd)
+    {
+        s_fFadeStart = fFadeStart;
+        s_fFadeEnd = fFadeEnd;
+    }
+
 private:
 
     static PblMatrix _GetNearSceneFadeTextureTransform();

@@ -80,7 +80,7 @@ public:
     virtual unsigned int GetDerivedRtti() const;
     virtual const char* GetDerivedRttiName() const;
 
-    static void* operator new(unsigned int uSize);
+    static void* operator new(size_t uSize);
     static void operator delete(void* pBlock);
 
     virtual void Init();
@@ -168,11 +168,7 @@ public:
     // FUNCTION: SWBF2 0x00477a70
     float GetEjectTimer() const
     {
-        if (mProcedurallyAnimated)
-        {
-            return 0.0f;
-        }
-        return mAIEng.ai.mEjectTimer;
+        return mProcedurallyAnimated ? 0.0f : mAIEng.ai.mEjectTimer;
     }
 
     // FUNCTION: SWBF2 0x00477aa0
@@ -511,7 +507,7 @@ public:
     virtual void Kill();
     virtual bool Update(float fDeltaTime);
 
-    static void* operator new(unsigned int uSize);
+    static void* operator new(size_t uSize);
     // FUNCTION: SWBF2 0x00496e90
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 

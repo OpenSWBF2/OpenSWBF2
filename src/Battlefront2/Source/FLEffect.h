@@ -123,6 +123,8 @@ public:
     virtual void DeactivateEffect();
     virtual void StopAndFinish();
     void DetachFromTarget();
+    template <class EFFECT>
+    friend void DetachEffectFromTarget(EFFECT& rEffect);
 protected:
     virtual bool Update(float fDeltaTime);
     virtual void UpdatedWorldMatrix();

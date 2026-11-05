@@ -6,6 +6,7 @@
 #include "Particle.h"
 #include "ParticleSystem.h"
 #include "Battlefront2Lod.h"
+#include "PebbleFL/Common/PblMath.h"
 
 #include <math.h>
 
@@ -38,16 +39,6 @@ bool IsLodActive(int iLod);
 // ParticleEmitterObject::sMemoryPool
 MemoryPool ParticleEmitterObject::sMemoryPool("ParticleEmitterObject", sizeof(ParticleEmitterObject));
 
-// FUNCTION: SWBF2 0x0060b910
-ParticleEmitterInfoData* ParticleEmitterInfoData::Create()
-{
-    if (sMemoryPool.mUsed >= sMemoryPool.mCount)
-    {
-        return 0;
-    }
-    return new ParticleEmitterInfoData;
-}
-
 // SYNTHETIC: SWBF2 0x0060b960
 // ParticleEmitterInfoData::`scalar deleting destructor'
 
@@ -71,9 +62,7 @@ ParticleEmitterObject::ParticleEmitterObject(const ParticleEmitterClass* pClass)
     : RedSceneObject(pClass->mLodData)
 {
     mLifeTime = 0.0f;
-    mEmitter = ParticleEmitter::sMemoryPool.mUsed >= ParticleEmitter::sMemoryPool.mCount
-                   ? 0
-                   : new ParticleEmitter(pClass);
+    mEmitter = ParticleEmitter::Create(pClass);
     mEmitterInfoData = 0;
     ActivateThread(0, PER_FRAME);
     mRegisterTime = 0.0f;
@@ -164,9 +153,7 @@ void ParticleEmitterObject::RegisterStep(float fDeltaTime)
 {
     if (!mEmitterInfoData)
     {
-        mEmitterInfoData = ParticleEmitterInfoData::sMemoryPool.mUsed >= ParticleEmitterInfoData::sMemoryPool.mCount
-                               ? 0
-                               : new ParticleEmitterInfoData;
+        mEmitterInfoData = ParticleEmitterInfoData::Create();
         if (!mEmitterInfoData)
         {
             return;
@@ -189,19 +176,16 @@ void ParticleEmitterObject::RegisterStep(float fDeltaTime)
         return;
     }
 
-    const PblMatrix mWorld = m_mWorldMatrix;
+    PblMatrix mWorld = m_mWorldMatrix;
     ParticleEmitterInfoData* pPrev = mEmitterInfoData->mPrev;
     const PblVector3& vPos = mWorld.GetTranslation();
     const PblVector3& vLast = mEmitterInfoData->mMatrix.GetTranslation();
-    const float fTime = mLifeTime - mEmitterInfoData->mStartTime;
-    const float fDX = vPos.x - vLast.x;
-    const float fDY = vPos.y - vLast.y;
-    const float fDZ = vPos.z - vLast.z;
+    float fTime = mLifeTime - mEmitterInfoData->mStartTime;
+    PblVector3 vDir = vPos - vLast;
     PblVector3 vVelocity;
     if (fTime > 0.0f)
     {
-        const float fInv = 1.0f / fTime;
-        vVelocity = PblVector3(fDX * fInv, fDY * fInv, fDZ * fInv);
+        vVelocity = vDir * (1.0f / fTime);
     }
     else
     {
@@ -222,11 +206,8 @@ void ParticleEmitterObject::RegisterStep(float fDeltaTime)
             bRegister = sForceRegisterStep || !pPrev;
             if (!bRegister)
             {
-                const float fVX = vVelocity.x - pPrev->mInitialVelocity.x;
-                const float fVY = vVelocity.y - pPrev->mInitialVelocity.y;
-                const float fVZ = vVelocity.z - pPrev->mInitialVelocity.z;
-                bRegister = fVY * fVY + fVX * fVX + fVZ * fVZ > 0.5f ||
-                            (fTime == 0.0f && (fDX != 0.0f || fDY != 0.0f || fDZ != 0.0f));
+                bRegister = SquaredLength(vVelocity - pPrev->mInitialVelocity) > 0.5f ||
+                            (fTime == 0.0f && (vDir.x != 0.0f || vDir.y != 0.0f || vDir.z != 0.0f));
             }
         }
     }
@@ -235,14 +216,7 @@ void ParticleEmitterObject::RegisterStep(float fDeltaTime)
     {
         pNew->mMatrix = mWorld;
         pNew->mLifeTime = 0.0f;
-        ParticleEmitterInfoData* pCur = mEmitterInfoData;
-        if (pCur->mNext)
-        {
-            pCur->mNext->mPrev = pNew;
-        }
-        pNew->mNext = pCur->mNext;
-        pNew->mPrev = pCur;
-        pCur->mNext = pNew;
+        mEmitterInfoData->LinkNext(pNew);
         mEmitterInfoData->mInitialVelocity = vVelocity;
         mEmitterInfoData->mVelocity = mEmitterInfoData->mInitialVelocity;
         mEmitterInfoData->mLifeTime = fTime;
@@ -256,9 +230,7 @@ void ParticleEmitterObject::RegisterStep(float fDeltaTime)
         mEmitterInfoData->mStartTime = mLifeTime;
         const PblVector3& vNow = mEmitterInfoData->mMatrix.GetTranslation();
         const PblVector3& vThen = pPrev->mMatrix.GetTranslation();
-        const float fInv = 1.0f / (pPrev->mLifeTime + EPSILON);
-        pPrev->mVelocity = PblVector3((vNow.x - vThen.x) * fInv, (vNow.y - vThen.y) * fInv,
-                                      (vNow.z - vThen.z) * fInv);
+        pPrev->mVelocity = (vNow - vThen) / (pPrev->mLifeTime + EPSILON);
     }
     if (pNew)
     {
@@ -305,8 +277,7 @@ bool ParticleEmitterObject::Update(float fDeltaTime)
             mMidSize.y = (float)fabs((double)(mMidPos.y - vMin.y));
             mMidSize.z = (float)fabs((double)(mMidPos.z - vMin.z));
             SetRenderPos(mMidPos);
-            float fRadius = mMidSize.x > mMidSize.y ? mMidSize.x : mMidSize.y;
-            fRadius = fRadius > mMidSize.z ? fRadius : mMidSize.z;
+            float fRadius = Max(Max(mMidSize.x, mMidSize.y), mMidSize.z);
             SetRenderRadius(mEmitterBoundingRadius + fRadius);
         }
     }
@@ -341,9 +312,7 @@ void ParticleEmitterObject::Reset(const ParticleEmitterClass* pClass, unsigned i
     }
     else
     {
-        mEmitter = ParticleEmitter::sMemoryPool.mUsed >= ParticleEmitter::sMemoryPool.mCount
-                       ? 0
-                       : new ParticleEmitter(pClass);
+        mEmitter = ParticleEmitter::Create(pClass);
     }
     mEmitterInfoData = 0;
     mRegisterTime = 0.0f;
@@ -400,7 +369,7 @@ void ParticleEmitterObject::Render_(unsigned char ucViewport, float fDist, unsig
         }
     }
 
-    for (ParticleEmitter* pEmitter = mEmitter; pEmitter; pEmitter = pEmitter->mNext)
+    for (ParticleEmitter* pEmitter = mEmitter; pEmitter; pEmitter = pEmitter->GetNext())
     {
         pEmitter->Render(mLifeTime);
     }

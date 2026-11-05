@@ -197,11 +197,11 @@ enum ListenerType
     GAME_JOIN_REQUESTED = 20,
     FRIEND_LIST_RETRIEVE = 23
 };
-
 // VTABLE: SWBF2 0x0079f6cc
 class IGalaxyListener
 {
 public:
+    // FUNCTION: SWBF2 0x0052f4d0
     virtual ~IGalaxyListener() {}
 };
 

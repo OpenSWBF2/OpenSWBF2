@@ -36,6 +36,17 @@ class Trigger;
 
 struct WeaponDesc
 {
+    WeaponDesc()
+        : mOwner(0)
+        , mAimer(0)
+        , mTrigger(0)
+        , mReload(0)
+        , mNumClips(0)
+        , m_pAmmoCounter(0)
+        , m_pEnergyBar(0)
+    {
+    }
+
     Controllable* mOwner;
     Aimer* mAimer;
     Trigger* mTrigger;
@@ -115,13 +126,13 @@ public:
     int mSoldierAnimationWeapon;
     PblVector3 mFirePointOffset;
     char mFilename[32];
-    unsigned short* mLabel;
+    const unsigned short* mLabel;
     unsigned int mNameHash;
     unsigned int mHUDNameHash;
     float mStrengthLimit;
     WeaponClass* mNextCharge;
-    RedModel* mModel;
-    RedModel* mHighResModel;
+    const RedModel* mModel;
+    const RedModel* mHighResModel;
     unsigned int mIconTexture;
     unsigned int mReticuleTexture;
     unsigned int mScopeTexture;
@@ -203,7 +214,7 @@ public:
     float mAIBubbleSizeMultiplier;
     float mAIBubbleScaleDistDivider;
     float mAIBubbleScaleClamp;
-    RedModel* mMuzzleFlashModel;
+    const RedModel* mMuzzleFlashModel;
     FLEffectClass* mMuzzleFlashEffect;
     float mFlashRadius;
     float mFlashWidth;

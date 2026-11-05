@@ -232,20 +232,18 @@ void RedDebug::RedDebugRenderable::Cleanup()
 // FUNCTION: SWBF2 0x006f0a70
 void RedDebug::DrawAABB(const PblBox& box, RedColor color)
 {
-    const PblVector3& vMin = box._vMin;
-    const PblVector3& vMax = box._vMax;
-    DrawLine3D(PblVector3(vMin.x, vMin.y, vMin.z), PblVector3(vMin.x, vMin.y, vMax.z), color);
-    DrawLine3D(PblVector3(vMin.x, vMin.y, vMin.z), PblVector3(vMin.x, vMax.y, vMin.z), color);
-    DrawLine3D(PblVector3(vMin.x, vMin.y, vMin.z), PblVector3(vMax.x, vMin.y, vMin.z), color);
-    DrawLine3D(PblVector3(vMin.x, vMax.y, vMax.z), PblVector3(vMin.x, vMin.y, vMax.z), color);
-    DrawLine3D(PblVector3(vMin.x, vMax.y, vMax.z), PblVector3(vMin.x, vMax.y, vMin.z), color);
-    DrawLine3D(PblVector3(vMin.x, vMax.y, vMax.z), PblVector3(vMax.x, vMax.y, vMax.z), color);
-    DrawLine3D(PblVector3(vMax.x, vMin.y, vMax.z), PblVector3(vMin.x, vMin.y, vMax.z), color);
-    DrawLine3D(PblVector3(vMax.x, vMin.y, vMax.z), PblVector3(vMax.x, vMin.y, vMin.z), color);
-    DrawLine3D(PblVector3(vMax.x, vMin.y, vMax.z), PblVector3(vMax.x, vMax.y, vMax.z), color);
-    DrawLine3D(PblVector3(vMax.x, vMax.y, vMin.z), PblVector3(vMin.x, vMax.y, vMin.z), color);
-    DrawLine3D(PblVector3(vMax.x, vMax.y, vMin.z), PblVector3(vMax.x, vMin.y, vMin.z), color);
-    DrawLine3D(PblVector3(vMax.x, vMax.y, vMin.z), PblVector3(vMax.x, vMax.y, vMax.z), color);
+    DrawLine3D(box.GetBoxCorner(0), box.GetBoxCorner(1), color);
+    DrawLine3D(box.GetBoxCorner(0), box.GetBoxCorner(2), color);
+    DrawLine3D(box.GetBoxCorner(0), box.GetBoxCorner(4), color);
+    DrawLine3D(box.GetBoxCorner(3), box.GetBoxCorner(1), color);
+    DrawLine3D(box.GetBoxCorner(3), box.GetBoxCorner(2), color);
+    DrawLine3D(box.GetBoxCorner(3), box.GetBoxCorner(7), color);
+    DrawLine3D(box.GetBoxCorner(5), box.GetBoxCorner(1), color);
+    DrawLine3D(box.GetBoxCorner(5), box.GetBoxCorner(4), color);
+    DrawLine3D(box.GetBoxCorner(5), box.GetBoxCorner(7), color);
+    DrawLine3D(box.GetBoxCorner(6), box.GetBoxCorner(2), color);
+    DrawLine3D(box.GetBoxCorner(6), box.GetBoxCorner(4), color);
+    DrawLine3D(box.GetBoxCorner(6), box.GetBoxCorner(7), color);
 }
 
 // FUNCTION: SWBF2 0x006f0ee0
@@ -438,10 +436,8 @@ void RedDebug::_DrawRadius(const Radius& radius)
     pcRedPrimitive* pPrimitive = pcRedPrimitive::Create(
         D3DPT_TRIANGLESTRIP, 0x1082, 12, 66, 0, false);
     const PblBox bounds(vMin, vMax);
-    pPrimitive->m_bbox = bounds;
-    CompressedPos::s_vMin = vMin;
-    CompressedPos::s_vScale = PblVector3{ 0.015625238f, 0.015625238f, 0.015625238f };
-    CompressedPos::s_vScaleInv = PblVector3{ 63.999023f, 63.999023f, 63.999023f };
+    pPrimitive->SetBoundingBox(bounds);
+    CompressedPos::SetBoundingBox(bounds);
 
     DebugVertex* pVertex = (DebugVertex*)pPrimitive->BeginVertexData();
     if (!pVertex)
@@ -530,7 +526,7 @@ void RedDebug::RedDebugRenderable::Render(int)
 
         pcRedPrimitive* pPrimitive =
             pcRedPrimitive::Create(D3DPT_LINELIST, 0x1082, 12, uiNumLines * 2, 0, false);
-        pPrimitive->m_bbox = bounds;
+        pPrimitive->SetBoundingBox(bounds);
         CompressedPos::SetBoundingBox(bounds);
 
         DebugVertex* pVertex = (DebugVertex*)pPrimitive->BeginVertexData();

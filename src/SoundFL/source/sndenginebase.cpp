@@ -95,7 +95,7 @@ void Allocator<VoiceBase>::operator delete(void* p, void* pMemory, bool bTemp)
 }
 
 template <>
-void Allocator<VoiceBase>::operator delete(void* p, unsigned int uiSize)
+void Allocator<VoiceBase>::operator delete(void* p, size_t uiSize)
 {
     (void)uiSize;
     switch (((VoiceBase*)p)->GetAllocType())
@@ -261,7 +261,7 @@ bool EngineBase::LoadConfiguration(PblFileChunk& chunk, char const* pcName, bool
 {
     PblFileChunk parent = chunk;
 
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
 

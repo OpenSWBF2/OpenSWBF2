@@ -18,6 +18,7 @@
 #include "ToolTips.h"
 #include "PebbleFL/Common/PblHashTable.h"
 #include "PebbleFL/Common/PblIndex.h"
+#include "HeroSlots.h"
 
 static unsigned __int64 ShaRotate(unsigned __int64 value, unsigned int bits)
 {
@@ -1648,7 +1649,7 @@ void _SetGameRules(eGAME_RULES eRules)
         gHeroRuleRespawnVal[gCurRules] = netHeroRuleRespawnVal;
     }
 
-    if (PblInBounds(gNumBots, eRules))
+    if (HasRulesSlot(gNumBots, eRules))
     {
         netNumBots = gNumBots[eRules];
         netHeroesEnabled = gHeroesEnabled[eRules];

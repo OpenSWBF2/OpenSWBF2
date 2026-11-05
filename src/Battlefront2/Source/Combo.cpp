@@ -340,6 +340,7 @@ bool Combo::Attack::_ResolveDamageData(const Combo* pCombo, const State* pState,
     float fTimeStart = GetDamageTimeStart();
     float fTimeEnd = GetDamageTimeEnd();
     float fDuration = pState->GetDuration();
+    bool bTimeEndFromAnim = false;
     if (fDuration > 0.0f)
     {
         if (IsDamageTimeEndFromAnim())
@@ -350,7 +351,6 @@ bool Combo::Attack::_ResolveDamageData(const Combo* pCombo, const State* pState,
         {
             fTimeEnd = fDuration;
         }
-        SetDamageTimeEnd(fTimeEnd, false);
     }
     else
     {
@@ -358,7 +358,7 @@ bool Combo::Attack::_ResolveDamageData(const Combo* pCombo, const State* pState,
         if (IsDamageTimeEndFromAnim())
         {
             fTimeEnd = FLT_MAX;
-            SetDamageTimeEnd(1.0f, true);
+            bTimeEndFromAnim = true;
         }
         else
         {
@@ -366,9 +366,9 @@ bool Combo::Attack::_ResolveDamageData(const Combo* pCombo, const State* pState,
             {
                 fTimeEnd = fDuration;
             }
-            SetDamageTimeEnd(fTimeEnd, false);
         }
     }
+    SetDamageTimeEnd(bTimeEndFromAnim ? 1.0f : fTimeEnd, bTimeEndFromAnim);
     if (IsDamageTimeStartFromAnim())
     {
         fTimeStart = fDuration * fTimeStart;
@@ -396,10 +396,14 @@ bool Combo::Attack::_ResolveDamageData(const Combo* pCombo, const State* pState,
     kLowerPose.SetAnimation(pLowerAnim->m_pZephyrAnim, 30.0f);
     kLowerPose.SetLoop(false);
     kLowerPose.SetCurTime(0.0f);
-    kLowerPose.SetInterpolate(bLowerAnim);
     if (bLowerAnim)
     {
+        kLowerPose.SetInterpolate(true);
         kLowerPose.Update(fTimeStart);
+    }
+    else
+    {
+        kLowerPose.SetInterpolate(false);
     }
 
     kPose.Set(kUpperPose, kUpperMask, true);
@@ -410,12 +414,13 @@ bool Combo::Attack::_ResolveDamageData(const Combo* pCombo, const State* pState,
     PblVector3 vDir = pJointMatrix->ApplyRotation(vEnd);
     AddDamageSample(fTimeStart, vPos, vDir);
 
-    while (fTimeEnd > fTimeStart)
+    float fTime = fTimeStart;
+    while (fTime < fTimeEnd)
     {
         float fStep = fTimeStep;
-        if (fStep + fTimeStart > fTimeEnd)
+        if (fStep + fTime > fTimeEnd)
         {
-            fStep = fTimeEnd - fTimeStart;
+            fStep = fTimeEnd - fTime;
         }
         kUpperPose.Update(fStep);
         if (bLowerAnim)
@@ -425,18 +430,12 @@ bool Combo::Attack::_ResolveDamageData(const Combo* pCombo, const State* pState,
         kPose.Set(kUpperPose, kUpperMask, true);
         kPose.Set(kLowerPose, kLowerMask, true);
         kSkel.BuildWorldMatrices(gMatrixIdentity, iJoint);
-        PblVector3 vNewPos, vNewDir;
-        vNewPos = pJointMatrix->ApplyTransform(vBegin);
-        vNewDir = pJointMatrix->ApplyRotation(vEnd);
-
-        for (;;)
+        PblVector3 vNewPos = pJointMatrix->ApplyTransform(vBegin);
+        PblVector3 vNewDir = pJointMatrix->ApplyRotation(vEnd);
+        float fBaseMoveSq = SquaredLength(vNewPos - vPos);
+        float fTipMoveSq = SquaredLength(vNewDir + vNewPos - vPos - vDir);
+        while (fBaseMoveSq > fMaxMoveSq || fTipMoveSq > fMaxMoveSq)
         {
-            const float fBaseMoveSq = SquaredLength(vNewPos - vPos);
-            const float fTipMoveSq = SquaredLength((vNewDir + vNewPos) - (vPos + vDir));
-            if (fBaseMoveSq <= fMaxMoveSq && fTipMoveSq <= fMaxMoveSq)
-            {
-                break;
-            }
             const float fMove = sqrtf(fBaseMoveSq > fTipMoveSq ? fBaseMoveSq : fTipMoveSq);
             const float fNewStep = fStep * 0.5f * 0.9f / fMove;
             if (fMinTimeStep > fNewStep)
@@ -445,21 +444,23 @@ bool Combo::Attack::_ResolveDamageData(const Combo* pCombo, const State* pState,
             }
             fStep = fNewStep;
             kUpperPose.SetCurTime(0.0f);
-            kUpperPose.Update(fStep + fTimeStart);
+            kUpperPose.Update(fStep + fTime);
             if (bLowerAnim)
             {
                 kLowerPose.SetCurTime(0.0f);
-                kLowerPose.Update(fStep + fTimeStart);
+                kLowerPose.Update(fStep + fTime);
             }
             kPose.Set(kUpperPose, kUpperMask, true);
             kPose.Set(kLowerPose, kLowerMask, true);
             kSkel.BuildWorldMatrices(gMatrixIdentity, iJoint);
             vNewPos = pJointMatrix->ApplyTransform(vBegin);
             vNewDir = pJointMatrix->ApplyRotation(vEnd);
+            fBaseMoveSq = SquaredLength(vNewPos - vPos);
+            fTipMoveSq = SquaredLength(vNewDir + vNewPos - vPos - vDir);
         }
 
-        fTimeStart = fStep + fTimeStart;
-        AddDamageSample(fTimeStart, vNewPos, vNewDir);
+        fTime = fStep + fTime;
+        AddDamageSample(fTime, vNewPos, vNewDir);
         vPos = vNewPos;
         vDir = vNewDir;
     }

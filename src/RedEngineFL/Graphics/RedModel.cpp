@@ -87,14 +87,8 @@ RedSkeleton::~RedSkeleton()
     {
         _HashTable.Remove(m_uiNameHash);
     }
-    if (m_amDefaultPose)
-    {
-        delete[] ((char*)m_amDefaultPose - ((unsigned char*)m_amDefaultPose)[-1]);
-    }
-    if (m_amDefaultPoseInv)
-    {
-        delete[] ((char*)m_amDefaultPoseInv - ((unsigned char*)m_amDefaultPoseInv)[-1]);
-    }
+    delete[] m_amDefaultPose;
+    delete[] m_amDefaultPoseInv;
     delete[] m_aConnections;
     delete[] m_auiNameHash;
 }
@@ -186,15 +180,14 @@ bool RedModel::GetHierarchicalBoneMatrix(unsigned int uiBone, PblMatrix& mat) co
     {
         for (unsigned int i = 0; i < pSkeleton->m_uiNumBones; ++i)
         {
-            if (pSkeleton->m_auiNameHash[i] == uiBone)
+            if (pSkeleton->GetBoneNameHash(i) == uiBone)
             {
                 int iParent = pSkeleton->GetParentBone(i);
-                const PblMatrix& bone = pSkeleton->m_amDefaultPose[i];
+                const PblMatrix& bone = pSkeleton->GetDefaultPoseMatrix(i);
                 if (iParent >= 0)
                 {
-                    const PblMatrix& parent = pSkeleton->m_amDefaultPose[iParent];
-                    PblMatrix result = bone * parent.GetInverseFast();
-                    mat = result;
+                    const PblMatrix& parent = pSkeleton->GetDefaultPoseMatrix(iParent);
+                    mat = bone * parent.GetInverseFast();
                 }
                 else
                 {
@@ -523,7 +516,7 @@ void RedModel::_Read(PblFileChunk& chunk)
     _uiFlags = 0;
     _iNumSegments = 0;
     _pSkeleton = RedSkeleton::s_pCurrentSkeleton;
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)

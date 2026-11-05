@@ -51,8 +51,8 @@ bool VoiceChat::GetBit(const unsigned char* const bitmap, unsigned int bit)
 }
 
 // FUNCTION: SWBF2 0x00675160
-void VoiceChat::SetBits(unsigned char* const pBitmap, unsigned int bit,
-                        unsigned int value, unsigned int count)
+void VoiceChat::SetBits(unsigned char* const pBitmap, unsigned int value,
+                        unsigned int bit, unsigned int count)
 {
     while (count--)
     {

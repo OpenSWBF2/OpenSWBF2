@@ -81,29 +81,6 @@ bool SpaceDustEffect::IsReflected()
     return false;
 }
 
-// FUNCTION: SWBF2 0x0064cf30
-void SpaceDustEffect::DustEmitterData::Init(bool bFreeParticles, bool bAllocParticles)
-{
-    mEnabled = false;
-    mTimeSinceLastSpawned = 0.0f;
-    if (bFreeParticles && mParticle)
-    {
-        delete[] mParticle;
-        mParticle = 0;
-    }
-    if (bAllocParticles && !mParticle)
-    {
-        mParticle = new ParticleData[80];
-    }
-    if (mParticle)
-    {
-        for (int i = 0; i < 80; i++)
-        {
-            mParticle[i].mLifeLeft = -1.0f;
-        }
-    }
-}
-
 // FUNCTION: SWBF2 0x0064d040
 void SpaceDustEffect::Create()
 {
@@ -144,27 +121,9 @@ void SpaceDustEffect::Init()
 // FUNCTION: SWBF2 0x0064d1d0
 void SpaceDustEffect::Init(bool bAllocate)
 {
-    DustEmitterData& e = SpaceDustEffect::m_emitter[0];
-    e.mEnabled = false;
-    e.mTimeSinceLastSpawned = 0.0f;
-    if (!bAllocate)
+    for (int i = 0; i < 1; ++i)
     {
-        if (e.mParticle)
-        {
-            delete[] e.mParticle;
-            e.mParticle = 0;
-        }
-    }
-    else if (!e.mParticle)
-    {
-        e.mParticle = new SpaceDustEffect::ParticleData[80];
-    }
-    if (e.mParticle)
-    {
-        for (int i = 0; i < 80; i++)
-        {
-            e.mParticle[i].mLifeLeft = -1.0f;
-        }
+        m_emitter[i].Init(!bAllocate, bAllocate);
     }
 }
 
@@ -275,9 +234,7 @@ void SpaceDustEffect::Update(float fDeltaTime)
         }
         if (particle.mLifeLeft >= 0.0f)
         {
-            const float fDot = -mCamera.m[2][0] * (particle.mCoord.x - mCamera.m[3][0]) +
-                               -mCamera.m[2][1] * (particle.mCoord.y - mCamera.m[3][1]) +
-                               -mCamera.m[2][2] * (particle.mCoord.z - mCamera.m[3][2]);
+            const float fDot = DotProduct(-mCamera.GetZAxis(), particle.mCoord - mCamera.GetTranslation());
             if (fDot < 0.0f)
             {
                 particle.mLifeLeft = -1.0f;
@@ -286,10 +243,7 @@ void SpaceDustEffect::Update(float fDeltaTime)
         if (particle.mLifeLeft >= 0.0f)
         {
             ++iNumAlive;
-            const float fMove = mDustParticleSpeed * fDeltaTime;
-            particle.mCoord.x += mCamera.m[2][0] * fMove;
-            particle.mCoord.y += mCamera.m[2][1] * fMove;
-            particle.mCoord.z += mCamera.m[2][2] * fMove;
+            particle.mCoord += mCamera.GetZAxis() * (mDustParticleSpeed * fDeltaTime);
         }
         else if (iNumFree < 20)
         {
@@ -303,21 +257,20 @@ void SpaceDustEffect::Update(float fDeltaTime)
     if (pChaseCamera)
     {
         PblVector3 vVelocity = pChaseCamera->GetVelocity();
-        const float fLengthSq = vVelocity.x * vVelocity.x + vVelocity.y * vVelocity.y +
-                                vVelocity.z * vVelocity.z;
+        const float fLengthSq = SquaredLength(vVelocity);
         if (fLengthSq < 0.0001f)
         {
-            vDir = PblVector3(-mCamera.m[2][0], -mCamera.m[2][1], -mCamera.m[2][2]);
+            vDir = -mCamera.GetZAxis();
         }
         else
         {
-            fSpeed = PblMath::Sqrt(fLengthSq);
-            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vVelocity));
+            fSpeed = Length(vVelocity);
+            vDir = Normalize(vVelocity);
         }
     }
     else
     {
-        vDir = PblVector3(-mCamera.m[2][0], -mCamera.m[2][1], -mCamera.m[2][2]);
+        vDir = -mCamera.GetZAxis();
     }
 
     float fSpawnDelay;
@@ -341,42 +294,23 @@ void SpaceDustEffect::Update(float fDeltaTime)
             iNumSpawn = iNumFree;
         }
 
-        const float fBackX = -mCamera.m[2][0];
-        const float fBackY = -mCamera.m[2][1];
-        const float fBackZ = -mCamera.m[2][2];
-        PblVector3 vSide(fBackY * vDir.z - fBackZ * vDir.y, fBackZ * vDir.x - vDir.z * fBackX,
-                         vDir.y * fBackX - fBackY * vDir.x);
+        PblVector3 vSide = CrossProduct(-mCamera.GetZAxis(), vDir);
         PblVector3 vRight;
-        if (vSide.x * vSide.x + vSide.y * vSide.y + vSide.z * vSide.z < 0.0001f)
+        if (SquaredLength(vSide) < 0.0001f)
         {
-            vRight = PblVector3(mCamera.m[1][0], mCamera.m[1][1], mCamera.m[1][2]);
+            vRight = mCamera.GetYAxis();
         }
         else
         {
-            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vRight), reinterpret_cast<const D3DXVECTOR3*>(&vSide));
+            vRight = Normalize(vSide);
         }
 
-        PblVector3 vUp(vDir.z * vRight.y - vDir.y * vRight.z, vDir.x * vRight.z - vDir.z * vRight.x,
-                       vDir.y * vRight.x - vDir.x * vRight.y);
-        PblVector3 vUpNorm;
-        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vUpNorm), reinterpret_cast<const D3DXVECTOR3*>(&vUp));
+        PblVector3 vUp = Normalize(CrossProduct(vRight, vDir));
         PblMatrix mSpawn;
-        mSpawn.m[0][0] = vUpNorm.x;
-        mSpawn.m[0][1] = vUpNorm.y;
-        mSpawn.m[0][2] = vUpNorm.z;
-        mSpawn.m[0][3] = 0.0f;
-        mSpawn.m[1][0] = vRight.x;
-        mSpawn.m[1][1] = vRight.y;
-        mSpawn.m[1][2] = vRight.z;
-        mSpawn.m[1][3] = 0.0f;
-        mSpawn.m[2][0] = vDir.x;
-        mSpawn.m[2][1] = vDir.y;
-        mSpawn.m[2][2] = vDir.z;
-        mSpawn.m[2][3] = 0.0f;
-        mSpawn.m[3][0] = vDir.x * mSpawnDistance + mCamera.m[3][0];
-        mSpawn.m[3][1] = mCamera.m[3][1] + vDir.y * mSpawnDistance;
-        mSpawn.m[3][2] = mCamera.m[3][2] + vDir.z * mSpawnDistance;
-        mSpawn.m[3][3] = 1.0f;
+        mSpawn.SetXAxis(vUp);
+        mSpawn.SetYAxis(vRight);
+        mSpawn.SetZAxis(vDir);
+        mSpawn.SetTranslation(mCamera.GetTranslation() + vDir * mSpawnDistance);
 
         for (int i = 0; i < iNumSpawn; i++)
         {
@@ -407,7 +341,7 @@ void SpaceDustEffect::Update(float fDeltaTime)
                     vOffset.y += mCenterDeadZoneRadius;
                 }
             }
-            D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&particle.mCoord), reinterpret_cast<const D3DXVECTOR3*>(&vOffset), reinterpret_cast<const D3DXMATRIX*>(&mSpawn));
+            particle.mCoord = mSpawn.ApplyTransform(vOffset);
 
             const float fScale = PblRandom::GetGlobalFloat();
             particle.mScale = (1.0f - fScale) * mMinParticleScale + fScale * mMaxParticleScale;
@@ -469,11 +403,12 @@ void SpaceDustEffect::Render(int value)
             texCoords.v1 = 0xff;
             for (int i = 0; i < 80; i++)
             {
-                const ParticleData& particle = emitter.mParticle[i];
+                ParticleData& particle = emitter.mParticle[i];
                 if (particle.mLifeLeft >= 0.0f)
                 {
                     RedColor color(RedColor::WHITE);
-                    float fFade = (DotProduct(particle.mCoord - vPos, -vFwd) - 50.0f) / 30.0f;
+                    const float dot = DotProduct(particle.mCoord - vPos, -vFwd);
+                    float fFade = (dot - 50.0f) / 30.0f;
                     if (fFade < 0.0f)
                     {
                         fFade = 0.0f;

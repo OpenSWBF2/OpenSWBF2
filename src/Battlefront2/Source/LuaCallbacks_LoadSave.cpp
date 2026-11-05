@@ -48,7 +48,7 @@ bool IsMemoryCardUnformatted();
 bool IsMemoryCardInsertted();
 bool IsUniqueFilename(unsigned short const* pusFilename, int iType);
 
-int GetUniqueFilename(unsigned short* pusFilename, int iStart, int iArg3, unsigned int uiArg4);
+int GetUniqueFilename(unsigned short* pusFilename, int iFileType, int iStart, unsigned int uiFilenameLen);
 void ResetFileList();
 unsigned short const* GetNextFileName(int iType, int* piArg);
 bool CanCreateNewFile(int iType);
@@ -65,7 +65,7 @@ unsigned int __cdecl ustrlcpy(unsigned short* pusDest, unsigned short const* pus
 
 namespace PblBuildType
 {
-extern unsigned char gCreateMemoryProfile;
+extern bool gCreateMemoryProfile;
 }
 extern bool gInTrainingMission;
 
@@ -191,7 +191,7 @@ int ScriptCB_GetLoginList(lua_State* L)
             do
             {
                 pProfile->SetTrueProfileName(RedLocalizeDB::Find(0x3802F15B, false));
-                iUnique = SaveGameManager::GetUniqueFilename(pusName, iUnique + 1, 0, 0);
+                iUnique = SaveGameManager::GetUniqueFilename(pusName, 1, iUnique + 1, 16);
                 bClash = false;
                 for (int i = 0; i < 1; ++i)
                 {
@@ -831,7 +831,7 @@ int ScriptCB_StartSaveMetagame(lua_State* L)
     {
         PblUnicode::ustrlcpy(ausFilename, PlayerProfile::GetProfile(FLInputManager::Instance()->GetPrimaryPort())->mName, 128);
     }
-    SaveFile::MakeMetagameFilename(ausFilename, ausFilename);
+    SaveFile::MakeMetagameFilename(ausFilename, ausFilename, 128);
     SaveGameManager::StartQueue();
     SaveGameManager::QueueSave(ausFilename, 2, sMetagameBuffer, sizeof(sMetagameBuffer));
     if (pusOld)
@@ -914,7 +914,7 @@ int ScriptCB_StartSaveCampaign(lua_State* L)
     {
         PblUnicode::ustrlcpy(ausFilename, PlayerProfile::GetProfile(FLInputManager::Instance()->GetPrimaryPort())->mName, 128);
     }
-    SaveFile::MakeMetagameFilename(ausFilename, ausFilename);
+    SaveFile::MakeMetagameFilename(ausFilename, ausFilename, 128);
     SaveGameManager::StartQueue();
     SaveGameManager::QueueSave(ausFilename, 3, sCampaignBuffer, sizeof(sCampaignBuffer));
     if (pusOld)
@@ -996,7 +996,7 @@ int ScriptCB_GetUniqueLoginName(lua_State* L)
     PblUnicode::ustrlcpy(Lua_Callbacks::sTempReturnString16, pusBase, 256);
     if (!SaveGameManager::InMemoryMode())
     {
-        SaveGameManager::GetUniqueFilename(Lua_Callbacks::sTempReturnString16, 1, 0, 0);
+        SaveGameManager::GetUniqueFilename(Lua_Callbacks::sTempReturnString16, 1, 1, 16);
         LuaHelper::PushString(Lua_Callbacks::sTempReturnString16);
         return 1;
     }
@@ -1180,7 +1180,7 @@ int ScriptCB_GetSavedMetagameList(lua_State* L)
         {
             lua_newtable(LuaHelper::mState);
             LuaHelper::TableWriteVal("filename", pusFile);
-            SaveFile::SplitMetagameFilename(pusFile, ausName, ausDate, 0, 0, 0);
+            SaveFile::SplitMetagameFilename(pusFile, ausName, ausDate, 0, 128, 0);
             LuaHelper::TableWriteVal("namestr", ausName);
             LuaHelper::TableWriteVal("datestr", ausDate);
             if (sMetagameFilename[0] && !PblUnicode::ustrcmp(sMetagameFilename, pusFile))
@@ -1200,7 +1200,7 @@ int ScriptCB_GetSavedMetagameList(lua_State* L)
         SaveGameManager::ResetFileList();
         while ((pusFile = SaveGameManager::GetNextFileName(2, &iArg)) != 0)
         {
-            SaveFile::SplitMetagameFilename(pusFile, ausName, ausDate, 0, 0, 0);
+            SaveFile::SplitMetagameFilename(pusFile, ausName, ausDate, 0, 128, 0);
             memcpy(aSavegames[iCount].mFilename, pusFile, sizeof(aSavegames[iCount].mFilename));
             memcpy(aSavegames[iCount].mGamename, ausName, sizeof(aSavegames[iCount].mGamename));
             memcpy(aSavegames[iCount].mGamedate, ausDate, sizeof(aSavegames[iCount].mGamedate));
@@ -1255,7 +1255,7 @@ int ScriptCB_GetSavedCampaignList(lua_State*)
         {
             lua_newtable(LuaHelper::mState);
             LuaHelper::TableWriteVal("filename", pusFile);
-            SaveFile::SplitMetagameFilename(pusFile, ausName, ausDate, 0, 0, 0);
+            SaveFile::SplitMetagameFilename(pusFile, ausName, ausDate, 0, 128, 0);
             LuaHelper::TableWriteVal("namestr", ausName);
             LuaHelper::TableWriteVal("datestr", ausDate);
             if (sCampaignFilename[0] && !PblUnicode::ustrcmp(sCampaignFilename, pusFile))
@@ -1275,7 +1275,7 @@ int ScriptCB_GetSavedCampaignList(lua_State*)
         SaveGameManager::ResetFileList();
         while ((pusFile = SaveGameManager::GetNextFileName(3, &iArg)) != 0)
         {
-            SaveFile::SplitMetagameFilename(pusFile, ausName, ausDate, 0, 0, 0);
+            SaveFile::SplitMetagameFilename(pusFile, ausName, ausDate, 0, 128, 0);
             memcpy(aSavegames[iCount].mFilename, pusFile, sizeof(aSavegames[iCount].mFilename));
             memcpy(aSavegames[iCount].mGamename, ausName, sizeof(aSavegames[iCount].mGamename));
             memcpy(aSavegames[iCount].mGamedate, ausDate, sizeof(aSavegames[iCount].mGamedate));
@@ -1544,8 +1544,8 @@ void InitLoadSave()
 }
 
 // FUNCTION: SWBF2 0x00631380
-int SaveFile::TimeToString(unsigned short* pusDest, int iYear, int iMonth, int iDay,
-                       int iHour, int iMinute, int iSecond)
+void SaveFile::TimeToString(unsigned short* pusDest, int iYear, int iMonth, int iDay,
+                       int iHour, int iMinute, int iSecond, unsigned int uiOutLen)
 {
     const unsigned int uStamp = iSecond + 60 * (iMinute + 60 *
         (iHour + 24 * (iDay % 32 + 32 *
@@ -1553,7 +1553,7 @@ int SaveFile::TimeToString(unsigned short* pusDest, int iYear, int iMonth, int i
         - iMinute / 60) - iSecond / 60);
     char acStamp[12];
     _snprintf(acStamp, 9, "%08x", uStamp);
-    return PblUnicode::ustrncnv(pusDest, acStamp, 16);
+    PblUnicode::ustrncnv(pusDest, acStamp, uiOutLen);
 }
 
 // FUNCTION: SWBF2 0x0058a750

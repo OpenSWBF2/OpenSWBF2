@@ -87,8 +87,8 @@ RedAmbientLight* RedLight::m_sGlobalAmbient;
 unsigned int RedLight::m_sGlobalEnvMapHash;
 
 // TEMPLATE: SWBF2 0x006c6ae0
-// PblList<RedLight>::RemoveAll
-template void PblList<RedLight>::RemoveAll();
+// PblList<RedLight>::Clear
+template void PblList<RedLight>::Clear();
 
 // FUNCTION: SWBF2 0x006c6a60
 RedLight::~RedLight()
@@ -128,10 +128,10 @@ void RedLight::Deactivate()
 // FUNCTION: SWBF2 0x006c6b90
 void RedLight::DeinitSys()
 {
-    s_GlobalList.RemoveAll();
-    s_VisibleOmniLightList.RemoveAll();
-    s_VisibleSpotLightList.RemoveAll();
-    s_VisibleDirectionalLightList.RemoveAll();
+    s_GlobalList.Clear();
+    s_VisibleOmniLightList.Clear();
+    s_VisibleSpotLightList.Clear();
+    s_VisibleDirectionalLightList.Clear();
 
     RedShadowRegion::Cleanup();
 
@@ -1049,10 +1049,10 @@ const RedLightingState* RedLight::GetLightingState(bool bStatic)
 // FUNCTION: SWBF2 0x006c8700
 void RedLight::InitSys()
 {
-    s_GlobalList.RemoveAll();
-    s_VisibleOmniLightList.RemoveAll();
-    s_VisibleSpotLightList.RemoveAll();
-    s_VisibleDirectionalLightList.RemoveAll();
+    s_GlobalList.Clear();
+    s_VisibleOmniLightList.Clear();
+    s_VisibleSpotLightList.Clear();
+    s_VisibleDirectionalLightList.Clear();
 
     m_sGlobalDirectionals[0] = new RedDirectionalLight();
     m_sGlobalDirectionals[1] = new RedDirectionalLight();
@@ -1244,11 +1244,7 @@ void RedLight::ReadLight(PblConfig& config, unsigned int uiName)
     bool bCastSpecular = false;
     bool bCastShadow = false;
     bool bOverbright = false;
-    RedColorValue color;
-    color.r = RedColor::BLACK.r * kf1by255;
-    color.g = RedColor::BLACK.g * kf1by255;
-    color.b = RedColor::BLACK.b * kf1by255;
-    color.a = RedColor::BLACK.a * kf1by255;
+    RedColorValue color(RedColor::BLACK);
 
     while (!config.IsDone())
     {
@@ -1318,9 +1314,9 @@ void RedLight::ReadLight(PblConfig& config, unsigned int uiName)
         }
     }
 
-    PblQuaternion qUnit;
+    D3DXQUATERNION tmp;
     PblMatrix mTransform;
-    D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mTransform), D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&qUnit), reinterpret_cast<const D3DXQUATERNION*>(&qRotation)));
+    D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mTransform), D3DXQuaternionNormalize(&tmp, reinterpret_cast<const D3DXQUATERNION*>(&qRotation)));
     mTransform.m[3][0] = vPosition.x;
     mTransform.m[3][1] = vPosition.y;
     mTransform.m[3][2] = vPosition.z;
@@ -1402,7 +1398,7 @@ void RedLight::SetGlobalDirectionalLightColor(RedColorValue& color, int i)
 // FUNCTION: SWBF2 0x00719be0
 void RedShadowRegion::UpdateAllVisibility(const RedCamera* pCamera)
 {
-    RedShadowRegion::s_VisibleList.RemoveAll();
+    RedShadowRegion::s_VisibleList.Clear();
     if (!pCamera)
     {
         return;
@@ -1421,9 +1417,9 @@ void RedShadowRegion::UpdateAllVisibility(const RedCamera* pCamera)
 // FUNCTION: SWBF2 0x006c98f0
 void RedLight::UpdateAllVisibility(const RedCamera* pCamera, unsigned int uiView)
 {
-    s_VisibleOmniLightList.RemoveAll();
-    s_VisibleSpotLightList.RemoveAll();
-    s_VisibleDirectionalLightList.RemoveAll();
+    s_VisibleOmniLightList.Clear();
+    s_VisibleSpotLightList.Clear();
+    s_VisibleDirectionalLightList.Clear();
     RedShadowRegion::UpdateAllVisibility(pCamera);
     if (!pCamera)
     {

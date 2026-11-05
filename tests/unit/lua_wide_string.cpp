@@ -1,6 +1,7 @@
 #include "third_party/doctest/doctest.h"
 
 #include <windows.h>
+#include <stdio.h>
 #include <string.h>
 #include <string>
 
@@ -229,4 +230,43 @@ TEST_CASE("lua wide string sites route through the accessor" * doctest::test_sui
     std::string sSaveFsm;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\SaveFsm.cpp", sSaveFsm));
     CHECK(sSaveFsm.find("if (pusFilename && mLoadQueueCnt < MAX_LOAD_QUEUE)") != std::string::npos);
+}
+
+TEST_CASE("usprintf fills the 1-based argument slots (source pin as LuaCallbacks.cpp is not linked into T1)" * doctest::test_suite("regression"))
+{
+    std::string sText;
+    REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\LuaCallbacks.cpp", sText));
+    const size_t uBegin = sText.find("int ScriptCB_usprintf(lua_State*)");
+    REQUIRE(uBegin != std::string::npos);
+    const size_t uEnd = sText.find("\n}", uBegin);
+    REQUIRE(uEnd != std::string::npos);
+    const std::string sBody = sText.substr(uBegin, uEnd - uBegin);
+
+    CHECK(sBody.find("if ((unsigned int)(iTop - 1) <= 6)") != std::string::npos);
+    CHECK(sBody.find("const unsigned short* apusArgs[8];") != std::string::npos);
+    CHECK(sBody.find("for (int i = 2; i <= iTop; ++i)") != std::string::npos);
+    CHECK(sBody.find("apusArgs[i - 1] = LuaWideString::Check(LuaHelper::mState, i);") != std::string::npos);
+    CHECK(sBody.find("apusArgs[i - 2]") == std::string::npos);
+    CHECK(sBody.find("apusArgs[0]") == std::string::npos);
+
+    for (int iCase = 2; iCase <= 7; ++iCase)
+    {
+        char acCase[16];
+        char acNext[16];
+        char acLast[16];
+        char acPast[16];
+        sprintf(acCase, "case %d:", iCase);
+        sprintf(acNext, "case %d:", iCase + 1);
+        sprintf(acLast, "apusArgs[%d]", iCase - 1);
+        sprintf(acPast, "apusArgs[%d]", iCase);
+        const size_t uCase = sBody.find(acCase);
+        REQUIRE(uCase != std::string::npos);
+        const size_t uNext = sBody.find(acNext, uCase);
+        REQUIRE(uNext != std::string::npos);
+        const std::string sCase = sBody.substr(uCase, uNext - uCase);
+        INFO(acCase);
+        CHECK(sCase.find("apusArgs[1]") != std::string::npos);
+        CHECK(sCase.find(acLast) != std::string::npos);
+        CHECK(sCase.find(acPast) == std::string::npos);
+    }
 }

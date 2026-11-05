@@ -11,32 +11,12 @@
 #include "RedEngineFL/Application/pc/pcRenderHelpers.h"
 
 
-namespace
-{
-
-
-
-struct NormalXYZ
-{
-    void SetNormal(const PblVector3& vNormal)
-    {
-        x = vNormal.x;
-        y = vNormal.y;
-        z = vNormal.z;
-    }
-    float x, y, z;
-};
-
-
-
 struct ClothVertex
 {
     PosXYZ pos;
     NormalXYZ normal;
     TexCoord uv;
 };
- 
-}
 
 // FUNCTION: SWBF2 0x0040feb0
 void ClothData::PlatformCleanup()
@@ -81,7 +61,7 @@ void EntityCloth::PlatformRender(unsigned char ucViewport, RedColor color, unsig
     for (unsigned int i = 0; i < mData->m_uiNumParticles; ++i)
     {
         pVertices[i].pos.SetPos(m_pPos[i].x, m_pPos[i].y, m_pPos[i].z);
-        pVertices[i].normal.SetNormal(PblVector3(-m_pNormal[i].x, -m_pNormal[i].y, -m_pNormal[i].z));
+        pVertices[i].normal.SetNormal(-m_pNormal[i]);
         pVertices[i].uv.SetUV(pTexCoords[i].x, pTexCoords[i].y);
     }
     pPrimitive->EndVertexData();
@@ -97,7 +77,7 @@ void EntityCloth::PlatformRender(unsigned char ucViewport, RedColor color, unsig
     }
     pPrimitive->EndIndexData();
 
-    RedRenderer::pcRenderPrimitive(pPrimitive, mData->m_pShader,
+    RedRenderer::pcRenderPrimitive(pPrimitive, mData->GetShader(),
                                    m_worldMat, color, uiFlags, 0,
                                    0, 0);
 
@@ -106,7 +86,7 @@ void EntityCloth::PlatformRender(unsigned char ucViewport, RedColor color, unsig
         && FLRenderer::IsReflected(sphere.GetCenter(), sphere.GetRadius(), mReflection, false))
     {
         PblMatrix mReflected = m_worldMat * mReflection;
-        RedRenderer::pcRenderPrimitive(pPrimitive, mData->m_pShader,
+        RedRenderer::pcRenderPrimitive(pPrimitive, mData->GetShader(),
                                        mReflected, color,
                                        uiFlags | 0x10000100, 0, 0, 0);
     }

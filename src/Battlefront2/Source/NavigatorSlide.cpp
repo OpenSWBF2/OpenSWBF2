@@ -8,6 +8,10 @@
 #include "CollisionObject.h"
 #include "Controllable.h"
 #include "Entity.h"
+#include "EntityCarrier.h"
+#include "EntityDroid.h"
+#include "EntityDroideka.h"
+#include "EntitySoldier.h"
 #include "EventInfo.h"
 #include "GameLoop.h"
 #include "PathFinder.h"
@@ -17,31 +21,6 @@
 #include "PebbleFL/Common/PblMatrix.h"
 
 extern PblVector3 gVectorZero;
-
-
-class EntitySoldier
-{
-public:
-    static PblHash rttiHashEntitySoldier;
-};
-
-class EntityDroideka
-{
-public:
-    static PblHash rttiHashEntityDroideka;
-};
-
-class EntityDroid
-{
-public:
-    static PblHash rttiHashEntityDroid;
-};
-
-class EntityFlyer
-{
-public:
-    static PblHash rttiHashEntityFlyer;
-};
 
 namespace
 {
@@ -226,14 +205,26 @@ void NavigatorSlide::UpdateInfantrySlidePos()
 {
     if (mPathFollower->mDone)
     {
-        if (mPathFollower->mFinalPoint != mGlobalDest && ++mBounceCount < 6)
+        if (mPathFollower->mFinalPoint == mGlobalDest)
         {
-            NextInfantrySlidePos(mBounceAtLocalDest ? GetBouncePosition() : mGlobalDest);
+            SetNextState(100);
+            return;
+        }
+        if (++mBounceCount >= 6)
+        {
+            SetNextState(100);
+            return;
+        }
+        PblVector3 localDest;
+        if (mBounceAtLocalDest)
+        {
+            localDest = GetBouncePosition();
         }
         else
         {
-            SetNextState(100);
+            localDest = mGlobalDest;
         }
+        NextInfantrySlidePos(localDest);
     }
 }
 
@@ -242,14 +233,7 @@ PblVector3 NavigatorSlide::GetBouncePosition() const
 {
     float fDist = (float)AIUtil::GetRandomInt(10, 20);
     float fAngle = AIUtil::GetRandomFloat(PblMath::fPi / 4.0f, PblMath::fPi / 2.0f);
-    PblVector3 dir;
-    {
-        float fSin, fCos;
-        PblMath::SinCos(&fSin, &fCos, (AIUtil::GetRandomInt(0, 1) ? -1 : 1) * fAngle);
-        dir = PblVector3(mBarrierNormal.x * fCos - mBarrierNormal.z * fSin,
-                         mBarrierNormal.y,
-                         mBarrierNormal.z * fCos + mBarrierNormal.x * fSin) * fDist;
-    }
+    PblVector3 dir = RotateY(mBarrierNormal, (AIUtil::GetRandomInt(0, 1) ? -1 : 1) * fAngle) * fDist;
 
     return dir + GetMatrix().GetTranslation();
 }
@@ -276,7 +260,7 @@ void NavigatorSlide::NextInfantrySlidePos(const PblVector3& dest)
         {
             PblVector3 delta(dx, dy, dz);
             PblVector3 dir;
-            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&dir), reinterpret_cast<const D3DXVECTOR3*>(&delta));
+            dir = Normalize(delta);
             if (dx * dx + dy * dy + dz * dz > 1.0f)
             {
                 slideDest = PblVector3(slideDest.x - dir.x, slideDest.y - dir.y, slideDest.z - dir.z);
@@ -375,7 +359,7 @@ void NavigatorSlide::NextVehicleSlidePos()
     PblVector3 pos = GetMatrix().GetTranslation();
     const float fRadius = GetMyRadius() * 2.0f;
     const int eProhibit = GetMyProhibit();
-    PathFinder::GetClosestValidPoint(pos, pos, fRadius, eProhibit, (const Obstacle**)mIgnore, mIgnoreCnt);
+    PathFinder::GetClosestValidPoint(pos, pos, fRadius, eProhibit, mIgnore, mIgnoreCnt);
 
     for (int i = 0; i < 5; ++i)
     {
@@ -399,7 +383,7 @@ void NavigatorSlide::NextVehicleSlidePos()
 
         float fDistSq;
         if (!PathFinder::FindClosestObstacleIntersection(pos, dest, fRadius, eProhibit, &pHit, &fDistSq, false,
-                                                         (const Obstacle**)mIgnore, mIgnoreCnt))
+                                                         mIgnore, mIgnoreCnt))
         {
             ++gClearVehicleSlideCount;
             break;
@@ -435,7 +419,7 @@ void NavigatorSlide::NextVehicleSlidePos()
     }
 
     delete mPathFollower;
-    mPathFollower = new PathFollower(mOwner->mOwner, pos, mSlidePos, (const Obstacle**)mIgnore, mIgnoreCnt, false);
+    mPathFollower = new PathFollower(mOwner->mOwner, pos, mSlidePos, mIgnore, mIgnoreCnt, false);
     mSlidePathDest = mSlidePos;
 }
 

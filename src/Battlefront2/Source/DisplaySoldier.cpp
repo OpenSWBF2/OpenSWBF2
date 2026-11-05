@@ -104,8 +104,8 @@ bool SoldierElement::Setup()
     if (mSoldierAnimator)
     {
         mSoldierAnimator->SetNewOwner((unsigned int)mID, 0, mClass->mSpecialSkeleton,
-                                      *(const PblBitVector<32>*)mClass->mUpperBodyAnimMask,
-                                      *(const PblBitVector<32>*)mClass->mLowerBodyAnimMask, 1.0f);
+                                      mClass->mUpperBodyAnimMask,
+                                      mClass->mLowerBodyAnimMask, 1.0f);
         mSoldierAnimator->SetAction(SoldierState::STAND, mMatrix, mAnimationHash);
     }
 
@@ -240,8 +240,8 @@ void SoldierElement::RenderUsingContext(const PblMatrix& mContext, const RedColo
         if (mSoldierAnimator)
         {
             mSoldierAnimator->SetNewOwner((unsigned int)mID, 0, mClass->mSpecialSkeleton,
-                                          *(const PblBitVector<32>*)mClass->mUpperBodyAnimMask,
-                                          *(const PblBitVector<32>*)mClass->mLowerBodyAnimMask, 1.0f);
+                                          mClass->mUpperBodyAnimMask,
+                                          mClass->mLowerBodyAnimMask, 1.0f);
             mSoldierAnimator->SetAction((SoldierState::SoldierState)mState, mMatrix, mAnimationHash);
         }
         for (int i = 0; i < mClass->mWeaponCount; ++i)

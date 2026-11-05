@@ -68,7 +68,7 @@ public:
     PowerupItem(PowerupItemClass* pClass, const EntityDesc& desc);
     virtual ~PowerupItem();
 
-    static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }
+    static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
     // SYNTHETIC: SWBF2 0x00623860
     // PowerupItem::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }

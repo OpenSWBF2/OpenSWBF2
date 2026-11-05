@@ -180,23 +180,8 @@ void StreamSourceProducer::PacketComplete(StreamPacket* const pPacket,
     pPacket->SetUsed(uiBufferUsed);
     pPacket->SetPosition(uiPos);
 
-    if (bFlagBit0)
-    {
-        pPacket->mFlags |= 1;
-    }
-    else
-    {
-        pPacket->mFlags &= 0xFFFE;
-    }
-
-    if (bFlagBit1)
-    {
-        pPacket->mFlags |= 2;
-    }
-    else
-    {
-        pPacket->mFlags &= 0xFFFD;
-    }
+    pPacket->SetLast(bFlagBit0);
+    pPacket->SetDiscontinuity(bFlagBit1);
 
     ++mReadPacketIndex;
     if (mReadPacketIndex == mNumPackets)
@@ -205,18 +190,6 @@ void StreamSourceProducer::PacketComplete(StreamPacket* const pPacket,
     }
 }
 
-// FUNCTION: SWBF2 0x0073caf0
-void StreamPacket::SetDiscontinuity(bool bDiscontinuity)
-{
-    if (bDiscontinuity)
-    {
-        mFlags |= 2;
-    }
-    else
-    {
-        mFlags &= 0xFFFD;
-    }
-}
 
 }
 

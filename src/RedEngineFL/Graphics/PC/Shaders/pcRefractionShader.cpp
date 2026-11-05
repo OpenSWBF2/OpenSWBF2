@@ -293,9 +293,9 @@ void pcRefractionShader::Begin_Prog1(unsigned int uiState, unsigned int) const
     if (uiFlags & 2)
     {
         // GLOBAL: SWBF2 0x009ca5f0
-        // kClipToTextureMatrix
+        // rescaleMat
 
-        static const PblMatrix kClipToTextureMatrix(
+        static PblMatrix rescaleMat(
             PblVector4{ 0.5f, 0.0f, 0.0f, 0.0f },
             PblVector4{ 0.0f, 0.5f, 0.0f, 0.0f },
             PblVector4{ 0.0f, 0.0f, 0.5f, 0.0f },
@@ -303,7 +303,7 @@ void pcRefractionShader::Begin_Prog1(unsigned int uiState, unsigned int) const
 
         const RedCamera* pCamera = RedRenderer::GetCamera();
         PblMatrix mViewProj = pCamera->GetMatrixInverse() * RedRenderer::GetProjectionMatrix();
-        PblMatrix mTex = mViewProj * kClipToTextureMatrix;
+        PblMatrix mTex = mViewProj * rescaleMat;
         s_refractionTexMat = mTex;
     }
 }
@@ -459,15 +459,7 @@ void pcRefractionShader::RenderZPrepass(const RenderItem* pItem) const
     const unsigned int uiAlphaTest = (uiMatFlags >> 1) & 1;
     if (uiAlphaTest == 1)
     {
-        RedColor color;
-        color.b = (unsigned char)(int)(pMaterial->diffuseColor.b * 255.0f);
-        color.g = (unsigned char)(int)(pMaterial->diffuseColor.g * 255.0f);
-        color.r = (unsigned char)(int)(pMaterial->diffuseColor.r * 255.0f);
-        color.a = (unsigned char)(int)(pMaterial->diffuseColor.a * 255.0f);
-        color.r = (unsigned char)(int)(color.r * (pItem->tweakColor.r * (1.0f / 255.0f)) + 0.5f);
-        color.g = (unsigned char)(int)(color.g * (pItem->tweakColor.g * (1.0f / 255.0f)) + 0.5f);
-        color.b = (unsigned char)(int)(color.b * (pItem->tweakColor.b * (1.0f / 255.0f)) + 0.5f);
-        color.a = (unsigned char)(int)(color.a * (pItem->tweakColor.a * (1.0f / 255.0f)) + 0.5f);
+        RedColor color = pItem->tweakColor * pMaterial->diffuseColor;
 
         RedRenderer::pcSetCullMode((pMaterial->materialFlags & 0x10000) ? PCREDCULL_NONE : PCREDCULL_BACK);
 
@@ -493,8 +485,7 @@ void pcRefractionShader::RenderZPrepass(const RenderItem* pItem) const
         RedRenderer::pcSetRenderState(D3DRS_ALPHAREF, color.a >> 1);
 
         pcRedVertexShaderConstantRegister* pRegs = RedRenderer::pcLockVertexShaderConstants(39, 3);
-        pRegs[39].SetFloats(color.r * (1.0f / 255.0f), color.g * (1.0f / 255.0f), color.b * (1.0f / 255.0f),
-                            color.a * (1.0f / 255.0f));
+        pRegs[39].SetColor(RedColorValue(color));
         if (pTransform)
         {
             pRegs[40].SetFloats((*pTransform)(0, 0), (*pTransform)(1, 0), 0.0f, (*pTransform)(2, 0));
@@ -524,15 +515,7 @@ static void FFSetTextureTransform_(unsigned int uiStage, const RedTextureTransfo
 // FUNCTION: SWBF2 0x0070ddc0
 void pcRefractionShader::Render_Fixed(const RenderItem* pItem, unsigned int uiPass) const
 {
-    RedColor color;
-    color.b = (unsigned char)(int)(m_material.diffuseColor.b * 255.0f);
-    color.g = (unsigned char)(int)(m_material.diffuseColor.g * 255.0f);
-    color.r = (unsigned char)(int)(m_material.diffuseColor.r * 255.0f);
-    color.a = (unsigned char)(int)(m_material.diffuseColor.a * 255.0f);
-    color.r = (unsigned char)(int)(color.r * (pItem->tweakColor.r * (1.0f / 255.0f)) + 0.5f);
-    color.g = (unsigned char)(int)(color.g * (pItem->tweakColor.g * (1.0f / 255.0f)) + 0.5f);
-    color.b = (unsigned char)(int)(color.b * (pItem->tweakColor.b * (1.0f / 255.0f)) + 0.5f);
-    color.a = (unsigned char)(int)(color.a * (pItem->tweakColor.a * (1.0f / 255.0f)) + 0.5f);
+    RedColor color = pItem->tweakColor * m_material.diffuseColor;
 
     s_d3dMat.Diffuse = RedColorValue(color);
     s_d3dMat.Ambient = s_d3dMat.Diffuse;
@@ -609,11 +592,7 @@ void pcRefractionShader::Render_Prog1(const RenderItem* pItem, unsigned int) con
 {
     const unsigned int uiFlags = PIPELINE1_INV_STATE_MAP[pItem->uiShaderState];
 
-    RedColor color;
-    color.b = (unsigned char)(int)(m_material.diffuseColor.b * 255.0f);
-    color.g = (unsigned char)(int)(m_material.diffuseColor.g * 255.0f);
-    color.r = (unsigned char)(int)(m_material.diffuseColor.r * 255.0f);
-    color.a = (unsigned char)(int)(m_material.diffuseColor.a * 255.0f);
+    RedColor color = m_material.diffuseColor;
     color = pItem->tweakColor * color;
 
     RedColor refraction = m_colorRefraction;
@@ -632,8 +611,7 @@ void pcRefractionShader::Render_Prog1(const RenderItem* pItem, unsigned int) con
         RedRenderer::pcSetRenderState(D3DRS_ALPHABLENDENABLE, ucAlpha < 0xff);
 
         pcRedVertexShaderConstantRegister* pRegs = RedRenderer::pcLockVertexShaderConstants(39, 3);
-        pRegs[39].SetFloats(color.r * (1.0f / 255.0f), color.g * (1.0f / 255.0f),
-                            color.b * (1.0f / 255.0f), ucAlpha * (1.0f / 255.0f));
+        pRegs[39].SetColor(RedColorValue(RedColor(color, ucAlpha)));
         const RedTextureTransform& diffuse = m_material.diffuseTexTransform;
         pRegs[40].SetFloats(diffuse(0, 0), diffuse(1, 0), 0.0f, diffuse(2, 0));
         pRegs[41].SetFloats(diffuse(0, 1), diffuse(1, 1), 0.0f, diffuse(2, 1));
@@ -644,12 +622,8 @@ void pcRefractionShader::Render_Prog1(const RenderItem* pItem, unsigned int) con
     else
     {
         pcRedVertexShaderConstantRegister* pRegs = RedRenderer::pcLockVertexShaderConstants(39, 10);
-        pRegs[39].SetFloats(color.r * (1.0f / 255.0f), color.g * (1.0f / 255.0f),
-                            color.b * (1.0f / 255.0f), color.a * (1.0f / 255.0f));
-        pRegs[40].component[0] = 1.0f;
-        pRegs[40].component[1] = 0.0f;
-        pRegs[40].component[2] = m_distortionScale * 8.0f;
-        pRegs[40].component[3] = 0.0f;
+        pRegs[39].SetColor(RedColorValue(color));
+        pRegs[40].SetFloats(1.0f, 0.0f, m_distortionScale * 8.0f, 0.0f);
 
         PblMatrix mTex = *pItem->pmObjWorld * s_refractionTexMat;
         pRegs[41].SetMatrix4x4(mTex);
@@ -905,7 +879,7 @@ void pcRefractionShader::_InitPipelineFuncArray()
 // FUNCTION: SWBF2 0x0070edd0
 void pcRefractionShader::_Read(PblFileChunk& chunk) const
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId != 0x454d414e)
@@ -965,6 +939,7 @@ void pcRefractionShader::_StaticInit() const
 
 // GLOBAL: SWBF2 0x009ca3ac
 // pcRefractionShader::s_uiRenderTypeHash
+// STRING: SWBF2 0x00785280
 unsigned int pcRefractionShader::s_uiRenderTypeHash = PblHash("Refraction");
 
 // SYNTHETIC: SWBF2 0x0040a2d0

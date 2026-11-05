@@ -45,6 +45,11 @@ struct BasePoly3D
     int numPoints_;
 };
 
+inline bool IsDegenerate(const BasePoly3D& poly)
+{
+    return poly.numPoints_ < 3;
+}
+
 struct BoundedPoly3D : public BasePoly3D
 {
     static void Bound(const BasePoly3D& rPoly, Box& rBox);

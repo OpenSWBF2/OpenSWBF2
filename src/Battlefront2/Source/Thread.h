@@ -121,14 +121,14 @@ public:
     virtual void ActivateThread(int iOrder, ThreadType eThreadType);
     virtual void DeactivateThread();
     // FUNCTION: SWBF2 0x00429200
-    virtual bool IsThreadActive() { return mThreadListNode._pList != 0; }
+    virtual bool IsThreadActive() const { return mThreadListNode._pList != 0; }
 
     typedef PblOrderedList<Thread, int>::Node ThreadListNode;
     typedef PblOrderedList<Thread, int> ThreadList;
 
     ThreadListNode mThreadListNode;
 
-    static ThreadListNode* sExecutingThread;
+    static ThreadList::Itor sExecutingThread;
 
     static void EnterClient();
     static void LeaveClient();

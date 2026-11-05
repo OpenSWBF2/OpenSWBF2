@@ -10,21 +10,6 @@
 #include "NetGame.h"
 #include "Trackable.h"
 
-namespace
-{
-
-inline const RedColor Interpolate(const RedColor& a, const RedColor& b, float t)
-{
-    RedColor result;
-    result.b = (unsigned char)(int)(a.b * (1.0f - t) + b.b * t + 0.5f);
-    result.g = (unsigned char)(int)(a.g * (1.0f - t) + b.g * t + 0.5f);
-    result.r = (unsigned char)(int)(a.r * (1.0f - t) + b.r * t + 0.5f);
-    result.a = (unsigned char)(int)(a.a * (1.0f - t) + b.a * t + 0.5f);
-    return result;
-}
-
-}
-
 namespace TargetManager
 {
 

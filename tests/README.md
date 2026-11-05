@@ -36,7 +36,7 @@ This builds the tests, then runs each case in its own process and the Standard s
 | `-Movies` | run with the renderer instead of `-norender` |
 | `-HogAddrSpace` | force the arena above 2 GB |
 | `-Hardening` | run only the hardening checks |
-| `-Clean` | delete the staged output folders safely and exit |
+| `-Clean` | delete the staged output folders and any junctions left under `artifacts` safely, and exit |
 
 `run.ps1` exits 0 when everything passes, 1 on any failure and 2 on a setup error. Each case prints one of `[PASS]`, `[FAIL]`, `[SKIP]`, `[TIMEOUT]`, `[CRASH]` or `[KNOWN]`.
 
@@ -58,7 +58,7 @@ Smoke runs launch the real `BattlefrontII.exe` headless. Each case writes `run.l
 | `Twice` | the same missions twice with a fixed seed; the results and digest traces must match |
 | `Dedicated` | dedicated-server cases |
 | `Crash` | deliberate faults through `-crashtest <kind>`; each must leave the expected exit code, log line and dump |
-| `All` | every mission in `tests\smoke\missions-all.txt`, plus Dedicated and Crash |
+| `All` | every mission in `tests\smoke\missions-all.txt` (`<mission> [<class>] [<seconds>]`), plus Dedicated and Crash |
 
 A case fails on any Error, Bug or Fatal line in its `run.log` unless a regex in `tests\smoke\expected-errors.txt` covers it. In T1, declare an expected error with `ExpectLog("text")` or `ExpectEnsure("text")`.
 
@@ -93,6 +93,8 @@ Weak handles read the id of an object that may already be freed, so write handle
 3. Run it as a normal low-privilege user, with no secrets on the machine.
 4. Require approval for external contributors' workflows.
 
+A weekly and on-demand `full` job runs the milestone tier from the gate tiers table.
+
 `tests\selftest.ps1` checks the runner scripts themselves against stub executables.
 
 ## Staged output
@@ -105,7 +107,7 @@ The hardening step checks the exe's security flags (ASLR, DEP, LAA, SafeSEH, `/G
 
 | Check | Fails on |
 |-------|----------|
-| `new-size-t` | `operator new`/`delete` with a 32-bit size type, not in `$script:NewSizeAllow` (`smoke.ps1`) |
+| `new-size-t` | `operator new`/`delete` with a 32-bit size type |
 | `win32-callbacks` | casts to Win32 callback types, or window procs with the wrong signature |
 | `galaxy-vtable` | hand-written vtable math under `src\Steam` |
 | `fastcall-edx` | dummy EDX parameters on `__fastcall` functions, not in `$script:FastcallAllow` (`smoke.ps1`) |
@@ -113,13 +115,25 @@ The hardening step checks the exe's security flags (ASLR, DEP, LAA, SafeSEH, `/G
 | `char-spacer` | byte-array spacers not in `$script:SpacerAllow` (`smoke.ps1`) |
 | `offset-hack` | raw byte-offset object access not in `$script:OffsetAllow` (`smoke.ps1`) |
 | `gamma-get` | any `GetDeviceGammaRamp` call |
+| `snd-alloc-size-t` | `SndAlloc`, `SndTempAlloc` or a sound allocator function pointer with a 32-bit size type |
+| `galaxy-getter-cast` | a Galaxy getter returning `void*`, or a cast or `void*` temporary on a Galaxy getter's result |
 | `t1-suite` | a test case that `run.ps1` would never run |
+
+## Gate tiers
+
+| Tier | When | Gates |
+|------|------|-------|
+| Per plan | every change | build the configs the change touches; `tests\run.ps1` (T1, hardening and flag checks, Standard smoke); `tests\guard-revert.ps1` (selective) |
+| Branch close | before merging a branch | Debug, Release, Test and Asan builds; `run.ps1 -Smoke None`, `-Smoke Standard`, `-Smoke Twice`, `-Smoke Dedicated`; selective `guard-revert.ps1`; the wire-order and baseline tools when net or sim code changed |
+| Milestone close or weekly CI | before a release, and the `full` CI job | `run.ps1 -Smoke All`; `guard-revert.ps1 -Full`; `run.ps1 -Asan`, `-Asan -Smoke Twice`, `-Asan -Smoke Dedicated`; `x64-census.ps1` |
 
 ## Guard revert
 
     powershell -File tests\guard-revert.ps1 [-Row ID,...] [-Configuration Test] [-Keep]
 
 This proves the regression tests catch their bugs. For each row in `tests\guardrevert\rows.ps1`, it reverts one fix in a scratch worktree, rebuilds and runs the named cases. With the fix (`Control`), every row must be GREEN. With the fix reverted, every row must be RED. STILL-GREEN means the test does not detect the revert. The table is saved to `artifacts\guard-revert\<stamp>\summary.txt`.
+
+By default it re-runs only the rows whose dependencies changed since their recorded proof in `tests\guardrevert\proven.tsv`. `-Full` runs every row, and `-ListSelected` prints the decision for each row without building. Dependencies come from the main tree's tlogs, so its Debug and Asan test builds and its Release game build must be current, or the affected rows are re-run. A `CARRY` line names the commit where the proof was recorded. That commit can be local-only and later squashed away; the proof rests on its tree and a digest of the row's dependency contents.
 
 ## Other tools
 

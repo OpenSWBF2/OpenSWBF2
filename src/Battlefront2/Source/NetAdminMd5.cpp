@@ -28,15 +28,13 @@ void __cdecl MD5Init(MD5_CTX* pState)
 void __cdecl MD5Update(MD5_CTX* pState, const unsigned char* pData, unsigned int uLength)
 {
     unsigned int uIndex = (pState->count[0] >> 3) & 63;
-    unsigned int uBits = uLength << 3;
-    pState->count[0] += uBits;
-    if (pState->count[0] < uBits)
+    if ((pState->count[0] += (uLength << 3)) < (uLength << 3))
     {
         ++pState->count[1];
     }
     pState->count[1] += uLength >> 29;
     unsigned int uPart = 64 - uIndex;
-    unsigned int i = 0;
+    unsigned int i;
     if (uLength >= uPart)
     {
         MD5CopyBytes(pState->buffer + uIndex, pData, uPart);
@@ -46,6 +44,10 @@ void __cdecl MD5Update(MD5_CTX* pState, const unsigned char* pData, unsigned int
             MD5Transform(pState->state, pData + i);
         }
         uIndex = 0;
+    }
+    else
+    {
+        i = 0;
     }
     MD5CopyBytes(pState->buffer + uIndex, pData + i, uLength - i);
 }
@@ -121,14 +123,12 @@ void __cdecl MD5Transform(unsigned int* pState, const unsigned char* pBlock)
 // FUNCTION: SWBF2 0x005a2f40
 void __cdecl MD5EncodeWords(unsigned char* pDest, const unsigned int* pSource, unsigned int uLength)
 {
-    unsigned char* pOut = pDest;
-    const unsigned char* pIn = (const unsigned char*)pSource;
-    for (unsigned int i = 0; i < uLength; i += 4)
+    for (unsigned int i = 0, j = 0; j < uLength; ++i, j += 4)
     {
-        pOut[i] = pIn[i];
-        pOut[i + 1] = pIn[i + 1];
-        pOut[i + 2] = pIn[i + 2];
-        pOut[i + 3] = pIn[i + 3];
+        pDest[j] = (unsigned char)(pSource[i] & 0xff);
+        pDest[j + 1] = (unsigned char)((pSource[i] >> 8) & 0xff);
+        pDest[j + 2] = (unsigned char)((pSource[i] >> 16) & 0xff);
+        pDest[j + 3] = (unsigned char)((pSource[i] >> 24) & 0xff);
     }
 }
 

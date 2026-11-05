@@ -72,7 +72,7 @@ public:
                                    Restrictor* pRestrictor);
     virtual bool Update(float fDeltaTime);
 
-    static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }
+    static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
     // SYNTHETIC: SWBF2 0x004d7c10
     // EntityPortableTurret::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }

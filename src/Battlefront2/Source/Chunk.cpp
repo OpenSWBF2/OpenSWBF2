@@ -93,7 +93,7 @@ Chunk::Chunk()
 
 // SYNTHETIC: SWBF2 0x004550c0
 // Chunk::~Chunk
-
+// GLOBAL: SWBF2 0x0078da84
 static const PblVector3 vGravity(0.0f, -9.8f, 0.0f);
 
 // FUNCTION: SWBF2 0x00455150

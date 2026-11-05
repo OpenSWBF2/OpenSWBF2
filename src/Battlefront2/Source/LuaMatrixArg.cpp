@@ -1,7 +1,9 @@
 #include "LuaMatrixArg.h"
 
 #include "PebbleFL/Common/PblMatrix.h"
+#define Value LuaObjectValue
 #include "LuaFL/src/lobject.h"
+#undef Value
 
 namespace LuaMatrixArg
 {

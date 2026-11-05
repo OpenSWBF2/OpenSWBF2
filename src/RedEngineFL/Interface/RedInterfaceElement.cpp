@@ -27,12 +27,9 @@ void RedInterfaceElement::Rotate(float fX, float fY, float fAngle)
     PblMath::SinCos(&fSin, &fCos, fAngle);
     PblVector3 vY = m_mLocal[1];
     PblVector3 vX = m_mLocal[0];
-    m_mLocal[0] = vX * fCos + vY * fSin;
-    m_mLocal.m[0][3] = 0.0f;
-    m_mLocal[1] = vX * -fSin + vY * fCos;
-    m_mLocal.m[1][3] = 0.0f;
-    m_mLocal[3] = m_mLocal[3] + vX * fX + vY * fY;
-    m_mLocal.m[3][3] = 1.0f;
+    m_mLocal.SetXAxis(vX * fCos + vY * fSin);
+    m_mLocal.SetYAxis(vX * -fSin + vY * fCos);
+    m_mLocal.SetTranslation(m_mLocal[3] + vX * fX + vY * fY);
 }
 
 // GLOBAL: SWBF2 0x008fe488
@@ -158,10 +155,8 @@ void RedInterfaceElement::SetMatrixPosScale(float fX, float fY, float fScaleX,
 // FUNCTION: SWBF2 0x006c0510
 void RedInterfaceElement::Scale(float fScaleX, float fScaleY)
 {
-    m_mLocal[0] = fScaleX * m_mLocal[0];
-    m_mLocal.m[0][3] = 0.0f;
-    m_mLocal[1] = fScaleY * m_mLocal[1];
-    m_mLocal.m[1][3] = 0.0f;
+    m_mLocal.SetXAxis(m_mLocal[0] * fScaleX);
+    m_mLocal.SetYAxis(m_mLocal[1] * fScaleY);
 }
 
 // FUNCTION: SWBF2 0x006c07e0

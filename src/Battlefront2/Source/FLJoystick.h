@@ -73,7 +73,7 @@ public:
 
     bool GetDigital(ePROCESSEDINPUT_TYPE eType) const;
 
-    void Set(ePROCESSEDINPUT_TYPE eType, bool& bLocked, float fValue, float fLastValue);
+    void Set(ePROCESSEDINPUT_TYPE eType, bool& bLocked, float fLastValue, float fValue);
 
     float GetStrafeAxis() const { return mFloatInputs[0]; }
     float GetMoveAxis() const { return mFloatInputs[1]; }
@@ -162,6 +162,12 @@ public:
     void Clear();
 
     void Set(eGUIINPUT_TYPE eType, float fValue);
+
+    void SetMousePos(int x, int y)
+    {
+        mMouseCoords.mPosX = x;
+        mMouseCoords.mPosY = y;
+    }
 
     bool IsLeftPressed() const;
     bool IsRightPressed() const;

@@ -45,16 +45,7 @@ static const float kfFadeDrawDistanceFactor = 1.0f / (1.0f - kfFadeDrawDistanceS
 
 
 
-// FUNCTION: SWBF2 0x004bd820
-const RedColor Interpolate(const RedColor& a, const RedColor& b, float t)
-{
-    RedColor result;
-    result.b = (unsigned char)(int)(a.b * (1.0f - t) + b.b * t + 0.5f);
-    result.g = (unsigned char)(int)(a.g * (1.0f - t) + b.g * t + 0.5f);
-    result.r = (unsigned char)(int)(a.r * (1.0f - t) + b.r * t + 0.5f);
-    result.a = (unsigned char)(int)(a.a * (1.0f - t) + b.a * t + 0.5f);
-    return result;
-}
+
 
 // FUNCTION: SWBF2 0x004bd990
 LensFlare::LensFlare()

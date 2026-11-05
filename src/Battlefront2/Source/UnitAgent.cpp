@@ -13,6 +13,8 @@
 #include "EventInfo.h"
 #include "GameObject.h"
 #include "EntitySoldier.h"
+#include "EntityCarrier.h"
+#include "EntityDroideka.h"
 #include "FlyRegion.h"
 #include "GameLoop.h"
 #include "Team.h"
@@ -23,18 +25,6 @@
 #include "PebbleFL/Common/PblRandom.h"
 
 #include "UnitThreatManager.h"
-
-class EntityFlyer
-{
-public:
-    static PblHash rttiHashEntityFlyer;
-};
-
-class EntityDroideka
-{
-public:
-    static PblHash rttiHashEntityDroideka;
-};
 
 namespace AI
 {
@@ -118,11 +108,6 @@ namespace ControllerManager
 
 namespace
 {
-
-    enum
-    {
-        AILOD_NORMAL = 3
-    };
 
     enum
     {

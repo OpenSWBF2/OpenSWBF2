@@ -84,7 +84,7 @@ public:
     static PblHash rttiHashWeaponDisguise;
     static const char rttiNameWeaponDisguise[];
 
-    GameModel* mSavedOwnerModel;
+    const GameModel* mSavedOwnerModel;
     Team* mOtherTeam;
     DISGUISE_STATE m_eState;
 };

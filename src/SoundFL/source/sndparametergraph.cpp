@@ -67,7 +67,7 @@ const ParameterGraph* __cdecl ParameterGraph::FindByHashID(unsigned int uiHashID
 // FUNCTION: SWBF2 0x00748d70
 void __cdecl ParameterGraph::Load(PblFileChunk& chunk, bool bOnce)
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId != 0x41544144u)
@@ -90,7 +90,7 @@ void __cdecl ParameterGraph::Load(PblFileChunk& chunk, bool bOnce)
 // FUNCTION: SWBF2 0x00748e40
 void ParameterGraph::Read(PblFileChunk& chunk)
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         const unsigned int uiID = child._pFile->Read32();

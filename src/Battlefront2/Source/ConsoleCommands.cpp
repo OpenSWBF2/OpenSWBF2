@@ -41,11 +41,7 @@ int __cdecl DumpHardware(RedConsole* pConsole, unsigned int, char const*)
 // `dynamic initializer for 'ABDumpHardware''
 RedCommandConsole ABDumpHardware("Hardware", DumpHardware);
 
-// FUNCTION: SWBF2 0x00411c50
-const RedModel* RedModel::Find(unsigned int uiName)
-{
-    return _HashTable.Find(uiName);
-}
+
 
 
 

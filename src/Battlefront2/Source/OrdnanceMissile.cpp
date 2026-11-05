@@ -179,11 +179,9 @@ bool OrdnanceMissile::Update(float fDeltaTime)
             const float fInv = 1.0f / fLength;
             vAxis *= fInv;
             const float fMaxTurn = fTurnRate * fDeltaTime;
-            D3DXMATRIX mRotation;
-            D3DXMatrixRotationAxis(&mRotation, (const D3DXVECTOR3*)&vAxis,
-                                   fMaxTurn > fLength ? fLength : fMaxTurn);
-            PblVector3 vDir;
-            D3DXVec3TransformNormal((D3DXVECTOR3*)&vDir, (const D3DXVECTOR3*)&mVelocityDir, &mRotation);
+            PblMatrix mRotation;
+            mRotation.SetRotateArbitraryAxis(fMaxTurn > fLength ? fLength : fMaxTurn, vAxis);
+            PblVector3 vDir = mRotation.ApplyRotation(mVelocityDir);
             mVelocityDir = vDir;
         }
     }
@@ -209,10 +207,9 @@ bool OrdnanceMissile::Update(float fDeltaTime)
             const float fLength = sqrtf(fLengthSq);
             const float fInv = 1.0f / fLength;
             vAxis *= fInv;
-            D3DXMATRIX mRotation;
-            D3DXMatrixRotationAxis(&mRotation, (const D3DXVECTOR3*)&vAxis, fWaverTurn * fDeltaTime * fLength);
-            PblVector3 vDir;
-            D3DXVec3TransformNormal((D3DXVECTOR3*)&vDir, (const D3DXVECTOR3*)&mVelocityDir, &mRotation);
+            PblMatrix mRotation;
+            mRotation.SetRotateArbitraryAxis(fWaverTurn * fDeltaTime * fLength, vAxis);
+            PblVector3 vDir = mRotation.ApplyRotation(mVelocityDir);
             mVelocityDir = vDir;
         }
 

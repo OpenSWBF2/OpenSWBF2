@@ -40,11 +40,7 @@ void Stream::Flush(bool bThreadPaused, bool bFlushRenderers)
     mSource.Stop();
     mSource.Update();
 
-    const Info* pInfo = !mInfoList.IsEmpty()
-        ? (const Info*)((ObjectList::Node*)((ObjectList::Node*)mInfoList.GetFirst()->GetObjectA(
-              &mInfoList, offsetof(ObjectList::Node, mNode)))->mNode.GetObjectA(
-              &mInfoList, offsetof(ObjectList::Node, mNode)))->GetObjectA()
-        : 0;
+    const Info* pInfo = FindInfoByIndex(0);
     const unsigned int uiNumSubstreams = pInfo->mNumSubstreams;
 
     for (unsigned int i = 0; i < uiNumSubstreams; ++i)
@@ -144,11 +140,7 @@ void Stream::Update(float fDeltaTime)
     mSource.SetLooping(GetLooping());
     StreamBase::Update(fDeltaTime);
 
-    const Info* pInfo = !mInfoList.IsEmpty()
-        ? (const Info*)((ObjectList::Node*)((ObjectList::Node*)mInfoList.GetFirst()->GetObjectA(
-              &mInfoList, offsetof(ObjectList::Node, mNode)))->mNode.GetObjectA(
-              &mInfoList, offsetof(ObjectList::Node, mNode)))->GetObjectA()
-        : 0;
+    const Info* pInfo = FindInfoByIndex(0);
     const unsigned int uiNumSubstreams = pInfo->mNumSubstreams;
 
     if (GetGainChanged())
@@ -320,11 +312,7 @@ namespace Snd
 // FUNCTION: SWBF2 0x00734a90
 void Stream::Connect(StreamNodeSink** ppSinks)
 {
-    const Info* pInfo = !mInfoList.IsEmpty()
-        ? (const Info*)((ObjectList::Node*)((ObjectList::Node*)mInfoList.GetFirst()->GetObjectA(
-              &mInfoList, offsetof(ObjectList::Node, mNode)))->mNode.GetObjectA(
-              &mInfoList, offsetof(ObjectList::Node, mNode)))->GetObjectA()
-        : 0;
+    const Info* pInfo = FindInfoByIndex(0);
     const unsigned int uiNumSubstreams = pInfo->mNumSubstreams;
 
     if (uiNumSubstreams == 1)
@@ -347,11 +335,7 @@ namespace Snd
 // FUNCTION: SWBF2 0x00734c80
 void Stream::Open(File& rFile)
 {
-    const Info* pInfo = !mInfoList.IsEmpty()
-        ? (const Info*)((ObjectList::Node*)((ObjectList::Node*)mInfoList.GetFirst()->GetObjectA(
-              &mInfoList, offsetof(ObjectList::Node, mNode)))->mNode.GetObjectA(
-              &mInfoList, offsetof(ObjectList::Node, mNode)))->GetObjectA()
-        : 0;
+    const Info* pInfo = FindInfoByIndex(0);
     const Segment* pSegment = mCurrentSegment;
     const unsigned int uiNumSubstreams = pInfo->mNumSubstreams;
     SampleInfo::Format eFormat = pInfo->mFormat;

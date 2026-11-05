@@ -55,7 +55,7 @@ bool ReadDataFile(char const* pcFileName)
     bool bResult;
     if (file.Open(pcFileName, false, false, true))
     {
-        bResult = LoadUtil::ReadDataFile(file, 0, 0, 0, 0);
+        bResult = LoadUtil::ReadDataFile(file, 0, 0, 0, 0, 0);
         file.Close();
     }
     else

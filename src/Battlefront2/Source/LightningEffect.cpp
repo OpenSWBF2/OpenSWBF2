@@ -22,15 +22,7 @@
 namespace
 {
 
-inline const RedColor Interpolate(const RedColor& a, const RedColor& b, float t)
-{
-    RedColor result;
-    result.b = (unsigned char)(int)(a.b * (1.0f - t) + b.b * t + 0.5f);
-    result.g = (unsigned char)(int)(a.g * (1.0f - t) + b.g * t + 0.5f);
-    result.r = (unsigned char)(int)(a.r * (1.0f - t) + b.r * t + 0.5f);
-    result.a = (unsigned char)(int)(a.a * (1.0f - t) + b.a * t + 0.5f);
-    return result;
-}
+
 
 inline unsigned char ClampColorComponent(float f)
 {
@@ -262,30 +254,18 @@ void LightningEffect::Update(float fDeltaTime)
             float fLightning = fBrightness - fSunlight;
             float fDarken = 1.0f - m_fSunlightFadeMax;
 
-            RedColorValue colorAmbient;
-            colorAmbient.r = m_colorAmbient_Restore.r * fDarken + m_colorSunlight_Restore.r * 0.333f * fDarken;
-            colorAmbient.g = m_colorAmbient_Restore.g * fDarken + m_colorSunlight_Restore.g * 0.333f * fDarken;
-            colorAmbient.b = m_colorAmbient_Restore.b * fDarken + m_colorSunlight_Restore.b * 0.333f * fDarken;
+            RedColorValue colorAmbient = m_colorAmbient_Restore * fDarken
+                + m_colorSunlight_Restore * 0.333f * fDarken;
             colorAmbient.a = 1.0f;
-
-            RedColorValue colorTop;
-            colorTop.r = m_colorDirectionalAmbient_Restore[0].r * fDarken + m_colorSunlight_Restore.r * 0.333f * fDarken;
-            colorTop.g = m_colorDirectionalAmbient_Restore[0].g * fDarken + m_colorSunlight_Restore.g * 0.333f * fDarken;
-            colorTop.b = m_colorDirectionalAmbient_Restore[0].b * fDarken + m_colorSunlight_Restore.b * 0.333f * fDarken;
+            RedColorValue colorTop = m_colorDirectionalAmbient_Restore[0] * fDarken
+                + m_colorSunlight_Restore * 0.333f * fDarken;
             colorTop.a = 1.0f;
-
-            RedColorValue colorBottom;
-            colorBottom.r = m_colorDirectionalAmbient_Restore[1].r * fDarken + m_colorSunlight_Restore.r * 0.333f * fDarken;
-            colorBottom.g = m_colorDirectionalAmbient_Restore[1].g * fDarken + m_colorSunlight_Restore.g * 0.333f * fDarken;
-            colorBottom.b = m_colorDirectionalAmbient_Restore[1].b * fDarken + m_colorSunlight_Restore.b * 0.333f * fDarken;
+            RedColorValue colorBottom = m_colorDirectionalAmbient_Restore[1] * fDarken
+                + m_colorSunlight_Restore * 0.333f * fDarken;
             colorBottom.a = 1.0f;
 
             float fScale = 1.0f - fLightning;
-            RedColorValue colorSunlight;
-            colorSunlight.r = m_colorLightning.r * fScale;
-            colorSunlight.g = m_colorLightning.g * fScale;
-            colorSunlight.b = m_colorLightning.b * fScale;
-            colorSunlight.a = m_colorLightning.a * fScale;
+            RedColorValue colorSunlight = m_colorLightning * fScale;
 
             RedLight::SetGlobalAmbientLightColor(colorAmbient);
             RedLight::SetGlobalDirectionalAmbientColors(colorTop, colorBottom);
@@ -297,35 +277,13 @@ void LightningEffect::Update(float fDeltaTime)
             float fScale = 1.0f - (fSunlight - fBrightness) / m_fSunlightBrightness;
             float fDarken = 1.0f - m_fSunlightFadeMax;
 
-            RedColorValue colorSunlightAdd;
-            colorSunlightAdd.r = m_colorSunlight_Restore.r * 0.333f * fScale;
-            colorSunlightAdd.g = m_colorSunlight_Restore.g * 0.333f * fScale;
-            colorSunlightAdd.b = m_colorSunlight_Restore.b * 0.333f * fScale;
-            colorSunlightAdd.a = m_colorSunlight_Restore.a * 0.333f * fScale;
-
-            RedColorValue colorAmbient;
-            colorAmbient.r = m_colorAmbient_Restore.r * fDarken + fDarken * colorSunlightAdd.r;
-            colorAmbient.g = m_colorAmbient_Restore.g * fDarken + fDarken * colorSunlightAdd.g;
-            colorAmbient.b = m_colorAmbient_Restore.b * fDarken + fDarken * colorSunlightAdd.b;
-            colorAmbient.a = m_colorAmbient_Restore.a * fDarken + fDarken * colorSunlightAdd.a;
-
-            RedColorValue colorTop;
-            colorTop.r = m_colorDirectionalAmbient_Restore[0].r * fDarken + fDarken * colorSunlightAdd.r;
-            colorTop.g = m_colorDirectionalAmbient_Restore[0].g * fDarken + fDarken * colorSunlightAdd.g;
-            colorTop.b = m_colorDirectionalAmbient_Restore[0].b * fDarken + fDarken * colorSunlightAdd.b;
-            colorTop.a = m_colorDirectionalAmbient_Restore[0].a * fDarken + fDarken * colorSunlightAdd.a;
-
-            RedColorValue colorBottom;
-            colorBottom.r = m_colorDirectionalAmbient_Restore[1].r * fDarken + fDarken * colorSunlightAdd.r;
-            colorBottom.g = m_colorDirectionalAmbient_Restore[1].g * fDarken + fDarken * colorSunlightAdd.g;
-            colorBottom.b = m_colorDirectionalAmbient_Restore[1].b * fDarken + fDarken * colorSunlightAdd.b;
-            colorBottom.a = m_colorDirectionalAmbient_Restore[1].a * fDarken + fDarken * colorSunlightAdd.a;
-
-            RedColorValue colorSunlight;
-            colorSunlight.r = m_colorSunlight_Restore.r * fScale;
-            colorSunlight.g = m_colorSunlight_Restore.g * fScale;
-            colorSunlight.b = m_colorSunlight_Restore.b * fScale;
-            colorSunlight.a = m_colorSunlight_Restore.a * fScale;
+            RedColorValue colorAmbient = m_colorAmbient_Restore * fDarken
+                + m_colorSunlight_Restore * 0.333f * fScale * fDarken;
+            RedColorValue colorTop = m_colorDirectionalAmbient_Restore[0] * fDarken
+                + m_colorSunlight_Restore * 0.333f * fScale * fDarken;
+            RedColorValue colorBottom = m_colorDirectionalAmbient_Restore[1] * fDarken
+                + m_colorSunlight_Restore * 0.333f * fScale * fDarken;
+            RedColorValue colorSunlight = m_colorSunlight_Restore * fScale;
 
             RedLight::SetGlobalAmbientLightColor(colorAmbient);
             RedLight::SetGlobalDirectionalAmbientColors(colorTop, colorBottom);
@@ -352,34 +310,28 @@ void LightningEffect::Update(float fDeltaTime)
     mBoltTimer -= fDeltaTime;
     if (mBoltTimer < 0.0f)
     {
-        FLEffectClass* pClass = FLEffect::s_EffectClasses.Find(0x559A2771u);
+        FLEffectClass* pClass = FLEffect::Get(0x559A2771u);
         if (pClass)
         {
             FLEffectObject* pEffect = pClass->BuildEffect();
             if (pEffect)
             {
-                const PblMatrix& mCamera = CameraManager::sInstance->GetCamera(0)->GetMatrix();
+                PblMatrix mCamera = CameraManager::sInstance->GetCamera(0)->GetMatrix();
                 PblVector3 vDir;
                 vDir.x = PblRandom::GetGlobalFloat() - 0.5f;
                 vDir.z = PblRandom::GetGlobalFloat() - 0.5f;
                 vDir.y = 0.01f;
                 vDir.x -= mCamera.m[2][0];
                 vDir.z -= mCamera.m[2][2];
-                PblVector3 vNormal;
-                D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNormal), reinterpret_cast<const D3DXVECTOR3*>(&vDir));
-
-                PblVector3 vPos;
-                vPos.x = mCamera.m[3][0] + vNormal.x * fBoltDist;
-                vPos.y = fBoltHeight;
-                vPos.z = mCamera.m[3][2] + vNormal.z * fBoltDist;
-                pEffect->AttachEffectToVector(&vPos, false);
+                vDir = Normalize(vDir) * fBoltDist;
+                vDir += mCamera.GetTranslation();
+                vDir.y = fBoltHeight;
+                pEffect->AttachEffectToVector(&vDir, false);
 
                 float fOffsetX = (PblRandom::GetGlobalFloat() - 0.5f) * 20.0f;
                 float fOffsetZ = (PblRandom::GetGlobalFloat() - 0.5f) * 20.0f;
                 LightningBoltEffectObject* pBolt = static_cast<LightningBoltEffectObject*>(pEffect);
-                pBolt->mTargetPos.x = vPos.x + fOffsetX;
-                pBolt->mTargetPos.y = vPos.y - 200.0f;
-                pBolt->mTargetPos.z = vPos.z + fOffsetZ;
+                pBolt->SetTargetPoint(vDir + PblVector3(fOffsetX, -200.0f, fOffsetZ));
             }
         }
         mBoltTimer = (mBoltFrequencyMax - mBoltFrequencyMin) * PblRandom::GetGlobalFloat() + mBoltFrequencyMin;

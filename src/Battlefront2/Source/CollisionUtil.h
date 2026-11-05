@@ -2,6 +2,12 @@
 
 class PblVector3;
 class PblMatrix;
+class RedColor;
+
+namespace CollisionUtil
+{
+void RenderBox(const PblMatrix& matrix, float width, float height, float depth, RedColor color);
+}
 
 namespace CollisionUtil
 {
@@ -55,7 +61,7 @@ bool CollideCylinderSphere(const PblMatrix& matrix, float fRadius, float fHalfHe
 
 namespace CollisionUtil
 {
-bool GetClosestPointInPolygon(const PblVector3& vPos, int iNumCorners, const PblVector3* pCorners, PblVector3& vOutPos,
+bool GetClosestPointInPolygon(PblVector3& vPos, int iNumCorners, const PblVector3* pCorners, PblVector3& vOutPos,
                 float fMaxDist);
 }
 

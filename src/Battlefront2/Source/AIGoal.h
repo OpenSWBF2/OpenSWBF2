@@ -59,7 +59,7 @@ struct GoalTarget
 
     GoalTargetType mType;
     PblVector3 mPos;
-    Character* mChr;
+    const Character* mChr;
     PblHandle<const GameObject> mGameObj;
 
     bool GetLocation(PblVector3& vPos);
@@ -104,7 +104,7 @@ protected:
 
 public:
 
-    static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }
+    static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
     void UnAssignAll();

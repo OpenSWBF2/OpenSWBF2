@@ -5,6 +5,7 @@
 #include "SoundDebugDisplay.h"
 #include "GameVoiceChat.h"
 #include "GameVoiceChatDecoder.h"
+#include "GameVoiceChatEncoder.h"
 #include "GameVoiceChatNode.h"
 #include "GameVoiceChatTransport.h"
 #include "VoiceChatNode.h"
@@ -47,7 +48,7 @@ void SoundDebugDisplay::DisplayVoiceChatInfo()
     {
         GameVoiceChat::Node* pNode = GameVoiceChat::GetEnabledNode(uiEnabled);
         const unsigned char ucNodeID = pNode->GetID();
-        char* const pEncoder = (char*)&pNode->GetEncoder();
+        GameVoiceChat::Encoder* const pEncoder = static_cast<GameVoiceChat::Encoder*>(&pNode->GetEncoder());
         VoiceChat::Decoder* const pBaseDecoder = &pNode->GetDecoder();
         GameVoiceChat::Decoder* const pDecoder = pBaseDecoder ?
             static_cast<GameVoiceChat::Decoder*>(pBaseDecoder) : 0;
@@ -98,10 +99,10 @@ void SoundDebugDisplay::DisplayVoiceChatInfo()
         }
 
         Printf("capture: src %s, agc %s, vad %s, enc %s",
-               GetPlayStateStringShort(((Snd::SourceTransport*)(pEncoder + 0x08))->GetPlayState()),
-               GetPlayStateStringShort(((Snd::SourceTransport*)(pEncoder + 0x4b8))->GetPlayState()),
-               GetPlayStateStringShort(((Snd::SourceTransport*)(pEncoder + 0x478))->GetPlayState()),
-               GetPlayStateStringShort(((Snd::SourceTransport*)(pEncoder + 0x78))->GetPlayState()));
+               GetPlayStateStringShort(pEncoder->mSource.GetPlayState()),
+               GetPlayStateStringShort(pEncoder->mAGC.GetPlayState()),
+               GetPlayStateStringShort(pEncoder->mVAD.GetPlayState()),
+               GetPlayStateStringShort(pEncoder->mEncoder.GetPlayState()));
 
         Printf("render : mix %s, aux %s %s %2d:%2d\n",
                pDecoder->mMixer.IsActive() ? "ply" : "stp",

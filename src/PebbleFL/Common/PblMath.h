@@ -2,6 +2,11 @@
 
 #include <math.h>
 
+inline const float Value(float f)
+{
+    return f < 0.0f ? -f : f;
+}
+
 inline const float Interpolate(float f0, float f1, float fT)
 {
     return (f1 - f0) * fT + f0;

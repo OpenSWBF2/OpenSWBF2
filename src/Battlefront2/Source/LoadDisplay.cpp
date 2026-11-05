@@ -176,23 +176,6 @@ inline bool IsJournaling()
            PblJournal::Get(PJT_FULL)->mMode == PJM_WRITING;
 }
 
-static int GetLocalizedTeamNum(unsigned int uiTeamHash)
-{
-    switch (uiTeamHash)
-    {
-    case 0xe40c292c:
-        return 0;
-    case 0xf70c4715:
-        return 1;
-    case 0xe60c2c52:
-        return 2;
-    case 0xec0c35c4:
-        return 3;
-    default:
-        return -1;
-    }
-}
-
 // FUNCTION: SWBF2 0x00575550
 int GetTeamNum(unsigned int uiTeamHash)
 {
@@ -548,8 +531,22 @@ void LoadDisplay::SetLoadState()
 
     unsigned int uiTeam1Hash, uiTeam2Hash;
     MissionPlayList::GetCurrentTeamNames(uiTeam1Hash, uiTeam2Hash);
-    m_team1Num = GetLocalizedTeamNum(uiTeam1Hash);
-    m_team2Num = GetLocalizedTeamNum(uiTeam2Hash);
+    switch (uiTeam1Hash)
+    {
+    case 0xe40c292c: m_team1Num = 0; break;
+    case 0xf70c4715: m_team1Num = 1; break;
+    case 0xe60c2c52: m_team1Num = 2; break;
+    case 0xec0c35c4: m_team1Num = 3; break;
+    default: m_team1Num = -1; break;
+    }
+    switch (uiTeam2Hash)
+    {
+    case 0xe40c292c: m_team2Num = 0; break;
+    case 0xf70c4715: m_team2Num = 1; break;
+    case 0xe60c2c52: m_team2Num = 2; break;
+    case 0xec0c35c4: m_team2Num = 3; break;
+    default: m_team2Num = -1; break;
+    }
 }
 
 // FUNCTION: SWBF2 0x00576660
@@ -821,12 +818,12 @@ unsigned int LoadDisplay::LoadRandomLVLChunk(const char* pcFileName, IDDatabase&
 
     PblFileChunk chunk(&file);
     const unsigned int uiParent = PblHash(pcFileName);
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId == 0x5f6c766c)
         {
-            while (child.HasMoreChildren())
+            while (!child.IsDone())
             {
                 PblFileChunk lvl = child.ReadNextChild();
                 database.AddID(uiParent, lvl._iId);
@@ -838,12 +835,12 @@ unsigned int LoadDisplay::LoadRandomLVLChunk(const char* pcFileName, IDDatabase&
     PblFileChunk root(&file);
     const unsigned int uiRandomID = database.GetRandomID();
     unsigned int uiHash = 0;
-    while (root.HasMoreChildren())
+    while (!root.IsDone())
     {
         PblFileChunk child = root.ReadNextChild();
         if (child._iId == 0x5f6c766c)
         {
-            while (child.HasMoreChildren())
+            while (!child.IsDone())
             {
                 PblFileChunk lvl = child.ReadNextChild();
                 if (lvl._iId == uiRandomID)
@@ -877,7 +874,7 @@ void LoadDisplay::LoadDataFile(const char* pcFileName)
 // FUNCTION: SWBF2 0x005776e0
 void LoadDisplay::LoadDataChunk(PblFileChunk& chunk)
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
@@ -1245,11 +1242,9 @@ void LoadDisplay::ProgressIndicator::SetAllOn()
     for (int i = 0; i < m_numLEDs; ++i)
     {
         m_pIntensity[i] = 1.0f;
-        RedColor color;
-        color.r = (unsigned char)(m_pColor[i].r * m_pIntensity[i]);
-        color.g = (unsigned char)(m_pColor[i].g * m_pIntensity[i]);
-        color.b = (unsigned char)(m_pColor[i].b * m_pIntensity[i]);
-        color.a = m_pColor[i].a;
+        RedColor color((unsigned char)(m_pColor[i].r * m_pIntensity[i]),
+                       (unsigned char)(m_pColor[i].g * m_pIntensity[i]),
+                       (unsigned char)(m_pColor[i].b * m_pIntensity[i]), m_pColor[i].a);
         m_pLED[i].SetColor(color);
     }
 }
@@ -1312,14 +1307,14 @@ void LoadDisplay::ProgressIndicator::Update(float fDelta, GameSound* const pSoun
         const float fOff = LED_OFF_INTENSITY;
         for (int i = 0; i < m_numLEDs; ++i)
         {
-            m_pIntensity[i] = (m_pIntensity[i] - fOff) * 0.95f + fOff;
+            m_pIntensity[i] = Interpolate(fOff, m_pIntensity[i], 0.95f);
             RedColor color((unsigned char)(m_pColor[i].r * m_pIntensity[i]),
                            (unsigned char)(m_pColor[i].g * m_pIntensity[i]),
                            (unsigned char)(m_pColor[i].b * m_pIntensity[i]),
                            m_pColor[i].a);
             m_pLED[i].SetColor(color);
         }
-        m_pIntensity[m_curOnLED] = (1.0f - fOff) * m_OnLEDFraction + fOff;
+        m_pIntensity[m_curOnLED] = Interpolate(fOff, 1.0f, m_OnLEDFraction);
     }
     else
     {
@@ -1327,7 +1322,7 @@ void LoadDisplay::ProgressIndicator::Update(float fDelta, GameSound* const pSoun
         {
             return;
         }
-        m_pIntensity[m_curOnLED] = (1.0f - LED_OFF_INTENSITY) * m_OnLEDFraction + LED_OFF_INTENSITY;
+        m_pIntensity[m_curOnLED] = Interpolate(LED_OFF_INTENSITY, 1.0f, m_OnLEDFraction);
     }
     RedColor color((unsigned char)(m_pColor[m_curOnLED].r * m_pIntensity[m_curOnLED]),
                    (unsigned char)(m_pColor[m_curOnLED].g * m_pIntensity[m_curOnLED]),

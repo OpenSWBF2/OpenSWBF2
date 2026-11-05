@@ -59,7 +59,7 @@ public:
 
     FreeList(unsigned int uiEntrySize, unsigned int uiAlignment,
              bool bPurgeOnFree, unsigned int uiEntriesPerBlock,
-             void* (__cdecl* pAllocFunc)(unsigned int) = Globals::smAlloc,
+             void* (__cdecl* pAllocFunc)(size_t) = Globals::smAlloc,
              void (__cdecl* pFreeFunc)(void*) = Globals::smFree)
         : mEntrySize(uiEntrySize),
           mAlignment(uiAlignment),
@@ -95,7 +95,7 @@ public:
     unsigned int mAlignment;
     unsigned int mEntriesPerBlock;
     PblListSingle mBlockList;
-    void* (__cdecl* mAllocFunc)(unsigned int);
+    void* (__cdecl* mAllocFunc)(size_t);
     void (__cdecl* mFreeFunc)(void*);
     unsigned char mFlags;
 };

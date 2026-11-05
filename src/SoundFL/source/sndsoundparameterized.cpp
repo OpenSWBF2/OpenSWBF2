@@ -159,7 +159,7 @@ void __cdecl SoundParameterized::Free()
 // FUNCTION: SWBF2 0x00735d20
 void __cdecl SoundParameterized::Properties::Load(PblFileChunk& chunk, bool bOnce)
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         if (child._iId != 0x41544144u)
@@ -205,7 +205,7 @@ bool SoundParameterized::Properties::QueryParameter(unsigned int uiParameterID) 
 // FUNCTION: SWBF2 0x00735e40
 void SoundParameterized::Layer::Properties::Read(PblFileChunk& chunk)
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         const unsigned int uiID = child._pFile->Read32();
@@ -231,7 +231,7 @@ void SoundParameterized::Layer::Properties::Read(PblFileChunk& chunk)
 // FUNCTION: SWBF2 0x00735f20
 void SoundParameterized::Properties::Read(PblFileChunk& chunk)
 {
-    while (chunk.HasMoreChildren())
+    while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
         const unsigned int uiID = child._pFile->Read32();

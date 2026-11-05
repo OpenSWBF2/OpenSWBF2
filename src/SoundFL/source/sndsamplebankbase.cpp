@@ -68,7 +68,7 @@ void Allocator<SampleBase>::operator delete(void* p, void* pMemory, bool bTemp)
 }
 
 template <>
-void Allocator<SampleBankBase>::operator delete(void* p, unsigned int uiSize)
+void Allocator<SampleBankBase>::operator delete(void* p, size_t uiSize)
 {
     (void)uiSize;
     switch (((SampleBankBase*)p)->GetAllocType())
@@ -85,7 +85,7 @@ void Allocator<SampleBankBase>::operator delete(void* p, unsigned int uiSize)
 }
 
 template <>
-void Allocator<SampleBase>::operator delete(void* p, unsigned int uiSize)
+void Allocator<SampleBase>::operator delete(void* p, size_t uiSize)
 {
     (void)uiSize;
     switch (((SampleBase*)p)->GetAllocType())
@@ -188,7 +188,7 @@ bool SampleBankBase::LoadSamples(PblFileChunk& chunk, SampleBankBase const* pBas
         }
     }
 
-    while (chunk.HasMoreChildren() && uiRemaining)
+    while (!chunk.IsDone() && uiRemaining)
     {
         if ((unsigned int)chunk._pFile->Read32() != 0x96E382A7u)
         {
@@ -205,7 +205,7 @@ bool SampleBankBase::LoadSamples(PblFileChunk& chunk, SampleBankBase const* pBas
         void* pAddress = 0;
         bool bAliasMissing = false;
 
-        while (chunk.HasMoreChildren() && bContinue)
+        while (!chunk.IsDone() && bContinue)
         {
             switch (chunk._pFile->Read32())
             {
@@ -325,7 +325,7 @@ SampleBankBase* __cdecl SampleBankBase::LoadBank(PblFileChunk& chunk, char const
     bool bFailed = false;
     SampleBank* pBank = 0;
 
-    while (chunk.HasMoreChildren() && !bFailed)
+    while (!chunk.IsDone() && !bFailed)
     {
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
@@ -348,7 +348,7 @@ SampleBankBase* __cdecl SampleBankBase::LoadBank(PblFileChunk& chunk, char const
             bool bContinue = true;
             bool bTemplate = false;
 
-            while (child.HasMoreChildren() && bContinue)
+            while (!child.IsDone() && bContinue)
             {
                 switch ((unsigned int)child._pFile->Read32())
                 {

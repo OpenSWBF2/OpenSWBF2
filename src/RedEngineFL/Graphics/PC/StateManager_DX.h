@@ -4,6 +4,7 @@
 #define SWBF2_GRAPHICS_PC_STATEMANAGER_DX_H
 
 #include <d3d9.h>
+#include <d3dx9math.h>
 #include <new>
 #include <stddef.h>
 #include <stdio.h>
@@ -94,14 +95,14 @@ public:
     unsigned long m_TextureStates[8][128];
     bool m_ValidSamplerStates[128];
     unsigned long m_SamplerStates[16][128];
-    float m_VertexShaderConstants[1024][4];
-    float m_PixelShaderConstants[1024][4];
+    D3DXVECTOR4 m_VertexShaderConstants[1024];
+    D3DXVECTOR4 m_PixelShaderConstants[1024];
     IDirect3DBaseTexture9* m_Textures[8];
     unsigned long m_FVF;
     IDirect3DPixelShader9* m_PixelShader;
     IDirect3DVertexShader9* m_VertexShader;
     IDirect3DVertexDeclaration9* m_VertexShaderDecl;
-    float m_Matrices[300][16];
+    D3DXMATRIX m_Matrices[300];
     _D3DMATERIAL9 m_D3DMaterial;
     NVStreamData m_StreamData[16];
     NVIndexData m_IndexData;
@@ -186,7 +187,7 @@ inline void dx::StateManager_DX::SetTransform(D3DTRANSFORMSTATETYPE State, const
     {
         m_DirtyStates.Add(NVStateID(9, State, 0));
         const D3DMATRIX matrix = *pMatrix;
-        memcpy(m_CurrentState.m_Matrices[State], &matrix, sizeof(D3DMATRIX));
+        memcpy(&m_CurrentState.m_Matrices[State], &matrix, sizeof(D3DMATRIX));
     }
 }
 

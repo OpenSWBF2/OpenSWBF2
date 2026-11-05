@@ -43,7 +43,7 @@ struct CallSitePin
 
 const CallSitePin kPins[] = {
     { "src\\Battlefront2\\Platform\\Pc\\pcSaveFile.cpp", "PblUnicode::ustrncpy(mFileName, pusFileName, sizeof(mFileName) / sizeof(mFileName[0]));", "PblUnicode::ustrlcpy(mFileName, pusFileName, sizeof(mFileName) / sizeof(mFileName[0]));" },
-    { "src\\Battlefront2\\Platform\\Pc\\pcSaveFile.cpp", "PblUnicode::ustrncnv(pusDate, acDate, 128);", "PblUnicode::ustrncnv(pusDate, acDate, 64);" },
+    { "src\\Battlefront2\\Platform\\Pc\\pcSaveFile.cpp", "PblUnicode::ustrncnv(pusDate, acDate, 128);", "PblUnicode::ustrncnv(pusDate, acDate, uiGameDateLen);" },
     { "src\\Battlefront2\\Source\\Character.cpp", "PblUnicode::ustrncpy(mRegularName, pName, 64);", "PblUnicode::ustrlcpy(mRegularName, pName, 64);" },
     { "src\\Battlefront2\\Source\\Character.cpp", "PblUnicode::ustrncpy(mName, pName, 64);", "PblUnicode::ustrlcpy(mName, pName, 64);" },
     { "src\\Battlefront2\\Source\\Character.cpp", "PblUnicode::ustrncpy(mRegularName, name, 64);", "PblUnicode::ustrlcpy(mRegularName, name, 64);" },
@@ -63,7 +63,7 @@ const CallSitePin kPins[] = {
     { "src\\Battlefront2\\Source\\LuaCallbacks_LoadSave.cpp", "ustrlcpy(sMetagameFilename, pusName, sizeof(sMetagameFilename))", "ustrlcpy(sMetagameFilename, pusName, sizeof(sMetagameFilename) / sizeof(sMetagameFilename[0]))" },
     { "src\\Battlefront2\\Source\\LuaCallbacks_LoadSave.cpp", "ustrlcpy(sCampaignFilename, pusName, sizeof(sCampaignFilename))", "ustrlcpy(sCampaignFilename, pusName, sizeof(sCampaignFilename) / sizeof(sCampaignFilename[0]))" },
     { "src\\Battlefront2\\Source\\LuaCallbacks_LoadSave.cpp", "PblUnicode::ustrncpy(Lua_Callbacks::sTempReturnString16, pusBase, 256);", "PblUnicode::ustrlcpy(Lua_Callbacks::sTempReturnString16, pusBase, 256);" },
-    { "src\\Battlefront2\\Platform\\Pc\\pcSaveFile.cpp", "PblUnicode::ustrncpy(pusDest, pusSource, 128);", "PblUnicode::ustrlcpy(pusDest, pusSource, 128);" },
+    { "src\\Battlefront2\\Platform\\Pc\\pcSaveFile.cpp", "PblUnicode::ustrncpy(pusDest, pusSource,", "PblUnicode::ustrlcpy(pusDest, pusSource, uiFilenameLen);" },
     { "src\\Battlefront2\\Source\\NetGame.cpp", "PblUnicode::ustrncpy(message->msg, text, 128);", "PblUnicode::ustrlcpy(message->msg, text, 128);" },
     { "src\\Battlefront2\\Source\\PlayerProfile.cpp", "PblUnicode::ustrncpy(mName, pusName, 16);", "PblUnicode::ustrlcpy(mName, pusName, 16);" },
     { "src\\Battlefront2\\Source\\PlayerProfile.cpp", "PblUnicode::ustrncpy(mName, RedLocalizeDB::Find(0x62a0afc0, false), 16);", "PblUnicode::ustrlcpy(mName, RedLocalizeDB::Find(0x62a0afc0, false), 16);" },

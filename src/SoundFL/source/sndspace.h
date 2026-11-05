@@ -40,7 +40,7 @@ public:
 
     ~Space();
 
-    static void* operator new(unsigned int)
+    static void* operator new(size_t)
     {
         return smFreeList.Alloc();
     }
@@ -120,5 +120,13 @@ public:
  
 
  
+
+// FUNCTION: SWBF2 0x004fac50
+inline Space::Region* Space::FindRegionByIndex(unsigned int uIndex)
+{
+    PblListSingle::Node* const pNode = mList.FindByIndex(uIndex);
+    return pNode ? static_cast<Region*>(pNode->GetObjectA(&mList, offsetof(Region, mSpaceNode))) : 0;
+}
+
 
 }

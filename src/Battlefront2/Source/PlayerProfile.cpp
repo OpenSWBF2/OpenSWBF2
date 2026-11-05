@@ -41,7 +41,7 @@ unsigned int mLastDirtyCRC[1];
 
 namespace PblBuildType
 {
-extern unsigned char gCreateMemoryProfile;
+extern bool gCreateMemoryProfile;
 }
 
 extern bool pcWindowed;
@@ -312,7 +312,7 @@ void PlayerProfile::tGameOpt::ApplySettings(int iPort, int  )
         pRaw[0x2638 + iMode] = mControllerScale[0][iMode];
         pRaw[0x263d + iMode] = mControllerScale[1][iMode];
         pRaw[0x000c + iMode] = mFlip[iMode];
-        *(double*)(pRaw + 0x2610 + iMode * 8) = ConvertMouseScaleToRawScale(mMouseSensitivity[iMode] / 10.0f, iMode);
+        pJoystick->mMouseSensitivity[iMode] = ConvertMouseScaleToRawScale(mMouseSensitivity[iMode] / 10.0f, iMode);
         pRaw[0x2638 + iMode] = mJoystickSensitivityX[iMode];
         pRaw[0x263d + iMode] = mJoystickSensitivityY[iMode];
         pRaw[0x2642 + iMode] = mMouseAssist[iMode];

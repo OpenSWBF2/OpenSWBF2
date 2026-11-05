@@ -49,10 +49,10 @@ public:
     void UpdateTargetBubbleSize(float dt);
     void UpdateTotalVisFactor();
 
-    bool GetCrouchedForVis();
-    float GetFoliageVisFactor();
-    float GetInvisibilityVisFactor();
-    float GetRegionVisFactor();
+    bool GetCrouchedForVis() const;
+    float GetFoliageVisFactor() const;
+    float GetInvisibilityVisFactor() const;
+    float GetRegionVisFactor() const;
     void UpdateFreeSpace();
 
     void SetRegionVisFactor(float fCrouch, float fStand);
@@ -62,6 +62,7 @@ public:
     void SetForceAudible(bool bForce) { mForceAudible = bForce; }
 
     const Controllable* GetMe() const { return mOwner; }
+    Controllable* GetMe() { return mOwner; }
 
     bool IsInCrowd() const;
 

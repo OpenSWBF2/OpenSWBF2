@@ -301,12 +301,9 @@ void FirstPersonRenderable::UpdateSoldierAimer(const PblMatrix& mMatrix)
     PblMatrix mBone = *pBone;
     mModelMatrix = (mOffset * mBone) * mRotation;
 
-    mModelMatrix[0] = PblVector3(mModelMatrix.m[0][0], mModelMatrix.m[0][1], mModelMatrix.m[0][2]);
-    mModelMatrix.m[0][3] = 0.0f;
-    mModelMatrix[1] = PblVector3(mModelMatrix.m[1][0], mModelMatrix.m[1][1], mModelMatrix.m[1][2]);
-    mModelMatrix.m[1][3] = 0.0f;
-    mModelMatrix[2] = PblVector3(mModelMatrix.m[2][0], mModelMatrix.m[2][1], mModelMatrix.m[2][2]);
-    mModelMatrix.m[2][3] = 0.0f;
+    mModelMatrix.SetXAxis(PblVector3(mModelMatrix.m[0][0], mModelMatrix.m[0][1], mModelMatrix.m[0][2]));
+    mModelMatrix.SetYAxis(PblVector3(mModelMatrix.m[1][0], mModelMatrix.m[1][1], mModelMatrix.m[1][2]));
+    mModelMatrix.SetZAxis(PblVector3(mModelMatrix.m[2][0], mModelMatrix.m[2][1], mModelMatrix.m[2][2]));
     mWeaponMatrix = mModelMatrix;
 }
 
@@ -389,32 +386,20 @@ void FirstPersonRenderable::UpdateCockpitAimer(const PblMatrix& mMatrix)
         EntityFlyerClass* pClass = pFlyer->mClass;
         if (fSpeed > pClass->mMinFlyerSpeed)
         {
-            float fTopSpeed = pClass->mMaxFlyerSpeed > pClass->mBoostFlyerSpeed ? pClass->mMaxFlyerSpeed
-                                                                                : pClass->mBoostFlyerSpeed;
+            float fTopSpeed = Max(pClass->mMaxFlyerSpeed, pClass->mBoostFlyerSpeed);
             float fT = (fSpeed - pClass->mMinFlyerSpeed) / (fTopSpeed - pClass->mMinFlyerSpeed);
-            if (fT < 0.0f)
-            {
-                fT = 0.0f;
-            }
-            else if (fT > 1.0f)
-            {
-                fT = 1.0f;
-            }
+            fT = Clamp(fT, 0.0f, 1.0f);
             float fS = 1.0f - fT;
             vOffset = fS * PblVector3(0.0f, -1.5f, -1.7f) + fT * PblVector3(0.0f, -1.4f, -1.0f);
         }
         else
         {
-            vOffset.x = 0.0f;
-            vOffset.y = -1.5f;
-            vOffset.z = -1.7f;
+            vOffset.Set(0.0f, -1.5f, -1.7f);
         }
     }
     else
     {
-        vOffset.x = 0.0f;
-        vOffset.y = -1.5f;
-        vOffset.z = -1.5f;
+        vOffset.Set(0.0f, -1.5f, -1.5f);
     }
 
     PblMatrix mOffset = gMatrixIdentity;
@@ -1235,30 +1220,14 @@ void FirstPersonCameraManager::Update(PblMatrix& rMatrix)
     mCurrCamTime -= GameLoop::GetDeltaTime();
     if (mCurrCamPt != -1)
     {
-        float fT = 1.0f - mCurrCamTime / mCamTime[mCurrCamPt];
-        if (fT > 1.0f)
-        {
-            fT = 1.0f;
-        }
+        float fT = Min(1.0f, 1.0f - mCurrCamTime / mCamTime[mCurrCamPt]);
         if (mIsReturning)
         {
-            PblVector3 vLin(mLinVec.x * (1.0f - fT), mLinVec.y * (1.0f - fT), mLinVec.z * (1.0f - fT));
-            PblVector3 vOffset;
-            D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vOffset), reinterpret_cast<const D3DXVECTOR3*>(&vLin), reinterpret_cast<const D3DXMATRIX*>(&rMatrix));
-            rMatrix.m[3][0] += vOffset.x;
-            rMatrix.m[3][1] += vOffset.y;
-            rMatrix.m[3][2] += vOffset.z;
-            rMatrix.m[3][3] = 1.0f;
+            rMatrix.SetTranslation(rMatrix.GetTranslation() + rMatrix.ApplyRotation(mLinVec * (1.0f - fT)));
         }
         else
         {
-            PblVector3 vPos = mHermPos[mCurrCamPt].getValue(fT);
-            PblVector3 vOffset;
-            D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vOffset), reinterpret_cast<const D3DXVECTOR3*>(&vPos), reinterpret_cast<const D3DXMATRIX*>(&rMatrix));
-            rMatrix.m[3][0] += vOffset.x;
-            rMatrix.m[3][1] += vOffset.y;
-            rMatrix.m[3][2] += vOffset.z;
-            rMatrix.m[3][3] = 1.0f;
+            rMatrix.SetTranslation(rMatrix.GetTranslation() + rMatrix.ApplyRotation(mHermPos[mCurrCamPt].getValue(fT)));
             mCurRotVec = mHermRot[mCurrCamPt].getValue(fT);
             mCameraPos = rMatrix.GetTranslation();
 

@@ -46,6 +46,19 @@ public:
         return *this;
     }
 
+    PblAngle Double() const
+    {
+        return PblAngle(mCos * mCos - mSin * mSin, mCos * 2.0f * mSin);
+    }
+
+    PblAngle Triple() const
+    {
+        float f4Cos2 = mCos * mCos * 4.0f;
+        return PblAngle((f4Cos2 - 3.0f) * mCos, (f4Cos2 - 1.0f) * mSin);
+    }
+
+    float GetAngle() const { return atan2f(mSin, mCos); }
+
     // FUNCTION: SWBF2 0x0047a550
     float GetCos() const { return mCos; }
     // FUNCTION: SWBF2 0x0047a560

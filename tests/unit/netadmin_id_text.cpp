@@ -86,3 +86,12 @@ TEST_CASE("admin replies route to the admin peer" * doctest::test_suite("regress
     CHECK(sBody.find("if (!NetComm::IsLAN())") != std::string::npos);
     CHECK(sBody.find("NetSocket::GetAddr(&kPeer, iIP, iPort);") != std::string::npos);
 }
+
+TEST_CASE("admin token buffers keep room for the terminator (source pin as NetAdmin.cpp is not linked into T1)" * doctest::test_suite("regression"))
+{
+    std::string sAdmin;
+    REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\NetAdmin.cpp", sAdmin));
+    CHECK(CountText(sAdmin, "GetNextArg(pusLine, acToken, 32)") > 0);
+    CHECK(CountText(sAdmin, "char acToken[32 + 1];") == 2);
+    CHECK(CountText(sAdmin, "char acToken[32];") == 0);
+}

@@ -96,6 +96,10 @@ public:
 
     // FUNCTION: SWBF2 0x006c0750
     void SetMatrixPosScale(float fX, float fY, float fScaleX, float fScaleY);
+    void SetMatrixPosScale(float fX, float fY, float fScale)
+    {
+        SetMatrixPosScale(fX, fY, fScale, fScale);
+    }
 
     void SetMatrix(const PblMatrix& matrix);
 
@@ -107,7 +111,15 @@ public:
 
     void Rotate(float fAngle);
     void Rotate(float fX, float fY, float fZ);
-    void CreateHotSpot(float fLeft, float fTop, float fRight, float fBottom);
+    // FUNCTION: SWBF2 0x0048c9e0
+    void CreateHotSpot(float fLeft, float fTop, float fRight, float fBottom)
+    {
+        if (!m_pHotSpot)
+        {
+            m_pHotSpot = new RedHotSpot;
+        }
+        m_pHotSpot->SetRect(fLeft, fTop, fRight, fBottom);
+    }
 
     void SetColor(RedColor color) { m_color = color; }
 
@@ -129,6 +141,10 @@ public:
 
     void SetMatrixPosRotScale(float fX, float fY, float fRotation, float fScaleX,
                               float fScaleY);
+    void SetMatrixPosRotScale(float fX, float fY, float fRotation, float fScale)
+    {
+        SetMatrixPosRotScale(fX, fY, fRotation, fScale, fScale);
+    }
 
     bool IsEnabled() const { return m_bEnabled; }
 

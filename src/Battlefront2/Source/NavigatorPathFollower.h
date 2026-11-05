@@ -41,7 +41,7 @@ protected:
 
 public:
     int mIgnoreCnt;
-    Obstacle* mIgnore[2];
+    const Obstacle* mIgnore[2];
     bool mRollIntoDest;
     bool mDoCallbacksOnPts;
 };

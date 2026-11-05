@@ -105,10 +105,10 @@ public:
 
     bool IsTrailOn() const { return m_bTrailWasOn; }
     unsigned int GetNumSamples() const { return m_uiNumSamples; }
-    float GetTime(int iSample) const { return m_afTime[(m_uiSampleNext - m_uiNumSamples + iSample) & 7]; }
-    const PblVector3& GetPos(int iSample) const { return m_avPos[(m_uiSampleNext - m_uiNumSamples + iSample) & 7]; }
-    const PblVector3& GetDir(int iSample) const { return m_avDir[(m_uiSampleNext - m_uiNumSamples + iSample) & 7]; }
-    float GetDist(int iSample) const { return m_afDist[(m_uiSampleNext - m_uiNumSamples + iSample) & 7]; }
+    float GetTime(unsigned int iSample) const { return m_afTime[(m_uiSampleNext - m_uiNumSamples + iSample) & 7]; }
+    const PblVector3& GetPos(unsigned int iSample) const { return m_avPos[(m_uiSampleNext - m_uiNumSamples + iSample) & 7]; }
+    const PblVector3& GetDir(unsigned int iSample) const { return m_avDir[(m_uiSampleNext - m_uiNumSamples + iSample) & 7]; }
+    float GetDist(unsigned int iSample) const { return m_afDist[(m_uiSampleNext - m_uiNumSamples + iSample) & 7]; }
     float GetTimer() const { return m_fTimer; }
 
     float GetLastTime() const;

@@ -48,7 +48,7 @@ TEST_CASE("redlog line format" * doctest::test_suite("regression"))
 {
     Scope scope;
     LogCapture capture;
-    RedLog::Write(RedLog::LogNet, RedLog::Warning, "src\\a\\b.cpp", 7, "x %d", 3);
+    RedLog::Write(RedLog::LogNet, RedLog::Warning, "src" "\\a\\b.cpp", 7, "x %d", 3);
     CHECK(strncmp(sLast, "[t=", 3) == 0);
     CHECK(strstr(sLast, "] [f=0] LogNet Warning a\\b.cpp:7: x 3\n") != nullptr);
     CHECK(!strstr(sLast, "src\\"));

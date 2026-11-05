@@ -21,6 +21,7 @@
 #include "Battlefront2/Source/GameLoop.h"
 #include "Battlefront2/Source/GameObject.h"
 #include "Battlefront2/Source/HeroMessageDisplay.h"
+#include "Battlefront2/Source/HeroSlots.h"
 #include "Battlefront2/Source/HUDEvent.h"
 #include "Battlefront2/Source/HUDGameEvents.h"
 #include "Battlefront2/Source/HUDElementMap.h"
@@ -35,7 +36,6 @@
 #include "Battlefront2/Source/Tracker.h"
 #include "Battlefront2/Source/Weapon.h"
 #include "PebbleFL/Common/PblHashTable.h"
-#include "PebbleFL/Common/PblIndex.h"
 #include "PebbleFL/Common/PblUnicode.h"
 #include "RedEngineFL/Application/pc/pcFLRender.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
@@ -977,7 +977,7 @@ bool SpawnDisplay::CanShowHeroes()
             if (pPlayer)
             {
                 int iTeam = pPlayer->mTeamNumber;
-                return PblInBounds(netHeroUnlocked, iTeam) && netHeroUnlocked[iTeam] &&
+                return HeroSlotSet(netHeroUnlocked, iTeam) &&
                        netHeroPlayerID[iTeam] > -1 && netHeroPlayerID[iTeam] == iLocal;
             }
         }

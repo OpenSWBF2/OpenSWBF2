@@ -139,24 +139,26 @@ void SkyStars::Read(PblConfig& config)
         ActivateThread(0, PER_FRAME);
     }
 }
-
 // FUNCTION: SWBF2 0x00639e00
 void SkyStars::_BuildStarFields()
 {
     static const float fBand1Top = 0.5f;
+    // GLOBAL: SWBF2 0x01fac1d0
     static const float fBand2Top = (float)sqrt(0.75);
+    // GLOBAL: SWBF2 0x01fac1e4
     static const float fBand1Ratio = fBand1Top / 16;
+    // GLOBAL: SWBF2 0x01fac1d4
     static const float fBand2Ratio = (fBand2Top - fBand1Top) / 16;
+    // GLOBAL: SWBF2 0x01fac1c8
     static const float fBand3Ratio = (1.0f - fBand2Top) / 4;
+    // GLOBAL: SWBF2 0x01fac1c4
     static const float fSector12 = PblMath::fTwoPi / 16;
+    // GLOBAL: SWBF2 0x01fac1e0
     static const float fSector3 = PblMath::fTwoPi / 4;
-
     const float fBand1Stars = (float)m_uiNumStars * fBand1Ratio;
     PblRandom rand(m_uiRandomSeed ^ 0xC71C2830u);
-
     float fRemainder = 0.0f;
     unsigned int i = 0;
-
     for (; i < 16; ++i)
     {
         StarField& field = m_aStarFields[i];
@@ -190,7 +192,6 @@ void SkyStars::_BuildStarFields()
             }
         }
     }
-
     const float fBand2Stars = (float)m_uiNumStars * fBand2Ratio;
     for (; i < 32; ++i)
     {
@@ -225,7 +226,6 @@ void SkyStars::_BuildStarFields()
             }
         }
     }
-
     const float fBand3Stars = (float)m_uiNumStars * fBand3Ratio;
     for (; i < NUM_STAR_FIELDS; ++i)
     {

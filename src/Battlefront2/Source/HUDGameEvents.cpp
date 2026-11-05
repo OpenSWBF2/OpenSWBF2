@@ -1254,17 +1254,12 @@ void HUD::GameEvents::UpdateLockOn(unsigned int uIndex, const GameObject* const 
 
     const PblMatrix& mPlayer = pObject->GetMatrix();
     const PblVector3& vTargetPos = pTarget->GetMatrix().GetTranslation();
-    const float fDeltaX = vTargetPos.x - mPlayer.m[3][0];
-    const float fDeltaY = vTargetPos.y - mPlayer.m[3][1];
-    const float fDeltaZ = vTargetPos.z - mPlayer.m[3][2];
-    const float fDistance = PblMath::Sqrt(fDeltaY * fDeltaY + fDeltaX * fDeltaX + fDeltaZ * fDeltaZ);
+    const PblVector3 vDirection = vTargetPos - mPlayer.GetTranslation();
+    const float fDistance = Length(vDirection);
     HUD::Event ev14(events.lockOnDistance, fDistance);
     ev14.Send();
 
-    const float fInvDistance = 1.0f / fDistance;
-    const PblVector3& vUp = mPlayer.GetYAxis();
-    const float fDot = vUp.y * (fDeltaY * fInvDistance) + vUp.x * (fDeltaX * fInvDistance) +
-                       vUp.z * (fDeltaZ * fInvDistance);
+    const float fDot = DotProduct(mPlayer.GetYAxis(), vDirection / fDistance);
     const bool bShowDirection = fabsf(fDot) > 0.2f;
     if (bShowDirection != data.lockedDirectionEnabled)
     {
@@ -1720,9 +1715,7 @@ void HUD::GameEvents::UpdateWeaponEvents(const RedCamera* const pCamera, const C
             const int iBodyId = pWeapon->GetLockedTargetBodyId();
             const PblVector3 vPoint =
                 vOffset + pLocked->GetTargetPoint(pControllable->mTargetInfo.mAimStart, pControllable->mEyeDir, iBodyId);
-            PblVector3 vCamera;
-            D3DXVec3TransformCoord((D3DXVECTOR3*)&vCamera, (const D3DXVECTOR3*)&vPoint,
-                                   (const D3DXMATRIX*)&pCamera->GetMatrixInverse());
+            const PblVector3 vCamera = pCamera->TransformWorldPointToCameraSpace(vPoint);
             if (vCamera.z >= 0.0f)
             {
                 HUD::Event evLockOnDisable(weaponEvents.lockOnDisable, true);
@@ -2227,13 +2220,13 @@ void HUD::GameEvents::UpdateFlags(const Character* const pCharacter, const Contr
 // FUNCTION: SWBF2 0x005624a0
 void HUD::GameEvents::UpdateEnergy(const Controllable* const pControllable, PlayerEvents& events, PlayerData& data)
 {
-    const EnergyBar* pBar = const_cast<Controllable*>(pControllable)->GetEnergyBar();
+    const EnergyBar* pBar = pControllable->GetEnergyBar();
     if (!pBar)
     {
         return;
     }
 
-    const bool bHasEnergy = pBar->m_pClass->m_fEnergyMax > 0.0f;
+    const bool bHasEnergy = pBar->GetEnergyMax() > 0.0f;
     if (bHasEnergy != data.hasEnergy)
     {
         if (!bHasEnergy)
@@ -2249,7 +2242,7 @@ void HUD::GameEvents::UpdateEnergy(const Controllable* const pControllable, Play
         return;
     }
 
-    const float fEnergy = pBar->m_fEnergy;
+    const float fEnergy = pBar->GetEnergy();
     if (pControllable->mCharacter &&
         BonusManager::Instance()->IsTeamBonusActive(pControllable->mCharacter->mTeamNumber, 0x85ad826d))
     {
@@ -2275,11 +2268,9 @@ void HUD::GameEvents::UpdateEnergy(const Controllable* const pControllable, Play
     }
     HUD::Event ev4(events.energy, fEnergy);
     ev4.Send();
-    const float fEnergyMax = pBar->m_pClass->m_fEnergyMax;
-    const float fFraction = fEnergyMax > 0.0f ? pBar->m_fEnergy / fEnergyMax : 0.0f;
-    HUD::Event ev5(events.energyFraction, fabsf(fFraction));
+    HUD::Event ev5(events.energyFraction, fabsf(pBar->GetEnergyFraction()));
     ev5.Send();
-    if (pBar->m_bOverheat)
+    if (pBar->IsOverheating())
     {
         HUD::Event ev6(events.energyOverburn, 0.0f > fEnergy ? 1.0f : 0.0f);
         ev6.Send();

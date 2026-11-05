@@ -492,7 +492,7 @@ int SetPS2ModelMemory(lua_State* L)
 
 unsigned int RedGetHeapSize(int heap);
 
-bool RedMoveHeapEnd(int heap, int iDelta);
+void RedMoveHeapEnd(int heap, int iDelta);
 extern "C" HeapObj* heapobj;
 
 
@@ -652,11 +652,11 @@ int ReadDataFile(lua_State* L)
         }
         if (uiCount)
         {
-            LoadUtil::ReadDataFile(pcFile, 0, uiHashes, uiCount, pcNames);
+            LoadUtil::ReadDataFile(pcFile, 0, 0, uiHashes, uiCount, pcNames);
         }
         else
         {
-            LoadUtil::ReadDataFile(pcFile, 0, 0, 0, 0);
+            LoadUtil::ReadDataFile(pcFile, 0, 0, 0, 0, 0);
         }
 
         if (!_stricmp(pcFile, "ingame.lvl"))
@@ -744,12 +744,11 @@ int AddCameraShot(lua_State* L)
 // FUNCTION: SWBF2 0x0058b0e0
 int SetCameraRotation(lua_State* L)
 {
-    PblQuaternion qRot;
-    qRot._fS = LuaHelper::GetFloat(1);
-    qRot._fX = LuaHelper::GetFloat(2);
-    qRot._fY = LuaHelper::GetFloat(3);
-    qRot._fZ = LuaHelper::GetFloat(4);
-    CameraManager::sInstance->mChaseCamera[0]->SetRotation(qRot);
+    float rotS = LuaHelper::GetFloat(1);
+    float rotX = LuaHelper::GetFloat(2);
+    float rotY = LuaHelper::GetFloat(3);
+    float rotZ = LuaHelper::GetFloat(4);
+    CameraManager::sInstance->mChaseCamera[0]->SetRotation(PblQuaternion(rotS, rotX, rotY, rotZ));
     return 0;
 }
 
@@ -1488,7 +1487,7 @@ int SetDenseEnvironment(lua_State* L)
     {
         unsigned int uiClassHash = 0xD85CB472u;
         const char* pcClass = "snw_inf_wampa";
-        LoadUtil::ReadDataFile("SIDE\\snw.lvl", 0, &uiClassHash, 1, &pcClass);
+        LoadUtil::ReadDataFile("SIDE\\snw.lvl", 0, 0, &uiClassHash, 1, &pcClass);
         Team::sTeams[1]->AddClass(pcClass, 0, 0x7FFFFFFF);
     }
     return 0;

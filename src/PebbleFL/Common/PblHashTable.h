@@ -75,6 +75,14 @@ public:
     {
     public:
         Itor() : _table(0), _pos(0) {}
+
+        Itor(const PblHashTable& table) : _table(&table), _pos(0)
+        {
+            while (_pos < SLOTS && !_table->_uiTable[_pos])
+            {
+                ++_pos;
+            }
+        }
         Itor(const PblHashTable* pTable) : _table(pTable), _pos(0)
         {
             while (_pos < SLOTS && !_table->_uiTable[_pos])

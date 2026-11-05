@@ -51,7 +51,7 @@ NavigatorPathFollower::NavigatorPathFollower(AILowLevel* pOwner, bool bDoCallbac
     mNextState = STATE_FOLLOWPATH;
     mIgnoreCnt = iIgnoreCnt;
     memcpy(mIgnore, ppIgnore, iIgnoreCnt * sizeof(Obstacle*));
-    mPathFollower = new PathFollower(mOwner->mOwner, pPath, (const Obstacle**)mIgnore,
+    mPathFollower = new PathFollower(mOwner->mOwner, pPath, mIgnore,
                                      mIgnoreCnt, bDoCallbacksOnPts);
 }
 
@@ -105,8 +105,7 @@ void NavigatorPathFollower::ReceivePathResult(AIPath* pPath)
 
     if (mCurState == STATE_WAITFORPATH)
     {
-        UnitController* pController = mOwner->mOwner;
-        mPathFollower = new PathFollower(pController, pPath, (const Obstacle**)mIgnore,
+        mPathFollower = new PathFollower(mOwner->mOwner, pPath, mIgnore,
                                          mIgnoreCnt, mDoCallbacksOnPts);
         SetNextState(STATE_FOLLOWPATH);
     }

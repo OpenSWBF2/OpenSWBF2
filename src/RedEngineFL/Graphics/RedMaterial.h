@@ -17,7 +17,37 @@ public:
     RedColorValue() {}
     RedColorValue(float fR, float fG, float fB, float fA) : r(fR), g(fG), b(fB), a(fA) {}
     RedColorValue(const RedColorValue& c) : r(c.r), g(c.g), b(c.b), a(c.a) {}
+    RedColorValue(const RedColorValue& color, float aA)
+        : r(color.r), g(color.g), b(color.b), a(color.a * aA) {}
+
     RedColorValue(const RedColor& color);
+
+    RedColorValue operator+(const RedColorValue& color) const
+    {
+        return RedColorValue(r + color.r, g + color.g, b + color.b, a + color.a);
+    }
+
+    RedColorValue operator*(float scale) const
+    {
+        return RedColorValue(r * scale, g * scale, b * scale, a * scale);
+    }
+
+    const RedColorValue& operator*=(const RedColorValue& color)
+    {
+        r *= color.r;
+        g *= color.g;
+        b *= color.b;
+        a *= color.a;
+        return *this;
+    }
+
+    operator RedColor() const
+    {
+        return RedColor((unsigned char)(int)(r * 255.0f),
+                        (unsigned char)(int)(g * 255.0f),
+                        (unsigned char)(int)(b * 255.0f),
+                        (unsigned char)(int)(a * 255.0f));
+    }
 
     operator D3DCOLORVALUE() const
     {

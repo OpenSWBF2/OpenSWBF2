@@ -28,13 +28,13 @@ public:
 
     void SetPriority(float fPriority)
     {
-        mFlags |= flags_PriorityChanged;
         mPriority = fPriority;
+        mFlags |= flags_PriorityChanged;
     }
     void SetBias(float fBias)
     {
-        mFlags |= flags_BiasChanged;
         mBias = fBias;
+        mFlags |= flags_BiasChanged;
     }
 
     float mPriority;

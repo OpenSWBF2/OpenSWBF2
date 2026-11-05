@@ -503,6 +503,7 @@ void EntityBuildingArmed::Render(unsigned char uFlags, float fDist, unsigned int
             fLength = _Sphere.w * 2.0f;
         }
 
+        // GLOBAL: SWBF2 0x01faa900
         static float fMaxShadowLength =
             static_cast<const EntityGeometryClass*>(mEntityClass)->mMaxShadowLength;
         float fShadowLength = fMaxShadowLength;
@@ -511,7 +512,6 @@ void EntityBuildingArmed::Render(unsigned char uFlags, float fDist, unsigned int
             fShadowLength = fLength;
         }
         RedRenderer::SetStencilShadowLength(fShadowLength);
-
         PblVector3 vOffset = mView.GetTranslation() - mView.GetZAxis() * fNear - GetRenderPos();
         float fReach = _Sphere.w + fLength + fWidth * 1.33f;
         RedRenderer::SetStencilShadowZFail(fReach * fReach > SquaredLength(vOffset));

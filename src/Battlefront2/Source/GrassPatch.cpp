@@ -446,10 +446,10 @@ void GrassPatchClass::Reset()
         it->DestroyRenderData();
     }
 
-    sClasses.RemoveAll();
-    sObjects.RemoveAll();
+    sClasses.Clear();
+    sObjects.Clear();
 }
 
 // TEMPLATE: SWBF2 0x00542170
-// PblList<GrassPatchClass>::RemoveAll
-template void PblList<GrassPatchClass>::RemoveAll();
+// PblList<GrassPatchClass>::Clear
+template void PblList<GrassPatchClass>::Clear();

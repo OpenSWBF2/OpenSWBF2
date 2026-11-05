@@ -18,6 +18,12 @@
 #include "RedEngineFL/Application/RedTerrain.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 #include "PebbleFL/Common/PblHandle.h"
+#include "SoundFL/source/sndreleasevoice.h"
+#include "PebbleFL/Common/PblListDelete.h"
+#include "Battlefront2/Source/EffectAttach.h"
+#include "Battlefront2/Source/SquadronFormation.h"
+#include "Battlefront2/Source/WalkerLegPairBounds.h"
+#include "Battlefront2/Source/HeroSlots.h"
 
 #if defined(__SANITIZE_ADDRESS__)
 #include <sanitizer/asan_interface.h>
@@ -144,31 +150,78 @@ TEST_CASE("remove polygon leaves the slot past the count alone" * doctest::test_
     CHECK(kList.mNumVerticesPerPoly[3] == 4);
 }
 
-TEST_CASE("hero and game rules reads stay bounded" * doctest::test_suite("regression"))
+struct HeroIdSlotsProbe
 {
-    struct GuardSite
+    int aiBefore[1];
+    int aiSlots[3];
+    int aiAfter[1];
+};
+
+TEST_CASE("hero slot match ignores teams outside the slot array" * doctest::test_suite("regression"))
+{
+    HeroIdSlotsProbe probe = { { 9 }, { 4, 5, 6 }, { 9 } };
+    CHECK(HeroSlotIs(probe.aiSlots, 1, 5));
+    CHECK_FALSE(HeroSlotIs(probe.aiSlots, 1, 6));
+    CHECK_FALSE(HeroSlotIs(probe.aiSlots, -1, 9));
+    CHECK_FALSE(HeroSlotIs(probe.aiSlots, 3, 9));
+}
+
+struct HeroUnlockSlotsProbe
+{
+    bool abBefore[1];
+    bool abSlots[3];
+    bool abAfter[1];
+};
+
+TEST_CASE("hero unlock check ignores teams outside the slot array" * doctest::test_suite("regression"))
+{
+    HeroUnlockSlotsProbe probe = { { true }, { false, true, false }, { true } };
+    CHECK(HeroSlotSet(probe.abSlots, 1));
+    CHECK_FALSE(HeroSlotSet(probe.abSlots, 0));
+    CHECK_FALSE(HeroSlotSet(probe.abSlots, -1));
+    CHECK_FALSE(HeroSlotSet(probe.abSlots, 3));
+}
+
+TEST_CASE("hero slot read outside the slot array returns the fallback" * doctest::test_suite("regression"))
+{
+    HeroIdSlotsProbe probe = { { 9 }, { 4, 5, 6 }, { 9 } };
+    CHECK(HeroSlotOr(probe.aiSlots, 0, -1) == 4);
+    CHECK(HeroSlotOr(probe.aiSlots, 2, -1) == 6);
+    CHECK(HeroSlotOr(probe.aiSlots, -1, -1) == -1);
+    CHECK(HeroSlotOr(probe.aiSlots, 3, -1) == -1);
+}
+
+struct HeroKillerSlotsProbe
+{
+    int aiBefore[1];
+    int aiSlots[4];
+    int aiAfter[1];
+};
+
+TEST_CASE("hero killer write outside the slot array is dropped" * doctest::test_suite("regression"))
+{
+    HeroKillerSlotsProbe probe = { { 0 }, { -1, -1, -1, -1 }, { 0 } };
+    SetHeroSlot(probe.aiSlots, -1, 7);
+    SetHeroSlot(probe.aiSlots, 4, 7);
+    CHECK(probe.aiBefore[0] == 0);
+    CHECK(probe.aiAfter[0] == 0);
+    for (int i = 0; i < 4; ++i)
     {
-        const char* pcPath;
-        const char* pcGuard;
-    };
-    const GuardSite akSites[8] = {
-        { "src\\Battlefront2\\Source\\Character.cpp", "\n        if (PblInBounds(netHeroLastPlayerID, mTeamNumber) &&" },
-        { "src\\Battlefront2\\Source\\Character.cpp", "            if (PblInBounds(netHeroLastPlayerID, mTeamNumber) &&" },
-        { "src\\Battlefront2\\Source\\Character.cpp", "PblInBounds(netHeroUnlocked, iTeam) && netHeroUnlocked[iTeam] &&" },
-        { "src\\Battlefront2\\Source\\Character.cpp", "PblInBounds(netHeroKillerID, rOwner.mCharacter->mTeamNumber)" },
-        { "src\\Battlefront2\\Source\\Character.cpp", "!PblInBounds(netHeroPlayerID, mTeamNumber) ||" },
-        { "src\\Battlefront2\\Source\\Character.cpp", "PblInBounds(netHeroAIID, mTeamNumber) ? netHeroAIID[mTeamNumber] : -1" },
-        { "src\\Battlefront2\\Platform\\Pc\\pcSpawnDisplay.cpp", "PblInBounds(netHeroUnlocked, iTeam) && netHeroUnlocked[iTeam] &&" },
-        { "src\\Battlefront2\\Source\\LuaCallbacks_Options.cpp", "if (PblInBounds(gNumBots, eRules))" },
-    };
-    for (int i = 0; i < 8; ++i)
-    {
-        std::string sText;
-        REQUIRE(ReadRepoText(akSites[i].pcPath, sText));
-        INFO(akSites[i].pcPath);
-        INFO(akSites[i].pcGuard);
-        CHECK(sText.find(akSites[i].pcGuard) != std::string::npos);
+        CHECK(probe.aiSlots[i] == -1);
     }
+    SetHeroSlot(probe.aiSlots, 3, 7);
+    CHECK(probe.aiSlots[3] == 7);
+    CHECK(probe.aiAfter[0] == 0);
+}
+
+TEST_CASE("game rules index outside the rules arrays is rejected" * doctest::test_suite("regression"))
+{
+    int aiNumBots[4] = { -1, -1, 16, 16 };
+    CHECK(HasRulesSlot(aiNumBots, 0));
+    CHECK(HasRulesSlot(aiNumBots, 3));
+    CHECK_FALSE(HasRulesSlot(aiNumBots, 4));
+    CHECK_FALSE(HasRulesSlot(aiNumBots, -1));
+    CHECK_FALSE(HasRulesSlot(aiNumBots, INT_MIN));
 }
 
 TEST_CASE("stack allocator starts at the first size slot" * doctest::test_suite("regression"))
@@ -416,59 +469,6 @@ static std::string ReadRepoTextLf(const char* pcRelPath)
     return sOut;
 }
 
-TEST_CASE("effect stops reading a released attach vector" * doctest::test_suite("regression"))
-{
-    std::string sHeader = ReadRepoTextLf("src\\Battlefront2\\Source\\FLEffect.h");
-    CHECK(sHeader.find("    virtual void StopAndFinish();\n    void DetachFromTarget();\n") !=
-          std::string::npos);
-
-    std::string sEffect = ReadRepoTextLf("src\\Battlefront2\\Source\\FLEffect.cpp");
-    CHECK(sEffect.find("void FLEffectObject::DetachFromTarget()\n"
-                       "{\n"
-                       "    if (m_hobjAttachedToObject.mObject || !(m_uiAttachFlags & ATTACHED_DYNAMIC))\n"
-                       "    {\n"
-                       "        return;\n"
-                       "    }\n"
-                       "    _UpdateWorldMatrix();\n"
-                       "    m_uiAttachFlags &= ~(ATTACHED_DYNAMIC | ATTACHED_TO_VECTOR);\n"
-                       "    m_pmAttachedToMatrix = 0;\n"
-                       "}\n") != std::string::npos);
-
-    std::string sOrdnance = ReadRepoTextLf("src\\Battlefront2\\Source\\Ordnance.cpp");
-    CHECK(sOrdnance.find("    DeactivateThread();\n"
-                         "    if (mTrailEmitterObj)\n"
-                         "    {\n"
-                         "        mTrailEmitterObj->DetachFromTarget();\n"
-                         "        mTrailEmitterObj->DeactivateEffect();\n") != std::string::npos);
-
-    std::string sItem = ReadRepoTextLf("src\\Battlefront2\\Source\\EntityItem.cpp");
-    CHECK(sItem.find("    delete m_pLight;\n"
-                     "    if (mTrailEmitterObj)\n"
-                     "    {\n"
-                     "        mTrailEmitterObj->DetachFromTarget();\n"
-                     "        mTrailEmitterObj->DeactivateEffect();\n") != std::string::npos);
-
-    std::string sHover = ReadRepoTextLf("src\\Battlefront2\\Source\\EntityHover.cpp");
-    CHECK(sHover.find("    VehicleManager::Remove(this);\n"
-                      "    if (mWaterEmitter)\n"
-                      "    {\n"
-                      "        mWaterEmitter->DetachFromTarget();\n"
-                      "        mWaterEmitter->DeactivateEffect();\n") != std::string::npos);
-
-    std::string sWater = ReadRepoTextLf("src\\Battlefront2\\Source\\WaterEffect.cpp");
-    CHECK(sWater.find("            m_waterEffects[i]->effect->DetachFromTarget();\n"
-                      "            m_waterEffects[i]->effect->DeactivateEffect();\n") !=
-          std::string::npos);
-
-    std::string sSky = ReadRepoTextLf("src\\Battlefront2\\Source\\SkyDome.cpp");
-    size_t uiDtor = sSky.find("SkyDome::~SkyDome()\n");
-    REQUIRE(uiDtor != std::string::npos);
-    size_t uiDetach = sSky.find("rDome.mEffectData[i].effect->DetachFromTarget();\n", uiDtor);
-    size_t uiCleanup = sSky.find("    Cleanup();\n", uiDtor);
-    CHECK(uiDetach != std::string::npos);
-    CHECK(uiDetach < uiCleanup);
-}
-
 struct HandleProbe : PblHandled
 {
     static MemoryPool* spPool;
@@ -513,7 +513,17 @@ TEST_CASE("handle to a freed pool object resolves to null" * doctest::test_suite
     HandleProbe::spPool = 0;
 }
 
-TEST_CASE("sound listener stops reading a released position" * doctest::test_suite("regression"))
+static int CountText(const std::string& sText, const char* pcNeedle)
+{
+    int iCount = 0;
+    for (size_t uPos = sText.find(pcNeedle); uPos != std::string::npos; uPos = sText.find(pcNeedle, uPos + 1))
+    {
+        ++iCount;
+    }
+    return iCount;
+}
+
+TEST_CASE("asan fix helpers stay wired into the game (source pin: callers need the game runtime)" * doctest::test_suite("regression"))
 {
     std::string sVoice = ReadRepoTextLf("src\\SoundFL\\source\\sndvoicevirtual.cpp");
     CHECK(sVoice.find("void VoiceVirtual::SetVoice(VoiceBase* pVoice)\n"
@@ -522,41 +532,65 @@ TEST_CASE("sound listener stops reading a released position" * doctest::test_sui
                       "    if (mVoice)\n"
                       "    {\n"
                       "        mVoice->SourceTransport::Stop();\n"
-                      "        mVoice->Lock(false);\n"
-                      "        mVoice->SetPosVel3D(&Globals::smNullVector, &Globals::smNullVector);\n"
+                      "        ReleaseHardwareVoice(mVoice);\n"
                       "    }\n") != std::string::npos);
-}
 
-TEST_CASE("released 3d voice keeps its own velocity" * doctest::test_suite("regression"))
-{
     std::string sSound = ReadRepoTextLf("src\\SoundFL\\source\\sndsound.cpp");
-    CHECK(sSound.find("void __cdecl Sound::VoiceVirtualRelease(VoiceVirtual* pVoice)\n"
-                      "{\n"
-                      "    FireForget* pThis = static_cast<FireForget*>(pVoice);\n"
-                      "    pThis->SetStolenCallback(0, 0);\n"
-                      "    pVoice->SetInactiveCallback(&FireForget::InactiveCallback, pVoice);\n"
-                      "    const unsigned int i = (unsigned int)(pThis - smVoiceVirtuals);\n"
-                      "    smSource3DPositions[i] = *pVoice->mPos3D;\n"
-                      "    smSource3DVelocities[i] = *pVoice->mVel3D;\n"
-                      "    pVoice->SetPosition(&smSource3DPositions[i]);\n"
-                      "    pVoice->SetVelocity(&smSource3DVelocities[i]);\n"
-                      "    if (pVoice->mVoice)\n"
-                      "    {\n"
-                      "        pVoice->mVoice->SetPosVel3D(&smSource3DPositions[i], &smSource3DVelocities[i]);\n"
-                      "    }\n"
+    CHECK(sSound.find("    const unsigned int i = (unsigned int)(pThis - smVoiceVirtuals);\n"
+                      "    KeepReleasedVoicePosVel(pVoice, &smSource3DPositions[i], &smSource3DVelocities[i]);\n"
                       "}\n") != std::string::npos);
-}
 
-TEST_CASE("sun flare cleanup does not step through a deleted node" * doctest::test_suite("regression"))
-{
+    std::string sHeader = ReadRepoTextLf("src\\Battlefront2\\Source\\FLEffect.h");
+    CHECK(sHeader.find("    virtual void StopAndFinish();\n"
+                       "    void DetachFromTarget();\n"
+                       "    template <class EFFECT>\n"
+                       "    friend void DetachEffectFromTarget(EFFECT& rEffect);\n") != std::string::npos);
+
+    std::string sEffect = ReadRepoTextLf("src\\Battlefront2\\Source\\FLEffect.cpp");
+    CHECK(sEffect.find("void FLEffectObject::DetachFromTarget()\n"
+                       "{\n"
+                       "    DetachEffectFromTarget(*this);\n"
+                       "}\n") != std::string::npos);
+
+    std::string sOrdnance = ReadRepoTextLf("src\\Battlefront2\\Source\\Ordnance.cpp");
+    CHECK(sOrdnance.find("    DeactivateThread();\n"
+                         "    if (mTrailEmitterObj)\n"
+                         "    {\n"
+                         "        mTrailEmitterObj->DetachFromTarget();\n"
+                         "        mTrailEmitterObj->DeactivateEffect();\n") != std::string::npos);
+
+    std::string sItem = ReadRepoTextLf("src\\Battlefront2\\Source\\EntityItem.cpp");
+    CHECK(sItem.find("    delete m_pLight;\n"
+                     "    if (mTrailEmitterObj)\n"
+                     "    {\n"
+                     "        mTrailEmitterObj->DetachFromTarget();\n"
+                     "        mTrailEmitterObj->DeactivateEffect();\n") != std::string::npos);
+
+    std::string sHover = ReadRepoTextLf("src\\Battlefront2\\Source\\EntityHover.cpp");
+    CHECK(sHover.find("    VehicleManager::Remove(this);\n"
+                      "    if (mWaterEmitter)\n"
+                      "    {\n"
+                      "        mWaterEmitter->DetachFromTarget();\n"
+                      "        mWaterEmitter->DeactivateEffect();\n") != std::string::npos);
+
+    std::string sWater = ReadRepoTextLf("src\\Battlefront2\\Source\\WaterEffect.cpp");
+    CHECK(sWater.find("            m_waterEffects[i]->effect->DetachFromTarget();\n"
+                      "            m_waterEffects[i]->effect->DeactivateEffect();\n") !=
+          std::string::npos);
+
+    std::string sSky = ReadRepoTextLf("src\\Battlefront2\\Source\\SkyDome.cpp");
+    size_t uiDtor = sSky.find("SkyDome::~SkyDome()\n");
+    REQUIRE(uiDtor != std::string::npos);
+    size_t uiDetach = sSky.find("rDome.mEffectData[i].effect->DetachFromTarget();\n", uiDtor);
+    size_t uiCleanup = sSky.find("    Cleanup();\n", uiDtor);
+    CHECK(uiDetach != std::string::npos);
+    CHECK(uiDetach < uiCleanup);
+
     std::string sFlare = ReadRepoTextLf("src\\Battlefront2\\Platform\\Pc\\pcSunFlare.cpp");
     CHECK(sFlare.find("void SunFlareEffect::SunFlareList::Cleanup()\n"
                       "{\n"
-                      "    while (GetCount() > 0)\n"
-                      "    {\n"
-                      "        delete GetFirst()->_pObject;\n"
-                      "    }\n"
-                      "    RemoveAll();\n"
+                      "    PblListDeleteSelfRemoving(*this);\n"
+                      "    Clear();\n"
                       "}\n") != std::string::npos);
     CHECK(sFlare.find("SunFlare::~SunFlare()\n"
                       "{\n"
@@ -569,31 +603,417 @@ TEST_CASE("sun flare cleanup does not step through a deleted node" * doctest::te
     std::string sWeather = ReadRepoTextLf("src\\Battlefront2\\Source\\WeatherEffect.cpp");
     CHECK(sWeather.find("PrecipitationEffect::~PrecipitationEffect()\n"
                         "{\n"
-                        "    m_RainShadows.Clear();\n"
+                        "    PblListRemoveAndDelete(m_RainShadows);\n"
                         "    Cleanup();\n"
                         "}\n") != std::string::npos);
-}
 
-TEST_CASE("squadron formation list fits its stack block" * doctest::test_suite("regression"))
-{
-    std::string sSquadron = ReadRepoTextLf("src\\Battlefront2\\Source\\EntitySquadron.cpp");
-    CHECK(sSquadron.find("    const EntityFormation** ppFormations = "
-                         "(const EntityFormation**)stack.Alloc((int)(uNumFormations * sizeof(*ppFormations)));\n")
-          != std::string::npos);
-    CHECK(sSquadron.find("stack.Alloc(uNumFormations)") == std::string::npos);
-}
-
-TEST_CASE("squadron formation list stops at ten" * doctest::test_suite("regression"))
-{
     std::string sSquadron = ReadRepoTextLf("src\\Battlefront2\\Source\\EntitySquadron.cpp");
     CHECK(sSquadron.find("    case 0xe5108b93:\n"
-                         "        if (mNumFormations < 10)\n"
-                         "        {\n"
-                         "            mFormations[mNumFormations] = PblHash(pszValue);\n"
-                         "            mNumFormations++;\n"
-                         "        }\n"
-                         "        return true;\n")
+                         "        AppendFormation(mFormations, mNumFormations, pszValue);\n"
+                         "        return true;\n") != std::string::npos);
+    CHECK(sSquadron.find("    const EntityFormation** ppFormations = "
+                         "AllocFormationList<const EntityFormation>(stack, uNumFormations);\n") != std::string::npos);
+    CHECK(sSquadron.find("mFormations[mNumFormations]") == std::string::npos);
+    CHECK(sSquadron.find("stack.Alloc(uNumFormations)") == std::string::npos);
+
+    std::string sWalker = ReadRepoTextLf("src\\Battlefront2\\Source\\EntityWalker.cpp");
+    CHECK(sWalker.find("        int iCount = 0;\n"
+                       "        sscanf(pszValue, \"%d\", &iCount);\n"
+                       "        iCount = ClampLegPairCount(iCount);\n"
+                       "        if (mLegPairInfo == sOwnLegPairInfo)\n"
+                       "        {\n"
+                       "            delete[] mLegPairInfo;\n"
+                       "        }\n"
+                       "        mLegPairCount = iCount;\n"
+                       "        mLegPairInfo = new WalkerLegPairInfo[mLegPairCount];\n"
+                       "        sOwnLegPairInfo = mLegPairInfo;\n")
           != std::string::npos);
+    CHECK(sWalker.find("static WalkerLegPairInfo* CurLegPair(WalkerLegPairInfo* pInfo, int iCount)\n"
+                       "{\n"
+                       "    return LegPairAt(pInfo, sCurPair, iCount);\n"
+                       "}\n")
+          != std::string::npos);
+    CHECK(sWalker.find("mLegPairInfo[sCurPair]") == std::string::npos);
+    CHECK(CountText(sWalker, "CurLegPair(mLegPairInfo, mLegPairCount);") == 8);
+    CHECK(CountText(sWalker, "    sCurPair = -1;\n    sOwnLegPairInfo = 0;\n") == 2);
+    CHECK(sWalker.find("    for (int i = 0; i < 3; ++i)\n"
+                       "    {\n"
+                       "        mLegPairs[i] = 0;\n"
+                       "    }\n")
+          != std::string::npos);
+    CHECK(sWalker.find("mLegPairCount > 0 ? mLegPairs[0]->GetStateLimit() : 0.0f, bWrapped);\n")
+          != std::string::npos);
+    CHECK(sWalker.find("        if (mLegPairCount > 0)\n"
+                       "        {\n"
+                       "            mLegPairs[0]->SetFrameState(fLegState);\n"
+                       "        }\n")
+          != std::string::npos);
+    CHECK(sWalker.find("        if (mLegPairCount > 0)\n"
+                       "        {\n"
+                       "            mLegPairs[0]->ResetTurnState();\n"
+                       "        }\n")
+          != std::string::npos);
+    CHECK(sWalker.find("            float fFrontTurn = LegPairTurnState(mLegPairs, mLegPairCount, 0);\n"
+                       "            float fBackTurn = LegPairTurnState(mLegPairs, mLegPairCount, 1);\n")
+          != std::string::npos);
+    CHECK(CountText(sWalker, "mLegPairs[0]") == 5);
+    CHECK(CountText(sWalker, "mLegPairs[1]") == 5);
+
+    std::string sCharacter = ReadRepoTextLf("src\\Battlefront2\\Source\\Character.cpp");
+    CHECK(sCharacter.find("    else if (!mUnit)\n"
+                          "    {\n"
+                          "        if (HeroSlotIs(netHeroLastPlayerID, mTeamNumber, mPlayerId) && mPlayerId != -1)\n")
+          != std::string::npos);
+    CHECK(sCharacter.find("        else if (NetGame::IsEnabled() && mTeamPtr->GetClassPtr(mClassIndex)->mHeroFlag &&\n"
+                          "                 !HeroSlotIs(netHeroPlayerID, mTeamNumber, mPlayerId))\n")
+          != std::string::npos);
+    CHECK(sCharacter.find("            if (HeroSlotIs(netHeroLastPlayerID, mTeamNumber, mPlayerId))\n"
+                          "            {\n"
+                          "                NetGame::ClearLastHero(mTeamNumber);\n")
+          != std::string::npos);
+    CHECK(sCharacter.find("            int iHeroId = HeroSlotOr(netHeroAIID, mTeamNumber, -1);\n") != std::string::npos);
+    CHECK(sCharacter.find("    if (netHeroesEnabled && HeroSlotSet(netHeroUnlocked, iTeam) &&\n") != std::string::npos);
+    CHECK(sCharacter.find("            if (rOwner.mCharacter && rOwner.mCharacter != this)\n"
+                          "            {\n"
+                          "                SetHeroSlot(netHeroKillerID, rOwner.mCharacter->mTeamNumber, "
+                          "rOwner.mCharacter->mPlayerId);\n"
+                          "            }\n")
+          != std::string::npos);
+    CHECK(sCharacter.find("netHeroLastPlayerID[mTeamNumber]") == std::string::npos);
+    CHECK(sCharacter.find("netHeroKillerID[rOwner") == std::string::npos);
+    CHECK(sCharacter.find("netHeroAIID[mTeamNumber]") == std::string::npos);
+    CHECK(sCharacter.find("netHeroPlayerID[mTeamNumber]") == std::string::npos);
+
+    std::string sSpawn = ReadRepoTextLf("src\\Battlefront2\\Platform\\Pc\\pcSpawnDisplay.cpp");
+    CHECK(sSpawn.find("                return HeroSlotSet(netHeroUnlocked, iTeam) &&\n"
+                      "                       netHeroPlayerID[iTeam] > -1 && netHeroPlayerID[iTeam] == iLocal;\n")
+          != std::string::npos);
+
+    std::string sOptions = ReadRepoTextLf("src\\Battlefront2\\Source\\LuaCallbacks_Options.cpp");
+    CHECK(sOptions.find("    if (HasRulesSlot(gNumBots, eRules))\n"
+                        "    {\n"
+                        "        netNumBots = gNumBots[eRules];\n")
+          != std::string::npos);
+    CHECK(CountText(sOptions, "[eRules]") == 8);
+}
+
+struct SndProbeVoice
+{
+    SndProbeVoice() : mPos3D(0), mVel3D(0), mVoice(0), mLocked(true) {}
+
+    void Lock(bool bLock) { mLocked = bLock; }
+    void SetPosition(PblVector3* pPos) { mPos3D = pPos; }
+    void SetVelocity(PblVector3* pVel) { mVel3D = pVel; }
+    void SetPosVel3D(PblVector3* pPos, PblVector3* pVel)
+    {
+        SetPosition(pPos);
+        SetVelocity(pVel);
+    }
+
+    PblVector3* mPos3D;
+    PblVector3* mVel3D;
+    SndProbeVoice* mVoice;
+    bool mLocked;
+};
+
+struct SndProbeOwner
+{
+    PblVector3 mPos;
+    PblVector3 mVel;
+};
+
+static SndProbeOwner* MakeSndProbeOwner(unsigned char* pBlock)
+{
+    SndProbeOwner* pOwner = new (pBlock) SndProbeOwner;
+    pOwner->mPos = PblVector3(1.0f, 2.0f, 3.0f);
+    pOwner->mVel = PblVector3(4.0f, 5.0f, 6.0f);
+    return pOwner;
+}
+
+static void FreeSndProbeOwner(unsigned char* pBlock)
+{
+    memset(pBlock, 0xCD, sizeof(SndProbeOwner));
+}
+
+static bool SameVector(const PblVector3& v, float fX, float fY, float fZ)
+{
+    return v.x == fX && v.y == fY && v.z == fZ;
+}
+
+TEST_CASE("sound listener keeps its own position after the owner is released" * doctest::test_suite("regression"))
+{
+    alignas(SndProbeOwner) unsigned char acOwner[sizeof(SndProbeOwner)];
+    SndProbeOwner* pOwner = MakeSndProbeOwner(acOwner);
+
+    SndProbeVoice hardware;
+    hardware.SetPosVel3D(&pOwner->mPos, &pOwner->mVel);
+
+    Snd::ReleaseHardwareVoice(&hardware);
+    FreeSndProbeOwner(acOwner);
+
+    CHECK(!hardware.mLocked);
+    CHECK(hardware.mPos3D == &Snd::Globals::smNullVector);
+    CHECK(hardware.mVel3D == &Snd::Globals::smNullVector);
+    CHECK(SameVector(*hardware.mPos3D, 0.0f, 0.0f, 0.0f));
+    CHECK(SameVector(*hardware.mVel3D, 0.0f, 0.0f, 0.0f));
+}
+
+TEST_CASE("released 3d voice reports its stored velocity" * doctest::test_suite("regression"))
+{
+    alignas(SndProbeOwner) unsigned char acOwner[sizeof(SndProbeOwner)];
+    SndProbeOwner* pOwner = MakeSndProbeOwner(acOwner);
+
+    SndProbeVoice hardware;
+    SndProbeVoice voice;
+    voice.mVoice = &hardware;
+    voice.SetPosVel3D(&pOwner->mPos, &pOwner->mVel);
+    hardware.SetPosVel3D(&pOwner->mPos, &pOwner->mVel);
+
+    PblVector3 vStoredPos(0.0f, 0.0f, 0.0f);
+    PblVector3 vStoredVel(0.0f, 0.0f, 0.0f);
+    Snd::KeepReleasedVoicePosVel(&voice, &vStoredPos, &vStoredVel);
+    FreeSndProbeOwner(acOwner);
+
+    CHECK(voice.mPos3D == &vStoredPos);
+    CHECK(voice.mVel3D == &vStoredVel);
+    CHECK(hardware.mPos3D == &vStoredPos);
+    CHECK(hardware.mVel3D == &vStoredVel);
+    CHECK(SameVector(*voice.mPos3D, 1.0f, 2.0f, 3.0f));
+    CHECK(SameVector(*voice.mVel3D, 4.0f, 5.0f, 6.0f));
+    CHECK(SameVector(*hardware.mVel3D, 4.0f, 5.0f, 6.0f));
+
+    alignas(SndProbeOwner) unsigned char acLone[sizeof(SndProbeOwner)];
+    SndProbeOwner* pLone = MakeSndProbeOwner(acLone);
+    SndProbeVoice lone;
+    lone.SetPosVel3D(&pLone->mPos, &pLone->mVel);
+    PblVector3 vLonePos(0.0f, 0.0f, 0.0f);
+    PblVector3 vLoneVel(0.0f, 0.0f, 0.0f);
+    Snd::KeepReleasedVoicePosVel(&lone, &vLonePos, &vLoneVel);
+    FreeSndProbeOwner(acLone);
+
+    CHECK(lone.mVel3D == &vLoneVel);
+    CHECK(SameVector(*lone.mVel3D, 4.0f, 5.0f, 6.0f));
+}
+
+template <class PROBE>
+struct ListProbeSlots
+{
+    static const int kSlots = 4;
+
+    static void* Take()
+    {
+        REQUIRE(siUsed < kSlots);
+        return &saSlots[siUsed++];
+    }
+
+    static void Reset()
+    {
+        siUsed = 0;
+        siDeleted = 0;
+        siDeletedWhileLinked = 0;
+        memset(saSlots, 0, sizeof(saSlots));
+    }
+
+    static void Poison(void* pBlock)
+    {
+        static_cast<PROBE*>(pBlock)->mNode._pNext = &spList->_head;
+        ++siDeleted;
+    }
+
+    struct alignas(PROBE) Slot
+    {
+        unsigned char acBytes[sizeof(PROBE)];
+    };
+
+    static Slot saSlots[kSlots];
+    static int siUsed;
+    static int siDeleted;
+    static int siDeletedWhileLinked;
+    static PblList<PROBE>* spList;
+};
+
+template <class PROBE>
+typename ListProbeSlots<PROBE>::Slot ListProbeSlots<PROBE>::saSlots[ListProbeSlots<PROBE>::kSlots];
+template <class PROBE>
+int ListProbeSlots<PROBE>::siUsed = 0;
+template <class PROBE>
+int ListProbeSlots<PROBE>::siDeleted = 0;
+template <class PROBE>
+int ListProbeSlots<PROBE>::siDeletedWhileLinked = 0;
+template <class PROBE>
+PblList<PROBE>* ListProbeSlots<PROBE>::spList = 0;
+
+struct SelfRemovingProbe
+{
+    typedef ListProbeSlots<SelfRemovingProbe> Slots;
+
+    ~SelfRemovingProbe()
+    {
+        if (mNode.IsInList())
+        {
+            ++Slots::siDeletedWhileLinked;
+            Slots::spList->Remove(&mNode);
+        }
+    }
+
+    static void* operator new(size_t) { return Slots::Take(); }
+    static void operator delete(void* pBlock) { Slots::Poison(pBlock); }
+
+    int miValue;
+    PblList<SelfRemovingProbe>::Node mNode;
+};
+
+struct ListedProbe
+{
+    typedef ListProbeSlots<ListedProbe> Slots;
+
+    ~ListedProbe()
+    {
+        if (mNode.IsInList())
+        {
+            ++Slots::siDeletedWhileLinked;
+        }
+    }
+
+    static void* operator new(size_t) { return Slots::Take(); }
+    static void operator delete(void* pBlock) { Slots::Poison(pBlock); }
+
+    int miValue;
+    PblList<ListedProbe>::Node mNode;
+};
+
+TEST_CASE("pbl list delete of self removing objects never steps through a freed node" * doctest::test_suite("regression"))
+{
+    typedef ListProbeSlots<SelfRemovingProbe> Slots;
+    Slots::Reset();
+    PblList<SelfRemovingProbe> list;
+    Slots::spList = &list;
+    for (int i = 0; i < 3; ++i)
+    {
+        SelfRemovingProbe* pProbe = new SelfRemovingProbe;
+        pProbe->miValue = i;
+        list.Add(&pProbe->mNode, pProbe);
+    }
+
+    PblListDeleteSelfRemoving(list);
+
+    CHECK(Slots::siDeleted == 3);
+    CHECK(Slots::siDeletedWhileLinked == 3);
+    CHECK(list.GetCount() == 0);
+    CHECK(list.GetFirst() == &list._head);
+    CHECK(list._head._pPrev == &list._head);
+    Slots::spList = 0;
+}
+
+TEST_CASE("pbl list delete unlinks each object before it is freed" * doctest::test_suite("regression"))
+{
+    typedef ListProbeSlots<ListedProbe> Slots;
+    Slots::Reset();
+    PblList<ListedProbe> list;
+    Slots::spList = &list;
+    for (int i = 0; i < 3; ++i)
+    {
+        ListedProbe* pProbe = new ListedProbe;
+        pProbe->miValue = i;
+        list.Add(&pProbe->mNode, pProbe);
+    }
+
+    PblListRemoveAndDelete(list);
+
+    CHECK(Slots::siDeleted == 3);
+    CHECK(Slots::siDeletedWhileLinked == 0);
+    CHECK(list.GetCount() == 0);
+    CHECK(list.GetFirst() == &list._head);
+    CHECK(list._head._pPrev == &list._head);
+    Slots::spList = 0;
+}
+
+class PblMatrix;
+
+struct EffectProbeHandle
+{
+    const void* mObject;
+};
+
+struct EffectProbe
+{
+    enum
+    {
+        ATTACHED_DYNAMIC = 1,
+        ATTACHED_TO_GAMEOBJECT = 2,
+        ATTACHED_TO_VECTOR = 4,
+    };
+
+    EffectProbe() : m_uiAttachFlags(0), m_pmAttachedToMatrix(0), mvWorld(0.0f, 0.0f, 0.0f)
+    {
+        m_hobjAttachedToObject.mObject = 0;
+    }
+
+    void AttachToVector(PblVector3* pVector, bool bDynamic)
+    {
+        m_hobjAttachedToObject.mObject = 0;
+        m_pvAttachedToVector = pVector;
+        m_uiAttachFlags = ATTACHED_TO_VECTOR | (bDynamic ? ATTACHED_DYNAMIC : 0);
+        _UpdateWorldMatrix();
+    }
+
+    void _UpdateWorldMatrix()
+    {
+        if ((m_uiAttachFlags & ATTACHED_TO_VECTOR) && m_pvAttachedToVector)
+        {
+            mvWorld = *m_pvAttachedToVector;
+        }
+    }
+
+    void Update()
+    {
+        if (m_uiAttachFlags & ATTACHED_DYNAMIC)
+        {
+            _UpdateWorldMatrix();
+        }
+    }
+
+    EffectProbeHandle m_hobjAttachedToObject;
+    unsigned int m_uiAttachFlags;
+    union
+    {
+        PblMatrix* m_pmAttachedToMatrix;
+        PblVector3* m_pvAttachedToVector;
+    };
+    PblVector3 mvWorld;
+};
+
+TEST_CASE("effect keeps its last position after its attach vector is released" * doctest::test_suite("regression"))
+{
+    alignas(SndProbeOwner) unsigned char acOwner[sizeof(SndProbeOwner)];
+    SndProbeOwner* pOwner = MakeSndProbeOwner(acOwner);
+
+    EffectProbe effect;
+    effect.AttachToVector(&pOwner->mPos, true);
+    pOwner->mPos = PblVector3(7.0f, 8.0f, 9.0f);
+
+    DetachEffectFromTarget(effect);
+    FreeSndProbeOwner(acOwner);
+    effect.Update();
+
+    CHECK(SameVector(effect.mvWorld, 7.0f, 8.0f, 9.0f));
+    CHECK((effect.m_uiAttachFlags & (EffectProbe::ATTACHED_DYNAMIC | EffectProbe::ATTACHED_TO_VECTOR)) == 0);
+    CHECK(!effect.m_pvAttachedToVector);
+
+    PblVector3 vFixed(1.0f, 1.0f, 1.0f);
+    EffectProbe still;
+    still.AttachToVector(&vFixed, false);
+    DetachEffectFromTarget(still);
+    CHECK(still.m_uiAttachFlags == EffectProbe::ATTACHED_TO_VECTOR);
+    CHECK(still.m_pvAttachedToVector == &vFixed);
+
+    int iObject = 0;
+    EffectProbe onObject;
+    onObject.AttachToVector(&vFixed, true);
+    onObject.m_hobjAttachedToObject.mObject = &iObject;
+    DetachEffectFromTarget(onObject);
+    CHECK(onObject.m_uiAttachFlags == (EffectProbe::ATTACHED_TO_VECTOR | EffectProbe::ATTACHED_DYNAMIC));
+    CHECK(onObject.m_pvAttachedToVector == &vFixed);
 }
 
 TEST_CASE("mod data fixed array appends stop at the array size" * doctest::test_suite("regression"))
@@ -646,74 +1066,110 @@ TEST_CASE("mod data fixed array appends stop at the array size" * doctest::test_
           != std::string::npos);
 }
 
-static int CountText(const std::string& sText, const char* pcNeedle)
+TEST_CASE("squadron formation list does not run into the next stack block" * doctest::test_suite("regression"))
 {
-    int iCount = 0;
-    for (size_t uPos = sText.find(pcNeedle); uPos != std::string::npos; uPos = sText.find(pcNeedle, uPos + 1))
+    RedStack stack;
+    static const int siFormation = 7;
+    const int** ppFormations = AllocFormationList<const int>(stack, 10);
+    unsigned char* pucNext = (unsigned char*)stack.Alloc(16);
+    memset(pucNext, 0xAB, 16);
+    for (int i = 0; i < 10; ++i)
     {
-        ++iCount;
+        ppFormations[i] = &siFormation;
     }
-    return iCount;
+    for (int i = 0; i < 16; ++i)
+    {
+        INFO(i);
+        CHECK(pucNext[i] == 0xAB);
+    }
+    for (int i = 0; i < 10; ++i)
+    {
+        CHECK(ppFormations[i] == &siFormation);
+    }
 }
 
-TEST_CASE("walker leg pair properties stay inside the leg pair array" * doctest::test_suite("regression"))
+struct FormationProbe
 {
-    std::string sWalker = ReadRepoTextLf("src\\Battlefront2\\Source\\EntityWalker.cpp");
-    CHECK(sWalker.find("        int iCount = 0;\n"
-                       "        sscanf(pszValue, \"%d\", &iCount);\n"
-                       "        if (iCount < 0)\n"
-                       "        {\n"
-                       "            iCount = 0;\n"
-                       "        }\n"
-                       "        else if (iCount > 3)\n"
-                       "        {\n"
-                       "            iCount = 3;\n"
-                       "        }\n"
-                       "        if (mLegPairInfo == sOwnLegPairInfo)\n"
-                       "        {\n"
-                       "            delete[] mLegPairInfo;\n"
-                       "        }\n"
-                       "        mLegPairCount = iCount;\n"
-                       "        mLegPairInfo = new WalkerLegPairInfo[mLegPairCount];\n"
-                       "        sOwnLegPairInfo = mLegPairInfo;\n")
-          != std::string::npos);
-    CHECK(sWalker.find("static WalkerLegPairInfo* CurLegPair(WalkerLegPairInfo* pInfo, int iCount)\n"
-                       "{\n"
-                       "    if (pInfo && sCurPair >= 0 && sCurPair < iCount)\n"
-                       "    {\n"
-                       "        return &pInfo[sCurPair];\n"
-                       "    }\n"
-                       "    return 0;\n"
-                       "}\n")
-          != std::string::npos);
-    CHECK(sWalker.find("mLegPairInfo[sCurPair]") == std::string::npos);
-    CHECK(CountText(sWalker, "CurLegPair(mLegPairInfo, mLegPairCount);") == 8);
-    CHECK(CountText(sWalker, "    sCurPair = -1;\n    sOwnLegPairInfo = 0;\n") == 2);
+    unsigned int auFormations[10];
+    unsigned int uNumFormations;
+    unsigned int uAfter;
+};
+
+TEST_CASE("squadron formation odf list stops at its array size" * doctest::test_suite("regression"))
+{
+    static const char* const apcNames[11] = { "f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10" };
+    FormationProbe probe;
+    memset(&probe, 0, sizeof(probe));
+    probe.uAfter = 0x5EA15EA1u;
+    for (int i = 0; i < 11; ++i)
+    {
+        AppendFormation(probe.auFormations, probe.uNumFormations, apcNames[i]);
+    }
+    CHECK(probe.uNumFormations == 10);
+    CHECK(probe.uAfter == 0x5EA15EA1u);
+    for (int i = 0; i < 10; ++i)
+    {
+        INFO(i);
+        CHECK(probe.auFormations[i] == (unsigned int)PblHash(apcNames[i]));
+    }
 }
 
-TEST_CASE("walker without leg pairs never reads a leg pair" * doctest::test_suite("regression"))
+TEST_CASE("walker leg pair count from mod data stays inside the leg pair array" * doctest::test_suite("regression"))
 {
-    std::string sWalker = ReadRepoTextLf("src\\Battlefront2\\Source\\EntityWalker.cpp");
-    CHECK(sWalker.find("    for (int i = 0; i < 3; ++i)\n"
-                       "    {\n"
-                       "        mLegPairs[i] = 0;\n"
-                       "    }\n")
-          != std::string::npos);
-    CHECK(sWalker.find("mLegPairCount > 0 ? mLegPairs[0]->GetStateLimit() : 0.0f, bWrapped);\n")
-          != std::string::npos);
-    CHECK(sWalker.find("        if (mLegPairCount > 0)\n"
-                       "        {\n"
-                       "            mLegPairs[0]->SetFrameState(fLegState);\n"
-                       "        }\n")
-          != std::string::npos);
-    CHECK(sWalker.find("        if (mLegPairCount > 0)\n"
-                       "        {\n"
-                       "            mLegPairs[0]->ResetTurnState();\n"
-                       "        }\n")
-          != std::string::npos);
-    CHECK(sWalker.find("float fFrontTurn = mLegPairCount > 0 ? mLegPairs[0]->GetTurnState() : 0.0f;\n") != std::string::npos);
-    CHECK(CountText(sWalker, "mLegPairs[0]") == 6);
-    CHECK(CountText(sWalker, "mLegPairs[1]") == 6);
+    CHECK(ClampLegPairCount(INT_MIN) == 0);
+    CHECK(ClampLegPairCount(-1) == 0);
+    CHECK(ClampLegPairCount(0) == 0);
+    CHECK(ClampLegPairCount(2) == 2);
+    CHECK(ClampLegPairCount(3) == 3);
+    CHECK(ClampLegPairCount(4) == 3);
+    CHECK(ClampLegPairCount(INT_MAX) == 3);
+}
+
+struct LegPairInfoProbe
+{
+    int miJoint;
+};
+
+TEST_CASE("walker leg pair properties past the leg pair count are ignored" * doctest::test_suite("regression"))
+{
+    LegPairInfoProbe akInfo[2] = { { 1 }, { 2 } };
+    CHECK(LegPairAt(akInfo, 0, 2) == &akInfo[0]);
+    CHECK(LegPairAt(akInfo, 1, 2) == &akInfo[1]);
+    CHECK_FALSE(LegPairAt(akInfo, 2, 2));
+    CHECK_FALSE(LegPairAt(akInfo, -1, 2));
+    CHECK_FALSE(LegPairAt(akInfo, 0, 0));
+    CHECK_FALSE(LegPairAt((LegPairInfoProbe*)0, 0, 2));
+}
+
+struct LegPairProbe
+{
+    LegPairProbe() : miReads(0) {}
+
+    float GetTurnState()
+    {
+        ++miReads;
+        return 5.0f;
+    }
+
+    int miReads;
+};
+
+TEST_CASE("walker without leg pairs never reads a leg pair turn state" * doctest::test_suite("regression"))
+{
+    LegPairProbe front;
+    LegPairProbe back;
+    LegPairProbe* apPairs[3] = { &front, &back, 0 };
+
+    CHECK(LegPairTurnState(apPairs, 0, 0) == 0.0f);
+    CHECK(LegPairTurnState(apPairs, 0, 1) == 0.0f);
+    CHECK(LegPairTurnState(apPairs, 1, 1) == 0.0f);
+    CHECK(front.miReads == 0);
+    CHECK(back.miReads == 0);
+
+    CHECK(LegPairTurnState(apPairs, 2, 0) == 5.0f);
+    CHECK(LegPairTurnState(apPairs, 2, 1) == 5.0f);
+    CHECK(front.miReads == 1);
+    CHECK(back.miReads == 1);
 }
 
 static char sacReusedArena[0x1000];

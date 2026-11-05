@@ -28,6 +28,16 @@ namespace SquadCommands
 class SquadCommandOrder;
 }
 
+enum AILodState
+{
+    AILOD_WICKED_LOW = 0,
+    AILOD_LOWER = 1,
+    AILOD_LOW = 2,
+    AILOD_NORMAL = 3,
+    AILOD_HIGH = 4,
+    AILOD_CNT = 5
+};
+
 // VTABLE: SWBF2 0x007af818 CommandFsm
 // VTABLE: SWBF2 0x007af858 Controller
 // VTABLE: SWBF2 0x007af870 PblHandled
@@ -100,7 +110,7 @@ public:
     // UnitController::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
-    static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }
+    static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
     static MemoryPool sMemoryPool;
 
     static unsigned int GetRtti() { return rttiHashUnitController; }
@@ -137,8 +147,8 @@ public:
     AI::UnitThreatManager mThreatManager;
     UnitAgent* mAgent;
     AILowLevel mLowLevel;
-    int mLodState;
-    Character* mLodHumanPlayer;
+    AILodState mLodState;
+    const Character* mLodHumanPlayer;
     float mLodStateUpdateTime;
     SquadCommands::SquadCommandOrder mLastSquadCommand;
     bool mJustEnteredVehicleGoToPickupAgent;
