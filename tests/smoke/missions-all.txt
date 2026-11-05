@@ -31,10 +31,10 @@ hot1g_con Pass
 hot1g_hunt Pass
 hot1g_uber TimeOut
 hot1g_xl Pass
-kam1c_1flag TimeOut
+kam1c_1flag Pass 240
 kam1c_c TimeOut
 kam1c_con Pass
-kam1g_1flag TimeOut
+kam1g_1flag Pass 320
 kam1g_con Pass
 kas2c_c TimeOut
 kas2c_con Pass
@@ -100,7 +100,7 @@ tat3g_con Pass
 uta1c_1flag Pass 240
 uta1c_c TimeOut
 uta1c_con Pass
-uta1g_1flag TimeOut
+uta1g_1flag Pass 240
 uta1g_con Pass
 yav1c_1flag Pass
 yav1c_con Pass
