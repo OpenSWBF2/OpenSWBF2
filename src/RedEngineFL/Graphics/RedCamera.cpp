@@ -19,17 +19,16 @@ RedCamera::VisibilityT RedCamera::ClassifyPoints(const PblVector3* pPoints, int 
         PblVector3 point;
         D3DXVec3TransformCoord((D3DXVECTOR3*)&point, (const D3DXVECTOR3*)&pPoints[i],
                                (const D3DXMATRIX*)&_MatrixInverse);
-        float depth = -point.z;
         int mask = 0;
-        if (depth >= _fNear)
+        if (-point.z >= _fNear)
         {
             mask |= 1;
         }
-        if (_fFar >= depth)
+        if (_fFar >= -point.z)
         {
             mask |= 2;
         }
-        float width = depth * _fTanHalfFOVWidth;
+        float width = -(point.z * _fTanHalfFOVWidth);
         if (width >= point.x)
         {
             mask |= 4;
@@ -38,7 +37,7 @@ RedCamera::VisibilityT RedCamera::ClassifyPoints(const PblVector3* pPoints, int 
         {
             mask |= 8;
         }
-        float height = depth * _fTanHalfFOVHeight;
+        float height = -(point.z * _fTanHalfFOVHeight);
         if (height >= point.y)
         {
             mask |= 16;
@@ -47,17 +46,21 @@ RedCamera::VisibilityT RedCamera::ClassifyPoints(const PblVector3* pPoints, int 
         {
             mask |= 32;
         }
-        if (mask == 63)
+        if (mask != 63)
         {
-            hasInside = true;
+            hasOutside = true;
+            if (hasInside)
+            {
+                return VISIBILITY_PARTIAL;
+            }
         }
         else
         {
-            hasOutside = true;
-        }
-        if (hasInside && hasOutside)
-        {
-            return VISIBILITY_PARTIAL;
+            hasInside = true;
+            if (hasOutside)
+            {
+                return VISIBILITY_PARTIAL;
+            }
         }
         sharedMask |= mask;
     }
@@ -71,12 +74,8 @@ RedCamera::VisibilityT RedCamera::ClassifyPoints(const PblVector3* pPoints, int 
 // FUNCTION: SWBF2 0x006cb5c0
 RedCamera::VisibilityT RedCamera::ClassifyPlane(const PblVector3& vNormal, float fDist) const
 {
-    const float fCenter = _Matrix.m[3][0] * vNormal.x
-                        + _Matrix.m[3][1] * vNormal.y
-                        + _Matrix.m[3][2] * vNormal.z;
-    const float fForward = _Matrix.m[2][0] * vNormal.x
-                         + _Matrix.m[2][1] * vNormal.y
-                         + _Matrix.m[2][2] * vNormal.z;
+    const float fCenter = DotProduct(vNormal, _Matrix.GetTranslation());
+    const float fForward = DotProduct(vNormal, _Matrix.GetZAxis());
     const float fNear = fCenter - _fNear * fForward;
     if (fDist > fNear)
     {
@@ -87,12 +86,8 @@ RedCamera::VisibilityT RedCamera::ClassifyPlane(const PblVector3& vNormal, float
     {
         return VISIBILITY_PARTIAL;
     }
-    const float fRightAbs = (float)fabs(_Matrix.m[0][0] * vNormal.x
-                                      + _Matrix.m[0][1] * vNormal.y
-                                      + _Matrix.m[0][2] * vNormal.z);
-    const float fUpAbs = (float)fabs(_Matrix.m[1][0] * vNormal.x
-                                   + _Matrix.m[1][1] * vNormal.y
-                                   + _Matrix.m[1][2] * vNormal.z);
+    const float fRightAbs = (float)fabs(DotProduct(vNormal, _Matrix.GetXAxis()));
+    const float fUpAbs = (float)fabs(DotProduct(vNormal, _Matrix.GetYAxis()));
     const float fSpread = -fRightAbs * _fTanHalfFOVWidth - fUpAbs * _fTanHalfFOVHeight;
     if (fDist > fFar + _fFar * fSpread)
     {
@@ -146,8 +141,8 @@ RedCamera::RedCamera(const RedCamera& rCamera)
 // FUNCTION: SWBF2 0x006cb150
 void RedCamera::AddXZPlane(const PblVector3& rA, const PblVector3& rB)
 {
-    float fDZ = rB.z - rA.z;
     float fDX = rB.x - rA.x;
+    float fDZ = rB.z - rA.z;
     float fInvLen = 1.0f / sqrtf(fDZ * fDZ + fDX * fDX);
 
     _XZPlane[_iNumXZPlanes].x = -(fDZ * fInvLen);
@@ -184,12 +179,10 @@ RedCamera::VisibilityT RedCamera::ClassifyBoxInternal(const PblMatrix& rMatrix, 
         eResult = VISIBILITY_PARTIAL;
     }
 
-    float fTan = _fTanHalfFOVWidth;
-    float fCos = _fCosHalfFOVWidth;
-    fDist = (vCenter.x + fTan * vCenter.z) * fCos;
-    fRadius = (float)fabs((rMatrix.m[1][0] + fTan * rMatrix.m[1][2]) * fCos) * vExtents.y
-            + (float)fabs((rMatrix.m[0][0] + fTan * rMatrix.m[0][2]) * fCos) * vExtents.x
-            + (float)fabs((rMatrix.m[2][0] + fTan * rMatrix.m[2][2]) * fCos) * vExtents.z;
+    fDist = (vCenter.x + _fTanHalfFOVWidth * vCenter.z) * _fCosHalfFOVWidth;
+    fRadius = (float)fabs((rMatrix.m[0][0] + _fTanHalfFOVWidth * rMatrix.m[0][2]) * _fCosHalfFOVWidth) * vExtents.x
+            + (float)fabs((rMatrix.m[1][0] + _fTanHalfFOVWidth * rMatrix.m[1][2]) * _fCosHalfFOVWidth) * vExtents.y
+            + (float)fabs((rMatrix.m[2][0] + _fTanHalfFOVWidth * rMatrix.m[2][2]) * _fCosHalfFOVWidth) * vExtents.z;
     if (fDist > fRadius)
     {
         return VISIBILITY_NONE;
@@ -198,10 +191,10 @@ RedCamera::VisibilityT RedCamera::ClassifyBoxInternal(const PblMatrix& rMatrix, 
     {
         eResult = VISIBILITY_PARTIAL;
     }
-    fDist = (fTan * vCenter.z - vCenter.x) * fCos;
-    fRadius = (float)fabs((fTan * rMatrix.m[1][2] - rMatrix.m[1][0]) * fCos) * vExtents.y
-            + (float)fabs((fTan * rMatrix.m[0][2] - rMatrix.m[0][0]) * fCos) * vExtents.x
-            + (float)fabs((fTan * rMatrix.m[2][2] - rMatrix.m[2][0]) * fCos) * vExtents.z;
+    fDist = (_fTanHalfFOVWidth * vCenter.z - vCenter.x) * _fCosHalfFOVWidth;
+    fRadius = (float)fabs((_fTanHalfFOVWidth * rMatrix.m[0][2] - rMatrix.m[0][0]) * _fCosHalfFOVWidth) * vExtents.x
+            + (float)fabs((_fTanHalfFOVWidth * rMatrix.m[1][2] - rMatrix.m[1][0]) * _fCosHalfFOVWidth) * vExtents.y
+            + (float)fabs((_fTanHalfFOVWidth * rMatrix.m[2][2] - rMatrix.m[2][0]) * _fCosHalfFOVWidth) * vExtents.z;
     if (fDist > fRadius)
     {
         return VISIBILITY_NONE;
@@ -211,12 +204,10 @@ RedCamera::VisibilityT RedCamera::ClassifyBoxInternal(const PblMatrix& rMatrix, 
         eResult = VISIBILITY_PARTIAL;
     }
 
-    fTan = _fTanHalfFOVHeight;
-    fCos = _fCosHalfFOVHeight;
-    fDist = (vCenter.y + fTan * vCenter.z) * fCos;
-    fRadius = (float)fabs((rMatrix.m[0][1] + fTan * rMatrix.m[0][2]) * fCos) * vExtents.x
-            + (float)fabs((rMatrix.m[1][1] + fTan * rMatrix.m[1][2]) * fCos) * vExtents.y
-            + (float)fabs((rMatrix.m[2][1] + fTan * rMatrix.m[2][2]) * fCos) * vExtents.z;
+    fDist = (vCenter.y + _fTanHalfFOVHeight * vCenter.z) * _fCosHalfFOVHeight;
+    fRadius = (float)fabs((rMatrix.m[0][1] + _fTanHalfFOVHeight * rMatrix.m[0][2]) * _fCosHalfFOVHeight) * vExtents.x
+            + (float)fabs((rMatrix.m[1][1] + _fTanHalfFOVHeight * rMatrix.m[1][2]) * _fCosHalfFOVHeight) * vExtents.y
+            + (float)fabs((rMatrix.m[2][1] + _fTanHalfFOVHeight * rMatrix.m[2][2]) * _fCosHalfFOVHeight) * vExtents.z;
     if (fDist > fRadius)
     {
         return VISIBILITY_NONE;
@@ -225,10 +216,10 @@ RedCamera::VisibilityT RedCamera::ClassifyBoxInternal(const PblMatrix& rMatrix, 
     {
         eResult = VISIBILITY_PARTIAL;
     }
-    fDist = (fTan * vCenter.z - vCenter.y) * fCos;
-    fRadius = (float)fabs((fTan * rMatrix.m[1][2] - rMatrix.m[1][1]) * fCos) * vExtents.y
-            + (float)fabs((fTan * rMatrix.m[0][2] - rMatrix.m[0][1]) * fCos) * vExtents.x
-            + (float)fabs((fTan * rMatrix.m[2][2] - rMatrix.m[2][1]) * fCos) * vExtents.z;
+    fDist = (_fTanHalfFOVHeight * vCenter.z - vCenter.y) * _fCosHalfFOVHeight;
+    fRadius = (float)fabs((_fTanHalfFOVHeight * rMatrix.m[0][2] - rMatrix.m[0][1]) * _fCosHalfFOVHeight) * vExtents.x
+            + (float)fabs((_fTanHalfFOVHeight * rMatrix.m[1][2] - rMatrix.m[1][1]) * _fCosHalfFOVHeight) * vExtents.y
+            + (float)fabs((_fTanHalfFOVHeight * rMatrix.m[2][2] - rMatrix.m[2][1]) * _fCosHalfFOVHeight) * vExtents.z;
     if (fDist > fRadius)
     {
         return VISIBILITY_NONE;
@@ -240,12 +231,7 @@ RedCamera::VisibilityT RedCamera::ClassifyBoxInternal(const PblMatrix& rMatrix, 
     return eResult;
 }
 
-// FUNCTION: SWBF2 0x00692c70
-RedCamera::VisibilityT RedCamera::ClassifyBox(const PblMatrix& rMatrix, const PblVector3& vExtents) const
-{
-    PblMatrix m = rMatrix * _MatrixInverse;
-    return ClassifyBoxInternal(m, m.GetTranslation(), vExtents);
-}
+
 
 
 
@@ -253,11 +239,15 @@ RedCamera::VisibilityT RedCamera::ClassifyBox(const PblMatrix& rMatrix, const Pb
 RedCamera::VisibilityT RedCamera::ClassifySphere(const PblVector3& vCenter, float fRadius, float fFar) const
 {
     VisibilityT eResult = VISIBILITY_FULL;
-    float fFarPlane = fFar >= 0.0f ? fFar : _fFar;
 
     float fDX = vCenter.x - _Matrix.m[3][0];
     float fDY = vCenter.y - _Matrix.m[3][1];
     float fDZ = vCenter.z - _Matrix.m[3][2];
+    float fFarPlane = _fFar;
+    if (fFar >= 0.0f)
+    {
+        fFarPlane = fFar;
+    }
 
     float fZ = -(_Matrix.m[2][0] * fDX + _Matrix.m[2][1] * fDY + _Matrix.m[2][2] * fDZ);
     if (fZ < _fNear + fRadius)
@@ -305,13 +295,16 @@ RedCamera::VisibilityT RedCamera::ClassifySphere(const PblVector3& vCenter, floa
 // FUNCTION: SWBF2 0x006cb700
 RedCamera::VisibilityT RedCamera::ClassifyPoint(const PblVector3& vPoint, float fFar) const
 {
-    float fFarPlane = fFar >= 0.0f ? fFar : _fFar;
-
     float fDX = vPoint.x - _Matrix.m[3][0];
     float fDY = vPoint.y - _Matrix.m[3][1];
     float fDZ = vPoint.z - _Matrix.m[3][2];
 
     float fZ = -(_Matrix.m[2][0] * fDX + _Matrix.m[2][1] * fDY + _Matrix.m[2][2] * fDZ);
+    float fFarPlane = _fFar;
+    if (fFar >= 0.0f)
+    {
+        fFarPlane = fFar;
+    }
     if (fZ < _fNear || fZ > fFarPlane)
     {
         return VISIBILITY_NONE;
@@ -336,9 +329,8 @@ RedCamera::VisibilityT RedCamera::ClassifyXZBox(const PblVector3& vCenter, const
     VisibilityT eResult = VISIBILITY_FULL;
     for (int i = 0; i < _iNumXZPlanes; ++i)
     {
-        const PblVector3& rPlane = _XZPlane[i];
-        float fDist = rPlane.x * vCenter.x + rPlane.z * vCenter.z + rPlane.y;
-        float fRadius = (float)fabs(rPlane.x * vExtents.x) + (float)fabs(rPlane.z * vExtents.z);
+        float fDist = _XZPlane[i].x * vCenter.x + _XZPlane[i].z * vCenter.z + _XZPlane[i].y;
+        float fRadius = (float)fabs(_XZPlane[i].x * vExtents.x) + (float)fabs(_XZPlane[i].z * vExtents.z);
         if (fDist > fRadius)
         {
             return VISIBILITY_NONE;
@@ -472,8 +464,8 @@ void RedCamera::SetZoom(float fZoom)
 // FUNCTION: SWBF2 0x006cbfe0
 const PblVector3 RedCamera::TransformCameraPointToProjectionSpace(const PblVector3& rPoint) const
 {
-    float fInvDepth = 1.0f / (_fNear - _fFar);
     float fW = -1.0f / rPoint.z;
+    float fInvDepth = 1.0f / (_fNear - _fFar);
     return PblVector3(rPoint.x / _fTanHalfFOVWidth * fW,
                       -(rPoint.y / _fTanHalfFOVHeight) * fW,
                       (-((_fFar + _fNear) * fInvDepth * rPoint.z) - _fNear * 2.0f * _fFar * fInvDepth) * fW);
@@ -495,46 +487,31 @@ void RedCamera::UpdateFrustumDependents()
 void RedCamera::UpdateMatrixAndFrustumDependents()
 {
     ComputeProjMatrix(_ProjMatrix);
-    PblMatrix mViewProj = _MatrixInverse * _ProjMatrix;
-    _ViewProjMatrix = mViewProj;
+    _ViewProjMatrix = _MatrixInverse * _ProjMatrix;
 
-    const float* vRight = _Matrix.m[0];
-    const float* vFwd = _Matrix.m[2];
-    const float* vPos = _Matrix.m[3];
-
-    PblVector3 vUp;
-    vUp.x = vFwd[1] * vRight[2] - vFwd[2] * vRight[1];
-    vUp.y = vFwd[2] * vRight[0] - vFwd[0] * vRight[2];
-    vUp.z = vFwd[0] * vRight[1] - vFwd[1] * vRight[0];
+    const PblVector3& vRight = _Matrix.GetXAxis();
+    const PblVector3& vFwd = _Matrix.GetZAxis();
+    const PblVector3& vPos = _Matrix.GetTranslation();
+    const PblVector3 vUp = CrossProduct(vFwd, vRight);
 
     float fFarW = _fTanHalfFOVWidth * _fFar;
     float fFarH = _fFar * _fTanHalfFOVHeight;
 
     PblVector3 v[5];
-    v[0].x = vPos[0];
-    v[0].y = vPos[1];
-    v[0].z = vPos[2];
-    v[1].x = vPos[0] - vFwd[0] * _fFar + vRight[0] * fFarW - vUp.x * fFarH;
-    v[1].y = vPos[1] - vFwd[1] * _fFar + vRight[1] * fFarW - vUp.y * fFarH;
-    v[1].z = vPos[2] - vFwd[2] * _fFar + vRight[2] * fFarW - vUp.z * fFarH;
-    v[2].x = vPos[0] - vFwd[0] * _fFar + vRight[0] * fFarW + vUp.x * fFarH;
-    v[2].y = vPos[1] - vFwd[1] * _fFar + vRight[1] * fFarW + vUp.y * fFarH;
-    v[2].z = vPos[2] - vFwd[2] * _fFar + vRight[2] * fFarW + vUp.z * fFarH;
-    v[3].x = vPos[0] - vFwd[0] * _fFar - vRight[0] * fFarW + vUp.x * fFarH;
-    v[3].y = vPos[1] - vFwd[1] * _fFar - vRight[1] * fFarW + vUp.y * fFarH;
-    v[3].z = vPos[2] - vFwd[2] * _fFar - vRight[2] * fFarW + vUp.z * fFarH;
-    v[4].x = vPos[0] - vFwd[0] * _fFar - vRight[0] * fFarW - vUp.x * fFarH;
-    v[4].y = vPos[1] - vFwd[1] * _fFar - vRight[1] * fFarW - vUp.y * fFarH;
-    v[4].z = vPos[2] - vFwd[2] * _fFar - vRight[2] * fFarW - vUp.z * fFarH;
+    v[0] = vPos;
+    v[1] = vPos - vFwd * _fFar + vRight * fFarW - vUp * fFarH;
+    v[2] = vPos - vFwd * _fFar + vRight * fFarW + vUp * fFarH;
+    v[3] = vPos - vFwd * _fFar - vRight * fFarW + vUp * fFarH;
+    v[4] = vPos - vFwd * _fFar - vRight * fFarW - vUp * fFarH;
 
-    float fRightY = _fTanHalfFOVWidth * vFwd[1] + vRight[1];
-    float fLeftY = _fTanHalfFOVWidth * vFwd[1] - vRight[1];
-    float fTopY = _fTanHalfFOVHeight * vFwd[1] + vUp.y;
-    float fBottomY = _fTanHalfFOVHeight * vFwd[1] - vUp.y;
-    float fDirY = -vFwd[1];
+    float fRightY = _fTanHalfFOVWidth * vFwd.y + vRight.y;
+    float fLeftY = _fTanHalfFOVWidth * vFwd.y - vRight.y;
+    float fTopY = _fTanHalfFOVHeight * vFwd.y + vUp.y;
+    float fBottomY = _fTanHalfFOVHeight * vFwd.y - vUp.y;
+    float fDirY = -vFwd.y;
 
-    _box._vMin = v[0];
-    _box._vMax = v[0];
+    _box._vMin = vPos;
+    _box._vMax = vPos;
     for (int i = 1; i < 5; i++)
     {
         _box.AddPoint(v[i]);
@@ -542,6 +519,7 @@ void RedCamera::UpdateMatrixAndFrustumDependents()
 
     _iNumXZPlanes = 0;
 
+    bool bDown = fDirY < 0.0f;
     if (fDirY == 0.0f)
     {
         bool bUp = fTopY > 0.0f;
@@ -558,7 +536,6 @@ void RedCamera::UpdateMatrixAndFrustumDependents()
         return;
     }
 
-    bool bDown = fDirY < 0.0f;
     if ((fRightY <= 0.0f) == bDown)
     {
         if ((fTopY <= 0.0f) == bDown)

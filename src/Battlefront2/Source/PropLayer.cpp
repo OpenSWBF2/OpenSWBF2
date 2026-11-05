@@ -28,6 +28,9 @@ void PropLayer::Clear()
 // FUNCTION: SWBF2 0x0062baf0
 void PropLayer::Read(PblFileChunk& chunk)
 {
+    float fSum = 0.0f;
+    float fScale = 1.0f;
+
     mObjectsPerCell = 1;
     mNumModels = 0;
     mSpreadFactor = 1;
@@ -44,7 +47,23 @@ void PropLayer::Read(PblFileChunk& chunk)
         const unsigned int uiHash = child._pFile->Read32();
         child._pFile->Read8();
 
-        if (uiHash == 0xa100bebc)
+        switch (uiHash)
+        {
+        case 0xdbe276e9:
+        {
+            const float fSpread = child._pFile->ReadFloat();
+            mSpreadFactor = (int)fSpread;
+            if (mSpreadFactor == 0)
+            {
+                mSpreadFactor = 1;
+                if (fSpread > 0.0f)
+                {
+                    mObjectsPerCell = (int)(1.0f / fSpread);
+                }
+            }
+            break;
+        }
+        case 0xa100bebc:
         {
             PropModelMesh* pModel = new PropModelMesh;
             PblFileChunk modelChunk = chunk.ReadNextChild();
@@ -61,24 +80,12 @@ void PropLayer::Read(PblFileChunk& chunk)
             {
                 delete pModel;
             }
+            break;
         }
-        else if (uiHash == 0xdbe276e9)
-        {
-            const float fSpread = child._pFile->ReadFloat();
-            mSpreadFactor = (int)fSpread;
-            if (mSpreadFactor == 0)
-            {
-                mSpreadFactor = 1;
-                if (fSpread > 0.0f)
-                {
-                    mObjectsPerCell = (int)(1.0f / fSpread);
-                }
-            }
         }
     }
 
     float fTotal = 0.0f;
-    float fScale = 1.0f;
     for (int i = 0; i < mNumModels; i++)
     {
         fTotal += mModels[i]->mFrequency;
@@ -88,7 +95,6 @@ void PropLayer::Read(PblFileChunk& chunk)
         fScale = 1.0f / fTotal;
     }
 
-    float fSum = 0.0f;
     for (int i = 0; i < mNumModels; i++)
     {
         fSum += mModels[i]->mFrequency * fScale;
@@ -101,6 +107,7 @@ void PropLayer::Read(PblFileChunk& chunk)
 // FUNCTION: SWBF2 0x0062be50
 void PropLayer::CreateCollisionObjects(int x, int z, int iOffset, float)
 {
+    const float fCellWidth = PropGenerator::mLayerCellWidth;
     if (!mNumModels)
     {
         return;
@@ -121,8 +128,8 @@ void PropLayer::CreateCollisionObjects(int x, int z, int iOffset, float)
             const float fRotation = PropGenerator::GetRand() * 6.1415f;
             const float fSpread = (float)mSpreadFactor;
             const float fHalf = fSpread * 0.45f;
-            const float fX = ((float)(x - iOffset) + 0.5f - fHalf + fSpread * fRandX * 0.9f) * PropGenerator::mLayerCellWidth;
-            const float fZ = ((float)(z - iOffset) + 0.5f - fHalf + fSpread * fRandZ * 0.9f) * PropGenerator::mLayerCellWidth;
+            const float fX = ((float)(x - iOffset) + 0.5f - fHalf + fSpread * fRandX * 0.9f) * fCellWidth;
+            const float fZ = ((float)(z - iOffset) + 0.5f - fHalf + fSpread * fRandZ * 0.9f) * fCellWidth;
             mModels[i]->CreateCollisionObject(fX, fZ, fRotation);
             return;
         }
@@ -152,9 +159,10 @@ PropObject* PropLayer::CreateObject(int x, int z, int iOffset, float)
             const float fRotation = PropGenerator::GetRand() * 6.1415f;
             const float fSpread = (float)mSpreadFactor;
             const float fHalf = fSpread * 0.45f;
-            const float fX = ((float)(x - iOffset) + 0.5f - fHalf + fSpread * fRandX * 0.9f) * PropGenerator::mLayerCellWidth;
-            const float fZ = ((float)(z - iOffset) + 0.5f - fHalf + fSpread * fRandZ * 0.9f) * PropGenerator::mLayerCellWidth;
-            return mModels[i]->CreateObject(fX, fZ, fRotation);
+            return mModels[i]->CreateObject(
+                ((float)(x - iOffset) + 0.5f - fHalf + fSpread * fRandX * 0.9f) * PropGenerator::mLayerCellWidth,
+                ((float)(z - iOffset) + 0.5f - fHalf + fSpread * fRandZ * 0.9f) * PropGenerator::mLayerCellWidth,
+                fRotation);
         }
     }
     return 0;

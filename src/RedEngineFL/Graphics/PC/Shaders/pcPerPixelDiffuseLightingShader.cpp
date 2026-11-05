@@ -81,17 +81,17 @@ void pcPerPixelDiffuseLightingShader::Begin_Fixed(unsigned int, unsigned int) co
 // FUNCTION: SWBF2 0x007116d0
 void pcPerPixelDiffuseLightingShader::Begin_Prog1(unsigned int uiState, unsigned int uiPass) const
 {
-    if (uiPass)
+    if (uiPass == 0)
     {
         RedRenderer::pcSetRenderState(D3DRS_COLORWRITEENABLE,
                                       D3DCOLORWRITEENABLE_RED | D3DCOLORWRITEENABLE_GREEN |
-                                          D3DCOLORWRITEENABLE_BLUE);
+                                          D3DCOLORWRITEENABLE_BLUE | D3DCOLORWRITEENABLE_ALPHA);
     }
     else
     {
         RedRenderer::pcSetRenderState(D3DRS_COLORWRITEENABLE,
                                       D3DCOLORWRITEENABLE_RED | D3DCOLORWRITEENABLE_GREEN |
-                                          D3DCOLORWRITEENABLE_BLUE | D3DCOLORWRITEENABLE_ALPHA);
+                                          D3DCOLORWRITEENABLE_BLUE);
     }
     RedRenderer::pcSetRenderState(D3DRS_ZWRITEENABLE, TRUE);
     RedRenderer::pcSetRenderState(D3DRS_SRCBLEND, D3DBLEND_ONE);
@@ -99,30 +99,39 @@ void pcPerPixelDiffuseLightingShader::Begin_Prog1(unsigned int uiState, unsigned
     RedRenderer::pcSetRenderState(D3DRS_ALPHAFUNC, D3DCMP_GREATER);
     RedRenderer::pcSetRenderState(D3DRS_ALPHAREF, 0x7f);
 
-    if (uiState < 6)
+    if (uiState >= 6)
+    {
+        RedRenderer::pcSetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
+        RedRenderer::pcSetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
+    }
+    else
     {
         RedRenderer::pcSetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
         RedRenderer::pcSetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
         RedRenderer::pcSetSamplerState(0, D3DSAMP_ADDRESSW, D3DTADDRESS_CLAMP);
     }
-    else
-    {
-        RedRenderer::pcSetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
-        RedRenderer::pcSetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
-    }
     RedRenderer::pcSetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
     RedRenderer::pcSetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
     RedRenderer::pcSetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
 
-    for (unsigned int i = 1; i < 4; i++)
-    {
-        RedRenderer::pcSetSamplerState(i, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
-        RedRenderer::pcSetSamplerState(i, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
-        RedRenderer::pcSetSamplerState(i, D3DSAMP_ADDRESSW, D3DTADDRESS_CLAMP);
-        RedRenderer::pcSetSamplerState(i, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
-        RedRenderer::pcSetSamplerState(i, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
-        RedRenderer::pcSetSamplerState(i, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
-    }
+    RedRenderer::pcSetSamplerState(1, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+    RedRenderer::pcSetSamplerState(1, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+    RedRenderer::pcSetSamplerState(1, D3DSAMP_ADDRESSW, D3DTADDRESS_CLAMP);
+    RedRenderer::pcSetSamplerState(1, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+    RedRenderer::pcSetSamplerState(1, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+    RedRenderer::pcSetSamplerState(1, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
+    RedRenderer::pcSetSamplerState(2, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+    RedRenderer::pcSetSamplerState(2, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+    RedRenderer::pcSetSamplerState(2, D3DSAMP_ADDRESSW, D3DTADDRESS_CLAMP);
+    RedRenderer::pcSetSamplerState(2, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+    RedRenderer::pcSetSamplerState(2, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+    RedRenderer::pcSetSamplerState(2, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
+    RedRenderer::pcSetSamplerState(3, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+    RedRenderer::pcSetSamplerState(3, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+    RedRenderer::pcSetSamplerState(3, D3DSAMP_ADDRESSW, D3DTADDRESS_CLAMP);
+    RedRenderer::pcSetSamplerState(3, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+    RedRenderer::pcSetSamplerState(3, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+    RedRenderer::pcSetSamplerState(3, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
 }
 
 // FUNCTION: SWBF2 0x00711860
@@ -234,14 +243,20 @@ void pcPerPixelDiffuseLightingShader::Render_Prog1(const RenderItem* pItem, unsi
                                                    ? pMaterial->detailTexTransform
                                                    : pMaterial->diffuseTexTransform;
         pcRedVertexShaderConstantRegister* pRegs = RedRenderer::pcLockVertexShaderConstants(40, 2);
-        pRegs[40].component[0] = transform(0, 0);
-        pRegs[40].component[1] = transform(1, 0);
+        const float fTx = transform(2, 0);
+        const float fYx = transform(1, 0);
+        const float fXx = transform(0, 0);
+        pRegs[40].component[0] = fXx;
+        pRegs[40].component[1] = fYx;
         pRegs[40].component[2] = 0.0f;
-        pRegs[40].component[3] = transform(2, 0);
-        pRegs[41].component[0] = transform(0, 1);
-        pRegs[41].component[1] = transform(1, 1);
+        pRegs[40].component[3] = fTx;
+        const float fTy = transform(2, 1);
+        const float fYy = transform(1, 1);
+        const float fXy = transform(0, 1);
+        pRegs[41].component[0] = fXy;
+        pRegs[41].component[1] = fYy;
         pRegs[41].component[2] = 0.0f;
-        pRegs[41].component[3] = transform(2, 1);
+        pRegs[41].component[3] = fTy;
         RedRenderer::pcUnlockVertexShaderConstants(pRegs);
     }
     else
@@ -249,10 +264,18 @@ void pcPerPixelDiffuseLightingShader::Render_Prog1(const RenderItem* pItem, unsi
         RedRenderer::pcSetTexture(0, RedTexture::Find(s_uiNormalizationCubeMapHash));
     }
 
-    RedRenderer::pcSetRenderState(D3DRS_ALPHATESTENABLE, (pMaterial->materialFlags & 2) != 0);
-    RedRenderer::pcSetCullMode((pMaterial->materialFlags & 0x8000) ? PCREDCULL_NONE : PCREDCULL_BACK);
+    if (pMaterial->materialFlags & 2)
+    {
+        RedRenderer::pcSetRenderState(D3DRS_ALPHATESTENABLE, TRUE);
+    }
+    else
+    {
+        RedRenderer::pcSetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
+    }
+    RedRenderer::pcSetCullMode((pMaterial->materialFlags & 0x10000) ? PCREDCULL_NONE : PCREDCULL_BACK);
 
     const RedLightingState* pLighting = pItem->pLightingState;
+    int iLight = 0;
     int iNumPasses = 0;
     const bool bVertexLit = (pItem->pPrim->m_vertexFormat->m_uiVertexBufferRVF & 0x100) != 0;
     const int iMaxLights = MAX_LIGHTS_PER_STATE[pItem->uiShaderState];
@@ -267,18 +290,7 @@ void pcPerPixelDiffuseLightingShader::Render_Prog1(const RenderItem* pItem, unsi
         RedRenderer::pcSetFogForBlendMode(RedRenderer::FOGFORBLEND_NORMAL);
 
         pcRedVertexShaderConstantRegister* pRegs = RedRenderer::pcLockVertexShaderConstants(19, 8);
-        if (bVertexLit)
-        {
-            pRegs[19].component[0] = black.r;
-            pRegs[19].component[1] = black.g;
-            pRegs[19].component[2] = black.b;
-            pRegs[19].component[3] = 1.0f;
-            pRegs[20].component[0] = black.r;
-            pRegs[20].component[1] = black.g;
-            pRegs[20].component[2] = black.b;
-            pRegs[20].component[3] = black.a;
-        }
-        else
+        if (!bVertexLit)
         {
             const RedAmbientLight* pAmbient =
                 &pLighting->ambientLight;
@@ -291,8 +303,18 @@ void pcPerPixelDiffuseLightingShader::Render_Prog1(const RenderItem* pItem, unsi
             pRegs[20].component[2] = pAmbient->m_bottomColor.b;
             pRegs[20].component[3] = pAmbient->m_bottomColor.a;
         }
+        else
+        {
+            pRegs[19].component[0] = black.r;
+            pRegs[19].component[1] = black.g;
+            pRegs[19].component[2] = black.b;
+            pRegs[19].component[3] = 1.0f;
+            pRegs[20].component[0] = black.r;
+            pRegs[20].component[1] = black.g;
+            pRegs[20].component[2] = black.b;
+            pRegs[20].component[3] = black.a;
+        }
 
-        int iLight = 0;
         for (int i = 0; i < pLighting->numDirectionalLights; i++)
         {
             const RedDirectionalLight* pLight = pLighting->pDirectionalLights[i];
@@ -300,24 +322,19 @@ void pcPerPixelDiffuseLightingShader::Render_Prog1(const RenderItem* pItem, unsi
             {
                 continue;
             }
-            if ((pLight->m_uiFlags & RedLight::LIGHT_FLAG_STATIC) && bVertexLit)
+            if (pLight->IsStatic() && bVertexLit)
             {
                 continue;
             }
 
             const float fFactor = pLighting->pDirectionalFactor[i];
-            colors[iLight].r = pLight->m_color.r * fFactor;
-            colors[iLight].g = pLight->m_color.g * fFactor;
-            colors[iLight].b = pLight->m_color.b * fFactor;
-            colors[iLight].a = pLight->m_color.a * fFactor;
+            colors[iLight] = RedColorValue(pLight->m_color.r * fFactor, pLight->m_color.g * fFactor,
+                                           pLight->m_color.b * fFactor, pLight->m_color.a * fFactor);
             pRegs[21 + 2 * iLight].component[0] = pLight->m_vDirection.x;
             pRegs[21 + 2 * iLight].component[1] = pLight->m_vDirection.y;
             pRegs[21 + 2 * iLight].component[2] = pLight->m_vDirection.z;
             pRegs[21 + 2 * iLight].component[3] = 0.0f;
-            pRegs[22 + 2 * iLight].component[0] = 1.0f;
-            pRegs[22 + 2 * iLight].component[1] = 0.0f;
-            pRegs[22 + 2 * iLight].component[2] = 0.0f;
-            pRegs[22 + 2 * iLight].component[3] = 1.0f;
+            pRegs[22 + 2 * iLight].SetFloats(1.0f, 0.0f, 0.0f, 1.0f);
             iLight++;
             RedRenderer::pcSetTexture(iLight, RedTexture::Find(s_uiNormalizationCubeMapHash));
 
@@ -345,7 +362,7 @@ void pcPerPixelDiffuseLightingShader::Render_Prog1(const RenderItem* pItem, unsi
             {
                 continue;
             }
-            if ((pLight->m_uiFlags & RedLight::LIGHT_FLAG_STATIC) && bVertexLit)
+            if (pLight->IsStatic() && bVertexLit)
             {
                 continue;
             }
@@ -355,10 +372,7 @@ void pcPerPixelDiffuseLightingShader::Render_Prog1(const RenderItem* pItem, unsi
             pRegs[21 + 2 * iLight].component[1] = pLight->m_pos.y;
             pRegs[21 + 2 * iLight].component[2] = pLight->m_pos.z;
             pRegs[21 + 2 * iLight].component[3] = 1.0f;
-            pRegs[22 + 2 * iLight].component[0] = pLight->m_fRadiusInv * 0.5f;
-            pRegs[22 + 2 * iLight].component[1] = 0.5f;
-            pRegs[22 + 2 * iLight].component[2] = 0.0f;
-            pRegs[22 + 2 * iLight].component[3] = 1.0f;
+            pRegs[22 + 2 * iLight].SetFloats(pLight->m_fRadiusInv * 0.5f, 0.5f, 0.0f, 1.0f);
             iLight++;
             RedRenderer::pcSetTexture(iLight, RedTexture::Find(s_uiLightVolumeMapHash));
 
@@ -398,7 +412,7 @@ void pcPerPixelDiffuseLightingShader::Render_Prog1(const RenderItem* pItem, unsi
     for (int i = 0; i < pLighting->numSpotLights; i++)
     {
         const RedSpotLight* pLight = pLighting->pSpotLights[i];
-        if ((pLight->m_uiFlags & RedLight::LIGHT_FLAG_STATIC) && bVertexLit)
+        if (pLight->IsStatic() && bVertexLit)
         {
             continue;
         }
@@ -427,9 +441,12 @@ void pcPerPixelDiffuseLightingShader::Render_Prog1(const RenderItem* pItem, unsi
         RedRenderer::pcUnlockVertexShaderConstants(pRegs);
 
         RedRenderer::pcSetTexture(1, RedTexture::Find(s_uiLightVolumeMapHash));
-        RedRenderer::pcSetTexture(2, RedTexture::Find(pLight->m_uiProjTexHash
-                                                          ? pLight->m_uiProjTexHash
-                                                          : s_uiDefaultSpotLightMapHash));
+        unsigned int uiSpotMapHash = pLight->m_uiProjTexHash;
+        if (!uiSpotMapHash)
+        {
+            uiSpotMapHash = s_uiDefaultSpotLightMapHash;
+        }
+        RedRenderer::pcSetTexture(2, RedTexture::Find(uiSpotMapHash));
         RedRenderer::pcSetTextureStageState(2, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_PROJECTED);
         RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, &colors[0].r, 1);
         pItem->pPrim->Draw();
@@ -441,7 +458,9 @@ void pcPerPixelDiffuseLightingShader::Render_Prog1(const RenderItem* pItem, unsi
         return;
     }
 
-    if (pProjected->m_eType == RedLight::TYPE_DIRECTIONAL)
+    switch (pProjected->m_eType)
+    {
+    case RedLight::TYPE_DIRECTIONAL:
     {
         const RedDirectionalLight* pLight = static_cast<const RedDirectionalLight*>(pProjected);
         colors[0] = pLight->m_color;
@@ -466,8 +485,10 @@ void pcPerPixelDiffuseLightingShader::Render_Prog1(const RenderItem* pItem, unsi
         RedRenderer::pcSetTexture(1, RedTexture::Find(s_uiNormalizationCubeMapHash));
         RedRenderer::pcSetTexture(2, RedTexture::Find(pLight->m_uiProjTexHash));
         RedRenderer::pcSetTextureStageState(2, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_PROJECTED);
+        break;
     }
-    else if (pProjected->m_eType == RedLight::TYPE_POINT)
+
+    case RedLight::TYPE_POINT:
     {
         const RedOmniLight* pLight = static_cast<const RedOmniLight*>(pProjected);
         colors[0] = pLight->m_color;
@@ -492,9 +513,10 @@ void pcPerPixelDiffuseLightingShader::Render_Prog1(const RenderItem* pItem, unsi
         RedRenderer::pcSetTexture(1, RedTexture::Find(s_uiLightVolumeMapHash));
         RedRenderer::pcSetTexture(2, RedTexture::Find(pLight->m_uiProjTexHash));
         RedRenderer::pcSetTextureStageState(2, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
+        break;
     }
-    else
-    {
+
+    default:
         return;
     }
 

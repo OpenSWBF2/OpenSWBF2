@@ -106,10 +106,11 @@ bool IsAthlonProcessor()
 // FUNCTION: SWBF2 0x006ec700
 int axtoi(char const* pszHex, int iMaxDigits)
 {
-    int digit[8];
-    int n;
+    int digit[9];
+    int n = 0;
+    int iValue = 0;
 
-    for (n = 0; n < iMaxDigits; ++n)
+    for (; n < iMaxDigits; ++n)
     {
         if (pszHex[n] == '\0')
         {
@@ -140,7 +141,6 @@ int axtoi(char const* pszHex, int iMaxDigits)
 
     int iCount = n;
     int m = n - 1;
-    int iValue = 0;
 
     for (n = 0; n < iCount; ++n)
     {
@@ -254,9 +254,11 @@ void DoAutoDetection()
 
     D3DADAPTER_IDENTIFIER9 identifier = RedRenderer::pcGetAdaptorIdentifier();
 
-    for (PblList<D3DAdapterInfo>::Node* pNode
-             = pcRedDeviceEnumerator::GetDeviceList().GetFirst();
-         pNode->_pObject; pNode = pNode->_pNext)
+    PblList<D3DAdapterInfo>& adapterList = pcRedDeviceEnumerator::GetDeviceList();
+    D3DAdapterInfo* pEndAdapter = adapterList._head._pObject;
+
+    for (PblList<D3DAdapterInfo>::Node* pNode = adapterList.GetFirst();
+         pNode->_pObject != pEndAdapter; pNode = pNode->_pNext)
     {
         D3DAdapterInfo* pInfo = pNode->_pObject;
 
@@ -277,8 +279,11 @@ void DoAutoDetection()
         pAdapter = pOrdinalAdapter;
     }
 
-    for (PblList<D3DDeviceInfo>::Node* pDevNode = pAdapter->DeviceInfoList.GetFirst();
-         pDevNode->_pObject; pDevNode = pDevNode->_pNext)
+    PblList<D3DDeviceInfo>& deviceList = pAdapter->DeviceInfoList;
+    D3DDeviceInfo* pEndDevice = deviceList._head._pObject;
+
+    for (PblList<D3DDeviceInfo>::Node* pDevNode = deviceList.GetFirst();
+         pDevNode->_pObject != pEndDevice; pDevNode = pDevNode->_pNext)
     {
         D3DDeviceInfo* pDevice = pDevNode->_pObject;
 
@@ -287,16 +292,21 @@ void DoAutoDetection()
             continue;
         }
 
-        for (PblList<D3DDeviceCombo>::Node* pComboNode
-                 = pDevice->DeviceComboList.GetFirst();
-             pComboNode->_pObject; pComboNode = pComboNode->_pNext)
+        PblList<D3DDeviceCombo>& comboList = pDevice->DeviceComboList;
+        D3DDeviceCombo* pEndCombo = comboList._head._pObject;
+
+        for (PblList<D3DDeviceCombo>::Node* pComboNode = comboList.GetFirst();
+             pComboNode->_pObject != pEndCombo;
+             pComboNode = pComboNode->_pNext)
         {
             D3DDeviceCombo* pCombo = pComboNode->_pObject;
+            PblList<D3DFormat>& formatList = pCombo->TextureFormatList;
+            D3DFormat* pEndFormat = formatList._head._pObject;
             bool bFound = false;
 
-            for (PblList<D3DFormat>::Node* pFormatNode
-                     = pCombo->TextureFormatList.GetFirst();
-                 pFormatNode->_pObject; pFormatNode = pFormatNode->_pNext)
+            for (PblList<D3DFormat>::Node* pFormatNode = formatList.GetFirst();
+                 pFormatNode->_pObject != pEndFormat;
+                 pFormatNode = pFormatNode->_pNext)
             {
                 sLastTextureFourCC = (int)pFormatNode->_pObject->format;
 
@@ -330,7 +340,7 @@ void DoAutoDetection()
 
     if (RegCreateKeyExA(HKEY_LOCAL_MACHINE,
                         "Hardware\\Description\\System\\CentralProcessor\\0",
-                        0, 0, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, 0, &hKey, 0)
+                        0, 0, REG_OPTION_VOLATILE, KEY_ALL_ACCESS, 0, &hKey, 0)
         == ERROR_SUCCESS)
     {
         DWORD dwType;
@@ -349,7 +359,7 @@ void DoAutoDetection()
 
     if (RegCreateKeyExA(HKEY_LOCAL_MACHINE,
                         "Hardware\\Description\\System\\CentralProcessor\\0",
-                        0, 0, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, 0, &hKey, 0)
+                        0, 0, REG_OPTION_VOLATILE, KEY_ALL_ACCESS, 0, &hKey, 0)
         == ERROR_SUCCESS)
     {
         char acProcessorName[256];
@@ -370,6 +380,8 @@ void DoAutoDetection()
         RegCloseKey(hKey);
     }
 
+    int iGeneration = sHardwareGeneration;
+
     int iTier;
     bool bTail;
 
@@ -377,7 +389,11 @@ void DoAutoDetection()
     {
         float t = (fSpeed - 800.0f) / 700.0f;
         float u = t * (0.25f - 0.0f);
-        float fClamped = (0.0f > u) ? 0.0f : u;
+        float fClamped = u;
+        if (0.0f > fClamped)
+        {
+            fClamped = 0.0f;
+        }
 
         if (_RenderSettings.mFarSceneRangeFactor > fClamped)
         {
@@ -398,24 +414,24 @@ void DoAutoDetection()
             _RenderSettings.particleQuality = QUALITY_MEDIUM;
         }
 
-        if (sHardwareGeneration == 1)
+        if (iGeneration == 1)
         {
             float v = 0.0f + u;
             if (_RenderSettings.mNearSceneFadeFactor > v)
             {
                 _RenderSettings.mNearSceneFadeFactor = v;
             }
-            iTier = sHardwareGeneration;
+            iTier = iGeneration;
             bTail = false;
         }
-        else if (sHardwareGeneration == 2)
+        else if (iGeneration == 2)
         {
             float v = 0.2f + t * (0.4f - 0.2f);
             if (_RenderSettings.mNearSceneFadeFactor > v)
             {
                 _RenderSettings.mNearSceneFadeFactor = v;
             }
-            iTier = sHardwareGeneration;
+            iTier = iGeneration;
             bTail = true;
         }
         else
@@ -425,8 +441,8 @@ void DoAutoDetection()
             {
                 _RenderSettings.mNearSceneFadeFactor = v;
             }
-            iTier = (sHardwareGeneration > 2) ? 2 : sHardwareGeneration;
-            bTail = sHardwareGeneration > 1;
+            iTier = (iGeneration > 2) ? 2 : iGeneration;
+            bTail = iGeneration > 1;
         }
     }
     else if (2500.0f > fSpeed)
@@ -439,7 +455,7 @@ void DoAutoDetection()
             _RenderSettings.mFarSceneRangeFactor = v;
         }
 
-        if (sHardwareGeneration == 1)
+        if (iGeneration == 1)
         {
             float w = 0.25f + t * (0.5f - 0.25f);
             if (_RenderSettings.mNearSceneFadeFactor > w)
@@ -457,10 +473,10 @@ void DoAutoDetection()
                 _RenderSettings.shadowQuality = QUALITY2_LOW;
             }
 
-            iTier = sHardwareGeneration;
+            iTier = iGeneration;
             bTail = false;
         }
-        else if (sHardwareGeneration == 2)
+        else if (iGeneration == 2)
         {
             float w = 0.4f + t * (0.6f - 0.4f);
             if (_RenderSettings.mNearSceneFadeFactor > w)
@@ -478,7 +494,7 @@ void DoAutoDetection()
                 _RenderSettings.waterQuality = QUALITY_MEDIUM;
             }
 
-            iTier = sHardwareGeneration;
+            iTier = iGeneration;
             bTail = true;
         }
         else
@@ -489,15 +505,15 @@ void DoAutoDetection()
                 _RenderSettings.mNearSceneFadeFactor = w;
             }
 
-            iTier = (sHardwareGeneration > 2) ? 2 : sHardwareGeneration;
-            bTail = sHardwareGeneration > 1;
+            iTier = (iGeneration > 2) ? 2 : iGeneration;
+            bTail = iGeneration > 1;
         }
     }
     else
     {
 
-        iTier = (sHardwareGeneration > 2) ? 2 : sHardwareGeneration;
-        bTail = sHardwareGeneration > 1;
+        iTier = (iGeneration > 2) ? 2 : iGeneration;
+        bTail = iGeneration > 1;
     }
 
     _RenderSettings.masterQuality = 3;
@@ -561,8 +577,8 @@ unsigned long GetCpuSpeed()
     return (uiEnd - uiStart) / 1000000;
 }
 
-bool VidConfig::VidModeTested(int iWidth, int iHeight, D3DMULTISAMPLE_TYPE eMultiSampleType,
-                              unsigned long ulMultiSampleQuality)
+inline bool VidConfig::VidModeTested(int iWidth, int iHeight, D3DMULTISAMPLE_TYPE eMultiSampleType,
+                                     unsigned long ulMultiSampleQuality)
 {
     for (PblList<VidMode>::Itor mode(VidModeList); mode; ++mode)
     {
@@ -645,8 +661,8 @@ bool VidConfig::GetMaxScreenSizeForMultisamplingMode(D3DMULTISAMPLE_TYPE eMultiS
 // FUNCTION: SWBF2 0x006ea440
 inline void VidConfig::LoadConfigFile()
 {
-    PblFile file;
     int iLen = 0;
+    PblFile file;
 
     if (file.Open("Data\\_LVL_PC\\vidmode.ini", true, false, true)
         || file.Open("vidmode.ini", true, false, true))
@@ -662,44 +678,44 @@ inline void VidConfig::LoadConfigFile()
             {
                 char cByte = (char)tolower(file.Read8());
 
-                if (cByte == '\n')
+                if (cByte != '\n')
                 {
-                    if (iLen)
+                    if (cByte != '\r')
                     {
-                        if (pcLine[0] == '[' && pcLine[iLen - 1] == ']')
-                        {
-                            char const* pcVendor = strstr(pcLine, "0x") + 2;
-                            char const* pcDevice = strstr(pcVendor, "0x") + 2;
-                            char const* pcHint = strstr(pcDevice, "0x");
-
-                            const unsigned long vendorId = axtoi(pcVendor, 4);
-                            const unsigned long deviceId = axtoi(pcDevice, 4);
-                            const unsigned long hint = axtoi(pcHint + 2, 8);
-                            pConfig = new VidConfig(vendorId, deviceId, hint);
-                        }
-                        else
-                        {
-                            int iWidth;
-                            int iHeight;
-                            int iMultiSampleType;
-                            int iMultiSampleQuality;
-                            int iTested;
-
-                            sscanf(pcLine, "%d %d %d %d %d", &iWidth, &iHeight,
-                                   &iMultiSampleType, &iMultiSampleQuality, &iTested);
-
-                            pConfig->AddVidMode(iWidth, iHeight,
-                                                (D3DMULTISAMPLE_TYPE)iMultiSampleType,
-                                                iMultiSampleQuality, iTested == 1);
-                        }
-
-                        iLen = 0;
+                        pcLine[iLen++] = cByte;
+                        pcLine[iLen] = '\0';
                     }
                 }
-                else if (cByte != '\r')
+                else if (iLen)
                 {
-                    pcLine[iLen++] = cByte;
-                    pcLine[iLen] = '\0';
+                    if (pcLine[0] == '[' && pcLine[iLen - 1] == ']')
+                    {
+                        char const* pcVendor = strstr(pcLine, "0x") + 2;
+                        char const* pcDevice = strstr(pcVendor, "0x") + 2;
+                        char const* pcHint = strstr(pcDevice, "0x");
+
+                        const unsigned long vendorId = axtoi(pcVendor, 4);
+                        const unsigned long deviceId = axtoi(pcDevice, 4);
+                        const unsigned long hint = axtoi(pcHint + 2, 8);
+                        pConfig = new VidConfig(vendorId, deviceId, hint);
+                    }
+                    else
+                    {
+                        int iWidth;
+                        int iHeight;
+                        int iMultiSampleType;
+                        int iMultiSampleQuality;
+                        int iTested;
+
+                        sscanf(pcLine, "%d %d %d %d %d", &iWidth, &iHeight,
+                               &iMultiSampleType, &iMultiSampleQuality, &iTested);
+
+                        pConfig->AddVidMode(iWidth, iHeight,
+                                            (D3DMULTISAMPLE_TYPE)iMultiSampleType,
+                                            iMultiSampleQuality, iTested == 1);
+                    }
+
+                    iLen = 0;
                 }
             }
 
@@ -836,6 +852,8 @@ int VidMode_GetNumMultiSampleQualityModes()
 // FUNCTION: SWBF2 0x006ea9c0
 void VidMode_Init(IDirect3D9* pD3D)
 {
+    IDirect3DDevice9* pDevice = 0;
+    DWORD dwQualityLevels = 0;
 
     D3DCAPS9 caps;
     pD3D->GetDeviceCaps(gAdapter, D3DDEVTYPE_HAL, &caps);
@@ -861,7 +879,6 @@ void VidMode_Init(IDirect3D9* pD3D)
 
     for (int iMultiSampleType = 0; iMultiSampleType <= 16; ++iMultiSampleType)
     {
-        DWORD dwQualityLevels = 0;
         if (m_pD3D->CheckDeviceMultiSampleType(gAdapter, D3DDEVTYPE_HAL,
                                                D3DFMT_A8R8G8B8, TRUE,
                                                (D3DMULTISAMPLE_TYPE)iMultiSampleType,
@@ -897,20 +914,20 @@ void VidMode_Init(IDirect3D9* pD3D)
 
                 D3DPRESENT_PARAMETERS pp;
                 memset(&pp, 0, sizeof(pp));
+                pp.MultiSampleQuality = uiQuality;
+                pp.Windowed = TRUE;
+                pp.BackBufferCount = 1;
                 pp.BackBufferWidth = mode.Width;
                 pp.BackBufferHeight = mode.Height;
-                pp.BackBufferFormat = D3DFMT_A8R8G8B8;
-                pp.BackBufferCount = 1;
-                pp.MultiSampleType = (D3DMULTISAMPLE_TYPE)iMultiSampleType;
-                pp.MultiSampleQuality = uiQuality;
                 pp.SwapEffect = D3DSWAPEFFECT_DISCARD;
-                pp.Windowed = TRUE;
+                pp.BackBufferFormat = D3DFMT_A8R8G8B8;
                 pp.EnableAutoDepthStencil = TRUE;
                 pp.AutoDepthStencilFormat = D3DFMT_D24S8;
-                pp.FullScreen_RefreshRateInHz = 0;
                 pp.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
+                pp.FullScreen_RefreshRateInHz = 0;
+                pp.MultiSampleType = (D3DMULTISAMPLE_TYPE)iMultiSampleType;
 
-                IDirect3DDevice9* pDevice = 0;
+                pDevice = 0;
                 if (m_pD3D->CreateDevice(gAdapter, D3DDEVTYPE_HAL, hGlobalWnd, dwBehaviorFlags,
                                          &pp, &pDevice) != D3D_OK)
                 {
@@ -960,6 +977,7 @@ void VidMode_Init(IDirect3D9* pD3D)
                     uiTexHeight = mode.Height;
                 }
 
+                IDirect3DTexture9* apTextures[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
                 unsigned int auiTexWidth[12] = {
                     uiTexWidth, uiTexWidth, uiTexWidth, uiTexWidth,
                     512, 256, 16, 2,
@@ -970,7 +988,6 @@ void VidMode_Init(IDirect3D9* pD3D)
                     256, 256, 16, 2,
                     256, 64, 4, uiTexHeight
                 };
-                IDirect3DTexture9* apTextures[12] = { 0 };
 
                 bool bAllSurfaces = true;
 
@@ -986,9 +1003,9 @@ void VidMode_Init(IDirect3D9* pD3D)
                     }
                 }
 
+                IDirect3DSurface9* apDepthStencil[2] = { 0, 0 };
                 unsigned int auiDepthWidth[2] = { uiTexWidth, 512 };
                 unsigned int auiDepthHeight[2] = { uiTexHeight, 256 };
-                IDirect3DSurface9* apDepthStencil[2] = { 0, 0 };
 
                 for (int i = 0; i < 2; ++i)
                 {
@@ -1033,7 +1050,6 @@ void VidMode_Init(IDirect3D9* pD3D)
                 }
 
                 IDirect3DTexture9* pMultiSampleTexture = 0;
-                bool bSupported = bAllSurfaces;
 
                 if (iMultiSampleType != 0)
                 {
@@ -1043,15 +1059,20 @@ void VidMode_Init(IDirect3D9* pD3D)
                     {
 
                         pMultiSampleTexture = 0;
-                        bSupported = false;
+                        bAllSurfaces = false;
                     }
                 }
 
-                pConfig->AddVidMode((int)mode.Width, (int)mode.Height,
-                                    (D3DMULTISAMPLE_TYPE)iMultiSampleType, uiQuality, bSupported);
-                if (bSupported)
+                if (bAllSurfaces)
                 {
+                    pConfig->AddVidMode((int)mode.Width, (int)mode.Height,
+                                        (D3DMULTISAMPLE_TYPE)iMultiSampleType, uiQuality, true);
                     uiBestArea = mode.Width * mode.Height;
+                }
+                else
+                {
+                    pConfig->AddVidMode((int)mode.Width, (int)mode.Height,
+                                        (D3DMULTISAMPLE_TYPE)iMultiSampleType, uiQuality, false);
                 }
 
                 for (int j = 0; j < 12; ++j)
@@ -1105,6 +1126,7 @@ bool VidMode_MultisamplingModeUseable(D3DMULTISAMPLE_TYPE eMultiSampleType,
 // FUNCTION: SWBF2 0x006eb220
 void VidMode_StartupVoodoo(IDirect3D9* pD3D)
 {
+    IDirect3DDevice9* pDevice = 0;
     D3DCAPS9 caps;
     pD3D->GetDeviceCaps(gAdapter, D3DDEVTYPE_HAL, &caps);
 
@@ -1140,20 +1162,21 @@ void VidMode_StartupVoodoo(IDirect3D9* pD3D)
 
     D3DPRESENT_PARAMETERS pp;
     memset(&pp, 0, sizeof(pp));
+    pp.Windowed = TRUE;
+    pp.BackBufferCount = 1;
     pp.BackBufferWidth = 640;
     pp.BackBufferHeight = 480;
-    pp.BackBufferFormat = D3DFMT_A8R8G8B8;
-    pp.BackBufferCount = 1;
-    pp.MultiSampleType = D3DMULTISAMPLE_NONE;
-    pp.MultiSampleQuality = 0;
     pp.SwapEffect = D3DSWAPEFFECT_DISCARD;
-    pp.Windowed = TRUE;
+    pp.BackBufferFormat = D3DFMT_A8R8G8B8;
     pp.EnableAutoDepthStencil = TRUE;
     pp.AutoDepthStencilFormat = D3DFMT_D24S8;
-    pp.FullScreen_RefreshRateInHz = 0;
     pp.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
+    pp.FullScreen_RefreshRateInHz = 0;
+    pp.MultiSampleType = D3DMULTISAMPLE_NONE;
+    pp.MultiSampleQuality = 0;
 
-    IDirect3DDevice9* pDevice = 0;
+    pDevice = 0;
+
     if (m_pD3D->CreateDevice(gAdapter, D3DDEVTYPE_HAL, hGlobalWnd, dwBehaviorFlags,
                              &pp, &pDevice) != D3D_OK)
     {
@@ -1340,12 +1363,13 @@ void _LoadVendorDeviceOverrides()
     D3DADAPTER_IDENTIFIER9 identifier = RedRenderer::pcGetAdaptorIdentifier();
 
     char szToken[256];
-    bool bDeviceMatched = false;
-    bool bVendorMatched = false;
-    bool bDone = false;
+    bool bDeviceMatched;
+    bool bVendorMatched;
+    bool bDone;
+    bDone = bVendorMatched = bDeviceMatched = false;
 
-    unsigned int uiKey = 0;
-    int iLen = 0;
+    unsigned int uiLen = 0;
+    int iKey = 0;
 
     PblFile file;
 
@@ -1365,7 +1389,7 @@ void _LoadVendorDeviceOverrides()
             break;
         }
 
-        int c = tolower(file.Read8());
+        char c = (char)tolower(file.Read8());
 
         switch (c)
         {
@@ -1374,85 +1398,78 @@ void _LoadVendorDeviceOverrides()
             break;
 
         case '/':
-            if (iLen > 0 && szToken[iLen - 1] == '/')
+            if (uiLen > 0 && szToken[uiLen - 1] == '/')
             {
                 while (file.Read8() != '\n')
                     ;
-                iLen = 0;
+                uiLen = 0;
                 break;
             }
-            szToken[iLen++] = (char)c;
+            szToken[uiLen++] = c;
             break;
 
         case ':':
         case '=':
-            szToken[iLen] = '\0';
-            uiKey = PblHash(szToken);
-            iLen = 0;
+            szToken[uiLen] = '\0';
+            iKey = PblHash(szToken);
+            uiLen = 0;
             break;
 
         case -1:
         case '\n':
-            szToken[iLen] = '\0';
+            szToken[uiLen] = '\0';
 
-            if (!uiKey)
+            if (!iKey)
             {
                 break;
             }
 
-            switch (uiKey)
+            switch (iKey)
             {
             case HASH_VENDOR:
                 if (axtoi(szToken, 4) == (int)identifier.VendorId)
                 {
-                    iLen = 0;
                     bVendorMatched = true;
-                    uiKey = 0;
                 }
                 else if (bVendorMatched)
                 {
-                    iLen = 0;
                     bDone = true;
-                    uiKey = 0;
                 }
                 else
                 {
                     fskip(file, "vendor:");
-                    uiKey = HASH_VENDOR;
-                    iLen = 0;
+                    iKey = HASH_VENDOR;
+                    uiLen = 0;
+                    continue;
                 }
                 break;
 
             case HASH_DEVICE:
                 if (bDeviceMatched)
                 {
-                    iLen = 0;
                     bDone = true;
-                    uiKey = 0;
                     break;
                 }
 
                 strtok(szToken, " ");
-                for (;;)
+
+                char* pcId;
+                do
                 {
-                    char* pcId = strtok(0, " ");
+                    pcId = strtok(0, " ");
+                } while (pcId && (int)identifier.DeviceId != axtoi(pcId, 4));
 
-                    if (!pcId)
-                    {
-                        fskip(file, "device:");
-                        uiKey = HASH_DEVICE;
-                        iLen = 0;
-                        break;
-                    }
-
-                    if ((int)identifier.DeviceId == axtoi(pcId, 4))
-                    {
-                        iLen = 0;
-                        bDeviceMatched = true;
-                        optionsFounds_ = true;
-                        uiKey = 0;
-                        break;
-                    }
+                if (pcId)
+                {
+                    bDeviceMatched = true;
+                    optionsFounds_ = true;
+                }
+                else
+                {
+                    fskip(file, "device:");
+                    iKey = HASH_DEVICE;
+                    uiLen = 0;
+                    continue;
                 }
                 break;
 
@@ -1461,15 +1478,11 @@ void _LoadVendorDeviceOverrides()
                 SetMasterQuality(&_RenderSettings, _RenderSettings.masterQuality);
 
                 _RenderSettings.masterQuality = 3;
-                iLen = 0;
-                uiKey = 0;
                 break;
 
             case HASH_GENERATION:
                 sHardwareGeneration = atoi(szToken);
                 SetMasterQuality(&_RenderSettings, sHardwareGeneration - 2);
-                iLen = 0;
-                uiKey = 0;
                 break;
 
             case HASH_NONMASKABLE:
@@ -1485,20 +1498,14 @@ void _LoadVendorDeviceOverrides()
                         break;
                     }
                 }
-                iLen = 0;
-                uiKey = 0;
                 break;
 
             case HASH_DEFAULTWIDTH:
                 iRenderWidth = atoi(szToken);
-                iLen = 0;
-                uiKey = 0;
                 break;
 
             case HASH_DEFAULTHEIGHT:
                 iRenderHeight = atoi(szToken);
-                iLen = 0;
-                uiKey = 0;
                 break;
 
             case HASH_DISTORTION:
@@ -1510,73 +1517,50 @@ void _LoadVendorDeviceOverrides()
                     sCustomRenderPresets[1].distortion = bDistortion;
                     sCustomRenderPresets[2].distortion = bDistortion;
                 }
-                iLen = 0;
-                uiKey = 0;
                 break;
 
             case HASH_TEXTUREQUALITY:
                 _RenderSettings.textureQuality = atotexq(szToken);
-                iLen = 0;
-                uiKey = 0;
                 break;
 
             case HASH_TEXTUREDETAIL:
                 _RenderSettings.textureDetail = atoq(szToken);
-                iLen = 0;
-                uiKey = 0;
                 break;
 
             case HASH_WATERQUALITY:
                 _RenderSettings.waterQuality = atoq(szToken);
-                iLen = 0;
-                uiKey = 0;
                 break;
 
             case HASH_PARTICLEQUALITY:
                 _RenderSettings.particleQuality = atoq(szToken);
-                iLen = 0;
-                uiKey = 0;
                 break;
 
             case HASH_SHADOWQUALITY:
                 _RenderSettings.shadowQuality = atoq2(szToken);
-                iLen = 0;
-                uiKey = 0;
                 break;
 
             case HASH_SPECULARQUALITY:
                 _RenderSettings.specularQuality = atoq2(szToken);
-                iLen = 0;
-                uiKey = 0;
                 break;
 
             case HASH_TERRAINQUALITY:
                 _RenderSettings.terrainQuality = atoq(szToken);
-                iLen = 0;
-                uiKey = 0;
                 break;
 
             case HASH_BUMPMAPPING:
                 _RenderSettings.bumpMapping = atob(szToken);
-                iLen = 0;
-                uiKey = 0;
                 break;
 
             case HASH_ENABLE_HDR:
                 _RenderSettings.mEnableHDR = atob(szToken);
-                iLen = 0;
-                uiKey = 0;
-                break;
-
-            default:
-                iLen = 0;
-                uiKey = 0;
                 break;
             }
+            uiLen = 0;
+            iKey = 0;
             break;
 
         default:
-            szToken[iLen++] = (char)c;
+            szToken[uiLen++] = c;
             break;
         }
     }
@@ -1603,19 +1587,14 @@ void _LoadVendorDeviceRenderCapOverrides()
     D3DADAPTER_IDENTIFIER9 identifier = RedRenderer::pcGetAdaptorIdentifier();
 
     char szToken[256];
-    bool bVendorMatched = false;
-    bool bDeviceMatched = false;
-    bool bDone = false;
+    bool bVendorMatched;
+    bool bDeviceMatched;
+    bool bDone;
+    unsigned int uiLen = 0;
+    int iKey = 0;
+    bDone = bVendorMatched = bDeviceMatched = false;
 
-    _bOverride_nonpow2textures = false;
-    _bOverride_volumemaps = false;
-    _bOverride_cubemaps = false;
-    _bOverride_backBufferCopy = false;
-    _bOverride_shadowVolume = false;
-    _bOverride_skinning = false;
-    _bOverride_textureCaps = false;
-    _bOverride_pipeline = false;
-    _bOverride_geometry = false;
+    _bOverride_geometry = _bOverride_pipeline = _bOverride_textureCaps = _bOverride_skinning = _bOverride_shadowVolume = _bOverride_backBufferCopy = _bOverride_cubemaps = _bOverride_volumemaps = _bOverride_nonpow2textures = false;
 
     PblFile file;
 
@@ -1625,8 +1604,6 @@ void _LoadVendorDeviceRenderCapOverrides()
     }
 
     int iSize = file.GetSize();
-    unsigned int uiKey = 0;
-    int iLen = 0;
 
     while (file.Tell() != iSize)
     {
@@ -1635,7 +1612,7 @@ void _LoadVendorDeviceRenderCapOverrides()
             break;
         }
 
-        int c = tolower(file.Read8());
+        char c = (char)tolower(file.Read8());
 
         switch (c)
         {
@@ -1645,92 +1622,83 @@ void _LoadVendorDeviceRenderCapOverrides()
             break;
 
         case '/':
-            if (iLen > 0 && szToken[iLen - 1] == '/')
+            if (uiLen > 0 && szToken[uiLen - 1] == '/')
             {
                 while (file.Read8() != '\n')
                     ;
-                iLen = 0;
+                uiLen = 0;
                 break;
             }
-            szToken[iLen++] = (char)c;
+            szToken[uiLen++] = c;
             break;
 
         case ':':
         case '=':
-            szToken[iLen] = '\0';
-            uiKey = PblHash(szToken);
-            iLen = 0;
+            szToken[uiLen] = '\0';
+            iKey = PblHash(szToken);
+            uiLen = 0;
             break;
 
         case -1:
         case '\n':
-            szToken[iLen] = '\0';
+            szToken[uiLen] = '\0';
 
-            if (!uiKey)
+            if (!iKey)
             {
                 break;
             }
 
-            switch (uiKey)
+            switch (iKey)
             {
             case HASH_VENDOR:
                 if (axtoi(szToken, 4) == (int)identifier.VendorId)
                 {
-                    iLen = 0;
                     bVendorMatched = true;
-                    uiKey = 0;
                 }
                 else if (bVendorMatched)
                 {
-                    iLen = 0;
                     bDone = true;
-                    uiKey = 0;
                 }
                 else
                 {
                     fskip(file, "vendor:");
-                    uiKey = HASH_VENDOR;
-                    iLen = 0;
+                    iKey = HASH_VENDOR;
+                    uiLen = 0;
+                    continue;
                 }
                 break;
 
             case HASH_DEVICE:
                 if (bDeviceMatched)
                 {
-                    iLen = 0;
                     bDone = true;
-                    uiKey = 0;
                     break;
                 }
 
                 strtok(szToken, " ");
-                for (;;)
+
+                char* pcId;
+                do
                 {
-                    char* pcId = strtok(0, " ");
+                    pcId = strtok(0, " ");
+                } while (pcId && (int)identifier.DeviceId != axtoi(pcId, 4));
 
-                    if (!pcId)
-                    {
-                        fskip(file, "device:");
-                        uiKey = HASH_DEVICE;
-                        iLen = 0;
-                        break;
-                    }
-
-                    if ((int)identifier.DeviceId == axtoi(pcId, 4))
-                    {
-                        iLen = 0;
-                        bDeviceMatched = true;
-                        uiKey = 0;
-                        break;
-                    }
+                if (pcId)
+                {
+                    bDeviceMatched = true;
+                }
+                else
+                {
+                    fskip(file, "device:");
+                    iKey = HASH_DEVICE;
+                    uiLen = 0;
+                    continue;
                 }
                 break;
 
             case HASH_GEOMETRYMODE:
                 _bOverride_geometry = true;
                 _RenderCapOverrides.geometry = atogeom(szToken);
-                iLen = 0;
-                uiKey = 0;
                 break;
 
             case HASH_PIPELINE:
@@ -1741,116 +1709,81 @@ void _LoadVendorDeviceRenderCapOverrides()
                 _RenderCapOverrides.geometry = GEOMETRYMODE_UNCOMPRESSED;
                 _bOverride_shadowVolume = true;
                 _RenderCapOverrides.shadowVolume = SHADOWVOLUME_SOFTWARE;
-                iLen = 0;
-                uiKey = 0;
                 break;
 
             case HASH_TEXTURECAPS:
                 _bOverride_textureCaps = true;
                 _RenderCapOverrides.textureCaps = atotexc(szToken);
-                iLen = 0;
-                uiKey = 0;
                 break;
 
             case HASH_SKINNING:
                 _bOverride_skinning = true;
                 _RenderCapOverrides.skinning = atoskin(szToken);
-                iLen = 0;
-                uiKey = 0;
                 break;
 
             case HASH_SHADOWVOLUMES:
                 _bOverride_shadowVolume = true;
                 _RenderCapOverrides.shadowVolume = atosv(szToken);
-                iLen = 0;
-                uiKey = 0;
                 break;
 
             case HASH_BACKBUFFERCOPY:
                 _bOverride_backBufferCopy = true;
                 _RenderCapOverrides.backBufferCopy = atobbc(szToken);
-                iLen = 0;
-                uiKey = 0;
                 break;
 
             case HASH_CUBEMAPS:
                 _bOverride_cubemaps = true;
                 _RenderCapOverrides.cubemaps = (atoi(szToken) != 0);
-                iLen = 0;
-                uiKey = 0;
                 break;
 
             case HASH_VOLUMEMAPS:
                 _bOverride_volumemaps = true;
                 _RenderCapOverrides.volumemaps = (atoi(szToken) != 0);
-                iLen = 0;
-                uiKey = 0;
                 break;
 
             case HASH_NONPOW2TEXTURES:
                 _bOverride_nonpow2textures = true;
                 _RenderCapOverrides.nonpow2textures = atotexpow2(szToken);
-                iLen = 0;
-                uiKey = 0;
                 break;
 
             case HASH_TEXTUREQUALITY:
                 RedAutoSettings::_RenderSettings.textureQuality = atotexq(szToken);
-                iLen = 0;
-                uiKey = 0;
                 break;
 
             case HASH_TEXTUREDETAIL:
                 RedAutoSettings::_RenderSettings.textureDetail = atoq(szToken);
-                iLen = 0;
-                uiKey = 0;
                 break;
 
             case HASH_WATERQUALITY:
                 RedAutoSettings::_RenderSettings.waterQuality = atoq(szToken);
-                iLen = 0;
-                uiKey = 0;
                 break;
 
             case HASH_PARTICLEQUALITY:
                 RedAutoSettings::_RenderSettings.particleQuality = atoq(szToken);
-                iLen = 0;
-                uiKey = 0;
                 break;
 
             case HASH_SHADOWQUALITY:
                 RedAutoSettings::_RenderSettings.shadowQuality = atoq2(szToken);
-                iLen = 0;
-                uiKey = 0;
                 break;
 
             case HASH_SPECULARQUALITY:
                 RedAutoSettings::_RenderSettings.specularQuality = atoq2(szToken);
-                iLen = 0;
-                uiKey = 0;
                 break;
 
             case HASH_TERRAINQUALITY:
                 RedAutoSettings::_RenderSettings.terrainQuality = atoq(szToken);
-                iLen = 0;
-                uiKey = 0;
                 break;
 
             case HASH_BUMPMAPPING:
                 RedAutoSettings::_RenderSettings.bumpMapping = atob(szToken);
-                iLen = 0;
-                uiKey = 0;
-                break;
-
-            default:
-                iLen = 0;
-                uiKey = 0;
                 break;
             }
+            uiLen = 0;
+            iKey = 0;
             break;
 
         default:
-            szToken[iLen++] = (char)c;
+            szToken[uiLen++] = c;
             break;
         }
     }
@@ -2182,9 +2115,9 @@ TextureQualityT atotexq(char const* pszValue)
 // FUNCTION: SWBF2 0x006ec7c0
 int fskip(PblFile& rFile, char const* pcToken)
 {
+    int iMatched = 0;
     int iLen = (int)strlen(pcToken);
     int iSize = rFile.GetSize();
-    int iMatched = 0;
 
     while (rFile.Tell() != iSize)
     {

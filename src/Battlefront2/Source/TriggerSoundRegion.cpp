@@ -40,7 +40,7 @@ const TriggerSoundRegion::Properties* TriggerSoundRegion::Properties::FindByID(u
     while (pNode != &sList.mHead)
     {
         const Properties* pProperties = reinterpret_cast<const Properties*>(reinterpret_cast<const char*>(pNode) - offsetof(Properties, mNode));
-        if (pProperties->GetID() == uID)
+        if (uID == pProperties->GetID())
         {
             return pProperties;
         }
@@ -56,7 +56,7 @@ const TriggerSoundRegion::Properties* TriggerSoundRegion::Properties::FindByID(u
 
 // GLOBAL: SWBF2 0x01f9a108
 // TriggerSoundRegion::Group::sMemoryPool
-MemoryPool TriggerSoundRegion::Group::sMemoryPool("TriggerSoundRegion::Group", 0x50);
+MemoryPool TriggerSoundRegion::Group::sMemoryPool("TriggerSoundRegion::Group", sizeof(TriggerSoundRegion::Group));
 
 // SYNTHETIC: SWBF2 0x00406b90
 // `dynamic initializer for 'TriggerSoundRegion::Properties::sMemoryPool''
@@ -65,7 +65,7 @@ MemoryPool TriggerSoundRegion::Group::sMemoryPool("TriggerSoundRegion::Group", 0
 
 // GLOBAL: SWBF2 0x01f9a0b8
 // TriggerSoundRegion::Properties::sMemoryPool
-MemoryPool TriggerSoundRegion::Properties::sMemoryPool("TriggerSoundRegion::Properties", 0xc);
+MemoryPool TriggerSoundRegion::Properties::sMemoryPool("TriggerSoundRegion::Properties", sizeof(TriggerSoundRegion::Properties));
 
 // SYNTHETIC: SWBF2 0x00406bc0
 // `dynamic initializer for 'TriggerSoundRegion::sMemoryPool''
@@ -74,7 +74,7 @@ MemoryPool TriggerSoundRegion::Properties::sMemoryPool("TriggerSoundRegion::Prop
 
 // GLOBAL: SWBF2 0x01f9a158
 // TriggerSoundRegion::sMemoryPool
-MemoryPool TriggerSoundRegion::sMemoryPool("TriggerSoundRegion", 0x70);
+MemoryPool TriggerSoundRegion::sMemoryPool("TriggerSoundRegion", sizeof(TriggerSoundRegion));
 
 // FUNCTION: SWBF2 0x0065d400
 TriggerSoundRegion::Group::Group()
@@ -146,7 +146,7 @@ TriggerSoundRegion::Group* TriggerSoundRegion::Group::FindByID(unsigned int uID)
          pNode = pNode->mNext)
     {
         Group* pGroup = (Group*)((char*)pNode - offsetof(Group, mNode));
-        if (pGroup->GetID() == uID)
+        if (uID == pGroup->GetID())
         {
             return pGroup;
         }
@@ -189,34 +189,35 @@ void TriggerSoundRegion::Properties::Read(PblFileChunk& chunk)
         const unsigned int uHash = data._pFile->Read32();
         data._pFile->Read8();
 
-        if (uHash == 0x5fb91e8c)
+        switch (uHash)
+        {
+        case 0x8d39bde6:
+            mID = data._pFile->Read32();
+            break;
+        case 0x5fb91e8c:
         {
             Group* const pGroup = Group::FindByID(data._pFile->Read32());
             if (!pGroup)
             {
-                continue;
+                break;
             }
-            PblListSingle::Itor it(mList);
-            for (; it.GetNode() != mList.GetTerminator(); ++it)
+            bool bInserted = false;
+            for (PblListSingle::Itor it(mList); it.GetNode() != mList.GetTerminator(); ++it)
             {
                 const Group* pOther = (const Group*)((Snd::ObjectList::Node*)it.GetNode())->mObject;
-                if (pGroup->GetReinforcementCount() > pOther->GetReinforcementCount())
+                if (pOther->GetReinforcementCount() < pGroup->GetReinforcementCount())
                 {
+                    mList.AddBefore((Snd::ObjectList::Node*)it.GetNode(), pGroup);
+                    bInserted = true;
                     break;
                 }
             }
-            if (it.GetNode() == mList.GetTerminator())
+            if (!bInserted)
             {
                 mList.Add(pGroup);
             }
-            else
-            {
-                mList.AddBefore((Snd::ObjectList::Node*)it.GetNode(), pGroup);
-            }
+            break;
         }
-        else if (uHash == 0x8d39bde6)
-        {
-            mID = data._pFile->Read32();
         }
     }
 }
@@ -234,17 +235,22 @@ void TriggerSoundRegion::Properties::Load(PblFileChunk& chunk)
 
         const unsigned int uHash = child._pFile->Read32();
         child._pFile->Read8();
-        if (uHash == 0x031afe7d)
+        switch (uHash)
         {
-            Properties* pProperties = new Properties;
-            child = chunk.ReadNextChild();
-            pProperties->Read(child);
-        }
-        else if (uHash == 0x5fb91e8c)
+        case 0x5fb91e8c:
         {
             Group* pGroup = new Group;
             child = chunk.ReadNextChild();
             pGroup->Read(child);
+            break;
+        }
+        case 0x031afe7d:
+        {
+            Properties* pProperties = new Properties;
+            child = chunk.ReadNextChild();
+            pProperties->Read(child);
+            break;
+        }
         }
     }
 }
@@ -255,32 +261,32 @@ void TriggerSoundRegion::Update(Team::Side eSide, float fRatio, const PblVector3
     for (PblListSingle::Node* pLink = sList.mHead.mNext; pLink != &sList.mHead;
          pLink = pLink->mNext)
     {
+        const PblVector3 vPos = *pPos;
         TriggerSoundRegion* pRegion =
             (TriggerSoundRegion*)((char*)pLink - offsetof(TriggerSoundRegion, mNode));
-        const PblVector3 vPos = *pPos;
-        if (!pRegion->IsPointInside(vPos))
+        if (pRegion->IsPointInside(vPos))
         {
-            continue;
-        }
-
-        const GameSound* pSound = pRegion->mProperties->GetSound(eSide, fRatio);
-        if (!pSound)
-        {
-            continue;
-        }
-
-        if (pSound->GetPropertiesType() == GameSound::type_soundStream)
-        {
-            const Snd::SoundStream::Properties* pProps =
-                (const Snd::SoundStream::Properties*)pSound->GetProperties();
-            Snd::Stream* pStream = Snd::EngineBase::GetOpenStream(pProps->mStreamID);
-            if (!pStream || pStream->GetPlayState() == Snd::SourceTransport::playState_playing)
+            const GameSound* pSound = pRegion->mProperties->GetSound(eSide, fRatio);
+            if (pSound)
             {
-                continue;
+                const PblVector3* pRegionPos = &pRegion->mMatrix.GetTranslation();
+                bool bPlay = true;
+                if (pSound->GetPropertiesType() == GameSound::type_soundStream)
+                {
+                    const Snd::SoundStream::Properties* pProps =
+                        (const Snd::SoundStream::Properties*)pSound->GetProperties();
+                    Snd::Stream* pStream = Snd::EngineBase::GetOpenStream(pProps->mStreamID);
+                    if (!pStream || pStream->GetPlayState() == Snd::SourceTransport::playState_playing)
+                    {
+                        bPlay = false;
+                    }
+                }
+                if (bPlay)
+                {
+                    pSound->Play(pRegionPos, 0, false, true);
+                }
             }
         }
-
-        pSound->Play(&pRegion->mMatrix.GetTranslation(), 0, false, true);
     }
 }
 

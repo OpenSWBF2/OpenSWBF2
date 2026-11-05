@@ -231,7 +231,10 @@ EntityEx::EntityEx(unsigned int uId, EntityClass* pEntityClass)
     mEntityClass = pEntityClass;
     if (mId)
     {
-        Store(mId, this);
+        if (!(NetGame::IsEnabled() && NetGame::IsClient()))
+        {
+            mIdMap.Store(mId, this);
+        }
     }
 }
 
@@ -241,7 +244,10 @@ EntityEx::~EntityEx()
     sLive.Remove(this);
     if (mId)
     {
-        Remove(mId);
+        if (!(NetGame::IsEnabled() && NetGame::IsClient()))
+        {
+            mIdMap.Remove(mId);
+        }
     }
 }
 

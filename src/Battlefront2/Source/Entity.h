@@ -106,7 +106,7 @@ public:
 
     static PblHashTable<EntityEx, 1024>& GetEntityMap() { return mIdMap; }
 
-    static void InitFind();
+    static void InitFind() { mIdMap.Clear(); }
 
     // FUNCTION: SWBF2 0x0046db30
     static EntityEx* Find(unsigned int uiHash) { return mIdMap.Find(uiHash); }

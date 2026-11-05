@@ -55,13 +55,15 @@ void __cdecl StreamSource::FileOpComplete(File* pFile, void* pCallbackData,
         }
     }
 
-    pThis->mFlags &= (unsigned char)~flags_Reading;
+    pThis->mFlags &= ~flags_Reading;
 
-    if (!bSuccess)
+    if (bSuccess)
     {
-        pThis->mFile.Seek(pThis->mSegment.mOffset + pPacket->mPos);
+        pThis->mLock.Signal();
+        return;
     }
 
+    pThis->mFile.Seek(pThis->mSegment.mOffset + pPacket->mPos);
     pThis->mLock.Signal();
 }
 
@@ -114,20 +116,20 @@ void StreamSource::Flush()
 
     StartFlush();
 
-    for (;;)
+    StreamPacket* pPacket;
+    do
     {
-        StreamPacket* const pPacket = GetPacket(0);
-        if (pPacket == 0)
+        pPacket = GetPacket(0);
+        if (pPacket != 0)
         {
-            break;
+            pPacket->Unlock();
         }
-        pPacket->Unlock();
-    }
+    } while (pPacket != 0);
 
     if ((mFlags & flags_LastPacket) != 0
         && GetCurrentPlayState() != playState_stopped)
     {
-        mFlags &= (unsigned char)~flags_LastPacket;
+        mFlags &= ~flags_LastPacket;
         Stop();
         Update();
     }
@@ -284,7 +286,7 @@ void StreamSource::Update()
                 break;
 
             case playState_stopped:
-                mFlags &= (unsigned char)~flags_LastPacket;
+                mFlags &= ~flags_LastPacket;
                 SetStarved(false);
                 SetPlayState(playState_stopped);
                 if (!IsFlushing())
@@ -324,7 +326,7 @@ void StreamSource::Update()
             if ((mFlags & flags_SeekReady) != 0)
             {
                 mSegment = mSeekSegment;
-                mFlags &= (unsigned char)~flags_SeekReady;
+                mFlags &= ~flags_SeekReady;
                 mFile.Seek(mSegment.mOffset + mSeekPos);
                 mFlags |= (unsigned char)flags_SegmentSetup;
             }
@@ -337,7 +339,7 @@ void StreamSource::Update()
                 }
                 if ((mFlags & flags_SegmentQueued) != 0)
                 {
-                    mFlags &= (unsigned char)~flags_SegmentQueued;
+                    mFlags &= ~flags_SegmentQueued;
                     SetSegmentOffsetLength(mNextSegment.mOffset,
                                            mNextSegment.mLength,
                                            mNextSegment.mPadding);
@@ -346,7 +348,7 @@ void StreamSource::Update()
                     continue;
                 }
                 mFile.Seek(mSegment.mOffset);
-                mFlags &= (unsigned char)~flags_LastPacket;
+                mFlags &= ~flags_LastPacket;
             }
         }
 

@@ -10,9 +10,6 @@
 #include "NetGame.h"
 #include "RedEngineFL/Application/pc/pcRedParticle.h"
 
-static const RedColor kRedBeamGlowColor   = { 0xff, 0x0a, 0x0a, 0x64 };
-static const RedColor kGreenBeamGlowColor = { 0x64, 0xff, 0x64, 0x50 };
-static const RedColor kBlueBeamGlowColor  = { 0x0a, 0x0a, 0x7f, 0x64 };
 
 extern bool netIsLocalTurn;
 extern bool netIsLateTurn;
@@ -115,10 +112,7 @@ OrdnanceBeam::OrdnanceBeam(OrdnanceBeamClass* pClass, const OrdnanceDesc& desc)
         float fBestDistSq = FLT_MAX;
         do
         {
-            const float fDx = mPosition.x - pAimer->mFirePos.x;
-            const float fDy = mPosition.y - pAimer->mFirePos.y;
-            const float fDz = mPosition.z - pAimer->mFirePos.z;
-            const float fDistSq = fDx * fDx + fDy * fDy + fDz * fDz;
+            const float fDistSq = SquaredLength(mPosition - pAimer->mFirePos);
             if (fBestDistSq > fDistSq)
             {
                 fBestDistSq = fDistSq;
@@ -172,14 +166,13 @@ bool OrdnanceBeam::Update(float fDeltaTime)
         }
     }
 
-    OrdnanceBeamClass* pClass = (OrdnanceBeamClass*)mClass;
     const GameObject* pIgnore[128];
     pIgnore[0] = GetOwner();
     int iIgnoreCount = 1;
     mLength = 0.0f;
     PblVector3 vPos = mPosition;
-    float fRemaining = pClass->mRange;
-    bool bStopped = !pClass->mPassThrough;
+    float fRemaining = ((OrdnanceBeamClass*)mClass)->mRange;
+    bool bStopped = !((OrdnanceBeamClass*)mClass)->mPassThrough;
     CollisionObject* pHit;
     do
     {
@@ -189,16 +182,9 @@ bool OrdnanceBeam::Update(float fDeltaTime)
             fRemaining;
         mLength += fDist;
         fRemaining -= fDist;
-        vPos.x += mDirection.x * fDist;
-        vPos.y += mDirection.y * fDist;
-        vPos.z += mDirection.z * fDist;
+        vPos += mDirection * fDist;
 
-        const float fHalf = mLength * 0.5f;
-        PblVector3 vCenter;
-        vCenter.x = mPosition.x + mDirection.x * fHalf;
-        vCenter.y = mPosition.y + mDirection.y * fHalf;
-        vCenter.z = mPosition.z + mDirection.z * fHalf;
-        SetRenderPos(vCenter);
+        SetRenderPos(mPosition + mDirection * (mLength * 0.5f));
         SetRenderRadius(mLength + 1.0f);
 
         if (pHit)
@@ -241,9 +227,9 @@ bool OrdnanceBeam::Update(float fDeltaTime)
 
             if (!NetGame::IsEnabled() || (NetGame::IsClient() && netIsLocalTurn))
             {
-                if (pClass->mImpactEffect)
+                if (((OrdnanceBeamClass*)mClass)->mImpactEffect)
                 {
-                    FLEffectObject* pEffect = pClass->mImpactEffect->BuildEffect();
+                    FLEffectObject* pEffect = ((OrdnanceBeamClass*)mClass)->mImpactEffect->BuildEffect();
                     if (pEffect)
                     {
                         PblVector3 vEffectPos = vPos;
@@ -252,7 +238,7 @@ bool OrdnanceBeam::Update(float fDeltaTime)
                 }
             }
         }
-    } while (pClass->mPassThrough && !bStopped && pHit && fRemaining > 0.0f);
+    } while (((OrdnanceBeamClass*)mClass)->mPassThrough && !bStopped && pHit && fRemaining > 0.0f);
 
     if (m_pRicochet)
     {
@@ -315,6 +301,7 @@ void OrdnanceBeam::CreateRicochet(const PblVector3& vPos, const PblVector3& vNor
         desc.mDamageOwner.mCharacter = pControl->mCharacter;
         desc.mDamageOwner.mTeam = pObject->GetTeam();
         desc.mDamageOwner.mClass = pObject->GetEntityClass();
+        desc.mDamageOwner.mGameObject = pObject;
         desc.mDamageOwner.mDamageMultiplier = pControl->GetOffenseMultiplier();
     }
     else
@@ -322,52 +309,65 @@ void OrdnanceBeam::CreateRicochet(const PblVector3& vPos, const PblVector3& vNor
         desc.mDamageOwner.mCharacter = 0;
         desc.mDamageOwner.mTeam = 0;
         desc.mDamageOwner.mClass = 0;
+        desc.mDamageOwner.mGameObject = 0;
         desc.mDamageOwner.mDamageMultiplier = 1.0f;
     }
     desc.mDamageOwner.mWeapon = 0;
     desc.mTarget = 0;
-    desc.mBodyID = -1;
     desc.mFireWeapon = 0;
+    desc.mBodyID = -1;
 
+    bool bBuild = true;
     if (NetGame::IsEnabled())
     {
         if (NetGame::IsClient())
         {
-            if (!netIsLocalTurn)
-            {
-                return;
-            }
+            bBuild = netIsLocalTurn;
         }
         else
         {
             NetGame::CreateEvent_CreateOrdnance(mClass, desc);
         }
     }
-    pThis->m_pRicochet = (OrdnanceBeam*)mClass->Build(desc);
+    if (bBuild)
+    {
+        pThis->m_pRicochet = (OrdnanceBeam*)mClass->Build(desc);
+    }
 }
 
 // FUNCTION: SWBF2 0x005f9ef0
 void OrdnanceBeam::Render(unsigned char, float, unsigned int)
 {
-    OrdnanceBeamClass* pClass = (OrdnanceBeamClass*)mClass;
     const PblVector3 vStart = mPosition;
-    PblVector3 vEnd;
-    vEnd.x = mPosition.x + mDirection.x * mLength;
-    vEnd.y = mPosition.y + mDirection.y * mLength;
-    vEnd.z = mPosition.z + mDirection.z * mLength;
+    const PblVector3 vEnd = mPosition + mLength * mDirection;
 
-    const float fBeamWidth = pClass->mBeamWidth;
-    const float fGlowWidth = pClass->mGlowWidth;
+    const float fBeamWidth = ((OrdnanceBeamClass*)mClass)->mBeamWidth;
+    const float fGlowWidth = ((OrdnanceBeamClass*)mClass)->mGlowWidth;
     const float fExtent = (fBeamWidth > fGlowWidth ? fBeamWidth : fGlowWidth) * 2.0f;
 
     PblVector3 vMin;
-    vMin.x = (vEnd.x > vStart.x ? vStart.x : vEnd.x) - fExtent;
-    vMin.y = (vEnd.y > vStart.y ? vStart.y : vEnd.y) - fExtent;
-    vMin.z = (vEnd.z > vStart.z ? vStart.z : vEnd.z) - fExtent;
+    vMin.z = (vEnd.z > vStart.z ? vStart.z : vEnd.z);
+    float fMinY;
+    if (vEnd.y > vStart.y)
+    {
+        fMinY = vStart.y;
+    }
+    else
+    {
+        fMinY = vEnd.y;
+    }
+    vMin.y = fMinY;
+    vMin.x = (vEnd.x > vStart.x ? vStart.x : vEnd.x);
+    vMin.x -= fExtent;
+    vMin.y -= fExtent;
+    vMin.z -= fExtent;
     PblVector3 vMax;
-    vMax.x = (vStart.x > vEnd.x ? vStart.x : vEnd.x) + fExtent;
-    vMax.y = (vStart.y > vEnd.y ? vStart.y : vEnd.y) + fExtent;
-    vMax.z = (vStart.z > vEnd.z ? vStart.z : vEnd.z) + fExtent;
+    vMax.z = (vStart.z > vEnd.z ? vStart.z : vEnd.z);
+    vMax.y = (vStart.y > vEnd.y ? vStart.y : vEnd.y);
+    vMax.x = (vStart.x > vEnd.x ? vStart.x : vEnd.x);
+    vMax.x += fExtent;
+    vMax.y += fExtent;
+    vMax.z += fExtent;
     RedParticleRenderer::SubmitBounds(vMin, vMax);
 
     RedParticleRenderer::TexCoords texCoords;
@@ -376,15 +376,15 @@ void OrdnanceBeam::Render(unsigned char, float, unsigned int)
     texCoords.u1 = 0xff;
     texCoords.v1 = 0xff;
 
-    RedColor beamColor = pClass->mBeamColor;
-    RedParticleRenderer::SubmitTexture(pClass->mBeamTextureId, BLEND_NORMAL, 0);
+    RedColor beamColor = ((OrdnanceBeamClass*)mClass)->mBeamColor;
+    RedParticleRenderer::SubmitTexture(((OrdnanceBeamClass*)mClass)->mBeamTextureId, BLEND_NORMAL, 0);
     RedParticleRenderer::SubmitParticle(PIT_LASER_START, vStart, beamColor, fBeamWidth, 1.0f, texCoords,
                                         gVectorUnitX, gVectorUnitY);
     RedParticleRenderer::SubmitParticle(PIT_LASER_END, vEnd, beamColor, fBeamWidth, 1.0f, texCoords,
                                         gVectorUnitX, gVectorUnitY);
 
-    RedColor glowColor = pClass->mGlowColor;
-    RedParticleRenderer::SubmitTexture(pClass->mGlowTextureId, BLEND_NORMAL, 0);
+    RedColor glowColor = ((OrdnanceBeamClass*)mClass)->mGlowColor;
+    RedParticleRenderer::SubmitTexture(((OrdnanceBeamClass*)mClass)->mGlowTextureId, BLEND_NORMAL, 0);
     RedParticleRenderer::SubmitParticle(PIT_LASER_START, vStart, glowColor, fGlowWidth, 1.0f, texCoords,
                                         gVectorUnitX, gVectorUnitY);
     RedParticleRenderer::SubmitParticle(PIT_LASER_END, vEnd, glowColor, fGlowWidth, 1.0f, texCoords,
@@ -451,7 +451,7 @@ void OrdnanceBeamClass::SetProperty(unsigned int uProperty, const char* pszValue
             mBeamColor = RedColor::WHITE;
             mGlowWidth = 0.5f;
             mGlowTextureId = 0x716BD81A;
-            mGlowColor = kBlueBeamGlowColor;
+            mGlowColor = RedColor(0x0a, 0x0a, 0x7f, 0x64);
             break;
         case 0x09D3224C:
             mBeamWidth = 0.35f;
@@ -459,7 +459,7 @@ void OrdnanceBeamClass::SetProperty(unsigned int uProperty, const char* pszValue
             mBeamColor = RedColor::WHITE;
             mGlowWidth = 0.875f;
             mGlowTextureId = 0x716BD81A;
-            mGlowColor = kGreenBeamGlowColor;
+            mGlowColor = RedColor(0x64, 0xff, 0x64, 0x50);
             break;
         case 0x5BFD7D80:
             mBeamWidth = 0.1f;
@@ -467,7 +467,7 @@ void OrdnanceBeamClass::SetProperty(unsigned int uProperty, const char* pszValue
             mBeamColor = RedColor::WHITE;
             mGlowWidth = 0.25f;
             mGlowTextureId = 0x716BD81A;
-            mGlowColor = kRedBeamGlowColor;
+            mGlowColor = RedColor(0xff, 0x0a, 0x0a, 0x64);
             break;
         case 0x8AB31EE0:
             mBeamWidth = 0.2f;
@@ -475,7 +475,7 @@ void OrdnanceBeamClass::SetProperty(unsigned int uProperty, const char* pszValue
             mBeamColor = RedColor::WHITE;
             mGlowWidth = 0.5f;
             mGlowTextureId = 0x716BD81A;
-            mGlowColor = kGreenBeamGlowColor;
+            mGlowColor = RedColor(0x64, 0xff, 0x64, 0x50);
             break;
         case 0xD6578027:
             mBeamWidth = 0.35f;
@@ -483,7 +483,7 @@ void OrdnanceBeamClass::SetProperty(unsigned int uProperty, const char* pszValue
             mBeamColor = RedColor::WHITE;
             mGlowWidth = 0.875f;
             mGlowTextureId = 0x716BD81A;
-            mGlowColor = kBlueBeamGlowColor;
+            mGlowColor = RedColor(0x0a, 0x0a, 0x7f, 0x64);
             break;
         case 0xDD9D59EC:
             mBeamWidth = 0.35f;
@@ -491,7 +491,7 @@ void OrdnanceBeamClass::SetProperty(unsigned int uProperty, const char* pszValue
             mBeamColor = RedColor::WHITE;
             mGlowWidth = 0.875f;
             mGlowTextureId = 0x716BD81A;
-            mGlowColor = kRedBeamGlowColor;
+            mGlowColor = RedColor(0xff, 0x0a, 0x0a, 0x64);
             break;
         }
         break;

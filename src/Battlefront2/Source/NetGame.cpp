@@ -2545,34 +2545,34 @@ void NetGame::Reset()
 // FUNCTION: SWBF2 0x005b6690
 void NetGame::BeginShell(int iStage)
 {
-    switch (iStage)
-    {
-    case 0:
-        break;
-    case 1:
-        NetComm::BeginShell();
-        NetQOS::BeginShell();
-        NetDrag::BeginShell();
-        NetSetup::BeginShell();
-        break;
-    }
+	if (iStage == 0)
+	{
+		return;
+	}
+	if (iStage == 1)
+	{
+		NetComm::BeginShell();
+		NetQOS::BeginShell();
+		NetDrag::BeginShell();
+		NetSetup::BeginShell();
+	}
 }
 
 // FUNCTION: SWBF2 0x005b66c0
 void NetGame::EndShell(int iStage)
 {
-    switch (iStage)
-    {
-    case 0:
-        break;
-    case 1:
-        NetDrag::EndShell();
-        NetQOS::EndShell();
-        NetComm::EndShell();
-        netEnabledNext = false;
-        netEnabled = false;
-        netIsDedicated = false;
-        break;
+	if (iStage == 0)
+	{
+		return;
+	}
+	if(iStage == 1)
+	{
+		NetDrag::EndShell();
+		NetQOS::EndShell();
+		NetComm::EndShell();
+		netEnabledNext = false;
+		netEnabled = false;
+		netIsDedicated = false;
     }
 }
 
@@ -2700,69 +2700,70 @@ void NetGame::CreateClient()
 // FUNCTION: SWBF2 0x005b6b00
 void NetGame::DestroyClient()
 {
-    netClientCreated = false;
-    if (InShell())
-    {
-        return;
-    }
+	netClientCreated = false;
+	if (!InShell())
+	{
+		hostSoldierPool.Reset();
+		hostDroidPool.Reset();
+		hostWalkerPool.Reset();
+		hostCommandWalkerPool.Reset();
+		hostCommandFlyerPool.Reset();
+		hostDroidekaPool.Reset();
+		hostFlyerPool.Reset();
+		hostCarrierPool.Reset();
+		hostHoverPool.Reset();
+		hostCommandHoverPool.Reset();
+		hostMountedTurretPool.Reset();
+		hostPowerupPool.Reset();
+		hostWalkerLegPairPool.Reset();
+		hostWalkerBlendPool.Reset();
+		hostWalkerBlendUnitPool.Reset();
+		hostAimerPool.Reset();
+		hostWeaponPool.Reset();
+		hostAmmoCounterPool.Reset();
+		hostEnergyBarPool.Reset();
+		hostTreeGridPool.Reset();
+		hostOrdnanceTowCablePool.Reset();
+		hostAsteroidPool.Reset();
+		hostFlagPool.Reset();
 
-    hostSoldierPool.Reset();
-    hostDroidPool.Reset();
-    hostWalkerPool.Reset();
-    hostCommandWalkerPool.Reset();
-    hostCommandFlyerPool.Reset();
-    hostDroidekaPool.Reset();
-    hostFlyerPool.Reset();
-    hostCarrierPool.Reset();
-    hostHoverPool.Reset();
-    hostCommandHoverPool.Reset();
-    hostMountedTurretPool.Reset();
-    hostPowerupPool.Reset();
-    hostWalkerLegPairPool.Reset();
-    hostWalkerBlendPool.Reset();
-    hostWalkerBlendUnitPool.Reset();
-    hostAimerPool.Reset();
-    hostWeaponPool.Reset();
-    hostAmmoCounterPool.Reset();
-    hostEnergyBarPool.Reset();
-    hostTreeGridPool.Reset();
-    hostOrdnanceTowCablePool.Reset();
-    hostAsteroidPool.Reset();
-    hostFlagPool.Reset();
+		if (!netEnabledNext)
+		{
+			return;
+		}
 
-    if (!netEnabledNext)
-    {
-        return;
-    }
+		if (IsOneWorld() && IsHost())
+		{
+		}
+		else
+		{
+			EnterClient();
+			SpawnManager::DestroyClient();
+			Team::DestroyClient();
+			ChunkClusterManager::DestroyClient();
+			CollisionManager::DestroyClient();
+			if (!IsOneWorld())
+			{
+				CommandPost::DestroyClient();
+			}
+			TargetManager::DestroyClient();
+			PAManager::DestroyClient();
+			TriggerRegionManager::DestroyClient();
+			FlagItem::Destroy();
+			LeaveClient();
+		}
 
-    if (!IsOneWorld() || !IsHost())
-    {
-        EnterClient();
-        SpawnManager::DestroyClient();
-        Team::DestroyClient();
-        ChunkClusterManager::DestroyClient();
-        CollisionManager::DestroyClient();
-        if (!IsOneWorld())
-        {
-            CommandPost::DestroyClient();
-        }
-        TargetManager::DestroyClient();
-        PAManager::DestroyClient();
-        TriggerRegionManager::DestroyClient();
-        FlagItem::DestroyClient();
-        LeaveClient();
-    }
-
-    if (postLoadHostGame)
-    {
-        delete postLoadHostGame;
-        postLoadHostGame = 0;
-    }
-    if (postLoadJoinGame)
-    {
-        delete postLoadJoinGame;
-        postLoadJoinGame = 0;
-    }
+		if (postLoadHostGame)
+		{
+			delete postLoadHostGame;
+			postLoadHostGame = 0;
+		}
+		if (postLoadJoinGame)
+		{
+			delete postLoadJoinGame;
+			postLoadJoinGame = 0;
+		}
+	}
 }
 
 // FUNCTION: SWBF2 0x005b6d00
@@ -4515,43 +4516,45 @@ void NetGame::Update()
         }
     }
 
-    if (netEnabledNext)
+    if (!netEnabledNext)
     {
-        for (i = 0; i < 3; i++)
-        {
-            if (iHeroTeam == -1 || iHeroTeam == i)
-            {
-                HeroRulesUpdate(i);
-            }
-            if (netHeroUnlocked[i] && (netHeroRuleTeam == 1 || netHeroRuleTeam == 4))
-            {
-                iHeroTeam = i;
-            }
-        }
-
-        NetComm::Update();
-        NetQOS::Update(false);
-        if (g_bNoRender)
-        {
-            AutoBootLagger();
-        }
-
-        PblValues::Record('*', PVT_FULL);
+		if (netHeroesEnabled)
+		{
+			for (i = 0; i < 3; i++)
+			{
+				if (iHeroTeam == -1 || iHeroTeam == i)
+				{
+					HeroRulesUpdate(i);
+				}
+				if (netHeroUnlocked[i] && (netHeroRuleTeam == 1 || netHeroRuleTeam == 4))
+				{
+					iHeroTeam = i;
+				}
+			}
+		}
     }
-    else if (netHeroesEnabled)
-    {
-        for (i = 0; i < 3; i++)
-        {
-            if (iHeroTeam == -1 || iHeroTeam == i)
-            {
-                HeroRulesUpdate(i);
-            }
-            if (netHeroUnlocked[i] && (netHeroRuleTeam == 1 || netHeroRuleTeam == 4))
-            {
-                iHeroTeam = i;
-            }
-        }
-    }
+	else {
+		for (i = 0; i < 3; i++)
+		{
+			if (iHeroTeam == -1 || iHeroTeam == i)
+			{
+				HeroRulesUpdate(i);
+			}
+			if (netHeroUnlocked[i] && (netHeroRuleTeam == 1 || netHeroRuleTeam == 4))
+			{
+				iHeroTeam = i;
+			}
+		}
+		NetComm::Update();
+		NetQOS::Update(false);
+		if (g_bNoRender)
+		{
+			AutoBootLagger();
+		}
+
+		PblValues::Record('*', PVT_FULL);
+	}
+    
 }
 
 // FUNCTION: SWBF2 0x005d0c40
@@ -11804,11 +11807,16 @@ int NetGame::FindPlayerByGSID(int low, int high)
 // FUNCTION: SWBF2 0x005ce9d0
 void NetGame::ClearLastHero(int team)
 {
-    if (NetGame::IsHost() && !NetGame::IsClient() && team >= 0 && team < 3)
-    {
-        netHeroLastPlayerID[team] = -1;
-        netHeroAIID[team] = -1;
-    }
+	if (!NetGame::IsHost() || NetGame::IsClient())
+	{
+		return;
+	}
+	if (team < 0 || team >= 3)	
+	{
+		return;
+	}
+	netHeroLastPlayerID[team] = -1;
+	netHeroAIID[team] = -1;
 }
 
 // GLOBAL: SWBF2 0x01faa6b8
@@ -12144,19 +12152,6 @@ void RestoreSessionRuleDefaults()
     hostVoteThreshold = savedHostVoteThreshold;
     netPreGameTimeMax = savedPreGameTimeMax;
     netAwardsEnabled = savedAwardsEnabled;
-}
-
-// FUNCTION: SWBF2 0x006c22a0
-void RedTerrain::ProcessHoles(void (__cdecl *callback)(void*))
-{
-    if (!RedTerrain::_bTreeHoles)
-    {
-        return;
-    }
-    for (PblList<RedTerrain::Hole>::Itor it = RedTerrain::_HoleList.Begin(); it; ++it)
-    {
-        callback(it.operator RedTerrain::Hole*());
-    }
 }
 
 namespace AI

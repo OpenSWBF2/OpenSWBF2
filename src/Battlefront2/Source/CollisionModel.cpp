@@ -217,7 +217,7 @@ bool CollisionModel::CheckForCollision_SSSC(CollisionObject* pCollider, Collisio
 
         for (unsigned char j = 0; j < pOtherModel->mNumBodies; ++j)
         {
-            if (!mask.IsSet(j))
+            if (!(*sCollisionMask)[i].IsSet(j))
             {
                 continue;
             }
@@ -241,10 +241,7 @@ bool CollisionModel::CheckForCollision_SSSC(CollisionObject* pCollider, Collisio
 
             if (!pOther->bIsMesh)
             {
-                float dx = pMatrix->m[3][0] - pOtherMatrix->m[3][0];
-                float dy = pMatrix->m[3][1] - pOtherMatrix->m[3][1];
-                float dz = pMatrix->m[3][2] - pOtherMatrix->m[3][2];
-                float fDist2 = dx * dx + dy * dy + dz * dz;
+                float fDist2 = SquaredLength(pMatrix->GetTranslation() - pOtherMatrix->GetTranslation());
                 float fReach = ((CollisionBodyPrimitive*)pOther)->GetRadius() +
                                ((CollisionBodyPrimitive*)pBody)->GetRadius();
                 if (fDist2 > fReach * fReach)
@@ -263,20 +260,16 @@ bool CollisionModel::CheckForCollision_SSSC(CollisionObject* pCollider, Collisio
             if (pOther->ReceiveCollision(*pMatrix, ((CollisionBodyPrimitive*)pBody)->mPrimitive, pCollider,
                                          *pOtherMatrix, pReceiver, pRestrictor))
             {
-                int k;
-                for (k = 0; k < 3; ++k)
+                for (int k = 0; k < 3; ++k)
                 {
                     if (pCollider->mLastCollidedObjs[k] == pReceiver)
                     {
-                        break;
+                        return true;
                     }
                 }
-                if (k == 3)
-                {
-                    pCollider->mLastCollidedObjs[2] = pCollider->mLastCollidedObjs[1];
-                    pCollider->mLastCollidedObjs[1] = pCollider->mLastCollidedObjs[0];
-                    pCollider->mLastCollidedObjs[0] = pReceiver;
-                }
+                pCollider->mLastCollidedObjs[2] = pCollider->mLastCollidedObjs[1];
+                pCollider->mLastCollidedObjs[1] = pCollider->mLastCollidedObjs[0];
+                pCollider->mLastCollidedObjs[0] = pReceiver;
                 return true;
             }
         }
@@ -294,8 +287,7 @@ bool CollisionModel::CheckForCollision(CollisionObject* pCollider, CollisionObje
 
     for (unsigned char i = 0; i < mNumBodies; ++i)
     {
-        const CollisionMask& mask = (*sCollisionMask)[i];
-        if (IsEmpty(mask) || mBody[i]->bIsMesh)
+        if (IsEmpty((*sCollisionMask)[i]) || mBody[i]->bIsMesh)
         {
             continue;
         }
@@ -321,7 +313,7 @@ bool CollisionModel::CheckForCollision(CollisionObject* pCollider, CollisionObje
         CollisionBody* pBody = mBody[i];
         for (unsigned char j = 0; j < pOtherModel->mNumBodies; ++j)
         {
-            if (!mask.IsSet(j))
+            if (!(*sCollisionMask)[i].IsSet(j))
             {
                 continue;
             }
@@ -332,13 +324,29 @@ bool CollisionModel::CheckForCollision(CollisionObject* pCollider, CollisionObje
 
             sCollisionResult.mReceiverId = j;
             CollisionBody* pOther = pOtherModel->mBody[j];
-            PblMatrix otherMatrix = pOther->GetWorldMatrix(pReceiver->GetMatrix(), pReceiver->GetPose());
-            if (!pOther->bIsMesh)
+            if (pOther->bIsMesh)
             {
-                float dx = otherMatrix.m[3][0] - pMatrix->m[3][0];
-                float dy = otherMatrix.m[3][1] - pMatrix->m[3][1];
-                float dz = otherMatrix.m[3][2] - pMatrix->m[3][2];
-                float fDist2 = dx * dx + dy * dy + dz * dz;
+                PblMatrix otherMatrix = pOtherModel->mBody[j]->GetWorldMatrix(pReceiver->GetMatrix(), pReceiver->GetPose());
+                if (pOtherModel->mBody[j]->ReceiveCollision(*pMatrix, ((CollisionBodyPrimitive*)pBody)->mPrimitive, pCollider,
+                                                            otherMatrix, pReceiver, pRestrictor))
+                {
+                    for (int k = 0; k < 3; ++k)
+                    {
+                        if (pCollider->mLastCollidedObjs[k] == pReceiver)
+                        {
+                            return true;
+                        }
+                    }
+                    pCollider->mLastCollidedObjs[2] = pCollider->mLastCollidedObjs[1];
+                    pCollider->mLastCollidedObjs[1] = pCollider->mLastCollidedObjs[0];
+                    pCollider->mLastCollidedObjs[0] = pReceiver;
+                    return true;
+                }
+            }
+            else
+            {
+                PblMatrix otherMatrix = pOther->GetWorldMatrix(pReceiver->GetMatrix(), pReceiver->GetPose());
+                float fDist2 = SquaredLength(otherMatrix.GetTranslation() - pMatrix->GetTranslation());
                 float fReach = ((CollisionBodyPrimitive*)pOther)->GetRadius() +
                                ((CollisionBodyPrimitive*)pBody)->GetRadius();
                 if (fDist2 > fReach * fReach)
@@ -351,26 +359,23 @@ bool CollisionModel::CheckForCollision(CollisionObject* pCollider, CollisionObje
                     }
                     continue;
                 }
-            }
 
-            if (pOther->ReceiveCollision(*pMatrix, ((CollisionBodyPrimitive*)pBody)->mPrimitive, pCollider,
-                                         otherMatrix, pReceiver, pRestrictor))
-            {
-                int k;
-                for (k = 0; k < 3; ++k)
+                PblMatrix bodyMatrix = *pMatrix;
+                if (pOther->ReceiveCollision(bodyMatrix, ((CollisionBodyPrimitive*)pBody)->mPrimitive, pCollider,
+                                             otherMatrix, pReceiver, pRestrictor))
                 {
-                    if (pCollider->mLastCollidedObjs[k] == pReceiver)
+                    for (int k = 0; k < 3; ++k)
                     {
-                        break;
+                        if (pCollider->mLastCollidedObjs[k] == pReceiver)
+                        {
+                            return true;
+                        }
                     }
-                }
-                if (k == 3)
-                {
                     pCollider->mLastCollidedObjs[2] = pCollider->mLastCollidedObjs[1];
                     pCollider->mLastCollidedObjs[1] = pCollider->mLastCollidedObjs[0];
                     pCollider->mLastCollidedObjs[0] = pReceiver;
+                    return true;
                 }
-                return true;
             }
         }
     }
@@ -383,20 +388,18 @@ const CollisionResult* CollisionModel::CollideTerrain(CollisionObject* pObject, 
 {
     for (unsigned char i = 0; i < mNumBodies; ++i)
     {
-        if (IsEmpty((*sCollisionMask)[i]))
+        if (!(*sCollisionMask)[i].IsEmpty())
         {
-            continue;
-        }
-
-        PblMatrix world = mBody[i]->GetWorldMatrix(matrix, pPose);
-        bool bHit = mBody[i]->CollideTerrain(world, sCollisionResult.mSeparationNormal, sCollisionResult.mOverlap,
-                                             sCollisionResult.mCollisionPosition);
-        pObject->SetTerrainHeight(i, -sCollisionResult.mOverlap);
-        if (bHit)
-        {
-            sCollisionResult.mColliderId = i;
-            sCollisionResult.mReceiverId = 0;
-            return &sCollisionResult;
+            PblMatrix world = mBody[i]->GetWorldMatrix(matrix, pPose);
+            if (mBody[i]->CollideTerrain(world, sCollisionResult.mSeparationNormal, sCollisionResult.mOverlap,
+                                         sCollisionResult.mCollisionPosition))
+            {
+                pObject->SetTerrainHeight(i, -sCollisionResult.mOverlap);
+                sCollisionResult.mColliderId = i;
+                sCollisionResult.mReceiverId = 0;
+                return &sCollisionResult;
+            }
+            pObject->SetTerrainHeight(i, -sCollisionResult.mOverlap);
         }
     }
     return NULL;
@@ -555,7 +558,7 @@ int CollisionModel::GetTargetBodyID(const PblVector3& vPos, const PblVector3& vD
 PblVector3 CollisionModel::GetTargetPoint(const PblVector3& vPos, const PblVector3& vDir, const PblMatrix& matrix,
                                           const RedPose* pPose) const
 {
-    PblVector3 vPoint = Translation(matrix);
+    PblVector3 vPoint = matrix.GetTranslation();
     float fBest = 0.0f;
     for (int i = 0; i < mNumBodies; ++i)
     {
@@ -572,7 +575,7 @@ PblVector3 CollisionModel::GetTargetPoint(const PblVector3& vPos, const PblVecto
         float fDot = vDir.y * vTo.y + vDir.x * vTo.x + vDir.z * vTo.z;
         if (fDot > fBest)
         {
-            vPoint = Translation(world);
+            vPoint = world.GetTranslation();
             fBest = fDot;
         }
     }

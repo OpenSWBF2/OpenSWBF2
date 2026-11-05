@@ -152,17 +152,17 @@ void WaterEffect::_AddWaterEffect(unsigned int uiEffect, const PblVector3& vPos,
     {
         return;
     }
-    FLEffectObject* pEffect = pClass->BuildEffect();
-    if (!pEffect)
+    PblHandle<ParticleEmitterObject> hEmitter;
+    hEmitter = PblHandle<ParticleEmitterObject>(reinterpret_cast<ParticleEmitterObject*>(pClass->BuildEffect()));
+    if (!hEmitter)
     {
         return;
     }
 
-    WaterEffectData* pData = pWater->m_waterEffects[pWater->m_numWaterEffects];
-    pData->effect = reinterpret_cast<ParticleEmitterObject*>(pEffect);
-    pData->worldPos = vPos;
-    pData->worldPos.y += 0.02f;
-    pEffect->AttachEffectToVector(&pData->worldPos, vDir, true);
-    reinterpret_cast<ParticleEmitterObject*>(pEffect)->mReflectionEnable = false;
+    pWater->m_waterEffects[pWater->m_numWaterEffects]->effect = hEmitter;
+    pWater->m_waterEffects[pWater->m_numWaterEffects]->worldPos = vPos;
+    pWater->m_waterEffects[pWater->m_numWaterEffects]->worldPos.y += 0.02f;
+    hEmitter->AttachEffectToVector(&pWater->m_waterEffects[pWater->m_numWaterEffects]->worldPos, vDir, true);
+    hEmitter->mReflectionEnable = false;
     ++pWater->m_numWaterEffects;
 }

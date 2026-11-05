@@ -81,7 +81,7 @@ void Reserve(const GameObject* pObj, const GameObject* pReserver, ReserveType eT
 namespace
 {
 
-    const CollisionObject* AsCollisionObject(const GameObject* pObj)
+    inline const CollisionObject* AsCollisionObject(const GameObject* pObj)
     {
         return static_cast<const CollisionObject*>(pObj);
     }
@@ -96,7 +96,7 @@ namespace
         return pObj->mCurHealth;
     }
 
-    float GetMaxHealth(const GameObject* pObj)
+    inline float GetMaxHealth(const GameObject* pObj)
     {
         return pObj->mMaxHealth;
     }
@@ -212,7 +212,7 @@ bool RepairHelper::CheckForRecipientAndInit()
         {
             continue;
         }
-        if (pObj->GetEntityType() == ENT_SOLDIER && GetSoldierInvisibilityFactor(pObj) > 0.0f)
+        if (pObj->GetEntityType() == ENT_SOLDIER && static_cast<const EntitySoldier*>(pObj)->GetInvisibilityFactor() > 0.0f)
         {
             continue;
         }
@@ -226,12 +226,11 @@ bool RepairHelper::CheckForRecipientAndInit()
         PblVector3 vDiff(vMyPos.x - vHisPos.x, vMyPos.y - vHisPos.y, vMyPos.z - vHisPos.z);
         float fDistSq = vDiff.y * vDiff.y + vDiff.x * vDiff.x + vDiff.z * vDiff.z;
         PblVector3 vVel = pObj->GetVelocity();
-        float fVelSq = vVel.y * vVel.y + vVel.x * vVel.x + vVel.z * vVel.z;
         if (pObj->GetControllable() && pObj->GetControllable()->GetPlayerId() >= 0 && fDistSq < 900.0f)
         {
             const PblMatrix& matrix = pObj->GetMatrix();
-            PblVector3 vDir = AIUtil::GetSafeNormal(vDiff);
-            if (fVelSq < 0.25f ||
+            const PblVector3& vDir = AIUtil::GetSafeNormal(vDiff);
+            if (vVel.y * vVel.y + vVel.x * vVel.x + vVel.z * vVel.z < 0.25f ||
                 matrix.m[2][1] * vDir.y + matrix.m[2][0] * vDir.x + matrix.m[2][2] * vDir.z > (float)cos(15.0))
             {
                 pBest = pObj;
@@ -240,11 +239,12 @@ bool RepairHelper::CheckForRecipientAndInit()
             }
         }
 
-        if (pObj->GetEntity()->IsRtti(EntitySoldier::rttiHashEntitySoldier) && GetSoldierPlayerId(pObj) < 0)
+        if (pObj->GetEntity()->IsRtti(EntitySoldier::rttiHashEntitySoldier) &&
+            static_cast<const EntitySoldier*>(pObj)->mPlayerId < 0)
         {
             continue;
         }
-        if (fVelSq < 0.25f && fDistSq < fBestDistSq)
+        if (vVel.y * vVel.y + vVel.x * vVel.x + vVel.z * vVel.z < 0.25f && fDistSq < fBestDistSq)
         {
             pBest = pObj;
             bestAid = aid;
@@ -281,11 +281,11 @@ bool RepairHelper::SetAidWpn(bool* pbChanged)
     for (int i = 0; i < GetMe()->GetWeaponCount(); ++i)
     {
         const WeaponClass* pClass = GetMe()->GetWeaponPtr(i)->mClass;
-        float fAdd;
+        int bGivesAid;
         if (pClass->IsRtti(WeaponRepairClass::rttiHashWeaponRepairClass))
         {
             const WeaponRepairClass* pRepair = static_cast<const WeaponRepairClass*>(pClass);
-            fAdd = mAidType.ammo ? pRepair->mAddAmmo[mAidType.type] : pRepair->mAddHealth[mAidType.type];
+            bGivesAid = mAidType.ammo ? pRepair->mAddAmmo[mAidType.type] > 0.0f : pRepair->mAddHealth[mAidType.type] > 0.0f;
         }
         else if (pClass->IsRtti(WeaponDispenserClass::rttiHashWeaponDispenserClass))
         {
@@ -295,22 +295,25 @@ bool RepairHelper::SetAidWpn(bool* pbChanged)
                 continue;
             }
             PowerupItemClass* pPowerup = static_cast<PowerupItemClass*>(pDispense);
-            fAdd = mAidType.ammo ? pPowerup->mAddAmmo[mAidType.type] : pPowerup->mAddHealth[mAidType.type];
+            bGivesAid = mAidType.ammo ? pPowerup->mAddAmmo[mAidType.type] > 0.0f : pPowerup->mAddHealth[mAidType.type] > 0.0f;
         }
         else
         {
             continue;
         }
 
-        if (fAdd > 0.0f)
+        if (bGivesAid)
         {
             if (GetMe()->GetWeaponIndex(GetMe()->GetWpnChannel()) != i)
             {
-                UnitControllerPtr(GetMe()->mCtrl)->mLowLevel.SetNextWeapon(i);
+                UnitController* pUnit = UnitControllerPtr(GetMe()->mCtrl);
+                pUnit->mLowLevel.SetNextWeapon(i);
                 *pbChanged = true;
-                return true;
             }
-            *pbChanged = false;
+            else
+            {
+                *pbChanged = false;
+            }
             return true;
         }
     }
@@ -323,30 +326,157 @@ void RepairHelper::CalcMyAidTypes(unsigned int* pHealth, unsigned int* pAmmo)
     // GLOBAL: SWBF2 0x007ec54c
     static int iii = 1;
 
-    *pAmmo = 0;
     *pHealth = 0;
+    *pAmmo = 0;
     for (int i = 0; i < GetMe()->GetWeaponCount(); ++i)
     {
         Weapon* pWeapon = GetMe()->GetWeaponPtr(i);
-        if (pWeapon->m_pAmmoCounter->GetNumRounds() <= 0)
+        if (pWeapon->m_pAmmoCounter->GetNumRounds() > 0)
+        {
+            if (pWeapon->IsRtti(WeaponRepair::rttiHashWeaponRepair))
+            {
+                const WeaponRepairClass* pClass = static_cast<const WeaponRepairClass*>(pWeapon->mClass);
+                if (pClass->mAddHealth[0] > 0.0f)
+                {
+                    *pHealth |= 1;
+                }
+                if (pClass->mAddAmmo[0] > 0.0f)
+                {
+                    *pAmmo |= 1;
+                }
+                if (pClass->mAddHealth[1] > 0.0f)
+                {
+                    *pHealth |= 2;
+                }
+                if (pClass->mAddAmmo[1] > 0.0f)
+                {
+                    *pAmmo |= 2;
+                }
+                if (pClass->mAddHealth[2] > 0.0f)
+                {
+                    *pHealth |= 4;
+                }
+                if (pClass->mAddAmmo[2] > 0.0f)
+                {
+                    *pAmmo |= 4;
+                }
+                if (pClass->mAddHealth[3] > 0.0f)
+                {
+                    *pHealth |= 8;
+                }
+                if (pClass->mAddAmmo[3] > 0.0f)
+                {
+                    *pAmmo |= 8;
+                }
+                if (pClass->mAddHealth[4] > 0.0f)
+                {
+                    *pHealth |= 16;
+                }
+                if (pClass->mAddAmmo[4] > 0.0f)
+                {
+                    *pAmmo |= 16;
+                }
+                if (pClass->mAddHealth[5] > 0.0f)
+                {
+                    *pHealth |= 32;
+                }
+                if (pClass->mAddAmmo[5] > 0.0f)
+                {
+                    *pAmmo |= 32;
+                }
+                if (pClass->mAddHealth[6] > 0.0f)
+                {
+                    *pHealth |= 64;
+                }
+                if (pClass->mAddAmmo[6] > 0.0f)
+                {
+                    *pAmmo |= 64;
+                }
+                if (pClass->mAddHealth[7] > 0.0f)
+                {
+                    *pHealth |= 128;
+                }
+                if (pClass->mAddAmmo[7] > 0.0f)
+                {
+                    *pAmmo |= 128;
+                }
+            }
+            else if (pWeapon->IsRtti(WeaponDispenser::rttiHashWeaponDispenser))
+            {
+                EntityClass* pDispense = static_cast<const WeaponDispenserClass*>(pWeapon->mClass)->mDispenseClass;
+                if (pDispense && pDispense->IsRtti(PowerupItemClass::rttiHashPowerupItemClass))
+                {
+                    PowerupItemClass* pPowerup = static_cast<PowerupItemClass*>(pDispense);
+                    if (pPowerup->mAddHealth[0] > 0.0f)
+                    {
+                        *pHealth |= 1;
+                    }
+                    if (pPowerup->mAddAmmo[0] > 0.0f)
+                    {
+                        *pAmmo |= 1;
+                    }
+                    if (pPowerup->mAddHealth[1] > 0.0f)
+                    {
+                        *pHealth |= 2;
+                    }
+                    if (pPowerup->mAddAmmo[1] > 0.0f)
+                    {
+                        *pAmmo |= 2;
+                    }
+                    if (pPowerup->mAddHealth[2] > 0.0f)
+                    {
+                        *pHealth |= 4;
+                    }
+                    if (pPowerup->mAddAmmo[2] > 0.0f)
+                    {
+                        *pAmmo |= 4;
+                    }
+                    if (pPowerup->mAddHealth[3] > 0.0f)
+                    {
+                        *pHealth |= 8;
+                    }
+                    if (pPowerup->mAddAmmo[3] > 0.0f)
+                    {
+                        *pAmmo |= 8;
+                    }
+                    if (pPowerup->mAddHealth[4] > 0.0f)
+                    {
+                        *pHealth |= 16;
+                    }
+                    if (pPowerup->mAddAmmo[4] > 0.0f)
+                    {
+                        *pAmmo |= 16;
+                    }
+                    if (pPowerup->mAddHealth[5] > 0.0f)
+                    {
+                        *pHealth |= 32;
+                    }
+                    if (pPowerup->mAddAmmo[5] > 0.0f)
+                    {
+                        *pAmmo |= 32;
+                    }
+                    if (pPowerup->mAddHealth[6] > 0.0f)
+                    {
+                        *pHealth |= 64;
+                    }
+                    if (pPowerup->mAddAmmo[6] > 0.0f)
+                    {
+                        *pAmmo |= 64;
+                    }
+                    if (pPowerup->mAddHealth[7] > 0.0f)
+                    {
+                        *pHealth |= 128;
+                    }
+                    if (pPowerup->mAddAmmo[7] > 0.0f)
+                    {
+                        *pAmmo |= 128;
+                    }
+                }
+            }
+        }
+        else
         {
             ++iii;
-            continue;
-        }
-
-        if (pWeapon->IsRtti(WeaponRepair::rttiHashWeaponRepair))
-        {
-            const WeaponRepairClass* pClass = static_cast<const WeaponRepairClass*>(pWeapon->mClass);
-            AddAidTypes(pClass->mAddHealth, pClass->mAddAmmo, pHealth, pAmmo);
-        }
-        else if (pWeapon->IsRtti(WeaponDispenser::rttiHashWeaponDispenser))
-        {
-            EntityClass* pDispense = static_cast<const WeaponDispenserClass*>(pWeapon->mClass)->mDispenseClass;
-            if (pDispense && pDispense->IsRtti(PowerupItemClass::rttiHashPowerupItemClass))
-            {
-                PowerupItemClass* pPowerup = static_cast<PowerupItemClass*>(pDispense);
-                AddAidTypes(pPowerup->mAddHealth, pPowerup->mAddAmmo, pHealth, pAmmo);
-            }
         }
     }
 }
@@ -355,7 +485,7 @@ void RepairHelper::CalcMyAidTypes(unsigned int* pHealth, unsigned int* pAmmo)
 void RepairHelper::FindPowerupsNearby(const GameObject* pObj, unsigned int* pHealth, unsigned int* pAmmo)
 {
     GameObject* objects[10];
-    PblVector3 vPos = *reinterpret_cast<const PblVector3*>(&AsCollisionObject(pObj)->GetMatrix().m[3][0]);
+    PblVector3 vPos = *reinterpret_cast<const PblVector3*>(&pObj->GetMatrix().m[3][0]);
     int iCount = CollisionManager::GetObjectsInRange(vPos, 15.0f, objects, 10, 0, 1);
     for (int i = 0; i < iCount; ++i)
     {
@@ -365,7 +495,17 @@ void RepairHelper::FindPowerupsNearby(const GameObject* pObj, unsigned int* pHea
             continue;
         }
         const PowerupItemClass* pClass = static_cast<const PowerupItemClass*>(pEntity->GetEntityClass());
-        AddAidTypes(pClass->mAddHealth, pClass->mAddAmmo, pHealth, pAmmo);
+        for (int iType = 0; iType < NUM_HEALTH_TYPES; ++iType)
+        {
+            if (pClass->mAddHealth[iType] > 0.0f)
+            {
+                *pHealth |= 1 << iType;
+            }
+            if (pClass->mAddAmmo[iType] > 0.0f)
+            {
+                *pAmmo |= 1 << iType;
+            }
+        }
     }
 }
 
@@ -373,12 +513,12 @@ void RepairHelper::FindPowerupsNearby(const GameObject* pObj, unsigned int* pHea
 void RepairHelper::FindAllAidNeeds(const GameObject* pObj, unsigned int health, unsigned int ammo,
                                    bool bUnused, bool* pbNeedHealth, bool* pbNeedAmmo)
 {
+    HealthType type = GetHealthType(pObj);
     unsigned int nearHealth = 0;
     unsigned int nearAmmo = 0;
-    HealthType type = GetHealthType(pObj);
     FindPowerupsNearby(pObj, &nearHealth, &nearAmmo);
 
-    *pbNeedHealth = ((health >> type) & (~nearHealth >> type) & (GetMaxHealth(pObj) > GetCurHealth(pObj))) & 1;
+    *pbNeedHealth = ((health >> type) & (~nearHealth >> type) & (pObj->mMaxHealth > GetCurHealth(pObj))) & 1;
     bool bCanAmmo = ((ammo >> type) & 1) != 0;
     bool bNoAmmoNear = ((~nearAmmo >> type) & 1) != 0;
     *pbNeedAmmo = false;
@@ -411,14 +551,7 @@ bool RepairHelper::FindAidNeed(const GameObject* pObj, unsigned int health, unsi
     }
 
     HealthType type = GetHealthType(pObj);
-    if (bNeedHealth && bNeedAmmo)
-    {
-        *pAid = AidType(type, AIUtil::GetRandomInt(0, 1) == 1);
-    }
-    else
-    {
-        *pAid = AidType(type, bNeedAmmo);
-    }
+    *pAid = AidType(type, (bNeedHealth && bNeedAmmo) ? AIUtil::GetRandomInt(0, 1) == 1 : bNeedAmmo);
     return true;
 }
 
@@ -426,34 +559,32 @@ bool RepairHelper::FindAidNeed(const GameObject* pObj, unsigned int health, unsi
 bool RepairHelper::FireRepairWeapon(float dt, const GameObject* pTarget)
 {
     const bool bLinedUp = CombatUtil::IsTargetLinedUpObj(GetMe(), pTarget);
-    if (!bLinedUp)
+    if (bLinedUp)
     {
-        return bLinedUp;
-    }
-
-    Weapon* pWeapon = GetMe()->GetCurWpn();
-    if (pWeapon->IsRtti(WeaponRepair::rttiHashWeaponRepair))
-    {
-        if (mContactTime > GameLoop::GetMissionTime())
+        Weapon* pWeapon = GetMe()->GetCurWpn();
+        if (pWeapon->IsRtti(WeaponRepair::rttiHashWeaponRepair))
         {
-            mContactTime = GameLoop::GetMissionTime();
-            mHealth = GetCurHealth(pTarget);
-        }
-        UnitControllerPtr(GetMe()->mCtrl)->GetLowLevel().SetFireRequest(true, false);
-    }
-    else if (pWeapon->IsRtti(WeaponDispenser::rttiHashWeaponDispenser))
-    {
-        if (mContactTime > GameLoop::GetMissionTime())
-        {
-            mContactTime = GameLoop::GetMissionTime();
-            mHealth = GetCurHealth(pTarget);
+            if (mContactTime > GameLoop::GetMissionTime())
+            {
+                mContactTime = GameLoop::GetMissionTime();
+                mHealth = GetCurHealth(pTarget);
+            }
             UnitControllerPtr(GetMe()->mCtrl)->GetLowLevel().SetFireRequest(true, false);
-            AI::VOHelper::Play(AI::VOT_GivePowerup, GetMe()->GetGameObject(), 0, pTarget, 0.0f);
         }
-    }
-    else
-    {
-        return false;
+        else if (pWeapon->IsRtti(WeaponDispenser::rttiHashWeaponDispenser))
+        {
+            if (mContactTime > GameLoop::GetMissionTime())
+            {
+                mContactTime = GameLoop::GetMissionTime();
+                mHealth = GetCurHealth(pTarget);
+                UnitControllerPtr(GetMe()->mCtrl)->GetLowLevel().SetFireRequest(true, false);
+                AI::VOHelper::Play(AI::VOT_GivePowerup, GetMe()->GetGameObject(), 0, pTarget, 0.0f);
+            }
+        }
+        else
+        {
+            return false;
+        }
     }
     return bLinedUp;
 }
@@ -480,7 +611,8 @@ bool RepairHelper::Update(float dt)
 
     Controllable* pMe = GetMe();
     UnitControllerPtr(pMe->mCtrl)->GetLowLevel().SetTarget(pTarget);
-    const PblVector3 vHisPos = *reinterpret_cast<const PblVector3*>(&AsCollisionObject(pTarget)->GetMatrix().m[3][0]);
+    const CollisionObject* pTargetCollision = static_cast<const CollisionObject*>(pTarget);
+    const PblVector3 vHisPos = *reinterpret_cast<const PblVector3*>(&pTargetCollision->GetMatrix().m[3][0]);
     const PblVector3 vMyPos = pMe->GetMatrix().GetTranslation();
     const float fRange = CombatUtil::GetWeaponMaxRange(pMe);
     const float fDistSq = (vMyPos.x - vHisPos.x) * (vMyPos.x - vHisPos.x) + (vMyPos.z - vHisPos.z) * (vMyPos.z - vHisPos.z);
@@ -491,8 +623,7 @@ bool RepairHelper::Update(float dt)
     if ((bTouching || fDistSq < 25.0f) && bInRange && !bTooClose)
     {
         if (!bTouching ||
-            AIUtil::DirectLineToTarget(GetMe()->GetGameObject(),
-                                       *reinterpret_cast<const PblVector3*>(&AsCollisionObject(pTarget)->GetMatrix().m[3][0])))
+            AIUtil::DirectLineToTarget(GetMe()->GetGameObject(), pTargetCollision->GetMatrix()[3]))
         {
             GetCtrl()->GetLowLevel().SetNavigator_Stationary();
             mSearchTime = GameLoop::GetMissionTime();
@@ -504,7 +635,7 @@ bool RepairHelper::Update(float dt)
             bool bNeedHealth;
             bool bNeedAmmo;
             FindAllAidNeeds(pTarget, health, ammo, false, &bNeedHealth, &bNeedAmmo);
-            if (mAidType.ammo ? !bNeedAmmo : !bNeedHealth)
+            if ((mAidType.ammo && !bNeedAmmo) || (!mAidType.ammo && !bNeedHealth))
             {
                 AI::VOHelper::Play(AI::VOT_RepairEnd, GetMe()->GetGameObject(), 0, pTarget, 0.0f);
                 return false;
@@ -548,7 +679,7 @@ bool RepairHelper::Update(float dt)
     }
 
     const PblMatrix& rMyMatrix = GetMe()->GetMatrix();
-    const PblMatrix& rHisMatrix = AsCollisionObject(pTarget)->GetMatrix();
+    const PblMatrix& rHisMatrix = pTargetCollision->GetMatrix();
     const float fX = rHisMatrix.m[3][0] - rMyMatrix.m[3][0];
     const float fY = rHisMatrix.m[3][1] - rMyMatrix.m[3][1];
     const float fZ = rHisMatrix.m[3][2] - rMyMatrix.m[3][2];

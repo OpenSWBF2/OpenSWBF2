@@ -15,8 +15,8 @@ void RedInterfaceElement::Rotate(float fAngle)
     PblVector3 vY = m_mLocal[1];
     PblVector3 vX = m_mLocal[0];
     m_mLocal[0] = vX * fCos + vY * fSin;
-    m_mLocal[1] = vX * -fSin + vY * fCos;
     m_mLocal.m[0][3] = 0.0f;
+    m_mLocal[1] = vX * -fSin + vY * fCos;
     m_mLocal.m[1][3] = 0.0f;
 }
 
@@ -25,8 +25,8 @@ void RedInterfaceElement::Rotate(float fX, float fY, float fAngle)
 {
     float fSin, fCos;
     PblMath::SinCos(&fSin, &fCos, fAngle);
-    PblVector3 vX = m_mLocal[0];
     PblVector3 vY = m_mLocal[1];
+    PblVector3 vX = m_mLocal[0];
     m_mLocal[0] = vX * fCos + vY * fSin;
     m_mLocal.m[0][3] = 0.0f;
     m_mLocal[1] = vX * -fSin + vY * fCos;
@@ -48,11 +48,10 @@ PblPtrSet<65536> RedInterfaceElement::sLuaHandles;
 
 // FUNCTION: SWBF2 0x006bfeb0
 RedInterfaceElement::RedInterfaceElement(const char* pcName)
-    : m_color(0xFF, 0xFF, 0xFF, 0xFF)
+    : m_zorder(128)
+    , m_bEnabled(true)
+    , m_color(0xFF, 0xFF, 0xFF, 0xFF)
 {
-    m_zorder = 128;
-    m_bEnabled = true;
-
     m_mLocal.SetXAxis(1.0f, 0.0f, 0.0f, 0.0f);
     m_mLocal.SetYAxis(0.0f, 1.0f, 0.0f, 0.0f);
     m_mLocal.SetZAxis(0.0f, 0.0f, 1.0f, 0.0f);
@@ -264,10 +263,10 @@ void RedInterfaceElement::Reset()
 // FUNCTION: SWBF2 0x006c05f0
 void RedInterfaceElement::SetMatrix(const PblMatrix& matrix)
 {
-    m_mLocal.SetXAxis(matrix.m[0][0], matrix.m[0][1], matrix.m[0][2], 0.0f);
-    m_mLocal.SetYAxis(matrix.m[1][0], matrix.m[1][1], matrix.m[1][2], 0.0f);
-    m_mLocal.SetZAxis(matrix.m[2][0], matrix.m[2][1], matrix.m[2][2], 0.0f);
-    m_mLocal.SetTranslation(matrix.m[3][0], matrix.m[3][1], matrix.m[3][2], 1.0f);
+    m_mLocal.SetXAxis(matrix(0, 0), matrix(0, 1), matrix(0, 2), 0.0f);
+    m_mLocal.SetYAxis(matrix(1, 0), matrix(1, 1), matrix(1, 2), 0.0f);
+    m_mLocal.SetZAxis(matrix(2, 0), matrix(2, 1), matrix(2, 2), 0.0f);
+    m_mLocal.SetTranslation(matrix(3, 0), matrix(3, 1), matrix(3, 2), 1.0f);
 }
 
 // FUNCTION: SWBF2 0x006c0680

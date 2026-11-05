@@ -36,7 +36,7 @@ bool EntitySquadronClass::SetProperty(unsigned int uProperty, const char* pszVal
         return true;
     default:
         return ODFPropertySet::SetProperty(sPropertySet, sizeof(sPropertySet) / sizeof(sPropertySet[0]),
-                                           this, uProperty, pszValue);
+                                           this, uProperty, pszValue) ? true : false;
     }
 }
 
@@ -46,8 +46,10 @@ EntitySquadron::EntitySquadron()
     , mFormationSlot(0)
     , mLeader(0)
     , mTime(0.0f)
-    , mOffset(0.0f, 0.0f, 0.0f)
 {
+    mOffset.z = 0.0f;
+    mOffset.y = 0.0f;
+    mOffset.x = 0.0f;
 }
 
 // FUNCTION: SWBF2 0x004fbea0
@@ -64,14 +66,13 @@ EntitySquadron::~EntitySquadron()
 bool EntitySquadron::CreateSquadron(unsigned int uFormation)
 {
     const EntityFormation* pFormation = GetEntitySquadronClass()->SelectFormation(uFormation);
-    if (!pFormation)
+    if (pFormation)
     {
-        return false;
+        mFormation = const_cast<EntityFormation*>(pFormation);
+        mLeader = this;
+        return AddToSquadron(this, mFormation->RootIsSlot() ? mFormation->GetRootIndex() : -1);
     }
-
-    mFormation = const_cast<EntityFormation*>(pFormation);
-    mLeader = this;
-    return AddToSquadron(this, mFormation->RootIsSlot() ? mFormation->GetRootIndex() : -1);
+    return false;
 }
 
 // FUNCTION: SWBF2 0x004fbf80
@@ -87,14 +88,11 @@ void EntitySquadron::SetSquadronLeader(EntitySquadron* pLeader)
     pLeader->mLeader = pLeader;
     pLeader->mList.AddLast(&pLeader->mNode);
 
-    int i = 0;
-    PblListDouble::Node* pNode = mList.mTerminator.mNext;
-    while (pNode != &mList.mTerminator && i < 10)
+    PblListDouble::Itor it(mList);
+    for (int i = 0; it.GetNode() != &mList.mTerminator && i < 10; ++i)
     {
-        EntitySquadron* pMember = pNode == &mList.mTerminator
-                                      ? 0
-                                      : (EntitySquadron*)((char*)pNode - offsetof(EntitySquadron, mNode));
-        pNode = pNode->mNext;
+        EntitySquadron* pMember = (EntitySquadron*)it.GetNode()->GetObjectA(&mList, offsetof(EntitySquadron, mNode));
+        ++it;
 
         if (pMember != pLeader)
         {
@@ -102,7 +100,6 @@ void EntitySquadron::SetSquadronLeader(EntitySquadron* pLeader)
             pLeader->mList.AddLast(&pMember->mNode);
             pMember->mLeader = pLeader;
         }
-        i++;
     }
 }
 
@@ -136,23 +133,19 @@ void EntitySquadron::UpdatePosition(const EntitySquadronClass* const pClass, flo
         if (fSlideTime > mTime)
         {
             float fT = mTime / fSlideTime;
-            mTime += fElapsed;
             mOffset = Interpolate(mOffset, vSlot, fT);
+            mTime += fElapsed;
         }
         else
         {
             mOffset = vSlot;
         }
-        vPosition.x += mOffset.x;
-        vPosition.y += mOffset.y;
-        vPosition.z += mOffset.z;
+        vPosition += mOffset;
     }
     else if (fSlideTime > mTime)
     {
         mOffset = Interpolate(mOffset, PblVector3(0.0f, 0.0f, 0.0f), mTime / fSlideTime);
-        vPosition.x += mOffset.x;
-        vPosition.y += mOffset.y;
-        vPosition.z += mOffset.z;
+        vPosition += mOffset;
         mTime += fElapsed;
     }
 }
@@ -179,14 +172,14 @@ bool EntitySquadron::AddToSquadron(EntitySquadron* const pMember, int iSlot)
     memset(pbUsed, 0, uNumSlots);
     if (!mFormation->RootIsSlot())
     {
-        uUsed = 1;
         pbUsed[mFormation->GetRootIndex()] = true;
+        uUsed = 1;
     }
 
     int i = 0;
-    for (PblListDouble::Node* pNode = mList.mTerminator.mNext; pNode != &mList.mTerminator; pNode = pNode->mNext)
+    for (PblListDouble::Itor it(mList); it.GetNode() != &mList.mTerminator; ++it)
     {
-        EntitySquadron* pOther = (EntitySquadron*)((char*)pNode - offsetof(EntitySquadron, mNode));
+        EntitySquadron* pOther = (EntitySquadron*)it.GetNode()->GetObjectA(&mList, offsetof(EntitySquadron, mNode));
         ++i;
         ++uUsed;
         pbUsed[pOther->mFormationSlot] = true;
@@ -254,34 +247,34 @@ void EntitySquadron::RemoveFromSquadron()
 
         RedStack stack;
         PblListDoubleSorted members;
-        int iNumSlots = mFormation->GetNumSlots();
-        EntityDistance* pDistances = (EntityDistance*)stack.Alloc(iNumSlots * sizeof(EntityDistance));
-        for (int i = 0; i < iNumSlots; ++i)
+        unsigned int uiNumSlots = mFormation->GetNumSlots();
+        EntityDistance* pDistances = (EntityDistance*)stack.Alloc(uiNumSlots * sizeof(EntityDistance));
+        unsigned int uCount = 0;
+        for (unsigned int s = 0; s < uiNumSlots; ++s)
         {
-            new (&pDistances[i]) EntityDistance;
+            new (&pDistances[s]) EntityDistance;
         }
 
         const PblVector3& vLeader = mFormation->GetPointPosition(mFormationSlot);
         EntityDistance* pDistance = pDistances;
-        unsigned int uCount = 0;
+        PblListDouble::Itor it(mList);
         int i = 0;
-        for (PblListDouble::Node* pNode = mList.mTerminator.mNext; pNode != &mList.mTerminator;
-             pNode = pNode->mNext, ++i)
+        for (; it.GetNode() != &mList.mTerminator; ++it, ++i)
         {
             if (i >= 10)
             {
                 break;
             }
-            EntitySquadron* pMember = pNode == &mList.mTerminator
-                                          ? 0
-                                          : (EntitySquadron*)((char*)pNode - offsetof(EntitySquadron, mNode));
+            EntitySquadron* pMember =
+                (EntitySquadron*)it.GetNode()->GetObjectA(&mList, offsetof(EntitySquadron, mNode));
             if (pMember != this)
             {
                 pDistance->mEntity = pMember;
                 const PblVector3& vSlot = mFormation->GetPointPosition(pMember->mFormationSlot);
-                pDistance->mNode.mSortValue = (vLeader.y - vSlot.y) * (vLeader.y - vSlot.y) +
-                                              (vLeader.x - vSlot.x) * (vLeader.x - vSlot.x) +
-                                              (vLeader.z - vSlot.z) * (vLeader.z - vSlot.z);
+                const float fDx = vLeader.x - vSlot.x;
+                const float fDy = vLeader.y - vSlot.y;
+                const float fDz = vLeader.z - vSlot.z;
+                pDistance->mNode.mSortValue = fDy * fDy + fDx * fDx + fDz * fDz;
                 members.Add(&pDistance->mNode);
                 ++uCount;
                 ++pDistance;
@@ -299,12 +292,11 @@ void EntitySquadron::RemoveFromSquadron()
             (EntityDistance*)members.GetFirst()->GetObjectA(&members, offsetof(EntityDistance, mNode));
         mLeader->mLeader = 0;
         i = 0;
-        for (PblListDouble::Node* pNode = mList.mTerminator.mNext; pNode != &mList.mTerminator && i < 10;)
+        for (PblListDouble::Itor it(mList); it.GetNode() != &mList.mTerminator && i < 10;)
         {
-            EntitySquadron* pMember = pNode == &mList.mTerminator
-                                          ? 0
-                                          : (EntitySquadron*)((char*)pNode - offsetof(EntitySquadron, mNode));
-            pNode = pNode->mNext;
+            EntitySquadron* pMember =
+                (EntitySquadron*)it.GetNode()->GetObjectA(&mList, offsetof(EntitySquadron, mNode));
+            ++it;
             ++i;
             pMember->RemoveFromSquadron();
         }
@@ -314,17 +306,19 @@ void EntitySquadron::RemoveFromSquadron()
             EntitySquadron* pNewLeader = pFirst->mEntity;
             if (pNewLeader->CreateSquadron(uCount))
             {
-                for (PblListDouble::Node* pLink = members.GetFirst()->mNode.mNext; pLink != &members.mTerminator;
-                     pLink = pLink->mNext)
+                PblListDoubleSorted::Itor itor((PblListDoubleSorted::Node*)members.GetFirst()->mNode.mNext->GetObjectA(
+                    &members, offsetof(PblListDoubleSorted::Node, mNode)));
+                for (;;)
                 {
-                    PblListDoubleSorted::Node* pNode =
-                        (PblListDoubleSorted::Node*)((char*)pLink - offsetof(PblListDoubleSorted::Node, mNode));
-                    if (pNode == members.GetTerminator())
+                    PblListDoubleSorted::Node* const pCurrent = itor.GetNode(&members);
+                    if (pCurrent == members.GetTerminator())
                     {
                         break;
                     }
                     pNewLeader->AddToSquadron(
-                        ((EntityDistance*)pNode->GetObjectA(&members, offsetof(EntityDistance, mNode)))->mEntity, -1);
+                        ((EntityDistance*)pCurrent->GetObjectA(&members, offsetof(EntityDistance, mNode)))->mEntity,
+                        -1);
+                    ++itor;
                 }
             }
         }
@@ -360,13 +354,14 @@ bool EntitySquadronClass::FormationSupported(unsigned int uFormation) const
 // FUNCTION: SWBF2 0x004fc770
 const EntityFormation* EntitySquadronClass::SelectFormation(unsigned int uNumSlots) const
 {
+    const unsigned int uNumFormations = mNumFormations;
     RedStack stack;
-    const EntityFormation** ppFormations = (const EntityFormation**)stack.Alloc((int)(mNumFormations * sizeof(*ppFormations)));
+    const EntityFormation** ppFormations = (const EntityFormation**)stack.Alloc((int)(uNumFormations * sizeof(*ppFormations)));
     int iNumFound = 0;
-    for (unsigned int i = 0; i < mNumFormations; ++i)
+    for (unsigned int i = 0; i < uNumFormations; ++i)
     {
         const EntityFormation* pFormation = EntityFormation::Find(mFormations[i]);
-        if (pFormation && (unsigned int)pFormation->GetNumSlots() == uNumSlots)
+        if (pFormation && uNumSlots == (unsigned int)pFormation->GetNumSlots())
         {
             ppFormations[iNumFound++] = pFormation;
         }
@@ -376,15 +371,7 @@ const EntityFormation* EntitySquadronClass::SelectFormation(unsigned int uNumSlo
         return 0;
     }
 
-    float fIndex = PblRandom::GetGlobalFloat() * (float)iNumFound;
-    float fMax = (float)iNumFound - 1.0f;
-    if (0.0f > fIndex)
-    {
-        fIndex = 0.0f;
-    }
-    else if (fIndex > fMax)
-    {
-        fIndex = fMax;
-    }
-    return ppFormations[(int)fIndex];
+    float fCount = (float)iNumFound;
+    float fIndex = fCount * PblRandom::_Global.GetFloat();
+    return ppFormations[(int)Clamp(fIndex, 0.0f, fCount - 1.0f)];
 }

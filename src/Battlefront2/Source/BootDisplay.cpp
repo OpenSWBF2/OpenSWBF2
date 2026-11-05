@@ -123,13 +123,21 @@ void BootDisplay::Init()
 void BootDisplay::Bind(unsigned int uiViewport)
 {
     mJoystickIndex = uiViewport;
-    mViewport = CameraManager::sInstance->m_hView[uiViewport];
+    const unsigned int hView = CameraManager::sInstance->m_hView[uiViewport];
+    mViewport = hView;
     mStatusGroup.AddElement(&mStatusText0);
     mStatusGroup.AddElement(&mStatusText1);
     mStatusGroup.AddElement(&mStatusText2);
-    FLRenderer::AddInterfaceElement(mViewport, &mStatusGroup, RedInterfaceScreen::LEFT,
+    FLRenderer::AddInterfaceElement(hView, &mStatusGroup, RedInterfaceScreen::LEFT,
                                     RedInterfaceScreen::TOP, true);
-    ActivateThread(NetGame::IsEnabled() ? -101 : -1, PER_LOCAL_TURN);
+    if (NetGame::IsEnabled())
+    {
+        ActivateThread(-101, PER_LOCAL_TURN);
+    }
+    else
+    {
+        ActivateThread(-1, PER_LOCAL_TURN);
+    }
 }
 
 // FUNCTION: SWBF2 0x0044d610
@@ -223,16 +231,17 @@ void BootDisplay::UpdateMode()
 // FUNCTION: SWBF2 0x0044d920
 const unsigned short* BootDisplay::GetBootReasonString(int iReason)
 {
+    const unsigned short* pcReason = NULL;
     switch (iReason)
     {
-    case 0: return RedLocalizeDB::Find(0x649f6f47u, false);
-    case 1: return RedLocalizeDB::Find(0x79f094d6u, false);
-    case 2: return RedLocalizeDB::Find(0x2e3928adu, false);
-    case 3: return RedLocalizeDB::Find(0xf10330b9u, false);
-    case 4: return RedLocalizeDB::Find(0xd1cbb520u, false);
-    case 5: return RedLocalizeDB::Find(0x145b8b50u, false);
+    case 0: pcReason = RedLocalizeDB::Find(0x649f6f47u, false); break;
+    case 1: pcReason = RedLocalizeDB::Find(0x79f094d6u, false); break;
+    case 2: pcReason = RedLocalizeDB::Find(0x2e3928adu, false); break;
+    case 3: pcReason = RedLocalizeDB::Find(0xf10330b9u, false); break;
+    case 4: pcReason = RedLocalizeDB::Find(0xd1cbb520u, false); break;
+    case 5: pcReason = RedLocalizeDB::Find(0x145b8b50u, false); break;
     }
-    return NULL;
+    return pcReason;
 }
 
 // FUNCTION: SWBF2 0x0044d9b0
@@ -256,24 +265,27 @@ bool BootDisplay::Update(float fDeltaTime)
     }
 
     Character* pPlayer = Character::FindPlayer(NetGame::GetLocalIndex(mJoystickIndex));
-    if (!pPlayer)
+    if (pPlayer)
     {
-        Hide();
-    }
-    else if (mSpawnMode || pPlayer->mUnit)
-    {
-        if (!mVisible)
+        if (mSpawnMode || pPlayer->mUnit)
         {
-            Show(pPlayer);
+            if (!mVisible)
+            {
+                Show(pPlayer);
+            }
+        }
+        else
+        {
+            if (!mVisible)
+            {
+                return true;
+            }
+            Hide(pPlayer);
         }
     }
     else
     {
-        if (!mVisible)
-        {
-            return true;
-        }
-        Hide(pPlayer);
+        Hide();
     }
     if (!mVisible)
     {
@@ -282,28 +294,31 @@ bool BootDisplay::Update(float fDeltaTime)
 
     int iBootPlayer = NetGame::GetBootPlayer();
     float fTimeLeft;
-    if (iBootPlayer < 0 || (fTimeLeft = NetGame::GetBootTime() - NetComm::GetTime()) <= 0.0f)
+    if (iBootPlayer < 0 || !((fTimeLeft = NetGame::GetBootTime() - NetComm::GetTime()) > 0.0f))
     {
-        NetGame::SetBootVoted(NetGame::GetJoystickIndex(pPlayer->mPlayerId), false);
+        int iJoystickIndex = NetGame::GetJoystickIndex(pPlayer->mPlayerId);
+        NetGame::SetBootVoted(iJoystickIndex, false);
         return true;
     }
 
-    RedColor color;
     if (NetGame::IsBootVoted(mJoystickIndex))
     {
-        color = RedColor::GREEN;
+        mStatusText0.SetColor(RedColor::GREEN);
+        mStatusText1.SetColor(RedColor::GREEN);
+        mStatusText2.SetColor(RedColor::GREEN);
     }
     else if (fTimeLeft > 15.0f)
     {
-        color = RedColor::WHITE;
+        mStatusText0.SetColor(RedColor::WHITE);
+        mStatusText1.SetColor(RedColor::WHITE);
+        mStatusText2.SetColor(RedColor::WHITE);
     }
     else
     {
-        color = RedColor::RED;
+        mStatusText0.SetColor(RedColor::RED);
+        mStatusText1.SetColor(RedColor::RED);
+        mStatusText2.SetColor(RedColor::RED);
     }
-    mStatusText0.SetColor(color);
-    mStatusText1.SetColor(color);
-    mStatusText2.SetColor(color);
 
     unsigned short text[256];
     unsigned short name[64];
@@ -317,11 +332,13 @@ bool BootDisplay::Update(float fDeltaTime)
     iNeeded -= NetGame::GetBootVotes();
 
     const unsigned short* pReason = GetBootReasonString(NetGame::GetBootReason());
-    PblUnicode::usnprintf(text, 256, RedLocalizeDB::Find(0xd9a2b95au, false), name, pReason);
+    const unsigned short* pReasonFormat = RedLocalizeDB::Find(0xd9a2b95au, false);
+    PblUnicode::usnprintf(text, 256, pReasonFormat, name, pReason);
     pText0->SetText(text, true);
     pText0->Enable(true);
 
-    PblUnicode::usnprintf(text, 256, RedLocalizeDB::Find(0xd8a2b7c7u, false), iSeconds, iNeeded);
+    const unsigned short* pTimeFormat = RedLocalizeDB::Find(0xd8a2b7c7u, false);
+    PblUnicode::usnprintf(text, 256, pTimeFormat, iSeconds, iNeeded);
     pText1->SetText(text, true);
     pText1->Enable(true);
 
@@ -347,12 +364,11 @@ bool BootDisplay::Update(float fDeltaTime)
     ProcessedInputs* pInputs = NetGame::GetJoystick(iPlayerId);
     if (pInputs)
     {
-
-        if ((pInputs->bits.mBoolInputs >> 10) & 1)
+        if (pInputs->IsAcceptHeroPressed())
         {
             NetGame::ConfirmBootPlayer(iJoystick);
         }
-        else if ((pInputs->bits.mBoolInputs >> 11) & 1)
+        else if (pInputs->IsDeclineHeroPressed())
         {
             NetGame::SetBootVoted(iJoystick, true);
         }

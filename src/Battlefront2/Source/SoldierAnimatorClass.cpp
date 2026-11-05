@@ -118,7 +118,7 @@ const SoldierAnimation* SoldierAnimatorClass::GetUpperBodyMovementAnimation(Sold
     int iPosture = (unsigned int)ePosture % SoldierAnimType::NUM_STANDARD_POSTURES;
     if (bAlert)
     {
-        iPosture += SoldierAnimType::NUM_STANDARD_POSTURES;
+        return mMap[eMap].mMovementAnimation[iPosture + SoldierAnimType::NUM_STANDARD_POSTURES][eAnim][SoldierAnimType::UPPER];
     }
     return mMap[eMap].mMovementAnimation[iPosture][eAnim][SoldierAnimType::UPPER];
 }
@@ -132,7 +132,7 @@ const SoldierAnimation* SoldierAnimatorClass::GetLowerBodyMovementAnimation(Sold
     int iPosture = (unsigned int)ePosture % SoldierAnimType::NUM_STANDARD_POSTURES;
     if (bAlert)
     {
-        iPosture += SoldierAnimType::NUM_STANDARD_POSTURES;
+        return mMap[eMap].mMovementAnimation[iPosture + SoldierAnimType::NUM_STANDARD_POSTURES][eAnim][SoldierAnimType::LOWER];
     }
     return mMap[eMap].mMovementAnimation[iPosture][eAnim][SoldierAnimType::LOWER];
 }
@@ -235,7 +235,9 @@ bool SoldierAnimatorClass::GetAnimationBoneMatrix(SoldierAnimationBank::MAP eMap
     {
         return false;
     }
-    return _GetAnimationBoneMatrix(_GetAnimationMapSkeleton(eMap), pUpper->m_pZephyrAnim, pLower->m_pZephyrAnim,
+    const ZephyrAnim* pUpperAnim = pUpper->m_pZephyrAnim;
+    const ZephyrAnim* pLowerAnim = pLower->m_pZephyrAnim;
+    return _GetAnimationBoneMatrix(_GetAnimationMapSkeleton(eMap), pUpperAnim, pLowerAnim,
                                    fTime, fTime, uiJointCrc, matrix);
 }
 
@@ -250,7 +252,9 @@ bool SoldierAnimatorClass::GetAnimationBoneMatrix(SoldierAnimationBank::MAP eMap
     {
         return false;
     }
-    return _GetAnimationBoneMatrix(_GetAnimationMapSkeleton(eMap), pUpper->m_pZephyrAnim, pLower->m_pZephyrAnim,
+    const ZephyrAnim* pUpperAnim = pUpper->m_pZephyrAnim;
+    const ZephyrAnim* pLowerAnim = pLower->m_pZephyrAnim;
+    return _GetAnimationBoneMatrix(_GetAnimationMapSkeleton(eMap), pUpperAnim, pLowerAnim,
                                    fTime, fTime, uiJointCrc, matrix);
 }
 
@@ -265,7 +269,6 @@ bool SoldierAnimatorClass::GetAnimationBoneMatrix(SoldierAnimationBank::MAP eMap
     {
         return false;
     }
-    float fLowerTime = fTime;
     if (!pLower)
     {
         pLower = GetLowerBodyMovementAnimation(SoldierAnimType::IDLE, SoldierAnimType::STAND, eMap, false);
@@ -273,10 +276,15 @@ bool SoldierAnimatorClass::GetAnimationBoneMatrix(SoldierAnimationBank::MAP eMap
         {
             return false;
         }
-        fLowerTime = 0.0f;
+        const ZephyrAnim* pUpperAnim = pUpper->m_pZephyrAnim;
+        const ZephyrAnim* pLowerAnim = pLower->m_pZephyrAnim;
+        return _GetAnimationBoneMatrix(_GetAnimationMapSkeleton(eMap), pUpperAnim, pLowerAnim, fTime, 0.0f,
+                                       uiJointCrc, matrix);
     }
-    return _GetAnimationBoneMatrix(_GetAnimationMapSkeleton(eMap), pUpper->m_pZephyrAnim, pLower->m_pZephyrAnim,
-                                   fTime, fLowerTime, uiJointCrc, matrix);
+    const ZephyrAnim* pUpperAnim = pUpper->m_pZephyrAnim;
+    const ZephyrAnim* pLowerAnim = pLower->m_pZephyrAnim;
+    return _GetAnimationBoneMatrix(_GetAnimationMapSkeleton(eMap), pUpperAnim, pLowerAnim, fTime, fTime, uiJointCrc,
+                                   matrix);
 }
 
 // FUNCTION: SWBF2 0x00643c80
@@ -307,7 +315,6 @@ bool SoldierAnimatorClass::GetAnimationBoneMatrix(SoldierAnimationBank::MAP eMap
     {
         return false;
     }
-    float fLowerTime = fTime;
     if (!pLower)
     {
         pLower = GetLowerBodyMovementAnimation(SoldierAnimType::IDLE, SoldierAnimType::STAND, eMap, false);
@@ -315,10 +322,15 @@ bool SoldierAnimatorClass::GetAnimationBoneMatrix(SoldierAnimationBank::MAP eMap
         {
             return false;
         }
-        fLowerTime = 0.0f;
+        const ZephyrAnim* pUpperAnim = pUpper->m_pZephyrAnim;
+        const ZephyrAnim* pLowerAnim = pLower->m_pZephyrAnim;
+        return _GetAnimationBoneMatrix(_GetAnimationMapSkeleton(eMap), pUpperAnim, pLowerAnim, fTime, 0.0f,
+                                       uiJointCrc, matrix);
     }
-    return _GetAnimationBoneMatrix(_GetAnimationMapSkeleton(eMap), pUpper->m_pZephyrAnim, pLower->m_pZephyrAnim,
-                                   fTime, fLowerTime, uiJointCrc, matrix);
+    const ZephyrAnim* pUpperAnim = pUpper->m_pZephyrAnim;
+    const ZephyrAnim* pLowerAnim = pLower->m_pZephyrAnim;
+    return _GetAnimationBoneMatrix(_GetAnimationMapSkeleton(eMap), pUpperAnim, pLowerAnim, fTime, fTime, uiJointCrc,
+                                   matrix);
 }
 
 // FUNCTION: SWBF2 0x00643d80
@@ -437,29 +449,31 @@ void SoldierAnimatorClass::SetupJointTransformAnimationFlag(ZephyrSkeletonShared
 void SoldierAnimatorClass::SetupBodyMasks(const ZephyrSkeletonShared* pSkel, PblBitVector<32>& upperBodyMask,
                                           PblBitVector<32>& lowerBodyMask)
 {
-    bool bHasJoint = (int)pSkel->m_kHashCRC2Joint.Find(0xb70e2184) - 1 >= 0;
+    const PblHashTable<unsigned int, 64>& kJoints = pSkel->m_kHashCRC2Joint;
+    int iForearmJoint = (int)kJoints.Find(0xb70e2184) - 1;
     upperBodyMask.SetAll();
     lowerBodyMask.ClearAll();
     upperBodyMask.m_auiData[0] &= ~1u;
 
-    const unsigned int* pJoint;
-    const unsigned int* pEnd;
-    if (bHasJoint)
+    if (iForearmJoint >= 0)
     {
-        pJoint = s_auiLowerBodyJoints_b70e2184;
-        pEnd = s_auiLowerBodyJoints_b70e2184 + sizeof(s_auiLowerBodyJoints_b70e2184) / sizeof(unsigned int);
+        for (int i = 0; i < (int)(sizeof(s_auiLowerBodyJoints_b70e2184) / sizeof(unsigned int)); ++i)
+        {
+            int iJoint = (int)kJoints.Find(s_auiLowerBodyJoints_b70e2184[i]) - 1;
+            unsigned int uiBit = 1 << iJoint;
+            upperBodyMask.m_auiData[0] &= ~uiBit;
+            lowerBodyMask.m_auiData[0] |= uiBit;
+        }
     }
     else
     {
-        pJoint = s_auiLowerBodyJoints;
-        pEnd = s_auiLowerBodyJoints + sizeof(s_auiLowerBodyJoints) / sizeof(unsigned int);
-    }
-    for (; pJoint < pEnd; ++pJoint)
-    {
-        int iJoint = (int)pSkel->m_kHashCRC2Joint.Find(*pJoint) - 1;
-        unsigned int uiBit = 1u << (iJoint & 31);
-        upperBodyMask.m_auiData[0] &= ~uiBit;
-        lowerBodyMask.m_auiData[0] |= uiBit;
+        for (int i = 0; i < (int)(sizeof(s_auiLowerBodyJoints) / sizeof(unsigned int)); ++i)
+        {
+            int iJoint = (int)kJoints.Find(s_auiLowerBodyJoints[i]) - 1;
+            unsigned int uiBit = 1 << iJoint;
+            upperBodyMask.m_auiData[0] &= ~uiBit;
+            lowerBodyMask.m_auiData[0] |= uiBit;
+        }
     }
 }
 
@@ -538,8 +552,12 @@ bool SoldierAnimatorClass::_AddBank(const char* pcName)
     }
 
     bool bResult = _AddBank(pBank);
-    for (int i = 1; bResult && i < MAX_ANIMATION_BANK_FILES; ++i)
+    for (int i = 1; i < MAX_ANIMATION_BANK_FILES; ++i)
     {
+        if (!bResult)
+        {
+            break;
+        }
         sprintf(acName + iLen, "_%d", i);
         pBank = RedAnimation::Find(PblHash(acName));
         if (!pBank)
@@ -588,7 +606,8 @@ const PblMatrix* SoldierAnimatorClass::_GetBoneMatrix(unsigned int uiJointCrc, c
                                                       ZephyrPoseStatic<32>& poseStatic) const
 {
     RedStack stack;
-    RedPose* pPose = new (stack.Alloc(sizeof(RedPose))) RedPose;
+    RedPose* pPose = (RedPose*)stack.Alloc(sizeof(RedPose));
+    pPose->Clear();
     pPose->BindToSkeleton(NULL);
     pAnim->SetupDynamicPose(poseDyn, (pAnim->GetAnimationNumFrames() - 1) * ANIM_FRAME_SPEED * 0.5f);
     poseStatic.Set(poseDyn, true);
@@ -1033,7 +1052,8 @@ SoldierAnimatorClass::AnimationMap* CachedBankStack::AddWeaponParent(SoldierAnim
     {
         return NULL;
     }
-    if (!Map(eParent, uiDepth))
+    Entry* pEntry = m_Stack.GetData(uiDepth);
+    if (!pEntry->apMap[eParent])
     {
         AddWeaponParent(eParent, uiDepth);
         Map(eParent, uiDepth) = m_Cache.AddMap(GetBank(uiDepth), eParent);
@@ -1050,7 +1070,8 @@ SoldierAnimatorClass::AnimationMap* CachedBankStack::AddBankParent(SoldierAnimat
     {
         return NULL;
     }
-    if (!Map(eWeapon, uiParentDepth))
+    Entry* pEntry = m_Stack.GetData(uiParentDepth);
+    if (!pEntry->apMap[eWeapon])
     {
         AddWeaponParent(eWeapon, uiParentDepth);
         AddBankParent(eWeapon, uiParentDepth);
@@ -1130,11 +1151,13 @@ const ZephyrAnim* AnimationFinder::FindZephyrAnimation(const char* pcName, Soldi
         unsigned int uiWeaponHash = SoldierAnimationBank::GetWeaponNameHash(eWeapon);
         for (int i = 0; i < SoldierAnimationBank::GetNumWeapons(); ++i)
         {
-            if (SoldierAnimationBank::GetWeaponNameHash((SoldierAnimationBank::WEAPON)i) != uiWeaponHash)
+            if (uiWeaponHash != SoldierAnimationBank::GetWeaponNameHash((SoldierAnimationBank::WEAPON)i))
             {
                 continue;
             }
-            for (int j = pEntry->aiAnimBankStart_ByWeapon[i]; j < pEntry->aiAnimBankEnd_ByWeapon[i]; ++j)
+            int iStart = pEntry->aiAnimBankStart_ByWeapon[i];
+            int iEnd = pEntry->aiAnimBankEnd_ByWeapon[i];
+            for (int j = iStart; j < iEnd; ++j)
             {
                 const ZephyrAnimBank* pBank = mAnimBank[j]->_pZephyrAnimBank;
                 if (pBank)
@@ -1155,7 +1178,9 @@ const ZephyrAnim* AnimationFinder::FindZephyrAnimation(const char* pcName, Soldi
         uiNameHash = PblTEMPHash(acName);
     }
 
-    for (int j = pEntry->iAnimBankStart_ByBank; j < pEntry->iAnimBankEnd_ByBank; ++j)
+    int iStart = pEntry->iAnimBankStart_ByBank;
+    int iEnd = pEntry->iAnimBankEnd_ByBank;
+    for (int j = iStart; j < iEnd; ++j)
     {
         const ZephyrAnimBank* pBank = mAnimBank[j]->_pZephyrAnimBank;
         if (pBank)
@@ -1217,11 +1242,12 @@ SoldierAnimation* AnimationFinder::AssignAnimation(const char* pcName, SoldierAn
     _snprintf(acName, 255, "%s_full", pcName);
     acName[255] = 0;
     pZephyrAnim = FindZephyrAnimation(acName, eWeapon, uiDepth);
-    if (!pZephyrAnim)
+    if (pZephyrAnim)
     {
-        return NULL;
+        pAnim = new SoldierAnimation(pZephyrAnim, m_pAnimData, SoldierAnimation::FULL_BODY);
+        goto setup;
     }
-    pAnim = new SoldierAnimation(pZephyrAnim, m_pAnimData, SoldierAnimation::FULL_BODY);
+    return NULL;
 
 setup:
     SetupVelocity(pAnim, m_iAnim, *m_pTempPose);
@@ -1235,18 +1261,23 @@ SoldierAnimation* AnimationFinder::AssignAnimationFromWeaponParent(const char* p
                                                                    unsigned int uiDepth, bool bRecurse)
 {
     SoldierAnimatorClass::AnimationMap* pMap = m_pCache->Map(eWeapon, uiDepth);
-    SoldierAnimation* pAnim = pMap->mAnimation[m_iAnim];
-    if (!MapCache::IsInvalid(&pMap->mAnimation[m_iAnim]) && (pAnim || !bRecurse))
+    SoldierAnimation*& rpMapAnim = pMap->mAnimation[m_iAnim];
+    SoldierAnimation* pAnim = rpMapAnim;
+    if (!MapCache::IsInvalid(&rpMapAnim) && (pAnim || !bRecurse))
     {
         return pAnim;
     }
 
     SoldierAnimationBank::WEAPON eParent = SoldierAnimationBank::GetWeaponParent(eWeapon);
-    if (eParent == eWeapon ||
-        (bRecurse && uiDepth && SoldierAnimationBank::GetWeaponRoot(eWeapon) == SoldierAnimationBank::MELEE &&
-         eWeapon == SoldierAnimationBank::MELEE))
+    if (eParent == eWeapon)
     {
-        pMap->mAnimation[m_iAnim] = NULL;
+        rpMapAnim = NULL;
+        return NULL;
+    }
+    if (bRecurse && uiDepth && SoldierAnimationBank::GetWeaponRoot(eWeapon) == SoldierAnimationBank::MELEE &&
+        eWeapon == SoldierAnimationBank::MELEE)
+    {
+        rpMapAnim = NULL;
         return NULL;
     }
 
@@ -1388,11 +1419,11 @@ unsigned int AnimationFinder::AssignCustomAnimation(const char* pcName, SoldierA
     }
 
     const ZephyrAnim* pZephyrAnim = FindZephyrAnimation(pcName, eWeapon, uiDepth);
-    if (!pZephyrAnim)
+    if (pZephyrAnim)
     {
-        return 0;
+        return pMap->mCustomAnimation[m_iAnim] = pZephyrAnim->GetNameCRC();
     }
-    return pMap->mCustomAnimation[m_iAnim] = pZephyrAnim->GetNameCRC();
+    return 0;
 }
 
 // FUNCTION: SWBF2 0x006457a0
@@ -1484,13 +1515,13 @@ bool AnimationFinder::_AddBank(const RedAnimation* pBank)
             return false;
         }
     }
-    if (mAnimBankCount < mMaxCount)
+    if (mAnimBankCount >= mMaxCount)
     {
-        mAnimBank[mAnimBankCount] = pBank;
-        ++mAnimBankCount;
-        return true;
+        return false;
     }
-    return false;
+    mAnimBank[mAnimBankCount] = const_cast<RedAnimation*>(pBank);
+    ++mAnimBankCount;
+    return true;
 }
 
 // FUNCTION: SWBF2 0x00645a00
@@ -1524,23 +1555,22 @@ bool AnimationFinder::_AddBank(const char* pcName)
 
     sprintf(pcEnd, "_0");
     pBank = RedAnimation::Find(PblHash(acName));
-    if (!pBank)
+    if (pBank)
     {
-        return true;
-    }
-
-    bool bResult = _AddBank(pBank);
-    for (int i = 1; i < mMaxCount && mAnimBankCount < mMaxCount; ++i)
-    {
-        sprintf(pcEnd, "_%d", i);
-        pBank = RedAnimation::Find(PblHash(acName));
-        if (!pBank)
+        bool bResult = _AddBank(pBank);
+        for (int i = 1; i < mMaxCount && mAnimBankCount < mMaxCount; ++i)
         {
-            break;
+            sprintf(pcEnd, "_%d", i);
+            pBank = RedAnimation::Find(PblHash(acName));
+            if (!pBank)
+            {
+                break;
+            }
+            bResult = _AddBank(pBank);
         }
-        bResult = _AddBank(pBank);
+        return bResult;
     }
-    return bResult;
+    return true;
 }
 
 extern PblVector3 gVectorZero;
@@ -2382,7 +2412,7 @@ void SoldierAnimatorClass::_PostLoad()
         const int NUM_SAMPLES = 4;
 
         // GLOBAL: SWBF2 0x01fac234
-        static const float NUM_SAMPLES_INV = 1.0f / NUM_SAMPLES;
+        static const float NUM_SAMPLES_INV = 1.0f / (float)NUM_SAMPLES;
         // GLOBAL: SWBF2 0x01fac204
         static const PblVector3 s_vHeadOffset(0.035f, 0.03f, 0.0f);
         // GLOBAL: SWBF2 0x01fac1f8
@@ -2493,7 +2523,7 @@ void SoldierAnimatorClass::_PostLoad()
             for (int iCustom = 0; iCustom < SoldierAnimationBank::GetNumAnimations(); ++iCustom)
             {
                 // GLOBAL: SWBF2 0x01fac1f4
-                static const float FRAME_9POSE_CENTER = 4.0f / 30.0f;
+                static const float FRAME_9POSE_CENTER = 4.0f * ANIM_FRAME_SPEED;
                 PblVector3 vHead;
                 GetAnimationBoneMatrix(eMap, (SoldierAnimationBank::ANIMATION)iCustom, uiBoneHead, FRAME_9POSE_CENTER,
                                        mBone);

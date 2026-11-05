@@ -686,10 +686,11 @@ void RawControllerInputs::ReadLatest(float fDeltaTime)
             }
         }
 
+        float* pRaw = mRawInputFloat[iPort];
         for (int iAxis = 0; iAxis < 8; iAxis++)
         {
-            float fAxis = pJoystick->m_fAxis[iAxis];
-            if (fabs(fAxis) < 1.0f)
+            float fAxis = _redJoystick[iPort]->m_fAxis[iAxis];
+            if (fabsf(fAxis) < 1.0f)
             {
                 if (fAxis < -1.0f)
                 {
@@ -700,8 +701,8 @@ void RawControllerInputs::ReadLatest(float fDeltaTime)
                     fAxis = 1.0f;
                 }
             }
-            mRawInputFloat[iPort][48 + 2 * iAxis] = fAxis;
-            mRawInputFloat[iPort][49 + 2 * iAxis] = -fAxis;
+            pRaw[48 + 2 * iAxis] = fAxis;
+            pRaw[49 + 2 * iAxis] = -fAxis;
         }
 
         if (!mJoystickSensitivityX[mMode])
@@ -741,13 +742,14 @@ void RawControllerInputs::ReadLatest(float fDeltaTime)
             iLastDY = iDY;
         }
 
+        double dX = iDX;
         double dY = -iDY;
         if (gInvertMouse)
         {
             dY = -dY;
         }
         const double dSensitivity = *(double*)mMouseSensitivity[mMode] * (1.0 / 2048.0);
-        double dX = iDX / (double)fDeltaTime;
+        dX = dX / (double)fDeltaTime;
         dY = dY / (double)fDeltaTime;
 
         if (mMouseAssist[mMode] && (mMode == 1 || mMode == 2 || mMode == 4) &&
@@ -823,7 +825,14 @@ void RawControllerInputs::ReadLatest(float fDeltaTime)
             }
             if (fabs(dY) * dSensitivity > 1.1)
             {
-                mMouseOldY = (dY > 0.0 ? 1.1 : -1.1) / dSensitivity;
+                if (dY > 0.0)
+                {
+                    mMouseOldY = 1.1 / dSensitivity;
+                }
+                else
+                {
+                    mMouseOldY = -1.1 / dSensitivity;
+                }
             }
         }
         else
@@ -895,8 +904,11 @@ void RawControllerInputs::ReadLatest(float fDeltaTime)
 
     if (_redMouse)
     {
-        m_pGuiInputs->mMouseCoords.mPosX = _redMouse->m_X;
-        m_pGuiInputs->mMouseCoords.mPosY = _redMouse->m_Y;
+        const int iMouseY = _redMouse->m_Y;
+        const int iMouseX = _redMouse->m_X;
+        MouseCoords& rCoords = m_pGuiInputs->mMouseCoords;
+        rCoords.mPosX = iMouseX;
+        rCoords.mPosY = iMouseY;
     }
 
     if (bAnyInput)
@@ -911,7 +923,7 @@ void RawControllerInputs::StandardInputProcess()
 
     bool bLocked = false;
 
-    for (int i = 0; i < 144; i++)
+    for (unsigned char i = 0; i < 144; i++)
     {
         if (_redKeyboard->IsKeyDown((unsigned char)RedKeyTo_BindID[i]))
         {
@@ -923,11 +935,10 @@ void RawControllerInputs::StandardInputProcess()
     bool bScreenshot = true;
     for (int iAction = 0; iAction < 43; iAction++)
     {
-        const ActionKey& key = mCurKeyboardBindings[mMode][iAction];
-        const unsigned char* pucPort = (const unsigned char*)&key.mKey[2];
         for (int j = 0; j < 2; j++)
         {
-            if (key.mKey[j] == DIK_SYSRQ && pucPort[j] == 0)
+            if (mCurKeyboardBindings[mMode][iAction].mKey[j] == DIK_SYSRQ &&
+                ((const unsigned char*)&mCurKeyboardBindings[mMode][iAction].mKey[2])[j] == 0)
             {
                 bScreenshot = false;
                 break;
@@ -938,24 +949,21 @@ void RawControllerInputs::StandardInputProcess()
     {
         bScreenshot = _redKeyboard->IsKeyDown(DIK_SYSRQ);
     }
-    const bool bScreenshotPressed = !mScreenshotButtonState[0] && bScreenshot;
+    mScreenshotButtonState[1] = !mScreenshotButtonState[0] && bScreenshot;
     mScreenshotButtonState[0] = bScreenshot;
-    mScreenshotButtonState[1] = bScreenshotPressed;
 
     for (int iAction = 0; iAction < 43; iAction++)
     {
         for (int j = 0; j < 2; j++)
         {
-            const ActionKey& key = mCurKeyboardBindings[mMode][iAction];
-            const unsigned short usKey = key.mKey[j];
-            if (usKey > 0xff)
+            if (mCurKeyboardBindings[mMode][iAction].mKey[j] > 0xff)
             {
-                const unsigned char ucRaw = ActionKeyToRawInput(usKey);
+                const unsigned char ucRaw = ActionKeyToRawInput(mCurKeyboardBindings[mMode][iAction].mKey[j]);
                 const int iRaw = ucRaw;
                 unsigned char ucPort;
                 if (iRaw > -1 && ucRaw < 64)
                 {
-                    ucPort = ((const unsigned char*)&key.mKey[2])[j];
+                    ucPort = ((const unsigned char*)&mCurKeyboardBindings[mMode][iAction].mKey[2])[j];
                 }
                 else
                 {
@@ -1022,7 +1030,7 @@ void RawControllerInputs::StandardInputProcess()
                 mProcessDestination->Set((ePROCESSEDINPUT_TYPE)iAction,
                                          mLockedRawInputBool[ucPort][iRaw], fValue, fLastValue);
             }
-            else if (_redKeyboard->IsKeyDown((unsigned char)usKey))
+            else if (_redKeyboard->IsKeyDown((unsigned char)mCurKeyboardBindings[mMode][iAction].mKey[j]))
             {
                 if (iAction == ePROCESSEDINPUT_TURN_AXIS || iAction == ePROCESSEDINPUT_TURN_POS ||
                     iAction == ePROCESSEDINPUT_TURN_NEG || iAction == ePROCESSEDINPUT_PITCH_AXIS ||
@@ -1074,7 +1082,7 @@ void RawControllerInputs::ChatInputProcess()
         if (--chatCursorCurTime < 0)
         {
             chatCursorCurTime = 10;
-            chatCursorOn = !chatCursorOn;
+            chatCursorOn = 1 - chatCursorOn;
         }
 
         if (chatCursorOn)
@@ -1082,11 +1090,11 @@ void RawControllerInputs::ChatInputProcess()
             unsigned short ausLine[128] = { 0 };
             PblUnicode::ustrlcpy(ausLine, m_ChatWords, 128);
             PblUnicode::ustrlcat(ausLine, chatCursor, 128);
-            ChatMessageDisplay::sInstance->AddMessage(ausLine, color);
+            ChatMessageDisplay::Instance()->AddMessage(ausLine, color);
         }
         else
         {
-            ChatMessageDisplay::sInstance->AddMessage(m_ChatWords, color);
+            ChatMessageDisplay::Instance()->AddMessage(m_ChatWords, color);
         }
     }
     else
@@ -1094,10 +1102,12 @@ void RawControllerInputs::ChatInputProcess()
         StandardInputProcess();
         TeamOrderInputProcess();
 
-        memcpy(m_LastKeyState, m_CurrKeyState, 144);
-        for (int i = 0; i < 144; i++)
+        bool* pCurrKey = m_CurrKeyState;
+        memcpy(m_LastKeyState, pCurrKey, 144);
+        const int* pBindID = RedKeyTo_BindID;
+        for (int n = 0; n < 144; n++)
         {
-            m_CurrKeyState[i] = _redKeyboard->IsKeyDown((unsigned char)RedKeyTo_BindID[i]);
+            *pCurrKey++ = _redKeyboard->IsKeyDown((unsigned char)*pBindID++);
         }
 
         if (PauseMenu::GetPaused(0))
@@ -1153,20 +1163,14 @@ void RawControllerInputs::TeamOrderInputProcess()
 // FUNCTION: SWBF2 0x004159e0
 void RawControllerInputs::ChatKeyProcess(unsigned char ucIndex)
 {
-    const unsigned char ucKey = (unsigned char)RedKeyTo_BindID[ucIndex];
-    const bool bDown = m_CurrKeyState[ucIndex] != 0;
-    const bool bWasDown = m_LastKeyState[ucIndex] != 0;
-    unsigned short& usChatMode = m_ChatMode;
-    unsigned short* pusChat = m_ChatWords;
-    unsigned char& ucLength = m_ChatLength;
-
-    if (bDown && !bWasDown)
+    if (m_CurrKeyState[ucIndex] == 1 && m_LastKeyState[ucIndex] == 0)
     {
+        const unsigned char ucKey = (unsigned char)RedKeyTo_BindID[ucIndex];
         if (ucKey == 1)
         {
-            usChatMode = 0;
-            ucLength = 0;
-            memset(pusChat, 0, 0x80);
+            m_ChatMode = 0;
+            m_ChatLength = 0;
+            memset(m_ChatWords, 0, 0x80);
             ChatMessageDisplay::sInstance->Show(false);
             PauseMenu::sEnablePause = false;
             return;
@@ -1178,31 +1182,35 @@ void RawControllerInputs::ChatKeyProcess(unsigned char ucIndex)
         }
         if (ucKey == 14)
         {
-            if (ucLength)
+            if (m_ChatLength)
             {
-                --ucLength;
+                --m_ChatLength;
             }
-            pusChat[ucLength] = 0;
+            m_ChatWords[m_ChatLength] = 0;
         }
-        else if (ucLength < 62)
+        else if (m_ChatLength < 62)
         {
-            pusChat[ucLength] = GetKeyboard()->pcGetAsciiValue(ucKey);
-            if (pusChat[ucLength])
+            m_ChatWords[m_ChatLength] = GetKeyboard()->pcGetAsciiValue(ucKey);
+            if (m_ChatWords[m_ChatLength])
             {
-                ++ucLength;
+                ++m_ChatLength;
             }
         }
     }
-    else if (!bDown && bWasDown && (ucKey == 28 || ucKey == 0x9c))
+    else if (m_CurrKeyState[ucIndex] == 0 && m_LastKeyState[ucIndex] == 1)
     {
-        int iType = usChatMode == 1 ? mask_chat : 1;
-        if (ucLength)
+        const unsigned char ucKey = (unsigned char)RedKeyTo_BindID[ucIndex];
+        if (ucKey == 28 || ucKey == 0x9c)
         {
-            NetGame::AddChatMessageToQue(false, NetGame::GetLocalIndex(0), 0, -1, pusChat, iType);
+            int iType = m_ChatMode == 1 ? mask_chat : 1;
+            if (m_ChatLength > 0)
+            {
+                NetGame::AddChatMessageToQue(false, NetGame::GetLocalIndex(0), 0, -1, m_ChatWords, iType);
+            }
+            m_ChatMode = 0;
+            m_ChatLength = 0;
+            memset(m_ChatWords, 0, 0x80);
+            ChatMessageDisplay::sInstance->Show(false);
         }
-        usChatMode = 0;
-        ucLength = 0;
-        memset(pusChat, 0, 0x80);
-        ChatMessageDisplay::sInstance->Show(false);
     }
 }

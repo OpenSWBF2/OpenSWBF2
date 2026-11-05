@@ -239,15 +239,9 @@ unsigned int GrowStatsBucketCapacity(const StatsLeaderboardBucketVector* pThis, 
 // FUNCTION: SWBF2 0x00530d00
 void FillStatsBucketRange(void** ppFirst, void** ppLast, void* const* ppVal)
 {
-    unsigned int uiCount = (unsigned int)(ppLast - ppFirst);
-    if (ppFirst > ppLast)
+    for (; ppFirst < ppLast; ++ppFirst)
     {
-        uiCount = 0;
-    }
-
-    for (unsigned int i = 0; i < uiCount; i++)
-    {
-        *ppFirst++ = *ppVal;
+        *ppFirst = *ppVal;
     }
 }
 
@@ -267,19 +261,12 @@ void FillStatsBucketCount(void** ppDest, unsigned int uiCount, void* const* ppVa
 // FUNCTION: SWBF2 0x00530d70
 void** CopyStatsBucketRange(void** ppFirst, void** ppLast, void** ppDest)
 {
-    unsigned int uiCount = (unsigned int)(ppLast - ppFirst);
-    if (ppFirst > ppLast)
-    {
-        uiCount = 0;
-    }
-
-    for (unsigned int i = 0; i < uiCount; i++)
+    for (; ppFirst != ppLast; ++ppFirst, ++ppDest)
     {
         if (ppDest)
         {
-            *ppDest = ppFirst[i];
+            *ppDest = *ppFirst;
         }
-        ppDest++;
     }
 
     return ppDest;
@@ -421,9 +408,9 @@ void Init()
     InsertStatsLeaderboardBuckets(&sStatsLeaderboard.mBuckets, &ppResult,
                sStatsLeaderboard.mBuckets.mFirst, &pHead, &pHead);
 
-    memset(sStatsMatchData, 0, 0x40);
     sStatsLeaderboard.mBucketMask = 7;
     sStatsLeaderboard.mBucketCount = 8;
+    memset(sStatsMatchData, 0, 0x40);
 }
 }
 

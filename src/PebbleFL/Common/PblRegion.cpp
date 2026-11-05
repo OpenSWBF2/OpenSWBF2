@@ -232,15 +232,15 @@ bool PblRegion::DoesAABoxIntersect(const PblVector3& vCenter, const PblVector3& 
         const PblVector3 vAbs1((float)fabs(mMatrix.m[1][0]), (float)fabs(mMatrix.m[1][1]), (float)fabs(mMatrix.m[1][2]));
         const PblVector3 vAbs2((float)fabs(mMatrix.m[2][0]), (float)fabs(mMatrix.m[2][1]), (float)fabs(mMatrix.m[2][2]));
         const PblVector3 vDiff = vCenter - mMatrix[3];
-        if ((float)fabs(vDiff.x) >= mSize.y * vAbs1.x + vAbs0.x * mSize.x + vAbs2.x * mSize.z)
+        if ((float)fabs(vDiff.x) >= mSize.y * vAbs1.x + mSize.x * vAbs0.x + mSize.z * vAbs2.x)
         {
             return false;
         }
-        if ((float)fabs(vDiff.y) >= mSize.y * vAbs1.y + vAbs0.y * mSize.x + vAbs2.y * mSize.z)
+        if ((float)fabs(vDiff.y) >= mSize.y * vAbs1.y + mSize.x * vAbs0.y + mSize.z * vAbs2.y)
         {
             return false;
         }
-        if ((float)fabs(vDiff.z) >= mSize.y * vAbs1.z + vAbs0.z * mSize.x + vAbs2.z * mSize.z)
+        if ((float)fabs(vDiff.z) >= mSize.y * vAbs1.z + mSize.x * vAbs0.z + mSize.z * vAbs2.z)
         {
             return false;
         }
@@ -273,9 +273,9 @@ bool PblRegion::DoesAABoxIntersect(const PblVector3& vCenter, const PblVector3& 
     }
 
     case type_box_aligned:
-        return mSize.x + vExtents.x > (float)fabs(vCenter.x - mMatrix.m[3][0])
-            && mSize.y + vExtents.y > (float)fabs(vCenter.y - mMatrix.m[3][1])
-            && mSize.z + vExtents.z > (float)fabs(vCenter.z - mMatrix.m[3][2]);
+        return (float)fabs(vCenter.x - mMatrix.m[3][0]) < mSize.x + vExtents.x
+            && (float)fabs(vCenter.y - mMatrix.m[3][1]) < mSize.y + vExtents.y
+            && (float)fabs(vCenter.z - mMatrix.m[3][2]) < mSize.z + vExtents.z;
 
     case type_cylinder_xaligned:
     {
@@ -284,12 +284,12 @@ bool PblRegion::DoesAABoxIntersect(const PblVector3& vCenter, const PblVector3& 
             return false;
         }
         const float fA = (float)fabs(vCenter.z - mMatrix.m[3][2]);
-        if (fA >= vExtents.x + mSize.x)
+        if (fA >= mSize.x + vExtents.x)
         {
             return false;
         }
         const float fB = (float)fabs(vCenter.y - mMatrix.m[3][1]);
-        if (fB >= vExtents.z + mSize.x)
+        if (fB >= mSize.x + vExtents.z)
         {
             return false;
         }
@@ -309,12 +309,12 @@ bool PblRegion::DoesAABoxIntersect(const PblVector3& vCenter, const PblVector3& 
             return false;
         }
         const float fA = (float)fabs(vCenter.x - mMatrix.m[3][0]);
-        if (fA >= vExtents.x + mSize.x)
+        if (fA >= mSize.x + vExtents.x)
         {
             return false;
         }
         const float fB = (float)fabs(vCenter.z - mMatrix.m[3][2]);
-        if (fB >= vExtents.z + mSize.x)
+        if (fB >= mSize.x + vExtents.z)
         {
             return false;
         }
@@ -334,12 +334,12 @@ bool PblRegion::DoesAABoxIntersect(const PblVector3& vCenter, const PblVector3& 
             return false;
         }
         const float fA = (float)fabs(vCenter.y - mMatrix.m[3][1]);
-        if (fA >= vExtents.x + mSize.x)
+        if (fA >= mSize.x + vExtents.x)
         {
             return false;
         }
         const float fB = (float)fabs(vCenter.x - mMatrix.m[3][0]);
-        if (fB >= vExtents.z + mSize.x)
+        if (fB >= mSize.x + vExtents.z)
         {
             return false;
         }
@@ -429,8 +429,12 @@ bool PblRegion::DoesRayIntersect(const PblVector3& rStart, const PblVector3& rEn
         {
             return false;
         }
-        return (float)fabs(mMatrix.m[2][0] * fWx + mMatrix.m[2][1] * fWy + mMatrix.m[2][2] * fWz) <=
-               mSize.y * fE0 + mSize.x * fE1;
+        if ((float)fabs(mMatrix.m[2][0] * fWx + mMatrix.m[2][1] * fWy + mMatrix.m[2][2] * fWz) >
+            mSize.y * fE0 + mSize.x * fE1)
+        {
+            return false;
+        }
+        return true;
     }
 
     case type_cylinder:
@@ -509,8 +513,7 @@ bool PblRegion::DoesRayIntersect(const PblVector3& rStart, const PblVector3& rEn
     }
 
     case type_plane:
-        return mSize.w > mMatrix.m[2][0] * rStart.x + mMatrix.m[2][1] * rStart.y + mMatrix.m[2][2] * rStart.z
-            && mMatrix.m[2][0] * rEnd.x + mMatrix.m[2][1] * rEnd.y + mMatrix.m[2][2] * rEnd.z > mSize.w;
+        return mSize.w > DotProduct(rStart, mMatrix[2]) && DotProduct(mMatrix[2], rEnd) > mSize.w;
     }
     return false;
 }

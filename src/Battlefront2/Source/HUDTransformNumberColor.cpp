@@ -67,10 +67,15 @@ bool HUD::TransformNumberColor::ReadData(PblConfig& config, PblConfig::Data& dat
     {
         NumberColor& mapping = mMapping[mNumMappings++];
         mapping.number = data.GetFloatArg(0);
-        mapping.color.a = 0xff;
-        mapping.color.b = (unsigned char)(int)ClampColorComponent(data.GetFloatArg(3));
-        mapping.color.g = (unsigned char)(int)ClampColorComponent(data.GetFloatArg(2));
-        mapping.color.r = (unsigned char)(int)ClampColorComponent(data.GetFloatArg(1));
+        const float fBlue = ClampColorComponent(data.GetFloatArg(3));
+        const float fGreen = ClampColorComponent(data.GetFloatArg(2));
+        const float fRed = ClampColorComponent(data.GetFloatArg(1));
+        RedColor color;
+        color.a = 0xff;
+        color.b = (unsigned char)(int)fBlue;
+        color.g = (unsigned char)(int)fGreen;
+        color.r = (unsigned char)(int)fRed;
+        mapping.color = color;
     }
     return true;
 }
@@ -106,18 +111,16 @@ RedColor HUD::TransformNumberColor::CalculateOutputColor(float fInput) const
 {
     const float fValue = CalculateInputValue(fInput, mMapping[0].number, mMapping[mNumMappings - 1].number);
     unsigned int i = 0;
-    while (i < mNumMappings && mMapping[i].number < fValue)
+    while (i < mNumMappings && !(mMapping[i].number >= fValue))
     {
         ++i;
     }
-    const NumberColor& high = mMapping[(i == mNumMappings) ? i - 1 : i];
-    const NumberColor& low = mMapping[i ? i - 1 : 0];
+    const NumberColor high = mMapping[(i == mNumMappings) ? i - 1 : i];
+    const NumberColor low = mMapping[i ? i - 1 : 0];
     const float fDelta = high.number - low.number;
-    if (fDelta == 0.0f)
-    {
-        return high.color;
-    }
-    return Interpolate(low.color, high.color, (fValue - low.number) / fDelta);
+    const RedColor result =
+        (fDelta != 0.0f) ? Interpolate(low.color, high.color, (fValue - low.number) / fDelta) : high.color;
+    return result;
 }
 
 // FUNCTION: SWBF2 0x00567fb0
@@ -136,7 +139,8 @@ void HUD::TransformNumberColor::EventInput(const HUD::Event& event, void* const 
         }
         const RedColor color = pTransform->CalculateOutputColor(
             event.GetDataFloat() * pTransform->mInputFactorConstant * pTransform->mInputFactor);
-        HUD::Event(pTransform->mEventClassOutput, &color).Send();
+        HUD::Event outEvent(pTransform->mEventClassOutput, &color);
+        outEvent.Send();
         break;
     }
     default:

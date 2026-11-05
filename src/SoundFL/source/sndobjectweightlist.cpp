@@ -41,10 +41,13 @@ bool ObjectWeightList::Read(PblFileChunk& chunk, unsigned int uiPropertyID)
     bool bOK = true;
     if (uiPropertyID != 0x4D5AF670u)
     {
-        return false;
+        bOK = false;
     }
-    chunk._pFile->Read8();
-    mSelectMode = (unsigned char)((int)Clamp(chunk._pFile->ReadFloat(), 0.0f, 3.0f) + 1);
+    else
+    {
+        chunk._pFile->Read8();
+        mSelectMode = (unsigned char)((int)Clamp(chunk._pFile->ReadFloat(), 0.0f, 3.0f) + 1);
+    }
     return bOK;
 }
 
@@ -87,8 +90,10 @@ bool ObjectWeightList::ReadObjectWeights(PblFileChunk& chunk, unsigned int uiObj
         pWeight->mPlayIntervalDev = fIntervalDev;
     }
 
+    const float fWeightSum = fTotal;
+    PblListSingle::Node* const pFirst = mHead.mNext;
     unsigned int uiCount = 0;
-    for (PblListSingle::Node* pNode = mHead.mNext; pNode != &mHead; pNode = pNode->mNext)
+    for (PblListSingle::Node* pCounted = pFirst; pCounted != &mHead; pCounted = pCounted->mNext)
     {
         ++uiCount;
     }
@@ -97,12 +102,13 @@ bool ObjectWeightList::ReadObjectWeights(PblFileChunk& chunk, unsigned int uiObj
         return false;
     }
 
-    float fRemaining = fTotal;
-    for (PblListSingle::Node* pNode = mHead.mNext; pNode != &mHead; pNode = pNode->mNext)
+    PblListSingle::Node* pNode = pFirst;
+    while (pNode != &mHead)
     {
         ObjectWeight* const pWeight = reinterpret_cast<ObjectWeight*>(reinterpret_cast<char*>(pNode) - offsetof(ObjectWeight, mNode));
-        fRemaining -= pWeight->mPlayProbability;
-        pWeight->mPlayProbability = fRemaining / fTotal;
+        fTotal -= pWeight->mPlayProbability;
+        pNode = pNode->mNext;
+        pWeight->mPlayProbability = fTotal / fWeightSum;
     }
     return true;
 }
@@ -134,14 +140,14 @@ void const* ObjectWeightList::GetObjectA() const
     const ObjectWeight* pWeight = 0;
     switch (mSelectMode)
     {
-    case 1:
-        pWeight = GetObjectNode(0);
-        break;
     case 2:
         pWeight = GetNextObjectNode(true);
         break;
     case 3:
         pWeight = GetNextObjectNode(false);
+        break;
+    case 1:
+        pWeight = GetObjectNode(0);
         break;
     case 4:
         pWeight = GetObjectNode(0);
@@ -154,20 +160,16 @@ void const* ObjectWeightList::GetObjectA() const
     pThis->mPrevObject = const_cast<ObjectWeight*>(pWeight);
 
     const ObjectWeight* const pFirst = pWeight;
-    if (!pWeight)
-    {
-        return 0;
-    }
-    while (!pWeight->DeterminePlaySource(true))
+    while (pWeight && !pWeight->DeterminePlaySource(true))
     {
         pWeight = GetNextObjectNode(false);
         pThis->mPrevObject = const_cast<ObjectWeight*>(pWeight);
-        if (pFirst == pWeight || !pWeight)
+        if (pFirst == pWeight)
         {
             return 0;
         }
     }
-    return pWeight->mObject;
+    return pWeight ? pWeight->mObject : 0;
 }
 }
 
@@ -177,9 +179,9 @@ namespace Snd
 // FUNCTION: SWBF2 0x0074b990
 const ObjectWeight* ObjectWeightList::GetObjectNode(const ObjectWeight* const pExclude) const
 {
-    const float fRandom = sndRandom.GetFloat();
     const ObjectWeight* pPrev = 0;
     const ObjectWeight* pWeight = 0;
+    const float fRandom = sndRandom.GetFloat();
     for (PblListSingle::Itor itor(this); itor.GetNode() != GetTerminator(); ++itor)
     {
         pPrev = pWeight;

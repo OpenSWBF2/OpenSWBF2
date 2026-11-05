@@ -188,12 +188,11 @@ void PlayerPrefs::InitAll()
 // FUNCTION: SWBF2 0x0061c4d0
 double ConvertMouseScaleToRawScale(float fScale, int iMode)
 {
-    double dScale = pow(5.0, (fScale - 5.0) / 5.0);
-    if (iMode == 0)
+    if (iMode != 0)
     {
-        dScale *= 1.3;
+        return pow(5.0, (fScale - 5.0) / 5.0);
     }
-    return dScale;
+    return pow(5.0, (fScale - 5.0) / 5.0) * 1.3;
 }
 
 // FUNCTION: SWBF2 0x0061c510
@@ -344,23 +343,22 @@ void PlayerProfile::tSoundOpt::ResetToDefault()
     mu8MusicVol = 7;
     mu8SFXVol = 7;
     mu8SpeechVol = 9;
-    mPlaybackMode = GameSoundEngine::gDefaultSpeakerConfig
-                        ? (unsigned char)GameSoundEngine::gDefaultSpeakerConfig
-                        : (unsigned char)3;
+    mPlaybackMode = (unsigned char)(GameSoundEngine::gDefaultSpeakerConfig == 0
+                        ? Snd::EngineBase::speakerConfig_Stereo
+                        : GameSoundEngine::gDefaultSpeakerConfig);
     mMixerMode = 1;
 }
 
 // FUNCTION: SWBF2 0x0061c900
 void PlayerProfile::tSoundOpt::ApplySettings()
 {
-    if (mMixerMode)
+    if (mMixerMode != 0)
     {
-        unsigned int uiMixConfig = mMixerMode;
-        if (uiMixConfig != (unsigned int)Snd::Engine::GetMixConfig() ||
-            (mEffectsEnabled == 1) != (Snd::Engine::smSoftwareEffectsEnabled ||
-                                       Snd::Engine::smHardwareEffectsAvailable))
+        if (mMixerMode != (unsigned int)Snd::Engine::GetMixConfig() ||
+            (mEffectsEnabled == 1) !=
+                (bool)((Snd::Engine::smSoftwareEffectsEnabled || Snd::Engine::smHardwareEffectsAvailable) ? 1 : 0))
         {
-            GameSoundEngine::ChangeMixConfig(uiMixConfig, mEffectsEnabled != 0);
+            GameSoundEngine::ChangeMixConfig(mMixerMode, mEffectsEnabled != 0);
         }
     }
     mMixerMode = (unsigned char)Snd::Engine::GetMixConfig();
@@ -411,11 +409,12 @@ void PlayerProfile::tSoundOpt::SanityCheck()
 // FUNCTION: SWBF2 0x0061ca50
 void PlayerProfile::tSoundOpt::EnsureIsSafe()
 {
+    mPlaybackMode = (unsigned char)(
+        GameSoundEngine::gDefaultSpeakerConfig == Snd::EngineBase::speakerConfig_Invalid
+            ? Snd::EngineBase::speakerConfig_Stereo
+            : GameSoundEngine::gDefaultSpeakerConfig);
     mMixerMode = 1;
     mEffectsEnabled = 0;
-    mPlaybackMode = GameSoundEngine::gDefaultSpeakerConfig
-                        ? (unsigned char)GameSoundEngine::gDefaultSpeakerConfig
-                        : (unsigned char)3;
 }
 
 // FUNCTION: SWBF2 0x0061ca70
@@ -622,14 +621,12 @@ static void ComputeTargetMode(const PlayerProfile::tPCOpt& rOpt, bool bQuiet, Ta
         if (!RedVideoConfig::VidMode_Usable((int)uiWidth, (int)uiHeight, msType,
                                             ulMSQuality))
         {
-
             msType = (D3DMULTISAMPLE_TYPE)0;
             ulMSQuality = 0;
 
             if (!RedVideoConfig::VidMode_Usable((int)uiWidth, (int)uiHeight,
                                                 (D3DMULTISAMPLE_TYPE)0, 0))
             {
-
                 uiWidth = 0;
                 uiHeight = 0;
             }
@@ -1222,32 +1219,44 @@ void PlayerProfile::tPCOpt::ApplyPostLoadSettings()
 {
     RedRenderer::pcSetRenderOptions(renderOptions);
 
-    RedParticleRenderer::s_blurEnable = (RedRenderer::pcGetDeviceCaps().DevCaps2 & D3DDEVCAPS2_CAN_STRETCHRECT_FROM_TEXTURES) &&
-                  RedRenderer::pcGetRenderOptions().distortion;
+    if (RedRenderer::pcGetDeviceCaps().DevCaps2 & D3DDEVCAPS2_CAN_STRETCHRECT_FROM_TEXTURES)
+    {
+        const auto& options = RedRenderer::pcGetRenderOptions();
+        RedParticleRenderer::s_blurEnable = true;
+        if (!options.distortion)
+        {
+            RedParticleRenderer::s_blurEnable = false;
+        }
+    }
+    else
+    {
+        RedParticleRenderer::s_blurEnable = false;
+    }
 
     SetPropDistanceScale(RedRenderer::pcGetRenderOptions().mNearSceneFadeFactor * 1.7f);
 
-    float fParticleBias;
-    switch (RedRenderer::pcGetRenderOptions().particleQuality)
+    QualityT particleQuality = RedRenderer::pcGetRenderOptions().particleQuality;
+    if (particleQuality == QUALITY_MEDIUM)
     {
-    case QUALITY_MEDIUM:
-        fParticleBias = 40.0f;
-        break;
-    case QUALITY_HIGH:
-        fParticleBias = 80.0f;
-        break;
-    default:
-        fParticleBias = 0.0f;
-        break;
+        ParticleSystem::SetFadeBias(40.0f);
     }
-    ParticleSystem::SetFadeBias(fParticleBias);
-
-    if (ColorControl::s_pInstance)
+    else if (particleQuality == QUALITY_HIGH)
     {
-        ColorControl::s_pInstance->SetLevel(COLORCONTROL_GAMMA_CONTRAST,
-                                            RedRenderer::pcGetRenderOptions().mGammaContrast);
-        ColorControl::s_pInstance->SetLevel(COLORCONTROL_GAMMA_BRIGHTNESS,
-                                            RedRenderer::pcGetRenderOptions().mGammaBrightness);
+        ParticleSystem::SetFadeBias(80.0f);
+    }
+    else
+    {
+        ParticleSystem::SetFadeBias(0.0f);
+    }
+
+    ColorControl* pColorControl = ColorControl::s_pInstance;
+    if (pColorControl)
+    {
+        pColorControl->SetLevel(COLORCONTROL_GAMMA_CONTRAST,
+                                RedRenderer::pcGetRenderOptions().mGammaContrast);
+        pColorControl = ColorControl::s_pInstance;
+        pColorControl->SetLevel(COLORCONTROL_GAMMA_BRIGHTNESS,
+                                RedRenderer::pcGetRenderOptions().mGammaBrightness);
         ColorControl::s_pInstance->Update(0.0f);
     }
 
@@ -1263,15 +1272,13 @@ void PlayerProfile::tOnlineOpt::ResetToDefault()
     memset(mPadding, 0, sizeof(mPadding));
 
     mu8AppearOffline = 0;
-    mu8VoiceMask = 0;
-    mu8VoiceToTVVol = 0;
     mu8DisplayGamertags = 0xff;
-    mu8PlayersSupported = 0;
+
     mu8TurnsPerSecond = 20;
     mOnlineIcon = 1;
-    mVoiceEnable = 0;
     mShowAllRegions = 0;
     mu8GSID_Autologin = 0;
+    mu8PlayersSupported = 0;
     mMinPlayers = 0;
     mMaxPing = 0;
     mMapIdx = 0;
@@ -1284,11 +1291,15 @@ void PlayerProfile::tOnlineOpt::ResetToDefault()
     memset(mGamespyPassword, 0, sizeof(mGamespyPassword));
     mu8_SaveInfo = 0x11;
     mHasSeenEULA = false;
+
     mu8VoiceRecordVol = 10;
     mu8VoicePlayVol = 10;
+    mVoiceEnable = 0;
     mVoiceRecordDevice = 0xff;
     mVoiceRecordInput = 0xff;
     mVoicePlaybackDevice = 0xff;
+    mu8VoiceMask = 0;
+    mu8VoiceToTVVol = 0;
 
     mMustBeZero1 = 0;
     mMustBeZero2 = 0;
@@ -1328,11 +1339,14 @@ void PlayerProfile::tOnlineOpt::SanityCheck()
 void PlayerProfile::tOnlineOpt::ApplySettings()
 {
     int iIndex = 0;
-    for (int i = 0; i < (int)(sizeof(mProfiles) / sizeof(mProfiles[0])); ++i)
+    int iSlot = 0;
+    for (PlayerProfile::tProfile* pProfile = mProfiles;
+         &pProfile->mOnlineOptions < &mProfiles[sizeof(mProfiles) / sizeof(mProfiles[0])].mOnlineOptions;
+         ++pProfile, ++iSlot)
     {
-        if (this == &mProfiles[i].mOnlineOptions)
+        if (this == &pProfile->mOnlineOptions)
         {
-            iIndex = i;
+            iIndex = iSlot;
             break;
         }
     }
@@ -1344,9 +1358,10 @@ void PlayerProfile::tOnlineOpt::ApplySettings()
     int iPlayer = FLInputManager::s_instance.GetPlayerFromHWPort(iIndex);
     if (uiState != 0x11E1FC01)
     {
-        iIndex = iPlayer < 0 ? -1 : NetGame::GetLocalIndex(iPlayer);
+        iIndex = iPlayer >= 0 ? NetGame::GetLocalIndex(iPlayer) : -1;
     }
 
+    bool bHasID = false;
     if (pNode && iIndex >= 0)
     {
         void* pDecoder = &pNode->GetDecoder();
@@ -1355,7 +1370,12 @@ void PlayerProfile::tOnlineOpt::ApplySettings()
 
         if (((VoiceChat::Node*)pNode)->IsOpen())
         {
-            ((GameVoiceChat::Node*)pNode)->SetID((bShellOrNet && mVoiceEnable) ? (unsigned char)iIndex : 0xFF);
+            unsigned char ucID = (unsigned char)iIndex;
+            if (!bShellOrNet || !mVoiceEnable)
+            {
+                ucID = 0xFF;
+            }
+            ((GameVoiceChat::Node*)pNode)->SetID(ucID);
         }
 
         if (mVoiceEnable && !((VoiceChat::Encoder*)(&pNode->GetEncoder()))->IsEnabled())
@@ -1373,13 +1393,10 @@ void PlayerProfile::tOnlineOpt::ApplySettings()
             ((GameVoiceChat::Node*)pNode)->SetID(0xFF);
         }
 
-        if (pNode->GetID() != 0xFF)
-        {
-            return;
-        }
+        bHasID = pNode->GetID() != 0xFF;
     }
 
-    if (bShellOrNet)
+    if (!bHasID && bShellOrNet)
     {
         mu8VoiceToTVVol = 0;
         mVoiceEnable = 0;
@@ -1478,12 +1495,12 @@ void PlayerProfile::tProfile::SanityCheck()
         ResetToDefault();
     }
 
-    if (!PblUnicode::ustrlen(mName))
+    if (PblUnicode::ustrlen(mName) < 1)
     {
         PblUnicode::ustrlcpy(mName, RedLocalizeDB::Find(0x62a0afc0, false), 16);
         mName[15] = 0;
     }
-    if (!PblUnicode::ustrlen(mName))
+    if (PblUnicode::ustrlen(mName) < 1)
     {
         mName[0] = 'A';
         mName[1] = 0;
@@ -1580,7 +1597,15 @@ void PlayerProfile::tProfile::ApplySettings()
 {
     if (this == &mProfiles[0])
     {
-        int iPort = PlayerPrefs::FindByJoystick(0);
+        int iPort = -1;
+        const char* pRecord = (const char*)&PlayerPrefs::mAllUserPrefs[0].mJoystick;
+        for (int i = 0; i < 1; ++i, pRecord += 0x2c)
+        {
+            if (*(const int*)pRecord == 0)
+            {
+                iPort = i;
+            }
+        }
         mGameOptions.ApplySettings(iPort, 0);
     }
 
@@ -1741,13 +1766,6 @@ bool tProfile::IsDirty(bool bNoCache)
 }
 }
 
-// FUNCTION: SWBF2 0x006c5b00
-void RedJoystick::SetDeadZoneScale(float f)
-{
-    mDeadZoneScale = f;
-    pc_device->EnumObjects(EnumObjectsCallback, this, 0);
-}
-
 // GLOBAL: SWBF2 0x00788140
 
 static const float sDeadZoneScaleByLevel[11] =
@@ -1768,12 +1786,15 @@ void RawControllerInputs::ApplyDeadZone(int iLevel)
     }
 
     float fValue = sDeadZoneScaleByLevel[iLevel];
-    RedJoystick** ppObjects = _redJoystick;
-    for (int i = 0; i < 10; ++i)
+    int iRemaining = 10;
+    RedJoystick** ppObject = _redJoystick;
+    do
     {
-        if (ppObjects[i])
+        if (*ppObject)
         {
-            ppObjects[i]->SetDeadZoneScale(fValue);
+            (*ppObject)->SetDeadZoneScale(fValue);
         }
-    }
+        ++ppObject;
+        --iRemaining;
+    } while (iRemaining != 0);
 }

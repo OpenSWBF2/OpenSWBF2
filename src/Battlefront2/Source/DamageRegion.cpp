@@ -56,22 +56,27 @@ void DamageRegion::Update(float fDeltaTime) const
     }
 
     DamageDesc damage(DamageOwner(NULL, NULL, 0, NULL, NULL, 1.0f), 0.0f);
+    damage.mDamageOwner.mCharacter = NULL;
+    damage.mDamageOwner.mGameObject = NULL;
+    damage.mDamageOwner.mClass = NULL;
+    damage.mDamageOwner.mTeam = 0;
+    damage.mDamageOwner.mWeapon = NULL;
+    damage.mDamageOwner.mDamageMultiplier = 1.0f;
     damage.mBaseValue = mDamage.damageRate * fDeltaTime;
+    damage.mShieldScale = mDamage.shieldScale;
     for (int i = 0; i < 8; ++i)
     {
         damage.mHealthScale[i] = mDamage.healthScale[i];
     }
-    damage.mShieldScale = mDamage.shieldScale;
 
     do
     {
-        GameObject* pObject = apObjects[--iCount];
-        Damageable* pDamageable = GetDamageable(pObject);
-        if (pDamageable->mIsAlive && GameLoop::GetMissionTime() > pDamageable->mDamageRegionTime)
+        --iCount;
+        if (apObjects[iCount]->IsAlive() && GameLoop::GetMissionTime() > apObjects[iCount]->mDamageRegionTime)
         {
-            pDamageable->SetDamageRegionTime();
-            pDamageable->ApplyDamage(damage, 0xFFFFFFFB);
-            pObject->PlayDamageRegionSound(mId);
+            apObjects[iCount]->SetDamageRegionTime();
+            apObjects[iCount]->ApplyDamage(damage, 0xFFFFFFFB);
+            apObjects[iCount]->PlayDamageRegionSound(mId);
         }
     } while (iCount);
 }
@@ -111,7 +116,7 @@ void DamageRegion::Create()
 // FUNCTION: SWBF2 0x0048a180
 void DamageRegion::Destroy()
 {
-    ClearList();
+    sList.RemoveAll();
     mUpdateThread = 0;
 }
 

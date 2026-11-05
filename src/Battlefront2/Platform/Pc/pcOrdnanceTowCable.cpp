@@ -19,10 +19,10 @@ pcRedShader* OrdnanceTowCable::sShader;
 // FUNCTION: SWBF2 0x00424ce0
 void OrdnanceTowCable::PlatformInit()
 {
-    sTextureHash = PblHash("white");
-    sShader = pcRedShader::Create(PblHash("Particle"),
-                                  RedRenderer::pcGetGeometryMode() == GEOMETRYMODE_COMPRESSED
-                                      ? 0x9282 : 0x282,
+    sTextureHash = 0xde020766;
+    unsigned int uiFormat =
+        RedRenderer::pcGetGeometryMode() != GEOMETRYMODE_UNCOMPRESSED ? 0x9282 : 0x282;
+    sShader = pcRedShader::Create(0x8a8743bf, uiFormat,
                                   &sTextureHash, 1, 0x10004, RedColor::WHITE, RedColor::BLACK,
                                   32.0f);
 }
@@ -65,27 +65,24 @@ pcRedPrimitive* sCreateCableCompressedGeometry(const PblBox& box, const PblVecto
         {
             PblVector3 dir = CrossProduct(camDir, pSlopes[i]);
             const float dirLength = Length(dir);
-            if (dirLength >= 0.0001f)
-            {
-                dir /= dirLength;
-            }
-            else
+            if (0.0001f > dirLength)
             {
                 dir = pCamera->GetMatrix().GetYAxis();
             }
+            else
+            {
+                dir /= dirLength;
+            }
             dir *= fThickness;
             const PblVector3& vPoint = pPoints[i];
-            const TexCoord* pRow = (i & 1) ? pUV + 2 : pUV;
 
-            RedColor color(kCableColor, (unsigned char)(int)(fAlpha * 255.0f));
+            pVert[0].pos.SetPos(vPoint.x + dir.x, vPoint.y + dir.y, vPoint.z + dir.z);
+            pVert[0].uv.SetUV((i & 1) == 0 ? pUV[0].u : pUV[2].u, (i & 1) == 0 ? pUV[0].v : pUV[2].v);
+            pVert[0].color = RedColor(kCableColor, (unsigned char)(int)(fAlpha * 255.0f));
 
-            pVert[0].pos.SetPos( vPoint.x + dir.x, vPoint.y + dir.y, vPoint.z + dir.z);
-            pVert[0].uv.SetUV(pRow[0].u, pRow[0].v);
-            pVert[0].color = color;
-
-            pVert[1].pos.SetPos( vPoint.x - dir.x, vPoint.y - dir.y, vPoint.z - dir.z);
-            pVert[1].uv.SetUV(pRow[1].u, pRow[1].v);
-            pVert[1].color = color;
+            pVert[1].pos.SetPos(vPoint.x - dir.x, vPoint.y - dir.y, vPoint.z - dir.z);
+            pVert[1].uv.SetUV((i & 1) == 0 ? pUV[1].u : pUV[3].u, (i & 1) == 0 ? pUV[1].v : pUV[3].v);
+            pVert[1].color = RedColor(kCableColor, (unsigned char)(int)(fAlpha * 255.0f));
             pVert += 2;
         }
         pPrimitive->EndVertexData();
@@ -110,27 +107,32 @@ pcRedPrimitive* sCreateCableGeometry(const PblBox& box, const PblVector3* pPoint
         {
             PblVector3 dir = CrossProduct(camDir, pSlopes[i]);
             const float dirLength = Length(dir);
-            if (dirLength >= 0.0001f)
-            {
-                dir /= dirLength;
-            }
-            else
+            if (0.0001f > dirLength)
             {
                 dir = pCamera->GetMatrix().GetYAxis();
             }
+            else
+            {
+                dir /= dirLength;
+            }
             dir *= fThickness;
             const PblVector3& vPoint = pPoints[i];
-            const TexCoord* pRow = (i & 1) ? pUV + 2 : pUV;
 
-            RedColor color(kCableColor, (unsigned char)(int)(fAlpha * 255.0f));
+            pVert[0].pos.x = vPoint.x + dir.x;
+            pVert[0].pos.y = vPoint.y + dir.y;
+            pVert[0].pos.z = vPoint.z + dir.z;
+            const TexCoord* pFirst = (i & 1) == 0 ? pUV : pUV + 2;
+            pVert[0].uv.u = pFirst->u;
+            pVert[0].uv.v = pFirst->v;
+            pVert[0].color = RedColor(kCableColor, (unsigned char)(int)(fAlpha * 255.0f));
 
-            pVert[0].pos = vPoint + dir;
-            pVert[0].uv.SetUV(pRow[0].u, pRow[0].v);
-            pVert[0].color = color;
-
-            pVert[1].pos = vPoint - dir;
-            pVert[1].uv.SetUV(pRow[1].u, pRow[1].v);
-            pVert[1].color = color;
+            pVert[1].pos.x = vPoint.x - dir.x;
+            pVert[1].pos.y = vPoint.y - dir.y;
+            pVert[1].pos.z = vPoint.z - dir.z;
+            const TexCoord* pSecond = (i & 1) == 0 ? pUV + 1 : pUV + 3;
+            pVert[1].uv.u = pSecond->u;
+            pVert[1].uv.v = pSecond->v;
+            pVert[1].color = RedColor(kCableColor, (unsigned char)(int)(fAlpha * 255.0f));
             pVert += 2;
         }
         pPrimitive->EndVertexData();
@@ -148,11 +150,11 @@ void sRenderHermiteSegment(PblHermiteVector3& segment, unsigned char ucViewport,
     PblVector3 vSlopes[25];
     PblVector3 vPoints[25];
     float fStep = 1.0f / ((float)iNumPoints - 1.0f);
-    float fEnd = fStep * 0.5f + 1.0f;
     PblVector3 vMin(FLT_MAX, FLT_MAX, FLT_MAX);
     PblVector3 vMax(-FLT_MAX, -FLT_MAX, -FLT_MAX);
-    int i = 0;
-    for (float fT = 0.0f; fEnd > fT; fT += fStep)
+    float fT = 0.0f;
+    float fEnd = fStep * 0.5f + 1.0f;
+    for (int i = 0; fEnd > fT; i++)
     {
         vPoints[i] = segment.getValue(fT);
         vMin.x = Min(vMin.x, vPoints[i].x);
@@ -162,7 +164,7 @@ void sRenderHermiteSegment(PblHermiteVector3& segment, unsigned char ucViewport,
         vMax.y = Max(vMax.y, vPoints[i].y);
         vMax.z = Max(vMax.z, vPoints[i].z);
         vSlopes[i] = segment.getSlope(fT);
-        i++;
+        fT += fStep;
     }
 
     const float fThickness = 0.05f;
@@ -172,13 +174,13 @@ void sRenderHermiteSegment(PblHermiteVector3& segment, unsigned char ucViewport,
     TexCoord uv[4] = { { 0.0f, 0.0f }, { 0.0f, 1.0f }, { 1.0f, 0.0f }, { 1.0f, 1.0f } };
 
     pcRedPrimitive* pPrimitive;
-    if (RedRenderer::pcGetGeometryMode() == GEOMETRYMODE_COMPRESSED)
+    if (RedRenderer::pcGetGeometryMode() == GEOMETRYMODE_UNCOMPRESSED)
     {
-        pPrimitive = sCreateCableCompressedGeometry(box, vPoints, vSlopes, fThickness, uv, fDist, iNumPoints);
+        pPrimitive = sCreateCableGeometry(box, vPoints, vSlopes, fThickness, uv, fDist, iNumPoints);
     }
     else
     {
-        pPrimitive = sCreateCableGeometry(box, vPoints, vSlopes, fThickness, uv, fDist, iNumPoints);
+        pPrimitive = sCreateCableCompressedGeometry(box, vPoints, vSlopes, fThickness, uv, fDist, iNumPoints);
     }
 
     RedRenderer::pcRenderPrimitive(pPrimitive,

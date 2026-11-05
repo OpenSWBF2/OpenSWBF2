@@ -15,7 +15,7 @@ OrbitalStrikeClass::OrbitalStrikeClass(unsigned int uHash)
     (void)uHash;
 
     mAimAzimuth = 0.0f;
-    mAimElevation = 1.5707964f;
+    mAimElevation = PblMath::fHalfPi;
     mAimDistance = 100.0f;
     mSalvoCount = 1;
     mSalvoDelay = 0.0f;
@@ -28,7 +28,14 @@ OrbitalStrikeClass::OrbitalStrikeClass(unsigned int uHash)
 OrbitalStrikeClass::OrbitalStrikeClass(OrbitalStrikeClass* pBase, unsigned int uHash)
 {
     (void)uHash;
-    *this = *pBase;
+    mAimAzimuth = pBase->mAimAzimuth;
+    mAimElevation = pBase->mAimElevation;
+    mAimDistance = pBase->mAimDistance;
+    mSalvoCount = pBase->mSalvoCount;
+    mSalvoDelay = pBase->mSalvoDelay;
+    mInitialSalvoDelay = pBase->mInitialSalvoDelay;
+    mScatterDistance = pBase->mScatterDistance;
+    mStrikeClass = pBase->mStrikeClass;
 }
 
 // FUNCTION: SWBF2 0x005f6aa0
@@ -36,8 +43,8 @@ OrbitalStrike::OrbitalStrike(const OrbitalStrikeClass* pClass, OrbitalStrikeDesc
     : Thread(), PblHandled(), mClass(const_cast<OrbitalStrikeClass*>(pClass)),
       mPosition(desc.mPosition), mDamageOwner(desc.mDamageOwner)
 {
-    mSalvoCount = pClass->mSalvoCount;
-    mSalvoDelay = pClass->mInitialSalvoDelay;
+    mSalvoCount = mClass->mSalvoCount;
+    mSalvoDelay = mClass->mInitialSalvoDelay;
     ActivateThread(-40, PER_LOCAL_TURN);
 }
 
@@ -62,42 +69,44 @@ bool OrbitalStrike::Update(float fDeltaTime)
             return false;
         }
 
-        while (mSalvoDelay <= 0.0f)
+        while (mSalvoCount > 0 && mSalvoDelay <= 0.0f)
         {
             PblMatrix aim;
             aim.SetRotateX(-mClass->mAimElevation);
             aim.RotateY(mClass->mAimAzimuth);
-            aim.m[3][0] = mPosition.x;
-            aim.m[3][1] = mPosition.y;
-            aim.m[3][2] = mPosition.z;
-            aim.m[3][3] = 1.0f;
+            aim.SetTranslation(mPosition);
 
             OrdnanceDesc desc;
-            PblRandom& rand = PblRandom::GetSim();
-            const D3DXVECTOR3 offset((rand.GetFloat() - rand.GetFloat()) * mClass->mScatterDistance,
-                                     (rand.GetFloat() - rand.GetFloat()) * mClass->mScatterDistance,
-                                     mClass->mAimDistance);
-            D3DXVECTOR3 pos;
-            D3DXVec3TransformCoord(&pos, &offset, reinterpret_cast<const D3DXMATRIX*>(&aim));
-            desc.mPosition = PblVector3(pos.x, pos.y, pos.z);
+            const PblVector3 offset((PblRandom::GetSim().GetFloat() - PblRandom::GetSim().GetFloat()) * mClass->mScatterDistance,
+                                    (PblRandom::GetSim().GetFloat() - PblRandom::GetSim().GetFloat()) * mClass->mScatterDistance,
+                                    mClass->mAimDistance);
+            desc.mPosition = aim.ApplyTransform(offset);
             desc.mDirection = PblVector3(-aim.m[2][0], -aim.m[2][1], -aim.m[2][2]);
+            desc.mStrength = 1.0f;
+            desc.mOwner = 0;
             desc.mDamageOwner = mDamageOwner;
+            desc.mTarget = 0;
+            desc.mBodyID = -1;
+            desc.mFireWeapon = 0;
 
-            if (NetGame::IsEnabled() && !NetGame::IsClient())
+            if (NetGame::IsEnabled() && NetGame::IsClient())
             {
-                NetGame::CreateEvent_CreateOrdnance(mClass->mStrikeClass, desc);
+                if (netIsLocalTurn)
+                {
+                    mClass->mStrikeClass->Build(desc);
+                }
             }
-            if (!NetGame::IsEnabled() || !NetGame::IsClient() || netIsLocalTurn)
+            else
             {
+                if (NetGame::IsEnabled())
+                {
+                    NetGame::CreateEvent_CreateOrdnance(mClass->mStrikeClass, desc);
+                }
                 mClass->mStrikeClass->Build(desc);
             }
 
             --mSalvoCount;
             mSalvoDelay += mClass->mSalvoDelay;
-            if (mSalvoCount <= 0)
-            {
-                break;
-            }
         }
 
         const float fStep = (mSalvoDelay > fDeltaTime) ? fDeltaTime : mSalvoDelay;

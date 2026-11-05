@@ -17,6 +17,15 @@ RedPath::RedPath() : mName(0), mType(Bad)
 {
 }
 
+// FUNCTION: SWBF2 0x006dde70
+RedPath::NodeArray::~NodeArray()
+{
+    if (mNodes)
+    {
+        FreeNodes();
+    }
+}
+
 // FUNCTION: SWBF2 0x006dde80
 RedPath::~RedPath()
 {
@@ -236,7 +245,8 @@ bool RedPath::NodeArray::ReadScope(PblConfig& config, PblConfig::Data& data,
 
     AllocNodes(data.GetUint32Arg(0) + sAllocExtraPathNodes);
 
-    PblConfig scope(config.ReadNextScope(), true);
+    PblConfig scopeData = config.ReadNextScope();
+    PblConfig scope(scopeData, true);
     unsigned int i = 0;
     while (!scope.IsDone())
     {
@@ -247,7 +257,7 @@ bool RedPath::NodeArray::ReadScope(PblConfig& config, PblConfig::Data& data,
             while (!nodeScope.IsDone())
             {
                 PblConfig::Data prop = nodeScope.ReadNextData();
-                GetNode(i).ReadScope(nodeScope, prop, pPropFn, pUserData);
+                mNodes[i].ReadScope(nodeScope, prop, pPropFn, pUserData);
             }
             ++i;
         }
@@ -285,17 +295,17 @@ bool RedPath::ReadScope(PblConfig& config, PblConfig::Data& data,
     case 0x8134A814u:
         {
             unsigned int uSpline = PblHash(data.GetStringArg(0));
-            if (uSpline == 0x002DBEBEu)
+            switch (uSpline)
             {
+            case 0x002DBEBEu:
                 mSplineType = CatmullRom;
-            }
-            else if (uSpline == 0x9C265311u)
-            {
+                break;
+            case 0x9C265311u:
                 mSplineType = Hermite;
-            }
-            else
-            {
+                break;
+            default:
                 mSplineType = uSpline == 0xD00594C0u ? Linear : None;
+                break;
             }
         }
         break;

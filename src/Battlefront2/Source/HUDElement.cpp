@@ -17,11 +17,12 @@ PblMatrix HUD::Element::CalculateGroupMatrix(HUD::ElementGroupBase* const pGroup
 {
     const HUD::Element* pElement = pGroup;
     PblMatrix result;
+    HUD::ElementGroupBase* const pParent = pElement->mGroup;
     const PblMatrix local = pElement->mElement->GetMatrix();
-    if (pElement->mGroup)
+    if (pParent)
     {
-        const PblMatrix parent = CalculateGroupMatrix(pElement->mGroup);
-        result = local * parent;
+        result = CalculateGroupMatrix(pParent);
+        *(D3DXMATRIX*)&result = *(const D3DXMATRIX*)&local * *(const D3DXMATRIX*)&result;
     }
     else
     {
@@ -106,10 +107,10 @@ float HUD::ConvertRelativeToPixels(RelativeMode eMode, float fValue, float fFram
     {
     case relativeMode_Pixels:
         return fValue;
-    case relativeMode_Screen:
-        return fValue * fScreenSize;
     case relativeMode_Viewport:
         return fValue * fViewSize;
+    case relativeMode_Screen:
+        return fValue * fScreenSize;
     case relativeMode_Frame:
         return fValue * fFrameSize;
     }
@@ -122,14 +123,14 @@ float HUD::ConvertPixelsToRelative(RelativeMode eMode, float fValue, float fFram
 {
     switch (eMode)
     {
-    case relativeMode_Pixels:
-        return fValue;
-    case relativeMode_Screen:
-        return fScreenSize != 0.0f ? fValue / fScreenSize : 0.0f;
     case relativeMode_Viewport:
         return fViewSize != 0.0f ? fValue / fViewSize : 0.0f;
+    case relativeMode_Screen:
+        return fScreenSize != 0.0f ? fValue / fScreenSize : 0.0f;
     case relativeMode_Frame:
         return fFrameSize != 0.0f ? fValue / fFrameSize : 0.0f;
+    case relativeMode_Pixels:
+        return fValue;
     }
     return fValue;
 }
@@ -167,21 +168,19 @@ HUD::Matrix::Matrix()
 void HUD::Matrix::ApplyRelativeMode(float fFrameWidth, float fFrameHeight, float fViewWidth,
                                     float fViewHeight, bool bWideScreen)
 {
-    float fX = mMatrix->m[3][0];
-    float fY = mMatrix->m[3][1];
-    float fZ = mMatrix->m[3][2];
-    fX = ConvertRelativeToPixels(mRelativeMode, fX, fFrameWidth, fViewWidth,
-                                 (float)(int)RedInterfaceScreen::GetScreenWidth());
-    fY = ConvertRelativeToPixels(mRelativeMode, fY, fFrameHeight, fViewHeight,
-                                 (float)(int)RedInterfaceScreen::GetScreenHeight());
+    PblVector3 vPos;
+    vPos = mMatrix->GetTranslation();
+    vPos.x = ConvertRelativeToPixels(mRelativeMode, vPos.x, fFrameWidth, fViewWidth,
+                                     (float)(int)RedInterfaceScreen::GetScreenWidth());
+    vPos.y = ConvertRelativeToPixels(mRelativeMode, vPos.y, fFrameHeight, fViewHeight,
+                                     (float)(int)RedInterfaceScreen::GetScreenHeight());
     if (bWideScreen && CameraManager::sInstance->m_iNumCam == 1)
     {
-        fX = ConvertXForWideScreen(fX, fViewWidth, fViewHeight);
+        vPos.x = ConvertXForWideScreen(vPos.x, fViewWidth, fViewHeight);
     }
-    mMatrix->m[3][0] = fX;
-    mMatrix->m[3][1] = fY;
-    mMatrix->m[3][2] = fZ;
-    mMatrix->m[3][3] = 1.0f;
+    float* pRow = mMatrix->m[3];
+    *(PblVector3*)pRow = vPos;
+    pRow[3] = 1.0f;
 }
 
 // FUNCTION: SWBF2 0x005472e0
@@ -196,7 +195,7 @@ bool HUD::Matrix::ReadPosition(PblConfig::Data& data, unsigned int uHashID)
         return false;
     }
 
-    int iMode = relativeMode_Pixels;
+    int iMode;
     if (data.GetNumArgs() == 4)
     {
         if (data.IsStringArg(3))
@@ -208,17 +207,18 @@ bool HUD::Matrix::ReadPosition(PblConfig::Data& data, unsigned int uHashID)
         {
             iMode = data.GetBoolArg(3) ? relativeMode_Viewport : relativeMode_Pixels;
         }
-        if (iMode < 0)
-        {
-            iMode = relativeMode_Pixels;
-        }
+        iMode = iMode < 0 ? 0 : iMode;
     }
+    else
+    {
+        iMode = relativeMode_Pixels;
+    }
+    const PblVector3 vPosition(data.GetFloatArg(0), data.GetFloatArg(1), data.GetFloatArg(2));
     mRelativeMode = (RelativeMode)iMode;
 
-    mMatrix->m[3][0] = data.GetFloatArg(0);
-    mMatrix->m[3][1] = data.GetFloatArg(1);
-    mMatrix->m[3][2] = data.GetFloatArg(2);
-    mMatrix->m[3][3] = 1.0f;
+    PblMatrix& matrix = *mMatrix;
+    *(PblVector3*)&matrix.m[3][0] = vPosition;
+    matrix.m[3][3] = 1.0f;
     return true;
 }
 
@@ -227,25 +227,24 @@ void HUD::Matrix::WritePosition(HUD::File& file, unsigned int uTabs, float fFram
                                 float fFrameHeight, float fViewWidth, float fViewHeight,
                                 const char* const pName, bool bWideScreen)
 {
-    float fX = mMatrix->m[3][0];
-    float fY = mMatrix->m[3][1];
-    float fZ = mMatrix->m[3][2];
-    if (fX == 0.0f && fY == 0.0f && fZ == 0.0f)
+    PblVector3 vPos;
+    vPos = mMatrix->GetTranslation();
+    if (vPos.x == 0.0f && vPos.y == 0.0f && vPos.z == 0.0f)
     {
         return;
     }
 
     if (bWideScreen)
     {
-        fX = ConvertWideScreenX(fX, fViewWidth, fViewHeight);
+        vPos.x = ConvertWideScreenX(vPos.x, fViewWidth, fViewHeight);
     }
     file.WriteTabs(uTabs);
     file.WriteStringf("%s(%f, %f, %f, \"%s\")\n", pName ? pName : "Position",
-                      ConvertPixelsToRelative(mRelativeMode, fX, fFrameWidth, fViewWidth,
+                      ConvertPixelsToRelative(mRelativeMode, vPos.x, fFrameWidth, fViewWidth,
                                               (float)(int)RedInterfaceScreen::GetScreenWidth()),
-                      ConvertPixelsToRelative(mRelativeMode, fY, fFrameHeight, fViewHeight,
+                      ConvertPixelsToRelative(mRelativeMode, vPos.y, fFrameHeight, fViewHeight,
                                               (float)(int)RedInterfaceScreen::GetScreenHeight()),
-                      fZ, gRelativeModeStrings[mRelativeMode]);
+                      vPos.z, gRelativeModeStrings[mRelativeMode]);
 }
 
 // FUNCTION: SWBF2 0x005474d0
@@ -328,14 +327,9 @@ void HUD::Matrix::SetRotation(float fX, float fY, float fZ)
     matrix.RotateY(fY * 0.017453292f);
     matrix.RotateZ(fZ * 0.017453292f);
 
-    float fPosX = mMatrix->m[3][0];
-    float fPosY = mMatrix->m[3][1];
-    float fPosZ = mMatrix->m[3][2];
+    const PblVector3 vPosition = mMatrix->GetTranslation();
     *mMatrix = matrix;
-    mMatrix->m[3][0] = fPosX;
-    mMatrix->m[3][1] = fPosY;
-    mMatrix->m[3][2] = fPosZ;
-    mMatrix->m[3][3] = 1.0f;
+    mMatrix->SetTranslation(vPosition);
 
     mRotation.x = fX;
     mRotation.y = fY;
@@ -365,26 +359,24 @@ const PblVector3& HUD::Matrix::GetScale() const
 // FUNCTION: SWBF2 0x00547820
 void HUD::Matrix::ApplyScale()
 {
-    float fPosX = mMatrix->m[3][0];
-    float fPosY = mMatrix->m[3][1];
-    float fPosZ = mMatrix->m[3][2];
+    const PblVector3 vPosition = mMatrix->GetTranslation();
 
-    for (int i = 0; i < 3; ++i)
-    {
-        PblVector3 vAxis;
-        D3DXVec3Normalize((D3DXVECTOR3*)&vAxis, (const D3DXVECTOR3*)mMatrix->m[i]);
-        mMatrix->m[i][0] = vAxis.x;
-        mMatrix->m[i][1] = vAxis.y;
-        mMatrix->m[i][2] = vAxis.z;
-        mMatrix->m[i][3] = 0.0f;
-    }
+    PblVector3 vAxis;
+    D3DXVec3Normalize((D3DXVECTOR3*)&vAxis, (const D3DXVECTOR3*)mMatrix->m[0]);
+    *(PblVector3*)mMatrix->m[0] = vAxis;
+    mMatrix->m[0][3] = 0.0f;
+    D3DXVec3Normalize((D3DXVECTOR3*)&vAxis, (const D3DXVECTOR3*)mMatrix->m[1]);
+    *(PblVector3*)mMatrix->m[1] = vAxis;
+    mMatrix->m[1][3] = 0.0f;
+    D3DXVec3Normalize((D3DXVECTOR3*)&vAxis, (const D3DXVECTOR3*)mMatrix->m[2]);
+    *(PblVector3*)mMatrix->m[2] = vAxis;
+    mMatrix->m[2][3] = 0.0f;
 
-    (*mMatrix).Scale(mScale.x, mScale.y, mScale.z);
+    PblMatrix scaling;
+    D3DXMatrixMultiply((D3DXMATRIX*)mMatrix, (D3DXMATRIX*)mMatrix,
+                       D3DXMatrixScaling((D3DXMATRIX*)&scaling, mScale.x, mScale.y, mScale.z));
 
-    mMatrix->m[3][0] = fPosX;
-    mMatrix->m[3][1] = fPosY;
-    mMatrix->m[3][2] = fPosZ;
-    mMatrix->m[3][3] = 1.0f;
+    mMatrix->SetTranslation(vPosition);
 }
 
 // FUNCTION: SWBF2 0x00547930
@@ -458,10 +450,10 @@ HUD::Element::Element(RedInterfaceElement& element, const char* const pName,
       mEventFadeOut(0),
       mEnableState(enableState_Disabled),
       mAlpha(1.0f),
-      mElement(&element)
+      mElement(&element),
+      mColorDefault(RedColor::WHITE),
+      mColorChanged(RedColor::WHITE)
 {
-    mColorDefault = RedColor::WHITE;
-    mColorChanged = RedColor::WHITE;
     mColorIntRate = 0.3f;
     mPulseColorRate = FLT_MAX;
     mPulseTime = FLT_MAX;
@@ -525,11 +517,7 @@ void HUD::Element::SetViewport(unsigned char uViewport)
 // FUNCTION: SWBF2 0x005481f0
 unsigned char HUD::Element::GetViewport() const
 {
-    if (mGroup)
-    {
-        return mGroup->GetViewport();
-    }
-    return mViewport;
+    return mGroup ? mGroup->GetViewport() : mViewport;
 }
 
 // FUNCTION: SWBF2 0x00548210
@@ -545,7 +533,7 @@ void HUD::Element::Update(const float fTime)
     {
         ePhase = mFader.Update(fTime);
     }
-    mAnimChanged = mFaderChanged = mFaderChanged || ePrevious != ePhase;
+    mAnimChanged = mFaderChanged = mFaderChanged | (ePrevious != ePhase);
 
     if (mFaderChanged && mAnimChanged)
     {
@@ -568,17 +556,15 @@ void HUD::Element::Update(const float fTime)
         }
         if (mEventFadeOut && (eState == enableState_Disabling || eState == enableState_Disabled))
         {
-
-            HUD::Event event;
-            event.mClass = mEventFadeOut;
-            event.mData.boolValue = true;
+            HUD::Event event(mEventFadeOut, true);
             event.Send();
         }
         UpdateEnableState(eState);
     }
 
-    if (mElement->m_bEnabled)
+    if (mElement->IsEnabled())
     {
+        const RedColor current = mElement->m_color;
         float fBlend = 1.0f;
         if (mColorIntRate != 0.0f)
         {
@@ -592,7 +578,6 @@ void HUD::Element::Update(const float fTime)
                 fBlend = 1.0f;
             }
         }
-        RedColor current = mElement->m_color;
         RedColor color;
         color.b = (unsigned char)(int)(mColorDefault.b * fBlend + current.b * (1.0f - fBlend) + 0.5f);
         color.g = (unsigned char)(int)(mColorDefault.g * fBlend + current.g * (1.0f - fBlend) + 0.5f);
@@ -603,7 +588,7 @@ void HUD::Element::Update(const float fTime)
         mPulseTime -= fTime;
         if (mPulseTime <= 0.0f)
         {
-            mElement->m_color = mColorChanged;
+            mElement->SetColor(mColorChanged);
             mPulseTime = mPulseColorRate;
         }
 
@@ -631,7 +616,7 @@ HUD::Element& HUD::Element::operator=(const Element& other)
     mFader = other.mFader;
     mElement->SetZOrder((unsigned char)other.mElement->m_zorder);
     mElement->SetBlendMode(other.mElement->GetBlendMode());
-    mElement->m_color = other.mElement->m_color;
+    mElement->SetColor(other.mElement->m_color);
     mElement->SetMatrix(other.mElement->m_mLocal);
     mHUDEditOnly = other.mHUDEditOnly;
     return *this;
@@ -650,7 +635,7 @@ void HUD::Element::SetRuntimeScale(float fScale)
     for (int i = 0; i < 3; ++i)
     {
         const float* pRow = matrix.m[i];
-        afScale[i] = sqrtf(pRow[0] * pRow[0] + pRow[1] * pRow[1] + pRow[2] * pRow[2])
+        afScale[i] = PblMath::Sqrt(pRow[0] * pRow[0] + pRow[1] * pRow[1] + pRow[2] * pRow[2])
                    / mRuntimeScale * fScale;
     }
     mRuntimeScale = fScale;
@@ -671,7 +656,6 @@ void HUD::Element::SetRuntimeScale(float fScale)
 bool HUD::Element::SetProperty(const unsigned int uHashID, const void* pValue)
 {
     const float* pfValue = (const float*)pValue;
-    PblMatrix matrix;
 
     switch (uHashID)
     {
@@ -682,23 +666,23 @@ bool HUD::Element::SetProperty(const unsigned int uHashID, const void* pValue)
         Item::SetEvent(*(const char* const*)pValue, mEventChanged);
         return true;
     case kRotation:
-        matrix = mElement->m_mLocal;
+    {
+        PblMatrix matrix(mElement->m_mLocal);
         mMatrix.SetMatrix(&matrix);
         mMatrix.SetRotation(pfValue[0], pfValue[1], pfValue[2]);
-        break;
+        mMatrix.ApplyScale();
+        mElement->SetMatrix(matrix);
+        mMatrix.SetMatrix(0);
+        return true;
+    }
     case kColorChange:
         mColorChanged = *(const RedColor*)pValue;
         return true;
     case kColor:
     {
         const RedColor* pColor = (const RedColor*)pValue;
-        RedColor color;
-        color.a = 0xff;
-        color.b = pColor->b;
-        color.g = pColor->g;
-        color.r = pColor->r;
-        mElement->SetColor(color);
-        mColorDefault = mElement->m_color;
+        mElement->SetColor(RedColor(*pColor, 0xff));
+        mColorDefault = RedColor(mElement->m_color);
         return true;
     }
     case kEventColor:
@@ -714,11 +698,16 @@ bool HUD::Element::SetProperty(const unsigned int uHashID, const void* pValue)
         SetRuntimeScaleAll(*pfValue);
         return true;
     case kScaleUniform:
-        matrix = mElement->m_mLocal;
+    {
+        PblMatrix matrix(mElement->m_mLocal);
         mMatrix.SetMatrix(&matrix);
         mMatrix.ApplyRotation();
         mMatrix.SetScale(*pfValue, *pfValue, *pfValue);
-        break;
+        mMatrix.ApplyScale();
+        mElement->SetMatrix(matrix);
+        mMatrix.SetMatrix(0);
+        return true;
+    }
     case kFadeOutTime:
         mFader.SetPhaseTime(Envelope::phase_Release, *pfValue);
         return true;
@@ -726,11 +715,16 @@ bool HUD::Element::SetProperty(const unsigned int uHashID, const void* pValue)
         mUseChangeColor = *(const bool*)pValue;
         return true;
     case kScale:
-        matrix = mElement->m_mLocal;
+    {
+        PblMatrix matrix(mElement->m_mLocal);
         mMatrix.SetMatrix(&matrix);
         mMatrix.ApplyRotation();
         mMatrix.SetScale(pfValue[0], pfValue[1], pfValue[2]);
-        break;
+        mMatrix.ApplyScale();
+        mElement->SetMatrix(matrix);
+        mMatrix.SetMatrix(0);
+        return true;
+    }
     case kEventDisable:
         Item::SetEvent(*(const char* const*)pValue, mEventDisable);
         return true;
@@ -753,9 +747,12 @@ bool HUD::Element::SetProperty(const unsigned int uHashID, const void* pValue)
         mElement->SetZOrder(*(const unsigned char*)pValue);
         return true;
     case kColorPulseRate:
-        mPulseColorRate = *pfValue;
-        mPulseTime = *pfValue;
+    {
+        const float fRate = *pfValue;
+        mPulseColorRate = fRate;
+        mPulseTime = fRate;
         return true;
+    }
     case kPositionRelative:
         mMatrix.SetRelativeMode(*(const RelativeMode*)pValue);
         return true;
@@ -770,11 +767,6 @@ bool HUD::Element::SetProperty(const unsigned int uHashID, const void* pValue)
     default:
         return false;
     }
-
-    mMatrix.ApplyScale();
-    mElement->SetMatrix(matrix);
-    mMatrix.SetMatrix(0);
-    return true;
 }
 
 // FUNCTION: SWBF2 0x00548c50
@@ -804,7 +796,7 @@ bool HUD::Element::GetProperty(const unsigned int uHashID, void* pValue)
         *(float*)pValue = mAlpha;
         return true;
     case kFadeInTime:
-        *(float*)pValue = GetFadeInTime();
+        *(float*)pValue = mFader.GetPhaseTime(Envelope::phase_Attack);
         return true;
     case kScaleAll:
         *(float*)pValue = GetRuntimeScaleAll();
@@ -817,7 +809,7 @@ bool HUD::Element::GetProperty(const unsigned int uHashID, void* pValue)
         return true;
     }
     case kFadeOutTime:
-        *(float*)pValue = GetFadeOutTime();
+        *(float*)pValue = mFader.GetPhaseTime(Envelope::phase_Release);
         return true;
     case kEventDisable:
         *(const char**)pValue = mEventDisable.GetRegisteredClassName(false);
@@ -829,7 +821,7 @@ bool HUD::Element::GetProperty(const unsigned int uHashID, void* pValue)
         *(bool*)pValue = mUseChangeColor;
         return true;
     case kFadeHoldTime:
-        *(float*)pValue = GetFadeHoldTime();
+        *(float*)pValue = mFader.GetPhaseTime(Envelope::phase_Hold);
         return true;
     case kPosition:
         *(PblVector3*)pValue = mElement->GetPosition();
@@ -859,7 +851,7 @@ bool HUD::Element::GetProperty(const unsigned int uHashID, void* pValue)
         *(RedInterfaceElement::BlendModeT*)pValue = mElement->GetBlendMode();
         return true;
     case kFadeSustainTime:
-        *(float*)pValue = GetFadeSustainTime();
+        *(float*)pValue = mFader.GetPhaseTime(Envelope::phase_Sustain);
         return true;
     default:
         return false;
@@ -931,23 +923,15 @@ bool HUD::Element::ReadData(PblConfig&, PblConfig::Data& data)
         return Item::ReadEvent(data, mEventChanged);
     case kColorChange:
     {
-        RedColor color;
-        color.b = data.GetUint8Arg(2);
-        color.g = data.GetUint8Arg(1);
-        color.r = data.GetUint8Arg(0);
-        color.a = 0xff;
+        const RedColor color(data.GetUint8Arg(0), data.GetUint8Arg(1), data.GetUint8Arg(2), 0xff);
         mColorChanged = color;
         return true;
     }
     case kColor:
     {
-        RedColor color;
-        color.b = data.GetUint8Arg(2);
-        color.g = data.GetUint8Arg(1);
-        color.r = data.GetUint8Arg(0);
-        color.a = 0xff;
+        const RedColor color(data.GetUint8Arg(0), data.GetUint8Arg(1), data.GetUint8Arg(2), 0xff);
         mElement->SetColor(color);
-        mColorDefault = mElement->m_color;
+        mColorDefault = RedColor(mElement->m_color);
         return true;
     }
     case kFadeInTime:
@@ -993,9 +977,12 @@ bool HUD::Element::ReadData(PblConfig&, PblConfig::Data& data)
     case kEventEnable:
         return Item::ReadEvent(data, mEventEnable);
     case kColorPulseRate:
-        mPulseColorRate = data.GetFloatArg(0);
-        mPulseTime = data.GetFloatArg(0);
+    {
+        const float fRate = data.GetFloatArg(0);
+        mPulseColorRate = fRate;
+        mPulseTime = fRate;
         return true;
+    }
     case kViewport:
     {
         int iViewport = data.GetUint8Arg(0);
@@ -1025,8 +1012,8 @@ bool HUD::Element::ReadData(PblConfig&, PblConfig::Data& data)
         PblMatrix matrix = mElement->m_mLocal;
         mMatrix.SetMatrix(&matrix);
         bool bRead = mMatrix.ReadScale(data, 0);
-        bRead |= mMatrix.ReadRotation(data, 0);
-        bRead |= mMatrix.ReadPosition(data, 0);
+        bRead = mMatrix.ReadRotation(data, 0) | bRead;
+        bRead = mMatrix.ReadPosition(data, 0) | bRead;
         if (bRead)
         {
             mElement->SetMatrix(matrix);
@@ -1045,7 +1032,8 @@ void HUD::Element::PostReadSetup()
     mMatrix.ApplyScale();
     mMatrix.ApplyRelativeMode(GetContainerFrameWidth(), GetContainerFrameHeight(),
                               GetContainerViewWidth(), GetContainerViewHeight(), InScreenGroup());
-    mElement->SetMatrix(*mMatrix.GetMatrix());
+    PblMatrix result = *mMatrix.GetMatrix();
+    mElement->SetMatrix(result);
 }
 
 // FUNCTION: SWBF2 0x00549800
@@ -1068,10 +1056,10 @@ void HUD::Element::WriteData(HUD::File& file, unsigned int uTabs)
     file.WriteProperty("ColorChangeRate", uTabs, mColorIntRate, 0.3f);
     file.WriteProperty("ColorPulseRate", uTabs, mPulseColorRate, FLT_MAX);
     file.WriteProperty("UseChangeColor", uTabs, (int)mUseChangeColor, 0);
-    file.WriteProperty("FadeInTime", uTabs, GetFadeInTime(), 0.0f);
-    file.WriteProperty("FadeHoldTime", uTabs, GetFadeHoldTime(), FLT_MAX);
-    file.WriteProperty("FadeSustainTime", uTabs, GetFadeSustainTime(), 0.0f);
-    file.WriteProperty("FadeOutTime", uTabs, GetFadeOutTime(), 0.0f);
+    file.WriteProperty("FadeInTime", uTabs, mFader.GetPhaseTime(Envelope::phase_Attack), 0.0f);
+    file.WriteProperty("FadeHoldTime", uTabs, mFader.GetPhaseTime(Envelope::phase_Hold), FLT_MAX);
+    file.WriteProperty("FadeSustainTime", uTabs, mFader.GetPhaseTime(Envelope::phase_Sustain), 0.0f);
+    file.WriteProperty("FadeOutTime", uTabs, mFader.GetPhaseTime(Envelope::phase_Release), 0.0f);
     file.WriteProperty("BlendMode", uTabs, Factory::sBlendModeStrings[mElement->GetBlendMode()],
                        Factory::sBlendModeStrings[0]);
     file.WriteProperty("EventEnable", uTabs, mEventEnable.GetRegisteredClassName(true), "");
@@ -1135,7 +1123,7 @@ void HUD::Element::UpdateEnableState(EnableState eState)
         {
             mElement->SetColorOnly(mColorDefault);
             mElement->Enable(false);
-            if (mElement->GetGroup() == pScreen)
+            if (pScreen == mElement->GetGroup())
             {
                 pScreen->RemoveElement(mElement);
             }
@@ -1166,6 +1154,17 @@ float HUD::Element::GetRuntimeScaleAll()
     return sRuntimeScale;
 }
 
+// FUNCTION: SWBF2 0x00549eb0
+void HUD::Element::UpdateAll(float fDeltaTime)
+{
+    for (PblListDouble::Node* pNode = HUD::Element::sList.mTerminator.mNext;
+         pNode != &HUD::Element::sList.mTerminator; pNode = pNode->mNext)
+    {
+        HUD::Element* pElement = (HUD::Element*)((char*)pNode - offsetof(HUD::Element, mNode));
+        pElement->Update(fDeltaTime);
+    }
+}
+
 float HUD::Element::GetFadeInTime() const
 {
     return mFader.GetPhaseTime(Envelope::phase_Attack);
@@ -1189,11 +1188,15 @@ float HUD::Element::GetFadeOutTime() const
 // FUNCTION: SWBF2 0x00549200
 bool HUD::Element::InScreenGroup() const
 {
-    if (!mElement->GetGroup())
+    if (mElement->GetGroup())
     {
-        return true;
+        const RedScreenGroupElement* pScreen = &gScreenGroup[GetViewport()];
+        if (mElement->GetGroup() != pScreen)
+        {
+            return false;
+        }
     }
-    return mElement->GetGroup() == &gScreenGroup[GetViewport()];
+    return true;
 }
 
 // FUNCTION: SWBF2 0x00549fe0
@@ -1239,13 +1242,13 @@ void HUD::Element::EventColor(const HUD::Event& event, void* const pData)
 // FUNCTION: SWBF2 0x0054a0c0
 void HUD::Element::EventPulseRate(const HUD::Event& event, void* const pData)
 {
+    Element* pElement = (Element*)pData;
     switch (event.GetClass()->GetType())
     {
     case EventClass::type_Int:
     case EventClass::type_Uint:
     case EventClass::type_Float:
     {
-        Element* pElement = (Element*)pData;
         if (fabs(event.GetDataFloat() - pElement->mPulseColorRate) > 0.0001f)
         {
             pElement->mPulseTime = event.GetDataFloat();
@@ -1315,8 +1318,8 @@ HUD::Element* HUD::Element::FindByHashID(unsigned int uHashID)
 // FUNCTION: SWBF2 0x00549de0
 void HUD::Element::SetupViewportDimensions(unsigned int uNumViewports, bool bVerticalSplit)
 {
-    sViewportWidth = (float)(int)RedInterfaceScreen::GetScreenWidth();
     sViewportHeight = (float)(int)RedInterfaceScreen::GetScreenHeight();
+    sViewportWidth = (float)(int)RedInterfaceScreen::GetScreenWidth();
     switch (uNumViewports)
     {
     case 2:

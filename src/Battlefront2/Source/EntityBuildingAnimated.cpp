@@ -20,6 +20,7 @@
 #include "RedEngineFL/Graphics/RedDirectionalLight.h"
 #include "RedEngineFL/Graphics/RedModel.h"
 #include "Zephyr/Source/ZephyrAnim.h"
+#include "Zephyr/Source/ZephyrAnimBank.h"
 #include "RedEngineFL/Util/RedAnimation.h"
 #include "Zephyr/Source/ZephyrPoseStatic.h"
 
@@ -28,8 +29,7 @@ EntityBuildingAnimatedClass::EntityBuildingAnimatedClass(unsigned int uHash)
     : EntityBuildingClass(uHash)
 {
     mAnimObj = 0;
-    mAnimations[0] = 0;
-    mAnimations[1] = 0;
+    memset(mAnimations, 0, sizeof(mAnimations));
     memset(mDeathEffectHash, 0, sizeof(mDeathEffectHash));
     memset(mDeathEffectNodeHash, 0, sizeof(mDeathEffectNodeHash));
     mDeathExplosions = false;
@@ -80,14 +80,8 @@ EntityBuildingAnimatedClass::EntityBuildingAnimatedClass(EntityBuildingAnimatedC
     mAnimObj = pBase->mAnimObj;
     mAnimations[0] = pBase->mAnimations[0];
     mAnimations[1] = pBase->mAnimations[1];
-    for (int i = 0; i < 5; i++)
-    {
-        mDeathEffectHash[i] = pBase->mDeathEffectHash[i];
-    }
-    for (int i = 0; i < 5; i++)
-    {
-        mDeathEffectNodeHash[i] = pBase->mDeathEffectNodeHash[i];
-    }
+    memcpy(mDeathEffectHash, pBase->mDeathEffectHash, sizeof(mDeathEffectHash));
+    memcpy(mDeathEffectNodeHash, pBase->mDeathEffectNodeHash, sizeof(mDeathEffectNodeHash));
     mDeathExplosions = pBase->mDeathExplosions;
 }
 
@@ -95,7 +89,11 @@ EntityBuildingAnimatedClass::EntityBuildingAnimatedClass(EntityBuildingAnimatedC
 bool EntityBuildingAnimatedClass::InitAnimations(const char* pszName)
 {
     mAnimObj = RedAnimation::Find(PblHash(pszName));
-    return mAnimObj != 0;
+    if (!mAnimObj)
+    {
+        return false;
+    }
+    return true;
 }
 
 // FUNCTION: SWBF2 0x00494ca0
@@ -115,11 +113,14 @@ void EntityBuildingAnimatedClass::SetProperty(unsigned int uProperty, const char
         break;
 
     case 0x5fac58b5:
-        if (mAnimObj)
+    {
+        RedAnimation* pAnimObj = mAnimObj;
+        if (pAnimObj)
         {
-            mAnimations[1] = (ZephyrAnim*)mAnimObj->FindAnimation(pszValue);
+            mAnimations[1] = (ZephyrAnim*)(pAnimObj->_pZephyrAnimBank ? pAnimObj->_pZephyrAnimBank->Find(PblTEMPHash(pszValue)) : 0);
         }
         break;
+    }
 
     case 0x3e4e9ba0:
     {
@@ -130,22 +131,19 @@ void EntityBuildingAnimatedClass::SetProperty(unsigned int uProperty, const char
     }
 
     case 0xf138015c:
-    {
-        int i = 0;
-        while (mDeathEffectHash[i])
+        for (int i = 0; i < 5; i++)
         {
-            if (++i >= 5)
+            if (!mDeathEffectHash[i])
             {
-                return;
+                char acEffect[32];
+                char acNode[32];
+                sscanf(pszValue, "%s %s", acEffect, acNode);
+                mDeathEffectHash[i] = PblHash(acEffect);
+                mDeathEffectNodeHash[i] = PblTEMPHash(acNode);
+                break;
             }
         }
-        char acEffect[32];
-        char acNode[32];
-        sscanf(pszValue, "%s %s", acEffect, acNode);
-        mDeathEffectHash[i] = PblHash(acEffect);
-        mDeathEffectNodeHash[i] = PblTEMPHash(acNode);
         break;
-    }
 
     default:
         EntityBuildingClass::SetProperty(uProperty, pszValue);
@@ -231,7 +229,7 @@ EntityBuildingAnimated::EntityBuildingAnimated(EntityBuildingAnimatedClass* pCla
     mAnimationId = (unsigned int)-1;
     if (pClass->mAnimations[0])
     {
-        mAnimationTime = PblRandom::GetGlobalFloat() * mAnimatedClass->mAnimations[0]->m_u16NumFrames * 30.0f;
+        mAnimationTime = mAnimatedClass->mAnimations[0]->m_u16NumFrames * PblRandom::_Global.GetFloat() * 30.0f;
     }
     else
     {
@@ -270,23 +268,28 @@ void EntityBuildingAnimated::Init()
     mModel->GetRedModel(0)->SetupPose(mPose);
     if (mModel->GetRedModel(0)->_pStencilShadow)
     {
-        RedDirectionalLight* pLight = RedLight::GetGlobalDirectionalLight(0);
-        if (!pLight->IsShadowCaster())
+        RedDirectionalLight* pLight = NULL;
+        if (RedLight::GetGlobalDirectionalLight(0)->IsShadowCaster())
         {
-            pLight = RedLight::GetGlobalDirectionalLight(1)->IsShadowCaster()
-                         ? RedLight::GetGlobalDirectionalLight(1)
-                         : NULL;
+            pLight = RedLight::GetGlobalDirectionalLight(0);
+        }
+        else if (RedLight::GetGlobalDirectionalLight(1)->IsShadowCaster())
+        {
+            pLight = RedLight::GetGlobalDirectionalLight(1);
         }
         if (pLight)
         {
             const PblVector3& vDir = pLight->m_vDirection;
-            float fGrow = _Sphere.w;
+            float fGrow;
             if (vDir.y < -0.5f)
             {
-                fGrow /= vDir.y * -2.0f;
+                fGrow = _Sphere.w / (vDir.y * -2.0f);
             }
-            SetRenderPos(PblVector3(vDir.x * fGrow + _Sphere.x, vDir.y * fGrow + _Sphere.y,
-                                    vDir.z * fGrow + _Sphere.z));
+            else
+            {
+                fGrow = _Sphere.w;
+            }
+            SetRenderPos(GetRenderPos() + vDir * fGrow);
             SetRenderRadius(_Sphere.w + fGrow);
             SetTestBBox(false);
         }
@@ -374,7 +377,8 @@ bool EntityBuildingAnimated::Update(float fDeltaTime)
                 PblMatrix mWorld;
                 mWorld = mMatrix * mEffect;
                 mEffect = mWorld;
-                if (CameraManager::sInstance->IsInsideAnyCamera(mEffect.GetTranslation(), 60.0f, 70.0f))
+                PblVector3 vEffectPos = mEffect.GetTranslation();
+                if (CameraManager::sInstance->IsInsideAnyCamera(vEffectPos, 60.0f, 70.0f))
                 {
                     if (FLEffectClass* pEffectClass = FLEffect::Get(mAnimatedClass->mDeathEffectHash[i]))
                     {
@@ -393,7 +397,7 @@ bool EntityBuildingAnimated::Update(float fDeltaTime)
         kPose.Open(mZephyrSkeleton);
         if (mAnimationId != (unsigned int)-1)
         {
-            mAnimationTime += fDeltaTime;
+            mAnimationTime = fDeltaTime + mAnimationTime;
             mZephyrPoseDyn.Update(fDeltaTime);
             kPose.Set(mZephyrPoseDyn, true);
         }
@@ -401,11 +405,8 @@ bool EntityBuildingAnimated::Update(float fDeltaTime)
         mPose.ConvertFromZephyrPose(mZephyrSkeleton);
     }
 
-    if (NetGame::IsEnabled() && NetGame::IsClient())
-    {
-        return true;
-    }
-    if (mState == STATE_DEAD && !IsInScene() && !IsInCollisionList() && mAddHealth < FLT_EPSILON)
+    if (!(NetGame::IsEnabled() && NetGame::IsClient()) && mState == STATE_DEAD && !IsInScene() &&
+        !IsInCollisionList() && mAddHealth < FLT_EPSILON)
     {
         return false;
     }
@@ -425,13 +426,13 @@ void EntityBuildingAnimated::Render(unsigned char uFlags, float fDist, unsigned 
             switch (PblRandom::GetGlobalInt() % 3)
             {
             case 0:
-                pEffectClass = FLEffect::s_EffectClasses.Find(0x02bb1fe0);
+                pEffectClass = FLEffect::Get(0x02bb1fe0);
                 break;
             case 1:
-                pEffectClass = FLEffect::s_EffectClasses.Find(0xe07f39b5);
+                pEffectClass = FLEffect::Get(0xe07f39b5);
                 break;
             case 2:
-                pEffectClass = FLEffect::s_EffectClasses.Find(0x9db69ee4);
+                pEffectClass = FLEffect::Get(0x9db69ee4);
                 break;
             }
             if (pEffectClass)
@@ -439,7 +440,8 @@ void EntityBuildingAnimated::Render(unsigned char uFlags, float fDist, unsigned 
                 if (FLEffectObject* pEffect = pEffectClass->BuildEffect())
                 {
                     int iBody = PblRandom::GetGlobalInt() % mCollisionModel->GetNumBodies();
-                    PblMatrix mBody = mCollisionModel->GetWorldMatrix(iBody, mMatrix, GetPose());
+                    CollisionModel* pModel = mCollisionModel;
+                    PblMatrix mBody = pModel->GetWorldMatrix(iBody, mMatrix, GetPose());
                     pEffect->AttachEffectToMatrix(&mBody, false);
                 }
             }

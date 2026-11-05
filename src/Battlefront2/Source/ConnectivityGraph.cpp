@@ -1,3 +1,4 @@
+#include "PebbleFL/Common/PblMath.h"
 #include <d3dx9math.h>
 #include <float.h>
 #include <math.h>
@@ -52,15 +53,10 @@ ConnectivityNode::~ConnectivityNode()
 // FUNCTION: SWBF2 0x00480520
 PblVector3 ConnectivityNode::GetRandomPointInside(float fBuffer) const
 {
-    float fRadius = w - fBuffer;
-    if (fRadius < 0.0f)
-    {
-        fRadius = 0.0f;
-    }
-    const PblVector3 vRandom = PblRandom::GetSim().GetVector3();
-    PblVector3 vDir;
-    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vRandom));
-    return PblVector3(x + vDir.x * fRadius, y + vDir.y * fRadius, z + vDir.z * fRadius);
+    float fRadius = Max(0.0f, w - fBuffer);
+    const PblVector3 vDir = Normalize(PblRandom::GetSim().GetVector3());
+    const PblVector3 vOffset(vDir.x * fRadius, vDir.y * fRadius, vDir.z * fRadius);
+    return PblVector3(x + vOffset.x, y + vOffset.y, z + vOffset.z);
 }
 
 // FUNCTION: SWBF2 0x004805b0
@@ -160,7 +156,9 @@ void ConnectivityArc::Read(PblFileChunk& chunk, ConnectivityGraph& graph)
 // FUNCTION: SWBF2 0x00480860
 bool ConnectivityNode::IsPointInside(const PblVector3& v) const
 {
-    return w * w > SquaredLengthXZ(GetCenter() - v);
+    const float fDX = x - v.x;
+    const float fDZ = z - v.z;
+    return w * w > fDX * fDX + fDZ * fDZ;
 }
 
 // FUNCTION: SWBF2 0x004808a0
@@ -171,31 +169,32 @@ bool ConnectivityArc::IsPointInside(const PblVector3& v) const
         return false;
     }
     PblVector3 B = n1->GetCenter();
-    PblVector3 M = n2->GetCenter() - B;
+    PblVector3 M = n2->GetCenter() - n1->GetCenter();
     float t = DotProduct(v - B, M) / DotProduct(M, M);
     if (t < 0.0f || t > 1.0f)
     {
         return false;
     }
-    float d = Length(v - (B + t * M));
-    float w = (1.0f - t) * n1->w + n2->w * t;
-    return w > d;
+    if (Length(v - (B + t * M)) < (1.0f - t) * n1->w + n2->w * t)
+    {
+        return true;
+    }
+    return false;
 }
 
 // FUNCTION: SWBF2 0x00480a10
 float ConnectivityArc::GetDistFrom(const PblVector3& v) const
 {
     const PblVector3 vA = n1->GetCenter();
-    const PblVector3 vAB(n2->x - vA.x, n2->y - vA.y, n2->z - vA.z);
-    const float fT = ((v.x - vA.x) * vAB.x + (v.y - vA.y) * vAB.y + (v.z - vA.z) * vAB.z)
-                     / (vAB.x * vAB.x + vAB.y * vAB.y + vAB.z * vAB.z);
+    const PblVector3 vAB = n2->GetCenter() - n1->GetCenter();
+    const float fT = DotProduct(v - vA, vAB) / DotProduct(vAB, vAB);
     if (fT >= 0.0f && fT <= 1.0f)
     {
         const float fRadius = (1.0f - fT) * n1->w + n2->w * fT;
         const float fDX = v.x - (vAB.x * fT + vA.x);
         const float fDY = v.y - (vAB.y * fT + vA.y);
         const float fDZ = v.z - (vAB.z * fT + vA.z);
-        const float fDist = sqrtf(fDX * fDX + fDY * fDY + fDZ * fDZ);
+        const float fDist = PblMath::Sqrt(fDX * fDX + fDY * fDY + fDZ * fDZ);
         if (fRadius > fDist)
         {
             return 0.0f;
@@ -206,13 +205,13 @@ float ConnectivityArc::GetDistFrom(const PblVector3& v) const
     float fDist;
     if (fT < 0.0f)
     {
-        fDist = sqrtf((v.x - n1->x) * (v.x - n1->x) + (v.y - n1->y) * (v.y - n1->y)
+        fDist = PblMath::Sqrt((v.x - n1->x) * (v.x - n1->x) + (v.y - n1->y) * (v.y - n1->y)
                       + (v.z - n1->z) * (v.z - n1->z))
                 - n1->w;
     }
     else
     {
-        fDist = sqrtf((v.x - n2->x) * (v.x - n2->x) + (v.y - n2->y) * (v.y - n2->y)
+        fDist = PblMath::Sqrt((v.x - n2->x) * (v.x - n2->x) + (v.y - n2->y) * (v.y - n2->y)
                       + (v.z - n2->z) * (v.z - n2->z))
                 - n2->w;
     }
@@ -317,11 +316,15 @@ const ConnectivityArc* ConnectivityGraph::GetNextArc(const ConnectivityArc* pCur
         for (int i = 0; i < 4; ++i)
         {
             const unsigned char* pTable = from.mBranchingTable[iType][i];
-            if (!pTable || !pTable[iTo])
+            if (!pTable)
             {
                 break;
             }
             const unsigned int uEntry = pTable[iTo];
+            if (!uEntry)
+            {
+                break;
+            }
             if ((uEntry & 7) == uCurSlot)
             {
                 iTotal = 31 - (uEntry >> 3);
@@ -334,32 +337,30 @@ const ConnectivityArc* ConnectivityGraph::GetNextArc(const ConnectivityArc* pCur
         }
     }
 
-    unsigned char* const* ppTables = from.mBranchingTable[iType];
-    bool bAny = false;
+    if (!((from.mBranchingTable[iType][0] && from.mBranchingTable[iType][0][iTo])
+          || (from.mBranchingTable[iType][1] && from.mBranchingTable[iType][1][iTo])
+          || (from.mBranchingTable[iType][2] && from.mBranchingTable[iType][2][iTo])
+          || (from.mBranchingTable[iType][3] && from.mBranchingTable[iType][3][iTo])))
+    {
+        return 0;
+    }
+    int iPick = PblRandom::GetSim().GetInt() % iTotal;
     for (int i = 0; i < 4; ++i)
     {
-        if (ppTables[i] && ppTables[i][iTo])
+        const unsigned char* pTable = from.mBranchingTable[iType][i];
+        if (!pTable)
         {
-            bAny = true;
             break;
         }
-    }
-    if (bAny)
-    {
-        int iPick = PblRandom::GetSim().GetInt() % iTotal;
-        for (int i = 0; i < 4; ++i)
+        const unsigned int uEntry = pTable[iTo];
+        if (!uEntry)
         {
-            const unsigned char* pTable = ppTables[i];
-            if (!pTable || !pTable[iTo])
-            {
-                break;
-            }
-            const unsigned int uEntry = pTable[iTo];
-            iPick -= uEntry >> 3;
-            if (iPick <= 0 && (uEntry & 7) != uCurSlot)
-            {
-                return &mArcs[from.mArcs[uEntry & 7]];
-            }
+            break;
+        }
+        iPick -= uEntry >> 3;
+        if (iPick <= 0 && (uEntry & 7) != uCurSlot)
+        {
+            return &mArcs[from.mArcs[uEntry & 7]];
         }
     }
     return 0;
@@ -412,31 +413,26 @@ bool ConnectivityGraph::Read(PblFileChunk& chunk)
     {
         const ConnectivityNode* pN1 = mArcs[i].n1;
         const ConnectivityNode* pN2 = mArcs[i].n2;
-        const PblVector3 vDelta(pN2->x - pN1->x, pN2->y - pN1->y, pN2->z - pN1->z);
+        const PblVector3 vDelta = pN2->GetCenter() - pN1->GetCenter();
         PblVector3 vDir;
         D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vDelta));
 
         pN1 = mArcs[i].n1;
-        const PblVector3 vStart(pN1->x - vDir.x * pN1->w, pN1->y - vDir.y * pN1->w,
-                                pN1->z - vDir.z * pN1->w);
+        const PblVector3 vStart = pN1->GetCenter() - vDir * pN1->w;
         pN2 = mArcs[i].n2;
-        const PblVector3 vEnd(pN2->x + vDir.x * pN2->w, pN2->y + vDir.y * pN2->w,
-                              pN2->z + vDir.z * pN2->w);
-        mArcs[i].mBoundingCenter = PblVector3((vEnd.x + vStart.x) * 0.5f,
-                                              (vEnd.y + vStart.y) * 0.5f,
-                                              (vEnd.z + vStart.z) * 0.5f);
+        const PblVector3 vEnd = pN2->GetCenter() + vDir * pN2->w;
+        mArcs[i].mBoundingCenter = (vEnd + vStart) * 0.5f;
 
-        const PblVector3& vCenter = mArcs[i].mBoundingCenter;
-        float fRadius = sqrtf((vStart.x - vCenter.x) * (vStart.x - vCenter.x)
-                              + (vStart.y - vCenter.y) * (vStart.y - vCenter.y)
-                              + (vStart.z - vCenter.z) * (vStart.z - vCenter.z));
-        if (!(fRadius > mArcs[i].n1->w))
+        pN1 = mArcs[i].n1;
+        pN2 = mArcs[i].n2;
+        float fRadius = Length(vStart - mArcs[i].mBoundingCenter);
+        if (!(fRadius > pN1->w))
         {
-            fRadius = mArcs[i].n1->w;
+            fRadius = pN1->w;
         }
-        if (!(fRadius > mArcs[i].n2->w))
+        if (!(fRadius > pN2->w))
         {
-            fRadius = mArcs[i].n2->w;
+            fRadius = pN2->w;
         }
         mArcs[i].mBoundingRadius = fRadius;
     }
@@ -468,11 +464,9 @@ bool ConnectivityGraph::ReadPatch(PblFileChunk& chunk)
     {
         ConnectivityGraphPatch* pPatch = (ConnectivityGraphPatch*)(((unsigned int)pData + 15) & ~15u);
         mPatchList[i] = pPatch;
-        mPatchList[i]->mUncompressedSize = chunk._pFile->Read32();
-        if (mPatchList[i]->mUncompressedSize > mDynamicArcUnzipBufferSize)
-        {
-            mDynamicArcUnzipBufferSize = mPatchList[i]->mUncompressedSize;
-        }
+        const int iUncompressed = chunk._pFile->Read32();
+        mPatchList[i]->mUncompressedSize = iUncompressed;
+        mDynamicArcUnzipBufferSize = Max(mDynamicArcUnzipBufferSize, iUncompressed);
         const int iCompressed = chunk._pFile->Read32();
         mPatchList[i]->mCompressedSize = iCompressed;
         chunk._pFile->ReadData(mPatchList[i]->mCompressedData, iCompressed);
@@ -536,18 +530,16 @@ const ConnectivityArc* ConnectivityGraph::FindClosestArc(const PblVector3& v, un
     float fBest = FLT_MAX;
     for (int i = 0; i < mMaxArcs; ++i)
     {
-        const ConnectivityArc* pArc = &mArcs[i];
-        if ((uFlags & pArc->mAllowTypes) && !(pArc->mFlags & 1))
+        if ((uFlags & mArcs[i].mAllowTypes) && !(mArcs[i].mFlags & 1))
         {
-            const PblVector3& vC = pArc->mBoundingCenter;
-            if (!((vC.x - v.x) * (vC.x - v.x) + (vC.y - v.y) * (vC.y - v.y) + (vC.z - v.z) * (vC.z - v.z)
-                > (pArc->mBoundingRadius + fBest) * (pArc->mBoundingRadius + fBest)))
+            const float fReach = mArcs[i].mBoundingRadius + fBest;
+            if (!(SquaredLength(mArcs[i].mBoundingCenter - v) > fReach * fReach))
             {
-                const float fDist = pArc->GetDistFrom(v);
+                const float fDist = mArcs[i].GetDistFrom(v);
                 if (fBest > fDist)
                 {
                     fBest = fDist;
-                    pBest = pArc;
+                    pBest = &mArcs[i];
                 }
             }
         }
@@ -673,10 +665,10 @@ bool ConnectivityGraph::CanGetThereFromHere_QuickButNotSoPerfectlyAccurateTest(
     ConnectivityNode* pTo = 0;
     for (int i = 0; i < mMaxNodes; ++i)
     {
-        ConnectivityNode* pNode = &mNodes[i];
-        if (eType & pNode->mAllowTypes)
+        if (mNodes[i].mAllowTypes & eType)
         {
-            float fDist = sqrtf((vFrom.z - pNode->z) * (vFrom.z - pNode->z)
+            ConnectivityNode* pNode = &mNodes[i];
+            float fDist = PblMath::Sqrt((vFrom.z - pNode->z) * (vFrom.z - pNode->z)
                                 + (vFrom.x - pNode->x) * (vFrom.x - pNode->x))
                           - pNode->w;
             if (fDist < 0.0f)
@@ -752,17 +744,17 @@ const ConnectivityNode* ConnectivityGraph::GetRandomAccessibleNode(const UnitCon
     {
         return 0;
     }
+    const PblVector3& vPos = pCtrl->mOwner->GetMatrix().GetTranslation();
     float fBest = FLT_MAX;
     const ConnectivityNode* pNearest = 0;
-    const PblVector3& vPos = pCtrl->mOwner->GetMatrix().GetTranslation();
     for (int i = 0; i < mMaxNodes; ++i)
     {
-        const ConnectivityNode* pNode = &mNodes[i];
-        if (eType & pNode->mAllowTypes)
+        if (mNodes[i].mAllowTypes & eType)
         {
-            float fDist = sqrtf((vPos.x - pNode->x) * (vPos.x - pNode->x)
-                                + (vPos.z - pNode->z) * (vPos.z - pNode->z))
-                          - pNode->w;
+            const ConnectivityNode& node = mNodes[i];
+            float fDist = PblMath::Sqrt((vPos.x - node.x) * (vPos.x - node.x)
+                                + (vPos.z - node.z) * (vPos.z - node.z))
+                          - node.w;
             if (fDist < 0.0f)
             {
                 fDist = 0.0f;
@@ -770,7 +762,7 @@ const ConnectivityNode* ConnectivityGraph::GetRandomAccessibleNode(const UnitCon
             if (fBest > fDist)
             {
                 fBest = fDist;
-                pNearest = pNode;
+                pNearest = &node;
             }
         }
     }

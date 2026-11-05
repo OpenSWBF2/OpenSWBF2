@@ -70,8 +70,8 @@ static int sWeaponSection;
 EntityDroidClass::EntityDroidClass(unsigned int uHash)
     : GameObjectClass(uHash)
 {
-    mHealthType = HEALTH_TYPE_DROID;
     m_bDynamicLighting = true;
+    mHealthType = HEALTH_TYPE_DROID;
     mPilotType = PILOT_SELF;
 
     mSetAltitude = 0.0f;
@@ -95,14 +95,14 @@ EntityDroidClass::EntityDroidClass(unsigned int uHash)
     mCollisionScale[2] = 0.0f;
     mCollisionInflict = 1.0f;
 
+    memset(mWeaponClass, 0, sizeof(mWeaponClass));
+    memset(mWeaponAmmo, 0, sizeof(mWeaponAmmo));
     for (int i = 0; i < 4; ++i)
     {
-        mWeaponClass[i] = 0;
-        mWeaponAmmo[i].uiAmmo = 0;
-        mWeaponAmmo[i].uiHeat = 0;
         mWeaponAmmo[i].bFlagAmmoInfinite = 1;
-        mWeaponAmmo[i].bFlagShareHeat = 0;
-        mWeaponAmmo[i].bFlagShareAmmo = 0;
+    }
+    for (int i = 0; i < 4; ++i)
+    {
         mWeaponChannel[i] = i;
     }
 
@@ -119,9 +119,6 @@ EntityDroidClass::EntityDroidClass(unsigned int uHash)
     mCameraSettings.mCameraTrackOffset.x = 0.0f;
     mCameraSettings.mCameraTrackOffset.y = 0.0f;
     mCameraSettings.mCameraTrackOffset.z = 4.5f;
-    mCameraSettings.mCameraSafePoint.x = 0.0f;
-    mCameraSettings.mCameraSafePoint.y = 0.15f;
-    mCameraSettings.mCameraSafePoint.z = -0.3f;
     mCameraSettings.mCameraMoveTensionL = 12.0f;
     mCameraSettings.mCameraMoveTensionR = 12.0f;
     mCameraSettings.mCameraMoveTensionU = 12.0f;
@@ -129,6 +126,9 @@ EntityDroidClass::EntityDroidClass(unsigned int uHash)
     mCameraSettings.mCameraMoveTensionF = 12.0f;
     mCameraSettings.mCameraMoveTensionB = 12.0f;
     mCameraSettings.mCameraAimTension = FLT_MAX;
+    mCameraSettings.mCameraSafePoint.x = 0.0f;
+    mCameraSettings.mCameraSafePoint.y = 0.15f;
+    mCameraSettings.mCameraSafePoint.z = -0.3f;
 
     mExplosion = 0;
 
@@ -165,22 +165,13 @@ EntityDroidClass::EntityDroidClass(EntityDroidClass* pBase, unsigned int uHash)
     mMaxPitch = pBase->mMaxPitch;
     mLevelSpring = pBase->mLevelSpring;
     mLevelDamp = pBase->mLevelDamp;
-    for (int i = 0; i < 3; ++i)
-    {
-        mCollisionThreshold[i] = pBase->mCollisionThreshold[i];
-    }
-    for (int i = 0; i < 3; ++i)
-    {
-        mCollisionScale[i] = pBase->mCollisionScale[i];
-    }
+    memcpy(mCollisionThreshold, pBase->mCollisionThreshold, sizeof(mCollisionThreshold));
+    memcpy(mCollisionScale, pBase->mCollisionScale, sizeof(mCollisionScale));
     mCollisionInflict = pBase->mCollisionInflict;
 
-    for (int i = 0; i < 4; ++i)
-    {
-        mWeaponClass[i] = pBase->mWeaponClass[i];
-        mWeaponAmmo[i] = pBase->mWeaponAmmo[i];
-        mWeaponChannel[i] = pBase->mWeaponChannel[i];
-    }
+    memcpy(mWeaponClass, pBase->mWeaponClass, sizeof(mWeaponClass));
+    memcpy(mWeaponAmmo, pBase->mWeaponAmmo, sizeof(mWeaponAmmo));
+    memcpy(mWeaponChannel, pBase->mWeaponChannel, sizeof(mWeaponChannel));
     mWeaponCount = pBase->mWeaponCount;
     for (int i = 0; i < 4; ++i)
     {
@@ -307,12 +298,11 @@ void EntityDroidClass::SetProperty(unsigned int uProperty, const char* pszValue)
     {
         int iAmmo = 0;
         sscanf(pszValue, "%d", &iAmmo);
-        WeaponAmmoDesc& ammo = mWeaponAmmo[sWeaponSection];
-        ammo.bFlagShareAmmo = 0;
-        ammo.bFlagAmmoInfinite = iAmmo <= 0;
-        if (!ammo.bFlagAmmoInfinite)
+        mWeaponAmmo[sWeaponSection].bFlagShareAmmo = 0;
+        mWeaponAmmo[sWeaponSection].bFlagAmmoInfinite = iAmmo <= 0;
+        if (!mWeaponAmmo[sWeaponSection].bFlagAmmoInfinite)
         {
-            ammo.uiAmmo = iAmmo;
+            mWeaponAmmo[sWeaponSection].uiAmmo = iAmmo;
         }
         break;
     }
@@ -320,17 +310,16 @@ void EntityDroidClass::SetProperty(unsigned int uProperty, const char* pszValue)
     {
         int iWeapon = 0;
         sscanf(pszValue, "%d", &iWeapon);
-        WeaponAmmoDesc& ammo = mWeaponAmmo[sWeaponSection];
         if (iWeapon > 0 && iWeapon <= sWeaponSection)
         {
-            ammo.bFlagAmmoInfinite = 0;
-            ammo.bFlagShareAmmo = 1;
-            ammo.uiAmmo = iWeapon - 1;
+            mWeaponAmmo[sWeaponSection].bFlagAmmoInfinite = 0;
+            mWeaponAmmo[sWeaponSection].bFlagShareAmmo = 1;
+            mWeaponAmmo[sWeaponSection].uiAmmo = iWeapon - 1;
         }
         else
         {
-            ammo.bFlagShareAmmo = 0;
-            ammo.bFlagAmmoInfinite = 1;
+            mWeaponAmmo[sWeaponSection].bFlagShareAmmo = 0;
+            mWeaponAmmo[sWeaponSection].bFlagAmmoInfinite = 1;
         }
         break;
     }
@@ -454,7 +443,7 @@ void GameObject::SetNetUniqueId(int iNetUniqueId)
 
 // GLOBAL: SWBF2 0x01ebbbb8
 // EntityDroid::sMemoryPool
-MemoryPool EntityDroid::sMemoryPool("EntityDroid", 0x460);
+MemoryPool EntityDroid::sMemoryPool("EntityDroid", sizeof(EntityDroid));
 
 
 
@@ -735,16 +724,11 @@ EntityDroid::EntityDroid(EntityDroidClass* pClass, const EntityDesc& desc)
     mEyePoint = pClass->mCameraSettings.CalcEyePoint(mMatrix);
     AddToScene();
 
-    mVelocity.z = 0.0f;
-    mVelocity.y = 0.0f;
-    mVelocity.x = 0.0f;
+    mVelocity.SetAll(0.0f);
     mPitchValue = 0.0f;
     mGroundRatio = 1.0f;
-    for (int i = 0; i < 4; ++i)
-    {
-        mAimer[i] = 0;
-        mWeapon[i] = 0;
-    }
+    memset(mAimer, 0, sizeof(mAimer));
+    memset(mWeapon, 0, sizeof(mWeapon));
     for (int i = 0; i < mClass->mWeaponCount; ++i)
     {
         if (!mClass->mWeaponClass[i])
@@ -754,14 +738,9 @@ EntityDroid::EntityDroid(EntityDroidClass* pClass, const EntityDesc& desc)
 
         mAimer[i] = new Aimer(&pClass->mAimerClass[i], this, &mMatrix, 0, 0);
 
-        WeaponDesc weaponDesc;
-        weaponDesc.mOwner = this;
-        weaponDesc.mAimer = mAimer[i];
+        WeaponDesc weaponDesc = { this, mAimer[i] };
         weaponDesc.mTrigger = &mControlFire[mClass->mWeaponChannel[i]];
         weaponDesc.mReload = &mControlReload;
-        weaponDesc.mNumClips = 0;
-        weaponDesc.m_pAmmoCounter = 0;
-        weaponDesc.m_pEnergyBar = 0;
 
         const WeaponAmmoDesc& ammo = mClass->mWeaponAmmo[i];
         if (ammo.bFlagShareAmmo)
@@ -890,8 +869,8 @@ void EntityDroid::ApplyRadiusPush(const PblVector3& vPos, float fInnerRadius, fl
                                   bool bArg)
 {
     const PblVector3& vCenter = GetCollisionCenter();
-    PblVector3 vDiff(vCenter.x - vPos.x, vCenter.y - vPos.y, vCenter.z - vPos.z);
-    float fDist = sqrtf(vDiff.x * vDiff.x + vDiff.y * vDiff.y + vDiff.z * vDiff.z);
+    PblVector3 vDiff = vCenter - vPos;
+    float fDist = PblMath::Sqrt(SquaredLength(vDiff));
     if (fDist > 0.0001f)
     {
         float fEffect = CalcRadiusEffect(fDist, fInnerRadius, fOuterRadius);
@@ -899,9 +878,7 @@ void EntityDroid::ApplyRadiusPush(const PblVector3& vPos, float fInnerRadius, fl
         {
             PblVector3 vDir;
             D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vDiff));
-            mVelocity.x = vDir.x * fPush * fEffect + mVelocity.x;
-            mVelocity.y = vDir.y * fPush * fEffect + mVelocity.y;
-            mVelocity.z = vDir.z * fPush * fEffect + mVelocity.z;
+            mVelocity += vDir * fPush * fEffect;
         }
     }
 }
@@ -920,13 +897,13 @@ void EntityDroid::Render(unsigned char ucViewport, float fDist, unsigned int uiF
     color.g = 0xff;
     color.r = 0xff;
     color.a = (unsigned char)(int)(fDist * 255.0f);
-    if (mClass->m_bDynamicLighting)
+    if (!mClass->m_bDynamicLighting)
     {
-        uiFlags &= ~0x80;
+        uiFlags |= 0x80;
     }
     else
     {
-        uiFlags |= 0x80;
+        uiFlags &= ~0x80;
     }
 
     PblMatrix mReflection;
@@ -1005,7 +982,8 @@ bool EntityDroid::CollisionCallback(const CollisionResult* pResult, CollisionObj
             }
             if (fDamage > 0.0f)
             {
-                Damageable::ApplyDamage(DamageDesc(owner, fDamage), 0xffffffff);
+                DamageDesc damage(owner, fDamage);
+                Damageable::ApplyDamage(damage, 0xffffffff);
             }
         }
     }
@@ -1020,7 +998,7 @@ bool EntityDroid::CollisionCallback(const CollisionResult* pResult, CollisionObj
         return bResult;
     }
 
-    if (mClass->mSetAltitude <= 0.0f && vSeparation.y > 0.5f)
+    if (mClass->mSetAltitude <= 0.0f && pResult->mSeparationNormal.y > 0.5f)
     {
         mGroundNormal = vSeparation;
         mGroundRatio = 1.0f;
@@ -1032,29 +1010,21 @@ bool EntityDroid::CollisionCallback(const CollisionResult* pResult, CollisionObj
         if (mClass->mSetAltitude == 0.0f)
         {
             float fUp =
-                mMatrix.m[1][0] * vSeparation.x + mMatrix.m[1][1] * vSeparation.y + mMatrix.m[1][2] * vSeparation.z;
+                mMatrix.m[1][1] * vSeparation.y + mMatrix.m[1][0] * vSeparation.x + mMatrix.m[1][2] * vSeparation.z;
             if (fUp < 0.0f)
             {
                 fUp = 0.0f;
             }
             fFriction = (1.0f - fUp * fUp * fUp * fUp) * 0.25f;
         }
-        mVelocity.x -= vSeparation.x * fApproach;
-        mVelocity.y -= vSeparation.y * fApproach;
-        mVelocity.z -= vSeparation.z * fApproach;
-        float fSlow = fFriction * fApproach * -1.125f /
-                      sqrtf(mVelocity.x * mVelocity.x + mVelocity.y * mVelocity.y + mVelocity.z * mVelocity.z);
-        if (fSlow >= 1.0f)
+        mVelocity -= vSeparation * fApproach;
+        float fSlow = fFriction * fApproach * -1.125f / PblMath::Sqrt(SquaredLength(mVelocity));
+        if (!(fSlow < 1.0f))
         {
             fSlow = 1.0f;
         }
-        mVelocity.x -= fSlow * mVelocity.x;
-        mVelocity.y -= fSlow * mVelocity.y;
-        mVelocity.z -= fSlow * mVelocity.z;
-        float fBounce = fApproach * 0.125f;
-        mVelocity.x -= vSeparation.x * fBounce;
-        mVelocity.y -= vSeparation.y * fBounce;
-        mVelocity.z -= vSeparation.z * fBounce;
+        mVelocity -= fSlow * mVelocity;
+        mVelocity -= vSeparation * (fApproach * 0.125f);
     }
 
     float fDist = pResult->mOverlap;
@@ -1065,7 +1035,7 @@ bool EntityDroid::CollisionCallback(const CollisionResult* pResult, CollisionObj
         Damageable::InstantDeath(owner, true);
     }
     PblVector3 vMove = pRestrictor->GetRestrictedMovement(vDir, fDist);
-    SetPosition(PblVector3(vMove.x + mMatrix.m[3][0], mMatrix.m[3][1] + vMove.y, mMatrix.m[3][2] + vMove.z));
+    SetPosition(mMatrix.GetTranslation() + vMove);
     pRestrictor->AddRestriction(vSeparation);
     return true;
 }
@@ -1080,7 +1050,7 @@ bool EntityDroid::Update(float fDeltaTime)
 
     Controllable::Update(fDeltaTime);
 
-    if (!(NetGame::IsEnabled() && NetGame::IsClient()))
+    if (!(NetGame::IsEnabled() && netEnabledNext && netClientActive))
     {
         float fHeight = mMatrix.m[3][1];
         if (-500.0f > fHeight)
@@ -1130,7 +1100,7 @@ bool EntityDroid::Update(float fDeltaTime)
         {
             mKillTimer = 0.0f;
         }
-        if (NetGame::IsEnabled() && NetGame::IsClient())
+        if (NetGame::IsEnabled() && netEnabledNext && netClientActive)
         {
             return true;
         }
@@ -1152,7 +1122,7 @@ bool EntityDroid::Update(float fDeltaTime)
                                         mCharacter->mMedalsMgr->IsAwardAvailable(MedalsMgr::ENDURANCE)
                                     ? 1.5f
                                     : 1.0f;
-            GetEnergyBar()->AddEnergy(fRestore * fMultiplier * fDeltaTime);
+            GetEnergyBar()->AddEnergy(fMultiplier * fRestore * fDeltaTime);
         }
         else
         {
@@ -1167,7 +1137,7 @@ bool EntityDroid::Update(float fDeltaTime)
 
     if (!IsAlive())
     {
-        if (mClass->mExplosion && !(NetGame::IsEnabled() && NetGame::IsClient()))
+        if (mClass->mExplosion && !(NetGame::IsEnabled() && netEnabledNext && netClientActive))
         {
             DamageOwner owner(mDamageOwner.mCharacter, mDamageOwner.mGameObject, mDamageOwner.mTeam, mClass, 0,
                               1.0f);
@@ -1176,13 +1146,13 @@ bool EntityDroid::Update(float fDeltaTime)
         RemoveFromCollisionManager();
         RemoveFromScene();
         Kill();
-        if (!(NetGame::IsEnabled() && NetGame::IsClient()))
+        if (!(NetGame::IsEnabled() && netEnabledNext && netClientActive))
         {
             return false;
         }
     }
 
-    if (!(NetGame::IsEnabled() && NetGame::IsClient()))
+    if (!(NetGame::IsEnabled() && netEnabledNext && netClientActive))
     {
         Controllable* pPilot = this->GetPilot();
         if (pPilot && mState == NORMAL)
@@ -1268,12 +1238,12 @@ bool EntityDroid::Update(float fDeltaTime)
             SwitchControlView(mPlayerId);
         }
 
-        int iIndex = mWeaponIndex[0];
-        if (mState != FROZEN && iIndex >= 0 && mWeapon[iIndex] && mWeapon[iIndex]->mClass->mZoomMax > 1.0f)
+        if (mState != FROZEN && mWeaponIndex[0] >= 0 && mWeapon[mWeaponIndex[0]] &&
+            mWeapon[mWeaponIndex[0]]->mClass->mZoomMax > 1.0f)
         {
             if (mControlZoom.IsPressed())
             {
-                mTargetInfo.mIsAiming = mWeapon[iIndex]->CycleZoom(mTargetInfo.mIsAiming);
+                mTargetInfo.mIsAiming = mWeapon[mWeaponIndex[0]]->CycleZoom(mTargetInfo.mIsAiming);
             }
             if (mWeapon[0]->mClass->mZoomRate != 0.0f)
             {
@@ -1286,14 +1256,20 @@ bool EntityDroid::Update(float fDeltaTime)
         }
     }
 
-    float fMove = 0.0f;
+    float fMove;
     float fStrafe = 0.0f;
-    if (!(mTargetInfo.mIsAiming && mWeaponIndex[0] >= 0 && mWeapon[mWeaponIndex[0]] &&
-          mWeapon[mWeaponIndex[0]]->mClass->mZoomRate != 0.0f) &&
-        mState != FROZEN)
+    if (mTargetInfo.mIsAiming && mWeaponIndex[0] >= 0 && mWeapon[mWeaponIndex[0]] &&
+        mWeapon[mWeaponIndex[0]]->mClass->mZoomRate != 0.0f)
     {
-        fMove = mControlMove;
-        fStrafe = mControlStrafe;
+        fMove = 0.0f;
+    }
+    else
+    {
+        fMove = mState != FROZEN ? mControlMove : 0.0f;
+        if (mState != FROZEN)
+        {
+            fStrafe = mControlStrafe;
+        }
     }
     float fTurn = mControlTurn;
     float fPitch = mControlPitch;
@@ -1304,16 +1280,7 @@ bool EntityDroid::Update(float fDeltaTime)
     {
         fPitchSpeed /= mWeapon[mWeaponIndex[0]]->mZoomTurnScale;
     }
-    float fPitchValue = fPitchSpeed * fPitch * fDeltaTime + mPitchValue;
-    if (mClass->mMinPitch > fPitchValue)
-    {
-        fPitchValue = mClass->mMinPitch;
-    }
-    else if (fPitchValue > mClass->mMaxPitch)
-    {
-        fPitchValue = mClass->mMaxPitch;
-    }
-    mPitchValue = fPitchValue;
+    mPitchValue = Clamp(fPitchSpeed * fPitch * fDeltaTime + mPitchValue, mClass->mMinPitch, mClass->mMaxPitch);
 
     Move(fDeltaTime, fMove, fStrafe, fTurn);
 
@@ -1337,53 +1304,35 @@ bool EntityDroid::Update(float fDeltaTime)
         }
         else
         {
+            PblQuaternion qLook(
+                DirectionMatrix(PblVector3(-mEyeDir.x, -mEyeDir.y, -mEyeDir.z), mMatrix.GetYAxis(), gVectorZero));
+            PblQuaternion qTilt(gVectorUnitX, -mClass->mCameraSettings.GetCameraTiltValue());
+            PblMatrix mCamera(qLook * qTilt, gVectorZero);
 
-            PblMatrix mLook =
-                DirectionMatrix(PblVector3(-mEyeDir.x, -mEyeDir.y, -mEyeDir.z), mMatrix.GetYAxis(), gVectorZero);
-            PblQuaternion qLook = PblQuaternion(mLook);
-            float fTiltSin;
-            float fTiltCos;
-            PblMath::SinCos(&fTiltSin, &fTiltCos, -mClass->mCameraSettings.GetCameraTiltValue() * 0.5f);
-            PblQuaternion qTilt;
-            qTilt._fX = fTiltSin * gVectorUnitX.x;
-            qTilt._fY = fTiltSin * gVectorUnitX.y;
-            qTilt._fZ = fTiltSin * gVectorUnitX.z;
-            qTilt._fS = fTiltCos;
-            PblQuaternion qCamera = qLook * qTilt;
-
-            PblMatrix mCamera(qCamera, gVectorZero);
-
-            mTargetInfo.mAimStart = mClass->mCameraSettings.CalcCameraPoint(mMatrix, mCamera);
-            float fAlong = mEyeDir.y * (mEyePoint.y - mTargetInfo.mAimStart.y) +
-                           mEyeDir.x * (mEyePoint.x - mTargetInfo.mAimStart.x) +
-                           mEyeDir.z * (mEyePoint.z - mTargetInfo.mAimStart.z);
-            mTargetInfo.mAimStart.x = fAlong * mEyeDir.x + mTargetInfo.mAimStart.x;
-            mTargetInfo.mAimStart.y = mTargetInfo.mAimStart.y + mEyeDir.y * fAlong;
-            mTargetInfo.mAimStart.z = mTargetInfo.mAimStart.z + mEyeDir.z * fAlong;
+            PblVector3& vAimStart = mTargetInfo.mAimStart;
+            vAimStart = mClass->mCameraSettings.CalcCameraPoint(mMatrix, mCamera);
+            float fAlong = DotProduct(mEyeDir, mEyePoint - vAimStart);
+            vAimStart += mEyeDir * fAlong;
         }
         const GameObject* pIgnore = this;
         CollisionObject* pHit;
         float fDist =
             CollisionManager::RayHit(mTargetInfo.mAimStart, mEyeDir, 512.0f, pHit, 0, &pIgnore, 1, 0x9a, true) *
             512.0f;
-        mTargetInfo.mAimPoint = PblVector3(mTargetInfo.mAimStart.x + mEyeDir.x * fDist,
-                                           mTargetInfo.mAimStart.y + mEyeDir.y * fDist,
-                                           mTargetInfo.mAimStart.z + mEyeDir.z * fDist);
+        mTargetInfo.mAimPoint = mTargetInfo.mAimStart + fDist * mEyeDir;
     }
     else
     {
         mTargetInfo.mAimStart = mEyePoint;
         float fDist = 512.0f;
-        int iIndex = mWeaponIndex[0];
-        if (iIndex >= 0 && mWeapon[iIndex] && mWeapon[iIndex]->mTarget)
+        if (mWeaponIndex[0] >= 0 && mWeapon[mWeaponIndex[0]] && mWeapon[mWeaponIndex[0]]->mTarget)
         {
-            PblVector3 vTarget = mWeapon[iIndex]->mTarget->GetTargetPoint(mEyePoint, mEyeDir, -1);
-            fDist = sqrtf((vTarget.x - mEyePoint.x) * (vTarget.x - mEyePoint.x) +
-                          (vTarget.y - mEyePoint.y) * (vTarget.y - mEyePoint.y) +
-                          (vTarget.z - mEyePoint.z) * (vTarget.z - mEyePoint.z));
+            PblVector3 vTarget = mWeapon[mWeaponIndex[0]]->mTarget->GetTargetPoint(mEyePoint, mEyeDir, -1);
+            fDist = PblMath::Sqrt((vTarget.x - mEyePoint.x) * (vTarget.x - mEyePoint.x) +
+                                  (vTarget.y - mEyePoint.y) * (vTarget.y - mEyePoint.y) +
+                                  (vTarget.z - mEyePoint.z) * (vTarget.z - mEyePoint.z));
         }
-        mTargetInfo.mAimPoint = PblVector3(mEyeDir.x * fDist + mEyePoint.x, mEyePoint.y + mEyeDir.y * fDist,
-                                           mEyePoint.z + mEyeDir.z * fDist);
+        mTargetInfo.mAimPoint = mEyePoint + fDist * mEyeDir;
     }
 
     mGroundRatio = 0.0f;
@@ -1450,9 +1399,9 @@ void EntityDroid::Move(float fDeltaTime, float fMove, float fStrafe, float fTurn
         {
             PblVector3 vAhead(vDown.x * fLength + mVelocity.x, mVelocity.y + vDown.y * fLength,
                               mVelocity.z + vDown.z * fLength);
-            float fAheadLength = sqrtf(vAhead.y * vAhead.y + vAhead.x * vAhead.x + vAhead.z * vAhead.z);
-            float fInv = 1.0f / fAheadLength;
-            PblVector3 vAheadDir(vAhead.x * fInv, vAhead.y * fInv, vAhead.z * fInv);
+            float fAheadLength =
+                PblMath::Sqrt(vAhead.y * vAhead.y + vAhead.x * vAhead.x + vAhead.z * vAhead.z);
+            PblVector3 vAheadDir = vAhead * (1.0f / fAheadLength);
             float fAheadHit =
                 CollisionManager::RayHit(vStart, vAheadDir, fAheadLength, pHit, &vNormal, &pIgnore, 1, 0x190, false);
             if (1.0f > fAheadHit)
@@ -1470,9 +1419,7 @@ void EntityDroid::Move(float fDeltaTime, float fMove, float fStrafe, float fTurn
                     PblVector3 vBlend((vNormal.x - mGroundNormal.x) * fBlend + mGroundNormal.x,
                                       (vNormal.y - mGroundNormal.y) * fBlend + mGroundNormal.y,
                                       (vNormal.z - mGroundNormal.z) * fBlend + mGroundNormal.z);
-                    PblVector3 vGround;
-                    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vGround), reinterpret_cast<const D3DXVECTOR3*>(&vBlend));
-                    mGroundNormal = vGround;
+                    mGroundNormal = Normalize(vBlend);
                 }
             }
         }
@@ -1489,7 +1436,7 @@ void EntityDroid::Move(float fDeltaTime, float fMove, float fStrafe, float fTurn
         mGroundRatio = fRatio;
         float fLift = mClass->mSetAltitude > 0.0f ? 0.1f : 0.0f;
         PblVector3 vTilt(mGroundNormal.x * fRatio, mGroundNormal.y + fLift, mGroundNormal.z * fRatio);
-        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vUp), reinterpret_cast<const D3DXVECTOR3*>(&vTilt));
+        vUp = Normalize(vTilt);
     }
     else if (mGroundRatio == 1.0f)
     {
@@ -1506,7 +1453,7 @@ void EntityDroid::Move(float fDeltaTime, float fMove, float fStrafe, float fTurn
     }
 
     PblMatrix mGround = NormalMatrix(mMatrix.GetZAxis(), mGroundNormal, gVectorZero);
-    mVelocity.y = (-9.8f - (mClass->mGravityScale - 1.0f) * mGroundRatio * 9.8f) * fDeltaTime + mVelocity.y;
+    mVelocity.AddY((-9.8f - (mClass->mGravityScale - 1.0f) * mGroundRatio * 9.8f) * fDeltaTime);
     if (mClass->mSetAltitude > 0.0f)
     {
         float fLift = (mClass->mSetAltitude - fHeight) * mClass->mLiftSpring + mGroundRatio * 9.8f -
@@ -1516,26 +1463,16 @@ void EntityDroid::Move(float fDeltaTime, float fMove, float fStrafe, float fTurn
         if (fLift > 0.0f)
         {
             fLift *= fDeltaTime;
-            mVelocity.x = fLift * mGroundNormal.x + mVelocity.x;
-            mVelocity.y = mVelocity.y + mGroundNormal.y * fLift;
-            mVelocity.z = mVelocity.z + mGroundNormal.z * fLift;
+            mVelocity += mGroundNormal * fLift;
         }
     }
 
     float fDamp = mClass->mLevelDamp * fDeltaTime;
-    if (fDamp > 1.0f)
-    {
-        fDamp = 1.0f;
-    }
     float fSpring = mClass->mLevelSpring * fDeltaTime;
-    if (fSpring > 1.0f)
-    {
-        fSpring = 1.0f;
-    }
-    vOmega.x = (mMatrix.m[2][1] * vUp.y + vUp.x * mMatrix.m[2][0] + mMatrix.m[2][2] * vUp.z) * fSpring +
-               (1.0f - fDamp) * vOmega.x;
-    vOmega.z = (1.0f - fDamp) * vOmega.z -
-               (mMatrix.m[0][1] * vUp.y + vUp.x * mMatrix.m[0][0] + mMatrix.m[0][2] * vUp.z) * fSpring;
+    vOmega.x = (mMatrix.m[2][1] * vUp.y + vUp.x * mMatrix.m[2][0] + mMatrix.m[2][2] * vUp.z) * Min(1.0f, fSpring) +
+               (1.0f - Min(1.0f, fDamp)) * vOmega.x;
+    vOmega.z = (1.0f - Min(1.0f, fDamp)) * vOmega.z -
+               (mMatrix.m[0][1] * vUp.y + vUp.x * mMatrix.m[0][0] + mMatrix.m[0][2] * vUp.z) * Min(1.0f, fSpring);
 
     float fClimb = mGroundNormal.y > 0.0f ? mGroundNormal.y : 0.0f;
     float fAccel = fClimb * mGroundRatio * fDeltaTime * mClass->mAcceleration;
@@ -1545,28 +1482,8 @@ void EntityDroid::Move(float fDeltaTime, float fMove, float fStrafe, float fTurn
     float fForwardDelta =
         mClass->mMaxSpeed * fMove -
         (mVelocity.y * mGround.m[2][1] + mGround.m[2][0] * mVelocity.x + mVelocity.z * mGround.m[2][2]);
-    if (-fAccel > fForwardDelta)
-    {
-        fForwardDelta = -fAccel;
-    }
-    else if (fForwardDelta > fAccel)
-    {
-        fForwardDelta = fAccel;
-    }
-    mVelocity.x = fForwardDelta * mGround.m[2][0] + mVelocity.x;
-    mVelocity.y = mVelocity.y + fForwardDelta * mGround.m[2][1];
-    mVelocity.z = mVelocity.z + fForwardDelta * mGround.m[2][2];
-    if (-fAccel > fStrafeDelta)
-    {
-        fStrafeDelta = -fAccel;
-    }
-    else if (fStrafeDelta > fAccel)
-    {
-        fStrafeDelta = fAccel;
-    }
-    mVelocity.x = fStrafeDelta * mGround.m[0][0] + mVelocity.x;
-    mVelocity.y = mVelocity.y + fStrafeDelta * mGround.m[0][1];
-    mVelocity.z = mVelocity.z + fStrafeDelta * mGround.m[0][2];
+    mVelocity += Clamp(fForwardDelta, -fAccel, fAccel) * mGround.GetZAxis();
+    mVelocity += Clamp(fStrafeDelta, -fAccel, fAccel) * mGround.GetXAxis();
 
     bool bMouse = false;
     if (mPlayerId >= 0)
@@ -1586,7 +1503,7 @@ void EntityDroid::Move(float fDeltaTime, float fMove, float fStrafe, float fTurn
 
     PblQuaternion qOrient(mMatrix);
     PblVector3 vPos = mMatrix.GetTranslation();
-    float fRate = sqrtf(vOmega.x * vOmega.x + vOmega.y * vOmega.y + vOmega.z * vOmega.z);
+    float fRate = PblMath::Sqrt(vOmega.x * vOmega.x + vOmega.y * vOmega.y + vOmega.z * vOmega.z);
     if (fRate > 0.0001f)
     {
         float fInv = 1.0f / fRate;
@@ -1594,19 +1511,15 @@ void EntityDroid::Move(float fDeltaTime, float fMove, float fStrafe, float fTurn
         float fSin;
         float fCos;
         PblMath::SinCos(&fSin, &fCos, fRate * fDeltaTime * 0.5f);
-        PblQuaternion qDelta;
-        qDelta._fX = vAxis.x * fSin;
-        qDelta._fY = fSin * vAxis.y;
-        qDelta._fZ = fSin * vAxis.z;
-        qDelta._fS = fCos;
+        PblQuaternion qDelta(fCos, vAxis.x * fSin, fSin * vAxis.y, fSin * vAxis.z);
         qOrient = qOrient * qDelta;
     }
 
-    PblVector3 vNewPos(vPos.x + mVelocity.x * fDeltaTime, vPos.y + mVelocity.y * fDeltaTime,
-                       vPos.z + mVelocity.z * fDeltaTime);
-    PblQuaternion qUnit;
+    PblVector3 vNewPos = vPos + mVelocity * fDeltaTime;
+    D3DXQUATERNION qUnit;
     PblMatrix mNew;
-    D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mNew), D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&qUnit), reinterpret_cast<const D3DXQUATERNION*>(&qOrient)));
+    D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mNew),
+                                 D3DXQuaternionNormalize(&qUnit, reinterpret_cast<const D3DXQUATERNION*>(&qOrient)));
     mNew.m[3][0] = vNewPos.x;
     mNew.m[3][1] = vNewPos.y;
     mNew.m[3][2] = vNewPos.z;
@@ -1622,9 +1535,12 @@ void EntityDroid::Move(float fDeltaTime, float fMove, float fStrafe, float fTurn
 void EntityDroid::RecalculateAABB()
 {
     SetCollisionRadius(1.5f);
-    const PblVector3& vCenter = GetCollisionCenter();
-    mAABB = PblBox(vCenter.x - 2.5f, vCenter.y - 2.5f, vCenter.z - 2.5f, vCenter.x + 2.5f, vCenter.y + 2.5f,
-                   vCenter.z + 2.5f);
+    const PblVector3& vUpper = GetCollisionCenter();
+    const PblVector3 vMax(vUpper.x + 2.5f, vUpper.y + 2.5f, vUpper.z + 2.5f);
+    const PblVector3& vLower = GetCollisionCenter();
+    const PblVector3 vMin(vLower.x - 2.5f, vLower.y - 2.5f, vLower.z - 2.5f);
+    mAABB._vMin = vMin;
+    mAABB._vMax = vMax;
 }
 
 // FUNCTION: SWBF2 0x0049c7d0
@@ -1704,16 +1620,8 @@ float EntityDroid::GetSoundRadius() const
 {
     const PblVector3& vVelocity = GetVelocity();
     float fRadius =
-        sqrtf(vVelocity.x * vVelocity.x + vVelocity.y * vVelocity.y + vVelocity.z * vVelocity.z) * mClass->mNoiseFactor;
-    if (0.0f > fRadius)
-    {
-        return 0.0f;
-    }
-    if (fRadius > 50.0f)
-    {
-        return 50.0f;
-    }
-    return fRadius;
+        PblMath::Sqrt(vVelocity.x * vVelocity.x + vVelocity.y * vVelocity.y + vVelocity.z * vVelocity.z) * mClass->mNoiseFactor;
+    return Clamp(fRadius, 0.0f, 50.0f);
 }
 
 // FUNCTION: SWBF2 0x0049cf50
@@ -1855,11 +1763,13 @@ float EntityDroid::GetMaxStrafe() const
 // FUNCTION: SWBF2 0x0049cdf0
 void EntityDroid::SetupCameraZoomFactor(float& rZoom)
 {
-    rZoom = 1.0f;
-    const int iIndex = mWeaponIndex[0];
-    if (mTargetInfo.mIsAiming && iIndex >= 0 && mWeapon[iIndex])
+    if (mTargetInfo.mIsAiming && mWeaponIndex[0] >= 0 && mWeapon[mWeaponIndex[0]])
     {
-        rZoom = mWeapon[iIndex]->mZoom;
+        rZoom = mWeapon[mWeaponIndex[0]]->mZoom;
+    }
+    else
+    {
+        rZoom = 1.0f;
     }
 }
 
@@ -1914,18 +1824,20 @@ extern float GetDefaultFOV();
 // FUNCTION: SWBF2 0x0049cd80
 void EntityDroid::SetupCameraFOV(float& rFOV)
 {
-    if (!IsAlive())
+    if (IsAlive())
     {
-        rFOV = GetDefaultFOV();
-        return;
-    }
-    if (mTargetInfo.mIsAiming || (mTracker && mTracker->IsFirstPersonView()))
-    {
-        rFOV = GetControllableClass()->mFirstPersonFOV;
+        if (mTargetInfo.mIsAiming || (mTracker && mTracker->IsFirstPersonView()))
+        {
+            rFOV = GetControllableClass()->mFirstPersonFOV;
+        }
+        else
+        {
+            rFOV = GetControllableClass()->mThirdPersonFOV;
+        }
     }
     else
     {
-        rFOV = GetControllableClass()->mThirdPersonFOV;
+        rFOV = GetDefaultFOV();
     }
 }
 
@@ -1937,7 +1849,7 @@ void EntityDroid::SetupCameraTrackMatrix(PblMatrix& rMatrix, float fDeltaTime)
     static PblVector3 vCameraOffset(0.0f, 0.0f, 8.5f);
     (void)&vCameraOffset;
     CameraTrackSetting settings = mClass->mCameraSettings;
-    if (mState == FROZEN || mState == EXPLODE || mState == KILLTIMER)
+    if (mState == KILLTIMER || mState == EXPLODE || mState == FROZEN)
     {
         settings.mCameraTrackOffset = mClass->mCameraDestructTrackOffset;
         settings.mCameraTiltValue = mClass->mCameraDestructTiltValue;
@@ -1945,11 +1857,7 @@ void EntityDroid::SetupCameraTrackMatrix(PblMatrix& rMatrix, float fDeltaTime)
     if (IsAlive() && (mTargetInfo.mIsAiming || (mTracker && mTracker->IsFirstPersonView())))
     {
         const float fEyeDist = mTargetInfo.mIsAiming ? 0.5f : 0.3f;
-        PblVector3 vEye(mEyePoint.x - mEyeDir.x * fEyeDist,
-                        mEyePoint.y - mEyeDir.y * fEyeDist,
-                        mEyePoint.z - mEyeDir.z * fEyeDist);
-        rMatrix = DirectionMatrix(PblVector3(-mEyeDir.x, -mEyeDir.y, -mEyeDir.z),
-                                  mMatrix.GetYAxis(), vEye);
+        rMatrix = DirectionMatrix(-mEyeDir, mMatrix.GetYAxis(), mEyePoint - mEyeDir * fEyeDist);
         const int iFirstPerson = GetFirstPersonIndex();
         if (iFirstPerson >= 0 && !mTargetInfo.mIsAiming)
         {

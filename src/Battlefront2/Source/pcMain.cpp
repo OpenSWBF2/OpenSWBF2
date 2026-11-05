@@ -151,14 +151,14 @@ static void ReleaseMutex()
 void Startup_InitApplicationMemory()
 {
     pcCrash::ReserveLowAddressSpace();
-    s_memoryArena = malloc(0x4000000);
-    if (!s_memoryArena || pcCrash::SimulateAllocFailure("arenaoom"))
+    char* pArena = (char*)malloc(0x4000000);
+    s_memoryArena = pArena;
+    if (!pArena || pcCrash::SimulateAllocFailure("arenaoom"))
     {
         pcCrash::FatalInit("arena", 0x4000000);
     }
 
-    GameMemory::InitApplicationMemory((char*)s_memoryArena,
-                                      (char*)s_memoryArena + 0x4000000);
+    GameMemory::InitApplicationMemory(pArena, pArena + 0x4000000);
 }
 
 // FUNCTION: SWBF2 0x006171d0
@@ -323,7 +323,7 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
             {
                 SoundEnable(true);
             }
-            break;
+            return DefWindowProcA(hWnd, WM_SYSCOMMAND, wParam, lParam);
 
         case SC_CLOSE:
             gIsQuitting = true;
@@ -501,13 +501,21 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
         }
     }
 
-    GameState::SetState(GameLoop::mMissionScript[0] ? 0x8FF60339 : 0x11E1FC01);
+    if (GameLoop::mMissionScript[0])
+    {
+        GameState::SetState(0x8FF60339);
+    }
+    else
+    {
+        GameState::SetState(0x11E1FC01);
+    }
 
     if (g_bNoRender || bDedicated)
     {
         strcat(appName, " Dedicated");
     }
 
+    MSG msg;
     WNDCLASSA wc;
     wc.style = CS_BYTEALIGNCLIENT | CS_OWNDC | CS_DBLCLKS | CS_HREDRAW | CS_VREDRAW;
     wc.lpfnWndProc = WindowProc;
@@ -592,10 +600,9 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
 
     if (!g_bNoRender)
     {
-        SetICMMode(GetDC(hGlobalWnd), ICM_ON);
+        SetICMMode(GetDC(hGlobalWnd), ICM_OFF);
     }
 
-    MSG msg;
     bool bActive = true;
     msg.message = 0;
     PeekMessageA(&msg, 0, 0, 0, PM_NOREMOVE);

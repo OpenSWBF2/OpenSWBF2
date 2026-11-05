@@ -31,24 +31,25 @@ OrdnanceHaywire::~OrdnanceHaywire()
 // FUNCTION: SWBF2 0x00600e90
 bool OrdnanceHaywire::Update(float fDeltaTime)
 {
-    if (OrdnanceSticky::Update(fDeltaTime))
+    if (!OrdnanceSticky::Update(fDeltaTime))
     {
-        return true;
-    }
-    if (mStickInfo && mStickInfo->mCollHandle.mObject)
-    {
-        GameObject* pObject = mStickInfo->mCollHandle.mObject;
-        if (PBL_HANDLE_ID(pObject) == mStickInfo->mCollHandle.mSavedHandleId)
+        auto* pStick = mStickInfo;
+        if (pStick && pStick->mCollHandle.mObject)
         {
-            pObject->mDisableTime = ((OrdnanceHaywireClass*)mClass)->mDisableTime;
+            GameObject* pObject = pStick->mCollHandle.mObject;
+            if (PBL_HANDLE_ID(pObject) == pStick->mCollHandle.mSavedHandleId)
+            {
+                pObject->mDisableTime = ((OrdnanceHaywireClass*)mClass)->mDisableTime;
+            }
+            else
+            {
+                pStick->mCollHandle.mObject = 0;
+                pStick->mCollHandle.mSavedHandleId = 0;
+            }
         }
-        else
-        {
-            mStickInfo->mCollHandle.mObject = 0;
-            mStickInfo->mCollHandle.mSavedHandleId = 0;
-        }
+        return false;
     }
-    return false;
+    return true;
 }
 
 // FUNCTION: SWBF2 0x00601050
@@ -109,14 +110,12 @@ OrdnanceHaywireClass::OrdnanceHaywireClass(OrdnanceHaywireClass* pBase, unsigned
 // FUNCTION: SWBF2 0x00600fa0
 void OrdnanceHaywireClass::SetProperty(unsigned int uProperty, const char* pszValue)
 {
-    if (uProperty == 0x1C1694FA)
-    {
-        sscanf(pszValue, "%f", &mDisableTime);
-    }
-    else
+    if (uProperty != 0x1C1694FA)
     {
         OrdnanceStickyClass::SetProperty(uProperty, pszValue);
+        return;
     }
+    sscanf(pszValue, "%f", &mDisableTime);
 }
 
 // FUNCTION: SWBF2 0x00600fe0

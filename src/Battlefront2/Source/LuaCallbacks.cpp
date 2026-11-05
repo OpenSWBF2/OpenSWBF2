@@ -53,6 +53,8 @@
 #include "NetGame.h"
 #include "PebbleFL/Common/PblMath.h"
 
+void __cdecl printf_wrapper(const char*, ...);
+
 
 
 namespace Lua_Callbacks
@@ -62,11 +64,6 @@ void CleanupOptions();
 namespace Lua_Callbacks
 {
 void CleanupSound();
-}
-
-// FUNCTION: SWBF2 0x0072b390
-void __cdecl printf_wrapper(const char*, ...)
-{
 }
 
 namespace PblUnicode
@@ -86,27 +83,31 @@ int FLInputManager::CountControllers() const
             ++iConnected;
         }
     }
-    return iConnected ? iConnected : 1;
+    if (iConnected < 1)
+    {
+        return 1;
+    }
+    return iConnected;
 }
 
 
 // FUNCTION: SWBF2 0x005805e0
 int __fastcall GetScreenTransitionType(const char* pcName, void*)
 {
-    if (!pcName)
+    if (pcName)
     {
-        return 2;
+        switch ((unsigned int)PblHash(pcName))
+        {
+        case 0x6bfbd198u: return 1;
+        case 0xf16d8413u: return 2;
+        case 0x02ba7498u: return 3;
+        case 0xec70b044u: return 4;
+        case 0x027fdd70u: return 5;
+        case 0xf497cc4cu: return 6;
+        case 0xca020c79u: return 7;
+        }
     }
-    switch ((unsigned int)PblHash(pcName))
-    {
-    case 0x6bfbd198u: return 1;
-    case 0x02ba7498u: return 3;
-    case 0xec70b044u: return 4;
-    case 0x027fdd70u: return 5;
-    case 0xf497cc4cu: return 6;
-    case 0xca020c79u: return 7;
-    default: return 2;
-    }
+    return 2;
 }
 extern bool gDemoMode;
 extern bool gAttractMode;
@@ -149,11 +150,7 @@ int DrawParticleAt(lua_State*)
     const PblMatrix* pWorld = LuaMatrixArg::Get(LuaHelper::mState, 1);
     const char* pcTexture = LuaHelper::GetString(2);
     const float fWidth = LuaHelper::GetFloat(3);
-    RedColor color;
-    color.r = (unsigned char)(int)LuaHelper::GetFloat(4);
-    color.g = (unsigned char)(int)LuaHelper::GetFloat(5);
-    color.b = (unsigned char)(int)LuaHelper::GetFloat(6);
-    color.a = (unsigned char)(int)LuaHelper::GetFloat(7);
+    RedColor color(LuaHelper::GetFloat(4), LuaHelper::GetFloat(5), LuaHelper::GetFloat(6), LuaHelper::GetFloat(7));
     const float fRotation = LuaHelper::GetFloat(8);
     if (!pWorld)
     {
@@ -416,16 +413,16 @@ int ScriptCB_FormatTimeString(lua_State*)
     char acBuffer[64];
     int iTime = (int)luaL_checknumber(LuaHelper::mState, 1);
     int iMinutes = iTime / 60;
-    int iSeconds = iTime % 60;
     int iHours = iMinutes / 60;
+    int iSeconds = iTime % 60;
     iMinutes %= 60;
-    if (iHours)
+    if (!iHours)
     {
-        _snprintf(acBuffer, sizeof(acBuffer), "%02d:%02d:%02d", iHours, iMinutes, iSeconds);
+        _snprintf(acBuffer, sizeof(acBuffer), "%02d:%02d", iMinutes, iSeconds);
     }
     else
     {
-        _snprintf(acBuffer, sizeof(acBuffer), "%02d:%02d", iMinutes, iSeconds);
+        _snprintf(acBuffer, sizeof(acBuffer), "%02d:%02d:%02d", iHours, iMinutes, iSeconds);
     }
     PblUnicode::ustrncnv(sTempReturnString16, acBuffer, 256);
     LuaHelper::PushString(sTempReturnString16);
@@ -441,11 +438,11 @@ int ScriptCB_GetVKeyboardCharacter(lua_State*)
     }
 
     unsigned int uKey = (int)luaL_checknumber(LuaHelper::mState, 1);
-    sTempReturnString[1] = 0;
     if (uKey > 104)
     {
         uKey = 0;
     }
+    sTempReturnString[1] = 0;
     sTempReturnString[0] = sVKeyboardKeys[uKey];
     lua_pushstring(LuaHelper::mState, sTempReturnString);
     return 1;
@@ -454,10 +451,7 @@ int ScriptCB_GetVKeyboardCharacter(lua_State*)
 // FUNCTION: SWBF2 0x0057dee0
 int ScriptCB_IsLegalGamespyString(lua_State*)
 {
-    static const char sBadFirstChars[] = "@+:#";
-
     bool bLegal = true;
-    bool bResult = false;
     const char* pcError = "ifs.gsprofile.badchars";
 
     if (lua_gettop(LuaHelper::mState) != 3 || !lua_isstring(LuaHelper::mState, 1) ||
@@ -471,11 +465,12 @@ int ScriptCB_IsLegalGamespyString(lua_State*)
     apcStrings[1] = luaL_checklstring(LuaHelper::mState, 2, 0);
     apcStrings[2] = luaL_checklstring(LuaHelper::mState, 3, 0);
 
-    for (unsigned int i = 0; i < 3; ++i)
+    for (int i = 0; i < 3; ++i)
     {
         unsigned int uLen = strlen(apcStrings[i]);
         if (uLen < 1 || (i == 0 && uLen < 3))
         {
+            bLegal = false;
             goto done;
         }
 
@@ -505,37 +500,50 @@ int ScriptCB_IsLegalGamespyString(lua_State*)
     if (apcStrings[0][0] >= '0' && apcStrings[0][0] <= '9')
     {
         pcError = "gamespy.errors.nick_nonumber";
+        bLegal = false;
         goto done;
     }
-    for (unsigned int j = 0; j < strlen(apcStrings[0]); ++j)
     {
-        if (apcStrings[0][j] == ' ')
+        unsigned int uLen = strlen(apcStrings[0]);
+        for (unsigned int j = 0; j < uLen; ++j)
         {
-            pcError = "gamespy.errors.nick_nospaces";
-            goto done;
+            if (apcStrings[0][j] == ' ')
+            {
+                pcError = "gamespy.errors.nick_nospaces";
+                bLegal = false;
+                goto done;
+            }
         }
     }
-    for (unsigned int j = 0; j < strlen(apcStrings[0]); ++j)
     {
-        if (apcStrings[0][j] == '!')
+        unsigned int uLen = strlen(apcStrings[0]);
+        for (unsigned int j = 0; j < uLen; ++j)
         {
-            pcError = "gamespy.errors.nick_validchars";
-            goto done;
+            if (apcStrings[0][j] == '!')
+            {
+                pcError = "gamespy.errors.nick_validchars";
+                bLegal = false;
+                goto done;
+            }
         }
     }
-    for (unsigned int j = 0; j < strlen(apcStrings[0]); ++j)
     {
-        if (apcStrings[0][j] == '\\')
+        unsigned int uLen = strlen(apcStrings[0]);
+        for (unsigned int j = 0; j < uLen; ++j)
         {
-            pcError = "gamespy.errors.nick_validchars";
-            goto done;
+            if (apcStrings[0][j] == '\\')
+            {
+                pcError = "gamespy.errors.nick_validchars";
+                bLegal = false;
+                goto done;
+            }
         }
     }
-    for (unsigned int i = 0; i < 3; ++i)
+    for (int i = 0; i < 3; ++i)
     {
-        for (unsigned int c = 0; c < sizeof(sBadFirstChars) - 1; ++c)
+        for (unsigned int c = 0; c < sizeof("@+:#") - 1; ++c)
         {
-            if (apcStrings[i][0] == sBadFirstChars[c])
+            if (apcStrings[i][0] == "@+:#"[c])
             {
                 bLegal = false;
                 break;
@@ -552,16 +560,16 @@ int ScriptCB_IsLegalGamespyString(lua_State*)
         if (pcAt && !strchr(pcAt + 1, '@') && pcAt[1] && pcAt[2] && strchr(pcAt + 2, '.'))
         {
             pcError = "";
-            bResult = bLegal;
         }
         else
         {
             pcError = "ifs.gsprofile.bademail";
+            bLegal = false;
         }
     }
 
 done:
-    lua_pushboolean(LuaHelper::mState, bResult);
+    lua_pushboolean(LuaHelper::mState, bLegal);
     lua_pushstring(LuaHelper::mState, pcError);
     return 2;
 }
@@ -613,22 +621,21 @@ int ScriptCB_ununicode(lua_State*)
         return 0;
     }
 
-    if (!lua_isstring(LuaHelper::mState, 1))
+    if (lua_isstring(LuaHelper::mState, 1))
     {
-        lua_pushstring(LuaHelper::mState, "");
+        const unsigned short* pusString = LuaWideString::Check(LuaHelper::mState, 1);
+        if (PblUnicode::ustrlen(pusString) < 256)
+        {
+            ConvertUnicodeSkippingWide(sTempReturnString, pusString, 256);
+        }
+        else
+        {
+            _snprintf(sTempReturnString, 256, "BUFFER TOO SMALL");
+        }
+        lua_pushstring(LuaHelper::mState, sTempReturnString);
         return 1;
     }
-
-    const unsigned short* pusString = LuaWideString::Check(LuaHelper::mState, 1);
-    if (PblUnicode::ustrlen(pusString) < 256)
-    {
-        ConvertUnicodeSkippingWide(sTempReturnString, pusString, 256);
-    }
-    else
-    {
-        _snprintf(sTempReturnString, 256, "BUFFER TOO SMALL");
-    }
-    lua_pushstring(LuaHelper::mState, sTempReturnString);
+    lua_pushstring(LuaHelper::mState, "");
     return 1;
 }
 
@@ -642,64 +649,61 @@ int ScriptCB_getlocalizestr(lua_State*)
     }
 
     bool bOptional = iTop == 2;
-    if (!lua_isstring(LuaHelper::mState, 1))
+    if (lua_isstring(LuaHelper::mState, 1))
     {
-        return 0;
-    }
+        const char* pcKey = luaL_checklstring(LuaHelper::mState, 1, 0);
+        const unsigned short* pusString = RedLocalizeDB::Find(PblHash(pcKey), bOptional);
+        if (pusString)
+        {
+            LuaHelper::PushString(pusString);
+            return 1;
+        }
+        if (bOptional)
+        {
+            return 0;
+        }
 
-    const char* pcKey = luaL_checklstring(LuaHelper::mState, 1, 0);
-    const unsigned short* pusString = RedLocalizeDB::Find(PblHash(pcKey), bOptional);
-    if (pusString)
-    {
-        LuaHelper::PushString(pusString);
+        PblUnicode::ustrncnv(sTempReturnString16, pcKey, 255);
+        LuaHelper::PushString(sTempReturnString16);
         return 1;
     }
-    if (bOptional)
-    {
-        return 0;
-    }
-
-    PblUnicode::ustrncnv(sTempReturnString16, pcKey, 255);
-    LuaHelper::PushString(sTempReturnString16);
-    return 1;
+    return 0;
 }
 
 // FUNCTION: SWBF2 0x0057e3d0
 int ScriptCB_usprintf(lua_State*)
 {
     int iTop = lua_gettop(LuaHelper::mState);
-    if ((unsigned int)(iTop - 1) > 6)
+    if ((unsigned int)(iTop - 1) <= 6)
     {
-        return 0;
-    }
-
-    for (int i = 1; i <= iTop; ++i)
-    {
-        if (!lua_isstring(LuaHelper::mState, i))
+        for (int i = 1; i <= iTop; ++i)
         {
-            return 0;
+            if (!lua_isstring(LuaHelper::mState, i))
+            {
+                return 0;
+            }
         }
-    }
 
-    const char* pcKey = luaL_checklstring(LuaHelper::mState, 1, 0);
-    const unsigned short* apusArgs[7];
-    for (int i = 2; i <= iTop; ++i)
-    {
-        if (!lua_isstring(LuaHelper::mState, i))
+        const char* pcKey = luaL_checklstring(LuaHelper::mState, 1, 0);
+        const unsigned short* apusArgs[7];
+        for (int i = 2; i <= iTop; ++i)
         {
-            return 0;
+            if (!lua_isstring(LuaHelper::mState, i))
+            {
+                return 0;
+            }
+            apusArgs[i - 2] = LuaWideString::Check(LuaHelper::mState, i);
         }
-        apusArgs[i - 2] = LuaWideString::Check(LuaHelper::mState, i);
-    }
 
-    const unsigned short* pusFormat = RedLocalizeDB::Find(pcKey ? (unsigned int)PblHash(pcKey) : 0, false);
-    int iLen;
-    if (!pusFormat)
-    {
-        iLen = PblUnicode::ustrncnv(sTempReturnString16, pcKey, 255);
-    }
-    else
-    {
+        const unsigned short* pusFormat = RedLocalizeDB::Find(pcKey ? (unsigned int)PblHash(pcKey) : 0, false);
+        int iLen;
+        if (!pusFormat)
+        {
+            iLen = PblUnicode::ustrncnv(sTempReturnString16, pcKey, 255);
+            lua_pushlstring(LuaHelper::mState, (const char*)sTempReturnString16, iLen * 2 + 2);
+            return 1;
+        }
+
         switch (LocalizedFormatArgsFit(pusFormat, iTop - 1) ? iTop : 0)
         {
         case 2:
@@ -733,9 +737,10 @@ int ScriptCB_usprintf(lua_State*)
             iLen = PblUnicode::ustrlen(sTempReturnString16);
             break;
         }
+        lua_pushlstring(LuaHelper::mState, (const char*)sTempReturnString16, iLen * 2 + 2);
+        return 1;
     }
-    lua_pushlstring(LuaHelper::mState, (const char*)sTempReturnString16, iLen * 2 + 2);
-    return 1;
+    return 0;
 }
 
 // FUNCTION: SWBF2 0x0057e650
@@ -746,7 +751,8 @@ int ScriptCB_ustrupper(lua_State*)
         return 0;
     }
 
-    PblUnicode::ustrlcpy(sTempReturnString16, LuaWideString::Check(LuaHelper::mState, 1), 256);
+    const unsigned short* pusSource = LuaWideString::Check(LuaHelper::mState, 1);
+    PblUnicode::ustrlcpy(sTempReturnString16, pusSource, 256);
     int iLen = PblUnicode::ustrlen(sTempReturnString16);
     for (int i = 0; i < iLen; ++i)
     {
@@ -765,10 +771,9 @@ int ScriptCB_srand(lua_State*)
     unsigned int uSeed = 0xdeadbeef;
     if (!lua_gettop(LuaHelper::mState))
     {
-        srand(gSeedSet ? gSeed : (unsigned int)time(0) + GetTickCount());
-        return 0;
+        uSeed = gSeedSet ? gSeed : (unsigned int)time(0) + GetTickCount();
     }
-    if (lua_isnumber(LuaHelper::mState, 1))
+    else if (lua_isnumber(LuaHelper::mState, 1))
     {
         uSeed = (int)luaL_checknumber(LuaHelper::mState, 1);
     }
@@ -832,7 +837,7 @@ int ScriptCB_ReadAllControllers(lua_State*)
 // FUNCTION: SWBF2 0x0057e8f0
 static void UnbindOneController(FLInputManager* pInput, int iPlayer)
 {
-    if (iPlayer == 0)
+    if ((unsigned int)iPlayer <= 0)
     {
         pInput->UnbindController(iPlayer + 1);
         PlayerProfile::tProfile* pProfile = PlayerProfile::GetProfile(iPlayer);
@@ -885,13 +890,13 @@ int ScriptCB_GetPrimaryController(lua_State*)
 int ScriptCB_GetSecondaryController(lua_State*)
 {
     int iPort = FLInputManager::Instance()->GetSecondaryPort();
-    if (iPort < 0)
+    if (iPort >= 0)
     {
-        lua_pushnil(LuaHelper::mState);
+        lua_pushnumber(LuaHelper::mState, (float)iPort);
     }
     else
     {
-        lua_pushnumber(LuaHelper::mState, (float)iPort);
+        lua_pushnil(LuaHelper::mState);
     }
     return 1;
 }
@@ -899,8 +904,8 @@ int ScriptCB_GetSecondaryController(lua_State*)
 // FUNCTION: SWBF2 0x0057ea50
 int ScriptCB_IsControllerConnected(lua_State*)
 {
-    unsigned char ucPort = (unsigned char)((int)luaL_optnumber(LuaHelper::mState, 1, 1.0f) - 1);
     bool bConnected = false;
+    unsigned char ucPort = (unsigned char)((int)luaL_optnumber(LuaHelper::mState, 1, 1.0f) - 1);
     if (ucPort < RedInputManager::GetNumJoystickPorts())
     {
         bConnected = RedInputManager::GetJoystick(ucPort)->m_connected;
@@ -1013,17 +1018,21 @@ int ScriptCB_ReadLeftstick(lua_State*)
 {
     unsigned int uViewport;
     int iTop = lua_gettop(LuaHelper::mState);
-    if (iTop == 0)
+    if (iTop != 0)
     {
-        uViewport = GuiManager::mCurViewport;
-    }
-    else
-    {
-        if (iTop != 1 || !lua_isnumber(LuaHelper::mState, 1))
+        if (iTop != 1)
+        {
+            return 0;
+        }
+        if (!lua_isnumber(LuaHelper::mState, 1))
         {
             return 0;
         }
         uViewport = (int)luaL_checknumber(LuaHelper::mState, 1);
+    }
+    else
+    {
+        uViewport = GuiManager::mCurViewport;
     }
 
     int iJoystick = GuiManager::GetJoystickFromViewport(uViewport);
@@ -1033,9 +1042,9 @@ int ScriptCB_ReadLeftstick(lua_State*)
     }
 
     RawControllerInputs* pJoystick = FLInputManager::Instance()->GetPlayerJoystick(iJoystick);
-    const float* pfRaw = (const float*)&pJoystick->mRawInputStorage[0x10 - 4] + iJoystick * 76;
-    lua_pushnumber(LuaHelper::mState, pfRaw[49]);
-    lua_pushnumber(LuaHelper::mState, pfRaw[51]);
+    const float* pfRaw = (const float*)&pJoystick->mRawInputStorage[0x10 - 4];
+    lua_pushnumber(LuaHelper::mState, pfRaw[iJoystick * 76 + 49]);
+    lua_pushnumber(LuaHelper::mState, pfRaw[iJoystick * 76 + 51]);
     return 2;
 }
 
@@ -1063,7 +1072,7 @@ int ScriptCB_GetMaxMissionQueue(lua_State*)
 // FUNCTION: SWBF2 0x0057ee20
 int ScriptCB_SetMissionNames(lua_State*)
 {
-    if (LuaHelper::GetTop() != 2)
+    if (lua_gettop(LuaHelper::mState) != 2)
     {
         return 0;
     }
@@ -1071,27 +1080,27 @@ int ScriptCB_SetMissionNames(lua_State*)
     if (lua_isstring(LuaHelper::mState, 1))
     {
         MissionPlayList::ClearEntries();
-        MissionPlayList::AddEntry(luaL_checklstring(LuaHelper::mState, 1, 0),
-                                  (unsigned char)PlayerPrefs::mAllUserPrefs[0].mTeamNum, 0, 0, 0, 0);
+        const char* pcMap = luaL_checklstring(LuaHelper::mState, 1, 0);
+        MissionPlayList::AddEntry(pcMap, (unsigned char)PlayerPrefs::mAllUserPrefs[0].mTeamNum, 0, 0, 0, 0);
         MissionPlayList::SetLoopForever(false);
     }
     else if (lua_type(LuaHelper::mState, 1) == LUA_TTABLE)
     {
         lua_gettop(LuaHelper::mState);
         MissionPlayList::ClearEntries();
-        int iCount = LuaHelper::TableGetN(1);
+        int iCount = luaL_getn(LuaHelper::mState, 1);
         for (int i = 1; i <= iCount; ++i)
         {
             char acMap[64];
             char acTeam1[64];
             char acTeam2[64];
             int iSide;
-            LuaHelper::TableGetByPosition(1, i);
+            lua_rawgeti(LuaHelper::mState, 1, i);
             LuaHelper::TableReadVal("Map", acMap, sizeof(acMap), false);
             LuaHelper::TableReadVal("Side", iSide, false);
             LuaHelper::TableReadVal("Team1", acTeam1, sizeof(acTeam1), true);
             LuaHelper::TableReadVal("Team2", acTeam2, sizeof(acTeam2), true);
-            LuaHelper::Pop(1);
+            lua_settop(LuaHelper::mState, -2);
             if (!MissionPlayList::AddEntry(acMap, (unsigned char)iSide, acTeam1, acTeam2, 0, 0))
             {
                 break;
@@ -1117,8 +1126,9 @@ int ScriptCB_SetTeamNames(lua_State*)
     {
         const char* pcTeam1 = luaL_checklstring(LuaHelper::mState, 1, 0);
         const char* pcTeam2 = luaL_checklstring(LuaHelper::mState, 2, 0);
-        MissionPlayList::SetCurrentTeamNames(pcTeam1 ? (unsigned int)PblHash(pcTeam1) : 0,
-                                             pcTeam2 ? (unsigned int)PblHash(pcTeam2) : 0);
+        unsigned int uiTeam1 = pcTeam1 ? (unsigned int)PblHash(pcTeam1) : 0;
+        unsigned int uiTeam2 = pcTeam2 ? (unsigned int)PblHash(pcTeam2) : 0;
+        MissionPlayList::SetCurrentTeamNames(uiTeam1, uiTeam2);
     }
     return 0;
 }
@@ -1137,45 +1147,38 @@ int ScriptCB_EnterMission(lua_State*)
 // FUNCTION: SWBF2 0x0057f0a0
 int ScriptCB_LaunchDemo(lua_State*)
 {
-    if (GameState::GetState() != SHELL_STATE)
+    if (GameState::GetState() == SHELL_STATE)
     {
-        return 0;
-    }
-
-    const char* pcMap;
-    int iTop = lua_gettop(LuaHelper::mState);
-    if (iTop == 0)
-    {
-        pcMap = "end1a";
-    }
-    else
-    {
-        if (iTop != 1 || !lua_isstring(LuaHelper::mState, 1))
+        const char* pcMap = 0;
+        int iTop = lua_gettop(LuaHelper::mState);
+        if (iTop == 0)
         {
-            return 0;
+            pcMap = "end1a";
         }
-        pcMap = luaL_checklstring(LuaHelper::mState, 1, 0);
-        if (!pcMap)
+        else if (iTop == 1 && lua_isstring(LuaHelper::mState, 1))
         {
-            return 0;
+            pcMap = luaL_checklstring(LuaHelper::mState, 1, 0);
+        }
+
+        if (pcMap)
+        {
+            GameLoop::SetNumCameras(1);
+            if (sAttractMap[0])
+            {
+                printf_wrapper("Attract mode launching %s\n", sAttractMap);
+                GameLoop::SetNextMission(sAttractMap);
+            }
+            else
+            {
+                printf_wrapper("Attract mode launching %s\n", pcMap);
+                GameLoop::SetNextMission(pcMap);
+            }
+            gDemoMode = true;
+            gAttractMode = true;
+            GuiManager::Instance()->ChangeToScreen("", false, false);
+            GameState::SetState(MISSION_STATE);
         }
     }
-
-    GameLoop::SetNumCameras(1);
-    if (sAttractMap[0])
-    {
-        printf_wrapper("Attract mode launching %s\n", sAttractMap);
-        pcMap = sAttractMap;
-    }
-    else
-    {
-        printf_wrapper("Attract mode launching %s\n", pcMap);
-    }
-    GameLoop::SetNextMission(pcMap);
-    gDemoMode = true;
-    gAttractMode = true;
-    GuiManager::Instance()->ChangeToScreen("", false, false);
-    GameState::SetState(MISSION_STATE);
     return 0;
 }
 
@@ -1388,13 +1391,18 @@ int ScriptCB_ShowMultipageText(lua_State*)
         int iPage = (int)luaL_checknumber(LuaHelper::mState, 2);
         RedTextElement* pTextElement = (RedTextElement*)RedInterfaceElement::Find(pcElement);
         const unsigned short* pusText = PblInBounds(sPageStart, iPage - 1) ? sPageStart[iPage - 1] : 0;
-        unsigned short ausEmpty[5];
+        if (!pTextElement)
+        {
+            return 0;
+        }
         if (!pusText)
         {
-            memset(ausEmpty, 0, sizeof(ausEmpty));
-            pusText = ausEmpty;
+            unsigned short ausEmpty[5];
+            ausEmpty[0] = 0;
+            memset(&ausEmpty[1], 0, sizeof(ausEmpty) - sizeof(ausEmpty[0]));
+            pTextElement->SetText(ausEmpty, true);
         }
-        if (pTextElement)
+        else
         {
             pTextElement->SetText(pusText, true);
         }
@@ -1456,7 +1464,7 @@ int ScriptCB_Unpause(lua_State*)
         return 0;
     }
     if (uiState == MISSION_STATE && GameLoop::sShowStats && GameLoop::mNumCameras > 1 &&
-        PlayerPrefs::mAllUserPrefs[0].mJoystick == FLInputManager::Instance()->GetPrimaryPort())
+        FLInputManager::Instance()->GetPrimaryPort() == PlayerPrefs::mAllUserPrefs[0].mJoystick)
     {
         iViewport = 0;
     }
@@ -1484,7 +1492,7 @@ int ScriptCB_CheckPlayerListDone(lua_State*)
     int iJoystick = PauseMenu::GetPausingJoystick();
     bool bPressed = ((FLInputManager::s_instance.GetPlayerInputs(iJoystick)->bits.mBoolInputs >> 17) & 1) != 0;
     bool bDone = false;
-    if (gSkipToPlayerListTime + 0.5f > GameLoop::GetMissionTime())
+    if (GameLoop::GetMissionTime() < gSkipToPlayerListTime + 0.5f)
     {
         if (!bPressed)
         {
@@ -1641,14 +1649,14 @@ int ScriptCB_SetSPProgress(lua_State*)
     if (pProfile)
     {
         unsigned char& ucSaved = pProfile->mGameOptions.mCampaignProgress[iMission - 1];
-        ucSaved = ucProgress > ucSaved ? ucProgress : ucSaved;
+        ucSaved = Max(ucProgress, ucSaved);
         pProfile->UpdateProfCRC();
     }
     pProfile = PlayerProfile::GetProfile(1);
     if (pProfile)
     {
         unsigned char& ucSaved = pProfile->mGameOptions.mCampaignProgress[iMission - 1];
-        ucSaved = ucProgress > ucSaved ? ucProgress : ucSaved;
+        ucSaved = Max(ucProgress, ucSaved);
         pProfile->UpdateProfCRC();
     }
     return 0;
@@ -1681,8 +1689,12 @@ int ScriptCB_MetagameSetBonus(lua_State*)
 int ScriptCB_MetagameSetSide(lua_State*)
 {
     const char* pcSide = LuaHelper::GetString(2);
-    unsigned int uiIndex = LuaHelper::GetInt(1);
-    GameLoop::SetMetagameSide(uiIndex, Team::TranslateTeamName(pcSide));
+    __int64 iIndex = (__int64)luaL_checknumber(LuaHelper::mState, 1);
+    if (iIndex != (int)iIndex || !PblInBounds(GameLoop::mMetagameSide, (int)iIndex))
+    {
+        return 0;
+    }
+    GameLoop::SetMetagameSide((int)iIndex, Team::TranslateTeamName(pcSide));
     return 0;
 }
 
@@ -1698,7 +1710,7 @@ int ScriptCB_DisableFlyerShadows(lua_State*)
 namespace
 {
 
-RedParticleRenderer::TexCoords WholeTexture()
+inline RedParticleRenderer::TexCoords WholeTexture()
 {
     RedParticleRenderer::TexCoords tc;
     tc.u0 = 0;
@@ -1717,15 +1729,23 @@ void DrawAllBeamBetween::Render(int)
         const Desc& desc = mArray[i];
         const PblVector3& vPos1 = desc.mPos1;
         const PblVector3& vPos2 = desc.mPos2;
-        float fRadius = desc.mWidth * 2.0f;
 
-        PblVector3 vMin, vMax;
-        vMin.x = (vPos2.x > vPos1.x ? vPos1.x : vPos2.x) - fRadius;
-        vMin.y = (vPos2.y > vPos1.y ? vPos1.y : vPos2.y) - fRadius;
-        vMin.z = (vPos2.z > vPos1.z ? vPos1.z : vPos2.z) - fRadius;
-        vMax.x = fRadius + (vPos1.x > vPos2.x ? vPos1.x : vPos2.x);
-        vMax.y = fRadius + (vPos1.y > vPos2.y ? vPos1.y : vPos2.y);
-        vMax.z = fRadius + (vPos1.z > vPos2.z ? vPos1.z : vPos2.z);
+        const float fMinZ = vPos2.z > vPos1.z ? vPos1.z : vPos2.z;
+        const float fMinY = vPos2.y > vPos1.y ? vPos1.y : vPos2.y;
+        const float fMinX = vPos2.x > vPos1.x ? vPos1.x : vPos2.x;
+        float fRadius = desc.mWidth * 2.0f;
+        PblVector3 vMin;
+        vMin.x = fMinX - fRadius;
+        vMin.y = fMinY - fRadius;
+        vMin.z = fMinZ - fRadius;
+
+        const float fMaxZ = vPos1.z > vPos2.z ? vPos1.z : vPos2.z;
+        const float fMaxY = vPos1.y > vPos2.y ? vPos1.y : vPos2.y;
+        const float fMaxX = vPos1.x > vPos2.x ? vPos1.x : vPos2.x;
+        PblVector3 vMax;
+        vMax.x = fRadius + fMaxX;
+        vMax.y = fRadius + fMaxY;
+        vMax.z = fRadius + fMaxZ;
         RedParticleRenderer::SubmitTexture(desc.mTexture, BLEND_NORMAL, 0);
         RedParticleRenderer::SubmitBounds(vMin, vMax);
 
@@ -1734,9 +1754,12 @@ void DrawAllBeamBetween::Render(int)
             RedParticleRenderer::SubmitParticle(PIT_STREAK_HEAD, vPos1, desc.mColor, desc.mWidth, desc.mShift,
                                                 WholeTexture(), gVectorUnitX, gVectorUnitY);
             PblVector3 vMid;
-            vMid.x = (vPos2.x + vPos1.x) * 0.5f;
-            vMid.y = (vPos1.y + vPos2.y) * 0.5f;
-            vMid.z = (vPos1.z + vPos2.z) * 0.5f;
+            vMid.x = vPos2.x + vPos1.x;
+            vMid.y = vPos2.y + vPos1.y;
+            vMid.z = vPos2.z + vPos1.z;
+            vMid.x *= 0.5f;
+            vMid.y *= 0.5f;
+            vMid.z *= 0.5f;
             RedParticleRenderer::SubmitParticle(PIT_STREAK, vMid, desc.mColor, desc.mWidth,
                                                 desc.mRepetitions * 0.5f + desc.mShift,
                                                 WholeTexture(), gVectorUnitX, gVectorUnitY);
@@ -1753,10 +1776,14 @@ void DrawAllBeamBetween::Render(int)
             D3DXVec3Normalize((D3DXVECTOR3*)&vDir, (const D3DXVECTOR3*)&vDelta);
 
             float fWidth = desc.mWidth;
+            PblVector3 vOffset;
+            vOffset.x = vDir.x * fWidth;
+            vOffset.y = vDir.y * fWidth;
+            vOffset.z = vDir.z * fWidth;
             PblVector3 vStart;
-            vStart.x = vPos1.x - vDir.x * fWidth;
-            vStart.y = vPos1.y - vDir.y * fWidth;
-            vStart.z = vPos1.z - vDir.z * fWidth;
+            vStart.x = vPos1.x - vOffset.x;
+            vStart.y = vPos1.y - vOffset.y;
+            vStart.z = vPos1.z - vOffset.z;
             RedParticleRenderer::SubmitParticle(PIT_STREAK_HEAD, vStart, desc.mColor, fWidth, 0.0f,
                                                 WholeTexture(), gVectorUnitX, gVectorUnitY);
             RedParticleRenderer::SubmitParticle(PIT_STREAK, vPos1, desc.mColor, desc.mWidth, 0.25f,
@@ -1764,10 +1791,13 @@ void DrawAllBeamBetween::Render(int)
             RedParticleRenderer::SubmitParticle(PIT_STREAK, vPos2, desc.mColor, desc.mWidth, 0.75f,
                                                 WholeTexture(), gVectorUnitX, gVectorUnitY);
             fWidth = desc.mWidth;
+            vOffset.x = fWidth * vDir.x;
+            vOffset.y = vDir.y * fWidth;
+            vOffset.z = vDir.z * fWidth;
             PblVector3 vEnd;
-            vEnd.x = fWidth * vDir.x + vPos2.x;
-            vEnd.y = vDir.y * fWidth + vPos2.y;
-            vEnd.z = vDir.z * fWidth + vPos2.z;
+            vEnd.x = vOffset.x + vPos2.x;
+            vEnd.y = vOffset.y + vPos2.y;
+            vEnd.z = vOffset.z + vPos2.z;
             RedParticleRenderer::SubmitParticle(PIT_STREAK_TAIL, vEnd, desc.mColor, fWidth, 1.0f,
                                                 WholeTexture(), gVectorUnitX, gVectorUnitY);
         }
@@ -1826,6 +1856,11 @@ int DrawBeamBetween(lua_State*)
 // FUNCTION: SWBF2 0x005801b0
 void DrawAllParticleAt::Render(int)
 {
+    RedParticleRenderer::TexCoords tcWhole;
+    tcWhole.u0 = 0;
+    tcWhole.v0 = 0;
+    tcWhole.u1 = 255;
+    tcWhole.v1 = 255;
     for (unsigned int i = 0; i < mCount; ++i)
     {
         const Desc& desc = mArray[i];
@@ -1841,19 +1876,9 @@ void DrawAllParticleAt::Render(int)
         RedParticleRenderer::SubmitTexture(desc.mTexture, BLEND_NORMAL, 0);
         RedParticleRenderer::SubmitBounds(vMin, vMax);
         RedParticleRenderer::SubmitParticle(PIT_PARTICLE, desc.mPos, desc.mColor, desc.mWidth, desc.mRotation,
-                                            WholeTexture(), gVectorUnitX, gVectorUnitY);
+                                            tcWhole, gVectorUnitX, gVectorUnitY);
     }
     mCount = 0;
-}
-
-DrawAllBeamBetween::DrawAllBeamBetween() : Renderable(6), mCount(0)
-{
-    Activate(-1);
-}
-
-DrawAllParticleAt::DrawAllParticleAt() : Renderable(6), mCount(0)
-{
-    Activate(0);
 }
 
 // FUNCTION: SWBF2 0x005802c0

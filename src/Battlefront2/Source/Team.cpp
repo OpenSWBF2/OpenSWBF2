@@ -31,7 +31,7 @@ void Event<Team, float>::Callback::Trigger(Team& item, float& param);
 }
 
 // GLOBAL: SWBF2 0x01eafcd0
-Team* Team::sHostTeams[8];
+Team* Team::sHostTeams[Team::kMaxTeams];
 
 // GLOBAL: SWBF2 0x01eafca4
 Team* Team::sClientTeams[8];
@@ -75,7 +75,7 @@ void Team::CreateAll()
     sTeams[0] = new Team(0, 0, 0);
     sTeams[1] = new Team(1, 300, 12);
     sTeams[2] = new Team(2, 300, 12);
-    for (int i = 3; i < 8; ++i)
+    for (int i = 3; i < Team::kMaxTeams; ++i)
     {
         sTeams[i] = new Team(i, 300, 12);
         sTeams[i]->mMaxReinforcements = 0x7FFFFFFF;
@@ -97,7 +97,7 @@ void Team::CreateClient()
 // FUNCTION: SWBF2 0x00652f40
 void Team::DestroyAll()
 {
-    for (int i = 0; i < 8; ++i)
+    for (int i = 0; i < Team::kMaxTeams; ++i)
     {
         delete sTeams[i];
         sTeams[i] = 0;
@@ -134,49 +134,47 @@ void Team::LeaveClient()
 // FUNCTION: SWBF2 0x00652fc0
 void Team::CopyFromHost()
 {
-    if (netIsOneWorld)
+    if (!netIsOneWorld)
     {
-        return;
-    }
-
-    for (int i = 0; i < 8; ++i)
-    {
-        Team* pHost = sHostTeams[i];
-        const int iClassCount = pHost->mClassCount;
-        for (int j = 0; j < iClassCount; ++j)
+        for (int i = 0; i < Team::kMaxTeams; ++i)
         {
-            GameObjectClass* pClass = pHost->GetClassPtr(j);
-            if (pClass->mHeroFlag)
+            Team* pHost = sHostTeams[i];
+            const int iClassCount = pHost->mClassCount;
+            for (int j = 0; j < iClassCount; ++j)
             {
-                sTeams[i]->AddSpecialClass(pClass);
+                GameObjectClass* pClass = pHost->GetClassPtr(j);
+                if (pClass->mHeroFlag)
+                {
+                    sTeams[i]->AddSpecialClass(pClass);
+                }
+                else
+                {
+                    sTeams[i]->AddClass(pClass, pHost->GetClassMinUnits(j), pHost->GetClassMaxUnits(j));
+                }
             }
-            else
-            {
-                sTeams[i]->AddClass(pClass, pHost->GetClassMinUnits(j), pHost->GetClassMaxUnits(j));
-            }
-        }
 
-        Team* pTeam = sTeams[i];
-        pTeam->SetName(pHost->mName);
-        const unsigned int uIcon = sHostTeams[i]->GetIcon();
-        pTeam->mIcon = uIcon;
-        if (!pTeam->mConquestIcon)
-        {
-            pTeam->mConquestIcon = uIcon;
+            sTeams[i]->SetName(sHostTeams[i]->mName);
+            const unsigned int uIcon = sHostTeams[i]->GetIcon();
+            Team* pTeam = sTeams[i];
+            pTeam->mIcon = uIcon;
+            if (!pTeam->mConquestIcon)
+            {
+                pTeam->mConquestIcon = uIcon;
+            }
+            if (!pTeam->mCTFIcon)
+            {
+                pTeam->mCTFIcon = uIcon;
+            }
+            sTeams[i]->SetSide(sHostTeams[i]->mSide);
+            sTeams[i]->mMaxReinforcements = sHostTeams[i]->mMaxReinforcements;
+            sTeams[i]->SetCurReinforcements(sHostTeams[i]->mCurReinforcements);
+            for (int j = 0; j < Team::kMaxTeams; ++j)
+            {
+                sTeams[i]->mColor[j] = sHostTeams[i]->GetColor(j);
+                sTeams[i]->mAffiliation[j] = sHostTeams[i]->mAffiliation[j];
+            }
+            sTeams[i]->SetPoints(sHostTeams[i]->mPoints);
         }
-        if (!pTeam->mCTFIcon)
-        {
-            pTeam->mCTFIcon = uIcon;
-        }
-        pTeam->SetSide(sHostTeams[i]->mSide);
-        pTeam->mMaxReinforcements = sHostTeams[i]->mMaxReinforcements;
-        pTeam->SetCurReinforcements(sHostTeams[i]->mCurReinforcements);
-        for (int j = 0; j < 8; ++j)
-        {
-            sTeams[i]->mColor[j] = sHostTeams[i]->GetColor(j);
-            sTeams[i]->mAffiliation[j] = sHostTeams[i]->mAffiliation[j];
-        }
-        sTeams[i]->SetPoints(sHostTeams[i]->mPoints);
     }
 }
 
@@ -184,7 +182,7 @@ void Team::CopyFromHost()
 void Team::InitAll()
 {
     sWinningTeams = 0;
-    for (int i = 1; i < 8; ++i)
+    for (int i = 1; i < Team::kMaxTeams; ++i)
     {
         sTeams[i]->Init();
     }
@@ -193,7 +191,7 @@ void Team::InitAll()
 // FUNCTION: SWBF2 0x00653320
 void Team::InitialUpdateAll()
 {
-    for (int i = 1; i < 8; ++i)
+    for (int i = 1; i < Team::kMaxTeams; ++i)
     {
         sTeams[i]->InitialUpdate();
     }
@@ -227,8 +225,8 @@ void Team::InitialUpdateAll()
 Team::Team(int iTeamNumber, int iMemberLimit, int iClassLimit)
 {
     mTeamNumber = iTeamNumber;
-    mClassLimit = iClassLimit;
     mMemberLimit = iMemberLimit;
+    mClassLimit = iClassLimit;
     mName = 0;
     mIcon = 0;
     mConquestIcon = 0;
@@ -253,13 +251,13 @@ Team::Team(int iTeamNumber, int iMemberLimit, int iClassLimit)
     mClassMinUnits = new int[mClassLimit];
     mClassMaxUnits = new int[mClassLimit];
 
-    for (int i = 0; i < 8; ++i)
+    for (int i = 0; i < Team::kMaxTeams; ++i)
     {
         mAffiliation[i] = 0;
     }
     if (mTeamNumber)
     {
-        for (int i = 1; i < 8; ++i)
+        for (int i = 1; i < Team::kMaxTeams; ++i)
         {
             mAffiliation[i] = (mTeamNumber == i) ? 1 : -1;
         }
@@ -393,7 +391,7 @@ void Team::InitialUpdate()
         }
     }
 
-    for (int i = 0; i < 8; ++i)
+    for (int i = 0; i < Team::kMaxTeams; ++i)
     {
         if (sTeams[i]->GetSide() == side_Locals && mAffiliation[i] == 0)
         {
@@ -445,6 +443,20 @@ void Team::InitialUpdate()
             mName = (unsigned short*)RedLocalizeDB::Find(0xEEEC5DE2u, false);
         }
         break;
+    case side_HEROES:
+        mName = (unsigned short*)RedLocalizeDB::Find(0xA7217A49u, true);
+        if (!mName)
+        {
+            mName = (unsigned short*)RedLocalizeDB::Find(0xA7217A49u, false);
+        }
+        break;
+    case side_VILLAINS:
+        mName = (unsigned short*)RedLocalizeDB::Find(0x81FD9981u, true);
+        if (!mName)
+        {
+            mName = (unsigned short*)RedLocalizeDB::Find(0x81FD9981u, false);
+        }
+        break;
     case side_Locals:
         if (strlen(mSideNameLocal))
         {
@@ -466,20 +478,6 @@ void Team::InitialUpdate()
         if (!mName)
         {
             mName = (unsigned short*)RedLocalizeDB::Find(PblHash(acKey), false);
-        }
-        break;
-    case side_HEROES:
-        mName = (unsigned short*)RedLocalizeDB::Find(0xA7217A49u, true);
-        if (!mName)
-        {
-            mName = (unsigned short*)RedLocalizeDB::Find(0xA7217A49u, false);
-        }
-        break;
-    case side_VILLAINS:
-        mName = (unsigned short*)RedLocalizeDB::Find(0x81FD9981u, true);
-        if (!mName)
-        {
-            mName = (unsigned short*)RedLocalizeDB::Find(0x81FD9981u, false);
         }
         break;
     default:
@@ -584,7 +582,11 @@ bool Team::IsMemberAlive(int iIndex) const
     if (pCharacter && pCharacter->mUnit)
     {
         GameObject* pObject = pCharacter->mUnit->GetGameObject();
-        return static_cast<const Damageable*>(pObject)->mIsAlive;
+        const bool bAlive = pObject->mIsAlive;
+        if (bAlive)
+        {
+            return true;
+        }
     }
     return false;
 }
@@ -616,10 +618,10 @@ Character* Team::GetRandomLiveCharacter() const
     }
     if (iCount > 0)
     {
-        int pick = PblRandom::GetGlobalInt() % iCount;
+        int iPick = PblRandom::GetGlobalInt() % iCount;
         for (int i = 0; i < mMemberCount; ++i)
         {
-            if (mMemberArray[i]->mUnit && pick-- == 0)
+            if (mMemberArray[i]->mUnit && --iPick < 0)
             {
                 return mMemberArray[i];
             }
@@ -633,7 +635,8 @@ bool Team::AddClass(GameObjectClass* pClass, int iMinUnits, int iMaxUnits)
 {
     if (pClass && mClassCount < mClassLimit)
     {
-        mClassArray[mClassCount++] = pClass;
+        ++mClassCount;
+        mClassArray[mClassCount - 1] = pClass;
         _SetClassUnitCounts(mClassCount - 1, iMinUnits, iMaxUnits);
         return true;
     }
@@ -888,14 +891,13 @@ void Team::GenerateRandomName(unsigned short* const pName, int iTeam) const
         return;
     }
 
-    unsigned int uRand = mNameRand.GetInt();
     if (mFirstCount)
     {
-        PblUnicode::ustrlcat(pName, mFirstNames[uRand % mFirstCount], 60);
+        PblUnicode::ustrlcat(pName, mFirstNames[mNameRand.GetInt() % mFirstCount], 60);
     }
     else
     {
-        pName[0] = (unsigned short)('A' + uRand % 26);
+        pName[0] = (unsigned short)('A' + mNameRand.GetInt() % 26);
         pName[1] = (unsigned short)('A' + mNameRand.GetInt() % 26);
         pName[2] = 0;
     }
@@ -904,14 +906,13 @@ void Team::GenerateRandomName(unsigned short* const pName, int iTeam) const
     pName[uLen] = ' ';
     pName[uLen + 1] = 0;
 
-    uRand = mNameRand.GetInt();
     if (mLastCount)
     {
-        PblUnicode::ustrlcat(pName, mLastNames[uRand % mLastCount], 64);
+        PblUnicode::ustrlcat(pName, mLastNames[mNameRand.GetInt() % mLastCount], 64);
     }
     else
     {
-        pName[uLen + 1] = (unsigned short)('0' + uRand % 10);
+        pName[uLen + 1] = (unsigned short)('0' + mNameRand.GetInt() % 10);
         pName[uLen + 2] = (unsigned short)('0' + mNameRand.GetInt() % 10);
         pName[uLen + 3] = (unsigned short)('0' + mNameRand.GetInt() % 10);
         pName[uLen + 4] = 0;
@@ -1017,7 +1018,8 @@ void Event<Team, int>::Callback::Trigger(Team& item, int& param)
             pChild->AddRef();
             while (pChild)
             {
-                if (!pChild->IsAlive())
+                const bool bAlive = pChild->mAliveFlag;
+                if (!bAlive)
                 {
                     pChild->Release();
                     break;
@@ -1049,7 +1051,8 @@ void Event<Team, float>::Callback::Trigger(Team& item, float& param)
             pChild->AddRef();
             while (pChild)
             {
-                if (!pChild->IsAlive())
+                const bool bAlive = pChild->mAliveFlag;
+                if (!bAlive)
                 {
                     pChild->Release();
                     break;

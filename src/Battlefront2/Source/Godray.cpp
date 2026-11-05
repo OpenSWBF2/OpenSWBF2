@@ -41,8 +41,11 @@ void GodrayManager::Create()
 // FUNCTION: SWBF2 0x0053e570
 void GodrayManager::Destroy()
 {
-    delete s_pInstance;
-    s_pInstance = 0;
+    if (s_pInstance)
+    {
+        delete s_pInstance;
+        s_pInstance = 0;
+    }
 }
 
 // FUNCTION: SWBF2 0x0053e590
@@ -297,10 +300,7 @@ void GodrayManager::UpdateGodrayPosition(unsigned int uiId, const PblVector3& vP
         return;
     }
     Godray* pGodray = &m_aGodrays[uiId - 1];
-    const float fDX = pGodray->vStartPos.x - vPos.x;
-    const float fDY = pGodray->vStartPos.y - vPos.y;
-    const float fDZ = pGodray->vStartPos.z - vPos.z;
-    if (fDX * fDX + fDY * fDY + fDZ * fDZ <= 0.0001f)
+    if (SquaredLength(pGodray->vStartPos - vPos) <= 0.0001f)
     {
         return;
     }
@@ -346,25 +346,20 @@ void GodrayManager::Update(float fDeltaTime)
         return;
     }
 
-    if (++m_uiFrame == 0)
-    {
-        m_uiFrame = 1;
-    }
+    m_uiFrame = (m_uiFrame + 1 == 0) ? 1 : m_uiFrame + 1;
     m_fTime += fDeltaTime;
 
-    const PblVector3 vSunDir = RedLight::GetGlobalDirectionalLight(0)->m_vDirection;
-
-    PblVector3 vAxisIn(vSunDir.y * 0.0f - vSunDir.z, vSunDir.z * 0.0f - vSunDir.x * 0.0f,
-                       vSunDir.x - vSunDir.y * 0.0f);
+    PblVector3 vTemp = RedLight::GetGlobalDirectionalLight(0)->m_vDirection;
+    vTemp = PblVector3(vTemp.y * 0.0f - vTemp.z, vTemp.z * 0.0f - vTemp.x * 0.0f,
+                       vTemp.x - vTemp.y * 0.0f);
     PblVector3 vAxis;
-    D3DXVec3Normalize((D3DXVECTOR3*)&vAxis, (const D3DXVECTOR3*)&vAxisIn);
-    D3DXMATRIX mRotation;
-    D3DXMatrixRotationAxis(&mRotation, (const D3DXVECTOR3*)&vAxis, m_fOffsetAngle);
-    PblVector3 vLengthDir;
-    D3DXVec3TransformNormal((D3DXVECTOR3*)&vLengthDir,
+    D3DXVec3Normalize((D3DXVECTOR3*)&vAxis, (const D3DXVECTOR3*)&vTemp);
+    PblMatrix mRotation;
+    D3DXMatrixRotationAxis((D3DXMATRIX*)&mRotation, (const D3DXVECTOR3*)&vAxis, m_fOffsetAngle);
+    D3DXVec3TransformNormal((D3DXVECTOR3*)&vTemp,
                             (const D3DXVECTOR3*)&RedLight::GetGlobalDirectionalLight(0)->m_vDirection,
-                            &mRotation);
-    m_vLengthDir = vLengthDir;
+                            (const D3DXMATRIX*)&mRotation);
+    m_vLengthDir = vTemp;
 
     m_Rand.SetSeed((unsigned int)(m_fTime * 4099.0f));
 
@@ -378,8 +373,7 @@ void GodrayManager::Update(float fDeltaTime)
         else
         {
             m_aVisibleGodrays[i].pGodray->uiFrameLastVisible = m_uiFrame;
-            --m_uiNumVisibleGodrays;
-            m_aVisibleGodrays[i] = m_aVisibleGodrays[m_uiNumVisibleGodrays];
+            m_aVisibleGodrays[i] = m_aVisibleGodrays[--m_uiNumVisibleGodrays];
             --i;
         }
     }
@@ -419,13 +413,13 @@ void GodrayManager::Render(int value)
     const RedCamera* pCamera = RedRenderer::GetCamera();
     float fNear, fFar, fWidth, fHeight;
     pCamera->GetFrustum(fNear, fFar, fWidth, fHeight);
-    const float* vFront = pCamera->GetMatrix().m[2];
-    const float* vPos = pCamera->GetMatrix().m[3];
+    const PblVector3& vFront = pCamera->GetMatrix().GetZAxis();
+    const PblVector3& vPos = pCamera->GetMatrix().GetTranslation();
 
     const float fViewDot =
-        -(m_vLengthDir.y * vFront[1] + m_vLengthDir.x * vFront[0] + m_vLengthDir.z * vFront[2]);
+        -(vFront.y * m_vLengthDir.y + m_vLengthDir.x * vFront.x + vFront.z * m_vLengthDir.z);
     m_bTowardCamera = fViewDot < 0.0f;
-    m_fNearDist = fNear - (vPos[1] * vFront[1] + vPos[0] * vFront[0] + vFront[2] * vPos[2]);
+    m_fNearDist = fNear - (vFront.y * vPos.y + vPos.x * vFront.x + vPos.z * vFront.z);
 
     bool bAnyVisible = false;
     for (unsigned int i = 0; i < m_uiNumVisibleGodrays; ++i)
@@ -442,37 +436,29 @@ void GodrayManager::Render(int value)
         return;
     }
 
-    PblVector3 vWidth(m_vLengthDir.y * vFront[2] - m_vLengthDir.z * vFront[1],
-                      m_vLengthDir.z * vFront[0] - m_vLengthDir.x * vFront[2],
-                      m_vLengthDir.x * vFront[1] - m_vLengthDir.y * vFront[0]);
-    PblVector3 vWidthDir;
-    D3DXVec3Normalize((D3DXVECTOR3*)&vWidthDir, (const D3DXVECTOR3*)&vWidth);
-    m_vWidthDir = vWidthDir;
+    m_vWidthDir = Normalize(CrossProduct(m_vLengthDir, vFront));
 
-    const float fNX = m_vLengthDir.z * m_vWidthDir.y - m_vLengthDir.y * m_vWidthDir.z;
-    const float fNY = m_vLengthDir.x * m_vWidthDir.z - m_vWidthDir.x * m_vLengthDir.z;
-    const float fNZ = m_vWidthDir.x * m_vLengthDir.y - m_vLengthDir.x * m_vWidthDir.y;
+    const PblVector3 vNormal = CrossProduct(m_vWidthDir, m_vLengthDir);
     const float fViewDot2 = fViewDot * fViewDot;
     const float fSideFactor = 1.0f - fViewDot2 * fViewDot2;
     for (unsigned int i = 0; i < m_uiNumVisibleGodrays; ++i)
     {
-        VisibleGodray& visible = m_aVisibleGodrays[i];
-        const float fSide = (vPos[0] - visible.vStartPosClipped.x) * fNX +
-                            (vPos[1] - visible.vStartPosClipped.y) * fNY +
-                            (vPos[2] - visible.vStartPosClipped.z) * fNZ;
+        const float fSide = (vPos.x - m_aVisibleGodrays[i].vStartPosClipped.x) * vNormal.x +
+                            (vPos.y - m_aVisibleGodrays[i].vStartPosClipped.y) * vNormal.y +
+                            (vPos.z - m_aVisibleGodrays[i].vStartPosClipped.z) * vNormal.z;
         float fFade = 1.0f;
         if (fSide <= 0.0f)
         {
             fFade = 0.0f;
         }
-        else if (fSide < visible.pGodray->fRadius)
+        else if (fSide < m_aVisibleGodrays[i].pGodray->fRadius)
         {
-            fFade = fSide / visible.pGodray->fRadius;
+            fFade = fSide / m_aVisibleGodrays[i].pGodray->fRadius;
         }
-        visible.fAlpha = fFade * fSideFactor * visible.fAlpha;
+        m_aVisibleGodrays[i].fAlpha = fFade * fSideFactor * m_aVisibleGodrays[i].fAlpha;
     }
 
-    m_fTexOffsetAngle = (float)atan2((double)-vFront[0], (double)-vFront[2]);
+    m_fTexOffsetAngle = (float)atan2((double)-vFront.x, (double)-vFront.z);
     m_fTexOffsetW -= (float)(int)m_fTexOffsetW;
     m_fTexOffsetL -= (float)(int)m_fTexOffsetL;
     PlatformRender((unsigned int)value);
@@ -609,7 +595,8 @@ bool GodrayManager::AnimateVisibleGodray(VisibleGodray* pVisible, float fTime, f
 // FUNCTION: SWBF2 0x0053f980
 bool GodrayManager::UpdateVisibleGodray(VisibleGodray* pVisible)
 {
-    return AnimateVisibleGodray(pVisible, m_fTime, 0.0f);
+    AnimateVisibleGodray(pVisible, m_fTime, 0.0f);
+    return true;
 }
 
 // FUNCTION: SWBF2 0x0053f9a0
@@ -620,10 +607,10 @@ GodrayManager::Godray* GodrayManager::ChooseNewGodray()
         return 0;
     }
 
-    Godray* pBest = 0;
-    unsigned int uiBestScore = 0;
-    const int iNumCameras = CameraManager::Instance()->GetNumCameras();
     Godray* pPrev = 0;
+    const int iNumCameras = CameraManager::Instance()->GetNumCameras();
+    unsigned int uiBestScore = 0;
+    Godray* pBest = 0;
     for (Godray* pGodray = m_pFirstAllocatedGodray; pGodray; pPrev = pGodray, pGodray = pGodray->pNext)
     {
         if (pGodray->uiFrameLastVisible == 0)
@@ -634,8 +621,9 @@ GodrayManager::Godray* GodrayManager::ChooseNewGodray()
         if (pGodray->fLength < 0.0f)
         {
             const float fMaxLength = m_fMaxGodrayLength;
+            const PblVector3& vDir = m_vLengthDir;
             CollisionObject* pHitObject;
-            float fLength = CollisionManager::RayHit(pGodray->vStartPos, m_vLengthDir, fMaxLength,
+            float fLength = CollisionManager::RayHit(pGodray->vStartPos, vDir, fMaxLength,
                                                      pHitObject, 0, 0, 0, 0x80, false) *
                             fMaxLength;
             if (fLength <= 0.0f)
@@ -648,9 +636,7 @@ GodrayManager::Godray* GodrayManager::ChooseNewGodray()
                 fLength = fMaxLength;
             }
             pGodray->fLength = fLength;
-            pGodray->vEndPos = PblVector3(pGodray->vStartPos.x + m_vLengthDir.x * fLength,
-                                          pGodray->vStartPos.y + m_vLengthDir.y * fLength,
-                                          pGodray->vStartPos.z + m_vLengthDir.z * fLength);
+            pGodray->vEndPos = pGodray->vStartPos + vDir * fLength;
         }
 
         unsigned int uiScore = m_uiFrame - pGodray->uiFrameLastVisible;
@@ -698,8 +684,7 @@ GodrayManager::Godray* GodrayManager::ChooseNewGodray()
                 continue;
             }
 
-            const PblVector3 vCenter((vStart.x + vEnd.x) * 0.5f, (vEnd.y + vStart.y) * 0.5f,
-                                     (vEnd.z + vStart.z) * 0.5f);
+            const PblVector3 vCenter = (vStart + vEnd) * 0.5f;
             if (pCamera->ClassifySphere(vCenter, pGodray->fLength * 0.5f, -1.0f) == RedCamera::VISIBILITY_NONE)
             {
                 continue;
@@ -766,19 +751,20 @@ GodrayManager::VisibleGodray* GodrayManager::CreateVisibleGodray(Godray* pGodray
 void GodrayManager::CreateRay(VisibleGodray* pVisible, unsigned int uiRay)
 {
     VisibleGodray::Ray& ray = pVisible->aRays[uiRay];
-    const Godray* pGodray = pVisible->pGodray;
 
     ray.fTime0 = m_fTime;
-    ray.fLifeTime = pGodray->fLifetimeMin + (pGodray->fLifetimeMax - pGodray->fLifetimeMin) * m_Rand.GetFloat();
+    ray.fLifeTime = pVisible->pGodray->fLifetimeMin +
+                    (pVisible->pGodray->fLifetimeMax - pVisible->pGodray->fLifetimeMin) * m_Rand.GetFloat();
 
     const float r = m_Rand.GetFloat();
-    const float fDist = (1.0f - r * r) * (pGodray->fRadius - ray.fRadius);
-    const float fAngle = m_Rand.GetFloat() * PblMath::fTwoPi;
+    const float fDist = (1.0f - r * r) * (pVisible->pGodray->fRadius - ray.fRadius);
+    const float fAngle = m_Rand.GetFloat() * (PblMath::fPi * 2.0f);
     ray.fPosX = PblMath::Cos(fAngle) * fDist;
     ray.fPosZ = PblMath::Sin(fAngle) * fDist;
 
-    ray.fRadius0 = (pGodray->fRadius * 0.5f - 0.1f) * m_Rand.GetFloat() + 0.1f;
-    ray.fAlpha0 = pGodray->fAlphaMin + (pGodray->fAlphaMax - pGodray->fAlphaMin) * m_Rand.GetFloat();
+    ray.fRadius0 = (pVisible->pGodray->fRadius * 0.5f - 0.1f) * m_Rand.GetFloat() + 0.1f;
+    ray.fAlpha0 = pVisible->pGodray->fAlphaMin +
+                  (pVisible->pGodray->fAlphaMax - pVisible->pGodray->fAlphaMin) * m_Rand.GetFloat();
     ray.fTexOffsetL0 = m_Rand.GetFloat();
     ray.fTexOffsetW0 = m_Rand.GetFloat();
     ray.fRadius = 0.0f;
@@ -790,9 +776,9 @@ GodrayClass::GodrayClass(unsigned int uHash)
     : EntityClass(uHash)
     , FLEffectClass()
 {
+    m_fRadius = 1.0f;
     m_fLifetimeMin = 2.0f;
     m_fLifetimeMax = 5.0f;
-    m_fRadius = 1.0f;
     m_fAlphaMin = 0.5f;
     m_fAlphaMax = 1.0f;
     m_color = RedColor::WHITE;
@@ -832,9 +818,9 @@ EntityClass* GodrayClass::Derive(unsigned int uHash)
 FLEffectObject* GodrayClass::BuildEffect()
 {
     GodrayDesc desc;
-    desc.fRadius = m_fRadius;
     desc.fLifetimeMin = m_fLifetimeMin;
     desc.fLifetimeMax = m_fLifetimeMax;
+    desc.fRadius = m_fRadius;
     desc.fAlphaMin = m_fAlphaMin;
     desc.fAlphaMax = m_fAlphaMax;
     desc.color = m_color;
@@ -845,23 +831,19 @@ FLEffectObject* GodrayClass::BuildEffect()
 // FUNCTION: SWBF2 0x00540550
 Entity* GodrayClass::Build(const EntityDesc& desc)
 {
-    const PblVector3& vPos = desc.mMatrix.GetTranslation();
     for (int i = 0; i < mNumGodRays; ++i)
     {
         GodrayDesc godrayDesc;
-        godrayDesc.fRadius = m_fRadius;
         godrayDesc.fLifetimeMin = m_fLifetimeMin;
         godrayDesc.fLifetimeMax = m_fLifetimeMax;
+        godrayDesc.fRadius = m_fRadius;
         godrayDesc.fAlphaMin = m_fAlphaMin;
         godrayDesc.fAlphaMax = m_fAlphaMax;
         godrayDesc.color = m_color;
-        const float fSpread = mSpreadRadius * 2.0f;
 
-        const float fZ = vPos.z + (PblRandom::GetGlobalFloat() - 0.5f) * fSpread;
-        const float fY = vPos.y + (PblRandom::GetGlobalFloat() - 0.5f) * fSpread;
-        const float fX = vPos.x + (PblRandom::GetGlobalFloat() - 0.5f) * fSpread;
-        PblVector3 vGodrayPos(fX, fY, fZ);
-        GodrayManager::s_pInstance->AddGodray(godrayDesc, vGodrayPos);
+        const PblVector3 vOffset(PblRandom::_Global.GetFloat() - 0.5f, PblRandom::_Global.GetFloat() - 0.5f,
+                                 PblRandom::_Global.GetFloat() - 0.5f);
+        GodrayManager::s_pInstance->AddGodray(godrayDesc, vOffset * (mSpreadRadius * 2.0f) + desc.mMatrix.GetTranslation());
     }
     return 0;
 }

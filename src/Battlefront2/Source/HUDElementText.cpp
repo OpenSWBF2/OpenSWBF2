@@ -170,7 +170,7 @@ HUD::ElementText& HUD::ElementText::operator=(const ElementText& other)
 // FUNCTION: SWBF2 0x0055bb30
 void HUD::ElementText::CopyToTextElement(RedTextElement& textElement)
 {
-    textElement.m_color = mColorDefault;
+    textElement.m_color = RedColor(mColorDefault);
     textElement.SetZOrder((unsigned char)RedTextElement::m_zorder);
     textElement.SetBlendMode(static_cast<RedTextElement&>(*this).GetBlendMode());
     textElement.SetMatrix(m_mLocal);
@@ -269,18 +269,11 @@ bool HUD::ElementText::ReadData(PblConfig& config, PblConfig::Data& data)
                                                 3, data.GetStringArg(0));
         const unsigned int uVAlign = TranslateString((const char* const*)Factory::sTextAlignVertical,
                                                 4, data.GetStringArg(1));
-        TextHAlignT eHAlign;
         TextVAlignT eVAlign;
+        TextHAlignT eHAlign;
         GetTextAlign(eHAlign, eVAlign);
-        if (uHAlign < 3)
-        {
-            eHAlign = (TextHAlignT)uHAlign;
-        }
-        if (uVAlign < 4)
-        {
-            eVAlign = (TextVAlignT)uVAlign;
-        }
-        SetTextAlign(eHAlign, eVAlign);
+        SetTextAlign(uHAlign < 3 ? (TextHAlignT)uHAlign : eHAlign,
+                     uVAlign < 4 ? (TextVAlignT)uVAlign : eVAlign);
         return true;
     }
     case kTextScaleHash:
@@ -335,12 +328,15 @@ bool HUD::ElementText::CopyString(char** ppDest, const char* const pSource)
         FreeString(ppDest);
         const unsigned int uLength = strlen(pSource);
         *ppDest = new char[uLength + 1];
-        if (!*ppDest)
+        if (*ppDest)
+        {
+            strncpy(*ppDest, pSource, uLength);
+            (*ppDest)[uLength] = 0;
+        }
+        else
         {
             return false;
         }
-        strncpy(*ppDest, pSource, uLength);
-        (*ppDest)[uLength] = 0;
     }
     return true;
 }
@@ -358,22 +354,26 @@ void HUD::ElementText::FreeString(char** ppString)
 // FUNCTION: SWBF2 0x0055c3e0
 void HUD::ElementText::EventText(const HUD::Event& event, void* const pData)
 {
-    ElementText* pText = (ElementText*)pData;
     switch (event.GetClass()->GetType())
     {
     case EventClass::type_Uint:
-        static_cast<RedTextElement&>(pText->GetRedInterfaceElement()).SetText(RedLocalizeDB::Find(event.GetData().uintValue, false), true);
+    {
+        const unsigned short* pText = RedLocalizeDB::Find(event.GetData().uintValue, false);
+        RedTextElement& textElement = static_cast<RedTextElement&>(((ElementText*)pData)->GetRedInterfaceElement());
+        textElement.SetText(pText, true);
         break;
+    }
     case EventClass::type_String:
     {
         const unsigned short* pString = event.GetData().string;
+        RedTextElement& textElement = static_cast<RedTextElement&>(((ElementText*)pData)->GetRedInterfaceElement());
         if (pString)
         {
-            static_cast<RedTextElement&>(pText->GetRedInterfaceElement()).SetText(pString, true);
+            textElement.SetText(pString, true);
         }
         else
         {
-            static_cast<RedTextElement&>(pText->GetRedInterfaceElement()).SetText("", true);
+            textElement.SetText("", true);
         }
         break;
     }
@@ -403,11 +403,11 @@ void HUD::ElementText::EventNumber(const HUD::Event& event, void* const pData)
         }
 
         float fSeconds = event.GetDataFloat();
-        float fMinutes = floor(fSeconds / 60.0f);
+        float fMinutes = floorf(fSeconds / 60.0f);
         fSeconds -= fMinutes * 60.0f;
-        float fHours = floor(fMinutes / 60.0f);
+        float fHours = floorf(fMinutes / 60.0f);
         fMinutes -= fHours * 60.0f;
-        const float fDays = floor(fHours / 24.0f);
+        const float fDays = floorf(fHours / 24.0f);
         fHours -= fDays * 24.0f;
 
         char format[32];
@@ -417,23 +417,30 @@ void HUD::ElementText::EventNumber(const HUD::Event& event, void* const pData)
         text[0] = 0;
         for (const char* pc = pText->mNumberToTime; *pc; ++pc)
         {
-            const char c = *pc;
             if (uFormatLength != 0 && uFormatLength < 30)
             {
-                int iValue;
-                if (c == 'd')
+                if (*pc == 'd')
                 {
-                    iValue = (int)fDays;
+                    format[uFormatLength] = 'd';
+                    format[uFormatLength + 1] = 0;
+                    _snprintf(buffer, 255, format, (int)fDays);
+                    strlcat(text, buffer, 255);
                 }
-                else if (c == 'h')
+                else if (*pc == 'h')
                 {
-                    iValue = (int)fHours;
+                    format[uFormatLength] = 'd';
+                    format[uFormatLength + 1] = 0;
+                    _snprintf(buffer, 255, format, (int)fHours);
+                    strlcat(text, buffer, 255);
                 }
-                else if (c == 'm')
+                else if (*pc == 'm')
                 {
-                    iValue = (int)fMinutes;
+                    format[uFormatLength] = 'd';
+                    format[uFormatLength + 1] = 0;
+                    _snprintf(buffer, 255, format, (int)fMinutes);
+                    strlcat(text, buffer, 255);
                 }
-                else if (c == 's')
+                else if (*pc == 's')
                 {
                     format[uFormatLength] = 'd';
                     format[uFormatLength + 1] = 0;
@@ -447,30 +454,23 @@ void HUD::ElementText::EventNumber(const HUD::Event& event, void* const pData)
                                   (int)fSeconds);
                     }
                     strlcat(text, buffer, 255);
-                    uTextLength = strlen(text);
-                    uFormatLength = 0;
-                    continue;
                 }
                 else
                 {
-                    format[uFormatLength++] = c;
+                    format[uFormatLength++] = *pc;
                     continue;
                 }
-                format[uFormatLength] = 'd';
-                format[uFormatLength + 1] = 0;
-                _snprintf(buffer, 255, format, iValue);
-                strlcat(text, buffer, 255);
                 uTextLength = strlen(text);
                 uFormatLength = 0;
             }
-            else if (c == '%')
+            else if (*pc == '%')
             {
                 text[uTextLength] = 0;
-                format[uFormatLength++] = c;
+                format[uFormatLength++] = *pc;
             }
             else
             {
-                text[uTextLength++] = c;
+                text[uTextLength++] = *pc;
             }
         }
         text[uTextLength] = 0;
@@ -502,7 +502,7 @@ void HUD::ElementText::EventNumber(const HUD::Event& event, void* const pData)
             const bool bPercent = pText->mPercent;
             const float fValue = bPercent ? event.GetData().floatValue * 100.0f : event.GetData().floatValue;
             const char* pFormat;
-            if (event.GetData().floatValue == FLT_MAX)
+            if (FLT_MAX == event.GetData().floatValue)
             {
                 pFormat = pText->mShowInfiniteDashes ? "--" : "";
             }
@@ -578,8 +578,22 @@ bool HUD::ElementText::GetProperty(const unsigned int uHashID, void* pValue)
         ((float*)pValue)[1] = (float)uHeight / sViewportHeight;
         return true;
     }
-    case 0xAF7A0A77u: *(unsigned int*)pValue = m_halign; return true;
-    case 0xFD78EA2Du: *(unsigned int*)pValue = m_valign; return true;
+    case 0xAF7A0A77u:
+    {
+        TextHAlignT eHAlign;
+        TextVAlignT eVAlign;
+        GetTextAlign(eHAlign, eVAlign);
+        *(unsigned int*)pValue = eHAlign;
+        return true;
+    }
+    case 0xFD78EA2Du:
+    {
+        TextHAlignT eHAlign;
+        TextVAlignT eVAlign;
+        GetTextAlign(eHAlign, eVAlign);
+        *(unsigned int*)pValue = eVAlign;
+        return true;
+    }
     case kEventTextHash: *(const char**)pValue = mEventText.GetRegisteredClassName(false); return true;
     case kEventNumberHash: *(const char**)pValue = mEventNumber.GetRegisteredClassName(false); return true;
     default: return Element::GetProperty(uHashID, pValue);
@@ -589,6 +603,7 @@ bool HUD::ElementText::GetProperty(const unsigned int uHashID, void* pValue)
 // FUNCTION: SWBF2 0x0055b410
 bool HUD::ElementText::SetProperty(const unsigned int uHashID, const void* pValue)
 {
+    unsigned short* pText;
     switch (uHashID)
     {
     case kPercentHash: mPercent = *(const bool*)pValue; return true;
@@ -603,51 +618,56 @@ bool HUD::ElementText::SetProperty(const unsigned int uHashID, const void* pValu
         SetTextScale(((const float*)pValue)[0], ((const float*)pValue)[1]);
         return true;
     case 0xAF7A0A77u:
-    case 0xFD78EA2Du:
     {
-        unsigned short* pText;
-        SaveTextBoxText(&pText);
+        unsigned short* pAlignText;
+        SaveTextBoxText(&pAlignText);
         TextHAlignT eHAlign;
         TextVAlignT eVAlign;
         GetTextAlign(eHAlign, eVAlign);
-        if (uHashID == 0xAF7A0A77u)
-        {
-            eHAlign = (TextHAlignT)*(const unsigned int*)pValue;
-        }
-        else
-        {
-            eVAlign = (TextVAlignT)*(const unsigned int*)pValue;
-        }
-        SetTextAlign(eHAlign, eVAlign);
-        RestoreTextBoxText(&pText);
+        SetTextAlign((TextHAlignT)*(const unsigned int*)pValue, eVAlign);
+        RestoreTextBoxText(&pAlignText);
+        return true;
+    }
+    case 0xFD78EA2Du:
+    {
+        unsigned short* pAlignText;
+        SaveTextBoxText(&pAlignText);
+        TextHAlignT eHAlign;
+        TextVAlignT eVAlign;
+        GetTextAlign(eHAlign, eVAlign);
+        SetTextAlign(eHAlign, (TextVAlignT)*(const unsigned int*)pValue);
+        RestoreTextBoxText(&pAlignText);
         return true;
     }
     case kTextStyleHash:
-    case kTextBreakHash:
-    case kTextClipHash:
-    case kTextCharacterSpacingHash:
-    case kTextTabSpacingHash:
-    case kTextBoxHash:
-    {
-        unsigned short* pText;
         SaveTextBoxText(&pText);
-        switch (uHashID)
-        {
-        case kTextStyleHash: SetTextStyle((TextStyleT)*(const unsigned int*)pValue); break;
-        case kTextBreakHash: SetTextBreak((TextBreakT)*(const unsigned int*)pValue); break;
-        case kTextClipHash: SetTextClip((TextClipT)*(const unsigned int*)pValue); break;
-        case kTextCharacterSpacingHash: SetIntercharacterSpacing(*(const int*)pValue); break;
-        case kTextTabSpacingHash: SetTabSpacing(*(const unsigned int*)pValue); break;
-        case kTextBoxHash:
-            SetTextBox((unsigned int)(((const float*)pValue)[0] * sViewportWidth),
-                       (unsigned int)(((const float*)pValue)[1] * sViewportHeight));
-            break;
-        }
-        RestoreTextBoxText(&pText);
-        return true;
-    }
+        SetTextStyle((TextStyleT)*(const unsigned int*)pValue);
+        break;
+    case kTextBreakHash:
+        SaveTextBoxText(&pText);
+        SetTextBreak((TextBreakT)*(const unsigned int*)pValue);
+        break;
+    case kTextClipHash:
+        SaveTextBoxText(&pText);
+        SetTextClip((TextClipT)*(const unsigned int*)pValue);
+        break;
+    case kTextCharacterSpacingHash:
+        SaveTextBoxText(&pText);
+        SetIntercharacterSpacing(*(const int*)pValue);
+        break;
+    case kTextTabSpacingHash:
+        SaveTextBoxText(&pText);
+        SetTabSpacing(*(const unsigned int*)pValue);
+        break;
+    case kTextBoxHash:
+        SaveTextBoxText(&pText);
+        SetTextBox((unsigned int)(((const float*)pValue)[0] * sViewportWidth),
+                   (unsigned int)(((const float*)pValue)[1] * sViewportHeight));
+        break;
     default: return Element::SetProperty(uHashID, pValue);
     }
+    RestoreTextBoxText(&pText);
+    return true;
 }
 
 // FUNCTION: SWBF2 0x0055c100
@@ -664,7 +684,8 @@ void HUD::ElementText::WriteData(HUD::File& file, unsigned int uTabs)
     TextHAlignT eHAlign;
     TextVAlignT eVAlign;
     GetTextAlign(eHAlign, eVAlign);
-    if (eHAlign != TEXT_HALIGN_LEFT || eVAlign != TEXT_VALIGN_TOP)
+    if (Factory::sTextAlignHorizontal[eHAlign] != Factory::sTextAlignHorizontal[0] ||
+        Factory::sTextAlignVertical[eVAlign] != Factory::sTextAlignVertical[0])
     {
         file.WriteTabs(uTabs);
         file.WriteStringf("TextAlignment(\"%s\", \"%s\")\n",
@@ -673,12 +694,12 @@ void HUD::ElementText::WriteData(HUD::File& file, unsigned int uTabs)
     file.WriteProperty("TextScale", uTabs, m_fScaleX, m_fScaleY, 1.0f, 1.0f);
     file.WriteProperty("TextCharacterSpacing", uTabs, (int)m_iSpacing, 1);
     file.WriteProperty("TextTabSpacing", uTabs, (int)GetTabSpacing(), 10);
-    file.WriteProperty("TextFont", uTabs, mFontName ? mFontName : "", "");
+    file.WriteProperty("TextFont", uTabs, mFontName, "");
     file.WriteProperty("EventText", uTabs, mEventText.GetRegisteredClassName(true), "");
     file.WriteProperty("EventNumber", uTabs, mEventNumber.GetRegisteredClassName(true), "");
-    file.WriteProperty("IntegerFormat", uTabs, mIntegerFormat ? mIntegerFormat : "", "");
-    file.WriteProperty("FloatFormat", uTabs, mFloatFormat ? mFloatFormat : "", "");
-    file.WriteProperty("NumberToTime", uTabs, mNumberToTime ? mNumberToTime : "", "");
+    file.WriteProperty("IntegerFormat", uTabs, mIntegerFormat, "");
+    file.WriteProperty("FloatFormat", uTabs, mFloatFormat, "");
+    file.WriteProperty("NumberToTime", uTabs, mNumberToTime, "");
     file.WriteProperty("Percent", uTabs, (int)mPercent, 0);
     file.WriteProperty("InfiniteDashes", uTabs, (int)mShowInfiniteDashes, 1);
     Element::WriteData(file, uTabs);

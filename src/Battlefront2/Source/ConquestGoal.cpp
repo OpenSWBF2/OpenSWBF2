@@ -50,31 +50,30 @@ void AI::ConquestGoal::Update()
 
     for (PblList<Character>::Itor it(mUnitList); it; ++it)
     {
-        Character* pChr = it;
-        if (!pChr->GetControllable())
+        if (!it->GetControllable())
         {
             continue;
         }
 
-        UnitController* pCtrl = UnitControllerPtr(pChr->GetControllable()->mCtrl);
+        UnitController* pCtrl = UnitControllerPtr(it->GetControllable()->mCtrl);
         if (!pCtrl || pCtrl->GetCurCmdType() == CMD_SC_FOLLOW)
         {
             continue;
         }
 
-        const CommandPost* pPost = pChr->GetAssignedCP();
+        const CommandPost* pPost = it->GetAssignedCP();
         if (pPost && pPost->GetGameObject() && GameObjectTeam(pPost->GetGameObject()) > 0 &&
             Team::sTeams[GameObjectTeam(pPost->GetGameObject())] &&
-            Team::sTeams[GameObjectTeam(pPost->GetGameObject())]->GetAffiliation(pChr->mTeamNumber) > 0 &&
-            !pPost->GetStrategicDefendValue(pChr->mTeamPtr->GetSide()))
+            Team::sTeams[GameObjectTeam(pPost->GetGameObject())]->GetAffiliation(it->mTeamNumber) > 0 &&
+            !pPost->GetStrategicDefendValue(it->mTeamPtr->GetSide()))
         {
-            sAssign(pChr, 0);
+            sAssign(it, 0);
             continue;
         }
 
         if (pCtrl->GetCurCmdType() == CMD_NONE || pCtrl->GetCurCmdType() == CMD_WAIT)
         {
-            Assign(pChr);
+            Assign(it);
         }
     }
 }
@@ -131,10 +130,14 @@ void AI::ConquestGoal::sAssign(Character* pChr, const CommandPost* pPost)
 // FUNCTION: SWBF2 0x00482d10
 void AI::ConquestGoal::sIssueCmd(Character* pChr, const CommandPost* pPost)
 {
-    if (pChr->GetControllable() && pChr->GetControllable()->mCtrl)
+    if (pChr->GetControllable())
     {
-        UnitCaptureCPInfo info(pPost);
-        UnitControllerPtr(pChr->GetControllable()->mCtrl)->ForceCommand(info);
+        Controller* pCtrl = pChr->GetControllable()->mCtrl;
+        if (pCtrl)
+        {
+            UnitCaptureCPInfo info(pPost);
+            UnitControllerPtr(pCtrl)->ForceCommand(info);
+        }
     }
     pChr->SetAssignedCP(pPost);
 }
@@ -142,12 +145,12 @@ void AI::ConquestGoal::sIssueCmd(Character* pChr, const CommandPost* pPost)
 // FUNCTION: SWBF2 0x00482d90
 const CommandPost* AI::ConquestGoal::sGenerateCP(Character* pChr, const CommandPost* pPost, bool bSecondPass)
 {
-    bool bValid[16] = {};
+    CommandPostItor it = CommandPostManager::Instance()->GetItor();
     float fTotal = 0.0f;
+    bool bValid[16] = {};
     const int iTeam = pChr->mTeamNumber;
 
-    bool* pValid = bValid;
-    for (CommandPostItor it = CommandPostManager::Instance()->GetItor(); it; ++it, ++pValid)
+    for (int i = 0; it; ++it, ++i)
     {
         CommandPost* pCP = *it;
         if (!bSecondPass && pCP->GetGameObject() &&
@@ -156,25 +159,25 @@ const CommandPost* AI::ConquestGoal::sGenerateCP(Character* pChr, const CommandP
             continue;
         }
 
-        *pValid = true;
+        bValid[i] = true;
         if (sIsPilotingVehicle(pChr) &&
             (pChr->mVehicle->GetGameObject()->GetGameObjectClass()->mAIType & pCP->GetStrategicBan()))
         {
-            *pValid = false;
+            bValid[i] = false;
         }
         if (pCP == pPost)
         {
-            *pValid = false;
+            bValid[i] = false;
         }
 
         float fImportance = sGetImportance(pCP, iTeam);
         if (fImportance <= 0.0f)
         {
-            *pValid = false;
+            bValid[i] = false;
         }
 
         UnitController* pCtrl = pChr->GetControllable() ? UnitControllerPtr(pChr->GetControllable()->mCtrl) : 0;
-        if (!*pValid)
+        if (!bValid[i])
         {
             continue;
         }
@@ -183,7 +186,7 @@ const CommandPost* AI::ConquestGoal::sGenerateCP(Character* pChr, const CommandP
             !ConnectivityGraphManager::GetWorldGraph((ConnectivityGraph::ProhibitFlag)-1)
                  ->CanGetThereFromHere_QuickButNotSoPerfectlyAccurateTest(pCtrl, AIUtil::GetCommandPostPos(pCP)))
         {
-            *pValid = false;
+            bValid[i] = false;
             continue;
         }
         fTotal += fImportance;
@@ -193,10 +196,10 @@ const CommandPost* AI::ConquestGoal::sGenerateCP(Character* pChr, const CommandP
     {
         float fPick = AIUtil::GetRandomFloat(0.0f, fTotal);
         float fSum = 0.0f;
-        pValid = bValid;
-        for (CommandPostItor it = CommandPostManager::Instance()->GetItor(); it; ++it, ++pValid)
+        int i = 0;
+        for (it = CommandPostManager::Instance()->GetItor(); it; ++it, ++i)
         {
-            if (!*pValid)
+            if (!bValid[i])
             {
                 continue;
             }
@@ -216,7 +219,7 @@ const CommandPost* AI::ConquestGoal::sGenerateCP(Character* pChr, const CommandP
 
     CommandPost* pPosts[16];
     int iCount = 0;
-    for (CommandPostItor it = CommandPostManager::Instance()->GetItor(); it; ++it)
+    for (it = CommandPostManager::Instance()->GetItor(); it; ++it)
     {
         pPosts[iCount++] = *it;
     }
@@ -237,14 +240,22 @@ const CommandPost* AI::ConquestGoal::sGenerateCP(Character* pChr, const CommandP
 bool AI::ConquestGoal::sIsPilotingVehicle(Character* pChr)
 {
     const Controllable* pVehicle = pChr->mVehicle;
-    return pVehicle && pVehicle->GetGameObject()->GetControllable() == pVehicle;
+    if (pVehicle)
+    {
+        return pVehicle->GetGameObject()->GetControllable() == pVehicle;
+    }
+    return false;
 }
 
 // FUNCTION: SWBF2 0x004830a0
 bool AI::ConquestGoal::sIsPassenger(Character* pChr)
 {
     const Controllable* pVehicle = pChr->mVehicle;
-    return pVehicle && pVehicle->GetGameObject()->GetControllable() != pVehicle;
+    if (pVehicle)
+    {
+        return pVehicle->GetGameObject()->GetControllable() != pVehicle;
+    }
+    return false;
 }
 
 // FUNCTION: SWBF2 0x004830d0

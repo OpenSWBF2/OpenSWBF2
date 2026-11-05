@@ -36,7 +36,8 @@ void Event<RedRegion, Character>::Callback::Trigger(RedRegion& item, Character& 
             pChild->AddRef();
             while (pChild)
             {
-                if (!pChild->IsAlive())
+                const bool bAlive = pChild->mAliveFlag;
+                if (!bAlive)
                 {
                     pChild->Release();
                     break;
@@ -66,10 +67,9 @@ namespace ActiveRegions
 {
 
 // FUNCTION: SWBF2 0x004375d0
-ActiveRegion::ActiveRegion(RedRegion& region) : mRegion(region)
+ActiveRegion::ActiveRegion(RedRegion& region) : mRegion(region), mPlayers(GetPlayersInRegion())
 {
-    mPlayers = GetPlayersInRegion();
-    sMap.Store(region.mId, this);
+    sMap.Store(mRegion.mId, this);
     ActivateThread(-100, PER_FRAME);
 }
 
@@ -77,15 +77,11 @@ ActiveRegion::ActiveRegion(RedRegion& region) : mRegion(region)
 ActiveRegion* __fastcall Activate(RedRegion* pRegion)
 {
     ActiveRegion* pActive = sMap.Find(pRegion->mId);
-    if (!pActive)
+    if (pActive)
     {
-        void* pStorage = ActiveRegion::sMemoryPool.Allocate(sizeof(ActiveRegion));
-        if (pStorage)
-        {
-            pActive = ::new (pStorage) ActiveRegion(*pRegion);
-        }
+        return pActive;
     }
-    return pActive;
+    return ::new (ActiveRegion::sMemoryPool.Allocate(sizeof(ActiveRegion))) ActiveRegion(*pRegion);
 }
 
 // FUNCTION: SWBF2 0x00437bc0
@@ -106,12 +102,11 @@ RedRegion* __fastcall Find(lua_State*, int iIndex)
         RedRegion* pRegion = (RedRegion*)LuaHandleArg::Get(LuaHelper::mState, iIndex);
         return PblRegion::Contains(pRegion) ? pRegion : 0;
     }
-    if (!lua_isstring(LuaHelper::mState, iIndex))
+    if (lua_isstring(LuaHelper::mState, iIndex))
     {
-        return 0;
+        return RedRegion::Find(PblHash(luaL_checklstring(LuaHelper::mState, iIndex, 0)));
     }
-    PblHash name(luaL_checklstring(LuaHelper::mState, iIndex, 0));
-    return RedRegion::Find(name);
+    return 0;
 }
 
 // FUNCTION: SWBF2 0x00437c60
@@ -196,7 +191,7 @@ PblHashTable<ActiveRegion, 64> sMap;
 // GLOBAL: SWBF2 0x01eb01f8
 // ActiveRegion::sMemoryPool
 // STRING: SWBF2 0x00796adc
-MemoryPool ActiveRegion::sMemoryPool("ActiveRegion", 0x68);
+MemoryPool ActiveRegion::sMemoryPool("ActiveRegion", sizeof(ActiveRegion));
 
 ActiveRegion::~ActiveRegion()
 {
@@ -210,9 +205,11 @@ bool ActiveRegion::Update(float fDeltaTime)
     PblBitVector<600> oldPlayers(mPlayers);
     mPlayers = GetPlayersInRegion();
 
+    PblBitVector<600> notOld(~oldPlayers);
     PblBitVector<600> entered(mPlayers);
-    entered.And(~oldPlayers);
-    PblBitVector<600> left(~mPlayers);
+    entered.And(notOld);
+    PblBitVector<600> left;
+    left = ~mPlayers;
     left.And(oldPlayers);
 
     for (int i = 0; i < Character::sCharacterCount; ++i)
@@ -220,18 +217,12 @@ bool ActiveRegion::Update(float fDeltaTime)
         if (entered.IsBitSet(i))
         {
             Character* pChr = Character::GetPtr(i);
-            if (!(NetGame::IsEnabled() && NetGame::IsClient()))
-            {
-                EventManager::RegionEvent::mEnterRegion.mRoot.Trigger(mRegion, *pChr);
-            }
+            EventManager::RegionEvent::mEnterRegion.Trigger(mRegion, *pChr);
         }
         else if (left.IsBitSet(i))
         {
             Character* pChr = Character::GetPtr(i);
-            if (!(NetGame::IsEnabled() && NetGame::IsClient()))
-            {
-                EventManager::RegionEvent::mLeaveRegion.mRoot.Trigger(mRegion, *pChr);
-            }
+            EventManager::RegionEvent::mLeaveRegion.Trigger(mRegion, *pChr);
         }
     }
     return true;
@@ -247,7 +238,8 @@ PblBitVector<600> ActiveRegion::GetPlayersInRegion()
     int iCount = CollisionManager::GetObjectsInRegion(mRegion, pObjects, 64, 0, 10);
     for (int i = 0; i < iCount; ++i)
     {
-        if (!GameObject_IsAlive(pObjects[i]))
+        const bool bAlive = pObjects[i]->mIsAlive;
+        if (!bAlive)
         {
             continue;
         }

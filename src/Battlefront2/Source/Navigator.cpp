@@ -43,7 +43,7 @@ namespace
         return reinterpret_cast<Entity*>(pObj);
     }
 
-    CollisionObject* AsCollisionObject(GameObject* pObj)
+    inline CollisionObject* AsCollisionObject(GameObject* pObj)
     {
         return &static_cast<CollisionObject&>(*pObj);
     }
@@ -88,10 +88,7 @@ ObstacleTest::ObstacleTest(const PblVector3& rSrc, const PblVector3& rDest)
     : mSrc(rSrc), mDest(rDest)
 {
     mBoundCenter = ((mSrc + mDest) * 0.5f);
-    float fX = mBoundCenter.x - mSrc.x;
-    float fY = mBoundCenter.y - mSrc.y;
-    float fZ = mBoundCenter.z - mSrc.z;
-    mBoundRadius = sqrtf(fX * fX + fY * fY + fZ * fZ);
+    mBoundRadius = Length(mBoundCenter - mSrc);
 }
 
 // FUNCTION: SWBF2 0x005ab410
@@ -246,17 +243,17 @@ const PblVector3& Navigator::GetGlobalDest() const
     {
         return mPathFollower->mFinalPoint;
     }
-    return GetMatrix().GetTranslation();
+    return mOwner->mOwner->mOwner->GetMatrix().GetTranslation();
 }
 
 // FUNCTION: SWBF2 0x005ab710
 const PblVector3& Navigator::GetLocalDest() const
 {
-    if (mPathFollower)
+    if (!mPathFollower)
     {
-        return mPathFollower->mGotoPoint;
+        return mOwner->mOwner->mOwner->GetMatrix().GetTranslation();
     }
-    return GetMatrix().GetTranslation();
+    return mPathFollower->mGotoPoint;
 }
 
 // FUNCTION: SWBF2 0x005ab730
@@ -272,7 +269,7 @@ bool Navigator::AttemptWallFollow(float fStep, bool bRight)
         return false;
     }
 
-    PblVector3 vStart = GetMatrix().GetTranslation();
+    PblVector3 vStart = pMe->GetMatrix().GetTranslation();
     PblVector3 vPos = vStart;
     float fRadius = GetMyRadius();
     int eProhibit = GetMyProhibit();
@@ -288,22 +285,22 @@ bool Navigator::AttemptWallFollow(float fStep, bool bRight)
     }
 
     float fProbe = fRadius * 6.0f;
-    PblVector3 vToGoto(vGoto.x - vPos.x, vGoto.y - vPos.y, vGoto.z - vPos.z);
+    PblVector3 vToGoto = vGoto - vPos;
     PblVector3 vDir = AIUtil::GetSafeNormalXZ(vToGoto);
     PblVector3 vSide(vDir.z, 0.0f, -vDir.x);
     if (bRight)
     {
-        vSide = PblVector3(-vSide.x, -vSide.y, -vSide.z);
+        vSide = -vSide;
     }
 
-    PblVector3 vProbe(vPos.x + vSide.x * fProbe, vPos.y + vSide.y * fProbe, vPos.z + vSide.z * fProbe);
+    PblVector3 vProbe = vPos + vSide * fProbe;
     const Obstacle* pHit;
     float fDistSq;
     if (!PathFinder::FindClosestObstacleIntersection(vPos, vProbe, GetMyRadius(), GetMyProhibit(), &pHit,
                                                      &fDistSq, false, 0, 0))
     {
-        vSide = PblVector3(-vSide.x, -vSide.y, -vSide.z);
-        vProbe = PblVector3(vPos.x + vSide.x * fProbe, vPos.y + vSide.y * fProbe, vPos.z + vSide.z * fProbe);
+        vSide = -vSide;
+        vProbe = vPos + vSide * fProbe;
         bool bHit = PathFinder::FindClosestObstacleIntersection(vPos, vProbe, GetMyRadius(), GetMyProhibit(),
                                                                 &pHit, &fDistSq, false, 0, 0);
         bRight = !bRight;
@@ -319,8 +316,8 @@ bool Navigator::AttemptWallFollow(float fStep, bool bRight)
         return false;
     }
 
-    PblVector3 vWall(vPos.x + vSide.x * fDist, vPos.y + vSide.y * fDist, vPos.z + vSide.z * fDist);
-    PblVector3 vFar(vPos.x + vSide.x * fProbe, vPos.y + vSide.y * fProbe, vPos.z + vSide.z * fProbe);
+    PblVector3 vWall = vPos + vSide * fDist;
+    PblVector3 vFar = vPos + vSide * fProbe;
     PblVector3 vNormal, vCorner, vOther;
     pHit->IntersectionNewer(ObstacleTest(vPos, vFar), fRadius, &fDistSq, &vNormal, &vCorner, &vOther);
     if ((vOther.x - vCorner.x) * vDir.x + (vOther.y - vCorner.y) * vDir.y +
@@ -335,7 +332,7 @@ bool Navigator::AttemptWallFollow(float fStep, bool bRight)
     {
         return false;
     }
-    PblVector3 vToCorner(fCX, vCorner.y - vWall.y, fCZ);
+    PblVector3 vToCorner = vCorner - vWall;
     PblVector3 vCornerDir = AIUtil::GetSafeNormalXZ(vToCorner);
     if (0.95f > vCornerDir.x * vDir.x + vCornerDir.y * vDir.y + vCornerDir.z * vDir.z)
     {
@@ -344,10 +341,9 @@ bool Navigator::AttemptWallFollow(float fStep, bool bRight)
 
     vStart.y += 1.0f;
     vPos = PblVector3(vWall.x + vCornerDir.x * fDist, vStart.y, vWall.z + vCornerDir.z * fDist);
-    PblVector3 vSidePt(vPos.x + vCornerDir.x * fStep, vPos.y + vCornerDir.y * fStep,
-                       vPos.z + vCornerDir.z * fStep);
+    PblVector3 vSidePt = vPos + vCornerDir * fStep;
     float fAhead = fDist * 2.0f + fStep;
-    PblVector3 vAhead(vStart.x + vDir.x * fAhead, vStart.y + vDir.y * fAhead, vStart.z + vDir.z * fAhead);
+    PblVector3 vAhead = vStart + vDir * fAhead;
 
     float fAX = vStart.x - vAhead.x;
     float fAZ = vStart.z - vAhead.z;
@@ -378,7 +374,8 @@ bool Navigator::AttemptWallFollow(float fStep, bool bRight)
         return false;
     }
     pPath->Append(vAhead, 0);
-    pPath->Append(vSidePt, bRight ? AIPathNode::AIPN_WAITRIGHT : AIPathNode::AIPN_WAITLEFT);
+    unsigned char uWaitFlags = bRight ? AIPathNode::AIPN_WAITRIGHT : AIPathNode::AIPN_WAITLEFT;
+    pPath->Append(vSidePt, uWaitFlags);
     pPath->Append(vPos, 0);
     pPath->Append(vStart, 0);
     mPathFollower->PrependPath(pPath);
@@ -398,13 +395,13 @@ bool Navigator::LookForPowerUps(float fRadius)
     int iCount = CollisionManager::GetObjectsInRange(GetMatrix().GetTranslation(), fRadius, objects, 6, 0, 1);
     while (iCount--)
     {
-        GameObject* pObj = objects[iCount];
-        if (!AsEntity(pObj)->GetEntity()->IsRtti(PowerupItem::GetRtti()))
+        if (!AsEntity(objects[iCount])->GetEntity()->IsRtti(PowerupItem::GetRtti()))
         {
             continue;
         }
 
-        const PowerupItemClass* pClass = reinterpret_cast<const PowerupItemClass*>(AsEntity(pObj)->GetEntityClass());
+        const PowerupItemClass* pClass =
+            reinterpret_cast<const PowerupItemClass*>(AsEntity(objects[iCount])->GetEntityClass());
         float fHealth = pClass->mAddHealth[GetHealthType(GetGameObject())];
         float fAmmo = pClass->mAddAmmo[GetHealthType(GetGameObject())];
         if (!PowerupUtility::CheckHealth(GetGameObject(), fHealth) &&
@@ -414,18 +411,19 @@ bool Navigator::LookForPowerUps(float fRadius)
         }
 
         const Obstacle* pBarrier = GetMyBarrier();
-        if (PathFinder::TestTrivialStraightLineHit(GetMatrix().GetTranslation(), (AsCollisionObject(pObj)->GetMatrix()).GetTranslation(),
+        if (PathFinder::TestTrivialStraightLineHit(GetMatrix().GetTranslation(),
+                                                   objects[iCount]->GetMatrix().GetTranslation(),
                                                    GetMyRadius(), GetMyProhibit(), &pBarrier, 1, false))
         {
             continue;
         }
 
         PblVector3 vStart = GetMatrix().GetTranslation();
-        PblVector3 vItem = (AsCollisionObject(pObj)->GetMatrix()).GetTranslation();
+        PblVector3 vItem = objects[iCount]->GetMatrix().GetTranslation();
         PblVector3 vDelta(vItem.x - vStart.x, vItem.y - vStart.y, vItem.z - vStart.z);
         PblVector3 vNormal;
         D3DXVec3Normalize((D3DXVECTOR3*)&vNormal, (const D3DXVECTOR3*)&vDelta);
-        vItem = PblVector3(vNormal.x + vItem.x, vNormal.y + vItem.y, vNormal.z + vItem.z);
+        vItem += vNormal;
 
         AIPath* pPath = new AIPath;
         if (pPath)
@@ -470,12 +468,11 @@ bool Navigator::LookForCoverNodes()
     const BaseHint* pBest = 0;
     for (int i = 0; i < iCount; ++i)
     {
-        const BaseHint* pHint = hints[i];
-        if (!AIUtil::IsHintAvailable(pObj, pHint))
+        if (!AIUtil::IsHintAvailable(pObj, hints[i]))
         {
             continue;
         }
-        const PblVector3& vHint = pHint->GetCollisionCenter();
+        const PblVector3& vHint = hints[i]->GetCollisionCenter();
         float fX = vMyPos.x - vHint.x;
         float fY = vMyPos.y - vHint.y;
         float fZ = vMyPos.z - vHint.z;
@@ -487,12 +484,12 @@ bool Navigator::LookForCoverNodes()
 
         PblVector3 vToHint(vHint.x - vMyPos.x, vHint.y - vMyPos.y, vHint.z - vMyPos.z);
         PblVector3 vHintDir = AIUtil::GetSafeNormalXZ(vToHint);
-        const PblMatrix& mat = GetMatrix();
-        if (0.0f > mat.m[2][0] * vHintDir.x + mat.m[2][1] * vHintDir.y + mat.m[2][2] * vHintDir.z)
+        const PblVector3& vForward = GetMatrix().GetZAxis();
+        if (0.0f > vForward.x * vHintDir.x + vForward.y * vHintDir.y + vForward.z * vHintDir.z)
         {
             continue;
         }
-        const PblVector3& vFacing = pHint->GetZAxis();
+        const PblVector3& vFacing = hints[i]->GetZAxis();
         if (0.5f > vFacing.x * vDir.x + vFacing.y * vDir.y + vFacing.z * vDir.z)
         {
             continue;
@@ -502,7 +499,7 @@ bool Navigator::LookForCoverNodes()
             continue;
         }
 
-        pBest = pHint;
+        pBest = hints[i];
         fBestDistSq = fDistSq;
     }
     if (!pBest)
@@ -513,16 +510,15 @@ bool Navigator::LookForCoverNodes()
     pBest->Reserve(pObj);
     PblVector3 vStart = GetMatrix().GetTranslation();
     PblVector3 vHint = pBest->GetCollisionCenter();
-    float fAlong = (vHint.x - vMyPos.x) * vDir.x + (vHint.y - vMyPos.y) * vDir.y + (vHint.z - vMyPos.z) * vDir.z;
-    PblVector3 vFoot(vMyPos.x + vDir.x * fAlong, vMyPos.y + vDir.y * fAlong, vMyPos.z + vDir.z * fAlong);
+    float fAlong = DotProduct(vHint - vMyPos, vDir);
+    PblVector3 vFoot = vMyPos + vDir * fAlong;
     if (PathFinder::TestTrivialStraightLineHit(vHint, vFoot, pObj) == true)
     {
         vFoot = vStart;
     }
 
-    unsigned short uFlags = AIUtil::GetRandomFloat(0.0f, 1.0f) > 0.5f
-                                ? AIPathNode::AIPN_WAITLEFT | AIPathNode::AIPN_WAITRIGHT
-                                : AIPathNode::AIPN_WAITLEFT | AIPathNode::AIPN_WAITRIGHT | AIPathNode::AIPN_WAITLONG;
+    unsigned char uFlags = (AIUtil::GetRandomFloat(0.0f, 1.0f) > 0.5f ? 0 : AIPathNode::AIPN_WAITLONG) +
+                           (AIPathNode::AIPN_WAITLEFT | AIPathNode::AIPN_WAITRIGHT);
     AIPath* pPath = new AIPath;
     if (pPath)
     {

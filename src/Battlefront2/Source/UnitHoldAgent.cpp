@@ -41,9 +41,11 @@ UnitHoldAgent::UnitHoldAgent(UnitController* pCtrl)
 // FUNCTION: SWBF2 0x00668e00
 void UnitHoldAgent::EnterState()
 {
-    if (mCurState == 2)
+    switch (mCurState)
     {
+    case 2:
         SetNewSearchHeading();
+        break;
     }
 }
 
@@ -58,23 +60,24 @@ void UnitHoldAgent::SetNewSearchHeading()
     if (mCtrl->IsLookAheadOnly())
     {
         float fAngle = AIUtil::GetRandomFloat(-0.52359879f, 0.52359879f);
-        const PblVector3& vAhead = mCtrl->GetOriginalAheadDir();
-        float fSin, fCos;
-        PblMath::SinCos(&fSin, &fCos, fAngle);
-        PblVector3 vOffset((vAhead.x * fCos - vAhead.z * fSin) * 10.0f,
-                           vAhead.y * 10.0f,
-                           (vAhead.z * fCos + vAhead.x * fSin) * 10.0f);
+        PblVector3 vRotated;
+        {
+            const PblVector3& vAhead = mCtrl->GetOriginalAheadDir();
+            float fSin, fCos;
+            PblMath::SinCos(&fSin, &fCos, fAngle);
+            vRotated = PblVector3(vAhead.x * fCos - vAhead.z * fSin,
+                                  vAhead.y,
+                                  vAhead.z * fCos + vAhead.x * fSin);
+        }
 
-        const PblMatrix& mat = GetMe()->GetMatrix();
-        mSearchPos = PblVector3(mat.m[3][0] + vOffset.x, mat.m[3][1] + vOffset.y, mat.m[3][2] + vOffset.z);
+        mSearchPos = GetMe()->GetMatrix().GetTranslation() + vRotated * 10.0f;
     }
     else
     {
-        const PblVector3 vDir = PblRandom::GetSim().GetVector3();
-        PblVector3 vOffset(vDir.x * 10.0f, 0.0f, vDir.z * 10.0f);
+        PblVector3 vOffset = PblRandom::GetSim().GetVector3() * 10.0f;
+        vOffset.y = 0.0f;
 
-        const PblMatrix& mat = GetMe()->GetMatrix();
-        mSearchPos = PblVector3(mat.m[3][0] + vOffset.x, mat.m[3][1] + vOffset.y, mat.m[3][2] + vOffset.z);
+        mSearchPos = GetMe()->GetMatrix().GetTranslation() + vOffset;
     }
 }
 
@@ -97,10 +100,8 @@ void UnitHoldAgent::UpdateStatePostVision(float dt)
 
     const PblMatrix& mine = GetMe()->GetMatrix();
     const PblMatrix& theirs = pLeader->GetControllable()->GetMatrix();
-    float dx = theirs.m[3][0] - mine.m[3][0];
-    float dy = theirs.m[3][1] - mine.m[3][1];
-    float dz = theirs.m[3][2] - mine.m[3][2];
-    if (dx * dx + dy * dy + dz * dz > 400.0f)
+    PblVector3 vDelta = theirs.GetTranslation() - mine.GetTranslation();
+    if (SquaredLength(vDelta) > 400.0f)
     {
         mInsubValue -= 0.05f;
         if (mInsubValue <= 0.0f)
@@ -132,11 +133,13 @@ bool UnitHoldAgent::ShouldQueueCurCmd(const UnitCmdInfo& cmd) const
 // FUNCTION: SWBF2 0x00669150
 int UnitHoldAgent::EventHandler(AI::EventInfo* pInfo)
 {
-    if (pInfo->mType == AI::EVT_EmptyVehicle)
+    switch (pInfo->mType)
     {
+    case AI::EVT_EmptyVehicle:
         return 0;
+    default:
+        return UnitAgent::EventHandler(pInfo);
     }
-    return UnitAgent::EventHandler(pInfo);
 }
 
 // FUNCTION: SWBF2 0x00669170

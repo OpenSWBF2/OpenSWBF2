@@ -138,16 +138,19 @@ PropCollisionObject::PropCollisionObject(PblMatrix& matrix, PropModelMesh* pMode
 {
     mMatrix = matrix;
 
-    PblVector3 vCenter;
-    D3DXVec3TransformCoord((D3DXVECTOR3*)&vCenter,
-                           (const D3DXVECTOR3*)&pModel->mRenderObj.mGeometry->_BoundingSphere,
-                           (const D3DXMATRIX*)&mMatrix);
-    SetCollisionCenter(vCenter);
+    {
+        PblVector3 vCenter;
+        D3DXVec3TransformCoord((D3DXVECTOR3*)&vCenter,
+                               (const D3DXVECTOR3*)&pModel->mRenderObj.mGeometry->_BoundingSphere,
+                               (const D3DXMATRIX*)&mMatrix);
+        SetCollisionCenter(vCenter);
+    }
 
     const float fRadius = pModel->mRenderObj.mGeometry->_BoundingSphere.GetRadius();
     SetCollisionRadius(fRadius);
+    Set2DCollisionRadius(fRadius);
 
-    RecalculateAABB(mMatrix, pModel->mRenderObj.mGeometry->_TotalBoundingBox);
+    mAABB = pModel->mRenderObj.mGeometry->_TotalBoundingBox.GetTransformedBox(mMatrix);
     AddStaticToCollisionManager();
 }
 
@@ -237,7 +240,7 @@ void PropObjectMesh::Init(PropModelMesh* pModel, float x, float z, float rotatio
 // FUNCTION: SWBF2 0x0062c5e0
 void PropObjectMesh::CalculateNextTriggerTime()
 {
-    mNextTriggerTime = PblRandom::GetGlobalFloat() * mModel->mSoundTriggerTimeDev +
+    mNextTriggerTime = PblRandom::_Global.GetFloat() * mModel->mSoundTriggerTimeDev +
                        mModel->mSoundTriggerTime;
 }
 
@@ -254,7 +257,11 @@ float GetPropDistanceScale(PropModelMesh::Type eType)
 // FUNCTION: SWBF2 0x0062c660
 void PropObjectMesh::Render(const RedCamera* pCamera, float fDist, unsigned int uiFlags)
 {
-    if (!mModel || !bPropModelEnable)
+    if (!mModel)
+    {
+        return;
+    }
+    if (!bPropModelEnable)
     {
         return;
     }
@@ -271,9 +278,9 @@ void PropObjectMesh::Render(const RedCamera* pCamera, float fDist, unsigned int 
         }
 
         const PblMatrix& camMatrix = pCamera->GetMatrix();
-        const float dz = mMatrix.m[3][2] - camMatrix.m[3][2];
         const float dx = mMatrix.m[3][0] - camMatrix.m[3][0];
-        float fCamDist = sqrtf(dz * dz + dx * dx);
+        const float dz = mMatrix.m[3][2] - camMatrix.m[3][2];
+        float fCamDist = PblMath::Sqrt(dx * dx + dz * dz);
 
         if (fMaxDist > fCamDist)
         {
@@ -292,12 +299,12 @@ void PropObjectMesh::Render(const RedCamera* pCamera, float fDist, unsigned int 
                     return;
                 }
 
-                PblSphere sphere = pGeometry->_BoundingSphere;
-                PblVector3 vCenter;
-                D3DXVec3TransformCoord((D3DXVECTOR3*)&vCenter, (const D3DXVECTOR3*)&sphere,
+                const PblSphere sphere = pGeometry->_BoundingSphere;
+                PblSphere worldSphere = sphere;
+                D3DXVec3TransformCoord((D3DXVECTOR3*)&worldSphere, (const D3DXVECTOR3*)&sphere,
                                        (const D3DXMATRIX*)&mMatrix);
                 const RedCamera::VisibilityT eVis =
-                    pCamera->ClassifySphere(vCenter, sphere.GetRadius(), -1.0f);
+                    pCamera->ClassifySphere(worldSphere.GetCenter(), worldSphere.GetRadius(), -1.0f);
                 if (eVis == RedCamera::VISIBILITY_NONE)
                 {
                     return;
@@ -344,7 +351,7 @@ void PropObjectMesh::Render(const RedCamera* pCamera, float fDist, unsigned int 
                     uiRenderFlags &= ~0x80u;
                 }
 
-                pGeometry->Render(&mMatrix, 0, mColor, uiRenderFlags | 0x1000000, 0);
+                mModel->mRenderObj.mGeometry->Render(&mMatrix, 0, mColor, uiRenderFlags | 0x1000000, 0);
                 break;
             }
 
@@ -377,12 +384,7 @@ void PropObjectMesh::Render(const RedCamera* pCamera, float fDist, unsigned int 
                     uiRenderFlags &= ~1u;
                 }
 
-                const float kInv255 = 1.0f / 255.0f;
-                RedColorValue color;
-                color.r = mColor.r * kInv255;
-                color.g = mColor.g * kInv255;
-                color.b = mColor.b * kInv255;
-                color.a = mColor.a * kInv255;
+                const RedColorValue color(mColor);
                 PblMatrix matrix(reinterpret_cast<const _D3DXMATRIXA16*>(&mMatrix));
 
                 mModel->mRenderObj.mGrassClass->RenderMaxDist(
@@ -420,12 +422,7 @@ void PropObjectMesh::Render(const RedCamera* pCamera, float fDist, unsigned int 
                     uiRenderFlags &= ~1u;
                 }
 
-                const float kInv255 = 1.0f / 255.0f;
-                RedColorValue color;
-                color.r = mColor.r * kInv255;
-                color.g = mColor.g * kInv255;
-                color.b = mColor.b * kInv255;
-                color.a = mColor.a * kInv255;
+                const RedColorValue color(mColor);
                 PblMatrix matrix(reinterpret_cast<const _D3DXMATRIXA16*>(&mMatrix));
 
                 mModel->mRenderObj.mLeafClass->RenderMaxDist(
@@ -456,8 +453,9 @@ void PropObjectMesh::Setup()
     mModel->SetupMatrix(mMatrix, mRotation);
     mSetupFlag = 1;
 
+    const PropModelMesh* pModel = mModel;
     float fLight = RedTerrain::GetInterpolatedLight(mMatrix.m[3][0], mMatrix.m[3][2]);
-    if (mModel->mType == PropModelMesh::PMM_MESH)
+    if (pModel->mType == PropModelMesh::PMM_MESH)
     {
         fLight += 0.5f;
     }
@@ -468,9 +466,6 @@ void PropObjectMesh::Setup()
     }
     fBrightness *= 255.0f;
 
-    const float fVariation = mModel->mColorVariation;
-    mColor.a = 0xff;
-
     union
     {
         float f;
@@ -480,9 +475,14 @@ void PropObjectMesh::Setup()
     PblRandom rand(seed.u ^ 0xC71C2830u);
     rand.GetInt();
 
-    mColor.b = (unsigned char)(int)((1.0f - rand.GetFloat() * fVariation) * fBrightness);
-    mColor.g = (unsigned char)(int)((1.0f - rand.GetFloat() * fVariation) * fBrightness);
-    mColor.r = (unsigned char)(int)((1.0f - rand.GetFloat() * fVariation) * fBrightness);
+    const float fVariation = pModel->mColorVariation;
+    const unsigned char b = (unsigned char)(int)((1.0f - rand.GetFloat() * fVariation) * fBrightness);
+    const unsigned char g = (unsigned char)(int)((1.0f - rand.GetFloat() * fVariation) * fBrightness);
+    const unsigned char r = (unsigned char)(int)((1.0f - rand.GetFloat() * fVariation) * fBrightness);
+    mColor.a = 0xff;
+    mColor.b = b;
+    mColor.g = g;
+    mColor.r = r;
 
     mSound.Stop(true);
     mElapsedTime = 0.0f;
@@ -497,11 +497,11 @@ float PropObjectMesh::GetDist()
 
 // FUNCTION: SWBF2 0x0062cc30
 PropModelMesh::PropModelMesh()
-    : mCollisionModel(0),
-      mAIVisFactorCrouch(1.0f),
-      mAIVisFactorStand(1.0f)
 {
     mRenderObj.mGeometry = 0;
+    mCollisionModel = 0;
+    mAIVisFactorCrouch = 1.0f;
+    mAIVisFactorStand = 1.0f;
 }
 
 // SYNTHETIC: SWBF2 0x0062cc70
@@ -510,9 +510,14 @@ PropModelMesh::PropModelMesh()
 // FUNCTION: SWBF2 0x0062cca0
 PropModelMesh::~PropModelMesh()
 {
-    if (mType == PMM_MESH && mRenderObj.mGeometry)
+    switch (mType)
     {
-        delete mRenderObj.mGeometry;
+    case PMM_MESH:
+        if (mRenderObj.mGeometry)
+        {
+            delete mRenderObj.mGeometry;
+        }
+        break;
     }
 }
 
@@ -624,8 +629,7 @@ void PropModelMesh::Read(PblFileChunk& chunk)
 
         case 0x827eb1c9:
         {
-            char acLighting[256];
-            memset(acLighting, 0, sizeof(acLighting));
+            char acLighting[256] = { 0 };
             child.ReadString(acLighting, 256);
             const size_t uiLen = strlen(acLighting);
             if (uiLen)
@@ -677,15 +681,8 @@ void PropModelMesh::Read(PblFileChunk& chunk)
             mCollisionModel->AddBody(new CollisionBodyMesh(
                 pMesh, "CollisionMesh", gMatrixIdentity, 0));
 
-            CollisionMask noMask;
-            noMask.mMask[0] = 0;
-            noMask.mMask[1] = 0;
-            const CollisionObjectType eRigid = COLL_RIGID;
-            mCollisionModel->SetCollisionMask(eRigid, noMask);
-            noMask.mMask[0] = 0;
-            noMask.mMask[1] = 0;
-            const CollisionObjectType eOrdnance = COLL_ORDNANCE;
-            mCollisionModel->SetCollisionMask(eOrdnance, noMask);
+            mCollisionModel->SetCollisionMask(COLL_RIGID, CollisionMask(0));
+            mCollisionModel->SetCollisionMask(COLL_ORDNANCE, CollisionMask(0));
         }
     }
 }
@@ -699,26 +696,23 @@ PropObject* PropModelMesh::CreateObject(float x, float z, float rotation)
         {
             mRenderObj.mGrassClass = static_cast<GrassPatchClass*>(EntityClass::Find(mHash));
             mRenderObj.mGrassClass->Init();
-            mYOffset = 0.0f;
             mMaxDist = mRenderObj.mGrassClass->mBoundingRadius * mScale + mGeometryMaxDist * 1.45f;
+            mYOffset = 0.0f;
         }
         else if (mType == PMM_LEAF)
         {
             mRenderObj.mLeafClass = static_cast<LeafPatchClass*>(EntityClass::Find(mHash));
             mRenderObj.mLeafClass->Init();
-            mYOffset = 0.0f;
             mMaxDist = mRenderObj.mLeafClass->mBoundingRadius * mScale + mGeometryMaxDist * 1.45f;
+            mYOffset = 0.0f;
         }
         mHash = 0;
     }
 
     float fChance = mMaxDist / 100.0f;
-    const float fHigh = 3.0f;
-    fChance = (std::min)(fChance, fHigh);
-    const float fLow = 0.3f;
-    fChance = (std::max)(fChance, fLow);
-    const float fThreshold = GetDensity() * fChance;
-    if (fThreshold > (float)(rand() % 0x7fff) / 32767.0f)
+    fChance = util::Min_(fChance, 3.0f);
+    fChance = util::Max_(fChance, 0.3f);
+    if (GetDensity() * fChance > (float)(rand() % 0x7fff) / 32767.0f)
     {
         return PropObjectMesh::Create(this, x, z, rotation);
     }
@@ -728,8 +722,9 @@ PropObject* PropModelMesh::CreateObject(float x, float z, float rotation)
 // FUNCTION: SWBF2 0x0062d330
 void PropModelMesh::SetupMatrix(PblMatrix& matrix, float rotation)
 {
-    const float x = matrix.m[3][0];
-    const float z = matrix.m[3][2];
+    const PblVector3 vOrigin = matrix.GetTranslation();
+    const float x = vOrigin.x;
+    const float z = vOrigin.z;
     PblVector3 vNormal(0.0f, 1.0f, 0.0f);
     float y;
 
@@ -757,25 +752,20 @@ void PropModelMesh::SetupMatrix(PblMatrix& matrix, float rotation)
         const float bx = v2.x - v1.x;
         const float by = y2 - y1;
         const float bz = v1.z - v1.z;
-        PblVector3 vCross;
-        vCross.x = bz * ay - by * az;
-        vCross.y = az * bx - bz * ax;
-        vCross.z = by * ax - ay * bx;
-        D3DXVec3Normalize((D3DXVECTOR3*)&vNormal, (const D3DXVECTOR3*)&vCross);
+        const PblVector3 vCross(bz * ay - by * az, az * bx - bz * ax, by * ax - ay * bx);
+        PblVector3 vUnit;
+        D3DXVec3Normalize((D3DXVECTOR3*)&vUnit, (const D3DXVECTOR3*)&vCross);
+        vNormal = vUnit;
     }
 
-    matrix.m[3][0] = x;
-    matrix.m[3][1] = y;
-    matrix.m[3][2] = z;
-    matrix.m[3][3] = 1.0f;
+    matrix.SetTranslation(PblVector3(x, y, z));
 
     const float fStiffness = mStiffness;
     if (fStiffness > 0.0f)
     {
         const float fFlex = 1.0f - fStiffness;
-        vNormal.x = fFlex * vNormal.x + fStiffness * 0.0f;
-        vNormal.y = vNormal.y * fFlex + fStiffness;
-        vNormal.z = vNormal.z * fFlex + fStiffness * 0.0f;
+        vNormal = PblVector3(fFlex * vNormal.x + fStiffness * 0.0f, vNormal.y * fFlex + fStiffness,
+                             vNormal.z * fFlex + fStiffness * 0.0f);
     }
 
     const float fScale = mScale;
@@ -789,10 +779,21 @@ void PropModelMesh::SetupMatrix(PblMatrix& matrix, float rotation)
         vDir.z = -PblMath::Cos(rotation);
 
         PblMatrix scale;
-        memset(&scale, 0, sizeof(scale));
         scale.m[0][0] = fScale;
+        scale.m[0][1] = 0.0f;
+        scale.m[0][2] = 0.0f;
+        scale.m[0][3] = 0.0f;
+        scale.m[1][0] = 0.0f;
         scale.m[1][1] = fScale;
+        scale.m[1][2] = 0.0f;
+        scale.m[1][3] = 0.0f;
+        scale.m[2][0] = 0.0f;
+        scale.m[2][1] = 0.0f;
         scale.m[2][2] = fScale;
+        scale.m[2][3] = 0.0f;
+        scale.m[3][0] = 0.0f;
+        scale.m[3][1] = 0.0f;
+        scale.m[3][2] = 0.0f;
         scale.m[3][3] = 1.0f;
 
         const PblMatrix frame = NormalMatrix(vDir, vNormal, vPos);
@@ -803,32 +804,25 @@ void PropModelMesh::SetupMatrix(PblMatrix& matrix, float rotation)
     }
 
     matrix = gMatrixIdentity;
-    matrix.m[1][0] = vNormal.x;
-    matrix.m[1][1] = vNormal.y;
-    matrix.m[1][2] = vNormal.z;
+    matrix[1] = vNormal;
     matrix.m[1][3] = 0.0f;
 
-    PblVector3 vIn;
     PblVector3 vOut;
     const float bx = -matrix.m[2][0];
     const float by = -matrix.m[2][1];
     const float bz = -matrix.m[2][2];
-    vIn.x = matrix.m[1][2] * by - matrix.m[1][1] * bz;
-    vIn.y = matrix.m[1][0] * bz - matrix.m[1][2] * bx;
-    vIn.z = matrix.m[1][1] * bx - matrix.m[1][0] * by;
+    PblVector3 vIn(matrix.m[1][2] * by - matrix.m[1][1] * bz,
+                   matrix.m[1][0] * bz - matrix.m[1][2] * bx,
+                   matrix.m[1][1] * bx - matrix.m[1][0] * by);
     D3DXVec3Normalize((D3DXVECTOR3*)&vOut, (const D3DXVECTOR3*)&vIn);
-    matrix.m[0][0] = vOut.x;
-    matrix.m[0][1] = vOut.y;
-    matrix.m[0][2] = vOut.z;
+    matrix[0] = vOut;
     matrix.m[0][3] = 0.0f;
 
-    vIn.x = matrix.m[0][1] * matrix.m[1][2] - matrix.m[0][2] * matrix.m[1][1];
-    vIn.y = matrix.m[0][2] * matrix.m[1][0] - matrix.m[0][0] * matrix.m[1][2];
-    vIn.z = matrix.m[0][0] * matrix.m[1][1] - matrix.m[0][1] * matrix.m[1][0];
+    vIn = PblVector3(matrix.m[0][1] * matrix.m[1][2] - matrix.m[0][2] * matrix.m[1][1],
+                     matrix.m[0][2] * matrix.m[1][0] - matrix.m[0][0] * matrix.m[1][2],
+                     matrix.m[0][0] * matrix.m[1][1] - matrix.m[0][1] * matrix.m[1][0]);
     D3DXVec3Normalize((D3DXVECTOR3*)&vOut, (const D3DXVECTOR3*)&vIn);
-    matrix.m[2][0] = vOut.x;
-    matrix.m[2][1] = vOut.y;
-    matrix.m[2][2] = vOut.z;
+    matrix[2] = vOut;
     matrix.m[2][3] = 0.0f;
 
     matrix.m[3][0] = x - mYOffset * vNormal.x;

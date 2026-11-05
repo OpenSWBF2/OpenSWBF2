@@ -82,7 +82,7 @@ PblHashTable<FLEffectClass, 256> FLEffect::s_EffectClasses;
 
 // GLOBAL: SWBF2 0x01ebd960
 // FLEffectObject::s_OffsetMatrixPool
-MemoryPool FLEffectObject::s_OffsetMatrixPool("FLEffectObject::OffsetMatrix", 0x40);
+MemoryPool FLEffectObject::s_OffsetMatrixPool("FLEffectObject::OffsetMatrix", sizeof(PblMatrix));
 
 PblPtrSet<1024> FLEffectObject::sLuaHandles;
 
@@ -360,7 +360,7 @@ bool FLEffectObject::Update(float fDeltaTime)
         if ((m_uiAttachFlags & ATTACHED_TO_GAMEOBJECT) && m_hobjAttachedToObject == 0)
         {
             m_uiAttachFlags = 0;
-            m_hobjAttachedToObject = PblHandle<GameObject const>();
+            m_hobjAttachedToObject = 0;
             m_pmAttachedToMatrix = 0;
             DeactivateEffect();
             return false;
@@ -617,7 +617,7 @@ void FLEffectObject::AttachEffectToMatrix(const PblMatrix* pMatrix, const PblMat
                                           bool bDynamic)
 {
     m_uiAttachFlags &= ~(ATTACHED_DYNAMIC | ATTACHED_TO_GAMEOBJECT | ATTACHED_TO_VECTOR);
-    m_hobjAttachedToObject = PblHandle<GameObject const>();
+    m_hobjAttachedToObject = 0;
     m_pmAttachedToMatrix = const_cast<PblMatrix*>(pMatrix);
     if (bDynamic)
     {
@@ -629,14 +629,21 @@ void FLEffectObject::AttachEffectToMatrix(const PblMatrix* pMatrix, const PblMat
 // FUNCTION: SWBF2 0x005276e0
 void FLEffectObject::AttachEffectToMatrix(const PblMatrix* pMatrix, bool b)
 {
-    AttachEffectToMatrix(pMatrix, _IdentityMatrix, b);
+    m_uiAttachFlags &= ~(ATTACHED_DYNAMIC | ATTACHED_TO_GAMEOBJECT | ATTACHED_TO_VECTOR);
+    m_hobjAttachedToObject = 0;
+    m_pmAttachedToMatrix = const_cast<PblMatrix*>(pMatrix);
+    if (b)
+    {
+        m_uiAttachFlags |= ATTACHED_DYNAMIC;
+    }
+    _Attach(_IdentityMatrix);
 }
 
 // FUNCTION: SWBF2 0x00527720
 void FLEffectObject::AttachEffectToVector(const PblVector3* pVector, bool b)
 {
     m_uiAttachFlags &= ~(ATTACHED_DYNAMIC | ATTACHED_TO_GAMEOBJECT | ATTACHED_TO_VECTOR);
-    m_hobjAttachedToObject = PblHandle<GameObject const>();
+    m_hobjAttachedToObject = 0;
     m_pvAttachedToVector = const_cast<PblVector3*>(pVector);
     m_uiAttachFlags |= ATTACHED_TO_VECTOR;
     if (b)
@@ -742,13 +749,11 @@ void FLEffectObject::InterpolateWorldMatrix()
     {
         PblMatrix mSmoothed(m_hobjAttachedToObject->GetSmoothedMatrix());
         PblMatrix mInterpolated = mSmoothed;
-        gameObjectInterpolator.GetMatrix(m_hobjAttachedToObject->mNetUniqueId, mInterpolated);
+        const int iNetId = m_hobjAttachedToObject->mNetUniqueId;
+        gameObjectInterpolator.GetMatrix(iNetId, mInterpolated);
 
-        PblMatrix mInverse = mSmoothed.GetInverseFast();
-        D3DXMatrixMultiply((D3DXMATRIX*)&m_mWorldMatrix, (const D3DXMATRIX*)&m_mWorldMatrix,
-                           (const D3DXMATRIX*)&mInverse);
-        D3DXMatrixMultiply((D3DXMATRIX*)&m_mWorldMatrix, (const D3DXMATRIX*)&m_mWorldMatrix,
-                           (const D3DXMATRIX*)&mInterpolated);
+        m_mWorldMatrix = m_mWorldMatrix * mSmoothed.GetInverseFast();
+        m_mWorldMatrix = m_mWorldMatrix * mInterpolated;
         UpdatedWorldMatrix();
     }
 }
@@ -778,12 +783,11 @@ void FLEffectObject::_UpdateWorldMatrix()
                     vOffset.y += m_pmLocalOffsetMatrix->m[3][1];
                     vOffset.z += m_pmLocalOffsetMatrix->m[3][2];
                 }
+                PblMatrix& mWorld = m_mWorldMatrix;
                 PblVector3 vWorld;
                 D3DXVec3TransformNormal((D3DXVECTOR3*)&vWorld, (const D3DXVECTOR3*)&vOffset,
-                                        (const D3DXMATRIX*)&m_mWorldMatrix);
-                m_mWorldMatrix.m[3][0] += vWorld.x;
-                m_mWorldMatrix.m[3][1] += vWorld.y;
-                m_mWorldMatrix.m[3][2] += vWorld.z;
+                                        (const D3DXMATRIX*)&mWorld);
+                mWorld[3] += vWorld;
                 UpdatedWorldMatrix();
             }
             return;
@@ -791,13 +795,11 @@ void FLEffectObject::_UpdateWorldMatrix()
 
         if (m_pmAttachedToMatrix)
         {
-            D3DXMatrixMultiply((D3DXMATRIX*)&m_mWorldMatrix, (const D3DXMATRIX*)m_pmAttachedToMatrix,
-                               (const D3DXMATRIX*)&m_mWorldMatrix);
+            m_mWorldMatrix = *m_pmAttachedToMatrix * m_mWorldMatrix;
         }
         if (m_pmLocalOffsetMatrix)
         {
-            D3DXMatrixMultiply((D3DXMATRIX*)&m_mWorldMatrix, (const D3DXMATRIX*)m_pmLocalOffsetMatrix,
-                               (const D3DXMATRIX*)&m_mWorldMatrix);
+            m_mWorldMatrix = *m_pmLocalOffsetMatrix * m_mWorldMatrix;
         }
         UpdatedWorldMatrix();
     }
@@ -807,9 +809,7 @@ void FLEffectObject::_UpdateWorldMatrix()
         {
             if (m_pmLocalOffsetMatrix)
             {
-                m_mWorldMatrix.m[3][0] = m_pmLocalOffsetMatrix->m[3][0] + m_pvAttachedToVector->x;
-                m_mWorldMatrix.m[3][1] = m_pvAttachedToVector->y + m_pmLocalOffsetMatrix->m[3][1];
-                m_mWorldMatrix.m[3][2] = m_pvAttachedToVector->z + m_pmLocalOffsetMatrix->m[3][2];
+                m_mWorldMatrix[3] = m_pmLocalOffsetMatrix->GetTranslation() + *m_pvAttachedToVector;
             }
             else
             {
@@ -823,8 +823,7 @@ void FLEffectObject::_UpdateWorldMatrix()
     {
         if (m_pmLocalOffsetMatrix)
         {
-            D3DXMatrixMultiply((D3DXMATRIX*)&m_mWorldMatrix, (const D3DXMATRIX*)m_pmLocalOffsetMatrix,
-                               (const D3DXMATRIX*)m_pmAttachedToMatrix);
+            m_mWorldMatrix = *m_pmLocalOffsetMatrix * *m_pmAttachedToMatrix;
         }
         else
         {

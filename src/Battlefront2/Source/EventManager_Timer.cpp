@@ -35,7 +35,7 @@ TimerMatches LuaGetItem<TimerMatches>(int iIndex)
         }
         return TimerMatches(pTimer);
     }
-    return TimerMatches(luaL_checkstring(LuaHelper::mState, iIndex));
+    return TimerMatches(Timer::Find(luaL_checkstring(LuaHelper::mState, iIndex)));
 }
 
 

@@ -44,9 +44,9 @@ SkyDome::SkyDome()
     {
         DomeModel& model = mDomeModels[i];
         model.mModel = 0;
+        model.mType = TRACK_CAMERA;
         model.mOffset = 0.0f;
         model.mMovementScale = 1.0f;
-        model.mType = TRACK_CAMERA;
         model.mReflectionFlag = false;
         model.mRotationSpeed = 0.0f;
         model.mRotationAxis = PblVector3(0.0f, 1.0f, 0.0f);
@@ -145,36 +145,41 @@ void SkyDome::Read(PblConfig& config)
                     if (iEffect < 20)
                     {
                         mDomeModels[mNumDomeModels].mNumEffectData = iEffect + 1;
-                        EffectData* pData = mDomeModels[mNumDomeModels].mEffectData;
-                        pData[iEffect].effectHash = PblHash(model.GetStringArg(0));
-                        pData[iEffect].hardPoint = PblTEMPHash(model.GetStringArg(1));
+                        mDomeModels[mNumDomeModels].mEffectData[iEffect].effectHash =
+                            PblHash(model.GetStringArg(0));
+                        mDomeModels[mNumDomeModels].mEffectData[iEffect].hardPoint =
+                            PblTEMPHash(model.GetStringArg(1));
                         if (model.GetNumArgs() > 2)
                         {
-                            pData[iEffect].fRestartTimeMin = model.GetFloatArg(2);
-                            if (pData[iEffect].fRestartTimeMin < 0.0f)
+                            mDomeModels[mNumDomeModels].mEffectData[iEffect].fRestartTimeMin = model.GetFloatArg(2);
+                            if (mDomeModels[mNumDomeModels].mEffectData[iEffect].fRestartTimeMin < 0.0f)
                             {
-                                pData[iEffect].fRestartTimeMin = 0.0f;
+                                mDomeModels[mNumDomeModels].mEffectData[iEffect].fRestartTimeMin = 0.0f;
                             }
                             if (model.GetNumArgs() > 3)
                             {
-                                pData[iEffect].fRestartTimeMax = model.GetFloatArg(3);
-                                if (pData[iEffect].fRestartTimeMin > pData[iEffect].fRestartTimeMax)
+                                mDomeModels[mNumDomeModels].mEffectData[iEffect].fRestartTimeMax = model.GetFloatArg(3);
+                                if (mDomeModels[mNumDomeModels].mEffectData[iEffect].fRestartTimeMin >
+                                    mDomeModels[mNumDomeModels].mEffectData[iEffect].fRestartTimeMax)
                                 {
-                                    pData[iEffect].fRestartTimeMax = pData[iEffect].fRestartTimeMin;
+                                    mDomeModels[mNumDomeModels].mEffectData[iEffect].fRestartTimeMax =
+                                        mDomeModels[mNumDomeModels].mEffectData[iEffect].fRestartTimeMin;
                                 }
                             }
                             else
                             {
-                                pData[iEffect].fRestartTimeMax = pData[iEffect].fRestartTimeMin;
+                                mDomeModels[mNumDomeModels].mEffectData[iEffect].fRestartTimeMax =
+                                    mDomeModels[mNumDomeModels].mEffectData[iEffect].fRestartTimeMin;
                             }
                         }
                         else
                         {
-                            pData[iEffect].fRestartTimeMax = 0.0f;
-                            pData[iEffect].fRestartTimeMin = 0.0f;
+                            mDomeModels[mNumDomeModels].mEffectData[iEffect].fRestartTimeMax = 0.0f;
+                            mDomeModels[mNumDomeModels].mEffectData[iEffect].fRestartTimeMin = 0.0f;
                         }
-                        pData[iEffect].timer =
-                            -(PblRandom::GetGlobalFloat() * pData[iEffect].fRestartTimeMax);
+                        mDomeModels[mNumDomeModels].mEffectData[iEffect].timer =
+                            -(PblRandom::GetGlobalFloat() *
+                              mDomeModels[mNumDomeModels].mEffectData[iEffect].fRestartTimeMax);
                     }
                     break;
                 }
@@ -267,9 +272,9 @@ void SkyDome::Read(PblConfig& config)
                 case 0x3D7E6258u:
                 {
                     RedColor color;
-                    color.b = atmosphere.GetUint8Arg(2);
-                    color.g = atmosphere.GetUint8Arg(1);
                     color.r = atmosphere.GetUint8Arg(0);
+                    color.g = atmosphere.GetUint8Arg(1);
+                    color.b = atmosphere.GetUint8Arg(2);
                     color.a = atmosphere.GetNumArgs() > 3 ? atmosphere.GetUint8Arg(3) : 0x20;
                     RedRenderer::SetFilterColor(color, iColor++);
                     break;
@@ -329,7 +334,7 @@ bool SkyDome::Update(float fDeltaTime)
         for (int i = 0; i < rDome.mNumEffectData; ++i)
         {
             EffectData& rData = rDome.mEffectData[i];
-            rData.timer += fDeltaTime;
+            rData.timer = fDeltaTime + rData.timer;
             if (rData.effect)
             {
                 continue;
@@ -351,7 +356,7 @@ bool SkyDome::Update(float fDeltaTime)
                 {
                     continue;
                 }
-                rData.effect = static_cast<ParticleEmitterObject*>(pClass->BuildEffect());
+                rData.effect = PblHandle<ParticleEmitterObject>(static_cast<ParticleEmitterObject*>(pClass->BuildEffect()));
                 if (!rData.effect)
                 {
                     continue;

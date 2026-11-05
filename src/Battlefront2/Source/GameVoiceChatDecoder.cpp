@@ -304,7 +304,7 @@ void GameVoiceChat::Decoder::Play()
     }
 
     mMixer.Play(true);
-    mAuxRenderer.Play(true);
+    mAuxRenderer.Snd::StreamNode::Play(true);
 
     mPlaying = true;
 }
@@ -333,7 +333,7 @@ bool GameVoiceChat::Decoder::Update()
     }
 
     mMixer.Update();
-    return static_cast<const Snd::StreamNode&>(mAuxRenderer).IsStarving();
+    return mAuxRenderer.Snd::StreamNode::IsStarving();
 }
 
 // FUNCTION: SWBF2 0x0053d220
@@ -360,33 +360,27 @@ namespace GameVoiceChat
 // FUNCTION: SWBF2 0x0053cff0
 bool Decoder::ReceivePacket(unsigned int uiInput, const VoiceChat::AudioPacket* pPacket)
 {
-    Snd::StreamGSMDecoder* pDecoder = &mDecoders[uiInput];
-    Snd::StreamMixer* pMixer = &mMixer;
-
     if (pPacket->mSize)
     {
-        if (pDecoder->GetNumQueuedPackets() >= 1)
+        if (mDecoders[uiInput].GetNumQueuedPackets() < 1)
         {
-            return false;
+            Snd::StreamPacket* pOutput = static_cast<Snd::StreamSourceNProducer*>(this)->GetReadPacket(uiInput);
+            if (pOutput)
+            {
+                pOutput->mBuffer = pPacket->mData;
+                static_cast<Snd::StreamSourceNProducer*>(this)->PacketComplete(pOutput, pPacket->mSize,
+                                160 * (pPacket->mSize / 33u), false,
+                                pPacket->mDiscontinuity, 0, uiInput);
+                mDecoders[uiInput].Update();
+                mMixer.Update();
+                return true;
+            }
         }
-        Snd::StreamPacket* pOutput = static_cast<Snd::StreamSourceNProducer*>(this)->GetReadPacket(uiInput);
-        if (!pOutput)
-        {
-            return false;
-        }
-        pOutput->mBuffer = pPacket->mData;
-        static_cast<Snd::StreamSourceNProducer*>(this)->PacketComplete(pOutput, pPacket->mSize,
-                        160 * (pPacket->mSize / 33u), false,
-                        pPacket->mDiscontinuity, 0, uiInput);
-        pDecoder->Update();
-        pMixer->Update();
-        return true;
     }
-
-    if (pPacket->mDiscontinuity)
+    else if (pPacket->mDiscontinuity)
     {
-        pDecoder->Flush();
-        pMixer->Discontinuity(uiInput, true);
+        mDecoders[uiInput].Flush();
+        mMixer.Discontinuity(uiInput, true);
         return true;
     }
     return false;
@@ -399,8 +393,7 @@ namespace GameVoiceChat
 // FUNCTION: SWBF2 0x0053d110
 bool Decoder::IsStarving(unsigned int uiInput, bool bForce)
 {
-    const Snd::StreamNode& cNode = mAuxRenderer;
-    return (bForce || (cNode.GetPlayState() == 1 && cNode.IsStarving())) &&
+    return (bForce || (mAuxRenderer.GetPlayState() == 1 && mAuxRenderer.IsStarving())) &&
            !mMixer.IsMixed(uiInput);
 }
 }

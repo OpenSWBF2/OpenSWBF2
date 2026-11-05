@@ -14,6 +14,12 @@ AI::PatrolPath::PatrolPath()
     sList.Add((PblList<PatrolPath>::Node*)&mNode, this);
 }
 
+// FUNCTION: SWBF2 0x006156a0
+AI::PatrolPath::NodeProperties::NodeProperties()
+    : mWaitMin(0.0f), mWaitMax(0.0f)
+{
+}
+
 // FUNCTION: SWBF2 0x006156b0
 bool AI::PatrolPath::NodeProperties::ReadPropertyScope(PblConfig& config, PblConfig::Data& data,
                                                        RedPath::PathObject object,
@@ -196,6 +202,7 @@ bool AI::PatrolPath::Read(PblConfig& config)
 // FUNCTION: SWBF2 0x00615dc0
 int AI::PatrolPath::RequestPatrolPaths(const PblVector3& pos, float fRadius, int iMax, PatrolPath** ppPaths)
 {
+    const float fRadiusSq = fRadius * fRadius;
     int iCount = 0;
     for (PblList<PatrolPath>::Itor it = sList.Begin(); it != sList.End(); ++it)
     {
@@ -204,15 +211,12 @@ int AI::PatrolPath::RequestPatrolPaths(const PblVector3& pos, float fRadius, int
         {
             continue;
         }
-        float fX = pos.x - pPoint->x;
-        float fY = pos.y - pPoint->y;
-        float fZ = pos.z - pPoint->z;
-        if (fRadius * fRadius > fX * fX + fY * fY + fZ * fZ)
+        if (fRadiusSq > SquaredLength(pos - *pPoint))
         {
             ppPaths[iCount++] = it;
             if (iCount >= iMax)
             {
-                break;
+                return iCount;
             }
         }
     }

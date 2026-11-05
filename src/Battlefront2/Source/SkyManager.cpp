@@ -48,7 +48,7 @@ RedColor SkyManager::ReadColor(const PblConfig::Data& data)
     color.r = data.GetUint8Arg(0);
     color.g = data.GetUint8Arg(1);
     color.b = data.GetUint8Arg(2);
-    color.a = data.GetNumArgs() > 3 ? data.GetUint8Arg(3) : 0xFF;
+    color.a = data.GetNumArgs() > 3 ? data.GetUint8Arg(3) : (unsigned char)0xFF;
     return color;
 }
 
@@ -179,9 +179,10 @@ void SkyManager::Read(PblFileChunk& chunk)
         case 0x185AB6C2u:
         {
             PblConfig scope(config.ReadNextScope(), true);
-            if (SkyDome::sInstance)
+            SkyDome* pDome = SkyDome::sInstance;
+            if (pDome)
             {
-                SkyDome::sInstance->Read(scope);
+                pDome->Read(scope);
             }
             break;
         }

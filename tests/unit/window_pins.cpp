@@ -478,7 +478,7 @@ TEST_CASE("display apply source pins" * doctest::test_suite("unit"))
     const std::string sVideo = FunctionBody(sLua, "int ScriptCB_SetPCVideoOptions(");
     REQUIRE(!sVideo.empty());
     size_t uiChanged = sVideo.find("if (bChanged)\n    {\n        pProfile->UpdateProfCRC();\n"
-                                   "        rPC.ApplyPostLoadSettings();\n    }\n");
+                                   "        pProfile->mPCOptions.ApplyPostLoadSettings();\n    }\n");
     size_t uiLive = sVideo.find("PlayerProfile::ApplyLiveDisplay();");
     size_t uiReturn = sVideo.rfind("return 0;");
     REQUIRE(uiChanged != std::string::npos);

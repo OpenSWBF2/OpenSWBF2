@@ -59,7 +59,7 @@ void FallingLeafParticle::RespawnLeaf(const PblVector3& vPos, LeafSpawner* pSpaw
     mConstantWindVelocity.SetAll(0.0f);
 
     PblQuaternion q = PblQuaternion(gMatrixIdentity);
-    PblVector3 vOmega(0.0f, PblRandom::GetGlobalFloat() * PblMath::fTwoPi, 0.0f);
+    PblVector3 vOmega(0.0f, PblRandom::_Global.GetFloat() * 6.2831855f, 0.0f);
     float fAngle = sqrtf(vOmega.x * vOmega.x + vOmega.y * vOmega.y + vOmega.z * vOmega.z);
     if (fAngle > EPSILON)
     {
@@ -76,11 +76,11 @@ void FallingLeafParticle::RespawnLeaf(const PblVector3& vPos, LeafSpawner* pSpaw
     SetRenderPos(vPos);
     Activate();
 
-    mFallTime = PblRandom::GetGlobalFloat() * PblMath::fTwoPi;
-    mRandomness = PblRandom::GetGlobalFloat();
+    mFallTime = PblRandom::_Global.GetFloat() * 6.2831855f;
+    mRandomness = PblRandom::_Global.GetFloat();
     if (eState == LEAF_NONE)
     {
-        eState = (PblRandom::GetGlobalFloat() < 0.2f) ? LEAF_TUMBLE : LEAF_PERIODIC_FLUTTER;
+        eState = (PblRandom::_Global.GetFloat() < 0.2f) ? LEAF_TUMBLE : LEAF_PERIODIC_FLUTTER;
     }
     mState = eState;
     mSpawner = pSpawner;
@@ -105,11 +105,12 @@ void FallingLeafParticle::DoFlutterUpdate(float fDeltaTime)
     static float sFlutterMaxRockAngle = PblMath::fPi * 0.25f;
 
     float fSin = PblMath::Sin(mFallTime * 2.0f);
-    PblVector3 vPos(mMatrix.m[3][0], mMatrix.m[3][1], mMatrix.m[3][2]);
+    PblVector3 vPos = mMatrix.GetTranslation();
 
     PblQuaternion q = PblQuaternion(mInitMatrix);
-    PblVector3 vOmega(0.0f, 0.0f, -(mRandomness * sFlutterMaxRockAngle * -fSin));
-    float fAngle = sqrtf(vOmega.x * vOmega.x + vOmega.y * vOmega.y + vOmega.z * vOmega.z);
+    float fNegSin = -fSin;
+    PblVector3 vOmega(0.0f, 0.0f, -(mRandomness * sFlutterMaxRockAngle * fNegSin));
+    float fAngle = Length(vOmega);
     if (fAngle > EPSILON)
     {
         float fInv = 1.0f / fAngle;
@@ -120,26 +121,22 @@ void FallingLeafParticle::DoFlutterUpdate(float fDeltaTime)
         q = q * PblQuaternion(PblVector3(0.0f, 1.0f, 0.0f), (mRandomness - 1.0f) * 10.0f * mFallTime);
     }
 
-    PblMatrix mNew(q, vPos);
-    mMatrix = mNew;
+    mMatrix = PblMatrix(q, vPos);
 
     float fSlide = fSin * -1.8f;
     PblVector3 vSlide(mMatrix.m[0][0] * fSlide, mMatrix.m[0][1] * fSlide, mMatrix.m[0][2] * fSlide);
-    mVelocity = Interpolate(sFlutterSinkVelocity, vSlide, (float)fabs(mRandomness * fSin));
+    mVelocity = Interpolate(sFlutterSinkVelocity, vSlide, (float)fabs((double)(mRandomness * fSin)));
 
-    mMatrix.m[3][0] = mVelocity.x * fDeltaTime + vPos.x;
-    mMatrix.m[3][1] = mVelocity.y * fDeltaTime + vPos.y;
-    mMatrix.m[3][2] = mVelocity.z * fDeltaTime + vPos.z;
-    mMatrix.m[3][3] = 1.0f;
+    mMatrix.SetTranslation(mVelocity * fDeltaTime + vPos);
 }
 
 // FUNCTION: SWBF2 0x0056bc10
 void FallingLeafParticle::DoTumbleUpdate(float fDeltaTime)
 {
-    PblVector3 vPos(mMatrix.m[3][0], mMatrix.m[3][1], mMatrix.m[3][2]);
+    PblVector3 vPos = mMatrix.GetTranslation();
 
     PblQuaternion q = PblQuaternion(mInitMatrix);
-    PblVector3 vOmega((mRandomness + 2.0f) * PblMath::fTwoPi * mFallTime, 0.0f, 0.0f);
+    PblVector3 vOmega((mRandomness + 2.0f) * 6.2831855f * mFallTime, 0.0f, 0.0f);
     float fAngle = sqrtf(vOmega.x * vOmega.x + vOmega.y * vOmega.y + vOmega.z * vOmega.z);
     if (fAngle > EPSILON)
     {
@@ -154,88 +151,75 @@ void FallingLeafParticle::DoTumbleUpdate(float fDeltaTime)
     vPos.x -= 0.0f;
     vPos.y -= (mRandomness + 1.0f) * fDeltaTime;
     vPos.z -= 0.0f;
-    mMatrix.m[3][0] = mInitMatrix.m[2][0] * fSpeed * fDeltaTime + vPos.x;
-    mMatrix.m[3][1] = mInitMatrix.m[2][1] * fSpeed * fDeltaTime + vPos.y;
-    mMatrix.m[3][2] = mInitMatrix.m[2][2] * fSpeed * fDeltaTime + vPos.z;
+    mMatrix.SetTranslation(PblVector3(mInitMatrix.m[2][0] * fSpeed * fDeltaTime + vPos.x,
+                                      mInitMatrix.m[2][1] * fSpeed * fDeltaTime + vPos.y,
+                                      mInitMatrix.m[2][2] * fSpeed * fDeltaTime + vPos.z));
     mMatrix.m[3][3] = 1.0f;
 }
 
 // FUNCTION: SWBF2 0x0056be80
 void FallingLeafParticle::DoGroundedUpdate(float)
 {
-    PblVector3 vPos(mMatrix.m[3][0], mMatrix.m[3][1], mMatrix.m[3][2]);
+    PblVector3 vPos = mMatrix.GetTranslation();
     mGroundHeight = RedTerrain::GetHoleHeight(vPos);
-    mMatrix.m[3][0] = vPos.x;
-    mMatrix.m[3][1] = mGroundHeight + 0.1f;
-    mMatrix.m[3][2] = vPos.z;
+    vPos.y = mGroundHeight + 0.1f;
+    *(PblVector3*)mMatrix.m[3] = vPos;
     mMatrix.m[3][3] = 1.0f;
 }
 
 // FUNCTION: SWBF2 0x0056bf10
 bool FallingLeafParticle::Update(float fDeltaTime)
 {
+    static const float kTwoPi = 6.2831855f;
+
     if (!mIsValid)
     {
         return true;
     }
 
     mRenderTimer += fDeltaTime;
-    switch (mState)
+    if (mState == LEAF_PERIODIC_FLUTTER)
     {
-    case LEAF_PERIODIC_FLUTTER:
         DoFlutterUpdate(fDeltaTime);
-        break;
-    case LEAF_TUMBLE:
+    }
+    else if (mState == LEAF_TUMBLE)
+    {
         DoTumbleUpdate(fDeltaTime);
-        break;
     }
 
     mFallTime += fDeltaTime;
-    if (mFallTime > PblMath::fTwoPi)
+    if (mFallTime > kTwoPi)
     {
-        mFallTime -= PblMath::fTwoPi;
+        mFallTime -= kTwoPi;
     }
 
-    PblVector3 vPos(mMatrix.m[3][0], mMatrix.m[3][1], mMatrix.m[3][2]);
-    PblVector3 vWind(mConstantWindVelocity.x + mWindVelocity.x,
-                     mWindVelocity.y + mConstantWindVelocity.y,
-                     mWindVelocity.z + mConstantWindVelocity.z);
-    if (sqrtf(vWind.y * vWind.y + vWind.x * vWind.x + vWind.z * vWind.z) > 0.1f)
+    PblVector3 vPos = mMatrix.GetTranslation();
+    if (Length(mWindVelocity + mConstantWindVelocity) > 0.1f)
     {
         PblQuaternion q = PblQuaternion(mMatrix);
 
-        float fFade = 1.0f - mFallTime / PblMath::fTwoPi;
-        PblVector3 vSwirl((mWindVelocity.x + mConstantWindVelocity.x * 16.0f * fFade) * PblMath::fTwoPi,
-                          (mWindVelocity.y + mConstantWindVelocity.y * 16.0f * fFade) * PblMath::fTwoPi,
-                          (mWindVelocity.z + mConstantWindVelocity.z * 16.0f * fFade) * PblMath::fTwoPi);
+        PblVector3 vSwirl = (mWindVelocity + mConstantWindVelocity * 16.0f * (1.0f - mFallTime / kTwoPi)) * kTwoPi;
 
         PblVector3 vOmega(vSwirl.y * 0.0f - vSwirl.z,
                           vSwirl.z * 0.0f - vSwirl.x * 0.0f,
                           vSwirl.x - vSwirl.y * 0.0f);
         PblVector3 vLocal;
-        PblMatrix mInverse = mMatrix.GetInverseFast();
-        D3DXVec3TransformNormal((D3DXVECTOR3*)&vLocal, (const D3DXVECTOR3*)&vOmega, (const D3DXMATRIX*)&mInverse);
+        D3DXVec3TransformNormal((D3DXVECTOR3*)&vLocal, (const D3DXVECTOR3*)&vOmega, (const D3DXMATRIX*)&mMatrix.GetInverseFast());
 
-        float fAngle = sqrtf(vOmega.x * vOmega.x + vOmega.y * vOmega.y + vOmega.z * vOmega.z);
+        float fAngle = Length(vOmega);
         if (fAngle > EPSILON)
         {
             float fInv = 1.0f / fAngle;
             q = q * PblQuaternion(PblVector3(vOmega.x * fInv, vOmega.y * fInv, vOmega.z * fInv), fAngle);
         }
 
-        vPos.x += (mConstantWindVelocity.x + mWindVelocity.x) * fDeltaTime;
-        vPos.y += (mWindVelocity.y + mConstantWindVelocity.y) * fDeltaTime;
-        vPos.z += (mWindVelocity.z + mConstantWindVelocity.z) * fDeltaTime;
+        vPos += (mWindVelocity + mConstantWindVelocity) * fDeltaTime;
 
         PblMatrix mNew(q, vPos);
         mMatrix = mNew;
 
-        float fDamp = fDeltaTime * 2.0f;
-        mWindVelocity.x -= mWindVelocity.x * fDamp;
-        mWindVelocity.y -= mWindVelocity.y * fDamp;
-        mWindVelocity.z -= mWindVelocity.z * fDamp;
-        if (!(sqrtf(mWindVelocity.x * mWindVelocity.x + mWindVelocity.y * mWindVelocity.y +
-                    mWindVelocity.z * mWindVelocity.z) > 0.1f))
+        mWindVelocity -= mWindVelocity * (fDeltaTime * 2.0f);
+        if (Length(mWindVelocity) <= 0.1f)
         {
             mGroundHeight = RedTerrain::GetHoleHeight(vPos);
         }
@@ -244,7 +228,7 @@ bool FallingLeafParticle::Update(float fDeltaTime)
     if (mState == LEAF_GROUNDED)
     {
         DoGroundedUpdate(fDeltaTime);
-        vPos = PblVector3(mMatrix.m[3][0], mMatrix.m[3][1], mMatrix.m[3][2]);
+        vPos = mMatrix.GetTranslation();
     }
 
     SetRenderPos(vPos);
@@ -263,11 +247,9 @@ bool FallingLeafParticle::Update(float fDeltaTime)
 // FUNCTION: SWBF2 0x0056c470
 void FallingLeafParticle::AddWindVelocity(const PblVector3& vVelocity)
 {
-    float fSpeed = sqrtf(vVelocity.x * vVelocity.x + vVelocity.y * vVelocity.y + vVelocity.z * vVelocity.z);
+    float fSpeed = PblMath::Sqrt(vVelocity.x * vVelocity.x + vVelocity.y * vVelocity.y + vVelocity.z * vVelocity.z);
     mWindVelocity += vVelocity * 0.9f;
-    mWindVelocity.x += 0.0f;
-    mWindVelocity.y += fSpeed * 0.4f;
-    mWindVelocity.z += 0.0f;
+    mWindVelocity += PblVector3(0.0f, fSpeed * 0.4f, 0.0f);
 }
 
 // GLOBAL: SWBF2 0x01e573d0
@@ -305,13 +287,13 @@ bool LeafParticleManager::Create()
 // FUNCTION: SWBF2 0x0056c710
 bool LeafParticleManager::Destroy()
 {
-    if (!sInstance)
+    if (sInstance)
     {
-        return false;
+        delete sInstance;
+        sInstance = NULL;
+        return true;
     }
-    delete sInstance;
-    sInstance = NULL;
-    return true;
+    return false;
 }
 
 // FUNCTION: SWBF2 0x0056c730
@@ -404,25 +386,40 @@ bool LeafParticleManager::Update(float fDeltaTime)
             GameObject* pObject;
             if (CollisionManager::GetObjectsInRect(vMin, vMax, &pObject, 1, NULL, 0x200) > 0)
             {
-                for (int i = 0; i < 20; ++i)
+                for (int i = 0; i < 10; ++i)
                 {
                     FallingLeafParticle* pLeaf = GetFreeLeaf();
-                    if (!pLeaf)
+                    if (pLeaf)
                     {
-                        continue;
+                        float fWindDist = PblRandom::GetGlobalFloatRange(30.0f, 30.0f);
+                        float fDirDist = PblRandom::GetGlobalFloatRange(30.0f, 30.0f);
+                        PblVector3 vSpawn;
+                        vSpawn.x = vPos.x - vDir.x * fDirDist - fWindDist * vWind.x;
+                        vSpawn.z = vPos.z - vDir.z * fDirDist - vWind.z * fWindDist;
+                        vSpawn.y = RedTerrain::GetInterpolatedHeight(vSpawn.x, vSpawn.z);
+                        PblVector3 vDrop(vSpawn.x + 0.0f,
+                                         PblRandom::_Global.GetFloat() + 1.0f + vSpawn.y,
+                                         vSpawn.z + 0.0f);
+                        pLeaf->RespawnLeaf(vDrop, NULL, LEAF_GROUNDED);
+                        pLeaf->AddWindVelocity(PblVector3(vWind.x * 5.0f, vWind.y * 5.0f, vWind.z * 5.0f));
+                        pLeaf->SetConstantWindVelocity(PblVector3(vWind.x * 5.0f, vWind.y * 5.0f, vWind.z * 5.0f));
                     }
-                    float fWindDist = (PblRandom::GetGlobalFloat() - 0.5f) * 30.0f + 30.0f;
-                    float fDirDist = (PblRandom::GetGlobalFloat() - 0.5f) * 30.0f + 30.0f;
-                    PblVector3 vSpawn;
-                    vSpawn.x = vPos.x - vDir.x * fDirDist - fWindDist * vWind.x;
-                    vSpawn.z = vPos.z - vDir.z * fDirDist - vWind.z * fWindDist;
-                    vSpawn.y = RedTerrain::GetInterpolatedHeight(vSpawn.x, vSpawn.z);
-                    PblVector3 vDrop(vSpawn.x + 0.0f,
-                                     PblRandom::GetGlobalFloat() + 1.0f + vSpawn.y,
-                                     vSpawn.z + 0.0f);
-                    pLeaf->RespawnLeaf(vDrop, NULL, LEAF_GROUNDED);
-                    pLeaf->AddWindVelocity(PblVector3(vWind.x * 5.0f, vWind.y * 5.0f, vWind.z * 5.0f));
-                    pLeaf->SetConstantWindVelocity(PblVector3(vWind.x * 5.0f, vWind.y * 5.0f, vWind.z * 5.0f));
+                    pLeaf = GetFreeLeaf();
+                    if (pLeaf)
+                    {
+                        float fWindDist = PblRandom::GetGlobalFloatRange(30.0f, 30.0f);
+                        float fDirDist = PblRandom::GetGlobalFloatRange(30.0f, 30.0f);
+                        PblVector3 vSpawn;
+                        vSpawn.x = vPos.x - vDir.x * fDirDist - fWindDist * vWind.x;
+                        vSpawn.z = vPos.z - vDir.z * fDirDist - vWind.z * fWindDist;
+                        vSpawn.y = RedTerrain::GetInterpolatedHeight(vSpawn.x, vSpawn.z);
+                        PblVector3 vDrop(vSpawn.x + 0.0f,
+                                         PblRandom::_Global.GetFloat() + 1.0f + vSpawn.y,
+                                         vSpawn.z + 0.0f);
+                        pLeaf->RespawnLeaf(vDrop, NULL, LEAF_GROUNDED);
+                        pLeaf->AddWindVelocity(PblVector3(vWind.x * 5.0f, vWind.y * 5.0f, vWind.z * 5.0f));
+                        pLeaf->SetConstantWindVelocity(PblVector3(vWind.x * 5.0f, vWind.y * 5.0f, vWind.z * 5.0f));
+                    }
                 }
                 mGroundLeavesTimer = 0.0f;
             }

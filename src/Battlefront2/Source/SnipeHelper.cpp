@@ -45,7 +45,7 @@ namespace TeamManager
                                   AI::AIAffil eAffil);
 }
 
-static const float FOV_ANGLE = 2.70526028f;
+static float FOV_ANGLE = 2.70526028f;
 
 namespace
 {
@@ -87,24 +87,19 @@ SnipeHelper::SnipeHelper(UnitAgent* pOwner)
 // FUNCTION: SWBF2 0x0063b6e0
 bool SnipeHelper::LookForSnipeHintAndInit()
 {
-    if (mCurState != 0 && mCurState != STATE_START && mCurState != 100)
+    if (mCurState == 0 || mCurState == STATE_START || mCurState == 100)
     {
-        return false;
+        if (AIUtil::IsSniperGuy(GetMe()->GetGameObject()))
+        {
+            if (AIUtil::IsSnipeHintNearby(GetMe()->GetGameObject(), *this, (const SnipeHint**)&mHint,
+                                          &mNextHintCheckTime))
+            {
+                HELPERInit(mHint);
+                return true;
+            }
+        }
     }
-
-    if (!AIUtil::IsSniperGuy(GetMe()->GetGameObject()))
-    {
-        return false;
-    }
-
-    if (!AIUtil::IsSnipeHintNearby(GetMe()->GetGameObject(), *this, (const SnipeHint**)&mHint,
-                                   &mNextHintCheckTime))
-    {
-        return false;
-    }
-
-    HELPERInit(mHint);
-    return true;
+    return false;
 }
 
 // FUNCTION: SWBF2 0x0063b760
@@ -194,26 +189,23 @@ void SnipeHelper::UpdateState(float dt)
         PblVector3 vZ = AIUtil::GetSafeNormal(mHint->GetZAxis());
         PblVector3 vMyPos = GetMe()->GetMatrix().GetTranslation();
 
-        PblVector3 vFace(vZ.x * 10.0f + vMyPos.x, vZ.y * 10.0f + vMyPos.y, vZ.z * 10.0f + vMyPos.z);
-
         PblVector3 vTarget;
-        const AttackHelper* pAttack = GetAttackHelper();
-        if (pAttack->GetVisibleTarget())
+        if (GetAttackHelper()->GetVisibleTarget())
         {
-            vTarget = (GetCollisionObject(pAttack->GetVisibleTarget())->GetMatrix()).GetTranslation();
+            vTarget = GetAttackHelper()->GetVisibleTarget()->GetMatrix().GetTranslation();
         }
-        else if (pAttack->HasTarget())
+        else if (GetAttackHelper()->HasTarget())
         {
-            vTarget = pAttack->GetLastSeenTargetPos();
+            vTarget = GetAttackHelper()->GetLastSeenTargetPos();
         }
         else
         {
-            vTarget = vFace;
+            vTarget = PblVector3(vZ.x * 10.0f + vMyPos.x, vZ.y * 10.0f + vMyPos.y, vZ.z * 10.0f + vMyPos.z);
         }
 
         if (IsWithinSnipeFOV(vTarget))
         {
-            mDefaultFacePos = vFace;
+            mDefaultFacePos = PblVector3(vZ.x * 10.0f + vMyPos.x, vZ.y * 10.0f + vMyPos.y, vZ.z * 10.0f + vMyPos.z);
             mOverrideFaceTarget = false;
             mOverrideDefaultFacePos = true;
         }
@@ -221,7 +213,8 @@ void SnipeHelper::UpdateState(float dt)
         {
             mOverrideFaceTarget = true;
             mOwner->GetLowLevel().SetHeight(mHeight);
-            mOwner->GetLowLevel().SetHeading(vFace, 0.0f);
+            mOwner->GetLowLevel().SetHeading(
+                PblVector3(vZ.x * 10.0f + vMyPos.x, vZ.y * 10.0f + vMyPos.y, vZ.z * 10.0f + vMyPos.z), 0.0f);
         }
         GetMe()->SetWpnDistFactor(2.0f);
         break;
@@ -248,7 +241,7 @@ bool SnipeHelper::IsWithinSnipeFOV(const PblVector3& vPos) const
     PblVector3 vZ = AIUtil::GetSafeNormal(mHint->GetZAxis());
     PblVector3 vMyPos = GetMe()->GetMatrix().GetTranslation();
     PblVector3 vDir = AIUtil::GetSafeNormal(PblVector3(vPos.x - vMyPos.x, vPos.y - vMyPos.y, vPos.z - vMyPos.z));
-    return vZ.x * vDir.x + vZ.y * vDir.y + vZ.z * vDir.z > PblMath::Cos(FOV_ANGLE * 0.5f);
+    return vDir.x * vZ.x + vZ.y * vDir.y + vZ.z * vDir.z > PblMath::Cos(FOV_ANGLE * 0.5f);
 }
 
 // FUNCTION: SWBF2 0x0063bc60
@@ -294,6 +287,7 @@ const SnipeHint* SnipeHelper::FindSnipeHint() const
         heap.Push(apHints[i], -DistSq(vMyPos, apHints[i]->GetCollisionCenter()));
     }
 
+    int iObjects;
     int iTried = 0;
     while (!heap.IsEmpty())
     {
@@ -315,17 +309,18 @@ const SnipeHint* SnipeHelper::FindSnipeHint() const
 
         PblVector3 vHintPos = pHint->GetCollisionCenter();
         GameObject* apObjects[1200];
-        int iObjects = TeamManager::GetApproxObjectsAlongLine(vMyPos, vHintPos, 12.0f, apObjects, 1200,
-                                                              pMe, AI::AFFIL_ENEMY);
-        int j;
-        for (j = 0; j < iObjects; ++j)
+        iObjects = TeamManager::GetApproxObjectsAlongLine(vMyPos, vHintPos, 12.0f, apObjects, 1200,
+                                                          pMe, AI::AFFIL_ENEMY);
+        bool bBlocked = false;
+        for (int j = 0; j < iObjects; ++j)
         {
             if (AIUtil::IsValidEnemy(pMe, apObjects[j]))
             {
+                bBlocked = true;
                 break;
             }
         }
-        if (j < iObjects)
+        if (bBlocked)
         {
             continue;
         }
@@ -374,11 +369,7 @@ ControllableHeight SnipeHelper::HELPERGetHeight() const
 // FUNCTION: SWBF2 0x0063c0d0
 bool SnipeHelper::HELPERDamagedInterrupt(bool b, const PblVector3& vPos) const
 {
-    if (mCurState == STATE_SNIPE && b)
-    {
-        return !IsWithinSnipeFOV(vPos);
-    }
-    return true;
+    return !(mCurState == STATE_SNIPE && b && IsWithinSnipeFOV(vPos));
 }
 
 // FUNCTION: SWBF2 0x0063c100
@@ -388,22 +379,18 @@ bool SnipeHelper::HELPERSeeEnemyInterrupt(const GameObject* pEnemy) const
     {
         return true;
     }
-    const PblMatrix& rEnemy = GetCollisionObject(pEnemy)->GetMatrix();
-    if (IsWithinSnipeFOV(rEnemy.GetTranslation()))
+    if (IsWithinSnipeFOV(pEnemy->GetMatrix().GetTranslation()))
     {
         return false;
     }
-    return DistSq((GetCollisionObject(pEnemy)->GetMatrix()).GetTranslation(), GetMe()->GetMatrix().GetTranslation()) < 1600.0f;
+    bool bClose = SquaredLength(pEnemy->GetMatrix().GetTranslation() - GetMe()->GetMatrix().GetTranslation()) < 1600.0f;
+    return bClose;
 }
 
 // FUNCTION: SWBF2 0x0063c1a0
 bool SnipeHelper::HELPERHearEnemyInterrupt(const GameObject* pEnemy) const
 {
-    if (mCurState == STATE_SNIPE)
-    {
-        return !IsWithinSnipeFOV((GetCollisionObject(pEnemy)->GetMatrix()).GetTranslation());
-    }
-    return true;
+    return mCurState != STATE_SNIPE || !IsWithinSnipeFOV(pEnemy->GetMatrix().GetTranslation());
 }
 
 // FUNCTION: SWBF2 0x0063c1e0

@@ -32,12 +32,7 @@ EntityPropAnimatedClass::EntityPropAnimatedClass(unsigned int uHash)
 {
     mAnimObj = 0;
     memset(mAnimations, 0, sizeof(mAnimations));
-    for (int i = 0; i < 3; i++)
-    {
-        mAnimationTriggers[i].mTriggerPoint = 0;
-        mAnimationTriggers[i].mTriggerRadius = 0.0f;
-        mAnimationTriggers[i].mAnimationID = 0;
-    }
+    memset(mAnimationTriggers, 0, sizeof(mAnimationTriggers));
     memset(mAttachTriggers, 0, sizeof(mAttachTriggers));
     for (int i = 0; i < 3; i++)
     {
@@ -74,7 +69,7 @@ const char EntityPropAnimated::rttiNameEntityPropAnimated[] = "EntityPropAnimate
 
 // FUNCTION: SWBF2 0x004db3c0
 EntityPropAnimated::EntityPropAnimated(EntityPropAnimatedClass* pClass, const EntityDesc& desc)
-    : EntityProp(pClass, desc), Thread()
+    : EntityProp(pClass, desc), Thread(), mAttachedSoldier()
 {
     mAnimObj = pClass->mAnimObj;
     mAnimatedClass = pClass;
@@ -86,18 +81,17 @@ EntityPropAnimated::EntityPropAnimated(EntityPropAnimatedClass* pClass, const En
     }
     else
     {
-        mAnimationTime = pClass->mAnimations[0]->m_u16NumFrames *
-                         PblRandom::GetGlobalFloat() / 30.0f;
+        mAnimationTime = mAnimatedClass->mAnimations[0]->m_u16NumFrames *
+                         PblRandom::_Global.GetFloat() / 30.0f;
     }
     if (mShadowProxy)
     {
         mShadowProxy->Deactivate();
     }
-    mZephyrSkeleton.Open(*mAnimObj->GetZephyrSkeletonShared(), mZephyrPoseStatic);
+    mZephyrSkeleton.Open(*mAnimatedClass->mAnimObj->GetZephyrSkeletonShared(), mZephyrPoseStatic);
     mZephyrPoseStatic.Open(mZephyrSkeleton);
     mZephyrPoseDyn.Open(mZephyrSkeleton);
-    mAttachedSoldier.mObject = 0;
-    mAttachedSoldier.mSavedHandleId = 0;
+    mAttachedSoldier = (GameObject*)0;
     mAttachedSoldierAnimation = -1;
     mAttachMatrix = 0;
     mIdleDelayTimer = 0.0f;
@@ -111,13 +105,13 @@ EntityPropAnimated::~EntityPropAnimated()
 // FUNCTION: SWBF2 0x004db670
 void EntityPropAnimated::Render(unsigned char ucLod, float fAlpha, unsigned int uFlags)
 {
-    if (mAnimatedClass->m_bDynamicLighting)
+    if (!static_cast<EntityPropAnimatedClass*>(mEntityClass)->m_bDynamicLighting)
     {
-        uFlags &= ~0x80u;
+        uFlags |= 0x80u;
     }
     else
     {
-        uFlags |= 0x80u;
+        uFlags &= ~0x80u;
     }
 
     // GLOBAL: SWBF2 0x01faa92c
@@ -125,7 +119,7 @@ void EntityPropAnimated::Render(unsigned char ucLod, float fAlpha, unsigned int 
     static PblHash sPlayerShadow("player_shadow");
     SetupShadow(0, mModel, ucLod, uFlags, sPlayerShadow);
     const GameModel* pModel = GetModel();
-    const RedColor kWhite = RedColor::WHITE;
+    const RedColor kWhite(255, 255, 255, 255);
     pModel->Render(ucLod, fAlpha, &mMatrix, &mPose, kWhite,
                    uFlags | 0x01000000, 0);
 }
@@ -157,18 +151,9 @@ EntityPropAnimatedClass::EntityPropAnimatedClass(EntityPropAnimatedClass* pBase,
     : EntityPropClass(pBase, uHash)
 {
     mAnimObj = pBase->mAnimObj;
-    for (int i = 0; i < 5; i++)
-    {
-        mAnimations[i] = pBase->mAnimations[i];
-    }
-    for (int i = 0; i < 3; i++)
-    {
-        mAnimationTriggers[i] = pBase->mAnimationTriggers[i];
-    }
-    for (int i = 0; i < 3; i++)
-    {
-        mAttachTriggers[i] = pBase->mAttachTriggers[i];
-    }
+    memcpy(mAnimations, pBase->mAnimations, sizeof(mAnimations));
+    memcpy(mAnimationTriggers, pBase->mAnimationTriggers, sizeof(mAnimationTriggers));
+    memcpy(mAttachTriggers, pBase->mAttachTriggers, sizeof(mAttachTriggers));
     for (int i = 0; i < 3; i++)
     {
         mAttachTriggers[i].mSoldierAnimation = -1;
@@ -187,7 +172,7 @@ EntityPropAnimatedClass::~EntityPropAnimatedClass()
 bool EntityPropAnimatedClass::InitAnimations(const char* pszName)
 {
     mAnimObj = RedAnimation::Find(PblHash(pszName));
-    return mAnimObj != 0;
+    return mAnimObj ? true : false;
 }
 
 // FUNCTION: SWBF2 0x004dc380
@@ -268,23 +253,22 @@ void EntityPropAnimatedClass::SetProperty(unsigned int uProperty, const char* ps
                acSoldierAnimation, &fTime, acUnused, acEvent);
         for (int i = 0; i < 3; i++)
         {
-            AttachTrigger& kTrigger = mAttachTriggers[i];
-            if (!kTrigger.mAttachPoint)
+            if (!mAttachTriggers[i].mAttachPoint)
             {
                 for (int j = 0; j < 5; j++)
                 {
                     if (mAnimations[j] && mAnimations[j]->GetNameCRC() == PblTEMPHash(acAnimation))
                     {
-                        kTrigger.mAnimationID = j;
+                        mAttachTriggers[i].mAnimationID = j;
                         break;
                     }
                 }
-                kTrigger.mSoldierAnimation = SoldierAnimationBank::AddAnimation(acSoldierAnimation);
-                kTrigger.mAttachPoint = PblTEMPHash(acAttachPoint);
-                kTrigger.mAttachRadius = fRadius;
-                kTrigger.mAnimationTime = fTime;
+                mAttachTriggers[i].mSoldierAnimation = SoldierAnimationBank::AddAnimation(acSoldierAnimation);
+                mAttachTriggers[i].mAttachPoint = PblTEMPHash(acAttachPoint);
+                mAttachTriggers[i].mAttachRadius = fRadius;
+                mAttachTriggers[i].mAnimationTime = fTime;
                 PblTEMPHash(acEvent);
-                kTrigger.mPostAttachEvent = 0;
+                mAttachTriggers[i].mPostAttachEvent = 0;
                 return;
             }
         }
@@ -298,19 +282,18 @@ void EntityPropAnimatedClass::SetProperty(unsigned int uProperty, const char* ps
         sscanf(pszValue, "%s %s %f", acAnimation, acTriggerPoint, &fRadius);
         for (int i = 0; i < 3; i++)
         {
-            AnimationTrigger& kTrigger = mAnimationTriggers[i];
-            if (!kTrigger.mTriggerPoint)
+            if (!mAnimationTriggers[i].mTriggerPoint)
             {
                 for (int j = 0; j < 5; j++)
                 {
                     if (mAnimations[j] && mAnimations[j]->GetNameCRC() == PblTEMPHash(acAnimation))
                     {
-                        kTrigger.mAnimationID = j;
+                        mAnimationTriggers[i].mAnimationID = j;
                         break;
                     }
                 }
-                kTrigger.mTriggerPoint = PblTEMPHash(acTriggerPoint);
-                kTrigger.mTriggerRadius = fRadius;
+                mAnimationTriggers[i].mTriggerPoint = PblTEMPHash(acTriggerPoint);
+                mAnimationTriggers[i].mTriggerRadius = fRadius;
                 return;
             }
         }
@@ -349,8 +332,8 @@ EntityClass* EntityPropAnimatedClass::Derive(unsigned int uHash)
 Entity* EntityPropAnimatedClass::Build(const EntityDesc& desc)
 {
     EntityPropAnimated* pProp = new EntityPropAnimated(this, desc);
-    static_cast<CollisionObject*>(pProp)->AddStaticToCollisionManager();
-    static_cast<Thread*>(pProp)->ActivateThread(0, PER_LOCAL_TURN);
+    pProp->AddStaticToCollisionManager();
+    pProp->ActivateThread(0, PER_LOCAL_TURN);
     pProp->BuildEffects();
     return pProp;
 }
@@ -438,10 +421,10 @@ bool EntityPropAnimated::Update(float fDeltaTime)
             {
                 GameObject* pSoldier = &mAttachedSoldier();
                 pSoldier->InstantDeath(DamageOwner(0, 0, 0, 0, 0, 1.0f), true);
-                mAnimatedClass->mKillSoldierSound.Play((const PblVector3*)GetMatrix().m[3], 0, false, true);
+                const PblVector3* pPos = (const PblVector3*)GetMatrix().m[3];
+                mAnimatedClass->mKillSoldierSound.Play(pPos, 0, false, true);
             }
-            mAttachedSoldier.mObject = 0;
-            mAttachedSoldier.mSavedHandleId = 0;
+            mAttachedSoldier = (GameObject*)0;
             mAttachedSoldierAnimation = -1;
             mAttachMatrix = 0;
             SetAnimation(0, true);
@@ -450,7 +433,8 @@ bool EntityPropAnimated::Update(float fDeltaTime)
     else if (mAttachedSoldier)
     {
         mAttachedSoldier->InstantDeath(DamageOwner(0, 0, 0, 0, 0, 1.0f), true);
-        mAnimatedClass->mKillSoldierSound.Play((const PblVector3*)GetMatrix().m[3], 0, false, true);
+        const PblVector3* pPos = (const PblVector3*)GetMatrix().m[3];
+        mAnimatedClass->mKillSoldierSound.Play(pPos, 0, false, true);
     }
 
     for (int i = 0; i < 3; ++i)
@@ -459,25 +443,25 @@ bool EntityPropAnimated::Update(float fDeltaTime)
         {
             continue;
         }
-        const EntityPropAnimatedClass::AnimationTrigger& trigger = mAnimatedClass->mAnimationTriggers[i];
-        if (!trigger.mTriggerPoint || mAnimationId == trigger.mAnimationID || mBlendFactor < 0.5f)
+        if (!mAnimatedClass->mAnimationTriggers[i].mTriggerPoint ||
+            mAnimationId == mAnimatedClass->mAnimationTriggers[i].mAnimationID || !(mBlendFactor >= 0.5f))
         {
             continue;
         }
         PblMatrix mBone;
-        if (!GetModel()->GetRedModel(0)->GetBoneMatrix(trigger.mTriggerPoint, mBone))
+        if (!GetModel()->GetRedModel(0)->GetBoneMatrix(mAnimatedClass->mAnimationTriggers[i].mTriggerPoint, mBone))
         {
             continue;
         }
         PblMatrix mWorld;
         D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mWorld), reinterpret_cast<const D3DXMATRIX*>(&mBone), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
         GameObject* pFound;
-        if (CollisionManager::GetObjectsInRange(mWorld.GetTranslation(), trigger.mTriggerRadius,
+        if (CollisionManager::GetObjectsInRange(mWorld.GetTranslation(), mAnimatedClass->mAnimationTriggers[i].mTriggerRadius,
                                                 &pFound, 1, 0, 2) > 0)
         {
             mAnimationTime = 0.0f;
             mBlendFactor = 0.0f;
-            SetAnimation(trigger.mAnimationID, false);
+            SetAnimation(mAnimatedClass->mAnimationTriggers[i].mAnimationID, false);
             mAnimatedClass->mAnimationSound[i].Play((const PblVector3*)mWorld.m[3], 0, false, true);
         }
     }
@@ -486,9 +470,9 @@ bool EntityPropAnimated::Update(float fDeltaTime)
     {
         for (int i = 0; i < 3; ++i)
         {
-            const EntityPropAnimatedClass::AttachTrigger& attach = mAnimatedClass->mAttachTriggers[i];
-            const unsigned int uAttachPoint = attach.mAttachPoint;
-            if (!uAttachPoint || mAnimationId != attach.mAnimationID || attach.mAnimationTime < mAnimationTime)
+            const unsigned int uAttachPoint = mAnimatedClass->mAttachTriggers[i].mAttachPoint;
+            if (!uAttachPoint || mAnimationId != mAnimatedClass->mAttachTriggers[i].mAnimationID ||
+                !(mAnimatedClass->mAttachTriggers[i].mAnimationTime >= mAnimationTime))
             {
                 continue;
             }
@@ -500,7 +484,7 @@ bool EntityPropAnimated::Update(float fDeltaTime)
             PblMatrix mWorld;
             D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mWorld), reinterpret_cast<const D3DXMATRIX*>(mAttachMatrix), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
             GameObject* pFound;
-            if (CollisionManager::GetObjectsInRange(mWorld.GetTranslation(), attach.mAttachRadius,
+            if (CollisionManager::GetObjectsInRange(mWorld.GetTranslation(), mAnimatedClass->mAttachTriggers[i].mAttachRadius,
                                                     &pFound, 1, 0, 2) <= 0)
             {
                 continue;
@@ -579,10 +563,7 @@ bool EntityPropAnimated::Update(float fDeltaTime)
         const PblMatrix* pRoot = kPose.Find(0x16E27226u);
         if (pRoot)
         {
-            const PblMatrix mInverse = pRoot->GetInverseFast();
-            PblMatrix mLocal;
-            D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mLocal), reinterpret_cast<const D3DXMATRIX*>(&mInverse), reinterpret_cast<const D3DXMATRIX*>(&mWorld));
-            mWorld = mLocal;
+            mWorld = pRoot->GetInverseFast() * mWorld;
         }
         static_cast<EntitySoldier*>((GameObject*)mAttachedSoldier)
             ->SetPilotInfo(mWorld, PblVector3(0.0f, 0.0f, 0.0f),

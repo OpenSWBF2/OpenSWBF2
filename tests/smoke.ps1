@@ -439,7 +439,7 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
         $cases += New-Object PSObject -Property @{ Name = 'display-badini'; Args = "$standard $htail -adapter abc -refresh 99999 -displayini `"$badIni`""; Expect = $pass; Twice = 0; Timeout = 0 }
         $waitIni = Join-Path $PSScriptRoot 'smoke\display-waitquery.ini'
         $cases += New-Object PSObject -Property @{ Name = 'pacing-waitquery-ini'; Args = "$standard $htail -displayini `"$waitIni`""; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 PACING fps=80 vsync=off interval=0x80000000 waitquery=1 timer=none') + $hrx) }; Twice = 0; Timeout = 0 }
-        $cases += New-Object PSObject -Property @{ Name = 'digest-dag1c_ctf'; Args = "dag1c_ctf $htail"; Expect = @{ Class = 'TimeOut'; LogRx = (@('OPENSWBF2 MISSION RUNNING', 'OPENSWBF2 SIM DIGEST turns=') + $hrx) }; Twice = 0; Timeout = 30 }
+        $cases += New-Object PSObject -Property @{ Name = 'digest-dag1c_ctf'; Args = "dag1c_ctf $htail"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 MISSION RUNNING', 'OPENSWBF2 SIM DIGEST turns=') + $hrx) }; Twice = 0; Timeout = 0 }
         $cases += New-Object PSObject -Property @{ Name = 'digest-kas2c_uber'; Args = "kas2c_uber $htail"; Expect = $pass; Twice = 0; Timeout = 0 }
     }
     if ($which -eq 'All') {
@@ -961,17 +961,11 @@ $script:SpacerNameRx = '(?i)pad|reserv|unmodel|unknown|^_*unk|spacer|filler|tail
 $script:OffsetAllow = @(
     'src\Battlefront2\Source\CollisionMesh.cpp|(unsigned short*)(memblock + iBytes - 2 * iIndices)',
     'src\Battlefront2\Source\EventManager_Object.h|(const int*)((const char*)&object + 0x234)',
-    'src\Battlefront2\Source\GameMemory.cpp|(char*)gTempHeapBlock + 0x1FFF00',
     'src\Battlefront2\Source\GameState.cpp|(unsigned int*)((char*)CameraManager::sInstance + 0x1c)',
     'src\Battlefront2\Source\GameVoiceChatEncoder.cpp|(Snd::StreamPacket*)(mEncoderBuffer + uiAlignedEncoded)',
     'src\Battlefront2\Source\GameVoiceChatEncoder.cpp|(VoiceChat::AudioPacket*)(mEncoderPackets + 1)',
     'src\Battlefront2\Source\HUDManager.cpp|(char*)HUD::gEditHeapMem + 0xFFFFF',
-    'src\Battlefront2\Source\LuaCallbacks_IFace.cpp|(const float*)(pRaw + 0x14)',
-    'src\Battlefront2\Source\LuaCallbacks_IFace.cpp|(const float*)(pRaw + 0xbf4)',
     'src\Battlefront2\Source\NetSetup.cpp|(char*)(fileNames + iCount)',
-    'src\Battlefront2\Source\pcCrash.cpp|(IMAGE_NT_HEADERS*)((char*)hExe + pDos->e_lfanew)',
-    'src\Battlefront2\Source\pcCrash.cpp|(IMAGE_NT_HEADERS*)(pBase + pDos->e_lfanew)',
-    'src\Battlefront2\Source\pcMain.cpp|(char*)s_memoryArena + 0x4000000',
     'src\Battlefront2\Source\pcMain.cpp|(char*)p + 0x300000',
     'src\Battlefront2\Source\PlayerProfile.cpp|(PlayerProfile::tProfile**)((char*)&mDefaultProfile + 0x10)',
     'src\Battlefront2\Source\PlayerProfile.cpp|(double*)(pRaw + 0x2610 + iMode * 8)',
@@ -987,12 +981,6 @@ $script:OffsetAllow = @(
     'src\Battlefront2\Source\VoiceChatNode.cpp|(unsigned int*)(pEntryBuf + 0x04)',
     'src\Battlefront2\Source\VoiceChatNode.cpp|(unsigned int*)(pEntryBuf + 0x08)',
     'src\Battlefront2\Source\VoiceChatNode.cpp|(char*)mBitmap + 1',
-    'src\RedEngineFL\Graphics\PC\pcRedRenderer.cpp|(unsigned char*)&RedRenderer::m_aLightingStatePool[2048] + 4',
-    'src\RedEngineFL\Graphics\PC\pcRedRenderer.cpp|(const unsigned char*)&RedAmbientLight::BLACK + 4',
-    'src\RedEngineFL\Graphics\PC\pcRedRenderer.cpp|(void**)((unsigned char*)&RedRenderer::m_aLightingStatePool[2048] + 0x70)',
-    'src\RedEngineFL\Graphics\PC\pcRedRenderer.cpp|(unsigned char*)&RedRenderer::m_aLightingStatePool[2049] + 4',
-    'src\RedEngineFL\Graphics\PC\pcRedRenderer.cpp|(const unsigned char*)&RedAmbientLight::WHITE + 4',
-    'src\RedEngineFL\Graphics\PC\pcRedRenderer.cpp|(void**)((unsigned char*)&RedRenderer::m_aLightingStatePool[2049] + 0x70)',
     'src\RedEngineFL\Graphics\PC\pcRedSegment.cpp|(PblVector3*)(vertex + normalOffset)',
     'src\RedEngineFL\Graphics\PC\pcRedSegment.cpp|(PblVector3*)(vertex + normalOffset)',
     'src\RedEngineFL\Graphics\PC\pcRedSegment.cpp|(PblVector3*)(vertex + tangentOffset)',
@@ -1010,7 +998,7 @@ $script:OffsetAllow = @(
     'src\RedEngineFL\Util\RedLocalizeDB.cpp|(FLLocalizeEntry*)((char*)pEntry + pEntry->mEntryLen)',
     'src\RedEngineFL\Util\RedScreenShot.cpp|(const unsigned int*)((unsigned char*)rect.pBits + rect.Pitch * y)',
     'src\SoundFL\source\sndbufferio.cpp|(void*)(mOffset + (char*)mBuffer)',
-    'src\SoundFL\source\sndfreelist.cpp|(Block*)(pEntries + uiBlockBytes)',
+    'src\SoundFL\source\sndfreelist.cpp|(Block*)(pEntries + mEntriesPerBlock * mEntrySize)',
     'src\SoundFL\source\sndsamplebankbase.cpp|(Sample*)((char*)pMemory + sizeof(SampleBank))',
     'src\SoundFL\source\sndsoundlayered.cpp|(FireForgetLayer*)(smFireForgetLayerStorage + i * sizeof(FireForgetLayer))',
     'src\SoundFL\source\sndstreambase.cpp|(Segment*)((char*)pMem + sizeof(Info))',
@@ -1018,8 +1006,6 @@ $script:OffsetAllow = @(
     'src\SoundFL\source\sndstreamresampler.cpp|(const short*)((const char*)pInput->mBuffer + pInput->mBufferUsed)',
     'src\SoundFL\source\sndstreamresampler.cpp|(short*)((char*)pDst + mBufferSize)',
     'src\SoundFL\source\win\snddsbufferrenderer.cpp|(short*)((unsigned char*)pData + uiWritten)',
-    'src\SoundFL\source\win\sndengine.cpp|(Voice*)((unsigned char*)EngineBase::smVoices + i * sizeof(Voice))',
-    'src\SoundFL\source\win\sndengine.cpp|(Voice*)((unsigned char*)EngineBase::smVoices + i * sizeof(Voice))',
     'src\Zephyr\Source\ZephyrAnimBank.cpp|(const ZephyrAnimD*)(pkBlock + 1)',
     'src\Zephyr\Source\ZephyrAnimBank.cpp|(const ZephyrAnimBlockHeader*)(pkAnimD + u16NumAnims)',
     'src\Zephyr\Source\ZephyrAnimBank.cpp|(const ZephyrAnimJointD*)(pkBlock + 1)',
@@ -1106,7 +1092,7 @@ $script:NewSizeAllow = @(
     'src\Battlefront2\Source\TriggerSoundRegion.h|static void* operator new(unsigned int)',
     'src\Battlefront2\Source\UnitAgent.h|static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }',
     'src\Battlefront2\Source\UnitController.h|static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }',
-    'src\Battlefront2\Source\VehicleEngine.cpp|void* VehicleEngineClass::Boost::operator new(unsigned int)',
+    'src\Battlefront2\Source\VehicleEngine.cpp|inline void* VehicleEngineClass::Boost::operator new(unsigned int)',
     'src\Battlefront2\Source\VehicleEngine.h|static void* operator new(unsigned int uiSize);',
     'src\Battlefront2\Source\VehicleSpawn.h|static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }',
     'src\Battlefront2\Source\VisionManager.h|static void* operator new(unsigned int uSize) { return sMemoryPool.Allocate(uSize); }',
@@ -1153,10 +1139,10 @@ $script:FastcallAllow = @(
     'src\Battlefront2\Source\CameraManager.cpp|typedef Controllable* (__fastcall *ObjectControllableFn)(GameObject* pThis, void*);',
     'src\Battlefront2\Source\ChaseCamera.cpp|typedef const PblVector3& (__fastcall *GetVelocityFn)(GameObject* pThis, void*);',
     'src\Battlefront2\Source\EntityPathFollower.cpp|int __fastcall ReturnEdxValue(int, int value)',
+    'src\Battlefront2\Source\FriendBuddyList.cpp|int __fastcall GetFriendBuddy(int, unsigned int index)',
+    'src\Battlefront2\Source\FriendBuddyList.cpp|bool __fastcall IsFriendBuddy(int, int playerId)',
     'src\Battlefront2\Source\GameVoiceChatTransport.cpp|bool __fastcall IsFriendBuddy(int ignored, int iPlayer);',
     'src\Battlefront2\Source\HUDElementMap.cpp|bool __fastcall IsFriendBuddy(int iLocalIndex, int iPlayerId);',
-    'src\Battlefront2\Source\HUDElementMap.cpp|int __fastcall GetFriendBuddy(int, unsigned int index)',
-    'src\Battlefront2\Source\HUDElementMap.cpp|bool __fastcall IsFriendBuddy(int, int playerId)',
     'src\Battlefront2\Source\LuaCallbacks.cpp|int __fastcall GetScreenTransitionType(const char* pcName, void*)',
     'src\Battlefront2\Source\LuaCallbacks.h|int __fastcall GetScreenTransitionType(const char* pcName, void*);',
     'src\Battlefront2\Source\LuaCallbacks_LoadSave.cpp|void __fastcall GetMissionWorld(char* pcWorld, int)',
@@ -1171,7 +1157,7 @@ $script:OffsetByteType = '(?:(?:const|volatile)\s+)*(?:(?:unsigned|signed)\s+)?(
 $script:OffsetOperand = '(?:(?:&\s*)?(?:[\w.]|->|::|\[[^\[\];]*\])+|\((?:[^()]|\([^()]*\))*\))'
 $script:OffsetByteCast = '(?:\(\s*' + $script:OffsetByteType + '\)\s*' + $script:OffsetOperand + '|\breinterpret_cast\s*<\s*' + $script:OffsetByteType + '>\s*\((?:[^()]|\([^()]*\))*\))'
 $script:OffsetTypeCast = '(?:\(\s*(?:(?:const|volatile|struct|class|unsigned|signed)\s+)*[A-Za-z_][\w:]*(?:\s+(?:int|char|short|long|__int\d+))?(?:\s+(?:const|volatile))*\s*[*&][\s*&]*' + $script:OffsetQual + '\)|\b(?:reinterpret|static|const)_cast\s*<[^<>;()]*[*&]\s*' + $script:OffsetQual + '>)'
-$script:OffsetOp = '\s*[+-](?![+=>-]|\s*(?:\(\s*\w+\s*\)\s*)?offsetof\b)'
+$script:OffsetOp = '\s*[+-](?![+=>-]|\s*(?:\(\s*\w+\s*\)\s*)?offsetof\b|\s*(?:\w+\s*(?:->|\.)\s*)+e_lfanew\b)'
 $script:OffsetTail = $script:OffsetOp + '[^;()]*(?:\((?:[^()]|\([^()]*\))*\)[^;()]*)*\)'
 $script:OffsetRx = @(
     (New-Object regex ($script:OffsetTypeCast + '\s*\(\s*' + $script:OffsetByteCast + $script:OffsetTail)),

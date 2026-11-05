@@ -118,26 +118,26 @@ void* AIPath::operator new(size_t uiSize)
 
 // FUNCTION: SWBF2 0x0043ab20
 AILowLevel::AILowLevel(UnitController* pOwner)
-    : mDoIdle(SoldierAnimType::IDLE),
+    : mRoll(false),
+      mRolling(false),
+      mDoJetJump(false),
+      mDoJump(false),
+      mJumping(false),
+      mJetJumpStop(false),
+      mDoIdle(SoldierAnimType::IDLE),
       mOwner(pOwner),
       mNavigator(0),
       mHeight(HEIGHT_STAND),
+      mInCombat(false),
+      mAllowHoverStrafe(false),
+      mLandAtDest(false),
+      mImmediateFire(false),
+      mFireUponAim(false),
       mExitCP(0),
       mAIJetJumpDir(0.0f, 0.0f, 0.0f),
       mMinControlSpeed(0.0f),
       mFoldStatus(FOLD_FOLD)
 {
-    mRoll = false;
-    mRolling = false;
-    mDoJetJump = false;
-    mDoJump = false;
-    mJumping = false;
-    mJetJumpStop = false;
-    mInCombat = false;
-    mAllowHoverStrafe = false;
-    mLandAtDest = false;
-    mImmediateFire = false;
-    mFireUponAim = false;
     ClearControllable();
 }
 
@@ -205,8 +205,7 @@ void AILowLevel::ResetControls()
     mAIJetJumpDir = PblVector3(0.0f, 0.0f, 0.0f);
     mDoIdle = SoldierAnimType::IDLE;
     mMinControlSpeed = 0.0f;
-    mTarget.mObject = 0;
-    mTarget.mSavedHandleId = 0;
+    mTarget = 0;
     mIsAlert = false;
     mFastTurn = false;
     mNextWeaponIndex = -1;
@@ -339,8 +338,7 @@ void AILowLevel::SetHeadingDefault()
 // FUNCTION: SWBF2 0x0043aff0
 void AILowLevel::SetBoardVehicle(GameObject* pVehicle)
 {
-    mVehicle.mObject = pVehicle;
-    mVehicle.mSavedHandleId = pVehicle ? GameObjectHandleId(pVehicle) : 0;
+    mVehicle = pVehicle;
     mBoardVehicle = true;
 }
 
@@ -374,7 +372,7 @@ void AILowLevel::ProcessChargeWpn(const Weapon* pWpn, bool* pFire)
     bool bLobbed = pWpn->GetOrdnanceGravity() != 0.0f;
     if (*pFire)
     {
-        if (bLobbed && mGrenadeOffTimer + 4.0f > GameLoop::GetMissionTime())
+        if (bLobbed && GameLoop::GetMissionTime() < mGrenadeOffTimer + 4.0f)
         {
             *pFire = false;
         }
@@ -400,8 +398,8 @@ void AILowLevel::ProcessChargeWpn(const Weapon* pWpn, bool* pFire)
         if (pWpn->mState == Weapon::CHARGE && pWpn->GetStateTimer() >= mChargeLimit)
         {
             *pFire = false;
-            mIsCharging = false;
             mGrenadeOffTimer = GameLoop::GetMissionTime();
+            mIsCharging = false;
         }
         else
         {
@@ -413,75 +411,77 @@ void AILowLevel::ProcessChargeWpn(const Weapon* pWpn, bool* pFire)
 // FUNCTION: SWBF2 0x0043b1e0
 void AILowLevel::ProcessBarrageWpn(const Weapon* pWpn, bool* pFire)
 {
-    if (!*pFire)
+    if (*pFire)
     {
-        mBarrageState = STATE_UNDEFINED;
-        return;
-    }
+        float fHeat = pWpn->GetHeat();
+        int iAmmo = pWpn->m_pAmmoCounter->GetNumRounds();
 
-    float fHeat = pWpn->GetHeat();
-    int iAmmo = pWpn->m_pAmmoCounter->GetNumRounds();
-
-    if (mBarrageState == STATE_UNDEFINED)
-    {
-        mBarrageHeat = 0.0f;
-        mBarrageBeginDelay = -100.0f;
-        mBarrageBeginAmmo = 0;
-        mBarrageTotal = 0;
-        mBarrageState = STATE_SETUP;
-    }
-
-    if (mBarrageState == STATE_SETUP)
-    {
-        int iMin = pWpn->mClass->GetBarrageMin();
-        int iMax = pWpn->mClass->GetBarrageMax();
-        float fRand = AIUtil::GetRandomFloat(0.0f, (float)(iMax - iMin));
-        mBarrageState = STATE_WAITING;
-        int iTotal = (int)(fRand * AIDifficulty::GetBarrageCountMultiplier(mOwner) + (float)iMin);
-        if (iTotal < 2)
+        if (mBarrageState == STATE_UNDEFINED)
         {
-            iTotal = 2;
-        }
-        mBarrageTotal = iTotal;
-    }
-
-    if (mBarrageState == STATE_WAITING)
-    {
-        float fWait = 1.6f - AIDifficulty::GetBarrageWaitMultiplier(mOwner);
-        if (GameLoop::GetMissionTime() > pWpn->mClass->GetBarrageDelay() * fWait + mBarrageBeginDelay)
-        {
-            float fSalvos = (float)mBarrageTotal / pWpn->mClass->GetShotsPerSalvo();
-            float fHeatPerSalvo = pWpn->mClass->GetHeatPerSalvo();
-            float fHeatNeeded = (float)ceil(fSalvos) * fHeatPerSalvo;
-            if (fHeatNeeded > 1.0f)
-            {
-                fHeatNeeded = 0.99f;
-            }
-            if (1.0f - fHeat > fHeatNeeded)
-            {
-                if (fHeatPerSalvo >= 1.0f)
-                {
-                    fHeatPerSalvo = 0.99f;
-                }
-                mBarrageBeginAmmo = iAmmo;
-                mBarrageState = STATE_FIRING;
-                mBarrageHeat = 1.0f - fHeatPerSalvo - 0.0001f;
-            }
-        }
-    }
-
-    if (mBarrageState == STATE_FIRING)
-    {
-        if (fHeat >= mBarrageHeat || mBarrageBeginAmmo - iAmmo >= mBarrageTotal)
-        {
-            mBarrageBeginDelay = GameLoop::GetMissionTime();
+            mBarrageHeat = 0.0f;
+            mBarrageBeginDelay = -100.0f;
+            mBarrageBeginAmmo = 0;
+            mBarrageTotal = 0;
             mBarrageState = STATE_SETUP;
         }
-    }
 
-    if (mBarrageState != STATE_FIRING)
+        if (mBarrageState == STATE_SETUP)
+        {
+            int iMin = pWpn->mClass->GetBarrageMin();
+            int iMax = pWpn->mClass->GetBarrageMax();
+            UnitController* pOwner = mOwner;
+            int iTotal = (int)(AIUtil::GetRandomFloat(0.0f, (float)(iMax - iMin))
+                               * AIDifficulty::GetBarrageCountMultiplier(pOwner) + (float)iMin);
+            if (iTotal < 2)
+            {
+                iTotal = 2;
+            }
+            mBarrageTotal = iTotal;
+            mBarrageState = STATE_WAITING;
+        }
+
+        if (mBarrageState == STATE_WAITING)
+        {
+            float fWait = 1.6f - AIDifficulty::GetBarrageWaitMultiplier(mOwner);
+            if (GameLoop::GetMissionTime() > pWpn->mClass->GetBarrageDelay() * fWait + mBarrageBeginDelay)
+            {
+                float fSalvos = (float)mBarrageTotal / pWpn->mClass->GetShotsPerSalvo();
+                float fHeatPerSalvo = pWpn->mClass->GetHeatPerSalvo();
+                float fHeatNeeded = (float)ceil(fSalvos) * fHeatPerSalvo;
+                if (fHeatNeeded > 1.0f)
+                {
+                    fHeatNeeded = 0.99f;
+                }
+                if (1.0f - fHeat > fHeatNeeded)
+                {
+                    if (fHeatPerSalvo >= 1.0f)
+                    {
+                        fHeatPerSalvo = 0.99f;
+                    }
+                    mBarrageBeginAmmo = iAmmo;
+                    mBarrageState = STATE_FIRING;
+                    mBarrageHeat = 1.0f - fHeatPerSalvo - 0.0001f;
+                }
+            }
+        }
+
+        if (mBarrageState == STATE_FIRING)
+        {
+            if (fHeat >= mBarrageHeat || mBarrageBeginAmmo - iAmmo >= mBarrageTotal)
+            {
+                mBarrageBeginDelay = GameLoop::GetMissionTime();
+                mBarrageState = STATE_SETUP;
+            }
+        }
+
+        if (mBarrageState != STATE_FIRING)
+        {
+            *pFire = false;
+        }
+    }
+    else
     {
-        *pFire = false;
+        mBarrageState = STATE_UNDEFINED;
     }
 }
 
@@ -495,37 +495,34 @@ void AILowLevel::ProcessTriggerSingle(float dt, ControllableHeading* pHeading,
         return;
     }
 
-    if (!*pFire)
+    if (*pFire)
     {
-        mTriggerSingleState = STATE_TRIGGER_UP;
-        mTriggerSingleWaitUntil = 0.0f;
-        return;
-    }
-
-    if (mTriggerSingleState == STATE_TRIGGER_DOWN)
-    {
-        *pFire = true;
-        mTriggerSingleState = STATE_TRIGGER_UP;
-        float fScale = 1.0f - AIDifficulty::GetTriggerSingleWaitDelayMultiplier(mOwner);
-        if (fScale < 0.0f)
+        if (mTriggerSingleState == STATE_TRIGGER_DOWN)
         {
-            fScale = 0.0f;
+            *pFire = true;
+            mTriggerSingleState = STATE_TRIGGER_UP;
+            float fScale = Max(0.0f, 1.0f - AIDifficulty::GetTriggerSingleWaitDelayMultiplier(mOwner));
+            mTriggerSingleWaitUntil = AIUtil::GetRandomFloat(fScale * 0.2f, fScale * 2.0f)
+                                      + GameLoop::GetMissionTime();
         }
-        float fDelay = AIUtil::GetRandomFloat(fScale * 0.2f, fScale * 2.0f);
-        mTriggerSingleWaitUntil = fDelay + GameLoop::GetMissionTime();
+        else
+        {
+            *pFire = false;
+            if (GameLoop::GetMissionTime() > mTriggerSingleWaitUntil)
+            {
+                mTriggerSingleState = STATE_TRIGGER_DOWN;
+            }
+        }
+
+        if (pWpn->IsRtti(WeaponMelee::rttiHashWeaponMelee))
+        {
+            static_cast<WeaponMelee*>(pWpn)->m_bAI_Deflect = false;
+        }
     }
     else
     {
-        *pFire = false;
-        if (GameLoop::GetMissionTime() > mTriggerSingleWaitUntil)
-        {
-            mTriggerSingleState = STATE_TRIGGER_DOWN;
-        }
-    }
-
-    if (pWpn->IsRtti(WeaponMelee::rttiHashWeaponMelee))
-    {
-        AI_ForceDeflectState(static_cast<WeaponMelee*>(pWpn), false);
+        mTriggerSingleState = STATE_TRIGGER_UP;
+        mTriggerSingleWaitUntil = 0.0f;
     }
 }
 
@@ -556,7 +553,7 @@ void AILowLevel::ProcessFire(float dt, ControllableHeading* pHeading)
         const GameObject* pTarget = AIUtil::GetAlivePtr(mTarget, false);
         if (pTarget)
         {
-            bFire = CombatUtil::TestWpnConstraintsObj(mOwner->mOwner, pTarget);
+            bFire = CombatUtil::TestWpnConstraintsObj(mOwner->mOwner, pTarget) != false;
         }
     }
 
@@ -631,17 +628,20 @@ bool AILowLevel::AvoidPlayer(float dt, const Weapon* pWpn)
 
             const Controllable* pMe = mOwner->mOwner;
             const PblVector3& center = GetCollisionObject(pFriend)->GetCollisionCenter();
-            PblVector3 toFriend(center.x - pMe->mEyePoint.x,
-                                center.y - pMe->mEyePoint.y,
-                                center.z - pMe->mEyePoint.z);
+            const float tx = center.x - pMe->mEyePoint.x;
+            const float ty = center.y - pMe->mEyePoint.y;
+            const float tz = center.z - pMe->mEyePoint.z;
             float fRadius = GetCollisionObject(pFriend)->GetCollisionRadius();
 
             const PblVector3& dir = mOwner->mOwner->mEyeDir;
-            float fCrossX = dir.y * toFriend.z - dir.z * toFriend.y;
-            float fCrossY = dir.z * toFriend.x - dir.x * toFriend.z;
-            float fCrossZ = dir.x * toFriend.y - dir.y * toFriend.x;
+            const float dx = dir.x;
+            const float dy = dir.y;
+            const float dz = dir.z;
+            float fCrossX = dy * tz - dz * ty;
+            float fCrossY = dz * tx - dx * tz;
+            float fCrossZ = dx * ty - dy * tx;
             if (fRadius * fRadius > fCrossY * fCrossY + fCrossX * fCrossX + fCrossZ * fCrossZ
-                && dir.x * toFriend.x + dir.y * toFriend.y + dir.z * toFriend.z > 0.0f)
+                && dir.x * tx + dir.y * ty + dir.z * tz > 0.0f)
             {
                 return true;
             }
@@ -679,8 +679,9 @@ void AILowLevel::SetTarget(const GameObject* pTarget)
     {
         if (pTarget)
         {
+            UnitController* pOwner = mOwner;
             int iTargetTeam = GetTeam(pTarget);
-            int iMyTeam = GetTeam(mOwner->mOwner->GetGameObject());
+            int iMyTeam = GetTeam(pOwner->mOwner->GetGameObject());
             int iAffiliation = Team::sTeams[iMyTeam]->GetAffiliation(iTargetTeam);
             const WeaponClass* pClass = pWpn->mClass;
             if (!(pClass->mTargetSides & (1 << (iAffiliation + 1)))
@@ -698,13 +699,18 @@ void AILowLevel::SetTarget(const GameObject* pTarget)
 // FUNCTION: SWBF2 0x0043bac0
 const GameObject* AILowLevel::GetTarget() const
 {
-    if (mTarget.mObject && GameObjectHandleId(mTarget.mObject) != mTarget.mSavedHandleId)
+    const GameObject* pTarget = mTarget.mObject;
+    if (pTarget)
     {
+        if (GameObjectHandleId(pTarget) == mTarget.mSavedHandleId)
+        {
+            return pTarget;
+        }
         AILowLevel* pThis = const_cast<AILowLevel*>(this);
         pThis->mTarget.mObject = 0;
         pThis->mTarget.mSavedHandleId = 0;
     }
-    return mTarget.mObject;
+    return 0;
 }
 
 // FUNCTION: SWBF2 0x0043baf0
@@ -808,12 +814,12 @@ bool AILowLevel::UpdateIndirect(float fDeltaTime)
         if (iCurIndex != mNextWeaponIndex)
         {
             Weapon* pCurWpn = mOwner->mOwner->GetWeaponPtr(iCurIndex);
-            if (pCurWpn->mSelectedFlag)
+            if (pCurWpn->IsSelected())
             {
                 pCurWpn->Deselect(0, pNextWpn->mClass->mIsOffhand);
             }
             mOwner->mOwner->SetWeaponIndex(mNextWeaponIndex, mOwner->mOwner->mWpnChannel);
-            if (!pNextWpn->mSelectedFlag)
+            if (!pNextWpn->IsSelected())
             {
                 pNextWpn->Select(0, pCurWpn->mClass->mIsOffhand);
             }
@@ -895,7 +901,8 @@ void AILowLevel::SetNavigator_GotoDirect(const PblVector3& dest,
     AIPath* pPath = new AIPath();
     if (pPath)
     {
-        pPath->Append(GetMatrix().GetTranslation(), 0);
+        const PblVector3& vStart = mOwner->mOwner->GetMatrix().GetTranslation();
+        pPath->Append(vStart, 0);
         pPath->Append(dest, 0);
         SetNavigator_FollowPath(pPath, false, bFlyerIgnoreBarriers, false);
         pPath->Release();
@@ -908,7 +915,7 @@ void AILowLevel::SetNavigator_Goto(const PblVector3& dest, const Obstacle* pIgno
 {
     DeleteNavigator();
     const GameObject* pObj = mOwner->mOwner->GetGameObject();
-    const PblVector3& pos = GetMatrix().GetTranslation();
+    const PblVector3& pos = mOwner->mOwner->GetMatrix().GetTranslation();
     PblVector3 vDest = dest;
 
     const Obstacle* ignore[2];
@@ -925,12 +932,15 @@ void AILowLevel::SetNavigator_Goto(const PblVector3& dest, const Obstacle* pIgno
 
     if (!mOwner->mOwner->GetEntity()->IsRtti(EntityFlyer::rttiHashEntityFlyer) && priority)
     {
-        if (ConnectivityGraphManager::GetWorldGraph((ConnectivityGraph::ProhibitFlag)-1)
-            && (ConnectivityGraphManager::GetWorldGraph((ConnectivityGraph::ProhibitFlag)-1)->mAllowTypes
-                & AIUtil::GetAIType(pObj)))
+        if (ConnectivityGraphManager::GetWorldGraph((ConnectivityGraph::ProhibitFlag)-1))
         {
-            mNavigator = new NavigatorGraphFollower(this, vDest, ignore, 2, bRollIntoDest);
-            return;
+            unsigned int uAllowTypes =
+                ConnectivityGraphManager::GetWorldGraph((ConnectivityGraph::ProhibitFlag)-1)->mAllowTypes;
+            if (uAllowTypes & AIUtil::GetAIType(pObj))
+            {
+                mNavigator = new NavigatorGraphFollower(this, vDest, ignore, 2, bRollIntoDest);
+                return;
+            }
         }
         if (ConnectivityGraphManager::GetWorldGraph((ConnectivityGraph::ProhibitFlag)-1))
         {
@@ -942,7 +952,8 @@ void AILowLevel::SetNavigator_Goto(const PblVector3& dest, const Obstacle* pIgno
     PblVector3 vStart = pos;
     PathFinder::GetClosestValidPoint(vStart, vStart, AIUtil::GetCollisionRadius(pObj),
                                      AIUtil::GetAIType(pObj), ignore, 2);
-    PathManager::RequestPath(mOwner, vStart, vDest, AIUtil::GetCollisionRadius(pObj),
+    UnitController* pOwner = mOwner;
+    PathManager::RequestPath(pOwner, vStart, vDest, AIUtil::GetCollisionRadius(pObj),
                              AIUtil::GetAIType(pObj), 0, 0, ignore, 2);
 }
 
@@ -1094,10 +1105,11 @@ void AILowLevel::UpdateHeadLook(float dt)
 // FUNCTION: SWBF2 0x0043c610
 bool AILowLevel::CalcHeadLookMatrix(const PblMatrix* pHead, PblMatrix* pOut)
 {
+    const float kHalfPi = 1.5707964f;
     float fBlend = 0.0f;
     if (mHeadLook_TurnToTime > 0.0f)
     {
-        fBlend = PblMath::Cos(mHeadLook_Time / mHeadLook_TurnToTime * PblMath::fHalfPi);
+        fBlend = PblMath::Cos(mHeadLook_Time / mHeadLook_TurnToTime * kHalfPi);
     }
     else if (mHeadLook_StayTime > 0.0f)
     {
@@ -1105,11 +1117,9 @@ bool AILowLevel::CalcHeadLookMatrix(const PblMatrix* pHead, PblMatrix* pOut)
     }
     else if (mHeadLook_TurnBackTime > 0.0f)
     {
-        fBlend = PblMath::Cos(PblMath::fHalfPi - mHeadLook_Time / mHeadLook_TurnBackTime * PblMath::fHalfPi);
+        fBlend = PblMath::Cos(kHalfPi - mHeadLook_Time / mHeadLook_TurnBackTime * kHalfPi);
     }
 
-    float fSin, fCos;
-    PblQuaternion q;
     if (mHeadLookState == AI::HEAD_LOOK_OBJECT)
     {
         const GameObject* pObj = mHeadLook_Object;
@@ -1118,12 +1128,11 @@ bool AILowLevel::CalcHeadLookMatrix(const PblMatrix* pHead, PblMatrix* pOut)
             return false;
         }
 
-        PblMatrix mHead;
-        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mHead), reinterpret_cast<const D3DXMATRIX*>(pHead), reinterpret_cast<const D3DXMATRIX*>(&GetMatrix()));
+        const PblMatrix mHead = *pHead * GetMatrix();
         PblVector3 vFwd;
-        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vFwd), reinterpret_cast<const D3DXVECTOR3*>((const PblVector3*)&mHead.m[1][0]));
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vFwd), reinterpret_cast<const D3DXVECTOR3*>(&mHead.GetYAxis()));
         const PblVector3& vEye = pObj->GetControllable()->mEyePoint;
-        PblVector3 vTo(vEye.x - mHead.m[3][0], vEye.y - mHead.m[3][1], vEye.z - mHead.m[3][2]);
+        const PblVector3 vTo = vEye - mHead.GetTranslation();
         PblVector3 vDir;
         D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vTo));
 
@@ -1138,33 +1147,13 @@ bool AILowLevel::CalcHeadLookMatrix(const PblMatrix* pHead, PblMatrix* pOut)
             fTurn = (float)acos((double)fDot) * fBlend;
         }
 
-        PblVector3 vCross(vFwd.y * vDir.z - vDir.y * vFwd.z,
-                          vFwd.z * vDir.x - vDir.z * vFwd.x,
-                          vDir.y * vFwd.x - vFwd.y * vDir.x);
-        PblVector3 vAxis;
-        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vAxis), reinterpret_cast<const D3DXVECTOR3*>(&vCross));
-        PblMath::SinCos(&fSin, &fCos, fTurn * 0.5f);
-        q._fS = fCos;
-        q._fX = vAxis.x * fSin;
-        q._fY = vAxis.y * fSin;
-        q._fZ = vAxis.z * fSin;
+        const PblQuaternion q(Normalize(CrossProduct(vFwd, vDir)), fTurn);
 
-        PblVector3 vRotated = q.RotateVector(vFwd);
-        PblVector3 vY;
-        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vY), reinterpret_cast<const D3DXVECTOR3*>(&vRotated));
-        const PblVector3& vUp = gVectorUnitY;
-        PblVector3 vSide(vY.z * vUp.y - vY.y * vUp.z,
-                         vY.x * vUp.z - vY.z * vUp.x,
-                         vY.y * vUp.x - vY.x * vUp.y);
-        PblVector3 vZ;
-        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vZ), reinterpret_cast<const D3DXVECTOR3*>(&vSide));
-        const PblVector3 vX(vZ.z * vY.y - vZ.y * vY.z,
-                            vZ.x * vY.z - vZ.z * vY.x,
-                            vZ.y * vY.x - vY.y * vZ.x);
+        vDir = Normalize(q.RotateVector(vFwd));
+        const PblVector3 vSide = Normalize(CrossProduct(gVectorUnitY, vDir));
 
-        *pOut = PblMatrix(vX, vY, vZ, mHead.GetTranslation());
-        const PblMatrix mInv = GetMatrix().GetInverseFast();
-        *pOut *= mInv;
+        *pOut = PblMatrix(CrossProduct(vDir, vSide), vDir, vSide, mHead.GetTranslation());
+        *pOut *= GetMatrix().GetInverseFast();
         return true;
     }
 
@@ -1176,19 +1165,9 @@ bool AILowLevel::CalcHeadLookMatrix(const PblMatrix* pHead, PblMatrix* pOut)
     {
         fBlend = -fBlend;
     }
-    PblMath::SinCos(&fSin, &fCos, fBlend * 0.5f);
-    q._fS = fCos;
-    q._fX = fSin;
-    q._fY = fSin * 0.0f;
-    q._fZ = fSin * 0.0f;
-    PblQuaternion qUnit;
-    D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(pOut), D3DXQuaternionNormalize(reinterpret_cast<D3DXQUATERNION*>(&qUnit), reinterpret_cast<const D3DXQUATERNION*>(&q)));
-    pOut->m[3][0] = 0.0f;
-    pOut->m[3][1] = 0.0f;
-    pOut->m[3][2] = 0.0f;
-    pOut->m[3][3] = 1.0f;
-    const PblMatrix mHeadCopy = *pHead;
-    *pOut *= mHeadCopy;
+    const PblQuaternion q(PblVector3(1.0f, 0.0f, 0.0f), fBlend);
+    *pOut = PblMatrix(q, PblVector3(0.0f, 0.0f, 0.0f));
+    *pOut *= PblMatrix(*pHead);
     return true;
 }
 

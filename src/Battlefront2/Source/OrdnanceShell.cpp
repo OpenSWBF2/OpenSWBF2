@@ -73,14 +73,14 @@ Ordnance* OrdnanceShellClass::Build(const OrdnanceDesc& desc)
 // FUNCTION: SWBF2 0x00605df0
 void OrdnanceShellClass::SetProperty(unsigned int uProperty, const char* pszValue)
 {
-    if (uProperty == 0xD209FF45)
+    if (uProperty != 0xD209FF45)
     {
-        sscanf(pszValue, "%f", &mGravity);
-        mGravity *= -9.8f;
+        OrdnanceBulletClass::SetProperty(uProperty, pszValue);
     }
     else
     {
-        OrdnanceBulletClass::SetProperty(uProperty, pszValue);
+        sscanf(pszValue, "%f", &mGravity);
+        mGravity *= -9.8f;
     }
 }
 
@@ -116,19 +116,21 @@ bool OrdnanceShell::Update(float fDeltaTime)
     {
         float fDrag = fDeltaTime * 0.7f;
         fDrag = fDrag / (fDrag + 1.0f);
-        mVelocity.x -= mVelocity.x * fDrag;
-        mVelocity.y -= (mVelocity.y - -0.5f) * fDrag;
-        mVelocity.z -= mVelocity.z * fDrag;
+        mVelocity -= PblVector3(mVelocity.x, mVelocity.y - -0.5f, mVelocity.z) * fDrag;
+        if (!OrdnanceBullet::Update(fDeltaTime))
+        {
+            return false;
+        }
     }
     else
     {
         mVelocity.y += mGravity * fDeltaTime;
+        if (!OrdnanceBullet::Update(fDeltaTime))
+        {
+            return false;
+        }
     }
 
-    if (!OrdnanceBullet::Update(fDeltaTime))
-    {
-        return false;
-    }
     return true;
 }
 

@@ -19,22 +19,17 @@ extern bool sLoadLowDetailModels;
 // GLOBAL: SWBF2 0x01ec1230
 PblHashTable<GameModel, 1024> GameModel::_HashTable;
 
-void GameModel::Reset()
-{
-    _HashTable.Clear();
-}
-
 // FUNCTION: SWBF2 0x00533da0
 GameModel::GameModel()
 {
-    for (int i = 0; i < 4; ++i)
-    {
-        _iLodCost[i] = 0;
-    }
-    _mModel = 0;
-    for (int i = 0; i < 4; ++i)
+    for (int i = 3; i >= 0; --i)
     {
         _mLod[i] = 0;
+    }
+    _mModel = 0;
+    for (int i = 3; i >= 0; --i)
+    {
+        _iLodCost[i] = 0;
     }
 }
 
@@ -72,15 +67,14 @@ void GameModel::Render(unsigned char lod, float fAlpha, const PblMatrix* pMatrix
 void GameModel::PrintDebugInfo(const RedModel* pModel, const PblVector3& vPos)
 {
     const PblMatrix& mCamera = RedRenderer::GetCamera()->GetMatrix();
-    float fDist = (vPos.x - mCamera.m[3][0]) * -mCamera.m[2][0]
-                + (vPos.y - mCamera.m[3][1]) * -mCamera.m[2][1]
-                + (vPos.z - mCamera.m[3][2]) * -mCamera.m[2][2];
+    const PblVector3 vForward(-mCamera.m[2][0], -mCamera.m[2][1], -mCamera.m[2][2]);
+    float fDist = DotProduct(vPos - mCamera.GetTranslation(), vForward);
     if (fDist > 0.0f && fDist < 100.0f)
     {
         int iNumVtx = pModel->_uiNumStripVtx;
+        RedColor color = { 0xff, 0xff, 0xff, 0xff };
         if (iNumVtx > 100)
         {
-            RedColor color = { 0xff, 0xff, 0xff, 0xff };
             if (iNumVtx > 1000)
             {
                 color = RedColor::RED;
@@ -94,7 +88,6 @@ void GameModel::PrintDebugInfo(const RedModel* pModel, const PblVector3& vPos)
         }
 
         int iNumSegments = pModel->_iNumSegments;
-        RedColor color;
         if (iNumSegments > 6)
         {
             color = RedColor::RED;
@@ -108,7 +101,7 @@ void GameModel::PrintDebugInfo(const RedModel* pModel, const PblVector3& vPos)
             color = RedColor::WHITE;
         }
         RedDebug::SetPrintfData(color, RedGlyphCacheElement::TEXT_STYLE_SHADOW);
-        PblVector3 vText(vPos.x + 0.0f, vPos.y + (fDist * 0.02f + 0.5f), vPos.z + 0.0f);
+        PblVector3 vText = vPos + PblVector3(0.0f, fDist * 0.02f + 0.5f, 0.0f);
         RedDebug::Printf3D(vText, "S:%d", iNumSegments);
     }
 }
@@ -192,13 +185,13 @@ bool GameModel::_Read(PblFileChunk& chunk)
 
     _strnicmp(acName, "coll_", 5);
     _pSkeleton = (RedSkeleton*)RedSkeleton::Find(_uiNameHash);
-    if (_strnicmp(acName, "coll_", 5) == 0)
+    if (_strnicmp(acName, "coll_", 5) != 0)
     {
-        _mLodData = NoLodData();
+        _mLodData = ModelLodData(_iLodType, _mLod[0], _mLod[1], _mLod[2], _mLod[3]);
     }
     else
     {
-        _mLodData = ModelLodData(_iLodType, _mLod[0], _mLod[1], _mLod[2], _mLod[3]);
+        _mLodData = NoLodData();
     }
 
     if (!_mLod[0])

@@ -58,7 +58,7 @@ SpaceAssault* SpaceAssault::mInstance;
 
 // GLOBAL: SWBF2 0x01f6de48
 // SpaceAssault::ViewportData::sMemoryPool
-MemoryPool SpaceAssault::ViewportData::sMemoryPool("SpaceAssault::ViewportData", 0x2410);
+MemoryPool SpaceAssault::ViewportData::sMemoryPool("SpaceAssault::ViewportData", sizeof(SpaceAssault::ViewportData));
 
 // FUNCTION: SWBF2 0x0064b7c0
 SpaceAssault::ViewportData::ViewportData()
@@ -130,21 +130,15 @@ SpaceAssault::~SpaceAssault()
 // FUNCTION: SWBF2 0x0064bb10
 bool SpaceAssault::IsCriticalSystem(GameObject* pObject) const
 {
-    if (!mbEnabled)
+    if (mbEnabled && NetGame::IsEnabled() && NetGame::IsHost())
     {
-        return false;
-    }
-    if (!NetGame::IsEnabled() || !NetGame::IsHost())
-    {
-        return false;
-    }
-
-    for (int i = 0; i < mNumCriticalSystems; ++i)
-    {
-        GameObject* pSystem = mCriticalSystems[i].pGameObject;
-        if (pSystem && pSystem == pObject)
+        for (int i = 0; i < mNumCriticalSystems; ++i)
         {
-            return true;
+            GameObject* pSystem = mCriticalSystems[i].pGameObject;
+            if (pSystem && pSystem == pObject)
+            {
+                return true;
+            }
         }
     }
     return false;
@@ -153,21 +147,15 @@ bool SpaceAssault::IsCriticalSystem(GameObject* pObject) const
 // FUNCTION: SWBF2 0x0064bb90
 unsigned int SpaceAssault::GetIsAliveTurnNumber(GameObject* pObject) const
 {
-    if (!mbEnabled)
+    if (mbEnabled && NetGame::IsEnabled() && NetGame::IsHost())
     {
-        return 0;
-    }
-    if (!NetGame::IsEnabled() || !NetGame::IsHost())
-    {
-        return 0;
-    }
-
-    for (int i = 0; i < mNumCriticalSystems; ++i)
-    {
-        GameObject* pSystem = mCriticalSystems[i].pGameObject;
-        if (pSystem && pSystem == pObject)
+        for (int i = 0; i < mNumCriticalSystems; ++i)
         {
-            return mCriticalSystems[i].isAliveTurnNumber;
+            GameObject* pSystem = mCriticalSystems[i].pGameObject;
+            if (pSystem && pSystem == pObject)
+            {
+                return mCriticalSystems[i].isAliveTurnNumber;
+            }
         }
     }
     return 0;
@@ -236,8 +224,10 @@ bool SpaceAssault::Update(float fDeltaTime)
             continue;
         }
 
-        vp.elemShipFriendly.SetColor(Team::GetColorByAffiliation(1));
-        vp.elemShipEnemy.SetColor(Team::GetColorByAffiliation(-1));
+        RedColor friendlyColor = Team::GetColorByAffiliation(1);
+        vp.elemShipFriendly.SetColor(friendlyColor);
+        RedColor enemyColor = Team::GetColorByAffiliation(-1);
+        vp.elemShipEnemy.SetColor(enemyColor);
 
         for (int i = 0; i < mNumCriticalSystems; ++i)
         {
@@ -397,12 +387,12 @@ void SpaceAssault::LinkCriticalSystems(unsigned int* const pNameHashIds, int iCo
     {
         CriticalSystemData* pNext = FindCriticalSystemData(pNameHashIds[i]);
         pPrev->pNextLinkedSystem = pNext;
-        if (!pNext)
+        pPrev = pNext;
+        if (!pPrev)
         {
             return;
         }
-        pNext->bShowMarker = false;
-        pPrev = pNext;
+        pPrev->bShowMarker = false;
     }
     pPrev->pNextLinkedSystem = 0;
 }
@@ -425,10 +415,10 @@ short SpaceAssault::GetPointValue(unsigned int uNameHashId, Character* pCharacte
         }
     }
 
-    EntityEx* pEntity = EntityEx::Find(uNameHashId);
+    EntityEx* pEntity = EntityEx::mIdMap.Find(uNameHashId);
     if (pEntity && GetTeam(pEntity->GetGameObject()) == pCharacter->mTeamNumber)
     {
-        return -value;
+        value = -value;
     }
     return value;
 }
@@ -494,50 +484,38 @@ void SpaceAssault::InitBitmaps(int iViewport)
     mWidth = mpGroupElement->GetWidthPixelsFloat();
     mHeight = mpGroupElement->GetHeightPixelsFloat();
 
-    RedBitmapElement& shipFriendly = vp.elemShipFriendly;
-    RedBitmapElement& shipEnemy = vp.elemShipEnemy;
-    RedBitmapElement& shieldFriendly = vp.elemShieldFriendly;
-    RedBitmapElement& shieldEnemy = vp.elemShieldEnemy;
-
-    shipFriendly.SetPosition(mWidth * 0.5f, 0.0f);
-    shipFriendly.SetRect(mWidth * 0.5f, mHeight, RedBitmapElement::BITMAP_HALIGN_LEFT,
-                         RedBitmapElement::BITMAP_VALIGN_TOP);
-    shieldFriendly.SetPosition(mWidth * 0.5f, 0.0f);
-    shieldFriendly.SetRect(mWidth * 0.5f, mHeight, RedBitmapElement::BITMAP_HALIGN_LEFT,
-                           RedBitmapElement::BITMAP_VALIGN_TOP);
-    shipEnemy.SetPosition(0.0f, 0.0f);
-    shipEnemy.SetRect(mWidth * 0.5f, mHeight, RedBitmapElement::BITMAP_HALIGN_LEFT,
-                      RedBitmapElement::BITMAP_VALIGN_TOP);
-    shieldEnemy.SetPosition(0.0f, 0.0f);
-    shieldEnemy.SetRect(mWidth * 0.5f, mHeight, RedBitmapElement::BITMAP_HALIGN_LEFT,
-                        RedBitmapElement::BITMAP_VALIGN_TOP);
+    vp.elemShipFriendly.SetPosition(mWidth * 0.5f, 0.0f);
+    vp.elemShipFriendly.SetRect(mWidth * 0.5f, mHeight, RedBitmapElement::BITMAP_HALIGN_LEFT,
+                                RedBitmapElement::BITMAP_VALIGN_TOP);
+    vp.elemShieldFriendly.SetPosition(mWidth * 0.5f, 0.0f);
+    vp.elemShieldFriendly.SetRect(mWidth * 0.5f, mHeight, RedBitmapElement::BITMAP_HALIGN_LEFT,
+                                  RedBitmapElement::BITMAP_VALIGN_TOP);
+    vp.elemShipEnemy.SetPosition(0.0f, 0.0f);
+    vp.elemShipEnemy.SetRect(mWidth * 0.5f, mHeight, RedBitmapElement::BITMAP_HALIGN_LEFT,
+                             RedBitmapElement::BITMAP_VALIGN_TOP);
+    vp.elemShieldEnemy.SetPosition(0.0f, 0.0f);
+    vp.elemShieldEnemy.SetRect(mWidth * 0.5f, mHeight, RedBitmapElement::BITMAP_HALIGN_LEFT,
+                               RedBitmapElement::BITMAP_VALIGN_TOP);
 
     for (int i = 0; i < mNumCriticalSystems; ++i)
     {
         CriticalSystemData& system = mCriticalSystems[i];
         RedBitmapElement& marker = vp.elemCriticalSystem[i];
-        float fX;
-        if (system.team == vp.team)
-        {
-            fX = system.hudPosX * (mWidth * 0.5f) + mWidth * 0.5f;
-        }
-        else
-        {
-            fX = mWidth * 0.5f * system.hudPosX;
-        }
-        marker.SetPosition(fX, mHeight * system.hudPosY);
+        marker.SetPosition(system.team == vp.team ? system.hudPosX * (mWidth * 0.5f) + mWidth * 0.5f
+                                                  : mWidth * 0.5f * system.hudPosX,
+                           mHeight * system.hudPosY);
         marker.SetRect(mWidth * 0.15f, mHeight * 0.15f, RedBitmapElement::BITMAP_HALIGN_CENTER,
                        RedBitmapElement::BITMAP_VALIGN_CENTER);
     }
 
-    group.RemoveElement(&shipFriendly);
-    group.RemoveElement(&shipEnemy);
-    group.RemoveElement(&shieldFriendly);
-    group.RemoveElement(&shieldEnemy);
-    group.AddElement(&shipFriendly);
-    group.AddElement(&shipEnemy);
-    group.AddElement(&shieldFriendly);
-    group.AddElement(&shieldEnemy);
+    group.RemoveElement(&vp.elemShipFriendly);
+    group.RemoveElement(&vp.elemShipEnemy);
+    group.RemoveElement(&vp.elemShieldFriendly);
+    group.RemoveElement(&vp.elemShieldEnemy);
+    group.AddElement(&vp.elemShipFriendly);
+    group.AddElement(&vp.elemShipEnemy);
+    group.AddElement(&vp.elemShieldFriendly);
+    group.AddElement(&vp.elemShieldEnemy);
     for (int i = 0; i < MAX_CRITICAL_SYSTEMS; ++i)
     {
         group.RemoveElement(&vp.elemCriticalSystem[i]);
@@ -546,17 +524,17 @@ void SpaceAssault::InitBitmaps(int iViewport)
 
     if (vp.team == mTeamATT)
     {
-        shipFriendly.SetTexture(mShipBitmapATTHashId);
-        shieldFriendly.SetTexture(mShieldBitmapATTHashId);
-        shipEnemy.SetTexture(mShipBitmapDEFHashId);
-        shieldEnemy.SetTexture(mShieldBitmapDEFHashId);
+        vp.elemShipFriendly.SetTexture(mShipBitmapATTHashId);
+        vp.elemShieldFriendly.SetTexture(mShieldBitmapATTHashId);
+        vp.elemShipEnemy.SetTexture(mShipBitmapDEFHashId);
+        vp.elemShieldEnemy.SetTexture(mShieldBitmapDEFHashId);
     }
     else if (vp.team == mTeamDEF)
     {
-        shipFriendly.SetTexture(mShipBitmapDEFHashId);
-        shieldFriendly.SetTexture(mShieldBitmapDEFHashId);
-        shipEnemy.SetTexture(mShipBitmapATTHashId);
-        shieldEnemy.SetTexture(mShieldBitmapATTHashId);
+        vp.elemShipFriendly.SetTexture(mShipBitmapDEFHashId);
+        vp.elemShieldFriendly.SetTexture(mShieldBitmapDEFHashId);
+        vp.elemShipEnemy.SetTexture(mShipBitmapATTHashId);
+        vp.elemShieldEnemy.SetTexture(mShieldBitmapATTHashId);
     }
 
     for (int i = 0; i < mNumCriticalSystems; ++i)
@@ -572,19 +550,26 @@ void SpaceAssault::InitBitmaps(int iViewport)
         }
     }
 
-    shipFriendly.Enable(true);
-    shipFriendly.SetZOrder(50);
-    shipEnemy.Enable(true);
-    shipEnemy.SetZOrder(50);
-    shieldFriendly.Enable(true);
-    shieldFriendly.SetZOrder(49);
-    shieldEnemy.Enable(true);
-    shieldEnemy.SetZOrder(49);
+    vp.elemShipFriendly.Enable(true);
+    vp.elemShipFriendly.SetZOrder(50);
+    vp.elemShipEnemy.Enable(true);
+    vp.elemShipEnemy.SetZOrder(50);
+    vp.elemShieldFriendly.Enable(true);
+    vp.elemShieldFriendly.SetZOrder(49);
+    vp.elemShieldEnemy.Enable(true);
+    vp.elemShieldEnemy.SetZOrder(49);
 
     for (int i = 0; i < mNumCriticalSystems; ++i)
     {
         RedBitmapElement& marker = vp.elemCriticalSystem[i];
-        marker.Enable(mCriticalSystems[i].bShowMarker);
+        if (mCriticalSystems[i].bShowMarker)
+        {
+            marker.Enable(true);
+        }
+        else
+        {
+            marker.Enable(false);
+        }
         marker.SetZOrder(48);
     }
 }
@@ -649,7 +634,7 @@ GameObject* SpaceAssault::GetRandomCritSys(const Team* pTeam, float fBias) const
     }
 
     float fRandom = AIUtil::GetRandomFloat(0.0f, 1.0f);
-    fRandom = (float)fmod((double)(fRandom * fRandom + fBias), 1.0);
+    fRandom = fmodf(fRandom * fRandom + fBias, 1.0f);
     int iPick = (int)(fRandom * (float)iCount);
     for (int i = 0; i < mNumCriticalSystems; ++i)
     {
@@ -664,9 +649,9 @@ GameObject* SpaceAssault::GetRandomCritSys(const Team* pTeam, float fBias) const
 // FUNCTION: SWBF2 0x0064cd20
 RedColor SpaceAssault::CalcDamageColor(float fHealth)
 {
-    if (fHealth <= 0.5f)
+    if (fHealth > 0.5f)
     {
-        return Interpolate(RedColor::RED, RedColor::YELLOW, fHealth * 2.0f);
+        return Interpolate(RedColor::YELLOW, RedColor::GREEN, (fHealth - 0.5f) * 2.0f);
     }
-    return Interpolate(RedColor::YELLOW, RedColor::GREEN, (fHealth - 0.5f) * 2.0f);
+    return Interpolate(RedColor::RED, RedColor::YELLOW, fHealth * 2.0f);
 }

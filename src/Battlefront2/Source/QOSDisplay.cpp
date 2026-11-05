@@ -178,7 +178,8 @@ void QOSDisplay::InitClient()
     QosIcon.SetTexture(0x298058FEu);
     msgGroup.AddElement(&QosIcon);
 
-    FLRenderer::AddInterfaceElement(&msgGroup, 1.0f, 1.0f, false);
+    FLRenderer::AddInterfaceElement(&msgGroup, RedInterfaceScreen::RIGHT,
+                                    RedInterfaceScreen::BOTTOM, false);
 }
 
 // FUNCTION: SWBF2 0x0062dd10
@@ -330,7 +331,8 @@ bool QOSDisplayThread::DisplayIcon(float fDeltaTime, int iUpdates, int iLag)
 {
     QosEnable = false;
     PlayerProfile::tProfile* pProfile = PlayerProfile::GetCurProfile();
-    if (pProfile && pProfile->mOnlineOptions.mOnlineIcon && clientUpdateCount > 48
+    const bool bOnlineIcon = pProfile ? pProfile->mOnlineOptions.mOnlineIcon != 0 : false;
+    if (bOnlineIcon && clientUpdateCount > 48
         && !GameLoop::IsGameOver()
         && (iUpdates < QosValue[0][0] || iLag > QosValue[0][1]))
     {

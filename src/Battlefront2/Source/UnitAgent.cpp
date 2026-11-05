@@ -195,7 +195,7 @@ namespace
         pChr->mVehicleBlockTime = fTime;
     }
 
-    AcklayData* GetAcklayData(const Entity* pEntity)
+    inline AcklayData* GetAcklayData(const Entity* pEntity)
     {
         return static_cast<const EntitySoldier*>(pEntity)->mAcklayData;
     }
@@ -249,9 +249,10 @@ bool UnitAgent::ShouldQueueCurCmd(const UnitCmdInfo& cmd) const
 
 // FUNCTION: SWBF2 0x0065dd80
 UnitAgent::UnitAgent(UnitController* pCtrl)
-    : mCtrl(pCtrl), mAttackHelper(this),
-      mCheckNearbyUnitsTime(-1.0f)
+    : mAttackHelper(this)
 {
+    mCtrl = pCtrl;
+    mCheckNearbyUnitsTime = -1.0f;
 }
 
 // FUNCTION: SWBF2 0x0065ddb0
@@ -326,7 +327,7 @@ void UnitAgent::FaceTarget(ControllableHeight eHeight, const PblVector3& vTarget
 // FUNCTION: SWBF2 0x0065df60
 bool UnitAgent::RunForVehicle(const GameObject* pVehicle) const
 {
-    PblVector3 vVehiclePos = (GetCollisionObject(pVehicle)->GetMatrix()).GetTranslation();
+    PblVector3 vVehiclePos = pVehicle->GetMatrix().GetTranslation();
     const GameObject* pMe = GetMe()->GetGameObject();
     GameObject* pObjects[30];
     int iCount = TeamManager::GetApproxObjectsAlongLine(GetMe()->GetMatrix().GetTranslation(), vVehiclePos, 8.0f,
@@ -369,7 +370,7 @@ bool UnitAgent::AreNearbyUnitsInCombat()
             }
             if (iInCombat == 3)
             {
-                Charge(GetMe()->GetGameObject());
+                GetMe()->GetGameObject()->Charge();
                 mNearbyUnitsInCombat = true;
             }
         }
@@ -384,7 +385,7 @@ bool UnitAgent::ShouldAgentGetInNearbyVehicle(const GameObject* pVehicle) const
     {
         return false;
     }
-    if (!GetMe()->CanEnterVehicle(pVehicle))
+    if (!static_cast<const EntitySoldier*>(GetMe())->CanEnterVehicle(pVehicle))
     {
         return false;
     }
@@ -401,7 +402,7 @@ bool UnitAgent::ShouldAgentGetInNearbyVehicle(const GameObject* pVehicle) const
         return false;
     }
 
-    if (GameLoop::GetMissionTime() < GetVehicleBlockTime(GetMe()->mCharacter))
+    if (GameLoop::GetMissionTime() < GetMe()->mCharacter->GetVehicleBlockTime())
     {
         return false;
     }
@@ -413,8 +414,12 @@ bool UnitAgent::ShouldAgentGetInNearbyVehicle(const GameObject* pVehicle) const
 
     if (AIUtil::gStayInTurrets)
     {
-        int eType = GetSoldierType(GetMe()->GetGameObject());
-        return eType != SOLDIER_REPAIR && eType != SOLDIER_PILOT;
+        int eType = GetMe()->GetGameObject()->GetGameObjectClass()->GetSoldierType();
+        if (eType == SOLDIER_REPAIR || eType == SOLDIER_PILOT)
+        {
+            return false;
+        }
+        return true;
     }
 
     if (GetAttackHelper(this).HasTarget())
@@ -470,15 +475,14 @@ int UnitAgent::DamagedEventPlayerCentricness(AI::EventInfo* pEvent)
     }
 
     GameObject* pMe = GetMe()->GetGameObject();
-    if (Team::sTeams[GetTeam(pMe)]->GetAffiliation(pInfo->mDamageOwner->mTeamNumber) >= 0)
+    if (Team::sTeams[GetTeam(pMe)]->GetAffiliation(pInfo->mDamageOwner->mTeamNumber) < 0)
     {
-        return 0;
+        GameObject* pAttacker = pInfo->mDamageOwner->GetControllable()->GetGameObject();
+        mCtrl->mThreatManager.AddThreat(pAttacker);
+        mCtrl->ForceSetAttackHelperTarget(pAttacker);
+        return 1;
     }
-
-    GameObject* pAttacker = pInfo->mDamageOwner->GetControllable()->GetGameObject();
-    mCtrl->mThreatManager.AddThreat(pAttacker);
-    mCtrl->ForceSetAttackHelperTarget(pAttacker);
-    return 1;
+    return 0;
 }
 
 // SYNTHETIC: SWBF2 0x0065e4c0
@@ -535,11 +539,12 @@ int UnitAgent::HandleDamagedEvent(AI::EventInfo* pEvent)
             if (GetMaxSpeed(pMe) == 0.0f && !AIUtil::gStayInTurrets && !CombatUtil::CanFaceDisturbance(pMe, vAttackerPos))
             {
                 GetLowLevel().SetExitVehicle(0);
-                pInfo->mNextCmd = UnitCmdInfo(CMD_NONE, PblHandle<GameObject>(), PblVector3(0, 0, 0),
-                                              PblHandle<GameObject>());
+                pInfo->mNextCmd = UnitCmdInfo(CMD_NONE, NULL, PblVector3(0, 0, 0), NULL);
             }
         }
-        mCtrl->mThreatManager.AddThreat(pInfo->mDamageOwner->GetControllable()->GetGameObject());
+        Controllable* pOwnerControllable = pInfo->mDamageOwner->GetControllable();
+        UnitController* pCtrl = mCtrl;
+        pCtrl->mThreatManager.AddThreat(pOwnerControllable->GetGameObject());
         return 1;
     }
 
@@ -566,8 +571,8 @@ int UnitAgent::HandleSquadCommandEvent(AI::EventInfo* pInfo)
 
     if (pInfo->mType == AI::EVT_SC_FollowChr || pInfo->mType == AI::EVT_SC_FollowChrLoose)
     {
-        pInfo->mNextCmd = UnitFollowInfo(pInfo->mGameObject, pInfo->mGameObject,
-                                         pInfo->mType == AI::EVT_SC_FollowChr);
+        const bool bStrict = pInfo->mType == AI::EVT_SC_FollowChr;
+        pInfo->mNextCmd = UnitFollowInfo(pInfo->mGameObject, pInfo->mGameObject, bStrict);
         Controllable* pMe = GetMe();
         AI::VOHelper::Play(AI::VOT_SC_FollowResponse, pMe->GetGameObject(), 0, 0,
                            AIUtil::GetRandomFloat(0.5f, 1.2f) + GameLoop::GetMissionTime());
@@ -577,8 +582,8 @@ int UnitAgent::HandleSquadCommandEvent(AI::EventInfo* pInfo)
     if (pInfo->mType == AI::EVT_SC_GetIntoVehicle)
     {
         int iVOHandle = -1;
-        if (FirstControllable(static_cast<GameObject*>(pInfo->mGameObject)) &&
-            FirstControllable(static_cast<GameObject*>(pInfo->mGameObject))->mPlayerId >= 0)
+        if (static_cast<GameObject*>(pInfo->mGameObject)->mControllableList.GetFirst()->_pObject &&
+            static_cast<GameObject*>(pInfo->mGameObject)->mControllableList.GetFirst()->_pObject->mPlayerId >= 0)
         {
             Controllable* pMe = GetMe();
             GameObject* pVehicle = static_cast<GameObject*>(pInfo->mGameObject);
@@ -594,7 +599,7 @@ int UnitAgent::HandleSquadCommandEvent(AI::EventInfo* pInfo)
         pInfo->mNextCmd = UnitUnBoardInfo();
         if (GetMe() && GetMe()->mCharacter)
         {
-            SetVehicleBlockTime(GetMe()->mCharacter, GameLoop::GetMissionTime() + 20.0f);
+            GetMe()->mCharacter->SetVehicleBlockTime(GameLoop::GetMissionTime() + 20.0f);
         }
         return 1;
     }
@@ -616,7 +621,7 @@ int UnitAgent::Handle_Vision_CanSeeEnemy(AI::EventInfo* pInfo)
     if (AIUtil::GetEntityType(GetMe()->GetEntity()) == AIUtil::ENTITY_DROIDEKA)
     {
         const PblVector3& vMe = GetMe()->GetMatrix().GetTranslation();
-        const PblVector3& vEnemy = (GetCollisionObject(pEnemy)->GetMatrix()).GetTranslation();
+        const PblVector3& vEnemy = pEnemy->GetMatrix().GetTranslation();
         float fDX = vEnemy.x - vMe.x;
         float fDY = vEnemy.y - vMe.y;
         float fDZ = vEnemy.z - vMe.z;
@@ -626,12 +631,13 @@ int UnitAgent::Handle_Vision_CanSeeEnemy(AI::EventInfo* pInfo)
         }
     }
 
-    if (!CombatUtil::EngageInCombat(static_cast<const UnitController*>(GetMe()->mCtrl), pEnemy, false))
+    const UnitController* pCtrl = static_cast<const UnitController*>(GetMe()->mCtrl);
+    if (!CombatUtil::EngageInCombat(pCtrl, pEnemy, false))
     {
         return 0;
     }
 
-    pInfo->mNextCmd = UnitCombatInfo(UnitCombatInfo::ENGAGE, PblHandle<const GameObject>(pEnemy));
+    pInfo->mNextCmd = UnitCombatInfo(UnitCombatInfo::ENGAGE, pEnemy);
     return 1;
 }
 
@@ -666,8 +672,8 @@ int UnitAgent::Handle_Audible_CanHearEnemy(AI::EventInfo* pInfo)
 
     if (CombatUtil::EngageInCombat(mCtrl, static_cast<GameObject*>(pInfo->mGameObject), false))
     {
-        pInfo->mNextCmd = UnitCombatInfo(UnitCombatInfo::INVESTIGATE, PblHandle<const GameObject>(static_cast<GameObject*>(pInfo->mGameObject)));
-        HeardEnemy(GetMe()->GetGameObject());
+        pInfo->mNextCmd = UnitCombatInfo(UnitCombatInfo::INVESTIGATE, PblHandle<const GameObject>(pInfo->mGameObject));
+        GetMe()->GetGameObject()->HeardEnemy();
         return 1;
     }
 
@@ -729,6 +735,14 @@ int UnitAgent::EventHandler(AI::EventInfo* pInfo)
     case AI::EVT_Damaged:
         return HandleDamagedEvent(pInfo);
 
+    case AI::EVT_SC_FollowChr:
+    case AI::EVT_SC_FollowChrLoose:
+        return HandleSquadCommandEvent(pInfo);
+
+    case AI::EVT_SC_GetIntoVehicle:
+    case AI::EVT_SC_GetOutOfVehicle:
+        return HandleSquadCommandEvent(pInfo);
+
     case AI::EVT_Vehicle_WaitForPickUp:
         pInfo->mNextCmd = UnitWaitSecondaryInfo(pInfo->mFloat, false);
         return 1;
@@ -757,7 +771,7 @@ int UnitAgent::EventHandler(AI::EventInfo* pInfo)
         {
             return AI::EVT_Ignored;
         }
-        pInfo->mNextCmd = UnitCmdInfo(CMD_WAIT, PblHandle<GameObject>(), PblVector3(0, 0, 0), PblHandle<GameObject>());
+        pInfo->mNextCmd = UnitCmdInfo(CMD_WAIT, NULL, PblVector3(0, 0, 0), NULL);
         return 1;
 
     case AI::EVT_Nav_NavigatorFinished:
@@ -767,12 +781,6 @@ int UnitAgent::EventHandler(AI::EventInfo* pInfo)
         }
         return 1;
 
-    case AI::EVT_SC_FollowChr:
-    case AI::EVT_SC_FollowChrLoose:
-    case AI::EVT_SC_GetIntoVehicle:
-    case AI::EVT_SC_GetOutOfVehicle:
-        return HandleSquadCommandEvent(pInfo);
-
     case AI::EVQ_GetSkillModifier:
         pInfo->mInt = 0;
         return 0;
@@ -781,6 +789,15 @@ int UnitAgent::EventHandler(AI::EventInfo* pInfo)
         pInfo->mNextCmd = UnitCombatInfo(UnitCombatInfo::TURN,
                                          pInfo->mGameObject->GetPosition(), true);
         return 1;
+
+    case AI::EVT_None:
+    case AI::EVT_Path_NextNode:
+    case AI::EVT_CTF_FlagPickup:
+    case AI::EVT_CTF_FlagDrop:
+    case AI::EVT_CTF_FlagKill:
+    case AI::EVQ_SC_IsFollowingChr:
+    case AI::EVT_SC_StopFollowChr:
+        return 0;
     }
     return 0;
 }

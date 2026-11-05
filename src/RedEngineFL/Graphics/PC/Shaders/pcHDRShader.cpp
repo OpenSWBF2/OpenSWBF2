@@ -63,15 +63,30 @@ void pcHDRShader::Begin_Prog1(unsigned int, unsigned int) const
     RedRenderer::pcSetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
     RedRenderer::pcSetRenderState(D3DRS_FOGENABLE, FALSE);
 
-    for (unsigned int i = 0; i < 4; i++)
-    {
-        RedRenderer::pcSetSamplerState(i, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
-        RedRenderer::pcSetSamplerState(i, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
-        RedRenderer::pcSetSamplerState(i, D3DSAMP_MAXMIPLEVEL, 0);
-        RedRenderer::pcSetSamplerState(i, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
-        RedRenderer::pcSetSamplerState(i, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
-        RedRenderer::pcSetSamplerState(i, D3DSAMP_MIPFILTER, D3DTEXF_POINT);
-    }
+    RedRenderer::pcSetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+    RedRenderer::pcSetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+    RedRenderer::pcSetSamplerState(0, D3DSAMP_MAXMIPLEVEL, 0);
+    RedRenderer::pcSetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+    RedRenderer::pcSetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+    RedRenderer::pcSetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_POINT);
+    RedRenderer::pcSetSamplerState(1, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+    RedRenderer::pcSetSamplerState(1, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+    RedRenderer::pcSetSamplerState(1, D3DSAMP_MAXMIPLEVEL, 0);
+    RedRenderer::pcSetSamplerState(1, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+    RedRenderer::pcSetSamplerState(1, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+    RedRenderer::pcSetSamplerState(1, D3DSAMP_MIPFILTER, D3DTEXF_POINT);
+    RedRenderer::pcSetSamplerState(2, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+    RedRenderer::pcSetSamplerState(2, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+    RedRenderer::pcSetSamplerState(2, D3DSAMP_MAXMIPLEVEL, 0);
+    RedRenderer::pcSetSamplerState(2, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+    RedRenderer::pcSetSamplerState(2, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+    RedRenderer::pcSetSamplerState(2, D3DSAMP_MIPFILTER, D3DTEXF_POINT);
+    RedRenderer::pcSetSamplerState(3, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+    RedRenderer::pcSetSamplerState(3, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+    RedRenderer::pcSetSamplerState(3, D3DSAMP_MAXMIPLEVEL, 0);
+    RedRenderer::pcSetSamplerState(3, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+    RedRenderer::pcSetSamplerState(3, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+    RedRenderer::pcSetSamplerState(3, D3DSAMP_MIPFILTER, D3DTEXF_POINT);
 }
 
 // FUNCTION: SWBF2 0x00713b80
@@ -88,10 +103,10 @@ void pcHDRShader::End_Fixed(unsigned int, unsigned int) const
 // FUNCTION: SWBF2 0x00713bb0
 void pcHDRShader::End_Prog1(unsigned int, unsigned int) const
 {
-    for (unsigned int i = 0; i < 4; i++)
-    {
-        RedRenderer::pcSetTexture(i, 0);
-    }
+    RedRenderer::pcSetTexture(0, 0);
+    RedRenderer::pcSetTexture(1, 0);
+    RedRenderer::pcSetTexture(2, 0);
+    RedRenderer::pcSetTexture(3, 0);
 }
 
 // FUNCTION: SWBF2 0x00713be0
@@ -152,36 +167,26 @@ void pcHDRShader::Render_Prog1(const RenderItem* pItem, unsigned int) const
 {
     RedRenderer::pcLoadFormat(m_pVertexFormat);
 
-    unsigned int uiDestWidth;
-    unsigned int uiDestHeight;
+    float fDestTexelX;
+    float fDestTexelY;
     if (m_destTex)
     {
-        uiDestWidth = m_destTex->m_uiWidth;
-        uiDestHeight = m_destTex->m_uiHeight;
+        fDestTexelX = 1.0f / (float)m_destTex->m_uiWidth;
+        fDestTexelY = 1.0f / (float)m_destTex->m_uiHeight;
     }
     else
     {
         const D3DPRESENT_PARAMETERS& pp = RedRenderer::pcGetPresentParameters();
-        uiDestWidth = pp.BackBufferWidth;
-        uiDestHeight = pp.BackBufferHeight;
+        fDestTexelX = 1.0f / (float)pp.BackBufferWidth;
+        fDestTexelY = 1.0f / (float)pp.BackBufferHeight;
     }
-    const float fDestTexelX = 1.0f / (float)uiDestWidth;
-    const float fDestTexelY = 1.0f / (float)uiDestHeight;
 
     pcRedVertexShaderConstantRegister* pRegs =
         RedRenderer::pcLockVertexShaderConstants(40, 3);
-    pRegs[40].component[2] = 0.0f;
-    pRegs[40].component[3] = 0.0f;
-    pRegs[40].component[0] = 1.0f / (float)m_sourceTex->m_uiWidth;
-    pRegs[40].component[1] = 1.0f / (float)m_sourceTex->m_uiHeight;
-    pRegs[41].component[0] = fDestTexelX;
-    pRegs[41].component[1] = fDestTexelY;
-    pRegs[41].component[2] = fDestTexelX * 0.5f;
-    pRegs[41].component[3] = fDestTexelY * 0.5f;
-    pRegs[42].component[0] = 1.0f;
-    pRegs[42].component[1] = 1.0f;
-    pRegs[42].component[2] = 1.0f / (float)m_sourceTex->m_uiWidth * m_bloomOffset;
-    pRegs[42].component[3] = 1.0f / (float)m_sourceTex->m_uiHeight * m_bloomOffset;
+    pRegs[40].SetFloats(1.0f / (float)m_sourceTex->m_uiWidth, 1.0f / (float)m_sourceTex->m_uiHeight, 0.0f, 0.0f);
+    pRegs[41].SetFloats(fDestTexelX, fDestTexelY, fDestTexelX * 0.5f, fDestTexelY * 0.5f);
+    pRegs[42].SetFloats(1.0f, 1.0f, 1.0f / (float)m_sourceTex->m_uiWidth * m_bloomOffset,
+                        1.0f / (float)m_sourceTex->m_uiHeight * m_bloomOffset);
     RedRenderer::pcUnlockVertexShaderConstants(pRegs);
 
     const float afPSConstants[12] =
@@ -194,7 +199,7 @@ void pcHDRShader::Render_Prog1(const RenderItem* pItem, unsigned int) const
 
     if (m_state == HDR_MODE_SCALEANDBLOOM)
     {
-        RedRenderer::pcSetTexture(0, RedTexture::Find(PblHash("white")));
+        RedRenderer::pcSetTexture(0, RedTexture::Find(0xde020766));
         RedRenderer::pcSetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
         RedRenderer::pcSetRenderState(D3DRS_SRCBLEND, D3DBLEND_DESTCOLOR);
         RedRenderer::pcSetRenderState(D3DRS_DESTBLEND, D3DBLEND_SRCCOLOR);

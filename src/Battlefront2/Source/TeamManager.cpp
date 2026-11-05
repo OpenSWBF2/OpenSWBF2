@@ -1,3 +1,4 @@
+#include "PebbleFL/Common/PblMath.h"
 #include "TeamManager.h"
 #include "LocalLimits.h"
 #include "RedEngineFL/Util/RedWarning.h"
@@ -113,8 +114,7 @@ int sGetObjectsInRange(const PblVector3& vPos, float fRange, GameObject** const 
         }
         for (int i = 0; i < sMemberCount[iTeam]; ++i)
         {
-            ObjCacheData& rData = sTeamList[iTeam][i];
-            GameObject* pObject = rData.mObj;
+            GameObject* pObject = sTeamList[iTeam][i].mObj;
             if (!pObject || pObject == pIgnore)
             {
                 continue;
@@ -124,11 +124,8 @@ int sGetObjectsInRange(const PblVector3& vPos, float fRange, GameObject** const 
             {
                 continue;
             }
-            const float fRadius = rData.mSphere.GetRadius() + fRange;
-            const float fDX = vPos.x - rData.mSphere.x;
-            const float fDY = vPos.y - rData.mSphere.y;
-            const float fDZ = vPos.z - rData.mSphere.z;
-            if (fRadius * fRadius > fDX * fDX + fDY * fDY + fDZ * fDZ)
+            const float fRadius = sTeamList[iTeam][i].mSphere.GetRadius() + fRange;
+            if (fRadius * fRadius > SquaredLength(vPos - sTeamList[iTeam][i].mSphere.GetCenter()))
             {
                 ppObjects[iCount++] = pObject;
                 if (iCount == iMax)
@@ -163,27 +160,19 @@ int GetApproxObjectsAlongLine(const PblVector3& vStart, const PblVector3& vEnd, 
         return 0;
     }
 
-    const PblVector3 vCenter((vEnd.x + vStart.x) * 0.5f, (vEnd.y + vStart.y) * 0.5f,
-                             (vEnd.z + vStart.z) * 0.5f);
-    const PblVector3 vDelta(vEnd.x - vStart.x, vEnd.y - vStart.y, vEnd.z - vStart.z);
+    const PblVector3 vCenter = (vEnd + vStart) * 0.5f;
+    const PblVector3 vDelta = vEnd - vStart;
     const PblVector3 vDir = AIUtil::GetSafeNormal(vDelta);
-    const float fHalfLength = sqrtf(vDelta.x * vDelta.x + vDelta.y * vDelta.y + vDelta.z * vDelta.z) * 0.5f;
+    const float fHalfLength = Length(vDelta) * 0.5f;
 
     GameObject* apObjects[1200];
     const int iCount = GetObjectsInRange(vCenter, fHalfLength, apObjects, iMax, pIgnore, eAffil);
-    const float fRadius2 = fRadius * fRadius;
     int iFound = 0;
     for (int i = 0; i < iCount; ++i)
     {
         GameObject* pObject = apObjects[i];
         const PblVector3 vPos = pObject->GetMatrix().GetTranslation();
-        const float fX = vPos.x - vStart.x;
-        const float fY = vPos.y - vStart.y;
-        const float fZ = vPos.z - vStart.z;
-        const float fCX = fY * vDir.z - fZ * vDir.y;
-        const float fCY = fZ * vDir.x - fX * vDir.z;
-        const float fCZ = fX * vDir.y - fY * vDir.x;
-        if (fRadius2 > fCX * fCX + fCY * fCY + fCZ * fCZ)
+        if (fRadius * fRadius > SquaredLength(CrossProduct(vPos - vStart, vDir)))
         {
             ppObjects[iFound++] = pObject;
         }

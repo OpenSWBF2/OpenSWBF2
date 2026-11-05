@@ -135,8 +135,7 @@ public:
 
     bool IsNeutralWhenEmpty() { return mIsNeutralWhenEmpty; }
 
-    // FUNCTION: SWBF2 0x005373e0
-    bool AvailableForAnyTeam() const { return mAvailableForAnyTeam; }
+    bool AvailableForAnyTeam() const;
     float mSwitchClassRadius;
     DamageEffectClass* mDamageEffectClass[10];
     AI::VOSound* mVOSoundList;
@@ -183,7 +182,20 @@ class DamageRegionSound
 {
 public:
 
-    DamageRegionSound(unsigned int uRegionID, const GameSound& sound, PblListSingle& list);
+    // FUNCTION: SWBF2 0x00534fe0
+    DamageRegionSound(unsigned int uRegionID, const GameSound& sound, PblListSingle& list)
+        : mRegionID(uRegionID)
+    {
+        mSound = sound;
+        if (uRegionID)
+        {
+            list.AddLast(&mNode);
+        }
+        else
+        {
+            list.AddFirst(&mNode);
+        }
+    }
 
     GameSound mSound;
     unsigned int mRegionID;

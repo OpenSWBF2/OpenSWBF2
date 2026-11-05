@@ -118,8 +118,8 @@ void CaptureDisplay::Bind(unsigned int uiViewport)
         mFlagGroup.Scale(0.75f);
     }
     mJoystickIndex = uiViewport;
-    FLRenderer::AddInterfaceElement(CameraManager::sInstance->m_hView[uiViewport], &mFlagGroup, 1.0f, 0.5f,
-                                    true);
+    FLRenderer::AddInterfaceElement(CameraManager::sInstance->m_hView[uiViewport], &mFlagGroup,
+                                    RedInterfaceScreen::RIGHT, RedInterfaceScreen::CENTER, true);
     ActivateThread(-1, PER_LOCAL_TURN);
 }
 
@@ -205,12 +205,13 @@ bool CaptureDisplay::Update(float fDeltaTime)
         ToolTipType eTip = (iPostTeam == pChr->mTeamNumber) ? TTT_ApproachSelfCP : TTT_ApproachEnemyCP;
         if (iPostTeam == 0)
         {
+            int iBiasTeam = pPost->mBiasTeam;
             int iOtherTeam = 0;
             if (pPost->mHoldTeam < 0)
             {
                 for (iOtherTeam = 1; iOtherTeam < 8; ++iOtherTeam)
                 {
-                    if (iOtherTeam != pPost->mBiasTeam && pPost->mHoldCount[iOtherTeam] > 0)
+                    if (iOtherTeam != iBiasTeam && pPost->mHoldCount[iOtherTeam] > 0)
                     {
                         break;
                     }
@@ -240,17 +241,17 @@ void CaptureDisplay::UpdateClear()
 // FUNCTION: SWBF2 0x0044ff10
 void CaptureDisplay::UpdateIcon()
 {
-    mFlagTop.m_color = mColorTop;
+    mFlagTop.SetColor(mColorTop);
     mFlagTop.SetTexCoords(0.0f, 0.0f, 1.0f, mSplitRatio, false);
     mFlagTop.SetRect(64.0f, mSplitRatio * 64.0f,
                      RedBitmapElement::BITMAP_HALIGN_RIGHT, RedBitmapElement::BITMAP_VALIGN_TOP);
 
-    mFlagBottom.m_color = mColorBottom;
+    mFlagBottom.SetColor(mColorBottom);
     mFlagBottom.SetTexCoords(0.0f, mSplitRatio, 1.0f, 1.0f, false);
     mFlagBottom.SetRect(64.0f, (1.0f - mSplitRatio) * 64.0f,
                         RedBitmapElement::BITMAP_HALIGN_RIGHT, RedBitmapElement::BITMAP_VALIGN_BOTTOM);
 
-    mFlagLocked.m_color = RedColor::WHITE;
+    mFlagLocked.SetColor(RedColor::WHITE);
     mFlagLocked.SetTexCoords(0.0f, 0.0f, 1.0f, 1.0f, false);
     mFlagLocked.SetRect(64.0f, 64.0f,
                         RedBitmapElement::BITMAP_HALIGN_RIGHT, RedBitmapElement::BITMAP_VALIGN_TOP);

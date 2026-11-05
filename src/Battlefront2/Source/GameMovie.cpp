@@ -224,7 +224,11 @@ void GameMovie::Stop()
 // FUNCTION: SWBF2 0x00534730
 bool GameMovie::IsOpen()
 {
-    return GameMovie::sUseMovies && GameMovie::sRedMovie && GameMovie::sRedMovie->IsOpen();
+    if (GameMovie::sUseMovies && GameMovie::sRedMovie)
+    {
+        return GameMovie::sRedMovie->IsOpen();
+    }
+    return false;
 }
 
 extern int g_InGameMoviePlayerFrame;
@@ -260,16 +264,17 @@ void EnableSceneAndInterface(bool bEnable)
         {
             if (g_InGameMovieSpawnDisplayActive[i])
             {
-                Character* pCharacter = Character::GetPtr(i);
+                Character* pCharacter = Character::FindPlayer(i);
                 SpawnDisplay::Instance(0)->Show(pCharacter);
                 g_InGameMovieSpawnDisplayActive[i] = false;
             }
         }
         else
         {
-            pSpawnDisplay = SpawnDisplay::Instance(0);
-            g_InGameMovieSpawnDisplayActive[i] = pSpawnDisplay->mMode == SpawnDisplay::eCHANGECLASS;
-            pSpawnDisplay->Hide(Character::GetPtr(i));
+            SpawnDisplay* pDisplay = SpawnDisplay::Instance(0);
+            Character* pCharacter = Character::FindPlayer(i);
+            g_InGameMovieSpawnDisplayActive[i] = pDisplay->mMode == SpawnDisplay::eCHANGECLASS;
+            pDisplay->Hide(pCharacter);
         }
     }
 }
@@ -283,12 +288,9 @@ void UpdatInGameMovie()
         {
             StopInGameMoviePlay();
         }
-        return;
     }
-
-    switch (g_InGameMoviePlayerState)
+    else if (g_InGameMoviePlayerState == 1)
     {
-    case 1:
         if (g_InGameMoviePlayerFrame == 0)
         {
             GameSoundEngine::StopAll();
@@ -299,9 +301,9 @@ void UpdatInGameMovie()
             EnableSceneAndInterface(false);
         }
         ++g_InGameMoviePlayerFrame;
-        break;
-
-    case 2:
+    }
+    else if (g_InGameMoviePlayerState == 2)
+    {
         if (g_InGameMoviePlayerFrame == 4)
         {
             GameMovie::Play(ingame_movie_idname, "", 0, 0,
@@ -309,9 +311,13 @@ void UpdatInGameMovie()
                             RedInterfaceScreen::GetScreenHeight(), false);
             while (!g_InGameMovieQueue.IsEmpty())
             {
-                unsigned int name;
-                g_InGameMovieQueue.Get(name);
-                const RedMovie::Properties* pProperty = RedMovie::Properties::FindByHashID(name);
+                const unsigned int* pName = 0;
+                if (!g_InGameMovieQueue.IsEmpty())
+                {
+                    pName = static_cast<const unsigned int*>(g_InGameMovieQueue.QueueBase::Get(
+                        sizeof(unsigned int), g_InGameMovieQueue.mElements, 12));
+                }
+                const RedMovie::Properties* pProperty = RedMovie::Properties::FindByHashID(*pName);
                 if (pProperty)
                 {
                     GameMovie::sRedMovie->Play(pProperty, true);
@@ -320,9 +326,9 @@ void UpdatInGameMovie()
             g_InGameMoviePlayerState = 3;
         }
         ++g_InGameMoviePlayerFrame;
-        break;
-
-    case 3:
+    }
+    else if (g_InGameMoviePlayerState == 3)
+    {
         if (GameMovie::IsOpen())
         {
             GameMovie::Update(1.0f);
@@ -332,7 +338,6 @@ void UpdatInGameMovie()
         {
             StopInGameMoviePlay();
         }
-        break;
     }
 }
 
@@ -345,11 +350,10 @@ void GameMovie::Play(const char* const pcProperties, const char* const pcPropert
     {
         const RedMovie::Properties* pProperties =
             RedMovie::Properties::FindByHashID(PblHash(pcProperties));
-        const RedMovie::Properties* pPropertiesAtEnd = 0;
-        if (pcPropertiesAtEnd && strlen(pcPropertiesAtEnd))
-        {
-            pPropertiesAtEnd = RedMovie::Properties::FindByHashID(PblHash(pcPropertiesAtEnd));
-        }
+        const RedMovie::Properties* pPropertiesAtEnd =
+            (pcPropertiesAtEnd && strlen(pcPropertiesAtEnd))
+                ? RedMovie::Properties::FindByHashID(PblHash(pcPropertiesAtEnd))
+                : 0;
 
         if (pProperties)
         {
@@ -391,15 +395,11 @@ bool GameMovie::PropertiesPlaying(const char* const pcProperties, bool bCurrent)
 
     if (bCurrent)
     {
-        const RedMovie::Properties* const pCurrent = sRedMovie->GetProperties();
-        if (!pCurrent)
-        {
-            return false;
-        }
-        return pCurrent->GetHashID() == PblHash(pcProperties);
+        const RedMovie::Properties* pCurrent = sRedMovie->GetProperties();
+        return pCurrent ? pCurrent->GetHashID() == PblHash(pcProperties) : false;
     }
 
-    const RedMovie::Properties* const pProperties =
+    const RedMovie::Properties* pProperties =
         RedMovie::Properties::FindByHashID(PblHash(pcProperties));
     if (pProperties)
     {
@@ -431,9 +431,7 @@ void StopInGameMoviePlay()
 {
     if (g_InGameMoviePlayerState)
     {
-        LARGE_INTEGER liNow;
-        QueryPerformanceCounter(&liNow);
-        const float fElapsed = (float)(liNow.QuadPart - g_InGameMovieStartTime);
+        const float fElapsed = (float)(PblTime::GetTickCount() - g_InGameMovieStartTime);
         const float fSeconds = g_fFixedRate > 0.0f
             ? GameState::GetSystemTimeBase()->GetTime() - g_InGameMovieStartSystemTime
             : fElapsed / (float)PblTime::ticksPerSecond;

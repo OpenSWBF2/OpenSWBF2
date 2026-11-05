@@ -10,7 +10,7 @@
 
 // GLOBAL: SWBF2 0x01f6dda8
 // ShieldEffect::sMemoryPool
-MemoryPool ShieldEffect::sMemoryPool("ShieldEffect", 0xF0);
+MemoryPool ShieldEffect::sMemoryPool("ShieldEffect", sizeof(ShieldEffect));
 
 // GLOBAL: SWBF2 0x01eaf060
 ShieldEffectManager* ShieldEffectManager::s_pInstance;
@@ -295,9 +295,10 @@ void ShieldEffect::Render(unsigned char ucViewport, float, unsigned int uiFlags)
         float fScale;
         if (m_bTurnOn)
         {
-            static float s_fInvPeak = 1.0f / 0.94f;
-            static float s_fInvSettle = 1.0f / (1.0f - 0.94f);
-            if (m_fTurnOnFactor < 0.94f)
+            const float fPeak = 0.94f;
+            static float s_fInvPeak = 1.0f / fPeak;
+            static float s_fInvSettle = 1.0f / (1.0f - fPeak);
+            if (m_fTurnOnFactor < fPeak)
             {
                 fScale = m_fTurnOnFactor * 1.06f * s_fInvPeak;
             }
@@ -316,9 +317,7 @@ void ShieldEffect::Render(unsigned char ucViewport, float, unsigned int uiFlags)
         {
             for (int r = 0; r < 3; r++)
             {
-                mScaled.m[r][0] *= fScale;
-                mScaled.m[r][1] *= fScale;
-                mScaled.m[r][2] *= fScale;
+                mScaled[r] = mScaled[r] * fScale;
                 mScaled.m[r][3] = 0.0f;
             }
         }

@@ -34,24 +34,45 @@ bool StitchImage(Accumulator<RedScreenShot::Pixel>* pAccumulators, int iTilesX, 
         return false;
     }
 
-    unsigned char header[18] = { 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 24, 32 };
+    struct TgaHeader
+    {
+        unsigned char idLength;
+        unsigned char colorMapType;
+        unsigned char imageType;
+        unsigned char colorMapSpec[5];
+        unsigned short xOrigin;
+        unsigned short yOrigin;
+        unsigned short width;
+        unsigned short height;
+        unsigned char bitsPerPixel;
+        unsigned char descriptor;
+    };
     const unsigned short outWidth = static_cast<unsigned short>(uiWidth * iTilesX);
     const unsigned short outHeight = static_cast<unsigned short>(uiHeight * iTilesY);
-    header[12] = static_cast<unsigned char>(outWidth);
-    header[13] = static_cast<unsigned char>(outWidth >> 8);
-    header[14] = static_cast<unsigned char>(outHeight);
-    header[15] = static_cast<unsigned char>(outHeight >> 8);
-    file.WriteData(header, sizeof(header));
+    TgaHeader header;
+    header.idLength = 0;
+    header.colorMapType = 0;
+    header.imageType = 2;
+    header.bitsPerPixel = 24;
+    header.descriptor = 32;
+    header.width = outWidth;
+    memset(header.colorMapSpec, 0, sizeof(header.colorMapSpec));
+    header.xOrigin = 0;
+    header.yOrigin = 0;
+    header.height = outHeight;
+    file.WriteData(&header, sizeof(header));
 
-    unsigned char* pBuffer = new unsigned char[24 * uiWidth];
-    unsigned char* pNext = pBuffer;
     const int iRowBytes = 3 * uiWidth;
+    const int iBufferSize = 8 * iRowBytes;
+    unsigned char* pBuffer = new unsigned char[iBufferSize];
+    unsigned char* const pBufferEnd = pBuffer + iBufferSize;
+    unsigned char* pNext = pBuffer;
     int iPixelBase = 0;
     for (unsigned int y = 0; y < outHeight; ++y)
     {
         for (int iTileY = 0; iTileY < iTilesY; ++iTileY)
         {
-            for (unsigned int x = 0; x < uiWidth; ++x)
+            for (int x = 0; x < uiWidth; ++x)
             {
                 const int iPixelIndex = x + iPixelBase;
                 for (int iTileX = 0; iTileX < iTilesX; ++iTileX)
@@ -62,7 +83,7 @@ bool StitchImage(Accumulator<RedScreenShot::Pixel>* pAccumulators, int iTilesX, 
                     *pNext++ = gamma.green[static_cast<unsigned char>(static_cast<int>(pixel.g / iSamplesPerPixel * 255.0f))];
                     *pNext++ = gamma.red[static_cast<unsigned char>(static_cast<int>(pixel.r / iSamplesPerPixel * 255.0f))];
                 }
-                if (pNext + iRowBytes > pBuffer + 24 * uiWidth)
+                if (pNext + iRowBytes > pBufferEnd)
                 {
                     file.WriteData(pBuffer, static_cast<int>(pNext - pBuffer));
                     pNext = pBuffer;
@@ -116,14 +137,15 @@ bool Accumulator<T>::Open()
 template <class T>
 void Accumulator<T>::Clear(int iValue, int iNumBytes)
 {
+    int iRemaining = iNumBytes;
     int iBufferBytes = m_bufferSize * sizeof(T);
     m_file.Seek(0, PblFile::SeekFromStart);
     memset(m_buffer, iValue, iBufferBytes);
-    while (iNumBytes)
+    while (iRemaining)
     {
-        int iWrite = iNumBytes > iBufferBytes ? iBufferBytes : iNumBytes;
+        int iWrite = iRemaining > iBufferBytes ? iBufferBytes : iRemaining;
         m_file.WriteData(m_buffer, iWrite);
-        iNumBytes -= iWrite;
+        iRemaining -= iWrite;
     }
     m_file.Seek(0, PblFile::SeekFromStart);
     m_file.ReadData(m_buffer, m_bufferSize * sizeof(T));
@@ -201,31 +223,31 @@ void GetFrameBufferDimensions(unsigned int& uiWidth, unsigned int& uiHeight)
 bool GetPoissonDiscSamples(SamplePoint* pSamples, int iNumSamples, const SamplePoint& start,
                            float fMinDist, const SamplePoint& min, const SamplePoint& max)
 {
-    pSamples[0] = start;
     const float fMinDistSq = fMinDist * fMinDist;
-    for (int i = 1; i < iNumSamples; ++i)
+    pSamples[0] = start;
+    --iNumSamples;
+    int iNew = 1;
+    for (int i = 0; i < iNumSamples; ++i, ++iNew)
     {
         int iAttempts = 0;
-        for (;;)
+        bool bPlaced = false;
+        while (!bPlaced)
         {
-            pSamples[i].x = (max.x - min.x) * PblRandom::_Global.GetFloat() + min.x;
-            pSamples[i].y = (max.y - min.y) * PblRandom::_Global.GetFloat() + min.y;
+            pSamples[iNew].x = (max.x - min.x) * PblRandom::_Global.GetFloat() + min.x;
+            pSamples[iNew].y = (max.y - min.y) * PblRandom::_Global.GetFloat() + min.y;
 
-            int j;
-            for (j = 0; j < i; ++j)
+            bPlaced = true;
+            for (int j = 0; j < iNew; ++j)
             {
-                float dx = pSamples[i].x - pSamples[j].x;
-                float dy = pSamples[i].y - pSamples[j].y;
+                float dy = pSamples[iNew].y - pSamples[j].y;
+                float dx = pSamples[iNew].x - pSamples[j].x;
                 if (fMinDistSq > dx * dx + dy * dy)
                 {
+                    bPlaced = false;
                     break;
                 }
             }
-            if (j == i)
-            {
-                break;
-            }
-            if (++iAttempts >= 100)
+            if (!bPlaced && ++iAttempts >= 100)
             {
                 return false;
             }
@@ -242,15 +264,17 @@ bool GetScreenShotFileName(char* const pcFileName)
         _mkdir("ScreenShots");
     }
 
+    bool bFound = false;
     for (int i = 0; i < 10000; ++i)
     {
         sprintf(pcFileName, "ScreenShots\\screenshot_%04d.tga", i);
         if (!PblFile::Exists(pcFileName))
         {
-            return true;
+            bFound = true;
+            break;
         }
     }
-    return false;
+    return bFound;
 }
 
 // FUNCTION: SWBF2 0x006f34c0
@@ -275,12 +299,15 @@ void AccumulateFrameBuffer(Accumulator<Pixel>& accum)
         const unsigned int* pRow = (const unsigned int*)((unsigned char*)rect.pBits + rect.Pitch * y);
         for (unsigned short x = 0; x < desc.Width; ++x)
         {
-            unsigned int uColor = pRow[x];
+            const unsigned char ucBlue = (unsigned char)pRow[x];
+            const unsigned int uColor = pRow[x];
+            const unsigned char ucGreen = (unsigned char)(uColor >> 8);
+            const unsigned char ucRed = (unsigned char)(uColor >> 16);
             int iIndex = x + desc.Width * y;
             Pixel pixel = accum.Get(iIndex);
-            pixel.r += (unsigned char)(uColor >> 16) / 255.0f;
-            pixel.g += (unsigned char)(uColor >> 8) / 255.0f;
-            pixel.b += (unsigned char)uColor / 255.0f;
+            pixel.r += ucRed / 255.0f;
+            pixel.g += ucGreen / 255.0f;
+            pixel.b += ucBlue / 255.0f;
             accum.Set(iIndex, pixel);
         }
     }
@@ -309,8 +336,8 @@ void TakeScreenShot()
     const int iIncrease = size_increase;
     const int iNumTiles = iIncrease * iIncrease;
     SamplePoint* pSamples = new SamplePoint[samples_per_pixel];
-    const SamplePoint start = { 0.5f, 0.5f };
     const SamplePoint min = { 0.0f, 0.0f };
+    const SamplePoint start = { 0.5f, 0.5f };
     const SamplePoint max = { 1.0f / iIncrease, 1.0f / iIncrease };
     if (!GetPoissonDiscSamples(pSamples, samples_per_pixel, start, 0.08f, min, max))
     {
@@ -319,7 +346,6 @@ void TakeScreenShot()
     }
 
     Accumulator<Pixel>* pAccums = new Accumulator<Pixel>[iNumTiles];
-    int iOpened = 0;
     for (int i = 0; i < iNumTiles; ++i)
     {
         if (!pAccums[i].Open())
@@ -328,7 +354,6 @@ void TakeScreenShot()
             delete[] pSamples;
             return;
         }
-        ++iOpened;
         pAccums[i].Clear(0, 12 * uiWidth * uiHeight);
     }
 
@@ -356,15 +381,16 @@ void TakeScreenShot()
     const float fTileStep = 1.0f / iIncrease;
     for (int y = 0; y < iIncrease; ++y)
     {
+        const float fOffsetY = -y * fTileStep;
         for (int x = 0; x < iIncrease; ++x)
         {
-            Accumulator<Pixel>& accum = pAccums[y * iIncrease + x];
+            const float fOffsetX = -x * fTileStep;
             for (int iSample = 0; iSample < samples_per_pixel; ++iSample)
             {
-                RedRenderer::SetScreenOffset(pSamples[iSample].x - x * fTileStep - 0.5f,
-                                             pSamples[iSample].y - y * fTileStep - 0.5f);
+                RedRenderer::SetScreenOffset(pSamples[iSample].x + fOffsetX - 0.5f,
+                                             pSamples[iSample].y + fOffsetY - 0.5f);
                 FLRenderer::Render();
-                AccumulateFrameBuffer(accum);
+                AccumulateFrameBuffer(pAccums[y * iIncrease + x]);
             }
         }
     }
@@ -372,7 +398,7 @@ void TakeScreenShot()
     RedScreenShot::StitchImage(pAccums, iIncrease, iIncrease, samples_per_pixel, gamma, acFileName,
                 static_cast<unsigned short>(uiWidth), static_cast<unsigned short>(uiHeight));
 
-    for (int i = 0; i < iOpened; ++i)
+    for (int i = 0; i < iNumTiles; ++i)
     {
         if (pAccums[i].m_file.IsOpen())
         {

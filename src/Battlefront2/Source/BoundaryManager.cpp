@@ -173,8 +173,7 @@ bool Boundary::IsInBounds(const PblVector3& vPos) const
 {
     for (int i = 0; i < mCount; ++i)
     {
-        const Edge& edge = mEdges[i];
-        if ((vPos.z - edge.z) * edge.nz + (vPos.x - edge.x) * edge.nx > 0.0f)
+        if ((vPos.z - mEdges[i].z) * mEdges[i].nz + (vPos.x - mEdges[i].x) * mEdges[i].nx > 0.0f)
         {
             return false;
         }
@@ -185,10 +184,14 @@ bool Boundary::IsInBounds(const PblVector3& vPos) const
 // FUNCTION: SWBF2 0x0044e2c0
 void Boundary::AddEdge(int i, const PblVector3& vStart, const PblVector3& vEnd)
 {
-    mEdges[i].x = vStart.x;
-    mEdges[i].z = vStart.z;
-    mEdges[i].nx = -(vEnd.z - vStart.z);
-    mEdges[i].nz = vEnd.x - vStart.x;
+    const float fStartX = vStart.x;
+    const float fStartZ = vStart.z;
+    const float fEndX = vEnd.x;
+    const float fEndZ = vEnd.z;
+    mEdges[i].x = fStartX;
+    mEdges[i].z = fStartZ;
+    mEdges[i].nx = -(fEndZ - fStartZ);
+    mEdges[i].nz = fEndX - fStartX;
 }
 
 // FUNCTION: SWBF2 0x0044dee0

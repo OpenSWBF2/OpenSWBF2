@@ -144,8 +144,10 @@ void SoldierAnimator::SetNewOwner(unsigned int uiOwnerId, const EntitySoldier* p
     mWeaponAnim = SoldierAnimType::WEAPON_IDLE;
     mWeaponMeleeAnim = NO_MELEE_ANIM;
     mWeaponMeleeAnimNext = NO_MELEE_ANIM;
-    m_bUseDirectionalJumps = pOwner ? SoldierClass(pOwner)->m_bUseDirectionalJumps : true;
-    m_bUseDirectionalDeaths = pOwner ? SoldierClass(pOwner)->m_bUseDirectionalDeaths : true;
+    bool bDirectionalJumps = pOwner ? SoldierClass(pOwner)->m_bUseDirectionalJumps : true;
+    m_bUseDirectionalJumps = bDirectionalJumps;
+    bool bDirectionalDeaths = pOwner ? SoldierClass(pOwner)->m_bUseDirectionalDeaths : true;
+    m_bUseDirectionalDeaths = bDirectionalDeaths;
     mZephyrSkeleton.SetSharedSkeleton(pSkeleton ? pSkeleton : SoldierAnimatorClass::Instance()->GetDefaultSkeleton());
     mUpperBodyAnimMask = upperBodyMask;
     mLowerBodyAnimMask = lowerBodyMask;
@@ -185,9 +187,13 @@ bool SoldierAnimator::RestartJumpAnimation(float fForward, float fSide, bool bFo
 {
     SoldierAnimType::ActionAnimation ePrevAction = mAction;
 
-    if (m_bUseDirectionalJumps && fForward * fForward + fSide * fSide >= 0.0625f)
+    if (!m_bUseDirectionalJumps || fForward * fForward + fSide * fSide < 0.0625f)
     {
-        float fAbsSide = fabsf(fSide);
+        mAction = SoldierAnimType::JUMP_UP;
+    }
+    else
+    {
+        float fAbsSide = fSide < 0.0f ? -fSide : fSide;
         if (fForward > fAbsSide)
         {
             mAction = SoldierAnimType::JUMP_FORWARD;
@@ -198,28 +204,27 @@ bool SoldierAnimator::RestartJumpAnimation(float fForward, float fSide, bool bFo
         }
         else
         {
-            mAction = fSide <= 0.0f ? SoldierAnimType::JUMP_RIGHT : SoldierAnimType::JUMP_LEFT;
+            mAction = fSide > 0.0f ? SoldierAnimType::JUMP_LEFT : SoldierAnimType::JUMP_RIGHT;
         }
     }
-    else
-    {
-        mAction = SoldierAnimType::JUMP_UP;
-    }
 
+    bool bRestarted = false;
     if (ePrevAction == mAction)
     {
         if (bForce || mAction == SoldierAnimType::JUMP_UP || mAction == SoldierAnimType::JUMP_FORWARD)
         {
             mActionTime = 0.0f;
             m_bRestartJumpForJedi = true;
-            return true;
+            bRestarted = true;
         }
-        return false;
     }
-
-    mActionTime = 0.0f;
-    m_bFirstTime = false;
-    return true;
+    else
+    {
+        mActionTime = 0.0f;
+        m_bFirstTime = false;
+        bRestarted = true;
+    }
+    return bRestarted;
 }
 
 // FUNCTION: SWBF2 0x0063ed60
@@ -241,12 +246,8 @@ void SoldierAnimator::SetAction(SoldierState::SoldierState eState, const PblMatr
     }
     else
     {
-        const PblVector3& newPos = legMatrix.GetTranslation();
-        const PblVector3& oldPos = mLegMatrix.GetTranslation();
-        mMovement.x = newPos.x - oldPos.x;
-        mMovement.y = newPos.y - oldPos.y;
-        mMovement.z = newPos.z - oldPos.z;
-        if (mMovement.x * mMovement.x + mMovement.y * mMovement.y + mMovement.z * mMovement.z > 100.0f)
+        mMovement = legMatrix.GetTranslation() - mLegMatrix.GetTranslation();
+        if (SquaredLength(mMovement) > 100.0f)
         {
             mMovement.z = 0.0f;
             mMovement.y = 0.0f;
@@ -275,17 +276,22 @@ void SoldierAnimator::SetAction(SoldierState::SoldierState eState, const PblMatr
 
     switch (eState)
     {
+    case SoldierState::HERO_FLEE:
+        mPosture = SoldierAnimType::CROUCH;
+        mAction = SoldierAnimType::DEAD_HERO_STUN;
+        mActionTime = 0.0f;
+        break;
+
     case SoldierState::STAND:
     case SoldierState::CROUCH:
     case SoldierState::PRONE:
     case SoldierState::SPRINT:
     {
-        SoldierAnimType::Posture ePosture =
-            eState == SoldierState::SPRINT ? SoldierAnimType::STAND : (SoldierAnimType::Posture)eState;
         SoldierAnimType::ActionAnimation eAction = mAction;
         if (eAction != SoldierAnimType::MOVE && eAction != SoldierAnimType::SPRINT && !bFirstTime)
         {
-
+            SoldierAnimType::Posture ePosture =
+                eState == SoldierState::SPRINT ? SoldierAnimType::STAND : (SoldierAnimType::Posture)eState;
             mPosture = ePosture;
             if (ePosture == SoldierAnimType::CROUCH)
             {
@@ -328,7 +334,7 @@ void SoldierAnimator::SetAction(SoldierState::SoldierState eState, const PblMatr
         }
         else if (bFirstTime)
         {
-            mPosture = ePosture;
+            mPosture = eState == SoldierState::SPRINT ? SoldierAnimType::STAND : (SoldierAnimType::Posture)eState;
             if (eState == SoldierState::SPRINT)
             {
                 mAction = SoldierAnimType::SPRINT;
@@ -342,6 +348,8 @@ void SoldierAnimator::SetAction(SoldierState::SoldierState eState, const PblMatr
                 break;
             }
             mActionTime = 0.0f;
+            SoldierAnimType::Posture ePosture =
+                eState == SoldierState::SPRINT ? SoldierAnimType::STAND : (SoldierAnimType::Posture)eState;
             switch (eState)
             {
             case SoldierState::STAND:
@@ -400,6 +408,12 @@ void SoldierAnimator::SetAction(SoldierState::SoldierState eState, const PblMatr
         break;
     }
 
+    case SoldierState::ROLL:
+    case SoldierState::TUMBLE_RECOVER:
+        mAction = SoldierAnimType::DIVE;
+        mActionTime = 0.0f;
+        break;
+
     case SoldierState::JUMP:
     {
         mActionTime = 0.0f;
@@ -418,9 +432,9 @@ void SoldierAnimator::SetAction(SoldierState::SoldierState eState, const PblMatr
             fSide = 0.0f;
             fForward = 0.0f;
         }
-        if (m_bUseDirectionalJumps && fSide * fSide + fForward * fForward >= 4.0f)
+        if (m_bUseDirectionalJumps && !(fSide * fSide + fForward * fForward < 4.0f))
         {
-            float fAbsSide = fabsf(fSide);
+            float fAbsSide = (fSide < 0.0f ? -fSide : fSide);
             if (fForward > fAbsSide)
             {
                 mAction = SoldierAnimType::JUMP_FORWARD;
@@ -431,7 +445,7 @@ void SoldierAnimator::SetAction(SoldierState::SoldierState eState, const PblMatr
             }
             else
             {
-                mAction = fSide <= 0.0f ? SoldierAnimType::JUMP_RIGHT : SoldierAnimType::JUMP_LEFT;
+                mAction = fSide > 0.0f ? SoldierAnimType::JUMP_LEFT : SoldierAnimType::JUMP_RIGHT;
             }
         }
         else
@@ -440,12 +454,6 @@ void SoldierAnimator::SetAction(SoldierState::SoldierState eState, const PblMatr
         }
         break;
     }
-
-    case SoldierState::ROLL:
-    case SoldierState::TUMBLE_RECOVER:
-        mAction = SoldierAnimType::DIVE;
-        mActionTime = 0.0f;
-        break;
 
     case SoldierState::JET_JUMP:
     case SoldierState::JET_HOVER:
@@ -473,7 +481,7 @@ void SoldierAnimator::SetAction(SoldierState::SoldierState eState, const PblMatr
         float fForward = z.y * mMovement.y + z.x * mMovement.x + z.z * mMovement.z;
         float fSide = mMovement.y * x.y + mMovement.x * x.x + mMovement.z * x.z;
         mActionTime = 0.0f;
-        if (fabsf(fForward) > fabsf(fSide))
+        if ((fForward < 0.0f ? -fForward : fForward) > (fSide < 0.0f ? -fSide : fSide))
         {
             mAction = fForward < 0.0f ? SoldierAnimType::FLY_BACKWARD : SoldierAnimType::FLY_FORWARD;
         }
@@ -491,7 +499,7 @@ void SoldierAnimator::SetAction(SoldierState::SoldierState eState, const PblMatr
                    mMovement.z * mLegMatrix.m[0][2];
         float fZ = mLegMatrix.m[2][1] * mMovement.y + mLegMatrix.m[2][0] * mMovement.x +
                    mLegMatrix.m[2][2] * mMovement.z;
-        if (fabsf(fX) > 0.05f || fabsf(fZ) > 0.05f)
+        if ((fX < 0.0f ? -fX : fX) > 0.05f || (fZ < 0.0f ? -fZ : fZ) > 0.05f)
         {
             mLegAngle = atan2f(fX, fZ);
         }
@@ -513,21 +521,6 @@ void SoldierAnimator::SetAction(SoldierState::SoldierState eState, const PblMatr
         break;
     }
 
-    case SoldierState::FLY_RECOVER:
-        mActionTime = 0.0f;
-        if (mLegMatrix.m[2][1] * mMovement.y + mLegMatrix.m[2][0] * mMovement.x +
-                mLegMatrix.m[2][2] * mMovement.z > 0.0f)
-        {
-            mAction = SoldierAnimType::TUMBLE_FORWARD;
-        }
-        else
-        {
-            mAction = SoldierAnimType::TUMBLE_BACKWARD;
-            mLegAngle -= 3.1415927f;
-        }
-        mLegAngle = UnitCircleNormalize(mLegAngle);
-        break;
-
     case SoldierState::BOUNCE:
     {
         const SoldierAnimation* pAnim =
@@ -539,14 +532,27 @@ void SoldierAnimator::SetAction(SoldierState::SoldierState eState, const PblMatr
                 float fCycles = mActionTime /
                                 ((float)(pAnim->GetAnimationNumFrames() - 1) * (1.0f / 30.0f) * 0.5f);
                 float fPhase = fCycles - (float)(int)fCycles;
-                bool bMid = fPhase > 0.4f && fPhase < 0.9f;
                 if (mAction == SoldierAnimType::TUMBLE_FORWARD)
                 {
-                    mAction = bMid ? SoldierAnimType::LAND_BACK : SoldierAnimType::LAND_FRONT;
+                    if (fPhase > 0.4f && fPhase < 0.9f)
+                    {
+                        mAction = SoldierAnimType::LAND_BACK;
+                    }
+                    else
+                    {
+                        mAction = SoldierAnimType::LAND_FRONT;
+                    }
                 }
                 else
                 {
-                    mAction = bMid ? SoldierAnimType::LAND_FRONT : SoldierAnimType::LAND_BACK;
+                    if (fPhase > 0.4f && fPhase < 0.9f)
+                    {
+                        mAction = SoldierAnimType::LAND_FRONT;
+                    }
+                    else
+                    {
+                        mAction = SoldierAnimType::LAND_BACK;
+                    }
                 }
             }
             else if (mRotAngle > 3.1415927f)
@@ -566,54 +572,66 @@ void SoldierAnimator::SetAction(SoldierState::SoldierState eState, const PblMatr
         break;
     }
 
+    case SoldierState::FLY_RECOVER:
+        mActionTime = 0.0f;
+        if (mLegMatrix.m[2][1] * mMovement.y + mLegMatrix.m[2][0] * mMovement.x +
+                mLegMatrix.m[2][2] * mMovement.z > 0.0f)
+        {
+            mAction = SoldierAnimType::TUMBLE_FORWARD;
+        }
+        else
+        {
+            mAction = SoldierAnimType::TUMBLE_BACKWARD;
+            mLegAngle -= 3.1415927f;
+        }
+        mLegAngle = UnitCircleNormalize(mLegAngle);
+        break;
+
+    case SoldierState::DEAD:
+        if (m_bUseDirectionalDeaths)
+        {
+            if (mAction == SoldierAnimType::BOUNCE_FRONT || mAction == SoldierAnimType::LAND_FRONT ||
+                mAction == SoldierAnimType::GETUP_FRONT ||
+                (mAction == SoldierAnimType::MOVE && mPosture == SoldierAnimType::PRONE))
+            {
+                mAction = SoldierAnimType::DEAD_BELLY;
+            }
+            else if (mAction == SoldierAnimType::BOUNCE_BACK || mAction == SoldierAnimType::GETUP_BACK ||
+                     mAction == SoldierAnimType::LAND_BACK)
+            {
+                mAction = SoldierAnimType::DEAD_ASS;
+            }
+            else
+            {
+                mOverlayTime = 0.0f;
+                switch (m_eLastHitDir)
+                {
+                case 1:
+                    mAction = SoldierAnimType::DIE_LEFT;
+                    break;
+                case 2:
+                    mAction = SoldierAnimType::DIE_BACKWARD;
+                    break;
+                case 3:
+                    mAction = SoldierAnimType::DIE_RIGHT;
+                    break;
+                default:
+                    mAction = SoldierAnimType::DIE_FORWARD;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            mAction = SoldierAnimType::DIE_BACKWARD;
+        }
+        mActionTime = 0.0f;
+        break;
+
     case SoldierState::CHOKE:
     case SoldierState::PILOT_ANIMATION:
     case SoldierState::ARMED_PASSENGER:
         mAnimationHash = uiAnimationHash;
-        break;
-
-    case SoldierState::DEAD:
-        if (!m_bUseDirectionalDeaths)
-        {
-            mAction = SoldierAnimType::DIE_BACKWARD;
-        }
-        else if (mAction == SoldierAnimType::BOUNCE_FRONT || mAction == SoldierAnimType::LAND_FRONT ||
-                 mAction == SoldierAnimType::GETUP_FRONT ||
-                 (mAction == SoldierAnimType::MOVE && mPosture == SoldierAnimType::PRONE))
-        {
-            mAction = SoldierAnimType::DEAD_BELLY;
-        }
-        else if (mAction == SoldierAnimType::BOUNCE_BACK || mAction == SoldierAnimType::GETUP_BACK ||
-                 mAction == SoldierAnimType::LAND_BACK)
-        {
-            mAction = SoldierAnimType::DEAD_ASS;
-        }
-        else
-        {
-            mOverlayTime = 0.0f;
-            switch (m_eLastHitDir)
-            {
-            case 1:
-                mAction = SoldierAnimType::DIE_LEFT;
-                break;
-            case 2:
-                mAction = SoldierAnimType::DIE_BACKWARD;
-                break;
-            case 3:
-                mAction = SoldierAnimType::DIE_RIGHT;
-                break;
-            default:
-                mAction = SoldierAnimType::DIE_FORWARD;
-                break;
-            }
-        }
-        mActionTime = 0.0f;
-        break;
-
-    case SoldierState::HERO_FLEE:
-        mPosture = SoldierAnimType::CROUCH;
-        mAction = SoldierAnimType::DEAD_HERO_STUN;
-        mActionTime = 0.0f;
         break;
 
     case SoldierState::SLIDE:
@@ -667,7 +685,10 @@ void SoldierAnimator::SetWeaponState(int eState, float fTime, bool bRestart, boo
         (mAction == SoldierAnimType::MOVE || mAction == SoldierAnimType::JET || mAction == SoldierAnimType::LAND_SOFT) &&
         mWeaponAnim >= SoldierAnimType::SHOOT)
     {
-        bIdleOk = mWeaponAnim <= SoldierAnimType::SHOOT_SECONDARY2;
+        if (mWeaponAnim <= SoldierAnimType::SHOOT_SECONDARY2)
+        {
+            bIdleOk = true;
+        }
     }
 
     if (eAnim == SoldierAnimType::WEAPON_IDLE && bIdleOk)
@@ -678,11 +699,7 @@ void SoldierAnimator::SetWeaponState(int eState, float fTime, bool bRestart, boo
     }
 
     mWeaponAnimationRate = 1.0f;
-    if (eAnim == SoldierAnimType::WEAPON_IDLE)
-    {
-        m_bAnimVelocityMatched = false;
-    }
-    else
+    if (eAnim != SoldierAnimType::WEAPON_IDLE)
     {
         mWeaponAnimationRate = 1.0f;
         m_bAnimVelocityMatched = eAnim != mWeaponAnim;
@@ -695,6 +712,10 @@ void SoldierAnimator::SetWeaponState(int eState, float fTime, bool bRestart, boo
                 mWeaponAnimationRate = (float)(pAnim->GetAnimationNumFrames() - 1) * (1.0f / 30.0f) / fTime;
             }
         }
+    }
+    else
+    {
+        m_bAnimVelocityMatched = false;
     }
 
     mWeaponAnim = eAnim;
@@ -831,37 +852,14 @@ void SoldierAnimator::SetupPose(RedPose& pose)
     bool bRotate = false;
     switch (mAction)
     {
-    case SoldierAnimType::SPRINT:
+    case SoldierAnimType::DIVE:
     {
-        const SoldierAnimation* pAnim =
-            pClass->GetLowerBodyActionAnimation(SoldierAnimType::SPRINT, mWeaponAnimationMap);
-        float fAngle = 0.0f;
-        float fSpeed = 1.0f;
-        if (fDeltaTime > 0.0f)
-        {
-            bool bFirstPerson = false;
-            if (mOwner)
-            {
-                Tracker* pTracker = mOwner->GetTracker();
-                if (pTracker && pTracker->IsFirstPersonView() &&
-                    NetGame::GetJoystickIndex(mOwner->GetPlayerId()) >= 0)
-                {
-                    bFirstPerson = true;
-                }
-            }
-            const PblVector3& z = mLegMatrix.GetZAxis();
-            const PblVector3& x = mLegMatrix.GetXAxis();
-            float fForward = (z.y * mMovement.y + mMovement.x * z.x + z.z * mMovement.z) / fDeltaTime;
-            float fSide = (mMovement.y * x.y + x.x * mMovement.x + mMovement.z * x.z) / fDeltaTime;
-            fAngle = atan2f(fSide, fForward);
-            fSpeed = sqrtf(fSide * fSide + fForward * fForward) / pAnim->GetVelocityZ();
-            if (bFirstPerson)
-            {
-                fSpeed *= FIRST_PERSON_ANIMATION_SCALE;
-            }
-        }
-        UpdateActionAnimation(mAction, fDeltaTime, fSpeed, fAngle, 0.0f, false);
-        mMoveAnimation = SoldierAnimType::RUN_FORWARD;
+        const PblVector3& z = mLegMatrix.GetZAxis();
+        const PblVector3& x = mLegMatrix.GetXAxis();
+        UpdateActionAnimation(SoldierAnimType::DIVE, fDeltaTime, 1.0f,
+                              atan2f(mMovement.y * x.y + mMovement.x * x.x + mMovement.z * x.z,
+                                     z.y * mMovement.y + z.x * mMovement.x + z.z * mMovement.z),
+                              0.0f, false);
         break;
     }
 
@@ -890,22 +888,6 @@ void SoldierAnimator::SetupPose(RedPose& pose)
         break;
     }
 
-    case SoldierAnimType::JUMP_FLY:
-        if (mSoldierAction == SoldierState::FALL && mActionTime > 3.0f)
-        {
-            mAction = SoldierAnimType::FLY_FLAIL;
-        }
-        UpdateActionAnimation(mAction, fDeltaTime, 1.0f, 0.0f, 0.0f, false);
-        break;
-
-    case SoldierAnimType::FLY_FLAIL:
-        if (mSoldierAction != SoldierState::FALL)
-        {
-            bRotate = true;
-        }
-        UpdateActionAnimation(SoldierAnimType::FLY_FLAIL, fDeltaTime, 1.0f, 0.0f, 0.0f, false);
-        break;
-
     case SoldierAnimType::FLY_FORWARD:
     case SoldierAnimType::FLY_BACKWARD:
     case SoldierAnimType::FLY_LEFT:
@@ -921,13 +903,13 @@ void SoldierAnimator::SetupPose(RedPose& pose)
             const PblVector3& x = mLegMatrix.GetXAxis();
             float fForward = z.y * mMovement.y + z.x * mMovement.x + z.z * mMovement.z;
             float fSide = mMovement.y * x.y + mMovement.x * x.x + mMovement.z * x.z;
-            if (fabsf(fForward) > fabsf(fSide))
+            if ((fForward < 0.0f ? -fForward : fForward) > (fSide < 0.0f ? -fSide : fSide))
             {
-                mAction = fForward < 0.0f ? SoldierAnimType::FLY_BACKWARD : SoldierAnimType::FLY_FORWARD;
+                mAction = fForward >= 0.0f ? SoldierAnimType::FLY_FORWARD : SoldierAnimType::FLY_BACKWARD;
             }
             else
             {
-                mAction = fSide < 0.0f ? SoldierAnimType::FLY_RIGHT : SoldierAnimType::FLY_LEFT;
+                mAction = fSide >= 0.0f ? SoldierAnimType::FLY_LEFT : SoldierAnimType::FLY_RIGHT;
             }
         }
         UpdateActionAnimation(mAction, fDeltaTime, 1.0f, 0.0f, 0.0f, false);
@@ -956,8 +938,8 @@ void SoldierAnimator::SetupPose(RedPose& pose)
         else
         {
             float fZ = z.y * mMovement.y + z.x * mMovement.x + z.z * mMovement.z;
-            float fX = mMovement.y * x.y + x.x * mMovement.x + mMovement.z * x.z;
-            if (fabsf(fX) > 0.05f || fabsf(fZ) > 0.05f)
+            float fX = mMovement.y * x.y + mMovement.x * x.x + mMovement.z * x.z;
+            if ((fX < 0.0f ? -fX : fX) > 0.05f || (fZ < 0.0f ? -fZ : fZ) > 0.05f)
             {
                 mLegAngle = atan2f(fX, fZ);
                 if (mAction == SoldierAnimType::TUMBLE_BACKWARD)
@@ -969,7 +951,7 @@ void SoldierAnimator::SetupPose(RedPose& pose)
             float fSpeed;
             if (fDeltaTime > 0.0f)
             {
-                fSpeed = sqrtf(mMovement.x * mMovement.x + mMovement.y * mMovement.y + mMovement.z * mMovement.z) /
+                fSpeed = PblMath::Sqrt(mMovement.x * mMovement.x + mMovement.y * mMovement.y + mMovement.z * mMovement.z) /
                          (fDeltaTime * 10.0f);
             }
             else
@@ -991,6 +973,22 @@ void SoldierAnimator::SetupPose(RedPose& pose)
         UpdateActionAnimation(mAction, fDeltaTime, 1.0f, mLegAngle, 0.0f, false);
         break;
 
+    case SoldierAnimType::FLY_FLAIL:
+        if (mSoldierAction != SoldierState::FALL)
+        {
+            bRotate = true;
+        }
+        UpdateActionAnimation(SoldierAnimType::FLY_FLAIL, fDeltaTime, 1.0f, 0.0f, 0.0f, false);
+        break;
+
+    case SoldierAnimType::JUMP_FLY:
+        if (mSoldierAction == SoldierState::FALL && mActionTime > 3.0f)
+        {
+            mAction = SoldierAnimType::FLY_FLAIL;
+        }
+        UpdateActionAnimation(mAction, fDeltaTime, 1.0f, 0.0f, 0.0f, false);
+        break;
+
     case SoldierAnimType::DEAD_BELLY:
     case SoldierAnimType::DEAD_ASS:
     case SoldierAnimType::DEAD_HERO_STUN:
@@ -998,43 +996,11 @@ void SoldierAnimator::SetupPose(RedPose& pose)
     case SoldierAnimType::DIE_BACKWARD:
     case SoldierAnimType::DIE_LEFT:
     case SoldierAnimType::DIE_RIGHT:
-
         if (m_bFirstTime)
         {
             fDeltaTime = 2.0f;
         }
         UpdateActionAnimation(mAction, fDeltaTime, 1.0f, mLegAngle, 0.0f, false);
-        break;
-
-    case SoldierAnimType::DIVE:
-    {
-        const PblVector3& z = mLegMatrix.GetZAxis();
-        const PblVector3& x = mLegMatrix.GetXAxis();
-        float fAngle = atan2f(mMovement.y * x.y + mMovement.x * x.x + mMovement.z * x.z,
-                              z.y * mMovement.y + z.x * mMovement.x + z.z * mMovement.z);
-        UpdateActionAnimation(SoldierAnimType::DIVE, fDeltaTime, 1.0f, fAngle, 0.0f, false);
-        break;
-    }
-
-    case SoldierAnimType::JET:
-        UpdateActionAnimation(SoldierAnimType::JET, fDeltaTime, 1.0f, 0.0f, 0.0f, true);
-        break;
-
-    case SoldierAnimType::LAND_SOFT:
-        if (UpdateActionAnimation(SoldierAnimType::LAND_SOFT, fDeltaTime, 1.0f, mLegAngle * 0.9f, 0.0f, true))
-        {
-            mAction = SoldierAnimType::MOVE;
-        }
-        else
-        {
-            Controllable* pControllable = mOwner->mCharacter ? mOwner->mCharacter->GetControllable() : 0;
-            bool bMoving = pControllable &&
-                           (pControllable->mControlMove != 0.0f || pControllable->mControlStrafe != 0.0f);
-            if (fDeltaTime > 0.0f && mActionTime > 0.0f && (m_bAnimControlledMove || bMoving))
-            {
-                mAction = SoldierAnimType::MOVE;
-            }
-        }
         break;
 
     case SoldierAnimType::LAND_HARD:
@@ -1050,14 +1016,45 @@ void SoldierAnimator::SetupPose(RedPose& pose)
         }
         break;
 
+    case SoldierAnimType::LAND_SOFT:
+        if (UpdateActionAnimation(SoldierAnimType::LAND_SOFT, fDeltaTime, 1.0f, mLegAngle * 0.9f, 0.0f, true))
+        {
+            mAction = SoldierAnimType::MOVE;
+        }
+        else
+        {
+            Controllable* pControllable = 0;
+            if (mOwner->mCharacter)
+            {
+                pControllable = mOwner->mCharacter->GetControllable();
+            }
+            bool bMoving = false;
+            if (pControllable && (pControllable->mControlMove != 0.0f || pControllable->mControlStrafe != 0.0f))
+            {
+                bMoving = true;
+            }
+            if (fDeltaTime > 0.0f && mActionTime > 0.0f && (m_bAnimControlledMove || bMoving))
+            {
+                mAction = SoldierAnimType::MOVE;
+            }
+        }
+        break;
+
     case SoldierAnimType::GETUP_FRONT:
     case SoldierAnimType::GETUP_BACK:
     case SoldierAnimType::PRONE_TO_STAND:
     case SoldierAnimType::CROUCH_TO_PRONE:
     case SoldierAnimType::PRONE_TO_CROUCH:
-        if (UpdateActionAnimation(mAction, fDeltaTime, 1.0f, mLegAngle * 0.9f, 0.0f, false) ||
-            (fDeltaTime > 0.0f && mActionTime > 0.3f &&
-             mMovement.x * mMovement.x + mMovement.z * mMovement.z > fDeltaTime * 0.3f * 0.3f * fDeltaTime))
+        if (UpdateActionAnimation(mAction, fDeltaTime, 1.0f, mLegAngle * 0.9f, 0.0f, false))
+        {
+            mAction = SoldierAnimType::MOVE;
+            if (mPosture == SoldierAnimType::CROUCH)
+            {
+                m_fTakeKneeTimer = 0.0f;
+            }
+        }
+        else if (fDeltaTime > 0.0f && mActionTime > 0.3f &&
+                 mMovement.x * mMovement.x + mMovement.z * mMovement.z > fDeltaTime * 0.3f * 0.3f * fDeltaTime)
         {
             mAction = SoldierAnimType::MOVE;
             if (mPosture == SoldierAnimType::CROUCH)
@@ -1066,6 +1063,36 @@ void SoldierAnimator::SetupPose(RedPose& pose)
             }
         }
         break;
+
+    case SoldierAnimType::JET:
+        UpdateActionAnimation(SoldierAnimType::JET, fDeltaTime, 1.0f, 0.0f, 0.0f, true);
+        break;
+
+    case SoldierAnimType::SPRINT:
+    {
+        const SoldierAnimation* pAnim =
+            pClass->GetLowerBodyActionAnimation(SoldierAnimType::SPRINT, mWeaponAnimationMap);
+        float fAngle = 0.0f;
+        float fSpeed = 1.0f;
+        if (fDeltaTime > 0.0f)
+        {
+            bool bFirstPerson = mOwner && mOwner->GetTracker() && mOwner->GetTracker()->IsFirstPersonView() &&
+                                NetGame::GetJoystickIndex(mOwner->GetPlayerId()) >= 0;
+            const PblVector3& z = mLegMatrix.GetZAxis();
+            const PblVector3& x = mLegMatrix.GetXAxis();
+            float fForward = (z.y * mMovement.y + mMovement.x * z.x + z.z * mMovement.z) / fDeltaTime;
+            float fSide = (mMovement.y * x.y + x.x * mMovement.x + mMovement.z * x.z) / fDeltaTime;
+            fAngle = atan2f(fSide, fForward);
+            fSpeed = PblMath::Sqrt(fSide * fSide + fForward * fForward) / pAnim->GetVelocityZ();
+            if (bFirstPerson)
+            {
+                fSpeed *= FIRST_PERSON_ANIMATION_SCALE;
+            }
+        }
+        UpdateActionAnimation(mAction, fDeltaTime, fSpeed, fAngle, 0.0f, false);
+        mMoveAnimation = SoldierAnimType::RUN_FORWARD;
+        break;
+    }
 
     case SoldierAnimType::MOVE:
         UpdateMovementAnimation(fDeltaTime, pOverlayAnim, fOverlayBlend);
@@ -1087,14 +1114,15 @@ void SoldierAnimator::SetupPose(RedPose& pose)
     mActionTime += fDeltaTime;
     if (bRotate)
     {
+        const float kTwoPi = 6.2831855f;
         mRotAngle += mRotSpeed * fDeltaTime;
-        if (mRotAngle > PblMath::fTwoPi)
+        if (mRotAngle > kTwoPi)
         {
-            mRotAngle -= PblMath::fTwoPi;
+            mRotAngle -= kTwoPi;
         }
         else if (mRotAngle < 0.0f)
         {
-            mRotAngle += PblMath::fTwoPi;
+            mRotAngle += kTwoPi;
         }
     }
     else
@@ -1146,11 +1174,7 @@ void SoldierAnimator::ApplyProceduralAnimationAndBuildWorldMatrices(float fDelta
     }
 
     float fBlend;
-    if (mAnimationTimerUpper < mBlendDurationRotate)
-    {
-        fBlend = mAnimationTimerUpper / mBlendDurationRotate;
-    }
-    else
+    if (mAnimationTimerUpper >= mBlendDurationRotate)
     {
         m_uiAimState &= ~0x30;
         if (!(m_uiAimState & 0x33))
@@ -1159,6 +1183,10 @@ void SoldierAnimator::ApplyProceduralAnimationAndBuildWorldMatrices(float fDelta
             return;
         }
         fBlend = 1.0f;
+    }
+    else
+    {
+        fBlend = mAnimationTimerUpper / mBlendDurationRotate;
     }
 
     unsigned int uiAimState = m_uiAimState;
@@ -1212,34 +1240,36 @@ void SoldierAnimator::ApplyProceduralAnimationAndBuildWorldMatrices(float fDelta
         }
     }
 
-    float fYaw = atan2f(mLegMatrix.GetXAxis().x * mAimDir.x + mLegMatrix.GetXAxis().y * mAimDir.y +
-                            mLegMatrix.GetXAxis().z * mAimDir.z,
-                        mLegMatrix.GetZAxis().x * mAimDir.x + mLegMatrix.GetZAxis().y * mAimDir.y +
+    float fPitchSin = mLegMatrix.GetYAxis().y * mAimDir.y + mLegMatrix.GetYAxis().x * mAimDir.x +
+                      mLegMatrix.GetYAxis().z * mAimDir.z;
+    float fYaw = atan2f(mAimDir.y * mLegMatrix.GetXAxis().y + mLegMatrix.GetXAxis().x * mAimDir.x +
+                            mAimDir.z * mLegMatrix.GetXAxis().z,
+                        mLegMatrix.GetZAxis().y * mAimDir.y + mLegMatrix.GetZAxis().x * mAimDir.x +
                             mLegMatrix.GetZAxis().z * mAimDir.z);
-    float fPitch = -asinf(mLegMatrix.GetYAxis().x * mAimDir.x + mLegMatrix.GetYAxis().y * mAimDir.y +
-                          mLegMatrix.GetYAxis().z * mAimDir.z);
+    float fPitch = -asinf(fPitchSin);
 
-    float fLegAngle = mLegAngle;
-    float fYawOffset = fYaw - fLegAngle;
-    float fClampedYaw = (fYawOffset < fYawMin) ? fYawMin : (fYawOffset > fYawMax) ? fYawMax : fYawOffset;
-    float fClampedPitch = (fPitch < fPitchMin) ? fPitchMin : (fPitch > fPitchMax) ? fPitchMax : fPitch;
     float fRate;
     if (mSoldierAction == SoldierState::ARMED_PASSENGER || (fRate = fDeltaTime * 4.5f) >= 1.0f)
     {
-        mAimYAngle = fClampedYaw + fLegAngle;
-        mAimXAngle = fClampedPitch;
+        float fYawOffset = fYaw - mLegAngle;
+        mAimYAngle = ((fYawOffset < fYawMin) ? fYawMin : (fYawOffset > fYawMax) ? fYawMax : fYawOffset) + mLegAngle;
+        mAimXAngle = (fPitch < fPitchMin) ? fPitchMin : (fPitch > fPitchMax) ? fPitchMax : fPitch;
     }
     else
     {
-        mAimYAngle += (fClampedYaw + fLegAngle - mAimYAngle) * fRate;
-        mAimXAngle += (fClampedPitch - mAimXAngle) * fRate;
+        float fYawOffset = fYaw - mLegAngle;
+        mAimYAngle += (((fYawOffset < fYawMin) ? fYawMin : (fYawOffset > fYawMax) ? fYawMax : fYawOffset) +
+                       mLegAngle - mAimYAngle) *
+                      fRate;
+        mAimXAngle += (((fPitch < fPitchMin) ? fPitchMin : (fPitch > fPitchMax) ? fPitchMax : fPitch) - mAimXAngle) *
+                      fRate;
     }
     if (mPosture == SoldierAnimType::PRONE && mAimXAngle < 0.0f)
     {
         mAimXAngle = 0.0f;
     }
 
-    float fAimYaw = mAimYAngle - fLegAngle;
+    float fAimYaw = mAimYAngle - mLegAngle;
     float fAimPitch = mAimXAngle;
     PblBitVector<32> kDirty;
     kDirty.SetAll();
@@ -1247,13 +1277,15 @@ void SoldierAnimator::ApplyProceduralAnimationAndBuildWorldMatrices(float fDelta
 
     if (fTorsoWeight > 0.0f)
     {
-        float fTorsoYaw = fAimYaw * fTorsoWeight;
-        float fTorsoPitch = fAimPitch * fTorsoWeight;
+        float fTorsoYaw;
+        float fTorsoPitch;
         const PblMatrix* pSpine;
         pShared = mZephyrSkeleton.m_pShared;
         int iJoint = pShared->GetJointIdxByCrc(0x5de52389);
         if (iJoint >= 0)
         {
+            fTorsoYaw = fAimYaw * fTorsoWeight;
+            fTorsoPitch = fAimPitch * fTorsoWeight;
             const PblMatrix& mLower =
                 RotateJointWorldMatrix(mZephyrSkeleton, iJoint, fTorsoYaw * 0.125f, fTorsoPitch * 0.125f, kDirty, 0);
             pSpine = &RotateJointWorldMatrix(mZephyrSkeleton, mZephyrSkeleton.m_pShared->GetJointIdxByCrc(0x8c1c9bba),
@@ -1261,8 +1293,10 @@ void SoldierAnimator::ApplyProceduralAnimationAndBuildWorldMatrices(float fDelta
         }
         else
         {
-            pSpine = &RotateJointWorldMatrix(mZephyrSkeleton, pShared->GetJointIdxByCrc(0x93e93819),
-                                             fTorsoYaw * 0.5f, fTorsoPitch * 0.5f, kDirty, 0);
+            int iSpine = pShared->GetJointIdxByCrc(0x93e93819);
+            fTorsoYaw = fAimYaw * fTorsoWeight;
+            fTorsoPitch = fAimPitch * fTorsoWeight;
+            pSpine = &RotateJointWorldMatrix(mZephyrSkeleton, iSpine, fTorsoYaw * 0.5f, fTorsoPitch * 0.5f, kDirty, 0);
         }
         RotateJointWorldMatrix(mZephyrSkeleton, mZephyrSkeleton.m_pShared->GetJointIdxByCrc(0xe5b51072),
                                fTorsoYaw * 0.5f, fTorsoPitch * 0.5f, kDirty, pSpine);
@@ -1335,9 +1369,9 @@ bool SoldierAnimator::UpdateActionAnimation(SoldierAnimType::ActionAnimation eAc
     }
 
     bool bFinished = true;
-    const int iLastFrame = mZephyrPoseDynLower.m_kAnim.m_pkAnim->GetNumFrames() - 1;
     if ((m_pAnimLower && m_pAnimLower->m_pAnimData->m_uiLoop != SoldierAnimationData::LOOP_END) ||
-        (int)((float)iLastFrame * mZephyrPoseDynLower.m_fCurT) < iLastFrame)
+        (int)((float)(mZephyrPoseDynLower.m_kAnim.m_pkAnim->GetNumFrames() - 1) * mZephyrPoseDynLower.m_fCurT) <
+            mZephyrPoseDynLower.m_kAnim.m_pkAnim->GetNumFrames() - 1)
     {
         bFinished = false;
     }
@@ -1429,7 +1463,7 @@ bool SoldierAnimator::UpdateActionAnimation(SoldierAnimType::ActionAnimation eAc
         PblVector3 vAxis;
         if (vTravel.x * vTravel.x + vTravel.y * vTravel.y + vTravel.z * vTravel.z > 0.0001f)
         {
-            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vAxis), reinterpret_cast<const D3DXVECTOR3*>(&vTravel));
+            vAxis = Normalize(vTravel);
         }
         else
         {
@@ -1467,7 +1501,12 @@ void SoldierAnimator::UpdateMovementAnimation(float fDeltaTime, const ZephyrAnim
     float fSide = 0.0f;
     float fTurn = 0.0f;
 
-    if (fDeltaTime > 0.0f)
+    if (fDeltaTime <= 0.0f)
+    {
+        eMove = mMoveAnimation;
+        eNewMove = (eMove > SoldierAnimType::TURN_RIGHT) ? eMove : SoldierAnimType::IDLE;
+    }
+    else
     {
         if (mSoldierAction == SoldierState::ARMED_PASSENGER)
         {
@@ -1531,31 +1570,22 @@ void SoldierAnimator::UpdateMovementAnimation(float fDeltaTime, const ZephyrAnim
             mLegDirection = mLegMatrix.GetZAxis();
         }
     }
-    else
-    {
-        eMove = mMoveAnimation;
-        if (eMove > SoldierAnimType::TURN_RIGHT)
-        {
-            eNewMove = eMove;
-        }
-    }
 
     bool bTakeKnee = mPosture == SoldierAnimType::CROUCH && eMove == SoldierAnimType::IDLE_TAKEKNEE;
     bool bWeaponUpper = false;
     bool bAnimControlledMove = false;
-    SoldierAnimatorClass* pClass = SoldierAnimatorClass::Instance();
     const SoldierAnimation* pUpper = 0;
     if (mWeaponAnim == SoldierAnimType::WEAPON_MELEE)
     {
         if (mWeaponMeleeAnim != NO_MELEE_ANIM)
         {
-            pUpper = pClass->GetUpperBodyAnimation(mWeaponAnimationMap, mWeaponMeleeAnim);
+            pUpper = SoldierAnimatorClass::Instance()->GetUpperBodyAnimation(mWeaponAnimationMap, mWeaponMeleeAnim);
             bAlert = false;
         }
     }
     else if (mWeaponAnim != SoldierAnimType::WEAPON_IDLE)
     {
-        pUpper = pClass->GetUpperBodyWeaponAnimation(mPosture, mWeaponAnimationMap, mWeaponAnim);
+        pUpper = SoldierAnimatorClass::Instance()->GetUpperBodyWeaponAnimation(mPosture, mWeaponAnimationMap, mWeaponAnim);
     }
 
     if (pUpper)
@@ -1569,11 +1599,11 @@ void SoldierAnimator::UpdateMovementAnimation(float fDeltaTime, const ZephyrAnim
     }
     else if (eNewMove == SoldierAnimType::SLIDE)
     {
-        pUpper = pClass->GetUpperBodyActionAnimation(SoldierAnimType::LAND_HARD, mWeaponAnimationMap);
+        pUpper = SoldierAnimatorClass::Instance()->GetUpperBodyActionAnimation(SoldierAnimType::LAND_HARD, mWeaponAnimationMap);
     }
     else
     {
-        pUpper = pClass->GetUpperBodyMovementAnimation(eMove, mPosture, mWeaponAnimationMap, bAlert);
+        pUpper = SoldierAnimatorClass::Instance()->GetUpperBodyMovementAnimation(eMove, mPosture, mWeaponAnimationMap, bAlert);
     }
 
     const SoldierAnimation* pLower = 0;
@@ -1586,11 +1616,11 @@ void SoldierAnimator::UpdateMovementAnimation(float fDeltaTime, const ZephyrAnim
             {
                 if (mWeaponMeleeAnim != NO_MELEE_ANIM)
                 {
-                    pLower = pClass->GetLowerBodyAnimation(mWeaponAnimationMap, mWeaponMeleeAnim);
+                    pLower = SoldierAnimatorClass::Instance()->GetLowerBodyAnimation(mWeaponAnimationMap, mWeaponMeleeAnim);
                     if (pLower && !bAnimControlledMove)
                     {
-                        float fDX = fSide - pLower->GetVelocityX();
                         float fDZ = fForward - pLower->GetVelocityZ();
+                        float fDX = fSide - pLower->GetVelocityX();
                         if (fDX * fDX + fDZ * fDZ > 0.09f)
                         {
                             pLower = 0;
@@ -1601,7 +1631,7 @@ void SoldierAnimator::UpdateMovementAnimation(float fDeltaTime, const ZephyrAnim
             else if (mWeaponAnim != SoldierAnimType::WEAPON_IDLE &&
                      (bAnimControlledMove || (!bTakeKnee && eNewMove == SoldierAnimType::IDLE)))
             {
-                pLower = pClass->GetLowerBodyWeaponAnimation(mPosture, mWeaponAnimationMap, mWeaponAnim);
+                pLower = SoldierAnimatorClass::Instance()->GetLowerBodyWeaponAnimation(mPosture, mWeaponAnimationMap, mWeaponAnim);
             }
 
             if (!pLower)
@@ -1624,12 +1654,12 @@ void SoldierAnimator::UpdateMovementAnimation(float fDeltaTime, const ZephyrAnim
             if (eNewMove == SoldierAnimType::SLIDE)
             {
                 eMove = SoldierAnimType::IDLE;
-                pLower = pClass->GetLowerBodyActionAnimation(SoldierAnimType::LAND_HARD, mWeaponAnimationMap);
+                pLower = SoldierAnimatorClass::Instance()->GetLowerBodyActionAnimation(SoldierAnimType::LAND_HARD, mWeaponAnimationMap);
                 UpdateLowerBodyAnimation(fDeltaTime, pLower);
             }
             else
             {
-                pLower = pClass->GetLowerBodyMovementAnimation(eMove, mPosture, mWeaponAnimationMap, bAlert);
+                pLower = SoldierAnimatorClass::Instance()->GetLowerBodyMovementAnimation(eMove, mPosture, mWeaponAnimationMap, bAlert);
 
                 if (UpdateLowerBodyAnimation(fAnimDeltaTime, pLower) && m_bFirstTime &&
                     mMoveAnimation <= SoldierAnimType::IDLE_LOOK_AROUND)
@@ -1673,7 +1703,7 @@ void SoldierAnimator::UpdateMovementAnimation(float fDeltaTime, const ZephyrAnim
 
     if (mSoldierAction == SoldierState::ARMED_PASSENGER)
     {
-        UpdateLowerBodyAnimation(0.0f, pClass->GetAnimation(mAnimationHash, 0), false, 0.0f);
+        UpdateLowerBodyAnimation(0.0f, SoldierAnimatorClass::Instance()->GetAnimation(mAnimationHash, 0), false, 0.0f);
         mZephyrPoseStatic.Set(mZephyrPoseDynLower, mLowerBodyAnimMask, true);
     }
     else
@@ -1726,9 +1756,22 @@ void SoldierAnimator::UpdateMovementAnimation(float fDeltaTime, const ZephyrAnim
 
     if (mSoldierAction != SoldierState::ARMED_PASSENGER)
     {
-        if (eMove == SoldierAnimType::TURN_LEFT || eMove == SoldierAnimType::TURN_RIGHT)
+        switch (eMove)
         {
-            if (bWeaponLower)
+        case SoldierAnimType::TURN_LEFT:
+        case SoldierAnimType::TURN_RIGHT:
+            if (!bWeaponLower)
+            {
+                if (fTurn != 0.0f)
+                {
+                    mMoveTurnRate = fTurn / ((float)(pLower->GetAnimationNumFrames() - 1) * ANIM_FRAME_SPEED);
+                }
+                else
+                {
+                    fLegAngle += mMoveTurnRate * fDeltaTime;
+                }
+            }
+            else
             {
                 float fTarget = (m_uiAimState & 4) ? 0.0f : fMoveAngle;
                 float fFactor = fDeltaTime * MOVEANGLE_BLEND_RATE;
@@ -1742,71 +1785,67 @@ void SoldierAnimator::UpdateMovementAnimation(float fDeltaTime, const ZephyrAnim
                 }
                 mMoveTurnRate = 0.0f;
             }
-            else if (fTurn != 0.0f)
-            {
-                mMoveTurnRate = fTurn / ((float)(pLower->GetAnimationNumFrames() - 1) * ANIM_FRAME_SPEED);
-            }
-            else
-            {
-                fLegAngle += mMoveTurnRate * fDeltaTime;
-            }
             if (mZephyrPoseDynLower.m_bAnimFinished)
             {
                 eMove = SoldierAnimType::IDLE;
                 m_bResetLowerAnim = true;
             }
             m_fTakeKneeTimer = 0.0f;
-        }
-        else if ((bWeaponLower && bAnimControlledMove) || (!bWeaponLower && eNewMove != SoldierAnimType::IDLE))
-        {
-            float fTarget = (m_uiAimState & 4) ? 0.0f : fMoveAngle;
-            float fFactor = fDeltaTime * MOVEANGLE_BLEND_RATE;
-            if (fFactor > 1.0f)
-            {
-                fFactor = 1.0f;
-            }
-            if (fFactor > 0.0f)
-            {
-                fLegAngle += (fTarget - fLegAngle) * fFactor;
-            }
-            mMoveTurnRate = 0.0f;
-            m_fTakeKneeTimer = 0.0f;
-        }
-        else
-        {
-            mMoveTurnRate = 0.0f;
-            if (mZephyrPoseDynLower.m_bAnimFinished)
-            {
-                eMove = SoldierAnimType::IDLE;
-            }
+            break;
 
-            if (mWeaponAnim != SoldierAnimType::WEAPON_MELEE && mPosture == SoldierAnimType::CROUCH && !bWeaponLower)
+        default:
+            if ((!bWeaponLower && eNewMove != SoldierAnimType::IDLE) || (bWeaponLower && bAnimControlledMove))
             {
-                if (eMove == SoldierAnimType::IDLE)
+                float fTarget = (m_uiAimState & 4) ? 0.0f : fMoveAngle;
+                float fFactor = fDeltaTime * MOVEANGLE_BLEND_RATE;
+                if (fFactor > 1.0f)
                 {
-                    m_fTakeKneeTimer += fDeltaTime;
-                    if (m_fTakeKneeTimer > 1.0f)
+                    fFactor = 1.0f;
+                }
+                if (fFactor > 0.0f)
+                {
+                    fLegAngle += (fTarget - fLegAngle) * fFactor;
+                }
+                mMoveTurnRate = 0.0f;
+                m_fTakeKneeTimer = 0.0f;
+            }
+            else
+            {
+                mMoveTurnRate = 0.0f;
+                if (mZephyrPoseDynLower.m_bAnimFinished)
+                {
+                    eMove = SoldierAnimType::IDLE;
+                }
+
+                if (mWeaponAnim != SoldierAnimType::WEAPON_MELEE && mPosture == SoldierAnimType::CROUCH && !bWeaponLower)
+                {
+                    if (eMove == SoldierAnimType::IDLE)
                     {
-                        eMove = SoldierAnimType::IDLE_TAKEKNEE;
-                        m_fTakeKneeTimer = 1.0f;
+                        m_fTakeKneeTimer += fDeltaTime;
+                        if (m_fTakeKneeTimer > 1.0f)
+                        {
+                            eMove = SoldierAnimType::IDLE_TAKEKNEE;
+                            m_fTakeKneeTimer = 1.0f;
+                        }
+                    }
+                    else if (eMove != SoldierAnimType::IDLE_TAKEKNEE)
+                    {
+                        m_fTakeKneeTimer = 0.0f;
                     }
                 }
-                else if (eMove != SoldierAnimType::IDLE_TAKEKNEE)
+                else
                 {
                     m_fTakeKneeTimer = 0.0f;
                 }
             }
-            else
-            {
-                m_fTakeKneeTimer = 0.0f;
-            }
+            break;
         }
         RotateLowerBody(fLegAngle);
     }
 
     if (eNewMove == SoldierAnimType::SLIDE)
     {
-        eMove = SoldierAnimType::SLIDE;
+        eMove = eNewMove;
     }
     mMoveAnimation = eMove;
     m_bMoveAlert = bAlert;
@@ -1859,6 +1898,7 @@ static float _GetMovementAnimSpeed(const SoldierAnimation* pAnim, SoldierAnimTyp
 SoldierAnimType::MovementAnimation SoldierAnimator::GetMovementAnimation(float fSide, float fForward, float& fAngle,
                                                                          float& fRate) const
 {
+    const float kHalfPi = 1.5707964f;
     float fMinSlideSpeed = 10.0f;
     if (mSkeletonScale != 1.0f)
     {
@@ -1872,43 +1912,52 @@ SoldierAnimType::MovementAnimation SoldierAnimator::GetMovementAnimation(float f
     }
 
     float fSpeedSq = fSide * fSide + fForward * fForward;
-    if (mMoveAnimation != SoldierAnimType::IDLE)
+    if (mMoveAnimation == SoldierAnimType::IDLE)
     {
-        if (fSpeedSq < 0.2f * 0.2f)
+        if (fSpeedSq < 0.3f * 0.3f)
         {
             return SoldierAnimType::IDLE;
         }
     }
-    else if (fSpeedSq < 0.3f * 0.3f)
+    else if (fSpeedSq < 0.2f * 0.2f)
     {
         return SoldierAnimType::IDLE;
     }
 
     bool bAlert = m_bAlert;
-    const SoldierAnimatorClass* pClass = SoldierAnimatorClass::Instance();
-    const SoldierAnimation* apAnim[SoldierAnimType::NUM_MOVEMENT_ANIMATIONS] = { 0 };
-    for (int i = SoldierAnimType::WALK_FORWARD; i < SoldierAnimType::NUM_MOVEMENT_ANIMATIONS; ++i)
-    {
-        apAnim[i] = pClass->GetLowerBodyMovementAnimation((SoldierAnimType::MovementAnimation)i, mPosture,
-                                                          mWeaponAnimationMap, bAlert);
-    }
+    const SoldierAnimation* apAnim[SoldierAnimType::NUM_MOVEMENT_ANIMATIONS] = {
+        0,
+        0,
+        0,
+        0,
+        0,
+        SoldierAnimatorClass::Instance()->GetLowerBodyMovementAnimation(SoldierAnimType::WALK_FORWARD, mPosture, mWeaponAnimationMap, bAlert),
+        SoldierAnimatorClass::Instance()->GetLowerBodyMovementAnimation(SoldierAnimType::RUN_FORWARD, mPosture, mWeaponAnimationMap, bAlert),
+        SoldierAnimatorClass::Instance()->GetLowerBodyMovementAnimation(SoldierAnimType::WALK_BACKWARD, mPosture, mWeaponAnimationMap, bAlert),
+        SoldierAnimatorClass::Instance()->GetLowerBodyMovementAnimation(SoldierAnimType::RUN_BACKWARD, mPosture, mWeaponAnimationMap, bAlert),
+        SoldierAnimatorClass::Instance()->GetLowerBodyMovementAnimation(SoldierAnimType::WALK_LEFT, mPosture, mWeaponAnimationMap, bAlert),
+        SoldierAnimatorClass::Instance()->GetLowerBodyMovementAnimation(SoldierAnimType::RUN_LEFT, mPosture, mWeaponAnimationMap, bAlert),
+        SoldierAnimatorClass::Instance()->GetLowerBodyMovementAnimation(SoldierAnimType::WALK_RIGHT, mPosture, mWeaponAnimationMap, bAlert),
+        SoldierAnimatorClass::Instance()->GetLowerBodyMovementAnimation(SoldierAnimType::RUN_RIGHT, mPosture, mWeaponAnimationMap, bAlert)
+    };
 
-    int eAnim = SoldierAnimType::WALK_FORWARD;
+    int eAnim;
     if ((apAnim[SoldierAnimType::WALK_RIGHT] || apAnim[SoldierAnimType::RUN_RIGHT]) &&
         (apAnim[SoldierAnimType::WALK_LEFT] || apAnim[SoldierAnimType::RUN_LEFT]))
     {
         fAngle = atan2f(fSide, fForward);
-        if (fabsf(fSide) > fabsf(fForward))
+        eAnim = SoldierAnimType::WALK_FORWARD;
+        if ((fSide < 0.0f ? -fSide : fSide) > (fForward < 0.0f ? -fForward : fForward))
         {
             if (fSide > 0.0f)
             {
                 eAnim = SoldierAnimType::WALK_RIGHT;
-                fAngle = UnitCircleNormalize(fAngle - PblMath::fHalfPi);
+                fAngle = UnitCircleNormalize(fAngle - kHalfPi);
             }
             else
             {
                 eAnim = SoldierAnimType::WALK_LEFT;
-                fAngle = UnitCircleNormalize(fAngle + PblMath::fHalfPi);
+                fAngle = UnitCircleNormalize(fAngle + kHalfPi);
             }
         }
         else if (fForward <= 0.0f)
@@ -1917,32 +1966,37 @@ SoldierAnimType::MovementAnimation SoldierAnimator::GetMovementAnimation(float f
             fAngle = UnitCircleNormalize(fAngle + PblMath::fPi);
         }
     }
-    else if (mOwner)
-    {
-        fAngle = mOwner->mLegAngle;
-        if (!mOwner->mLegAngleForward)
-        {
-            eAnim = SoldierAnimType::WALK_BACKWARD;
-        }
-    }
     else
     {
-        fAngle = atan2f(fSide, fForward);
-        if (fForward <= 0.0f)
+        eAnim = SoldierAnimType::WALK_FORWARD;
+        if (mOwner)
         {
-            eAnim = SoldierAnimType::WALK_BACKWARD;
-            fAngle = UnitCircleNormalize(fAngle + PblMath::fPi);
+            fAngle = mOwner->mLegAngle;
+            if (!mOwner->mLegAngleForward)
+            {
+                eAnim = SoldierAnimType::WALK_BACKWARD;
+            }
+        }
+        else
+        {
+            fAngle = atan2f(fSide, fForward);
+            if (fForward <= 0.0f)
+            {
+                eAnim = SoldierAnimType::WALK_BACKWARD;
+                fAngle = UnitCircleNormalize(fAngle + PblMath::fPi);
+            }
         }
     }
 
     float fSpeed = sqrtf(fSpeedSq);
+    int eNextAnim = eAnim + 1;
     if (!apAnim[eAnim])
     {
-        ++eAnim;
+        eAnim = eNextAnim;
     }
-    else if (apAnim[eAnim + 1] && mOwner && mOwner->mMoveAnim == EntitySoldier::MOVEANIM_RUN)
+    else if (apAnim[eNextAnim] && mOwner && mOwner->mMoveAnim == EntitySoldier::MOVEANIM_RUN)
     {
-        ++eAnim;
+        eAnim = eNextAnim;
     }
 
     float fAnimSpeed = _GetMovementAnimSpeed(apAnim[eAnim], (SoldierAnimType::MovementAnimation)eAnim);
@@ -1985,15 +2039,18 @@ bool SoldierAnimator::UpdateUpperBodyAnimation(float fDeltaTime, const SoldierAn
     }
 
     unsigned char uiSyncType = 0;
+    float fBlendInTime;
     float fBlendTime;
     if (m_pAnimUpper)
     {
         uiSyncType = m_pAnimUpper->GetSyncType();
+        fBlendInTime = pAnim->GetBlendInTime();
         fBlendTime = m_pAnimUpper->GetBlendTime(pAnim);
     }
     else
     {
-        fBlendTime = pAnim->GetBlendInTime();
+        fBlendInTime = pAnim->GetBlendInTime();
+        fBlendTime = fBlendInTime;
     }
 
     float fTime;
@@ -2030,16 +2087,16 @@ bool SoldierAnimator::UpdateUpperBodyAnimation(float fDeltaTime, const SoldierAn
     mBlendDurationUpper = fBlendTime;
     m_pAnimUpper = const_cast<SoldierAnimation*>(pAnim);
 
-    unsigned int uiPrevAim = m_uiAimState & 3;
+    unsigned char uiPrevAim = m_uiAimState & 3;
     m_uiAimState = pAnim->m_pAnimData->m_uiAimType;
     if (m_uiAimState == SoldierAnimationData::AIM_FULLBODY)
     {
         m_uiAimState = 4;
     }
-    unsigned int uiAim = m_uiAimState & 3;
+    unsigned char uiAim = m_uiAimState & 3;
     if (pCurAnim && uiAim != uiPrevAim)
     {
-        mBlendDurationRotate = pAnim->GetBlendInTime();
+        mBlendDurationRotate = fBlendInTime;
         m_uiAimState |= (uiAim | uiPrevAim) << 4;
     }
     return true;
@@ -2153,7 +2210,7 @@ bool SoldierAnimator::UpdateUpperBodyAnimation(float fDeltaTime, const ZephyrAni
     mZephyrPoseDynUpper.Update(fDeltaTime);
     mAnimationTimerUpper = fDeltaTime;
 
-    const unsigned int uOldAim = m_uiAimState & 3;
+    const unsigned char uOldAim = m_uiAimState & 3;
     mBlendFactorUpper = 0.0f;
     mBlendDurationUpper = fBlend;
     m_pAnimUpper = 0;
@@ -2162,11 +2219,11 @@ bool SoldierAnimator::UpdateUpperBodyAnimation(float fDeltaTime, const ZephyrAni
     {
         m_uiAimState = 4;
     }
-    const unsigned int uNewAim = m_uiAimState & 3;
+    const unsigned char uNewAim = m_uiAimState & 3;
     if (pPrevAnim && uNewAim != uOldAim)
     {
         mBlendDurationRotate = fBlendTime;
-        m_uiAimState = (unsigned char)(m_uiAimState | ((uNewAim | uOldAim) << 4));
+        m_uiAimState |= (uNewAim | uOldAim) << 4;
     }
     return true;
 }
@@ -2238,7 +2295,7 @@ float SoldierAnimator::CalculateBlendFactorDelta(float fPrevFactor, float fFacto
 // FUNCTION: SWBF2 0x006426e0
 float SoldierAnimator::GetUpperBodyBlendFactor()
 {
-    float fFactor = (mBlendDurationUpper > mAnimationTimerUpper) ? mAnimationTimerUpper / mBlendDurationUpper : 1.0f;
+    float fFactor = (mAnimationTimerUpper < mBlendDurationUpper) ? mAnimationTimerUpper / mBlendDurationUpper : 1.0f;
     float fBlend = SoldierAnimator::CalculateBlendFactorDelta(mBlendFactorUpper, fFactor);
     mBlendFactorUpper = fFactor;
     return fBlend;
@@ -2247,7 +2304,7 @@ float SoldierAnimator::GetUpperBodyBlendFactor()
 // FUNCTION: SWBF2 0x00642720
 float SoldierAnimator::GetLowerBodyBlendFactor()
 {
-    float fFactor = (mBlendDurationLower > mAnimationTimerLower) ? mAnimationTimerLower / mBlendDurationLower : 1.0f;
+    float fFactor = (mAnimationTimerLower < mBlendDurationLower) ? mAnimationTimerLower / mBlendDurationLower : 1.0f;
     float fBlend = SoldierAnimator::CalculateBlendFactorDelta(mBlendFactorLower, fFactor);
     mBlendFactorLower = fFactor;
     return fBlend;
@@ -2267,7 +2324,7 @@ void SoldierAnimator::SetDamageDir(EntitySoldier::DAMAGEDIR eDir)
     m_eLastHitDir = eDir;
 
     int iDir = eDir;
-    float fRand = PblRandom::GetGlobalFloat();
+    float fRand = PblRandom::_Global.GetFloat();
     if (fRand > 0.9f)
     {
         iDir = (iDir + 2) % 4;
@@ -2310,13 +2367,13 @@ float SoldierAnimator::GetAlertFactor() const
 {
     if (m_bAlert)
     {
-        if (m_fAlertBlendDuration > m_fAlertTimer)
+        if (m_fAlertTimer < m_fAlertBlendDuration)
         {
             return m_fAlertTimer / m_fAlertBlendDuration;
         }
         return 1.0f;
     }
-    if (m_fAlertBlendDuration > m_fAlertTimer)
+    if (m_fAlertTimer < m_fAlertBlendDuration)
     {
         return 1.0f - m_fAlertTimer / m_fAlertBlendDuration;
     }

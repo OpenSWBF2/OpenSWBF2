@@ -460,7 +460,9 @@ PblTimeBase::Stamp TotalTimeStamp;
 float sDeltaTime;
 // GLOBAL: SWBF2 0x01f9c2cc
 float sSystemDeltaTime;
+// GLOBAL: SWBF2 0x01f9c2b8
 LARGE_INTEGER perfCount;
+// GLOBAL: SWBF2 0x01f9c2d0
 LARGE_INTEGER oldPerfCount;
 // GLOBAL: SWBF2 0x1e563a0
 __int64 maxAdvanceTicks;
@@ -503,9 +505,9 @@ void TTYInit()
     sTTYInvalidIndex = -1;
     sTTYGrid = (char*)RedAllocFromHeap(__RedCurrHeap, 0xC800, 0);
 
-    for (unsigned int i = 0; i < 0x50; ++i)
+    for (unsigned int i = 0; i < (unsigned int)sTTYColumns; ++i)
     {
-        sTTYGrid[i * 0x280] = 0x0A;
+        sTTYGrid[i * (sTTYRows << 3)] = 0x0A;
     }
 }
 
@@ -575,23 +577,8 @@ void GameState::UpdateTime()
 
     __int64 iDeltaTicks = 0;
 
-    if (g_fFixedRate > 0.0f)
+    if (!(g_fFixedRate > 0.0f))
     {
-        float fDeltaTime = 1.0f / g_fFixedRate;
-        if (g_fFrameRateScale > 0.0f)
-        {
-            fDeltaTime = g_fFrameRateScale * fDeltaTime;
-        }
-
-        if (!GameLoop::sPauseMode)
-        {
-            _TimeBase.AdvanceTime(fDeltaTime);
-        }
-        _SystemTimeBase.AdvanceTime(fDeltaTime);
-    }
-    else
-    {
-
         FrameLimiter::FrameOps ops;
         FrameLimiter::FramePlan plan;
         static bool sbCapSuppressed = false;
@@ -637,6 +624,20 @@ void GameState::UpdateTime()
         _SystemTimeBase.AdvanceTicks(iDeltaTicks);
 
         oldPerfCount = perfCount;
+    }
+    else
+    {
+        float fDeltaTime = 1.0f / g_fFixedRate;
+        if (g_fFrameRateScale > 0.0f)
+        {
+            fDeltaTime = g_fFrameRateScale * fDeltaTime;
+        }
+
+        if (!GameLoop::sPauseMode)
+        {
+            _TimeBase.AdvanceTime(fDeltaTime);
+        }
+        _SystemTimeBase.AdvanceTime(fDeltaTime);
     }
 
     if (!sIgnoreNextTime)
@@ -705,18 +706,17 @@ bool GameState::Update()
         _pNextState = 0;
     }
 
-    if (!_pCurrentState)
+    if (_pCurrentState)
     {
-        return false;
+        PblProfile::StartFrame();
+        RedLog::NextFrame();
+        FrameUpdate::Update();
+        UpdateTime();
+        _pCurrentState->Update(sDeltaTime, sSystemDeltaTime);
+        PblProfile::EndFrame();
+        return true;
     }
-
-    PblProfile::StartFrame();
-    RedLog::NextFrame();
-    FrameUpdate::Update();
-    UpdateTime();
-    _pCurrentState->Update(sDeltaTime, sSystemDeltaTime);
-    PblProfile::EndFrame();
-    return true;
+    return false;
 }
 
 // FUNCTION: SWBF2 0x0053adc0
@@ -736,39 +736,6 @@ void GameState::_SetState(State* pState)
     {
         pState->Enter();
     }
-}
-
-namespace RedMissionLog
-{
-
-// FUNCTION: SWBF2 0x006cccc0
-void Init()
-{
-}
-}
-
-namespace RedProfile
-{
-
-// FUNCTION: SWBF2 0x006f7450
-void Init()
-{
-}
-}
-
-// FUNCTION: SWBF2 0x006b3ca0
-void RedRenderer::SetSky(bool)
-{
-}
-
-// FUNCTION: SWBF2 0x006f6ae0
-void RedVertexCache::Init()
-{
-}
-
-// FUNCTION: SWBF2 0x006f7460
-void RedFootprintManager::Init()
-{
 }
 
 namespace SaveGameManager
@@ -927,18 +894,17 @@ void GameState::CreateBaseEntityClasses()
 // FUNCTION: SWBF2 0x0053af10
 void GameState::PreStateInit(bool bMission)
 {
-
     GameMemory::BuildHeaps(!bMission);
     RedSetCurrentHeap(GameMemory::ApplicationHeap);
     OneTimeInit();
-
-    gDrawFlyerShadows = true;
-    PblRandom::SetGlobalSeed(gSeedSet ? gSeed : 0);
 
     if (!sKioskMode)
     {
         sIgnoreNextTime = true;
     }
+
+    gDrawFlyerShadows = true;
+    PblRandom::SetGlobalSeed(gSeedSet ? gSeed : 0);
 
     RedMissionLog::Init();
     MissionLog::Init();
@@ -974,16 +940,18 @@ void GameState::PreStateInit(bool bMission)
         bool bOpened = LuaHelper::OpenScript(GameLoop::mMissionScript);
         if (!bOpened)
         {
-            char acName[256];
-            memset(acName, 0, sizeof(acName) - 1);
+            char acName[256] = { 0 };
             _snprintf(acName, sizeof(acName), "MISSION\\%s.lvl", GameLoop::mMissionScript);
-            if (!LoadUtil::ReadDataFile(acName, 0, 0, 0, 0))
+            if (LoadUtil::ReadDataFile(acName, 0, 0, 0, 0))
+            {
+                bOpened = LuaHelper::OpenScript(GameLoop::mMissionScript);
+            }
+            else
             {
                 LOG(LogLoad, Fatal, "Could not open %s", acName);
                 RedWarning::DialogBoxMessage("Could not open %s", acName);
                 pcCrash::Exit(1);
             }
-            bOpened = LuaHelper::OpenScript(GameLoop::mMissionScript);
         }
 
         WORLD_EXTENTS = 0x400;
@@ -991,7 +959,7 @@ void GameState::PreStateInit(bool bMission)
         if (bOpened)
         {
             Lua_Callbacks::InitMission();
-            LuaHelper::CallGlobalProc("ScriptPreInit");
+            LuaHelper::CallProc("ScriptPreInit");
         }
     }
 
@@ -1061,11 +1029,9 @@ void GameState::PreStateInit(bool bMission)
 
     if (bMission)
     {
-
-        float fExtent = (float)WORLD_EXTENTS;
-        float aMax[3] = { fExtent, 0.0f, fExtent };
-        float aMin[3] = { -fExtent, 0.0f, -fExtent };
-        CollisionManager::Create(*(const PblVector3*)aMin, *(const PblVector3*)aMax);
+        PblVector3 vMax((float)WORLD_EXTENTS, 0.0f, (float)WORLD_EXTENTS);
+        PblVector3 vMin((float)-WORLD_EXTENTS, 0.0f, (float)-WORLD_EXTENTS);
+        CollisionManager::Create(vMin, vMax);
 
         ChunkClusterManager::Create();
         TriggerRegionManager::Create();
@@ -1140,7 +1106,14 @@ void GameState::PreStateInit(bool bMission)
     GameSound::InitDeferred();
     NetGame::EnterClient();
     NetGame::LeaveClient();
-    RedRenderer::SetFogEnable(bMission);
+    if (bMission)
+    {
+        RedRenderer::SetFogEnable(true);
+    }
+    else
+    {
+        RedRenderer::SetFogEnable(false);
+    }
 }
 
 // FUNCTION: SWBF2 0x005391b0
@@ -1341,7 +1314,7 @@ void GameState::ShellState::Enter()
 
     RedProfile::DisplayCountersByGroup();
 
-    if (gMemoryPoolErrors)
+    if (gMemoryPoolErrors == true)
     {
         MemoryPool::PoolErrorPostLoad();
     }
@@ -1515,7 +1488,7 @@ void GameState::PostStateCleanup(bool bMission)
         DamageRegion::Destroy();
 
         BonusManager::Destroy();
-        CommandPostManager::Destroy();
+        CommandPost::Destroy();
         CollisionManager::Destroy();
     }
 

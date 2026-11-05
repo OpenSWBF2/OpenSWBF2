@@ -75,9 +75,9 @@ TEST_CASE("voice chat local node ids stay below the transport node count" * doct
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\VoiceChatNode.cpp", sText));
     const size_t uSetID = sText.find("void VoiceChat::Node::SetID(unsigned char uChannel)");
     REQUIRE(uSetID != std::string::npos);
-    const size_t uOld = sText.find("const unsigned char uOld = mNodeID;", uSetID);
-    REQUIRE(uOld != std::string::npos);
-    const std::string sHead = sText.substr(uSetID, uOld - uSetID);
+    const size_t uBody = sText.find("if (mNodeID == uChannel)", uSetID);
+    REQUIRE(uBody != std::string::npos);
+    const std::string sHead = sText.substr(uSetID, uBody - uSetID);
     CHECK(sHead.find("uChannel >= VoiceChat::Node::sTransport->GetNumNodes()") != std::string::npos);
     CHECK(sHead.find("uChannel = 0xFF;") != std::string::npos);
 

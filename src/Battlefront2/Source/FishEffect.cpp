@@ -49,17 +49,17 @@ void FishParticle::RespawnFish(const PblVector3& vPos, const FishParticleType& t
 
     PblQuaternion q = PblQuaternion(gMatrixIdentity);
     {
-        PblVector3 initomega = PblVector3(0.0f, PblRandom::GetGlobalFloat() * PblMath::fTwoPi, 0.0f);
+        PblVector3 initomega = PblVector3(0.0f, PblRandom::_Global.GetFloat() * PblMath::fTwoPi, 0.0f);
         float initAngle = Length(initomega);
         if (initAngle > EPSILON)
         {
             q *= PblQuaternion(initomega / initAngle, initAngle);
         }
     }
-    mState = eState;
     mMatrix = PblMatrix(q, vPos);
+    mState = eState;
     mBaseMatrix = mMatrix;
-    mPhase = PblRandom::GetGlobalFloat() * PblMath::fTwoPi;
+    mPhase = PblRandom::_Global.GetFloat() * PblMath::fTwoPi;
 
     if (mState == FISH_FLOAT)
     {
@@ -74,11 +74,11 @@ void FishParticle::RespawnFish(const PblVector3& vPos, const FishParticleType& t
         }
         mMatrix = PblMatrix(q, vPos);
         mBaseMatrix = mMatrix;
-        mVelocity = PblVector3(0.0f, PblRandom::GetGlobalFloat() * 0.15f + 0.15f, 0.0f);
+        mVelocity = PblVector3(0.0f, PblRandom::_Global.GetFloat() * 0.15f + 0.15f, 0.0f);
     }
     else if (mState == FISH_SWIM)
     {
-        mVelocity = PblVector3(mBaseMatrix.m[2][0] * 3.0f, mBaseMatrix.m[2][1] * 3.0f, mBaseMatrix.m[2][2] * 3.0f);
+        mVelocity = mBaseMatrix.GetZAxis() * 3.0f;
     }
 
     mIsValid = true;
@@ -177,7 +177,7 @@ bool FishParticle::UpdateSwimmingFish(float fDeltaTime)
 // FUNCTION: SWBF2 0x00523090
 bool FishParticle::UpdateFloatingFish(float fDeltaTime)
 {
-    PblVector3 vPos(mMatrix.m[3][0], mMatrix.m[3][1], mMatrix.m[3][2]);
+    PblVector3 vPos = mMatrix.GetTranslation();
 
     mPhase += fDeltaTime * 2.0f;
     if (mPhase > PblMath::fTwoPi)
@@ -192,28 +192,28 @@ bool FishParticle::UpdateFloatingFish(float fDeltaTime)
         return true;
     }
 
+    if (mUnderwater && fWaterHeight > vPos.y)
+    {
+        vPos = vPos + mVelocity * fDeltaTime;
+        mMatrix.SetTranslation(vPos);
+        SetRenderPos(vPos);
+        return true;
+    }
+
     if (mUnderwater)
     {
-        if (fWaterHeight > vPos.y)
-        {
-            vPos.x = mVelocity.x * fDeltaTime + vPos.x;
-            vPos.y = mVelocity.y * fDeltaTime + vPos.y;
-            vPos.z = mVelocity.z * fDeltaTime + vPos.z;
-            mMatrix.m[3][0] = vPos.x;
-            mMatrix.m[3][1] = vPos.y;
-            mMatrix.m[3][2] = vPos.z;
-            mMatrix.m[3][3] = 1.0f;
-            SetRenderPos(vPos);
-            return true;
-        }
         mUnderwater = false;
-        mVelocity.SetAll(0.0f);
-        mOmega = PblVector3((0.5f - PblRandom::GetGlobalFloat()) * 0.125f, 0.0f, 0.0f);
+        mVelocity.x = 0.0f;
+        mVelocity.y = 0.0f;
+        mVelocity.z = 0.0f;
+        mOmega.x = (0.5f - PblRandom::GetGlobalFloat()) * 0.125f;
+        mOmega.y = 0.0f;
+        mOmega.z = 0.0f;
     }
 
     PblVector3 vDir;
     D3DXVec3Normalize((D3DXVECTOR3*)&vDir, (const D3DXVECTOR3*)&vWaterVelocity);
-    PblVector3 vAhead(vDir.x * mType.mSize + vPos.x, vDir.y * mType.mSize + vPos.y, vDir.z * mType.mSize + vPos.z);
+    PblVector3 vAhead = vDir * mType.mSize + vPos;
     float fAheadWater;
     if (!RedWater::GetWaterHeight(vAhead, fAheadWater) || RedTerrain::GetInterpolatedHeight(vAhead) > fAheadWater)
     {
@@ -223,10 +223,8 @@ bool FishParticle::UpdateFloatingFish(float fDeltaTime)
     }
 
     vPos.y = fWaterHeight;
-    float fBob = PblMath::Sin(mPhase) * 0.01f * mType.mSize + vPos.y;
-    vPos.x = vWaterVelocity.x * fDeltaTime + vPos.x;
-    vPos.y = vWaterVelocity.y * fDeltaTime + fBob;
-    vPos.z = vWaterVelocity.z * fDeltaTime + vPos.z;
+    vPos.y = PblMath::Sin(mPhase) * 0.01f * mType.mSize + vPos.y;
+    vPos = vWaterVelocity * fDeltaTime + vPos;
 
     PblQuaternion q(mMatrix);
     float initAngle = Length(mOmega);
@@ -256,17 +254,21 @@ bool FishParticle::Update(float fDeltaTime)
     }
 
     mTimeOffCamera += fDeltaTime;
-    if (!(mTimeOffCamera > 5.0f))
+    if (mTimeOffCamera > 5.0f)
     {
-        switch (mState)
-        {
-        case FISH_SWIM:
-            return UpdateSwimmingFish(fDeltaTime);
-        case FISH_FLOAT:
-            return UpdateFloatingFish(fDeltaTime);
-        case FISH_JUMP:
-            return UpdateJumpingFish(fDeltaTime);
-        }
+        mIsValid = false;
+        Deactivate();
+        return true;
+    }
+
+    switch (mState)
+    {
+    case FISH_SWIM:
+        return UpdateSwimmingFish(fDeltaTime);
+    case FISH_FLOAT:
+        return UpdateFloatingFish(fDeltaTime);
+    case FISH_JUMP:
+        return UpdateJumpingFish(fDeltaTime);
     }
     mIsValid = false;
     Deactivate();
@@ -338,14 +340,14 @@ bool FishParticleManager::Create()
 // FUNCTION: SWBF2 0x005237d0
 bool FishParticleManager::Destroy()
 {
-    if (!sInstance)
+    if (sInstance)
     {
-        return false;
+        PlatformCleanup();
+        delete sInstance;
+        sInstance = NULL;
+        return true;
     }
-    PlatformCleanup();
-    delete sInstance;
-    sInstance = NULL;
-    return true;
+    return false;
 }
 
 // FUNCTION: SWBF2 0x00523800
@@ -394,21 +396,16 @@ bool FishParticleManager::Update(float fDeltaTime)
 
         if (iNumFree > 10)
         {
-            int iCam = PblRandom::GetGlobalInt() % CameraManager::Instance()->GetNumCameras();
+            unsigned int uiNumCameras = CameraManager::Instance()->GetNumCameras();
+            int iCam = PblRandom::GetGlobalInt() % uiNumCameras;
             PblMatrix mCamera = CameraManager::Instance()->GetCamera(iCam)->GetMatrix();
-            const PblVector3& vAt = *(const PblVector3*)&mCamera.m[2][0];
-            const PblVector3& vCamPos = *(const PblVector3*)&mCamera.m[3][0];
+            const PblVector3& vAt = mCamera.GetZAxis();
+            const PblVector3& vCamPos = mCamera.GetTranslation();
 
-            PblVector3 vCross(vAt.z - vAt.y * 0.0f, vAt.x * 0.0f - vAt.z * 0.0f, vAt.y * 0.0f - vAt.x);
-            PblVector3 vRight;
-            D3DXVec3Normalize((D3DXVECTOR3*)&vRight, (const D3DXVECTOR3*)&vCross);
-
-            vCross = PblVector3(vRight.z - vRight.y * 0.0f, vRight.x * 0.0f - vRight.z * 0.0f,
-                                vRight.y * 0.0f - vRight.x);
-            PblVector3 vBack;
-            D3DXVec3Normalize((D3DXVECTOR3*)&vBack, (const D3DXVECTOR3*)&vCross);
-
-            PblVector3 vSpawn(vCamPos.x + vBack.x * 35.0f, vCamPos.y + vBack.y * 35.0f, vCamPos.z + vBack.z * 35.0f);
+            const PblVector3 vUp(0.0f, 1.0f, 0.0f);
+            PblVector3 vRight = Normalize(CrossProduct(vUp, vAt));
+            PblVector3 vBack = Normalize(CrossProduct(vUp, vRight));
+            PblVector3 vSpawn = vCamPos + vBack * 35.0f;
 
             SpawnSwimmingFish(vSpawn, 10.0f, 0);
         }
@@ -432,22 +429,22 @@ void FishParticleManager::SpawnFloatingFish(const PblVector3& vPos, float fRadiu
             continue;
         }
 
-        const float fRandZ = 0.5f - PblRandom::GetGlobalFloat();
-        PblVector3 vRand(0.5f - PblRandom::GetGlobalFloat(), 0.0f, fRandZ);
+        const float fRandZ = 0.5f - PblRandom::_Global.GetFloat();
+        PblVector3 vRand(0.5f - PblRandom::_Global.GetFloat(), 0.0f, fRandZ);
         PblVector3 vDir;
         D3DXVec3Normalize((D3DXVECTOR3*)&vDir, (const D3DXVECTOR3*)&vRand);
 
-        float fPick = PblRandom::GetGlobalFloat();
+        float fPick = PblRandom::_Global.GetFloat();
         float fStep = 1.0f / sNumFishTypes;
         float fTotal = 0.0f;
-        for (int i = 0; i < sNumFishTypes; ++i)
+        for (int i = 1; i <= sNumFishTypes; ++i)
         {
             fTotal += fStep;
             if (fTotal >= fPick)
             {
-                float fDist = PblRandom::GetGlobalFloat() * fRadius;
-                PblVector3 vSpawn(vPos.x + vDir.x * fDist, vPos.y + vDir.y * fDist, vPos.z + vDir.z * fDist);
-                pFish->RespawnFish(vSpawn, sFishTypes[i], FISH_FLOAT);
+                float fDist = PblRandom::_Global.GetFloat() * fRadius;
+                PblVector3 vSpawn = vPos + vDir * fDist;
+                pFish->RespawnFish(vSpawn, sFishTypes[i - 1], FISH_FLOAT);
                 break;
             }
         }
@@ -467,12 +464,12 @@ void FishParticleManager::SpawnSwimmingFish(const PblVector3& vPos, float fRadiu
         return;
     }
 
-    const float fRandZ = 0.5f - PblRandom::GetGlobalFloat();
-    PblVector3 vRand(0.5f - PblRandom::GetGlobalFloat(), 0.0f, fRandZ);
+    const float fRandZ = 0.5f - PblRandom::_Global.GetFloat();
+    PblVector3 vRand(0.5f - PblRandom::_Global.GetFloat(), 0.0f, fRandZ);
     PblVector3 vDir;
     D3DXVec3Normalize((D3DXVECTOR3*)&vDir, (const D3DXVECTOR3*)&vRand);
 
-    float fPick = PblRandom::GetGlobalFloat();
+    float fPick = PblRandom::_Global.GetFloat();
     float fStep = 1.0f / sNumFishTypes;
     float fTotal = 0.0f;
     for (int i = 0; i < sNumFishTypes; ++i)
@@ -480,7 +477,7 @@ void FishParticleManager::SpawnSwimmingFish(const PblVector3& vPos, float fRadiu
         fTotal += fStep;
         if (fTotal >= fPick)
         {
-            float fDist = PblRandom::GetGlobalFloat() * fRadius;
+            float fDist = PblRandom::_Global.GetFloat() * fRadius;
             PblVector3 vSpawn(vPos.x + vDir.x * fDist, vPos.y + vDir.y * fDist, vPos.z + vDir.z * fDist);
             float fWaterHeight;
             if (RedWater::GetWaterHeight(vSpawn, fWaterHeight))

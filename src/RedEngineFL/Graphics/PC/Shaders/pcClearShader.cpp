@@ -209,11 +209,16 @@ void pcClearShader::Render_Fixed(const RenderItem* pItem, unsigned int) const
     }
 
     RedRenderer::pcLoadFormat(m_pVertexFormat);
-    RedRenderer::pcSetRenderState(D3DRS_COLORWRITEENABLE,
-                                  (m_uiMaterialFlags & 0x80000)
-                                      ? D3DCOLORWRITEENABLE_ALPHA
-                                      : D3DCOLORWRITEENABLE_RED | D3DCOLORWRITEENABLE_GREEN |
-                                            D3DCOLORWRITEENABLE_BLUE | D3DCOLORWRITEENABLE_ALPHA);
+    if (m_uiMaterialFlags & 0x80000)
+    {
+        RedRenderer::pcSetRenderState(D3DRS_COLORWRITEENABLE, D3DCOLORWRITEENABLE_ALPHA);
+    }
+    else
+    {
+        RedRenderer::pcSetRenderState(D3DRS_COLORWRITEENABLE,
+                                      D3DCOLORWRITEENABLE_RED | D3DCOLORWRITEENABLE_GREEN |
+                                          D3DCOLORWRITEENABLE_BLUE | D3DCOLORWRITEENABLE_ALPHA);
+    }
     pItem->pPrim->Draw();
 }
 
@@ -243,7 +248,14 @@ void pcClearShader::_Init(unsigned int uiFlags,
     m_pVertexFormat = pcRedVertexFormat::Create(uiFlags, uiFlags);
     m_pTex = 0;
     m_pAlphaMaskTex = 0;
-    m_blendMode = (m_uiMaterialFlags & 4) ? BLENDMODE_BLEND : BLENDMODE_NONE;
+    if (m_uiMaterialFlags & 4)
+    {
+        m_blendMode = BLENDMODE_BLEND;
+    }
+    else
+    {
+        m_blendMode = BLENDMODE_NONE;
+    }
 }
 
 // FUNCTION: SWBF2 0x00706e40

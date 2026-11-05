@@ -57,20 +57,18 @@ bool sValidateTimeStamp(ReserveStruct& rEntry, float fTimeout)
     {
         bValid = false;
     }
-    if (bValid)
+    if (!bValid)
     {
-        return true;
-    }
-
-    for (int i = 0; i < sList->GetLength(); ++i)
-    {
-        if (&(*sList)[i] == &rEntry)
+        for (int i = 0; i < sList->GetLength(); ++i)
         {
-            sList->Remove(i);
-            break;
+            if (&(*sList)[i] == &rEntry)
+            {
+                sList->Remove(i);
+                break;
+            }
         }
     }
-    return false;
+    return bValid;
 }
 
 // FUNCTION: SWBF2 0x00630030
@@ -114,7 +112,7 @@ static ReserveStruct* GetReserveStruct(const GameObject* pObj, const GameObject*
 // FUNCTION: SWBF2 0x0062f740
 bool IsReservedBy(const GameObject* pObj, const GameObject* pReserver, ReserveType eType)
 {
-    return GetReserveStruct(pObj, pReserver, eType) != 0;
+    return GetReserveStruct(pObj, pReserver, eType) ? true : false;
 }
 
 // FUNCTION: SWBF2 0x0062f760
@@ -177,14 +175,15 @@ void Reserve(const GameObject* pObj, const GameObject* pReserver, ReserveType eT
 {
     if (IsReservedBy(pObj, pReserver, eType))
     {
-        GetReserveStruct(pObj, pReserver, eType)->mReserveTime = GameLoop::GetMissionTime();
+        ReserveStruct* pEntry = GetReserveStruct(pObj, pReserver, eType);
+        pEntry->mReserveTime = GameLoop::GetMissionTime();
         return;
     }
 
     ReserveStruct newEntry;
     newEntry.mObj = pObj;
-    newEntry.mReserveTime = GameLoop::GetMissionTime();
     newEntry.mReserver = pReserver;
+    newEntry.mReserveTime = GameLoop::GetMissionTime();
     newEntry.mType = eType;
     sList->Append(newEntry);
 }
@@ -243,7 +242,7 @@ PblVector3 ReserveOffset(const GameObject* pTarget, const GameObject* pSelf, For
     case FT_RANDOM:
     {
         PblRandom random = { (pTarget->PblHandled::GetHandleId() - (int)(GameLoop::GetMissionTime() * -0.125f)) ^ 0xC71C2830u };
-        for (int i = iOrder; i > 0; --i)
+        for (int i = 0; i < iOrder; ++i)
         {
             random.GetVector3();
         }
@@ -260,46 +259,50 @@ PblVector3 ReserveOffset(const GameObject* pTarget, const GameObject* pSelf, For
     case FT_DOUBLEFILE:
     {
         const float fRow = (float)(iOrder / 2) + 0.25f;
-        const float fSide = (float)((iOrder % 2 == 0) ? 1 : -1);
-        return PblVector3(fSide * 0.75f + fRow * 0.0f, fSide * 0.0f + fRow * 0.0f, fSide * 0.0f + fRow * -1.0f);
+        const PblVector3 vBack = PblVector3(0.0f, 0.0f, -1.0f) * fRow;
+        const float fSide = (float)(((iOrder & 1) == 0) ? 1 : -1);
+        return PblVector3(fSide * 0.75f + vBack.x, fSide * 0.0f + vBack.y, fSide * 0.0f + vBack.z);
     }
 
     case FT_CONVOY:
     {
         const float fRow = (float)(iOrder / 2) - 0.25f;
-        const float fSide = (float)((iOrder % 2 == 0) ? 1 : -1);
-        return PblVector3(fSide * 0.75f + fRow * 0.0f, fSide * 0.0f + fRow * 0.0f, fSide * 0.0f + fRow);
+        const PblVector3 vBack = PblVector3(0.0f, 0.0f, 1.0f) * fRow;
+        const float fSide = (float)(((iOrder & 1) == 0) ? 1 : -1);
+        return PblVector3(fSide * 0.75f + vBack.x, fSide * 0.0f + vBack.y, fSide * 0.0f + vBack.z);
+    }
+
+    case FT_FLYINGV:
+    {
+        const float fSide = (float)(((iOrder & 1) == 0) ? 1 : -1);
+        const float fRow = (float)(iOrder / 2) + 0.25f;
+        const PblVector3 vBack = PblVector3(fSide, 0.0f, -1.0f) * fRow;
+        return PblVector3(fSide * 0.75f + vBack.x, fSide * 0.0f + vBack.y, fSide * 0.0f + vBack.z);
     }
 
     case FT_DOUBLEFILE_RAND:
     {
         const float fBits = (float)(pSelf->PblHandled::GetHandleId() & 7);
         PblRandom random = { (pTarget->PblHandled::GetHandleId() - (int)((GameLoop::GetMissionTime() + fBits) * -0.125f)) ^ 0xC71C2830u };
-        for (int i = iOrder; i > 0; --i)
+        for (int i = 0; i < iOrder; ++i)
         {
             random.GetVector3();
         }
-        const PblVector3 vRand = random.GetVector3();
+        const PblVector3 vJitter = random.GetVector3() * 0.2f;
         const float fRow = (float)(iOrder / 2) + 0.25f;
-        const float fSide = (float)((iOrder % 2 == 0) ? 1 : -1);
-        return PblVector3(fRow * 0.0f + (fSide * 0.75f + vRand.x * 0.2f),
-                          fRow * 0.0f + (fSide * 0.0f + vRand.y * 0.2f),
-                          fRow * -1.0f + (fSide * 0.0f + vRand.z * 0.2f));
+        const PblVector3 vBack = PblVector3(0.0f, 0.0f, -1.0f) * fRow;
+        const float fSide = (float)(((iOrder & 1) == 0) ? 1 : -1);
+        const PblVector3 vSideOffset(fSide * 0.75f, fSide * 0.0f, fSide * 0.0f);
+        const PblVector3 vSum = vSideOffset + vJitter;
+        return vBack + vSum;
     }
 
     case FT_CIRCLE:
     {
         float fSin;
         float fCos;
-        PblMath::SinCos(&fSin, &fCos, (float)iOrder / (float)iCount * PblMath::fTwoPi);
+        PblMath::SinCos(&fSin, &fCos, (float)iOrder / (float)iCount * 6.2831855f);
         return PblVector3(fSin, 0.0f, -fCos);
-    }
-
-    case FT_FLYINGV:
-    {
-        const float fRow = (float)(iOrder / 2) + 0.25f;
-        const float fSide = (float)((iOrder % 2 == 0) ? 1 : -1);
-        return PblVector3(fSide * 0.75f + fSide * fRow, fSide * 0.0f + fRow * 0.0f, fSide * 0.0f + fRow * -1.0f);
     }
 
     default:

@@ -57,13 +57,8 @@ void Sound::Open()
         new (&smVoiceVirtuals[i], false)
             FireForget((unsigned int)(unsigned long)smVoiceVirtuals, 0, true);
 
-        ::PblVector3* pPos = &smSource3DPositions[i];
-        smSource3Ds[i].mFlags |= (unsigned char)Source3D::flags_pos3DChanged;
-        smSource3Ds[i].mPos3D = pPos ? pPos : &Globals::smNullVector;
-
-        ::PblVector3* pVel = &smSource3DVelocities[i];
-        smSource3Ds[i].mFlags |= (unsigned char)Source3D::flags_vel3DChanged;
-        smSource3Ds[i].mVel3D = pVel ? pVel : &Globals::smNullVector;
+        smSource3Ds[i].SetPosition(&smSource3DPositions[i]);
+        smSource3Ds[i].SetVelocity(&smSource3DVelocities[i]);
     }
 }
 
@@ -164,10 +159,11 @@ void Sound::Properties::Read(PblFileChunk& chunk)
         {
             child._pFile->Read8();
             const unsigned int uiParentID = child._pFile->Read32();
-            for (PblListSingle::Node* pNode = smPropertyList.mHead.mNext;
-                 pNode != &smPropertyList.mHead; pNode = pNode->mNext)
+            for (PblListSingle::Itor itor(&smPropertyList);
+                 itor.GetNode() != smPropertyList.GetTerminator(); ++itor)
             {
-                Properties* const pParent = reinterpret_cast<Properties*>(reinterpret_cast<char*>(pNode) - offsetof(Properties, mNode));
+                Properties* const pParent = (Properties*)itor.GetNode()->GetObjectA(
+                    &smPropertyList, offsetof(Properties, mNode));
                 if (pParent->mHashID != uiParentID)
                 {
                     continue;
@@ -357,8 +353,8 @@ VoiceVirtual* __cdecl Sound::Play(Source3D* pSource3D, const Properties* pProps,
         if (fGain != 0.0f)
         {
             SourceI3DL2 sourceI3DL2;
-            sourceI3DL2.Update(ListenerBase::GetClosestListener(pSource3D->mPos3D, 0, 0),
-                               pSource3D->mPos3D, pProps->mSpaceDistance, true, 0);
+            ListenerBase* const pClosest = ListenerBase::GetClosestListener(pSource3D->mPos3D, 0, 0);
+            sourceI3DL2.Update(pClosest, pSource3D->mPos3D, pProps->mSpaceDistance, true, 0);
             fGain *= sourceI3DL2.CalculateGainEstimate();
         }
     }
@@ -366,7 +362,7 @@ VoiceVirtual* __cdecl Sound::Play(Source3D* pSource3D, const Properties* pProps,
     {
         fGain = pProps->mGain;
     }
-    if (fGain == 0.0f && bArg)
+    if (0.0f == fGain && bArg)
     {
         return 0;
     }
@@ -384,9 +380,10 @@ VoiceVirtual* __cdecl Sound::Play(Source3D* pSource3D, const Properties* pProps,
     }
     if (!pVoice)
     {
+        const float fBusGain = pProps->mBus->mFinalGain;
         const float fPriority = pProps->SourceVirtual::CalculatePriority(
             (unsigned char)transport.GetPlayState(), 0.0f, pProps->GetLooping(),
-            pProps->mBus->mFinalGain);
+            fBusGain);
         FireForget* pVoice2D = (FireForget*)StealVoice(p2DManager, fPriority);
         FireForget* pVoice3D = bTwoManagers ? (FireForget*)StealVoice(p3DManager, fPriority) : 0;
         if (!pVoice2D)
@@ -412,7 +409,7 @@ VoiceVirtual* __cdecl Sound::Play(Source3D* pSource3D, const Properties* pProps,
 
     if (pSource3D)
     {
-        const unsigned int i = (unsigned int)(pVoice - smVoiceVirtuals);
+        const unsigned int i = ((unsigned int)pVoice - (unsigned int)smVoiceVirtuals) / sizeof(FireForget);
         smSource3DPositions[i] = *pSource3D->mPos3D;
         smSource3DVelocities[i] = *pSource3D->mVel3D;
         smSource3Ds[i].CopyParameters(*pSource3D);
@@ -469,9 +466,8 @@ void Sound::Properties::SetupVoiceVirtual(VoiceVirtualBus* pVoice, Source3D* pSo
 
     if (GetRandomPlayPosition())
     {
-        const float fLength = (float)pSample->mLengthSamples;
-        pVoice->mPlaybackPosition =
-            (unsigned int)(sndRandom.GetFloat() * fLength);
+        const unsigned int uiLength = pSample->mLengthSamples;
+        pVoice->mPlaybackPosition = (unsigned int)(sndRandom.GetFloat() * uiLength);
         pVoice->SourceTransport::mFlags |= SourceTransport::flags_updatePlaybackPosition;
     }
 
@@ -479,10 +475,11 @@ void Sound::Properties::SetupVoiceVirtual(VoiceVirtualBus* pVoice, Source3D* pSo
     {
         pVoice->SetPosition(pSource3D->mPos3D);
         pVoice->SetVelocity(pSource3D->mVel3D);
-        if (pSource3D->mClosestListener)
+        Listener* const pListener = pSource3D->mClosestListener;
+        if (pListener)
         {
-            pVoice->AssignClosestListener(pSource3D->mClosestListener, pSource3D->mDistance,
-                                          pSource3D->mDistanceLength);
+            const float fDistanceLength = pSource3D->mDistanceLength;
+            pVoice->AssignClosestListener(pListener, pSource3D->mDistance, fDistanceLength);
         }
     }
 }
@@ -527,7 +524,7 @@ void __cdecl Sound::UpdateVoices(VoiceVirtualManager* pManager, float fDeltaTime
         const ::PblVector3* pPos = pVoice->mPos3D;
         if (pPos < &smSource3DPositions[0] || pPos >= &smSource3DPositions[64])
         {
-            const unsigned int i = (unsigned int)(pVoice - smVoiceVirtuals);
+            const unsigned int i = ((unsigned int)pVoice - (unsigned int)smVoiceVirtuals) / sizeof(FireForget);
             smSource3DPositions[i] = *pPos;
             pVoice->SetPosition(&smSource3DPositions[i]);
         }
@@ -558,8 +555,8 @@ void Sound::Play(bool bRestart)
     SetSample((const Sample*)mProperties->mSelObjectWeightList->GetObjectA());
     if (mProperties->GetRandomPlayPosition())
     {
-        const float fLength = (float)mSample->mLengthSamples;
-        mPlaybackPosition = (unsigned int)(sndRandom.GetFloat() * fLength);
+        const unsigned int uiLength = mSample->mLengthSamples;
+        mPlaybackPosition = (unsigned int)(sndRandom.GetFloat() * uiLength);
         SourceTransport::mFlags |= SourceTransport::flags_updatePlaybackPosition;
     }
 

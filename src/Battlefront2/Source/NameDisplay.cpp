@@ -1,3 +1,4 @@
+#include "PebbleFL/Common/PblMath.h"
 #include <d3dx9math.h>
 #include "NameDisplay.h"
 #include "CameraManager.h"
@@ -64,10 +65,6 @@ Character* CameraManager::GetDeathCameraKiller(int iCam)
 // GLOBAL: SWBF2 0x01fa2494
 NameDisplayThread* sNameDisplayThread[1];
 
-NameDisplayThread::NameDisplayThread()
-{
-}
-
 
 
 // FUNCTION: SWBF2 0x005aa770
@@ -92,19 +89,17 @@ void NameDisplay::Init()
     for (unsigned int i = 0; i < CameraManager::sInstance->m_iNumCam; ++i)
     {
         unsigned int hView = CameraManager::sInstance->m_hView[i];
-        NameDisplayThread* pThread = sNameDisplayThread[i];
-        pThread->ActivateThread(0, PER_FRAME);
+        sNameDisplayThread[i]->ActivateThread(0, PER_FRAME);
         for (int j = 0; j < 64; ++j)
         {
-            RedScreenGroupElement* pGroup = &sNameDisplayThread[i]->mPlayerNames[j];
-            pGroup->Enable(false);
-            pGroup->AddElement(&sNameDisplayThread[i]->mPlayerNamesText[j]);
-            RedTextElement* pText = &sNameDisplayThread[i]->mPlayerNamesText[j];
-            pText->SetFont(RedFont::GAMEFONT_TINY);
-            pText->SetIntercharacterSpacing(0);
+            sNameDisplayThread[i]->mPlayerNames[j].Enable(false);
+            sNameDisplayThread[i]->mPlayerNames[j].AddElement(&sNameDisplayThread[i]->mPlayerNamesText[j]);
+            sNameDisplayThread[i]->mPlayerNamesText[j].SetFont(RedFont::GAMEFONT_TINY);
+            sNameDisplayThread[i]->mPlayerNamesText[j].SetIntercharacterSpacing(0);
 
-            pText->m_eStyle = RedGlyphCacheElement::TEXT_STYLE_SHADOW;
-            pText->SetTextAlign(RedTextElement::TEXT_HALIGN_CENTER, RedTextElement::TEXT_VALIGN_BOTTOM);
+            sNameDisplayThread[i]->mPlayerNamesText[j].m_eStyle = RedGlyphCacheElement::TEXT_STYLE_SHADOW;
+            sNameDisplayThread[i]->mPlayerNamesText[j].SetTextAlign(RedTextElement::TEXT_HALIGN_CENTER,
+                                                                    RedTextElement::TEXT_VALIGN_BOTTOM);
             FLRenderer::AddInterfaceElement(hView, &sNameDisplayThread[i]->mPlayerNames[j],
                                             RedInterfaceScreen::CENTER, RedInterfaceScreen::CENTER,
                                             false);
@@ -224,16 +219,15 @@ bool NameDisplayThread::Update(float)
                     {
                         continue;
                     }
-                    const PblHandle<const GameObject>& target =
-                        pLocalUnit->mReticuleTarget[pLocalUnit->GetWpnChannel()];
-                    if (!(const GameObject*)target)
+                    if (!(const GameObject*)pLocalUnit->mReticuleTarget[pLocalUnit->GetWpnChannel()])
                     {
                         continue;
                     }
-                    if (target != pObject)
+                    if (pLocalUnit->mReticuleTarget[pLocalUnit->GetWpnChannel()] != pObject)
                     {
                         Controllable* pOnFoot = pCharacter->GetUnit();
-                        if (!pOnFoot || target != pOnFoot->GetGameObject())
+                        if (!pOnFoot ||
+                            pLocalUnit->mReticuleTarget[pLocalUnit->GetWpnChannel()] != pOnFoot->GetGameObject())
                         {
                             continue;
                         }
@@ -256,41 +250,31 @@ bool NameDisplayThread::Update(float)
         {
             GameObject* pHost = pCollision->GetGameObject();
             PblMatrix mHost(pHost->GetMatrix());
-            float fOffsetX = vPos.x - mHost.m[3][0];
-            float fOffsetY = vPos.y - mHost.m[3][1];
-            float fOffsetZ = vPos.z - mHost.m[3][2];
+            PblVector3 vOffset = vPos - mHost.GetTranslation();
             gameObjectInterpolator.GetMatrix(pHost->GetNetUniqueId(), mHost);
-            vPos.x = mHost.m[3][0] + fOffsetX;
-            vPos.y = mHost.m[3][1] + fOffsetY;
-            vPos.z = mHost.m[3][2] + fOffsetZ;
+            vPos = mHost.GetTranslation() + vOffset;
         }
-        vPos.x += 0.0f;
-        vPos.y += fHeight;
-        vPos.z += 0.0f;
+        vPos += PblVector3(0.0f, fHeight, 0.0f);
 
-        PblVector3 vScreen;
-        vScreen = pCamera->TransformWorldPointToProjectionSpace(vPos);
+        PblVector3 vScreen = pCamera->TransformWorldPointToProjectionSpace(vPos);
         if (vScreen.z < -1.0f || vScreen.z > 1.0f)
         {
             continue;
         }
         const PblMatrix& mCamera = pCamera->GetMatrix();
         PblVector3 vEye = mCamera.GetTranslation();
-        PblVector3 vToUnit;
-        vToUnit.x = vPos.x - vEye.x;
-        vToUnit.y = vPos.y - vEye.y;
-        vToUnit.z = vPos.z - vEye.z;
+        PblVector3 vToUnit = vPos - vEye;
         PblVector3 vDir;
         D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vToUnit));
-        const PblVector3& vAt = mCamera.GetZAxis();
-        if (!(vDir.y * -vAt.y + vDir.x * -vAt.x + vDir.z * -vAt.z > 0.0f))
+        const PblVector3 vBack = -mCamera.GetZAxis();
+        if (vDir.y * vBack.y + vDir.x * vBack.x + vDir.z * vBack.z <= 0.0f)
         {
             continue;
         }
 
         Entity* pEntity = pUnit->GetEntity();
         float fFadeRange = pEntity && pEntity->IsRtti(EntityFlyer::rttiHashEntityFlyer) ? 350.0f : 20.0f;
-        float fDistance = sqrtf(vToUnit.y * vToUnit.y + vToUnit.x * vToUnit.x + vToUnit.z * vToUnit.z);
+        float fDistance = Length(vPos - vEye);
         unsigned char ucAlpha = 0xff;
         if (fDistance > fFadeRange)
         {
@@ -306,7 +290,7 @@ bool NameDisplayThread::Update(float)
         {
             text.m_color = pLocalCharacter->GetTeamPtr()->GetColor(pCharacter->GetTeamNumber());
             if (NetGame::IsEnabled() && pCharacter->GetTeamNumber() == pLocalCharacter->GetTeamNumber() &&
-                FriendBuddyList::IsFriendBuddy(NetGame::GetLocalIndex(mJoystickIndex), i))
+                FriendBuddyList::IsFriendBuddy(iLocalIndex, i))
             {
                 RedColor white(gHudHighlightColor);
                 text.m_color = white;

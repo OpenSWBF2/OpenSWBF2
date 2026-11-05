@@ -1,3 +1,4 @@
+#include "PebbleFL/Common/PblMath.h"
 #include <d3dx9math.h>
 #include <math.h>
 
@@ -310,7 +311,7 @@ void SpaceDustEffect::Update(float fDeltaTime)
         }
         else
         {
-            fSpeed = sqrtf(fLengthSq);
+            fSpeed = PblMath::Sqrt(fLengthSq);
             D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vVelocity));
         }
     }
@@ -423,91 +424,82 @@ void SpaceDustEffect::Render(int value)
     }
 
     const RedCamera* pCamera = RedRenderer::GetCamera();
-    int iEmitter;
-    for (iEmitter = 0; iEmitter < 1; iEmitter++)
+    for (unsigned int iEmitter = 0; iEmitter < 1; iEmitter++)
     {
-        if (CameraManager::sInstance->mRedCamera[iEmitter] == pCamera && m_emitter[iEmitter].mEnabled &&
-            m_emitter[iEmitter].mParticle)
+        const DustEmitterData& emitter = m_emitter[iEmitter];
+        if (CameraManager::sInstance->mRedCamera[iEmitter] == pCamera && emitter.mEnabled && emitter.mParticle)
         {
-            break;
-        }
-    }
-    if (iEmitter >= 1)
-    {
-        return;
-    }
-    const DustEmitterData& emitter = m_emitter[iEmitter];
+            const PblMatrix& mCamera = pCamera->GetMatrix();
+            const PblVector3 vPos = mCamera.GetTranslation();
+            const PblVector3 vFwd = mCamera.GetZAxis();
+            RedParticleRenderer::SubmitBounds(PblVector3(vPos.x - 300.0f, vPos.y - 300.0f, vPos.z - 300.0f),
+                                              PblVector3(vPos.x + 300.0f, vPos.y + 300.0f, vPos.z + 300.0f));
+            RedParticleRenderer::SubmitTexture(mTextureHash, BLEND_NORMAL, 0);
 
-    const PblMatrix& mCamera = pCamera->GetMatrix();
-    const PblVector3 vPos(mCamera.m[3][0], mCamera.m[3][1], mCamera.m[3][2]);
-    const PblVector3 vFwd(mCamera.m[2][0], mCamera.m[2][1], mCamera.m[2][2]);
-    const PblVector3 vMax(vPos.x + 300.0f, vPos.y + 300.0f, vPos.z + 300.0f);
-    const PblVector3 vMin(vPos.x - 300.0f, vPos.y - 300.0f, vPos.z - 300.0f);
-    RedParticleRenderer::SubmitBounds(vMin, vMax);
-    RedParticleRenderer::SubmitTexture(mTextureHash, BLEND_NORMAL, 0);
+            float fSpeed;
+            ChaseCamera* pChaseCamera = CameraManager::sInstance->mChaseCamera[iEmitter];
+            if (pChaseCamera)
+            {
+                PblVector3 vVelocity;
+                vVelocity = pChaseCamera->GetVelocity();
+                const float fLengthSq = vVelocity.x * vVelocity.x + vVelocity.y * vVelocity.y +
+                                        vVelocity.z * vVelocity.z;
+                fSpeed = fLengthSq < 0.0001f ? 0.0f : PblMath::Sqrt(fLengthSq);
+            }
+            else
+            {
+                fSpeed = 0.0f;
+            }
+            float fT = (fSpeed - mParticleLengthMinSpeed) / (mParticleLengthMaxSpeed - mParticleLengthMinSpeed);
+            if (fT < 0.0f)
+            {
+                fT = 0.0f;
+            }
+            else if (fT > 1.0f)
+            {
+                fT = 1.0f;
+            }
+            mTextureHash = 0x72F9433Cu;
+            const float fLength = (1.0f - fT) * mSpeedParticleMinLength + mSpeedParticleMaxLength * fT;
 
-    float fSpeed = 0.0f;
-    ChaseCamera* pChaseCamera = CameraManager::sInstance->mChaseCamera[iEmitter];
-    if (pChaseCamera)
-    {
-        PblVector3 vVelocity = pChaseCamera->GetVelocity();
-        const float fLengthSq = vVelocity.x * vVelocity.x + vVelocity.y * vVelocity.y +
-                                vVelocity.z * vVelocity.z;
-        if (fLengthSq >= 0.0001f)
-        {
-            fSpeed = sqrtf(fLengthSq);
+            RedParticleRenderer::TexCoords texCoords;
+            texCoords.u0 = 0;
+            texCoords.v0 = 0;
+            texCoords.u1 = 0xff;
+            texCoords.v1 = 0xff;
+            for (int i = 0; i < 80; i++)
+            {
+                const ParticleData& particle = emitter.mParticle[i];
+                if (particle.mLifeLeft >= 0.0f)
+                {
+                    RedColor color(RedColor::WHITE);
+                    float fFade = (DotProduct(particle.mCoord - vPos, -vFwd) - 50.0f) / 30.0f;
+                    if (fFade < 0.0f)
+                    {
+                        fFade = 0.0f;
+                    }
+                    else if (fFade > 1.0f)
+                    {
+                        fFade = 1.0f;
+                    }
+                    float fAlpha = (1.0f - fFade) + fFade * 255.0f;
+                    if (fAlpha < 0.0f)
+                    {
+                        fAlpha = 0.0f;
+                    }
+                    else if (fAlpha > 255.0f)
+                    {
+                        fAlpha = 255.0f;
+                    }
+                    color.a = (unsigned char)(int)fAlpha;
+                    RedParticleRenderer::SubmitParticle(PIT_LASER_START, particle.mCoord, color, particle.mScale * 0.5f,
+                                                        0.0f, texCoords, gVectorUnitX, gVectorUnitY);
+                    const PblVector3 vTail = particle.mCoord - vFwd * fLength;
+                    RedParticleRenderer::SubmitParticle(PIT_LASER_END, vTail, color, particle.mScale * 0.5f, 0.0f,
+                                                        texCoords, gVectorUnitX, gVectorUnitY);
+                }
+            }
+            return;
         }
-    }
-    float fT = (fSpeed - mParticleLengthMinSpeed) / (mParticleLengthMaxSpeed - mParticleLengthMinSpeed);
-    if (fT < 0.0f)
-    {
-        fT = 0.0f;
-    }
-    else if (fT > 1.0f)
-    {
-        fT = 1.0f;
-    }
-    mTextureHash = 0x72F9433Cu;
-    const float fLength = (1.0f - fT) * mSpeedParticleMinLength + mSpeedParticleMaxLength * fT;
-
-    RedParticleRenderer::TexCoords texCoords;
-    texCoords.u0 = 0;
-    texCoords.v0 = 0;
-    texCoords.u1 = 0xff;
-    texCoords.v1 = 0xff;
-    for (unsigned int i = 0; i < 80; i++)
-    {
-        const ParticleData& particle = emitter.mParticle[i];
-        if (particle.mLifeLeft < 0.0f)
-        {
-            continue;
-        }
-        RedColor color = RedColor::WHITE;
-        float fFade = ((particle.mCoord.x - vPos.x) * -vFwd.x + (particle.mCoord.y - vPos.y) * -vFwd.y +
-                       (particle.mCoord.z - vPos.z) * -vFwd.z - 50.0f) / 30.0f;
-        if (fFade < 0.0f)
-        {
-            fFade = 0.0f;
-        }
-        else if (fFade > 1.0f)
-        {
-            fFade = 1.0f;
-        }
-        float fAlpha = (1.0f - fFade) + fFade * 255.0f;
-        if (fAlpha < 0.0f)
-        {
-            fAlpha = 0.0f;
-        }
-        else if (fAlpha > 255.0f)
-        {
-            fAlpha = 255.0f;
-        }
-        color.a = (unsigned char)(int)fAlpha;
-        RedParticleRenderer::SubmitParticle(PIT_LASER_START, particle.mCoord, color, particle.mScale * 0.5f,
-                                            0.0f, texCoords, gVectorUnitX, gVectorUnitY);
-        const PblVector3 vTail(particle.mCoord.x - vFwd.x * fLength, particle.mCoord.y - vFwd.y * fLength,
-                               particle.mCoord.z - vFwd.z * fLength);
-        RedParticleRenderer::SubmitParticle(PIT_LASER_END, vTail, color, particle.mScale * 0.5f, 0.0f,
-                                            texCoords, gVectorUnitX, gVectorUnitY);
     }
 }

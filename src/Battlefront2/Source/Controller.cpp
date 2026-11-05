@@ -64,23 +64,23 @@ void Controller::KillController()
 
 // FUNCTION: SWBF2 0x00485190
 Controller::Controller(Controllable* pOwner)
-    : mOwner(pOwner),
-      mTargetBubbleLastVel(0.0f, 0.0f, 0.0f),
-      mTargetBubbleSize(0.0f),
-      mAvailableBubbleCharge(0.0f),
-      mTargetBubbleOffset(0.0f, 0.0f, 0.0f),
-      mOpenRadius(0.0f),
-      mOpenRadiusTime(-100.0f),
-      mFoliageVisCrouch(1.0f),
-      mFoliageVisStand(1.0f),
-      mRegionVisCrouch(1.0f),
-      mRegionVisStand(1.0f),
-      mTotalVisFactor(1.0f),
-      mForceAudible(false),
-      mCrowdTestTimer(-100.0f),
-      mCrowdEnemies(0),
-      mCrowdAllies(0)
 {
+    mOwner = pOwner;
+    mTargetBubbleLastVel = PblVector3(0.0f, 0.0f, 0.0f);
+    mTargetBubbleOffset = PblVector3(0.0f, 0.0f, 0.0f);
+    mCrowdTestTimer = -100.0f;
+    mCrowdEnemies = 0;
+    mCrowdAllies = 0;
+    mTargetBubbleSize = 0.0f;
+    mAvailableBubbleCharge = 0.0f;
+    mOpenRadius = 0.0f;
+    mOpenRadiusTime = -100.0f;
+    mFoliageVisCrouch = 1.0f;
+    mFoliageVisStand = 1.0f;
+    mRegionVisCrouch = 1.0f;
+    mRegionVisStand = 1.0f;
+    mForceAudible = false;
+    mTotalVisFactor = 1.0f;
 }
 
 // FUNCTION: SWBF2 0x004856d0
@@ -128,31 +128,26 @@ void Controller::IncreaseTargetBubbleSize(float fIncrease)
     float fMin = 1.5f;
     if (mOwner)
     {
-        Trackable* pTrackable = GetTrackable(mOwner);
         fMin = AIDifficulty::GetMinBubbleSize(
-            !(pTrackable->GetGameObject() && AIUtil::IsPlayerTeam(GetTeam(pTrackable->GetGameObject()))));
+            !(mOwner->GetGameObject() && AIUtil::IsPlayerTeam(mOwner->GetGameObject()->GetTeam())));
     }
 
-    if (mTargetBubbleSize < fMin)
-    {
-        mTargetBubbleSize = fMin;
-    }
-    else if (mTargetBubbleSize > 2.0f)
-    {
-        mTargetBubbleSize = 2.0f;
-    }
+    const float fSize = mTargetBubbleSize;
+    mTargetBubbleSize = fSize < fMin ? fMin : (fSize > 2.0f ? 2.0f : fSize);
 }
 
 // FUNCTION: SWBF2 0x00485520
 float Controller::_GetTargetBubbleSize() const
 {
-    const GameObject* pObject = mOwner ? ((const Controllable*)mOwner)->GetGameObject() : 0;
+    Controllable* pOwner = mOwner;
+    const GameObject* pObject = pOwner ? ((const Controllable*)pOwner)->GetGameObject() : 0;
 
+    float fMaxSize;
     float fStance = 1.0f;
-    float fMaxSize = 1.5f;
-    if (mOwner)
+    fMaxSize = 1.5f;
+    if (pOwner)
     {
-        fStance = mOwner->GetTargetBubbleStanceModifier();
+        fStance = pOwner->GetTargetBubbleStanceModifier();
         bool bEnemy = !(pObject ? AIUtil::IsPlayerTeam(GetTeam(pObject)) : true);
         if (pObject->IsRtti(EntityFlyer::rttiHashEntityFlyer))
         {
@@ -165,14 +160,10 @@ float Controller::_GetTargetBubbleSize() const
     }
 
     const PblVector3& vVelocity = pObject->GetVelocity();
-    float fSpeed = sqrtf(vVelocity.x * vVelocity.x + vVelocity.y * vVelocity.y
+    float fSpeed = PblMath::Sqrt(vVelocity.x * vVelocity.x + vVelocity.y * vVelocity.y
                          + vVelocity.z * vVelocity.z);
     float fMaxSpeed = pObject->GetMaxSpeed();
-    if (fMaxSpeed < 0.1f)
-    {
-        fMaxSpeed = 0.1f;
-    }
-    float fSpeedFactor = (fSpeed / fMaxSpeed * 0.6f + 1.0f) * fStance;
+    float fSpeedFactor = (fSpeed / (fMaxSpeed < 0.1f ? 0.1f : fMaxSpeed) * 0.6f + 1.0f) * fStance;
 
     float fRadius = AIUtil::GetCollisionRadius(pObject) * 2.0f;
     if (pObject->GetEntityType() == ENT_HOVER)
@@ -184,12 +175,9 @@ float Controller::_GetTargetBubbleSize() const
         fRadius *= 2.0f;
     }
 
+    float fVisScale = 3.0f - mTotalVisFactor * 2.0f;
     float fSize = mTargetBubbleSize * fSpeedFactor;
-    if (fSize > fMaxSize)
-    {
-        fSize = fMaxSize;
-    }
-    return (3.0f - mTotalVisFactor * 2.0f) * fRadius * fSize;
+    return fVisScale * fRadius * (fSize > fMaxSize ? fMaxSize : fSize);
 }
 
 // FUNCTION: SWBF2 0x00485250
@@ -202,55 +190,30 @@ void Controller::UpdateTargetBubbleSize(float dt)
 
     float fShrink = AIDifficulty::GetTargetBubbleShrinkRate(
                         !AIUtil::IsPlayerTeam(GetTeam(mOwner->GetGameObject()))) * dt;
-    float fIncrease = fShrink;
-    if (mOwner->GetGameObject()->IsRtti(EntityFlyer::rttiHashEntityFlyer))
-    {
-        fIncrease *= 0.5f;
-    }
-    IncreaseTargetBubbleSize(fIncrease);
+    IncreaseTargetBubbleSize(mOwner->GetGameObject()->IsRtti(EntityFlyer::rttiHashEntityFlyer)
+                             ? fShrink * 0.5f : fShrink);
 
-    float fCharge = mAvailableBubbleCharge - fShrink * 0.5f;
-    if (fCharge < 0.0f)
-    {
-        fCharge = 0.0f;
-    }
-    else if (fCharge > 5.0f)
-    {
-        fCharge = 5.0f;
-    }
-    mAvailableBubbleCharge = fCharge;
+    mAvailableBubbleCharge = Clamp(mAvailableBubbleCharge - fShrink * 0.5f, 0.0f, 5.0f);
 
     if (mOwner->GetGameObject())
     {
         PblVector3 vVelocity = mOwner->GetGameObject()->GetVelocity();
-        float fMaxSpeed = mOwner->GetGameObject()->GetMaxSpeed();
-        if (fMaxSpeed < 0.1f)
-        {
-            fMaxSpeed = 0.1f;
-        }
+        float fMaxSpeed = Max(0.1f, mOwner->GetGameObject()->GetMaxSpeed());
         PblVector3 vDelta(mTargetBubbleLastVel.x - vVelocity.x,
                           mTargetBubbleLastVel.y - vVelocity.y,
                           mTargetBubbleLastVel.z - vVelocity.z);
         mTargetBubbleLastVel = vVelocity;
         IncreaseTargetBubbleSize(
-            sqrtf(vDelta.x * vDelta.x + vDelta.y * vDelta.y + vDelta.z * vDelta.z) * 0.455f
+            PblMath::Sqrt(vDelta.x * vDelta.x + vDelta.y * vDelta.y + vDelta.z * vDelta.z) * 0.455f
             / fMaxSpeed);
     }
 
     PblVector3 vRandom = PblRandom::_Global.GetVector3();
-    PblVector3 vAxis(mTargetBubbleAxis.x + vRandom.x, mTargetBubbleAxis.y + vRandom.y,
-                     mTargetBubbleAxis.z + vRandom.z);
+    PblVector3 vAxis = mTargetBubbleAxis + vRandom;
     D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vRandom), reinterpret_cast<const D3DXVECTOR3*>(&vAxis));
     mTargetBubbleAxis = vRandom;
 
-    float fAngle = dt * 2.0f;
-    float fSin, fCos;
-    PblMath::SinCos(&fSin, &fCos, fAngle * 0.5f);
-    PblQuaternion qTurn;
-    qTurn._fX = mTargetBubbleAxis.x * fSin;
-    qTurn._fY = mTargetBubbleAxis.y * fSin;
-    qTurn._fZ = mTargetBubbleAxis.z * fSin;
-    qTurn._fS = fCos;
+    PblQuaternion qTurn(mTargetBubbleAxis, dt * 2.0f);
     mTargetBubbleRotation = mTargetBubbleRotation * qTurn;
     mTargetBubbleOffset = mTargetBubbleRotation.RotateVector(PblVector3(0.0f, 1.0f, 0.0f));
 
@@ -279,10 +242,9 @@ void Controller::UpdateFreeSpace()
     {
         const Obstacle* pIgnore = AIUtil::GetGameObjectBarrier(mOwner->GetGameObject());
         const PblMatrix& mMatrix = mOwner->GetMatrix();
-        GameObject* pObject = mOwner->GetGameObject();
-        if (PathFinder::IsPointValid(mMatrix.GetTranslation(),
-                                     fRadius + AIUtil::GetCollisionRadius(pObject),
-                                     AIUtil::GetAIType(pObject), 0, &pIgnore, 1))
+        if (PathFinder::IsPointValid(*(const PblVector3*)&mMatrix.m[3][0],
+                                     fRadius + AIUtil::GetCollisionRadius(mOwner->GetGameObject()),
+                                     AIUtil::GetAIType(mOwner->GetGameObject()), 0, &pIgnore, 1))
         {
             fRadius += fStep;
         }

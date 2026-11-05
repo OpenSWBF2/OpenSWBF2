@@ -144,6 +144,9 @@
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcDynamicSprite.cpp">
       <Filter>src\Battlefront2\Platform\Pc</Filter>
     </ClCompile>
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcFlashyTextElement.cpp">
+      <Filter>src\Battlefront2\Platform\Pc</Filter>
+    </ClCompile>
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcFLJoystick.cpp">
       <Filter>src\Battlefront2\Platform\Pc</Filter>
     </ClCompile>
@@ -670,6 +673,9 @@
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
     <ClCompile Include="src\Battlefront2\Source\FreeCamera.cpp">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Battlefront2\Source\FriendBuddyList.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
     <ClCompile Include="src\Battlefront2\Source\Fsm.cpp">
@@ -1356,6 +1362,9 @@
     <ClCompile Include="src\Battlefront2\Source\TreeGridCache.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
+    <ClCompile Include="src\Battlefront2\Source\TreeLine.cpp">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClCompile>
     <ClCompile Include="src\Battlefront2\Source\TriggerRegionManager.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
@@ -1842,6 +1851,9 @@
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedDeviceEnumerator.cpp">
       <Filter>src\RedEngineFL\Graphics\PC</Filter>
     </ClCompile>
+    <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedFootprint.cpp">
+      <Filter>src\RedEngineFL\Graphics\PC</Filter>
+    </ClCompile>
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedIndexBuffer.cpp">
       <Filter>src\RedEngineFL\Graphics\PC</Filter>
     </ClCompile>
@@ -1867,6 +1879,9 @@
       <Filter>src\RedEngineFL\Graphics\PC</Filter>
     </ClCompile>
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedVertexBuffer.cpp">
+      <Filter>src\RedEngineFL\Graphics\PC</Filter>
+    </ClCompile>
+    <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedVertexCache.cpp">
       <Filter>src\RedEngineFL\Graphics\PC</Filter>
     </ClCompile>
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedVertexFormat.cpp">
@@ -2333,6 +2348,9 @@
     </ClCompile>
     <ClCompile Include="src\Steam\gfSteamAuth.cpp">
       <Filter>src\Steam</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Zephyr\Source\PblPrintfWrapper.cpp">
+      <Filter>src\Zephyr\Source</Filter>
     </ClCompile>
     <ClCompile Include="src\Zephyr\Source\ZephyrAnim.cpp">
       <Filter>src\Zephyr\Source</Filter>
