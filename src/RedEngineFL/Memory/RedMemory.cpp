@@ -7,6 +7,10 @@
 #include "RedEngineFL/Memory/engineAlloc.h"
 #include "PebbleFL/Common/PblAsan.h"
 
+#ifdef OPENSWBF2_TEST
+#include <windows.h>
+#endif
+
 struct Tag
 {
     Tag* prev_;
@@ -120,6 +124,136 @@ static void HeapStatsReset(int heap)
         _InterlockedExchange(&sHeapFailed[heap], 0);
     }
 }
+
+#ifdef OPENSWBF2_TEST
+struct OffThreadSlot
+{
+    volatile long lKey;
+    volatile long lReady;
+    volatile long lCount;
+    unsigned int uTid;
+    int iHeap;
+    const char* pcHeap;
+    unsigned int uSize;
+    unsigned int uFrames;
+    void* apFrame[kRedOffThreadFrames];
+    void* apModule[kRedOffThreadFrames];
+    unsigned int auStamp[kRedOffThreadFrames];
+    unsigned int auOffset[kRedOffThreadFrames];
+};
+
+static volatile long sMainTid;
+static volatile long sOffCount;
+static volatile long sOffDropped;
+static OffThreadSlot sOffSources[kRedOffThreadSources];
+
+extern "C" bool RedImageStamp(const void* pBase, unsigned int* puStamp)
+{
+    MEMORY_BASIC_INFORMATION kInfo;
+    if (pBase == 0 || puStamp == 0 || VirtualQuery(pBase, &kInfo, sizeof(kInfo)) != sizeof(kInfo) ||
+        kInfo.Type != MEM_IMAGE || kInfo.State != MEM_COMMIT || kInfo.AllocationBase != pBase ||
+        (kInfo.Protect & (PAGE_NOACCESS | PAGE_GUARD)) != 0 || kInfo.RegionSize < sizeof(IMAGE_DOS_HEADER))
+    {
+        return false;
+    }
+    const IMAGE_DOS_HEADER* pDos = (const IMAGE_DOS_HEADER*)pBase;
+    if (pDos->e_magic != IMAGE_DOS_SIGNATURE || pDos->e_lfanew < 0 ||
+        (SIZE_T)pDos->e_lfanew + sizeof(IMAGE_NT_HEADERS) > kInfo.RegionSize)
+    {
+        return false;
+    }
+    const IMAGE_NT_HEADERS* pNt = (const IMAGE_NT_HEADERS*)((const char*)pBase + pDos->e_lfanew);
+    if (pNt->Signature != IMAGE_NT_SIGNATURE)
+    {
+        return false;
+    }
+    *puStamp = pNt->FileHeader.TimeDateStamp;
+    return true;
+}
+
+static bool OffThreadSlotMatches(const OffThreadSlot& rSlot, unsigned int uiTid, int heap, void* const* apv,
+                                 unsigned int uFrames)
+{
+    if (rSlot.uTid != uiTid || rSlot.iHeap != heap || rSlot.uFrames != uFrames)
+    {
+        return false;
+    }
+    for (unsigned int f = 0; f < uFrames; ++f)
+    {
+        if (rSlot.apFrame[f] != apv[f])
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+static void RedNoteOffThread(int heap, unsigned int size, unsigned int uiTid)
+{
+    void* apv[kRedOffThreadFrames];
+    DWORD ulHash = 0;
+    unsigned int uFrames = CaptureStackBackTrace(1, kRedOffThreadFrames, apv, &ulHash);
+    long lKey = (long)(ulHash ^ uiTid ^ (unsigned int)heap);
+    if (lKey == 0)
+    {
+        lKey = 1;
+    }
+    bool bRecorded = false;
+    for (int i = 0; i < kRedOffThreadSources && !bRecorded; ++i)
+    {
+        OffThreadSlot& rSlot = sOffSources[i];
+        long lSlotKey = rSlot.lKey;
+        if (lSlotKey == 0)
+        {
+            lSlotKey = _InterlockedCompareExchange(&rSlot.lKey, lKey, 0);
+        }
+        if (lSlotKey != 0)
+        {
+            if (lSlotKey == lKey && rSlot.lReady != 0 && OffThreadSlotMatches(rSlot, uiTid, heap, apv, uFrames))
+            {
+                _InterlockedIncrement(&rSlot.lCount);
+                bRecorded = true;
+            }
+        }
+        else
+        {
+            rSlot.uTid = uiTid;
+            rSlot.iHeap = heap;
+            rSlot.pcHeap = RedGetHeapName(heap);
+            rSlot.uSize = size;
+            rSlot.uFrames = uFrames;
+            for (unsigned int f = 0; f < uFrames; ++f)
+            {
+                MEMORY_BASIC_INFORMATION kInfo;
+                unsigned int uiStamp = 0;
+                const unsigned int uiAddr = (unsigned int)(UINT_PTR)apv[f];
+                rSlot.apFrame[f] = apv[f];
+                if (VirtualQuery(apv[f], &kInfo, sizeof(kInfo)) == sizeof(kInfo) && kInfo.Type == MEM_IMAGE &&
+                    RedImageStamp(kInfo.AllocationBase, &uiStamp))
+                {
+                    rSlot.apModule[f] = kInfo.AllocationBase;
+                    rSlot.auStamp[f] = uiStamp;
+                    rSlot.auOffset[f] = uiAddr - (unsigned int)(UINT_PTR)kInfo.AllocationBase;
+                }
+                else
+                {
+                    rSlot.apModule[f] = 0;
+                    rSlot.auStamp[f] = 0;
+                    rSlot.auOffset[f] = uiAddr;
+                }
+            }
+            _InterlockedIncrement(&rSlot.lCount);
+            _InterlockedExchange(&rSlot.lReady, 1);
+            bRecorded = true;
+        }
+    }
+    if (!bRecorded)
+    {
+        _InterlockedIncrement(&sOffDropped);
+    }
+    _InterlockedIncrement(&sOffCount);
+}
+#endif
 
 namespace RedMemory
 {
@@ -423,6 +557,13 @@ PBL_ASAN_NO_SANITIZE void TagRemoveList(TagList* list, Tag* tag)
 void* RedAllocFromHeap(int heap, unsigned int size, bool bTop)
 {
     void* p = RedAllocFromHeapInternal(heap, size, bTop);
+#ifdef OPENSWBF2_TEST
+    DWORD uiTid = GetCurrentThreadId();
+    if (sMainTid != 0 && uiTid != (DWORD)sMainTid)
+    {
+        RedNoteOffThread(heap, size, uiTid);
+    }
+#endif
     if (!p)
     {
         if (OnFailure)
@@ -531,6 +672,9 @@ void* RedInitHeap(void* start, void* end, int maxheaps)
         h.frozen = false;
         h.name = 0;
     }
+#ifdef OPENSWBF2_TEST
+    _InterlockedCompareExchange(&sMainTid, (long)GetCurrentThreadId(), 0);
+#endif
     isHeapObjInitialized = true;
     return pNext;
 }
@@ -645,3 +789,75 @@ extern "C" bool RedGetHeapStats(int heap, RedHeapStats* pOut)
     pOut->uFailed = (unsigned int)sHeapFailed[heap];
     return true;
 }
+
+#ifdef OPENSWBF2_TEST
+extern "C" void RedGetOffThreadTotals(unsigned int* puCount, unsigned int* puSources, unsigned int* puDropped)
+{
+    if (puCount)
+    {
+        *puCount = (unsigned int)sOffCount;
+    }
+    if (puSources)
+    {
+        unsigned int uSources = 0;
+        for (int i = 0; i < kRedOffThreadSources; ++i)
+        {
+            if (sOffSources[i].lReady != 0)
+            {
+                ++uSources;
+            }
+        }
+        *puSources = uSources;
+    }
+    if (puDropped)
+    {
+        *puDropped = (unsigned int)sOffDropped;
+    }
+}
+
+extern "C" bool RedGetOffThreadSource(int i, RedOffThreadSource* pOut)
+{
+    if (pOut == 0 || i < 0 || i >= kRedOffThreadSources || sOffSources[i].lReady == 0)
+    {
+        return false;
+    }
+    const OffThreadSlot& rSlot = sOffSources[i];
+    pOut->uTid = rSlot.uTid;
+    pOut->pcHeap = rSlot.pcHeap;
+    pOut->uSize = rSlot.uSize;
+    pOut->uCount = (unsigned int)rSlot.lCount;
+    pOut->uFrames = rSlot.uFrames;
+    for (int f = 0; f < kRedOffThreadFrames; ++f)
+    {
+        pOut->apModule[f] = rSlot.apModule[f];
+        pOut->auStamp[f] = rSlot.auStamp[f];
+        pOut->auOffset[f] = rSlot.auOffset[f];
+    }
+    return true;
+}
+
+extern "C" void RedResetOffThreadStats()
+{
+    for (int i = 0; i < kRedOffThreadSources; ++i)
+    {
+        OffThreadSlot& rSlot = sOffSources[i];
+        _InterlockedExchange(&rSlot.lReady, 0);
+        _InterlockedExchange(&rSlot.lCount, 0);
+        rSlot.uTid = 0;
+        rSlot.iHeap = 0;
+        rSlot.pcHeap = 0;
+        rSlot.uSize = 0;
+        rSlot.uFrames = 0;
+        for (int f = 0; f < kRedOffThreadFrames; ++f)
+        {
+            rSlot.apFrame[f] = 0;
+            rSlot.apModule[f] = 0;
+            rSlot.auStamp[f] = 0;
+            rSlot.auOffset[f] = 0;
+        }
+        _InterlockedExchange(&rSlot.lKey, 0);
+    }
+    _InterlockedExchange(&sOffCount, 0);
+    _InterlockedExchange(&sOffDropped, 0);
+}
+#endif
