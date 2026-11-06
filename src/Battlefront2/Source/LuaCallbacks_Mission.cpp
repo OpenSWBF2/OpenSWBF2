@@ -5,6 +5,7 @@
 #include "LuaHelper.h"
 #include "LuaMatrixArg.h"
 #include "LuaHandleArg.h"
+#include "LuaMemoryArgs.h"
 #include "RedEngineFL/Util/RedLog.h"
 #include "EnergyBar.h"
 
@@ -238,9 +239,6 @@ namespace PathFinder
 {
     Obstacle* FindBarrierByName(unsigned int uName);
 }
-
-// GLOBAL: SWBF2 0x01e57724
-static void* sTempHeapBlock;
 
 namespace Lua_Callbacks
 {
@@ -612,11 +610,7 @@ namespace Lua_Callbacks
 // FUNCTION: SWBF2 0x0058ac00
 int StealArtistHeap(lua_State* L)
 {
-    int iSize = (int)luaL_checknumber(LuaHelper::mState, 1);
-    if (RedGetHeapSize(GameMemory::ArtistHeap) > (unsigned int)iSize)
-    {
-        RedMoveHeapEnd(GameMemory::ArtistHeap, -iSize);
-    }
+    LuaMemoryArgs::StealArtistHeap(LuaHelper::mState, GameMemory::ArtistHeap);
     return 0;
 }
 
@@ -702,28 +696,14 @@ int ReadDataFileInGame(lua_State* L)
 // FUNCTION: SWBF2 0x0058af40
 int SetupTempHeap(lua_State* L)
 {
-    int iSize = LuaHelper::GetInt(1);
-    sTempHeapBlock = RedAllocFromHeap(GameMemory::RunTimeHeap, iSize, 1);
-    GameMemory::TempLoadHeap =
-        RedCreateHeap(sTempHeapBlock, (char*)sTempHeapBlock + iSize - 256, 16, "Temp");
-    RedSetTempHeap(GameMemory::TempLoadHeap);
+    LuaMemoryArgs::SetupTempHeap(LuaHelper::mState, GameMemory::RunTimeHeap, GameMemory::TempLoadHeap);
     return 0;
 }
 
 // FUNCTION: SWBF2 0x0058afa0
 int ClearTempHeap(lua_State* L)
 {
-    if (sTempHeapBlock)
-    {
-        if (GameMemory::TempLoadHeap)
-        {
-            RedDestroyHeap(GameMemory::TempLoadHeap);
-            RedSetTempHeap(-1);
-            GameMemory::TempLoadHeap = 0;
-        }
-        RedFreeToHeap(GameMemory::RunTimeHeap, sTempHeapBlock, 0);
-        sTempHeapBlock = 0;
-    }
+    LuaMemoryArgs::ClearTempHeap(GameMemory::RunTimeHeap, GameMemory::TempLoadHeap);
     return 0;
 }
 
@@ -1509,33 +1489,8 @@ int AddDeathRegion(lua_State* L)
 // FUNCTION: SWBF2 0x0058cd50
 int SetMemoryPoolSize(lua_State* L)
 {
-    int iArgs = lua_gettop(LuaHelper::mState);
-    const char* pcName = LuaHelper::GetString(1);
-    int iCount = LuaHelper::GetInt(2);
-    MemoryPool* pPool = MemoryPool::Find(pcName);
-    if (pPool)
-    {
-        if (iArgs >= 3)
-        {
-            iCount = LuaHelper::GetInt(3);
-        }
-        else if (!_stricmp(pcName, "EntityLight"))
-        {
-            iCount += 60;
-        }
-        pPool->SetCount(iCount);
-        if (pPool == &Weapon::sMemoryPool)
-        {
-            if (AmmoCounter::sMemoryPool.GetCount() < Weapon::sMemoryPool.GetCount())
-            {
-                AmmoCounter::sMemoryPool.SetCount(Weapon::sMemoryPool.GetCount());
-            }
-            if (EnergyBar::sMemoryPool.GetCount() < Weapon::sMemoryPool.GetCount())
-            {
-                EnergyBar::sMemoryPool.SetCount(Weapon::sMemoryPool.GetCount());
-            }
-        }
-    }
+    LuaMemoryArgs::SetMemoryPoolSize(LuaHelper::mState, &Weapon::sMemoryPool, &AmmoCounter::sMemoryPool,
+                                     &EnergyBar::sMemoryPool);
     return 0;
 }
 
@@ -1563,20 +1518,8 @@ int AddWalkerType(lua_State* L)
     MemoryPool* pBlendPool = MemoryPool::Find("WalkerBlend");
     MemoryPool* pBlendUnitPool = MemoryPool::Find("WalkerBlendUnit");
     MemoryPool* pDroidekaPool = MemoryPool::Find("EntityDroideka");
-    int iLegPairs = LuaHelper::GetInt(1);
-    int iCount = LuaHelper::GetInt(2);
-    int iBlends = (iLegPairs + 1) * iCount;
-    if (iLegPairs > 0)
-    {
-        pWalkerPool->SetCount(pWalkerPool->GetCount() + iCount);
-        pLegPairPool->SetCount(pLegPairPool->GetCount() + iCount * iLegPairs);
-        pBlendPool->SetCount(pBlendPool->GetCount() + iBlends);
-        pBlendUnitPool->SetCount(pBlendUnitPool->GetCount() + iBlends * 3);
-    }
-    else
-    {
-        pDroidekaPool->SetCount(pDroidekaPool->GetCount() + iCount);
-    }
+    LuaMemoryArgs::AddWalkerType(LuaHelper::mState, pWalkerPool, pLegPairPool, pBlendPool, pBlendUnitPool,
+                                 pDroidekaPool);
     return 0;
 }
 

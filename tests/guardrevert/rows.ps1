@@ -4,6 +4,7 @@ $nc = 'src\Battlefront2\Source\NetComm.cpp'
 $ll = 'src\Battlefront2\Source\LocalLimits.h'
 $pm = 'src\RedEngineFL\Graphics\PC\pcRedPoolMath.h'
 $mf = 'src\Battlefront2\Source\MemFailLog.cpp'
+$rmr = 'src\RedEngineFL\Memory\RedMemoryReport.cpp'
 $lm = 'src\Battlefront2\Source\LuaMemory.cpp'
 $pmain = 'src\Battlefront2\Source\pcMain.cpp'
 $rl = 'src\RedEngineFL\Util\RedLog.cpp'
@@ -85,6 +86,8 @@ $r3d = 'src\RedEngineFL\Interface\Red3DModelElement.cpp'
 $rifs = 'src\RedEngineFL\Interface\RedIFScreen.cpp'
 $nset = 'src\Battlefront2\Source\NetSetup.cpp'
 $bm = 'src\Battlefront2\Source\BonusManager.cpp'
+$rp = 'src\RedEngineFL\Memory\RedMemoryPool.cpp'
+$lmem = 'src\Battlefront2\Source\LuaMemoryArgs.cpp'
 
 $GuardRevertRows = @(
     @{ Id = 'CRASH-02'; File = 'src\RedEngineFL\Util\RedWarning.cpp'; Anchor = 'fputs(pcText, pFile);'; Replacement = 'fprintf(pFile, pcText);'; Tests = @('file log writes percent text literally') },
@@ -129,7 +132,7 @@ $GuardRevertRows = @(
     @{ Id = 'STRLCPY-NULL'; File = 'src\PebbleFL\Common\PblUnicode.cpp'; Anchor = 'while (pcSrc && uiLen < uiSize)'; Replacement = 'while (uiLen < uiSize)'; Tests = @('strlcpy treats a null source as empty') },
     @{ Id = 'DIAG-02'; File = $rl; Anchor = 'if (bLogSite)'; Replacement = 'if (bLogSite || pSite)'; Tests = @('redlog ensure counts once per site') },
     @{ Id = 'DIAG-03'; File = 'tests\main.cpp'; Anchor = "TestStrictnessReport(gCurrentCase) != 0)`n    {`n        return 1;"; Replacement = "TestStrictnessReport(gCurrentCase) != 0)`n    {`n        return iRc;"; Tests = @('strictness probe emits an undeclared error', 'strictness probe unmatched expectation') },
-    @{ Id = 'DIAG-05'; File = $mf; Anchor = 'free %u load %u%% phys %u MB virt %u MB"'; Replacement = 'free %u"'; Tests = @('alloc failure handler logs and suppresses') },
+    @{ Id = 'DIAG-05'; File = $rmr; Anchor = 'virt %u MB used %u cap %u peak %u largestfree %u"'; Replacement = 'virt %u MB"'; Tests = @('alloc failure handler logs and suppresses') },
     @{ Id = 'DBGOUT-01'; File = 'src\RedEngineFL\Util\RedWarning.cpp'; Anchor = 'OutputDebugStringA(acMessage);'; Replacement = ''; Tests = @('debugger output mirrors the log') },
     @{ Id = 'DBGOUT-03'; File = 'src\RedEngineFL\Util\RedWarning.cpp'; Anchor = 'WriteFile(hOut, acMessage, (DWORD)strlen(acMessage), &uWritten, 0);'; Replacement = ''; Tests = @('debugger output mirrors the log') },
     @{ Id = 'DBGOUT-02'; File = 'src\PebbleFL\Common\PblTrace.cpp'; Anchor = 'if (gPblTraceSink)'; Replacement = 'OutputDebugStringA(acMessage); if (gPblTraceSink)'; Tests = @('debugger output mirrors the log') },
@@ -139,6 +142,30 @@ $GuardRevertRows = @(
     @{ Id = 'MEM-03S'; Kind = 'Smoke'; Case = 'crash-luaoom'; File = 'src\LuaFL\src\lmem.cpp'; Anchor = 'luaD_throw(L, LUA_ERRMEM);'; Replacement = 'return NULL;' },
     @{ Id = 'MEM-04S'; Kind = 'Smoke'; Case = 'crash-luapanic'; File = 'src\Battlefront2\Source\LuaHelper.cpp'; Anchor = 'lua_atpanic(mState, Lua_Red_Panic);'; Replacement = '' },
     @{ Id = 'DIAG-04'; Kind = 'Smoke'; Case = 'crash-hang'; File = 'src\Battlefront2\Source\pcCrash.cpp'; Anchor = 'TerminateNow(5);'; Replacement = 'TerminateNow(3);' },
+    @{ Id = 'SAFE01-CREATE'; File = $rp; Anchor = 'if (uiCount != 0 && !RedScriptLimits::PoolBytesOk(uiCount, uiSize, RedScriptLimits::kPoolBytesMax))'; Replacement = 'if (false)'; Tests = @('memory pool create refuses overflowing count') },
+    @{ Id = 'SAFE01-CREATES'; Kind = 'Smoke'; Case = 'crash-poolcount'; File = $rp; Anchor = 'if (uiCount != 0 && !RedScriptLimits::PoolBytesOk(uiCount, uiSize, RedScriptLimits::kPoolBytesMax))'; Replacement = 'if (false)' },
+    @{ Id = 'SAFE01-CHUNK'; File = $rp; Anchor = 'if (pChunk == 0)'; Replacement = 'if (false)'; Tests = @('memory pool create survives failed heap block') },
+    @{ Id = 'SAFE01-EMPTY'; File = $rp; Anchor = "        mCount = 0;`n        mPool = 0;"; Replacement = '        mPool = 0;'; Tests = @('memory pool create survives failed heap block') },
+    @{ Id = 'SAFE01-GROW'; File = $rp; Anchor = 'if (!RedScriptLimits::PoolBytesOk(mGrow, mSize, RedScriptLimits::kPoolBytesMax) || mGrow == 0)'; Replacement = 'if (false)'; Tests = @('memory pool growth refuses overflowing grow') },
+    @{ Id = 'SAFE02-CLAMP'; File = $lmem; Anchor = 'unsigned int uSize = RedScriptLimits::ClampScriptSize(RedScriptLimits::kSetupTempHeap, 0, iSize, 1);'; Replacement = 'unsigned int uSize = (unsigned int)iSize;'; Tests = @('setup temp heap clamps size') },
+    @{ Id = 'SAFE02-LEAK'; File = $lmem; Anchor = '    ClearTempHeap(iRuntimeHeap, riTempHeap);'; Replacement = ''; Tests = @('setup temp heap twice frees previous heap') },
+    @{ Id = 'SAFE02-NULL'; File = $lmem; Anchor = 'if (pBlock == 0)'; Replacement = 'if (false)'; Tests = @('setup temp heap null block leaves no temp heap') },
+    @{ Id = 'SAFE02-SLOT'; File = $lmem; Anchor = 'if (iHeap < 0)'; Replacement = 'if (false)'; Tests = @('setup temp heap refuses when no heap slot is left') },
+    @{ Id = 'SAFE02-LOAD'; File = $lmem; Anchor = 'else if (riTempHeap != 0)'; Replacement = 'else if (false)'; Tests = @('setup temp heap refuses while load heap is live') },
+    @{ Id = 'SAFE02-STALE'; File = $lmem; Anchor = "void ForgetTempHeap()`n{`n    sTempHeapBlock = 0;"; Replacement = "void ForgetTempHeap()`n{`n"; Tests = @('setup temp heap forget drops stale block') },
+    @{ Id = 'SAFE03-POOL'; File = $lmem; Anchor = 'unsigned int uApplied = RedScriptLimits::ClampScriptSize(RedScriptLimits::kSetMemoryPoolSize, pcName, iCount, PoolUnit(pPool));'; Replacement = 'unsigned int uApplied = (unsigned int)iCount;'; Tests = @('set memory pool size clamps script count', 'script-size-clamp: lua memory sinks route through the shared clamp') },
+    @{ Id = 'SAFE03-STEAL'; File = $lmem; Anchor = 'unsigned int uSize = RedScriptLimits::ClampScriptSize(RedScriptLimits::kStealArtistHeap, 0, iSize, 1);'; Replacement = 'unsigned int uSize = (unsigned int)iSize;'; Tests = @('steal artist heap refuses zero small and negative sizes') },
+    @{ Id = 'SAFE03-STEALLOG'; File = $lmem; Anchor = 'uApplied = uBefore - RedGetHeapSize(iArtistHeap);'; Replacement = 'uApplied = uSize;'; Tests = @('steal artist heap refuses zero small and negative sizes') },
+    @{ Id = 'SAFE03-WALKER'; File = $lmem; Anchor = 'pWalker->SetCount(RedScriptLimits::ClampScriptSize(RedScriptLimits::kAddWalkerType, pWalker->mLabel, (int)uWalker, PoolUnit(pWalker)));'; Replacement = 'pWalker->SetCount(uWalker);'; Tests = @('add walker type clamps script counts') },
+    @{ Id = 'SAFE03-MOVEEND'; File = $rm; Anchor = 'if (pBlock == 0)'; Replacement = 'if (false)'; Tests = @('move heap end refuses a failed allocation') },
+    @{ Id = 'SAFE03-MOVEPLACE'; File = $rm; Anchor = 'if (!bAtBoundary || pTag->size != uMove)'; Replacement = 'if (false)'; Tests = @('move heap end refuses a block away from the boundary') },
+    @{ Id = 'SAFE03-MOVEALIGN'; File = $rm; Anchor = 'unsigned int uMove = uAmount & ~(align - 1);'; Replacement = 'unsigned int uMove = uAmount;'; Tests = @('move heap end moves only the aligned block it transfers') },
+    @{ Id = 'REPT01-ONCE'; File = $rp; Anchor = 'if (mFullReported)'; Replacement = 'if (false)'; Tests = @('memory pool full line logs once on growth', 'memory pool full line logs once when gated') },
+    @{ Id = 'REPT01S'; Kind = 'Smoke'; Case = 'pool-full'; File = $rp; Anchor = 'if (mFullReported)'; Replacement = 'if (false)' },
+    @{ Id = 'REPT03-STRICT'; File = $rp; Anchor = 'if (sErrorOnExpansionPostLoad)'; Replacement = 'if (false)'; Tests = @('memory pool full line is error when strict') },
+    @{ Id = 'REPT02-RESET'; File = $rp; Anchor = "    mFree = 0;`n}`n`nvoid MemoryPool::ClearStats()"; Replacement = "    mFree = 0;`n    ClearStats();`n}`n`nvoid MemoryPool::ClearStats()"; Tests = @('memory pool stats survive reset and destroy for the exit report', 'report emits one line per heap and created pool') },
+    @{ Id = 'REPT03-ESCALATE'; File = $rp; Anchor = 'if (mFullReportedStrict || !sErrorOnExpansionPostLoad)'; Replacement = 'if (true)'; Tests = @('memory pool full line escalates once when strict arms after a load report') },
+    @{ Id = 'REPT03S'; Kind = 'Smoke'; Case = 'pool-full-strict'; File = $rp; Anchor = 'if (sErrorOnExpansionPostLoad)'; Replacement = 'if (false)' },
     @{ Id = 'LAA-02A'; File = $pp; Anchor = ' ^ ((uintptr_t)1 << (sizeof(void*) * 8 - 1))'; Replacement = ''; Tests = @('ordered list keeps address order across 2GB', 'ptr order key is monotonic across 2GB') },
     @{ Id = 'LAA-02B'; File = $pp; Anchor = 'return (uintptr_t)pA > (uintptr_t)pB;'; Replacement = 'return (intptr_t)pA > (intptr_t)pB;'; Tests = @('collision tie-break is unsigned') },
     @{ Id = 'LAA-02C'; File = $th; Anchor = 'PblPtrOrderKey(this)'; Replacement = '(int)this'; Tests = @('pointer order sites use the unsigned helpers') },

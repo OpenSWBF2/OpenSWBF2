@@ -38,6 +38,10 @@ TEST_CASE("alloc failure handler logs and suppresses" * doctest::test_suite("reg
         CHECK(capture.Contains(acFree));
         CHECK(capture.Contains(" phys "));
         CHECK(capture.Contains(" virt "));
+        CHECK(capture.Contains(" MB used "));
+        CHECK(capture.Contains(" cap "));
+        CHECK(capture.Contains(" peak "));
+        CHECK(capture.Contains(" largestfree "));
     }
     {
         LogCapture capture;

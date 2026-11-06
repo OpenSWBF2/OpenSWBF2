@@ -3,10 +3,9 @@
 #include "MemFailLog.h"
 
 #include "RedEngineFL/Memory/RedMemory.h"
+#include "RedEngineFL/Memory/RedMemoryReport.h"
 #include "RedEngineFL/Util/RedWarning.h"
 #include "RedEngineFL/Util/RedLog.h"
-
-extern "C" int maxheaps;
 
 static bool sbInHandler;
 static int siCount;
@@ -29,10 +28,26 @@ void MemFail::OnAllocFailure(int iHeap, unsigned int uiSize)
         {
             memset(&kStatus, 0, sizeof(kStatus));
         }
-        LOG(LogMemory, Error, "alloc failure heap %s (%d) size %u free %u load %u%% phys %u MB virt %u MB",
-            bValid ? RedGetHeapName(iHeap) : "?", iHeap, uiSize, bValid ? RedGetHeapFree(iHeap) : 0u,
-            (unsigned int)kStatus.dwMemoryLoad, (unsigned int)(kStatus.ullAvailPhys >> 20),
-            (unsigned int)(kStatus.ullAvailVirtual >> 20));
+        RedMemoryReport::MemFailInfo kInfo;
+        memset(&kInfo, 0, sizeof(kInfo));
+        kInfo.pcHeap = bValid ? RedGetHeapName(iHeap) : "?";
+        kInfo.iHeap = iHeap;
+        kInfo.uSize = uiSize;
+        kInfo.uFree = bValid ? RedGetHeapFree(iHeap) : 0u;
+        kInfo.uLoad = (unsigned int)kStatus.dwMemoryLoad;
+        kInfo.uPhysMB = (unsigned int)(kStatus.ullAvailPhys >> 20);
+        kInfo.uVirtMB = (unsigned int)(kStatus.ullAvailVirtual >> 20);
+        RedHeapStats kStats;
+        if (bValid && RedGetHeapStats(iHeap, &kStats))
+        {
+            kInfo.uUsed = kStats.uUsed;
+            kInfo.uCap = kStats.uCap;
+            kInfo.uPeak = kStats.uPeak;
+        }
+        kInfo.uLargestFree = RedMemoryReport::LargestFreeRegion();
+        char acLine[512];
+        RedMemoryReport::FormatMemFail(kInfo, acLine, sizeof(acLine));
+        LOG(LogMemory, Error, "%s", acLine);
     }
     else if (siCount == 16)
     {

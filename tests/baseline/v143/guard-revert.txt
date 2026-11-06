@@ -41,7 +41,6 @@ MEM-04B      GREEN    RED         1          lua panic handler exits with code 4
 STRLCPY-NULL GREEN    RED         3221225477 strlcpy treats a null source as empty crash 0xC0000005
 DIAG-02      GREEN    RED         1          redlog ensure counts once per site 
 DIAG-03      GREEN    RED         0,0        strictness probe emits an undeclared error | strictness probe unmatched expectation 
-DIAG-05      GREEN    RED         1          alloc failure handler logs and suppresses 
 DBGOUT-01    GREEN    RED         1          debugger output mirrors the log 
 DBGOUT-03    GREEN    RED         1          debugger output mirrors the log 
 DBGOUT-02    GREEN    RED         1          debugger output mirrors the log 
@@ -275,3 +274,28 @@ CUR-05A      GREEN    RED         0x00000000 smoke:cursor-sw class=Pass dumps=0
 DIGEST-01    GREEN    RED         0x00000000 smoke:geo1c_con class=Pass dumps=0
 SIMFIX-C1S   GREEN    RED         0x00000001 smoke:digest-dag1c_ctf class=TimeOut dumps=0
 SIMFIX-C2S   GREEN    RED         0x00000000 smoke:digest-kas2c_uber class=Pass dumps=0
+DIAG-05      GREEN    RED         1          alloc failure handler logs and suppresses 
+SAFE01-CREATE GREEN    RED         3221225477 memory pool create refuses overflowing count crash 0xC0000005
+SAFE01-CHUNK GREEN    RED         3221225477 memory pool create survives failed heap block crash 0xC0000005
+SAFE01-EMPTY GREEN    RED         1          memory pool create survives failed heap block 
+SAFE01-GROW  GREEN    RED         3221225477 memory pool growth refuses overflowing grow crash 0xC0000005
+SAFE02-CLAMP GREEN    RED         3221225477 setup temp heap clamps size crash 0xC0000005
+SAFE02-LEAK  GREEN    RED         1          setup temp heap twice frees previous heap 
+SAFE02-NULL  GREEN    RED         3221225477 setup temp heap null block leaves no temp heap crash 0xC0000005
+SAFE02-SLOT  GREEN    RED         1          setup temp heap refuses when no heap slot is left 
+SAFE02-LOAD  GREEN    RED         1          setup temp heap refuses while load heap is live 
+SAFE02-STALE GREEN    RED         124        setup temp heap forget drops stale block crash 0x0000007C
+SAFE03-POOL  GREEN    RED         1,1        set memory pool size clamps script count | script-size-clamp: lua memory sinks route through the shared clamp 
+SAFE03-STEAL GREEN    RED         1          steal artist heap refuses zero small and negative sizes 
+SAFE03-STEALLOG GREEN    RED         1          steal artist heap refuses zero small and negative sizes 
+SAFE03-WALKER GREEN    RED         1          add walker type clamps script counts 
+SAFE03-MOVEEND GREEN    RED         3221225477 move heap end refuses a failed allocation crash 0xC0000005
+SAFE03-MOVEPLACE GREEN    RED         1          move heap end refuses a block away from the boundary 
+SAFE03-MOVEALIGN GREEN    RED         1          move heap end moves only the aligned block it transfers 
+REPT01-ONCE  GREEN    RED         0,1        memory pool full line logs once on growth | memory pool full line logs once when gated 
+REPT03-STRICT GREEN    RED         1          memory pool full line is error when strict 
+REPT02-RESET GREEN    RED         1,1        memory pool stats survive reset and destroy for the exit report | report emits one line per heap and created pool 
+REPT03-ESCALATE GREEN    RED         1          memory pool full line escalates once when strict arms after a load report 
+SAFE01-CREATES GREEN    RED         0x00000003 smoke:crash-poolcount class=Fatal dumps=1
+REPT01S      GREEN    RED         0x00000000 smoke:pool-full class=Pass dumps=0
+REPT03S      GREEN    RED         0x00000000 smoke:pool-full-strict class=Pass dumps=0

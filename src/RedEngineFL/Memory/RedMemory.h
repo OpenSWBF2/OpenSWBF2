@@ -6,6 +6,15 @@ struct Tag;
 struct TagList;
 struct HeapObj;
 
+struct RedHeapStats
+{
+    unsigned int uCap;
+    unsigned int uUsed;
+    unsigned int uPeak;
+    unsigned int uAllocs;
+    unsigned int uFailed;
+};
+
 extern "C"
 {
     void* RedInitHeap(void* start, void* end, int maxheaps);
@@ -21,9 +30,13 @@ extern "C"
     PBL_ASAN_NO_SANITIZE unsigned int RedGetHeapFree(int heap);
     char const* RedGetHeapName(int heap);
     extern void (*OnFailure)(int heap, unsigned int size);
-    void RedMoveHeapEnd(int heap, int offset);
+    PBL_ASAN_NO_SANITIZE void RedMoveHeapEnd(int heap, int offset);
+    bool RedGetHeapStats(int heap, RedHeapStats* pOut);
 
+    extern int maxheaps;
     extern int __RedCurrHeap;
     extern int __RedDebugHeap;
     extern int __RedTempHeap;
 }
+
+unsigned int RedGetHeapSize(int heap);

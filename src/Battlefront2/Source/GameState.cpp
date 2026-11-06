@@ -69,6 +69,7 @@
 #include <yvals.h>
 #include "RedEngineFL/Memory/RedMemory.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
+#include "RedEngineFL/Memory/RedMemoryReport.h"
 #include "SoundFL/source/sndbus.h"
 
 #include "PebbleFL/Common/PblFile.h"
@@ -1345,6 +1346,11 @@ void GameState::MissionState::Enter()
     GameLoop::Init();
     GameLoop::PostLoad();
 
+    if (gMemoryPoolErrors == true)
+    {
+        MemoryPool::PoolErrorPostLoad();
+    }
+
     unsigned int uiCount = CameraManager::sInstance->m_iNumCam;
     for (unsigned int i = 0; i < uiCount; ++i)
     {
@@ -1378,10 +1384,16 @@ void GameState::MissionState::Enter()
         int iLow = util::Min_(0x20000, iFree);
         int iHigh = util::Min_((iFree - iLow) / 2 + iLow, 0x40000);
         EntityCloth::SetMemUseage(iLow, iHigh);
+        char acLine[128];
+        RedMemoryReport::FormatCloth(iFree, true, iLow, iHigh, acLine, sizeof(acLine));
+        LOG(LogMemory, Inform, "%s", acLine);
         EntityCloth::SetEnable(true);
     }
     else
     {
+        char acLine[128];
+        RedMemoryReport::FormatCloth(iFree, false, 0, 0, acLine, sizeof(acLine));
+        LOG(LogMemory, Inform, "%s", acLine);
         EntityCloth::SetEnable(false);
     }
 
@@ -1596,6 +1608,7 @@ void GameState::PostStateCleanup(bool bMission)
     }
 
     NetGame::Reset();
+    RedMemoryReport::LogMemReport("exit");
     MemoryPool::DestroyAll();
 }
 

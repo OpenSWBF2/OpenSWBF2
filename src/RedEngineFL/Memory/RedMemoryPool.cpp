@@ -2,6 +2,9 @@
 
 #include "RedMemoryPool.h"
 #include "RedMemory.h"
+#include "RedMemoryReport.h"
+#include "RedScriptLimits.h"
+#include "RedEngineFL/Util/RedLog.h"
 
 // FUNCTION: SWBF2 0x006dc640
 PblList<MemoryPool>* GetMemoryPoolList()
@@ -18,6 +21,7 @@ MemoryPool::MemoryPool(char const* pcLabel, int iSize)
     mSize = ((unsigned int)iSize + 3) & ~3u;
     mGrow = 0;
     Reset();
+    ClearStats();
     strncpy(mLabel, pcLabel, sizeof(mLabel) - 1);
     mLabel[sizeof(mLabel) - 1] = '\0';
 
@@ -34,6 +38,11 @@ void MemoryPool::Create(unsigned int uiCount, unsigned int uiSize, unsigned int 
     }
 
     uiSize = (uiSize + 3) & ~3u;
+    if (uiCount != 0 && !RedScriptLimits::PoolBytesOk(uiCount, uiSize, RedScriptLimits::kPoolBytesMax))
+    {
+        LOG(LogMemory, Warning, "Memory pool \"%s\" refused count %u size %u", mLabel, uiCount, uiSize);
+        uiCount = 0;
+    }
     mSize = uiSize;
     mCount = uiCount;
     if (uiSize > 0 && uiGrow == 0)
@@ -49,7 +58,16 @@ void MemoryPool::Create(unsigned int uiCount, unsigned int uiSize, unsigned int 
     }
 
     mPoolOwner = true;
-    mPool = RedAllocFromHeap(__RedCurrHeap, mCount * mSize, 0);
+    void* pChunk = RedAllocFromHeap(__RedCurrHeap, mCount * mSize, 0);
+    if (pChunk == 0)
+    {
+        LOG(LogMemory, Warning, "Memory pool \"%s\" chunk of %u bytes not allocated", mLabel, mCount * mSize);
+        mCount = 0;
+        mPool = 0;
+        mFree = 0;
+        return;
+    }
+    mPool = pChunk;
 
     unsigned int i;
     for (i = 0; i < mCount - 1; ++i)
@@ -75,9 +93,16 @@ PBL_ASAN_NO_SANITIZE void* MemoryPool::Allocate(unsigned int uiSize)
     if (mFree == 0)
     {
         sErrorOnExpansion = true;
+        ReportFull(mUsed + 1);
         if (mHeap == -1)
         {
             mHeap = __RedCurrHeap;
+        }
+
+        if (!RedScriptLimits::PoolBytesOk(mGrow, mSize, RedScriptLimits::kPoolBytesMax) || mGrow == 0)
+        {
+            LOG(LogMemory, Warning, "Memory pool \"%s\" refused growth %u size %u", mLabel, mGrow, mSize);
+            return 0;
         }
 
         int iOldHeap = RedSetCurrentHeap(mHeap);
@@ -89,6 +114,7 @@ PBL_ASAN_NO_SANITIZE void* MemoryPool::Allocate(unsigned int uiSize)
         }
 
         mCount += mGrow;
+        ++mGrown;
         unsigned int i;
         for (i = 0; i < mGrow - 1; ++i)
         {
@@ -106,8 +132,36 @@ PBL_ASAN_NO_SANITIZE void* MemoryPool::Allocate(unsigned int uiSize)
     void* pBlock = mFree;
     mFree = *(void**)pBlock;
     ++mUsed;
+    if (mUsed > mPeak)
+    {
+        mPeak = mUsed;
+    }
     PblAsanUnpoison(pBlock, uiSize < mSize ? uiSize : mSize);
     return pBlock;
+}
+
+void MemoryPool::ReportFull(unsigned int uWanted) const
+{
+    if (mFullReported)
+    {
+        if (mFullReportedStrict || !sErrorOnExpansionPostLoad)
+        {
+            return;
+        }
+    }
+    mFullReported = true;
+    mFullReportedStrict = sErrorOnExpansionPostLoad;
+    unsigned int uPeak = uWanted > GetPeak() ? uWanted : GetPeak();
+    char acLine[128];
+    RedMemoryReport::FormatPoolFull(mLabel, uPeak, acLine, sizeof(acLine));
+    if (sErrorOnExpansionPostLoad)
+    {
+        LOG(LogMemory, Error, "%s", acLine);
+    }
+    else
+    {
+        LOG(LogMemory, Warning, "%s", acLine);
+    }
 }
 
 // FUNCTION: SWBF2 0x006dc5f0
@@ -147,6 +201,14 @@ void MemoryPool::Reset()
     mHeap = -1;
     mPool = 0;
     mFree = 0;
+}
+
+void MemoryPool::ClearStats()
+{
+    mPeak = 0;
+    mGrown = 0;
+    mFullReported = false;
+    mFullReportedStrict = false;
 }
 
 // FUNCTION: SWBF2 0x006dc750
@@ -203,6 +265,7 @@ void MemoryPool::DestroyAll()
         {
             itor->Destroy();
         }
+        itor->ClearStats();
     }
     sErrorOnExpansion = false;
     sErrorOnExpansionPostLoad = false;
@@ -241,6 +304,10 @@ void MemoryPool::Set(MemoryPool const& rPool)
     mHeap = rPool.mHeap;
     mPool = rPool.mPool;
     mFree = rPool.mFree;
+    mPeak = rPool.mPeak;
+    mGrown = rPool.mGrown;
+    mFullReported = rPool.mFullReported;
+    mFullReportedStrict = rPool.mFullReportedStrict;
 }
 
 // FUNCTION: SWBF2 0x006dc710
