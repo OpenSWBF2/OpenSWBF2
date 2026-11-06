@@ -60,7 +60,7 @@ try {
     $workerCount = [Math]::Min($Jobs, $items.Count)
     Write-Host "INFO: laa-compare runs=$Runs per side jobs=$workerCount out=$OutDir"
     for ($w = 1; $w -le $workerCount; $w++) {
-        $d = Join-Path $OutDir "workers\w$w"
+        $d = Join-Path (Get-SmokeWorkerRoot $root 'laa') "w$w"
         $workDirs += $d
         New-SmokeWorkerDir $exeDir $d
         Copy-Item -LiteralPath $nolaaExe -Destination $d -Force

@@ -55,17 +55,14 @@ function Build-Game([string]$wt, [string]$logPath) {
 }
 
 function Run-Smoke([string]$wt, [string]$tag, $case) {
-    $runDir = Join-Path $OutDir "run-$tag"
-    $caseDir = Join-Path $runDir 'case'
+    $caseDir = Join-Path $OutDir "run-$tag\case"
     New-Item -ItemType Directory -Force -Path $caseDir | Out-Null
+    $runDir = Get-SmokeWorkerRoot $root "guard-$script:GameConfiguration"
     $srcBin = Join-Path $root "bin\Win32\$script:GameConfiguration"
-    foreach ($f in 'binkw32.dll', 'Galaxy.dll', 'GalaxyPeer.dll', 'steam_api.dll', 'unicows.dll') {
-        if (Test-Path (Join-Path $srcBin $f)) { Copy-Item (Join-Path $srcBin $f) $runDir -Force }
-    }
-    Copy-Item (Join-Path $wt "bin\Win32\$script:GameConfiguration\BattlefrontII.exe") $runDir -Force
+    New-SmokeWorkerDir $srcBin $runDir
     $dataLink = Join-Path $runDir 'data'
-    & cmd /c mklink /J "$dataLink" "$(Join-Path $srcBin 'data')" | Out-Null
     try {
+        Copy-Item (Join-Path $wt "bin\Win32\$script:GameConfiguration\BattlefrontII.exe") $runDir -Force
         $argLine = $case.Args.Replace('{CASEDIR}', $caseDir)
         $res = Invoke-SmokeCase $case.Name (Join-Path $runDir 'BattlefrontII.exe') $runDir $argLine 120 $caseDir
     }

@@ -347,7 +347,7 @@ if ($smokeActive) {
         if ($useParallel) {
             $workerCount = [Math]::Min($Jobs, $smokeCases.Count)
             Write-Host "INFO: smoke jobs=$workerCount"
-            for ($w = 1; $w -le $workerCount; $w++) { $workDirs += (Join-Path $outDir "smoke-workers\w$w") }
+            for ($w = 1; $w -le $workerCount; $w++) { $workDirs += (Join-Path (Get-SmokeWorkerRoot $root (Split-Path $exeDir -Leaf)) "w$w") }
             $items = @()
             foreach ($sc in $smokeCases) {
                 $caseDir = Join-Path $outDir "smoke\$($sc.Name)"

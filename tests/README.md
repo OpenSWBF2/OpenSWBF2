@@ -52,6 +52,8 @@ A failing fuzz case prints its seed and iteration. Replay it on the test exe wit
 
 Smoke runs launch the real `BattlefrontII.exe` headless. Each case writes `run.log`, `finalscore.log` and any dump to `artifacts\tests\<timestamp>\smoke\<case>\`.
 
+Parallel workers run from fixed paths under `artifacts\smoke-workers\<Config>\`. Run `tests\firewall.ps1` once from an elevated PowerShell to allow them on the local subnet and clear stale rules; `-List` previews the changes.
+
 | Group | What it runs |
 |-------|--------------|
 | `Standard` | geo1c_con, plus the display-switch cases and the digest cases |
