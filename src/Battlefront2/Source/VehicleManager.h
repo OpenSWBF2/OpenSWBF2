@@ -9,6 +9,7 @@ class PblVector3;
 namespace VehicleManager
 {
     void Initialize();
+    void Reset();
     void EnterClient();
     void LeaveClient();
     void Add(GameObject* pObject);

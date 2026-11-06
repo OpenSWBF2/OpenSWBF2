@@ -1,0 +1,62 @@
+# commit c3be2486ad1fd81e88366d062c0313fd8e1ba25e
+mission	mode	seed	result
+dag1c_ctf	base	0	base
+dag1c_ctf	fill	1	equal
+dag1c_ctf	fill	2	equal
+dag1c_ctf	hog	0	equal
+dag1c_ctf	pad	1	equal
+dag1c_ctf	pad	2	equal
+dag1c_ctf	pool	1	split turn=154
+dag1c_ctf	pool	2	split turn=154
+dag1c_ctf	top	1	split turn=11
+dag1c_ctf	top	2	split turn=11
+geo1c_con	base	0	base
+geo1c_con	fill	1	equal
+geo1c_con	fill	2	equal
+geo1c_con	hog	0	equal
+geo1c_con	pad	1	equal
+geo1c_con	pad	2	equal
+geo1c_con	pool	1	split turn=35
+geo1c_con	pool	2	split turn=35
+geo1c_con	top	1	split turn=4
+geo1c_con	top	2	split turn=4
+hot1g_con	base	0	base
+hot1g_con	fill	1	equal
+hot1g_con	fill	2	equal
+hot1g_con	hog	0	equal
+hot1g_con	pad	1	split turn=620
+hot1g_con	pad	2	split turn=620
+hot1g_con	pool	1	split turn=116
+hot1g_con	pool	2	split turn=100
+hot1g_con	top	1	split turn=11
+hot1g_con	top	2	split turn=11
+kas2c_uber	base	0	base
+kas2c_uber	fill	1	equal
+kas2c_uber	fill	2	equal
+kas2c_uber	hog	0	equal
+kas2c_uber	pad	1	equal
+kas2c_uber	pad	2	equal
+kas2c_uber	pool	1	split turn=1
+kas2c_uber	pool	2	split turn=1
+kas2c_uber	top	1	split turn=4
+kas2c_uber	top	2	split turn=4
+nab2g_c	base	0	base
+nab2g_c	fill	1	equal
+nab2g_c	fill	2	equal
+nab2g_c	hog	0	equal
+nab2g_c	pad	1	equal
+nab2g_c	pad	2	equal
+nab2g_c	pool	1	split turn=305
+nab2g_c	pool	2	split turn=305
+nab2g_c	top	1	split turn=19
+nab2g_c	top	2	split turn=19
+spa3c_ass	base	0	base
+spa3c_ass	fill	1	equal
+spa3c_ass	fill	2	equal
+spa3c_ass	hog	0	equal
+spa3c_ass	pad	1	split turn=555
+spa3c_ass	pad	2	equal
+spa3c_ass	pool	1	split turn=43
+spa3c_ass	pool	2	split turn=43
+spa3c_ass	top	1	split turn=11
+spa3c_ass	top	2	split turn=11

@@ -46,6 +46,9 @@ static float sAccumulatedSoundTime;
 
 double gSoundClockTime;
 
+static float sSnapshotAccumulatedSoundTime;
+static double sSnapshotSoundClockTime;
+
 namespace FrameUpdate
 {
 extern float fOneOverTicksPerSecond;
@@ -624,6 +627,18 @@ void InitializeBusGains()
                    gBusGainsUser.mBattleVO, gBusGainsUser.mMaster);
 }
 
+}
+
+void GameSoundEngine::SnapshotClock()
+{
+    sSnapshotAccumulatedSoundTime = sAccumulatedSoundTime;
+    sSnapshotSoundClockTime = gSoundClockTime;
+}
+
+void GameSoundEngine::RestoreClock()
+{
+    sAccumulatedSoundTime = sSnapshotAccumulatedSoundTime;
+    gSoundClockTime = sSnapshotSoundClockTime;
 }
 
 // FUNCTION: SWBF2 0x00538d00

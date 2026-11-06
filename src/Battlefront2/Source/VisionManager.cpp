@@ -121,6 +121,7 @@ void Initialize()
     {
         mCastHistory[i] = 100;
     }
+    mCurCast = 0;
 }
 
 // FUNCTION: SWBF2 0x00670400

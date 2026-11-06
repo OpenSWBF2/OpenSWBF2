@@ -364,13 +364,23 @@ int mMetagameSide[4];
 namespace Lua_Callbacks
 {
 
+// GLOBAL: SWBF2 0x01faa690
+// CallCount
+static int CallCount;
+
+int GetPeriodicLuaGCCount()
+{
+    return CallCount;
+}
+
+void SetPeriodicLuaGCCount(int iCount)
+{
+    CallCount = iCount;
+}
+
 // FUNCTION: SWBF2 0x0057dc80
 void DoPeriodicLuaGC(bool bForce)
 {
-    // GLOBAL: SWBF2 0x01faa690
-    // CallCount
-    static int CallCount;
-
     if (bForce || (CallCount & 0x3f) == 0)
     {
         lua_setgcthreshold(LuaHelper::mState, lua_getgccount(LuaHelper::mState));

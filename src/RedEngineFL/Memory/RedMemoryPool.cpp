@@ -1,10 +1,54 @@
 #include <string.h>
+#ifdef OPENSWBF2_TEST
+#include <stdlib.h>
+#endif
 
 #include "RedMemoryPool.h"
 #include "RedMemory.h"
 #include "RedMemoryReport.h"
 #include "RedScriptLimits.h"
 #include "RedEngineFL/Util/RedLog.h"
+
+#ifdef OPENSWBF2_TEST
+static PBL_ASAN_NO_SANITIZE void* PerturbShuffleChunk(void* pChunk, unsigned int uiCount, unsigned int uiSize)
+{
+    if (uiCount < 2 || (RedPerturbModes() & kRedPerturbPool) == 0)
+    {
+        return pChunk;
+    }
+    unsigned int* puOrder = (unsigned int*)malloc(uiCount * sizeof(unsigned int));
+    if (puOrder == 0)
+    {
+        return pChunk;
+    }
+    for (unsigned int i = 0; i < uiCount; ++i)
+    {
+        puOrder[i] = i;
+    }
+    for (unsigned int i = uiCount - 1; i > 0; --i)
+    {
+        unsigned int uiDraw = 0;
+        if (!RedPerturbDraw(kRedPerturbPool, &uiDraw))
+        {
+            free(puOrder);
+            return pChunk;
+        }
+        unsigned int j = uiDraw % (i + 1);
+        unsigned int uiSwap = puOrder[i];
+        puOrder[i] = puOrder[j];
+        puOrder[j] = uiSwap;
+    }
+    char* pcChunk = (char*)pChunk;
+    for (unsigned int i = 0; i < uiCount; ++i)
+    {
+        char* pcSlot = pcChunk + puOrder[i] * uiSize;
+        *(char**)pcSlot = i + 1 < uiCount ? pcChunk + puOrder[i + 1] * uiSize : 0;
+    }
+    void* pHead = pcChunk + puOrder[0] * uiSize;
+    free(puOrder);
+    return pHead;
+}
+#endif
 
 // FUNCTION: SWBF2 0x006dc640
 PblList<MemoryPool>* GetMemoryPoolList()
@@ -77,6 +121,9 @@ void MemoryPool::Create(unsigned int uiCount, unsigned int uiSize, unsigned int 
     *(char**)((char*)mPool + (mCount - 1) * mSize) = 0;
     mFree = mPool;
     PblAsanPoison(mPool, mSize * mCount);
+#ifdef OPENSWBF2_TEST
+    mFree = PerturbShuffleChunk(mPool, mCount, mSize);
+#endif
 }
 
 // GLOBAL: SWBF2 0x0099e7c8
@@ -127,6 +174,9 @@ PBL_ASAN_NO_SANITIZE void* MemoryPool::Allocate(unsigned int uiSize)
         {
             mPool = mFree;
         }
+#ifdef OPENSWBF2_TEST
+        mFree = PerturbShuffleChunk(mFree, mGrow, mSize);
+#endif
     }
 
     void* pBlock = mFree;
@@ -136,8 +186,128 @@ PBL_ASAN_NO_SANITIZE void* MemoryPool::Allocate(unsigned int uiSize)
     {
         mPeak = mUsed;
     }
+#ifdef OPENSWBF2_TEST
+    if ((RedPerturbModes() & kRedPerturbFill) != 0)
+    {
+        PblAsanUnpoison(pBlock, mSize);
+        memset(pBlock, 0xA5, mSize);
+        PblAsanPoison(pBlock, mSize);
+    }
+#endif
     PblAsanUnpoison(pBlock, uiSize < mSize ? uiSize : mSize);
     return pBlock;
+}
+
+PBL_ASAN_NO_SANITIZE bool MemoryPool::IsFreeBlock(const void* pBlock) const
+{
+    for (const char* pcNode = (const char*)mFree; pcNode != 0; pcNode = *(const char* const*)pcNode)
+    {
+        if (pcNode == pBlock)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+PBL_ASAN_NO_SANITIZE void* MemoryPool::AllocateAt(void* pBlock, unsigned int uiSize)
+{
+    char* pcPrev = 0;
+    for (char* pcNode = (char*)mFree; pcNode != 0; pcPrev = pcNode, pcNode = *(char**)pcNode)
+    {
+        if (pcNode != pBlock)
+        {
+            continue;
+        }
+        if (pcPrev != 0)
+        {
+            *(void**)pcPrev = *(void**)pcNode;
+        }
+        else
+        {
+            mFree = *(void**)pcNode;
+        }
+        ++mUsed;
+        if (mUsed > mPeak)
+        {
+            mPeak = mUsed;
+        }
+#ifdef OPENSWBF2_TEST
+        if ((RedPerturbModes() & kRedPerturbFill) != 0)
+        {
+            PblAsanUnpoison(pcNode, mSize);
+            memset(pcNode, 0xA5, mSize);
+            PblAsanPoison(pcNode, mSize);
+        }
+#endif
+        PblAsanUnpoison(pcNode, uiSize < mSize ? uiSize : mSize);
+        return pcNode;
+    }
+    return 0;
+}
+
+PBL_ASAN_NO_SANITIZE void* MemoryPool::AllocateRun(unsigned int uiCount, unsigned int uiSize)
+{
+    if (mPool == 0)
+    {
+        Create(mCount, mSize, mGrow);
+    }
+    if (uiCount == 0 || mUsed + uiCount > mCount)
+    {
+        return 0;
+    }
+    char* pcBest = 0;
+    char* pcRun = 0;
+    char* pcLast = 0;
+    unsigned int uiRun = 0;
+    bool bSorted = true;
+    for (char* pcNode = (char*)mFree; pcNode != 0; pcLast = pcNode, pcNode = *(char**)pcNode)
+    {
+        if (pcLast != 0 && pcNode <= pcLast)
+        {
+            bSorted = false;
+            break;
+        }
+        if (pcLast != 0 && pcNode == pcLast + mSize)
+        {
+            ++uiRun;
+        }
+        else
+        {
+            pcRun = pcNode;
+            uiRun = 1;
+        }
+        if (uiRun == uiCount)
+        {
+            pcBest = pcRun;
+            break;
+        }
+    }
+    for (char* pcNode = bSorted ? 0 : (char*)mFree; pcNode != 0; pcNode = *(char**)pcNode)
+    {
+        if (pcBest != 0 && pcNode >= pcBest)
+        {
+            continue;
+        }
+        unsigned int i = 1;
+        while (i < uiCount && IsFreeBlock(pcNode + i * mSize))
+        {
+            ++i;
+        }
+        if (i == uiCount)
+        {
+            pcBest = pcNode;
+        }
+    }
+    if (pcBest == 0)
+    {
+        return 0;
+    }
+    for (unsigned int i = 0; i < uiCount; ++i)
+    {
+        AllocateAt(pcBest + i * mSize, uiSize);
+    }
+    return pcBest;
 }
 
 void MemoryPool::ReportFull(unsigned int uWanted) const
@@ -174,7 +344,11 @@ PBL_ASAN_NO_SANITIZE void MemoryPool::Free(void* pBlock)
 
     char* pcBlock = (char*)pBlock;
     char* pcNode = (char*)mFree;
+#ifdef OPENSWBF2_TEST
+    if (pcNode == 0 || pcBlock <= pcNode || (RedPerturbModes() & kRedPerturbPool) != 0)
+#else
     if (pcNode == 0 || pcBlock <= pcNode)
+#endif
     {
         *(void**)pBlock = mFree;
         --mUsed;

@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "PebbleFL/Common/PblHashTable.h"
+#include "PebbleFL/Common/PblSimOrder.h"
 #include "RedEngineFL/Application/pc/pcFrameLimiter.h"
 #include "RedEngineFL/Application/pc/pcMessageDrain.h"
 #include "RedEngineFL/Application/pc/pcWindow.h"
@@ -151,6 +152,9 @@ static void ReleaseMutex()
 void Startup_InitApplicationMemory()
 {
     pcCrash::ReserveLowAddressSpace();
+#ifdef OPENSWBF2_TEST
+    pcCrash::InitPerturbFromCommandLine();
+#endif
     char* pArena = (char*)malloc(0x4000000);
     s_memoryArena = pArena;
     if (!pArena || pcCrash::SimulateAllocFailure("arenaoom"))
@@ -485,6 +489,23 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
             pcCrash::IsLargeAddressAware() ? 1 : 0, gf::_sap()->IsInitialized() ? 1 : 0,
             (unsigned int)GetModuleHandleA("steam_api.dll"), (unsigned int)GetModuleHandleA("Galaxy.dll"),
             (unsigned int)GetModuleHandleA("GalaxyPeer.dll"), (unsigned int)GetModuleHandleA("binkw32.dll"));
+        LOG(LogCore, Inform, "OPENSWBF2 SIMORDER mode=%s", PblSimOrderName(PblGetSimOrder()));
+        if (SimOrderArgRejected())
+        {
+            LOG(LogCore, Warning, "-simorder needs address or serial, ignored");
+        }
+        char const* pcIgnored = 0;
+        for (int i = 0; TestOnlyArgIgnored(i, &pcIgnored); ++i)
+        {
+            if (pcIgnored)
+            {
+                LOG(LogCore, Warning, "-%s needs a Test or Asan build, ignored", pcIgnored);
+            }
+        }
+#ifdef OPENSWBF2_TEST
+        pcCrash::LogPerturbState();
+        pcCrash::LogRepeatState();
+#endif
     }
 
     const unsigned int uiPaceFps = DisplayCfg::gDisplay.uiFps;
@@ -509,6 +530,12 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
     {
         GameState::SetState(0x11E1FC01);
     }
+#ifdef OPENSWBF2_TEST
+    if (GameLoop::mMissionScript[0] && pcCrash::ShellFirstRequested())
+    {
+        GameState::SetState(0x11E1FC01);
+    }
+#endif
 
     if (g_bNoRender || bDedicated)
     {

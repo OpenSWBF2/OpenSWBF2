@@ -65,6 +65,8 @@ bool sGameObjSortFlagPriority;
 // GLOBAL: SWBF2 0x01f9a260
 PblVector3 sGameObjSortFrom;
 
+extern int sVehicleUpdateBucket;
+
 // FUNCTION: SWBF2 0x0066dca0
 void VehicleManager::Initialize()
 {
@@ -72,6 +74,20 @@ void VehicleManager::Initialize()
     sClientVehicles.Clear();
     sVehicles = &sHostVehicles;
     sNotifyRadius = 50.0f;
+    sVehicleUpdateBucket = 30;
+}
+
+void VehicleManager::Reset()
+{
+    for (int i = 0; i < sHostVehicles.mPoolSize; ++i)
+    {
+        sHostVehicles[i] = PblHandle<GameObject>();
+    }
+    for (int i = 0; i < sClientVehicles.mPoolSize; ++i)
+    {
+        sClientVehicles[i] = PblHandle<GameObject>();
+    }
+    Initialize();
 }
 
 // FUNCTION: SWBF2 0x0066dce0

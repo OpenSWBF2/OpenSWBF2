@@ -15,6 +15,7 @@ public:
     PBL_ASAN_NO_SANITIZE unsigned int GetHandleId() const;
 
     static unsigned int SetNextHandleId(unsigned int uId);
+    static unsigned int GetNextHandleId();
 
     unsigned int mHandleId;
 };

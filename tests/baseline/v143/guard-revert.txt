@@ -300,3 +300,11 @@ SAFE01-CREATES GREEN    RED         0x00000003 smoke:crash-poolcount class=Fatal
 REPT01S      GREEN    RED         0x00000000 smoke:pool-full class=Pass dumps=0
 REPT03S      GREEN    RED         0x00000000 smoke:pool-full-strict class=Pass dumps=0
 SPIKE01-OFFTHREAD GREEN    RED         1          off-thread allocation is counted with tid heap and size 
+PERT05-REFCOUNT GREEN    RED         1          fake d3d device starts with one reference (source pin: renderer-bound class) 
+PERT06-HELPER GREEN    RED         1          glyph cache walks stop at the allocated count when the font gains pages 
+PERT06-SENTINEL GREEN    RED         1          glyph cache element routes every shader walk through the allocated count (source pin) 
+PERT06-ADDGLYPH GREEN    RED         1          glyph cache element routes every shader walk through the allocated count (source pin) 
+PERT06-LOOP  GREEN    RED         1          glyph cache element routes every shader walk through the allocated count (source pin) 
+PERT07-ALIAS GREEN    RED         1          hud item set name after an aliased name keeps the display name valid 
+COMBO-ARRAY-HELPER GREEN    RED         1          combo arrays stay contiguous when another array takes the next pool block 
+COMBO-ARRAY-SITE GREEN    RED         1          combo arrays route every pool array through ComboArrayAdd (source pin) 

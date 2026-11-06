@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "pcCrash.h"
+#include "CommandLine.h"
 #include "GameMemory.h"
 #include "LuaHelper.h"
 #include "GameState.h"
@@ -647,6 +648,92 @@ void pcCrash::ReserveLowAddressSpace()
         uiAt = uiEnd;
     }
 }
+
+#ifdef OPENSWBF2_TEST
+static bool sbPerturbPresent;
+static bool sbPerturbValid;
+static char sacPerturbSpec[64];
+
+void pcCrash::InitPerturbFromCommandLine()
+{
+    int iLen = 0;
+    char const* pcVal = FindArg(GetCommandLineA(), "-perturbheap", &iLen);
+    if (pcVal == 0)
+    {
+        return;
+    }
+    sbPerturbPresent = true;
+    const int iCopy = iLen < (int)sizeof(sacPerturbSpec) ? iLen : (int)sizeof(sacPerturbSpec) - 1;
+    lstrcpynA(sacPerturbSpec, pcVal, iCopy + 1);
+    unsigned int uSeed = 0;
+    unsigned int uModes = 0;
+    if (iLen < (int)sizeof(sacPerturbSpec) && RedPerturbParse(sacPerturbSpec, &uSeed, &uModes))
+    {
+        RedPerturbSet(uSeed, uModes);
+        sbPerturbValid = true;
+    }
+}
+
+void pcCrash::LogPerturbState()
+{
+    if (sbPerturbValid)
+    {
+        char acModes[32];
+        RedPerturbFormatModes(RedPerturbModes(), acModes, sizeof(acModes));
+        LOG(LogCore, Inform, "OPENSWBF2 PERTURB seed=%u modes=%s", RedPerturbSeed(), acModes);
+    }
+    else if (sbPerturbPresent)
+    {
+        LOG(LogCore, Warning, "-perturbheap spec not understood, perturbation off: %s", sacPerturbSpec);
+    }
+}
+
+static bool RepeatMissionArg()
+{
+    static int siRepeat = -1;
+    if (siRepeat < 0)
+    {
+        int iLen = 0;
+        siRepeat = FindArg(GetCommandLineA(), "-repeatmission", &iLen) != 0 ? 1 : 0;
+    }
+    return siRepeat == 1;
+}
+
+bool pcCrash::RepeatMissionRequested()
+{
+    return RepeatMissionArg() && gExitOnGameOver;
+}
+
+bool pcCrash::ShellFirstRequested()
+{
+    static int siShellFirst = -1;
+    if (siShellFirst < 0)
+    {
+        int iLen = 0;
+        siShellFirst = FindArg(GetCommandLineA(), "-shellfirst", &iLen) != 0 ? 1 : 0;
+    }
+    return siShellFirst == 1;
+}
+
+bool pcCrash::TakeShellFirst()
+{
+    static bool sbTaken;
+    if (sbTaken || !ShellFirstRequested())
+    {
+        return false;
+    }
+    sbTaken = true;
+    return true;
+}
+
+void pcCrash::LogRepeatState()
+{
+    if (RepeatMissionArg() && !gExitOnGameOver)
+    {
+        LOG(LogCore, Warning, "-repeatmission needs -exitongameover, ignored");
+    }
+}
+#endif
 
 bool pcCrash::IsLargeAddressAware()
 {

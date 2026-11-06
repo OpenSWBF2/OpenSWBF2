@@ -1264,6 +1264,45 @@ only baseline edit is the layout pin block for `RawControllerInputs` and `FLInpu
 - Factory: Phase 30 re-check: all six factory logs are byte-identical between 5db7e6ac and the
   branch.
 
+## Phase 33: hot1g_con heap layout
+
+`digest-hot1g_con`, `hot1g_con` and `trace-seed-1` moved from `rand=403802221/2528439372
+state=0xC95E64E8` to `rand=2763759203/2960762048 state=0x23F2B567` (turns=1500 time=50.000
+snd=49.923), the same in Release and Test and on every run. No other digest row moved.
+
+### C-LAYOUT-HOT1G
+
+- Commits: fb63997b (the glyph cache block grows by 4 bytes) and e4a4bc99 (`HUD::Item::SetName`)
+  change no simulation code. They only move later heap allocations.
+- Proof: adding an unused 4 bytes to the same glyph cache allocation on 108efaa0, with no other
+  change, gives fb63997b's digest exactly. The `-digesttrace 1600` of 108efaa0 and of 108efaa0
+  with the 4 bytes is identical through turn 619 and first differs at turn 620.
+- Judgement: accepted. hot1g_con depends on heap addresses under `-simorder address`; this is the
+  dependence Phases 34 to 36 remove. Recorded in `33-PERTURB-RESULTS.md` as a lead.
+
+## Phase 33: pvs lists and the first mission from the shell
+
+No digest row moved. This records a deliberate Release change that no direct-start row can see.
+
+### C-PVS-SHELLFIRST
+
+- Change: `PostStateCleanup` re-reserves the pvs displayable free and page lists in the Application
+  heap after every cleanup, the shell's included (33-04, kept by the 33 review fix for WR-04).
+- Before: a mission started from the menu found the lists emptied by the shell's cleanup and
+  regrew them in the Runtime heap during load. A mission started from the command line found them
+  reserved in the Application heap by static initialisation. The two paths gave different Runtime
+  layouts.
+- Proof (Test, `-shellfirst`, which starts the shell and then the named mission): Runtime at turn
+  1500 for geo1c_con is `peak=13985712 used=13262816` from the command line and from the shell
+  with this change, and `peak=13986288 used=13263392` (576 bytes more) from the shell with the
+  re-reserve limited to mission cleanup. The repeated mission of `-repeatmission` gives the same
+  pair: equal to the command-line start with the change, 576 bytes more without it.
+- Sim: the shell-first digests of geo1c_con, hot1g_con, spa3c_ass, kas2c_uber and dag1c_ctf are
+  identical with and without the change, so no simulation difference was observed.
+- Judgement: accepted. Every mission entry now starts from the pvs state of a fresh process.
+  `shell-first` (Test and Asan) gates the path with its own digest row, and run.ps1 checks that
+  its Runtime at turn 1500, and the repeated mission's, equal the `geo1c_con` case.
+
 ## Policy
 
 The v143 files in `tests/corpus/` and this directory are the reference from now on. The digest

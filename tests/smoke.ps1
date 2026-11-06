@@ -362,6 +362,14 @@ function Test-SmokeExpect($case, $res) {
     if ($x.ContainsKey('LogRx')) {
         foreach ($rx in @($x.LogRx)) { if ($res.LogText -cnotmatch $rx) { return $false } }
     }
+    if ($x.ContainsKey('SameDigests')) {
+        $d = @(Get-DigestLines $res.CaseDir)
+        if (-not (Test-SameDigests $d $x.SameDigests)) {
+            Write-Host "    expected $($x.SameDigests) equal SIM DIGEST lines, got $($d.Count)"
+            foreach ($l in $d) { Write-Host "    $l" }
+            return $false
+        }
+    }
     if ($x.ContainsKey('NoIni') -and (Test-Path -LiteralPath (Join-Path $res.CaseDir 'display.ini'))) { return $false }
     if ($x.ContainsKey('IniRx')) {
         $ini = Join-Path $res.CaseDir 'display.ini'
@@ -471,6 +479,11 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
         $cases += New-Object PSObject -Property @{ Name = 'pacing-waitquery-ini'; Args = "$standard $htail -displayini `"$waitIni`""; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 PACING fps=80 vsync=off interval=0x80000000 waitquery=1 timer=none') + $hrx) }; Twice = 0; Timeout = 0 }
         $cases += New-Object PSObject -Property @{ Name = 'digest-dag1c_ctf'; Args = "dag1c_ctf $htail"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 MISSION RUNNING', 'OPENSWBF2 SIM DIGEST turns=') + $hrx) }; Twice = 0; Timeout = 0 }
         $cases += New-Object PSObject -Property @{ Name = 'digest-kas2c_uber'; Args = "kas2c_uber $htail"; Expect = $pass; Twice = 0; Timeout = 0 }
+        if ($script:SmokeDigestConfiguration -in 'Test', 'Asan') {
+            $scanRx = @('OPENSWBF2 HANDLESCAN state=shell live=0 dead=0', 'OPENSWBF2 HANDLESCAN state=mission live=0 dead=0', '(?s)\A(?!.*OPENSWBF2 HANDLESCAN (live |dead |state=\w+ (?!live=0 dead=0\b)))')
+            $cases += New-Object PSObject -Property @{ Name = 'shell-first'; Args = "$standard $htail -shellfirst"; Expect = @{ Class = 'Pass'; SameDigests = 1; LogRx = (@('OPENSWBF2 SHELLFIRST to_mission mission=' + $standard) + $scanRx + $hrx) }; Twice = 0; Timeout = 0 }
+            $cases += New-Object PSObject -Property @{ Name = 'repeat-digest'; Args = "$standard $htail -repeatmission"; Expect = @{ Class = 'Pass'; SameDigests = 2; LogRx = (@('OPENSWBF2 REPEAT to_shell', 'OPENSWBF2 REPEAT to_mission') + $scanRx + $hrx) }; Twice = 0; Timeout = 300 }
+        }
     }
     if ($which -eq 'All') {
         foreach ($line in $missions) {
@@ -738,13 +751,93 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
             $cases += New-Object PSObject -Property @{ Name = "trace-seed-$i"; Args = "hot1g_con $ttail -digesttrace 1600"; Expect = $traceExpect; Twice = 0; Timeout = 0 }
         }
     }
+    if ($which -eq 'Perturb') {
+        $all = @('geo1c_con', 'nab2g_c', 'hot1g_con', 'spa3c_ass', 'dag1c_ctf', 'kas2c_uber')
+        $pm = $all
+        if ($env:OPENSWBF2_PERTURB_MISSIONS) {
+            $pm = @($env:OPENSWBF2_PERTURB_MISSIONS -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+            foreach ($m in $pm) { if ($all -notcontains $m) { throw "OPENSWBF2_PERTURB_MISSIONS: '$m' is not a Perturb mission" } }
+        }
+        $runs = @(@{ Mode = 'base'; Seed = 0; Extra = '' })
+        foreach ($mode in 'pad', 'top', 'fill', 'pool') {
+            foreach ($s in 1, 2) { $runs += @{ Mode = $mode; Seed = $s; Extra = " -perturbheap ${s}:$mode" } }
+        }
+        $runs += @{ Mode = 'hog'; Seed = 0; Extra = ' -hogaddrspace' }
+        foreach ($m in $pm) {
+            foreach ($r in $runs) {
+                $rx = @('(?s)\A(?!.*OPENSWBF2 PERTURB )')
+                if ($r.Seed -gt 0) { $rx = @("(?m)OPENSWBF2 PERTURB seed=$($r.Seed) modes=$($r.Mode)\r?$") }
+                $class = 'Pass'
+                $to = 0
+                if ($m -eq 'nab2g_c') {
+                    $class = 'TimeOut'
+                    $to = 60
+                }
+                if ($r.Mode -eq 'hog') { $rx += $script:SmokeAddrSpaceRx }
+                $name = "perturb-$m-$($r.Mode)"
+                if ($r.Seed -gt 0) { $name = "$name-$($r.Seed)" }
+                $x = @{ Class = $class; LogRx = $rx; Perturb = @{ Mission = $m; Mode = $r.Mode; Seed = $r.Seed } }
+                $cases += New-Object PSObject -Property @{ Name = $name; Args = "$m $tail -digesttrace 1600$($r.Extra)"; Expect = $x; Twice = 0; Timeout = $to }
+            }
+        }
+    }
     return $cases
+}
+
+function Get-DigestLines($caseDir) {
+    $f = Join-Path $caseDir 'run.log'
+    if (-not (Test-Path -LiteralPath $f)) { return @() }
+    return @(Select-String -LiteralPath $f -Pattern 'OPENSWBF2 SIM DIGEST .*' -CaseSensitive | ForEach-Object { $_.Matches[0].Value })
+}
+
+function Test-SameDigests($lines, [int]$count) {
+    $d = @($lines)
+    if ($d.Count -ne $count) { return $false }
+    foreach ($l in $d) { if ($l -cne $d[0]) { return $false } }
+    return $true
+}
+
+function Get-PerturbProofMissing($case, [string]$logText) {
+    $miss = @()
+    foreach ($rx in @($case.Expect.LogRx)) { if ($logText -cnotmatch $rx) { $miss += $rx } }
+    return $miss
+}
+
+function Add-SimOrderExpect($cases, [string]$mode) {
+    if (-not $mode) { return $cases }
+    foreach ($c in $cases) {
+        if ($c.Expect.Class -notin 'Pass', 'TimeOut') { continue }
+        $x = $c.Expect.Clone()
+        $l = @()
+        if ($x.ContainsKey('LogRx')) { $l = @($x.LogRx) }
+        $x.LogRx = $l + @("(?m)OPENSWBF2 SIMORDER mode=$mode\r?$", '(?s)\A(?!.*-simorder needs address or serial)')
+        $c.Expect = $x
+    }
+    return $cases
+}
+
+function Get-Turn1500Runtime($caseDir) {
+    $f = Join-Path $caseDir 'run.log'
+    if (-not (Test-Path -LiteralPath $f)) { return @() }
+    $out = @()
+    $after = $false
+    foreach ($line in [IO.File]::ReadAllLines($f)) {
+        if ($line -cmatch 'OPENSWBF2 MEMREPORT source=') {
+            $after = $line -cmatch 'OPENSWBF2 MEMREPORT source=turn1500$'
+            continue
+        }
+        if ($after -and $line -cmatch 'OPENSWBF2 MEMREPORT heap=Runtime cap=\d+ (peak=\d+ used=\d+) ') {
+            $out += $Matches[1]
+            $after = $false
+        }
+    }
+    return $out
 }
 
 function Get-DigestKey($caseDir) {
     $f = Join-Path $caseDir 'run.log'
     if (-not (Test-Path -LiteralPath $f)) { return $null }
-    $m = Select-String -LiteralPath $f -Pattern 'OPENSWBF2 SIM DIGEST .*' | Select-Object -First 1
+    $m = Select-String -LiteralPath $f -Pattern 'OPENSWBF2 SIM DIGEST .*' | Select-Object -Last 1
     if (-not $m) { return $null }
     return $m.Matches[0].Value
 }
@@ -758,16 +851,36 @@ function Get-DigestTrace($runLog) {
     return $map
 }
 
-function Compare-DigestTrace($logA, $logB) {
+function Compare-DigestTrace($logA, $logB, $maxTurn = 0) {
     $a = Get-DigestTrace $logA
     $b = Get-DigestTrace $logB
     if ($a.Count -eq 0 -or $b.Count -eq 0) { return -1 }
     $last = [Math]::Max($a.Count, $b.Count)
+    if ($maxTurn -gt 0) { $last = $maxTurn }
     for ($t = 1; $t -le $last; $t++) {
         if (-not $a.ContainsKey($t) -or -not $b.ContainsKey($t)) { return -1 }
         if (($a[$t] -split ' ')[0] -cne ($b[$t] -split ' ')[0]) { return $t }
     }
     return 0
+}
+
+function Get-PerturbVerdict($baseLog, $runLog, $runClass, $okClass, $maxTurn = 1500) {
+    $t = Compare-DigestTrace $baseLog $runLog $maxTurn
+    if ($runClass -ne $okClass) {
+        $turn = 0
+        if ($t -gt 0) { $turn = $t }
+        return @{ Result = 'crash'; Turn = $turn; Class = [string]$runClass }
+    }
+    if ($t -gt 0) { return @{ Result = 'split'; Turn = $t; Class = [string]$runClass } }
+    if ($t -lt 0) { return @{ Result = 'crash'; Turn = 0; Class = 'incomplete' } }
+    $a = Get-DigestTrace $baseLog
+    $b = Get-DigestTrace $runLog
+    $da = $null
+    $db = $null
+    if (Test-Path -LiteralPath $baseLog) { $da = Select-String -LiteralPath $baseLog -Pattern 'OPENSWBF2 SIM DIGEST .*' -CaseSensitive | Select-Object -Last 1 | ForEach-Object { $_.Matches[0].Value } }
+    if (Test-Path -LiteralPath $runLog) { $db = Select-String -LiteralPath $runLog -Pattern 'OPENSWBF2 SIM DIGEST .*' -CaseSensitive | Select-Object -Last 1 | ForEach-Object { $_.Matches[0].Value } }
+    if ($a[$maxTurn] -cne $b[$maxTurn] -or $da -cne $db) { return @{ Result = 'split'; Turn = $maxTurn; Class = [string]$runClass } }
+    return @{ Result = 'equal'; Turn = 0; Class = [string]$runClass }
 }
 
 function Get-FinalScoreKey($caseDir) {

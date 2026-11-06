@@ -500,6 +500,35 @@ try {
     if (-not $okGood -or $okFlip) { $failed++; Write-Host "FAILED ${n}: digest compare: matching=$okGood flipped=$okFlip" }
     else { Write-Host "OK $n digest compare fails on a one-bit state flip" }
     $n++
+    $repLog = Join-Path $digTmp 'run.log'
+    $repCase = New-Object PSObject -Property @{ Name = 'selftest-repeat'; Expect = @{ Class = 'Pass'; SameDigests = 2 } }
+    $repRes = New-Object PSObject -Property @{ Class = 'Pass'; CaseDir = $digTmp; LogText = ''; Dumps = @() }
+    $digOther = $digLine.Replace('state=0x0000ABCD', 'state=0x0000ABCE')
+    [IO.File]::WriteAllText($repLog, "[t=1.000] [f=1] $digLine`r`n[t=2.000] [f=2] $digLine`r`n")
+    $repSame = Test-SmokeExpect $repCase $repRes
+    [IO.File]::WriteAllText($repLog, "[t=1.000] [f=1] $digLine`r`n[t=2.000] [f=2] $digOther`r`n")
+    $repDiff = Test-SmokeExpect $repCase $repRes
+    [IO.File]::WriteAllText($repLog, "[t=1.000] [f=1] $digLine`r`n")
+    $repOne = Test-SmokeExpect $repCase $repRes
+    $repCfg = $script:SmokeDigestConfiguration
+    $script:SmokeDigestConfiguration = 'Test'
+    $repStd = @(Get-SmokeCases 'Standard' @() $false $null | Where-Object { $_.Name -eq 'repeat-digest' })
+    $script:SmokeDigestConfiguration = $repCfg
+    $repWhy = $null
+    if (-not $repSame -or $repDiff -or $repOne) { $repWhy = "same=$repSame differ=$repDiff one=$repOne" }
+    elseif ($repStd.Count -ne 1 -or $repStd[0].Expect.SameDigests -ne 2) { $repWhy = 'repeat-digest does not require two equal digests' }
+    if ($repWhy) { $failed++; Write-Host "FAILED ${n}: repeat digest compare: $repWhy" }
+    else { Write-Host "OK $n repeat digest compare fails on two different digests" }
+    [IO.File]::WriteAllText($repLog, "$digLine`r`n")
+    $n++
+    $memA = "[t=1.000] [f=1] LogMemory Inform x.cpp:1: OPENSWBF2 MEMREPORT source=exit`r`n[t=1.000] [f=1] LogMemory Inform x.cpp:1: OPENSWBF2 MEMREPORT heap=Runtime cap=9 peak=5 used=4 allocs=3 failed=0`r`n"
+    $memB = "[t=2.000] [f=2] LogMemory Inform x.cpp:1: OPENSWBF2 MEMREPORT source=turn1500`r`n[t=2.000] [f=2] LogMemory Inform x.cpp:1: OPENSWBF2 MEMREPORT heap=Lua cap=9 peak=8 used=7 allocs=6 failed=0`r`n[t=2.000] [f=2] LogMemory Inform x.cpp:1: OPENSWBF2 MEMREPORT heap=Runtime cap=9 peak=14 used=13 allocs=12 failed=0`r`n"
+    [IO.File]::WriteAllText($repLog, $memA + $memB + $memA + $memB.Replace('peak=14 used=13', 'peak=24 used=23'))
+    $memGot = @(Get-Turn1500Runtime $digTmp)
+    if (($memGot -join ',') -cne 'peak=14 used=13,peak=24 used=23') { $failed++; Write-Host "FAILED ${n}: turn 1500 Runtime report: $($memGot -join ',')" }
+    else { Write-Host "OK $n turn 1500 Runtime report reads only the turn1500 Runtime lines" }
+    [IO.File]::WriteAllText($repLog, "$digLine`r`n")
+    $n++
     $trA = Join-Path $digTmp 'trace-a.log'
     $trB = Join-Path $digTmp 'trace-b.log'
     $linesA = 1..9 | ForEach-Object { 'OPENSWBF2 DIGEST TRACE turn={0} state=0x{0:X8} rand=1/2' -f $_ }
@@ -517,6 +546,65 @@ try {
     $empty = Compare-DigestTrace $trA $trE
     if ($split -ne 7 -or $same -ne 0 -or $randOnly -ne 0 -or $empty -ne -1) { $failed++; Write-Host "FAILED ${n}: digest trace split: split=$split same=$same randOnly=$randOnly empty=$empty" }
     else { Write-Host "OK $n digest trace split names turn 7, ignores rand, fails an empty trace" }
+    $n++
+    $pvEq = Get-PerturbVerdict $trA $trA 'Pass' 'Pass' 9
+    $pvSp = Get-PerturbVerdict $trA $trB 'Pass' 'Pass' 9
+    $pvIn = Get-PerturbVerdict $trA $trE 'Pass' 'Pass' 9
+    $pvCr = Get-PerturbVerdict $trA $trB 'Crash' 'Pass' 9
+    $trA2 = Join-Path $digTmp 'trace-a2.log'
+    $trB2 = Join-Path $digTmp 'trace-b2.log'
+    [IO.File]::WriteAllLines($trA2, [string[]](1..1520 | ForEach-Object { 'OPENSWBF2 DIGEST TRACE turn={0} state=0x{0:X8} rand=1/2' -f $_ }))
+    [IO.File]::WriteAllLines($trB2, [string[]](1..1510 | ForEach-Object { 'OPENSWBF2 DIGEST TRACE turn={0} state=0x{0:X8} rand=1/2' -f $_ }))
+    $cmpLim = Compare-DigestTrace $trA2 $trB2 1500
+    $cmpAll = Compare-DigestTrace $trA2 $trB2
+    $pvLim = Get-PerturbVerdict $trA2 $trB2 'Pass' 'Pass'
+    $pvBad = @()
+    if ($pvEq.Result -ne 'equal') { $pvBad += "equal=$($pvEq.Result)" }
+    if ($pvSp.Result -ne 'split' -or $pvSp.Turn -ne 7) { $pvBad += "split=$($pvSp.Result)/$($pvSp.Turn)" }
+    if ($pvIn.Result -ne 'crash' -or $pvIn.Class -ne 'incomplete') { $pvBad += "incomplete=$($pvIn.Result)/$($pvIn.Class)" }
+    if ($pvCr.Result -ne 'crash' -or $pvCr.Class -ne 'Crash' -or $pvCr.Turn -ne 7) { $pvBad += "crash=$($pvCr.Result)/$($pvCr.Class)/$($pvCr.Turn)" }
+    if ($cmpLim -ne 0 -or $cmpAll -ne -1 -or $pvLim.Result -ne 'equal') { $pvBad += "limit=$cmpLim/$cmpAll/$($pvLim.Result)" }
+    if ($pvBad.Count) { $failed++; Write-Host "FAILED ${n}: perturb verdict: $($pvBad -join ' ')" }
+    else { Write-Host "OK $n perturb verdict names equal, split turn, incomplete and crash" }
+    $n++
+    $savedPm = $env:OPENSWBF2_PERTURB_MISSIONS
+    $env:OPENSWBF2_PERTURB_MISSIONS = 'geo1c_con'
+    $pCases = @{}
+    foreach ($c in (Get-SmokeCases 'Perturb' @() $false $null)) { $pCases[$c.Name] = $c }
+    $env:OPENSWBF2_PERTURB_MISSIONS = $savedPm
+    $addr = 'OPENSWBF2 ADDRSPACE arena=0x8000F020 arena_end=0x8400F020 laa=1 steam=1 steam_api=0x65740000 Galaxy=0x652E0000 GalaxyPeer=0x00000000 binkw32=0x18000000'
+    $pLine = "[t=0.100] [f=0] LogCore Inform pcMain.cpp:1: OPENSWBF2 PERTURB seed=1 modes=pad`r`n"
+    $prBad = @()
+    if (@(Get-PerturbProofMissing $pCases['perturb-geo1c_con-pad-1'] "x`r`n$pLine").Count -ne 0) { $prBad += 'pad line rejected' }
+    if (@(Get-PerturbProofMissing $pCases['perturb-geo1c_con-pad-1'] 'x').Count -eq 0) { $prBad += 'pad without PERTURB line accepted' }
+    if (@(Get-PerturbProofMissing $pCases['perturb-geo1c_con-pad-1'] $pLine.Replace('modes=pad', 'modes=pad,top')).Count -eq 0) { $prBad += 'pad accepted modes=pad,top' }
+    if (@(Get-PerturbProofMissing $pCases['perturb-geo1c_con-pad-2'] $pLine).Count -eq 0) { $prBad += 'seed 2 accepted seed=1' }
+    if (@(Get-PerturbProofMissing $pCases['perturb-geo1c_con-base'] 'x').Count -ne 0) { $prBad += 'plain base rejected' }
+    if (@(Get-PerturbProofMissing $pCases['perturb-geo1c_con-base'] $pLine).Count -eq 0) { $prBad += 'base with PERTURB line accepted' }
+    if (@(Get-PerturbProofMissing $pCases['perturb-geo1c_con-hog'] $addr).Count -ne 0) { $prBad += 'hog with ADDRSPACE rejected' }
+    if (@(Get-PerturbProofMissing $pCases['perturb-geo1c_con-hog'] 'x').Count -eq 0) { $prBad += 'hog without ADDRSPACE accepted' }
+    if (@(Get-PerturbProofMissing $pCases['perturb-geo1c_con-hog'] "$addr`r`n$pLine").Count -eq 0) { $prBad += 'hog with PERTURB line accepted' }
+    if ($prBad.Count) { $failed++; Write-Host "FAILED ${n}: perturb proof: $($prBad -join '; ')" }
+    else { Write-Host "OK $n perturb runs must prove their mode, seed and hog" }
+    $n++
+    $soBad = @()
+    $soPlain = @(Get-SmokeCases 'Standard' @() $false $null)
+    $soSerial = @(Add-SimOrderExpect @(Get-SmokeCases 'Standard' @() $false $null) 'serial')
+    $soCrash = @(Add-SimOrderExpect @(Get-SmokeCases 'Crash' @() $false $null) 'serial')
+    $soRx = '(?m)OPENSWBF2 SIMORDER mode=serial\r?$'
+    foreach ($c in $soPlain) { if (@($c.Expect.LogRx) -contains $soRx) { $soBad += "$($c.Name) asserts serial without -SimOrder" } }
+    foreach ($c in $soSerial) { if (@($c.Expect.LogRx) -notcontains $soRx) { $soBad += "$($c.Name) lacks the serial assertion" } }
+    foreach ($c in $soCrash) { if ($c.Expect.Class -notin 'Pass', 'TimeOut' -and @($c.Expect.LogRx) -contains $soRx) { $soBad += "$($c.Name) asserts serial on a crash case" } }
+    $soAdded = @($soSerial[0].Expect.LogRx | Where-Object { @($soPlain[0].Expect.LogRx) -notcontains $_ })
+    $soGood = "[t=0.000] [f=0] LogCore Inform pcMain.cpp:1: OPENSWBF2 SIMORDER mode=serial`r`n"
+    $soWarn = "$soGood[t=0.000] [f=0] LogCore Warning pcMain.cpp:1: -simorder needs address or serial, ignored`r`n"
+    $soMiss = { param($text) @($soAdded | Where-Object { $text -cnotmatch $_ }).Count }
+    if ($soAdded.Count -ne 2) { $soBad += "added $($soAdded.Count) rx, want 2" }
+    elseif ((& $soMiss $soGood) -ne 0) { $soBad += 'serial log rejected' }
+    elseif ((& $soMiss $soGood.Replace('mode=serial', 'mode=address')) -eq 0) { $soBad += 'address log accepted under -SimOrder serial' }
+    elseif ((& $soMiss $soWarn) -eq 0) { $soBad += 'rejected -simorder warning accepted' }
+    if ($soBad.Count) { $failed++; Write-Host "FAILED ${n}: simorder assertion: $($soBad -join '; ')" }
+    else { Write-Host "OK $n -SimOrder asserts its SIMORDER line on every non-crash case" }
     $n++
     $errLine = '[t=1.000] [f=1] LogMemory Error X.cpp:1: boom'
     $errLog = Join-Path $digTmp 'run.log'

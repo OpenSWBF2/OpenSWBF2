@@ -628,6 +628,7 @@ ParticleEmitterObject sPEO;
 void ParticleEmitter::Cleanup()
 {
     sPEO.DeleteEmitter();
+    sPEO.m_hobjAttachedToObject = PblHandle<GameObject const>();
 }
 
 // FUNCTION: SWBF2 0x00609cb0

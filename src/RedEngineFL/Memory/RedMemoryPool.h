@@ -38,6 +38,12 @@ public:
 
     PBL_ASAN_NO_SANITIZE void Free(void* pBlock);
 
+    PBL_ASAN_NO_SANITIZE void* AllocateAt(void* pBlock, unsigned int uiSize);
+
+    PBL_ASAN_NO_SANITIZE void* AllocateRun(unsigned int uiCount, unsigned int uiSize);
+
+    PBL_ASAN_NO_SANITIZE bool IsFreeBlock(const void* pBlock) const;
+
     ~MemoryPool();
 
     void Destroy();

@@ -87,6 +87,7 @@ enum VOType
 };
 namespace VOHelper
 {
+void Reset();
 int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,
          const GameObject* pOther, float fDelay);
 
@@ -217,6 +218,7 @@ void AIUtil::Reset()
     BaseHint::sMemoryPool.Reset();
     AI::AIGoal::sMemoryPool.Reset();
     VisionManager::RayRequest::sMemoryPool.Reset();
+    AI::VOHelper::Reset();
 }
 
 // GLOBAL: SWBF2 0x01e2fdcc

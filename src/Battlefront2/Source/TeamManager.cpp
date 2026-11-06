@@ -48,6 +48,19 @@ void TeamManager::Init()
     }
 }
 
+void TeamManager::Reset()
+{
+    for (int i = 0; i < 8; ++i)
+    {
+        for (int j = 0; j < 600; ++j)
+        {
+            sTeamList[i][j].mObj = PblHandle<GameObject>();
+        }
+        sDirty[i] = true;
+        sMemberCount[i] = 0;
+    }
+}
+
 // FUNCTION: SWBF2 0x00655200
 void TeamManager::UpdatePositions()
 {

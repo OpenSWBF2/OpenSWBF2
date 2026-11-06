@@ -684,6 +684,7 @@
     <ClCompile Include="src\PebbleFL\Common\PblQuaternion.cpp" />
     <ClCompile Include="src\PebbleFL\Common\PblRandom.cpp" />
     <ClCompile Include="src\PebbleFL\Common\PblRegion.cpp" />
+    <ClCompile Include="src\PebbleFL\Common\PblSimOrder.cpp" />
     <ClCompile Include="src\PebbleFL\Common\PblTime.cpp" />
     <ClCompile Include="src\PebbleFL\Common\PblTimeBase.cpp" />
     <ClCompile Include="src\PebbleFL\Common\PblTrace.cpp" />
@@ -1015,6 +1016,7 @@
     <ClInclude Include="src\Battlefront2\Source\CombatHelper.h" />
     <ClInclude Include="src\Battlefront2\Source\CombatUtil.h" />
     <ClInclude Include="src\Battlefront2\Source\Combo.h" />
+    <ClInclude Include="src\Battlefront2\Source\ComboArray.h" />
     <ClInclude Include="src\Battlefront2\Source\CommandBuilding.h" />
     <ClInclude Include="src\Battlefront2\Source\CommandBuildingAnimatedArmed.h" />
     <ClInclude Include="src\Battlefront2\Source\CommandBuildingArmed.h" />
@@ -1469,6 +1471,7 @@
     <ClInclude Include="src\PebbleFL\Common\PblRandom.h" />
     <ClInclude Include="src\PebbleFL\Common\PblRef.h" />
     <ClInclude Include="src\PebbleFL\Common\PblRegion.h" />
+    <ClInclude Include="src\PebbleFL\Common\PblSimOrder.h" />
     <ClInclude Include="src\PebbleFL\Common\PblTime.h" />
     <ClInclude Include="src\PebbleFL\Common\PblTimeBase.h" />
     <ClInclude Include="src\PebbleFL\Common\PblUnicode.h" />
@@ -1565,6 +1568,7 @@
     <ClInclude Include="src\RedEngineFL\Interface\RedShadowBlob.h" />
     <ClInclude Include="src\RedEngineFL\Interface\RedTextElement.h" />
     <ClInclude Include="src\RedEngineFL\Interface\RedVectorElement.h" />
+    <ClInclude Include="src\RedEngineFL\Interface\pc\pcGlyphCacheCount.h" />
     <ClInclude Include="src\RedEngineFL\Memory\RedMemory.h" />
     <ClInclude Include="src\RedEngineFL\Memory\RedMemoryPool.h" />
     <ClInclude Include="src\RedEngineFL\Memory\RedMemoryReport.h" />

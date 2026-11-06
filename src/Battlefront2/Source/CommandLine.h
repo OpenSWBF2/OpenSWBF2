@@ -9,6 +9,10 @@ void ParseCommandLine(char const* pcAppName, char const* pcCmdLine);
 
 void ParseCommandLine(int iArgc, char** const apcArgv);
 
+bool SimOrderArgRejected();
+
+bool TestOnlyArgIgnored(int i, char const** ppcName);
+
 extern char gGamespyAutoName[32];
 extern char gGamespyAutoConnectAddr[64];
 extern char gGamespyAutoPassStr[128];

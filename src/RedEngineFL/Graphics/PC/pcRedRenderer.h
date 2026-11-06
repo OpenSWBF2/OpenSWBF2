@@ -135,6 +135,8 @@ class FakeD3DDevice : public IDirect3DDevice9
 {
 public:
 
+    FakeD3DDevice() : refCount(1) {}
+
     STDMETHOD(QueryInterface)(REFIID riid, void** ppvObj);
     STDMETHOD_(ULONG, AddRef)();
     STDMETHOD_(ULONG, Release)();

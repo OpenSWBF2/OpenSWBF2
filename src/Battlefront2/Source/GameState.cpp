@@ -23,6 +23,7 @@
 #include "ShellLoop.h"
 #include "CollisionBody.h"
 #include "GameMemory.h"
+#include "RedEngineFL/Portals/Portal.h"
 #include "GameMovie.h"
 #include "GameSound.h"
 #include "GameSoundEngine.h"
@@ -52,6 +53,7 @@
 #include "LeafEffect.h"
 #include "LuaMemory.h"
 #include "NameDisplay.h"
+#include "ScopeDisplay.h"
 #include "PropGenerator.h"
 #include "ReticuleDisplay.h"
 #include "RumbleRegion.h"
@@ -68,6 +70,14 @@
 
 #include <yvals.h>
 #include "RedEngineFL/Memory/RedMemory.h"
+#ifdef OPENSWBF2_TEST
+#include "FLEffect.h"
+#include "GameObject.h"
+#include "OrbitalStrike.h"
+#include "ParticleEmitterObject.h"
+#include "Timer.h"
+#include "UnitController.h"
+#endif
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 #include "RedEngineFL/Memory/RedMemoryReport.h"
 #include "SoundFL/source/sndbus.h"
@@ -151,6 +161,9 @@
 #include "CommandWalker.h"
 #include "CommandFlyer.h"
 #include "VehicleSpawn.h"
+#include "TargetManager.h"
+#include "TeamManager.h"
+#include "VehicleManager.h"
 #include "PowerupStation.h"
 #include "PowerupItem.h"
 #include "EntityMine.h"
@@ -1327,6 +1340,18 @@ void GameState::ShellState::Enter()
 // FUNCTION: SWBF2 0x0053ba70
 void GameState::ShellState::Update(float fDeltaTime, float)
 {
+#ifdef OPENSWBF2_TEST
+    if (GameLoop::TakeRepeatPending())
+    {
+        LOG(LogSim, Inform, "OPENSWBF2 REPEAT to_mission mission=%s", GameLoop::mMissionScript);
+        GameState::SetState(0x8FF60339);
+    }
+    else if (GameLoop::mMissionScript[0] && pcCrash::TakeShellFirst())
+    {
+        LOG(LogSim, Inform, "OPENSWBF2 SHELLFIRST to_mission mission=%s", GameLoop::mMissionScript);
+        GameState::SetState(0x8FF60339);
+    }
+#endif
     ShellLoop::Update(fDeltaTime);
 }
 
@@ -1338,9 +1363,58 @@ void GameState::ShellState::Exit()
     PostStateCleanup(false);
 }
 
+#ifdef OPENSWBF2_TEST
+extern double gSoundClockTime;
+#endif
+
+extern bool gThreadIsEven;
+extern bool sHostThreadIsEven;
+extern bool sClientThreadIsEven;
+
+static bool sbMissionEntered;
+static unsigned int suMissionEntrySimSeed;
+static unsigned int suMissionEntryHandleId;
+static bool sbMissionEntryThreadIsEven;
+static bool sbMissionEntryHostThreadIsEven;
+static bool sbMissionEntryClientThreadIsEven;
+static int siMissionEntryLuaGCCount;
+static int siMissionEntryHasNormal;
+static float sfMissionEntryNormal;
+
+static void RestoreMissionEntryState()
+{
+    if (!sbMissionEntered)
+    {
+        sbMissionEntered = true;
+        suMissionEntrySimSeed = PblRandom::_Sim.GetSeed();
+        suMissionEntryHandleId = PblHandled::GetNextHandleId();
+        sbMissionEntryThreadIsEven = gThreadIsEven;
+        sbMissionEntryHostThreadIsEven = sHostThreadIsEven;
+        sbMissionEntryClientThreadIsEven = sClientThreadIsEven;
+        siMissionEntryLuaGCCount = Lua_Callbacks::GetPeriodicLuaGCCount();
+        PblRandom::GetNormalCache(&siMissionEntryHasNormal, &sfMissionEntryNormal);
+        GameSoundEngine::SnapshotClock();
+        return;
+    }
+    PblRandom::_Sim.SetSeed(suMissionEntrySimSeed);
+    PblHandled::SetNextHandleId(suMissionEntryHandleId);
+    gThreadIsEven = sbMissionEntryThreadIsEven;
+    sHostThreadIsEven = sbMissionEntryHostThreadIsEven;
+    sClientThreadIsEven = sbMissionEntryClientThreadIsEven;
+    Lua_Callbacks::SetPeriodicLuaGCCount(siMissionEntryLuaGCCount);
+    PblRandom::SetNormalCache(siMissionEntryHasNormal, sfMissionEntryNormal);
+    GameSoundEngine::RestoreClock();
+}
+
 // FUNCTION: SWBF2 0x0053bae0
 void GameState::MissionState::Enter()
 {
+    RestoreMissionEntryState();
+#ifdef OPENSWBF2_TEST
+    LOG(LogSim, Inform, "OPENSWBF2 MISSIONENTER rand=%u/%u snd=%.3f handle=%u even=%d luagc=%d",
+        PblRandom::_Global._uiSeed, PblRandom::_Sim._uiSeed, gSoundClockTime, PblHandled::GetNextHandleId(),
+        (int)gThreadIsEven, Lua_Callbacks::GetPeriodicLuaGCCount());
+#endif
     gDisableNetworkOnCleanup = false;
     PreStateInit(true);
     GameLoop::Init();
@@ -1455,6 +1529,130 @@ void GameState::JournalStartTimes()
 // TEMPLATE: SWBF2 0x0053bfa0
 // PblList<Factory<Ordnance,ExplosionClass,OrdnanceDesc> >::Clear
 
+#ifdef OPENSWBF2_TEST
+extern char* g_Heap3Start;
+extern char* gArenaEnd;
+
+template <class T>
+static unsigned int HandleIdOffset()
+{
+    T* pObject = (T*)0x10000;
+    return (unsigned int)&static_cast<PblHandled*>(pObject)->mHandleId - (unsigned int)pObject;
+}
+
+static const unsigned int kHandleTypes = 6;
+static unsigned int sauHandleIdOffset[kHandleTypes];
+
+struct HandleScan
+{
+    unsigned int uLo;
+    unsigned int uHi;
+    unsigned int uImageLo;
+    unsigned int uImageHi;
+    unsigned int uDeadVtable;
+    unsigned int uNext;
+    unsigned int uLive;
+    unsigned int uDead;
+};
+
+static PBL_ASAN_NO_SANITIZE void ScanHandleRange(HandleScan& rScan, const unsigned int* puFrom, const unsigned int* puTo,
+                                                 const char* pcWhere)
+{
+    for (const unsigned int* pu = puFrom; pu + 1 < puTo; ++pu)
+    {
+        const unsigned int uObject = pu[0];
+        const unsigned int uId = pu[1];
+        if (uObject < rScan.uLo || uObject >= rScan.uHi || (uObject & 3) != 0 || uId == 0 || uId >= rScan.uNext)
+        {
+            continue;
+        }
+        for (unsigned int i = 0; i < kHandleTypes; ++i)
+        {
+            const unsigned int uAt = uObject + sauHandleIdOffset[i];
+            if (uAt < rScan.uLo + 4 || uAt + 4 > rScan.uHi)
+            {
+                continue;
+            }
+            const unsigned int* puHandled = (const unsigned int*)uAt;
+            const bool bLive = puHandled[0] == uId && puHandled[-1] >= rScan.uImageLo && puHandled[-1] < rScan.uImageHi;
+            const bool bDead = puHandled[0] == 0 && puHandled[-1] == rScan.uDeadVtable;
+            if (!bLive && !bDead)
+            {
+                continue;
+            }
+            if (rScan.uLive + rScan.uDead < 16)
+            {
+                LOG(LogSim, Warning, "OPENSWBF2 HANDLESCAN %s at=%s+0x%X object=0x%08X id=%u", bLive ? "live" : "dead",
+                    pcWhere, (unsigned int)(pu - puFrom) * 4, uObject, uId);
+            }
+            if (bLive)
+            {
+                ++rScan.uLive;
+            }
+            else
+            {
+                ++rScan.uDead;
+            }
+            break;
+        }
+    }
+}
+
+static void ScanStaleHandles(bool bMission)
+{
+    sauHandleIdOffset[0] = HandleIdOffset<GameObject>();
+    sauHandleIdOffset[1] = HandleIdOffset<FLEffectObject>();
+    sauHandleIdOffset[2] = HandleIdOffset<ParticleEmitterObject>();
+    sauHandleIdOffset[3] = HandleIdOffset<UnitController>();
+    sauHandleIdOffset[4] = HandleIdOffset<Timer>();
+    sauHandleIdOffset[5] = HandleIdOffset<OrbitalStrike>();
+    HandleScan kScan;
+    unsigned int auProbe[4];
+    const unsigned int uNextId = PblHandled::GetNextHandleId();
+    PblHandled* pProbe = new (auProbe) PblHandled;
+    pProbe->~PblHandled();
+    PblHandled::SetNextHandleId(uNextId);
+    kScan.uDeadVtable = auProbe[0];
+    kScan.uLo = (unsigned int)g_Heap3Start;
+    kScan.uHi = (unsigned int)gArenaEnd;
+    kScan.uNext = PblHandled::GetNextHandleId();
+    kScan.uLive = 0;
+    kScan.uDead = 0;
+    char* pcImage = (char*)GetModuleHandleA(0);
+    IMAGE_DOS_HEADER* pDos = (IMAGE_DOS_HEADER*)pcImage;
+    IMAGE_NT_HEADERS* pNt = (IMAGE_NT_HEADERS*)(pcImage + pDos->e_lfanew);
+    kScan.uImageLo = (unsigned int)pcImage;
+    kScan.uImageHi = kScan.uImageLo + pNt->OptionalHeader.SizeOfImage;
+    IMAGE_SECTION_HEADER* pSection = IMAGE_FIRST_SECTION(pNt);
+    for (unsigned int i = 0; i < pNt->FileHeader.NumberOfSections; ++i, ++pSection)
+    {
+        if ((pSection->Characteristics & IMAGE_SCN_MEM_WRITE) == 0)
+        {
+            continue;
+        }
+        const unsigned int* puFrom = (const unsigned int*)pcImage + pSection->VirtualAddress / 4;
+        ScanHandleRange(kScan, puFrom, puFrom + pSection->Misc.VirtualSize / 4, (const char*)pSection->Name);
+    }
+    for (int iHeap = 0; iHeap < maxheaps; ++iHeap)
+    {
+        void* pStart = 0;
+        unsigned int uSize = 0;
+        if (!RedGetHeapRange(iHeap, &pStart, &uSize))
+        {
+            continue;
+        }
+        const unsigned int uStart = (unsigned int)pStart;
+        if (uStart + uSize > kScan.uLo && uStart < kScan.uHi)
+        {
+            continue;
+        }
+        ScanHandleRange(kScan, (const unsigned int*)pStart, (const unsigned int*)pStart + uSize / 4, RedGetHeapName(iHeap));
+    }
+    LOG(LogSim, Inform, "OPENSWBF2 HANDLESCAN state=%s live=%u dead=%u", bMission ? "mission" : "shell", kScan.uLive,
+        kScan.uDead);
+}
+#endif
+
 // FUNCTION: SWBF2 0x0053b640
 void GameState::PostStateCleanup(bool bMission)
 {
@@ -1546,6 +1744,7 @@ void GameState::PostStateCleanup(bool bMission)
     {
         NameDisplay::Reset();
         ItemTimerDisplay::Reset();
+        ScopeDisplay::sInstance[0] = 0;
     }
 
     QOSDisplay::Reset();
@@ -1561,6 +1760,9 @@ void GameState::PostStateCleanup(bool bMission)
     PropGenerator::Cleanup();
     HUD::Manager::Close();
     FLRenderer::Cleanup();
+    const int iCleanupHeap = RedSetCurrentHeap(GameMemory::ApplicationHeap);
+    pvs::IManager::ReserveDisplayables();
+    RedSetCurrentHeap(iCleanupHeap);
     EntityCloth::ClearSpecialAllocator();
     ParticleEmitter::Cleanup();
     GameModel::Reset();
@@ -1610,6 +1812,12 @@ void GameState::PostStateCleanup(bool bMission)
     NetGame::Reset();
     RedMemoryReport::LogMemReport("exit");
     MemoryPool::DestroyAll();
+    TargetManager::Init();
+    TeamManager::Reset();
+    VehicleManager::Reset();
+#ifdef OPENSWBF2_TEST
+    ScanStaleHandles(bMission);
+#endif
 }
 
 // TEMPLATE: SWBF2 0x0053c000

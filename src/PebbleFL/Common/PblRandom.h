@@ -63,6 +63,8 @@ public:
     static PblRandom& GetSim() { return _Sim; }
 
     float GetNormal();
+    static void GetNormalCache(int* piHas, float* pfValue);
+    static void SetNormalCache(int iHas, float fValue);
     float GetNormal(float fMean, float fStdDev) { return GetNormal() * fStdDev + fMean; }
 
     unsigned int _uiSeed;

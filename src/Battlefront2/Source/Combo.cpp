@@ -1,4 +1,5 @@
 #include "Combo.h"
+#include "ComboArray.h"
 
 #include <math.h>
 #include <string.h>
@@ -260,22 +261,24 @@ Combo::DamageSample* Combo::_AllocDamageSample()
 // FUNCTION: SWBF2 0x00473280
 void Combo::Attack::AddDamageSample(float fTime, const PblVector3& vBegin, const PblVector3& vEnd)
 {
-    DamageSample* pSample = Combo::_AllocDamageSample();
+    if (m_uiNumDamageSamples >= 255)
+    {
+        Combo::_AllocDamageSample();
+        return;
+    }
+    if (DamageSample::sMemoryPool.IsFull())
+    {
+        return;
+    }
+    DamageSample* pSample = ComboArrayAdd(DamageSample::sMemoryPool, m_aDamageSample, m_uiNumDamageSamples);
     if (!pSample)
     {
         return;
     }
-    if (m_uiNumDamageSamples == 0)
-    {
-        m_aDamageSample = pSample;
-    }
-    if (m_uiNumDamageSamples < 255)
-    {
-        ++m_uiNumDamageSamples;
-        pSample->fTime = fTime;
-        pSample->vPos = vBegin;
-        pSample->vDir = vEnd;
-    }
+    ++m_uiNumDamageSamples;
+    pSample->fTime = fTime;
+    pSample->vPos = vBegin;
+    pSample->vDir = vEnd;
 }
 
 // FUNCTION: SWBF2 0x004727a0
@@ -1326,16 +1329,12 @@ Combo::Condition* Combo::Transition::AddCondition()
     {
         return 0;
     }
-    Condition* pCondition = _AllocCondition();
+    Condition* pCondition = ComboArrayAdd(Condition::sMemoryPool, m_aCondition, m_uiNumConditions);
     if (!pCondition)
     {
         return 0;
     }
     pCondition->_Init();
-    if (!m_uiNumConditions)
-    {
-        m_aCondition = pCondition;
-    }
     ++m_uiNumConditions;
     return pCondition;
 }
@@ -2304,16 +2303,12 @@ Combo::Transition* Combo::State::AddTransition(unsigned int uiTargetState)
     {
         return 0;
     }
-    Transition* pTransition = _AllocTransition();
+    Transition* pTransition = ComboArrayAdd(Transition::sMemoryPool, m_aTransition, m_uiNumTransitions);
     if (!pTransition)
     {
         return 0;
     }
     pTransition->_Init(uiTargetState);
-    if (!m_uiNumTransitions)
-    {
-        m_aTransition = pTransition;
-    }
     ++m_uiNumTransitions;
     return pTransition;
 }
@@ -2325,16 +2320,12 @@ Combo::Attack* Combo::State::AddAttack()
     {
         return 0;
     }
-    Attack* pAttack = _AllocAttack();
+    Attack* pAttack = ComboArrayAdd(Attack::sMemoryPool, m_aAttack, m_uiNumAttacks);
     if (!pAttack)
     {
         return 0;
     }
     pAttack->_Init();
-    if (!m_uiNumAttacks)
-    {
-        m_aAttack = pAttack;
-    }
     ++m_uiNumAttacks;
     return pAttack;
 }
@@ -2363,17 +2354,13 @@ Combo::Condition* Combo::State::AddAnimatedMoveCondition()
     {
         return 0;
     }
-    Condition* pCondition = _AllocCondition();
+    Condition* pCondition = ComboArrayAdd(Condition::sMemoryPool, m_aAnimatedMoveCondition, m_uiNumAnimatedMoveConditions);
     if (!pCondition)
     {
         return 0;
     }
     pCondition->_Init();
     pCondition->SetBreak(true);
-    if (!m_uiNumAnimatedMoveConditions)
-    {
-        m_aAnimatedMoveCondition = pCondition;
-    }
     ++m_uiNumAnimatedMoveConditions;
     return pCondition;
 }
@@ -2666,10 +2653,23 @@ Combo::State* Combo::AddState(unsigned int uiNameHash)
             return &m_aState[i];
         }
     }
-    State* pState = _AllocState();
+    State* pOld = m_aState;
+    const unsigned int uiCount = m_uiNumStates;
+    State* pState = ComboArrayAdd(State::sMemoryPool, m_aState, uiCount);
     if (!pState)
     {
         return 0;
+    }
+    if (uiCount && m_aState != pOld)
+    {
+        if (m_pCatchState >= pOld && m_pCatchState < pOld + uiCount)
+        {
+            m_pCatchState = m_aState + (m_pCatchState - pOld);
+        }
+        if (m_pTakeKneeState >= pOld && m_pTakeKneeState < pOld + uiCount)
+        {
+            m_pTakeKneeState = m_aState + (m_pTakeKneeState - pOld);
+        }
     }
     pState->_Init(uiNameHash);
     if (uiNameHash == 0x8718d358)
@@ -2679,10 +2679,6 @@ Combo::State* Combo::AddState(unsigned int uiNameHash)
     else if (uiNameHash == 0xd7e2ce48)
     {
         m_pTakeKneeState = pState;
-    }
-    if (!m_uiNumStates)
-    {
-        m_aState = pState;
     }
     ++m_uiNumStates;
     return pState;
