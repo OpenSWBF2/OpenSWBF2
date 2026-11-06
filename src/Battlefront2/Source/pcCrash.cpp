@@ -11,6 +11,7 @@
 #include "LuaHelper.h"
 #include "GameState.h"
 #include "RedEngineFL/Memory/RedMemory.h"
+#include "RedEngineFL/Memory/RedMemoryPool.h"
 #include "RedEngineFL/Util/RedLog.h"
 #include "RedEngineFL/Application/pc/pcFrameLimiter.h"
 #include "RedEngineFL/Graphics/PC/pcDisplayLogic.h"
@@ -896,6 +897,43 @@ static void AdapterCancelFrame(bool& rbRan)
     rbRan = true;
 }
 
+static void PoolCountTest()
+{
+    MemoryPool kPool("crashtestpool", 16);
+    lua_State* L = LuaHelper::mState;
+    lua_pushstring(L, "SetMemoryPoolSize");
+    lua_gettable(L, LUA_GLOBALSINDEX);
+    lua_pushstring(L, "crashtestpool");
+    lua_pushnumber(L, 2147483647.0);
+    if (lua_pcall(L, 2, 0, 0) != 0)
+    {
+        lua_pop(L, 1);
+    }
+    MemoryPool kHuge("crashtesthuge", 16);
+    kHuge.Create(0x40000001, 16, 0);
+    MemoryPool kSmall("crashtestsmall", 16);
+    kSmall.Create(4, 16, 0);
+    void* pFirst = kSmall.Allocate(16);
+    void* pSecond = kSmall.Allocate(16);
+    kSmall.Free(pFirst);
+    kSmall.Free(pSecond);
+}
+
+static void PoolFullTest()
+{
+    MemoryPool kPool("crashtestpool", 16);
+    kPool.Create(2, 16, 0);
+    void* apBlocks[8];
+    for (int i = 0; i < 8; ++i)
+    {
+        apBlocks[i] = kPool.Allocate(16);
+    }
+    for (int i = 0; i < 8; ++i)
+    {
+        kPool.Free(apBlocks[i]);
+    }
+}
+
 void pcCrash::RunMissionCrashTest()
 {
     static bool sbRan;
@@ -974,6 +1012,16 @@ void pcCrash::RunMissionCrashTest()
     {
         MenuConfirmFrame(kMenuApplyFail, sbRan);
     }
+    else if (strcmp(gCrashKind, "poolcount") == 0)
+    {
+        sbRan = true;
+        PoolCountTest();
+    }
+    else if (strcmp(gCrashKind, "poolfull") == 0)
+    {
+        sbRan = true;
+        PoolFullTest();
+    }
     else
     {
         sbRan = true;
@@ -989,7 +1037,7 @@ void pcCrash::SetCrashTest(char const* pcKind)
         "applytargetfail", "gammapass", "gammafallback", "gammadrawfail",
         "gammalost", "menuconfirm", "menukeep", "menusavefail", "adaptercancel",
         "adapteraccept", "shellstretch", "menuorder", "menuorderrev",
-        "menurevertsave", "menuapplyfail" };
+        "menurevertsave", "menuapplyfail", "poolcount", "poolfull" };
     if (pcKind == 0)
     {
         return;

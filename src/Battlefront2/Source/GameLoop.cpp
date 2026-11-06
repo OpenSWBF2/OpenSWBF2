@@ -114,6 +114,7 @@
 #include "RedEngineFL/Util/RedWarning.h"
 #include "RedEngineFL/Util/RedLog.h"
 #include "SimDigest.h"
+#include "RedEngineFL/Memory/RedMemoryReport.h"
 
 class VideoEffect { public: static void Init(); };
 class LetterboxEffect { public: static void Init(); };
@@ -1503,6 +1504,7 @@ void Update(float fDeltaTime, float fSystemDeltaTime)
                     suDigestTurns, GameLoop::GetMissionTime(), PblRandom::_Global._uiSeed, PblRandom::_Sim._uiSeed,
                     gSoundClockTime, SimDigest::StateHash());
                 SimDigest::LogFactoryCounts();
+                RedMemoryReport::LogMemReport("turn1500");
             }
             if (iTurnsRun && !sGameOver && Team::sWinningTeams)
             {

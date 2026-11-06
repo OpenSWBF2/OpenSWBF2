@@ -15,6 +15,8 @@ public:
 
     void Reset();
 
+    void ClearStats();
+
     void Setup(unsigned int uiCount, unsigned int uiSize, unsigned int uiGrow);
 
     bool IsPresent(void* pBlock) const
@@ -44,14 +46,35 @@ public:
     // FUNCTION: SWBF2 0x0044c530
     unsigned int GetCount() const { return mCount; }
 
+    unsigned int GetPeak() const { return mPeak; }
+    unsigned int GetGrown() const { return mGrown; }
+
     int GetIndex(void* pBlock) const
     {
         return ((char*)pBlock - (char*)mPool) / mSize;
     }
 
-    bool IsFull() const { return mUsed >= mCount; }
+    bool IsFull() const
+    {
+        if (mUsed >= mCount)
+        {
+            ReportFull(mUsed + 1);
+            return true;
+        }
+        return false;
+    }
 
-    bool IsSufficientSpace(unsigned int uCount) const { return mUsed + uCount <= mCount; }
+    bool IsSufficientSpace(unsigned int uCount) const
+    {
+        if (mUsed + uCount <= mCount)
+        {
+            return true;
+        }
+        ReportFull(mUsed + uCount);
+        return false;
+    }
+
+    void ReportFull(unsigned int uWanted) const;
     void SetSize(unsigned int uiSize);
 
     static void CreateAll();
@@ -76,6 +99,10 @@ public:
     void* mPool;
     bool mPoolOwner;
     void* mFree;
+    unsigned int mPeak;
+    unsigned int mGrown;
+    mutable bool mFullReported;
+    mutable bool mFullReportedStrict;
 };
  
  

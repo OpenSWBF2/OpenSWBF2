@@ -386,6 +386,23 @@ function Test-SmokeExpect($case, $res) {
         }
     }
     $unexpected = @(Get-SmokeUnexpected $case.Name $res.CaseDir)
+    if ($x.ContainsKey('ErrorRx')) {
+        if ($unexpected.Count -lt 1) {
+            Write-Host "    expected an Error line, none seen"
+            return $false
+        }
+        $ok = $true
+        foreach ($u in $unexpected) {
+            $matched = $false
+            foreach ($rx in @($x.ErrorRx)) { if ($u -cmatch $rx) { $matched = $true; break } }
+            if ($matched) { Write-Host "    expected error line: $u" }
+            else {
+                Write-Host "    unexpected log line: $u"
+                $ok = $false
+            }
+        }
+        return $ok
+    }
     if ($unexpected.Count -gt 0) {
         foreach ($u in $unexpected) { Write-Host "    unexpected log line: $u" }
         return $false
@@ -410,10 +427,6 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
     }
     $cases = @()
 
-    $missionCase = {
-        param($m)
-        New-Object PSObject -Property @{ Name = $m; Args = "$m $htail"; Expect = $pass; Twice = 0; Timeout = 0 }
-    }
     $allCase = {
         param($m, $class, $sec)
         $x = $pass
@@ -427,10 +440,13 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
             $x = @{ Class = 'Fatal'; Code = 3; MinDumps = 1; MaxDumps = 1; LogRx = (@('FATAL: exception 0xC0000005 at 0x[0-9A-F]+ \(d3dx9_43\.dll\+0x1BA553\)') + $hrx) }
         }
         elseif ($class -ne 'Pass') { throw "unknown expected class '$class' for $m in missions file" }
-        New-Object PSObject -Property @{ Name = $m; Args = "$m $htail"; Expect = $x; Twice = 0; Timeout = $to }
+        New-Object PSObject -Property @{ Name = $m; Args = "$m $htail -logcmds ""LogMemory Verbose"""; Expect = $x; Twice = 0; Timeout = $to }
     }
 
-    if ($which -eq 'Standard') { $cases += & $missionCase $standard }
+    if ($which -eq 'Standard') {
+        $memRx = @('OPENSWBF2 MEMREPORT source=exit', 'OPENSWBF2 MEMREPORT heap=Runtime cap=\d+ peak=\d+ used=\d+ allocs=\d+ failed=\d+', 'OPENSWBF2 MEMREPORT heap=Lua ', 'OPENSWBF2 MEMREPORT heap=Application ', 'OPENSWBF2 MEMREPORT heap=Artist ', 'OPENSWBF2 MEMREPORT heap=Gamespy ', 'OPENSWBF2 MEMREPORT heap=Debug ', 'OPENSWBF2 MEMREPORT pool=\S+ count=\d+ size=\d+ peak=\d+ grown=\d+', 'OPENSWBF2 MEMREPORT pool=Lua\d+ ', 'OPENSWBF2 MEMREPORT pool=Weapon ', 'OPENSWBF2 CLOTH free=-?\d+ enabled=[01] low=\d+ high=\d+')
+        $cases += New-Object PSObject -Property @{ Name = $standard; Args = "$standard $htail"; Expect = @{ Class = 'Pass'; LogRx = ($memRx + $hrx) }; Twice = 0; Timeout = 0 }
+    }
     if ($which -eq 'Standard') {
         $cases += New-Object PSObject -Property @{ Name = 'display-switches'; Args = "$standard $htail -borderless -adapter 0 -refresh 60 -vsync half -fps 120 -nowaitquery -nodpi"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 PACING fps=120 vsync=on interval=0x00000000 waitquery=0 timer=none', 'pacing: fps cap 120 is above 80', 'vsync: requested interval not supported here, using on', 'OPENSWBF2 DPI awareness=off') + $hrx) }; Twice = 0; Timeout = 0 }
         $cases += New-Object PSObject -Property @{ Name = 'pacing-default'; Args = "$standard $htail"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 PACING fps=80 vsync=off interval=0x80000000 waitquery=0 timer=none', 'OPENSWBF2 DPI awareness=(pmv2|pm|system|none) dpi=\d+', 'OPENSWBF2 GAMMA path=ramp reason=norender', '(?s)\A(?!.*OPENSWBF2 GAMMA FAKE)', '(?s)\A(?!.*OPENSWBF2 GAMMA path=pass)', 'OPENSWBF2 CURSOR mode=hw image=skipped') + $hrx) }; Twice = 0; Timeout = 0 }
@@ -501,7 +517,25 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
         $cases += New-Object PSObject -Property @{
             Name = 'crash-heapfail'
             Args = "$standard $tail -crashtest heapfail"
-            Expect = @{ Class = 'Pass'; LogRx = 'alloc failure heap \S+ \(\d+\) size \d+ free \d+ load \d+% phys \d+ MB virt \d+ MB' }
+            Expect = @{ Class = 'Pass'; LogRx = 'alloc failure heap \S+ \(\d+\) size \d+ free \d+ load \d+% phys \d+ MB virt \d+ MB used \d+ cap \d+ peak \d+ largestfree \d+' }
+            Twice = 0; Timeout = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-poolcount'
+            Args = "$standard $tail -crashtest poolcount"
+            Expect = @{ Class = 'Pass'; LogRx = @('LogMemory Warning RedEngineFL\\Memory\\RedScriptLimits\.h:\d+: SetMemoryPoolSize\(crashtestpool\): script value 2147483647 clamped to \d+', 'LogMemory Warning RedEngineFL\\Memory\\RedMemoryPool\.cpp:\d+: Memory pool "crashtesthuge" refused count 1073741825 size 16') }
+            Twice = 0; Timeout = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'pool-full'
+            Args = "$standard $tail -crashtest poolfull"
+            Expect = @{ Class = 'Pass'; LogRx = @('LogMemory Warning RedEngineFL\\Memory\\RedMemoryPool\.cpp:\d+: Memory pool "crashtestpool" is full; raise count to at least 3', '(?s)\A(?!.*crashtestpool" is full.*crashtestpool" is full)') }
+            Twice = 0; Timeout = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'pool-full-strict'
+            Args = "$standard $tail -crashtest poolfull -poolerrors"
+            Expect = @{ Class = 'Pass'; LogRx = @('LogMemory Error RedEngineFL\\Memory\\RedMemoryPool\.cpp:\d+: Memory pool "crashtestpool" is full; raise count to at least 3'); ErrorRx = @('^\[t=\d+\.\d{3}\] \[f=\d+\] LogMemory Error RedEngineFL\\Memory\\RedMemoryPool\.cpp:\d+: Memory pool "[^"]*" is full; raise count to at least \d+$') }
             Twice = 0; Timeout = 0
         }
         $cases += New-Object PSObject -Property @{

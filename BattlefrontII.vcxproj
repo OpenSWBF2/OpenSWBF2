@@ -374,6 +374,7 @@
     <ClCompile Include="src\Battlefront2\Source\LuaEvent.cpp" />
     <ClCompile Include="src\Battlefront2\Source\LuaHelper.cpp" />
     <ClCompile Include="src\Battlefront2\Source\LuaMemory.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\LuaMemoryArgs.cpp" />
     <ClCompile Include="src\Battlefront2\Source\LuaVideoArgs.cpp" />
     <ClCompile Include="src\Battlefront2\Source\LuaWideString.cpp" />
     <ClCompile Include="src\Battlefront2\Source\LuaMatrixArg.cpp">
@@ -799,6 +800,7 @@
     <ClCompile Include="src\RedEngineFL\Interface\pc\pcRedVectorElement.cpp" />
     <ClCompile Include="src\RedEngineFL\Memory\RedMemory.cpp" />
     <ClCompile Include="src\RedEngineFL\Memory\RedMemoryPool.cpp" />
+    <ClCompile Include="src\RedEngineFL\Memory\RedMemoryReport.cpp" />
     <ClCompile Include="src\RedEngineFL\Memory\coreLeafTypes.cpp" />
     <ClCompile Include="src\RedEngineFL\Portals\Portal.cpp" />
     <ClCompile Include="src\RedEngineFL\Util\RedAnimation.cpp" />
@@ -1197,6 +1199,7 @@
     <ClInclude Include="src\Battlefront2\Source\LuaEvent.h" />
     <ClInclude Include="src\Battlefront2\Source\LuaHelper.h" />
     <ClInclude Include="src\Battlefront2\Source\LuaMemory.h" />
+    <ClInclude Include="src\Battlefront2\Source\LuaMemoryArgs.h" />
     <ClInclude Include="src\Battlefront2\Source\LuaVideoArgs.h" />
     <ClInclude Include="src\Battlefront2\Source\LuaWideString.h" />
     <ClInclude Include="src\Battlefront2\Source\LuaMatrixArg.h" />
@@ -1564,6 +1567,8 @@
     <ClInclude Include="src\RedEngineFL\Interface\RedVectorElement.h" />
     <ClInclude Include="src\RedEngineFL\Memory\RedMemory.h" />
     <ClInclude Include="src\RedEngineFL\Memory\RedMemoryPool.h" />
+    <ClInclude Include="src\RedEngineFL\Memory\RedMemoryReport.h" />
+    <ClInclude Include="src\RedEngineFL\Memory\RedScriptLimits.h" />
     <ClInclude Include="src\RedEngineFL\Memory\engineAlloc.h" />
     <ClInclude Include="src\RedEngineFL\Portals\Portal.h" />
     <ClInclude Include="src\RedEngineFL\Util\RedAnimation.h" />

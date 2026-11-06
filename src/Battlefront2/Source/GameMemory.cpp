@@ -1,6 +1,7 @@
 #include "GameMemory.h"
 
 #include "LuaMemory.h"
+#include "LuaMemoryArgs.h"
 #include "MemFailLog.h"
 #include "RedEngineFL/Memory/RedMemory.h"
 
@@ -83,6 +84,7 @@ void GameMemory::InitApplicationMemory(char* pStart, char* pEnd)
 // FUNCTION: SWBF2 0x00533bc0
 void GameMemory::BuildHeaps(bool bMission)
 {
+    LuaMemoryArgs::ForgetTempHeap();
     if (TempLoadHeap)
     {
         RedMarkHeapPermanent(TempLoadHeap, false);

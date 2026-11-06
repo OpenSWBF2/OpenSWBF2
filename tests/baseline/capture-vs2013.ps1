@@ -439,6 +439,53 @@ function Step-Tables {
         }
         if ($rows.Count -eq 0) { throw 'no case dirs under -SmokeAllDir\smoke' }
         Write-BaselineText (Join-Path $OutDir 'smoke-all-digests.txt') $rows
+        $missions = @(Get-Content -LiteralPath (Join-Path $root 'tests\smoke\missions-all.txt') | ForEach-Object { ($_.Trim() -split '\s+')[0] } | Where-Object { $_ })
+        $commitLine = '# commit ' + (Get-GitText 'rev-parse HEAD').Trim()
+        $poolRows = New-Object System.Collections.Generic.List[string]
+        $peakRows = New-Object System.Collections.Generic.List[string]
+        $clothRows = New-Object System.Collections.Generic.List[string]
+        $poolRows.Add($commitLine)
+        $poolRows.Add("mission`tentry`tlabel`trequested`tapplied`tpool")
+        $peakRows.Add($commitLine)
+        $peakRows.Add("mission`tsource`tkind`tname`tcap_or_count`tsize`tpeak`tused`tallocs_or_grown`tfailed")
+        $clothRows.Add($commitLine)
+        $clothRows.Add("mission`tfree`tenabled`tlow`thigh")
+        foreach ($m in $missions) {
+            $caseDir = Join-Path $smokeDir $m
+            $sm = @(Get-LogLines $caseDir 'OPENSWBF2 SCRIPTMEM .*')
+            if ($sm.Count -eq 0) { $poolRows.Add("$m`t-`t-`t-`t-`t-") }
+            foreach ($l in $sm) {
+                $f = [regex]::Match($l, '^OPENSWBF2 SCRIPTMEM entry=(\S+) label=(.*) requested=(-?\d+) applied=(\d+) pool=(.*)$')
+                if (-not $f.Success) { throw "bad SCRIPTMEM line in ${m}: $l" }
+                $poolRows.Add((@($m) + @(1..5 | ForEach-Object { $f.Groups[$_].Value })) -join "`t")
+            }
+            $mr = @(Get-LogLines $caseDir 'OPENSWBF2 MEMREPORT .*')
+            $src = $null
+            $order = New-Object System.Collections.Generic.List[string]
+            $latest = New-Object System.Collections.Hashtable ([StringComparer]::Ordinal)
+            foreach ($l in $mr) {
+                if ($l.StartsWith('OPENSWBF2 MEMREPORT source=')) { $src = $l.Substring('OPENSWBF2 MEMREPORT source='.Length); continue }
+                if (-not $src) { throw "MEMREPORT line before source= in ${m}: $l" }
+                $h = [regex]::Match($l, '^OPENSWBF2 MEMREPORT heap=(.*) cap=(\d+) peak=(\d+) used=(\d+) allocs=(\d+) failed=(\d+)$')
+                $p = [regex]::Match($l, '^OPENSWBF2 MEMREPORT pool=(.*) count=(\d+) size=(\d+) peak=(\d+) grown=(\d+)$')
+                if ($h.Success) { $key = "heap`t$($h.Groups[1].Value)"; $row = "$m`t$src`t$key`t$($h.Groups[2].Value)`t-`t$($h.Groups[3].Value)`t$($h.Groups[4].Value)`t$($h.Groups[5].Value)`t$($h.Groups[6].Value)" }
+                elseif ($p.Success) { $key = "pool`t$($p.Groups[1].Value)"; $row = "$m`t$src`t$key`t$($p.Groups[2].Value)`t$($p.Groups[3].Value)`t$($p.Groups[4].Value)`t-`t$($p.Groups[5].Value)`t-" }
+                else { throw "bad MEMREPORT line in ${m}: $l" }
+                if (-not $latest.ContainsKey($key)) { $order.Add($key) }
+                $latest[$key] = $row
+            }
+            if ($order.Count -eq 0) { $peakRows.Add("$m" + ("`t-" * 9)) }
+            foreach ($key in $order) { $peakRows.Add($latest[$key]) }
+            $cl = @(Get-LogLines $caseDir 'OPENSWBF2 CLOTH free=.*')
+            $c = $null
+            if ($cl.Count -gt 0) { $c = [regex]::Match($cl[0], '^OPENSWBF2 CLOTH free=(-?\d+) enabled=([01]) low=(-?\d+) high=(-?\d+)$') }
+            if ($c -and $c.Success) { $clothRows.Add("$m`t$($c.Groups[1].Value)`t$($c.Groups[2].Value)`t$($c.Groups[3].Value)`t$($c.Groups[4].Value)") }
+            elseif ($cl.Count -gt 0) { throw "bad CLOTH line in ${m}: $($cl[0])" }
+            else { $clothRows.Add("$m`t-`t-`t-`t-") }
+        }
+        Write-BaselineText (Join-Path $OutDir 'pool-sizes.txt') $poolRows
+        Write-BaselineText (Join-Path $OutDir 'mem-peaks.txt') $peakRows
+        Write-BaselineText (Join-Path $OutDir 'cloth-headroom.txt') $clothRows
     }
     else { Write-Host '[SKIP] capture:tables smoke-all - no -SmokeAllDir' }
     if ($HardeningDir) {
@@ -481,7 +528,7 @@ function Get-Producer($rel) {
     if ($n.StartsWith('layouts\')) { return '`capture-vs2013.ps1 -Layouts`' }
     if ($n.StartsWith('factory-') -or $n.StartsWith('digest-trace-') -or $n -eq 'digests.txt' -or $n -eq 'digests-hog.txt') { return '`capture-vs2013.ps1 -Collect`' }
     if ($n -eq 'digests-debug.txt') { return '`capture-vs2013.ps1 -DebugDigests` from `run.ps1 -Smoke Twice -SmokeConfiguration Debug`' }
-    if ($n.StartsWith('smoke-all')) { return '`capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All`' }
+    if ($n.StartsWith('smoke-all') -or $n -eq 'pool-sizes.txt' -or $n -eq 'mem-peaks.txt' -or $n -eq 'cloth-headroom.txt') { return '`capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All`' }
     if ($n -eq 'hardening.txt') { return '`capture-vs2013.ps1 -Tables` from `run.ps1 -Hardening`' }
     if ($n -eq 'guard-revert.txt') { return '`capture-vs2013.ps1 -Tables` from `guard-revert.ps1`' }
     return 'unknown'

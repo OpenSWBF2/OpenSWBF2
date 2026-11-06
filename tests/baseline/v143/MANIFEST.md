@@ -22,8 +22,11 @@ Differences from `tests/baseline/vs2013/` and their causes are in [CAUSES.md](CA
 | `CAUSES.md` | 3C792D8270CBA218660D483E33A7B40F577C79FE1A6A11CE97877AD448E9C33C | written by hand from the comparison against `tests/baseline/vs2013/` |
 | `smoke-all.txt` | 0C44E698C621B0852ADC8E089744C27DDBCBF1BDFF71B2C2BC6C6D8C0BC26352 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
 | `smoke-all-digests.txt` | 745F41BA50A0A720C6D172B6A69AFBF05BAE007A8EABEAA420C784FBA9B63393 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
+| `pool-sizes.txt` | D43CFD8DB6E464EC432559DAFB4F6034C6557D89C5CC6769A88DCF7909F3B860 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
+| `mem-peaks.txt` | 7E04AB6350B36202C3A057CCFC4447A38A4227BD6A70AF1A16DEDE4692AD1865 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
+| `cloth-headroom.txt` | F292282F69E75FBCFC543367ACC2A850DE351F9F32B22B792CED55D1A0E98349 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
 | `hardening.txt` | 79E6FB275A17F199CFE178DC989447A1CB3A97870486BE10F5A1B5B31C7EDC7F | `capture-vs2013.ps1 -Tables` from `run.ps1 -Hardening` |
-| `guard-revert.txt` | D2AFAF3A7A490DA59A2ECD1EE133BFD1B1FB0AAB2058A02E7A1D29A70C87FBFA | `capture-vs2013.ps1 -Tables` from `guard-revert.ps1` |
+| `guard-revert.txt` | EC3DF4BCFE53A284A0B1EA4B7FA061B7DC9902FE2D7D07ED390F27B26A204233 | `capture-vs2013.ps1 -Tables` from `guard-revert.ps1` |
 | `digests-debug.txt` | D285E11C8F109D5C586D948E8F2A653B2EDD89D7367838A74D6EC10BA3B1DB44 | `capture-vs2013.ps1 -DebugDigests` from `run.ps1 -Smoke Twice -SmokeConfiguration Debug` |
 | `digests.txt` | A6C3F1C777CDB1F84A3C932A6932EA5721C4B8898E72A49024C606866EC76E3D | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
 | `digests-hog.txt` | A6C3F1C777CDB1F84A3C932A6932EA5721C4B8898E72A49024C606866EC76E3D | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
@@ -43,5 +46,6 @@ Differences from `tests/baseline/vs2013/` and their causes are in [CAUSES.md](CA
 
 - Release is the reference configuration. The binaries are not in the repo.
 - Every file was captured or re-checked on commit eff2850, whose game exe is the a2c980c build with the 20-12 and 20-14 fixes (eff2850 changes only tests). Release exe SHA-256 `17A3A864356C23D254EA6A302DA0FF591A3013B0F5135A18F64E99E130A71885`. `smoke-all*.txt`, `hardening.txt` and `guard-revert.txt` were regenerated there; `smoke-all-digests.txt` came out byte-identical. `digest-trace-hot1g_con.txt` was regenerated on a381f01. `digests.txt`, `digests-hog.txt`, `digests-debug.txt`, the other three digest traces and the four factory logs were captured on 1b1cbca/dce2810, and all ten, with `digest-trace-hot1g_con.txt`, are byte-identical when re-captured on eff2850. The `initializers*.txt` files come from dce2810.
+- The pool size, memory peak and cloth headroom tables name their commit on their first line and cover the missions in `tests/smoke/missions-all.txt`. The memory peak table keeps the latest MEMREPORT line for each heap and pool. A pool freed before the `exit` report still has an `exit` row, with count 0 and its peak.
 - `smoke-all-digests.txt` row `dedicated` is a real-time run, so its `state=`, `time=` and `rand=` vary between runs.
 - `capture-vs2013.ps1 -Archive` and `-Verify` assume the VS2013 build identity and are not used for this directory.

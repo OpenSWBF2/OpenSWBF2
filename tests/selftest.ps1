@@ -392,7 +392,7 @@ elseif ('FATAL: exception 0xC0000005 at 0x658FA553 (d3dx9_43.dll+0x1BA553) build
 elseif ($byName['bar1c_con'].Expect.Class -ne 'Pass' -or $byName['quux1c_con'].Expect.Class -ne 'Pass') { $why = 'missing or Pass class must be Pass' }
 elseif ($byName['foo2c_ctf'].Expect.Class -ne 'Pass' -or $byName['foo2c_ctf'].Timeout -ne 240 -or $byName['bar1c_con'].Timeout -ne 0 -or $byName['quux1c_con'].Timeout -ne 0) { $why = 'third token must set the case timeout' }
 elseif ($rejected -ne 3) { $why = 'unknown classes, GsFailure and non-integer timeouts must be rejected' }
-elseif (@($allCases | Where-Object { $_.Name -like 'crash-*' }).Count -ne 39 -or -not $byName.ContainsKey('fatal-init') -or $byName['dedicated'].Timeout -ne 0) { $why = 'dedicated or crash cases changed' }
+elseif (@($allCases | Where-Object { $_.Name -like 'crash-*' }).Count -ne 40 -or -not $byName.ContainsKey('fatal-init') -or $byName['dedicated'].Timeout -ne 0) { $why = 'dedicated or crash cases changed' }
 if ($why) { $failed++; Write-Host "FAILED ${n}: all-missions parsing: $why" }
 else { Write-Host "OK $n all-missions parsing" }
 $n++
@@ -517,6 +517,21 @@ try {
     $empty = Compare-DigestTrace $trA $trE
     if ($split -ne 7 -or $same -ne 0 -or $randOnly -ne 0 -or $empty -ne -1) { $failed++; Write-Host "FAILED ${n}: digest trace split: split=$split same=$same randOnly=$randOnly empty=$empty" }
     else { Write-Host "OK $n digest trace split names turn 7, ignores rand, fails an empty trace" }
+    $n++
+    $errLine = '[t=1.000] [f=1] LogMemory Error X.cpp:1: boom'
+    $errLog = Join-Path $digTmp 'run.log'
+    $errRes = New-Object PSObject -Property @{ Class = 'Pass'; CaseDir = $digTmp; LogText = $errLine; Dumps = @() }
+    $errCase = New-Object PSObject -Property @{ Name = 'selftest-errorrx'; Expect = @{ Class = 'Pass'; ErrorRx = @('LogMemory Error X\.cpp:\d+: boom') } }
+    $missCase = New-Object PSObject -Property @{ Name = 'selftest-errorrx'; Expect = @{ Class = 'Pass'; ErrorRx = @('nomatch') } }
+    $plainCase = New-Object PSObject -Property @{ Name = 'selftest-errorrx'; Expect = @{ Class = 'Pass' } }
+    [IO.File]::WriteAllText($errLog, "$errLine`r`n")
+    $errA = Test-SmokeExpect $errCase $errRes
+    $errC = Test-SmokeExpect $missCase $errRes
+    $errD = Test-SmokeExpect $plainCase $errRes
+    [IO.File]::WriteAllText($errLog, "[t=1.000] [f=1] LogMemory Inform X.cpp:1: fine`r`n")
+    $errB = Test-SmokeExpect $errCase $errRes
+    if (-not $errA -or $errB -or $errC -or $errD) { $failed++; Write-Host "FAILED ${n}: smoke ErrorRx: matched=$errA none=$errB nomatch=$errC noErrorRx=$errD" }
+    else { Write-Host "OK $n smoke ErrorRx expects an Error-driven failure" }
 }
 finally {
     $env:OPENSWBF2_DIGEST_EXPECTED = $savedExpected
@@ -531,10 +546,13 @@ foreach ($c in @(Get-SmokeCases 'Twice' @() $false $null)) { $parTw[$c.Name] = $
 $parStd = @{}
 foreach ($c in @(Get-SmokeCases 'Standard' @() $false $null)) { $parStd[$c.Name] = $c }
 $why = $null
+$sfx = ' -logcmds "LogMemory Verbose"'
 foreach ($p in @(@('nab2g_c', $parTw, 'twice-digest-1'), @('hot1g_con', $parTw, 'digest-hot1g_con'), @('spa3c_ass', $parTw, 'digest-spa3c_ass'), @('geo1c_con', $parStd, 'geo1c_con'), @('dag1c_ctf', $parStd, 'digest-dag1c_ctf'), @('kas2c_uber', $parStd, 'digest-kas2c_uber'))) {
     if (-not $parAll.ContainsKey($p[0])) { $why = "All case $($p[0]) missing"; break }
     if (-not $p[1].ContainsKey($p[2])) { $why = "case $($p[2]) missing"; break }
-    if ($parAll[$p[0]].Args -cne $p[1][$p[2]].Args) { $why = "All $($p[0]) args differ from $($p[2])"; break }
+    $allArgs = $parAll[$p[0]].Args
+    if (-not $allArgs.EndsWith($sfx)) { $why = "All $($p[0]) lacks the LogMemory Verbose switch"; break }
+    if ($allArgs.Substring(0, $allArgs.Length - $sfx.Length) -cne $p[1][$p[2]].Args) { $why = "All $($p[0]) args differ from $($p[2])"; break }
 }
 if (-not $why -and $parAll['nab2g_c'].Timeout -ne 0) { $why = 'All nab2g_c must use the default timeout' }
 if (-not $why -and (Get-SmokeCases 'Standard' @() $false $null)[0].Name -cne 'geo1c_con') { $why = 'Standard[0] must be geo1c_con for the ASLR probe' }

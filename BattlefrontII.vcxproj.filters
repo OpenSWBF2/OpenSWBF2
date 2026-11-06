@@ -936,6 +936,9 @@
     <ClCompile Include="src\Battlefront2\Source\LuaMemory.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
+    <ClCompile Include="src\Battlefront2\Source\LuaMemoryArgs.cpp">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClCompile>
     <ClCompile Include="src\Battlefront2\Source\LuaVideoArgs.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
@@ -1987,6 +1990,9 @@
       <Filter>src\RedEngineFL\Memory</Filter>
     </ClCompile>
     <ClCompile Include="src\RedEngineFL\Memory\RedMemoryPool.cpp">
+      <Filter>src\RedEngineFL\Memory</Filter>
+    </ClCompile>
+    <ClCompile Include="src\RedEngineFL\Memory\RedMemoryReport.cpp">
       <Filter>src\RedEngineFL\Memory</Filter>
     </ClCompile>
     <ClCompile Include="src\RedEngineFL\Memory\coreLeafTypes.cpp">
@@ -3152,6 +3158,9 @@
     <ClInclude Include="src\Battlefront2\Source\LuaMemory.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\LuaMemoryArgs.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\LuaVideoArgs.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
@@ -4251,6 +4260,12 @@
       <Filter>src\RedEngineFL\Memory</Filter>
     </ClInclude>
     <ClInclude Include="src\RedEngineFL\Memory\RedMemoryPool.h">
+      <Filter>src\RedEngineFL\Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="src\RedEngineFL\Memory\RedMemoryReport.h">
+      <Filter>src\RedEngineFL\Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="src\RedEngineFL\Memory\RedScriptLimits.h">
       <Filter>src\RedEngineFL\Memory</Filter>
     </ClInclude>
     <ClInclude Include="src\RedEngineFL\Memory\engineAlloc.h">

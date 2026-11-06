@@ -145,6 +145,7 @@
     <ClCompile Include="..\src\LuaFL\src\lib\liolib.cpp" />
     <ClCompile Include="..\src\LuaFL\src\lib\lstrlib.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\LuaMemory.cpp" />
+    <ClCompile Include="..\src\Battlefront2\Source\LuaMemoryArgs.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\LuaVideoArgs.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\LuaWideString.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\LuaMatrixArg.cpp" />
@@ -152,6 +153,7 @@
     <ClCompile Include="..\src\Battlefront2\Source\LuaSaveItems.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Memory\RedMemory.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Memory\RedMemoryPool.cpp" />
+    <ClCompile Include="..\src\RedEngineFL\Memory\RedMemoryReport.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Util\ext\Allocator.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Util\ext\ListAllocator.cpp" />
     <ClCompile Include="..\src\SoundFL\source\sndfreelist.cpp" />
