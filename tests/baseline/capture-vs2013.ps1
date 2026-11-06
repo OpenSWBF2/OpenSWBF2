@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('Release', 'Debug')][string]$Configuration = 'Release',
+    [ValidateSet('Release', 'Debug', 'Test')][string]$Configuration = 'Release',
     [switch]$NoBuild,
     [string]$OutDir,
     [string]$ArchiveDir,
@@ -14,6 +14,8 @@ param(
     [string]$SmokeAllDir,
     [string]$HardeningDir,
     [string]$GuardRevertDir,
+    [string]$OffThreadDir,
+    [string]$OffThreadSoundDir,
     [string]$DebugSmokeDir,
     [int]$CaseTimeout = 60
 )
@@ -26,6 +28,10 @@ $root = Split-Path $testsDir -Parent
 if ($All) { $Map = $true; $Layouts = $true; $Collect = $true; $Archive = $true; $Verify = $true }
 if (-not ($Map -or $Layouts -or $Collect -or $Tables -or $Archive -or $Verify -or $DebugDigests)) {
     Write-Host 'No step selected: pass -Map, -Layouts, -Collect, -Tables, -DebugDigests, -Archive, -Verify or -All.'
+    exit 2
+}
+if ($Configuration -eq 'Test' -and ($Map -or $Layouts -or $Collect -or $Archive -or $Verify -or $DebugDigests -or -not $Tables -or -not $OffThreadDir -or $SmokeAllDir -or $HardeningDir -or $GuardRevertDir)) {
+    Write-Host '-Configuration Test is only for -Tables -OffThreadDir.'
     exit 2
 }
 
@@ -365,6 +371,108 @@ function Get-LogLines($caseDir, $pattern) {
     return $out
 }
 
+function Read-MapSymbols {
+    if (-not (Test-Path -LiteralPath $mapFile)) { throw "map not found: obj\Win32\$Configuration\BattlefrontII.map" }
+    $ts = $null
+    $base = $null
+    $on = $false
+    $textEnd = 0
+    $secRx = New-Object regex '^\s*0001:([0-9a-fA-F]{8})\s+([0-9a-fA-F]{8})H\s+\S+\s+CODE'
+    $rx = New-Object regex '^\s*([0-9a-fA-F]{4}):([0-9a-fA-F]{8})\s+(\S+)\s+([0-9a-fA-F]{8})'
+    $rows = New-Object System.Collections.Generic.List[object]
+    foreach ($l in [IO.File]::ReadAllLines($mapFile)) {
+        if (-not $ts) { $t = [regex]::Match($l, 'Timestamp is ([0-9a-fA-F]+)'); if ($t.Success) { $ts = $t.Groups[1].Value.ToUpperInvariant().PadLeft(8, '0') }; continue }
+        if ($null -eq $base) { $b = [regex]::Match($l, 'Preferred load address is ([0-9a-fA-F]+)'); if ($b.Success) { $base = [Convert]::ToInt64($b.Groups[1].Value, 16) }; continue }
+        if ($l -match 'Publics by Value' -or $l.Trim() -eq 'Static symbols') { $on = $true; continue }
+        if (-not $on) {
+            $sec = $secRx.Match($l)
+            if ($sec.Success) { $textEnd = [Math]::Max($textEnd, [Convert]::ToInt64($sec.Groups[1].Value, 16) + [Convert]::ToInt64($sec.Groups[2].Value, 16)) }
+            continue
+        }
+        $m = $rx.Match($l)
+        if (-not $m.Success -or $m.Groups[1].Value -ne '0001') { continue }
+        $rows.Add(@([Convert]::ToInt64($m.Groups[4].Value, 16), $m.Groups[3].Value, [Convert]::ToInt64($m.Groups[2].Value, 16)))
+    }
+    if (-not $ts) { throw 'no Timestamp line in the map' }
+    if ($null -eq $base) { throw 'no Preferred load address line in the map' }
+    if ($rows.Count -eq 0) { throw 'no code symbols in the map' }
+    if ($textEnd -eq 0) { throw 'no 0001 CODE section lines in the map' }
+    $sorted = New-Object System.Collections.Generic.List[object]
+    foreach ($r in @($rows | Sort-Object { $_[0] }, { $_[1] } -CaseSensitive)) { if ($sorted.Count -eq 0 -or $sorted[$sorted.Count - 1][0] -ne $r[0]) { $sorted.Add($r) } }
+    $textEndVa = $rows[0][0] - $rows[0][2] + $textEnd
+    return New-Object PSObject -Property @{ Timestamp = $ts; Base = $base; TextEnd = $textEndVa; Addrs = [long[]]@($sorted | ForEach-Object { $_[0] }); Names = [string[]]@($sorted | ForEach-Object { $_[1] }) }
+}
+
+function Find-MapSymbol($sym, $frame) {
+    $f = [regex]::Match($frame, '^(.+)\+0x([0-9A-Fa-f]+)$')
+    if (-not $f.Success) { throw "bad stack frame '$frame'" }
+    if (-not $f.Groups[1].Value.Equals('BattlefrontII.exe', [StringComparison]::OrdinalIgnoreCase)) { return @($null, 0, $frame) }
+    $a = $sym.Base + [Convert]::ToInt64($f.Groups[2].Value, 16)
+    $i = [Array]::BinarySearch($sym.Addrs, [long]$a)
+    if ($i -lt 0) { $i = (-bnot $i) - 1 }
+    if ($i -lt 0) { throw "frame '$frame' is below the first map symbol" }
+    if ($a -ge $sym.TextEnd) { throw "frame '$frame' is past the end of .text" }
+    return @($sym.Names[$i], ($a - $sym.Addrs[$i]), $frame)
+}
+
+function Get-OffThreadRows($smokeDir, $sym, $rows, $sources) {
+    $dirs = @(Get-ChildItem -LiteralPath $smokeDir -Directory -ErrorAction SilentlyContinue | Sort-Object Name)
+    if ($dirs.Count -eq 0) { throw "no case dirs under $smokeDir" }
+    foreach ($d in $dirs) {
+        $c = $d.Name
+        $bl = @(Get-LogLines $d.FullName 'log start .* build [0-9A-Fa-f]+')
+        if ($bl.Count -gt 0) {
+            $id = [regex]::Match($bl[-1], 'build ([0-9A-Fa-f]+)$').Groups[1].Value.ToUpperInvariant()
+            if ($id.Length -lt 8 -or $id.Substring(0, 8) -ne $sym.Timestamp) { throw "map timestamp mismatch in ${c}: build $id map $($sym.Timestamp)" }
+        }
+        $ol = @(Get-LogLines $d.FullName 'OPENSWBF2 MEMREPORT offthread .*')
+        $totalRx = '^OPENSWBF2 MEMREPORT offthread count=(\d+) sources=(\d+) dropped=(\d+)$'
+        $sourceRx = '^OPENSWBF2 MEMREPORT offthread tid=(\d+) heap=(\S+) size=(\d+) count=(\d+) stack=(\S+)$'
+        $last = -1
+        $block = -1
+        $blocks = @()
+        for ($i = 0; $i -lt $ol.Count; $i++) {
+            if ([regex]::IsMatch($ol[$i], $totalRx)) { $last = $i; $block = $i; continue }
+            if ($block -lt 0 -or -not [regex]::IsMatch($ol[$i], $sourceRx)) { throw "bad offthread line in ${c}: $($ol[$i])" }
+            if ($blocks.Count -eq 0 -or $blocks[-1] -ne $block) { $blocks += $block }
+        }
+        if ($bl.Count -eq 0 -and $blocks.Count -gt 0) { throw "no build id in ${c}; cannot verify the map" }
+        if ($last -lt 0) {
+            $rows.Add("$c`t-`t-`t-")
+            continue
+        }
+        $t = [regex]::Match($ol[$last], $totalRx)
+        $rows.Add("$c`t$($t.Groups[1].Value)`t$($t.Groups[2].Value)`t$($t.Groups[3].Value)")
+        if ($blocks.Count -eq 0) { continue }
+        for ($i = $blocks[-1] + 1; $i -lt $ol.Count -and -not [regex]::IsMatch($ol[$i], $totalRx); $i++) {
+            $s = [regex]::Match($ol[$i], $sourceRx)
+            $frames = @()
+            if ($s.Groups[5].Value -ne '-') { $frames = @($s.Groups[5].Value.Split(',') | ForEach-Object { ,(Find-MapSymbol $sym $_) }) }
+            $src = New-Object PSObject -Property @{ Prefix = (@($c) + @(1..4 | ForEach-Object { $s.Groups[$_].Value })) -join "`t"; Frames = $frames }
+            $rows.Add($src)
+            $sources.Add($src)
+        }
+    }
+}
+
+function Format-OffThreadRows($rows, $sources) {
+    $dem = Get-DemangledNames (@($sources | ForEach-Object { $_.Frames } | Where-Object { $_[0] } | ForEach-Object { $_[0] }))
+    $out = New-Object System.Collections.Generic.List[string]
+    foreach ($r in $rows) {
+        if ($r -is [string]) { $out.Add($r); continue }
+        $cols = New-Object System.Collections.Generic.List[string]
+        foreach ($f in $r.Frames) {
+            if (-not $f[0]) { $cols.Add($f[2]); continue }
+            $n = $f[0]
+            if ($dem.ContainsKey($n)) { $n = $dem[$n] }
+            if ($f[1] -ne 0) { $n += ('+0x{0:X}' -f $f[1]) }
+            $cols.Add($n)
+        }
+        $out.Add((@($r.Prefix) + @($cols)) -join "`t")
+    }
+    return $out
+}
+
 function Step-Collect {
     $reason = Get-SmokePrecheck (Find-GameDataRoot) $exeDir
     if ($reason) { Write-Host "[SKIP] capture:collect - $reason"; $script:skipped = $true; return }
@@ -465,6 +573,7 @@ function Step-Tables {
             $latest = New-Object System.Collections.Hashtable ([StringComparer]::Ordinal)
             foreach ($l in $mr) {
                 if ($l.StartsWith('OPENSWBF2 MEMREPORT source=')) { $src = $l.Substring('OPENSWBF2 MEMREPORT source='.Length); continue }
+                if ($l.StartsWith('OPENSWBF2 MEMREPORT offthread ')) { continue }
                 if (-not $src) { throw "MEMREPORT line before source= in ${m}: $l" }
                 $h = [regex]::Match($l, '^OPENSWBF2 MEMREPORT heap=(.*) cap=(\d+) peak=(\d+) used=(\d+) allocs=(\d+) failed=(\d+)$')
                 $p = [regex]::Match($l, '^OPENSWBF2 MEMREPORT pool=(.*) count=(\d+) size=(\d+) peak=(\d+) grown=(\d+)$')
@@ -504,7 +613,31 @@ function Step-Tables {
         Write-BaselineText (Join-Path $OutDir 'guard-revert.txt') @(Get-Content -LiteralPath $sum)
     }
     else { Write-Host '[SKIP] capture:tables guard-revert - no -GuardRevertDir' }
-    if (-not $any) { throw 'none of -SmokeAllDir, -HardeningDir, -GuardRevertDir given' }
+    if ($OffThreadDir) {
+        $any = $true
+        $sym = Read-MapSymbols
+        $rows = New-Object System.Collections.Generic.List[object]
+        $sources = New-Object System.Collections.Generic.List[object]
+        $rows.Add('# commit ' + (Get-GitText 'rev-parse HEAD').Trim())
+        $rows.Add("case`tcount`tsources`tdropped")
+        $rows.Add("case`ttid`theap`tsize`tcount`tframe0..frame7")
+        Get-OffThreadRows (Join-Path $OffThreadDir 'smoke') $sym $rows $sources
+        if ($OffThreadSoundDir) {
+            $rows.Add('## sound-on')
+            $soundDir = Join-Path $OffThreadSoundDir 'smoke'
+            foreach ($d in @(Get-ChildItem -LiteralPath $soundDir -Directory -ErrorAction SilentlyContinue | Sort-Object Name)) {
+                $sf = Join-Path $d.FullName 'sound.txt'
+                if (-not (Test-Path -LiteralPath $sf)) { throw "sound.txt not found for $($d.Name)" }
+                $sv = @(Get-Content -LiteralPath $sf)
+                if ($sv.Count -ne 1 -or $sv[0] -notin 'opened', 'not opened') { throw "bad sound.txt for $($d.Name)" }
+                $rows.Add("$($d.Name)`tsound=$($sv[0])")
+            }
+            Get-OffThreadRows $soundDir $sym $rows $sources
+        }
+        Write-BaselineText (Join-Path $OutDir 'offthread.txt') (Format-OffThreadRows $rows $sources)
+    }
+    else { Write-Host '[SKIP] capture:tables offthread - no -OffThreadDir' }
+    if (-not $any) { throw 'none of -SmokeAllDir, -HardeningDir, -GuardRevertDir, -OffThreadDir given' }
 }
 
 function Step-DebugDigests {
@@ -530,6 +663,7 @@ function Get-Producer($rel) {
     if ($n -eq 'digests-debug.txt') { return '`capture-vs2013.ps1 -DebugDigests` from `run.ps1 -Smoke Twice -SmokeConfiguration Debug`' }
     if ($n.StartsWith('smoke-all') -or $n -eq 'pool-sizes.txt' -or $n -eq 'mem-peaks.txt' -or $n -eq 'cloth-headroom.txt') { return '`capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All`' }
     if ($n -eq 'hardening.txt') { return '`capture-vs2013.ps1 -Tables` from `run.ps1 -Hardening`' }
+    if ($n -eq 'offthread.txt') { return '`capture-vs2013.ps1 -Configuration Test -Tables -OffThreadDir` from `run.ps1 -Smoke All -SmokeConfiguration Test` and `-OffThreadSoundDir` from `soundon.ps1`' }
     if ($n -eq 'guard-revert.txt') { return '`capture-vs2013.ps1 -Tables` from `guard-revert.ps1`' }
     return 'unknown'
 }

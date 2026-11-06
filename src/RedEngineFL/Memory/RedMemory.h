@@ -15,6 +15,23 @@ struct RedHeapStats
     unsigned int uFailed;
 };
 
+#ifdef OPENSWBF2_TEST
+const int kRedOffThreadSources = 16;
+const int kRedOffThreadFrames = 8;
+
+struct RedOffThreadSource
+{
+    unsigned int uTid;
+    const char* pcHeap;
+    unsigned int uSize;
+    unsigned int uCount;
+    unsigned int uFrames;
+    void* apModule[kRedOffThreadFrames];
+    unsigned int auStamp[kRedOffThreadFrames];
+    unsigned int auOffset[kRedOffThreadFrames];
+};
+#endif
+
 extern "C"
 {
     void* RedInitHeap(void* start, void* end, int maxheaps);
@@ -32,6 +49,12 @@ extern "C"
     extern void (*OnFailure)(int heap, unsigned int size);
     PBL_ASAN_NO_SANITIZE void RedMoveHeapEnd(int heap, int offset);
     bool RedGetHeapStats(int heap, RedHeapStats* pOut);
+#ifdef OPENSWBF2_TEST
+    void RedGetOffThreadTotals(unsigned int* puCount, unsigned int* puSources, unsigned int* puDropped);
+    bool RedGetOffThreadSource(int i, RedOffThreadSource* pOut);
+    void RedResetOffThreadStats();
+    bool RedImageStamp(const void* pBase, unsigned int* puStamp);
+#endif
 
     extern int maxheaps;
     extern int __RedCurrHeap;

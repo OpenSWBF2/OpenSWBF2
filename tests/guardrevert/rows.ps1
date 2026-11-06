@@ -160,6 +160,7 @@ $GuardRevertRows = @(
     @{ Id = 'SAFE03-MOVEEND'; File = $rm; Anchor = 'if (pBlock == 0)'; Replacement = 'if (false)'; Tests = @('move heap end refuses a failed allocation') },
     @{ Id = 'SAFE03-MOVEPLACE'; File = $rm; Anchor = 'if (!bAtBoundary || pTag->size != uMove)'; Replacement = 'if (false)'; Tests = @('move heap end refuses a block away from the boundary') },
     @{ Id = 'SAFE03-MOVEALIGN'; File = $rm; Anchor = 'unsigned int uMove = uAmount & ~(align - 1);'; Replacement = 'unsigned int uMove = uAmount;'; Tests = @('move heap end moves only the aligned block it transfers') },
+    @{ Id = 'SPIKE01-OFFTHREAD'; Asan = $true; File = $rm; Anchor = 'if (sMainTid != 0 && uiTid != (DWORD)sMainTid)'; Replacement = 'if (false)'; Tests = @('off-thread allocation is counted with tid heap and size') },
     @{ Id = 'REPT01-ONCE'; File = $rp; Anchor = 'if (mFullReported)'; Replacement = 'if (false)'; Tests = @('memory pool full line logs once on growth', 'memory pool full line logs once when gated') },
     @{ Id = 'REPT01S'; Kind = 'Smoke'; Case = 'pool-full'; File = $rp; Anchor = 'if (mFullReported)'; Replacement = 'if (false)' },
     @{ Id = 'REPT03-STRICT'; File = $rp; Anchor = 'if (sErrorOnExpansionPostLoad)'; Replacement = 'if (false)'; Tests = @('memory pool full line is error when strict') },

@@ -145,6 +145,20 @@ static DWORD WINAPI DumpThread(LPVOID)
     }
 }
 
+#ifdef OPENSWBF2_TEST
+static void WriteOffThreadTotal()
+{
+    unsigned int uiCount = 0;
+    unsigned int uiSources = 0;
+    unsigned int uiDropped = 0;
+    RedGetOffThreadTotals(&uiCount, &uiSources, &uiDropped);
+    char acOffLine[96];
+    wsprintfA(acOffLine, "OPENSWBF2 MEMREPORT offthread count=%u sources=%u dropped=%u\r\n", uiCount, uiSources,
+              uiDropped);
+    AppendLog(acOffLine);
+}
+#endif
+
 static void WriteEnsureSummary()
 {
     unsigned int uiFailures = RedLog::EnsureFailureCount();
@@ -154,6 +168,9 @@ static void WriteEnsureSummary()
         wsprintfA(acLine, "ensure summary: %u failures at %u sites\r\n", uiFailures, RedLog::EnsureSiteCount());
         AppendLog(acLine);
     }
+#ifdef OPENSWBF2_TEST
+    WriteOffThreadTotal();
+#endif
 }
 
 static void WriteFatalLine(EXCEPTION_POINTERS* pInfo)
@@ -532,10 +549,16 @@ void __cdecl pcCrash::Exit(int iCode)
     else if (iCode == 1)
     {
         AppendLog("FATAL: initialization failed, exiting with code 1\r\n");
+#ifdef OPENSWBF2_TEST
+        WriteOffThreadTotal();
+#endif
     }
     else if (iCode == 4)
     {
         AppendLog("FATAL: lua panic, exiting with code 4\r\n");
+#ifdef OPENSWBF2_TEST
+        WriteOffThreadTotal();
+#endif
     }
     _exit(iCode);
 }
