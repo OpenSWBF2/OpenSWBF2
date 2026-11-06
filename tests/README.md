@@ -29,12 +29,13 @@ This builds the tests, then runs each case in its own process and the Standard s
 | `-Filter` | wildcard on the case name |
 | `-Fuzz`, `-Seed`, `-Iterations` | run the `stress` suite with a seed and iteration count |
 | `-Timeout` | per-case seconds (default 10) |
-| `-Smoke` | `None`, `Standard` (default), `Twice`, `Dedicated`, `Crash` or `All` |
+| `-Smoke` | `None`, `Standard` (default), `Twice`, `Dedicated`, `Crash`, `All` or `Perturb` |
 | `-SmokeConfiguration` | game build used for smoke runs (default `Release`, or `Test`/`Asan` to match `-Configuration`) |
 | `-SmokeTimeout` | per-case seconds for smoke runs (default 120) |
 | `-Jobs N` | parallel smoke workers (default: half the logical processors, at most 8) |
 | `-Movies` | run with the renderer instead of `-norender` |
 | `-HogAddrSpace` | force the arena above 2 GB |
+| `-SimOrder` | pass `-simorder address` or `-simorder serial` to every smoke case (the game defaults to `address`); every case that is expected to pass or time out must log `OPENSWBF2 SIMORDER mode=<mode>` and no `-simorder` warning |
 | `-Hardening` | run only the hardening checks |
 | `-Clean` | delete the staged output folders and any junctions left under `artifacts` safely, and exit |
 
@@ -61,6 +62,7 @@ Parallel workers run from fixed paths under `artifacts\smoke-workers\<Config>\`.
 | `Dedicated` | dedicated-server cases |
 | `Crash` | deliberate faults through `-crashtest <kind>`; each must leave the expected exit code, log line and dump |
 | `All` | every mission in `tests\smoke\missions-all.txt` (`<mission> [<class>] [<seconds>]`), plus Dedicated and Crash |
+| `Perturb` | Test or Asan only: six digest missions, each as a base run and under `-perturbheap` pad/top/fill/pool (seeds 1 and 2) and `-hogaddrspace`; passes when at least one run splits from its base, and writes `perturb.tsv` |
 
 A case fails on any Error, Bug or Fatal line in its `run.log` unless a regex in `tests\smoke\expected-errors.txt` covers it. In T1, declare an expected error with `ExpectLog("text")` or `ExpectEnsure("text")`.
 
@@ -71,6 +73,16 @@ Import `tools\wer-localdumps.reg` once as administrator, so that a `/GS` fast-fa
 At turn 1500 the game logs `OPENSWBF2 SIM DIGEST ...`, a hash of the simulation state. `tests\smoke\digest-expected.txt` holds the expected line for each digest case, and Release and Test must match it exactly. Change a row only with a written cause in `tests\baseline\v143\CAUSES.md`.
 
 `-digesttrace N` logs the hash for every turn up to N. `-factorylog` logs the Factory creation order.
+
+`-perturbheap <seed>[:pad,top,fill,pool]` (Test and Asan builds only) pads, top-allocates, 0xA5-fills or shuffles heap and pool blocks from a seeded generator; with no mode list all four are on.
+
+`-repeatmission` (Test and Asan builds only, with `-exitongameover`) sends the first mission back to the shell after its turn-1500 digest and plays it again; the second run logs its own digest and exits. Without `-exitongameover` it logs a warning and is ignored. If the first run ends before turn 1500, it logs `OPENSWBF2 REPEAT skipped` and exits after that run.
+
+`-shellfirst` (Test and Asan builds only) starts in the shell and enters the named mission on the first shell update, the path a player takes from the menu. The Test and Asan Standard group runs it as `shell-first` with its own digest row, and run.ps1 checks that its Runtime heap at turn 1500, and that of the repeated mission in `repeat-digest`, equal the `geo1c_con` case.
+
+At every state cleanup, Test and Asan builds scan static data and the heaps that outlive a mission for weak handles (`PblHandle`) that still point at an object in the mission heaps, alive or destroyed, and log `OPENSWBF2 HANDLESCAN state=<mission|shell> live=<n> dead=<n>`. Handle ids restart at every mission entry, so such a handle could match a new object; `repeat-digest` and `shell-first` require both counts to be 0.
+
+Other builds skip `-perturbheap`, its value, `-repeatmission` and `-shellfirst`, and log `-<switch> needs a Test or Asan build, ignored`.
 
 ## ASan
 

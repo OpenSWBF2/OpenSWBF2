@@ -43,6 +43,8 @@ namespace GameSoundEngine
 {
 void StopAll();
 void Update(float fDeltaTime);
+void SnapshotClock();
+void RestoreClock();
 }
 
 struct BusGains

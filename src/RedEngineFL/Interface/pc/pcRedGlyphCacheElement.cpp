@@ -5,6 +5,7 @@
 
 #include "RedEngineFL/Interface/RedFont.h"
 #include "RedEngineFL/Interface/RedGlyphMemoryManager.h"
+#include "RedEngineFL/Interface/pc/pcGlyphCacheCount.h"
 #include "RedEngineFL/Graphics/PC/Shaders/pcInterfaceShader.h"
 #include "RedEngineFL/Graphics/PC/pcRedPrimitive.h"
 #include "RedEngineFL/Graphics/PC/pcRedTexture.h"
@@ -22,6 +23,11 @@ RedGlyphMemoryManager* RedGlyphCacheElement::s_pMemoryManager;
 
 // GLOBAL: SWBF2 0x009984f0
 RedGlyphCacheElement::Quad RedGlyphCacheElement::s_aQuads[512];
+
+static unsigned int GlyphCacheCount(const RedFont* pFont, pcInterfaceShader* const* ppShader)
+{
+    return GlyphCacheCount(pFont ? pFont->GetNumTextures() : 0, ppShader);
+}
 
 // FUNCTION: SWBF2 0x006dafc0
 RedGlyphCacheElement::RedGlyphCacheElement()
@@ -53,6 +59,10 @@ void RedGlyphCacheElement::AddGlyph(const RedFont::Glyph& rGlyph,
     if (rGlyph.value >= 0x7fff)
     {
         uiPage = uiPage - 128 + m_pFont->GetBaseNumTextures();
+    }
+    if (uiPage >= GlyphCacheCount(m_pFont, m_ppInterfaceShader))
+    {
+        return;
     }
 
     Quad& q = s_aQuads[s_uiNumQuads++];
@@ -98,7 +108,7 @@ void RedGlyphCacheElement::Cleanup()
 
     if (m_ppInterfaceShader)
     {
-        unsigned int uiNumTextures = m_pFont ? m_pFont->GetNumTextures() : 0;
+        unsigned int uiNumTextures = GlyphCacheCount(m_pFont, m_ppInterfaceShader);
         for (unsigned int i = 0; i < uiNumTextures; i++)
         {
             m_ppInterfaceShader[i]->Release();
@@ -115,7 +125,7 @@ void RedGlyphCacheElement::Cleanup()
 // FUNCTION: SWBF2 0x006db330
 void RedGlyphCacheElement::Clear()
 {
-    unsigned int uiNumTextures = m_pFont ? m_pFont->GetNumTextures() : 0;
+    unsigned int uiNumTextures = GlyphCacheCount(m_pFont, m_ppInterfaceShader);
 
     for (unsigned int i = 0; i < uiNumTextures; i++)
     {
@@ -138,7 +148,7 @@ void RedGlyphCacheElement::End()
         return;
     }
 
-    const unsigned int uiNumTextures = m_pFont->GetNumTextures();
+    const unsigned int uiNumTextures = GlyphCacheCount(m_pFont, m_ppInterfaceShader);
     for (unsigned int i = 0; i < uiNumTextures; i++)
     {
         const unsigned int uiNumGlyphs = m_puiNumGlyphs[i];
@@ -228,7 +238,8 @@ void RedGlyphCacheElement::ReallocateCache()
     memset(m_puiNumGlyphs, 0, uiBytes);
     m_ppGlyphData = (void**)RedAllocFromHeap(__RedCurrHeap, uiBytes, 0);
     memset(m_ppGlyphData, 0, uiBytes);
-    m_ppInterfaceShader = (pcInterfaceShader**)RedAllocFromHeap(__RedCurrHeap, uiBytes, 0);
+    m_ppInterfaceShader = (pcInterfaceShader**)RedAllocFromHeap(__RedCurrHeap, uiBytes + 4, 0);
+    m_ppInterfaceShader[uiNumTextures] = 0;
 
     for (unsigned int i = 0; i < uiNumTextures; i++)
     {
@@ -254,7 +265,7 @@ void RedGlyphCacheElement::RenderUsingContext(const PblMatrix& mContext,
         return;
     }
 
-    unsigned int uiNumTextures = m_pFont->GetNumTextures();
+    unsigned int uiNumTextures = GlyphCacheCount(m_pFont, m_ppInterfaceShader);
 
     for (unsigned int i = 0; i < uiNumTextures; i++)
     {
@@ -318,7 +329,7 @@ void RedGlyphCacheElement::SetFont(const RedFont* pFont)
 {
     Clear();
 
-    unsigned int uiNumTextures = m_pFont ? m_pFont->GetNumTextures() : 0;
+    unsigned int uiNumTextures = GlyphCacheCount(m_pFont, m_ppInterfaceShader);
     for (unsigned int i = 0; i < uiNumTextures; i++)
     {
         m_ppInterfaceShader[i]->Release();

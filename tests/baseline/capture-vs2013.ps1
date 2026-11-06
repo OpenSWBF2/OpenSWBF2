@@ -15,6 +15,7 @@ param(
     [string]$HardeningDir,
     [string]$GuardRevertDir,
     [string]$OffThreadDir,
+    [string]$PerturbDir,
     [string]$OffThreadSoundDir,
     [string]$DebugSmokeDir,
     [int]$CaseTimeout = 60
@@ -30,8 +31,8 @@ if (-not ($Map -or $Layouts -or $Collect -or $Tables -or $Archive -or $Verify -o
     Write-Host 'No step selected: pass -Map, -Layouts, -Collect, -Tables, -DebugDigests, -Archive, -Verify or -All.'
     exit 2
 }
-if ($Configuration -eq 'Test' -and ($Map -or $Layouts -or $Collect -or $Archive -or $Verify -or $DebugDigests -or -not $Tables -or -not $OffThreadDir -or $SmokeAllDir -or $HardeningDir -or $GuardRevertDir)) {
-    Write-Host '-Configuration Test is only for -Tables -OffThreadDir.'
+if ($Configuration -eq 'Test' -and ($Map -or $Layouts -or $Collect -or $Archive -or $Verify -or $DebugDigests -or -not $Tables -or -not ($OffThreadDir -or $PerturbDir) -or $SmokeAllDir -or $HardeningDir -or $GuardRevertDir)) {
+    Write-Host '-Configuration Test is only for -Tables -OffThreadDir or -PerturbDir.'
     exit 2
 }
 
@@ -637,7 +638,22 @@ function Step-Tables {
         Write-BaselineText (Join-Path $OutDir 'offthread.txt') (Format-OffThreadRows $rows $sources)
     }
     else { Write-Host '[SKIP] capture:tables offthread - no -OffThreadDir' }
-    if (-not $any) { throw 'none of -SmokeAllDir, -HardeningDir, -GuardRevertDir, -OffThreadDir given' }
+    if ($PerturbDir) {
+        $any = $true
+        $tsv = Join-Path $PerturbDir 'perturb.tsv'
+        if (-not (Test-Path -LiteralPath $tsv)) { throw "perturb.tsv not found in -PerturbDir" }
+        $data = @(Get-Content -LiteralPath $tsv | Where-Object { $_ -ne '' })
+        foreach ($l in $data) {
+            if ($l -cnotmatch '^\S+\t(base|pad|top|fill|pool|hog)\t[0-2]\t(base|equal|split turn=\d+|crash class=\S+)$') { throw "bad perturb.tsv row: $l" }
+        }
+        $baseRows = @($data | Where-Object { ($_ -split "`t")[1] -eq 'base' })
+        if ($data.Count -ne 60 -or $baseRows.Count -ne 6) { throw "perturb.tsv has $($data.Count) rows and $($baseRows.Count) base rows, need 60 and 6" }
+        $sorted = @($data | Sort-Object { ($_ -split "`t")[0] }, { ($_ -split "`t")[1] }, { [int](($_ -split "`t")[2]) })
+        $out = @(('# commit ' + (Get-GitText 'rev-parse HEAD').Trim()), "mission`tmode`tseed`tresult") + $sorted
+        Write-BaselineText (Join-Path $OutDir 'perturb.txt') $out
+    }
+    else { Write-Host '[SKIP] capture:tables perturb - no -PerturbDir' }
+    if (-not $any) { throw 'none of -SmokeAllDir, -HardeningDir, -GuardRevertDir, -OffThreadDir, -PerturbDir given' }
 }
 
 function Step-DebugDigests {
@@ -664,6 +680,7 @@ function Get-Producer($rel) {
     if ($n.StartsWith('smoke-all') -or $n -eq 'pool-sizes.txt' -or $n -eq 'mem-peaks.txt' -or $n -eq 'cloth-headroom.txt') { return '`capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All`' }
     if ($n -eq 'hardening.txt') { return '`capture-vs2013.ps1 -Tables` from `run.ps1 -Hardening`' }
     if ($n -eq 'offthread.txt') { return '`capture-vs2013.ps1 -Configuration Test -Tables -OffThreadDir` from `run.ps1 -Smoke All -SmokeConfiguration Test` and `-OffThreadSoundDir` from `soundon.ps1`' }
+    if ($n -eq 'perturb.txt') { return '`capture-vs2013.ps1 -Configuration Test -Tables -PerturbDir` from `run.ps1 -Configuration Test -Smoke Perturb`' }
     if ($n -eq 'guard-revert.txt') { return '`capture-vs2013.ps1 -Tables` from `guard-revert.ps1`' }
     return 'unknown'
 }

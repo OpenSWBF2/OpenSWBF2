@@ -631,6 +631,8 @@ void HUD::GameEvents::Close()
         delete events.missileLockDisable;
         delete events.missileLockDistance;
         delete events.reticuleAlpha;
+        gPlayerData[iPlayer].weaponData[0].target = PblHandle<GameObject const>();
+        gPlayerData[iPlayer].weaponData[1].target = PblHandle<GameObject const>();
     }
 
     gObjectiveTimer = 0;

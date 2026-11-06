@@ -835,6 +835,23 @@ static void SyncDisplayLayout()
 namespace GameLoop
 {
 
+static bool sbRunningLogged;
+static unsigned int suDigestTurns;
+static bool sbDigestLogged;
+static bool sbExitPosted;
+
+#ifdef OPENSWBF2_TEST
+static int siRepeatRun;
+static bool sbRepeatPending;
+
+bool TakeRepeatPending()
+{
+    const bool bPending = sbRepeatPending;
+    sbRepeatPending = false;
+    return bPending;
+}
+#endif
+
 // FUNCTION: SWBF2 0x00530ee0
 int Init()
 {
@@ -847,6 +864,10 @@ int Init()
     }
     SetLastGameWinner(-1);
     SimDigest::Reset();
+    sbRunningLogged = false;
+    suDigestTurns = 0;
+    sbDigestLogged = false;
+    sbExitPosted = false;
     sInitCompleteFlag = true;
     sMissionActive = false;
 
@@ -1349,7 +1370,6 @@ void Update(float fDeltaTime, float fSystemDeltaTime)
         return;
     }
 
-    static bool sbRunningLogged;
     if (gExitOnGameOver && !sbRunningLogged)
     {
         sbRunningLogged = true;
@@ -1494,8 +1514,6 @@ void Update(float fDeltaTime, float fSystemDeltaTime)
                 SimDigest::TraceTurn();
             }
             NetGame::UpdatePreGame();
-            static unsigned int suDigestTurns;
-            static bool sbDigestLogged;
             suDigestTurns += iTurnsRun;
             if (gExitOnGameOver && !sbDigestLogged && suDigestTurns >= 1500)
             {
@@ -1505,6 +1523,15 @@ void Update(float fDeltaTime, float fSystemDeltaTime)
                     gSoundClockTime, SimDigest::StateHash());
                 SimDigest::LogFactoryCounts();
                 RedMemoryReport::LogMemReport("turn1500");
+#ifdef OPENSWBF2_TEST
+                if (pcCrash::RepeatMissionRequested() && siRepeatRun == 0)
+                {
+                    siRepeatRun = 1;
+                    sbRepeatPending = true;
+                    LOG(LogSim, Inform, "OPENSWBF2 REPEAT to_shell mission=%s", mMissionScript);
+                    GameState::SetState(0x11E1FC01);
+                }
+#endif
             }
             if (iTurnsRun && !sGameOver && Team::sWinningTeams)
             {
@@ -1708,8 +1735,19 @@ void Update(float fDeltaTime, float fSystemDeltaTime)
                 }
             }
 
-            static bool sbExitPosted;
-            if (gExitOnGameOver && !sbExitPosted)
+            bool bExitOwed = gExitOnGameOver && !sbExitPosted;
+#ifdef OPENSWBF2_TEST
+            if (pcCrash::RepeatMissionRequested() && siRepeatRun == 0)
+            {
+                siRepeatRun = 2;
+                LOG(LogSim, Warning, "OPENSWBF2 REPEAT skipped mission=%s reason=game over before turn 1500", mMissionScript);
+            }
+            if (sbRepeatPending)
+            {
+                bExitOwed = false;
+            }
+#endif
+            if (bExitOwed)
             {
                 sbExitPosted = true;
                 LOG(LogSim, Inform, "OPENSWBF2 RUN COMPLETE %s", mMissionScript);

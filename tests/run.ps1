@@ -7,7 +7,8 @@ param(
     [int]$Seed = 1,
     [int]$Iterations = 100000,
     [int]$Timeout = 10,
-    [ValidateSet('None','Standard','Dedicated','Crash','All','Twice')][string]$Smoke = 'Standard',
+    [ValidateSet('None','Standard','Dedicated','Crash','All','Twice','Perturb')][string]$Smoke = 'Standard',
+    [ValidateSet('','address','serial')][string]$SimOrder = '',
     [int]$SmokeTimeout = 120,
     [ValidateSet('Debug','Release','Test','Asan')][string]$SmokeConfiguration = 'Release',
     [switch]$Movies,
@@ -18,6 +19,7 @@ param(
     [switch]$Clean
 )
 $ErrorActionPreference = 'Stop'
+$simorderArg = if ($SimOrder) { " -simorder $SimOrder" } else { '' }
 if ($Jobs -eq 0) { $Jobs = [Math]::Max(1, [Math]::Min(8, [int][Math]::Floor([Environment]::ProcessorCount / 2))) }
 $testsDir = $PSScriptRoot
 $root = Split-Path $testsDir -Parent
@@ -31,6 +33,10 @@ if ($Configuration -in 'Test', 'Asan' -and -not $PSBoundParameters.ContainsKey('
 $script:SmokeDigestConfiguration = $SmokeConfiguration
 $asanT1 = ($Configuration -eq 'Asan')
 $asanSmoke = ($SmokeConfiguration -eq 'Asan')
+if ($Smoke -eq 'Perturb' -and $SmokeConfiguration -notin 'Test', 'Asan') {
+    Write-Host '-Smoke Perturb needs -Configuration Test or Asan (-perturbheap is Test-only).'
+    exit 2
+}
 if ($Clean) {
     foreach ($d in (Join-Path $root "bin\Win32\$SmokeConfiguration"), (Join-Path $root "bin\Tests\$Configuration")) {
         if (Test-Path -LiteralPath $d) {
@@ -294,7 +300,7 @@ if ($hardenActive) {
         else {
             $aslrDir = Join-Path $outDir 'hardening\aslr'
             New-Item -ItemType Directory -Force -Path $aslrDir | Out-Null
-            $aslrArgs = (Get-SmokeCases 'Standard' @() $false $null)[0].Args.Replace('{CASEDIR}', $aslrDir)
+            $aslrArgs = (Get-SmokeCases 'Standard' @() $false $null)[0].Args.Replace('{CASEDIR}', $aslrDir) + $simorderArg
             $base = Get-ImageBase $gameExe $exeDir $aslrArgs
             if ($base -and $base -ne 0x400000) { Add-SmokeResult ('[PASS] hardening:aslr-base (0x{0:X8})' -f $base) 'PASS' }
             else {
@@ -310,7 +316,7 @@ if ($smokeActive) {
     if ($Smoke -eq 'All') { $missionFile = Join-Path $testsDir 'smoke\missions-all.txt' }
     $missions = @()
     if (Test-Path $missionFile) { $missions = @(Get-Content $missionFile | Where-Object { $_.Trim() }) }
-    $smokeCases = @(Get-SmokeCases $Smoke $missions $Movies.IsPresent $null $HogAddrSpace.IsPresent)
+    $smokeCases = @(Add-SimOrderExpect @(Get-SmokeCases $Smoke $missions $Movies.IsPresent $null $HogAddrSpace.IsPresent) $SimOrder)
     if ($asanSmoke) {
         $asanRemoved = @($smokeCases | Where-Object { $script:SmokeAsanExcluded -contains $_.Name } | ForEach-Object { $_.Name })
         $smokeCases = @($smokeCases | Where-Object { $script:SmokeAsanExcluded -notcontains $_.Name })
@@ -341,6 +347,7 @@ if ($smokeActive) {
         foreach ($w in (Test-WerSetup)) { Write-Host "WARNING: $w" }
         $gameExe = Join-Path $exeDir 'BattlefrontII.exe'
         $scoreKeys = @{}
+        $perturbRuns = @()
         $useParallel = ($Jobs -gt 1) -and ($smokeCases.Count -gt 1) -and ($Smoke -ne 'Twice')
         $batch = $null
         $workDirs = @()
@@ -351,7 +358,7 @@ if ($smokeActive) {
             $items = @()
             foreach ($sc in $smokeCases) {
                 $caseDir = Join-Path $outDir "smoke\$($sc.Name)"
-                $items += New-Object PSObject -Property @{ Name = $sc.Name; ExeName = 'BattlefrontII.exe'; ArgLine = $sc.Args.Replace('{CASEDIR}', $caseDir); Timeout = (Get-SmokeCaseTimeout $sc); CaseDir = $caseDir; AsanOptions = (Get-SmokeCaseAsan $caseDir) }
+                $items += New-Object PSObject -Property @{ Name = $sc.Name; ExeName = 'BattlefrontII.exe'; ArgLine = $sc.Args.Replace('{CASEDIR}', $caseDir) + $simorderArg; Timeout = (Get-SmokeCaseTimeout $sc); CaseDir = $caseDir; AsanOptions = (Get-SmokeCaseAsan $caseDir) }
             }
         }
         try {
@@ -363,9 +370,25 @@ if ($smokeActive) {
             foreach ($sc in $smokeCases) {
                 $caseIndex++
                 $caseDir = Join-Path $outDir "smoke\$($sc.Name)"
-                $argLine = $sc.Args.Replace('{CASEDIR}', $caseDir)
+                $argLine = $sc.Args.Replace('{CASEDIR}', $caseDir) + $simorderArg
                 if ($useParallel) { $res = Receive-SmokeCase $batch $caseIndex }
                 else { $res = Invoke-SmokeCase $sc.Name $gameExe $exeDir $argLine (Get-SmokeCaseTimeout $sc) $caseDir (Get-SmokeCaseAsan $caseDir) }
+                if ($sc.Expect.Perturb) {
+                    $pClass = $res.Class
+                    if ($res.Asan) {
+                        $pClass = 'Asan'
+                        foreach ($rl in ($res.Asan -split "`r?`n")) { Write-Host "    $rl" }
+                    }
+                    $pMiss = @(Get-PerturbProofMissing $sc $res.LogText)
+                    if ($pMiss.Count -gt 0) {
+                        Add-SmokeResult ('[FAIL] smoke:{0} class={1} ({2} ms) - run not proven, log lacks: {3}' -f $sc.Name, $pClass, $res.Ms, ($pMiss -join ' | ')) 'FAIL'
+                        Write-Host "    details: $caseDir"
+                        $bad++
+                    }
+                    else { Add-SmokeResult ('[INFO] smoke:{0} class={1} ({2} ms)' -f $sc.Name, $pClass, $res.Ms) 'INFO' }
+                    $perturbRuns += New-Object PSObject -Property @{ Case = $sc; Class = $pClass; Log = (Join-Path $caseDir 'run.log'); Proven = ($pMiss.Count -eq 0) }
+                    continue
+                }
                 $ok = Test-SmokeExpect $sc $res
                 $tok = Get-SmokeToken $res.Class
                 if ($ok) { $tok = 'PASS' }
@@ -393,6 +416,62 @@ if ($smokeActive) {
                     Add-SmokeResult "[FAIL] smoke:$($pair[2]) mismatch" 'FAIL'
                     $bad++
                 }
+            }
+        }
+        $layoutRef = @(Get-Turn1500Runtime (Join-Path $outDir "smoke\$script:SmokeStandardMission"))
+        foreach ($ln in 'shell-first', 'repeat-digest') {
+            $ld = Join-Path $outDir "smoke\$ln"
+            if ($layoutRef.Count -lt 1 -or -not (Test-Path -LiteralPath $ld)) { continue }
+            $lg = @(Get-Turn1500Runtime $ld)
+            if ($lg.Count -gt 0 -and $lg[-1] -ceq $layoutRef[0]) { Add-SmokeResult "[PASS] smoke:$ln-layout Runtime at turn 1500 matches $($script:SmokeStandardMission) ($($layoutRef[0]))" 'PASS' }
+            else {
+                Add-SmokeResult "[FAIL] smoke:$ln-layout Runtime at turn 1500 '$(if ($lg.Count) { $lg[-1] })' differs from $($script:SmokeStandardMission) '$($layoutRef[0])'" 'FAIL'
+                $bad++
+            }
+        }
+        if ($perturbRuns.Count -gt 0) {
+            $pRows = @()
+            $pRed = 0
+            $pLines = 0
+            $pWant = 0
+            $pMissions = @($perturbRuns | ForEach-Object { $_.Case.Expect.Perturb.Mission } | Select-Object -Unique)
+            foreach ($pm in $pMissions) {
+                $mine = @($perturbRuns | Where-Object { $_.Case.Expect.Perturb.Mission -eq $pm })
+                $others = @($mine | Where-Object { $_.Case.Expect.Perturb.Mode -ne 'base' })
+                $pWant += $others.Count
+                $base = @($mine | Where-Object { $_.Case.Expect.Perturb.Mode -eq 'base' })
+                if ($base.Count -ne 1 -or -not $base[0].Proven -or $base[0].Class -ne $base[0].Case.Expect.Class -or (Compare-DigestTrace $base[0].Log $base[0].Log 1500) -ne 0) {
+                    $bc = 'missing'
+                    if ($base.Count -eq 1) { $bc = $base[0].Class }
+                    Add-SmokeResult "[FAIL] smoke:perturb base $pm class=$bc" 'FAIL'
+                    $bad++
+                    continue
+                }
+                $pRows += "$pm`tbase`t0`tbase"
+                foreach ($r in $others) {
+                    $p = $r.Case.Expect.Perturb
+                    if (-not $r.Proven) {
+                        $pRows += "$pm`t$($p.Mode)`t$($p.Seed)`tunproven"
+                        continue
+                    }
+                    $v = Get-PerturbVerdict $base[0].Log $r.Log $r.Class $r.Case.Expect.Class
+                    $txt = $v.Result
+                    if ($v.Result -eq 'split') { $txt = "split turn=$($v.Turn)" }
+                    elseif ($v.Result -eq 'crash') {
+                        $txt = "crash class=$($v.Class)"
+                        if ($v.Turn -gt 0) { Write-Host "    perturb:$pm mode=$($p.Mode) seed=$($p.Seed) split turn=$($v.Turn) before the crash" }
+                    }
+                    if ($v.Result -ne 'equal') { $pRed++ }
+                    $pLines++
+                    Add-SmokeResult "[INFO] perturb:$pm mode=$($p.Mode) seed=$($p.Seed) $txt" 'INFO'
+                    $pRows += "$pm`t$($p.Mode)`t$($p.Seed)`t$txt"
+                }
+            }
+            $pRows | Set-Content -Path (Join-Path $outDir 'perturb.tsv') -Encoding ASCII
+            if ($pRed -gt 0 -and $pLines -eq $pWant) { Add-SmokeResult "[PASS] smoke:perturb red runs=$pRed/$pWant" 'PASS' }
+            else {
+                Add-SmokeResult "[FAIL] smoke:perturb red runs=$pRed/$pWant - $pLines of $pWant result lines, none may be missing and at least one run must split" 'FAIL'
+                $bad++
             }
         }
         $traceLog1 = Join-Path $outDir 'smoke\trace-seed-1\run.log'

@@ -46,3 +46,15 @@ float PblRandom::GetNormal()
     sHasCachedNormal = 0;
     return sCachedNormal;
 }
+
+void PblRandom::GetNormalCache(int* piHas, float* pfValue)
+{
+    *piHas = sHasCachedNormal;
+    *pfValue = sCachedNormal;
+}
+
+void PblRandom::SetNormalCache(int iHas, float fValue)
+{
+    sHasCachedNormal = iHas;
+    sCachedNormal = fValue;
+}

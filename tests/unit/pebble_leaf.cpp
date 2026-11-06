@@ -22,6 +22,25 @@ TEST_CASE("random same seed repeats" * doctest::test_suite("unit"))
     CHECK(a.GetSeed() == b.GetSeed());
 }
 
+TEST_CASE("random normal cache round-trips through get and set" * doctest::test_suite("unit"))
+{
+    int iSavedHas = 0;
+    float fSaved = 0.0f;
+    PblRandom::GetNormalCache(&iSavedHas, &fSaved);
+    PblRandom::SetNormalCache(1, 0.25f);
+    int iHas = 0;
+    float fValue = 0.0f;
+    PblRandom::GetNormalCache(&iHas, &fValue);
+    CHECK(iHas == 1);
+    CHECK(fValue == 0.25f);
+    PblRandom rng(7);
+    CHECK(rng.GetNormal() == 0.25f);
+    CHECK(rng.GetSeed() == 7u);
+    PblRandom::GetNormalCache(&iHas, &fValue);
+    CHECK(iHas == 0);
+    PblRandom::SetNormalCache(iSavedHas, fSaved);
+}
+
 TEST_CASE("strlcpy truncates and terminates" * doctest::test_suite("unit"))
 {
     char acBuf[8];

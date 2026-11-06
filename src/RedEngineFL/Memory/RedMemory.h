@@ -18,6 +18,10 @@ struct RedHeapStats
 #ifdef OPENSWBF2_TEST
 const int kRedOffThreadSources = 16;
 const int kRedOffThreadFrames = 8;
+const unsigned int kRedPerturbPad = 1;
+const unsigned int kRedPerturbTop = 2;
+const unsigned int kRedPerturbFill = 4;
+const unsigned int kRedPerturbPool = 8;
 
 struct RedOffThreadSource
 {
@@ -50,10 +54,17 @@ extern "C"
     PBL_ASAN_NO_SANITIZE void RedMoveHeapEnd(int heap, int offset);
     bool RedGetHeapStats(int heap, RedHeapStats* pOut);
 #ifdef OPENSWBF2_TEST
+    bool RedGetHeapRange(int heap, void** ppStart, unsigned int* puSize);
     void RedGetOffThreadTotals(unsigned int* puCount, unsigned int* puSources, unsigned int* puDropped);
     bool RedGetOffThreadSource(int i, RedOffThreadSource* pOut);
     void RedResetOffThreadStats();
     bool RedImageStamp(const void* pBase, unsigned int* puStamp);
+    void RedPerturbSet(unsigned int uSeed, unsigned int uModes);
+    unsigned int RedPerturbModes();
+    unsigned int RedPerturbSeed();
+    bool RedPerturbParse(const char* pcSpec, unsigned int* puSeed, unsigned int* puModes);
+    bool RedPerturbDraw(unsigned int uMode, unsigned int* puOut);
+    void RedPerturbFormatModes(unsigned int uModes, char* pcOut, unsigned int uSize);
 #endif
 
     extern int maxheaps;

@@ -76,6 +76,7 @@ public:
     static IManager & GetInstance();
     static void SetInstance(IManager & rManager);
     static void ClearInstance();
+    static void ReserveDisplayables();
 };
 }
 

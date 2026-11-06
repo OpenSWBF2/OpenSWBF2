@@ -1264,6 +1264,10 @@ void LockOnManager::ClearVisibilityChecked(LockOnManager::TargetInfo* const pInf
 void LockOnManager::DestroyAll()
 {
     sTargetLockSound.SetID(0u, false, false);
+    for (unsigned int i = 0; i < 32; i++)
+    {
+        sTargetCommon[i].SetObj(0, 0);
+    }
 
     for (unsigned int i = 0; i < 4; ++i)
     {

@@ -2485,6 +2485,8 @@ void RestoreSessionRuleDefaults();
 
 void CleanFrameLock();
 
+extern RecentGuestObjectRecord recentGuestObjects[64][3];
+
 // FUNCTION: SWBF2 0x005b64b0
 void NetGame::Reset()
 {
@@ -2494,6 +2496,7 @@ void NetGame::Reset()
     clientNdObjMap.Clear();
     AtleastOnce::ResetAll();
     memset(spawnInfo, 0, sizeof(spawnInfo));
+    memset(recentGuestObjects, 0, sizeof(recentGuestObjects));
     memset(suicideChangeCounts, 0, sizeof(suicideChangeCounts));
     memset(suicideInfo, 0, sizeof(suicideInfo));
 

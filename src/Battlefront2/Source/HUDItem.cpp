@@ -554,6 +554,10 @@ void HUD::Item::SetName(const char* const pName)
     {
         FreeName(&mNameDisplay);
     }
+    else
+    {
+        mNameDisplay = 0;
+    }
     FreeName(&mName);
 
     char acName[512];

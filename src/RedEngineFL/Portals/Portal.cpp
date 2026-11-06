@@ -257,6 +257,11 @@ void pvs::IManager::ClearInstance()
     _man = 0;
 }
 
+void pvs::IManager::ReserveDisplayables()
+{
+    pvs::displayableSuballoc_.SetElemSize(sizeof(util::SLNode<pvs::IDisplayable*>), 0x1000);
+}
+
 // FUNCTION: SWBF2 0x006dfa30
 void util::IAllocator::ClearMemHash()
 {

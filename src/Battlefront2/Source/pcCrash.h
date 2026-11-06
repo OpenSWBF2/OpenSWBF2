@@ -23,4 +23,12 @@ namespace pcCrash
     char const* GetBuildId();
     char const* GetCrashTest();
     void FatalReset(long hr, unsigned int uiFailures, unsigned int uiElapsedMs);
+#ifdef OPENSWBF2_TEST
+    void InitPerturbFromCommandLine();
+    void LogPerturbState();
+    bool RepeatMissionRequested();
+    void LogRepeatState();
+    bool ShellFirstRequested();
+    bool TakeShellFirst();
+#endif
 }

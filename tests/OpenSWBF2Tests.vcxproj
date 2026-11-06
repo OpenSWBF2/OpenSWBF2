@@ -94,6 +94,8 @@
     <ClCompile Include="..\src\PebbleFL\Common\PblQuaternion.cpp" />
     <ClCompile Include="..\src\PebbleFL\Common\PblRandom.cpp" />
     <ClCompile Include="..\src\PebbleFL\Common\PblRegion.cpp" />
+    <ClCompile Include="..\src\PebbleFL\Common\PblSimOrder.cpp" />
+    <ClCompile Include="..\src\Battlefront2\Source\CommandLine.cpp" />
     <ClCompile Include="..\src\PebbleFL\Common\PblTime.cpp" />
     <ClCompile Include="..\src\PebbleFL\Common\PblTimeBase.cpp" />
     <ClCompile Include="..\src\PebbleFL\Common\PblTrace.cpp" />
@@ -160,6 +162,7 @@
     <ClCompile Include="..\src\SoundFL\source\sndallocbitmap.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Interface\RedGlyphMemoryManager.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\WalkerAnimation.cpp" />
+    <ClCompile Include="..\src\Battlefront2\Source\HUDItem.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Application\RedTerrain.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="testutil.cpp" />

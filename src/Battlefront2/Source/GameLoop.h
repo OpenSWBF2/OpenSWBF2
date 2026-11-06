@@ -49,6 +49,10 @@ int PostLoad();
 
 int Cleanup();
 
+#ifdef OPENSWBF2_TEST
+bool TakeRepeatPending();
+#endif
+
 extern bool _bFirstPersonEnabled;
 
 inline void EnableFirstPerson(bool bEnable) { _bFirstPersonEnabled = bEnable; }

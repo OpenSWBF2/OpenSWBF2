@@ -11,6 +11,7 @@ namespace TeamManager
 void EnterClient();
 void LeaveClient();
 
+void Reset();
 void AddObject(GameObject* pObject);
 void RemoveObject(GameObject* pObject);
 int sGetObjectsInRange(const PblVector3& vPos, float fRange, GameObject** const ppObjects, int iMax,

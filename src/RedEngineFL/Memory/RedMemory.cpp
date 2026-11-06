@@ -147,6 +147,156 @@ static volatile long sOffCount;
 static volatile long sOffDropped;
 static OffThreadSlot sOffSources[kRedOffThreadSources];
 
+static unsigned int sPerturbModes;
+static unsigned int sPerturbSeed;
+static unsigned int sPerturbState[4];
+static const char* const sapcPerturbNames[4] = { "pad", "top", "fill", "pool" };
+static const unsigned int kPerturbAll = kRedPerturbPad | kRedPerturbTop | kRedPerturbFill | kRedPerturbPool;
+
+static unsigned int PerturbMix(unsigned int x)
+{
+    x ^= x >> 16;
+    x *= 0x85EBCA6Bu;
+    x ^= x >> 13;
+    x *= 0xC2B2AE35u;
+    x ^= x >> 16;
+    return x != 0 ? x : 1;
+}
+
+extern "C" void RedPerturbSet(unsigned int uSeed, unsigned int uModes)
+{
+    sPerturbSeed = uSeed;
+    for (unsigned int i = 0; i < 4; ++i)
+    {
+        sPerturbState[i] = PerturbMix(uSeed * 0x9E3779B9u + (i + 1) * 0x7F4A7C15u);
+    }
+    sPerturbModes = uModes & kPerturbAll;
+}
+
+extern "C" unsigned int RedPerturbModes()
+{
+    return sPerturbModes;
+}
+
+extern "C" unsigned int RedPerturbSeed()
+{
+    return sPerturbSeed;
+}
+
+extern "C" bool RedPerturbDraw(unsigned int uMode, unsigned int* puOut)
+{
+    if (puOut == 0 || (sPerturbModes & uMode) == 0)
+    {
+        return false;
+    }
+    if (sMainTid != 0 && GetCurrentThreadId() != (DWORD)sMainTid)
+    {
+        return false;
+    }
+    for (unsigned int i = 0; i < 4; ++i)
+    {
+        if (uMode == (1u << i))
+        {
+            unsigned int x = sPerturbState[i];
+            x ^= x << 13;
+            x ^= x >> 17;
+            x ^= x << 5;
+            sPerturbState[i] = x;
+            *puOut = x;
+            return true;
+        }
+    }
+    return false;
+}
+
+extern "C" bool RedPerturbParse(const char* pcSpec, unsigned int* puSeed, unsigned int* puModes)
+{
+    if (pcSpec == 0 || puSeed == 0 || puModes == 0 || *pcSpec < '0' || *pcSpec > '9')
+    {
+        return false;
+    }
+    const char* pc = pcSpec;
+    unsigned long long ullSeed = 0;
+    while (*pc >= '0' && *pc <= '9')
+    {
+        ullSeed = ullSeed * 10 + (unsigned int)(*pc - '0');
+        if (ullSeed > 0xFFFFFFFFull)
+        {
+            return false;
+        }
+        ++pc;
+    }
+    unsigned int uModes = kPerturbAll;
+    if (*pc == ':')
+    {
+        uModes = 0;
+        ++pc;
+        for (;;)
+        {
+            const char* pcEnd = pc;
+            while (*pcEnd != 0 && *pcEnd != ',')
+            {
+                ++pcEnd;
+            }
+            const unsigned int uLen = (unsigned int)(pcEnd - pc);
+            unsigned int uBit = 0;
+            for (unsigned int i = 0; i < 4; ++i)
+            {
+                if (uLen == strlen(sapcPerturbNames[i]) && _strnicmp(pc, sapcPerturbNames[i], uLen) == 0)
+                {
+                    uBit = 1u << i;
+                }
+            }
+            if (uBit == 0)
+            {
+                return false;
+            }
+            uModes |= uBit;
+            if (*pcEnd == 0)
+            {
+                break;
+            }
+            pc = pcEnd + 1;
+        }
+    }
+    else if (*pc != 0)
+    {
+        return false;
+    }
+    *puSeed = (unsigned int)ullSeed;
+    *puModes = uModes;
+    return true;
+}
+
+extern "C" void RedPerturbFormatModes(unsigned int uModes, char* pcOut, unsigned int uSize)
+{
+    if (pcOut == 0 || uSize == 0)
+    {
+        return;
+    }
+    pcOut[0] = 0;
+    unsigned int uLen = 0;
+    for (unsigned int i = 0; i < 4; ++i)
+    {
+        if ((uModes & (1u << i)) == 0)
+        {
+            continue;
+        }
+        const unsigned int uName = (unsigned int)strlen(sapcPerturbNames[i]);
+        if (uLen + uName + (uLen != 0 ? 1 : 0) >= uSize)
+        {
+            return;
+        }
+        if (uLen != 0)
+        {
+            pcOut[uLen++] = ',';
+        }
+        memcpy(pcOut + uLen, sapcPerturbNames[i], uName);
+        uLen += uName;
+        pcOut[uLen] = 0;
+    }
+}
+
 extern "C" bool RedImageStamp(const void* pBase, unsigned int* puStamp)
 {
     MEMORY_BASIC_INFORMATION kInfo;
@@ -556,13 +706,37 @@ PBL_ASAN_NO_SANITIZE void TagRemoveList(TagList* list, Tag* tag)
 // FUNCTION: SWBF2 0x006c38d0
 void* RedAllocFromHeap(int heap, unsigned int size, bool bTop)
 {
-    void* p = RedAllocFromHeapInternal(heap, size, bTop);
 #ifdef OPENSWBF2_TEST
+    if (!isHeapObjInitialized)
+    {
+        Startup_RedInitHeap(0x80, 0x80);
+    }
+    const unsigned int uiModes = sPerturbModes;
+    unsigned int uiPad = 0;
+    unsigned int uiDraw = 0;
+    if ((uiModes & kRedPerturbPad) != 0 && size <= 0xFFFFFF00u && RedPerturbDraw(kRedPerturbPad, &uiDraw))
+    {
+        uiPad = 4 + 4 * (uiDraw % 15);
+    }
+    void* p = RedAllocFromHeapInternal(heap, size + uiPad, bTop || (uiModes & kRedPerturbTop) != 0);
+    if (p)
+    {
+        if (uiPad != 0)
+        {
+            PblAsanPoison((char*)p + size, uiPad);
+        }
+        if ((uiModes & kRedPerturbFill) != 0)
+        {
+            memset(p, 0xA5, size);
+        }
+    }
     DWORD uiTid = GetCurrentThreadId();
     if (sMainTid != 0 && uiTid != (DWORD)sMainTid)
     {
         RedNoteOffThread(heap, size, uiTid);
     }
+#else
+    void* p = RedAllocFromHeapInternal(heap, size, bTop);
 #endif
     if (!p)
     {
@@ -585,7 +759,11 @@ int RedCreateHeap(void* start, void* end, unsigned int align, char const* name)
     PblAsanUnpoison(s, size);
     if (size)
     {
+#ifdef OPENSWBF2_TEST
+        memset(s, (sPerturbModes & kRedPerturbFill) != 0 ? 0xA5 : 0, size);
+#else
         memset(s, 0, size);
+#endif
     }
 
     for (int i = 0; i < maxheaps; ++i)
@@ -791,6 +969,17 @@ extern "C" bool RedGetHeapStats(int heap, RedHeapStats* pOut)
 }
 
 #ifdef OPENSWBF2_TEST
+extern "C" bool RedGetHeapRange(int heap, void** ppStart, unsigned int* puSize)
+{
+    if (heap < 0 || heap >= maxheaps || heapobj == 0 || heapobj[heap].size == 0)
+    {
+        return false;
+    }
+    *ppStart = heapobj[heap].start;
+    *puSize = heapobj[heap].size;
+    return true;
+}
+
 extern "C" void RedGetOffThreadTotals(unsigned int* puCount, unsigned int* puSources, unsigned int* puDropped)
 {
     if (puCount)

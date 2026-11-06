@@ -26,6 +26,7 @@
 #include "RedEngineFL/Interface/RedFont.h"
 #include "RedEngineFL/Util/RedLocalizeDB.h"
 #include "PebbleFL/Common/PblMath.h"
+#include "PebbleFL/Common/PblSimOrder.h"
 
 extern bool mSafeMode;
 
@@ -66,6 +67,9 @@ bool gNoFocusPause;
 bool gAllowUploads = LocalLimits::kUploadsDefault;
 bool gSeedSet;
 unsigned int gSeed;
+static bool sbSimOrderBad;
+static unsigned int suTestOnlyIgnored;
+static char const* const sapcTestOnlyArgs[] = { "perturbheap", "repeatmission", "shellfirst" };
 // GLOBAL: SWBF2 0x007e6310
 int gBootLaggerPing = 300;
 
@@ -246,6 +250,30 @@ void ParseCommandLine(char const* pcAppName, char const* pcCmdLine)
     ParseCommandLine(iArgc, apcArgv);
 }
 
+bool SimOrderArgRejected()
+{
+    return sbSimOrderBad;
+}
+
+bool TestOnlyArgIgnored(int i, char const** ppcName)
+{
+    if (i < 0 || i >= (int)(sizeof(sapcTestOnlyArgs) / sizeof(sapcTestOnlyArgs[0])))
+    {
+        return false;
+    }
+    *ppcName = (suTestOnlyIgnored & (1u << i)) != 0 ? sapcTestOnlyArgs[i] : 0;
+    return true;
+}
+
+static void NoteTestOnlyArg(int i)
+{
+#ifdef OPENSWBF2_TEST
+    (void)i;
+#else
+    suTestOnlyIgnored |= 1u << i;
+#endif
+}
+
 // FUNCTION: SWBF2 0x00479740
 void ParseCommandLine(int iArgc, char** const apcArgv)
 {
@@ -255,6 +283,8 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
     _snprintf(acBuf, 0x7F, "%i Arguments Found\n", iArgc - 1);
 
     HUD::gScreenGroupEditEnabled = false;
+    sbSimOrderBad = false;
+    suTestOnlyIgnored = 0;
     bool bNamed = false;
 
     for (int i = 1; i < iArgc; ++i)
@@ -357,6 +387,27 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             continue;
         }
 
+        if (_stricmp(pcArg + 1, "simorder") == 0)
+        {
+            const char* pcValue = i + 1 < iArgc ? apcArgv[i + 1] : 0;
+            PblSimOrderMode eMode = PBL_SIMORDER_ADDRESS;
+            if (PblParseSimOrder(pcValue, &eMode))
+            {
+                ++i;
+                PblSetSimOrder(eMode);
+                sbSimOrderBad = false;
+            }
+            else
+            {
+                sbSimOrderBad = true;
+                if (pcValue && pcValue[0] != '-')
+                {
+                    ++i;
+                }
+            }
+            continue;
+        }
+
         if (_stricmp(pcArg + 1, "factorylog") == 0)
         {
             gFactoryLog = true;
@@ -395,6 +446,34 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
 
         if (_stricmp(pcArg + 1, "hogaddrspace") == 0)
         {
+            continue;
+        }
+
+        if (_stricmp(pcArg + 1, "perturbheap") == 0)
+        {
+            if (i + 1 < iArgc && apcArgv[i + 1][0] != '-')
+            {
+                ++i;
+                while (i + 1 < iArgc &&
+                       (_stricmp(apcArgv[i + 1], "pad") == 0 || _stricmp(apcArgv[i + 1], "top") == 0 ||
+                        _stricmp(apcArgv[i + 1], "fill") == 0 || _stricmp(apcArgv[i + 1], "pool") == 0))
+                {
+                    ++i;
+                }
+            }
+            NoteTestOnlyArg(0);
+            continue;
+        }
+
+        if (_stricmp(pcArg + 1, "repeatmission") == 0)
+        {
+            NoteTestOnlyArg(1);
+            continue;
+        }
+
+        if (_stricmp(pcArg + 1, "shellfirst") == 0)
+        {
+            NoteTestOnlyArg(2);
             continue;
         }
 

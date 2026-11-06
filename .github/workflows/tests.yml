@@ -30,6 +30,9 @@ jobs:
       - name: Build and run tests
         shell: cmd
         run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\run.ps1 -Configuration Test
+      - name: Standard smoke in serial order
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\run.ps1 -Configuration Test -NoBuild -Smoke Standard -SimOrder serial
       - name: Runner self-test
         shell: cmd
         run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\selftest.ps1 -Configuration Test
@@ -118,6 +121,10 @@ jobs:
         if: ${{ !cancelled() }}
         shell: cmd
         run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\x64-census.ps1 -Name census-ci -OutDir artifacts\census
+      - name: Perturb smoke
+        if: ${{ !cancelled() }}
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\run.ps1 -Configuration Test -Smoke Perturb
       - name: Clean staged output
         if: always()
         shell: cmd
@@ -126,6 +133,10 @@ jobs:
         if: always()
         shell: cmd
         run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\run.ps1 -Asan -Clean
+      - name: Clean staged Test output
+        if: always()
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\run.ps1 -Configuration Test -Clean
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: failure() || cancelled()
         with:

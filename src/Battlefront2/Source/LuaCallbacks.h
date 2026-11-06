@@ -12,6 +12,8 @@ struct CallbackEntryT
 };
 
 void DoPeriodicLuaGC(bool);
+int GetPeriodicLuaGCCount();
+void SetPeriodicLuaGCCount(int iCount);
 
 int ScriptCB_DoFile(lua_State* L);
 int ScriptCB_GetPlatform(lua_State* L);
