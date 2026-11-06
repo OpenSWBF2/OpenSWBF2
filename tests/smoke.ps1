@@ -216,7 +216,12 @@ function Invoke-SmokeCase($name, $exe, $workDir, $argLine, $timeoutSec, $caseDir
     return New-Object PSObject -Property @{ Name = $name; Class = $class; Code = $code; Dumps = $dumps; LogText = $logText; Ms = $ms; CaseDir = $caseDir; WorkDir = $workDir; Asan = $asan }
 }
 
+function Get-SmokeWorkerRoot($root, $name) {
+    return Join-Path $root "artifacts\smoke-workers\$name"
+}
+
 function New-SmokeWorkerDir($srcDir, $dir) {
+    Remove-SmokeWorkerDir $dir
     New-Item -ItemType Directory -Force -Path $dir | Out-Null
     foreach ($f in 'BattlefrontII.exe', 'binkw32.dll', 'Galaxy.dll', 'GalaxyPeer.dll', 'steam_api.dll', 'unicows.dll', 'steam_appid.txt', 'clang_rt.asan_dynamic-i386.dll') {
         $s = Join-Path $srcDir $f
