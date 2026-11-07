@@ -23,21 +23,6 @@ namespace ReserveManager
 
 namespace
 {
-    inline unsigned int GameObjectHandleId(const GameObject* pObject)
-    {
-        return PBL_HANDLE_ID(pObject);
-    }
-
-    inline const GameObject* HandleObject(PblHandle<const GameObject>& handle)
-    {
-        if (handle.mObject && GameObjectHandleId(handle.mObject) != handle.mSavedHandleId)
-        {
-            handle.mObject = 0;
-            handle.mSavedHandleId = 0;
-        }
-        return handle.mObject;
-    }
-
     inline const PblVector3& GameObjectPosition(const GameObject* pObject)
     {
         return static_cast<const CollisionObject&>(*pObject).GetPosition();
@@ -202,7 +187,7 @@ void NavigatorFollowTarget::UpdateState(float dt)
         return;
     }
 
-    if (!HandleObject(mFollowTarget))
+    if (!mFollowTarget.GetObjectA())
     {
         SetNextState(100);
         return;

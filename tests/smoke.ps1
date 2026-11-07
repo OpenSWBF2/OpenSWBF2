@@ -1041,20 +1041,7 @@ $script:SpacerAllow = @(
     'src\Battlefront2\Source\EntityCarrier.h|_flightFlagPadding|[3]',
     'src\Battlefront2\Source\EntityCarrier.h|_turretPadding|[3]',
     'src\Battlefront2\Source\EntityCarrier.h|_renderPadding|[3]',
-    'src\Battlefront2\Source\EntityCarrier.h|_toCollisionVptr|[0x08]',
-    'src\Battlefront2\Source\EntityCarrier.h|_toVptr94|[0x84]',
-    'src\Battlefront2\Source\EntityCarrier.h|_toVptr140|[0xa8]',
-    'src\Battlefront2\Source\EntityCarrier.h|_toVptr200|[0xbc]',
-    'src\Battlefront2\Source\EntityCarrier.h|_toControllable|[0x3c]',
-    'src\Battlefront2\Source\EntityCarrier.h|_toVptr258|[0x14]',
-    'src\Battlefront2\Source\EntityCarrier.h|_toPathFollower|[0x170]',
-    'src\Battlefront2\Source\EntityCarrier.h|_toVelocity|[0x170]',
-    'src\Battlefront2\Source\EntityCarrier.h|_toState|[0x18]',
-    'src\Battlefront2\Source\EntityCarrier.h|_toClass|[0xc4]',
-    'src\Battlefront2\Source\EntityCarrier.h|_toPose|[0x1230]',
-    'src\Battlefront2\Source\EntityCarrier.h|mPoseAndTail|[0x530]',
     'src\Battlefront2\Source\EntityCarrier.h|_tailPad|[0xc]',
-    'src\Battlefront2\Source\EntityCarrier.h|_tail|[0x0c]',
     'src\Battlefront2\Source\EntityPortableTurret.h|_tailPad|[6]',
     'src\Battlefront2\Source\EntityPropAnimated.cpp|acUnused|[256]',
     'src\Battlefront2\Source\FLInputManager.h|mReservedAfterFlip|[3]',
@@ -1277,7 +1264,15 @@ function Get-SourceChecks([string]$root, [string[]]$spacerAllow = $script:Spacer
         @{ Name = 'galaxy-getter-cast'; Path = '\\src\\'; Rx = @(
             '\(galaxy::api::I\w+\s*\*\)\s*\(?\s*Get\w*Galaxy',
             'void\*\s+\w+\s*=\s*Get\w*Galaxy',
-            'void\s*\*\s*\w*Get\w*Galaxy\w*\s*\(') }
+            'void\s*\*\s*\w*Get\w*Galaxy\w*\s*\(') },
+        @{ Name = 'handle-raw'; Path = '\\src\\(?!PebbleFL\\Common\\PblHandle\.(?:h|cpp)$)'; Rx = @(
+            '\bPBL_HANDLE_ID\b',
+            '\bm(?:Saved)?HandleId\b',
+            '(?i)(?:[!=]=\s*(?:\(\s*[\w:]+(?:\s+[\w:]+)*\s*\*?\s*\)\s*)?0xd{8}[ul]*\b|\b0xd{8}[ul]*\s*[!=]=|\*\s*\)\s*0xd{8}[ul]*\b|_cast\s*<[^<>;]*>\s*\(\s*0xd{8}[ul]*\b)',
+            '\bGetHandleId\s*\(\s*\)\s*[!=]=(?!\s*\(unsigned int\)\s*debug\w*Id\b)(?!\s*net\w*Trace\w*\b)(?!\s*[1-9]\d*\b)',
+            '[!=]=\s*(?:\w+(?:\(\s*\))?(?:\.|->))*(?:\w+::)?GetHandleId\s*\(',
+            '(?:&&|\|\||\b(?:if|while)\s*\(|!)\s*(?:\w+(?:\(\s*\))?(?:\.|->))*(?:\w+::)?GetHandleId\s*\(\s*\)\s*(?:\)|&&|\|\||\?)',
+            '\bGameObjectHandleId\b') }
     )
     $runDefs = @($defs | Where-Object { & $want $_.Name })
     $doSpacer = & $want 'char-spacer'

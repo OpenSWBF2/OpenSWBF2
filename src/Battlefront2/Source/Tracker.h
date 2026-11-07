@@ -26,7 +26,6 @@ public:
     {
         Trackable* pTrackable = mTrackable;
         if (pTrackable && pTrackable != (Trackable*)-1 &&
-            (unsigned int)pTrackable->mTracker != 0xDDDDDDDDu &&
             pTrackable->GetControllable())
         {
             Controllable* pCtrl = pTrackable->GetControllable();

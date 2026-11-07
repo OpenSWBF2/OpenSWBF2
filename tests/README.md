@@ -97,7 +97,7 @@ ASan covers the stack, globals, the CRT heap, and the game's heaps and pools. Ea
 
 Smoke cases that crash on purpose (`$script:SmokeAsanExcluded` in `smoke.ps1`) are skipped under ASan. Smoke timeouts are scaled by 15.
 
-Weak handles read the id of an object that may already be freed, so write handle liveness checks with `PBL_HANDLE_ID(p)`.
+Decide whether a handled object is alive with `PblHandle::IsLive()` or `GetObjectA()`, never by reading the object. The `handle-raw` check enforces this.
 
 ## CI
 
@@ -130,6 +130,7 @@ The hardening step checks the exe's security flags (ASLR, DEP, LAA, SafeSEH, `/G
 | `char-spacer` | byte-array spacers not in `$script:SpacerAllow` (`smoke.ps1`) |
 | `offset-hack` | raw byte-offset object access not in `$script:OffsetAllow` (`smoke.ps1`) |
 | `serial-value` | a read of a thread or collision serial counter or field outside the helper definitions in `$script:SerialAllow` (`smoke.ps1`) |
+| `handle-raw` | a raw handle id read, `PBL_HANDLE_ID`, a freed-fill (`0xDDDDDDDD`) compare or an object-vs-saved id compare outside `PblHandle.h`/`.cpp` |
 | `gamma-get` | any `GetDeviceGammaRamp` call |
 | `snd-alloc-size-t` | `SndAlloc`, `SndTempAlloc` or a sound allocator function pointer with a 32-bit size type |
 | `galaxy-getter-cast` | a Galaxy getter returning `void*`, or a cast or `void*` temporary on a Galaxy getter's result |

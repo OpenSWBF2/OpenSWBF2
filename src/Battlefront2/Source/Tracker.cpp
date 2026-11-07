@@ -5,8 +5,6 @@
 #include "CameraManager.h"
 #include "Controllable.h"
 
-extern int netCurMaxPlayers;
-
 // FUNCTION: SWBF2 0x0065aa20
 Tracker::Tracker()
 {
@@ -23,6 +21,7 @@ Tracker::~Tracker()
 }
 
 extern Tracker (*sInstances)[64];
+extern AloTrackable aloTrackable;
 
 // FUNCTION: SWBF2 0x0065acb0
 Tracker* Tracker::GetTracker(int iIndex)
@@ -33,12 +32,21 @@ Tracker* Tracker::GetTracker(int iIndex)
 // FUNCTION: SWBF2 0x0065acc0
 void Tracker::RemoveTrackable(Trackable* pTrackable)
 {
-    int iCount = NetGame::IsEnabled() ? netCurMaxPlayers : (int)NetGame::GetNumLocalPlayers();
-    for (int i = 0; i < iCount; ++i)
+    for (PblList<Tracker>::Itor it(sAllInstances); it != sAllInstances.End(); ++it)
     {
-        if ((*sInstances)[i].mTrackable == pTrackable)
+        if (it->mTrackable == pTrackable)
         {
-            (*sInstances)[i].mTrackable = 0;
+            it->mTrackable = 0;
+        }
+    }
+    for (int i = 0; i < 64; ++i)
+    {
+        for (int j = 0; j < 2; ++j)
+        {
+            if (aloTrackable.mTrackable[i][j] == pTrackable)
+            {
+                aloTrackable.mTrackable[i][j] = (Trackable*)-1;
+            }
         }
     }
     pTrackable->SetTracker(0);
@@ -129,7 +137,7 @@ void Tracker::SetTrackable(Trackable* pTrackable, int iPlayer)
     if ((*sInstances)[iPlayer].mTrackable)
     {
         Tracker* pOld = (*sInstances)[iPlayer].mTrackable->mTracker;
-        if ((unsigned int)pOld != 0xDDDDDDDDu && pOld && (*sInstances)[iPlayer].IsFirstPersonView())
+        if (pOld && (*sInstances)[iPlayer].IsFirstPersonView())
         {
             (*sInstances)[iPlayer].mTrackable->SetFirstPersonView(iPlayer, false);
         }

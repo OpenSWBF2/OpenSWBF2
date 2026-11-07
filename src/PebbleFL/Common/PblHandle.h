@@ -1,6 +1,27 @@
 #pragma once
 
-#include "PebbleFL/Common/PblAsan.h"
+class PblHandled;
+
+class PblHandleRegistry
+{
+public:
+    static bool IsLive(const PblHandled* pKey, unsigned int uId);
+    static bool Lookup(const PblHandled* pKey, unsigned int* puId);
+    static void PurgeRange(const void* pStart, const void* pEnd);
+    static unsigned int CountInRange(const void* pStart, const void* pEnd);
+    static unsigned int GetCount();
+    static unsigned int GetCapacity();
+    static unsigned int HomeSlot(const void* pKey);
+#ifdef OPENSWBF2_TEST
+    static void FailAllocForTest(bool bFail);
+#endif
+
+private:
+    friend class PblHandled;
+
+    static void Insert(const PblHandled* pKey, unsigned int uId);
+    static void Erase(const PblHandled* pKey);
+};
 
 // VTABLE: SWBF2 0x00785b04
 class PblHandled
@@ -8,23 +29,23 @@ class PblHandled
 public:
 
     PblHandled();
+    PblHandled(const PblHandled& other);
+    PblHandled& operator=(const PblHandled& other);
 
     // FUNCTION: SWBF2 0x0042cf20
-    virtual ~PblHandled() { mHandleId = 0; }
+    virtual ~PblHandled() { mHandleId = 0; PblHandleRegistry::Erase(this); }
 
-    PBL_ASAN_NO_SANITIZE unsigned int GetHandleId() const;
+    unsigned int GetHandleId() const;
 
     static unsigned int SetNextHandleId(unsigned int uId);
     static unsigned int GetNextHandleId();
+    static unsigned int HandleIdOffset();
+
+private:
+    template <class> friend class PblHandle;
 
     unsigned int mHandleId;
 };
-
-#if defined(__SANITIZE_ADDRESS__)
-#define PBL_HANDLE_ID(pObject) ((pObject)->PblHandled::GetHandleId())
-#else
-#define PBL_HANDLE_ID(pObject) ((pObject)->mHandleId)
-#endif
 
 template <class TYPE>
 class PblHandle
@@ -35,7 +56,11 @@ public:
     TYPE& operator()() const { return *GetObjectA(); }
 
     TYPE* mObject;
+
+private:
     unsigned int mSavedHandleId;
+
+public:
 
     // TEMPLATE: SWBF2 0x00439a80
     // PblHandle<GameObject>::PblHandle<GameObject>
@@ -122,14 +147,15 @@ public:
         mSavedHandleId = pObject ? pObject->mHandleId : 0;
     }
 
-private:
+    bool IsLive() const { return mObject && PblHandleRegistry::IsLive(mObject, mSavedHandleId); }
+
     // TEMPLATE: SWBF2 0x00428e40
     // PblHandle<ParticleEmitterObject>::GetObjectA
     TYPE* GetObjectA() const
     {
         if (mObject)
         {
-            if (PBL_HANDLE_ID(mObject) == mSavedHandleId)
+            if (PblHandleRegistry::IsLive(mObject, mSavedHandleId))
             {
                 return mObject;
             }

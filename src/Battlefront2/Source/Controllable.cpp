@@ -60,11 +60,6 @@ namespace AIUtil
 GameObject* GetAlivePtr(PblHandle<GameObject> const& hObj, bool bIncludeBuildings);
 }
 
-static inline unsigned int GameObjectHandleId(const GameObject* pObject)
-{
-    return PBL_HANDLE_ID(pObject);
-}
-
 // FUNCTION: SWBF2 0x004833b0
 float Controllable::GetSoundRadius() const
 {
@@ -150,8 +145,7 @@ void Controllable::ClearControllable()
     mAnimNameId = 0;
     mTurnBuildup = 0.0f;
     mPitchBuildup = 0.0f;
-    mTargetLockedObj.mObject = 0;
-    mTargetLockedObj.mSavedHandleId = 0;
+    mTargetLockedObj = 0;
     mAllowedLockTypes = 0;
     mTurnAdjusted = 2.0f;
     mPitchAdjusted = 2.0f;
@@ -159,8 +153,7 @@ void Controllable::ClearControllable()
     mPitchAuto = 0.0f;
     mLockBreakTimer = 0.0f;
     mUsingTurnAdjusted = false;
-    mCollisionObj.mObject = 0;
-    mCollisionObj.mSavedHandleId = 0;
+    mCollisionObj = 0;
     mEnemyLockedOnMeState = 0.0f;
     mEnemyLockedOnMeTimestamp = 0.0f;
     mEnemyLockedOnMeMissile = 0;
@@ -374,8 +367,7 @@ void Controllable::SetIndirectControl(bool bIndirect)
 // FUNCTION: SWBF2 0x00483f50
 void Controllable::SetCurrentCollision(GameObject* pObject)
 {
-    mCollisionObj.mObject = pObject;
-    mCollisionObj.mSavedHandleId = pObject ? GameObjectHandleId(pObject) : 0;
+    mCollisionObj = pObject;
 }
 
 // FUNCTION: SWBF2 0x00483f80

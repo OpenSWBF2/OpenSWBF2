@@ -307,24 +307,14 @@ void EntityCarrier::UpdateLandedHeight()
     for (int i = 0; i < mCargoCount; ++i)
     {
         CargoSlot* pSlot = &mCargoArray[i];
-        if (!pSlot->mObject.mObject)
+        if (GameObject* pObject = pSlot->mObject.GetObjectA())
         {
-            continue;
-        }
-
-        if (PBL_HANDLE_ID(pSlot->mObject.mObject) == pSlot->mObject.mSavedHandleId)
-        {
-            const GameModel* pModel = pSlot->mObject.mObject->GetModel();
+            const GameModel* pModel = pObject->GetModel();
             if (pModel)
             {
                 float fCandidate = -pSlot->mOffset.y - pModel->_mModel->_TotalBoundingBox._vMin.y;
                 mLandedHeight = mLandedHeight > fCandidate ? mLandedHeight : fCandidate;
             }
-        }
-        else
-        {
-            pSlot->mObject.mObject = 0;
-            pSlot->mObject.mSavedHandleId = 0;
         }
     }
 }

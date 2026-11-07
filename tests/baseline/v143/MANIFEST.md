@@ -26,7 +26,7 @@ Differences from `tests/baseline/vs2013/` and their causes are in [CAUSES.md](CA
 | `mem-peaks.txt` | 7E04AB6350B36202C3A057CCFC4447A38A4227BD6A70AF1A16DEDE4692AD1865 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
 | `cloth-headroom.txt` | F292282F69E75FBCFC543367ACC2A850DE351F9F32B22B792CED55D1A0E98349 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
 | `hardening.txt` | 79E6FB275A17F199CFE178DC989447A1CB3A97870486BE10F5A1B5B31C7EDC7F | `capture-vs2013.ps1 -Tables` from `run.ps1 -Hardening` |
-| `guard-revert.txt` | A0431332FF07DA1D983D7E6BC4DF794DAA75359D501B78B5BCB1739311EE8261 | `capture-vs2013.ps1 -Tables` from `guard-revert.ps1` |
+| `guard-revert.txt` | 725BE60CAA91CF091EE68813224D78C5F153CE99BF3A89CE82ACF633BF38DEC5 | `capture-vs2013.ps1 -Tables` from `guard-revert.ps1` |
 | `offthread.txt` | 994F3F31C1A458C5EF9C1530AE0E53033D6D63345519A72FD7B91BACDF9F4108 | `capture-vs2013.ps1 -Configuration Test -Tables -OffThreadDir` from `run.ps1 -Smoke All -SmokeConfiguration Test` and `-OffThreadSoundDir` from `soundon.ps1` |
 | `perturb.txt` | 2FE99AD131838277AFE814F730B57928843A245AC293ADA77837352235B6ADB1 | `capture-vs2013.ps1 -Configuration Test -Tables -PerturbDir` from `run.ps1 -Configuration Test -Smoke Perturb` |
 | `lua-bins.txt` | 5B111D9E6F4290A74835015729CFDE0C4D6BDC210705A16DB808FB995D9EA24C | `capture-vs2013.ps1 -Configuration Test -Tables -LuaBinsDir` from `run.ps1 -Configuration Test -Smoke All -SimOrder address` |

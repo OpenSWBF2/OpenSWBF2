@@ -218,7 +218,7 @@ LAA-01       GREEN    RED                    hardening:laa check=laa ok=False
 WIN-03B      GREEN    RED                    hardening:import-SetProcessDPIAware check=import-SetProcessDPIAware ok=False
 FLAG-ALIGNNEW GREEN    RED                    tlog:flag-alignednew reverted: cl entries=770 /Zc:alignedNew-=0
 FLAG-INLINE  GREEN    RED                    tlog:flag-inline reverted: cl entries=770 /Zc:inline=770 /Zc:inline-=770
-FLAG-ALIGNNEW-T GREEN    RED                    tlog:flag-alignednew-tests reverted: tests cl entries=175 /Zc:alignedNew-=0
+FLAG-ALIGNNEW-T GREEN    RED                    tlog:flag-alignednew-tests reverted: tests cl entries=179 /Zc:alignedNew-=0
 FLAG-THROWNEW GREEN    RED                    tlog:flag-banned reverted: /Zc:throwingNew=770 /GL=0 /fp:fast=0 /fp:contract=0 /GS-=0
 FLAG-GL      GREEN    RED                    tlog:flag-banned build failed after 770 compiles; reverted: /Zc:throwingNew=0 /GL=770 /fp:fast=0 /fp:contract=0 /GS-=0
 FLAG-FPFAST  GREEN    RED                    tlog:flag-banned reverted: /Zc:throwingNew=0 /GL=0 /fp:fast=770 /fp:contract=0 /GS-=0
@@ -325,3 +325,8 @@ LHASH-01C    GREEN    RED         1          lua dead slot reuse does not move t
 LHASH-01D    GREEN    RED         1          lua dead keys do not revive after a collection under serial order 
 LHASH-01E    GREEN    RED         1          lua clearing keys with a collection during traversal visits every key 
 LHASH-01F    GREEN    RED         3221225477 lua weak key tables skip dead keys under serial order crash 0xC0000005
+PBLHANDLE-01 GREEN    RED         1,1        handle registry resolves a freed and overwritten block to null | handle to a freed pool object resolves to null 
+HNDL-01      GREEN    RED         1          handle registry resolves a freed and overwritten block to null 
+HNDL-02      GREEN    RED         1          destroying a trackable clears both tracker worlds and the alo slots 
+HNDL-03      GREEN    RED         1          destroying a trackable clears both tracker worlds and the alo slots 
+HNDL-04      GREEN    RED         1          trackable destructor removes it from every tracker (source pin: callers need the game runtime) 

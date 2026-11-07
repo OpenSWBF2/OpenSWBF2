@@ -108,17 +108,6 @@ namespace
         return pWpn->mState;
     }
 
-    inline const GameObject* HandleObject(const PblHandle<GameObject>& handle)
-    {
-        PblHandle<GameObject>& h = const_cast<PblHandle<GameObject>&>(handle);
-        if (h.mObject && PBL_HANDLE_ID(h.mObject) != h.mSavedHandleId)
-        {
-            h.mObject = 0;
-            h.mSavedHandleId = 0;
-        }
-        return h.mObject;
-    }
-
     inline const PblVector3& GetPosition(const GameObject* pObj)
     {
         return static_cast<const CollisionObject*>(pObj)->GetPosition();
@@ -411,7 +400,7 @@ void CombatUtil::GetAverageDamageValues(const DamageOwner& owner, const Ordnance
     }
 
     const UnitController* pCtrl = 0;
-    if (HandleObject(owner.mGameObject))
+    if (owner.mGameObject.GetObjectA())
     {
         const GameObject* pOwnerObj = owner.mGameObject;
         pCtrl = UnitControllerPtr(GetControllable(const_cast<GameObject*>(pOwnerObj)));
@@ -559,7 +548,7 @@ float CombatUtil::CalcDamagePerSecond(Controllable* pMe, const WeaponClass* pCla
                       pMe->GetOffenseMultiplier());
 
     const UnitController* pCtrl = 0;
-    const GameObject* pOwnerObj = HandleObject(owner.mGameObject);
+    const GameObject* pOwnerObj = owner.mGameObject.GetObjectA();
     if (pOwnerObj)
     {
         pCtrl = UnitControllerPtr(GetControllable(const_cast<GameObject*>(pOwnerObj)));

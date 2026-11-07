@@ -1538,7 +1538,7 @@ template <class T>
 static unsigned int HandleIdOffset()
 {
     T* pObject = (T*)0x10000;
-    return (unsigned int)&static_cast<PblHandled*>(pObject)->mHandleId - (unsigned int)pObject;
+    return (unsigned int)static_cast<PblHandled*>(pObject) - (unsigned int)pObject + PblHandled::HandleIdOffset();
 }
 
 static const unsigned int kHandleTypes = 6;
@@ -1548,8 +1548,6 @@ struct HandleScan
 {
     unsigned int uLo;
     unsigned int uHi;
-    unsigned int uImageLo;
-    unsigned int uImageHi;
     unsigned int uDeadVtable;
     unsigned int uNext;
     unsigned int uLive;
@@ -1575,8 +1573,9 @@ static PBL_ASAN_NO_SANITIZE void ScanHandleRange(HandleScan& rScan, const unsign
                 continue;
             }
             const unsigned int* puHandled = (const unsigned int*)uAt;
-            const bool bLive = puHandled[0] == uId && puHandled[-1] >= rScan.uImageLo && puHandled[-1] < rScan.uImageHi;
-            const bool bDead = puHandled[0] == 0 && puHandled[-1] == rScan.uDeadVtable;
+            const unsigned int uKey = uAt - PblHandled::HandleIdOffset();
+            const bool bLive = PblHandleRegistry::IsLive((const PblHandled*)uKey, uId);
+            const bool bDead = !bLive && puHandled[0] == 0 && puHandled[-1] == rScan.uDeadVtable;
             if (!bLive && !bDead)
             {
                 continue;
@@ -1622,8 +1621,6 @@ static void ScanStaleHandles(bool bMission)
     char* pcImage = (char*)GetModuleHandleA(0);
     IMAGE_DOS_HEADER* pDos = (IMAGE_DOS_HEADER*)pcImage;
     IMAGE_NT_HEADERS* pNt = (IMAGE_NT_HEADERS*)(pcImage + pDos->e_lfanew);
-    kScan.uImageLo = (unsigned int)pcImage;
-    kScan.uImageHi = kScan.uImageLo + pNt->OptionalHeader.SizeOfImage;
     IMAGE_SECTION_HEADER* pSection = IMAGE_FIRST_SECTION(pNt);
     for (unsigned int i = 0; i < pNt->FileHeader.NumberOfSections; ++i, ++pSection)
     {

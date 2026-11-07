@@ -475,18 +475,6 @@ const RedPose* EntityBuilding::GetRenderPose() const
 
 
 
-static inline GameObject* GetHandleObject(PblHandle<GameObject>& handle)
-{
-    if (handle.mObject &&
-        PBL_HANDLE_ID(handle.mObject) !=
-            handle.mSavedHandleId)
-    {
-        handle.mObject = 0;
-        handle.mSavedHandleId = 0;
-    }
-    return handle.mObject;
-}
-
 // FUNCTION: SWBF2 0x00492a50
 void EntityBuilding::ClientKill()
 {

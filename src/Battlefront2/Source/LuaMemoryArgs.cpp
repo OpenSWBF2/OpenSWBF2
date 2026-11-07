@@ -89,6 +89,7 @@ void ClearTempHeap(int iRuntimeHeap, int& riTempHeap)
     {
         if (riTempHeap)
         {
+            RedPurgeHeapHandles(riTempHeap, "ScriptTemp");
             RedDestroyHeap(riTempHeap);
             RedSetTempHeap(-1);
             riTempHeap = 0;

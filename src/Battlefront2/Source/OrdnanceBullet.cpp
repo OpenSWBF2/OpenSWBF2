@@ -40,11 +40,6 @@ PblMatrix DirectionMatrix(const PblVector3& vDir, const PblVector3& vUp, const P
 namespace
 {
 
-    inline unsigned int GameObjectHandleId(const GameObject* pObject)
-    {
-        return pObject->mHandleId;
-    }
-
     int GameObjectTeam(const GameObject* pObject)
     {
         return pObject->GetTeam();
@@ -299,17 +294,15 @@ void OrdnanceBullet::CreateRicochet(const PblVector3& vPos, const PblVector3& vN
     desc.mStrength = 1.0f;
     desc.mPosition = vPos;
     desc.mOwner = pObject;
-    desc.mDamageOwner.mGameObject.mObject = pObject;
+    desc.mDamageOwner.mGameObject = pObject;
     desc.mDirection = vNormal;
-    desc.mDamageOwner.mGameObject.mSavedHandleId = pObject ? GameObjectHandleId(pObject) : 0;
     if (pObject)
     {
         Controllable* pControllable = GetControllable(pObject);
         desc.mDamageOwner.mCharacter = pControllable->mCharacter;
         desc.mDamageOwner.mTeam = pObject->GetTeam();
         desc.mDamageOwner.mClass = GetEntityClass(pObject);
-        desc.mDamageOwner.mGameObject.mObject = pObject;
-        desc.mDamageOwner.mGameObject.mSavedHandleId = GameObjectHandleId(pObject);
+        desc.mDamageOwner.mGameObject = pObject;
         desc.mDamageOwner.mDamageMultiplier = pControllable->GetOffenseMultiplier();
     }
     else
@@ -317,8 +310,7 @@ void OrdnanceBullet::CreateRicochet(const PblVector3& vPos, const PblVector3& vN
         desc.mDamageOwner.mCharacter = 0;
         desc.mDamageOwner.mTeam = 0;
         desc.mDamageOwner.mClass = 0;
-        desc.mDamageOwner.mGameObject.mObject = 0;
-        desc.mDamageOwner.mGameObject.mSavedHandleId = 0;
+        desc.mDamageOwner.mGameObject = 0;
         desc.mDamageOwner.mDamageMultiplier = 1.0f;
     }
     desc.mDamageOwner.mWeapon = 0;
@@ -349,7 +341,7 @@ void OrdnanceBullet::Render(unsigned char, float, unsigned int uiFlags)
 
     PblVector3 vPos = mPosition;
     if (!netFrameLock && NetGame::IsEnabled() &&
-        netInterpolator.GetIndex(mInterpIndex, 0, PblHandled::mHandleId))
+        netInterpolator.GetIndex(mInterpIndex, 0, PblHandled::GetHandleId()))
     {
         netInterpolator.GetVec(mInterpIndex, vPos);
     }
@@ -451,8 +443,7 @@ bool OrdnanceBullet::Update(float fDeltaTime)
     if (mFinalCollisionOnNextUpdate)
     {
         if (mFinalCollision &&
-            !(mFinalCollisionHandle.mObject &&
-              PBL_HANDLE_ID(mFinalCollisionHandle.mObject) != mFinalCollisionHandle.mSavedHandleId))
+            !(mFinalCollisionHandle.mObject && !mFinalCollisionHandle.IsLive()))
         {
             Collide(mFinalCollision, mPosition, mFinalCollisionNormal, 0);
         }
@@ -525,7 +516,7 @@ bool OrdnanceBullet::Update(float fDeltaTime)
     }
 
     if (!netFrameLock && NetGame::IsEnabled() && NetGame::IsClient() &&
-        netInterpolator.GetIndex(mInterpIndex, 0, PblHandled::mHandleId))
+        netInterpolator.GetIndex(mInterpIndex, 0, PblHandled::GetHandleId()))
     {
         netInterpolator.SetNext(mInterpIndex, &mPosition);
     }

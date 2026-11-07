@@ -70,8 +70,7 @@ bool VehicleCoverHelper::CheckForHintAndInit(const GameObject* pTarget)
         return false;
     }
 
-    mVehicleCoverTarget.mObject = pTarget;
-    mVehicleCoverTarget.mSavedHandleId = pTarget ? pTarget->mHandleId : 0;
+    mVehicleCoverTarget = pTarget;
     mHint = const_cast<VehicleCoverHint*>(FindHint());
     if (!mHint)
     {

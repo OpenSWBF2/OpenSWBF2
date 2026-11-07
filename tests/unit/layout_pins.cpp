@@ -2,6 +2,8 @@
 
 #include <stddef.h>
 
+#include "third_party/doctest/doctest.h"
+
 #include "Battlefront2/Source/Weapon.h"
 #include "Battlefront2/Source/EntityFlyer.h"
 #include "Battlefront2/Source/EntityCarrier.h"
@@ -129,7 +131,13 @@ static_assert(offsetof(Aimer, mWeapon) == 0x208, "aimer weapon");
 static_assert(sizeof(EntityGeometry) == 0x140, "entity geometry size");
 static_assert(sizeof(GameObject) == 0x240, "game object size");
 static_assert(offsetof(GameObject, mEntityClass) == 0x8, "game object entity class");
-static_assert(offsetof(GameObject, mHandleId) == 0x204, "game object handle id");
+static_assert(sizeof(PblHandle<GameObject>) == 8, "game object handle size");
+TEST_CASE("game object handle id stays at offset 0x204" * doctest::test_suite("unit"))
+{
+    GameObject* pObject = (GameObject*)0x1000;
+    const unsigned int uBase = (unsigned int)((char*)static_cast<PblHandled*>(pObject) - (char*)pObject);
+    CHECK(uBase + PblHandled::HandleIdOffset() == 0x204);
+}
 static_assert(offsetof(GameObject, mNetUniqueId) == 0x21c, "game object net unique id");
 struct GameObjectLayoutPins : GameObject
 {

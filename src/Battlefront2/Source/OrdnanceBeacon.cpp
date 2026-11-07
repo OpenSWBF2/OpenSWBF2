@@ -12,24 +12,6 @@
 
 extern bool netIsLocalTurn;
 
-namespace
-{
-
-    inline GameObject* ResolveHandle(PblHandle<GameObject>& handle)
-    {
-        GameObject* pObject = handle.mObject;
-        if (pObject &&
-            PBL_HANDLE_ID(pObject) !=
-                handle.mSavedHandleId)
-        {
-            handle.mObject = 0;
-            handle.mSavedHandleId = 0;
-            pObject = 0;
-        }
-        return pObject;
-    }
-}
-
 // SYNTHETIC: SWBF2 0x00405a10
 // `dynamic initializer for 'OrdnanceBeacon::rttiHashOrdnanceBeacon''
 // OrdnanceBeacon::rttiHashOrdnanceBeacon
@@ -127,9 +109,9 @@ bool OrdnanceBeacon::Update(float fDeltaTime)
 
         desc.mDirection = PblVector3(-aim.m[2][0], -aim.m[2][1], -aim.m[2][2]);
         desc.mStrength = 1.0f;
-        desc.mOwner = ResolveHandle(mOwner);
+        desc.mOwner = mOwner.GetObjectA();
         desc.mDamageOwner = mDamageOwner;
-        desc.mTarget = mStickInfo ? ResolveHandle(mStickInfo->mCollHandle) : 0;
+        desc.mTarget = mStickInfo ? mStickInfo->mCollHandle.GetObjectA() : 0;
         desc.mBodyID = mStickInfo ? mStickInfo->mCollBodyID : -1;
 
         if (NetGame::IsEnabled() && NetGame::IsClient())

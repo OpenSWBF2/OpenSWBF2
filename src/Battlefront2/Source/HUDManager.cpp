@@ -367,6 +367,7 @@ void HUD::Manager::Close()
 
     if (HUD::gEditHeapMem)
     {
+        RedPurgeHeapHandles(HUD::gEditHeap, "HUDEdit");
         RedDestroyHeap(HUD::gEditHeap);
         RedFreeToHeap(__RedDebugHeap, HUD::gEditHeapMem, 0);
         HUD::gEditHeapMem = 0;
