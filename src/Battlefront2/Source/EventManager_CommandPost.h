@@ -49,13 +49,7 @@ private:
 
 inline GameObject* PostObject(CommandPost& post)
 {
-    PblHandle<GameObject>& h = post.mObject;
-    if (h.mObject && PBL_HANDLE_ID(h.mObject) != h.mSavedHandleId)
-    {
-        h.mObject = 0;
-        h.mSavedHandleId = 0;
-    }
-    return h.mObject;
+    return post.mObject.GetObjectA();
 }
 
 template <class PARAM>

@@ -158,7 +158,7 @@ inline void NetGameObjectHandle::Set(const GameObject* object)
 
 inline void NetGameObjectHandle::Get(const GameObject*& object)
 {
-    if (ptr && ptr->GetHandleId() != id)
+    if (ptr && !PblHandleRegistry::IsLive(ptr, id))
     {
         ptr = 0;
         id = 0;
@@ -14516,7 +14516,6 @@ void SetHostWorldIndex(int index, GameObject* pObject)
 void WriteTrackable(NetPktGroup& group, Trackable* pTrackable)
 {
     if (!pTrackable || pTrackable == (Trackable*)-1 ||
-        pTrackable->GetTracker() == (Tracker*)0xdddddddd ||
         !pTrackable->GetGameObject() || !pTrackable->GetGameObject()->IsAlive())
     {
         group.Write(false);
@@ -15406,8 +15405,7 @@ void WritePlayerMoves(NetPktGroup& group)
     }
     PblVector3 center(0.0f, 0.0f, 0.0f);
     Trackable* pTrackable = Tracker::GetTracker(iTracker)->GetTrackable();
-    if (pTrackable && pTrackable != (Trackable*)-1 &&
-        pTrackable->GetTracker() != (Tracker*)0xdddddddd)
+    if (pTrackable && pTrackable != (Trackable*)-1)
     {
         center = pTrackable->GetGameObject()->GetMatrix().GetTranslation();
     }
@@ -15418,8 +15416,7 @@ void WritePlayerMoves(NetPktGroup& group)
             iPlayer != curDst)
         {
             pTrackable = Tracker::GetTracker(iPlayer)->GetTrackable();
-            if (pTrackable && pTrackable != (Trackable*)-1 &&
-                pTrackable->GetTracker() != (Tracker*)0xdddddddd)
+            if (pTrackable && pTrackable != (Trackable*)-1)
             {
                 nearest.Push(iPlayer,
                     -Length(pTrackable->GetGameObject()->GetMatrix().GetTranslation() - center));
@@ -15754,7 +15751,7 @@ void WriteNetEvent(NetEvent& event, NetPktGroup& group)
             WriteObjectPtr(group, owner);
         }
         WriteCharacter(group, data.mCharacter);
-        if (data.mGameObject && data.mGameObject->GetHandleId() == data.mGameObjectId)
+        if (PblHandleRegistry::IsLive(data.mGameObject, data.mGameObjectId))
         {
             group.Write(true);
             WriteObjectPtr(group, data.mGameObject);
@@ -15775,7 +15772,7 @@ void WriteNetEvent(NetEvent& event, NetPktGroup& group)
         group.WriteBits(data.mOrdClassIndex, 8);
         group.WriteBits(data.mWpnClassIndex, 8);
         group.WriteBits(data.mEntClassIndex, 8);
-        unsigned int targetId = data.mTarget && data.mTarget->GetHandleId() == data.mTargetId
+        unsigned int targetId = PblHandleRegistry::IsLive(data.mTarget, data.mTargetId)
             ? GetUniqObjectId(data.mTarget) : 63;
         group.WriteBits(targetId, GetUniqObjectBits());
         if (owner && data.mFireWeapon)
@@ -16188,8 +16185,7 @@ void WriteObjects(NetPktGroup& group)
         }
         Tracker* tracker = Tracker::GetTracker(viewer);
         Trackable* trackable = tracker->GetTrackable();
-        if (trackable && trackable != (Trackable*)-1 &&
-            trackable->GetTracker() != (Tracker*)0xdddddddd)
+        if (trackable && trackable != (Trackable*)-1)
         {
             trackable->SetupCameraZoomFactor(zoom);
             GameObject* pObject = trackable->GetGameObject();
@@ -16219,8 +16215,7 @@ void WriteObjects(NetPktGroup& group)
                 front = PblVector3(0.0f, 0.0f, 1.0f);
                 tracker = Tracker::GetTracker(guest);
                 trackable = tracker->GetTrackable();
-                if (trackable && trackable->GetTracker() &&
-                    trackable->GetTracker() != (Tracker*)0xdddddddd)
+                if (trackable && trackable->GetTracker())
                 {
                     GameObject* pObject = trackable->GetGameObject();
                     const PblMatrix& matrix = pObject->GetMatrix();

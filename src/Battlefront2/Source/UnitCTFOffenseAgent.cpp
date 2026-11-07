@@ -57,8 +57,7 @@ UnitCTFOffenseAgent::UnitCTFOffenseAgent(UnitController* pCtrl, const FlagItem* 
 {
     mCurState = 1;
     mNextState = 1;
-    mFlag.mObject = reinterpret_cast<const GameObject*>(pFlag);
-    mFlag.mSavedHandleId = pFlag ? pFlag->mHandleId : 0;
+    mFlag = pFlag;
     mCapturePos = vPos;
 
     mDefendCarrierOffset = AIUtil::GetRandomFloat(1.0f, 6.0f);
@@ -111,22 +110,6 @@ const char* UnitCTFOffenseAgent::NFINAL_GetStateString(int) const
 
 namespace
 {
-
-    const GameObject* GetFlag(PblHandle<const GameObject>& handle)
-    {
-        const GameObject* pObject = handle.mObject;
-        if (pObject)
-        {
-            if (PBL_HANDLE_ID(pObject) ==
-                handle.mSavedHandleId)
-            {
-                return pObject;
-            }
-            handle.mObject = 0;
-            handle.mSavedHandleId = 0;
-        }
-        return 0;
-    }
 
     inline const CollisionObject* GetCollisionObject(const GameObject* pObject)
     {

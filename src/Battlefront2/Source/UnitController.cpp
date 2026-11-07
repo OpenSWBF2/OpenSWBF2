@@ -121,21 +121,6 @@ namespace
     return static_cast<const CollisionObject*>(pObject)->GetPosition();
     }
 
-    GameObject* Resolve(PblHandle<GameObject>& h)
-    {
-        GameObject* pObject = h.mObject;
-        if (pObject)
-        {
-        if (PBL_HANDLE_ID(pObject) == h.mSavedHandleId)
-        {
-                return pObject;
-        }
-            h.mObject = 0;
-            h.mSavedHandleId = 0;
-        }
-        return 0;
-    }
-
 
 }
 

@@ -38,11 +38,6 @@ namespace
     {
         return static_cast<Damageable*>(pObject);
     }
-
-    inline unsigned int GameObjectHandleId(const GameObject* pObject)
-    {
-        return PBL_HANDLE_ID(pObject);
-    }
 }
 
 // SYNTHETIC: SWBF2 0x00405b80
@@ -287,8 +282,7 @@ bool OrdnanceSticky::Update(float fDeltaTime)
         return OrdnanceShell::Update(fDeltaTime);
     }
 
-    if (mStickInfo->mCollHandle.mObject &&
-        GameObjectHandleId(mStickInfo->mCollHandle.mObject) != mStickInfo->mCollHandle.mSavedHandleId)
+    if (mStickInfo->mCollHandle.mObject && !mStickInfo->mCollHandle.IsLive())
     {
         delete mStickInfo;
         mStickInfo = 0;
@@ -355,7 +349,7 @@ void OrdnanceSticky::Render(unsigned char ucViewport, float fDist, unsigned int 
     {
         PblVector3 vPos = mPosition;
         if (!netFrameLock && NetGame::IsEnabled() &&
-            netInterpolator.GetIndex(mInterpIndex, 0, PblHandled::mHandleId))
+            netInterpolator.GetIndex(mInterpIndex, 0, PblHandled::GetHandleId()))
         {
             netInterpolator.GetVec(mInterpIndex, vPos);
         }

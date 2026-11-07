@@ -3201,7 +3201,7 @@ int EntitySoldier::GetReservableSlots(ReserveType eType) const
 // FUNCTION: SWBF2 0x004f0110
 bool EntitySoldier::UpdateIndirect(float fDeltaTime)
 {
-    if (!mSkip && !(mHandleId & 1) == gThreadIsEven && !AIUtil::IsImportant(this))
+    if (!mSkip && !(PblHandled::GetHandleId() & 1) == gThreadIsEven && !AIUtil::IsImportant(this))
     {
         mSkip = true;
         mSkipIndirectTime = fDeltaTime;

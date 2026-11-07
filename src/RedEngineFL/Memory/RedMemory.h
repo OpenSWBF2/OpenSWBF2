@@ -53,8 +53,8 @@ extern "C"
     extern void (*OnFailure)(int heap, unsigned int size);
     PBL_ASAN_NO_SANITIZE void RedMoveHeapEnd(int heap, int offset);
     bool RedGetHeapStats(int heap, RedHeapStats* pOut);
-#ifdef OPENSWBF2_TEST
     bool RedGetHeapRange(int heap, void** ppStart, unsigned int* puSize);
+#ifdef OPENSWBF2_TEST
     void RedGetOffThreadTotals(unsigned int* puCount, unsigned int* puSources, unsigned int* puDropped);
     bool RedGetOffThreadSource(int i, RedOffThreadSource* pOut);
     void RedResetOffThreadStats();
@@ -74,3 +74,4 @@ extern "C"
 }
 
 unsigned int RedGetHeapSize(int heap);
+void RedPurgeHeapHandles(int heap, const char* name);

@@ -379,8 +379,7 @@ void HUD::GameEvents::Open()
         weapon.ammoTotalFraction = -1.0f;
         weapon.clipTotalFraction = -1.0f;
 
-        weapon.target.mObject = 0;
-        weapon.target.mSavedHandleId = 0;
+        weapon.target = 0;
         weapon.targetHealth = -1.0f;
         weapon.showReticule = false;
         weapon.targetLocked = 0;

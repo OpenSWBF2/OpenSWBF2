@@ -77,21 +77,6 @@ inline Damageable* GameObjectDamageable(GameObject* pObject)
 {
     return static_cast<Damageable*>(pObject);
 }
-inline unsigned int GameObjectHandleId(GameObject* pObject)
-{
-    return PBL_HANDLE_ID(pObject);
-}
-
-inline GameObject* HandleObject(PblHandle<GameObject>& handle)
-{
-    if (handle.mObject && GameObjectHandleId(handle.mObject) != handle.mSavedHandleId)
-    {
-        handle.mObject = 0;
-        handle.mSavedHandleId = 0;
-    }
-    return handle.mObject;
-}
-
 inline Controllable* AsControllable(EntityRemoteTerminal* pTerminal)
 {
     return static_cast<Controllable*>(pTerminal);
@@ -130,8 +115,7 @@ EntityRemoteTerminal::EntityRemoteTerminal(EntityRemoteTerminalClass* pClass, co
     mRemoteGameObjectHash = 0;
     mNextLinkedTerminalHash = 0;
     mPrevLinkedTerminalHash = 0;
-    mRemoteGameObject.mObject = 0;
-    mRemoteGameObject.mSavedHandleId = 0;
+    mRemoteGameObject = 0;
     mNextLinkedTerminal = 0;
     mPrevLinkedTerminal = 0;
 }

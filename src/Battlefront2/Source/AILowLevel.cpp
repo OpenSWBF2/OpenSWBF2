@@ -41,14 +41,6 @@
 #include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblQuaternion.h"
 
-namespace
-{
-    inline unsigned int GameObjectHandleId(const GameObject* pObject)
-    {
-        return PBL_HANDLE_ID(pObject);
-    }
-}
-
 
 
 inline float Weapon::GetHeat() const
@@ -149,8 +141,7 @@ void AILowLevel::ClearControllable()
     mDoIdle = SoldierAnimType::IDLE;
     mFoldStatus = FOLD_FOLD;
     mMinControlSpeed = 0.0f;
-    mTarget.mObject = 0;
-    mTarget.mSavedHandleId = 0;
+    mTarget = 0;
     mIsCharging = false;
     mIsAlert = false;
     mFastTurn = false;
@@ -165,8 +156,7 @@ void AILowLevel::ClearControllable()
     mHeadLook_TurnToTime = 0.0f;
     mHeadLook_StayTime = 0.0f;
     mHeadLook_TurnBackTime = 0.0f;
-    mHeading.mObj.mObject = 0;
-    mHeading.mObj.mSavedHandleId = 0;
+    mHeading.mObj = 0;
     SetHeadingDefault();
 }
 
@@ -196,8 +186,7 @@ void AILowLevel::ResetControls()
 void AILowLevel::Initialize()
 {
     DeleteNavigator();
-    mHeading.mObj.mObject = 0;
-    mHeading.mObj.mSavedHandleId = 0;
+    mHeading.mObj = 0;
     SetHeadingDefault();
     mRolling = false;
     mJumping = false;
@@ -297,8 +286,7 @@ const PblMatrix& AILowLevel::GetMatrix() const
 void AILowLevel::SetHeading(const GameObject* pObj)
 {
     mHeading.mType = ControllableHeading::HEADING_OBJ;
-    mHeading.mObj.mObject = pObj;
-    mHeading.mObj.mSavedHandleId = pObj ? GameObjectHandleId(pObj) : 0;
+    mHeading.mObj = pObj;
 }
 
 // FUNCTION: SWBF2 0x0043afb0
@@ -647,13 +635,11 @@ void AILowLevel::SetFireRequest(bool bImmediate, bool bUponAim)
 void AILowLevel::SetTarget(const GameObject* pTarget)
 {
     Weapon* pWpn = mOwner->mOwner->GetCurWpn();
-    mTarget.mObject = pTarget;
-    mTarget.mSavedHandleId = pTarget ? GameObjectHandleId(pTarget) : 0;
+    mTarget = pTarget;
 
     Controllable* pMe = mOwner->mOwner;
     PblHandle<const GameObject>& reticule = pMe->mReticuleTarget[pMe->mWpnChannel];
-    reticule.mObject = pTarget;
-    reticule.mSavedHandleId = pTarget ? GameObjectHandleId(pTarget) : 0;
+    reticule = pTarget;
 
     if (pWpn)
     {
@@ -670,8 +656,7 @@ void AILowLevel::SetTarget(const GameObject* pTarget)
                 pTarget = 0;
             }
         }
-        pWpn->mTarget.mObject = pTarget;
-        pWpn->mTarget.mSavedHandleId = pTarget ? GameObjectHandleId(pTarget) : 0;
+        pWpn->mTarget = pTarget;
         pWpn->mTargetBodyID = -1;
     }
 }
@@ -679,18 +664,7 @@ void AILowLevel::SetTarget(const GameObject* pTarget)
 // FUNCTION: SWBF2 0x0043bac0
 const GameObject* AILowLevel::GetTarget() const
 {
-    const GameObject* pTarget = mTarget.mObject;
-    if (pTarget)
-    {
-        if (GameObjectHandleId(pTarget) == mTarget.mSavedHandleId)
-        {
-            return pTarget;
-        }
-        AILowLevel* pThis = const_cast<AILowLevel*>(this);
-        pThis->mTarget.mObject = 0;
-        pThis->mTarget.mSavedHandleId = 0;
-    }
-    return 0;
+    return mTarget;
 }
 
 // FUNCTION: SWBF2 0x0043baf0

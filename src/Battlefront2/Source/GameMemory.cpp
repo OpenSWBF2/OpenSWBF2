@@ -3,7 +3,9 @@
 #include "LuaMemory.h"
 #include "LuaMemoryArgs.h"
 #include "MemFailLog.h"
+#include "PebbleFL/Common/PblHandle.h"
 #include "RedEngineFL/Memory/RedMemory.h"
+#include "RedEngineFL/Util/RedLog.h"
 
 namespace GameMemory
 {
@@ -65,6 +67,7 @@ void GameMemory::InitApplicationMemory(char* pStart, char* pEnd)
 
     if (ApplicationHeap)
     {
+        PblHandleRegistry::PurgeRange(pStart, pEnd);
         RedDestroyHeap(ApplicationHeap);
         ApplicationHeap = 0;
     }
@@ -88,6 +91,7 @@ void GameMemory::BuildHeaps(bool bMission)
     if (TempLoadHeap)
     {
         RedMarkHeapPermanent(TempLoadHeap, false);
+        RedPurgeHeapHandles(TempLoadHeap, "Temp");
         RedDestroyHeap(TempLoadHeap);
         TempLoadHeap = 0;
     }
@@ -97,10 +101,12 @@ void GameMemory::BuildHeaps(bool bMission)
         RedMarkHeapPermanent(RunTimeHeap, false);
         if (TEMP_GamespyHeap)
         {
+            RedPurgeHeapHandles(TEMP_GamespyHeap, "TEMP_Gamespy");
             RedDestroyHeap(TEMP_GamespyHeap);
             TEMP_GamespyHeap = 0;
             GameMemory::gTempGamespyBlock = 0;
         }
+        RedPurgeHeapHandles(RunTimeHeap, "Runtime");
         RedDestroyHeap(RunTimeHeap);
         RunTimeHeap = 0;
     }
@@ -108,6 +114,7 @@ void GameMemory::BuildHeaps(bool bMission)
     if (LuaHeap)
     {
         RedMarkHeapPermanent(LuaHeap, false);
+        RedPurgeHeapHandles(LuaHeap, "Lua");
         RedDestroyHeap(LuaHeap);
         LuaHeap = 0;
     }
@@ -115,9 +122,19 @@ void GameMemory::BuildHeaps(bool bMission)
     if (ArtistHeap)
     {
         RedMarkHeapPermanent(ArtistHeap, false);
+        RedPurgeHeapHandles(ArtistHeap, "Artist");
         RedDestroyHeap(ArtistHeap);
         ArtistHeap = 0;
     }
+
+#ifdef OPENSWBF2_TEST
+    const unsigned int uArenaLeft = PblHandleRegistry::CountInRange(g_Heap3Start, gArenaEnd);
+    if (uArenaLeft != 0)
+    {
+        LOG(LogMemory, Error, "OPENSWBF2 HANDLEREG audit range=arena left=%u", uArenaLeft);
+        check(uArenaLeft == 0);
+    }
+#endif
 
     char* pLuaStart = AlignHeapStart(g_Heap3Start);
     char* pLuaEnd = pLuaStart + kLuaHeapSize;
@@ -149,10 +166,22 @@ void GameMemory::ReleaseTempHeap()
 
     if (TempLoadHeap)
     {
+        RedPurgeHeapHandles(TempLoadHeap, "Temp");
         RedDestroyHeap(TempLoadHeap);
         RedSetTempHeap(-1);
         TempLoadHeap = 0;
     }
+#ifdef OPENSWBF2_TEST
+    char* pTempBlock = (char*)gTempHeapBlock;
+#endif
     RedFreeToHeap(RunTimeHeap, gTempHeapBlock, 0);
     gTempHeapBlock = 0;
+#ifdef OPENSWBF2_TEST
+    const unsigned int uTempLeft = PblHandleRegistry::CountInRange(pTempBlock, pTempBlock + kTempLoadHeapSize);
+    if (uTempLeft != 0)
+    {
+        LOG(LogMemory, Error, "OPENSWBF2 HANDLEREG audit range=temp left=%u", uTempLeft);
+        check(uTempLeft == 0);
+    }
+#endif
 }

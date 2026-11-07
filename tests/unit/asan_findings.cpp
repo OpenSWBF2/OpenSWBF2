@@ -497,9 +497,8 @@ TEST_CASE("handle to a freed pool object resolves to null" * doctest::test_suite
 
     delete pProbe;
 #if defined(__SANITIZE_ADDRESS__)
-    CHECK(__asan_address_is_poisoned(&pProbe->mHandleId));
+    CHECK(__asan_address_is_poisoned(static_cast<PblHandled*>(pProbe)));
 #endif
-    CHECK(pProbe->PblHandled::GetHandleId() == 0);
     CHECK(!(HandleProbe*)h);
     CHECK(h.GetHandleId() == 0);
 

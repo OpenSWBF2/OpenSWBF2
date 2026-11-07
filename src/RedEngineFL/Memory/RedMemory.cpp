@@ -6,6 +6,8 @@
 #include "RedMemory.h"
 #include "RedEngineFL/Memory/engineAlloc.h"
 #include "PebbleFL/Common/PblAsan.h"
+#include "PebbleFL/Common/PblHandle.h"
+#include "RedEngineFL/Util/RedLog.h"
 
 #ifdef OPENSWBF2_TEST
 #include <windows.h>
@@ -968,7 +970,6 @@ extern "C" bool RedGetHeapStats(int heap, RedHeapStats* pOut)
     return true;
 }
 
-#ifdef OPENSWBF2_TEST
 extern "C" bool RedGetHeapRange(int heap, void** ppStart, unsigned int* puSize)
 {
     if (heap < 0 || heap >= maxheaps || heapobj == 0 || heapobj[heap].size == 0)
@@ -979,6 +980,36 @@ extern "C" bool RedGetHeapRange(int heap, void** ppStart, unsigned int* puSize)
     *puSize = heapobj[heap].size;
     return true;
 }
+
+void RedPurgeHeapHandles(int heap, const char* name)
+{
+    void* pStart = 0;
+    unsigned int uSize = 0;
+    if (RedGetHeapRange(heap, &pStart, &uSize))
+    {
+        PblHandleRegistry::PurgeRange(pStart, (char*)pStart + uSize);
+#ifdef OPENSWBF2_TEST
+        const unsigned int uLeft = PblHandleRegistry::CountInRange(pStart, (char*)pStart + uSize);
+        if (uLeft != 0)
+        {
+            LOG(LogMemory, Error, "OPENSWBF2 HANDLEREG audit heap=%s left=%u", name ? name : "?", uLeft);
+            check(uLeft == 0);
+        }
+#endif
+        return;
+    }
+#ifdef OPENSWBF2_TEST
+    if (heap != 0)
+    {
+        LOG(LogMemory, Error, "OPENSWBF2 HANDLEREG purge heap=%s index=%d range=none", name ? name : "?", heap);
+        check(heap == 0);
+    }
+#else
+    (void)name;
+#endif
+}
+
+#ifdef OPENSWBF2_TEST
 
 extern "C" void RedGetOffThreadTotals(unsigned int* puCount, unsigned int* puSources, unsigned int* puDropped)
 {

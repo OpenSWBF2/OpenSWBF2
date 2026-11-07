@@ -119,6 +119,7 @@
     <ClCompile Include="..\src\Battlefront2\Source\NetAdminMd5.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\VoiceChatUtil.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\NetComm.cpp" />
+    <ClCompile Include="..\src\Battlefront2\Source\Tracker.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\NetWire.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\MemFailLog.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\OdfValue.cpp" />

@@ -430,32 +430,6 @@ public:
  
  
 
-struct EntityFlyerRuntimeLayout
-{
-    void* mPrimaryVptr;
-    unsigned char _toCollisionVptr[0x08];
-    void* mCollisionVptr;
-    unsigned char _toVptr94[0x84];
-    void* mVptr94;
-    unsigned char _toVptr140[0xa8];
-    void* mVptr140;
-    unsigned char _toVptr200[0xbc];
-    void* mVptr200;
-    unsigned char _toControllable[0x3c];
-    void* mControllableVptr;
-    unsigned char _toVptr258[0x14];
-    void* mVptr258;
-    unsigned char _toPathFollower[0x170];
-    void* mPathFollowerVptr;
-    unsigned char _toVelocity[0x170];
-    PblVector3 mVelocity;
-    unsigned char _toState[0x18];
-    EntityFlyer::State mState;
-    unsigned char _toClass[0xc4];
-    EntityFlyerClass* mClass;
-    unsigned char _toPose[0x1230];
-    unsigned char mPoseAndTail[0x530];
-};
  
  
  
@@ -530,19 +504,6 @@ public:
  
  
 
-struct EntityCarrierRuntimeLayout
-{
-    EntityFlyerRuntimeLayout mFlyer;
-    struct CargoSlot
-    {
-        PblVector3 mOffset;
-        void* mObject;
-        unsigned int mSavedHandleId;
-    } mCargoArray[4];
-    int mCargoCount;
-    unsigned char _tail[0x0c];
-};
- 
  
  
 

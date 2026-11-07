@@ -48,8 +48,7 @@ GameSound LockOnManager::sTargetLockSound;
 
 static inline void ClearHandle(PblHandle<GameObject>& handle)
 {
-    handle.mObject = 0;
-    handle.mSavedHandleId = 0;
+    handle = 0;
 }
 
 // FUNCTION: SWBF2 0x0057acf0

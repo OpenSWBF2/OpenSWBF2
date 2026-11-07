@@ -788,13 +788,7 @@ bool WeaponCannon::Fire()
                                 (1.0f / pClass->mKickBuildup + 2.0f) * pClass->mShotDelayMin);
     }
 
-    const GameObject* pTarget = mTarget.mObject;
-    if (pTarget && PBL_HANDLE_ID(pTarget) != mTarget.mSavedHandleId)
-    {
-        mTarget.mObject = 0;
-        mTarget.mSavedHandleId = 0;
-        pTarget = 0;
-    }
+    const GameObject* pTarget = mTarget.GetObjectA();
     CombatUtil::SendDamageEvent(mOwner, pTarget, mTrigger);
     return true;
 }

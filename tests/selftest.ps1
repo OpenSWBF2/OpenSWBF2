@@ -403,6 +403,55 @@ finally {
     Remove-Item -Recurse -Force $serialDir -ErrorAction SilentlyContinue
 }
 $n++
+$handleDir = Join-Path $env:TEMP ("openswbf2-handle-" + [guid]::NewGuid().ToString('N'))
+try {
+    New-Item -ItemType Directory -Path (Join-Path $handleDir 'src\LuaFL') | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $handleDir 'src\PebbleFL\Common') | Out-Null
+    Set-Content -Encoding ASCII -Path (Join-Path $handleDir 'src\x.cpp') -Value @(
+        'int a = PBL_HANDLE_ID(p);',
+        'return a ? b - 1 : 0xdddddddd;',
+        'h.mSavedHandleId = 0;',
+        'return (float)(pOwner->PblHandled::GetHandleId() & 0xf);',
+        'if ((unsigned int)pOld != 0xDDDDDDDDu)',
+        'if (object->GetHandleId() == (unsigned int)debugId)',
+        'if (t->GetTracker() != (Tracker*)0xdddddddd)',
+        'if (state->handle.GetHandleId() == netHostTraceHandleId)',
+        'if (ptr->GetHandleId() != id)',
+        'h = p;',
+        'ok = d.mGameObject->GetHandleId() == d.mGameObjectId;',
+        'x = GameObjectHandleId(p);',
+        'if (id != ptr->GetHandleId())',
+        'if (p->GetHandleId() == uSaved)',
+        'if (p->GetHandleId() != h.GetHandleId())',
+        'if (p->GetHandleId() == saved.id_)',
+        'if (o->GetGameObject() && o->GetGameObject()->PblHandled::GetHandleId())',
+        'p = reinterpret_cast<Tracker*>(0xdddddddd);',
+        'if (static_cast<unsigned int>(v) == 0xDDDDDDDD)',
+        'if (v != 0xDDDDDDDDUL)',
+        'if (p->GetHandleId())',
+        'if (p->GetHandleId() == 0)',
+        'if (object->GetHandleId() == 110)',
+        'if (!mSkip && !(PblHandled::GetHandleId() & 1) == even)',
+        'if (GetIndex(i, 1, s->PblHandled::GetHandleId()) && ok)',
+        'if ((int)v.GetHandleId() % 30 != b)',
+        'if (pObject->GetHandleId() == (unsigned int)debugWriteHandleId)',
+        'if (!map.FindId(pObject->GetHandleId()))'
+    )
+    Set-Content -Encoding ASCII -Path (Join-Path $handleDir 'src\PebbleFL\Common\PblHandle.h') -Value @(
+        'unsigned int mHandleId;'
+    )
+    Set-Content -Encoding ASCII -Path (Join-Path $handleDir 'src\LuaFL\l.cpp') -Value @(
+        'int a = PBL_HANDLE_ID(p);'
+    )
+    $sc = @(Get-SourceChecks $handleDir -Only 'handle-raw')
+    $want = (@(1, 3, 5, 7, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22) | ForEach-Object { "src\x.cpp:$_" }) -join ', '
+    if ($sc.Count -ne 1 -or $sc[0].Ok -or $sc[0].Detail -ne $want) { $failed++; Write-Host "FAILED ${n}: handle-raw flags raw handle reads and freed-fill compares outside PblHandle: $($sc.Detail)" }
+    else { Write-Host "OK $n handle-raw flags raw handle reads and freed-fill compares outside PblHandle" }
+}
+finally {
+    Remove-Item -Recurse -Force $handleDir -ErrorAction SilentlyContinue
+}
+$n++
 $allCases = @(Get-SmokeCases 'All' @('foo1c_ctf TimeOut', 'tat3c_con Fatal', 'bar1c_con', 'quux1c_con Pass', 'foo2c_ctf Pass 240') $false $null)
 $byName = @{}
 foreach ($c in $allCases) { $byName[$c.Name] = $c }
