@@ -4431,7 +4431,7 @@ void EntityDroideka::WriteLateState(NetPktGroup& group)
         group.WriteFixed(mDebuffDamageTimer, 0.0f, 350.0f, 16);
         group.WriteFixed(mDebuffDamageRate, 0.0f, 1000.0f, 16);
     }
-    group.Write(mLastCollidedWithNonTerrain);
+    group.Write((bool)mLastCollidedWithNonTerrain);
     WritePositionVector(group, mLastPosition);
     WriteUnitVector(group, mGroundNormal);
     WriteThrust(group, mCtrl ? ((PlayerController*)mCtrl)->GetMouseBuildup() : 0.0f);
@@ -4688,7 +4688,7 @@ void EntityDroideka::WriteObject(NetPktGroup& group, NetObjState*)
     }
     if (mPlayerId >= 0)
     {
-        group.Write(mLastCollidedWithNonTerrain);
+        group.Write((bool)mLastCollidedWithNonTerrain);
         WritePositionVector(group, mLastPosition);
         WriteUnitVector(group, mGroundNormal);
         WriteThrust(group, mCtrl ? ((PlayerController*)mCtrl)->GetMouseBuildup() : 0.0f);
@@ -4880,7 +4880,7 @@ void EntitySoldier::WriteObject(NetPktGroup& group, NetObjState*)
     {
         if (static_cast<Controllable*>(this)->IsThreadActive())
         {
-            group.Write(mLastCollidedWithNonTerrain);
+            group.Write((bool)mLastCollidedWithNonTerrain);
             WritePositionVector(group, mLastPosition);
             WriteUnitVector(group, mGroundNormal);
         }
@@ -5036,7 +5036,7 @@ void EntitySoldier::WriteLateState(NetPktGroup& group)
     }
     if (static_cast<Controllable*>(this)->IsThreadActive())
     {
-        group.Write(mLastCollidedWithNonTerrain);
+        group.Write((bool)mLastCollidedWithNonTerrain);
         WritePositionVector(group, mLastPosition);
         WriteUnitVector(group, mGroundNormal);
     }

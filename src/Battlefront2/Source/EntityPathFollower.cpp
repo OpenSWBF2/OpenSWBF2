@@ -18,6 +18,7 @@
 #include "BoundaryManager.h"
 #include "Character.h"
 #include "EntityCarrier.h"
+#include "WobblePhase.h"
 #include "GameLoop.h"
 #include "LockOnManager.h"
 #include "Trackable.h"
@@ -1614,7 +1615,8 @@ float EntityPathFollower::Roll(const EntityPathFollowerClass* const pClass, floa
     float fBank = Clamp(mCurSpeed * fTurnRate * pClass->mPathRollValues.mRollSpeedFactor, -PblMath::fHalfPi,
                         PblMath::fHalfPi);
 
-    float fTime = GameLoop::GetMissionTime() + (float)(((unsigned int)this >> 2) & 0xf);
+    float fTime = GameLoop::GetMissionTime() +
+                  WobblePhase(static_cast<const GameObject*>(static_cast<EntityFlyer*>(this)), this);
     float fWeave = 1.0f;
     if (!AIUtil::gGroundFlyerMap)
     {

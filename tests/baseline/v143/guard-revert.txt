@@ -32,9 +32,9 @@ LOCAL-04     GREEN    RED         124        bone matrix pool crash 0x0000007C
 LOCAL-04B    GREEN    RED         1          bone matrix pool 
 LOCAL-05     GREEN    RED         1          render item pool 
 MEM-02       GREEN    RED         1          alloc failure handler logs and suppresses 
-MEM-02B      GREEN    RED         1          alloc failure handler tolerates bad heap id 
+MEM-02B      GREEN    RED         124        alloc failure handler tolerates bad heap id crash 0x0000007C
 MEM-02C      GREEN    RED         1          alloc failure handler ignores re-entry 
-MEM-03       GREEN    RED         3221226356 lua failed shrink keeps the old block crash 0xC0000374
+MEM-03       GREEN    RED         124        lua failed shrink keeps the old block crash 0x0000007C
 MEM-03B      GREEN    RED         3221225477 lua oom is raised as LUA_ERRMEM crash 0xC0000005
 MEM-04       GREEN    RED         1          lua error restores the current heap 
 MEM-04B      GREEN    RED         1          lua panic handler exits with code 4 
@@ -216,14 +216,14 @@ SIMFIX-C2    GREEN    RED         1          ai difficulty compiles with fp stri
 SIMFIX-C3    GREEN    RED         1          weapon cannon fire compiles with fp strict 
 LAA-01       GREEN    RED                    hardening:laa check=laa ok=False
 WIN-03B      GREEN    RED                    hardening:import-SetProcessDPIAware check=import-SetProcessDPIAware ok=False
-FLAG-ALIGNNEW GREEN    RED                    tlog:flag-alignednew reverted: cl entries=749 /Zc:alignedNew-=0
-FLAG-INLINE  GREEN    RED                    tlog:flag-inline reverted: cl entries=749 /Zc:inline-=0
-FLAG-ALIGNNEW-T GREEN    RED                    tlog:flag-alignednew-tests reverted: tests cl entries=104 /Zc:alignedNew-=0
-FLAG-THROWNEW GREEN    RED                    tlog:flag-banned reverted: /Zc:throwingNew=749 /GL=0 /fp:fast=0 /fp:contract=0 /GS-=0
-FLAG-GL      GREEN    RED                    tlog:flag-banned build failed after 749 compiles; reverted: /Zc:throwingNew=0 /GL=749 /fp:fast=0 /fp:contract=0 /GS-=0
-FLAG-FPFAST  GREEN    RED                    tlog:flag-banned build failed after 467 compiles; reverted: /Zc:throwingNew=0 /GL=0 /fp:fast=467 /fp:contract=0 /GS-=0
-FLAG-FPCONTRACT GREEN    RED                    tlog:flag-banned build failed after 467 compiles; reverted: /Zc:throwingNew=0 /GL=0 /fp:fast=0 /fp:contract=467 /GS-=0
-FLAG-GSMINUS GREEN    RED                    tlog:flag-banned reverted: /Zc:throwingNew=0 /GL=0 /fp:fast=0 /fp:contract=0 /GS-=749
+FLAG-ALIGNNEW GREEN    RED                    tlog:flag-alignednew reverted: cl entries=770 /Zc:alignedNew-=0
+FLAG-INLINE  GREEN    RED                    tlog:flag-inline reverted: cl entries=770 /Zc:inline=770 /Zc:inline-=770
+FLAG-ALIGNNEW-T GREEN    RED                    tlog:flag-alignednew-tests reverted: tests cl entries=175 /Zc:alignedNew-=0
+FLAG-THROWNEW GREEN    RED                    tlog:flag-banned reverted: /Zc:throwingNew=770 /GL=0 /fp:fast=0 /fp:contract=0 /GS-=0
+FLAG-GL      GREEN    RED                    tlog:flag-banned build failed after 770 compiles; reverted: /Zc:throwingNew=0 /GL=770 /fp:fast=0 /fp:contract=0 /GS-=0
+FLAG-FPFAST  GREEN    RED                    tlog:flag-banned reverted: /Zc:throwingNew=0 /GL=0 /fp:fast=770 /fp:contract=0 /GS-=0
+FLAG-FPCONTRACT GREEN    RED                    tlog:flag-banned build failed after 475 compiles; reverted: /Zc:throwingNew=0 /GL=0 /fp:fast=0 /fp:contract=475 /GS-=0
+FLAG-GSMINUS GREEN    RED                    tlog:flag-banned reverted: /Zc:throwingNew=0 /GL=0 /fp:fast=0 /fp:contract=0 /GS-=770
 MEM-01       GREEN    RED         0x00000000 smoke:crash-arenaoom class=Pass dumps=0
 MEM-01B      GREEN    RED         0x00000000 smoke:crash-debugheapoom class=Pass dumps=0
 MEM-02S      GREEN    RED         0x00000000 smoke:crash-heapfail class=Pass dumps=0
@@ -272,7 +272,7 @@ MENU-58      GREEN    RED         0x00000000 smoke:crash-menuapplyfail class=Pas
 MENU-59      GREEN    RED         0x00000000 smoke:crash-menuapplyfail class=Pass dumps=0
 CUR-05A      GREEN    RED         0x00000000 smoke:cursor-sw class=Pass dumps=0
 DIGEST-01    GREEN    RED         0x00000000 smoke:geo1c_con class=Pass dumps=0
-SIMFIX-C1S   GREEN    RED         0x00000001 smoke:digest-dag1c_ctf class=TimeOut dumps=0
+SIMFIX-C1S   GREEN    RED         0x00000000 smoke:digest-dag1c_ctf class=Pass dumps=0
 SIMFIX-C2S   GREEN    RED         0x00000000 smoke:digest-kas2c_uber class=Pass dumps=0
 DIAG-05      GREEN    RED         1          alloc failure handler logs and suppresses 
 SAFE01-CREATE GREEN    RED         3221225477 memory pool create refuses overflowing count crash 0xC0000005
@@ -308,3 +308,20 @@ PERT06-LOOP  GREEN    RED         1          glyph cache element routes every sh
 PERT07-ALIAS GREEN    RED         1          hud item set name after an aliased name keeps the display name valid 
 COMBO-ARRAY-HELPER GREEN    RED         1          combo arrays stay contiguous when another array takes the next pool block 
 COMBO-ARRAY-SITE GREEN    RED         1          combo arrays route every pool array through ComboArrayAdd (source pin) 
+SERIAL-01    GREEN    RED         1          thread activation key is set through one counter reader and reset 
+SERIAL-02    GREEN    RED         1          ordered list breaks equal keys fifo under serial order 
+SERIAL-02B   GREEN    RED         1          ordered list sentinel key stops at the head under serial order 
+SERIAL-02C   GREEN    RED         1          ordered list move keeps an unchanged key in place while a walk re-queues it 
+SERIAL-02D   GREEN    RED         1          controller update asap reschedules through the ordered list move 
+SERIAL-02E   GREEN    RED         1          controller update loop requeues through the ordered list move 
+SERIAL-02F   GREEN    RED         3221225477 ordered list move ignores a node that is not in the list crash 0xC0000005
+SERIAL-03    GREEN    RED         1          collision serial sites keep the wire bool writes and the address arm 
+SERIAL-03B   GREEN    RED         1          collision serial sites keep the wire bool writes and the address arm 
+SERIAL-03C   GREEN    RED         1          collision serial sites keep the wire bool writes and the address arm 
+SERIAL-04    GREEN    RED         1          wobble phase comes from the owner handle id under serial order 
+LHASH-01     GREEN    RED         1          lua next order ignores allocation padding under serial order 
+LHASH-01B    GREEN    RED         1          lua next order ignores allocation padding under serial order 
+LHASH-01C    GREEN    RED         1          lua dead slot reuse does not move the resize under serial order 
+LHASH-01D    GREEN    RED         1          lua dead keys do not revive after a collection under serial order 
+LHASH-01E    GREEN    RED         1          lua clearing keys with a collection during traversal visits every key 
+LHASH-01F    GREEN    RED         3221225477 lua weak key tables skip dead keys under serial order crash 0xC0000005

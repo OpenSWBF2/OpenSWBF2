@@ -22,6 +22,7 @@
 #include "NetSetup.h"
 #include "ShellLoop.h"
 #include "CollisionBody.h"
+#include "CollisionObject.h"
 #include "GameMemory.h"
 #include "RedEngineFL/Portals/Portal.h"
 #include "GameMovie.h"
@@ -1794,6 +1795,7 @@ void GameState::PostStateCleanup(bool bMission)
     RedTexture::Cleanup();
     ClothData::Cleanup();
     Thread::Reset();
+    CollisionObject::ResetCollisionSerials();
     RedRenderer::Cleanup();
     RedProfile::Cleanup();
 
@@ -1811,6 +1813,9 @@ void GameState::PostStateCleanup(bool bMission)
 
     NetGame::Reset();
     RedMemoryReport::LogMemReport("exit");
+#ifdef OPENSWBF2_TEST
+    CollisionObject::LogSerialTies(true);
+#endif
     MemoryPool::DestroyAll();
     TargetManager::Init();
     TeamManager::Reset();

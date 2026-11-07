@@ -23,6 +23,14 @@ MemoryPool* LocatePool(unsigned int uiSize, void* pBlock);
 
 void Reset();
 
+#ifdef OPENSWBF2_TEST
+bool FormatLuaSpillLine(int iBin, unsigned int uCount, char* pcOut, unsigned int uSize);
+
+unsigned int GetSpillCount(unsigned int uiBin);
+
+void LogMemReportLines();
+#endif
+
 }
 
 void Lua_Red_Free(void* pBlock, unsigned int uiSize);

@@ -18,4 +18,6 @@ int luaH_next (lua_State *L, Table *t, StkId key);
 
 Node *luaH_mainposition (const Table *t, const TObject *key);
 
+extern int luaH_pendinginsertionorder;
+
 #endif

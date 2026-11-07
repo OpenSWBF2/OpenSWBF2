@@ -3815,6 +3815,9 @@
     <ClInclude Include="src\Battlefront2\Source\WeatherEffect.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\WobblePhase.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\WorldShadowMapEffect.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
@@ -3957,6 +3960,9 @@
       <Filter>src\PebbleFL\Common</Filter>
     </ClInclude>
     <ClInclude Include="src\PebbleFL\Common\PblPtrOrder.h">
+      <Filter>src\PebbleFL\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="src\PebbleFL\Common\PblSerial.h">
       <Filter>src\PebbleFL\Common</Filter>
     </ClInclude>
     <ClInclude Include="src\PebbleFL\Common\PblPtrSet.h">
