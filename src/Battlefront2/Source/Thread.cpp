@@ -16,6 +16,13 @@ namespace FrameUpdate
 void Update();
 }
 
+static unsigned int sThreadActivationKey = 0;
+
+static int NextThreadActivationKey()
+{
+    return (int)(sThreadActivationKey < 0x7FFFFFFF ? sThreadActivationKey++ : sThreadActivationKey);
+}
+
 // FUNCTION: SWBF2 0x00657400
 ThreadGroup::ThreadGroup(int iPriority)
     : mPriority(iPriority)
@@ -127,7 +134,14 @@ void Thread::ActivateThread(int iOrder, ThreadType eThreadType)
     }
 
     pGroup = pGroup->FindCreate(-iOrder);
-    pGroup->mThreads.Add(&mThreadListNode, this, PblPtrOrderKey(this));
+    if (PblGetSimOrder() == PBL_SIMORDER_SERIAL)
+    {
+        pGroup->mThreads.Add(&mThreadListNode, this, NextThreadActivationKey());
+    }
+    else
+    {
+        pGroup->mThreads.Add(&mThreadListNode, this, PblPtrOrderKey(this));
+    }
 }
 
 // FUNCTION: SWBF2 0x00657760
@@ -257,6 +271,7 @@ void Thread::Reset()
     sClientFrameThreadList.Clear();
     sClientLocalTurnThreadList.Clear();
     sClientTurnThreadList.Clear();
+    sThreadActivationKey = 0;
 }
 
 // FUNCTION: SWBF2 0x00657690

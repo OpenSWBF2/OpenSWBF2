@@ -8,6 +8,7 @@
 
 #define LUA_TPROTO	(NUM_TAGS+1)
 #define LUA_TUPVAL	(NUM_TAGS+2)
+#define LUA_TDEADKEY	(NUM_TAGS+3)
 
 typedef union GCObject GCObject;
 
@@ -38,6 +39,9 @@ typedef struct lua_TObject {
 #define ttisuserdata(o)	(ttype(o) == LUA_TUSERDATA)
 #define ttisthread(o)	(ttype(o) == LUA_TTHREAD)
 #define ttislightuserdata(o)	(ttype(o) == LUA_TLIGHTUSERDATA)
+#define ttisdeadkey(o)	((ttype(o) & 0xff) == LUA_TDEADKEY)
+#define deadkeytype(o)	(ttype(o) >> 8)
+#define setdeadkey(o)	(ttype(o) = LUA_TDEADKEY | (ttype(o) << 8))
 
 #define ttype(o)	((o)->tt)
 #define gcvalue(o)	check_exp(iscollectable(o), (o)->value.gc)
@@ -202,6 +206,8 @@ typedef struct Node {
   TObject i_key;
   TObject i_val;
   struct Node *next;
+  struct Node *nextadded;
+  struct Node *prevadded;
 } Node;
 
 typedef struct Table {
@@ -214,6 +220,8 @@ typedef struct Table {
   Node *firstfree;
   GCObject *gclist;
   int sizearray;
+  Node *firstadded;
+  Node *lastadded;
 } Table;
 
 #define lmod(s,size) \

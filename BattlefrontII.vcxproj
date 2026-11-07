@@ -1418,6 +1418,7 @@
     <ClInclude Include="src\Battlefront2\Source\WeaponShield.h" />
     <ClInclude Include="src\Battlefront2\Source\WeaponTowCable.h" />
     <ClInclude Include="src\Battlefront2\Source\WeatherEffect.h" />
+    <ClInclude Include="src\Battlefront2\Source\WobblePhase.h" />
     <ClInclude Include="src\Battlefront2\Source\WorldShadowMapEffect.h" />
     <ClInclude Include="src\Battlefront2\Source\pcNetSocket.h" />
     <ClInclude Include="src\LuaFL\include\lauxlib.h" />
@@ -1466,6 +1467,7 @@
     <ClInclude Include="src\PebbleFL\Common\PblMatrix.h" />
     <ClInclude Include="src\PebbleFL\Common\PblPlane.h" />
     <ClInclude Include="src\PebbleFL\Common\PblPtrOrder.h" />
+    <ClInclude Include="src\PebbleFL\Common\PblSerial.h" />
     <ClInclude Include="src\PebbleFL\Common\PblPtrSet.h" />
     <ClInclude Include="src\PebbleFL\Common\PblQuaternion.h" />
     <ClInclude Include="src\PebbleFL\Common\PblRandom.h" />

@@ -56,9 +56,69 @@ namespace LuaMemory
 unsigned int gLuaNumBlocks;
 }
 
+#ifdef OPENSWBF2_TEST
+namespace
+{
+
+unsigned int suLuaSpill[48];
+
+void NoteLuaSpill(unsigned int uiSize)
+{
+    unsigned int uiBin = (uiSize + 3) >> 2;
+    for (unsigned int i = 0; i < 48; ++i)
+    {
+        if ((unsigned int)gPoolInfo[i].mBin == uiBin && gPools[i])
+        {
+            ++suLuaSpill[i];
+            return;
+        }
+    }
+}
+
+}
+
+unsigned int LuaMemory::GetSpillCount(unsigned int uiBin)
+{
+    for (unsigned int i = 0; i < 48; ++i)
+    {
+        if ((unsigned int)gPoolInfo[i].mBin == uiBin && gPools[i])
+        {
+            return suLuaSpill[i];
+        }
+    }
+    return 0;
+}
+
+void LuaMemory::LogMemReportLines()
+{
+    char acLine[64];
+    for (unsigned int i = 0; i < 48; ++i)
+    {
+        if (gPools[i] && FormatLuaSpillLine(gPoolInfo[i].mBin, suLuaSpill[i], acLine, sizeof(acLine)))
+        {
+            LOG(LogMemory, Inform, "%s", acLine);
+        }
+    }
+}
+
+bool LuaMemory::FormatLuaSpillLine(int iBin, unsigned int uCount, char* pcOut, unsigned int uSize)
+{
+    if (!pcOut || uSize == 0)
+    {
+        return false;
+    }
+    int iLen = _snprintf(pcOut, uSize, "OPENSWBF2 MEMREPORT luaspill pool=Lua%d count=%u", iBin, uCount);
+    pcOut[uSize - 1] = 0;
+    return iLen >= 0 && (unsigned int)iLen < uSize;
+}
+#endif
+
 // FUNCTION: SWBF2 0x005a15d0
 void LuaMemory::CreatePools(bool bMission)
 {
+#ifdef OPENSWBF2_TEST
+    memset(suLuaSpill, 0, sizeof(suLuaSpill));
+#endif
     int iOldHeap = RedSetCurrentHeap(GameMemory::LuaHeap);
     RedAllocFromHeap(iOldHeap, 4, 0);
 
@@ -145,6 +205,12 @@ void Lua_Red_Free(void* pBlock, unsigned int uiSize)
 void* Lua_Red_realloc(void* pBlock, unsigned int uiOldSize, unsigned int uiNewSize)
 {
     MemoryPool* pPool = LuaMemory::LocatePool(uiNewSize, 0);
+#ifdef OPENSWBF2_TEST
+    if (!pPool)
+    {
+        NoteLuaSpill(uiNewSize);
+    }
+#endif
     void* pNew = pPool ? pPool->Allocate(uiNewSize)
                        : RedAllocFromHeap(GameMemory::LuaHeap, uiNewSize, 0);
 

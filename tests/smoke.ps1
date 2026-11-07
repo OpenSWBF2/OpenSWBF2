@@ -379,7 +379,14 @@ function Test-SmokeExpect($case, $res) {
     }
     if (-not $script:SmokeDigestConfiguration -or $script:SmokeDigestConfiguration -in 'Release', 'Test') {
         $want = Get-DigestExpected $case.Name
-        if ($want) {
+        if ($want -and $x.ContainsKey('SerialDigest')) {
+            $got = Get-DigestKey $res.CaseDir
+            if ($got -cnotmatch '^OPENSWBF2 SIM DIGEST turns=') {
+                Write-Host "    serial digest line missing"
+                return $false
+            }
+        }
+        elseif ($want) {
             $got = Get-DigestKey $res.CaseDir
             if ($want -cne $got) {
                 Write-Host "    digest expected: $want"
@@ -811,6 +818,13 @@ function Add-SimOrderExpect($cases, [string]$mode) {
         $l = @()
         if ($x.ContainsKey('LogRx')) { $l = @($x.LogRx) }
         $x.LogRx = $l + @("(?m)OPENSWBF2 SIMORDER mode=$mode\r?$", '(?s)\A(?!.*-simorder needs address or serial)')
+        if ($mode -eq 'serial') {
+            $x.SerialDigest = $true
+            if ($script:SmokeDigestConfiguration -in 'Test', 'Asan') {
+                $x.LogRx = @($x.LogRx) + @('(?s)\A(?!.*OPENSWBF2 COLLISION serialties=[1-9])')
+                if ($x.Class -eq 'Pass') { $x.LogRx = @($x.LogRx) + @('(?m)OPENSWBF2 COLLISION serialties=0\r?$') }
+            }
+        }
         $c.Expect = $x
     }
     return $cases
@@ -1163,6 +1177,18 @@ $script:OffsetAllow = @(
     'src\Zephyr\Source\ZephyrSkinShared.cpp|(ZephyrJointSet*)((char*)this + kOffsets.m_uJointSets)',
     'src\Zephyr\Source\ZephyrSkinShared.cpp|(ZephyrSkeletonShared*)((char*)this + kOffsets.m_uSkeleton)'
 )
+$script:SerialAllow = @(
+    'src\Battlefront2\Source\CollisionObject.cpp|static unsigned int sCollisionSerialNext = 0;',
+    'src\Battlefront2\Source\CollisionObject.cpp|mCollisionSerial = sCollisionSerialNext < 0x3FFFFFFF ? ++sCollisionSerialNext : sCollisionSerialNext;',
+    'src\Battlefront2\Source\CollisionObject.cpp|sCollisionSerialNext = 0;',
+    'src\Battlefront2\Source\CollisionObject.h|unsigned int mCollisionSerial : 30;',
+    'src\Battlefront2\Source\CollisionObject.h|return PblSerialAfter(pA->mCollisionSerial, pB->mCollisionSerial);',
+    'src\Battlefront2\Source\CollisionObject.h|if (pA->mCollisionSerial == pB->mCollisionSerial)',
+    'src\Battlefront2\Source\Thread.cpp|static unsigned int sThreadActivationKey = 0;',
+    'src\Battlefront2\Source\Thread.cpp|return (int)(sThreadActivationKey < 0x7FFFFFFF ? sThreadActivationKey++ : sThreadActivationKey);',
+    'src\Battlefront2\Source\Thread.cpp|sThreadActivationKey = 0;'
+)
+$script:SerialRx = New-Object regex '\b(?:sThreadActivationKey|mCollisionSerial|sCollisionSerialNext)\b'
 $script:FastcallAllow = @(
     'src\Battlefront2\Source\ActiveRegion.cpp|void* __fastcall InitRawListIterator(void** pCurrent, void*, const void* pSource)',
     'src\Battlefront2\Source\ActiveRegion.h|void* __fastcall InitRawListIterator(void** pCurrent, void* pEdx, const void* pSource);',
@@ -1218,7 +1244,7 @@ function Test-ByteSpacer($decl) {
     return ($decl.Size -match '0[xX][0-9A-Fa-f]' -or $decl.Size -match '\b(?:sizeof|offsetof)\b' -or $decl.Name -match $script:SpacerNameRx)
 }
 
-function Get-SourceChecks([string]$root, [string[]]$spacerAllow = $script:SpacerAllow, [string[]]$offsetAllow = $script:OffsetAllow, [string[]]$fastcallAllow = $script:FastcallAllow, [string[]]$Only) {
+function Get-SourceChecks([string]$root, [string[]]$spacerAllow = $script:SpacerAllow, [string[]]$offsetAllow = $script:OffsetAllow, [string[]]$fastcallAllow = $script:FastcallAllow, [string[]]$serialAllow = $script:SerialAllow, [string[]]$Only) {
     $want = { param($name) -not $Only -or $Only -contains $name }
     $defs = @(
         @{ Name = 'new-size-t'; Path = $null; Rx = @(
@@ -1256,6 +1282,7 @@ function Get-SourceChecks([string]$root, [string[]]$spacerAllow = $script:Spacer
     $runDefs = @($defs | Where-Object { & $want $_.Name })
     $doSpacer = & $want 'char-spacer'
     $doOffset = & $want 'offset-hack'
+    $doSerial = & $want 'serial-value'
     $root = $root.TrimEnd('\')
     $hits = @{}
     foreach ($d in $defs) { $hits[$d.Name] = New-Object System.Collections.Generic.List[string] }
@@ -1265,12 +1292,33 @@ function Get-SourceChecks([string]$root, [string[]]$spacerAllow = $script:Spacer
     $offsetLeft = New-Object System.Collections.Hashtable ([StringComparer]::Ordinal)
     foreach ($a in @($offsetAllow)) { if ($a) { $offsetLeft[$a] = 1 + [int]$offsetLeft[$a] } }
     $offsetHits = New-Object System.Collections.Generic.List[string]
+    $serialLeft = New-Object System.Collections.Hashtable ([StringComparer]::Ordinal)
+    foreach ($a in @($serialAllow)) { if ($a) { $serialLeft[$a] = 1 + [int]$serialLeft[$a] } }
+    $serialHits = New-Object System.Collections.Generic.List[string]
     $sigLeft = @{ 'fastcall-edx' = (New-Object System.Collections.Hashtable ([StringComparer]::Ordinal)) }
     foreach ($a in @($fastcallAllow)) { if ($a) { $sigLeft['fastcall-edx'][$a] = 1 + [int]$sigLeft['fastcall-edx'][$a] } }
     $src = Join-Path $root 'src'
+    $allFiles = @()
+    if ($runDefs.Count -or $doSpacer -or $doOffset -or $doSerial) {
+        $allFiles = @(Get-ChildItem -LiteralPath $src -Recurse -File | Where-Object { $script:SourceExtensions -contains $_.Extension })
+    }
     $srcFiles = @()
     if ($runDefs.Count -or $doSpacer -or $doOffset) {
-        $srcFiles = @(Get-ChildItem -LiteralPath $src -Recurse -File | Where-Object { $script:SourceExtensions -contains $_.Extension -and $_.FullName -notmatch '\\src\\(LuaFL|ZlibFL)\\' })
+        $srcFiles = @($allFiles | Where-Object { $_.FullName -notmatch '\\src\\(LuaFL|ZlibFL)\\' })
+    }
+    if ($doSerial) {
+        foreach ($f in @($allFiles | Sort-Object FullName)) {
+            $text = [IO.File]::ReadAllText($f.FullName)
+            if (-not $script:SerialRx.IsMatch($text)) { continue }
+            $rel = $f.FullName.Substring($root.Length + 1)
+            $lines = $text.Split("`n")
+            for ($i = 0; $i -lt $lines.Count; $i++) {
+                if (-not $script:SerialRx.IsMatch($lines[$i])) { continue }
+                $key = '{0}|{1}' -f $rel, ([regex]::Replace($lines[$i].Trim(), '\s+', ' '))
+                if ($serialLeft[$key] -gt 0) { $serialLeft[$key]--; continue }
+                $serialHits.Add(('{0}:{1}' -f $rel, ($i + 1)))
+            }
+        }
     }
     foreach ($f in $srcFiles) {
         $text = [IO.File]::ReadAllText($f.FullName)
@@ -1355,6 +1403,10 @@ function Get-SourceChecks([string]$root, [string[]]$spacerAllow = $script:Spacer
         for ($i = 0; $i -lt $offsetLeft[$k]; $i++) { $offsetHits.Add('unused allow ' + $k) }
     }
     $rows += New-Object PSObject -Property @{ Name = 'offset-hack'; Ok = ($offsetHits.Count -eq 0); Detail = ($offsetHits -join ', ') }
+    foreach ($k in @($serialLeft.Keys | Sort-Object)) {
+        for ($i = 0; $i -lt $serialLeft[$k]; $i++) { $serialHits.Add('unused allow ' + $k) }
+    }
+    $rows += New-Object PSObject -Property @{ Name = 'serial-value'; Ok = ($serialHits.Count -eq 0); Detail = ($serialHits -join ', ') }
     $rows += New-Object PSObject -Property @{ Name = 't1-suite'; Ok = ($suiteHits.Count -eq 0); Detail = ($suiteHits -join ', ') }
     return @($rows | Where-Object { & $want $_.Name })
 }

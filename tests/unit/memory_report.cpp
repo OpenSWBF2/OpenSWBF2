@@ -6,6 +6,7 @@
 #include "RedEngineFL/Memory/RedMemory.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 #include "RedEngineFL/Memory/RedMemoryReport.h"
+#include "Battlefront2/Source/LuaMemory.h"
 
 TEST_CASE("report formats heap line" * doctest::test_suite("regression"))
 {
@@ -94,3 +95,49 @@ TEST_CASE("report emits one line per heap and created pool" * doctest::test_suit
     kPool.Free(pBlock);
     RedDestroyHeap(iHeap);
 }
+
+#ifdef OPENSWBF2_TEST
+TEST_CASE("lua spill line format" * doctest::test_suite("regression"))
+{
+    char acLine[256];
+    REQUIRE(LuaMemory::FormatLuaSpillLine(8, 3, acLine, sizeof(acLine)));
+    CHECK(strcmp(acLine, "OPENSWBF2 MEMREPORT luaspill pool=Lua8 count=3") == 0);
+    char acSmall[16];
+    CHECK(!LuaMemory::FormatLuaSpillLine(8, 3, acSmall, sizeof(acSmall)));
+    CHECK(acSmall[15] == 0);
+    CHECK(!LuaMemory::FormatLuaSpillLine(8, 3, 0, 16));
+    CHECK(!LuaMemory::FormatLuaSpillLine(8, 3, acLine, 0));
+}
+
+TEST_CASE("lua spill counts allocations that miss a full bin" * doctest::test_suite("regression"))
+{
+    const unsigned int uiBin = 53;
+    const unsigned int uiCount = 12;
+    const unsigned int uiSize = uiBin * 4;
+    void* apBlocks[uiCount + 2];
+    LuaMemory::CreatePools(true);
+    for (unsigned int i = 0; i < uiCount + 2; ++i)
+    {
+        apBlocks[i] = Lua_Red_realloc(0, 0, uiSize);
+        REQUIRE(apBlocks[i]);
+    }
+    CHECK(LuaMemory::GetSpillCount(uiBin) == 2);
+    CHECK(LuaMemory::GetSpillCount(8) == 0);
+    CHECK(LuaMemory::GetSpillCount(58) == 0);
+    {
+        LogCapture capture;
+        LuaMemory::LogMemReportLines();
+        CHECK(capture.Contains("OPENSWBF2 MEMREPORT luaspill pool=Lua53 count=2"));
+        CHECK(capture.Contains("OPENSWBF2 MEMREPORT luaspill pool=Lua8 count=0"));
+        CHECK(capture.Count("OPENSWBF2 MEMREPORT luaspill ") == 48);
+    }
+    for (unsigned int i = 0; i < uiCount + 2; ++i)
+    {
+        Lua_Red_Free(apBlocks[i], uiSize);
+    }
+    LuaMemory::Reset();
+    LuaMemory::CreatePools(true);
+    CHECK(LuaMemory::GetSpillCount(uiBin) == 0);
+    LuaMemory::Reset();
+}
+#endif

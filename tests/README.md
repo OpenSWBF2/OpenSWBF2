@@ -36,6 +36,7 @@ This builds the tests, then runs each case in its own process and the Standard s
 | `-Movies` | run with the renderer instead of `-norender` |
 | `-HogAddrSpace` | force the arena above 2 GB |
 | `-SimOrder` | pass `-simorder address` or `-simorder serial` to every smoke case (the game defaults to `address`); every case that is expected to pass or time out must log `OPENSWBF2 SIMORDER mode=<mode>` and no `-simorder` warning |
+| `-FactoryLog` | pass `-factorylog` to every smoke case, so each run logs its `OPENSWBF2 FACTORY` counts |
 | `-Hardening` | run only the hardening checks |
 | `-Clean` | delete the staged output folders and any junctions left under `artifacts` safely, and exit |
 
@@ -128,6 +129,7 @@ The hardening step checks the exe's security flags (ASLR, DEP, LAA, SafeSEH, `/G
 | `d3dx-decl` | hand-written D3DX declarations |
 | `char-spacer` | byte-array spacers not in `$script:SpacerAllow` (`smoke.ps1`) |
 | `offset-hack` | raw byte-offset object access not in `$script:OffsetAllow` (`smoke.ps1`) |
+| `serial-value` | a read of a thread or collision serial counter or field outside the helper definitions in `$script:SerialAllow` (`smoke.ps1`) |
 | `gamma-get` | any `GetDeviceGammaRamp` call |
 | `snd-alloc-size-t` | `SndAlloc`, `SndTempAlloc` or a sound allocator function pointer with a 32-bit size type |
 | `galaxy-getter-cast` | a Galaxy getter returning `void*`, or a cast or `void*` temporary on a Galaxy getter's result |

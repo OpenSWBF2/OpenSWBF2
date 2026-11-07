@@ -5,6 +5,10 @@
 #include "PebbleFL/Common/PblVector.h"
 
 #include "PebbleFL/Common/PblList.h"
+#include "PebbleFL/Common/PblSerial.h"
+#ifdef OPENSWBF2_TEST
+#include "RedEngineFL/Util/RedLog.h"
+#endif
 class CollisionModel;
 class CollisionObject;
 class CollisionOptimizationInfo;
@@ -244,13 +248,42 @@ public:
     CollisionObject* mParent;
     float mMass;
     PblBox mAABB;
-    bool mProcedurallyAnimated : 1;
-    bool mLastCollidedWithNonTerrain : 1;
+    unsigned int mProcedurallyAnimated : 1;
+    unsigned int mLastCollidedWithNonTerrain : 1;
+    unsigned int mCollisionSerial : 30;
     PblVector3 mLastPosition;
     CollisionObject* mLastCollidedObjs[3];
 
     static bool sCollidingWithMesh;
     static bool sCollideTrisWithAllPrimitives;
+
+    static bool CollisionSerialAfter(const CollisionObject* pA, const CollisionObject* pB)
+    {
+        return PblSerialAfter(pA->mCollisionSerial, pB->mCollisionSerial);
+    }
+    void AssignCollisionSerial();
+    static void ResetCollisionSerials();
+
+#ifdef OPENSWBF2_TEST
+    static inline unsigned int sCollisionSerialTies = 0;
+
+    static void NoteCollisionSerialTie(const CollisionObject* pA, const CollisionObject* pB)
+    {
+        if (pA->mCollisionSerial == pB->mCollisionSerial)
+        {
+            ++sCollisionSerialTies;
+        }
+    }
+
+    static void LogSerialTies(bool bReset)
+    {
+        LOG(LogSim, Inform, "OPENSWBF2 COLLISION serialties=%u", sCollisionSerialTies);
+        if (bReset)
+        {
+            sCollisionSerialTies = 0;
+        }
+    }
+#endif
 };
  
  

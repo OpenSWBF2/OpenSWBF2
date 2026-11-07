@@ -212,6 +212,106 @@ TEST_CASE("baseline mem peaks parse and cover every mission" * doctest::test_sui
     CHECK(kWithRuntime == kWithBlock);
 }
 
+namespace
+{
+
+void CheckLuaBinsTable(const char* pcRel)
+{
+    BaselineTable kTable;
+    LoadBaselineTable(pcRel, 8, kTable);
+    CHECK(IsCommitLine(kTable.sCommit));
+    CHECK(TableMissions(kTable) == AllMissions());
+    std::set<std::string> kWithBlock;
+    std::set<std::string> kWithBin;
+    for (size_t i = 0; i < kTable.vRows.size(); i++)
+    {
+        const BaselineRow& r = kTable.vRows[i];
+        if (r[1] == "-")
+        {
+            for (size_t f = 2; f < r.size(); f++)
+            {
+                CHECK_MESSAGE(r[f] == "-", r[f]);
+            }
+            continue;
+        }
+        kWithBlock.insert(r[0]);
+        CHECK_MESSAGE((r[1] == "exit" || r[1] == "turn1500"), r[1]);
+        if (r[2] == "-")
+        {
+            continue;
+        }
+        kWithBin.insert(r[0]);
+        for (size_t f = 2; f < 7; f++)
+        {
+            long long llValue = 0;
+            CHECK_MESSAGE((ParseCount(r[f], llValue) && llValue >= 0), r[f]);
+        }
+        if (r[7] != "-")
+        {
+            long long llValue = 0;
+            CHECK_MESSAGE((ParseCount(r[7], llValue) && llValue >= 0), r[7]);
+        }
+    }
+    CHECK(!kWithBlock.empty());
+    CHECK(kWithBin == kWithBlock);
+}
+
+bool IsSection(const std::string& sLine)
+{
+    return sLine.compare(0, 3, "## ") == 0;
+}
+
+}
+
+TEST_CASE("baseline lua bins parse and cover every mission" * doctest::test_suite("regression"))
+{
+    CheckLuaBinsTable("tests\\baseline\\v143\\lua-bins.txt");
+    CheckLuaBinsTable("tests\\baseline\\v143\\lua-bins-serial.txt");
+}
+
+TEST_CASE("baseline factorylog serial covers every mission and every difference has a cause" * doctest::test_suite("regression"))
+{
+    std::vector<std::string> vLines;
+    ReadBaselineLines("tests\\baseline\\v143\\factorylog-serial.txt", vLines);
+    REQUIRE(vLines.size() >= 2);
+    CHECK(IsCommitLine(vLines[0]));
+    CHECK(vLines[1] == "mission\tresult\tlines\tfirst_diff\tcause");
+    std::set<std::string> kMissions;
+    std::set<std::string> kDiffers;
+    std::set<std::string> kSections;
+    size_t i = 2;
+    for (; i < vLines.size() && !IsSection(vLines[i]); i++)
+    {
+        BaselineRow r;
+        SplitOn(vLines[i], '\t', r);
+        REQUIRE_MESSAGE(r.size() == 5, vLines[i]);
+        CHECK_MESSAGE(kMissions.insert(r[0]).second, r[0]);
+        CHECK_MESSAGE((r[1] == "equal" || r[1] == "differs"), vLines[i]);
+        if (r[1] == "differs")
+        {
+            long long llFirst = 0;
+            CHECK_MESSAGE(r[4] != "-", vLines[i]);
+            CHECK_MESSAGE((ParseCount(r[3], llFirst) && llFirst > 0), vLines[i]);
+            kDiffers.insert(r[0]);
+        }
+        else
+        {
+            CHECK_MESSAGE(r[3] == "-", vLines[i]);
+        }
+    }
+    for (; i < vLines.size(); i++)
+    {
+        if (IsSection(vLines[i]))
+        {
+            kSections.insert(vLines[i].substr(3));
+            continue;
+        }
+        CHECK_MESSAGE(((vLines[i][0] == '-' || vLines[i][0] == '+') && vLines[i].compare(1, 18, "OPENSWBF2 FACTORY ") == 0), vLines[i]);
+    }
+    CHECK(kMissions == AllMissions());
+    CHECK(kSections == kDiffers);
+}
+
 TEST_CASE("baseline cloth headroom parses and covers every mission" * doctest::test_suite("regression"))
 {
     BaselineTable kTable;

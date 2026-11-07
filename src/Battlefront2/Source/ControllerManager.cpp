@@ -149,9 +149,7 @@ void ControllerManager::RequestControllerUpdateASAP(UnitController* pCtrl)
     const float fSoon = GameLoop::GetMissionTime() + 0.0001f;
     pCtrl->mNextUpdateTime = (fSoon > fScheduledTime) ? fScheduledTime : fSoon;
 
-    PblOrderedList<UnitController, float>::Node* pNode = pCtrl->GetManagerNode();
-    sAICtrls->Remove(pNode);
-    sAICtrls->Add(pNode, pCtrl, pCtrl->mNextUpdateTime);
+    sAICtrls->Move(pCtrl->GetManagerNode(), pCtrl, pCtrl->mNextUpdateTime);
 }
 
 // FUNCTION: SWBF2 0x004865a0
@@ -428,9 +426,7 @@ void ControllerManager::Update(float fDeltaTime)
         }
         pCtrl->UpdateHighLevel();
         UpdateCrowd(pCtrl);
-        PblOrderedList<UnitController, float>::Node* pNode = pCtrl->GetManagerNode();
-        sAICtrls->Remove(pNode);
-        sAICtrls->Add(pNode, pCtrl, pCtrl->mNextUpdateTime);
+        sAICtrls->Move(pCtrl->GetManagerNode(), pCtrl, pCtrl->mNextUpdateTime);
     }
 
     for (PblOrderedList<UnitController, float>::Itor it(*sAICtrls); UnitController* pCtrl = it; )

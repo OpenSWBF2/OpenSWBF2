@@ -11,6 +11,12 @@ $rl = 'src\RedEngineFL\Util\RedLog.cpp'
 $pp = 'src\PebbleFL\Common\PblPtrOrder.h'
 $th = 'src\Battlefront2\Source\Thread.cpp'
 $cm = 'src\Battlefront2\Source\CollisionManager.cpp'
+$thh = 'src\Battlefront2\Source\Thread.h'
+$co = 'src\Battlefront2\Source\CollisionObject.cpp'
+$nst = 'src\Battlefront2\Source\NetState.cpp'
+$wob = 'src\Battlefront2\Source\WobblePhase.h'
+$ltab = 'src\LuaFL\src\ltable.cpp'
+$lgc = 'src\LuaFL\src\lgc.cpp'
 $rm = 'src\RedEngineFL\Memory\RedMemory.cpp'
 $ds = 'src\RedEngineFL\Graphics\PC\pcDisplaySettings.cpp'
 $dl = 'src\RedEngineFL\Graphics\PC\pcDisplayLogic.cpp'
@@ -712,5 +718,22 @@ $GuardRevertRows = @(
     @{ Id = 'ASANHOOK-SNDFREE'; Kind = 'AsanCanary'; File = 'src\SoundFL\source\sndfreelist.cpp'; Anchor = '#include "PebbleFL/Common/PblAsan.h"'; Replacement = "#include `"PebbleFL/Common/PblAsan.h`"`n#define PblAsanPoison(p, n) ((void)0)`n#define PblAsanUnpoison(p, n) ((void)0)"; Tests = @('asan canary snd free list overflow is reported', 'asan canary snd free list use after free is reported'); Report = 'use-after-poison[\s\S]*Startup_RedInitHeap' },
     @{ Id = 'ASANHOOK-SNDFREEB'; Asan = $true; File = 'src\SoundFL\source\sndfreelist.cpp'; Anchor = 'PblAsanUnpoison(pEntry, uiEntrySize);'; Replacement = 'PblAsanUnpoison(pEntry, 2 * uiEntrySize);'; Tests = @('snd free list in bounds cycle is clean') },
     @{ Id = 'ASANHOOK-GLYPH'; Kind = 'AsanCanary'; File = 'src\RedEngineFL\Interface\RedGlyphMemoryManager.cpp'; Anchor = '#include "PebbleFL/Common/PblAsan.h"'; Replacement = "#include `"PebbleFL/Common/PblAsan.h`"`n#define PblAsanPoison(p, n) ((void)0)`n#define PblAsanUnpoison(p, n) ((void)0)"; Tests = @('asan canary glyph memory overflow is reported', 'asan canary glyph memory use after free is reported'); Report = 'use-after-poison[\s\S]*Startup_RedInitHeap' },
-    @{ Id = 'ASANHOOK-GLYPHB'; Asan = $true; File = 'src\RedEngineFL\Interface\RedGlyphMemoryManager.cpp'; Anchor = 'PblAsanUnpoison(pBlock, sizeof(VertexBlock));'; Replacement = 'PblAsanUnpoison(pBlock, 2 * sizeof(VertexBlock));'; Tests = @('glyph memory in bounds cycle is clean') }
+    @{ Id = 'ASANHOOK-GLYPHB'; Asan = $true; File = 'src\RedEngineFL\Interface\RedGlyphMemoryManager.cpp'; Anchor = 'PblAsanUnpoison(pBlock, sizeof(VertexBlock));'; Replacement = 'PblAsanUnpoison(pBlock, 2 * sizeof(VertexBlock));'; Tests = @('glyph memory in bounds cycle is clean') },
+    @{ Id = 'SERIAL-01'; File = $th; Anchor = 'pGroup->mThreads.Add(&mThreadListNode, this, NextThreadActivationKey());'; Replacement = 'pGroup->mThreads.Add(&mThreadListNode, this, PblPtrOrderKey(this));'; Tests = @('thread activation key is set through one counter reader and reset') },
+    @{ Id = 'SERIAL-02'; File = $thh; Anchor = 'while (pAt != &_head && iOrder == pAt->_iOrder)'; Replacement = 'while (iOrder == pAt->_iOrder && pNode > pAt)'; Tests = @('ordered list breaks equal keys fifo under serial order') },
+    @{ Id = 'SERIAL-02B'; File = $thh; Anchor = 'pAt != &_head && '; Replacement = ''; Tests = @('ordered list sentinel key stops at the head under serial order') },
+    @{ Id = 'SERIAL-02C'; File = $thh; Anchor = 'if (pNode->_iOrder == iOrder)'; Replacement = 'if (false)'; Tests = @('ordered list move keeps an unchanged key in place while a walk re-queues it') },
+    @{ Id = 'SERIAL-02D'; File = 'src\Battlefront2\Source\ControllerManager.cpp'; Anchor = "sAICtrls->Move(pCtrl->GetManagerNode(), pCtrl, pCtrl->mNextUpdateTime);`n}"; Replacement = "sAICtrls->Remove(pCtrl->GetManagerNode());`n    sAICtrls->Add(pCtrl->GetManagerNode(), pCtrl, pCtrl->mNextUpdateTime);`n}"; Tests = @('controller update asap reschedules through the ordered list move') },
+    @{ Id = 'SERIAL-02E'; File = 'src\Battlefront2\Source\ControllerManager.cpp'; Anchor = "sAICtrls->Move(pCtrl->GetManagerNode(), pCtrl, pCtrl->mNextUpdateTime);`n    }"; Replacement = "sAICtrls->Remove(pCtrl->GetManagerNode());`n        sAICtrls->Add(pCtrl->GetManagerNode(), pCtrl, pCtrl->mNextUpdateTime);`n    }"; Tests = @('controller update loop requeues through the ordered list move') },
+    @{ Id = 'SERIAL-02F'; File = $thh; Anchor = 'if (pNode->_pList != this)'; Replacement = 'if (false)'; Tests = @('ordered list move ignores a node that is not in the list') },
+    @{ Id = 'SERIAL-03'; File = $cm; Anchor = 'CollisionObject::CollisionSerialAfter(pOther, pObject)'; Replacement = 'PblPtrAfter(pOther, pObject)'; Tests = @('collision serial sites keep the wire bool writes and the address arm') },
+    @{ Id = 'SERIAL-03B'; File = $nst; Anchor = "        group.WriteFixed(mDebuffDamageRate, 0.0f, 1000.0f, 16);`n    }`n    group.Write((bool)mLastCollidedWithNonTerrain);"; Replacement = "        group.WriteFixed(mDebuffDamageRate, 0.0f, 1000.0f, 16);`n    }`n    group.Write(mLastCollidedWithNonTerrain);"; Tests = @('collision serial sites keep the wire bool writes and the address arm') },
+    @{ Id = 'SERIAL-03C'; File = $co; Anchor = "        AssignCollisionSerial();`n"; Replacement = ''; Tests = @('collision serial sites keep the wire bool writes and the address arm') },
+    @{ Id = 'SERIAL-04'; File = $wob; Anchor = '(float)(pOwner->PblHandled::GetHandleId() & 0xf)'; Replacement = '(float)(((unsigned int)pThis >> 2) & 0xf)'; Tests = @('wobble phase comes from the owner handle id under serial order') },
+    @{ Id = 'LHASH-01'; File = $ltab; Anchor = 'if (G(L)->insertionorder)'; Replacement = 'if (0)'; Tests = @('lua next order ignores allocation padding under serial order') },
+    @{ Id = 'LHASH-01B'; File = $ltab; Anchor = 'if (!G(L)->insertionorder)'; Replacement = 'if (1)'; Tests = @('lua next order ignores allocation padding under serial order') },
+    @{ Id = 'LHASH-01C'; File = $ltab; Anchor = 'else if (G(L)->insertionorder && !ttisnil(gkey(mp)))'; Replacement = 'else if (0)'; Tests = @('lua dead slot reuse does not move the resize under serial order') },
+    @{ Id = 'LHASH-01D'; File = $lgc; Anchor = 'else if (st->g->insertionorder && ttype(gkey(n)) > LUA_TNIL &&'; Replacement = 'else if (0 && ttype(gkey(n)) > LUA_TNIL &&'; Tests = @('lua dead keys do not revive after a collection under serial order') },
+    @{ Id = 'LHASH-01E'; File = $ltab; Anchor = 'if (v == &luaO_nilobject && G(L)->insertionorder)'; Replacement = 'if (0)'; Tests = @('lua clearing keys with a collection during traversal visits every key') },
+    @{ Id = 'LHASH-01F'; File = $lgc; Anchor = 'if (!ttisdeadkey(gkey(n)) && !valismarked(gkey(n)))'; Replacement = 'if (!valismarked(gkey(n)))'; Tests = @('lua weak key tables skip dead keys under serial order') }
 )

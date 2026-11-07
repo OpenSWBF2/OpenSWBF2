@@ -45,6 +45,7 @@
 #include "ItemTimerDisplay.h"
 #include "LoadDisplay.h"
 #include "LuaHelper.h"
+#include "LuaMemory.h"
 #include "MessageDisplay.h"
 #include "NameDisplay.h"
 #include "NetGame.h"
@@ -93,6 +94,7 @@
 #include "AIDifficulty.h"
 #include "AIUtil.h"
 #include "Character.h"
+#include "CollisionObject.h"
 #include "CommandFlyer.h"
 #include "CommandLine.h"
 #include "ControllerManager.h"
@@ -1524,6 +1526,8 @@ void Update(float fDeltaTime, float fSystemDeltaTime)
                 SimDigest::LogFactoryCounts();
                 RedMemoryReport::LogMemReport("turn1500");
 #ifdef OPENSWBF2_TEST
+                LuaMemory::LogMemReportLines();
+                CollisionObject::LogSerialTies(false);
                 if (pcCrash::RepeatMissionRequested() && siRepeatRun == 0)
                 {
                     siRepeatRun = 1;

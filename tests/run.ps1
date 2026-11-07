@@ -9,6 +9,7 @@ param(
     [int]$Timeout = 10,
     [ValidateSet('None','Standard','Dedicated','Crash','All','Twice','Perturb')][string]$Smoke = 'Standard',
     [ValidateSet('','address','serial')][string]$SimOrder = '',
+    [switch]$FactoryLog,
     [int]$SmokeTimeout = 120,
     [ValidateSet('Debug','Release','Test','Asan')][string]$SmokeConfiguration = 'Release',
     [switch]$Movies,
@@ -20,6 +21,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $simorderArg = if ($SimOrder) { " -simorder $SimOrder" } else { '' }
+$extraArg = $simorderArg + $(if ($FactoryLog) { ' -factorylog' } else { '' })
 if ($Jobs -eq 0) { $Jobs = [Math]::Max(1, [Math]::Min(8, [int][Math]::Floor([Environment]::ProcessorCount / 2))) }
 $testsDir = $PSScriptRoot
 $root = Split-Path $testsDir -Parent
@@ -300,7 +302,7 @@ if ($hardenActive) {
         else {
             $aslrDir = Join-Path $outDir 'hardening\aslr'
             New-Item -ItemType Directory -Force -Path $aslrDir | Out-Null
-            $aslrArgs = (Get-SmokeCases 'Standard' @() $false $null)[0].Args.Replace('{CASEDIR}', $aslrDir) + $simorderArg
+            $aslrArgs = (Get-SmokeCases 'Standard' @() $false $null)[0].Args.Replace('{CASEDIR}', $aslrDir) + $extraArg
             $base = Get-ImageBase $gameExe $exeDir $aslrArgs
             if ($base -and $base -ne 0x400000) { Add-SmokeResult ('[PASS] hardening:aslr-base (0x{0:X8})' -f $base) 'PASS' }
             else {
@@ -358,7 +360,7 @@ if ($smokeActive) {
             $items = @()
             foreach ($sc in $smokeCases) {
                 $caseDir = Join-Path $outDir "smoke\$($sc.Name)"
-                $items += New-Object PSObject -Property @{ Name = $sc.Name; ExeName = 'BattlefrontII.exe'; ArgLine = $sc.Args.Replace('{CASEDIR}', $caseDir) + $simorderArg; Timeout = (Get-SmokeCaseTimeout $sc); CaseDir = $caseDir; AsanOptions = (Get-SmokeCaseAsan $caseDir) }
+                $items += New-Object PSObject -Property @{ Name = $sc.Name; ExeName = 'BattlefrontII.exe'; ArgLine = $sc.Args.Replace('{CASEDIR}', $caseDir) + $extraArg; Timeout = (Get-SmokeCaseTimeout $sc); CaseDir = $caseDir; AsanOptions = (Get-SmokeCaseAsan $caseDir) }
             }
         }
         try {
@@ -370,7 +372,7 @@ if ($smokeActive) {
             foreach ($sc in $smokeCases) {
                 $caseIndex++
                 $caseDir = Join-Path $outDir "smoke\$($sc.Name)"
-                $argLine = $sc.Args.Replace('{CASEDIR}', $caseDir) + $simorderArg
+                $argLine = $sc.Args.Replace('{CASEDIR}', $caseDir) + $extraArg
                 if ($useParallel) { $res = Receive-SmokeCase $batch $caseIndex }
                 else { $res = Invoke-SmokeCase $sc.Name $gameExe $exeDir $argLine (Get-SmokeCaseTimeout $sc) $caseDir (Get-SmokeCaseAsan $caseDir) }
                 if ($sc.Expect.Perturb) {

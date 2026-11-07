@@ -9,6 +9,7 @@
 #include "Restrictor.h"
 #include <new>
 #include "PebbleFL/Common/PblList.h"
+#include "PebbleFL/Common/PblSimOrder.h"
 
 // FUNCTION: SWBF2 0x00443fc0
 bool CollisionObject::CanProcedurallyAnimate()
@@ -35,6 +36,18 @@ bool CollisionObject::sCollideTrisWithAllPrimitives;
 
 extern PblVector3 gVectorZero;
 
+static unsigned int sCollisionSerialNext = 0;
+
+void CollisionObject::AssignCollisionSerial()
+{
+    mCollisionSerial = sCollisionSerialNext < 0x3FFFFFFF ? ++sCollisionSerialNext : sCollisionSerialNext;
+}
+
+void CollisionObject::ResetCollisionSerials()
+{
+    sCollisionSerialNext = 0;
+}
+
 
 
 // FUNCTION: SWBF2 0x00463ac0
@@ -46,6 +59,10 @@ CollisionObject::CollisionObject(CollisionObjectType eType, const CollisionModel
       FoleyFXCollidee(pCollideeClass)
 {
     mProcedurallyAnimated = false;
+    if (PblGetSimOrder() == PBL_SIMORDER_SERIAL)
+    {
+        AssignCollisionSerial();
+    }
     mCollisionModel = const_cast<CollisionModel*>(pModel);
     mParent = 0;
     mMass = 1.0f;

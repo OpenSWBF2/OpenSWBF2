@@ -126,6 +126,10 @@ LUA_API lua_CFunction lua_atpanic (lua_State *L, lua_CFunction panicf) {
   return old;
 }
 
+LUA_API void lua_setinsertionorder (int insertion) {
+  luaH_pendinginsertionorder = insertion;
+}
+
 // LIBRARY: SWBF2 0x0069bdf0
 // lua_newthread
 LUA_API lua_State *lua_newthread (lua_State *L) {

@@ -377,6 +377,32 @@ finally {
     Remove-Item -Recurse -Force $offsetDir -ErrorAction SilentlyContinue
 }
 $n++
+$serialDir = Join-Path $env:TEMP ("openswbf2-serial-" + [guid]::NewGuid().ToString('N'))
+try {
+    New-Item -ItemType Directory -Path (Join-Path $serialDir 'src\LuaFL') | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $serialDir 'tests') | Out-Null
+    Set-Content -Encoding ASCII -Path (Join-Path $serialDir 'src\x.cpp') -Value @(
+        'static int sThreadActivationKey = 0;',
+        'int a = sThreadActivationKey;',
+        'unsigned b = pObj->mCollisionSerial;',
+        'x = sCollisionSerialNext + 1;',
+        'k = NextThreadActivationKey();',
+        'int mCollisionSerialTies = 0;',
+        'q = pA->mCollisionSerial == pB->mCollisionSerial;'
+    )
+    Set-Content -Encoding ASCII -Path (Join-Path $serialDir 'src\LuaFL\l.cpp') -Value @(
+        'h = sCollisionSerialNext;'
+    )
+    $allow = @('src\x.cpp|static int sThreadActivationKey = 0;', 'src\x.cpp|int stale = sThreadActivationKey;')
+    $sc = @(Get-SourceChecks $serialDir @() @() @() $allow | Where-Object { $_.Name -eq 'serial-value' })
+    $want = ((@('src\LuaFL\l.cpp:1') + (@(2, 3, 4, 7) | ForEach-Object { "src\x.cpp:$_" })) + 'unused allow src\x.cpp|int stale = sThreadActivationKey;') -join ', '
+    if ($sc.Count -ne 1 -or $sc[0].Ok -or $sc[0].Detail -ne $want) { $failed++; Write-Host "FAILED ${n}: serial-value flags every serial read outside the exact allow-list: $($sc.Detail)" }
+    else { Write-Host "OK $n serial-value flags every serial read outside the exact allow-list" }
+}
+finally {
+    Remove-Item -Recurse -Force $serialDir -ErrorAction SilentlyContinue
+}
+$n++
 $allCases = @(Get-SmokeCases 'All' @('foo1c_ctf TimeOut', 'tat3c_con Fatal', 'bar1c_con', 'quux1c_con Pass', 'foo2c_ctf Pass 240') $false $null)
 $byName = @{}
 foreach ($c in $allCases) { $byName[$c.Name] = $c }
@@ -605,6 +631,54 @@ try {
     elseif ((& $soMiss $soWarn) -eq 0) { $soBad += 'rejected -simorder warning accepted' }
     if ($soBad.Count) { $failed++; Write-Host "FAILED ${n}: simorder assertion: $($soBad -join '; ')" }
     else { Write-Host "OK $n -SimOrder asserts its SIMORDER line on every non-crash case" }
+    $n++
+    $sdBad = @()
+    $sdNew = { param($name, $mode) @(Add-SimOrderExpect @(New-Object PSObject -Property @{ Name = $name; Expect = @{ Class = 'Pass' } }) $mode)[0] }
+    $sdSerial = & $sdNew 'selftest-case' 'serial'
+    $sdAddress = & $sdNew 'selftest-case' 'address'
+    $sdPlain = & $sdNew 'selftest-case' ''
+    $sdNoRow = & $sdNew 'selftest-norow' 'serial'
+    $sdHead = "[t=0.000] [f=0] LogCore Inform pcMain.cpp:1: OPENSWBF2 SIMORDER mode=serial`r`n"
+    $sdAddrHead = $sdHead.Replace('mode=serial', 'mode=address')
+    $sdRes = New-Object PSObject -Property @{ Class = 'Pass'; CaseDir = $digTmp; LogText = ''; Dumps = @() }
+    $sdRun = {
+        param($case, $text)
+        [IO.File]::WriteAllText((Join-Path $digTmp 'run.log'), $text)
+        $sdRes.LogText = $text
+        Test-SmokeExpect $case $sdRes
+    }
+    $env:OPENSWBF2_DIGEST_EXPECTED = $flipExp
+    if (-not $sdSerial.Expect.ContainsKey('SerialDigest')) { $sdBad += 'serial case lacks SerialDigest' }
+    if ($sdAddress.Expect.ContainsKey('SerialDigest') -or $sdPlain.Expect.ContainsKey('SerialDigest')) { $sdBad += 'SerialDigest set outside serial' }
+    if (-not (& $sdRun $sdSerial "$sdHead[t=1.000] [f=1] $digLine`r`n")) { $sdBad += 'serial digest compared with the address row' }
+    if (& $sdRun $sdSerial $sdHead) { $sdBad += 'serial case without a digest line accepted' }
+    if (& $sdRun $sdAddress "$sdAddrHead[t=1.000] [f=1] $digLine`r`n") { $sdBad += 'address digest mismatch accepted' }
+    if (& $sdRun $sdPlain "[t=1.000] [f=1] $digLine`r`n") { $sdBad += 'plain digest mismatch accepted' }
+    if (-not (& $sdRun $sdNoRow $sdHead)) { $sdBad += 'serial case without a digest row needs a digest line' }
+    $env:OPENSWBF2_DIGEST_EXPECTED = $savedExpected
+    if ($sdBad.Count) { $failed++; Write-Host "FAILED ${n}: serial digest expectation: $($sdBad -join '; ')" }
+    else { Write-Host "OK $n -SimOrder serial checks the digest line, not the address rows" }
+    $n++
+    $stBad = @()
+    $stPlain = & $sdNew 'selftest-norow' ''
+    $stCfg = $script:SmokeDigestConfiguration
+    $script:SmokeDigestConfiguration = 'Test'
+    $stTest = & $sdNew 'selftest-norow' 'serial'
+    $stTimeOut = @(Add-SimOrderExpect @(New-Object PSObject -Property @{ Name = 'selftest-norow'; Expect = @{ Class = 'TimeOut' } }) 'serial')[0]
+    $script:SmokeDigestConfiguration = $stCfg
+    $stTie = "$sdHead[t=1.000] [f=1] LogSim Inform CollisionObject.h:1: OPENSWBF2 COLLISION serialties=2`r`n"
+    $stZero = $stTie.Replace('serialties=2', 'serialties=0')
+    $env:OPENSWBF2_DIGEST_EXPECTED = $flipExp
+    if (& $sdRun $stTest $stTie) { $stBad += 'serial case with collision serial ties accepted' }
+    if (-not (& $sdRun $stTest $stZero)) { $stBad += 'serial case with zero collision serial ties rejected' }
+    if (& $sdRun $stTest $sdHead) { $stBad += 'test build serial pass case without a serialties line accepted' }
+    if (@($stTimeOut.Expect.LogRx) -contains '(?m)OPENSWBF2 COLLISION serialties=0\r?$') { $stBad += 'serialties line required on a timeout case' }
+    if (@($stTimeOut.Expect.LogRx) -notcontains '(?s)\A(?!.*OPENSWBF2 COLLISION serialties=[1-9])') { $stBad += 'timeout case lacks the serialties lookahead' }
+    if (@(@($sdNoRow.Expect.LogRx) -match 'serialties').Count) { $stBad += 'serialties checked outside a test build' }
+    if (-not (& $sdRun $stPlain $stTie.Replace($sdHead, ''))) { $stBad += 'collision serial ties failed a case without -SimOrder serial' }
+    $env:OPENSWBF2_DIGEST_EXPECTED = $savedExpected
+    if ($stBad.Count) { $failed++; Write-Host "FAILED ${n}: collision serial ties: $($stBad -join '; ')" }
+    else { Write-Host "OK $n -SimOrder serial fails a case that logs collision serial ties" }
     $n++
     $errLine = '[t=1.000] [f=1] LogMemory Error X.cpp:1: boom'
     $errLog = Join-Path $digTmp 'run.log'
@@ -836,6 +910,48 @@ finally {
     foreach ($l in $stLinks) { if (Test-Path -LiteralPath $l) { & cmd /c rmdir "$l" | Out-Null } }
     $stLeft = @($stLinks | Where-Object { Test-Path -LiteralPath $_ })
     if ($stLeft.Count -eq 0 -and (Test-Path -LiteralPath $stTmp)) { Remove-Item -LiteralPath $stTmp -Recurse -Force -ErrorAction SilentlyContinue }
+}
+$lhTmp = Join-Path $env:TEMP ("openswbf2-selftest-luahash-" + [guid]::NewGuid().ToString('N'))
+try {
+    $n++
+    $lhPre = '[t=1.000] [f=1] LogSim Inform x.cpp:1: '
+    $lhFact = 'OPENSWBF2 FACTORY entity idx=0 id=0x00000001 parent=0x00000000'
+    $lhCounts = 'OPENSWBF2 FACTORY COUNTS entity=1 ordnance=0 weapon=0 explosion=0'
+    $lhLogs = @{
+        'a\m1' = @('address', $lhFact, $lhCounts, 'OPENSWBF2 MEMREPORT source=turn1500')
+        'a\m2' = @('address', $lhFact, $lhCounts)
+        'a\m3' = @('address', $lhFact, $lhCounts)
+        's\m1' = @('serial', $lhFact, $lhCounts, 'OPENSWBF2 MEMREPORT source=turn1500', 'OPENSWBF2 MEMREPORT source=exit')
+        's\m2' = @('serial', $lhFact.Replace('id=0x00000001', 'id=0x00000002'), $lhCounts, 'OPENSWBF2 MEMREPORT source=exit')
+    }
+    foreach ($k in $lhLogs.Keys) {
+        $d = Join-Path $lhTmp ($k.Replace('\', '\smoke\'))
+        New-Item -ItemType Directory -Force -Path $d | Out-Null
+        $v = $lhLogs[$k]
+        Set-Content -Encoding ASCII -Path (Join-Path $d 'run.log') -Value (@("${lhPre}OPENSWBF2 SIMORDER mode=$($v[0])") + @($v[1..($v.Count - 1)] | ForEach-Object { "$lhPre$_" }))
+    }
+    $lhMissions = Join-Path $lhTmp 'missions.txt'
+    Set-Content -Encoding ASCII -Path $lhMissions -Value @('m1 Pass', 'm2 Pass', 'm3 TimeOut')
+    $lhCauses = Join-Path $lhTmp 'causes.tsv'
+    Set-Content -Encoding ASCII -Path $lhCauses -Value "m2`tfixture cause"
+    $lhOut = Join-Path $lhTmp 'out'
+    $lhCap = Join-Path $PSScriptRoot 'baseline\capture-vs2013.ps1'
+    $lhRun = & powershell -NoProfile -ExecutionPolicy Bypass -File $lhCap -Configuration Test -Tables -FactoryAddressDir (Join-Path $lhTmp 'a') -FactorySerialDir (Join-Path $lhTmp 's') -FactoryCauses $lhCauses -MissionsFile $lhMissions -OutDir $lhOut 2>&1
+    $lhCode = $LASTEXITCODE
+    $lhSwap = & powershell -NoProfile -ExecutionPolicy Bypass -File $lhCap -Configuration Test -Tables -FactoryAddressDir (Join-Path $lhTmp 's') -FactorySerialDir (Join-Path $lhTmp 'a') -MissionsFile $lhMissions -OutDir (Join-Path $lhTmp 'swap') 2>&1
+    $lhSwapCode = $LASTEXITCODE
+    $lhRead = { param($f) $p = Join-Path $lhOut $f; if (Test-Path -LiteralPath $p) { @([IO.File]::ReadAllLines($p) | Select-Object -Skip 1) } else { @() } }
+    $lhFl = (& $lhRead 'factorylog-serial.txt') -join '|'
+    $wantFl = (@("mission`tresult`tlines`tfirst_diff`tcause", "m1`tequal`t2`t-`t-", "m2`tdiffers`t2`t1`tfixture cause", "m3`tmissing`t-`t-`t-", '## m2', "-$lhFact", ('+' + $lhFact.Replace('id=0x00000001', 'id=0x00000002'))) -join '|')
+    $why = $null
+    if ($lhCode -ne 0) { $why = "collector exit $lhCode`: $($lhRun -join ' ')" }
+    elseif ($lhFl -cne $wantFl) { $why = "factorylog-serial.txt '$lhFl'" }
+    elseif ($lhSwapCode -eq 0) { $why = 'swapped SIMORDER dirs were accepted' }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: lua factory collector: $why" }
+    else { Write-Host "OK $n lua factory collector writes the factory comparison and refuses swapped modes" }
+}
+finally {
+    Remove-Item -LiteralPath $lhTmp -Recurse -Force -ErrorAction SilentlyContinue
 }
 . (Join-Path $PSScriptRoot 'guardrevert\select.ps1')
 $selTmp = Join-Path $env:TEMP ("openswbf2-selftest-sel-" + [guid]::NewGuid().ToString('N'))

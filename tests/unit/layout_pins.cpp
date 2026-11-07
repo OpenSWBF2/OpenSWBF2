@@ -258,6 +258,7 @@ static_assert(offsetof(CNetFindGame, findSessionId) == 0x54, "find game session 
 static_assert(offsetof(CNetFindGame, mWaitingForQueries) == 0x5c, "find game waiting for queries");
 static_assert(offsetof(CollisionObject, mCollisionObjectNode) == 0x38, "collision object node");
 static_assert(sizeof(CollisionObject) == 0x88, "collision object size");
+static_assert(offsetof(CollisionObject, mLastPosition) == 0x70, "collision object last position");
 static_assert(sizeof(TreeGridObject) == 0x24, "tree grid object size");
 static_assert(offsetof(TreeGridObject, mCollisionSphere) == 0x8, "tree grid object collision sphere");
 static_assert(offsetof(TreeGridObject, m2dRadius) == 0x18, "tree grid object 2d radius");
