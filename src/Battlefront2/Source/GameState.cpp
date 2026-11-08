@@ -1554,8 +1554,8 @@ struct HandleScan
     unsigned int uDead;
 };
 
-static PBL_ASAN_NO_SANITIZE void ScanHandleRange(HandleScan& rScan, const unsigned int* puFrom, const unsigned int* puTo,
-                                                 const char* pcWhere)
+static PBL_ASAN_NO_SANITIZE void ScanHandleRange(HandleScan& rScan, const unsigned int* puBase, const unsigned int* puFrom,
+                                                 const unsigned int* puTo, const char* pcWhere)
 {
     for (const unsigned int* pu = puFrom; pu + 1 < puTo; ++pu)
     {
@@ -1583,7 +1583,7 @@ static PBL_ASAN_NO_SANITIZE void ScanHandleRange(HandleScan& rScan, const unsign
             if (rScan.uLive + rScan.uDead < 16)
             {
                 LOG(LogSim, Warning, "OPENSWBF2 HANDLESCAN %s at=%s+0x%X object=0x%08X id=%u", bLive ? "live" : "dead",
-                    pcWhere, (unsigned int)(pu - puFrom) * 4, uObject, uId);
+                    pcWhere, (unsigned int)(pu - puBase) * 4, uObject, uId);
             }
             if (bLive)
             {
@@ -1629,7 +1629,30 @@ static void ScanStaleHandles(bool bMission)
             continue;
         }
         const unsigned int* puFrom = (const unsigned int*)pcImage + pSection->VirtualAddress / 4;
-        ScanHandleRange(kScan, puFrom, puFrom + pSection->Misc.VirtualSize / 4, (const char*)pSection->Name);
+        const unsigned int* puEnd = puFrom + pSection->Misc.VirtualSize / 4;
+        const unsigned int* puRun = puFrom;
+        const unsigned int* puAt = puFrom;
+        while (puAt < puEnd)
+        {
+            MEMORY_BASIC_INFORMATION kInfo;
+            if (VirtualQuery(puAt, &kInfo, sizeof(kInfo)) != sizeof(kInfo))
+            {
+                LOG(LogSim, Error, "OPENSWBF2 HANDLESCAN query-failed section=%.8s", (const char*)pSection->Name);
+                break;
+            }
+            const unsigned int* puRegionEnd = (const unsigned int*)kInfo.BaseAddress + kInfo.RegionSize / 4;
+            if (puRegionEnd > puEnd)
+            {
+                puRegionEnd = puEnd;
+            }
+            if (kInfo.State != MEM_COMMIT || (kInfo.Protect & (PAGE_NOACCESS | PAGE_GUARD)) != 0)
+            {
+                ScanHandleRange(kScan, puFrom, puRun, puAt, (const char*)pSection->Name);
+                puRun = puRegionEnd;
+            }
+            puAt = puRegionEnd;
+        }
+        ScanHandleRange(kScan, puFrom, puRun, puAt, (const char*)pSection->Name);
     }
     for (int iHeap = 0; iHeap < maxheaps; ++iHeap)
     {
@@ -1644,7 +1667,8 @@ static void ScanStaleHandles(bool bMission)
         {
             continue;
         }
-        ScanHandleRange(kScan, (const unsigned int*)pStart, (const unsigned int*)pStart + uSize / 4, RedGetHeapName(iHeap));
+        ScanHandleRange(kScan, (const unsigned int*)pStart, (const unsigned int*)pStart,
+                        (const unsigned int*)pStart + uSize / 4, RedGetHeapName(iHeap));
     }
     LOG(LogSim, Inform, "OPENSWBF2 HANDLESCAN state=%s live=%u dead=%u", bMission ? "mission" : "shell", kScan.uLive,
         kScan.uDead);

@@ -1050,12 +1050,48 @@ function Get-HardeningChecks($hdr, $cfg, $clTotal, $clGsMinus, $clSdl) {
     return $checks
 }
 
+$script:ImportModuleAllow = @(
+    'advapi32.dll',
+    'api-ms-win-crt-convert-l1-1-0.dll',
+    'api-ms-win-crt-environment-l1-1-0.dll',
+    'api-ms-win-crt-filesystem-l1-1-0.dll',
+    'api-ms-win-crt-heap-l1-1-0.dll',
+    'api-ms-win-crt-locale-l1-1-0.dll',
+    'api-ms-win-crt-math-l1-1-0.dll',
+    'api-ms-win-crt-runtime-l1-1-0.dll',
+    'api-ms-win-crt-stdio-l1-1-0.dll',
+    'api-ms-win-crt-string-l1-1-0.dll',
+    'api-ms-win-crt-time-l1-1-0.dll',
+    'api-ms-win-crt-utility-l1-1-0.dll',
+    'binkw32.dll',
+    'clang_rt.asan_dynamic-i386.dll',
+    'd3d9.dll',
+    'd3dx9_43.dll',
+    'dinput8.dll',
+    'dsound.dll',
+    'galaxy.dll',
+    'gdi32.dll',
+    'kernel32.dll',
+    'msvcp140.dll',
+    'ole32.dll',
+    'steam_api.dll',
+    'user32.dll',
+    'vcruntime140.dll',
+    'winmm.dll',
+    'ws2_32.dll'
+)
+
 function Get-ImportChecks($imp) {
     $rows = @()
     foreach ($n in 'SetProcessDpiAwarenessContext', 'SetProcessDpiAwareness', 'SetProcessDPIAware', 'GetDpiForWindow', 'AdjustWindowRectExForDpi') {
         $rows += New-Object PSObject -Property @{ Name = "import-$n"; Ok = ($imp -cnotmatch "(?m)\s$n\s*$"); Detail = "$n statically imported (breaks Win7 load)" }
     }
     $rows += New-Object PSObject -Property @{ Name = 'import-shcore'; Ok = ($imp -notmatch '(?mi)^\s+shcore\.dll\s*$'); Detail = 'shcore.dll in import table' }
+    $dlls = @([regex]::Matches([string]$imp, '(?mi)^\s+(\S+\.dll)\s*$') | ForEach-Object { $_.Groups[1].Value.ToLowerInvariant() } | Sort-Object -Unique)
+    $extra = @($dlls | Where-Object { $script:ImportModuleAllow -notcontains $_ })
+    $detail = 'imports outside the allow list: ' + ($extra -join ' ')
+    if ($dlls -notcontains 'kernel32.dll') { $detail = 'kernel32.dll not found in the dumpbin /imports output (' + $dlls.Count + ' DLLs parsed)' }
+    $rows += New-Object PSObject -Property @{ Name = 'import-modules'; Ok = ($extra.Count -eq 0 -and $dlls -contains 'kernel32.dll'); Detail = $detail }
     return $rows
 }
 
@@ -1070,10 +1106,16 @@ function Get-ClTlogCounts($objDir) {
     $gl = 0
     $fpFast = 0
     $fpContract = 0
+    $miLines = New-Object System.Collections.Generic.List[string]
     foreach ($f in Get-ChildItem -LiteralPath $objDir -Filter 'cl.command*.tlog' -Recurse -ErrorAction SilentlyContinue) {
+        $isMi = $false
         foreach ($l in (Get-Content -LiteralPath $f.FullName)) {
-            if ($l -and -not $l.StartsWith('^')) {
+            if ($l -and $l.StartsWith('^')) {
+                $isMi = @($l.Substring(1).Split('|') | Where-Object { $_.EndsWith('\SRC\MIMALLOC\SRC\STATIC.C', [StringComparison]::OrdinalIgnoreCase) }).Count -gt 0
+            }
+            elseif ($l) {
                 $total++
+                if ($isMi) { $miLines.Add($l) }
                 if ($l -match ' /GS-( |$)') { $gsMinus++ }
                 if ($l -match ' /sdl( |$)') { $sdl++ }
                 if ($l -cmatch ' /Zc:alignedNew-( |$)') { $alignedNewOff++ }
@@ -1089,11 +1131,18 @@ function Get-ClTlogCounts($objDir) {
     return New-Object PSObject -Property @{
         Total = $total; GsMinus = $gsMinus; Sdl = $sdl
         AlignedNewOff = $alignedNewOff; InlineOff = $inlineOff; InlineOn = $inlineOn; ThrowingNew = $throwingNew
-        Gl = $gl; FpFast = $fpFast; FpContract = $fpContract
+        Gl = $gl; FpFast = $fpFast; FpContract = $fpContract; MiLines = $miLines.ToArray()
     }
 }
 
-function Get-FlagChecks($game, $tests) {
+$script:MiDefines = @{
+    Debug = @('MI_DEBUG=2', 'MI_SECURE=0')
+    Release = @('MI_DEBUG=0', 'MI_SECURE=4')
+    Test = @('MI_DEBUG=1', 'MI_SECURE=4')
+    Asan = @('MI_DEBUG=0', 'MI_SECURE=0', 'MI_TRACK_ASAN=1')
+}
+
+function Get-FlagChecks($game, $tests, [string]$gameConfig, [string]$testsConfig) {
     $checks = @()
     $checks += New-Object PSObject -Property @{
         Name = 'flag-alignednew'
@@ -1120,6 +1169,37 @@ function Get-FlagChecks($game, $tests) {
         Name = 'flag-banned'
         Ok = (($sum.ThrowingNew + $sum.Gl + $sum.FpFast + $sum.FpContract + $sum.GsMinus) -eq 0)
         Detail = ('/Zc:throwingNew={0} /GL={1} /fp:fast={2} /fp:contract={3} /GS-={4}' -f $sum.ThrowingNew, $sum.Gl, $sum.FpFast, $sum.FpContract, $sum.GsMinus)
+    }
+    $miBad = @()
+    if (-not $tests) { $miBad += 'tests tlog missing' }
+    $miBags = @(, @('game', $game, $gameConfig))
+    if ($tests) { $miBags += , @('tests', $tests, $testsConfig) }
+    foreach ($mb in $miBags) {
+        $lines = @($mb[1].MiLines | Where-Object { $_ })
+        if ($lines.Count -ne 1) {
+            $miBad += ('{0} static.c command lines={1}' -f $mb[0], $lines.Count)
+            continue
+        }
+        $l = $lines[0]
+        foreach ($need in @(@('MI_NO_GETENV=1', 'MI_NO_GETENV=1'), @('MI_USE_RTLGENRANDOM', 'MI_USE_RTLGENRANDOM(?:=1)?'))) {
+            if ($l -cnotmatch ('(?:^| )/D "?' + $need[1] + '"?(?= |$)')) { $miBad += ('{0} missing {1}' -f $mb[0], $need[0]) }
+        }
+        $want = $script:MiDefines[$mb[2]]
+        if (-not $want) { $miBad += ('{0} has no expected defines for configuration "{1}"' -f $mb[0], $mb[2]) }
+        else {
+            $have = (@([regex]::Matches($l, '(?:^| )/D "?(MI_(?:DEBUG|SECURE|TRACK_ASAN)(?:=[^" ]*)?)"?(?= |$)') | ForEach-Object { $_.Groups[1].Value }) | Sort-Object) -join ' '
+            $exp = (@($want) | Sort-Object) -join ' '
+            if ($have -cne $exp) { $miBad += ('{0} {1} has "{2}" want "{3}"' -f $mb[0], $mb[2], $have, $exp) }
+        }
+        $asan = $l -cmatch ' /fsanitize=address(?= |$)'
+        $track = $l -cmatch '(?:^| )/D "?MI_TRACK_ASAN=1"?(?= |$)'
+        if ($asan -and -not $track) { $miBad += ('{0} missing MI_TRACK_ASAN=1 with /fsanitize=address' -f $mb[0]) }
+        elseif ($track -and -not $asan) { $miBad += ('{0} MI_TRACK_ASAN=1 without /fsanitize=address' -f $mb[0]) }
+    }
+    $checks += New-Object PSObject -Property @{
+        Name = 'mimalloc-defines'
+        Ok = ($miBad.Count -eq 0)
+        Detail = ($miBad -join '; ')
     }
     return $checks
 }
@@ -1229,10 +1309,10 @@ $script:OffsetAllow = @(
     'src\RedEngineFL\Graphics\PC\pcRedSegment.cpp|(PblVector3*)(vertex + normalOffset)',
     'src\RedEngineFL\Graphics\PC\pcRedSegment.cpp|(PblVector3*)(vertex + tangentOffset)',
     'src\RedEngineFL\Graphics\PC\pcRedSegment.cpp|(PblVector3*)(vertex + binormalOffset)',
-    'src\RedEngineFL\Memory\RedMemory.cpp|(Tag*)((char*)tag + rest)',
-    'src\RedEngineFL\Memory\RedMemory.cpp|(Tag*)((char*)tag + need)',
-    'src\RedEngineFL\Memory\RedMemory.cpp|(Tag*)((char*)block - hdr)',
-    'src\RedEngineFL\Memory\RedMemory.cpp|(Tag*)((char*)pBlock - uTagSize)',
+    'src\RedEngineFL\Memory\RedMemoryArena.cpp|(Tag*)((char*)tag + rest)',
+    'src\RedEngineFL\Memory\RedMemoryArena.cpp|(Tag*)((char*)tag + need)',
+    'src\RedEngineFL\Memory\RedMemoryArena.cpp|(Tag*)((char*)block - hdr)',
+    'src\RedEngineFL\Memory\RedMemoryArena.cpp|(Tag*)((char*)pBlock - uTagSize)',
     'src\RedEngineFL\Memory\RedMemoryPool.cpp|(char**)((char*)mPool + i * mSize)',
     'src\RedEngineFL\Memory\RedMemoryPool.cpp|(char**)((char*)mPool + (mCount - 1) * mSize)',
     'src\RedEngineFL\Memory\RedMemoryPool.cpp|(char**)((char*)mFree + i * mSize)',
@@ -1355,6 +1435,7 @@ function Get-SourceChecks([string]$root, [string[]]$spacerAllow = $script:Spacer
             'extern\s*"C"[^;{}]*?\bD3DX\w*\s*\(',
             '(?:\b_{1,2}stdcall|\bWINAPI|\bAPIENTRY|\bCALLBACK|\bSTDMETHODCALLTYPE|\bSTDAPICALLTYPE|\bNTAPI|\bPASCAL)\b(?:\s|/\*.*?\*/)*(?:(?:const\s+)?[\w:]+(?:\s*\*+\s*|\s+)(?:/\*.*?\*/\s*)*)?D3DX\w*\s*\(') },
         @{ Name = 'gamma-get'; Path = $null; Rx = @('GetDeviceGammaRamp') },
+        @{ Name = 'mi-api-ban'; Path = '\\src\\(?!.*\\RedMemoryMi\.cpp$)'; Rx = @('\bmi_\w+\s*\(') },
         @{ Name = 'snd-alloc-size-t'; Path = '\\src\\(?:SoundFL\\|Battlefront2\\Source\\GameSoundEngine\.(?:cpp|h)$)'; Rx = @(
             '\b(?:SndAlloc|SndTempAlloc)\s*\(\s*unsigned\b',
             '\(\s*__cdecl\s*\*\s*\w*Alloc\w*\s*\)\s*\(\s*unsigned\b') },
@@ -1396,7 +1477,7 @@ function Get-SourceChecks([string]$root, [string[]]$spacerAllow = $script:Spacer
     }
     $srcFiles = @()
     if ($runDefs.Count -or $doSpacer -or $doOffset) {
-        $srcFiles = @($allFiles | Where-Object { $_.FullName -notmatch '\\src\\(LuaFL|ZlibFL)\\' })
+        $srcFiles = @($allFiles | Where-Object { $_.FullName -notmatch '\\src\\(LuaFL|ZlibFL|mimalloc)\\' })
     }
     if ($doSerial) {
         foreach ($f in @($allFiles | Sort-Object FullName)) {

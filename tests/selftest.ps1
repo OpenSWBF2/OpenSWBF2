@@ -451,6 +451,66 @@ try {
 finally {
     Remove-Item -Recurse -Force $handleDir -ErrorAction SilentlyContinue
 }
+$miGood = '/c /ISRC\MIMALLOC\INCLUDE /D MI_DEBUG=2 /D MI_SECURE=0 /D MI_NO_GETENV=1 /D MI_USE_RTLGENRANDOM /GS C:\X\SRC\MIMALLOC\SRC\STATIC.C'
+$miRelease = $miGood.Replace('MI_DEBUG=2 /D MI_SECURE=0', 'MI_DEBUG=0 /D MI_SECURE=4')
+$miScenarios = @(
+    @('mimalloc-defines good static.c line passes', $miGood, 'Debug', $true, $true),
+    @('mimalloc-defines quoted asan line passes', '/c /fsanitize=address /D "MI_DEBUG=0" /D "MI_SECURE=0" /D "MI_TRACK_ASAN=1" /D "MI_NO_GETENV=1" /D "MI_USE_RTLGENRANDOM" C:\X\SRC\MIMALLOC\SRC\STATIC.C', 'Asan', $true, $true),
+    @('mimalloc-defines missing MI_NO_GETENV fails', $miGood.Replace(' /D MI_NO_GETENV=1', ''), 'Debug', $false, $true),
+    @('mimalloc-defines asan without MI_TRACK_ASAN fails', $miGood.Replace('/c ', '/c /fsanitize=address '), 'Debug', $false, $true),
+    @('mimalloc-defines MI_TRACK_ASAN without asan fails', $miGood.Replace('/c ', '/c /D MI_TRACK_ASAN=1 '), 'Debug', $false, $true),
+    @('mimalloc-defines release line passes', $miRelease, 'Release', $true, $true),
+    @('mimalloc-defines release with MI_SECURE=0 fails', $miRelease.Replace('MI_SECURE=4', 'MI_SECURE=0'), 'Release', $false, $true),
+    @('mimalloc-defines debug values under release fail', $miGood, 'Release', $false, $true),
+    @('mimalloc-defines missing tests tlog fails', $miGood, 'Debug', $false, $false)
+)
+foreach ($sc in $miScenarios) {
+    $n++
+    $miDir = Join-Path $env:TEMP ("openswbf2-midef-" + [guid]::NewGuid().ToString('N'))
+    try {
+        New-Item -ItemType Directory -Path $miDir | Out-Null
+        Set-Content -Encoding Unicode -Path (Join-Path $miDir 'CL.command.1.tlog') -Value @(
+            '^C:\X\A.CPP',
+            '/c /Zc:alignedNew- /Zc:inline /sdl /GS C:\X\A.CPP',
+            '^C:\X\SRC\MIMALLOC\SRC\STATIC.C',
+            $sc[1]
+        )
+        $bag = Get-ClTlogCounts $miDir
+        $testsBag = $null
+        if ($sc[4]) { $testsBag = $bag }
+        $got = @(Get-FlagChecks $bag $testsBag $sc[2] $sc[2] | Where-Object { $_.Name -eq 'mimalloc-defines' })
+        if ($got.Count -ne 1 -or $got[0].Ok -ne $sc[3]) { $failed++; Write-Host "FAILED ${n}: $($sc[0]): $($got.Detail)" }
+        else { Write-Host "OK $n $($sc[0])" }
+    }
+    finally {
+        Remove-Item -Recurse -Force $miDir -ErrorAction SilentlyContinue
+    }
+}
+$n++
+$miApiDir = Join-Path $env:TEMP ("openswbf2-miapi-" + [guid]::NewGuid().ToString('N'))
+try {
+    foreach ($d in 'src\Foo', 'src\mimalloc\src', 'src\RedEngineFL\Memory') { New-Item -ItemType Directory -Path (Join-Path $miApiDir $d) | Out-Null }
+    Set-Content -Encoding ASCII -Path (Join-Path $miApiDir 'src\Foo\a.cpp') -Value @('void* p = mi_malloc(1);', 'mi_heap_t* h = mi_heap_new();', 'void* q = mi_heap_malloc (h, 1);', 'mi_free(q);', 'int v = MI_VERSION;', 'int mi_count = 0;', 'mi_option_set(mi_option_verbose, 1);')
+    Set-Content -Encoding ASCII -Path (Join-Path $miApiDir 'src\mimalloc\src\x.c') -Value @('void* p = mi_malloc(1);')
+    Set-Content -Encoding ASCII -Path (Join-Path $miApiDir 'src\RedEngineFL\Memory\RedMemoryMi.cpp') -Value @('void* p = mi_malloc(1);')
+    $bad = @(Get-SourceChecks $miApiDir -Only 'mi-api-ban')
+    Remove-Item -LiteralPath (Join-Path $miApiDir 'src\Foo\a.cpp')
+    $good = @(Get-SourceChecks $miApiDir -Only 'mi-api-ban')
+    if ($bad.Count -ne 1 -or $bad[0].Ok -or $bad[0].Detail -ne 'src\Foo\a.cpp:1, src\Foo\a.cpp:2, src\Foo\a.cpp:3, src\Foo\a.cpp:4, src\Foo\a.cpp:7') { $failed++; Write-Host "FAILED ${n}: mi-api-ban flags mimalloc calls outside src\mimalloc and RedMemoryMi.cpp: $($bad.Detail)" }
+    elseif ($good.Count -ne 1 -or -not $good[0].Ok) { $failed++; Write-Host "FAILED ${n}: mi-api-ban flags mimalloc calls outside src\mimalloc and RedMemoryMi.cpp: allowed files flagged $($good.Detail)" }
+    else { Write-Host "OK $n mi-api-ban flags mimalloc calls outside src\mimalloc and RedMemoryMi.cpp" }
+}
+finally {
+    Remove-Item -Recurse -Force $miApiDir -ErrorAction SilentlyContinue
+}
+$n++
+$impGood = "Dump of file C:\X\BattlefrontII.exe`n`n  Section contains the following imports:`n`n    KERNEL32.dll`n              1000 Import Address Table`n                 1A0 GetTickCount`n`n    api-ms-win-crt-environment-l1-1-0.dll`n                   0 getenv`n"
+$impBad = $impGood + "`n    bcrypt.dll`n                   0 BCryptGenRandom`n"
+$okGood = @(Get-ImportChecks $impGood | Where-Object { $_.Name -eq 'import-modules' })
+$okBad = @(Get-ImportChecks $impBad | Where-Object { $_.Name -eq 'import-modules' })
+$okEmpty = @(Get-ImportChecks '' | Where-Object { $_.Name -eq 'import-modules' })
+if ($okGood.Count -ne 1 -or -not $okGood[0].Ok -or $okBad[0].Ok -or $okBad[0].Detail -notmatch 'bcrypt\.dll' -or $okEmpty[0].Ok -or $okEmpty[0].Detail -notmatch 'kernel32\.dll not found') { $failed++; Write-Host "FAILED ${n}: import-modules allows only listed DLLs: good=$($okGood.Ok) bad=$($okBad.Ok) empty=$($okEmpty.Ok)" }
+else { Write-Host "OK $n import-modules allows only listed DLLs" }
 $n++
 $allCases = @(Get-SmokeCases 'All' @('foo1c_ctf TimeOut', 'tat3c_con Fatal', 'bar1c_con', 'quux1c_con Pass', 'foo2c_con Pass 240', 'foo7c_ctf Fatal', 'foo5c_ass TimeOut', 'dag1c_ctf Pass', 'spa3c_ass Pass') $false $null)
 $byName = @{}

@@ -1,6 +1,7 @@
 #include <stdlib.h>
 
 #include "RedEngineFL/Memory/RedMemory.h"
+#include "RedEngineFL/Memory/RedMemoryBackend.h"
 
 namespace GameMemory { int LuaHeap = -1; }
 
@@ -8,6 +9,7 @@ static char* sT1Arena;
 
 extern "C" void Startup_RedInitHeap()
 {
+    gRedHeapBackend = &kRedArenaBackend;
     const unsigned int uiArenaSize = 0x4000000;
     const unsigned int uiLuaSize = 0x1000000;
     if (!sT1Arena)

@@ -5,6 +5,7 @@
 
 #include "testutil.h"
 #include "RedEngineFL/Memory/RedMemory.h"
+#include "RedEngineFL/Memory/RedMemoryBackend.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 #include "RedEngineFL/Memory/RedScriptLimits.h"
 #include "RedEngineFL/Util/RedLog.h"
@@ -240,7 +241,7 @@ alignas(16) char sacHeapArena[0x2000];
 
 unsigned int HeapUsedFromFree(int iHeap)
 {
-    return RedGetHeapSize(iHeap) - RedGetHeapFree(iHeap);
+    return RedGetHeapSize(iHeap) - RedArenaFreeTagSum(iHeap);
 }
 
 RedHeapStats GetStats(int iHeap)
