@@ -21,6 +21,7 @@
 #include "BonusManager.h"
 #include "CameraManager.h"
 #include "CollisionManager.h"
+#include "CommandLine.h"
 #include "ChaseCamera.h"
 #include "Character.h"
 #include "Controllable.h"
@@ -1779,6 +1780,10 @@ int SetVictoryTimer(lua_State* L)
 // FUNCTION: SWBF2 0x00590910
 int MissionVictory(lua_State* L)
 {
+    if (NoVictoryActive())
+    {
+        return 0;
+    }
     unsigned int uWinningTeams = 0;
     if (lua_isnumber(LuaHelper::mState, 1))
     {
@@ -1805,6 +1810,10 @@ int MissionVictory(lua_State* L)
 // FUNCTION: SWBF2 0x005909f0
 int MissionDefeat(lua_State* L)
 {
+    if (NoVictoryActive())
+    {
+        return 0;
+    }
     unsigned int uLosingTeams = 0;
     if (lua_isnumber(LuaHelper::mState, 1))
     {

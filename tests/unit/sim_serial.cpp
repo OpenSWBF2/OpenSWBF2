@@ -21,8 +21,21 @@ namespace
 class SerialOrderScope
 {
 public:
-    SerialOrderScope() { PblSetSimOrder(PBL_SIMORDER_SERIAL); }
-    ~SerialOrderScope() { PblSetSimOrder(PBL_SIMORDER_ADDRESS); }
+    SerialOrderScope() : mePrev(PblGetSimOrder()) { PblSetSimOrder(PBL_SIMORDER_SERIAL); }
+    ~SerialOrderScope() { PblSetSimOrder(mePrev); }
+
+private:
+    PblSimOrderMode mePrev;
+};
+
+class AddressOrderScope
+{
+public:
+    AddressOrderScope() : mePrev(PblGetSimOrder()) { PblSetSimOrder(PBL_SIMORDER_ADDRESS); }
+    ~AddressOrderScope() { PblSetSimOrder(mePrev); }
+
+private:
+    PblSimOrderMode mePrev;
 };
 
 template <class KEY>
@@ -31,23 +44,6 @@ struct SentinelFixture
     typename PblOrderedList<Thread, KEY>::Node aNodes[4];
     PblOrderedList<Thread, KEY> list;
 };
-
-bool ReadSource(const char* pcPath, std::string& sOut)
-{
-    FILE* pFile = fopen(pcPath, "rb");
-    if (!pFile)
-    {
-        return false;
-    }
-    char acBuf[4096];
-    size_t uiRead;
-    while ((uiRead = fread(acBuf, 1, sizeof(acBuf), pFile)) > 0)
-    {
-        sOut.append(acBuf, uiRead);
-    }
-    fclose(pFile);
-    return true;
-}
 
 int CountOf(const std::string& sText, const char* pcNeedle)
 {
@@ -97,31 +93,6 @@ void CheckSentinelStopsAtHead(KEY sentinel)
     CHECK(apGot[2] == &fix.aNodes[2]);
     CHECK(apGot[3] == &fix.aNodes[1]);
     CHECK(apGot[3]->_pNext == &fix.list._head);
-}
-
-std::string StripCr(const std::string& sText)
-{
-    std::string sOut;
-    sOut.reserve(sText.size());
-    for (size_t i = 0; i < sText.size(); ++i)
-    {
-        if (sText[i] != '\r')
-        {
-            sOut += sText[i];
-        }
-    }
-    return sOut;
-}
-
-bool ReadSourceLf(const char* pcPath, std::string& sOut)
-{
-    std::string sRaw;
-    if (!ReadSource(pcPath, sRaw))
-    {
-        return false;
-    }
-    sOut = StripCr(sRaw);
-    return true;
 }
 
 struct alignas(CollisionObject) CollisionObjectBuffer
@@ -255,13 +226,10 @@ TEST_CASE("collision serial sites keep the wire bool writes and the address arm"
     std::string sManager;
     std::string sObject;
     std::string sState;
-    if (!ReadSourceLf("../src/Battlefront2/Source/NetState.cpp", sNetState) ||
-        !ReadSourceLf("../src/Battlefront2/Source/CollisionManager.cpp", sManager) ||
-        !ReadSourceLf("../src/Battlefront2/Source/CollisionObject.cpp", sObject) ||
-        !ReadSourceLf("../src/Battlefront2/Source/GameState.cpp", sState))
-    {
-        SkipCase("source files not found");
-    }
+    REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\NetState.cpp", sNetState));
+    REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\CollisionManager.cpp", sManager));
+    REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\CollisionObject.cpp", sObject));
+    REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\GameState.cpp", sState));
 
     CHECK(CountOf(sNetState, "group.Write((bool)mLastCollidedWithNonTerrain);") == 4);
     CHECK(CountOf(sNetState, "group.Write(mLastCollidedWithNonTerrain)") == 0);
@@ -306,7 +274,7 @@ TEST_CASE("ordered list sentinel key stops at the head under serial order" * doc
 
 TEST_CASE("ordered list keeps address tie order under address order" * doctest::test_suite("regression"))
 {
-    REQUIRE(PblGetSimOrder() == PBL_SIMORDER_ADDRESS);
+    AddressOrderScope scope;
     PblOrderedList<Thread, int> list;
     PblOrderedList<Thread, int>::Node aNodes[4];
     for (int i = 3; i >= 0; --i)
@@ -339,10 +307,7 @@ TEST_CASE("thread activation order ignores node addresses under serial order" * 
 TEST_CASE("thread activation key is set through one counter reader and reset" * doctest::test_suite("regression"))
 {
     std::string sThread;
-    if (!ReadSource("../src/Battlefront2/Source/Thread.cpp", sThread))
-    {
-        SkipCase("source files not found");
-    }
+    REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\Thread.cpp", sThread));
 
     CHECK(CountOf(sThread, "NextThreadActivationKey()") == 2);
     CHECK(CountOf(sThread, "PblPtrOrderKey(this)") == 1);
@@ -359,44 +324,45 @@ TEST_CASE("thread activation key is set through one counter reader and reset" * 
 
 TEST_CASE("wobble phase comes from the owner handle id under serial order" * doctest::test_suite("regression"))
 {
-    REQUIRE(PblGetSimOrder() == PBL_SIMORDER_ADDRESS);
     const unsigned int auiThis[] = { 0x1000u, 0x1004u, 0x103Cu, 0x7FFFFFFCu, 0x80000010u };
     const unsigned int auiId[] = { 0x13u, 0x20u, 0x7FFFu };
-    for (size_t i = 0; i < sizeof(auiThis) / sizeof(auiThis[0]); ++i)
     {
-        const void* pThis = (const void*)(uintptr_t)auiThis[i];
-        for (size_t j = 0; j < sizeof(auiId) / sizeof(auiId[0]); ++j)
-        {
-            const GameObject* pOwner = RawOwner(&sRawGameObject, auiId[j]);
-            CHECK(WobblePhase(pOwner, pThis) == (float)((auiThis[i] >> 2) & 0xf));
-        }
-    }
-
-    SerialOrderScope scope;
-    for (size_t j = 0; j < sizeof(auiId) / sizeof(auiId[0]); ++j)
-    {
-        const GameObject* pOwner = RawOwner(&sRawGameObject, auiId[j]);
+        AddressOrderScope scope;
         for (size_t i = 0; i < sizeof(auiThis) / sizeof(auiThis[0]); ++i)
         {
             const void* pThis = (const void*)(uintptr_t)auiThis[i];
-            CHECK(WobblePhase(pOwner, pThis) == (float)(auiId[j] & 0xf));
+            for (size_t j = 0; j < sizeof(auiId) / sizeof(auiId[0]); ++j)
+            {
+                const GameObject* pOwner = RawOwner(&sRawGameObject, auiId[j]);
+                CHECK(WobblePhase(pOwner, pThis) == (float)((auiThis[i] >> 2) & 0xf));
+            }
         }
     }
-    CheckFollowerOwnerPhase(sRawFlyer, 0x13u);
-    CheckFollowerOwnerPhase(sRawFlyer, 0x7FFFu);
-    CheckFollowerOwnerPhase(sRawCarrier, 0x20u);
-    CheckFollowerOwnerPhase(sRawCarrier, 0x7FFFu);
+
+    {
+        SerialOrderScope scope;
+        for (size_t j = 0; j < sizeof(auiId) / sizeof(auiId[0]); ++j)
+        {
+            const GameObject* pOwner = RawOwner(&sRawGameObject, auiId[j]);
+            for (size_t i = 0; i < sizeof(auiThis) / sizeof(auiThis[0]); ++i)
+            {
+                const void* pThis = (const void*)(uintptr_t)auiThis[i];
+                CHECK(WobblePhase(pOwner, pThis) == (float)(auiId[j] & 0xf));
+            }
+        }
+        CheckFollowerOwnerPhase(sRawFlyer, 0x13u);
+        CheckFollowerOwnerPhase(sRawFlyer, 0x7FFFu);
+        CheckFollowerOwnerPhase(sRawCarrier, 0x20u);
+        CheckFollowerOwnerPhase(sRawCarrier, 0x7FFFu);
+    }
 }
 
 TEST_CASE("wobble sites route through the phase helper" * doctest::test_suite("regression"))
 {
     std::string sFlyer;
     std::string sFollower;
-    if (!ReadSourceLf("../src/Battlefront2/Source/EntityFlyer.cpp", sFlyer) ||
-        !ReadSourceLf("../src/Battlefront2/Source/EntityPathFollower.cpp", sFollower))
-    {
-        SkipCase("source files not found");
-    }
+    REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\EntityFlyer.cpp", sFlyer));
+    REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\EntityPathFollower.cpp", sFollower));
 
     const char* pcFlyerCall = "    float fTime = GameLoop::GetMissionTime() + "
                               "WobblePhase(static_cast<const GameObject*>(this), this);";
@@ -457,10 +423,7 @@ TEST_CASE("ordered list move keeps an unchanged key in place while a walk re-que
 TEST_CASE("controller update asap reschedules through the ordered list move" * doctest::test_suite("regression"))
 {
     std::string sManager;
-    if (!ReadSourceLf("../src/Battlefront2/Source/ControllerManager.cpp", sManager))
-    {
-        SkipCase("source files not found");
-    }
+    REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\ControllerManager.cpp", sManager));
 
     std::string::size_type uiBegin = sManager.find("void ControllerManager::RequestControllerUpdateASAP(");
     REQUIRE(uiBegin != std::string::npos);
@@ -475,10 +438,7 @@ TEST_CASE("controller update asap reschedules through the ordered list move" * d
 TEST_CASE("controller update loop requeues through the ordered list move" * doctest::test_suite("regression"))
 {
     std::string sManager;
-    if (!ReadSourceLf("../src/Battlefront2/Source/ControllerManager.cpp", sManager))
-    {
-        SkipCase("source files not found");
-    }
+    REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\ControllerManager.cpp", sManager));
 
     std::string::size_type uiBegin = sManager.find("void ControllerManager::Update(float fDeltaTime)");
     REQUIRE(uiBegin != std::string::npos);
@@ -514,4 +474,39 @@ TEST_CASE("ordered list move ignores a node that is not in the list" * doctest::
     CHECK(aNodes[0]._pObject == pObject);
     CHECK(aNodes[0]._iOrder == 3.0f);
     CHECK(list.GetCount() == 1);
+}
+
+TEST_CASE("soldier water splash and wake timers reset with the other state counters" * doctest::test_suite("regression"))
+{
+    std::string sSoldier;
+    std::string sState;
+    REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\EntitySoldier.cpp", sSoldier));
+    REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\GameState.cpp", sState));
+
+    std::string::size_type uiUpdate = sSoldier.find("bool EntitySoldier::Update(float fDeltaTime)");
+    REQUIRE(uiUpdate != std::string::npos);
+    std::string::size_type uiUpdateEnd = sSoldier.find("\n}", uiUpdate);
+    REQUIRE(uiUpdateEnd != std::string::npos);
+    const std::string sUpdate = sSoldier.substr(uiUpdate, uiUpdateEnd - uiUpdate);
+    CHECK(sUpdate.find("static float s_fSplashTimeout") == std::string::npos);
+    CHECK(sUpdate.find("static float s_fWakeTimer") == std::string::npos);
+    CHECK(CountOf(sSoldier, "static float s_fSplashTimeout;") == 1);
+    CHECK(CountOf(sSoldier, "static float s_fWakeTimer;") == 1);
+
+    std::string::size_type uiReset = sSoldier.find("void EntitySoldier::ResetWaterTimers()");
+    REQUIRE(uiReset != std::string::npos);
+    CHECK(uiReset < uiUpdate);
+    std::string::size_type uiResetEnd = sSoldier.find("\n}", uiReset);
+    REQUIRE(uiResetEnd != std::string::npos);
+    const std::string sReset = sSoldier.substr(uiReset, uiResetEnd - uiReset);
+    CHECK(sReset.find("s_fSplashTimeout = 0.0f;") != std::string::npos);
+    CHECK(sReset.find("s_fWakeTimer = 0.0f;") != std::string::npos);
+
+    std::string::size_type uiCleanup = sState.find("void GameState::PostStateCleanup(bool bMission)");
+    REQUIRE(uiCleanup != std::string::npos);
+    std::string::size_type uiCleanupEnd = sState.find("\n}", uiCleanup);
+    REQUIRE(uiCleanupEnd != std::string::npos);
+    const std::string sCleanup = sState.substr(uiCleanup, uiCleanupEnd - uiCleanup);
+    CHECK(sCleanup.find("CollisionObject::ResetCollisionSerials();") != std::string::npos);
+    CHECK(sCleanup.find("EntitySoldier::ResetWaterTimers();") != std::string::npos);
 }

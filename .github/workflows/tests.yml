@@ -30,9 +30,9 @@ jobs:
       - name: Build and run tests
         shell: cmd
         run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\run.ps1 -Configuration Test
-      - name: Standard smoke in serial order
+      - name: Standard smoke in address order
         shell: cmd
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\run.ps1 -Configuration Test -NoBuild -Smoke Standard -SimOrder serial
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\run.ps1 -Configuration Test -NoBuild -Smoke Standard -SimOrder address
       - name: Runner self-test
         shell: cmd
         run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\selftest.ps1 -Configuration Test

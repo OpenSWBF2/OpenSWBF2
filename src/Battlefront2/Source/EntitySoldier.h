@@ -815,6 +815,7 @@ public:
 public:
     static bool sEnableAnnouncementVO;
     static bool sEnableMusic;
+    static void ResetWaterTimers();
 };
  
  

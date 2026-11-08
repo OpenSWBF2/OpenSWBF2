@@ -452,21 +452,30 @@ finally {
     Remove-Item -Recurse -Force $handleDir -ErrorAction SilentlyContinue
 }
 $n++
-$allCases = @(Get-SmokeCases 'All' @('foo1c_ctf TimeOut', 'tat3c_con Fatal', 'bar1c_con', 'quux1c_con Pass', 'foo2c_ctf Pass 240') $false $null)
+$allCases = @(Get-SmokeCases 'All' @('foo1c_ctf TimeOut', 'tat3c_con Fatal', 'bar1c_con', 'quux1c_con Pass', 'foo2c_con Pass 240', 'foo7c_ctf Fatal', 'foo5c_ass TimeOut', 'dag1c_ctf Pass', 'spa3c_ass Pass') $false $null)
 $byName = @{}
 foreach ($c in $allCases) { $byName[$c.Name] = $c }
 $rejected = 0
-foreach ($badLine in 'baz1c_con Bogus', 'qux1c_con GsFailure', 'foo3c_ctf Pass abc') {
+foreach ($badLine in 'baz1c_con Bogus', 'qux1c_con GsFailure', 'foo3c_ctf Pass abc', 'foo4c_1flag Pass', 'foo6c_ass') {
     try { Get-SmokeCases 'All' @($badLine) $false $null | Out-Null } catch { $rejected++ }
 }
 $why = $null
-if ($byName['foo1c_ctf'].Expect.Class -ne 'TimeOut' -or $byName['foo1c_ctf'].Timeout -ne 0 -or $byName['foo1c_ctf'].Expect.LogRx -ne 'OPENSWBF2 MISSION RUNNING') { $why = 'TimeOut line' }
+$nvRx = '(?m)OPENSWBF2 NOVICTORY\r?$'
+$nvLog = "[t=0.000] [f=0] LogCore Inform pcMain.cpp:1: OPENSWBF2 NOVICTORY`r`n"
+if ($byName['foo1c_ctf'].Expect.Class -ne 'TimeOut' -or $byName['foo1c_ctf'].Timeout -ne 0 -or (@($byName['foo1c_ctf'].Expect.LogRx) -join '|') -ne ('OPENSWBF2 MISSION RUNNING|' + $nvRx)) { $why = 'TimeOut line' }
+elseif ($byName['foo5c_ass'].Expect.Class -ne 'TimeOut' -or $byName['foo5c_ass'].Timeout -ne 0 -or (@($byName['foo5c_ass'].Expect.LogRx) -join '|') -ne ('OPENSWBF2 MISSION RUNNING|' + $nvRx)) { $why = 'assault TimeOut line' }
+elseif (-not $byName['foo1c_ctf'].Args.EndsWith(' -novictory') -or -not $byName['foo5c_ass'].Args.EndsWith(' -novictory')) { $why = 'flag and assault cases must run with -novictory' }
+elseif ($byName['foo7c_ctf'].Expect.Class -ne 'Fatal' -or $byName['foo7c_ctf'].Args.Contains('-novictory') -or @($byName['foo7c_ctf'].Expect.LogRx) -contains $nvRx) { $why = 'only TimeOut flag and assault cases get -novictory' }
+elseif ($nvLog -cnotmatch $nvRx -or $nvLog.Replace('NOVICTORY', 'NOVICTORYX') -cmatch $nvRx -or $nvLog.Replace('NOVICTORY', 'NOVICTORY on') -cmatch $nvRx) { $why = 'NOVICTORY rx must pin the whole line' }
+elseif ($byName['bar1c_con'].Args.Contains('-novictory') -or @($byName['bar1c_con'].Expect.LogRx) -contains $nvRx) { $why = 'con cases must not get -novictory' }
+elseif ($byName['dag1c_ctf'].Args.Contains('-novictory') -or @($byName['dag1c_ctf'].Expect.LogRx) -contains $nvRx -or $byName['spa3c_ass'].Args.Contains('-novictory') -or @($byName['spa3c_ass'].Expect.LogRx) -contains $nvRx) { $why = 'digest cases must not get -novictory' }
+elseif (@(Get-SmokeCases 'All' @('quux1c_con Pass') $false $null)[0].Expect.LogRx) { $why = 'flag case leaked its LogRx into the shared Pass expectation' }
 elseif ($byName['tat3c_con'].Expect.Class -ne 'Fatal' -or $byName['tat3c_con'].Timeout -ne 0) { $why = 'Fatal line' }
 elseif (-not $byName['tat3c_con'].Expect.LogRx -or $byName['tat3c_con'].Expect.Code -ne 3 -or $byName['tat3c_con'].Expect.MaxDumps -ne 1) { $why = 'Fatal line must pin the d3dx9 signature' }
 elseif ('FATAL: exception 0xC0000005 at 0x658FA553 (d3dx9_43.dll+0x1BA553) build 6ADE5B7C1C4C000' -notmatch $byName['tat3c_con'].Expect.LogRx) { $why = 'Fatal LogRx does not match the recorded tat3 crash' }
 elseif ($byName['bar1c_con'].Expect.Class -ne 'Pass' -or $byName['quux1c_con'].Expect.Class -ne 'Pass') { $why = 'missing or Pass class must be Pass' }
-elseif ($byName['foo2c_ctf'].Expect.Class -ne 'Pass' -or $byName['foo2c_ctf'].Timeout -ne 240 -or $byName['bar1c_con'].Timeout -ne 0 -or $byName['quux1c_con'].Timeout -ne 0) { $why = 'third token must set the case timeout' }
-elseif ($rejected -ne 3) { $why = 'unknown classes, GsFailure and non-integer timeouts must be rejected' }
+elseif ($byName['foo2c_con'].Expect.Class -ne 'Pass' -or $byName['foo2c_con'].Timeout -ne 240 -or $byName['bar1c_con'].Timeout -ne 0 -or $byName['quux1c_con'].Timeout -ne 0) { $why = 'third token must set the case timeout' }
+elseif ($rejected -ne 5) { $why = 'unknown classes, GsFailure, non-integer timeouts and Pass flag or assault lines without a digest row must be rejected' }
 elseif (@($allCases | Where-Object { $_.Name -like 'crash-*' }).Count -ne 40 -or -not $byName.ContainsKey('fatal-init') -or $byName['dedicated'].Timeout -ne 0) { $why = 'dedicated or crash cases changed' }
 if ($why) { $failed++; Write-Host "FAILED ${n}: all-missions parsing: $why" }
 else { Write-Host "OK $n all-missions parsing" }
@@ -642,6 +651,69 @@ try {
     if ($pvBad.Count) { $failed++; Write-Host "FAILED ${n}: perturb verdict: $($pvBad -join ' ')" }
     else { Write-Host "OK $n perturb verdict names equal, split turn, incomplete and crash" }
     $n++
+    $fullBad = @()
+    $trF = Join-Path $digTmp 'trace-f.log'
+    [IO.File]::WriteAllLines($trF, [string[]]($linesA | ForEach-Object { if ($_ -match 'turn=7 ') { $_.Replace('rand=1/2', 'rand=5/2') } else { $_ } }))
+    $mA = Get-DigestTrace $trA
+    $mF = Get-DigestTrace $trF
+    $fRand = Compare-DigestTraceFull $mA $mF
+    $fRandOld = Compare-DigestTrace $trA $trF
+    if ($fRand -ne 7 -or $fRandOld -ne 0) { $fullBad += "rand=$fRand/$fRandOld" }
+    $mL = @{}
+    $mM = @{}
+    foreach ($t in 1..1600) {
+        $mL[$t] = 'state=0x{0:X8} rand=1/2' -f $t
+        $mM[$t] = $mL[$t]
+    }
+    $mM[1550] = 'state=0x00000001 rand=1/2'
+    $fLate = Compare-DigestTraceFull $mL $mM
+    $mShort = @{}
+    foreach ($t in 1..1599) { $mShort[$t] = $mL[$t] }
+    $fMiss = Compare-DigestTraceFull $mL $mShort
+    $fEmpty = Compare-DigestTraceFull $mL @{}
+    $fSame = Compare-DigestTraceFull $mL $mL
+    if ($fLate -ne 1550 -or $fMiss -ne -1 -or $fEmpty -ne -1 -or $fSame -ne 0) { $fullBad += "late=$fLate miss=$fMiss empty=$fEmpty same=$fSame" }
+    $trLine = { param($t, $r) "[t=1.000] [f=1] LogSim Inform SimDigest.cpp:164: OPENSWBF2 DIGEST TRACE turn=$t state=0x{0:X8} rand=$r/2" -f $t }
+    $simLine = '[t=2.000] [f=2] LogSim Inform GameLoop.cpp:1523: OPENSWBF2 SIM DIGEST turns=15 time=1.000 rand=1/2 snd=1.000 state=0x00000042'
+    $toMission = '[t=3.000] [f=3] LogSim Inform GameState.cpp:1347: OPENSWBF2 REPEAT to_mission mission=geo1c_con'
+    $repBase = Join-Path $digTmp 'repeat-base.log'
+    [IO.File]::WriteAllLines($repBase, [string[]](@(1..20 | ForEach-Object { & $trLine $_ 1 }) + $simLine))
+    $repEq = Join-Path $digTmp 'repeat-eq.log'
+    $seg1 = @(1..15 | ForEach-Object { & $trLine $_ 1 }) + $simLine + $toMission
+    [IO.File]::WriteAllLines($repEq, [string[]]($seg1 + @(1..20 | ForEach-Object { & $trLine $_ 1 }) + $simLine))
+    $repSp = Join-Path $digTmp 'repeat-split.log'
+    [IO.File]::WriteAllLines($repSp, [string[]]($seg1 + @(1..20 | ForEach-Object { if ($_ -eq 18) { & $trLine $_ 3 } else { & $trLine $_ 1 } }) + $simLine))
+    $repOne = Join-Path $digTmp 'repeat-one.log'
+    [IO.File]::WriteAllLines($repOne, [string[]]($seg1[0..15]))
+    $repSegs = @(Get-DigestTraceSegments $repEq)
+    if ($repSegs.Count -ne 2 -or $repSegs[1].Count -ne 20 -or -not $repSegs[1].ContainsKey(1) -or $repSegs[0].Count -ne 15) { $fullBad += "segments=$($repSegs.Count)" }
+    if (@(Get-DigestTraceSegments (Join-Path $digTmp 'no-such.log')).Count -ne 0) { $fullBad += 'missing log has segments' }
+    $vEq = Get-PerturbVerdict $repBase $repEq 'Pass' 'Pass' 15 'serial' $true
+    $vSp = Get-PerturbVerdict $repBase $repSp 'Pass' 'Pass' 15 'serial' $true
+    $vOne = Get-PerturbVerdict $repBase $repOne 'Pass' 'Pass' 15 'serial' $true
+    $vAddr = Get-PerturbVerdict $repBase $repSp 'Pass' 'Pass' 15 'address' $true
+    if ($vEq.Result -ne 'equal') { $fullBad += "repeat equal=$($vEq.Result)/$($vEq.Class)" }
+    if ($vSp.Result -ne 'split' -or $vSp.Turn -ne 18) { $fullBad += "repeat split=$($vSp.Result)/$($vSp.Turn)" }
+    if ($vOne.Result -ne 'crash' -or $vOne.Class -ne 'incomplete') { $fullBad += "repeat one=$($vOne.Result)/$($vOne.Class)" }
+    if ($vAddr.Result -ne 'equal') { $fullBad += "repeat address=$($vAddr.Result)" }
+    $serBase = Join-Path $digTmp 'serial-base.log'
+    $serRand = Join-Path $digTmp 'serial-rand.log'
+    [IO.File]::WriteAllLines($serBase, [string[]](@(1..20 | ForEach-Object { & $trLine $_ 1 }) + $simLine))
+    [IO.File]::WriteAllLines($serRand, [string[]](@(1..20 | ForEach-Object { if ($_ -eq 7) { & $trLine $_ 3 } else { & $trLine $_ 1 } }) + $simLine))
+    $sSer = Get-PerturbVerdict $serBase $serRand 'Pass' 'Pass' 15 'serial'
+    $sAdr = Get-PerturbVerdict $serBase $serRand 'Pass' 'Pass' 15
+    $sEq = Get-PerturbVerdict $serBase $serBase 'Pass' 'Pass' 15 'serial'
+    $sNoDig = Get-PerturbVerdict $serBase $trA 'Pass' 'Pass' 9 'serial'
+    if ($sSer.Result -ne 'split' -or $sSer.Turn -ne 7 -or $sAdr.Result -ne 'equal' -or $sEq.Result -ne 'equal') { $fullBad += "serial=$($sSer.Result)/$($sSer.Turn) address=$($sAdr.Result) same=$($sEq.Result)" }
+    if ($sNoDig.Result -ne 'crash' -or $sNoDig.Class -ne 'incomplete') { $fullBad += "serial short=$($sNoDig.Result)/$($sNoDig.Class)" }
+    $gv = @(
+        (Get-PerturbGroupVerdict 'serial' 0 66 66), (Get-PerturbGroupVerdict 'serial' 1 66 66), (Get-PerturbGroupVerdict 'serial' 0 65 66),
+        (Get-PerturbGroupVerdict 'address' 3 66 66), (Get-PerturbGroupVerdict 'address' 0 66 66), (Get-PerturbGroupVerdict 'address' 3 65 66),
+        (Get-PerturbGroupVerdict '' 0 66 66), (Get-PerturbGroupVerdict 'Serial' 0 66 66))
+    if (($gv -join ',') -cne 'True,False,False,True,False,False,False,False') { $fullBad += "group=$($gv -join ',')" }
+    if ($fullBad.Count) { $failed++; Write-Host "FAILED ${n}: perturb full trace: $($fullBad -join '; ')" }
+    else { Write-Host "OK $n perturb full trace compares rand and late turns, splits repeat segments and follows the sim order" }
+    $n++
     $savedPm = $env:OPENSWBF2_PERTURB_MISSIONS
     $env:OPENSWBF2_PERTURB_MISSIONS = 'geo1c_con'
     $pCases = @{}
@@ -659,8 +731,23 @@ try {
     if (@(Get-PerturbProofMissing $pCases['perturb-geo1c_con-hog'] $addr).Count -ne 0) { $prBad += 'hog with ADDRSPACE rejected' }
     if (@(Get-PerturbProofMissing $pCases['perturb-geo1c_con-hog'] 'x').Count -eq 0) { $prBad += 'hog without ADDRSPACE accepted' }
     if (@(Get-PerturbProofMissing $pCases['perturb-geo1c_con-hog'] "$addr`r`n$pLine").Count -eq 0) { $prBad += 'hog with PERTURB line accepted' }
+    $rShell = "[t=1.000] [f=1] LogSim Inform GameLoop.cpp:1535: OPENSWBF2 REPEAT to_shell mission=geo1c_con`r`n"
+    $rMission = "[t=2.000] [f=2] LogSim Inform GameState.cpp:1347: OPENSWBF2 REPEAT to_mission mission=geo1c_con`r`n"
+    $rCase = $pCases['perturb-geo1c_con-repeat']
+    if (-not $rCase -or $rCase.Args -notmatch ' -repeatmission$' -or $rCase.Timeout -ne 300) { $prBad += 'repeat case missing or wrong' }
+    elseif (@(Get-PerturbProofMissing $rCase "$rShell$rMission").Count -ne 0) { $prBad += 'repeat with both REPEAT lines rejected' }
+    elseif (@(Get-PerturbProofMissing $rCase $rShell).Count -eq 0) { $prBad += 'repeat without to_mission accepted' }
+    elseif (@(Get-PerturbProofMissing $rCase $rMission).Count -eq 0) { $prBad += 'repeat without to_shell accepted' }
+    elseif (@(Get-PerturbProofMissing $rCase "$rShell$rMission$pLine").Count -eq 0) { $prBad += 'repeat with PERTURB line accepted' }
+    $savedPm = $env:OPENSWBF2_PERTURB_MISSIONS
+    $env:OPENSWBF2_PERTURB_MISSIONS = ''
+    $allP = @(Get-SmokeCases 'Perturb' @() $false $null)
+    $env:OPENSWBF2_PERTURB_MISSIONS = $savedPm
+    $nabRep = @($allP | Where-Object { $_.Name -eq 'perturb-nab2g_c-repeat' })
+    if ($allP.Count -ne 66 -or @($allP | Where-Object { $_.Expect.Perturb.Mode -eq 'repeat' }).Count -ne 6) { $prBad += "perturb cases=$($allP.Count), need 66 with 6 repeat" }
+    if ($nabRep.Count -ne 1 -or $nabRep[0].Timeout -ne 180 -or $nabRep[0].Expect.Class -ne 'TimeOut') { $prBad += 'nab2g_c repeat not TimeOut 180' }
     if ($prBad.Count) { $failed++; Write-Host "FAILED ${n}: perturb proof: $($prBad -join '; ')" }
-    else { Write-Host "OK $n perturb runs must prove their mode, seed and hog" }
+    else { Write-Host "OK $n perturb runs must prove their mode, seed, hog and repeat" }
     $n++
     $soBad = @()
     $soPlain = @(Get-SmokeCases 'Standard' @() $false $null)
@@ -686,9 +773,10 @@ try {
     $sdSerial = & $sdNew 'selftest-case' 'serial'
     $sdAddress = & $sdNew 'selftest-case' 'address'
     $sdPlain = & $sdNew 'selftest-case' ''
-    $sdNoRow = & $sdNew 'selftest-norow' 'serial'
+    $sdNoRow = & $sdNew 'selftest-norow' 'address'
     $sdHead = "[t=0.000] [f=0] LogCore Inform pcMain.cpp:1: OPENSWBF2 SIMORDER mode=serial`r`n"
     $sdAddrHead = $sdHead.Replace('mode=serial', 'mode=address')
+    $sdFlipLine = $digLine.Replace('state=0x0000ABCD', 'state=0x0000ABCC')
     $sdRes = New-Object PSObject -Property @{ Class = 'Pass'; CaseDir = $digTmp; LogText = ''; Dumps = @() }
     $sdRun = {
         param($case, $text)
@@ -697,37 +785,50 @@ try {
         Test-SmokeExpect $case $sdRes
     }
     $env:OPENSWBF2_DIGEST_EXPECTED = $flipExp
-    if (-not $sdSerial.Expect.ContainsKey('SerialDigest')) { $sdBad += 'serial case lacks SerialDigest' }
-    if ($sdAddress.Expect.ContainsKey('SerialDigest') -or $sdPlain.Expect.ContainsKey('SerialDigest')) { $sdBad += 'SerialDigest set outside serial' }
-    if (-not (& $sdRun $sdSerial "$sdHead[t=1.000] [f=1] $digLine`r`n")) { $sdBad += 'serial digest compared with the address row' }
-    if (& $sdRun $sdSerial $sdHead) { $sdBad += 'serial case without a digest line accepted' }
-    if (& $sdRun $sdAddress "$sdAddrHead[t=1.000] [f=1] $digLine`r`n") { $sdBad += 'address digest mismatch accepted' }
+    if (-not $sdAddress.Expect.ContainsKey('NoDigestRow')) { $sdBad += 'address case lacks NoDigestRow' }
+    if ($sdSerial.Expect.ContainsKey('NoDigestRow') -or $sdPlain.Expect.ContainsKey('NoDigestRow')) { $sdBad += 'NoDigestRow set outside address' }
+    if (& $sdRun $sdSerial "$sdHead[t=1.000] [f=1] $digLine`r`n") { $sdBad += 'serial digest mismatch accepted' }
+    if (-not (& $sdRun $sdSerial "$sdHead[t=1.000] [f=1] $sdFlipLine`r`n")) { $sdBad += 'serial digest equal to the row rejected' }
+    if (-not (& $sdRun $sdAddress "$sdAddrHead[t=1.000] [f=1] $digLine`r`n")) { $sdBad += 'address digest mismatch rejected' }
+    if (& $sdRun $sdAddress $sdAddrHead) { $sdBad += 'address case without a digest line accepted' }
     if (& $sdRun $sdPlain "[t=1.000] [f=1] $digLine`r`n") { $sdBad += 'plain digest mismatch accepted' }
-    if (-not (& $sdRun $sdNoRow $sdHead)) { $sdBad += 'serial case without a digest row needs a digest line' }
+    if (-not (& $sdRun $sdPlain "[t=1.000] [f=1] $sdFlipLine`r`n")) { $sdBad += 'plain digest equal to the row rejected' }
+    if (-not (& $sdRun $sdNoRow $sdAddrHead)) { $sdBad += 'address case without a digest row needs a digest line' }
     $env:OPENSWBF2_DIGEST_EXPECTED = $savedExpected
-    if ($sdBad.Count) { $failed++; Write-Host "FAILED ${n}: serial digest expectation: $($sdBad -join '; ')" }
-    else { Write-Host "OK $n -SimOrder serial checks the digest line, not the address rows" }
+    if ($sdBad.Count) { $failed++; Write-Host "FAILED ${n}: digest row expectation: $($sdBad -join '; ')" }
+    else { Write-Host "OK $n plain and -SimOrder serial compare the digest row, -SimOrder address checks only the digest line" }
     $n++
     $stBad = @()
-    $stPlain = & $sdNew 'selftest-norow' ''
     $stCfg = $script:SmokeDigestConfiguration
     $script:SmokeDigestConfiguration = 'Test'
     $stTest = & $sdNew 'selftest-norow' 'serial'
+    $stPlain = & $sdNew 'selftest-norow' ''
+    $stAddr = & $sdNew 'selftest-norow' 'address'
     $stTimeOut = @(Add-SimOrderExpect @(New-Object PSObject -Property @{ Name = 'selftest-norow'; Expect = @{ Class = 'TimeOut' } }) 'serial')[0]
+    $stPlainTimeOut = @(Add-SimOrderExpect @(New-Object PSObject -Property @{ Name = 'selftest-norow'; Expect = @{ Class = 'TimeOut' } }) '')[0]
     $script:SmokeDigestConfiguration = $stCfg
     $stTie = "$sdHead[t=1.000] [f=1] LogSim Inform CollisionObject.h:1: OPENSWBF2 COLLISION serialties=2`r`n"
     $stZero = $stTie.Replace('serialties=2', 'serialties=0')
+    $stPlainTie = $stTie.Replace($sdHead, '')
+    $stPlainZero = $stZero.Replace($sdHead, '')
     $env:OPENSWBF2_DIGEST_EXPECTED = $flipExp
     if (& $sdRun $stTest $stTie) { $stBad += 'serial case with collision serial ties accepted' }
     if (-not (& $sdRun $stTest $stZero)) { $stBad += 'serial case with zero collision serial ties rejected' }
     if (& $sdRun $stTest $sdHead) { $stBad += 'test build serial pass case without a serialties line accepted' }
-    if (@($stTimeOut.Expect.LogRx) -contains '(?m)OPENSWBF2 COLLISION serialties=0\r?$') { $stBad += 'serialties line required on a timeout case' }
-    if (@($stTimeOut.Expect.LogRx) -notcontains '(?s)\A(?!.*OPENSWBF2 COLLISION serialties=[1-9])') { $stBad += 'timeout case lacks the serialties lookahead' }
-    if (@(@($sdNoRow.Expect.LogRx) -match 'serialties').Count) { $stBad += 'serialties checked outside a test build' }
-    if (-not (& $sdRun $stPlain $stTie.Replace($sdHead, ''))) { $stBad += 'collision serial ties failed a case without -SimOrder serial' }
+    if (& $sdRun $stPlain $stPlainTie) { $stBad += 'plain case with collision serial ties accepted' }
+    if (-not (& $sdRun $stPlain $stPlainZero)) { $stBad += 'plain case with zero collision serial ties rejected' }
+    if (& $sdRun $stPlain '') { $stBad += 'test build plain pass case without a serialties line accepted' }
+    if (@(@($stPlain.Expect.LogRx) -match 'SIMORDER').Count) { $stBad += 'plain case asserts a SIMORDER line' }
+    foreach ($t in @($stTimeOut, $stPlainTimeOut)) {
+        if (@($t.Expect.LogRx) -contains '(?m)OPENSWBF2 COLLISION serialties=0\r?$') { $stBad += 'serialties line required on a timeout case' }
+        if (@($t.Expect.LogRx) -notcontains '(?s)\A(?!.*OPENSWBF2 COLLISION serialties=[1-9])') { $stBad += 'timeout case lacks the serialties lookahead' }
+    }
+    if (@(@($sdSerial.Expect.LogRx) -match 'serialties').Count -or @(@($sdPlain.Expect.LogRx) -match 'serialties').Count) { $stBad += 'serialties checked outside a test build' }
+    if (@(@($stAddr.Expect.LogRx) -match 'serialties').Count) { $stBad += 'serialties checked under -SimOrder address' }
+    if (-not (& $sdRun $stAddr $stTie.Replace('mode=serial', 'mode=address'))) { $stBad += 'collision serial ties failed an address case' }
     $env:OPENSWBF2_DIGEST_EXPECTED = $savedExpected
     if ($stBad.Count) { $failed++; Write-Host "FAILED ${n}: collision serial ties: $($stBad -join '; ')" }
-    else { Write-Host "OK $n -SimOrder serial fails a case that logs collision serial ties" }
+    else { Write-Host "OK $n plain and -SimOrder serial test builds fail a case that logs collision serial ties" }
     $n++
     $errLine = '[t=1.000] [f=1] LogMemory Error X.cpp:1: boom'
     $errLog = Join-Path $digTmp 'run.log'
@@ -959,48 +1060,6 @@ finally {
     foreach ($l in $stLinks) { if (Test-Path -LiteralPath $l) { & cmd /c rmdir "$l" | Out-Null } }
     $stLeft = @($stLinks | Where-Object { Test-Path -LiteralPath $_ })
     if ($stLeft.Count -eq 0 -and (Test-Path -LiteralPath $stTmp)) { Remove-Item -LiteralPath $stTmp -Recurse -Force -ErrorAction SilentlyContinue }
-}
-$lhTmp = Join-Path $env:TEMP ("openswbf2-selftest-luahash-" + [guid]::NewGuid().ToString('N'))
-try {
-    $n++
-    $lhPre = '[t=1.000] [f=1] LogSim Inform x.cpp:1: '
-    $lhFact = 'OPENSWBF2 FACTORY entity idx=0 id=0x00000001 parent=0x00000000'
-    $lhCounts = 'OPENSWBF2 FACTORY COUNTS entity=1 ordnance=0 weapon=0 explosion=0'
-    $lhLogs = @{
-        'a\m1' = @('address', $lhFact, $lhCounts, 'OPENSWBF2 MEMREPORT source=turn1500')
-        'a\m2' = @('address', $lhFact, $lhCounts)
-        'a\m3' = @('address', $lhFact, $lhCounts)
-        's\m1' = @('serial', $lhFact, $lhCounts, 'OPENSWBF2 MEMREPORT source=turn1500', 'OPENSWBF2 MEMREPORT source=exit')
-        's\m2' = @('serial', $lhFact.Replace('id=0x00000001', 'id=0x00000002'), $lhCounts, 'OPENSWBF2 MEMREPORT source=exit')
-    }
-    foreach ($k in $lhLogs.Keys) {
-        $d = Join-Path $lhTmp ($k.Replace('\', '\smoke\'))
-        New-Item -ItemType Directory -Force -Path $d | Out-Null
-        $v = $lhLogs[$k]
-        Set-Content -Encoding ASCII -Path (Join-Path $d 'run.log') -Value (@("${lhPre}OPENSWBF2 SIMORDER mode=$($v[0])") + @($v[1..($v.Count - 1)] | ForEach-Object { "$lhPre$_" }))
-    }
-    $lhMissions = Join-Path $lhTmp 'missions.txt'
-    Set-Content -Encoding ASCII -Path $lhMissions -Value @('m1 Pass', 'm2 Pass', 'm3 TimeOut')
-    $lhCauses = Join-Path $lhTmp 'causes.tsv'
-    Set-Content -Encoding ASCII -Path $lhCauses -Value "m2`tfixture cause"
-    $lhOut = Join-Path $lhTmp 'out'
-    $lhCap = Join-Path $PSScriptRoot 'baseline\capture-vs2013.ps1'
-    $lhRun = & powershell -NoProfile -ExecutionPolicy Bypass -File $lhCap -Configuration Test -Tables -FactoryAddressDir (Join-Path $lhTmp 'a') -FactorySerialDir (Join-Path $lhTmp 's') -FactoryCauses $lhCauses -MissionsFile $lhMissions -OutDir $lhOut 2>&1
-    $lhCode = $LASTEXITCODE
-    $lhSwap = & powershell -NoProfile -ExecutionPolicy Bypass -File $lhCap -Configuration Test -Tables -FactoryAddressDir (Join-Path $lhTmp 's') -FactorySerialDir (Join-Path $lhTmp 'a') -MissionsFile $lhMissions -OutDir (Join-Path $lhTmp 'swap') 2>&1
-    $lhSwapCode = $LASTEXITCODE
-    $lhRead = { param($f) $p = Join-Path $lhOut $f; if (Test-Path -LiteralPath $p) { @([IO.File]::ReadAllLines($p) | Select-Object -Skip 1) } else { @() } }
-    $lhFl = (& $lhRead 'factorylog-serial.txt') -join '|'
-    $wantFl = (@("mission`tresult`tlines`tfirst_diff`tcause", "m1`tequal`t2`t-`t-", "m2`tdiffers`t2`t1`tfixture cause", "m3`tmissing`t-`t-`t-", '## m2', "-$lhFact", ('+' + $lhFact.Replace('id=0x00000001', 'id=0x00000002'))) -join '|')
-    $why = $null
-    if ($lhCode -ne 0) { $why = "collector exit $lhCode`: $($lhRun -join ' ')" }
-    elseif ($lhFl -cne $wantFl) { $why = "factorylog-serial.txt '$lhFl'" }
-    elseif ($lhSwapCode -eq 0) { $why = 'swapped SIMORDER dirs were accepted' }
-    if ($why) { $failed++; Write-Host "FAILED ${n}: lua factory collector: $why" }
-    else { Write-Host "OK $n lua factory collector writes the factory comparison and refuses swapped modes" }
-}
-finally {
-    Remove-Item -LiteralPath $lhTmp -Recurse -Force -ErrorAction SilentlyContinue
 }
 . (Join-Path $PSScriptRoot 'guardrevert\select.ps1')
 $selTmp = Join-Path $env:TEMP ("openswbf2-selftest-sel-" + [guid]::NewGuid().ToString('N'))

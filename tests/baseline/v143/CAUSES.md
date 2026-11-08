@@ -1264,28 +1264,13 @@ only baseline edit is the layout pin block for `RawControllerInputs` and `FLInpu
 - Factory: Phase 30 re-check: all six factory logs are byte-identical between 5db7e6ac and the
   branch.
 
-## Phase 33: hot1g_con heap layout
-
-`digest-hot1g_con`, `hot1g_con` and `trace-seed-1` moved from `rand=403802221/2528439372
-state=0xC95E64E8` to `rand=2763759203/2960762048 state=0x23F2B567` (turns=1500 time=50.000
-snd=49.923), the same in Release and Test and on every run. No other digest row moved.
-
-### C-LAYOUT-HOT1G
-
-- Commits: fb63997b (the glyph cache block grows by 4 bytes) and e4a4bc99 (`HUD::Item::SetName`)
-  change no simulation code. They only move later heap allocations.
-- Proof: adding an unused 4 bytes to the same glyph cache allocation on 108efaa0, with no other
-  change, gives fb63997b's digest exactly. The `-digesttrace 1600` of 108efaa0 and of 108efaa0
-  with the 4 bytes is identical through turn 619 and first differs at turn 620.
-- Judgement: accepted. hot1g_con depends on heap addresses under `-simorder address`; this is the
-  dependence Phases 34 to 36 remove. Recorded in `33-PERTURB-RESULTS.md` as a lead.
-
 ## Phase 33: pvs lists and the first mission from the shell
 
-No digest row moved. This records a deliberate Release change that no direct-start row can see.
+This records a deliberate Release change that no direct-start row can see.
 
 ### C-PVS-SHELLFIRST
 
+- No digest row moved.
 - Change: `PostStateCleanup` re-reserves the pvs displayable free and page lists in the Application
   heap after every cleanup, the shell's included (33-04, kept by the 33 review fix for WR-04).
 - Before: a mission started from the menu found the lists emptied by the shell's cleanup and
@@ -1302,6 +1287,100 @@ No digest row moved. This records a deliberate Release change that no direct-sta
 - Judgement: accepted. Every mission entry now starts from the pvs state of a fresh process.
   `shell-first` (Test and Asan) gates the path with its own digest row, and run.ps1 checks that
   its Runtime at turn 1500, and the repeated mission's, equal the `geo1c_con` case.
+
+## Phase 36: serial sim order
+
+Every digest row moved once, when the default sim order became `serial`. This is the one digest
+re-baseline of the milestone.
+
+### C-LAYOUT-SERIAL
+
+- Commit: 27e2f31d. `PblSimOrder.cpp` defaults to `PBL_SIMORDER_SERIAL` in every configuration,
+  and every order-dependent baseline was re-captured under it in the same commit. `-simorder
+  address` stays accepted.
+- Proof: the Test Perturb group under the serial default is equal in every run (66 rows: 6 base
+  and 60 equal, pad, fill, top, pool, hog and repeat included; `artifacts\tests\20261107-154647`).
+  The same build under `-simorder address` splits 26 of 60 (pad 2, top 12, pool 12;
+  `artifacts\tests\20261107-155311`). Release and Test give the same rows, and two Release
+  `-Smoke All` runs give equal digests in all 137 digest-bearing cases other than `dedicated`.
+- Rows of `tests/smoke/digest-expected.txt`, old (address) -> new (serial). `turns=1500`,
+  `time=50.000` (52.033 for nab2g_c) and `snd=49.923` (49.956 for shell-first) did not change.
+  - `geo1c_con`, `repeat-digest`: `rand=1354762085/2950811992 state=0x16D65714` ->
+    `rand=234993775/2651921600 state=0x65CD7716`
+  - `nab2g_c`, `twice-digest-1`, `twice-digest-2`: `rand=2206058303/116923646 state=0xA880CE00` ->
+    `rand=1364591897/822169274 state=0x112D7CE2`
+  - `hot1g_con`, `digest-hot1g_con`, `trace-seed-1`: `rand=2763759203/2960762048
+    state=0x23F2B567` -> `rand=6704969/2285451412 state=0x82584D2E`
+  - `spa3c_ass`, `digest-spa3c_ass`: `rand=1799084171/444301954 state=0xC77ED51E` ->
+    `rand=723220111/3966278132 state=0x7758D69F`
+  - `dag1c_ctf`, `digest-dag1c_ctf`: `rand=423450483/1140324658 state=0xED6D9B0A` ->
+    `rand=3141009605/1956807958 state=0x0D75FA96`
+  - `kas2c_uber`, `digest-kas2c_uber`: `rand=612937807/386973628 state=0x765A955F` ->
+    `rand=3352953385/1695809336 state=0xAA5AA809`
+  - `shell-first`: `rand=1204355361/2225627158 state=0x59BA0C43` ->
+    `rand=3081717179/1987697560 state=0xE1B0D0FF`
+- Rows of `digests.txt` (and the byte-identical `digests-hog.txt`), old -> new. The old
+  hot1g_con and spa3c_ass rows were older captures than the digest-expected rows they now equal.
+  - geo1c_con: `state=0x16D65714` -> `state=0x65CD7716`
+  - nab2g_c: `state=0xA880CE00` -> `state=0x112D7CE2`
+  - hot1g_con: `rand=2763759203/2960762048 state=0x1FE5B21F` -> `rand=6704969/2285451412
+    state=0x82584D2E`
+  - spa3c_ass: `rand=529082281/2897934758 state=0x7385D175` -> `rand=723220111/3966278132
+    state=0x7758D69F`
+- Rows of `digests-debug.txt`, old -> new: twice-digest-1 `0x4996D99B` -> `0xE93085A2`,
+  digest-hot1g_con `0x278F8853` -> `0x94E6C26F`, digest-spa3c_ass `0x222876E4` -> `0xF44AC841`.
+  The four `digest-trace-*.txt` files and `smoke-all-digests.txt` were re-captured in the same
+  commit; their hashes are in MANIFEST.md.
+- First split turn: the first turn where the `-digesttrace 1600` of `-simorder address` and of
+  `serial` differ, from the two Perturb base runs of the same Test build. On every mission the
+  first split is in `state=`, with `rand=` still equal on that turn.
+
+  | Mission | First full-line split | First state split |
+  |---------|-----------------------|-------------------|
+  | geo1c_con | 4 | 4 |
+  | nab2g_c | 19 | 19 |
+  | hot1g_con | 11 | 11 |
+  | spa3c_ass | 11 | 11 |
+  | dag1c_ctf | 11 | 11 |
+  | kas2c_uber | 4 | 4 |
+
+- Lua: under `serial`, `next()` walks the hash part in insertion order and `resize` keeps that
+  order. At each collection a key whose value is nil becomes a dead key, so a key stored again
+  after a collection goes to the list end instead of reviving its old place. `tostring` and
+  `print` keep `%p`, so a script that keys a table by `tostring(x)` stays address-dependent; no
+  Perturb run shows one.
+- Mod-facing, SER-04 wobble: both wobble sites of a flyer (`EntityFlyer::GetBranchParams` and
+  `EntityPathFollower::Roll`) take one phase from the owning object's handle id `& 0xf`. Retail
+  phased each from its own `this`, so the path follower wobbled out of phase with the flyer body;
+  under serial the two are in phase. Mods that tune flyer or carrier roll can see it.
+- Outcome: dea1g_1flag ended on its own under serial (the Empire won 5-4 at 85.9 s, 4145 s of game
+  time) where address ran to the watchdog. Flag (`_1flag`, `_ctf`) and assault (`_ass`) cases in
+  `-Smoke All` without a digest row now run with `-novictory` and expect `TimeOut`, so no flag or
+  assault outcome gates smoke. Apart from the `-novictory` lines, no `missions-all.txt` class
+  changed under serial.
+- Limit: the engine-forced Lua collections are frame-paced (`DoPeriodicLuaGC`, every 64 calls
+  from the game loop and the interface callbacks). Whether a re-stored key revives therefore
+  follows the rendered-frame count: reproducible single-process at a fixed rate, as in every
+  digest and Perturb run, but not across machines or lockstep peers. A recycled lightuserdata
+  pointer still revives before the next collection. Moving the collections onto the sim-turn
+  cadence is deferred.
+- Water timers, 1deb26d9: `PostStateCleanup` now resets `s_fSplashTimeout` (`0x01faa460`) and
+  `s_fWakeTimer` (`0x01faa46c`), which retail kept as function-local statics of
+  `EntitySoldier::Update` that leaked into the next mission. With the leak, a soldier landing in
+  water in a repeated mission built a splash emitter whose `ParticleEmitter::Reset` takes 6
+  `_Global` draws, so a repeat run diverged from a fresh one. The second and later missions of
+  one session therefore differ from retail, against a retail peer included. No single-mission
+  digest moved; the `twice-digest-*` and `repeat-digest` rows were captured with the reset in
+  place.
+- History, C-LAYOUT-HOT1G (Phase 33): fb63997b (the glyph cache block grows by 4 bytes) and
+  e4a4bc99 (`HUD::Item::SetName`) changed no simulation code but moved hot1g_con from
+  `rand=403802221/2528439372 state=0xC95E64E8` to `rand=2763759203/2960762048 state=0x23F2B567`
+  under address order. Adding an unused 4 bytes to the same glyph cache allocation on 108efaa0
+  gave fb63997b's digest exactly, with traces identical through turn 619 and split at turn 620
+  (`pad`). Under serial the pad split is gone; the row was re-captured here anyway, so that
+  cause is folded into this one.
+- Judgement: accepted. Removing address order changes order by design. Any later digest change
+  needs its own cause and a reason why it is not a bug.
 
 ## Policy
 

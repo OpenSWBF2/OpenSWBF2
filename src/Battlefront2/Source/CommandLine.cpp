@@ -61,6 +61,7 @@ bool gShowLoadSpam;
 // GLOBAL: SWBF2 0x01e3075c
 bool gLogFinalScore;
 bool gExitOnGameOver;
+bool gNoVictory;
 int gDigestTrace;
 bool gFactoryLog;
 bool gNoFocusPause;
@@ -68,6 +69,7 @@ bool gAllowUploads = LocalLimits::kUploadsDefault;
 bool gSeedSet;
 unsigned int gSeed;
 static bool sbSimOrderBad;
+static bool sbNoVictoryNetLogged;
 static unsigned int suTestOnlyIgnored;
 static char const* const sapcTestOnlyArgs[] = { "perturbheap", "repeatmission", "shellfirst" };
 // GLOBAL: SWBF2 0x007e6310
@@ -255,6 +257,24 @@ bool SimOrderArgRejected()
     return sbSimOrderBad;
 }
 
+bool NoVictoryActive()
+{
+    if (!gNoVictory)
+    {
+        return false;
+    }
+    if (!NetGame::IsEnabled())
+    {
+        return true;
+    }
+    if (!sbNoVictoryNetLogged)
+    {
+        sbNoVictoryNetLogged = true;
+        LOG(LogCore, Warning, "-novictory is ignored in a network game");
+    }
+    return false;
+}
+
 bool TestOnlyArgIgnored(int i, char const** ppcName)
 {
     if (i < 0 || i >= (int)(sizeof(sapcTestOnlyArgs) / sizeof(sapcTestOnlyArgs[0])))
@@ -284,6 +304,8 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
 
     HUD::gScreenGroupEditEnabled = false;
     sbSimOrderBad = false;
+    gNoVictory = false;
+    sbNoVictoryNetLogged = false;
     suTestOnlyIgnored = 0;
     bool bNamed = false;
 
@@ -367,6 +389,12 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
         if (_stricmp(pcArg + 1, "exitongameover") == 0)
         {
             gExitOnGameOver = true;
+            continue;
+        }
+
+        if (_stricmp(pcArg + 1, "novictory") == 0)
+        {
+            gNoVictory = true;
             continue;
         }
 

@@ -1793,6 +1793,7 @@ void GameState::PostStateCleanup(bool bMission)
     ClothData::Cleanup();
     Thread::Reset();
     CollisionObject::ResetCollisionSerials();
+    EntitySoldier::ResetWaterTimers();
     RedRenderer::Cleanup();
     RedProfile::Cleanup();
 

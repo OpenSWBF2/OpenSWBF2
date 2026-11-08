@@ -494,6 +494,10 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
         {
             LOG(LogCore, Warning, "-simorder needs address or serial, ignored");
         }
+        if (gNoVictory)
+        {
+            LOG(LogCore, Inform, "OPENSWBF2 NOVICTORY");
+        }
         char const* pcIgnored = 0;
         for (int i = 0; TestOnlyArgIgnored(i, &pcIgnored); ++i)
         {
