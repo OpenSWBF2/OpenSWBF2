@@ -82,7 +82,7 @@ TEST_CASE("pointer order sites use the unsigned helpers" * doctest::test_suite("
     std::string sMemory;
     if (!ReadSource("../src/Battlefront2/Source/Thread.cpp", sThread) ||
         !ReadSource("../src/Battlefront2/Source/CollisionManager.cpp", sCollision) ||
-        !ReadSource("../src/RedEngineFL/Memory/RedMemory.cpp", sMemory))
+        !ReadSource("../src/RedEngineFL/Memory/RedMemoryArena.cpp", sMemory))
     {
         SkipCase("source files not found");
     }

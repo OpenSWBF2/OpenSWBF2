@@ -8,6 +8,7 @@
 #include "Battlefront2/Source/LuaMemoryArgs.h"
 #include "LuaFL/include/lua.h"
 #include "RedEngineFL/Memory/RedMemory.h"
+#include "RedEngineFL/Memory/RedMemoryBackend.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 #include "RedEngineFL/Memory/RedScriptLimits.h"
 #include "RedEngineFL/Util/RedLog.h"
@@ -382,12 +383,15 @@ TEST_CASE("setup temp heap forget drops stale block" * doctest::test_suite("regr
     const unsigned int uFresh = RedGetHeapFree(iRuntime);
     LuaMemoryArgs::ClearTempHeap(iRuntime, iTemp);
     CHECK(RedGetHeapFree(iRuntime) == uFresh);
+    CHECK(RedArenaFreeTagSum(iRuntime) == RedGetHeapFree(iRuntime));
     CallSetupTempHeap(L, 8192.0f, iRuntime, iTemp);
     REQUIRE(iTemp > 0);
     CHECK(RedGetHeapFree(iRuntime) < uFresh);
+    CHECK(RedArenaFreeTagSum(iRuntime) == RedGetHeapFree(iRuntime));
     LuaMemoryArgs::ClearTempHeap(iRuntime, iTemp);
     CHECK(iTemp == 0);
     CHECK(RedGetHeapFree(iRuntime) == uFresh);
+    CHECK(RedArenaFreeTagSum(iRuntime) == RedGetHeapFree(iRuntime));
     RedDestroyHeap(iRuntime);
     lua_close(L);
 }

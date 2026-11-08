@@ -115,6 +115,12 @@
     <Filter Include="src\lglcd">
       <UniqueIdentifier>{F6B30327-4C66-5C18-A460-E8D6E4033F3F}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\mimalloc">
+      <UniqueIdentifier>{6D1DF0B9-3616-4DAC-B248-B1CC25B276F8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\mimalloc\src">
+      <UniqueIdentifier>{8271343D-F917-4D2A-A07C-67F168D7C822}</UniqueIdentifier>
+    </Filter>
     <Filter Include="src\SoundFL\source\gsm-1.0.10">
       <UniqueIdentifier>{85D1C48C-5C02-5742-8676-EE154220E294}</UniqueIdentifier>
     </Filter>
@@ -1991,6 +1997,12 @@
     </ClCompile>
     <ClCompile Include="src\RedEngineFL\Memory\RedMemory.cpp">
       <Filter>src\RedEngineFL\Memory</Filter>
+    </ClCompile>
+    <ClCompile Include="src\RedEngineFL\Memory\RedMemoryArena.cpp">
+      <Filter>src\RedEngineFL\Memory</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mimalloc\src\static.c">
+      <Filter>src\mimalloc\src</Filter>
     </ClCompile>
     <ClCompile Include="src\RedEngineFL\Memory\RedMemoryPool.cpp">
       <Filter>src\RedEngineFL\Memory</Filter>
@@ -4275,6 +4287,9 @@
       <Filter>src\RedEngineFL\Interface\pc</Filter>
     </ClInclude>
     <ClInclude Include="src\RedEngineFL\Memory\RedMemory.h">
+      <Filter>src\RedEngineFL\Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="src\RedEngineFL\Memory\RedMemoryBackend.h">
       <Filter>src\RedEngineFL\Memory</Filter>
     </ClInclude>
     <ClInclude Include="src\RedEngineFL\Memory\RedMemoryPool.h">

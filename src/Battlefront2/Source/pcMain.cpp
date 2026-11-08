@@ -16,6 +16,7 @@
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "RedEngineFL/Graphics/PC/pcRedTexture.h"
 #include "RedEngineFL/Memory/RedMemory.h"
+#include "RedEngineFL/Memory/RedMemoryBackend.h"
 #include "RedEngineFL/Util/RedLog.h"
 #include "RedEngineFL/Util/RedWarning.h"
 #include "SoundFL/source/sndbus.h"
@@ -181,6 +182,7 @@ void Startup_DebugHeap()
 
 extern "C" void Startup_RedInitHeap(int, int)
 {
+    gRedHeapBackend = &kRedArenaBackend;
     Startup_InitApplicationMemory();
     Startup_DebugHeap();
 }

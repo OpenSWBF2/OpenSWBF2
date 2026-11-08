@@ -492,7 +492,6 @@ int SetPS2ModelMemory(lua_State* L)
 unsigned int RedGetHeapSize(int heap);
 
 void RedMoveHeapEnd(int heap, int iDelta);
-extern "C" HeapObj* heapobj;
 
 
 

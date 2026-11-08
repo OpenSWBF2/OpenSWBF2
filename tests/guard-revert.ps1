@@ -543,9 +543,10 @@ try {
                 $tests = $null
                 if (Test-Path -LiteralPath $tlogDirs.game) { $game = Get-ClTlogCounts $tlogDirs.game }
                 if (Test-Path -LiteralPath $tlogDirs.tests) { $tests = Get-ClTlogCounts $tlogDirs.tests }
-                return (Get-FlagChecks $game $tests | Where-Object { $_.Name -eq $name })
+                return (Get-FlagChecks $game $tests $script:GameConfiguration $script:TestsConfiguration | Where-Object { $_.Name -eq $name })
             }
-            foreach ($project in ($tlogRows | ForEach-Object { $_.Project } | Select-Object -Unique)) {
+            $tlogProjects = @(@($tlogRows | ForEach-Object { $_.Project }) + @($tlogRows | Where-Object { $_.Check -eq 'mimalloc-defines' } | ForEach-Object { 'tests' }) | Select-Object -Unique)
+            foreach ($project in $tlogProjects) {
                 $log = Join-Path $OutDir "build-tlog-control-$project.log"
                 if (-not (& $buildProj $project $log)) { throw "tlog control build failed, see $log" }
             }
@@ -586,7 +587,7 @@ try {
                 else { $tlogProven += $r }
                 Write-Host ('{0,-16} control={1,-8} reverted={2,-11} {3}' -f $r.Id, $ctl, $result, $detail)
             }
-            foreach ($project in ($tlogRows | ForEach-Object { $_.Project } | Select-Object -Unique)) {
+            foreach ($project in $tlogProjects) {
                 $log = Join-Path $OutDir "build-tlog-restored-$project.log"
                 if (-not (& $buildProj $project $log)) { throw "tlog restored build failed, see $log" }
             }
@@ -599,46 +600,63 @@ try {
             if ($restoredOk) { foreach ($r in $tlogProven) { Add-GuardProof $r 'GREEN' 'RED' } }
         }
 
-        if ($smokeRows.Count -gt 0) {
-            $pre = Get-SmokePrecheck $gameData (Join-Path $root "bin\Win32\$script:GameConfiguration")
-            if ($pre) { throw "smoke rows need a prior game build and data: $pre" }
-            if (-not (Build-Game $wt (Join-Path $OutDir 'build-smoke-control.log'))) { throw "smoke control build failed, see $(Join-Path $OutDir 'build-smoke-control.log')" }
-            $smokeControl = @{}
-            foreach ($name in ($smokeRows | ForEach-Object { $_.Case } | Select-Object -Unique)) {
-                $smokeControl[$name] = Run-Smoke $wt "control-$name" $smokeCases[$name]
-            }
-            foreach ($r in $smokeRows) {
-                $path = Join-Path $wt $r.File
-                $orig = $null
-                $result = 'BUILD-FAIL'
-                $detail = ''
-                $code = ''
-                $ctlRes = $smokeControl[$r.Case]
-                $ctl = 'GREEN'
-                if (-not $ctlRes.Ok) { $ctl = 'FAIL-' + $ctlRes.Class }
-                try {
-                    $orig = Set-Anchor $path $r.Anchor $r.Replacement
-                    if (Build-Game $wt (Join-Path $OutDir "build-$($r.Id).log")) {
-                        $s = Run-Smoke $wt $r.Id $smokeCases[$r.Case]
-                        $code = ('0x{0:X8}' -f $s.Code)
-                        $detail = "class=$($s.Class) dumps=$($s.Dumps)"
-                        if ($s.Ok) { $result = 'STILL-GREEN' }
-                        elseif ($r.RedRx -and $s.LogText -cnotmatch $r.RedRx) { $result = 'WRONG-RED' }
-                        else { $result = 'RED' }
+        $defaultGameConfiguration = $script:GameConfiguration
+        $smokeConfigs = @($smokeRows | ForEach-Object { if ($_.Config) { $_.Config } else { $defaultGameConfiguration } } | Select-Object -Unique)
+        try {
+            foreach ($smokeConfig in $smokeConfigs) {
+                $script:GameConfiguration = $smokeConfig
+                $script:SmokeDigestConfiguration = $smokeConfig
+                $cfgRows = @($smokeRows | Where-Object { $(if ($_.Config) { $_.Config } else { $defaultGameConfiguration }) -eq $smokeConfig })
+                $cfgCases = @{}
+                foreach ($w in 'Crash', 'Standard') {
+                    foreach ($c in (Get-SmokeCases $w @() $false $null)) { $cfgCases[$c.Name] = $c }
+                }
+                $pre = Get-SmokePrecheck $gameData (Join-Path $root "bin\Win32\$smokeConfig")
+                if ($pre) { throw "smoke rows need a prior $smokeConfig game build and data: $pre" }
+                $ctlLog = Join-Path $OutDir "build-smoke-control-$smokeConfig.log"
+                if (-not (Build-Game $wt $ctlLog)) { throw "smoke control build failed, see $ctlLog" }
+                $smokeControl = @{}
+                foreach ($name in ($cfgRows | ForEach-Object { $_.Case } | Select-Object -Unique)) {
+                    if (-not $cfgCases.ContainsKey($name)) { throw "smoke case '$name' is not defined for $smokeConfig" }
+                    $smokeControl[$name] = Run-Smoke $wt "control-$smokeConfig-$name" $cfgCases[$name]
+                }
+                foreach ($r in $cfgRows) {
+                    $path = Join-Path $wt $r.File
+                    $orig = $null
+                    $result = 'BUILD-FAIL'
+                    $detail = ''
+                    $code = ''
+                    $ctlRes = $smokeControl[$r.Case]
+                    $ctl = 'GREEN'
+                    if (-not $ctlRes.Ok) { $ctl = 'FAIL-' + $ctlRes.Class }
+                    try {
+                        $orig = Set-Anchor $path $r.Anchor $r.Replacement
+                        if (Build-Game $wt (Join-Path $OutDir "build-$($r.Id).log")) {
+                            $s = Run-Smoke $wt $r.Id $cfgCases[$r.Case]
+                            $code = ('0x{0:X8}' -f $s.Code)
+                            $detail = "class=$($s.Class) dumps=$($s.Dumps)"
+                            if ($s.Ok) { $result = 'STILL-GREEN' }
+                            elseif ($r.RedRx -and $s.LogText -cnotmatch $r.RedRx) { $result = 'WRONG-RED' }
+                            else { $result = 'RED' }
+                        }
                     }
+                    catch {
+                        $result = 'ERROR'
+                        $detail = $_.Exception.Message
+                    }
+                    finally {
+                        if ($orig) { [IO.File]::WriteAllBytes($path, $orig) }
+                    }
+                    $table += New-Object PSObject -Property @{ Id = $r.Id; Tests = "smoke:$($r.Case)"; Control = $ctl; Reverted = $result; Exit = $code; Detail = $detail }
+                    if ($result -ne 'RED' -or $ctl -ne 'GREEN') { $failed = $true }
+                    else { Add-GuardProof $r 'GREEN' 'RED' }
+                    Write-Host ('{0,-12} control={1,-8} reverted={2,-11} exit={3} {4}' -f $r.Id, $ctl, $result, $code, $detail)
                 }
-                catch {
-                    $result = 'ERROR'
-                    $detail = $_.Exception.Message
-                }
-                finally {
-                    if ($orig) { [IO.File]::WriteAllBytes($path, $orig) }
-                }
-                $table += New-Object PSObject -Property @{ Id = $r.Id; Tests = "smoke:$($r.Case)"; Control = $ctl; Reverted = $result; Exit = $code; Detail = $detail }
-                if ($result -ne 'RED' -or $ctl -ne 'GREEN') { $failed = $true }
-                else { Add-GuardProof $r 'GREEN' 'RED' }
-                Write-Host ('{0,-12} control={1,-8} reverted={2,-11} exit={3} {4}' -f $r.Id, $ctl, $result, $code, $detail)
             }
+        }
+        finally {
+            $script:GameConfiguration = $defaultGameConfiguration
+            $script:SmokeDigestConfiguration = $defaultGameConfiguration
         }
     }
     finally {

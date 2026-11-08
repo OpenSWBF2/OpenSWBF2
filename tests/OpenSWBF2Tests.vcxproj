@@ -155,6 +155,15 @@
     <ClCompile Include="..\src\Battlefront2\Source\LuaHandleArg.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\LuaSaveItems.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Memory\RedMemory.cpp" />
+    <ClCompile Include="..\src\RedEngineFL\Memory\RedMemoryArena.cpp" />
+    <ClCompile Include="..\src\mimalloc\src\static.c">
+      <CompileAs>CompileAsCpp</CompileAs>
+      <AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)..\src;$(MSBuildThisFileDirectory)..\src\mimalloc\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions Condition="'$(Configuration)'=='Debug'">MI_DEBUG=2;MI_SECURE=0;MI_NO_GETENV=1;MI_USE_RTLGENRANDOM;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)'=='Release'">MI_DEBUG=0;MI_SECURE=4;MI_NO_GETENV=1;MI_USE_RTLGENRANDOM;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)'=='Test'">MI_DEBUG=1;MI_SECURE=4;MI_NO_GETENV=1;MI_USE_RTLGENRANDOM;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)'=='Asan'">MI_DEBUG=0;MI_SECURE=0;MI_TRACK_ASAN=1;MI_NO_GETENV=1;MI_USE_RTLGENRANDOM;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
     <ClCompile Include="..\src\RedEngineFL\Memory\RedMemoryPool.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Memory\RedMemoryReport.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Util\ext\Allocator.cpp" />

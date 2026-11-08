@@ -120,7 +120,7 @@ A weekly and on-demand `full` job runs the milestone tier from the gate tiers ta
 
 ## Hardening
 
-The hardening step checks the exe's security flags (ASLR, DEP, LAA, SafeSEH, `/GS`, `/sdl`), the required and banned compiler flags, and these source patterns:
+The hardening step checks the exe's security flags (ASLR, DEP, LAA, SafeSEH, `/GS`, `/sdl`), its imports (`import-modules` fails on a DLL outside `$script:ImportModuleAllow` in `smoke.ps1`), the required and banned compiler flags, the `static.c` mimalloc defines for each configuration, and these source patterns:
 
 | Check | Fails on |
 |-------|----------|
@@ -134,6 +134,7 @@ The hardening step checks the exe's security flags (ASLR, DEP, LAA, SafeSEH, `/G
 | `serial-value` | a read of a thread or collision serial counter or field outside the helper definitions in `$script:SerialAllow` (`smoke.ps1`) |
 | `handle-raw` | a raw handle id read, `PBL_HANDLE_ID`, a freed-fill (`0xDDDDDDDD`) compare or an object-vs-saved id compare outside `PblHandle.h`/`.cpp` |
 | `gamma-get` | any `GetDeviceGammaRamp` call |
+| `mi-api-ban` | a mimalloc API call outside `src\mimalloc` and `RedMemoryMi.cpp` |
 | `snd-alloc-size-t` | `SndAlloc`, `SndTempAlloc` or a sound allocator function pointer with a 32-bit size type |
 | `galaxy-getter-cast` | a Galaxy getter returning `void*`, or a cast or `void*` temporary on a Galaxy getter's result |
 | `t1-suite` | a test case that `run.ps1` would never run |
@@ -150,7 +151,7 @@ The hardening step checks the exe's security flags (ASLR, DEP, LAA, SafeSEH, `/G
 
     powershell -File tests\guard-revert.ps1 [-Row ID,...] [-Configuration Test] [-Keep]
 
-This proves the regression tests catch their bugs. For each row in `tests\guardrevert\rows.ps1`, it reverts one fix in a scratch worktree, rebuilds and runs the named cases. With the fix (`Control`), every row must be GREEN. With the fix reverted, every row must be RED. STILL-GREEN means the test does not detect the revert. The table is saved to `artifacts\guard-revert\<stamp>\summary.txt`.
+This proves the regression tests catch their bugs. For each row in `tests\guardrevert\rows.ps1`, it reverts one fix in a scratch worktree, rebuilds and runs the named cases. With the fix (`Control`), every row must be GREEN. With the fix reverted, every row must be RED. STILL-GREEN means the test does not detect the revert. A smoke row with `Config` builds and runs that game configuration instead of Release. The table is saved to `artifacts\guard-revert\<stamp>\summary.txt`.
 
 By default it re-runs only the rows whose dependencies changed since their recorded proof in `tests\guardrevert\proven.tsv`. `-Full` runs every row, and `-ListSelected` prints the decision for each row without building. Dependencies come from the main tree's tlogs, so its Debug and Asan test builds and its Release game build must be current, or the affected rows are re-run. A `CARRY` line names the commit where the proof was recorded. That commit can be local-only and later squashed away; the proof rests on its tree and a digest of the row's dependency contents.
 

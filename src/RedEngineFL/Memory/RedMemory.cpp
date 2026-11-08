@@ -1,11 +1,10 @@
 #include <intrin.h>
 #include <stdlib.h>
-#include "PebbleFL/Common/PblMath.h"
 #include <string.h>
 
 #include "RedMemory.h"
+#include "RedMemoryBackend.h"
 #include "RedEngineFL/Memory/engineAlloc.h"
-#include "PebbleFL/Common/PblAsan.h"
 #include "PebbleFL/Common/PblHandle.h"
 #include "RedEngineFL/Util/RedLog.h"
 
@@ -13,44 +12,11 @@
 #include <windows.h>
 #endif
 
-struct Tag
-{
-    Tag* prev_;
-    Tag* next_;
-    unsigned int size;
-
-    void New() { prev_ = next_ = 0; }
-};
-
-
-struct TagList
-{
-    Tag* first;
-    Tag* last;
-};
-
-
-struct HeapObj
-{
-    void* start;
-    TagList free;
-    TagList used;
-    unsigned int size;
-    const char* name;
-    unsigned int align;
-    bool frozen;
-    bool permanent;
-};
-
-
 extern "C"
 {
     // GLOBAL: SWBF2 0x0093eba1
     // isHeapObjInitialized
     bool isHeapObjInitialized;
-    // GLOBAL: SWBF2 0x0093eba4
-    // heapobj
-    HeapObj* heapobj;
     // GLOBAL: SWBF2 0x0093eba8
     // maxheaps
     int maxheaps;
@@ -66,48 +32,39 @@ extern "C"
     // GLOBAL: SWBF2 0x0093eb94
     // OnFailure
     void (*OnFailure)(int heap, unsigned int size);
-    // GLOBAL: SWBF2 0x0093ebb0
-    int sRecursionDepth;
 }
 
+RedHeapSlot gRedHeapSlots[kRedHeapSlots];
+const RedHeapBackend* gRedHeapBackend = &kRedArenaBackend;
+
 // FUNCTION: SWBF2 0x006c3a50
-extern "C" PBL_ASAN_NO_SANITIZE unsigned int RedGetHeapFree(int heap)
+extern "C" unsigned int RedGetHeapFree(int heap)
 {
-    unsigned int total = 0;
-    for (Tag* tag = heapobj[heap].free.first; tag; tag = tag->next_)
+    if (heap < 0 || heap >= maxheaps || !gRedHeapSlots[heap].bLive)
     {
-        total += tag->size;
+        return 0;
     }
-    return total;
+    const RedHeapSlot& rSlot = gRedHeapSlots[heap];
+    return (unsigned int)rSlot.used < rSlot.defaultCap ? rSlot.defaultCap - (unsigned int)rSlot.used : 0;
 }
 
 extern "C" char const* RedGetHeapName(int heap)
 {
-    if (heap >= 0 && heap < maxheaps && heapobj[heap].name)
+    if (heap >= 0 && heap < maxheaps && gRedHeapSlots[heap].name)
     {
-        return heapobj[heap].name;
+        return gRedHeapSlots[heap].name;
     }
     return "?";
 }
 
-static const int kStatsHeaps = 16;
-static volatile long sHeapUsed[kStatsHeaps];
-static volatile long sHeapPeak[kStatsHeaps];
-static volatile long sHeapAllocs[kStatsHeaps];
-static volatile long sHeapFailed[kStatsHeaps];
-
-static bool HeapStatsSlot(int heap)
-{
-    return heap >= 0 && heap < kStatsHeaps && heap < maxheaps;
-}
-
 static void HeapStatsAddUsed(int heap, long lDelta)
 {
-    long lUsed = _InterlockedExchangeAdd(&sHeapUsed[heap], lDelta) + lDelta;
-    long lPeak = sHeapPeak[heap];
+    RedHeapSlot& rSlot = gRedHeapSlots[heap];
+    long lUsed = _InterlockedExchangeAdd(&rSlot.used, lDelta) + lDelta;
+    long lPeak = rSlot.peak;
     while (lUsed > lPeak)
     {
-        long lSeen = _InterlockedCompareExchange(&sHeapPeak[heap], lUsed, lPeak);
+        long lSeen = _InterlockedCompareExchange(&rSlot.peak, lUsed, lPeak);
         if (lSeen == lPeak)
         {
             break;
@@ -116,15 +73,12 @@ static void HeapStatsAddUsed(int heap, long lDelta)
     }
 }
 
-static void HeapStatsReset(int heap)
+static void HeapStatsReset(RedHeapSlot& rSlot)
 {
-    if (HeapStatsSlot(heap))
-    {
-        _InterlockedExchange(&sHeapUsed[heap], 0);
-        _InterlockedExchange(&sHeapPeak[heap], 0);
-        _InterlockedExchange(&sHeapAllocs[heap], 0);
-        _InterlockedExchange(&sHeapFailed[heap], 0);
-    }
+    _InterlockedExchange(&rSlot.used, 0);
+    _InterlockedExchange(&rSlot.peak, 0);
+    _InterlockedExchange(&rSlot.allocs, 0);
+    _InterlockedExchange(&rSlot.failed, 0);
 }
 
 #ifdef OPENSWBF2_TEST
@@ -407,19 +361,7 @@ static void RedNoteOffThread(int heap, unsigned int size, unsigned int uiTid)
 }
 #endif
 
-namespace RedMemory
-{
-    // GLOBAL: SWBF2 0x0093eb98
-    int failHeap;
-    // GLOBAL: SWBF2 0x0093eb9c
-    unsigned int failSize;
-}
-
 extern "C" void Startup_RedInitHeap(int, int);
-
-PBL_ASAN_NO_SANITIZE void TagAddList(TagList* list, Tag* tag);
-PBL_ASAN_NO_SANITIZE void TagMergeIntoList(TagList* list, Tag* tag);
-PBL_ASAN_NO_SANITIZE void TagRemoveList(TagList* list, Tag* tag);
 
 // FUNCTION: SWBF2 0x006c3540
 void* __cdecl operator new(size_t size)
@@ -467,252 +409,68 @@ void __cdecl operator delete[](void* block, size_t)
     }
 }
 
-// FUNCTION: SWBF2 0x006c35c0
-PBL_ASAN_NO_SANITIZE void* RedAllocFromHeapInternal(int heap, unsigned int size, bool bTop)
+static void* AllocFromSlot(int heap, size_t size, bool bTop)
 {
-    if (!isHeapObjInitialized)
-    {
-        Startup_RedInitHeap(0x80, 0x80);
-    }
     if (heap < 0 || heap >= maxheaps)
     {
         return 0;
     }
-
-    HeapObj& h = heapobj[heap];
-    unsigned int align = h.align;
-    unsigned int mask = ~(align - 1);
-    unsigned int hdr = (align + sizeof(Tag) - 1) & mask;
-    if (size == 0)
+    RedHeapSlot& rSlot = gRedHeapSlots[heap];
+    const unsigned int uAlign = rSlot.align;
+    const unsigned int uHdr = (uAlign + kRedTagBytes - 1) & ~(uAlign - 1);
+    if (size > ~0u - (uAlign - 1 + uHdr))
     {
-        size = 1;
-    }
-    unsigned int need = (size + align - 1 + hdr) & mask;
-
-    Tag* tag;
-    if (bTop)
-    {
-        for (tag = h.free.last; tag; tag = tag->prev_)
-        {
-            if (need <= tag->size)
-            {
-                break;
-            }
-        }
-    }
-    else
-    {
-        for (tag = h.free.first; tag; tag = tag->next_)
-        {
-            if (need <= tag->size)
-            {
-                break;
-            }
-        }
-    }
-    if (!tag)
-    {
-        if (HeapStatsSlot(heap))
-        {
-            _InterlockedIncrement(&sHeapFailed[heap]);
-        }
         if (sRecursionDepth <= 0)
         {
             RedMemory::failHeap = heap;
-            RedMemory::failSize = need;
+            RedMemory::failSize = ~0u;
         }
+        _InterlockedIncrement(&rSlot.failed);
         return 0;
     }
-
-    unsigned int rest = tag->size - need;
-    if (rest < h.align + hdr)
+    const unsigned int uSize = size != 0 ? (unsigned int)size : 1;
+    const unsigned int uNeed = (uSize + uAlign - 1 + uHdr) & ~(uAlign - 1);
+    long lUsed = rSlot.used;
+    for (;;)
     {
-        TagRemoveList(&h.free, tag);
-    }
-    else if (bTop)
-    {
-        tag->size = rest;
-        tag = (Tag*)((char*)tag + rest);
-        tag->next_ = 0;
-        tag->prev_ = 0;
-        tag->size = need;
-    }
-    else
-    {
-        Tag* split = (Tag*)((char*)tag + need);
-        split->next_ = 0;
-        split->prev_ = 0;
-        split->size = 0;
-        split->size = tag->size - need;
-        split->prev_ = tag->prev_;
-        split->next_ = tag->next_;
-        tag->size = need;
-        if (split->next_)
+        if ((unsigned int)lUsed > rSlot.cap || uNeed > rSlot.cap - (unsigned int)lUsed)
         {
-            split->next_->prev_ = split;
-        }
-        else
-        {
-            h.free.last = split;
-        }
-        if (split->prev_)
-        {
-            split->prev_->next_ = split;
-        }
-        else
-        {
-            h.free.first = split;
-        }
-    }
-    if (HeapStatsSlot(heap))
-    {
-        HeapStatsAddUsed(heap, (long)tag->size);
-        _InterlockedIncrement(&sHeapAllocs[heap]);
-    }
-    TagAddList(&h.used, tag);
-    PblAsanPoison(tag, need);
-    void* pUser = (char*)tag + hdr;
-    PblAsanUnpoison(pUser, size);
-    return pUser;
-}
-
-// FUNCTION: SWBF2 0x006c3730
-PBL_ASAN_NO_SANITIZE bool RedFreeToHeapInternal(int heap, void* block, unsigned int flags)
-{
-    (void)flags;
-    if (!isHeapObjInitialized)
-    {
-        return true;
-    }
-    if (heap < 0 || heap >= maxheaps)
-    {
-        return false;
-    }
-
-    HeapObj& h = heapobj[heap];
-    if (block < h.start || block > (char*)h.start + h.size)
-    {
-        return false;
-    }
-    unsigned int hdr = (h.align + sizeof(Tag) - 1) & ~(h.align - 1);
-    Tag* tag = (Tag*)((char*)block - hdr);
-    TagRemoveList(&h.used, tag);
-    unsigned int uiBlockSize = tag->size;
-    if (HeapStatsSlot(heap))
-    {
-        _InterlockedExchangeAdd(&sHeapUsed[heap], -(long)uiBlockSize);
-    }
-    TagMergeIntoList(&h.free, tag);
-    PblAsanPoison(tag, uiBlockSize);
-    return true;
-}
-
-// FUNCTION: SWBF2 0x006c37b0
-PBL_ASAN_NO_SANITIZE void TagAddList(TagList* list, Tag* tag)
-{
-    if (list->first)
-    {
-        list->first->prev_ = tag;
-    }
-    else
-    {
-        list->last = tag;
-    }
-    tag->prev_ = 0;
-    tag->next_ = list->first;
-    list->first = tag;
-}
-
-// FUNCTION: SWBF2 0x006c37f0
-PBL_ASAN_NO_SANITIZE void TagMergeIntoList(TagList* list, Tag* tag)
-{
-    Tag* prev = 0;
-    Tag* next = list->first;
-    while (next && tag > next)
-    {
-        prev = next;
-        next = next->next_;
-    }
-    tag->next_ = next;
-    tag->prev_ = prev;
-
-    if (next)
-    {
-        next->prev_ = tag;
-        if ((char*)tag + tag->size == (char*)next)
-        {
-            tag->size += next->size;
-            next = next->next_;
-            tag->next_ = next;
-            if (next)
+            if (sRecursionDepth <= 0)
             {
-                next->prev_ = tag;
+                RedMemory::failHeap = heap;
+                RedMemory::failSize = uNeed;
             }
-            else
-            {
-                list->last = tag;
-            }
+            _InterlockedIncrement(&rSlot.failed);
+            return 0;
         }
-    }
-    else
-    {
-        list->last = tag;
-    }
-
-    if (prev)
-    {
-        prev->next_ = tag;
-        if ((char*)prev + prev->size == (char*)tag)
+        const long lSeen = _InterlockedCompareExchange(&rSlot.used, lUsed + (long)uNeed, lUsed);
+        if (lSeen == lUsed)
         {
-            prev->size += tag->size;
-            prev->next_ = next;
-            if (next)
-            {
-                next->prev_ = prev;
-            }
-            else
-            {
-                list->last = prev;
-            }
+            break;
         }
+        lUsed = lSeen;
     }
-    else
+    size_t uReserved = 0;
+    void* p = gRedHeapBackend->alloc(heap, uSize, bTop, &uReserved);
+    if (!p)
     {
-        list->first = tag;
+        _InterlockedExchangeAdd(&rSlot.used, -(long)uNeed);
+        _InterlockedIncrement(&rSlot.failed);
+        return 0;
     }
-}
-
-// FUNCTION: SWBF2 0x006c3880
-PBL_ASAN_NO_SANITIZE void TagRemoveList(TagList* list, Tag* tag)
-{
-    if (tag->next_)
-    {
-        tag->next_->prev_ = tag->prev_;
-    }
-    else
-    {
-        list->last = tag->prev_;
-    }
-    if (tag->prev_)
-    {
-        tag->prev_->next_ = tag->next_;
-    }
-    else
-    {
-        list->first = tag->next_;
-    }
-    tag->prev_ = 0;
-    tag->next_ = 0;
+    HeapStatsAddUsed(heap, (long)uReserved - (long)uNeed);
+    _InterlockedIncrement(&rSlot.allocs);
+    return p;
 }
 
 // FUNCTION: SWBF2 0x006c38d0
-void* RedAllocFromHeap(int heap, unsigned int size, bool bTop)
+void* RedAllocFromHeap(int heap, size_t size, bool bTop)
 {
-#ifdef OPENSWBF2_TEST
     if (!isHeapObjInitialized)
     {
         Startup_RedInitHeap(0x80, 0x80);
     }
+#ifdef OPENSWBF2_TEST
     const unsigned int uiModes = sPerturbModes;
     unsigned int uiPad = 0;
     unsigned int uiDraw = 0;
@@ -720,7 +478,7 @@ void* RedAllocFromHeap(int heap, unsigned int size, bool bTop)
     {
         uiPad = 4 + 4 * (uiDraw % 15);
     }
-    void* p = RedAllocFromHeapInternal(heap, size + uiPad, bTop || (uiModes & kRedPerturbTop) != 0);
+    void* p = AllocFromSlot(heap, size + uiPad, bTop || (uiModes & kRedPerturbTop) != 0);
     if (p)
     {
         if (uiPad != 0)
@@ -738,7 +496,7 @@ void* RedAllocFromHeap(int heap, unsigned int size, bool bTop)
         RedNoteOffThread(heap, size, uiTid);
     }
 #else
-    void* p = RedAllocFromHeapInternal(heap, size, bTop);
+    void* p = AllocFromSlot(heap, size, bTop);
 #endif
     if (!p)
     {
@@ -754,104 +512,77 @@ void* RedAllocFromHeap(int heap, unsigned int size, bool bTop)
 // FUNCTION: SWBF2 0x006c3900
 int RedCreateHeap(void* start, void* end, unsigned int align, char const* name)
 {
-    unsigned int mask = ~(align - 1);
-    char* s = (char*)(((unsigned int)start + align - 1) & mask);
-    char* e = (char*)((unsigned int)end & mask);
-    unsigned int size = e - s;
-    PblAsanUnpoison(s, size);
-    if (size)
-    {
-#ifdef OPENSWBF2_TEST
-        memset(s, (sPerturbModes & kRedPerturbFill) != 0 ? 0xA5 : 0, size);
-#else
-        memset(s, 0, size);
-#endif
-    }
-
     for (int i = 0; i < maxheaps; ++i)
     {
-        if (heapobj[i].size == 0)
+        if (!gRedHeapSlots[i].bLive)
         {
-            Tag* tag = (Tag*)s;
-            tag->size = size;
-            tag->New();
-
-            HeapObj& heap = heapobj[i];
-            heap.start = s;
-            heap.free.first = tag;
-            heap.free.last = tag;
-            heap.size = size;
-            heap.used.first = 0;
-            heap.used.last = 0;
-            heap.align = align;
-            heap.name = name;
-            PblAsanPoison(s, size);
-            heap.frozen = false;
-            HeapStatsReset(i);
+            const size_t size = gRedHeapBackend->create(i, start, end, align, name);
+            RedHeapSlot& rSlot = gRedHeapSlots[i];
+            rSlot.name = name;
+            rSlot.size = size;
+            rSlot.align = align;
+            rSlot.cap = size;
+            rSlot.defaultCap = size;
+            rSlot.bLive = size != 0;
+            HeapStatsReset(rSlot);
             return i;
         }
     }
-    PblAsanPoison(s, size);
+    RedArenaClearRange(start, end, align);
     return -1;
 }
 
 // FUNCTION: SWBF2 0x006c39b0
 void RedDestroyHeap(int heap)
 {
-    HeapObj& h = heapobj[heap];
-    if (h.size)
+    if (heap < 0 || heap >= maxheaps)
     {
-        PblAsanPoison(h.start, h.size);
+        return;
     }
-    h.free.first = 0;
-    h.free.last = 0;
-    h.used.first = 0;
-    h.used.last = 0;
-    h.size = 0;
-    h.name = 0;
-    h.align = 4;
-    h.frozen = false;
+    gRedHeapBackend->destroy(heap);
+    RedHeapSlot& rSlot = gRedHeapSlots[heap];
+    rSlot.size = 0;
+    rSlot.cap = 0;
+    rSlot.defaultCap = 0;
+    rSlot.align = 4;
+    rSlot.name = 0;
+    rSlot.bLive = false;
 }
 
 // FUNCTION: SWBF2 0x006c3a00
 void RedFreeToHeap(int heap, void* block, unsigned int flags)
 {
-    if (RedFreeToHeapInternal(heap, block, flags))
+    (void)flags;
+    if (!isHeapObjInitialized)
     {
         return;
     }
-    int numHeaps = maxheaps;
-    for (int i = 0; i < numHeaps; ++i)
+    int iOwner = gRedHeapBackend->owner(block);
+    if (iOwner < 0)
     {
-        if (RedFreeToHeapInternal(i, block, flags))
-        {
-            return;
-        }
+        free(block);
+        return;
     }
-    free(block);
+    size_t r = gRedHeapBackend->free(iOwner, block);
+    _InterlockedExchangeAdd(&gRedHeapSlots[iOwner].used, -(long)r);
 }
 
 // FUNCTION: SWBF2 0x006c3aa0
 void* RedInitHeap(void* start, void* end, int maxheaps)
 {
-    (void)end;
-    ::maxheaps = maxheaps;
-    HeapObj* heaps = (HeapObj*)(((unsigned int)start + 3) & ~3);
-    heapobj = heaps;
-    char* pNext = (char*)(((unsigned int)heaps + maxheaps * sizeof(HeapObj) + 3) & ~3);
-    for (int i = 0; i < maxheaps; ++i)
+    ::maxheaps = maxheaps < kRedHeapSlots ? maxheaps : kRedHeapSlots;
+    for (int i = 0; i < kRedHeapSlots; ++i)
     {
-        HeapObj& h = heaps[i];
-        h.start = 0;
-        h.free.first = 0;
-        h.free.last = 0;
-        h.used.first = 0;
-        h.used.last = 0;
-        h.size = 0;
-        h.align = 4;
-        h.frozen = false;
-        h.name = 0;
+        RedHeapSlot& rSlot = gRedHeapSlots[i];
+        rSlot.name = 0;
+        rSlot.size = 0;
+        rSlot.align = 4;
+        rSlot.cap = 0;
+        rSlot.defaultCap = 0;
+        rSlot.bLive = false;
+        HeapStatsReset(rSlot);
     }
+    void* pNext = gRedHeapBackend->init(start, end, maxheaps);
 #ifdef OPENSWBF2_TEST
     _InterlockedCompareExchange(&sMainTid, (long)GetCurrentThreadId(), 0);
 #endif
@@ -862,7 +593,7 @@ void* RedInitHeap(void* start, void* end, int maxheaps)
 // FUNCTION: SWBF2 0x006c3b20
 void RedMarkHeapPermanent(int heap, bool permanent)
 {
-    heapobj[heap].permanent = permanent;
+    RedArenaMarkPermanent(heap, permanent);
 }
 
 // FUNCTION: SWBF2 0x006c3c10
@@ -892,93 +623,56 @@ void RedSetTempHeap(int heap)
 // FUNCTION: SWBF2 0x006c3a80
 unsigned int RedGetHeapSize(int heap)
 {
-    return heapobj[heap].size;
+    return gRedHeapSlots[heap].size;
 }
 
 // FUNCTION: SWBF2 0x006c3b40
-PBL_ASAN_NO_SANITIZE void RedMoveHeapEnd(int iHeap, int iDelta)
+void RedMoveHeapEnd(int iHeap, int iDelta)
 {
-    int iSource = iHeap;
-    int iTarget = iHeap + 1;
-    unsigned int uAmount = iDelta;
-    if (iDelta < 0)
-    {
-        iSource = iHeap + 1;
-        iTarget = iHeap;
-        uAmount = -iDelta;
-    }
-    int sourceAlign = heapobj[iSource].align;
-    int targetAlign = heapobj[iTarget].align;
-    unsigned int uTagSize = (targetAlign + sizeof(Tag) - 1) & ~(targetAlign - 1);
-    int align = Max(sourceAlign, targetAlign);
-    unsigned int uMove = uAmount & ~(align - 1);
-    if (uMove <= uTagSize)
+    if (iHeap < 0 || iHeap >= maxheaps - 1)
     {
         return;
     }
-    unsigned int uAllocation = uMove - uTagSize;
-    long lTargetPeak = HeapStatsSlot(iTarget) ? sHeapPeak[iTarget] : 0;
-    void* pBlock = RedAllocFromHeapInternal(iTarget, uAllocation, iDelta < 0);
-    if (pBlock == 0)
+    bool bAllocFailed = false;
+    const int iMoved = RedArenaMoveHeapEnd(iHeap, iDelta, &bAllocFailed);
+    const int iTarget = iDelta < 0 ? iHeap : iHeap + 1;
+    if (bAllocFailed)
     {
-        return;
+        _InterlockedIncrement(&gRedHeapSlots[iTarget].failed);
     }
-    HeapObj* heaps = heapobj;
-    Tag* pTag = (Tag*)((char*)pBlock - uTagSize);
-    char* pcBoundary = (char*)heaps[iHeap + 1].start;
-    bool bAtBoundary = iDelta < 0 ? (char*)pTag + pTag->size == pcBoundary : (char*)pTag == pcBoundary;
-    if (!bAtBoundary || pTag->size != uMove)
+    if (iMoved != 0)
     {
-        RedFreeToHeapInternal(iTarget, pBlock, 0);
-        if (HeapStatsSlot(iTarget))
-        {
-            _InterlockedExchangeAdd(&sHeapAllocs[iTarget], -1);
-            _InterlockedExchange(&sHeapPeak[iTarget], lTargetPeak);
-        }
-        return;
+        RedHeapSlot& rLow = gRedHeapSlots[iHeap];
+        RedHeapSlot& rHigh = gRedHeapSlots[iHeap + 1];
+        rLow.size += iMoved;
+        rLow.cap += iMoved;
+        rLow.defaultCap += iMoved;
+        rHigh.size -= iMoved;
+        rHigh.cap -= iMoved;
+        rHigh.defaultCap -= iMoved;
+        rLow.bLive = rLow.size != 0;
+        rHigh.bLive = rHigh.size != 0;
     }
-    iDelta = iDelta < 0 ? -(int)uMove : (int)uMove;
-    if (HeapStatsSlot(iTarget))
-    {
-        _InterlockedExchangeAdd(&sHeapUsed[iTarget], -(long)pTag->size);
-        _InterlockedExchangeAdd(&sHeapAllocs[iTarget], -1);
-        _InterlockedExchange(&sHeapPeak[iTarget], lTargetPeak);
-    }
-    if (HeapStatsSlot(iSource))
-    {
-        _InterlockedExchangeAdd(&sHeapUsed[iSource], (long)pTag->size);
-    }
-    heaps[iHeap].size += iDelta;
-    heaps[iHeap + 1].start = (char*)heaps[iHeap + 1].start + iDelta;
-    heaps[iHeap + 1].size -= iDelta;
-    TagRemoveList(&heaps[iTarget].used, pTag);
-    TagAddList(&heaps[iSource].used, pTag);
-    RedFreeToHeapInternal(iSource, pBlock, 0);
 }
 
 extern "C" bool RedGetHeapStats(int heap, RedHeapStats* pOut)
 {
-    if (pOut == 0 || !HeapStatsSlot(heap) || heapobj[heap].size == 0)
+    if (pOut == 0 || heap < 0 || heap >= maxheaps || gRedHeapSlots[heap].size == 0)
     {
         return false;
     }
-    pOut->uCap = RedGetHeapSize(heap);
-    pOut->uUsed = (unsigned int)sHeapUsed[heap];
-    pOut->uPeak = (unsigned int)sHeapPeak[heap];
-    pOut->uAllocs = (unsigned int)sHeapAllocs[heap];
-    pOut->uFailed = (unsigned int)sHeapFailed[heap];
+    const RedHeapSlot& rSlot = gRedHeapSlots[heap];
+    pOut->uCap = rSlot.cap;
+    pOut->uUsed = (unsigned int)rSlot.used;
+    pOut->uPeak = (unsigned int)rSlot.peak;
+    pOut->uAllocs = (unsigned int)rSlot.allocs;
+    pOut->uFailed = (unsigned int)rSlot.failed;
     return true;
 }
 
 extern "C" bool RedGetHeapRange(int heap, void** ppStart, unsigned int* puSize)
 {
-    if (heap < 0 || heap >= maxheaps || heapobj == 0 || heapobj[heap].size == 0)
-    {
-        return false;
-    }
-    *ppStart = heapobj[heap].start;
-    *puSize = heapobj[heap].size;
-    return true;
+    return RedArenaHeapRange(heap, ppStart, puSize);
 }
 
 void RedPurgeHeapHandles(int heap, const char* name)

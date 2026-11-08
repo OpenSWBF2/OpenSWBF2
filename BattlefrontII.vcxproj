@@ -800,6 +800,15 @@
     <ClCompile Include="src\RedEngineFL\Interface\pc\pcRedMaskedBitmapElement.cpp" />
     <ClCompile Include="src\RedEngineFL\Interface\pc\pcRedVectorElement.cpp" />
     <ClCompile Include="src\RedEngineFL\Memory\RedMemory.cpp" />
+    <ClCompile Include="src\RedEngineFL\Memory\RedMemoryArena.cpp" />
+    <ClCompile Include="src\mimalloc\src\static.c">
+      <CompileAs>CompileAsCpp</CompileAs>
+      <AdditionalIncludeDirectories>src;src\mimalloc\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions Condition="'$(Configuration)'=='Debug'">MI_DEBUG=2;MI_SECURE=0;MI_NO_GETENV=1;MI_USE_RTLGENRANDOM;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)'=='Release'">MI_DEBUG=0;MI_SECURE=4;MI_NO_GETENV=1;MI_USE_RTLGENRANDOM;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)'=='Test'">MI_DEBUG=1;MI_SECURE=4;MI_NO_GETENV=1;MI_USE_RTLGENRANDOM;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)'=='Asan'">MI_DEBUG=0;MI_SECURE=0;MI_TRACK_ASAN=1;MI_NO_GETENV=1;MI_USE_RTLGENRANDOM;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
     <ClCompile Include="src\RedEngineFL\Memory\RedMemoryPool.cpp" />
     <ClCompile Include="src\RedEngineFL\Memory\RedMemoryReport.cpp" />
     <ClCompile Include="src\RedEngineFL\Memory\coreLeafTypes.cpp" />
@@ -1572,6 +1581,7 @@
     <ClInclude Include="src\RedEngineFL\Interface\RedVectorElement.h" />
     <ClInclude Include="src\RedEngineFL\Interface\pc\pcGlyphCacheCount.h" />
     <ClInclude Include="src\RedEngineFL\Memory\RedMemory.h" />
+    <ClInclude Include="src\RedEngineFL\Memory\RedMemoryBackend.h" />
     <ClInclude Include="src\RedEngineFL\Memory\RedMemoryPool.h" />
     <ClInclude Include="src\RedEngineFL\Memory\RedMemoryReport.h" />
     <ClInclude Include="src\RedEngineFL\Memory\RedScriptLimits.h" />

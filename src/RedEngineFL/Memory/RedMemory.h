@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stddef.h>
+
 #include "PebbleFL/Common/PblAsan.h"
 
 struct Tag;
@@ -43,15 +45,15 @@ extern "C"
     void RedDestroyHeap(int heap);
     int RedSetCurrentHeap(int heap);
     void RedSetDebugHeap(int heap);
-    void* RedAllocFromHeap(int heap, unsigned int size, bool bTop);
+    void* RedAllocFromHeap(int heap, size_t size, bool bTop);
     void RedFreeToHeap(int heap, void* block, unsigned int flags);
     void RedMarkHeapPermanent(int heap, bool permanent);
     void RedSetTempHeap(int heap);
 
-    PBL_ASAN_NO_SANITIZE unsigned int RedGetHeapFree(int heap);
+    unsigned int RedGetHeapFree(int heap);
     char const* RedGetHeapName(int heap);
     extern void (*OnFailure)(int heap, unsigned int size);
-    PBL_ASAN_NO_SANITIZE void RedMoveHeapEnd(int heap, int offset);
+    void RedMoveHeapEnd(int heap, int offset);
     bool RedGetHeapStats(int heap, RedHeapStats* pOut);
     bool RedGetHeapRange(int heap, void** ppStart, unsigned int* puSize);
 #ifdef OPENSWBF2_TEST
