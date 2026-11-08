@@ -379,10 +379,10 @@ function Test-SmokeExpect($case, $res) {
     }
     if (-not $script:SmokeDigestConfiguration -or $script:SmokeDigestConfiguration -in 'Release', 'Test') {
         $want = Get-DigestExpected $case.Name
-        if ($want -and $x.ContainsKey('SerialDigest')) {
+        if ($want -and $x.ContainsKey('NoDigestRow')) {
             $got = Get-DigestKey $res.CaseDir
             if ($got -cnotmatch '^OPENSWBF2 SIM DIGEST turns=') {
-                Write-Host "    serial digest line missing"
+                Write-Host "    address digest line missing"
                 return $false
             }
         }
@@ -460,7 +460,14 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
             $x = @{ Class = 'Fatal'; Code = 3; MinDumps = 1; MaxDumps = 1; LogRx = (@('FATAL: exception 0xC0000005 at 0x[0-9A-F]+ \(d3dx9_43\.dll\+0x1BA553\)') + $hrx) }
         }
         elseif ($class -ne 'Pass') { throw "unknown expected class '$class' for $m in missions file" }
-        New-Object PSObject -Property @{ Name = $m; Args = "$m $htail -logcmds ""LogMemory Verbose"""; Expect = $x; Twice = 0; Timeout = $to }
+        $mArgs = "$m $htail -logcmds ""LogMemory Verbose"""
+        if ($m -match '_(1flag|ctf|ass)$' -and $null -eq (Get-DigestExpected $m) -and $class -eq 'Pass') { throw "$m has no digest row and runs with -novictory, so it cannot Pass" }
+        if ($m -match '_(1flag|ctf|ass)$' -and $null -eq (Get-DigestExpected $m) -and $class -eq 'TimeOut') {
+            $mArgs += ' -novictory'
+            $x = $x.Clone()
+            $x.LogRx = @($x.LogRx | Where-Object { $_ }) + '(?m)OPENSWBF2 NOVICTORY\r?$'
+        }
+        New-Object PSObject -Property @{ Name = $m; Args = $mArgs; Expect = $x; Twice = 0; Timeout = $to }
     }
 
     if ($which -eq 'Standard') {
@@ -770,6 +777,7 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
             foreach ($s in 1, 2) { $runs += @{ Mode = $mode; Seed = $s; Extra = " -perturbheap ${s}:$mode" } }
         }
         $runs += @{ Mode = 'hog'; Seed = 0; Extra = ' -hogaddrspace' }
+        $runs += @{ Mode = 'repeat'; Seed = 0; Extra = ' -repeatmission' }
         foreach ($m in $pm) {
             foreach ($r in $runs) {
                 $rx = @('(?s)\A(?!.*OPENSWBF2 PERTURB )')
@@ -781,6 +789,11 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
                     $to = 60
                 }
                 if ($r.Mode -eq 'hog') { $rx += $script:SmokeAddrSpaceRx }
+                if ($r.Mode -eq 'repeat') {
+                    $rx += @("(?m)OPENSWBF2 REPEAT to_shell mission=$m\r?$", "(?m)OPENSWBF2 REPEAT to_mission mission=$m\r?$")
+                    $to = 300
+                    if ($m -eq 'nab2g_c') { $to = 180 }
+                }
                 $name = "perturb-$m-$($r.Mode)"
                 if ($r.Seed -gt 0) { $name = "$name-$($r.Seed)" }
                 $x = @{ Class = $class; LogRx = $rx; Perturb = @{ Mission = $m; Mode = $r.Mode; Seed = $r.Seed } }
@@ -811,20 +824,24 @@ function Get-PerturbProofMissing($case, [string]$logText) {
 }
 
 function Add-SimOrderExpect($cases, [string]$mode) {
-    if (-not $mode) { return $cases }
+    $ties = $script:SmokeDigestConfiguration -in 'Test', 'Asan'
+    if (-not $mode -and -not $ties) { return $cases }
     foreach ($c in $cases) {
         if ($c.Expect.Class -notin 'Pass', 'TimeOut') { continue }
         $x = $c.Expect.Clone()
         $l = @()
         if ($x.ContainsKey('LogRx')) { $l = @($x.LogRx) }
-        $x.LogRx = $l + @("(?m)OPENSWBF2 SIMORDER mode=$mode\r?$", '(?s)\A(?!.*-simorder needs address or serial)')
-        if ($mode -eq 'serial') {
-            $x.SerialDigest = $true
-            if ($script:SmokeDigestConfiguration -in 'Test', 'Asan') {
-                $x.LogRx = @($x.LogRx) + @('(?s)\A(?!.*OPENSWBF2 COLLISION serialties=[1-9])')
-                if ($x.Class -eq 'Pass') { $x.LogRx = @($x.LogRx) + @('(?m)OPENSWBF2 COLLISION serialties=0\r?$') }
-            }
+        if ($mode) {
+            $l = $l + @("(?m)OPENSWBF2 SIMORDER mode=$mode\r?$", '(?s)\A(?!.*-simorder needs address or serial)')
         }
+        if ($mode -eq 'address') {
+            $x.NoDigestRow = $true
+        }
+        elseif ($ties) {
+            $l = $l + @('(?s)\A(?!.*OPENSWBF2 COLLISION serialties=[1-9])')
+            if ($x.Class -eq 'Pass') { $l = $l + @('(?m)OPENSWBF2 COLLISION serialties=0\r?$') }
+        }
+        $x.LogRx = $l
         $c.Expect = $x
     }
     return $cases
@@ -878,7 +895,87 @@ function Compare-DigestTrace($logA, $logB, $maxTurn = 0) {
     return 0
 }
 
-function Get-PerturbVerdict($baseLog, $runLog, $runClass, $okClass, $maxTurn = 1500) {
+function Get-DigestTraceSegments($runLog) {
+    if (-not (Test-Path -LiteralPath $runLog)) { return @() }
+    $segs = New-Object System.Collections.ArrayList
+    $map = @{}
+    [void]$segs.Add($map)
+    foreach ($line in [IO.File]::ReadAllLines($runLog)) {
+        if ($line -cmatch 'OPENSWBF2 DIGEST TRACE turn=(\d+) (.*)') { $map[[int]$Matches[1]] = $Matches[2] }
+        elseif ($line -cmatch 'OPENSWBF2 REPEAT to_mission') {
+            $map = @{}
+            [void]$segs.Add($map)
+        }
+    }
+    return $segs.ToArray()
+}
+
+function Compare-DigestTraceFull($a, $b, $maxTurn = 0) {
+    if ($null -eq $a -or $null -eq $b -or $a.Count -eq 0 -or $b.Count -eq 0) { return -1 }
+    $last = [Math]::Max($a.Count, $b.Count)
+    if ($maxTurn -gt 0) { $last = $maxTurn }
+    for ($t = 1; $t -le $last; $t++) {
+        if (-not $a.ContainsKey($t) -or -not $b.ContainsKey($t)) { return -1 }
+        if ($a[$t] -cne $b[$t]) { return $t }
+    }
+    return 0
+}
+
+function Get-DigestTraceStates($map) {
+    $out = @{}
+    foreach ($k in $map.Keys) { $out[$k] = ($map[$k] -split ' ')[0] }
+    return $out
+}
+
+function Get-SimDigestLines($log) {
+    if (-not (Test-Path -LiteralPath $log)) { return @() }
+    return @(Select-String -LiteralPath $log -Pattern 'OPENSWBF2 SIM DIGEST .*' -CaseSensitive | ForEach-Object { $_.Matches[0].Value })
+}
+
+function Get-PerturbGroupVerdict([string]$mode, [int]$red, [int]$lines, [int]$want) {
+    if ($mode -ceq 'serial') { return ($red -eq 0 -and $lines -eq $want) }
+    if ($mode -ceq 'address') { return ($red -gt 0 -and $lines -eq $want) }
+    return $false
+}
+
+function Get-PerturbVerdict($baseLog, $runLog, $runClass, $okClass, $maxTurn = 1500, $mode = 'address', $repeat = $false) {
+    if ($repeat -or $mode -eq 'serial') {
+        $serial = $mode -eq 'serial'
+        $base = Get-DigestTrace $baseLog
+        $segs = @(Get-DigestTraceSegments $runLog)
+        $baseEnd = 0
+        if ($base.Count -gt 0) { $baseEnd = ($base.Keys | Measure-Object -Maximum).Maximum }
+        $limits = @($baseEnd)
+        if ($repeat) {
+            $limits = @($maxTurn, $maxTurn)
+            if ($serial) { $limits = @($maxTurn, $baseEnd) }
+        }
+        $ref = $base
+        if (-not $serial) { $ref = Get-DigestTraceStates $base }
+        $t = -1
+        if ($baseEnd -gt 0 -and $segs.Count -eq $limits.Count) {
+            for ($i = 0; $i -lt $limits.Count; $i++) {
+                $s = $segs[$i]
+                if (-not $serial) { $s = Get-DigestTraceStates $s }
+                $t = Compare-DigestTraceFull $ref $s $limits[$i]
+                if ($t -ne 0) { break }
+            }
+        }
+        if ($runClass -ne $okClass) {
+            $turn = 0
+            if ($t -gt 0) { $turn = $t }
+            return @{ Result = 'crash'; Turn = $turn; Class = [string]$runClass }
+        }
+        if ($t -gt 0) { return @{ Result = 'split'; Turn = $t; Class = [string]$runClass } }
+        if ($t -lt 0) { return @{ Result = 'crash'; Turn = 0; Class = 'incomplete' } }
+        $da = @(Get-SimDigestLines $baseLog)
+        $db = @(Get-SimDigestLines $runLog)
+        $dWant = $db.Count -ge 1
+        if ($repeat) { $dWant = $db.Count -eq 2 }
+        if ($da.Count -lt 1 -or -not $dWant) { return @{ Result = 'crash'; Turn = 0; Class = 'incomplete' } }
+        foreach ($d in $db) { if ($d -cne $da[-1]) { return @{ Result = 'split'; Turn = $maxTurn; Class = [string]$runClass } } }
+        return @{ Result = 'equal'; Turn = 0; Class = [string]$runClass }
+    }
     $t = Compare-DigestTrace $baseLog $runLog $maxTurn
     if ($runClass -ne $okClass) {
         $turn = 0

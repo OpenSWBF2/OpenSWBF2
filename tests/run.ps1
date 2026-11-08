@@ -437,43 +437,75 @@ if ($smokeActive) {
             $pLines = 0
             $pWant = 0
             $pMissions = @($perturbRuns | ForEach-Object { $_.Case.Expect.Perturb.Mission } | Select-Object -Unique)
+            $pFound = @()
             foreach ($pm in $pMissions) {
-                $mine = @($perturbRuns | Where-Object { $_.Case.Expect.Perturb.Mission -eq $pm })
-                $others = @($mine | Where-Object { $_.Case.Expect.Perturb.Mode -ne 'base' })
-                $pWant += $others.Count
-                $base = @($mine | Where-Object { $_.Case.Expect.Perturb.Mode -eq 'base' })
-                if ($base.Count -ne 1 -or -not $base[0].Proven -or $base[0].Class -ne $base[0].Case.Expect.Class -or (Compare-DigestTrace $base[0].Log $base[0].Log 1500) -ne 0) {
-                    $bc = 'missing'
-                    if ($base.Count -eq 1) { $bc = $base[0].Class }
-                    Add-SmokeResult "[FAIL] smoke:perturb base $pm class=$bc" 'FAIL'
-                    $bad++
-                    continue
+                $mv = 'none'
+                $pb = @($perturbRuns | Where-Object { $_.Case.Expect.Perturb.Mission -eq $pm -and $_.Case.Expect.Perturb.Mode -eq 'base' })
+                if ($pb.Count -eq 1 -and (Test-Path -LiteralPath $pb[0].Log)) {
+                    $mh = Select-String -LiteralPath $pb[0].Log -Pattern 'OPENSWBF2 SIMORDER mode=(address|serial)' -CaseSensitive | Select-Object -Last 1
+                    if ($mh) { $mv = $mh.Matches[0].Groups[1].Value }
                 }
-                $pRows += "$pm`tbase`t0`tbase"
-                foreach ($r in $others) {
-                    $p = $r.Case.Expect.Perturb
-                    if (-not $r.Proven) {
-                        $pRows += "$pm`t$($p.Mode)`t$($p.Seed)`tunproven"
+                $pFound += "$pm=$mv"
+            }
+            $pModes = @($pFound | ForEach-Object { ($_ -split '=')[1] } | Select-Object -Unique)
+            $pMode = ''
+            if ($pModes.Count -eq 1 -and $pModes[0] -ne 'none') { $pMode = $pModes[0] }
+            else {
+                Add-SmokeResult "[FAIL] smoke:perturb mode - base runs must all log one OPENSWBF2 SIMORDER mode: $($pFound -join ' ')" 'FAIL'
+                $bad++
+            }
+            if ($pMode) {
+                foreach ($pm in $pMissions) {
+                    $mine = @($perturbRuns | Where-Object { $_.Case.Expect.Perturb.Mission -eq $pm })
+                    $others = @($mine | Where-Object { $_.Case.Expect.Perturb.Mode -ne 'base' })
+                    $pWant += $others.Count
+                    $base = @($mine | Where-Object { $_.Case.Expect.Perturb.Mode -eq 'base' })
+                    $baseFull = $false
+                    if ($base.Count -eq 1) {
+                        if ($pMode -eq 'serial') {
+                            $bs = @(Get-DigestTraceSegments $base[0].Log)
+                            $baseFull = $bs.Count -eq 1 -and (Compare-DigestTraceFull $bs[0] $bs[0] 1600) -eq 0
+                        }
+                        else { $baseFull = (Compare-DigestTrace $base[0].Log $base[0].Log 1500) -eq 0 }
+                    }
+                    if ($base.Count -ne 1 -or -not $base[0].Proven -or $base[0].Class -ne $base[0].Case.Expect.Class -or -not $baseFull) {
+                        $bc = 'missing'
+                        if ($base.Count -eq 1) { $bc = $base[0].Class }
+                        Add-SmokeResult "[FAIL] smoke:perturb base $pm class=$bc" 'FAIL'
+                        $bad++
                         continue
                     }
-                    $v = Get-PerturbVerdict $base[0].Log $r.Log $r.Class $r.Case.Expect.Class
-                    $txt = $v.Result
-                    if ($v.Result -eq 'split') { $txt = "split turn=$($v.Turn)" }
-                    elseif ($v.Result -eq 'crash') {
-                        $txt = "crash class=$($v.Class)"
-                        if ($v.Turn -gt 0) { Write-Host "    perturb:$pm mode=$($p.Mode) seed=$($p.Seed) split turn=$($v.Turn) before the crash" }
+                    $pRows += "$pm`tbase`t0`tbase"
+                    foreach ($r in $others) {
+                        $p = $r.Case.Expect.Perturb
+                        if (-not $r.Proven) {
+                            $pRows += "$pm`t$($p.Mode)`t$($p.Seed)`tunproven"
+                            continue
+                        }
+                        $v = Get-PerturbVerdict $base[0].Log $r.Log $r.Class $r.Case.Expect.Class 1500 $pMode ($p.Mode -eq 'repeat')
+                        $txt = $v.Result
+                        if ($v.Result -eq 'split') { $txt = "split turn=$($v.Turn)" }
+                        elseif ($v.Result -eq 'crash') {
+                            $txt = "crash class=$($v.Class)"
+                            if ($v.Turn -gt 0) { Write-Host "    perturb:$pm mode=$($p.Mode) seed=$($p.Seed) split turn=$($v.Turn) before the crash" }
+                        }
+                        if ($v.Result -ne 'equal') { $pRed++ }
+                        $pLines++
+                        Add-SmokeResult "[INFO] perturb:$pm mode=$($p.Mode) seed=$($p.Seed) $txt" 'INFO'
+                        $pRows += "$pm`t$($p.Mode)`t$($p.Seed)`t$txt"
                     }
-                    if ($v.Result -ne 'equal') { $pRed++ }
-                    $pLines++
-                    Add-SmokeResult "[INFO] perturb:$pm mode=$($p.Mode) seed=$($p.Seed) $txt" 'INFO'
-                    $pRows += "$pm`t$($p.Mode)`t$($p.Seed)`t$txt"
                 }
-            }
-            $pRows | Set-Content -Path (Join-Path $outDir 'perturb.tsv') -Encoding ASCII
-            if ($pRed -gt 0 -and $pLines -eq $pWant) { Add-SmokeResult "[PASS] smoke:perturb red runs=$pRed/$pWant" 'PASS' }
-            else {
-                Add-SmokeResult "[FAIL] smoke:perturb red runs=$pRed/$pWant - $pLines of $pWant result lines, none may be missing and at least one run must split" 'FAIL'
-                $bad++
+                $pRows | Set-Content -Path (Join-Path $outDir 'perturb.tsv') -Encoding ASCII
+                if (Get-PerturbGroupVerdict $pMode $pRed $pLines $pWant) {
+                    if ($pMode -eq 'serial') { Add-SmokeResult "[PASS] smoke:perturb serial equal runs=$pLines/$pWant" 'PASS' }
+                    else { Add-SmokeResult "[PASS] smoke:perturb address red runs=$pRed/$pWant" 'PASS' }
+                }
+                else {
+                    $pRule = 'at least one run must split'
+                    if ($pMode -eq 'serial') { $pRule = 'every run must equal its base' }
+                    Add-SmokeResult "[FAIL] smoke:perturb mode=$pMode red runs=$pRed/$pWant - $pLines of $pWant result lines, none may be missing and $pRule" 'FAIL'
+                    $bad++
+                }
             }
         }
         $traceLog1 = Join-Path $outDir 'smoke\trace-seed-1\run.log'

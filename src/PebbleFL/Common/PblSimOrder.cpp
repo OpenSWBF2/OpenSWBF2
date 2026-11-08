@@ -2,7 +2,7 @@
 
 #include <string.h>
 
-static PblSimOrderMode sSimOrder = PBL_SIMORDER_ADDRESS;
+static PblSimOrderMode sSimOrder = PBL_SIMORDER_SERIAL;
 
 PblSimOrderMode PblGetSimOrder()
 {

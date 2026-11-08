@@ -41,9 +41,31 @@ MEM-04B      GREEN    RED         1          lua panic handler exits with code 4
 STRLCPY-NULL GREEN    RED         3221225477 strlcpy treats a null source as empty crash 0xC0000005
 DIAG-02      GREEN    RED         1          redlog ensure counts once per site 
 DIAG-03      GREEN    RED         0,0        strictness probe emits an undeclared error | strictness probe unmatched expectation 
+DIAG-05      GREEN    RED         1          alloc failure handler logs and suppresses 
 DBGOUT-01    GREEN    RED         1          debugger output mirrors the log 
 DBGOUT-03    GREEN    RED         1          debugger output mirrors the log 
 DBGOUT-02    GREEN    RED         1          debugger output mirrors the log 
+SAFE01-CREATE GREEN    RED         3221225477 memory pool create refuses overflowing count crash 0xC0000005
+SAFE01-CHUNK GREEN    RED         3221225477 memory pool create survives failed heap block crash 0xC0000005
+SAFE01-EMPTY GREEN    RED         1          memory pool create survives failed heap block 
+SAFE01-GROW  GREEN    RED         3221225477 memory pool growth refuses overflowing grow crash 0xC0000005
+SAFE02-CLAMP GREEN    RED         3221225477 setup temp heap clamps size crash 0xC0000005
+SAFE02-LEAK  GREEN    RED         1          setup temp heap twice frees previous heap 
+SAFE02-NULL  GREEN    RED         3221225477 setup temp heap null block leaves no temp heap crash 0xC0000005
+SAFE02-SLOT  GREEN    RED         1          setup temp heap refuses when no heap slot is left 
+SAFE02-LOAD  GREEN    RED         1          setup temp heap refuses while load heap is live 
+SAFE02-STALE GREEN    RED         124        setup temp heap forget drops stale block crash 0x0000007C
+SAFE03-POOL  GREEN    RED         1,1        set memory pool size clamps script count | script-size-clamp: lua memory sinks route through the shared clamp 
+SAFE03-STEAL GREEN    RED         1          steal artist heap refuses zero small and negative sizes 
+SAFE03-STEALLOG GREEN    RED         1          steal artist heap refuses zero small and negative sizes 
+SAFE03-WALKER GREEN    RED         1          add walker type clamps script counts 
+SAFE03-MOVEEND GREEN    RED         3221225477 move heap end refuses a failed allocation crash 0xC0000005
+SAFE03-MOVEPLACE GREEN    RED         1          move heap end refuses a block away from the boundary 
+SAFE03-MOVEALIGN GREEN    RED         1          move heap end moves only the aligned block it transfers 
+REPT01-ONCE  GREEN    RED         0,1        memory pool full line logs once on growth | memory pool full line logs once when gated 
+REPT03-STRICT GREEN    RED         1          memory pool full line is error when strict 
+REPT02-RESET GREEN    RED         1,1        memory pool stats survive reset and destroy for the exit report | report emits one line per heap and created pool 
+REPT03-ESCALATE GREEN    RED         1          memory pool full line escalates once when strict arms after a load report 
 LAA-02A      GREEN    RED         1,1        ordered list keeps address order across 2GB | ptr order key is monotonic across 2GB 
 LAA-02B      GREEN    RED         1          collision tie-break is unsigned 
 LAA-02C      GREEN    RED         1          pointer order sites use the unsigned helpers 
@@ -72,6 +94,21 @@ RESET-02     GREEN    RED         1          reset step startup timeout is fatal
 RESET-02B    GREEN    RED         1          reset step lost device waits without limit 
 RESET-04A    GREEN    RED         1          runtime reset restyle source pins 
 RESET-04B    GREEN    RED         1          runtime reset restyle source pins 
+VCHDR-01     GREEN    RED         1,1        voice chat header bitmap holds a relay header | voice chat header bitmap holds every header format 
+ADMPEER-01   GREEN    RED         1          admin replies route to the admin peer 
+ADMPEER-02   GREEN    RED         1          admin replies route to the admin peer 
+ADMPEER-03   GREEN    RED         1          net peer lookup covers dests and join slots only 
+ADMPEER-04   GREEN    RED         1          admin id text sites use the pinned format 
+ADMPEER-05   GREEN    RED         1          admin replies route to the admin peer 
+ADMTOKEN-01  GREEN    RED         1          admin token buffers keep room for the terminator (source pin as NetAdmin.cpp is not linked into T1) 
+NETHDR-01    GREEN    RED         1          net header read of a short packet leaves zeroed fields 
+HOLD-01      GREEN    RED         1          command post hold mask tests the player bit 
+HOLD-02      GREEN    RED         1          command post hold mask sites keep retail only in the sim 
+VCNODE-01    GREEN    RED         1          voice chat header rejects out of range node ids 
+VCNODE-02    GREEN    RED         1          voice chat header rejects out of range node ids 
+VCNODE-03    GREEN    RED         1          voice chat header read rejects out of range node ids 
+VCNODE-05    GREEN    RED         1          voice chat local node ids stay below the transport node count 
+VCNODE-04    GREEN    RED         1          voice chat local node ids stay below the transport node count 
 WIN-02A      GREEN    RED         1          window mode source pins 
 WIN-01A      GREEN    RED         1          display logic window style 
 WIN-01B      GREEN    RED         1          display logic window placement 
@@ -214,10 +251,339 @@ SIDENAME-01  GREEN    RED         1          side name prefix is bounded
 SIMFIX-C1    GREEN    RED         1          terrain interpolated height rounds each step to float 
 SIMFIX-C2    GREEN    RED         1          ai difficulty compiles with fp strict 
 SIMFIX-C3    GREEN    RED         1          weapon cannon fire compiles with fp strict 
+USTR-01      GREEN    RED         1          wide string call sites pass element counts 
+USTR-02      GREEN    RED         1          wide string call sites pass element counts 
+USTR-03      GREEN    RED         1          wide string call sites pass element counts 
+USTR-04      GREEN    RED         1          wide string call sites pass element counts 
+USTR-06      GREEN    RED         1          wide string call sites pass element counts 
+USTR-13      GREEN    RED         1          wide string call sites pass element counts 
+USTR-23      GREEN    RED         1          wide string call sites pass element counts 
+USTR-26      GREEN    RED         1          wide string call sites pass element counts 
+USTR-C01     GREEN    RED         1          pblunicode bound: ustrlcat 
+USTR-C02     GREEN    RED         1          pblunicode bound: ustrncpy 
+USTR-C03     GREEN    RED         1          pblunicode bound: ustrncnv wide to char 
+USTR-C04     GREEN    RED         1          pblunicode bound: ustrncnv char to wide 
+USTR-C05     GREEN    RED         1          pblunicode bound: char uvsnprintf 
+USTR-C06     GREEN    RED         1          pblunicode bound: wide uvsnprintf 
+USTR-C07     GREEN    RED         1          pblunicode bound: wide uvsnprintf 
+USTR-C08     GREEN    RED         1          pblunicode bound: ConvertUnicodeSkippingWide 
+USTR-C09     GREEN    RED         1          pblunicode bound: ustrncnv bytes to wide 
+FMT-01       GREEN    RED         3221225477 profile name template is never used as a raw format crash 0xC0000005
+FMT-02       GREEN    RED         1          profile name sites use the template seam 
+FMT-03       GREEN    RED         1          profile name sites use the template seam 
+FMT-04       GREEN    RED         1          profile name sites use the template seam 
+MAGIC-01     GREEN    RED         3221226505 magic strings drop an overlong name crash 0xC0000409
+MAGIC-02     GREEN    RED         1          magic strings stay inside the destination 
+MAGIC-03     GREEN    RED         1          magic strings call site passes its capacity 
+MEDAL-01     GREEN    RED         1          medal key stays inside key[68] 
+TEAMNAME-01  GREEN    RED         1          team random name clears the whole buffer 
+KEYNAME-01   GREEN    RED         1          key name copy honours the element count 
+USPRINTF-01  GREEN    RED         1          localized format never reads past the passed args 
+USPRINTF-02  GREEN    RED         1          localized format never reads past the passed args 
+USTR-ARGS-01 GREEN    RED         1          usprintf fills the 1-based argument slots (source pin as LuaCallbacks.cpp is not linked into T1) 
+AIDIFF-01    GREEN    RED         1          ai difficulty level is clamped to the table range 
+AIDIFF-02    GREEN    RED         1          ai difficulty reads go through the clamp 
+NETADMIN-ID-01 GREEN    RED         1          admin id text keeps the retail low-dword format 
+NETADMIN-ID-02 GREEN    RED         1          admin id text sites use the pinned format 
+LWIDE-01     GREEN    RED         1          lua wide terminator scan stays inside the string 
+LWIDE-02     GREEN    RED         1          lua wide accessor terminates inside the allocation 
+LWIDE-03     GREEN    RED         1          lua wide accessor terminates inside the allocation 
+LWIDE-04     GREEN    RED         1          lua wide string sites route through the accessor 
+LWIDE-05     GREEN    RED         1          lua wide string sites route through the accessor 
+LWIDE-06     GREEN    RED         1          lua wide string sites route through the accessor 
+LWIDE-07     GREEN    RED         1          lua wide string sites route through the accessor 
+LWIDE-08     GREEN    RED         1          lua wide string sites route through the accessor 
+LMAT-01      GREEN    RED         1          lua matrix argument accepts only pushed matrices 
+LMAT-02      GREEN    RED         1          lua matrix argument accepts only pushed matrices 
+LMAT-03      GREEN    RED         3221225477 lua matrix argument accepts only pushed matrices crash 0xC0000005
+LMAT-04      GREEN    RED         1          lua matrix sites route through the accessor 
+LMAT-05      GREEN    RED         1          lua matrix sites route through the accessor 
+PBLHT-01     GREEN    RED         124        hash table full table probes terminate crash 0x0000007C
+PBLHT-02     GREEN    RED         124        hash table full table probes terminate crash 0x0000007C
+PBLHT-03     GREEN    RED         124        hash table full table probes terminate crash 0x0000007C
+TIMER-01     GREEN    RED         1          create timer refuses when the timer map is full 
+SACRIT-01    GREEN    RED         1          space assault critical systems stay inside the hash array 
+DATANAME-01  GREEN    RED         1          read data file name parts stay inside their blocks 
+DATANAME-02  GREEN    RED         1          read data file name parts stay inside their blocks 
+DATANAME-01B GREEN    RED         1          read data file splits its name through the bounded helper (source pin: LoadUtil.cpp is not linked into T1) 
+TEAM-01      GREEN    RED         1          team lookup rejects out of range indices 
+TEAM-02      GREEN    RED         1          lua team index sites route through team lookup 
+TEAM-03      GREEN    RED         1          lua team index sites route through team lookup 
+TEAM-04      GREEN    RED         1          lua team index sites route through team lookup 
+TEAM-05      GREEN    RED         1          lua team index sites route through team lookup 
+TEAM-06      GREEN    RED         1          lua team index sites route through team lookup 
+TEAM-07      GREEN    RED         1          lua team index sites route through team lookup 
+TEAM-08      GREEN    RED         1          lua team index sites route through team lookup 
+TEAM-09      GREEN    RED         1          lua team index sites route through team lookup 
+COLOR-01     GREEN    RED         1          stats team colour slots are bounded 
+VO-01        GREEN    RED         1          voice over side indices are bounded 
+VO-02        GREEN    RED         1          voice over side indices are bounded 
+VO-03        GREEN    RED         1          voice over side indices are bounded 
+VO-04        GREEN    RED         1          voice over side indices are bounded 
+STREAM-01    GREEN    RED         1          lua stream and ui indices are bounded 
+PAGE-01      GREEN    RED         1          lua stream and ui indices are bounded 
+METASIDE-01  GREEN    RED         1          lua stream and ui indices are bounded 
+BIND-01      GREEN    RED         1          lua stream and ui indices are bounded 
+SCALE-01     GREEN    RED         1          lua stream and ui indices are bounded 
+SPEC-01      GREEN    RED         1          lua stream and ui indices are bounded 
+DELENT-01    GREEN    RED         1          delete entity refuses character owned entities 
+SCRGRP-01    GREEN    RED         1          screen group fallback returns true when set 
+LUAFILE-01   GREEN    RED         1          lua loadfile dofile and require cannot read files 
+LUADBG-01    GREEN    RED         1          lua debug debug does not read stdin 
+LUAB-01      GREEN    RED         1          lua loadstring refuses binary chunks 
+LUAB-U-CODE  GREEN    RED         1          lua undump refuses oversized code counts 
+LUAB-U-LINES GREEN    RED         1          lua undump refuses oversized line counts 
+LUAB-U-LOCALS GREEN    RED         3221225477 lua undump refuses oversized local counts crash 0xC0000005
+LUAB-U-CONST GREEN    RED         1          lua undump refuses oversized constant counts 
+LUAB-U-PROTOS GREEN    RED         124        lua undump refuses oversized function counts crash 0x0000007C
+LUAB-U-STRING GREEN    RED         1          lua undump refuses oversized string sizes 
+LUAB-U-BLOCK GREEN    RED         1          lua undump refuses multi-block binary chunks 
+LUAB-U-DEPTH GREEN    RED         1          lua undump refuses deep nesting 
+LUAB-V2-MAINUP GREEN    RED         3221225477 lua undump refuses main upvalues crash 0xC0000005
+LUAB-V9-KSTR GREEN    RED         3221225477 lua undump refuses null strings crash 0xC0000005
+LUAB-V9-LOCNAME GREEN    RED         3221225477 lua undump refuses null strings crash 0xC0000005
+LUAB-V9-UPNAME GREEN    RED         3221225477 lua undump refuses null strings crash 0xC0000005
+LUAB-V9-SOURCE GREEN    RED         3221225477 lua undump refuses null strings crash 0xC0000005
+LUAB-V0-OPCODE GREEN    RED         1          lua verifier refuses unknown opcodes 
+LUAB-V1-EMPTY GREEN    RED         3221225477 lua verifier refuses empty code crash 0xC0000005
+LUAB-V13-PARAMS GREEN    RED         1          lua verifier refuses parameters beyond the frame 
+LUAB-D17-PC  GREEN    RED         1          lua verifier names the bad instruction 
+LUAB-V3-CONCAT GREEN    RED         1          lua verifier refuses concat past the frame 
+LUAB-V4-TFORPREP GREEN    RED         3221225477 lua verifier refuses wild tforprep jumps crash 0xC0000005
+LUAB-V5-TFORLOOP GREEN    RED         1          lua vm keeps tforloop results inside the stack 
+LUAB-V6-NEWTABLE GREEN    RED         3221225477 lua verifier refuses huge table sizes crash 0xC0000005
+LUAB-R1-RUNTIME GREEN    RED         3221225477,3221225477 lua vm raises on self with a register key | lua vm raises on setlist into a non-table crash 0xC0000005,crash 0xC0000005
+LUAB-V7-SELFK GREEN    RED         1          lua verifier refuses self with a non-string constant key 
+LUAB-V11-OPEN GREEN    RED         1,1        lua verifier refuses open calls past their producer | lua verifier refuses an open call into its producer register 
+LUAB-V11-OPENEQ GREEN    RED         1          lua verifier refuses an open call into its producer register 
+LUAB-V11-OPENRET GREEN    RED         1          lua verifier refuses open calls past their producer 
+LUAB-V11-OPENLIST GREEN    RED         1          lua verifier refuses open calls past their producer 
+LUAB-V12-LOADBOOL GREEN    RED         1          lua verifier refuses non-boolean loadbool 
+LUAB-V10-GETLOCAL GREEN    RED         1          lua debug locals stay inside the frame 
+LUAB-V10-SETLOCAL GREEN    RED         3221225477 lua debug locals stay inside the frame crash 0xC0000005
+LUAB-D16-CUPVAL GREEN    RED         1          lua debug upvalue index zero is refused 
+LUAB-D16-LUPVAL GREEN    RED         3221225477 lua debug upvalue index zero is refused crash 0xC0000005
+NETLIM-01    GREEN    RED         1          net player and guest count bounds 
+NETLIM-02    GREEN    RED         1          net player and guest count bounds 
+NETGUEST-01  GREEN    RED         1          join guest count is bounded 
+NETSPAWN-01  GREEN    RED         1          spawn select rejects unknown guest slots 
+NETTEAM-01   GREEN    RED         1          team change event ignores null references 
+NETCREATE-01 GREEN    RED         1          read create rejects unknown class and team 
+NETCREATE-02 GREEN    RED         1          read create rejects unknown class and team 
+NETOBJ-01    GREEN    RED         1          read create rejects unknown class and team 
+NETSMOOTH-01 GREEN    RED         1          net object slots are bounded 
+NETINTERP-01 GREEN    RED         1          net object slots are bounded 
+NETMSG-01    GREEN    RED         1          net message and chunk events ignore null references 
+NETMSG-02    GREEN    RED         1          net message and chunk events ignore null references 
+NETCHUNK-01  GREEN    RED         1          net message and chunk events ignore null references 
+UIL-01       GREEN    RED         1          interface element destruction clears creation pointers 
+UIL-02       GREEN    RED         1          interface element destruction clears creation pointers 
+UIL-03       GREEN    RED         1          interface element destruction clears creation pointers 
+UIL-04       GREEN    RED         1          screen forget element compacts every screen 
+UIL-05       GREEN    RED         1          model attachment detaches on destruction 
+UIL-06       GREEN    RED         1          model attachment detaches on destruction 
+UIL-07       GREEN    RED         1          interface element destruction clears creation pointers 
+LHND-01      GREEN    RED         1          lua handle argument accepts only light userdata 
+LHND-02      GREEN    RED         1          pbl ptr set tracks membership by address 
+LHND-03      GREEN    RED         1          pbl ptr set tracks membership by address 
+LHND-04      GREEN    RED         124        pbl ptr set tracks membership by address crash 0x0000007C
+LHND-05      GREEN    RED         1          pbl hash table finds values by address 
+LHND-06      GREEN    RED         1          pbl region list membership by address 
+LHND-07      GREEN    RED         1          factory list membership by address 
+LHND-08      GREEN    RED         1          event node tree membership 
+LHND-09      GREEN    RED         1          lua handle sites route through validation 
+LHND-10      GREEN    RED         1          lua handle sites route through validation 
+LHND-11      GREEN    RED         1          lua handle sites route through validation 
+LHND-12      GREEN    RED         1          lua handle sites route through validation 
+LHND-13      GREEN    RED         1          lua handle sites route through validation 
+LHND-14      GREEN    RED         1          lua handle sites route through validation 
+LHND-15      GREEN    RED         1          lua handle sites route through validation 
+LHND-16      GREEN    RED         1          lua handle sites route through validation 
+LHND-17      GREEN    RED         1          lua handle sites route through validation 
+LHND-18      GREEN    RED         1          lua handle sites route through validation 
+LHND-19      GREEN    RED         1          lua handle sites route through validation 
+LHND-20      GREEN    RED         1          lua handle sites route through validation 
+LHND-21      GREEN    RED         1          lua handle sites route through validation 
+LHND-22      GREEN    RED         1          lua handle sites route through validation 
+LHND-23      GREEN    RED         1          lua handle sites route through validation 
+LHND-24      GREEN    RED         1          lua handle sites route through validation 
+LHND-25      GREEN    RED         1          lua handle sites route through validation 
+LHND-26      GREEN    RED         1          lua handle sites route through validation 
+LHND-27      GREEN    RED         1          lua handle sites route through validation 
+LHND-28      GREEN    RED         1          lua handle sites route through validation 
+LHND-29      GREEN    RED         1          lua handle sites route through validation 
+LHND-30      GREEN    RED         1          lua handle sites route through validation 
+LHND-31      GREEN    RED         1          lua handle sites route through validation 
+LHND-32      GREEN    RED         1          lua handle sites route through validation 
+LHND-33      GREEN    RED         1          lua handle sites route through validation 
+LHND-34      GREEN    RED         1          lua handle sites route through validation 
+LHND-35      GREEN    RED         1          lua handle sites route through validation 
+LHND-36      GREEN    RED         1          lua handle sites route through validation 
+LHND-37      GREEN    RED         1          lua handle sites route through validation 
+LHND-38      GREEN    RED         1          lua handle sites route through validation 
+LHND-39      GREEN    RED         1,1        lua save items round trip and drop light userdata | lua handle sites route through validation 
+LHND-40      GREEN    RED         3221225477,3221225477,1 lua save items round trip and drop light userdata | lua save items read rejects malformed buffers | lua handle sites route through validation crash 0xC0000005,crash 0xC0000005
+LSAV-01      GREEN    RED         1,0        lua save items write stays inside its buffer | lua save items round trip and drop light userdata 
+LSAV-02      GREEN    RED         1          lua save items read rejects malformed buffers 
+LSAV-03      GREEN    RED         1,3221225477 lua save items round trip and drop light userdata | lua save items read rejects malformed buffers crash 0xC0000005
+LSAV-04      GREEN    RED         1          lua save items write stays inside its buffer 
+LSAV-05      GREEN    RED         1,1        lua save items round trip and drop light userdata | lua save items read rejects malformed buffers 
+LSAV-06      GREEN    RED         3221225477 lua save items read rejects malformed buffers crash 0xC0000005
+LSAV-07      GREEN    RED         1          lua save items write stays inside its buffer 
+LSAV-08      GREEN    RED         3221225477 lua save items write stays inside its buffer crash 0xC0000005
+PBLIDX-01    GREEN    RED         1          pbl in bounds accepts only indices inside the array 
+PBLHASH-01   GREEN    RED         1          hash table end converts to null 
+NETLOCAL-01  GREEN    RED         1          local index out of range is minus one 
+PBLHASH-02   GREEN    RED         1          hash table iteration visits null valued entries 
+POLY-01      GREEN    RED         1          remove polygon leaves the slot past the count alone 
+HERO-01      GREEN    RED         1          hero slot match ignores teams outside the slot array 
+HERO-01B     GREEN    RED         1          asan fix helpers stay wired into the game (source pin: callers need the game runtime) 
+HERO-02      GREEN    RED         1          asan fix helpers stay wired into the game (source pin: callers need the game runtime) 
+HERO-03      GREEN    RED         1          hero unlock check ignores teams outside the slot array 
+HERO-03B     GREEN    RED         1          asan fix helpers stay wired into the game (source pin: callers need the game runtime) 
+HERO-04      GREEN    RED         1          hero killer write outside the slot array is dropped 
+HERO-04B     GREEN    RED         1          asan fix helpers stay wired into the game (source pin: callers need the game runtime) 
+HERO-05      GREEN    RED         1          asan fix helpers stay wired into the game (source pin: callers need the game runtime) 
+HERO-06      GREEN    RED         1          hero slot read outside the slot array returns the fallback 
+HERO-06B     GREEN    RED         1          asan fix helpers stay wired into the game (source pin: callers need the game runtime) 
+HERO-07      GREEN    RED         1          asan fix helpers stay wired into the game (source pin: callers need the game runtime) 
+RULES-01     GREEN    RED         1          game rules index outside the rules arrays is rejected 
+RULES-01B    GREEN    RED         1          asan fix helpers stay wired into the game (source pin: callers need the game runtime) 
+PTR-04       GREEN    RED         1          voice chat mixer clear touches one connection 
+PTR-04B      GREEN    RED         1          voice chat decoder clears through the helper 
+STACKALLOC-01 GREEN    RED         1          stack allocator starts at the first size slot 
+STACKALLOC-02 GREEN    RED         1          stack allocator free after a full size ring keeps the pool 
+LISTALLOC-01 GREEN    RED         1          list allocator serves requests of a page or more 
+SOLDANIM-01  GREEN    RED         1          soldier animation fits its pool slot 
+FLEFFATTACH-01 GREEN    RED         1          effect keeps its last position after its attach vector is released 
+FLEFFATTACH-01B GREEN    RED         1          asan fix helpers stay wired into the game (source pin: callers need the game runtime) 
+TERRHOLE-01  GREEN    RED         1          terrain hole test stays inside the patch table 
+TERRHOLE-02  GREEN    RED         1          terrain hole test stays inside the patch table 
+PBLHANDLE-01 GREEN    RED         1,1        handle registry resolves a freed and overwritten block to null | handle to a freed pool object resolves to null 
+HNDL-01      GREEN    RED         1          handle registry resolves a freed and overwritten block to null 
+HNDL-02      GREEN    RED         1          destroying a trackable clears both tracker worlds and the alo slots 
+HNDL-03      GREEN    RED         1          destroying a trackable clears both tracker worlds and the alo slots 
+HNDL-04      GREEN    RED         1          trackable destructor removes it from every tracker (source pin: callers need the game runtime) 
+LISTENER-01  GREEN    RED         1          sound listener keeps its own position after the owner is released 
+LISTENER-01B GREEN    RED         1          asan fix helpers stay wired into the game (source pin: callers need the game runtime) 
+SNDVEL-01    GREEN    RED         1          released 3d voice reports its stored velocity 
+SNDVEL-01B   GREEN    RED         1          asan fix helpers stay wired into the game (source pin: callers need the game runtime) 
+SUNFLARE-01  GREEN    RED         1          pbl list delete of self removing objects never steps through a freed node 
+SUNFLARE-01B GREEN    RED         1          asan fix helpers stay wired into the game (source pin: callers need the game runtime) 
+SUNFLARE-02  GREEN    RED         1          pbl list delete unlinks each object before it is freed 
+SUNFLARE-02B GREEN    RED         1          asan fix helpers stay wired into the game (source pin: callers need the game runtime) 
+SQUADFORM-01 GREEN    RED         1          squadron formation list does not run into the next stack block 
+SQUADFORM-01B GREEN    RED         1          asan fix helpers stay wired into the game (source pin: callers need the game runtime) 
+SQUADPROP-01 GREEN    RED         1          squadron formation odf list stops at its array size 
+SQUADPROP-01B GREEN    RED         1          asan fix helpers stay wired into the game (source pin: callers need the game runtime) 
+MODAPPEND-01 GREEN    RED         1          mod data fixed array appends stop at the array size 
+MODAPPEND-02 GREEN    RED         1          mod data fixed array appends stop at the array size 
+MODAPPEND-03 GREEN    RED         1          mod data fixed array appends stop at the array size 
+MODAPPEND-04 GREEN    RED         1          mod data fixed array appends stop at the array size 
+MODAPPEND-05 GREEN    RED         1          mod data fixed array appends stop at the array size 
+MODAPPEND-06 GREEN    RED         1          mod data fixed array appends stop at the array size 
+MODAPPEND-07 GREEN    RED         1          mod data fixed array appends stop at the array size 
+WALKLEG-01   GREEN    RED         1          walker leg pair count from mod data stays inside the leg pair array 
+WALKLEG-01B  GREEN    RED         1          asan fix helpers stay wired into the game (source pin: callers need the game runtime) 
+WALKLEG-02   GREEN    RED         1          walker leg pair properties past the leg pair count are ignored 
+WALKLEG-02B  GREEN    RED         1          asan fix helpers stay wired into the game (source pin: callers need the game runtime) 
+WALKLEG-03   GREEN    RED         1          walker without leg pairs never reads a leg pair turn state 
+WALKLEG-03B  GREEN    RED         1          asan fix helpers stay wired into the game (source pin: callers need the game runtime) 
+PERT05-REFCOUNT GREEN    RED         1          fake d3d device starts with one reference (source pin: renderer-bound class) 
+PERT06-HELPER GREEN    RED         1          glyph cache walks stop at the allocated count when the font gains pages 
+PERT06-SENTINEL GREEN    RED         1          glyph cache element routes every shader walk through the allocated count (source pin) 
+PERT06-ADDGLYPH GREEN    RED         1          glyph cache element routes every shader walk through the allocated count (source pin) 
+PERT06-LOOP  GREEN    RED         1          glyph cache element routes every shader walk through the allocated count (source pin) 
+PERT07-ALIAS GREEN    RED         1          hud item set name after an aliased name keeps the display name valid 
+COMBO-ARRAY-HELPER GREEN    RED         1          combo arrays stay contiguous when another array takes the next pool block 
+COMBO-ARRAY-SITE GREEN    RED         1          combo arrays route every pool array through ComboArrayAdd (source pin) 
+SERIAL-01    GREEN    RED         1          thread activation key is set through one counter reader and reset 
+SERIAL-02    GREEN    RED         1          ordered list breaks equal keys fifo under serial order 
+SERIAL-02B   GREEN    RED         1          ordered list sentinel key stops at the head under serial order 
+SERIAL-02C   GREEN    RED         1          ordered list move keeps an unchanged key in place while a walk re-queues it 
+SERIAL-02D   GREEN    RED         1          controller update asap reschedules through the ordered list move 
+SERIAL-02E   GREEN    RED         1          controller update loop requeues through the ordered list move 
+SERIAL-02F   GREEN    RED         3221225477 ordered list move ignores a node that is not in the list crash 0xC0000005
+SERIAL-03    GREEN    RED         1          collision serial sites keep the wire bool writes and the address arm 
+SERIAL-03B   GREEN    RED         1          collision serial sites keep the wire bool writes and the address arm 
+SERIAL-03C   GREEN    RED         1          collision serial sites keep the wire bool writes and the address arm 
+SERIAL-04    GREEN    RED         1          wobble phase comes from the owner handle id under serial order 
+LHASH-01     GREEN    RED         1          lua next order ignores allocation padding under serial order 
+LHASH-01B    GREEN    RED         1          lua next order ignores allocation padding under serial order 
+LHASH-01C    GREEN    RED         1          lua dead slot reuse does not move the resize under serial order 
+LHASH-01D    GREEN    RED         1          lua dead keys do not revive after a collection under serial order 
+LHASH-01E    GREEN    RED         1          lua clearing keys with a collection during traversal visits every key 
+LHASH-01F    GREEN    RED         3221225477 lua weak key tables skip dead keys under serial order crash 0xC0000005
+SPIKE01-OFFTHREAD GREEN    RED         1          off-thread allocation is counted with tid heap and size 
+LUAB-U-CODE-ASAN GREEN    RED         66         lua undump refuses oversized code counts crash 0x00000042 asan report
+LUAB-U-LOCALS-ASAN GREEN    RED         66         lua undump refuses oversized local counts crash 0x00000042 asan report
+LUAB-U-CONST-ASAN GREEN    RED         66         lua undump refuses oversized constant counts crash 0x00000042 asan report
+LUAB-U-PROTOS-ASAN GREEN    RED         66         lua undump refuses oversized function counts crash 0x00000042 asan report
+LUAB-V2-MAINUP-ASAN GREEN    RED         66         lua undump refuses main upvalues crash 0x00000042 asan report
+LUAB-V0-OPCODE-ASAN GREEN    RED         66         lua verifier refuses unknown opcodes crash 0x00000042 asan report
+LUAB-V3-CONCAT-ASAN GREEN    RED         66         lua verifier refuses concat past the frame crash 0x00000042 asan report
+LUAB-V4-TFORPREP-ASAN GREEN    RED         66         lua verifier refuses wild tforprep jumps crash 0x00000042 asan report
+LUAB-V5-TFORLOOP-ASAN GREEN    RED         66,66      lua vm keeps tforloop results inside the stack | lua vm tforloop stays inside the stack at the extra stack limit crash 0x00000042 asan report,crash 0x00000042 asan report
+LUAB-V5-TFORLIMIT-ASAN GREEN    RED         66         lua vm tforloop stays inside the stack at the extra stack limit crash 0x00000042 asan report
+LUAB-V11-OPENEQ-ASAN GREEN    RED         66         lua verifier refuses an open call into its producer register crash 0x00000042 asan report
+LUAB-V10-SETLOCAL-ASAN GREEN    RED         66         lua debug locals stay inside the frame crash 0x00000042 asan report
+LUAB-D16-LUPVAL-ASAN GREEN    RED         66         lua debug upvalue index zero is refused crash 0x00000042 asan report
+WALKANIM-01  GREEN    RED         66         walker idle setup stays inside its animation list crash 0x00000042 asan report
+ARENAREUSE-01 GREEN    RED         66         heap re-created over a reused arena is writable crash 0x00000042 asan report
+ASANHOOK-HEAP GREEN    RED         0,0        asan canary red heap overflow is reported | asan canary red heap use after free is reported 
+ASANHOOK-HEAPB GREEN    RED         1          red heap in bounds cycle is clean 
+ASANHOOK-POOL GREEN    RED         0,0        asan canary memory pool overflow is reported | asan canary memory pool use after free is reported 
+ASANHOOK-POOLB GREEN    RED         1          memory pool in bounds cycle is clean 
+ASANHOOK-LUA GREEN    RED         0,0        asan canary lua bin overflow is reported | asan canary lua bin use after free is reported 
+ASANHOOK-LUAB GREEN    RED         1          lua bin in bounds cycle is clean 
+ASANHOOK-NETPKT GREEN    RED         0,0        asan canary net packet overflow is reported | asan canary net packet use after free is reported 
+ASANHOOK-NETPKTB GREEN    RED         1          net packet in bounds cycle is clean 
+ASANHOOK-RSTACK GREEN    RED         0,0        asan canary red stack overflow is reported | asan canary red stack use after scope is reported 
+ASANHOOK-RSTACKB GREEN    RED         1          red stack in bounds cycle is clean 
+ASANHOOK-STACKALLOC GREEN    RED         0,0        asan canary stack allocator overflow is reported | asan canary stack allocator use after free is reported 
+ASANHOOK-STACKALLOCB GREEN    RED         1          stack allocator in bounds cycle is clean 
+ASANHOOK-SUBALLOC GREEN    RED         0,0        asan canary sub allocator overflow is reported | asan canary sub allocator use after free is reported 
+ASANHOOK-SUBALLOCB GREEN    RED         1          sub allocator in bounds cycle is clean 
+ASANHOOK-LISTALLOC GREEN    RED         0,0        asan canary list allocator overflow is reported | asan canary list allocator use after free is reported 
+ASANHOOK-LISTALLOCB GREEN    RED         1          list allocator in bounds cycle is clean 
+ASANHOOK-SNDFREE GREEN    RED         0,0        asan canary snd free list overflow is reported | asan canary snd free list use after free is reported 
+ASANHOOK-SNDFREEB GREEN    RED         1          snd free list in bounds cycle is clean 
+ASANHOOK-GLYPH GREEN    RED         0,0        asan canary glyph memory overflow is reported | asan canary glyph memory use after free is reported 
+ASANHOOK-GLYPHB GREEN    RED         1          glyph memory in bounds cycle is clean 
 LAA-01       GREEN    RED                    hardening:laa check=laa ok=False
+PTR-01       GREEN    RED                    hardening:new-size-t check=new-size-t ok=False
+PTR-01B      GREEN    RED                    hardening:new-size-t check=new-size-t ok=False
+PTR-01C      GREEN    RED                    hardening:new-size-t check=new-size-t ok=False
+SNDALLOC-01  GREEN    RED                    hardening:snd-alloc-size-t check=snd-alloc-size-t ok=False
+SNDALLOC-02  GREEN    RED                    hardening:snd-alloc-size-t check=snd-alloc-size-t ok=False
+SNDALLOC-03  GREEN    RED                    hardening:snd-alloc-size-t check=snd-alloc-size-t ok=False
+ABI-01       GREEN    RED                    hardening:win32-callbacks check=win32-callbacks ok=False
+ABI-01B      GREEN    RED                    hardening:win32-callbacks check=win32-callbacks ok=False
+ABI-01C      GREEN    RED                    hardening:win32-callbacks check=win32-callbacks ok=False
+ABI-04       GREEN    RED                    hardening:galaxy-vtable check=galaxy-vtable ok=False
+ABI-04B      GREEN    RED                    hardening:galaxy-vtable check=galaxy-vtable ok=False
+GALAXY-TYPED-01 GREEN    RED                    hardening:galaxy-getter-cast check=galaxy-getter-cast ok=False
+ABI-05       GREEN    RED                    hardening:fastcall-edx check=fastcall-edx ok=False
+ABI-05B      GREEN    RED                    hardening:fastcall-edx check=fastcall-edx ok=False
+ABI-05C      GREEN    RED                    hardening:fastcall-edx check=fastcall-edx ok=False
+HDR-01       GREEN    RED                    hardening:d3dx-decl check=d3dx-decl ok=False
+HDR-01B      GREEN    RED                    hardening:d3dx-decl check=d3dx-decl ok=False
+GAMMA-GET-01 GREEN    RED                    hardening:gamma-get check=gamma-get ok=False
+SPACER-01    GREEN    RED                    hardening:char-spacer check=char-spacer ok=False
+SPACER-02    GREEN    RED                    hardening:char-spacer check=char-spacer ok=False
+SPACER-03    GREEN    RED                    hardening:char-spacer check=char-spacer ok=False
+SPACER-04    GREEN    RED                    hardening:char-spacer check=char-spacer ok=False
+SPACER-05    GREEN    RED                    hardening:char-spacer check=char-spacer ok=False
+OFFSET-01    GREEN    RED                    hardening:offset-hack check=offset-hack ok=False
+OFFSET-02    GREEN    RED                    hardening:offset-hack check=offset-hack ok=False
+OFFSET-03    GREEN    RED                    hardening:offset-hack check=offset-hack ok=False
+OFFSET-04    GREEN    RED                    hardening:offset-hack check=offset-hack ok=False
+SUITE-01     GREEN    RED                    hardening:t1-suite check=t1-suite ok=False
+SUITE-01B    GREEN    RED                    hardening:t1-suite check=t1-suite ok=False
 WIN-03B      GREEN    RED                    hardening:import-SetProcessDPIAware check=import-SetProcessDPIAware ok=False
 FLAG-ALIGNNEW GREEN    RED                    tlog:flag-alignednew reverted: cl entries=770 /Zc:alignedNew-=0
 FLAG-INLINE  GREEN    RED                    tlog:flag-inline reverted: cl entries=770 /Zc:inline=770 /Zc:inline-=770
+FLAG-INLINE-B GREEN    RED                    tlog:flag-inline reverted: cl entries=770 /Zc:inline=0 /Zc:inline-=0
 FLAG-ALIGNNEW-T GREEN    RED                    tlog:flag-alignednew-tests reverted: tests cl entries=179 /Zc:alignedNew-=0
 FLAG-THROWNEW GREEN    RED                    tlog:flag-banned reverted: /Zc:throwingNew=770 /GL=0 /fp:fast=0 /fp:contract=0 /GS-=0
 FLAG-GL      GREEN    RED                    tlog:flag-banned build failed after 770 compiles; reverted: /Zc:throwingNew=0 /GL=770 /fp:fast=0 /fp:contract=0 /GS-=0
@@ -230,6 +596,9 @@ MEM-02S      GREEN    RED         0x00000000 smoke:crash-heapfail class=Pass dum
 MEM-03S      GREEN    RED         0x00000003 smoke:crash-luaoom class=Fatal dumps=1
 MEM-04S      GREEN    RED         0x00000000 smoke:crash-luapanic class=Pass dumps=0
 DIAG-04      GREEN    RED         0x00000003 smoke:crash-hang class=Fatal dumps=1
+SAFE01-CREATES GREEN    RED         0x00000003 smoke:crash-poolcount class=Fatal dumps=1
+REPT01S      GREEN    RED         0x00000000 smoke:pool-full class=Pass dumps=0
+REPT03S      GREEN    RED         0x00000000 smoke:pool-full-strict class=Pass dumps=0
 PACE-02      GREEN    RED         0x00000000 smoke:display-switches class=Pass dumps=0
 VSYNC-02     GREEN    RED         0x00000000 smoke:display-switches class=Pass dumps=0
 RESET-01     GREEN    RED         0x00000000 smoke:crash-resetrecover class=Pass dumps=0
@@ -273,60 +642,3 @@ MENU-59      GREEN    RED         0x00000000 smoke:crash-menuapplyfail class=Pas
 CUR-05A      GREEN    RED         0x00000000 smoke:cursor-sw class=Pass dumps=0
 DIGEST-01    GREEN    RED         0x00000000 smoke:geo1c_con class=Pass dumps=0
 SIMFIX-C1S   GREEN    RED         0x00000000 smoke:digest-dag1c_ctf class=Pass dumps=0
-SIMFIX-C2S   GREEN    RED         0x00000000 smoke:digest-kas2c_uber class=Pass dumps=0
-DIAG-05      GREEN    RED         1          alloc failure handler logs and suppresses 
-SAFE01-CREATE GREEN    RED         3221225477 memory pool create refuses overflowing count crash 0xC0000005
-SAFE01-CHUNK GREEN    RED         3221225477 memory pool create survives failed heap block crash 0xC0000005
-SAFE01-EMPTY GREEN    RED         1          memory pool create survives failed heap block 
-SAFE01-GROW  GREEN    RED         3221225477 memory pool growth refuses overflowing grow crash 0xC0000005
-SAFE02-CLAMP GREEN    RED         3221225477 setup temp heap clamps size crash 0xC0000005
-SAFE02-LEAK  GREEN    RED         1          setup temp heap twice frees previous heap 
-SAFE02-NULL  GREEN    RED         3221225477 setup temp heap null block leaves no temp heap crash 0xC0000005
-SAFE02-SLOT  GREEN    RED         1          setup temp heap refuses when no heap slot is left 
-SAFE02-LOAD  GREEN    RED         1          setup temp heap refuses while load heap is live 
-SAFE02-STALE GREEN    RED         124        setup temp heap forget drops stale block crash 0x0000007C
-SAFE03-POOL  GREEN    RED         1,1        set memory pool size clamps script count | script-size-clamp: lua memory sinks route through the shared clamp 
-SAFE03-STEAL GREEN    RED         1          steal artist heap refuses zero small and negative sizes 
-SAFE03-STEALLOG GREEN    RED         1          steal artist heap refuses zero small and negative sizes 
-SAFE03-WALKER GREEN    RED         1          add walker type clamps script counts 
-SAFE03-MOVEEND GREEN    RED         3221225477 move heap end refuses a failed allocation crash 0xC0000005
-SAFE03-MOVEPLACE GREEN    RED         1          move heap end refuses a block away from the boundary 
-SAFE03-MOVEALIGN GREEN    RED         1          move heap end moves only the aligned block it transfers 
-REPT01-ONCE  GREEN    RED         0,1        memory pool full line logs once on growth | memory pool full line logs once when gated 
-REPT03-STRICT GREEN    RED         1          memory pool full line is error when strict 
-REPT02-RESET GREEN    RED         1,1        memory pool stats survive reset and destroy for the exit report | report emits one line per heap and created pool 
-REPT03-ESCALATE GREEN    RED         1          memory pool full line escalates once when strict arms after a load report 
-SAFE01-CREATES GREEN    RED         0x00000003 smoke:crash-poolcount class=Fatal dumps=1
-REPT01S      GREEN    RED         0x00000000 smoke:pool-full class=Pass dumps=0
-REPT03S      GREEN    RED         0x00000000 smoke:pool-full-strict class=Pass dumps=0
-SPIKE01-OFFTHREAD GREEN    RED         1          off-thread allocation is counted with tid heap and size 
-PERT05-REFCOUNT GREEN    RED         1          fake d3d device starts with one reference (source pin: renderer-bound class) 
-PERT06-HELPER GREEN    RED         1          glyph cache walks stop at the allocated count when the font gains pages 
-PERT06-SENTINEL GREEN    RED         1          glyph cache element routes every shader walk through the allocated count (source pin) 
-PERT06-ADDGLYPH GREEN    RED         1          glyph cache element routes every shader walk through the allocated count (source pin) 
-PERT06-LOOP  GREEN    RED         1          glyph cache element routes every shader walk through the allocated count (source pin) 
-PERT07-ALIAS GREEN    RED         1          hud item set name after an aliased name keeps the display name valid 
-COMBO-ARRAY-HELPER GREEN    RED         1          combo arrays stay contiguous when another array takes the next pool block 
-COMBO-ARRAY-SITE GREEN    RED         1          combo arrays route every pool array through ComboArrayAdd (source pin) 
-SERIAL-01    GREEN    RED         1          thread activation key is set through one counter reader and reset 
-SERIAL-02    GREEN    RED         1          ordered list breaks equal keys fifo under serial order 
-SERIAL-02B   GREEN    RED         1          ordered list sentinel key stops at the head under serial order 
-SERIAL-02C   GREEN    RED         1          ordered list move keeps an unchanged key in place while a walk re-queues it 
-SERIAL-02D   GREEN    RED         1          controller update asap reschedules through the ordered list move 
-SERIAL-02E   GREEN    RED         1          controller update loop requeues through the ordered list move 
-SERIAL-02F   GREEN    RED         3221225477 ordered list move ignores a node that is not in the list crash 0xC0000005
-SERIAL-03    GREEN    RED         1          collision serial sites keep the wire bool writes and the address arm 
-SERIAL-03B   GREEN    RED         1          collision serial sites keep the wire bool writes and the address arm 
-SERIAL-03C   GREEN    RED         1          collision serial sites keep the wire bool writes and the address arm 
-SERIAL-04    GREEN    RED         1          wobble phase comes from the owner handle id under serial order 
-LHASH-01     GREEN    RED         1          lua next order ignores allocation padding under serial order 
-LHASH-01B    GREEN    RED         1          lua next order ignores allocation padding under serial order 
-LHASH-01C    GREEN    RED         1          lua dead slot reuse does not move the resize under serial order 
-LHASH-01D    GREEN    RED         1          lua dead keys do not revive after a collection under serial order 
-LHASH-01E    GREEN    RED         1          lua clearing keys with a collection during traversal visits every key 
-LHASH-01F    GREEN    RED         3221225477 lua weak key tables skip dead keys under serial order crash 0xC0000005
-PBLHANDLE-01 GREEN    RED         1,1        handle registry resolves a freed and overwritten block to null | handle to a freed pool object resolves to null 
-HNDL-01      GREEN    RED         1          handle registry resolves a freed and overwritten block to null 
-HNDL-02      GREEN    RED         1          destroying a trackable clears both tracker worlds and the alo slots 
-HNDL-03      GREEN    RED         1          destroying a trackable clears both tracker worlds and the alo slots 
-HNDL-04      GREEN    RED         1          trackable destructor removes it from every tracker (source pin: callers need the game runtime) 

@@ -11,6 +11,8 @@ void ParseCommandLine(int iArgc, char** const apcArgv);
 
 bool SimOrderArgRejected();
 
+bool NoVictoryActive();
+
 bool TestOnlyArgIgnored(int i, char const** ppcName);
 
 extern char gGamespyAutoName[32];
@@ -23,6 +25,7 @@ extern bool gBootLagger;
 extern bool gShowLoadSpam;
 extern bool gLogFinalScore;
 extern bool gExitOnGameOver;
+extern bool gNoVictory;
 extern int gDigestTrace;
 extern bool gFactoryLog;
 extern bool gNoFocusPause;

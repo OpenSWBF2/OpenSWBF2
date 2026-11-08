@@ -5743,15 +5743,22 @@ int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,
 }
 }
 
+// GLOBAL: SWBF2 0x01faa460
+static float s_fSplashTimeout;
+// GLOBAL: SWBF2 0x01faa46c
+static float s_fWakeTimer;
+
+void EntitySoldier::ResetWaterTimers()
+{
+    s_fSplashTimeout = 0.0f;
+    s_fWakeTimer = 0.0f;
+}
+
 // FUNCTION: SWBF2 0x004e8920
 bool EntitySoldier::Update(float fDeltaTime)
 {
     static int updateCount;
     static const int updateCheck = -1;
-    // GLOBAL: SWBF2 0x01faa460
-    static float s_fSplashTimeout;
-    // GLOBAL: SWBF2 0x01faa46c
-    static float s_fWakeTimer;
 
     if (NetGame::IsSkipped(this, fDeltaTime))
     {

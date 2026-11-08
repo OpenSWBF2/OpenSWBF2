@@ -1,3 +1,17 @@
+[PASS] hardening:redlog-vendor
+[PASS] hardening:new-size-t
+[PASS] hardening:win32-callbacks
+[PASS] hardening:galaxy-vtable
+[PASS] hardening:fastcall-edx
+[PASS] hardening:d3dx-decl
+[PASS] hardening:gamma-get
+[PASS] hardening:snd-alloc-size-t
+[PASS] hardening:galaxy-getter-cast
+[PASS] hardening:handle-raw
+[PASS] hardening:char-spacer
+[PASS] hardening:offset-hack
+[PASS] hardening:serial-value
+[PASS] hardening:t1-suite
 [PASS] hardening:dynamicbase
 [PASS] hardening:nxcompat
 [PASS] hardening:laa
@@ -15,15 +29,14 @@
 [PASS] hardening:import-GetDpiForWindow
 [PASS] hardening:import-AdjustWindowRectExForDpi
 [PASS] hardening:import-shcore
-[PASS] hardening:redlog-vendor
-[PASS] hardening:aslr-base (0x00B00000)
+[PASS] hardening:aslr-base (0x00750000)
 [PASS] smoke:cor1c_c class=TimeOut exit=0x00000001
 [PASS] smoke:cor1c_con class=Pass exit=0x00000000
 [PASS] smoke:cor1c_ctf class=TimeOut exit=0x00000001
 [PASS] smoke:cor1g_con class=Pass exit=0x00000000
 [PASS] smoke:cor1g_ctf class=TimeOut exit=0x00000001
 [PASS] smoke:dag1c_con class=Pass exit=0x00000000
-[PASS] smoke:dag1c_ctf class=TimeOut exit=0x00000001
+[PASS] smoke:dag1c_ctf class=Pass exit=0x00000000
 [PASS] smoke:dag1g_con class=Pass exit=0x00000000
 [PASS] smoke:dag1g_ctf class=TimeOut exit=0x00000001
 [PASS] smoke:dea1c_1flag class=TimeOut exit=0x00000001
@@ -86,7 +99,7 @@
 [PASS] smoke:pol1g_con class=Pass exit=0x00000000
 [PASS] smoke:pol1g_ctf class=TimeOut exit=0x00000001
 [PASS] smoke:spa1g_1flag class=TimeOut exit=0x00000001
-[PASS] smoke:spa1g_ass class=Pass exit=0x00000000
+[PASS] smoke:spa1g_ass class=TimeOut exit=0x00000001
 [PASS] smoke:spa1g_c class=TimeOut exit=0x00000001
 [PASS] smoke:spa2c_c class=TimeOut exit=0x00000001
 [PASS] smoke:spa3c_1flag class=TimeOut exit=0x00000001
@@ -94,13 +107,13 @@
 [PASS] smoke:spa3c_c class=TimeOut exit=0x00000001
 [PASS] smoke:spa4g_c class=TimeOut exit=0x00000001
 [PASS] smoke:spa6c_1flag class=TimeOut exit=0x00000001
-[PASS] smoke:spa6c_ass class=Pass exit=0x00000000
+[PASS] smoke:spa6c_ass class=TimeOut exit=0x00000001
 [PASS] smoke:spa7c_1flag class=TimeOut exit=0x00000001
-[PASS] smoke:spa7c_ass class=Pass exit=0x00000000
+[PASS] smoke:spa7c_ass class=TimeOut exit=0x00000001
 [PASS] smoke:spa8g_1flag class=TimeOut exit=0x00000001
-[PASS] smoke:spa8g_ass class=Pass exit=0x00000000
+[PASS] smoke:spa8g_ass class=TimeOut exit=0x00000001
 [PASS] smoke:spa9g_1flag class=TimeOut exit=0x00000001
-[PASS] smoke:spa9g_ass class=Pass exit=0x00000000
+[PASS] smoke:spa9g_ass class=TimeOut exit=0x00000001
 [PASS] smoke:tan1c_1flag class=TimeOut exit=0x00000001
 [PASS] smoke:tan1c_con class=Pass exit=0x00000000
 [PASS] smoke:tan1g_1flag class=TimeOut exit=0x00000001
@@ -112,10 +125,10 @@
 [PASS] smoke:tat2g_ctf class=TimeOut exit=0x00000001
 [PASS] smoke:tat2g_eli class=Pass exit=0x00000000
 [PASS] smoke:tat2g_hunt class=Pass exit=0x00000000
-[PASS] smoke:tat3c_1flag class=Fatal exit=0x00000003
-[PASS] smoke:tat3c_con class=Fatal exit=0x00000003
-[PASS] smoke:tat3g_1flag class=Fatal exit=0x00000003
-[PASS] smoke:tat3g_con class=Fatal exit=0x00000003
+[PASS] smoke:tat3c_1flag class=TimeOut exit=0x00000001
+[PASS] smoke:tat3c_con class=Pass exit=0x00000000
+[PASS] smoke:tat3g_1flag class=TimeOut exit=0x00000001
+[PASS] smoke:tat3g_con class=Pass exit=0x00000000
 [PASS] smoke:uta1c_1flag class=TimeOut exit=0x00000001
 [PASS] smoke:uta1c_c class=TimeOut exit=0x00000001
 [PASS] smoke:uta1c_con class=Pass exit=0x00000000
@@ -138,6 +151,9 @@
 [PASS] smoke:crash-arenaoom class=Fatal exit=0x00000001
 [PASS] smoke:crash-debugheapoom class=Fatal exit=0x00000001
 [PASS] smoke:crash-heapfail class=Pass exit=0x00000000
+[PASS] smoke:crash-poolcount class=Pass exit=0x00000000
+[PASS] smoke:pool-full class=Pass exit=0x00000000
+[PASS] smoke:pool-full-strict class=Pass exit=0x00000000
 [PASS] smoke:crash-luaoom class=Pass exit=0x00000000
 [PASS] smoke:crash-luapanic class=Fatal exit=0x00000004
 [PASS] smoke:crash-hang class=Fatal exit=0x00000005
@@ -169,7 +185,7 @@
 [PASS] smoke:crash-menuapplyfail class=Pass exit=0x00000000
 
 Results
-  PASS     169
+  PASS     185
   FAIL     0
   SKIP     0
   TIMEOUT  0

@@ -17,9 +17,6 @@ param(
     [string]$OffThreadDir,
     [string]$PerturbDir,
     [string]$LuaBinsDir,
-    [string]$FactoryAddressDir,
-    [string]$FactorySerialDir,
-    [string]$FactoryCauses,
     [string]$MissionsFile,
     [string]$OffThreadSoundDir,
     [string]$DebugSmokeDir,
@@ -36,8 +33,8 @@ if (-not ($Map -or $Layouts -or $Collect -or $Tables -or $Archive -or $Verify -o
     Write-Host 'No step selected: pass -Map, -Layouts, -Collect, -Tables, -DebugDigests, -Archive, -Verify or -All.'
     exit 2
 }
-if ($Configuration -eq 'Test' -and ($Map -or $Layouts -or $Collect -or $Archive -or $Verify -or $DebugDigests -or -not $Tables -or -not ($OffThreadDir -or $PerturbDir -or $LuaBinsDir -or $FactoryAddressDir -or $FactorySerialDir) -or $SmokeAllDir -or $HardeningDir -or $GuardRevertDir)) {
-    Write-Host '-Configuration Test is only for -Tables -OffThreadDir, -PerturbDir, -LuaBinsDir or -FactoryAddressDir -FactorySerialDir.'
+if ($Configuration -eq 'Test' -and ($Map -or $Layouts -or $Collect -or $Archive -or $Verify -or $DebugDigests -or -not $Tables -or -not ($OffThreadDir -or $PerturbDir -or $LuaBinsDir) -or $SmokeAllDir -or $HardeningDir -or $GuardRevertDir)) {
+    Write-Host '-Configuration Test is only for -Tables -OffThreadDir, -PerturbDir or -LuaBinsDir.'
     exit 2
 }
 if (-not $MissionsFile) { $MissionsFile = Join-Path $root 'tests\smoke\missions-all.txt' }
@@ -366,6 +363,14 @@ function Step-Layouts {
     if ($problems.Count) { throw ($problems -join '; ') }
 }
 
+function Assert-SerialLog($caseDir, [string]$what) {
+    $lines = @(Get-LogLines $caseDir 'OPENSWBF2 SIMORDER mode=\S+')
+    if ($lines.Count -eq 0) { throw "no SIMORDER line in $what" }
+    foreach ($l in $lines) {
+        if ($l -cne 'OPENSWBF2 SIMORDER mode=serial') { throw "$what is not serial: $l" }
+    }
+}
+
 function Get-LogLines($caseDir, $pattern) {
     $f = Join-Path $caseDir 'run.log'
     if (-not (Test-Path -LiteralPath $f)) { return @() }
@@ -539,23 +544,6 @@ function Get-MissionNames {
     return @(Get-Content -LiteralPath $MissionsFile | ForEach-Object { ($_.Trim() -split '\s+')[0] } | Where-Object { $_ })
 }
 
-function Assert-RunMode($dir, $want, $label, $missions) {
-    $modes = New-Object System.Collections.Generic.HashSet[string]
-    foreach ($m in $missions) {
-        $caseDir = Join-Path $dir "smoke\$m"
-        if (-not (Test-Path -LiteralPath (Join-Path $caseDir 'run.log'))) { continue }
-        $found = $false
-        foreach ($l in @(Get-LogLines $caseDir 'OPENSWBF2 SIMORDER mode=\S+')) {
-            $f = [regex]::Match($l, '^OPENSWBF2 SIMORDER mode=(address|serial)$')
-            if (-not $f.Success) { throw "bad SIMORDER line in $label ${m}: $l" }
-            [void]$modes.Add($f.Groups[1].Value)
-            $found = $true
-        }
-        if (-not $found) { throw "no SIMORDER line in $label $m" }
-    }
-    if ($modes.Count -ne 1 -or -not $modes.Contains($want)) { throw "$label logs need SIMORDER mode=$want, found: $(@($modes) -join ', ')" }
-}
-
 function Step-Tables {
     $any = $false
     if ($SmokeAllDir) {
@@ -672,10 +660,18 @@ function Step-Tables {
         if (-not (Test-Path -LiteralPath $tsv)) { throw "perturb.tsv not found in -PerturbDir" }
         $data = @(Get-Content -LiteralPath $tsv | Where-Object { $_ -ne '' })
         foreach ($l in $data) {
-            if ($l -cnotmatch '^\S+\t(base|pad|top|fill|pool|hog)\t[0-2]\t(base|equal|split turn=\d+|crash class=\S+)$') { throw "bad perturb.tsv row: $l" }
+            if ($l -cnotmatch '^\S+\t(base|pad|top|fill|pool|hog|repeat)\t[0-2]\t(base|equal|split turn=\d+|crash class=\S+)$') { throw "bad perturb.tsv row: $l" }
         }
         $baseRows = @($data | Where-Object { ($_ -split "`t")[1] -eq 'base' })
-        if ($data.Count -ne 60 -or $baseRows.Count -ne 6) { throw "perturb.tsv has $($data.Count) rows and $($baseRows.Count) base rows, need 60 and 6" }
+        if ($data.Count -ne 66 -or $baseRows.Count -ne 6) { throw "perturb.tsv has $($data.Count) rows and $($baseRows.Count) base rows, need 66 and 6" }
+        foreach ($l in $data) {
+            $c = $l -split "`t"
+            $name = "perturb-$($c[0])-$($c[1])"
+            if ([int]$c[2] -gt 0) { $name = "$name-$($c[2])" }
+            $caseDir = Join-Path $PerturbDir "smoke\$name"
+            if (-not (Test-Path -LiteralPath (Join-Path $caseDir 'run.log'))) { throw "no run.log under -PerturbDir for $name" }
+            Assert-SerialLog $caseDir "-PerturbDir $name"
+        }
         $sorted = @($data | Sort-Object { ($_ -split "`t")[0] }, { ($_ -split "`t")[1] }, { [int](($_ -split "`t")[2]) })
         $out = @(('# commit ' + (Get-GitText 'rev-parse HEAD').Trim()), "mission`tmode`tseed`tresult") + $sorted
         Write-BaselineText (Join-Path $OutDir 'perturb.txt') $out
@@ -685,23 +681,13 @@ function Step-Tables {
         $any = $true
         $smokeDir = Join-Path $LuaBinsDir 'smoke'
         $missions = Get-MissionNames
-        $modes = New-Object System.Collections.Generic.HashSet[string]
         $missing = New-Object System.Collections.Generic.List[string]
         foreach ($m in $missions) {
             $caseDir = Join-Path $smokeDir $m
             if (-not (Test-Path -LiteralPath (Join-Path $caseDir 'run.log'))) { $missing.Add($m); continue }
-            $found = $false
-            foreach ($l in @(Get-LogLines $caseDir 'OPENSWBF2 SIMORDER mode=\S+')) {
-                $f = [regex]::Match($l, '^OPENSWBF2 SIMORDER mode=(address|serial)$')
-                if (-not $f.Success) { throw "bad SIMORDER line in ${m}: $l" }
-                [void]$modes.Add($f.Groups[1].Value)
-                $found = $true
-            }
-            if (-not $found) { throw "no SIMORDER line in -LuaBinsDir $m" }
+            Assert-SerialLog $caseDir "-LuaBinsDir $m"
         }
         if ($missing.Count) { throw "no run.log under -LuaBinsDir for $($missing.Count) missions: $(@($missing)[0..([Math]::Min(4, $missing.Count - 1))] -join ', ')" }
-        if ($modes.Count -ne 1) { throw "-LuaBinsDir logs need one SIMORDER mode, found $($modes.Count): $(@($modes) -join ', ')" }
-        $mode = @($modes)[0]
         $rows = New-Object System.Collections.Generic.List[string]
         $rows.Add('# commit ' + (Get-GitText 'rev-parse HEAD').Trim())
         $rows.Add("mission`tsource`tbin`tcount`tsize`tpeak`tgrown`tspill")
@@ -736,63 +722,10 @@ function Step-Tables {
                 $rows.Add("$m`t$($b.Source)`t$bin`t$($p.Groups[2].Value)`t$($p.Groups[3].Value)`t$($p.Groups[4].Value)`t$($p.Groups[5].Value)`t$spill")
             }
         }
-        $name = 'lua-bins.txt'
-        if ($mode -eq 'serial') { $name = 'lua-bins-serial.txt' }
-        Write-BaselineText (Join-Path $OutDir $name) $rows
+        Write-BaselineText (Join-Path $OutDir 'lua-bins.txt') $rows
     }
     else { Write-Host '[SKIP] capture:tables lua-bins - no -LuaBinsDir' }
-    if ($FactoryAddressDir -or $FactorySerialDir) {
-        $any = $true
-        if (-not ($FactoryAddressDir -and $FactorySerialDir)) { throw '-FactoryAddressDir and -FactorySerialDir go together' }
-        $missions = Get-MissionNames
-        Assert-RunMode $FactoryAddressDir 'address' '-FactoryAddressDir' $missions
-        Assert-RunMode $FactorySerialDir 'serial' '-FactorySerialDir' $missions
-        $causes = @{}
-        if ($FactoryCauses) {
-            foreach ($l in @(Get-Content -LiteralPath $FactoryCauses | Where-Object { $_ -ne '' })) {
-                $f = [regex]::Match($l, '^(\S+)\t(\S.*)$')
-                if (-not $f.Success) { throw "bad -FactoryCauses row: $l" }
-                $causes[$f.Groups[1].Value] = $f.Groups[2].Value
-            }
-        }
-        $commitLine = '# commit ' + (Get-GitText 'rev-parse HEAD').Trim()
-        $fRows = New-Object System.Collections.Generic.List[string]
-        $fSections = New-Object System.Collections.Generic.List[string]
-        $fRows.Add($commitLine)
-        $fRows.Add("mission`tresult`tlines`tfirst_diff`tcause")
-        foreach ($m in $missions) {
-            $fa = @(Get-LogLines (Join-Path $FactoryAddressDir "smoke\$m") 'OPENSWBF2 FACTORY .*')
-            $fs = @(Get-LogLines (Join-Path $FactorySerialDir "smoke\$m") 'OPENSWBF2 FACTORY .*')
-            $cause = '-'
-            if ($causes.ContainsKey($m)) { $cause = $causes[$m] }
-            if ($fa.Count -eq 0 -or $fs.Count -eq 0) { $fRows.Add("$m`tmissing`t-`t-`t$cause") }
-            else {
-                $max = [Math]::Max($fa.Count, $fs.Count)
-                $first = 0
-                $sec = New-Object System.Collections.Generic.List[string]
-                for ($i = 0; $i -lt $max; $i++) {
-                    $a = $null; $s = $null
-                    if ($i -lt $fa.Count) { $a = $fa[$i] }
-                    if ($i -lt $fs.Count) { $s = $fs[$i] }
-                    if ($a -ceq $s) { continue }
-                    if ($first -eq 0) { $first = $i + 1 }
-                    if ($null -ne $a) { $sec.Add("-$a") }
-                    if ($null -ne $s) { $sec.Add("+$s") }
-                }
-                $lines = "$($fa.Count)"
-                if ($fa.Count -ne $fs.Count) { $lines = "$($fa.Count)/$($fs.Count)" }
-                if ($first -eq 0) { $fRows.Add("$m`tequal`t$lines`t-`t$cause") }
-                else {
-                    $fRows.Add("$m`tdiffers`t$lines`t$first`t$cause")
-                    $fSections.Add("## $m")
-                    foreach ($x in $sec) { $fSections.Add($x) }
-                }
-            }
-        }
-        Write-BaselineText (Join-Path $OutDir 'factorylog-serial.txt') (@($fRows) + @($fSections))
-    }
-    else { Write-Host '[SKIP] capture:tables factorylog - no -FactoryAddressDir/-FactorySerialDir' }
-    if (-not $any) { throw 'none of -SmokeAllDir, -HardeningDir, -GuardRevertDir, -OffThreadDir, -PerturbDir, -LuaBinsDir, -FactoryAddressDir/-FactorySerialDir given' }
+    if (-not $any) { throw 'none of -SmokeAllDir, -HardeningDir, -GuardRevertDir, -OffThreadDir, -PerturbDir, -LuaBinsDir given' }
 }
 
 function Step-DebugDigests {
@@ -820,9 +753,7 @@ function Get-Producer($rel) {
     if ($n -eq 'hardening.txt') { return '`capture-vs2013.ps1 -Tables` from `run.ps1 -Hardening`' }
     if ($n -eq 'offthread.txt') { return '`capture-vs2013.ps1 -Configuration Test -Tables -OffThreadDir` from `run.ps1 -Smoke All -SmokeConfiguration Test` and `-OffThreadSoundDir` from `soundon.ps1`' }
     if ($n -eq 'perturb.txt') { return '`capture-vs2013.ps1 -Configuration Test -Tables -PerturbDir` from `run.ps1 -Configuration Test -Smoke Perturb`' }
-    if ($n -eq 'lua-bins.txt') { return '`capture-vs2013.ps1 -Configuration Test -Tables -LuaBinsDir` from `run.ps1 -Configuration Test -Smoke All -SimOrder address`' }
-    if ($n -eq 'lua-bins-serial.txt') { return '`capture-vs2013.ps1 -Configuration Test -Tables -LuaBinsDir` from `run.ps1 -Configuration Test -Smoke All -SimOrder serial`' }
-    if ($n -eq 'factorylog-serial.txt') { return '`capture-vs2013.ps1 -Configuration Test -Tables -FactoryAddressDir -FactorySerialDir` from `run.ps1 -Configuration Test -Smoke All -SimOrder address|serial -FactoryLog`' }
+    if ($n -eq 'lua-bins.txt') { return '`capture-vs2013.ps1 -Configuration Test -Tables -LuaBinsDir` from `run.ps1 -Configuration Test -Smoke All`' }
     if ($n -eq 'guard-revert.txt') { return '`capture-vs2013.ps1 -Tables` from `guard-revert.ps1`' }
     return 'unknown'
 }

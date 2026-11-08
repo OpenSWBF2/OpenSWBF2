@@ -256,60 +256,11 @@ void CheckLuaBinsTable(const char* pcRel)
     CHECK(kWithBin == kWithBlock);
 }
 
-bool IsSection(const std::string& sLine)
-{
-    return sLine.compare(0, 3, "## ") == 0;
-}
-
 }
 
 TEST_CASE("baseline lua bins parse and cover every mission" * doctest::test_suite("regression"))
 {
     CheckLuaBinsTable("tests\\baseline\\v143\\lua-bins.txt");
-    CheckLuaBinsTable("tests\\baseline\\v143\\lua-bins-serial.txt");
-}
-
-TEST_CASE("baseline factorylog serial covers every mission and every difference has a cause" * doctest::test_suite("regression"))
-{
-    std::vector<std::string> vLines;
-    ReadBaselineLines("tests\\baseline\\v143\\factorylog-serial.txt", vLines);
-    REQUIRE(vLines.size() >= 2);
-    CHECK(IsCommitLine(vLines[0]));
-    CHECK(vLines[1] == "mission\tresult\tlines\tfirst_diff\tcause");
-    std::set<std::string> kMissions;
-    std::set<std::string> kDiffers;
-    std::set<std::string> kSections;
-    size_t i = 2;
-    for (; i < vLines.size() && !IsSection(vLines[i]); i++)
-    {
-        BaselineRow r;
-        SplitOn(vLines[i], '\t', r);
-        REQUIRE_MESSAGE(r.size() == 5, vLines[i]);
-        CHECK_MESSAGE(kMissions.insert(r[0]).second, r[0]);
-        CHECK_MESSAGE((r[1] == "equal" || r[1] == "differs"), vLines[i]);
-        if (r[1] == "differs")
-        {
-            long long llFirst = 0;
-            CHECK_MESSAGE(r[4] != "-", vLines[i]);
-            CHECK_MESSAGE((ParseCount(r[3], llFirst) && llFirst > 0), vLines[i]);
-            kDiffers.insert(r[0]);
-        }
-        else
-        {
-            CHECK_MESSAGE(r[3] == "-", vLines[i]);
-        }
-    }
-    for (; i < vLines.size(); i++)
-    {
-        if (IsSection(vLines[i]))
-        {
-            kSections.insert(vLines[i].substr(3));
-            continue;
-        }
-        CHECK_MESSAGE(((vLines[i][0] == '-' || vLines[i][0] == '+') && vLines[i].compare(1, 18, "OPENSWBF2 FACTORY ") == 0), vLines[i]);
-    }
-    CHECK(kMissions == AllMissions());
-    CHECK(kSections == kDiffers);
 }
 
 TEST_CASE("baseline cloth headroom parses and covers every mission" * doctest::test_suite("regression"))
@@ -449,4 +400,148 @@ TEST_CASE("baseline label table follows the label abi" * doctest::test_suite("re
         CHECK_MESSAGE((r[5] == "none" || _strnicmp(r[5].c_str(), r[2].c_str(), 31) == 0), sWhere);
     }
     CHECK(iChecked > 0);
+}
+
+namespace
+{
+
+struct CauseSection
+{
+    std::string sName;
+    size_t uBegin;
+    size_t uEnd;
+};
+
+void ParseCauseSections(const std::string& sText, std::vector<CauseSection>& vOut)
+{
+    const size_t uNone = (size_t)-1;
+    size_t uOpen = uNone;
+    size_t uLine = 0;
+    while (uLine <= sText.size())
+    {
+        size_t uNext = sText.find('\n', uLine);
+        if (uNext == std::string::npos)
+        {
+            uNext = sText.size();
+        }
+        const bool bPart = sText.compare(uLine, 3, "## ") == 0;
+        const bool bSection = sText.compare(uLine, 4, "### ") == 0;
+        if (bPart || bSection || uNext == sText.size())
+        {
+            const size_t uClose = (bPart || bSection) ? uLine : sText.size();
+            if (uOpen != uNone)
+            {
+                vOut[uOpen].uEnd = uClose;
+                uOpen = uNone;
+            }
+            if (bSection && sText.compare(uLine, 6, "### C-") == 0)
+            {
+                CauseSection kCause;
+                kCause.sName = sText.substr(uLine + 4, uNext - uLine - 4);
+                while (!kCause.sName.empty() && kCause.sName[kCause.sName.size() - 1] == ' ')
+                {
+                    kCause.sName.erase(kCause.sName.size() - 1);
+                }
+                kCause.uBegin = uLine;
+                kCause.uEnd = sText.size();
+                uOpen = vOut.size();
+                vOut.push_back(kCause);
+            }
+        }
+        uLine = uNext + 1;
+    }
+}
+
+}
+
+TEST_CASE("baseline causes add exactly one digest cause since the milestone base" * doctest::test_suite("regression"))
+{
+    std::string sRaw;
+    std::string sExpected;
+    if (!ReadRepoText("tests\\baseline\\v143\\CAUSES.md", sRaw) || !ReadRepoText("tests\\smoke\\digest-expected.txt", sExpected))
+    {
+        SkipCase("baseline files not found");
+    }
+    std::string sText;
+    for (size_t i = 0; i < sRaw.size(); i++)
+    {
+        if (sRaw[i] != '\r')
+        {
+            sText += sRaw[i];
+        }
+    }
+    std::vector<CauseSection> vCauses;
+    ParseCauseSections(sText, vCauses);
+
+    const char* apcBase[] = { "C-OOB-SIDE", "C-SLOT-SOLDANIM", "C-SOLDIER-SLOPE", "C-ADDR-FLYER", "C-2DRADIUS",
+        "C-PTR03-SENTINEL", "C-PIN-28", "C-D14-RECHECK", "C-SHADER-INIT", "C-WIRE-ORDER", "C-WALKER-GRAVITY",
+        "C-PILOT-DELETE", "C-FLAG-PICKUP", "C-CRITSYS-SHIELD", "C-TAT3-STALE", "C-INPUT-ALIGN", "C-PBLLIST-RENDER",
+        "C-DOT-ORDER-30", "C-FENV-TERRAIN", "C-SIM-REWRITE-30", "C-WIRE-ORDER-30" };
+    const std::set<std::string> kBase(apcBase, apcBase + sizeof(apcBase) / sizeof(apcBase[0]));
+    REQUIRE(kBase.size() == 21);
+
+    std::set<std::string> kSeen;
+    std::set<std::string> kAdded;
+    const CauseSection* pSerial = 0;
+    for (size_t i = 0; i < vCauses.size(); i++)
+    {
+        CHECK_MESSAGE(kSeen.insert(vCauses[i].sName).second, vCauses[i].sName);
+        if (kBase.count(vCauses[i].sName) == 0)
+        {
+            kAdded.insert(vCauses[i].sName);
+        }
+        if (vCauses[i].sName == "C-LAYOUT-SERIAL")
+        {
+            pSerial = &vCauses[i];
+        }
+    }
+    CHECK(kAdded.count("C-LAYOUT-SERIAL") == 1);
+    REQUIRE(pSerial != (const CauseSection*)0);
+    const std::string sSerial = sText.substr(pSerial->uBegin, pSerial->uEnd - pSerial->uBegin);
+
+    std::vector<std::string> vLines;
+    ReadBaselineLines("tests\\smoke\\digest-expected.txt", vLines);
+    int iRows = 0;
+    for (size_t i = 0; i < vLines.size(); i++)
+    {
+        std::vector<std::string> vRow;
+        SplitOn(vLines[i], '\t', vRow);
+        CHECK_MESSAGE(vRow.size() == 2, vLines[i]);
+        if (vRow.size() != 2)
+        {
+            continue;
+        }
+        size_t uState = vRow[1].find("state=");
+        CHECK_MESSAGE(uState != std::string::npos, vLines[i]);
+        if (uState == std::string::npos)
+        {
+            continue;
+        }
+        uState += 6;
+        size_t uStateEnd = vRow[1].find(' ', uState);
+        const std::string sState =
+            vRow[1].substr(uState, uStateEnd == std::string::npos ? std::string::npos : uStateEnd - uState);
+        REQUIRE(!sState.empty());
+        iRows++;
+        CHECK_MESSAGE(sSerial.find("`" + vRow[0] + "`") != std::string::npos, vRow[0]);
+        const std::string sWhere = vRow[0] + " " + sState;
+        CHECK_MESSAGE(sSerial.find(sState) != std::string::npos, sWhere);
+        for (size_t uAt = sText.find(sState); uAt != std::string::npos; uAt = sText.find(sState, uAt + 1))
+        {
+            CHECK_MESSAGE((uAt >= pSerial->uBegin && uAt < pSerial->uEnd), sState);
+        }
+    }
+    CHECK(iRows > 0);
+
+    for (size_t i = 0; i < vCauses.size(); i++)
+    {
+        if (kAdded.count(vCauses[i].sName) == 0 || &vCauses[i] == pSerial)
+        {
+            continue;
+        }
+        const std::string sCause = sText.substr(vCauses[i].uBegin, vCauses[i].uEnd - vCauses[i].uBegin);
+        CHECK_MESSAGE(sCause.find("No digest row moved") != std::string::npos, vCauses[i].sName);
+        CHECK_MESSAGE(sCause.find("state=0x") == std::string::npos, vCauses[i].sName);
+    }
+    CHECK(sSerial.find("No digest row moved") == std::string::npos);
 }

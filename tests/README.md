@@ -35,7 +35,7 @@ This builds the tests, then runs each case in its own process and the Standard s
 | `-Jobs N` | parallel smoke workers (default: half the logical processors, at most 8) |
 | `-Movies` | run with the renderer instead of `-norender` |
 | `-HogAddrSpace` | force the arena above 2 GB |
-| `-SimOrder` | pass `-simorder address` or `-simorder serial` to every smoke case (the game defaults to `address`); every case that is expected to pass or time out must log `OPENSWBF2 SIMORDER mode=<mode>` and no `-simorder` warning |
+| `-SimOrder` | pass `-simorder address` or `-simorder serial` to every smoke case (the game defaults to `serial`); every case that is expected to pass or time out must log `OPENSWBF2 SIMORDER mode=<mode>` and no `-simorder` warning; `address` checks only that a digest line exists, not its row. In Test and Asan, unless `address`, a case fails on `OPENSWBF2 COLLISION serialties=` above 0 |
 | `-FactoryLog` | pass `-factorylog` to every smoke case, so each run logs its `OPENSWBF2 FACTORY` counts |
 | `-Hardening` | run only the hardening checks |
 | `-Clean` | delete the staged output folders and any junctions left under `artifacts` safely, and exit |
@@ -63,7 +63,7 @@ Parallel workers run from fixed paths under `artifacts\smoke-workers\<Config>\`.
 | `Dedicated` | dedicated-server cases |
 | `Crash` | deliberate faults through `-crashtest <kind>`; each must leave the expected exit code, log line and dump |
 | `All` | every mission in `tests\smoke\missions-all.txt` (`<mission> [<class>] [<seconds>]`), plus Dedicated and Crash |
-| `Perturb` | Test or Asan only: six digest missions, each as a base run and under `-perturbheap` pad/top/fill/pool (seeds 1 and 2) and `-hogaddrspace`; passes when at least one run splits from its base, and writes `perturb.tsv` |
+| `Perturb` | Test or Asan only: six digest missions, each as a base run, under `-perturbheap` pad/top/fill/pool (seeds 1 and 2), `-hogaddrspace` and `-repeatmission`; under `serial` every traced turn must equal its base line for line; under `address` only `state=` through turn 1500 is compared and at least one run must split; writes `perturb.tsv` |
 
 A case fails on any Error, Bug or Fatal line in its `run.log` unless a regex in `tests\smoke\expected-errors.txt` covers it. In T1, declare an expected error with `ExpectLog("text")` or `ExpectEnsure("text")`.
 
@@ -74,6 +74,8 @@ Import `tools\wer-localdumps.reg` once as administrator, so that a `/GS` fast-fa
 At turn 1500 the game logs `OPENSWBF2 SIM DIGEST ...`, a hash of the simulation state. `tests\smoke\digest-expected.txt` holds the expected line for each digest case, and Release and Test must match it exactly. Change a row only with a written cause in `tests\baseline\v143\CAUSES.md`.
 
 `-digesttrace N` logs the hash for every turn up to N. `-factorylog` logs the Factory creation order.
+
+`-novictory` makes `MissionVictory` and `MissionDefeat` do nothing, so a mission runs until the watchdog, and logs `OPENSWBF2 NOVICTORY`. It has no effect in a network game and logs one Warning there. `All` runs every `_1flag`, `_ctf` and `_ass` mission without a digest row with `-novictory` and expects `TimeOut`; such a line marked `Pass` is rejected.
 
 `-perturbheap <seed>[:pad,top,fill,pool]` (Test and Asan builds only) pads, top-allocates, 0xA5-fills or shuffles heap and pool blocks from a seeded generator; with no mode list all four are on.
 
