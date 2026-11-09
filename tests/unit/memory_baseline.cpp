@@ -280,6 +280,26 @@ TEST_CASE("baseline cloth headroom parses and covers every mission" * doctest::t
     }
 }
 
+TEST_CASE("baseline cloth slack parses and covers every mission" * doctest::test_suite("regression"))
+{
+    BaselineTable kSlack;
+    BaselineTable kCloth;
+    LoadBaselineTable("tests\\baseline\\v143\\cloth-slack.txt", 3, kSlack);
+    LoadBaselineTable("tests\\baseline\\v143\\cloth-headroom.txt", 5, kCloth);
+    CHECK(IsCommitLine(kSlack.sCommit));
+    CHECK(kSlack.vRows.size() == kCloth.vRows.size());
+    CHECK(TableMissions(kSlack) == TableMissions(kCloth));
+    for (size_t i = 0; i < kSlack.vRows.size(); i++)
+    {
+        const BaselineRow& r = kSlack.vRows[i];
+        const long long llBytes = RequireCount(r[1]);
+        const long long llBlocks = RequireCount(r[2]);
+        CHECK_MESSAGE((llBytes >= 96 && llBytes <= 496), r[0]);
+        CHECK_MESSAGE(llBytes % 16 == 0, r[0]);
+        CHECK_MESSAGE(llBlocks == llBytes / 16, r[0]);
+    }
+}
+
 TEST_CASE("baseline retail script values sit below the ceilings" * doctest::test_suite("regression"))
 {
     BaselineTable kPools;

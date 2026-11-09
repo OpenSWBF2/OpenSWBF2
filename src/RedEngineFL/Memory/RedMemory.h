@@ -7,6 +7,7 @@
 struct Tag;
 struct TagList;
 struct HeapObj;
+struct RedHeapBackend;
 
 struct RedHeapStats
 {
@@ -55,7 +56,10 @@ extern "C"
     extern void (*OnFailure)(int heap, unsigned int size);
     void RedMoveHeapEnd(int heap, int offset);
     bool RedGetHeapStats(int heap, RedHeapStats* pOut);
-    bool RedGetHeapRange(int heap, void** ppStart, unsigned int* puSize);
+    int RedHeapOwner(const void* p);
+    bool RedVisitHeap(int heap, bool (*pfnBlock)(void* pUser, size_t uSize, void* pArg), void* pArg);
+    bool RedHeapBackendIsArena();
+    void RedTrimHeaps();
 #ifdef OPENSWBF2_TEST
     void RedGetOffThreadTotals(unsigned int* puCount, unsigned int* puSources, unsigned int* puDropped);
     bool RedGetOffThreadSource(int i, RedOffThreadSource* pOut);
@@ -77,3 +81,6 @@ extern "C"
 
 unsigned int RedGetHeapSize(int heap);
 void RedPurgeHeapHandles(int heap, const char* name);
+unsigned int RedCountStaleHandles();
+const RedHeapBackend* RedParseAllocatorArg(const char* pcVal, int iLen, bool* pbRejected);
+long RedParseMiPurgeArg(const char* pcVal, int iLen, bool* pbRejected);

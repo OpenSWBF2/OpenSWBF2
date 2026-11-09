@@ -126,10 +126,11 @@ public:
 
         DLNode<Buffer>* pLast = 0;
         DLNode<Buffer>* pAfter = 0;
+        const unsigned long long uKey = PageOrder_(rBuf.data_);
         for (DLNode<Buffer>* p = freelist_.first_; p; p = p->next_)
         {
             pLast = p;
-            if (p->elem_.data_ > rBuf.data_)
+            if (PageOrder_(p->elem_.data_) > uKey)
             {
                 pAfter = p;
                 break;
@@ -258,6 +259,10 @@ public:
         {
             return false;
         }
+        if ((PageOrder_(pFirst) >> 32) != (PageOrder_(pSecond) >> 32))
+        {
+            return false;
+        }
 
         pFirst->elem_.size_ += pSecond->elem_.size_ + sizeof(DLNode<Buffer>);
         freemem_ += sizeof(DLNode<Buffer>);
@@ -266,6 +271,19 @@ public:
     }
 
 protected:
+    unsigned long long PageOrder_(const void* p)
+    {
+        for (int i = 0; i < pages_.GetSize(); i++)
+        {
+            const char* pStart = (const char*)pages_[i].data_;
+            if ((const char*)p >= pStart && (const char*)p < pStart + pages_[i].size_)
+            {
+                return ((unsigned long long)i << 32) | (unsigned int)((const char*)p - pStart);
+            }
+        }
+        return ~0ull;
+    }
+
     VNewAllocator valloc_;
     DummyNonAllocator dalloc_;
     IAllocator* baseAlloc_;

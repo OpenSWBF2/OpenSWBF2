@@ -7,8 +7,9 @@ class PblHandleRegistry
 public:
     static bool IsLive(const PblHandled* pKey, unsigned int uId);
     static bool Lookup(const PblHandled* pKey, unsigned int* puId);
-    static void PurgeRange(const void* pStart, const void* pEnd);
     static unsigned int CountInRange(const void* pStart, const void* pEnd);
+    static void PurgeIf(bool (*pfnMatch)(const void* pKey, void* pArg), void* pArg);
+    static unsigned int CountIf(bool (*pfnMatch)(const void* pKey, void* pArg), void* pArg);
     static unsigned int GetCount();
     static unsigned int GetCapacity();
     static unsigned int HomeSlot(const void* pKey);

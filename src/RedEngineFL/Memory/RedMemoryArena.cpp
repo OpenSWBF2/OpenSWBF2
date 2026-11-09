@@ -32,10 +32,9 @@ struct HeapObj
     const char* name;
     unsigned int align;
     bool frozen;
-    bool permanent;
 };
 
-static_assert(sizeof(HeapObj) == 36, "HeapObj must stay 36 bytes");
+static_assert(sizeof(HeapObj) == kRedHeapObjBytes, "HeapObj must stay 36 bytes");
 static_assert(sizeof(Tag) == kRedTagBytes, "Tag must match kRedTagBytes");
 
 
@@ -329,17 +328,15 @@ static PBL_ASAN_NO_SANITIZE char* ArenaClear(void* start, void* end, unsigned in
     return s;
 }
 
-PBL_ASAN_NO_SANITIZE void RedArenaClearRange(void* start, void* end, unsigned int align)
-{
-    unsigned int size = 0;
-    char* s = ArenaClear(start, end, align, &size);
-    PblAsanPoison(s, size);
-}
-
 static PBL_ASAN_NO_SANITIZE size_t RedArenaCreate(int heap, void* start, void* end, unsigned int align, const char* name)
 {
     unsigned int size = 0;
     char* s = ArenaClear(start, end, align, &size);
+    if (heap < 0)
+    {
+        PblAsanPoison(s, size);
+        return 0;
+    }
     Tag* tag = (Tag*)s;
     tag->size = size;
     tag->New();
@@ -394,15 +391,6 @@ static int RedArenaOwner(const void* block)
     return iOwner;
 }
 
-extern "C" const RedHeapBackend kRedArenaBackend = {
-    RedArenaInit,
-    RedArenaCreate,
-    RedArenaDestroy,
-    RedAllocFromHeapInternal,
-    RedFreeToHeapInternal,
-    RedArenaOwner,
-};
-
 PBL_ASAN_NO_SANITIZE unsigned int RedArenaFreeTagSum(int heap)
 {
     unsigned int total = 0;
@@ -413,23 +401,7 @@ PBL_ASAN_NO_SANITIZE unsigned int RedArenaFreeTagSum(int heap)
     return total;
 }
 
-bool RedArenaHeapRange(int heap, void** ppStart, unsigned int* puSize)
-{
-    if (heap < 0 || heap >= maxheaps || heapobj == 0 || heapobj[heap].size == 0)
-    {
-        return false;
-    }
-    *ppStart = heapobj[heap].start;
-    *puSize = heapobj[heap].size;
-    return true;
-}
-
-void RedArenaMarkPermanent(int heap, bool permanent)
-{
-    heapobj[heap].permanent = permanent;
-}
-
-PBL_ASAN_NO_SANITIZE int RedArenaMoveHeapEnd(int iHeap, int iDelta, bool* pbAllocFailed)
+static PBL_ASAN_NO_SANITIZE int RedArenaMoveHeapEnd(int iHeap, int iDelta, bool* pbAllocFailed)
 {
     *pbAllocFailed = false;
     int iSource = iHeap;
@@ -476,3 +448,38 @@ PBL_ASAN_NO_SANITIZE int RedArenaMoveHeapEnd(int iHeap, int iDelta, bool* pbAllo
     RedFreeToHeapInternal(iSource, pBlock);
     return iDelta;
 }
+
+static PBL_ASAN_NO_SANITIZE bool RedArenaVisit(int heap, bool (*pfnBlock)(void* pUser, size_t uSize, void* pArg),
+                                               void* pArg)
+{
+    if (heapobj == 0 || heap < 0 || heap >= maxheaps || heapobj[heap].size == 0)
+    {
+        return false;
+    }
+    const HeapObj& h = heapobj[heap];
+    unsigned int hdr = (h.align + sizeof(Tag) - 1) & ~(h.align - 1);
+    for (Tag* tag = h.used.first; tag; tag = tag->next_)
+    {
+        if (!pfnBlock((char*)tag + hdr, tag->size - hdr, pArg))
+        {
+            break;
+        }
+    }
+    return true;
+}
+
+static void RedArenaTrim()
+{
+}
+
+extern "C" const RedHeapBackend kRedArenaBackend = {
+    RedArenaInit,
+    RedArenaCreate,
+    RedArenaDestroy,
+    RedAllocFromHeapInternal,
+    RedFreeToHeapInternal,
+    RedArenaOwner,
+    RedArenaMoveHeapEnd,
+    RedArenaVisit,
+    RedArenaTrim,
+};

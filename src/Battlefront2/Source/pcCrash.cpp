@@ -566,33 +566,18 @@ void __cdecl pcCrash::Exit(int iCode)
 
 static char const* FindArg(char const* pcCmd, char const* pcName, int* piLen)
 {
-    int iNameLen = lstrlenA(pcName);
-    for (char const* pc = pcCmd; *pc != 0; ++pc)
-    {
-        bool bStart = (pc == pcCmd) || pc[-1] == ' ' || pc[-1] == '"';
-        if (bStart && _strnicmp(pc, pcName, iNameLen) == 0 && (pc[iNameLen] == ' ' || pc[iNameLen] == 0))
-        {
-            char const* pcVal = pc + iNameLen;
-            while (*pcVal == ' ')
-            {
-                ++pcVal;
-            }
-            char cEnd = ' ';
-            if (*pcVal == '"')
-            {
-                cEnd = '"';
-                ++pcVal;
-            }
-            int iLen = 0;
-            while (pcVal[iLen] != 0 && pcVal[iLen] != cEnd)
-            {
-                ++iLen;
-            }
-            *piLen = iLen;
-            return pcVal;
-        }
-    }
-    return 0;
+    char const* pcVal = 0;
+    FindCommandLineArg(pcCmd, pcName, &pcVal, piLen);
+    return pcVal;
+}
+
+bool pcCrash::FindCommandArg(char const* pcName, char const** ppcVal, int* piLen)
+{
+    int iLen = 0;
+    char const* pcVal = FindArg(GetCommandLineA(), pcName, &iLen);
+    *ppcVal = pcVal;
+    *piLen = iLen;
+    return pcVal != 0;
 }
 
 bool pcCrash::SimulateAllocFailure(char const* pcKind)
@@ -688,20 +673,26 @@ void pcCrash::LogPerturbState()
     }
 }
 
-static bool RepeatMissionArg()
+static int RepeatMissionArg()
 {
     static int siRepeat = -1;
     if (siRepeat < 0)
     {
         int iLen = 0;
-        siRepeat = FindArg(GetCommandLineA(), "-repeatmission", &iLen) != 0 ? 1 : 0;
+        char const* pcVal = FindArg(GetCommandLineA(), "-repeatmission", &iLen);
+        siRepeat = 0;
+        if (pcVal != 0)
+        {
+            const int iCount = CommandLineRepeatCount(pcVal, iLen);
+            siRepeat = iCount > 0 ? iCount : 1;
+        }
     }
-    return siRepeat == 1;
+    return siRepeat;
 }
 
-bool pcCrash::RepeatMissionRequested()
+int pcCrash::RepeatMissionCount()
 {
-    return RepeatMissionArg() && gExitOnGameOver;
+    return gExitOnGameOver ? RepeatMissionArg() : 0;
 }
 
 bool pcCrash::ShellFirstRequested()
@@ -726,9 +717,20 @@ bool pcCrash::TakeShellFirst()
     return true;
 }
 
+bool pcCrash::ExitOnMovieCloseRequested()
+{
+    static int siExit = -1;
+    if (siExit < 0)
+    {
+        int iLen = 0;
+        siExit = FindArg(GetCommandLineA(), "-exitonmovieclose", &iLen) != 0 ? 1 : 0;
+    }
+    return siExit == 1 && gExitOnGameOver;
+}
+
 void pcCrash::LogRepeatState()
 {
-    if (RepeatMissionArg() && !gExitOnGameOver)
+    if (RepeatMissionArg() != 0 && !gExitOnGameOver)
     {
         LOG(LogCore, Warning, "-repeatmission needs -exitongameover, ignored");
     }
@@ -1056,6 +1058,13 @@ void pcCrash::RunMissionCrashTest()
         sbRan = true;
         RedAllocFromHeap(GameMemory::RunTimeHeap, 0x10000000, 0);
     }
+    else if (strcmp(gCrashKind, "midoublefree") == 0)
+    {
+        sbRan = true;
+        void* p = RedAllocFromHeap(GameMemory::RunTimeHeap, 64, 0);
+        RedFreeToHeap(GameMemory::RunTimeHeap, p, 0);
+        RedFreeToHeap(GameMemory::RunTimeHeap, p, 0);
+    }
     else if (strcmp(gCrashKind, "luaoom") == 0)
     {
         sbRan = true;
@@ -1141,7 +1150,7 @@ void pcCrash::RunMissionCrashTest()
 void pcCrash::SetCrashTest(char const* pcKind)
 {
     static char const* const apcKinds[] = { "nullderef", "divzero", "stackoverflow", "debugbreak", "abort",
-        "invalidparam", "fastfail", "arenaoom", "debugheapoom", "heapfail",
+        "invalidparam", "fastfail", "arenaoom", "debugheapoom", "heapfail", "midoublefree",
         "luaoom", "luapanic", "hang", "check", "resetrecover", "resetfatal", "resetinitlost",
         "resetflap", "resetlaterinit", "applymode", "applymodesmall", "applyfail", "applypresentfail", "applyadapter",
         "applytargetfail", "gammapass", "gammafallback", "gammadrawfail",

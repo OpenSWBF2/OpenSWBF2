@@ -500,6 +500,48 @@ TEST_CASE("steal artist heap refuses zero small and negative sizes" * doctest::t
     lua_close(L);
 }
 
+TEST_CASE("steal artist heap on the mimalloc backend matches the arena" * doctest::test_suite("regression"))
+{
+    VerboseMemoryLog kVerbose;
+    lua_State* L = OpenScriptState();
+    const RedHeapBackend* pSaved = gRedHeapBackend;
+    gRedHeapBackend = &kRedMiBackend;
+    const int iArtist = RedCreateHeap(sacScriptSteal, sacScriptSteal + 0x2000, 0x10, "T1Artist");
+    const int iRuntime = RedCreateHeap(sacScriptSteal + 0x2000, sacScriptSteal + 0x4000, 0x10, "T1Runtime");
+    gRedHeapBackend = pSaved;
+    REQUIRE(iArtist > 0);
+    REQUIRE(iRuntime == iArtist + 1);
+    REQUIRE(gRedHeapSlots[iArtist].pBackend == &kRedMiBackend);
+    REQUIRE(gRedHeapSlots[iRuntime].pBackend == &kRedMiBackend);
+    {
+        LogCapture capture;
+        CallStealArtistHeap(L, 0.0f, iArtist);
+        CallStealArtistHeap(L, 16.0f, iArtist);
+        CallStealArtistHeap(L, -64.0f, iArtist);
+        CHECK(capture.Count("refused") == 3);
+        CallStealArtistHeap(L, 12288.0f, iArtist);
+        CallStealArtistHeap(L, 819200.0f, iArtist);
+        CHECK(capture.Count("refused") == 3);
+        CHECK(capture.Count("requested=819200 applied=0") == 1);
+        CHECK(capture.Count("StealArtistHeap(): script value -64 refused") == 1);
+        CHECK(capture.Count("entry=StealArtistHeap label=- requested=16 applied=0 pool=-") == 1);
+    }
+    CHECK(RedGetHeapSize(iArtist) == 0x2000);
+    CHECK(RedGetHeapSize(iRuntime) == 0x2000);
+    CallStealArtistHeap(L, 256.0f, iArtist);
+    CHECK(RedGetHeapSize(iArtist) == 0x2000 - 256);
+    CHECK(RedGetHeapSize(iRuntime) == 0x2000 + 256);
+    {
+        LogCapture capture;
+        CallStealArtistHeap(L, 40.0f, iArtist);
+        CHECK(capture.Count("entry=StealArtistHeap label=- requested=40 applied=32 pool=-") == 1);
+    }
+    CHECK(RedGetHeapSize(iArtist) == 0x2000 - 288);
+    RedDestroyHeap(iRuntime);
+    RedDestroyHeap(iArtist);
+    lua_close(L);
+}
+
 TEST_CASE("add walker type clamps script counts" * doctest::test_suite("regression"))
 {
     VerboseMemoryLog kVerbose;

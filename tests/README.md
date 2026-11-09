@@ -37,6 +37,8 @@ This builds the tests, then runs each case in its own process and the Standard s
 | `-HogAddrSpace` | force the arena above 2 GB |
 | `-SimOrder` | pass `-simorder address` or `-simorder serial` to every smoke case (the game defaults to `serial`); every case that is expected to pass or time out must log `OPENSWBF2 SIMORDER mode=<mode>` and no `-simorder` warning; `address` checks only that a digest line exists, not its row. In Test and Asan, unless `address`, a case fails on `OPENSWBF2 COLLISION serialties=` above 0 |
 | `-FactoryLog` | pass `-factorylog` to every smoke case, so each run logs its `OPENSWBF2 FACTORY` counts |
+| `-Allocator` | `arena` or `mimalloc`, passed as `-allocator` to every smoke case (the game defaults to `mimalloc`); under `arena` no case may log `OPENSWBF2 MIOPTIONS` and `crash-midoublefree` is skipped, otherwise every case that is expected to pass or time out must log it |
+| `-MiPurge` | pass `-mipurge <ms>` to every smoke case; the expected `OPENSWBF2 MIOPTIONS` line then carries `purge_delay=<ms>` |
 | `-Hardening` | run only the hardening checks |
 | `-Clean` | delete the staged output folders and any junctions left under `artifacts` safely, and exit |
 
@@ -79,13 +81,17 @@ At turn 1500 the game logs `OPENSWBF2 SIM DIGEST ...`, a hash of the simulation 
 
 `-perturbheap <seed>[:pad,top,fill,pool]` (Test and Asan builds only) pads, top-allocates, 0xA5-fills or shuffles heap and pool blocks from a seeded generator; with no mode list all four are on.
 
-`-repeatmission` (Test and Asan builds only, with `-exitongameover`) sends the first mission back to the shell after its turn-1500 digest and plays it again; the second run logs its own digest and exits. Without `-exitongameover` it logs a warning and is ignored. If the first run ends before turn 1500, it logs `OPENSWBF2 REPEAT skipped` and exits after that run.
+`-repeatmission` (Test and Asan builds only, with `-exitongameover`) sends the first mission back to the shell after its turn-1500 digest and plays it again; the second run logs its own digest and exits. Without `-exitongameover` it logs a warning and is ignored. If the first run ends before turn 1500, it logs `OPENSWBF2 REPEAT skipped` and exits after that run. `-repeatmission N` with N from 1 to 8 replays the mission N times, so `commit-flat` (N = 2) plays it three times.
 
 `-shellfirst` (Test and Asan builds only) starts in the shell and enters the named mission on the first shell update, the path a player takes from the menu. The Test and Asan Standard group runs it as `shell-first` with its own digest row, and run.ps1 checks that its Runtime heap at turn 1500, and that of the repeated mission in `repeat-digest`, equal the `geo1c_con` case.
 
 At every state cleanup, Test and Asan builds scan static data and the heaps that outlive a mission for weak handles (`PblHandle`) that still point at an object in the mission heaps, alive or destroyed, and log `OPENSWBF2 HANDLESCAN state=<mission|shell> live=<n> dead=<n>`. Handle ids restart at every mission entry, so such a handle could match a new object; `repeat-digest` and `shell-first` require both counts to be 0.
 
-Other builds skip `-perturbheap`, its value, `-repeatmission` and `-shellfirst`, and log `-<switch> needs a Test or Asan build, ignored`.
+Every state cleanup logs `OPENSWBF2 COMMIT state=<mission|shell> bytes=<n>`, the process commit charge (`PagefileUsage`); `commit-flat` requires the third mission and the second shell to be within 1 MiB of the cycle before.
+
+`-exitonmovieclose` (Test and Asan builds only, with `-exitongameover`) ends the run once the mission is running and a Bink movie has closed (`OPENSWBF2 MOVIE close`). The Test Standard group runs `campaign-movies`, `nab2g_c` with rendering and sound on and this switch, which must log `OPENSWBF2 MOVIE open`, `OPENSWBF2 MOVIE close` and, in the exit report, `OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0`.
+
+Other builds skip `-perturbheap`, its value, `-repeatmission`, `-shellfirst` and `-exitonmovieclose`, and log `-<switch> needs a Test or Asan build, ignored`.
 
 ## ASan
 

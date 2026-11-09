@@ -2001,6 +2001,9 @@
     <ClCompile Include="src\RedEngineFL\Memory\RedMemoryArena.cpp">
       <Filter>src\RedEngineFL\Memory</Filter>
     </ClCompile>
+    <ClCompile Include="src\RedEngineFL\Memory\RedMemoryMi.cpp">
+      <Filter>src\RedEngineFL\Memory</Filter>
+    </ClCompile>
     <ClCompile Include="src\mimalloc\src\static.c">
       <Filter>src\mimalloc\src</Filter>
     </ClCompile>

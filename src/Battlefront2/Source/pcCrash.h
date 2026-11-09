@@ -14,6 +14,7 @@ namespace pcCrash
     void RunMissionCrashTest();
     void FatalInit(char const* pcWhat, unsigned int uiSize);
     bool SimulateAllocFailure(char const* pcKind);
+    bool FindCommandArg(char const* pcName, char const** ppcVal, int* piLen);
     void ReserveLowAddressSpace();
     bool IsLargeAddressAware();
     void __cdecl Check(char const* pcExpr, char const* pcFile, int iLine);
@@ -26,9 +27,10 @@ namespace pcCrash
 #ifdef OPENSWBF2_TEST
     void InitPerturbFromCommandLine();
     void LogPerturbState();
-    bool RepeatMissionRequested();
+    int RepeatMissionCount();
     void LogRepeatState();
     bool ShellFirstRequested();
     bool TakeShellFirst();
+    bool ExitOnMovieCloseRequested();
 #endif
 }

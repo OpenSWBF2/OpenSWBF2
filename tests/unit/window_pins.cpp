@@ -181,9 +181,11 @@ TEST_CASE("window mode source pins" * doctest::test_suite("unit"))
 {
     std::string sMain;
     std::string sMouse;
+    std::string sInput;
     std::string sProfile;
     std::string sWindow;
     if (!ReadSource("../src/Battlefront2/Source/pcMain.cpp", sMain) ||
+        !ReadSource("../src/RedEngineFL/input/pc/pcRedInputManager.cpp", sInput) ||
         !ReadSource("../src/RedEngineFL/input/pc/pcRedMouse.cpp", sMouse) ||
         !ReadSource("../src/Battlefront2/Source/PlayerProfile.cpp", sProfile) ||
         !ReadSource("../src/RedEngineFL/Application/pc/pcWindow.cpp", sWindow))
@@ -216,6 +218,8 @@ TEST_CASE("window mode source pins" * doctest::test_suite("unit"))
     CHECK(uiDpi < uiClass);
 
     CHECK(sMouse.find("gAppActive") != std::string::npos);
+    CHECK(sMouse.find("if (pcCrash::ExitOnMovieCloseRequested())") != std::string::npos);
+    CHECK(sInput.find("return !pcCrash::ExitOnMovieCloseRequested();") != std::string::npos);
     size_t uiMap = sMouse.find("MapBackBufferToClient(m_X, m_Y,");
     size_t uiToScreen = sMouse.find("ClientToScreen(hGlobalWnd, &pt);");
     size_t uiWarp = sMouse.find("::SetCursorPos(pt.x, pt.y);");

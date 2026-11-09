@@ -149,6 +149,9 @@ static void ReleaseMutex()
     gbMutexValid = false;
 }
 
+static bool sbAllocatorArgRejected;
+static bool sbMiPurgeArgRejected;
+
 // FUNCTION: SWBF2 0x006171b0
 void Startup_InitApplicationMemory()
 {
@@ -156,7 +159,7 @@ void Startup_InitApplicationMemory()
 #ifdef OPENSWBF2_TEST
     pcCrash::InitPerturbFromCommandLine();
 #endif
-    char* pArena = (char*)malloc(0x4000000);
+    char* pArena = RedHeapBackendIsArena() ? (char*)malloc(0x4000000) : (char*)0x20;
     s_memoryArena = pArena;
     if (!pArena || pcCrash::SimulateAllocFailure("arenaoom"))
     {
@@ -169,7 +172,7 @@ void Startup_InitApplicationMemory()
 // FUNCTION: SWBF2 0x006171d0
 void Startup_DebugHeap()
 {
-    void* p = malloc(0x300000);
+    void* p = RedHeapBackendIsArena() ? malloc(0x300000) : (void*)0x10;
     if (!p || pcCrash::SimulateAllocFailure("debugheapoom"))
     {
         pcCrash::FatalInit("debug heap", 0x300000);
@@ -182,7 +185,15 @@ void Startup_DebugHeap()
 
 extern "C" void Startup_RedInitHeap(int, int)
 {
-    gRedHeapBackend = &kRedArenaBackend;
+    char const* pcVal = 0;
+    int iLen = 0;
+    pcCrash::FindCommandArg("-allocator", &pcVal, &iLen);
+    gRedHeapBackend = RedParseAllocatorArg(pcVal, iLen, &sbAllocatorArgRejected);
+    if (!RedHeapBackendIsArena())
+    {
+        pcCrash::FindCommandArg("-mipurge", &pcVal, &iLen);
+        RedMiConfigure(RedParseMiPurgeArg(pcVal, iLen, &sbMiPurgeArgRejected));
+    }
     Startup_InitApplicationMemory();
     Startup_DebugHeap();
 }
@@ -484,17 +495,39 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
         RedWarning::SetSeverityToDestination(RED_LOG_DESTINATION_FILE,
                                              (RedWarning::RED_ERROR_SEVERITY)RedLog::MinVerbosity());
         RedLog::Apply(pcCrash::GetBuildId());
+        unsigned int uArena = (unsigned int)s_memoryArena;
+        unsigned int uArenaSize = 0x4000000;
+        if (!RedHeapBackendIsArena() && !RedMiFirstArena(&uArena, &uArenaSize))
+        {
+            uArena = 0;
+            uArenaSize = 0;
+        }
         LOG(LogCore, Inform,
             "OPENSWBF2 ADDRSPACE arena=0x%08X arena_end=0x%08X laa=%d steam=%d steam_api=0x%08X "
             "Galaxy=0x%08X GalaxyPeer=0x%08X binkw32=0x%08X",
-            (unsigned int)s_memoryArena, (unsigned int)s_memoryArena + 0x4000000,
+            uArena, uArena + uArenaSize,
             pcCrash::IsLargeAddressAware() ? 1 : 0, gf::_sap()->IsInitialized() ? 1 : 0,
             (unsigned int)GetModuleHandleA("steam_api.dll"), (unsigned int)GetModuleHandleA("Galaxy.dll"),
             (unsigned int)GetModuleHandleA("GalaxyPeer.dll"), (unsigned int)GetModuleHandleA("binkw32.dll"));
+        if (!RedHeapBackendIsArena())
+        {
+            RedMiRegisterOutput();
+            char acMiOptions[256];
+            RedMiFormatOptions(acMiOptions, sizeof(acMiOptions));
+            LOG(LogCore, Inform, "%s", acMiOptions);
+        }
         LOG(LogCore, Inform, "OPENSWBF2 SIMORDER mode=%s", PblSimOrderName(PblGetSimOrder()));
         if (SimOrderArgRejected())
         {
             LOG(LogCore, Warning, "-simorder needs address or serial, ignored");
+        }
+        if (sbAllocatorArgRejected)
+        {
+            LOG(LogCore, Warning, "-allocator needs arena or mimalloc, using mimalloc");
+        }
+        if (sbMiPurgeArgRejected)
+        {
+            LOG(LogCore, Warning, "-mipurge needs milliseconds, using 1000");
         }
         if (gNoVictory)
         {

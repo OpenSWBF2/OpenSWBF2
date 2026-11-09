@@ -10,6 +10,8 @@ param(
     [ValidateSet('None','Standard','Dedicated','Crash','All','Twice','Perturb')][string]$Smoke = 'Standard',
     [ValidateSet('','address','serial')][string]$SimOrder = '',
     [switch]$FactoryLog,
+    [ValidateSet('','arena','mimalloc')][string]$Allocator = '',
+    [int]$MiPurge = -1,
     [int]$SmokeTimeout = 120,
     [ValidateSet('Debug','Release','Test','Asan')][string]$SmokeConfiguration = 'Release',
     [switch]$Movies,
@@ -22,6 +24,8 @@ param(
 $ErrorActionPreference = 'Stop'
 $simorderArg = if ($SimOrder) { " -simorder $SimOrder" } else { '' }
 $extraArg = $simorderArg + $(if ($FactoryLog) { ' -factorylog' } else { '' })
+if ($Allocator) { $extraArg += " -allocator $Allocator" }
+if ($MiPurge -ge 0) { $extraArg += " -mipurge $MiPurge" }
 if ($Jobs -eq 0) { $Jobs = [Math]::Max(1, [Math]::Min(8, [int][Math]::Floor([Environment]::ProcessorCount / 2))) }
 $testsDir = $PSScriptRoot
 $root = Split-Path $testsDir -Parent
@@ -318,7 +322,7 @@ if ($smokeActive) {
     if ($Smoke -eq 'All') { $missionFile = Join-Path $testsDir 'smoke\missions-all.txt' }
     $missions = @()
     if (Test-Path $missionFile) { $missions = @(Get-Content $missionFile | Where-Object { $_.Trim() }) }
-    $smokeCases = @(Add-SimOrderExpect @(Get-SmokeCases $Smoke $missions $Movies.IsPresent $null $HogAddrSpace.IsPresent) $SimOrder)
+    $smokeCases = @(Add-AllocatorExpect @(Add-SimOrderExpect @(Get-SmokeCases $Smoke $missions $Movies.IsPresent $null $HogAddrSpace.IsPresent) $SimOrder) $Allocator $MiPurge)
     if ($asanSmoke) {
         $asanRemoved = @($smokeCases | Where-Object { $script:SmokeAsanExcluded -contains $_.Name } | ForEach-Object { $_.Name })
         $smokeCases = @($smokeCases | Where-Object { $script:SmokeAsanExcluded -notcontains $_.Name })

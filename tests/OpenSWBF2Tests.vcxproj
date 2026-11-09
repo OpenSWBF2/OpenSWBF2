@@ -156,6 +156,7 @@
     <ClCompile Include="..\src\Battlefront2\Source\LuaSaveItems.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Memory\RedMemory.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Memory\RedMemoryArena.cpp" />
+    <ClCompile Include="..\src\RedEngineFL\Memory\RedMemoryMi.cpp" />
     <ClCompile Include="..\src\mimalloc\src\static.c">
       <CompileAs>CompileAsCpp</CompileAs>
       <AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)..\src;$(MSBuildThisFileDirectory)..\src\mimalloc\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>

@@ -71,7 +71,7 @@ unsigned int gSeed;
 static bool sbSimOrderBad;
 static bool sbNoVictoryNetLogged;
 static unsigned int suTestOnlyIgnored;
-static char const* const sapcTestOnlyArgs[] = { "perturbheap", "repeatmission", "shellfirst" };
+static char const* const sapcTestOnlyArgs[] = { "perturbheap", "repeatmission", "shellfirst", "exitonmovieclose" };
 // GLOBAL: SWBF2 0x007e6310
 int gBootLaggerPing = 300;
 
@@ -180,6 +180,102 @@ namespace RedLocalizeDB
 
 
 
+static bool NextCommandToken(char const* pcLine, int* piPos, int* piStart, int* piLen, bool* pbQuoted)
+{
+    int i = *piPos;
+    while (pcLine[i] == ' ' || pcLine[i] == ',')
+    {
+        ++i;
+    }
+    if (pcLine[i] == '\0')
+    {
+        *piPos = i;
+        return false;
+    }
+    int iStart = i;
+    int iLen = 0;
+    const bool bQuoted = pcLine[i] == '"';
+    if (bQuoted)
+    {
+        ++i;
+        iStart = i;
+        while ((pcLine[i] != '\0' && pcLine[i] != '"') || (pcLine[i] == '"' && pcLine[i - 1] == '\\'))
+        {
+            ++i;
+        }
+        iLen = i - iStart;
+        if (pcLine[i] == '"')
+        {
+            ++i;
+        }
+    }
+    else
+    {
+        while (pcLine[i] != '\0' && pcLine[i] != ' ' && pcLine[i] != ',')
+        {
+            ++i;
+        }
+        iLen = i - iStart;
+    }
+    if (pcLine[i] != '\0')
+    {
+        ++i;
+    }
+    *piPos = i;
+    *piStart = iStart;
+    *piLen = iLen;
+    *pbQuoted = bQuoted;
+    return true;
+}
+
+int CommandLineRepeatCount(char const* pcVal, int iLen)
+{
+    if (iLen <= 0)
+    {
+        return -1;
+    }
+    int iCount = 0;
+    for (int i = 0; i < iLen; ++i)
+    {
+        if (pcVal[i] < '0' || pcVal[i] > '9')
+        {
+            return -1;
+        }
+        if (iCount < 9)
+        {
+            iCount = iCount * 10 + (pcVal[i] - '0');
+        }
+    }
+    return iCount < 1 ? 1 : iCount > 8 ? 8 : iCount;
+}
+
+bool FindCommandLineArg(char const* pcLine, char const* pcName, char const** ppcVal, int* piLen)
+{
+    const int iNameLen = (int)strlen(pcName);
+    int iPos = 0;
+    int iStart = 0;
+    int iLen = 0;
+    bool bQuoted = false;
+    *ppcVal = 0;
+    *piLen = 0;
+    while (NextCommandToken(pcLine, &iPos, &iStart, &iLen, &bQuoted))
+    {
+        const char c = pcLine[iStart];
+        if ((c == '/' || c == '-' || c == '+') && iLen == iNameLen &&
+            _strnicmp(pcLine + iStart + 1, pcName + 1, iNameLen - 1) == 0)
+        {
+            int iValStart = iPos;
+            int iValLen = 0;
+            bool bValQuoted = false;
+            NextCommandToken(pcLine, &iPos, &iValStart, &iValLen, &bValQuoted);
+            *ppcVal = pcLine + iValStart;
+            *piLen = iValLen;
+            return true;
+        }
+    }
+    return false;
+}
+
 // FUNCTION: SWBF2 0x004795a0
 void ParseCommandLine(char const* pcAppName, char const* pcCmdLine)
 {
@@ -194,57 +290,25 @@ void ParseCommandLine(char const* pcAppName, char const* pcCmdLine)
     strlcat(szCmdLine, pcCmdLine, sizeof(szCmdLine));
 
     int iArgc = 1;
-    int i = 0;
+    int iPos = 0;
+    int iStart = 0;
+    int iLen = 0;
+    bool bQuoted = false;
 
-    while (szCmdLine[i] == ' ' || szCmdLine[i] == ',')
+    while (iArgc < 256 && NextCommandToken(szCmdLine, &iPos, &iStart, &iLen, &bQuoted))
     {
-        ++i;
-    }
+        apcArgv[iArgc++] = &szCmdLine[iStart];
 
-    while (szCmdLine[i] != '\0')
-    {
-        if (szCmdLine[i] == '"')
+        for (int j = iStart; bQuoted && j < iStart + iLen; ++j)
         {
-            ++i;
-            apcArgv[iArgc++] = &szCmdLine[i];
-
-            while ((szCmdLine[i] != '\0' && szCmdLine[i] != '"') ||
-                   (szCmdLine[i] == '"' && szCmdLine[i - 1] == '\\'))
+            if (szCmdLine[j] == '"' && szCmdLine[j - 1] == '\\')
             {
-                if (szCmdLine[i] == '"' && szCmdLine[i - 1] == '\\')
-                {
-                    szCmdLine[i - 1] = '_';
-                    szCmdLine[i] = '_';
-                }
-                ++i;
-            }
-
-            if (szCmdLine[i] == '"')
-            {
-                szCmdLine[i] = '\0';
-                ++i;
-            }
-        }
-        else
-        {
-            apcArgv[iArgc++] = &szCmdLine[i];
-
-            while (szCmdLine[i] != '\0' && szCmdLine[i] != ' ' && szCmdLine[i] != ',')
-            {
-                ++i;
+                szCmdLine[j - 1] = '_';
+                szCmdLine[j] = '_';
             }
         }
 
-        if (szCmdLine[i] != '\0')
-        {
-            szCmdLine[i] = '\0';
-            ++i;
-        }
-
-        while (szCmdLine[i] == ' ' || szCmdLine[i] == ',')
-        {
-            ++i;
-        }
+        szCmdLine[iStart + iLen] = '\0';
     }
 
     apcArgv[0] = szArgv0;
@@ -477,6 +541,15 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             continue;
         }
 
+        if (_stricmp(pcArg + 1, "allocator") == 0 || _stricmp(pcArg + 1, "mipurge") == 0)
+        {
+            if (i + 1 < iArgc && apcArgv[i + 1][0] != '-')
+            {
+                ++i;
+            }
+            continue;
+        }
+
         if (_stricmp(pcArg + 1, "perturbheap") == 0)
         {
             if (i + 1 < iArgc && apcArgv[i + 1][0] != '-')
@@ -495,6 +568,10 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
 
         if (_stricmp(pcArg + 1, "repeatmission") == 0)
         {
+            if (i + 1 < iArgc && CommandLineRepeatCount(apcArgv[i + 1], (int)strlen(apcArgv[i + 1])) >= 0)
+            {
+                ++i;
+            }
             NoteTestOnlyArg(1);
             continue;
         }
@@ -502,6 +579,12 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
         if (_stricmp(pcArg + 1, "shellfirst") == 0)
         {
             NoteTestOnlyArg(2);
+            continue;
+        }
+
+        if (_stricmp(pcArg + 1, "exitonmovieclose") == 0)
+        {
+            NoteTestOnlyArg(3);
             continue;
         }
 

@@ -4,6 +4,7 @@
 #include "PebbleFL/Common/PblValues.h"
 #include "Battlefront2/Source/NetSetup.h"
 #include "lglcd/lgLcd.h"
+#include "Battlefront2/Source/pcCrash.h"
 
 // GLOBAL: SWBF2 0x007873e4
 // IID_IDirectInput8A
@@ -173,6 +174,15 @@ RedMouse* GetMouse(unsigned char ucPort)
     return &m_mouses[ucPort];
 }
 
+static bool RealInputAllowed()
+{
+#ifdef OPENSWBF2_TEST
+    return !pcCrash::ExitOnMovieCloseRequested();
+#else
+    return true;
+#endif
+}
+
 // FUNCTION: SWBF2 0x006dbf50
 void Init()
 {
@@ -182,7 +192,7 @@ void Init()
 
     if (!g_bNoRender)
     {
-        if (!isReadingJournal)
+        if (!isReadingJournal && RealInputAllowed())
         {
             DirectInput8Create(hGlobalInstance, DIRECTINPUT_VERSION, IID_IDirectInput8A,
                                (void**)&m_pDI, 0);

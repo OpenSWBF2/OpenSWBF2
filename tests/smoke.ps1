@@ -6,7 +6,8 @@ $script:WerBasePath = 'SOFTWARE\Microsoft\Windows\Windows Error Reporting'
 $script:SmokeAsanTimeoutScale = 15
 $script:SourceExtensions = @('.h', '.hpp', '.inl', '.c', '.cpp')
 $script:T1Suites = @('unit', 'characterisation', 'regression', 'known_bug', 'corpus', 'fuzz', 'stress')
-$script:SmokeAsanExcluded = @('crash-nullderef', 'crash-divzero', 'crash-stackoverflow', 'crash-debugbreak', 'crash-abort', 'crash-invalidparam', 'crash-fastfail', 'crash-check', 'crash-hang', 'crash-arenaoom', 'crash-debugheapoom', 'crash-luapanic', 'crash-resetfatal', 'fatal-init')
+$script:SmokeAsanExcluded = @('crash-nullderef', 'crash-divzero', 'crash-stackoverflow', 'crash-debugbreak', 'crash-abort', 'crash-invalidparam', 'crash-fastfail', 'crash-check', 'crash-hang', 'crash-arenaoom', 'crash-debugheapoom', 'crash-luapanic', 'crash-resetfatal', 'fatal-init', 'crash-midoublefree', 'commit-flat')
+$script:SmokeArenaExcluded = @('crash-midoublefree')
 $script:SmokeAsanCoverage = 'ASan covers stack, globals, CRT heap and the game heaps and pools'
 
 function Get-AsanOptions([string]$caseDir) {
@@ -370,6 +371,14 @@ function Test-SmokeExpect($case, $res) {
             return $false
         }
     }
+    if ($x.ContainsKey('CommitFlat')) {
+        $why = Test-CommitFlat $res.LogText ([long]$x.CommitFlat)
+        if ($why) {
+            Write-Host "    commit-flat: $why"
+            foreach ($m in [regex]::Matches([string]$res.LogText, 'OPENSWBF2 COMMIT state=\w+ bytes=\d+')) { Write-Host "    $($m.Value)" }
+            return $false
+        }
+    }
     if ($x.ContainsKey('NoIni') -and (Test-Path -LiteralPath (Join-Path $res.CaseDir 'display.ini'))) { return $false }
     if ($x.ContainsKey('IniRx')) {
         $ini = Join-Path $res.CaseDir 'display.ini'
@@ -472,7 +481,7 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
 
     if ($which -eq 'Standard') {
         $memRx = @('OPENSWBF2 MEMREPORT source=exit', 'OPENSWBF2 MEMREPORT heap=Runtime cap=\d+ peak=\d+ used=\d+ allocs=\d+ failed=\d+', 'OPENSWBF2 MEMREPORT heap=Lua ', 'OPENSWBF2 MEMREPORT heap=Application ', 'OPENSWBF2 MEMREPORT heap=Artist ', 'OPENSWBF2 MEMREPORT heap=Gamespy ', 'OPENSWBF2 MEMREPORT heap=Debug ', 'OPENSWBF2 MEMREPORT pool=\S+ count=\d+ size=\d+ peak=\d+ grown=\d+', 'OPENSWBF2 MEMREPORT pool=Lua\d+ ', 'OPENSWBF2 MEMREPORT pool=Weapon ', 'OPENSWBF2 CLOTH free=-?\d+ enabled=[01] low=\d+ high=\d+')
-        if ($script:SmokeDigestConfiguration -in 'Test', 'Asan') { $memRx += 'OPENSWBF2 MEMREPORT offthread count=\d+ sources=\d+ dropped=\d+' }
+        if ($script:SmokeDigestConfiguration -in 'Test', 'Asan') { $memRx += 'OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0' }
         $cases += New-Object PSObject -Property @{ Name = $standard; Args = "$standard $htail"; Expect = @{ Class = 'Pass'; LogRx = ($memRx + $hrx) }; Twice = 0; Timeout = 0 }
     }
     if ($which -eq 'Standard') {
@@ -496,6 +505,11 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
         if ($script:SmokeDigestConfiguration -in 'Test', 'Asan') {
             $scanRx = @('OPENSWBF2 HANDLESCAN state=shell live=0 dead=0', 'OPENSWBF2 HANDLESCAN state=mission live=0 dead=0', '(?s)\A(?!.*OPENSWBF2 HANDLESCAN (live |dead |state=\w+ (?!live=0 dead=0\b)))')
             $cases += New-Object PSObject -Property @{ Name = 'shell-first'; Args = "$standard $htail -shellfirst"; Expect = @{ Class = 'Pass'; SameDigests = 1; LogRx = (@('OPENSWBF2 SHELLFIRST to_mission mission=' + $standard) + $scanRx + $hrx) }; Twice = 0; Timeout = 0 }
+            $cases += New-Object PSObject -Property @{ Name = 'commit-flat'; Args = "$standard $htail -repeatmission 2"; Expect = @{ Class = 'Pass'; SameDigests = 3; CommitFlat = 1048576; LogRx = (@('OPENSWBF2 REPEAT to_shell', 'OPENSWBF2 REPEAT to_mission') + $hrx) }; Twice = 0; Timeout = 450 }
+            if ($script:SmokeDigestConfiguration -eq 'Test') {
+                $mvTail = (($htail -replace '(^| )-norender(?= )', '') -replace '(^| )-nosound(?= )', '') -replace '^\s+', ''
+                $cases += New-Object PSObject -Property @{ Name = 'campaign-movies'; Args = "nab2g_c $mvTail -win -exitonmovieclose"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 MOVIE open', 'OPENSWBF2 MOVIE close', 'OPENSWBF2 MISSION RUNNING nab2g_c', 'OPENSWBF2 MEMREPORT source=exit', 'OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0') + $hrx) }; Twice = 0; Timeout = 120 }
+            }
             $cases += New-Object PSObject -Property @{ Name = 'repeat-digest'; Args = "$standard $htail -repeatmission"; Expect = @{ Class = 'Pass'; SameDigests = 2; LogRx = (@('OPENSWBF2 REPEAT to_shell', 'OPENSWBF2 REPEAT to_mission') + $scanRx + $hrx) }; Twice = 0; Timeout = 300 }
         }
     }
@@ -551,6 +565,12 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
             Name = 'crash-heapfail'
             Args = "$standard $tail -crashtest heapfail"
             Expect = @{ Class = 'Pass'; LogRx = 'alloc failure heap \S+ \(\d+\) size \d+ free \d+ load \d+% phys \d+ MB virt \d+ MB used \d+ cap \d+ peak \d+ largestfree \d+' }
+            Twice = 0; Timeout = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-midoublefree'
+            Args = "$standard $tail -crashtest midoublefree"
+            Expect = @{ Class = 'Fatal'; Code = 3; MinDumps = 1; MaxDumps = 1; LogRx = @('OPENSWBF2 MIERROR err=11', 'FATAL: '); ErrorRx = @('OPENSWBF2 MIERROR err=11') }
             Twice = 0; Timeout = 0
         }
         $cases += New-Object PSObject -Property @{
@@ -817,6 +837,17 @@ function Test-SameDigests($lines, [int]$count) {
     return $true
 }
 
+function Test-CommitFlat([string]$logText, [long]$bound) {
+    $rows = @([regex]::Matches($logText, 'OPENSWBF2 COMMIT state=(\w+) bytes=(\d+)') | ForEach-Object { ,@($_.Groups[1].Value, [long]$_.Groups[2].Value) })
+    $states = @($rows | ForEach-Object { $_[0] }) -join ','
+    if ($rows.Count -ne 5 -or $states -cne 'mission,shell,mission,shell,mission') { return "expected states mission,shell,mission,shell,mission, got '$states'" }
+    $dm = $rows[4][1] - $rows[2][1]
+    $ds = $rows[3][1] - $rows[1][1]
+    if ($dm -gt $bound) { return "m3 - m2 = $dm is above $bound" }
+    if ($ds -gt $bound) { return "s2 - s1 = $ds is above $bound" }
+    return $null
+}
+
 function Get-PerturbProofMissing($case, [string]$logText) {
     $miss = @()
     foreach ($rx in @($case.Expect.LogRx)) { if ($logText -cnotmatch $rx) { $miss += $rx } }
@@ -840,6 +871,26 @@ function Add-SimOrderExpect($cases, [string]$mode) {
         elseif ($ties) {
             $l = $l + @('(?s)\A(?!.*OPENSWBF2 COLLISION serialties=[1-9])')
             if ($x.Class -eq 'Pass') { $l = $l + @('(?m)OPENSWBF2 COLLISION serialties=0\r?$') }
+        }
+        $x.LogRx = $l
+        $c.Expect = $x
+    }
+    return $cases
+}
+
+function Add-AllocatorExpect($cases, [string]$allocator, [int]$miPurge) {
+    if ($allocator -eq 'arena') { $cases = @($cases | Where-Object { $script:SmokeArenaExcluded -notcontains $_.Name }) }
+    $purge = if ($miPurge -ge 0) { $miPurge } else { 1000 }
+    foreach ($c in $cases) {
+        if ($c.Expect.Class -notin 'Pass', 'TimeOut') { continue }
+        $x = $c.Expect.Clone()
+        $l = @()
+        if ($x.ContainsKey('LogRx')) { $l = @($x.LogRx) }
+        if ($allocator -eq 'arena') {
+            $l = $l + @('(?s)\A(?!.*OPENSWBF2 MIOPTIONS)')
+        }
+        else {
+            $l = $l + @("OPENSWBF2 MIOPTIONS purge_delay=$purge retry_on_oom=0 arena_reserve=67108864 arena_eager_commit=0 reserve_os_memory=0 page_full_retain=-1", '(?s)\A(?!.*-allocator needs)')
         }
         $x.LogRx = $l
         $c.Expect = $x

@@ -80,9 +80,11 @@ TEST_CASE("pointer order sites use the unsigned helpers" * doctest::test_suite("
     std::string sThread;
     std::string sCollision;
     std::string sMemory;
+    std::string sMi;
     if (!ReadSource("../src/Battlefront2/Source/Thread.cpp", sThread) ||
         !ReadSource("../src/Battlefront2/Source/CollisionManager.cpp", sCollision) ||
-        !ReadSource("../src/RedEngineFL/Memory/RedMemoryArena.cpp", sMemory))
+        !ReadSource("../src/RedEngineFL/Memory/RedMemoryArena.cpp", sMemory) ||
+        !ReadSource("../src/RedEngineFL/Memory/RedMemoryMi.cpp", sMi))
     {
         SkipCase("source files not found");
     }
@@ -93,6 +95,7 @@ TEST_CASE("pointer order sites use the unsigned helpers" * doctest::test_suite("
     CHECK(sCollision.find("PblPtrAfter(pOther, pObject)") != std::string::npos);
     CHECK(sMemory.find("0x70000000") == std::string::npos);
     CHECK(sMemory.find("if (sRecursionDepth <= 0)") != std::string::npos);
+    CHECK(sMi.find("0x70000000") == std::string::npos);
 }
 
 TEST_CASE("ptr order key is width agnostic" * doctest::test_suite("unit"))
