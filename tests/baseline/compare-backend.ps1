@@ -1,5 +1,6 @@
 param(
     [Parameter(Mandatory)][string]$Tables,
+    [Parameter(Mandatory)][string]$ArenaTables,
     [string]$Baseline
 )
 
@@ -24,6 +25,44 @@ function Get-SlackBound([string]$heap) {
         'Runtime' { return 496 }
         default { return 0 }
     }
+}
+
+function Read-PeakRows([string]$dir) {
+    $rows = @{}
+    foreach ($r in (Read-Rows $dir 'mem-peaks.txt')) { $rows[($r[0..3] -join "`t")] = $r }
+    return $rows
+}
+
+function Select-LuaRows($rows, [bool]$wantLua) {
+    $out = @{}
+    foreach ($k in $rows.Keys) {
+        if (($rows[$k][3] -cmatch '^Lua\d*$') -eq $wantLua) { $out[$k] = $rows[$k] }
+    }
+    return $out
+}
+
+function Compare-PeakRows($peakBase, $peakNew) {
+    $bad = @()
+    foreach ($k in $peakBase.Keys) { if (-not $peakNew.ContainsKey($k)) { $bad += "$k missing from tables" } }
+    foreach ($k in $peakNew.Keys) { if (-not $peakBase.ContainsKey($k)) { $bad += "$k not in baseline" } }
+    foreach ($k in ($peakBase.Keys | Sort-Object)) {
+        if (-not $peakNew.ContainsKey($k)) { continue }
+        $b = $peakBase[$k]
+        $t = $peakNew[$k]
+        if ($b[2] -ceq 'heap') {
+            $bound = Get-SlackBound $b[3]
+            $why = $null
+            if ($t[4] -cne $b[4] -or $t[5] -cne $b[5] -or $t[8] -cne $b[8] -or $t[9] -cne $b[9]) { $why = 'cap/size/allocs/failed differ' }
+            else {
+                $dPeak = [long]$b[6] - [long]$t[6]
+                $dUsed = [long]$b[7] - [long]$t[7]
+                if ($dPeak -lt 0 -or $dUsed -lt 0 -or $dUsed -gt $bound) { $why = "peak gap $dPeak used gap $dUsed used bound $bound" }
+            }
+            if ($why) { $bad += "$k $why tables '$($t[4..9] -join ' ')' baseline '$($b[4..9] -join ' ')'" }
+        }
+        elseif (($t -join "`t") -cne ($b -join "`t")) { $bad += "$k tables '$($t[4..9] -join ' ')' baseline '$($b[4..9] -join ' ')'" }
+    }
+    return $bad
 }
 
 $fail = 0
@@ -57,36 +96,24 @@ if ($bad.Count) {
 }
 else { Write-Host "[PASS] backend:cloth missions=$($clothBase.Count)" }
 
-$peakBase = @{}
-foreach ($r in (Read-Rows $Baseline 'mem-peaks.txt')) { $peakBase[($r[0..3] -join "`t")] = $r }
-$peakNew = @{}
-foreach ($r in (Read-Rows $Tables 'mem-peaks.txt')) { $peakNew[($r[0..3] -join "`t")] = $r }
-$bad = @()
-foreach ($k in $peakBase.Keys) { if (-not $peakNew.ContainsKey($k)) { $bad += "$k missing from tables" } }
-foreach ($k in $peakNew.Keys) { if (-not $peakBase.ContainsKey($k)) { $bad += "$k not in baseline" } }
-foreach ($k in ($peakBase.Keys | Sort-Object)) {
-    if (-not $peakNew.ContainsKey($k)) { continue }
-    $b = $peakBase[$k]
-    $t = $peakNew[$k]
-    if ($b[2] -ceq 'heap') {
-        $bound = Get-SlackBound $b[3]
-        $why = $null
-        if ($t[4] -cne $b[4] -or $t[5] -cne $b[5] -or $t[8] -cne $b[8] -or $t[9] -cne $b[9]) { $why = 'cap/size/allocs/failed differ' }
-        else {
-            $dPeak = [long]$b[6] - [long]$t[6]
-            $dUsed = [long]$b[7] - [long]$t[7]
-            if ($dPeak -lt 0 -or $dUsed -lt 0 -or $dUsed -gt $bound) { $why = "peak gap $dPeak used gap $dUsed used bound $bound" }
-        }
-        if ($why) { $bad += "$k $why tables '$($t[4..9] -join ' ')' baseline '$($b[4..9] -join ' ')'" }
-    }
-    elseif (($t -join "`t") -cne ($b -join "`t")) { $bad += "$k tables '$($t[4..9] -join ' ')' baseline '$($b[4..9] -join ' ')'" }
-}
+$peakTables = Read-PeakRows $Tables
+$peakBase = Select-LuaRows (Read-PeakRows $Baseline) $false
+$bad = @(Compare-PeakRows $peakBase (Select-LuaRows $peakTables $false))
 if ($bad.Count) {
     $fail++
     Write-Host "[FAIL] backend:mem-peaks rows=$($peakBase.Count)"
     foreach ($l in $bad) { Write-Host "    $l" }
 }
 else { Write-Host "[PASS] backend:mem-peaks rows=$($peakBase.Count)" }
+
+$peakArena = Select-LuaRows (Read-PeakRows $ArenaTables) $true
+$bad = @(Compare-PeakRows $peakArena (Select-LuaRows $peakTables $true))
+if ($bad.Count) {
+    $fail++
+    Write-Host "[FAIL] backend:mem-peaks-lua rows=$($peakArena.Count)"
+    foreach ($l in $bad) { Write-Host "    $l" }
+}
+else { Write-Host "[PASS] backend:mem-peaks-lua rows=$($peakArena.Count)" }
 
 $digBase = @{}
 foreach ($r in (Read-Rows $Baseline 'smoke-all-digests.txt')) { $digBase[$r[0]] = $r -join "`t" }

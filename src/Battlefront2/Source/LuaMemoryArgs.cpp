@@ -161,6 +161,28 @@ void StealArtistHeap(lua_State* L, int iArtistHeap)
         uApplied);
 }
 
+void SetHeapCap(lua_State* L)
+{
+    const char* pcName = luaL_checklstring(L, 1, 0);
+    int iBytes = ReadScriptInt(L, 2);
+    if (!RedHeapCapWindowOpen())
+    {
+        LOG(LogMemory, Warning, "SetHeapCap(%s): rejected after PostLoad", pcName);
+        return;
+    }
+    const int iHeap = RedHeapCapSlot(pcName);
+    if (iHeap < 0)
+    {
+        LOG(LogMemory, Warning, "SetHeapCap(%s): no such live heap", pcName);
+        return;
+    }
+    const unsigned int uBytes = RedScriptLimits::ClampScriptSize(RedScriptLimits::kSetHeapCap, pcName, iBytes, 1);
+    if (iBytes >= 0)
+    {
+        RedRaiseHeapCap(iHeap, uBytes);
+    }
+}
+
 void AddWalkerType(lua_State* L, MemoryPool* pWalker, MemoryPool* pLegPair, MemoryPool* pBlend,
                    MemoryPool* pBlendUnit, MemoryPool* pDroideka)
 {

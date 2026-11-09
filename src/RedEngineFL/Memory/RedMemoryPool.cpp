@@ -1,7 +1,5 @@
-#include <string.h>
-#ifdef OPENSWBF2_TEST
 #include <stdlib.h>
-#endif
+#include <string.h>
 
 #include "RedMemoryPool.h"
 #include "RedMemory.h"
@@ -50,6 +48,20 @@ static PBL_ASAN_NO_SANITIZE void* PerturbShuffleChunk(void* pChunk, unsigned int
 }
 #endif
 
+MemoryPool::GrowthChunk* MemoryPool::sChunkRecords;
+
+static void ForgetChunkRecord(MemoryPool::GrowthChunk* pRecord)
+{
+    for (MemoryPool::GrowthChunk** ppNode = &MemoryPool::sChunkRecords; *ppNode != 0; ppNode = &(*ppNode)->pAllNext)
+    {
+        if (*ppNode == pRecord)
+        {
+            *ppNode = pRecord->pAllNext;
+            return;
+        }
+    }
+}
+
 // FUNCTION: SWBF2 0x006dc640
 PblList<MemoryPool>* GetMemoryPoolList()
 {
@@ -64,6 +76,7 @@ MemoryPool::MemoryPool(char const* pcLabel, int iSize)
     mPoolOwner = true;
     mSize = ((unsigned int)iSize + 3) & ~3u;
     mGrow = 0;
+    mChunks = 0;
     Reset();
     ClearStats();
     strncpy(mLabel, pcLabel, sizeof(mLabel) - 1);
@@ -112,6 +125,7 @@ void MemoryPool::Create(unsigned int uiCount, unsigned int uiSize, unsigned int 
         return;
     }
     mPool = pChunk;
+    mFirstCount = mCount;
 
     unsigned int i;
     for (i = 0; i < mCount - 1; ++i)
@@ -160,6 +174,23 @@ PBL_ASAN_NO_SANITIZE void* MemoryPool::Allocate(unsigned int uiSize)
             return 0;
         }
 
+        if (mPool != 0)
+        {
+            GrowthChunk* pRecord = (GrowthChunk*)malloc(sizeof(GrowthChunk));
+            if (pRecord == 0)
+            {
+                RedFreeToHeap(__RedCurrHeap, mFree, 0);
+                mFree = 0;
+                return 0;
+            }
+            pRecord->pNext = mChunks;
+            pRecord->pChunk = mFree;
+            pRecord->uCount = mGrow;
+            pRecord->pAllNext = sChunkRecords;
+            sChunkRecords = pRecord;
+            mChunks = pRecord;
+        }
+
         mCount += mGrow;
         ++mGrown;
         unsigned int i;
@@ -173,6 +204,7 @@ PBL_ASAN_NO_SANITIZE void* MemoryPool::Allocate(unsigned int uiSize)
         if (mPool == 0)
         {
             mPool = mFree;
+            mFirstCount = mGrow;
         }
 #ifdef OPENSWBF2_TEST
         mFree = PerturbShuffleChunk(mFree, mGrow, mSize);
@@ -198,16 +230,63 @@ PBL_ASAN_NO_SANITIZE void* MemoryPool::Allocate(unsigned int uiSize)
     return pBlock;
 }
 
-PBL_ASAN_NO_SANITIZE bool MemoryPool::IsFreeBlock(const void* pBlock) const
+PBL_ASAN_NO_SANITIZE void MemoryPool::SortFreeList()
 {
-    for (const char* pcNode = (const char*)mFree; pcNode != 0; pcNode = *(const char* const*)pcNode)
+    for (unsigned int uWidth = 1; ; uWidth *= 2)
     {
-        if (pcNode == pBlock)
+        char* pcTail = 0;
+        char* pcRest = (char*)mFree;
+        char* pcHead = 0;
+        unsigned int uMerges = 0;
+        while (pcRest != 0)
         {
-            return true;
+            ++uMerges;
+            char* pcA = pcRest;
+            char* pcB = pcRest;
+            unsigned int uA = 0;
+            while (uA < uWidth && pcB != 0)
+            {
+                ++uA;
+                pcB = *(char**)pcB;
+            }
+            unsigned int uB = uWidth;
+            while (uA > 0 || (uB > 0 && pcB != 0))
+            {
+                char* pcTake;
+                if (uA == 0 || (uB > 0 && pcB != 0 && pcB < pcA))
+                {
+                    pcTake = pcB;
+                    pcB = *(char**)pcB;
+                    --uB;
+                }
+                else
+                {
+                    pcTake = pcA;
+                    pcA = *(char**)pcA;
+                    --uA;
+                }
+                if (pcTail != 0)
+                {
+                    *(char**)pcTail = pcTake;
+                }
+                else
+                {
+                    pcHead = pcTake;
+                }
+                pcTail = pcTake;
+            }
+            pcRest = pcB;
+        }
+        if (pcTail != 0)
+        {
+            *(char**)pcTail = 0;
+        }
+        mFree = pcHead;
+        if (uMerges <= 1)
+        {
+            return;
         }
     }
-    return false;
 }
 
 PBL_ASAN_NO_SANITIZE void* MemoryPool::AllocateAt(void* pBlock, unsigned int uiSize)
@@ -257,46 +336,38 @@ PBL_ASAN_NO_SANITIZE void* MemoryPool::AllocateRun(unsigned int uiCount, unsigne
         return 0;
     }
     char* pcBest = 0;
-    char* pcRun = 0;
-    char* pcLast = 0;
-    unsigned int uiRun = 0;
-    bool bSorted = true;
-    for (char* pcNode = (char*)mFree; pcNode != 0; pcLast = pcNode, pcNode = *(char**)pcNode)
+    bool bSorted = false;
+    for (int iPass = 0; iPass < 2 && !bSorted; ++iPass)
     {
-        if (pcLast != 0 && pcNode <= pcLast)
+        if (iPass != 0)
         {
-            bSorted = false;
-            break;
+            SortFreeList();
         }
-        if (pcLast != 0 && pcNode == pcLast + mSize)
+        pcBest = 0;
+        char* pcRun = 0;
+        char* pcLast = 0;
+        unsigned int uiRun = 0;
+        bSorted = true;
+        for (char* pcNode = (char*)mFree; pcNode != 0; pcLast = pcNode, pcNode = *(char**)pcNode)
         {
-            ++uiRun;
-        }
-        else
-        {
-            pcRun = pcNode;
-            uiRun = 1;
-        }
-        if (uiRun == uiCount)
-        {
-            pcBest = pcRun;
-            break;
-        }
-    }
-    for (char* pcNode = bSorted ? 0 : (char*)mFree; pcNode != 0; pcNode = *(char**)pcNode)
-    {
-        if (pcBest != 0 && pcNode >= pcBest)
-        {
-            continue;
-        }
-        unsigned int i = 1;
-        while (i < uiCount && IsFreeBlock(pcNode + i * mSize))
-        {
-            ++i;
-        }
-        if (i == uiCount)
-        {
-            pcBest = pcNode;
+            if (pcLast != 0 && pcNode <= pcLast)
+            {
+                bSorted = false;
+                break;
+            }
+            if (pcLast != 0 && pcNode == pcLast + mSize)
+            {
+                ++uiRun;
+            }
+            else
+            {
+                pcRun = pcNode;
+                uiRun = 1;
+            }
+            if (uiRun == uiCount && pcBest == 0)
+            {
+                pcBest = pcRun;
+            }
         }
     }
     if (pcBest == 0)
@@ -342,34 +413,28 @@ PBL_ASAN_NO_SANITIZE void MemoryPool::Free(void* pBlock)
         return;
     }
 
-    char* pcBlock = (char*)pBlock;
-    char* pcNode = (char*)mFree;
-#ifdef OPENSWBF2_TEST
-    if (pcNode == 0 || pcBlock <= pcNode || (RedPerturbModes() & kRedPerturbPool) != 0)
-#else
-    if (pcNode == 0 || pcBlock <= pcNode)
-#endif
-    {
-        *(void**)pBlock = mFree;
-        --mUsed;
-        mFree = pBlock;
-        PblAsanPoison(pBlock, mSize);
-        return;
-    }
-
-    while (*(char**)pcNode != 0 && pcBlock > *(char**)pcNode)
-    {
-        pcNode = *(char**)pcNode;
-    }
-    *(void**)pBlock = *(void**)pcNode;
-    *(void**)pcNode = pBlock;
+    *(void**)pBlock = mFree;
     --mUsed;
+    mFree = pBlock;
     PblAsanPoison(pBlock, mSize);
 }
 
 // FUNCTION: SWBF2 0x006dc6a0
 void MemoryPool::Reset()
 {
+    if (mPoolOwner)
+    {
+        GrowthChunk* pNode = mChunks;
+        while (pNode != 0)
+        {
+            GrowthChunk* pNext = pNode->pNext;
+            ForgetChunkRecord(pNode);
+            free(pNode);
+            pNode = pNext;
+        }
+    }
+    mChunks = 0;
+    mFirstCount = 0;
     mCount = 0;
     mUsed = 0;
     mHeap = -1;
@@ -403,7 +468,7 @@ MemoryPool::~MemoryPool()
     GetMemoryPoolList()->Remove(&mNode);
     if (mPool != 0 && mPoolOwner)
     {
-        RedFreeToHeap(__RedCurrHeap, mPool, 0);
+        FreeChunks();
     }
     Reset();
 }
@@ -425,9 +490,18 @@ void MemoryPool::Destroy()
 {
     if (mPool != 0 && mPoolOwner)
     {
-        RedFreeToHeap(__RedCurrHeap, mPool, 0);
+        FreeChunks();
     }
     Reset();
+}
+
+void MemoryPool::FreeChunks()
+{
+    for (GrowthChunk* pNode = mChunks; pNode != 0; pNode = pNode->pNext)
+    {
+        RedFreeToHeap(__RedCurrHeap, pNode->pChunk, 0);
+    }
+    RedFreeToHeap(__RedCurrHeap, mPool, 0);
 }
 
 // FUNCTION: SWBF2 0x006dc560
@@ -440,6 +514,12 @@ void MemoryPool::DestroyAll()
             itor->Destroy();
         }
         itor->ClearStats();
+    }
+    while (sChunkRecords != 0)
+    {
+        GrowthChunk* pRecord = sChunkRecords;
+        sChunkRecords = pRecord->pAllNext;
+        free(pRecord);
     }
     sErrorOnExpansion = false;
     sErrorOnExpansionPostLoad = false;
@@ -478,6 +558,8 @@ void MemoryPool::Set(MemoryPool const& rPool)
     mHeap = rPool.mHeap;
     mPool = rPool.mPool;
     mFree = rPool.mFree;
+    mChunks = rPool.mChunks;
+    mFirstCount = rPool.mFirstCount;
     mPeak = rPool.mPeak;
     mGrown = rPool.mGrown;
     mFullReported = rPool.mFullReported;

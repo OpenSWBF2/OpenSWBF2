@@ -213,7 +213,7 @@ try {
     $script:SmokeDigestConfiguration = $exclCfg
     $excl = @($script:SmokeAsanExcluded)
     $missing = @($excl | Where-Object { $allNames -notcontains $_ })
-    if ($excl.Count -ne 16 -or $missing.Count -gt 0) { $failed++; Write-Host "FAILED ${n}: asan exclusions: count $($excl.Count), unknown '$($missing -join ', ')'" }
+    if ($excl.Count -ne 17 -or $missing.Count -gt 0) { $failed++; Write-Host "FAILED ${n}: asan exclusions: count $($excl.Count), unknown '$($missing -join ', ')'" }
     else { Write-Host "OK $n asan exclusions name real smoke cases" }
 }
 finally {
@@ -543,7 +543,7 @@ elseif ('FATAL: exception 0xC0000005 at 0x658FA553 (d3dx9_43.dll+0x1BA553) build
 elseif ($byName['bar1c_con'].Expect.Class -ne 'Pass' -or $byName['quux1c_con'].Expect.Class -ne 'Pass') { $why = 'missing or Pass class must be Pass' }
 elseif ($byName['foo2c_con'].Expect.Class -ne 'Pass' -or $byName['foo2c_con'].Timeout -ne 240 -or $byName['bar1c_con'].Timeout -ne 0 -or $byName['quux1c_con'].Timeout -ne 0) { $why = 'third token must set the case timeout' }
 elseif ($rejected -ne 5) { $why = 'unknown classes, GsFailure, non-integer timeouts and Pass flag or assault lines without a digest row must be rejected' }
-elseif (@($allCases | Where-Object { $_.Name -like 'crash-*' }).Count -ne 41 -or -not $byName.ContainsKey('fatal-init') -or $byName['dedicated'].Timeout -ne 0) { $why = 'dedicated or crash cases changed' }
+elseif (@($allCases | Where-Object { $_.Name -like 'crash-*' }).Count -ne 42 -or -not $byName.ContainsKey('fatal-init') -or $byName['dedicated'].Timeout -ne 0) { $why = 'dedicated or crash cases changed' }
 if ($why) { $failed++; Write-Host "FAILED ${n}: all-missions parsing: $why" }
 else { Write-Host "OK $n all-missions parsing" }
 $n++
@@ -960,6 +960,30 @@ finally {
     Remove-Item -Recurse -Force $digTmp -ErrorAction SilentlyContinue
 }
 $n++
+$srTmp = Join-Path $env:TEMP ("openswbf2-samerun-" + [guid]::NewGuid().ToString('N'))
+try {
+    $srCase = Join-Path $srTmp 'case'
+    $srRef = Join-Path $srTmp 'ref'
+    New-Item -ItemType Directory -Force -Path $srCase, $srRef | Out-Null
+    $srWrite = {
+        param($dir, $state, $free)
+        [IO.File]::WriteAllText((Join-Path $dir 'run.log'), "[t=1.000] [f=1] OPENSWBF2 SIM DIGEST turns=1 state=$state`r`n[t=1.000] [f=1] OPENSWBF2 CLOTH free=$free enabled=1 low=131072 high=262144`r`n")
+    }
+    & $srWrite $srCase '0xA' 100
+    & $srWrite $srRef '0xA' 100
+    $srEqual = Test-SameRunAs $srCase $srRef
+    & $srWrite $srRef '0xA' 101
+    $srCloth = Test-SameRunAs $srCase $srRef
+    & $srWrite $srRef '0xB' 100
+    $srDigest = Test-SameRunAs $srCase $srRef
+    $srMissing = Test-SameRunAs $srCase (Join-Path $srTmp 'absent')
+    if ($srEqual -or $srCloth -cnotmatch 'CLOTH' -or $srDigest -cnotmatch 'digest' -or $srMissing -cnotmatch 'reference') { $failed++; Write-Host "FAILED ${n}: same run compare: equal='$srEqual' cloth='$srCloth' digest='$srDigest' missing='$srMissing'" }
+    else { Write-Host "OK $n same run compare fails on a CLOTH, digest or missing reference difference" }
+}
+finally {
+    Remove-Item -Recurse -Force $srTmp -ErrorAction SilentlyContinue
+}
+$n++
 $allLines = @(Get-Content (Join-Path $PSScriptRoot 'smoke\missions-all.txt') | Where-Object { $_.Trim() })
 $parAll = @{}
 foreach ($c in @(Get-SmokeCases 'All' $allLines $false $null)) { $parAll[$c.Name] = $c }
@@ -1366,18 +1390,49 @@ try {
     [IO.File]::WriteAllLines((Join-Path $cbGood 'cloth-headroom.txt'), $cbRows)
     [IO.File]::WriteAllLines((Join-Path $cbBad 'cloth-headroom.txt'), $cbHigh)
     [IO.File]::WriteAllLines((Join-Path $cbUsed 'cloth-headroom.txt'), $cbRows)
-    $cbOutGood = (& powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Tables $cbGood 2>&1 | Out-String)
+    $cbLuaTables = Join-Path $cbTmp 'luatables'
+    $cbLuaArena = Join-Path $cbTmp 'luaarena'
+    foreach ($d in $cbLuaTables, $cbLuaArena) { New-Item -ItemType Directory -Force -Path $d | Out-Null }
+    Copy-Item -LiteralPath (Join-Path $cbBase 'smoke-all-digests.txt') -Destination $cbLuaTables
+    [IO.File]::WriteAllLines((Join-Path $cbLuaTables 'cloth-headroom.txt'), $cbRows)
+    $cbLuaPeaks = @($cbPeaks)
+    $cbLuaHeap = $false
+    $cbLuaPool = $false
+    for ($i = 0; $i -lt $cbLuaPeaks.Count; $i++) {
+        if (-not $cbLuaHeap -and $cbLuaPeaks[$i] -match "^[^`t]+`t[^`t]+`theap`tLua`t") {
+            $f = $cbLuaPeaks[$i] -split "`t"
+            $f[8] = [string]([long]$f[8] + 7)
+            $cbLuaPeaks[$i] = $f -join "`t"
+            $cbLuaHeap = $true
+        }
+        elseif (-not $cbLuaPool -and $cbLuaPeaks[$i] -match "^[^`t]+`t[^`t]+`tpool`tLua8`t") {
+            $f = $cbLuaPeaks[$i] -split "`t"
+            $f[4] = [string]([long]$f[4] + 11)
+            $cbLuaPeaks[$i] = $f -join "`t"
+            $cbLuaPool = $true
+        }
+    }
+    [IO.File]::WriteAllLines((Join-Path $cbLuaTables 'mem-peaks.txt'), $cbLuaPeaks)
+    [IO.File]::WriteAllLines((Join-Path $cbLuaArena 'mem-peaks.txt'), $cbLuaPeaks)
+    $cbOutGood = (& powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Tables $cbGood -ArenaTables $cbBase 2>&1 | Out-String)
     $cbCodeGood = $LASTEXITCODE
-    $cbOutBad = (& powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Tables $cbBad 2>&1 | Out-String)
+    $cbOutBad = (& powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Tables $cbBad -ArenaTables $cbBase 2>&1 | Out-String)
     $cbCodeBad = $LASTEXITCODE
-    $cbOutUsed = (& powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Tables $cbUsed 2>&1 | Out-String)
+    $cbOutUsed = (& powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Tables $cbUsed -ArenaTables $cbBase 2>&1 | Out-String)
     $cbCodeUsed = $LASTEXITCODE
+    $cbOutLuaBoth = (& powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Tables $cbLuaTables -ArenaTables $cbLuaArena 2>&1 | Out-String)
+    $cbCodeLuaBoth = $LASTEXITCODE
+    $cbOutLuaOne = (& powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Tables $cbLuaTables -ArenaTables $cbBase 2>&1 | Out-String)
+    $cbCodeLuaOne = $LASTEXITCODE
     $cbWhy = $null
     if ($cbCodeUsed -ne 1 -or $cbOutUsed -notmatch 'FAIL. backend:mem-peaks' -or $cbOutUsed -notmatch 'used gap 512 used bound 496') { $cbWhy = "used gap past the slack gave exit $cbCodeUsed" }
     elseif ($cbCodeGood -ne 0 -or $cbOutGood -notmatch '\[PASS\] backend:cloth missions=109') { $cbWhy = "slack-raised tables gave exit $cbCodeGood" }
     elseif ($cbCodeBad -ne 1 -or $cbOutBad -notmatch '\[FAIL\] backend:cloth' -or $cbOutBad -notmatch '\[PASS\] backend:mem-peaks') { $cbWhy = "changed high gave exit $cbCodeBad" }
+    elseif (-not $cbLuaHeap -or -not $cbLuaPool) { $cbWhy = "fixture found no Lua heap or Lua8 pool row" }
+    elseif ($cbCodeLuaBoth -ne 0 -or $cbOutLuaBoth -notmatch '\[PASS\] backend:mem-peaks rows=' -or $cbOutLuaBoth -notmatch '\[PASS\] backend:mem-peaks-lua rows=') { $cbWhy = "Lua rows changed on both backends gave exit $cbCodeLuaBoth" }
+    elseif ($cbCodeLuaOne -ne 1 -or $cbOutLuaOne -notmatch '\[FAIL\] backend:mem-peaks-lua' -or $cbOutLuaOne -notmatch '\[PASS\] backend:mem-peaks rows=') { $cbWhy = "Lua rows changed on one backend gave exit $cbCodeLuaOne" }
     if ($cbWhy) { $failed++; Write-Host "FAILED ${n}: compare-backend: $cbWhy" }
-    else { Write-Host "OK $n compare-backend passes slack-raised CLOTH free and a lower peak, fails a changed high and a used gap past the slack" }
+    else { Write-Host "OK $n compare-backend passes slack-raised CLOTH free and a lower peak, fails a changed high and a used gap past the slack, ignores Lua rows against the archive and compares them between backends" }
     $n++
 }
 catch { $failed++; Write-Host "FAILED: compare-backend block threw: $_" }

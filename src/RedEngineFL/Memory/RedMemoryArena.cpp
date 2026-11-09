@@ -482,4 +482,5 @@ extern "C" const RedHeapBackend kRedArenaBackend = {
     RedArenaMoveHeapEnd,
     RedArenaVisit,
     RedArenaTrim,
+    0,
 };

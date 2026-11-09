@@ -78,6 +78,7 @@ int FillAsteroidPath(lua_State* L);
 int SetMaxCollisionDistance(lua_State* L);
 int SetParticleLODBias(lua_State* L);
 int SetMemoryPoolSize(lua_State* L);
+int SetHeapCap(lua_State* L);
 int ClearWalkers(lua_State* L);
 int AddWalkerType(lua_State* L);
 int SetAIVehicleNotifyRadius(lua_State* L);

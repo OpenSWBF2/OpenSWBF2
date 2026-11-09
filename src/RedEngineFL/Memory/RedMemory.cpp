@@ -4,6 +4,7 @@
 
 #include "RedMemory.h"
 #include "RedMemoryBackend.h"
+#include "RedScriptLimits.h"
 #include "RedEngineFL/Memory/engineAlloc.h"
 #include "PebbleFL/Common/PblHandle.h"
 #include "RedEngineFL/Util/RedLog.h"
@@ -409,13 +410,8 @@ void __cdecl operator delete[](void* block, size_t)
     }
 }
 
-static void* AllocFromSlot(int heap, size_t size, bool bTop)
+static unsigned int ReserveNeed(int heap, RedHeapSlot& rSlot, size_t size)
 {
-    if (heap < 0 || heap >= maxheaps)
-    {
-        return 0;
-    }
-    RedHeapSlot& rSlot = gRedHeapSlots[heap];
     const unsigned int uAlign = rSlot.align;
     const unsigned int uHdr = (uAlign + kRedTagBytes - 1) & ~(uAlign - 1);
     if (size > ~0u - (uAlign - 1 + uHdr))
@@ -450,18 +446,49 @@ static void* AllocFromSlot(int heap, size_t size, bool bTop)
         }
         lUsed = lSeen;
     }
+    return uNeed;
+}
+
+static void RollbackNeed(RedHeapSlot& rSlot, unsigned int uNeed)
+{
+    _InterlockedExchangeAdd(&rSlot.used, -(long)uNeed);
+    _InterlockedIncrement(&rSlot.failed);
+}
+
+static void* AllocFromSlot(int heap, size_t size, bool bTop)
+{
+    if (heap < 0 || heap >= maxheaps)
+    {
+        return 0;
+    }
+    RedHeapSlot& rSlot = gRedHeapSlots[heap];
+    const unsigned int uNeed = ReserveNeed(heap, rSlot, size);
+    if (uNeed == 0)
+    {
+        return 0;
+    }
     size_t uReserved = 0;
-    void* p = rSlot.pBackend->alloc(heap, uSize, bTop, &uReserved);
+    void* p = rSlot.pBackend->alloc(heap, size != 0 ? (unsigned int)size : 1, bTop, &uReserved);
     if (!p)
     {
-        _InterlockedExchangeAdd(&rSlot.used, -(long)uNeed);
-        _InterlockedIncrement(&rSlot.failed);
+        RollbackNeed(rSlot, uNeed);
         return 0;
     }
     HeapStatsAddUsed(heap, (long)uReserved - (long)uNeed);
     _InterlockedIncrement(&rSlot.allocs);
     return p;
 }
+
+#ifdef OPENSWBF2_TEST
+static void NoteOffThreadAlloc(int heap, size_t size)
+{
+    DWORD uiTid = GetCurrentThreadId();
+    if (sMainTid != 0 && uiTid != (DWORD)sMainTid)
+    {
+        RedNoteOffThread(heap, size, uiTid);
+    }
+}
+#endif
 
 // FUNCTION: SWBF2 0x006c38d0
 void* RedAllocFromHeap(int heap, size_t size, bool bTop)
@@ -490,11 +517,7 @@ void* RedAllocFromHeap(int heap, size_t size, bool bTop)
             memset(p, 0xA5, size);
         }
     }
-    DWORD uiTid = GetCurrentThreadId();
-    if (sMainTid != 0 && uiTid != (DWORD)sMainTid)
-    {
-        RedNoteOffThread(heap, size, uiTid);
-    }
+    NoteOffThreadAlloc(heap, size);
 #else
     void* p = AllocFromSlot(heap, size, bTop);
 #endif
@@ -507,6 +530,340 @@ void* RedAllocFromHeap(int heap, size_t size, bool bTop)
         return 0;
     }
     return p;
+}
+
+void* RedReallocInHeap(int heap, void* block, size_t oldSize, size_t size)
+{
+    const int iOwner = RedHeapOwner(block);
+    if (iOwner < 0 || gRedHeapSlots[iOwner].pBackend->realloc == 0)
+    {
+        void* pNew = RedAllocFromHeap(heap, size, false);
+        if (pNew)
+        {
+            memcpy(pNew, block, oldSize < size ? oldSize : size);
+            RedFreeToHeap(heap, block, 1);
+        }
+        return pNew;
+    }
+    RedHeapSlot& rSlot = gRedHeapSlots[iOwner];
+#ifdef OPENSWBF2_TEST
+    const unsigned int uiModes = sPerturbModes;
+    unsigned int uiPad = 0;
+    unsigned int uiDraw = 0;
+    if ((uiModes & kRedPerturbPad) != 0 && size <= 0xFFFFFF00u && RedPerturbDraw(kRedPerturbPad, &uiDraw))
+    {
+        uiPad = 4 + 4 * (uiDraw % 15);
+    }
+    const size_t uRequest = size + uiPad;
+    NoteOffThreadAlloc(iOwner, size);
+#else
+    const size_t uRequest = size;
+#endif
+    const unsigned int uNeed = ReserveNeed(iOwner, rSlot, uRequest);
+    if (uNeed == 0)
+    {
+        if (OnFailure)
+        {
+            OnFailure(iOwner, size);
+        }
+        return 0;
+    }
+    size_t uReserved = 0;
+    size_t uOldCharge = 0;
+    void* p = rSlot.pBackend->realloc(iOwner, block, oldSize, uRequest != 0 ? uRequest : 1, &uReserved, &uOldCharge);
+    if (!p)
+    {
+        RollbackNeed(rSlot, uNeed);
+        if (OnFailure)
+        {
+            OnFailure(iOwner, size);
+        }
+        return 0;
+    }
+    HeapStatsAddUsed(iOwner, (long)uReserved - (long)uNeed);
+    _InterlockedExchangeAdd(&rSlot.used, -(long)uOldCharge);
+    _InterlockedIncrement(&rSlot.allocs);
+#ifdef OPENSWBF2_TEST
+    if (uiPad != 0)
+    {
+        PblAsanPoison((char*)p + size, uiPad);
+    }
+    if ((uiModes & kRedPerturbFill) != 0 && size > oldSize)
+    {
+        memset((char*)p + oldSize, 0xA5, size - oldSize);
+    }
+#endif
+    return p;
+}
+
+struct HeapCapKnob
+{
+    const char* pcKnob;
+    const char* pcSlot;
+};
+
+static const HeapCapKnob skaHeapCapKnobs[] = {
+    { "Application", "Application" },
+    { "Gamespy", "Gamespy" },
+    { "Lua", "Lua" },
+    { "Artist", "Artist" },
+    { "Runtime", "Runtime" },
+    { "Temp", "Temp" },
+    { "Debug", "Debug" },
+    { "HUDEdit", "HUDEditHeap" },
+};
+static const int kHeapCapKnobs = sizeof(skaHeapCapKnobs) / sizeof(skaHeapCapKnobs[0]);
+static unsigned int suHeapCapNotes[kHeapCapKnobs];
+static bool sabHeapCapWarned[kHeapCapKnobs];
+static bool sbHeapCapWindow;
+
+static int FindHeapCapKnob(const char* pcName, int iLen)
+{
+    for (int k = 0; k < kHeapCapKnobs; ++k)
+    {
+        if ((int)strlen(skaHeapCapKnobs[k].pcKnob) == iLen && _strnicmp(pcName, skaHeapCapKnobs[k].pcKnob, iLen) == 0)
+        {
+            return k;
+        }
+    }
+    return -1;
+}
+
+static int HeapCapSlotKnob(const RedHeapSlot& rSlot)
+{
+    for (int k = 0; rSlot.name != 0 && k < kHeapCapKnobs; ++k)
+    {
+        if (strcmp(rSlot.name, skaHeapCapKnobs[k].pcSlot) == 0)
+        {
+            return k;
+        }
+    }
+    return -1;
+}
+
+static unsigned int HeapCapNote(const RedHeapSlot& rSlot)
+{
+    const int iKnob = HeapCapSlotKnob(rSlot);
+    return iKnob >= 0 ? suHeapCapNotes[iKnob] : 0;
+}
+
+static bool TakeHeapCapWarning(const RedHeapSlot& rSlot, bool bScript)
+{
+    const int iKnob = HeapCapSlotKnob(rSlot);
+    if (bScript || iKnob < 0)
+    {
+        return true;
+    }
+    const bool bDue = !sabHeapCapWarned[iKnob];
+    sabHeapCapWarned[iKnob] = true;
+    return bDue;
+}
+
+static unsigned long long HeapCapsTotal(int iSkip)
+{
+    unsigned long long ullTotal = 0;
+    for (int i = 0; i < maxheaps; ++i)
+    {
+        if (i != iSkip && gRedHeapSlots[i].bLive)
+        {
+            ullTotal += gRedHeapSlots[i].cap;
+        }
+    }
+    return ullTotal;
+}
+
+static void SetSlotCap(RedHeapSlot& rSlot, unsigned int uTarget)
+{
+    const unsigned int uUsed = (unsigned int)rSlot.used;
+    if (uTarget <= uUsed && uTarget < rSlot.cap)
+    {
+        if (TakeHeapCapWarning(rSlot, false))
+        {
+            LOG(LogMemory, Warning, "heap cap for %s stays at %u, target %u is below used %u", rSlot.name, rSlot.cap,
+                uTarget, uUsed);
+        }
+        return;
+    }
+    rSlot.cap = uTarget;
+}
+
+static void RaiseHeapCap(int heap, unsigned int uBytes, bool bScript)
+{
+    if (heap < 0 || heap >= maxheaps || !gRedHeapSlots[heap].bLive)
+    {
+        return;
+    }
+    RedHeapSlot& rSlot = gRedHeapSlots[heap];
+    const unsigned long long ullOthers = HeapCapsTotal(heap);
+    const unsigned int uAvail =
+        ullOthers < RedScriptLimits::kHeapCapTotalMax ? RedScriptLimits::kHeapCapTotalMax - (unsigned int)ullOthers : 0;
+    const unsigned int uFit = uBytes < uAvail ? uBytes : uAvail;
+    if (uFit < rSlot.defaultCap)
+    {
+        if (TakeHeapCapWarning(rSlot, bScript))
+        {
+            LOG(LogMemory, Warning, "heap cap for %s stays at %u, request %u is below the default", rSlot.name,
+                rSlot.cap, uFit);
+        }
+        return;
+    }
+    if (uFit < rSlot.cap)
+    {
+        if (TakeHeapCapWarning(rSlot, bScript))
+        {
+            LOG(LogMemory, Warning, "heap cap for %s stays at %u, request %u is below it", rSlot.name, rSlot.cap, uFit);
+        }
+        return;
+    }
+    SetSlotCap(rSlot, uFit);
+    const int iKnob = HeapCapSlotKnob(rSlot);
+    if (bScript && iKnob >= 0)
+    {
+        sabHeapCapWarned[iKnob] = false;
+    }
+    if (uFit < uBytes && TakeHeapCapWarning(rSlot, bScript))
+    {
+        LOG(LogMemory, Warning, "heap cap for %s reduced to %u, the total of all caps is limited", rSlot.name, uFit);
+    }
+}
+
+void RedRaiseHeapCap(int heap, unsigned int uBytes)
+{
+    RaiseHeapCap(heap, uBytes, true);
+}
+
+static void TrimHeapCaps()
+{
+    const unsigned long long ullTotal = HeapCapsTotal(-1);
+    if (ullTotal <= RedScriptLimits::kHeapCapTotalMax)
+    {
+        return;
+    }
+    unsigned long long ullOver = ullTotal - RedScriptLimits::kHeapCapTotalMax;
+    for (int i = maxheaps - 1; i >= 0 && ullOver != 0; --i)
+    {
+        RedHeapSlot& rSlot = gRedHeapSlots[i];
+        const unsigned int uUsed = (unsigned int)rSlot.used;
+        const unsigned int uFloor = uUsed < rSlot.defaultCap ? rSlot.defaultCap : uUsed + 1;
+        if (!rSlot.bLive || rSlot.cap <= uFloor)
+        {
+            continue;
+        }
+        const unsigned int uRoom = rSlot.cap - uFloor;
+        const unsigned int uCut = ullOver < uRoom ? (unsigned int)ullOver : uRoom;
+        SetSlotCap(rSlot, rSlot.cap - uCut);
+        ullOver -= uCut;
+        if (TakeHeapCapWarning(rSlot, false))
+        {
+            LOG(LogMemory, Warning, "heap cap for %s reduced to %u, the total of all caps is limited", rSlot.name,
+                rSlot.cap);
+        }
+    }
+}
+
+static void ApplyHeapCapNote(int i)
+{
+    const unsigned int uNote = HeapCapNote(gRedHeapSlots[i]);
+    if (uNote != 0)
+    {
+        RaiseHeapCap(i, uNote, false);
+    }
+}
+
+bool RedParseHeapCapArg(const char* pcVal, int iLen, int* piKnob, unsigned int* puBytes, bool* pbClamped)
+{
+    int iEq = 0;
+    while (iEq < iLen && pcVal[iEq] != '=')
+    {
+        ++iEq;
+    }
+    if (iEq == iLen)
+    {
+        return false;
+    }
+    const int iKnob = FindHeapCapKnob(pcVal, iEq);
+    if (iKnob < 0)
+    {
+        return false;
+    }
+    int i = iEq + 1;
+    const int iDigits = i;
+    unsigned __int64 ullValue = 0;
+    while (i < iLen && pcVal[i] >= '0' && pcVal[i] <= '9')
+    {
+        ullValue = ullValue * 10 + (unsigned int)(pcVal[i] - '0');
+        if (ullValue > 0xFFFFFFFFu)
+        {
+            ullValue = 0xFFFFFFFFu;
+        }
+        ++i;
+    }
+    if (i == iDigits)
+    {
+        return false;
+    }
+    if (i < iLen && (pcVal[i] == 'K' || pcVal[i] == 'M'))
+    {
+        ullValue *= pcVal[i] == 'K' ? 1024u : 1048576u;
+        ++i;
+    }
+    if (i != iLen || ullValue == 0)
+    {
+        return false;
+    }
+    const unsigned __int64 ullMax = RedScriptLimits::kSetHeapCap.uMaxBytes;
+    *pbClamped = ullValue > ullMax;
+    *puBytes = (unsigned int)(*pbClamped ? ullMax : ullValue);
+    *piKnob = iKnob;
+    return true;
+}
+
+void RedNoteHeapCap(int iKnob, unsigned int uBytes)
+{
+    suHeapCapNotes[iKnob] = uBytes;
+    sabHeapCapWarned[iKnob] = false;
+}
+
+int RedHeapCapSlot(const char* pcKnob)
+{
+    const int iKnob = FindHeapCapKnob(pcKnob, (int)strlen(pcKnob));
+    for (int i = 0; iKnob >= 0 && i < maxheaps; ++i)
+    {
+        if (gRedHeapSlots[i].bLive && strcmp(gRedHeapSlots[i].name, skaHeapCapKnobs[iKnob].pcSlot) == 0)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
+void RedHeapCapOpenWindow()
+{
+    sbHeapCapWindow = true;
+    for (int i = 0; i < maxheaps; ++i)
+    {
+        RedHeapSlot& rSlot = gRedHeapSlots[i];
+        const unsigned int uNote = HeapCapNote(rSlot);
+        const unsigned int uBase = uNote > rSlot.defaultCap ? uNote : rSlot.defaultCap;
+        if (rSlot.bLive && uBase < rSlot.cap)
+        {
+            SetSlotCap(rSlot, uBase);
+        }
+    }
+    for (int i = 0; i < maxheaps; ++i)
+    {
+        ApplyHeapCapNote(i);
+    }
+}
+
+void RedHeapCapCloseWindow()
+{
+    sbHeapCapWindow = false;
+}
+
+bool RedHeapCapWindowOpen()
+{
+    return sbHeapCapWindow;
 }
 
 // FUNCTION: SWBF2 0x006c3900
@@ -525,7 +882,9 @@ int RedCreateHeap(void* start, void* end, unsigned int align, char const* name)
             rSlot.cap = size;
             rSlot.defaultCap = size;
             rSlot.bLive = size != 0;
+            TrimHeapCaps();
             HeapStatsReset(rSlot);
+            ApplyHeapCapNote(i);
             return i;
         }
     }
@@ -660,7 +1019,7 @@ void RedSetTempHeap(int heap)
 // FUNCTION: SWBF2 0x006c3a80
 unsigned int RedGetHeapSize(int heap)
 {
-    return gRedHeapSlots[heap].cap;
+    return gRedHeapSlots[heap].defaultCap;
 }
 
 // FUNCTION: SWBF2 0x006c3b40

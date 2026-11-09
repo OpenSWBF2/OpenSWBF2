@@ -9,6 +9,14 @@ class MemoryPool
 {
 public:
 
+    struct GrowthChunk
+    {
+        GrowthChunk* pNext;
+        void* pChunk;
+        unsigned int uCount;
+        GrowthChunk* pAllNext;
+    };
+
     MemoryPool(char const* pcLabel, int iSize);
 
     void Create(unsigned int uiCount, unsigned int uiSize, unsigned int uiGrow);
@@ -21,12 +29,21 @@ public:
 
     bool IsPresent(void* pBlock) const
     {
+        const char* pcBlock = (const char*)pBlock;
         const char* pcPool = (const char*)mPool;
-        if (pcPool == 0 || (const char*)pBlock < pcPool)
+        if (pcPool != 0 && pcBlock >= pcPool && pcBlock < pcPool + mFirstCount * mSize)
         {
-            return false;
+            return true;
         }
-        return (const char*)pBlock < pcPool + mCount * mSize;
+        for (const GrowthChunk* pNode = mChunks; pNode != 0; pNode = pNode->pNext)
+        {
+            const char* pcChunk = (const char*)pNode->pChunk;
+            if (pcBlock >= pcChunk && pcBlock < pcChunk + pNode->uCount * mSize)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     // FUNCTION: SWBF2 0x004374e0
@@ -41,8 +58,6 @@ public:
     PBL_ASAN_NO_SANITIZE void* AllocateAt(void* pBlock, unsigned int uiSize);
 
     PBL_ASAN_NO_SANITIZE void* AllocateRun(unsigned int uiCount, unsigned int uiSize);
-
-    PBL_ASAN_NO_SANITIZE bool IsFreeBlock(const void* pBlock) const;
 
     ~MemoryPool();
 
@@ -95,6 +110,8 @@ public:
 
     static bool sErrorOnExpansion;
 
+    static GrowthChunk* sChunkRecords;
+
     PblList<MemoryPool>::Node mNode;
     char mLabel[32];
     unsigned int mSize;
@@ -109,6 +126,14 @@ public:
     unsigned int mGrown;
     mutable bool mFullReported;
     mutable bool mFullReportedStrict;
+    GrowthChunk* mChunks;
+    unsigned int mFirstCount;
+
+private:
+
+    void FreeChunks();
+
+    PBL_ASAN_NO_SANITIZE void SortFreeList();
 };
  
  

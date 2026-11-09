@@ -154,6 +154,35 @@ TEST_CASE("combo array ignores a shuffled pool hand-out order" * doctest::test_s
 }
 #endif
 
+TEST_CASE("combo array relocation picks the lowest run after a reverse free" * doctest::test_suite("regression"))
+{
+    MemoryPool kPool("t1comboreverse", sizeof(ComboProbe));
+    kPool.Create(12, sizeof(ComboProbe), 0);
+    for (int i = 0; i < 12; ++i)
+    {
+        REQUIRE(kPool.Allocate(sizeof(ComboProbe)));
+    }
+    ComboProbe* pBlocks = (ComboProbe*)kPool.mPool;
+    const int aiFree[] = { 0, 1, 2, 6, 7, 8, 9, 10, 11 };
+    for (int i = 0; i < 9; ++i)
+    {
+        kPool.Free(pBlocks + aiFree[i]);
+    }
+    ComboProbe* pA = pBlocks + 3;
+    for (unsigned int i = 0; i < 2; ++i)
+    {
+        pA[i].uValue = i;
+        pA[i].uTag = 1;
+    }
+    unsigned int uA = 2;
+    REQUIRE(AddProbe(kPool, pA, uA, 1));
+    CHECK(pA == pBlocks);
+    CHECK(uA == 3);
+    CHECK(Holds(pA, 3, 1));
+    CHECK(kPool.mUsed == 4);
+    kPool.Destroy();
+}
+
 TEST_CASE("combo arrays route every pool array through ComboArrayAdd (source pin)" * doctest::test_suite("regression"))
 {
     std::string sCombo = ReadComboText("src\\Battlefront2\\Source\\Combo.cpp");

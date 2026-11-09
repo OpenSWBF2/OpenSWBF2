@@ -47,6 +47,7 @@ extern "C"
     int RedSetCurrentHeap(int heap);
     void RedSetDebugHeap(int heap);
     void* RedAllocFromHeap(int heap, size_t size, bool bTop);
+    void* RedReallocInHeap(int heap, void* block, size_t oldSize, size_t size);
     void RedFreeToHeap(int heap, void* block, unsigned int flags);
     void RedMarkHeapPermanent(int heap, bool permanent);
     void RedSetTempHeap(int heap);
@@ -84,3 +85,10 @@ void RedPurgeHeapHandles(int heap, const char* name);
 unsigned int RedCountStaleHandles();
 const RedHeapBackend* RedParseAllocatorArg(const char* pcVal, int iLen, bool* pbRejected);
 long RedParseMiPurgeArg(const char* pcVal, int iLen, bool* pbRejected);
+void RedRaiseHeapCap(int heap, unsigned int uBytes);
+bool RedParseHeapCapArg(const char* pcVal, int iLen, int* piKnob, unsigned int* puBytes, bool* pbClamped);
+void RedNoteHeapCap(int iKnob, unsigned int uBytes);
+int RedHeapCapSlot(const char* pcKnob);
+void RedHeapCapOpenWindow();
+void RedHeapCapCloseWindow();
+bool RedHeapCapWindowOpen();

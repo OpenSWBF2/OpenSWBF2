@@ -133,6 +133,32 @@ void CallSetupTempHeap(lua_State* L, float fSize, int iRuntime, int& riTemp)
     lua_settop(L, 0);
 }
 
+void CallSetHeapCap(lua_State* L, const char* pcName, float fBytes)
+{
+    lua_settop(L, 0);
+    lua_pushstring(L, pcName);
+    lua_pushnumber(L, fBytes);
+    LuaMemoryArgs::SetHeapCap(L);
+    lua_settop(L, 0);
+}
+
+class WindowScope
+{
+public:
+    explicit WindowScope(bool bOpen)
+    {
+        if (bOpen)
+        {
+            RedHeapCapOpenWindow();
+        }
+    }
+
+    ~WindowScope()
+    {
+        RedHeapCapCloseWindow();
+    }
+};
+
 void CallStealArtistHeap(lua_State* L, float fSize, int iArtist)
 {
     lua_settop(L, 0);
@@ -175,6 +201,88 @@ int NextFreeHeapSlot()
     return iProbe;
 }
 
+}
+
+TEST_CASE("set heap cap raises inside the window and clamps to the ceiling through the shared limit" *
+          doctest::test_suite("regression"))
+{
+    const int iHeap = RedCreateHeap(sacScriptLoad, sacScriptLoad + sizeof(sacScriptLoad), 0x10, "Temp");
+    REQUIRE(iHeap >= 0);
+    lua_State* L = OpenScriptState();
+    {
+        WindowScope kWindow(true);
+        LogCapture capture;
+        CallSetHeapCap(L, "temp", 2097152.0f);
+        CHECK(gRedHeapSlots[iHeap].cap == 2097152);
+        CHECK(capture.Count("SetHeapCap(") == 0);
+        CallSetHeapCap(L, "Temp", 2147483647.0f);
+        CHECK(gRedHeapSlots[iHeap].cap == kHeapCapMax);
+        CHECK(capture.Count("SetHeapCap(Temp): script value 2147483647 clamped to 536870912") == 1);
+    }
+    lua_close(L);
+    RedDestroyHeap(iHeap);
+}
+
+TEST_CASE("set heap cap outside the window changes nothing and logs one warning" * doctest::test_suite("regression"))
+{
+    const int iHeap = RedCreateHeap(sacScriptLoad, sacScriptLoad + sizeof(sacScriptLoad), 0x10, "Temp");
+    REQUIRE(iHeap >= 0);
+    const unsigned int uCap = gRedHeapSlots[iHeap].cap;
+    lua_State* L = OpenScriptState();
+    {
+        WindowScope kWindow(false);
+        LogCapture capture;
+        CallSetHeapCap(L, "Temp", 2147483647.0f);
+        CHECK(gRedHeapSlots[iHeap].cap == uCap);
+        CHECK(capture.Count("SetHeapCap(Temp): rejected after PostLoad") == 1);
+        CHECK(capture.Count("clamped") == 0);
+    }
+    lua_close(L);
+    RedDestroyHeap(iHeap);
+}
+
+TEST_CASE("set heap cap on an unknown or dead heap logs one warning" * doctest::test_suite("regression"))
+{
+    lua_State* L = OpenScriptState();
+    {
+        WindowScope kWindow(true);
+        LogCapture capture;
+        CallSetHeapCap(L, "Bogus", 2097152.0f);
+        CHECK(capture.Count("SetHeapCap(Bogus): no such live heap") == 1);
+        CallSetHeapCap(L, "HUDEdit", 2097152.0f);
+        CHECK(capture.Count("SetHeapCap(HUDEdit): no such live heap") == 1);
+        CHECK(capture.Count("clamped") == 0);
+    }
+    lua_close(L);
+}
+
+TEST_CASE("set heap cap below the default or negative logs exactly one warning" * doctest::test_suite("regression"))
+{
+    const int iHeap = RedCreateHeap(sacScriptLoad, sacScriptLoad + sizeof(sacScriptLoad), 0x10, "Temp");
+    REQUIRE(iHeap >= 0);
+    const unsigned int uCap = gRedHeapSlots[iHeap].cap;
+    lua_State* L = OpenScriptState();
+    {
+        WindowScope kWindow(true);
+        {
+            LogCapture capture;
+            CallSetHeapCap(L, "Temp", 100.0f);
+            CHECK(gRedHeapSlots[iHeap].cap == uCap);
+            CHECK(capture.Count("is below the default") == 1);
+            CHECK(capture.Count("clamped") == 0);
+            CallSetHeapCap(L, "Temp", 100.0f);
+            CHECK(capture.Count("is below the default") == 2);
+        }
+        {
+            LogCapture capture;
+            CallSetHeapCap(L, "Temp", -5.0f);
+            CHECK(gRedHeapSlots[iHeap].cap == uCap);
+            CHECK(capture.Count("SetHeapCap(Temp): script value -5 clamped to 0") == 1);
+            CHECK(capture.Count("is below the default") == 0);
+        }
+    }
+    lua_close(L);
+    RedDestroyHeap(iHeap);
 }
 
 TEST_CASE("set memory pool size clamps script count" * doctest::test_suite("regression"))

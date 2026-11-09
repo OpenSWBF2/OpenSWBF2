@@ -258,7 +258,7 @@ TEST_CASE("perturb heap absent sequence repeats after the guard resets" * doctes
     }
     RedDestroyHeap(iHeap);
 }
-TEST_CASE("perturb heap pool absent keeps address order and sorted free" * doctest::test_suite("regression"))
+TEST_CASE("perturb heap pool absent keeps address order and frees to the front" * doctest::test_suite("regression"))
 {
     PerturbGuard kGuard(0, 0);
     MemoryPool kPool("t1perturb", 16);
@@ -272,11 +272,11 @@ TEST_CASE("perturb heap pool absent keeps address order and sorted free" * docte
     }
     kPool.Free(apc[2]);
     kPool.Free(apc[5]);
-    CHECK(kPool.Allocate(16) == apc[2]);
+    CHECK(kPool.Allocate(16) == apc[5]);
     CHECK(kPool.mUsed == 7);
     CHECK(kPool.GetPeak() == 8);
     CHECK(kPool.GetGrown() == 0);
-    apc[5] = 0;
+    apc[2] = 0;
     FreeEight(kPool, apc);
     CHECK(kPool.mUsed == 0);
     kPool.Destroy();

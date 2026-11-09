@@ -6,6 +6,7 @@
 
 #include "PebbleFL/Common/PblList.h"
 #include "PebbleFL/Common/PblSerial.h"
+#include "PebbleFL/Common/PblSimOrder.h"
 #ifdef OPENSWBF2_TEST
 #include "RedEngineFL/Util/RedLog.h"
 #endif
@@ -252,7 +253,7 @@ public:
     unsigned int mLastCollidedWithNonTerrain : 1;
     unsigned int mCollisionSerial : 30;
     PblVector3 mLastPosition;
-    CollisionObject* mLastCollidedObjs[3];
+    unsigned int mLastCollidedObjs[3];
 
     static bool sCollidingWithMesh;
     static bool sCollideTrisWithAllPrimitives;
@@ -261,6 +262,51 @@ public:
     {
         return PblSerialAfter(pA->mCollisionSerial, pB->mCollisionSerial);
     }
+    static unsigned int LastCollidedKey(const CollisionObject* pObject)
+    {
+        if (pObject == 0)
+        {
+            return 0;
+        }
+        return PblGetSimOrder() == PBL_SIMORDER_SERIAL ? pObject->mCollisionSerial : (unsigned int)(size_t)pObject;
+    }
+
+    void NoteLastCollided(const CollisionObject* pReceiver)
+    {
+        const unsigned int uKey = LastCollidedKey(pReceiver);
+        for (int k = 0; k < 3; ++k)
+        {
+            if (mLastCollidedObjs[k] == uKey)
+            {
+                return;
+            }
+        }
+        mLastCollidedObjs[2] = mLastCollidedObjs[1];
+        mLastCollidedObjs[1] = mLastCollidedObjs[0];
+        mLastCollidedObjs[0] = uKey;
+    }
+
+    void PrioritizeLastCollided(CollisionObject** apList, int iLength) const
+    {
+        for (int i = 0; i < 3; ++i)
+        {
+            if (i >= iLength)
+            {
+                break;
+            }
+            for (int j = 0; j < iLength; ++j)
+            {
+                if (mLastCollidedObjs[i] == LastCollidedKey(apList[j]) && j != i)
+                {
+                    CollisionObject* pSwap = apList[i];
+                    apList[i] = apList[j];
+                    apList[j] = pSwap;
+                    break;
+                }
+            }
+        }
+    }
+
     void AssignCollisionSerial();
     static void ResetCollisionSerials();
 

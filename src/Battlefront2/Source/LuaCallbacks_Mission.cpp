@@ -253,7 +253,7 @@ namespace Lua_Callbacks
 namespace Lua_Callbacks
 {
 
-static const CallbackEntryT sMissionCallbacks[220] =
+static const CallbackEntryT sMissionCallbacks[221] =
 {
     { "FindEntityClass", FindEntityClass },
     { "SetPS2ModelMemory", SetPS2ModelMemory },
@@ -325,6 +325,7 @@ static const CallbackEntryT sMissionCallbacks[220] =
     { "SetDefenderSnipeRange", SetDefenderSnipeRange },
     { "SetStayInTurrets", SetStayInTurrets },
     { "SetMemoryPoolSize", SetMemoryPoolSize },
+    { "SetHeapCap", SetHeapCap },
     { "SetNumBirdTypes", SetNumBirdTypes },
     { "SetBirdType", SetBirdType },
     { "SetBirdFlockMinHeight", SetBirdFlockMinHeight },
@@ -1494,6 +1495,12 @@ int SetMemoryPoolSize(lua_State* L)
     return 0;
 }
 
+int SetHeapCap(lua_State* L)
+{
+    LuaMemoryArgs::SetHeapCap(LuaHelper::mState);
+    return 0;
+}
+
 // FUNCTION: SWBF2 0x0058ce20
 int ClearWalkers(lua_State* L)
 {
@@ -2184,7 +2191,7 @@ int SetAIDamageThreshold(lua_State* L)
 // FUNCTION: SWBF2 0x00591010
 void InitMission()
 {
-    for (unsigned int i = 0; i < 220; ++i)
+    for (unsigned int i = 0; i < 221; ++i)
     {
         LuaHelper::Register(sMissionCallbacks[i].pcName, sMissionCallbacks[i].pfnCallback, 0);
     }

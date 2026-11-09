@@ -220,6 +220,101 @@ TEST_CASE("collision serial compare ignores object addresses under serial order"
 #endif
 }
 
+TEST_CASE("last collided key does not follow a dead receiver to a new object at its address" * doctest::test_suite("regression"))
+{
+    SerialOrderScope kOrder;
+    CollisionObjectBuffer aBuf[3];
+    memset(aBuf, 0, sizeof(aBuf));
+    CollisionObject* pCollider = reinterpret_cast<CollisionObject*>(&aBuf[0]);
+    CollisionObject* pReceiver = reinterpret_cast<CollisionObject*>(&aBuf[1]);
+    CollisionObject* pOther = reinterpret_cast<CollisionObject*>(&aBuf[2]);
+    pReceiver->mCollisionSerial = 7;
+    pOther->mCollisionSerial = 8;
+
+    pCollider->NoteLastCollided(pReceiver);
+    CollisionObject* apLive[2] = { pOther, pReceiver };
+    pCollider->PrioritizeLastCollided(apLive, 2);
+    CHECK(apLive[0] == pReceiver);
+    CHECK(apLive[1] == pOther);
+
+    memset(&aBuf[1], 0, sizeof(aBuf[1]));
+    pReceiver->mCollisionSerial = 9;
+    CollisionObject* apReused[2] = { pOther, pReceiver };
+    pCollider->PrioritizeLastCollided(apReused, 2);
+    CHECK(apReused[0] == pOther);
+    CHECK(apReused[1] == pReceiver);
+}
+
+TEST_CASE("last collided record keeps three recent receivers without duplicates" * doctest::test_suite("regression"))
+{
+    SerialOrderScope kOrder;
+    CollisionObjectBuffer aBuf[5];
+    memset(aBuf, 0, sizeof(aBuf));
+    CollisionObject* pCollider = reinterpret_cast<CollisionObject*>(&aBuf[0]);
+    CollisionObject* apReceiver[4];
+    for (int i = 0; i < 4; ++i)
+    {
+        apReceiver[i] = reinterpret_cast<CollisionObject*>(&aBuf[i + 1]);
+        apReceiver[i]->mCollisionSerial = i + 1;
+    }
+
+    pCollider->NoteLastCollided(apReceiver[0]);
+    pCollider->NoteLastCollided(apReceiver[0]);
+    CHECK(pCollider->mLastCollidedObjs[0] == 1);
+    CHECK(pCollider->mLastCollidedObjs[1] == 0);
+    pCollider->NoteLastCollided(apReceiver[1]);
+    pCollider->NoteLastCollided(apReceiver[2]);
+    pCollider->NoteLastCollided(apReceiver[3]);
+    CHECK(pCollider->mLastCollidedObjs[0] == 4);
+    CHECK(pCollider->mLastCollidedObjs[1] == 3);
+    CHECK(pCollider->mLastCollidedObjs[2] == 2);
+}
+
+TEST_CASE("last collided key uses the address under address order" * doctest::test_suite("regression"))
+{
+    const PblSimOrderMode ePrev = PblGetSimOrder();
+    PblSetSimOrder(PBL_SIMORDER_ADDRESS);
+    CollisionObjectBuffer aBuf[2];
+    memset(aBuf, 0, sizeof(aBuf));
+    CollisionObject* pObject = reinterpret_cast<CollisionObject*>(&aBuf[1]);
+    pObject->mCollisionSerial = 5;
+    CHECK(CollisionObject::LastCollidedKey(pObject) == (unsigned int)(size_t)pObject);
+    PblSetSimOrder(ePrev);
+}
+
+TEST_CASE("last collided key treats a null list entry as an empty slot" * doctest::test_suite("regression"))
+{
+    SerialOrderScope kOrder;
+    CollisionObjectBuffer aBuf[2];
+    memset(aBuf, 0, sizeof(aBuf));
+    CollisionObject* pCollider = reinterpret_cast<CollisionObject*>(&aBuf[0]);
+    CollisionObject* pObject = reinterpret_cast<CollisionObject*>(&aBuf[1]);
+    pObject->mCollisionSerial = 3;
+    CHECK(CollisionObject::LastCollidedKey(0) == 0);
+    CollisionObject* apList[2] = { pObject, 0 };
+    pCollider->PrioritizeLastCollided(apList, 2);
+    CHECK(apList[0] == pObject);
+    CHECK(apList[1] == static_cast<CollisionObject*>(0));
+}
+
+TEST_CASE("last collided sites all go through the key helpers (source pin)" * doctest::test_suite("regression"))
+{
+    std::string sModel;
+    std::string sManager;
+    REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\CollisionModel.cpp", sModel));
+    REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\CollisionManager.cpp", sManager));
+    int iNotes = 0;
+    const std::string sNote = "pCollider->NoteLastCollided(pReceiver);";
+    for (std::string::size_type uiAt = sModel.find(sNote); uiAt != std::string::npos; uiAt = sModel.find(sNote, uiAt + 1))
+    {
+        ++iNotes;
+    }
+    CHECK(iNotes == 3);
+    CHECK(sManager.find("obj->PrioritizeLastCollided(data.mArray, data.mLength);") != std::string::npos);
+    CHECK(sModel.find("mLastCollidedObjs") == std::string::npos);
+    CHECK(sManager.find("mLastCollidedObjs") == std::string::npos);
+}
+
 TEST_CASE("collision serial sites keep the wire bool writes and the address arm" * doctest::test_suite("regression"))
 {
     std::string sNetState;

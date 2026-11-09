@@ -11,6 +11,7 @@ namespace LuaMemoryArgs
     void ClearTempHeap(int iRuntimeHeap, int& riTempHeap);
     void ForgetTempHeap();
     void StealArtistHeap(lua_State* L, int iArtistHeap);
+    void SetHeapCap(lua_State* L);
     void AddWalkerType(lua_State* L, MemoryPool* pWalker, MemoryPool* pLegPair, MemoryPool* pBlend,
                        MemoryPool* pBlendUnit, MemoryPool* pDroideka);
 }

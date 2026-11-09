@@ -207,6 +207,34 @@ static size_t MiCreate(int heap, void* start, void* end, unsigned int align, con
     return uEnd - uStart;
 }
 
+static unsigned int MiNeed(int i, size_t size, unsigned int* puWant)
+{
+    const unsigned int uAlign = gRedHeapSlots[i].align;
+    const unsigned int uHdr = (uAlign + kRedTagBytes - 1) & ~(uAlign - 1);
+    const unsigned int uNeed = ((unsigned int)size + uAlign - 1 + uHdr) & ~(uAlign - 1);
+    *puWant = uNeed + 16 - uHdr;
+    return uNeed;
+}
+
+static PBL_ASAN_NO_SANITIZE void MiStamp(int i, char* pBase, size_t size, unsigned int uNeed, size_t* pReserved)
+{
+    volatile unsigned int* puWords = (volatile unsigned int*)pBase;
+    puWords[0] = (unsigned int)size;
+    puWords[1] = uNeed;
+    puWords[2] = (unsigned int)i | sMiGen[i] << 8;
+    puWords[3] = MiCookie(pBase, (unsigned int)size, uNeed);
+#ifdef OPENSWBF2_TEST
+    check(mi_heap_of(pBase) == sMiHeap[i]);
+#endif
+    PblAsanPoison(pBase, 16);
+    PblAsanUnpoison(pBase + 16, mi_usable_size(pBase) - 16);
+    if (mi_usable_size(pBase) > 16 + size)
+    {
+        PblAsanPoison(pBase + 16 + size, mi_usable_size(pBase) - 16 - size);
+    }
+    *pReserved = uNeed;
+}
+
 static void* MiAlloc(int i, size_t size, bool bTop, size_t* pReserved)
 {
     (void)bTop;
@@ -214,10 +242,9 @@ static void* MiAlloc(int i, size_t size, bool bTop, size_t* pReserved)
     {
         return 0;
     }
-    const unsigned int uAlign = gRedHeapSlots[i].align;
-    const unsigned int uHdr = (uAlign + kRedTagBytes - 1) & ~(uAlign - 1);
-    const unsigned int uNeed = ((unsigned int)size + uAlign - 1 + uHdr) & ~(uAlign - 1);
-    char* pBase = (char*)mi_heap_zalloc_aligned(sMiHeap[i], uNeed + 16 - uHdr, uAlign);
+    unsigned int uWant = 0;
+    const unsigned int uNeed = MiNeed(i, size, &uWant);
+    char* pBase = (char*)mi_heap_zalloc_aligned(sMiHeap[i], uWant, gRedHeapSlots[i].align);
     if (pBase == 0)
     {
         if (sRecursionDepth <= 0)
@@ -228,20 +255,7 @@ static void* MiAlloc(int i, size_t size, bool bTop, size_t* pReserved)
         return 0;
     }
     RedMiRecordReservation(pBase);
-    RedMiPrefix* pPrefix = (RedMiPrefix*)pBase;
-    pPrefix->uSize = (unsigned int)size;
-    pPrefix->uCharge = uNeed;
-    pPrefix->uSlotGen = (unsigned int)i | sMiGen[i] << 8;
-    pPrefix->uCookie = MiCookie(pBase, (unsigned int)size, uNeed);
-#ifdef OPENSWBF2_TEST
-    check(mi_heap_of(pBase) == sMiHeap[i]);
-#endif
-    PblAsanPoison(pBase, 16);
-    if (mi_usable_size(pBase) > 16 + size)
-    {
-        PblAsanPoison(pBase + 16 + size, mi_usable_size(pBase) - 16 - size);
-    }
-    *pReserved = uNeed;
+    MiStamp(i, pBase, size, uNeed, pReserved);
     return pBase + 16;
 }
 
@@ -294,6 +308,34 @@ static size_t MiFree(int heap, void* block)
     return 0;
 }
 
+static void* MiRealloc(int i, void* block, size_t oldSize, size_t size, size_t* pReserved, size_t* pOldCharge)
+{
+    if (RedMiClassify(block) != kRedMiValid)
+    {
+        MiFree(i, block);
+        return 0;
+    }
+    char* pBase = (char*)block - kMiPrefixBytes;
+    unsigned int uWant = 0;
+    const unsigned int uNeed = MiNeed(i, size, &uWant);
+    if (uWant <= mi_usable_size(pBase) && uWant >= mi_usable_size(pBase) / 2)
+    {
+        RedMiPrefix kPrefix;
+        MiReadPrefix(pBase, &kPrefix);
+        *pOldCharge = kPrefix.uCharge;
+        MiStamp(i, pBase, size, uNeed, pReserved);
+        return block;
+    }
+    void* pNew = MiAlloc(i, size, false, pReserved);
+    if (pNew == 0)
+    {
+        return 0;
+    }
+    memcpy(pNew, block, oldSize < size ? oldSize : size);
+    *pOldCharge = MiFree(i, block);
+    return pNew;
+}
+
 static int MiOwner(const void* p)
 {
     mi_heap_t* pOwnerHeap = mi_heap_of(p);
@@ -334,7 +376,7 @@ static int MiMoveEnd(int iHeap, int iDelta, bool* pbAllocFailed)
         return 0;
     }
     const unsigned int uUsed = (unsigned int)rTarget.used;
-    const unsigned int uHeadroom = uUsed < rTarget.cap ? rTarget.cap - uUsed : 0;
+    const unsigned int uHeadroom = uUsed < rTarget.defaultCap ? rTarget.defaultCap - uUsed : 0;
     if (uMove > uHeadroom)
     {
         if (sRecursionDepth <= 0)
@@ -511,4 +553,4 @@ static void MiTrim()
     mi_collect(true);
 }
 
-extern "C" const RedHeapBackend kRedMiBackend = { MiInit, MiCreate, MiDestroy, MiAlloc, MiFree, MiOwner, MiMoveEnd, MiVisit, MiTrim };
+extern "C" const RedHeapBackend kRedMiBackend = { MiInit, MiCreate, MiDestroy, MiAlloc, MiFree, MiOwner, MiMoveEnd, MiVisit, MiTrim, MiRealloc };

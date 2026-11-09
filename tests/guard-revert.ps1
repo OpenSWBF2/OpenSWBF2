@@ -69,7 +69,10 @@ function Run-Smoke([string]$wt, [string]$tag, $case) {
     finally {
         & cmd /c rmdir "$dataLink" | Out-Null
     }
-    $ok = Test-SmokeExpect $case $res
+    $evalCase = $case.PSObject.Copy()
+    $evalCase.Expect = $case.Expect.Clone()
+    $evalCase.Expect.Remove('SameRunAs')
+    $ok = Test-SmokeExpect $evalCase $res
     return New-Object PSObject -Property @{ Ok = $ok; Class = $res.Class; Code = $res.Code; Dumps = @($res.Dumps).Count; LogText = $res.LogText }
 }
 

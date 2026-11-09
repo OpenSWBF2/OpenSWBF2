@@ -293,7 +293,7 @@ TEST_CASE("script-size-clamp: lua memory sinks route through the shared clamp" *
     const std::string sArgs = HardenSource("src\\Battlefront2\\Source\\LuaMemoryArgs.cpp");
     std::vector<std::pair<std::string, std::string>> vFunctions;
     SplitFunctions(sArgs, vFunctions);
-    const char* const apcEntries[] = { "SetMemoryPoolSize", "SetupTempHeap", "StealArtistHeap", "AddWalkerType" };
+    const char* const apcEntries[] = { "SetMemoryPoolSize", "SetupTempHeap", "StealArtistHeap", "AddWalkerType", "SetHeapCap" };
     for (size_t i = 0; i < sizeof(apcEntries) / sizeof(apcEntries[0]); ++i)
     {
         INFO(apcEntries[i]);
@@ -309,6 +309,58 @@ TEST_CASE("script-size-clamp: lua memory sinks route through the shared clamp" *
         CHECK(iFound == 1);
     }
     CHECK(HardenBody(sArgs, "void StealArtistHeap(").find("ClampScriptSize(") != std::string::npos);
+}
+
+TEST_CASE("heap cap window opens in build heaps and closes after post load (source pin)" *
+          doctest::test_suite("regression"))
+{
+    const std::string sBuild = HardenBody(HardenSource("src\\Battlefront2\\Source\\GameMemory.cpp"), "void GameMemory::BuildHeaps(");
+    const size_t uiOpen = sBuild.find("RedHeapCapOpenWindow();");
+    const size_t uiCreate = sBuild.find("RedCreateHeap(");
+    REQUIRE(uiOpen != std::string::npos);
+    REQUIRE(uiCreate != std::string::npos);
+    CHECK(uiOpen < uiCreate);
+    const std::string sState = HardenSource("src\\Battlefront2\\Source\\GameState.cpp");
+    const char* const apcPost[2] = { "ShellLoop::PostLoad();", "GameLoop::PostLoad();" };
+    const char* const pcClose = "RedHeapCapCloseWindow();";
+    for (int i = 0; i < 2; ++i)
+    {
+        INFO(apcPost[i]);
+        const size_t uiPost = sState.find(apcPost[i]);
+        REQUIRE(uiPost != std::string::npos);
+        const size_t uiNext = sState.find_first_not_of(" \t\r\n", uiPost + strlen(apcPost[i]));
+        REQUIRE(uiNext != std::string::npos);
+        CHECK(sState.compare(uiNext, strlen(pcClose), pcClose) == 0);
+    }
+}
+
+TEST_CASE("startup heap cap scan keeps a switch as the next token (source pin)" * doctest::test_suite("regression"))
+{
+    const std::string sBody = HardenBody(HardenSource("src\\Battlefront2\\Source\\pcMain.cpp"), "static void ReadHeapCapArgs(");
+    CHECK(sBody.find("FindNextCommandLineArg(pcLine, \"-heapcap\", &iPos, &pcVal, &iLen, true)") != std::string::npos);
+}
+
+TEST_CASE("set heap cap is registered in the mission table (source pin)" * doctest::test_suite("regression"))
+{
+    const std::string sText = HardenSource("src\\Battlefront2\\Source\\LuaCallbacks_Mission.cpp");
+    const char* const pcDecl = "sMissionCallbacks[";
+    const size_t uiDecl = sText.find(pcDecl);
+    REQUIRE(uiDecl != std::string::npos);
+    const int iDeclared = atoi(sText.c_str() + uiDecl + strlen(pcDecl));
+    const size_t uiBody = sText.find('{', uiDecl);
+    REQUIRE(uiBody != std::string::npos);
+    const size_t uiEnd = sText.find("};", uiBody);
+    REQUIRE(uiEnd != std::string::npos);
+    const std::string sTable = sText.substr(uiBody, uiEnd - uiBody);
+    int iEntries = 0;
+    for (size_t uiAt = sTable.find("{ \""); uiAt != std::string::npos; uiAt = sTable.find("{ \"", uiAt + 1))
+    {
+        ++iEntries;
+    }
+    CHECK(iEntries == iDeclared);
+    CHECK(sTable.find("{ \"SetHeapCap\", SetHeapCap }") != std::string::npos);
+    const std::string sLoop = "i < " + std::to_string(iDeclared) + "; ++i)";
+    CHECK(sText.find(sLoop, uiEnd) != std::string::npos);
 }
 
 TEST_CASE("script-size-clamp: checker flags an unclamped sink" * doctest::test_suite("regression"))
@@ -427,4 +479,34 @@ TEST_CASE("gated pools: IsFull and IsSufficientSpace sites match the pinned list
         CHECK_MESSAGE(kPinned.count(*it) == 1, sExtra);
     }
     CHECK(kFound == kPinned);
+}
+
+TEST_CASE("mission and shell bin tables follow build heaps (source pin)" * doctest::test_suite("regression"))
+{
+    const std::string sState = HardenSource("src\\Battlefront2\\Source\\GameState.cpp");
+    const std::string sLua = HardenSource("src\\Battlefront2\\Source\\LuaMemory.cpp");
+    const char* const apcOnce[2] = { "GameMemory::BuildHeaps(!bMission)", "bMission ? gGamePoolInfo : gShellPoolInfo" };
+    const std::string* const apText[2] = { &sState, &sLua };
+    for (int i = 0; i < 2; ++i)
+    {
+        INFO(apcOnce[i]);
+        const size_t uAt = apText[i]->find(apcOnce[i]);
+        REQUIRE(uAt != std::string::npos);
+        CHECK(apText[i]->find(apcOnce[i], uAt + 1) == std::string::npos);
+    }
+    const char* const apcMarkers[2][2] = {
+        { "// GLOBAL: SWBF2 0x007e85d0", "MemPoolInfo gGamePoolInfo[48]" },
+        { "// GLOBAL: SWBF2 0x007e8750", "MemPoolInfo gShellPoolInfo[48]" },
+    };
+    for (int i = 0; i < 2; ++i)
+    {
+        INFO(apcMarkers[i][0]);
+        const size_t uMarker = sLua.find(apcMarkers[i][0]);
+        REQUIRE(uMarker != std::string::npos);
+        const size_t uLineEnd = sLua.find('\n', uMarker);
+        REQUIRE(uLineEnd != std::string::npos);
+        const size_t uNext = sLua.find_first_not_of(" \t\r\n", uLineEnd);
+        REQUIRE(uNext != std::string::npos);
+        CHECK(sLua.compare(uNext, strlen(apcMarkers[i][1]), apcMarkers[i][1]) == 0);
+    }
 }

@@ -181,6 +181,36 @@ void Startup_DebugHeap()
     RedSetDebugHeap(PCDebugHeap);
 }
 
+static void ReadHeapCapArgs(bool bReport)
+{
+    char const* pcLine = GetCommandLineA();
+    int iPos = 0;
+    char const* pcVal = 0;
+    int iLen = 0;
+    while (FindNextCommandLineArg(pcLine, "-heapcap", &iPos, &pcVal, &iLen, true))
+    {
+        int iKnob = -1;
+        unsigned int uBytes = 0;
+        bool bClamped = false;
+        const bool bOk = RedParseHeapCapArg(pcVal, iLen, &iKnob, &uBytes, &bClamped);
+        if (!bReport)
+        {
+            if (bOk)
+            {
+                RedNoteHeapCap(iKnob, uBytes);
+            }
+        }
+        else if (!bOk)
+        {
+            LOG(LogMemory, Warning, "-heapcap needs <Name>=<bytes>[K|M], ignored: %.*s", iLen, pcVal);
+        }
+        else if (bClamped)
+        {
+            LOG(LogMemory, Warning, "-heapcap value clamped to %u: %.*s", uBytes, iLen, pcVal);
+        }
+    }
+}
+
 // FUNCTION: SWBF2 0x00617200
 
 extern "C" void Startup_RedInitHeap(int, int)
@@ -194,6 +224,7 @@ extern "C" void Startup_RedInitHeap(int, int)
         pcCrash::FindCommandArg("-mipurge", &pcVal, &iLen);
         RedMiConfigure(RedParseMiPurgeArg(pcVal, iLen, &sbMiPurgeArgRejected));
     }
+    ReadHeapCapArgs(false);
     Startup_InitApplicationMemory();
     Startup_DebugHeap();
 }
@@ -529,6 +560,7 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
         {
             LOG(LogCore, Warning, "-mipurge needs milliseconds, using 1000");
         }
+        ReadHeapCapArgs(true);
         if (gNoVictory)
         {
             LOG(LogCore, Inform, "OPENSWBF2 NOVICTORY");
