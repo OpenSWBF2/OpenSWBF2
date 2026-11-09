@@ -1,6 +1,7 @@
 #include <vector>
 
 #include <windows.h>
+#include <psapi.h>
 #include "PerformanceTimer.h"
 #include "CommandPost.h"
 
@@ -1531,9 +1532,6 @@ void GameState::JournalStartTimes()
 // PblList<Factory<Ordnance,ExplosionClass,OrdnanceDesc> >::Clear
 
 #ifdef OPENSWBF2_TEST
-extern char* g_Heap3Start;
-extern char* gArenaEnd;
-
 template <class T>
 static unsigned int HandleIdOffset()
 {
@@ -1544,15 +1542,62 @@ static unsigned int HandleIdOffset()
 static const unsigned int kHandleTypes = 6;
 static unsigned int sauHandleIdOffset[kHandleTypes];
 
+static const int kHandleScanPersistent = 4;
+
 struct HandleScan
 {
-    unsigned int uLo;
-    unsigned int uHi;
+    int aiPersistent[kHandleScanPersistent];
     unsigned int uDeadVtable;
     unsigned int uNext;
     unsigned int uLive;
     unsigned int uDead;
+    unsigned int uReadLo;
+    unsigned int uReadHi;
 };
+
+struct HandleScanBlock
+{
+    HandleScan* pScan;
+    const char* pcWhere;
+};
+
+static bool IsMissionHeap(const HandleScan& rScan, int iOwner)
+{
+    if (iOwner < 0)
+    {
+        return false;
+    }
+    for (int i = 0; i < kHandleScanPersistent; ++i)
+    {
+        if (rScan.aiPersistent[i] == iOwner)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool HandleScanCommitted(HandleScan& rScan, unsigned int uAddr)
+{
+    if (uAddr >= rScan.uReadLo && uAddr < rScan.uReadHi)
+    {
+        return true;
+    }
+    MEMORY_BASIC_INFORMATION kInfo;
+    if (VirtualQuery((const void*)uAddr, &kInfo, sizeof(kInfo)) != sizeof(kInfo) ||
+        kInfo.State != MEM_COMMIT || (kInfo.Protect & (PAGE_NOACCESS | PAGE_GUARD)) != 0)
+    {
+        return false;
+    }
+    rScan.uReadLo = (unsigned int)kInfo.BaseAddress;
+    rScan.uReadHi = rScan.uReadLo + (unsigned int)kInfo.RegionSize;
+    return true;
+}
+
+static bool HandleScanReadable(HandleScan& rScan, unsigned int uAt)
+{
+    return HandleScanCommitted(rScan, uAt - 4) && ((uAt & 0xFFF) != 0 || HandleScanCommitted(rScan, uAt));
+}
 
 static PBL_ASAN_NO_SANITIZE void ScanHandleRange(HandleScan& rScan, const unsigned int* puBase, const unsigned int* puFrom,
                                                  const unsigned int* puTo, const char* pcWhere)
@@ -1561,14 +1606,21 @@ static PBL_ASAN_NO_SANITIZE void ScanHandleRange(HandleScan& rScan, const unsign
     {
         const unsigned int uObject = pu[0];
         const unsigned int uId = pu[1];
-        if (uObject < rScan.uLo || uObject >= rScan.uHi || (uObject & 3) != 0 || uId == 0 || uId >= rScan.uNext)
+        if ((uObject & 3) != 0 || uId == 0 || uId >= rScan.uNext)
+        {
+            continue;
+        }
+        const int iObject = RedHeapOwner((const void*)uObject);
+        if (!IsMissionHeap(rScan, iObject))
         {
             continue;
         }
         for (unsigned int i = 0; i < kHandleTypes; ++i)
         {
             const unsigned int uAt = uObject + sauHandleIdOffset[i];
-            if (uAt < rScan.uLo + 4 || uAt + 4 > rScan.uHi)
+            const unsigned int uBefore = uAt - 4;
+            if (RedHeapOwner((const void*)uAt) != iObject || RedHeapOwner((const void*)uBefore) != iObject ||
+                !HandleScanReadable(rScan, uAt))
             {
                 continue;
             }
@@ -1598,6 +1650,14 @@ static PBL_ASAN_NO_SANITIZE void ScanHandleRange(HandleScan& rScan, const unsign
     }
 }
 
+static bool ScanHandleBlock(void* pUser, size_t uSize, void* pArg)
+{
+    const HandleScanBlock& rBlock = *(const HandleScanBlock*)pArg;
+    const unsigned int* puUser = (const unsigned int*)pUser;
+    ScanHandleRange(*rBlock.pScan, puUser, puUser, puUser + uSize / 4, rBlock.pcWhere);
+    return true;
+}
+
 static void ScanStaleHandles(bool bMission)
 {
     sauHandleIdOffset[0] = HandleIdOffset<GameObject>();
@@ -1613,8 +1673,12 @@ static void ScanStaleHandles(bool bMission)
     pProbe->~PblHandled();
     PblHandled::SetNextHandleId(uNextId);
     kScan.uDeadVtable = auProbe[0];
-    kScan.uLo = (unsigned int)g_Heap3Start;
-    kScan.uHi = (unsigned int)gArenaEnd;
+    kScan.aiPersistent[0] = GameMemory::ApplicationHeap;
+    kScan.aiPersistent[1] = GameMemory::GamespyHeap;
+    kScan.aiPersistent[2] = __RedDebugHeap;
+    kScan.aiPersistent[3] = HUD::gEditHeap;
+    kScan.uReadLo = 0;
+    kScan.uReadHi = 0;
     kScan.uNext = PblHandled::GetNextHandleId();
     kScan.uLive = 0;
     kScan.uDead = 0;
@@ -1654,21 +1718,18 @@ static void ScanStaleHandles(bool bMission)
         }
         ScanHandleRange(kScan, puFrom, puRun, puAt, (const char*)pSection->Name);
     }
-    for (int iHeap = 0; iHeap < maxheaps; ++iHeap)
+    for (int i = 0; i < kHandleScanPersistent; ++i)
     {
-        void* pStart = 0;
-        unsigned int uSize = 0;
-        if (!RedGetHeapRange(iHeap, &pStart, &uSize))
+        const int iHeap = kScan.aiPersistent[i];
+        RedHeapStats kStats;
+        if (!RedGetHeapStats(iHeap, &kStats))
         {
             continue;
         }
-        const unsigned int uStart = (unsigned int)pStart;
-        if (uStart + uSize > kScan.uLo && uStart < kScan.uHi)
-        {
-            continue;
-        }
-        ScanHandleRange(kScan, (const unsigned int*)pStart, (const unsigned int*)pStart,
-                        (const unsigned int*)pStart + uSize / 4, RedGetHeapName(iHeap));
+        HandleScanBlock kBlock;
+        kBlock.pScan = &kScan;
+        kBlock.pcWhere = RedGetHeapName(iHeap);
+        RedVisitHeap(iHeap, ScanHandleBlock, &kBlock);
     }
     LOG(LogSim, Inform, "OPENSWBF2 HANDLESCAN state=%s live=%u dead=%u", bMission ? "mission" : "shell", kScan.uLive,
         kScan.uDead);
@@ -1835,6 +1896,10 @@ void GameState::PostStateCleanup(bool bMission)
 
     NetGame::Reset();
     RedMemoryReport::LogMemReport("exit");
+    PROCESS_MEMORY_COUNTERS kCounters = {};
+    K32GetProcessMemoryInfo(GetCurrentProcess(), &kCounters, sizeof(kCounters));
+    LOG(LogMemory, Inform, "OPENSWBF2 COMMIT state=%s bytes=%u", bMission ? "mission" : "shell",
+        (unsigned int)kCounters.PagefileUsage);
 #ifdef OPENSWBF2_TEST
     CollisionObject::LogSerialTies(true);
 #endif

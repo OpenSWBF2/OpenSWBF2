@@ -65,13 +65,6 @@ void GameMemory::InitApplicationMemory(char* pStart, char* pEnd)
     gArenaEnd = pEnd;
     gArenaStart = (char*)RedInitHeap(pStart, pEnd, 9);
 
-    if (ApplicationHeap)
-    {
-        PblHandleRegistry::PurgeRange(pStart, pEnd);
-        RedDestroyHeap(ApplicationHeap);
-        ApplicationHeap = 0;
-    }
-
     char* pAppEnd = gArenaStart + kApplicationHeapSize;
     ApplicationHeap = RedCreateHeap(gArenaStart, pAppEnd, kHeapAlignment, "Application");
 
@@ -127,12 +120,23 @@ void GameMemory::BuildHeaps(bool bMission)
         ArtistHeap = 0;
     }
 
+    RedTrimHeaps();
+
 #ifdef OPENSWBF2_TEST
-    const unsigned int uArenaLeft = PblHandleRegistry::CountInRange(g_Heap3Start, gArenaEnd);
-    if (uArenaLeft != 0)
+    const unsigned int uStaleLeft = RedCountStaleHandles();
+    if (uStaleLeft != 0)
     {
-        LOG(LogMemory, Error, "OPENSWBF2 HANDLEREG audit range=arena left=%u", uArenaLeft);
-        check(uArenaLeft == 0);
+        LOG(LogMemory, Error, "OPENSWBF2 HANDLEREG audit stale left=%u", uStaleLeft);
+        check(uStaleLeft == 0);
+    }
+    if (RedHeapBackendIsArena())
+    {
+        const unsigned int uArenaLeft = PblHandleRegistry::CountInRange(g_Heap3Start, gArenaEnd);
+        if (uArenaLeft != 0)
+        {
+            LOG(LogMemory, Error, "OPENSWBF2 HANDLEREG audit range=arena left=%u", uArenaLeft);
+            check(uArenaLeft == 0);
+        }
     }
 #endif
 
@@ -172,16 +176,19 @@ void GameMemory::ReleaseTempHeap()
         TempLoadHeap = 0;
     }
 #ifdef OPENSWBF2_TEST
-    char* pTempBlock = (char*)gTempHeapBlock;
+    char* pTempBlock = RedHeapBackendIsArena() ? (char*)gTempHeapBlock : 0;
 #endif
     RedFreeToHeap(RunTimeHeap, gTempHeapBlock, 0);
     gTempHeapBlock = 0;
 #ifdef OPENSWBF2_TEST
-    const unsigned int uTempLeft = PblHandleRegistry::CountInRange(pTempBlock, pTempBlock + kTempLoadHeapSize);
-    if (uTempLeft != 0)
+    if (pTempBlock != 0)
     {
-        LOG(LogMemory, Error, "OPENSWBF2 HANDLEREG audit range=temp left=%u", uTempLeft);
-        check(uTempLeft == 0);
+        const unsigned int uTempLeft = PblHandleRegistry::CountInRange(pTempBlock, pTempBlock + kTempLoadHeapSize);
+        if (uTempLeft != 0)
+        {
+            LOG(LogMemory, Error, "OPENSWBF2 HANDLEREG audit range=temp left=%u", uTempLeft);
+            check(uTempLeft == 0);
+        }
     }
 #endif
 }

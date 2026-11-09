@@ -35,7 +35,7 @@ MEM-02       GREEN    RED         1          alloc failure handler logs and supp
 HEAPQ-NAME   GREEN    RED         1          heap queries reject an id past maxheaps 
 HEAPQ-FREE   GREEN    RED         1          heap queries reject an id past maxheaps 
 HEAPQ-STATS  GREEN    RED         1          heap queries reject an id past maxheaps 
-HEAPD-RANGE  GREEN    RED         1          heap destroy ignores an id out of range 
+HEAPD-RANGE  GREEN    RED         3221225477 heap destroy ignores an id out of range crash 0xC0000005
 MEM-02C      GREEN    RED         1          alloc failure handler ignores re-entry 
 MEM-03       GREEN    RED         1          lua failed shrink keeps the old block 
 MEM-03B      GREEN    RED         3221225477 lua oom is raised as LUA_ERRMEM crash 0xC0000005
@@ -65,7 +65,7 @@ SAFE03-WALKER GREEN    RED         1          add walker type clamps script coun
 SAFE03-MOVEEND GREEN    RED         3221225477 move heap end refuses a failed allocation crash 0xC0000005
 SAFE03-MOVEPLACE GREEN    RED         1          move heap end refuses a block away from the boundary 
 SAFE03-MOVEALIGN GREEN    RED         1          move heap end moves only the aligned block it transfers 
-SEAM05-OWNER GREEN    RED         1,1        heap free is debited from the owning heap | heap free of a nested block goes to the inner heap 
+SEAM05-OWNER GREEN    RED         1,1,1      heap free is debited from the owning heap | heap free of a nested block goes to the inner heap | mimalloc heap frees a crt pointer and a mimalloc pointer each to their owner 
 SEAM05-CRT   GREEN    RED         1          heap free of an unowned block uses the crt 
 SEAM04-SLOT  GREEN    RED         1          heap slot ids are stable across destroy and re-create 
 CAPS01-CHECK GREEN    RED         1          heap over-cap allocation fails through OnFailure without a backend call 
@@ -76,6 +76,40 @@ CAPS01-WRAP  GREEN    RED         1          wrapping heap request fails
 CAPS02-FREE  GREEN    RED         1          raised heap cap does not change the free value 
 CAPS02-FREEB GREEN    RED         1,1        heap free is cap minus used on a fixed script | heap charge follows the need formula on every backend 
 CAPS02-CHARGE GREEN    RED         1,1        heap free is cap minus used on a fixed script | heap charge follows the need formula on every backend 
+MI-CHARGE    GREEN    RED         1          heap charge follows the need formula on every backend 
+MI-OWNER     GREEN    RED         3221226356,3221226356 mimalloc heap owner maps interior pointers to the slot | mimalloc heap frees a crt pointer and a mimalloc pointer each to their owner crash 0xC0000374,crash 0xC0000374
+MI-VISIT     GREEN    RED         1          heap visit reports every live block on every backend 
+PURGE-OWNER  GREEN    RED         1          heap purge drops the handles owned by the heap on every backend 
+MI-ZERO      GREEN    RED         1          mimalloc heap blocks are zero even when reused 
+MI-GEN       GREEN    RED         1          mimalloc heap free classifier sorts valid stale foreign and bad prefix blocks 
+MI-RESERVE   GREEN    RED         1,1        mimalloc heap free classifier sorts valid stale foreign and bad prefix blocks | mimalloc heap slots are re-created with a new heap after destroy 
+MI-NINTH     GREEN    RED         1          mimalloc heap records every address region without a fatal check 
+MI-RESBITS   GREEN    RED         1          mimalloc heap records every address region without a fatal check 
+MI-NOREAD    GREEN    RED         3221225477 mimalloc free of an unreadable block reports a bad prefix without touching it crash 0xC0000005
+MI-UNMAPPED  GREEN    RED         3221225477 mimalloc free of an unreadable block reports a bad prefix without touching it crash 0xC0000005
+MI-CRTREUSE  GREEN    RED         1          a crt block on a released mimalloc region goes to the crt 
+MI-EXHAUST   GREEN    RED         1          mimalloc treats exhaustion as non-fatal and corruption as fatal 
+MI-SHOWERR   GREEN    RED         1          mimalloc error hook sees the message text of each error (source pin) 
+MI-NOTEOUT   GREEN    RED         1          mimalloc error hook sees the message text of each error (source pin) 
+MI-COOKIE    GREEN    RED         1          mimalloc heap cookie covers the size and the charge words 
+PURGE-STALE  GREEN    RED         1          heap purge drops a handle whose block was freed on a released page 
+PURGE-STALEAUDIT GREEN    RED         1          heap purge drops a handle whose block was freed on a released page 
+PURGE-STALEBUILD GREEN    RED         1          the handle audits count stale keys in build heaps and every purge (source pin) 
+MI-ASANVISIT GREEN    RED         1          mimalloc heap destroy visits areas only under asan (source pin) 
+MI-MOVEEND   GREEN    RED         1          heap move end gives the same result on every backend 
+MI-OPTIONS   GREEN    RED         1          mimalloc options line lists the effective values 
+MI-FULLRETAIN GREEN    RED         3221226505,1 mimalloc heap destroy visits full pages after frees on them | mimalloc options line lists the effective values crash 0xC0000409
+MI-OWNERCHK  GREEN    RED         1          mimalloc heap alloc checks the owner heap in test builds (source pin) 
+MI-TRIM      GREEN    RED         1          mimalloc trim returns a destroyed heap's pages before the purge delay 
+CLI-REPEATN  GREEN    RED         1          command line keeps -perturbheap and -repeatmission out of the mission name 
+CLI-REPEATCLAMP GREEN    RED         1          command line repeat count takes any digits and clamps them 
+CLI-REPEATUSE GREEN    RED         1          the startup repeat switch goes through the shared count (source pin) 
+CLI-MOVIECLOSE GREEN    RED         1          command line reports test-only switches it ignores 
+CLI-FINDPREFIX GREEN    RED         1          command line search accepts the same switch forms as the parser 
+CLI-FINDCOMMA GREEN    RED         1          command line search accepts the same switch forms as the parser 
+CLI-ARGVCAP  GREEN    RED         1          command line parser ignores tokens past its argument table 
+CLI-FINDARG  GREEN    RED         1          the startup argument search goes through the command line tokenizer (source pin) 
+CLI-ALLOCVAL GREEN    RED         1          command line keeps -allocator and -mipurge values out of the mission name 
 REPT01-ONCE  GREEN    RED         0,1        memory pool full line logs once on growth | memory pool full line logs once when gated 
 REPT03-STRICT GREEN    RED         1          memory pool full line is error when strict 
 REPT02-RESET GREEN    RED         1,1        memory pool stats survive reset and destroy for the exit report | report emits one line per heap and created pool 
@@ -85,6 +119,7 @@ LAA-02B      GREEN    RED         1          collision tie-break is unsigned
 LAA-02C      GREEN    RED         1          pointer order sites use the unsigned helpers 
 LAA-02D      GREEN    RED         1          pointer order sites use the unsigned helpers 
 LAA-02E      GREEN    RED         1          pointer order sites use the unsigned helpers 
+LAA-02F      GREEN    RED         1          pointer order sites use the unsigned helpers 
 DSET-03      GREEN    RED         1          display settings bad value keeps default and logs once 
 DSET-01      GREEN    RED         1          display settings merge precedence 
 DSET-04A     GREEN    RED         1          display settings save gate refuses without a good frame 
@@ -141,6 +176,8 @@ WIN-04B      GREEN    RED         1          display logic coordinate mapping
 WIN-05A      GREEN    RED         1          display logic shell size policy 
 WIN-05B      GREEN    RED         1          display logic shell size policy 
 WIN-04A      GREEN    RED         1          window mode source pins 
+MOUSE-NOWARP GREEN    RED         1          window mode source pins 
+MOUSE-FAKEINPUT GREEN    RED         1          window mode source pins 
 WIN-04C      GREEN    RED         1          window mode source pins 
 WIN-04D      GREEN    RED         1          window mode source pins 
 WIN-09A      GREEN    RED         1          window mode source pins 
@@ -468,6 +505,7 @@ PTR-04B      GREEN    RED         1          voice chat decoder clears through t
 STACKALLOC-01 GREEN    RED         1          stack allocator starts at the first size slot 
 STACKALLOC-02 GREEN    RED         1          stack allocator free after a full size ring keeps the pool 
 LISTALLOC-01 GREEN    RED         1          list allocator serves requests of a page or more 
+CLOTH-ORDER  GREEN    RED         1          cloth list allocator picks the same block whatever order its pages have in memory 
 SOLDANIM-01  GREEN    RED         1          soldier animation fits its pool slot 
 FLEFFATTACH-01 GREEN    RED         1          effect keeps its last position after its attach vector is released 
 FLEFFATTACH-01B GREEN    RED         1          asan fix helpers stay wired into the game (source pin: callers need the game runtime) 
@@ -564,6 +602,9 @@ ASANHOOK-SNDFREE GREEN    RED         0,0        asan canary snd free list overf
 ASANHOOK-SNDFREEB GREEN    RED         1          snd free list in bounds cycle is clean 
 ASANHOOK-GLYPH GREEN    RED         0,0        asan canary glyph memory overflow is reported | asan canary glyph memory use after free is reported 
 ASANHOOK-GLYPHB GREEN    RED         1          glyph memory in bounds cycle is clean 
+ASANHOOK-MIPREFIX GREEN    RED         0          asan canary mimalloc heap prefix underrun is reported 
+ASANHOOK-MITAIL GREEN    RED         0          asan canary mimalloc heap slack overflow is reported 
+ASANHOOK-MIDESTROY GREEN    RED         0          asan canary mimalloc heap use after destroy is reported 
 LAA-01       GREEN    RED                    hardening:laa check=laa ok=False
 PTR-01       GREEN    RED                    hardening:new-size-t check=new-size-t ok=False
 PTR-01B      GREEN    RED                    hardening:new-size-t check=new-size-t ok=False
@@ -598,15 +639,15 @@ OFFSET-04    GREEN    RED                    hardening:offset-hack check=offset-
 SUITE-01     GREEN    RED                    hardening:t1-suite check=t1-suite ok=False
 SUITE-01B    GREEN    RED                    hardening:t1-suite check=t1-suite ok=False
 WIN-03B      GREEN    RED                    hardening:import-SetProcessDPIAware check=import-SetProcessDPIAware ok=False
-FLAG-ALIGNNEW GREEN    RED                    tlog:flag-alignednew reverted: cl entries=772 /Zc:alignedNew-=0
-FLAG-INLINE  GREEN    RED                    tlog:flag-inline reverted: cl entries=772 /Zc:inline=772 /Zc:inline-=772
-FLAG-INLINE-B GREEN    RED                    tlog:flag-inline reverted: cl entries=772 /Zc:inline=0 /Zc:inline-=0
-FLAG-ALIGNNEW-T GREEN    RED                    tlog:flag-alignednew-tests reverted: tests cl entries=184 /Zc:alignedNew-=0
-FLAG-THROWNEW GREEN    RED                    tlog:flag-banned reverted: /Zc:throwingNew=772 /GL=0 /fp:fast=0 /fp:contract=0 /GS-=0
-FLAG-GL      GREEN    RED                    tlog:flag-banned build failed after 772 compiles; reverted: /Zc:throwingNew=0 /GL=772 /fp:fast=0 /fp:contract=0 /GS-=0
-FLAG-FPFAST  GREEN    RED                    tlog:flag-banned reverted: /Zc:throwingNew=0 /GL=0 /fp:fast=772 /fp:contract=0 /GS-=0
+FLAG-ALIGNNEW GREEN    RED                    tlog:flag-alignednew reverted: cl entries=773 /Zc:alignedNew-=0
+FLAG-INLINE  GREEN    RED                    tlog:flag-inline reverted: cl entries=773 /Zc:inline=773 /Zc:inline-=773
+FLAG-INLINE-B GREEN    RED                    tlog:flag-inline reverted: cl entries=773 /Zc:inline=0 /Zc:inline-=0
+FLAG-ALIGNNEW-T GREEN    RED                    tlog:flag-alignednew-tests reverted: tests cl entries=188 /Zc:alignedNew-=0
+FLAG-THROWNEW GREEN    RED                    tlog:flag-banned reverted: /Zc:throwingNew=773 /GL=0 /fp:fast=0 /fp:contract=0 /GS-=0
+FLAG-GL      GREEN    RED                    tlog:flag-banned build failed after 773 compiles; reverted: /Zc:throwingNew=0 /GL=773 /fp:fast=0 /fp:contract=0 /GS-=0
+FLAG-FPFAST  GREEN    RED                    tlog:flag-banned reverted: /Zc:throwingNew=0 /GL=0 /fp:fast=773 /fp:contract=0 /GS-=0
 FLAG-FPCONTRACT GREEN    RED                    tlog:flag-banned build failed after 475 compiles; reverted: /Zc:throwingNew=0 /GL=0 /fp:fast=0 /fp:contract=475 /GS-=0
-FLAG-GSMINUS GREEN    RED                    tlog:flag-banned reverted: /Zc:throwingNew=0 /GL=0 /fp:fast=0 /fp:contract=0 /GS-=772
+FLAG-GSMINUS GREEN    RED                    tlog:flag-banned reverted: /Zc:throwingNew=0 /GL=0 /fp:fast=0 /fp:contract=0 /GS-=773
 MIDEF-01     GREEN    RED                    tlog:mimalloc-defines reverted: game missing MI_NO_GETENV=1
 MIDEF-02     GREEN    RED                    tlog:mimalloc-defines reverted: game Release has "MI_DEBUG=0 MI_SECURE=0" want "MI_DEBUG=0 MI_SECURE=4"
 MEM-01       GREEN    RED         0x00000000 smoke:crash-arenaoom class=Pass dumps=0
@@ -614,6 +655,7 @@ MEM-01B      GREEN    RED         0x00000000 smoke:crash-debugheapoom class=Pass
 MEM-02S      GREEN    RED         0x00000000 smoke:crash-heapfail class=Pass dumps=0
 MEM-03S      GREEN    RED         0x00000003 smoke:crash-luaoom class=Fatal dumps=1
 MEM-04S      GREEN    RED         0x00000000 smoke:crash-luapanic class=Pass dumps=0
+MI-ERRHOOK   GREEN    RED         0x00000003 smoke:crash-midoublefree class=Fatal dumps=1
 DIAG-04      GREEN    RED         0x00000003 smoke:crash-hang class=Fatal dumps=1
 SAFE01-CREATES GREEN    RED         0x00000003 smoke:crash-poolcount class=Fatal dumps=1
 REPT01S      GREEN    RED         0x00000000 smoke:pool-full class=Pass dumps=0

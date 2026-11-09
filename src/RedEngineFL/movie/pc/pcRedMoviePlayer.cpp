@@ -6,6 +6,7 @@
 #include "RedEngineFL/Memory/RedMemory.h"
 #include "SoundFL/source/win/sndengine.h"
 #include "PebbleFL/Common/PblMath.h"
+#include "RedEngineFL/Util/RedLog.h"
 
 void __cdecl PblTraceP(const char* Format, ...);
 
@@ -269,6 +270,10 @@ void RedMoviePlayer::DestroyBinkDecoder(bool bForce)
     {
         BinkClose(mBink);
         mBink = 0;
+#ifdef OPENSWBF2_TEST
+        ++gRedMovieCloses;
+        LOG(LogCore, Inform, "OPENSWBF2 MOVIE close");
+#endif
         DestroyTextures(bForce, 3);
     }
 }
@@ -362,6 +367,10 @@ void RedMoviePlayer::SetGain(float fGain)
 
 // GLOBAL: SWBF2 0x009c8430
 static bool sOpeningBinkDecoder;
+
+#ifdef OPENSWBF2_TEST
+unsigned int gRedMovieCloses;
+#endif
 
 // FUNCTION: SWBF2 0x006f4950
 void RedMoviePlayer::Update()
@@ -462,6 +471,10 @@ void RedMoviePlayer::Update()
         if (!mBink)
         {
             PblTraceP("Bink error: %s\n", BinkGetError());
+        }
+        else
+        {
+            LOG(LogCore, Inform, "OPENSWBF2 MOVIE open");
         }
         mFlags |= 1;
         sOpeningBinkDecoder = false;

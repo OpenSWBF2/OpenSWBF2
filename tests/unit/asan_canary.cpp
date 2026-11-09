@@ -4,6 +4,7 @@
 
 #include "RedEngineFL/Interface/RedGlyphMemoryManager.h"
 #include "RedEngineFL/Memory/RedMemory.h"
+#include "RedEngineFL/Memory/RedMemoryBackend.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 #include "RedEngineFL/Util/RedStack.h"
 #include "RedEngineFL/Util/ext/Allocator.h"
@@ -21,6 +22,17 @@ struct CanaryElem
 {
     char ac[16];
 };
+
+alignas(16) char sacCanaryMi[0x4000];
+
+int CanaryMiHeap()
+{
+    const RedHeapBackend* pSaved = gRedHeapBackend;
+    gRedHeapBackend = &kRedMiBackend;
+    const int iHeap = RedCreateHeap(sacCanaryMi, sacCanaryMi + sizeof(sacCanaryMi), 0x10, "CanaryMi");
+    gRedHeapBackend = pSaved;
+    return iHeap;
+}
 
 }
 
@@ -242,6 +254,38 @@ TEST_CASE("asan canary glyph memory use after free is reported" * doctest::test_
     volatile char* p = (volatile char*)pBlock;
     REQUIRE(p);
     pManager->Free(pBlock);
+    p[0] = 1;
+}
+
+TEST_CASE("asan canary mimalloc heap slack overflow is reported" * doctest::test_suite("asan_canary"))
+{
+    const int iHeap = CanaryMiHeap();
+    REQUIRE(iHeap > 0);
+    volatile char* p = (volatile char*)RedAllocFromHeap(iHeap, 13, 0);
+    REQUIRE(p);
+    p[13] = 1;
+    RedFreeToHeap(iHeap, (void*)p, 0);
+    RedDestroyHeap(iHeap);
+}
+
+TEST_CASE("asan canary mimalloc heap prefix underrun is reported" * doctest::test_suite("asan_canary"))
+{
+    const int iHeap = CanaryMiHeap();
+    REQUIRE(iHeap > 0);
+    volatile char* p = (volatile char*)RedAllocFromHeap(iHeap, 16, 0);
+    REQUIRE(p);
+    p[-1] = p[-1];
+    RedFreeToHeap(iHeap, (void*)p, 0);
+    RedDestroyHeap(iHeap);
+}
+
+TEST_CASE("asan canary mimalloc heap use after destroy is reported" * doctest::test_suite("asan_canary"))
+{
+    const int iHeap = CanaryMiHeap();
+    REQUIRE(iHeap > 0);
+    volatile char* p = (volatile char*)RedAllocFromHeap(iHeap, 16, 0);
+    REQUIRE(p);
+    RedDestroyHeap(iHeap);
     p[0] = 1;
 }
 #endif

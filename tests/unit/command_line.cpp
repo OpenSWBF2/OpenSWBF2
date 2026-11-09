@@ -117,14 +117,31 @@ TEST_CASE("command line keeps -perturbheap and -repeatmission out of the mission
     Parse("-repeatmission geo1c_con");
     CHECK(Mission() == "geo1c_con");
 
+    Parse("-repeatmission 9 geo1c_con");
+    CHECK(Mission() == "geo1c_con");
+
+    Parse("-repeatmission 0 geo1c_con");
+    CHECK(Mission() == "geo1c_con");
+
     Parse("-shellfirst geo1c_con");
     CHECK(Mission() == "geo1c_con");
+
+    Parse("-repeatmission 2 geo1c_con");
+    CHECK(Mission() == "geo1c_con");
+
+    Parse("geo1c_con -repeatmission 3 -exitongameover");
+    CHECK(Mission() == "geo1c_con");
+    CHECK(gExitOnGameOver);
+
+    Parse("-exitonmovieclose nab2g_c -exitongameover");
+    CHECK(Mission() == "nab2g_c");
+    CHECK(gExitOnGameOver);
 }
 
 TEST_CASE("command line reports test-only switches it ignores" * doctest::test_suite("regression"))
 {
     SimOrderRestore restore;
-    Parse("-perturbheap 1:pad -repeatmission -shellfirst geo1c_con");
+    Parse("-perturbheap 1:pad -repeatmission 2 -shellfirst -exitonmovieclose geo1c_con");
     std::string ignored;
     const char* pcName = 0;
     int iCount = 0;
@@ -137,11 +154,11 @@ TEST_CASE("command line reports test-only switches it ignores" * doctest::test_s
             ignored += " ";
         }
     }
-    CHECK(iCount == 3);
+    CHECK(iCount == 4);
 #ifdef OPENSWBF2_TEST
     CHECK(ignored == "");
 #else
-    CHECK(ignored == "perturbheap repeatmission shellfirst ");
+    CHECK(ignored == "perturbheap repeatmission shellfirst exitonmovieclose ");
 #endif
 
     Parse("geo1c_con");
@@ -222,4 +239,98 @@ TEST_CASE("mission victory and defeat return early under -novictory" * doctest::
         const char* pcGuard = "    if (NoVictoryActive())\n    {\n        return 0;\n    }\n    unsigned int u";
         CHECK(sMission.compare(uiBegin, strlen(pcGuard), pcGuard) == 0);
     }
+}
+
+TEST_CASE("command line keeps -allocator and -mipurge values out of the mission name" * doctest::test_suite("regression"))
+{
+    const char* apcLines[] = { "geo1c_con -allocator arena", "geo1c_con -allocator mimalloc -mipurge 0",
+        "geo1c_con -mipurge 250 -exitongameover", "-allocator bogus geo1c_con", "geo1c_con -mipurge",
+        "geo1c_con /allocator arena", "+allocator arena geo1c_con", "geo1c_con /mipurge 0 +mipurge 1" };
+    for (int n = 0; n < 8; ++n)
+    {
+        Parse(apcLines[n]);
+        CHECK(Mission() == "geo1c_con");
+        CHECK(gExitOnGameOver == (strstr(apcLines[n], "-exitongameover") != 0));
+    }
+}
+
+TEST_CASE("command line search accepts the same switch forms as the parser" * doctest::test_suite("regression"))
+{
+    struct FormCase
+    {
+        const char* pcLine;
+        const char* pcValue;
+    };
+    const FormCase akForms[] = {
+        { "x.exe geo1c_con -allocator arena", "arena" },
+        { "x.exe geo1c_con /allocator arena", "arena" },
+        { "x.exe geo1c_con +allocator arena", "arena" },
+        { "x.exe,geo1c_con,-allocator,arena", "arena" },
+        { "x.exe \"-allocator\" \"arena\" geo1c_con", "arena" },
+        { "x.exe -ALLOCATOR Arena", "Arena" },
+        { "\"c:\\game dir\\x.exe\" /allocator arena", "arena" },
+        { "x.exe -allocator", "" },
+    };
+    for (int n = 0; n < 8; ++n)
+    {
+        CAPTURE(n);
+        const char* pcVal = 0;
+        int iLen = -1;
+        REQUIRE(FindCommandLineArg(akForms[n].pcLine, "-allocator", &pcVal, &iLen));
+        CHECK(std::string(pcVal, iLen) == akForms[n].pcValue);
+    }
+    const char* apcMiss[] = { "x.exe geo1c_con", "x.exe \"a -allocator b\" c", "x.exe -allocators arena", "x.exe allocator arena" };
+    for (int n = 0; n < 4; ++n)
+    {
+        CAPTURE(n);
+        const char* pcVal = (const char*)1;
+        int iLen = -1;
+        CHECK_FALSE(FindCommandLineArg(apcMiss[n], "-allocator", &pcVal, &iLen));
+        CHECK(pcVal == nullptr);
+        CHECK(iLen == 0);
+    }
+}
+
+TEST_CASE("command line parser ignores tokens past its argument table" * doctest::test_suite("regression"))
+{
+    std::string sLine;
+    for (int n = 0; n < 300; ++n)
+    {
+        sLine += "a ";
+    }
+    Parse((sLine + "geo1c_con").c_str());
+    CHECK(Mission() == "a");
+}
+
+TEST_CASE("the startup argument search goes through the command line tokenizer (source pin)" * doctest::test_suite("regression"))
+{
+    std::string sCrash;
+    if (!ReadRepoText("src\\Battlefront2\\Source\\pcCrash.cpp", sCrash))
+    {
+        SkipCase("pcCrash.cpp not found");
+    }
+    CHECK(sCrash.find("FindCommandLineArg(pcCmd, pcName, &pcVal, piLen);") != std::string::npos);
+}
+
+TEST_CASE("command line repeat count takes any digits and clamps them" * doctest::test_suite("regression"))
+{
+    CHECK(CommandLineRepeatCount("3", 1) == 3);
+    CHECK(CommandLineRepeatCount("0", 1) == 1);
+    CHECK(CommandLineRepeatCount("9", 1) == 8);
+    CHECK(CommandLineRepeatCount("00", 2) == 1);
+    CHECK(CommandLineRepeatCount("99999999999", 11) == 8);
+    CHECK(CommandLineRepeatCount("abc", 3) == -1);
+    CHECK(CommandLineRepeatCount("12x", 3) == -1);
+    CHECK(CommandLineRepeatCount("", 0) == -1);
+}
+
+TEST_CASE("the startup repeat switch goes through the shared count (source pin)" * doctest::test_suite("regression"))
+{
+    std::string sCrash;
+    if (!ReadRepoText("src\\Battlefront2\\Source\\pcCrash.cpp", sCrash))
+    {
+        SkipCase("pcCrash.cpp not found");
+    }
+    CHECK(sCrash.find("const int iCount = CommandLineRepeatCount(pcVal, iLen);") != std::string::npos);
+    CHECK(sCrash.find("siRepeat = iCount > 0 ? iCount : 1;") != std::string::npos);
 }

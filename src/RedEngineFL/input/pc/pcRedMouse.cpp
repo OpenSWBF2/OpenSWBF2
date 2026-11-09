@@ -11,6 +11,7 @@
 #include "RedEngineFL/Graphics/PC/pcRedTexture.h"
 #include "RedEngineFL/Graphics/PC/pcDisplaySettings.h"
 #include "RedEngineFL/Util/RedLog.h"
+#include "Battlefront2/Source/pcCrash.h"
 
 // GLOBAL: SWBF2 0x00787484
 // GUID_SysMouse
@@ -411,6 +412,13 @@ void RedMouse::SetCursorPos(int iX, int iY)
     m_X = Clamp(iX, 0, (int)RedInterfaceScreen::GetScreenWidth());
     m_Y = Clamp(iY, 0, (int)RedInterfaceScreen::GetScreenHeight());
     FLRenderer::SetCursorPos((float)m_X, (float)m_Y);
+
+#ifdef OPENSWBF2_TEST
+    if (pcCrash::ExitOnMovieCloseRequested())
+    {
+        return;
+    }
+#endif
 
     if (gAppActive && hGlobalWnd)
     {

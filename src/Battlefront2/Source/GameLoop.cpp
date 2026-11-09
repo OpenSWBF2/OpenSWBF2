@@ -77,6 +77,7 @@
 #include "PebbleFL/Common/PblHashTable.h"
 #include "PebbleFL/Common/PblRandom.h"
 #include "RedEngineFL/input/RedKeyboard.h"
+#include "RedEngineFL/movie/pc/pcRedMoviePlayer.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "PebbleFL/Common/PblTimeBase.h"
 #include "PebbleFL/Common/PblUnicode.h"
@@ -842,8 +843,23 @@ static unsigned int suDigestTurns;
 static bool sbDigestLogged;
 static bool sbExitPosted;
 
+static void PostRunComplete()
+{
+    sbExitPosted = true;
+    LOG(LogSim, Inform, "OPENSWBF2 RUN COMPLETE %s", mMissionScript);
+    if (hGlobalWnd)
+    {
+        PostMessageA(hGlobalWnd, WM_CLOSE, 0, 0);
+    }
+    else
+    {
+        GameLoop::sQuitRequested = true;
+    }
+}
+
 #ifdef OPENSWBF2_TEST
-static int siRepeatRun;
+static int siRepeatsDone;
+static bool sbRepeatStopped;
 static bool sbRepeatPending;
 
 bool TakeRepeatPending()
@@ -1381,6 +1397,12 @@ void Update(float fDeltaTime, float fSystemDeltaTime)
     {
         pcCrash::RunMissionCrashTest();
     }
+#ifdef OPENSWBF2_TEST
+    if (sbRunningLogged && !sbExitPosted && gRedMovieCloses != 0 && pcCrash::ExitOnMovieCloseRequested())
+    {
+        PostRunComplete();
+    }
+#endif
     SimDigest::LogFactories();
 
     ScreenTransition::sInstance->ScreenTransition::Update(fSystemDeltaTime);
@@ -1528,9 +1550,9 @@ void Update(float fDeltaTime, float fSystemDeltaTime)
 #ifdef OPENSWBF2_TEST
                 LuaMemory::LogMemReportLines();
                 CollisionObject::LogSerialTies(false);
-                if (pcCrash::RepeatMissionRequested() && siRepeatRun == 0)
+                if (!sbRepeatStopped && siRepeatsDone < pcCrash::RepeatMissionCount())
                 {
-                    siRepeatRun = 1;
+                    ++siRepeatsDone;
                     sbRepeatPending = true;
                     LOG(LogSim, Inform, "OPENSWBF2 REPEAT to_shell mission=%s", mMissionScript);
                     GameState::SetState(0x11E1FC01);
@@ -1741,9 +1763,9 @@ void Update(float fDeltaTime, float fSystemDeltaTime)
 
             bool bExitOwed = gExitOnGameOver && !sbExitPosted;
 #ifdef OPENSWBF2_TEST
-            if (pcCrash::RepeatMissionRequested() && siRepeatRun == 0)
+            if (!sbRepeatStopped && !sbRepeatPending && siRepeatsDone < pcCrash::RepeatMissionCount())
             {
-                siRepeatRun = 2;
+                sbRepeatStopped = true;
                 LOG(LogSim, Warning, "OPENSWBF2 REPEAT skipped mission=%s reason=game over before turn 1500", mMissionScript);
             }
             if (sbRepeatPending)
@@ -1753,16 +1775,7 @@ void Update(float fDeltaTime, float fSystemDeltaTime)
 #endif
             if (bExitOwed)
             {
-                sbExitPosted = true;
-                LOG(LogSim, Inform, "OPENSWBF2 RUN COMPLETE %s", mMissionScript);
-                if (hGlobalWnd)
-                {
-                    PostMessageA(hGlobalWnd, WM_CLOSE, 0, 0);
-                }
-                else
-                {
-                    GameLoop::sQuitRequested = true;
-                }
+                PostRunComplete();
             }
 
             sGameOver = true;

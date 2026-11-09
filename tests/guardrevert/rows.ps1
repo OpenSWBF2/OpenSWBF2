@@ -19,12 +19,14 @@ $ltab = 'src\LuaFL\src\ltable.cpp'
 $lgc = 'src\LuaFL\src\lgc.cpp'
 $rm = 'src\RedEngineFL\Memory\RedMemory.cpp'
 $rma = 'src\RedEngineFL\Memory\RedMemoryArena.cpp'
+$rmm = 'src\RedEngineFL\Memory\RedMemoryMi.cpp'
 $ds = 'src\RedEngineFL\Graphics\PC\pcDisplaySettings.cpp'
 $dl = 'src\RedEngineFL\Graphics\PC\pcDisplayLogic.cpp'
 $fl = 'src\RedEngineFL\Application\pc\pcFrameLimiter.cpp'
 $md = 'src\RedEngineFL\Application\pc\pcMessageDrain.cpp'
 $rr = 'src\RedEngineFL\Graphics\PC\pcRedRenderer.cpp'
 $mouse = 'src\RedEngineFL\input\pc\pcRedMouse.cpp'
+$inputmgr = 'src\RedEngineFL\input\pc\pcRedInputManager.cpp'
 $joy = 'src\RedEngineFL\input\pc\pcRedJoystick.cpp'
 $win = 'src\RedEngineFL\Application\pc\pcWindow.cpp'
 $lcp = 'src\Battlefront2\Source\LuaCallbacks_PC.cpp'
@@ -131,7 +133,7 @@ $GuardRevertRows = @(
     @{ Id = 'LOCAL-05'; File = $pm; Anchor = 'return uiUsed < uiPoolSize;'; Replacement = 'return true;'; Tests = @('render item pool') },
     @{ Id = 'MEM-02'; File = $mf; Anchor = 'if (siCount < 16)'; Replacement = 'if (true)'; Tests = @('alloc failure handler logs and suppresses') },
     @{ Id = 'HEAPQ-NAME'; File = $rm; Anchor = 'if (heap >= 0 && heap < maxheaps && gRedHeapSlots[heap].name)'; Replacement = 'if (gRedHeapSlots[heap].name)'; Tests = @('heap queries reject an id past maxheaps') },
-    @{ Id = 'HEAPQ-FREE'; File = $rm; Anchor = 'if (heap < 0 || heap >= maxheaps || !gRedHeapSlots[heap].bLive)'; Replacement = 'if (!gRedHeapSlots[heap].bLive)'; Tests = @('heap queries reject an id past maxheaps') },
+    @{ Id = 'HEAPQ-FREE'; File = $rm; Anchor = "RedGetHeapFree(int heap)`n{`n    if (heap < 0 || heap >= maxheaps || !gRedHeapSlots[heap].bLive)"; Replacement = "RedGetHeapFree(int heap)`n{`n    if (!gRedHeapSlots[heap].bLive)"; Tests = @('heap queries reject an id past maxheaps') },
     @{ Id = 'HEAPQ-STATS'; File = $rm; Anchor = 'if (pOut == 0 || heap < 0 || heap >= maxheaps || gRedHeapSlots[heap].size == 0)'; Replacement = 'if (pOut == 0 || gRedHeapSlots[heap].size == 0)'; Tests = @('heap queries reject an id past maxheaps') },
     @{ Id = 'HEAPD-RANGE'; File = $rm; Anchor = "void RedDestroyHeap(int heap)`n{`n    if (heap < 0 || heap >= maxheaps)"; Replacement = "void RedDestroyHeap(int heap)`n{`n    if (false)"; Tests = @('heap destroy ignores an id out of range') },
     @{ Id = 'MEM-02C'; File = $mf; Anchor = '    sbInHandler = true;'; Replacement = ''; Tests = @('alloc failure handler ignores re-entry') },
@@ -151,6 +153,7 @@ $GuardRevertRows = @(
     @{ Id = 'MEM-02S'; Kind = 'Smoke'; Case = 'crash-heapfail'; File = 'src\Battlefront2\Source\GameMemory.cpp'; Anchor = 'OnFailure = MemFail::OnAllocFailure;'; Replacement = '' },
     @{ Id = 'MEM-03S'; Kind = 'Smoke'; Case = 'crash-luaoom'; File = 'src\LuaFL\src\lmem.cpp'; Anchor = 'luaD_throw(L, LUA_ERRMEM);'; Replacement = 'return NULL;' },
     @{ Id = 'MEM-04S'; Kind = 'Smoke'; Case = 'crash-luapanic'; File = 'src\Battlefront2\Source\LuaHelper.cpp'; Anchor = 'lua_atpanic(mState, Lua_Red_Panic);'; Replacement = '' },
+    @{ Id = 'MI-ERRHOOK'; Kind = 'Smoke'; Case = 'crash-midoublefree'; File = $rmm; Anchor = 'mi_register_error(MiError, 0);'; Replacement = '' },
     @{ Id = 'DIAG-04'; Kind = 'Smoke'; Case = 'crash-hang'; File = 'src\Battlefront2\Source\pcCrash.cpp'; Anchor = 'TerminateNow(5);'; Replacement = 'TerminateNow(3);' },
     @{ Id = 'HANDLESCAN-GUARD'; Kind = 'Smoke'; Config = 'Test'; Case = 'shell-first'; File = 'src\Battlefront2\Source\GameState.cpp'; Anchor = 'if (kInfo.State != MEM_COMMIT || (kInfo.Protect & (PAGE_NOACCESS | PAGE_GUARD)) != 0)'; Replacement = 'if (kInfo.State != MEM_COMMIT)' },
     @{ Id = 'SAFE01-CREATE'; File = $rp; Anchor = 'if (uiCount != 0 && !RedScriptLimits::PoolBytesOk(uiCount, uiSize, RedScriptLimits::kPoolBytesMax))'; Replacement = 'if (false)'; Tests = @('memory pool create refuses overflowing count') },
@@ -172,7 +175,7 @@ $GuardRevertRows = @(
     @{ Id = 'SAFE03-MOVEPLACE'; File = $rma; Anchor = 'if (!bAtBoundary || pTag->size != uMove)'; Replacement = 'if (false)'; Tests = @('move heap end refuses a block away from the boundary') },
     @{ Id = 'SAFE03-MOVEALIGN'; File = $rma; Anchor = 'unsigned int uMove = uAmount & ~(align - 1);'; Replacement = 'unsigned int uMove = uAmount;'; Tests = @('move heap end moves only the aligned block it transfers') },
     @{ Id = 'SPIKE01-OFFTHREAD'; Asan = $true; File = $rm; Anchor = 'if (sMainTid != 0 && uiTid != (DWORD)sMainTid)'; Replacement = 'if (false)'; Tests = @('off-thread allocation is counted with tid heap and size') },
-    @{ Id = 'SEAM05-OWNER'; File = $rm; Anchor = 'int iOwner = gRedHeapBackend->owner(block);'; Replacement = 'int iOwner = heap;'; Tests = @('heap free is debited from the owning heap', 'heap free of a nested block goes to the inner heap') },
+    @{ Id = 'SEAM05-OWNER'; File = $rm; Anchor = 'int iOwner = RedHeapOwner(block);'; Replacement = 'int iOwner = heap;'; Tests = @('heap free is debited from the owning heap', 'heap free of a nested block goes to the inner heap', 'mimalloc heap frees a crt pointer and a mimalloc pointer each to their owner') },
     @{ Id = 'SEAM05-CRT'; File = $rm; Anchor = "        free(block);`n        return;"; Replacement = '        return;'; Tests = @('heap free of an unowned block uses the crt') },
     @{ Id = 'SEAM04-SLOT'; File = $rm; Anchor = 'if (!gRedHeapSlots[i].bLive)'; Replacement = 'if (!gRedHeapSlots[i].bLive && (i + 1 >= maxheaps || !gRedHeapSlots[i + 1].bLive))'; Tests = @('heap slot ids are stable across destroy and re-create') },
     @{ Id = 'CAPS01-CHECK'; File = $rm; Anchor = 'if ((unsigned int)lUsed > rSlot.cap || uNeed > rSlot.cap - (unsigned int)lUsed)'; Replacement = 'if (false)'; Tests = @('heap over-cap allocation fails through OnFailure without a backend call') },
@@ -183,6 +186,40 @@ $GuardRevertRows = @(
     @{ Id = 'CAPS02-FREE'; File = $rm; Anchor = 'return (unsigned int)rSlot.used < rSlot.defaultCap ? rSlot.defaultCap - (unsigned int)rSlot.used : 0;'; Replacement = 'return (unsigned int)rSlot.used < rSlot.cap ? rSlot.cap - (unsigned int)rSlot.used : 0;'; Tests = @('raised heap cap does not change the free value') },
     @{ Id = 'CAPS02-FREEB'; File = $rm; Anchor = 'return (unsigned int)rSlot.used < rSlot.defaultCap ? rSlot.defaultCap - (unsigned int)rSlot.used : 0;'; Replacement = 'return rSlot.defaultCap;'; Tests = @('heap free is cap minus used on a fixed script', 'heap charge follows the need formula on every backend') },
     @{ Id = 'CAPS02-CHARGE'; File = $rm; Anchor = 'HeapStatsAddUsed(heap, (long)uReserved - (long)uNeed);'; Replacement = 'HeapStatsAddUsed(heap, 0);'; Tests = @('heap free is cap minus used on a fixed script', 'heap charge follows the need formula on every backend') },
+    @{ Id = 'MI-CHARGE'; File = $rmm; Anchor = '*pReserved = uNeed;'; Replacement = '*pReserved = mi_usable_size(pBase);'; Tests = @('heap charge follows the need formula on every backend') },
+    @{ Id = 'MI-OWNER'; File = $rmm; Anchor = 'mi_heap_t* pOwnerHeap = mi_heap_of(p);'; Replacement = "return -1;`n    mi_heap_t* pOwnerHeap = mi_heap_of(p);"; Tests = @('mimalloc heap owner maps interior pointers to the slot', 'mimalloc heap frees a crt pointer and a mimalloc pointer each to their owner') },
+    @{ Id = 'MI-VISIT'; File = $rmm; Anchor = 'if (heap < 0 || heap >= kRedHeapSlots || sMiHeap[heap] == 0)'; Replacement = 'if (true)'; Tests = @('heap visit reports every live block on every backend') },
+    @{ Id = 'PURGE-OWNER'; File = $rm; Anchor = 'PblHandleRegistry::PurgeIf(HeapOwnsKey, &heap);'; Replacement = ''; Tests = @('heap purge drops the handles owned by the heap on every backend') },
+    @{ Id = 'MI-ZERO'; File = $rmm; Anchor = 'mi_heap_zalloc_aligned('; Replacement = 'mi_heap_malloc_aligned('; Tests = @('mimalloc heap blocks are zero even when reused') },
+    @{ Id = 'MI-GEN'; File = $rmm; Anchor = 'if (((kPrefix.uSlotGen >> 8) & 0xFFFFFFu) != sMiGen[uSlot])'; Replacement = 'if (false)'; Tests = @('mimalloc heap free classifier sorts valid stale foreign and bad prefix blocks') },
+    @{ Id = 'MI-RESERVE'; File = $rmm; Anchor = 'return MiInReservation(p) && !MiIsCrtBlock(p) ? kRedOwnerStale : -1;'; Replacement = 'return -1;'; Tests = @('mimalloc heap free classifier sorts valid stale foreign and bad prefix blocks', 'mimalloc heap slots are re-created with a new heap after destroy') },
+    @{ Id = 'MI-NINTH'; File = $rmm; Anchor = 'for (unsigned int uIdx = uFirst; uIdx <= uLast; ++uIdx)'; Replacement = "static int siMiRow;`n    check(++siMiRow <= 8);`n    for (unsigned int uIdx = uFirst; uIdx <= uLast; ++uIdx)"; Tests = @('mimalloc heap records every address region without a fatal check') },
+    @{ Id = 'MI-RESBITS'; File = $rmm; Anchor = 'const unsigned int uLast = (uAt - 1) >> 16;'; Replacement = 'const unsigned int uLast = uFirst;'; Tests = @('mimalloc heap records every address region without a fatal check') },
+    @{ Id = 'MI-NOREAD'; File = $rmm; Anchor = "if (pHeap == 0)`n    {`n        return kRedMiBadPrefix;"; Replacement = "if (false)`n    {`n        return kRedMiBadPrefix;"; Tests = @('mimalloc free of an unreadable block reports a bad prefix without touching it') },
+    @{ Id = 'MI-UNMAPPED'; File = $rmm; Anchor = 'if (mi_heap_of(pBase) != 0)'; Replacement = 'if (true)'; Tests = @('mimalloc free of an unreadable block reports a bad prefix without touching it') },
+    @{ Id = 'MI-CRTREUSE'; File = $rmm; Anchor = 'return MiInReservation(p) && !MiIsCrtBlock(p) ? kRedOwnerStale : -1;'; Replacement = 'return MiInReservation(p) ? kRedOwnerStale : -1;'; Tests = @('a crt block on a released mimalloc region goes to the crt') },
+    @{ Id = 'MI-EXHAUST'; File = $rmm; Anchor = 'return !(bExhaustion && (err == EFAULT || err == EINVAL));'; Replacement = 'return true;'; Tests = @('mimalloc treats exhaustion as non-fatal and corruption as fatal') },
+    @{ Id = 'MI-SHOWERR'; File = $rmm; Anchor = 'mi_option_set(mi_option_show_errors, 1);'; Replacement = ''; Tests = @('mimalloc error hook sees the message text of each error (source pin)') },
+    @{ Id = 'MI-NOTEOUT'; File = $rmm; Anchor = 'RedMiNoteOutput(msg);'; Replacement = ''; Tests = @('mimalloc error hook sees the message text of each error (source pin)') },
+    @{ Id = 'MI-COOKIE'; File = $rmm; Anchor = 'return (unsigned int)pBase ^ kMiCookie ^ uCharge ^ (uSize * 0x9E3779B1u);'; Replacement = 'return (unsigned int)pBase ^ kMiCookie;'; Tests = @('mimalloc heap cookie covers the size and the charge words') },
+    @{ Id = 'PURGE-STALE'; File = $rm; Anchor = 'return iOwner == *(const int*)pArg || iOwner == kRedOwnerStale;'; Replacement = 'return iOwner == *(const int*)pArg;'; Tests = @('heap purge drops a handle whose block was freed on a released page') },
+    @{ Id = 'PURGE-STALEAUDIT'; File = $rm; Anchor = 'return RedHeapOwner(pKey) == kRedOwnerStale;'; Replacement = 'return false;'; Tests = @('heap purge drops a handle whose block was freed on a released page') },
+    @{ Id = 'PURGE-STALEBUILD'; File = 'src\Battlefront2\Source\GameMemory.cpp'; Anchor = 'const unsigned int uStaleLeft = RedCountStaleHandles();'; Replacement = 'const unsigned int uStaleLeft = 0;'; Tests = @('the handle audits count stale keys in build heaps and every purge (source pin)') },
+    @{ Id = 'MI-ASANVISIT'; File = $rmm; Anchor = "#if defined(__SANITIZE_ADDRESS__)`n    siMiAreas = 0;"; Replacement = "#if (defined(__SANITIZE_ADDRESS__))`n    siMiAreas = 0;"; Tests = @('mimalloc heap destroy visits areas only under asan (source pin)') },
+    @{ Id = 'MI-MOVEEND'; File = $rmm; Anchor = 'if (uRem != 0 && uRem < uAlign + uHdr)'; Replacement = 'if (false)'; Tests = @('heap move end gives the same result on every backend') },
+    @{ Id = 'MI-OPTIONS'; File = $rmm; Anchor = 'mi_option_set(mi_option_retry_on_oom, 0);'; Replacement = ''; Tests = @('mimalloc options line lists the effective values') },
+    @{ Id = 'MI-FULLRETAIN'; File = $rmm; Anchor = 'mi_option_set(mi_option_page_full_retain, -1);'; Replacement = ''; Tests = @('mimalloc heap destroy visits full pages after frees on them', 'mimalloc options line lists the effective values') },
+    @{ Id = 'MI-OWNERCHK'; File = $rmm; Anchor = 'check(mi_heap_of(pBase) == sMiHeap[i]);'; Replacement = ''; Tests = @('mimalloc heap alloc checks the owner heap in test builds (source pin)') },
+    @{ Id = 'MI-TRIM'; File = $rmm; Anchor = '    mi_collect(true);'; Replacement = ''; Tests = @('mimalloc trim returns a destroyed heap''s pages before the purge delay') },
+    @{ Id = 'CLI-REPEATN'; File = 'src\Battlefront2\Source\CommandLine.cpp'; Anchor = 'if (i + 1 < iArgc && CommandLineRepeatCount(apcArgv[i + 1], (int)strlen(apcArgv[i + 1])) >= 0)'; Replacement = 'if (false)'; Tests = @('command line keeps -perturbheap and -repeatmission out of the mission name') },
+    @{ Id = 'CLI-REPEATCLAMP'; File = 'src\Battlefront2\Source\CommandLine.cpp'; Anchor = 'return iCount < 1 ? 1 : iCount > 8 ? 8 : iCount;'; Replacement = 'return iCount;'; Tests = @('command line repeat count takes any digits and clamps them') },
+    @{ Id = 'CLI-REPEATUSE'; File = 'src\Battlefront2\Source\pcCrash.cpp'; Anchor = 'siRepeat = iCount > 0 ? iCount : 1;'; Replacement = 'siRepeat = 1;'; Tests = @('the startup repeat switch goes through the shared count (source pin)') },
+    @{ Id = 'CLI-MOVIECLOSE'; File = 'src\Battlefront2\Source\CommandLine.cpp'; Anchor = 'NoteTestOnlyArg(3);'; Replacement = ''; Tests = @('command line reports test-only switches it ignores') },
+    @{ Id = 'CLI-FINDPREFIX'; File = 'src\Battlefront2\Source\CommandLine.cpp'; Anchor = "if ((c == '/' || c == '-' || c == '+') && iLen == iNameLen &&"; Replacement = "if (c == '-' && iLen == iNameLen &&"; Tests = @('command line search accepts the same switch forms as the parser') },
+    @{ Id = 'CLI-FINDCOMMA'; File = 'src\Battlefront2\Source\CommandLine.cpp'; Anchor = "        while (pcLine[i] != '\0' && pcLine[i] != ' ' && pcLine[i] != ',')"; Replacement = "        while (pcLine[i] != '\0' && pcLine[i] != ' ')"; Tests = @('command line search accepts the same switch forms as the parser') },
+    @{ Id = 'CLI-ARGVCAP'; File = 'src\Battlefront2\Source\CommandLine.cpp'; Anchor = 'while (iArgc < 256 && NextCommandToken('; Replacement = 'while (NextCommandToken('; Tests = @('command line parser ignores tokens past its argument table') },
+    @{ Id = 'CLI-FINDARG'; File = 'src\Battlefront2\Source\pcCrash.cpp'; Anchor = 'FindCommandLineArg(pcCmd, pcName, &pcVal, piLen);'; Replacement = ''; Tests = @('the startup argument search goes through the command line tokenizer (source pin)') },
+    @{ Id = 'CLI-ALLOCVAL'; File = 'src\Battlefront2\Source\CommandLine.cpp'; Anchor = 'if (_stricmp(pcArg + 1, "allocator") == 0 || _stricmp(pcArg + 1, "mipurge") == 0)'; Replacement = 'if (false)'; Tests = @('command line keeps -allocator and -mipurge values out of the mission name') },
     @{ Id = 'REPT01-ONCE'; File = $rp; Anchor = 'if (mFullReported)'; Replacement = 'if (false)'; Tests = @('memory pool full line logs once on growth', 'memory pool full line logs once when gated') },
     @{ Id = 'REPT01S'; Kind = 'Smoke'; Case = 'pool-full'; File = $rp; Anchor = 'if (mFullReported)'; Replacement = 'if (false)' },
     @{ Id = 'REPT03-STRICT'; File = $rp; Anchor = 'if (sErrorOnExpansionPostLoad)'; Replacement = 'if (false)'; Tests = @('memory pool full line is error when strict') },
@@ -194,6 +231,7 @@ $GuardRevertRows = @(
     @{ Id = 'LAA-02C'; File = $th; Anchor = 'PblPtrOrderKey(this)'; Replacement = '(int)this'; Tests = @('pointer order sites use the unsigned helpers') },
     @{ Id = 'LAA-02D'; File = $cm; Anchor = 'PblPtrAfter(pOther, pObject)'; Replacement = '(int)pOther > (int)pObject'; Tests = @('pointer order sites use the unsigned helpers') },
     @{ Id = 'LAA-02E'; File = $rma;Anchor = 'if (sRecursionDepth <= 0)'; Replacement = 'if ((unsigned int)h.start < 0x70000000 && sRecursionDepth <= 0)'; Tests = @('pointer order sites use the unsigned helpers') },
+    @{ Id = 'LAA-02F'; File = 'src\RedEngineFL\Memory\RedMemoryMi.cpp'; Anchor = '*pReserved = uNeed;'; Replacement = '*pReserved = uNeed + ((unsigned int)pBase < 0x70000000u ? 0u : 0u);'; Tests = @('pointer order sites use the unsigned helpers') },
     @{ Id = 'DSET-03'; File = $ds; Anchor = 'if (!bValid)'; Replacement = 'if (false)'; Tests = @('display settings bad value keeps default and logs once') },
     @{ Id = 'DSET-01'; File = $ds; Anchor = 'if (cli.uiSet & kRefresh)'; Replacement = 'if (false)'; Tests = @('display settings merge precedence') },
     @{ Id = 'DSET-04A'; File = $ds; Anchor = 'if (!bGoodFrame)'; Replacement = 'if (false)'; Tests = @('display settings save gate refuses without a good frame') },
@@ -304,6 +342,8 @@ $GuardRevertRows = @(
     @{ Id = 'WIN-05A'; File = $dl; Anchor = 'if (bIsShell)'; Replacement = 'if (false)'; Tests = @('display logic shell size policy') },
     @{ Id = 'WIN-05B'; File = $dl; Anchor = 'else if (m == kModeBorderless && (uiDeskW == 0 || uiDeskH == 0))'; Replacement = 'else if (false)'; Tests = @('display logic shell size policy') },
     @{ Id = 'WIN-04A'; File = $mouse; Anchor = '::SetCursorPos(pt.x, pt.y);'; Replacement = '::SetCursorPos(m_X, m_Y);'; Tests = @('window mode source pins') },
+    @{ Id = 'MOUSE-NOWARP'; File = $mouse; Anchor = 'if (pcCrash::ExitOnMovieCloseRequested())'; Replacement = 'if (false)'; Tests = @('window mode source pins') },
+    @{ Id = 'MOUSE-FAKEINPUT'; File = $inputmgr; Anchor = 'return !pcCrash::ExitOnMovieCloseRequested();'; Replacement = 'return true;'; Tests = @('window mode source pins') },
     @{ Id = 'WIN-04C'; File = $mouse; Anchor = 'MapBackBufferToClient(m_X, m_Y,'; Replacement = 'MapBackBufferToClient(iX, iY,'; Tests = @('window mode source pins') },
     @{ Id = 'WIN-04D'; File = $mouse; Anchor = '        ClientToScreen(hGlobalWnd, &pt);'; Replacement = ''; Tests = @('window mode source pins') },
     @{ Id = 'WIN-09A'; File = $pmain; Anchor = 'if (LOWORD(lParam) != HTCLIENT)'; Replacement = 'if (false)'; Tests = @('window mode source pins') },
@@ -679,6 +719,7 @@ $GuardRevertRows = @(
     @{ Id = 'STACKALLOC-01'; File = 'src\RedEngineFL\Util\ext\Allocator.h'; Anchor = 'pos_(0), bpos_(0)'; Replacement = 'pos_(0)'; Tests = @('stack allocator starts at the first size slot') },
     @{ Id = 'STACKALLOC-02'; File = 'src\RedEngineFL\Util\ext\Allocator.cpp'; Anchor = 'bpos_ = (bpos_ + 7) % 8;'; Replacement = 'bpos_ = (bpos_ - 1) % 8;'; Tests = @('stack allocator free after a full size ring keeps the pool') },
     @{ Id = 'LISTALLOC-01'; File = 'src\RedEngineFL\Util\ext\ListAllocator.cpp'; Anchor = 'Max_(pageSize_, iSize + 2 * (int)sizeof(DLNode<Buffer>))'; Replacement = 'Max_(pageSize_, iSize)'; Tests = @('list allocator serves requests of a page or more') },
+    @{ Id = 'CLOTH-ORDER'; File = 'src\RedEngineFL\Util\ext\ListAllocator.cpp'; Anchor = '            if (PageOrder_(p->elem_.data_) > uKey)'; Replacement = '            if (p->elem_.data_ > rBuf.data_)'; Tests = @('cloth list allocator picks the same block whatever order its pages have in memory') },
     @{ Id = 'SOLDANIM-01'; File = 'src\Battlefront2\Source\SoldierAnimation.h'; Anchor = 'SoldierAnimationData* m_pAnimData;'; Replacement = 'SoldierAnimationData* m_pAnimData; char* mName;'; Tests = @('soldier animation fits its pool slot') },
     @{ Id = 'WALKANIM-01'; Asan = $true; File = 'src\Battlefront2\Source\WalkerAnimation.cpp'; Anchor = 'if (!m_bHasTiltAnims)'; Replacement = 'if (!mAnimations[1] || !mAnimations[2])'; Tests = @('walker idle setup stays inside its animation list') },
     @{ Id = 'FLEFFATTACH-01'; File = 'src\Battlefront2\Source\EffectAttach.h'; Anchor = "    rEffect.m_uiAttachFlags &= ~(EFFECT::ATTACHED_DYNAMIC | EFFECT::ATTACHED_TO_VECTOR);`n    rEffect.m_pmAttachedToMatrix = 0;"; Replacement = ''; Tests = @('effect keeps its last position after its attach vector is released') },
@@ -744,6 +785,9 @@ $GuardRevertRows = @(
     @{ Id = 'ASANHOOK-SNDFREEB'; Asan = $true; File = 'src\SoundFL\source\sndfreelist.cpp'; Anchor = 'PblAsanUnpoison(pEntry, uiEntrySize);'; Replacement = 'PblAsanUnpoison(pEntry, 2 * uiEntrySize);'; Tests = @('snd free list in bounds cycle is clean') },
     @{ Id = 'ASANHOOK-GLYPH'; Kind = 'AsanCanary'; File = 'src\RedEngineFL\Interface\RedGlyphMemoryManager.cpp'; Anchor = '#include "PebbleFL/Common/PblAsan.h"'; Replacement = "#include `"PebbleFL/Common/PblAsan.h`"`n#define PblAsanPoison(p, n) ((void)0)`n#define PblAsanUnpoison(p, n) ((void)0)"; Tests = @('asan canary glyph memory overflow is reported', 'asan canary glyph memory use after free is reported'); Report = 'use-after-poison[\s\S]*Startup_RedInitHeap' },
     @{ Id = 'ASANHOOK-GLYPHB'; Asan = $true; File = 'src\RedEngineFL\Interface\RedGlyphMemoryManager.cpp'; Anchor = 'PblAsanUnpoison(pBlock, sizeof(VertexBlock));'; Replacement = 'PblAsanUnpoison(pBlock, 2 * sizeof(VertexBlock));'; Tests = @('glyph memory in bounds cycle is clean') },
+    @{ Id = 'ASANHOOK-MIPREFIX'; Kind = 'AsanCanary'; File = $rmm; Anchor = 'PblAsanPoison(pBase, 16);'; Replacement = ''; Tests = @('asan canary mimalloc heap prefix underrun is reported'); Report = 'use-after-poison[\s\S]*asan_canary\.cpp' },
+    @{ Id = 'ASANHOOK-MITAIL'; Kind = 'AsanCanary'; File = $rmm; Anchor = 'PblAsanPoison(pBase + 16 + size, mi_usable_size(pBase) - 16 - size);'; Replacement = ''; Tests = @('asan canary mimalloc heap slack overflow is reported'); Report = 'use-after-poison[\s\S]*asan_canary\.cpp' },
+    @{ Id = 'ASANHOOK-MIDESTROY'; Kind = 'AsanCanary'; File = $rmm; Anchor = 'mi_heap_visit_blocks(sMiHeap[i], false, MiPoisonArea, 0);'; Replacement = ''; Tests = @('asan canary mimalloc heap use after destroy is reported'); Report = 'use-after-poison[\s\S]*asan_canary\.cpp' },
     @{ Id = 'SERIAL-01'; File = $th; Anchor = 'pGroup->mThreads.Add(&mThreadListNode, this, NextThreadActivationKey());'; Replacement = 'pGroup->mThreads.Add(&mThreadListNode, this, PblPtrOrderKey(this));'; Tests = @('thread activation key is set through one counter reader and reset') },
     @{ Id = 'SERIAL-02'; File = $thh; Anchor = 'while (pAt != &_head && iOrder == pAt->_iOrder)'; Replacement = 'while (iOrder == pAt->_iOrder && pNode > pAt)'; Tests = @('ordered list breaks equal keys fifo under serial order') },
     @{ Id = 'SERIAL-02B'; File = $thh; Anchor = 'pAt != &_head && '; Replacement = ''; Tests = @('ordered list sentinel key stops at the head under serial order') },

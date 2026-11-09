@@ -9,6 +9,10 @@ void ParseCommandLine(char const* pcAppName, char const* pcCmdLine);
 
 void ParseCommandLine(int iArgc, char** const apcArgv);
 
+bool FindCommandLineArg(char const* pcLine, char const* pcName, char const** ppcVal, int* piLen);
+
+int CommandLineRepeatCount(char const* pcVal, int iLen);
+
 bool SimOrderArgRejected();
 
 bool NoVictoryActive();

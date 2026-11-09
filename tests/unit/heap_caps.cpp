@@ -52,11 +52,21 @@ int FakeOwner(const void* block)
     return kRedArenaBackend.owner(block);
 }
 
+int FakeMoveEnd(int iHeap, int iDelta, bool* pbAllocFailed)
+{
+    return kRedArenaBackend.moveEnd(iHeap, iDelta, pbAllocFailed);
+}
+
+bool FakeVisit(int heap, bool (*pfnBlock)(void* pUser, size_t uSize, void* pArg), void* pArg)
+{
+    return kRedArenaBackend.visit(heap, pfnBlock, pArg);
+}
+
 const RedHeapBackend kCountingBackend = {
-    FakeInit, FakeCreate, FakeDestroy, FakeAlloc, FakeFree, FakeOwner,
+    FakeInit, FakeCreate, FakeDestroy, FakeAlloc, FakeFree, FakeOwner, FakeMoveEnd, FakeVisit,
 };
 
-static const RedHeapBackend* const kHeapCapsBackends[] = { &kRedArenaBackend };
+static const RedHeapBackend* const kHeapCapsBackends[] = { &kRedArenaBackend, &kRedMiBackend };
 
 class BackendSwap
 {
@@ -166,10 +176,10 @@ TEST_CASE("heap default caps equal the created sizes" * doctest::test_suite("reg
 TEST_CASE("heap over-cap allocation fails through OnFailure without a backend call" *
           doctest::test_suite("regression"))
 {
+    BackendSwap kSwap(&kCountingBackend);
     ScratchHeap kScratch(sacCapsArena, sacCapsArena + sizeof(sacCapsArena), 0x10, "CapsOver");
     const int iH = kScratch.miHeap;
     REQUIRE(iH >= 0);
-    BackendSwap kSwap(&kCountingBackend);
     FailureCapture kCapture;
     const unsigned int uCap = gRedHeapSlots[iH].cap;
     gRedHeapSlots[iH].cap = 256;
@@ -238,10 +248,10 @@ TEST_CASE("heap over-cap failure records the failing heap and need" * doctest::t
 
 TEST_CASE("wrapping heap request fails" * doctest::test_suite("regression"))
 {
+    BackendSwap kSwap(&kCountingBackend);
     ScratchHeap kScratch(sacCapsArena, sacCapsArena + sizeof(sacCapsArena), 0x10, "CapsWrap");
     const int iH = kScratch.miHeap;
     REQUIRE(iH >= 0);
-    BackendSwap kSwap(&kCountingBackend);
     FailureCapture kCapture;
     const long lCalls = slFakeAllocs[iH];
     int iExpectFails = 3;
@@ -264,11 +274,11 @@ TEST_CASE("wrapping heap request fails" * doctest::test_suite("regression"))
 
 TEST_CASE("heap cap check fires only where the arena would fail" * doctest::test_suite("regression"))
 {
+    BackendSwap kSwap(&kCountingBackend);
     ScratchHeap kScratch(sacCapsArena, sacCapsArena + sizeof(sacCapsArena), 0x10, "CapsLcg");
     const int iH = kScratch.miHeap;
     REQUIRE(iH >= 0);
     REQUIRE(gRedHeapSlots[iH].cap == RedGetHeapSize(iH));
-    BackendSwap kSwap(&kCountingBackend);
     FailureCapture kCapture;
     void* apLive[64];
     int iLive = 0;
@@ -411,8 +421,16 @@ TEST_CASE("heap charge follows the need formula on every backend" * doctest::tes
             REQUIRE(Need(uSkip, uAlign) == uTail - uAlign);
             void* pSkip = RedAllocFromHeap(iH, uSkip, false);
             REQUIRE(pSkip);
-            CHECK(CapsStats(iH).uUsed == uSize);
-            CHECK(RedGetHeapFree(iH) == 0);
+            if (kHeapCapsBackends[b] == &kRedArenaBackend)
+            {
+                CHECK(CapsStats(iH).uUsed == uSize);
+                CHECK(RedGetHeapFree(iH) == 0);
+            }
+            else
+            {
+                CHECK(CapsStats(iH).uUsed == uSize - uAlign);
+                CHECK(RedGetHeapFree(iH) == uAlign);
+            }
             RedFreeToHeap(iH, pSkip, 0);
             CHECK(CapsStats(iH).uUsed == uLive);
             CHECK(RedGetHeapFree(iH) == uSize - uLive);

@@ -51,6 +51,24 @@ struct ProbeBuffer
     unsigned int mCount;
 };
 
+struct KeyRange
+{
+    const char* pcStart;
+    const char* pcEnd;
+};
+
+bool KeyInRange(const void* pKey, void* pArg)
+{
+    const KeyRange& rRange = *(const KeyRange*)pArg;
+    return (const char*)pKey >= rRange.pcStart && (const char*)pKey < rRange.pcEnd;
+}
+
+void PurgeKeysInRange(const void* pStart, const void* pEnd)
+{
+    KeyRange kRange = { (const char*)pStart, (const char*)pEnd };
+    PblHandleRegistry::PurgeIf(KeyInRange, &kRange);
+}
+
 unsigned int IdOf(const PblHandled* pObject)
 {
     unsigned int uId = 0;
@@ -179,7 +197,7 @@ TEST_CASE("handle registry purge removes exactly the entries in a destroyed rang
     const unsigned int uCapacity = PblHandleRegistry::GetCapacity();
     CHECK(uCapacity >= 16384);
 
-    PblHandleRegistry::PurgeRange(kMain.At(1000), kMain.At(3000));
+    PurgeKeysInRange(kMain.At(1000), kMain.At(3000));
     CHECK(PblHandleRegistry::CountInRange(kMain.At(1000), kMain.At(3000)) == 0);
     CHECK(PblHandleRegistry::GetCount() == uStart + kMany + kFew - 2000);
     CHECK(PblHandleRegistry::GetCapacity() == uCapacity);
@@ -267,7 +285,7 @@ TEST_CASE("handle registry purge keeps a cluster that wraps past the last slot" 
     PblHandle<RegistryProbe> hE(pE);
     CHECK(PblHandleRegistry::GetCount() == uStart + 5);
 
-    PblHandleRegistry::PurgeRange(kBuf.At(0), kBuf.At(uHalf));
+    PurgeKeysInRange(kBuf.At(0), kBuf.At(uHalf));
     CHECK(PblHandleRegistry::GetCount() == uStart + 3);
     CHECK(PblHandleRegistry::CountInRange(kBuf.At(0), kBuf.At(uHalf)) == 0);
     CHECK(!hA.IsLive());
@@ -277,7 +295,7 @@ TEST_CASE("handle registry purge keeps a cluster that wraps past the last slot" 
     CHECK((RegistryProbe*)hE == pE);
     CHECK(IdOf(pE) == pE->GetHandleId());
 
-    PblHandleRegistry::PurgeRange(pB, kBuf.At(auLast[0] + 1));
+    PurgeKeysInRange(pB, kBuf.At(auLast[0] + 1));
     CHECK(PblHandleRegistry::GetCount() == uStart + 2);
     CHECK(!hB.IsLive());
     CHECK((RegistryProbe*)hC == pC);
@@ -323,7 +341,7 @@ TEST_CASE("handle registry growth failure warns once and a full table refuses in
     }
     PblHandleRegistry::FailAllocForTest(false);
 
-    PblHandleRegistry::PurgeRange(kBuf.At(0), kBuf.At(kFill + 1));
+    PurgeKeysInRange(kBuf.At(0), kBuf.At(kFill + 1));
     CHECK(PblHandleRegistry::GetCount() == uStart);
     const unsigned int kMore = uCapacity / 2 + 1;
     ProbeBuffer kGrow(kMore);

@@ -68,6 +68,10 @@ struct BINKIO
  
 class RedBitmapElement;
 
+#ifdef OPENSWBF2_TEST
+extern unsigned int gRedMovieCloses;
+#endif
+
 // VTABLE: SWBF2 0x00783ff0
 class RedMoviePlayer : public RedMoviePlayerBase, public RedMoviePlayerRenderer
 {
