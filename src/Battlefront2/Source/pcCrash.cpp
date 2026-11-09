@@ -1058,6 +1058,16 @@ void pcCrash::RunMissionCrashTest()
         sbRan = true;
         RedAllocFromHeap(GameMemory::RunTimeHeap, 0x10000000, 0);
     }
+    else if (strcmp(gCrashKind, "capexhaust") == 0)
+    {
+        sbRan = true;
+        void* p = 0;
+        do
+        {
+            p = RedAllocFromHeap(GameMemory::RunTimeHeap, 0x100000, 0);
+        } while (p != 0);
+        check(p != 0);
+    }
     else if (strcmp(gCrashKind, "midoublefree") == 0)
     {
         sbRan = true;
@@ -1150,7 +1160,7 @@ void pcCrash::RunMissionCrashTest()
 void pcCrash::SetCrashTest(char const* pcKind)
 {
     static char const* const apcKinds[] = { "nullderef", "divzero", "stackoverflow", "debugbreak", "abort",
-        "invalidparam", "fastfail", "arenaoom", "debugheapoom", "heapfail", "midoublefree",
+        "invalidparam", "fastfail", "arenaoom", "debugheapoom", "heapfail", "capexhaust", "midoublefree",
         "luaoom", "luapanic", "hang", "check", "resetrecover", "resetfatal", "resetinitlost",
         "resetflap", "resetlaterinit", "applymode", "applymodesmall", "applyfail", "applypresentfail", "applyadapter",
         "applytargetfail", "gammapass", "gammafallback", "gammadrawfail",

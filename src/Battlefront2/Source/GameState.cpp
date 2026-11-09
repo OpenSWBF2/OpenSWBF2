@@ -1321,6 +1321,7 @@ void GameState::ShellState::Enter()
 
     LoadDisplay::Instance()->End();
     ShellLoop::PostLoad();
+    RedHeapCapCloseWindow();
 
     PlayerProfile::tProfile* pProfile = PlayerProfile::GetCurProfile();
     if (pProfile)
@@ -1421,6 +1422,7 @@ void GameState::MissionState::Enter()
     PreStateInit(true);
     GameLoop::Init();
     GameLoop::PostLoad();
+    RedHeapCapCloseWindow();
 
     if (gMemoryPoolErrors == true)
     {

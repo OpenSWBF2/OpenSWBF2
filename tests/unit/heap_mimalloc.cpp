@@ -729,3 +729,132 @@ TEST_CASE("mimalloc trim returns a destroyed heap's pages before the purge delay
     INFO("commit before trim " << uBefore << " after " << uAfter);
     CHECK(uAfter + 0x800000 <= uBefore);
 }
+
+TEST_CASE("mimalloc realloc shrinks in place and keeps the block valid" * doctest::test_suite("regression"))
+{
+    const int iChecks = gCheckCalls;
+    MiHeap kHeap(0x10, "T1MiShrink");
+    const int iH = kHeap.miHeap;
+    REQUIRE(iH > 0);
+    char* p = (char*)RedAllocFromHeap(iH, 200, false);
+    REQUIRE(p);
+    memset(p, 0x3C, 200);
+    char* q = (char*)RedReallocInHeap(iH, p, 200, 150);
+    CHECK(q == p);
+    REQUIRE(q);
+    CHECK(RedMiClassify(q) == kRedMiValid);
+    CHECK(ReadPrefixWord(q, -4) == 150);
+    CHECK(ReadPrefixWord(q, -3) == MiNeed(150, 0x10));
+    CHECK(gRedHeapSlots[iH].used == (long)MiNeed(150, 0x10));
+    for (int i = 0; i < 150; ++i)
+    {
+        CHECK(q[i] == 0x3C);
+    }
+    RedFreeToHeap(iH, q, 0);
+    CHECK(gRedHeapSlots[iH].used == 0);
+    CHECK(gCheckCalls == iChecks);
+}
+
+TEST_CASE("mimalloc realloc moves on growth and copies only user bytes" * doctest::test_suite("regression"))
+{
+    const int iChecks = gCheckCalls;
+    MiHeap kHeap(0x10, "T1MiGrow");
+    const int iH = kHeap.miHeap;
+    REQUIRE(iH > 0);
+    char* pKeep = (char*)RedAllocFromHeap(iH, 100, false);
+    REQUIRE(pKeep);
+    char* p = (char*)RedAllocFromHeap(iH, 100, false);
+    REQUIRE(p);
+    memset(p, 0x5A, 100);
+    const long lKeep = (long)MiNeed(100, 0x10);
+    char* q = (char*)RedReallocInHeap(iH, p, 100, 4000);
+    REQUIRE(q);
+    CHECK(q != p);
+    CHECK(RedMiClassify(q) == kRedMiValid);
+    CHECK(RedHeapOwner(q) == iH);
+    CHECK(ReadPrefixWord(q, -4) == 4000);
+    CHECK(ReadPrefixWord(q, -3) == MiNeed(4000, 0x10));
+    CHECK(gRedHeapSlots[iH].used == lKeep + (long)MiNeed(4000, 0x10));
+    CHECK(RedMiClassify(p) == kRedMiBadPrefix);
+    for (int i = 0; i < 100; ++i)
+    {
+        CHECK(q[i] == 0x5A);
+    }
+    RedFreeToHeap(iH, q, 0);
+    RedFreeToHeap(iH, pKeep, 0);
+    CHECK(gRedHeapSlots[iH].used == 0);
+    CHECK(gCheckCalls == iChecks);
+}
+
+TEST_CASE("mimalloc realloc of a bad prefix reports and returns null" * doctest::test_suite("regression"))
+{
+    MiHeap kHeap(0x10, "T1MiBadRealloc");
+    const int iH = kHeap.miHeap;
+    REQUIRE(iH > 0);
+    void* p = RedAllocFromHeap(iH, 48, false);
+    REQUIRE(p);
+    WritePrefixWord(p, -1, ReadPrefixWord(p, -1) ^ 0x10u);
+    const int iChecks = gCheckCalls;
+    {
+        ExpectLog kLog("OPENSWBF2 MIERROR kind=badprefix");
+        CHECK(!RedReallocInHeap(iH, p, 48, 96));
+    }
+    CHECK(gCheckCalls == iChecks + 1);
+    CHECK(gRedHeapSlots[iH].failed == 1);
+}
+
+TEST_CASE("mimalloc realloc moves on a large shrink" * doctest::test_suite("regression"))
+{
+    const int iChecks = gCheckCalls;
+    MiHeap kHeap(0x10, "T1MiLargeShrink");
+    const int iH = kHeap.miHeap;
+    REQUIRE(iH > 0);
+    char* p = (char*)RedAllocFromHeap(iH, 4000, false);
+    REQUIRE(p);
+    memset(p, 0x6B, 4000);
+    char* q = (char*)RedReallocInHeap(iH, p, 4000, 32);
+    REQUIRE(q);
+    CHECK(q != p);
+    CHECK(RedMiClassify(q) == kRedMiValid);
+    CHECK(ReadPrefixWord(q, -4) == 32);
+    CHECK(ReadPrefixWord(q, -3) == MiNeed(32, 0x10));
+    CHECK(gRedHeapSlots[iH].used == (long)MiNeed(32, 0x10));
+    for (int i = 0; i < 32; ++i)
+    {
+        CHECK(q[i] == 0x6B);
+    }
+    RedFreeToHeap(iH, q, 0);
+    CHECK(gRedHeapSlots[iH].used == 0);
+    CHECK(gCheckCalls == iChecks);
+}
+
+TEST_CASE("mimalloc realloc regrows in place after a shrink" * doctest::test_suite("regression"))
+{
+    const int iChecks = gCheckCalls;
+    MiHeap kHeap(0x10, "T1MiRegrow");
+    const int iH = kHeap.miHeap;
+    REQUIRE(iH > 0);
+    char* p = (char*)RedAllocFromHeap(iH, 200, false);
+    REQUIRE(p);
+    char* pShrunk = (char*)RedReallocInHeap(iH, p, 200, 150);
+    CHECK(pShrunk == p);
+    REQUIRE(pShrunk);
+#if defined(__SANITIZE_ADDRESS__)
+    CHECK(__asan_address_is_poisoned(pShrunk + 150));
+    CHECK(!__asan_address_is_poisoned(pShrunk + 149));
+#endif
+    char* pGrown = (char*)RedReallocInHeap(iH, pShrunk, 150, 190);
+    CHECK(pGrown == p);
+    REQUIRE(pGrown);
+    CHECK(RedMiClassify(pGrown) == kRedMiValid);
+    CHECK(ReadPrefixWord(pGrown, -4) == 190);
+    CHECK(gRedHeapSlots[iH].used == (long)MiNeed(190, 0x10));
+    memset(pGrown, 0x11, 190);
+#if defined(__SANITIZE_ADDRESS__)
+    CHECK(__asan_address_is_poisoned(pGrown + 190));
+    CHECK(!__asan_address_is_poisoned(pGrown + 189));
+#endif
+    RedFreeToHeap(iH, pGrown, 0);
+    CHECK(gRedHeapSlots[iH].used == 0);
+    CHECK(gCheckCalls == iChecks);
+}

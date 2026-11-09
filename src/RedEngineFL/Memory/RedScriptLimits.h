@@ -13,6 +13,7 @@ const unsigned int kTempHeapMax = 0x800000;
 const unsigned int kArtistStealMin = 32;
 const unsigned int kArtistStealMax = 0x2000;
 const unsigned int kHeapCapMax = 0x20000000;
+const unsigned int kHeapCapTotalMax = 0xC0000000;
 
 struct ScriptLimit
 {

@@ -1343,23 +1343,7 @@ void CollisionManager::UpdateRestricted(PblList<CollisionObject>& aList, int aTy
                                       &data);
             }
 
-            for (int i = 0; i < 3; ++i)
-            {
-                if (i >= data.mLength)
-                {
-                    break;
-                }
-                for (int j = 0; j < data.mLength; ++j)
-                {
-                    if (obj->mLastCollidedObjs[i] == data.mArray[j] && j != i)
-                    {
-                        CollisionObject* pSwap = data.mArray[i];
-                        data.mArray[i] = data.mArray[j];
-                        data.mArray[j] = pSwap;
-                        break;
-                    }
-                }
-            }
+            obj->PrioritizeLastCollided(data.mArray, data.mLength);
 
             ignoreMasks = (CollisionMask**)stack.Alloc(data.mLength * sizeof(CollisionMask*));
             optimizationInfo.bodyMatrices =

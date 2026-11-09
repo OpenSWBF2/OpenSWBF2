@@ -15,6 +15,7 @@ struct RedHeapBackend
     int (*moveEnd)(int iHeap, int iDelta, bool* pbAllocFailed);
     bool (*visit)(int heap, bool (*pfnBlock)(void* pUser, size_t uSize, void* pArg), void* pArg);
     void (*trim)();
+    void* (*realloc)(int heap, void* block, size_t oldSize, size_t size, size_t* pReserved, size_t* pOldCharge);
 };
 
 const int kRedHeapSlots = 16;

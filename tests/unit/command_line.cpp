@@ -254,6 +254,60 @@ TEST_CASE("command line keeps -allocator and -mipurge values out of the mission 
     }
 }
 
+TEST_CASE("command line keeps -heapcap values out of the mission name" * doctest::test_suite("regression"))
+{
+    const char* apcLines[] = { "geo1c_con -heapcap Runtime=96M", "-heapcap Runtime=96M geo1c_con",
+        "geo1c_con -heapcap Runtime=1M -heapcap Runtime=96M -exitongameover", "geo1c_con /heapcap Bogus=1M", "geo1c_con -heapcap",
+        "-heapcap -heapcap Runtime=96M geo1c_con" };
+    for (int n = 0; n < 6; ++n)
+    {
+        CAPTURE(n);
+        Parse(apcLines[n]);
+        CHECK(Mission() == "geo1c_con");
+        CHECK(gExitOnGameOver == (strstr(apcLines[n], "-exitongameover") != 0));
+    }
+}
+
+TEST_CASE("command line search returns each repeat of a switch in order" * doctest::test_suite("regression"))
+{
+    const char* pcLine = "game -heapcap A=1 -other x /heapcap B=2 -heapcap";
+    int iPos = 0;
+    const char* pcVal = 0;
+    int iLen = 0;
+    REQUIRE(FindNextCommandLineArg(pcLine, "-heapcap", &iPos, &pcVal, &iLen));
+    CHECK(std::string(pcVal, iLen) == "A=1");
+    REQUIRE(FindNextCommandLineArg(pcLine, "-heapcap", &iPos, &pcVal, &iLen));
+    CHECK(std::string(pcVal, iLen) == "B=2");
+    REQUIRE(FindNextCommandLineArg(pcLine, "-heapcap", &iPos, &pcVal, &iLen));
+    CHECK(iLen == 0);
+    CHECK_FALSE(FindNextCommandLineArg(pcLine, "-heapcap", &iPos, &pcVal, &iLen));
+}
+
+TEST_CASE("command line heapcap scan keeps a switch as the next token" * doctest::test_suite("regression"))
+{
+    const char* pcLine = "game -heapcap -heapcap A=1 -heapcap \"-other\" -heapcap \"-heapcap\" B=2 -heapcap";
+    int iPos = 0;
+    const char* pcVal = 0;
+    int iLen = 0;
+    const char* const apcValues[] = { "-heapcap", "A=1", "-other", "-heapcap", "B=2", "" };
+    for (int n = 0; n < 6; ++n)
+    {
+        CAPTURE(n);
+        REQUIRE(FindNextCommandLineArg(pcLine, "-heapcap", &iPos, &pcVal, &iLen, true));
+        CHECK(std::string(pcVal, iLen) == apcValues[n]);
+    }
+    CHECK_FALSE(FindNextCommandLineArg(pcLine, "-heapcap", &iPos, &pcVal, &iLen, true));
+}
+
+TEST_CASE("command line first-match search still returns the first value" * doctest::test_suite("regression"))
+{
+    const char* pcVal = 0;
+    int iLen = 0;
+    REQUIRE(FindCommandLineArg("game -heapcap A=1 -heapcap B=2", "-heapcap", &pcVal, &iLen));
+    CHECK(std::string(pcVal, iLen) == "A=1");
+    CHECK_FALSE(FindCommandLineArg("game -other x", "-heapcap", &pcVal, &iLen));
+}
+
 TEST_CASE("command line search accepts the same switch forms as the parser" * doctest::test_suite("regression"))
 {
     struct FormCase

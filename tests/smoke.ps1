@@ -6,7 +6,7 @@ $script:WerBasePath = 'SOFTWARE\Microsoft\Windows\Windows Error Reporting'
 $script:SmokeAsanTimeoutScale = 15
 $script:SourceExtensions = @('.h', '.hpp', '.inl', '.c', '.cpp')
 $script:T1Suites = @('unit', 'characterisation', 'regression', 'known_bug', 'corpus', 'fuzz', 'stress')
-$script:SmokeAsanExcluded = @('crash-nullderef', 'crash-divzero', 'crash-stackoverflow', 'crash-debugbreak', 'crash-abort', 'crash-invalidparam', 'crash-fastfail', 'crash-check', 'crash-hang', 'crash-arenaoom', 'crash-debugheapoom', 'crash-luapanic', 'crash-resetfatal', 'fatal-init', 'crash-midoublefree', 'commit-flat')
+$script:SmokeAsanExcluded = @('crash-nullderef', 'crash-divzero', 'crash-stackoverflow', 'crash-debugbreak', 'crash-abort', 'crash-invalidparam', 'crash-fastfail', 'crash-check', 'crash-hang', 'crash-arenaoom', 'crash-debugheapoom', 'crash-luapanic', 'crash-resetfatal', 'fatal-init', 'crash-midoublefree', 'commit-flat', 'crash-capexhaust')
 $script:SmokeArenaExcluded = @('crash-midoublefree')
 $script:SmokeAsanCoverage = 'ASan covers stack, globals, CRT heap and the game heaps and pools'
 
@@ -353,6 +353,20 @@ function Get-SmokeUnexpected($caseName, $caseDir) {
     return $bad
 }
 
+function Test-SameRunAs($caseDir, $refDir) {
+    if (-not (Test-Path -LiteralPath (Join-Path $refDir 'run.log'))) { return "reference log missing: $refDir" }
+    $digest = Get-DigestKey $caseDir
+    $refDigest = Get-DigestKey $refDir
+    if (-not $digest -or $digest -cne $refDigest) { return "digest differs: '$digest' reference '$refDigest'" }
+    $cloth = @(Select-String -LiteralPath (Join-Path $caseDir 'run.log') -Pattern 'OPENSWBF2 CLOTH free=.*' -CaseSensitive)
+    $refCloth = @(Select-String -LiteralPath (Join-Path $refDir 'run.log') -Pattern 'OPENSWBF2 CLOTH free=.*' -CaseSensitive)
+    if ($cloth.Count -lt 1 -or $refCloth.Count -lt 1) { return "CLOTH line missing: $($cloth.Count) reference $($refCloth.Count)" }
+    $line = $cloth[-1].Matches[0].Value
+    $refLine = $refCloth[-1].Matches[0].Value
+    if ($line -cne $refLine) { return "CLOTH differs: '$line' reference '$refLine'" }
+    return $null
+}
+
 function Test-SmokeExpect($case, $res) {
     $x = $case.Expect
     if ($res.Class -ne $x.Class) { return $false }
@@ -368,6 +382,13 @@ function Test-SmokeExpect($case, $res) {
         if (-not (Test-SameDigests $d $x.SameDigests)) {
             Write-Host "    expected $($x.SameDigests) equal SIM DIGEST lines, got $($d.Count)"
             foreach ($l in $d) { Write-Host "    $l" }
+            return $false
+        }
+    }
+    if ($x.ContainsKey('SameRunAs')) {
+        $why = Test-SameRunAs $res.CaseDir (Join-Path (Split-Path -Parent $res.CaseDir) $x.SameRunAs)
+        if ($why) {
+            Write-Host "    $why"
             return $false
         }
     }
@@ -483,6 +504,7 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
         $memRx = @('OPENSWBF2 MEMREPORT source=exit', 'OPENSWBF2 MEMREPORT heap=Runtime cap=\d+ peak=\d+ used=\d+ allocs=\d+ failed=\d+', 'OPENSWBF2 MEMREPORT heap=Lua ', 'OPENSWBF2 MEMREPORT heap=Application ', 'OPENSWBF2 MEMREPORT heap=Artist ', 'OPENSWBF2 MEMREPORT heap=Gamespy ', 'OPENSWBF2 MEMREPORT heap=Debug ', 'OPENSWBF2 MEMREPORT pool=\S+ count=\d+ size=\d+ peak=\d+ grown=\d+', 'OPENSWBF2 MEMREPORT pool=Lua\d+ ', 'OPENSWBF2 MEMREPORT pool=Weapon ', 'OPENSWBF2 CLOTH free=-?\d+ enabled=[01] low=\d+ high=\d+')
         if ($script:SmokeDigestConfiguration -in 'Test', 'Asan') { $memRx += 'OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0' }
         $cases += New-Object PSObject -Property @{ Name = $standard; Args = "$standard $htail"; Expect = @{ Class = 'Pass'; LogRx = ($memRx + $hrx) }; Twice = 0; Timeout = 0 }
+        $cases += New-Object PSObject -Property @{ Name = 'heapcap'; Args = "$standard $htail -heapcap Runtime=1M -heapcap Runtime=96M -heapcap Bogus=1M -heapcap Runtime=12x"; Expect = @{ Class = 'Pass'; SameRunAs = $standard; LogRx = (@('OPENSWBF2 MEMREPORT heap=Runtime cap=100663296 ', '-heapcap needs <Name>=<bytes>\[K\|M\], ignored: Bogus=1M', '-heapcap needs <Name>=<bytes>\[K\|M\], ignored: Runtime=12x') + $hrx) }; Twice = 0; Timeout = 0 }
     }
     if ($which -eq 'Standard') {
         $cases += New-Object PSObject -Property @{ Name = 'display-switches'; Args = "$standard $htail -borderless -adapter 0 -refresh 60 -vsync half -fps 120 -nowaitquery -nodpi"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 PACING fps=120 vsync=on interval=0x00000000 waitquery=0 timer=none', 'pacing: fps cap 120 is above 80', 'vsync: requested interval not supported here, using on', 'OPENSWBF2 DPI awareness=off') + $hrx) }; Twice = 0; Timeout = 0 }
@@ -565,6 +587,12 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
             Name = 'crash-heapfail'
             Args = "$standard $tail -crashtest heapfail"
             Expect = @{ Class = 'Pass'; LogRx = 'alloc failure heap \S+ \(\d+\) size \d+ free \d+ load \d+% phys \d+ MB virt \d+ MB used \d+ cap \d+ peak \d+ largestfree \d+' }
+            Twice = 0; Timeout = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-capexhaust'
+            Args = "$standard $tail -heapcap Runtime=512M -crashtest capexhaust"
+            Expect = @{ Class = 'Fatal'; Code = 3; MinDumps = 1; MaxDumps = 1; LogRx = @('alloc failure heap Runtime \(\d+\) size 1048576 .* cap 536870912 ', 'FATAL: '); ErrorRx = @('alloc failure heap Runtime \(\d+\) size 1048576') }
             Twice = 0; Timeout = 0
         }
         $cases += New-Object PSObject -Property @{
@@ -1399,6 +1427,7 @@ $script:SerialAllow = @(
     'src\Battlefront2\Source\CollisionObject.h|unsigned int mCollisionSerial : 30;',
     'src\Battlefront2\Source\CollisionObject.h|return PblSerialAfter(pA->mCollisionSerial, pB->mCollisionSerial);',
     'src\Battlefront2\Source\CollisionObject.h|if (pA->mCollisionSerial == pB->mCollisionSerial)',
+    'src\Battlefront2\Source\CollisionObject.h|return PblGetSimOrder() == PBL_SIMORDER_SERIAL ? pObject->mCollisionSerial : (unsigned int)(size_t)pObject;',
     'src\Battlefront2\Source\Thread.cpp|static unsigned int sThreadActivationKey = 0;',
     'src\Battlefront2\Source\Thread.cpp|return (int)(sThreadActivationKey < 0x7FFFFFFF ? sThreadActivationKey++ : sThreadActivationKey);',
     'src\Battlefront2\Source\Thread.cpp|sThreadActivationKey = 0;'

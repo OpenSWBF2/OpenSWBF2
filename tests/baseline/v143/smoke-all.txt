@@ -32,7 +32,7 @@
 [PASS] hardening:import-AdjustWindowRectExForDpi
 [PASS] hardening:import-shcore
 [PASS] hardening:import-modules
-[PASS] hardening:aslr-base (0x00030000)
+[PASS] hardening:aslr-base (0x00530000)
 [PASS] smoke:cor1c_c class=TimeOut exit=0x00000001
 [PASS] smoke:cor1c_con class=Pass exit=0x00000000
 [PASS] smoke:cor1c_ctf class=TimeOut exit=0x00000001
@@ -154,6 +154,7 @@
 [PASS] smoke:crash-arenaoom class=Fatal exit=0x00000001
 [PASS] smoke:crash-debugheapoom class=Fatal exit=0x00000001
 [PASS] smoke:crash-heapfail class=Pass exit=0x00000000
+[PASS] smoke:crash-capexhaust class=Fatal exit=0x00000003
 [PASS] smoke:crash-midoublefree class=Fatal exit=0x00000003
 [PASS] smoke:crash-poolcount class=Pass exit=0x00000000
 [PASS] smoke:pool-full class=Pass exit=0x00000000
@@ -189,7 +190,7 @@
 [PASS] smoke:crash-menuapplyfail class=Pass exit=0x00000000
 
 Results
-  PASS     189
+  PASS     190
   FAIL     0
   SKIP     0
   TIMEOUT  0

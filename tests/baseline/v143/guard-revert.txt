@@ -52,6 +52,28 @@ SAFE01-CREATE GREEN    RED         3221225477 memory pool create refuses overflo
 SAFE01-CHUNK GREEN    RED         3221225477 memory pool create survives failed heap block crash 0xC0000005
 SAFE01-EMPTY GREEN    RED         1          memory pool create survives failed heap block 
 SAFE01-GROW  GREEN    RED         3221225477 memory pool growth refuses overflowing grow crash 0xC0000005
+MPOOL01-DESTROY GREEN    RED         1,1        memory pool destroy frees every growth chunk | memory pool destroy all frees every growth chunk 
+MPOOL01-DTOR GREEN    RED         1          memory pool destructor frees every growth chunk 
+MPOOL01-LOOP GREEN    RED         1          memory pool destroy frees every growth chunk 
+MPOOL01-RECORD GREEN    RED         1,1        memory pool destroy frees every growth chunk | memory pool is present covers every chunk and nothing else 
+MPOOL01-RESET GREEN    RED         3221226356 memory pool destroy then re-create starts with no old chunks crash 0xC0000374
+MPOOL01-DRAIN GREEN    RED         1          memory pool destroy all frees the chunk records of swapped views 
+MPOOL01-FORGET GREEN    RED         1          memory pool chunk record list drops an owner's records 
+MPOOL01-LINK GREEN    RED         1,1        memory pool destroy all frees the chunk records of swapped views | memory pool chunk record list drops an owner's records 
+MPOOL01-RESETVIEW GREEN    RED         3221226356 memory pool reset of a view leaves the owner's records crash 0xC0000374
+MPOOL01-RESETNODES GREEN    RED         1          memory pool reset frees chunk records only for an owner (source pin) 
+MPOOL02-PRESENT GREEN    RED         1,1        memory pool is present covers every chunk and nothing else | lua free routes a growth chunk block to its pool 
+MPOOL02-FIRST GREEN    RED         1          memory pool first chunk keeps its own extent 
+MPOOL02-FIRSTGROW GREEN    RED         1          memory pool first growth of an empty pool is its first chunk 
+MPOOL02-VIEW GREEN    RED         1          memory pool view sees its chunks and frees nothing 
+CAPS06-HEAP  GREEN    RED         1          memory pool growth charges the pool's heap and not the current heap 
+CAPS06-CHARGE GREEN    RED         1          memory pool chunk charges reconcile with the heap 
+MPOOL03-FRONT GREEN    RED         1          memory pool free pushes front and allocate pops the head 
+MPOOL03-SORT GREEN    RED         1,1        memory pool run search depends only on the free set | combo array relocation picks the lowest run after a reverse free 
+MPOOL03-SCAN GREEN    RED         1          memory pool run search sees an inversion after a satisfying run 
+MPOOL04-FULL GREEN    RED         1          memory pool fullness and growth rule are count based 
+MPOOL04-SPACE GREEN    RED         1          memory pool fullness and growth rule are count based 
+MPOOL04-GROW GREEN    RED         1          memory pool fullness and growth rule are count based 
 SAFE02-CLAMP GREEN    RED         3221225477 setup temp heap clamps size crash 0xC0000005
 SAFE02-LEAK  GREEN    RED         1          setup temp heap twice frees previous heap 
 SAFE02-NULL  GREEN    RED         3221225477 setup temp heap null block leaves no temp heap crash 0xC0000005
@@ -75,7 +97,40 @@ CAPS01-RESERVE GREEN    RED         1          heap cap check fires only where t
 CAPS01-WRAP  GREEN    RED         1          wrapping heap request fails 
 CAPS02-FREE  GREEN    RED         1          raised heap cap does not change the free value 
 CAPS02-FREEB GREEN    RED         1,1        heap free is cap minus used on a fixed script | heap charge follows the need formula on every backend 
+CAPS04-RAISE GREEN    RED         1          heap cap raise moves only cap 
+CAPS04-TOTAL GREEN    RED         1          heap cap total is limited 
+CAPS04-LOWER GREEN    RED         1          heap cap below the default changes nothing 
+CAPS04-NOTE  GREEN    RED         1          heap cap note is applied when its slot is created 
+CAPS04-RESET GREEN    RED         1          heap cap window open resets live slots to the note or the default 
+CAPS04-REAPPLY GREEN    RED         1          heap cap window open re-applies the note 
+CAPS04-RAISEONLY GREEN    RED         1,1        heap cap request below the raised cap leaves it with one warning | heap cap note and script raise combine as the higher value 
+CAPS04-TRIM  GREEN    RED         1,1        heap cap total holds when a slot is created at the limit | heap cap trim stops at the default and at used 
+CAPS04-TRIMFLOOR GREEN    RED         1          heap cap trim stops at the default and at used 
+CAPS04-PASSORDER GREEN    RED         1          heap cap window open fits notes after dropping stale raises 
+CAPS04-WARNONCE GREEN    RED         1,1        heap cap note warns once across heap builds | heap cap reduced note warns once across heap builds 
+CAPS04-WARNSCRIPT GREEN    RED         1          set heap cap below the default or negative logs exactly one warning 
+CAPS04-WARNREARM GREEN    RED         1          heap cap trim warns again after a fresh script raise 
+CAPS04-WARNNOTE GREEN    RED         1          heap cap note warns once across heap builds 
+CAPS04-USEDGUARD GREEN    RED         1          heap cap stays when its target is below used 
+CAPS04-USEDEQ GREEN    RED         1          heap cap stays when its target is below used 
+CAPS04-USEDCUR GREEN    RED         1          heap cap at used on a heap never raised logs nothing 
+CAPS04-HUDEDIT GREEN    RED         1          heap cap knob HUDEdit reaches the HUDEditHeap slot 
+CAPS04-PARSECLAMP GREEN    RED         1          heap cap is clamped to the per-heap ceiling by the parser 
+CAPS04-PARSEREJECT GREEN    RED         1          heap cap parser accepts sizes and rejects malformed values 
+CAPS04-NOCASE GREEN    RED         1          heap cap knob names match case-insensitively 
+CAPS03-MOVEEND GREEN    RED         1          raised heap cap does not change a heap move 
+CAPS03-SIZE  GREEN    RED         1          raised heap cap does not change the heap size reading 
 CAPS02-CHARGE GREEN    RED         1,1        heap free is cap minus used on a fixed script | heap charge follows the need formula on every backend 
+MPOOL05-SITE GREEN    RED         1          lua realloc uses the backend realloc for heap blocks only 
+MPOOL05-ALLOCS GREEN    RED         1          heap realloc charges like allocate copy free on every backend 
+MPOOL05-RESERVE GREEN    RED         1          heap realloc at the cap fails and leaves the block 
+MPOOL05-OLDCHARGE GREEN    RED         1          heap realloc charges like allocate copy free on every backend 
+MPOOL05-HALF GREEN    RED         1          mimalloc realloc moves on a large shrink 
+MPOOL05-STAMP GREEN    RED         1,1        mimalloc realloc shrinks in place and keeps the block valid | mimalloc realloc regrows in place after a shrink 
+MPOOL05-CLASSIFY GREEN    RED         1          mimalloc realloc of a bad prefix reports and returns null 
+MPOOL06-TABLE GREEN    RED         1          lua mission bin table is the re-tuned one 
+MPOOL06-BUILD GREEN    RED         1          mission and shell bin tables follow build heaps (source pin) 
+MPOOL06-SELECT GREEN    RED         1,1        lua mission bin table is the re-tuned one | lua shell bin table is unchanged 
 MI-CHARGE    GREEN    RED         1          heap charge follows the need formula on every backend 
 MI-OWNER     GREEN    RED         3221226356,3221226356 mimalloc heap owner maps interior pointers to the slot | mimalloc heap frees a crt pointer and a mimalloc pointer each to their owner crash 0xC0000374,crash 0xC0000374
 MI-VISIT     GREEN    RED         1          heap visit reports every live block on every backend 
@@ -110,6 +165,16 @@ CLI-FINDCOMMA GREEN    RED         1          command line search accepts the sa
 CLI-ARGVCAP  GREEN    RED         1          command line parser ignores tokens past its argument table 
 CLI-FINDARG  GREEN    RED         1          the startup argument search goes through the command line tokenizer (source pin) 
 CLI-ALLOCVAL GREEN    RED         1          command line keeps -allocator and -mipurge values out of the mission name 
+CLI-HEAPCAPSCAN GREEN    RED         1          command line heapcap scan keeps a switch as the next token 
+CLI-HEAPCAPSTART GREEN    RED         1          startup heap cap scan keeps a switch as the next token (source pin) 
+CLI-HEAPCAPVAL GREEN    RED         1          command line keeps -heapcap values out of the mission name 
+CLI-NEXTARG  GREEN    RED         1          command line search returns each repeat of a switch in order 
+CAPS04-WINDOW GREEN    RED         1          set heap cap outside the window changes nothing and logs one warning 
+CAPS04-OPEN  GREEN    RED         1          heap cap window opens in build heaps and closes after post load (source pin) 
+CAPS04-CLOSE-S GREEN    RED         1          heap cap window opens in build heaps and closes after post load (source pin) 
+CAPS04-CLOSE-M GREEN    RED         1          heap cap window opens in build heaps and closes after post load (source pin) 
+CAPS04-CLAMP GREEN    RED         1,1        set heap cap raises inside the window and clamps to the ceiling through the shared limit | script-size-clamp: lua memory sinks route through the shared clamp 
+CAPS04-REG   GREEN    RED         1          set heap cap is registered in the mission table (source pin) 
 REPT01-ONCE  GREEN    RED         0,1        memory pool full line logs once on growth | memory pool full line logs once when gated 
 REPT03-STRICT GREEN    RED         1          memory pool full line is error when strict 
 REPT02-RESET GREEN    RED         1,1        memory pool stats survive reset and destroy for the exit report | report emits one line per heap and created pool 
@@ -549,6 +614,14 @@ PERT06-LOOP  GREEN    RED         1          glyph cache element routes every sh
 PERT07-ALIAS GREEN    RED         1          hud item set name after an aliased name keeps the display name valid 
 COMBO-ARRAY-HELPER GREEN    RED         1          combo arrays stay contiguous when another array takes the next pool block 
 COMBO-ARRAY-SITE GREEN    RED         1          combo arrays route every pool array through ComboArrayAdd (source pin) 
+LASTCOL-KEY  GREEN    RED         1          last collided key does not follow a dead receiver to a new object at its address 
+LASTCOL-ADDR GREEN    RED         1          last collided key uses the address under address order 
+LASTCOL-NULL GREEN    RED         3221225477 last collided key treats a null list entry as an empty slot crash 0xC0000005
+LASTCOL-DEDUP GREEN    RED         1          last collided record keeps three recent receivers without duplicates 
+LASTCOL-SHIFT GREEN    RED         1          last collided record keeps three recent receivers without duplicates 
+LASTCOL-SWAP GREEN    RED         1          last collided key does not follow a dead receiver to a new object at its address 
+LASTCOL-SITE GREEN    RED         1          last collided sites all go through the key helpers (source pin) 
+LASTCOL-LIST GREEN    RED         1          last collided sites all go through the key helpers (source pin) 
 SERIAL-01    GREEN    RED         1          thread activation key is set through one counter reader and reset 
 SERIAL-02    GREEN    RED         1          ordered list breaks equal keys fifo under serial order 
 SERIAL-02B   GREEN    RED         1          ordered list sentinel key stops at the head under serial order 
@@ -567,6 +640,9 @@ LHASH-01D    GREEN    RED         1          lua dead keys do not revive after a
 LHASH-01E    GREEN    RED         1          lua clearing keys with a collection during traversal visits every key 
 LHASH-01F    GREEN    RED         3221225477 lua weak key tables skip dead keys under serial order crash 0xC0000005
 SPIKE01-OFFTHREAD GREEN    RED         1          off-thread allocation is counted with tid heap and size 
+MPOOL05-COPY GREEN    RED         66         mimalloc realloc moves on a large shrink crash 0x00000042 asan report
+MPOOL05-FILL GREEN    RED         1          lua realloc keeps the fill test hook on the heap path 
+MPOOL05-PAD  GREEN    RED         1          lua realloc keeps the pad test hook on the heap path 
 LUAB-U-CODE-ASAN GREEN    RED         66         lua undump refuses oversized code counts crash 0x00000042 asan report
 LUAB-U-LOCALS-ASAN GREEN    RED         66         lua undump refuses oversized local counts crash 0x00000042 asan report
 LUAB-U-CONST-ASAN GREEN    RED         66         lua undump refuses oversized constant counts crash 0x00000042 asan report
@@ -658,6 +734,11 @@ MEM-04S      GREEN    RED         0x00000000 smoke:crash-luapanic class=Pass dum
 MI-ERRHOOK   GREEN    RED         0x00000003 smoke:crash-midoublefree class=Fatal dumps=1
 DIAG-04      GREEN    RED         0x00000003 smoke:crash-hang class=Fatal dumps=1
 SAFE01-CREATES GREEN    RED         0x00000003 smoke:crash-poolcount class=Fatal dumps=1
+CAPS04-APPLY GREEN    RED         0x00000000 smoke:heapcap class=Pass dumps=0
+CAPS04-STARTUP GREEN    RED         0x00000000 smoke:heapcap class=Pass dumps=0
+CAPS04-REPORT GREEN    RED         0x00000000 smoke:heapcap class=Pass dumps=0
+CAPS05-CEILING GREEN    RED         0x00000003 smoke:crash-capexhaust class=Fatal dumps=1
+CAPS05-HOOK  GREEN    RED         0x00000000 smoke:crash-capexhaust class=Pass dumps=0
 REPT01S      GREEN    RED         0x00000000 smoke:pool-full class=Pass dumps=0
 REPT03S      GREEN    RED         0x00000000 smoke:pool-full-strict class=Pass dumps=0
 PACE-02      GREEN    RED         0x00000000 smoke:display-switches class=Pass dumps=0

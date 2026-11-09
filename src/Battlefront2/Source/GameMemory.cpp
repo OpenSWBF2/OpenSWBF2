@@ -140,6 +140,7 @@ void GameMemory::BuildHeaps(bool bMission)
     }
 #endif
 
+    RedHeapCapOpenWindow();
     char* pLuaStart = AlignHeapStart(g_Heap3Start);
     char* pLuaEnd = pLuaStart + kLuaHeapSize;
     LuaHeap = RedCreateHeap(pLuaStart, pLuaEnd, kLuaHeapAlignment, "Lua");

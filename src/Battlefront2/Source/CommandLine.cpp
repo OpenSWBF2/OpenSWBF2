@@ -249,10 +249,11 @@ int CommandLineRepeatCount(char const* pcVal, int iLen)
     return iCount < 1 ? 1 : iCount > 8 ? 8 : iCount;
 }
 
-bool FindCommandLineArg(char const* pcLine, char const* pcName, char const** ppcVal, int* piLen)
+bool FindNextCommandLineArg(char const* pcLine, char const* pcName, int* piPos, char const** ppcVal, int* piLen,
+                            bool bKeepSwitch)
 {
     const int iNameLen = (int)strlen(pcName);
-    int iPos = 0;
+    int iPos = *piPos;
     int iStart = 0;
     int iLen = 0;
     bool bQuoted = false;
@@ -264,16 +265,24 @@ bool FindCommandLineArg(char const* pcLine, char const* pcName, char const** ppc
         if ((c == '/' || c == '-' || c == '+') && iLen == iNameLen &&
             _strnicmp(pcLine + iStart + 1, pcName + 1, iNameLen - 1) == 0)
         {
+            const int iBeforeValue = iPos;
             int iValStart = iPos;
             int iValLen = 0;
             bool bValQuoted = false;
             NextCommandToken(pcLine, &iPos, &iValStart, &iValLen, &bValQuoted);
             *ppcVal = pcLine + iValStart;
             *piLen = iValLen;
+            *piPos = bKeepSwitch && iValLen > 0 && pcLine[iValStart] == '-' ? iBeforeValue : iPos;
             return true;
         }
     }
     return false;
+}
+
+bool FindCommandLineArg(char const* pcLine, char const* pcName, char const** ppcVal, int* piLen)
+{
+    int iPos = 0;
+    return FindNextCommandLineArg(pcLine, pcName, &iPos, ppcVal, piLen);
 }
 
 // FUNCTION: SWBF2 0x004795a0
@@ -542,6 +551,15 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
         }
 
         if (_stricmp(pcArg + 1, "allocator") == 0 || _stricmp(pcArg + 1, "mipurge") == 0)
+        {
+            if (i + 1 < iArgc && apcArgv[i + 1][0] != '-')
+            {
+                ++i;
+            }
+            continue;
+        }
+
+        if (_stricmp(pcArg + 1, "heapcap") == 0)
         {
             if (i + 1 < iArgc && apcArgv[i + 1][0] != '-')
             {

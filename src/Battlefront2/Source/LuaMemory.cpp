@@ -29,18 +29,18 @@ MemPoolInfo gGamePoolInfo[48] = {
 
 // GLOBAL: SWBF2 0x007e8750
 MemPoolInfo gShellPoolInfo[48] = {
-    {  2648,   8, 0 }, {  1648,   6, 0 }, {  1150,   4, 0 }, {  1070,  10, 0 },
-    {   578,   7, 0 }, {   551,  18, 0 }, {   520,   9, 0 }, {   449,  40, 0 },
-    {   399,  20, 0 }, {   383,  11, 0 }, {   371,  12, 0 }, {   232,  80, 0 },
-    {   206,   5, 0 }, {   195,   3, 0 }, {   131,  13, 0 }, {   121,  14, 0 },
-    {    89,   1, 0 }, {    68,  15, 0 }, {    54,  16, 0 }, {    43, 160, 0 },
-    {    40,   2, 0 }, {    35,  24, 0 }, {    34,  28, 0 }, {    34,  21, 0 },
-    {    33,  22, 0 }, {    28,  34, 0 }, {    26,  26, 0 }, {    23,  36, 0 },
-    {    24,  19, 0 }, {    22,  32, 0 }, {    20,  30, 0 }, {    18,  17, 0 },
-    {    16,  38, 0 }, {    16,  64, 0 }, {    15,  23, 0 }, {    13,  60, 0 },
-    {    10,  54, 0 }, {     8,  44, 0 }, {     8,  41, 0 }, {     8,  58, 0 },
-    {     7,  53, 0 }, {     6,  68, 0 }, {     6,  46, 0 }, {     5,  66, 0 },
-    {     5,  67, 0 }, {     5, 320, 0 }, {     4,  98, 0 }, {     4,  56, 0 },
+    {   743,   8, 0 }, {  1815,   6, 0 }, {  1203,   4, 0 }, {  4589,  10, 0 },
+    {  1308,   7, 0 }, {  1046,  18, 0 }, {   739,   9, 0 }, {    18,  40, 0 },
+    {    74,  20, 0 }, {   561,  11, 0 }, {   457,  12, 0 }, {     5,  80, 0 },
+    {   261,   5, 0 }, {    25,   3, 0 }, {   616,  13, 0 }, {  1575,  14, 0 },
+    {   144,   1, 0 }, {    57,  15, 0 }, {   199,  16, 0 }, {     3, 160, 0 },
+    {   112,   2, 0 }, {   107,  24, 0 }, {  2102,  28, 0 }, {    53,  21, 0 },
+    {   154,  22, 0 }, {    24,  34, 0 }, {    69,  26, 0 }, {    21,  36, 0 },
+    {    79,  19, 0 }, {    66,  32, 0 }, {    25,  30, 0 }, {    87,  17, 0 },
+    {    18,  38, 0 }, {    12,  64, 0 }, {    91,  23, 0 }, {    13,  60, 0 },
+    {    13,  54, 0 }, {    10,  44, 0 }, {     7,  41, 0 }, {    12,  58, 0 },
+    {     4,  53, 0 }, {     5,  68, 0 }, {    20,  46, 0 }, {     7,  66, 0 },
+    {     2,  67, 0 }, {     0, 320, 0 }, {     4,  98, 0 }, {  2662,  56, 0 },
 };
 
 // GLOBAL: SWBF2 0x01f9cde0
@@ -211,8 +211,10 @@ void* Lua_Red_realloc(void* pBlock, unsigned int uiOldSize, unsigned int uiNewSi
         NoteLuaSpill(uiNewSize);
     }
 #endif
+    bool bHeapToHeap = !pPool && pBlock && !LuaMemory::LocatePool(uiOldSize, pBlock);
     void* pNew = pPool ? pPool->Allocate(uiNewSize)
-                       : RedAllocFromHeap(GameMemory::LuaHeap, uiNewSize, 0);
+                 : bHeapToHeap ? RedReallocInHeap(GameMemory::LuaHeap, pBlock, uiOldSize, uiNewSize)
+                               : RedAllocFromHeap(GameMemory::LuaHeap, uiNewSize, 0);
 
     if (!pNew)
     {
@@ -223,6 +225,10 @@ void* Lua_Red_realloc(void* pBlock, unsigned int uiOldSize, unsigned int uiNewSi
 
     if (pBlock)
     {
+        if (bHeapToHeap)
+        {
+            return pNew;
+        }
         if (uiNewSize <= uiOldSize)
         {
             memcpy(pNew, pBlock, uiNewSize);

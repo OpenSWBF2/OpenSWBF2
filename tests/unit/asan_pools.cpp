@@ -111,6 +111,37 @@ TEST_CASE("memory pool in bounds cycle is clean" * doctest::test_suite("regressi
 #endif
 }
 
+TEST_CASE("memory pool grown chunk cycle is clean" * doctest::test_suite("regression"))
+{
+    const unsigned int uiSize = 13;
+    MemoryPool pool("grownchunk", 16);
+    pool.Create(1, 16, 2);
+    char* pFirst = (char*)pool.Allocate(uiSize);
+    REQUIRE(pFirst);
+    char* p = (char*)pool.Allocate(uiSize);
+    REQUIRE(p);
+    REQUIRE(pool.mChunks);
+    CHECK(pool.IsPresent(p));
+    for (unsigned int i = 0; i < uiSize; ++i)
+    {
+        p[i] = (char)(i + 1);
+    }
+    for (unsigned int i = 0; i < uiSize; ++i)
+    {
+        CHECK(p[i] == (char)(i + 1));
+    }
+#if defined(__SANITIZE_ADDRESS__)
+    CHECK(__asan_address_is_poisoned(p + uiSize));
+#endif
+    pool.Free(p);
+    pool.Free(pFirst);
+#if defined(__SANITIZE_ADDRESS__)
+    CHECK(__asan_address_is_poisoned(p));
+    CHECK(__asan_address_is_poisoned(pFirst));
+#endif
+    pool.Destroy();
+}
+
 TEST_CASE("lua bin in bounds cycle is clean" * doctest::test_suite("regression"))
 {
     const unsigned int uiSize = 13;
