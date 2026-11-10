@@ -35,8 +35,6 @@
 
 #define numints		cast(int, sizeof(lua_Number)/sizeof(int))
 
-int luaH_pendinginsertionorder = 0;
-
 // LIBRARY: SWBF2 0x006a4910
 // hashnum
 static Node *hashnum (const Table *t, lua_Number n) {
@@ -123,7 +121,7 @@ static int luaH_index (lua_State *L, Table *t, StkId key) {
   }
   else {
     const TObject *v = luaH_get(t, key);
-    if (v == &luaO_nilobject && G(L)->insertionorder)
+    if (v == &luaO_nilobject)
       v = getdeadkey(t, key);
     if (v == &luaO_nilobject)
       luaG_runerror(L, "invalid key for `next'");
@@ -144,24 +142,13 @@ int luaH_next (lua_State *L, Table *t, StkId key) {
       return 1;
     }
   }
-  if (G(L)->insertionorder) {
-    Node *n = (i - t->sizearray > 0) ? gnode(t, i - t->sizearray - 1)->nextadded
-                                     : t->firstadded;
-    for (; n != NULL; n = n->nextadded) {
-      if (!ttisnil(gval(n))) {
-        setobj2s(key, gkey(n));
-        setobj2s(key+1, gval(n));
-        return 1;
-      }
-    }
-  }
-  else {
-    for (i -= t->sizearray; i < sizenode(t); i++) {
-      if (!ttisnil(gval(gnode(t, i)))) {
-        setobj2s(key, gkey(gnode(t, i)));
-        setobj2s(key+1, gval(gnode(t, i)));
-        return 1;
-      }
+  Node *n = (i - t->sizearray > 0) ? gnode(t, i - t->sizearray - 1)->nextadded
+                                   : t->firstadded;
+  for (; n != NULL; n = n->nextadded) {
+    if (!ttisnil(gval(n))) {
+      setobj2s(key, gkey(n));
+      setobj2s(key+1, gval(n));
+      return 1;
     }
   }
   return 0;
@@ -308,19 +295,10 @@ static void resize (lua_State *L, Table *t, int nasize, int nhsize) {
     luaM_reallocvector(L, t->array, oldasize, nasize, TObject);
   }
 
-  if (!G(L)->insertionorder) {
-    for (i = twoto(oldhsize) - 1; i >= 0; i--) {
-      Node *old = nold+i;
-      if (!ttisnil(gval(old)))
-        setobjt2t(luaH_set(L, t, gkey(old)), gval(old));
-    }
-  }
-  else {
-    Node *old;
-    for (old = first; old != NULL; old = old->nextadded) {
-      if (!ttisnil(gval(old)))
-        setobjt2t(luaH_set(L, t, gkey(old)), gval(old));
-    }
+  Node *old;
+  for (old = first; old != NULL; old = old->nextadded) {
+    if (!ttisnil(gval(old)))
+      setobjt2t(luaH_set(L, t, gkey(old)), gval(old));
   }
   if (oldhsize)
     luaM_freearray(L, nold, twoto(oldhsize), Node);
@@ -411,7 +389,7 @@ static TObject *newkey (lua_State *L, Table *t, const TObject *key) {
       mp = n;
     }
   }
-  else if (G(L)->insertionorder && !ttisnil(gkey(mp))) {
+  else if (!ttisnil(gkey(mp))) {
     Node *n = t->firstfree;
     n->next = mp->next;
     mp->next = n;

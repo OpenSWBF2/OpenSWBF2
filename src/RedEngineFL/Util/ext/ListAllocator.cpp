@@ -8,10 +8,10 @@ class ListAllocatorImpl : public ListAllocator
 {
 public:
     // FUNCTION: SWBF2 0x006e9210
-    ListAllocatorImpl(unsigned int uBaseMem, unsigned int uMaxMem)
+    ListAllocatorImpl(unsigned int uBaseMem, unsigned int uMaxMem, IAllocator* pPages)
         : freelist_(0)
     {
-        baseAlloc_ = &valloc_;
+        baseAlloc_ = pPages ? pPages : &valloc_;
         pageSize_ = 0x2000;
         basemem_ = uBaseMem;
         maxmem_ = uMaxMem;
@@ -325,9 +325,9 @@ void DummyNonAllocator::Allocate(Buffer&)
 template Buffer* TypedArrayAllocator<Buffer>::Allocate_(int&);
 
 // FUNCTION: SWBF2 0x006e95f0
-ListAllocator* ListAllocator::Create(unsigned int uBaseMem, unsigned int uMaxMem)
+ListAllocator* ListAllocator::Create(unsigned int uBaseMem, unsigned int uMaxMem, IAllocator* pPages)
 {
-    return new ListAllocatorImpl(uBaseMem, uMaxMem);
+    return new ListAllocatorImpl(uBaseMem, uMaxMem, pPages);
 }
 
 // FUNCTION: SWBF2 0x006e9660

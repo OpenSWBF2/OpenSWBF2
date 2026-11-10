@@ -25,6 +25,7 @@ TEST_CASE("lua object sizes are pinned" * doctest::test_suite("regression"))
     CHECK(sizeof(Proto) == 72);
     CHECK(sizeof(UpVal) == 20);
     CHECK(sizeof(lua_State) == 88);
+    CHECK(sizeof(global_State) == 156);
     CHECK(sizeof(CClosure) == 24);
     CHECK(sizeof(LClosure) == 28);
     CHECK(sizeof(TString) == 16);
@@ -33,18 +34,6 @@ TEST_CASE("lua object sizes are pinned" * doctest::test_suite("regression"))
 
 namespace
 {
-
-struct InsertionOrderGuard
-{
-    explicit InsertionOrderGuard(int iInsertion)
-    {
-        lua_setinsertionorder(iInsertion);
-    }
-    ~InsertionOrderGuard()
-    {
-        lua_setinsertionorder(0);
-    }
-};
 
 const char* const kOrderScript =
     "local keep = {}\n"
@@ -67,7 +56,6 @@ const char* const kOrderScript =
     "  keys[i] = k\n"
     "  t[k] = i\n"
     "end\n"
-    "if SWITCH then SWITCH() end\n"
     "for i = 1, 64 do\n"
     "  if t[keys[i]] ~= i then return 'miss' end\n"
     "end\n"
@@ -77,20 +65,13 @@ const char* const kOrderScript =
     "end\n"
     "return s\n";
 
-int SwitchToAddress(lua_State*)
-{
-    lua_setinsertionorder(0);
-    return 0;
-}
-
 int KeyNoop(lua_State*)
 {
     return 0;
 }
 
-std::string RunScript(int iInsertion, const char* pcScript, bool bPad, bool bSwitch)
+std::string RunScript(const char* pcScript, bool bPad)
 {
-    InsertionOrderGuard guard(iInsertion);
     lua_State* L = lua_open();
     if (!L)
     {
@@ -101,11 +82,6 @@ std::string RunScript(int iInsertion, const char* pcScript, bool bPad, bool bSwi
     lua_settop(L, 0);
     lua_pushboolean(L, bPad ? 1 : 0);
     lua_setglobal(L, "PAD");
-    if (bSwitch)
-    {
-        lua_pushcfunction(L, SwitchToAddress);
-        lua_setglobal(L, "SWITCH");
-    }
     std::string sOut;
     if (luaL_loadbuffer(L, pcScript, strlen(pcScript), "=order") != 0 || lua_pcall(L, 0, 1, 0) != 0)
     {
@@ -199,9 +175,8 @@ std::string WalkValues(lua_State* L, int iTable)
     return sOut;
 }
 
-std::string LudOrder(int iInsertion, LudPattern ePattern, int n, bool bMixed)
+std::string LudOrder(LudPattern ePattern, int n, bool bMixed)
 {
-    InsertionOrderGuard guard(iInsertion);
     lua_State* L = lua_open();
     if (!L)
     {
@@ -303,7 +278,6 @@ void SetKeyAt(lua_State* L, int i, bool bNil, int iValue)
 
 TEST_CASE("lua hash keys iterate in insertion order under serial order" * doctest::test_suite("regression"))
 {
-    InsertionOrderGuard guard(1);
     lua_State* L = lua_open();
     REQUIRE(L);
     FillMixed(L, 40);
@@ -326,7 +300,6 @@ TEST_CASE("lua reset keys keep their place under serial order" * doctest::test_s
     for (unsigned int p = 0; p < sizeof(aePatterns) / sizeof(aePatterns[0]); ++p)
     {
         CAPTURE(p);
-        InsertionOrderGuard guard(1);
         lua_State* L = lua_open();
         REQUIRE(L);
         lua_newtable(L);
@@ -356,12 +329,11 @@ struct DeadSlotResult
     int iArray;
 };
 
-DeadSlotResult DeadSlotOrder(int iInsertion, uintptr_t uThird)
+DeadSlotResult DeadSlotOrder(uintptr_t uThird)
 {
     DeadSlotResult kResult;
     kResult.iNodes = -1;
     kResult.iArray = -1;
-    InsertionOrderGuard guard(iInsertion);
     lua_State* L = lua_open();
     if (!L)
     {
@@ -408,9 +380,8 @@ const char* const kCollectDuringTraversalScript =
     "end\n"
     "return n .. ',' .. tostring(next(t) == nil)\n";
 
-std::string LudReviveOrder(int iInsertion, bool bCollect)
+std::string LudReviveOrder(bool bCollect)
 {
-    InsertionOrderGuard guard(iInsertion);
     lua_State* L = lua_open();
     if (!L)
     {
@@ -451,26 +422,22 @@ std::string StringReviveScript(bool bCollect)
 
 TEST_CASE("lua dead keys do not revive after a collection under serial order" * doctest::test_suite("regression"))
 {
-    CHECK(LudReviveOrder(1, false) == "1 4 3");
-    CHECK(LudReviveOrder(1, true) == "1 3 4");
-    CHECK(LudReviveOrder(0, true) == LudReviveOrder(0, false));
+    CHECK(LudReviveOrder(false) == "1 4 3");
+    CHECK(LudReviveOrder(true) == "1 3 4");
 
     const std::string sKept = StringReviveScript(false);
     const std::string sCollected = StringReviveScript(true);
-    CHECK(RunScript(1, sKept.c_str(), false, false) == "1,4,3,");
-    CHECK(RunScript(1, sCollected.c_str(), false, false) == "1,3,4,");
-    CHECK(RunScript(0, sCollected.c_str(), false, false) == RunScript(0, sKept.c_str(), false, false));
+    CHECK(RunScript(sKept.c_str(), false) == "1,4,3,");
+    CHECK(RunScript(sCollected.c_str(), false) == "1,3,4,");
 }
 
 TEST_CASE("lua clearing keys with a collection during traversal visits every key" * doctest::test_suite("regression"))
 {
-    CHECK(RunScript(1, kCollectDuringTraversalScript, false, false) == "60,true");
-    CHECK(RunScript(0, kCollectDuringTraversalScript, false, false) == "60,true");
+    CHECK(RunScript(kCollectDuringTraversalScript, false) == "60,true");
 }
 
 TEST_CASE("lua weak key tables skip dead keys under serial order" * doctest::test_suite("regression"))
 {
-    InsertionOrderGuard guard(1);
     lua_State* L = lua_open();
     REQUIRE(L);
     lua_setgcthreshold(L, 100000);
@@ -491,106 +458,56 @@ TEST_CASE("lua weak key tables skip dead keys under serial order" * doctest::tes
 
 TEST_CASE("lua dead slot reuse does not move the resize under serial order" * doctest::test_suite("regression"))
 {
-    const DeadSlotResult kHit = DeadSlotOrder(1, 0x3030);
-    const DeadSlotResult kMiss = DeadSlotOrder(1, 0x3040);
+    const DeadSlotResult kHit = DeadSlotOrder(0x3030);
+    const DeadSlotResult kMiss = DeadSlotOrder(0x3040);
     CHECK(kHit.sOrder == "10 2 3");
     CHECK(kMiss.sOrder == kHit.sOrder);
     CHECK(kMiss.iNodes == kHit.iNodes);
     CHECK(kMiss.iArray == kHit.iArray);
     CHECK(kHit.iArray == 1);
-
-    const DeadSlotResult kAddressHit = DeadSlotOrder(0, 0x3030);
-    const DeadSlotResult kAddressMiss = DeadSlotOrder(0, 0x3040);
-    CHECK(kAddressHit.sOrder == "3 10 2");
-    CHECK(kAddressHit.iArray == 0);
-    CHECK(kAddressMiss.iArray == 1);
-    CHECK(kAddressMiss.sOrder != kAddressHit.sOrder);
 }
 
 TEST_CASE("lua clearing a key twice during traversal visits every key" * doctest::test_suite("regression"))
 {
-    CHECK(RunScript(1, kDoubleNilScript, false, false) == "50,true");
-    CHECK(RunScript(0, kDoubleNilScript, false, false) == "50,true");
+    CHECK(RunScript(kDoubleNilScript, false) == "50,true");
 }
 
 TEST_CASE("lua lightuserdata order depends only on insertion sequence" * doctest::test_suite("regression"))
 {
-    CHECK(LudOrder(1, kLudAscending, 3, false) == "1 2 3");
-    CHECK(LudOrder(1, kLudAscending, 8, false) == "1 2 3 4 5 6 7 8");
+    CHECK(LudOrder(kLudAscending, 3, false) == "1 2 3");
+    CHECK(LudOrder(kLudAscending, 8, false) == "1 2 3 4 5 6 7 8");
     const int aiCounts[] = { 3, 8, 20 };
     for (unsigned int c = 0; c < sizeof(aiCounts) / sizeof(aiCounts[0]); ++c)
     {
         CAPTURE(aiCounts[c]);
-        const std::string sAscending = LudOrder(1, kLudAscending, aiCounts[c], false);
+        const std::string sAscending = LudOrder(kLudAscending, aiCounts[c], false);
         CHECK(sAscending == Sequence(1, aiCounts[c], " ", false));
-        CHECK(sAscending == LudOrder(1, kLudDescending, aiCounts[c], false));
-        CHECK(sAscending == LudOrder(1, kLudScattered, aiCounts[c], false));
+        CHECK(sAscending == LudOrder(kLudDescending, aiCounts[c], false));
+        CHECK(sAscending == LudOrder(kLudScattered, aiCounts[c], false));
     }
-    const std::string sMixed = LudOrder(1, kLudAscending, 9, true);
+    const std::string sMixed = LudOrder(kLudAscending, 9, true);
     CHECK(sMixed == "1 2 3 4 5 6 7 8 9");
-    CHECK(sMixed == LudOrder(1, kLudDescending, 9, true));
-    CHECK(sMixed == LudOrder(1, kLudScattered, 9, true));
+    CHECK(sMixed == LudOrder(kLudDescending, 9, true));
+    CHECK(sMixed == LudOrder(kLudScattered, 9, true));
 }
 
 TEST_CASE("lua next order ignores allocation padding under serial order" * doctest::test_suite("regression"))
 {
-    const std::string sPlain = RunScript(1, kOrderScript, false, false);
-    const std::string sPadded = RunScript(1, kOrderScript, true, false);
+    const std::string sPlain = RunScript(kOrderScript, false);
+    const std::string sPadded = RunScript(kOrderScript, true);
     REQUIRE(sPlain.find("error") == std::string::npos);
     REQUIRE(sPlain != "miss");
     CHECK(sPlain == sPadded);
     CHECK(sPlain == OrderedValues());
 }
 
-TEST_CASE("lua next order is latched at open" * doctest::test_suite("regression"))
-{
-    const std::string sSerial = RunScript(1, kOrderScript, false, false);
-    const std::string sSwitched = RunScript(1, kOrderScript, false, true);
-    REQUIRE(sSerial.find("error") == std::string::npos);
-    CHECK(sSwitched != "miss");
-    CHECK(sSwitched == sSerial);
-    CHECK(sSerial == OrderedValues());
-}
-
-TEST_CASE("lua next order belongs to each open state" * doctest::test_suite("regression"))
-{
-    lua_State* pSerial = NULL;
-    lua_State* pAddress = NULL;
-    {
-        InsertionOrderGuard guard(1);
-        pSerial = lua_open();
-    }
-    {
-        InsertionOrderGuard guard(0);
-        pAddress = lua_open();
-    }
-    REQUIRE(pSerial);
-    REQUIRE(pAddress);
-    lua_State* apStates[] = { pSerial, pAddress };
-    std::string asOrder[2];
-    for (int s = 0; s < 2; ++s)
-    {
-        lua_State* L = apStates[s];
-        lua_newtable(L);
-        for (int i = 0; i < 8; ++i)
-        {
-            SetLud(L, LudKey(kLudDescending, i, 8), i + 1);
-        }
-        asOrder[s] = WalkValues(L, 1);
-    }
-    CHECK(asOrder[0] == "1 2 3 4 5 6 7 8");
-    CHECK(asOrder[1] != asOrder[0]);
-    lua_close(pAddress);
-    lua_close(pSerial);
-}
-
 #ifdef OPENSWBF2_TEST
 TEST_CASE("lua next order is stable across perturbheap modes" * doctest::test_suite("regression"))
 {
-    const std::string sReference = RunScript(1, kOrderScript, false, false);
+    const std::string sReference = RunScript(kOrderScript, false);
     REQUIRE(sReference.find("error") == std::string::npos);
     CHECK(sReference == OrderedValues());
-    const unsigned int auModes[] = { kRedPerturbPad, kRedPerturbTop, kRedPerturbFill, kRedPerturbPool };
+    const unsigned int auModes[] = { kRedPerturbPad, kRedPerturbFill, kRedPerturbPool };
     const unsigned int auSeeds[] = { 1, 2 };
     for (unsigned int m = 0; m < sizeof(auModes) / sizeof(auModes[0]); ++m)
     {
@@ -599,7 +516,7 @@ TEST_CASE("lua next order is stable across perturbheap modes" * doctest::test_su
             CAPTURE(auModes[m]);
             CAPTURE(auSeeds[s]);
             RedPerturbSet(auSeeds[s], auModes[m]);
-            const std::string sPerturbed = RunScript(1, kOrderScript, false, false);
+            const std::string sPerturbed = RunScript(kOrderScript, false);
             RedPerturbSet(0, 0);
             CHECK(sPerturbed == sReference);
         }
@@ -609,7 +526,6 @@ TEST_CASE("lua next order is stable across perturbheap modes" * doctest::test_su
 
 TEST_CASE("lua next order survives deletion during traversal under serial order" * doctest::test_suite("regression"))
 {
-    InsertionOrderGuard guard(1);
     lua_State* L = lua_open();
     REQUIRE(L);
     FillMixed(L, 40);
@@ -634,63 +550,4 @@ TEST_CASE("lua next order survives deletion during traversal under serial order"
     }
     CHECK(WalkValues(L, 1) == "1 2 3 4 5");
     lua_close(L);
-}
-
-TEST_CASE("lua address order keeps the slot walk" * doctest::test_suite("regression"))
-{
-    CHECK(LudOrder(0, kLudAscending, 8, false) != LudOrder(0, kLudDescending, 8, false));
-}
-
-namespace
-{
-
-const char* const kDumpChunk =
-    "local a, b = 1.5, 'str'\n"
-    "local function outer(x)\n"
-    "  local c = x * 2\n"
-    "  return function(y) return a + c + y .. b end\n"
-    "end\n"
-    "local t = { n = 3, s = 'k', [4] = false }\n"
-    "return outer(t.n)\n";
-
-int DumpToString(lua_State*, const void* p, size_t sz, void* ud)
-{
-    static_cast<std::string*>(ud)->append(static_cast<const char*>(p), sz);
-    return 0;
-}
-
-std::string DumpChunk(int iInsertion, std::string& sRedump)
-{
-    InsertionOrderGuard guard(iInsertion);
-    std::string sDump;
-    lua_State* L = lua_open();
-    if (!L)
-    {
-        return sDump;
-    }
-    if (luaL_loadbuffer(L, kDumpChunk, strlen(kDumpChunk), "=dump") == 0)
-    {
-        lua_dump(L, DumpToString, &sDump);
-        lua_settop(L, 0);
-        if (luaL_loadbuffer(L, sDump.data(), sDump.size(), "=dump") == 0)
-        {
-            lua_dump(L, DumpToString, &sRedump);
-        }
-    }
-    lua_close(L);
-    return sDump;
-}
-
-}
-
-TEST_CASE("lua dump bytes are the same in both orders" * doctest::test_suite("regression"))
-{
-    std::string sAddressRedump;
-    std::string sSerialRedump;
-    const std::string sAddress = DumpChunk(0, sAddressRedump);
-    const std::string sSerial = DumpChunk(1, sSerialRedump);
-    REQUIRE(!sAddress.empty());
-    CHECK(sAddress == sSerial);
-    CHECK(sAddressRedump == sAddress);
-    CHECK(sSerialRedump == sSerial);
 }

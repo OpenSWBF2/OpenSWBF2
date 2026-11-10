@@ -3,7 +3,6 @@
 #include "LuaMemory.h"
 #include "LuaMemoryArgs.h"
 #include "MemFailLog.h"
-#include "PebbleFL/Common/PblHandle.h"
 #include "RedEngineFL/Memory/RedMemory.h"
 #include "RedEngineFL/Util/RedLog.h"
 
@@ -129,15 +128,6 @@ void GameMemory::BuildHeaps(bool bMission)
         LOG(LogMemory, Error, "OPENSWBF2 HANDLEREG audit stale left=%u", uStaleLeft);
         check(uStaleLeft == 0);
     }
-    if (RedHeapBackendIsArena())
-    {
-        const unsigned int uArenaLeft = PblHandleRegistry::CountInRange(g_Heap3Start, gArenaEnd);
-        if (uArenaLeft != 0)
-        {
-            LOG(LogMemory, Error, "OPENSWBF2 HANDLEREG audit range=arena left=%u", uArenaLeft);
-            check(uArenaLeft == 0);
-        }
-    }
 #endif
 
     RedHeapCapOpenWindow();
@@ -176,20 +166,6 @@ void GameMemory::ReleaseTempHeap()
         RedSetTempHeap(-1);
         TempLoadHeap = 0;
     }
-#ifdef OPENSWBF2_TEST
-    char* pTempBlock = RedHeapBackendIsArena() ? (char*)gTempHeapBlock : 0;
-#endif
     RedFreeToHeap(RunTimeHeap, gTempHeapBlock, 0);
     gTempHeapBlock = 0;
-#ifdef OPENSWBF2_TEST
-    if (pTempBlock != 0)
-    {
-        const unsigned int uTempLeft = PblHandleRegistry::CountInRange(pTempBlock, pTempBlock + kTempLoadHeapSize);
-        if (uTempLeft != 0)
-        {
-            LOG(LogMemory, Error, "OPENSWBF2 HANDLEREG audit range=temp left=%u", uTempLeft);
-            check(uTempLeft == 0);
-        }
-    }
-#endif
 }

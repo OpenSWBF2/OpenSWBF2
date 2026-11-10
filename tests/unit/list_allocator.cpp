@@ -2,8 +2,6 @@
 
 #include <string.h>
 
-#include "RedEngineFL/Memory/RedMemory.h"
-#include "RedEngineFL/Memory/RedMemoryBackend.h"
 #include "RedEngineFL/Util/ext/ListAllocator.h"
 
 namespace
@@ -12,90 +10,29 @@ namespace
 const int kLaPages = 8;
 const unsigned int kLaPageBytes = 0x2000;
 alignas(16) char sacLaPool[kLaPages * kLaPageBytes];
-alignas(16) char sacLaScratch[0x4000];
-unsigned int suLaScratchUsed;
 char* sapLaGiven[kLaPages];
 int siLaGiven;
 bool sbLaDescending;
-int siLaHeap = -1;
 
-void* LaInit(void* start, void* end, int iMax)
+class LaPages : public util::IAllocator
 {
-    return kRedArenaBackend.init(start, end, iMax);
-}
-
-size_t LaCreate(int heap, void* start, void* end, unsigned int align, const char* name)
-{
-    (void)heap;
-    (void)align;
-    (void)name;
-    return (char*)end - (char*)start;
-}
-
-void LaDestroy(int heap)
-{
-    (void)heap;
-}
-
-void* LaAlloc(int heap, size_t size, bool bTop, size_t* pReserved)
-{
-    (void)heap;
-    (void)bTop;
-    if (size < kLaPageBytes)
+public:
+    virtual void Allocate(util::Buffer& rBuf)
     {
-        const unsigned int uSize = ((unsigned int)size + 15) & ~15u;
-        if (suLaScratchUsed + uSize > sizeof(sacLaScratch))
+        if (rBuf.size_ > kLaPageBytes || siLaGiven >= kLaPages)
         {
-            return 0;
+            rBuf.data_ = 0;
+            return;
         }
-        char* pScratch = sacLaScratch + suLaScratchUsed;
-        suLaScratchUsed += uSize;
-        *pReserved = size;
-        return pScratch;
+        const int iSlot = sbLaDescending ? kLaPages - 1 - siLaGiven : siLaGiven;
+        rBuf.data_ = sacLaPool + iSlot * kLaPageBytes;
+        sapLaGiven[siLaGiven++] = (char*)rBuf.data_;
     }
-    if (size > kLaPageBytes || siLaGiven >= kLaPages)
+
+    virtual void Deallocate(util::Buffer&)
     {
-        return 0;
     }
-    const int iSlot = sbLaDescending ? kLaPages - 1 - siLaGiven : siLaGiven;
-    char* p = sacLaPool + iSlot * kLaPageBytes;
-    sapLaGiven[siLaGiven++] = p;
-    *pReserved = size;
-    return p;
-}
-
-size_t LaFree(int heap, void* block)
-{
-    (void)heap;
-    (void)block;
-    return kLaPageBytes;
-}
-
-int LaOwner(const void* block)
-{
-    const char* p = (const char*)block;
-    const bool bPool = p >= sacLaPool && p < sacLaPool + sizeof(sacLaPool);
-    const bool bScratch = p >= sacLaScratch && p < sacLaScratch + sizeof(sacLaScratch);
-    return (bPool || bScratch) ? siLaHeap : -1;
-}
-
-int LaMoveEnd(int iHeap, int iDelta, bool* pbAllocFailed)
-{
-    (void)iHeap;
-    (void)iDelta;
-    *pbAllocFailed = true;
-    return 0;
-}
-
-bool LaVisit(int heap, bool (*pfnBlock)(void* pUser, size_t uSize, void* pArg), void* pArg)
-{
-    (void)heap;
-    (void)pfnBlock;
-    (void)pArg;
-    return false;
-}
-
-const RedHeapBackend kLaBackend = { LaInit, LaCreate, LaDestroy, LaAlloc, LaFree, LaOwner, LaMoveEnd, LaVisit, 0 };
+};
 
 struct LaPick
 {
@@ -121,14 +58,8 @@ void LaRun(bool bDescending, LaPick* pSmall, LaPick* pLarge)
 {
     sbLaDescending = bDescending;
     siLaGiven = 0;
-    suLaScratchUsed = 0;
-    const RedHeapBackend* pSaved = gRedHeapBackend;
-    gRedHeapBackend = &kLaBackend;
-    siLaHeap = RedCreateHeap(sacLaPool, sacLaPool + sizeof(sacLaPool), 0x10, "T1ListAlloc");
-    gRedHeapBackend = pSaved;
-    REQUIRE(siLaHeap > 0);
-    const int iOldHeap = RedSetCurrentHeap(siLaHeap);
-    util::ListAllocator* pAlloc = util::ListAllocator::Create(kLaPageBytes, kLaPages * kLaPageBytes);
+    LaPages kPages;
+    util::ListAllocator* pAlloc = util::ListAllocator::Create(kLaPageBytes, kLaPages * kLaPageBytes, &kPages);
     REQUIRE(pAlloc);
     util::Buffer akBuf[3];
     for (int i = 0; i < 3; ++i)
@@ -158,9 +89,6 @@ void LaRun(bool bDescending, LaPick* pSmall, LaPick* pLarge)
     }
     pAlloc->Deallocate(kSmall);
     delete pAlloc;
-    RedSetCurrentHeap(iOldHeap);
-    RedDestroyHeap(siLaHeap);
-    siLaHeap = -1;
 }
 
 }

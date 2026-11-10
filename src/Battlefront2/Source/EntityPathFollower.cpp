@@ -1616,7 +1616,7 @@ float EntityPathFollower::Roll(const EntityPathFollowerClass* const pClass, floa
                         PblMath::fHalfPi);
 
     float fTime = GameLoop::GetMissionTime() +
-                  WobblePhase(static_cast<const GameObject*>(static_cast<EntityFlyer*>(this)), this);
+                  WobblePhase(static_cast<const GameObject*>(static_cast<EntityFlyer*>(this)));
     float fWeave = 1.0f;
     if (!AIUtil::gGroundFlyerMap)
     {

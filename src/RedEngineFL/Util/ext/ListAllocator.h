@@ -26,7 +26,7 @@ public:
     virtual ~ListAllocator() {}
     virtual void UnitTest_() = 0;
 
-    static ListAllocator* Create(unsigned int uBaseMem, unsigned int uMaxMem);
+    static ListAllocator* Create(unsigned int uBaseMem, unsigned int uMaxMem, IAllocator* pPages = 0);
 
 protected:
     ListAllocator() {}

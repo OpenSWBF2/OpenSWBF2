@@ -1,6 +1,5 @@
 #pragma once
 
-#include "PebbleFL/Common/PblSimOrder.h"
 #include <stddef.h>
 
 class Thread;
@@ -102,19 +101,9 @@ inline void PblOrderedList<TYPE, KEY>::Add(Node* pNode, TYPE* pObject, KEY iOrde
     {
         pAt = pAt->_pNext;
     }
-    if (PblGetSimOrder() == PBL_SIMORDER_SERIAL)
+    while (pAt != &_head && iOrder == pAt->_iOrder)
     {
-        while (pAt != &_head && iOrder == pAt->_iOrder)
-        {
-            pAt = pAt->_pNext;
-        }
-    }
-    else
-    {
-        while (iOrder == pAt->_iOrder && pNode > pAt)
-        {
-            pAt = pAt->_pNext;
-        }
+        pAt = pAt->_pNext;
     }
 
     pNode->_pList = this;

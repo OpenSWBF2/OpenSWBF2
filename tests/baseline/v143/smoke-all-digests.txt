@@ -13,6 +13,7 @@ crash-applymodesmall	OPENSWBF2 SIM DIGEST turns=1500 time=50.000 rand=234993775/
 crash-applypresentfail	OPENSWBF2 SIM DIGEST turns=1500 time=50.000 rand=234993775/2651921600 snd=49.923 state=0x65CD7716	geo1c_con	 309s	L=Rep	28u@14P	 41r	 0p	W=CIS	28u@11 	 88r	 0p
 crash-applytargetfail	OPENSWBF2 SIM DIGEST turns=1500 time=50.000 rand=234993775/2651921600 snd=49.923 state=0x65CD7716	geo1c_con	 309s	L=Rep	28u@14P	 41r	 0p	W=CIS	28u@11 	 88r	 0p
 crash-arenaoom	none	none
+crash-capexhaust	none	none
 crash-check	none	none
 crash-debugbreak	none	none
 crash-debugheapoom	none	none
@@ -34,6 +35,7 @@ crash-menuorder	OPENSWBF2 SIM DIGEST turns=1500 time=50.000 rand=234993775/26519
 crash-menuorderrev	OPENSWBF2 SIM DIGEST turns=1500 time=50.000 rand=234993775/2651921600 snd=49.923 state=0x65CD7716	geo1c_con	 309s	L=Rep	28u@14P	 41r	 0p	W=CIS	28u@11 	 88r	 0p
 crash-menurevertsave	OPENSWBF2 SIM DIGEST turns=1500 time=50.000 rand=234993775/2651921600 snd=49.923 state=0x65CD7716	geo1c_con	 309s	L=Rep	28u@14P	 41r	 0p	W=CIS	28u@11 	 88r	 0p
 crash-menusavefail	OPENSWBF2 SIM DIGEST turns=1500 time=50.000 rand=2778091431/684210932 snd=49.923 state=0x0E30C5FD	geo1c_con	 309s	L=Rep	28u@15P	 40r	 0p	W=CIS	28u@10 	 97r	 0p
+crash-midoublefree	none	none
 crash-nullderef	none	none
 crash-poolcount	OPENSWBF2 SIM DIGEST turns=1500 time=50.000 rand=234993775/2651921600 snd=49.923 state=0x65CD7716	geo1c_con	 309s	L=Rep	28u@12P	 55r	 0p	W=CIS	28u@13 	 88r	 0p
 crash-resetfatal	none	none

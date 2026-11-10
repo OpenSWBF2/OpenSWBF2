@@ -4,7 +4,7 @@
 
 #include "RedEngineFL/Interface/RedGlyphMemoryManager.h"
 #include "RedEngineFL/Memory/RedMemory.h"
-#include "RedEngineFL/Memory/RedMemoryBackend.h"
+#include "RedEngineFL/Memory/RedMemoryMi.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 #include "RedEngineFL/Util/RedStack.h"
 #include "RedEngineFL/Util/ext/Allocator.h"
@@ -27,11 +27,7 @@ alignas(16) char sacCanaryMi[0x4000];
 
 int CanaryMiHeap()
 {
-    const RedHeapBackend* pSaved = gRedHeapBackend;
-    gRedHeapBackend = &kRedMiBackend;
-    const int iHeap = RedCreateHeap(sacCanaryMi, sacCanaryMi + sizeof(sacCanaryMi), 0x10, "CanaryMi");
-    gRedHeapBackend = pSaved;
-    return iHeap;
+    return RedCreateHeap(sacCanaryMi, sacCanaryMi + sizeof(sacCanaryMi), 0x10, "CanaryMi");
 }
 
 }
@@ -45,9 +41,9 @@ TEST_CASE("asan canary heap overflow is reported" * doctest::test_suite("asan_ca
 
 TEST_CASE("asan canary red heap overflow is reported" * doctest::test_suite("asan_canary"))
 {
-    volatile char* p = (volatile char*)RedAllocFromHeap(__RedCurrHeap, 13, 0);
+    volatile char* p = (volatile char*)RedAllocFromHeap(__RedCurrHeap, 8, 0);
     REQUIRE(p);
-    p[13] = 1;
+    p[8] = 1;
     RedFreeToHeap(__RedCurrHeap, (void*)p, 0);
 }
 
@@ -174,11 +170,11 @@ TEST_CASE("asan canary stack allocator use after free is reported" * doctest::te
 TEST_CASE("asan canary sub allocator overflow is reported" * doctest::test_suite("asan_canary"))
 {
     util::StaticSubAlloc<CanaryElem> alloc;
-    util::Buffer buf(0, 13);
+    util::Buffer buf(0, 8);
     alloc.Allocate(buf);
     volatile char* p = (volatile char*)buf.data_;
     REQUIRE(p);
-    p[13] = 1;
+    p[8] = 1;
     alloc.Deallocate(buf);
 }
 
@@ -261,9 +257,9 @@ TEST_CASE("asan canary mimalloc heap slack overflow is reported" * doctest::test
 {
     const int iHeap = CanaryMiHeap();
     REQUIRE(iHeap > 0);
-    volatile char* p = (volatile char*)RedAllocFromHeap(iHeap, 13, 0);
+    volatile char* p = (volatile char*)RedAllocFromHeap(iHeap, 8, 0);
     REQUIRE(p);
-    p[13] = 1;
+    p[8] = 1;
     RedFreeToHeap(iHeap, (void*)p, 0);
     RedDestroyHeap(iHeap);
 }

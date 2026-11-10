@@ -5,6 +5,7 @@
 [PASS] hardening:fastcall-edx
 [PASS] hardening:d3dx-decl
 [PASS] hardening:gamma-get
+[PASS] hardening:addr-order
 [PASS] hardening:mi-api-ban
 [PASS] hardening:snd-alloc-size-t
 [PASS] hardening:galaxy-getter-cast
@@ -32,7 +33,7 @@
 [PASS] hardening:import-AdjustWindowRectExForDpi
 [PASS] hardening:import-shcore
 [PASS] hardening:import-modules
-[PASS] hardening:aslr-base (0x00530000)
+[PASS] hardening:aslr-base (0x00900000)
 [PASS] smoke:cor1c_c class=TimeOut exit=0x00000001
 [PASS] smoke:cor1c_con class=Pass exit=0x00000000
 [PASS] smoke:cor1c_ctf class=TimeOut exit=0x00000001
@@ -190,7 +191,7 @@
 [PASS] smoke:crash-menuapplyfail class=Pass exit=0x00000000
 
 Results
-  PASS     190
+  PASS     191
   FAIL     0
   SKIP     0
   TIMEOUT  0
@@ -198,3 +199,4 @@ Results
 Known bugs
   KNOWN    0
   PASS     0
+[PASS] tables:compare

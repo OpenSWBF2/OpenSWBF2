@@ -79,7 +79,7 @@ typedef struct global_State {
   struct lua_State *mainthread;
   Node dummynode[1];
   TString *tmname[TM_N];
-  lu_byte insertionorder;
+  lu_byte reserved;
 } global_State;
 
 struct lua_State {

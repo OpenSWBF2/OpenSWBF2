@@ -12,7 +12,7 @@
 
 #include "testutil.h"
 #include "RedEngineFL/Memory/RedMemory.h"
-#include "RedEngineFL/Memory/RedMemoryBackend.h"
+#include "RedEngineFL/Memory/RedMemoryMi.h"
 #include "PebbleFL/Common/PblHandle.h"
 
 extern int gCheckCalls;
@@ -24,11 +24,7 @@ alignas(16) char sacMiRange[0x10000];
 
 int CreateMiHeap(unsigned int uAlign, const char* pcName)
 {
-    const RedHeapBackend* pSaved = gRedHeapBackend;
-    gRedHeapBackend = &kRedMiBackend;
-    const int iHeap = RedCreateHeap(sacMiRange, sacMiRange + sizeof(sacMiRange), uAlign, pcName);
-    gRedHeapBackend = pSaved;
-    return iHeap;
+    return RedCreateHeap(sacMiRange, sacMiRange + sizeof(sacMiRange), uAlign, pcName);
 }
 
 class MiHeap
@@ -104,31 +100,19 @@ void T1SndFree(void* pBlock)
     RedFreeToHeap(siT1SoundHeap, pBlock, 0);
 }
 
-class ScopedMiBackend
+class ScopedMiPurge
 {
 public:
-    explicit ScopedMiBackend(long lPurgeMs) : mpSaved(gRedHeapBackend)
+    explicit ScopedMiPurge(long lPurgeMs)
     {
         RedMiConfigure(lPurgeMs);
-        gRedHeapBackend = &kRedMiBackend;
     }
 
-    ~ScopedMiBackend()
+    ~ScopedMiPurge()
     {
-        gRedHeapBackend = mpSaved;
         RedMiConfigure(1000);
     }
-
-private:
-    const RedHeapBackend* mpSaved;
 };
-
-int siT1TrimCalls;
-
-void T1CountTrim()
-{
-    ++siT1TrimCalls;
-}
 
 unsigned int T1CommitBytes()
 {
@@ -145,7 +129,6 @@ TEST_CASE("mimalloc heap blocks are zero even when reused" * doctest::test_suite
     MiHeap kHeap(0x10, "T1MiZero");
     const int iH = kHeap.miHeap;
     REQUIRE(iH > 0);
-    REQUIRE(gRedHeapSlots[iH].pBackend == &kRedMiBackend);
     unsigned int auSize[64];
     unsigned char* apBlock[64];
     for (int i = 0; i < 64; ++i)
@@ -286,7 +269,7 @@ TEST_CASE("mimalloc free of an unreadable block reports a bad prefix without tou
     const int iChecks = gCheckCalls;
     {
         ExpectLog kLog("OPENSWBF2 MIERROR kind=badprefix");
-        CHECK(kRedMiBackend.free(iH, pRegion + 64) == 0);
+        CHECK(RedMiFree(pRegion + 64) == 0);
     }
     CHECK(gCheckCalls == iChecks + 1);
     VirtualFree(pRegion, 0, MEM_RELEASE);
@@ -405,10 +388,7 @@ TEST_CASE("mimalloc heap destroy visits full pages after frees on them" * doctes
 {
     const int iChecks = gCheckCalls;
     RedMiConfigure(1000);
-    const RedHeapBackend* pSaved = gRedHeapBackend;
-    gRedHeapBackend = &kRedMiBackend;
     const int iH = RedCreateHeap((char*)0x10, (char*)0x10 + 0x4000000, 0x10, "T1MiFull");
-    gRedHeapBackend = pSaved;
     REQUIRE(iH > 0);
     std::vector<char*> vpBlock;
     for (int i = 0; i < 128; ++i)
@@ -423,7 +403,7 @@ TEST_CASE("mimalloc heap destroy visits full pages after frees on them" * doctes
         RedFreeToHeap(iH, vpBlock[i + 1], 0);
     }
     int iBlocks = 0;
-    gRedHeapSlots[iH].pBackend->visit(iH, T1CountBlock, &iBlocks);
+    RedVisitHeap(iH, T1CountBlock, &iBlocks);
     CHECK(iBlocks > 0);
     RedDestroyHeap(iH);
     CHECK(gCheckCalls == iChecks);
@@ -625,23 +605,9 @@ TEST_CASE("mimalloc heap destroy visits areas only under asan (source pin)" * do
     CHECK(sMi.find("#endif", uIf) > uVisit);
 }
 
-TEST_CASE("mimalloc allocator and purge switches parse their values" * doctest::test_suite("regression"))
+TEST_CASE("mimalloc purge switch parses its value" * doctest::test_suite("regression"))
 {
     bool bRejected = false;
-    CHECK(RedParseAllocatorArg(0, 0, &bRejected) == &kRedMiBackend);
-    CHECK(!bRejected);
-    CHECK(RedParseAllocatorArg("arena", 5, &bRejected) == &kRedArenaBackend);
-    CHECK(RedParseAllocatorArg("ARENA", 5, &bRejected) == &kRedArenaBackend);
-    CHECK(RedParseAllocatorArg("mimalloc", 8, &bRejected) == &kRedMiBackend);
-    CHECK(!bRejected);
-    const char* apcBad[] = { "arenas", "", "mi" };
-    for (int i = 0; i < 3; ++i)
-    {
-        bRejected = false;
-        CHECK(RedParseAllocatorArg(apcBad[i], (int)strlen(apcBad[i]), &bRejected) == &kRedMiBackend);
-        CHECK(bRejected);
-    }
-    bRejected = false;
     CHECK(RedParseMiPurgeArg(0, 0, &bRejected) == 1000);
     CHECK(RedParseMiPurgeArg("0", 1, &bRejected) == 0);
     CHECK(RedParseMiPurgeArg("250", 3, &bRejected) == 250);
@@ -659,10 +625,7 @@ TEST_CASE("mimalloc allocator and purge switches parse their values" * doctest::
 TEST_CASE("mimalloc heap destroy poisons every area past the first area table" * doctest::test_suite("regression"))
 {
     const int iChecks = gCheckCalls;
-    const RedHeapBackend* pSaved = gRedHeapBackend;
-    gRedHeapBackend = &kRedMiBackend;
     const int iH = RedCreateHeap((char*)0x10, (char*)0x10 + 0x4000000, 0x10, "T1MiAreas");
-    gRedHeapBackend = pSaved;
     REQUIRE(iH > 0);
     std::vector<char*> vpBlock;
     std::vector<unsigned int> vuPage;
@@ -694,26 +657,9 @@ TEST_CASE("mimalloc heap destroy poisons every area past the first area table" *
     CHECK(gCheckCalls == iChecks);
 }
 
-TEST_CASE("heap trim calls the process backend trim once and tolerates none" * doctest::test_suite("regression"))
-{
-    const RedHeapBackend* pSaved = gRedHeapBackend;
-    RedHeapBackend kCounting = kRedArenaBackend;
-    kCounting.trim = T1CountTrim;
-    siT1TrimCalls = 0;
-    gRedHeapBackend = &kCounting;
-    RedTrimHeaps();
-    CHECK(siT1TrimCalls == 1);
-    kCounting.trim = 0;
-    RedTrimHeaps();
-    CHECK(siT1TrimCalls == 1);
-    gRedHeapBackend = pSaved;
-    CHECK(kRedArenaBackend.trim != nullptr);
-    CHECK(kRedMiBackend.trim != nullptr);
-}
-
 TEST_CASE("mimalloc trim returns a destroyed heap's pages before the purge delay" * doctest::test_suite("regression"))
 {
-    ScopedMiBackend kScope(600000);
+    ScopedMiPurge kScope(600000);
     const int iHeap = RedCreateHeap((void*)0x20, (void*)(0x20 + 0x4000000), 0x10, "T1MiTrim");
     REQUIRE(iHeap > 0);
     for (int i = 0; i < 256; ++i)

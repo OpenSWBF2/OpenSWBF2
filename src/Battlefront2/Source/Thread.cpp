@@ -1,6 +1,5 @@
 #include "Thread.h"
 #include "NetGame.h"
-#include "PebbleFL/Common/PblPtrOrder.h"
 
 extern ThreadGroup sHostFrameThreadList;
 extern ThreadGroup sHostTurnThreadList;
@@ -134,14 +133,7 @@ void Thread::ActivateThread(int iOrder, ThreadType eThreadType)
     }
 
     pGroup = pGroup->FindCreate(-iOrder);
-    if (PblGetSimOrder() == PBL_SIMORDER_SERIAL)
-    {
-        pGroup->mThreads.Add(&mThreadListNode, this, NextThreadActivationKey());
-    }
-    else
-    {
-        pGroup->mThreads.Add(&mThreadListNode, this, PblPtrOrderKey(this));
-    }
+    pGroup->mThreads.Add(&mThreadListNode, this, NextThreadActivationKey());
 }
 
 // FUNCTION: SWBF2 0x00657760

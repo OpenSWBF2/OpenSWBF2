@@ -16,7 +16,7 @@ alignas(16) char sacPerturbArena[0x1000];
 
 const unsigned int kPerturbPadSeed = 2;
 const unsigned int kPerturbPoolSeed = 1;
-const unsigned int kPerturbAll = kRedPerturbPad | kRedPerturbTop | kRedPerturbFill | kRedPerturbPool;
+const unsigned int kPerturbAll = kRedPerturbPad | kRedPerturbFill | kRedPerturbPool;
 
 struct PerturbGuard
 {
@@ -59,18 +59,17 @@ void AllocFour(int iHeap, char* apc[4])
     }
 }
 
-void CheckAbsentSequence(char* apc[4])
+void CheckAbsentSequence(int iHeap, char* apc[4])
 {
-    CHECK(apc[0] == sacPerturbArena + 16);
-    for (int i = 1; i < 4; ++i)
-    {
-        CHECK(apc[i] - apc[i - 1] == 48);
-    }
     for (int i = 0; i < 4; ++i)
     {
         CHECK(BytesAre(apc[i], 24, 0));
     }
-    CHECK(BytesAre(sacPerturbArena + 0x800, 0x800, 0));
+    RedHeapStats kStats;
+    memset(&kStats, 0, sizeof(kStats));
+    REQUIRE(RedGetHeapStats(iHeap, &kStats));
+    CHECK(kStats.uAllocs == 4);
+    CHECK(kStats.uUsed == 4 * 48);
 }
 
 void AllocEight(MemoryPool& rPool, char* apc[8])
@@ -134,12 +133,12 @@ TEST_CASE("perturb heap parses the seed and mode list" * doctest::test_suite("re
     CHECK(RedPerturbParse("7:pad,pool", &uSeed, &uModes));
     CHECK(uSeed == 7);
     CHECK(uModes == (kRedPerturbPad | kRedPerturbPool));
-    CHECK(RedPerturbParse("4294967295:TOP,Fill", &uSeed, &uModes));
+    CHECK(RedPerturbParse("4294967295:POOL,Fill", &uSeed, &uModes));
     CHECK(uSeed == 4294967295u);
-    CHECK(uModes == (kRedPerturbTop | kRedPerturbFill));
+    CHECK(uModes == (kRedPerturbPool | kRedPerturbFill));
 
     static const char* const apcBad[] = { 0,    "",        "x",          "1:",         "1:bogus", "1:pad,",
-                                          "-1", "1x",      "4294967296", "1:pad,,top", ":pad",    "1:padx",
+                                          "-1", "1x",      "4294967296", "1:pad,,fill", ":pad",    "1:padx",
                                           " 1", "1:pa",    "1;pad",      "1:,pad" };
     for (unsigned int i = 0; i < sizeof(apcBad) / sizeof(apcBad[0]); ++i)
     {
@@ -152,80 +151,55 @@ TEST_CASE("perturb heap parses the seed and mode list" * doctest::test_suite("re
     }
 
     char acModes[32];
-    RedPerturbFormatModes(kRedPerturbPad | kRedPerturbTop, acModes, sizeof(acModes));
-    CHECK(std::string(acModes) == "pad,top");
+    RedPerturbFormatModes(kRedPerturbPad | kRedPerturbPool, acModes, sizeof(acModes));
+    CHECK(std::string(acModes) == "pad,pool");
     RedPerturbFormatModes(kPerturbAll, acModes, sizeof(acModes));
-    CHECK(std::string(acModes) == "pad,top,fill,pool");
+    CHECK(std::string(acModes) == "pad,fill,pool");
 }
 
-TEST_CASE("perturb heap absent keeps ascending zeroed blocks" * doctest::test_suite("regression"))
+TEST_CASE("perturb heap absent keeps zeroed blocks and the plain charge" * doctest::test_suite("regression"))
 {
     PerturbGuard kGuard(0, 0);
     CHECK(RedPerturbModes() == 0);
     const int iHeap = CreatePerturbHeap();
     char* apc[4];
     AllocFour(iHeap, apc);
-    CheckAbsentSequence(apc);
+    CheckAbsentSequence(iHeap, apc);
     RedDestroyHeap(iHeap);
 }
 
-TEST_CASE("perturb heap pad changes the address deltas and counts the pad" * doctest::test_suite("regression"))
+TEST_CASE("perturb heap pad adds the drawn bytes to the charge" * doctest::test_suite("regression"))
 {
     PerturbGuard kGuard(kPerturbPadSeed, kRedPerturbPad);
     CHECK(RedPerturbSeed() == kPerturbPadSeed);
     const int iHeap = CreatePerturbHeap();
     char* apc[4];
     AllocFour(iHeap, apc);
-    int iChanged = 0;
-    for (int i = 1; i < 4; ++i)
+#if defined(__SANITIZE_ADDRESS__)
+    for (int i = 0; i < 4; ++i)
     {
-        CHECK(apc[i] > apc[i - 1]);
-        if (apc[i] - apc[i - 1] != 48)
-        {
-            ++iChanged;
-        }
+        CHECK(__asan_address_is_poisoned(apc[i] + 24));
     }
-    CHECK(apc[1] - apc[0] != 48);
-    CHECK(iChanged >= 1);
+#endif
     RedHeapStats kStats;
     memset(&kStats, 0, sizeof(kStats));
     REQUIRE(RedGetHeapStats(iHeap, &kStats));
     CHECK(kStats.uAllocs == 4);
-    CHECK(apc[1] - apc[0] == 96);
-    CHECK(apc[2] - apc[1] == 96);
-    CHECK(apc[3] - apc[2] == 80);
     CHECK(kStats.uUsed == 96 + 96 + 80 + 80);
     CHECK(RedGetHeapSize(iHeap) - RedGetHeapFree(iHeap) == kStats.uUsed);
     RedDestroyHeap(iHeap);
 }
 
-TEST_CASE("perturb heap top places plain allocations top down" * doctest::test_suite("regression"))
-{
-    PerturbGuard kGuard(1, kRedPerturbTop);
-    const int iHeap = CreatePerturbHeap();
-    char* apc[4];
-    AllocFour(iHeap, apc);
-    CHECK(apc[1] < apc[0]);
-    CHECK(apc[0] > sacPerturbArena + sizeof(sacPerturbArena) / 2);
-    for (int i = 1; i < 4; ++i)
-    {
-        CHECK(apc[i - 1] - apc[i] == 48);
-    }
-    RedDestroyHeap(iHeap);
-}
-
-TEST_CASE("perturb heap fill writes 0xA5 over blocks and new heaps" * doctest::test_suite("regression"))
+TEST_CASE("perturb heap fill writes 0xA5 over blocks" * doctest::test_suite("regression"))
 {
     PerturbGuard kGuard(1, kRedPerturbFill);
     const int iHeap = CreatePerturbHeap();
-    CHECK(BytesAre(sacPerturbArena + 0x800, 0x800, 0xA5));
     char* apc[4];
     AllocFour(iHeap, apc);
     for (int i = 0; i < 4; ++i)
     {
         CHECK(BytesAre(apc[i], 24, 0xA5));
     }
-    CHECK(apc[0] == sacPerturbArena + 16);
     RedDestroyHeap(iHeap);
 }
 
@@ -236,7 +210,7 @@ TEST_CASE("perturb heap absent sequence repeats after the guard resets" * doctes
         PerturbGuard kGuard(0, 0);
         const int iHeap = CreatePerturbHeap();
         AllocFour(iHeap, apcBefore);
-        CheckAbsentSequence(apcBefore);
+        CheckAbsentSequence(iHeap, apcBefore);
         RedDestroyHeap(iHeap);
     }
     {
@@ -251,11 +225,7 @@ TEST_CASE("perturb heap absent sequence repeats after the guard resets" * doctes
     const int iHeap = CreatePerturbHeap();
     char* apcAfter[4];
     AllocFour(iHeap, apcAfter);
-    CheckAbsentSequence(apcAfter);
-    for (int i = 0; i < 4; ++i)
-    {
-        CHECK(apcAfter[i] == apcBefore[i]);
-    }
+    CheckAbsentSequence(iHeap, apcAfter);
     RedDestroyHeap(iHeap);
 }
 TEST_CASE("perturb heap pool absent keeps address order and frees to the front" * doctest::test_suite("regression"))

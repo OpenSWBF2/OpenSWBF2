@@ -6,7 +6,6 @@
 
 #include "PebbleFL/Common/PblList.h"
 #include "PebbleFL/Common/PblSerial.h"
-#include "PebbleFL/Common/PblSimOrder.h"
 #ifdef OPENSWBF2_TEST
 #include "RedEngineFL/Util/RedLog.h"
 #endif
@@ -268,7 +267,7 @@ public:
         {
             return 0;
         }
-        return PblGetSimOrder() == PBL_SIMORDER_SERIAL ? pObject->mCollisionSerial : (unsigned int)(size_t)pObject;
+        return pObject->mCollisionSerial;
     }
 
     void NoteLastCollided(const CollisionObject* pReceiver)

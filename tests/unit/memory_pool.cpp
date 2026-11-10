@@ -8,7 +8,7 @@
 
 #include "testutil.h"
 #include "RedEngineFL/Memory/RedMemory.h"
-#include "RedEngineFL/Memory/RedMemoryBackend.h"
+#include "RedEngineFL/Memory/RedMemoryMi.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 #include "RedEngineFL/Memory/RedScriptLimits.h"
 #include "RedEngineFL/Util/RedLog.h"
@@ -254,11 +254,6 @@ namespace
 
 alignas(16) char sacHeapArena[0x2000];
 
-unsigned int HeapUsedFromFree(int iHeap)
-{
-    return RedGetHeapSize(iHeap) - RedArenaFreeTagSum(iHeap);
-}
-
 RedHeapStats GetStats(int iHeap)
 {
     RedHeapStats kStats;
@@ -292,10 +287,9 @@ TEST_CASE("heap stats count used peak allocs and failures" * doctest::test_suite
     REQUIRE(p1);
     REQUIRE(p2);
     REQUIRE(p3);
-    const unsigned int uPeakUsed = HeapUsedFromFree(iHeap);
+    const unsigned int uPeakUsed = GetStats(iHeap).uUsed;
     RedFreeToHeap(iHeap, p2, 0);
     kStats = GetStats(iHeap);
-    CHECK(kStats.uUsed == HeapUsedFromFree(iHeap));
     CHECK(kStats.uPeak == uPeakUsed);
     CHECK(kStats.uPeak >= kStats.uUsed);
     CHECK(kStats.uAllocs == 3);
@@ -308,7 +302,6 @@ TEST_CASE("heap stats count used peak allocs and failures" * doctest::test_suite
     RedFreeToHeap(iHeap, p3, 0);
     kStats = GetStats(iHeap);
     CHECK(kStats.uUsed == 0);
-    CHECK(kStats.uUsed == HeapUsedFromFree(iHeap));
     RedDestroyHeap(iHeap);
     CHECK(!RedGetHeapStats(iHeap, &kStats));
     CHECK(!RedGetHeapStats(-1, &kStats));
@@ -329,15 +322,11 @@ TEST_CASE("heap stats survive move heap end" * doctest::test_suite("regression")
     RedMoveHeapEnd(iLow, 64);
     CHECK(RedGetHeapSize(iLow) == 0x1040);
     CHECK(RedGetHeapSize(iHigh) == 0xFC0);
-    CHECK(GetStats(iLow).uUsed == HeapUsedFromFree(iLow));
-    CHECK(GetStats(iHigh).uUsed == HeapUsedFromFree(iHigh));
     RedMoveHeapEnd(iLow, -64);
     CHECK(RedGetHeapSize(iLow) == 0x1000);
     CHECK(RedGetHeapSize(iHigh) == 0x1000);
     const RedHeapStats kLowAfter = GetStats(iLow);
     const RedHeapStats kHighAfter = GetStats(iHigh);
-    CHECK(kLowAfter.uUsed == HeapUsedFromFree(iLow));
-    CHECK(kHighAfter.uUsed == HeapUsedFromFree(iHigh));
     CHECK(kLowAfter.uUsed == kLowBefore.uUsed);
     CHECK(kHighAfter.uUsed == kHighBefore.uUsed);
     CHECK(kLowAfter.uAllocs == kLowBefore.uAllocs);
@@ -368,12 +357,11 @@ TEST_CASE("move heap end refuses a failed allocation" * doctest::test_suite("reg
     RedMoveHeapEnd(iLow, 0);
     RedMoveHeapEnd(iLow, 16);
     RedMoveHeapEnd(iLow, 64);
+    CHECK(RedGetHeapSize(iLow) == uLowSize);
     RedMoveHeapEnd(iLow, -16);
     RedMoveHeapEnd(iLow, -64);
     CHECK(RedGetHeapSize(iLow) == uLowSize);
     CHECK(RedGetHeapSize(iHigh) == uHighSize);
-    CHECK(GetStats(iLow).uUsed == HeapUsedFromFree(iLow));
-    CHECK(GetStats(iHigh).uUsed == HeapUsedFromFree(iHigh));
     RedFreeToHeap(iLow, pFillLow, 0);
     RedFreeToHeap(iHigh, pFill, 0);
     RedDestroyHeap(iHigh);
@@ -399,39 +387,6 @@ TEST_CASE("move heap end moves only the aligned block it transfers" * doctest::t
     REQUIRE(pLow);
     RedFreeToHeap(iLow, pLow, 0);
     CHECK(RedGetHeapFree(iLow) == RedGetHeapSize(iLow));
-    RedDestroyHeap(iHigh);
-    RedDestroyHeap(iLow);
-}
-
-TEST_CASE("move heap end refuses a block away from the boundary" * doctest::test_suite("regression"))
-{
-    int iLow = -1;
-    int iHigh = -1;
-    CreateAdjacentHeaps(iLow, iHigh);
-    void* pBottom = RedAllocFromHeap(iHigh, 100, false);
-    void* pTop = RedAllocFromHeap(iLow, 100, true);
-    REQUIRE(pBottom);
-    REQUIRE(pTop);
-    const RedHeapStats kLowBefore = GetStats(iLow);
-    const RedHeapStats kHighBefore = GetStats(iHigh);
-    RedMoveHeapEnd(iLow, 64);
-    RedMoveHeapEnd(iLow, -64);
-    CHECK(RedGetHeapSize(iLow) == 0x1000);
-    CHECK(RedGetHeapSize(iHigh) == 0x1000);
-    const RedHeapStats kLowAfter = GetStats(iLow);
-    const RedHeapStats kHighAfter = GetStats(iHigh);
-    CHECK(kLowAfter.uUsed == kLowBefore.uUsed);
-    CHECK(kHighAfter.uUsed == kHighBefore.uUsed);
-    CHECK(kLowAfter.uAllocs == kLowBefore.uAllocs);
-    CHECK(kHighAfter.uAllocs == kHighBefore.uAllocs);
-    CHECK(kLowAfter.uPeak == kLowBefore.uPeak);
-    CHECK(kHighAfter.uPeak == kHighBefore.uPeak);
-    CHECK(kLowAfter.uUsed == HeapUsedFromFree(iLow));
-    CHECK(kHighAfter.uUsed == HeapUsedFromFree(iHigh));
-    RedFreeToHeap(iHigh, pBottom, 0);
-    RedFreeToHeap(iLow, pTop, 0);
-    CHECK(RedGetHeapFree(iLow) == RedGetHeapSize(iLow));
-    CHECK(RedGetHeapFree(iHigh) == RedGetHeapSize(iHigh));
     RedDestroyHeap(iHigh);
     RedDestroyHeap(iLow);
 }
@@ -561,18 +516,12 @@ namespace
 alignas(16) char sacChunkArena[0x8000];
 alignas(16) char sacChunkOther[0x2000];
 
-const RedHeapBackend* const kChunkBackends[] = { &kRedArenaBackend, &kRedMiBackend };
-const size_t kChunkBackendCount = sizeof(kChunkBackends) / sizeof(kChunkBackends[0]);
-
 class ChunkHeap
 {
 public:
-    ChunkHeap(const RedHeapBackend* pBackend, const char* pcName)
+    explicit ChunkHeap(const char* pcName)
     {
-        const RedHeapBackend* pSaved = gRedHeapBackend;
-        gRedHeapBackend = pBackend;
         miHeap = RedCreateHeap(sacChunkArena, sacChunkArena + sizeof(sacChunkArena), 0x10, pcName);
-        gRedHeapBackend = pSaved;
         REQUIRE(miHeap >= 0);
         miOldHeap = RedSetCurrentHeap(miHeap);
     }
@@ -625,73 +574,61 @@ void CheckEveryChunkPresent(const MemoryPool& rPool, void* pOwnerPool, unsigned 
 
 TEST_CASE("memory pool destroy frees every growth chunk" * doctest::test_suite("regression"))
 {
-    for (size_t i = 0; i < kChunkBackendCount; ++i)
-    {
-        ChunkHeap kHeap(kChunkBackends[i], "T1ChunkDestroy");
-        const unsigned int uBefore = GetStats(kHeap.miHeap).uUsed;
-        MemoryPool kPool("t1chunkdestroy", 16);
-        void* apBlock[6];
-        GrowTwice(kPool, apBlock);
-        CHECK(GetStats(kHeap.miHeap).uUsed > uBefore);
-        kPool.Destroy();
-        CHECK(GetStats(kHeap.miHeap).uUsed == uBefore);
-        CHECK(!kPool.mPool);
-        CHECK(!kPool.mChunks);
-    }
+    ChunkHeap kHeap("T1ChunkDestroy");
+    const unsigned int uBefore = GetStats(kHeap.miHeap).uUsed;
+    MemoryPool kPool("t1chunkdestroy", 16);
+    void* apBlock[6];
+    GrowTwice(kPool, apBlock);
+    CHECK(GetStats(kHeap.miHeap).uUsed > uBefore);
+    kPool.Destroy();
+    CHECK(GetStats(kHeap.miHeap).uUsed == uBefore);
+    CHECK(!kPool.mPool);
+    CHECK(!kPool.mChunks);
 }
 
 TEST_CASE("memory pool destructor frees every growth chunk" * doctest::test_suite("regression"))
 {
-    for (size_t i = 0; i < kChunkBackendCount; ++i)
+    ChunkHeap kHeap("T1ChunkDtor");
+    const unsigned int uBefore = GetStats(kHeap.miHeap).uUsed;
     {
-        ChunkHeap kHeap(kChunkBackends[i], "T1ChunkDtor");
-        const unsigned int uBefore = GetStats(kHeap.miHeap).uUsed;
-        {
-            MemoryPool kPool("t1chunkdtor", 16);
-            void* apBlock[6];
-            GrowTwice(kPool, apBlock);
-            CHECK(GetStats(kHeap.miHeap).uUsed > uBefore);
-        }
-        CHECK(GetStats(kHeap.miHeap).uUsed == uBefore);
+        MemoryPool kPool("t1chunkdtor", 16);
+        void* apBlock[6];
+        GrowTwice(kPool, apBlock);
+        CHECK(GetStats(kHeap.miHeap).uUsed > uBefore);
     }
+    CHECK(GetStats(kHeap.miHeap).uUsed == uBefore);
 }
 
 TEST_CASE("memory pool destroy all frees every growth chunk" * doctest::test_suite("regression"))
 {
-    for (size_t i = 0; i < kChunkBackendCount; ++i)
-    {
-        ChunkHeap kHeap(kChunkBackends[i], "T1ChunkAll");
-        const unsigned int uBefore = GetStats(kHeap.miHeap).uUsed;
-        MemoryPool kPool("t1chunkall", 16);
-        void* apBlock[6];
-        GrowTwice(kPool, apBlock);
-        DestroyAllOf(kPool);
-        CHECK(GetStats(kHeap.miHeap).uUsed == uBefore);
-    }
+    ChunkHeap kHeap("T1ChunkAll");
+    const unsigned int uBefore = GetStats(kHeap.miHeap).uUsed;
+    MemoryPool kPool("t1chunkall", 16);
+    void* apBlock[6];
+    GrowTwice(kPool, apBlock);
+    DestroyAllOf(kPool);
+    CHECK(GetStats(kHeap.miHeap).uUsed == uBefore);
 }
 
 TEST_CASE("memory pool is present covers every chunk and nothing else" * doctest::test_suite("regression"))
 {
-    for (size_t i = 0; i < kChunkBackendCount; ++i)
+    ChunkHeap kHeap("T1ChunkPresent");
+    void* pOther = RedAllocFromHeap(kHeap.miHeap, 16, 0);
+    REQUIRE(pOther);
+    MemoryPool kPool("t1chunkpresent", 16);
+    void* apBlock[6];
+    GrowTwice(kPool, apBlock);
+    for (int j = 0; j < 6; ++j)
     {
-        ChunkHeap kHeap(kChunkBackends[i], "T1ChunkPresent");
-        void* pOther = RedAllocFromHeap(kHeap.miHeap, 16, 0);
-        REQUIRE(pOther);
-        MemoryPool kPool("t1chunkpresent", 16);
-        void* apBlock[6];
-        GrowTwice(kPool, apBlock);
-        for (int j = 0; j < 6; ++j)
-        {
-            CHECK(kPool.IsPresent(apBlock[j]));
-        }
-        REQUIRE(kPool.mChunks);
-        REQUIRE(kPool.mChunks->pNext);
-        CHECK(!kPool.mChunks->pNext->pNext);
-        CheckEveryChunkPresent(kPool, kPool.mPool, 2);
-        CHECK(!kPool.IsPresent(pOther));
-        kPool.Destroy();
-        RedFreeToHeap(kHeap.miHeap, pOther, 0);
+        CHECK(kPool.IsPresent(apBlock[j]));
     }
+    REQUIRE(kPool.mChunks);
+    REQUIRE(kPool.mChunks->pNext);
+    CHECK(!kPool.mChunks->pNext->pNext);
+    CheckEveryChunkPresent(kPool, kPool.mPool, 2);
+    CHECK(!kPool.IsPresent(pOther));
+    kPool.Destroy();
+    RedFreeToHeap(kHeap.miHeap, pOther, 0);
 }
 
 TEST_CASE("memory pool first chunk keeps its own extent" * doctest::test_suite("regression"))
@@ -713,91 +650,79 @@ TEST_CASE("memory pool first chunk keeps its own extent" * doctest::test_suite("
 
 TEST_CASE("memory pool view sees its chunks and frees nothing" * doctest::test_suite("regression"))
 {
-    for (size_t i = 0; i < kChunkBackendCount; ++i)
+    ChunkHeap kHeap("T1ChunkView");
+    const unsigned int uBefore = GetStats(kHeap.miHeap).uUsed;
+    MemoryPool kOwner("t1chunkowner", 16);
+    void* apBlock[6];
+    GrowTwice(kOwner, apBlock);
+    const unsigned int uGrown = GetStats(kHeap.miHeap).uUsed;
+    MemoryPool::GrowthChunk* pOwnerHead = kOwner.mChunks;
     {
-        ChunkHeap kHeap(kChunkBackends[i], "T1ChunkView");
-        const unsigned int uBefore = GetStats(kHeap.miHeap).uUsed;
-        MemoryPool kOwner("t1chunkowner", 16);
-        void* apBlock[6];
-        GrowTwice(kOwner, apBlock);
-        const unsigned int uGrown = GetStats(kHeap.miHeap).uUsed;
-        MemoryPool::GrowthChunk* pOwnerHead = kOwner.mChunks;
+        MemoryPool kView("t1chunkview", 16);
+        kView.Set(kOwner);
+        for (int j = 0; j < 6; ++j)
         {
-            MemoryPool kView("t1chunkview", 16);
-            kView.Set(kOwner);
-            for (int j = 0; j < 6; ++j)
-            {
-                CHECK(kView.IsPresent(apBlock[j]));
-            }
-            CheckEveryChunkPresent(kView, kOwner.mPool, 2);
-            kView.Destroy();
-            CHECK(GetStats(kHeap.miHeap).uUsed == uGrown);
+            CHECK(kView.IsPresent(apBlock[j]));
         }
+        CheckEveryChunkPresent(kView, kOwner.mPool, 2);
+        kView.Destroy();
         CHECK(GetStats(kHeap.miHeap).uUsed == uGrown);
-        CHECK(kOwner.mChunks == pOwnerHead);
-        {
-            MemoryPool kGrowing("t1chunkgrowing", 16);
-            kGrowing.Set(kOwner);
-            REQUIRE(!kGrowing.mFree);
-            void* pViewBlock = kGrowing.Allocate(16);
-            REQUIRE(pViewBlock);
-            MemoryPool::GrowthChunk* pViewNode = kGrowing.mChunks;
-            REQUIRE(pViewNode);
-            CHECK(pViewNode != pOwnerHead);
-            CHECK(pViewNode->pNext == pOwnerHead);
-            CHECK(kOwner.mChunks == pOwnerHead);
-            CHECK(kGrowing.IsPresent(pViewBlock));
-            CHECK(!kOwner.IsPresent(pViewBlock));
-            RedFreeToHeap(kHeap.miHeap, pViewNode->pChunk, 0);
-            pViewNode->pNext = 0;
-            kGrowing.mPoolOwner = true;
-            kGrowing.Reset();
-        }
-        kOwner.Destroy();
-        CHECK(GetStats(kHeap.miHeap).uUsed == uBefore);
     }
+    CHECK(GetStats(kHeap.miHeap).uUsed == uGrown);
+    CHECK(kOwner.mChunks == pOwnerHead);
+    {
+        MemoryPool kGrowing("t1chunkgrowing", 16);
+        kGrowing.Set(kOwner);
+        REQUIRE(!kGrowing.mFree);
+        void* pViewBlock = kGrowing.Allocate(16);
+        REQUIRE(pViewBlock);
+        MemoryPool::GrowthChunk* pViewNode = kGrowing.mChunks;
+        REQUIRE(pViewNode);
+        CHECK(pViewNode != pOwnerHead);
+        CHECK(pViewNode->pNext == pOwnerHead);
+        CHECK(kOwner.mChunks == pOwnerHead);
+        CHECK(kGrowing.IsPresent(pViewBlock));
+        CHECK(!kOwner.IsPresent(pViewBlock));
+        RedFreeToHeap(kHeap.miHeap, pViewNode->pChunk, 0);
+        pViewNode->pNext = 0;
+        kGrowing.mPoolOwner = true;
+        kGrowing.Reset();
+    }
+    kOwner.Destroy();
+    CHECK(GetStats(kHeap.miHeap).uUsed == uBefore);
 }
 
 TEST_CASE("memory pool chunk charges reconcile with the heap" * doctest::test_suite("regression"))
 {
-    for (size_t i = 0; i < kChunkBackendCount; ++i)
-    {
-        ChunkHeap kHeap(kChunkBackends[i], "T1ChunkCharge");
-        const unsigned int uBefore = GetStats(kHeap.miHeap).uUsed;
-        MemoryPool kPool("t1chunkcharge", 16);
-        void* apBlock[6];
-        GrowTwice(kPool, apBlock);
-        CHECK(GetStats(kHeap.miHeap).uUsed - uBefore == ChunkNeed(2 * 16) + ChunkNeed(2 * 16) + ChunkNeed(2 * 16));
-        CHECK(kPool.GetCount() * kPool.GetSize() == 6 * 16);
-        kPool.Destroy();
-    }
+    ChunkHeap kHeap("T1ChunkCharge");
+    const unsigned int uBefore = GetStats(kHeap.miHeap).uUsed;
+    MemoryPool kPool("t1chunkcharge", 16);
+    void* apBlock[6];
+    GrowTwice(kPool, apBlock);
+    CHECK(GetStats(kHeap.miHeap).uUsed - uBefore == ChunkNeed(2 * 16) + ChunkNeed(2 * 16) + ChunkNeed(2 * 16));
+    CHECK(kPool.GetCount() * kPool.GetSize() == 6 * 16);
+    kPool.Destroy();
 }
 
 TEST_CASE("memory pool growth charges the pool's heap and not the current heap" * doctest::test_suite("regression"))
 {
-    for (size_t i = 0; i < kChunkBackendCount; ++i)
-    {
-        ChunkHeap kHeap(kChunkBackends[i], "T1ChunkOwnHeap");
-        const RedHeapBackend* pSaved = gRedHeapBackend;
-        gRedHeapBackend = kChunkBackends[i];
-        const int iOther = RedCreateHeap(sacChunkOther, sacChunkOther + sizeof(sacChunkOther), 0x10, "T1ChunkOther");
-        gRedHeapBackend = pSaved;
-        REQUIRE(iOther >= 0);
-        MemoryPool kPool("t1chunkownheap", 16);
-        kPool.Create(2, 16, 2);
-        REQUIRE(kPool.Allocate(16));
-        REQUIRE(kPool.Allocate(16));
-        const unsigned int uOwnBefore = GetStats(kHeap.miHeap).uUsed;
-        const unsigned int uOtherBefore = GetStats(iOther).uUsed;
-        RedSetCurrentHeap(iOther);
-        void* pGrown = kPool.Allocate(16);
-        RedSetCurrentHeap(kHeap.miHeap);
-        CHECK(pGrown);
-        CHECK(GetStats(kHeap.miHeap).uUsed - uOwnBefore == ChunkNeed(2 * 16));
-        CHECK(GetStats(iOther).uUsed == uOtherBefore);
-        kPool.Destroy();
-        RedDestroyHeap(iOther);
-    }
+    ChunkHeap kHeap("T1ChunkOwnHeap");
+    const int iOther = RedCreateHeap(sacChunkOther, sacChunkOther + sizeof(sacChunkOther), 0x10, "T1ChunkOther");
+    REQUIRE(iOther >= 0);
+    MemoryPool kPool("t1chunkownheap", 16);
+    kPool.Create(2, 16, 2);
+    REQUIRE(kPool.Allocate(16));
+    REQUIRE(kPool.Allocate(16));
+    const unsigned int uOwnBefore = GetStats(kHeap.miHeap).uUsed;
+    const unsigned int uOtherBefore = GetStats(iOther).uUsed;
+    RedSetCurrentHeap(iOther);
+    void* pGrown = kPool.Allocate(16);
+    RedSetCurrentHeap(kHeap.miHeap);
+    CHECK(pGrown);
+    CHECK(GetStats(kHeap.miHeap).uUsed - uOwnBefore == ChunkNeed(2 * 16));
+    CHECK(GetStats(iOther).uUsed == uOtherBefore);
+    kPool.Destroy();
+    RedDestroyHeap(iOther);
 }
 
 TEST_CASE("lua free routes a growth chunk block to its pool" * doctest::test_suite("regression"))
@@ -837,26 +762,23 @@ TEST_CASE("lua free routes a growth chunk block to its pool" * doctest::test_sui
 
 TEST_CASE("memory pool destroy then re-create starts with no old chunks" * doctest::test_suite("regression"))
 {
-    for (size_t i = 0; i < kChunkBackendCount; ++i)
+    ChunkHeap kHeap("T1ChunkAgain");
+    const unsigned int uBefore = GetStats(kHeap.miHeap).uUsed;
+    MemoryPool kPool("t1chunkagain", 16);
+    kPool.Create(2, 16, 4);
+    void* apBlock[3];
+    for (int j = 0; j < 3; ++j)
     {
-        ChunkHeap kHeap(kChunkBackends[i], "T1ChunkAgain");
-        const unsigned int uBefore = GetStats(kHeap.miHeap).uUsed;
-        MemoryPool kPool("t1chunkagain", 16);
-        kPool.Create(2, 16, 4);
-        void* apBlock[3];
-        for (int j = 0; j < 3; ++j)
-        {
-            apBlock[j] = kPool.Allocate(16);
-            REQUIRE(apBlock[j]);
-        }
-        REQUIRE(kPool.mChunks);
-        kPool.Destroy();
-        kPool.Create(2, 16, 4);
-        CHECK(!kPool.mChunks);
-        CHECK(!kPool.IsPresent(apBlock[2]));
-        kPool.Destroy();
-        CHECK(GetStats(kHeap.miHeap).uUsed == uBefore);
+        apBlock[j] = kPool.Allocate(16);
+        REQUIRE(apBlock[j]);
     }
+    REQUIRE(kPool.mChunks);
+    kPool.Destroy();
+    kPool.Create(2, 16, 4);
+    CHECK(!kPool.mChunks);
+    CHECK(!kPool.IsPresent(apBlock[2]));
+    kPool.Destroy();
+    CHECK(GetStats(kHeap.miHeap).uUsed == uBefore);
 }
 
 TEST_CASE("memory pool first growth of an empty pool is its first chunk" * doctest::test_suite("regression"))
@@ -879,83 +801,71 @@ TEST_CASE("memory pool first growth of an empty pool is its first chunk" * docte
 
 TEST_CASE("memory pool reset of an owner clears its records and keeps the chunks charged" * doctest::test_suite("regression"))
 {
-    for (size_t i = 0; i < kChunkBackendCount; ++i)
+    ChunkHeap kHeap("T1ChunkReset");
+    MemoryPool kPool("t1chunkreset", 16);
+    void* apBlock[6];
+    GrowTwice(kPool, apBlock);
+    const unsigned int uUsed = GetStats(kHeap.miHeap).uUsed;
+    kPool.Reset();
+    CHECK(GetStats(kHeap.miHeap).uUsed == uUsed);
+    CHECK(!kPool.mChunks);
+    CHECK(!kPool.mFirstCount);
+    for (int j = 0; j < 6; ++j)
     {
-        ChunkHeap kHeap(kChunkBackends[i], "T1ChunkReset");
-        MemoryPool kPool("t1chunkreset", 16);
-        void* apBlock[6];
-        GrowTwice(kPool, apBlock);
-        const unsigned int uUsed = GetStats(kHeap.miHeap).uUsed;
-        kPool.Reset();
-        CHECK(GetStats(kHeap.miHeap).uUsed == uUsed);
-        CHECK(!kPool.mChunks);
-        CHECK(!kPool.mFirstCount);
-        for (int j = 0; j < 6; ++j)
-        {
-            CHECK(!kPool.IsPresent(apBlock[j]));
-        }
+        CHECK(!kPool.IsPresent(apBlock[j]));
     }
 }
 
 TEST_CASE("memory pool reset of a view leaves the owner's records" * doctest::test_suite("regression"))
 {
-    for (size_t i = 0; i < kChunkBackendCount; ++i)
+    ChunkHeap kHeap("T1ChunkResetV");
+    const unsigned int uBefore = GetStats(kHeap.miHeap).uUsed;
+    MemoryPool kOwner("t1chunkresetown", 16);
+    void* apBlock[6];
+    GrowTwice(kOwner, apBlock);
+    MemoryPool kView("t1chunkresetview", 16);
+    kView.Set(kOwner);
+    kView.Reset();
+    CHECK(!kView.mChunks);
+    for (int j = 0; j < 6; ++j)
     {
-        ChunkHeap kHeap(kChunkBackends[i], "T1ChunkResetV");
-        const unsigned int uBefore = GetStats(kHeap.miHeap).uUsed;
-        MemoryPool kOwner("t1chunkresetown", 16);
-        void* apBlock[6];
-        GrowTwice(kOwner, apBlock);
-        MemoryPool kView("t1chunkresetview", 16);
-        kView.Set(kOwner);
-        kView.Reset();
-        CHECK(!kView.mChunks);
-        for (int j = 0; j < 6; ++j)
-        {
-            CHECK(kOwner.IsPresent(apBlock[j]));
-        }
-        CheckEveryChunkPresent(kOwner, kOwner.mPool, 2);
-        kOwner.Destroy();
-        CHECK(GetStats(kHeap.miHeap).uUsed == uBefore);
+        CHECK(kOwner.IsPresent(apBlock[j]));
     }
+    CheckEveryChunkPresent(kOwner, kOwner.mPool, 2);
+    kOwner.Destroy();
+    CHECK(GetStats(kHeap.miHeap).uUsed == uBefore);
 }
 
 TEST_CASE("memory pool destroy all frees the chunk records of swapped views" * doctest::test_suite("regression"))
 {
-    for (size_t i = 0; i < kChunkBackendCount; ++i)
-    {
-        ChunkHeap kHeap(kChunkBackends[i], "T1ChunkSwap");
-        MemoryPool kOwner("t1chunkswapown", 16);
-        void* apBlock[6];
-        GrowTwice(kOwner, apBlock);
-        REQUIRE(MemoryPool::sChunkRecords);
-        MemoryPool kHost("t1chunkswaphost", 16);
-        kHost.Set(kOwner);
-        kOwner.Set(kHost);
-        REQUIRE(!kOwner.mPoolOwner);
-        MemoryPool::DestroyAll();
-        CHECK(!MemoryPool::sChunkRecords);
-        CHECK(!kOwner.mChunks);
-        CHECK(!kHost.mChunks);
-    }
+    ChunkHeap kHeap("T1ChunkSwap");
+    MemoryPool kOwner("t1chunkswapown", 16);
+    void* apBlock[6];
+    GrowTwice(kOwner, apBlock);
+    REQUIRE(MemoryPool::sChunkRecords);
+    MemoryPool kHost("t1chunkswaphost", 16);
+    kHost.Set(kOwner);
+    kOwner.Set(kHost);
+    REQUIRE(!kOwner.mPoolOwner);
+    MemoryPool::DestroyAll();
+    CHECK(!MemoryPool::sChunkRecords);
+    CHECK(!kOwner.mChunks);
+    CHECK(!kHost.mChunks);
 }
 
 TEST_CASE("memory pool chunk record list drops an owner's records" * doctest::test_suite("regression"))
 {
-    for (size_t i = 0; i < kChunkBackendCount; ++i)
-    {
-        ChunkHeap kHeap(kChunkBackends[i], "T1ChunkForget");
-        MemoryPool kKeep("t1chunkkeep", 16);
-        MemoryPool kDrop("t1chunkdrop", 16);
-        void* apBlock[6];
-        GrowTwice(kKeep, apBlock);
-        GrowTwice(kDrop, apBlock);
-        REQUIRE(MemoryPool::sChunkRecords == kDrop.mChunks);
-        kDrop.Destroy();
-        CHECK(MemoryPool::sChunkRecords == kKeep.mChunks);
-        kKeep.Destroy();
-        CHECK(!MemoryPool::sChunkRecords);
-    }
+    ChunkHeap kHeap("T1ChunkForget");
+    MemoryPool kKeep("t1chunkkeep", 16);
+    MemoryPool kDrop("t1chunkdrop", 16);
+    void* apBlock[6];
+    GrowTwice(kKeep, apBlock);
+    GrowTwice(kDrop, apBlock);
+    REQUIRE(MemoryPool::sChunkRecords == kDrop.mChunks);
+    kDrop.Destroy();
+    CHECK(MemoryPool::sChunkRecords == kKeep.mChunks);
+    kKeep.Destroy();
+    CHECK(!MemoryPool::sChunkRecords);
 }
 
 TEST_CASE("memory pool reset frees chunk records only for an owner (source pin)" * doctest::test_suite("regression"))

@@ -5,7 +5,7 @@
 #include <windows.h>
 
 #include "RedEngineFL/Memory/RedMemory.h"
-#include "RedEngineFL/Memory/RedMemoryBackend.h"
+#include "RedEngineFL/Memory/RedMemoryMi.h"
 
 namespace
 {
@@ -112,17 +112,6 @@ bool CrtBlockReleased(const void* p)
 #endif
 }
 
-int siDestroyCalls;
-
-void CountDestroy(int heap)
-{
-    ++siDestroyCalls;
-    if (heap >= 0 && heap < maxheaps)
-    {
-        kRedArenaBackend.destroy(heap);
-    }
-}
-
 }
 
 TEST_CASE("heap free is debited from the owning heap" * doctest::test_suite("regression"))
@@ -138,16 +127,13 @@ TEST_CASE("heap free is debited from the owning heap" * doctest::test_suite("reg
     REQUIRE(iI > iO);
     const unsigned int uABefore = SeamStats(iA).uUsed;
     const unsigned int uOBefore = SeamStats(iO).uUsed;
-    const unsigned int uOFree = RedArenaFreeTagSum(iO);
     void* p = RedAllocFromHeap(iI, 100, false);
     REQUIRE(p);
     RedSetCurrentHeap(iA);
     ::operator delete(p);
     RedSetCurrentHeap(0);
     CHECK(SeamStats(iI).uUsed == 0);
-    CHECK(RedArenaFreeTagSum(iI) == RedGetHeapSize(iI));
     CHECK(SeamStats(iO).uUsed == uOBefore);
-    CHECK(RedArenaFreeTagSum(iO) == uOFree);
     CHECK(SeamStats(iA).uUsed == uABefore);
 }
 
@@ -162,15 +148,12 @@ TEST_CASE("heap free of a nested block goes to the inner heap" * doctest::test_s
     REQUIRE(iI >= 0);
     void* pY = RedAllocFromHeap(iI, 64, false);
     REQUIRE(pY);
-    CHECK(gRedHeapBackend->owner(pY) == iI);
-    CHECK(gRedHeapBackend->owner(pX) == iO);
+    CHECK(RedHeapOwner(pY) == iI);
+    CHECK(RedHeapOwner(pX) == iO);
     const unsigned int uOUsed = SeamStats(iO).uUsed;
-    const unsigned int uOFree = RedArenaFreeTagSum(iO);
     RedFreeToHeap(iO, pY, 0);
     CHECK(SeamStats(iI).uUsed == 0);
-    CHECK(RedArenaFreeTagSum(iI) == RedGetHeapSize(iI));
     CHECK(SeamStats(iO).uUsed == uOUsed);
-    CHECK(RedArenaFreeTagSum(iO) == uOFree);
 }
 
 TEST_CASE("heap free of an unowned block uses the crt" * doctest::test_suite("regression"))
@@ -183,7 +166,7 @@ TEST_CASE("heap free of an unowned block uses the crt" * doctest::test_suite("re
     char* p = (char*)malloc(uBytes);
     REQUIRE(p);
     memset(p, 0x5A, uBytes);
-    CHECK(gRedHeapBackend->owner(p) < 0);
+    CHECK(RedHeapOwner(p) < 0);
     const RedHeapStats kBefore = SeamStats(0);
     RedFreeToHeap(0, p, 0);
     CHECK(CrtBlockReleased(p));
@@ -273,17 +256,10 @@ TEST_CASE("heap destroy ignores an id out of range" * doctest::test_suite("regre
     gRedHeapSlots[iPast].cap = 0x1000;
     gRedHeapSlots[iPast].defaultCap = 0x1000;
     gRedHeapSlots[iPast].bLive = true;
-    RedHeapBackend kCounting = kRedArenaBackend;
-    kCounting.destroy = CountDestroy;
-    const RedHeapBackend* pSaved = gRedHeapBackend;
-    gRedHeapBackend = &kCounting;
-    siDestroyCalls = 0;
     RedDestroyHeap(-1);
     RedDestroyHeap(iPast);
-    gRedHeapBackend = pSaved;
     const RedHeapSlot kAfter = gRedHeapSlots[iPast];
     gRedHeapSlots[iPast] = kSaved;
-    CHECK(siDestroyCalls == 0);
     CHECK(kAfter.bLive);
     CHECK(kAfter.size == 0x1000);
     CHECK(kAfter.cap == 0x1000);

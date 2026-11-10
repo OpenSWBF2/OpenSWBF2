@@ -4,11 +4,6 @@
 
 #include "PebbleFL/Common/PblAsan.h"
 
-struct Tag;
-struct TagList;
-struct HeapObj;
-struct RedHeapBackend;
-
 struct RedHeapStats
 {
     unsigned int uCap;
@@ -22,7 +17,6 @@ struct RedHeapStats
 const int kRedOffThreadSources = 16;
 const int kRedOffThreadFrames = 8;
 const unsigned int kRedPerturbPad = 1;
-const unsigned int kRedPerturbTop = 2;
 const unsigned int kRedPerturbFill = 4;
 const unsigned int kRedPerturbPool = 8;
 
@@ -59,7 +53,6 @@ extern "C"
     bool RedGetHeapStats(int heap, RedHeapStats* pOut);
     int RedHeapOwner(const void* p);
     bool RedVisitHeap(int heap, bool (*pfnBlock)(void* pUser, size_t uSize, void* pArg), void* pArg);
-    bool RedHeapBackendIsArena();
     void RedTrimHeaps();
 #ifdef OPENSWBF2_TEST
     void RedGetOffThreadTotals(unsigned int* puCount, unsigned int* puSources, unsigned int* puDropped);
@@ -83,7 +76,6 @@ extern "C"
 unsigned int RedGetHeapSize(int heap);
 void RedPurgeHeapHandles(int heap, const char* name);
 unsigned int RedCountStaleHandles();
-const RedHeapBackend* RedParseAllocatorArg(const char* pcVal, int iLen, bool* pbRejected);
 long RedParseMiPurgeArg(const char* pcVal, int iLen, bool* pbRejected);
 void RedRaiseHeapCap(int heap, unsigned int uBytes);
 bool RedParseHeapCapArg(const char* pcVal, int iLen, int* piKnob, unsigned int* puBytes, bool* pbClamped);

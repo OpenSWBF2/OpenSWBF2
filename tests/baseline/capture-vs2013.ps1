@@ -363,14 +363,6 @@ function Step-Layouts {
     if ($problems.Count) { throw ($problems -join '; ') }
 }
 
-function Assert-SerialLog($caseDir, [string]$what) {
-    $lines = @(Get-LogLines $caseDir 'OPENSWBF2 SIMORDER mode=\S+')
-    if ($lines.Count -eq 0) { throw "no SIMORDER line in $what" }
-    foreach ($l in $lines) {
-        if ($l -cne 'OPENSWBF2 SIMORDER mode=serial') { throw "$what is not serial: $l" }
-    }
-}
-
 function Get-LogLines($caseDir, $pattern) {
     $f = Join-Path $caseDir 'run.log'
     if (-not (Test-Path -LiteralPath $f)) { return @() }
@@ -660,17 +652,16 @@ function Step-Tables {
         if (-not (Test-Path -LiteralPath $tsv)) { throw "perturb.tsv not found in -PerturbDir" }
         $data = @(Get-Content -LiteralPath $tsv | Where-Object { $_ -ne '' })
         foreach ($l in $data) {
-            if ($l -cnotmatch '^\S+\t(base|pad|top|fill|pool|hog|repeat)\t[0-2]\t(base|equal|split turn=\d+|crash class=\S+)$') { throw "bad perturb.tsv row: $l" }
+            if ($l -cnotmatch '^\S+\t(base|pad|fill|pool|hog|repeat)\t[0-2]\t(base|equal|split turn=\d+|crash class=\S+)$') { throw "bad perturb.tsv row: $l" }
         }
         $baseRows = @($data | Where-Object { ($_ -split "`t")[1] -eq 'base' })
-        if ($data.Count -ne 66 -or $baseRows.Count -ne 6) { throw "perturb.tsv has $($data.Count) rows and $($baseRows.Count) base rows, need 66 and 6" }
+        if ($data.Count -ne 54 -or $baseRows.Count -ne 6) { throw "perturb.tsv has $($data.Count) rows and $($baseRows.Count) base rows, need 54 and 6" }
         foreach ($l in $data) {
             $c = $l -split "`t"
             $name = "perturb-$($c[0])-$($c[1])"
             if ([int]$c[2] -gt 0) { $name = "$name-$($c[2])" }
             $caseDir = Join-Path $PerturbDir "smoke\$name"
             if (-not (Test-Path -LiteralPath (Join-Path $caseDir 'run.log'))) { throw "no run.log under -PerturbDir for $name" }
-            Assert-SerialLog $caseDir "-PerturbDir $name"
         }
         $sorted = @($data | Sort-Object { ($_ -split "`t")[0] }, { ($_ -split "`t")[1] }, { [int](($_ -split "`t")[2]) })
         $out = @(('# commit ' + (Get-GitText 'rev-parse HEAD').Trim()), "mission`tmode`tseed`tresult") + $sorted
@@ -685,7 +676,6 @@ function Step-Tables {
         foreach ($m in $missions) {
             $caseDir = Join-Path $smokeDir $m
             if (-not (Test-Path -LiteralPath (Join-Path $caseDir 'run.log'))) { $missing.Add($m); continue }
-            Assert-SerialLog $caseDir "-LuaBinsDir $m"
         }
         if ($missing.Count) { throw "no run.log under -LuaBinsDir for $($missing.Count) missions: $(@($missing)[0..([Math]::Min(4, $missing.Count - 1))] -join ', ')" }
         $rows = New-Object System.Collections.Generic.List[string]

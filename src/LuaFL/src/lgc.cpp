@@ -171,7 +171,7 @@ static void traversetable (GCState *st, Table *h) {
       condmarkobject(st, gkey(n), !weakkey);
       condmarkobject(st, gval(n), !weakvalue);
     }
-    else if (st->g->insertionorder && ttype(gkey(n)) > LUA_TNIL &&
+    else if (ttype(gkey(n)) > LUA_TNIL &&
              ttype(gkey(n)) <= NUM_TAGS)
       setdeadkey(gkey(n));
   }
