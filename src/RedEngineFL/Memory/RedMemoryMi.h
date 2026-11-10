@@ -1,22 +1,7 @@
 #pragma once
 
 #include <stddef.h>
-
-#include "PebbleFL/Common/PblAsan.h"
-
-struct RedHeapBackend
-{
-    void* (*init)(void* start, void* end, int maxheaps);
-    size_t (*create)(int heap, void* start, void* end, unsigned int align, const char* name);
-    void (*destroy)(int heap);
-    void* (*alloc)(int heap, size_t size, bool bTop, size_t* pReserved);
-    size_t (*free)(int heap, void* block);
-    int (*owner)(const void* block);
-    int (*moveEnd)(int iHeap, int iDelta, bool* pbAllocFailed);
-    bool (*visit)(int heap, bool (*pfnBlock)(void* pUser, size_t uSize, void* pArg), void* pArg);
-    void (*trim)();
-    void* (*realloc)(int heap, void* block, size_t oldSize, size_t size, size_t* pReserved, size_t* pOldCharge);
-};
+#include <stdint.h>
 
 const int kRedHeapSlots = 16;
 const unsigned int kRedTagBytes = 12;
@@ -35,22 +20,15 @@ struct RedHeapSlot
     volatile long allocs;
     volatile long failed;
     bool bLive;
-    const RedHeapBackend* pBackend;
 };
 
-extern "C" const RedHeapBackend kRedArenaBackend;
-extern "C" const RedHeapBackend kRedMiBackend;
-extern const RedHeapBackend* gRedHeapBackend;
 extern RedHeapSlot gRedHeapSlots[kRedHeapSlots];
-extern "C" int sRecursionDepth;
 
 namespace RedMemory
 {
     extern int failHeap;
     extern unsigned int failSize;
 }
-
-PBL_ASAN_NO_SANITIZE unsigned int RedArenaFreeTagSum(int heap);
 
 struct RedMiPrefix
 {
@@ -66,12 +44,23 @@ enum RedMiBlockKind
     kRedMiBadPrefix
 };
 
+void* RedMiInit(void* start, int maxheaps);
+size_t RedMiCreate(int heap, void* start, void* end, unsigned int align);
+void RedMiDestroy(int heap);
+void RedMiFailHeapCreate(bool bFail);
+void* RedMiAlloc(int heap, size_t size, size_t* pReserved);
+size_t RedMiFree(void* block);
+int RedMiOwner(const void* block);
+int RedMiMoveEnd(int iHeap, int iDelta, bool* pbAllocFailed);
+bool RedMiVisit(int heap, bool (*pfnBlock)(void* pUser, size_t uSize, void* pArg), void* pArg);
+void RedMiTrim();
+void* RedMiRealloc(int heap, void* block, size_t oldSize, size_t size, size_t* pReserved, size_t* pOldCharge);
 RedMiBlockKind RedMiClassify(const void* pUser);
 void RedMiConfigure(long lPurgeMs);
 void RedMiRegisterOutput();
 bool RedMiFormatOptions(char* pcOut, unsigned int uSize);
 void RedMiOutputLines(const char* pcMsg, void (*pfnLine)(const char* pcLine, int iLen, void* pArg), void* pArg);
-bool RedMiFirstArena(unsigned int* puBase, unsigned int* puSize);
+bool RedMiFirstArena(uintptr_t* puBase, size_t* puSize);
 void RedMiRecordReservation(const void* p);
 void RedMiNoteOutput(const char* pcMsg);
 bool RedMiTakeErrorFatal(int err);

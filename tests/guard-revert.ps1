@@ -25,6 +25,7 @@ if ($env:TEMP -and $Scratch.StartsWith([IO.Path]::GetFullPath($env:TEMP), [Strin
 . (Join-Path $testsDir 'guardrevert\select.ps1')
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 if (-not $OutDir) { $OutDir = Join-Path $root "artifacts\guard-revert\$stamp" }
+$OutDir = [IO.Path]::GetFullPath($OutDir)
 $script:TestsConfiguration = 'Debug'
 $script:GameConfiguration = 'Release'
 if ($Configuration) { $script:TestsConfiguration = $Configuration; $script:GameConfiguration = $Configuration }

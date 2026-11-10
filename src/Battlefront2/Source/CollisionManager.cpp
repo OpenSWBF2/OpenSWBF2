@@ -2,8 +2,6 @@
 
 #include "CollisionManager.h"
 #include "CameraManager.h"
-#include "PebbleFL/Common/PblPtrOrder.h"
-#include "PebbleFL/Common/PblSimOrder.h"
 #include "CollisionModel.h"
 #include "CollisionObject.h"
 #include "EntityMine.h"
@@ -1210,21 +1208,13 @@ void CollisionManager::UpdateSimple(PblList<CollisionObject>& list, int iFilter)
         while (data.mLength > 0)
         {
             CollisionObject* pOther = data.mArray[--data.mLength];
-            bool bOwner;
-            if (PblGetSimOrder() == PBL_SIMORDER_SERIAL)
-            {
-                bOwner = bMine || CollisionObject::CollisionSerialAfter(pOther, pObject);
+            bool bOwner = bMine || CollisionObject::CollisionSerialAfter(pOther, pObject);
 #ifdef OPENSWBF2_TEST
-                if (!bMine)
-                {
-                    CollisionObject::NoteCollisionSerialTie(pOther, pObject);
-                }
-#endif
-            }
-            else
+            if (!bMine)
             {
-                bOwner = bMine || PblPtrAfter(pOther, pObject);
+                CollisionObject::NoteCollisionSerialTie(pOther, pObject);
             }
+#endif
             if (bOwner)
             {
                 pObject->CheckForCollision(pOther, NULL, NULL);

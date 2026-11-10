@@ -82,7 +82,6 @@ static void f_luaopen (lua_State *L, void *ud) {
   if (g == NULL) luaD_throw(L, LUA_ERRMEM);
   L->l_G = g;
   g->mainthread = L;
-  g->insertionorder = cast(lu_byte, luaH_pendinginsertionorder);
   g->GCthreshold = 0;
   g->strt.size = 0;
   g->strt.nuse = 0;

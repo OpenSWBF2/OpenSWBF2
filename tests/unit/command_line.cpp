@@ -6,22 +6,11 @@
 #include "Battlefront2/Source/CommandLine.h"
 #include "Battlefront2/Source/GameLoop.h"
 #include "Battlefront2/Source/NetGame.h"
-#include "PebbleFL/Common/PblSimOrder.h"
 
 #include "testutil.h"
 
 namespace
 {
-
-class SimOrderRestore
-{
-public:
-    SimOrderRestore() : mePrev(PblGetSimOrder()) {}
-    ~SimOrderRestore() { PblSetSimOrder(mePrev); }
-
-private:
-    PblSimOrderMode mePrev;
-};
 
 void Parse(const char* pcLine)
 {
@@ -37,68 +26,9 @@ std::string Mission()
 
 }
 
-TEST_CASE("command line keeps -simorder values out of the mission name" * doctest::test_suite("regression"))
-{
-    SimOrderRestore restore;
-    PblSetSimOrder(PBL_SIMORDER_SERIAL);
-    Parse("geo1c_con -simorder address");
-    CHECK(Mission() == "geo1c_con");
-    CHECK(PblGetSimOrder() == PBL_SIMORDER_ADDRESS);
-    CHECK_FALSE(SimOrderArgRejected());
-
-    Parse("geo1c_con -simorder serial");
-    CHECK(Mission() == "geo1c_con");
-    CHECK(PblGetSimOrder() == PBL_SIMORDER_SERIAL);
-    CHECK_FALSE(SimOrderArgRejected());
-}
-
-TEST_CASE("command line leaves the order unchanged without a valid -simorder value" * doctest::test_suite("regression"))
-{
-    SimOrderRestore restore;
-    const PblSimOrderMode aeSeeds[] = { PBL_SIMORDER_ADDRESS, PBL_SIMORDER_SERIAL };
-    const char* apcLines[] = {
-        "-simorder bogus geo1c_con",
-        "-simorder -exitongameover geo1c_con",
-        "geo1c_con -simorder",
-        "geo1c_con",
-    };
-    for (size_t s = 0; s < sizeof(aeSeeds) / sizeof(aeSeeds[0]); ++s)
-    {
-        for (size_t n = 0; n < sizeof(apcLines) / sizeof(apcLines[0]); ++n)
-        {
-            CAPTURE(apcLines[n]);
-            const int iSeed = (int)aeSeeds[s];
-            CAPTURE(iSeed);
-            PblSetSimOrder(aeSeeds[s]);
-            Parse(apcLines[n]);
-            CHECK(Mission() == "geo1c_con");
-            CHECK(PblGetSimOrder() == aeSeeds[s]);
-            CHECK(SimOrderArgRejected() == (strstr(apcLines[n], "-simorder") != 0));
-            CHECK(gExitOnGameOver == (strstr(apcLines[n], "-exitongameover") != 0));
-        }
-    }
-}
-
-TEST_CASE("command line lets the last -simorder value win" * doctest::test_suite("regression"))
-{
-    SimOrderRestore restore;
-    PblSetSimOrder(PBL_SIMORDER_SERIAL);
-    Parse("-simorder bogus -simorder address geo1c_con");
-    CHECK(Mission() == "geo1c_con");
-    CHECK(PblGetSimOrder() == PBL_SIMORDER_ADDRESS);
-    CHECK_FALSE(SimOrderArgRejected());
-
-    PblSetSimOrder(PBL_SIMORDER_SERIAL);
-    Parse("-simorder address -simorder bogus geo1c_con");
-    CHECK(Mission() == "geo1c_con");
-    CHECK(PblGetSimOrder() == PBL_SIMORDER_ADDRESS);
-    CHECK(SimOrderArgRejected());
-}
-
 TEST_CASE("command line keeps -perturbheap and -repeatmission out of the mission name" * doctest::test_suite("regression"))
 {
-    SimOrderRestore restore;
-    Parse("-perturbheap 1:pad,top,fill,pool geo1c_con");
+    Parse("-perturbheap 1:pad,fill,pool geo1c_con");
     CHECK(Mission() == "geo1c_con");
 
     Parse("geo1c_con -perturbheap 7 -exitongameover");
@@ -109,10 +39,8 @@ TEST_CASE("command line keeps -perturbheap and -repeatmission out of the mission
     CHECK(Mission() == "geo1c_con");
     CHECK(gExitOnGameOver);
 
-    PblSetSimOrder(PBL_SIMORDER_SERIAL);
-    Parse("-perturbheap 2:pool, top geo1c_con -simorder address");
+    Parse("-perturbheap 2:pool, fill geo1c_con");
     CHECK(Mission() == "geo1c_con");
-    CHECK(PblGetSimOrder() == PBL_SIMORDER_ADDRESS);
 
     Parse("-repeatmission geo1c_con");
     CHECK(Mission() == "geo1c_con");
@@ -140,7 +68,6 @@ TEST_CASE("command line keeps -perturbheap and -repeatmission out of the mission
 
 TEST_CASE("command line reports test-only switches it ignores" * doctest::test_suite("regression"))
 {
-    SimOrderRestore restore;
     Parse("-perturbheap 1:pad -repeatmission 2 -shellfirst -exitonmovieclose geo1c_con");
     std::string ignored;
     const char* pcName = 0;
@@ -176,18 +103,14 @@ TEST_CASE("command line reports test-only switches it ignores" * doctest::test_s
 
 TEST_CASE("command line sets -novictory and keeps parsing after it" * doctest::test_suite("regression"))
 {
-    SimOrderRestore restore;
     gNoVictory = true;
     Parse("geo1c_con");
     CHECK(Mission() == "geo1c_con");
     CHECK_FALSE(gNoVictory);
 
-    PblSetSimOrder(PBL_SIMORDER_SERIAL);
-    Parse("geo1c_con -novictory -simorder address");
+    Parse("geo1c_con -novictory");
     CHECK(Mission() == "geo1c_con");
     CHECK(gNoVictory);
-    CHECK(PblGetSimOrder() == PBL_SIMORDER_ADDRESS);
-    CHECK_FALSE(SimOrderArgRejected());
 
     Parse("-NoVictory geo1c_con");
     CHECK(Mission() == "geo1c_con");
@@ -241,13 +164,26 @@ TEST_CASE("mission victory and defeat return early under -novictory" * doctest::
     }
 }
 
-TEST_CASE("command line keeps -allocator and -mipurge values out of the mission name" * doctest::test_suite("regression"))
+TEST_CASE("command line keeps -mipurge values out of the mission name" * doctest::test_suite("regression"))
 {
-    const char* apcLines[] = { "geo1c_con -allocator arena", "geo1c_con -allocator mimalloc -mipurge 0",
-        "geo1c_con -mipurge 250 -exitongameover", "-allocator bogus geo1c_con", "geo1c_con -mipurge",
-        "geo1c_con /allocator arena", "+allocator arena geo1c_con", "geo1c_con /mipurge 0 +mipurge 1" };
+    const char* apcLines[] = { "geo1c_con -mipurge 7", "geo1c_con -mipurge 0",
+        "geo1c_con -mipurge 250 -exitongameover", "-mipurge 9 geo1c_con", "geo1c_con -mipurge",
+        "geo1c_con /mipurge 7", "+mipurge 7 geo1c_con", "geo1c_con /mipurge 0 +mipurge 1" };
     for (int n = 0; n < 8; ++n)
     {
+        Parse(apcLines[n]);
+        CHECK(Mission() == "geo1c_con");
+        CHECK(gExitOnGameOver == (strstr(apcLines[n], "-exitongameover") != 0));
+    }
+}
+
+TEST_CASE("command line keeps the values of removed switches out of the mission name" * doctest::test_suite("regression"))
+{
+    const char* apcLines[] = { "geo1c_con -simorder serial", "-simorder address geo1c_con", "geo1c_con -allocator mimalloc",
+        "-allocator arena -exitongameover geo1c_con", "geo1c_con /simorder serial", "-simorder -exitongameover geo1c_con" };
+    for (int n = 0; n < 6; ++n)
+    {
+        CAPTURE(n);
         Parse(apcLines[n]);
         CHECK(Mission() == "geo1c_con");
         CHECK(gExitOnGameOver == (strstr(apcLines[n], "-exitongameover") != 0));
@@ -316,30 +252,30 @@ TEST_CASE("command line search accepts the same switch forms as the parser" * do
         const char* pcValue;
     };
     const FormCase akForms[] = {
-        { "x.exe geo1c_con -allocator arena", "arena" },
-        { "x.exe geo1c_con /allocator arena", "arena" },
-        { "x.exe geo1c_con +allocator arena", "arena" },
-        { "x.exe,geo1c_con,-allocator,arena", "arena" },
-        { "x.exe \"-allocator\" \"arena\" geo1c_con", "arena" },
-        { "x.exe -ALLOCATOR Arena", "Arena" },
-        { "\"c:\\game dir\\x.exe\" /allocator arena", "arena" },
-        { "x.exe -allocator", "" },
+        { "x.exe geo1c_con -mipurge 250", "250" },
+        { "x.exe geo1c_con /mipurge 250", "250" },
+        { "x.exe geo1c_con +mipurge 250", "250" },
+        { "x.exe,geo1c_con,-mipurge,250", "250" },
+        { "x.exe \"-mipurge\" \"250\" geo1c_con", "250" },
+        { "x.exe -MIPURGE 7", "7" },
+        { "\"c:\\game dir\\x.exe\" /mipurge 250", "250" },
+        { "x.exe -mipurge", "" },
     };
     for (int n = 0; n < 8; ++n)
     {
         CAPTURE(n);
         const char* pcVal = 0;
         int iLen = -1;
-        REQUIRE(FindCommandLineArg(akForms[n].pcLine, "-allocator", &pcVal, &iLen));
+        REQUIRE(FindCommandLineArg(akForms[n].pcLine, "-mipurge", &pcVal, &iLen));
         CHECK(std::string(pcVal, iLen) == akForms[n].pcValue);
     }
-    const char* apcMiss[] = { "x.exe geo1c_con", "x.exe \"a -allocator b\" c", "x.exe -allocators arena", "x.exe allocator arena" };
+    const char* apcMiss[] = { "x.exe geo1c_con", "x.exe \"a -mipurge b\" c", "x.exe -mipurges 250", "x.exe mipurge 250" };
     for (int n = 0; n < 4; ++n)
     {
         CAPTURE(n);
         const char* pcVal = (const char*)1;
         int iLen = -1;
-        CHECK_FALSE(FindCommandLineArg(apcMiss[n], "-allocator", &pcVal, &iLen));
+        CHECK_FALSE(FindCommandLineArg(apcMiss[n], "-mipurge", &pcVal, &iLen));
         CHECK(pcVal == nullptr);
         CHECK(iLen == 0);
     }

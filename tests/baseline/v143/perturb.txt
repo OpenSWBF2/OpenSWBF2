@@ -9,8 +9,6 @@ dag1c_ctf	pad	2	equal
 dag1c_ctf	pool	1	equal
 dag1c_ctf	pool	2	equal
 dag1c_ctf	repeat	0	equal
-dag1c_ctf	top	1	equal
-dag1c_ctf	top	2	equal
 geo1c_con	base	0	base
 geo1c_con	fill	1	equal
 geo1c_con	fill	2	equal
@@ -20,8 +18,6 @@ geo1c_con	pad	2	equal
 geo1c_con	pool	1	equal
 geo1c_con	pool	2	equal
 geo1c_con	repeat	0	equal
-geo1c_con	top	1	equal
-geo1c_con	top	2	equal
 hot1g_con	base	0	base
 hot1g_con	fill	1	equal
 hot1g_con	fill	2	equal
@@ -31,8 +27,6 @@ hot1g_con	pad	2	equal
 hot1g_con	pool	1	equal
 hot1g_con	pool	2	equal
 hot1g_con	repeat	0	equal
-hot1g_con	top	1	equal
-hot1g_con	top	2	equal
 kas2c_uber	base	0	base
 kas2c_uber	fill	1	equal
 kas2c_uber	fill	2	equal
@@ -42,8 +36,6 @@ kas2c_uber	pad	2	equal
 kas2c_uber	pool	1	equal
 kas2c_uber	pool	2	equal
 kas2c_uber	repeat	0	equal
-kas2c_uber	top	1	equal
-kas2c_uber	top	2	equal
 nab2g_c	base	0	base
 nab2g_c	fill	1	equal
 nab2g_c	fill	2	equal
@@ -53,8 +45,6 @@ nab2g_c	pad	2	equal
 nab2g_c	pool	1	equal
 nab2g_c	pool	2	equal
 nab2g_c	repeat	0	equal
-nab2g_c	top	1	equal
-nab2g_c	top	2	equal
 spa3c_ass	base	0	base
 spa3c_ass	fill	1	equal
 spa3c_ass	fill	2	equal
@@ -64,5 +54,3 @@ spa3c_ass	pad	2	equal
 spa3c_ass	pool	1	equal
 spa3c_ass	pool	2	equal
 spa3c_ass	repeat	0	equal
-spa3c_ass	top	1	equal
-spa3c_ass	top	2	equal

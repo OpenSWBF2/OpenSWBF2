@@ -94,7 +94,6 @@
     <ClCompile Include="..\src\PebbleFL\Common\PblQuaternion.cpp" />
     <ClCompile Include="..\src\PebbleFL\Common\PblRandom.cpp" />
     <ClCompile Include="..\src\PebbleFL\Common\PblRegion.cpp" />
-    <ClCompile Include="..\src\PebbleFL\Common\PblSimOrder.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\CommandLine.cpp" />
     <ClCompile Include="..\src\PebbleFL\Common\PblTime.cpp" />
     <ClCompile Include="..\src\PebbleFL\Common\PblTimeBase.cpp" />
@@ -155,7 +154,6 @@
     <ClCompile Include="..\src\Battlefront2\Source\LuaHandleArg.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\LuaSaveItems.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Memory\RedMemory.cpp" />
-    <ClCompile Include="..\src\RedEngineFL\Memory\RedMemoryArena.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Memory\RedMemoryMi.cpp" />
     <ClCompile Include="..\src\mimalloc\src\static.c">
       <CompileAs>CompileAsCpp</CompileAs>

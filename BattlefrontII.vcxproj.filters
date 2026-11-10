@@ -1692,9 +1692,6 @@
     <ClCompile Include="src\PebbleFL\Common\PblRegion.cpp">
       <Filter>src\PebbleFL\Common</Filter>
     </ClCompile>
-    <ClCompile Include="src\PebbleFL\Common\PblSimOrder.cpp">
-      <Filter>src\PebbleFL\Common</Filter>
-    </ClCompile>
     <ClCompile Include="src\PebbleFL\Common\PblTime.cpp">
       <Filter>src\PebbleFL\Common</Filter>
     </ClCompile>
@@ -1996,9 +1993,6 @@
       <Filter>src\RedEngineFL\Interface\pc</Filter>
     </ClCompile>
     <ClCompile Include="src\RedEngineFL\Memory\RedMemory.cpp">
-      <Filter>src\RedEngineFL\Memory</Filter>
-    </ClCompile>
-    <ClCompile Include="src\RedEngineFL\Memory\RedMemoryArena.cpp">
       <Filter>src\RedEngineFL\Memory</Filter>
     </ClCompile>
     <ClCompile Include="src\RedEngineFL\Memory\RedMemoryMi.cpp">
@@ -3974,9 +3968,6 @@
     <ClInclude Include="src\PebbleFL\Common\PblPlane.h">
       <Filter>src\PebbleFL\Common</Filter>
     </ClInclude>
-    <ClInclude Include="src\PebbleFL\Common\PblPtrOrder.h">
-      <Filter>src\PebbleFL\Common</Filter>
-    </ClInclude>
     <ClInclude Include="src\PebbleFL\Common\PblSerial.h">
       <Filter>src\PebbleFL\Common</Filter>
     </ClInclude>
@@ -3993,9 +3984,6 @@
       <Filter>src\PebbleFL\Common</Filter>
     </ClInclude>
     <ClInclude Include="src\PebbleFL\Common\PblRegion.h">
-      <Filter>src\PebbleFL\Common</Filter>
-    </ClInclude>
-    <ClInclude Include="src\PebbleFL\Common\PblSimOrder.h">
       <Filter>src\PebbleFL\Common</Filter>
     </ClInclude>
     <ClInclude Include="src\PebbleFL\Common\PblTime.h">
@@ -4292,7 +4280,7 @@
     <ClInclude Include="src\RedEngineFL\Memory\RedMemory.h">
       <Filter>src\RedEngineFL\Memory</Filter>
     </ClInclude>
-    <ClInclude Include="src\RedEngineFL\Memory\RedMemoryBackend.h">
+    <ClInclude Include="src\RedEngineFL\Memory\RedMemoryMi.h">
       <Filter>src\RedEngineFL\Memory</Filter>
     </ClInclude>
     <ClInclude Include="src\RedEngineFL\Memory\RedMemoryPool.h">

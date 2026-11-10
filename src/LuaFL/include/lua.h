@@ -63,7 +63,6 @@ LUA_API void       lua_close (lua_State *L);
 LUA_API lua_State *lua_newthread (lua_State *L);
 
 LUA_API lua_CFunction lua_atpanic (lua_State *L, lua_CFunction panicf);
-LUA_API void lua_setinsertionorder (int insertion);
 
 LUA_API int   lua_gettop (lua_State *L);
 LUA_API void  lua_settop (lua_State *L, int idx);

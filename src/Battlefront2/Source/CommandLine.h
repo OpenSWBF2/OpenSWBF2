@@ -16,7 +16,6 @@ bool FindNextCommandLineArg(char const* pcLine, char const* pcName, int* piPos, 
 
 int CommandLineRepeatCount(char const* pcVal, int iLen);
 
-bool SimOrderArgRejected();
 
 bool NoVictoryActive();
 

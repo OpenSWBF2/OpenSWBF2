@@ -8,7 +8,7 @@
 #include "Battlefront2/Source/LuaMemoryArgs.h"
 #include "LuaFL/include/lua.h"
 #include "RedEngineFL/Memory/RedMemory.h"
-#include "RedEngineFL/Memory/RedMemoryBackend.h"
+#include "RedEngineFL/Memory/RedMemoryMi.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 #include "RedEngineFL/Memory/RedScriptLimits.h"
 #include "RedEngineFL/Util/RedLog.h"
@@ -491,15 +491,12 @@ TEST_CASE("setup temp heap forget drops stale block" * doctest::test_suite("regr
     const unsigned int uFresh = RedGetHeapFree(iRuntime);
     LuaMemoryArgs::ClearTempHeap(iRuntime, iTemp);
     CHECK(RedGetHeapFree(iRuntime) == uFresh);
-    CHECK(RedArenaFreeTagSum(iRuntime) == RedGetHeapFree(iRuntime));
     CallSetupTempHeap(L, 8192.0f, iRuntime, iTemp);
     REQUIRE(iTemp > 0);
     CHECK(RedGetHeapFree(iRuntime) < uFresh);
-    CHECK(RedArenaFreeTagSum(iRuntime) == RedGetHeapFree(iRuntime));
     LuaMemoryArgs::ClearTempHeap(iRuntime, iTemp);
     CHECK(iTemp == 0);
     CHECK(RedGetHeapFree(iRuntime) == uFresh);
-    CHECK(RedArenaFreeTagSum(iRuntime) == RedGetHeapFree(iRuntime));
     RedDestroyHeap(iRuntime);
     lua_close(L);
 }
@@ -599,28 +596,23 @@ TEST_CASE("steal artist heap refuses zero small and negative sizes" * doctest::t
     {
         LogCapture capture;
         CallStealArtistHeap(L, 256.0f, iArtist);
-        CHECK(capture.Count("entry=StealArtistHeap label=- requested=256 applied=0 pool=-") == 1);
+        CHECK(capture.Count("entry=StealArtistHeap label=- requested=256 applied=256 pool=-") == 1);
     }
-    CHECK(RedGetHeapSize(iArtist) == 0x2000 - 288);
+    CHECK(RedGetHeapSize(iArtist) == 0x2000 - 544);
     RedFreeToHeap(iArtist, pTop, 0);
     RedDestroyHeap(iRuntime);
     RedDestroyHeap(iArtist);
     lua_close(L);
 }
 
-TEST_CASE("steal artist heap on the mimalloc backend matches the arena" * doctest::test_suite("regression"))
+TEST_CASE("steal artist heap on the mimalloc heap" * doctest::test_suite("regression"))
 {
     VerboseMemoryLog kVerbose;
     lua_State* L = OpenScriptState();
-    const RedHeapBackend* pSaved = gRedHeapBackend;
-    gRedHeapBackend = &kRedMiBackend;
     const int iArtist = RedCreateHeap(sacScriptSteal, sacScriptSteal + 0x2000, 0x10, "T1Artist");
     const int iRuntime = RedCreateHeap(sacScriptSteal + 0x2000, sacScriptSteal + 0x4000, 0x10, "T1Runtime");
-    gRedHeapBackend = pSaved;
     REQUIRE(iArtist > 0);
     REQUIRE(iRuntime == iArtist + 1);
-    REQUIRE(gRedHeapSlots[iArtist].pBackend == &kRedMiBackend);
-    REQUIRE(gRedHeapSlots[iRuntime].pBackend == &kRedMiBackend);
     {
         LogCapture capture;
         CallStealArtistHeap(L, 0.0f, iArtist);

@@ -1,6 +1,5 @@
 param(
     [Parameter(Mandatory)][string]$Tables,
-    [Parameter(Mandatory)][string]$ArenaTables,
     [string]$Baseline
 )
 
@@ -15,6 +14,7 @@ function Read-Rows([string]$dir, [string]$name) {
         if (-not $line -or $line.StartsWith('#') -or $line.StartsWith("mission`t")) { continue }
         $rows += ,@($line -split "`t")
     }
+    if ($rows.Count -eq 0) { throw "$name in $dir has no rows" }
     return ,$rows
 }
 
@@ -23,6 +23,14 @@ function Get-SlackBound([string]$heap) {
         'Application' { return 16 }
         'Lua' { return 3880 }
         'Runtime' { return 496 }
+        default { return 0 }
+    }
+}
+
+function Get-PeakBound([string]$heap) {
+    switch ($heap) {
+        'Application' { return 16 }
+        'Runtime' { return 512 }
         default { return 0 }
     }
 }
@@ -43,6 +51,7 @@ function Select-LuaRows($rows, [bool]$wantLua) {
 
 function Compare-PeakRows($peakBase, $peakNew) {
     $bad = @()
+    if ($peakBase.Count -eq 0) { $bad += 'no baseline rows to compare' }
     foreach ($k in $peakBase.Keys) { if (-not $peakNew.ContainsKey($k)) { $bad += "$k missing from tables" } }
     foreach ($k in $peakNew.Keys) { if (-not $peakBase.ContainsKey($k)) { $bad += "$k not in baseline" } }
     foreach ($k in ($peakBase.Keys | Sort-Object)) {
@@ -51,12 +60,13 @@ function Compare-PeakRows($peakBase, $peakNew) {
         $t = $peakNew[$k]
         if ($b[2] -ceq 'heap') {
             $bound = Get-SlackBound $b[3]
+            $peakBound = Get-PeakBound $b[3]
             $why = $null
             if ($t[4] -cne $b[4] -or $t[5] -cne $b[5] -or $t[8] -cne $b[8] -or $t[9] -cne $b[9]) { $why = 'cap/size/allocs/failed differ' }
             else {
                 $dPeak = [long]$b[6] - [long]$t[6]
                 $dUsed = [long]$b[7] - [long]$t[7]
-                if ($dPeak -lt 0 -or $dUsed -lt 0 -or $dUsed -gt $bound) { $why = "peak gap $dPeak used gap $dUsed used bound $bound" }
+                if ($dPeak -lt 0 -or $dPeak -gt $peakBound -or $dUsed -lt 0 -or $dUsed -gt $bound) { $why = "peak gap $dPeak peak bound $peakBound used gap $dUsed used bound $bound" }
             }
             if ($why) { $bad += "$k $why tables '$($t[4..9] -join ' ')' baseline '$($b[4..9] -join ' ')'" }
         }
@@ -91,49 +101,41 @@ foreach ($m in ($clothBase.Keys | Sort-Object)) {
 }
 if ($bad.Count) {
     $fail++
-    Write-Host "[FAIL] backend:cloth missions=$($clothBase.Count)"
+    Write-Host "[FAIL] tables:cloth missions=$($clothBase.Count)"
     foreach ($l in $bad) { Write-Host "    $l" }
 }
-else { Write-Host "[PASS] backend:cloth missions=$($clothBase.Count)" }
+else { Write-Host "[PASS] tables:cloth missions=$($clothBase.Count)" }
 
 $peakTables = Read-PeakRows $Tables
 $peakBase = Select-LuaRows (Read-PeakRows $Baseline) $false
 $bad = @(Compare-PeakRows $peakBase (Select-LuaRows $peakTables $false))
 if ($bad.Count) {
     $fail++
-    Write-Host "[FAIL] backend:mem-peaks rows=$($peakBase.Count)"
+    Write-Host "[FAIL] tables:mem-peaks rows=$($peakBase.Count)"
     foreach ($l in $bad) { Write-Host "    $l" }
 }
-else { Write-Host "[PASS] backend:mem-peaks rows=$($peakBase.Count)" }
-
-$peakArena = Select-LuaRows (Read-PeakRows $ArenaTables) $true
-$bad = @(Compare-PeakRows $peakArena (Select-LuaRows $peakTables $true))
-if ($bad.Count) {
-    $fail++
-    Write-Host "[FAIL] backend:mem-peaks-lua rows=$($peakArena.Count)"
-    foreach ($l in $bad) { Write-Host "    $l" }
-}
-else { Write-Host "[PASS] backend:mem-peaks-lua rows=$($peakArena.Count)" }
+else { Write-Host "[PASS] tables:mem-peaks rows=$($peakBase.Count)" }
 
 $digBase = @{}
 foreach ($r in (Read-Rows $Baseline 'smoke-all-digests.txt')) { $digBase[$r[0]] = $r -join "`t" }
 $digNew = @{}
 foreach ($r in (Read-Rows $Tables 'smoke-all-digests.txt')) { $digNew[$r[0]] = $r -join "`t" }
 $bad = @()
-$new = @()
+$compared = 0
 foreach ($k in ($digBase.Keys | Sort-Object)) {
     if ($k -ceq 'dedicated') { continue }
+    $compared++
     if (-not $digNew.ContainsKey($k)) { $bad += "$k missing from tables" }
     elseif ($digNew[$k] -cne $digBase[$k]) { $bad += "tables '$($digNew[$k])' baseline '$($digBase[$k])'" }
 }
-foreach ($k in ($digNew.Keys | Sort-Object)) { if (-not $digBase.ContainsKey($k)) { $new += $k } }
+foreach ($k in ($digNew.Keys | Sort-Object)) { if (-not $digBase.ContainsKey($k)) { $bad += "$k not in baseline" } }
+if ($compared -eq 0) { $bad += 'no baseline rows to compare' }
 if ($bad.Count) {
     $fail++
-    Write-Host "[FAIL] backend:digests rows=$($digBase.Count)"
+    Write-Host "[FAIL] tables:digests rows=$($digBase.Count)"
     foreach ($l in $bad) { Write-Host "    $l" }
 }
-else { Write-Host "[PASS] backend:digests rows=$($digBase.Count)" }
-foreach ($k in $new) { Write-Host "    new case without a baseline row: $k" }
+else { Write-Host "[PASS] tables:digests rows=$($digBase.Count)" }
 
 if ($fail) { exit 1 }
 exit 0

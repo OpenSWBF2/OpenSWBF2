@@ -4,7 +4,6 @@
 #include "LuaFL/include/lualib.h"
 #include "LuaFL/include/lauxlib.h"
 #include "PebbleFL/Common/PblHashTable.h"
-#include "PebbleFL/Common/PblSimOrder.h"
 #include "PebbleFL/Common/PblUnicode.h"
 #include "LuaScript.h"
 #include "LuaEvent.h"
@@ -29,7 +28,6 @@ void InitState()
         return;
     }
 
-    lua_setinsertionorder(PblGetSimOrder() == PBL_SIMORDER_SERIAL);
     mState = lua_open();
     if (!mState)
     {

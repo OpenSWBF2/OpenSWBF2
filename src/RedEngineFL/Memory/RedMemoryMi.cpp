@@ -1,10 +1,11 @@
 #include <errno.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <windows.h>
 
 #include "RedMemory.h"
-#include "RedMemoryBackend.h"
+#include "RedMemoryMi.h"
 #include "PebbleFL/Common/PblAsan.h"
 #include "RedEngineFL/Util/RedLog.h"
 #include "mimalloc/include/mimalloc.h"
@@ -16,9 +17,11 @@ static_assert(sizeof(RedMiPrefix) == 16, "RedMiPrefix must stay 16 bytes");
 
 static mi_heap_t* sMiHeap[kRedHeapSlots];
 static unsigned int sMiGen[kRedHeapSlots];
-static volatile LONG salMiResBits[0x10000 / 32];
-static volatile LONG slMiFirstBase;
-static unsigned int suMiFirstSize;
+static const uintptr_t kMiResPages = 0x10000;
+static volatile LONG salMiResBits[kMiResPages / 32];
+static void* volatile spMiFirstBase;
+static size_t suMiFirstSize;
+static bool sbMiCreateFails;
 #if defined(__SANITIZE_ADDRESS__)
 static const int kMiAreasFirst = 64;
 
@@ -53,13 +56,13 @@ static PBL_ASAN_NO_SANITIZE void MiReadPrefix(const char* pBase, RedMiPrefix* pO
 
 static unsigned int MiCookie(const char* pBase, unsigned int uSize, unsigned int uCharge)
 {
-    return (unsigned int)pBase ^ kMiCookie ^ uCharge ^ (uSize * 0x9E3779B1u);
+    return (unsigned int)(uintptr_t)pBase ^ kMiCookie ^ uCharge ^ (uSize * 0x9E3779B1u);
 }
 
 static bool MiInReservation(const void* p)
 {
-    const unsigned int uIdx = (unsigned int)p >> 16;
-    return (salMiResBits[uIdx >> 5] & (1u << (uIdx & 31))) != 0;
+    const uintptr_t uIdx = (uintptr_t)p >> 16;
+    return uIdx < kMiResPages && (salMiResBits[uIdx >> 5] & (1u << (uIdx & 31))) != 0;
 }
 
 static bool MiIsCrtBlock(const void* p)
@@ -96,20 +99,20 @@ void RedMiRecordReservation(const void* p)
     {
         return;
     }
-    const unsigned int uBase = (unsigned int)kInfo.AllocationBase;
-    unsigned int uAt = uBase;
+    const uintptr_t uBase = (uintptr_t)kInfo.AllocationBase;
+    uintptr_t uAt = uBase;
     while (VirtualQuery((const void*)uAt, &kInfo, sizeof(kInfo)) == sizeof(kInfo) &&
-           (unsigned int)kInfo.AllocationBase == uBase && kInfo.RegionSize != 0 && uAt + kInfo.RegionSize > uAt)
+           (uintptr_t)kInfo.AllocationBase == uBase && kInfo.RegionSize != 0 && uAt + kInfo.RegionSize > uAt)
     {
         uAt += kInfo.RegionSize;
     }
-    const unsigned int uFirst = uBase >> 16;
-    const unsigned int uLast = (uAt - 1) >> 16;
-    for (unsigned int uIdx = uFirst; uIdx <= uLast; ++uIdx)
+    const uintptr_t uFirst = uBase >> 16;
+    const uintptr_t uLast = (uAt - 1) >> 16;
+    for (uintptr_t uIdx = uFirst; uIdx <= uLast && uIdx < kMiResPages; ++uIdx)
     {
-        InterlockedBitTestAndSet(&salMiResBits[uIdx >> 5], uIdx & 31);
+        InterlockedBitTestAndSet(&salMiResBits[uIdx >> 5], (LONG)(uIdx & 31));
     }
-    if (InterlockedCompareExchange(&slMiFirstBase, (LONG)uBase, 0) == 0)
+    if (InterlockedCompareExchangePointer(&spMiFirstBase, (void*)uBase, 0) == 0)
     {
         suMiFirstSize = uAt - uBase;
     }
@@ -152,14 +155,13 @@ static bool mi_cdecl MiPoisonArea(const mi_heap_t*, const mi_heap_area_t* pArea,
 }
 #endif
 
-static void* MiInit(void* start, void* end, int maxheaps)
+void* RedMiInit(void* start, int maxheaps)
 {
-    (void)end;
-    const unsigned int uHeaps = ((unsigned int)start + 3) & ~3u;
-    return (void*)((uHeaps + maxheaps * kRedHeapObjBytes + 3) & ~3u);
+    const uintptr_t uHeaps = ((uintptr_t)start + 3) & ~(uintptr_t)3;
+    return (void*)((uHeaps + maxheaps * kRedHeapObjBytes + 3) & ~(uintptr_t)3);
 }
 
-static void MiDestroy(int i)
+void RedMiDestroy(int i)
 {
     if (i < 0 || i >= kRedHeapSlots || sMiHeap[i] == 0)
     {
@@ -187,24 +189,28 @@ static void MiDestroy(int i)
     sMiGen[i] = (sMiGen[i] + 1) & 0xFFFFFFu;
 }
 
-static size_t MiCreate(int heap, void* start, void* end, unsigned int align, const char* name)
+size_t RedMiCreate(int heap, void* start, void* end, unsigned int align)
 {
-    (void)name;
     if (heap < 0 || heap >= kRedHeapSlots)
     {
         return 0;
     }
     const unsigned int uMask = ~(align - 1);
-    const unsigned int uStart = ((unsigned int)start + align - 1) & uMask;
-    const unsigned int uEnd = (unsigned int)end & uMask;
-    MiDestroy(heap);
+    const unsigned int uStart = ((unsigned int)(uintptr_t)start + align - 1) & uMask;
+    const unsigned int uEnd = (unsigned int)(uintptr_t)end & uMask;
+    RedMiDestroy(heap);
     sMiGen[heap] = (sMiGen[heap] + 1) & 0xFFFFFFu;
-    sMiHeap[heap] = mi_heap_new();
+    sMiHeap[heap] = sbMiCreateFails ? 0 : mi_heap_new();
     if (sMiHeap[heap] == 0)
     {
         return 0;
     }
     return uEnd - uStart;
+}
+
+void RedMiFailHeapCreate(bool bFail)
+{
+    sbMiCreateFails = bFail;
 }
 
 static unsigned int MiNeed(int i, size_t size, unsigned int* puWant)
@@ -235,9 +241,8 @@ static PBL_ASAN_NO_SANITIZE void MiStamp(int i, char* pBase, size_t size, unsign
     *pReserved = uNeed;
 }
 
-static void* MiAlloc(int i, size_t size, bool bTop, size_t* pReserved)
+void* RedMiAlloc(int i, size_t size, size_t* pReserved)
 {
-    (void)bTop;
     if (i < 0 || i >= kRedHeapSlots || sMiHeap[i] == 0)
     {
         return 0;
@@ -247,11 +252,8 @@ static void* MiAlloc(int i, size_t size, bool bTop, size_t* pReserved)
     char* pBase = (char*)mi_heap_zalloc_aligned(sMiHeap[i], uWant, gRedHeapSlots[i].align);
     if (pBase == 0)
     {
-        if (sRecursionDepth <= 0)
-        {
-            RedMemory::failHeap = i;
-            RedMemory::failSize = uNeed;
-        }
+        RedMemory::failHeap = i;
+        RedMemory::failSize = uNeed;
         return 0;
     }
     RedMiRecordReservation(pBase);
@@ -286,9 +288,8 @@ RedMiBlockKind RedMiClassify(const void* pUser)
     return kRedMiValid;
 }
 
-static size_t MiFree(int heap, void* block)
+size_t RedMiFree(void* block)
 {
-    (void)heap;
     char* pcUser = (char*)block;
     char* pBase = pcUser - kMiPrefixBytes;
     const RedMiBlockKind eKind = RedMiClassify(block);
@@ -308,11 +309,11 @@ static size_t MiFree(int heap, void* block)
     return 0;
 }
 
-static void* MiRealloc(int i, void* block, size_t oldSize, size_t size, size_t* pReserved, size_t* pOldCharge)
+void* RedMiRealloc(int i, void* block, size_t oldSize, size_t size, size_t* pReserved, size_t* pOldCharge)
 {
     if (RedMiClassify(block) != kRedMiValid)
     {
-        MiFree(i, block);
+        RedMiFree(block);
         return 0;
     }
     char* pBase = (char*)block - kMiPrefixBytes;
@@ -326,17 +327,17 @@ static void* MiRealloc(int i, void* block, size_t oldSize, size_t size, size_t* 
         MiStamp(i, pBase, size, uNeed, pReserved);
         return block;
     }
-    void* pNew = MiAlloc(i, size, false, pReserved);
+    void* pNew = RedMiAlloc(i, size, pReserved);
     if (pNew == 0)
     {
         return 0;
     }
     memcpy(pNew, block, oldSize < size ? oldSize : size);
-    *pOldCharge = MiFree(i, block);
+    *pOldCharge = RedMiFree(block);
     return pNew;
 }
 
-static int MiOwner(const void* p)
+int RedMiOwner(const void* p)
 {
     mi_heap_t* pOwnerHeap = mi_heap_of(p);
     if (pOwnerHeap != 0)
@@ -353,7 +354,7 @@ static int MiOwner(const void* p)
     return MiInReservation(p) && !MiIsCrtBlock(p) ? kRedOwnerStale : -1;
 }
 
-static int MiMoveEnd(int iHeap, int iDelta, bool* pbAllocFailed)
+int RedMiMoveEnd(int iHeap, int iDelta, bool* pbAllocFailed)
 {
     *pbAllocFailed = false;
     int iSource = iHeap;
@@ -379,11 +380,8 @@ static int MiMoveEnd(int iHeap, int iDelta, bool* pbAllocFailed)
     const unsigned int uHeadroom = uUsed < rTarget.defaultCap ? rTarget.defaultCap - uUsed : 0;
     if (uMove > uHeadroom)
     {
-        if (sRecursionDepth <= 0)
-        {
-            RedMemory::failHeap = iTarget;
-            RedMemory::failSize = uMove;
-        }
+        RedMemory::failHeap = iTarget;
+        RedMemory::failSize = uMove;
         *pbAllocFailed = true;
         return 0;
     }
@@ -403,13 +401,13 @@ static bool mi_cdecl MiVisitBlock(const mi_heap_t*, const mi_heap_area_t*, void*
     }
     const MiVisitArg& rArg = *(const MiVisitArg*)pArg;
     const unsigned int uAlign = gRedHeapSlots[rArg.iHeap].align;
-    char* pBase = (char*)(((unsigned int)pBlock + uAlign - 1) & ~(uAlign - 1));
+    char* pBase = (char*)(((uintptr_t)pBlock + uAlign - 1) & ~(uintptr_t)(uAlign - 1));
     RedMiPrefix kPrefix;
     MiReadPrefix(pBase, &kPrefix);
     return rArg.pfnBlock(pBase + 16, kPrefix.uSize, rArg.pArg);
 }
 
-static bool MiVisit(int heap, bool (*pfnBlock)(void* pUser, size_t uSize, void* pArg), void* pArg)
+bool RedMiVisit(int heap, bool (*pfnBlock)(void* pUser, size_t uSize, void* pArg), void* pArg)
 {
     if (heap < 0 || heap >= kRedHeapSlots || sMiHeap[heap] == 0)
     {
@@ -537,20 +535,18 @@ void RedMiOutputLines(const char* pcMsg, void (*pfnLine)(const char* pcLine, int
     }
 }
 
-bool RedMiFirstArena(unsigned int* puBase, unsigned int* puSize)
+bool RedMiFirstArena(uintptr_t* puBase, size_t* puSize)
 {
-    if (slMiFirstBase == 0 || puBase == 0 || puSize == 0)
+    if (spMiFirstBase == 0 || puBase == 0 || puSize == 0)
     {
         return false;
     }
-    *puBase = (unsigned int)slMiFirstBase;
+    *puBase = (uintptr_t)spMiFirstBase;
     *puSize = suMiFirstSize;
     return true;
 }
 
-static void MiTrim()
+void RedMiTrim()
 {
     mi_collect(true);
 }
-
-extern "C" const RedHeapBackend kRedMiBackend = { MiInit, MiCreate, MiDestroy, MiAlloc, MiFree, MiOwner, MiMoveEnd, MiVisit, MiTrim, MiRealloc };

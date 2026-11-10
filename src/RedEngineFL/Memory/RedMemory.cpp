@@ -3,7 +3,7 @@
 #include <string.h>
 
 #include "RedMemory.h"
-#include "RedMemoryBackend.h"
+#include "RedMemoryMi.h"
 #include "RedScriptLimits.h"
 #include "RedEngineFL/Memory/engineAlloc.h"
 #include "PebbleFL/Common/PblHandle.h"
@@ -33,10 +33,19 @@ extern "C"
     // GLOBAL: SWBF2 0x0093eb94
     // OnFailure
     void (*OnFailure)(int heap, unsigned int size);
+    // GLOBAL: SWBF2 0x0093ebb0
+    int sRecursionDepth;
+}
+
+namespace RedMemory
+{
+    // GLOBAL: SWBF2 0x0093eb98
+    int failHeap;
+    // GLOBAL: SWBF2 0x0093eb9c
+    unsigned int failSize;
 }
 
 RedHeapSlot gRedHeapSlots[kRedHeapSlots];
-const RedHeapBackend* gRedHeapBackend = &kRedArenaBackend;
 
 // FUNCTION: SWBF2 0x006c3a50
 extern "C" unsigned int RedGetHeapFree(int heap)
@@ -107,8 +116,15 @@ static OffThreadSlot sOffSources[kRedOffThreadSources];
 static unsigned int sPerturbModes;
 static unsigned int sPerturbSeed;
 static unsigned int sPerturbState[4];
-static const char* const sapcPerturbNames[4] = { "pad", "top", "fill", "pool" };
-static const unsigned int kPerturbAll = kRedPerturbPad | kRedPerturbTop | kRedPerturbFill | kRedPerturbPool;
+static const unsigned int kPerturbAll = kRedPerturbPad | kRedPerturbFill | kRedPerturbPool;
+
+struct PerturbName
+{
+    const char* pcName;
+    unsigned int uBit;
+};
+
+static const PerturbName sakPerturbNames[3] = { { "pad", kRedPerturbPad }, { "fill", kRedPerturbFill }, { "pool", kRedPerturbPool } };
 
 static unsigned int PerturbMix(unsigned int x)
 {
@@ -197,11 +213,11 @@ extern "C" bool RedPerturbParse(const char* pcSpec, unsigned int* puSeed, unsign
             }
             const unsigned int uLen = (unsigned int)(pcEnd - pc);
             unsigned int uBit = 0;
-            for (unsigned int i = 0; i < 4; ++i)
+            for (unsigned int i = 0; i < 3; ++i)
             {
-                if (uLen == strlen(sapcPerturbNames[i]) && _strnicmp(pc, sapcPerturbNames[i], uLen) == 0)
+                if (uLen == strlen(sakPerturbNames[i].pcName) && _strnicmp(pc, sakPerturbNames[i].pcName, uLen) == 0)
                 {
-                    uBit = 1u << i;
+                    uBit = sakPerturbNames[i].uBit;
                 }
             }
             if (uBit == 0)
@@ -233,13 +249,13 @@ extern "C" void RedPerturbFormatModes(unsigned int uModes, char* pcOut, unsigned
     }
     pcOut[0] = 0;
     unsigned int uLen = 0;
-    for (unsigned int i = 0; i < 4; ++i)
+    for (unsigned int i = 0; i < 3; ++i)
     {
-        if ((uModes & (1u << i)) == 0)
+        if ((uModes & sakPerturbNames[i].uBit) == 0)
         {
             continue;
         }
-        const unsigned int uName = (unsigned int)strlen(sapcPerturbNames[i]);
+        const unsigned int uName = (unsigned int)strlen(sakPerturbNames[i].pcName);
         if (uLen + uName + (uLen != 0 ? 1 : 0) >= uSize)
         {
             return;
@@ -248,7 +264,7 @@ extern "C" void RedPerturbFormatModes(unsigned int uModes, char* pcOut, unsigned
         {
             pcOut[uLen++] = ',';
         }
-        memcpy(pcOut + uLen, sapcPerturbNames[i], uName);
+        memcpy(pcOut + uLen, sakPerturbNames[i].pcName, uName);
         uLen += uName;
         pcOut[uLen] = 0;
     }
@@ -416,11 +432,8 @@ static unsigned int ReserveNeed(int heap, RedHeapSlot& rSlot, size_t size)
     const unsigned int uHdr = (uAlign + kRedTagBytes - 1) & ~(uAlign - 1);
     if (size > ~0u - (uAlign - 1 + uHdr))
     {
-        if (sRecursionDepth <= 0)
-        {
-            RedMemory::failHeap = heap;
-            RedMemory::failSize = ~0u;
-        }
+        RedMemory::failHeap = heap;
+        RedMemory::failSize = ~0u;
         _InterlockedIncrement(&rSlot.failed);
         return 0;
     }
@@ -431,11 +444,8 @@ static unsigned int ReserveNeed(int heap, RedHeapSlot& rSlot, size_t size)
     {
         if ((unsigned int)lUsed > rSlot.cap || uNeed > rSlot.cap - (unsigned int)lUsed)
         {
-            if (sRecursionDepth <= 0)
-            {
-                RedMemory::failHeap = heap;
-                RedMemory::failSize = uNeed;
-            }
+            RedMemory::failHeap = heap;
+            RedMemory::failSize = uNeed;
             _InterlockedIncrement(&rSlot.failed);
             return 0;
         }
@@ -455,7 +465,7 @@ static void RollbackNeed(RedHeapSlot& rSlot, unsigned int uNeed)
     _InterlockedIncrement(&rSlot.failed);
 }
 
-static void* AllocFromSlot(int heap, size_t size, bool bTop)
+static void* AllocFromSlot(int heap, size_t size)
 {
     if (heap < 0 || heap >= maxheaps)
     {
@@ -468,7 +478,7 @@ static void* AllocFromSlot(int heap, size_t size, bool bTop)
         return 0;
     }
     size_t uReserved = 0;
-    void* p = rSlot.pBackend->alloc(heap, size != 0 ? (unsigned int)size : 1, bTop, &uReserved);
+    void* p = RedMiAlloc(heap, size != 0 ? (unsigned int)size : 1, &uReserved);
     if (!p)
     {
         RollbackNeed(rSlot, uNeed);
@@ -493,6 +503,7 @@ static void NoteOffThreadAlloc(int heap, size_t size)
 // FUNCTION: SWBF2 0x006c38d0
 void* RedAllocFromHeap(int heap, size_t size, bool bTop)
 {
+    (void)bTop;
     if (!isHeapObjInitialized)
     {
         Startup_RedInitHeap(0x80, 0x80);
@@ -505,7 +516,7 @@ void* RedAllocFromHeap(int heap, size_t size, bool bTop)
     {
         uiPad = 4 + 4 * (uiDraw % 15);
     }
-    void* p = AllocFromSlot(heap, size + uiPad, bTop || (uiModes & kRedPerturbTop) != 0);
+    void* p = AllocFromSlot(heap, size + uiPad);
     if (p)
     {
         if (uiPad != 0)
@@ -519,13 +530,13 @@ void* RedAllocFromHeap(int heap, size_t size, bool bTop)
     }
     NoteOffThreadAlloc(heap, size);
 #else
-    void* p = AllocFromSlot(heap, size, bTop);
+    void* p = AllocFromSlot(heap, size);
 #endif
     if (!p)
     {
         if (OnFailure)
         {
-            OnFailure(heap, size);
+            OnFailure(heap, (unsigned int)size);
         }
         return 0;
     }
@@ -535,7 +546,7 @@ void* RedAllocFromHeap(int heap, size_t size, bool bTop)
 void* RedReallocInHeap(int heap, void* block, size_t oldSize, size_t size)
 {
     const int iOwner = RedHeapOwner(block);
-    if (iOwner < 0 || gRedHeapSlots[iOwner].pBackend->realloc == 0)
+    if (iOwner < 0)
     {
         void* pNew = RedAllocFromHeap(heap, size, false);
         if (pNew)
@@ -564,19 +575,19 @@ void* RedReallocInHeap(int heap, void* block, size_t oldSize, size_t size)
     {
         if (OnFailure)
         {
-            OnFailure(iOwner, size);
+            OnFailure(iOwner, (unsigned int)size);
         }
         return 0;
     }
     size_t uReserved = 0;
     size_t uOldCharge = 0;
-    void* p = rSlot.pBackend->realloc(iOwner, block, oldSize, uRequest != 0 ? uRequest : 1, &uReserved, &uOldCharge);
+    void* p = RedMiRealloc(iOwner, block, oldSize, uRequest != 0 ? uRequest : 1, &uReserved, &uOldCharge);
     if (!p)
     {
         RollbackNeed(rSlot, uNeed);
         if (OnFailure)
         {
-            OnFailure(iOwner, size);
+            OnFailure(iOwner, (unsigned int)size);
         }
         return 0;
     }
@@ -873,9 +884,8 @@ int RedCreateHeap(void* start, void* end, unsigned int align, char const* name)
     {
         if (!gRedHeapSlots[i].bLive)
         {
-            const size_t size = gRedHeapBackend->create(i, start, end, align, name);
+            const unsigned int size = (unsigned int)RedMiCreate(i, start, end, align);
             RedHeapSlot& rSlot = gRedHeapSlots[i];
-            rSlot.pBackend = gRedHeapBackend;
             rSlot.name = name;
             rSlot.size = size;
             rSlot.align = align;
@@ -888,7 +898,6 @@ int RedCreateHeap(void* start, void* end, unsigned int align, char const* name)
             return i;
         }
     }
-    gRedHeapBackend->create(-1, start, end, align, name);
     return -1;
 }
 
@@ -900,10 +909,7 @@ void RedDestroyHeap(int heap)
         return;
     }
     RedHeapSlot& rSlot = gRedHeapSlots[heap];
-    if (rSlot.pBackend)
-    {
-        rSlot.pBackend->destroy(heap);
-    }
+    RedMiDestroy(heap);
     rSlot.size = 0;
     rSlot.cap = 0;
     rSlot.defaultCap = 0;
@@ -914,32 +920,8 @@ void RedDestroyHeap(int heap)
 
 extern "C" int RedHeapOwner(const void* p)
 {
-    bool bStale = false;
-    for (int i = 0; i < kRedHeapSlots; ++i)
-    {
-        const RedHeapBackend* pBackend = gRedHeapSlots[i].pBackend;
-        if (pBackend == 0)
-        {
-            continue;
-        }
-        bool bSeen = false;
-        for (int j = 0; j < i && !bSeen; ++j)
-        {
-            bSeen = gRedHeapSlots[j].pBackend == pBackend;
-        }
-        if (bSeen)
-        {
-            continue;
-        }
-        const int iOwner = pBackend->owner(p);
-        if (iOwner >= 0 && iOwner < kRedHeapSlots && gRedHeapSlots[iOwner].bLive &&
-            gRedHeapSlots[iOwner].pBackend == pBackend)
-        {
-            return iOwner;
-        }
-        bStale = bStale || iOwner == kRedOwnerStale;
-    }
-    return bStale ? kRedOwnerStale : -1;
+    const int iOwner = RedMiOwner(p);
+    return iOwner >= 0 && (iOwner >= kRedHeapSlots || !gRedHeapSlots[iOwner].bLive) ? -1 : iOwner;
 }
 
 // FUNCTION: SWBF2 0x006c3a00
@@ -957,7 +939,7 @@ void RedFreeToHeap(int heap, void* block, unsigned int flags)
         free(block);
         return;
     }
-    size_t r = gRedHeapSlots[iOwner].pBackend->free(iOwner, block);
+    size_t r = RedMiFree(block);
     _InterlockedExchangeAdd(&gRedHeapSlots[iOwner].used, -(long)r);
 }
 
@@ -974,10 +956,9 @@ void* RedInitHeap(void* start, void* end, int maxheaps)
         rSlot.cap = 0;
         rSlot.defaultCap = 0;
         rSlot.bLive = false;
-        rSlot.pBackend = 0;
         HeapStatsReset(rSlot);
     }
-    void* pNext = gRedHeapBackend->init(start, end, maxheaps);
+    void* pNext = RedMiInit(start, maxheaps);
 #ifdef OPENSWBF2_TEST
     _InterlockedCompareExchange(&sMainTid, (long)GetCurrentThreadId(), 0);
 #endif
@@ -1029,13 +1010,12 @@ void RedMoveHeapEnd(int iHeap, int iDelta)
     {
         return;
     }
-    const RedHeapBackend* pBackend = gRedHeapSlots[iHeap].pBackend;
-    if (pBackend == 0 || gRedHeapSlots[iHeap + 1].pBackend != pBackend)
+    if (!gRedHeapSlots[iHeap].bLive || !gRedHeapSlots[iHeap + 1].bLive)
     {
         return;
     }
     bool bAllocFailed = false;
-    const int iMoved = pBackend->moveEnd(iHeap, iDelta, &bAllocFailed);
+    const int iMoved = RedMiMoveEnd(iHeap, iDelta, &bAllocFailed);
     const int iTarget = iDelta < 0 ? iHeap : iHeap + 1;
     if (bAllocFailed)
     {
@@ -1077,41 +1057,12 @@ extern "C" bool RedVisitHeap(int heap, bool (*pfnBlock)(void* pUser, size_t uSiz
     {
         return false;
     }
-    return gRedHeapSlots[heap].pBackend->visit(heap, pfnBlock, pArg);
-}
-
-extern "C" bool RedHeapBackendIsArena()
-{
-    return gRedHeapBackend == &kRedArenaBackend;
+    return RedMiVisit(heap, pfnBlock, pArg);
 }
 
 extern "C" void RedTrimHeaps()
 {
-    if (gRedHeapBackend->trim)
-    {
-        gRedHeapBackend->trim();
-    }
-}
-
-const RedHeapBackend* RedParseAllocatorArg(const char* pcVal, int iLen, bool* pbRejected)
-{
-    if (pcVal == 0)
-    {
-        return &kRedMiBackend;
-    }
-    if (iLen == 5 && _strnicmp(pcVal, "arena", 5) == 0)
-    {
-        return &kRedArenaBackend;
-    }
-    if (iLen == 8 && _strnicmp(pcVal, "mimalloc", 8) == 0)
-    {
-        return &kRedMiBackend;
-    }
-    if (pbRejected)
-    {
-        *pbRejected = true;
-    }
-    return &kRedMiBackend;
+    RedMiTrim();
 }
 
 long RedParseMiPurgeArg(const char* pcVal, int iLen, bool* pbRejected)

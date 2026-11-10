@@ -4,9 +4,7 @@
 #include "Battlefront2/Source/CollisionObject.h"
 #include "Battlefront2/Source/EntityCarrier.h"
 #include "Battlefront2/Source/WobblePhase.h"
-#include "PebbleFL/Common/PblPtrOrder.h"
 #include "PebbleFL/Common/PblSerial.h"
-#include "PebbleFL/Common/PblSimOrder.h"
 #include "RedEngineFL/Util/RedLog.h"
 #include <stddef.h>
 #include <stdio.h>
@@ -17,26 +15,6 @@
 
 namespace
 {
-
-class SerialOrderScope
-{
-public:
-    SerialOrderScope() : mePrev(PblGetSimOrder()) { PblSetSimOrder(PBL_SIMORDER_SERIAL); }
-    ~SerialOrderScope() { PblSetSimOrder(mePrev); }
-
-private:
-    PblSimOrderMode mePrev;
-};
-
-class AddressOrderScope
-{
-public:
-    AddressOrderScope() : mePrev(PblGetSimOrder()) { PblSetSimOrder(PBL_SIMORDER_ADDRESS); }
-    ~AddressOrderScope() { PblSetSimOrder(mePrev); }
-
-private:
-    PblSimOrderMode mePrev;
-};
 
 template <class KEY>
 struct SentinelFixture
@@ -159,7 +137,7 @@ void CheckFollowerOwnerPhase(RawObject<T>& raw, unsigned int uiId)
     CHECK((void*)static_cast<GameObject*>(pFlyer) == (void*)&raw);
     EntityPathFollower* pFollower = static_cast<EntityPathFollower*>(pFlyer);
     CHECK(static_cast<EntityFlyer*>(pFollower) == pFlyer);
-    CHECK(WobblePhase(static_cast<const GameObject*>(static_cast<EntityFlyer*>(pFollower)), pFollower) ==
+    CHECK(WobblePhase(static_cast<const GameObject*>(static_cast<EntityFlyer*>(pFollower))) ==
           (float)(uiId & 0xf));
 }
 
@@ -193,8 +171,6 @@ TEST_CASE("collision serial compare ignores object addresses under serial order"
 
     CHECK(CollisionObject::CollisionSerialAfter(pLow, pHigh));
     CHECK_FALSE(CollisionObject::CollisionSerialAfter(pHigh, pLow));
-    CHECK_FALSE(PblPtrAfter(pLow, pHigh));
-    CHECK(PblPtrAfter(pHigh, pLow));
     CHECK(pLow->mProcedurallyAnimated == 0);
     CHECK(pLow->mLastCollidedWithNonTerrain == 0);
 
@@ -222,7 +198,6 @@ TEST_CASE("collision serial compare ignores object addresses under serial order"
 
 TEST_CASE("last collided key does not follow a dead receiver to a new object at its address" * doctest::test_suite("regression"))
 {
-    SerialOrderScope kOrder;
     CollisionObjectBuffer aBuf[3];
     memset(aBuf, 0, sizeof(aBuf));
     CollisionObject* pCollider = reinterpret_cast<CollisionObject*>(&aBuf[0]);
@@ -247,7 +222,6 @@ TEST_CASE("last collided key does not follow a dead receiver to a new object at 
 
 TEST_CASE("last collided record keeps three recent receivers without duplicates" * doctest::test_suite("regression"))
 {
-    SerialOrderScope kOrder;
     CollisionObjectBuffer aBuf[5];
     memset(aBuf, 0, sizeof(aBuf));
     CollisionObject* pCollider = reinterpret_cast<CollisionObject*>(&aBuf[0]);
@@ -270,21 +244,8 @@ TEST_CASE("last collided record keeps three recent receivers without duplicates"
     CHECK(pCollider->mLastCollidedObjs[2] == 2);
 }
 
-TEST_CASE("last collided key uses the address under address order" * doctest::test_suite("regression"))
-{
-    const PblSimOrderMode ePrev = PblGetSimOrder();
-    PblSetSimOrder(PBL_SIMORDER_ADDRESS);
-    CollisionObjectBuffer aBuf[2];
-    memset(aBuf, 0, sizeof(aBuf));
-    CollisionObject* pObject = reinterpret_cast<CollisionObject*>(&aBuf[1]);
-    pObject->mCollisionSerial = 5;
-    CHECK(CollisionObject::LastCollidedKey(pObject) == (unsigned int)(size_t)pObject);
-    PblSetSimOrder(ePrev);
-}
-
 TEST_CASE("last collided key treats a null list entry as an empty slot" * doctest::test_suite("regression"))
 {
-    SerialOrderScope kOrder;
     CollisionObjectBuffer aBuf[2];
     memset(aBuf, 0, sizeof(aBuf));
     CollisionObject* pCollider = reinterpret_cast<CollisionObject*>(&aBuf[0]);
@@ -315,7 +276,7 @@ TEST_CASE("last collided sites all go through the key helpers (source pin)" * do
     CHECK(sManager.find("mLastCollidedObjs") == std::string::npos);
 }
 
-TEST_CASE("collision serial sites keep the wire bool writes and the address arm" * doctest::test_suite("regression"))
+TEST_CASE("collision serial sites keep the wire bool writes" * doctest::test_suite("regression"))
 {
     std::string sNetState;
     std::string sManager;
@@ -328,21 +289,16 @@ TEST_CASE("collision serial sites keep the wire bool writes and the address arm"
 
     CHECK(CountOf(sNetState, "group.Write((bool)mLastCollidedWithNonTerrain);") == 4);
     CHECK(CountOf(sNetState, "group.Write(mLastCollidedWithNonTerrain)") == 0);
-    CHECK(CountOf(sManager, "PblPtrAfter(pOther, pObject)") == 1);
     CHECK(CountOf(sManager, "CollisionSerialAfter(pOther, pObject)") == 1);
     CHECK(CountOf(sObject, "AssignCollisionSerial();") == 1);
     CHECK(sObject.find("    mProcedurallyAnimated = false;\n"
-                       "    if (PblGetSimOrder() == PBL_SIMORDER_SERIAL)\n"
-                       "    {\n"
-                       "        AssignCollisionSerial();\n"
-                       "    }\n")
+                       "    AssignCollisionSerial();\n")
           != std::string::npos);
     CHECK(sState.find("    Thread::Reset();\n    CollisionObject::ResetCollisionSerials();\n") != std::string::npos);
 }
 
 TEST_CASE("ordered list breaks equal keys fifo under serial order" * doctest::test_suite("regression"))
 {
-    SerialOrderScope scope;
     PblOrderedList<Thread, int> list;
     PblOrderedList<Thread, int>::Node aNodes[5];
     const int aiKey[] = { 2, 3, 3, 1, 3 };
@@ -362,32 +318,12 @@ TEST_CASE("ordered list breaks equal keys fifo under serial order" * doctest::te
 
 TEST_CASE("ordered list sentinel key stops at the head under serial order" * doctest::test_suite("regression"))
 {
-    SerialOrderScope scope;
     CheckSentinelStopsAtHead<int>(0x7FFFFFFF);
     CheckSentinelStopsAtHead<float>(2147483648.0f);
 }
 
-TEST_CASE("ordered list keeps address tie order under address order" * doctest::test_suite("regression"))
-{
-    AddressOrderScope scope;
-    PblOrderedList<Thread, int> list;
-    PblOrderedList<Thread, int>::Node aNodes[4];
-    for (int i = 3; i >= 0; --i)
-    {
-        list.Add(&aNodes[i], NULL, 3);
-    }
-
-    PblOrderedList<Thread, int>::Node* apGot[8];
-    REQUIRE(Walk(list, apGot, 8) == 4);
-    for (int i = 0; i < 4; ++i)
-    {
-        CHECK(apGot[i] == &aNodes[i]);
-    }
-}
-
 TEST_CASE("thread activation order ignores node addresses under serial order" * doctest::test_suite("regression"))
 {
-    SerialOrderScope scope;
     PblOrderedList<Thread, int> list;
     PblOrderedList<Thread, int>::Node aNodes[2];
     list.Add(&aNodes[1], NULL, 0);
@@ -405,7 +341,7 @@ TEST_CASE("thread activation key is set through one counter reader and reset" * 
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\Thread.cpp", sThread));
 
     CHECK(CountOf(sThread, "NextThreadActivationKey()") == 2);
-    CHECK(CountOf(sThread, "PblPtrOrderKey(this)") == 1);
+    CHECK(CountOf(sThread, "(int)this") == 0);
     CHECK(CountOf(sThread, "sThreadActivationKey") == 5);
     CHECK(sThread.find("return (int)(sThreadActivationKey < 0x7FFFFFFF ? sThreadActivationKey++ : sThreadActivationKey);") != std::string::npos);
     CHECK(sThread.find("pGroup->mThreads.Add(&mThreadListNode, this, NextThreadActivationKey());") != std::string::npos);
@@ -419,37 +355,16 @@ TEST_CASE("thread activation key is set through one counter reader and reset" * 
 
 TEST_CASE("wobble phase comes from the owner handle id under serial order" * doctest::test_suite("regression"))
 {
-    const unsigned int auiThis[] = { 0x1000u, 0x1004u, 0x103Cu, 0x7FFFFFFCu, 0x80000010u };
     const unsigned int auiId[] = { 0x13u, 0x20u, 0x7FFFu };
+    for (size_t j = 0; j < sizeof(auiId) / sizeof(auiId[0]); ++j)
     {
-        AddressOrderScope scope;
-        for (size_t i = 0; i < sizeof(auiThis) / sizeof(auiThis[0]); ++i)
-        {
-            const void* pThis = (const void*)(uintptr_t)auiThis[i];
-            for (size_t j = 0; j < sizeof(auiId) / sizeof(auiId[0]); ++j)
-            {
-                const GameObject* pOwner = RawOwner(&sRawGameObject, auiId[j]);
-                CHECK(WobblePhase(pOwner, pThis) == (float)((auiThis[i] >> 2) & 0xf));
-            }
-        }
+        const GameObject* pOwner = RawOwner(&sRawGameObject, auiId[j]);
+        CHECK(WobblePhase(pOwner) == (float)(auiId[j] & 0xf));
     }
-
-    {
-        SerialOrderScope scope;
-        for (size_t j = 0; j < sizeof(auiId) / sizeof(auiId[0]); ++j)
-        {
-            const GameObject* pOwner = RawOwner(&sRawGameObject, auiId[j]);
-            for (size_t i = 0; i < sizeof(auiThis) / sizeof(auiThis[0]); ++i)
-            {
-                const void* pThis = (const void*)(uintptr_t)auiThis[i];
-                CHECK(WobblePhase(pOwner, pThis) == (float)(auiId[j] & 0xf));
-            }
-        }
-        CheckFollowerOwnerPhase(sRawFlyer, 0x13u);
-        CheckFollowerOwnerPhase(sRawFlyer, 0x7FFFu);
-        CheckFollowerOwnerPhase(sRawCarrier, 0x20u);
-        CheckFollowerOwnerPhase(sRawCarrier, 0x7FFFu);
-    }
+    CheckFollowerOwnerPhase(sRawFlyer, 0x13u);
+    CheckFollowerOwnerPhase(sRawFlyer, 0x7FFFu);
+    CheckFollowerOwnerPhase(sRawCarrier, 0x20u);
+    CheckFollowerOwnerPhase(sRawCarrier, 0x7FFFu);
 }
 
 TEST_CASE("wobble sites route through the phase helper" * doctest::test_suite("regression"))
@@ -460,10 +375,10 @@ TEST_CASE("wobble sites route through the phase helper" * doctest::test_suite("r
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\EntityPathFollower.cpp", sFollower));
 
     const char* pcFlyerCall = "    float fTime = GameLoop::GetMissionTime() + "
-                              "WobblePhase(static_cast<const GameObject*>(this), this);";
+                              "WobblePhase(static_cast<const GameObject*>(this));";
     const char* pcFollowerCall = "    float fTime = GameLoop::GetMissionTime() +\n"
                                  "                  "
-                                 "WobblePhase(static_cast<const GameObject*>(static_cast<EntityFlyer*>(this)), this);";
+                                 "WobblePhase(static_cast<const GameObject*>(static_cast<EntityFlyer*>(this)));";
     CHECK(CountOf(sFlyer, pcFlyerCall) == 1);
     CHECK(CountOf(sFollower, pcFollowerCall) == 1);
     CHECK(CountOf(sFlyer, "WobblePhase(") == 1);
@@ -477,7 +392,6 @@ TEST_CASE("wobble sites route through the phase helper" * doctest::test_suite("r
 
 TEST_CASE("ordered list move keeps an unchanged key in place while a walk re-queues it" * doctest::test_suite("regression"))
 {
-    SerialOrderScope scope;
     PblOrderedList<Thread, float> list;
     PblOrderedList<Thread, float>::Node aNodes[4];
     list.Add(&aNodes[0], NULL, 1.0f);
@@ -547,7 +461,6 @@ TEST_CASE("controller update loop requeues through the ordered list move" * doct
 
 TEST_CASE("ordered list move ignores a node that is not in the list" * doctest::test_suite("regression"))
 {
-    SerialOrderScope scope;
     PblOrderedList<Thread, float> list;
     PblOrderedList<Thread, float>::Node aNodes[3];
     Thread* const pObject = reinterpret_cast<Thread*>(&aNodes[2]);

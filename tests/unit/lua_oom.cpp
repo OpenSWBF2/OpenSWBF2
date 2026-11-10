@@ -7,7 +7,7 @@
 #include "Battlefront2/Source/LuaMemory.h"
 #include "Battlefront2/Source/GameMemory.h"
 #include "RedEngineFL/Memory/RedMemory.h"
-#include "RedEngineFL/Memory/RedMemoryBackend.h"
+#include "RedEngineFL/Memory/RedMemoryMi.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 #include "LuaFL/include/lua.h"
 
@@ -65,31 +65,15 @@ int AllocSmall(lua_State* L)
 }
 
 alignas(16) char sacLuaMiRange[0x10000];
-int siBackendReallocs;
-RedHeapBackend skCountingMi;
-
-void* CountingRealloc(int heap, void* block, size_t oldSize, size_t size, size_t* pReserved, size_t* pOldCharge)
-{
-    ++siBackendReallocs;
-    return kRedMiBackend.realloc(heap, block, oldSize, size, pReserved, pOldCharge);
-}
-
 class MiLuaHeap
 {
 public:
     MiLuaHeap() : miSavedHeap(GameMemory::LuaHeap)
     {
-        const RedHeapBackend* pSaved = gRedHeapBackend;
-        gRedHeapBackend = &kRedMiBackend;
         miHeap = RedCreateHeap(sacLuaMiRange, sacLuaMiRange + sizeof(sacLuaMiRange), 4, "T1LuaMi");
-        gRedHeapBackend = pSaved;
-        skCountingMi = kRedMiBackend;
-        skCountingMi.realloc = CountingRealloc;
-        gRedHeapSlots[miHeap].pBackend = &skCountingMi;
         gRedHeapSlots[miHeap].cap = 0x1000000;
         GameMemory::LuaHeap = miHeap;
         LuaMemory::CreatePools(true);
-        siBackendReallocs = 0;
     }
 
     ~MiLuaHeap()
@@ -198,16 +182,19 @@ TEST_CASE("lua panic handler exits with code 4" * doctest::test_suite("regressio
     lua_close(L);
 }
 
-TEST_CASE("lua realloc uses the backend realloc for heap blocks only" * doctest::test_suite("regression"))
+TEST_CASE("lua realloc keeps a shrunk heap block in place and bin blocks on their path" * doctest::test_suite("regression"))
 {
     MiLuaHeap kHeap;
     unsigned char* pHeap = (unsigned char*)Lua_Red_realloc(0, 0, 2000);
     REQUIRE(pHeap);
     memset(pHeap, 0x3C, 2000);
-    unsigned char* pGrown = (unsigned char*)Lua_Red_realloc(pHeap, 2000, 3000);
+    unsigned char* pShrunk = (unsigned char*)Lua_Red_realloc(pHeap, 2000, 1500);
+    REQUIRE(pShrunk);
+    CHECK(pShrunk == pHeap);
+    CHECK(pShrunk[1499] == 0x3C);
+    unsigned char* pGrown = (unsigned char*)Lua_Red_realloc(pShrunk, 1500, 3000);
     REQUIRE(pGrown);
-    CHECK(siBackendReallocs == 1);
-    CHECK(pGrown[1999] == 0x3C);
+    CHECK(pGrown[1499] == 0x3C);
     unsigned char* pBin = (unsigned char*)Lua_Red_realloc(0, 0, 40);
     REQUIRE(pBin);
     CHECK(LuaMemory::LocatePool(40, pBin));
@@ -223,7 +210,6 @@ TEST_CASE("lua realloc uses the backend realloc for heap blocks only" * doctest:
     REQUIRE(pBinToBin);
     CHECK(LuaMemory::LocatePool(80, pBinToBin));
     CHECK(pBinToBin[39] == 0x4D);
-    CHECK(siBackendReallocs == 1);
     Lua_Red_Free(pBinToBin, 80);
     Lua_Red_Free(pGrown, 3000);
 }
@@ -238,7 +224,6 @@ TEST_CASE("lua realloc keeps the fill test hook on the heap path" * doctest::tes
     memset(p, 0x01, 2000);
     unsigned char* q = (unsigned char*)Lua_Red_realloc(p, 2000, 3000);
     REQUIRE(q);
-    CHECK(siBackendReallocs == 1);
     int iOldBad = 0;
     int iGrownBad = 0;
     for (int i = 0; i < 3000; ++i)
@@ -266,7 +251,6 @@ TEST_CASE("lua realloc keeps the pad test hook on the heap path" * doctest::test
     REQUIRE(p);
     char* q = (char*)Lua_Red_realloc(p, 2000, 3000);
     REQUIRE(q);
-    CHECK(siBackendReallocs == 1);
     const unsigned int uCharge = (unsigned int)(gRedHeapSlots[kHeap.miHeap].used - lBefore);
     CHECK(uCharge > LuaNeed(3000));
     CHECK(uCharge <= LuaNeed(3000 + 60));

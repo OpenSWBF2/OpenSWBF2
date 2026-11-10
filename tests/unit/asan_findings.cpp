@@ -1173,7 +1173,7 @@ TEST_CASE("walker without leg pairs never reads a leg pair turn state" * doctest
 
 static char sacReusedArena[0x1000];
 
-TEST_CASE("heap re-created over a reused arena is writable" * doctest::test_suite("regression"))
+TEST_CASE("heap re-created after destroy is writable" * doctest::test_suite("regression"))
 {
     char* pcEnd = sacReusedArena + sizeof(sacReusedArena);
     int iHeap = RedCreateHeap(sacReusedArena, pcEnd, 0x10, "ArenaReuse");

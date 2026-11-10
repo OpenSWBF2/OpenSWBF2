@@ -227,26 +227,6 @@ bool PblHandleRegistry::IsLive(const PblHandled* pKey, unsigned int uId)
     return Lookup(pKey, &uStored) && uStored == uId;
 }
 
-unsigned int PblHandleRegistry::CountInRange(const void* pStart, const void* pEnd)
-{
-    if (!sSlots)
-    {
-        return 0;
-    }
-    const uintptr_t uStart = (uintptr_t)pStart;
-    const uintptr_t uEnd = (uintptr_t)pEnd;
-    unsigned int uFound = 0;
-    for (unsigned int i = 0; i <= sMask; ++i)
-    {
-        const uintptr_t uKey = (uintptr_t)sSlots[i].pKey;
-        if (uKey && uKey >= uStart && uKey < uEnd)
-        {
-            ++uFound;
-        }
-    }
-    return uFound;
-}
-
 void PblHandleRegistry::PurgeIf(bool (*pfnMatch)(const void* pKey, void* pArg), void* pArg)
 {
     if (!sSlots || !pfnMatch)

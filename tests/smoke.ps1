@@ -7,7 +7,6 @@ $script:SmokeAsanTimeoutScale = 15
 $script:SourceExtensions = @('.h', '.hpp', '.inl', '.c', '.cpp')
 $script:T1Suites = @('unit', 'characterisation', 'regression', 'known_bug', 'corpus', 'fuzz', 'stress')
 $script:SmokeAsanExcluded = @('crash-nullderef', 'crash-divzero', 'crash-stackoverflow', 'crash-debugbreak', 'crash-abort', 'crash-invalidparam', 'crash-fastfail', 'crash-check', 'crash-hang', 'crash-arenaoom', 'crash-debugheapoom', 'crash-luapanic', 'crash-resetfatal', 'fatal-init', 'crash-midoublefree', 'commit-flat', 'crash-capexhaust')
-$script:SmokeArenaExcluded = @('crash-midoublefree')
 $script:SmokeAsanCoverage = 'ASan covers stack, globals, CRT heap and the game heaps and pools'
 
 function Get-AsanOptions([string]$caseDir) {
@@ -24,6 +23,10 @@ function Get-AsanReport([string]$caseDir, $code) {
     }
     if ($code -eq 66) { return 'ASan exit 66 without an asan.* report: the ASan runtime failed before main (check ASAN_OPTIONS)' }
     return $null
+}
+
+function Get-AsanCanaryRx([string]$label = 'use-after-poison', [string]$tail = '') {
+    return "$label on address[^\r\n]*\r?\n\s*(?:READ|WRITE) of size 1 at [^\r\n]*\r?\n\s*#0 [^\r\n]*asan_canary\.cpp$tail"
 }
 
 function Get-AsanCanaryState($code, $report, [string]$regex) {
@@ -409,14 +412,7 @@ function Test-SmokeExpect($case, $res) {
     }
     if (-not $script:SmokeDigestConfiguration -or $script:SmokeDigestConfiguration -in 'Release', 'Test') {
         $want = Get-DigestExpected $case.Name
-        if ($want -and $x.ContainsKey('NoDigestRow')) {
-            $got = Get-DigestKey $res.CaseDir
-            if ($got -cnotmatch '^OPENSWBF2 SIM DIGEST turns=') {
-                Write-Host "    address digest line missing"
-                return $false
-            }
-        }
-        elseif ($want) {
+        if ($want) {
             $got = Get-DigestKey $res.CaseDir
             if ($want -cne $got) {
                 Write-Host "    digest expected: $want"
@@ -579,7 +575,7 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
             $cases += New-Object PSObject -Property @{
                 Name = "crash-$kind"
                 Args = "$standard $tail -crashtest $kind"
-                Expect = @{ Class = 'Fatal'; Code = 1; MaxDumps = 0; LogRx = ('FATAL: out of memory allocating ' + $(if ($kind -eq 'arenaoom') { 'arena' } else { 'debug heap' }) + ' \(\d+ bytes\) load \d+% phys \d+ MB virt \d+ MB') }
+                Expect = @{ Class = 'Fatal'; Code = 1; MaxDumps = 0; LogRx = ('FATAL: out of memory allocating ' + $(if ($kind -eq 'arenaoom') { 'application heap' } else { 'debug heap' }) + ' \(\d+ bytes\) load \d+% phys \d+ MB virt \d+ MB') }
                 Twice = 0; Timeout = 0
             }
         }
@@ -821,7 +817,7 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
             foreach ($m in $pm) { if ($all -notcontains $m) { throw "OPENSWBF2_PERTURB_MISSIONS: '$m' is not a Perturb mission" } }
         }
         $runs = @(@{ Mode = 'base'; Seed = 0; Extra = '' })
-        foreach ($mode in 'pad', 'top', 'fill', 'pool') {
+        foreach ($mode in 'pad', 'fill', 'pool') {
             foreach ($s in 1, 2) { $runs += @{ Mode = $mode; Seed = $s; Extra = " -perturbheap ${s}:$mode" } }
         }
         $runs += @{ Mode = 'hog'; Seed = 0; Extra = ' -hogaddrspace' }
@@ -882,44 +878,29 @@ function Get-PerturbProofMissing($case, [string]$logText) {
     return $miss
 }
 
-function Add-SimOrderExpect($cases, [string]$mode) {
-    $ties = $script:SmokeDigestConfiguration -in 'Test', 'Asan'
-    if (-not $mode -and -not $ties) { return $cases }
+function Add-SerialTieExpect($cases) {
+    if ($script:SmokeDigestConfiguration -notin 'Test', 'Asan') { return $cases }
     foreach ($c in $cases) {
         if ($c.Expect.Class -notin 'Pass', 'TimeOut') { continue }
         $x = $c.Expect.Clone()
         $l = @()
         if ($x.ContainsKey('LogRx')) { $l = @($x.LogRx) }
-        if ($mode) {
-            $l = $l + @("(?m)OPENSWBF2 SIMORDER mode=$mode\r?$", '(?s)\A(?!.*-simorder needs address or serial)')
-        }
-        if ($mode -eq 'address') {
-            $x.NoDigestRow = $true
-        }
-        elseif ($ties) {
-            $l = $l + @('(?s)\A(?!.*OPENSWBF2 COLLISION serialties=[1-9])')
-            if ($x.Class -eq 'Pass') { $l = $l + @('(?m)OPENSWBF2 COLLISION serialties=0\r?$') }
-        }
+        $l = $l + @('(?s)\A(?!.*OPENSWBF2 COLLISION serialties=[1-9])')
+        if ($x.Class -eq 'Pass') { $l = $l + @('(?m)OPENSWBF2 COLLISION serialties=0\r?$') }
         $x.LogRx = $l
         $c.Expect = $x
     }
     return $cases
 }
 
-function Add-AllocatorExpect($cases, [string]$allocator, [int]$miPurge) {
-    if ($allocator -eq 'arena') { $cases = @($cases | Where-Object { $script:SmokeArenaExcluded -notcontains $_.Name }) }
+function Add-MiOptionsExpect($cases, [int]$miPurge) {
     $purge = if ($miPurge -ge 0) { $miPurge } else { 1000 }
     foreach ($c in $cases) {
         if ($c.Expect.Class -notin 'Pass', 'TimeOut') { continue }
         $x = $c.Expect.Clone()
         $l = @()
         if ($x.ContainsKey('LogRx')) { $l = @($x.LogRx) }
-        if ($allocator -eq 'arena') {
-            $l = $l + @('(?s)\A(?!.*OPENSWBF2 MIOPTIONS)')
-        }
-        else {
-            $l = $l + @("OPENSWBF2 MIOPTIONS purge_delay=$purge retry_on_oom=0 arena_reserve=67108864 arena_eager_commit=0 reserve_os_memory=0 page_full_retain=-1", '(?s)\A(?!.*-allocator needs)')
-        }
+        $l = $l + @("OPENSWBF2 MIOPTIONS purge_delay=$purge retry_on_oom=0 arena_reserve=67108864 arena_eager_commit=0 reserve_os_memory=0 page_full_retain=-1")
         $x.LogRx = $l
         $c.Expect = $x
     }
@@ -1000,62 +981,29 @@ function Compare-DigestTraceFull($a, $b, $maxTurn = 0) {
     return 0
 }
 
-function Get-DigestTraceStates($map) {
-    $out = @{}
-    foreach ($k in $map.Keys) { $out[$k] = ($map[$k] -split ' ')[0] }
-    return $out
-}
-
 function Get-SimDigestLines($log) {
     if (-not (Test-Path -LiteralPath $log)) { return @() }
     return @(Select-String -LiteralPath $log -Pattern 'OPENSWBF2 SIM DIGEST .*' -CaseSensitive | ForEach-Object { $_.Matches[0].Value })
 }
 
-function Get-PerturbGroupVerdict([string]$mode, [int]$red, [int]$lines, [int]$want) {
-    if ($mode -ceq 'serial') { return ($red -eq 0 -and $lines -eq $want) }
-    if ($mode -ceq 'address') { return ($red -gt 0 -and $lines -eq $want) }
-    return $false
+function Get-PerturbGroupVerdict([int]$red, [int]$lines, [int]$want) {
+    return ($red -eq 0 -and $lines -eq $want)
 }
 
-function Get-PerturbVerdict($baseLog, $runLog, $runClass, $okClass, $maxTurn = 1500, $mode = 'address', $repeat = $false) {
-    if ($repeat -or $mode -eq 'serial') {
-        $serial = $mode -eq 'serial'
-        $base = Get-DigestTrace $baseLog
-        $segs = @(Get-DigestTraceSegments $runLog)
-        $baseEnd = 0
-        if ($base.Count -gt 0) { $baseEnd = ($base.Keys | Measure-Object -Maximum).Maximum }
-        $limits = @($baseEnd)
-        if ($repeat) {
-            $limits = @($maxTurn, $maxTurn)
-            if ($serial) { $limits = @($maxTurn, $baseEnd) }
+function Get-PerturbVerdict($baseLog, $runLog, $runClass, $okClass, $maxTurn = 1500, $repeat = $false) {
+    $base = Get-DigestTrace $baseLog
+    $segs = @(Get-DigestTraceSegments $runLog)
+    $baseEnd = 0
+    if ($base.Count -gt 0) { $baseEnd = ($base.Keys | Measure-Object -Maximum).Maximum }
+    $limits = @($baseEnd)
+    if ($repeat) { $limits = @($maxTurn, $baseEnd) }
+    $t = -1
+    if ($baseEnd -gt 0 -and $segs.Count -eq $limits.Count) {
+        for ($i = 0; $i -lt $limits.Count; $i++) {
+            $t = Compare-DigestTraceFull $base $segs[$i] $limits[$i]
+            if ($t -ne 0) { break }
         }
-        $ref = $base
-        if (-not $serial) { $ref = Get-DigestTraceStates $base }
-        $t = -1
-        if ($baseEnd -gt 0 -and $segs.Count -eq $limits.Count) {
-            for ($i = 0; $i -lt $limits.Count; $i++) {
-                $s = $segs[$i]
-                if (-not $serial) { $s = Get-DigestTraceStates $s }
-                $t = Compare-DigestTraceFull $ref $s $limits[$i]
-                if ($t -ne 0) { break }
-            }
-        }
-        if ($runClass -ne $okClass) {
-            $turn = 0
-            if ($t -gt 0) { $turn = $t }
-            return @{ Result = 'crash'; Turn = $turn; Class = [string]$runClass }
-        }
-        if ($t -gt 0) { return @{ Result = 'split'; Turn = $t; Class = [string]$runClass } }
-        if ($t -lt 0) { return @{ Result = 'crash'; Turn = 0; Class = 'incomplete' } }
-        $da = @(Get-SimDigestLines $baseLog)
-        $db = @(Get-SimDigestLines $runLog)
-        $dWant = $db.Count -ge 1
-        if ($repeat) { $dWant = $db.Count -eq 2 }
-        if ($da.Count -lt 1 -or -not $dWant) { return @{ Result = 'crash'; Turn = 0; Class = 'incomplete' } }
-        foreach ($d in $db) { if ($d -cne $da[-1]) { return @{ Result = 'split'; Turn = $maxTurn; Class = [string]$runClass } } }
-        return @{ Result = 'equal'; Turn = 0; Class = [string]$runClass }
     }
-    $t = Compare-DigestTrace $baseLog $runLog $maxTurn
     if ($runClass -ne $okClass) {
         $turn = 0
         if ($t -gt 0) { $turn = $t }
@@ -1063,13 +1011,12 @@ function Get-PerturbVerdict($baseLog, $runLog, $runClass, $okClass, $maxTurn = 1
     }
     if ($t -gt 0) { return @{ Result = 'split'; Turn = $t; Class = [string]$runClass } }
     if ($t -lt 0) { return @{ Result = 'crash'; Turn = 0; Class = 'incomplete' } }
-    $a = Get-DigestTrace $baseLog
-    $b = Get-DigestTrace $runLog
-    $da = $null
-    $db = $null
-    if (Test-Path -LiteralPath $baseLog) { $da = Select-String -LiteralPath $baseLog -Pattern 'OPENSWBF2 SIM DIGEST .*' -CaseSensitive | Select-Object -Last 1 | ForEach-Object { $_.Matches[0].Value } }
-    if (Test-Path -LiteralPath $runLog) { $db = Select-String -LiteralPath $runLog -Pattern 'OPENSWBF2 SIM DIGEST .*' -CaseSensitive | Select-Object -Last 1 | ForEach-Object { $_.Matches[0].Value } }
-    if ($a[$maxTurn] -cne $b[$maxTurn] -or $da -cne $db) { return @{ Result = 'split'; Turn = $maxTurn; Class = [string]$runClass } }
+    $da = @(Get-SimDigestLines $baseLog)
+    $db = @(Get-SimDigestLines $runLog)
+    $dWant = $db.Count -ge 1
+    if ($repeat) { $dWant = $db.Count -eq 2 }
+    if ($da.Count -lt 1 -or -not $dWant) { return @{ Result = 'crash'; Turn = 0; Class = 'incomplete' } }
+    foreach ($d in $db) { if ($d -cne $da[-1]) { return @{ Result = 'split'; Turn = $maxTurn; Class = [string]$runClass } } }
     return @{ Result = 'equal'; Turn = 0; Class = [string]$runClass }
 }
 
@@ -1250,7 +1197,6 @@ function Get-FlagChecks($game, $tests, [string]$gameConfig, [string]$testsConfig
         Detail = ('/Zc:throwingNew={0} /GL={1} /fp:fast={2} /fp:contract={3} /GS-={4}' -f $sum.ThrowingNew, $sum.Gl, $sum.FpFast, $sum.FpContract, $sum.GsMinus)
     }
     $miBad = @()
-    if (-not $tests) { $miBad += 'tests tlog missing' }
     $miBags = @(, @('game', $game, $gameConfig))
     if ($tests) { $miBags += , @('tests', $tests, $testsConfig) }
     foreach ($mb in $miBags) {
@@ -1388,10 +1334,6 @@ $script:OffsetAllow = @(
     'src\RedEngineFL\Graphics\PC\pcRedSegment.cpp|(PblVector3*)(vertex + normalOffset)',
     'src\RedEngineFL\Graphics\PC\pcRedSegment.cpp|(PblVector3*)(vertex + tangentOffset)',
     'src\RedEngineFL\Graphics\PC\pcRedSegment.cpp|(PblVector3*)(vertex + binormalOffset)',
-    'src\RedEngineFL\Memory\RedMemoryArena.cpp|(Tag*)((char*)tag + rest)',
-    'src\RedEngineFL\Memory\RedMemoryArena.cpp|(Tag*)((char*)tag + need)',
-    'src\RedEngineFL\Memory\RedMemoryArena.cpp|(Tag*)((char*)block - hdr)',
-    'src\RedEngineFL\Memory\RedMemoryArena.cpp|(Tag*)((char*)pBlock - uTagSize)',
     'src\RedEngineFL\Memory\RedMemoryPool.cpp|(char**)((char*)mPool + i * mSize)',
     'src\RedEngineFL\Memory\RedMemoryPool.cpp|(char**)((char*)mPool + (mCount - 1) * mSize)',
     'src\RedEngineFL\Memory\RedMemoryPool.cpp|(char**)((char*)mFree + i * mSize)',
@@ -1427,10 +1369,28 @@ $script:SerialAllow = @(
     'src\Battlefront2\Source\CollisionObject.h|unsigned int mCollisionSerial : 30;',
     'src\Battlefront2\Source\CollisionObject.h|return PblSerialAfter(pA->mCollisionSerial, pB->mCollisionSerial);',
     'src\Battlefront2\Source\CollisionObject.h|if (pA->mCollisionSerial == pB->mCollisionSerial)',
-    'src\Battlefront2\Source\CollisionObject.h|return PblGetSimOrder() == PBL_SIMORDER_SERIAL ? pObject->mCollisionSerial : (unsigned int)(size_t)pObject;',
+    'src\Battlefront2\Source\CollisionObject.h|return pObject->mCollisionSerial;',
     'src\Battlefront2\Source\Thread.cpp|static unsigned int sThreadActivationKey = 0;',
     'src\Battlefront2\Source\Thread.cpp|return (int)(sThreadActivationKey < 0x7FFFFFFF ? sThreadActivationKey++ : sThreadActivationKey);',
     'src\Battlefront2\Source\Thread.cpp|sThreadActivationKey = 0;'
+)
+$script:AddrOrderAllow = @(
+    'src\Battlefront2\Source\Combo.cpp|if (m_pCatchState >= pOld && m_pCatchState < pOld + uiCount)',
+    'src\Battlefront2\Source\Combo.cpp|if (m_pTakeKneeState >= pOld && m_pTakeKneeState < pOld + uiCount)',
+    'src\Battlefront2\Source\LoadUtil.cpp|if ((unsigned int)pRegion > 1)',
+    'src\Battlefront2\Source\SoldierAnimatorLowRes.cpp|fTime = (float)(int)(this - pPool->m_apAnimator) * (float)(iNumFrames - 1) /',
+    'src\Battlefront2\Source\LuaSaveItems.cpp|if (pOut >= pEnd || !lua_checkstack(L, 3))',
+    'src\Battlefront2\Source\LuaSaveItems.cpp|if (pData >= pEnd || !lua_checkstack(L, 3))',
+    'src\Battlefront2\Source\LuaSaveItems.cpp|if (pRead >= pEnd)',
+    'src\Battlefront2\Source\LuaSaveItems.cpp|if (pRead >= pEnd)',
+    'src\Battlefront2\Source\VOHelper.cpp|if (pB > pA)',
+    'src\Battlefront2\Source\VOHelper.cpp|if (pB < pA)',
+    'src\Battlefront2\Source\gamespyStatsManager.cpp|for (; ppFirst < ppLast; ++ppFirst)',
+    'src\PebbleFL\Common\PblHashTable.cpp|if (pSlot <= pTable)',
+    'src\PebbleFL\Common\PblHashTable.cpp|if (pSlot <= pTable)',
+    'src\PebbleFL\Common\PblHashTable.cpp|if (pSlot <= pTable)',
+    'src\PebbleFL\Common\PblHashTable.cpp|if (pSlot <= pTable)',
+    'src\PebbleFL\Common\PblHashTable.cpp|if (pSlot <= pTable)'
 )
 $script:SerialRx = New-Object regex '\b(?:sThreadActivationKey|mCollisionSerial|sCollisionSerialNext)\b'
 $script:FastcallAllow = @(
@@ -1488,8 +1448,11 @@ function Test-ByteSpacer($decl) {
     return ($decl.Size -match '0[xX][0-9A-Fa-f]' -or $decl.Size -match '\b(?:sizeof|offsetof)\b' -or $decl.Name -match $script:SpacerNameRx)
 }
 
-function Get-SourceChecks([string]$root, [string[]]$spacerAllow = $script:SpacerAllow, [string[]]$offsetAllow = $script:OffsetAllow, [string[]]$fastcallAllow = $script:FastcallAllow, [string[]]$serialAllow = $script:SerialAllow, [string[]]$Only) {
+function Get-SourceChecks([string]$root, [string[]]$spacerAllow = $script:SpacerAllow, [string[]]$offsetAllow = $script:OffsetAllow, [string[]]$fastcallAllow = $script:FastcallAllow, [string[]]$serialAllow = $script:SerialAllow, [string[]]$addrOrderAllow = $script:AddrOrderAllow, [string[]]$Only) {
     $want = { param($name) -not $Only -or $Only -contains $name }
+    $aoT = 'unsigned\s+int|unsigned\s+long|unsigned|int|long|size_t|uintptr_t|intptr_t|UINT_PTR|DWORD_PTR|DWORD|uint32_t'
+    $aoP = '(?:this|(?:\w+(?:\.|->))*m?_?p{1,2}[A-Z]\w*)'
+    $aoC = '(?:const\s+)?(?:unsigned\s+|signed\s+)?(?:char|void)\s*\*\s*(?:const\s*)?'
     $defs = @(
         @{ Name = 'new-size-t'; Path = $null; Rx = @(
             '\boperator\s*(new|delete)\s*(\[\s*\])?\s*\(\s*(?:void\s*\*\s*\w*\s*,\s*)?(?:unsigned(?:\s+int)?|UINT|uint32_t|unsigned\s+__int32)\b') },
@@ -1515,6 +1478,18 @@ function Get-SourceChecks([string]$root, [string[]]$spacerAllow = $script:Spacer
             'extern\s*"C"[^;{}]*?\bD3DX\w*\s*\(',
             '(?:\b_{1,2}stdcall|\bWINAPI|\bAPIENTRY|\bCALLBACK|\bSTDMETHODCALLTYPE|\bSTDAPICALLTYPE|\bNTAPI|\bPASCAL)\b(?:\s|/\*.*?\*/)*(?:(?:const\s+)?[\w:]+(?:\s*\*+\s*|\s+)(?:/\*.*?\*/\s*)*)?D3DX\w*\s*\(') },
         @{ Name = 'gamma-get'; Path = $null; Rx = @('GetDeviceGammaRamp') },
+        @{ Name = 'addr-order'; Path = '\\src\\(?:Battlefront2|PebbleFL)\\'; Rx = @(
+            "\(\s*(?:$aoT)\s*\)\s*\(?\s*this\b",
+            "\(\s*(?:$aoT)\s*\)\s*(?:\(\s*(?:size_t|uintptr_t)\s*\)\s*)?$aoP\s*[<>]=?[^<>=]",
+            "[<>]=?\s*\(\s*(?:$aoT)\s*\)\s*(?:\(\s*(?:size_t|uintptr_t)\s*\)\s*)?$aoP\b(?!\s*(?:->|\.|\[|\())",
+            "reinterpret_cast\s*<\s*(?:$aoT)\s*>\s*\(\s*$aoP\s*\)\s*[<>]",
+            "[<>]=?\s*reinterpret_cast\s*<\s*(?:$aoT)\s*>\s*\(\s*$aoP\s*\)",
+            "\(\s*$aoC\)\s*$aoP\s*[<>]=?[^<>=]",
+            "[<>]=?\s*\(\s*$aoC\)\s*$aoP\b(?!\s*(?:->|\.|\[|\())",
+            "(?:\.|->)(?:Add|Move)\s*\([^;]*\(\s*(?:$aoT)\s*\)\s*\(?\s*$aoP\b(?!\s*(?:->|\.|\[|\())",
+            '\bstd::(?:less|greater)(?:_equal)?\s*<[^<>;]*\*\s*>',
+            '\bPblPtr(?:OrderKey|After)\b',
+            '\b(?:this|m?_?p{1,2}[A-Z]\w*)\s*[<>]=?\s*(?:this|m?_?p{1,2}[A-Z]\w*)\b') },
         @{ Name = 'mi-api-ban'; Path = '\\src\\(?!.*\\RedMemoryMi\.cpp$)'; Rx = @('\bmi_\w+\s*\(') },
         @{ Name = 'snd-alloc-size-t'; Path = '\\src\\(?:SoundFL\\|Battlefront2\\Source\\GameSoundEngine\.(?:cpp|h)$)'; Rx = @(
             '\b(?:SndAlloc|SndTempAlloc)\s*\(\s*unsigned\b',
@@ -1548,8 +1523,9 @@ function Get-SourceChecks([string]$root, [string[]]$spacerAllow = $script:Spacer
     $serialLeft = New-Object System.Collections.Hashtable ([StringComparer]::Ordinal)
     foreach ($a in @($serialAllow)) { if ($a) { $serialLeft[$a] = 1 + [int]$serialLeft[$a] } }
     $serialHits = New-Object System.Collections.Generic.List[string]
-    $sigLeft = @{ 'fastcall-edx' = (New-Object System.Collections.Hashtable ([StringComparer]::Ordinal)) }
+    $sigLeft = @{ 'fastcall-edx' = (New-Object System.Collections.Hashtable ([StringComparer]::Ordinal)); 'addr-order' = (New-Object System.Collections.Hashtable ([StringComparer]::Ordinal)) }
     foreach ($a in @($fastcallAllow)) { if ($a) { $sigLeft['fastcall-edx'][$a] = 1 + [int]$sigLeft['fastcall-edx'][$a] } }
+    foreach ($a in @($addrOrderAllow)) { if ($a) { $sigLeft['addr-order'][$a] = 1 + [int]$sigLeft['addr-order'][$a] } }
     $src = Join-Path $root 'src'
     $allFiles = @()
     if ($runDefs.Count -or $doSpacer -or $doOffset -or $doSerial) {

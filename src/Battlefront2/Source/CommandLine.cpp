@@ -26,7 +26,6 @@
 #include "RedEngineFL/Interface/RedFont.h"
 #include "RedEngineFL/Util/RedLocalizeDB.h"
 #include "PebbleFL/Common/PblMath.h"
-#include "PebbleFL/Common/PblSimOrder.h"
 
 extern bool mSafeMode;
 
@@ -68,7 +67,6 @@ bool gNoFocusPause;
 bool gAllowUploads = LocalLimits::kUploadsDefault;
 bool gSeedSet;
 unsigned int gSeed;
-static bool sbSimOrderBad;
 static bool sbNoVictoryNetLogged;
 static unsigned int suTestOnlyIgnored;
 static char const* const sapcTestOnlyArgs[] = { "perturbheap", "repeatmission", "shellfirst", "exitonmovieclose" };
@@ -325,11 +323,6 @@ void ParseCommandLine(char const* pcAppName, char const* pcCmdLine)
     ParseCommandLine(iArgc, apcArgv);
 }
 
-bool SimOrderArgRejected()
-{
-    return sbSimOrderBad;
-}
-
 bool NoVictoryActive()
 {
     if (!gNoVictory)
@@ -376,7 +369,6 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
     _snprintf(acBuf, 0x7F, "%i Arguments Found\n", iArgc - 1);
 
     HUD::gScreenGroupEditEnabled = false;
-    sbSimOrderBad = false;
     gNoVictory = false;
     sbNoVictoryNetLogged = false;
     suTestOnlyIgnored = 0;
@@ -488,27 +480,6 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             continue;
         }
 
-        if (_stricmp(pcArg + 1, "simorder") == 0)
-        {
-            const char* pcValue = i + 1 < iArgc ? apcArgv[i + 1] : 0;
-            PblSimOrderMode eMode = PBL_SIMORDER_ADDRESS;
-            if (PblParseSimOrder(pcValue, &eMode))
-            {
-                ++i;
-                PblSetSimOrder(eMode);
-                sbSimOrderBad = false;
-            }
-            else
-            {
-                sbSimOrderBad = true;
-                if (pcValue && pcValue[0] != '-')
-                {
-                    ++i;
-                }
-            }
-            continue;
-        }
-
         if (_stricmp(pcArg + 1, "factorylog") == 0)
         {
             gFactoryLog = true;
@@ -550,7 +521,17 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             continue;
         }
 
-        if (_stricmp(pcArg + 1, "allocator") == 0 || _stricmp(pcArg + 1, "mipurge") == 0)
+        if (_stricmp(pcArg + 1, "simorder") == 0 || _stricmp(pcArg + 1, "allocator") == 0)
+        {
+            LOG(LogCore, Warning, "-%s was removed, ignored", pcArg + 1);
+            if (i + 1 < iArgc && apcArgv[i + 1][0] != '-')
+            {
+                ++i;
+            }
+            continue;
+        }
+
+        if (_stricmp(pcArg + 1, "mipurge") == 0)
         {
             if (i + 1 < iArgc && apcArgv[i + 1][0] != '-')
             {
@@ -574,7 +555,7 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             {
                 ++i;
                 while (i + 1 < iArgc &&
-                       (_stricmp(apcArgv[i + 1], "pad") == 0 || _stricmp(apcArgv[i + 1], "top") == 0 ||
+                       (_stricmp(apcArgv[i + 1], "pad") == 0 ||
                         _stricmp(apcArgv[i + 1], "fill") == 0 || _stricmp(apcArgv[i + 1], "pool") == 0))
                 {
                     ++i;

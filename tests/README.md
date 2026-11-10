@@ -34,10 +34,8 @@ This builds the tests, then runs each case in its own process and the Standard s
 | `-SmokeTimeout` | per-case seconds for smoke runs (default 120) |
 | `-Jobs N` | parallel smoke workers (default: half the logical processors, at most 8) |
 | `-Movies` | run with the renderer instead of `-norender` |
-| `-HogAddrSpace` | force the arena above 2 GB |
-| `-SimOrder` | pass `-simorder address` or `-simorder serial` to every smoke case (the game defaults to `serial`); every case that is expected to pass or time out must log `OPENSWBF2 SIMORDER mode=<mode>` and no `-simorder` warning; `address` checks only that a digest line exists, not its row. In Test and Asan, unless `address`, a case fails on `OPENSWBF2 COLLISION serialties=` above 0 |
+| `-HogAddrSpace` | force the first allocator region above 2 GB |
 | `-FactoryLog` | pass `-factorylog` to every smoke case, so each run logs its `OPENSWBF2 FACTORY` counts |
-| `-Allocator` | `arena` or `mimalloc`, passed as `-allocator` to every smoke case (the game defaults to `mimalloc`); under `arena` no case may log `OPENSWBF2 MIOPTIONS` and `crash-midoublefree` is skipped, otherwise every case that is expected to pass or time out must log it |
 | `-MiPurge` | pass `-mipurge <ms>` to every smoke case; the expected `OPENSWBF2 MIOPTIONS` line then carries `purge_delay=<ms>` |
 | `-Hardening` | run only the hardening checks |
 | `-Clean` | delete the staged output folders and any junctions left under `artifacts` safely, and exit |
@@ -60,12 +58,12 @@ Parallel workers run from fixed paths under `artifacts\smoke-workers\<Config>\`.
 
 | Group | What it runs |
 |-------|--------------|
-| `Standard` | geo1c_con, plus the display-switch cases and the digest cases |
+| `Standard` | geo1c_con, `heapcap`, the display-switch cases and the digest cases |
 | `Twice` | the same missions twice with a fixed seed; the results and digest traces must match |
 | `Dedicated` | dedicated-server cases |
-| `Crash` | deliberate faults through `-crashtest <kind>`; each must leave the expected exit code, log line and dump |
-| `All` | every mission in `tests\smoke\missions-all.txt` (`<mission> [<class>] [<seconds>]`), plus Dedicated and Crash |
-| `Perturb` | Test or Asan only: six digest missions, each as a base run, under `-perturbheap` pad/top/fill/pool (seeds 1 and 2), `-hogaddrspace` and `-repeatmission`; under `serial` every traced turn must equal its base line for line; under `address` only `state=` through turn 1500 is compared and at least one run must split; writes `perturb.tsv` |
+| `Crash` | deliberate faults through `-crashtest <kind>`, including `crash-capexhaust`, `pool-full` and `pool-full-strict`; each must leave the expected exit code, log line and dump |
+| `All` | every mission in `tests\smoke\missions-all.txt` (`<mission> [<class>] [<seconds>]`), plus Dedicated and Crash; a Release run then compares digests, non-Lua mem-peaks and CLOTH against the tables in `tests\baseline\v143` through `compare-tables.ps1` and fails on any moved row |
+| `Perturb` | Test or Asan only: six digest missions, each as a base run, under `-perturbheap` pad/fill/pool (seeds 1 and 2), `-hogaddrspace` and `-repeatmission`; every traced turn must equal its base line for line; writes `perturb.tsv` |
 
 A case fails on any Error, Bug or Fatal line in its `run.log` unless a regex in `tests\smoke\expected-errors.txt` covers it. In T1, declare an expected error with `ExpectLog("text")` or `ExpectEnsure("text")`.
 
@@ -79,7 +77,7 @@ At turn 1500 the game logs `OPENSWBF2 SIM DIGEST ...`, a hash of the simulation 
 
 `-novictory` makes `MissionVictory` and `MissionDefeat` do nothing, so a mission runs until the watchdog, and logs `OPENSWBF2 NOVICTORY`. It has no effect in a network game and logs one Warning there. `All` runs every `_1flag`, `_ctf` and `_ass` mission without a digest row with `-novictory` and expects `TimeOut`; such a line marked `Pass` is rejected.
 
-`-perturbheap <seed>[:pad,top,fill,pool]` (Test and Asan builds only) pads, top-allocates, 0xA5-fills or shuffles heap and pool blocks from a seeded generator; with no mode list all four are on.
+`-perturbheap <seed>[:pad,fill,pool]` (Test and Asan builds only) pads, 0xA5-fills or shuffles heap and pool blocks from a seeded generator; with no mode list all three are on.
 
 `-repeatmission` (Test and Asan builds only, with `-exitongameover`) sends the first mission back to the shell after its turn-1500 digest and plays it again; the second run logs its own digest and exits. Without `-exitongameover` it logs a warning and is ignored. If the first run ends before turn 1500, it logs `OPENSWBF2 REPEAT skipped` and exits after that run. `-repeatmission N` with N from 1 to 8 replays the mission N times, so `commit-flat` (N = 2) plays it three times.
 
@@ -92,6 +90,12 @@ Every state cleanup logs `OPENSWBF2 COMMIT state=<mission|shell> bytes=<n>`, the
 `-exitonmovieclose` (Test and Asan builds only, with `-exitongameover`) ends the run once the mission is running and a Bink movie has closed (`OPENSWBF2 MOVIE close`). The Test Standard group runs `campaign-movies`, `nab2g_c` with rendering and sound on and this switch, which must log `OPENSWBF2 MOVIE open`, `OPENSWBF2 MOVIE close` and, in the exit report, `OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0`.
 
 Other builds skip `-perturbheap`, its value, `-repeatmission`, `-shellfirst` and `-exitonmovieclose`, and log `-<switch> needs a Test or Asan build, ignored`.
+
+### Game switches
+
+- `-heapcap <Name>=<bytes>[K|M]` raises a named heap's cap.
+- `-mipurge <ms>` sets the mimalloc purge delay.
+- `-poolerrors` makes a pool that overflows and grows an Error.
 
 ## ASan
 
@@ -144,6 +148,7 @@ The hardening step checks the exe's security flags (ASLR, DEP, LAA, SafeSEH, `/G
 | `snd-alloc-size-t` | `SndAlloc`, `SndTempAlloc` or a sound allocator function pointer with a 32-bit size type |
 | `galaxy-getter-cast` | a Galaxy getter returning `void*`, or a cast or `void*` temporary on a Galaxy getter's result |
 | `t1-suite` | a test case that `run.ps1` would never run |
+| `addr-order` | a cast of `this` or a pointer to an integer, `char*` or `void*` for ordering, a pointer cast to an integer as an `Add(`/`Move(` key, a pointer relational compare, `std::less`/`std::greater` on a pointer type, or `PblPtrOrderKey`/`PblPtrAfter`, under `src\Battlefront2` and `src\PebbleFL`, outside `$script:AddrOrderAllow` (`smoke.ps1`); pointers are found by name (`this`, `p` and `pp` prefixes), so a pointer named otherwise is not caught |
 
 ## Gate tiers
 
@@ -166,4 +171,5 @@ By default it re-runs only the rows whose dependencies changed since their recor
 - `tests\x64-census.ps1 -Name census-N` counts x64 warnings and errors on scratch copies of the projects. The output goes to `tests\baseline\census`.
 - `tests\laa-compare.ps1` compares runs with and without `/LARGEADDRESSAWARE`.
 - `tests\baseline\capture-vs2013.ps1` captured the VS2013 reference before the move to v143.
+- `tests\baseline\compare-tables.ps1 -Tables <dir>` compares captured digests, non-Lua mem-peaks and CLOTH against `tests\baseline\v143`.
 - `tests\corpus\README.md` describes the float-parse and math corpora.

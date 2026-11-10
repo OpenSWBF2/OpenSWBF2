@@ -112,21 +112,9 @@ bool ReadWholeFile(const std::string& sPath, std::string& sOut)
     return bOk;
 }
 
-struct RetailOrderGuard
-{
-    explicit RetailOrderGuard(int iSerial)
-    {
-        lua_setinsertionorder(iSerial);
-    }
-    ~RetailOrderGuard()
-    {
-        lua_setinsertionorder(0);
-    }
-};
-
 struct RetailState
 {
-    explicit RetailState(int iSerial) : kGuard(iSerial), L(lua_open()) {}
+    RetailState() : L(lua_open()) {}
     ~RetailState()
     {
         if (L)
@@ -135,14 +123,8 @@ struct RetailState
         }
     }
 
-    RetailOrderGuard kGuard;
     lua_State* L;
 };
-
-const char* RetailOrderName(int iSerial)
-{
-    return iSerial ? "serial" : "address";
-}
 
 int WriteToString(lua_State*, const void* p, size_t sz, void* ud)
 {
@@ -572,40 +554,35 @@ TEST_CASE("lua retail scripts pass the verifier" * doctest::test_suite("unit"))
     SKIP_IF(sRoot.empty(), "data/scripts not found");
     std::vector<RetailScript> akIndex;
     REQUIRE(ReadRetailIndex(sRoot, akIndex));
-    for (int iSerial = 0; iSerial < 2; ++iSerial)
+    RetailState kState;
+    lua_State* L = kState.L;
+    REQUIRE(L);
+    for (int iStrip = 0; iStrip < 2; ++iStrip)
     {
-        const char* pcOrder = RetailOrderName(iSerial);
-        INFO("order " << pcOrder);
-        RetailState kState(iSerial);
-        lua_State* L = kState.L;
-        REQUIRE(L);
-        for (int iStrip = 0; iStrip < 2; ++iStrip)
+        std::vector<std::string> asChunks;
+        std::vector<std::string> asNames;
+        INFO("strip " << iStrip);
+        REQUIRE(DumpDataScripts(L, sRoot, iStrip != 0, asChunks, asNames));
+        CHECK(asChunks.size() == akIndex.size());
+        std::set<std::string> sListed;
+        for (size_t i = 0; i < asNames.size(); ++i)
         {
-            std::vector<std::string> asChunks;
-            std::vector<std::string> asNames;
-            INFO("strip " << iStrip);
-            REQUIRE(DumpDataScripts(L, sRoot, iStrip != 0, asChunks, asNames));
-            CHECK(asChunks.size() == akIndex.size());
-            std::set<std::string> sListed;
-            for (size_t i = 0; i < asNames.size(); ++i)
-            {
-                sListed.insert(LowerCase("data/scripts/" + asNames[i]));
-            }
-            for (size_t i = 0; i < akIndex.size(); ++i)
-            {
-                INFO(akIndex[i].sSource);
-                CHECK(sListed.count(LowerCase(akIndex[i].sSource)) == 1);
-            }
-            for (size_t i = 0; i < asChunks.size(); ++i)
-            {
-                std::string sChunkName = "=" + asNames[i];
-                int iStatus = luaL_loadbuffer(L, asChunks[i].data(), asChunks[i].size(), sChunkName.c_str());
-                const char* pcMsg = iStatus != 0 ? lua_tostring(L, -1) : 0;
-                std::string sMsg = pcMsg ? pcMsg : "";
-                INFO(asNames[i] << ": " << sMsg);
-                CHECK(iStatus == 0);
-                lua_settop(L, 0);
-            }
+            sListed.insert(LowerCase("data/scripts/" + asNames[i]));
+        }
+        for (size_t i = 0; i < akIndex.size(); ++i)
+        {
+            INFO(akIndex[i].sSource);
+            CHECK(sListed.count(LowerCase(akIndex[i].sSource)) == 1);
+        }
+        for (size_t i = 0; i < asChunks.size(); ++i)
+        {
+            std::string sChunkName = "=" + asNames[i];
+            int iStatus = luaL_loadbuffer(L, asChunks[i].data(), asChunks[i].size(), sChunkName.c_str());
+            const char* pcMsg = iStatus != 0 ? lua_tostring(L, -1) : 0;
+            std::string sMsg = pcMsg ? pcMsg : "";
+            INFO(asNames[i] << ": " << sMsg);
+            CHECK(iStatus == 0);
+            lua_settop(L, 0);
         }
     }
 }
@@ -620,37 +597,32 @@ TEST_CASE("lua retail lvl chunks pass the verifier" * doctest::test_suite("unit"
     std::string sDir = std::string(FindGameDataRoot()) + "\\data\\_lvl_pc";
     std::vector<std::string> asFiles;
     ListFilesRecursive(sDir, std::string(), ".lvl", asFiles);
-    for (int iSerial = 0; iSerial < 2; ++iSerial)
+    RetailState kState;
+    lua_State* L = kState.L;
+    REQUIRE(L);
+    int iChunks = 0;
+    std::set<std::string> sFound;
+    for (size_t i = 0; i < asFiles.size(); ++i)
     {
-        const char* pcOrder = RetailOrderName(iSerial);
-        INFO("order " << pcOrder);
-        RetailState kState(iSerial);
-        lua_State* L = kState.L;
-        REQUIRE(L);
-        int iChunks = 0;
-        std::set<std::string> sFound;
-        for (size_t i = 0; i < asFiles.size(); ++i)
-        {
-            LvlWalk kWalk;
-            kWalk.L = L;
-            kWalk.pFile = fopen((sDir + "\\" + asFiles[i]).c_str(), "rb");
-            kWalk.sFile = asFiles[i];
-            kWalk.iChunks = 0;
-            kWalk.psFound = &sFound;
-            INFO(asFiles[i]);
-            REQUIRE(kWalk.pFile);
-            bool bOk = WalkLvlFile(kWalk);
-            fclose(kWalk.pFile);
-            CHECK(bOk);
-            iChunks += kWalk.iChunks;
-        }
-        CHECK(iChunks > 0);
-        for (size_t i = 0; i < akIndex.size(); ++i)
-        {
-            const std::string sKey = LowerCase(akIndex[i].sLvl + ".lvl|" + akIndex[i].sName);
-            INFO(sKey);
-            CHECK(sFound.count(sKey) == 1);
-        }
+        LvlWalk kWalk;
+        kWalk.L = L;
+        kWalk.pFile = fopen((sDir + "\\" + asFiles[i]).c_str(), "rb");
+        kWalk.sFile = asFiles[i];
+        kWalk.iChunks = 0;
+        kWalk.psFound = &sFound;
+        INFO(asFiles[i]);
+        REQUIRE(kWalk.pFile);
+        bool bOk = WalkLvlFile(kWalk);
+        fclose(kWalk.pFile);
+        CHECK(bOk);
+        iChunks += kWalk.iChunks;
+    }
+    CHECK(iChunks > 0);
+    for (size_t i = 0; i < akIndex.size(); ++i)
+    {
+        const std::string sKey = LowerCase(akIndex[i].sLvl + ".lvl|" + akIndex[i].sName);
+        INFO(sKey);
+        CHECK(sFound.count(sKey) == 1);
     }
 }
 

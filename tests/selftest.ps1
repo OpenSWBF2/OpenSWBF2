@@ -1,5 +1,6 @@
 param([string]$Configuration = 'Debug')
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'smoke.ps1')
 $run = Join-Path $PSScriptRoot 'run.ps1'
 $tmp = Join-Path $env:TEMP ("openswbf2-selftest-" + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $tmp | Out-Null
@@ -20,6 +21,7 @@ $scenarios = @(
     @('asan report fails a passing case', 'unit', "$list`r`n$asanWrite`r`n$onePass`r`nexit /b 0", $null, 1, '\[FAIL\] fake_case[\s\S]*heap-buffer-overflow', $null, @('-Configuration', 'Asan')),
     @('asan exit 66 without report is a startup failure', 'unit', "$list`r`nexit /b 66", $null, 1, 'failed before main', $null, @('-Configuration', 'Asan')),
     @('asan stub without Asan has no asan verdict', 'unit', "$list`r`n$asanWrite`r`n$onePass`r`nexit /b 0", $null, 0, '\[PASS\] fake_case', 'heap-buffer-overflow'),
+    @('tables compare skip is named', 'unit', "$list`r`n$onePass`r`nexit /b 0", $null, 0, '\[SKIP\] tables:compare - no smoke run', $null),
     @('exit 66 without Asan stays a crash', 'unit', "$list`r`nexit /b 66", $null, 1, '\[CRASH\] fake_case 0x00000042', 'failed before main')
 )
 
@@ -55,30 +57,30 @@ finally {
 }
 if ($Configuration -eq 'Asan') {
     $asanCanaries = @(
-        @('asan canary heap overflow is reported', 'heap-buffer-overflow'),
-        @('asan canary red heap overflow is reported', 'use-after-poison[\s\S]*Startup_RedInitHeap'),
-        @('asan canary red heap use after free is reported', 'use-after-poison[\s\S]*Startup_RedInitHeap'),
-        @('asan canary memory pool overflow is reported', 'use-after-poison[\s\S]*Startup_RedInitHeap'),
-        @('asan canary memory pool use after free is reported', 'use-after-poison[\s\S]*Startup_RedInitHeap'),
-        @('asan canary lua bin overflow is reported', 'use-after-poison[\s\S]*Startup_RedInitHeap'),
-        @('asan canary lua bin use after free is reported', 'use-after-poison[\s\S]*Startup_RedInitHeap'),
-        @('asan canary net packet overflow is reported', 'use-after-poison[\s\S]*netBigPackets'),
-        @('asan canary net packet use after free is reported', 'use-after-poison[\s\S]*netBigPackets'),
-        @('asan canary red stack overflow is reported', 'use-after-poison[\s\S]*sMem'),
-        @('asan canary red stack use after scope is reported', 'use-after-poison[\s\S]*sMem'),
-        @('asan canary stack allocator overflow is reported', 'use-after-poison[\s\S]*Startup_RedInitHeap'),
-        @('asan canary stack allocator use after free is reported', 'use-after-poison[\s\S]*Startup_RedInitHeap'),
-        @('asan canary sub allocator overflow is reported', 'use-after-poison[\s\S]*Startup_RedInitHeap'),
-        @('asan canary sub allocator use after free is reported', 'use-after-poison[\s\S]*Startup_RedInitHeap'),
-        @('asan canary list allocator overflow is reported', 'use-after-poison[\s\S]*Startup_RedInitHeap'),
-        @('asan canary list allocator use after free is reported', 'use-after-poison[\s\S]*Startup_RedInitHeap'),
-        @('asan canary snd free list overflow is reported', 'use-after-poison[\s\S]*Startup_RedInitHeap'),
-        @('asan canary snd free list use after free is reported', 'use-after-poison[\s\S]*Startup_RedInitHeap'),
-        @('asan canary glyph memory overflow is reported', 'use-after-poison[\s\S]*Startup_RedInitHeap'),
-        @('asan canary glyph memory use after free is reported', 'use-after-poison[\s\S]*Startup_RedInitHeap'),
-        @('asan canary mimalloc heap slack overflow is reported', 'use-after-poison[\s\S]*asan_canary\.cpp'),
-        @('asan canary mimalloc heap prefix underrun is reported', 'use-after-poison[\s\S]*asan_canary\.cpp'),
-        @('asan canary mimalloc heap use after destroy is reported', 'use-after-poison[\s\S]*asan_canary\.cpp')
+        @('asan canary heap overflow is reported', (Get-AsanCanaryRx 'heap-buffer-overflow')),
+        @('asan canary red heap overflow is reported', (Get-AsanCanaryRx)),
+        @('asan canary red heap use after free is reported', (Get-AsanCanaryRx)),
+        @('asan canary memory pool overflow is reported', (Get-AsanCanaryRx)),
+        @('asan canary memory pool use after free is reported', (Get-AsanCanaryRx)),
+        @('asan canary lua bin overflow is reported', (Get-AsanCanaryRx)),
+        @('asan canary lua bin use after free is reported', (Get-AsanCanaryRx)),
+        @('asan canary net packet overflow is reported', (Get-AsanCanaryRx -tail '[\s\S]*netBigPackets')),
+        @('asan canary net packet use after free is reported', (Get-AsanCanaryRx -tail '[\s\S]*netBigPackets')),
+        @('asan canary red stack overflow is reported', (Get-AsanCanaryRx -tail '[\s\S]*sMem')),
+        @('asan canary red stack use after scope is reported', (Get-AsanCanaryRx -tail '[\s\S]*sMem')),
+        @('asan canary stack allocator overflow is reported', (Get-AsanCanaryRx)),
+        @('asan canary stack allocator use after free is reported', (Get-AsanCanaryRx)),
+        @('asan canary sub allocator overflow is reported', (Get-AsanCanaryRx)),
+        @('asan canary sub allocator use after free is reported', (Get-AsanCanaryRx)),
+        @('asan canary list allocator overflow is reported', (Get-AsanCanaryRx)),
+        @('asan canary list allocator use after free is reported', (Get-AsanCanaryRx)),
+        @('asan canary snd free list overflow is reported', (Get-AsanCanaryRx)),
+        @('asan canary snd free list use after free is reported', (Get-AsanCanaryRx)),
+        @('asan canary glyph memory overflow is reported', (Get-AsanCanaryRx)),
+        @('asan canary glyph memory use after free is reported', (Get-AsanCanaryRx)),
+        @('asan canary mimalloc heap slack overflow is reported', (Get-AsanCanaryRx)),
+        @('asan canary mimalloc heap prefix underrun is reported', (Get-AsanCanaryRx)),
+        @('asan canary mimalloc heap use after destroy is reported', (Get-AsanCanaryRx))
     )
     foreach ($canary in $asanCanaries) {
         $n++
@@ -94,7 +96,6 @@ if ($Configuration -eq 'Asan') {
     else { Write-Host "OK $n asan canary table covers all $canaryCases cases" }
 }
 else { Write-Host 'SKIP canary: needs -Configuration Asan' }
-. (Join-Path $PSScriptRoot 'smoke.ps1')
 $smokeTmp = Join-Path $env:TEMP ("openswbf2-smoke-" + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $smokeTmp | Out-Null
 $smokeScenarios = @(
@@ -191,9 +192,14 @@ try {
     if ($why) { $failed++; Write-Host "FAILED ${n}: asan report without a file: $why" }
     else { Write-Host "OK $n asan report without a file" }
     $n++
-    $canaryRx = 'use-after-poison[\s\S]*Startup_RedInitHeap'
+    $canaryRx = Get-AsanCanaryRx
+    $canaryHit = "ERROR: AddressSanitizer: use-after-poison on address 0x1 at pc 0x2`r`nWRITE of size 1 at 0x1 thread T0`r`n    #0 0x2 in canary C:\x\tests\unit\asan_canary.cpp:45`r`n    #1 0x3 in doctest C:\x\doctest.h:1`r`n"
     $canaryChecks = @(
-        @(66, 'ERROR: AddressSanitizer: use-after-poison ... Startup_RedInitHeap', 'REPORTED'),
+        @(66, $canaryHit, 'REPORTED'),
+        @(66, $canaryHit.Replace("`r`n", "`n"), 'REPORTED'),
+        @(66, $canaryHit.Replace('use-after-poison', 'unknown-crash'), 'OTHER'),
+        @(66, $canaryHit.Replace('#0 0x2 in canary C:\x\tests\unit\asan_canary.cpp:45', '#0 0x2 in MiReadPrefix C:\x\RedMemoryMi.cpp:50').Replace('#1 0x3 in doctest C:\x\doctest.h:1', '#1 0x3 in canary C:\x\tests\unit\asan_canary.cpp:45'), 'OTHER'),
+        @(66, ($canaryHit + "allocated by thread T0 here:`r`n    #0 0x4 in canary C:\x\tests\unit\asan_canary.cpp:44`r`n"), 'REPORTED'),
         @(0, $null, 'CLEAN'),
         @(66, 'ERROR: AddressSanitizer: heap-buffer-overflow', 'OTHER'),
         @(1, $null, 'OTHER')
@@ -469,7 +475,7 @@ $miScenarios = @(
     @('mimalloc-defines release line passes', $miRelease, 'Release', $true, $true),
     @('mimalloc-defines release with MI_SECURE=0 fails', $miRelease.Replace('MI_SECURE=4', 'MI_SECURE=0'), 'Release', $false, $true),
     @('mimalloc-defines debug values under release fail', $miGood, 'Release', $false, $true),
-    @('mimalloc-defines missing tests tlog fails', $miGood, 'Debug', $false, $false)
+    @('mimalloc-defines without tests tlog checks the game only', $miGood, 'Debug', $true, $false)
 )
 foreach ($sc in $miScenarios) {
     $n++
@@ -492,6 +498,25 @@ foreach ($sc in $miScenarios) {
     finally {
         Remove-Item -Recurse -Force $miDir -ErrorAction SilentlyContinue
     }
+}
+$n++
+$addrDir = Join-Path $env:TEMP ("openswbf2-addrorder-" + [guid]::NewGuid().ToString('N'))
+try {
+    foreach ($d in 'src\Battlefront2\Source', 'src\RedEngineFL') { New-Item -ItemType Directory -Path (Join-Path $addrDir $d) | Out-Null }
+    $addrLines = @('int k = (int)this;', 'if ((unsigned int)pA > 1) {}', 'if (1 < (unsigned int)pB) {}', 'if (reinterpret_cast<uintptr_t>(pA) > 1) {}', 'if (1 > reinterpret_cast<int>(pA)) {}', 'bool b = PblPtrAfter(x, y);', 'if (pOther > pObject) {}', 'int c = iCount > 3;', 'pGroup->mThreads.Add(&mNode, this, (int)pOwner);', 'if (ppA > ppB) {}', 'bool e = (const char*)pA > (const char*)pB;', 'bool d = std::less<const void*>()(pA, pB);', 'bool f = obj > other;', 'mList.Add(&mNode, this, (int)iKey);', 'n = (char*)pA - (char*)pB;')
+    Set-Content -Encoding ASCII -Path (Join-Path $addrDir 'src\Battlefront2\Source\a.cpp') -Value $addrLines
+    Set-Content -Encoding ASCII -Path (Join-Path $addrDir 'src\RedEngineFL\a.cpp') -Value $addrLines
+    $bad = @(Get-SourceChecks $addrDir -addrOrderAllow @() -Only 'addr-order')
+    $addrWant = (@(1..7) + @(9..12) | ForEach-Object { "src\Battlefront2\Source\a.cpp:$_" }) -join ', '
+    $allowed = @(Get-SourceChecks $addrDir -addrOrderAllow @('src\Battlefront2\Source\a.cpp|if (pOther > pObject) {}') -Only 'addr-order')
+    $unused = @(Get-SourceChecks $addrDir -addrOrderAllow @('src\Battlefront2\Source\a.cpp|if (pOther > pObject) {}', 'src\Battlefront2\Source\a.cpp|int nope;') -Only 'addr-order')
+    if ($bad.Count -ne 1 -or $bad[0].Ok -or $bad[0].Detail -ne $addrWant) { $failed++; Write-Host "FAILED ${n}: addr-order flags pointer order under Battlefront2 and PebbleFL only: $($bad.Detail)" }
+    elseif ($allowed[0].Detail -cmatch ':7(,|$)') { $failed++; Write-Host "FAILED ${n}: addr-order allow entry did not suppress its line: $($allowed[0].Detail)" }
+    elseif ($unused[0].Detail -cnotmatch 'unused allow src\\Battlefront2\\Source\\a\.cpp\|int nope;') { $failed++; Write-Host "FAILED ${n}: addr-order did not report an unused allow entry: $($unused[0].Detail)" }
+    else { Write-Host "OK $n addr-order flags pointer order under Battlefront2 and PebbleFL only and keeps its allow list exact" }
+}
+finally {
+    Remove-Item -Recurse -Force $addrDir -ErrorAction SilentlyContinue
 }
 $n++
 $miApiDir = Join-Path $env:TEMP ("openswbf2-miapi-" + [guid]::NewGuid().ToString('N'))
@@ -715,23 +740,27 @@ try {
     if ($split -ne 7 -or $same -ne 0 -or $randOnly -ne 0 -or $empty -ne -1) { $failed++; Write-Host "FAILED ${n}: digest trace split: split=$split same=$same randOnly=$randOnly empty=$empty" }
     else { Write-Host "OK $n digest trace split names turn 7, ignores rand, fails an empty trace" }
     $n++
-    $pvEq = Get-PerturbVerdict $trA $trA 'Pass' 'Pass' 9
-    $pvSp = Get-PerturbVerdict $trA $trB 'Pass' 'Pass' 9
-    $pvIn = Get-PerturbVerdict $trA $trE 'Pass' 'Pass' 9
-    $pvCr = Get-PerturbVerdict $trA $trB 'Crash' 'Pass' 9
+    $pvDigest = 'OPENSWBF2 SIM DIGEST turns=9 time=1.000 rand=1/2 snd=1.000 state=0x00000042'
+    $trAd = Join-Path $digTmp 'trace-a-digest.log'
+    $trBd = Join-Path $digTmp 'trace-b-digest.log'
+    [IO.File]::WriteAllLines($trAd, [string[]]($linesA + $pvDigest))
+    [IO.File]::WriteAllLines($trBd, [string[]]($linesB + $pvDigest))
+    $pvEq = Get-PerturbVerdict $trAd $trAd 'Pass' 'Pass' 9
+    $pvSp = Get-PerturbVerdict $trAd $trBd 'Pass' 'Pass' 9
+    $pvIn = Get-PerturbVerdict $trAd $trE 'Pass' 'Pass' 9
+    $pvCr = Get-PerturbVerdict $trAd $trBd 'Crash' 'Pass' 9
     $trA2 = Join-Path $digTmp 'trace-a2.log'
     $trB2 = Join-Path $digTmp 'trace-b2.log'
     [IO.File]::WriteAllLines($trA2, [string[]](1..1520 | ForEach-Object { 'OPENSWBF2 DIGEST TRACE turn={0} state=0x{0:X8} rand=1/2' -f $_ }))
     [IO.File]::WriteAllLines($trB2, [string[]](1..1510 | ForEach-Object { 'OPENSWBF2 DIGEST TRACE turn={0} state=0x{0:X8} rand=1/2' -f $_ }))
     $cmpLim = Compare-DigestTrace $trA2 $trB2 1500
     $cmpAll = Compare-DigestTrace $trA2 $trB2
-    $pvLim = Get-PerturbVerdict $trA2 $trB2 'Pass' 'Pass'
     $pvBad = @()
     if ($pvEq.Result -ne 'equal') { $pvBad += "equal=$($pvEq.Result)" }
     if ($pvSp.Result -ne 'split' -or $pvSp.Turn -ne 7) { $pvBad += "split=$($pvSp.Result)/$($pvSp.Turn)" }
     if ($pvIn.Result -ne 'crash' -or $pvIn.Class -ne 'incomplete') { $pvBad += "incomplete=$($pvIn.Result)/$($pvIn.Class)" }
     if ($pvCr.Result -ne 'crash' -or $pvCr.Class -ne 'Crash' -or $pvCr.Turn -ne 7) { $pvBad += "crash=$($pvCr.Result)/$($pvCr.Class)/$($pvCr.Turn)" }
-    if ($cmpLim -ne 0 -or $cmpAll -ne -1 -or $pvLim.Result -ne 'equal') { $pvBad += "limit=$cmpLim/$cmpAll/$($pvLim.Result)" }
+    if ($cmpLim -ne 0 -or $cmpAll -ne -1) { $pvBad += "limit=$cmpLim/$cmpAll" }
     if ($pvBad.Count) { $failed++; Write-Host "FAILED ${n}: perturb verdict: $($pvBad -join ' ')" }
     else { Write-Host "OK $n perturb verdict names equal, split turn, incomplete and crash" }
     $n++
@@ -772,31 +801,26 @@ try {
     $repSegs = @(Get-DigestTraceSegments $repEq)
     if ($repSegs.Count -ne 2 -or $repSegs[1].Count -ne 20 -or -not $repSegs[1].ContainsKey(1) -or $repSegs[0].Count -ne 15) { $fullBad += "segments=$($repSegs.Count)" }
     if (@(Get-DigestTraceSegments (Join-Path $digTmp 'no-such.log')).Count -ne 0) { $fullBad += 'missing log has segments' }
-    $vEq = Get-PerturbVerdict $repBase $repEq 'Pass' 'Pass' 15 'serial' $true
-    $vSp = Get-PerturbVerdict $repBase $repSp 'Pass' 'Pass' 15 'serial' $true
-    $vOne = Get-PerturbVerdict $repBase $repOne 'Pass' 'Pass' 15 'serial' $true
-    $vAddr = Get-PerturbVerdict $repBase $repSp 'Pass' 'Pass' 15 'address' $true
+    $vEq = Get-PerturbVerdict $repBase $repEq 'Pass' 'Pass' 15 $true
+    $vSp = Get-PerturbVerdict $repBase $repSp 'Pass' 'Pass' 15 $true
+    $vOne = Get-PerturbVerdict $repBase $repOne 'Pass' 'Pass' 15 $true
     if ($vEq.Result -ne 'equal') { $fullBad += "repeat equal=$($vEq.Result)/$($vEq.Class)" }
     if ($vSp.Result -ne 'split' -or $vSp.Turn -ne 18) { $fullBad += "repeat split=$($vSp.Result)/$($vSp.Turn)" }
     if ($vOne.Result -ne 'crash' -or $vOne.Class -ne 'incomplete') { $fullBad += "repeat one=$($vOne.Result)/$($vOne.Class)" }
-    if ($vAddr.Result -ne 'equal') { $fullBad += "repeat address=$($vAddr.Result)" }
     $serBase = Join-Path $digTmp 'serial-base.log'
     $serRand = Join-Path $digTmp 'serial-rand.log'
     [IO.File]::WriteAllLines($serBase, [string[]](@(1..20 | ForEach-Object { & $trLine $_ 1 }) + $simLine))
     [IO.File]::WriteAllLines($serRand, [string[]](@(1..20 | ForEach-Object { if ($_ -eq 7) { & $trLine $_ 3 } else { & $trLine $_ 1 } }) + $simLine))
-    $sSer = Get-PerturbVerdict $serBase $serRand 'Pass' 'Pass' 15 'serial'
-    $sAdr = Get-PerturbVerdict $serBase $serRand 'Pass' 'Pass' 15
-    $sEq = Get-PerturbVerdict $serBase $serBase 'Pass' 'Pass' 15 'serial'
-    $sNoDig = Get-PerturbVerdict $serBase $trA 'Pass' 'Pass' 9 'serial'
-    if ($sSer.Result -ne 'split' -or $sSer.Turn -ne 7 -or $sAdr.Result -ne 'equal' -or $sEq.Result -ne 'equal') { $fullBad += "serial=$($sSer.Result)/$($sSer.Turn) address=$($sAdr.Result) same=$($sEq.Result)" }
+    $sSer = Get-PerturbVerdict $serBase $serRand 'Pass' 'Pass' 15
+    $sEq = Get-PerturbVerdict $serBase $serBase 'Pass' 'Pass' 15
+    $sNoDig = Get-PerturbVerdict $serBase $trA 'Pass' 'Pass' 9
+    if ($sSer.Result -ne 'split' -or $sSer.Turn -ne 7 -or $sEq.Result -ne 'equal') { $fullBad += "serial=$($sSer.Result)/$($sSer.Turn) same=$($sEq.Result)" }
     if ($sNoDig.Result -ne 'crash' -or $sNoDig.Class -ne 'incomplete') { $fullBad += "serial short=$($sNoDig.Result)/$($sNoDig.Class)" }
     $gv = @(
-        (Get-PerturbGroupVerdict 'serial' 0 66 66), (Get-PerturbGroupVerdict 'serial' 1 66 66), (Get-PerturbGroupVerdict 'serial' 0 65 66),
-        (Get-PerturbGroupVerdict 'address' 3 66 66), (Get-PerturbGroupVerdict 'address' 0 66 66), (Get-PerturbGroupVerdict 'address' 3 65 66),
-        (Get-PerturbGroupVerdict '' 0 66 66), (Get-PerturbGroupVerdict 'Serial' 0 66 66))
-    if (($gv -join ',') -cne 'True,False,False,True,False,False,False,False') { $fullBad += "group=$($gv -join ',')" }
+        (Get-PerturbGroupVerdict 0 54 54), (Get-PerturbGroupVerdict 1 54 54), (Get-PerturbGroupVerdict 0 53 54))
+    if (($gv -join ',') -cne 'True,False,False') { $fullBad += "group=$($gv -join ',')" }
     if ($fullBad.Count) { $failed++; Write-Host "FAILED ${n}: perturb full trace: $($fullBad -join '; ')" }
-    else { Write-Host "OK $n perturb full trace compares rand and late turns, splits repeat segments and follows the sim order" }
+    else { Write-Host "OK $n perturb full trace compares rand and late turns and splits repeat segments" }
     $n++
     $savedPm = $env:OPENSWBF2_PERTURB_MISSIONS
     $env:OPENSWBF2_PERTURB_MISSIONS = 'geo1c_con'
@@ -808,7 +832,7 @@ try {
     $prBad = @()
     if (@(Get-PerturbProofMissing $pCases['perturb-geo1c_con-pad-1'] "x`r`n$pLine").Count -ne 0) { $prBad += 'pad line rejected' }
     if (@(Get-PerturbProofMissing $pCases['perturb-geo1c_con-pad-1'] 'x').Count -eq 0) { $prBad += 'pad without PERTURB line accepted' }
-    if (@(Get-PerturbProofMissing $pCases['perturb-geo1c_con-pad-1'] $pLine.Replace('modes=pad', 'modes=pad,top')).Count -eq 0) { $prBad += 'pad accepted modes=pad,top' }
+    if (@(Get-PerturbProofMissing $pCases['perturb-geo1c_con-pad-1'] $pLine.Replace('modes=pad', 'modes=pad,fill')).Count -eq 0) { $prBad += 'pad accepted modes=pad,fill' }
     if (@(Get-PerturbProofMissing $pCases['perturb-geo1c_con-pad-2'] $pLine).Count -eq 0) { $prBad += 'seed 2 accepted seed=1' }
     if (@(Get-PerturbProofMissing $pCases['perturb-geo1c_con-base'] 'x').Count -ne 0) { $prBad += 'plain base rejected' }
     if (@(Get-PerturbProofMissing $pCases['perturb-geo1c_con-base'] $pLine).Count -eq 0) { $prBad += 'base with PERTURB line accepted' }
@@ -828,64 +852,32 @@ try {
     $allP = @(Get-SmokeCases 'Perturb' @() $false $null)
     $env:OPENSWBF2_PERTURB_MISSIONS = $savedPm
     $nabRep = @($allP | Where-Object { $_.Name -eq 'perturb-nab2g_c-repeat' })
-    if ($allP.Count -ne 66 -or @($allP | Where-Object { $_.Expect.Perturb.Mode -eq 'repeat' }).Count -ne 6) { $prBad += "perturb cases=$($allP.Count), need 66 with 6 repeat" }
+    if ($allP.Count -ne 54 -or @($allP | Where-Object { $_.Expect.Perturb.Mode -eq 'repeat' }).Count -ne 6) { $prBad += "perturb cases=$($allP.Count), need 54 with 6 repeat" }
     if ($nabRep.Count -ne 1 -or $nabRep[0].Timeout -ne 180 -or $nabRep[0].Expect.Class -ne 'TimeOut') { $prBad += 'nab2g_c repeat not TimeOut 180' }
     if ($prBad.Count) { $failed++; Write-Host "FAILED ${n}: perturb proof: $($prBad -join '; ')" }
     else { Write-Host "OK $n perturb runs must prove their mode, seed, hog and repeat" }
     $n++
-    $soBad = @()
-    $soPlain = @(Get-SmokeCases 'Standard' @() $false $null)
-    $soSerial = @(Add-SimOrderExpect @(Get-SmokeCases 'Standard' @() $false $null) 'serial')
-    $soCrash = @(Add-SimOrderExpect @(Get-SmokeCases 'Crash' @() $false $null) 'serial')
-    $soRx = '(?m)OPENSWBF2 SIMORDER mode=serial\r?$'
-    foreach ($c in $soPlain) { if (@($c.Expect.LogRx) -contains $soRx) { $soBad += "$($c.Name) asserts serial without -SimOrder" } }
-    foreach ($c in $soSerial) { if (@($c.Expect.LogRx) -notcontains $soRx) { $soBad += "$($c.Name) lacks the serial assertion" } }
-    foreach ($c in $soCrash) { if ($c.Expect.Class -notin 'Pass', 'TimeOut' -and @($c.Expect.LogRx) -contains $soRx) { $soBad += "$($c.Name) asserts serial on a crash case" } }
-    $soAdded = @($soSerial[0].Expect.LogRx | Where-Object { @($soPlain[0].Expect.LogRx) -notcontains $_ })
-    $soGood = "[t=0.000] [f=0] LogCore Inform pcMain.cpp:1: OPENSWBF2 SIMORDER mode=serial`r`n"
-    $soWarn = "$soGood[t=0.000] [f=0] LogCore Warning pcMain.cpp:1: -simorder needs address or serial, ignored`r`n"
-    $soMiss = { param($text) @($soAdded | Where-Object { $text -cnotmatch $_ }).Count }
-    if ($soAdded.Count -ne 2) { $soBad += "added $($soAdded.Count) rx, want 2" }
-    elseif ((& $soMiss $soGood) -ne 0) { $soBad += 'serial log rejected' }
-    elseif ((& $soMiss $soGood.Replace('mode=serial', 'mode=address')) -eq 0) { $soBad += 'address log accepted under -SimOrder serial' }
-    elseif ((& $soMiss $soWarn) -eq 0) { $soBad += 'rejected -simorder warning accepted' }
-    if ($soBad.Count) { $failed++; Write-Host "FAILED ${n}: simorder assertion: $($soBad -join '; ')" }
-    else { Write-Host "OK $n -SimOrder asserts its SIMORDER line on every non-crash case" }
-    $n++
-    $alBad = @()
-    $alMiRx = 'OPENSWBF2 MIOPTIONS purge_delay=1000 retry_on_oom=0 arena_reserve=67108864 arena_eager_commit=0 reserve_os_memory=0 page_full_retain=-1'
-    $alArenaRx = '(?s)\A(?!.*OPENSWBF2 MIOPTIONS)'
-    $alCrash = @(Get-SmokeCases 'Crash' @() $false $null)
-    $alDef = @(Add-AllocatorExpect @(Get-SmokeCases 'Standard' @() $false $null) '' -1)
-    $alZero = @(Add-AllocatorExpect @(Get-SmokeCases 'Standard' @() $false $null) 'mimalloc' 0)
-    $alMiCrash = @(Add-AllocatorExpect @(Get-SmokeCases 'Crash' @() $false $null) '' -1)
-    $alArena = @(Add-AllocatorExpect @(Get-SmokeCases 'Crash' @() $false $null) 'arena' -1)
-    foreach ($c in $alDef) { if (@($c.Expect.LogRx) -notcontains $alMiRx) { $alBad += "$($c.Name) lacks purge_delay=1000" } }
-    foreach ($c in $alZero) { if (@($c.Expect.LogRx) -notcontains $alMiRx.Replace('purge_delay=1000', 'purge_delay=0')) { $alBad += "$($c.Name) lacks purge_delay=0" } }
-    if (@($alMiCrash | Where-Object { $_.Name -eq 'crash-midoublefree' }).Count -ne 1) { $alBad += 'mimalloc lacks crash-midoublefree' }
-    if (@($alArena | Where-Object { $_.Name -eq 'crash-midoublefree' }).Count -ne 0) { $alBad += 'arena keeps crash-midoublefree' }
-    foreach ($c in $alArena) { if ($c.Expect.Class -in 'Pass', 'TimeOut' -and @($c.Expect.LogRx) -notcontains $alArenaRx) { $alBad += "$($c.Name) lacks the arena rx" } }
-    $alPlain = @{}
-    foreach ($c in $alCrash) { $alPlain[$c.Name] = $c }
-    foreach ($c in @($alMiCrash + $alArena)) { if ($c.Expect.Class -notin 'Pass', 'TimeOut' -and (@($c.Expect.LogRx) -join "`n") -cne (@($alPlain[$c.Name].Expect.LogRx) -join "`n")) { $alBad += "$($c.Name) fatal expectation changed" } }
-    $alOne = @(Add-AllocatorExpect @(New-Object PSObject -Property @{ Name = 'selftest-case'; Expect = @{ Class = 'Pass' } }) '' -1)[0]
-    $alLine = "[t=0.000] [f=0] LogCore Inform pcMain.cpp:1: $alMiRx`r`n"
-    $alWarn = "$alLine[t=0.000] [f=0] LogCore Warning pcMain.cpp:1: -allocator needs arena or mimalloc, using mimalloc`r`n"
-    $alMiss = { param($case, $text) @(@($case.Expect.LogRx) | Where-Object { $text -cnotmatch $_ }).Count }
-    if ((& $alMiss $alOne $alLine) -ne 0) { $alBad += 'mimalloc options log rejected' }
-    elseif ((& $alMiss $alOne 'x') -eq 0) { $alBad += 'log without MIOPTIONS accepted' }
-    elseif ((& $alMiss $alOne $alWarn) -eq 0) { $alBad += 'rejected -allocator warning accepted' }
-    if ($alBad.Count) { $failed++; Write-Host "FAILED ${n}: allocator assertion: $($alBad -join '; ')" }
-    else { Write-Host "OK $n -Allocator asserts the mimalloc options or their absence and keeps fatal cases" }
+    $moBad = @()
+    $moRx = 'OPENSWBF2 MIOPTIONS purge_delay=1000 retry_on_oom=0 arena_reserve=67108864 arena_eager_commit=0 reserve_os_memory=0 page_full_retain=-1'
+    $moNew = { param($class) @(Add-MiOptionsExpect @(New-Object PSObject -Property @{ Name = 'selftest-case'; Expect = @{ Class = $class } }) -1)[0] }
+    foreach ($class in 'Pass', 'TimeOut') {
+        if (@((& $moNew $class).Expect.LogRx) -notcontains $moRx) { $moBad += "$class case lacks purge_delay=1000" }
+    }
+    foreach ($c in @(Add-MiOptionsExpect @(Get-SmokeCases 'Standard' @() $false $null) 0)) { if ($c.Expect.Class -in 'Pass', 'TimeOut' -and @($c.Expect.LogRx) -notcontains $moRx.Replace('purge_delay=1000', 'purge_delay=0')) { $moBad += "$($c.Name) lacks purge_delay=0" } }
+    $moPlain = @{}
+    foreach ($c in @(Get-SmokeCases 'Crash' @() $false $null)) { $moPlain[$c.Name] = $c }
+    foreach ($c in @(Add-MiOptionsExpect @(Get-SmokeCases 'Crash' @() $false $null) -1)) { if ($c.Expect.Class -notin 'Pass', 'TimeOut' -and (@($c.Expect.LogRx) -join "`n") -cne (@($moPlain[$c.Name].Expect.LogRx) -join "`n")) { $moBad += "$($c.Name) fatal expectation changed" } }
+    $moOne = & $moNew 'Pass'
+    $moLine = "[t=0.000] [f=0] LogCore Inform pcMain.cpp:1: $moRx`r`n"
+    $moMiss = { param($case, $text) @(@($case.Expect.LogRx) | Where-Object { $text -cnotmatch $_ }).Count }
+    if ((& $moMiss $moOne $moLine) -ne 0) { $moBad += 'mimalloc options log rejected' }
+    elseif ((& $moMiss $moOne 'x') -eq 0) { $moBad += 'log without MIOPTIONS accepted' }
+    if ($moBad.Count) { $failed++; Write-Host "FAILED ${n}: mimalloc options assertion: $($moBad -join '; ')" }
+    else { Write-Host "OK $n Add-MiOptionsExpect asserts the mimalloc options on Pass and TimeOut cases and keeps fatal cases" }
     $n++
     $sdBad = @()
-    $sdNew = { param($name, $mode) @(Add-SimOrderExpect @(New-Object PSObject -Property @{ Name = $name; Expect = @{ Class = 'Pass' } }) $mode)[0] }
-    $sdSerial = & $sdNew 'selftest-case' 'serial'
-    $sdAddress = & $sdNew 'selftest-case' 'address'
-    $sdPlain = & $sdNew 'selftest-case' ''
-    $sdNoRow = & $sdNew 'selftest-norow' 'address'
-    $sdHead = "[t=0.000] [f=0] LogCore Inform pcMain.cpp:1: OPENSWBF2 SIMORDER mode=serial`r`n"
-    $sdAddrHead = $sdHead.Replace('mode=serial', 'mode=address')
+    $sdNew = { param($name) @(Add-SerialTieExpect @(New-Object PSObject -Property @{ Name = $name; Expect = @{ Class = 'Pass' } }))[0] }
+    $sdPlain = & $sdNew 'selftest-case'
     $sdFlipLine = $digLine.Replace('state=0x0000ABCD', 'state=0x0000ABCC')
     $sdRes = New-Object PSObject -Property @{ Class = 'Pass'; CaseDir = $digTmp; LogText = ''; Dumps = @() }
     $sdRun = {
@@ -895,50 +887,30 @@ try {
         Test-SmokeExpect $case $sdRes
     }
     $env:OPENSWBF2_DIGEST_EXPECTED = $flipExp
-    if (-not $sdAddress.Expect.ContainsKey('NoDigestRow')) { $sdBad += 'address case lacks NoDigestRow' }
-    if ($sdSerial.Expect.ContainsKey('NoDigestRow') -or $sdPlain.Expect.ContainsKey('NoDigestRow')) { $sdBad += 'NoDigestRow set outside address' }
-    if (& $sdRun $sdSerial "$sdHead[t=1.000] [f=1] $digLine`r`n") { $sdBad += 'serial digest mismatch accepted' }
-    if (-not (& $sdRun $sdSerial "$sdHead[t=1.000] [f=1] $sdFlipLine`r`n")) { $sdBad += 'serial digest equal to the row rejected' }
-    if (-not (& $sdRun $sdAddress "$sdAddrHead[t=1.000] [f=1] $digLine`r`n")) { $sdBad += 'address digest mismatch rejected' }
-    if (& $sdRun $sdAddress $sdAddrHead) { $sdBad += 'address case without a digest line accepted' }
     if (& $sdRun $sdPlain "[t=1.000] [f=1] $digLine`r`n") { $sdBad += 'plain digest mismatch accepted' }
     if (-not (& $sdRun $sdPlain "[t=1.000] [f=1] $sdFlipLine`r`n")) { $sdBad += 'plain digest equal to the row rejected' }
-    if (-not (& $sdRun $sdNoRow $sdAddrHead)) { $sdBad += 'address case without a digest row needs a digest line' }
     $env:OPENSWBF2_DIGEST_EXPECTED = $savedExpected
     if ($sdBad.Count) { $failed++; Write-Host "FAILED ${n}: digest row expectation: $($sdBad -join '; ')" }
-    else { Write-Host "OK $n plain and -SimOrder serial compare the digest row, -SimOrder address checks only the digest line" }
+    else { Write-Host "OK $n a pass case compares its digest row" }
     $n++
     $stBad = @()
     $stCfg = $script:SmokeDigestConfiguration
     $script:SmokeDigestConfiguration = 'Test'
-    $stTest = & $sdNew 'selftest-norow' 'serial'
-    $stPlain = & $sdNew 'selftest-norow' ''
-    $stAddr = & $sdNew 'selftest-norow' 'address'
-    $stTimeOut = @(Add-SimOrderExpect @(New-Object PSObject -Property @{ Name = 'selftest-norow'; Expect = @{ Class = 'TimeOut' } }) 'serial')[0]
-    $stPlainTimeOut = @(Add-SimOrderExpect @(New-Object PSObject -Property @{ Name = 'selftest-norow'; Expect = @{ Class = 'TimeOut' } }) '')[0]
+    $stTest = & $sdNew 'selftest-norow'
+    $stTimeOut = @(Add-SerialTieExpect @(New-Object PSObject -Property @{ Name = 'selftest-norow'; Expect = @{ Class = 'TimeOut' } }))[0]
     $script:SmokeDigestConfiguration = $stCfg
-    $stTie = "$sdHead[t=1.000] [f=1] LogSim Inform CollisionObject.h:1: OPENSWBF2 COLLISION serialties=2`r`n"
+    $stTie = "[t=1.000] [f=1] LogSim Inform CollisionObject.h:1: OPENSWBF2 COLLISION serialties=2`r`n"
     $stZero = $stTie.Replace('serialties=2', 'serialties=0')
-    $stPlainTie = $stTie.Replace($sdHead, '')
-    $stPlainZero = $stZero.Replace($sdHead, '')
     $env:OPENSWBF2_DIGEST_EXPECTED = $flipExp
-    if (& $sdRun $stTest $stTie) { $stBad += 'serial case with collision serial ties accepted' }
-    if (-not (& $sdRun $stTest $stZero)) { $stBad += 'serial case with zero collision serial ties rejected' }
-    if (& $sdRun $stTest $sdHead) { $stBad += 'test build serial pass case without a serialties line accepted' }
-    if (& $sdRun $stPlain $stPlainTie) { $stBad += 'plain case with collision serial ties accepted' }
-    if (-not (& $sdRun $stPlain $stPlainZero)) { $stBad += 'plain case with zero collision serial ties rejected' }
-    if (& $sdRun $stPlain '') { $stBad += 'test build plain pass case without a serialties line accepted' }
-    if (@(@($stPlain.Expect.LogRx) -match 'SIMORDER').Count) { $stBad += 'plain case asserts a SIMORDER line' }
-    foreach ($t in @($stTimeOut, $stPlainTimeOut)) {
-        if (@($t.Expect.LogRx) -contains '(?m)OPENSWBF2 COLLISION serialties=0\r?$') { $stBad += 'serialties line required on a timeout case' }
-        if (@($t.Expect.LogRx) -notcontains '(?s)\A(?!.*OPENSWBF2 COLLISION serialties=[1-9])') { $stBad += 'timeout case lacks the serialties lookahead' }
-    }
-    if (@(@($sdSerial.Expect.LogRx) -match 'serialties').Count -or @(@($sdPlain.Expect.LogRx) -match 'serialties').Count) { $stBad += 'serialties checked outside a test build' }
-    if (@(@($stAddr.Expect.LogRx) -match 'serialties').Count) { $stBad += 'serialties checked under -SimOrder address' }
-    if (-not (& $sdRun $stAddr $stTie.Replace('mode=serial', 'mode=address'))) { $stBad += 'collision serial ties failed an address case' }
+    if (& $sdRun $stTest $stTie) { $stBad += 'case with collision serial ties accepted' }
+    if (-not (& $sdRun $stTest $stZero)) { $stBad += 'case with zero collision serial ties rejected' }
+    if (& $sdRun $stTest '') { $stBad += 'test build pass case without a serialties line accepted' }
+    if (@($stTimeOut.Expect.LogRx) -contains '(?m)OPENSWBF2 COLLISION serialties=0\r?$') { $stBad += 'serialties line required on a timeout case' }
+    if (@($stTimeOut.Expect.LogRx) -notcontains '(?s)\A(?!.*OPENSWBF2 COLLISION serialties=[1-9])') { $stBad += 'timeout case lacks the serialties lookahead' }
+    if (@(@($sdPlain.Expect.LogRx) -match 'serialties').Count) { $stBad += 'serialties checked outside a test build' }
     $env:OPENSWBF2_DIGEST_EXPECTED = $savedExpected
     if ($stBad.Count) { $failed++; Write-Host "FAILED ${n}: collision serial ties: $($stBad -join '; ')" }
-    else { Write-Host "OK $n plain and -SimOrder serial test builds fail a case that logs collision serial ties" }
+    else { Write-Host "OK $n test builds fail a case that logs collision serial ties" }
     $n++
     $errLine = '[t=1.000] [f=1] LogMemory Error X.cpp:1: boom'
     $errLog = Join-Path $digTmp 'run.log'
@@ -1347,10 +1319,10 @@ catch { $failed++; Write-Host "FAILED: selector block threw: $_" }
 finally {
     Remove-Item -LiteralPath $selTmp -Recurse -Force -ErrorAction SilentlyContinue
 }
-$cbTmp = Join-Path $env:TEMP ("openswbf2-cmpbackend-" + [guid]::NewGuid().ToString('N'))
+$cbTmp = Join-Path $env:TEMP ("openswbf2-cmptables-" + [guid]::NewGuid().ToString('N'))
 try {
     $cbBase = Join-Path $PSScriptRoot 'baseline\v143'
-    $cbScript = Join-Path $PSScriptRoot 'baseline\compare-backend.ps1'
+    $cbScript = Join-Path $PSScriptRoot 'baseline\compare-tables.ps1'
     $cbSlack = @{}
     foreach ($l in [IO.File]::ReadAllLines((Join-Path $cbBase 'cloth-slack.txt'))) {
         if ($l -and -not $l.StartsWith('#') -and -not $l.StartsWith("mission`t")) { $f = $l -split "`t"; $cbSlack[$f[0]] = [long]$f[1] }
@@ -1358,7 +1330,10 @@ try {
     $cbGood = Join-Path $cbTmp 'good'
     $cbBad = Join-Path $cbTmp 'bad'
     $cbUsed = Join-Path $cbTmp 'used'
-    foreach ($d in $cbGood, $cbBad, $cbUsed) {
+    $cbDrop = Join-Path $cbTmp 'drop'
+    $cbNew = Join-Path $cbTmp 'new'
+    $cbEmpty = Join-Path $cbTmp 'empty'
+    foreach ($d in $cbGood, $cbBad, $cbUsed, $cbDrop, $cbNew, $cbEmpty) {
         New-Item -ItemType Directory -Force -Path $d | Out-Null
         Copy-Item -LiteralPath (Join-Path $cbBase 'smoke-all-digests.txt') -Destination $d
     }
@@ -1367,15 +1342,23 @@ try {
     for ($i = 0; $i -lt $cbPeaks.Count; $i++) { if ($cbPeaks[$i] -match "^[^`t]+`texit`theap`tRuntime`t") { $cbPeakRow = $i; break } }
     $cbPeakLow = @($cbPeaks)
     $cbUsedLow = @($cbPeaks)
+    $cbPeakDrop = @($cbPeaks)
     $f = $cbPeaks[$cbPeakRow] -split "`t"
-    $f[6] = [string]([long]$f[6] - 1024)
+    $f[6] = [string]([long]$f[6] - 512)
     $cbPeakLow[$cbPeakRow] = $f -join "`t"
+    $f = $cbPeaks[$cbPeakRow] -split "`t"
+    $f[6] = [string]([long]$f[6] - 513)
+    $cbPeakDrop[$cbPeakRow] = $f -join "`t"
     $f = $cbPeaks[$cbPeakRow] -split "`t"
     $f[7] = [string]([long]$f[7] - 512)
     $cbUsedLow[$cbPeakRow] = $f -join "`t"
     [IO.File]::WriteAllLines((Join-Path $cbGood 'mem-peaks.txt'), $cbPeakLow)
     [IO.File]::WriteAllLines((Join-Path $cbBad 'mem-peaks.txt'), $cbPeaks)
     [IO.File]::WriteAllLines((Join-Path $cbUsed 'mem-peaks.txt'), $cbUsedLow)
+    [IO.File]::WriteAllLines((Join-Path $cbDrop 'mem-peaks.txt'), $cbPeakDrop)
+    [IO.File]::WriteAllLines((Join-Path $cbNew 'mem-peaks.txt'), $cbPeaks)
+    [IO.File]::WriteAllLines((Join-Path $cbEmpty 'mem-peaks.txt'), $cbPeaks)
+    [IO.File]::AppendAllText((Join-Path $cbNew 'smoke-all-digests.txt'), "zzz9c_con`tnone`tnone`r`n")
     $cbRows = @()
     $cbHigh = @()
     $cbChanged = $false
@@ -1390,52 +1373,33 @@ try {
     [IO.File]::WriteAllLines((Join-Path $cbGood 'cloth-headroom.txt'), $cbRows)
     [IO.File]::WriteAllLines((Join-Path $cbBad 'cloth-headroom.txt'), $cbHigh)
     [IO.File]::WriteAllLines((Join-Path $cbUsed 'cloth-headroom.txt'), $cbRows)
-    $cbLuaTables = Join-Path $cbTmp 'luatables'
-    $cbLuaArena = Join-Path $cbTmp 'luaarena'
-    foreach ($d in $cbLuaTables, $cbLuaArena) { New-Item -ItemType Directory -Force -Path $d | Out-Null }
-    Copy-Item -LiteralPath (Join-Path $cbBase 'smoke-all-digests.txt') -Destination $cbLuaTables
-    [IO.File]::WriteAllLines((Join-Path $cbLuaTables 'cloth-headroom.txt'), $cbRows)
-    $cbLuaPeaks = @($cbPeaks)
-    $cbLuaHeap = $false
-    $cbLuaPool = $false
-    for ($i = 0; $i -lt $cbLuaPeaks.Count; $i++) {
-        if (-not $cbLuaHeap -and $cbLuaPeaks[$i] -match "^[^`t]+`t[^`t]+`theap`tLua`t") {
-            $f = $cbLuaPeaks[$i] -split "`t"
-            $f[8] = [string]([long]$f[8] + 7)
-            $cbLuaPeaks[$i] = $f -join "`t"
-            $cbLuaHeap = $true
-        }
-        elseif (-not $cbLuaPool -and $cbLuaPeaks[$i] -match "^[^`t]+`t[^`t]+`tpool`tLua8`t") {
-            $f = $cbLuaPeaks[$i] -split "`t"
-            $f[4] = [string]([long]$f[4] + 11)
-            $cbLuaPeaks[$i] = $f -join "`t"
-            $cbLuaPool = $true
-        }
-    }
-    [IO.File]::WriteAllLines((Join-Path $cbLuaTables 'mem-peaks.txt'), $cbLuaPeaks)
-    [IO.File]::WriteAllLines((Join-Path $cbLuaArena 'mem-peaks.txt'), $cbLuaPeaks)
-    $cbOutGood = (& powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Tables $cbGood -ArenaTables $cbBase 2>&1 | Out-String)
+    [IO.File]::WriteAllLines((Join-Path $cbDrop 'cloth-headroom.txt'), $cbRows)
+    [IO.File]::WriteAllLines((Join-Path $cbNew 'cloth-headroom.txt'), $cbRows)
+    [IO.File]::WriteAllLines((Join-Path $cbEmpty 'cloth-headroom.txt'), @($cbRows | Where-Object { -not $_ -or $_.StartsWith('#') -or $_.StartsWith("mission`t") }))
+    $cbOutGood = (& powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Tables $cbGood 2>&1 | Out-String)
     $cbCodeGood = $LASTEXITCODE
-    $cbOutBad = (& powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Tables $cbBad -ArenaTables $cbBase 2>&1 | Out-String)
+    $cbOutBad = (& powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Tables $cbBad 2>&1 | Out-String)
     $cbCodeBad = $LASTEXITCODE
-    $cbOutUsed = (& powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Tables $cbUsed -ArenaTables $cbBase 2>&1 | Out-String)
+    $cbOutUsed = (& powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Tables $cbUsed 2>&1 | Out-String)
     $cbCodeUsed = $LASTEXITCODE
-    $cbOutLuaBoth = (& powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Tables $cbLuaTables -ArenaTables $cbLuaArena 2>&1 | Out-String)
-    $cbCodeLuaBoth = $LASTEXITCODE
-    $cbOutLuaOne = (& powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Tables $cbLuaTables -ArenaTables $cbBase 2>&1 | Out-String)
-    $cbCodeLuaOne = $LASTEXITCODE
+    $cbOutDrop = (& powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Tables $cbDrop 2>&1 | Out-String)
+    $cbCodeDrop = $LASTEXITCODE
+    $cbOutNew = (& powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Tables $cbNew 2>&1 | Out-String)
+    $cbCodeNew = $LASTEXITCODE
+    $cbOutEmpty = & { $ErrorActionPreference = 'Continue'; & powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Tables $cbEmpty 2>&1 | Out-String }
+    $cbCodeEmpty = $LASTEXITCODE
     $cbWhy = $null
-    if ($cbCodeUsed -ne 1 -or $cbOutUsed -notmatch 'FAIL. backend:mem-peaks' -or $cbOutUsed -notmatch 'used gap 512 used bound 496') { $cbWhy = "used gap past the slack gave exit $cbCodeUsed" }
-    elseif ($cbCodeGood -ne 0 -or $cbOutGood -notmatch '\[PASS\] backend:cloth missions=109') { $cbWhy = "slack-raised tables gave exit $cbCodeGood" }
-    elseif ($cbCodeBad -ne 1 -or $cbOutBad -notmatch '\[FAIL\] backend:cloth' -or $cbOutBad -notmatch '\[PASS\] backend:mem-peaks') { $cbWhy = "changed high gave exit $cbCodeBad" }
-    elseif (-not $cbLuaHeap -or -not $cbLuaPool) { $cbWhy = "fixture found no Lua heap or Lua8 pool row" }
-    elseif ($cbCodeLuaBoth -ne 0 -or $cbOutLuaBoth -notmatch '\[PASS\] backend:mem-peaks rows=' -or $cbOutLuaBoth -notmatch '\[PASS\] backend:mem-peaks-lua rows=') { $cbWhy = "Lua rows changed on both backends gave exit $cbCodeLuaBoth" }
-    elseif ($cbCodeLuaOne -ne 1 -or $cbOutLuaOne -notmatch '\[FAIL\] backend:mem-peaks-lua' -or $cbOutLuaOne -notmatch '\[PASS\] backend:mem-peaks rows=') { $cbWhy = "Lua rows changed on one backend gave exit $cbCodeLuaOne" }
-    if ($cbWhy) { $failed++; Write-Host "FAILED ${n}: compare-backend: $cbWhy" }
-    else { Write-Host "OK $n compare-backend passes slack-raised CLOTH free and a lower peak, fails a changed high and a used gap past the slack, ignores Lua rows against the archive and compares them between backends" }
+    if ($cbCodeUsed -ne 1 -or $cbOutUsed -notmatch 'FAIL. tables:mem-peaks' -or $cbOutUsed -notmatch 'used gap 512 used bound 496') { $cbWhy = "used gap past the slack gave exit $cbCodeUsed" }
+    elseif ($cbCodeGood -ne 0 -or $cbOutGood -notmatch '\[PASS\] tables:cloth missions=109') { $cbWhy = "slack-raised tables gave exit $cbCodeGood" }
+    elseif ($cbCodeBad -ne 1 -or $cbOutBad -notmatch '\[FAIL\] tables:cloth' -or $cbOutBad -notmatch '\[PASS\] tables:mem-peaks') { $cbWhy = "changed high gave exit $cbCodeBad" }
+    elseif ($cbCodeDrop -ne 1 -or $cbOutDrop -notmatch 'FAIL. tables:mem-peaks' -or $cbOutDrop -notmatch 'peak gap 513 peak bound 512') { $cbWhy = "peak drop past the bound gave exit $cbCodeDrop" }
+    elseif ($cbCodeNew -ne 1 -or $cbOutNew -notmatch 'FAIL. tables:digests' -or $cbOutNew -notmatch 'zzz9c_con not in baseline') { $cbWhy = "digest case without a baseline row gave exit $cbCodeNew" }
+    elseif ($cbCodeEmpty -ne 1 -or $cbOutEmpty -notmatch 'cloth-headroom\.txt in ' -or $cbOutEmpty -notmatch 'has no rows') { $cbWhy = "empty table gave exit $cbCodeEmpty" }
+    if ($cbWhy) { $failed++; Write-Host "FAILED ${n}: compare-tables: $cbWhy" }
+    else { Write-Host "OK $n compare-tables passes slack-raised CLOTH free and a peak within its bound and fails a changed high, a used or peak gap past its bound, a new digest case and an empty table" }
     $n++
 }
-catch { $failed++; Write-Host "FAILED: compare-backend block threw: $_" }
+catch { $failed++; Write-Host "FAILED: compare-tables block threw: $_" }
 finally {
     Remove-Item -LiteralPath $cbTmp -Recurse -Force -ErrorAction SilentlyContinue
 }

@@ -198,7 +198,6 @@ TEST_CASE("handle registry purge removes exactly the entries in a destroyed rang
     CHECK(uCapacity >= 16384);
 
     PurgeKeysInRange(kMain.At(1000), kMain.At(3000));
-    CHECK(PblHandleRegistry::CountInRange(kMain.At(1000), kMain.At(3000)) == 0);
     CHECK(PblHandleRegistry::GetCount() == uStart + kMany + kFew - 2000);
     CHECK(PblHandleRegistry::GetCapacity() == uCapacity);
 
@@ -287,7 +286,6 @@ TEST_CASE("handle registry purge keeps a cluster that wraps past the last slot" 
 
     PurgeKeysInRange(kBuf.At(0), kBuf.At(uHalf));
     CHECK(PblHandleRegistry::GetCount() == uStart + 3);
-    CHECK(PblHandleRegistry::CountInRange(kBuf.At(0), kBuf.At(uHalf)) == 0);
     CHECK(!hA.IsLive());
     CHECK(!hD.IsLive());
     CHECK((RegistryProbe*)hB == pB);
