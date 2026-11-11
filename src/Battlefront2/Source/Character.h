@@ -180,10 +180,13 @@ public:
     float GetCPHoldTimestamp() { return mCPHoldTimestamp; }
     void SetCPHold(CommandPost* pPost) { mCPHold = pPost; }
     void SetCPHoldTimestamp(float fTimestamp) { mCPHoldTimestamp = fTimestamp; }
-    GameObject* GetDamagedVehicle() const { return mDamagedVehicle; }
-    void SetDamagedVehicle(GameObject* pVehicle)
+    bool IsDamagedVehicle(unsigned int uVehicleKey) const
     {
-        mDamagedVehicle = pVehicle;
+        return uVehicleKey != 0 && mDamagedVehicleKey == uVehicleKey;
+    }
+    void SetDamagedVehicle(unsigned int uVehicleKey)
+    {
+        mDamagedVehicleKey = uVehicleKey;
         mTotalVehicleDamage = 0.0f;
     }
     void AddTotalVehicleDamage(float fDamage) { mTotalVehicleDamage += fDamage; }
@@ -215,7 +218,7 @@ public:
     float mSpawnTime;
 
     FlagItem* mCarriedFlagPtr;
-    GameObject* mDamagedVehicle;
+    unsigned int mDamagedVehicleKey;
     float mTotalVehicleDamage;
     CommandPostHandle mCPHold;
     float mCPHoldTimestamp;

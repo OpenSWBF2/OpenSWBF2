@@ -1,9 +1,15 @@
 #include "GameMemory.h"
 
+#include <windows.h>
+#include <psapi.h>
+
 #include "LuaMemory.h"
 #include "LuaMemoryArgs.h"
 #include "MemFailLog.h"
+#include "pcCrash.h"
+#include "PebbleFL/Common/PblCrtHeap.h"
 #include "RedEngineFL/Memory/RedMemory.h"
+#include "RedEngineFL/Memory/RedMemoryMi.h"
 #include "RedEngineFL/Util/RedLog.h"
 
 namespace GameMemory
@@ -66,10 +72,18 @@ void GameMemory::InitApplicationMemory(char* pStart, char* pEnd)
 
     char* pAppEnd = gArenaStart + kApplicationHeapSize;
     ApplicationHeap = RedCreateHeap(gArenaStart, pAppEnd, kHeapAlignment, "Application");
+    if (ApplicationHeap < 0)
+    {
+        return;
+    }
 
     GamespyHeapstart = pAppEnd;
     GamespyHeapend = pAppEnd + kGamespyHeapSize;
     GamespyHeap = RedCreateHeap(pAppEnd, pAppEnd + kGamespyHeapSize, kHeapAlignment, "Gamespy");
+    if (GamespyHeap < 0)
+    {
+        pcCrash::FatalInit("Gamespy heap", kGamespyHeapSize);
+    }
 
     g_Heap3Start = GamespyHeapend;
     RedSetCurrentHeap(ApplicationHeap);
@@ -79,6 +93,7 @@ void GameMemory::InitApplicationMemory(char* pStart, char* pEnd)
 // FUNCTION: SWBF2 0x00533bc0
 void GameMemory::BuildHeaps(bool bMission)
 {
+    const bool bStateEnded = RunTimeHeap != 0;
     LuaMemoryArgs::ForgetTempHeap();
     if (TempLoadHeap)
     {
@@ -120,6 +135,48 @@ void GameMemory::BuildHeaps(bool bMission)
     }
 
     RedTrimHeaps();
+    if (bStateEnded)
+    {
+        PROCESS_MEMORY_COUNTERS kCounters = {};
+        K32GetProcessMemoryInfo(GetCurrentProcess(), &kCounters, sizeof(kCounters));
+#ifdef OPENSWBF2_TEST
+        unsigned int uCrtBusy = 0;
+        unsigned int uCrtCommitted = 0;
+        unsigned int uCrtLarge = 0;
+        const bool bCrt = RedProcessHeapUsage(GetProcessHeap(), &uCrtBusy, &uCrtCommitted, &uCrtLarge);
+        uintptr_t uArena = 0;
+        size_t uArenaSize = 0;
+        unsigned int uArenaCommitted = 0;
+        const bool bArena = RedMiFirstArena(&uArena, &uArenaSize) &&
+                            RedRangeCommitted((const void*)uArena, (unsigned int)uArenaSize, &uArenaCommitted);
+        unsigned int uHeapsCommitted = 0;
+        const bool bHeaps = RedHeapsCommitted(&uHeapsCommitted);
+        unsigned int uThreadsCommitted = 0;
+        unsigned int uThreads = 0;
+        const bool bThreads = RedThreadsCommitted(&uThreadsCommitted, &uThreads);
+        unsigned int uPrivate = 0;
+        const bool bPrivate = RedPrivateCommitted(&uPrivate);
+        const unsigned int uGameCrt = PblCrtLiveBytes();
+#endif
+        LOG(LogMemory, Inform, "OPENSWBF2 COMMIT state=%s bytes=%u", bMission ? "mission" : "shell",
+            (unsigned int)kCounters.PagefileUsage);
+#ifdef OPENSWBF2_TEST
+        if (bCrt && bArena && bHeaps && bThreads && bPrivate)
+        {
+            LOG(LogMemory, Inform,
+                "OPENSWBF2 COMMITPARTS state=%s private=%u gamecrt=%u heaps=%u threads=%u threadcount=%u arena=%u "
+                "crtbusy=%u crtcommitted=%u crtlarge=%u",
+                bMission ? "mission" : "shell", uPrivate, uGameCrt, uHeapsCommitted, uThreadsCommitted, uThreads,
+                uArenaCommitted, uCrtBusy, uCrtCommitted, uCrtLarge);
+        }
+        else
+        {
+            LOG(LogMemory, Error, "OPENSWBF2 COMMITPARTS state=%s crt=%d arena=%d heaps=%d threads=%d private=%d failed",
+                bMission ? "mission" : "shell", bCrt ? 1 : 0, bArena ? 1 : 0, bHeaps ? 1 : 0, bThreads ? 1 : 0,
+                bPrivate ? 1 : 0);
+        }
+#endif
+    }
 
 #ifdef OPENSWBF2_TEST
     const unsigned int uStaleLeft = RedCountStaleHandles();
@@ -133,14 +190,28 @@ void GameMemory::BuildHeaps(bool bMission)
     RedHeapCapOpenWindow();
     char* pLuaStart = AlignHeapStart(g_Heap3Start);
     char* pLuaEnd = pLuaStart + kLuaHeapSize;
+    RedMiFailHeapCreate(pcCrash::SimulateAllocFailure("buildheapfail"));
     LuaHeap = RedCreateHeap(pLuaStart, pLuaEnd, kLuaHeapAlignment, "Lua");
+    RedMiFailHeapCreate(false);
+    if (LuaHeap < 0)
+    {
+        pcCrash::FatalInit("Lua heap", kLuaHeapSize);
+    }
 
     char* pArtistStart = AlignHeapStart(pLuaEnd);
     gArtistHeapStart = pArtistStart;
     ArtistHeap = RedCreateHeap(pArtistStart, pArtistStart + kArtistHeapSize, kHeapAlignment, "Artist");
+    if (ArtistHeap < 0)
+    {
+        pcCrash::FatalInit("Artist heap", kArtistHeapSize);
+    }
 
     char* pRunTimeStart = AlignHeapStart(pArtistStart + kArtistHeapSize);
     RunTimeHeap = RedCreateHeap(pRunTimeStart, gArenaEnd, kHeapAlignment, "Runtime");
+    if (RunTimeHeap < 0)
+    {
+        pcCrash::FatalInit("Runtime heap", (unsigned int)(gArenaEnd - pRunTimeStart));
+    }
     RedSetCurrentHeap(RunTimeHeap);
 
     LuaMemory::CreatePools(bMission);
@@ -148,6 +219,10 @@ void GameMemory::BuildHeaps(bool bMission)
     gTempHeapBlock = RedAllocFromHeap(RunTimeHeap, kTempLoadBlockSize, 1);
     TempLoadHeap = RedCreateHeap(gTempHeapBlock, (char*)gTempHeapBlock + kTempLoadHeapSize,
                                  kHeapAlignment, "Temp");
+    if (TempLoadHeap < 0)
+    {
+        pcCrash::FatalInit("Temp heap", kTempLoadHeapSize);
+    }
     RedSetTempHeap(TempLoadHeap);
 }
 

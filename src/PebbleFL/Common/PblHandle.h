@@ -149,6 +149,11 @@ public:
 
     bool IsLive() const { return mObject && PblHandleRegistry::IsLive(mObject, mSavedHandleId); }
 
+    bool SameAs(const PblHandle& other) const
+    {
+        return mObject == other.mObject && mSavedHandleId == other.mSavedHandleId;
+    }
+
     // TEMPLATE: SWBF2 0x00428e40
     // PblHandle<ParticleEmitterObject>::GetObjectA
     TYPE* GetObjectA() const

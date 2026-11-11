@@ -25,7 +25,7 @@ TEST_CASE("lua object sizes are pinned" * doctest::test_suite("regression"))
     CHECK(sizeof(Proto) == 72);
     CHECK(sizeof(UpVal) == 20);
     CHECK(sizeof(lua_State) == 88);
-    CHECK(sizeof(global_State) == 156);
+    CHECK(sizeof(global_State) == 152);
     CHECK(sizeof(CClosure) == 24);
     CHECK(sizeof(LClosure) == 28);
     CHECK(sizeof(TString) == 16);
@@ -420,15 +420,251 @@ std::string StringReviveScript(bool bCollect)
 
 }
 
-TEST_CASE("lua dead keys do not revive after a collection under serial order" * doctest::test_suite("regression"))
+TEST_CASE("lua re-store order is the same with and without a collection" * doctest::test_suite("regression"))
 {
     CHECK(LudReviveOrder(false) == "1 4 3");
-    CHECK(LudReviveOrder(true) == "1 3 4");
+    CHECK(LudReviveOrder(true) == "1 4 3");
 
     const std::string sKept = StringReviveScript(false);
     const std::string sCollected = StringReviveScript(true);
     CHECK(RunScript(sKept.c_str(), false) == "1,4,3,");
-    CHECK(RunScript(sCollected.c_str(), false) == "1,3,4,");
+    CHECK(RunScript(sCollected.c_str(), false) == "1,4,3,");
+}
+
+namespace
+{
+
+std::string RestoreCurrentKeyWalk(bool bCollect)
+{
+    lua_State* L = lua_open();
+    if (!L)
+    {
+        return "open failed";
+    }
+    lua_setgcthreshold(L, 100000);
+    FillMixed(L, 40);
+    std::string sOut;
+    int iVisited = 0;
+    lua_pushnil(L);
+    while (lua_next(L, 1) != 0 && iVisited <= 40)
+    {
+        ++iVisited;
+        const int iValue = (int)lua_tonumber(L, -1);
+        char acValue[16];
+        sprintf(acValue, "%d", iValue);
+        if (!sOut.empty())
+        {
+            sOut += ' ';
+        }
+        sOut += acValue;
+        lua_pop(L, 1);
+        lua_pushvalue(L, -1);
+        lua_pushnil(L);
+        lua_rawset(L, 1);
+        if (bCollect)
+        {
+            lua_setgcthreshold(L, 0);
+            lua_setgcthreshold(L, 100000);
+        }
+        lua_pushvalue(L, -1);
+        lua_pushnumber(L, iValue);
+        lua_rawset(L, 1);
+    }
+    lua_close(L);
+    return sOut;
+}
+
+void PushRestoreKey(lua_State* L, int iKind, int i)
+{
+    if (iKind == 0)
+    {
+        lua_pushnumber(L, (lua_Number)i + 0.5f);
+    }
+    else if (iKind == 1)
+    {
+        char acKey[16];
+        sprintf(acKey, "key%d", i);
+        lua_pushstring(L, acKey);
+    }
+    else if (iKind == 2)
+    {
+        lua_rawgeti(L, 2, i);
+    }
+    else
+    {
+        lua_pushlightuserdata(L, (void*)(uintptr_t)(0x7000 + i * 16));
+    }
+}
+
+std::string RestoreAfterCollection(int iKind, bool bCollect)
+{
+    lua_State* L = lua_open();
+    if (!L)
+    {
+        return "open failed";
+    }
+    lua_setgcthreshold(L, 100000);
+    lua_newtable(L);
+    lua_newtable(L);
+    for (int i = 1; i <= 3; ++i)
+    {
+        lua_newtable(L);
+        lua_rawseti(L, 2, i);
+    }
+    for (int i = 1; i <= 3; ++i)
+    {
+        PushRestoreKey(L, iKind, i);
+        lua_pushnumber(L, i);
+        lua_rawset(L, 1);
+    }
+    PushRestoreKey(L, iKind, 2);
+    lua_pushnil(L);
+    lua_rawset(L, 1);
+    if (bCollect)
+    {
+        lua_setgcthreshold(L, 0);
+        lua_setgcthreshold(L, 100000);
+    }
+    PushRestoreKey(L, iKind, 2);
+    lua_pushnumber(L, 4);
+    lua_rawset(L, 1);
+    PushRestoreKey(L, iKind, 2);
+    lua_rawget(L, 1);
+    const int iHit = (int)lua_tonumber(L, -1);
+    lua_pop(L, 1);
+    std::string sOut = WalkValues(L, 1);
+    if (iHit != 4)
+    {
+        sOut += " miss";
+    }
+    lua_close(L);
+    return sOut;
+}
+
+}
+
+TEST_CASE("lua clear and restore of the current key during traversal keeps its place" * doctest::test_suite("regression"))
+{
+    const std::string sExpected = Sequence(1, 40, " ", false);
+    CHECK(RestoreCurrentKeyWalk(false) == sExpected);
+    CHECK(RestoreCurrentKeyWalk(true) == sExpected);
+}
+
+TEST_CASE("lua restore after a collection keeps the key's place" * doctest::test_suite("regression"))
+{
+    for (int iKind = 0; iKind < 4; ++iKind)
+    {
+        CAPTURE(iKind);
+        CHECK(RestoreAfterCollection(iKind, false) == "1 4 3");
+        CHECK(RestoreAfterCollection(iKind, true) == "1 4 3");
+    }
+}
+
+namespace
+{
+
+int sFinalizedKeys = 0;
+
+int CountFinalizedKey(lua_State*)
+{
+    ++sFinalizedKeys;
+    return 0;
+}
+
+}
+
+TEST_CASE("lua a cleared key's object lives until the table rehashes" * doctest::test_suite("regression"))
+{
+    lua_State* L = lua_open();
+    REQUIRE(L);
+    sFinalizedKeys = 0;
+    lua_setgcthreshold(L, 100000);
+    lua_newtable(L);
+    lua_newuserdata(L, 4);
+    lua_newtable(L);
+    lua_pushstring(L, "__gc");
+    lua_pushcfunction(L, CountFinalizedKey);
+    lua_rawset(L, -3);
+    lua_setmetatable(L, 2);
+    lua_pushvalue(L, 2);
+    lua_pushnumber(L, 1);
+    lua_rawset(L, 1);
+    lua_pushvalue(L, 2);
+    lua_pushnil(L);
+    lua_rawset(L, 1);
+    lua_settop(L, 1);
+    const Table* pTable = hvalue(L->base);
+    const int iNodes = sizenode(pTable);
+    lua_setgcthreshold(L, 0);
+    lua_setgcthreshold(L, 100000);
+    CHECK(sFinalizedKeys == 0);
+    for (int i = 0; i < 8; ++i)
+    {
+        char acKey[16];
+        sprintf(acKey, "grow%d", i);
+        lua_pushstring(L, acKey);
+        lua_pushnumber(L, i);
+        lua_rawset(L, 1);
+    }
+    CHECK(sizenode(pTable) > iNodes);
+    lua_setgcthreshold(L, 0);
+    lua_setgcthreshold(L, 100000);
+    CHECK(sFinalizedKeys == 1);
+    lua_close(L);
+}
+
+TEST_CASE("lua weak key tables still drop unreachable cleared keys" * doctest::test_suite("regression"))
+{
+    lua_State* L = lua_open();
+    REQUIRE(L);
+    lua_setgcthreshold(L, 100000);
+    lua_newtable(L);
+    lua_newtable(L);
+    lua_pushstring(L, "__mode");
+    lua_pushstring(L, "k");
+    lua_rawset(L, -3);
+    lua_setmetatable(L, 1);
+    lua_newtable(L);
+    lua_newtable(L);
+    lua_newtable(L);
+    for (int i = 2; i <= 4; ++i)
+    {
+        lua_pushvalue(L, i);
+        lua_pushnumber(L, i - 1);
+        lua_rawset(L, 1);
+    }
+    const Table* pTable = hvalue(L->base);
+    const void* pDropped = hvalue(L->base + 2);
+    lua_pushvalue(L, 3);
+    lua_pushnil(L);
+    lua_rawset(L, 1);
+    lua_pushvalue(L, 2);
+    lua_pushnil(L);
+    lua_rawset(L, 1);
+    lua_remove(L, 3);
+    lua_setgcthreshold(L, 0);
+    lua_setgcthreshold(L, 100000);
+    int iRemoved = 0;
+    int iDropped = 0;
+    for (int i = 0; i < sizenode(pTable); ++i)
+    {
+        const TObject* pKey = &pTable->node[i].i_key;
+        if (ttype(pKey) == LUA_TNONE)
+        {
+            ++iRemoved;
+        }
+        else if (ttype(pKey) == LUA_TTABLE && pKey->value.gc == pDropped)
+        {
+            ++iDropped;
+        }
+    }
+    CHECK(iRemoved == 1);
+    CHECK(iDropped == 0);
+    lua_pushvalue(L, 2);
+    lua_pushnumber(L, 5);
+    lua_rawset(L, 1);
+    CHECK(WalkValues(L, 1) == "5 3");
+    lua_close(L);
 }
 
 TEST_CASE("lua clearing keys with a collection during traversal visits every key" * doctest::test_suite("regression"))

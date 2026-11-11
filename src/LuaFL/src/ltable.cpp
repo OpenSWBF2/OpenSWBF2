@@ -98,18 +98,6 @@ static int arrayindex (const TObject *key) {
   return -1;
 }
 
-static const TObject *getdeadkey (const Table *t, const TObject *key) {
-  Node *n = luaH_mainposition(t, key);
-  do {
-    if (ttisdeadkey(gkey(n)) && deadkeytype(gkey(n)) == ttype(key) &&
-        (ttisnumber(key) ? gkey(n)->value.n == nvalue(key)
-                         : gkey(n)->value.p == key->value.p))
-      return gval(n);
-    else n = n->next;
-  } while (n);
-  return &luaO_nilobject;
-}
-
 // LIBRARY: SWBF2 0x006a4af0
 // luaH_index
 static int luaH_index (lua_State *L, Table *t, StkId key) {
@@ -121,8 +109,6 @@ static int luaH_index (lua_State *L, Table *t, StkId key) {
   }
   else {
     const TObject *v = luaH_get(t, key);
-    if (v == &luaO_nilobject)
-      v = getdeadkey(t, key);
     if (v == &luaO_nilobject)
       luaG_runerror(L, "invalid key for `next'");
     i = cast(int, (cast(const lu_byte *, v) -

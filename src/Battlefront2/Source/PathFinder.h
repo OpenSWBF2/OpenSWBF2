@@ -172,6 +172,8 @@ namespace PathFinder
                      unsigned int uName);
     void CreateGameObjectBarrier(Obstacle*& rpObstacle, GameObject* pObject, float fSizeX,
                                  float fSizeZ, float fOffsetX, float fOffsetZ, unsigned int uName);
+    void PlaceBarrier(Obstacle*& rpObstacle, const PblMatrix& rMatrix, const PblVector4& rSize,
+                      unsigned int uName);
     void DeleteGameObjectBarrier(Obstacle*& rpObstacle);
     void MoveBarrier(Obstacle* pObstacle);
 

@@ -263,6 +263,15 @@ bool LoginLimiter::Allow(unsigned int uKey, float fNow)
     return true;
 }
 
+int MatchHostWorldIndex(GameObject* const* apObjects, int iCount, int iIndex, const GameObject* pObject)
+{
+    if (iIndex >= 0 && iIndex < iCount && apObjects[iIndex] == pObject)
+    {
+        return iIndex;
+    }
+    return -1;
+}
+
 int ClampPlayerCount(unsigned int uWire)
 {
     int iCount = uWire > kMaxPlayers ? (int)kMaxPlayers : (int)uWire;

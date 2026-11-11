@@ -17,7 +17,3 @@ void Node::DetachFromParent()
 }
 
 }
-
-void PblRef::Kill()
-{
-}

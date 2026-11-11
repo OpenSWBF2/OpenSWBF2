@@ -1,4 +1,4 @@
-# commit bdf744700004ca743df771120250eefffbf54af5
+# commit f3a92432acc2a0fa7fbc15b63c25f1fe4d7e9956
 mission	mode	seed	result
 dag1c_ctf	base	0	base
 dag1c_ctf	fill	1	equal
@@ -54,3 +54,12 @@ spa3c_ass	pad	2	equal
 spa3c_ass	pool	1	equal
 spa3c_ass	pool	2	equal
 spa3c_ass	repeat	0	equal
+tan1g_con	base	0	base
+tan1g_con	fill	1	equal
+tan1g_con	fill	2	equal
+tan1g_con	hog	0	equal
+tan1g_con	pad	1	equal
+tan1g_con	pad	2	equal
+tan1g_con	pool	1	equal
+tan1g_con	pool	2	equal
+tan1g_con	repeat	0	equal

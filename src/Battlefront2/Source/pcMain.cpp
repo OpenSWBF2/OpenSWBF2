@@ -159,7 +159,7 @@ void Startup_InitApplicationMemory()
     RedMiFailHeapCreate(pcCrash::SimulateAllocFailure("arenaoom"));
     GameMemory::InitApplicationMemory(pArena, pArena + 0x4000000);
     const int iHeap = GameMemory::ApplicationHeap;
-    if (iHeap < 0 || RedGetHeapSize(iHeap) == 0)
+    if (iHeap < 0)
     {
         pcCrash::FatalInit("application heap", kRedHeapObjBytes);
     }
@@ -171,7 +171,7 @@ void Startup_DebugHeap()
     void* p = (void*)0x10;
     RedMiFailHeapCreate(pcCrash::SimulateAllocFailure("debugheapoom"));
     PCDebugHeap = RedCreateHeap(p, (char*)p + 0x300000, 0x10, "Debug");
-    if (PCDebugHeap < 0 || RedGetHeapSize(PCDebugHeap) == 0)
+    if (PCDebugHeap < 0)
     {
         pcCrash::FatalInit("debug heap", kRedHeapObjBytes);
     }

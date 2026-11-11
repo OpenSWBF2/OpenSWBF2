@@ -313,13 +313,21 @@ TEST_CASE("heap purge drops a handle whose block was freed on a released page" *
     REQUIRE(PblHandleRegistry::IsLive(pKey, uId));
     REQUIRE(RedHeapOwner(pKey) == kRedOwnerStale);
     CHECK(RedCountStaleHandles() == uBaseStale + 1);
-    RedPurgeHeapHandles(iH, "T1MiPurgeStale");
+    {
+        LogCapture kLog;
+        RedPurgeHeapHandles(iH, "T1MiPurgeStale");
+#ifdef OPENSWBF2_TEST
+        char acWant[96];
+        sprintf(acWant, "OPENSWBF2 HANDLEREG purge heap=T1MiPurgeStale stale=%u", uBaseStale + 1);
+        CHECK(kLog.Contains(acWant));
+#endif
+    }
     CHECK(!PblHandleRegistry::IsLive(pKey, uId));
     CHECK(RedCountStaleHandles() == uBaseStale);
     VirtualFree(pRegion, 0, MEM_RELEASE);
 }
 
-TEST_CASE("the handle audits count stale keys in build heaps and every purge (source pin)" * doctest::test_suite("regression"))
+TEST_CASE("the handle audit counts stale keys in build heaps (source pin)" * doctest::test_suite("regression"))
 {
     std::string sGame;
     if (!ReadRepoText("src\\Battlefront2\\Source\\GameMemory.cpp", sGame))
@@ -329,11 +337,6 @@ TEST_CASE("the handle audits count stale keys in build heaps and every purge (so
     const size_t uTrim = sGame.find("RedTrimHeaps();");
     REQUIRE(uTrim != std::string::npos);
     CHECK(sGame.find("RedCountStaleHandles()", uTrim) != std::string::npos);
-    std::string sMem;
-    REQUIRE(ReadRepoText("src\\RedEngineFL\\Memory\\RedMemory.cpp", sMem));
-    const size_t uPurge = sMem.find("void RedPurgeHeapHandles(");
-    REQUIRE(uPurge != std::string::npos);
-    CHECK(sMem.find("RedCountStaleHandles()", uPurge) != std::string::npos);
 }
 
 TEST_CASE("mimalloc heap slots are re-created with a new heap after destroy" * doctest::test_suite("regression"))

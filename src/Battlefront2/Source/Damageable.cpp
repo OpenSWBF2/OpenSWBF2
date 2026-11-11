@@ -494,13 +494,14 @@ void Damageable::ApplyDamageCommon(const DamageDesc& damage, unsigned int uFlags
         GetGameObject()->GetGameObjectClass()->GetVehicleType() != 9 &&
         GetGameObject()->GetTeam() != damage.mDamageOwner.mTeam)
     {
-        if (GetGameObject() == damage.mDamageOwner.mCharacter->GetDamagedVehicle())
+        const unsigned int uVehicleKey = CollisionObject::LastCollidedKey(GetGameObject());
+        if (damage.mDamageOwner.mCharacter->IsDamagedVehicle(uVehicleKey))
         {
             damage.mDamageOwner.mCharacter->AddTotalVehicleDamage(fTotalLost);
         }
         else
         {
-            damage.mDamageOwner.mCharacter->SetDamagedVehicle(GetGameObject());
+            damage.mDamageOwner.mCharacter->SetDamagedVehicle(uVehicleKey);
         }
     }
 

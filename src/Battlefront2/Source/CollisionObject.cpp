@@ -3,6 +3,7 @@
 #include "CollisionModel.h"
 #include "EntityFlyer.h"
 #include "EntityCarrier.h"
+#include "EntityMine.h"
 #include "FoleyFXOrdnance.h"
 #include "Controllable.h"
 #include "GameObject.h"
@@ -109,7 +110,8 @@ bool CollisionObject::CheckForCollision(CollisionObject* pOther, Restrictor* pRe
 
     if (mCollisionModel && pOther->mCollisionModel)
     {
-        if (mParent == pOther || this == pOther->mParent)
+        if ((mParent == pOther && EntityMine::KeepsParentLink(this)) ||
+            (this == pOther->mParent && EntityMine::KeepsParentLink(pOther)))
         {
             return false;
         }

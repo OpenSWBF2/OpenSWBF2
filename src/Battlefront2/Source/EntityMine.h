@@ -8,6 +8,7 @@
 #include "PebbleFL/Common/PblHandle.h"
 #include "PebbleFL/Common/PblVector.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
+#include "StickInfo.h"
 
 class Character;
 class EntityLight;
@@ -76,6 +77,8 @@ public:
     virtual void WriteObject(NetPktGroup& group, NetObjState* pState);
     virtual void ReadObject(NetPktGroup& group, NetObjState* pState);
 
+    static bool KeepsParentLink(const CollisionObject* pChild);
+
     static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
     // SYNTHETIC: SWBF2 0x004cf530
     // EntityMine::operator delete
@@ -143,6 +146,17 @@ inline unsigned int EntityMine::GetDerivedRtti() const
 inline const char* EntityMine::GetDerivedRttiName() const
 {
     return rttiNameEntityMine;
+}
+
+inline bool EntityMine::KeepsParentLink(const CollisionObject* pChild)
+{
+    const GameObject* pObject = pChild->GetGameObject();
+    if (!pObject || !pObject->IsRtti(rttiHashEntityMine))
+    {
+        return true;
+    }
+    const StickInfo* pStick = static_cast<const EntityMine*>(pObject)->mStickInfo;
+    return !pStick || pStick->IsStuckTo(pChild->mParent);
 }
 
 

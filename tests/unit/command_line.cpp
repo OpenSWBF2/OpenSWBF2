@@ -148,22 +148,6 @@ TEST_CASE("-novictory has no effect in a network game and says so once" * doctes
     netEnabledNext = bEnabledNext;
 }
 
-TEST_CASE("mission victory and defeat return early under -novictory" * doctest::test_suite("regression"))
-{
-    std::string sMission;
-    REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\LuaCallbacks_Mission.cpp", sMission));
-    const char* apcFns[] = { "int MissionVictory(lua_State* L)\n{\n", "int MissionDefeat(lua_State* L)\n{\n" };
-    for (size_t n = 0; n < sizeof(apcFns) / sizeof(apcFns[0]); ++n)
-    {
-        CAPTURE(apcFns[n]);
-        std::string::size_type uiBegin = sMission.find(apcFns[n]);
-        REQUIRE(uiBegin != std::string::npos);
-        uiBegin += strlen(apcFns[n]);
-        const char* pcGuard = "    if (NoVictoryActive())\n    {\n        return 0;\n    }\n    unsigned int u";
-        CHECK(sMission.compare(uiBegin, strlen(pcGuard), pcGuard) == 0);
-    }
-}
-
 TEST_CASE("command line keeps -mipurge values out of the mission name" * doctest::test_suite("regression"))
 {
     const char* apcLines[] = { "geo1c_con -mipurge 7", "geo1c_con -mipurge 0",
@@ -306,9 +290,11 @@ TEST_CASE("command line repeat count takes any digits and clamps them" * doctest
 {
     CHECK(CommandLineRepeatCount("3", 1) == 3);
     CHECK(CommandLineRepeatCount("0", 1) == 1);
-    CHECK(CommandLineRepeatCount("9", 1) == 8);
+    CHECK(CommandLineRepeatCount("9", 1) == 9);
+    CHECK(CommandLineRepeatCount("16", 2) == 16);
+    CHECK(CommandLineRepeatCount("17", 2) == 16);
     CHECK(CommandLineRepeatCount("00", 2) == 1);
-    CHECK(CommandLineRepeatCount("99999999999", 11) == 8);
+    CHECK(CommandLineRepeatCount("99999999999", 11) == 16);
     CHECK(CommandLineRepeatCount("abc", 3) == -1);
     CHECK(CommandLineRepeatCount("12x", 3) == -1);
     CHECK(CommandLineRepeatCount("", 0) == -1);

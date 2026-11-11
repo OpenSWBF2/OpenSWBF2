@@ -878,7 +878,7 @@ TEST_CASE("memory pool reset frees chunk records only for an owner (source pin)"
     REQUIRE(uEnd != std::string::npos);
     const std::string sBody = sSource.substr(uStart, uEnd - uStart);
     const size_t uOwner = sBody.find("if (mPoolOwner)");
-    const size_t uFree = sBody.find("free(pNode);");
+    const size_t uFree = sBody.find("PblCrtFree(pNode);");
     REQUIRE(uOwner != std::string::npos);
     REQUIRE(uFree != std::string::npos);
     CHECK(uOwner < uFree);

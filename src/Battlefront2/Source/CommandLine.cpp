@@ -239,12 +239,12 @@ int CommandLineRepeatCount(char const* pcVal, int iLen)
         {
             return -1;
         }
-        if (iCount < 9)
+        if (iCount < 17)
         {
             iCount = iCount * 10 + (pcVal[i] - '0');
         }
     }
-    return iCount < 1 ? 1 : iCount > 8 ? 8 : iCount;
+    return iCount < 1 ? 1 : iCount > 16 ? 16 : iCount;
 }
 
 bool FindNextCommandLineArg(char const* pcLine, char const* pcName, int* piPos, char const** ppcVal, int* piLen,

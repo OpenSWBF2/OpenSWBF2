@@ -84,6 +84,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\src\PebbleFL\Common\PblCatmullRom.cpp" />
+    <ClCompile Include="..\src\PebbleFL\Common\PblCrtHeap.cpp" />
     <ClCompile Include="..\src\PebbleFL\Common\PblFourier.cpp" />
     <ClCompile Include="..\src\PebbleFL\Common\PblHandle.cpp" />
     <ClCompile Include="..\src\PebbleFL\Common\PblHashTable.cpp" />
@@ -119,6 +120,12 @@
     <ClCompile Include="..\src\Battlefront2\Source\VoiceChatUtil.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\NetComm.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\Tracker.cpp" />
+    <ClCompile Include="..\src\Battlefront2\Source\CollisionObject.cpp" />
+    <ClCompile Include="..\src\Battlefront2\Source\PathFinder.cpp" />
+    <ClCompile Include="..\src\Battlefront2\Source\PathManager.cpp" />
+    <ClCompile Include="..\src\Battlefront2\Source\ControllerManager.cpp" />
+    <ClCompile Include="..\src\Battlefront2\Source\Navigator.cpp" />
+    <ClCompile Include="..\src\Battlefront2\Source\Cloth.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\NetWire.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\MemFailLog.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\OdfValue.cpp" />

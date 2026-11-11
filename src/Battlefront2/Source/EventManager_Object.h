@@ -25,29 +25,39 @@ inline const EntityEx& ObjectEntity(GameObject& object)
     return *reinterpret_cast<const EntityEx*>(&object);
 }
 
+inline const GameObject* LiveGameObject(const void* pObject)
+{
+    const EntityEx* pEntity = static_cast<const EntityEx*>(pObject);
+    if (!EntityEx::sLive.Contains(pEntity))
+    {
+        return 0;
+    }
+    return pEntity->GetGameObject();
+}
+
 template <class PARAM>
 class ObjectMatches
 {
 public:
 
-    ObjectMatches(GameObject* pObject) : mObject(pObject) {}
+    ObjectMatches(GameObject* pObject) : mObject(LiveGameObject(pObject)) {}
 
-    ObjectMatches(const char* pcName) : mObject(EntityEx::Find(PblHash(pcName))) {}
+    ObjectMatches(const char* pcName) : mObject(LiveGameObject(EntityEx::Find(PblHash(pcName)))) {}
 
     static const char* GetName() { return "Match"; }
 
     bool operator()(GameObject& object, PARAM&) const
     {
-        return &ObjectEntity(object) == mObject;
+        return mObject == &object;
     }
 
     bool operator==(const ObjectMatches& other) const
     {
-        return mObject == other.mObject;
+        return mObject.SameAs(other.mObject);
     }
 
 private:
-    EntityEx* mObject;
+    PblHandle<GameObject const> mObject;
 };
 
 template <class PARAM>

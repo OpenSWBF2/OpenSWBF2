@@ -6,11 +6,13 @@
 #include "RedMemoryMi.h"
 #include "RedScriptLimits.h"
 #include "RedEngineFL/Memory/engineAlloc.h"
+#include "PebbleFL/Common/PblCrtHeap.h"
 #include "PebbleFL/Common/PblHandle.h"
 #include "RedEngineFL/Util/RedLog.h"
 
 #ifdef OPENSWBF2_TEST
 #include <windows.h>
+#include <tlhelp32.h>
 #endif
 
 extern "C"
@@ -291,6 +293,344 @@ extern "C" bool RedImageStamp(const void* pBase, unsigned int* puStamp)
         return false;
     }
     *puStamp = pNt->FileHeader.TimeDateStamp;
+    return true;
+}
+
+extern "C" bool RedRangeCommitted(const void* pStart, unsigned int uSize, unsigned int* puCommitted)
+{
+    if (pStart == 0 || uSize == 0 || puCommitted == 0)
+    {
+        return false;
+    }
+    const char* pCur = (const char*)pStart;
+    const char* pEnd = pCur + uSize;
+    if (pEnd < pCur)
+    {
+        return false;
+    }
+    unsigned int uCommitted = 0;
+    while (pCur < pEnd)
+    {
+        MEMORY_BASIC_INFORMATION kInfo;
+        if (VirtualQuery(pCur, &kInfo, sizeof(kInfo)) != sizeof(kInfo))
+        {
+            return false;
+        }
+        const char* pRegionEnd = (const char*)kInfo.BaseAddress + kInfo.RegionSize;
+        if (pRegionEnd <= pCur)
+        {
+            return false;
+        }
+        const char* pStop = pRegionEnd < pEnd ? pRegionEnd : pEnd;
+        if (kInfo.State == MEM_COMMIT)
+        {
+            uCommitted += (unsigned int)(pStop - pCur);
+        }
+        pCur = pStop;
+    }
+    *puCommitted = uCommitted;
+    return true;
+}
+
+extern "C" bool RedProcessHeapUsage(void* hHeap, unsigned int* puBusy, unsigned int* puCommitted, unsigned int* puLarge)
+{
+    if (hHeap == 0 || puBusy == 0 || puCommitted == 0 || puLarge == 0 || !HeapLock((HANDLE)hHeap))
+    {
+        return false;
+    }
+    const unsigned int kMaxRegions = 256;
+    const char* apFirst[kMaxRegions];
+    const char* apLast[kMaxRegions];
+    unsigned int uRegions = 0;
+    unsigned int uCommitted = 0;
+    unsigned int uBusy = 0;
+    unsigned int uLarge = 0;
+    bool bOk = true;
+    PROCESS_HEAP_ENTRY kEntry;
+    kEntry.lpData = 0;
+    while (HeapWalk((HANDLE)hHeap, &kEntry))
+    {
+        if ((kEntry.wFlags & PROCESS_HEAP_REGION) != 0)
+        {
+            if (uRegions == kMaxRegions)
+            {
+                bOk = false;
+                break;
+            }
+            apFirst[uRegions] = (const char*)kEntry.Region.lpFirstBlock;
+            apLast[uRegions] = (const char*)kEntry.Region.lpLastBlock;
+            ++uRegions;
+            uCommitted += (unsigned int)kEntry.Region.dwCommittedSize;
+        }
+    }
+    if (bOk && GetLastError() != ERROR_NO_MORE_ITEMS)
+    {
+        bOk = false;
+    }
+    kEntry.lpData = 0;
+    while (bOk && HeapWalk((HANDLE)hHeap, &kEntry))
+    {
+        if ((kEntry.wFlags & PROCESS_HEAP_ENTRY_BUSY) == 0)
+        {
+            continue;
+        }
+        const char* pData = (const char*)kEntry.lpData;
+        bool bInSegment = false;
+        for (unsigned int k = 0; k < uRegions; ++k)
+        {
+            if (pData >= apFirst[k] && pData < apLast[k])
+            {
+                bInSegment = true;
+                break;
+            }
+        }
+        if (bInSegment)
+        {
+            uBusy += (unsigned int)kEntry.cbData;
+        }
+        else
+        {
+            uLarge += (unsigned int)kEntry.cbData;
+        }
+    }
+    if (bOk && GetLastError() != ERROR_NO_MORE_ITEMS)
+    {
+        bOk = false;
+    }
+    HeapUnlock((HANDLE)hHeap);
+    if (!bOk)
+    {
+        return false;
+    }
+    *puBusy = uBusy;
+    *puCommitted = uCommitted;
+    *puLarge = uLarge;
+    return true;
+}
+
+namespace
+{
+const unsigned int kMaxCommitBases = 1024;
+
+struct CommitSet
+{
+    const void* apBase[kMaxCommitBases];
+    unsigned int uCount;
+    unsigned int uBytes;
+    bool bOk;
+};
+
+void AddAllocationCommit(CommitSet& rSet, const void* p)
+{
+    MEMORY_BASIC_INFORMATION kInfo;
+    if (VirtualQuery(p, &kInfo, sizeof(kInfo)) != sizeof(kInfo))
+    {
+        rSet.bOk = false;
+        return;
+    }
+    if (kInfo.State == MEM_FREE)
+    {
+        return;
+    }
+    const void* pBase = kInfo.AllocationBase;
+    for (unsigned int i = 0; i < rSet.uCount; ++i)
+    {
+        if (rSet.apBase[i] == pBase)
+        {
+            return;
+        }
+    }
+    if (rSet.uCount == kMaxCommitBases)
+    {
+        rSet.bOk = false;
+        return;
+    }
+    rSet.apBase[rSet.uCount++] = pBase;
+    const char* pCur = (const char*)pBase;
+    while (VirtualQuery(pCur, &kInfo, sizeof(kInfo)) == sizeof(kInfo) && kInfo.AllocationBase == pBase)
+    {
+        if (kInfo.State == MEM_COMMIT)
+        {
+            rSet.uBytes += (unsigned int)kInfo.RegionSize;
+        }
+        pCur = (const char*)kInfo.BaseAddress + kInfo.RegionSize;
+    }
+}
+
+struct ThreadBasicInfo
+{
+    LONG lExitStatus;
+    PVOID pTeb;
+    PVOID pProcess;
+    PVOID pThread;
+    ULONG_PTR uAffinity;
+    LONG lPriority;
+    LONG lBasePriority;
+};
+
+typedef LONG(NTAPI* QueryThreadFn)(HANDLE, int, PVOID, ULONG, PULONG);
+
+const unsigned int kTebDeallocationStack = 0xE0C;
+const unsigned int kTebWowTebOffset = 0xFDC;
+const unsigned int kTeb64DeallocationStack = 0x1478;
+
+bool ReadOwn(const void* pFrom, void* pTo, SIZE_T uSize)
+{
+    SIZE_T uRead = 0;
+    return ReadProcessMemory(GetCurrentProcess(), pFrom, pTo, uSize, &uRead) && uRead == uSize;
+}
+
+void AddThreadCommit(CommitSet& rSet, const char* pTeb)
+{
+    AddAllocationCommit(rSet, pTeb);
+    void* pStack = 0;
+    if (ReadOwn(pTeb + kTebDeallocationStack, &pStack, sizeof(pStack)) && pStack != 0)
+    {
+        AddAllocationCommit(rSet, pStack);
+    }
+    LONG lWowOffset = 0;
+    if (!ReadOwn(pTeb + kTebWowTebOffset, &lWowOffset, sizeof(lWowOffset)) || lWowOffset == 0)
+    {
+        return;
+    }
+    const char* pTeb64 = pTeb + lWowOffset;
+    AddAllocationCommit(rSet, pTeb64);
+    unsigned __int64 uStack64 = 0;
+    if (ReadOwn(pTeb64 + kTeb64DeallocationStack, &uStack64, sizeof(uStack64)) && uStack64 != 0 &&
+        (uStack64 >> 32) == 0)
+    {
+        AddAllocationCommit(rSet, (const void*)(uintptr_t)uStack64);
+    }
+}
+}
+
+extern "C" bool RedPrivateCommitted(unsigned int* puCommitted)
+{
+    if (puCommitted == 0)
+    {
+        return false;
+    }
+    unsigned int uCommitted = 0;
+    const char* pCur = 0;
+    MEMORY_BASIC_INFORMATION kInfo;
+    while (VirtualQuery(pCur, &kInfo, sizeof(kInfo)) == sizeof(kInfo))
+    {
+        if (kInfo.State == MEM_COMMIT && kInfo.Type == MEM_PRIVATE)
+        {
+            uCommitted += (unsigned int)kInfo.RegionSize;
+        }
+        const char* pNext = (const char*)kInfo.BaseAddress + kInfo.RegionSize;
+        if (pNext <= pCur)
+        {
+            break;
+        }
+        pCur = pNext;
+    }
+    if (pCur == 0)
+    {
+        return false;
+    }
+    *puCommitted = uCommitted;
+    return true;
+}
+
+extern "C" bool RedHeapsCommitted(unsigned int* puCommitted)
+{
+    if (puCommitted == 0)
+    {
+        return false;
+    }
+    HANDLE ahHeaps[64];
+    const DWORD uHeaps = GetProcessHeaps(64, ahHeaps);
+    if (uHeaps == 0 || uHeaps > 64)
+    {
+        return false;
+    }
+    CommitSet kSet;
+    kSet.uCount = 0;
+    kSet.uBytes = 0;
+    kSet.bOk = true;
+    for (DWORD h = 0; h < uHeaps && kSet.bOk; ++h)
+    {
+        if (!HeapLock(ahHeaps[h]))
+        {
+            return false;
+        }
+        PROCESS_HEAP_ENTRY kEntry;
+        kEntry.lpData = 0;
+        while (kSet.bOk && HeapWalk(ahHeaps[h], &kEntry))
+        {
+            if ((kEntry.wFlags & (PROCESS_HEAP_REGION | PROCESS_HEAP_ENTRY_BUSY)) != 0)
+            {
+                AddAllocationCommit(kSet, kEntry.lpData);
+            }
+        }
+        if (kSet.bOk && GetLastError() != ERROR_NO_MORE_ITEMS)
+        {
+            kSet.bOk = false;
+        }
+        HeapUnlock(ahHeaps[h]);
+    }
+    if (!kSet.bOk)
+    {
+        return false;
+    }
+    *puCommitted = kSet.uBytes;
+    return true;
+}
+
+extern "C" bool RedThreadsCommitted(unsigned int* puCommitted, unsigned int* puThreads)
+{
+    if (puCommitted == 0 || puThreads == 0)
+    {
+        return false;
+    }
+    QueryThreadFn pfnQuery = (QueryThreadFn)GetProcAddress(GetModuleHandleA("ntdll.dll"), "NtQueryInformationThread");
+    if (pfnQuery == 0)
+    {
+        return false;
+    }
+    HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+    if (hSnap == INVALID_HANDLE_VALUE)
+    {
+        return false;
+    }
+    CommitSet kSet;
+    kSet.uCount = 0;
+    kSet.uBytes = 0;
+    kSet.bOk = true;
+    unsigned int uThreads = 0;
+    const DWORD uPid = GetCurrentProcessId();
+    THREADENTRY32 kThread;
+    kThread.dwSize = sizeof(kThread);
+    for (BOOL bMore = Thread32First(hSnap, &kThread); bMore && kSet.bOk; bMore = Thread32Next(hSnap, &kThread))
+    {
+        if (kThread.th32OwnerProcessID != uPid)
+        {
+            continue;
+        }
+        HANDLE hThread = OpenThread(THREAD_QUERY_INFORMATION, FALSE, kThread.th32ThreadID);
+        if (hThread == 0)
+        {
+            continue;
+        }
+        DWORD uExit = 0;
+        ThreadBasicInfo kInfo = {};
+        if (GetExitCodeThread(hThread, &uExit) && uExit == STILL_ACTIVE &&
+            pfnQuery(hThread, 0, &kInfo, sizeof(kInfo), 0) == 0 && kInfo.pTeb != 0)
+        {
+            AddThreadCommit(kSet, (const char*)kInfo.pTeb);
+            ++uThreads;
+        }
+        CloseHandle(hThread);
+    }
+    CloseHandle(hSnap);
+    if (!kSet.bOk || uThreads == 0)
+    {
+        return false;
+    }
+    *puCommitted = kSet.uBytes;
+    *puThreads = uThreads;
     return true;
 }
 
@@ -885,6 +1225,11 @@ int RedCreateHeap(void* start, void* end, unsigned int align, char const* name)
         if (!gRedHeapSlots[i].bLive)
         {
             const unsigned int size = (unsigned int)RedMiCreate(i, start, end, align);
+            if (size == 0)
+            {
+                RedMiDestroy(i);
+                return -1;
+            }
             RedHeapSlot& rSlot = gRedHeapSlots[i];
             rSlot.name = name;
             rSlot.size = size;
@@ -936,7 +1281,7 @@ void RedFreeToHeap(int heap, void* block, unsigned int flags)
     if (iOwner < 0)
     {
         check(iOwner == -1);
-        free(block);
+        PblCrtFreeUncounted(block);
         return;
     }
     size_t r = RedMiFree(block);

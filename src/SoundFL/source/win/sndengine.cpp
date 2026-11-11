@@ -8,6 +8,7 @@
 
 #include "sndengine.h"
 
+#include "PebbleFL/Common/PblCrtHeap.h"
 #include "PebbleFL/Common/PblMatrix.h"
 #include "PebbleFL/Common/PblVector.h"
 #include "SoundFL/source/sndallocbitmap.h"
@@ -851,7 +852,7 @@ bool Engine::DSClose()
 
     if (smSampleRAM)
     {
-        free(smSampleRAM);
+        PblCrtFree(smSampleRAM);
         smSampleRAM = 0;
     }
 
@@ -1187,7 +1188,7 @@ bool Engine::Open(HWND hwnd, MixConfig eMixConfig, bool bEnable,
             smDirectSoundListener->SetDopplerFactor(0.0f, DS3D_IMMEDIATE);
         }
 
-        smSampleRAM = (unsigned char*)malloc(0x2000000);
+        smSampleRAM = (unsigned char*)PblCrtAlloc(0x2000000);
         if (smSampleRAM == 0)
         {
             return DSClose();

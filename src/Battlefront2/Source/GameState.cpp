@@ -1,7 +1,6 @@
 #include <vector>
 
 #include <windows.h>
-#include <psapi.h>
 #include "PerformanceTimer.h"
 #include "CommandPost.h"
 
@@ -1898,10 +1897,6 @@ void GameState::PostStateCleanup(bool bMission)
 
     NetGame::Reset();
     RedMemoryReport::LogMemReport("exit");
-    PROCESS_MEMORY_COUNTERS kCounters = {};
-    K32GetProcessMemoryInfo(GetCurrentProcess(), &kCounters, sizeof(kCounters));
-    LOG(LogMemory, Inform, "OPENSWBF2 COMMIT state=%s bytes=%u", bMission ? "mission" : "shell",
-        (unsigned int)kCounters.PagefileUsage);
 #ifdef OPENSWBF2_TEST
     CollisionObject::LogSerialTies(true);
 #endif

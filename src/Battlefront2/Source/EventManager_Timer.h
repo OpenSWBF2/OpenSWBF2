@@ -153,7 +153,7 @@ public:
 
     bool operator==(const TimerMatches& other) const
     {
-        return mTimer == other.mTimer;
+        return mTimer.SameAs(other.mTimer);
     }
 
     bool operator()(Timer& timer, char&) const

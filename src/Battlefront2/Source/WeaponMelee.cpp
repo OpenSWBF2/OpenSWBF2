@@ -1568,15 +1568,7 @@ bool WeaponMelee::UpdateFire(float fDeltaTime)
             {
                 continue;
             }
-            int k;
-            for (k = 0; k < pData->iNumObjects; ++k)
-            {
-                if (pData->apObject[k] == pObject)
-                {
-                    break;
-                }
-            }
-            if (k < pData->iNumObjects)
+            if (pData->HasHit(pObject))
             {
                 continue;
             }
@@ -1600,7 +1592,7 @@ bool WeaponMelee::UpdateFire(float fDeltaTime)
                 continue;
             }
 
-            pData->apObject[pData->iNumObjects++] = pObject;
+            pData->NoteHit(pObject);
             const float fAlong = t * fRayLength;
             PblVector3 vHit = vStart + vDir * fAlong;
             PblVector3 vSwing = mAttack.GetZAxis();

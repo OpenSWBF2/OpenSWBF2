@@ -45,6 +45,7 @@ float GetDefaultFOV();
 // FUNCTION: SWBF2 0x00497060
 EntityCarrier::~EntityCarrier()
 {
+    ClearCargoParents(mCargoArray, sizeof(mCargoArray) / sizeof(mCargoArray[0]), this);
 }
 
 // SYNTHETIC: SWBF2 0x00478579

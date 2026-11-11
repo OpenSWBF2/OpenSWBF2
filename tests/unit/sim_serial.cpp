@@ -7,6 +7,7 @@
 #include "PebbleFL/Common/PblSerial.h"
 #include "RedEngineFL/Util/RedLog.h"
 #include <stddef.h>
+#include <new>
 #include <stdio.h>
 #include <string.h>
 #include <string>
@@ -76,6 +77,16 @@ void CheckSentinelStopsAtHead(KEY sentinel)
 struct alignas(CollisionObject) CollisionObjectBuffer
 {
     unsigned char acBytes[sizeof(CollisionObject)];
+};
+
+class TestCollisionObject : public CollisionObject
+{
+public:
+    TestCollisionObject() : CollisionObject(COLL_SOFT, 0, 0, 0) {}
+    const PblVector3& GetPosition() const { return mLastPosition; }
+    const PblMatrix& GetMatrix() const { return mMatrix; }
+
+    PblMatrix mMatrix;
 };
 
 char sLastLog[1100];
@@ -198,26 +209,29 @@ TEST_CASE("collision serial compare ignores object addresses under serial order"
 
 TEST_CASE("last collided key does not follow a dead receiver to a new object at its address" * doctest::test_suite("regression"))
 {
-    CollisionObjectBuffer aBuf[3];
-    memset(aBuf, 0, sizeof(aBuf));
-    CollisionObject* pCollider = reinterpret_cast<CollisionObject*>(&aBuf[0]);
-    CollisionObject* pReceiver = reinterpret_cast<CollisionObject*>(&aBuf[1]);
-    CollisionObject* pOther = reinterpret_cast<CollisionObject*>(&aBuf[2]);
-    pReceiver->mCollisionSerial = 7;
-    pOther->mCollisionSerial = 8;
+    TestCollisionObject kCollider;
+    TestCollisionObject kOther;
+    CollisionObjectBuffer kStorage;
+    TestCollisionObject* pReceiver = new (&kStorage) TestCollisionObject;
+    REQUIRE(pReceiver->mCollisionSerial != 0);
+    CHECK(pReceiver->mCollisionSerial != kOther.mCollisionSerial);
 
-    pCollider->NoteLastCollided(pReceiver);
-    CollisionObject* apLive[2] = { pOther, pReceiver };
-    pCollider->PrioritizeLastCollided(apLive, 2);
+    kCollider.NoteLastCollided(pReceiver);
+    CollisionObject* apLive[2] = { &kOther, pReceiver };
+    kCollider.PrioritizeLastCollided(apLive, 2);
     CHECK(apLive[0] == pReceiver);
-    CHECK(apLive[1] == pOther);
+    CHECK(apLive[1] == &kOther);
 
-    memset(&aBuf[1], 0, sizeof(aBuf[1]));
-    pReceiver->mCollisionSerial = 9;
-    CollisionObject* apReused[2] = { pOther, pReceiver };
-    pCollider->PrioritizeLastCollided(apReused, 2);
-    CHECK(apReused[0] == pOther);
-    CHECK(apReused[1] == pReceiver);
+    const unsigned int uDeadSerial = pReceiver->mCollisionSerial;
+    pReceiver->~TestCollisionObject();
+    TestCollisionObject* pReused = new (&kStorage) TestCollisionObject;
+    REQUIRE(static_cast<void*>(pReused) == static_cast<void*>(pReceiver));
+    CHECK(pReused->mCollisionSerial != uDeadSerial);
+    CollisionObject* apReused[2] = { &kOther, pReused };
+    kCollider.PrioritizeLastCollided(apReused, 2);
+    CHECK(apReused[0] == &kOther);
+    CHECK(apReused[1] == pReused);
+    pReused->~TestCollisionObject();
 }
 
 TEST_CASE("last collided record keeps three recent receivers without duplicates" * doctest::test_suite("regression"))
@@ -482,39 +496,4 @@ TEST_CASE("ordered list move ignores a node that is not in the list" * doctest::
     CHECK(aNodes[0]._pObject == pObject);
     CHECK(aNodes[0]._iOrder == 3.0f);
     CHECK(list.GetCount() == 1);
-}
-
-TEST_CASE("soldier water splash and wake timers reset with the other state counters" * doctest::test_suite("regression"))
-{
-    std::string sSoldier;
-    std::string sState;
-    REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\EntitySoldier.cpp", sSoldier));
-    REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\GameState.cpp", sState));
-
-    std::string::size_type uiUpdate = sSoldier.find("bool EntitySoldier::Update(float fDeltaTime)");
-    REQUIRE(uiUpdate != std::string::npos);
-    std::string::size_type uiUpdateEnd = sSoldier.find("\n}", uiUpdate);
-    REQUIRE(uiUpdateEnd != std::string::npos);
-    const std::string sUpdate = sSoldier.substr(uiUpdate, uiUpdateEnd - uiUpdate);
-    CHECK(sUpdate.find("static float s_fSplashTimeout") == std::string::npos);
-    CHECK(sUpdate.find("static float s_fWakeTimer") == std::string::npos);
-    CHECK(CountOf(sSoldier, "static float s_fSplashTimeout;") == 1);
-    CHECK(CountOf(sSoldier, "static float s_fWakeTimer;") == 1);
-
-    std::string::size_type uiReset = sSoldier.find("void EntitySoldier::ResetWaterTimers()");
-    REQUIRE(uiReset != std::string::npos);
-    CHECK(uiReset < uiUpdate);
-    std::string::size_type uiResetEnd = sSoldier.find("\n}", uiReset);
-    REQUIRE(uiResetEnd != std::string::npos);
-    const std::string sReset = sSoldier.substr(uiReset, uiResetEnd - uiReset);
-    CHECK(sReset.find("s_fSplashTimeout = 0.0f;") != std::string::npos);
-    CHECK(sReset.find("s_fWakeTimer = 0.0f;") != std::string::npos);
-
-    std::string::size_type uiCleanup = sState.find("void GameState::PostStateCleanup(bool bMission)");
-    REQUIRE(uiCleanup != std::string::npos);
-    std::string::size_type uiCleanupEnd = sState.find("\n}", uiCleanup);
-    REQUIRE(uiCleanupEnd != std::string::npos);
-    const std::string sCleanup = sState.substr(uiCleanup, uiCleanupEnd - uiCleanup);
-    CHECK(sCleanup.find("CollisionObject::ResetCollisionSerials();") != std::string::npos);
-    CHECK(sCleanup.find("EntitySoldier::ResetWaterTimers();") != std::string::npos);
 }

@@ -8,6 +8,7 @@
 #include <string.h>
 
 #include "PebbleFL/Common/PblChunk.h"
+#include "PebbleFL/Common/PblCrtHeap.h"
 #include "PebbleFL/Common/PblFile.h"
 #include "pcRedPixelShader.h"
 #include "pcRedVertexShader.h"
@@ -74,11 +75,11 @@ void pcRedShaderDef::BindOnRead(pcRedShader* pShader)
     if ((m_uiNumShadersToBind & 63) == 0)
     {
         pcRedShader** apShaders =
-            (pcRedShader**)malloc((m_uiNumShadersToBind + 64) * sizeof(pcRedShader*));
+            (pcRedShader**)PblCrtAlloc((m_uiNumShadersToBind + 64) * sizeof(pcRedShader*));
         if (m_uiNumShadersToBind)
         {
             memcpy(apShaders, m_apShadersToBind, m_uiNumShadersToBind * sizeof(pcRedShader*));
-            free(m_apShadersToBind);
+            PblCrtFree(m_apShadersToBind);
         }
         m_apShadersToBind = apShaders;
     }
@@ -278,7 +279,7 @@ void pcRedShaderDef::Read(PblFileChunk& chunk)
             m_apShadersToBind[i]->Bind();
         }
 
-        free(m_apShadersToBind);
+        PblCrtFree(m_apShadersToBind);
         m_apShadersToBind = 0;
         m_uiNumShadersToBind = 0;
     }
@@ -436,6 +437,7 @@ void pcRedShaderDef::Reset()
     m_uiNumStates = 0;
     m_uiVertexFormatSupport = 0;
     m_supportedPipeline = PIPELINE_FIXED;
+    PblCrtFree(m_apShadersToBind);
     m_uiNumShadersToBind = 0;
     m_apShadersToBind = 0;
 }

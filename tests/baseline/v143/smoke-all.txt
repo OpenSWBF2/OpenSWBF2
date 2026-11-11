@@ -33,7 +33,7 @@
 [PASS] hardening:import-AdjustWindowRectExForDpi
 [PASS] hardening:import-shcore
 [PASS] hardening:import-modules
-[PASS] hardening:aslr-base (0x00900000)
+[PASS] hardening:aslr-pe
 [PASS] smoke:cor1c_c class=TimeOut exit=0x00000001
 [PASS] smoke:cor1c_con class=Pass exit=0x00000000
 [PASS] smoke:cor1c_ctf class=TimeOut exit=0x00000001
